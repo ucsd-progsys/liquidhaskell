@@ -1,0 +1,9 @@
+
+
+qualif VecEmpty(v:ptr)    : vlen([v]) =  0 
+qualif VecNotEmpty(v:ptr) : vlen([v]) >  0
+qualif VecLen(v:ptr)      : vlen([v]) >=  0
+
+qualif EqVlen(v:int,~A:ptr) : v =  vlen([~A]) 
+qualif LeVlen(v:int,~A:ptr) : v <= vlen([~A]) 
+qualif LtVlen(v:int,~A:ptr) : v <  vlen([~A]) 

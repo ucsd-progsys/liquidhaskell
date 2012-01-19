@@ -1,0 +1,5 @@
+
+//Qualifiers about complex length relationships
+
+qualif LenSum(v:ptr,~A:ptr,~B:ptr): len([v]) = len([~A]) + len([~B])
+qualif LenDif(v:ptr,~A:ptr,~B:ptr): len([v]) = len([~A]) - len([~B])

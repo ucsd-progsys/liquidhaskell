@@ -1,0 +1,9 @@
+module Poly4 where
+
+import Language.Haskell.Liquid.Prelude
+
+x     = choose 0
+
+baz y = y
+
+prop  = assert (baz True)

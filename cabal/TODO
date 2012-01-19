@@ -1,0 +1,58 @@
+
+0. parsing out file -- liquid tests/pos/polyfun.hs 
+
+0. hack fixpoint, to prevent instantiating ~A with vars of type "func"
+
+1. [] : forall a. [{v:a|false}]
+   and re-enable the set-kvars-to-true.
+
+2. remove explicit "Double" sigs from KMeans0
+
+3. get KMeans to work with WrapType
+
+
+KNOWN BUGS
+----------
+
+- tests/todo/fft.hs
+
+- hmatrix
+    > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Matrix.html#Matrix
+    > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Vector.html#fromList
+    
+- xmonad properties
+
+- NDM/catch benchmarks (with refinements)
+
+- cabal integration
+    > so you can build against liquid?
+    > how does this affect ghc integration? (shouldn't matter, because you
+    > can specify --with-ghc
+
+- binsearch crashes because you have chains like:
+        
+        x1 = 2
+        x2 = x1
+        x3 = x2
+        z  = x3 / 2
+
+  so I guess you need some constprop inside the constraint simplification.
+
+- Dependency between specs
+  
+  Must include:
+    
+    {-# ANN module "spec   $LIQUIDHS/List.spec" #-}
+  
+  Whenever you include:
+  
+    {-# ANN module "spec   $LIQUIDHS/Vector.spec" #-}
+
+- tests/pos/data-mono0.hs
+  partial pattern match desugars into exception syntax with unhandled
+  casts. Throws an error in fixpoint. At least throw error in Constraint Gen?
+          (\ _ ->
+             (Control.Exception.Base.irrefutPatError
+                @ () "pos/data-mono0.hs:8:9-23|(Test.Cons x _)")
+             `cast` (UnsafeCo () GHC.Types.Int :: () ~ GHC.Types.Int))
+            GHC.Prim.realWorld#;

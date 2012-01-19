@@ -1,0 +1,18 @@
+//MOVE INTO AN OPTIONAL FILE (cf. liquidc spec)
+//qualif NULLY0(v:ptr)       : nully([v]) = 0 
+//qualif NULLY1(v:ptr)       : nully([v]) = 1 
+//qualif NULLY2(v:int)       : v = nully([~A])
+
+
+//MOVE INTO AN OPTIONAL FILE (cf. liquidc spec)
+qualif NonNull(v:ptr)        : (? (nonnull([v])))
+qualif Null(v:ptr)           : (~ (? (nonnull([v]))))
+qualif EqNull(v:bool,~A:ptr) : ((? v) <=> (? (nonnull([~A]))))
+
+//MOVE INTO AN OPTIONAL FILE (cf. liquidc spec)
+qualif ListEmpty(v:ptr)      : len([v]) = 0 
+qualif ListLen(v:ptr)        : len([v]) >= 0 
+qualif ListNotEmpty(v:ptr)   : len([v]) > 0 
+qualif SameLen(v:ptr,~A:ptr) : len([v]) = len([~A]) 
+qualif EqLen(v:int,~A:ptr)   : v = len([~A]) 
+qualif LenEq(v:ptr,~A:int)   : ~A = len([v]) 

@@ -1,0 +1,48 @@
+Name:                liquidtypes 
+Version:             0.0
+Copyright:           2010-11 Ranjit Jhala, University of California, San Diego.
+build-type:			 Simple
+Synopsis:            Liquid Types for Haskell 
+Description:         Liquid Types for Haskell.
+License:             GPL
+License-file:        LICENSE
+Author:              Ranjit Jhala
+Maintainer:          Ranjit Jhala <jhala@cs.ucsd.edu>
+Category:            Language
+Build-Type:          Simple
+Cabal-version: >=1.2
+
+Executable liquid 
+  Build-Depends:     base, containers, filepath, parsec, mtl, 
+                     ghc, ghc-paths, process, directory, hscolour, syb,
+                     text, deepseq, cmdargs, filemanip
+
+  Main-is:           Liquid.hs
+  --ghc-options: -O -W
+  Extensions: 
+
+Library
+   Build-Depends:    base, containers, filepath, parsec, mtl, 
+                     ghc, ghc-paths, process, directory, hscolour, syb,
+                     text, deepseq, cmdargs, filemanip
+  
+  Exposed-Modules: 
+    Language.Haskell.Liquid.Constraint
+    Language.Haskell.Liquid.RefType
+    Language.Haskell.Liquid.Parse
+    Language.Haskell.Liquid.FixInterface
+    Language.Haskell.Liquid.Fixpoint
+    Language.Haskell.Liquid.ANFTransform
+    Language.Haskell.Liquid.Bare
+    Language.Haskell.Liquid.CmdLine
+    Language.Haskell.Liquid.FileNames
+    Language.Haskell.Liquid.GhcInterface
+    Language.Haskell.Liquid.GhcMisc2
+    Language.Haskell.Liquid.Measure
+    Language.Haskell.Liquid.Misc
+    Language.Haskell.Liquid.Tidy
+  Language.Haskell.Liquid.Misc
+    Language.Haskell.Liquid.GhcInterface
+  --ghc-options: -O -W
+  Extensions: 
+

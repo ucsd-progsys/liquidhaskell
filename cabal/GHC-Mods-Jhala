@@ -1,0 +1,76 @@
+./compiler/deSugar/DsExpr.lhs:     dsLExpr :: LHsExpr Id -> DsM CoreExpr --Jhala 
+./compiler/coreSyn/CoreSyn.lhs:    removeNoteLocBind,
+./compiler/coreSyn/CoreSyn.lhs:    removeNoteLocExpr,
+./compiler/coreSyn/CoreSyn.lhs:    removeNoteLocRule,
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocExpr :: Expr b -> Expr b
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocExpr e@(Var _)  
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocExpr e@(Lit _)  
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocExpr (App f e) 
+./compiler/coreSyn/CoreSyn.lhs:  = App (removeNoteLocExpr f) (removeNoteLocExpr e)
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocExpr (Lam x e) 
+./compiler/coreSyn/CoreSyn.lhs:  = Lam x (removeNoteLocExpr e)
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocExpr (Let b e) 
+./compiler/coreSyn/CoreSyn.lhs:  = Let (removeNoteLocBind b) (removeNoteLocExpr e)
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocExpr (Case e x t as)
+./compiler/coreSyn/CoreSyn.lhs:  = Case (removeNoteLocExpr e) x t [(c, ys, removeNoteLocExpr ce) | (c,ys,ce) <- as]
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocExpr (Cast e c) 
+./compiler/coreSyn/CoreSyn.lhs:  = Cast (removeNoteLocExpr e) c
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocExpr (Note (CoreLoc _) e) 
+./compiler/coreSyn/CoreSyn.lhs:  = removeNoteLocExpr e
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocExpr (Note n@(SCC _) e) 
+./compiler/coreSyn/CoreSyn.lhs:  = Note n (removeNoteLocExpr e)
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocExpr (Note n@(CoreNote _) e) 
+./compiler/coreSyn/CoreSyn.lhs:  = Note n (removeNoteLocExpr e)
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocExpr e@(Type _) 
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocExpr e@(Coercion _) 
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocBind :: Bind b -> Bind b
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocBind (Rec xes) 
+./compiler/coreSyn/CoreSyn.lhs:  = Rec [(x, removeNoteLocExpr e) | (x, e) <- xes]
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocBind (NonRec x e)
+./compiler/coreSyn/CoreSyn.lhs:  = NonRec x (removeNoteLocExpr e)
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocRule :: CoreRule -> CoreRule
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocRule r@(BuiltinRule { }) 
+./compiler/coreSyn/CoreSyn.lhs:removeNoteLocRule r@(Rule {ru_args = args, ru_rhs = rhs}) 
+./compiler/coreSyn/CoreSyn.lhs:  = r {ru_args = map removeNoteLocExpr args } 
+./compiler/coreSyn/CoreSyn.lhs:      {ru_rhs  = removeNoteLocExpr rhs } 
+./compiler/deSugar/DsBinds.lhs:   opt_lhs = simpleOptExpr (removeNoteLocExpr lhs) -- jhala
+./compiler/deSugar/Desugar.lhs:deSugar' removeNoteLoc 
+./compiler/deSugar/Desugar.lhs:        ; return (msgs, Just (removeNoteLocModGuts removeNoteLoc mod_guts)) -- Jhala
+./compiler/deSugar/Desugar.lhs:removeNoteLocModGuts :: Bool -> ModGuts -> ModGuts              -- jhala
+./compiler/deSugar/Desugar.lhs:removeNoteLocModGuts False mg 
+./compiler/deSugar/Desugar.lhs:removeNoteLocModGuts True  mg@(ModGuts {mg_rules = rules, mg_binds = binds})  
+./compiler/deSugar/Desugar.lhs:  = mg { mg_rules = map removeNoteLocRule rules } 
+./compiler/deSugar/Desugar.lhs:       { mg_binds = map removeNoteLocBind binds }
+./compiler/deSugar/Desugar.lhs:        let expr = removeNoteLocExpr expr' -- Jhala
+./compiler/stgSyn/CoreToStg.lhs:        pgm_noloc    = map removeNoteLocBind pgm -- jhala
+./compiler/stgSyn/CoreToStg.lhs:        expr_noloc     = removeNoteLocExpr expr -- jhala
+./compiler/coreSyn/CoreSyn.lhs:-- Jhala: Encoding locations in CoreNote
+./compiler/deSugar/Desugar.lhs:module Desugar ( deSugar, deSugarWithLoc, deSugarExpr ) where   -- Jhala
+./compiler/deSugar/Desugar.lhs:deSugar        = deSugar' True  -- Jhala
+./compiler/deSugar/Desugar.lhs:deSugarWithLoc = deSugar' False -- Jhala
+./compiler/deSugar/Desugar.lhs:        ; return (msgs, Just (removeNoteLocModGuts removeNoteLoc mod_guts)) -- Jhala
+./compiler/deSugar/Desugar.lhs:      Just expr' -> do                     -- Jhala
+./compiler/deSugar/Desugar.lhs:        let expr = removeNoteLocExpr expr' -- Jhala
+./compiler/simplCore/Simplify.lhs:-- Jhala: generalizing to CoreLoc
+./compiler/simplCore/FloatIn.lhs:-- Jhala: generalizing to CoreLoc
+./compiler/main/DynFlags.hs:   | Opt_D_dump_annot       -- Jhala 
+./compiler/main/DynFlags.hs:  , Flag "ddump-annots"            (setDumpFlag Opt_D_dump_annot)       -- Jhala
+./inplace/bin/hsc2hs:executablename="/home/jhala/research/ghc-working/inplace/lib/hsc2hs"
+./inplace/bin/hsc2hs:datadir="/home/jhala/research/ghc-working/inplace/lib"
+./inplace/bin/hsc2hs:bindir="/home/jhala/research/ghc-working/inplace/bin"
+./inplace/bin/hsc2hs:topdir="/home/jhala/research/ghc-working/inplace/lib"
+./inplace/bin/hsc2hs:HSC2HS_EXTRA="--cflag=-fno-stack-protector  -I/home/jhala/research/ghc-working/includes"
+./compiler/coreSyn/CoreUtils.lhs:noteSize (CoreLoc l)    = l `seq` 1  -- jhala
+./compiler/coreSyn/MkExternalCore.lhs:make_exp (Note (CoreLoc _) e) = make_exp e -- >>= (return . C.Note "LOC")  -- jhala: core annotations
+./compiler/deSugar/DsBinds.lhs:   opt_lhs = simpleOptExpr (removeNoteLocExpr lhs) -- jhala
+./compiler/deSugar/Desugar.lhs:removeNoteLocModGuts :: Bool -> ModGuts -> ModGuts              -- jhala
+./compiler/stgSyn/CoreToStg.lhs:        pgm_noloc    = map removeNoteLocBind pgm -- jhala
+./compiler/stgSyn/CoreToStg.lhs:        expr_noloc     = removeNoteLocExpr expr -- jhala
+./compiler/main/HscMain.lhs:    , hscDesugarWithLoc -- jhala
+./compiler/main/HscMain.lhs:hscDesugar' = hscDesugar'' deSugar -- jhala
+./compiler/main/HscMain.lhs:hscDesugar'' desugarer mod_summary tc_result	-- jhala
+./compiler/main/HscMain.lhs:-- | Convert a typechecked module to Core preserving source locations (jhala)
+./compiler/main/HscMain.lhs:hscDesugarWithLoc :: HscEnv -> ModSummary -> TcGblEnv -> IO ModGuts -- jhala
+./compiler/main/GHC.hs:-- | Desugar a typechecked module. (jhala)
+./compiler/main/GHC.hs:-- | Desugar a typechecked module while preserving source locations (jhala)
+Binary file ./utils/hsc2hs/dist-install/build/tmp/hsc2hs matches

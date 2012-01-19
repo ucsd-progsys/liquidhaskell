@@ -1,0 +1,57 @@
+
+How To Compile
+--------------
+
+  cd src; make
+
+How To Run 
+----------
+  
+1. add this to .bashrc
+
+LIQUIDHS=PATH/TO/LiquidHaskell/include/
+export LIQUIDHS
+
+2. ensure "fixpoint.native" is in the executable search path
+
+3. path/to/liquid foo.hs
+
+How To Include Spec Files 
+-------------------------
+
+1. See include/lib.spec for the format of spec files
+2. to include a spec file (other than the above) add the line
+        
+        {-# ANN module "spec path/to/file" #-}
+
+   after the import declarations of file you're analyzing. 
+   
+As an example, see: tests/pos/meas0a.hs
+
+How to Profile 
+--------------
+
+1. Build with profiling on
+    
+   $ make prof
+
+2. Run with profiling
+
+   $ time liquid range.hs +RTS -hc -p
+
+   $ time liquid range.hs +RTS -hy -p
+
+   Followed by this which shows the stats file 
+
+   $ more liquid.prof
+
+   or by this to see the graph
+
+   $ hp2ps liquid.hp
+
+   $ gv liquid.ps
+
+   etc.
+
+
+

@@ -1,0 +1,2 @@
+qualif ISVALUE(v:ptr)   : (? (isValue([v])))  
+// qualif ISVALUEEQ(v:ptr) : ((? (isValue([v]))) <=> (? (isValue([~A]))))
