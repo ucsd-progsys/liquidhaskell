@@ -441,7 +441,7 @@ ppBlank = text "\n_____________________________\n"
 instance NFData Var
 instance NFData SrcSpan
 instance NFData a => NFData (AnnInfo a) where
-  rnf (AI x) = rnf x
+  rnf (AI x) = () -- rnf x
 
 instance NFData GhcInfo where
   rnf (GI x1 x2 x3 x4 x5 x6 x7 x8) 

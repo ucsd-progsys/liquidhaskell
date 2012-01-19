@@ -212,7 +212,7 @@ instance NFData TyId where
   rnf (TI x)  = rnf x
 
 instance NFData REnv where
-  rnf (REnv m) = rnf m
+  rnf (REnv m) = () -- rnf m
 
 instance NFData RBind where
   rnf (RB x) = rnf x

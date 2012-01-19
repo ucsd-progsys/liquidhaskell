@@ -614,10 +614,10 @@ instance NFData Sub where
   rnf (Sub x) = rnf x
 
 instance NFData Subst where
-  rnf (Su x) = rnf x
+  rnf (Su x) = () -- rnf x
 
 instance NFData Envt where
-  rnf (Envt x) = rnf x
+  rnf (Envt x) = () -- rnf x
 
 instance NFData Constant where
   rnf (I x) = rnf x

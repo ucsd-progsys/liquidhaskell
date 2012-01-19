@@ -727,7 +727,7 @@ instance NFData Cinfo
 
 instance NFData CGEnv where
   rnf (CGE x1 x2 x3 x4) 
-    = x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4
+    = x1 `seq` rnf x2 `seq` rnf x3 -- `seq` rnf x4
 
 instance NFData SubC where
   rnf (SubC x1 x2 x3) 
