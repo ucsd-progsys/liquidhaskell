@@ -237,8 +237,13 @@ bareFun2P
        t2 <- bareTypeP
        return $ bareArrow "" t1 a t2 
 
+dummyName pos = "dummy_" ++ name ++ ['@'] ++ line ++ ['@'] ++ colum
+  where name  = sourceName pos
+        line  = show $ sourceLine pos  
+        colum = show $ sourceColumn pos  
+
 bareFunP  
-  = do x  <- try bindP <|> return "" 
+  = do x  <- try bindP <|> do {p <- getPosition; return $ dummyName p}  
        t1 <- bareArgP 
        a  <- arrowP
        t2 <- bareTypeP

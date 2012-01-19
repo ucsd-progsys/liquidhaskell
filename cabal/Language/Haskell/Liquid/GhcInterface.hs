@@ -117,13 +117,16 @@ getGhcInfo target paths =
       cbs <- liftIO $ anormalize env mg
       -- guarantees for variables bound in this module
       grt <- varsSpec (mg_module mg) $ concatMap bindings cbs
-      -- module specifications
+      grt' <- moduleSpec' mg paths
+      liftIO $ putStrLn "Guarantee Spec" 
+      liftIO $ putStrLn $ showPpr (grt ++ grt')
+       -- module specifications
       (ins, asm, msr) <- moduleSpec mg paths (importVars cbs) 
       -- module qualifiers 
       hqs  <- moduleHquals mg paths target ins 
       -- DEAD construct reftypes for wiredIns and such
       bs  <- wiredInSpec env 
-      return $ GI env cbs asm grt (fst msr) (snd msr) hqs bs
+      return $ GI env cbs asm (grt ++ grt') (fst msr) (snd msr) hqs bs
 
 printVars s vs 
   = do putStrLn s 
@@ -169,6 +172,15 @@ parseSpecs files
          Ex.catch (liftM rr $ readFile f) $ \(e :: Ex.IOException) ->
            ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ f
 
+moduleSpec' mg paths 
+  = do myfs   <- moduleImpFiles Spec paths [mg_namestring mg]
+       myspec <- parseSpecs myfs 
+       env    <- getSession
+       msr    <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec (Ms.measures myspec)
+       refspec <-liftIO $  mkAssumeSpec env (Ms.assumes myspec)
+--       liftIO  $ putStrLn $ "Is this correct?: " ++ showPpr refspec 
+       return  refspec
+ 
 moduleSpec mg paths impVars 
   = do -- specs imported by me 
        fs     <- moduleImpFiles Spec paths impNames 
