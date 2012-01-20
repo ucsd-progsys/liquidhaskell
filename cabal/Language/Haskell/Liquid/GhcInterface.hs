@@ -157,10 +157,12 @@ varsSpec m vs
 varAnnot v 
   = do anns <- findGlobalAnns deserializeWithData $ NamedTarget $ varName v 
        case anns of 
-         [a] -> return $ Just $ (v, rr a)
+         [a] -> return $ Just $ (v, rr' (varUniqueStr v) a)
          []  -> return $ Nothing 
          _   -> error $ "Conflicting Spec-Annots for " ++ showPpr v
 
+varUniqueStr :: Var -> String
+varUniqueStr = show . varUnique
 ------------------------------------------------------------------------------------
 ------------ Extracting Specifications (Measures + Assumptions) --------------------
 ------------------------------------------------------------------------------------
@@ -169,7 +171,7 @@ varAnnot v
 parseSpecs files 
   = liftIO $ liftM mconcat $ forM files $ \f -> 
       do putStrLn $ "parseSpec: " ++ f 
-         Ex.catch (liftM rr $ readFile f) $ \(e :: Ex.IOException) ->
+         Ex.catch (liftM (rr' f) $ readFile f{-rrWithFile $ f-}) $ \(e :: Ex.IOException) ->
            ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ f
 
 moduleSpec' mg paths 
