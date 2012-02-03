@@ -11,3 +11,5 @@ baz x       = (x, incr x)
 bazList  xs = map baz xs
 
 prop_baz xs = map (\(x,y) -> assert (x <= y)) $ bazList xs 
+
+prop = prop_baz [1,2,3,4]
