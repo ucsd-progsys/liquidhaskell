@@ -18,6 +18,7 @@ module Language.Haskell.Liquid.RefType (
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalConst
   , REnv, deleteREnv, insertREnv, lookupREnv, emptyREnv, memberREnv, fromListREnv
+  , replaceDcArgs
   ) where
 
 import Text.Printf
@@ -710,3 +711,12 @@ rTypeSort = typeSort . toType
 instance Subable RefType  where
   subst = fmap . subst 
 
+
+replaceDcArgs ls dc (RCon a (RAlgTyCon d (RDataTyCon e x)) b c) 
+  = RCon a (RAlgTyCon d (RDataTyCon e x')) b c
+ where x' = map (rplArgs dc ls) x
+
+rplArgs don ls mkr@(MkRData {rdcDataCon = dc, rdcOrigArgTys = ts}) 
+ | dc == don = MkRData {rdcDataCon = dc, rdcOrigArgTys = ls'}
+ | otherwise = mkr
+    where ls'  = zip (map fst ts) (map snd ls) 

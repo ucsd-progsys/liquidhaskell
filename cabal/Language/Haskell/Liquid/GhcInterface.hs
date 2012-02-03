@@ -8,6 +8,7 @@ import Outputable
 import HscTypes 
 import CoreSyn
 import Var
+import IdInfo
 import Name     (getSrcSpan)
 import CoreMonad (liftIO)
 import Serialized 
@@ -142,6 +143,21 @@ moduleHquals mg paths target imports
 mg_namestring = moduleNameString . moduleName . mg_module
 
 importVars = freeVars S.empty 
+
+
+dataCons info = filter isDataCon (importVars $ cbs info)
+
+dataConId v = 
+ case (idDetails v) of
+   DataConWorkId i -> i
+   DataConWrapId i -> i
+   _               -> error "dataConId on non DataCon"
+
+isDataCon v = 
+ case (idDetails v) of
+   DataConWorkId _ -> True
+--   DataConWrapId _ -> True
+   _               -> False
 
 -----------------------------------------------------------------------------
 ---------- Extracting Refinement Type Specifications From Annots ------------

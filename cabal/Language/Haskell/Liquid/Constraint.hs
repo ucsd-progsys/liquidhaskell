@@ -61,8 +61,9 @@ consGrty γ (x, t)
 
 consAct info 
   = do γ0 <- initEnv info
-       γ  <- foldM consCB γ0 $ cbs info
-       forM_ (grty info) (consGrty γ)
+       γ  <- foldM addDataCon γ0 $ dataCons info
+       γ1  <- foldM consCB γ $ cbs info
+       forM_ (grty info) (consGrty γ1)
 
 generateConstraints :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fws } { globals = gs }
@@ -101,7 +102,8 @@ initEnv info
        let f3  = ctor info    -- constructor refinements  (for measures) 
        let bs  = mapFst mkSymbol <$> concat [f0, f1, f2, f3]
        return  $ foldl' (++=) (measEnv info) bs 
-    where freeVars = importVars $ cbs info
+    where freeVars = filter (\x -> not $ isDataCon x) (importVars $ cbs info) -- fix this
+--    where freeVars = importVars $ cbs info
 
 measEnv info = CGE noSrcSpan re0 fe0 S.empty
   where bs   = meas info 
@@ -783,3 +785,26 @@ bindRefType_ γ (NonRec x e)
 
 extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
+
+addDataCon :: CGEnv -> Var -> CG CGEnv
+addDataCon γ c 
+  = do let dc = dataConId c
+       let τr = ofType $ dataConOrigResTy dc
+       τ <- freshTy "datacon" $ varType c 
+       let (x, t) = (mkSymbol c, mkDataConTy τ [] dc τr)
+       addW $ WfC γ t
+       return $ γ ++= (x, t)
+ 
+mkDataConTy (RAll a t)     ls tr 
+   = RAll a . mkDataConTy t ls tr
+--mkDataConTy (RFun x (RVar a _) t2) ls tr 
+--   = RFun x t1 . mkDataConTy t2 (ls++[(x, t1)]) tr
+--  where t1 = RVar a F.trueReft
+mkDataConTy (RFun x t1 t2) ls tr 
+   = RFun x t1 . mkDataConTy t2 (ls++[(x, t1')]) tr
+  where t1' = t1 `strengthen` xr
+        xr = F.symbolReft s --(F.S "" )-- mkSymbol x)
+        RB s = x
+mkDataConTy _              ls tr 
+   = replaceDcArgs ls tr
+

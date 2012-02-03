@@ -15,9 +15,10 @@ baz x  = mkPair x (incr x)
 bazList  xs = map baz xs
 
 n           = choose 0
-xs          = [0..n]
+xs          = [0, 1, 2, 3]
 
 prop_baz    = map chk $ bazList xs 
-  where chk (P x y) = assert (x <= y)
+
+chk (P x y) = assert (x <= y)
 
 
