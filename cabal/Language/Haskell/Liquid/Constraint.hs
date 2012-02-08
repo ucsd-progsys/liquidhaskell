@@ -297,10 +297,11 @@ splitC (SubC γ (RAll _ r1) (RAll _ r2))
   = splitC (SubC γ r1 r2) 
 
 splitC (SubC γ t1@(RCon _ c1 t1s _) t2@(RCon _ c2 t2s _)) 
-  =  bsplitC γ t1 t2 
-  ++ splitCRefTyCon γ c1 c2
-  ++ (concatMap splitC $ zipWith (SubC γ) t1s t2s)
-  -- ++ splitCRefTyCon γ (c1 `rTyConApp` t1s) (c2 `rTyConApp` t2s)
+  = traceShow ("\nsplitC: " ++ showPpr t1 ++ "\n" ++ showPpr t2 ++ "\n") $
+    bsplitC γ t1 t2 
+    ++ splitCRefTyCon γ c1 c2
+    ++ (concatMap splitC $ zipWith (SubC γ) t1s t2s)
+    -- ++ splitCRefTyCon γ (c1 `rTyConApp` t1s) (c2 `rTyConApp` t2s)
   
 splitC (SubC γ (RMuVar i1 t1s) (RMuVar i2 t2s))
   | i1 == i2
@@ -311,7 +312,8 @@ splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   = bsplitC γ t1 t2
 
 splitC (SubC _ t1 t2) 
-  = [] 
+  = traceShow ("\nWARNING: splitC mismatch: " ++ showPpr t1 ++ "\n" ++ showPpr t2 ++ "\n") $ []
+  -- = [] 
 
 splitCRefTyCon γ (RAlgTyCon _ z1) (RAlgTyCon _ z2) 
   = splitCRefAlgRhs γ z1 z2 
@@ -409,18 +411,18 @@ addA !l !xo !t !a@(AI m)
 
 -- To revert to the old setup, just do
 -- freshTy_pretty = freshTy
-freshTy_pretty e τ = refresh $ {- traceShow ("exprRefType: " ++ showPpr e) $ -} exprRefType e
+freshTy_pretty e τ = refresh $ traceShow ("exprRefType: " ++ showPpr e) $ exprRefType e
 
 -- freshTy_pretty e τ = refresh $ traceShow ("exprRefType: " ++ showPpr e) $ exprRefType e
 -- freshTy_pretty e τ = error "GO TO HELL"
 
-freshTy :: a -> Type -> CG RefType
-freshTy _ = refresh . ofType 
+-- freshTy :: a -> Type -> CG RefType
+freshTy' _ = refresh . ofType 
 
---freshTy :: CoreExpr -> Type -> CG RefType
---freshTy e τ = do t <- freshTy' e τ 
---                 let t1 = trace (printf "\nfreshTy: (e := %s) (τ := %s) (t := %s)\n" (showPpr e) (showPpr τ) (showPpr t)) t
---                 return t1
+freshTy :: CoreExpr -> Type -> CG RefType
+freshTy e τ = do t <- freshTy' e τ 
+                 let t1 = trace (printf "\nfreshTy: (e := %s) (τ := %s) (t := %s)\n" (showPpr e) (showPpr τ) (showPpr t)) t
+                 return t1
 
 trueTy  :: Type -> CG RefType
 trueTy  = true . ofType
@@ -503,7 +505,8 @@ refreshRefType (RFun b t t')
   | otherwise
   = liftM2 (RFun b) (refresh t) (refresh t')
 refreshRefType (RCon i c ts r)  
-  = liftM3 (RCon i) (refresh c) (mapM refresh ts) (refresh r)
+--  = liftM3 (RCon i) (refresh c) (mapM refresh ts) (refresh r)
+  = liftM3 (RCon i) (refresh c) (mapM true ts) (refresh r)
 refreshRefType (RVar a r)  
   = liftM (RVar a) (refresh r)
 refreshRefType t                
@@ -615,7 +618,7 @@ consE γ (App e (Type τ))
   = do RAll α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
        t         <- if isGeneric α te then freshTy e τ else trueTy τ
        addW       $ WfC γ t
-       return     $ (α, t) `subsTyVar_meet` te
+       return     $ traceShow ("type app: " ++ showPpr (α, t) ++ "\n" ++ showPpr te ) $ (α, t) `subsTyVar_meet` te
 
 consE γ (App e a)               
   = do RFun (RB x) tx t <- liftM (checkFun ("Non-fun App with caller", e)) $ consE γ e 
@@ -790,7 +793,7 @@ addDataCon :: CGEnv -> Var -> CG CGEnv
 addDataCon γ c 
   = do let dc = dataConId c
        let τr = ofType $ dataConOrigResTy dc
-       τ <- freshTy "datacon" $ varType c 
+       τ <- freshTy (Var c)  $ varType c 
        let (x, t) = (mkSymbol c, mkDataConTy τ [] dc τr)
        addW $ WfC γ t
        return $ γ ++= (x, t)

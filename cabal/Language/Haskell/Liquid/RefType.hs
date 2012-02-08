@@ -163,8 +163,10 @@ unfoldRType :: DataCon -> RefType -> [(Symbol, RefType)]
 unfoldRType dc t@(RCon i rc ts _) 
   = [(f, sub ft) | (RB f, ft) <- rdcOrigArgTys rdc] 
   where rdc = getRDataCon dc rc 
-        sub = subsTyId t i rc . subsTyVars_meet αts
-        αts = safeZip "unfoldRType"  αs ts
+        MkRData _ rxts = rdc
+        (rxs, rts) = unzip rxts
+        sub = subsTyId t i rc . subsTyVars_nomeet αts
+        αts = safeZip "unfoldRType"  αs rts -- ts
         αs  = rTyVar `fmap` (dataConUnivTyVars $ rdcDataCon rdc)
 
 --rTyConApp' :: RefTyCon -> [RefType] -> RefTyCon

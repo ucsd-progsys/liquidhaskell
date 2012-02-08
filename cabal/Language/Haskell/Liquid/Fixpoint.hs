@@ -478,6 +478,9 @@ instance Outputable a => Outputable (FixResult (SubC a)) where
 
 toFixPfx s x     = text s <+> toFix x
 
+instance Show (SubC a) where
+  show = showPpr 
+
 instance Outputable (SubC a) where
   ppr = toFix 
 
