@@ -324,7 +324,7 @@ splitCRefAlgRhs γ (RDataTyCon _ dcs1) (RDataTyCon _ dcs2)
   = concat $ zipWith (splitCRefDataCon γ) dcs1 dcs2
 
 splitCRefDataCon γ (MkRData _ fts1) (MkRData _ fts2) 
-  = concatMap splitC $!! zipWith3 SubC γs t1s t2s'
+  = traceShow ("\nTrue split :" ++ showPpr t1s ++ "\n" ++ showPpr t2s') $ concatMap splitC $!! zipWith3 SubC γs t1s t2s'
     where γs         = scanl (+=) γ (fieldBinds fts1) 
           t2s'       = zipWith F.subst subs t2s 
           (x1s, t1s) = unzip (fieldBinds fts1)
@@ -483,7 +483,7 @@ trueRefType (RAll α t)
 trueRefType (RFun _ t t')    
   = liftM3 RFun fresh (true t) (true t')
 trueRefType t@(RCon i c ts _)  
-  = liftM3 (RCon i) (trueRefTyCon c) (mapM true ts) (return F.trueReft)
+  = liftM3 (rCon i) (trueRefTyCon c) (mapM true ts) (return F.trueReft)
 trueRefType t                
   = return t
 trueRefTyCon (RAlgTyCon p r)  
@@ -505,8 +505,8 @@ refreshRefType (RFun b t t')
   | otherwise
   = liftM2 (RFun b) (refresh t) (refresh t')
 refreshRefType (RCon i c ts r)  
---  = liftM3 (RCon i) (refresh c) (mapM refresh ts) (refresh r)
-  = liftM3 (RCon i) (refresh c) (mapM true ts) (refresh r)
+  = liftM3 (RCon i) (refresh c) (mapM refresh ts) (refresh r)
+--  = liftM3 (rCon i) (refresh c) (mapM true ts) (refresh r)
 refreshRefType (RVar a r)  
   = liftM (RVar a) (refresh r)
 refreshRefType t                
@@ -617,6 +617,7 @@ consE _ (Lit c)
 consE γ (App e (Type τ)) 
   = do RAll α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
        t         <- if isGeneric α te then freshTy e τ else trueTy τ
+--       t         <- trueTy τ
        addW       $ WfC γ t
        return     $ traceShow ("type app: " ++ showPpr (α, t) ++ "\n" ++ showPpr te ) $ (α, t) `subsTyVar_meet` te
 
@@ -806,7 +807,7 @@ mkDataConTy (RAll a t)     ls tr
 mkDataConTy (RFun x t1 t2) ls tr 
    = RFun x t1 . mkDataConTy t2 (ls++[(x, t1')]) tr
   where t1' = t1 `strengthen` xr
-        xr = F.symbolReft s --(F.S "" )-- mkSymbol x)
+        xr = F.symbolReft s 
         RB s = x
 mkDataConTy _              ls tr 
    = replaceDcArgs ls tr

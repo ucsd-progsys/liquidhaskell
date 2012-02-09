@@ -42,7 +42,7 @@ liquidOne includes target =
      (r, sol) <- cgi `deepseq` solve target (hqFiles info) cgi --(fixCs cgi) (fixWfs cgi)
      annotate target sol $ annotMap cgi
      putStrLn $ "********** DONE: " ++ showPpr r ++ " ************"
-     putStrLn $ "********** DONE: " ++ showPpr cgi ++ " ************"
+--     putStrLn $ "********** DONE: " ++ showPpr cgi ++ " ************"
      return r
 {-
 dummyDeepseq cgi 

@@ -18,7 +18,7 @@ module Language.Haskell.Liquid.RefType (
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalConst
   , REnv, deleteREnv, insertREnv, lookupREnv, emptyREnv, memberREnv, fromListREnv
-  , replaceDcArgs
+  , replaceDcArgs, rCon
   ) where
 
 import Text.Printf
@@ -144,16 +144,22 @@ strengthenRefType_ (RFun (RB x1) t1 t1') (RFun (RB x2) t2 t2')
           t' = strengthenRefType_ t1' $ subst1 t2' (x2, EVar x1)
 
 strengthenRefType_ (RCon tid tc t1s r1) (RCon _ _ t2s r2)
-  = RCon tid tc ts (r1 `meet` r2)
+  = rCon tid tc ts (r1 `meet` r2)
     where ts = zipWith strengthenRefType_ t1s t2s
 
 strengthenRefType_ t1 _ 
   = t1
 
 strengthen  :: RefType -> Reft -> RefType
-strengthen (RCon i c ts r) r' = RCon i c ts (r `meet` r') 
+strengthen (RCon i c ts r) r' = rCon i c ts (r `meet` r') 
 strengthen (RVar a r) r'      = RVar a      (r `meet` r') 
 strengthen t _                = t 
+
+
+replaceReft  :: RefType -> Reft -> RefType
+replaceReft (RCon i c ts _) r' = rCon i c ts r' 
+replaceReft (RVar a _) r'      = RVar a      r' 
+replaceReft t _                = t 
 
 
 -- inside the rc, the αs are refined by "zombie" kvars with
@@ -166,7 +172,7 @@ unfoldRType dc t@(RCon i rc ts _)
         MkRData _ rxts = rdc
         (rxs, rts) = unzip rxts
         sub = subsTyId t i rc . subsTyVars_nomeet αts
-        αts = safeZip "unfoldRType"  αs rts -- ts
+        αts = safeZip "unfoldRType"  αs ts
         αs  = rTyVar `fmap` (dataConUnivTyVars $ rdcDataCon rdc)
 
 --rTyConApp' :: RefTyCon -> [RefType] -> RefTyCon
@@ -187,7 +193,7 @@ getRDataCon dc (RAlgTyCon _ (RDataTyCon _ rdcs))
   = mfromJust "findRDataCon" $ find ((dc ==) . rdcDataCon) rdcs
 
 subsTyId t i rc = mapBot plug 
-  where plug (RMuVar j ts) | i == j = RCon i rc ts trueReft
+  where plug (RMuVar j ts) | i == j = rCon i rc ts trueReft
         plug t                      = t
          
 mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
@@ -372,7 +378,7 @@ subsFree m s z (RAll α' t)
 subsFree m s z (RFun x t t')       
   = RFun x (subsFree m s z t) (subsFree m s z t') 
 subsFree m s z (RCon i c ts r)     
-  = RCon i (subsFreeRTyCon m s z c) (subsFree m s z <$> ts) r 
+  = rCon i (subsFreeRTyCon m s z c) (subsFree m s z <$> ts) r 
 subsFree m s z (RClass c ts)     
   = RClass c (subsFree m s z <$> ts)
 subsFree meet s (α', t') t@(RVar α r) 
@@ -436,7 +442,7 @@ ofType_ _ τ
   = ROther τ  
 
 ofPrimTyConApp s τ@(TyConApp c τs) 
-  = RCon i rc ts trueReft 
+  = rCon i rc ts trueReft 
   where i  = typeId c
         rc = RPrimTyCon c
         ts = ofType_ s <$> τs
@@ -468,12 +474,12 @@ ofDataCon s d
 ---------------------- Scrap this using SYB? --------------------
 -----------------------------------------------------------------
 
-mapTop ::  (RType a -> RType a) -> RType a -> RType a
+mapTop ::  (RefType -> RefType) -> RefType -> RefType
 mapTop f t = 
   case f t of
     (RAll a t')     -> RAll a (mapTop f t')
     (RFun x t' t'') -> RFun x (mapTop f t') (mapTop f t'')
-    (RCon i c ts r) -> RCon i (mapTopRTyCon f c) (mapTop f <$> ts) r
+    (RCon i c ts r) -> rCon i (mapTopRTyCon f c) (mapTop f <$> ts) r -- fix
     (RClass c ts)   -> RClass c (mapTop f <$> ts)
     t'              -> t' 
 
@@ -486,10 +492,11 @@ mapTopRAlgRhs f (RDataTyCon p dcs)
 mapTopRDataCon f (MkRData p qs) 
   = MkRData p ((mapSnd $ mapTop f) <$> qs)
 
-mapBot ::  (RType a -> RType a) -> RType a -> RType a
+--mapBot ::  (RType a -> RType a) -> RType a -> RType a
+mapBot ::  (RefType -> RefType) -> RefType -> RefType
 mapBot f (RAll a t)      = RAll a (mapBot f t)
 mapBot f (RFun x t t')   = RFun x (mapBot f t) (mapBot f t')
-mapBot f (RCon i c ts r) = RCon i (mapBotRTyCon f c) (mapBot f <$> ts) r
+mapBot f (RCon i c ts r) = rCon i (mapBotRTyCon f c) (mapBot f <$> ts) r --fix
 mapBot f (RClass c ts)   = RClass c (mapBot f <$> ts)
 mapBot f t'              = f t' 
 
@@ -504,7 +511,7 @@ mapBotRDataCon f (MkRData p qs)
 
 canonRefType :: RefType -> RefType
 canonRefType = mapTop zz
-  where zz t@(RCon i c ts r)  = RCon i c ts $ canonReft r
+  where zz t@(RCon i c ts r)  = rCon i c ts $ canonReft r
         zz t                  = t
 
 -------------------------------------------------------------------
@@ -658,12 +665,13 @@ genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
 literalRefType l 
   = makeRTypeBase (literalType l) (literalReft l) 
 
-makeRTypeBase :: Type -> a -> RType a 
+--makeRTypeBase :: Type -> a -> RType a 
+makeRTypeBase :: Type -> Reft -> RefType 
 makeRTypeBase (TyVarTy α) x       
   = RVar (rTyVar α) x 
 makeRTypeBase τ@(TyConApp c []) x 
-  = RCon (typeId c) (tyConRTyCon c) [] x
-
+  = rCon (typeId c) (tyConRTyCon c) [] x
+--fix
 literalReft l  = exprReft e 
   where (_, e) = literalConst l 
 
@@ -714,11 +722,36 @@ instance Subable RefType  where
   subst = fmap . subst 
 
 
+rCon i c ts r = RCon i c' ts r
+  where c' = replaceAlgTyConTys c ts
+
+replaceAlgTyConTys (RAlgTyCon d (RDataTyCon i dcs)) ts
+  = (RAlgTyCon d (RDataTyCon i dcs'))
+     where dcs' = [MkRData dc (f dc lts) | (MkRData dc lts) <- dcs]
+           f dc = map  (replaceTys (zip (dataConUnivTyVars dc) ts))
+
+replaceAlgTyConTys alg _ = alg
+
+{-  
+replaceTys [] (l, t) = (l, t)
+replaceTys ((t1, t2):tys) lt@(l, (RVar (RT (v, s)) a)) --refine 
+ | t1 == v = (l, t2 `strengthen` a) 
+ | otherwise = replaceTys tys lt 
+-}
+
+replaceTys t12s lt@(l, (RVar (RT (v, s)) a)) 
+  = case (find ((==v) . fst) t12s) of 
+      Just (_, t) -> (l, t `replaceReft` a) 
+      Nothing     -> lt
+ 
+replaceTys _     lt = lt
+
+
 replaceDcArgs ls dc (RCon a (RAlgTyCon d (RDataTyCon e x)) b c) 
-  = RCon a (RAlgTyCon d (RDataTyCon e x')) b c
+  = rCon a (RAlgTyCon d (RDataTyCon e x')) b c
  where x' = map (rplArgs dc ls) x
 
 rplArgs don ls mkr@(MkRData {rdcDataCon = dc, rdcOrigArgTys = ts}) 
  | dc == don = MkRData {rdcDataCon = dc, rdcOrigArgTys = ls'}
  | otherwise = mkr
-    where ls'  = zip (map fst ts) (map snd ls) 
+    where ls'  = zip (map fst ts) (map snd ls)
