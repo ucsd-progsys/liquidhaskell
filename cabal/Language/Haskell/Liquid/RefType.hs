@@ -52,7 +52,7 @@ import Control.DeepSeq
 import qualified Data.Foldable as Fold
 
 import Language.Haskell.Liquid.Tidy
-import Language.Haskell.Liquid.Fixpoint
+import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GhcMisc2 (stringTyVar)
 import Data.List (isPrefixOf, isSuffixOf, find, foldl')
@@ -167,14 +167,14 @@ replaceReft t _                = t
 -- unsound. (see tests/neg/mapreduce-tiny.hs)
 unfoldRType :: DataCon -> RefType -> [(Symbol, RefType)]
 unfoldRType dc t@(RCon i rc ts _) 
-  = [(f, sub ft) | (RB f, ft) <- rdcOrigArgTys rdc] 
+--  = [(f, {-sub-} ft {-`strengthen` (F.symbolReft f))-} | (RB f, ft) <- rdcOrigArgTys rdc] 
+  = [(f, ft) | (RB f, ft) <- rdcOrigArgTys rdc] 
   where rdc = getRDataCon dc rc 
         MkRData _ rxts = rdc
         (rxs, rts) = unzip rxts
         sub = subsTyId t i rc . subsTyVars_nomeet αts
         αts = safeZip "unfoldRType"  αs ts
         αs  = rTyVar `fmap` (dataConUnivTyVars $ rdcDataCon rdc)
-
 --rTyConApp' :: RefTyCon -> [RefType] -> RefTyCon
 --rTyConApp' rc _ = rc
 --rTyConApp' rc@(RPrimTyCon _) _ 
@@ -257,6 +257,9 @@ instance (NFData a) => NFData (RType a) where
 instance Outputable RBind where
   ppr (RB x) = ppr x
 
+instance Show RBind where
+  show = showPpr 
+ 
 instance Show RTyVar where
   show = showPpr
 
@@ -591,9 +594,7 @@ dataConReft c τ
   | c == falseDataCon
   = Reft (vv, [RConc $ PNot (PBexp (EVar vv))]) 
   | otherwise
-  -- = Reft (vv, [])
-  = Reft (vv, [RConc PTrue {-$ (EVar vv) `hasTag` e -}]) 
-    -- where e  = EDat (S $ pprShort c) FObj
+  = Reft (vv, [RConc PTrue]) 
 
 dataConMsReft ty ys  = subst su r 
   where (_, xts, t)  = bkArrow ty 
@@ -722,7 +723,7 @@ instance Subable RefType  where
   subst = fmap . subst 
 
 
-rCon i c ts r = RCon i c' ts r
+rCon i c ts r = traceShow "RdataCon" $ RCon i c' ts r
   where c' = replaceAlgTyConTys c ts
 
 replaceAlgTyConTys (RAlgTyCon d (RDataTyCon i dcs)) ts
@@ -754,4 +755,5 @@ replaceDcArgs ls dc (RCon a (RAlgTyCon d (RDataTyCon e x)) b c)
 rplArgs don ls mkr@(MkRData {rdcDataCon = dc, rdcOrigArgTys = ts}) 
  | dc == don = MkRData {rdcDataCon = dc, rdcOrigArgTys = ls'}
  | otherwise = mkr
-    where ls'  = zip (map fst ts) (map snd ls)
+    where ls'  = {-traceShow ("mplampla" ++ showPpr t) $-} zip (map fst ts) (map snd ls)
+          t = MkRData {rdcDataCon = dc, rdcOrigArgTys = ls'} 

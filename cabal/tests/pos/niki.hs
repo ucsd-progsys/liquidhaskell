@@ -4,7 +4,8 @@ import Language.Haskell.Liquid.Prelude
 
 data Pair a b = P a b
 
-foo = chk (P (0) (1))
+bar = P (0::Int) (1::Int)
+foo = chk bar
 
 chk (P x y) = assert (x <= y)
 

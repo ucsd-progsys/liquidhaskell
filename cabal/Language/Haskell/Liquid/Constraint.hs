@@ -297,7 +297,7 @@ splitC (SubC γ (RAll _ r1) (RAll _ r2))
   = splitC (SubC γ r1 r2) 
 
 splitC (SubC γ t1@(RCon _ c1 t1s _) t2@(RCon _ c2 t2s _)) 
-  = traceShow ("\nsplitC: " ++ showPpr t1 ++ "\n" ++ showPpr t2 ++ "\n") $
+  = {-traceShow ("\nsplitC: " ++ showPpr t1 ++ "\n" ++ showPpr t2 ++ "\n") $-}
     bsplitC γ t1 t2 
     ++ splitCRefTyCon γ c1 c2
     ++ (concatMap splitC $ zipWith (SubC γ) t1s t2s)
@@ -312,7 +312,7 @@ splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   = bsplitC γ t1 t2
 
 splitC (SubC _ t1 t2) 
-  = traceShow ("\nWARNING: splitC mismatch: " ++ showPpr t1 ++ "\n" ++ showPpr t2 ++ "\n") $ []
+  = {-traceShow ("\nWARNING: splitC mismatch: " ++ showPpr t1 ++ "\n" ++ showPpr t2 ++ "\n") $-} []
   -- = [] 
 
 splitCRefTyCon γ (RAlgTyCon _ z1) (RAlgTyCon _ z2) 
@@ -324,7 +324,7 @@ splitCRefAlgRhs γ (RDataTyCon _ dcs1) (RDataTyCon _ dcs2)
   = concat $ zipWith (splitCRefDataCon γ) dcs1 dcs2
 
 splitCRefDataCon γ (MkRData _ fts1) (MkRData _ fts2) 
-  = traceShow ("\nTrue split :" ++ showPpr t1s ++ "\n" ++ showPpr t2s') $ concatMap splitC $!! zipWith3 SubC γs t1s t2s'
+  = {-traceShow ("\nTrue split :" ++ showPpr t1s ++ "\n" ++ showPpr t2s') $-} concatMap splitC $!! zipWith3 SubC γs t1s t2s'
     where γs         = scanl (+=) γ (fieldBinds fts1) 
           t2s'       = zipWith F.subst subs t2s 
           (x1s, t1s) = unzip (fieldBinds fts1)
@@ -411,7 +411,7 @@ addA !l !xo !t !a@(AI m)
 
 -- To revert to the old setup, just do
 -- freshTy_pretty = freshTy
-freshTy_pretty e τ = refresh $ traceShow ("exprRefType: " ++ showPpr e) $ exprRefType e
+freshTy_pretty e τ = refresh $ {-traceShow ("exprRefType: " ++ showPpr e) $-} exprRefType e
 
 -- freshTy_pretty e τ = refresh $ traceShow ("exprRefType: " ++ showPpr e) $ exprRefType e
 -- freshTy_pretty e τ = error "GO TO HELL"
@@ -421,8 +421,9 @@ freshTy' _ = refresh . ofType
 
 freshTy :: CoreExpr -> Type -> CG RefType
 freshTy e τ = do t <- freshTy' e τ 
-                 let t1 = trace (printf "\nfreshTy: (e := %s) (τ := %s) (t := %s)\n" (showPpr e) (showPpr τ) (showPpr t)) t
-                 return t1
+                 let t2 = case t of {RCon i cd ts r -> rCon i cd ts r; _ -> t}
+                 let t1 = trace (printf "\nfreshTy: (e := %s) (τ := %s) (t := %s)\n" (showPpr e) (showPpr τ) (showPpr t2))
+                 return t2
 
 trueTy  :: Type -> CG RefType
 trueTy  = true . ofType
@@ -455,7 +456,7 @@ instance Freshable [F.Refa] where
 
 instance Freshable F.Reft where
   fresh = error "fresh Reft"
-  true    (F.Reft (v, _)) = return $ F.Reft (v, [])
+  true    (F.Reft (v, _)) = return $ F.Reft (v, []) 
   refresh (F.Reft (v, _)) = liftM (F.Reft . (v, )) fresh
 
 instance Freshable RefType where
@@ -619,7 +620,7 @@ consE γ (App e (Type τ))
        t         <- if isGeneric α te then freshTy e τ else trueTy τ
 --       t         <- trueTy τ
        addW       $ WfC γ t
-       return     $ traceShow ("type app: " ++ showPpr (α, t) ++ "\n" ++ showPpr te ) $ (α, t) `subsTyVar_meet` te
+       return     $ {-traceShow ("type app: " ++ showPpr (α, t) ++ "\n" ++ showPpr te ) $-} (α, t) `subsTyVar_meet` te
 
 consE γ (App e a)               
   = do RFun (RB x) tx t <- liftM (checkFun ("Non-fun App with caller", e)) $ consE γ e 
@@ -673,7 +674,7 @@ cconsCase γ _ t (DEFAULT, _, ce)
 cconsCase γ x t (DataAlt c, ys, ce) 
   = cconsE cγ ce t
     where cγ       = foldl' (+=) (γ -= x') cbs 
-          cbs      = zip (x':ys') (xt : yts)
+          cbs      = zip (x':ys') (xt : yts')
           (x':ys') = mkSymbol <$> (x:ys)
           xt       = (γ ?= x') `strengthen` (r1 `F.meet` r2) 
           r1       = dataConReft c $ varType x  
@@ -682,6 +683,7 @@ cconsCase γ x t (DataAlt c, ys, ce)
           zys      = zip zs (F.EVar <$> ys') 
           sus      = F.mkSubst <$> scanl (flip (:)) [] zys
           yts      = zipWith F.subst sus ts
+          yts'     = ts
 
 
 checkFun _ t@(RFun _ _ _) = t
@@ -791,14 +793,18 @@ extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
 
 addDataCon :: CGEnv -> Var -> CG CGEnv
-addDataCon γ c 
-  = do let dc = dataConId c
-       let τr = ofType $ dataConOrigResTy dc
-       τ <- freshTy (Var c)  $ varType c 
+addDataCon γ c
+  | (mkSymbol c) `memberREnv` (renv γ)
+  = return γ
+  | otherwise 
+  = do τ <- freshTy (Var c)  $ varType c 
        let (x, t) = (mkSymbol c, mkDataConTy τ [] dc τr)
        addW $ WfC γ t
        return $ γ ++= (x, t)
- 
+    where dc = dataConId c
+          τr = ofType $ dataConOrigResTy dc
+      
+
 mkDataConTy (RAll a t)     ls tr 
    = RAll a . mkDataConTy t ls tr
 --mkDataConTy (RFun x (RVar a _) t2) ls tr 
