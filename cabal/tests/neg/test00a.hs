@@ -1,6 +1,6 @@
 module Test0 where
 
-import LiquidPrelude
+import Language.Haskell.Liquid.Prelude
 
 x = choose 0
 

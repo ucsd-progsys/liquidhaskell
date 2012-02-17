@@ -1,6 +1,6 @@
 module Meas where
 
-import LiquidPrelude
+import Language.Haskell.Liquid.Prelude
 
 goo :: a -> Int
 goo _ = 1

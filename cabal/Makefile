@@ -31,7 +31,7 @@ dpackages:
 	$(CABAL) install --with-ghc=$(GHC) hscolour 
 
 vector:
-	$(CABAL) install vector
+	$(CABAL) install vector-0.7.0.1
 
 bytestring:
 	$(CABAL) install bytestring 

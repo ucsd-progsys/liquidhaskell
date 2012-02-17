@@ -1,6 +1,6 @@
 module Vec0 where
 
-import LiquidPrelude
+import Language.Haskell.Liquid.Prelude
 
 xs    = [1] :: [Int]
 ys    = copyList xs
