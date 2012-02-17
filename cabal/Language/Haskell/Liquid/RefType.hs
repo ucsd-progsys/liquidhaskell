@@ -168,7 +168,7 @@ replaceReft t _                = t
 unfoldRType :: DataCon -> RefType -> [(Symbol, RefType)]
 unfoldRType dc t@(RCon i rc ts _) 
 --  = [(f, {-sub-} ft {-`strengthen` (F.symbolReft f))-} | (RB f, ft) <- rdcOrigArgTys rdc] 
-  = [(f, ft) | (RB f, ft) <- rdcOrigArgTys rdc] 
+  = [(f, sub ft) | (RB f, ft) <- rdcOrigArgTys rdc] 
   where rdc = getRDataCon dc rc 
         MkRData _ rxts = rdc
         (rxs, rts) = unzip rxts
@@ -723,7 +723,7 @@ instance Subable RefType  where
   subst = fmap . subst 
 
 
-rCon i c ts r = traceShow "RdataCon" $ RCon i c' ts r
+rCon i c ts r = {-traceShow "RdataCon" $-} RCon i c' ts r
   where c' = replaceAlgTyConTys c ts
 
 replaceAlgTyConTys (RAlgTyCon d (RDataTyCon i dcs)) ts

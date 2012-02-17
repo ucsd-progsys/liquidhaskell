@@ -682,8 +682,8 @@ cconsCase γ x t (DataAlt c, ys, ce)
           (zs, ts) = unzip $ unfoldRType c xt
           zys      = zip zs (F.EVar <$> ys') 
           sus      = F.mkSubst <$> scanl (flip (:)) [] zys
-          yts      = zipWith F.subst sus ts
-          yts'     = ts
+          yts'      = zipWith F.subst sus ts
+          yts     = ts
 
 
 checkFun _ t@(RFun _ _ _) = t
