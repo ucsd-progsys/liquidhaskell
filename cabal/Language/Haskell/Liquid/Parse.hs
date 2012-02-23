@@ -386,7 +386,7 @@ fixResultP pp
 
 crashP pp
   = do i   <- pp
-       msg <- parens $ many anyChar
+       msg <- many anyChar
        return $ Crash [i] msg
 
 predSolP 
