@@ -380,8 +380,14 @@ measurePatP
 
 fixResultP :: Parser a -> Parser (FixResult a)
 fixResultP pp 
-  =  (reserved "SAT" >> return Safe)
+  =  (reserved "SAT"   >> return Safe)
  <|> (reserved "UNSAT" >> Unsafe <$> (brackets $ sepBy pp comma))  
+ <|> (reserved "CRASH" >> crashP pp)
+
+crashP pp
+  = do i   <- pp
+       msg <- parens $ many anyChar
+       return $ Crash [i] msg
 
 predSolP 
   = parens $ (predP  <* (comma >> iQualP)) 

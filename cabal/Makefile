@@ -1,4 +1,4 @@
-BINPATH=/home/rjhala/research/ghc-working-local/bin
+BINPATH=/home/jhala/research/ghc-working-local/bin
 API=ghc-7.1.20110517
 GHC=$(BINPATH)/ghc
 GPG=$(BINPATH)/ghc-pkg

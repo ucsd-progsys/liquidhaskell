@@ -27,7 +27,7 @@ liquid  = do (targets, includes) <- getOpts
                       Ex.catch (liquidOne includes t) $ \e -> 
                       do let err = show (e :: Ex.IOException)
                          putStrLn $ "Unexpected Error: " ++ err
-                         return Crash
+                         return $ Crash [] "Whoops! Unknown Failure"
              return $ mconcat res
 
 liquidOne includes target = 
