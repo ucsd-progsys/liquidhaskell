@@ -437,22 +437,22 @@ data WfC a  = WfC  { wenv  :: !Envt
                    , winfo :: !a
                    } deriving (Eq, Ord, Data, Typeable)
 
-data FixResult a = Crash | Safe | Unsafe ![a]
+data FixResult a = Crash [a] String | Safe | Unsafe ![a] | UnknownError
 
 type FixSolution = M.Map Symbol Pred
 
 instance Monoid (FixResult a) where
-  mempty = Safe
-  mappend Safe x  = x
-  mappend x Safe  = x
-  mappend _ Crash = Crash
-  mappend Crash _ = Crash
+  mempty                          = Safe
+  mappend Safe x                  = x
+  mappend x Safe                  = x
+  mappend _ c@(Crash _ _)         = c 
+  mappend c@(Crash _ _) _         = c 
   mappend (Unsafe xs) (Unsafe ys) = Unsafe (xs ++ ys)
-
+ 
 instance Outputable a => Outputable (FixResult (SubC a)) where
-  ppr Crash       = text "Crash! "
-  ppr Safe        = text "Safe"
-  ppr (Unsafe xs) = text "Unsafe: " <> ppr (sinfo `fmap` xs)
+  ppr (Crash xs msg) = text "Crash! "  <> ppr (sinfo `fmap` xs) <> parens (text msg) 
+  ppr Safe          = text "Safe"
+  ppr (Unsafe xs)   = text "Unsafe: " <> ppr (sinfo `fmap` xs)
 
 --instance Fixpoint SortedReft where
 --  toFix (RR so (Reft (v, ras))) 

@@ -44,7 +44,7 @@ execFq fn hqs globals cs ws
           (d, su) = {-# SCC "toFixpoint" #-} toFixpoint (FI cs ws globals)
 
 exitFq _ _ (ExitFailure n, _) | (n /= 1) 
-  = return (Crash, empty)
+  = return (Crash [] "Unknown Error", empty)
 exitFq fn cm (_, su) 
   = do (x, y) <- (rr . sanitizeFixpointOutput) <$> (readFile $ extFileName Out fn)
        return  $ (plugC cm x, subst su y) 
@@ -55,10 +55,10 @@ sanitizeFixpointOutput
   . chopAfter ("//QUALIFIERS" `isPrefixOf`)
   . lines
 
-plugC _ Safe         = Safe
-plugC _ Crash        = Crash  
-plugC cm (Unsafe is) = Unsafe $ map (mlookup cm) is
+plugC _ Safe          = Safe
+plugC cm (Crash is s) = Crash (mlookup cm `fmap` is) s
+plugC cm (Unsafe is)  = Unsafe (mlookup cm `fmap` is)
 
-resultExit Crash     = ExitFailure 2
-resultExit (Unsafe _)= ExitFailure 1
-resultExit Safe      = ExitSuccess
+resultExit (Crash _ _) = ExitFailure 2
+resultExit (Unsafe _)  = ExitFailure 1
+resultExit Safe        = ExitSuccess
