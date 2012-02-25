@@ -7,8 +7,7 @@ import Language.Haskell.Liquid.Prelude
 x :: Int
 x = choose 0
 
-baz :: Int -> Bool
-baz gooberding = assert (gooberding >= 0)
+toss :: Bool
+toss = x > 1000
 
-prop_abs ::  Bool
-prop_abs = if x > 0 then baz x else False
+prop_easy = if toss then assert toss else True
