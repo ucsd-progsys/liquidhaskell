@@ -2,7 +2,31 @@
 Transition to GHC 7.4
 ---------------------
 
-Failed 24 tests: neg/mapreduce.hs, pos/LambdaEval.hs, pos/LambdaEvalMini.hs, pos/data2.hs, pos/deptup.hs, pos/deptup3.hs, pos/for.hs, pos/forloop.hs, pos/meas0.hs, pos/meas6.hs, pos/poly0.hs, pos/poly1.hs, pos/poslist.hs, pos/string00.hs, pos/test0.hs, pos/test00.hs, pos/test00b.hs, pos/test1.hs, pos/test2.hs, pos/vector0.hs, pos/vector00.hs, pos/vector1.hs, pos/vector1a.hs, pos/vector1b.hs
+Failed 24 tests: 
+  neg/mapreduce.hs
+, pos/LambdaEval.hs
+, pos/LambdaEvalMini.hs
+, pos/data2.hs
+, pos/deptup.hs
+, pos/deptup3.hs
+, pos/for.hs
+, pos/forloop.hs
+, pos/meas0.hs
+, pos/meas6.hs
+, pos/poly0.hs
+, pos/poly1.hs
+, pos/poslist.hs
+, pos/string00.hs
+, pos/test0.hs
+, pos/test00.hs
+, pos/test00b.hs
+, pos/test1.hs
+, pos/test2.hs
+, pos/vector0.hs
+, pos/vector00.hs
+, pos/vector1.hs
+, pos/vector1a.hs
+, pos/vector1b.hs
 
 * How to insert Tick?
 

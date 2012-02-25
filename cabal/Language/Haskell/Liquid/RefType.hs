@@ -405,9 +405,9 @@ subsFreeRDataCon m s z (MkRData p qs)
 
 ---------------------------------------------------------------
 
-tyConRTyCon c  
-  | isPrimTyCon c = RPrimTyCon c
-  | otherwise     = errorstar $ "tyConRTyCon: " ++ showPpr c
+--tyConRTyCon c  = RPrimTyCon c 
+--  | TC.isPrimTyCon c = RPrimTyCon c
+--  | otherwise        = errorstar $ "tyConRTyCon: " ++ showPpr c
 
 
 stripRTypeBase ::  RType a -> Maybe a
@@ -679,25 +679,25 @@ genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
 literalRefType l 
   = makeRTypeBase (literalType l) (literalReft l) 
 
---makeRTypeBase :: Type -> a -> RType a 
 makeRTypeBase :: Type -> Reft -> RefType 
 makeRTypeBase (TyVarTy α) x       
   = RVar (rTyVar α) x 
 makeRTypeBase τ@(TyConApp c []) x 
-  = rCon (typeId c) (tyConRTyCon c) [] x
---fix
+  = rCon (typeId c) (RPrimTyCon c) [] x
+
 literalReft l  = exprReft e 
   where (_, e) = literalConst l 
 
-literalConst l               = (sort, mkLit l)
-  where sort                 = typeSort $ literalType l 
-        sym                  = S $ "$$" ++ showPpr l
-        mkLit (MachInt    n) = mkI n
-        mkLit (MachInt64  n) = mkI n
-        mkLit (MachWord   n) = mkI n
-        mkLit (MachWord64 n) = mkI n
-        mkLit (lit)          = ELit sym sort
-        mkI                  = ECon . I
+literalConst l                 = (sort, mkLit l)
+  where sort                   = typeSort $ literalType l 
+        sym                    = S $ "$$" ++ showPpr l
+        mkLit (MachInt    n)   = mkI n
+        mkLit (MachInt64  n)   = mkI n
+        mkLit (MachWord   n)   = mkI n
+        mkLit (MachWord64 n)   = mkI n
+        mkLit (LitInteger n _) = mkI n
+        mkLit _                = ELit sym sort
+        mkI                    = ECon . I
 
 ---------------------------------------------------------------
 ---------------- Annotations and Solutions --------------------
