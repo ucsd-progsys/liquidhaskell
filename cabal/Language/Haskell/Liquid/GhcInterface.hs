@@ -30,10 +30,10 @@ import DynFlags (defaultDynFlags)
 
 import Control.Arrow hiding ((<+>))
 import Control.DeepSeq
-import Control.Applicative
+import Control.Applicative  hiding (empty)
 import Control.Monad (forM_, forM, liftM, (>=>))
 import Data.Data
-import Data.Monoid
+import Data.Monoid hiding ((<>))
 import Data.Char (isSpace)
 import Data.List (isPrefixOf, isSuffixOf, foldl', nub, find, (\\))
 import Data.Maybe (catMaybes, fromMaybe, isJust, mapMaybe)
@@ -104,7 +104,7 @@ getGhcModGuts1 fn = do
    modGraph <- depanal [] True
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
-       mod_guts <- coreModule `fmap` (desugarModuleWithLoc =<< typecheckModule =<< parseModule modSummary)
+       mod_guts <- coreModule `fmap` (desugarModule =<< typecheckModule =<< parseModule modSummary)
        return mod_guts
 
 getGhcInfo target paths = 
@@ -115,6 +115,7 @@ getGhcInfo target paths =
       liftIO $ putStrLn "Raw CoreBinds" 
       liftIO $ putStrLn $ showPpr (mg_binds mg)
       env <- getSession
+
       cbs <- liftIO $ anormalize env mg
       -- guarantees for variables bound in this module
       grt <- varsSpec (mg_module mg) $ concatMap bindings cbs
@@ -165,7 +166,7 @@ isDataCon v =
 
 varsSpec m vs 
   = do (xs,bs) <- (unzip . catMaybes) <$> mapM varAnnot vs
-       setContext [m] []
+       setContext [IIModule m]
        env     <- getSession
        rs      <- liftIO $ mkRefTypes env bs 
        return   $ zip xs rs
@@ -210,7 +211,7 @@ moduleSpec mg paths impVars
        let ins = nubSort $ impNames ++ [s | S s <- Ms.imports spec]
        liftIO  $ putStrLn $ "Module Imports: " ++ show ins 
        -- convert to GHC
-       setContext [mod] []
+       setContext [IIModule mod]
        env    <- getSession
        msr    <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec (Ms.measures spec ++ Ms.measures myspec)
        xts    <- liftIO $ mkAssumeSpec env  $ Ms.assumes spec
@@ -304,17 +305,22 @@ instance Outputable a => Outputable (AnnInfo a) where
   ppr (AI m) = vcat $ map pprAnnInfoBind $ M.toList m 
  
 
-pprAnnInfoBind (k, xv) 
+pprAnnInfoBind (RealSrcSpan k, xv) 
   = xd $$ ppr l $$ ppr c $$ ppr n $$ vd $$ text "\n\n\n"
     where l        = srcSpanStartLine k
-	  c        = srcSpanStartCol k
-	  (xd, vd) = pprXOT xv 
-	  n        = length $ lines $ showSDoc vd
-       	  
+          c        = srcSpanStartCol k
+          (xd, vd) = pprXOT xv 
+          n        = length $ lines $ showSDoc vd
+
+pprAnnInfoBind (_, _) 
+  = empty
+
 pprXOT (x, v) = (xd, ppr v)
-  where xd = case x of 
-	       Nothing -> text "unknown"
-	       Just v  -> ppr v
+  where xd = maybe (text "unknown") ppr x
+
+  -- where xd = case x of 
+  -- Nothing -> text "unknown"
+  -- Just v  -> ppr v
 
 applySolution :: FixSolution -> AnnInfo RefType -> AnnInfo RefType
 applySolution = fmap . fmap . mapReft . map . appSolRefa  
@@ -352,7 +358,7 @@ mkAnnMap (AI m)
   $ map (srcSpanLoc *** bindString)
   $ map (head . sortWith (srcSpanEndCol . fst)) 
   $ groupWith (lineCol . fst) 
-  $ [ x | x@(l,_) <- M.toList m, isGoodSrcSpan l, oneLine l]  
+  $ [ (l, m) | (RealSrcSpan l, m) <- M.toList m, oneLine l]  
   where bindString = mapPair (showSDocForUser neverQualify) . pprXOT 
 
 srcSpanLoc l 
@@ -375,8 +381,8 @@ filterA (AI m) = AI (M.filter ff m)
   where ff (_, Right loc) = loc `M.member` m
         ff _              = True
         
-instance Show SrcSpan where
-  show = showPpr
+--instance Show SrcSpan where
+--  show = showPpr
 
 
 
@@ -412,7 +418,7 @@ instance CBVisitable (Expr Var) where
   freeVars env (App e a)       = (freeVars env e) ++ (freeVars env a)
   freeVars env (Lam x e)       = freeVars (extendEnv env [x]) e
   freeVars env (Let b e)       = (freeVars env b) ++ (freeVars (extendEnv env (bindings b)) e)
-  freeVars env (Note _ e)      = freeVars env e
+  freeVars env (Tick _ e)      = freeVars env e
   freeVars env (Cast e _)      = freeVars env e
   freeVars env (Case e _ _ cs) = (freeVars env e) ++ (concatMap (freeVars env) cs) 
   freeVars env (Lit _)         = []
@@ -422,7 +428,7 @@ instance CBVisitable (Expr Var) where
   readVars (App e a)           = concatMap readVars [e, a] 
   readVars (Lam x e)           = readVars e
   readVars (Let b e)           = readVars b ++ readVars e 
-  readVars (Note _ e)          = readVars e
+  readVars (Tick _ e)          = readVars e
   readVars (Cast e _)          = readVars e
   readVars (Case e _ _ cs)     = (readVars e) ++ (concatMap readVars cs) 
   readVars (Lit _)             = []

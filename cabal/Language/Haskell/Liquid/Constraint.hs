@@ -73,9 +73,6 @@ generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fw
         fws = concatMap splitW $ hsWfs st
         gs  = F.fromListFEnv . map (mapSnd refTypeSortedReft) $ meas info 
 
-instance Outputable a => Outputable (S.Set a) where
-  ppr = ppr . S.elems
-
 kvars :: (Data a) => a -> S.Set F.Symbol
 kvars = everything S.union (S.empty `mkQ` grabKvar)
   where grabKvar (F.RKvar k _) = S.singleton k
@@ -587,10 +584,10 @@ cconsE γ (Lam x e) (RFun (RB y) ty t)
        addIdA x (Left ty) 
     where te = t `F.subst1` (y, F.EVar $ mkSymbol x)
 
-cconsE γ (Note (CoreLoc l) e) t   
-  = cconsE (γ `atLoc` l) e t
+--cconsE γ (Note (CoreLoc l) e) t   
+--  = cconsE (γ `atLoc` l) e t
 
-cconsE γ (Note _ e) t
+cconsE γ (Tick _ e) t
   = cconsE γ e t
 
 cconsE γ (Cast e _) t     
@@ -646,10 +643,10 @@ consE γ e@(Let _ _)
 consE γ e@(Case _ _ _ _) 
   = cconsFreshE γ e
 
-consE γ (Note (CoreLoc l) e)      
-  = consE (γ `atLoc` l) e
+--consE γ (Note (CoreLoc l) e)      
+--  = consE (γ `atLoc` l) e
 
-consE γ (Note _ e)
+consE γ (Tick _ e)
   = consE γ e
 
 consE γ (Cast e _)      
@@ -710,9 +707,9 @@ getSrcSpan' x
   where loc = getSrcSpan x
    
 
-instance Outputable Note where
-  ppr (CoreNote s) = text s
-  ppr (SCC c)      = ppr c
+--instance Outputable Note where
+--  ppr (CoreNote s) = text s
+--  ppr (SCC c)      = ppr c
 
 -----------------------------------------------------------------------
 ---------- Helpers: Creating Refinement Types For Various Things ------
@@ -721,7 +718,7 @@ instance Outputable Note where
 argExpr ::  CoreExpr -> Maybe F.Expr
 argExpr (Var vy)         = Just $ F.EVar $ mkSymbol vy
 argExpr (Lit c)          = Just $ snd $ literalConst c
-argExpr (Note _ e)		 = argExpr e
+argExpr (Tick _ e)		 = argExpr e
 argExpr e                = error $ "argExpr: " ++ (showPpr e)
 
 varRefType γ x = (γ ?= (mkSymbol x)) `strengthen` xr
@@ -774,7 +771,7 @@ exprRefType_ γ (Lam α e) | isTyVar α
 exprRefType_ γ (Lam x e) 
   = RFun (RB (mkSymbol x)) (ofType $ varType x) (exprRefType_ γ e)
 
-exprRefType_ γ (Note _ e)
+exprRefType_ γ (Tick _ e)
   = exprRefType_ γ e
 
 exprRefType_ γ (Var x) 
@@ -803,7 +800,6 @@ addDataCon γ c
        return $ γ ++= (x, t)
     where dc = dataConId c
           τr = ofType $ dataConOrigResTy dc
-      
 
 mkDataConTy (RAll a t)     ls tr 
    = RAll a . mkDataConTy t ls tr
@@ -811,7 +807,7 @@ mkDataConTy (RAll a t)     ls tr
 --   = RFun x t1 . mkDataConTy t2 (ls++[(x, t1)]) tr
 --  where t1 = RVar a F.trueReft
 mkDataConTy (RFun x t1 t2) ls tr 
-   = RFun x t1 . mkDataConTy t2 (ls++[(x, t1')]) tr
+   = RFun x t1 . mkDataConTy t2 (ls ++ [(x, t1')]) tr
   where t1' = t1 `strengthen` xr
         xr = F.symbolReft s 
         RB s = x

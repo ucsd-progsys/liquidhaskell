@@ -10,8 +10,8 @@ import Outputable
 import CoreSyn
 import HscTypes
 import DsMonad			(DsM, initDs)
-import Id                       (mkSysLocalM)
-import FastString               (fsLit)
+import Id               (mkSysLocalM)
+import FastString       (fsLit)
 import Control.Monad
 
 import Language.Haskell.Liquid.Fixpoint                 (anfPrefix)
@@ -27,8 +27,15 @@ anormalize hscEnv modGuts
          Nothing  -> pprPanic "anormalize fails!" (empty)
     where mod   = mg_module modGuts
           grEnv = mg_rdr_env modGuts
-          tEnv  = mg_types modGuts
+          tEnv  = modGutsTypeEnv modGuts
           act   = liftM concat $ mapM normalizeBind (mg_binds modGuts) 
+
+modGutsTypeEnv :: ModGuts -> TypeEnv
+modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
+  where ids = bindersOfBinds (mg_binds mg)
+        tcs = mg_tcs mg
+        fis = mg_fam_insts mg
+
 
 ------------------------------------------------------------------
 ----------------- Actual Normalizing Functions -------------------
@@ -48,18 +55,15 @@ normalizeBind (Rec xes)
     where (xs, es) = unzip xes
 
 ---------------------------------------------------------------------
-normalizeName :: CoreExpr -> DsM ([CoreBind], CoreExpr) -- Ah, for refinements
+normalizeName :: CoreExpr -> DsM ([CoreBind], CoreExpr)
 ---------------------------------------------------------------------
 
 normalizeName e
   | isBase e
   = return ([], e)
 
-normalizeName e@(Note (CoreLoc _) e')
+normalizeName e@(Tick _ e')
   | isBase e'
-  = return ([], e)
-
-normalizeName e@(Note (CoreLoc _) (Lit _))
   = return ([], e)
 
 normalizeName e
@@ -69,13 +73,13 @@ normalizeName e
 
 freshNormalVar = mkSysLocalM (fsLit anfPrefix)
 
-maybeNormalizedVar :: CoreExpr -> Maybe Id 
-maybeNormalizedVar (Var x)
-  = Just x
-maybeNormalizedVar (Note _ e)
-  = maybeNormalizedVar e
-maybeNormalizedVar _ 
-  = Nothing
+--maybeNormalizedVar :: CoreExpr -> Maybe Id 
+--maybeNormalizedVar (Var x)
+--  = Just x
+--maybeNormalizedVar (Tick _ e)
+--  = maybeNormalizedVar e
+--maybeNormalizedVar _ 
+--  = Nothing
 
 isBase (Var  _) = True
 isBase (Lit  _) = True
@@ -126,9 +130,9 @@ normalize (App e1 e2)
        (bs2, n2 ) <- normalizeName e2
        return (bs1 ++ bs2, App e1' n2)
 
-normalize (Note n e)
+normalize (Tick n e)
   = do (bs, e') <- normalize e 
-       return (bs, Note n e') 
+       return (bs, Tick n e') 
 
 normalize e 
   = error $ "normalize: TODO" ++ showPpr e

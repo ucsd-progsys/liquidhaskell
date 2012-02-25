@@ -151,7 +151,6 @@ strengthenRefType_ t1 _
   = t1
 
 strengthen  :: RefType -> Reft -> RefType
-strengthen (RCon i c ts r) r' = rCon i c ts (r `meet` r') 
 strengthen (RVar a r) r'      = RVar a      (r `meet` r') 
 strengthen t _                = t 
 
@@ -754,10 +753,14 @@ replaceTys t12s lt@(l, (RVar (RT (v, s)) a))
 replaceTys _     lt = lt
 
 
+--replaceDcArgs :: [(GHC.Prim.Any *, RType Reft)] -> DataCon -> RType Reft -> RType Reft
+
+replaceDcArgs :: [(RBind, RType Reft)] -> DataCon -> RType Reft -> RType Reft
 replaceDcArgs ls dc (RCon a (RAlgTyCon d (RDataTyCon e x)) b c) 
   = rCon a (RAlgTyCon d (RDataTyCon e x')) b c
  where x' = map (rplArgs dc ls) x
 
+rplArgs ::  DataCon -> [(a, RType a1)] -> RDataCon a1 -> RDataCon a1
 rplArgs don ls mkr@(MkRData {rdcDataCon = dc, rdcOrigArgTys = ts}) 
  | dc == don = MkRData {rdcDataCon = dc, rdcOrigArgTys = ls'}
  | otherwise = mkr

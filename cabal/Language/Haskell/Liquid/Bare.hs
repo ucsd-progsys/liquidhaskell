@@ -33,7 +33,7 @@ import HscMain
 import TypeRep
 import TysWiredIn
 import DataCon  (dataConWorkId)
-import BasicTypes (Boxity (..))
+import BasicTypes (TupleSort (..), Boxity (..))
 import TcRnDriver (tcRnLookupRdrName, tcRnLookupName) 
 
 import TysPrim          (intPrimTyCon)
@@ -107,7 +107,7 @@ tcExpr f s =
       df   <- getSessionDynFlags
       setSessionDynFlags df
       cm0  <- compileToCoreModule f
-      setContext [(cm_module cm0)]
+      setContext [IIModule (cm_module cm0)]
       env  <- getSession
       r    <- CM.liftIO $ hscTcExpr env s 
       return r
@@ -117,7 +117,7 @@ fileEnv f
       df    <- getSessionDynFlags
       setSessionDynFlags df
       cm0  <- compileToCoreModule f
-      setContext [(cm_module cm0)]
+      setContext [IIModule (cm_module cm0)]
       env   <- getSession
       return env
 
@@ -207,7 +207,7 @@ ofBareType (BLst t r)
   = liftM (bareTC r listTyCon . (:[])) (ofBareType t)
 ofBareType (BTup ts r)
   = liftM (bareTC r c) (mapM ofBareType ts)
-    where c = tupleTyCon Boxed (length ts)
+    where c = tupleTyCon BoxedTuple (length ts)
 
 -- TODO: move back to RefType
 bareTC :: Reft -> TyCon -> [RefType] -> RefType 

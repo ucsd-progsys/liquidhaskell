@@ -7,7 +7,7 @@ module Language.Haskell.Liquid.Parse
 where
 
 import GHC
-import TypeRep		hiding (Pred) 
+import TypeRep
 import TysWiredIn   (intTyCon, boolTyCon)
 import Control.Monad
 import Text.Parsec
