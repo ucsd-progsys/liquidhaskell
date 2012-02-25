@@ -139,8 +139,7 @@ instance Show CGEnv where
   = γ ++= (x, r) 
 
 γ -= x 
-  = trace ("Deleting From Env: " ++ show x) 
-    $ γ { renv = deleteREnv x (renv γ) } { fenv = F.deleteFEnv x (fenv γ) }
+  =  γ { renv = deleteREnv x (renv γ) } { fenv = F.deleteFEnv x (fenv γ) }
 
 (?=) ::  CGEnv -> F.Symbol -> RefType 
 γ ?= x
