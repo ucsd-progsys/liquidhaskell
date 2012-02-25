@@ -24,12 +24,6 @@ oldschool:
 clean:
 	cabal clean
 
-cmdargs:
-	$(CABAL) configure    cmdargs 
-	$(CABAL) build        cmdargs 
-	$(CABAL) configure -p cmdargs 
-	$(CABAL) build        cmdargs 
-
 dpackages:
 	$(CABAL) install transformers 
 	$(CABAL) install cmdargs 
@@ -40,9 +34,10 @@ dpackages:
 	$(CABAL) install ghc-paths
 	$(CABAL) install --ghc-options=$(OPTS) syb 
 	$(CABAL) install --with-ghc=$(GHC) hscolour 
+	$(CABAL) install vector
 
 vector:
-	$(CABAL) install vector-0.7.0.1
+	$(CABAL) install vector
 
 bytestring:
 	$(CABAL) install bytestring 
