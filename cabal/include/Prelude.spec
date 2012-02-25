@@ -24,9 +24,9 @@ assume GHC.Integer.smallInteger :: x:GHC.Prim.Int# -> {v:Integer | v = (x :: Int
 
 assume id      :: forall a. x:a -> {v:a | v = x}
 
-assume map     :: forall a, b. f:(a -> b) -> xs:[a] -> {v:[b] | len(v) = len(xs)}
+assume Prelude.map     :: forall a, b. f:(a -> b) -> xs:[a] -> {v:[b] | len(v) = len(xs)}
 
-assume zipWith :: forall a, b, c. f:(p:a -> q:b -> c) 
+assume Prelude.zipWith :: forall a, b, c. f:(p:a -> q:b -> c) 
                                -> xs : [a] 
                                -> ys:{v:[b] | len(v) = len(xs)} 
                                -> {v : [c] | len(v) = len(xs)} 
