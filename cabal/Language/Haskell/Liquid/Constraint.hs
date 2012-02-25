@@ -68,7 +68,7 @@ consAct info
 generateConstraints :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fws } { globals = gs }
   where st  = execState act initCGI 
-        act = consAct info -- initEnv info >>= (\γ0 -> foldM_ consCB γ0 $ cbs info) 
+        act = consAct info
         fcs = concatMap splitC $ hsCs  st 
         fws = concatMap splitW $ hsWfs st
         gs  = F.fromListFEnv . map (mapSnd refTypeSortedReft) $ meas info 
@@ -132,16 +132,9 @@ instance Show CGEnv where
   = γ' { fenv = insertFEnvClass r (fenv γ) }
   where γ' = γ { renv = insertREnv x r (renv γ) }  
 
-
-{- see tests/pos/polyfun for why you need everything in fixenv  
-γ ++= (x, r) = (updC r . updF x r . updR x r) $ γ
-  where updR x r γ = γ { renv = insertREnv x r (renv γ) }
-        updF x r γ = γ { fenv = F.insertFEnv x (refTypeSortedReft r) (fenv γ) }
-        updC r   γ = γ { fenv = insertFEnvClass r (fenv γ) }
--}
-γ += (x, r) 
+(γ, msg) += (x, r) 
   | x `memberREnv` (renv γ)
-  = errorstar $ "ERROR: Duplicate Binding for " ++ show x ++ " in REnv!\n\n" ++ show γ
+  = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ show x ++ " in REnv!\n\n" ++ show γ
   | otherwise
   = γ ++= (x, r) 
 
@@ -240,7 +233,7 @@ splitW ::  WfC -> [FixWfC]
 
 splitW (WfC γ (RFun (RB x) r1 r2)) 
   =  splitW (WfC γ r1) 
-  ++ splitW (WfC (γ += (x, r1)) r2)
+  ++ splitW (WfC ((γ, "splitW") += (x, r1)) r2)
 
 splitW (WfC γ (RAll a r)) 
   = splitW (WfC γ r)
@@ -270,7 +263,7 @@ splitWRefAlgRhs γ (RDataTyCon _ dcs)
 splitWRefDataCon γ (MkRData _ fts) 
  = concatMap splitW $ zipWith WfC γs ts
    where ts  = snd <$> fts
-         γs  = scanl (+=) γ (fieldBinds fts)
+         γs  = scanl (\γ z -> (γ, "splitWRefDC") += z) γ (fieldBinds fts)
 
 bsplitW :: CGEnv -> RefType -> [FixWfC]
 bsplitW γ t 
@@ -289,7 +282,7 @@ splitC :: SubC -> [FixSubC]
 splitC (SubC γ (RFun (RB x1) r1 r1') (RFun (RB x2) r2 r2')) 
   = splitC (SubC γ r2 r1) ++ splitC (SubC γ' r1x2' r2') 
     where r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
-          γ'    = γ += (x2, r2) 
+          γ'    = (γ, "splitC") += (x2, r2) 
 
 splitC (SubC γ (RAll _ r1) (RAll _ r2)) 
   = splitC (SubC γ r1 r2) 
@@ -323,7 +316,7 @@ splitCRefAlgRhs γ (RDataTyCon _ dcs1) (RDataTyCon _ dcs2)
 
 splitCRefDataCon γ (MkRData _ fts1) (MkRData _ fts2) 
   = {-traceShow ("\nTrue split :" ++ showPpr t1s ++ "\n" ++ showPpr t2s') $-} concatMap splitC $!! zipWith3 SubC γs t1s t2s'
-    where γs         = scanl (+=) γ (fieldBinds fts1) 
+    where γs         = scanl (\γ z -> (γ, "splitCRefDC") += z) γ (fieldBinds fts1) 
           t2s'       = zipWith F.subst subs t2s 
           (x1s, t1s) = unzip (fieldBinds fts1)
           (x2s, t2s) = unzip (fieldBinds fts2) 
@@ -541,11 +534,9 @@ isBaseTyCon c
 
 consCB :: CGEnv -> CoreBind -> CG CGEnv 
 
--- recBind γ = (γ +=) . traceShow "RecBind: "
-
 consCB γ (Rec xes) 
   = do ts       <- mapM (\e -> freshTy_pretty e $ exprType e) es
-       let γ'    = foldl' (+=) (γ `withRecs` xs) (zip vs ts)
+       let γ'    = foldl' (\γ z -> (γ, "consCB") += z) (γ `withRecs` xs) (zip vs ts)
        zipWithM_ (cconsE γ') es ts
        zipWithM_ addIdA xs (Left <$> ts)
        mapM_     addW (WfC γ <$> ts)
@@ -553,10 +544,13 @@ consCB γ (Rec xes)
     where (xs, es) = unzip xes
           vs       = mkSymbol <$> xs
 
-consCB γ (NonRec x e)
+consCB γ b@(NonRec x e)
+--  | (mkSymbol x) `memberREnv` (renv γ)
+--  = errorstar $ "Duplicate binding:\n" ++ showPpr b  
+--  | otherwise
   = do t <- consE γ e
        addIdA x (Left t)
-       return $ γ += (mkSymbol x, t)
+       return $ γ ++= (mkSymbol x, t)
 
 
 
@@ -572,7 +566,10 @@ cconsE γ (Let b e) t
   = do γ'  <- consCB γ b
        cconsE γ' e t 
 
-cconsE γ (Case e x τ cases) t 
+cconsE γ ex@(Case e x τ cases) t 
+---  | (mkSymbol x) `memberREnv` (renv γ)
+---  = errorstar $ "Duplicate binding in CASE:\n" ++ showPpr ex  
+---  | otherwise
   = do γ'  <- consCB γ $ NonRec x e
        forM_ cases $ cconsCase γ' x t
 
@@ -581,7 +578,7 @@ cconsE γ (Lam α e) (RAll _ t) | isTyVar α
 
 cconsE γ (Lam x e) (RFun (RB y) ty t) 
   | not (isTyVar x) 
-  = do cconsE (γ += (mkSymbol x, ty)) e te 
+  = do cconsE ((γ, "cconsE") += (mkSymbol x, ty)) e te 
        addIdA x (Left ty) 
     where te = t `F.subst1` (y, F.EVar $ mkSymbol x)
 
@@ -632,7 +629,7 @@ consE γ (Lam α e) | isTyVar α
 
 consE γ  e@(Lam x e1) 
   = do tx     <- freshTy (Var x) τx 
-       t1     <- consE (γ += (mkSymbol x, tx)) e1
+       t1     <- consE ((γ, "consE") += (mkSymbol x, tx)) e1
        addIdA x (Left tx) 
        addW   $ WfC γ tx 
        return $ RFun (RB (mkSymbol x)) tx t1
@@ -683,20 +680,17 @@ cconsCase γ x t (DataAlt c, ys, ce)
           yts'     = zipWith F.subst sus ts
           yts      = ts
 
-addBinders γ x' cbs 
-  = foldl' wr γ0 cbs
-  where γ0 = (γ -= x')
-        wr γ z = trace "\nWrapper: keys γ = " ++ (show $ domREnv $ renv γ) $ (γ += z)
-
+addBinders γ0 x' cbs 
+  = foldl' wr γ2 cbs
+    where γ1     = traceShow ("addBinders γ0 = " ++ (show $ domREnv $ renv γ0)) $ (γ0 -= x')
+          wr γ z = traceShow ("\nWrapper: keys γ = " ++ (show $ domREnv $ renv γ)) $ (γ, "addBinders") += z
+          γ2     = if x' `memberREnv` (renv γ1) then error "DIE DIE DIE" else γ1
 
 checkFun _ t@(RFun _ _ _) = t
 checkFun x t              = errorstar $ showPpr x ++ "type: " ++ showPpr t
 
 checkAll _ t@(RAll _ _)   = t
 checkAll x t              = errorstar $ showPpr x ++ "type: " ++ showPpr t
-
-
-
 
 
 varAnn γ x t 
@@ -727,7 +721,7 @@ argExpr (Lit c)          = Just $ snd $ literalConst c
 argExpr (Tick _ e)		 = argExpr e
 argExpr e                = errorstar $ "argExpr: " ++ (showPpr e)
 
-varRefType γ x = traceShow ("varRefType " ++ showPpr x ++ " : ") $ t 
+varRefType γ x = {- traceShow ("varRefType " ++ showPpr x ++ " : ") $ -} t 
   where t  = (γ ?= (mkSymbol x)) `strengthen` xr
         xr = F.symbolReft (mkSymbol x)
 

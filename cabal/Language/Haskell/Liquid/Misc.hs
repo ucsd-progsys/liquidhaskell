@@ -34,8 +34,8 @@ wrap l r s = l ++ s ++ r
 
 repeats n  = concat . replicate n
 
-errorstar = error . wrap stars stars 
-  where stars = repeats 3 "\n**************************ERROR***************************************\n"
+errorstar = error . wrap (stars ++ "\n") (stars ++ "\n") 
+  where stars = repeats 3 "\n**************************ERROR***************************************"
 
 fst3 ::  (a, b, c) -> a
 fst3 (x,_,_) = x

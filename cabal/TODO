@@ -2,6 +2,30 @@
 Transition to GHC 7.4
 ---------------------
 
+* tests/pos/test000.hs fails. Issue: case-binder (master has _ uses toss,
+  but ghc74 uses new wild)  somehow no binder/strengthen for scrutinee.
+  
+  (master)
+  Test0.prop_easy =
+   __core_loc test000.hs:12:13-46
+   (case __core_loc test000.hs:12:16-19 Test0.toss of _ {
+      GHC.Types.False -> __core_loc test000.hs:12:43-46 GHC.Types.True;
+      GHC.Types.True ->
+        __core_loc test000.hs:12:26-36
+        ((__core_loc test000.hs:12:26-31
+          Language.Haskell.Liquid.Prelude.assert)
+           (__core_loc test000.hs:12:33-36 Test0.toss))
+    })
+
+
+   (ghc74)
+   Test0.prop_easy =
+   case Test0.toss of wild_00 {
+     GHC.Types.False -> GHC.Types.True;
+     GHC.Types.True -> Language.Haskell.Liquid.Prelude.assert wild_00
+   }
+
+
 * How to insert Tick?
 
 > Get LiquidHaskell to build against 7.4

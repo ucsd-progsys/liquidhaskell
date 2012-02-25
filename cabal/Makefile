@@ -5,7 +5,9 @@ API=ghc-7.4.1
 
 GHC=$(BINPATH)/ghc
 GPG=$(BINPATH)/ghc-pkg
-OPTS="-O2 -XStandaloneDeriving -XDeriveDataTypeable"
+
+OPTS="-XStandaloneDeriving -XDeriveDataTypeable"
+#OPTS="-O2 -XStandaloneDeriving -XDeriveDataTypeable"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
 CABAL=cabal --with-ghc=$(GHC) 
 #CABAL=cabal --with-ghc=$(GHC) --enable-executable-profiling --enable-library-profiling --reinstall
