@@ -4,8 +4,6 @@ Transition to GHC 7.4
 
 Failed 4 tests: 
     neg/mapreduce.hs        -- proves it safe
-  , pos/LambdaEval.hs       -- duplicate bind for sto?
-  , pos/LambdaEvalMini.hs   -- duplicate bind for sto?
   , pos/vector1b.hs         -- cannot find "map" huh?
 
 
