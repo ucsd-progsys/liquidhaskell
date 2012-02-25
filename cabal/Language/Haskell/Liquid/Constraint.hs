@@ -683,7 +683,7 @@ cconsCase γ x t (DataAlt c, ys, ce)
 addBinders γ0 x' cbs 
   = foldl' wr γ2 cbs
     where γ1     = {- traceShow ("addBinders γ0 = " ++ (show $ domREnv $ renv γ0))    $ -} (γ0 -= x')
-          wr γ z = {- traceShow ("\nWrapper: keys γ = " ++ (show $ domREnv $ renv γ)) $ -} (γ, "addBinders") += z
+          wr γ z = {- traceShow ("\nWrapper: keys γ = " ++ (show $ domREnv $ renv γ)) $ -} γ ++= z
           γ2     = if x' `memberREnv` (renv γ1) then error "DIE DIE DIE" else γ1
 
 checkFun _ t@(RFun _ _ _) = t
