@@ -17,7 +17,7 @@ import Data.Maybe
 import Control.DeepSeq
 
 ---------------------------------------------------------------------
-($!!) f x = x `deepseq` f x
+-- ($!!) f x = x `deepseq` f x
 
 --instance (NFData a, NFData b) => NFData (M.Map a b) where
 --  rnf _ = ()
