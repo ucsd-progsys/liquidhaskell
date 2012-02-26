@@ -126,7 +126,6 @@ getGhcInfo target paths =
       liftIO $ putStrLn "Guarantee Spec" 
       liftIO $ putStrLn $ showPpr (grt ++ grt')
        -- module specifications
-      A
       (ins, asm, msr) <- moduleSpec mg paths (importVars cbs) 
       -- module qualifiers 
       hqs  <- moduleHquals mg paths target ins 

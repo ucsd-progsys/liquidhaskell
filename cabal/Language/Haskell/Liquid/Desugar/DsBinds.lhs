@@ -17,14 +17,14 @@ lower levels it is preserved with @let@/@letrec@s).
 --     http://hackage.haskell.org/trac/ghc/wiki/Commentary/CodingStyle#TabsvsSpaces
 -- for details
 
-module DsBinds ( dsTopLHsBinds, dsLHsBinds, decomposeRuleLhs, dsSpec,
+module Language.Haskell.Liquid.Desugar.DsBinds ( dsTopLHsBinds, dsLHsBinds, decomposeRuleLhs, dsSpec,
                  dsHsWrapper, dsTcEvBinds, dsEvBinds, dsTcCoercion
   ) where
 
-#include "HsVersions.h"
+-- #include "HsVersions.h"
 
-import {-# SOURCE #-}	DsExpr( dsLExpr )
-import {-# SOURCE #-}	Match( matchWrapper )
+import {-# SOURCE #-}	Language.Haskell.Liquid.Desugar.DsExpr( dsLExpr )
+import {-# SOURCE #-}	Language.Haskell.Liquid.Desugar.Match( matchWrapper )
 
 import DsMonad
 import DsGRHSs
@@ -688,7 +688,7 @@ dsEvTerm (EvCast v co)
 dsEvTerm (EvDFunApp df tys vars) = Var df `mkTyApps` tys `mkVarApps` vars
 dsEvTerm (EvCoercion co)         = dsTcCoercion co mkEqBox
 dsEvTerm (EvTupleSel v n)
-   = ASSERT( isTupleTyCon tc )
+   = -- ASSERT( isTupleTyCon tc )
      Case (Var v) (mkWildValBinder (varType v)) (tys !! n) [(DataAlt dc, xs, Var v')]
   where
     (tc, tys) = splitTyConApp (evVarPred v)

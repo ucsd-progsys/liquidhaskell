@@ -13,7 +13,7 @@ The Desugarer: turning HsSyn into Core.
 --     http://hackage.haskell.org/trac/ghc/wiki/Commentary/CodingStyle#TabsvsSpaces
 -- for details
 
-module Language.Haskell.Liquid.Desugar ( deSugarWithLoc, deSugarExpr ) where
+module Language.Haskell.Liquid.Desugar.Desugar ( deSugarWithLoc ) where
 
 import DynFlags
 import StaticFlags
@@ -64,7 +64,7 @@ import Data.IORef
 deSugarWithLoc :: HscEnv -> ModLocation -> TcGblEnv -> IO (Messages, Maybe ModGuts)
 -- Can modify PCS by faulting in more declarations
 
-deSugar hsc_env 
+deSugarWithLoc hsc_env 
         mod_loc
         tcg_env@(TcGblEnv { tcg_mod          = mod,
                             tcg_src          = hsc_src,
@@ -153,10 +153,10 @@ deSugar hsc_env
         -- You might think it doesn't matter, but the simplifier brings all top-level
         -- things into the in-scope set before simplifying; so we get no unfolding for F#!
 
-#ifdef DEBUG
-          -- Debug only as pre-simple-optimisation program may be really big
-        ; endPass dflags CoreDesugar final_pgm rules_for_imps 
-#endif
+-- #ifdef DEBUG
+--          -- Debug only as pre-simple-optimisation program may be really big
+--        ; endPass dflags CoreDesugar final_pgm rules_for_imps 
+-- #endif
         ; (ds_binds, ds_rules_for_imps, ds_vects) 
             <- simpleOptPgm dflags mod final_pgm rules_for_imps vects0
                          -- The simpleOptPgm gets rid of type 
@@ -230,7 +230,7 @@ and Rec the rest.
 
 
 \begin{code}
-deSugarExpr :: HscEnv
+{- deSugarExpr :: HscEnv
 	    -> Module -> GlobalRdrEnv -> TypeEnv 
  	    -> LHsExpr Id
 	    -> IO (Messages, Maybe CoreExpr)
@@ -252,6 +252,7 @@ deSugarExpr hsc_env this_mod rdr_env type_env tc_expr = do
         dumpIfSet_dyn dflags Opt_D_dump_ds "Desugared" (pprCoreExpr expr)
 
         return (msgs, Just expr)
+-}
 \end{code}
 
 %************************************************************************

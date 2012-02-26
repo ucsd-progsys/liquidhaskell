@@ -13,11 +13,11 @@ The @match@ function
 --     http://hackage.haskell.org/trac/ghc/wiki/Commentary/CodingStyle#TabsvsSpaces
 -- for details
 
-module Match ( match, matchEquations, matchWrapper, matchSimply, matchSinglePat ) where
+module Language.Haskell.Liquid.Desugar.Match ( match, matchEquations, matchWrapper, matchSimply, matchSinglePat ) where
 
-#include "HsVersions.h"
+-- #include "HsVersions.h"
 
-import {-#SOURCE#-} DsExpr (dsLExpr)
+import {-#SOURCE#-} Language.Haskell.Liquid.Desugar.DsExpr (dsLExpr)
 
 import DynFlags
 import HsSyn		
@@ -29,7 +29,7 @@ import Literal
 import CoreUtils
 import MkCore
 import DsMonad
-import Language.Haskell.Liquid.DsBinds
+import Language.Haskell.Liquid.Desugar.DsBinds
 import DsGRHSs
 import DsUtils
 import Id
@@ -282,15 +282,15 @@ match :: [Id]		  -- Variables rep\'ing the exprs we\'re matching with
       -> DsM MatchResult  -- Desugared result!
 
 match [] ty eqns
-  = ASSERT2( not (null eqns), ppr ty )
+  = -- ASSERT2( not (null eqns), ppr ty )
     return (foldr1 combineMatchResults match_results)
   where
-    match_results = [ ASSERT( null (eqn_pats eqn) ) 
+    match_results = [ -- ASSERT( null (eqn_pats eqn) ) 
 		      eqn_rhs eqn
 		    | eqn <- eqns ]
 
 match vars@(v:_) ty eqns
-  = ASSERT( not (null eqns ) )
+  = -- ASSERT( not (null eqns ) )
     do	{ 	-- Tidy the first pattern, generating
 		-- auxiliary bindings if necessary
           (aux_binds, tidy_eqns) <- mapAndUnzipM (tidyEqnInfo v) eqns
@@ -691,7 +691,7 @@ JJQC 30-Nov-1997
 
 \begin{code}
 matchWrapper ctxt (MatchGroup matches match_ty)
-  = ASSERT( notNull matches )
+  = -- ASSERT( notNull matches )
     do	{ eqns_info   <- mapM mk_eqn_info matches
 	; new_vars    <- selectMatchVars arg_pats
 	; result_expr <- matchEquations ctxt new_vars eqns_info rhs_ty
