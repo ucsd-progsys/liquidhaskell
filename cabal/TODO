@@ -3,17 +3,9 @@ Transition to GHC 7.4
 ---------------------
 
 * How to insert Tick?
-    > Lets write our own deSugarer (!)    
-
-
-> Update build to get Tick _everywhere_ via --auto-all
-> Just dump the Core and exit
-> See if the core contains Tick (which profNoteCC contains srcspan)
-
-
-
-
-
+    
+    HEREHEREHERE
+    > Copied GHC deSugarer, Get it to COMPILE
 
 
 0. hack fixpoint, to prevent instantiating ~A with vars of type "func"
