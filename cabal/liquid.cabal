@@ -27,22 +27,7 @@ Library
                      text, deepseq, cmdargs, filemanip
   
   Exposed-Modules: 
-    Language.Haskell.Liquid.Constraint
-    Language.Haskell.Liquid.RefType
-    Language.Haskell.Liquid.Parse
-    Language.Haskell.Liquid.FixInterface
-    Language.Haskell.Liquid.Fixpoint
-    Language.Haskell.Liquid.ANFTransform
-    Language.Haskell.Liquid.Bare
-    Language.Haskell.Liquid.CmdLine
-    Language.Haskell.Liquid.FileNames
-    Language.Haskell.Liquid.GhcInterface
-    Language.Haskell.Liquid.GhcMisc2
-    Language.Haskell.Liquid.Measure
-    Language.Haskell.Liquid.Misc
-    Language.Haskell.Liquid.Tidy
-  Language.Haskell.Liquid.Misc
-    Language.Haskell.Liquid.GhcInterface
+    
   --ghc-options: -O -W
   Extensions: 
 

@@ -50,6 +50,7 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Bare
+import Language.Haskell.Liquid.Desugar.Desugar (deSugarWithLoc)
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Haskell.HsColour.ACSS as ACSS
@@ -105,8 +106,9 @@ getGhcModGuts1 fn = do
    modGraph <- depanal [] True
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
-       mod_guts <- coreModule `fmap` (desugarModule =<< typecheckModule =<< parseModule modSummary)
+       mod_guts <- coreModule `fmap` (desugarModuleWithLoc =<< typecheckModule =<< parseModule modSummary)
        return mod_guts
+
 
 getGhcInfo target paths = 
     runGhc (Just libdir) $ do
@@ -124,6 +126,7 @@ getGhcInfo target paths =
       liftIO $ putStrLn "Guarantee Spec" 
       liftIO $ putStrLn $ showPpr (grt ++ grt')
        -- module specifications
+      A
       (ins, asm, msr) <- moduleSpec mg paths (importVars cbs) 
       -- module qualifiers 
       hqs  <- moduleHquals mg paths target ins 
@@ -160,6 +163,34 @@ isDataCon v =
    DataConWorkId _ -> True
 --   DataConWrapId _ -> True
    _               -> False
+
+------------------------------------------------------------------
+-------------- Desugaring (Taken from GHC) -----------------------
+------------------------------------------------------------------
+
+desugarModuleWithLoc tcm = do
+ let ms = modSummary tcm
+ let (tcg, _) = tm_internals tcm
+ hsc_env <- getSession
+ let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
+ guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
+ return $
+     DesugaredModule {
+       dm_typechecked_module = tcm,
+       dm_core_module        = guts
+     }
+
+hscDesugarWithLoc :: HscEnv -> ModSummary -> TcGblEnv -> IO ModGuts
+hscDesugarWithLoc hsc_env mod_summary tc_result =
+  runHsc hsc_env $ hscDesugar' (ms_location mod_summary) tc_result
+
+hscDesugar' :: ModLocation -> TcGblEnv -> Hsc ModGuts
+hscDesugar' mod_location tc_result = do
+  hsc_env <- getHscEnv
+  r <- ioMsgMaybe $
+          {-# SCC "deSugar" #-}
+          deSugarWithLoc hsc_env mod_location tc_result
+          return r
 
 -----------------------------------------------------------------------------
 ---------- Extracting Refinement Type Specifications From Annots ------------
