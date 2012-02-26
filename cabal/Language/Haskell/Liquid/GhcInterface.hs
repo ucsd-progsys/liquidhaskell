@@ -3,22 +3,23 @@
 
 module Language.Haskell.Liquid.GhcInterface where
 
-import GHC		
+import GHC 
 import Outputable
-import HscTypes 
+import HscTypes
 import CoreSyn
 import Var
 import IdInfo
 import Name     (getSrcSpan)
 import CoreMonad (liftIO)
-import Serialized 
-import Annotations 
+import Serialized
+import Annotations
 import CorePrep
 import VarEnv
-import DataCon 
+import DataCon
 import HscMain
 import TypeRep
 import Module
+import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc) 
 import MonadUtils (concatMapM, mapSndM)
 import qualified Control.Exception as Ex
 
@@ -50,7 +51,6 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Bare
-import Language.Haskell.Liquid.Desugar.Desugar (deSugarWithLoc)
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Haskell.HsColour.ACSS as ACSS
@@ -168,8 +168,9 @@ isDataCon v =
 ------------------------------------------------------------------
 
 desugarModuleWithLoc tcm = do
- let ms = modSummary tcm
- let (tcg, _) = tm_internals tcm
+ let ms = pm_mod_summary $ tm_parsed_module tcm 
+ -- let ms = modSummary tcm
+ let (tcg, _) = tm_internals_ tcm
  hsc_env <- getSession
  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
  guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
@@ -178,19 +179,6 @@ desugarModuleWithLoc tcm = do
        dm_typechecked_module = tcm,
        dm_core_module        = guts
      }
-
-hscDesugarWithLoc :: HscEnv -> ModSummary -> TcGblEnv -> IO ModGuts
-hscDesugarWithLoc hsc_env mod_summary tc_result =
-  runHsc hsc_env $ hscDesugar' (ms_location mod_summary) tc_result
-
-hscDesugar' :: ModLocation -> TcGblEnv -> Hsc ModGuts
-hscDesugar' mod_location tc_result = do
-  hsc_env <- getHscEnv
-  r <- ioMsgMaybe $
-          {-# SCC "deSugar" #-}
-          deSugarWithLoc hsc_env mod_location tc_result
-          return r
-
 -----------------------------------------------------------------------------
 ---------- Extracting Refinement Type Specifications From Annots ------------
 -----------------------------------------------------------------------------
