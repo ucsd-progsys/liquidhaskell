@@ -23,13 +23,12 @@ module Language.Haskell.Liquid.Desugar.DsBinds ( dsTopLHsBinds, dsLHsBinds, deco
 
 -- #include "HsVersions.h"
 
-import {-# SOURCE #-}	Language.Haskell.Liquid.Desugar.DsExpr( dsLExpr )
+import {-# SOURCE #-}	Language.Haskell.Liquid.Desugar.DsExpr( dsLExprWithLoc )
 import {-# SOURCE #-}	Language.Haskell.Liquid.Desugar.Match( matchWrapper )
 
 import DsMonad
-import DsGRHSs
-import DsUtils
-
+import Language.Haskell.Liquid.Desugar.DsGRHSs
+import Language.Haskell.Liquid.Desugar.DsUtils
 import HsSyn		-- lots of things
 import CoreSyn		-- lots of things
 import CoreSubst
@@ -89,13 +88,16 @@ ds_lhs_binds binds = do { ds_bs <- mapBagM dsLHsBind binds
 
 dsLHsBind :: LHsBind Id -> DsM (OrdList (Id,CoreExpr))
 dsLHsBind (L loc bind)
-  = putSrcSpanDs loc $ dsHsBind bind
+  = putSrcSpanDs loc $ dsHsBindWithLoc bind
+
+dsHsBindWithLoc :: HsBind Id -> DsM (OrdList (Id,CoreExpr))
+dsHsBindWithLoc =  dsHsBind 
 
 dsHsBind :: HsBind Id -> DsM (OrdList (Id,CoreExpr))
 
 dsHsBind (VarBind { var_id = var, var_rhs = expr, var_inline = inline_regardless })
-  = do  { core_expr <- dsLExpr expr
-
+  = do  { core_expr <- dsLExprWithLoc expr
+        -- ; _         <- error "DIE REACH HERE dsHsBind 1" 
 	        -- Dictionary bindings are always VarBinds,
 	        -- so we only need do this here
         ; let var' | inline_regardless = var `setIdUnfolding` mkCompulsoryUnfolding core_expr
@@ -107,6 +109,7 @@ dsHsBind (FunBind { fun_id = L _ fun, fun_matches = matches
                   , fun_co_fn = co_fn, fun_tick = tick
                   , fun_infix = inf })
  = do	{ (args, body) <- matchWrapper (FunRhs (idName fun) inf) matches
+        -- ; _         <- error "DIE REACH HERE dsHsBind 2" 
         ; let body' = mkOptTickBox tick body
               rhs = dsHsWrapper co_fn (mkLams args body')
         ; {- pprTrace "dsHsBind" (ppr fun <+> ppr (idInlinePragma fun)) $ -}
@@ -115,6 +118,7 @@ dsHsBind (FunBind { fun_id = L _ fun, fun_matches = matches
 dsHsBind (PatBind { pat_lhs = pat, pat_rhs = grhss, pat_rhs_ty = ty
                   , pat_ticks = (rhs_tick, var_ticks) })
   = do	{ body_expr <- dsGuarded grhss ty
+        -- ; _         <- error "DIE REACH HERE dsHsBind 3" 
         ; let body' = mkOptTickBox rhs_tick body_expr
         ; sel_binds <- mkSelectorBinds var_ticks pat body'
 	  -- We silently ignore inline pragmas; no makeCorePair
@@ -130,8 +134,9 @@ dsHsBind (AbsBinds { abs_tvs = tyvars, abs_ev_vars = dicts
                    , abs_ev_binds = ev_binds, abs_binds = binds })
   | ABE { abe_wrap = wrap, abe_poly = global
         , abe_mono = local, abe_prags = prags } <- export
-  = do  { bind_prs    <- ds_lhs_binds binds
-	; let	core_bind = Rec (fromOL bind_prs)
+  = do  { bind_prs  <- ds_lhs_binds binds
+        -- ; _         <- error "DIE REACH HERE dsHsBind 4" 
+        ; let	core_bind = Rec (fromOL bind_prs)
                 rhs       = dsHsWrapper wrap $  -- Usually the identity
 			    mkLams tyvars $ mkLams dicts $ 
 	                    mkCoreLets (dsTcEvBinds ev_binds) $
@@ -150,6 +155,7 @@ dsHsBind (AbsBinds { abs_tvs = tyvars, abs_ev_vars = dicts
                    , abs_exports = exports, abs_ev_binds = ev_binds
                    , abs_binds = binds })
   = do  { bind_prs    <- ds_lhs_binds binds
+        -- ; _         <- error "DIE REACH HERE dsHsBind 5" 
         ; let core_bind = Rec (fromOL bind_prs)
 	      	-- Monomorphic recursion possible, hence Rec
 
@@ -645,7 +651,8 @@ as the old one, but with an Internal name and no IdInfo.
 
 \begin{code}
 dsHsWrapper :: HsWrapper -> CoreExpr -> CoreExpr
-dsHsWrapper WpHole 	      e = e
+-- dsHsWrapper _  _                = error "DIE HERE dsHsWrapper"                 
+dsHsWrapper WpHole 	          e = e
 dsHsWrapper (WpTyApp ty)      e = App e (Type ty)
 dsHsWrapper (WpLet ev_binds)  e = mkCoreLets (dsTcEvBinds ev_binds) e
 dsHsWrapper (WpCompose c1 c2) e = dsHsWrapper c1 (dsHsWrapper c2 e) 
@@ -714,7 +721,7 @@ dsTcCoercion :: TcCoercion -> (Coercion -> CoreExpr) -> CoreExpr
 --         case g2 of EqBox g2# ->
 --         k (trans g1# g2#)
 dsTcCoercion co thing_inside
-  = foldr wrap_in_case result_expr eqvs_covs
+  = {- error "DIE HERE dsTcCoercion" -} foldr wrap_in_case result_expr eqvs_covs
   where
     result_expr = thing_inside (ds_tc_coercion subst co)
     result_ty   = exprType result_expr

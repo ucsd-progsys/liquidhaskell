@@ -6,18 +6,26 @@
 Desugaring exporessions.
 
 \begin{code}
-module Language.Haskell.Liquid.Desugar.DsExpr ( dsExpr, dsLExpr, dsLocalBinds, dsValBinds, dsLit ) where
+
+{-# LANGUAGE PatternGuards #-}
+
+{-# OPTIONS -fno-warn-tabs #-}
+
+module Language.Haskell.Liquid.Desugar.DsExpr ( dsExpr, dsLExprWithLoc, dsLocalBinds, dsValBinds, dsLit ) where
 
 -- #include "HsVersions.h"
 
+import Language.Haskell.Liquid.GhcMisc2 (srcSpanTick)
+
 import Language.Haskell.Liquid.Desugar.Match
-import MatchLit
 import Language.Haskell.Liquid.Desugar.DsBinds
-import DsGRHSs
-import DsListComp
-import DsUtils
-import DsArrows
+import Language.Haskell.Liquid.Desugar.DsGRHSs
+import Language.Haskell.Liquid.Desugar.DsListComp
+import Language.Haskell.Liquid.Desugar.DsUtils
+import Language.Haskell.Liquid.Desugar.DsArrows
+
 import DsMonad
+import Language.Haskell.Liquid.Desugar.MatchLit
 import Name
 import NameEnv
 
@@ -80,7 +88,7 @@ dsIPBinds (IPBinds ip_binds ev_binds) body
         ; foldrM ds_ip_bind inner ip_binds }
   where
     ds_ip_bind (L _ (IPBind n e)) body
-      = do e' <- dsLExpr e
+      = do e' <- dsLExprWithLoc e
            return (Let (NonRec (ipNameName n) (mkIPBox n e')) body)
 
 -------------------------
@@ -197,13 +205,21 @@ scrungleMatch var scrut body
 %************************************************************************
 
 \begin{code}
-dsLExpr :: LHsExpr Id -> DsM CoreExpr
+-- dsLExpr :: LHsExpr Id -> DsM CoreExpr
+-- dsLExpr = dsLExprWithLoc
 
-dsLExpr (L loc e) = putSrcSpanDs loc $ dsExpr e
+dsLExprWithLoc :: LHsExpr Id -> DsM CoreExpr
+
+-- dsLExprWithLoc (L loc e) = putSrcSpanDs loc $ dsExpr e
+dsLExprWithLoc (L loc e) -- = error "DIED in dsLExprWithLoc"
+  = do ce <- putSrcSpanDs loc $ dsExpr e
+       m  <- getModuleDs                  
+       return $ Tick (srcSpanTick m loc) ce
+
 
 dsExpr :: HsExpr Id -> DsM CoreExpr
-dsExpr (HsPar e)              = dsLExpr e
-dsExpr (ExprWithTySigOut e _) = dsLExpr e
+dsExpr (HsPar e)              = dsLExprWithLoc e
+dsExpr (ExprWithTySigOut e _) = dsLExprWithLoc e
 dsExpr (HsVar var)            = return (varToCoreExpr var)   -- See Note [Desugaring vars]
 dsExpr (HsIPVar ip)           = return (mkIPUnbox ip)
 dsExpr (HsLit lit)            = dsLit lit
@@ -217,13 +233,13 @@ dsExpr (HsWrap co_fn e)
        ; return wrapped_e }
 
 dsExpr (NegApp expr neg_expr) 
-  = App <$> dsExpr neg_expr <*> dsLExpr expr
+  = App <$> dsExpr neg_expr <*> dsLExprWithLoc expr
 
 dsExpr (HsLam a_Match)
   = uncurry mkLams <$> matchWrapper LambdaExpr a_Match
 
 dsExpr (HsApp fun arg)
-  = mkCoreAppDs <$> dsLExpr fun <*>  dsLExpr arg
+  = mkCoreAppDs <$> dsLExprWithLoc fun <*>  dsLExprWithLoc arg
 \end{code}
 
 Note [Desugaring vars]
@@ -266,18 +282,18 @@ will sort it out.
 \begin{code}
 dsExpr (OpApp e1 op _ e2)
   = -- for the type of y, we need the type of op's 2nd argument
-    mkCoreAppsDs <$> dsLExpr op <*> mapM dsLExpr [e1, e2]
+    mkCoreAppsDs <$> dsLExprWithLoc op <*> mapM dsLExprWithLoc [e1, e2]
     
 dsExpr (SectionL expr op)       -- Desugar (e !) to ((!) e)
-  = mkCoreAppDs <$> dsLExpr op <*> dsLExpr expr
+  = mkCoreAppDs <$> dsLExprWithLoc op <*> dsLExprWithLoc expr
 
--- dsLExpr (SectionR op expr)   -- \ x -> op x expr
+-- dsLExprWithLoc (SectionR op expr)   -- \ x -> op x expr
 dsExpr (SectionR op expr) = do
-    core_op <- dsLExpr op
+    core_op <- dsLExprWithLoc op
     -- for the type of x, we need the type of op's 2nd argument
     let (x_ty:y_ty:_, _) = splitFunTys (exprType core_op)
         -- See comment with SectionL
-    y_core <- dsLExpr expr
+    y_core <- dsLExprWithLoc expr
     x_id <- newSysLocalDs x_ty
     y_id <- newSysLocalDs y_ty
     return (bindNonRec y_id y_core $
@@ -292,7 +308,7 @@ dsExpr (ExplicitTuple tup_args boxity)
              go (lam_vars, args) (Present expr)
                     -- Expressions that are present don't generate
                     -- lambdas, just arguments.
-               = do { core_expr <- dsLExpr expr
+               = do { core_expr <- dsLExprWithLoc expr
                     ; return (lam_vars, core_expr : args) }
 
        ; (lam_vars, args) <- foldM go ([], []) (reverse tup_args)
@@ -306,10 +322,10 @@ dsExpr (HsSCC cc expr@(L loc _)) = do
     mod_name <- getModuleDs
     count <- doptDs Opt_ProfCountEntries
     uniq <- newUnique
-    Tick (ProfNote (mkUserCC cc mod_name loc uniq) count True) <$> dsLExpr expr
+    Tick (ProfNote (mkUserCC cc mod_name loc uniq) count True) <$> dsLExprWithLoc expr
 
 dsExpr (HsCoreAnn _ expr)
-  = dsLExpr expr
+  = dsLExprWithLoc expr
 
 dsExpr (HsCase discrim matches@(MatchGroup _ rhs_ty)) 
   | isEmptyMatchGroup matches   -- A Core 'case' is always non-empty
@@ -317,14 +333,14 @@ dsExpr (HsCase discrim matches@(MatchGroup _ rhs_ty))
     mkErrorAppDs pAT_ERROR_ID (funResultTy rhs_ty) (ptext (sLit "case"))
 
   | otherwise
-  = do { core_discrim <- dsLExpr discrim
+  = do { core_discrim <- dsLExprWithLoc discrim
        ; ([discrim_var], matching_code) <- matchWrapper CaseAlt matches
        ; return (scrungleMatch discrim_var core_discrim matching_code) }
 
 -- Pepe: The binds are in scope in the body but NOT in the binding group
 --       This is to avoid silliness in breakpoints
 dsExpr (HsLet binds body) = do
-    body' <- dsLExpr body
+    body' <- dsLExprWithLoc body
     dsLocalBinds binds body'
 
 -- We need the `ListComp' form to use `deListComp' (rather than the "do" form)
@@ -338,9 +354,9 @@ dsExpr (HsDo MDoExpr   stmts _)      = dsDo stmts
 dsExpr (HsDo MonadComp stmts _)      = dsMonadComp stmts
 
 dsExpr (HsIf mb_fun guard_expr then_expr else_expr)
-  = do { pred <- dsLExpr guard_expr
-       ; b1 <- dsLExpr then_expr
-       ; b2 <- dsLExpr else_expr
+  = do { pred <- dsLExprWithLoc guard_expr
+       ; b1 <- dsLExprWithLoc then_expr
+       ; b2 <- dsLExprWithLoc else_expr
        ; case mb_fun of
            Just fun -> do { core_fun <- dsExpr fun
                           ; return (mkCoreApps core_fun [pred,b1,b2]) }
@@ -364,29 +380,29 @@ dsExpr (ExplicitPArr ty []) = do
 dsExpr (ExplicitPArr ty xs) = do
     singletonP <- dsDPHBuiltin singletonPVar
     appP       <- dsDPHBuiltin appPVar
-    xs'        <- mapM dsLExpr xs
+    xs'        <- mapM dsLExprWithLoc xs
     return . foldr1 (binary appP) $ map (unary singletonP) xs'
   where
     unary  fn x   = mkApps (Var fn) [Type ty, x]
     binary fn x y = mkApps (Var fn) [Type ty, x, y]
 
 dsExpr (ArithSeq expr (From from))
-  = App <$> dsExpr expr <*> dsLExpr from
+  = App <$> dsExpr expr <*> dsLExprWithLoc from
 
 dsExpr (ArithSeq expr (FromTo from to))
-  = mkApps <$> dsExpr expr <*> mapM dsLExpr [from, to]
+  = mkApps <$> dsExpr expr <*> mapM dsLExprWithLoc [from, to]
 
 dsExpr (ArithSeq expr (FromThen from thn))
-  = mkApps <$> dsExpr expr <*> mapM dsLExpr [from, thn]
+  = mkApps <$> dsExpr expr <*> mapM dsLExprWithLoc [from, thn]
 
 dsExpr (ArithSeq expr (FromThenTo from thn to))
-  = mkApps <$> dsExpr expr <*> mapM dsLExpr [from, thn, to]
+  = mkApps <$> dsExpr expr <*> mapM dsLExprWithLoc [from, thn, to]
 
 dsExpr (PArrSeq expr (FromTo from to))
-  = mkApps <$> dsExpr expr <*> mapM dsLExpr [from, to]
+  = mkApps <$> dsExpr expr <*> mapM dsLExprWithLoc [from, to]
 
 dsExpr (PArrSeq expr (FromThenTo from thn to))
-  = mkApps <$> dsExpr expr <*> mapM dsLExpr [from, thn, to]
+  = mkApps <$> dsExpr expr <*> mapM dsLExprWithLoc [from, thn, to]
 
 dsExpr (PArrSeq _ _)
   = panic "DsExpr.dsExpr: Infinite parallel array!"
@@ -426,7 +442,7 @@ dsExpr (RecordCon (L _ data_con_id) con_expr rbinds) = do
         mk_arg (arg_ty, lbl)    -- Selector id has the field label as its name
           = case findField (rec_flds rbinds) lbl of
               (rhs:rhss) -> -- ASSERT( null rhss )
-                            dsLExpr rhs
+                            dsLExprWithLoc rhs
               []         -> mkErrorAppDs rEC_CON_ERROR_ID arg_ty (ppr lbl)
         unlabelled_bottom arg_ty = mkErrorAppDs rEC_CON_ERROR_ID arg_ty empty
 
@@ -477,11 +493,11 @@ So we need to cast (T a Int) to (T a b).  Sigh.
 dsExpr expr@(RecordUpd record_expr (HsRecFields { rec_flds = fields })
                        cons_to_upd in_inst_tys out_inst_tys)
   | null fields
-  = dsLExpr record_expr
+  = dsLExprWithLoc record_expr
   | otherwise
   = -- ASSERT2( notNull cons_to_upd, ppr expr )
 
-    do  { record_expr' <- dsLExpr record_expr
+    do  { record_expr' <- dsLExprWithLoc record_expr
         ; field_binds' <- mapM ds_field fields
         ; let upd_fld_env :: NameEnv Id -- Maps field name to the LocalId of the field binding
               upd_fld_env = mkNameEnv [(f,l) | (f,l,_) <- field_binds']
@@ -502,7 +518,7 @@ dsExpr expr@(RecordUpd record_expr (HsRecFields { rec_flds = fields })
       -- of the record selector, and we must not make that a lcoal binder
       -- else we shadow other uses of the record selector
       -- Hence 'lcl_id'.  Cf Trac #2735
-    ds_field rec_field = do { rhs <- dsLExpr (hsRecFieldArg rec_field)
+    ds_field rec_field = do { rhs <- dsLExprWithLoc (hsRecFieldArg rec_field)
                             ; let fld_id = unLoc (hsRecFieldId rec_field)
                             ; lcl_id <- newSysLocalDs (idType fld_id)
                             ; return (idName fld_id, lcl_id, rhs) }
@@ -578,7 +594,7 @@ Hpc Support
 
 \begin{code}
 dsExpr (HsTick tickish e) = do
-  e' <- dsLExpr e
+  e' <- dsLExprWithLoc e
   return (Tick tickish e')
 
 -- There is a problem here. The then and else branches
@@ -589,7 +605,7 @@ dsExpr (HsTick tickish e) = do
 -- tick counting.
 
 dsExpr (HsBinTick ixT ixF e) = do
-  e2 <- dsLExpr e
+  e2 <- dsLExprWithLoc e
   do { -- ASSERT(exprType e2 `eqType` boolTy)
        mkBinaryTickBox ixT ixF e2
      }
@@ -679,7 +695,7 @@ dsExplicitList :: PostTcType -> [LHsExpr Id] -> DsM CoreExpr
 -- See Note [Desugaring explicit lists]
 dsExplicitList elt_ty xs
   = do { dflags <- getDOptsDs
-       ; xs' <- mapM dsLExpr xs
+       ; xs' <- mapM dsLExprWithLoc xs
        ; let (dynamic_prefix, static_suffix) = spanTail is_static xs'
        ; if opt_SimpleListLiterals                      -- -fsimple-list-literals
          || not (dopt Opt_EnableRewriteRules dflags)    -- Rewrite rules off
@@ -721,11 +737,11 @@ dsDo stmts
   
     go _ (LastStmt body _) stmts
       = -- ASSERT( null stmts ) 
-        dsLExpr body
+        dsLExprWithLoc body
         -- The 'return' op isn't used for 'do' expressions
     
     go _ (ExprStmt rhs then_expr _ _) stmts
-      = do { rhs2 <- dsLExpr rhs
+      = do { rhs2 <- dsLExprWithLoc rhs
            ; warnDiscardedDoBindings rhs (exprType rhs2) 
            ; then_expr2 <- dsExpr then_expr
            ; rest <- goL stmts
@@ -737,7 +753,7 @@ dsDo stmts
 
     go _ (BindStmt pat rhs bind_op fail_op) stmts
       = do  { body     <- goL stmts
-            ; rhs'     <- dsLExpr rhs
+            ; rhs'     <- dsLExprWithLoc rhs
             ; bind_op' <- dsExpr bind_op
             ; var   <- selectSimpleMatchVarL pat
             ; let bind_ty = exprType bind_op'   -- rhs -> (pat -> res1) -> res2

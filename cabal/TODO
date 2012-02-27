@@ -7,6 +7,14 @@ Transition to GHC 7.4
     HEREHEREHERE
     > Copied GHC deSugarer, Get it to COMPILE
 
+    matchWrapper
+        > matchEquations
+            -- > matchContextErrString
+            > matchCheck
+                > match
+        
+    dsTcEvBinds
+    dsTcCoercion
 
 0. hack fixpoint, to prevent instantiating ~A with vars of type "func"
 1. [] : forall a. [{v:a|false}] and re-enable the set-kvars-to-true.

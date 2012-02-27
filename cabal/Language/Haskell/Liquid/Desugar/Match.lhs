@@ -17,7 +17,7 @@ module Language.Haskell.Liquid.Desugar.Match ( match, matchEquations, matchWrapp
 
 -- #include "HsVersions.h"
 
-import {-#SOURCE#-} Language.Haskell.Liquid.Desugar.DsExpr (dsLExpr)
+import {-#SOURCE#-} Language.Haskell.Liquid.Desugar.DsExpr (dsLExprWithLoc)
 
 import DynFlags
 import HsSyn		
@@ -30,12 +30,12 @@ import CoreUtils
 import MkCore
 import DsMonad
 import Language.Haskell.Liquid.Desugar.DsBinds
-import DsGRHSs
-import DsUtils
+import Language.Haskell.Liquid.Desugar.DsGRHSs
+import Language.Haskell.Liquid.Desugar.DsUtils
 import Id
 import DataCon
-import MatchCon
-import MatchLit
+import Language.Haskell.Liquid.Desugar.MatchCon
+import Language.Haskell.Liquid.Desugar.MatchLit
 import Type
 import TysWiredIn
 import ListSetOps
@@ -283,8 +283,9 @@ match :: [Id]		  -- Variables rep\'ing the exprs we\'re matching with
 
 match [] ty eqns
   = -- ASSERT2( not (null eqns), ppr ty )
-    return (foldr1 combineMatchResults match_results)
-  where
+    do { -- _  <- error "DIE in match 1" ; 
+         return (foldr1 combineMatchResults match_results) }
+    where
     match_results = [ -- ASSERT( null (eqn_pats eqn) ) 
 		      eqn_rhs eqn
 		    | eqn <- eqns ]
@@ -292,8 +293,9 @@ match [] ty eqns
 match vars@(v:_) ty eqns
   = -- ASSERT( not (null eqns ) )
     do	{ 	-- Tidy the first pattern, generating
-		-- auxiliary bindings if necessary
-          (aux_binds, tidy_eqns) <- mapAndUnzipM (tidyEqnInfo v) eqns
+		    -- auxiliary bindings if necessary
+            -- _  <- error "DIE in match 1" ; 
+           (aux_binds, tidy_eqns) <- mapAndUnzipM (tidyEqnInfo v) eqns
 
 		-- Group the equations and match each group in turn
         ; let grouped = groupEquations tidy_eqns
@@ -372,7 +374,7 @@ matchView (var:vars) ty (eqns@(eqn1:_))
 	; match_result <- match (var':vars) ty $
                           map (decomposeFirstPat getViewPat) eqns
          -- compile the view expressions
-        ; viewExpr' <- dsLExpr viewExpr
+        ; viewExpr' <- dsLExprWithLoc viewExpr
 	; return (mkViewMatchResult var' viewExpr' var match_result) }
 matchView _ _ _ = panic "matchView"
 

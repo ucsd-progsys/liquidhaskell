@@ -6,7 +6,11 @@
 The Desugarer: turning HsSyn into Core.
 
 \begin{code}
+
+{-# LANGUAGE PatternGuards #-}
+
 {-# OPTIONS -fno-warn-tabs #-}
+
 -- The above warning supression flag is a temporary kludge.
 -- While working on this module you are encouraged to remove it and
 -- detab the module (please do the detabbing in a separate patch). See
@@ -31,10 +35,10 @@ import CoreSyn
 import CoreSubst
 import PprCore
 import DsMonad
-import Language.Haskell.Liquid.Desugar.DsExpr
+import Language.Haskell.Liquid.Desugar.DsExpr (dsLExprWithLoc)
 import Language.Haskell.Liquid.Desugar.DsBinds
 import DsForeign
-import Language.Haskell.Liquid.Desugar.DsExpr		()	-- Forces DsExpr to be compiled; DsBinds only
+-- import Language.Haskell.Liquid.Desugar.DsExpr		()	-- Forces DsExpr to be compiled; DsBinds only
 				-- depends on DsExpr.hi-boot.
 import Module
 import RdrName
@@ -94,6 +98,7 @@ deSugarWithLoc hsc_env
   = do { let dflags = hsc_dflags hsc_env
              platform = targetPlatform dflags
         ; showPass dflags "Desugar"
+    -- REACHES THIS  ; error "DIE IN DESUGAR"
 
 	-- Desugar the program
         ; let export_set = availsToNameSet exports
@@ -242,7 +247,7 @@ deSugarExpr hsc_env this_mod rdr_env type_env tc_expr = do
 
     -- Do desugaring
     (msgs, mb_core_expr) <- initDs hsc_env this_mod rdr_env type_env $
-                                   dsLExpr tc_expr
+                                   dsLExprWithLoc tc_expr
 
     case mb_core_expr of
       Nothing   -> return (msgs, Nothing)
@@ -356,9 +361,9 @@ dsRule (L loc (HsRule name act vars lhs _tv_lhs rhs _fv_rhs))
 
         ; lhs' <- unsetDOptM Opt_EnableRewriteRules $
                   unsetWOptM Opt_WarnIdentities $
-                  dsLExpr lhs   -- Note [Desugaring RULE left hand sides]
+                  dsLExprWithLoc lhs   -- Note [Desugaring RULE left hand sides]
 
-	; rhs' <- dsLExpr rhs
+	; rhs' <- dsLExprWithLoc rhs
 
 	-- Substitute the dict bindings eagerly,
 	-- and take the body apart into a (f args) form
@@ -405,7 +410,7 @@ the rule is precisly to optimise them:
 dsVect :: LVectDecl Id -> DsM CoreVect
 dsVect (L loc (HsVect (L _ v) rhs))
   = putSrcSpanDs loc $ 
-    do { rhs' <- fmapMaybeM dsLExpr rhs
+    do { rhs' <- fmapMaybeM dsLExprWithLoc rhs
        ; return $ Vect v rhs'
        }
 dsVect (L _loc (HsNoVect (L _ v)))

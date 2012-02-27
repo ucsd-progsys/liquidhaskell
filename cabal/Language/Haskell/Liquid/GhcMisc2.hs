@@ -18,8 +18,19 @@ import Literal
 import Type             (mkTyConTy, liftedTypeKind, substTyWith)
 import TysPrim          (intPrimTyCon)
 import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
+import CoreSyn          
+import CostCentre 
+-----------------------------------------------------------------------
+--------------- Generic Helpers for Encoding Location -----------------
+-----------------------------------------------------------------------
 
+srcSpanTick :: Module -> SrcSpan -> Tickish a 
+srcSpanTick m loc 
+  = ProfNote (AllCafsCC m loc) False True
 
+tickSrcSpan :: Tickish a -> SrcSpan
+tickSrcSpan (ProfNote (AllCafsCC _ loc) _ _) 
+  = loc 
 
 -----------------------------------------------------------------------
 --------------- Generic Helpers for Accessing GHC Innards -------------
