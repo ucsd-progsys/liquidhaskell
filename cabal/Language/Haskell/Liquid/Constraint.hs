@@ -44,6 +44,7 @@ import qualified Language.Haskell.Liquid.Fixpoint as F
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.GhcInterface 
 import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.GhcMisc2 (tickSrcSpan)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Bare (isDummyBind)
 
@@ -581,8 +582,11 @@ cconsE γ (Lam x e) (RFun (RB y) ty t)
 --cconsE γ (Note (CoreLoc l) e) t   
 --  = cconsE (γ `atLoc` l) e t
 
-cconsE γ (Tick _ e) t
-  = cconsE γ e t
+--cconsE γ (Tick _ e) t
+--  = cconsE γ e t
+
+cconsE γ (Tick tt e) t   
+  = cconsE (γ `atLoc` tickSrcSpan tt) e t
 
 cconsE γ (Cast e _) t     
   = cconsE γ e t 
@@ -640,8 +644,12 @@ consE γ e@(Case _ _ _ _)
 --consE γ (Note (CoreLoc l) e)      
 --  = consE (γ `atLoc` l) e
 
-consE γ (Tick _ e)
-  = consE γ e
+-- consE γ (Tick _ e)
+--   = consE γ e
+
+consE γ (Tick tt e)
+  = consE (γ `atLoc` tickSrcSpan tt) e
+
 
 consE γ (Cast e _)      
   = consE γ e 
