@@ -5,6 +5,7 @@ GPG=$(BINPATH)/ghc-pkg
 OPTS="-O2 -XStandaloneDeriving -XDeriveDataTypeable"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
 CABAL=cabal --with-ghc=$(GHC) 
+
 #CABAL=cabal --with-ghc=$(GHC) --enable-executable-profiling --enable-library-profiling --reinstall
 
 all:
@@ -25,8 +26,6 @@ dpackages:
 	$(CABAL) install mtl
 	$(CABAL) install parsec
 	$(CABAL) install ghc-paths
-	$(CABAL) install vector
-	$(CABAL) install bytestring 
 	$(CABAL) install --ghc-options=$(OPTS) syb 
 	$(CABAL) install --with-ghc=$(GHC) hscolour 
 
