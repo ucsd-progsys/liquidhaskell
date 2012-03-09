@@ -1,6 +1,6 @@
 module Str0 where
 
-import LiquidPrelude
+import Language.Haskell.Liquid.Prelude
 
 foo = "dog"
 

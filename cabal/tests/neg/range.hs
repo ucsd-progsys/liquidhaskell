@@ -1,6 +1,6 @@
 module Range where
 
-import LiquidPrelude
+import Language.Haskell.Liquid.Prelude
 
 range :: Int -> Int -> [Int]
 range i j  

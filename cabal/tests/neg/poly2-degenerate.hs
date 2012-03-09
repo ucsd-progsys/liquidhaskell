@@ -8,7 +8,7 @@ myabs x    = if x `gt` 0 then x else 0 `minus` x
 
 myid3 x y  = y
 
-prop_id6 x = assert (x' `geq` 10)
-  where x' = myid3 [] $ myabs x 
-
+prop_id6 = assert (x' `geq` 10)
+  where x' = myid3 [] $ myabs n 
+        n  = choose 0
 

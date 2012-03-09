@@ -1,6 +1,7 @@
 module Meas where
 
-import LiquidPrelude
+
+import Language.Haskell.Liquid.Prelude
 
 --mylen []       = 0
 --mylen (_:xs)   = 1 `plus` mylen xs

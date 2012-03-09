@@ -1,4 +1,4 @@
-BINPATH=/home/rjhala/research/ghc-working-local/bin
+BINPATH=/home/jhala/research/ghc-working-local/bin
 API=ghc-7.1.20110517
 GHC=$(BINPATH)/ghc
 GPG=$(BINPATH)/ghc-pkg
@@ -30,7 +30,7 @@ dpackages:
 	$(CABAL) install --with-ghc=$(GHC) hscolour 
 
 vector:
-	$(CABAL) install vector
+	$(CABAL) install vector-0.7.0.1
 
 bytestring:
 	$(CABAL) install bytestring 

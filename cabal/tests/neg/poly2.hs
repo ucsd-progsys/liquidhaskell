@@ -1,6 +1,6 @@
 module Poly0 where
 
-import LiquidPrelude
+import Language.Haskell.Liquid.Prelude
 
 myabs x    = if x `gt` 0 then x else 0 `minus` x
 

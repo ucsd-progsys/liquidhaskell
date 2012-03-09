@@ -2,7 +2,7 @@
 
 module Language.Haskell.Liquid.Parse 
 ( 
-    Inputable (..) 
+    Inputable (..)
 ) 
 where
 
@@ -237,8 +237,13 @@ bareFun2P
        t2 <- bareTypeP
        return $ bareArrow "" t1 a t2 
 
+dummyName pos = "dummy_" ++ name ++ ['@'] ++ line ++ [','] ++ colum
+  where name  = sourceName pos
+        line  = show $ sourceLine pos  
+        colum = show $ sourceColumn pos  
+
 bareFunP  
-  = do x  <- try bindP <|> return "" 
+  = do x  <- try bindP <|> do {p <- getPosition; return $ dummyName p}  
        t1 <- bareArgP 
        a  <- arrowP
        t2 <- bareTypeP
@@ -375,8 +380,14 @@ measurePatP
 
 fixResultP :: Parser a -> Parser (FixResult a)
 fixResultP pp 
-  =  (reserved "SAT" >> return Safe)
+  =  (reserved "SAT"   >> return Safe)
  <|> (reserved "UNSAT" >> Unsafe <$> (brackets $ sepBy pp comma))  
+ <|> (reserved "CRASH" >> crashP pp)
+
+crashP pp
+  = do i   <- pp
+       msg <- many anyChar
+       return $ Crash [i] msg
 
 predSolP 
   = parens $ (predP  <* (comma >> iQualP)) 
@@ -410,8 +421,10 @@ remainderP p
        str <- stateInput <$> getParserState
        return (res, str) 
 
-doParse parser s
-  = case parse (remainderP p) "" s of
+doParse p = doParse' p ""
+
+doParse' parser f s
+  = case parse (remainderP p) f s of
       Left e         -> error $ "parseError when parsing " ++ s ++ " : " ++ show e
       Right (r, "")  -> r
       Right (r, rem) -> error $ "doParse has leftover when parsing: " ++ rem
@@ -421,39 +434,42 @@ doParse parser s
 ------------------------ Bundling Parsers into a Typeclass -----------------------------
 ----------------------------------------------------------------------------------------
 
-
 class Inputable a where
-  rr :: String -> a
+  rr  :: String -> a
+  rr' :: String -> String -> a
+  rr' = \s -> rr
+  rr  = rr' "" 
+
 
 instance Inputable Symbol where
-  rr = doParse symbolP
+  rr' = doParse' symbolP
 
 instance Inputable Constant where
-  rr = doParse constantP 
+  rr' = doParse' constantP 
 
 instance Inputable Pred where
-  rr = doParse predP 
+  rr' = doParse' predP 
 
 instance Inputable Expr where
-  rr = doParse exprP 
+  rr' = doParse' exprP 
 
 instance Inputable [Refa] where
-  rr = doParse refasP
+  rr' = doParse' refasP
 
 instance Inputable (FixResult Integer) where
-  rr = doParse $ fixResultP integer
+  rr' = doParse' $ fixResultP integer
 
 instance Inputable (FixResult Integer, FixSolution) where
-  rr = doParse solutionFileP 
+  rr' = doParse' solutionFileP 
 
 instance Inputable BareType where
-  rr = doParse bareTypeP 
+  rr' = doParse' bareTypeP 
 
 instance Inputable (Measure.Measure BareType Symbol) where
-  rr = doParse measureP
+  rr' = doParse' measureP
 
 instance Inputable (Measure.Spec BareType Symbol) where
-  rr = doParse specificationP
+  rr' = doParse' specificationP
 
 
 

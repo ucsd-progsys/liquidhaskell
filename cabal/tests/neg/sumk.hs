@@ -1,8 +1,8 @@
-module Test0 where
+module Sumk where
 
-import LiquidPrelude
+import Language.Haskell.Liquid.Prelude
 
-{-# ANN module "hquals sumk.hs.hquals" #-}
+-- {-# ANN module "hquals sumk.hs.hquals" #-}
 
 m   = choose 0
 bot = choose 0

@@ -8,6 +8,7 @@ import Outputable
 import HscTypes 
 import CoreSyn
 import Var
+import IdInfo
 import Name     (getSrcSpan)
 import CoreMonad (liftIO)
 import Serialized 
@@ -117,13 +118,16 @@ getGhcInfo target paths =
       cbs <- liftIO $ anormalize env mg
       -- guarantees for variables bound in this module
       grt <- varsSpec (mg_module mg) $ concatMap bindings cbs
-      -- module specifications
+      grt' <- moduleSpec' mg paths
+      liftIO $ putStrLn "Guarantee Spec" 
+      liftIO $ putStrLn $ showPpr (grt ++ grt')
+       -- module specifications
       (ins, asm, msr) <- moduleSpec mg paths (importVars cbs) 
       -- module qualifiers 
       hqs  <- moduleHquals mg paths target ins 
       -- DEAD construct reftypes for wiredIns and such
       bs  <- wiredInSpec env 
-      return $ GI env cbs asm grt (fst msr) (snd msr) hqs bs
+      return $ GI env cbs asm (grt ++ grt') (fst msr) (snd msr) hqs bs
 
 printVars s vs 
   = do putStrLn s 
@@ -140,6 +144,21 @@ mg_namestring = moduleNameString . moduleName . mg_module
 
 importVars = freeVars S.empty 
 
+
+dataCons info = filter isDataCon (importVars $ cbs info)
+
+dataConId v = 
+ case (idDetails v) of
+   DataConWorkId i -> i
+   DataConWrapId i -> i
+   _               -> error "dataConId on non DataCon"
+
+isDataCon v = 
+ case (idDetails v) of
+   DataConWorkId _ -> True
+--   DataConWrapId _ -> True
+   _               -> False
+
 -----------------------------------------------------------------------------
 ---------- Extracting Refinement Type Specifications From Annots ------------
 -----------------------------------------------------------------------------
@@ -154,10 +173,12 @@ varsSpec m vs
 varAnnot v 
   = do anns <- findGlobalAnns deserializeWithData $ NamedTarget $ varName v 
        case anns of 
-         [a] -> return $ Just $ (v, rr a)
+         [a] -> return $ Just $ (v, rr' (varUniqueStr v) a)
          []  -> return $ Nothing 
          _   -> error $ "Conflicting Spec-Annots for " ++ showPpr v
 
+varUniqueStr :: Var -> String
+varUniqueStr = show . varUnique
 ------------------------------------------------------------------------------------
 ------------ Extracting Specifications (Measures + Assumptions) --------------------
 ------------------------------------------------------------------------------------
@@ -166,9 +187,18 @@ varAnnot v
 parseSpecs files 
   = liftIO $ liftM mconcat $ forM files $ \f -> 
       do putStrLn $ "parseSpec: " ++ f 
-         Ex.catch (liftM rr $ readFile f) $ \(e :: Ex.IOException) ->
+         Ex.catch (liftM (rr' f) $ readFile f{-rrWithFile $ f-}) $ \(e :: Ex.IOException) ->
            ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ f
 
+moduleSpec' mg paths 
+  = do myfs   <- moduleImpFiles Spec paths [mg_namestring mg]
+       myspec <- parseSpecs myfs 
+       env    <- getSession
+       msr    <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec (Ms.measures myspec)
+       refspec <-liftIO $  mkAssumeSpec env (Ms.assumes myspec)
+--       liftIO  $ putStrLn $ "Is this correct?: " ++ showPpr refspec 
+       return  refspec
+ 
 moduleSpec mg paths impVars 
   = do -- specs imported by me 
        fs     <- moduleImpFiles Spec paths impNames 
@@ -441,7 +471,7 @@ ppBlank = text "\n_____________________________\n"
 instance NFData Var
 instance NFData SrcSpan
 instance NFData a => NFData (AnnInfo a) where
-  rnf (AI x) = rnf x
+  rnf (AI x) = () -- rnf x
 
 instance NFData GhcInfo where
   rnf (GI x1 x2 x3 x4 x5 x6 x7 x8) 

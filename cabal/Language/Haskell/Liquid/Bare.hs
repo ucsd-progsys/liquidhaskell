@@ -211,7 +211,7 @@ ofBareType (BTup ts r)
 
 -- TODO: move back to RefType
 bareTC :: Reft -> TyCon -> [RefType] -> RefType 
-bareTC r c ts = RCon i' c' ts' r
+bareTC r c ts = rCon i' c' ts' r
   where αs  = [stringTyVar $ "tv_l_" ++ show i | i <- [1..(length ts)]]
         tt  = ofType $ TyConApp c $ map TyVarTy αs
         su  = zip (map rTyVar αs) ts

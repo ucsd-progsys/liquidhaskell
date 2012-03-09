@@ -1,7 +1,7 @@
 module Range where
 
 import Control.Applicative
-import LiquidPrelude
+import Language.Haskell.Liquid.Prelude
 
 goo x = []
 
