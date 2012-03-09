@@ -1,5 +1,8 @@
-BINPATH=/home/jhala/research/ghc-working-local/bin
-API=ghc-7.1.20110517
+BINPATH=/home/rjhala/research/ghc-working-local-new/bin
+API=ghc-7.4.1
+
+##################################################
+
 GHC=$(BINPATH)/ghc
 GPG=$(BINPATH)/ghc-pkg
 OPTS="-O2 -XStandaloneDeriving -XDeriveDataTypeable"

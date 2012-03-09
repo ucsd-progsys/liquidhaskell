@@ -26,7 +26,7 @@ module Language.Haskell.Liquid.Fixpoint (
 import Outputable
 import Control.Monad.State
 import Text.Printf
-import Data.Monoid
+import Data.Monoid hiding ((<>))
 import Data.Functor
 import Data.List
 import Data.Char        (isAlphaNum, isAlpha)

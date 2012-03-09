@@ -5,6 +5,12 @@ Transition to GHC 7.4
 * How to insert Tick?
 
 > Get LiquidHaskell to build against 7.4
+
+    issue: Change RPred etc. to,
+
+    predTreePredType :: PredTree -> PredType
+
+
 > Update build to get Tick _everywhere_ via --auto-all
 > Just dump the Core and exit
 > See if the core contains Tick (which profNoteCC contains srcspan)
