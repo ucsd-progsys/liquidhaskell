@@ -36,7 +36,7 @@ import PrelNames
 import Name             (getSrcSpan, getOccString, mkInternalName)
 import Unique           (getUnique)
 import Literal
-import Type             (mkTyConTy, liftedTypeKind, substTyWith)
+import Type             (isPredTy, mkTyConTy, liftedTypeKind, substTyWith, classifyPredType, PredTree(..), predTreePredType)
 import TysPrim          (intPrimTyCon)
 import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
 
@@ -430,6 +430,9 @@ ofType_ s (ForAllTy α τ)
   = RAll (rTyVar α) $ ofType_ s τ  
 ofType_ s (TyVarTy α)     
   = RVar (rTyVar α) trueReft 
+ofType_ s τ
+  | isPredTy τ
+  = ofPredTree s (classifyPredType τ)  
 ofType_ s τ@(TyConApp c _)
   | TC.isPrimTyCon c   
   = ofPrimTyConApp s τ
@@ -439,10 +442,12 @@ ofType_ s τ@(TyConApp c _)
   = ofSynTyConApp s τ
   | otherwise
   = error $ "ofType: cannot handle tycon app: " ++ showPpr τ
-ofType_ s (PredTy (ClassP c τs))
-  = RClass c (ofType_ s <$> τs)
 ofType_ _ τ               
   = ROther τ  
+
+ofPredTree s (ClassPred c τs)
+  = RClass c (ofType_ s <$> τs)
+ 
 
 ofPrimTyConApp s τ@(TyConApp c τs) 
   = rCon i rc ts trueReft 
@@ -621,7 +626,8 @@ toType (RVar (RT (α,_)) _)
 toType (RCon _ c ts _)   
   = TyConApp (rTyCon c) (toType <$> ts)
 toType (RClass c ts)   
-  = PredTy (ClassP c (toType <$> ts))
+  = predTreePredType $ ClassPred c (toType <$> ts)
+  -- = PredTy (ClassP c (toType <$> ts))
 toType (ROther t)      
   = t 
 

@@ -19,7 +19,7 @@ import Outputable
 import DataCon
 import Data.Map hiding (null, partition)
 import Data.Data
-import Data.Monoid
+import Data.Monoid hiding ((<>))
 import Data.List (partition)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint

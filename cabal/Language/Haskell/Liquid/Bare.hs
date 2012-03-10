@@ -55,7 +55,7 @@ import Data.Traversable (forM)
 import Control.Monad.Reader hiding (forM)
 import Data.Generics.Schemes
 import Data.Generics.Aliases
-import Data.Data hiding (TyCon)
+import Data.Data hiding (TyCon, tyConName)
 import qualified Data.Map as M
 
 import Language.Haskell.Liquid.GhcMisc2
@@ -107,7 +107,7 @@ tcExpr f s =
       df   <- getSessionDynFlags
       setSessionDynFlags df
       cm0  <- compileToCoreModule f
-      setContext [(cm_module cm0)] []
+      setContext [(cm_module cm0)]
       env  <- getSession
       r    <- CM.liftIO $ hscTcExpr env s 
       return r
@@ -117,7 +117,7 @@ fileEnv f
       df    <- getSessionDynFlags
       setSessionDynFlags df
       cm0  <- compileToCoreModule f
-      setContext [(cm_module cm0)] []
+      setContext [(cm_module cm0)]
       env   <- getSession
       return env
 
@@ -150,7 +150,7 @@ lookupGhcTyCon = lookupGhcThing "TyCon" ftc
         ftc _          = Nothing
 
 lookupGhcClass = lookupGhcThing "Class" ftc 
-  where ftc (AClass x) = Just x
+  where ftc (ATyCon x) = tyConClass_maybe x 
         ftc _          = Nothing
 
 lookupGhcDataCon = lookupGhcThing "DataCon" fdc 
