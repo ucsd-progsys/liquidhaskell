@@ -721,8 +721,9 @@ argExpr (Lit c)          = Just $ snd $ literalConst c
 argExpr (Tick _ e)		 = argExpr e
 argExpr e                = error $ "argExpr: " ++ (showPpr e)
 
-varRefType γ x = (γ ?= (mkSymbol x)) `strengthen` xr
-  where xr  = F.symbolReft (mkSymbol x)
+varRefType γ x = traceShow ("varRefType " ++ showPpr x ++ " : ") $ t 
+  where t  = (γ ?= (mkSymbol x)) `strengthen` xr
+        xr = F.symbolReft (mkSymbol x)
 
 -----------------------------------------------------------------------
 --------------- Forcing Strictness ------------------------------------
