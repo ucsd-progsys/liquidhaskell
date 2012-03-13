@@ -17,7 +17,7 @@ module Language.Haskell.Liquid.RefType (
   , canonRefType, tidyRefType
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalConst
-  , REnv, deleteREnv, insertREnv, lookupREnv, emptyREnv, memberREnv, fromListREnv
+  , REnv, deleteREnv, domREnv, insertREnv, lookupREnv, emptyREnv, memberREnv, fromListREnv
   , replaceDcArgs, rCon
   ) where
 
@@ -712,6 +712,8 @@ insertREnv x y (REnv env) = REnv (M.insert x y env)
 lookupREnv x (REnv env)   = M.lookup x env
 emptyREnv                 = REnv M.empty
 memberREnv x (REnv env)   = M.member x env
+domREnv (REnv env)        = M.keys env
+
 
 instance Outputable REnv where
   ppr (REnv m)         = vcat $ map pprxt $ M.toAscList m

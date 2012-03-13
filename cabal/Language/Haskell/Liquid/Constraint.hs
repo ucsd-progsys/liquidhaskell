@@ -146,7 +146,8 @@ instance Show CGEnv where
   = γ ++= (x, r) 
 
 γ -= x 
-  = γ { renv = deleteREnv x (renv γ) } { fenv = F.deleteFEnv x (fenv γ) }
+  = trace ("Deleting From Env: " ++ show x) 
+    $ γ { renv = deleteREnv x (renv γ) } { fenv = F.deleteFEnv x (fenv γ) }
 
 (?=) ::  CGEnv -> F.Symbol -> RefType 
 γ ?= x
@@ -670,7 +671,7 @@ cconsCase γ _ t (DEFAULT, _, ce)
 -- TODO: the below function is hideous. Split into something readable.
 cconsCase γ x t (DataAlt c, ys, ce) 
   = cconsE cγ ce t
-    where cγ       = foldl' (+=) (γ -= x') cbs 
+    where cγ       = addBinders γ x' cbs  
           cbs      = zip (x':ys') (xt : yts')
           (x':ys') = mkSymbol <$> (x:ys)
           xt       = (γ ?= x') `strengthen` (r1 `F.meet` r2) 
@@ -679,8 +680,13 @@ cconsCase γ x t (DataAlt c, ys, ce)
           (zs, ts) = unzip $ unfoldRType c xt
           zys      = zip zs (F.EVar <$> ys') 
           sus      = F.mkSubst <$> scanl (flip (:)) [] zys
-          yts'      = zipWith F.subst sus ts
-          yts     = ts
+          yts'     = zipWith F.subst sus ts
+          yts      = ts
+
+addBinders γ x' cbs 
+  = foldl' wr γ0 cbs
+  where γ0 = (γ -= x')
+        wr γ z = trace "\nWrapper: keys γ = " ++ (show $ domREnv $ renv γ) $ (γ += z)
 
 
 checkFun _ t@(RFun _ _ _) = t

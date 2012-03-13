@@ -8,7 +8,6 @@ GPG=$(BINPATH)/ghc-pkg
 OPTS="-O2 -XStandaloneDeriving -XDeriveDataTypeable"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
 CABAL=cabal --with-ghc=$(GHC) 
-
 #CABAL=cabal --with-ghc=$(GHC) --enable-executable-profiling --enable-library-profiling --reinstall
 
 all:
@@ -23,7 +22,15 @@ oldschool:
 clean:
 	cabal clean
 
+cmdargs:
+	$(CABAL) configure    cmdargs 
+	$(CABAL) build        cmdargs 
+	$(CABAL) configure -p cmdargs 
+	$(CABAL) build        cmdargs 
+
 dpackages:
+	$(CABAL) install transformers 
+	$(CABAL) install cmdargs 
 	$(CABAL) install deepseq
 	$(CABAL) install transformers
 	$(CABAL) install mtl
