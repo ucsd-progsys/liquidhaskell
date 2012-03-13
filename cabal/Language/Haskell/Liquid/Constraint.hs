@@ -141,7 +141,7 @@ instance Show CGEnv where
 -}
 γ += (x, r) 
   | x `memberREnv` (renv γ)
-  = error $ "ERROR: Duplicate Binding for " ++ show x ++ " in REnv!\n\n" ++ show γ
+  = errorstar $ "ERROR: Duplicate Binding for " ++ show x ++ " in REnv!\n\n" ++ show γ
   | otherwise
   = γ ++= (x, r) 
 
@@ -152,7 +152,7 @@ instance Show CGEnv where
 γ ?= x
   = case lookupREnv x (renv γ) of
       Just t  -> t
-      Nothing -> error $ "EnvLookup: unknown = " ++ showPpr x
+      Nothing -> errorstar $ "EnvLookup: unknown = " ++ showPpr x
 
 atLoc :: CGEnv -> SrcSpan -> CGEnv
 γ `atLoc` src 
@@ -256,7 +256,7 @@ splitW (WfC γ t@(RVar _ r))
   =  bsplitW γ t 
 
 splitW (WfC _ t) 
-  = [] -- error $ "splitW cannot handle: " ++ showPpr t
+  = [] -- errorstar $ "splitW cannot handle: " ++ showPpr t
 
 splitWRefTyCon γ (RAlgTyCon _ z) 
   = splitWRefAlgRhs γ z 
@@ -400,7 +400,7 @@ addA !l !xo !t !a@(AI m)
   = AI $ M.insert l (xo, t) m
   | otherwise
   = a
-  -- error $ "Duplicate annot " ++ showPpr xo ++ " at " ++ showPpr l
+  -- errorstar $ "Duplicate annot " ++ showPpr xo ++ " at " ++ showPpr l
 
 -------------------------------------------------------------------
 ------------------------ Generation: Freshness --------------------
@@ -411,7 +411,7 @@ addA !l !xo !t !a@(AI m)
 freshTy_pretty e τ = refresh $ {-traceShow ("exprRefType: " ++ showPpr e) $-} exprRefType e
 
 -- freshTy_pretty e τ = refresh $ traceShow ("exprRefType: " ++ showPpr e) $ exprRefType e
--- freshTy_pretty e τ = error "GO TO HELL"
+-- freshTy_pretty e τ = errorstar "GO TO HELL"
 
 -- freshTy :: a -> Type -> CG RefType
 freshTy' _ = refresh . ofType 
@@ -452,27 +452,27 @@ instance Freshable [F.Refa] where
   fresh = liftM single fresh
 
 instance Freshable F.Reft where
-  fresh = error "fresh Reft"
+  fresh = errorstar "fresh Reft"
   true    (F.Reft (v, _)) = return $ F.Reft (v, []) 
   refresh (F.Reft (v, _)) = liftM (F.Reft . (v, )) fresh
 
 instance Freshable RefType where
-  fresh   = error "fresh RefType"
+  fresh   = errorstar "fresh RefType"
   refresh = refreshRefType
   true    = trueRefType 
 
 instance Freshable RefTyCon where
-  fresh   = error "fresh RefTyCon"
+  fresh   = errorstar "fresh RefTyCon"
   refresh = refreshRefTyCon
   true    = trueRefTyCon
  
 instance Freshable RefAlgRhs where
-  fresh   = error "fresh RefTyCon"
+  fresh   = errorstar "fresh RefTyCon"
   refresh = refreshRefAlgRhs 
   true    = trueRefAlgRhs
 
 instance Freshable RefDataCon where
-  fresh   = error "fresh RefTyCon"
+  fresh   = errorstar "fresh RefTyCon"
   refresh = refreshRefDataCon
   true    = trueRefDataCon
 
@@ -624,7 +624,7 @@ consE γ (App e a)
        cconsE γ a tx 
        case argExpr a of 
          Just e  -> return $ t `F.subst1` (x, e)
-         Nothing -> error $ "consE: App crashes on" ++ showPpr a 
+         Nothing -> errorstar $ "consE: App crashes on" ++ showPpr a 
 
 consE γ (Lam α e) | isTyVar α 
   = liftM (RAll (rTyVar α)) (consE γ e) 
@@ -653,7 +653,7 @@ consE γ (Cast e _)
   = consE γ e 
 
 consE env e	    
-  = error $ "consE cannot handle " ++ showPpr e
+  = errorstar $ "consE cannot handle " ++ showPpr e
 
 cconsFreshE γ e
   = do t   <- freshTy e $ exprType e
@@ -684,10 +684,10 @@ cconsCase γ x t (DataAlt c, ys, ce)
 
 
 checkFun _ t@(RFun _ _ _) = t
-checkFun x t              = error $ showPpr x ++ "type: " ++ showPpr t
+checkFun x t              = errorstar $ showPpr x ++ "type: " ++ showPpr t
 
 checkAll _ t@(RAll _ _)   = t
-checkAll x t              = error $ showPpr x ++ "type: " ++ showPpr t
+checkAll x t              = errorstar $ showPpr x ++ "type: " ++ showPpr t
 
 
 
@@ -719,7 +719,7 @@ argExpr ::  CoreExpr -> Maybe F.Expr
 argExpr (Var vy)         = Just $ F.EVar $ mkSymbol vy
 argExpr (Lit c)          = Just $ snd $ literalConst c
 argExpr (Tick _ e)		 = argExpr e
-argExpr e                = error $ "argExpr: " ++ (showPpr e)
+argExpr e                = errorstar $ "argExpr: " ++ (showPpr e)
 
 varRefType γ x = traceShow ("varRefType " ++ showPpr x ++ " : ") $ t 
   where t  = (γ ?= (mkSymbol x)) `strengthen` xr

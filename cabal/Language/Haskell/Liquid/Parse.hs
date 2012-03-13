@@ -261,7 +261,7 @@ getClasses t
 getClass (BCon c ts _)
   = BClass c ts
 getClass t
-  = error $ "Cannot convert " ++ (show t) ++ " to Class"
+  = errorstar $ "Cannot convert " ++ (show t) ++ " to Class"
 
 bindP = lowerIdP <* colon
 
@@ -425,9 +425,9 @@ doParse p = doParse' p ""
 
 doParse' parser f s
   = case parse (remainderP p) f s of
-      Left e         -> error $ "parseError when parsing " ++ s ++ " : " ++ show e
+      Left e         -> errorstar $ "parseError when parsing " ++ s ++ " : " ++ show e
       Right (r, "")  -> r
-      Right (r, rem) -> error $ "doParse has leftover when parsing: " ++ rem
+      Right (r, rem) -> errorstar $ "doParse has leftover when parsing: " ++ rem
   where p = whiteSpace >> parser
 
 ----------------------------------------------------------------------------------------

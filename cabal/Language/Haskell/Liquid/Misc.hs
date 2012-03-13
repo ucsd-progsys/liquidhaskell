@@ -30,6 +30,12 @@ import Control.DeepSeq
 
 (=>>) m f = m >>= (\x -> f x >> return x)
 
+wrap l r s = l ++ s ++ r
+
+repeats n  = concat . replicate n
+
+errorstar = error . wrap stars stars 
+  where stars = repeats 3 "\n**************************ERROR***************************************\n"
 
 fst3 ::  (a, b, c) -> a
 fst3 (x,_,_) = x
@@ -57,12 +63,12 @@ mlookup ::  (Show k, Ord k) => M.Map k v -> k -> v
 mlookup m k 
   = case M.lookup k m of
       Just v  -> v
-      Nothing -> error $ "mlookup: unknown key " ++ show k
+      Nothing -> errorstar $ "mlookup: unknown key " ++ show k
 
 
 mfromJust ::  String -> Maybe a -> a
 mfromJust _ (Just x) = x 
-mfromJust s Nothing  = error $ "mfromJust: Nothing " ++ s
+mfromJust s Nothing  = errorstar $ "mfromJust: Nothing " ++ s
 
 boxStrCat ::  String -> [String] -> String 
 boxStrCat sep = ("[" ++) . (++ "]") . intercalate sep 
@@ -100,22 +106,22 @@ tr_foldr' ::  (a -> b -> b) -> b -> [a] -> b
 tr_foldr' f b   = foldl' (flip f) b . tr_reverse 
 
 reduce f (x:xs) = foldl' f x xs
-reduce f _      = error $ "reduce called on empty list!"
+reduce f _      = errorstar $ "reduce called on empty list!"
 
 safeZip msg xs ys 
   | length xs == length ys 
   = zip xs ys
   | otherwise              
-  = error $ "lzip called on non-eq-sized lists"
+  = errorstar $ "lzip called on non-eq-sized lists"
 
 
 safeUnion msg m1 m2 = 
   case Data.List.find (`M.member` m1) (M.keys m2) of
-    Just k  -> error $ "safeUnion with common key = " ++ show k ++ " " ++ msg
+    Just k  -> errorstar $ "safeUnion with common key = " ++ show k ++ " " ++ msg
     Nothing -> M.union m1 m2
 
 safeHead msg (x:_) = x
-safeHead msg _     = error $ "safeHead with empty list " ++ msg
+safeHead msg _     = errorstar $ "safeHead with empty list " ++ msg
 
 memoIndex :: (Ord b) => (a -> Maybe b) -> [a] -> [Maybe Int]
 memoIndex f = snd . mapAccumL foo M.empty 
@@ -132,7 +138,7 @@ checkFail msg f x
   | f x
   = x
   | otherwise
-  = error $ "Check-Failure: " ++ msg
+  = errorstar $ "Check-Failure: " ++ msg
 
 chopAfter f xs 
   = case findIndex f xs of

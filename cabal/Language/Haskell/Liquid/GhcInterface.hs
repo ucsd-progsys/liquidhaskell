@@ -152,7 +152,7 @@ dataConId v =
  case (idDetails v) of
    DataConWorkId i -> i
    DataConWrapId i -> i
-   _               -> error "dataConId on non DataCon"
+   _               -> errorstar "dataConId on non DataCon"
 
 isDataCon v = 
  case (idDetails v) of
@@ -176,7 +176,7 @@ varAnnot v
        case anns of 
          [a] -> return $ Just $ (v, rr' (varUniqueStr v) a)
          []  -> return $ Nothing 
-         _   -> error $ "Conflicting Spec-Annots for " ++ showPpr v
+         _   -> errorstar $ "Conflicting Spec-Annots for " ++ showPpr v
 
 varUniqueStr :: Var -> String
 varUniqueStr = show . varUnique
@@ -374,7 +374,7 @@ closeAnnots = closeA . filterA
 closeA a@(AI m)  = cf <$> a 
   where cf (Right loc) = case m `mlookup` loc of
                            (_, Left t) -> t
-                           _           -> error $ "malformed AnnInfo: " ++ showPpr loc
+                           _           -> errorstar $ "malformed AnnInfo: " ++ showPpr loc
         cf (Left t)    = t
 
 filterA (AI m) = AI (M.filter ff m)

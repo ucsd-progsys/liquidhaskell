@@ -7,7 +7,7 @@ import System.Console.GetOpt
 import System.Console.CmdArgs
 import Control.Monad                            (liftM, liftM2)
 import Language.Haskell.Liquid.FileNames        (getHsTargets)
-import Language.Haskell.Liquid.Misc             (nubSort)
+import Language.Haskell.Liquid.Misc             (errorstar, nubSort)
 import Language.Haskell.Liquid.FileNames        (getIncludePath)
 import System.FilePath                          (dropFileName)
 -- ORIGINAL
@@ -25,7 +25,7 @@ getOpts
   = do args <- getArgs
        case getOpt RequireOrder options args of
          (flags, targets, []) -> mkOpts flags targets
-         (_,     _,     msgs) -> error $ concat msgs ++ usageInfo header options
+         (_,     _,     msgs) -> errorstar $ concat msgs ++ usageInfo header options
 
 mkOpts :: [Flag] -> [String] -> IO ([FilePath], [FilePath])
 mkOpts flags targets 

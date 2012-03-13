@@ -175,7 +175,7 @@ stringToNameEnv env s
          (_, lookupres) <- tcRnLookupRdrName env rn
          case lookupres of
            Just (n:_) -> return n
-           _          -> error $ "Bare.lookupName cannot find name for: " ++ s
+           _          -> errorstar $ "Bare.lookupName cannot find name for: " ++ s
 
 
 

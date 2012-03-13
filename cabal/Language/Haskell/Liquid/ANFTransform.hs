@@ -15,7 +15,7 @@ import FastString       (fsLit)
 import Control.Monad
 
 import Language.Haskell.Liquid.Fixpoint                 (anfPrefix)
-import Language.Haskell.Liquid.Misc (tr_foldr')
+import Language.Haskell.Liquid.Misc (errorstar, tr_foldr')
 -- import Bag (bagToList)
 
 
@@ -102,15 +102,9 @@ normalize (Let b e)
 
 normalize (Case e x t as)
   = do (bs, n) <- normalizeName e 
-       x'      <- freshNormalVar (idType x) 
+       -- x'      <- freshNormalVar (idType x) 
        as'     <- forM as $ \(c, xs, e) -> liftM ((c, xs,) . stitch) (normalize e)
-       return  $ (bs, Case n x' t as')
-
---normalize (Case e x t as)
---  = do e'  <- normalize e 
---       x'  <- newSysLocalDs (idType x) 
---       as' <- forM as $ \(c, xs, e) -> liftM (c, xs,) (normalize e)
---       return  $ Case e' x' t as'
+       return  $ (bs, Case n x t as')
 
 normalize e@(Var _)
   = return ([], e)
@@ -135,7 +129,7 @@ normalize (Tick n e)
        return (bs, Tick n e') 
 
 normalize e 
-  = error $ "normalize: TODO" ++ showPpr e
+  = errorstar $ "normalize: TODO" ++ showPpr e
 
 stitch :: ([CoreBind], CoreExpr) -> CoreExpr
 stitch (bs, e) = tr_foldr' Let e bs

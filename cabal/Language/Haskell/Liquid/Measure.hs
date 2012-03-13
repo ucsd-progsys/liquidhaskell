@@ -65,7 +65,7 @@ mkM name typ eqns
   | all ((name ==) . measure) eqns
   = M name typ eqns
   | otherwise
-  = error $ "invalid measure definition for " ++ (show name)
+  = errorstar $ "invalid measure definition for " ++ (show name)
 
 mkMSpec ms = MSpec cm mm 
   where cm  = groupMap ctor $ concatMap eqns ms'
@@ -127,7 +127,7 @@ refineWithCtorBody dc f body t =
     Just (Reft (v, ras)) ->
       strengthen t $ Reft (v, [RConc $ bodyPred v body])
     Nothing -> 
-      error $ "measure mismatch " ++ showPpr f ++ " on con " ++ showPpr dc
+      errorstar $ "measure mismatch " ++ showPpr f ++ " on con " ++ showPpr dc
   where bodyPred v (E e) = PAtom Eq (EApp f [EVar v]) e
         bodyPred v (P p) = PIff  (PBexp (EApp f [EVar v])) p 
 

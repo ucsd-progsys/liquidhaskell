@@ -130,9 +130,9 @@ strengthenRefType t1 t2
   | eqt t1 t2 
   = strengthenRefType_ t1 t2
   | otherwise
-  = error $ "strengthen on differently shaped reftypes! " 
-          ++ "t1 = " ++ showPpr t1 
-          ++ "t2 = " ++ showPpr t2
+  = errorstar $ "strengthen on differently shaped reftypes! " 
+              ++ "t1 = " ++ showPpr t1 
+              ++ "t2 = " ++ showPpr t2
   where eqt t1 t2 = showPpr (toType t1) == showPpr (toType t2)
   
 strengthenRefType_ (RAll a t1) (RAll _ t2)
@@ -151,6 +151,7 @@ strengthenRefType_ t1 _
   = t1
 
 strengthen  :: RefType -> Reft -> RefType
+strengthen (RCon i c ts r) r' = rCon i c ts (r `meet` r') -- why was this removed?
 strengthen (RVar a r) r'      = RVar a      (r `meet` r') 
 strengthen t _                = t 
 
@@ -406,7 +407,7 @@ subsFreeRDataCon m s z (MkRData p qs)
 
 tyConRTyCon c  
   | isPrimTyCon c = RPrimTyCon c
-  | otherwise     = error $ "tyConRTyCon: " ++ showPpr c
+  | otherwise     = errorstar $ "tyConRTyCon: " ++ showPpr c
 
 
 stripRTypeBase ::  RType a -> Maybe a
@@ -440,7 +441,7 @@ ofType_ s τ@(TyConApp c _)
   | TC.isSynTyCon c
   = ofSynTyConApp s τ
   | otherwise
-  = error $ "ofType: cannot handle tycon app: " ++ showPpr τ
+  = errorstar $ "ofType: cannot handle tycon app: " ++ showPpr τ
 ofType_ _ τ               
   = ROther τ  
 
@@ -582,7 +583,14 @@ tidyDSymbols = tidy pool getS putS
 
 symSep = '#'
 
+
 mkSymbol ::  Var -> Symbol
+--mkSymbol v = S $ vs ++ [symSep] ++ us
+--  where us  = showPpr $ getUnique v 
+--        vs  = pprShort v
+--
+--mkSymbol v = traceShow ("mkSymbol " ++ showPpr v ++ " = ") $ mkSymbol' v
+
 mkSymbol v 
   | us `isSuffixOf` vs = S $ vs  
   | otherwise          = S $ vs ++ [symSep] ++ us

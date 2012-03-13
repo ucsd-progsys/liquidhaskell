@@ -538,7 +538,7 @@ instance Subable Pred where
   subst su (PIff p1 p2)    = PIff (subst su p1) (subst su p2)
   subst su (PBexp e)       = PBexp $ subst su e
   subst su (PAtom r e1 e2) = PAtom r (subst su e1) (subst su e2)
-  subst su p@(PAll _ _)    = error $ "subst: FORALL" 
+  subst su p@(PAll _ _)    = errorstar $ "subst: FORALL" 
   subst su p               = p
 
 instance Subable Refa where

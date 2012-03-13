@@ -63,7 +63,7 @@ isExtFile ext = ((extMap M.! ext) `isSuffixOf`)
 
 extModuleName modName ext = 
   case explode modName of 
-    [] -> error $ "malformed module name: " ++ modName
+    [] -> errorstar $ "malformed module name: " ++ modName
     ws -> extFileName ext $ foldr1 (</>) ws
   where explode = words . map (\c -> if c == '.' then ' ' else c)
 
@@ -135,4 +135,4 @@ findFileInDirs file dirs
   = do p <- findFirst (System.FilePath.Find.find always (fileName ==? file)) dirs
        case p of
          Just p -> return p
-         Nothing -> error $ "findFileInDirs: cannot find " ++ file ++ " in " ++ show dirs
+         Nothing -> errorstar $ "findFileInDirs: cannot find " ++ file ++ " in " ++ show dirs
