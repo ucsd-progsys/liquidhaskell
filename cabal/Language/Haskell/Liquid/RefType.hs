@@ -144,20 +144,20 @@ strengthenRefType_ (RFun (RB x1) t1 t1') (RFun (RB x2) t2 t2')
           t' = strengthenRefType_ t1' $ subst1 t2' (x2, EVar x1)
 
 strengthenRefType_ (RCon tid tc t1s r1) (RCon _ _ t2s r2)
-  = rCon tid tc ts (r1 `meet` r2)
+  = RCon tid tc ts (r1 `meet` r2)
     where ts = zipWith strengthenRefType_ t1s t2s
 
 strengthenRefType_ t1 _ 
   = t1
 
 strengthen  :: RefType -> Reft -> RefType
-strengthen (RCon i c ts r) r' = rCon i c ts (r `meet` r') 
+strengthen (RCon i c ts r) r' = RCon i c ts (r `meet` r') 
 strengthen (RVar a r) r'      = RVar a      (r `meet` r') 
 strengthen t _                = t 
 
 
 replaceReft  :: RefType -> Reft -> RefType
-replaceReft (RCon i c ts _) r' = rCon i c ts r' 
+replaceReft (RCon i c ts _) r' = RCon i c ts r' 
 replaceReft (RVar a _) r'      = RVar a      r' 
 replaceReft t _                = t 
 
@@ -193,7 +193,7 @@ getRDataCon dc (RAlgTyCon _ (RDataTyCon _ rdcs))
   = mfromJust "findRDataCon" $ find ((dc ==) . rdcDataCon) rdcs
 
 subsTyId t i rc = mapBot plug 
-  where plug (RMuVar j ts) | i == j = rCon i rc ts trueReft
+  where plug (RMuVar j ts) | i == j = RCon i rc ts trueReft
         plug t                      = t
          
 mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
@@ -445,7 +445,7 @@ ofType_ _ τ
   = ROther τ  
 
 ofPrimTyConApp s τ@(TyConApp c τs) 
-  = rCon i rc ts trueReft 
+  = RCon i rc ts trueReft 
   where i  = typeId c
         rc = RPrimTyCon c
         ts = ofType_ s <$> τs
@@ -482,7 +482,7 @@ mapTop f t =
   case f t of
     (RAll a t')     -> RAll a (mapTop f t')
     (RFun x t' t'') -> RFun x (mapTop f t') (mapTop f t'')
-    (RCon i c ts r) -> rCon i (mapTopRTyCon f c) (mapTop f <$> ts) r -- fix
+    (RCon i c ts r) -> RCon i (mapTopRTyCon f c) (mapTop f <$> ts) r -- fix
     (RClass c ts)   -> RClass c (mapTop f <$> ts)
     t'              -> t' 
 
@@ -499,7 +499,7 @@ mapTopRDataCon f (MkRData p qs)
 mapBot ::  (RefType -> RefType) -> RefType -> RefType
 mapBot f (RAll a t)      = RAll a (mapBot f t)
 mapBot f (RFun x t t')   = RFun x (mapBot f t) (mapBot f t')
-mapBot f (RCon i c ts r) = rCon i (mapBotRTyCon f c) (mapBot f <$> ts) r --fix
+mapBot f (RCon i c ts r) = RCon i (mapBotRTyCon f c) (mapBot f <$> ts) r --fix
 mapBot f (RClass c ts)   = RClass c (mapBot f <$> ts)
 mapBot f t'              = f t' 
 
@@ -514,7 +514,7 @@ mapBotRDataCon f (MkRData p qs)
 
 canonRefType :: RefType -> RefType
 canonRefType = mapTop zz
-  where zz t@(RCon i c ts r)  = rCon i c ts $ canonReft r
+  where zz t@(RCon i c ts r)  = RCon i c ts $ canonReft r
         zz t                  = t
 
 -------------------------------------------------------------------
@@ -671,7 +671,7 @@ makeRTypeBase :: Type -> Reft -> RefType
 makeRTypeBase (TyVarTy α) x       
   = RVar (rTyVar α) x 
 makeRTypeBase τ@(TyConApp c []) x 
-  = rCon (typeId c) (tyConRTyCon c) [] x
+  = RCon (typeId c) (tyConRTyCon c) [] x
 --fix
 literalReft l  = exprReft e 
   where (_, e) = literalConst l 
@@ -749,7 +749,7 @@ replaceTys _     lt = lt
 
 
 replaceDcArgs ls dc (RCon a (RAlgTyCon d (RDataTyCon e x)) b c) 
-  = rCon a (RAlgTyCon d (RDataTyCon e x')) b c
+  = RCon a (RAlgTyCon d (RDataTyCon e x')) b c
  where x' = map (rplArgs dc ls) x
 
 rplArgs don ls mkr@(MkRData {rdcDataCon = dc, rdcOrigArgTys = ts}) 

@@ -10,7 +10,7 @@ import Language.Haskell.Liquid.CmdLine
 import Language.Haskell.Liquid.GhcInterface 
 import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.Constraint       
-import Language.Haskell.Liquid.Misc -- hiding (($!!))
+import Language.Haskell.Liquid.Misc hiding (($!!))
 import Language.Haskell.Liquid.Fixpoint (FixResult (..))
 import Language.Haskell.Liquid.FixInterface      
 import Control.DeepSeq
