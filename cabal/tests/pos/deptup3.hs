@@ -6,11 +6,10 @@ import Language.Haskell.Liquid.Prelude
 
 data Pair = P Int Int
 
-
 incr :: Int -> Int
 incr x = x + 1
 
-baz    :: Int -> Pair Int Int    
+baz    :: Int -> Pair
 baz x  = P x (incr x)
 
 bazList  xs = map baz xs
