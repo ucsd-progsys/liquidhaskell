@@ -1,17 +1,24 @@
 
-GOBER
+Transition to GHC 7.4
+---------------------
 
-0. parsing out file -- liquid tests/pos/polyfun.hs 
+* How to insert Tick?
+
+> Get LiquidHaskell to build against 7.4
+> Update build to get Tick _everywhere_ via --auto-all
+> Just dump the Core and exit
+> See if the core contains Tick (which profNoteCC contains srcspan)
+
+
+
+
+
+
 
 0. hack fixpoint, to prevent instantiating ~A with vars of type "func"
-
-1. [] : forall a. [{v:a|false}]
-   and re-enable the set-kvars-to-true.
-
+1. [] : forall a. [{v:a|false}] and re-enable the set-kvars-to-true.
 2. remove explicit "Double" sigs from KMeans0
-
 3. get KMeans to work with WrapType
-
 
 KNOWN BUGS
 ----------
