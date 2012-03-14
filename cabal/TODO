@@ -3,10 +3,8 @@ Transition to GHC 7.4
 ---------------------
 
 Failed 4 tests: 
-    neg/mapreduce.hs
-  , pos/LambdaEval.hs
-  , pos/LambdaEvalMini.hs
-  , pos/vector1b.hs
+    neg/mapreduce.hs        -- proves it safe
+  , pos/vector1b.hs         -- cannot find "map" huh?
 
 
 * How to insert Tick?

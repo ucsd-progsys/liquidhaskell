@@ -38,9 +38,9 @@ eval sto (Var x)
 
 eval sto (App e1 e2)
   = let (_,    v2 ) = eval sto e2 
-        (sto1, e1') = eval sto e1
+        (sto1XXX, e1') = eval sto e1
     in case e1' of
-         (Lam x e) -> eval ((x, v2): sto1) e
+         (Lam x e) -> eval ((x, v2): sto1XXX) e
          _         -> error "non-function application"
 
 eval sto (Lam x e) 
