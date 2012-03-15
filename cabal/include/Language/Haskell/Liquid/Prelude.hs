@@ -67,12 +67,6 @@ assert b = b
 crash :: Bool -> a 
 crash b = undefined 
 
-
-{-# NOINLINE copyList #-}
-{-# ANN copyList "forall a . [a] -> [a]" #-}
-copyList :: [a] -> [a] 
-copyList xs = xs 
-
 {-# NOINLINE force #-}
 {-# ANN force "forall a . x:a -> Bool" #-}
 force x = True 
@@ -81,38 +75,3 @@ force x = True
 {-# ANN choose "x: Int -> Int" #-}
 choose :: Int -> Int
 choose x = undefined 
-
-
-
------------------------------------------------------------------------
------------------------------------------------------------------------
-------------- Random Testing Stuff Till Modules Work ------------------
------------------------------------------------------------------------
------------------------------------------------------------------------
-
-{-# ANN      pplus "x:{v:Int | true } -> y:{v:Int | true} -> {v:Int | v = (x + y)}" #-}
-pplus :: Int -> Int -> Int
-pplus x y = x `plus` y
-
-
-{-# ANN dummy "x:{v:Int | true } -> {v:Int | v=x }" #-}
-dummy   :: Int -> Int 
-dummy x = x
-
------------------------------------------------------------------------
------------------------------------------------------------------------
-------------- Refinements For Prelude Builtins  -----------------------
------------------------------------------------------------------------
------------------------------------------------------------------------
-
-{-# ANN true "{v:Bool | (? v)}"  #-}
-true = True
-
-{-# ANN false "{v:Bool | (~ (? v))}" #-}
-false = False 
-
-
-
-
-
-

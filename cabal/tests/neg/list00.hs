@@ -2,6 +2,8 @@ module Vec0 where
 
 import Language.Haskell.Liquid.Prelude
 
+copyList zs = zs
+
 xs    = [1] :: [Int]
 ys    = copyList xs
 jhala = head ys
