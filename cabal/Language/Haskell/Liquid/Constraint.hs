@@ -410,10 +410,7 @@ freshTy_pretty e τ = refresh $ {-traceShow ("exprRefType: " ++ showPpr e) $-} e
 freshTy' _ = refresh . ofType 
 
 freshTy :: CoreExpr -> Type -> CG RefType
-freshTy e τ = do t <- freshTy' e τ 
-                 let t2 = case t of {RCon i cd ts r -> rCon i cd ts r; _ -> t}
-                 let t1 = trace (printf "\nfreshTy: (e := %s) (τ := %s) (t := %s)\n" (showPpr e) (showPpr τ) (showPpr t2))
-                 return t2
+freshTy e τ = freshTy' e τ 
 
 trueTy  :: Type -> CG RefType
 trueTy  = true . ofType
@@ -496,7 +493,7 @@ refreshRefType (RFun b t t')
   | otherwise
   = liftM2 (RFun b) (refresh t) (refresh t')
 refreshRefType (RCon i c ts r)  
-  = liftM3 (RCon i) (refresh c) (mapM refresh ts) (refresh r)
+  = liftM3 (rCon i) (refresh c) (mapM refresh ts) (refresh r)
 --  = liftM3 (rCon i) (refresh c) (mapM true ts) (refresh r)
 refreshRefType (RVar a r)  
   = liftM (RVar a) (refresh r)
