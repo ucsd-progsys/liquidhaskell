@@ -226,21 +226,37 @@ instance Fixpoint Subst where
 ------ Converting Strings To Fixpoint ------------------------------------- 
 ---------------------------------------------------------------------------
 
-symSep = '#'
-fixSymPrefix = "fix" ++ [symSep]
-
 stringSymbol :: String -> Symbol
-stringSymbol s = traceShow ("stringSymbol s = " ++ s) $ stringSymbol' s
-
-stringSymbol' s
+-- stringSymbol s = traceShow ("stringSymbol s = " ++ s) $ stringSymbol' s
+stringSymbol s
   | isFixSym s = S s 
   | otherwise  = S $ fixSymPrefix ++ concatMap encodeChar s
 
-isFixSym (c:cs) = isAlpha c && all (`elem` symChars) cs
+-- symbolString (S z) = traceShow ("symbolString z = %s: " ++ z) $ symbolString' (S z)
+symbolString :: Symbol -> String
+symbolString (S str) 
+  = case chopPrefix fixSymPrefix str of
+      Just s  -> concat $ zipWith tx [0..] $ chunks s 
+      Nothing -> str
+    where chunks = unIntersperse symSep 
+          tx i s = if even i then s else [decodeStr s]
+
+
+okSymChars
+  =  ['a' .. 'z']
+  ++ ['A' .. 'Z'] 
+  ++ ['0' .. '9'] 
+  ++ ['_', '.'  ]
+
+symSep = '#'
+fixSymPrefix = "fix" ++ [symSep]
+
+
+isFixSym (c:cs) = isAlpha c && all (`elem` okSymChars) cs
 isFixSym _      = False
 
 encodeChar c 
-  | c `elem` symChars 
+  | c `elem` okSymChars 
   = [c]
   | otherwise
   = [symSep] ++ (show $ ord c) ++ [symSep]
@@ -248,16 +264,8 @@ encodeChar c
 decodeStr s 
   = chr ((read s) :: Int)
 
-symbolString (S z) = traceShow ("symbolString z = %s: " ++ z) $ symbolString' (S z)
+---------------------------------------------------------------------
 
-symbolString' (S str) 
-  = case chopPrefix fixSymPrefix str of
-      Just s  -> concat $ zipWith tx [0..] $ chunks s 
-      Nothing -> str
-    where chunks = unIntersperse symSep 
-          tx i s = if even i then s else [decodeStr s]
-
--- of_string    = S
 vv              = S "VV"
 dummySymbol     = S dummyName
 tagSymbol       = S tagName
