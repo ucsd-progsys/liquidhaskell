@@ -92,7 +92,7 @@ mkMeasureSpec env m = runReaderT mkSpec env
 
 mkAssumeSpec :: HscEnv -> [(Symbol, BareType)] -> IO [(Var, RefType)]
 mkAssumeSpec env xbs = runReaderT mkAspec env
-  where mkAspec = forM xbs $ \(S x,b) -> liftM2 (,) (lookupGhcId x) (mkRefType b)
+  where mkAspec = forM xbs $ \(x, b) -> liftM2 (,) (lookupGhcId $ symbolString x) (mkRefType b)
 
 mkIds :: HscEnv -> [Name] -> IO [Var]
 mkIds env ns = runReaderT (mapM lookupGhcId ns) env
@@ -218,7 +218,7 @@ bareTC r c ts = rCon i' c' ts' r
         (RCon i' c' ts' _) = subsTyVars_nomeet su tt 
 
 rbind ""    = RB dummySymbol
-rbind s     = RB $ S s
+rbind s     = RB $ stringSymbol s
 
 
 stringRTyVar = rTyVar . stringTyVar 
@@ -233,10 +233,10 @@ mkMeasureDCon_ :: Ms.MSpec t Symbol -> [(String, DataCon)] -> Ms.MSpec t DataCon
 mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
   where m'  = fmap tx m
         cm' = M.mapKeys (dataConSymbol . tx) $ Ms.ctorMap m'
-        tx  = mlookup (M.fromList ndcs) . symbolStr
+        tx  = mlookup (M.fromList ndcs) . symbolString
 
 measureCtors ::  Ms.MSpec t Symbol -> [String]
-measureCtors = nubSort . fmap (symbolStr . Ms.ctor) . concat . M.elems . Ms.ctorMap 
+measureCtors = nubSort . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.ctorMap 
 
 mkMeasureSort :: Ms.MSpec BareType a -> BareM (Ms.MSpec RefType a)
 mkMeasureSort (Ms.MSpec cm mm) 

@@ -4,9 +4,10 @@ module Language.Haskell.Liquid.Fixpoint (
     toFixpoint, toFix
   , dummySort
   , symChars, nonSymbol, dummySymbol, intSymbol, tagSymbol, tempSymbol
+  , stringSymbol, symbolString
   , anfPrefix, tempPrefix
   , intKvar
-  , Sort (..), Symbol (..), Loc (..), Constant (..), Bop (..), Brel (..), Expr (..)
+  , Sort (..), Symbol, Loc (..), Constant (..), Bop (..), Brel (..), Expr (..)
   , Pred (..), Refa (..), SortedReft (..), Reft(..), Envt
   , SubC (..), WfC(..), FixResult (..), FixSolution, FInfo (..)
   , emptyFEnv, fromListFEnv, insertFEnv, deleteFEnv
@@ -16,8 +17,6 @@ module Language.Haskell.Liquid.Fixpoint (
   , canonReft, exprReft, symbolReft
   , isNonTrivialSortedReft
   , isTauto, flattenRefas
-  -- , hasTag
-  , symbolStr
   , simplify
   , emptySubst, mkSubst, catSubst
   , Subable (..)
@@ -29,7 +28,7 @@ import Text.Printf
 import Data.Monoid hiding ((<>))
 import Data.Functor
 import Data.List
-import Data.Char        (isAlphaNum, isAlpha)
+import Data.Char        (ord, chr, isAlphaNum, isAlpha)
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Text.Parsec.String
@@ -54,6 +53,7 @@ class Fixpoint a where
   simplify :: a -> a 
   simplify =  id
 
+{-
 ------------------------------------------------------------
 ------------------- Sanitizing Symbols ---------------------
 ------------------------------------------------------------
@@ -67,7 +67,7 @@ data FxInfo = FxInfo {
 type Fx     = State FxInfo
 
 cleanLocs    :: (Data a) => a -> Fx a
-cleanLocs = everywhereM (mkM swiz)
+cleanLocs = {-# SCC "CleanLocs" #-} everywhereM (mkM swiz)
   where swiz l@(FLoc x)
           | isFixSym x = return l
           | otherwise  = freshLoc l  
@@ -78,13 +78,13 @@ freshLoc x
   = do s <- get
        case M.lookup x $ locMap s of
          Nothing -> do let n = freshIdx s 
-                       let y = {-traceShow ("freshLoc " ++ (show x)) $ -} FLoc ("ty_" ++ show n) 
+                       let y = FLoc ("ty_" ++ show n) 
                        put $ s {freshIdx = n + 1} { locMap = M.insert x y $ locMap s}
                        return y 
          Just y  -> return y
 
 cleanSymbols :: (Data a) => a -> Fx a
-cleanSymbols = everywhereM (mkM swiz)
+cleanSymbols = {-# SCC "CleanSyms" #-} everywhereM (mkM swiz)
   where swiz s@(S x) 
           | isFixSym x = return s
           | otherwise  = freshSym s
@@ -98,6 +98,7 @@ freshSym x = do
                   put $ s {freshIdx = n + 1} { symMap = M.insert x y $ symMap s}
                   return y 
     Just y  -> return y
+-}
 
 getConstants :: (Data a) => a -> [(Symbol, Sort, Bool)]
 getConstants = everything (++) ([] `mkQ` f)
@@ -134,22 +135,30 @@ data FInfo a = FI { cs :: ![SubC a]
                   , gs :: !Envt --[(Symbol, Sort)] 
                   } deriving (Data, Typeable)
 
---toFixpoint :: (Data a, Data b) => ([(Symbol, SortedReft)], ([SubC a], [WfC b])) -> (SDoc, Subst) 
-toFixpoint :: (Data a) => FInfo a -> (SDoc, Subst) 
-toFixpoint x = (gsDoc x' $+$ conDoc x' $+$  csDoc x' $+$ wsDoc x', sub st') 
-  where (x', st')  = runState (clean x) $ FxInfo M.empty S.empty M.empty 0
-        conDoc     = vcat . map infoConstant . S.elems . S.fromList . getConstants 
+toFixpoint x' = gsDoc x' $+$ conDoc x' $+$  csDoc x' $+$ wsDoc x'
+  where conDoc     = vcat . map infoConstant . S.elems . S.fromList . getConstants 
         csDoc      = vcat . map toFix . cs 
         wsDoc      = vcat . map toFix . ws 
         gsDoc      = vcat . map infoConstant . map (\(x, (RR so _)) -> (x, so, False)) . M.assocs . (\(Envt e) -> e) . gs
-        sub        = Su . M.map EVar . symMap 
-        clean      = cleanSymbols >=> cleanLocs
+ 
+{- 
+--toFixpoint :: (Data a, Data b) => ([(Symbol, SortedReft)], ([SubC a], [WfC b])) -> (SDoc, Subst) 
+toFixpoint :: (Data a) => FInfo a -> (SDoc, Subst) 
+toFixpoint x = (fixdoc, {-# SCC "FixSub" #-} sub st') 
+  where (x', st')  = {-# SCC "FixClean" #-} fixClean x 
+        fixdoc     = {-# SCC "FixDoc" #-}   fixDoc x'
+        sub        = Su . M.map EVar . symMap
 
+fixClean x = runState (clean x) $ FxInfo M.empty S.empty M.empty 0
+  where clean      = cleanSymbols >=> cleanLocs
+-}
+
+       
 ---------------------------------------------------------------
 ------------------------------ Sorts --------------------------
 ---------------------------------------------------------------
 
-data Loc  = FLoc !String 
+data Loc  = FLoc !Symbol
           | FLvar !Int 
 	      deriving (Eq, Ord, Data, Typeable, Show)
 
@@ -165,10 +174,9 @@ data Sort = FInt
 newtype Sub = Sub [(Int, Sort)]
 
 
--- Serializers
 instance Fixpoint Loc where 
-  toFix (FLoc s)  = text s
-  toFix (FLvar i) = toFix i
+  toFix (FLoc (S s)) = text s
+  toFix (FLvar i)    = toFix i
  
 pprShow = text . show 
 
@@ -187,24 +195,23 @@ instance Fixpoint Sort where
 ---------------------------------------------------------------
 
 symChars 
-  =  ['a' .. 'z'] 
+  =  ['a' .. 'z']
   ++ ['A' .. 'Z'] 
   ++ ['0' .. '9'] 
-  ++ ['_', '%', '.', '#', '$']
+  ++ ['_', '%', '.', '#']
 
-newtype Symbol = S String 
-                 deriving (Eq, Ord, Data, Typeable)
+data Symbol = S !String 
+              deriving (Eq, Ord, Data, Typeable)
 
 instance Fixpoint Symbol where
   toFix (S x) = text x
 
 instance Outputable Symbol where
-  ppr = toFix 
-
+  ppr = text . symbolString 
 
 instance Show Symbol where
+  --show = symbolString
   show (S x) = x
-
 
 newtype Subst  = Su (M.Map Symbol Expr) 
                  deriving (Eq, Ord, Data, Typeable)
@@ -214,13 +221,46 @@ instance Fixpoint Subst where
                    []  -> empty
                    xys -> hcat $ map (\(x,y) -> brackets $ (toFix x) <> text ":=" <> (toFix y)) xys
 
+
+---------------------------------------------------------------------------
+------ Converting Strings To Fixpoint ------------------------------------- 
+---------------------------------------------------------------------------
+
+symSep = '#'
+fixSymPrefix = "fix" ++ [symSep]
+
+stringSymbol :: String -> Symbol
+stringSymbol s = traceShow ("stringSymbol s = " ++ s) $ stringSymbol' s
+
+stringSymbol' s
+  | isFixSym s = S s 
+  | otherwise  = S $ fixSymPrefix ++ concatMap encodeChar s
+
 isFixSym (c:cs) = isAlpha c && all (`elem` symChars) cs
 isFixSym _      = False
 
-of_string               = S
-vv                      = S "VV" --vvPrefix --S . (vvPrefix ++) . to_string_short 
-dummySymbol             = S dummyName
-tagSymbol               = S tagName
+encodeChar c 
+  | c `elem` symChars 
+  = [c]
+  | otherwise
+  = [symSep] ++ (show $ ord c) ++ [symSep]
+
+decodeStr s 
+  = chr ((read s) :: Int)
+
+symbolString (S z) = traceShow ("symbolString z = %s: " ++ z) $ symbolString' (S z)
+
+symbolString' (S str) 
+  = case chopPrefix fixSymPrefix str of
+      Just s  -> concat $ zipWith tx [0..] $ chunks s 
+      Nothing -> str
+    where chunks = unIntersperse symSep 
+          tx i s = if even i then s else [decodeStr s]
+
+-- of_string    = S
+vv              = S "VV"
+dummySymbol     = S dummyName
+tagSymbol       = S tagName
 
 -- Bogus type for hs values that cannot be embedded into Fixpoint
 dummySort               = FFunc 0 [FObj]
@@ -230,13 +270,9 @@ intSymbol x i           = S $ x ++ show i
 tempSymbol              ::  String -> Integer -> Symbol
 tempSymbol prefix n     = intSymbol (tempPrefix ++ prefix) n
 
-
-
-
 isTempSym (S x)         = tempPrefix `isPrefixOf` x
-tempPrefix              = "lq#tmp#"
-anfPrefix               = "lq#anf#" 
--- vvPrefix                = "VV_"
+tempPrefix              = "lq_tmp_"
+anfPrefix               = "lq_anf_" 
 nonSymbol               = S ""
 
 intKvar                 :: Integer -> Symbol
@@ -593,7 +629,7 @@ flattenRefas = concatMap flatRa
         flatP  (PAnd ps) = concatMap flatP ps
         flatP  p         = [p]
 
-symbolStr (S x) = x
+-- symbolStr (S x) = x
 
 
 

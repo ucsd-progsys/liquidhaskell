@@ -8,8 +8,8 @@ module Language.Haskell.Liquid.RefType (
   , RefType (..), RefTyCon (..), RefAlgRhs (..), RefDataCon (..)  
   , RBind (..), RTyVar
   , ofType
-  , rTyVar, rTyVarSymbol --, rTyConApp
-  , typeId -- , typeUniqueString
+  , rTyVar, rTyVarSymbol
+  , typeId
   , strengthen, strengthenRefType
   , unfoldRType, mkArrow
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
@@ -119,7 +119,7 @@ instance Show RefType where
   show = showPpr
 
 rTyVar α = RT (α, mkSymbol α)
-rTyVarSymbol (RT (α, _)) = S $ typeUniqueString $ TyVarTy α
+rTyVarSymbol (RT (α, _)) = typeUniqueSymbol $ TyVarTy α
 
 --------------------------------------------------------------------
 ---------------------- Helper Functions ----------------------------
@@ -555,27 +555,31 @@ tidyFunBinds t = everywhere (mkT $ dropBind xs) t
 
 tidyTyVars :: RefType -> RefType
 tidyTyVars = tidy pool getS putS 
-  where getS (RT (_, S x)) = Just x
-        putS (RT (α, _)) x = RT ({- α -} stringTyVar x, S x) 
+  where getS (RT (_, x))   = Just (symbolString x)
+        putS (RT (α, _)) x = RT (stringTyVar x, stringSymbol x) 
         pool               = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
 
 --tidyTyVars' r = traceShow ("tidyTyVars: " ++ show r) $ tidyTyVars r 
 
 tidyLocalRefas :: RefType -> RefType
 tidyLocalRefas = everywhere (mkT dropLocals) 
-  where dropLocals  = filter (not . Fold.any isTmp . readSymbols) . flattenRefas
-        isTmp (S x) = (anfPrefix `isPrefixOf` x) || (tempPrefix `isPrefixOf` x) 
+  where dropLocals = filter (not . Fold.any isTmp . readSymbols) . flattenRefas
+        isTmp x    = let str = symbolString x in 
+                     (anfPrefix `isPrefixOf` str) || (tempPrefix `isPrefixOf` str) 
 
 tidySymbols :: RefType -> RefType
 tidySymbols = everywhere (mkT dropSuffix) 
-  where dropSuffix (S x) = S (takeWhile (/= symSep) x)
-        dropQualif (S x) = S (dropModuleNames x)
+  where dropSuffix = stringSymbol . takeWhile (/= symSep) . symbolString
+        dropQualif = stringSymbol . dropModuleNames       . symbolString 
+
+
 
 tidyDSymbols :: RefType -> RefType
 tidyDSymbols = tidy pool getS putS 
-  where getS (S x)   = if "ds_" `isPrefixOf` x then Just x else Nothing
-        putS (S _) x = S x
-        pool         = ["X" ++ show i | i <- [1..]]
+  where getS   sy  = let str = symbolString sy in 
+                     if "ds_" `isPrefixOf` str then Just str else Nothing
+        putS _ str = stringSymbol str 
+        pool       = ["X" ++ show i | i <- [1..]]
 
 ----------------------------------------------------------------
 ------------------- Converting to Fixpoint ---------------------
@@ -592,8 +596,8 @@ mkSymbol ::  Var -> Symbol
 --mkSymbol v = traceShow ("mkSymbol " ++ showPpr v ++ " = ") $ mkSymbol' v
 
 mkSymbol v 
-  | us `isSuffixOf` vs = S $ vs  
-  | otherwise          = S $ vs ++ [symSep] ++ us
+  | us `isSuffixOf` vs = stringSymbol vs  
+  | otherwise          = stringSymbol $ vs ++ [symSep] ++ us
   where us  = showPpr $ getUnique v 
         vs  = pprShort v
 
@@ -650,15 +654,15 @@ typeSort (ForAllTy _ τ)
 typeSort (FunTy τ1 τ2) 
   = typeSortFun τ1 τ2
 typeSort τ
-  = FPtr $ FLoc $ typeUniqueString τ
+  = FPtr $ FLoc $ typeUniqueSymbol τ
 typeSortFun τ1 τ2
   = FFunc n $ genArgSorts sos
   where sos  = typeSort <$> τs
         τs   = τ1  : grabArgs [] τ2
         n    = (length sos) - 1
      
-typeUniqueString :: Type -> String
-typeUniqueString = ("sort#" ++) . showSDocDump . ppr
+typeUniqueSymbol :: Type -> Symbol 
+typeUniqueSymbol = stringSymbol . ("sort_" ++) . showSDocDump . ppr
 
 grabArgs τs (FunTy τ1 τ2 ) = grabArgs (τ1:τs) τ2
 grabArgs τs τ              = reverse (τ:τs)
@@ -690,7 +694,7 @@ literalReft l  = exprReft e
 
 literalConst l                 = (sort, mkLit l)
   where sort                   = typeSort $ literalType l 
-        sym                    = S $ "$$" ++ showPpr l
+        sym                    = stringSymbol $ "$$" ++ showPpr l
         mkLit (MachInt    n)   = mkI n
         mkLit (MachInt64  n)   = mkI n
         mkLit (MachWord   n)   = mkI n

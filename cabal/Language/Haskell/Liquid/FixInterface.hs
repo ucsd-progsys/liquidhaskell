@@ -26,7 +26,7 @@ import Data.Data
 
 --solve :: (Data a) => FilePath -> [FilePath] -> [SubC a] -> [WfC a] -> IO (FixResult (SubC a), FixSolution)
 
-solve fn hqs cgi -- cs ws 
+solve fn hqs cgi
   = {-# SCC "Solve" #-} execFq fn hqs gs (elems cm) ws >>= exitFq fn cm 
   where cm  = fromAscList $ zipWith (\i c -> (i, c {sid = Just i})) [1..] cs 
         cs  = fixCs cgi
@@ -34,20 +34,19 @@ solve fn hqs cgi -- cs ws
         gs  = globals cgi
 
 execFq fn hqs globals cs ws 
-  = do copyFiles  hqs fq
-       withFile fq AppendMode (\h -> hPrintDump h d)
-       -- ec <- system $ printf "fixpoint.native -notruekvars -noslice -strictsortcheck -out %s %s" fo fq 
-       ec <- system $ printf "fixpoint.native -notruekvars -refinesort -noslice -strictsortcheck -out %s %s" fo fq 
-       return (ec, su)
-    where fq      = extFileName Fq  fn
-          fo      = extFileName Out fn
-          (d, su) = {-# SCC "toFixpoint" #-} toFixpoint (FI cs ws globals)
+  = do {-# SCC "copyFiles" #-} copyFiles  hqs fq
+       withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPrintDump h d)
+       ec <- {-# SCC "sysCall" #-} system $ printf "fixpoint.native -notruekvars -refinesort -noslice -strictsortcheck -out %s %s" fo fq 
+       return ec
+    where fq = extFileName Fq  fn
+          fo = extFileName Out fn
+          d  = {-# SCC "FixPointify" #-} toFixpoint (FI cs ws globals)
 
-exitFq _ _ (ExitFailure n, _) | (n /= 1) 
+exitFq _ _ (ExitFailure n) | (n /= 1) 
   = return (Crash [] "Unknown Error", empty)
-exitFq fn cm (_, su) 
+exitFq fn cm _ 
   = do (x, y) <- (rr . sanitizeFixpointOutput) <$> (readFile $ extFileName Out fn)
-       return  $ (plugC cm x, subst su y) 
+       return  $ (plugC cm x, y) 
 
 sanitizeFixpointOutput 
   = unlines 

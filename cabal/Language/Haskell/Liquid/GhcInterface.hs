@@ -26,7 +26,7 @@ import GHC.Paths (libdir)
 import System.FilePath (dropFileName) 
 import System.Directory (copyFile) 
 import System.Environment (getArgs)
-import DynFlags (defaultDynFlags)
+import DynFlags (defaultDynFlags, ProfAuto(..))
 
 import Control.Arrow hiding ((<+>))
 import Control.DeepSeq
@@ -93,8 +93,9 @@ instance Outputable GhcInfo where
 ------------------------------------------------------------------
 
 updateDynFlags df ps 
-  = df { importPaths = ps ++ importPaths df } 
-       { libraryPaths = ps ++ libraryPaths df}
+  = df { importPaths  = ps ++ importPaths df  } 
+       { libraryPaths = ps ++ libraryPaths df }
+       { profAuto     = ProfAutoCalls         }
 
 getGhcModGuts1 fn = do
    liftIO $ deleteBinFiles fn 
@@ -208,7 +209,7 @@ moduleSpec mg paths impVars
        myfs   <- moduleImpFiles Spec paths [mg_namestring mg]
        myspec <- parseSpecs myfs 
        -- all modules, including specs, imported by me
-       let ins = nubSort $ impNames ++ [s | S s <- Ms.imports spec]
+       let ins = nubSort $ impNames ++ [symbolString x | x <- Ms.imports spec]
        liftIO  $ putStrLn $ "Module Imports: " ++ show ins 
        -- convert to GHC
        setContext [IIModule mod]
@@ -226,7 +227,7 @@ moduleSpecLoop _ _ spec []
   = return spec
 moduleSpecLoop paths seenFiles spec newFiles 
   = do newSpec   <- parseSpecs newFiles 
-       impFiles  <- moduleImpFiles Spec paths [s | S s <- Ms.imports newSpec]
+       impFiles  <- moduleImpFiles Spec paths [symbolString x | x <- Ms.imports newSpec]
        let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
        let spec'      = spec `mappend` newSpec
        let newFiles'  = [f | f <- impFiles, f `S.notMember` seenFiles']

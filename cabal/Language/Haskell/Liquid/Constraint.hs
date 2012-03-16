@@ -6,7 +6,7 @@
 module Language.Haskell.Liquid.Constraint (
     generateConstraints
   , CGInfo (..)
-  , kvars, kvars', symbols  -- debugging purposes
+  , kvars, kvars' -- symbols  -- debugging purposes
   ) where
 
 import Id       (isDataConId_maybe)
@@ -85,9 +85,9 @@ kvars' = everything (plus') (0 `mkQ` grabKvar)
         grabKvar _             = 0
         plus' !x !y            = x + y 
 
-symbols :: (Data a) => a -> S.Set F.Symbol
-symbols = everything S.union (S.empty `mkQ` grab)
-  where grab x@(F.S _) = S.singleton x 
+--symbols :: (Data a) => a -> S.Set F.Symbol
+--symbols = everything S.union (S.empty `mkQ` grab)
+--  where grab x@(F.S _) = S.singleton x 
 
 
 initEnv :: GhcInfo -> CG CGEnv  

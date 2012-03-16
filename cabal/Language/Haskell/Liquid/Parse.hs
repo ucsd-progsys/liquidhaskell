@@ -104,7 +104,7 @@ upperIdP :: Parser String
 upperIdP = condIdP symChars (not . isLower . head)
 
 symbolP :: Parser Symbol
-symbolP = liftM S symCharsP 
+symbolP = liftM stringSymbol symCharsP 
 
 
 constantP :: Parser Constant
@@ -118,7 +118,7 @@ lexprP
   =  (try $ parens exprP)
  <|> (try $ parens cexprP)
  <|> (try exprfP)
- <|> (try (liftM ((`EDat` FObj) . S) upperIdP))
+ <|> (try (liftM ((`EDat` FObj) . stringSymbol) upperIdP))
  <|> liftM EVar symbolP
  <|> liftM ECon constantP
  <|> (reserved "_|_" >> return EBot)
@@ -148,7 +148,7 @@ sortP
   =   try (string "Integer" >> return FInt)
   <|> try (string "Int"     >> return FInt)
   <|> try (string "Bool"    >> return FBool)
-  <|> (symCharsP >>= return . FPtr . FLoc) 
+  <|> (symCharsP >>= return . FPtr . FLoc . stringSymbol) 
 
 
 symCharsP = (condIdP symChars (\_ -> True))
@@ -341,7 +341,7 @@ tyBodyP ty
 binderP :: Parser Symbol
 binderP =  try symbolP 
        <|> liftM pwr (parens $ many1 (satisfy $ not . (`elem` "()")))
-       where pwr s = S $ "(" ++ s ++ ")" 
+       where pwr s = stringSymbol $ "(" ++ s ++ ")" 
 
 
 grabs p = try (liftM2 (:) p (grabs p)) 
@@ -354,7 +354,7 @@ measureDefP bodyP
        whiteSpace >> reservedOp "=" >> whiteSpace
        body    <- bodyP 
        whiteSpace
-       return   $ Measure.Def mname (S c) (S <$> xs) body
+       return   $ Measure.Def mname (stringSymbol c) (stringSymbol <$> xs) body
 
 
 --measureDefP :: Parser (Measure.Def Symbol)

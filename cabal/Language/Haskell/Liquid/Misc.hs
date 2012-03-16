@@ -28,6 +28,12 @@ import Control.DeepSeq
 
 ---------------------------------------------------------------------
 
+unIntersperse x ys
+  = case elemIndex x ys of
+      Nothing -> [ys]
+      Just i  -> let (y, _:ys') = splitAt i ys 
+                 in (y : unIntersperse x ys')
+
 (=>>) m f = m >>= (\x -> f x >> return x)
 
 wrap l r s = l ++ s ++ r
@@ -140,11 +146,17 @@ checkFail msg f x
   | otherwise
   = errorstar $ "Check-Failure: " ++ msg
 
+chopAfter ::  (a -> Bool) -> [a] -> [a]
 chopAfter f xs 
   = case findIndex f xs of
       Just n  -> take n xs
       Nothing -> xs
 
+chopPrefix p xs 
+  | p `isPrefixOf` xs
+  = Just $ drop (length p) xs
+  | otherwise 
+  = Nothing
 
 findFirst ::  Monad m => (t -> m [a]) -> [t] -> m (Maybe a)
 findFirst f []     = return Nothing
