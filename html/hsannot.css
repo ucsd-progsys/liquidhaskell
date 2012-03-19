@@ -1,0 +1,51 @@
+
+.hs-keyglyph, .hs-layout {color: red;}
+.hs-keyword {color: blue;}
+.hs-comment, .hs-comment a {color: green;}
+.hs-str, .hs-chr {color: teal;}
+.hs-keyword,.hs-conid, .hs-varid, .hs-conop, .hs-varop, .hs-num, .hs-cpp, .hs-sel, .hs-definition {}
+
+/*
+a.annot{
+    position:relative; 
+    color:#000;
+    text-decoration:none
+  }
+
+a.annot:hover{z-index:25; background-color:#ff0}
+
+a.annot span{display: none}
+
+a.annot:hover span{ 
+    display:block;
+    position:absolute;
+    top:2em; 
+    left:2em; 
+    border:5px solid #b4eeb4; 
+    background-color: #b4eeb4;
+    color:#000;
+    text-align: left 
+  }
+*/
+
+.annot{
+    position:relative; 
+    color:#000;
+    text-decoration:none
+  }
+
+.annot:hover{z-index:25; background-color:#ff0}
+
+.anntitle {display: none}
+
+.annot:hover span{ /*the span will display just on :hover state*/
+    display:block;
+    position:absolute;
+    top:2em; 
+    left:2em; 
+    border:5px solid #b4eeb4; 
+    background-color: #b4eeb4;
+    color:#000;
+    text-align: left 
+  }
+

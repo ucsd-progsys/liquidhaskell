@@ -2,7 +2,7 @@ module Vec0 where
 
 import Language.Haskell.Liquid.Prelude
 
-import Data.Vector
+import Data.Vector hiding(map, zipWith)
 
 -- {-# ANN module "spec   $LIQUIDHS/Vector.spec" #-}
 -- {-# ANN module "spec   $LIQUIDHS/List.spec" #-}

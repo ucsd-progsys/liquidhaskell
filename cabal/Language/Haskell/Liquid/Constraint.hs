@@ -495,7 +495,6 @@ refreshRefType (RFun b t t')
   = liftM2 (RFun b) (refresh t) (refresh t')
 refreshRefType (RCon i c ts r)  
   = liftM3 (rCon i) (refresh c) (mapM refresh ts) (refresh r)
---  = liftM3 (rCon i) (refresh c) (mapM true ts) (refresh r)
 refreshRefType (RVar a r)  
   = liftM (RVar a) (refresh r)
 refreshRefType t                

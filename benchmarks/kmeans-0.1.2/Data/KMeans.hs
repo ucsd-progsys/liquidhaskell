@@ -26,6 +26,7 @@ instance Eq (WrapType a) where
 instance Ord (WrapType a) where
     compare = comparing getVect
 
+dist ::  [Double] -> [Double] -> Double 
 dist a b = sqrt . sum $ zipWith (\x y-> (x-y) ^ 2) a b
 
 centroid points = map (flip (/) l . sum) $ transpose (map getVect points)
