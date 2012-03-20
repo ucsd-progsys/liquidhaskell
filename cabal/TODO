@@ -1,20 +1,59 @@
 
-Transition to GHC 7.4
----------------------
 
-* How to insert Tick?
-    
-    HEREHEREHERE
-    > Copied GHC deSugarer, Get it to COMPILE
+data PredVar = RP !Symbol ![(Symbol, Sort)]     -- NEW
 
-    matchWrapper
-        > matchEquations
-            -- > matchContextErrString
-            > matchCheck
-                > match
+data Refa 
+  = RConc !Pred 
+  | RKvar !Symbol !Subst
+  | RPvar !PredVar !Subst                       -- NEW 
+  deriving (Eq, Ord, Data, Typeable)
+
+data Reft = ...                                 -- OLD
+data RTyCon a   = ...                           -- OLD
+data RAlgRhs a  = ...                           -- OLD
+data RDataCon a = ...                           -- OLD
+newtype RBind   = ...                           -- OLD
+newtype RTyVar  = ...                           -- OLD
+
+data RType a 
+  = RVar    !RTyVar     !a
+  | RFun    !RBind      !(RType a) !(RType a)
+  | RAll    !RTyVar     !(RType a)
+  | RConApp !(RTyCon a) ![RType a] ![Reft] !a   -- NEW
+  | RClass  !Class      ![RType a]
+  | ROther  !Type 
+  deriving (Data, Typeable)
+
+
+
+refparams: refactor types into RTyCon/RTyConApp @ [RType] [Reft]
+
+    > Change Type Defs
         
-    dsTcEvBinds
-    dsTcCoercion
+        PredVars :: new type for predicate variables (Like KVARS but explicit scope)
+
+        Reft     :: + PVar PredVar Subst
+        
+        RTyCon   :: as before but all refts/subst happens at params
+                    add predicate parameters
+                    CHECK: do DataCon fields have names?
+
+        RType    :: - RCon
+                    + RConApp RTyCon [RType] [Reft]
+
+    > Change Fun-Wrappers   (fold)
+    > Change Subst          (unfold)
+        
+    > Determine POLARITY of Type-Params, Pred-Params
+        newtype Polarity = Pol [Bool]
+        
+        rTyConTypePolarity :: RTyCon -> Polarity
+        rTyConPredPolarity :: RTyCon -> Polarity
+            >
+
+    > Change Subtype Splitting using Polarities 
+    > Change WF Splitting
+    --> rejigger th
 
 0. hack fixpoint, to prevent instantiating ~A with vars of type "func"
 1. [] : forall a. [{v:a|false}] and re-enable the set-kvars-to-true.
