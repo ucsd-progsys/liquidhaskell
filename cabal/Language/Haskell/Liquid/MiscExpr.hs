@@ -52,14 +52,14 @@ applyTypeToArgs e op_ty (Type ty : args)
     go rev_tys rest_args         = applyTypeToArgs e op_ty' rest_args
                                  where
                                    op_ty' = applyTysD msg op_ty (reverse rev_tys)
-                                   msg = ptext (sLit "applyTypeToArgsYEAH") <+>
+                                   msg = ptext (sLit "MYapplyTypeToArgs") <+>
                                          panic_msg e op_ty
 
 
 applyTypeToArgs e op_ty (p : args)
   = case (splitFunTy_maybe op_ty) of
         Just (_, res_ty) -> applyTypeToArgs e res_ty args
-        Nothing -> pprPanic "applyTypeToArgsYEAH" (panic_msg e op_ty)
+        Nothing -> pprPanic "MYapplyTypeToArgs" (panic_msg e op_ty)
 
 panic_msg :: CoreExpr -> Type -> SDoc
 panic_msg e op_ty = pprCoreExpr e $$ ppr op_ty

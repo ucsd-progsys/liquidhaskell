@@ -12,7 +12,6 @@ module Language.Haskell.Liquid.Constraint (
 import Id       (isDataConId_maybe)
 import SrcLoc           
 import CoreSyn
-import CoreUtils        (exprType)
 import Type             -- (coreEqType)
 import PrelNames
 import TysPrim
@@ -50,6 +49,7 @@ import Language.Haskell.Liquid.PredType hiding (splitArgsRes)
 import Language.Haskell.Liquid.Predicates
 import Language.Haskell.Liquid.GhcMisc2 (tickSrcSpan)
 import Language.Haskell.Liquid.Misc
+import Language.Haskell.Liquid.MiscExpr (exprType)
 import Language.Haskell.Liquid.Bare (isDummyBind)
 
 import Data.Generics.Schemes
@@ -339,6 +339,11 @@ splitC (SubC γ (RMuVar i1 t1s) (RMuVar i2 t2s))
   | i1 == i2
   =  concatMap splitC $ zipWith (SubC γ) t1s t2s
 -}
+
+-- add these to find the bug in poly0 they should be removed
+-- splitC cons (SubC γ (RPred _ t1) t2) = splitC cons (SubC γ t1 t2)
+-- splitC cons (SubC γ t1 (RPred _ t2)) = splitC cons (SubC γ t1 t2) 
+--
 
 splitC _ (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
@@ -639,7 +644,7 @@ unifyS (RVar v a) (PrVar v' PdTrue)
 unifyS (RVar v a) (PrVar v' PdVar {pname = pname})
   = RVar v $ a `F.meet` (F.strToReft pname)
 
-unifyS t@(RConApp _ _ _ _) pt@(PrTyCon c _ _ _) | isBasicTyCon c
+unifyS t@(RConApp _ _ _ _) pt@(PrTyCon c _ _ r) | isBasicTyCon c
   = t
 unifyS (RConApp c ts rs r) pt@(PrTyCon _ pts ps p)
   = RConApp c (map (\(x, y) -> unifyS x y) (zip ts pts)) (mapbUnify rs ps) (bUnify r p)
