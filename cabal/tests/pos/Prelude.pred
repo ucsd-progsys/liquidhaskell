@@ -1,0 +1,9 @@
+(>) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> Bool
+(<) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> Bool
+(>=) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> Bool
+(<=) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> Bool
+(==) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> Bool
+(+) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> a^True
+(-) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> a^True
+($) :: forall a b. forAll p1:a p2:b. (a^p1 -> b^p2) -> a^p1 -> b^p2
+(.) :: forall a b c. forAll p1:a p2:b p3:c. (b^p2 -> c^p3) -> (a^p1 -> b^p2) -> a^p1 -> c^p3

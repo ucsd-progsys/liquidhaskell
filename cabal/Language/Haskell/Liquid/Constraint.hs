@@ -792,8 +792,11 @@ cconsCase γ x t (DataAlt c, ys, ce)
        let rtd = foldl' (flip replaceSorts) td'' (zip (F.strToRefa . pname <$>ps) rs)
        let (yts, xt') = splitArgsRes rtd
        let (x':ys') = mkSymbol <$> (x:ys)
-       let cγ = addBinders γ x' (zip (x':ys') (xt':yts))
-       addC $ SubC γ xt' xt
+       let r1 = dataConReft c $ varType x
+       let r2 = dataConMsReft (γ ?= (dataConSymbol c)) ys'
+       let xt'' = xt `strengthen` (r1 `F.meet` r2)
+       let cγ = addBinders γ x' (zip (x':ys') (xt'':yts))
+--       addC $ SubC γ xt' xt
        cconsE cγ ce t
 
 instance Show CoreExpr where
