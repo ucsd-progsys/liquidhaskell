@@ -13,6 +13,7 @@ import Language.Haskell.Liquid.Constraint
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint (FixResult (..))
 import Language.Haskell.Liquid.FixInterface      
+import Language.Haskell.Liquid.Predicates      
 import Control.DeepSeq
 import Control.Monad (forM)
 import CoreSyn
@@ -33,12 +34,12 @@ liquid  = do (targets, includes) <- getOpts
 liquidOne includes target = 
   do info    <- getGhcInfo target includes :: IO GhcInfo
      putStrLn $ showPpr (cbs info)
-     putStrLn $ showPpr  (importVars $ cbs info)           
      let cgi = generateConstraints $!! info
      -- dummyDeepseq cgi 
      -- dummyWrite target cgi
      -- dummyWrite' target cgi
      -- writeConstraints target cgi
+--     putStrLn $ showPpr info           
      (r, sol) <- cgi `deepseq` solve target (hqFiles info) cgi
      annotate target sol $ annotMap cgi
      putStrLn $ "********** DONE: " ++ showPpr r ++ " ************"

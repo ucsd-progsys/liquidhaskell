@@ -38,7 +38,7 @@ import TcRnDriver (tcRnLookupRdrName, tcRnLookupName)
 
 import TysPrim          (intPrimTyCon)
 import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
-import TyCon (tyConName)
+import TyCon (tyConName, isAlgTyCon)
 import DataCon (dataConName)
 
 
@@ -62,7 +62,7 @@ import Language.Haskell.Liquid.GhcMisc2
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Ms
-import Language.Haskell.Liquid.Misc
+import Language.Haskell.Liquid.Misc hiding (traceShow)
 import qualified Control.Exception as Ex
 
 ------------------------------------------------------------------
@@ -73,11 +73,16 @@ data BType b r
   = BVar b r
   | BFun b (BType b r) (BType b r)
   | BCon b [(BType b r)] r
+  | BConApp b [(BType b r)] [r] r
   | BAll b (BType b r)
   | BLst (BType b r) r
   | BTup [(BType b r)] r
   | BClass b [(BType b r)]
-  deriving (Show, Data, Typeable)
+  deriving (Data, Typeable)
+
+instance Show (BType b r) where
+ show (BConApp b bts rs r) = undefined
+ show ts                   = undefined
 
 type BareType = BType String Reft  
 
@@ -199,23 +204,28 @@ ofBareType (BFun x t1 t2)
   = liftM2 (RFun (rbind x)) (ofBareType t1) (ofBareType t2)
 ofBareType (BAll a t) 
   = liftM  (RAll (stringRTyVar a)) (ofBareType t)
-ofBareType (BCon tc ts r) 
-  = liftM2 (bareTC r) (lookupGhcTyCon tc) (mapM ofBareType ts)
+ofBareType (BConApp tc ts rs r) 
+  = liftM2 (bareTCApp r rs) (lookupGhcTyCon tc) (mapM ofBareType ts)
+ofBareType (BCon tc ts r)
+  = liftM2 (bareTCApp r []) (lookupGhcTyCon tc) (mapM ofBareType ts)
 ofBareType (BClass c ts)
   = liftM2 RClass (lookupGhcClass c) (mapM ofBareType ts)
 ofBareType (BLst t r) 
-  = liftM (bareTC r listTyCon . (:[])) (ofBareType t)
+  = liftM (bareTCApp r [] listTyCon . (:[])) (ofBareType t)
 ofBareType (BTup ts r)
-  = liftM (bareTC r c) (mapM ofBareType ts)
+  = liftM (bareTCApp r [] c) (mapM ofBareType ts)
     where c = tupleTyCon BoxedTuple (length ts)
 
 -- TODO: move back to RefType
-bareTC :: Reft -> TyCon -> [RefType] -> RefType 
-bareTC r c ts = rCon i' c' ts' r
-  where αs  = [stringTyVar $ "tv_l_" ++ show i | i <- [1..(length ts)]]
-        tt  = ofType $ TyConApp c $ map TyVarTy αs
-        su  = zip (map rTyVar αs) ts
-        (RCon i' c' ts' _) = subsTyVars_nomeet su tt 
+bareTCApp :: Reft -> [Reft] -> TyCon -> [RefType] -> RefType 
+bareTCApp r rs c ts 
+  = RConApp (bareTyCon c) ts rs r
+
+bareTyCon c 
+  | isAlgTyCon c
+  = RAlgTyCon c (RDataTyCon () [])
+  | otherwise
+		= RPrimTyCon c
 
 rbind ""    = RB dummySymbol
 rbind s     = RB $ stringSymbol s
@@ -224,6 +234,7 @@ rbind s     = RB $ stringSymbol s
 stringRTyVar = rTyVar . stringTyVar 
 
 isDummyBind (RB s) = s == dummySymbol 
+
 
 mkMeasureDCon :: (Data t) => Ms.MSpec t Symbol -> BareM (Ms.MSpec t DataCon)
 mkMeasureDCon m = (forM (measureCtors m) $ \n -> liftM (n,) (lookupGhcDataCon n))

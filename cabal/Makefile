@@ -1,4 +1,4 @@
-BINPATH=/home/rjhala/research/ghc-working-local-new/bin
+BINPATH=/home/niki/src/ghc/bin
 API=ghc-7.4.1
 
 ##################################################

@@ -7,7 +7,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , stringSymbol, symbolString
   , anfPrefix, tempPrefix
   , intKvar
-  , Sort (..), Symbol, Loc (..), Constant (..), Bop (..), Brel (..), Expr (..)
+  , Sort (..), Symbol(..), Loc (..), Constant (..), Bop (..), Brel (..), Expr (..)
   , Pred (..), Refa (..), SortedReft (..), Reft(..), Envt
   , SubC (..), WfC(..), FixResult (..), FixSolution, FInfo (..)
   , emptyFEnv, fromListFEnv, insertFEnv, deleteFEnv
@@ -20,6 +20,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , simplify
   , emptySubst, mkSubst, catSubst
   , Subable (..)
+		, strToReft, strToRefa, replaceSort, replaceSorts
   ) where
 
 import Outputable
@@ -99,6 +100,21 @@ freshSym x = do
                   return y 
     Just y  -> return y
 -}
+
+strToRefa n  = RConc $ PBexp $ (EApp (S n) [EVar (S "VV")])
+strToReft n  = Reft (S "VV", [strToRefa n])
+
+replaceSorts :: (Refa, Reft) -> Reft -> Reft
+replaceSorts (p, Reft(_, rs)) (Reft(v, ls))= Reft(v, concatMap (replaceS (p, rs)) ls)
+
+replaceSort :: (Refa, Refa) -> Reft -> Reft
+replaceSort (p, k) (Reft(v, ls)) = Reft (v, (concatMap (replaceS (p, [k])) ls))
+
+replaceS :: (Refa, [Refa]) -> Refa -> [Refa] 
+replaceS ((RConc (PBexp (EApp (S n) _))), k) (RConc (PBexp (EApp (S n') _))) | n == n'
+  = k
+replaceS (k, v) p = [p]
+
 
 getConstants :: (Data a) => a -> [(Symbol, Sort, Bool)]
 getConstants = everything (++) ([] `mkQ` f)
@@ -415,10 +431,14 @@ hasTag e1 e2 = PAtom Eq (EApp tagSymbol [e1]) e2
 ---------------------------------------------------------------
 ----------------- Refinements and Environments  ---------------
 ---------------------------------------------------------------
+data PredVar 
+  = RP !Symbol ![(Symbol, Sort)]
+	deriving (Eq, Ord, Data, Typeable)
 
 data Refa 
   = RConc !Pred 
   | RKvar !Symbol !Subst
+  | RPvar !PredVar !Subst
   deriving (Eq, Ord, Data, Typeable)
 
 newtype Reft 
@@ -565,6 +585,15 @@ class Subable a where
   subst1 :: a -> (Symbol, Expr) -> a
   subst1 thing (x, e) = subst (Su $ M.singleton x e) thing
 
+instance Subable PredVar where
+  subst su (RP x sybsorts) = RP x $ map (mapFst (subst su)) sybsorts
+
+instance Subable Symbol where
+  subst (Su s) x           = subSymbol (M.lookup x s) x
+
+subSymbol (Just (EVar y)) _ = y
+subSymbol Nothing         x = x
+subSymbol _               _ = error "sub Symbol"
 
 instance Subable Expr where
   subst su (EApp f es)     = EApp f $ map (subst su) es 
@@ -588,6 +617,8 @@ instance Subable Pred where
 instance Subable Refa where
   subst su (RConc p)       = RConc   $ subst su p
   subst su (RKvar k su')   = RKvar k $ su' `catSubst` su 
+  subst su (RPvar p su')   = RPvar (subst sus p) sus
+	  where sus = su' `catSubst` su 
 
 instance (Subable a, Subable b) => Subable (a,b) where
   subst su (x,y) = (subst su x, subst su y)
