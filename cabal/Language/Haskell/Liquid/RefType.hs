@@ -19,6 +19,7 @@ module Language.Haskell.Liquid.RefType (
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalConst
   , REnv, deleteREnv, domREnv, insertREnv, lookupREnv, emptyREnv, memberREnv, fromListREnv
+		, toTyVar
   ) where
 
 import Text.Printf
@@ -127,6 +128,8 @@ rTyVarSymbol (RT (α, _)) = typeUniqueSymbol $ TyVarTy α
 --------------------------------------------------------------------
 ---------------------- Helper Functions ----------------------------
 --------------------------------------------------------------------
+
+toTyVar (RT(v, _)) = v
 
 strengthenRefType :: RefType -> RefType -> RefType
 strengthenRefType t1 t2 
@@ -374,7 +377,8 @@ subsTyVarsTyCon meet ats c = foldl' (flip (subsFreeRTyCon meet S.empty)) c ats
 
 subsTyVar ::  Bool -> (RTyVar, RefType) -> RefType -> RefType 
 subsTyVar meet = subsFree meet S.empty
-
+instance Show Type where
+  show  = showSDoc . ppr
 subsFree ::  Bool -> S.Set RTyVar -> (RTyVar, RefType) -> RefType -> RefType
 subsFree m s z (RPred p t)         
   = RPred (subsTyVarP z' p) $ subsFree m s z t

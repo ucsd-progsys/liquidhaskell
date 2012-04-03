@@ -624,30 +624,44 @@ unify :: Maybe PrType -> RefType -> RefType
 -------------------------------------------------------------------
 
 unify Nothing   t  = t
-unify (Just pt) rt = unifyS rt pt
+unify (Just pt) rt = evalState (unifyS rt pt) S.empty
+
+unifyS :: RefType -> PrType -> State (S.Set Predicate) RefType
+
+-- is this correct?
 
 unifyS t (PrAllPr p pt)
-  = RPred p $ unifyS t pt 
+  = do t' <- unifyS t pt 
+       s  <- get
+       if (p `S.member` s) 
+        then return $ RPred p t'
+								else return t'
 
-unifyS (RAll v t) (PrAll _ pt) 
-  = RAll v $ unifyS t pt
+unifyS (RAll v t) (PrAll v' pt) 
+  = do t' <-  unifyS t $ subsTyVars (v', PrVar (toTyVar v) PdTrue) pt 
+       return $ RAll v t'
 
 unifyS (RFun (RB x) rt1 rt2) (PrFun x' pt1 pt2)
-  = RFun (RB x) (unifyS rt1 pt1) (unifyS rt2 pt2) 
+  = do t1' <- unifyS rt1 pt1
+       t2' <- unifyS rt2 pt2
+       return $ RFun (RB x) t1' t2' 
 
 unifyS t@(RClass c ps) (PrClass _ pts)
-  = t
+  = return t
 
 unifyS (RVar v a) (PrVar v' PdTrue)
-  = RVar v a 
+  = return $ RVar v a 
 
-unifyS (RVar v a) (PrVar v' PdVar {pname = pname})
-  = RVar v $ a `F.meet` (F.strToReft pname)
+unifyS (RVar v a) (PrVar v' p@(PdVar {pname = pname}))
+  = do modify $ \s -> p `S.insert` s
+       return $ RVar v $ a `F.meet` (F.strToReft pname)
 
 unifyS t@(RConApp _ _ _ _) pt@(PrTyCon c _ _ r) | isBasicTyCon c
-  = t
+  = return t
 unifyS (RConApp c ts rs r) pt@(PrTyCon _ pts ps p)
-  = RConApp c (map (\(x, y) -> unifyS x y) (zip ts pts)) (mapbUnify rs ps) (bUnify r p)
+  = do modify $ \s -> s `S.union` (S.fromList (filter (/= PdTrue) (p:ps)))
+       ts' <- mapM (\(x, y) -> unifyS x y) (zip ts pts)
+       return $ RConApp c ts' (mapbUnify rs ps) (bUnify r p)
 {-
 unifyS (RCon c rc ts a) pt@(PrTyCon _ pts _ P{name = pname})
   = rCon c rc (map (\(x, y) -> unifyS x y) (zip ts pts)) $ a `F.meet` (F.strToReft pname)
@@ -735,8 +749,9 @@ consE γ (App e a) | eqType (exprType a) predType
        case te of 
         RPred (PdVar pn pt pa) t ->
          do s <- freshSort e γ pt
-            return $ replaceSort (F.strToRefa pn, s) t 
-        _         -> error "cons Pred App"
+            return $ {-traceShow ("eqType" ++ pn ++ ": " ++ show pt ) $-}
+                     replaceSort (F.strToRefa pn, s) t 
+        _         -> return te {- error "cons Pred App"-}
 
 consE γ (App e a)               
   = do RFun (RB x) tx t <- liftM (checkFun ("Non-fun App with caller", e)) $ consE γ e 

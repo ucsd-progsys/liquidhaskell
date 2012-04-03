@@ -491,8 +491,14 @@ bbaseP
  <|> liftM BVar lowerIdP
 -}
 
+brackets' p
+  = do string "["
+       s <- p
+       string "]" 
+       return s
+
 predbaseP 
-  =  liftM PrLstP (brackets predTypeP)
+  =  liftM PrLstP (brackets' predTypeP)
  <|> liftM PrTupP (parens $ sepBy predTypeP comma)
  <|> try (do c <- upperIdP
              ts <- sepBy predTypeP blanks
