@@ -29,7 +29,7 @@ import System.FilePath (dropFileName)
 import System.Directory (copyFile) 
 import System.Environment (getArgs)
 import DynFlags (defaultDynFlags, ProfAuto(..))
-
+import Control.Monad (filterM)
 import Control.Arrow hiding ((<+>))
 import Control.DeepSeq
 import Control.Applicative  hiding (empty)
@@ -137,7 +137,7 @@ getGhcInfo target paths =
       hqs  <- moduleHquals mg paths target ins 
       -- DEAD construct reftypes for wiredIns and such
       bs  <- wiredInSpec env 
-      ps <- modulePred mg paths
+      ps <- modulePred mg paths (importVars cbs)
       cs <- moduleDat mg paths 
       let (tcs, dcs) = unzip cs
       return $ GI env cbs asm (grt ++ grt') (fst msr) (snd msr) 
@@ -162,29 +162,34 @@ parseDat f
   = do Ex.catch (liftM (doParse' dataDeclsP f) (readFile f)) $ \(e :: Ex.IOException) ->
          ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ f
 
-modulePred :: GhcMonad m => ModGuts -> [FilePath] -> m [(Var, PrType)]
-modulePred mg paths -- impVars 
+modulePred :: GhcMonad m => ModGuts -> [FilePath] -> [Var] -> m [(Var, PrType)]
+modulePred mg paths  impVars 
   = do -- specs imported by me 
        fs     <- moduleImpFiles Pred paths impNames 
 --       spec   <- modulePredLoop paths S.empty mempty fs
        -- measures from me 
        myfs   <- moduleImpFiles Pred paths [mg_namestring mg]
        myspec <- liftIO $ mconcat <$> mapM parsePred (myfs ++ fs)
+       liftIO  $ putStrLn $ "Module Imports: " ++ show myspec
+       myspec'<- filterM isInEnv myspec
        -- all modules, including specs, imported by me
 --       let ins = nubSort $ impNames ++ [s | S s <- Ms.imports spec]
-       liftIO  $ putStrLn $ "Module Imports: " ++ show myspec
+--       liftIO  $ putStrLn $ "Module Imports: " ++ show myspec
        -- convert to GHC
        env    <- getSession
---       setContext [mod] []
+--       ----setContext [mod] []
        setContext [IIModule mod]
-       xts <- liftIO $ mkPredType env myspec
+       xts <- liftIO $ mkPredType env myspec'
        liftIO  $ putStrLn $ "Module Imports: " ++ show xts
        return  $ xts
     where mod      = mg_module mg
           impNames = (moduleNameString . moduleName) <$> impMods
           impMods  = moduleEnvKeys $ mg_dir_imps mg
 
-
+-- isInEnv (S (f:(i:(x:_))), _)
+--   = return (f == 'f' && i == 'i' && x == 'x')
+isInEnv _
+ = return True
 --modulePred :: GhcMonad m => ModGuts -> [FilePath] -> m [(Var, PrType)]
 moduleDat mg paths -- impVars 
   = do -- specs imported by me 
@@ -279,7 +284,6 @@ moduleSpec' mg paths
        env    <- getSession
        msr    <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec (Ms.measures myspec)
        refspec <-liftIO $  mkAssumeSpec env (Ms.assumes myspec)
---       liftIO  $ putStrLn $ "Is this correct?: " ++ showPpr refspec 
        return  refspec
  
 moduleSpec mg paths impVars 

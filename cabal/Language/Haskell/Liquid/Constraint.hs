@@ -628,8 +628,8 @@ unify (Just pt) rt = evalState (unifyS rt pt) S.empty
 
 unifyS :: RefType -> PrType -> State (S.Set Predicate) RefType
 
--- is this correct?
-
+unifyS t@(RPred _ _) _ 
+  = return t
 unifyS t (PrAllPr p pt)
   = do t' <- unifyS t pt 
        s  <- get
@@ -658,10 +658,12 @@ unifyS (RVar v a) (PrVar v' p@(PdVar {pname = pname}))
 
 unifyS t@(RConApp _ _ _ _) pt@(PrTyCon c _ _ r) | isBasicTyCon c
   = return t
+
+-- p is not used see range. check correctness
 unifyS (RConApp c ts rs r) pt@(PrTyCon _ pts ps p)
-  = do modify $ \s -> s `S.union` (S.fromList (filter (/= PdTrue) (p:ps)))
+  = do modify $ \s -> s `S.union` (S.fromList (filter (/= PdTrue) (ps)))
        ts' <- mapM (\(x, y) -> unifyS x y) (zip ts pts)
-       return $ RConApp c ts' (mapbUnify rs ps) (bUnify r p)
+       return $ RConApp c ts' (mapbUnify rs ps) r --(bUnify r p)
 {-
 unifyS (RCon c rc ts a) pt@(PrTyCon _ pts _ P{name = pname})
   = rCon c rc (map (\(x, y) -> unifyS x y) (zip ts pts)) $ a `F.meet` (F.strToReft pname)
@@ -749,7 +751,7 @@ consE γ (App e a) | eqType (exprType a) predType
        case te of 
         RPred (PdVar pn pt pa) t ->
          do s <- freshSort e γ pt
-            return $ {-traceShow ("eqType" ++ pn ++ ": " ++ show pt ) $-}
+            return $ {-traceShow ("eqType" ++ show pt ++ " for " ++ show e ) $ -} 
                      replaceSort (F.strToRefa pn, s) t 
         _         -> return te {- error "cons Pred App"-}
 

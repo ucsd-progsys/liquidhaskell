@@ -1,7 +1,7 @@
 module Vec0 where
 
 import Language.Haskell.Liquid.Prelude
-
+import Data.List
 import Data.Vector hiding (map, zipWith)
 
 xs    = [1,2,3,4] :: [Int]
