@@ -623,8 +623,9 @@ consCB γ b@(NonRec x e)
 unify :: Maybe PrType -> RefType -> RefType 
 -------------------------------------------------------------------
 
-unify Nothing   t  = t
 unify (Just pt) rt = evalState (unifyS rt pt) S.empty
+--unify (Just pt) rt  = traceShow ("UNIFY?" ++ show pt ++ "\n" ++ show rt ++ "\n") $ evalState (unifyS rt pt) S.empty
+unify _          t  = t
 
 unifyS :: RefType -> PrType -> State (S.Set Predicate) RefType
 
@@ -638,7 +639,9 @@ unifyS t (PrAllPr p pt)
 								else return t'
 
 unifyS (RAll v t) (PrAll v' pt) 
-  = do t' <-  unifyS t $ subsTyVars (v', PrVar (toTyVar v) PdTrue) pt 
+  = do t' <-  unifyS t 
+               {-$ traceShow ("UNIFYS replace " ++ show (v', v) ++ " in " ++ show pt)-} 
+                $ subsTyVars (v', PrVar (toTyVar v) PdTrue) pt 
        return $ RAll v t'
 
 unifyS (RFun (RB x) rt1 rt2) (PrFun x' pt1 pt2)
@@ -661,9 +664,9 @@ unifyS t@(RConApp _ _ _ _) pt@(PrTyCon c _ _ r) | isBasicTyCon c
 
 -- p is not used see range. check correctness
 unifyS (RConApp c ts rs r) pt@(PrTyCon _ pts ps p)
-  = do modify $ \s -> s `S.union` (S.fromList (filter (/= PdTrue) (ps)))
+  = do modify $ \s -> s `S.union` (S.fromList (filter (/= PdTrue) (p:ps)))
        ts' <- mapM (\(x, y) -> unifyS x y) (zip ts pts)
-       return $ RConApp c ts' (mapbUnify rs ps) r --(bUnify r p)
+       return $ RConApp c ts' (mapbUnify rs ps) (bUnify r p)
 {-
 unifyS (RCon c rc ts a) pt@(PrTyCon _ pts _ P{name = pname})
   = rCon c rc (map (\(x, y) -> unifyS x y) (zip ts pts)) $ a `F.meet` (F.strToReft pname)

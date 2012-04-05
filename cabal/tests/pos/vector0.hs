@@ -1,7 +1,7 @@
 module Vec0 where
 
 import Language.Haskell.Liquid.Prelude
-import Data.Vector hiding (map, zipWith)
+import Data.Vector hiding (map, zipWith, filter, foldl, foldr)
 
 xs  = [1,2,3,4] :: [Int]
 vs  = fromList xs

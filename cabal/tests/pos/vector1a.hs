@@ -1,7 +1,7 @@
 module Vec1 where
 
 import Language.Haskell.Liquid.Prelude
-import Data.Vector hiding (map, zipWith)
+import Data.Vector hiding (map, zipWith, filter, foldr, foldl)
 
 --for :: Int -> Int -> a -> (Int -> a -> a) -> a
 for lo hi acc f 

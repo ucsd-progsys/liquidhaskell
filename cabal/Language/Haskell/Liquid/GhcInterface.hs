@@ -170,8 +170,7 @@ modulePred mg paths  impVars
        -- measures from me 
        myfs   <- moduleImpFiles Pred paths [mg_namestring mg]
        myspec <- liftIO $ mconcat <$> mapM parsePred (myfs ++ fs)
-       liftIO  $ putStrLn $ "Module Imports: " ++ show myspec
-       myspec'<- filterM isInEnv myspec
+--       liftIO  $ putStrLn $ "Module Imports: " ++ show myspec
        -- all modules, including specs, imported by me
 --       let ins = nubSort $ impNames ++ [s | S s <- Ms.imports spec]
 --       liftIO  $ putStrLn $ "Module Imports: " ++ show myspec
@@ -179,17 +178,13 @@ modulePred mg paths  impVars
        env    <- getSession
 --       ----setContext [mod] []
        setContext [IIModule mod]
-       xts <- liftIO $ mkPredType env myspec'
+       xts <- liftIO $ mkPredType env myspec
        liftIO  $ putStrLn $ "Module Imports: " ++ show xts
        return  $ xts
     where mod      = mg_module mg
           impNames = (moduleNameString . moduleName) <$> impMods
           impMods  = moduleEnvKeys $ mg_dir_imps mg
 
--- isInEnv (S (f:(i:(x:_))), _)
---   = return (f == 'f' && i == 'i' && x == 'x')
-isInEnv _
- = return True
 --modulePred :: GhcMonad m => ModGuts -> [FilePath] -> m [(Var, PrType)]
 moduleDat mg paths -- impVars 
   = do -- specs imported by me 
