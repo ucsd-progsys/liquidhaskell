@@ -3,11 +3,13 @@ module Vec0 where
 import Language.Haskell.Liquid.Prelude
 import Data.Vector hiding (map, zipWith, filter, foldl, foldr)
 
+
+
 xs  = [1,2,3,4] :: [Int]
 vs  = fromList xs
 
 prop0 = assert (x >= 0)
-        where x = Prelude.head xs
+        where x= Prelude.head xs
 
 prop1 = assert (n > 0)
         where n = Prelude.length xs

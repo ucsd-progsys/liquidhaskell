@@ -2,11 +2,11 @@ module Poslist where
 
 import Language.Haskell.Liquid.Prelude
 
-myabs x    = if x `gt` 0 then x else 0 `minus` x
+--myabs x    = if x `gt` 0 then x else 0 `minus` x
 
-absList xs = map myabs xs
+--absList xs = map myabs xs
 
-prop1 = map (assert . (`geq` 0)) $ absList $ map choose [1..]
+--prop1 = map (assert . (`geq` 0)) $ absList $ map choose [1..]
 
 
 numAbs x   = if x > 0 then x else (0 - x)
