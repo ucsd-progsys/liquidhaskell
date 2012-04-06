@@ -18,5 +18,5 @@ prop_id2 = assert (x'' >= 0)
         x'' = myid x' 
 
 prop_id3 = assert (x' >= 0)
-  where x' = myid $  (myabs x)
+  where x' = myid $ myabs x
 

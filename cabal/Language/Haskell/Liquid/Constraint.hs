@@ -314,7 +314,7 @@ rsplitW γ (r, p)
 --splitC :: SubC -> [FixSubC]
 ------------------------------------------------------------
 
-splitC cons (SubC γ (RFun (RB x1) r1 r1') (RFun (RB x2) r2 r2')) 
+splitC cons (SubC γ t1@(RFun (RB x1) r1 r1') t2@(RFun (RB x2) r2 r2')) 
   = splitC cons (SubC γ r2 r1) ++ splitC cons (SubC γ' r1x2' r2') 
     where r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
           γ'    = (γ, "splitC") += (x2, r2) 
@@ -349,8 +349,11 @@ splitC _ (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   | a1 == a2
   = bsplitC γ t1 t2
 
+splitC _ (SubC _ (RClass _ _) (RClass _ _)) 
+  = []
+
 splitC _ (SubC _ t1 t2) 
-  = {-traceShow ("\nWARNING: splitC mismatch: " ++ showPpr t1 ++ "\n" ++ showPpr t2 ++ "\n") $-} []
+  = traceShow ("\nWARNING: splitC mismatch: " ++ showPpr t1 ++ "\n" ++ showPpr t2 ++ "\n") $ []
   -- = [] 
 
 splitCRefTyCon cons γ (RAlgTyCon _ z1) (RAlgTyCon _ z2) 
@@ -753,9 +756,10 @@ consE γ (App e a) | eqType (exprType a) predType
   = do te <- consE γ e
        case te of 
         RPred (PdVar pn pt pa) t ->
-         do s <- freshSort e γ pt
-            return $ {-traceShow ("eqType" ++ show pt ++ " for " ++ show e ) $ -} 
-                     replaceSort (F.strToRefa pn, s) t 
+         do s <- freshSort' e γ pt
+            return $ {-traceShow ("eqType" ++ show pt ++ " for " ++ show e  ++ " in " ++ show t ++ "\n") $ -} 
+--                     replaceSort (F.strToRefa pn, s) t 
+                     replaceSort' (F.strToRefa pn, s) t 
         _         -> return te {- error "cons Pred App"-}
 
 consE γ (App e a)               
@@ -879,6 +883,12 @@ freshSort e γ τ
        addW $ WfC γ td
        return $ tySort td
 
+freshSort' e γ τ
+  = do td <- freshTy e τ
+       addW $ WfC γ td
+       return $ td
+
+
 tySort (RVar _ (F.Reft(_, [a])))     = a
 tySort (RConApp _ _ _ (F.Reft(_, [a]))) = a
 tySort _              = error "tySort"
@@ -957,6 +967,29 @@ bindRefType_ γ (NonRec x e)
 
 extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
+
+replaceSort' :: (F.Refa, RefType) -> RefType -> RefType
+replaceSort' (k, p) (RVar v a) 
+  = RVar v $ F.replaceSort (k, tySort p) a
+replaceSort' kp     (RFun x t1 t2) 
+  = RFun x (replaceSort' kp t1) (replaceSort' kp t2)
+replaceSort' kp      (RAll v t)
+  = RAll v (replaceSort' kp t)
+replaceSort' _       t@(RClass _ _)
+  = t
+replaceSort' kp (RPred p t)
+  = RPred p (replaceSort' kp t)
+replaceSort' _ t@(ROther _)
+  = t
+replaceSort' kv@(k, RConApp _ ts' rs' a') (RConApp c ts rs a)
+  | F.refaInReft k a
+  = RConApp c ts' rs' $ F.replaceSorts (k, a') a
+  | otherwise 
+  = RConApp c (replaceSort' kv <$> ts) rs a
+replaceSort' kv@(k, v) (RConApp c ts rs a)
+  = RConApp c (replaceSort' kv <$> ts) rs $ F.replaceSort (k, tySort v) a
+-- replaceSort' (k, v) t
+--  = error ("replaceSort' : " ++ show (v, t))
 
 replaceSort :: (F.Refa, F.Refa) -> RefType -> RefType
 replaceSort kp = fmap $ F.replaceSort kp 

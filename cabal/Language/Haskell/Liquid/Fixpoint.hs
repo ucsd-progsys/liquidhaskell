@@ -20,7 +20,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , simplify
   , emptySubst, mkSubst, catSubst
   , Subable (..)
-		, strToReft, strToRefa, replaceSort, replaceSorts
+		, strToReft, strToRefa, replaceSort, replaceSorts, refaInReft
   ) where
 
 import Outputable
@@ -104,6 +104,14 @@ freshSym x = do
 strToRefa n  = RConc $ PBexp $ (EApp (S n) [EVar (S "VV")])
 strToReft n  = Reft (S "VV", [strToRefa n])
 
+refaInReft :: Refa -> Reft -> Bool
+refaInReft k (Reft(v, ls)) = any (cmpRefa k) ls
+
+cmpRefa (RConc (PBexp (EApp (S n) _))) (RConc (PBexp (EApp (S n') _))) 
+  = n== n'
+cmpRefa _ _ 
+ = False
+
 replaceSorts :: (Refa, Reft) -> Reft -> Reft
 replaceSorts (p, Reft(_, rs)) (Reft(v, ls))= Reft(v, concatMap (replaceS (p, rs)) ls)
 
@@ -111,7 +119,8 @@ replaceSort :: (Refa, Refa) -> Reft -> Reft
 replaceSort (p, k) (Reft(v, ls)) = Reft (v, (concatMap (replaceS (p, [k])) ls))
 
 replaceS :: (Refa, [Refa]) -> Refa -> [Refa] 
-replaceS ((RConc (PBexp (EApp (S n) _))), k) (RConc (PBexp (EApp (S n') _))) | n == n'
+replaceS ((RConc (PBexp (EApp (S n) _))), k) (RConc (PBexp (EApp (S n') _))) 
+  | n == n'
   = k
 replaceS (k, v) p = [p]
 
