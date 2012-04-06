@@ -57,11 +57,11 @@ check (App _ _)    = assert False
 -----------------------------------------------------------------------
 ---------------------------- Unit Tests -------------------------------
 -----------------------------------------------------------------------
-
+mysnd (x, y) = y
 tests =
   let (f,g,x) = (0,1,2) 
       e1      = Lam x (Var x)
       e2      = App e1 e1 
       e3      = Lam f (Lam g (Lam x (App (Var f)  (App (Var g) (Var x)))))
-      vs      = map (snd . eval []) [e1, e2, e3]
+      vs      = map (mysnd . eval []) [e1, e2, e3]
   in map check vs

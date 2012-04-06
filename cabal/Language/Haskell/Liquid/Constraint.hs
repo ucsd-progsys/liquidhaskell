@@ -313,7 +313,8 @@ rsplitW γ (r, p)
 ------------------------------------------------------------
 --splitC :: SubC -> [FixSubC]
 ------------------------------------------------------------
-
+--splitC cons (SubC γ (RPred _ (RConApp c _ _ a)) (RConApp _ [RVar _ b] _ _ ))
+--  = splitC cons (SubC γ (RConApp c [] [] a) (RConApp c [] [] b))
 splitC cons (SubC γ t1@(RFun (RB x1) r1 r1') t2@(RFun (RB x2) r2 r2')) 
   = splitC cons (SubC γ r2 r1) ++ splitC cons (SubC γ' r1x2' r2') 
     where r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
@@ -818,15 +819,25 @@ cconsCase γ x t (DataAlt c, ys, ce)
        let td = γ ?= (mkSymbol (dataConWorkId c))
        let (vs, ps, td') = rsplitVsPs td
        let td'' = foldl' (flip subsTyVar_meet) td' (zip vs ts)
-       let rtd = foldl' (flip replaceSorts) td'' (zip (F.strToRefa . pname <$>ps) rs)
+       let rtd = foldl' (flip replaceSorts) td'' (zip (F.strToRefa . pname <$>ps) (cycle [F.trueReft]))
        let (yts, xt') = splitArgsRes rtd
        let (x':ys') = mkSymbol <$> (x:ys)
        let r1 = dataConReft c $ varType x
-       let r2 = dataConMsReft (γ ?= (dataConSymbol c)) ys'
-       let xt'' = xt `strengthen` (r1 `F.meet` r2)
+       let r2 = dataConMsReft ({-traceShow "CASE OK"-} (γ ?= (dataConSymbol c))) ys'
+       let r3 = dataConMsReft ({-traceShow "CASE NOT OK"-} xt') ys'
+--       let r3 = takeReft c xt'
+       let xt'' = {-traceShow ("WILD for " ++ show c )$-} xt `strengthen` (r1 `F.meet` r2 `F.meet` r3)
        let cγ = addBinders γ x' (zip (x':ys') (xt'':yts))
 --       addC $ SubC γ xt' xt
        cconsE cγ ce t
+
+takeReft c (RConApp _ _ _ a) 
+  | c == nilDataCon || c == consDataCon
+  = a
+  | otherwise
+		= F.trueReft
+takeReft _ _                
+  = F.trueReft
 
 instance Show CoreExpr where
   show = showSDoc . ppr
