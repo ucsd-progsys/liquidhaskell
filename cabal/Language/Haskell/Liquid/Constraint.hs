@@ -62,7 +62,7 @@ import Control.DeepSeq
 -----------------------------------------------------------------------
 
 consGrty γ (x, t) 
-  = addC $ SubC γ (γ ?= (mkSymbol x)) t
+  = addC (SubC γ (γ ?= (mkSymbol x)) t)
 
 consAct info penv
   = do γ <- initEnv info penv
@@ -73,7 +73,7 @@ consAct info penv
 generateConstraints :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fws } { globals = gs }
   where st  = execState act initCGI
-        act = consAct (info{cbs = cbs'}) penv
+        act = consAct {-info emptyPEnv --here-} (info{cbs = cbs'}) penv
         fcs = concatMap (splitC cons) $ hsCs  st 
         fws = concatMap (splitW cons) $ hsWfs st
         gs  = F.fromListFEnv . map (mapSnd refTypeSortedReft) $ meas info
@@ -104,11 +104,11 @@ initEnv info penv
        let f1  = wiredIn info -- builtins                 (for prims like I#)
        let f2  = assm info    -- assumed refinements      (for import ANNs)
        let f3  = ctor info    -- constructor refinements  (for measures) 
-       let bs  = unifyts penv <$> concat [f0, f1, f2, f3]
+       let bs  = (unifyts penv <$> concat [f0, f1, f2, f3])
        return  $ foldl' (++=) (measEnv info penv) bs 
     where freeVars = importVars $ cbs info
 
-unifyts penv (x, t) = (x', unify pt t)
+unifyts penv (x, t) =  (x', unify pt t)
  where pt = lookupPEnv x' penv
        x' = mkSymbol x
    
@@ -324,7 +324,7 @@ splitC cons (SubC γ (RAll _ r1) (RAll _ r2))
   = splitC cons (SubC γ r1 r2) 
 
 splitC cons (SubC γ t1@(RConApp c t1s r1s _) t2@(RConApp _ t2s r2s _))
-	= bsplitC γ t1 t2
+	= {-traceShow ("Split " ++ show t1 ++ "\n < \n" ++ show t2 ) $-}   bsplitC γ t1 t2
 	++ concatMap (splitC cons) (zipWith (SubC γ) t1s t2s)
 	++ concatMap (rsplitC γ) (zip (zip r1s r2s) ps)
 				where ps = preds cons (rTyCon c) -- this is not correct! tyapp!
@@ -429,7 +429,7 @@ type CG = State CGInfo
 initCGI = CGInfo [] [] [] [] F.emptyFEnv 0 (AI M.empty)
 
 addC   :: SubC -> CG ()  
-addC !c = modify $ \s -> s { hsCs  = c : (hsCs s) }
+addC !c@(SubC _ t1 t2) = modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addW   :: WfC -> CG ()  
 addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
@@ -627,8 +627,9 @@ consCB γ b@(NonRec x e)
 unify :: Maybe PrType -> RefType -> RefType 
 -------------------------------------------------------------------
 
-unify (Just pt) rt = evalState (unifyS rt pt) S.empty
---unify (Just pt) rt  = traceShow ("UNIFY?" ++ show pt ++ "\n" ++ show rt ++ "\n") $ evalState (unifyS rt pt) S.empty
+--unify (Just pt) rt 
+--  = raceShow ("CMP  " ++ show (evalState (unifyS rt pt) S.empty) ++ "\n") rt
+unify (Just pt) rt  = evalState (unifyS rt pt) S.empty
 unify _          t  = t
 
 unifyS :: RefType -> PrType -> State (S.Set Predicate) RefType
@@ -730,7 +731,7 @@ cconsE γ (Cast e _) t
 
 cconsE γ e t 
   = do te <- consE γ e
-       addC $ SubC γ te t
+       addC (SubC γ te t)
 
 -------------------------------------------------------------------
 consE :: CGEnv -> Expr Var -> CG RefType 
@@ -749,19 +750,22 @@ consE _ (Lit c)
 
 consE γ (App e (Type τ)) 
   = do RAll α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
+--       t         <- freshTy e τ
        t         <- trueTy τ
        addW       $ WfC γ t
-       return     $ {-traceShow ("type app: " ++ showPpr (α, t) ++ "\n" ++ showPpr te ) $-} (α, t) `subsTyVar_meet` te
+       return     $ {-traceShow ("type app: for " ++ showPpr e ++ showPpr (α, t) ++ "\n" ++ showPpr te ) $-} (α, t) `subsTyVar_meet` te
 
 consE γ (App e a) | eqType (exprType a) predType 
   = do te <- consE γ e
        case te of 
         RPred (PdVar pn pt pa) t ->
          do s <- freshSort' e γ pt
-            return $ {-traceShow ("eqType" ++ show pt ++ " for " ++ show e  ++ " in " ++ show t ++ "\n") $ -} 
+            return {-$ traceShow ("eqType" ++ show pt ++ " for " ++ show e  ++ " in " ++ show t ++ "\n")-} $ 
 --                     replaceSort (F.strToRefa pn, s) t 
                      replaceSort' (F.strToRefa pn, s) t 
-        _         -> return te {- error "cons Pred App"-}
+--                     t 
+--                     error $ "cons Pred App\n" ++ show e
+        _         -> error $ "cons Pred App\n" ++ show e
 
 consE γ (App e a)               
   = do RFun (RB x) tx t <- liftM (checkFun ("Non-fun App with caller", e)) $ consE γ e 
@@ -826,7 +830,7 @@ cconsCase γ x t (DataAlt c, ys, ce)
        let r2 = dataConMsReft ({-traceShow "CASE OK"-} (γ ?= (dataConSymbol c))) ys'
        let r3 = dataConMsReft ({-traceShow "CASE NOT OK"-} xt') ys'
 --       let r3 = takeReft c xt'
-       let xt'' = {-traceShow ("WILD for " ++ show c )$-} xt `strengthen` (r1 `F.meet` r2 `F.meet` r3)
+       let xt'' = {-traceShow ("WILD for " ++ show c )$-} xt `strengthen` (r1 `F.meet` r2  `F.meet` r3)
        let cγ = addBinders γ x' (zip (x':ys') (xt'':yts))
 --       addC $ SubC γ xt' xt
        cconsE cγ ce t

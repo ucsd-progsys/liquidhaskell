@@ -12,6 +12,7 @@ snd :: forall a b. forAll p1:a p2:b. (a^p1, b^p2) -> b^p2
 map :: forall a b. forAll q1:a q2:b. (a^q1 -> b^q2) -> [a^q1]-> [b^q2]
 foldl :: forall a b. forAll q1:a q2:b. (a^q1 -> b^q2 -> a^q1) -> a^q1 -> [b^q2]-> a^q1
 foldr :: forall a b. forAll q1:a q2:b. (a^q1 -> b^q2 -> b^q2) -> b^q2 -> [a^q1]-> b^q2
+Prelude.error :: forall a. forAll q2:a. [Char]-> a^q2
 Prelude.head :: forall a. forAll q:a. [a^q]-> a^q
 Prelude.tail :: forall a. forAll q:a. [a^q]-> [a^q]
 Prelude.enumFromTo :: forall a. forAll q:a. (Enum a^ True) => a^q -> a^q -> [a^q]
