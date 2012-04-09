@@ -62,7 +62,7 @@ import Control.DeepSeq
 -----------------------------------------------------------------------
 
 consGrty γ (x, t) 
-  = addC (SubC γ (γ ?= (mkSymbol x)) t)
+  = addC (SubC γ (γ ?= (mkSymbol x)) t) 
 
 consAct info penv
   = do γ <- initEnv info penv
@@ -428,8 +428,8 @@ type CG = State CGInfo
 
 initCGI = CGInfo [] [] [] [] F.emptyFEnv 0 (AI M.empty)
 
-addC   :: SubC -> CG ()  
-addC !c@(SubC _ t1 t2) = modify $ \s -> s { hsCs  = c : (hsCs s) }
+addC   :: SubC {--> String-} -> CG ()  
+addC !c@(SubC _ t1 t2) = {-trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ s) $-} modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addW   :: WfC -> CG ()  
 addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
@@ -731,7 +731,7 @@ cconsE γ (Cast e _) t
 
 cconsE γ e t 
   = do te <- consE γ e
-       addC (SubC γ te t)
+       addC (SubC γ te t) --("consE" ++ showPpr e)
 
 -------------------------------------------------------------------
 consE :: CGEnv -> Expr Var -> CG RefType 
@@ -827,10 +827,10 @@ cconsCase γ x t (DataAlt c, ys, ce)
        let (yts, xt') = splitArgsRes rtd
        let (x':ys') = mkSymbol <$> (x:ys)
        let r1 = dataConReft c $ varType x
-       let r2 = dataConMsReft ({-traceShow "CASE OK"-} (γ ?= (dataConSymbol c))) ys'
-       let r3 = dataConMsReft ({-traceShow "CASE NOT OK"-} xt') ys'
+--       let r2 = dataConMsReft (traceShow "CASE OK" (γ ?= (dataConSymbol c))) ys'
+       let r3 = dataConMsReft rtd ys'
 --       let r3 = takeReft c xt'
-       let xt'' = {-traceShow ("WILD for " ++ show c )$-} xt `strengthen` (r1 `F.meet` r2  `F.meet` r3)
+       let xt'' = {-traceShow ("WILD for " ++ show c )$-} xt `strengthen` (r1 `F.meet` {-r2  `F.meet`-} r3)
        let cγ = addBinders γ x' (zip (x':ys') (xt'':yts))
 --       addC $ SubC γ xt' xt
        cconsE cγ ce t
