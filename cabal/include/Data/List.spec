@@ -13,4 +13,3 @@ nonnull (y:ys) = true
 nonnull ([])   = false 
 
 assume Prelude.length :: forall a. x: [a] -> { v: Int | v = len(x) }
-

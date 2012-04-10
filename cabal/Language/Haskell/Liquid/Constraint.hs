@@ -73,7 +73,7 @@ consAct info penv
 generateConstraints :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fws } { globals = gs }
   where st  = execState act initCGI
-        act = consAct {-info emptyPEnv --here-} (info{cbs = cbs'}) penv
+        act = consAct (info{cbs = cbs'}) penv
         fcs = concatMap (splitC cons) $ hsCs  st 
         fws = concatMap (splitW cons) $ hsWfs st
         gs  = F.fromListFEnv . map (mapSnd refTypeSortedReft) $ meas info
@@ -755,12 +755,13 @@ consE γ (App e (Type τ))
        addW       $ WfC γ t
        return     ${- traceShow ("type app: for " ++ showPpr e ++ showPpr (α, t) ++ "\n" ++ showPpr te ) $-} (α, t) `subsTyVar_meet` te
 
-consE γ (App e a) | eqType (exprType a) predType 
+consE γ e'@(App e a) | eqType (exprType a) predType 
   = do te <- consE γ e
        case te of 
         RPred (PdVar pn pt pa) t ->
          do s <- freshSort' e γ pt
             return {-$ traceShow ("eqType" ++ show pt ++ " for " ++ show e  ++ " in " ++ show t ++ "\n")-} $ 
+--            return $ traceShow ("eqType" ++ show pt ++ " for " ++ show e'  ++ " in " ++ show t ++ "\n") $ 
 --                     replaceSort (F.strToRefa pn, s) t 
                      replaceSort' (F.strToRefa pn, s) t 
 --                     t 

@@ -15,8 +15,6 @@ module Language.Haskell.Liquid.Bare (
   )
 where
 
-import Debug.Trace
-
 import GHC hiding (lookupName)	
 import Outputable
 import Var
@@ -62,7 +60,7 @@ import Language.Haskell.Liquid.GhcMisc2
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Ms
-import Language.Haskell.Liquid.Misc hiding (traceShow)
+import Language.Haskell.Liquid.Misc
 import qualified Control.Exception as Ex
 
 ------------------------------------------------------------------
@@ -97,7 +95,7 @@ mkMeasureSpec env m = runReaderT mkSpec env
 
 mkAssumeSpec :: HscEnv -> [(Symbol, BareType)] -> IO [(Var, RefType)]
 mkAssumeSpec env xbs = runReaderT mkAspec env
-  where mkAspec = forM xbs $ \(x, b) -> liftM2 (,) (lookupGhcId $ symbolString x) (mkRefType b)
+  where mkAspec = forM xbs $ \(x, b) -> liftM2 (,) (lookupGhcId $ (symbolString x)) (mkRefType b)
 
 mkIds :: HscEnv -> [Name] -> IO [Var]
 mkIds env ns = runReaderT (mapM lookupGhcId ns) env
