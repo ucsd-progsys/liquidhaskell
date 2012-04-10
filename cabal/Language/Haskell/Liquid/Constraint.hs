@@ -136,12 +136,13 @@ instance Show CGEnv where
   show = showPpr
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
-γ ++= (x, r) 
+γ ++= (x, r') 
   | isBase r 
   = γ' { fenv = F.insertFEnv x (refTypeSortedReft r) (fenv γ) }
   | otherwise
   = γ' { fenv = insertFEnvClass r (fenv γ) }
   where γ' = γ { renv = insertREnv x r (renv γ) }  
+        r  = normalizePds r'
 
 (γ, msg) += (x, r) 
   | x `memberREnv` (renv γ)
@@ -429,7 +430,7 @@ type CG = State CGInfo
 initCGI = CGInfo [] [] [] [] F.emptyFEnv 0 (AI M.empty)
 
 addC   :: SubC -> String -> CG ()  
-addC !c@(SubC _ t1 t2) s = {-trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ s) $-} modify $ \s -> s { hsCs  = c : (hsCs s) }
+addC !c@(SubC _ t1 t2) s = {-trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ s) $ -} modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addW   :: WfC -> CG ()  
 addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
@@ -753,26 +754,26 @@ consE γ (App e (Type τ))
 --       t         <- freshTy e τ
        t         <- trueTy τ
        addW       $ WfC γ t
-       return     ${- traceShow ("type app: for " ++ showPpr e ++ showPpr (α, t) ++ "\n" ++ showPpr te ) $-} (α, t) `subsTyVar_meet` te
+       return     $ {-traceShow ("type app: for " ++ showPpr e ++ showPpr (α, t) ++ "\n" ++ showPpr te ) $-} (α, t) `subsTyVar_meet` te
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do te <- consE γ e
        case te of 
         RPred (PdVar pn pt pa) t ->
          do s <- freshSort' e γ pt
-            return {-$ traceShow ("eqType" ++ show pt ++ " for " ++ show e  ++ " in " ++ show t ++ "\n")-} $ 
+            return $ {-traceShow ("eqType" ++ show pt ++ " for " ++ show e  ++ " in " ++ show t ++ "\n") $ -}
 --            return $ traceShow ("eqType" ++ show pt ++ " for " ++ show e'  ++ " in " ++ show t ++ "\n") $ 
 --                     replaceSort (F.strToRefa pn, s) t 
                      replaceSort' (F.strToRefa pn, s) t 
 --                     t 
 --                     error $ "cons Pred App\n" ++ show e
-        _         -> error $ "cons Pred App\n" ++ show e
+        _         -> return te -- error $ "cons Pred App\n" ++ show (e, te)
 
 consE γ e'@(App e a)               
   = do RFun (RB x) tx t <- liftM (checkFun ("Non-fun App with caller", e)) $ consE γ e 
        cconsE γ a tx 
        case argExpr a of 
-         Just e  -> return $ {-traceShow ("App" ++ showPpr e' ++ show t) $-}  t `F.subst1` (x, e)
+         Just e  -> return {-$ traceShow ("App" ++ showPpr e' ++ show t)-} $  t `F.subst1` (x, e)
          Nothing -> errorstar $ "consE: App crashes on" ++ showPpr a 
 
 consE γ (Lam α e) | isTyVar α 

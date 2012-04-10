@@ -392,7 +392,7 @@ tyConVarIdP = condIdP alphanums (isUpper . head)
 predBaseP_ 
  = do p <- predVarIdP
       reserved ":"
-      t <- tyVarIdP
+      t <- ((try tyVarIdP) <|> (reserved "Int" >> return "Int"))
       xs <-(try $ parens $ sepBy predVarIdP comma) <|> return []
       return $ PBF p t xs
    
@@ -500,6 +500,13 @@ brackets' p
 predbaseP 
   =  liftM PrLstP (brackets' predTypeP)
  <|> liftM PrTupP (parens $ sepBy predTypeP comma)
+ <|> try (do c <- upperIdP
+             ts <- sepBy predTypeP blanks
+--             reserved "&"
+--             ps <- sepBy predicateP blanks
+             reserved "^"
+             p <- predicateP
+             return $ PrTyConAppP c ts [] p)
  <|> try (do c <- upperIdP
              ts <- sepBy predTypeP blanks
 --             reserved "&"

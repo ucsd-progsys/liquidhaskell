@@ -12,7 +12,7 @@ module Language.Haskell.Liquid.RefType (
   , typeId
   , strengthen, strengthenRefType
 --  , unfoldRType
-		, mkArrow
+		, mkArrow, normalizePds
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, refTypeSortedReft, refTypePredSortedReft, rTypeSort
   , canonRefType, tidyRefType
@@ -128,6 +128,34 @@ rTyVarSymbol (RT (α, _)) = typeUniqueSymbol $ TyVarTy α
 --------------------------------------------------------------------
 ---------------------- Helper Functions ----------------------------
 --------------------------------------------------------------------
+
+normalizePds t = addPds ps t'
+  where (t', ps) = nlzP [] t
+
+addPds ps (RAll v t) = RAll v $ addPds ps t
+addPds ps t          = foldl' (flip RPred) t ps
+
+nlzP ps t@(RVar _ _ ) 
+ = (t, ps)
+nlzP ps (RFun b t1 t2) 
+ = (RFun b t1' t2', ps ++ ps1 ++ ps2)
+  where (t1', ps1) = nlzP [] t1
+        (t2', ps2) = nlzP [] t2
+nlzP ps (RAll v t )
+ = (RAll v t', ps ++ ps')
+  where (t', ps') = nlzP [] t
+nlzP ps t@(RConApp c ts rs r)
+ = (t, ps)
+nlzP ps t@(RClass c ts)
+ = (t, ps)
+nlzP ps (RPred p t)
+ = (t', [p] ++ ps ++ ps')
+  where (t', ps') = nlzP [] t
+nlzP ps t@(ROther τ)
+ = (t, ps)
+
+
+
 
 toTyVar (RT(v, _)) = v
 

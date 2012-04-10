@@ -1,0 +1,3 @@
+Data.Vector.length   :: forall a. forAll q:a. (Data.Vector.Vector a^q) -> Int
+Data.Vector.fromList :: forall a. forAll q:a. [a^q]-> Data.Vector.Vector a^q
+(Data.Vector.!)      :: forall a. forAll q1:a. (Data.Vector.Vector a^q1) -> Int -> a^q1
