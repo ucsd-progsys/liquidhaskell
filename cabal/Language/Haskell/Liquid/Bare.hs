@@ -217,14 +217,14 @@ ofBareType (BTup ts r)
 -- TODO: move back to RefType
 bareTCApp :: Reft -> [Reft] -> TyCon -> [RefType] -> RefType 
 bareTCApp r rs c ts 
-  = RConApp (bareTyCon c) ts rs r
-
+  = RConApp c ts rs r
+{-
 bareTyCon c 
   | isAlgTyCon c
   = RAlgTyCon c (RDataTyCon () [])
   | otherwise
 		= RPrimTyCon c
-
+-}
 rbind ""    = RB dummySymbol
 rbind s     = RB $ stringSymbol s
 
