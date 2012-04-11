@@ -12,7 +12,7 @@ module Language.Haskell.Liquid.RefType (
   , typeId
   , strengthen, strengthenRefType
 --  , unfoldRType
-		, mkArrow, normalizePds
+		, mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, refTypeSortedReft, refTypePredSortedReft, rTypeSort
   , canonRefType, tidyRefType
@@ -103,11 +103,9 @@ data RType a
   = RVar    !RTyVar     !a
   | RFun    !RBind      !(RType a)  !(RType a)
   | RAll    !RTyVar     !(RType a)
---  | RCon    !TyId       !(RTyCon a) ![RType a] !a
   | RConApp !(RTyCon a) ![RType a]  ![a]       !a
   | RClass  !Class      ![RType a]
---  | RMuVar  !TyId       ![RType a] 
-  | RPred  !Predicate   !(RType a)
+  | RPred   !Predicate   !(RType a)
   | ROther  !Type 
   deriving (Data, Typeable)
 
@@ -122,12 +120,12 @@ instance Show RefTyCon where
 instance Show RefType where
   show = showPpr
 
-rTyVar α = RT (α, mkSymbol α)
-rTyVarSymbol (RT (α, _)) = typeUniqueSymbol $ TyVarTy α
-
 --------------------------------------------------------------------
 ---------------------- Helper Functions ----------------------------
 --------------------------------------------------------------------
+
+rTyVar α = RT (α, mkSymbol α)
+rTyVarSymbol (RT (α, _)) = typeUniqueSymbol $ TyVarTy α
 
 normalizePds t = addPds ps t'
   where (t', ps) = nlzP [] t
@@ -154,9 +152,6 @@ nlzP ps (RPred p t)
 nlzP ps t@(ROther τ)
  = (t, ps)
 
-
-
-
 toTyVar (RT(v, _)) = v
 
 strengthenRefType :: RefType -> RefType -> RefType
@@ -182,24 +177,16 @@ strengthenRefType_ (RConApp tid t1s rs1 r1) (RConApp _ t2s rs2 r2)
     where ts = zipWith strengthenRefType_ t1s t2s
           rs = zipWith meet rs1 rs2
 
-{-
-strengthenRefType_ (RCon tid tc t1s r1) (RCon _ _ t2s r2)
-  = RCon tid tc ts (r1 `meet` r2)
-    where ts = zipWith strengthenRefType_ t1s t2s
--}
-
 strengthenRefType_ t1 _ 
   = t1
 
 strengthen  :: RefType -> Reft -> RefType
---strengthen (RCon i c ts r) r' = rCon i c ts (r `meet` r') 
 strengthen (RConApp c ts rs r) r' = RConApp c ts rs (r `meet` r') 
 strengthen (RVar a r) r'      = RVar a      (r `meet` r') 
 strengthen t _                = t 
 
 
 replaceReft  :: RefType -> Reft -> RefType
---replaceReft (RCon i c ts _) r' = RCon i c ts r' 
 replaceReft (RConApp c ts rs _) r' = RConApp c ts rs r' 
 replaceReft (RVar a _) r'      = RVar a      r' 
 replaceReft t _                = t 
@@ -224,6 +211,16 @@ bkUniv as t          = ((reverse $ fmap (\(RT (α,_)) -> α) as), t)
 
 bkArrs xts (RFun (RB x) t t') = bkArrs ((x,t):xts) t'
 bkArrs xts t                  = (reverse xts, t)
+
+rsplitVsPs (RAll v t) = (v:vs, ps, t')
+  where (vs, ps, t') = rsplitVsPs t
+rsplitVsPs (RPred p t) = (vs, p:ps, t')
+  where (vs, ps, t') = rsplitVsPs t
+rsplitVsPs t = ([], [], t)
+
+rsplitArgsRes (RFun _ t1 t2) = (t1:ts, r)
+  where (ts, r) = rsplitArgsRes t2
+rsplitArgsRes t = ([], t)
 
 ----------------------------------------------------------------
 ---------------------- Strictness ------------------------------
@@ -257,10 +254,8 @@ instance (NFData a) => NFData (RType a) where
   rnf (RVar α r)      = rnf α `seq` rnf r 
   rnf (RAll α t)      = rnf α `seq` rnf t
   rnf (RFun x t t')   = rnf x `seq` rnf t `seq` rnf t'
---  rnf (RCon i c ts r) = rnf i `seq` rnf c `seq` rnf ts `seq` rnf r
   rnf (RConApp c ts rs r) = rnf c `seq` rnf ts `seq` rnf rs `seq` rnf r
   rnf (RClass c ts)   = c `seq` rnf ts
---  rnf (RMuVar i ts)   = rnf i `seq` rnf ts
   rnf (ROther a)      = ()
 
 
@@ -304,17 +299,8 @@ ppr_reftype p t@(RAll _ _)
 ppr_reftype p (RConApp c ts rs r)
   = ppr c <+> braces (hsep (map (ppr_reftype p) ts)) <+> braces (hsep (map ppr rs)) <+> ppr r
 
-{-
-ppr_reftype p (RCon _ c ts r)    
-  = ppReft r $ pprTcApp p ppr_reftype (rTyCon c) ts 
-    <> ppr_rcon c                -- ONLY FOR DEBUGGING, DO NOT DELETE.
-    -- <> ppr_rcon (rTyConApp c ts) -- ONLY FOR DEBUGGING, DO NOT DELETE.
--}
-
 ppr_reftype _ (RClass c ts)      
   = parens $ pprClassPred c (toType <$> ts)
---ppr_reftype _ (RMuVar (TI s) ts) 
---  = text s <> text "@mu" <> ppr ts 
 ppr_reftype _ (ROther t)         
   = text "?" <> ppr t <> text "?"
 
@@ -386,10 +372,8 @@ instance Functor RType where
   fmap f (RVar α r)      = RVar α (f r)
   fmap f (RAll a t)      = RAll a (fmap f t)
   fmap f (RFun x t t')   = RFun x (fmap f t) (fmap f t')
---  fmap f (RCon i c ts r) = RCon i (fmap f c) (fmap (fmap f) ts) (f r)
   fmap f (RConApp c ts rs r) = RConApp (fmap f c) (fmap (fmap f) ts) (f <$> rs) (f r)
   fmap f (RClass c ts)   = RClass c (fmap (fmap f) ts)
---  fmap f (RMuVar i ts)   = RMuVar i (fmap (fmap f) ts)
   fmap f (ROther a)      = ROther a 
 
 subsTyVars_meet   = subsTyVars True
@@ -416,8 +400,6 @@ subsFree m s z (RAll α' t)
   = RAll α' $ subsFree m (α' `S.insert` s) z t
 subsFree m s z (RFun x t t')       
   = RFun x (subsFree m s z t) (subsFree m s z t') 
---subsFree m s z (RCon i c ts r)     
---  = rCon i (subsFreeRTyCon m s z c) (subsFree m s z <$> ts) r 
 subsFree m s z (RConApp c ts rs r)     
   = RConApp (subsFreeRTyCon m s z c) (subsFree m s z <$> ts) rs r --subst sort! undefined 
 subsFree m s z (RClass c ts)     
@@ -427,8 +409,6 @@ subsFree meet s (α', t') t@(RVar α r)
   = if meet then t' `strengthen` r else t' 
   | otherwise
   = t
--- subsFree m s z (RMuVar i ts)
---  = RMuVar i (subsFree m s z <$> ts)
 subsFree _ _ _ t@(ROther _)        
   = t
 
@@ -451,8 +431,6 @@ subsFreeRDataCon m s z (MkRData p qs)
 stripRTypeBase ::  RType a -> Maybe a
 stripRTypeBase (RConApp _ _ _ x)   
   = Just x
---stripRTypeBase (RCon _ _ _ x)   
---  = Just x
 stripRTypeBase (RVar _ x)   
   = Just x
 stripRTypeBase _                
@@ -499,9 +477,6 @@ ofSynTyConApp s (TyConApp c τs)
   where (αs, τ) = TC.synTyConDefn c
 
 ofAlgTyConApp s τ@(TyConApp c τs)
---  | i `S.member` s
---  = RMuVar i ts
---  | otherwise
   = RConApp rc ts [] trueReft --(tyConReft c) 
   where rc   = RAlgTyCon c $ ofAlgRhs s (TC.algTyConRhs c)
         ts   = ofType_ s <$> τs
@@ -525,7 +500,6 @@ mapTop f t =
   case f t of
     (RAll a t')     -> RAll a (mapTop f t')
     (RFun x t' t'') -> RFun x (mapTop f t') (mapTop f t'')
---    (RCon i c ts r) -> RCon i (mapTopRTyCon f c) (mapTop f <$> ts) r
     (RConApp c ts rs r) -> RConApp (mapTopRTyCon f c) (mapTop f <$> ts) rs r
     (RClass c ts)   -> RClass c (mapTop f <$> ts)
     t'              -> t' 
@@ -539,11 +513,9 @@ mapTopRAlgRhs f (RDataTyCon p dcs)
 mapTopRDataCon f (MkRData p qs) 
   = MkRData p ((mapSnd $ mapTop f) <$> qs)
 
---mapBot ::  (RType a -> RType a) -> RType a -> RType a
 mapBot ::  (RefType -> RefType) -> RefType -> RefType
 mapBot f (RAll a t)      = RAll a (mapBot f t)
 mapBot f (RFun x t t')   = RFun x (mapBot f t) (mapBot f t')
---mapBot f (RCon i c ts r) = RCon i (mapBotRTyCon f c) (mapBot f <$> ts) r
 mapBot f (RConApp c ts rs r) = RConApp (mapBotRTyCon f c) (mapBot f <$> ts) rs r
 mapBot f (RClass c ts)   = RClass c (mapBot f <$> ts)
 mapBot f t'              = f t' 
@@ -784,39 +756,12 @@ rTypeSort = typeSort . toType
 instance Subable RefType  where
   subst = fmap . subst 
 
-{-
-rCon i c ts r = {-traceShow "RdataCon" $-} RCon i c' ts r
-  where c' = replaceAlgTyConTys c ts
-
-replaceAlgTyConTys (RAlgTyCon d (RDataTyCon i dcs)) ts
-  = (RAlgTyCon d (RDataTyCon i dcs'))
-     where dcs' = [MkRData dc (f dc lts) | (MkRData dc lts) <- dcs]
-           f dc = map  (replaceTys (zip (dataConUnivTyVars dc) ts))
-
-replaceAlgTyConTys alg _ = alg
--}
-{-  
-replaceTys [] (l, t) = (l, t)
-replaceTys ((t1, t2):tys) lt@(l, (RVar (RT (v, s)) a)) --refine 
- | t1 == v = (l, t2 `strengthen` a) 
- | otherwise = replaceTys tys lt 
--}
-
 replaceTys t12s lt@(l, (RVar (RT (v, s)) a)) 
   = case (find ((==v) . fst) t12s) of 
       Just (_, t) -> (l, t `replaceReft` a) 
       Nothing     -> lt
  
 replaceTys _     lt = lt
-
-
---replaceDcArgs :: [(GHC.Prim.Any *, RType Reft)] -> DataCon -> RType Reft -> RType Reft
-{-
-replaceDcArgs :: [(RBind, RType Reft)] -> DataCon -> RType Reft -> RType Reft
-replaceDcArgs ls dc (RCon a (RAlgTyCon d (RDataTyCon e x)) b c) 
-  = RCon a (RAlgTyCon d (RDataTyCon e x')) b c
- where x' = map (rplArgs dc ls) x
--}
 
 rplArgs ::  DataCon -> [(a, RType a1)] -> RDataCon a1 -> RDataCon a1
 rplArgs don ls mkr@(MkRData {rdcDataCon = dc, rdcOrigArgTys = ts}) 
