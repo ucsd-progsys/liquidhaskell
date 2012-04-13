@@ -14,7 +14,7 @@ module Language.Haskell.Liquid.RefType (
 --  , unfoldRType
 		, mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
-  , stripRTypeBase, refTypeSortedReft, refTypePredSortedReft, rTypeSort
+  , stripRTypeBase, refTypeSortedReft, typeSortedReft, refTypePredSortedReft, rTypeSort
   , canonRefType, tidyRefType
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalConst
@@ -104,12 +104,12 @@ newtype RTyVar = RT (TyVar, Symbol)
 type RTyCon = TC.TyCon
 
 data RType a 
-  = RVar    !RTyVar     !a
-  | RFun    !RBind      !(RType a)  !(RType a)
-  | RAll    !RTyVar     !(RType a)
-  | RConApp !RTyCon   ![RType a]  ![a]       !a
-  | RClass  !Class      ![RType a]
-  | RPred   !Predicate   !(RType a)
+  = RVar    !RTyVar    !a
+  | RFun    !RBind     !(RType a)  !(RType a)
+  | RAll    !RTyVar    !(RType a)
+  | RConApp !RTyCon    ![RType a]  ![a]       !a
+  | RClass  !Class     ![RType a]
+  | RPred   !Predicate !(RType a)
   | ROther  !Type 
   deriving (Data, Typeable)
 
@@ -744,14 +744,20 @@ instance Outputable REnv where
   ppr (REnv m)         = vcat $ map pprxt $ M.toAscList m
     where pprxt (x, t) = ppr x <> text " :: " <> ppr t  
 
-refTypePredSortedReft   :: (Reft, Type) -> SortedReft
-refTypePredSortedReft (r, τ) = RR so r
-  where so = typeSort τ
+--refTypePredSortedReft   :: (Reft, Type) -> SortedReft
+--refTypePredSortedReft (r, τ) = RR so r
+refTypePredSortedReft r = RR so r
+  where so = FObj -- typeSort τ
 
 refTypeSortedReft   ::  RType Reft -> SortedReft
 refTypeSortedReft t = RR so r
   where so = {- traceShow ("rTypeSort: t = " ++ showPpr t) $ -} rTypeSort t
         r  = fromMaybe trueReft $ stripRTypeBase t 
+
+typeSortedReft ::  Type -> Refa -> SortedReft
+typeSortedReft t r = RR so $ Reft(vv,[r])
+  where so = typeSort t
+
 
 rTypeSort ::  RType t -> Sort
 rTypeSort = typeSort . toType

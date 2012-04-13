@@ -20,7 +20,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , simplify
   , emptySubst, mkSubst, catSubst
   , Subable (..)
-		, strToReft, strToRefa, replaceSort, replaceSorts, refaInReft
+		, strToReft, strToRefa, strsToRefa, strsToReft, replaceSort, replaceSorts, refaInReft
   ) where
 
 import Outputable
@@ -101,8 +101,11 @@ freshSym x = do
     Just y  -> return y
 -}
 
-strToRefa n  = RConc $ PBexp $ (EApp (S n) [EVar (S "VV")])
-strToReft n  = Reft (S "VV", [strToRefa n])
+strsToRefa n as = RConc $ PBexp $ (EApp (S n) ([EVar (S "VV")] ++ (map EVar as)))
+--strToRefa n  = RConc $ PBexp $ (EApp (S n) [EVar (S "VV")])
+strToRefa n xs = RKvar (S n) (Su (M.fromList xs))
+strToReft n xs = Reft (S "VV", [strToRefa n xs])
+strsToReft n as = Reft (S "VV", [strsToRefa n as])
 
 refaInReft :: Refa -> Reft -> Bool
 refaInReft k (Reft(v, ls)) = any (cmpRefa k) ls
@@ -118,12 +121,15 @@ replaceSorts (p, Reft(_, rs)) (Reft(v, ls))= Reft(v, concatMap (replaceS (p, rs)
 replaceSort :: (Refa, Refa) -> Reft -> Reft
 replaceSort (p, k) (Reft(v, ls)) = Reft (v, (concatMap (replaceS (p, [k])) ls))
 
+--strToRefa n xs = RKvar (S n) (Su (M.fromList xs))
 replaceS :: (Refa, [Refa]) -> Refa -> [Refa] 
-replaceS ((RConc (PBexp (EApp (S n) _))), k) (RConc (PBexp (EApp (S n') _))) 
+replaceS ((RKvar (S n) (Su s)), k) (RKvar (S n') (Su s')) 
   | n == n'
-  = k
+  = map (addSubs (Su s)) k -- [RKvar (S m) (Su (s `M.union` s1 `M.union` s'))]
 replaceS (k, v) p = [p]
 
+addSubs (Su s) (RKvar k (Su s')) = RKvar k (Su (s' `M.union` s))
+addSubs (Su s) f = f
 
 getConstants :: (Data a) => a -> [(Symbol, Sort, Bool)]
 getConstants = everything (++) ([] `mkQ` f)

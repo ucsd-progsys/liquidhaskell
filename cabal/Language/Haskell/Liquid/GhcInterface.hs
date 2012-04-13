@@ -201,7 +201,7 @@ moduleDat mg paths -- impVars
 --       setContext [mod] []
        setContext [IIModule mod]
        xts <- liftIO $ mkConTypes env myspec
---       liftIO  $ putStrLn $ "Imported Data: " ++ show xts
+       liftIO  $ putStrLn $ "Imported Data Decl: " ++ show xts
        return  $ xts
     where mod      = mg_module mg
           impNames = (moduleNameString . moduleName) <$> impMods
@@ -211,6 +211,8 @@ mg_namestring = moduleNameString . moduleName . mg_module
 
 importVars = freeVars S.empty 
 
+instance Show TC.TyCon where
+ show = showSDoc . ppr
 
 dataCons info = filter isDataCon (importVars $ cbs info)
 

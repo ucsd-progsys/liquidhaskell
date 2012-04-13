@@ -388,13 +388,18 @@ tyConVarIdP = condIdP alphanums (isUpper . head)
   where alphanums = ['a'..'z'] ++ ['0'..'9']
 
 
+predVarArgsP
+ = do a <- predVarIdP
+      reserved ":"
+      t <- tyVarIdP
+      return (a, t)
 
 predBaseP_ 
  = do p <- predVarIdP
       reserved ":"
-      t <- ((try tyVarIdP) <|> (reserved "Int" >> return "Int"))
-      xs <-(try $ parens $ sepBy predVarIdP comma) <|> return []
-      return $ PBF p t xs
+      t <- tyVarIdP
+      xts <-(try $ parens $ sepBy predVarArgsP comma) <|> return []
+      return $ PBF p t xts
    
 
 predBaseP 
