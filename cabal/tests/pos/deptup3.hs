@@ -2,14 +2,14 @@ module Deptup where
 
 import Language.Haskell.Liquid.Prelude
 
--- data Pair a b = P a b
+data Pair a b = P a b
 
-data Pair = P Int Int
+--data Pair = P Int Int
 
 incr :: Int -> Int
 incr x = x + 1
 
-baz    :: Int -> Pair
+baz    :: Int -> Pair Int Int
 baz x  = P x (incr x)
 
 bazList  xs = map baz xs

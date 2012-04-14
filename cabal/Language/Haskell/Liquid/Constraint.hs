@@ -711,7 +711,7 @@ consE :: CGEnv -> Expr Var -> CG RefType
 
 consE γ (Var x)   
   = do addLocA (loc γ) (varAnn γ x t)
-       return t
+       return $ traceShow "VarTy" t
     where t = varRefType γ x
 
 consE _ (Lit c) 
@@ -778,7 +778,7 @@ cconsCase :: CGEnv -> Var -> RefType -> (AltCon, [Var], CoreExpr) -> CG ()
 
 cconsCase γ _ t (DEFAULT, _, ce) 
   = cconsE γ ce t
-
+{-
 cconsCase γ x t (DataAlt c, ys, ce) 
   = cconsE cγ ce t
   where cγ            = addBinders γ x' (zip (x':ys') (xt:yts))
@@ -790,7 +790,8 @@ cconsCase γ x t (DataAlt c, ys, ce)
         r2            = dataConMsReft rtd ys'
         xt            = xt0 `strengthen` (r1 `F.meet` r2)
 
-unfoldR td (RConApp tc ts rs _) = (rtd, yts, xt')
+unfoldR :: RType F.Reft-> RType F.Reft -> (RType F.Reft, [RType F.Reft], RType F.Reft)
+unfoldR td t0@(RConApp tc ts rs _) = traceShow ("unfold " ++ show (td, t0) (rtd, yts, xt')
   where (vs, ps, td') = rsplitVsPs td
         td''          = foldl' (flip subsTyVar_meet) td' (zip vs ts)
         rtd           = foldl' (flip replaceSorts) td'' (zip ps' rs')
@@ -798,6 +799,32 @@ unfoldR td (RConApp tc ts rs _) = (rtd, yts, xt')
         rs'           = rs ++ cycle [F.trueReft]
         (yts, xt')    = rsplitArgsRes rtd
         yts'          = zipWith  (\t r -> t `strengthen` r) yts rs'
+-}
+
+
+cconsCase γ x t (DataAlt c, ys, ce) 
+  = do let (x':ys')      = mkSymbol <$> (x:ys)
+       let xt0           = checkTyCon x $ γ ?= x'
+       let td            = γ ?= (dataConSymbol c)
+       (rtd, yts, _)     <- unfoldR γ td xt0 
+       let r1            = dataConReft c $ varType x
+       let r2            = dataConMsReft rtd ys'
+       let xt            = xt0 `strengthen` (r1 `F.meet` r2)
+       let cγ            = addBinders γ x' (zip (x':ys') (xt:yts))
+       cconsE cγ ce t
+
+--unfoldR :: RType F.Reft-> RType F.Reft -> (RType F.Reft, [RType F.Reft], RType F.Reft)
+unfoldR γ td t0@(RConApp tc ts rs _) 
+ = do let (vs, ps, td') = rsplitVsPs td
+      let td''          = foldl' (flip subsTyVar_meet) td' (zip vs ts)
+      let ps'           = pToRefa <$> ps
+      rs''               <- mapM (freshSort γ) ps
+--      let rs' = traceShow "RS'" $ case rs of {[] -> map (\r -> F.Reft(F.vv, [r])) rs''; _ -> rs}
+      let rs'           = rs ++ cycle [F.trueReft]
+      let rtd           = foldl' (flip replaceSorts) td'' (zip ps' rs')
+      let (yts, xt')    = rsplitArgsRes rtd
+      return $ traceShow ("unfold " ++ show (td, t0)) (rtd, yts, xt')
+ 
 
 takeReft c (RConApp _ _ _ a) 
   | c == nilDataCon || c == consDataCon

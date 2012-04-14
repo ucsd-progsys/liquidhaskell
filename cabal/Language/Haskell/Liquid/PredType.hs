@@ -226,16 +226,23 @@ mapTy (_, fv) t@(PrVar a p)     = fv t
 mapTy f (PrTyCon c ts ps p)     = PrTyCon c ((mapTy f) <$> ts) ps p
 mapTy f (PrClass c ts)          = PrClass c (mapTy f <$> ts)
 
+lookupP p@(PdVar _ _ s') s
+ = case (L.lookup p (M.toList s)) of 
+    Nothing -> p
+    Just q  -> addS s' q
 lookupP p s
  = case (L.lookup p (M.toList s)) of 
     Nothing -> p
     Just q  -> q
+addS s (PdVar n t _) = PdVar n t s
+addS s PdTrue        = PdTrue
+addS s (PdAnd p1 p2 ) = PdAnd (addS s p1) (addS s p2)
 
 class SubstP a where
   subp :: M.Map Predicate Predicate-> a -> a
 
 instance SubstP Predicate where
- subp s p@(PdVar e _ _) = lookupP p s 
+ subp s p@(PdVar e t a) = lookupP p s -- not correct!
  subp _ PdTrue          = PdTrue
  subp s (PdAnd p1 p2)   = PdAnd (subp s p1) (subp s p2)
 

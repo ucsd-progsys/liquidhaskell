@@ -40,7 +40,7 @@ consAct info
        γ1 <- foldM consCB γ $ cbs info
        return γ1
 
-generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ show cbs')-} (cbs', γ)
+generatePredicates info = trace ("Predicates\n" ++ show γ ++ show cbs') (cbs', γ)
   where γ    = mapPEnv removeExtPreds $ penv $ evalState act (initPI info)
         act  = consAct info
         cbs' = addPredApp γ <$> cbs info
@@ -118,8 +118,8 @@ consCB γ (Rec xes)
           vs       = mkSymbol <$> xs
 
 consE γ (Var x)
-  = γ ?= (mkSymbol x)
-
+  = do t<- γ ?= (mkSymbol x)
+       return $ traceShow ("consE Var" ++ show x) t
 consE _ e@(Lit c) 
   = do t <- freshTy τ
        return t
@@ -373,7 +373,7 @@ initEnv info
           dcons = filter isDataCon freeVars
 
 dconTy t
-  = do ps <- mapM freshPr vs
+  = do ps <- mapM truePr vs
        let vps = M.fromList $ zipWith (\(TyVarTy v) p -> (v, PrVar v p)) vs ps
        return $ generalize $ dataConTy vps t
 		where vs = tyVars t
@@ -391,7 +391,7 @@ freshPrAs p = freshInt >>= \n -> return $ p{pname = "p" ++ (show n)}
 stringSymbol = F.S
 refreshTy t 
   = do fps <- mapM freshPrAs ps
-       return $ subp (M.fromList (zip ps fps)) t''
+       return $ traceShow ("Ps vs FPs" ++ show (ps, fps)) $ subp (M.fromList (zip ps fps)) t''
    where (vs, ps, t') = splitVsPs t
          t''          = typeAbsVsPs t' vs []
 
@@ -412,7 +412,7 @@ freshTy (FunTy t1 t2) = do tt1 <- freshTy t1
 freshTy t@(TyConApp c τs) | TyCon.isSynTyCon c
   = freshTy $ substTyWith αs τs τ
  where (αs, τ) = TyCon.synTyConDefn c
-freshTy t@(TyConApp c τs) = do ts <- mapM freshTy τs
+freshTy t@(TyConApp c τs) = do ts <- mapM trueTy τs
                                p  <- truePr t
                                ps <- freshTyConPreds c
                                return $ PrTyCon c ts ps p
