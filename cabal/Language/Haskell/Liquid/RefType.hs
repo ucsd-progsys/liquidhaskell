@@ -511,11 +511,12 @@ ofDataCon s d
 mapTop ::  (RefType -> RefType) -> RefType -> RefType
 mapTop f t = 
   case f t of
-    (RAll a t')     -> RAll a (mapTop f t')
-    (RFun x t' t'') -> RFun x (mapTop f t') (mapTop f t'')
+    (RAll a t')         -> RAll a (mapTop f t')
+    (RPred p t')        -> RPred p (mapTop f t')
+    (RFun x t' t'')     -> RFun x (mapTop f t') (mapTop f t'')
     (RConApp c ts rs r) -> RConApp c (mapTop f <$> ts) rs r
-    (RClass c ts)   -> RClass c (mapTop f <$> ts)
-    t'              -> t' 
+    (RClass c ts)       -> RClass c (mapTop f <$> ts)
+    t'                  -> t' 
 {-
 mapTopRTyCon f (RAlgTyCon p r)  
   = RAlgTyCon p (mapTopRAlgRhs f r)
@@ -527,11 +528,12 @@ mapTopRDataCon f (MkRData p qs)
   = MkRData p ((mapSnd $ mapTop f) <$> qs)
 -}
 mapBot ::  (RefType -> RefType) -> RefType -> RefType
-mapBot f (RAll a t)      = RAll a (mapBot f t)
-mapBot f (RFun x t t')   = RFun x (mapBot f t) (mapBot f t')
+mapBot f (RAll a t)          = RAll a (mapBot f t)
+mapBot f (RPred p t)         = RPred p (mapBot f t)
+mapBot f (RFun x t t')       = RFun x (mapBot f t) (mapBot f t')
 mapBot f (RConApp c ts rs r) = RConApp c (mapBot f <$> ts) rs r
-mapBot f (RClass c ts)   = RClass c (mapBot f <$> ts)
-mapBot f t'              = f t' 
+mapBot f (RClass c ts)       = RClass c (mapBot f <$> ts)
+mapBot f t'                  = f t' 
 {-
 mapBotRTyCon f (RAlgTyCon p r)  
   = RAlgTyCon p (mapBotRAlgRhs f r)
