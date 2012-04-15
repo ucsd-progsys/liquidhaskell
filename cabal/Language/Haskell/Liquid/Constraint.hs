@@ -71,7 +71,7 @@ consAct info penv
 
 generateConstraints :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fws } { globals = gs }
-  where st  = execState act initCGI
+  where st  = execState act (initCGI info)
         act = consAct (info{cbs = fst pds}) (snd pds)
         fcs = concatMap splitC $ hsCs  st 
         fws = concatMap splitW $ hsWfs st
@@ -270,8 +270,8 @@ splitW (WfC γ (RClass _ _))
 splitW (WfC γ t@(RConApp c ts rs _))
   = bsplitW γ t
 		++ concatMap (splitW . WfC γ) ts
-		++ concatMap (rsplitW γ) rs --(zip rs ps)
-				where ps =  [] -- p for r to find its type
+		++ concatMap (rsplitW γ) (zip rs ps)
+				where ps =  rTyConPs c --[] -- p for r to find its type
 
 splitW (WfC _ t) 
   = [] -- errorstar $ "splitW cannot handle: " ++ showPpr t
@@ -301,12 +301,13 @@ bsplitW γ t
         r'   = refTypeSortedReft t
         ci   = Ci (loc γ)
 
--- rsplitW :: CGEnv -> (F.Reft, Predicate) -> [FixWfC]
-rsplitW γ r --(r, p)
+rsplitW :: CGEnv -> (F.Reft, Predicate) -> [FixWfC]
+rsplitW γ (r, (PdVar _ t as))
   = [F.WfC env' r' Nothing ci]
-  where env' = fenv γ
+  where env' = fenv γ'
         ci   = Ci (loc γ)
-        r'   = refTypePredSortedReft r -- , ptype p)
+        r'   = refTypePredSortedReft_ (r, t)
+        γ'   = foldl' (++=) γ (map (\(τ, x, _) -> (x, ofType τ)) as) 
 
 ------------------------------------------------------------
 splitC :: SubC -> [FixSubC]
@@ -319,13 +320,13 @@ splitC (SubC γ t1@(RFun (RB x1) r1 r1') t2@(RFun (RB x2) r2 r2'))
 splitC (SubC γ (RAll _ r1) (RAll _ r2)) 
   = splitC (SubC γ r1 r2) 
 
-splitC (SubC γ t1@(RConApp c t1s r1s _) t2@(RConApp _ t2s r2s _))
-	= {-traceShow ("Split " ++ show t1 ++ "\n < \n" ++ show t2 ) $-}   
+splitC (SubC γ t1@(RConApp c t1s r1s _) t2@(RConApp c' t2s r2s _))
+	= traceShow ("Split " ++ show ps ++ "\n" ++ show t1 ++ "\n < \n" ++ show t2 ) $   
  bsplitC γ t1 t2
 	++ concatMap splitC (zipWith (SubC γ) t1s t2s)
---	++ concatMap (rsplitC γ) (zip (zip r1s r2s) ps)
-	++ concatMap (rsplitC γ) (zip r1s r2s)
-				where ps = [] -- p to find r's type
+ ++ concatMap (rsplitC γ) (zip (zip r1s r2s) ps)
+--	++ concatMap (rsplitC γ) (zip r1s r2s)
+				where ps = rTyConPs c'
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
@@ -370,12 +371,13 @@ bsplitC γ t1 t2
         r2'     = refTypeSortedReft t2
         ci      = Ci (loc γ)
 
-rsplitC γ (r1, r2) --, p)
-  = [F.SubC env' F.PTrue r1' r2' Nothing [] ci]
-  where env' = fenv γ
+rsplitC γ ((r1, r2), PdVar _ t as)
+  = traceShow "FOO" [F.SubC env' F.PTrue r1' r2' Nothing [] ci]
+  where env' = fenv γ'
         ci   = Ci (loc γ)
-        r1'  = refTypePredSortedReft r1 -- , ptype p)
-        r2'  = refTypePredSortedReft r2 -- , ptype p)
+        r1'  = refTypePredSortedReft_ (r1, t)
+        r2'  = refTypePredSortedReft_ (r2, t)
+        γ'   = foldl' (++=) γ (map (\(τ, x, _) -> (x, ofType τ)) as) 
 
 -----------------------------------------------------------
 -------------------- Generation: Types --------------------
@@ -390,6 +392,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , globals    :: !F.Envt -- [(F.Symbol, F.SortedReft)] 
                      , freshIndex :: !Integer 
                      , annotMap   :: !(AnnInfo Annot) 
+                     , tyConInfo  :: !(M.Map TC.TyCon RTyCon) 
                      } deriving (Data, Typeable)
 
 instance Outputable CGInfo where 
@@ -410,7 +413,8 @@ ppr_CGInfo cgi
 
 type CG = State CGInfo
 
-initCGI = CGInfo [] [] [] [] F.emptyFEnv 0 (AI M.empty)
+initCGI info = CGInfo [] [] [] [] F.emptyFEnv 0 (AI M.empty) tyi
+		where tyi  = M.fromList $ (\(ty, TyConP _ ps) -> (ty, RTyCon ty ps)) <$> (tconsP info)
 
 addC   :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) s 
@@ -519,7 +523,7 @@ trueRefType (RFun _ t t')
   = liftM3 RFun fresh (true t) (true t')
 trueRefType (RConApp c ts refs _)  
   = liftM (\ts -> RConApp c ts truerefs (F.trueReft)) (mapM true ts)
-		where truerefs = (\_ -> F.trueReft)<$> refs
+		where truerefs = (\_ -> F.trueReft)<$> (rTyConPs c)
 trueRefType t                
   = return t
 
@@ -542,8 +546,10 @@ refreshRefType (RFun b t t')
   = liftM3 RFun fresh (refresh t) (refresh t')
   | otherwise
   = liftM2 (RFun b) (refresh t) (refresh t')
-refreshRefType (RConApp c ts rs r)  
-  = liftM3 (RConApp c) (mapM refresh ts) (mapM refresh rs) (refresh r)
+refreshRefType (RConApp (rc@RTyCon {rTyCon = c}) ts rs r)  
+  = do s <- get 
+       let c' = M.findWithDefault rc c $ tyConInfo s
+       liftM3 (RConApp c') (mapM refresh ts) (mapM freshReftP (rTyConPs c')) (refresh r)
 refreshRefType (RVar a r)  
   = liftM (RVar a) (refresh r)
 refreshRefType t                
@@ -778,30 +784,28 @@ cconsCase :: CGEnv -> Var -> RefType -> (AltCon, [Var], CoreExpr) -> CG ()
 
 cconsCase γ _ t (DEFAULT, _, ce) 
   = cconsE γ ce t
-{-
+
 cconsCase γ x t (DataAlt c, ys, ce) 
   = cconsE cγ ce t
   where cγ            = addBinders γ x' (zip (x':ys') (xt:yts))
         xt0           = checkTyCon x $ γ ?= x'
         td            = γ ?= (dataConSymbol c)
-        (rtd, yts, _) = unfoldR td xt0 
+        (rtd, yts, _) = unfoldR td xt0 ys'
         (x':ys')      = mkSymbol <$> (x:ys)
         r1            = dataConReft c $ varType x
         r2            = dataConMsReft rtd ys'
         xt            = xt0 `strengthen` (r1 `F.meet` r2)
 
-unfoldR :: RType F.Reft-> RType F.Reft -> (RType F.Reft, [RType F.Reft], RType F.Reft)
-unfoldR td t0@(RConApp tc ts rs _) = traceShow ("unfold " ++ show (td, t0) (rtd, yts, xt')
-  where (vs, ps, td') = rsplitVsPs td
+unfoldR td t0@(RConApp tc ts rs _) ys = (rtd, yts, xt')
+  where (vs, ps, td_') = rsplitVsPs td
         td''          = foldl' (flip subsTyVar_meet) td' (zip vs ts)
-        rtd           = foldl' (flip replaceSorts) td'' (zip ps' rs')
+        rtd           = foldl' (flip replaceSort) td'' (zip ps' rs')
         ps'           = pToRefa <$> ps
-        rs'           = rs ++ cycle [F.trueReft]
-        (yts, xt')    = rsplitArgsRes rtd
-        yts'          = zipWith  (\t r -> t `strengthen` r) yts rs'
--}
-
-
+        rs'           = (\(F.Reft(_, [r])) -> F.subst su r)<$>  rs ++ cycle [F.trueReft]
+        (ys', yts, xt')    = rsplitArgsRes rtd
+        su            = F.mkSubst [(x, F.EVar y) | (x, y)<- zip ys' ys]
+        td'           = td_' 
+{-
 cconsCase γ x t (DataAlt c, ys, ce) 
   = do let (x':ys')      = mkSymbol <$> (x:ys)
        let xt0           = checkTyCon x $ γ ?= x'
@@ -819,12 +823,11 @@ unfoldR γ td t0@(RConApp tc ts rs _)
       let td''          = foldl' (flip subsTyVar_meet) td' (zip vs ts)
       let ps'           = pToRefa <$> ps
       rs''               <- mapM (freshSort γ) ps
---      let rs' = traceShow "RS'" $ case rs of {[] -> map (\r -> F.Reft(F.vv, [r])) rs''; _ -> rs}
-      let rs'           = rs ++ cycle [F.trueReft]
+      let rs' = traceShow "RS'" $ case rs of {[] -> map (\r -> F.Reft(F.vv, [r])) rs''; _ -> rs}
       let rtd           = foldl' (flip replaceSorts) td'' (zip ps' rs')
       let (yts, xt')    = rsplitArgsRes rtd
       return $ traceShow ("unfold " ++ show (td, t0)) (rtd, yts, xt')
- 
+-} 
 
 takeReft c (RConApp _ _ _ a) 
   | c == nilDataCon || c == consDataCon
@@ -877,6 +880,9 @@ getSrcSpan' x
 -----------------------------------------------------------------------
 ---------- Helpers: Creating Fresh Refinement ------------------ ------
 -----------------------------------------------------------------------
+freshReftP (PdVar n τ as)
+ = do n <- liftM F.intKvar fresh
+      return $ F.Reft(F.vv,[(`F.RKvar` F.emptySubst) n])
 
 freshSort γ (PdVar n τ as)
  = do n <- liftM F.intKvar fresh
@@ -925,7 +931,7 @@ instance NFData WfC where
 
 
 instance NFData CGInfo where
-  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7) 
+  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 x8) 
     = ({-# SCC "CGIrnf1" #-} rnf x1) `seq` 
       ({-# SCC "CGIrnf2" #-} rnf x2) `seq` 
       ({-# SCC "CGIrnf3" #-} rnf x3) `seq` 
@@ -972,5 +978,7 @@ extendγ γ xts
 
 replaceSort :: (F.Refa, F.Refa) -> RefType -> RefType
 replaceSort kp = fmap $ F.replaceSort kp 
-replaceSorts kp = fmap $ F.replaceSorts kp 
+replaceSorts :: (F.Refa, F.Reft) -> RefType -> RefType
+replaceSorts (p, F.Reft(_, [r])) = fmap $ F.replaceSort (p, r)
+replaceSorts  pk = fmap $  F.replaceSorts pk
 

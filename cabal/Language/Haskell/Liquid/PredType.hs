@@ -162,13 +162,19 @@ pand p     q            = PdAnd p q
 
 subsTyVarP (v, t) (PdVar n (TyVarTy v') a) 
   | (show v' ++ show (varUnique v')) == (show v ++ show (varUnique v))
-  = PdVar n t a
+  = PdVar n t $ map (subsTyVarPArg (v, t)) a
 subsTyVarP vt  (PdAnd p1 p2)  
   = PdAnd (subsTyVarP vt p1) (subsTyVarP vt p2)
 subsTyVarP (v, t) p@(PdVar n (TyVarTy v') a)
  = p
-
 subsTyVarP (v, t) p = p
+
+subsTyVarPArg (v, t) (TyVarTy v', x1, x2)
+  | (show v' ++ show (varUnique v')) == (show v ++ show (varUnique v))
+  = (t, x1, x2)
+subsTyVarPArg vt     a
+  = a
+
 
 subsTyVars s = fmap (subsTyVarP_ s) . mapTyVar (subsTyVar s)
 
@@ -210,6 +216,7 @@ substSym (x, y) = mapSymbol $ \s -> if (s == x) then y else s
 
 mapTyVar  f = mapTy (id, f)
 mapSymbol f = fmap (mapPd f) .  mapTy (f, id)
+-- substSymP = mapPd substSym
 
 mapThrd f (x, y, z) = (x, y, f z)
 

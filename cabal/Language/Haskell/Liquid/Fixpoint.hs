@@ -125,11 +125,21 @@ replaceSort (p, k) (Reft(v, ls)) = Reft (v, (concatMap (replaceS (p, [k])) ls))
 replaceS :: (Refa, [Refa]) -> Refa -> [Refa] 
 replaceS ((RKvar (S n) (Su s)), k) (RKvar (S n') (Su s')) 
   | n == n'
-  = map (addSubs (Su s)) k -- [RKvar (S m) (Su (s `M.union` s1 `M.union` s'))]
+  = map (addSubs (Su s')) k -- [RKvar (S m) (Su (s `M.union` s1 `M.union` s'))]
 replaceS (k, v) p = [p]
 
-addSubs (Su s) (RKvar k (Su s')) = RKvar k (Su (s' `M.union` s))
-addSubs (Su s) f = f
+addSubs s (RKvar k s') = RKvar k (unionTransSubs s s')
+addSubs _ f = f
+
+-- union s1 s2 with transitivity : 
+-- (x, z) in s1 and (z, y) in s2 => (x, y) in s
+unionTransSubs (Su s1) (Su s2) 
+  = Su $ (\(su1, su2) -> su1 `M.union` su2)(M.foldWithKey f (s1, s2) s1)
+  where f k (EVar v) (s1, s2) 
+          = case M.lookup v s2 of 
+            Just (EVar x) -> (M.adjust (\_ -> EVar x) k s1, M.delete v s2)
+            _             -> (s1, s2)
+        f _ _ s12 = s12
 
 getConstants :: (Data a) => a -> [(Symbol, Sort, Bool)]
 getConstants = everything (++) ([] `mkQ` f)

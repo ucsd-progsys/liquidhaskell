@@ -4,7 +4,7 @@
 {- Refinement Types Mirroring the GHC Type definition -}
 
 module Language.Haskell.Liquid.RefType (
-    RType (..)
+    RType (..), RTyCon(..)
   , RefType (..)  
   , RBind (..), RTyVar
   , ofType
@@ -14,7 +14,7 @@ module Language.Haskell.Liquid.RefType (
 --  , unfoldRType
 		, mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
-  , stripRTypeBase, refTypeSortedReft, typeSortedReft, refTypePredSortedReft, rTypeSort
+  , stripRTypeBase, refTypePredSortedReft_,refTypeSortedReft, typeSortedReft, refTypePredSortedReft, rTypeSort
   , canonRefType, tidyRefType
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalConst
@@ -101,7 +101,8 @@ newtype RBind = RB Symbol
 newtype RTyVar = RT (TyVar, Symbol)
   deriving (Eq, Ord, Data, Typeable)
 
-type RTyCon = TC.TyCon
+data RTyCon = RTyCon {rTyCon :: !TC.TyCon, rTyConPs :: ![Predicate]}
+  deriving (Data, Typeable)
 
 data RType a 
   = RVar    !RTyVar    !a
@@ -222,9 +223,9 @@ rsplitVsPs (RPred p t) = (vs, p:ps, t')
   where (vs, ps, t') = rsplitVsPs t
 rsplitVsPs t = ([], [], t)
 
-rsplitArgsRes (RFun _ t1 t2) = (t1:ts, r)
-  where (ts, r) = rsplitArgsRes t2
-rsplitArgsRes t = ([], t)
+rsplitArgsRes (RFun (RB x) t1 t2) = (x:xs, t1:ts, r)
+  where (xs, ts, r) = rsplitArgsRes t2
+rsplitArgsRes t = ([], [], t)
 
 ----------------------------------------------------------------
 ---------------------- Strictness ------------------------------
@@ -289,6 +290,9 @@ instance Outputable RefType where
 
 -- instance Outputable RefDataCon where
 --   ppr = ppr_rdatacon
+
+instance Outputable RTyCon where
+ ppr (RTyCon c _) = ppr c
 
 instance Outputable Reft where
   ppr = text . show
@@ -477,7 +481,7 @@ ofPredTree s (ClassPred c τs)
  
 
 ofTyConApp s τ@(TyConApp c τs) 
-  = RConApp c ts [] trueReft 
+  = RConApp (RTyCon c []) ts [] trueReft 
   where ts = ofType_ s <$> τs
 
 ofSynTyConApp s (TyConApp c τs) 
@@ -655,7 +659,7 @@ toType (RAll (RT (α,_))  t)
   = ForAllTy α (toType t)
 toType (RVar (RT (α,_)) _)        
   = TyVarTy α
-toType (RConApp c ts _ _)   
+toType (RConApp (RTyCon {rTyCon = c}) ts _ _)   
   = TyConApp c (toType <$> ts)
 toType (RClass c ts)   
   = predTreePredType $ ClassPred c (toType <$> ts)
@@ -707,8 +711,8 @@ literalRefType l
 makeRTypeBase :: Type -> Reft -> RefType 
 makeRTypeBase (TyVarTy α) x       
   = RVar (rTyVar α) x 
-makeRTypeBase τ@(TyConApp c []) x 
-  = RConApp c [] [] x
+makeRTypeBase τ@(TyConApp c _) x 
+  = RConApp (RTyCon c []) [] [] x
 
 literalReft l  = exprReft e 
   where (_, e) = literalConst l 
@@ -744,8 +748,9 @@ instance Outputable REnv where
   ppr (REnv m)         = vcat $ map pprxt $ M.toAscList m
     where pprxt (x, t) = ppr x <> text " :: " <> ppr t  
 
---refTypePredSortedReft   :: (Reft, Type) -> SortedReft
---refTypePredSortedReft (r, τ) = RR so r
+refTypePredSortedReft_   :: (Reft, Type) -> SortedReft
+refTypePredSortedReft_ (r, τ) = RR so r
+  where so = typeSort τ
 refTypePredSortedReft r = RR so r
   where so = FObj -- typeSort τ
 
