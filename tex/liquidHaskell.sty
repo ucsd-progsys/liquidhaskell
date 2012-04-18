@@ -1,0 +1,55 @@
+\newcommand\nhaskell[1]{\mathsf{#1}}
+
+
+\newcommand\hasType[4]{\ensuremath{#1 \vdash_{#2} #3 : #4 }}
+\newcommand\isSubType[3]{\ensuremath{#1 \vdash \subtype{#2}{#3}}}
+\newcommand\subtype[2]{\ensuremath{#1 <: #2}}
+\newcommand\isWellFormed[2]{\ensuremath{#1 \vdash #2 }}
+\newcommand\isWellFormedP[3]{\ensuremath{#1, #2 \vdash #3 }}
+\newcommand\shape[1]{\ensuremath{\text{shape} \left( {#1} \right)}}
+
+\newcommand\eapp[2]{\ensuremath{#1 \ #2}}
+\newcommand\elam[2]{\ensuremath{\lambda #1 . #2}}
+\newcommand\epapp[1]{\ensuremath{#1 \ @}}
+\newcommand\eplam[2]{\ensuremath{\hat{\Lambda} #1 . #2}}
+\newcommand\etapp[2]{\ensuremath{#1 \left[ #2 \right] }}
+\newcommand\etlam[2]{\ensuremath{\Lambda #1 . #2}}
+\newcommand\elet[3]{\ensuremath{\nhaskell{let} \ #1 = #2 \ \nhaskell{in} \ #3}}
+\newcommand\eletrec[3]{\ensuremath{\nhaskell{let rec} \ #1 = #2 \ \nhaskell{in} \ #3}}
+\newcommand\ecase[3]{\ensuremath{\nhaskell{case} \ #1 \ \nhaskell{of} \ \mid_i  #2 \ \rightarrow \ #3}}
+
+\newcommand\tbool{\ensuremath{\text{bool}}}
+\newcommand\tvar[2]{\ensuremath{#1 ^{#2}}}
+\newcommand\tfun[3]{\ensuremath{{#1}\text{:}{#2} \rightarrow {#3}}}
+\newcommand\tcon[4]{\ensuremath{\nhaskell{#1} ^{#2} \ #3 \ #4}}
+\newcommand\tclass[2]{\ensuremath{\nhaskell{#1} \ #2}}
+\newcommand\tforallPr[2]{\ensuremath{\forall #1 . #2}}
+\newcommand\tforallTy[2]{\ensuremath{\forall #1 . #2}}
+
+
+\newcommand\pdTrue{\ensuremath{\top}}
+\newcommand\pdVar[3]{\ensuremath{#1 : #2 \left\langle #3 \right\rangle }}
+\newcommand\pdAnd[2]{\ensuremath{#1 \land #2}}
+
+\newcommand\unifyTypes[3]{\ensuremath{ \left\langle #1 , #2 \right\rangle \models #3}}
+\newcommand\refa[3]{\ensuremath{ \left\lbrace #1 : #2 \mid #3 \right\rbrace }}
+\newcommand\sub[2]{\ensuremath{ \left[ #1 \mapsto #2 \right] }}
+\newcommand\subP[2]{\ensuremath{\sub{#1}{#2}}}
+\newcommand\subT[2]{\ensuremath{\sub{#1}{#2}}}
+\newcommand\freshP[1]{\ensuremath{\text{fresh}\ \left( #1\right)}}
+\newcommand\freshT[1]{\ensuremath{\text{fresh}\ \left( #1\right)}}
+
+
+\newcommand\pdTy{\ensuremath{T_P}}
+\newcommand\lTy{\ensuremath{\hat{T}}}
+\newcommand\dTy{\ensuremath{T}}
+
+\newcommand\appTy[2]{\ensuremath{\parAny{#1} \left( #2 \right)  }}
+\newcommand\parTy[2]{\ensuremath{\parAny{#1} \left( \parAny{#2} \right)  }}
+\newcommand\parAny[1]{\ensuremath{\mathbb{#1}}}
+\newcommand\listOf[1]{\ensuremath{\overline{#1}}}
+
+
+\newcommand\tyConPs[1]{\ensuremath{\text{predicates} \left( #1 \right)}}
+\newcommand\valid[2]{\ensuremath{#1 \Rightarrow #2}}
+\newcommand\inter[1]{\ensuremath{\textlbrackdbl #1 \textrbrackdbl}}

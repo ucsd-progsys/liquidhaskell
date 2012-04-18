@@ -20,6 +20,7 @@ module Language.Haskell.Liquid.RefType (
   , literalRefType, literalConst
   , REnv, deleteREnv, domREnv, insertREnv, lookupREnv, emptyREnv, memberREnv, fromListREnv
 		, toTyVar
+		, addTyConInfo
   ) where
 
 import Text.Printf
@@ -199,6 +200,14 @@ replaceReft t _                = t
 
 -- getRDataCon dc (RAlgTyCon _ (RDataTyCon _ rdcs)) 
 --   = mfromJust "findRDataCon" $ find ((dc ==) . rdcDataCon) rdcs
+
+addTyConInfo tyi = mapBot (addTCI tyi) 
+addTCI tyi t@(RConApp c ts rs r)
+  = case (M.lookup (rTyCon c) tyi) of
+     Just i  -> t -- RConApp (RTyCon (rTyCon c) (freePredTy i)) ts rs r
+     Nothing -> t
+addTCI _ t
+  = t
 
 mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
 mkArrow as xts t = mkUnivs as $ mkArrs xts t
@@ -414,7 +423,9 @@ subsFree m s z (RAll α' t)
 subsFree m s z (RFun x t t')       
   = RFun x (subsFree m s z t) (subsFree m s z t') 
 subsFree m s z (RConApp c ts rs r)     
-  = RConApp c (subsFree m s z <$> ts) rs r  
+ = RConApp (c{rTyConPs = (subsTyVarP z') <$> (rTyConPs c)}) (subsFree m s z <$> ts) rs r  
+    where (RT (v, _), tv) = z
+          z'             = (v, toType tv)
 subsFree m s z (RClass c ts)     
   = RClass c (subsFree m s z <$> ts)
 subsFree meet s (α', t') t@(RVar α r) 
@@ -531,7 +542,7 @@ mapBot ::  (RefType -> RefType) -> RefType -> RefType
 mapBot f (RAll a t)          = RAll a (mapBot f t)
 mapBot f (RPred p t)         = RPred p (mapBot f t)
 mapBot f (RFun x t t')       = RFun x (mapBot f t) (mapBot f t')
-mapBot f (RConApp c ts rs r) = RConApp c (mapBot f <$> ts) rs r
+mapBot f (RConApp c ts rs r) = f $ RConApp c (mapBot f <$> ts) rs r
 mapBot f (RClass c ts)       = RClass c (mapBot f <$> ts)
 mapBot f t'                  = f t' 
 {-

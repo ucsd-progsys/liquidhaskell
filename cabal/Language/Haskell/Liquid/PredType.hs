@@ -46,7 +46,7 @@ data PrTy a = PrVar   !TyVar     !a
       						| PrAllPr !a         !(PrTy a)
       						| PrClass !Class     ![PrTy a]
       						| PrFun   !Symbol    !(PrTy a)   !(PrTy a)
-      						| PrTyCon !TC.TyCon  ![PrTy a] ![a] !a
+      						| PrTyCon !TC.TyCon  ![PrTy a]   ![a] !a
             deriving (Data, Typeable)
 
 type PrType = PrTy Predicate

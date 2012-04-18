@@ -99,11 +99,13 @@ kvars' = everything (plus') (0 `mkQ` grabKvar)
 initEnv :: GhcInfo -> PEnv -> CG CGEnv  
 initEnv info penv
   = do defaults <- forM freeVars $ \x -> liftM (x,) (trueTy $ varType x)
+       tyi      <- liftM tyConInfo get 
        let f0  = defaults     -- default TOP reftype      (for all vars) 
        let f1  = wiredIn info -- builtins                 (for prims like I#)
        let f2  = assm info    -- assumed refinements      (for import ANNs)
        let f3  = ctor info    -- constructor refinements  (for measures) 
-       let bs  = (unifyts penv <$> concat [f0, f1, f2, f3])
+       let bs  = ((mapSnd (addTyConInfo tyi)) . unifyts penv 
+                      <$> concat [f0, f1, f2, f3])
        return  $ foldl' (++=) (measEnv info penv) bs 
     where freeVars = importVars $ cbs info
 
@@ -462,7 +464,10 @@ freshTy :: CoreExpr -> Type -> CG RefType
 freshTy e τ = freshTy' e τ 
 
 trueTy  :: Type -> CG RefType
-trueTy  = true . ofType
+trueTy t 
+ = do t <- true $ ofType t
+      tyi <- liftM tyConInfo get
+      return $ addTyConInfo tyi t
 
 class Freshable a where
   fresh   :: CG a
@@ -979,6 +984,5 @@ extendγ γ xts
 replaceSort :: (F.Refa, F.Refa) -> RefType -> RefType
 replaceSort kp = fmap $ F.replaceSort kp 
 replaceSorts :: (F.Refa, F.Reft) -> RefType -> RefType
-replaceSorts (p, F.Reft(_, [r])) = fmap $ F.replaceSort (p, r)
-replaceSorts  pk = fmap $  F.replaceSorts pk
+replaceSorts pk = fmap $  F.replaceSorts pk
 
