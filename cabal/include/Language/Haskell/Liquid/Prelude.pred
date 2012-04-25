@@ -8,6 +8,14 @@
 (-) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> a^True
 ($) :: forall a b. forAll q1:a q2:b. (a^q1 -> b^q2) -> a^q1 -> b^q2
 (.) :: forall b c a. forAll q1:a q2:b q3:c. (b^q2 -> c^q3) -> (a^q1 -> b^q2) -> a^q1 -> c^q3
-fst :: forall a b. forAll p1:a p2:b. (a^p1, b^p2) -> a^p1
-snd :: forall a b. forAll p1:a p2:b. (a^p1, b^p2) -> b^p2
+filter :: forall a. forAll p1:a. (a^p1 -> Bool) -> [a^p1]-> [a^p1]
+snd :: forall a b. forAll p1:a p2:b. (a^p1, b^p2)-> b^p2
+map :: forall a b. forAll q1:a q2:b. (a^q1 -> b^q2) -> [a^q1]-> [b^q2]
+concat :: forall a. forAll q:a. [[a^q]]-> [a^q]
+foldl :: forall a b. forAll q1:a q2:b. (a^q1 -> b^q2 -> a^q1) -> a^q1 -> [b^q2]-> a^q1
+foldr :: forall a b. forAll q1:a q2:b. (a^q1 -> b^q2 -> b^q2) -> b^q2 -> [a^q1]-> b^q2
+(,) :: forall a b. forAll q1:a q2:b. a^q1 -> b^q2 ->(a^q1, b^q2)
 Prelude.error :: forall a. forAll q2:a. [Char]-> a^q2
+Prelude.head :: forall a. forAll q:a. [a^q]-> a^q
+Prelude.tail :: forall a. forAll q:a. [a^q]-> [a^q]
+Prelude.enumFromTo :: forall a. forAll q:a. (Enum a^ True) => a^q -> a^q -> [a^q]

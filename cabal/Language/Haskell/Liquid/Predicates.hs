@@ -40,7 +40,7 @@ consAct info
        γ1 <- foldM consCB γ $ cbs info
        return γ1
 
-generatePredicates info = trace ("Predicates\n" ++ show γ ++ show cbs') (cbs', γ)
+generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ show cbs')-} (cbs', γ)
   where γ    = mapPEnv removeExtPreds $ penv $ evalState act (initPI info)
         act  = consAct info
         cbs' = addPredApp γ <$> cbs info
@@ -100,12 +100,60 @@ consCB' γ (Rec xes)
     where (xs, es) = unzip xes
           vs       = mkSymbol <$> xs
 
+checkOneToOne :: [(Predicate, Predicate)] -> Bool										
+checkOneToOne xys = and [y1 == y2 | (x1, y1) <- xys, (x2, y2) <- xys, x1 == x2]
+
+rmTs ((PdTrue, PdTrue):ls) = rmTs ls
+rmTs ((p     , PdTrue):ls) = rmTs ls
+rmTs ((PdTrue, p     ):ls) = error "tmTs in tyC"
+rmTs ((p1    , p2    ):ls) = (p1, p2): (rmTs ls)
+rmTs [] = []
+
+
+tyCheck x Nothing t2
+  = False 
+-- tyCheck x _ t2
+--   = False 
+
+
+tyCheck x (Just t1) t2
+  = if b then (checkOneToOne (rmTs ps)) else (error "msg") 
+  where (b, (ps, msg)) =  runState (tyC t1 t2) ([], "tyError in " ++ show x ++ show t1 ++ show t2)
+
+tyC (PrAllPr _ t1) t2 
+  = tyC t1 t2
+
+tyC t1 (PrAllPr _ t2) 
+  = tyC t1 t2
+
+tyC (PrAll v1 t1) (PrAll v2 t2) 
+  = tyC (subsTyVars (v1, PrVar v2 PdTrue) t1) t2
+
+tyC (PrVar v1 p1) (PrVar v2 p2)
+  = do modify $ \(ps, msg) -> ((p2, p1):ps, msg)
+       return $ v1 == v2
+
+tyC (PrTyCon c1 ts1 ps1 p1) (PrTyCon c2 ts2 ps2 p2)
+  = do modify $ \(ps, msg) -> ((p2, p1):(ps ++ zip ps2 ps1), msg)
+       b <- zipWithM tyC ts1 ts2
+       return $ and b && c1 == c2
+
+tyC (PrClass c1 _) (PrClass c2 _) 
+  = return $ c1 == c2
+
+tyC (PrFun x t1 t2) (PrFun x' t1' t2')
+  = do b1 <- tyC t1 t1'
+       b2 <- tyC (substSym (x, x') t2) t2'
+       return $ b1 && b2
+
+tyC t1 t2 
+  = error $ "\n " ++ show t1 ++ "\n" ++ show t2
 
 consCB γ (NonRec x e)
   = do t <- consE γ e
        tg <- generalizeS t
-       return $ γ += (mkSymbol x, tg)
-
+       let ch = tyCheck x ((penv γ) ??= (mkSymbol x)) tg
+       if (not ch)  then (return $ γ += (mkSymbol x, tg)) else (return γ)
 
 consCB γ (Rec xes) 
   = do ts       <- mapM (\e -> freshTy $ exprType e) es
@@ -119,7 +167,7 @@ consCB γ (Rec xes)
 
 consE γ (Var x)
   = do t<- γ ?= (mkSymbol x)
-       return $ traceShow ("consE Var" ++ show x) t
+       return t
 consE _ e@(Lit c) 
   = do t <- freshTy τ
        return t
@@ -128,7 +176,9 @@ consE _ e@(Lit c)
 consE γ (App e (Type τ)) 
   = do PrAll α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
        t          <- trueTy τ
-       return  $ {-traceShow ("consE TyA " ++ show α ++ " with " ++ show t ++ " in " ++ show te ) $-}  (α, t) `subsTyVars` te
+       return  
+--        $ traceShow ("consE TyA " ++ show α ++ show (varUnique α) ++ " with " ++ show t ++ " in " ++ show te ) 
+        $  (α, t, τ) `subsTyVars_` te
 
 consE γ (App e a)               
   = do PrFun x tx t <- liftM (checkFun ("PNon-fun App with caller", e)) $ consE γ e 
@@ -280,8 +330,8 @@ pExprN γ (Var v) | isSpecialId γ v
 pExprN γ (Var v) = (0, 0, Var v)
 
 pExprN γ (Let (NonRec x1 e1) e) = (0, 0, Let (NonRec x1 e1') e')
- where (_, _, e') = pExprN γ e
-       (_, _, e1') = pExprN γ e1
+ where (_, _, e') = pExpr γ e
+       (_, _, e1') = pExpr γ e1
 
 
 pExprN γ (Let bds e) = (0, 0, Let bds' e')
@@ -365,7 +415,7 @@ initEnv :: GhcInfo -> PI PCGEnv
 initEnv info 
   = do defaults <- forM freeVars $ \x -> liftM (x,) (trueTy $ varType x)
        dcs      <- forM dcons    $ \x -> liftM (x,) (dconTy $ varType x)
-       let sdcs = traceShow "dataCon Tys" $ map (\(x, t) -> (TC.dataConWorkId x, dataConPtoPredTy t)) (dconsP info)
+       let sdcs = map (\(x, t) -> (TC.dataConWorkId x, dataConPtoPredTy t)) (dconsP info)
        let assms = passm info
        let bs =  mapFst mkSymbol <$> (defaults ++ dcs ++ assms ++ sdcs)
        return $ PCGE { loc = noSrcSpan , penv = fromListPEnv bs}
@@ -391,7 +441,7 @@ freshPrAs p = freshInt >>= \n -> return $ p{pname = "p" ++ (show n)}
 stringSymbol = F.S
 refreshTy t 
   = do fps <- mapM freshPrAs ps
-       return $ traceShow ("Ps vs FPs" ++ show (ps, fps)) $ subp (M.fromList (zip ps fps)) t''
+       return $ subp (M.fromList (zip ps fps)) t''
    where (vs, ps, t') = splitVsPs t
          t''          = typeAbsVsPs t' vs []
 
@@ -412,7 +462,7 @@ freshTy (FunTy t1 t2) = do tt1 <- freshTy t1
 freshTy t@(TyConApp c τs) | TyCon.isSynTyCon c
   = freshTy $ substTyWith αs τs τ
  where (αs, τ) = TyCon.synTyConDefn c
-freshTy t@(TyConApp c τs) = do ts <- mapM trueTy τs
+freshTy t@(TyConApp c τs) = do ts <- mapM freshTy τs
                                p  <- truePr t
                                ps <- freshTyConPreds c
                                return $ PrTyCon c ts ps p

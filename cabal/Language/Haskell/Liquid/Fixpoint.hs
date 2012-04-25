@@ -14,6 +14,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , vv
   , meet
   , trueReft, trueSortedReft 
+  , trueRefa
   , canonReft, exprReft, symbolReft
   , isNonTrivialSortedReft
   , isTauto, flattenRefas
@@ -128,7 +129,7 @@ replaceS ((RKvar (S n) (Su s)), k) (RKvar (S n') (Su s'))
   = map (addSubs (Su s')) k -- [RKvar (S m) (Su (s `M.union` s1 `M.union` s'))]
 replaceS (k, v) p = [p]
 
-addSubs s (RKvar k s') = RKvar k (unionTransSubs s s')
+addSubs s ra@(RKvar k s') = RKvar k (unionTransSubs s s')
 addSubs _ f = f
 
 -- union s1 s2 with transitivity : 
@@ -681,6 +682,9 @@ trueSortedReft = (`RR` trueReft)
 
 trueReft :: Reft
 trueReft = Reft (vv, [])
+
+trueRefa :: Refa
+trueRefa = RConc PTrue
 
 canonReft :: Reft -> Reft
 canonReft r@(Reft (v, ras)) 

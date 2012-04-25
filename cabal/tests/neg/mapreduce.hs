@@ -15,8 +15,10 @@ import Data.List (foldl')
 ----------------------------------------------------------------
 
 expand          :: (a -> [(k,v)]) -> [a] -> [(k, v)]
-expand f []     = []
-expand f (x:xs) = (f x) ++ (expand f xs)
+expand f x = concat (map f x)
+								
+-- expand f []     = []
+-- expand f (x:xs) = (f x) ++ (expand f xs)
 
 ----------------------------------------------------------------
 --- Step 2: Group By Key ---------------------------------------
@@ -32,9 +34,8 @@ addKV m (k, v) = M.insert k vs' m
 --- Step 3: Group By Key ---------------------------------------
 ----------------------------------------------------------------
 
-collapse :: (v -> v -> v) -> M.Map k [v] -> [(k, v)]
 collapse f = M.foldrWithKey reduceKV []
-  where reduceKV k (v:vs) acc = if crash False then (k, foldl' f v vs) : acc else acc
+  where reduceKV k (v:vs) acc = if assert False then (k, foldl' f v vs) : acc else acc
         reduceKV k []     _   = crash False --error $ show (assert False)
 
 ----------------------------------------------------------------
@@ -54,3 +55,6 @@ main = putStrLn $ show $ wordCount docs
   where docs = [ "this is the end"
                , "go to the end"
                , "the end is the beginning"]
+ 
+
+

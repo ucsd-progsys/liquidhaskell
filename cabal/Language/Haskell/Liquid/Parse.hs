@@ -504,7 +504,12 @@ brackets' p
 
 predbaseP 
   =  liftM PrLstP (brackets' predTypeP)
- <|> liftM PrTupP (parens $ sepBy predTypeP comma)
+ <|> try (do string "("
+             f1 <- predTypeP
+             comma
+             f2 <- predTypeP
+             string ")"
+             return (PrTupP [f1, f2]))
  <|> try (do c <- upperIdP
              ts <- sepBy predTypeP blanks
 --             reserved "&"

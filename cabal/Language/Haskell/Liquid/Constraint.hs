@@ -270,7 +270,7 @@ splitW (WfC γ (RClass _ _))
   = []
 
 splitW (WfC γ t@(RConApp c ts rs _))
-  = bsplitW γ t
+  = {-trace ("SplitWf :" ++ show t) $-} bsplitW γ t
 		++ concatMap (splitW . WfC γ) ts
 		++ concatMap (rsplitW γ) (zip rs ps)
 				where ps =  rTyConPs c --[] -- p for r to find its type
@@ -323,7 +323,7 @@ splitC (SubC γ (RAll _ r1) (RAll _ r2))
   = splitC (SubC γ r1 r2) 
 
 splitC (SubC γ t1@(RConApp c t1s r1s _) t2@(RConApp c' t2s r2s _))
-	= traceShow ("Split " ++ show ps ++ "\n" ++ show t1 ++ "\n < \n" ++ show t2 ) $   
+	= -- traceShow ("Split " ++ show ps ++ "\n" ++ show t1 ++ "\n < \n" ++ show t2 ) $   
  bsplitC γ t1 t2
 	++ concatMap splitC (zipWith (SubC γ) t1s t2s)
  ++ concatMap (rsplitC γ) (zip (zip r1s r2s) ps)
@@ -338,9 +338,9 @@ splitC (SubC _ (RClass c1 _) (RClass c2 _)) -- | c1 == c2
   = []
 
 splitC (SubC _ t1 t2) 
-  = {-traceShow ("\nWARNING: splitC mismatch:\n" 
-																		++ showPpr t1 ++ "\n<\n" ++ showPpr t2 ++ "\n") 
-     $-} []
+  = -- traceShow ("\nWARNING: splitC mismatch:\n" 
+				--														++ showPpr t1 ++ "\n<\n" ++ showPpr t2 ++ "\n") $
+     []
 
 {-
 splitCRefTyCon cons γ (RAlgTyCon _ z1) (RAlgTyCon _ z2) 
@@ -374,7 +374,7 @@ bsplitC γ t1 t2
         ci      = Ci (loc γ)
 
 rsplitC γ ((r1, r2), PdVar _ t as)
-  = traceShow "FOO" [F.SubC env' F.PTrue r1' r2' Nothing [] ci]
+  = [F.SubC env' F.PTrue r1' r2' Nothing [] ci]
   where env' = fenv γ'
         ci   = Ci (loc γ)
         r1'  = refTypePredSortedReft_ (r1, t)
@@ -420,7 +420,7 @@ initCGI info = CGInfo [] [] [] [] F.emptyFEnv 0 (AI M.empty) tyi
 
 addC   :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) s 
-  = {-trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ s) $ -} 
+  = --trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ s) $  
     modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addW   :: WfC -> CG ()  
@@ -595,7 +595,7 @@ consCB γ (Rec xes)
   = do rts <- mapM (\e -> freshTy_pretty e $ exprType e) es
        let ts = (\(pt, rt) -> unify pt rt) <$> (zip pts rts)
        let γ' = foldl' (\γ z -> (γ, "consCB") += z) (γ `withRecs` xs) (zip vs ts)
-       zipWithM_ (cconsE γ') es ts
+       zipWithM_ (cconsE γ') es  ts
        zipWithM_ addIdA xs (Left <$> ts)
        mapM_     addW (WfC γ <$> rts)
        return γ'
@@ -605,7 +605,7 @@ consCB γ (Rec xes)
 
 consCB γ b@(NonRec x e)
   = do rt <- consE γ e
-       let t = unify pt rt
+       let t = {-traceShow ("Unify for "  ++ show x' ++ "\n\n"++ show e ++ "\n\n" ++ show rt ++ "\n" ++ show pt ++ "\n")$-} unify pt rt
        addIdA x (Left t)
        return $ γ ++= (x', t)
     where x' = mkSymbol x
@@ -660,7 +660,7 @@ unifyS (RVar v a) (PrVar v' p)
   = do modify $ \s -> s `S.union` (S.fromList (filter (/= PdTrue) [p]))
        return $ RVar v $ bUnify a p
 
-unifyS (RConApp c ts rs r) pt@(PrTyCon _ pts ps p)
+unifyS rt@(RConApp c ts rs r) pt@(PrTyCon _ pts ps p)
   = do modify $ \s -> s `S.union` (S.fromList (filter (/= PdTrue) (p:ps)))
        ts' <- zipWithM unifyS ts pts
        return $ RConApp c ts' (mapbUnify rs ps) (bUnify r p)
@@ -708,10 +708,17 @@ cconsE γ (Tick tt e) t
 
 cconsE γ (Cast e _) t     
   = cconsE γ e t 
-
-cconsE γ e t 
+{-
+cconsE γ e (RPred p t)
+  = do s <- freshSort γ p
+       let t' =  replaceSort (pToRefa p, s) t 
+--       addC (SubC γ te t) ("consEPRed" ++ showPpr e)
+       cconsE γ e t'
+-}
+cconsE γ e t
   = do te <- consE γ e
        addC (SubC γ te t) ("consE" ++ showPpr e)
+
 
 -------------------------------------------------------------------
 consE :: CGEnv -> Expr Var -> CG RefType 
@@ -720,9 +727,13 @@ consE :: CGEnv -> Expr Var -> CG RefType
 --subsTyVarHelper x y = x `subsTyVar` y 
 -- {- trace ("PLUGGING" ++ (show x) ++ " into " ++ (show y) ++ " yields " ++ (show res)) $ -} 
 
+foo γ (Var x) = "varTy\n" ++ show   ( γ ?= (mkSymbol x))
+foo γ _ = ""
+
+
 consE γ (Var x)   
   = do addLocA (loc γ) (varAnn γ x t)
-       return $ traceShow "VarTy" t
+       return t
     where t = varRefType γ x
 
 consE _ (Lit c) 
@@ -733,7 +744,7 @@ consE γ (App e (Type τ))
        t         <- if isGeneric α te then freshTy e τ else  trueTy τ
        addW       $ WfC γ t
        return     $ 
-        {- traceShow ("type app: for " ++ showPpr e ++ showPpr (α, t)) $ -}
+        --traceShow ("type app: for " ++ showPpr e ++ showPpr (α, t) ++ (foo γ e) ++ "/n") $ 
 								(α, t) `subsTyVar_meet` te
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
@@ -748,7 +759,7 @@ consE γ e'@(App e a)
        cconsE γ a tx 
        case argExpr a of 
          Just e  -> return 
-                      {-$ traceShow ("App" ++ showPpr e' ++ show t)-} 
+--                      $ traceShow ("App" ++ showPpr e' ++ show (t, tx)) 
                       $ t `F.subst1` (x, e)
          Nothing -> errorstar $ "consE: App crashes on" ++ showPpr a 
 
@@ -802,14 +813,16 @@ cconsCase γ x t (DataAlt c, ys, ce)
         xt            = xt0 `strengthen` (r1 `F.meet` r2)
 
 unfoldR td t0@(RConApp tc ts rs _) ys = (rtd, yts, xt')
-  where (vs, ps, td_') = rsplitVsPs td
+  where (vs, ps, td_') =  rsplitVsPs td
         td''          = foldl' (flip subsTyVar_meet) td' (zip vs ts)
         rtd           = foldl' (flip replaceSort) td'' (zip ps' rs')
         ps'           = pToRefa <$> ps
-        rs'           = (\(F.Reft(_, [r])) -> F.subst su r)<$>  rs ++ cycle [F.trueReft]
+        rs'           = map  (\(F.Reft(_, [r])) -> F.subst su r) (rs) ++ cycle [F.trueRefa]
         (ys', yts, xt')    = rsplitArgsRes rtd
         su            = F.mkSubst [(x, F.EVar y) | (x, y)<- zip ys' ys]
         td'           = td_' 
+--        f ()          = F.subst su r
+--        f ()          = 
 {-
 cconsCase γ x t (DataAlt c, ys, ce) 
   = do let (x':ys')      = mkSymbol <$> (x:ys)
@@ -828,10 +841,10 @@ unfoldR γ td t0@(RConApp tc ts rs _)
       let td''          = foldl' (flip subsTyVar_meet) td' (zip vs ts)
       let ps'           = pToRefa <$> ps
       rs''               <- mapM (freshSort γ) ps
-      let rs' = traceShow "RS'" $ case rs of {[] -> map (\r -> F.Reft(F.vv, [r])) rs''; _ -> rs}
+      let rs' = case rs of {[] -> map (\r -> F.Reft(F.vv, [r])) rs''; _ -> rs}
       let rtd           = foldl' (flip replaceSorts) td'' (zip ps' rs')
-      let (yts, xt')    = rsplitArgsRes rtd
-      return $ traceShow ("unfold " ++ show (td, t0)) (rtd, yts, xt')
+      let (_, yts, xt')    = rsplitArgsRes rtd
+      return {-$ traceShow ("unfold " ++ show (td, t0))-} (rtd, yts, xt')
 -} 
 
 takeReft c (RConApp _ _ _ a) 
@@ -889,7 +902,7 @@ freshReftP (PdVar n τ as)
  = do n <- liftM F.intKvar fresh
       return $ F.Reft(F.vv,[(`F.RKvar` F.emptySubst) n])
 
-freshSort γ (PdVar n τ as)
+freshSort γ pd@(PdVar n τ as)
  = do n <- liftM F.intKvar fresh
       let s = (`F.RKvar` F.emptySubst) n
       addW $ WfCS γ' τ s

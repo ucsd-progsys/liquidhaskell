@@ -132,7 +132,7 @@ mkPredType env xbs = runReaderT mkPred env
 mkPType =  ofPType ([], [])
 
 ofArgsD vs (x, va) = (TyVarTy t, x', x')
-  where t:_ = traceShow ("foo" ++ show vs ++ show va) [vt| (a, vt) <- vs, a==va]
+  where t:_ = [vt| (a, vt) <- vs, a==va]
         x'  = stringSymbol x
 
 ofBPredicate_ vs (PBF x va xs)

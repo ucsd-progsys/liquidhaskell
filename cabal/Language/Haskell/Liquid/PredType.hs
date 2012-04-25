@@ -6,7 +6,7 @@ module Language.Haskell.Liquid.PredType (
 								, PEnv (..), lookupPEnv, fromListPEnv, insertPEnv, emptyPEnv, mapPEnv
 								, splitVsPs, typeAbsVsPs, splitArgsRes
 								, generalize, generalizeArgs
-								, subp, subsTyVars, substSym, subsTyVarP
+								, subp, subsTyVars, substSym, subsTyVarP, subsTyVars_
 								, dataConTy, dataConPtoPredTy
 								, removeExtPreds
 								) where
@@ -176,6 +176,7 @@ subsTyVarPArg vt     a
   = a
 
 
+subsTyVars_ (v, t, τ) = fmap (subsTyVarP (v, τ)) . mapTyVar (subsTyVar (v, t))
 subsTyVars s = fmap (subsTyVarP_ s) . mapTyVar (subsTyVar s)
 
 subsTyVarP_ av@(α, (PrVar a' p')) p@(PdVar n (TyVarTy v) a)
@@ -192,22 +193,22 @@ subsTyVarAP_ (α, (PrVar a' p')) a
   = a
 
 subsTyVar (α, (PrVar a' p')) t@(PrVar a p) 
-  | (a == α) 
+  | (show α ++ show (varUnique α)) == (show a ++ show (varUnique a))
 		= PrVar a' (pand p p')
   | otherwise
 		= t
 subsTyVar (α, (PrLit l p')) t@(PrVar a p) 
-  | (a == α) 
+  | (show α ++ show (varUnique α)) == (show a ++ show (varUnique a))
 		= PrLit l (pand p p')
 		| otherwise 
 		= t
 subsTyVar (α, (PrTyCon c ts ps p')) t@(PrVar a p)
-  | a == α
+  | (show α ++ show (varUnique α)) == (show a ++ show (varUnique a))
 		= PrTyCon c ts ps (pand p p')
 		| otherwise 
 		= t
 subsTyVar (α, τ) t@(PrVar a p) 
-  | a == α
+  | (show α ++ show (varUnique α)) == (show a ++ show (varUnique a))
   = τ 
   | otherwise 
   = t

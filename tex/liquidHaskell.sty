@@ -2,6 +2,8 @@
 
 
 \newcommand\hasType[4]{\ensuremath{#1 \vdash_{#2} #3 : #4 }}
+\newcommand\hasTypeP[4]{\ensuremath{#1 \vdash #2 : #3 \mid #4 }}
+\newcommand\penv{\ensuremath{\Gamma}}
 \newcommand\isSubType[3]{\ensuremath{#1 \vdash \subtype{#2}{#3}}}
 \newcommand\subtype[2]{\ensuremath{#1 <: #2}}
 \newcommand\isWellFormed[2]{\ensuremath{#1 \vdash #2 }}
@@ -31,7 +33,13 @@
 \newcommand\pdVar[3]{\ensuremath{#1 : #2 \left\langle #3 \right\rangle }}
 \newcommand\pdAnd[2]{\ensuremath{#1 \land #2}}
 
-\newcommand\unifyTypes[3]{\ensuremath{ \left\langle #1 , #2 \right\rangle \models #3}}
+\newcommand\generalizeP[3]{\ensuremath{ #1, #2 \vdash #3 }}
+\newcommand\pdapp[2]{\ensuremath{ #1 \left( #2 \right) }}
+\newcommand\pdsplit[1]{\ensuremath{ \text{split}\ (#1) }}
+\newcommand\pdinst[1]{\ensuremath{ \text{inst}\ (#1) }}
+\newcommand\pdgen[1]{\ensuremath{ \text{gen}\ (#1) }}
+
+\newcommand\unifyTypes[3]{\ensuremath{ \left\langle {#1} , {#2} \right\rangle \models {#3}}}
 \newcommand\refa[3]{\ensuremath{ \left\lbrace #1 : #2 \mid #3 \right\rbrace }}
 \newcommand\sub[2]{\ensuremath{ \left[ #1 \mapsto #2 \right] }}
 \newcommand\subP[2]{\ensuremath{\sub{#1}{#2}}}
@@ -40,7 +48,7 @@
 \newcommand\freshT[1]{\ensuremath{\text{fresh}\ \left( #1\right)}}
 
 
-\newcommand\pdTy{\ensuremath{T_P}}
+\newcommand\pdTy{\ensuremath{{T_P}}}
 \newcommand\lTy{\ensuremath{\hat{T}}}
 \newcommand\dTy{\ensuremath{T}}
 

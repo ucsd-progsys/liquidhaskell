@@ -1,8 +1,8 @@
-module Test0 where
+module Test00c where
 
 import Language.Haskell.Liquid.Prelude
 
-getEqs :: Int -> [Int] -> [Int]
+--getEqs :: Int -> [Int] -> [Int]
 getEqs x ys = filter (x ==) ys 
 
 xs :: [Int]
