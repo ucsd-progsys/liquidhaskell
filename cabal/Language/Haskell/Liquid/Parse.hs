@@ -502,6 +502,21 @@ brackets' p
        string "]" 
        return s
 
+predPsP
+  = do reserved "&"
+       ps <- sepBy predicateP blanks
+--            string ">"
+       return ps
+ <|> return []
+
+predPP
+  = do reserved "^"
+       p <- predicateP 
+--            string ">"
+       return p
+ <|> return PBTrue
+
+
 predbaseP 
   =  liftM PrLstP (brackets' predTypeP)
  <|> try (do string "("
@@ -512,18 +527,17 @@ predbaseP
              return (PrTupP [f1, f2]))
  <|> try (do c <- upperIdP
              ts <- sepBy predTypeP blanks
---             reserved "&"
---             ps <- sepBy predicateP blanks
-             reserved "^"
-             p <- predicateP
-             return $ PrTyConAppP c ts [] p)
- <|> try (do c <- upperIdP
+             ps <- predPsP
+--             reserved "^"
+             p <- predPP
+             return $ PrTyConAppP c ts ps p)
+{- <|> try (do c <- upperIdP
              ts <- sepBy predTypeP blanks
 --             reserved "&"
 --             ps <- sepBy predicateP blanks
 --        reserved "^"
 --        p <- predicateP
-             return $ PrTyConAppP c ts [] PBTrue)
+             return $ PrTyConAppP c ts [] PBTrue)-}
  <|> do v <- lowerIdP
         reserved "^"
         p <-predicateP
