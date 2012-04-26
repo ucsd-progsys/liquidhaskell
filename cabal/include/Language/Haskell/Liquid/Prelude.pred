@@ -11,6 +11,7 @@
 filter :: forall a. forAll p1:a. (a^p1 -> Bool) -> [a^p1]-> [a^p1]
 snd :: forall a b. forAll p1:a p2:b. (a^p1, b^p2)-> b^p2
 map :: forall a b. forAll q1:a q2:b. (a^q1 -> b^q2) -> [a^q1]-> [b^q2]
+(++) :: forall a. forAll q:a. [a^q]-> [a^q]-> [a^q]
 concat :: forall a. forAll q:a. [[a^q]]-> [a^q]
 foldl :: forall a b. forAll q1:a q2:b. (a^q1 -> b^q2 -> a^q1) -> a^q1 -> [b^q2]-> a^q1
 foldr :: forall a b. forAll q1:a q2:b. (a^q1 -> b^q2 -> b^q2) -> b^q2 -> [a^q1]-> b^q2

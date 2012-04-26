@@ -1,7 +1,7 @@
 module Vec0 where
 
 import Language.Haskell.Liquid.Prelude
-import Data.Vector hiding (map, concat, zipWith, filter, foldr, foldl)
+import Data.Vector hiding (map, concat, zipWith, filter, foldr, foldl, (++))
 
 -- {-# ANN module "spec   $LIQUIDHS/Vector.spec" #-}
 -- {-# ANN module "spec   $LIQUIDHS/List.spec" #-}

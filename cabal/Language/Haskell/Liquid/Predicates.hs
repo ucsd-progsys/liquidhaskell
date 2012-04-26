@@ -91,7 +91,7 @@ consCB' γ (NonRec x e)
        return $ γ += (mkSymbol x, t)
 
 consCB' γ (Rec xes) 
-  = do ts       <- mapM (\e -> freshTy $ exprType e) es
+  = do ts       <- mapM (\e -> trueTy $ exprType e) es
 --       let tsga = generalizeArgs <$> ts
        let γ'   = foldl' (+=) γ (zip vs ts)
        zipWithM_ (cconsE γ') es ts
@@ -156,7 +156,7 @@ consCB γ (NonRec x e)
        if (not ch)  then (return $ γ += (mkSymbol x, tg)) else (return γ)
 
 consCB γ (Rec xes) 
-  = do ts       <- mapM (\e -> freshTy $ exprType e) es
+  = do ts       <- mapM (\e -> trueTy $ exprType e) es
 --       let tsga = generalizeArgs <$> ts
        let γ'   = foldl' (+=) γ (zip vs ts)
        zipWithM_ (cconsE γ') es ts

@@ -1,7 +1,7 @@
 module Vec1 where
 
 import Language.Haskell.Liquid.Prelude
-import Data.Vector hiding (map, concat, zipWith, filter, foldr, foldl)
+import Data.Vector hiding (map, concat, zipWith, filter, foldr, foldl, (++))
 
 
 foo = (Data.Vector.!) 

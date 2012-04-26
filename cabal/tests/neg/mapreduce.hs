@@ -15,10 +15,8 @@ import Data.List (foldl')
 ----------------------------------------------------------------
 
 expand          :: (a -> [(k,v)]) -> [a] -> [(k, v)]
-expand f x = concat (map f x)
-								
--- expand f []     = []
--- expand f (x:xs) = (f x) ++ (expand f xs)
+expand f []     = []
+expand f (x:xs) = (f x) ++ (expand f xs)
 
 ----------------------------------------------------------------
 --- Step 2: Group By Key ---------------------------------------
