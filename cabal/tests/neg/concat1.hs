@@ -10,6 +10,8 @@ foo = [[choose 1], [choose 2]]
 myconcat []     = []
 myconcat (x:xs) = x ++ (myconcat xs) 
 
+
+myconcat1 :: a -> [[Int]] -> [Int]
 myconcat1 _ []     = []
 myconcat1 f (x:xs) = x ++ (myconcat1 f xs) 
 

@@ -40,10 +40,12 @@ consAct info
        γ1 <- foldM consCB γ $ cbs info
        return γ1
 
-generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ show cbs')-} (cbs', γ)
+generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ show cbs')-} (cbs', nPd)
   where γ    = mapPEnv removeExtPreds $ penv $ evalState act (initPI info)
         act  = consAct info
         cbs' = addPredApp γ <$> cbs info
+--         γ'   = filterGamma nPd γ 
+        nPd  = getNeedPd info
 
 instance Show CoreBind where
   show = showSDoc . ppr
@@ -91,7 +93,7 @@ consCB' γ (NonRec x e)
        return $ γ += (mkSymbol x, t)
 
 consCB' γ (Rec xes) 
-  = do ts       <- mapM (\e -> trueTy $ exprType e) es
+  = do ts       <- mapM (\e -> freshTy $ exprType e) es
 --       let tsga = generalizeArgs <$> ts
        let γ'   = foldl' (+=) γ (zip vs ts)
        zipWithM_ (cconsE γ') es ts
@@ -156,7 +158,7 @@ consCB γ (NonRec x e)
        if (not ch)  then (return $ γ += (mkSymbol x, tg)) else (return γ)
 
 consCB γ (Rec xes) 
-  = do ts       <- mapM (\e -> trueTy $ exprType e) es
+  = do ts       <- mapM (\e -> freshTy $ exprType e) es
 --       let tsga = generalizeArgs <$> ts
        let γ'   = foldl' (+=) γ (zip vs ts)
        zipWithM_ (cconsE γ') es ts
@@ -421,6 +423,12 @@ initEnv info
        return $ PCGE { loc = noSrcSpan , penv = fromListPEnv bs}
     where freeVars = [v | v<-importVars $ cbs info]
           dcons = filter isDataCon freeVars
+
+getNeedPd info 
+  = fromListPEnv bs
+    where  dcs = map (\(x, t) -> (TC.dataConWorkId x, dataConPtoPredTy t)) (dconsP info)
+           assms = passm info
+           bs = mapFst mkSymbol <$> (dcs ++ assms)
 
 dconTy t
   = do ps <- mapM truePr vs

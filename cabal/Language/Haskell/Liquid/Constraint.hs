@@ -593,6 +593,7 @@ consCB :: CGEnv -> CoreBind -> CG CGEnv
 
 consCB γ (Rec xes) 
   = do rts <- mapM (\e -> freshTy_pretty e $ exprType e) es
+--       let ts = rts
        let ts = (\(pt, rt) -> unify pt rt) <$> (zip pts rts)
        let γ' = foldl' (\γ z -> (γ, "consCB") += z) (γ `withRecs` xs) (zip vs ts)
        zipWithM_ (cconsE γ') es  ts
@@ -605,6 +606,7 @@ consCB γ (Rec xes)
 
 consCB γ b@(NonRec x e)
   = do rt <- consE γ e
+--       let t = {-traceShow ("Unify for "  ++ show x' ++ "\n\n"++ show e ++ "\n\n" ++ show rt ++ "\n" ++ show pt ++ "\n")$-} rt
        let t = {-traceShow ("Unify for "  ++ show x' ++ "\n\n"++ show e ++ "\n\n" ++ show rt ++ "\n" ++ show pt ++ "\n")$-} unify pt rt
        addIdA x (Left t)
        return $ γ ++= (x', t)
@@ -747,13 +749,21 @@ consE γ (App e (Type τ))
         --traceShow ("type app: for " ++ showPpr e ++ showPpr (α, t) ++ (foo γ e) ++ "/n") $ 
 								(α, t) `subsTyVar_meet` te
 
+{-			
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do RPred p@(PdVar pn τ pa) t <- liftM (checkRPred ("Non-RPred", e)) $ consE γ e 
        s <- freshSort γ p
        return $ 
          {-traceShow ("eqType  " ++ pn ++ " for " ++ showSDoc (ppr τ)) $ -}
          replaceSort (pToRefa p, s) t 
+-}
 
+consE γ e'@(App e a) | eqType (exprType a) predType 
+  = do t0 <- consE γ e
+       case t0 of
+         RPred p@(PdVar pn τ pa) t -> do s <- freshSort γ p
+                                         return $ replaceSort (pToRefa p, s) t 
+         t                         -> return t
 consE γ e'@(App e a)               
   = do RFun (RB x) tx t <- liftM (checkFun ("Non-fun App with caller", e)) $ consE γ e 
        cconsE γ a tx 
