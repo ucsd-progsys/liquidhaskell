@@ -146,9 +146,9 @@ instance Show CGEnv where
         r  = normalizePds r'  -- move pred abs in start of the type
 
 (γ, msg) += (x, r) 
-  | x `memberREnv` (renv γ)
-  = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ show x ++ " in REnv!\n\n" ++ show γ
-  | otherwise
+--   | x `memberREnv` (renv γ)
+--   = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ show x ++ " in REnv!\n\n" ++ show γ
+--   | otherwise
   = γ ++= (x, r) 
 
 γ -= x 
@@ -172,19 +172,21 @@ withRecs :: CGEnv -> [Var] -> CGEnv
 withRecs γ xs = γ { recs = foldl' (flip S.insert) (recs γ) xs }
 
 isGeneric :: RTyVar -> RefType -> Bool
-isGeneric α t = all (/=α) (classConstrs t)
-  where classConstrs t = [α' | ts <- getTyClasses t
-		                           , t' <- ts
-																													, α' <- getTyVars t']
+isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConstrs t)
+  where classConstrs t = [(c, α') | (c, ts) <- getTyClasses t
+		                                , t'      <- ts
+																													     , α'      <- getTyVars t']
+        isOrd          = (ordClassName ==) . className
+        isEq           = (eqClassName ==) . className
 
 getTyClasses = everything (++) ([] `mkQ` f)
-  where f ((RClass _ ts) :: RefType) = [ts]
+  where f ((RClass c ts) :: RefType) = [(c, ts)]
         f _                          = []
 
 getTyVars = everything (++) ([] `mkQ` f)
-  where f ((RVar α' _) :: RefType)   = [α']
+  where f ((RVar α' _) :: RefType)   = [α'] 
         f _                          = []
-
+ 
 isBase :: RType a -> Bool
 isBase (RVar _ _)        = True
 isBase (RConApp _ _ _ _) = True
