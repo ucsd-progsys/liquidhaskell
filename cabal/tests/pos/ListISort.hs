@@ -13,13 +13,14 @@ chk2 y =
    Nil -> True
    Cons x1 xs -> case xs of 
                  Nil -> True
-                 Cons x2 xs2 -> assert (x1 < x2) && chk2 xs2
+                 Cons x2 xs2 -> assert (x1 <= x2) && chk2 xs2
 																	
-bar = insert 2 (insert 4 Nil)
+-- bar = insert 2 (insert 4 Nil)
 
-mkList :: [a] -> List a																	
-mkList = foldr Cons Nil
+bar = mkList [1 .. 10]
+
+mkList :: Ord a => [a] -> List a
+mkList = foldr insert Nil
 
 prop0 = chk2 bar
-
 
