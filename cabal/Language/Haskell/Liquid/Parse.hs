@@ -39,6 +39,7 @@ languageDef =
                                      , "true"
                                      , "false"
                                      , "mod"
+                                     , "data"
                                      , "Bexp"
                                      , "forall"
                                      , "assume"
@@ -46,6 +47,7 @@ languageDef =
                                      , "module"
                                      , "spec"
                                      , "where"
+                                     , "True"
                                      , "import"
                                      , "_|_"
                                      , "|"
@@ -58,6 +60,7 @@ languageDef =
                                      , "~", "=>", "<=>"
                                      , "->"
                                      , ":="
+                                     , "&", "^"
                                      , "?", "Bexp" -- , "'"
                                      ]
            }
@@ -394,7 +397,7 @@ predVarArgsP
       t <- tyVarIdP
       return (a, t)
 
-predBaseP_ 
+predTypedP 
  = do p <- predVarIdP
       reserved ":"
       t <- tyVarIdP
@@ -403,22 +406,16 @@ predBaseP_
    
 
 predBaseP 
- =  try (string "True" >> return PBTrue)
+ =  try (reserved "True" >> return PBTrue)
  <|> do p <- predVarIdP
         xs <-(try $ parens $ sepBy predVarIdP comma) <|> return []
         return $ PB p xs
-
-{- 
-predicateP
- = do p:ps <- sepBy predBaseP (reserved "&&")
-      return $ foldl PBAnd p ps
--}
 
 predicateP = predBaseP
 
 predTypePDD
   = do x  <- try bindP <|> do {p <- getPosition; return $ dummyName p}  
-       t <- predTypeP
+       t <- try (parens predTypeP) <|> predTypeP
        return (x, t) 
 
 dataConP
@@ -426,52 +423,35 @@ dataConP
       spaces
       xts <- sepBy predTypePDD spaces
       return (x, xts)
-{-
-specPr 
-  = sepBy measurePr spaces
 
-measurePr 
-  = do name <-  binderP 
-       colon >> colon
-       ty <- predTypeP
-       string "\n"
-       return $ (name, ty)
--}
-
-dataDeclsP = sepBy dataDeclP (string "\n")
+dataDeclsP = many dataDeclP
 
 dataDeclP
  = do reserved "data"
-      spaces
       x <- tyConVarIdP
       spaces
       ts <- sepBy tyVarIdP spaces
-      reserved "&"
-      ps <- sepBy predBaseP_ spaces
-      reserved "="
+      reservedOp "&"
+      ps <- sepBy predTypedP spaces
+      reservedOp "="
       dcs <- sepBy dataConP (reserved "|")
---      string "\n"
+      spaces
       return $ D x ts ps dcs
 
 
 ----------------------------------------------------------------------------------------
 ------------------------------------ PredicateTypes -----------------------------------------
 ----------------------------------------------------------------------------------------
-{-
-specPr = Measure.measuresSpec <$> measuresPr
-
--}
 specPr 
-  = sepBy measurePr spaces
+  = many measurePr
 
 measurePr 
-  = do name <-  binderP 
+  = do reserved "assume"
+       name <-  binderP 
        colon >> colon
        ty <- predTypeP
-       (string "\n" <|> string "||")
+       spaces
        return $ (name, ty)
-
-
 
 predTypeP   
   =  try predFunP
@@ -483,73 +463,29 @@ predArgP
   =  predbaseP  
  <|> parens predTypeP
 
---predAtomP = undefined
-{-  =  refP bbaseP 
- <|> try (dummyP bbaseP)
--}
-{-
-bbaseP 
-  =  liftM BLst (brackets bareTypeP)
- <|> liftM mkTup (parens $ sepBy bareTypeP comma)
- <|> try (liftM2 BCon upperIdP (sepBy bareTypeP blanks))
- <|> try (liftM (`BCon` []) upperIdP)
- <|> liftM BVar lowerIdP
--}
-
-brackets' p
-  = do string "["
-       s <- p
-       string "]" 
-       return s
-
 predPsP
-  = do reserved "&"
+  = do reservedOp "&"
        ps <- sepBy predicateP blanks
---            string ">"
        return ps
  <|> return []
 
-predPP
-  = do reserved "^"
+maybePredP
+  = do reservedOp "^"
        p <- predicateP 
---            string ">"
        return p
  <|> return PBTrue
 
-
 predbaseP 
-  =  liftM PrLstP (brackets' predTypeP)
- <|> try (do string "("
-             f1 <- predTypeP
-             comma
-             f2 <- predTypeP
-             string ")"
-             return (PrTupP [f1, f2]))
+  =  liftM PrLstP (brackets predTypeP)
+ <|> try (parens (sepBy predTypeP comma) >>= return . PrTupP)
  <|> try (do c <- upperIdP
              ts <- sepBy predTypeP blanks
              ps <- predPsP
---             reserved "^"
-             p <- predPP
+             p <- maybePredP
              return $ PrTyConAppP c ts ps p)
-{- <|> try (do c <- upperIdP
-             ts <- sepBy predTypeP blanks
---             reserved "&"
---             ps <- sepBy predicateP blanks
---        reserved "^"
---        p <- predicateP
-             return $ PrTyConAppP c ts [] PBTrue)-}
  <|> do v <- lowerIdP
-        reserved "^"
-        p <-predicateP
+        p <- maybePredP
         return $ PrPairP(p, v)
--- <|> liftM BVar lowerIdP
-{-
-predTup 
-  = do t1 <- predTypeP
-       comma
-       t2 <- predTypeP
-       return $ PrTupP [t1, t2]
--}
 
 predTyAllP 
   = do reserved "forall"
@@ -557,23 +493,13 @@ predTyAllP
        dot
        t  <- predTypeP
        return $ foldr PrForAllTyP t as
- 
 
 predTyPrAllP 
   = do reserved "forAll"
-       ps <- sepBy predBaseP_ blanks
+       ps <- sepBy predTypedP blanks
        dot
        t  <- predTypeP
        return $ PrForAllPrP ps t
-       -- return $ foldl' (\t a -> BAll a t) t (rev as)
-{-
-data ArrowSym = ArrowFun | ArrowPred
-
-arrowP
-  =   (reserved "->" >> return ArrowFun)
-  <|> (reserved "=>" >> return ArrowPred)
--}
-   
 
 predFunP  
   = do x  <- try bindP <|> do {p <- getPosition; return $ dummyName p}  
@@ -581,7 +507,6 @@ predFunP
        a  <- arrowP
        t2 <- predTypeP
        return $ predArrow x t1 a t2 
-      -- BFun x t1 t2
 
 predArrow x t1 ArrowFun t2
   = PrAppTyP x t1 t2
@@ -596,29 +521,6 @@ getClassPr (PrTyConAppP c ts _ _)
   = PrPredTyP c ts
 getClassPr t
   = error $ "Cannot convert " ++ (show t) ++ " to Class"
-{-
-bindP 
-  = do x <- lowerIdP
-       colon
-       return x
-
-dummyP fm 
-  = fm `ap` return (Reft (dummySymbol, []))
-
-refP kindP 
-  = braces $ do
-      v   <- symbolP 
-      colon
-      t   <- kindP
-      reserved "|"
-      ras <- refasP 
-      return $ t (Reft (v, ras))
-
-refasP :: Parser [Refa]
-refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
-       <|> liftM ((:[]) . RConc) predP
-
--}
 
 ----------------------------------------------------------------------------------------
 ------------------------------- Interacting with Fixpoint ------------------------------

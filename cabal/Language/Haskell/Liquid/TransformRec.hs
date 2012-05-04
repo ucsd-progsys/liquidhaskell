@@ -26,7 +26,7 @@ import Control.Monad.State
 
 transformRecExpr :: CoreProgram -> CoreProgram
 transformRecExpr cbs
-  = if (isEmptyBag e) then pg else error (showPpr pg ++ "Type-check" ++ show e)
+  = if (isEmptyBag e) then traceShow "new cbs" pg else error (showPpr pg ++ "Type-check" ++ show e)
   where pg     = evalState (transPg cbs) initEnv
         (w, e) = lintCoreBindings pg
 

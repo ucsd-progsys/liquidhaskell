@@ -40,7 +40,7 @@ consAct info
        γ1 <- foldM consCB γ $ cbs info
        return γ1
 
-generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ show cbs')-} (cbs', nPd)
+generatePredicates info = trace ("Predicates\n" ++ show γ ++ show cbs') (cbs', nPd)
   where γ    = mapPEnv removeExtPreds $ penv $ evalState act (initPI info)
         act  = consAct info
         cbs' = addPredApp γ <$> cbs info
