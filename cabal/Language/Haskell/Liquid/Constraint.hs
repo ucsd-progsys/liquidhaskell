@@ -146,9 +146,9 @@ instance Show CGEnv where
         r  = normalizePds r'  -- move pred abs in start of the type
 
 (γ, msg) += (x, r) 
---   | x `memberREnv` (renv γ)
---   = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ show x ++ " in REnv!\n\n" ++ show γ
---   | otherwise
+  | x `memberREnv` (renv γ)
+  = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ show x ++ " in REnv!\n\n" ++ show γ
+  | otherwise
   = γ ++= (x, r) 
 
 γ -= x 
