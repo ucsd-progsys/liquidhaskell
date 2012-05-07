@@ -1,3 +1,14 @@
+List Sort :: qsort fails due to cons
+
+BST       :: find min fails due to scoping issues
+             insert Ord := Eq problems in Rec transformation
+
+List Len  :: propably change List's default type?
+
+
+
+
+------------------------------------------------------
 Faile 6 tests: 
 pos/deptup.hs, pos/deptup0.hs, pos/deptup3.hs, 
 pos/niki.hs, pos/niki1.hs,

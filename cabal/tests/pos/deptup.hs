@@ -5,7 +5,6 @@ import Language.Haskell.Liquid.Prelude
 data Pair a b = P a b
 
 --data Pair = P Int Int
-
 mkPair x y = P x y
 
 incr x = x + 1
