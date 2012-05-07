@@ -204,7 +204,7 @@ replaceReft t _                = t
 addTyConInfo tyi = mapBot (addTCI tyi) 
 addTCI tyi t@(RConApp c ts rs r)
   = case (M.lookup (rTyCon c) tyi) of
-     Just i  -> t -- RConApp (RTyCon (rTyCon c) (freePredTy i)) ts rs r
+     Just c'  -> RConApp c' ts rs r
      Nothing -> t
 addTCI _ t
   = t
@@ -301,7 +301,7 @@ instance Outputable RefType where
 --   ppr = ppr_rdatacon
 
 instance Outputable RTyCon where
- ppr (RTyCon c _) = ppr c
+ ppr (RTyCon c ts) = ppr c <+> text "\n<<" <+> hsep (map ppr ts) <+> text ">>\n"
 
 instance Outputable Reft where
   ppr = text . show
@@ -316,7 +316,7 @@ ppr_reftype p (RFun x t t')
 ppr_reftype p t@(RAll _ _)       
   = ppr_forall_reftype p t
 ppr_reftype p (RConApp c ts rs r)
-  = ppr c <+> braces (hsep (map (ppr_reftype p) ts)) <+> braces (hsep (map ppr rs)) <+> ppr r
+  = ppr c <+> braces (hsep (map (ppr_reftype p) ts)) <+> text "\n"<> braces (hsep (map ppr rs)) <+> ppr r
 
 ppr_reftype _ (RClass c ts)      
   = parens $ pprClassPred c (toType <$> ts)

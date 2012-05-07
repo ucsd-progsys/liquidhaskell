@@ -88,7 +88,7 @@ ofBDataCon tyCon aps vs preds (c, xts)
       let t2 = foldl (\t' (x,t)-> PrFun x t t') t0 (zip xs' ts')
       let t1 = foldl (flip PrAllPr) t2 preds
       let t  = foldl (flip PrAll) t1 vs
-      return $ (c', DataConP vs preds (reverse (zip xs' ts')) t0) 
+      return $ (c', DataConP vs (preds) (reverse (zip xs' ts')) t0) 
  where (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
  

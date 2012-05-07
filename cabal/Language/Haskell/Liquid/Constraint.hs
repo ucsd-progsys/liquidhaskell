@@ -422,7 +422,7 @@ initCGI info = CGInfo [] [] [] [] F.emptyFEnv 0 (AI M.empty) tyi
 
 addC   :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) s 
-  = --trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ s) $  
+  = -- trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ s) $  
     modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addW   :: WfC -> CG ()  
@@ -751,15 +751,6 @@ consE γ (App e (Type τ))
         --traceShow ("type app: for " ++ showPpr e ++ showPpr (α, t) ++ (foo γ e) ++ "/n") $ 
 								(α, t) `subsTyVar_meet` te
 
-{-			
-consE γ e'@(App e a) | eqType (exprType a) predType 
-  = do RPred p@(PdVar pn τ pa) t <- liftM (checkRPred ("Non-RPred", e)) $ consE γ e 
-       s <- freshSort γ p
-       return $ 
-         {-traceShow ("eqType  " ++ pn ++ " for " ++ showSDoc (ppr τ)) $ -}
-         replaceSort (pToRefa p, s) t 
--}
-
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
        case t0 of
@@ -828,7 +819,7 @@ unfoldR td t0@(RConApp tc ts rs _) ys = (rtd, yts, xt')
   where (vs, ps, td_') =  rsplitVsPs td
         td''          = foldl' (flip subsTyVar_meet) td' (zip vs ts)
         rtd           = foldl' (flip replaceSort) td'' (zip ps' rs')
-        ps'           = pToRefa <$> ps
+        ps'           = reverse $ pToRefa <$> ps
         rs'           = map  (\(F.Reft(_, [r])) -> F.subst su r) (rs) ++ cycle [F.trueRefa]
         (ys', yts, xt')    = rsplitArgsRes rtd
         su            = F.mkSubst [(x, F.EVar y) | (x, y)<- zip ys' ys]

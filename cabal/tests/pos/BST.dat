@@ -1,0 +1,1 @@
+data Bst k v & p1:v (fld:v) p2:v (fld:v) = Empty | Bind k0:k v0:v l:(Bst k^p1(k0) v& p1(fld) p2(fld)) r:(Bst k^p2(k0) v & p1(fld) p2(fld))

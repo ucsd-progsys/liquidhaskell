@@ -189,16 +189,10 @@ modulePred mg paths  impVars
 moduleDat mg paths -- impVars 
   = do -- specs imported by me 
        fs     <- moduleImpFiles Dat paths impNames 
---       spec   <- modulePredLoop paths S.empty mempty fs
-       -- measures from me 
        myfs   <- moduleImpFiles Dat paths [mg_namestring mg]
        myspec <- liftIO $ mconcat <$> mapM parseDat (myfs ++ fs)
-       -- all modules, including specs, imported by me
---       let ins = nubSort $ impNames ++ [s | S s <- Ms.imports spec]
        liftIO  $ putStrLn $ "Module Imports: " ++ show myspec
-       -- convert to GHC
        env    <- getSession
---       setContext [mod] []
        setContext [IIModule mod]
        xts <- liftIO $ mkConTypes env myspec
        liftIO  $ putStrLn $ "Imported Data Decl: " ++ show xts
