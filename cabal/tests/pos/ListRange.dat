@@ -1,1 +1,2 @@
-data List a & p:a (fld:a) = Nil | Cons x:a^True y:List a^p(x) & p(fld) 
+data List a << p:a (fld:a) >> = Nil | Cons x:a^True y:List a^p(x) << p(fld)>> --
+

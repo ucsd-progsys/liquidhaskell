@@ -1,35 +1,17 @@
-List Sort :: qsort fails due to cons
+change .html fix (cat fix# leave name)
 
-BST       :: find min fails due to scoping issues
-             insert Ord := Eq problems in Rec transformation
+fix transformations 	*	 rewrite inversing trans
+																					*  see list insert for rec
 
 List Len  :: propably change List's default type?
 
-
-
+deptup???
 
 ------------------------------------------------------
-Faile 6 tests: 
-pos/deptup.hs, pos/deptup0.hs, pos/deptup3.hs, 
-pos/niki.hs, pos/niki1.hs,
-pos/vector1a.hs -> id 14 should be changed
-
-
-fix parser reserved words (eg brackets they eat /n)
-fix parser??? qualified modules are not recognized see mapreduce.hs
-
-
 
 Constrains : split[C|W], unifyS :add c1 == c2 in Class & ConApp
 
 unifyS do I really need to keep track of preds?
 
-
-Q!!! 
-
-When I have \/a \/p (a^p -> ..) and p does not get unified it goes FALSE -> understand that:)
-
 	eg neg concat1 -> CB REC trueTy
 
-
-almost same for pseudoconcat

@@ -26,9 +26,73 @@ import Control.Monad.State
 
 transformRecExpr :: CoreProgram -> CoreProgram
 transformRecExpr cbs
-  = if (isEmptyBag e) then traceShow "new cbs" pg else error (showPpr pg ++ "Type-check" ++ show e)
-  where pg     = evalState (transPg cbs) initEnv
+  =  if (isEmptyBag e) then {-trace "new cbs"-} pg else error (showPpr pg ++ "Type-check" ++ show e)
+  where pg     = foo1 $ evalState (transPg cbs) initEnv
         (w, e) = lintCoreBindings pg
+
+foo1 = fooo .  map foo2
+
+fooo [] = []
+fooo ((NonRec x ex):xes) = (NonRec x ex):(fooo2 x [] xes)
+fooo (xe:xes) = xe : (fooo xes)
+
+fooo2 x bs ((NonRec y (Case (Var z) b ys ec)) : xes) | z == x
+  = fooo2 x ((NonRec y (Case (Var z) b ys ec)):bs) xes
+fooo2 x bs xes = (bs++(fooo xes))
+
+foo2 (NonRec b e) = NonRec b (foo e)
+foo2 (Rec bs)  = Rec (map (\(x, e) -> (x, foo e)) bs)
+
+foo (App e1 e2) = App  (foo e1) (foo e2)
+foo (Lam b e) = Lam b (foo e)
+foo (Let b@(NonRec x ex) e) = Let b (mpla x e)
+foo (Let bs e) = Let (foo2 bs) (foo e)
+foo (Case e b t alt) = Case e b t (map fooalt alt)
+foo (Tick t e) = Tick t (foo e)
+foo e = e
+
+
+fooalt (d, bs, e) = (d, bs, foo e)
+
+mpla x e 
+  = let (bs, e0) = mpla1 x [] e 
+    in {-trace ("MPLAMPLA" ++ show x ++ show bs)-} foo (mmm bs e0)
+
+mmm (b:bs) e = Let b (mmm bs e)
+mmm []     e = e
+
+mpla1 x bs (Tick t e) = mpla1 x bs e
+
+mpla1 x bs (Let b@(NonRec y (Case (Var v) _  _ _ )) e) | x == v
+  = {-trace ("FOO1" ++ show (x, v))$-} mpla1 x (b:bs) e
+mpla1 _ bs e = (bs, e)
+
+bar (DEFAULT, bs, e) = (DEFAULT, bs, bar1 0 e)
+bar (d, bs, e) = (d, bs, foo e)
+
+bar1 n (Lam x e) =  Lam x (bar1 0 e)
+
+bar1 n (Tick t e) = Tick t (bar1 n e)
+bar1 n (Let xe e0) | n == 2 
+  = {-Let (bar2 xe)-} (bar3 xe e0)
+
+bar1 n (Let bs e0) 
+  = Let bs (bar1 (n+1) e0)
+bar1 n (App e1 e2) = App (bar1 n e1) e2
+bar1 n e =  e
+
+-- bar2 = undefined
+
+
+bar2 e  = e
+bar3 xe (Tick t e) = Tick t (bar3 xe e)
+bar3 xe (Let b@(NonRec _ (Case _ _ _ _)) e)	= Let b (Let xe e) 
+-- bar3 xe e = 
+{-
+bar2 f (Tick t e0) = Tick t (bar2 f e0)
+bar2 (NonRec x e) (Let (NonRec x2 e2) e0) 
+  = traceShow "YEAH" $ Let (NonRec x2 e2) (Let (NonRec x e) e0)
+-}
 
 type TE = State TrEnv
 

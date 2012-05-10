@@ -6,7 +6,7 @@ module Language.Haskell.Liquid.PredType (
 								, PEnv (..), lookupPEnv, fromListPEnv, insertPEnv, emptyPEnv, mapPEnv
 								, splitVsPs, typeAbsVsPs, splitArgsRes
 								, generalize, generalizeArgs
-								, subp, subsTyVars, substSym, subsTyVarP, subsTyVars_
+								, subp, subsTyVars, substSym, subsTyVarP, subsTyVarsP, subsTyVars_
 								, dataConTy, dataConPtoPredTy
 								, removeExtPreds
 								) where
@@ -48,6 +48,18 @@ data PrTy a = PrVar   !TyVar     !a
       						| PrFun   !Symbol    !(PrTy a)   !(PrTy a)
       						| PrTyCon !TC.TyCon  ![PrTy a]   ![a] !a
             deriving (Data, Typeable)
+
+{-
+toType (PrVar v a) = TyVarTy v
+toType (PrLit l a) = Lit l
+toType (PrAll v t) = ForAllTy v (toType t)
+toType (PrAllPr _ t) = toType (t)
+toType (PrClass _ _ ) = error "toType Class"
+toType (PrFun _ t1 t2) = AppTy (toType t1) (toType t2)
+toType (PrTyCon c ts _ _) = TyConApp c (map toType ts)
+-}
+
+
 
 type PrType = PrTy Predicate
 
@@ -160,21 +172,33 @@ pand p     (PdAnd p1 p2) = PdAnd p $ pand p1 p2
 pand p     PdTrue        = p
 pand p     q            = PdAnd p q
 
-subsTyVarP (v, t) (PdVar n (TyVarTy v') a) 
+showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
+showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
+showTy t = showSDoc $ ppr t
+
+
+
+subsTyVarsP [] p = p
+subsTyVarsP (vt:vts) p = subsTyVarsP vts $ subsTyVarP vt p 
+    where (v1, v2) = vt
+
+subsTyVarP (v, t) p@(PdVar n (TyVarTy v') a) 
   | (show v' ++ show (varUnique v')) == (show v ++ show (varUnique v))
-  = PdVar n t $ map (subsTyVarPArg (v, t)) a
+  = PdVar n t (map (subsTyVarPArg (v, t)) a)
+  | otherwise 
+  = PdVar n (TyVarTy v') (map (subsTyVarPArg (v, t)) a)
 subsTyVarP vt  (PdAnd p1 p2)  
   = PdAnd (subsTyVarP vt p1) (subsTyVarP vt p2)
-subsTyVarP (v, t) p@(PdVar n (TyVarTy v') a)
- = p
 subsTyVarP (v, t) p = p
 
-subsTyVarPArg (v, t) (TyVarTy v', x1, x2)
-  | (show v' ++ show (varUnique v')) == (show v ++ show (varUnique v))
+subsTyVarPArg (v, t) a@(TyVarTy v', x1, x2)
+  | sv' ==  sv
   = (t, x1, x2)
-subsTyVarPArg vt     a
+  | otherwise 
   = a
-
+  where sv' = show v' ++ show (varUnique v') 
+        sv  = show v  ++ show (varUnique v )
+subsTyVarPArg (v, t) a = a
 
 subsTyVars_ (v, t, τ) = fmap (subsTyVarP (v, τ)) . mapTyVar (subsTyVar (v, t))
 subsTyVars s = fmap (subsTyVarP_ s) . mapTyVar (subsTyVar s)
@@ -182,6 +206,8 @@ subsTyVars s = fmap (subsTyVarP_ s) . mapTyVar (subsTyVar s)
 subsTyVarP_ av@(α, (PrVar a' p')) p@(PdVar n (TyVarTy v) a)
   | (show α ++ show (varUnique α)) == (show v ++ show (varUnique v))
 		= PdVar n (TyVarTy a') ((subsTyVarAP_ av) <$> a)
+  | otherwise
+		= PdVar n (TyVarTy v) ((subsTyVarAP_ av) <$> a)
 subsTyVarP_ z (PdAnd p1 p2)
   = PdAnd (subsTyVarP_ z p1) (subsTyVarP_ z p2)
 subsTyVarP_ _ p 
@@ -319,9 +345,12 @@ instance Ord Predicate where
 instance Outputable Predicate where
  ppr (PdVar s (TyVarTy v) []) = text s <> char ':' <> ppr v <> ppr (varUnique v)
  ppr (PdVar s t []) = text s <> char ':' <> ppr t
- ppr (PdVar s t xs) = ppr (PdVar s t []) <+> (parens $ hsep (punctuate comma (map ppr xs)))
+ ppr (PdVar s t xs) = ppr (PdVar s t []) <+> (parens $ hsep (punctuate comma (map pprArgs xs)))
  ppr PdTrue         = text "True"
  ppr (PdAnd p1 p2) = ppr p1 <+> text "&" <+> ppr p2
+
+pprArgs (TyVarTy v, x1, x2) = parens $ ppr x2 <> text " : " <> ppr v <> ppr (varUnique v) 
+pprArgs (t        , x1, x2) = parens $ ppr t <> text " : " <> ppr x2
 
 instance Functor PrTy where
  fmap f (PrFun s t1 t2)     = PrFun s (fmap f t1) (fmap f t2)

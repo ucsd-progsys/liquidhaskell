@@ -31,9 +31,8 @@ chk2 y =
                  Cons x2 xs2 -> assert (x1 <= x2) && chk2 xs2
 																	
 bar = mergesort $ mkList [1 .. 100]
-
+-- bar = Cons 1 (Cons 2 (Cons 3 Nil))
 mkList :: Ord a => [a] -> List a
 mkList = foldr Cons Nil
 
 prop0 = chk2 bar
-

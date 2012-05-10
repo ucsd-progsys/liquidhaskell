@@ -34,9 +34,10 @@ liquid  = do (targets, includes) <- getOpts
 
 liquidOne includes target = 
   do info    <- getGhcInfo target includes :: IO GhcInfo
-     putStrLn $ showPpr (cbs info)
+--      putStrLn $ showPpr (cbs info)
      let cbs' = transformRecExpr (cbs info)
-     putStrLn $ showPpr (cbs')
+--      putStrLn $ "NEW CBS"
+--      putStrLn $ showPpr (cbs')
 --      putStrLn $ error "ok"
      let cgi = generateConstraints $!! info{cbs = cbs'}
      -- dummyDeepseq cgi 

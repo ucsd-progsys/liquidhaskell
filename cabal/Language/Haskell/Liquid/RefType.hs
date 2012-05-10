@@ -7,7 +7,7 @@ module Language.Haskell.Liquid.RefType (
     RType (..), RTyCon(..)
   , RefType (..)  
   , RBind (..), RTyVar
-  , ofType
+  , ofType, toType
   , rTyVar, rTyVarSymbol
   , typeId
   , strengthen, strengthenRefType
@@ -102,7 +102,10 @@ newtype RBind = RB Symbol
 newtype RTyVar = RT (TyVar, Symbol)
   deriving (Eq, Ord, Data, Typeable)
 
-data RTyCon = RTyCon {rTyCon :: !TC.TyCon, rTyConPs :: ![Predicate]}
+data RTyCon = RTyCon { rTyCon   :: !TC.TyCon
+                     , rTyConPs :: ![Predicate]
+                     , rTyCBnds :: ![RBind]
+                     }
   deriving (Data, Typeable)
 
 data RType a 
@@ -204,10 +207,18 @@ replaceReft t _                = t
 addTyConInfo tyi = mapBot (addTCI tyi) 
 addTCI tyi t@(RConApp c ts rs r)
   = case (M.lookup (rTyCon c) tyi) of
-     Just c'  -> RConApp c' ts rs r
+     Just c'  -> rConApp c' ts rs r
      Nothing -> t
 addTCI _ t
   = t
+
+showTy v = showSDoc $ ppr v <> ppr (varUnique v)
+-- showTy t = showSDoc $ ppr t
+
+rConApp (RTyCon c ps ids) ts rs r = RConApp (RTyCon c ps' ids) ts rs r 
+   where τs  = toType <$> ts
+         ps' = subsTyVarsP (zip cts τs) <$> ps
+         cts = TC.tyConTyVars c
 
 mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
 mkArrow as xts t = mkUnivs as $ mkArrs xts t
@@ -301,7 +312,10 @@ instance Outputable RefType where
 --   ppr = ppr_rdatacon
 
 instance Outputable RTyCon where
- ppr (RTyCon c ts) = ppr c <+> text "\n<<" <+> hsep (map ppr ts) <+> text ">>\n"
+ ppr (RTyCon c ts _) = ppr c <+> text "\n<<" <+> hsep (map ppr ts) <+> text ">>\n"
+
+instance Show RTyCon where
+ show = showPpr
 
 instance Outputable Reft where
   ppr = text . show
@@ -422,7 +436,7 @@ subsFree m s z (RAll α' t)
   = RAll α' $ subsFree m (α' `S.insert` s) z t
 subsFree m s z (RFun x t t')       
   = RFun x (subsFree m s z t) (subsFree m s z t') 
-subsFree m s z (RConApp c ts rs r)     
+subsFree m s z t@(RConApp c ts rs r)     
  = RConApp (c{rTyConPs = (subsTyVarP z') <$> (rTyConPs c)}) (subsFree m s z <$> ts) rs r  
     where (RT (v, _), tv) = z
           z'             = (v, toType tv)
@@ -492,7 +506,7 @@ ofPredTree s (ClassPred c τs)
  
 
 ofTyConApp s τ@(TyConApp c τs) 
-  = RConApp (RTyCon c []) ts [] trueReft 
+  = RConApp (RTyCon c [] []) ts [] trueReft --undefined
   where ts = ofType_ s <$> τs
 
 ofSynTyConApp s (TyConApp c τs) 
@@ -725,7 +739,7 @@ makeRTypeBase :: Type -> Reft -> RefType
 makeRTypeBase (TyVarTy α) x       
   = RVar (rTyVar α) x 
 makeRTypeBase τ@(TyConApp c _) x 
-  = RConApp (RTyCon c []) [] [] x
+  = RConApp (RTyCon c [] []) [] [] x
 
 literalReft l  = exprReft e 
   where (_, e) = literalConst l 

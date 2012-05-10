@@ -20,6 +20,7 @@ import qualified Data.Map as M
 import Data.Char (isLower, isUpper)
 import Data.List (intercalate)
 import Language.Haskell.Liquid.Misc
+import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
@@ -60,7 +61,7 @@ languageDef =
                                      , "~", "=>", "<=>"
                                      , "->"
                                      , ":="
-                                     , "&", "^"
+                                     , "&", "^", "<<", ">>", "--"
                                      , "?", "Bexp" -- , "'"
                                      ]
            }
@@ -424,18 +425,22 @@ dataConP
       xts <- sepBy predTypePDD spaces
       return (x, xts)
 
-dataDeclsP = many dataDeclP
+-- dataDeclsP = sepBy dataDeclP spaces
+dataDeclsP
+  = sepBy dataDeclP spaces 
 
 dataDeclP
  = do reserved "data"
       x <- tyConVarIdP
       spaces
       ts <- sepBy tyVarIdP spaces
-      reservedOp "&"
+      reservedOp "<<"
       ps <- sepBy predTypedP spaces
+      reservedOp ">>"
       reservedOp "="
       dcs <- sepBy dataConP (reserved "|")
       spaces
+      reservedOp "--"
       return $ D x ts ps dcs
 
 
@@ -464,8 +469,9 @@ predArgP
  <|> parens predTypeP
 
 predPsP
-  = do reservedOp "&"
+  = do reservedOp "<<"
        ps <- sepBy predicateP blanks
+       reservedOp ">>"
        return ps
  <|> return []
 

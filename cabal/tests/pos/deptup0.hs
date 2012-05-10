@@ -8,10 +8,10 @@ incr :: Int -> Int
 incr x = x + 1
 
 baz :: Int -> Pair Int Int
-baz x = P x (incr x)
+baz x = P x $ incr x 
 
 prop :: Bool
-prop = chk (baz n)
+prop = chk $ baz n
   where n = choose 100
 
 chk :: Pair Int Int -> Bool
