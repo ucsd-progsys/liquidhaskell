@@ -621,10 +621,16 @@ tidyLocalRefas = everywhere (mkT dropLocals)
 
 tidySymbols :: RefType -> RefType
 tidySymbols = everywhere (mkT dropSuffix) 
-  where dropSuffix = stringSymbol . takeWhile (/= symSep) . symbolString
+  where dropSuffix = stringSymbol . takeWhile (/= symSep) . dropFix . symbolString
         dropQualif = stringSymbol . dropModuleNames       . symbolString 
 
-
+dropFix s 
+  | fixS `isPrefixOf` s
+  = dropFix $ drop l s
+  | otherwise 
+  = s
+  where fixS = "fix" ++ [symSep]
+        l    = length fixS
 
 tidyDSymbols :: RefType -> RefType
 tidyDSymbols = tidy pool getS putS 

@@ -179,7 +179,7 @@ modulePred mg paths  impVars
 --       ----setContext [mod] []
        setContext [IIModule mod]
        xts <- liftIO $ mkPredType env myspec
-       liftIO  $ putStrLn $ "Module Imports: " ++ show xts
+--       liftIO  $ putStrLn $ "Module Imports: " ++ show xts
        return  $ xts
     where mod      = mg_module mg
           impNames = (moduleNameString . moduleName) <$> impMods
