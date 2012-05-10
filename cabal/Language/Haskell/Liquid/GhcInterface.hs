@@ -8,6 +8,7 @@ import Outputable
 import HscTypes
 import CoreSyn
 import Var
+import TysWiredIn
 import IdInfo
 import Name     (getSrcSpan)
 import CoreMonad (liftIO)
@@ -16,6 +17,7 @@ import Annotations
 import CorePrep
 import VarEnv
 import DataCon
+import TyCon
 import qualified TyCon as TC
 import HscMain
 import TypeRep
@@ -141,7 +143,8 @@ getGhcInfo target paths =
       cs <- moduleDat mg paths 
       let (tcs, dcs) = unzip cs
       return $ GI env cbs asm (grt ++ grt') (fst msr) (snd msr) 
-						            hqs bs ps (concat dcs) tcs
+						            hqs bs ps (concat dcs ++ snd listTyDataCons) 
+                  (tcs ++ fst listTyDataCons)
 
 printVars s vs 
   = do putStrLn s 
@@ -559,4 +562,24 @@ instance NFData a => NFData (AnnInfo a) where
 instance NFData GhcInfo where
   rnf (GI x1 x2 x3 x4 x5 x6 x7 x8 _ _ _) 
     = {-# SCC "NFGhcInfo" #-} x1 `seq` x2 `seq` rnf x3 `seq` rnf x4 `seq` rnf x5 `seq` rnf x6 `seq` rnf x7 `seq` rnf x8
+
+
+listTyDataCons :: ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
+listTyDataCons =( [(c, TyConP [tyv] [p])]
+														, [(nilDataCon , DataConP [tyv] [p] [] lt)
+              , (consDataCon, DataConP [tyv] [p]  cargs  lt)])
+    where c     = listTyCon
+          [tyv] = tyConTyVars c
+          t     = TyVarTy tyv
+          fld   = stringSymbol "fld"
+          x     = stringSymbol "x"
+          xs    = stringSymbol "xs"
+          p     = PdVar "p" t [(t, fld, fld)]
+          px    = PdVar "p" t [(t, fld, x)]
+          lt    = PrTyCon c [PrVar tyv PdTrue] [p] PdTrue 
+          xt    = PrVar tyv PdTrue
+          xst   = PrTyCon c [PrVar tyv px] [p] PdTrue
+          cargs = [(xs, xst), (x, xt)]
+
+
 

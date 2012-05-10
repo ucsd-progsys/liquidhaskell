@@ -81,18 +81,9 @@ bar1 n (Let bs e0)
 bar1 n (App e1 e2) = App (bar1 n e1) e2
 bar1 n e =  e
 
--- bar2 = undefined
-
-
 bar2 e  = e
 bar3 xe (Tick t e) = Tick t (bar3 xe e)
 bar3 xe (Let b@(NonRec _ (Case _ _ _ _)) e)	= Let b (Let xe e) 
--- bar3 xe e = 
-{-
-bar2 f (Tick t e0) = Tick t (bar2 f e0)
-bar2 (NonRec x e) (Let (NonRec x2 e2) e0) 
-  = traceShow "YEAH" $ Let (NonRec x2 e2) (Let (NonRec x e) e0)
--}
 
 type TE = State TrEnv
 

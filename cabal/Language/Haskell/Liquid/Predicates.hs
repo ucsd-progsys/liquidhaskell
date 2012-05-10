@@ -18,6 +18,7 @@ import CoreUtils
 import qualified DataCon as TC
 import Outputable hiding (empty)
 import IdInfo
+import TysWiredIn
 
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.PredType
@@ -412,7 +413,6 @@ splitCons
 -- generalize predicates of arguments
 -- used on Rec Definitions
 
-
 initEnv :: GhcInfo -> PI PCGEnv
 initEnv info 
   = do defaults <- forM freeVars $ \x -> liftM (x,) (trueTy $ varType x)
@@ -423,6 +423,8 @@ initEnv info
        return $ PCGE { loc = noSrcSpan , penv = fromListPEnv bs}
     where freeVars = [v | v<-importVars $ cbs info]
           dcons = filter isDataCon freeVars
+
+
 
 getNeedPd info 
   = fromListPEnv bs
