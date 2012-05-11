@@ -25,85 +25,108 @@ import Control.Monad.State
 
 
 transformRecExpr :: CoreProgram -> CoreProgram
-transformRecExpr x 
-  = if (isEmptyBag e) then pg else error ("Type-check" ++ show e)
-  where pg = map trBind x
+transformRecExpr cbs
+  =  if (isEmptyBag e) then {-trace "new cbs"-} pg else error (showPpr pg ++ "Type-check" ++ show e)
+  where pg     = scopeTr $ evalState (transPg cbs) initEnv
         (w, e) = lintCoreBindings pg
+
+scopeTr = outerScTr . map innerScTr
+
+outerScTr []                  = []
+outerScTr ((NonRec x ex):xes) = (NonRec x ex):(mkOuterScTr x [] xes)
+outerScTr (xe:xes)            = xe:(outerScTr xes)
+
+mkOuterScTr x bs ((NonRec y (Case (Var z) b ys ec)):xes) | z == x
+  = mkOuterScTr x ((NonRec y (Case (Var z) b ys ec)):bs) xes
+mkOuterScTr x bs xes = (bs++(outerScTr xes))
+
+innerScTr = mapBnd scTrans
+
+scTrans x e = mapExpr scTrans $ foldr Let e0 bs
+  where (bs, e0) = collectBnds x [] e 
+
+collectBnds x bs (Let b@(NonRec y (Case (Var v) _  _ _ )) e) | x == v
+  = collectBnds x (b:bs) e
+collectBnds x bs (Tick t e) = collectBnds x bs e
+collectBnds _ bs e          = (bs, e)
+
 
 type TE = State TrEnv
 
 data TrEnv = Tr { freshIndex  :: !Int
-                , loc         :: SrcLoc
+                , loc         :: SrcSpan
                 }
 
-trBind (NonRec x e) = trace ("trBind" ++ showSDoc (ppr x) ++ bar (varType x)) $ NonRec x $ e'
-  where e' = trE e
-trBind b            = b
+initEnv = Tr 0 noSrcSpan
 
-bar (ForAllTy v t) = "ForAllTy" ++ show v ++ bar t
-bar (AppTy t1 t2)  = "AppTy" ++ bar t1 ++ bar t2
-bar (FunTy t1 t2)  = "FunTy" ++ bar t1 ++ bar t2
-bar (TyVarTy v)    = "Var" ++ show v
-bar (TyConApp c ts)  = "TyConApp " ++ showSDoc (ppr c) ++ concatMap (showSDoc . ppr) ts
+transPg cbs = mapM transBd cbs
 
-printTy (Var v) = "Var " ++ show v ++ " : " ++ showPpr (varType v)
-printTy e@(App e1 e2) = "App " ++showPpr(exprType e)++ "\n of " ++ printTy e1 ++"\nand\n" ++ printTy e2
-printTy (Lam b e) = "Lam " ++ show b ++ show e
-printTy _         = ""
-trE :: CoreExpr -> CoreExpr
-trE e = if chkRec e' then {-subTy s-} (foo e e2') else e
+transBd (NonRec x e) = transExpr e >>= return . NonRec x
+transBd b            = return b
+
+transExpr :: CoreExpr -> TE CoreExpr
+transExpr e
+  | chkRec e'
+  = trans tvs ids e' >>= return . keepLam e 
+  | otherwise
+  = return e
   where (tvs, ids, e') = collectTyAndValBinders e
-        s = M.fromList $ zip tvs (map TyVarTy tvs')
-        e1 = subTy s e
-        e2 = subTy s (tr2 tvs ids e')
-        e2' = (tr2 tvs ids e')
-        tvs' = map (\(a, n) -> freshTyVar (50000+n) 'Y' a) (zip tvs [1..])
-        ids' = map (subTy s) ids
-foo (Lam x e') e = Lam x (foo e' e)
-foo e1 e2        = e2
+        e2'            = e
 
-tr2 :: [TyVar] -> [Id] -> CoreExpr -> CoreExpr -- , M.Map CoreBndr CoreExpr)
-tr2 vs ids (Let (Rec xes) e) 
---  = (Let (Rec (xes' ++ zip ids' es' ) ) (sub m e))
-  = (Let (Rec (xes')) (sub m e))
-  where (xs, es) = unzip xes
---         m = M.fromList ls -- $ zip xs $ trace (concatMap printTy es') es'
-        m = M.fromList $ zip xs es'
-        (xs', es', es'') = unzip3 (map (trV vs ids) xes)
-        xes' = zip xs' (map (sub m) es'')
---         ls = zip xs (map Var ids')
---         ids' = map (\(id, n) -> freshId n id ) $ zip xs [1..]
-trV :: [TyVar] -> [Id]-> (CoreBndr, CoreExpr) -> (CoreBndr, CoreExpr, CoreExpr)
-trV vs ids (x, e) = (x',  mkApps (mkTyApps (Var x') tvs)(map Var ids'),  mkCoreLams (vs' ++ ids') (sub s {-(subTy sTy-} e))
-   where t   = subTy sTy $ mkForAllTys vs' $ mkType (reverse ids') $ varType x
-         vs' = vs -- map (\(a, n) -> freshTyVar (400+n) 'W' a) (zip vs [1..])
-         x'  = traceShow ("type of " ++ show x ++ showSDoc (ppr t)) $setVarType x t
-         tvs = map TyVarTy vs
+keepLam (Lam x e') e = Lam x (keepLam e' e)
+keepLam e1 e2        = e2
+
+appTysAndIds tvs ids x = mkApps (mkTyApps (Var x) (map TyVarTy tvs)) (map Var ids)
+
+trXEs :: [TyVar] -> [Id]-> (CoreBndr, CoreExpr) -> TE (CoreBndr, CoreExpr, [Id])
+trXEs vs ids (x, e) 
+  = do ids'    <- mapM fresh ids
+       let t   = subTy sTy $ mkForAllTys vs' $ mkType (reverse ids') $ varType x
+       let x'  = setVarType x t
+       let s   = M.fromList $ zip ids (map Var ids') 
+       return 	(x', appTysAndIds vs ids' x', ids')
+   where vs'  = vs 
          tvs' = map TyVarTy vs'
          sTy  = M.fromList $ zip vs tvs'
---         ids' = map (\(id, n) -> freshId (90+n) 'X' id (varType id)) $ zip ids [1..] 
-         ids' = ids -- map (\(id, n) -> freshId (90+n) 'R' id (subTy sTy (varType id))) $ zip ids [1..] 
-         s = M.fromList $ zip ids (map Var ids') 
+
+trans :: [TyVar] -> [Id] -> CoreExpr -> TE  CoreExpr
+trans vs ids (Let (Rec xes) e)
+ = do fids <- mapM (mkFreshIds vs ids) xs
+      let (ftvs, fxids, fxs) = unzip3 fids
+      (se, rs) <- mkFreshBdrs vs ids xs fxs
+      let mkSu tvs ids0 = mkSubs ids tvs ids0 (zip xs fxs)
+      let mkE tvs ids0 e = mkCoreLams (tvs ++ ids0) (sub (mkSu tvs ids0) e)
+      let es' = zipWith3 mkE ftvs fxids es
+      let xes' = zip fxs es'
+      return $ Let (Rec (xes' ++ rs)) (sub se e)
+ where (xs, es) = unzip xes
+
+mkSubs ids tvs ids0 xxs'   
+  = M.fromList $ s1 ++ s2
+  where s1 = map (mkSub ids tvs ids0) xxs'
+        s2 = zip ids (map Var ids0)
+
+mkSub ids tvs ids0 (x, x') = (x, appTysAndIds tvs ids0 x')	
+
+mkFreshBdrs tvs ids xs xs'
+  = do xs0'     <- mapM fresh xs
+       let xxs  = zip xs (map Var xs0')
+       let s    = M.fromList xxs
+       let ls   = zipWith (\x0' x' -> (x0', appTysAndIds tvs ids x')) xs0' xs'
+       return (s, ls)
+
+mkFreshIds tvs ids x
+  = do ids'     <- mapM fresh ids
+       let tvs' =  tvs
+       let t    = mkForAllTys tvs' $ mkType (reverse ids') $ varType x
+       let x'   = setVarType x t
+       return (tvs', ids', x')
 
 mkType [] t = t
 mkType (id:ids) t = mkType ids $ FunTy (varType id) t
 
 chkRec (Let (Rec xes) e) = True
 chkRec _                 = False
-
-freshId nu id = setVarUnique id u
--- freshId nu c id t = setVarName (setVarUnique id u) nm
---freshId nu c id t = setVarName (setVarUnique (setVarType id t) u) nm
-  where u = deriveUnique (varUnique id) nu 'X'
-        n = mkVarOcc "δ"
-        nm = mkInternalName u n noSrcSpan
-
-freshTyVar nu c a = setVarUnique (setVarName a nm) u
-  where u = deriveUnique  (varUnique a) nu c
-        n = mkVarOcc ("β" ++ show nu )
-        nm = mkInternalName u n noSrcSpan
-
-deriveUnique _ delta c = mkUnique 'X' (100 + delta)
 
 instance Show (Expr Var) where 
  show = showSDoc . ppr
@@ -135,23 +158,21 @@ freshInt
 
 freshUnique = freshInt >>= return . mkUnique 'X'
 
-
-
 class Subable a where
   sub   :: (M.Map CoreBndr CoreExpr) -> a -> a
   subTy :: (M.Map TyVar Type) -> a -> a
 
 instance Subable CoreExpr where
- sub s (Var v) = M.findWithDefault (Var v) v s
- sub s (Lit l) = Lit l
- sub s (App e1 e2) = App (sub s e1) (sub s e2)
- sub s (Lam b e)   = Lam b (sub s e)
- sub s (Let b e)   = Let (sub s b) (sub s e)
+ sub s (Var v)        = M.findWithDefault (Var v) v s
+ sub s (Lit l)        = Lit l
+ sub s (App e1 e2)    = App (sub s e1) (sub s e2)
+ sub s (Lam b e)      = Lam b (sub s e)
+ sub s (Let b e)      = Let (sub s b) (sub s e)
  sub s (Case e b t a) = Case (sub s e) (sub s b) t (map (sub s) a)
  sub s (Cast e c)     = Cast (sub s e) c
- sub s (Tick t e)            = Tick t (sub s e)
- sub s (Type t) = Type t
- sub s (Coercion c) = Coercion c
+ sub s (Tick t e)     = Tick t (sub s e)
+ sub s (Type t)       = Type t
+ sub s (Coercion c)   = Coercion c
 
  subTy s (Var v) = Var (subTy s v)
  subTy s (Lit l) = Lit l
@@ -159,7 +180,7 @@ instance Subable CoreExpr where
  subTy s (Lam b e)   | isTyVar b
 	 = Lam v' (subTy s e)
   where v' = case (M.lookup b s) of 
-              Nothing -> b
+              Nothing           -> b
               Just (TyVarTy v') -> v'
  subTy s (Lam b e)   = Lam (subTy s b) (subTy s e)
  subTy s (Let b e)   = Let (subTy s b) (subTy s e)
@@ -170,36 +191,43 @@ instance Subable CoreExpr where
  subTy s (Coercion c) = Coercion (subTy s c)
 
 instance Subable Coercion where
- sub s c = c
+ sub s c   = c
  subTy s c = error "subTy Coercion"
 
 instance Subable (Alt Var) where 
- sub s (a, b, e) = (a, (map (sub s) b), sub s e)
+ sub s (a, b, e)   = (a, (map (sub s) b), sub s e)
  subTy s (a, b, e) = (a, (map (subTy s) b), subTy s e)
 
 instance Subable Var where
  sub s v   = if (M.member v s) then error "sub Var" else v
- subTy s v =  setVarType v (subTy s (varType v))
+ subTy s v = setVarType v (subTy s (varType v))
 								
 instance Subable (Bind Var) where
- sub s (NonRec x e) = NonRec (sub s x) (sub s e)
- sub s (Rec xes)    = Rec (map (\(x, e) -> (sub s x, sub s e)) xes)
+ sub s (NonRec x e)   = NonRec (sub s x) (sub s e)
+ sub s (Rec xes)      = Rec (map (\(x, e) -> (sub s x, sub s e)) xes)
 
  subTy s (NonRec x e) = NonRec (subTy s x) (subTy s e)
  subTy s (Rec xes)    = Rec (map (\(x, e) -> (subTy s x, subTy s e)) xes)
 
 instance Subable Type where
  sub s e   = e
- subTy = substTysWith	
+ subTy     = substTysWith	
 
-substTysWith s tv@(TyVarTy v) = M.findWithDefault tv v s
-substTysWith s (FunTy t1 t2)  = FunTy (substTysWith s t1) (substTysWith s t2)
-substTysWith s (ForAllTy v t) = ForAllTy v' (substTysWith s t)
-   where v' = case (M.lookup v s) of  
-               Nothing    -> v
-               Just (TyVarTy a) -> a
--- substTysWith s (ForAllTy v t) = ForAllTy v (substTysWith s t)
+substTysWith s tv@(TyVarTy v)  = M.findWithDefault tv v s
+substTysWith s (FunTy t1 t2)   = FunTy (substTysWith s t1) (substTysWith s t2)
+substTysWith s (ForAllTy v t)  = ForAllTy v (substTysWith (M.delete v s) t)
 substTysWith s (TyConApp c ts) = TyConApp c (map (substTysWith s) ts)
-substTysWith s (AppTy t1 t2)  = AppTy (substTysWith s t1) (substTysWith s t2)
+substTysWith s (AppTy t1 t2)   = AppTy (substTysWith s t1) (substTysWith s t2)
 
+mapBnd f (NonRec b e) = NonRec b (mapExpr f  e)
+mapBnd f (Rec bs)     = Rec (map (\(x, e) -> (x, mapExpr f e)) bs)
 
+mapExpr f (Let b@(NonRec x ex) e) = Let b (f x e)
+mapExpr f (App e1 e2)             = App  (mapExpr f e1) (mapExpr f e2)
+mapExpr f (Lam b e)               = Lam b (mapExpr f e)
+mapExpr f (Let bs e)              = Let (mapBnd f bs) (mapExpr f e)
+mapExpr f (Case e b t alt)        = Case e b t (map (mapAlt f) alt)
+mapExpr f (Tick t e)              = Tick t (mapExpr f e)
+mapExpr _  e                      = e
+
+mapAlt f (d, bs, e) = (d, bs, mapExpr f e)

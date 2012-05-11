@@ -6,15 +6,14 @@ import Language.Haskell.Liquid.Prelude
 data Bst k v = Empty | Bind k v (Bst k v) (Bst k v)
 data Pair k v = P k v (Bst k v)
 
--- type signature should be there, otherwise games in Rec
-insert :: (Eq k, Ord k) => k -> v -> Bst k v -> Bst k v
+-- insert :: (Eq k, Ord k) => k -> v -> Bst k v -> Bst k v
 insert k v Empty  = Bind k v Empty Empty
 insert k v (Bind k' v' l r)
   | k == k' = Bind k v l r
   | k < k'  = let lt = insert k v l in Bind k' v' lt r
   | otherwise = Bind k' v' l (insert k v r)
 
-delete :: (Eq k, Ord k) => k -> Bst k v -> Bst k v
+-- delete :: (Eq k, Ord k) => k -> Bst k v -> Bst k v
 delete _ Empty = Empty
 delete k' (Bind k v l r)
   | k' == k = 
@@ -56,86 +55,4 @@ propDelete  = chk $ delete 1 bst
 propMin     = chkMin x t
     where pr  = getMin bst
           P x _ t = pr
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

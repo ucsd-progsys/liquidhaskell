@@ -66,12 +66,17 @@ transBd b            = return b
 
 transExpr :: CoreExpr -> TE CoreExpr
 transExpr e
-  | chkRec e'
-  = trans tvs ids e' >>= return . keepLam e 
+  | chkRec e1'
+  = trans tvs ids bs e1' >>= return . keepLam e 
   | otherwise
   = return e
   where (tvs, ids, e') = collectTyAndValBinders e
+        (bs, e1')      = collectNonRecLets e'
         e2'            = e
+
+collectNonRecLets e = go [] e
+  where go bs (Let b@(NonRec _ _) e') = go (b:bs) e'
+        go bs e                       = (reverse bs, e)
 
 keepLam (Lam x e') e = Lam x (keepLam e' e)
 keepLam e1 e2        = e2
@@ -89,8 +94,8 @@ trXEs vs ids (x, e)
          tvs' = map TyVarTy vs'
          sTy  = M.fromList $ zip vs tvs'
 
-trans :: [TyVar] -> [Id] -> CoreExpr -> TE  CoreExpr
-trans vs ids (Let (Rec xes) e)
+-- trans :: [TyVar] -> [Id] -> CoreExpr -> TE  CoreExpr
+trans vs ids [] (Let (Rec xes) e)
  = do fids <- mapM (mkFreshIds vs ids) xs
       let (ftvs, fxids, fxs) = unzip3 fids
       (se, rs) <- mkFreshBdrs vs ids xs fxs
@@ -100,6 +105,11 @@ trans vs ids (Let (Rec xes) e)
       let xes' = zip fxs es'
       return $ Let (Rec (xes' ++ rs)) (sub se e)
  where (xs, es) = unzip xes
+
+trans vs ids bs (Let (Rec xes) e)
+ = trans vs ids [] (Let (Rec (zip xs es')) e)
+ where (xs, es) = unzip xes
+       es'      = map (\e0 -> foldr Let e0 bs) es
 
 mkSubs ids tvs ids0 xxs'   
   = M.fromList $ s1 ++ s2
