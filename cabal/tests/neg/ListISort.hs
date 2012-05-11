@@ -1,52 +1,23 @@
-module ListRange where
+module ListSort where
 
 import Language.Haskell.Liquid.Prelude
 
+insert y []     = [y]
+insert y (x:xs) = if (y<=x) then (y:(x:xs)) else (x:(insert y xs))
 
-data List a = Nil | Cons a (List a)
-
--- isOdd x = not (isEven x)
--- isEven x = not (isOdd x)
-
--- foo x = x+1
-
-insert y Nil         
-  = Cons y Nil
-insert y (Cons x xs) | (y <= x) 
-  = let ys1 = Cons x xs in
-    let ys2 = Cons y ys1 in ys2
-insert y (Cons x xs) | (x <  y)
-  = let xs1 = insert y xs in
-    let xs2 = Cons x xs1 in xs2
-
-chk2 y = 
-  case y of 
-   Nil -> True
-   Cons x1 xs -> case xs of 
-                 Nil -> True
-                 Cons x2 xs2 -> assert (x1 == x2) && chk2 xs2
+chk [] = assert True
+chk (x1:xs) = case xs of 
+               []     -> assert True
+               x2:xs2 -> assert (x1 <= x2) && chk xs
 																	
-n, m :: Int
-n = choose 0
-m = choose 0
+sort = foldr insert []
 
--- bar = insert n (range 2 8)
-bar = insert n (insert m Nil)
+rlist = map choose [1 .. 10]
 
-range l h = if l <=h then Cons l (range (l+1) h) else Nil
+bar = sort rlist
 
+bar1 :: [Int]
+bar1 = [1, 8, 2, 4, 5]
 
-mkList :: [a] -> List a																	
-mkList = foldr Cons Nil
-
-prop0 = chk2 bar
-
-
-
-
-
-
-
-
-
-
+prop0 = chk rlist
+prop1 = chk bar1

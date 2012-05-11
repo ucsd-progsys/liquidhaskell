@@ -27,63 +27,29 @@ import Control.Monad.State
 transformRecExpr :: CoreProgram -> CoreProgram
 transformRecExpr cbs
   =  if (isEmptyBag e) then {-trace "new cbs"-} pg else error (showPpr pg ++ "Type-check" ++ show e)
-  where pg     = foo1 $ evalState (transPg cbs) initEnv
+  where pg     = scopeTr $ evalState (transPg cbs) initEnv
         (w, e) = lintCoreBindings pg
 
-foo1 = fooo .  map foo2
+scopeTr = outerScTr . map innerScTr
 
-fooo [] = []
-fooo ((NonRec x ex):xes) = (NonRec x ex):(fooo2 x [] xes)
-fooo (xe:xes) = xe : (fooo xes)
+outerScTr []                  = []
+outerScTr ((NonRec x ex):xes) = (NonRec x ex):(mkOuterScTr x [] xes)
+outerScTr (xe:xes)            = xe:(outerScTr xes)
 
-fooo2 x bs ((NonRec y (Case (Var z) b ys ec)) : xes) | z == x
-  = fooo2 x ((NonRec y (Case (Var z) b ys ec)):bs) xes
-fooo2 x bs xes = (bs++(fooo xes))
+mkOuterScTr x bs ((NonRec y (Case (Var z) b ys ec)):xes) | z == x
+  = mkOuterScTr x ((NonRec y (Case (Var z) b ys ec)):bs) xes
+mkOuterScTr x bs xes = (bs++(outerScTr xes))
 
-foo2 (NonRec b e) = NonRec b (foo e)
-foo2 (Rec bs)  = Rec (map (\(x, e) -> (x, foo e)) bs)
+innerScTr = mapBnd scTrans
 
-foo (App e1 e2) = App  (foo e1) (foo e2)
-foo (Lam b e) = Lam b (foo e)
-foo (Let b@(NonRec x ex) e) = Let b (mpla x e)
-foo (Let bs e) = Let (foo2 bs) (foo e)
-foo (Case e b t alt) = Case e b t (map fooalt alt)
-foo (Tick t e) = Tick t (foo e)
-foo e = e
+scTrans x e = mapExpr scTrans $ foldr Let e0 bs
+  where (bs, e0) = collectBnds x [] e 
 
+collectBnds x bs (Let b@(NonRec y (Case (Var v) _  _ _ )) e) | x == v
+  = collectBnds x (b:bs) e
+collectBnds x bs (Tick t e) = collectBnds x bs e
+collectBnds _ bs e          = (bs, e)
 
-fooalt (d, bs, e) = (d, bs, foo e)
-
-mpla x e 
-  = let (bs, e0) = mpla1 x [] e 
-    in {-trace ("MPLAMPLA" ++ show x ++ show bs)-} foo (mmm bs e0)
-
-mmm (b:bs) e = Let b (mmm bs e)
-mmm []     e = e
-
-mpla1 x bs (Tick t e) = mpla1 x bs e
-
-mpla1 x bs (Let b@(NonRec y (Case (Var v) _  _ _ )) e) | x == v
-  = {-trace ("FOO1" ++ show (x, v))$-} mpla1 x (b:bs) e
-mpla1 _ bs e = (bs, e)
-
-bar (DEFAULT, bs, e) = (DEFAULT, bs, bar1 0 e)
-bar (d, bs, e) = (d, bs, foo e)
-
-bar1 n (Lam x e) =  Lam x (bar1 0 e)
-
-bar1 n (Tick t e) = Tick t (bar1 n e)
-bar1 n (Let xe e0) | n == 2 
-  = {-Let (bar2 xe)-} (bar3 xe e0)
-
-bar1 n (Let bs e0) 
-  = Let bs (bar1 (n+1) e0)
-bar1 n (App e1 e2) = App (bar1 n e1) e2
-bar1 n e =  e
-
-bar2 e  = e
-bar3 xe (Tick t e) = Tick t (bar3 xe e)
-bar3 xe (Let b@(NonRec _ (Case _ _ _ _)) e)	= Let b (Let xe e) 
 
 type TE = State TrEnv
 
@@ -253,4 +219,15 @@ substTysWith s (ForAllTy v t)  = ForAllTy v (substTysWith (M.delete v s) t)
 substTysWith s (TyConApp c ts) = TyConApp c (map (substTysWith s) ts)
 substTysWith s (AppTy t1 t2)   = AppTy (substTysWith s t1) (substTysWith s t2)
 
+mapBnd f (NonRec b e) = NonRec b (mapExpr f  e)
+mapBnd f (Rec bs)     = Rec (map (\(x, e) -> (x, mapExpr f e)) bs)
 
+mapExpr f (Let b@(NonRec x ex) e) = Let b (f x e)
+mapExpr f (App e1 e2)             = App  (mapExpr f e1) (mapExpr f e2)
+mapExpr f (Lam b e)               = Lam b (mapExpr f e)
+mapExpr f (Let bs e)              = Let (mapBnd f bs) (mapExpr f e)
+mapExpr f (Case e b t alt)        = Case e b t (map (mapAlt f) alt)
+mapExpr f (Tick t e)              = Tick t (mapExpr f e)
+mapExpr _  e                      = e
+
+mapAlt f (d, bs, e) = (d, bs, mapExpr f e)

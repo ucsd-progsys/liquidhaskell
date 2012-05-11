@@ -739,10 +739,6 @@ consE :: CGEnv -> Expr Var -> CG RefType
 --subsTyVarHelper x y = x `subsTyVar` y 
 -- {- trace ("PLUGGING" ++ (show x) ++ " into " ++ (show y) ++ " yields " ++ (show res)) $ -} 
 
-foo γ (Var x) = "varTy\n" ++ show   ( γ ?= (mkSymbol x))
-foo γ _ = ""
-
-
 consE γ (Var x)   
   = do addLocA (loc γ) (varAnn γ x t)
        return t

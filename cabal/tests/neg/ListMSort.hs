@@ -1,39 +1,33 @@
-module ListRange where
+module ListSort where
 
 import Language.Haskell.Liquid.Prelude
 
 
-data List a = Nil | Cons a (List a)
+split :: [a] -> ([a], [a])
+split (x:(y:zs)) = (x:xs, y:ys) where (xs, ys) = split zs
+split xs                   = (xs, [])
 
-split :: List a -> (List a, List a)
-split (Cons x (Cons y zs)) = (Cons x xs, Cons y ys) where (xs, ys) = split zs
-split xs                   = (xs, Nil)
-
-merge :: Ord a => List a -> List a -> List a
-merge xs Nil = xs
-merge Nil ys = ys
-merge (Cons x xs) (Cons y ys)
+merge :: Ord a => [a] -> [a] -> [a]
+merge xs [] = xs
+merge [] ys = ys
+merge (x:xs) (y:ys)
   | x <= y
-  = Cons x (merge xs (Cons y ys))
+  = x:(merge xs (y:ys))
   | otherwise 
-  = Cons y (merge (Cons x xs) ys)
+  = y:(merge (x:xs) ys)
 
-mergesort :: Ord a => List a -> List a
-mergesort Nil = Nil
-mergesort (Cons x Nil) = Cons x Nil
+mergesort :: Ord a => [a] -> [a]
+mergesort [] = []
+mergesort [x] = [x]
 mergesort xs = merge (mergesort xs1) (mergesort xs2) where (xs1, xs2) = split xs
 
-chk2 y = 
-  case y of 
-   Nil -> True
-   Cons x1 xs -> case xs of 
-                 Nil -> True
-                 Cons x2 xs2 -> assert (x1 == x2) && chk2 xs2
+chk [] = assert True
+chk (x1:xs) = case xs of 
+               []     -> assert True
+               x2:xs2 -> assert (x1 < x2) && chk xs
 																	
-bar = mergesort $ mkList [1 .. 100]
+rlist = map choose [1 .. 10]
 
-mkList :: Ord a => [a] -> List a
-mkList = foldr Cons Nil
+bar = mergesort rlist
 
-prop0 = chk2 bar
-
+prop0 = chk bar

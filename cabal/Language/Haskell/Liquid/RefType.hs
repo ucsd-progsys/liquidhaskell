@@ -215,10 +215,11 @@ addTCI _ t
 showTy v = showSDoc $ ppr v <> ppr (varUnique v)
 -- showTy t = showSDoc $ ppr t
 
-rConApp (RTyCon c ps ids) ts rs r = RConApp (RTyCon c ps' ids) ts rs r 
+rConApp (RTyCon c ps ids) ts rs r = RConApp (RTyCon c ps' ids) ts rs' r 
    where τs  = toType <$> ts
          ps' = subsTyVarsP (zip cts τs) <$> ps
          cts = TC.tyConTyVars c
+         rs' = if (null rs) then ((\_ -> F.trueReft) <$> ps) else rs
 
 mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
 mkArrow as xts t = mkUnivs as $ mkArrs xts t

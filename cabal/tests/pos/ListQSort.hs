@@ -1,37 +1,28 @@
-module ListRange where
+module ListSort where
 
 import Language.Haskell.Liquid.Prelude
 
+append k []     ys = k:ys
+append k (x:xs) ys = x:(append k xs ys) 
 
-data List a = Nil | Cons a (List a)
+takeL x []     = []
+takeL x (y:ys) = if (y<x) then y:(takeL x ys) else takeL x ys
 
-append k Nil         ys = Cons k ys
-append k (Cons x xs) ys = Cons x (append k xs ys) 
+takeGE x []     = []
+takeGE x (y:ys) = if (y>=x) then y:(takeGE x ys) else takeGE x ys
 
-takeL x Nil         = Nil
-takeL x (Cons y ys) = if (y<x) then Cons y (takeL x ys) else takeL x ys
-
-takeGE x Nil         = Nil
-takeGE x (Cons y ys) = if (y>=x) then Cons y (takeGE x ys) else takeGE x ys
-
-quicksort Nil = Nil
-quicksort (Cons x xs) = append x xsle xsge
+quicksort []     = []
+quicksort (x:xs) = append x xsle xsge
   where xsle = quicksort (takeL x xs)
         xsge = quicksort (takeGE x xs)
---         xs'  = Cons x xsge
 
-
-chk2 y = 
-  case y of 
-   Nil -> True
-   Cons x1 xs -> case xs of 
-                 Nil -> True
-                 Cons x2 xs2 -> assert (x1 <= x2) && chk2 xs2
+chk [] = assert True
+chk (x1:xs) = case xs of 
+               []     -> assert True
+               x2:xs2 -> assert (x1 <= x2) && chk xs
 																	
-bar = quicksort $ mkList [1 .. 100]
+rlist = map choose [1 .. 10]
 
-mkList :: Ord a => [a] -> List a
-mkList = foldr Cons Nil
+bar = quicksort rlist
 
-prop0 = chk2 bar
-
+prop0 = chk bar

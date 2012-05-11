@@ -1,9 +1,6 @@
 change .html fix (cat fix# leave name)
 
-fix transformations 	*	 rewrite inversing trans
-																					*  see list insert for rec
-
-List Len  :: propably change List's default type?
+fix transformations 	*  see list insert for rec
 
 deptup???
 
