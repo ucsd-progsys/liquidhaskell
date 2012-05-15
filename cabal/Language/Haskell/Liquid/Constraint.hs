@@ -66,9 +66,11 @@ consGrty γ (x, t)
 
 consAct info penv
   = do γ <- initEnv info penv
-       γ1  <- foldM consCB γ $ cbs info
-       forM_ (grty info) (consGrty γ1)
-
+       γ1  <-  foldM consCB γ $ cbs info
+       tyi      <- liftM tyConInfo get 
+       let grty' = mapSnd (addTyConInfo tyi) <$> grty info  
+       forM_ grty' (consGrty γ1)
+ 
 generateConstraints :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fws } { globals = gs }
   where st  = execState act (initCGI info)
@@ -271,11 +273,20 @@ splitW (WfC γ t@(RVar _ r))
 splitW (WfC γ (RClass _ _))
   = []
 
+-- splitW (WfC γ t@(RConApp c ts rs _))
+--  = bsplitW γ t
+-- 		 ++ (concatMap splitW $ zipWith WfC γs ts)
+-- 		 ++ (concatMap (rsplitW γ) (zip rs ps))
+-- 	where ps = rTyConPs c 
+--       ys = (\(RB y) -> y) <$> rTyConBnds c
 splitW (WfC γ t@(RConApp c ts rs _))
-  = {-trace ("SplitWf :" ++ show t) $-} bsplitW γ t
-		++ concatMap (splitW . WfC γ) ts
-		++ concatMap (rsplitW γ) (zip rs ps)
-				where ps =  rTyConPs c --[] -- p for r to find its type
+	= bsplitW γ t 
+   ++ (concatMap splitW (zipWith WfC γs ts)) 
+   ++ (concatMap (rsplitW γ) (zip rs ps))
+ where ps = rTyConPs c
+       ys = (\(RB y) -> y) <$> rTyConBnds c
+       γs = scanl (\γ z -> (γ, "splitRCon")+=z) γ (zip ys ts)
+
 
 splitW (WfC _ t) 
   = [] -- errorstar $ "splitW cannot handle: " ++ showPpr t
@@ -325,12 +336,15 @@ splitC (SubC γ (RAll _ r1) (RAll _ r2))
   = splitC (SubC γ r1 r2) 
 
 splitC (SubC γ t1@(RConApp c t1s r1s _) t2@(RConApp c' t2s r2s _))
-	= -- traceShow ("Split " ++ show ps ++ "\n" ++ show t1 ++ "\n < \n" ++ show t2 ) $   
- bsplitC γ t1 t2
-	++ concatMap splitC (zipWith (SubC γ) t1s t2s)
- ++ concatMap (rsplitC γ) (zip (zip r1s r2s) ps)
---	++ concatMap (rsplitC γ) (zip r1s r2s)
-				where ps = rTyConPs c'
+	= bsplitC γ t1 t2 
+   ++ (concatMap splitC (zipWith3 SubC γs t1s t2s)) 
+--   ++ (concatMap splitC (zipWith (SubC γ) t1s t2s)) 
+   ++ (concatMap (rsplitC γ) (zip (zip r1s r2s) ps))
+ where ps = rTyConPs c'
+       ys = (\(RB y) -> y) <$> rTyConBnds c
+       γs = if chkTyConIds c c' 
+              then  scanl (\γ z -> (γ, "splitRCon")+=z) γ (zip ys t2s)
+              else error ("NonEq Cons \n\n" ++ show t1 ++ "\nVs\n"++ show t2)
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
@@ -343,6 +357,10 @@ splitC (SubC _ t1 t2)
   = -- traceShow ("\nWARNING: splitC mismatch:\n" 
 				--														++ showPpr t1 ++ "\n<\n" ++ showPpr t2 ++ "\n") $
      []
+
+chkTyConIds (RTyCon _ _ ids1) (RTyCon _ _ ids2) 
+ = length ids1 == length ids2
+  
 
 {-
 splitCRefTyCon cons γ (RAlgTyCon _ z1) (RAlgTyCon _ z2) 
@@ -418,16 +436,17 @@ ppr_CGInfo cgi
 type CG = State CGInfo
 
 initCGI info = CGInfo [] [] [] [] F.emptyFEnv 0 (AI M.empty) tyi
-		where tyi  = M.fromList $ mkTyCon_ {-(\(ty, TyConP _ ps) -> (ty, RTyCon ty ps []))-}  <$> (tconsP info)
+		where tyi  = M.fromList $ mkTyCon_ <$> (tconsP info)
 
 showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 
-mkTyCon_ (tc, (TyConP τs' ps)) = (tc, RTyCon tc ps' [])
+mkTyCon_ (tc, (TyConP τs' ps)) = (tc, RTyCon tc ps' ids)
   where τs = TyVarTy <$> TC.tyConTyVars tc
         ps' = (subsTyVarsP (zip τs' τs)) <$> ps
+        ids = (RB . F.intSymbol "dcfld") <$> [0..((length τs)-1)]
 
-addC   :: SubC -> String -> CG ()  
+addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) s 
   = -- trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ s) $  
     modify $ \s -> s { hsCs  = c : (hsCs s) }
@@ -563,7 +582,8 @@ refreshRefType (RFun b t t')
 refreshRefType (RConApp (rc@RTyCon {rTyCon = c}) ts rs r)  
   = do s <- get 
        let RTyCon c0 ps ids = M.findWithDefault rc c $ tyConInfo s
-       let c' = RTyCon c0 (map (subsTyVarsP (zip (TC.tyConTyVars c0) (toType <$> ts))) ps) ids
+       ids' <-mapM (\_ -> fresh) ts
+       let c' = RTyCon c0 (map (subsTyVarsP (zip (TC.tyConTyVars c0) (toType <$> ts))) ps) ids'
        liftM3 (RConApp c') (mapM refresh ts) (mapM freshReftP (rTyConPs c')) (refresh r)
 refreshRefType (RVar a r)  
   = liftM (RVar a) (refresh r)
@@ -609,7 +629,7 @@ consCB γ (Rec xes)
        zipWithM_ (cconsE γ') es  ts
        zipWithM_ addIdA xs (Left <$> ts)
        mapM_     addW (WfC γ <$> rts)
-       return γ'
+       return $ γ'
     where (xs, es) = unzip xes
           vs       = mkSymbol      <$> xs
           pts      = (getPrType γ) <$> vs
@@ -810,14 +830,24 @@ cconsCase γ _ t (DEFAULT, _, ce)
 
 cconsCase γ x t (DataAlt c, ys, ce) 
   = cconsE cγ ce t
-  where cγ            = addBinders γ x' (zip (x':ys') (xt:yts))
+  where cγ            = addBinders γ x' cbs
+        cbs           = zip (x':ys') (xt:yts')
         xt0           = checkTyCon x $ γ ?= x'
-        td            = γ ?= (dataConSymbol c)
-        (rtd, yts, _) = unfoldR td xt0 ys'
+        tdc           = γ ?= (dataConSymbol c)
+        (rtd, yts, xt') = unfoldR tdc xt0 ys'
         (x':ys')      = mkSymbol <$> (x:ys)
         r1            = dataConReft c $ varType x
         r2            = dataConMsReft rtd ys'
         xt            = xt0 `strengthen` (r1 `F.meet` r2)
+        yts'          = F.subst su <$> yts
+--        yts'          = zipWith F.subst sus yts
+        sus           = F.mkSubst <$> scanl (flip (:)) [] zys
+        su            = F.mkSubst zys
+        zys           = zip zs (F.EVar <$> ys')
+        zs            = getTyConIds xt'
+
+getTyConIds (RConApp (RTyCon _ _ ids) _ _ _) = (\(RB y) -> y) <$> ids
+
 
 unfoldR td t0@(RConApp tc ts rs _) ys = (rtd, yts, xt')
   where (vs, ps, td_')  = rsplitVsPs td

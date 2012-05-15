@@ -16,5 +16,4 @@ total = sumSquare $ Data.Vector.fromList [0..100] -- nums
 range i j = for i j [] (:)
 nums  = range 0 100 -- [0..100]
 
-
 -- prop = assert (total >= 0)

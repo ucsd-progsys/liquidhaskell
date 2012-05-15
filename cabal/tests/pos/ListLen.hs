@@ -22,7 +22,47 @@ chk (xs:xss) =
    []         -> assert True
 
 fooL  = [[1, 1, 3], [2, 2, 5]]
-fooL1 = make2d 0 2 3
-
+fooL1 = let f = make2d n0 n1 n2 in f
+    where n0 = 0
+          n1 = 2
+          n2 = 3
 propL = chk fooL1
 prop  = chk fooL
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

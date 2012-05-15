@@ -102,9 +102,9 @@ newtype RBind = RB Symbol
 newtype RTyVar = RT (TyVar, Symbol)
   deriving (Eq, Ord, Data, Typeable)
 
-data RTyCon = RTyCon { rTyCon   :: !TC.TyCon
-                     , rTyConPs :: ![Predicate]
-                     , rTyCBnds :: ![RBind]
+data RTyCon = RTyCon { rTyCon     :: !TC.TyCon
+                     , rTyConPs   :: ![Predicate]
+                     , rTyConBnds :: ![RBind]
                      }
   deriving (Data, Typeable)
 
@@ -207,19 +207,21 @@ replaceReft t _                = t
 addTyConInfo tyi = mapBot (addTCI tyi) 
 addTCI tyi t@(RConApp c ts rs r)
   = case (M.lookup (rTyCon c) tyi) of
-     Just c'  -> rConApp c' ts rs r
-     Nothing -> t
+     Just c' -> rConApp c' ts rs r
+     Nothing -> rConApp c  ts rs r
 addTCI _ t
   = t
 
 showTy v = showSDoc $ ppr v <> ppr (varUnique v)
 -- showTy t = showSDoc $ ppr t
 
-rConApp (RTyCon c ps ids) ts rs r = RConApp (RTyCon c ps' ids) ts rs' r 
-   where τs  = toType <$> ts
-         ps' = subsTyVarsP (zip cts τs) <$> ps
-         cts = TC.tyConTyVars c
-         rs' = if (null rs) then ((\_ -> F.trueReft) <$> ps) else rs
+rConApp (RTyCon c ps ids) ts rs r = RConApp (RTyCon c ps' ids') ts rs' r 
+   where τs   = toType <$> ts
+         ps'  = subsTyVarsP (zip cts τs) <$> ps
+         cts  = TC.tyConTyVars c
+         rs'  = if (null rs) then ((\_ -> F.trueReft) <$> ps) else rs
+         ids' = (RB . F.intSymbol "dcfld") <$> [0..((length ts)-1)]
+         
 
 mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
 mkArrow as xts t = mkUnivs as $ mkArrs xts t
@@ -331,12 +333,17 @@ ppr_reftype p (RFun x t t')
 ppr_reftype p t@(RAll _ _)       
   = ppr_forall_reftype p t
 ppr_reftype p (RConApp c ts rs r)
-  = ppr c <+> braces (hsep (map (ppr_reftype p) ts)) <+> text "\n"<> braces (hsep (map ppr rs)) <+> ppr r
+  = ppr c <+> ppr_tyConTy p c ts<+> text "\n"<> braces (hsep (map ppr rs)) <+> ppr r
 
 ppr_reftype _ (RClass c ts)      
   = parens $ pprClassPred c (toType <$> ts)
 ppr_reftype _ (ROther t)         
   = text "?" <> ppr t <> text "?"
+
+ppr_tyConTy p (RTyCon _ _ []) ts  = braces (hsep (map (ppr_reftype p) ts)) 
+ppr_tyConTy p (RTyCon _ _ ids) ts = braces (hsep (zipWith (ppr_f p) ids ts)) 
+ppr_f        p id t               = ppr id <+> char ':' <+> ppr_reftype p t 
+
 
 ppr_pred p (RPred pr t)
   = ppr pr <> ppr_pred p t
@@ -507,8 +514,9 @@ ofPredTree s (ClassPred c τs)
  
 
 ofTyConApp s τ@(TyConApp c τs) 
-  = RConApp (RTyCon c [] []) ts [] trueReft --undefined
-  where ts = ofType_ s <$> τs
+  = RConApp (RTyCon c [] ids) ts [] trueReft --undefined
+  where ts  = ofType_ s <$> τs
+        ids = (RB . F.intSymbol "dcfld") <$> [0..((length τs)-1)]
 
 ofSynTyConApp s (TyConApp c τs) 
   = ofType_ s $ substTyWith αs τs τ
@@ -622,9 +630,9 @@ tidyLocalRefas = everywhere (mkT dropLocals)
 
 tidySymbols :: RefType -> RefType
 tidySymbols = everywhere (mkT dropSuffix) 
-  where dropSuffix = stringSymbol . takeWhile (/= symSep) . dropFix . symbolString
-        dropQualif = stringSymbol . dropModuleNames       . symbolString 
-
+  where dropSuffix = stringSymbol . takeWhile (/= symSep) . symbolString
+        dropQualif = stringSymbol . dropModuleNames . symbolString 
+{-
 dropFix s 
   | fixS `isPrefixOf` s
   = dropFix $ drop l s
@@ -632,6 +640,7 @@ dropFix s
   = s
   where fixS = "fix" ++ [symSep]
         l    = length fixS
+-}
 
 tidyDSymbols :: RefType -> RefType
 tidyDSymbols = tidy pool getS putS 

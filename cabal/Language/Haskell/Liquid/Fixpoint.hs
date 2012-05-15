@@ -258,6 +258,18 @@ instance Show Symbol where
 newtype Subst  = Su (M.Map Symbol Expr) 
                  deriving (Eq, Ord, Data, Typeable)
 
+instance Outputable Refa where
+  ppr  = text . show
+
+instance Outputable Expr where
+  ppr  = text . show
+
+instance Outputable Subst where
+  ppr (Su m) = ppr m
+
+instance Show Subst where
+  show = showPpr
+
 instance Fixpoint Subst where
   toFix (Su m) = case M.toAscList m of 
                    []  -> empty
@@ -271,7 +283,7 @@ instance Fixpoint Subst where
 stringSymbol :: String -> Symbol
 -- stringSymbol s = traceShow ("stringSymbol s = " ++ s) $ stringSymbol' s
 stringSymbol s
-  | isFixSym s = S s 
+  | isFixSym' s = S s 
   | otherwise  = S $ fixSymPrefix ++ concatMap encodeChar s
 
 -- symbolString (S z) = traceShow ("symbolString z = %s: " ++ z) $ symbolString' (S z)
@@ -289,11 +301,14 @@ okSymChars
   ++ ['A' .. 'Z'] 
   ++ ['0' .. '9'] 
   ++ ['_', '.'  ]
+ 
 
 symSep = '#'
 fixSymPrefix = "fix" ++ [symSep]
 
 
+isFixSym' (c:cs) = isAlpha c && all (`elem` (symSep:okSymChars)) cs
+isFixSym' _      = False
 isFixSym (c:cs) = isAlpha c && all (`elem` okSymChars) cs
 isFixSym _      = False
 
@@ -459,13 +474,13 @@ hasTag e1 e2 = PAtom Eq (EApp tagSymbol [e1]) e2
 ---------------------------------------------------------------
 data PredVar 
   = RP !Symbol ![(Symbol, Sort)]
-	deriving (Eq, Ord, Data, Typeable)
+	deriving (Eq, Ord, Data, Typeable, Show)
 
 data Refa 
   = RConc !Pred 
   | RKvar !Symbol !Subst
-  | RPvar !PredVar !Subst
-  deriving (Eq, Ord, Data, Typeable)
+  | RPvar !PredVar !Subst  
+  deriving (Eq, Ord, Data, Typeable, Show)
 
 newtype Reft 
   = Reft (Symbol, [Refa]) 

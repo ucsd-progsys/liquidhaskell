@@ -60,7 +60,7 @@ import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Haskell.HsColour.ACSS as ACSS
 import qualified Language.Haskell.HsColour.CSS as CSS
-import Debug.Trace
+-- import Debug.Trace
 
 ------------------------------------------------------------------
 ---------------------- GHC Bindings:  Code & Spec ----------------
