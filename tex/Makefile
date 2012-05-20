@@ -1,12 +1,18 @@
 TEXINPUTS=.:Styles//::
 BSTINPUTS=.:Styles//::
 
-TARGET=rules
+TARGET=Theorems
 STY = ndisplay.sty liquidHaskell.sty ngrammar.sty
-#BIB = myrefs
-#SRCFILES = Makefile IEEEtran.cls IEEEtranSA.bst ${TARGET}.tex ${STY} ${BIB}.bib  
+TEX = rules.tex Theorems.tex
+BIB = myrefs
+SRCFILES = Makefile  ${TEX} ${STY} ${BIB}.bib  
+
 # make pdf by default
 all: ${TARGET}.pdf
+
+rules: rules.pdf
+
+theorems: Theorems.pds
 
 # it doesn't really need the .dvi, but this way all the refs are right
 %.pdf : %.dvi
@@ -24,14 +30,14 @@ all: ${TARGET}.pdf
 #	latex ${TARGET}.tex
 
 #${TARGET}.dvi: ${TARGET}.bbl ${TARGET}.tex
-${TARGET}.dvi: ${TARGET}.tex
-	@latex ${TARGET}.tex
+%.dvi: %.tex
+	@latex $*.tex
 
 # shortcut, so we can say "make ps"
 ps: ${TARGET}.ps
 
-${TARGET}.ps: ${TARGET}.dvi
-	@dvips -t a4 ${TARGET}.dvi
+%.ps: %.dvi
+	@dvips -t a4 $*.dvi
 
 clean:
 	$(RM) *.log *.aux *.ps *.dvi *.bbl *.blg *.bak *.fdb_latexmk *~

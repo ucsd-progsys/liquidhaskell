@@ -1,0 +1,575 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[latin1]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{ngrammar}
+\usepackage{ndisplay}
+\usepackage{comment}
+\usepackage[inference]{semantic}
+\usepackage{color}
+\usepackage{textcomp}
+\newcommand\highlight[2]{{\setlength\fboxsep{1pt}\colorbox{#1}{#2}}}
+\def\NV{\highlight{colorNV}}
+\definecolor{colorNV}{rgb}{1,0.8,1}
+
+\usepackage{amsthm}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{definition}{Definition}
+\newtheorem*{proofIdea}{ProofIdea}
+
+%basic
+\newcommand\vref{\ensuremath{v}}
+
+%types
+\newcommand\tref[2]{\ensuremath{\left\lbrace \vref : #1\mid #2\right\rbrace}}
+\newcommand\tbint{\ensuremath{\texttt{int}}}
+\newcommand\tbbool{\ensuremath{\texttt{bool}}}
+\newcommand\tc[1]{\ensuremath{tc\left(\texttt{#1}\right)}}
+\newcommand\tfun[3]{\ensuremath{#1 : #2 \rightarrow #3}}
+\newcommand\tpabs[3]{\ensuremath{\forall #1 : #2 . #3}}
+\newcommand\ttabs[2]{\ensuremath{\forall #1 . #2}}
+
+%expressions
+\newcommand\etabs[2]{\ensuremath{\forall #1 . #2}}
+\newcommand\epabs[3]{\ensuremath{\forall #1 : #2 . #3}}
+\newcommand\efun[2]{\ensuremath{\lambda #1 . #2}}
+\newcommand\eapp[2]{\ensuremath{{#1} \ {#2}}}
+\newcommand\etapp[2]{\ensuremath{{#1} \left[ {#2}\right]}}
+\newcommand\epapp[1]{\ensuremath{{#1} \ @}}
+
+%rule names
+\newcommand\tapp{\rulename{T-App}}
+\newcommand\tsub{\rulename{T-Sub}}
+\newcommand\tcon{\rulename{T-Con}}
+\newcommand\tinst{\rulename{T-Inst}}
+\newcommand\tgen{\rulename{T-Gen}}
+\newcommand\tpinst{\rulename{T-PInst}}
+\newcommand\tpgen{\rulename{T-PGen}}
+
+\newcommand\wsEmp{\rulename{WS-Empty}}
+\newcommand\wsExt{\rulename{WS-Ext}}
+\newcommand\wsGxt{\rulename{WS-Gxt}}
+
+\newcommand\wstEmp{\rulename{WTS-Empty}}
+\newcommand\wstExt{\rulename{WTS-Ext}}
+\newcommand\wstGxt{\rulename{WTS-Gxt}}
+
+
+\newcommand\isWellFormed[2]{\ensuremath{{#1}\models {#2}}}
+\newcommand\isSub[3]{\ensuremath{{#1}\vdash {#2}<:{#3}}}
+\newcommand\hastype[3]{\ensuremath{{#1}\vdash {#2}:{#3}}}
+\newcommand\eval[2]{\ensuremath{{#1}\hookrightarrow {#2}}}
+
+\newcommand\hastypeEmp[2]{\hastype{\emptyset}{#1}{#2}}
+\newcommand\isSubEmp[2]{\isSub{\emptyset}{#1}{#2}}
+
+\newcommand\rulename[1]{\textsc{#1}}
+\newcommand\sch[1]{\ensuremath{\texttt{Schema}\left(#1\right)}}
+\newcommand\fv[1]{\ensuremath{\texttt{FreeVars}\left(#1\right)}}
+\newcommand\sub[2]{\ensuremath{\left[ #1 \mapsto #2 \right]}}
+\begin{document}
+\section*{Grammar}
+\begin{ngrammar}[noindent,notation=plain]
+
+\nsdef{e}{%expressions
+        \nst{x}   						%var
+  \nsor \nst{c} 							%constant
+  \nsor \nst{\efun{x}{e}} 				%abs
+  \nsor \nst{\eapp{e}{e}} 				%application
+  \nsor \nst{\epabs{p}{\tau}{e}} 		%predicate abs
+  \nsor \nst{\epapp{e}} 					%predicate abs
+  \nsor \nst{\etabs{\alpha}{e}}			%type abs
+  \nsor \nst{\etapp{e}{\tau}} 			%type application
+}
+
+\nsdef{B}{%basic types
+        		\nst{\tbint}   						%int
+  	\nsor 	\nst{\tbbool} 						%bool
+  	\nsor 	\nst{$\alpha$} 						%type var
+}
+
+\nsdef{T}{%types
+			\nst{\tref{B}{e}}
+	\nsor	\nst{\tfun{x}{T}{T}}
+}
+
+\nsdef{P}{%types with preds
+			\nst{T}
+	\nsor	\nst{\tpabs{p}{\tau}{P}}
+}
+
+\nsdef{S}{%types with polymorhism
+			\nst{P}
+	\nsor	\nst{\ttabs{\alpha}{S}}
+}
+
+\nsdef{v}{%values
+        \nst{x}   						%var
+  \nsor \nst{c} 							%constant
+  \nsor \nst{\efun{x}{e}} 				%predicate abs
+  \nsor \nst{\epabs{p}{\tau}{v}} 		%predicate abs
+  \nsor \nst{\etabs{\alpha}{v}}			%type abs
+}
+\end{ngrammar}
+
+\section*{Operational Semantics}
+\hfill\fbox{\eval{e}{e}}
+
+$$
+\inference{
+	\eval{e_1}{e_1'}
+}{
+	\eval{\eapp{e_1}{e_2}}{\eapp{e_1'}{e_2}}
+}[\rulename{S-PAppL}]
+$$
+
+$$
+\inference{
+	\eval{e_2}{e_2'}
+}{
+	\eval{\eapp{v}{e_2}}{\eapp{v}{e_2'}}
+}[\rulename{S-PAppR}]
+$$
+
+$$
+\inference{
+	\eval{e}{e'}
+}{
+	\eval{\etapp{e}{\tau}}{\etapp{e'}{\tau}}
+}[\rulename{S-PType-App}]
+$$
+$$
+\inference{
+	\eval{e}{e'}
+}{
+	\eval{\epapp{e}}{\epapp{e'}}
+}[\rulename{S-PPred-App}]
+$$
+
+$$
+\inference{
+}{
+	\eval{\eapp{\efun{x}{e}}{v}}{e\sub{x}{v}}
+}[\rulename{S-EApp}]
+$$
+
+$$
+\inference{
+}{
+	\eval{\eapp{c}{v}}{[|c|](v)}
+}[\rulename{S-EApp-Con}]
+$$
+
+$$
+\inference{
+}{
+	\eval{\epapp{(\epabs{p}{\tau}{v})}}{v}
+}[\rulename{S-EPred-App}]
+$$
+
+$$
+\inference{
+}{
+	\eval{\etapp{(\etabs{\alpha}{v})}{\tau}}{v\sub{\alpha}{\tau}}
+}[\rulename{S-EType-App}]
+$$
+
+
+\section*{Rules}
+%\subsection*{Typing}
+\hfill\fbox{\hastype{\Gamma}{e}{S}}
+
+$$
+\inference{
+	\hastype{\Gamma}{e}{S_2} && \isSub{\Gamma}{S_2}{S_1}
+}{
+	\hastype{\Gamma}{e}{S_1}
+}[\tsub]
+$$
+
+$$
+\inference{
+	\Gamma(x) = \tref{B}{e}
+}{
+	\hastype{\Gamma}{x}{\tref{B}{e \land \vref = x}}
+}[\rulename{T-Var-Base}]
+$$
+
+$$
+\inference{
+	\Gamma(x) \neq \tref{B}{e}
+}{
+	\hastype{\Gamma}{x}{\Gamma(x)}
+}[\rulename{T-Var}]
+$$
+
+$$
+\inference{
+}{
+	\hastype{\Gamma}{c}{\tc{c}}
+}[\tcon]
+$$
+
+$$
+\inference{
+	\hastype{\Gamma, x : T_x}{e}{T} && \isWellFormed{\Gamma}{\tfun{x}{T_x}{T}}
+}{
+	\hastype{\Gamma}{\efun{x}{e}}{\tfun{x}{T_x}{T}}
+}[\rulename{T-Fun}]
+$$
+
+$$\label{tapp}
+\inference{
+	\hastype{\Gamma}{e_1}{\tfun{x}{T_x}{T}} && 
+	\hastype{\Gamma}{e_2}{T_x}
+}{
+	\hastype{\Gamma}{\eapp{e_1}{e_2}}{T\sub{x}{e_1}}
+}[\tapp]
+$$
+
+$$
+\inference{
+	\hastype{\Gamma, p:T_p}{e}{S} && 
+	\sch{T_p} = \tau \rightarrow \tbbool &&
+	p \notin \fv{e}
+}{
+	\hastype{\Gamma}{\epabs{p}{\tau}{e}}{\tpabs{p}{\tau}{S}}
+}[\tpgen]
+$$
+
+$$
+\inference{
+	\hastype{\Gamma}{e}{\tpabs{p}{\tau}{S}} && 
+	\hastype{\Gamma}{v}{T} && \sch{T} = \tau \rightarrow \tbbool &&
+	\isWellFormed{\Gamma}{T}
+}{
+	\hastype{\Gamma}{\epapp{e}}{S\sub{p}{v}}
+}[\tpinst]
+$$
+
+$$
+\inference{
+	\hastype{\Gamma}{e}{S} && 
+	\alpha \notin \Gamma
+}{
+	\hastype{\Gamma}{\etabs{\alpha}{e}}{\ttabs{\alpha}{S}}
+}[\tgen]
+$$
+
+$$
+\inference{
+	\hastype{\Gamma}{e}{\ttabs{\alpha}{S}} && 
+	\sch{T} = \tau && \isWellFormed{\Gamma}{T}
+}{
+	\hastype{\Gamma}{\etapp{e}{\tau}}{S\sub{\alpha}{T}}
+}[\tinst]
+$$
+
+%\subsection*{WF sub}
+\hfill\fbox{\isWellFormed{\Gamma}{\rho}}
+
+$$
+\inference{
+}{
+	\isWellFormed{\emptyset}{\emptyset}
+}[\wsEmp]
+$$
+
+$$
+\inference{
+	\isWellFormed{\Gamma}{\rho} && \hastypeEmp{v}{\rho S}
+}{
+	\isWellFormed{\Gamma; x:S}{\rho ; \sub{x}{v}}
+}[\wsExt]
+$$
+
+
+
+\begin{comment}
+$$
+\inference{
+	\isWellFormed{\Gamma}{\rho} && \evalstar{\rho e}{true}
+}{
+	\isWellFormed{\Gamma; e}{\rho}
+}[\wsGxt]
+$$
+\end{comment}
+
+
+%\subsection*{WF type sub}
+
+\NV{define type sub, \sch{T} = $\tau$, sub $\tau$ on exprs and T on types}\\
+\hfill\fbox{\isWellFormed{\Gamma}{\theta}}
+
+$$
+\inference{
+}{
+	\isWellFormed{\emptyset}{\emptyset}
+}[\wstEmp]
+$$
+
+$$
+\inference{
+	\isWellFormed{\Gamma}{\theta} && \isWellFormed{\emptyset}{\theta S}
+}{
+	\isWellFormed{\Gamma}{\theta;\sub{a}{S}}
+}[\wstExt]
+$$
+
+
+\section*{Proves}
+
+\begin{definition}[Constants]
+\label{DefConstants}
+Each constant $c$ has type \tc{c}, such that
+\begin{enumerate}
+\item \hastypeEmp{c}{\tc{c}}
+\item if $\tc{c} \equiv \tfun{x}{T_x}{T}$
+	  then for all values $v \in T_x$, 
+	  $[|c|](v)$ is defined and 
+	  \hastypeEmp{[|c|](v)}{T\sub{x}{v}}.
+\item if $\tc{c} \equiv \ttabs{\alpha}{S}$
+	  then for all types $\tau$ 
+	  if $\sch{T} = \tau$ and \isWellFormed{\emptyset}{T}, 
+	  $\etapp{[|c|]}{\tau}$ is defined and 
+	  \hastypeEmp{\etapp{[|c|]}{\tau}}{S\sub{\alpha}{T}}.
+\item if $\tc{c} \equiv \tpabs{p}{\tau}{S}$
+	  then for all values $v$, 
+	  if \hastypeEmp{v}{T}, where $\sch{T} = \tau \rightarrow \tbbool$ 
+	  and \isWellFormed{\emptyset}{T}, 
+	  $\epapp{[|c|]}$ is defined and 
+	  \hastypeEmp{\epapp{[|c|]}}{S\sub{p}{v}}.
+%\item If \tc{c} is \tref{B}{e} then $e \equiv \vref = c $
+\end{enumerate}
+\end{definition}
+
+\begin{lemma}
+\label{LemEvalSub}
+If \eval{e}{e'} 
+and \hastypeEmp{e}{S_e}
+and \hastypeEmp{e'}{S_e}
+then \isSub{\Gamma}{S\sub{x}{e'}}{S\sub{x}{e}}
+\end{lemma}
+\begin{proofIdea}
+$[| \star|]$ is defined to preserve operational semantics
+\end{proofIdea}
+
+
+\begin{lemma}[Value Substitution]
+\label{LemValueSub}
+If \isWellFormed{\Gamma}{\rho} 
+then if \hastype{\Gamma; \Gamma'}{e}{S}
+then \hastype{\rho\Gamma'}{\rho e}{\rho S}
+\end{lemma}
+\begin{proofIdea}
+Pat-Ming Lemma 10
+\end{proofIdea}
+
+\begin{lemma}[Type Substitution]
+\label{LemTypeSub}
+If \isWellFormed{\Gamma}{\theta} 
+then if \hastype{\Gamma; \Gamma'}{e}{S}
+then \hastype{\rho\Gamma'}{\theta e}{\theta S}
+\end{lemma}
+\begin{proofIdea}
+???
+\end{proofIdea}
+
+\begin{theorem}[Preservation]
+	If \hastypeEmp{e}{S} and \eval{e}{e'} then \hastypeEmp{e'}{S}
+\end{theorem}
+	
+\begin{proof}
+By induction on the typing derivation \hastypeEmp{e}{S}.
+We split cases on the rule used on the top of the derivation.
+
+\begin{itemize}
+\item\tsub 
+\begin{align*}
+\hastypeEmp{e}{S} && \eval{e}{e'}
+\end{align*}
+
+By inversion, there exists an $S'$ such that 
+\begin{align}
+\hastypeEmp{e}{S'} 	\label{psubE}\\
+\isSubEmp{S'}{S}		\label{psubS}
+\end{align}
+
+By IH and \ref{psubE}
+\begin{align}
+\hastypeEmp{e'}{S'}
+\end{align}
+
+Which, with \ref{psubS} and rule \rulename{T-Sub} gives
+\begin{align}
+\hastypeEmp{e'}{S}
+\end{align}
+
+\item	\rulename{T-Var-Base}, 
+		\rulename{T-Var}, 
+		\tcon, 
+		\rulename{T-Fun}
+		\rulename{T-PGen},
+		\tgen
+cases are trivial, since there can be no $e'$ such that \eval{e}{e'}	
+
+\item \rulename{T-App}
+\begin{align*}
+\hastypeEmp{\eapp{e_1}{e_2}}{S} && \eval{\eapp{e_1}{e_2}}{e'} 
+\end{align*}
+By inversion, there exist $x$ and $T_x$ such that 
+\begin{align}
+\hastypeEmp{e_1}{\tfun{x}{T_x}{T}} 		\label{papp1}\\
+\hastypeEmp{e_2}{T_x}					\label{papp2}\\
+S \equiv T\sub{x}{e_1}					\label{pappS}
+\end{align}
+
+\begin{itemize}
+	\item exits $e_1'$ so that \eval{e_1}{e_1'}, so $e' \equiv \eapp{e_1'}{e_2}$
+
+From IH, $$ \hastypeEmp{e_1'}{\tfun{x}{T_x}{T}}$$
+Which, with \ref{papp2} and rule \tapp\ gives 
+\begin{align}
+\hastypeEmp{\eapp{e_1'}{e_2}}{T\sub{x}{e_1'}} \label{prese1}
+\end{align}
+
+From Lemma \ref{LemEvalSub} we get 
+\begin{align*}
+\isSubEmp{T\sub{x}{e_1'}}{T\sub{x}{e_1}}
+\end{align*}
+Which with \ref{prese1} and \tsub\ gives
+$$\hastypeEmp{e'}{S}$$.
+	\item $e_1$ is a value, $e_1 \equiv v$
+	\begin{itemize}
+		\item exits $e_2'$ so that \eval{e_2}{e_2'}, so $e' \equiv \eapp{v}{e_2'}$
+		
+		From IH and \ref{papp2}, \hastypeEmp{e_2'}{T_x}. 
+		Which, whith \ref{papp1} and \tapp\ gives \hastypeEmp{e'}{S}.
+		\item $e_2$ is a value, so $e_2 \equiv v_2$.
+		Since $e_1$ is a value, it can not be variable, as $e_1$ is closed,
+		and can not be of the form $\epabs{p}{\tau}{e'}$ nor $\etabs{\alpha}{e'}$,
+		as these values can not have the desired type. 
+		\begin{itemize}
+			\item $e_1 \equiv \efun{x}{e_{11}}$, so $e' \equiv e_{11}\sub{x}{v_2}$
+			By inversion of the rule \ref{papp1}, and if we push the \tsub \ rules down in the derivation tree we get
+			 
+			\begin{align}
+			\hastype{x:T_x}{e_{11}}{T} \label{c}
+			\end{align}
+			
+			From  \ref{papp2} and \wsExt \ we get \isWellFormed{x:T_x}{\sub{x}{v_2}}.
+			Which, with \ref{c} and Lemma \ref{LemValueSub} gives 
+			\hastypeEmp{e_{11}\sub{x}{v_2}}{T\sub{x}{v_2}}, or  
+			\hastypeEmp{e'}{S}.  
+			\item $e_1 \equiv c$, so $e' \equiv [|c|](v)$
+			
+			By rule \ref{papp1} and \tcon \ we have 
+			$\tc{c} \equiv \tfun{x}{T_x}{T}$.
+			Which, with \ref{DefConstants} gives us 
+			\hastypeEmp{[|c|](v_2)}{T\sub{x}{v_2}}, or 
+			\hastypeEmp{e'}{S}. 
+		\end{itemize}
+	\end{itemize}
+
+\item \tinst\ There exist $e_1, S_1, \alpha$ and $\tau$ such that
+\begin{align*}
+e \equiv \etapp{e_1}{\tau} && S \equiv S_1\sub{\alpha}{T}
+\end{align*}
+
+By inversion, we have
+
+\begin{align}
+\hastypeEmp{e_1}{\ttabs{\alpha}{S_1}} \label{d1}\\
+\sch{T} = \tau \label{e1}\\
+\isWellFormed{\emptyset}{T} \label{f}
+\end{align} 
+
+If there exists $e_1'$, such that \eval{e_1}{e_1'}, 
+then $e' \equiv \etapp{e_1'}{\tau}$.
+By IH and \ref{d1}, we have \hastypeEmp{e_1'}{\ttabs{\alpha}{S_1}}.
+This, with \ref{e1}, \ref{f} and \tinst\ 
+gives \hastypeEmp{\etapp{e_1'}{\tau}}{S_1\sub{\alpha}{T}}, or
+\hastypeEmp{e'}{S}.
+
+Otherwise, $e_1$ is a value. From \ref{d1} there are two cases:
+
+\begin{itemize}
+\item $e_1 \equiv \etabs{\alpha}{v_{1}}$, so $e' \equiv v_1\sub{\alpha}{\tau}$.
+By inverting the rule \tgen\ and if we push the \tsub\ rules down in the derivation tree,
+we get 
+\begin{align}
+\hastypeEmp{v_1}{S_1} \label{g}
+\end{align}
+By \wstExt and \ref{f} we have \isWellFormed{\emptyset}{\sub{\alpha}{T}}.
+Which, by \ref{g} and \ref{LemTypeSub} gives 
+\hastypeEmp{v_1\sub{\alpha}{\tau}}{S_1\sub{\alpha}{T}} or
+\hastypeEmp{e'}{S}.
+ 
+\item $e_1 \equiv c$, 
+so $e' \equiv \etapp{[|c|]}{\tau}$
+			
+			By rule \ref{papp1} and \tcon \ we have 
+			$\tc{c} \equiv \ttabs{\alpha}{S_1}$.
+			Which, with \ref{DefConstants} gives us 
+			\hastypeEmp{\etapp{[|c|]}{\tau}}{{S_1\sub{\alpha}{T}}}, or 
+			\hastypeEmp{e'}{S}. 
+\end{itemize}
+
+\end{itemize}
+
+
+
+\item \tpinst\ There exist $e_1, S_1, p$ and $v$ such that
+\begin{align*}
+e \equiv \epapp{e_1} && S \equiv S_1\sub{p}{v}
+\end{align*}
+
+By inversion, we have
+
+\begin{align}
+\hastypeEmp{e_1}{\tpabs{p}{\tau}{S_1}} \label{ppa}\\
+\hastypeEmp{v}{T} \label{ppb}\\
+\sch{T} = \tau \rightarrow \tbbool \label{ppc}\\
+\isWellFormed{\emptyset}{T} \label{ppd}
+\end{align} 
+
+If there exists $e_1'$, such that \eval{e_1}{e_1'}, 
+then $e' \equiv \epapp{e_1'}$.
+By IH and \ref{ppa}, we have \hastypeEmp{e_1'}{\tpabs{p}{\tau}{S_1}}.
+This, with \ref{ppb}- \ref{ppd} and \tpinst\ 
+gives \hastypeEmp{\epapp{e_1'}}{S_1\sub{p}{v}}, or
+\hastypeEmp{e'}{S}.
+
+Otherwise, $e_1$ is a value. From \ref{ppa} there are two cases:
+
+\begin{itemize}
+\item $e_1 \equiv \epabs{p}{\tau}{v_{1}}$, so $e' \equiv v_1$.
+By inverting the rule \tpgen\ and if we push the \tsub\ rules down in the derivation tree,
+we get 
+\begin{align}
+	\hastype{p:T_p}{v_1}{S_1} \label{pp1a} \\
+	\sch{T_p} = \tau \rightarrow \tbbool \label{pp1b}\\
+	p \notin \fv{v_1} \label{pp1c}
+\end{align}
+
+By \wsExt and \ref{pp1a} we have \isWellFormed{p:T_p}{\sub{p}{v}},
+also by \ref{pp1c} we get $v_1 \equiv v_1\sub{p}{v}$
+Which, by \ref{pp1a} and Lemma \ref{LemValueSub} gives 
+\hastypeEmp{v_1\sub{p}{v}}{S_1\sub{p}{v}} or
+\hastypeEmp{e'}{S}.
+ 
+\item $e_1 \equiv c$, 
+so $e' \equiv \epapp{[|c|]}$
+			
+			By rule \ref{ppa} and \tcon \ we have 
+			$\tc{c} \equiv \tpabs{p}{\tau}{S_1}$.
+			Which, with Definition \ref{DefConstants} and \ref{ppb} - \ref{ppd}, gives us 
+			\hastypeEmp{\epapp{[|c|]}}{{S_1\sub{p}{v}}}, or 
+			\hastypeEmp{e'}{S}. 
+\end{itemize}
+
+\end{itemize}
+\end{proof}
+\end{document}
