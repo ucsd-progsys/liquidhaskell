@@ -30,9 +30,9 @@ Which, with \ref{psubS} and rule \rulename{T-Sub} gives
 
 \item	\rulename{T-Var-Base}, 
 		\rulename{T-Var}, 
-		\tcon, 
-		\rulename{T-Fun}
-		\rulename{T-PGen},
+		\tconst, 
+		\rulename{T-Fun},
+		\rulename{T-PGen} and
 		\tgen\
 cases are trivial, since there can be no $e'$ such that \eval{e}{e'}	
 
@@ -50,7 +50,7 @@ S \equiv T\sub{x}{e_1}					\label{pappS}
 \begin{itemize}
 	\item exits $e_1'$ so that \eval{e_1}{e_1'}, so $e' \equiv \eapp{e_1'}{e_2}$
 
-From IH, $$ \hastypeEmp{e_1'}{\tfun{x}{T_x}{T}}$$
+From IH and \ref{papp1}, $$ \hastypeEmp{e_1'}{\tfun{x}{T_x}{T}}$$
 Which, with \ref{papp2} and rule \tapp\ gives 
 \begin{align}
 \hastypeEmp{\eapp{e_1'}{e_2}}{T\sub{x}{e_1'}} \label{prese1}
@@ -86,9 +86,9 @@ $$\hastypeEmp{e'}{S}$$.
 			\hastypeEmp{e'}{S}.  
 			\item $e_1 \equiv c$, so $e' \equiv [|c|](v)$
 			
-			By rule \ref{papp1} and \tcon \ we have 
+			By rule \ref{papp1} and \tconst \ we have 
 			$\tc{c} \equiv \tfun{x}{T_x}{T}$.
-			Which, with \ref{DefConstants} gives us 
+			Which, with Definition \ref{DefConstants} gives us 
 			\hastypeEmp{[|c|](v_2)}{T\sub{x}{v_2}}, or 
 			\hastypeEmp{e'}{S}. 
 		\end{itemize}
@@ -124,14 +124,14 @@ we get
 \hastypeEmp{v_1}{S_1} \label{g}
 \end{align}
 By \wstExt and \ref{f} we have \isWellFormed{\emptyset}{\sub{\alpha}{T}}.
-Which, by \ref{g} and \ref{LemTypeSub} gives 
+Which, by \ref{g} and Lemma \ref{LemTypeSub} gives 
 \hastypeEmp{v_1\sub{\alpha}{\tau}}{S_1\sub{\alpha}{T}} or
 \hastypeEmp{e'}{S}.
  
 \item $e_1 \equiv c$, 
 so $e' \equiv \etapp{[|c|]}{\tau}$
 			
-			By rule \ref{papp1} and \tcon \ we have 
+			By rule \ref{papp1} and \tconst \ we have 
 			$\tc{c} \equiv \ttabs{\alpha}{S_1}$.
 			Which, with \ref{DefConstants} gives us 
 			\hastypeEmp{\etapp{[|c|]}{\tau}}{{S_1\sub{\alpha}{T}}}, or 
@@ -151,15 +151,13 @@ By inversion, we have
 
 \begin{align}
 \hastypeEmp{e_1}{\tpabs{p}{\tau}{S_1}} \label{ppa}\\
-\hastypeEmp{v}{T} \label{ppb}\\
-\sch{T} = \tau \rightarrow \tbbool \label{ppc}\\
-\isWellFormed{\emptyset}{T} \label{ppd}
+\hastypeEmp{v}{\tau \rightarrow \tbbool} \label{ppb}
 \end{align} 
 
 If there exists $e_1'$, such that \eval{e_1}{e_1'}, 
 then $e' \equiv \epapp{e_1'}$.
 By IH and \ref{ppa}, we have \hastypeEmp{e_1'}{\tpabs{p}{\tau}{S_1}}.
-This, with \ref{ppb}- \ref{ppd} and \tpinst\ 
+This, with \ref{ppb} and \tpinst\ 
 gives \hastypeEmp{\epapp{e_1'}}{S_1\sub{p}{v}}, or
 \hastypeEmp{e'}{S}.
 
@@ -170,12 +168,11 @@ Otherwise, $e_1$ is a value. From \ref{ppa} there are two cases:
 By inverting the rule \tpgen\ and if we push the \tsub\ rules down in the derivation tree,
 we get 
 \begin{align}
-	\hastype{p:T_p}{v_1}{S_1} \label{pp1a} \\
-	\sch{T_p} = \tau \rightarrow \tbbool \label{pp1b}\\
+	\hastype{p:\tau \rightarrow \tbbool}{v_1}{S_1} \label{pp1a} \\
 	p \notin \fv{v_1} \label{pp1c}
 \end{align}
 
-By \wsExt and \ref{pp1a} we have \isWellFormed{p:T_p}{\sub{p}{v}},
+By \wsExt and \ref{pp1a} we have \isWellFormed{p:\tau \rightarrow \tbbool}{\sub{p}{v}},
 also by \ref{pp1c} we get $v_1 \equiv v_1\sub{p}{v}$
 Which, by \ref{pp1a} and Lemma \ref{LemValueSub} gives 
 \hastypeEmp{v_1\sub{p}{v}}{S_1\sub{p}{v}} or
@@ -184,9 +181,9 @@ Which, by \ref{pp1a} and Lemma \ref{LemValueSub} gives
 \item $e_1 \equiv c$, 
 so $e' \equiv \epapp{[|c|]}$
 			
-			By rule \ref{ppa} and \tcon \ we have 
+			By rule \ref{ppa} and \tconst \ we have 
 			$\tc{c} \equiv \tpabs{p}{\tau}{S_1}$.
-			Which, with Definition \ref{DefConstants} and \ref{ppb} - \ref{ppd}, gives us 
+			Which, with Definition \ref{DefConstants} and \ref{ppb}, gives us 
 			\hastypeEmp{\epapp{[|c|]}}{{S_1\sub{p}{v}}}, or 
 			\hastypeEmp{e'}{S}. 
 \end{itemize}

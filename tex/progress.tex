@@ -27,7 +27,7 @@ Otherwise, by IH and \ref{prsa}, there exists an $e'$, such that \eval{e}{e'}.
 
 \item	\rulename{T-Var-Base}, 
 		\rulename{T-Var}, 
-		\tcon, 
+		\tconst, 
 		\rulename{T-Fun}
 		\rulename{T-PGen},
 		\tgen\
@@ -112,9 +112,7 @@ By inversion, we have
 
 \begin{align}
 \hastypeEmp{e_1}{\tpabs{p}{\tau}{S_1}} \label{prpa}\\
-\hastypeEmp{v}{T} \label{prpb}\\
-\sch{T} = \tau \rightarrow \tbbool \label{prpc}\\
-\isWellFormed{\emptyset}{T} \label{prpd}
+\hastypeEmp{v}{\tfun{x}{\tau}{\tbbool}} \label{prpb}
 \end{align} 
 
 	\begin{itemize}
@@ -129,7 +127,7 @@ By inversion, we have
 		\item $e_1 \equiv \epabs{p}{\tau}{v_{1}}$, so $e' \equiv v_1$.
 		\item $e_1 \equiv c$.
 		From \ref{prpa}, $\tc{c} = \tpabs{p}{\tau}{S_1}$, 
-		which, by \ref{prpb} - \ref{prpd} and Definition \ref{DefConstants},
+		which, by \ref{prpb} and Definition \ref{DefConstants},
 		gives that \epapp{[|c|]} is defined.
 		So, $e' \equiv \epapp{[|c|]}$
 		\end{itemize}

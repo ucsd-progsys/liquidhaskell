@@ -1,4 +1,5 @@
-BINPATH=/home/niki/src/ghc/bin
+#BINPATH=/home/niki/src/ghc/bin
+BINPATH=/usr/bin
 API=ghc-7.4.1
 
 ##################################################

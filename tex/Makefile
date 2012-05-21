@@ -3,7 +3,7 @@ BSTINPUTS=.:Styles//::
 
 TARGET=Theorems
 STY = ndisplay.sty liquidHaskell.sty ngrammar.sty
-TEX = rules.tex Theorems.tex preservation.tex progress.tex soundness.tex
+TEX = rules.tex Theorems.tex grammar.tex typing.tex preservation.tex progress.tex soundness.tex
 BIB = myrefs
 SRCFILES = Makefile  ${TEX} ${STY} ${BIB}.bib  
 

@@ -1,0 +1,263 @@
+\hfill\fbox{\hastype{\Gamma}{e}{S}}
+
+$$
+\inference{
+	\hastype{\Gamma}{e}{S_2} && \isSub{\Gamma}{S_2}{S_1}
+	&& \isWellFormed{\Gamma}{S_1}
+}{
+	\hastype{\Gamma}{e}{S_1}
+}[\tsub]
+$$
+
+$$
+\inference{
+	\Gamma(x) = \tref{B}{e}
+}{
+	\hastype{\Gamma}{x}{\tref{B}{e \land \vref = x}}
+}[\rulename{T-Var-Base}]
+$$
+
+$$
+\inference{
+	\Gamma(x) \neq \tref{B}{e}
+}{
+	\hastype{\Gamma}{x}{\Gamma(x)}
+}[\rulename{T-Var}]
+$$
+
+$$
+\inference{
+}{
+	\hastype{\Gamma}{c}{\tc{c}}
+}[\tconst]
+$$
+
+$$
+\inference{
+	\hastype{\Gamma, x : \mlTy{T_x}}{e}{\mlTy{T}} 
+	&& \isWellFormed{\Gamma}{\tfun{x}{\mlTy{T_x}}{\mlTy{T}}}
+}{
+	\hastype{\Gamma}{\efun{x}{e}}{\tfun{x}{\mlTy{T_x}}{\mlTy{T}}}
+}[\rulename{T-Fun}]
+$$
+
+\section*{Rules}
+$$\label{tapp}
+\inference{
+	\hastype{\Gamma}{e_1}{\tfun{x}{T_x}{T}} && 
+	\hastype{\Gamma}{e_2}{T_x}
+}{
+	\hastype{\Gamma}{\eapp{e_1}{e_2}}{T\sub{x}{e_2}}
+}[\tapp]
+$$
+
+$$
+\inference{
+	\hastype{\Gamma, p:\tau \rightarrow \tbbool}{e}{S} &&
+	p \notin \fv{e}
+}{
+	\hastype{\Gamma}{\epabs{p}{\tau}{e}}{\tpabs{p}{\tau}{S}}
+}[\tpgen]
+$$
+
+$$
+\inference{
+	\hastype{\Gamma}{e}{\tpabs{p}{\tau}{S}} && 
+	\hastype{\Gamma}{v}{\tau \rightarrow \tbbool} 
+}{
+	\hastype{\Gamma}{\epapp{e}}{S\sub{p}{v}}
+}[\tpinst]
+$$
+
+$$
+\inference{
+	\hastype{\Gamma}{e}{S} && 
+	\alpha \notin \Gamma
+}{
+	\hastype{\Gamma}{\etabs{\alpha}{e}}{\ttabs{\alpha}{S}}
+}[\tgen]
+$$
+
+$$
+\inference{
+	\hastype{\Gamma}{e}{\ttabs{\alpha}{S}} && 
+	\sch{\mlTy{T}} = \tau && \isWellFormed{\Gamma}{\mlTy{T}}
+}{
+	\hastype{\Gamma}{\etapp{e}{\tau}}{S\sub{\alpha}{\mlTy{T}}}
+}[\tinst]
+$$
+
+
+\mhide{
+$$
+\inference{
+	\hasType{\Gamma}{P,Q}{e}
+		{\tcon{\nhaskell{C}}{e_c}{\listOf{\dTy}}{\listOf{e}}} \\
+	\forall i . \{
+		\hasType{\Gamma}{P,Q}{\nhaskell{C}_i}
+			{\tforallTy{\listOf{\alpha}}{\tforallPr{\listOf{p}}{
+				\tfun{y_1}{\dTy_1}{
+				\tfun{\dots y_j}{\dTy_j}{
+				\tfun{\dots y_n}{\dTy_n}{
+				\tcon{\nhaskell{C}}{e'_c}{\listOf{\dTy'}}{\listOf{e'}}}}}			
+			}}} \\			
+		\hasType{\Gamma, \listOf{x_{ij} : {\dTy_j \subT{\listOf{\alpha}}{\listOf{\dTy}}\subP{\listOf{p}}{\listOf{e}} }}}{P,Q}{e_i}{\dTy}	
+	\}
+}{
+	\hasType{\Gamma}{P,Q}{\ecase{e}{C_i \ \listOf{x_i}}{e_i}}{\dTy}
+}[]
+$$
+
+$$
+\inference{
+	\hasType{\Gamma}{P,Q}{e_1}{\dTy_x} &
+	\unifyTypes{P(x)}{\dTy_x}{\dTy_x'} &
+	\hasType{\Gamma,x:\dTy_x'}{P,Q}{e_2}{\dTy} &
+}{
+	\hasType{\Gamma}{P,Q}{\elet{x}{e_1}{e_2}}{\dTy}
+}[]
+$$
+$$
+\inference{
+	\isWellFormed{\Gamma}{\lTy_x} &
+	\hasType{\Gamma}{P,Q}{e_1}{\lTy_x} &
+	\unifyTypes{P(x)}{\lTy_x}{\lTy_x'} &
+	\hasType{\Gamma,x:\lTy_x'}{P,Q}{e_2}{\lTy} &
+}{
+	\hasType{\Gamma}{P,Q}{\eletrec{x}{e_1}{e_2}}{\lTy}
+}[]
+$$
+}
+
+
+\hfill\fbox{\isWellFormed{\Gamma}{S}}
+
+$$
+\inference{
+	\hastype{\Gamma, v: B}{e}{\tbbool}
+}{
+	\isWellFormed{\Gamma}{\tref{B}{e}}
+}[\wtBase]
+$$
+
+$$
+\inference{
+	\isWellFormed{\Gamma}{T_{x}} &
+	\isWellFormed{\Gamma, x:T_{x}}{T}
+}
+{
+	\isWellFormed{\Gamma}{\tfun{x}{T_{x}}{T}}
+}[\wtFun]
+$$
+
+$$
+\inference{
+	\isWellFormed{\Gamma, p:\tfun{x}{\tau}{\tbbool}}{P} 
+}
+{
+	\isWellFormed{\Gamma}{\tpabs{p}{\tau}{P}}
+}[\wtPred]
+$$
+
+$$
+\inference{
+	\isWellFormed{\Gamma}{T} 
+}
+{
+	\isWellFormed{\Gamma}{\ttabs{\alpha}{T}}
+}[\wtPoly]
+$$
+
+\mhide{
+\NV{define tyConP}
+
+$$
+\inference{
+	\hasType{\Gamma, v: \shape{\dTy}}{}{e}{\tbool} & %normal typeinference
+	\forall i. \isWellFormed{\Gamma}{\dTy_i} &
+	\listOf{p} = \tyConPs{\nhaskell{C}} &
+	\forall j. \isWellFormedP{\Gamma}{p_j}{e_j}
+}
+{
+	\isWellFormed{\Gamma}
+		{\tcon{\nhaskell{C}}{e}{\listOf{\dTy}}{\listOf{e}}}
+}[]
+$$
+
+\NV{no subtype for tforallPr!} \\
+\NV{no subtype for tclass!}
+%\newcommand\tcon[4]{\ensuremath{\nhaskell{#1} ^{#2} \ #3 \ #4}}
+%\newcommand\tforallPr[2]{\ensuremath{\forall #1 . #2}}
+}
+
+
+\hfill\fbox{\isSub{\Gamma}{S_1}{S_2}}
+
+\rhide{
+$$
+\inference{
+%	\valid{\inter{\Gamma} \land \inter{e_1}}{\inter{e_2}}
+	\isWellFormed{\Gamma, \vref:B}{e_1 \Rightarrow e_2}
+}{
+	\isSubType{\Gamma}{\tref{B}{e_1}}{\tref{B}{e_2}}
+}[\tsubBase]
+$$
+}
+
+\thide{
+$$
+\inference{
+	\valid{\inter{\Gamma, \vref:B} \land \inter{e_1}}{\inter{e_2}}
+}{
+	\isSubType{\Gamma}{\tref{B}{e_1}}{\tref{B}{e_2}}
+}[\tsubBase]
+$$
+}
+
+$$
+\inference{
+	\isSubType{\Gamma}{\dTy_{x_2}}{\dTy_{x_1}} &
+	\isSubType{\Gamma, x_2:{\dTy_{x_2}}}{\dTy_1 \subT{x_1}{x_2}}{\dTy_2}	
+}
+{
+	\isSubType{\Gamma}{\tfun{x_1}{\dTy_{x_1}}{\dTy_1}}{\tfun{x_2}{\dTy_{x_2}}{\dTy_2}}
+}[\tsubFun]
+$$
+
+$$
+\inference{
+	\isSubType{\Gamma, p_1:\tfun{x}{\tau}{\tbbool}}{P_1}{P_2\sub{p_2}{p_1}} 
+}
+{
+	\isSubType{\Gamma}{\tpabs{p_1}{\tau}{P_1}}{\tpabs{p_2}{\tau}{P_2}}
+}[\tsubPred]
+$$
+
+$$
+\inference{
+	\isSubType{\Gamma}{S_1}{S_2} 
+}
+{
+	\isSubType{\Gamma}{\ttabs{\alpha}{S_1}}{\ttabs{\alpha}{S_2}}
+}[\tsubPoly]
+$$
+
+\mhide{
+$$
+\inference{
+	\valid{\inter{\Gamma} \land \inter{e_1}}{\inter{e_2}} &
+	\forall i. \isSubType{\Gamma}{\dTy_{1_i}}{\dTy_{2_i}} &
+	\forall j. \valid{\inter{\Gamma} \land \inter{e_{1_j}}}{\inter{e_{2_j}}}
+}
+{
+	\isSubType{\Gamma}
+		{\tcon{\nhaskell{C}}{e_1}{\listOf{\dTy_1}}{\listOf{e_1}}}
+		{\tcon{\nhaskell{C}}{e_2}{\listOf{\dTy_2}}{\listOf{e_2}}}
+}[]
+$$
+
+\NV{no subtype for tforallPr!} \\
+\NV{no subtype for tclass!}
+%\tclass[2]
+%\tforallPr[2]
+}
