@@ -24,7 +24,7 @@ insert kx x (Bin sz ky y l r)
 
 -- fix Eq case 
 -- can I use glue function?
-delete :: Ord k => k -> Bst k a -> Bst k a
+delete :: Ord k => k -> Map k a -> Map k a
 delete _ Tip = Tip
 delete k (Bin _ kx x l r)
   | k == kx = 
