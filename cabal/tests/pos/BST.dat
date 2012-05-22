@@ -1,4 +1,3 @@
 data Bst k v << p1:k (fld:k) p2:k (fld:k) >> = Empty | Bind k0:k v0:v l:(Bst k^p1(k0) v << p1(fld) p2(fld)>>) r:(Bst k^p2(k0) v << p1(fld) p2(fld)>> ) --
 
-
 data Pair k v <<q:k (fld:k) q1:k(fld:k) q2:k(fld:k)>> = P x0:k x1:v x3:(Bst k^q(x0) v <<q1(fld) q2(fld)>>) --

@@ -49,6 +49,7 @@ languageDef =
                                      , "spec"
                                      , "where"
                                      , "True"
+                                     , "Int"
                                      , "import"
                                      , "_|_"
                                      , "|"
@@ -483,6 +484,7 @@ maybePredP
 
 predbaseP 
   =  liftM PrLstP (brackets predTypeP)
+ <|> try (do {reserved "Int" ; p <- maybePredP; return $ PrIntP p})
  <|> try (parens (sepBy predTypeP comma) >>= return . PrTupP)
  <|> try (do c <- upperIdP
              ts <- sepBy predTypeP blanks

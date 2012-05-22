@@ -2,7 +2,6 @@ module BST where
 
 import Language.Haskell.Liquid.Prelude
 
-
 data Bst k v = Empty | Bind k v (Bst k v) (Bst k v)
 data Pair k v = P k v (Bst k v)
 

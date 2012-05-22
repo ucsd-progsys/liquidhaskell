@@ -73,6 +73,7 @@ data PrTypeP = PrPairP (PredicateB, String)
             | PrForAllTyP String PrTypeP             
             | PrTyConAppP String [PrTypeP] [PredicateB] PredicateB
             | PrLstP PrTypeP
+            | PrIntP PredicateB
             | PrTupP [PrTypeP]
               deriving Show
 
@@ -162,6 +163,9 @@ ofPType as (PrPairP(p,s)) =
 ofPType as (PrLstP t) =
    do nt <- ofPType as t
       return $  PrTyCon listTyCon [nt] [] PdTrue
+
+ofPType as (PrIntP p) 
+  = return $ PrTyCon intTyCon [] [] (ofBPredicate as p)
 
 ofPType as (PrTupP [t]) = ofPType as t
 ofPType as (PrTupP ts) = 
