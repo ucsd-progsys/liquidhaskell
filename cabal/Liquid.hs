@@ -38,7 +38,7 @@ liquidOne includes target =
      let cbs' = transformRecExpr (cbs info)
      putStrLn $ "NEW CBS"
      putStrLn $ showPpr (cbs')
---     putStrLn $ error "ok"
+--      putStrLn $ error "ok"
      let cgi = generateConstraints $!! info{cbs = cbs'}
      -- dummyDeepseq cgi 
      -- dummyWrite target cgi

@@ -149,7 +149,7 @@ instance Show CGEnv where
 
 (γ, msg) += (x, r) 
   | x `memberREnv` (renv γ)
-  = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ show x ++ " in REnv!\n\n" ++ show γ
+  = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ show x -- ++ " in REnv!\n\n" ++ show γ
   | otherwise
   = γ ++= (x, r) 
 
@@ -631,7 +631,7 @@ consCB γ b@(NonRec x e)
 --       let t = {-traceShow ("Unify for "  ++ show x' ++ "\n\n"++ show e ++ "\n\n" ++ show rt ++ "\n" ++ show pt ++ "\n")$-} rt
        let t = {-traceShow ("Unify for "  ++ show x' ++ "\n\n"++ show e ++ "\n\n" ++ show rt ++ "\n" ++ show pt ++ "\n")$-} unify pt rt
        addIdA x (Left t)
-       return $ γ ++= (x', t)
+       return $  γ ++= (x', t)
     where x' = mkSymbol x
           pt = getPrType γ x'
 
@@ -821,24 +821,24 @@ cconsCase γ _ t (DEFAULT, _, ce)
   = cconsE γ ce t
 
 cconsCase γ x t (DataAlt c, ys, ce) 
-  = cconsE cγ ce t
-  where cγ            = addBinders γ x' cbs
-        cbs           = zip (x':ys') (xt:yts)
-        xt0           = checkTyCon x $ γ ?= x'
-        tdc           = γ ?= (dataConSymbol c)
-        (rtd, yts, xt') = unfoldR tdc xt0 ys'
-        (x':ys')      = mkSymbol <$> (x:ys)
-        r1            = dataConReft c $ varType x
-        r2            = dataConMsReft rtd ys'
-        xt            = xt0 `strengthen` (r1 `F.meet` r2)
-{-        yts'          = F.subst su <$> yts
---        yts'          = zipWith F.subst sus yts
-        sus           = F.mkSubst <$> scanl (flip (:)) [] zys
-        su            = F.mkSubst zys
-        zys           = zip zs (F.EVar <$> ys')
-        zs            = getTyConIds xt'
--}
+ = do yts' <- mkyts γ ys yts
+      let cbs           = zip (x':ys') (xt:yts')
+      let cγ            = addBinders γ x' cbs
+      cconsE cγ ce t
+ where (x':ys')      = mkSymbol <$> (x:ys)
+       xt0           = checkTyCon x $ γ ?= x'
+       tdc           = γ ?= (dataConSymbol c)
+       (rtd, yts, xt') = unfoldR tdc xt0 ys'
+       r1            = dataConReft c $ varType x
+       r2            = dataConMsReft rtd ys'
+       xt            = xt0 `strengthen` (r1 `F.meet` r2)
 
+mkyts γ ys yts = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts
+mkyt (γ, ts) (y, yt)
+  = do t' <- freshTy (Var y) (toType yt)
+       addC (SubC γ yt t') "mkyts"
+       addW (WfC γ t') 
+       return (γ++= (mkSymbol y,t'), t':ts) 
 
 unfoldR td t0@(RConApp tc ts rs _) ys = (rtd, yts, xt')
   where (vs, ps, td_')  = rsplitVsPs td
@@ -849,29 +849,7 @@ unfoldR td t0@(RConApp tc ts rs _) ys = (rtd, yts, xt')
         (ys', yts, xt') = rsplitArgsRes rtd
         su              = F.mkSubst [(x, F.EVar y) | (x, y)<- zip ys' ys]
         td'             = td_' 
-{-
-cconsCase γ x t (DataAlt c, ys, ce) 
-  = do let (x':ys')      = mkSymbol <$> (x:ys)
-       let xt0           = checkTyCon x $ γ ?= x'
-       let td            = γ ?= (dataConSymbol c)
-       (rtd, yts, _)     <- unfoldR γ td xt0 
-       let r1            = dataConReft c $ varType x
-       let r2            = dataConMsReft rtd ys'
-       let xt            = xt0 `strengthen` (r1 `F.meet` r2)
-       let cγ            = addBinders γ x' (zip (x':ys') (xt:yts))
-       cconsE cγ ce t
-
---unfoldR :: RType F.Reft-> RType F.Reft -> (RType F.Reft, [RType F.Reft], RType F.Reft)
-unfoldR γ td t0@(RConApp tc ts rs _) 
- = do let (vs, ps, td') = rsplitVsPs td
-      let td''          = foldl' (flip subsTyVar_meet) td' (zip vs ts)
-      let ps'           = pToRefa <$> ps
-      rs''               <- mapM (freshSort γ) ps
-      let rs' = case rs of {[] -> map (\r -> F.Reft(F.vv, [r])) rs''; _ -> rs}
-      let rtd           = foldl' (flip replaceSorts) td'' (zip ps' rs')
-      let (_, yts, xt')    = rsplitArgsRes rtd
-      return {-$ traceShow ("unfold " ++ show (td, t0))-} (rtd, yts, xt')
--} 
+ 
 
 takeReft c (RConApp _ _ _ a) 
   | c == nilDataCon || c == consDataCon
@@ -885,7 +863,7 @@ instance Show CoreExpr where
   show = showSDoc . ppr
 
 addBinders γ0 x' cbs 
-  = foldl' wr γ2 cbs
+  = foldl' wr γ0 cbs
     where γ1     = {- traceShow ("addBinders γ0 = " ++ (show $ domREnv $ renv γ0))    $ -} (γ0 -= x')
           wr γ z = {- traceShow ("\nWrapper: keys γ = " ++ (show $ domREnv $ renv γ)) $ -} γ ++= z
           γ2     = if x' `memberREnv` (renv γ1) then error "DIE DIE DIE" else γ1

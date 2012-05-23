@@ -74,24 +74,12 @@ singleR k1 x1 (Bin _ k2 x2 t1 t2) t3 = Bin 0 k2 x2 t1 (Bin 0 k1 x1 t2 t3)
 singleR _  _  _ Tip = error "sinlgeR Tip"
 
 doubleL, doubleR :: a -> b -> Map a b -> Map a b -> Map a b
-doubleL k1 x1 t1 t20 
-  = case (0, t20) of 
-     (_, Bin _ k2 x2 t30 t4) -> 
-         case (0, t30) of 
-          (_, Bin _ k3 x3 t2 t3) -> bin k3 x3 
-                                      (bin k1 x1 t1 t2) 
-                                      (bin k2 x2 t3 t4)
-          _                       -> error "doubleL"
-     _                     -> error "doubleL" 
-doubleR k1 x1 t20 t4 
-  = case (0, t20) of 
-     (_, Bin _ k2 x2 t1 t30) -> 
-         case (0, t30) of 
-          (_, Bin _ k3 x3 t2 t3) -> bin k3 x3 
-                                      (bin k2 x2 t1 t2) 
-                                      (bin k1 x1 t3 t4)
-          _                       -> error "doubleR"
-     _                     -> error "doubleR" 
+doubleL k1 x1 t1 (Bin _ k2 x2 (Bin _ k3 x3 t2 t3) t4)
+ =bin k3 x3 (bin k1 x1 t1 t2) (bin k2 x2 t3 t4)
+doubleL _ _ _ _ = error "doubleL" 
+doubleR k1 x1 (Bin _ k2 x2 t1 (Bin _ k3 x3 t2 t3)) t4 
+  = bin k3 x3 (bin k2 x2 t1 t2) (bin k1 x1 t3 t4)
+doubleR _ _ _ _ = error "doubleR" 
 
 bin :: k -> a -> Map k a -> Map k a -> Map k a
 bin k x l r 

@@ -27,10 +27,10 @@ import Control.Monad.State
 transformRecExpr :: CoreProgram -> CoreProgram
 transformRecExpr cbs
   =  if (isEmptyBag e) then {-trace "new cbs"-} pg else error (showPpr pg ++ "Type-check" ++ show e)
-  where pg     = cbs --  {-scopeTr $-} evalState (transPg cbs) initEnv
+  where pg     = scopeTr $ evalState (transPg cbs) initEnv
         (w, e) = lintCoreBindings pg
 
-{-
+
 scopeTr = outerScTr . map innerScTr
 
 outerScTr []                  = []
@@ -51,7 +51,6 @@ collectBnds x bs (Let b@(NonRec y (Case (Var v) _  _ _ )) e) | x == v
 collectBnds x bs (Tick t e) = collectBnds x bs e
 collectBnds _ bs e          = (bs, e)
 
--}
 
 type TE = State TrEnv
 
