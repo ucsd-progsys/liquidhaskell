@@ -1,8 +1,10 @@
 change .html fix (cat fix# leave name)
 
 fix transformations 	*  see list insert for rec
+											*  move transformations to initial statgw st anormalized
 
 deptup???
+transpose???
 
 ------------------------------------------------------
 

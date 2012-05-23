@@ -25,4 +25,3 @@ qualif PosZP(v:ptr)      : 0 <= v
 qualif PosP(v:ptr)       : 0 < v
 qualif GeP(v:ptr,~A:ptr) : ~A <= v
 
-

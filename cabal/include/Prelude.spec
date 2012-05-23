@@ -18,6 +18,8 @@ assume (>=)  :: forall a. (Ord a) => x:a -> y:a -> {v:Bool | ((? v) <=> x >= y)}
 assume (<)   :: forall a. (Ord a) => x:a -> y:a -> {v:Bool | ((? v) <=> x < y)}
 assume (<=)  :: forall a. (Ord a) => x:a -> y:a -> {v:Bool | ((? v) <=> x <= y)}
 
+assume compare :: forall a. (Ord a) => x:a -> y:a -> {v:Ordering | (((v = EQ) <=> x = y) && ((v = LT) <=> x < y) && ((v = GT) <=> x > y))}
+
 assume GHC.Types.I#             :: x : GHC.Prim.Int# -> {v: Int | v = (x :: Int) }   
 assume GHC.Num.fromInteger      :: forall a. (Num a) => x:Integer -> {v:a | v = x }
 assume GHC.Integer.smallInteger :: x:GHC.Prim.Int# -> {v:Integer | v = (x :: Integer)}

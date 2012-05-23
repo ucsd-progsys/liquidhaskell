@@ -21,6 +21,7 @@ module Language.Haskell.Liquid.RefType (
   , REnv, deleteREnv, domREnv, insertREnv, lookupREnv, emptyREnv, memberREnv, fromListREnv
 		, toTyVar
 		, addTyConInfo
+    , primOrderingSort
   ) where
 
 import Text.Printf
@@ -40,7 +41,7 @@ import Unique           (getUnique)
 import Literal
 import Type             (isPredTy, mkTyConTy, liftedTypeKind, substTyWith, classifyPredType, PredTree(..), predTreePredType)
 import TysPrim          (intPrimTyCon)
-import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
+import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon, eqDataCon, ltDataCon, gtDataCon)
 
 
 import Data.Maybe               (fromMaybe)
@@ -665,12 +666,21 @@ mkSymbol v
 
 dataConSymbol = mkSymbol . dataConWorkId
 
+primOrderingSort = typeSort $ dataConRepType eqDataCon
+ordCon s = EDat (S s) primOrderingSort
+
 dataConReft   ::  DataCon -> Type -> Reft 
 dataConReft c τ
   | c == trueDataCon
   = Reft (vv, [RConc $ (PBexp (EVar vv))]) 
   | c == falseDataCon
   = Reft (vv, [RConc $ PNot (PBexp (EVar vv))]) 
+  | c == eqDataCon
+  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon "EQ"))]) 
+  | c == gtDataCon
+  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon "GT"))]) 
+  | c == ltDataCon
+  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon "LT"))]) 
   | otherwise
   = Reft (vv, [RConc PTrue]) 
 

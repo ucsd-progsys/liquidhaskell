@@ -124,12 +124,24 @@ lexprP
   =  (try $ parens exprP)
  <|> (try $ parens cexprP)
  <|> (try exprfP)
- <|> (try (liftM ((`EDat` FObj) . stringSymbol) upperIdP))
+ <|> (try (liftM mkEDat upperIdP))
+-- <|> (try (liftM ((`EDat` FObj) . stringSymbol) upperIdP))
+ <|> (try (liftM (EVar . stringSymbol) upperIdP))
  <|> liftM EVar symbolP
  <|> liftM ECon constantP
  <|> (reserved "_|_" >> return EBot)
 
 
+mkEDat s = EDat (stringSymbol s) (stringSort s)
+  where stringSort s = case lookup s wiredSorts of 
+                        Just s  -> s
+                        Nothing -> FObj
+
+
+wiredSorts = [ ("EQ", primOrderingSort)
+             , ("LT", primOrderingSort)
+             , ("GT", primOrderingSort)
+             ]
 
 exprfP        = liftM2 EApp symbolP argsP
   where argsP = try (parens $ brackets esP) <|> parens esP

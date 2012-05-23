@@ -16,11 +16,22 @@ singleton k x
   = Bin 1 k x Tip Tip
 
 insert :: Ord k => k -> a -> Map k a -> Map k a
+insert kx x t
+  = case t of 
+     Tip -> singleton kx x
+     Bin sz ky y l r
+         -> case compare kx ky of
+              LT -> balance ky y (insert kx x l) r
+              GT -> balance ky y l (insert kx x r)
+              EQ -> Bin sz kx x l r
+
+{-
 insert kx x Tip  = singleton kx x
 insert kx x (Bin sz ky y l r)
   | kx == ky   = Bin sz kx x l r
   | kx < ky    = balance ky y (insert kx x l) r
   | otherwise  = balance ky y l (insert kx x r)
+-}
 
 -- fix Eq case 
 -- can I use glue function?

@@ -30,7 +30,7 @@ import Text.Printf
 import Data.Monoid hiding ((<>))
 import Data.Functor
 import Data.List
-import Data.Char        (ord, chr, isAlphaNum, isAlpha)
+import Data.Char        (ord, chr, isAlphaNum, isAlpha, isUpper, toLower)
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Text.Parsec.String
@@ -517,6 +517,8 @@ instance Fixpoint Envt where
   toFix (Envt m)  = toFix (M.toAscList m)
 
 insertFEnv ::  Symbol -> SortedReft -> Envt -> Envt
+insertFEnv (S (s:ss)) r (Envt m) | isUpper s
+ = Envt (M.insert (S ((toLower s):ss)) r m)
 insertFEnv x r (Envt m) = Envt (M.insert x r m)
 deleteFEnv x (Envt m)   = Envt (M.delete x m)
 fromListFEnv            = Envt . M.fromList . (builtins ++) 
@@ -789,5 +791,37 @@ instance (NFData a) => NFData (WfC a) where
 
 
 
+class MapSymbol a where
+  mapSymbol :: (Symbol -> Symbol) -> a -> a
 
+instance MapSymbol Reft where
+  mapSymbol f (Reft(s, rs)) = Reft(f s, map (mapSymbol f) rs)
 
+instance MapSymbol Refa where
+  mapSymbol f (RConc p)     = RConc (mapSymbol f p)
+  mapSymbol f (RKvar s sub) = RKvar (f s) sub
+  mapSymbol f (RPvar p sub) = RPvar (mapSymbol f p) sub
+
+instance MapSymbol Pred where
+  mapSymbol f (PAnd ps)       = PAnd (mapSymbol f <$> ps)
+  mapSymbol f (POr ps)        = POr (mapSymbol f <$> ps)
+  mapSymbol f (PNot p)        = PNot (mapSymbol f p)
+  mapSymbol f (PImp p1 p2)    = PImp (mapSymbol f p1) (mapSymbol f p2)
+  mapSymbol f (PIff p1 p2)    = PIff (mapSymbol f p1) (mapSymbol f p2)
+  mapSymbol f (PBexp e)       = PBexp (mapSymbol f e)
+  mapSymbol f (PAtom b e1 e2) = PAtom b (mapSymbol f e1) (mapSymbol f e2)
+  mapSymbol f (PAll _ _)      = error "mapSymbol PAll"
+  mapSymbol _ p               = p 
+
+instance MapSymbol Expr where
+  mapSymbol f (EVar s)       = EVar $ f s
+  mapSymbol f (EDat s so)    = EDat (f s) so
+  mapSymbol f (ELit s so)    = ELit (f s) so
+  mapSymbol f (EApp s es)    = EApp (f s) (mapSymbol f <$> es)
+  mapSymbol f (EBin b e1 e2) = EBin b (mapSymbol f e1) (mapSymbol f e2)
+  mapSymbol f (EIte p e1 e2) = EIte (mapSymbol f p) (mapSymbol f e1) (mapSymbol f e2)
+  mapSymbol f (ECst e s)     = ECst (mapSymbol f e) s 
+  mapSymbol _ e              = e
+
+instance MapSymbol PredVar where 
+  mapSymbol f (RP s rs) = RP (f s) (map (mapFst f) rs)
