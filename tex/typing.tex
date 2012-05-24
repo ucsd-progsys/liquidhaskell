@@ -54,6 +54,7 @@ $$
 $$
 \inference{
 	\hastype{\Gamma, p:\tau \rightarrow \tbbool}{e}{S} &&
+	\isWellFormed{\Gamma}{\tfun{p}{(\tau \rightarrow \tbbool)}{S}} &&
 	p \notin \fv{e}
 }{
 	\hastype{\Gamma}{\epabs{p}{\tau}{e}}{\tpabs{p}{\tau}{S}}

@@ -25,30 +25,46 @@ insert kx x t
               GT -> balance ky y l (insert kx x r)
               EQ -> Bin sz kx x l r
 
-{-
-insert kx x Tip  = singleton kx x
-insert kx x (Bin sz ky y l r)
-  | kx == ky   = Bin sz kx x l r
-  | kx < ky    = balance ky y (insert kx x l) r
-  | otherwise  = balance ky y l (insert kx x r)
--}
-
--- fix Eq case 
--- can I use glue function?
 delete :: Ord k => k -> Map k a -> Map k a
-delete _ Tip = Tip
-delete k (Bin _ kx x l r)
-  | k == kx = 
-      case r of 
-       Tip   -> l
-       _       -> let P kmin vmin r' = getMin r in balance kmin vmin l r'
-  | k < kx    = balance kx x (delete k l) r
-  | otherwise = balance kx x l (delete k r)
+delete k t 
+  = case t of 
+      Tip -> Tip
+      Bin _ kx x l r
+          -> case compare k kx of 
+               LT -> balance kx x (delete k l) r
+               GT -> balance kx x l (delete k r)
+               EQ -> glue kx l r 
 
+
+glue :: k -> Map k a -> Map k a -> Map k a
+glue k Tip r = r
+glue k l Tip = l
+glue k l r
+  | size l > size r = let P km vm lm = deleteFindMax l in balance km vm lm r
+  | otherwise       = let P km vm rm = deleteFindMin r in balance km vm l rm
+
+deleteFindMax :: Map k a -> Pair k a
+deleteFindMax t 
+  = case t of
+      Bin _ k x l Tip -> P k x l
+      Bin _ k x l r -> let P km vm rm = deleteFindMax r in P km vm (balance k x l rm) 
+      Tip             -> P (error ms) (error ms) Tip
+  where ms = "Map.deleteFindMax : can not return the maximal element of an empty Map"   
+
+
+deleteFindMin :: Map k a -> Pair k a
+deleteFindMin t 
+  = case t of
+      Bin _ k x Tip r -> P k x r
+      Bin _ k x l r -> let P km vm lm = deleteFindMin l in P km vm (balance k x lm r) 
+      Tip             -> P (error ms) (error ms) Tip
+  where ms = "Map.deleteFindMin : can not return the maximal element of an empty Map"   
+
+{-
 getMin (Bin sz k v Tip rt) = P k v rt
 getMin (Bin sz k v lt rt)    = P k0min v0min (Bin (sz-1) k v l' rt)
    where P k0min v0min l' = getMin lt
-
+-}
 
 delta, ratio :: Int
 delta = 5
@@ -130,6 +146,8 @@ prop        = chk bst1
 prop1       = chk $ mkBst $ zip [1..] [1..]
 
 propDelete  = chk $ delete 1 bst
+{-
 propMin     = chkMin x t
     where pr  = getMin bst
           P x _ t = pr
+-}
