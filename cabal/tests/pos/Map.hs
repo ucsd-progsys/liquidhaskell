@@ -60,11 +60,10 @@ deleteFindMin t
       Tip             -> P (error ms) (error ms) Tip
   where ms = "Map.deleteFindMin : can not return the maximal element of an empty Map"   
 
-{-
-getMin (Bin sz k v Tip rt) = P k v rt
-getMin (Bin sz k v lt rt)    = P k0min v0min (Bin (sz-1) k v l' rt)
-   where P k0min v0min l' = getMin lt
--}
+
+-------------------------------------------------------------------------------
+--------------------------------- BALANCE -------------------------------------
+-------------------------------------------------------------------------------
 
 delta, ratio :: Int
 delta = 5
@@ -119,7 +118,10 @@ size t
       Bin sz _ _ _ _ -> sz
 
 
-chkMin x Tip             = assert True  
+chkDel x Tip                = assert True  
+chkDel x (Bin sz k v lt rt) = assert (not (x == k)) && chkDel x lt && chkDel x rt
+
+chkMin x Tip                = assert True  
 chkMin x (Bin sz k v lt rt) = assert (x<k) && chkMin x lt && chkMin x rt
 
 chk Tip               = assert True  
@@ -145,9 +147,5 @@ mkBst = foldl (\t (k, v) -> insert k v t) Tip
 prop        = chk bst1
 prop1       = chk $ mkBst $ zip [1..] [1..]
 
-propDelete  = chk $ delete 1 bst
-{-
-propMin     = chkMin x t
-    where pr  = getMin bst
-          P x _ t = pr
--}
+propDelete  = chk $ delete x bst
+   where x = choose 0
