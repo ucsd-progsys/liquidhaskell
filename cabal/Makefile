@@ -1,4 +1,5 @@
-BINPATH=/home/rjhala/research/ghc-working-local-new/bin
+## BINPATH=/home/rjhala/research/ghc-working-local-new/bin
+BINPATH=/usr/bin
 API=ghc-7.4.1
 
 ##################################################
@@ -25,6 +26,7 @@ clean:
 	cabal clean
 
 dpackages:
+	$(CABAL) install filemanip 
 	$(CABAL) install transformers 
 	$(CABAL) install cmdargs 
 	$(CABAL) install deepseq

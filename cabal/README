@@ -9,7 +9,7 @@ How To Run
   
 1. add this to .bashrc
 
-LIQUIDHS=PATH/TO/LiquidHaskell/include/
+LIQUIDHS=PATH/TO/LiquidHaskell/cabal/include/
 export LIQUIDHS
 
 2. ensure "fixpoint.native" is in the executable search path
