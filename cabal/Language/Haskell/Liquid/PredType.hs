@@ -37,16 +37,16 @@ import Data.Data
 
 data Predicate = PdVar {pname :: !String, ptype :: !Type, pargs :: ![(Type, Symbol, Symbol)]}
                | PdTrue
-							        | Predicate `PdAnd` Predicate
-							        deriving (Data, Typeable)
+               | Predicate `PdAnd` Predicate
+			   deriving (Data, Typeable)
 
 data PrTy a = PrVar   !TyVar     !a
             | PrLit   !Literal   !a
-      						| PrAll   !TyVar     !(PrTy a)
-      						| PrAllPr !a         !(PrTy a)
-      						| PrClass !Class     ![PrTy a]
-      						| PrFun   !Symbol    !(PrTy a)   !(PrTy a)
-      						| PrTyCon !TC.TyCon  ![PrTy a]   ![a] !a
+      		| PrAll   !TyVar     !(PrTy a)
+      		| PrAllPr !a         !(PrTy a)
+      		| PrClass !Class     ![PrTy a]
+      		| PrFun   !Symbol    !(PrTy a)   !(PrTy a)
+      		| PrTyCon !TC.TyCon  ![PrTy a]   ![a] !a
             deriving (Data, Typeable)
 
 {-

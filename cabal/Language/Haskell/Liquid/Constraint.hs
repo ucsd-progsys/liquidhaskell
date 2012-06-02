@@ -176,8 +176,8 @@ withRecs γ xs = γ { recs = foldl' (flip S.insert) (recs γ) xs }
 isGeneric :: RTyVar -> RefType -> Bool
 isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConstrs t)
   where classConstrs t = [(c, α') | (c, ts) <- getTyClasses t
-		                                , t'      <- ts
-																													     , α'      <- getTyVars t']
+                                  , t'      <- ts
+                                  , α'      <- getTyVars t']
         isOrd          = (ordClassName ==) . className
         isEq           = (eqClassName ==) . className
 
@@ -218,9 +218,9 @@ data WfC      = WfC  { wenv  :: !CGEnv
                      , r     :: !RefType 
                      } 
               | WfCS { wenv  :: !CGEnv
-																					, ty    :: !Type
-																					, s     :: !F.Refa
-																					}
+                     , ty    :: !Type
+                     , s     :: !F.Refa
+                     }
               deriving (Data, Typeable)
 
 type FixSubC  = F.SubC Cinfo
@@ -237,7 +237,6 @@ instance Outputable WfC where
 
 instance Outputable Cinfo where
   ppr (Ci src) = ppr src
-
 
 --instance Outputable a => Outputable (F.SubC a) where
 --  -- ppr (F.SubC {F.sinfo = s}) = text "Liquid Type Error: " <> ppr s
