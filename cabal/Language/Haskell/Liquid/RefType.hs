@@ -75,8 +75,8 @@ newtype RBind = RB Symbol
 newtype RTyVar = RT (TyVar, Symbol)
   deriving (Eq, Ord, Data, Typeable)
 
-data RTyCon = RTyCon { rTyCon     :: !TC.TyCon
-                     , rTyConPs   :: ![Predicate]
+data RTyCon = RTyCon { rTyCon     :: !TC.TyCon          -- GHC Type Constructor
+                     , rTyConPs   :: ![Predicate]       -- Predicate Parameters
                      }
   deriving (Data, Typeable)
 
@@ -271,14 +271,15 @@ instance Outputable RefType where
   ppr = ppr_reftype TopPrec 
 
 instance Outputable RTyCon where
- ppr (RTyCon c ts) = ppr c <+> text "\n<<" <+> hsep (map ppr ts) <+> text ">>\n"
-
+  ppr (RTyCon c ts) = ppr c -- <+> text "\n<<" <+> hsep (map ppr ts) <+> text ">>\n"
+  
 instance Show RTyCon where
  show = showPpr
 
 instance Outputable Reft where
   ppr = text . show
-brance x = char '[' <> ppr x <> char ']'
+
+-- brance x = char '[' <> ppr x <> char ']'
 
 ppr_reftype p (RPred pr t)
   = text "forall" <+> ppr pr <+> ppr_pred p t
@@ -288,27 +289,41 @@ ppr_reftype p (RFun x t t')
   = pprArrowChain p $ ppr_dbind x t : ppr_fun_tail t'
 ppr_reftype p t@(RAll _ _)       
   = ppr_forall_reftype p t
+
+ppr_reftype p (RConApp c [t] rs r)
+  | rTyCon c == listTyCon 
+  = ppReft r $ brackets (ppr_reftype p t) <> ppr_tycon_preds rs
 ppr_reftype p (RConApp c ts rs r)
-  = ppr c <+> ppr_tyConTy p c ts<+> text "\n"<> braces (hsep (map ppr rs)) <+> ppr r
+  = ppReft r $ ppr c <> ppr_tycon_preds rs <+> hsep (ppr <$> ts)
+
+-- ppr_reftype p (RConApp c ts rs r)
+--  = ppr c <+> ppr_tyConTy p ts <+> text "\n" <> braces (hsep (map ppr rs)) <+> ppr r
+-- ppr_tyConTy p ts  = braces (hsep (map (ppr_reftype p) ts)) 
 
 ppr_reftype _ (RClass c ts)      
   = parens $ pprClassPred c (toType <$> ts)
+
 ppr_reftype _ (ROther t)         
   = text "?" <> ppr t <> text "?"
 
-ppr_tyConTy p (RTyCon _ _) ts  = braces (hsep (map (ppr_reftype p) ts)) 
+ppr_tycon_preds rs 
+  | all trivialRefts rs 
+  = empty
+  | otherwise 
+  = angleBrackets $ hsep $ punctuate comma $ ppReft_pred <$> rs
+  where trivialRefts (Reft (_, ras)) = all isTautoRa ras
 
 ppr_pred p (RPred pr t)
   = ppr pr <> ppr_pred p t
 ppr_pred p t
-  = char '.' <+> ppr_reftype p t
+  = dot <+> ppr_reftype p t
 
 
 ppr_dbind (RB x) t 
-  | x == nonSymbol
+  | isNonSymbol x -- == nonSymbol
   = ppr_reftype FunPrec t
   | otherwise
-  = ppr x <> text ":" <> ppr_reftype FunPrec t
+  = braces (ppr x) <> colon <> ppr_reftype FunPrec t
 
 ppr_fun_tail (RFun x t t')  
   = (ppr_dbind x t) : (ppr_fun_tail t')
@@ -331,14 +346,19 @@ ppReft (Reft (v, ras)) d
   | all isTautoRa ras
   = d
   | otherwise
-  =  braces (ppr v <> text ":" <> d <> text " | " <> ppRas ras)
+  =  braces (ppr v <+> colon <+> d <+> text "|" <+> ppRas ras)
+
+ppReft_pred (Reft (_, ras)) 
+  | all isTautoRa ras
+  = text "true"
+  | otherwise
+  = ppRas ras
 
 isTautoRa (RConc p) = isTauto p
 isTautoRa _         = False
 
-ppRas = cat . punctuate (text ",") . map toFix . flattenRefas
+ppRas = cat . punctuate comma . map toFix . flattenRefas
 
-       
 ---------------------------------------------------------------
 --------------------------- Visitors --------------------------
 ---------------------------------------------------------------
@@ -680,7 +700,7 @@ domREnv (REnv env)        = M.keys env
 
 instance Outputable REnv where
   ppr (REnv m)         = vcat $ map pprxt $ M.toAscList m
-    where pprxt (x, t) = ppr x <> text " :: " <> ppr t  
+    where pprxt (x, t) = ppr x <> dcolon <> ppr t  
 
 refTypePredSortedReft_   :: (Reft, Type) -> SortedReft
 refTypePredSortedReft_ (r, τ) = RR so r

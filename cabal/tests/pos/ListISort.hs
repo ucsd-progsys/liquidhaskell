@@ -2,6 +2,7 @@ module ListSort where
 
 import Language.Haskell.Liquid.Prelude -- (assert, choose)
 
+insertSort :: (Ord a) => [a] -> [a]
 insertSort                    = foldr insert []
 
 insert y []                   = [y]

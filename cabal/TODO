@@ -8,7 +8,7 @@ Tidy Annotations
 
 2. forall a. (Ord a) => a -> {v: [a]{fld <= vv} | [true]} -> {v: [a]{fld <= vv} | [true]}
 
-3.           (Ord a) => a -> [a]{fld <= vv} -> [a]{fld <= vv}
+3.           (Ord a) => a -> [a]{fld <= V} -> [a]{fld <= V}
 
 
 
