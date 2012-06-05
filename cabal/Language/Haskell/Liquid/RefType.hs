@@ -11,17 +11,15 @@ module Language.Haskell.Liquid.RefType (
   , rTyVar, rTyVarSymbol
   , typeId
   , strengthen, strengthenRefType
---  , unfoldRType
-		, mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
+  , mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, refTypePredSortedReft_,refTypeSortedReft, typeSortedReft, refTypePredSortedReft, rTypeSort
   , canonRefType, tidyRefType
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalConst
   , REnv, deleteREnv, domREnv, insertREnv, lookupREnv, emptyREnv, memberREnv, fromListREnv
-		, toTyVar
-		, addTyConInfo
-    , primOrderingSort
+  , toTyVar, addTyConInfo
+  , primOrderingSort
   ) where
 
 import Text.Printf
@@ -71,40 +69,14 @@ newtype TyId
 typeId :: TC.TyCon -> TyId
 typeId = TI . showPpr
 
-{-
-data RTyCon a  
-  = RAlgTyCon { 
-      rTyCon        :: !TC.TyCon
-    , rAlgTcRhs     :: !(RAlgRhs a) 
-    }
-  | RPrimTyCon {    
-      rTyCon        :: !TC.TyCon
-    }
-  deriving (Data, Typeable)
-
-data RAlgRhs a 
-  = RDataTyCon { 
-      rAlgRhs       :: () --TC.AlgTyConRhs DO NOT DELETE!, 
-    , rdata_cons    :: ![RDataCon a] 
-    } 
-  deriving (Data, Typeable)
-
-data RDataCon a  
-  = MkRData { 
-      rdcDataCon    :: !DataCon
-    , rdcOrigArgTys :: ![(RBind, RType a)] 
-    } 
-  deriving (Data, Typeable)
--}
-
 newtype RBind = RB Symbol
   deriving (Data, Typeable)
 
 newtype RTyVar = RT (TyVar, Symbol)
   deriving (Eq, Ord, Data, Typeable)
 
-data RTyCon = RTyCon { rTyCon     :: !TC.TyCon
-                     , rTyConPs   :: ![Predicate]
+data RTyCon = RTyCon { rTyCon     :: !TC.TyCon          -- GHC Type Constructor
+                     , rTyConPs   :: ![Predicate]       -- Predicate Parameters
                      }
   deriving (Data, Typeable)
 
@@ -118,13 +90,7 @@ data RType a
   | ROther  !Type 
   deriving (Data, Typeable)
 
---type RefTyCon   = RTyCon Reft 
---type RefAlgRhs  = RAlgRhs Reft  
---type RefDataCon = RDataCon Reft 
 type RefType    = RType Reft    
-
--- instance Show RefTyCon where
---   show = showPpr
 
 instance Show RefType where
   show = showPpr
@@ -201,8 +167,6 @@ replaceReft (RVar a _) r'      = RVar a      r'
 replaceReft t _                = t 
 
 
--- getRDataCon dc (RAlgTyCon _ (RDataTyCon _ rdcs)) 
---   = mfromJust "findRDataCon" $ find ((dc ==) . rdcDataCon) rdcs
 
 addTyConInfo tyi = mapBot (addTCI tyi) 
 addTCI tyi t@(RConApp c ts rs r)
@@ -306,22 +270,16 @@ instance Outputable RTyVar where
 instance Outputable RefType where
   ppr = ppr_reftype TopPrec 
 
-
--- instance Outputable RefTyCon where
---   ppr = ppr_rcon
-
--- instance Outputable RefDataCon where
---   ppr = ppr_rdatacon
-
 instance Outputable RTyCon where
- ppr (RTyCon c ts) = ppr c <+> text "\n<<" <+> hsep (map ppr ts) <+> text ">>\n"
-
+  ppr (RTyCon c ts) = ppr c -- <+> text "\n<<" <+> hsep (map ppr ts) <+> text ">>\n"
+  
 instance Show RTyCon where
  show = showPpr
 
 instance Outputable Reft where
   ppr = text . show
-brance x = char '[' <> ppr x <> char ']'
+
+-- brance x = char '[' <> ppr x <> char ']'
 
 ppr_reftype p (RPred pr t)
   = text "forall" <+> ppr pr <+> ppr_pred p t
@@ -331,37 +289,41 @@ ppr_reftype p (RFun x t t')
   = pprArrowChain p $ ppr_dbind x t : ppr_fun_tail t'
 ppr_reftype p t@(RAll _ _)       
   = ppr_forall_reftype p t
+
+ppr_reftype p (RConApp c [t] rs r)
+  | rTyCon c == listTyCon 
+  = ppReft r $ brackets (ppr_reftype p t) <> ppr_tycon_preds rs
 ppr_reftype p (RConApp c ts rs r)
-  = ppr c <+> ppr_tyConTy p c ts<+> text "\n"<> braces (hsep (map ppr rs)) <+> ppr r
+  = ppReft r $ ppr c <> ppr_tycon_preds rs <+> hsep (ppr <$> ts)
+
+-- ppr_reftype p (RConApp c ts rs r)
+--  = ppr c <+> ppr_tyConTy p ts <+> text "\n" <> braces (hsep (map ppr rs)) <+> ppr r
+-- ppr_tyConTy p ts  = braces (hsep (map (ppr_reftype p) ts)) 
 
 ppr_reftype _ (RClass c ts)      
   = parens $ pprClassPred c (toType <$> ts)
+
 ppr_reftype _ (ROther t)         
   = text "?" <> ppr t <> text "?"
 
-ppr_tyConTy p (RTyCon _ _) ts  = braces (hsep (map (ppr_reftype p) ts)) 
+ppr_tycon_preds rs 
+  | all trivialRefts rs 
+  = empty
+  | otherwise 
+  = angleBrackets $ hsep $ punctuate comma $ ppReft_pred <$> rs
+  where trivialRefts (Reft (_, ras)) = all isTautoRa ras
 
 ppr_pred p (RPred pr t)
   = ppr pr <> ppr_pred p t
 ppr_pred p t
-  = char '.' <+> ppr_reftype p t
+  = dot <+> ppr_reftype p t
 
-{-
-ppr_rcon (RAlgTyCon c (RDataTyCon _ rdcs)) 
---  = text "<<<" <> sep ((text "||") `punctuate` (ppr_rdatacon `fmap` rdcs)) <> text ">>>"
-  = ppr c  
-ppr_rcon (RPrimTyCon _)    
-  = empty
-
-ppr_rdatacon (MkRData d bs) 
-  = ppr d <> text " of " <> sep ((text "&&") `punctuate` (ppr `fmap` bs)) 
--}
 
 ppr_dbind (RB x) t 
-  | x == nonSymbol
+  | isNonSymbol x -- == nonSymbol
   = ppr_reftype FunPrec t
   | otherwise
-  = ppr x <> text ":" <> ppr_reftype FunPrec t
+  = braces (ppr x) <> colon <> ppr_reftype FunPrec t
 
 ppr_fun_tail (RFun x t t')  
   = (ppr_dbind x t) : (ppr_fun_tail t')
@@ -384,28 +346,22 @@ ppReft (Reft (v, ras)) d
   | all isTautoRa ras
   = d
   | otherwise
-  =  braces (ppr v <> text ":" <> d <> text " | " <> ppRas ras)
+  =  braces (ppr v <+> colon <+> d <+> text "|" <+> ppRas ras)
+
+ppReft_pred (Reft (_, ras)) 
+  | all isTautoRa ras
+  = text "true"
+  | otherwise
+  = ppRas ras
 
 isTautoRa (RConc p) = isTauto p
 isTautoRa _         = False
 
-ppRas = cat . punctuate (text ",") . map toFix . flattenRefas
+ppRas = cat . punctuate comma . map toFix . flattenRefas
 
-       
 ---------------------------------------------------------------
 --------------------------- Visitors --------------------------
 ---------------------------------------------------------------
-{-
-instance Functor RTyCon where
-  fmap f (RAlgTyCon x z)  = RAlgTyCon x (f <$> z)
-  fmap f (RPrimTyCon c)   = RPrimTyCon c 
-
-instance Functor RAlgRhs where
-  fmap f (RDataTyCon x y) = RDataTyCon x (map (f <$>) y)
-
-instance Functor RDataCon where
-  fmap f (MkRData x y) = MkRData x (map (mapSnd (f <$>)) y)
--}
 
 instance Functor RType where
   fmap f (RPred p r)     = RPred p (fmap f r)
@@ -424,8 +380,6 @@ subsTyVar_nomeet  = subsTyVar False
 subsTyVars ::  Bool -> [(RTyVar, RefType)] -> RefType -> RefType 
 subsTyVars meet ats t = foldl' (flip (subsTyVar meet)) t ats
 
--- subsTyVarsTyCon ::  Bool -> [(RTyVar, RefType)] -> RefTyCon -> RefTyCon
--- subsTyVarsTyCon meet ats c = foldl' (flip (subsFreeRTyCon meet S.empty)) c ats
 
 subsTyVar ::  Bool -> (RTyVar, RefType) -> RefType -> RefType 
 subsTyVar meet = subsFree meet S.empty
@@ -453,22 +407,9 @@ subsFree meet s (α', t') t@(RVar α r)
   = t
 subsFree _ _ _ t@(ROther _)        
   = t
-{-
-subsFreeRTyCon m s z (RAlgTyCon p r) 
-  = RAlgTyCon p (subsFreeRAlgRhs m s z r)
-subsFreeRTyCon m s z x@(RPrimTyCon _)         
-  = x 
-subsFreeRAlgRhs m s z (RDataTyCon p dcs) 
-  = RDataTyCon p (subsFreeRDataCon m s z <$> dcs)
-subsFreeRDataCon m s z (MkRData p qs) 
-  = MkRData p (map (mapSnd $ subsFree m s z) qs)
--}
+
+
 ---------------------------------------------------------------
-
---tyConRTyCon c  = RPrimTyCon c 
---  | TC.isPrimTyCon c = RPrimTyCon c
---  | otherwise        = errorstar $ "tyConRTyCon: " ++ showPpr c
-
 
 stripRTypeBase ::  RType a -> Maybe a
 stripRTypeBase (RConApp _ _ _ x)   
@@ -517,22 +458,6 @@ ofSynTyConApp s (TyConApp c τs)
   = ofType_ s $ substTyWith αs τs τ
   where (αs, τ) = TC.synTyConDefn c
 
-{-
-ofAlgTyConApp s τ@(TyConApp c τs)
-  = RConApp c ts [] trueReft --(tyConReft c) 
-  where rc   = RAlgTyCon c $ ofAlgRhs s (TC.algTyConRhs c)
-        ts   = ofType_ s <$> τs
-
-ofAlgRhs  :: S.Set TyId -> TC.AlgTyConRhs -> RefAlgRhs
-ofAlgRhs s r 
-  = RDataTyCon () [] -- (ofDataCon s <$> TC.visibleDataCons r) --NIKI
-
-ofDataCon :: S.Set TyId -> DataCon -> RefDataCon
-ofDataCon s d
-  = MkRData d $ zip flds ts
-    where flds = (RB . intSymbol "fld") <$> [0..((length ts) - 1)]
-          ts   = ofType_ s <$> dataConOrigArgTys d
--}
 -----------------------------------------------------------------
 ---------------------- Scrap this using SYB? --------------------
 -----------------------------------------------------------------
@@ -546,16 +471,7 @@ mapTop f t =
     (RConApp c ts rs r) -> RConApp c (mapTop f <$> ts) rs r
     (RClass c ts)       -> RClass c (mapTop f <$> ts)
     t'                  -> t' 
-{-
-mapTopRTyCon f (RAlgTyCon p r)  
-  = RAlgTyCon p (mapTopRAlgRhs f r)
-mapTopRTyCon f x@(RPrimTyCon _) 
-  = x 
-mapTopRAlgRhs f (RDataTyCon p dcs)
-  = RDataTyCon p (mapTopRDataCon f <$> dcs)
-mapTopRDataCon f (MkRData p qs) 
-  = MkRData p ((mapSnd $ mapTop f) <$> qs)
--}
+
 mapBot ::  (RefType -> RefType) -> RefType -> RefType
 mapBot f (RAll a t)          = RAll a (mapBot f t)
 mapBot f (RPred p t)         = RPred p (mapBot f t)
@@ -563,16 +479,7 @@ mapBot f (RFun x t t')       = RFun x (mapBot f t) (mapBot f t')
 mapBot f (RConApp c ts rs r) = f $ RConApp c (mapBot f <$> ts) rs r
 mapBot f (RClass c ts)       = RClass c (mapBot f <$> ts)
 mapBot f t'                  = f t' 
-{-
-mapBotRTyCon f (RAlgTyCon p r)  
-  = RAlgTyCon p (mapBotRAlgRhs f r)
-mapBotRTyCon f x@(RPrimTyCon _) 
-  = x 
-mapBotRAlgRhs f (RDataTyCon p dcs)
-  = RDataTyCon p (mapBotRDataCon f <$> dcs)
-mapBotRDataCon f (MkRData p qs)  
-  = MkRData p ((mapSnd $ mapBot f) <$> qs)
--}
+
 canonRefType :: RefType -> RefType
 canonRefType = mapTop zz
   where zz t@(RConApp c ts rs r)  = RConApp c ts (map canonReft rs) (canonReft r)
@@ -793,7 +700,7 @@ domREnv (REnv env)        = M.keys env
 
 instance Outputable REnv where
   ppr (REnv m)         = vcat $ map pprxt $ M.toAscList m
-    where pprxt (x, t) = ppr x <> text " :: " <> ppr t  
+    where pprxt (x, t) = ppr x <> dcolon <> ppr t  
 
 refTypePredSortedReft_   :: (Reft, Type) -> SortedReft
 refTypePredSortedReft_ (r, τ) = RR so r

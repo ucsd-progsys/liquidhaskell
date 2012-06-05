@@ -1,23 +1,25 @@
 module ListSort where
 
-import Language.Haskell.Liquid.Prelude
+import Language.Haskell.Liquid.Prelude -- (assert, choose)
 
-insert y []     = [y]
-insert y (x:xs) = if (y<=x) then (y:(x:xs)) else (x:(insert y xs))
+insertSort :: (Ord a) => [a] -> [a]
+insertSort                    = foldr insert []
 
-chk [] = assert True
-chk (x1:xs) = case xs of 
-               []     -> assert True
-               x2:xs2 -> assert (x1 <= x2) && chk xs
-																	
-sort = foldr insert []
+insert y []                   = [y]
+insert y (x : xs) | y <= x    = y : x : xs 
+                  | otherwise = x : insert y xs
 
+checkSort []                  = assert True
+checkSort [_]                 = assert True
+checkSort (x1:x2:xs)          = assert (x1 <= x2) && checkSort (x2:xs)
+
+-----------------------------------------------------------------------
+
+bar   = insertSort rlist
 rlist = map choose [1 .. 10]
 
-bar = sort rlist
+bar1  :: [Int]
+bar1  = [1, 2, 4, 5]
 
-bar1 :: [Int]
-bar1 = [1, 2, 4, 5]
-
-prop0 = chk bar
-prop1 = chk bar1
+prop0 = checkSort bar
+prop1 = checkSort bar1

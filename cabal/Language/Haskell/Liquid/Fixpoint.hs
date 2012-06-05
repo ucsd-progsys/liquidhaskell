@@ -3,7 +3,7 @@
 module Language.Haskell.Liquid.Fixpoint (
     toFixpoint, toFix
   , dummySort
-  , symChars, nonSymbol, dummySymbol, intSymbol, tagSymbol, tempSymbol
+  , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tagSymbol, tempSymbol
   , stringSymbol, symbolString
   , anfPrefix, tempPrefix
   , intKvar
@@ -249,7 +249,8 @@ instance Fixpoint Symbol where
   toFix (S x) = text x
 
 instance Outputable Symbol where
-  ppr = text . symbolString 
+  ppr (S x) = text x 
+  -- ppr = text . symbolString 
 
 instance Show Symbol where
   --show = symbolString
@@ -339,6 +340,7 @@ isTempSym (S x)         = tempPrefix `isPrefixOf` x
 tempPrefix              = "lq_tmp_"
 anfPrefix               = "lq_anf_" 
 nonSymbol               = S ""
+isNonSymbol             = (0 ==) . length . symbolString
 
 intKvar                 :: Integer -> Symbol
 intKvar                 = intSymbol "k_" 
