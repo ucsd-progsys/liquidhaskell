@@ -626,7 +626,6 @@ instance Fixpoint Int where
 
 class Subable a where
   subst  :: Subst -> a -> a
-  psubst :: PSubst -> a -> a
 
   subst1 :: a -> (Symbol, Expr) -> a
   subst1 thing (x, e) = subst (Su $ M.singleton x e) thing
