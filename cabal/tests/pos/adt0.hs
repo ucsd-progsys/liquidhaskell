@@ -1,4 +1,4 @@
-module Deptup where
+module Adt where
 
 import Language.Haskell.Liquid.Prelude
 

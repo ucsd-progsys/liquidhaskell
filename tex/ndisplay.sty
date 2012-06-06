@@ -1,0 +1,287 @@
+%******************************************************************************
+%  SVN version:
+%     $Id: $
+%******************************************************************************
+%  LaTeX file  : ndisplay.sty
+%  Project     : SoftLab PL LaTeX macros
+%  Version     : 1.0 alpha
+%  Written by  : Nikolaos S. Papaspyrou
+%  Date        : October 15, 2000
+%  Revised     : January 24, 2006
+%  Description : Environment and support for line-breaking and page-breaking
+%                mathematical formulae.
+
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{ndisplay}%
+  [2007/04/12 v1.1a  Environment for mathematical formulae (NSP)]
+
+
+% Check if the package has been reloaded
+
+\@ifundefined{n@display@stack}{}{%
+  \PackageWarning{ndisplay}{%
+    Package already loaded.
+  }%
+  \endinput%
+}
+
+
+% Dependencies
+
+\RequirePackage{keyval}
+
+
+% Keys for keyval
+
+\define@key{ndisplay}{indent}{%
+  \setlength{\leftmargin}{#1}}%
+\define@key{ndisplay}{indpar}{%
+  \setlength{\leftmargin}{#1\nparindent}}%
+\define@key{ndisplay}{noindent}[]{%
+  \setlength{\leftmargin}{0pt}}%
+\define@key{ndisplay}{tab}{%
+  \setlength{\ntablen}{#1}}
+\define@key{ndisplay}{max}{%
+  \settowidth\n@display@temp{\ensuremath{#1}}%
+  \setlength{\n@define@maxwidth}{\n@display@temp}}
+\define@key{ndisplay}{maxwidth}{%
+  \setlength{\n@define@maxwidth}{#1}}
+\define@key{ndisplay}{sep}{%
+  \settowidth\n@display@temp{\ensuremath{#1}}%
+  \setlength{\n@define@sepwidth}{\n@display@temp}}
+\define@key{ndisplay}{sepwidth}{%
+  \setlength{\n@define@sepwidth}{#1}}
+\define@key{ndisplay}{left}[]{%
+  \let\n@display@left\relax%
+  \let\n@display@right\relax}
+\define@key{ndisplay}{right}[]{%
+  \setlength{\leftmargin}{0pt}%
+  \let\n@display@left\hfill%
+  \let\n@display@right\relax}
+\define@key{ndisplay}{center}[]{%
+  \setlength{\leftmargin}{0pt}%
+  \let\n@display@left\hfill%
+  \let\n@display@right\hfill}
+
+
+% Save paragraph indentation
+
+\@ifundefined{nparindent}{%
+  \newlength{\nparindent}
+  \setlength{\nparindent}{\parindent}
+  \newlength{\ntablen}
+  \setlength{\ntablen}{\parindent}
+  \newcommand{\ntab}[1][1]{\hspace*{#1\ntablen}}
+}{}
+
+
+% Support for stacks
+
+\newcommand{\n@push}[2]{%
+  \expandafter\xdef\csname #1\endcsname{{\the #2}{\csname #1\endcsname}}%
+}
+\newcommand{\n@pop}[2]{\expandafter\n@pop@auxone\csname #1\endcsname{#1}{#2}}
+\def\n@pop@auxone#1#2#3{\expandafter\n@pop@auxtwo#1{#2}{#3}}
+\def\n@pop@auxtwo#1#2#3#4{%
+  \expandafter\gdef\csname #3\endcsname{#2}%
+  \global\setlength{\csname #4\endcsname}{#1}%
+}
+
+
+% DEBUG
+
+\newbox\n@debug
+\def\ndebugclear{\global\setbox\n@debug\vbox{}}
+\def\ndebug#1{\global\setbox\n@debug\vbox{\unvbox\n@debug\vskip 3pt\hbox{#1}}}
+\def\ndebugoutput{\unvbox\n@debug}
+\ndebugclear
+
+
+% Formulae display
+
+\gdef\n@display@stack{}
+\newbox\n@display@box
+\newlength\n@display@leftskip
+\newlength\n@display@leftused
+\newlength\n@display@temp
+\let\n@display@orig@cr\\
+\newcount\n@display@split
+\newbox\n@display@split@hsep
+\let\n@display@split@vsep\relax
+
+\newenvironment{ndisplay}[1][]{%
+  \expandafter\n@display@begin#1\relax%
+}{%
+  \expandafter\n@display@end%
+}
+\def\n@display@begin#1\relax{%
+  \begin{list}{}{%
+    \setlength{\itemsep}{0pt}%
+    \setlength{\parsep}{0pt}%
+    \setlength{\leftmargin}{\nparindent}%
+    \global\setlength{\n@display@leftskip}{0pt}%
+    \global\setlength{\n@display@leftused}{0pt}%
+    \let\n@display@left\relax%
+    \let\n@display@right\relax%
+    \let\n@display@orig@cr\\%
+    \let\\\n@display@cr%
+    \n@display@split=0%
+    \setkeys{ndisplay}{#1}%
+  }%
+  \item\n@display@left%
+  \setbox\n@display@box\hbox\bgroup\color@begingroup$\relax%$
+}
+\def\n@display@end{%
+  $\color@endgroup\egroup%$
+  \global\addtolength{\n@display@leftused}{\wd\n@display@box}%
+  \n@split@or@not\unhbox\n@display@box%
+  \n@display@right\strut%
+  \let\\\n@display@orig@cr%
+  \end{list}%
+}
+
+\def\n@split@or@not{%
+  \ifcase\n@display@split%
+    \or\n@split@yes%
+    \or\n@split@maybe%
+  \fi%
+  \n@display@split=0%
+}
+\def\n@split@yes{%
+  \n@display@right\strut\n@display@orig@cr[\n@display@split@vsep]%
+  \global\setlength{\n@display@leftused}{\wd\n@display@box}%
+  \hspace*{\n@display@leftskip}\n@display@left%
+}
+\def\n@split@maybe{%
+  \setlength{\n@display@temp}{\wd\n@display@split@hsep}%
+  \addtolength{\n@display@temp}{\n@display@leftused}%
+  %\ndebug{\the\n@display@temp\ and (line) \the\linewidth}%
+  \ifdim\n@display@temp<\linewidth%
+    \global\setlength{\n@display@leftused}{\n@display@temp}%
+    \unhbox\n@display@split@hsep%
+  \else%
+    \n@split@yes%
+  \fi
+}
+
+\newcommand{\nsplitmaybe}[2]{%
+  $\color@endgroup\egroup%$
+  \global\addtolength{\n@display@leftused}{\wd\n@display@box}%
+  \n@split@or@not\unhbox\n@display@box%
+  \n@display@split=2%
+  \setbox\n@display@split@hsep\hbox{#1}%
+  \xdef\n@display@split@vsep{#2}%
+  \setbox\n@display@box\hbox\bgroup\color@begingroup$%$
+}
+\newcommand{\nsplit}[1][1]{%
+  $\color@endgroup\egroup%$
+  \global\addtolength{\n@display@leftused}{\wd\n@display@box}%
+  \n@split@or@not\unhbox\n@display@box%
+  \n@display@split=1%
+  \xdef\n@display@split@vsep{0pt}%
+  \setbox\n@display@box\hbox\bgroup\color@begingroup$\ntab[#1]%$
+}
+\newcommand{\nsplitsep}[2][1]{%
+  $\color@endgroup\egroup%$
+  \global\addtolength{\n@display@leftused}{\wd\n@display@box}%
+  \n@split@or@not\unhbox\n@display@box%
+  \n@display@split=1%
+  \xdef\n@display@split@vsep{#2}%
+  \setbox\n@display@box\hbox\bgroup\color@begingroup$\ntab[#1]%$
+}
+\def\n@display@cr{\@ifnextchar[\n@display@cr@x{\nsplit[0]}}
+\def\n@display@cr@x[#1]{\nsplitsep[0]{#1}}
+
+
+% Absolute tabs
+
+\newcommand{\nabstab}[1]{%
+  $\color@endgroup\egroup%$
+  \global\addtolength{\n@display@leftused}{\wd\n@display@box}%
+  \n@split@or@not\unhbox\n@display@box%
+  \setlength{\n@display@temp}{#1}%
+  \ifdim\n@display@temp<0pt%
+    \addtolength{\n@display@temp}{\columnwidth}%
+    \addtolength{\n@display@temp}{-\@totalleftmargin}%
+  \fi%
+  \addtolength{\n@display@temp}{-\n@display@leftused}%
+  \addtolength{\n@display@temp}{-\n@display@leftskip}%
+  \hspace*{\n@display@temp}%
+  \global\addtolength{\n@display@leftused}{\n@display@temp}%
+  \setbox\n@display@box\hbox\bgroup\color@begingroup$%$
+}
+
+
+% Custom boxes
+
+\newcommand{\nboxbegin}{%
+  $\color@endgroup\egroup%$
+  \global\addtolength{\n@display@leftused}{\wd\n@display@box}%
+  \n@split@or@not\unhbox\n@display@box%
+  \n@push{n@display@stack}\n@display@leftused%
+  \n@push{n@display@stack}\n@display@leftskip%
+  \global\addtolength{\n@display@leftskip}{\n@display@leftused}%
+  \global\setlength{\n@display@leftused}{0pt}%
+  \setbox\n@display@box\hbox\bgroup\color@begingroup$\relax%$
+}
+\newcommand{\nboxend}{%
+  $\color@endgroup\egroup%$
+  \global\addtolength{\n@display@leftused}{\wd\n@display@box}%
+  \n@split@or@not\unhbox\n@display@box%
+  \setlength{\n@display@temp}{\n@display@leftused}%
+  \n@pop{n@display@stack}{n@display@leftskip}%
+  \n@pop{n@display@stack}{n@display@leftused}%
+  \global\addtolength{\n@display@leftused}{\n@display@temp}%
+  \setbox\n@display@box\hbox\bgroup\color@begingroup$\relax%$
+}
+\DeclareRobustCommand{\nbox}[1]{\nboxbegin #1\nboxend}
+
+
+% Definitions
+
+\gdef\n@define@stack{}
+\newlength{\n@define@maxwidth}
+\setlength{\n@define@maxwidth}{0pt}
+\newlength{\n@define@sepwidth}
+\setlength{\n@define@sepwidth}{2.5em}
+\newlength{\n@define@temp}
+
+\newcommand\ndefinebegin[2]{%
+  \settowidth{\n@display@temp}{\ensuremath{#1}}%
+  \ifnum \n@display@temp=0 \else%
+    \global\setlength{\n@define@temp}{\n@display@temp}%
+  \fi
+  \ifnum \n@define@temp<\n@define@maxwidth %
+    \global\setlength{\n@define@temp}{\n@define@maxwidth}%
+  \fi%
+  \makebox[\n@define@temp][l]{\ensuremath{#1}}%
+  \nboxbegin%
+  \makebox[\n@define@sepwidth]{\ensuremath{#2}}%
+  \nboxbegin%
+}
+\newcommand\ndefineend{%
+  \nboxend%
+  \nboxend%
+}
+\newcommand{\ndefinesplit}[1]{%
+  \nboxend%
+  \nsplit[0]%
+  \makebox[\n@define@sepwidth]{\ensuremath{#1}}%
+  \nboxbegin%
+}
+\DeclareRobustCommand{\ndefine}[3]{%
+  \ndefinebegin{#1}{#2}%
+  #3%
+  \ndefineend%
+}
+\DeclareRobustCommand{\ndefinet}[5]{%
+  \ndefinebegin{#1}{#2}%
+  #3%
+  \ndefinesplit{#4}%
+  #5%
+  \ndefineend%
+}
+
+
+\endinput

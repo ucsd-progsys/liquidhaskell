@@ -4,7 +4,7 @@
 module Meas where
 
 import Language.Haskell.Liquid.Prelude
-import qualified Data.Map as M
+import qualified Data.Map -- fix the as M
 import Data.List (foldl')
 
 --{-# ANN module "spec   $LIQUIDHS/List.spec" #-}
@@ -22,17 +22,17 @@ expand f (x:xs) = (f x) ++ (expand f xs)
 --- Step 2: Group By Key ---------------------------------------
 ----------------------------------------------------------------
 
-group :: (Ord k) => [(k, v)] -> M.Map k [v]
-group = foldl' addKV  M.empty
+group :: (Ord k) => [(k, v)] -> Data.Map.Map k [v]
+group = foldl' addKV  Data.Map.empty
   
-addKV m (k, v) = M.insert k vs' m
-  where vs' = v : (M.findWithDefault [] k m)
+addKV m (k, v) = Data.Map.insert k vs' m
+  where vs' = v : (Data.Map.findWithDefault [] k m)
 
 ----------------------------------------------------------------
 --- Step 3: Group By Key ---------------------------------------
 ----------------------------------------------------------------
 
-collapse f = M.foldrWithKey reduceKV []
+collapse f = Data.Map.foldrWithKey reduceKV []
   where reduceKV k (v:vs) acc = let b = assert False in (k, foldl' f v vs) : acc
         reduceKV k []     _   = crash False --error $ show (assert False)
 

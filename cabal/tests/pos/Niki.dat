@@ -1,0 +1,1 @@
+data Pair a b << q:b (fld0:a) >> = P x:a y:b^q(x) --

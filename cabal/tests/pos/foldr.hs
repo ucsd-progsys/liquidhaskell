@@ -9,4 +9,3 @@ foo = \_ _ _ -> crash False
 bar ::  p -> [(q, r)] -> p
 bar = foldr (\(key, value) -> foo key value)
 
-

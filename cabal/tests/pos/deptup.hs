@@ -1,11 +1,10 @@
-module Deptup where
+module Deptup0 where
 
 import Language.Haskell.Liquid.Prelude
 
--- data Pair a b = P a b
+data Pair a b = P a b
 
-data Pair = P Int Int
-
+--data Pair = P Int Int
 mkPair x y = P x y
 
 incr x = x + 1
@@ -20,5 +19,5 @@ n           = choose 0
 xs          = [0,1,2,3,4]
 
 prop_baz    = map chk $ bazList xs 
-  where chk (P x y) = assert (x >= 0) --assert (x <= y)
+chk (P x y) = assert (x < y)
 

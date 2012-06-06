@@ -1,4 +1,5 @@
-## BINPATH=/home/rjhala/research/ghc-working-local-new/bin
+#BINPATH=/home/niki/src/ghc/bin
+#BINPATH=/home/rjhala/research/ghc-working-local-new/bin
 BINPATH=/usr/bin
 API=ghc-7.4.1
 

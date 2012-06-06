@@ -1,0 +1,1 @@
+assumep mkPair :: forall a b. forAll p:b(fld:a). a -> b -> Pair a b <<p>>
