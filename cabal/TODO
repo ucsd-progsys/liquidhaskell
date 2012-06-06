@@ -1,10 +1,9 @@
 
+UNIFY:  BarePredicate.PrTypeP and Bare.BType ???
+
 Tidy Annotations
 ----------------
 
-Merge: 
-
-BarePredicate.PrTypeP and Bare.BType ???
 
 
 1. forall a. (Ord a) => a -> [a] -> [a]
