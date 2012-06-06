@@ -3,12 +3,6 @@ module ListRange where
 import Language.Haskell.Liquid.Prelude
 
 
-data List a = Nil | Cons a (List a)
-
-insert y Nil         = Cons y Nil
-insert y (Cons x xs) = if (y<x) 
-                        then Cons y (Cons x xs)
-                        else Cons x (insert y xs)
 
 chk y = 
   case y of 
