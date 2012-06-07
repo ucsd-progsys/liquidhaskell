@@ -8,7 +8,7 @@ module Language.Haskell.Liquid.PredType (
 								, generalize, generalizeArgs
 								, subp, subsTyVars, substSym, subsTyVarP, subsTyVarsP, subsTyVars_
 								, dataConTy, dataConPtoPredTy
-								, removeExtPreds
+								, removeExtPreds, pToPTy
 								) where
 
 import Class
@@ -48,6 +48,12 @@ data PrTy a = PrVar   !TyVar     !a
       		| PrFun   !Symbol    !(PrTy a)   !(PrTy a)
       		| PrTyCon !TC.TyCon  ![PrTy a]   ![a] !a
             deriving (Data, Typeable)
+
+pToPTy p@(PdVar n t a) = ofTypeP t `pstrengthen` p
+
+pstrengthen (PrVar v a) p         = PrVar v p
+pstrengthen (PrTyCon c ts rs _) p = PrTyCon c ts rs p
+pstrengthen t                   _ = t
 
 {-
 toType (PrVar v a) = TyVarTy v

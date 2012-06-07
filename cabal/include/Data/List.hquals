@@ -1,7 +1,7 @@
 //MOVE INTO AN OPTIONAL FILE (cf. liquidc spec)
-//qualif NULLY0(v:ptr)       : nully([v]) = 0 
-//qualif NULLY1(v:ptr)       : nully([v]) = 1 
-//qualif NULLY2(v:int)       : v = nully([~A])
+qualif NULLY0(v:ptr)       : nully([v]) = 0 
+qualif NULLY1(v:ptr)       : nully([v]) = 1 
+qualif NULLY2(v:int)       : v = nully([~A])
 
 
 //MOVE INTO AN OPTIONAL FILE (cf. liquidc spec)

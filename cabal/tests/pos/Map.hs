@@ -60,6 +60,108 @@ deleteFindMin t
       Tip             -> P (error ms) (error ms) Tip
   where ms = "Map.deleteFindMin : can not return the maximal element of an empty Map"   
 
+alter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
+alter f k t 
+  = case t of 
+      Tip -> case f Nothing of
+               Nothing -> Tip
+               Just x  -> singleton k x
+      Bin sx kx x l r 
+          -> case compare k kx of
+               LT -> balance kx x (alter f k l) r
+               GT -> balance kx x l (alter f k r)
+               EQ -> case f (Just x) of
+                       Just x' -> Bin sx kx x' l r
+                       Nothing -> glue kx l r
+         
+deleteMin :: Map k a -> Map k a
+deleteMin (Bin _ _ _ Tip r) = r
+deleteMin (Bin _ kx x l r)  = balance kx x (deleteMin l) r
+deleteMin Tip               = Tip
+
+deleteMax :: Map k a -> Map k a
+deleteMax (Bin _ _ _ l Tip) = l
+deleteMax (Bin _ kx x l r)  = balance kx x l (deleteMax r)
+deleteMax Tip               = Tip
+
+union :: Ord k => Map k a -> Map k a -> Map k a
+union Tip t2 = t2
+union t1 Tip = t1
+union t1 t2 = hedgeUnionL (const LT) (const GT) t1 t2
+
+-- left-biased hedge union
+hedgeUnionL :: Ord a
+            => (a -> Ordering) -> (a -> Ordering) -> Map a b -> Map a b
+            -> Map a b
+hedgeUnionL _     _     t1 Tip
+  = t1
+hedgeUnionL cmplo cmphi Tip (Bin _ kx x l r)
+  = join kx x (filterGt cmplo l) (filterLt cmphi r)
+hedgeUnionL cmplo cmphi (Bin _ kx x l r) t2
+  = join kx x (hedgeUnionL cmplo cmpkx l (trim cmplo cmpkx t2)) 
+              (hedgeUnionL cmpkx cmphi r (trim cmpkx cmphi t2))
+  where
+    cmpkx k  = compare kx k
+
+
+{--------------------------------------------------------------------
+  [trim lo hi t] trims away all subtrees that surely contain no
+  values between the range [lo] to [hi]. The returned tree is either
+  empty or the key of the root is between @lo@ and @hi@.
+--------------------------------------------------------------------}
+trim :: (k -> Ordering) -> (k -> Ordering) -> Map k a -> Map k a
+trim _     _     Tip = Tip
+trim cmplo cmphi t@(Bin _ kx _ l r)
+  = case cmplo kx of
+      LT -> case cmphi kx of
+              GT -> t
+              _  -> trim cmplo cmphi l
+      _  -> trim cmplo cmphi r
+
+{--------------------------------------------------------------------
+  Join 
+--------------------------------------------------------------------}
+join :: Ord k => k -> a -> Map k a -> Map k a -> Map k a
+join kx x Tip r  = insertMin kx x r
+join kx x l Tip  = insertMax kx x l
+join kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
+  | delta*sizeL <= sizeR  = balance kz z (join kx x l lz) rz
+  | delta*sizeR <= sizeL  = balance ky y ly (join kx x ry r)
+  | otherwise             = bin kx x l r
+
+-- insertMin and insertMax don't perform potentially expensive comparisons.
+insertMax,insertMin :: k -> a -> Map k a -> Map k a 
+insertMax kx x t
+  = case t of
+      Tip -> singleton kx x
+      Bin _ ky y l r
+          -> balance ky y l (insertMax kx x r)
+             
+insertMin kx x t
+  = case t of
+      Tip -> singleton kx x
+      Bin _ ky y l r
+          -> balance ky y (insertMin kx x l) r
+
+{--------------------------------------------------------------------
+  [filterGt k t] filter all keys >[k] from tree [t]
+  [filterLt k t] filter all keys <[k] from tree [t]
+--------------------------------------------------------------------}
+filterGt :: Ord k => (k -> Ordering) -> Map k a -> Map k a
+filterGt _   Tip = Tip
+filterGt cmp (Bin _ kx x l r)
+  = case cmp kx of
+      LT -> join kx x (filterGt cmp l) r
+      GT -> filterGt cmp r
+      EQ -> r
+      
+filterLt :: Ord k => (k -> Ordering) -> Map k a -> Map k a
+filterLt _   Tip = Tip
+filterLt cmp (Bin _ kx x l r)
+  = case cmp kx of
+      LT -> filterLt cmp l
+      GT -> join kx x l (filterLt cmp r)
+      EQ -> l
 
 -------------------------------------------------------------------------------
 --------------------------------- BALANCE -------------------------------------
@@ -141,11 +243,18 @@ val1 = choose 1
 
 bst1 = insert key val Tip
 bst  = insert key val $ insert key1 val1 Tip
+bst2 = mkBst $ zip [1..] [1..]
 
 mkBst = foldl (\t (k, v) -> insert k v t) Tip
 
 prop        = chk bst1
 prop1       = chk $ mkBst $ zip [1..] [1..]
 
+propDeleteMin = chk $ deleteMin bst
+propDeleteMax = chk $ deleteMax bst
+
+propAlter  = chk $ alter f x bst2
+   where x = choose 0
+         f _ = Nothing 
 propDelete  = chk $ delete x bst
    where x = choose 0

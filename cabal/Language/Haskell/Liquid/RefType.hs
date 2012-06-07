@@ -84,7 +84,7 @@ data RType a
   = RVar    !RTyVar    !a
   | RFun    !RBind     !(RType a)  !(RType a)
   | RAll    !RTyVar    !(RType a)
-  | RConApp !RTyCon    ![RType a]  ![a]       !a
+  | RConApp !RTyCon    ![RType a]  ![RType a]       !a
   | RClass  !Class     ![RType a]
   | RPred   !Predicate !(RType a)
   | ROther  !Type 
@@ -150,7 +150,11 @@ strengthenRefType_ (RFun (RB x1) t1 t1') (RFun (RB x2) t2 t2')
 strengthenRefType_ (RConApp tid t1s rs1 r1) (RConApp _ t2s rs2 r2)
   = RConApp tid ts rs (r1 `meet` r2)
     where ts = zipWith strengthenRefType_ t1s t2s
-          rs = zipWith meet rs1 rs2
+          rs = zipWith strengthenRefType_ rs1 rs2
+--          rs = zipWith meet rs1 rs2
+
+strengthenRefType_ (RVar v1 r1) (RVar v2 r2) -- why was this missing??
+  = RVar v1 (r1 `meet` r2) 
 
 strengthenRefType_ t1 _ 
   = t1
@@ -183,7 +187,7 @@ rConApp (RTyCon c ps) ts rs r = RConApp (RTyCon c ps') ts rs' r
    where τs   = toType <$> ts
          ps'  = subsTyVarsP (zip cts τs) <$> ps
          cts  = TC.tyConTyVars c
-         rs'  = if (null rs) then ((\_ -> F.trueReft) <$> ps) else rs
+         rs'  = if (null rs) then ((ofType . ptype) <$> ps) else rs
          
 
 mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
@@ -307,12 +311,13 @@ ppr_reftype _ (ROther t)
   = text "?" <> ppr t <> text "?"
 
 ppr_tycon_preds rs 
-  | all trivialRefts rs 
+  = angleBrackets $ hsep $ punctuate comma $ ppr <$> rs
+{-  | all trivialRefts rs 
   = empty
   | otherwise 
   = angleBrackets $ hsep $ punctuate comma $ ppReft_pred <$> rs
   where trivialRefts (Reft (_, ras)) = all isTautoRa ras
-
+-}
 ppr_pred p (RPred pr t)
   = ppr pr <> ppr_pred p t
 ppr_pred p t
@@ -368,7 +373,7 @@ instance Functor RType where
   fmap f (RVar α r)      = RVar α (f r)
   fmap f (RAll a t)      = RAll a (fmap f t)
   fmap f (RFun x t t')   = RFun x (fmap f t) (fmap f t')
-  fmap f (RConApp c ts rs r) = RConApp c (fmap (fmap f) ts) (f <$> rs) (f r)
+  fmap f (RConApp c ts rs r) = RConApp c (fmap (fmap f) ts) (fmap ( fmap f) rs) (f r)
   fmap f (RClass c ts)   = RClass c (fmap (fmap f) ts)
   fmap f (ROther a)      = ROther a 
 
@@ -482,7 +487,7 @@ mapBot f t'                  = f t'
 
 canonRefType :: RefType -> RefType
 canonRefType = mapTop zz
-  where zz t@(RConApp c ts rs r)  = RConApp c ts (map canonReft rs) (canonReft r)
+  where zz t@(RConApp c ts rs r)  = RConApp c ts rs (canonReft r)
         zz t                      = t
 
 -------------------------------------------------------------------

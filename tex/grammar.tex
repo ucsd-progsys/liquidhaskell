@@ -1,4 +1,4 @@
-\section*{Grammar}
+\subsection*{Grammar}
 \begin{ngrammar}[noindent,notation=plain]
 
 \nsdef{e}{%expressions
@@ -6,18 +6,20 @@
   \nsor \nst{c} 							%constant
   \nsor \nst{\efun{x}{e}} 				%abs
   \nsor \nst{\eapp{e}{e}} 				%application
+\lhide{
   \nsor \nst{\epabs{p}{\tau}{e}} 		%predicate abs
   \nsor \nst{\epapp{e}} 					%predicate abs
+}
   \nsor \nst{\etabs{\alpha}{e}}			%type abs
   \nsor \nst{\etapp{e}{\tau}} 			%type application
-\mhide{
+\hide{
 	\nsorl \nst{\ecase{x}{{C_i \ \listOf{x_i}}}{e_i}}
 	\nsorl \nst{\elet{x}{e}{e}}
 	\nsor \nst{\eletrec{x}{e}{e}}
 }
 }
 
-\mhide{
+\hide{
 \nsdef{P}{%predicate
         \nst{\pdTrue}   %top
   \nsor \nst{\pdVar{p}{\tau}{\overline{x:\tau}}} 		%variable
@@ -34,7 +36,7 @@
 \nsdef{\tyDefArg{T}{B}}{%types
 			\nst{\tref{B}{\tyDef{B}}}
 	\nsor	\nst{\tfun{x}{\tyDefArg{T}{B}}{\tyDefArg{T}{B}}}
-\mhide{
+\hide{
 	\nsor \nst{\tcon
 				{TyCon}
 				{\parAny{B}}
@@ -48,11 +50,13 @@
 }
 }
 
+
 \nsdef{\tyDefArg{P}{B}}{%types with preds
 			\nst{\tyDefArg{T}{B}}
+\lhide{
 	\nsor	\nst{\tpabs{p}{\tau}{\tyDefArg{P}{B}}}
 }
-
+}
 \nsdef{\tyDefArg{S}{B}}{%types with polymorhism
 			\nst{\tyDefArg{P}{B}}
 	\nsor	\nst{\ttabs{\alpha}{\tyDefArg{S}{B}}}
@@ -65,7 +69,7 @@
 	\nst{\tyDefArg{S}{\top}}
 }
 
-\mhide{
+\hide{
 \nsdef{$T_P, P_P, S_P$}{ % predicate Types
 	\nst{\tyDef{T}(P)},
 	\nst{\tyDef{P}(P)},
@@ -89,8 +93,9 @@
         \nst{x}   						%var
   \nsor \nst{c} 							%constant
   \nsor \nst{\efun{x}{e}} 				%predicate abs
+\lhide{
   \nsor \nst{\epabs{p}{\tau}{v}} 		%predicate abs
+}
   \nsor \nst{\etabs{\alpha}{v}}			%type abs
 }
 \end{ngrammar}
-
