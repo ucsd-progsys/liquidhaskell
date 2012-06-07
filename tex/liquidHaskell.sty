@@ -1,3 +1,16 @@
+\newcommand\phide[1]{}
+\newcommand\lhide[1]{}
+\newcommand\hide[1]{}
+
+\newcommand\rulename[1]{\textsc{#1}}
+
+\newcommand\hastype[3]{\ensuremath{#1 \vdash #2 : #3}}
+\newcommand\eval[2]{\ensuremath{#1 \hookrightarrow #2 }}
+
+
+
+
+
 %basic
 \newcommand\vref{\ensuremath{v}}
 \newcommand\tyDef[1]{\ensuremath{\mathbb{#1}}}
@@ -44,7 +57,8 @@
 \newcommand\shape[1]{\ensuremath{\text{shape} \left( {#1} \right)}}
 
 \newcommand\isSub[3]{\ensuremath{{#1}\vdash {#2}<:{#3}}}
-\newcommand\eval[2]{\ensuremath{{#1}\hookrightarrow {#2}}}
+%\newcommand\eval[2]{\ensuremath{{#1}\looparrowright {#2}}}
+%\newcommand\eval[2]{\ensuremath{{#1}\hookrightarrow {#2}}}
 
 \newcommand\hastypeEmp[2]{\hastype{\emptyset}{#1}{#2}}
 \newcommand\isSubEmp[2]{\isSub{\emptyset}{#1}{#2}}

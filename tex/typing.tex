@@ -1,4 +1,7 @@
+\section*{Static Rules}
+
 \hfill\fbox{\hastype{\Gamma}{e}{S}}
+
 
 $$
 \inference{
@@ -34,14 +37,13 @@ $$
 
 $$
 \inference{
-	\hastype{\Gamma, x : \mlTy{T_x}}{e}{\mlTy{T}} 
-	&& \isWellFormed{\Gamma}{\tfun{x}{\mlTy{T_x}}{\mlTy{T}}}
+	\hastype{\Gamma, x : \hat{T_x}}{e}{\hat{T}} 
+	&& \isWellFormed{\Gamma}{\tfun{x}{\hat{T_x}}{\hat{T}}}
 }{
-	\hastype{\Gamma}{\efun{x}{e}}{\tfun{x}{\mlTy{T_x}}{\mlTy{T}}}
+	\hastype{\Gamma}{\efun{x}{e}}{\tfun{x}{{T_x}}{\hat{T}}}
 }[\rulename{T-Fun}]
 $$
 
-\section*{Rules}
 $$\label{tapp}
 \inference{
 	\hastype{\Gamma}{e_1}{\tfun{x}{T_x}{T}} && 
@@ -51,6 +53,7 @@ $$\label{tapp}
 }[\tapp]
 $$
 
+\lhide{
 $$
 \inference{
 	\hastype{\Gamma, p:\tau \rightarrow \tbbool}{e}{S} &&
@@ -69,6 +72,7 @@ $$
 	\hastype{\Gamma}{\epapp{e}}{S\sub{p}{v}}
 }[\tpinst]
 $$
+}
 
 $$
 \inference{
@@ -82,14 +86,14 @@ $$
 $$
 \inference{
 	\hastype{\Gamma}{e}{\ttabs{\alpha}{S}} && 
-	\sch{\mlTy{T}} = \tau && \isWellFormed{\Gamma}{\mlTy{T}}
+	\sch{\hat{T}} = \tau && \isWellFormed{\Gamma}{\hat{T}}
 }{
-	\hastype{\Gamma}{\etapp{e}{\tau}}{S\sub{\alpha}{\mlTy{T}}}
+	\hastype{\Gamma}{\etapp{e}{\tau}}{S\sub{\alpha}{\hat{T}}}
 }[\tinst]
 $$
 
 
-\mhide{
+\hide{
 $$
 \inference{
 	\hasType{\Gamma}{P,Q}{e}
@@ -151,6 +155,7 @@ $$
 }[\wtFun]
 $$
 
+\lhide{
 $$
 \inference{
 	\isWellFormed{\Gamma, p:\tfun{x}{\tau}{\tbbool}}{P} 
@@ -159,6 +164,7 @@ $$
 	\isWellFormed{\Gamma}{\tpabs{p}{\tau}{P}}
 }[\wtPred]
 $$
+}
 
 $$
 \inference{
@@ -169,7 +175,7 @@ $$
 }[\wtPoly]
 $$
 
-\mhide{
+\hide{
 \NV{define tyConP}
 
 $$
@@ -194,26 +200,6 @@ $$
 
 \hfill\fbox{\isSub{\Gamma}{S_1}{S_2}}
 
-\rhide{
-$$
-\inference{
-%	\valid{\inter{\Gamma} \land \inter{e_1}}{\inter{e_2}}
-	\isWellFormed{\Gamma, \vref:B}{e_1 \Rightarrow e_2}
-}{
-	\isSubType{\Gamma}{\tref{B}{e_1}}{\tref{B}{e_2}}
-}[\tsubBase]
-$$
-}
-
-\thide{
-$$
-\inference{
-	\valid{\inter{\Gamma, \vref:B} \land \inter{e_1}}{\inter{e_2}}
-}{
-	\isSubType{\Gamma}{\tref{B}{e_1}}{\tref{B}{e_2}}
-}[\tsubBase]
-$$
-}
 
 $$
 \inference{
@@ -225,6 +211,7 @@ $$
 }[\tsubFun]
 $$
 
+\lhide{
 $$
 \inference{
 	\isSubType{\Gamma, p_1:\tfun{x}{\tau}{\tbbool}}{P_1}{P_2\sub{p_2}{p_1}} 
@@ -233,6 +220,7 @@ $$
 	\isSubType{\Gamma}{\tpabs{p_1}{\tau}{P_1}}{\tpabs{p_2}{\tau}{P_2}}
 }[\tsubPred]
 $$
+}
 
 $$
 \inference{
@@ -243,7 +231,7 @@ $$
 }[\tsubPoly]
 $$
 
-\mhide{
+\hide{
 $$
 \inference{
 	\valid{\inter{\Gamma} \land \inter{e_1}}{\inter{e_2}} &

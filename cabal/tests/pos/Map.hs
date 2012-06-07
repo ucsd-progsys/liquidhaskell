@@ -124,10 +124,10 @@ trim cmplo cmphi t@(Bin _ kx _ l r)
 join :: Ord k => k -> a -> Map k a -> Map k a -> Map k a
 join kx x Tip r  = insertMin kx x r
 join kx x l Tip  = insertMax kx x l
-join kx x (Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
-  | delta*sizeL <= sizeR  = balance kz z (join kx x (Bin sizeL ky y ly ry) lz) rz
-  | delta*sizeR <= sizeL  = balance ky y ly (join kx x ry (Bin sizeR kz z lz rz))
-  | otherwise             = bin kx x (Bin sizeL ky y ly ry) (Bin sizeR kz z lz rz)
+join kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
+  | delta*sizeL <= sizeR  = balance kz z (join kx x l lz) rz
+  | delta*sizeR <= sizeL  = balance ky y ly (join kx x ry r)
+  | otherwise             = bin kx x l r
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
 insertMax,insertMin :: k -> a -> Map k a -> Map k a 

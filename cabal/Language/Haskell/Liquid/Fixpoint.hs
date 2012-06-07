@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , simplify
   , emptySubst, mkSubst, catSubst
   , Subable (..)
-		, strToReft, strToRefa, strsToRefa, strsToReft, replaceSort, replaceSorts, refaInReft
+  , addSub, rmKVarReft, isKVarInReft, strToReft, strToRefa, strsToRefa, strsToReft, replaceSort, replaceSorts, refaInReft
   ) where
 
 import Outputable
@@ -29,6 +29,7 @@ import Control.Monad.State
 import Text.Printf
 import Data.Monoid hiding ((<>))
 import Data.Functor
+import Data.Maybe (catMaybes)
 import Data.List
 import Data.Char        (ord, chr, isAlphaNum, isAlpha, isUpper, toLower)
 import qualified Data.Map as M
@@ -102,6 +103,11 @@ freshSym x = do
     Just y  -> return y
 -}
 
+addSub (Reft(v, ls)) su = Reft(v, go ls su)
+  where go ((RKvar s _):xs) su = (RKvar s su):(go xs su)
+        go []               _  = []
+        go (r:rs)           su = (r:(go rs su))
+
 strsToRefa n as = RConc $ PBexp $ (EApp (S n) ([EVar (S "VV")] ++ (map EVar as)))
 --strToRefa n  = RConc $ PBexp $ (EApp (S n) [EVar (S "VV")])
 strToRefa n xs = RKvar (S n) (Su (M.fromList xs))
@@ -121,6 +127,24 @@ replaceSorts (p, Reft(_, rs)) (Reft(v, ls))= Reft(v, concatMap (replaceS (p, rs)
 
 replaceSort :: (Refa, Refa) -> Reft -> Reft
 replaceSort (p, k) (Reft(v, ls)) = Reft (v, (concatMap (replaceS (p, [k])) ls))
+
+
+rmKVarReft s (Reft(v, ls)) = (Reft(v, ls'), su)
+  where (l, s1) = unzip $ map (rmKVarRefa s) ls
+        ls' = catMaybes l
+        su = case catMaybes s1 of {[su] -> su; _ -> error "Fixpoint.rmKVarReft"}
+
+rmKVarRefa s r@(RKvar (S m) su)
+  | s == m
+  = (Nothing, Just su)
+  | otherwise
+  = (Just r, Nothing) 
+rmKVarRefa _ r
+  = (Just r, Nothing)
+
+isKVarInReft s (Reft(_, ls)) = or (isKVarInRefa s <$> ls)
+isKVarInRefa s (RKvar (S m) _) = s == m
+isKVarInRefa _ _               = False
 
 --strToRefa n xs = RKvar (S n) (Su (M.fromList xs))
 replaceS :: (Refa, [Refa]) -> Refa -> [Refa] 
