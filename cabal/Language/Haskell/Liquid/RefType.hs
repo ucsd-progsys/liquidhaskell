@@ -6,7 +6,7 @@
 module Language.Haskell.Liquid.RefType (
     RType (..), RTyCon(..)
   , RefType (..)  
-  , RBind (..), RTyVar
+  , RBind (..), RTyVar(..)
   , ofType, toType
   , rTyVar, rTyVarSymbol
   , typeId
@@ -187,9 +187,14 @@ rConApp (RTyCon c ps) ts rs r = RConApp (RTyCon c ps') ts rs' r
    where τs   = toType <$> ts
          ps'  = subsTyVarsP (zip cts τs) <$> ps
          cts  = TC.tyConTyVars c
-         rs'  = if (null rs) then ((ofType . ptype) <$> ps) else rs
+         rs'  = if (null rs) then (((rmPds . ofType . ptype) <$> ps)) else rs
          
 
+
+rmPds = mapBot rmPds_
+
+rmPds_ (RConApp c ts rs r) = RConApp c ts [] r
+rmPds_ t                   = t
 mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
 mkArrow as xts t = mkUnivs as $ mkArrs xts t
 
