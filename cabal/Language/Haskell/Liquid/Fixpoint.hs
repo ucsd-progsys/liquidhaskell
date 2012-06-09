@@ -17,6 +17,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , trueRefa
   , canonReft, exprReft, symbolReft
   , isNonTrivialSortedReft
+  , isTautoRa, isTautoReft
   , ppReft, ppReft_pred, flattenRefas
   , simplify
   , emptySubst, mkSubst, catSubst
@@ -108,22 +109,19 @@ strToRefa n xs = RKvar (S n) (Su (M.fromList xs))
 strToReft n xs = Reft (S "VV", [strToRefa n xs])
 strsToReft n as = Reft (S "VV", [strsToRefa n as])
 
-refaInReft :: Refa -> Reft -> Bool
 refaInReft k (Reft(v, ls)) = any (cmpRefa k) ls
 
 cmpRefa (RConc (PBexp (EApp (S n) _))) (RConc (PBexp (EApp (S n') _))) 
-  = n== n'
+  = n == n'
 cmpRefa _ _ 
- = False
+  = False
 
-replaceSorts :: (Refa, Reft) -> Reft -> Reft
-replaceSorts (p, Reft(_, rs)) (Reft(v, ls))= Reft(v, concatMap (replaceS (p, rs)) ls)
+replaceSorts (p, Reft(_, rs)) (Reft(v, ls))
+  = Reft(v, concatMap (replaceS (p, rs)) ls)
 
-replaceSort :: (Refa, Refa) -> Reft -> Reft
 replaceSort (p, k) (Reft(v, ls)) = Reft (v, (concatMap (replaceS (p, [k])) ls))
 
---strToRefa n xs = RKvar (S n) (Su (M.fromList xs))
-replaceS :: (Refa, [Refa]) -> Refa -> [Refa] 
+replaceS :: (Refa a, [Refa a]) -> Refa a -> [Refa a] 
 replaceS ((RKvar (S n) (Su s)), k) (RKvar (S n') (Su s')) 
   | n == n'
   = map (addSubs (Su s')) k -- [RKvar (S m) (Su (s `M.union` s1 `M.union` s'))]
@@ -259,7 +257,7 @@ instance Show Symbol where
 newtype Subst  = Su (M.Map Symbol Expr) 
                  deriving (Eq, Ord, Data, Typeable)
 
-instance Outputable Refa where
+instance (Show a) => Outputable (Refa a) where
   ppr  = text . show
 
 instance Outputable Expr where
@@ -469,8 +467,9 @@ isContra     = (`elem` [ PAtom Eq zero one, PAtom Eq one zero, PFalse])
 isTauto      = (`elem` [ PTrue ])
 hasTag e1 e2 = PAtom Eq (EApp tagSymbol [e1]) e2
 
-isTautoRa (RConc p) = isTauto p
-isTautoRa _         = False
+isTautoReft (Reft (_, ras)) = all isTautoRa ras
+isTautoRa (RConc p)         = isTauto p
+isTautoRa _                 = False
 
 ppReft (Reft (v, ras)) d 
   | all isTautoRa ras
@@ -499,31 +498,28 @@ data PVar t
        }
 	deriving (Eq, Ord, Data, Typeable, Show)
 
-data Refa_ t 
+data Refa t 
   = RConc !Pred 
   | RKvar !Symbol !Subst
   | RPvar !(PVar t) -- !Subst: UNIFY: pushed inside PVar 
   deriving (Eq, Ord, Data, Typeable, Show)
 
-type Refa = Refa_ Sort
-
-data Reft_ t 
-  = Reft (Symbol, [Refa_ t]) 
+data Reft t 
+  = Reft (Symbol, [Refa t]) 
   deriving (Eq, Ord, Data, Typeable) 
 
-type Reft = Reft_ Sort
+-- type Reft = Reft_ Sort
 
-instance Show Reft where
+instance (Show a) => Show (Reft a) where
   show (Reft x) = showSDoc $ toFix x 
 
 data SortedReft
-  = RR !Sort !Reft
+  = RR !Sort !(Reft Sort)
   deriving (Eq, Ord, Data, Typeable) 
 
 isNonTrivialSortedReft (RR _ (Reft (_, ras)))
   = not $ null ras
 
-meet ::  Reft -> Reft -> Reft
 meet (Reft (v, ras)) (Reft (v', ras')) 
   | v == v'   = Reft (v, ras ++ ras')
   | otherwise = Reft (v, ras ++ (ras' `subst1` (v', EVar v)))
@@ -531,7 +527,7 @@ meet (Reft (v, ras)) (Reft (v', ras'))
 newtype Envt = Envt (M.Map Symbol SortedReft) 
                deriving (Eq, Ord, Data, Typeable) 
   
-instance Fixpoint (Refa_ a) where
+instance Fixpoint (Refa a) where
   toFix (RConc p)    = toFix p
   toFix (RKvar k su) = toFix k <> toFix su
 
@@ -684,7 +680,7 @@ instance Subable Pred where
   subst su p@(PAll _ _)    = errorstar $ "subst: FORALL" 
   subst su p               = p
 
-instance Subable Refa where
+instance Subable (Refa a) where
   subst su (RConc p)     = RConc   $ subst su p
   subst su (RKvar k su') = RKvar k $ su' `catSubst` su 
   subst su (RPvar pv)    = RPvar   $ subst su pv
@@ -699,7 +695,7 @@ instance Subable a => Subable [a] where
 instance Subable a => Subable (M.Map k a) where
   subst su = M.map $ subst su
 
-instance Subable Reft where
+instance Subable (Reft a) where
   subst su (Reft (v, ras)) = Reft (v, subst su ras)
 
 instance Subable SortedReft where
@@ -724,13 +720,10 @@ exprReft e = Reft (vv, [RConc $ PAtom Eq (EVar vv) e])
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft) 
 
-trueReft :: Reft
 trueReft = Reft (vv, [])
 
-trueRefa :: Refa
 trueRefa = RConc PTrue
 
-canonReft :: Reft -> Reft
 canonReft r@(Reft (v, ras)) 
   | v == vv    = r 
   | otherwise = Reft (vv, ras `subst1` (v, EVar vv))
@@ -798,11 +791,11 @@ instance NFData Pred where
   rnf (PAtom x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
   rnf (_)              = ()
 
-instance NFData Refa where
+instance (NFData a) => NFData (Refa a) where
   rnf (RConc x)     = rnf x
   rnf (RKvar x1 x2) = rnf x1 `seq` rnf x2
 
-instance NFData Reft where 
+instance (NFData a) => NFData (Reft a) where 
   rnf (Reft (v, ras)) = rnf v `seq` rnf ras
 
 instance NFData SortedReft where 
@@ -822,12 +815,12 @@ class MapSymbol a where
 instance MapSymbol (PVar a) where 
   mapSymbol f (PV p t args) = PV (f p) t [(t, x, f y) | (t, x, y) <- args]
 
-instance MapSymbol Refa where
+instance MapSymbol (Refa a) where
   mapSymbol f (RConc p)    = RConc (mapSymbol f p)
   mapSymbol f (RKvar s su) = RKvar (f s) su
   mapSymbol f (RPvar p)    = RPvar (mapSymbol f p)
 
-instance MapSymbol Reft where
+instance MapSymbol (Reft a) where
   mapSymbol f (Reft(s, rs)) = Reft(f s, map (mapSymbol f) rs)
 
 instance MapSymbol Pred where

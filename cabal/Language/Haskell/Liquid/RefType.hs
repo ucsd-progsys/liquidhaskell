@@ -6,7 +6,7 @@
 module Language.Haskell.Liquid.RefType (
     RType (..), RTyCon(..)
   , RefType (..)  
-  , RBind (..), RTyVar
+  , RBind (..)
   , ofType, toType
   , rTyVar, rTyVarSymbol
   , typeId
@@ -76,16 +76,16 @@ data RType p c b r
 ---------------- Refinement Types: RefType -------------------------
 --------------------------------------------------------------------
 
-data RBind = RB Symbol | RV TyVar | RP PVar
+data RBind = RB Symbol | RV TyVar | RP (PVar Type)
   deriving (Data, Typeable)
 
 data RTyCon = RTyCon 
   { rTyCon     :: !TC.TyCon -- GHC Type Constructor
-  , rTyConPs   :: ![PVar]   -- Predicate Parameters
+  , rTyConPs   :: ![PVar Type]   -- Predicate Parameters
   }
   deriving (Data, Typeable)
 
-type RefType    = RType Class RTyCon RBind Reft    
+type RefType    = RType Class RTyCon RBind (Reft Sort)    
 
 instance Show RefType where
   show = showPpr
@@ -153,7 +153,7 @@ strengthenRefType_ (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
 strengthenRefType_ t1 _ 
   = t1
 
-strengthen  :: RefType -> Reft -> RefType
+strengthen  :: RefType -> Reft Sort -> RefType
 strengthen (RApp c ts rs r) r' = RApp c ts rs (r `meet` r') 
 strengthen (RVar a r) r'       = RVar a      (r `meet` r') 
 strengthen t _                 = t 
@@ -279,7 +279,7 @@ ppr_reftype _ (ROth s)
   = text "?" <> text s <> text "?"
 
 ppr_tycon_preds rs 
-  | all trivialRefts rs 
+  | all isTautoReft rs 
   = empty
   | otherwise 
   = angleBrackets $ hsep $ punctuate comma $ ppReft_pred <$> rs
@@ -312,7 +312,6 @@ ppr_forall_reftype p t
     split αs (RAll α t) = split (α:αs) t
     split αs t	        = (reverse αs, t)
 
--- ppr_foralls :: [RTyVar] -> SDoc
 ppr_foralls []  = empty
 ppr_foralls tvs = (text "forall") <+> sep (map ppr tvs) <> dot
 
@@ -333,16 +332,16 @@ subsTyVars_nomeet = subsTyVars False
 subsTyVar_meet    = subsTyVar True
 subsTyVar_nomeet  = subsTyVar False
 
-subsTyVars ::  Bool -> [(RTyVar, RefType)] -> RefType -> RefType 
+subsTyVars ::  Bool -> [(TyVar, RefType)] -> RefType -> RefType 
 subsTyVars meet ats t = foldl' (flip (subsTyVar meet)) t ats
 
-subsTyVar ::  Bool -> (RTyVar, RefType) -> RefType -> RefType 
+subsTyVar ::  Bool -> (TyVar, RefType) -> RefType -> RefType 
 subsTyVar meet = subsFree meet S.empty
 
 instance Show Type where
   show  = showSDoc . ppr
 
-subsFree ::  Bool -> S.Set RTyVar -> (RTyVar, RefType) -> RefType -> RefType
+subsFree ::  Bool -> S.Set TyVar -> (TyVar, RefType) -> RefType -> RefType
 
 subsFree m s z@(RV v, tv) (RAll (RP p) t)         
   = RAll (RP (subsTyVarP (v, toType tv) p)) $ subsFree m s z t
@@ -350,10 +349,10 @@ subsFree m s z (RAll (RV α) t)
   = RAll (RV α) $ subsFree m (α `S.insert` s) z t
 subsFree m s z (RFun x t t')       
   = RFun x (subsFree m s z t) (subsFree m s z t') 
-subsFree m s z t@(RApp c ts rs r)     
- = RApp (c{rTyConPs = (subsTyVarP z') <$> (rTyConPs c)}) (subsFree m s z <$> ts) rs r  
-    where (RT (v, _), tv) = z
-          z'             = (v, toType tv)
+subsFree m s z@(RV v, tv) t@(RApp c ts rs r)     
+  = RApp c' (subsFree m s z <$> ts) rs r  
+    where c' = c {rTyConPs = (subsTyVarP (v, toType tv)) <$> (rTyConPs c)}
+
 subsFree m s z (RCls c ts)     
   = RCls c (subsFree m s z <$> ts)
 subsFree meet s (α', t') t@(RVar α r) 
@@ -389,25 +388,24 @@ ofType_ (TyVarTy α)
   = RVar (rTyVar α) trueReft 
 ofType_ τ
   | isPredTy τ
-  = ofPredTree s (classifyPredType τ)  
+  = ofPredTree (classifyPredType τ)  
 ofType_ τ@(TyConApp c _)
   | TC.isSynTyCon c
-  = ofSynTyConApp s τ
+  = ofSynTyConApp τ
   | otherwise
-  = ofTyConApp s τ
+  = ofTyConApp τ
 ofType_ τ               
   = ROth (show τ)  
 
-ofPredTree s (ClassPred c τs)
-  = RCls c (ofType_ s <$> τs)
+ofPredTree (ClassPred c τs)
+  = RCls c (ofType_ <$> τs)
  
 
-ofTyConApp s τ@(TyConApp c τs) 
-  = RApp (RTyCon c []) ts [] trueReft --undefined
-  where ts  = ofType_ s <$> τs
+ofTyConApp  τ@(TyConApp c τs) 
+  = RApp (RTyCon c []) (ofType_ <$> τs) [] trueReft
 
-ofSynTyConApp s (TyConApp c τs) 
-  = ofType_ s $ substTyWith αs τs τ
+ofSynTyConApp (TyConApp c τs) 
+  = ofType_ $ substTyWith αs τs τ
   where (αs, τ) = TC.synTyConDefn c
 
 -----------------------------------------------------------------
@@ -468,7 +466,7 @@ tidyFunBinds t = everywhere (mkT $ dropBind xs) t
 
 tidyTyVars :: RefType -> RefType
 tidyTyVars = tidy pool getS putS 
-  where getS (RV α)   = Just (symbolString $ mkSymbol x)
+  where getS (RV α)   = Just (symbolString $ mkSymbol α)
         putS (RV α) x = RV (stringTyVar x)
         pool               = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
 
@@ -484,15 +482,6 @@ tidySymbols :: RefType -> RefType
 tidySymbols = everywhere (mkT dropSuffix) 
   where dropSuffix = stringSymbol . takeWhile (/= symSep) . symbolString
         dropQualif = stringSymbol . dropModuleNames . symbolString 
-{-
-dropFix s 
-  | fixS `isPrefixOf` s
-  = dropFix $ drop l s
-  | otherwise 
-  = s
-  where fixS = "fix" ++ [symSep]
-        l    = length fixS
--}
 
 tidyDSymbols :: RefType -> RefType
 tidyDSymbols = tidy pool getS putS 
@@ -506,7 +495,6 @@ tidyDSymbols = tidy pool getS putS
 ----------------------------------------------------------------
 
 symSep = '#'
-
 
 mkSymbol ::  Var -> Symbol
 --mkSymbol v = S $ vs ++ [symSep] ++ us
