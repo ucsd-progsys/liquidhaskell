@@ -56,11 +56,12 @@ thd3 (_,_,x) = x
 single ::  a -> [a]
 single x = [x]
 
-mapFst ::  (a1 -> a2) -> (a1, b) -> (a2, b)
 mapFst f (x, y)  = (f x, y)
-
-mapSnd ::  (b1 -> b2) -> (a, b1) -> (a, b2)
 mapSnd f (x, y)  = (x, f y)
+
+mapFst3 f (x, y, z) = (f x, y, z)
+mapSnd3 f (x, y, z) = (x, f y, z)
+mapThd3 f (x, y, z) = (x, y, f z)
 
 mapPair ::  (a -> b) -> (a, a) -> (b, b)
 mapPair f (x, y) = (f x, f y)

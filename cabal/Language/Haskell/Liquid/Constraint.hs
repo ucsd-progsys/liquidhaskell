@@ -664,8 +664,8 @@ unifyS t (PrAllPr p pt)
         then return $ RPred p t'
 								else return t'
 
-unifyS (RAll v t) (PrAll v' pt) 
-  = do t' <-  unifyS t $ subsTyVars (v', PrVar (toTyVar v) PdTrue) pt 
+unifyS (RAll (RV v) t) (PrAll v' pt) 
+  = do t' <-  unifyS t $ subsTyVars (v', PrVar v PdTrue) pt 
        return $ RAll v t'
 
 unifyS (RFun (RB x) rt1 rt2) (PrFun x' pt1 pt2)

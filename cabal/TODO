@@ -1,5 +1,154 @@
 
-CHECK UNIFY:  BarePredicate.PrTypeP and Bare.BType ???
+UNIFY:  
+
+** BarePredicate.PrTypeP and Bare.BType
+** PredType.PrTy and RefType.RType
+
+Iffy functions:
+
+- normalizePds 
+    > how can recur inside functions and hoist preds out?
+    > not sure what is going on.
+    > is it needed if Preds are just refts?
+
+RPred Predicate t
+RPred p t ====> RAll (RP p) t
+
+>> 
+1. ReJIGGER RTYPE as below
+
+- type RefType  = RType Class RTyCon RBind (Reft Type)
+- type BareType = RType String String String (Reft String)  
+- type PrType   = RType ??? -- ORIG: PrTy Predicate
+- type PrTypeP  = RType ??? -- ORIG: fullblown whatsit
+
+data RType p c b r
+  = RVar !b !r
+  | RFun !b !(RType p c b r) !(RType p c b r)  
+  | RAll !b !(RType p c b r)
+  | RApp !c ![(RType p c b r)] ![r] !r
+  | RCls !p ![(RType p c b r)]
+  | ROth String
+
+data PVar t = PVar { pname :: !String
+                   , ptype :: !t                        ---???
+                   , pargs :: ![(t, Symbol, Symbol)] ---???
+                   }
+
+data Refa t 
+  = RConc !Pred 
+  | RKvar !Symbol   !Subst
+  | RPvar !(PVar t) !Subst  
+  deriving (Eq, Ord, Data, Typeable, Show)
+
+data Reft t
+  = Reft (Symbol, [Refa t]) 
+  deriving (Eq, Ord, Data, Typeable) 
+
+data RBind 
+  = RB Symbol
+  | RV TyVar
+  | RP PVar
+
+type RefType  = RType Class RTyCon RBind (Reft Sort)
+type BareType = RType String String String (Reft String)  
+type PrType   = RType ??? -- ORIG: PrTy Predicate
+type PrTypeP  = RType ??? -- ORIG: fullblown whatsit
+
+
+
+
+data BType b r 
+  = BVar b r
+  | BFun b (BType b r) (BType b r)
+--  | BCon b [(BType b r)] r  -----
+  | BConApp b [(BType b r)] [r] r
+  | BAll b (BType b r)
+  
+  | BLst (BType b r) r
+  | BTup [(BType b r)] r
+  
+  | BClass b [(BType b r)]
+  deriving (Data, Typeable)
+
+
+data RType a 
+  = RVar    !RTyVar    !a
+  | RFun    !RBind     !(RType a)  !(RType a)
+  | RAll    !RTyVar    !(RType a)
+  | RConApp !RTyCon    ![RType a]  ![a]       !a
+  | RClass  !Class     ![RType a]
+  | RPred   !Predicate !(RType a)
+  | ROther  !Type 
+  deriving (Data, Typeable)
+
+
+
+
+
+
+
+
+
+data PrTypeP 
+  = PrPairP (PredicateB, String)
+  | PrPredTyP String [PrTypeP]             
+  | PrAppTyP String PrTypeP PrTypeP            
+  | PrForAllPrP [PredicateB] PrTypeP       
+  | PrForAllTyP String PrTypeP             
+  | PrTyConAppP String [PrTypeP] [PredicateB] PredicateB
+  | PrLstP PrTypeP
+  | PrIntP PredicateB
+  | PrTupP [PrTypeP]
+  deriving Show
+
+data PrTy a 
+  = PrVar   !TyVar     !a
+  | PrFun   !Symbol    !(PrTy a)   !(PrTy a)
+  | PrAll   !TyVar     !(PrTy a)
+  | PrAllPr !a         !(PrTy a)
+  | PrClass !Class     ![PrTy a]
+  | PrTyCon !TC.TyCon  ![PrTy a]   ![a] !a
+  -- | PrLit   !Literal   !a
+  deriving (Data, Typeable)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Tidy Annotations
 ----------------

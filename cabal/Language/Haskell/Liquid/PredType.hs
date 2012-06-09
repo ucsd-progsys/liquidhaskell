@@ -35,10 +35,13 @@ import Control.Applicative  ((<$>))
 import Control.DeepSeq
 import Data.Data
 
-data Predicate = PdVar {pname :: !String, ptype :: !Type, pargs :: ![(Type, Symbol, Symbol)]}
-               | PdTrue
-               | Predicate `PdAnd` Predicate
-			   deriving (Data, Typeable)
+data Predicate_ t 
+  = PdVar (PVar t) -- {pname :: !String, ptype :: !t, pargs :: ![(t, Symbol, Symbol)]}
+  | PdTrue
+  | Predicate `PdAnd` Predicate
+    deriving (Data, Typeable)
+
+type Predicate = Predicate_ Type
 
 data PrTy a = PrVar   !TyVar     !a
             | PrLit   !Literal   !a
@@ -162,9 +165,9 @@ freePreds (PrFun _ t1 t2) = S.union (freePreds t1) (freePreds t2)
 freePreds (PrTyCon _ ts ps p) = foldl' (\z t -> S.union z (freePreds t)) pps ts
   where pps = S.fromList $ concatMap normalizeP (p:ps)
 
-normalizeP p@(PdVar _ _ _) = [p]
-normalizeP (PdAnd p1 p2)   = normalizeP p1 ++ normalizeP p2
-normalizeP _               = []
+normalizeP p@(PdVar _)   = [p]
+normalizeP (PdAnd p1 p2) = normalizeP p1 ++ normalizeP p2
+normalizeP _             = []
 
 pand PdTrue (PdAnd p1 p2) = pand p1 p2
 pand PdTrue p            = p
@@ -182,11 +185,11 @@ subsTyVarsP [] p = p
 subsTyVarsP (vt:vts) p = subsTyVarsP vts $ subsTyVarP vt p 
     where (v1, v2) = vt
 
-subsTyVarP (v, t) p@(PdVar n (TyVarTy v') a) 
+subsTyVarP (v, t) p@(PdVar (PV n (TyVarTy v') a)) 
   | (show v' ++ show (varUnique v')) == (show v ++ show (varUnique v))
-  = PdVar n t (map (subsTyVarPArg (v, t)) a)
+  = PdVar (PV n t (map (subsTyVarPArg (v, t)) a))
   | otherwise 
-  = PdVar n (TyVarTy v') (map (subsTyVarPArg (v, t)) a)
+  = PdVar (PV n (TyVarTy v') (map (subsTyVarPArg (v, t)) a))
 subsTyVarP vt  (PdAnd p1 p2)  
   = PdAnd (subsTyVarP vt p1) (subsTyVarP vt p2)
 subsTyVarP (v, t) p = p
@@ -203,11 +206,11 @@ subsTyVarPArg (v, t) a = a
 subsTyVars_ (v, t, τ) = fmap (subsTyVarP (v, τ)) . mapTyVar (subsTyVar (v, t))
 subsTyVars s = fmap (subsTyVarP_ s) . mapTyVar (subsTyVar s)
 
-subsTyVarP_ av@(α, (PrVar a' p')) p@(PdVar n (TyVarTy v) a)
+subsTyVarP_ av@(α, (PrVar a' p')) p@(PdVar (PV n (TyVarTy v) a))
   | (show α ++ show (varUnique α)) == (show v ++ show (varUnique v))
-		= PdVar n (TyVarTy a') ((subsTyVarAP_ av) <$> a)
+		= PdVar (PV n (TyVarTy a') ((subsTyVarAP_ av) <$> a))
   | otherwise
-		= PdVar n (TyVarTy v) ((subsTyVarAP_ av) <$> a)
+		= PdVar (PV n (TyVarTy v) ((subsTyVarAP_ av) <$> a))
 subsTyVarP_ z (PdAnd p1 p2)
   = PdAnd (subsTyVarP_ z p1) (subsTyVarP_ z p2)
 subsTyVarP_ _ p 
@@ -245,12 +248,9 @@ mapTyVar  f = mapTy (id, f)
 mapSymbol f = fmap (mapPd f) .  mapTy (f, id)
 -- substSymP = mapPd substSym
 
-mapThrd f (x, y, z) = (x, y, f z)
-
-
-mapPd f (PdVar n t a)   = PdVar n t ((mapThrd f) <$> a)
-mapPd _ PdTrue          = PdTrue
-mapPd f (p1 `PdAnd` p2) = (mapPd f p1) `PdAnd` (mapPd f p2)  
+mapPd f (PdVar (PV n t a)) = PdVar (PV n t ((mapThd3 f) <$> a))
+mapPd _ PdTrue             = PdTrue
+mapPd f (p1 `PdAnd` p2)    = (mapPd f p1) `PdAnd` (mapPd f p2)  
 
 mapTy f@(fs, _) (PrFun s t1 t2) = PrFun (fs s) (mapTy f t1) (mapTy f t2)
 mapTy f (PrAll a t)             = PrAll a (mapTy f t)
@@ -260,7 +260,7 @@ mapTy (_, fv) t@(PrVar a p)     = fv t
 mapTy f (PrTyCon c ts ps p)     = PrTyCon c ((mapTy f) <$> ts) ps p
 mapTy f (PrClass c ts)          = PrClass c (mapTy f <$> ts)
 
-lookupP p@(PdVar _ _ s') s
+lookupP p@(PdVar (PV _ _ s')) s
  = case (L.lookup p (M.toList s)) of 
     Nothing -> p
     Just q  -> addS s' q
@@ -268,7 +268,7 @@ lookupP p s
  = case (L.lookup p (M.toList s)) of 
     Nothing -> p
     Just q  -> q
-addS s (PdVar n t _) = PdVar n t s
+addS s (PdVar (PV n t _)) = PdVar (PV n t s)
 addS s PdTrue        = PdTrue
 addS s (PdAnd p1 p2 ) = PdAnd (addS s p1) (addS s p2)
 
@@ -276,9 +276,9 @@ class SubstP a where
   subp :: M.Map Predicate Predicate-> a -> a
 
 instance SubstP Predicate where
- subp s p@(PdVar e t a) = lookupP p s -- not correct!
- subp _ PdTrue          = PdTrue
- subp s (PdAnd p1 p2)   = PdAnd (subp s p1) (subp s p2)
+ subp s p@(PdVar (PV e t a)) = lookupP p s -- not correct!
+ subp _ PdTrue               = PdTrue
+ subp s (PdAnd p1 p2)        = PdAnd (subp s p1) (subp s p2)
 
 instance SubstP (PrTy Predicate) where
   subp s t = fmap (subp s) t
@@ -309,9 +309,9 @@ insertPEnv (x, t) (PEnv e) = PEnv $ M.insert x t e
 fromListPEnv = PEnv . M.fromList
 
 instance Eq Predicate where
- (PdVar s1 _ _) == (PdVar s2 _ _)  
+ (PdVar (PV s1 _ _)) == (PdVar (PV s2 _ _))  
    = s1 == s2
- (PdVar s  _ _)  == _               
+ (PdVar _) == _               
    = False
  PdTrue  == PdTrue          
    = True
@@ -324,9 +324,9 @@ instance Eq Predicate where
 
 
 instance Ord Predicate where
- compare (PdVar s1 _ _) (PdVar s2 _ _)  
+ compare (PdVar (PV s1 _ _)) (PdVar (PV s2 _ _))  
    = compare s1 s2
- compare (PdVar s  _ _) _               
+ compare (PdVar (PV s  _ _)) _               
    = GT
  compare PdTrue         PdTrue          
    = EQ
@@ -343,11 +343,11 @@ instance Ord Predicate where
 	
 
 instance Outputable Predicate where
- ppr (PdVar s (TyVarTy v) []) = text s <> char ':' <> ppr v <> ppr (varUnique v)
- ppr (PdVar s t []) = text s <> char ':' <> ppr t
- ppr (PdVar s t xs) = ppr (PdVar s t []) <+> (parens $ hsep (punctuate comma (map pprArgs xs)))
- ppr PdTrue         = text "True"
- ppr (PdAnd p1 p2) = ppr p1 <+> text "&" <+> ppr p2
+ ppr (PdVar (PV s (TyVarTy v) [])) = ppr s <> colon <> ppr v <> ppr (varUnique v)
+ ppr (PdVar (PV s t []))           = ppr s <> colon <> ppr t
+ ppr (PdVar (PV s t xs))           = ppr (PdVar (PV s t [])) <+> (parens $ hsep (punctuate comma (map pprArgs xs)))
+ ppr PdTrue                        = text "True"
+ ppr (PdAnd p1 p2)                 = ppr p1 <+> text "&" <+> ppr p2
 
 pprArgs (TyVarTy v, x1, x2) = parens $ ppr x2 <> text " : " <> ppr v <> ppr (varUnique v) 
 pprArgs (t        , x1, x2) = parens $ ppr t <> text " : " <> ppr x2
