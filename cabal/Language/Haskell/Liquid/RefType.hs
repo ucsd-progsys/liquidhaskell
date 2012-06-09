@@ -186,8 +186,10 @@ showTy v = showSDoc $ ppr v <> ppr (varUnique v)
 rConApp (RTyCon c ps) ts rs r = RConApp (RTyCon c ps') ts rs' r 
    where τs   = toType <$> ts
          ps'  = subsTyVarsP (zip cts τs) <$> ps
-         cts  = TC.tyConTyVars c
-         rs'  = if (null rs) then (((rmPds . ofType . ptype) <$> ps)) else rs
+         cts  = if (TC.isAlgTyCon c) then TC.tyConTyVars c else trace (showPpr c)[]
+         rs'  = if (null rs) 
+                  then traceShow ("vars : " ++ show (ps) ++ concat (showTy <$>cts)) $ (map (subsTyVars_nomeet (zip (rTyVar<$>cts) ts))    ((rmPds . ofType . ptype) <$> ps)) 
+                  else rs
          
 
 
@@ -405,7 +407,7 @@ subsFree m s z (RAll α' t)
 subsFree m s z (RFun x t t')       
   = RFun x (subsFree m s z t) (subsFree m s z t') 
 subsFree m s z t@(RConApp c ts rs r)     
- = RConApp (c{rTyConPs = (subsTyVarP z') <$> (rTyConPs c)}) (subsFree m s z <$> ts) rs r  
+ = RConApp (c{rTyConPs = (subsTyVarP z') <$> (rTyConPs c)}) (subsFree m s z <$> ts) (subsFree m s z <$> rs) r  
     where (RT (v, _), tv) = z
           z'             = (v, toType tv)
 subsFree m s z (RClass c ts)     
