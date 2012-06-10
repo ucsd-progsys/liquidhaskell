@@ -80,8 +80,8 @@ data RBind = RB Symbol | RV TyVar | RP (PVar Type)
   deriving (Data, Typeable)
 
 data RTyCon = RTyCon 
-  { rTyCon     :: !TC.TyCon -- GHC Type Constructor
-  , rTyConPs   :: ![PVar Type]   -- Predicate Parameters
+  { rTyCon     :: !TC.TyCon         -- GHC Type Constructor
+  , rTyConPs   :: ![PVar Type]      -- Predicate Parameters
   }
   deriving (Data, Typeable)
 
@@ -153,17 +153,16 @@ strengthenRefType_ (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
 strengthenRefType_ t1 _ 
   = t1
 
-strengthen  :: RefType -> Reft Sort -> RefType
+-- strengthen  :: RefType -> Reft Sort -> RefType
 strengthen (RApp c ts rs r) r' = RApp c ts rs (r `meet` r') 
 strengthen (RVar a r) r'       = RVar a      (r `meet` r') 
 strengthen t _                 = t 
 
 
-replaceReft  :: RefType -> Reft -> RefType
+-- replaceReft  :: RefType -> Reft Sort -> RefType
 replaceReft (RApp c ts rs _) r' = RApp c ts rs r' 
 replaceReft (RVar a _) r'      = RVar a      r' 
 replaceReft t _                = t 
-
 
 
 addTyConInfo tyi = mapBot (addTCI tyi) 
@@ -179,18 +178,17 @@ showTy v = showSDoc $ ppr v <> ppr (varUnique v)
 
 rConApp (RTyCon c ps) ts rs r = RApp (RTyCon c ps') ts rs' r 
    where τs   = toType <$> ts
-         ps'  = subsTyVarsP (zip cts τs) <$> ps
+         ps'  = subsTyVarsP (zip cts τs) <$> [PdVar p | p <- ps] 
          cts  = TC.tyConTyVars c
          rs'  = if (null rs) then ((\_ -> F.trueReft) <$> ps) else rs
-         
 
-mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
+-- mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
 mkArrow as xts t = mkUnivs as $ mkArrs xts t
 
 mkUnivs αs t  = tr_foldr' RAll t $ RV `fmap` αs
 mkArrs xts t = tr_foldr' (\(x,t) -> RFun (RB x) t) t xts
 
-bkArrow :: RType a -> ([TyVar], [(Symbol, RType a)],  RType a)
+-- bkArrow :: RType a -> ([TyVar], [(Symbol, RType a)],  RType a)
 bkArrow ty = (αs, xts, out)
   where (αs, t)    = bkUniv [] ty
         (xts, out) = bkArrs [] t
@@ -224,13 +222,13 @@ instance NFData RBind where
   rnf (RV a) = rnf a
   rnf (RP p) = rnf p
 
-instance (NFData a) => NFData (RType a) where
-  rnf (RVar α r)      = rnf α `seq` rnf r 
-  rnf (RAll α t)      = rnf α `seq` rnf t
-  rnf (RFun x t t')   = rnf x `seq` rnf t `seq` rnf t'
+instance (NFData a, NFData b, NFData c, NFData d) => NFData (RType a b c d) where
+  rnf (RVar α r)       = rnf α `seq` rnf r 
+  rnf (RAll α t)       = rnf α `seq` rnf t
+  rnf (RFun x t t')    = rnf x `seq` rnf t `seq` rnf t'
   rnf (RApp c ts rs r) = rnf ts `seq` rnf rs `seq` rnf r
-  rnf (RCls c ts)   = c `seq` rnf ts
-  rnf (ROth _)      = ()
+  rnf (RCls c ts)      = c `seq` rnf ts
+  rnf (ROth _)         = ()
 
 
 ----------------------------------------------------------------
@@ -253,9 +251,6 @@ instance Outputable RTyCon where
   
 instance Show RTyCon where
  show = showPpr
-
-instance Outputable Reft where
-  ppr = text . show
 
 ppr_reftype p (RAll (RP pr) t)
   = text "forall" <+> ppr pr <+> ppr_pred p t
@@ -319,13 +314,13 @@ ppr_foralls tvs = (text "forall") <+> sep (map ppr tvs) <> dot
 --------------------------- Visitors --------------------------
 ---------------------------------------------------------------
 
-instance Functor RType where
-  fmap f (RVar α r)      = RVar α (f r)
-  fmap f (RAll a t)      = RAll a (fmap f t)
-  fmap f (RFun x t t')   = RFun x (fmap f t) (fmap f t')
+instance Functor (RType a b c) where
+  fmap f (RVar α r)       = RVar α (f r)
+  fmap f (RAll a t)       = RAll a (fmap f t)
+  fmap f (RFun x t t')    = RFun x (fmap f t) (fmap f t')
   fmap f (RApp c ts rs r) = RApp c (fmap (fmap f) ts) (f <$> rs) (f r)
-  fmap f (RCls c ts)   = RCls c (fmap (fmap f) ts)
-  fmap f (ROth a)      = ROth a 
+  fmap f (RCls c ts)      = RCls c (fmap (fmap f) ts)
+  fmap f (ROth a)         = ROth a 
 
 subsTyVars_meet   = subsTyVars True
 subsTyVars_nomeet = subsTyVars False
@@ -366,7 +361,7 @@ subsFree _ _ _ t@(ROth _)
 
 ---------------------------------------------------------------
 
-stripRTypeBase ::  RType a -> Maybe a
+-- stripRTypeBase ::  RType a -> Maybe a
 stripRTypeBase (RApp _ _ _ x)   
   = Just x
 stripRTypeBase (RVar _ x)   
@@ -514,7 +509,7 @@ dataConSymbol = mkSymbol . dataConWorkId
 primOrderingSort = typeSort $ dataConRepType eqDataCon
 ordCon s = EDat (S s) primOrderingSort
 
-dataConReft   ::  DataCon -> Type -> Reft 
+-- dataConReft   ::  DataCon -> Type -> Reft 
 dataConReft c τ
   | c == trueDataCon
   = Reft (vv, [RConc $ (PBexp (EVar vv))]) 
@@ -544,7 +539,7 @@ dropModuleNames = last . words . (dotWhite <$>)
 ---------------------- Embedding RefTypes ---------------------
 ---------------------------------------------------------------
 
-toType :: RType t -> Type
+-- toType :: RType t -> Type
 toType (RFun _ t t')   
   = FunTy (toType t) (toType t')
 toType (RAll (RV α) t)      
@@ -600,7 +595,7 @@ genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
 literalRefType l 
   = makeRTypeBase (literalType l) (literalReft l) 
 
-makeRTypeBase :: Type -> Reft -> RefType 
+-- makeRTypeBase :: Type -> Reft -> RefType 
 makeRTypeBase (TyVarTy α) x       
   = RVar (rTyVar α) x 
 makeRTypeBase τ@(TyConApp c _) x 
@@ -640,23 +635,23 @@ instance Outputable REnv where
   ppr (REnv m)         = vcat $ map pprxt $ M.toAscList m
     where pprxt (x, t) = ppr x <> dcolon <> ppr t  
 
-refTypePredSortedReft_   :: (Reft, Type) -> SortedReft
+-- refTypePredSortedReft_   :: (Reft, Type) -> SortedReft
 refTypePredSortedReft_ (r, τ) = RR so r
   where so = typeSort τ
 refTypePredSortedReft r = RR so r
   where so = FObj -- typeSort τ
 
-refTypeSortedReft   ::  RType Reft -> SortedReft
+refTypeSortedReft   ::  RefType -> SortedReft
 refTypeSortedReft t = RR so r
   where so = {- traceShow ("rTypeSort: t = " ++ showPpr t) $ -} rTypeSort t
         r  = fromMaybe trueReft $ stripRTypeBase t 
 
-typeSortedReft ::  Type -> Refa -> SortedReft
+-- typeSortedReft ::  Type -> Refa -> SortedReft
 typeSortedReft t r = RR so $ Reft(vv,[r])
   where so = typeSort t
 
 
-rTypeSort ::  RType t -> Sort
+-- rTypeSort ::  RType t -> Sort
 rTypeSort = typeSort . toType
 
 

@@ -180,19 +180,6 @@ toFixpoint x' = gsDoc x' $+$ conDoc x' $+$  csDoc x' $+$ wsDoc x'
         csDoc      = vcat . map toFix . cs 
         wsDoc      = vcat . map toFix . ws 
         gsDoc      = vcat . map infoConstant . map (\(x, (RR so _)) -> (x, so, False)) . M.assocs . (\(Envt e) -> e) . gs
- 
-{- 
---toFixpoint :: (Data a, Data b) => ([(Symbol, SortedReft)], ([SubC a], [WfC b])) -> (SDoc, Subst) 
-toFixpoint :: (Data a) => FInfo a -> (SDoc, Subst) 
-toFixpoint x = (fixdoc, {-# SCC "FixSub" #-} sub st') 
-  where (x', st')  = {-# SCC "FixClean" #-} fixClean x 
-        fixdoc     = {-# SCC "FixDoc" #-}   fixDoc x'
-        sub        = Su . M.map EVar . symMap
-
-fixClean x = runState (clean x) $ FxInfo M.empty S.empty M.empty 0
-  where clean      = cleanSymbols >=> cleanLocs
--}
-
        
 ---------------------------------------------------------------
 ------------------------------ Sorts --------------------------
@@ -512,6 +499,10 @@ data Reft t
 
 instance (Show a) => Show (Reft a) where
   show (Reft x) = showSDoc $ toFix x 
+
+instance (Show a) => Outputable (Reft a) where
+  ppr = text . show
+
 
 data SortedReft
   = RR !Sort !(Reft Sort)

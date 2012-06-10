@@ -35,13 +35,13 @@ import Control.Applicative  ((<$>))
 import Control.DeepSeq
 import Data.Data
 
-data Predicate_ t 
+data Predicate t 
   = PdVar (PVar t) -- {pname :: !String, ptype :: !t, pargs :: ![(t, Symbol, Symbol)]}
   | PdTrue
-  | Predicate `PdAnd` Predicate
+  | (Predicate t) `PdAnd` (Predicate t)
     deriving (Data, Typeable)
 
-type Predicate = Predicate_ Type
+-- type Predicate = Predicate_ Type
 
 data PrTy a = PrVar   !TyVar     !a
             | PrLit   !Literal   !a
@@ -64,14 +64,14 @@ toType (PrTyCon c ts _ _) = TyConApp c (map toType ts)
 
 
 
-type PrType = PrTy Predicate
+type PrType = PrTy (Predicate Type)
 
 data TyConP = TyConP { freeTyVarsTy :: ![TyVar]
-                     , freePredTy   :: ![Predicate]
+                     , freePredTy   :: ![(Predicate Type)]
                      }
 
 data DataConP = DataConP { freeTyVars :: ![TyVar]
-                         , freePred   :: ![Predicate]
+                         , freePred   :: ![(Predicate Type)]
                          , tyArgs     :: ![(Symbol, PrType)]
                          , tyRes      :: !PrType
                          }
@@ -155,7 +155,7 @@ freeArgPreds (PrAll _ t)     = freeArgPreds t
 freeArgPreds (PrAllPr _ t)   = freeArgPreds t
 freeArgPreds t               = freePreds t
 
-freePreds :: PrType -> S.Set Predicate
+freePreds :: PrType -> S.Set (Predicate Type)
 freePreds (PrVar _ p) = S.fromList $ normalizeP p
 freePreds (PrLit _ p) = S.fromList $ normalizeP p
 freePreds (PrAll _ t) = freePreds t
@@ -170,20 +170,20 @@ normalizeP (PdAnd p1 p2) = normalizeP p1 ++ normalizeP p2
 normalizeP _             = []
 
 pand PdTrue (PdAnd p1 p2) = pand p1 p2
-pand PdTrue p            = p
-pand p     (PdAnd p1 p2) = PdAnd p $ pand p1 p2
-pand p     PdTrue        = p
-pand p     q            = PdAnd p q
+pand PdTrue p             = p
+pand p     (PdAnd p1 p2)  = PdAnd p $ pand p1 p2
+pand p     PdTrue         = p
+pand p     q              = PdAnd p q
 
 showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy t = showSDoc $ ppr t
 
 
+subsTyVarsP = flip foldl' subsTyVarP 
 
-subsTyVarsP [] p = p
-subsTyVarsP (vt:vts) p = subsTyVarsP vts $ subsTyVarP vt p 
-    where (v1, v2) = vt
+--subsTyVarsP [] p       = p
+--subsTyVarsP (vt:vts) p = subsTyVarsP vts $ subsTyVarP vt p 
 
 subsTyVarP (v, t) p@(PdVar (PV n (TyVarTy v') a)) 
   | (show v' ++ show (varUnique v')) == (show v ++ show (varUnique v))
@@ -273,14 +273,14 @@ addS s PdTrue        = PdTrue
 addS s (PdAnd p1 p2 ) = PdAnd (addS s p1) (addS s p2)
 
 class SubstP a where
-  subp :: M.Map Predicate Predicate-> a -> a
+  subp :: M.Map (Predicate Type) (Predicate Type) -> a -> a
 
-instance SubstP Predicate where
+instance SubstP (Predicate Type) where
  subp s p@(PdVar (PV e t a)) = lookupP p s -- not correct!
  subp _ PdTrue               = PdTrue
  subp s (PdAnd p1 p2)        = PdAnd (subp s p1) (subp s p2)
 
-instance SubstP (PrTy Predicate) where
+instance SubstP (PrTy (Predicate Type)) where
   subp s t = fmap (subp s) t
 
 typeAbsVsPs t vs ps
@@ -308,7 +308,7 @@ mapPEnv f (PEnv m) = PEnv $ M.map f m
 insertPEnv (x, t) (PEnv e) = PEnv $ M.insert x t e
 fromListPEnv = PEnv . M.fromList
 
-instance Eq Predicate where
+instance Eq (Predicate a) where
  (PdVar (PV s1 _ _)) == (PdVar (PV s2 _ _))  
    = s1 == s2
  (PdVar _) == _               
@@ -323,7 +323,7 @@ instance Eq Predicate where
    = False
 
 
-instance Ord Predicate where
+instance Ord (Predicate a) where
  compare (PdVar (PV s1 _ _)) (PdVar (PV s2 _ _))  
    = compare s1 s2
  compare (PdVar (PV s  _ _)) _               
@@ -340,14 +340,24 @@ instance Ord Predicate where
 	 where q = compare p11 p21 
  compare (PdAnd _ _) _ 
   = LT
-	
 
-instance Outputable Predicate where
- ppr (PdVar (PV s (TyVarTy v) [])) = ppr s <> colon <> ppr v <> ppr (varUnique v)
- ppr (PdVar (PV s t []))           = ppr s <> colon <> ppr t
- ppr (PdVar (PV s t xs))           = ppr (PdVar (PV s t [])) <+> (parens $ hsep (punctuate comma (map pprArgs xs)))
- ppr PdTrue                        = text "True"
- ppr (PdAnd p1 p2)                 = ppr p1 <+> text "&" <+> ppr p2
+instance Outputable (Predicate Type) where
+  ppr = ppr_predicate (ppr . varUnique)
+
+instance Show (Predicate Type) where
+  show = showSDoc . ppr
+
+ppr_predicate pprv (PdVar (PV s (TyVarTy v) [])) = ppr s <> colon <> ppr v <> pprv v
+ppr_predicate pprv (PdVar (PV s t []))           = ppr s <> colon <> ppr t
+ppr_predicate pprv (PdVar (PV s t xs))           = ppr (PdVar (PV s t [])) <+> (parens $ hsep (punctuate comma (map pprArgs xs)))
+ppr_predicate pprv PdTrue                        = text "True"
+ppr_predicate pprv (PdAnd p1 p2)                 = ppr p1 <+> text "&" <+> ppr p2
+
+--ppr (PdVar (PV s (TyVarTy v) [])) = ppr s <> colon <> ppr v <> ppr (varUnique v)
+--ppr (PdVar (PV s t []))           = ppr s <> colon <> ppr t
+--ppr (PdVar (PV s t xs))           = ppr (PdVar (PV s t [])) <+> (parens $ hsep (punctuate comma (map pprArgs xs)))
+--ppr PdTrue                        = text "True"
+--ppr (PdAnd p1 p2)                 = ppr p1 <+> text "&" <+> ppr p2
 
 pprArgs (TyVarTy v, x1, x2) = parens $ ppr x2 <> text " : " <> ppr v <> ppr (varUnique v) 
 pprArgs (t        , x1, x2) = parens $ ppr t <> text " : " <> ppr x2
@@ -396,8 +406,6 @@ instance Outputable PEnv where
 instance Show PEnv where
  show = showSDoc . ppr
 
-instance Show Predicate where
- show = showSDoc . ppr
 
 instance Show PrType where
  show = showSDoc . ppr
@@ -405,7 +413,7 @@ instance Show PrType where
 instance NFData PEnv where
   rnf (PEnv e) = ()
 
-instance NFData Predicate where
+instance NFData (Predicate a) where
   rnf _ = ()
 
 instance NFData PrType where
