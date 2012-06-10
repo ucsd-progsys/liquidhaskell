@@ -495,8 +495,6 @@ data Reft t
   = Reft (Symbol, [Refa t]) 
   deriving (Eq, Ord, Data, Typeable) 
 
--- type Reft = Reft_ Sort
-
 instance (Show a) => Show (Reft a) where
   show (Reft x) = showSDoc $ toFix x 
 
@@ -517,7 +515,10 @@ meet (Reft (v, ras)) (Reft (v', ras'))
 
 newtype Envt = Envt (M.Map Symbol SortedReft) 
                deriving (Eq, Ord, Data, Typeable) 
-  
+ 
+instance Functor PVar where
+  fmap f (PV x t txys) = PV x (f t) (mapFst3 f <$> txys)
+
 instance Fixpoint (Refa a) where
   toFix (RConc p)    = toFix p
   toFix (RKvar k su) = toFix k <> toFix su
@@ -719,6 +720,7 @@ canonReft r@(Reft (v, ras))
   | v == vv    = r 
   | otherwise = Reft (vv, ras `subst1` (v, EVar vv))
 
+flattenRefas ::  [Refa Sort] -> [Refa Sort]
 flattenRefas = concatMap flatRa
   where flatRa (RConc p) = RConc <$> flatP p
         flatRa ra        = [ra]
@@ -732,6 +734,7 @@ flattenRefas = concatMap flatRa
 ----------------------------------------------------------------
 ---------------------- Strictness ------------------------------
 ----------------------------------------------------------------
+
 instance NFData Symbol where
   rnf (S x) = rnf x
 
@@ -782,9 +785,13 @@ instance NFData Pred where
   rnf (PAtom x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
   rnf (_)              = ()
 
+instance (NFData a) => NFData (PVar a) where
+  rnf (PV n t txys) = rnf n `seq` rnf t `seq` rnf txys
+
 instance (NFData a) => NFData (Refa a) where
   rnf (RConc x)     = rnf x
   rnf (RKvar x1 x2) = rnf x1 `seq` rnf x2
+  rnf (RPvar x1)    = rnf x1
 
 instance (NFData a) => NFData (Reft a) where 
   rnf (Reft (v, ras)) = rnf v `seq` rnf ras

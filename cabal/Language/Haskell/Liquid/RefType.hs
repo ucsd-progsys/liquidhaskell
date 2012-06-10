@@ -9,7 +9,6 @@ module Language.Haskell.Liquid.RefType (
   , RBind (..)
   , ofType, toType
   , rTyVar, rTyVarSymbol
-  , typeId
   , strengthen, strengthenRefType
   , mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
@@ -178,7 +177,7 @@ showTy v = showSDoc $ ppr v <> ppr (varUnique v)
 
 rConApp (RTyCon c ps) ts rs r = RApp (RTyCon c ps') ts rs' r 
    where τs   = toType <$> ts
-         ps'  = subsTyVarsP (zip cts τs) <$> [PdVar p | p <- ps] 
+         ps'  = subsTyVarsP (zip cts τs) <$> ps
          cts  = TC.tyConTyVars c
          rs'  = if (null rs) then ((\_ -> F.trueReft) <$> ps) else rs
 
@@ -219,8 +218,8 @@ instance NFData REnv where
 
 instance NFData RBind where
   rnf (RB x) = rnf x
-  rnf (RV a) = rnf a
-  rnf (RP p) = rnf p
+  rnf (RV a) = ()
+  rnf (RP p) = () 
 
 instance (NFData a, NFData b, NFData c, NFData d) => NFData (RType a b c d) where
   rnf (RVar α r)       = rnf α `seq` rnf r 
@@ -254,7 +253,7 @@ instance Show RTyCon where
 
 ppr_reftype p (RAll (RP pr) t)
   = text "forall" <+> ppr pr <+> ppr_pred p t
-ppr_reftype p t@(RAll (RV _) _ _)       
+ppr_reftype p t@(RAll (RV _) _)       
   = ppr_forall_reftype p t
 ppr_reftype p (RVar a r)         
   = ppReft r $ ppr a
@@ -338,19 +337,19 @@ instance Show Type where
 
 subsFree ::  Bool -> S.Set TyVar -> (TyVar, RefType) -> RefType -> RefType
 
-subsFree m s z@(RV v, tv) (RAll (RP p) t)         
-  = RAll (RP (subsTyVarP (v, toType tv) p)) $ subsFree m s z t
+subsFree m s z@(α, t') (RAll (RP p) t)         
+  = RAll (RP (subsTyVarsP [(α, toType t')] p)) $ subsFree m s z t
 subsFree m s z (RAll (RV α) t)         
   = RAll (RV α) $ subsFree m (α `S.insert` s) z t
 subsFree m s z (RFun x t t')       
   = RFun x (subsFree m s z t) (subsFree m s z t') 
-subsFree m s z@(RV v, tv) t@(RApp c ts rs r)     
+subsFree m s z@(α, t') t@(RApp c ts rs r)     
   = RApp c' (subsFree m s z <$> ts) rs r  
-    where c' = c {rTyConPs = (subsTyVarP (v, toType tv)) <$> (rTyConPs c)}
-
+    where c' = c {rTyConPs = (subsTyVarsP [(α, toType t')]) <$> (rTyConPs c)}
+    -- UNIFY: why instantiating INSIDE parameters?
 subsFree m s z (RCls c ts)     
   = RCls c (subsFree m s z <$> ts)
-subsFree meet s (α', t') t@(RVar α r) 
+subsFree meet s (α', t') t@(RVar (RV α) r) 
   | α == α' && α `S.notMember` s 
   = if meet then t' `strengthen` r else t' 
   | otherwise
@@ -372,7 +371,7 @@ stripRTypeBase _
 
 ofType :: Type -> RefType
 ofType τ = --traceShow ("ofType τ = " ++ showPpr τ) $ 
-           ofType_ S.empty τ
+           ofType_ τ
 
 ofType_ :: Type -> RefType 
 ofType_ (FunTy τ τ')    
@@ -552,7 +551,7 @@ toType (RCls c ts)
   = predTreePredType $ ClassPred c (toType <$> ts)
   -- = PredTy (ClassP c (toType <$> ts))
 toType (ROth t)      
-  = t 
+  = errorstar $ "toType fails: " ++ t
 
 typeSort :: Type -> Sort 
 typeSort (TyConApp c []) 
