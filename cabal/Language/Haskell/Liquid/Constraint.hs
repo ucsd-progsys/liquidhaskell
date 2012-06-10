@@ -328,6 +328,9 @@ rsplitW γ (r, (PdVar _ t as))
         r'   = refTypePredSortedReft_ (r, t)
         γ'   = foldl' (++=) γ (map (\(τ, x, _) -> (x, ofType τ)) as) 
 
+
+
+
 ------------------------------------------------------------
 splitC :: SubC -> [FixSubC]
 ------------------------------------------------------------
@@ -345,7 +348,7 @@ splitC (SubC γ t1@(RConApp c t1s r1s _) t2@(RConApp c' t2s r2s _))
 --   ++ (concatMap splitC (zipWith (SubC γ) r1s r2s)) 
    ++ (concatMap (psplitC γ) (zip (zip r1s r2s) ps))
 --   ++ (concatMap (rsplitC γ) (zip (zip r1s r2s) ps))
- where ps = rTyConPs c'
+ where ps = traceShow ("ALT" ++ show (rTyConPs c', rTyConPs c, t1, t2)) $ rTyConPs c
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
@@ -601,7 +604,10 @@ refreshRefType t
 
 foo t@(RVar a r) = liftM (RVar a) (refresh r)
 foo t@(RConApp (rc@(RTyCon c ps)) ts rs r) 
-   = liftM3 (RConApp rc) (mapM foo ts) (return []) (refresh r)
+  = do s <- trace ("refresh for") $ get 
+       let RTyCon c0 ps = M.findWithDefault rc c $ tyConInfo s
+       let ps' = (map (subsTyVarsP (zip (TC.tyConTyVars c0) (toType <$> ts))) ps)
+       liftM3 (RConApp (RTyCon c0 ps')) (mapM foo ts) (return []) (refresh r)
 --        trace (show t') $ return t' -- liftM3 (RConApp rc) (mapM refreshRefType_ ts) (return []) (refresh r)
 
 foo t            = true t
@@ -875,7 +881,7 @@ cconsCase γ x t (DataAlt c, ys, ce)
  where (x':ys')      = mkSymbol <$> (x:ys)
        xt0           = checkTyCon x $ γ ?= x'
        tdc           = γ ?= (dataConSymbol c)
-       (rtd, yts, xt') = unfoldR tdc xt0 ys'
+       (rtd, yts, xt') = traceShow "UNFOLD" $ unfoldR tdc xt0 ys'
        r1            = dataConReft c $ varType x
        r2            = dataConMsReft rtd ys'
        xt            = xt0 `strengthen` (r1 `F.meet` r2)
@@ -889,8 +895,8 @@ mkyt (γ, ts) (y, yt)
 
 unfoldR td t0@(RConApp tc ts rs _) ys = (t3, yts, rt)
   where (vs, ps, t0) = rsplitVsPs td
-        t1 = foldl' (flip subsTyVar_meet) t0 (zip vs ts)
-        t2 = foldl' (flip replacePred) t1 (zip (reverse ps) rs)
+        t1 = traceShow ("t1") $ foldl' (flip subsTyVar_meet) t0 (zip vs ts)
+        t2 = traceShow ("t2") $ foldl' (flip replacePred) t1 (zip (reverse ps) rs)
         (ys0, yts', rt) = traceShow ("SUBSP" ) $ rsplitArgsRes t2
         (t3:yts) = F.subst su <$> (t2:yts')
         su  = F.mkSubst [(x, F.EVar y)| (x, y)<- zip ys0 ys]
@@ -1055,7 +1061,7 @@ replacePred_ (PdVar p _ _) t1@(RVar v1 r1) (RVar v2 r2)
   =  RVar v1 $ r1'`F.meet` F.subst su r2  -- (F.addSub r2 su)
   where (r1', su) = F.rmKVarReft p r1
 replacePred_ (PdVar p _ _) t1@(RConApp c ts1 rs1 r1) t2@(RConApp c2 ts2 rs2 r2) 
-  = RConApp c ts rs $ r1' `F.meet` (addS r2)
+  = RConApp c ts rs1 $ r1' `F.meet` (addS r2) -- replace it with rs
   where (r1', su) = F.rmKVarReft p r1
         ts = zipWith (\t1 t2 -> strengthenRefType t1 (fmap addS t2)) ts1 ts2
         rs = zipWith (\t1 t2 -> strengthenRefType t1 (fmap addS t2)) rs1 rs2

@@ -195,13 +195,15 @@ subsTyVarP (v, t) p@(PdVar n (TyVarTy v') a)
   = PdVar n (TyVarTy v') (map (subsTyVarPArg (v, t)) a)
 subsTyVarP vt  (PdAnd p1 p2)  
   = PdAnd (subsTyVarP vt p1) (subsTyVarP vt p2)
+subsTyVarP (v, t) p@(PdVar n t0 a) 
+ = PdVar n t0 (map (subsTyVarPArg (v, t)) a)
 subsTyVarP (v, t) p = p
 
 subsTyVarPArg (v, t) a@(TyVarTy v', x1, x2)
   | sv' ==  sv
   = (t, x1, x2)
   | otherwise 
-  = a
+  = trace ("NOTTT" ++ sv ++ sv' ++ showPpr (t, a))$ a
   where sv' = show v' ++ show (varUnique v') 
         sv  = show v  ++ show (varUnique v )
 subsTyVarPArg (v, t) a = a

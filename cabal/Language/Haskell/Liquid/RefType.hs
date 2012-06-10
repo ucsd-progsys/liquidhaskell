@@ -407,9 +407,10 @@ subsFree m s z (RAll α' t)
 subsFree m s z (RFun x t t')       
   = RFun x (subsFree m s z t) (subsFree m s z t') 
 subsFree m s z t@(RConApp c ts rs r)     
- = RConApp (c{rTyConPs = (subsTyVarP z') <$> (rTyConPs c)}) (subsFree m s z <$> ts) (subsFree m s z <$> rs) r  
+ = traceShow ("NEWC = " ++ show (c',z', rTyConPs c) ++ "\n") $ RConApp c' (subsFree m s z <$> ts) (subsFree m s z <$> rs) r  
     where (RT (v, _), tv) = z
           z'             = (v, toType tv)
+          c' = c{rTyConPs = subsTyVarP z' <$> (rTyConPs c)}
 subsFree m s z (RClass c ts)     
   = RClass c (subsFree m s z <$> ts)
 subsFree meet s (α', t') t@(RVar α r) 

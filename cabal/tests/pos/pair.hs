@@ -11,7 +11,8 @@ prop  = chk $ incr n
 
 -- 43(ok) -/-> 94 -/-> k_22
 incr2 x = P x (P True (x+1))
-chk2 (P x (P z y)) = assert (x <y) 
+chk2 (P x w) = 
+   case w of (P z y) -> assert (x <y) 
 prop2  = chk2 $ incr2 n
   where n = choose 0
 
