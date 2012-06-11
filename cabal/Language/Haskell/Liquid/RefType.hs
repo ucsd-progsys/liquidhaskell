@@ -422,9 +422,10 @@ subsFree meet s (α', t') t@(RVar α r)
   = t
 subsFree _ _ _ t@(ROther _)        
   = t
-subsFreeRs m s (α', RVar a1 r1) t@(RVar α r) 
+
+subsFreeRs m s (α', RVar a1 r1) t@(RVar α (F.Reft(_, r))) 
   | α == α' && α `S.notMember` s 
-  = RVar a1 r
+  = RVar a1 $ F.Reft(F.vv, r)
   | otherwise
   = t
 subsFreeRs m s z t = subsFree m s z t
