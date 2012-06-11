@@ -147,8 +147,9 @@ strengthenRefType_ (RFun (RB x1) t1 t1') (RFun (RB x2) t2 t2')
     where t  = strengthenRefType_ t1 t2
           t' = strengthenRefType_ t1' $ subst1 t2' (x2, EVar x1)
 
-strengthenRefType_ (RConApp tid t1s rs1 r1) (RConApp _ t2s rs2 r2)
-  = RConApp tid ts rs (r1 `meet` r2)
+strengthenRefType_ t1@(RConApp tid t1s rs1 r1) t2@(RConApp _ t2s rs2 r2)
+  = -- traceShow ("strengthenRef for " ++ show t1 ++ "\n" ++ show t2) $
+     RConApp tid ts rs (r1 `meet` r2)
     where ts = zipWith strengthenRefType_ t1s t2s
           rs = zipWith strengthenRefType_ rs1 rs2
 --          rs = zipWith meet rs1 rs2
@@ -188,7 +189,8 @@ rConApp (RTyCon c ps) ts rs r = RConApp (RTyCon c ps') ts rs' r
          ps'  = subsTyVarsP (zip cts τs) <$> ps
          cts  = if (TC.isAlgTyCon c) then TC.tyConTyVars c else trace (showPpr c)[]
          rs'  = if (null rs) 
-                  then traceShow ("vars : " ++ show (ps) ++ concat (showTy <$>cts)) $ (map (subsTyVars_nomeet (zip (rTyVar<$>cts) ts))    ((rmPds . ofType . ptype) <$> ps)) 
+                  then -- traceShow ("vars : " ++ showPpr (ps, c) ++ concat (showTy <$>cts)) $ 
+                       (map (subsTyVars_nomeet (zip (rTyVar<$>cts) ts))    ((rmPds . ofType . ptype) <$> ps)) 
                   else rs
          
 
@@ -407,7 +409,7 @@ subsFree m s z (RAll α' t)
 subsFree m s z (RFun x t t')       
   = RFun x (subsFree m s z t) (subsFree m s z t') 
 subsFree m s z t@(RConApp c ts rs r)     
- = traceShow ("NEWC = " ++ show (c',z', rTyConPs c) ++ "\n") $ RConApp c' (subsFree m s z <$> ts) (subsFree m s z <$> rs) r  
+ = RConApp c' (subsFree m s z <$> ts) (subsFreeRs m s z <$> rs) r  
     where (RT (v, _), tv) = z
           z'             = (v, toType tv)
           c' = c{rTyConPs = subsTyVarP z' <$> (rTyConPs c)}
@@ -420,8 +422,12 @@ subsFree meet s (α', t') t@(RVar α r)
   = t
 subsFree _ _ _ t@(ROther _)        
   = t
-
-
+subsFreeRs m s (α', RVar a1 r1) t@(RVar α r) 
+  | α == α' && α `S.notMember` s 
+  = RVar a1 r
+  | otherwise
+  = t
+subsFreeRs m s z t = subsFree m s z t
 ---------------------------------------------------------------
 
 stripRTypeBase ::  RType a -> Maybe a

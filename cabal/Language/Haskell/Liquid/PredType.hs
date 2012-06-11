@@ -203,7 +203,7 @@ subsTyVarPArg (v, t) a@(TyVarTy v', x1, x2)
   | sv' ==  sv
   = (t, x1, x2)
   | otherwise 
-  = trace ("NOTTT" ++ sv ++ sv' ++ showPpr (t, a))$ a
+  = a
   where sv' = show v' ++ show (varUnique v') 
         sv  = show v  ++ show (varUnique v )
 subsTyVarPArg (v, t) a = a
