@@ -9,6 +9,7 @@ import HscTypes
 import CoreSyn
 import Var
 import TysWiredIn
+import BasicTypes (TupleSort(BoxedTuple), Arity)
 import IdInfo
 import Name     (getSrcSpan)
 import CoreMonad (liftIO)
@@ -143,8 +144,8 @@ getGhcInfo target paths =
       cs <- moduleDat mg paths 
       let (tcs, dcs) = unzip cs
       return $ GI env cbs asm (grt ++ grt') (fst msr) (snd msr) 
-						            hqs bs ps (concat dcs ++ snd listTyDataCons) 
-                  (tcs ++ fst listTyDataCons)
+						            hqs bs ps (concat dcs ++ snd wiredTyDataCons) 
+                  (tcs ++ fst wiredTyDataCons)
 
 printVars s vs 
   = do putStrLn s 
@@ -564,6 +565,13 @@ instance NFData GhcInfo where
     = {-# SCC "NFGhcInfo" #-} x1 `seq` x2 `seq` rnf x3 `seq` rnf x4 `seq` rnf x5 `seq` rnf x6 `seq` rnf x7 `seq` rnf x8
 
 
+maxArity :: Arity 
+maxArity = 6
+
+wiredTyDataCons :: ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
+wiredTyDataCons = (\(x, y) -> (concat x, concat y)) $ unzip l
+  where l = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity] 
+
 listTyDataCons :: ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
 listTyDataCons =( [(c, TyConP [tyv] [p])]
 														, [(nilDataCon , DataConP [tyv] [p] [] lt)
@@ -581,5 +589,32 @@ listTyDataCons =( [(c, TyConP [tyv] [p])]
           xst   = PrTyCon c [PrVar tyv px] [p] PdTrue
           cargs = [(xs, xst), (x, xt)]
 
+tupleTyDataCons :: Int -> ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
+tupleTyDataCons n = ( [(c, TyConP tyv ps)]
+                    , [(dc, DataConP tyv ps  cargs  lt)])
+  where c       = tupleTyCon BoxedTuple n
+        dc      = tupleCon BoxedTuple n 
+        tyv     = tyConTyVars c
+        (ta:ts) = TyVarTy <$>tyv
+        tvs     = tyv
+        flds    =  mks "fld"
+        fld     = stringSymbol "fld"
+        x1:xs   = mks "x"
+        y       = stringSymbol "y"
+        ps      = mkps pnames (ta:ts) ((fld,fld):(zip flds flds))
+        pxs     = mkps pnames (ta:ts) ((fld, x1):(zip flds xs))
+        lt      = PrTyCon c ((\x -> PrVar x PdTrue) <$> tyv) ps PdTrue 
+        xts     = zipWith PrVar (tail tvs) pxs
+        cargs   = reverse $ (x1, PrVar (head tvs) PdTrue):(zip xs xts)
+        pnames  = mks_ "p"
+        mks  x  = (\i -> stringSymbol (x++ show i)) <$> [1..n]
+        mks_ x  = (\i ->  (x++ show i)) <$> [2..n]
 
 
+mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ ns ts fxs [(t, f, x)] [] 
+
+mkps_ []     _       _          _    ps = ps
+mkps_ (n:ns) (t:ts) ((f, x):xs) args ps
+  = mkps_ ns ts xs (a:args) (p:ps)
+  where p = PdVar n t args
+        a = (t, f, x)
