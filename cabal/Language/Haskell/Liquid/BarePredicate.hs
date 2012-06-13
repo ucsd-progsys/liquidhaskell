@@ -105,14 +105,23 @@ ofBDataDecl (D tyCon vars ps cts)
         ps' = map (ofBPredicate_ avs) ps
         preds = snd $ unzip ps'
 
+
+
 ofBPredicate _ (PBTrue) = PdTrue
 ofBPredicate avs (PBAnd p1 p2) 
  = PdAnd (ofBPredicate avs p1) (ofBPredicate avs p2) 
 ofBPredicate avs (PBF s as xs) 
-  = PdVar {pname = s, ptype = f as, pargs = map (ofArgsD (fst avs)) xs}
-  where f v = let (v'):_ = [v|(a, v)<-fst avs, a==s] in TyVarTy v'
-ofBPredicate avs (PB s xs) = PdVar {pname = s, ptype = ptype f , pargs = args}
-  where f = head [v|(a, v)<-snd avs, a==s]
+  = PdVar $ PV { pname = stringSymbol s
+               , ptype = f as
+               , pargs = map (ofArgsD (fst avs)) xs
+               }
+  where f v = let v':_ = [v | (a, v) <- fst avs, a==s ] in TyVarTy v'
+ofBPredicate avs (PB s xs) 
+  = PdVar $ PV { pname = stringSymbol s
+               , ptype = ptype f 
+               , pargs = args
+               }
+  where f = head [ v | (a, PdVar v) <- snd avs, a==s]
         args = zipWith (\(t, x1, _) x-> (t, x1, stringSymbol x))(pargs f) xs
 
 wiredIn :: M.Map String Name
@@ -137,7 +146,10 @@ ofArgsD vs (x, va) = (TyVarTy t, x', x')
         x'  = stringSymbol x
 
 ofBPredicate_ vs (PBF x va xs)
-  = (x, PdVar {pname = x, ptype = TyVarTy t, pargs = map (ofArgsD vs) xs})
+  = (x, PdVar $ PV { pname = stringSymbol x
+                   , ptype = TyVarTy t
+                   , pargs = map (ofArgsD vs) xs
+                   })
   where t:_ = [vt| (a, vt) <- vs, a==va]
 
 --ofPType :: ([(String, TyVar)], [(String, Predicate)]) ->PrTypeP -> m PrType
@@ -157,8 +169,8 @@ ofPType as (PrAppTyP x t1 t2) =
        return $ PrFun (stringSymbol x) nt1 nt2
 
 ofPType as (PrPairP(p,s)) = 
-   do let (v):_ = [v|(a, v)<-fst as, a==s]
-       in return $ PrVar v (ofBPredicate as p)
+   let (v):_ = [v | (a, v)<-fst as, a==s] in
+   return $ PrVar v (ofBPredicate as p)
 
 ofPType as (PrLstP t) =
    do nt <- ofPType as t
