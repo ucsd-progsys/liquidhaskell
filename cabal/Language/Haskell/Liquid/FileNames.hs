@@ -40,10 +40,13 @@ getIncludePath = getEnv envVarName
 dummyName = "_LIQUID_dummy"
 tagName   = "TAG"
 
-data Ext = Cgi | Out | Fq | Html | Cst | Annot | Hs | Spec | Hquals
+data Ext = Cgi | Out | Fq | Html | Cst | Annot | Hs | Spec | Hquals | Pred | PAss| Dat
            deriving (Eq, Ord)
 
 extMap   = M.fromList [ (Cgi,  "cgi")
+                      , (Pred,  "pred")
+                      , (PAss,  "pass")
+                      , (Dat,  "dat")
                       , (Out,  "out")
                       , (Fq,   "fq")
                       , (Html, "html")

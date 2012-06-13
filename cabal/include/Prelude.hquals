@@ -5,6 +5,7 @@ qualif Bot(v:@(0))   : 0 = 1
 qualif Bot(v:obj)    : 0 = 1 
 qualif Bot(v:ptr)    : 0 = 1 
 qualif Bot(v:bool)   : 0 = 1 
+qualif Bot(v:int)   : 0 = 1 
 
 qualif Lt(v:int,~A:int) : v < ~A
 qualif Le(v:int,~A:int) : v <= ~A
@@ -24,5 +25,4 @@ qualif GtP(v:ptr,~A:ptr) : ~A < v
 qualif PosZP(v:ptr)      : 0 <= v
 qualif PosP(v:ptr)       : 0 < v
 qualif GeP(v:ptr,~A:ptr) : ~A <= v
-
 

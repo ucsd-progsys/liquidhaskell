@@ -3,23 +3,25 @@
 module Language.Haskell.Liquid.Fixpoint (
     toFixpoint, toFix
   , dummySort
-  , symChars, nonSymbol, dummySymbol, intSymbol, tagSymbol, tempSymbol
+  , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tagSymbol, tempSymbol
   , stringSymbol, symbolString
   , anfPrefix, tempPrefix
   , intKvar
-  , Sort (..), Symbol, Loc (..), Constant (..), Bop (..), Brel (..), Expr (..)
+  , Sort (..), Symbol(..), Loc (..), Constant (..), Bop (..), Brel (..), Expr (..)
   , Pred (..), Refa (..), SortedReft (..), Reft(..), Envt
   , SubC (..), WfC(..), FixResult (..), FixSolution, FInfo (..)
   , emptyFEnv, fromListFEnv, insertFEnv, deleteFEnv
   , vv
   , meet
   , trueReft, trueSortedReft 
+  , trueRefa
   , canonReft, exprReft, symbolReft
   , isNonTrivialSortedReft
   , isTauto, flattenRefas
   , simplify
   , emptySubst, mkSubst, catSubst
   , Subable (..)
+  , addSub, rmKVarReft, isKVarInReft, strToReft, strToRefa, strsToRefa, strsToReft, replaceSort, replaceSorts, refaInReft
   ) where
 
 import Outputable
@@ -27,8 +29,9 @@ import Control.Monad.State
 import Text.Printf
 import Data.Monoid hiding ((<>))
 import Data.Functor
+import Data.Maybe (catMaybes)
 import Data.List
-import Data.Char        (ord, chr, isAlphaNum, isAlpha)
+import Data.Char        (ord, chr, isAlphaNum, isAlpha, isUpper, toLower)
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Text.Parsec.String
@@ -99,6 +102,69 @@ freshSym x = do
                   return y 
     Just y  -> return y
 -}
+
+addSub (Reft(v, ls)) su = Reft(v, go ls su)
+  where go ((RKvar s _):xs) su = (RKvar s su):(go xs su)
+        go []               _  = []
+        go (r:rs)           su = (r:(go rs su))
+
+strsToRefa n as = RConc $ PBexp $ (EApp (S n) ([EVar (S "VV")] ++ (map EVar as)))
+--strToRefa n  = RConc $ PBexp $ (EApp (S n) [EVar (S "VV")])
+strToRefa n xs = RKvar (S n) (Su (M.fromList xs))
+strToReft n xs = Reft (S "VV", [strToRefa n xs])
+strsToReft n as = Reft (S "VV", [strsToRefa n as])
+
+refaInReft :: Refa -> Reft -> Bool
+refaInReft k (Reft(v, ls)) = any (cmpRefa k) ls
+
+cmpRefa (RConc (PBexp (EApp (S n) _))) (RConc (PBexp (EApp (S n') _))) 
+  = n== n'
+cmpRefa _ _ 
+ = False
+
+replaceSorts :: (Refa, Reft) -> Reft -> Reft
+replaceSorts (p, Reft(_, rs)) (Reft(v, ls))= Reft(v, concatMap (replaceS (p, rs)) ls)
+
+replaceSort :: (Refa, Refa) -> Reft -> Reft
+replaceSort (p, k) (Reft(v, ls)) = Reft (v, (concatMap (replaceS (p, [k])) ls))
+
+
+rmKVarReft s (Reft(v, ls)) = (Reft(v, ls'), su)
+  where (l, s1) = unzip $ map (rmKVarRefa s) ls
+        ls' = catMaybes l
+        su = case catMaybes s1 of {[su] -> su; _ -> error "Fixpoint.rmKVarReft"}
+
+rmKVarRefa s r@(RKvar (S m) su)
+  | s == m
+  = (Nothing, Just su)
+  | otherwise
+  = (Just r, Nothing) 
+rmKVarRefa _ r
+  = (Just r, Nothing)
+
+isKVarInReft s (Reft(_, ls)) = or (isKVarInRefa s <$> ls)
+isKVarInRefa s (RKvar (S m) _) = s == m
+isKVarInRefa _ _               = False
+
+--strToRefa n xs = RKvar (S n) (Su (M.fromList xs))
+replaceS :: (Refa, [Refa]) -> Refa -> [Refa] 
+replaceS ((RKvar (S n) (Su s)), k) (RKvar (S n') (Su s')) 
+  | n == n'
+  = map (addSubs (Su s')) k -- [RKvar (S m) (Su (s `M.union` s1 `M.union` s'))]
+replaceS (k, v) p = [p]
+
+addSubs s ra@(RKvar k s') = RKvar k (unionTransSubs s s')
+addSubs _ f = f
+
+-- union s1 s2 with transitivity : 
+-- (x, z) in s1 and (z, y) in s2 => (x, y) in s
+unionTransSubs (Su s1) (Su s2) 
+  = Su $ (\(su1, su2) -> su1 `M.union` su2)(M.foldWithKey f (s1, s2) s1)
+  where f k (EVar v) (s1, s2) 
+          = case M.lookup v s2 of 
+            Just (EVar x) -> (M.adjust (\_ -> EVar x) k s1, M.delete v s2)
+            _             -> (s1, s2)
+        f _ _ s12 = s12
 
 getConstants :: (Data a) => a -> [(Symbol, Sort, Bool)]
 getConstants = everything (++) ([] `mkQ` f)
@@ -207,7 +273,8 @@ instance Fixpoint Symbol where
   toFix (S x) = text x
 
 instance Outputable Symbol where
-  ppr = text . symbolString 
+  ppr (S x) = text x 
+  -- ppr = text . symbolString 
 
 instance Show Symbol where
   --show = symbolString
@@ -220,6 +287,17 @@ newtype PSubst = PSu (M.Map PredVar Reft)
                  deriving (Eq, Ord, Data, Typeable)
 
 
+instance Outputable Refa where
+  ppr  = text . show
+
+instance Outputable Expr where
+  ppr  = text . show
+
+instance Outputable Subst where
+  ppr (Su m) = ppr m
+
+instance Show Subst where
+  show = showPpr
 
 instance Fixpoint Subst where
   toFix (Su m) = case M.toAscList m of 
@@ -234,7 +312,7 @@ instance Fixpoint Subst where
 stringSymbol :: String -> Symbol
 -- stringSymbol s = traceShow ("stringSymbol s = " ++ s) $ stringSymbol' s
 stringSymbol s
-  | isFixSym s = S s 
+  | isFixSym' s = S s 
   | otherwise  = S $ fixSymPrefix ++ concatMap encodeChar s
 
 -- symbolString (S z) = traceShow ("symbolString z = %s: " ++ z) $ symbolString' (S z)
@@ -252,11 +330,14 @@ okSymChars
   ++ ['A' .. 'Z'] 
   ++ ['0' .. '9'] 
   ++ ['_', '.'  ]
+ 
 
 symSep = '#'
 fixSymPrefix = "fix" ++ [symSep]
 
 
+isFixSym' (c:cs) = isAlpha c && all (`elem` (symSep:okSymChars)) cs
+isFixSym' _      = False
 isFixSym (c:cs) = isAlpha c && all (`elem` okSymChars) cs
 isFixSym _      = False
 
@@ -287,6 +368,7 @@ isTempSym (S x)         = tempPrefix `isPrefixOf` x
 tempPrefix              = "lq_tmp_"
 anfPrefix               = "lq_anf_" 
 nonSymbol               = S ""
+isNonSymbol             = (0 ==) . length . symbolString
 
 intKvar                 :: Integer -> Symbol
 intKvar                 = intSymbol "k_" 
@@ -420,11 +502,15 @@ hasTag e1 e2 = PAtom Eq (EApp tagSymbol [e1]) e2
 ---------------------------------------------------------------
 ----------------- Refinements and Environments  ---------------
 ---------------------------------------------------------------
+data PredVar 
+  = RP !Symbol ![(Symbol, Sort)]
+	deriving (Eq, Ord, Data, Typeable, Show)
 
 data Refa 
   = RConc !Pred 
   | RKvar !Symbol !Subst
-  deriving (Eq, Ord, Data, Typeable)
+  | RPvar !PredVar !Subst  
+  deriving (Eq, Ord, Data, Typeable, Show)
 
 newtype Reft 
   = Reft (Symbol, [Refa]) 
@@ -461,6 +547,8 @@ instance Fixpoint Envt where
   toFix (Envt m)  = toFix (M.toAscList m)
 
 insertFEnv ::  Symbol -> SortedReft -> Envt -> Envt
+insertFEnv (S (s:ss)) r (Envt m) | isUpper s
+ = Envt (M.insert (S ((toLower s):ss)) r m)
 insertFEnv x r (Envt m) = Envt (M.insert x r m)
 deleteFEnv x (Envt m)   = Envt (M.delete x m)
 fromListFEnv            = Envt . M.fromList . (builtins ++) 
@@ -571,6 +659,15 @@ class Subable a where
   subst1 :: a -> (Symbol, Expr) -> a
   subst1 thing (x, e) = subst (Su $ M.singleton x e) thing
 
+instance Subable PredVar where
+  subst su (RP x sybsorts) = RP x $ map (mapFst (subst su)) sybsorts
+
+instance Subable Symbol where
+  subst (Su s) x           = subSymbol (M.lookup x s) x
+
+subSymbol (Just (EVar y)) _ = y
+subSymbol Nothing         x = x
+subSymbol _               _ = error "sub Symbol"
 
 instance Subable Expr where
   subst su (EApp f es)     = EApp f $ map (subst su) es 
@@ -594,6 +691,8 @@ instance Subable Pred where
 instance Subable Refa where
   subst su (RConc p)       = RConc   $ subst su p
   subst su (RKvar k su')   = RKvar k $ su' `catSubst` su 
+  subst su (RPvar p su')   = RPvar (subst sus p) sus
+	  where sus = su' `catSubst` su 
 
 instance (Subable a, Subable b) => Subable (a,b) where
   subst su (x,y) = (subst su x, subst su y)
@@ -631,6 +730,9 @@ trueSortedReft = (`RR` trueReft)
 
 trueReft :: Reft
 trueReft = Reft (vv, [])
+
+trueRefa :: Refa
+trueRefa = RConc PTrue
 
 canonReft :: Reft -> Reft
 canonReft r@(Reft (v, ras)) 
@@ -720,5 +822,37 @@ instance (NFData a) => NFData (WfC a) where
 
 
 
+class MapSymbol a where
+  mapSymbol :: (Symbol -> Symbol) -> a -> a
 
+instance MapSymbol Reft where
+  mapSymbol f (Reft(s, rs)) = Reft(f s, map (mapSymbol f) rs)
 
+instance MapSymbol Refa where
+  mapSymbol f (RConc p)     = RConc (mapSymbol f p)
+  mapSymbol f (RKvar s sub) = RKvar (f s) sub
+  mapSymbol f (RPvar p sub) = RPvar (mapSymbol f p) sub
+
+instance MapSymbol Pred where
+  mapSymbol f (PAnd ps)       = PAnd (mapSymbol f <$> ps)
+  mapSymbol f (POr ps)        = POr (mapSymbol f <$> ps)
+  mapSymbol f (PNot p)        = PNot (mapSymbol f p)
+  mapSymbol f (PImp p1 p2)    = PImp (mapSymbol f p1) (mapSymbol f p2)
+  mapSymbol f (PIff p1 p2)    = PIff (mapSymbol f p1) (mapSymbol f p2)
+  mapSymbol f (PBexp e)       = PBexp (mapSymbol f e)
+  mapSymbol f (PAtom b e1 e2) = PAtom b (mapSymbol f e1) (mapSymbol f e2)
+  mapSymbol f (PAll _ _)      = error "mapSymbol PAll"
+  mapSymbol _ p               = p 
+
+instance MapSymbol Expr where
+  mapSymbol f (EVar s)       = EVar $ f s
+  mapSymbol f (EDat s so)    = EDat (f s) so
+  mapSymbol f (ELit s so)    = ELit (f s) so
+  mapSymbol f (EApp s es)    = EApp (f s) (mapSymbol f <$> es)
+  mapSymbol f (EBin b e1 e2) = EBin b (mapSymbol f e1) (mapSymbol f e2)
+  mapSymbol f (EIte p e1 e2) = EIte (mapSymbol f p) (mapSymbol f e1) (mapSymbol f e2)
+  mapSymbol f (ECst e s)     = ECst (mapSymbol f e) s 
+  mapSymbol _ e              = e
+
+instance MapSymbol PredVar where 
+  mapSymbol f (RP s rs) = RP (f s) (map (mapFst f) rs)

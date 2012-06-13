@@ -1,0 +1,428 @@
+%******************************************************************************
+%  SVN version:
+%     $Id: $
+%******************************************************************************
+%  LaTeX file  : ngrammar.sty
+%  Project     : SoftLab PL LaTeX macros
+%  Version     : 1.0 alpha
+%  Written by  : Nikolaos S. Papaspyrou
+%  Date        : August 06, 2001
+%  Revised     : January 24, 2006
+%  Description : Various environments for context-free grammars.
+%                Based on an environment designed by Chris League and
+%                modified by Valery Trifonov, at Yale University.
+
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{ngrammar}%
+  [2006/01/24 v1.0a  Environment for grammars (NSP)]
+
+
+% Check if the package has been reloaded
+
+\@ifundefined{ngrammar@begin}{}{%
+  \PackageWarning{ngrammar}{%
+    Package already loaded.
+  }%
+  \endinput%
+}
+
+
+% Dependencies
+
+\RequirePackage{keyval}
+\RequirePackage{amstext}
+\RequirePackage{ndisplay}
+
+
+% Keys for keyval
+
+\define@key{ngrammar}{notation}{%
+  \ngrammarnotation{#1}}%
+\define@key{ngrammar}{long}[true]{%
+  \csname ngrammar@long#1\endcsname}%
+\define@key{ngrammar}{attribute}[true]{%
+  \csname ngrammar@attribute#1\endcsname}%
+\define@key{ngrammar}{numrules}[true]{%
+  \csname ngrammar@numrules#1\endcsname}%
+\define@key{ngrammar}{semwidth}{%
+  \setlength{\ngrammar@sem@width}{#1}}%
+\define@key{ngrammar}{semfill}[true]{%
+  \csname ngrammar@sem@fill#1\endcsname}%
+\define@key{ngrammar}{numwidth}{%
+  \setlength{\ngrammar@num@width}{#1}}%
+\define@key{ngrammar}{numsep}{%
+  \setlength{\ngrammar@num@sep}{#1}}%
+
+
+% Keys for keyval, mutilated version just for notation
+
+\define@key{ngrammar*}{notation}{%
+  \ngrammarnotation{#1}}%
+
+
+% More keys for keyval, passed to ndisplay
+
+\define@key{ngrammar}{indent}{%
+  \n@ndisplay@key{indent={#1}}}%
+\define@key{ngrammar}{indpar}{%
+  \n@ndisplay@key{indpar={#1}}}%
+\define@key{ngrammar}{noindent}[]{%
+  \n@ndisplay@key{noindent}}%
+\define@key{ngrammar}{tab}{%
+  \n@ndisplay@key{tab={#1}}}%
+\define@key{ngrammar}{max}{%
+  \n@ndisplay@key{max={#1}}}%
+\define@key{ngrammar}{maxwidth}{%
+  \n@ndisplay@key{maxwidth={#1}}}%
+\define@key{ngrammar}{sep}{%
+  \n@ndisplay@key{sep={#1}}}%
+\define@key{ngrammar}{sepwidth}{%
+  \n@ndisplay@key{sepwidth={#1}}}%
+
+\newtoks\n@ndisplay@keytoks%
+\def\n@ndisplay@key#1{%
+  \edef\allkeys{\the\n@ndisplay@keytoks}%
+  \ifx\allkeys\@empty%
+    \n@ndisplay@keytoks={#1}%
+  \else%
+    \n@ndisplay@keytoks=\expandafter{\the\n@ndisplay@keytoks,#1}%
+  \fi}
+
+
+% Separators
+
+\newlength\ngrammarsepparenlength
+  \setlength\ngrammarsepparenlength{0.16667em}
+\newlength\ngrammarsepspacelength
+  \setlength\ngrammarsepspacelength{0.33333em}
+\newlength\ngrammarseporlength
+  \setlength\ngrammarseporlength{0.16667em}
+\newlength\ngrammarsepsemlength
+  \setlength\ngrammarsepsemlength{0.33333em}
+\newlength\ngrammarsepattrlength
+  \setlength\ngrammarsepattrlength{2em}
+\newlength\ngrammarruleskip
+  \setlength\ngrammarruleskip{3pt}
+
+\newcommand\ngrammarsepparen{\hspace*{\ngrammarsepparenlength}}
+\newcommand\ngrammarsepspace{\hspace*{\ngrammarsepspacelength}}
+\newcommand\ngrammarsepor{\hspace*{\ngrammarseporlength}}
+\newcommand\ngrammarsepsem{\hspace*{\ngrammarsepsemlength}}
+\newcommand\ngrammarsepattr{\hspace*{\ngrammarsepattrlength}}
+
+
+% Miscellaneous stuff
+
+\newcommand\nsymbol[1]{\ensuremath{\text{#1}}}
+\newcommand\nsquote[1]{\ensuremath{\textrm{``}#1\textrm{''}}}
+\newcommand\nsorc{\ensuremath{\vert}}
+\newcommand\ngrammar@separator{\raisebox{0pt}[2ex]{\ensuremath\mid}}
+\newcommand\nproduces{\ensuremath{::=}\ngrammar@space@neededfalse}
+
+
+% Conditions: active grammars, spaces required, style parameters
+
+\newif\ifngrammar@active
+  \ngrammar@activefalse
+
+\newif\ifngrammar@adding@space
+  \ngrammar@adding@spacetrue
+
+\newif\ifngrammar@space@needed
+\newcommand\ngrammar@space{%
+  \ifngrammar@active\ifngrammar@adding@space%
+    \ifngrammar@space@needed\ngrammarsepspace\fi%
+  \fi\fi%
+}
+
+\newif\ifngrammar@angles@ebnf
+  \ngrammar@angles@ebnftrue
+\newcommand\ngrammarebnfangleson{\ngrammar@angles@ebnftrue}
+\newcommand\ngrammarebnfanglesoff{\ngrammar@angles@ebnffalse}
+
+\newif\ifngrammar@long
+  \ngrammar@longfalse
+\newif\ifngrammar@attribute
+  \ngrammar@attributefalse
+\newif\ifngrammar@numrules
+  \ngrammar@numrulesfalse
+
+
+% Stuff used by all types of grammar notations
+
+\newcommand\ngrammaraddspace[1]{
+  \ngrammar@space%
+  #1%
+  \ngrammar@space@neededtrue%
+}
+
+\newenvironment{ngrammar}[1][]{%
+  \expandafter\ngrammar@begin#1\relax%
+}{%
+  \expandafter\ngrammar@end%
+}
+\def\ngrammar@begin#1\relax{%
+  \bgroup%
+  \ngrammarnotation{plain}%
+  \ngrammar@longfalse%
+  \n@ndisplay@keytoks={}%
+  \setlength{\ngrammar@sem@width}{\columnwidth}%
+  \addtolength{\ngrammar@sem@width}{-\@totalleftmargin}%
+  \setlength{\ngrammar@sem@width}{0.5\ngrammar@sem@width}%
+  \setkeys{ngrammar}{#1}%
+  \begin{ndisplay}[\the\n@ndisplay@keytoks]%
+  \global\let\nsdef=\ngrammar@nsdef%
+  \global\let\nsorl=\ngrammar@nsorl%
+  \global\let\nssplit=\ngrammar@nssplit%
+  \global%
+  \ifngrammar@long\else%
+    \ifngrammar@attribute%
+      \ifngrammar@numrules%
+        \begin{array}[b]{@{}r@{\hspace{1em}}l@{\ \ }c@{\ \ }l%
+                         @{\ngrammarsepattr}l@{}}%
+      \else%
+        \begin{array}[b]{@{}l@{\ \ }c@{\ \ }l@{\ngrammarsepattr}l@{}}%
+      \fi%
+    \else%
+      \ifngrammar@numrules%
+        \begin{array}[b]{@{}r@{\hspace{1em}}l@{\ \ }c@{\ \ }l@{}}%
+      \else%
+        \begin{array}[b]{@{}l@{\ \ }c@{\ \ }l@{}}%
+      \fi%
+    \fi%
+  \fi%
+  \ngrammar@numrulescount=0%
+}
+\def\ngrammar@end{%
+  \ifngrammar@long\else%
+    \end{array}%
+  \fi%
+  \global\let\nsdef=\relax%
+  \global\let\nsorl=\relax%
+  \global\let\nssplit=\relax%
+  \end{ndisplay}%
+  \egroup%
+}
+
+\DeclareRobustCommand\ngrammar@nsdef[2]{%
+  \global\advance\ngrammar@numrulescount 1\relax%
+  \ngrammar@numrule{\the\ngrammar@numrulescount}%
+  \ifngrammar@long%
+    \ndefinebegin{\nsnt{#1}}{\ngrammar@rule@symbol}%
+  \else%
+    \nsnt{#1} & \ngrammar@rule@symbol &
+  \fi%
+  \ngrammar@activetrue%
+  \ngrammar@space@neededfalse%
+  #2%
+  \ifngrammar@long%
+    \ndefineend%
+  \fi%
+  \ngrammar@activefalse%
+  \\[\ngrammarruleskip]%
+}
+\newcommand\ngrammar@nsorl{%
+  \ifngrammar@long
+    \ndefinesplit{\ngrammar@separator}%
+  \else%
+    \ifngrammar@numrules%
+      % if you remove \ensuremath, you'd better know what you're doing!
+      \ensuremath{\\ & & \ngrammar@separator &}%
+    \else%
+      % if you remove \ensuremath, you'd better know what you're doing!
+      \ensuremath{\\ & \ngrammar@separator &}%
+    \fi%
+  \fi%
+  \ngrammar@activetrue%
+  \ngrammar@space@neededfalse}%
+\newcommand\ngrammar@nssplit[1][1]{%
+  \ifngrammar@long
+    \nsplit[#1]%
+  \else%
+    \ifngrammar@numrules%
+      \ensuremath{\\ & & & \ntab[#1]}%
+    \else%
+      \ensuremath{\\ & & \ntab[#1]}%
+    \fi%
+  \fi%
+  \ngrammar@activetrue%
+  \ngrammar@space@neededfalse}%
+
+\newenvironment{ngrammar*}[1][]{%
+  \ngrammarnotation{plain}%
+  \setkeys{ngrammar*}{#1}%
+  \ngrammar@activetrue%
+  \ngrammar@space@neededfalse%
+}{%
+  \ngrammar@activefalse%
+}
+
+
+% Syntax that can be used outside of grammars
+
+\newcommand\nsempty{%
+  \ngrammar@space%
+  \ensuremath{\epsilon}
+  \ngrammar@space@neededtrue}
+\newcommand\nsor{%
+  \ngrammarsepor\ngrammar@separator\ngrammarsepor%
+  \ngrammar@space@neededfalse}%
+\newcommand\nsparen[1]{%
+  \ngrammar@space%
+  \ensuremath{(\ngrammarsepparen}%
+  \ngrammar@space@neededfalse%
+  \ensuremath{#1\ngrammarsepparen)}%
+  \ngrammar@space@neededtrue}
+\newcommand\nsstar[1]{%
+  \ensuremath{#1^{*}}%
+  \ngrammar@space@neededtrue}
+\newcommand\nsplus[1]{%
+  \ensuremath{#1^{+}}%
+  \ngrammar@space@neededtrue}
+\newcommand\nsrange[2]{%
+  \ensuremath{#1\text{-}#2}}
+\newcommand\nsopt[1]{%
+  \ensuremath{#1\mathrm{?}}%
+  \ngrammar@space@neededtrue}
+\newcommand\nsexact{%
+  \ngrammar@space%
+  \ensuremath{\backslash}%
+  \ngrammar@space@neededfalse}
+
+
+% Support for attribute grammars
+
+\newif\ifngrammar@sem@fill
+  \ngrammar@sem@fillfalse
+\newlength\ngrammar@sem@width
+  \setlength{\ngrammar@sem@width}{5cm}
+\newcommand\nsattrname[1]{\ensuremath{\mathit{#1}}}
+\newcommand\nsattr[2][]{\ensuremath{{}^{#1}.\nsattrname{#2}}}
+\newcommand\nssem[1]{%
+  \ifngrammar@long%
+    \nabstab{-\ngrammar@sem@width}%
+    \{\ngrammarsepsem #1\ngrammarsepsem%
+    \ifngrammar@sem@fill\hfill\fi%
+    \}%
+  \else%
+    % if you remove \ensuremath, you'd better know what you're doing!
+    \ensuremath{& \{\ngrammarsepsem #1\ngrammarsepsem \}}%
+  \fi%
+}
+
+
+% Support for rule numbering
+
+\newlength\ngrammar@num@width
+  \setlength{\ngrammar@num@width}{2em}
+\newlength\ngrammar@num@sep
+  \setlength{\ngrammar@num@sep}{0.5em}
+\newcount\ngrammar@numrulescount
+\newcommand\nsnum[1]{#1.}
+\newcommand\ngrammar@numrule[1]{%
+  \ifngrammar@numrules%
+    \ifngrammar@long%
+      \makebox[\ngrammar@num@width][r]{\ensuremath{\nsnum{#1}}}%
+      \hspace{\ngrammar@num@sep}%
+    \else%
+      % if you remove \ensuremath, you'd better know what you're doing!
+      \ensuremath{\nsnum{#1} &}%
+    \fi%
+  \fi%
+}
+
+
+% Switching between notation
+
+\newcommand\ngrammarnotation[1]{%
+  \csname ngrammar@#1\endcsname%
+}
+
+\newcommand\ngrammaraddingspace[1]{%
+  \csname ngrammar@adding@space#1\endcsname%
+}
+
+\let\ngrammar@temp@opt=\nsopt%
+
+\newcommand\ngrammar@none{%
+  \global\let\ngrammar@rule@symbol=\relax%
+  \global\let\nst=\relax%
+  \global\let\nsnt=\relax%
+  \global\let\nsopt=\ngrammar@temp@opt%
+}
+
+
+% Plain grammar notation
+
+\newcommand\ngrammar@plain@rule@symbol{\ensuremath{::=}}%
+\newcommand\ngrammar@plain@nst[1]{%
+  \ngrammar@space%
+  \ensuremath{\nsymbol{#1}}%
+  \ngrammar@space@neededtrue}%
+\newcommand\ngrammar@plain@nsnt[1]{%
+  \ngrammar@space%
+  \ensuremath{\textit{#1}}%
+  \ngrammar@space@neededtrue}%
+
+\newcommand\ngrammar@plain{%
+  \global\let\ngrammar@rule@symbol=\ngrammar@plain@rule@symbol%
+  \global\let\nst=\ngrammar@plain@nst%
+  \global\let\nsnt=\ngrammar@plain@nsnt%
+  \global\let\nsopt=\ngrammar@temp@opt%
+}
+
+
+% BNF grammar notation
+
+\newcommand\ngrammarbnfnst[1]{\mathbf{#1}}
+
+\newcommand\ngrammar@bnf@rule@symbol{\ensuremath{::=}}%
+\newcommand\ngrammar@bnf@nst[1]{%
+  \ngrammar@space%
+  \ensuremath{\ngrammarbnfnst{#1}}%
+  \ngrammar@space@neededtrue}%
+\newcommand\ngrammar@bnf@nsnt[1]{%
+  \ngrammar@space%
+  \ensuremath{\langle\textrm{#1}\rangle}%
+  \ngrammar@space@neededtrue}%
+
+\newcommand\ngrammar@bnf{%
+  \global\let\ngrammar@rule@symbol=\ngrammar@bnf@rule@symbol%
+  \global\let\nst=\ngrammar@bnf@nst%
+  \global\let\nsnt=\ngrammar@bnf@nsnt%
+  \global\let\nsopt=\ngrammar@temp@opt%
+}
+
+
+% EBNF grammar notation
+
+\newcommand\ngrammar@ebnf@rule@symbol{\ensuremath{::=}}%
+\newcommand\ngrammar@ebnf@nst[1]{%
+  \ngrammar@space%
+  \ensuremath{\nsquote{\ngrammarbnfnst{#1}}}%
+  \ngrammar@space@neededtrue}%
+\newcommand\ngrammar@ebnf@nsnt[1]{%
+  \ngrammar@space%
+  \ensuremath{%
+    \ifngrammar@angles@ebnf\langle\fi%
+    \textrm{#1}%
+    \ifngrammar@angles@ebnf\rangle\fi%
+  }%
+  \ngrammar@space@neededtrue}%
+\newcommand\ngrammar@ebnf@nsopt[1]{%
+  \ngrammar@space%
+  \ensuremath{[\ngrammarsepparen}%
+  \ngrammar@space@neededfalse%
+  \ensuremath{#1\ngrammarsepparen]}%
+  \ngrammar@space@neededtrue}
+
+\newcommand\ngrammar@ebnf{%
+  \global\let\ngrammar@rule@symbol=\ngrammar@ebnf@rule@symbol%
+  \global\let\nst=\ngrammar@ebnf@nst%
+  \global\let\nsnt=\ngrammar@ebnf@nsnt%
+  \global\let\nsopt=\ngrammar@ebnf@nsopt%
+}
+
+
+\endinput

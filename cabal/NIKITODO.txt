@@ -1,0 +1,16 @@
+change .html fix (cat fix# leave name)
+
+fix transformations 	*  see list insert for rec
+											*  move transformations to initial statgw st anormalized
+
+deptup???
+transpose???
+
+------------------------------------------------------
+
+Constrains : split[C|W], unifyS :add c1 == c2 in Class & ConApp
+
+unifyS do I really need to keep track of preds?
+
+	eg neg concat1 -> CB REC trueTy
+

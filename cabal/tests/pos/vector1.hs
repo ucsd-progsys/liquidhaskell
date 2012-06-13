@@ -1,7 +1,7 @@
 module Vec1 where
 
 import Language.Haskell.Liquid.Prelude
-import Data.Vector hiding (map, zipWith)
+import Data.Vector hiding (map, concat, zipWith, filter, foldr, foldl, (++))
 
 for lo hi acc f 
   | lo < hi   = for (lo + 1) hi (f lo acc) f
@@ -15,6 +15,5 @@ sumSquare v = dotProd v v
 total = sumSquare $ Data.Vector.fromList [0..100] -- nums
 range i j = for i j [] (:)
 nums  = range 0 100 -- [0..100]
-
 
 -- prop = assert (total >= 0)

@@ -1,0 +1,470 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[latin1]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{ngrammar}
+\usepackage{ndisplay}
+\usepackage{comment}
+\usepackage[inference]{semantic}
+\usepackage{color}
+\usepackage{textcomp}
+\newcommand\highlight[2]{{\setlength\fboxsep{1pt}\colorbox{#1}{#2}}}
+\def\NV{\highlight{colorNV}}
+\definecolor{colorNV}{rgb}{1,0.8,1}
+
+\usepackage{liquidHaskell}
+
+\usepackage{amsthm}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{definition}{Definition}
+\newtheorem*{proofIdea}{ProofIdea}
+
+\newcommand\trans[1]{\ensuremath{tr (#1)}}
+
+\newcommand\mhide[1]{\NV{hiding something}\\}
+\newcommand\rhide[1]{#1}
+\newcommand\thide[1]{}
+\newcommand\rulename[1]{\textsc{#1}}
+\newcommand\mlTy[1]{\ensuremath{#1}}
+\newcommand\hastype[3]{\ensuremath{#1 \Vdash #2 : #3}}
+
+\newcommand\peval[2]{\ensuremath{#1 \looparrowright #2 }}
+\newcommand\eval[2]{\ensuremath{#1 \hookrightarrow #2 }}
+\newcommand\qv{\ensuremath{\mathbb{Q}_V}}
+
+
+\begin{document}
+\NV{missing:}\\
+\NV{* Proofs for Lemmata}\\
+\NV{* expr let where unification takes place}\\
+\NV{* expr case}\\
+\NV{* type classes?}\\
+
+
+\include{grammar}
+\section*{Operational Semantics}
+\hfill\fbox{\peval{e}{e}}
+
+$$
+\inference{
+	\peval{e_1}{e_1'}
+}{
+	\peval{\eapp{e_1}{e_2}}{\eapp{e_1'}{e_2}}
+}[\rulename{SP-PAppL}]
+$$
+
+$$
+\inference{
+	\peval{e_2}{e_2'}
+}{
+	\peval{\eapp{v}{e_2}}{\eapp{v}{e_2'}}
+}[\rulename{SP-PAppR}]
+$$
+
+$$
+\inference{
+	\peval{e}{e'}
+}{
+	\peval{\etapp{e}{\tau}}{\etapp{e'}{\tau}}
+}[\rulename{SP-PType-App}]
+$$
+$$
+\inference{
+	\peval{e}{e'}
+}{
+	\peval{\epapp{e}}{\epapp{e'}}
+}[\rulename{SP-PPred-App}]
+$$
+
+$$
+\inference{
+}{
+	\peval{\eapp{\efun{x}{e}}{v}}{e\sub{x}{v}}
+}[\rulename{SP-EApp}]
+$$
+
+$$
+\inference{
+}{
+	\peval{\eapp{c}{v}}{[|c|](v)}
+}[\rulename{SP-EApp-Con}]
+$$
+
+$$
+\inference{
+}{
+	\peval{\epapp{(\epabs{p}{\tau}{v})}}{v}
+}[\rulename{SP-EPred-App}]
+$$
+
+\NV{are the following two rules valid?}
+$$
+\inference{
+}{
+	\peval{\epapp{c}}{\epapp{[|c|]}}
+}[\rulename{SP-EPApp-Con}]
+$$
+
+$$
+\inference{
+}{
+	\peval{\etapp{c}{\tau}}{\etapp{[|c|]}{\tau}}
+}[\rulename{SP-ETApp-Con}]
+$$
+
+$$
+\inference{
+}{
+	\peval{\etapp{(\etabs{\alpha}{v})}{\tau}}{v\sub{\alpha}{\tau}}
+}[\rulename{SP-EType-App}]
+$$
+
+
+\hfill\fbox{\eval{e}{e}}
+
+$$
+\inference{
+	\eval{e_1}{e_1'}
+}{
+	\eval{\eapp{e_1}{e_2}}{\eapp{e_1'}{e_2}}
+}[\rulename{S-PAppL}]
+$$
+
+$$
+\inference{
+	\eval{e_2}{e_2'}
+}{
+	\eval{\eapp{v}{e_2}}{\eapp{v}{e_2'}}
+}[\rulename{S-PAppR}]
+$$
+
+$$
+\inference{
+	\eval{e}{e'}
+}{
+	\eval{\etapp{e}{\tau}}{\etapp{e'}{\tau}}
+}[\rulename{S-PType-App}]
+$$
+$$
+\inference{
+	\eval{e}{e'}
+}{
+	\eval{\epapp{e}}{\epapp{e'}}
+}[\rulename{S-PPred-App}]
+$$
+
+$$
+\inference{
+}{
+	\eval{\eapp{\efun{x}{e}}{v}}{e\sub{x}{v}}
+}[\rulename{S-EApp}]
+$$
+
+$$
+\inference{
+}{
+	\eval{\eapp{c}{v}}{[|c|](v)}
+}[\rulename{S-EApp-Con}]
+$$
+
+$$
+\inference{
+}{
+	\eval{\epapp{(\epabs{p}{\tau}{v})}}{v}
+}[\rulename{S-EPred-App}]
+$$
+
+\NV{are the following two rules valid?}
+$$
+\inference{
+}{
+	\eval{\epapp{c}}{\epapp{[|c|]}}
+}[\rulename{S-EPApp-Con}]
+$$
+
+$$
+\inference{
+}{
+	\eval{\etapp{c}{\tau}}{\etapp{[|c|]}{\tau}}
+}[\rulename{S-ETApp-Con}]
+$$
+
+$$
+\inference{
+}{
+	\eval{\etapp{(\etabs{\alpha}{v})}{\tau}}{v\sub{\alpha}{\tau}}
+}[\rulename{S-EType-App}]
+$$
+
+
+\begin{comment}
+
+%\subsection*{Typing}
+\include{typing}
+\end{comment}
+\section*{Proves}
+
+\begin{definition}[Constants]
+\label{DefConstants}
+Each constant $c$ has type \tc{c}, such that
+\begin{enumerate}
+\item \hastypeEmp{c}{\tc{c}}
+\item if $\tc{c} \equiv \tfun{x}{T_x}{T}$
+	  then for all values $v \in T_x$, 
+	  $[|c|](v)$ is defined and 
+	  \hastypeEmp{[|c|](v)}{T\sub{x}{v}}.
+\item if $\tc{c} \equiv \ttabs{\alpha}{S}$
+	  then for all types $\tau$, 
+	  if for some $T$, then 
+	  $\sch{T} = \tau$ and \isWellFormed{\emptyset}{T}, 
+	  $\etapp{[|c|]}{\tau}$ is defined and 
+	  \hastypeEmp{\etapp{[|c|]}{\tau}}{S\sub{\alpha}{T}}.
+\item if $\tc{c} \equiv \tpabs{p}{\tau}{S}$
+	  then for all values $v$, 
+	  if \hastypeEmp{v}{\tau \rightarrow \tbbool},
+	  $\epapp{[|c|]}$ is defined and 
+	  \hastypeEmp{\epapp{[|c|]}}{S\sub{p}{v}}.
+%\item If \tc{c} is \tref{B}{e} then $e \equiv \vref = c $
+\end{enumerate}
+\end{definition}
+
+
+
+\section*{Translate}
+\vfill\vbox{\trans{x}}
+
+\begin{align*}
+\trans{x} &=x \\
+\trans{c} &= c && 
+\NV{\trans{[|c|]} = ${[| c |]}$, 
+    \trans{\epapp{[|c|]}} = $[|c|](v)$,
+    \trans{\etapp{[|c|]}{\tau}} = \etapp{[|c|]}{\tau}} \\
+\trans{\efun{x}{e}} &=\efun{x}{\trans{e}} \\
+\trans{\eapp{e_1}{e_2}} &=\eapp{\trans{e_1}}{\trans{e_2}} \\
+\trans{\epabs{p}{\tau}{e}} &=\efun{p}{\trans{e}} &&, p \notin \fv{\trans{e}} \\
+\trans{\epapp{e}} &= \eapp{\trans{e}}{v} && v\ \text{for which it type-checked}\\
+\trans{\etabs{\alpha}{e}} &=\etabs{\alpha}{\trans{e}} \\
+\trans{\etapp{e}{\tau}} &=\etapp{\trans{e}}{\tau} \\
+\end{align*}
+
+
+\begin{comment}
+\begin{theorem}
+If ${\Gamma}\Vdash {e}:{S}$
+then $ {\Gamma} \vdash {\trans{e}} : {\trans{S}}$
+\end{theorem}
+\end{comment}
+\begin{theorem}
+If $e_1 \looparrowright e_2 $
+then $ \trans{e_1} \hookrightarrow \trans{e_2} $
+\end{theorem}
+\begin{proof}
+We will prove that by induction on the evaluation relation.
+\begin{itemize}
+\item \rulename{SP-PAppL} $$\peval{\eapp{e_1}{e_2}}{\eapp{e_1'}{e_2}}$$
+Inverting the rule we get $$ \peval{e_1}{e_1'} $$ 
+By IH we have 
+
+\begin{align}
+\eval{\trans{e_1, \qv}}{\trans{e_1', \qv}} \label{apla}
+\end{align}
+
+By definition of \trans{\star} we have 
+
+\begin{align}
+\trans{\eapp{e_1}{e_2}} = \eapp{\trans{e_1}}{\trans{e_2}} \label{aplb}\\
+\trans{\eapp{e_1'}{e_2}} = \eapp{\trans{e_1'}}{\trans{e_2}} \label{aplc}
+\end{align}
+
+By \ref{apla}-\ref{aplc} and \rulename{S-PAppL}, we have 
+$$ \eval{\trans{\eapp{e_1}{e_2}}}{\trans{\eapp{e_1'}{e_2}}} \label{apla} $$
+
+\item \rulename{SP-PAppR} $$\peval{\eapp{v}{e_2}}{\eapp{v}{e_2'}}$$
+Inverting the rule we get $$ \peval{e_2}{e_2'} $$ 
+By IH we have 
+
+\begin{align}
+\eval{\trans{e_2}}{\trans{e_2'}} \label{apra}
+\end{align}
+
+By definition of \trans{\star} we have 
+
+\begin{align}
+\trans{\eapp{v}{e_2}} = \eapp{\trans{v}}{\trans{e_2}} \label{aprb}\\
+\trans{\eapp{v}{e_2'}} = \eapp{\trans{v}}{\trans{e_2'}} \label{aprc}
+\end{align}
+
+By \ref{apra}-\ref{aprc} and \rulename{S-PAppR}, we have 
+$$ \eval{\trans{\eapp{v}{e_2}}}{\trans{\eapp{v}{e_2'}}} \label{apla} $$
+
+\item \rulename{SP-PType-App} $$\peval{\etapp{e}{\tau}}{\etapp{e'}{\tau}}$$
+Inverting the rule we get $$\peval{e}{e'}$$ 
+By IH we have 
+
+\begin{align}
+\eval{\trans{e}}{\trans{e'}} \label{tapa}
+\end{align}
+
+By definition of \trans{\star} we have 
+
+\begin{align}
+\trans{\etapp{e}{\tau}} = \etapp{\trans{e}}{\tau} \label{tapb}\\
+\trans{\etapp{e'}{\tau}} = \etapp{\trans{e'}}{\tau} \label{tapc}
+\end{align}
+
+By \ref{tapa}-\ref{tapc} and \rulename{S-PType-App}, we have 
+$$ \eval{\trans{\etapp{e}{\tau}}}{\trans{\etapp{e'}{\tau}}} \label{apla} $$
+
+\item \rulename{SP-PPred-App} $$\peval{\epapp{e}}{\epapp{e'}}$$
+Inverting the rule we get $$\peval{e}{e'}$$ 
+By IH we have 
+
+\begin{align}
+\eval{\trans{e}}{\trans{e'}} \label{papa}
+\end{align}
+
+By definition of \trans{\star} we have 
+
+\begin{align}
+\trans{\epapp{e}} = \eapp{\trans{e}}v_1 \label{papb}\\
+\trans{\epapp{e'}} = \eapp{\trans{e'}}v_2 \label{papc}
+\end{align}
+
+\NV{missing $v_1=v_2$, but $\Gamma=\emptyset$
+, so $v$ true or false predicate}\\
+
+By \ref{papa}-\ref{papc} and \rulename{S-PType-App}, we have 
+$$ \eval{\trans{\etapp{e}{\tau}}}{\trans{\etapp{e'}{\tau}}} \label{apla} $$
+
+\item \rulename{SP-SP-EApp} $$\peval{\eapp{\efun{x}{e}}{v}}{e\sub{x}{v}}$$
+
+By definition of \trans{\star} we have 
+
+\begin{align}
+\trans{\eapp{\efun{x}{e}}{v}} = \eapp{\efun{x}{\trans{e}}}{\trans{v}} \label{appb}
+\end{align}
+
+
+
+By  \rulename{S-EApp} and Lemma \NV{\trans{v} is value}, we have
+\begin{align}
+\eval
+{\eapp{\efun{x}{\trans{e}}}{\trans{v}}}
+{{{\trans{e}}}\sub{x}{\trans{v}}} \label{appb}
+\end{align}
+
+By Lemma \NV{someLemma} we have 
+
+\begin{align*}
+\trans{{e}\sub{x}{v}} = \trans{e}\sub{x}{\trans{v}}  
+\end{align*}
+
+So, 
+$$
+\eval
+{\trans{\eapp{\efun{x}{{e}}}{{v}}}}
+{\trans{e\sub{x}{v}}}
+$$
+
+\item \rulename{SP-EApp-Con} $$\peval{\eapp{c}{v}}{[|c|](v)}$$
+
+By definition of \trans{\star} we have 
+\begin{align}
+\trans{\eapp{c}{v}} &= \eapp{\trans{c}}{\trans{v}} \label{apca}\\
+\trans{c} &= c \label{apcb}
+\end{align}
+
+By  \rulename{S-EApp-Con} and \ref{apca}-\ref{apcb}, we have
+\begin{align}
+\eval{\trans{\eapp{c}{{v}}}}
+{\eapp{[|c|]}{\trans{v}}} \label{appb}
+\end{align}
+By definition of \trans{\star} we have 
+\begin{align}
+\trans{[|c|]} &= [|c|] \label{apcb}
+\end{align}
+
+So, $$\eval{\trans{\eapp{c}{v}}}{\trans{[|c|](v)}}$$
+
+\item \rulename{SP-EPred-App} $$\peval{\epapp{(\epabs{p}{\tau}{v})}}{v}$$
+
+By definition of \trans{\star} we have 
+\begin{align}
+\trans{\epapp{(\epabs{p}{\tau}{v})}} &= \eapp{\efun{p}{\trans{v}}}{v_0}&&, p \notin \fv{\trans{v}} \label{pappa}
+\end{align}
+
+By  \rulename{S-EApp} and \ref{pappa}, we have
+\begin{align}
+\eval{\eapp{\efun{p}{\trans{v}}}{v_0}} {\trans{v}\sub{p}{v_0}}
+\end{align}
+
+But since $p \notin \fv{\trans{v}}$, 
+$$
+{\trans{v}\sub{p}{v_0}} \equiv \trans{v} 
+$$
+
+So, $$\eval{\epapp{(\epabs{p}{\tau}{v})}}{\trans{v}}$$
+
+\item \rulename{SP-EPApp-Con} $$\peval{\epapp{c}}{\epapp{[|c|]}}$$
+
+By definition of \trans{\star} we have 
+\begin{align}
+\trans{\epapp{c}} &= \eapp{\trans{c}}{v} \label{pappca}\\
+\trans{c} &= c \label{pappcb}\\
+\trans{\epapp{[|c|]}} &= \eapp{[|c|]}{(v)} \label{pappca}
+\end{align}
+
+By  \rulename{S-EApp-Con} and \ref{pappca}-\ref{pappcb}, we have
+\begin{align}
+\eval{\trans{\epapp{c}}}{\eapp{[|c|]}{(v)}}
+\end{align}
+
+So, $$\eval{\trans{\epapp{c}}}{\trans{\epapp{[|c|]}}}$$
+
+\item \rulename{SP-ETApp-Con} $$\peval{\etapp{c}{\tau}}{\etapp{[|c|]}{\tau}}$$
+
+By definition of \trans{\star} we have 
+\begin{align}
+\trans{\etapp{c}{\tau}} &= \etapp{\trans{c}}{tau} \label{tappca}\\
+\trans{c} &= c \label{tappcb}\\
+\trans{\etapp{[|c|]}{\tau}} &= \etapp{[|c|]}{\tau} \label{tappca}
+\end{align}
+
+By  \rulename{S-ETApp-Con} and \ref{tappca}-\ref{tappcb}, we have
+\begin{align}
+\eval{\trans{\etapp{c}{\tau}}}{\etapp{[|c|]}{\tau}}
+\end{align}
+
+So, $$\eval{\trans{\etapp{c}{\tau}}}{\trans{\etapp{[|c|]}{\tau}}}$$
+
+\item \rulename{SP-EType-App} 
+$$\peval{\etapp{(\etabs{\alpha}{v})}{\tau}}{v\sub{\alpha}{\tau}}$$
+
+By definition of \trans{\star} we have 
+\begin{align}
+\trans{\etapp{c}{\tau}} &= \etapp{\trans{c}}{tau} \label{tappca}\\
+\trans{c} &= c \label{tappcb}\\
+\trans{\etapp{[|c|]}{\tau}} &= \etapp{[|c|]}{\tau} \label{tappca}
+\end{align}
+
+By  \rulename{S-ETApp-Con} and \ref{tappca}-\ref{tappcb}, we have
+\begin{align}
+\eval{\trans{\etapp{c}{\tau}}}{\etapp{[|c|]}{\tau}}
+\end{align}
+
+So, $$\eval{\trans{\etapp{c}{\tau}}}{\trans{\etapp{[|c|]}{\tau}}}$$
+
+$$
+\inference{
+}{
+}[\rulename{SP-EType-App}]
+$$
+
+
+\end{itemize}
+\end{proof}
+
+
+\end{document}

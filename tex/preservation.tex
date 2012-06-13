@@ -1,0 +1,190 @@
+\begin{theorem}[Preservation]
+	If \hastypeEmp{e}{S} and \eval{e}{e'} then \hastypeEmp{e'}{S}
+\end{theorem}
+	
+\begin{proof}
+By induction on the typing derivation \hastypeEmp{e}{S}.
+We split cases on the rule used on the top of the derivation.
+
+\begin{itemize}
+\item\tsub 
+\begin{align*}
+\hastypeEmp{e}{S} && \eval{e}{e'}
+\end{align*}
+
+By inversion, there exists an $S'$ such that 
+\begin{align}
+\hastypeEmp{e}{S'} 	\label{psubE}\\
+\isSubEmp{S'}{S}		\label{psubS}
+\end{align}
+
+By IH and \ref{psubE}
+\begin{align}
+\hastypeEmp{e'}{S'}
+\end{align}
+
+Which, with \ref{psubS} and rule \rulename{T-Sub} gives
+\begin{align}
+\hastypeEmp{e'}{S}
+\end{align}
+
+\item	\rulename{T-Var-Base}, 
+		\rulename{T-Var}, 
+		\tconst, 
+		\rulename{T-Fun},
+		\rulename{T-PGen} and
+		\tgen\
+cases are trivial, since there can be no $e'$ such that \eval{e}{e'}	
+
+\item \rulename{T-App}
+\begin{align*}
+\hastypeEmp{\eapp{e_1}{e_2}}{S} && \eval{\eapp{e_1}{e_2}}{e'} 
+\end{align*}
+By inversion, there exist $x$ and $T_x$ such that 
+\begin{align}
+\hastypeEmp{e_1}{\tfun{x}{T_x}{T}} 		\label{papp1}\\
+\hastypeEmp{e_2}{T_x}					\label{papp2}\\
+S \equiv T\sub{x}{e_1}					\label{pappS}
+\end{align}
+
+\begin{itemize}
+	\item exits $e_1'$ so that \eval{e_1}{e_1'}, so $e' \equiv \eapp{e_1'}{e_2}$
+
+From IH and \ref{papp1}, $$ \hastypeEmp{e_1'}{\tfun{x}{T_x}{T}}$$
+Which, with \ref{papp2} and rule \tapp\ gives 
+\begin{align}
+\hastypeEmp{\eapp{e_1'}{e_2}}{T\sub{x}{e_1'}} \label{prese1}
+\end{align}
+
+From Lemma \ref{LemEvalSub} we get 
+\begin{align*}
+\isSubEmp{T\sub{x}{e_1'}}{T\sub{x}{e_1}}
+\end{align*}
+Which with \ref{prese1} and \tsub\ gives
+$$\hastypeEmp{e'}{S}$$.
+	\item $e_1$ is a value, $e_1 \equiv v$
+	\begin{itemize}
+		\item exits $e_2'$ so that \eval{e_2}{e_2'}, so $e' \equiv \eapp{v}{e_2'}$
+		
+		From IH and \ref{papp2}, \hastypeEmp{e_2'}{T_x}. 
+		Which, whith \ref{papp1} and \tapp\ gives \hastypeEmp{e'}{S}.
+		\item $e_2$ is a value, so $e_2 \equiv v_2$.
+		Since $e_1$ is a value, it can not be variable, as $e_1$ is closed,
+		and can not be of the form $\epabs{p}{\tau}{e'}$ nor $\etabs{\alpha}{e'}$,
+		as these values can not have the desired type. 
+		\begin{itemize}
+			\item $e_1 \equiv \efun{x}{e_{11}}$, so $e' \equiv e_{11}\sub{x}{v_2}$
+			By inversion of the rule \ref{papp1}, and if we push the \tsub \ rules down in the derivation tree we get
+			 
+			\begin{align}
+			\hastype{x:T_x}{e_{11}}{T} \label{c}
+			\end{align}
+			
+			From  \ref{papp2} and \wsExt \ we get \isWellFormed{x:T_x}{\sub{x}{v_2}}.
+			Which, with \ref{c} and Lemma \ref{LemValueSub} gives 
+			\hastypeEmp{e_{11}\sub{x}{v_2}}{T\sub{x}{v_2}}, or  
+			\hastypeEmp{e'}{S}.  
+			\item $e_1 \equiv c$, so $e' \equiv [|c|](v)$
+			
+			By rule \ref{papp1} and \tconst \ we have 
+			$\tc{c} \equiv \tfun{x}{T_x}{T}$.
+			Which, with Definition \ref{DefConstants} gives us 
+			\hastypeEmp{[|c|](v_2)}{T\sub{x}{v_2}}, or 
+			\hastypeEmp{e'}{S}. 
+		\end{itemize}
+	\end{itemize}
+\end{itemize}
+\item \tinst\ There exist $e_1, S_1, \alpha$ and $\tau$ such that
+\begin{align*}
+e \equiv \etapp{e_1}{\tau} && S \equiv S_1\sub{\alpha}{T}
+\end{align*}
+
+By inversion, we have
+
+\begin{align}
+\hastypeEmp{e_1}{\ttabs{\alpha}{S_1}} \label{d1}\\
+\sch{T} = \tau \label{e1}\\
+\isWellFormed{\emptyset}{T} \label{f}
+\end{align} 
+
+If there exists $e_1'$, such that \eval{e_1}{e_1'}, 
+then $e' \equiv \etapp{e_1'}{\tau}$.
+By IH and \ref{d1}, we have \hastypeEmp{e_1'}{\ttabs{\alpha}{S_1}}.
+This, with \ref{e1}, \ref{f} and \tinst\ 
+gives \hastypeEmp{\etapp{e_1'}{\tau}}{S_1\sub{\alpha}{T}}, or
+\hastypeEmp{e'}{S}.
+
+Otherwise, $e_1$ is a value. From \ref{d1} there are two cases:
+
+\begin{itemize}
+\item $e_1 \equiv \etabs{\alpha}{v_{1}}$, so $e' \equiv v_1\sub{\alpha}{\tau}$.
+By inverting the rule \tgen\ and if we push the \tsub\ rules down in the derivation tree,
+we get 
+\begin{align}
+\hastypeEmp{v_1}{S_1} \label{g}
+\end{align}
+By \wstExt and \ref{f} we have \isWellFormed{\emptyset}{\sub{\alpha}{T}}.
+Which, by \ref{g} and Lemma \ref{LemTypeSub} gives 
+\hastypeEmp{v_1\sub{\alpha}{\tau}}{S_1\sub{\alpha}{T}} or
+\hastypeEmp{e'}{S}.
+ 
+\item $e_1 \equiv c$, 
+so $e' \equiv \etapp{[|c|]}{\tau}$
+			
+			By rule \ref{papp1} and \tconst \ we have 
+			$\tc{c} \equiv \ttabs{\alpha}{S_1}$.
+			Which, with \ref{DefConstants} gives us 
+			\hastypeEmp{\etapp{[|c|]}{\tau}}{{S_1\sub{\alpha}{T}}}, or 
+			\hastypeEmp{e'}{S}. 
+\end{itemize}
+
+\end{itemize}
+
+
+
+\item \tpinst\ There exist $e_1, S_1, p$ and $v$ such that
+\begin{align*}
+e \equiv \epapp{e_1} && S \equiv S_1\sub{p}{v}
+\end{align*}
+
+By inversion, we have
+
+\begin{align}
+\hastypeEmp{e_1}{\tpabs{p}{\tau}{S_1}} \label{ppa}\\
+\hastypeEmp{v}{\tau \rightarrow \tbbool} \label{ppb}
+\end{align} 
+
+If there exists $e_1'$, such that \eval{e_1}{e_1'}, 
+then $e' \equiv \epapp{e_1'}$.
+By IH and \ref{ppa}, we have \hastypeEmp{e_1'}{\tpabs{p}{\tau}{S_1}}.
+This, with \ref{ppb} and \tpinst\ 
+gives \hastypeEmp{\epapp{e_1'}}{S_1\sub{p}{v}}, or
+\hastypeEmp{e'}{S}.
+
+Otherwise, $e_1$ is a value. From \ref{ppa} there are two cases:
+
+\begin{itemize}
+\item $e_1 \equiv \epabs{p}{\tau}{v_{1}}$, so $e' \equiv v_1$.
+By inverting the rule \tpgen\ and if we push the \tsub\ rules down in the derivation tree,
+we get 
+\begin{align}
+	\hastype{p:\tau \rightarrow \tbbool}{v_1}{S_1} \label{pp1a} \\
+	p \notin \fv{v_1} \label{pp1c}
+\end{align}
+
+By \wsExt and \ref{pp1a} we have \isWellFormed{p:\tau \rightarrow \tbbool}{\sub{p}{v}},
+also by \ref{pp1c} we get $v_1 \equiv v_1\sub{p}{v}$
+Which, by \ref{pp1a} and Lemma \ref{LemValueSub} gives 
+\hastypeEmp{v_1\sub{p}{v}}{S_1\sub{p}{v}} or
+\hastypeEmp{e'}{S}.
+ 
+\item $e_1 \equiv c$, 
+so $e' \equiv \epapp{[|c|]}$
+			
+			By rule \ref{ppa} and \tconst \ we have 
+			$\tc{c} \equiv \tpabs{p}{\tau}{S_1}$.
+			Which, with Definition \ref{DefConstants} and \ref{ppb}, gives us 
+			\hastypeEmp{\epapp{[|c|]}}{{S_1\sub{p}{v}}}, or 
+			\hastypeEmp{e'}{S}. 
+\end{itemize}
+\end{proof}

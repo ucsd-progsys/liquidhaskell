@@ -8,6 +8,8 @@ import Outputable
 import HscTypes
 import CoreSyn
 import Var
+import TysWiredIn
+import BasicTypes (TupleSort(BoxedTuple), Arity)
 import IdInfo
 import Name     (getSrcSpan)
 import CoreMonad (liftIO)
@@ -16,6 +18,8 @@ import Annotations
 import CorePrep
 import VarEnv
 import DataCon
+import TyCon
+import qualified TyCon as TC
 import HscMain
 import TypeRep
 import Module
@@ -28,7 +32,7 @@ import System.FilePath (dropFileName)
 import System.Directory (copyFile) 
 import System.Environment (getArgs)
 import DynFlags (defaultDynFlags, ProfAuto(..))
-
+import Control.Monad (filterM)
 import Control.Arrow hiding ((<+>))
 import Control.DeepSeq
 import Control.Applicative  hiding (empty)
@@ -51,11 +55,13 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Bare
+import Language.Haskell.Liquid.BarePredicate hiding (wiredIn)
+import Language.Haskell.Liquid.PredType
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Haskell.HsColour.ACSS as ACSS
 import qualified Language.Haskell.HsColour.CSS as CSS
-import Debug.Trace
+-- import Debug.Trace
 
 ------------------------------------------------------------------
 ---------------------- GHC Bindings:  Code & Spec ----------------
@@ -71,7 +77,10 @@ data GhcInfo = GI { env      :: !HscEnv
                   , meas     :: ![(Symbol, RefType)]
                   , hqFiles  :: ![FilePath]
                   , wiredIn  :: ![(Var, RefType)]
-                  }
+                  , passm    :: ![(Var, PrType)]
+                  , dconsP   :: ![(DataCon, DataConP)]
+                  , tconsP   :: ![(TC.TyCon, TyConP)]
+                }
 
 instance Outputable GhcInfo where 
   ppr info =  (text "*************** Core Bindings ***************")
@@ -131,7 +140,12 @@ getGhcInfo target paths =
       hqs  <- moduleHquals mg paths target ins 
       -- DEAD construct reftypes for wiredIns and such
       bs  <- wiredInSpec env 
-      return $ GI env cbs asm (grt ++ grt') (fst msr) (snd msr) hqs bs
+      ps <- modulePred mg paths (importVars cbs)
+      cs <- moduleDat mg paths 
+      let (tcs, dcs) = unzip cs
+      return $ GI env cbs asm (grt ++ grt') (fst msr) (snd msr) 
+						            hqs bs ps (concat dcs ++ snd wiredTyDataCons) 
+                  (tcs ++ fst wiredTyDataCons)
 
 printVars s vs 
   = do putStrLn s 
@@ -144,10 +158,59 @@ moduleHquals mg paths target imports
        liftIO $ putStrLn $ "Reading Qualifiers From: " ++ show rv 
        return rv
 
+parsePred f 
+  = do Ex.catch (liftM (doParse' specPr f) (readFile f)) $ \(e :: Ex.IOException) ->
+         ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ f
+
+parseDat f 
+  = do Ex.catch (liftM (doParse' dataDeclsP f) (readFile f)) $ \(e :: Ex.IOException) ->
+         ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ f
+
+modulePred :: GhcMonad m => ModGuts -> [FilePath] -> [Var] -> m [(Var, PrType)]
+modulePred mg paths  impVars 
+  = do -- specs imported by me 
+       fs     <- moduleImpFiles Pred paths impNames 
+--       spec   <- modulePredLoop paths S.empty mempty fs
+       -- measures from me 
+       myfs   <- moduleImpFiles Pred paths [mg_namestring mg]
+       myspec <- liftIO $ mconcat <$> mapM parsePred (myfs ++ fs)
+--       liftIO  $ putStrLn $ "Module Imports: " ++ show myspec
+       -- all modules, including specs, imported by me
+--       let ins = nubSort $ impNames ++ [s | S s <- Ms.imports spec]
+--       liftIO  $ putStrLn $ "Module Imports: " ++ show myspec
+       -- convert to GHC
+       env    <- getSession
+--       ----setContext [mod] []
+       setContext [IIModule mod]
+       xts <- liftIO $ mkPredType env myspec
+--       liftIO  $ putStrLn $ "Module Imports: " ++ show xts
+       return  $ xts
+    where mod      = mg_module mg
+          impNames = (moduleNameString . moduleName) <$> impMods
+          impMods  = moduleEnvKeys $ mg_dir_imps mg
+
+--modulePred :: GhcMonad m => ModGuts -> [FilePath] -> m [(Var, PrType)]
+moduleDat mg paths -- impVars 
+  = do -- specs imported by me 
+       fs     <- moduleImpFiles Dat paths impNames 
+       myfs   <- moduleImpFiles Dat paths [mg_namestring mg]
+       myspec <- liftIO $ mconcat <$> mapM parseDat (myfs ++ fs)
+       liftIO  $ putStrLn $ "Module Imports: " ++ show myspec
+       env    <- getSession
+       setContext [IIModule mod]
+       xts <- liftIO $ mkConTypes env myspec
+       liftIO  $ putStrLn $ "Imported Data Decl: " ++ show xts
+       return  $ xts
+    where mod      = mg_module mg
+          impNames = (moduleNameString . moduleName) <$> impMods
+          impMods  = moduleEnvKeys $ mg_dir_imps mg
+
 mg_namestring = moduleNameString . moduleName . mg_module
 
 importVars = freeVars S.empty 
 
+instance Show TC.TyCon where
+ show = showSDoc . ppr
 
 dataCons info = filter isDataCon (importVars $ cbs info)
 
@@ -216,7 +279,6 @@ moduleSpec' mg paths
        env    <- getSession
        msr    <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec (Ms.measures myspec)
        refspec <-liftIO $  mkAssumeSpec env (Ms.assumes myspec)
---       liftIO  $ putStrLn $ "Is this correct?: " ++ showPpr refspec 
        return  refspec
  
 moduleSpec mg paths impVars 
@@ -499,6 +561,60 @@ instance NFData a => NFData (AnnInfo a) where
   rnf (AI x) = () -- rnf x
 
 instance NFData GhcInfo where
-  rnf (GI x1 x2 x3 x4 x5 x6 x7 x8) 
+  rnf (GI x1 x2 x3 x4 x5 x6 x7 x8 _ _ _) 
     = {-# SCC "NFGhcInfo" #-} x1 `seq` x2 `seq` rnf x3 `seq` rnf x4 `seq` rnf x5 `seq` rnf x6 `seq` rnf x7 `seq` rnf x8
 
+
+maxArity :: Arity 
+maxArity = 6
+
+wiredTyDataCons :: ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
+wiredTyDataCons = (\(x, y) -> (concat x, concat y)) $ unzip l
+  where l = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity] 
+
+listTyDataCons :: ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
+listTyDataCons =( [(c, TyConP [tyv] [p])]
+														, [(nilDataCon , DataConP [tyv] [p] [] lt)
+              , (consDataCon, DataConP [tyv] [p]  cargs  lt)])
+    where c     = listTyCon
+          [tyv] = tyConTyVars c
+          t     = TyVarTy tyv
+          fld   = stringSymbol "fld"
+          x     = stringSymbol "x"
+          xs    = stringSymbol "xs"
+          p     = PdVar "p" t [(t, fld, fld)]
+          px    = PdVar "p" t [(t, fld, x)]
+          lt    = PrTyCon c [PrVar tyv PdTrue] [p] PdTrue 
+          xt    = PrVar tyv PdTrue
+          xst   = PrTyCon c [PrVar tyv px] [p] PdTrue
+          cargs = [(xs, xst), (x, xt)]
+
+tupleTyDataCons :: Int -> ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
+tupleTyDataCons n = ( [(c, TyConP tyv ps)]
+                    , [(dc, DataConP tyv ps  cargs  lt)])
+  where c       = tupleTyCon BoxedTuple n
+        dc      = tupleCon BoxedTuple n 
+        tyv     = tyConTyVars c
+        (ta:ts) = TyVarTy <$>tyv
+        tvs     = tyv
+        flds    =  mks "fld"
+        fld     = stringSymbol "fld"
+        x1:xs   = mks "x"
+        y       = stringSymbol "y"
+        ps      = mkps pnames (ta:ts) ((fld,fld):(zip flds flds))
+        pxs     = mkps pnames (ta:ts) ((fld, x1):(zip flds xs))
+        lt      = PrTyCon c ((\x -> PrVar x PdTrue) <$> tyv) ps PdTrue 
+        xts     = zipWith PrVar (tail tvs) pxs
+        cargs   = reverse $ (x1, PrVar (head tvs) PdTrue):(zip xs xts)
+        pnames  = mks_ "p"
+        mks  x  = (\i -> stringSymbol (x++ show i)) <$> [1..n]
+        mks_ x  = (\i ->  (x++ show i)) <$> [2..n]
+
+
+mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ ns ts fxs [(t, f, x)] [] 
+
+mkps_ []     _       _          _    ps = ps
+mkps_ (n:ns) (t:ts) ((f, x):xs) args ps
+  = mkps_ ns ts xs (a:args) (p:ps)
+  where p = PdVar n t args
+        a = (t, f, x)

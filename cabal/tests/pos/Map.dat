@@ -1,0 +1,4 @@
+data Map k v << p1:k (fld1:k) p2:k (fld2:k) >> = Tip | Bin x:Int k0:k v0:v l:(Map k^p1(k0) v << p1(fld1) p2(fld2)>>) r:(Map k^p2(k0) v << p1(fld1) p2(fld2)>> ) --
+
+// data Pair k v <<q:k (fld:k) q1:k(fld1:k) q2:k(fld2:k)>> = P x0:k x1:v x3:(Map  k^q(x0) v <<q1(fld1) q2(fld2)>>) --
+

@@ -1,0 +1,101 @@
+\subsection*{Grammar}
+\begin{ngrammar}[noindent,notation=plain]
+
+\nsdef{e}{%expressions
+        \nst{x}   						%var
+  \nsor \nst{c} 							%constant
+  \nsor \nst{\efun{x}{e}} 				%abs
+  \nsor \nst{\eapp{e}{e}} 				%application
+\lhide{
+  \nsor \nst{\epabs{p}{\tau}{e}} 		%predicate abs
+  \nsor \nst{\epapp{e}} 					%predicate abs
+}
+  \nsor \nst{\etabs{\alpha}{e}}			%type abs
+  \nsor \nst{\etapp{e}{\tau}} 			%type application
+\hide{
+	\nsorl \nst{\ecase{x}{{C_i \ \listOf{x_i}}}{e_i}}
+	\nsorl \nst{\elet{x}{e}{e}}
+	\nsor \nst{\eletrec{x}{e}{e}}
+}
+}
+
+\hide{
+\nsdef{P}{%predicate
+        \nst{\pdTrue}   %top
+  \nsor \nst{\pdVar{p}{\tau}{\overline{x:\tau}}} 		%variable
+  \nsor \nst{\pdAnd{P}{P}} 		%and
+}
+}
+
+\nsdef{B}{%basic types
+        		\nst{\tbint}   						%int
+  	\nsor 	\nst{\tbbool} 						%bool
+  	\nsor 	\nst{$\alpha$} 						%type var
+}
+
+\nsdef{\tyDefArg{T}{B}}{%types
+			\nst{\tref{B}{\tyDef{B}}}
+	\nsor	\nst{\tfun{x}{\tyDefArg{T}{B}}{\tyDefArg{T}{B}}}
+\hide{
+	\nsor \nst{\tcon
+				{TyCon}
+				{\parAny{B}}
+				{\listOf{\parTy{T}{B}}}
+				{\listOf{\parAny{B}}}
+			  } %for Haskell's TyConApp
+	\nsor \nst{\tclass
+				{Class}
+				{\listOf{\parTy{T}{B}}}
+			  }	%Class
+}
+}
+
+
+\nsdef{\tyDefArg{P}{B}}{%types with preds
+			\nst{\tyDefArg{T}{B}}
+\lhide{
+	\nsor	\nst{\tpabs{p}{\tau}{\tyDefArg{P}{B}}}
+}
+}
+\nsdef{\tyDefArg{S}{B}}{%types with polymorhism
+			\nst{\tyDefArg{P}{B}}
+	\nsor	\nst{\ttabs{\alpha}{\tyDefArg{S}{B}}}
+}
+
+
+\nsdef{$\tau, \pi, \sigma$}{ %haskell's types
+	\nst{\tyDefArg{T}{\top}},
+	\nst{\tyDefArg{P}{\top}},
+	\nst{\tyDefArg{S}{\top}}
+}
+
+\hide{
+\nsdef{$T_P, P_P, S_P$}{ % predicate Types
+	\nst{\tyDef{T}(P)},
+	\nst{\tyDef{P}(P)},
+	\nst{\tyDef{S}(P)}
+}
+}
+
+\nsdef{$\hat{T}, \hat{P}, \hat{S}$}{ %liquid types
+	\nst{\tyDefArg{T}{Q}},
+	\nst{\tyDefArg{P}{Q}},
+	\nst{\tyDefArg{S}{Q}}
+}
+
+\nsdef{$T, P, S$}{ %dependent types
+	\nst{\tyDef{T}(e)},
+	\nst{\tyDef{P}(e)},
+	\nst{\tyDef{S}(e)}
+}
+
+\nsdef{v}{%values
+        \nst{x}   						%var
+  \nsor \nst{c} 							%constant
+  \nsor \nst{\efun{x}{e}} 				%predicate abs
+\lhide{
+  \nsor \nst{\epabs{p}{\tau}{v}} 		%predicate abs
+}
+  \nsor \nst{\etabs{\alpha}{v}}			%type abs
+}
+\end{ngrammar}
