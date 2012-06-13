@@ -5,8 +5,8 @@ import Language.Haskell.Liquid.Prelude
 data Pair a b = P a b
 
 
-incr x = (x, x+1)
-chk (x, y) = assert (x <y) 
+incr x = (x, [x+1])
+chk (x, [y]) = assert (x <y) 
 prop  = chk $ incr n
   where n = choose 0
 

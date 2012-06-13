@@ -408,11 +408,12 @@ subsFree m s z (RAll α' t)
   = RAll α' $ subsFree m (α' `S.insert` s) z t
 subsFree m s z (RFun x t t')       
   = RFun x (subsFree m s z t) (subsFree m s z t') 
-subsFree m s z t@(RConApp c ts rs r)     
- = RConApp c' (subsFree m s z <$> ts) (subsFreeRs m s z <$> rs) r  
+subsFree m s z@(a, ta) t@(RConApp c ts rs r)     
+ = RConApp c' (subsFree m s z <$> ts) (subsFree m s (a, truet) <$> rs) r
     where (RT (v, _), tv) = z
-          z'             = (v, toType tv)
+          z'              = (v, toType tv)
           c' = c{rTyConPs = subsTyVarP z' <$> (rTyConPs c)}
+          truet           = fmap (\_ -> trueReft) ta
 subsFree m s z (RClass c ts)     
   = RClass c (subsFree m s z <$> ts)
 subsFree meet s (α', t') t@(RVar α r) 
@@ -423,12 +424,6 @@ subsFree meet s (α', t') t@(RVar α r)
 subsFree _ _ _ t@(ROther _)        
   = t
 
-subsFreeRs m s (α', RVar a1 r1) t@(RVar α (F.Reft(_, r))) 
-  | α == α' && α `S.notMember` s 
-  = RVar a1 $ F.Reft(F.vv, r)
-  | otherwise
-  = t
-subsFreeRs m s z t = subsFree m s z t
 ---------------------------------------------------------------
 
 stripRTypeBase ::  RType a -> Maybe a
