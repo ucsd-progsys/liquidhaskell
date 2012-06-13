@@ -559,9 +559,17 @@ instance NFData SrcSpan
 instance NFData a => NFData (AnnInfo a) where
   rnf (AI x) = () -- rnf x
 
-instance NFData GhcInfo where
-  rnf (GI x1 x2 x3 x4 x5 x6 x7 x8 _ _ _) 
-    = {-# SCC "NFGhcInfo" #-} x1 `seq` x2 `seq` rnf x3 `seq` rnf x4 `seq` rnf x5 `seq` rnf x6 `seq` rnf x7 `seq` rnf x8
+--instance NFData GhcInfo where
+--  rnf (GI x1 x2 x3 x4 x5 x6 x7 x8 _ _ _) 
+--    = {-# SCC "NFGhcInfo" #-} 
+--      x1 `seq` 
+--      x2 `seq` 
+--      {- rnf -} x3 `seq` 
+--      {- rnf -} x4 `seq` 
+--      {- rnf -} x5 `seq` 
+--      {- rnf -} x6 `seq` 
+--      {- rnf -} x7 `seq` 
+--      {- rnf -} x8
 
 
 listTyDataCons :: ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
@@ -574,8 +582,8 @@ listTyDataCons =( [(c, TyConP [tyv] [p])]
           fld   = stringSymbol "fld"
           x     = stringSymbol "x"
           xs    = stringSymbol "xs"
-          p     = PdVar "p" t [(t, fld, fld)]
-          px    = PdVar "p" t [(t, fld, x)]
+          p     = PdVar $ PV (stringSymbol "p") t [(t, fld, fld)]
+          px    = PdVar $ PV (stringSymbol "p") t [(t, fld, x)]
           lt    = PrTyCon c [PrVar tyv PdTrue] [p] PdTrue 
           xt    = PrVar tyv PdTrue
           xst   = PrTyCon c [PrVar tyv px] [p] PdTrue

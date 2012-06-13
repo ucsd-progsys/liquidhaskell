@@ -36,10 +36,7 @@ import Data.List (foldl')
 predType :: Type
 predType = TyVarTy $ stringTyVar "Pred"
 
-consAct info 
-  = do γ  <- initEnv info
-       γ1 <- foldM consCB γ $ cbs info
-       return γ1
+consAct info = foldM consCB (initEnv info) $ cbs info
 
 generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ "PredCBS" ++ show cbs')-} (cbs', nPd)
   where γ    = mapPEnv removeExtPreds $ penv $ evalState act (initPI info)
@@ -60,24 +57,26 @@ instance Show CoreBind where
       Just t  -> refreshTy t
       Nothing -> error $ "PEnvlookupR: unknown = " ++ showPpr x
 
-data PCGEnv = PCGE { loc :: !SrcSpan
-								           , penv :: !PEnv
-                   }
+data PCGEnv 
+  = PCGE { loc :: !SrcSpan
+         , penv :: !PEnv
+         }
 
-data PInfo   = PInfo { freshIndex :: !Integer
-                     , pMap       :: !(M.Map Predicate Predicate)
-                     , hsCsP       :: ![SubC]
-										           , tyCons     :: !(M.Map TyCon TyConP)
-																					, symbolsP   :: !(M.Map F.Symbol F.Symbol)
-                     }
+data PInfo 
+  = PInfo { freshIndex :: !Integer
+          , pMap       :: !(M.Map (Predicate Type) (Predicate Type))
+          , hsCsP      :: ![SubC]
+          , tyCons     :: !(M.Map TyCon TyConP)
+          , symbolsP   :: !(M.Map F.Symbol F.Symbol)
+          }
 
-data SubC    = SubC { senv :: !PCGEnv
-                    , lhs  :: !PrType
-                    , rhs  :: !PrType
-                    }
+data SubC    
+  = SubC { senv :: !PCGEnv
+         , lhs  :: !PrType
+         , rhs  :: !PrType
+         }
 
-addId x y= modify $ \s -> s{symbolsP = M.insert x y (symbolsP s)}
-
+addId x y = modify $ \s -> s{symbolsP = M.insert x y (symbolsP s)}
 
 initPI info = PInfo { freshIndex = 1
 								            , pMap = M.empty
@@ -103,7 +102,7 @@ consCB' γ (Rec xes)
     where (xs, es) = unzip xes
           vs       = mkSymbol <$> xs
 
-checkOneToOne :: [(Predicate, Predicate)] -> Bool										
+checkOneToOne :: [(Predicate Type, Predicate Type)] -> Bool
 checkOneToOne xys = and [y1 == y2 | (x1, y1) <- xys, (x2, y2) <- xys, x1 == x2]
 
 rmTs ((PdTrue, PdTrue):ls) = rmTs ls
@@ -178,10 +177,10 @@ consE _ e@(Lit c)
 
 consE γ (App e (Type τ)) 
   = do PrAll α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
-       t          <- trueTy τ
-       return  
---        $ traceShow ("consE TyA " ++ show α ++ show (varUnique α) ++ " with " ++ show t ++ " in " ++ show te ) 
-        $  (α, t, τ) `subsTyVars_` te
+       let t = trueTy τ
+       return $ (α, t, τ) `subsTyVars_` te 
+--     $ traceShow ("consE TyA " ++ show α ++ show (varUnique α) ++ " with " ++ show t ++ " in " ++ show te ) 
+          
 
 consE γ (App e a)               
   = do PrFun x tx t <- liftM (checkFun ("PNon-fun App with caller", e)) $ consE γ e 
@@ -366,7 +365,7 @@ varPredArgs_ Nothing = (0, 0)
 varPredArgs_ (Just t) = (length vs, length ps)
   where (vs, ps, _) = splitVsPs t
 
-trueTy = return . ofTypeP
+trueTy = ofTypeP
 
 generalizeS t 
   = do splitCons
@@ -413,16 +412,16 @@ splitCons
 -- generalize predicates of arguments
 -- used on Rec Definitions
 
-initEnv :: GhcInfo -> PI PCGEnv
-initEnv info 
-  = do defaults <- forM freeVars $ \x -> liftM (x,) (trueTy $ varType x)
-       dcs      <- forM dcons    $ \x -> liftM (x,) (dconTy $ varType x)
-       let sdcs = map (\(x, t) -> (TC.dataConWorkId x, dataConPtoPredTy t)) (dconsP info)
-       let assms = passm info
-       let bs =  mapFst mkSymbol <$> (defaults ++ dcs ++ assms ++ sdcs)
-       return $ PCGE { loc = noSrcSpan , penv = fromListPEnv bs}
-    where freeVars = [v | v<-importVars $ cbs info]
-          dcons = filter isDataCon freeVars
+--initEnv :: GhcInfo -> PI PCGEnv
+
+initEnv info = PCGE { loc = noSrcSpan , penv = fromListPEnv bs}
+  where dflts  = [(x, trueTy $ varType x) | x <- freeVs]
+        dcs    = [(x, dconTy $ varType x) | x <- dcons]
+        sdcs   = map (\(x, t) -> (TC.dataConWorkId x, dataConPtoPredTy t)) (dconsP info)
+        assms  = passm info
+        bs     =  mapFst mkSymbol <$> (dflts ++ dcs ++ assms ++ sdcs)
+        freeVs = [v | v<-importVars $ cbs info]
+        dcons  = filter isDataCon freeVs
 
 
 
@@ -432,12 +431,10 @@ getNeedPd info
            assms = passm info
            bs = mapFst mkSymbol <$> (dcs ++ assms)
 
-dconTy t
-  = do ps <- mapM truePr vs
-       let vps = M.fromList $ zipWith (\(TyVarTy v) p -> (v, PrVar v p)) vs ps
-       return $ generalize $ dataConTy vps t
-		where vs = tyVars t
-
+dconTy t = generalize $ dataConTy vps t
+  where vs  = tyVars t
+        ps  = truePr <$> vs 
+        vps = M.fromList $ zipWith (\(TyVarTy v) p -> (v, PrVar v p)) vs ps
 
 tyVars (ForAllTy v t) = (TyVarTy v):(tyVars t)
 tyVars t                        = []
@@ -447,41 +444,49 @@ freshInt = do pi <- get
               put $ pi {freshIndex = n+1} 
               return n
 
-freshPrAs p = freshInt >>= \n -> return $ p{pname = "p" ++ (show n)}
-stringSymbol = F.S
+--freshSymbol s = do n <- freshInt
+--                   return $ stringSymbol $ s ++ (show n)
+
+-- freshPrAs p = freshInt >>= \n -> return $ p {pname = "p" ++ (show n)}
+
+stringSymbol  = F.S
+freshSymbol s = stringSymbol . (s ++ ) . show <$> freshInt
+freshPr a     = (\sy -> PdVar (F.PV sy a [])) <$> (freshSymbol "p")
+-- truePr a      = return PdTrue
+truePr a      = PdTrue
+
+freshPrAs (PdVar p) = (\n -> PdVar $ p { F.pname = n }) <$> freshSymbol "p"
+
 refreshTy t 
   = do fps <- mapM freshPrAs ps
        return $ subp (M.fromList (zip ps fps)) t''
    where (vs, ps, t') = splitVsPs t
          t''          = typeAbsVsPs t' vs []
 
-truePr a = return PdTrue
-freshPr a = do n <- freshInt
-               return $ PdVar {pname = "p" ++ (show n), ptype = a, pargs = []}
+--freshPr a = do sy <- freshSymbol "p" 
+--               return $ PdVar {pname = "p" ++ (show n), ptype = a, pargs = []}
 
-freshSymbol = do n <- freshInt
-                 return $ stringSymbol $ "s" ++ (show n)
-freshTy t
+freshTy t 
   | isPredTy t
-  = freshPredTree $ classifyPredType t
-freshTy t@(TyVarTy v) = freshPr t >>= \p -> return $ PrVar v p
-freshTy (FunTy t1 t2) = do tt1 <- freshTy t1
-                           tt2 <- freshTy t2
-                           s <- freshSymbol
-                           return $ PrFun s tt1 tt2
-freshTy t@(TyConApp c τs) | TyCon.isSynTyCon c
+  = return $ freshPredTree $ (classifyPredType t)
+
+freshTy t@(TyVarTy v) 
+  = liftM (PrVar v) (freshPr t)
+freshTy (FunTy t1 t2) 
+  = liftM3 PrFun (freshSymbol "s") (freshTy t1) (freshTy t2)
+freshTy t@(TyConApp c τs) 
+  | TyCon.isSynTyCon c
   = freshTy $ substTyWith αs τs τ
- where (αs, τ) = TyCon.synTyConDefn c
-freshTy t@(TyConApp c τs) = do ts <- mapM freshTy τs
-                               p  <- truePr t
-                               ps <- freshTyConPreds c
-                               return $ PrTyCon c ts ps p
-freshTy (ForAllTy c t) = freshTy t >>= \τ -> return $ PrAll c τ
+  where (αs, τ) = TyCon.synTyConDefn c
+freshTy t@(TyConApp c τs) 
+  = liftM3 (PrTyCon c) (mapM freshTy  τs) (freshTyConPreds c) (return (truePr t)) 
+freshTy (ForAllTy c t) 
+  = liftM (PrAll c) (freshTy t) 
 freshTy t
   = error "freshTy"
 
 freshPredTree (ClassPred c ts)
-  = liftM (PrClass c) (mapM trueTy ts)
+  = PrClass c (trueTy <$> ts)
 
 freshTyConPreds c 
  = do s <- get

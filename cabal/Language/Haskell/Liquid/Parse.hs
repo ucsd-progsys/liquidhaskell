@@ -300,7 +300,7 @@ refP kindP
       ras <- refasP 
       return $ t (Reft (v, ras))
 
-refasP :: Parser [Refa]
+refasP :: Parser [Refa Sort]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
        <|> liftM ((:[]) . RConc) predP
 
@@ -621,7 +621,7 @@ instance Inputable Pred where
 instance Inputable Expr where
   rr' = doParse' exprP 
 
-instance Inputable [Refa] where
+instance Inputable [Refa Sort] where
   rr' = doParse' refasP
 
 instance Inputable (FixResult Integer) where
@@ -685,8 +685,8 @@ s20 = "forall a . x:Int -> Bool"
 s21 = "x:{v : GHC.Prim.Int# | true } -> {v : Int | true }" 
 
 r0  = (rr s0) :: Pred
-r0' = (rr s0) :: [Refa]
-r1  = (rr s1) :: [Refa]
+r0' = (rr s0) :: [Refa Sort]
+r1  = (rr s1) :: [Refa Sort]
 
 
 e1, e2  :: Expr  
