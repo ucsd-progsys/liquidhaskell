@@ -27,6 +27,7 @@ clean:
 	cabal clean
 
 dpackages:
+	$(CABAL) install filemanip 
 	$(CABAL) install transformers 
 	$(CABAL) install cmdargs 
 	$(CABAL) install deepseq

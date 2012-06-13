@@ -286,7 +286,6 @@ newtype Subst  = Su (M.Map Symbol Expr)
 newtype PSubst = PSu (M.Map PredVar Reft) 
                  deriving (Eq, Ord, Data, Typeable)
 
-
 instance Outputable Refa where
   ppr  = text . show
 
@@ -654,7 +653,6 @@ instance Fixpoint Int where
 
 class Subable a where
   subst  :: Subst -> a -> a
-  psubst :: PSubst -> a -> a
 
   subst1 :: a -> (Symbol, Expr) -> a
   subst1 thing (x, e) = subst (Su $ M.singleton x e) thing

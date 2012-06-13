@@ -1,10 +1,6 @@
 module Vec0 where
 
-<<<<<<< HEAD
-import Language.Haskell.Liquid.Prelude
-=======
 import Language.Haskell.Liquid.Prelude -- hiding (copyList)
->>>>>>> origin/preds
 
 copyList zs = zs
 

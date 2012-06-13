@@ -211,7 +211,10 @@ insert y (Cons x xs) = if (y<x)
 Transition to GHC 7.4
 ---------------------
 
+<<<<<<< HEAD
 >>>>>>> origin/preds
+=======
+>>>>>>> 3b9a7a75b7c6675975265b6b258ca4a683b72ab4
 0. hack fixpoint, to prevent instantiating ~A with vars of type "func"
 1. [] : forall a. [{v:a|false}] and re-enable the set-kvars-to-true.
 2. remove explicit "Double" sigs from KMeans0
