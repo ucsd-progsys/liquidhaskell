@@ -386,23 +386,28 @@ addToMap m
   = do s <- get
        let m' = 
 
+
+
 -- UNIFYHERE2: normalize m to make sure RHS does not contain LHS Var,
 -- then apply substitutions to map as:
 -- m + (pv -> pr) ===> m.mapValues(subsPr pv pr).add(pv -> pr)
 -- then appl Make output [(PVar t, Predicate t)]
 -- BUT WAIT: what if you already have pv1 ---> P in map and then ADD pv1 ---> Q?
 -- WHAT IS GOING ON?
-HEREHEREHERERE:
-    1. Fix split
-   (foldl tx m <$> (pMap s))
 
+addToMap substs = 
+  = do m <- pMap <$> get
+       put s { pMap = foldl' updateSubst m substs }
+
+HEREHEREHEREHERE
+updateSubst m (pred, pred') =    HERE HERE apply m to pred, pred', then shatter into pv -> p bindings, then add to m
 
 addToMap m 
   = do s <- get
        let m' = foldl foo (M.toList (pMap s)) m
        put s { pMap = M.fromList m' }
 
-foo m kv@(k, v) 
+foo m (k, v) 
   = kv':(map (rpl kv') m)
    where k'  = case (L.lookup k m) of 
                  Nothing -> k
