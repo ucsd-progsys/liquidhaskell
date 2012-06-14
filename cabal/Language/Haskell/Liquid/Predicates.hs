@@ -292,6 +292,8 @@ splitC (SubC γ (PrTyCon c1 ts1 ps1 p1) (PrTyCon c2 ts2 ps2 p2))
 splitC t@(SubC _ t1 t2)
   = {-traceShow ("WARNING : SubC" ++ show t1 ++ show t2) $-} []
 
+
+-- UNIFYHERE1: Make output [(PVar t, Predicate t)]
 splitBC γ PdTrue PdTrue = []
 splitBC γ PdTrue p2     = [(p2, PdTrue)]
 splitBC γ p1     p2     = [(p1, p2)]
@@ -384,6 +386,14 @@ addToMap m
   = do s <- get
        let m' = 
 
+-- UNIFYHERE2: normalize m to make sure RHS does not contain LHS Var,
+-- then apply substitutions to map as:
+-- m + (pv -> pr) ===> m.mapValues(subsPr pv pr).add(pv -> pr)
+-- then appl Make output [(PVar t, Predicate t)]
+-- BUT WAIT: what if you already have pv1 ---> P in map and then ADD pv1 ---> Q?
+-- WHAT IS GOING ON?
+HEREHEREHERERE:
+    1. Fix split
    (foldl tx m <$> (pMap s))
 
 
@@ -403,7 +413,6 @@ foo m kv@(k, v)
          kv' = case k' of 
                  PdTrue -> (v', k')
                  _      -> (k', v')
-
 
 rpl (k, v) (k', v')
   | k == k'
