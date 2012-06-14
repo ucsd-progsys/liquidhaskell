@@ -1,4 +1,4 @@
-{-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, DeriveDataTypeable, RankNTypes, GADTs #-}
+{-# LANGUAGE ScopedTypeVariables, NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, DeriveDataTypeable, RankNTypes, GADTs #-}
 
 
 {- Refinement Types Mirroring the GHC Type definition -}
@@ -463,12 +463,13 @@ tidyFunBinds t = everywhere (mkT $ dropBind xs) t
         dropBind xs (RB x) 
           | x `S.member` xs = RB x
           | otherwise       = RB nonSymbol
+        dropBind _ z = z
 
 tidyTyVars :: RefType -> RefType
 tidyTyVars = tidy pool getS putS 
-  where getS (RV α)   = Just (symbolString $ mkSymbol α)
-        putS (RV α) x = RV (stringTyVar x)
-        pool               = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
+  where getS (α :: TyVar)   = Just (symbolString $ mkSymbol α)
+        putS (α :: TyVar) x = stringTyVar x
+        pool          = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
 
 --tidyTyVars' r = traceShow ("tidyTyVars: " ++ show r) $ tidyTyVars r 
 
