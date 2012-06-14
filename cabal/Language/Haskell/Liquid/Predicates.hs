@@ -370,62 +370,63 @@ trueTy = ofTypeP
 
 generalizeS t 
   = do splitCons
-       s <- getPMap
+       s <- pMap <$> get 
        return $ {-traceShow ("GENERALIZE " ++ show t ++ " with " ++ show s) $-} generalize $ subp s t
-
-getPMap   = get >>= return . pMap
 
 getRemoveHsCons 
   = do s <- get
        let cs = hsCsP s
-       put s {hsCsP = []}
+       put s { hsCsP = [] }
        return cs
 
-
-addToMap m 
-  = do s <- get
-       let m' = 
-
-
-
 -- UNIFYHERE2: normalize m to make sure RHS does not contain LHS Var,
--- then apply substitutions to map as:
--- m + (pv -> pr) ===> m.mapValues(subsPr pv pr).add(pv -> pr)
--- then appl Make output [(PVar t, Predicate t)]
--- BUT WAIT: what if you already have pv1 ---> P in map and then ADD pv1 ---> Q?
--- WHAT IS GOING ON?
 
-addToMap substs = 
-  = do m <- pMap <$> get
-       put s { pMap = foldl' updateSubst m substs }
-
-HEREHEREHEREHERE
-updateSubst m (pred, pred') =    HERE HERE apply m to pred, pred', then shatter into pv -> p bindings, then add to m
-
-addToMap m 
+addToMap substs 
   = do s <- get
-       let m' = foldl foo (M.toList (pMap s)) m
-       put s { pMap = M.fromList m' }
+       let m  = pMap s
+       let m' = foldl' updateSubst m substs
+       put $ s { pMap = m' }
 
-foo m (k, v) 
-  = kv':(map (rpl kv') m)
-   where k'  = case (L.lookup k m) of 
-                 Nothing -> k
-                 Just k' -> k'
-         v'  = case (L.lookup v m) of 
-                 Nothing -> v
-                 Just v' -> v'
-         kv' = case k' of 
-                 PdTrue -> (v', k')
-                 _      -> (k', v')
+updateSubst :: M.Map (F.PVar Type) (Predicate Type) -> (Predicate Type, Predicate Type) -> M.Map (F.PVar Type) (Predicate Type) 
+updateSubst m (p, p') = foldl' (\m (k, v) -> M.insert k v m) m binds 
+  where binds = unifiers $ unifyVars (subp m p) (subp m p')
 
-rpl (k, v) (k', v')
-  | k == k'
-  = (v, v')
-  | k == v'
-  = (k', v)
-  | otherwise 
-  = (k', v')
+unifyVars p1 p2    = (v1s L.\\ vs, v2s L.\\ vs) 
+  where (v1s, v2s) = (pvars p1, pvars p2)
+        vs         = L.intersect v1s v2s
+
+unifiers ([], vs') = [(v', PdTrue) | v' <- vs']
+unifiers (vs, vs') = [(v , p)      | v  <- vs ]
+  where p = foldr PdAnd PdTrue (PdVar <$> vs') 
+
+pvars (PdVar v)     = [v]
+pvars (PdAnd p1 p2) = pvars p1 ++ pvars p2
+pvars _             = []
+
+--addToMap m 
+--  = do s <- get
+--       let m' = foldl foo (M.toList (pMap s)) m
+--       put s { pMap = M.fromList m' }
+--
+--foo m (k, v) 
+--  = kv':(map (rpl kv') m)
+--   where k'  = case (L.lookup k m) of 
+--                 Nothing -> k
+--                 Just k' -> k'
+--         v'  = case (L.lookup v m) of 
+--                 Nothing -> v
+--                 Just v' -> v'
+--         kv' = case k' of 
+--                 PdTrue -> (v', k')
+--                 _      -> (k', v')
+--
+--rpl (k, v) (k', v')
+--  | k == k'
+--  = (v, v')
+--  | k == v'
+--  = (k', v)
+--  | otherwise 
+--  = (k', v')
 
 splitCons :: PI () 
 splitCons
@@ -475,7 +476,7 @@ freshPr a     = (\sy -> PdVar (F.PV sy a [])) <$> (freshSymbol "p")
 -- truePr a      = return PdTrue
 truePr a      = PdTrue
 
-freshPrAs (PdVar p) = (\n -> PdVar $ p { F.pname = n }) <$> freshSymbol "p"
+freshPrAs p = (\n -> PdVar $ p { F.pname = n }) <$> freshSymbol "p"
 
 refreshTy t 
   = do fps <- mapM freshPrAs ps
@@ -483,13 +484,9 @@ refreshTy t
    where (vs, ps, t') = splitVsPs t
          t''          = typeAbsVsPs t' vs []
 
---freshPr a = do sy <- freshSymbol "p" 
---               return $ PdVar {pname = "p" ++ (show n), ptype = a, pargs = []}
-
 freshTy t 
   | isPredTy t
   = return $ freshPredTree $ (classifyPredType t)
-
 freshTy t@(TyVarTy v) 
   = liftM (PrVar v) (freshPr t)
 freshTy (FunTy t1 t2) 

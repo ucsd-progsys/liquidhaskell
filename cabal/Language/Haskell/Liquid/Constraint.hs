@@ -83,15 +83,15 @@ generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fw
 
 kvars :: (Data a) => a -> S.Set F.Symbol
 kvars = everything S.union (S.empty `mkQ` grabKvar)
-  where grabKvar (F.RKvar k _) = S.singleton k
-        grabKvar _             = S.empty
+  where grabKvar (F.RKvar k _:: F.Refa F.Sort) = S.singleton k
+        grabKvar _                             = S.empty
 
 
 kvars' :: (Data a) => a -> Int
 kvars' = everything (plus') (0 `mkQ` grabKvar)
-  where grabKvar (F.RKvar k _) = 1 
-        grabKvar _             = 0
-        plus' !x !y            = x + y 
+  where grabKvar (F.RKvar k _ :: F.Refa F.Sort) = 1 
+        grabKvar _                              = 0
+        plus' !x !y                             = x + y 
 
 --symbols :: (Data a) => a -> S.Set F.Symbol
 --symbols = everything S.union (S.empty `mkQ` grab)
@@ -173,7 +173,7 @@ atLoc :: CGEnv -> SrcSpan -> CGEnv
 withRecs :: CGEnv -> [Var] -> CGEnv 
 withRecs γ xs = γ { recs = foldl' (flip S.insert) (recs γ) xs }
 
--- isGeneric :: TyVar -> RefType -> Bool
+isGeneric :: TyVar -> RefType -> Bool
 isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConstrs t)
   where classConstrs t = [(c, α') | (c, ts) <- getTyClasses t
                                   , t'      <- ts
@@ -186,8 +186,8 @@ getTyClasses = everything (++) ([] `mkQ` f)
         f _                        = []
 
 getTyVars = everything (++) ([] `mkQ` f)
-  where f ((RVar α' _) :: RefType)   = [α'] 
-        f _                          = []
+  where f ((RVar (RV α') _) :: RefType) = [α'] 
+        f _                             = []
  
 -- isBase :: RType a -> Bool
 isBase (RVar _ _)     = True
@@ -421,7 +421,7 @@ showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 
 mkTyCon_ (tc, (TyConP τs' ps)) = (tc, RTyCon tc pvs')
   where τs  = TyVarTy <$> TC.tyConTyVars tc
-        pvs' = [ pv | PdVar pv <- subsTyVarsP (zip τs' τs) <$> ps ]
+        pvs' = subsTyVarsP (zip τs' τs) <$> ps
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) s 
@@ -603,26 +603,21 @@ unify :: Maybe PrType -> RefType -> RefType
 unify (Just pt) rt  = evalState (unifyS rt pt) S.empty
 unify _         t   = t
 
---unifyS :: RefType -> PrType -> State (S.Set Predicate) RefType
-
--- unifyS t@(RPred _ _) _ 
---   = return t
+unifyS :: RefType -> PrType -> State (S.Set (Predicate Type)) RefType
 
 unifyS (RAll (RP p) t) pt
   = do t' <- unifyS t pt 
        s  <- get
-       if (p `S.member` s) then return $ RAll (RP p) t' else return t'
+       if ((PdVar p) `S.member` s) then return $ RAll (RP p) t' else return t'
 
 unifyS t (PrAllPr p pt)
   = do t' <- unifyS t pt 
        s  <- get
-       if (p `S.member` s) 
-        then return $ RAll (RP p) t'
-								else return t'
+       if ((PdVar p) `S.member` s) then return $ RAll (RP p) t' else return t'
 
 unifyS (RAll (RV v) t) (PrAll v' pt) 
   = do t' <-  unifyS t $ subsTyVars (v', PrVar v PdTrue) pt 
-       return $ RAll v t'
+       return $ RAll (RV v) t'
 
 unifyS (RFun (RB x) rt1 rt2) (PrFun x' pt1 pt2)
   = do t1' <- unifyS rt1 pt1
@@ -631,9 +626,6 @@ unifyS (RFun (RB x) rt1 rt2) (PrFun x' pt1 pt2)
 
 unifyS t@(RCls c _) (PrClass _ _)
   = return t
-
---unifyS (RVar v a) (PrVar v' PdTrue)
---  = return $ RVar v a 
 
 unifyS (RVar v a) (PrVar v' p)
   = do modify $ \s -> s `S.union` (S.fromList (filter (/= PdTrue) [p]))
@@ -647,16 +639,16 @@ unifyS rt@(RApp c ts rs r) pt@(PrTyCon _ pts ps p)
 unifyS t1 t2 = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
 
 
-bUnify a PdTrue  = a
-bUnify a p       = a `F.meet` (pToReft p)
+bUnify a PdTrue     = a
+bUnify a (PdVar pv) = a `F.meet` (pToReft pv)
 
 --mapbUnify [] ps = zipWith bUnify (cycle [F.trueReft]) ps
 mapbUnify rs ps = zipWith bUnify (rs ++ cycle [F.trueReft]) ps
 
---pToRefa (PdVar n t a)= F.strToRefa n 
-pToRefa (PdVar (F.PV n t a)) = F.strToRefa n ((\(_, x, y) -> (x, F.EVar y)) <$> a)
-pToReft (PdVar (F.PV n t a)) = F.strToReft n ((\(_, x, y) -> (x, F.EVar y)) <$> a)
+pToRefa ((F.PV n t a)) = F.strToRefa n ((\(_, x, y) -> (x, F.EVar y)) <$> a)
+pToReft ((F.PV n t a)) = F.strToReft n ((\(_, x, y) -> (x, F.EVar y)) <$> a)
 --pToReft (PdVar n t a)= F.strToReft n  
+--pToRefa (PdVar n t a)= F.strToRefa n 
 
 -------------------------------------------------------------------
 -------------------- Generation: Expression -----------------------
@@ -688,13 +680,7 @@ cconsE γ (Tick tt e) t
 
 cconsE γ (Cast e _) t     
   = cconsE γ e t 
-{-
-cconsE γ e (RPred p t)
-  = do s <- freshSort γ p
-       let t' =  replaceSort (pToRefa p, s) t 
---       addC (SubC γ te t) ("consEPRed" ++ showPpr e)
-       cconsE γ e t'
--}
+
 cconsE γ e t
   = do te <- consE γ e
        addC (SubC γ te t) ("consE" ++ showPpr e)
@@ -716,19 +702,18 @@ consE _ (Lit c)
   = return $ literalRefType c
 
 consE γ (App e (Type τ)) 
-  = do RAll α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
-       t         <- if isGeneric α te then freshTy e τ else  trueTy τ
+  = do RAll (RV α) te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
+       t              <- if isGeneric α te then freshTy e τ else  trueTy τ
        addW       $ WfC γ t
-       return     $ 
+       return     $ (α, t) `subsTyVar_meet` te
 --         traceShow ("type app: for " ++ showPpr e ++ showPpr (α, t) ++ (foo γ e) ++ "/n") $ 
-								(α, t) `subsTyVar_meet` te
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
        case t0 of
          RAll (RP p@(F.PV pn τ pa)) t -> do s <- freshSort γ p
                                             return $ replaceSort (pToRefa p, s) t 
-         t                          -> return t
+         t                            -> return t
 consE γ e'@(App e a)               
   = do RFun (RB x) tx t <- liftM (checkFun ("Non-fun App with caller", e)) $ consE γ e 
        cconsE γ a tx 
@@ -858,19 +843,20 @@ getSrcSpan' x
 -----------------------------------------------------------------------
 ---------- Helpers: Creating Fresh Refinement ------------------ ------
 -----------------------------------------------------------------------
-freshReftP (PdVar n τ as)
+freshReftP (F.PV n τ as)
  = do n <- liftM F.intKvar fresh
       return $ F.Reft (F.vv,[(`F.RKvar` F.emptySubst) n])
 
-freshSort γ pd@(PdVar n τ as)
+freshSort γ (F.PV n τ as)
  = do n <- liftM F.intKvar fresh
       let s = (`F.RKvar` F.emptySubst) n
       addW $ WfCS γ' τ s
       return s
- where γ' = foldl' (++=) γ (map (\(τ, x, _) -> (x, ofType τ)) as) 
-tySort (RVar _ (F.Reft(_, [a])))        = a
+   where γ' = foldl' (++=) γ (map (\(τ, x, _) -> (x, ofType τ)) as) 
+
+tySort (RVar _ (F.Reft(_, [a])))     = a
 tySort (RApp _ _ _ (F.Reft(_, [a]))) = a
-tySort _                                = error "tySort"
+tySort _                             = error "tySort"
 
 -----------------------------------------------------------------------
 ---------- Helpers: Creating Refinement Types For Various Things ------
@@ -899,6 +885,12 @@ instance NFData CGEnv where
 instance NFData SubC where
   rnf (SubC x1 x2 x3) 
     = rnf x1 `seq` rnf x2 `seq` rnf x3
+
+instance NFData Class where
+  rnf _ = ()
+
+instance NFData RTyCon where
+  rnf _ = ()
 
 instance NFData WfC where
   rnf (WfC x1 x2)   

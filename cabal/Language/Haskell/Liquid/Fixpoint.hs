@@ -104,8 +104,7 @@ freshSym x = do
 -}
 
 strsToRefa n as = RConc $ PBexp $ (EApp (S n) ([EVar (S "VV")] ++ (map EVar as)))
---strToRefa n  = RConc $ PBexp $ (EApp (S n) [EVar (S "VV")])
-strToRefa n xs = RKvar (S n) (Su (M.fromList xs))
+strToRefa n xs = RKvar n (Su (M.fromList xs))
 strToReft n xs = Reft (S "VV", [strToRefa n xs])
 strsToReft n as = Reft (S "VV", [strsToRefa n as])
 

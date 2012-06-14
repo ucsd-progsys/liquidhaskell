@@ -39,7 +39,7 @@ liquidOne includes target =
      putStrLn $ "NEW CBS"
      putStrLn $ showPpr (cbs')
 --      putStrLn $ error "ok"
-     let cgi = generateConstraints $!! info{cbs = cbs'}
+     let cgi = generateConstraints $ info {cbs = cbs'}
      -- dummyDeepseq cgi 
      -- dummyWrite target cgi
      -- dummyWrite' target cgi
