@@ -64,7 +64,7 @@ data PCGEnv
 
 data PInfo 
   = PInfo { freshIndex :: !Integer
-          , pMap       :: !(M.Map (Predicate Type) (Predicate Type))
+          , pMap       :: !(M.Map (F.PVar Type) (Predicate Type))
           , hsCsP      :: ![SubC]
           , tyCons     :: !(M.Map TyCon TyConP)
           , symbolsP   :: !(M.Map F.Symbol F.Symbol)
@@ -79,10 +79,10 @@ data SubC
 addId x y = modify $ \s -> s{symbolsP = M.insert x y (symbolsP s)}
 
 initPI info = PInfo { freshIndex = 1
-								            , pMap = M.empty
-     								       , hsCsP = []
-					     										, tyCons = M.fromList (tconsP info)
-										     					, symbolsP = M.empty
+                    , pMap = M.empty
+                    , hsCsP = []
+                    , tyCons = M.fromList (tconsP info)
+                    , symbolsP = M.empty
                     }
 
 type PI = State PInfo
@@ -159,7 +159,6 @@ consCB γ (NonRec x e)
 
 consCB γ (Rec xes) 
   = do ts       <- mapM (\e -> freshTy $ exprType e) es
---       let tsga = generalizeArgs <$> ts
        let γ'   = foldl' (+=) γ (zip vs ts)
        zipWithM_ (cconsE γ') es ts
        tsg   <-forM ts generalizeS
@@ -377,25 +376,35 @@ getPMap   = get >>= return . pMap
 getRemoveHsCons 
   = do s <- get
        let cs = hsCsP s
-       put s{hsCsP = []}
+       put s {hsCsP = []}
        return cs
 
-addToMap m -- = --modify $ \s -> s{pMap = (pMap s) `M.union` (M.fromList m)}
+
+addToMap m 
+  = do s <- get
+       let m' = 
+
+   (foldl tx m <$> (pMap s))
+
+
+addToMap m 
   = do s <- get
        let m' = foldl foo (M.toList (pMap s)) m
-       put s{pMap = M.fromList m'}
+       put s { pMap = M.fromList m' }
 
 foo m kv@(k, v) 
   = kv':(map (rpl kv') m)
-   where k' = case (L.lookup k m) of 
-               Nothing -> k
-               Just k' -> k'
-         v' = case (L.lookup v m) of 
-               Nothing -> v
-               Just v' -> v'
+   where k'  = case (L.lookup k m) of 
+                 Nothing -> k
+                 Just k' -> k'
+         v'  = case (L.lookup v m) of 
+                 Nothing -> v
+                 Just v' -> v'
          kv' = case k' of 
-                PdTrue -> (v', k')
-                _      -> (k', v')
+                 PdTrue -> (v', k')
+                 _      -> (k', v')
+
+
 rpl (k, v) (k', v')
   | k == k'
   = (v, v')
@@ -409,10 +418,7 @@ splitCons
   = do hsCs <- getRemoveHsCons
        addToMap ((concat (concatMap splitC hsCs)))
 
--- generalize predicates of arguments
--- used on Rec Definitions
-
---initEnv :: GhcInfo -> PI PCGEnv
+-- generalize predicates of arguments: used on Rec Definitions
 
 initEnv info = PCGE { loc = noSrcSpan , penv = fromListPEnv bs}
   where dflts  = [(x, trueTy $ varType x) | x <- freeVs]

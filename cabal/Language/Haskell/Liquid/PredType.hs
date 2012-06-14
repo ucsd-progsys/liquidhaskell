@@ -1,15 +1,15 @@
 {-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
 module Language.Haskell.Liquid.PredType (
-								  PrTy (..),  PrType (..), ofTypeP
-								, Predicate (..), pand
-								, TyConP (..), DataConP (..)
-								, PEnv (..), lookupPEnv, fromListPEnv, insertPEnv, emptyPEnv, mapPEnv
-								, splitVsPs, typeAbsVsPs, splitArgsRes
-								, generalize, generalizeArgs
-								, subp, subsTyVars, substSym, subsTyVarsP, subsTyVars_
-								, dataConTy, dataConPtoPredTy
-								, removeExtPreds
-								) where
+    PrTy (..),  PrType (..), ofTypeP
+  , Predicate (..), pand
+  , TyConP (..), DataConP (..)
+  , PEnv (..), lookupPEnv, fromListPEnv, insertPEnv, emptyPEnv, mapPEnv
+  , splitVsPs, typeAbsVsPs, splitArgsRes
+  , generalize, generalizeArgs
+  , subp, subsTyVars, substSym, subsTyVarsP, subsTyVars_
+  , dataConTy, dataConPtoPredTy
+  , removeExtPreds
+  ) where
 
 import Class
 import CoreSyn
@@ -36,36 +36,33 @@ import Control.DeepSeq
 import Data.Data
 
 data Predicate t 
-  = PdVar (PVar t) -- {pname :: !String, ptype :: !t, pargs :: ![(t, Symbol, Symbol)]}
+  = PdVar (PVar t) 
   | PdTrue
   | (Predicate t) `PdAnd` (Predicate t)
     deriving (Data, Typeable)
 
--- type Predicate = Predicate_ Type
-
-data PrTy a = PrVar   !TyVar     !a
-            | PrLit   !Literal   !a
+data PrTy a = PrVar   !TyVar     !(Predicate a)
+            | PrLit   !Literal   !(Predicate a)
       		| PrAll   !TyVar     !(PrTy a)
-      		| PrAllPr !a         !(PrTy a)
+      		| PrAllPr !(PVar a)  !(PrTy a)
       		| PrClass !Class     ![PrTy a]
       		| PrFun   !Symbol    !(PrTy a)   !(PrTy a)
-      		| PrTyCon !TC.TyCon  ![PrTy a]   ![a] !a
+      		| PrTyCon !TC.TyCon  ![PrTy a]   ![(Predicate a)] !(Predicate a)
             deriving (Data, Typeable)
-
 
 instance Functor Predicate where
   fmap f (PdVar v)      = PdVar (fmap f v)
   fmap f PdTrue         = PdTrue
   fmap f (p `PdAnd` p') = (fmap f p) `PdAnd` (fmap f p')
 
-type PrType = PrTy (Predicate Type)
+type PrType = PrTy Type
 
 data TyConP = TyConP { freeTyVarsTy :: ![TyVar]
-                     , freePredTy   :: ![(Predicate Type)]
+                     , freePredTy   :: ![(PVar Type)]
                      }
 
 data DataConP = DataConP { freeTyVars :: ![TyVar]
-                         , freePred   :: ![(Predicate Type)]
+                         , freePred   :: ![(PVar Type)]
                          , tyArgs     :: ![(Symbol, PrType)]
                          , tyRes      :: !PrType
                          }
@@ -149,17 +146,17 @@ freeArgPreds (PrAll _ t)     = freeArgPreds t
 freeArgPreds (PrAllPr _ t)   = freeArgPreds t
 freeArgPreds t               = freePreds t
 
-freePreds :: PrType -> S.Set (Predicate Type)
-freePreds (PrVar _ p) = S.fromList $ normalizeP p
-freePreds (PrLit _ p) = S.fromList $ normalizeP p
-freePreds (PrAll _ t) = freePreds t
-freePreds (PrAllPr p t) = S.delete p $ freePreds t 
-freePreds (PrClass _ ts) = foldl' (\z t -> S.union z (freePreds t)) S.empty ts
-freePreds (PrFun _ t1 t2) = S.union (freePreds t1) (freePreds t2)
+-- freePreds :: PrType -> S.Set (Predicate Type)
+freePreds (PrVar _ p)         = S.fromList $ normalizeP p
+freePreds (PrLit _ p)         = S.fromList $ normalizeP p
+freePreds (PrAll _ t)         = freePreds t -- UNIFY? remove binder?
+freePreds (PrAllPr p t)       = S.delete p $ freePreds t 
+freePreds (PrClass _ ts)      = foldl' (\z t -> S.union z (freePreds t)) S.empty ts
+freePreds (PrFun _ t1 t2)     = S.union (freePreds t1) (freePreds t2)
 freePreds (PrTyCon _ ts ps p) = foldl' (\z t -> S.union z (freePreds t)) pps ts
   where pps = S.fromList $ concatMap normalizeP (p:ps)
 
-normalizeP p@(PdVar _)   = [p]
+normalizeP (PdVar pv)    = [pv]
 normalizeP (PdAnd p1 p2) = normalizeP p1 ++ normalizeP p2
 normalizeP _             = []
 
@@ -184,7 +181,6 @@ tvSubst (v, t) t'@(TyVarTy v')
 eqTv α α' = tvId α == tvId α'
   where tvId α = show α ++ show (varUnique α)
  
-subsTyVar :: (Var, PrTy (Predicate Type)) -> PrTy (Predicate Type) -> PrTy (Predicate Type)
 subsTyVar (α, (PrVar a' p')) t@(PrVar a p) 
   | α `eqTv` a 
   = PrVar a' (pand p p')
@@ -206,8 +202,8 @@ subsTyVar (α, τ) t@(PrVar a p)
   | otherwise 
   = t       
 
-subsTyVars_ (v, t, τ) = fmap (subsTyVarsP [(v, τ)]) . mapTyVar (subsTyVar (v, t))
-subsTyVars s = fmap (subsTyVarP_ s) . mapTyVar (subsTyVar s)
+subsTyVars_ (v, t, τ) = mapPr (subsTyVarsP [(v, τ)]) . mapTyVar (subsTyVar (v, t))
+subsTyVars s = mapPr (subsTyVarP_ s) . mapTyVar (subsTyVar s)
 
 subsTyVarP_ av@(α, (PrVar a' p')) p@(PdVar (PV n (TyVarTy v) a))
   | α `eqTv` v 
@@ -230,7 +226,7 @@ substSym (x, y) = mapSymbol $ \s -> if (s == x) then y else s
 
 mapTyVar ::  (PrTy a -> PrTy a) -> PrTy a -> PrTy a
 mapTyVar  f = mapTy (id, f)
-mapSymbol f = fmap (mapPd f) .  mapTy (f, id)
+mapSymbol f = mapPr (mapPd f) .  mapTy (f, id)
 -- substSymP = mapPd substSym
 
 mapPd f (PdVar (PV n t a)) = PdVar (PV n t ((mapThd3 f) <$> a))
@@ -246,29 +242,44 @@ mapTy (_, fv) t@(PrVar a p)     = fv t
 mapTy f (PrTyCon c ts ps p)     = PrTyCon c ((mapTy f) <$> ts) ps p
 mapTy f (PrClass c ts)          = PrClass c (mapTy f <$> ts)
 
-lookupP p@(PdVar (PV _ _ s')) s
- = case (L.lookup p (M.toList s)) of 
-    Nothing -> p
-    Just q  -> addS s' q
-lookupP p s
- = case (L.lookup p (M.toList s)) of 
-    Nothing -> p
-    Just q  -> q
+lookupP p@(PV _ _ s') s
+  = case M.lookup p s of 
+      Nothing  -> PdVar p
+      Just q   -> addS s' q
+
+--lookupP p s
+-- = case (L.lookup p (M.toList s)) of 
+--    Nothing -> p
+--    Just q  -> q
+
 addS s (PdVar (PV n t _)) = PdVar (PV n t s)
-addS s PdTrue        = PdTrue
-addS s (PdAnd p1 p2 ) = PdAnd (addS s p1) (addS s p2)
+addS s PdTrue             = PdTrue
+addS s (PdAnd p1 p2 )     = PdAnd (addS s p1) (addS s p2)
+
+
 
 class SubstP a where
-  subp :: M.Map (Predicate Type) (Predicate Type) -> a -> a
+  subp :: M.Map (PVar Type) (Predicate Type) -> a -> a
 
 instance SubstP (Predicate Type) where
-  subp s p@(PdVar (PV e t a)) = lookupP p s -- not correct!
-  subp _ PdTrue               = PdTrue
-  subp s (PdAnd p1 p2)        = PdAnd (subp s p1) (subp s p2)
+  subp s (PdVar pv)    = lookupP pv s -- UNIFY: not correct!
+  subp _ PdTrue        = PdTrue
+  subp s (PdAnd p1 p2) = PdAnd (subp s p1) (subp s p2)
+
+instance SubstP (PrTy Type) where
+  subp s t = mapPr (subp s) t
+
+mapPr f (PrFun s t1 t2)     = PrFun s (mapPr f t1) (mapPr f t2)
+mapPr f (PrAll a t)         = PrAll a (mapPr f t)
+mapPr f (PrAllPr p t)       = PrAllPr p (mapPr f t)
+mapPr f (PrLit l p)         = PrLit l (f p)
+mapPr f (PrVar a p)         = PrVar a (f p)
+mapPr f (PrTyCon c ts ps p) = PrTyCon c ((mapPr f) <$> ts) (f <$> ps) (f p)
+mapPr f (PrClass c ts)      = PrClass c (mapPr f <$> ts)
 
 
-instance SubstP (PrTy (Predicate Type)) where
-  subp s t = fmap (subp s) t
+
+
 
 typeAbsVsPs t vs ps
   = foldl' (flip PrAll) (foldl' (flip PrAllPr) t ps) (reverse vs)
@@ -346,15 +357,6 @@ instance Outputable (Predicate Type) where
   ppr (PdVar pv)    = ppr pv
   ppr PdTrue        = text "True"
   ppr (PdAnd p1 p2) = ppr p1 <+> text "&" <+> ppr p2
-
-instance Functor PrTy where
- fmap f (PrFun s t1 t2)     = PrFun s (fmap f t1) (fmap f t2)
- fmap f (PrAll a t)         = PrAll a (fmap f t)
- fmap f (PrAllPr p t)       = PrAllPr (f p) (fmap f t)
- fmap f (PrLit l p)         = PrLit l (f p)
- fmap f (PrVar a p)         = PrVar a (f p)
- fmap f (PrTyCon c ts ps p) = PrTyCon c ((fmap f) <$> ts) (f <$> ps) (f p)
- fmap f (PrClass c ts)      = PrClass c (fmap f <$> ts)
 
 
 instance Outputable PrType where

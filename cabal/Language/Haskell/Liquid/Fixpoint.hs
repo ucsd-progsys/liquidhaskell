@@ -483,7 +483,15 @@ data PVar t
        , ptype :: !t
        , pargs :: ![(t, Symbol, Symbol)]
        }
-	deriving (Eq, Ord, Data, Typeable, Show)
+	deriving (Data, Typeable, Show)
+
+instance Eq (PVar t) where
+  PV n _ _  == PV n' _ _ = n == n'
+
+instance Ord (PVar t) where
+  compare (PV n _ _)  (PV n' _ _) = compare n n'
+
+
 
 data Refa t 
   = RConc !Pred 
@@ -500,7 +508,6 @@ instance (Show a) => Show (Reft a) where
 
 instance (Show a) => Outputable (Reft a) where
   ppr = text . show
-
 
 data SortedReft
   = RR !Sort !(Reft Sort)

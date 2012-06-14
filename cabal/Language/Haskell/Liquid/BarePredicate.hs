@@ -45,6 +45,7 @@ import Data.Char (isUpper)
 import ErrUtils
 -- import Control.Monad
 import Data.Traversable (forM)
+import Control.Applicative  ((<$>))
 import Control.Monad.Reader hiding (forM)
 import Data.Generics.Schemes
 import Data.Generics.Aliases
@@ -85,11 +86,11 @@ data DataDecl
 ofBDataCon tyCon aps vs preds (c, xts)
  = do c' <- lookupGhcDataCon c
       ts' <- mapM (ofPType aps) ts
-      let t0 = PrTyCon tyCon (map ((flip PrVar) PdTrue) vs) preds PdTrue
+      let t0 = PrTyCon tyCon (map ((flip PrVar) PdTrue) vs) (PdVar <$> preds) PdTrue
       let t2 = foldl (\t' (x,t)-> PrFun x t t') t0 (zip xs' ts')
       let t1 = foldl (flip PrAllPr) t2 preds
       let t  = foldl (flip PrAll) t1 vs
-      return $ (c', DataConP vs (preds) (reverse (zip xs' ts')) t0) 
+      return $ (c', DataConP vs preds (reverse (zip xs' ts')) t0) 
  where (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
  
@@ -107,9 +108,10 @@ ofBDataDecl (D tyCon vars ps cts)
 
 
 
-ofBPredicate _ (PBTrue) = PdTrue
+ofBPredicate _ (PBTrue) 
+  = PdTrue
 ofBPredicate avs (PBAnd p1 p2) 
- = PdAnd (ofBPredicate avs p1) (ofBPredicate avs p2) 
+  = PdAnd (ofBPredicate avs p1) (ofBPredicate avs p2) 
 ofBPredicate avs (PBF s as xs) 
   = PdVar $ PV { pname = stringSymbol s
                , ptype = f as
@@ -121,7 +123,7 @@ ofBPredicate avs (PB s xs)
                , ptype = ptype f 
                , pargs = args
                }
-  where f = head [ v | (a, PdVar v) <- snd avs, a==s]
+  where f = head [ v | (a, v) <- snd avs, a==s]
         args = zipWith (\(t, x1, _) x-> (t, x1, stringSymbol x))(pargs f) xs
 
 wiredIn :: M.Map String Name
@@ -146,10 +148,10 @@ ofArgsD vs (x, va) = (TyVarTy t, x', x')
         x'  = stringSymbol x
 
 ofBPredicate_ vs (PBF x va xs)
-  = (x, PdVar $ PV { pname = stringSymbol x
-                   , ptype = TyVarTy t
-                   , pargs = map (ofArgsD vs) xs
-                   })
+  = (x, PV { pname = stringSymbol x
+           , ptype = TyVarTy t
+           , pargs = map (ofArgsD vs) xs
+           })
   where t:_ = [vt| (a, vt) <- vs, a==va]
 
 --ofPType :: ([(String, TyVar)], [(String, Predicate)]) ->PrTypeP -> m PrType
@@ -168,8 +170,8 @@ ofPType as (PrAppTyP x t1 t2) =
        nt2 <- ofPType as t2
        return $ PrFun (stringSymbol x) nt1 nt2
 
-ofPType as (PrPairP(p,s)) = 
-   let (v):_ = [v | (a, v)<-fst as, a==s] in
+ofPType as (PrPairP (p,s)) = 
+   let (v):_ = [v | (a, v) <- fst as, a == s ] in
    return $ PrVar v (ofBPredicate as p)
 
 ofPType as (PrLstP t) =
@@ -179,15 +181,19 @@ ofPType as (PrLstP t) =
 ofPType as (PrIntP p) 
   = return $ PrTyCon intTyCon [] [] (ofBPredicate as p)
 
-ofPType as (PrTupP [t]) = ofPType as t
+ofPType as (PrTupP [t]) 
+  = ofPType as t
+
 ofPType as (PrTupP ts) = 
    do nts <- mapM (ofPType as) ts
       let c = tupleTyCon BoxedTuple (length ts)
        in return $ PrTyCon c nts [] PdTrue
+
 ofPType as (PrTyConAppP s ts ps p) = 
   do c <- lookupGhcTyCon s
      nts <- mapM (ofPType as) ts
      return $ PrTyCon c nts (map (ofBPredicate as) ps) (ofBPredicate as p)
+
 ofPType as (PrPredTyP s ts) = 
   do c <- lookupGhcClass s 
      nts <- mapM (ofPType as) ts

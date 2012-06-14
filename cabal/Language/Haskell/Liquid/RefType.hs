@@ -86,6 +86,12 @@ data RTyCon = RTyCon
 
 type RefType    = RType Class RTyCon RBind (Reft Sort)    
 
+instance Eq RBind where
+  RB s == RB s' = s == s'
+  RV α == RV α' = α == α'
+  RP p == RP p' = pname p == pname p'
+  _    == _     = False 
+
 instance Show RefType where
   show = showPpr
 

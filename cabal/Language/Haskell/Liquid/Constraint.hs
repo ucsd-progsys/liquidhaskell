@@ -189,7 +189,7 @@ getTyVars = everything (++) ([] `mkQ` f)
   where f ((RVar α' _) :: RefType)   = [α'] 
         f _                          = []
  
-isBase :: RType a -> Bool
+-- isBase :: RType a -> Bool
 isBase (RVar _ _)     = True
 isBase (RApp _ _ _ _) = True
 isBase _                 = False
@@ -288,22 +288,7 @@ splitW (WfC γ t@(RApp c ts rs _))
 splitW (WfC _ t) 
   = [] -- errorstar $ "splitW cannot handle: " ++ showPpr t
 
-{-
-splitWRefTyCon γ (RAlgTyCon _ z) 
-  = splitWRefAlgRhs cons γ z 
-splitWRefTyCon _   _               
-  = []
-
-splitWRefAlgRhs γ (RDataTyCon _ dcs) 
-  = concatMap (splitWRefDataCon γ) dcs
-
-splitWRefDataCon γ (MkRData _ fts) 
- = concatMapi splitW $ zipWith WfC γs ts
-   where ts  = snd <$> fts
-         γs  = scanl (\γ z -> (γ, "splitWRefDC") += z) γ (fieldBinds fts)
--}
-
-bsplitW :: CGEnv -> RefType -> [FixWfC]
+-- bsplitW :: CGEnv -> RefType -> [FixWfC]
 bsplitW γ t 
   | F.isNonTrivialSortedReft r'
   = [F.WfC env' r' Nothing ci] 
@@ -313,8 +298,8 @@ bsplitW γ t
         r'   = refTypeSortedReft t
         ci   = Ci (loc γ)
 
-rsplitW :: CGEnv -> (F.Reft, Predicate) -> [FixWfC]
-rsplitW γ (r, (PdVar _ t as))
+-- rsplitW :: CGEnv -> (F.Reft, Predicate) -> [FixWfC]
+rsplitW γ (r, ((F.PV _ t as)))
   = [F.WfC env' r' Nothing ci]
   where env' = fenv γ'
         ci   = Ci (loc γ)
@@ -386,7 +371,7 @@ bsplitC γ t1 t2
         r2'     = refTypeSortedReft t2
         ci      = Ci (loc γ)
 
-rsplitC γ ((r1, r2), PdVar _ t as)
+rsplitC γ ((r1, r2), (F.PV _ t as))
   = [F.SubC env' F.PTrue r1' r2' Nothing [] ci]
   where env' = fenv γ'
         ci   = Ci (loc γ)
@@ -434,9 +419,9 @@ initCGI info = CGInfo [] [] [] [] F.emptyFEnv 0 (AI M.empty) tyi
 showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 
-mkTyCon_ (tc, (TyConP τs' ps)) = (tc, RTyCon tc ps')
-  where τs = TyVarTy <$> TC.tyConTyVars tc
-        ps' = (subsTyVarsP (zip τs' τs)) <$> ps
+mkTyCon_ (tc, (TyConP τs' ps)) = (tc, RTyCon tc pvs')
+  where τs  = TyVarTy <$> TC.tyConTyVars tc
+        pvs' = [ pv | PdVar pv <- subsTyVarsP (zip τs' τs) <$> ps ]
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) s 
@@ -525,23 +510,6 @@ instance Freshable RefType where
   refresh = refreshRefType
   true    = trueRefType 
 
-{-
-instance Freshable RefTyCon where
-  fresh   = errorstar "fresh RefTyCon"
-  refresh = refreshRefTyCon
-  true    = trueRefTyCon
- 
-instance Freshable RefAlgRhs where
-  fresh   = errorstar "fresh RefTyCon"
-  refresh = refreshRefAlgRhs 
-  true    = trueRefAlgRhs
-
-instance Freshable RefDataCon where
-  fresh   = errorstar "fresh RefTyCon"
-  refresh = refreshRefDataCon
-  true    = trueRefDataCon
--}
-
 trueRefType (RAll α t)       
   = liftM (RAll α) (true t)
 trueRefType (RFun _ t t')    
@@ -552,17 +520,7 @@ trueRefType (RApp c ts refs _)
 trueRefType t                
   = return t
 
-{-		
-trueRefTyCon (RAlgTyCon p r)  
-  = liftM (RAlgTyCon p) (true r)
-trueRefTyCon x@(RPrimTyCon _) 
-  = return x
-trueRefAlgRhs (RDataTyCon p dcs) 
-  = liftM (RDataTyCon p) (mapM true dcs)
-trueRefDataCon (MkRData p fts) 
-  = liftM (MkRData p) $ liftM2 zip (mapM (\_ -> fresh) fs) (mapM true ts)
-    where (fs, ts) = unzip fts
--}
+
 
 refreshRefType (RAll α t)       
   = liftM (RAll α) (refresh t)
@@ -696,8 +654,8 @@ bUnify a p       = a `F.meet` (pToReft p)
 mapbUnify rs ps = zipWith bUnify (rs ++ cycle [F.trueReft]) ps
 
 --pToRefa (PdVar n t a)= F.strToRefa n 
-pToRefa (PdVar n t a)= F.strToRefa n ((\(_, x, y) -> (x, F.EVar y)) <$> a)
-pToReft (PdVar n t a)= F.strToReft n ((\(_, x, y) -> (x, F.EVar y)) <$> a)
+pToRefa (PdVar (F.PV n t a)) = F.strToRefa n ((\(_, x, y) -> (x, F.EVar y)) <$> a)
+pToReft (PdVar (F.PV n t a)) = F.strToReft n ((\(_, x, y) -> (x, F.EVar y)) <$> a)
 --pToReft (PdVar n t a)= F.strToReft n  
 
 -------------------------------------------------------------------

@@ -573,20 +573,20 @@ instance NFData a => NFData (AnnInfo a) where
 
 
 listTyDataCons :: ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
-listTyDataCons =( [(c, TyConP [tyv] [p])]
-														, [(nilDataCon , DataConP [tyv] [p] [] lt)
-              , (consDataCon, DataConP [tyv] [p]  cargs  lt)])
+listTyDataCons = ( [(c, TyConP [tyv] [p])]
+                 , [(nilDataCon , DataConP [tyv] [p] [] lt)
+                 , (consDataCon, DataConP [tyv] [p]  cargs  lt)])
     where c     = listTyCon
           [tyv] = tyConTyVars c
           t     = TyVarTy tyv
           fld   = stringSymbol "fld"
           x     = stringSymbol "x"
           xs    = stringSymbol "xs"
-          p     = PdVar $ PV (stringSymbol "p") t [(t, fld, fld)]
+          p     = PV (stringSymbol "p") t [(t, fld, fld)]
           px    = PdVar $ PV (stringSymbol "p") t [(t, fld, x)]
-          lt    = PrTyCon c [PrVar tyv PdTrue] [p] PdTrue 
+          lt    = PrTyCon c [PrVar tyv PdTrue] [PdVar p] PdTrue 
           xt    = PrVar tyv PdTrue
-          xst   = PrTyCon c [PrVar tyv px] [p] PdTrue
+          xst   = PrTyCon c [PrVar tyv px] [PdVar p] PdTrue
           cargs = [(xs, xst), (x, xt)]
 
 
