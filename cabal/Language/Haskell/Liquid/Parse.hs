@@ -226,22 +226,18 @@ bareAtomP
  <|> try (dummyP bbaseP)
 
 bbaseP 
-  =  liftM BLst (brackets bareTypeP)
- <|> liftM mkTup (parens $ sepBy bareTypeP comma)
- <|> try (liftM2 BCon upperIdP (sepBy bareTypeP blanks))
- <|> try (liftM (`BCon` []) upperIdP)
- <|> liftM BVar lowerIdP
-
-mkTup [x] _ = x
-mkTup xs  r = BTup xs r
+  =  liftM bLst (brackets bareTypeP)
+ <|> liftM bTup (parens $ sepBy bareTypeP comma)
+ <|> try (liftM2 bCon upperIdP (sepBy bareTypeP blanks))
+ <|> try (liftM (`bCon` []) upperIdP)
+ <|> liftM RVar lowerIdP
 
 bareAllP 
   = do reserved "forall"
        as <- sepBy1 tyVarIdP comma
        dot
        t  <- bareTypeP
-       return $ tr_foldr' BAll t as
-       -- return $ foldl' (\t a -> BAll a t) t (rev as)
+       return $ tr_foldr' RAll t as
 
 data ArrowSym = ArrowFun | ArrowPred
 
@@ -268,25 +264,11 @@ bareFunP
        return $ bareArrow x t1 a t2 
 
 bareArrow x t1 ArrowFun t2
-  = BFun x t1 t2
+  = RFun x t1 t2
 bareArrow x t1 ArrowPred t2
-  = foldr (BFun "") t2 (getClasses t1)
-   
-getClasses (BTup ts _) 
-  = getClass <$> ts 
-getClasses t 
-  = [getClass t]
-getClass (BCon c ts _)
-  = BClass c ts
-getClass t
-  = errorstar $ "Cannot convert " ++ (show t) ++ " to Class"
-
+  = foldr (RFun "") t2 (getClasses t1)
+  
 bindP = lowerIdP <* colon
-
---bindP 
---  = do x <- lowerIdP
---       colon
---       return x
 
 dummyP fm 
   = fm `ap` return (Reft (dummySymbol, []))
@@ -349,10 +331,10 @@ measureP
 tyBodyP :: BareType -> Parser Measure.Body
 tyBodyP ty 
   = case outTy ty of
-      Just (BCon "Bool"[] _) -> Measure.P <$> predP 
-      _                      -> Measure.E <$> exprP
-    where outTy (BAll _ t)   = outTy t
-          outTy (BFun _ _ t) = Just t
+      Just bt | isBoolBareType bt -> Measure.P <$> predP 
+      _                           -> Measure.E <$> exprP
+    where outTy (RAll _ t)   = outTy t
+          outTy (RFun _ _ t) = Just t
           outTy _            = Nothing
 
 

@@ -5,8 +5,10 @@
  - and real refinements. -}
 
 module Language.Haskell.Liquid.Bare (
-    BType (..)
-  , BareType (..)
+  -- BType (..)
+    BareType (..)
+  , bLst, bTup, bCon, isBoolBareType
+  , getClasses
   , mkRefTypes
   , mkMeasureSpec
   , mkAssumeSpec
@@ -67,22 +69,26 @@ import qualified Control.Exception as Ex
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
 
-data BType b r 
-  = BVar b r
-  | BFun b (BType b r) (BType b r)
-  | BCon b [(BType b r)] r
-  | BConApp b [(BType b r)] [r] r
-  | BAll b (BType b r)
-  | BLst (BType b r) r
-  | BTup [(BType b r)] r
-  | BClass b [(BType b r)]
-  deriving (Data, Typeable)
+--data BType b r 
+--  = BVar b r
+--  | BFun b (BType b r) (BType b r)
+--  | BCon b [(BType b r)] r
+--  | BConApp b [(BType b r)] [r] r
+--  | BAll b (BType b r)
+--  | BLst (BType b r) r
+--  | BTup [(BType b r)] r
+--  | BClass b [(BType b r)]
+--  deriving (Data, Typeable)
 
-instance Show (BType b r) where
- show (BConApp b bts rs r) = undefined
- show ts                   = undefined
+--instance Show (BType b r) where
+-- show (BConApp b bts rs r) = undefined
+-- show ts                   = undefined
 
-type BareType = BType String (Reft Sort) 
+-- type BareType = BType String (Reft Sort) 
+
+type BareType = RType String String String (Reft Sort)
+
+
 
 mkRefTypes :: HscEnv -> [BareType] -> IO [RefType]
 mkRefTypes env bs = runReaderT (mapM mkRefType bs) env
@@ -223,10 +229,37 @@ symbolToSymbol (S s)
 wiredIn :: M.Map String Name
 wiredIn = M.fromList $
   [ ("GHC.Integer.smallInteger" , smallIntegerName) 
-  , ("GHC.Num.fromInteger", fromIntegerName)
-  , ("GHC.Types.I#" , dataConName intDataCon)
-  , ("GHC.Prim.Int#", tyConName intPrimTyCon) ]
-  
+  , ("GHC.Num.fromInteger"      , fromIntegerName)
+  , ("GHC.Types.I#"             , dataConName intDataCon)
+  , ("GHC.Prim.Int#"            , tyConName intPrimTyCon) 
+  ]
+
+listConName = "List"
+tupConName  = "Tuple"
+boolConName = "Bool"
+
+bLst t r    = RApp listConName [t] [] r 
+bTup [x] _  = x
+bTup xs  r  = RApp tupConName xs [] r
+bCon b ts r = RApp b ts [] r
+
+isBoolBareType (RApp tc [] _ _) = tc == boolConName
+isBoolBareType _                = False
+
+
+getClasses (RApp tc ts _ _) 
+  | tc == tupConName 
+  = getClass `fmap` ts 
+getClasses t 
+  = [getClass t]
+
+getClass (RApp c ts _ _)
+  = RCls c ts
+getClass t
+  = errorstar $ "Cannot convert " ++ (show t) ++ " to Class"
+
+
+
 ------------------------------------------------------------------------
 ----------------- Transforming Raw Strings using GHC Env ---------------
 ------------------------------------------------------------------------
@@ -234,23 +267,25 @@ wiredIn = M.fromList $
 type BareM a = ReaderT HscEnv IO a
 
 ofBareType :: BareType -> BareM RefType
-ofBareType (BVar a r) 
+ofBareType (RVar a r) 
   = return $ RVar (stringRTyVar a) r
-ofBareType (BFun x t1 t2) 
+ofBareType (RFun x t1 t2) 
   = liftM2 (RFun (rbind x)) (ofBareType t1) (ofBareType t2)
-ofBareType (BAll a t) 
+ofBareType (RAll a t) 
   = liftM  (RAll (stringRTyVar a)) (ofBareType t)
-ofBareType (BConApp tc ts rs r) 
-  = liftM2 (bareTCApp r rs) (lookupGhcTyCon tc) (mapM ofBareType ts)
-ofBareType (BCon tc ts r)
-  = liftM2 (bareTCApp r []) (lookupGhcTyCon tc) (mapM ofBareType ts)
-ofBareType (BClass c ts)
-  = liftM2 RCls (lookupGhcClass c) (mapM ofBareType ts)
-ofBareType (BLst t r) 
+ofBareType (RApp tc [t] [] r) 
+  | tc == listConName 
   = liftM (bareTCApp r [] listTyCon . (:[])) (ofBareType t)
-ofBareType (BTup ts r)
+ofBareType (RApp tc ts [] r) 
+  | tc == tupConName 
   = liftM (bareTCApp r [] c) (mapM ofBareType ts)
     where c = tupleTyCon BoxedTuple (length ts)
+ofBareType (RApp tc ts rs r) 
+  = liftM2 (bareTCApp r rs) (lookupGhcTyCon tc) (mapM ofBareType ts)
+-- ofBareType (BCon tc ts r)
+--  = liftM2 (bareTCApp r []) (lookupGhcTyCon tc) (mapM ofBareType ts)
+ofBareType (RCls c ts)
+  = liftM2 RCls (lookupGhcClass c) (mapM ofBareType ts)
 
 -- TODO: move back to RefType
 -- bareTCApp :: Reft -> [Reft] -> TyCon -> [RefType] -> RefType 
@@ -283,51 +318,3 @@ mkMeasureSort :: Ms.MSpec BareType a -> BareM (Ms.MSpec RefType a)
 mkMeasureSort (Ms.MSpec cm mm) 
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> 
       liftM (\s' -> m {Ms.sort = s'}) (ofBareType (Ms.sort m))
-
-
---class MapSymbol a where
---  mapSymbol :: (Symbol -> BareM Symbol) -> a -> BareM a
---
---instance MapSymbol (Reft a) where
---  mapSymbol f (Reft(s, rs)) = liftM2 (\s' rs' -> Reft(s', rs')) (f s) (mapM (mapSymbol f) rs)
---
---instance MapSymbol (PVar a) where 
---  mapSymbol f (PV n t txys) = liftM3 PV (f n) (return t) (
---
---instance MapSymbol (Refa a) where
---  mapSymbol f (RConc p)     = liftM RConc (mapSymbol f p)
---  mapSymbol f (RKvar s sub) = liftM2 RKvar (f s) (return sub)
---  mapSymbol f (RPvar pv)    = liftM RPvar (mapSymbol f pv)
---
---
---
---instance MapSymbol Pred where
---  mapSymbol f (PAnd ps)       = liftM PAnd (mapM (mapSymbol f) ps)
---  mapSymbol f (POr ps)        = liftM POr (mapM (mapSymbol f) ps)
---  mapSymbol f (PNot p)        = liftM PNot (mapSymbol f p)
---  mapSymbol f (PImp p1 p2)    = liftM2 PImp (mapSymbol f p1) (mapSymbol f p2)
---  mapSymbol f (PIff p1 p2)    = liftM2 PIff (mapSymbol f p1) (mapSymbol f p2)
---  mapSymbol f (PBexp e)       = liftM PBexp (mapSymbol f e)
---  mapSymbol f (PAtom b e1 e2) = liftM2 (PAtom b) (mapSymbol f e1) (mapSymbol f e2)
---  mapSymbol f (PAll _ _)      = error "mapSymbol PAll"
---  mapSymbol _ p               = return p 
---
---instance MapSymbol Expr where
---  mapSymbol f (EVar s)       = liftM EVar (f s)
---  mapSymbol f (EDat s so)    = liftM2 EDat (f s) (return so)
---  mapSymbol f (ELit s so)    = liftM2 ELit (f s) (return so)
---  mapSymbol f (EApp s es)    = liftM2 EApp (f s) (mapM (mapSymbol f) es)
---  mapSymbol f (EBin b e1 e2) = liftM2 (EBin b) (mapSymbol f e1) (mapSymbol f e2)
---  mapSymbol f (EIte p e1 e2) = liftM3 EIte (mapSymbol f p) (mapSymbol f e1) (mapSymbol f e2)
---  mapSymbol f (ECst e s)     = liftM2 ECst (mapSymbol f e) (return s) 
---  mapSymbol _ e              = return e
---
---instance MapSymbol BareType where
---  mapSymbol f (BVar b r)          = liftM (BVar b) (mapSymbol f r) 
---  mapSymbol f (BFun b t1 t2)      = liftM2 (BFun b) (mapSymbol f t1) (mapSymbol f t2)
---  mapSymbol f (BCon b ts r)       = liftM2 (BCon b) (mapM (mapSymbol f) ts) (mapSymbol f r)
---  mapSymbol f (BConApp b ts rs r) = liftM3 (BConApp b) (mapM (mapSymbol f) ts) (mapM (mapSymbol f) rs) (mapSymbol f r)
---  mapSymbol f (BAll b t)          = liftM (BAll b) (mapSymbol f t)
---  mapSymbol f (BLst t r)          = liftM2 BLst (mapSymbol f t) (mapSymbol f r)
---  mapSymbol f (BTup ts r)         = liftM2 BTup (mapM (mapSymbol f) ts) (mapSymbol f r)
---  mapSymbol f (BClass b ts)       = liftM (BClass b) (mapM (mapSymbol f) ts)  
