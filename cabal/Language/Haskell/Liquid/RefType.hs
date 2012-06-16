@@ -62,12 +62,16 @@ import Data.List (isPrefixOf, isSuffixOf, find, foldl')
 ------------------ Generic Type Representation ---------------------
 --------------------------------------------------------------------
 
-data RType p c b r
-  = RVar !b !r
-  | RFun !b !(RType p c b r) !(RType p c b r)  
-  | RAll !b !(RType p c b r)
-  | RApp !c ![(RType p c b r)] ![r] !r
-  | RCls !p ![(RType p c b r)]
+-- data RBind = RB Symbol | RV TyVar | RP (PVar Type)
+data Bind tv pv = RB Symbol | RV tv | RP pv 
+  deriving (Data, Typeable)
+
+data RType p c tv pv r
+  = RVar !(Bind tv pv) !r
+  | RFun !(Bind tv pv) !(RType p c tv pv r) !(RType p c tv pv r)  
+  | RAll !(Bind tv pv) !(RType p c tv pv r)
+  | RApp !c ![(RType p c tv pv r)] ![r] !r
+  | RCls !p ![(RType p c tv pv r)]
   | ROth String
   deriving (Data, Typeable)
 
@@ -75,8 +79,7 @@ data RType p c b r
 ---------------- Refinement Types: RefType -------------------------
 --------------------------------------------------------------------
 
-data RBind = RB Symbol | RV TyVar | RP (PVar Type)
-  deriving (Data, Typeable)
+type RBind = Bind TyVar (PVar Type)
 
 data RTyCon = RTyCon 
   { rTyCon     :: !TC.TyCon         -- GHC Type Constructor
@@ -84,7 +87,7 @@ data RTyCon = RTyCon
   }
   deriving (Data, Typeable)
 
-type RefType    = RType Class RTyCon RBind (Reft Sort)    
+type RefType    = RType Class RTyCon TyVar (PVar Type) (Reft Sort)    
 
 instance Eq RBind where
   RB s == RB s' = s == s'
@@ -222,12 +225,12 @@ rsplitArgsRes t = ([], [], t)
 instance NFData REnv where
   rnf (REnv m) = () -- rnf m
 
-instance NFData RBind where
+instance NFData (Bind a b) where
   rnf (RB x) = rnf x
   rnf (RV a) = ()
   rnf (RP p) = () 
 
-instance (NFData a, NFData b, NFData c, NFData d) => NFData (RType a b c d) where
+instance (NFData a, NFData b, NFData c, NFData d, NFData e) => NFData (RType a b c d e) where
   rnf (RVar α r)       = rnf α `seq` rnf r 
   rnf (RAll α t)       = rnf α `seq` rnf t
   rnf (RFun x t t')    = rnf x `seq` rnf t `seq` rnf t'
@@ -235,9 +238,8 @@ instance (NFData a, NFData b, NFData c, NFData d) => NFData (RType a b c d) wher
   rnf (RCls c ts)      = c `seq` rnf ts
   rnf (ROth _)         = ()
 
-
 ----------------------------------------------------------------
----------------------- Refinement Types ------------------------
+------------------ Printing Refinement Types -------------------
 ----------------------------------------------------------------
 
 instance Outputable RBind where
@@ -256,6 +258,19 @@ instance Outputable RTyCon where
   
 instance Show RTyCon where
  show = showPpr
+
+
+--ppr_rtype p (RAll (RP pr) t)
+--  = text "forall" <+> ppr pr <+> ppr_pred p t
+--   
+--ppr_rtype p t@(RAll (RV _) _)       
+--ppr_rtype p (RVar a r)         
+--ppr_rtype p (RFun x t t')      
+--ppr_rtype p (RApp c [t] rs r)
+--ppr_rtype p (RApp c ts rs r)
+--ppr_rtype _ (RCls c ts)      
+--ppr_rtype _ (ROth s)         
+
 
 ppr_reftype p (RAll (RP pr) t)
   = text "forall" <+> ppr pr <+> ppr_pred p t
@@ -285,16 +300,13 @@ ppr_tycon_preds rs
   = angleBrackets $ hsep $ punctuate comma $ ppReft_pred <$> rs
   where trivialRefts (Reft (_, ras)) = all isTautoRa ras
 
-
-
 ppr_pred p (RAll (RP pr) t)
   = ppr pr <> ppr_pred p t
 ppr_pred p t
   = dot <+> ppr_reftype p t
 
-
 ppr_dbind (RB x) t 
-  | isNonSymbol x -- == nonSymbol
+  | isNonSymbol x 
   = ppr_reftype FunPrec t
   | otherwise
   = braces (ppr x) <> colon <> ppr_reftype FunPrec t
@@ -319,7 +331,7 @@ ppr_foralls tvs = (text "forall") <+> sep (map ppr tvs) <> dot
 --------------------------- Visitors --------------------------
 ---------------------------------------------------------------
 
-instance Functor (RType a b c) where
+instance Functor (RType a b c d) where
   fmap f (RVar α r)       = RVar α (f r)
   fmap f (RAll a t)       = RAll a (fmap f t)
   fmap f (RFun x t t')    = RFun x (fmap f t) (fmap f t')
@@ -439,7 +451,7 @@ canonRefType = mapTop zz
 
 reftypeBindVars :: RefType -> S.Set Symbol
 reftypeBindVars = everything S.union (S.empty `mkQ` grabBind)
-  where grabBind (RB x) = S.singleton x 
+  where grabBind ((RB x) :: RBind) = S.singleton x 
 
 readSymbols :: (Data a) => a -> S.Set Symbol
 readSymbols = everything S.union (S.empty `mkQ` grabRead)
@@ -460,7 +472,7 @@ tidyRefType = tidyDSymbols
 tidyFunBinds :: RefType -> RefType
 tidyFunBinds t = everywhere (mkT $ dropBind xs) t 
   where xs = readSymbols t
-        dropBind xs (RB x) 
+        dropBind xs ((RB x) :: RBind) 
           | x `S.member` xs = RB x
           | otherwise       = RB nonSymbol
         dropBind _ z = z
