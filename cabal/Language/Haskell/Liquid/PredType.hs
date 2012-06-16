@@ -35,11 +35,13 @@ import Control.Applicative  ((<$>))
 import Control.DeepSeq
 import Data.Data
 
-data Predicate t 
-  = PdVar (PVar t) 
-  | PdTrue
-  | (Predicate t) `PdAnd` (Predicate t)
-    deriving (Data, Typeable)
+type Predicate t = [PVar t]
+
+--data Predicate t 
+--  = PdVar (PVar t) 
+--  | PdTrue
+--  | (Predicate t) `PdAnd` (Predicate t)
+--    deriving (Data, Typeable)
 
 data PrTy a = PrVar   !TyVar     !(Predicate a)
             | PrLit   !Literal   !(Predicate a)
