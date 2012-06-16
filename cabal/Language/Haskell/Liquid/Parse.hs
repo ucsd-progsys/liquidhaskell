@@ -230,14 +230,14 @@ bbaseP
  <|> liftM bTup (parens $ sepBy bareTypeP comma)
  <|> try (liftM2 bCon upperIdP (sepBy bareTypeP blanks))
  <|> try (liftM (`bCon` []) upperIdP)
- <|> liftM RVar lowerIdP
+ <|> liftM (RVar . RV) lowerIdP
 
 bareAllP 
   = do reserved "forall"
        as <- sepBy1 tyVarIdP comma
        dot
        t  <- bareTypeP
-       return $ tr_foldr' RAll t as
+       return $ tr_foldr' RAll t (RV <$> as)
 
 data ArrowSym = ArrowFun | ArrowPred
 
@@ -263,11 +263,16 @@ bareFunP
        t2 <- bareTypeP
        return $ bareArrow x t1 a t2 
 
+bareArrow "" t1 ArrowFun t2
+  = RFun dummyBind t1 t2
 bareArrow x t1 ArrowFun t2
-  = RFun x t1 t2
+  = RFun (stringBind x) t1 t2
 bareArrow x t1 ArrowPred t2
-  = foldr (RFun "") t2 (getClasses t1)
-  
+  = foldr (RFun dummyBind) t2 (getClasses t1)
+
+stringBind = RB . stringSymbol
+dummyBind  = RB dummySymbol
+
 bindP = lowerIdP <* colon
 
 dummyP fm 

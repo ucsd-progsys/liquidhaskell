@@ -1,6 +1,3 @@
-Predicates.hs UNIFYHERE
-GOBER
-
 Iffy functions:
 
 - normalizePds 
@@ -12,9 +9,10 @@ RPred p t ====> RAll (RP p) t
 
 - type RefType  = RType Class RTyCon RBind (Reft Type)
 - type BareType = RType String String String (Reft String)  
+- type PrType   = RType ??? -- ORIG: PrTy Predicate
 >>>>> HEREHEREHEREHEREHEREHERE do make at top-level to see next broken file
 
-- type PrType   = RType ??? -- ORIG: PrTy Predicate
+
 - type PrTypeP  = RType ??? -- ORIG: fullblown whatsit
 
 

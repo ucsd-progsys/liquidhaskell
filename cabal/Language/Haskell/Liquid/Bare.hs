@@ -83,13 +83,20 @@ import qualified Control.Exception as Ex
 --instance Show (BType b r) where
 -- show (BConApp b bts rs r) = undefined
 -- show ts                   = undefined
-
 -- type BareType = BType String (Reft Sort) 
 
-type BareType = RType String String String (Reft Sort)
+type BareType = RType String String String () (Reft Sort)
 
+instance RefTypable BareType where
+  isList (RApp tc _ _ _) = tc == listConName 
+  isList _               = False
+  ppCls (RCls c ts)      = parens (text c <+> text "...")
 
+instance Outputable BareType where
+  ppr = ppr_rtype TopPrec
 
+instance Show BareType where
+  show = showPpr
 mkRefTypes :: HscEnv -> [BareType] -> IO [RefType]
 mkRefTypes env bs = runReaderT (mapM mkRefType bs) env
 
@@ -267,11 +274,11 @@ getClass t
 type BareM a = ReaderT HscEnv IO a
 
 ofBareType :: BareType -> BareM RefType
-ofBareType (RVar a r) 
+ofBareType (RVar (RV a) r) 
   = return $ RVar (stringRTyVar a) r
-ofBareType (RFun x t1 t2) 
-  = liftM2 (RFun (rbind x)) (ofBareType t1) (ofBareType t2)
-ofBareType (RAll a t) 
+ofBareType (RFun (RB x) t1 t2) 
+  = liftM2 (RFun (RB x)) (ofBareType t1) (ofBareType t2)
+ofBareType (RAll (RV a) t) 
   = liftM  (RAll (stringRTyVar a)) (ofBareType t)
 ofBareType (RApp tc [t] [] r) 
   | tc == listConName 
@@ -318,3 +325,6 @@ mkMeasureSort :: Ms.MSpec BareType a -> BareM (Ms.MSpec RefType a)
 mkMeasureSort (Ms.MSpec cm mm) 
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> 
       liftM (\s' -> m {Ms.sort = s'}) (ofBareType (Ms.sort m))
+
+
+

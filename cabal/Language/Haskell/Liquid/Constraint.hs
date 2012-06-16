@@ -892,6 +892,9 @@ instance NFData Class where
 instance NFData RTyCon where
   rnf _ = ()
 
+instance NFData Type where 
+  rnf _ = ()
+
 instance NFData WfC where
   rnf (WfC x1 x2)   
     = rnf x1 `seq` rnf x2
