@@ -97,9 +97,10 @@ data RTyCon = RTyCon
   { rTyCon     :: !TC.TyCon         -- GHC Type Constructor
   , rTyConPs   :: ![PVar Type]      -- Predicate Parameters
   }
-  deriving (Data, Typeable)
+  deriving (Eq, Data, Typeable)
 
 type RefType    = RType Class RTyCon TyVar (PVar Type) (Reft Sort)    
+
 
 instance Eq RBind where
   RB s == RB s' = s == s'

@@ -603,44 +603,45 @@ unify :: Maybe PrType -> RefType -> RefType
 unify (Just pt) rt  = evalState (unifyS rt pt) S.empty
 unify _         t   = t
 
-unifyS :: RefType -> PrType -> State (S.Set (Predicate Type)) RefType
+unifyS :: RefType -> PrType -> State (S.Set (F.PVar Type)) RefType
 
 unifyS (RAll (RP p) t) pt
   = do t' <- unifyS t pt 
        s  <- get
-       if ((PdVar p) `S.member` s) then return $ RAll (RP p) t' else return t'
+       if (p `S.member` s) then return $ RAll (RP p) t' else return t'
 
-unifyS t (PrAllPr p pt)
+unifyS t (RAll (RP p) pt)
   = do t' <- unifyS t pt 
        s  <- get
-       if ((PdVar p) `S.member` s) then return $ RAll (RP p) t' else return t'
+       if (p `S.member` s) then return $ RAll (RP p) t' else return t'
 
-unifyS (RAll (RV v) t) (PrAll v' pt) 
-  = do t' <-  unifyS t $ subsTyVars (v', PrVar v PdTrue) pt 
+unifyS (RAll (RV v) t) (RAll (RV v') pt) 
+  = do t' <-  unifyS t $ subsTyVars (v', RVar (RV v) pdTrue) pt 
        return $ RAll (RV v) t'
 
-unifyS (RFun (RB x) rt1 rt2) (PrFun x' pt1 pt2)
+unifyS (RFun (RB x) rt1 rt2) (RFun (RB x') pt1 pt2)
   = do t1' <- unifyS rt1 pt1
        t2' <- unifyS rt2 (substSym (x', x) pt2)
        return $ RFun (RB x) t1' t2' 
 
-unifyS t@(RCls c _) (PrClass _ _)
+unifyS t@(RCls c _) (RCls _ _)
   = return t
 
-unifyS (RVar v a) (PrVar v' p)
-  = do modify $ \s -> s `S.union` (S.fromList (filter (/= PdTrue) [p]))
-       return $ RVar v $ bUnify a p
+unifyS (RVar (RV v) a) (RVar (RV v') p)
+  = do modify $ \s -> s `S.union` (S.fromList $ pvars p) -- (filter (/= PdTrue) [p]))
+       return $ RVar (RV v) $ bUnify a p
 
-unifyS rt@(RApp c ts rs r) pt@(PrTyCon _ pts ps p)
-  = do modify $ \s -> s `S.union` (S.fromList (filter (/= PdTrue) (p:ps)))
+unifyS rt@(RApp c ts rs r) pt@(RApp _ pts ps p)
+  = do modify $ \s -> s `S.union` (S.fromList (concatMap pvars (p:ps)))
        ts' <- zipWithM unifyS ts pts
-       return $ {-traceShow ("unifyS \n" ++ show rt ++ "\nwith \n" ++ show pt) $-}  RApp c ts' (mapbUnify rs ps) (bUnify r p)
+       -- return $ traceShow ("unifyS \n" ++ show rt ++ "\nwith \n" ++ show pt) $  
+       return $ RApp c ts' (mapbUnify rs ps) (bUnify r p)
 
 unifyS t1 t2 = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
 
-
-bUnify a PdTrue     = a
-bUnify a (PdVar pv) = a `F.meet` (pToReft pv)
+bUnify a (Pr pvs)   = foldl' F.meet a $ pToReft <$> pvs
+--bUnify a PdTrue     = a
+--bUnify a (PdVar pv) = a `F.meet` (pToReft pv)
 
 --mapbUnify [] ps = zipWith bUnify (cycle [F.trueReft]) ps
 mapbUnify rs ps = zipWith bUnify (rs ++ cycle [F.trueReft]) ps

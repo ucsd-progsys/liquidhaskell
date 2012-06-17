@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
 module Language.Haskell.Liquid.PredType (
     PrType, ofTypeP
-  , Predicate (..), pdAnd, pdVar, pdTrue
+  , Predicate (..), pdAnd, pdVar, pdTrue, pvars
   , TyConP (..), DataConP (..)
   , PEnv (..), lookupPEnv, fromListPEnv, insertPEnv, emptyPEnv, mapPEnv
   , splitVsPs, typeAbsVsPs, splitArgsRes
@@ -267,8 +267,10 @@ insertPEnv (x, t) (PEnv e) = PEnv $ M.insert x t e
 fromListPEnv = PEnv . M.fromList
 
 -- UNIFY: Why?!
---instance Eq (Predicate a) where
---  (Pr pvs) == (Pr pvs') = (sortBy compare pvs) = (sortBy compare pvs')
+instance Eq (Predicate a) where
+  (Pr vs) == (Pr ws) = (length vs' == length ws') && and [v == w | (v, w) <- zip vs' ws']
+                       where vs' = L.sort vs
+                             ws' = L.sort ws
 
 -- (PdVar (PV s1 _ _)) == (PdVar (PV s2 _ _))  
 --   = s1 == s2
