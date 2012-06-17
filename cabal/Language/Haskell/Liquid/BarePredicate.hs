@@ -59,8 +59,6 @@ import Language.Haskell.Liquid.Misc
 import qualified Control.Exception as Ex
 import Language.Haskell.Liquid.PredType
 
-
-
 data PredicateB = PBF String String [(String, String)]
                 | PB String [String]
                 | PBTrue
@@ -111,15 +109,15 @@ ofBDataDecl (D tyCon vars ps cts)
 ofBPredicate _ (PBTrue) 
   = pdTrue
 ofBPredicate avs (PBAnd p1 p2) 
-  = PdAnd (ofBPredicate avs p1) (ofBPredicate avs p2) 
+  = pdAnd $ ofBPredicate avs <$> [p1, p2] 
 ofBPredicate avs (PBF s as xs) 
-  = PdVar $ PV { pname = stringSymbol s
+  = pdVar $ PV { pname = stringSymbol s
                , ptype = f as
                , pargs = map (ofArgsD (fst avs)) xs
                }
   where f v = let v':_ = [v | (a, v) <- fst avs, a==s ] in TyVarTy v'
 ofBPredicate avs (PB s xs) 
-  = PdVar $ PV { pname = stringSymbol s
+  = pdVar $ PV { pname = stringSymbol s
                , ptype = ptype f 
                , pargs = args
                }
@@ -158,28 +156,28 @@ ofBPredicate_ vs (PBF x va xs)
 ofPType (as, ps) (PrForAllTyP a t) = 
    let v = stringTyVar a
    in do nt <- ofPType ((a, v):as, ps) t 
-         return $ PrAll v nt
+         return $ RAll (RV v) nt
 
 ofPType (vs, ps) (PrForAllPrP pst t) = 
-   do nt <- ofPType (vs, ps++ps') t
-      return $ foldl (\t p -> PrAllPr p t) nt (snd $ unzip ps') 
+   do nt <- ofPType (vs, ps ++ ps') t
+      return $ foldl (\t pv -> RAll (RP pv) t) nt (snd $ unzip ps') 
   where ps' = map (ofBPredicate_ vs) pst
 
 ofPType as (PrAppTyP x t1 t2) = 
    do  nt1 <- ofPType as t1                    
        nt2 <- ofPType as t2
-       return $ PrFun (stringSymbol x) nt1 nt2
+       return $ RFun (RB $ stringSymbol x) nt1 nt2
 
-ofPType as (PrPairP (p,s)) = 
+ofPType as (PrPairP (p, s)) = 
    let (v):_ = [v | (a, v) <- fst as, a == s ] in
-   return $ PrVar v (ofBPredicate as p)
+   return $ RVar (RV v) (ofBPredicate as p)
 
 ofPType as (PrLstP t) =
    do nt <- ofPType as t
-      return $  PrTyCon listTyCon [nt] [] PdTrue
+      return $  RApp (RTyCon listTyCon []) [nt] [] pdTrue
 
 ofPType as (PrIntP p) 
-  = return $ PrTyCon intTyCon [] [] (ofBPredicate as p)
+  = return $ RApp (RTyCon intTyCon []) [] [] (ofBPredicate as p)
 
 ofPType as (PrTupP [t]) 
   = ofPType as t
@@ -187,17 +185,17 @@ ofPType as (PrTupP [t])
 ofPType as (PrTupP ts) = 
    do nts <- mapM (ofPType as) ts
       let c = tupleTyCon BoxedTuple (length ts)
-       in return $ PrTyCon c nts [] PdTrue
+       in return $ RApp (RTyCon c []) nts [] pdTrue
 
 ofPType as (PrTyConAppP s ts ps p) = 
   do c <- lookupGhcTyCon s
      nts <- mapM (ofPType as) ts
-     return $ PrTyCon c nts (map (ofBPredicate as) ps) (ofBPredicate as p)
+     return $ RApp (RTyCon c []) nts (map (ofBPredicate as) ps) (ofBPredicate as p)
 
 ofPType as (PrPredTyP s ts) = 
   do c <- lookupGhcClass s 
      nts <- mapM (ofPType as) ts
-     return $ PrClass c nts
+     return $ RCls c nts
 
 stringTyVar :: String -> TyVar
 stringTyVar s = mkTyVar name liftedTypeKind
