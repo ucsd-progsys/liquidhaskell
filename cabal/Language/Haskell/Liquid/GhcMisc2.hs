@@ -44,4 +44,6 @@ stringTyVar s = mkTyVar name liftedTypeKind
 --stringRTyVar :: String -> RTyVar
 --stringRTyVar = rTyVar . stringTyVar 
 
-
+eqTv α α' = tvId α == tvId α'
+  where tvId α = show α ++ show (varUnique α)
+ 

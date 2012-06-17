@@ -17,8 +17,8 @@ module Language.Haskell.Liquid.Fixpoint (
   , trueRefa
   , canonReft, exprReft, symbolReft
   , isNonTrivialSortedReft
-  , isTautoRa, isTautoReft
-  , ppReft, ppReft_pred, flattenRefas
+  , isTautoRa
+  , ppr_reft, ppr_reft_preds, flattenRefas
   , simplify
   , emptySubst, mkSubst, catSubst
   , Subable (..)
@@ -457,13 +457,19 @@ isTautoReft (Reft (_, ras)) = all isTautoRa ras
 isTautoRa (RConc p)         = isTauto p
 isTautoRa _                 = False
 
-ppReft (Reft (v, ras)) d 
+ppr_reft (Reft (v, ras)) d 
   | all isTautoRa ras
   = d
   | otherwise
   =  braces (ppr v <+> colon <+> d <+> text "|" <+> ppRas ras)
 
-ppReft_pred (Reft (v, ras))
+ppr_reft_preds rs 
+  | all isTautoReft rs 
+  = empty
+  | otherwise 
+  = angleBrackets $ hsep $ punctuate comma $ ppr_reft_pred <$> rs
+ 
+ppr_reft_pred (Reft (v, ras))
   | all isTautoRa ras
   = text "true"
   | otherwise
@@ -485,7 +491,7 @@ data PVar t
 	deriving (Data, Typeable, Show)
 
 instance Eq (PVar t) where
-  PV n _ _  == PV n' _ _ = n == n'
+  pv == pv' = (pname pv == pname pv') {- UNIFY: What about: && eqArgs pv pv' -}
 
 instance Ord (PVar t) where
   compare (PV n _ _)  (PV n' _ _) = compare n n'

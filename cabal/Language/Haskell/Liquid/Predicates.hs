@@ -267,8 +267,9 @@ cconsCase γ x t (DataAlt c, ys, ce)
 
 unfold tc (PrTyCon _ ts _ _) _ = splitArgsRes tc''
   where (vs, _, tc') = splitVsPs tc
-        tc''         = foldl' (flip subsTyVars) tc' (zip vs ts)
--- unfold tc _                  = splitArgsRes tc'
+        tc''         = foldl' (flip subsTyVars) tc' (zip vs ts) 
+        -- args         = [(α, α') | (α, PrVar α' _) <- zip vs ts]
+-- unfold tc _       = splitArgsRes tc'
 --  where (vs, _, tc') = splitVsPs tc
 unfold tc t               x  = error $ "unfold" ++ {-(showSDoc (ppr x)) ++-} " : " ++ show t
 

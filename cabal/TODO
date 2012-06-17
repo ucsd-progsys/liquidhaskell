@@ -1,3 +1,17 @@
+Haskell/Liquid/Predicates.hs
+132:  = tyC (subsTyVars (v1, PrVar v2 PdTrue) t1) t2
+180:       return $ (α, t, τ) `subsTyVars_` te 
+270:        tc''         = foldl' (flip subsTyVars) tc' (zip vs ts)
+
+Haskell/Liquid/PredType.hs
+214:subsTyVars :: SubstP (Predicate a) => (Var, PrTy a) -> PrTy a -> PrTy a
+215:subsTyVars s = mapPr (subv (subsTyVarP1_ s)) . mapTyVar (subsTyVar s)
+
+Haskell/Liquid/Constraint.hs
+619:  = do t' <-  unifyS t $ subsTyVars (v', PrVar v PdTrue) pt 
+ 
+
+
 Iffy functions:
 
 - normalizePds 

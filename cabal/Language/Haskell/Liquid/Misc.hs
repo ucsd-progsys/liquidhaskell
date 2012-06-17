@@ -174,3 +174,6 @@ testM f x = do b <- f x
 --              case xo' of
 --                Just x' -> fixM f x'
 --                Nothing -> return x
+
+unions :: (Ord a) => [S.Set a] -> S.Set a
+unions = foldl' S.union S.empty

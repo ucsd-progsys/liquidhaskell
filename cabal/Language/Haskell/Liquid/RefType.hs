@@ -4,10 +4,9 @@
 {- Refinement Types Mirroring the GHC Type definition -}
 
 module Language.Haskell.Liquid.RefType (
-    RType (..), RTyCon(..), RefTypable (..)
-  , ppr_rtype
-  , RefType (..)  
-  , Bind (..), RBind
+    RType (..), RTyCon(..), Reftable(..), RefTypable (..)
+  , RefType (..), Bind (..), RBind
+  , ppr_rtype, mapReft, mapRVar
   , ofType, toType
   , rTyVar, rTyVarSymbol
   , strengthen, strengthenRefType
@@ -52,11 +51,11 @@ import Data.Data
 import Control.DeepSeq
 import qualified Data.Foldable as Fold
 
-import Language.Haskell.Liquid.PredType hiding (subsTyVars)
+-- import Language.Haskell.Liquid.PredType hiding (subsTyVars)
 import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GhcMisc2 (stringTyVar)
+import Language.Haskell.Liquid.GhcMisc2 (eqTv, stringTyVar)
 import Data.List (isPrefixOf, isSuffixOf, find, foldl')
 
 --------------------------------------------------------------------
@@ -76,14 +75,18 @@ data RType p c tv pv r
   | ROth String
   deriving (Data, Typeable)
 
-class RefTypable a where
-  isList :: a -> Bool
-  ppCls  :: a -> SDoc
+class Reftable r where 
+  ppReft   :: r -> SDoc -> SDoc
+  ppReftPs :: [r] -> SDoc
 
---class RefTypable p c tv pv r where
---  isList    :: c -> Bool
---  pp_class :: p -> [RType p c tv pv r] -> SDoc
---  -- ppr_strip :: RType p c tv pv r -> SDoc
+class TyConable c where
+  isList   :: c -> Bool
+
+class (Outputable p, Outputable c, Outputable tv, Outputable pv, Reftable r, TyConable c) => RefTypable p c tv pv r where
+  ppCls    :: p -> [RType p c tv pv r] -> SDoc
+  
+  ppRType  :: Prec -> RType p c tv pv r -> SDoc 
+  ppRType = ppr_rtype 
 
 --------------------------------------------------------------------
 ---------------- Refinement Types: RefType -------------------------
@@ -141,9 +144,6 @@ nlzP ps (RAll (RP p) t)
   where (t', ps') = nlzP [] t
 nlzP ps t@(ROth _)
  = (t, ps)
-
-
-
 
 strengthenRefType :: RefType -> RefType -> RefType
 strengthenRefType t1 t2 
@@ -260,13 +260,32 @@ instance (Outputable tv, Outputable pv) => Outputable (Bind tv pv) where
 instance Show RBind where
   show = showPpr 
 
-instance RefTypable RefType where
-  isList (RApp c _ _ _) = rTyCon c == listTyCon 
-  isList _              = False
-  ppCls (RCls c ts)     = parens $ pprClassPred c (toType <$> ts)
+instance TyConable RTyCon where
+  isList c    = rTyCon c == listTyCon 
 
-instance Outputable RefType where
-  ppr = ppr_rtype TopPrec
+instance Reftable (Reft Sort) where
+  ppReft      = ppr_reft
+  ppReftPs    = ppr_reft_preds 
+
+instance (Outputable pv, Reftable r) => RefTypable Class RTyCon TyVar pv r where
+  ppCls c ts  = parens $ pprClassPred c (toType <$> ts)
+
+--instance RefTypable Class RTyCon TyVar (PVar Type) (Reft Sort) where
+--  ppCls c ts  = parens $ pprClassPred c (toType <$> ts)
+ 
+
+instance Outputable (PVar Type) where
+  ppr  = ppr_pvar (ppr . varUnique)
+
+ppr_pvar pprv (PV s (TyVarTy v) []) = ppr s <> colon <> ppr v <> pprv v
+ppr_pvar pprv (PV s t [])           = ppr s <> colon <> ppr t
+ppr_pvar pprv (PV s t xs)           = ppr ((PV s t [])) <+> (parens $ hsep (punctuate comma (pprArgs pprv <$> xs)))
+
+pprArgs pprv (TyVarTy v, x1, x2) = parens $ ppr x2 <> text " : " <> ppr v <> pprv v
+pprArgs _    (t        , x1, x2) = parens $ ppr t <> text " : " <> ppr x2
+
+instance (RefTypable p c tv pv r) => Outputable (RType p c tv pv r) where
+  ppr = ppRType TopPrec
 
 instance Outputable RTyCon where
   ppr (RTyCon c ts) = ppr c -- <+> text "\n<<" <+> hsep (map ppr ts) <+> text ">>\n"
@@ -274,6 +293,7 @@ instance Outputable RTyCon where
 instance Show RTyCon where
  show = showPpr
 
+ppr_rtype :: (RefTypable p c tv pv r) => Prec -> RType p c tv pv r -> SDoc
 ppr_rtype p (RAll pv@(RP _) t)
   = text "forall" <+> ppr pv <+> ppr_pred p t
 ppr_rtype p t@(RAll (RV _) _)       
@@ -283,41 +303,35 @@ ppr_rtype p (RVar a r)
 ppr_rtype p (RFun x t t')  
   = pprArrowChain p $ ppr_dbind x t : ppr_fun_tail t'
 ppr_rtype p ty@(RApp c [t] rs r)
-  | isList ty -- rTyCon c == listTyCon 
-  = ppReft r $ brackets (ppr_rtype p t) <> ppr_tycon_preds rs
+  | isList c 
+  = ppReft r $ brackets (ppr_rtype p t) <> ppReftPs rs
 ppr_rtype p (RApp c ts rs r)
-  = ppReft r $ ppr c <> ppr_tycon_preds rs <+> hsep (ppr_rtype p <$> ts)
+  = ppReft r $ ppr c <> ppReftPs rs <+> hsep (ppr_rtype p <$> ts)
 ppr_rtype _ ty@(RCls c ts)      
-  = ppCls ty -- parens $ pprClassPred c (toType <$> ts)
+  = ppCls c ts
 ppr_rtype _ (ROth s)
   = text "?" <> text s <> text "?"
 
+ppr_pred :: (RefTypable p c tv pv r) => Prec -> RType p c tv pv r -> SDoc
 ppr_pred p (RAll pv@(RP _) t)
   = ppr pv <> ppr_pred p t
 ppr_pred p t
   = dot <+> ppr_rtype p t
 
-ppr_class c ts 
-  = parens $ pprClassPred c (toType <$> ts)
-
-ppr_tycon_preds rs 
-  | all isTautoReft rs 
-  = empty
-  | otherwise 
-  = angleBrackets $ hsep $ punctuate comma $ ppReft_pred <$> rs
-  where trivialRefts (Reft (_, ras)) = all isTautoRa ras
-
+ppr_dbind :: (RefTypable p c tv pv r) => Bind tv pv -> RType p c tv pv r -> SDoc
 ppr_dbind b@(RB x) t 
   | isNonSymbol x 
   = ppr_rtype FunPrec t
   | otherwise
   = braces (ppr b) <> colon <> ppr_rtype FunPrec t
 
+ppr_fun_tail :: (RefTypable p c tv pv r) => RType p c tv pv r -> [SDoc]
 ppr_fun_tail (RFun b t t')  
   = (ppr_dbind b t) : (ppr_fun_tail t')
 ppr_fun_tail t
   = [ppr_rtype TopPrec t]
 
+ppr_forall :: (RefTypable p c tv pv r) => Prec -> RType p c tv pv r -> SDoc
 ppr_forall p t
   = maybeParen p FunPrec $ sep [ppr_foralls αs, ppr_rtype TopPrec t']
   where
@@ -327,18 +341,51 @@ ppr_forall p t
     ppr_foralls []      = empty
     ppr_foralls αs      = (text "forall") <+> sep (map ppr αs) <> dot
 
+-- UNIFY: Use Niki's code from PredType.hs (below) to improve Class Printing:
+-- Instead of   : C1 t -> C2 d -> [t] -> [d] -> Int
+-- Should print : (C1 t, C2 d) => [t] -> [d] -> Int
+
+--instance Outputable PrType where
+--  ppr t@(PrFun s t1 t2)   = ppr_fun t
+--  ppr (PrAll a t)         = text "forall" <+> ppr a <+> ppr_forall t
+--  ppr (PrAllPr p t)       = text "forall" <+> ppr p <+> ppr_forall t
+--  ppr (PrLit l p)         = ppr l <+> ppr p
+--  ppr (PrVar a p)         = ppr a <+>  ppr p
+--  ppr (PrTyCon c ts ps p) = ppr c <+> braces (hsep (map ppr ts)) <+> braces (hsep (map ppr ps)) <+> ppr p
+--  ppr (PrClass c ts)    = ppr c <+> (braces $ hsep (map ppr ts))
+--
+--ppr_forall (PrAll v t)   = ppr v <> ppr (varUnique v)<+> ppr_forall t
+--ppr_forall (PrAllPr p t) = ppr p <+> ppr_forall t
+--ppr_forall t             = dot  <> ppr t
+--
+--ppr_fun (PrFun s t1 t2)  = ppr_fun_l (s, t1) <+> ppr t2 
+--ppr_fun t                = ppr t
+--
+----brance x = char '[' <> ppr x <> char ']'
+--
+--ppr_fun_l (_, PrClass c ts) 
+--  = ppr c <+> (braces $ hsep (map ppr ts)) <+> text "=>"
+--ppr_fun_l (s, PrFun s1 t1 t2) 
+--  = ppr s <> char ':'
+--          <> (parens (ppr_fun_l (s1, t1) <> ppr t2)) 
+--		        <+> text "->"
+--ppr_fun_l (s, t) 
+--  = ppr s <> char ':' <> ppr t <+> text "->"
+
 
 ---------------------------------------------------------------
 --------------------------- Visitors --------------------------
 ---------------------------------------------------------------
 
 instance Functor (RType a b c d) where
-  fmap f (RVar α r)       = RVar α (f r)
-  fmap f (RAll a t)       = RAll a (fmap f t)
-  fmap f (RFun x t t')    = RFun x (fmap f t) (fmap f t')
-  fmap f (RApp c ts rs r) = RApp c (fmap (fmap f) ts) (f <$> rs) (f r)
-  fmap f (RCls c ts)      = RCls c (fmap (fmap f) ts)
-  fmap f (ROth a)         = ROth a 
+  fmap f = mapReft f
+
+  --fmap f (RVar α r)       = RVar α (f r)
+  --fmap f (RAll a t)       = RAll a (fmap f t)
+  --fmap f (RFun x t t')    = RFun x (fmap f t) (fmap f t')
+  --fmap f (RApp c ts rs r) = RApp c (fmap (fmap f) ts) (f <$> rs) (f r)
+  --fmap f (RCls c ts)      = RCls c (fmap (fmap f) ts)
+  --fmap f (ROth a)         = ROth a 
 
 subsTyVars_meet   = subsTyVars True
 subsTyVars_nomeet = subsTyVars False
@@ -375,6 +422,15 @@ subsFree meet s (α', t') t@(RVar (RV α) r)
   = t
 subsFree _ _ _ t@(ROth _)        
   = t
+
+subsTyVarsP ::  Functor f => [(Var, Type)] -> f Type -> f Type
+subsTyVarsP vts p = foldl' (flip subsTyVarP) p vts 
+  where subsTyVarP = fmap . tvSubst
+
+tvSubst (α, t) t'@(TyVarTy α') 
+  | eqTv α α' = t
+  | otherwise = t'
+
 
 
 ---------------------------------------------------------------
@@ -424,6 +480,20 @@ ofSynTyConApp (TyConApp c τs)
 -----------------------------------------------------------------
 ---------------------- Scrap this using SYB? --------------------
 -----------------------------------------------------------------
+
+mapReft f (RVar α r)       = RVar α (f r)
+mapReft f (RAll a t)       = RAll a (mapReft f t)
+mapReft f (RFun x t t')    = RFun x (mapReft f t) (mapReft f t')
+mapReft f (RApp c ts rs r) = RApp c (mapReft f <$> ts) (f <$> rs) (f r)
+mapReft f (RCls c ts)      = RCls c (mapReft f <$> ts) 
+mapReft f (ROth a)         = ROth a 
+
+mapRVar f (RVar b r)       = f b r 
+mapRVar f (RFun b t1 t2)   = RFun b (mapRVar f t1) (mapRVar f t2)
+mapRVar f (RAll b t)       = RAll b (mapRVar f t) 
+mapRVar f (RApp c ts rs r) = RApp c (mapRVar f <$> ts) rs r
+mapRVar f (RCls c ts)      = RCls c (mapRVar f <$> ts)
+mapRVar f (ROth s)         = ROth s
 
 mapTop ::  (RefType -> RefType) -> RefType -> RefType
 mapTop f t = 
@@ -558,7 +628,7 @@ dropModuleNames = last . words . (dotWhite <$>)
 ---------------------- Embedding RefTypes ---------------------
 ---------------------------------------------------------------
 
--- toType :: RType t -> Type
+toType ::  RType Class RTyCon TyVar a b -> Type
 toType (RFun _ t t')   
   = FunTy (toType t) (toType t')
 toType (RAll (RV α) t)      
