@@ -83,17 +83,19 @@ data DataDecl
   = D String [String] [PredicateB] [(String, [(String, PrTypeP)])] deriving Show
 
 
-ofBDataCon tyCon aps vs preds (c, xts)
+ofBDataCon tyCon aps vs pvs (c, xts)
  = do c' <- lookupGhcDataCon c
       ts' <- mapM (ofPType aps) ts
-      let t0 = PrTyCon tyCon (map ((flip PrVar) PdTrue) vs) (PdVar <$> preds) PdTrue
-      let t2 = foldl (\t' (x,t)-> PrFun x t t') t0 (zip xs' ts')
-      let t1 = foldl (flip PrAllPr) t2 preds
-      let t  = foldl (flip PrAll) t1 vs
-      return $ (c', DataConP vs preds (reverse (zip xs' ts')) t0) 
+      let tc = RTyCon tyCon []
+      let t0 = RApp tc [RVar (RV v) pdTrue | v <- vs] (pdVar <$> pvs) pdTrue
+      let t2 = foldl (\t' (x,t) -> RFun (RB x) t t') t0 (zip xs' ts')
+      let t1 = foldl (\t pv -> RAll (RP pv) t) t2 pvs 
+      let t  = foldl (\t v -> RAll (RV v) t) t1 vs
+      return $ (c', DataConP vs pvs (reverse (zip xs' ts')) t0) 
  where (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
- 
+
+
 
 
 
@@ -106,10 +108,8 @@ ofBDataDecl (D tyCon vars ps cts)
         ps' = map (ofBPredicate_ avs) ps
         preds = snd $ unzip ps'
 
-
-
 ofBPredicate _ (PBTrue) 
-  = PdTrue
+  = pdTrue
 ofBPredicate avs (PBAnd p1 p2) 
   = PdAnd (ofBPredicate avs p1) (ofBPredicate avs p2) 
 ofBPredicate avs (PBF s as xs) 
@@ -198,18 +198,6 @@ ofPType as (PrPredTyP s ts) =
   do c <- lookupGhcClass s 
      nts <- mapM (ofPType as) ts
      return $ PrClass c nts
-{-
-doParse specPr
-
-            | PrPredTyP String [PrTypeP]             
-            | PrTyConAppP String [PrTypeP] Predicate
-
-data PrType = PrPair (Predicate, Type)
-            | PrPredTy PredType              
-            | PrAppTy PrType PrType            
-            | PrForAllPr [Predicate] PrType       
-            | PrTyConApp TyCon [PrType] Predicate 
--}
 
 stringTyVar :: String -> TyVar
 stringTyVar s = mkTyVar name liftedTypeKind

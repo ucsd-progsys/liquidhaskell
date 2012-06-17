@@ -1,4 +1,4 @@
-{-# LANGUAGE NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, DeriveDataTypeable, ScopedTypeVariables  #-}
+{-# LANGUAGE MultiParamTypeClasses, NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, DeriveDataTypeable, ScopedTypeVariables  #-}
 
 {- Raw description of pure types (without dependencies on GHC), suitable for
  - parsing from raw strings, and functions for converting between bare types
@@ -87,13 +87,14 @@ import qualified Control.Exception as Ex
 
 type BareType = RType String String String () (Reft Sort)
 
-instance RefTypable BareType where
-  isList (RApp tc _ _ _) = tc == listConName 
-  isList _               = False
-  ppCls (RCls c ts)      = parens (text c <+> text "...")
+instance TyConable String where
+  isList = (listConName ==) 
+ 
+instance RefTypable String String String () (Reft Sort) where
+ ppCls c ts = parens (text c <+> text "...")
 
-instance Outputable BareType where
-  ppr = ppr_rtype TopPrec
+--instance Outputable BareType where
+--  ppr = ppr_rtype TopPrec
 
 instance Show BareType where
   show = showPpr

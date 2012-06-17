@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
 module Language.Haskell.Liquid.PredType (
     PrType, ofTypeP
-  , Predicate (..), pdAnd
+  , Predicate (..), pdAnd, pdVar, pdTrue
   , TyConP (..), DataConP (..)
   , PEnv (..), lookupPEnv, fromListPEnv, insertPEnv, emptyPEnv, mapPEnv
   , splitVsPs, typeAbsVsPs, splitArgsRes

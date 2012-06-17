@@ -1,10 +1,9 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleContexts, ScopedTypeVariables, NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, DeriveDataTypeable, RankNTypes, GADTs #-}
 
-
 {- Refinement Types Mirroring the GHC Type definition -}
 
 module Language.Haskell.Liquid.RefType (
-    RType (..), RTyCon(..), Reftable(..), RefTypable (..)
+    RType (..), RTyCon(..), TyConable (..), Reftable(..), RefTypable (..)
   , RefType (..), Bind (..), RBind
   , ppr_rtype, mapReft, mapRVar
   , ofType, toType
