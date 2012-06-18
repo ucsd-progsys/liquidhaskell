@@ -3,7 +3,7 @@
 {- Refinement Types Mirroring the GHC Type definition -}
 
 module Language.Haskell.Liquid.RefType (
-    RType (..), RRType (..)
+    RType (..), RRType (..), BRType (..)
   , RTyCon(..), TyConable (..), Reftable(..), RefTypable (..)
   , RefType (..), Bind (..), RBind
   , ppr_rtype, mapReft, mapRVar
@@ -75,12 +75,8 @@ data RType p c tv pv r
   | ROth String
   deriving (Data, Typeable)
 
-type BRType   = RType String String String () 
-
-type BareType = BRType (Reft Sort)
-type PrTypeP  = BRType (PVar String) 
-
-type RRType   = RType  Class RTyCon TyVar (PVar Type) 
+type BRType   = RType String String String (PVar String)  
+type RRType   = RType Class  RTyCon TyVar  (PVar Type) 
 type RefType  = RRType (Reft Sort)    
 
 class Reftable r where 

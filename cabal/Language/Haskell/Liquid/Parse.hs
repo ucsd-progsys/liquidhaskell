@@ -25,7 +25,7 @@ import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Language.Haskell.Liquid.Bare
-import Language.Haskell.Liquid.BarePredicate
+-- import Language.Haskell.Liquid.BarePredicate
 
 --------------------------------------------------------------------
 

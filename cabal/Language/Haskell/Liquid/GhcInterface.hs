@@ -54,7 +54,7 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Bare
-import Language.Haskell.Liquid.BarePredicate hiding (wiredIn)
+-- import Language.Haskell.Liquid.BarePredicate hiding (wiredIn)
 import Language.Haskell.Liquid.PredType
 
 import qualified Language.Haskell.Liquid.Measure as Ms
@@ -181,7 +181,7 @@ modulePred mg paths  impVars
        env    <- getSession
 --       ----setContext [mod] []
        setContext [IIModule mod]
-       xts <- liftIO $ mkPredType env myspec
+       xts <- liftIO $ mkPredTypes env myspec
 --       liftIO  $ putStrLn $ "Module Imports: " ++ show xts
        return  $ xts
     where mod      = mg_module mg

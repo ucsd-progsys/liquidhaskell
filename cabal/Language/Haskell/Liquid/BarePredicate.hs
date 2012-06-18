@@ -59,59 +59,6 @@ import Language.Haskell.Liquid.Misc
 import qualified Control.Exception as Ex
 import Language.Haskell.Liquid.PredType
 
---data PredicateB = PBF String String [(String, String)] -- DECLARATION?
---                | PB String [String]                   -- USE?
---                | PBTrue                               
---                | PBAnd PredicateB PredicateB 
---                deriving (Eq, Show)
---
---data PrTypeP = PrPairP (PredicateB, String)            
---               -- RVar (RV a) p
---             | PrPredTyP String [PrTypeP]              
---               -- RCls c ts
---             | PrAppTyP String PrTypeP PrTypeP         
---               -- RFun x t t'
---             | PrForAllPrP [PredicateB] PrTypeP        
---               -- RAll (RP ...) t
---             | PrForAllTyP String PrTypeP              
---               -- RAll (RV ...) t
---             | PrTyConAppP String [PrTypeP] [PredicateB] PredicateB 
---               -- RApp (RTyCon c []) ts ps p
---             | PrLstP PrTypeP
---               -- RApp (RTyCon listTyCon []) [t] [] pdTrue
---             | PrIntP PredicateB
---               -- RApp (RTyCon intTyCon []) [] [] p
---             | PrTupP [PrTypeP]
---               deriving Show
-
-data PrTypeP = RType String String String (PVar String) 
-
-type PrTypeP  = BRType (PVar String) 
-
-data DataDecl 
-  = D String [String] [PredicateB] [(String, [(String, PrTypeP)])] deriving Show
-
-
-ofBDataCon tyCon aps vs pvs (c, xts)
- = do c' <- lookupGhcDataCon c
-      ts' <- mapM (ofPType aps) ts
-      let tc = RTyCon tyCon []
-      let t0 = RApp tc [RVar (RV v) pdTrue | v <- vs] (pdVar <$> pvs) pdTrue
-      let t2 = foldl (\t' (x,t) -> RFun (RB x) t t') t0 (zip xs' ts')
-      let t1 = foldl (\t pv -> RAll (RP pv) t) t2 pvs 
-      let t  = foldl (\t v -> RAll (RV v) t) t1 vs
-      return $ (c', DataConP vs pvs (reverse (zip xs' ts')) t0) 
- where (xs, ts) = unzip xts
-       xs'      = map stringSymbol xs
-
-ofBDataDecl (D tyCon vars ps cts)
-  = do c <- lookupGhcTyCon tyCon 
-       cs <- mapM (ofBDataCon c (avs, ps') vs preds) cts
-       return $ ((c, TyConP vs preds), cs)
- where  vs = map stringTyVar vars
-        avs = zip vars vs
-        ps' = map (ofBPredicate_ avs) ps
-        preds = snd $ unzip ps'
 
 ofBPredicate :: ([(String, Var)], [(String, PVar Type)]) -> PredicateB -> Predicate Type
 ofBPredicate _ (PBTrue) 
@@ -123,51 +70,47 @@ ofBPredicate avs (PBF s as xs)
                , ptype = f as
                , pargs = map (ofArgsD (fst avs)) xs
                }
-  where f v = let v':_ = [v | (a, v) <- fst avs, a==s ] in TyVarTy v'
+  where f v = let v':_ = [v | (a, v) <- fst avs, a == s ] in TyVarTy v'
+
 ofBPredicate avs (PB s xs) 
   = pdVar $ PV { pname = stringSymbol s
                , ptype = ptype f 
                , pargs = args
                }
   where f = head [ v | (a, v) <- snd avs, a==s]
-        args = zipWith (\(t, x1, _) x-> (t, x1, stringSymbol x))(pargs f) xs
+        args = zipWith (\(t, x1, _) x -> (t, x1, stringSymbol x)) (pargs f) xs
 
-wiredIn :: M.Map String Name
-wiredIn = M.fromList $
-  [ ("GHC.Integer.smallInteger" , smallIntegerName) 
-  , ("GHC.Num.fromInteger", fromIntegerName)
-  , ("GHC.Types.I#" , dataConName intDataCon)
-  , ("GHC.Prim.Int#", TC.tyConName intPrimTyCon) ]
-
-mkConTypes env dcs = runReaderT mkCon env
-  where mkCon = forM dcs ofBDataDecl
 
 mkPredType env xbs = runReaderT mkPred env
   where mkPred = forM xbs $ \(x, b) -> liftM2 (,) (lookupGhcId (symbolString x)) (mkPType b)
 
 mkPType =  ofPType ([], [])
 
-ofArgsD vs (x, va) = (TyVarTy t, x', x')
-  where t:_ = [vt| (a, vt) <- vs, a==va]
-        x'  = stringSymbol x
+ofArgsD (x, a) = (TyVarTy α, x', x')
+  where α  = stringTyVar a
+        x' = stringSymbol x
+
+--ofArgsD vs (x, va) = (TyVarTy t, x', x')
+--  where t:_ = [vt| (a, vt) <- vs, a == va]
+--        x'  = stringSymbol x
 
 ofBPredicate_ vs (PBF x va xs)
   = (x, PV { pname = stringSymbol x
            , ptype = TyVarTy t
            , pargs = map (ofArgsD vs) xs
            })
-  where t:_ = [vt| (a, vt) <- vs, a==va]
+  where t:_ = [ vt | (a, vt) <- vs, a == va ]
 
---ofPType :: ([(String, TyVar)], [(String, Predicate)]) ->PrTypeP -> m PrType
+--ofPType :: ([(String, TyVar)], [(String, Predicate)]) -> PrTypeP -> m PrType
 ofPType (as, ps) (PrForAllTyP a t) = 
    let v = stringTyVar a
    in do nt <- ofPType ((a, v):as, ps) t 
          return $ RAll (RV v) nt
 
-ofPType (vs, ps) (PrForAllPrP pst t) = 
-   do nt <- ofPType (vs, ps ++ ps') t
+ofPType (as, ps) (PrForAllPrP pst t) = 
+   do nt <- ofPType (as, ps ++ ps') t
       return $ foldl (\t pv -> RAll (RP pv) t) nt (snd $ unzip ps') 
-  where ps' = map (ofBPredicate_ vs) pst
+  where ps' = map (ofBPredicate_ as) pst
 
 ofPType as (PrAppTyP x t1 t2) = 
    do  nt1 <- ofPType as t1                    
@@ -180,7 +123,7 @@ ofPType as (PrPairP (p, s)) =
 
 ofPType as (PrLstP t) =
    do nt <- ofPType as t
-      return $  RApp (RTyCon listTyCon []) [nt] [] pdTrue
+      return $ RApp (RTyCon listTyCon []) [nt] [] pdTrue
 
 ofPType as (PrIntP p) 
   = return $ RApp (RTyCon intTyCon []) [] [] (ofBPredicate as p)
@@ -203,66 +146,70 @@ ofPType as (PrPredTyP s ts) =
      nts <- mapM (ofPType as) ts
      return $ RCls c nts
 
-stringTyVar :: String -> TyVar
-stringTyVar s = mkTyVar name liftedTypeKind
-  where name = mkInternalName initTyVarUnique occ noSrcSpan 
-        occ  = mkTyVarOcc s
-
+--stringTyVar :: String -> TyVar
+--stringTyVar s = mkTyVar name liftedTypeKind
+--  where name = mkInternalName initTyVarUnique occ noSrcSpan 
+--        occ  = mkTyVarOcc s
 
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
 -----------------------------------------------------------------
 
-class Outputable a => GhcLookup a where
-  lookupName :: HscEnv -> a -> IO Name
-
-instance GhcLookup String where
-  lookupName = stringToName
-
-instance GhcLookup Name where
-  lookupName _  = return
-
---lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> b
-lookupGhcThing name f x 
-  = do env     <- ask
-       (_,res) <- liftIO $ tcRnLookupName env =<< lookupName env x
-       case f `fmap` res of
-         Just (Just z) -> 
-           return z
-         _      -> 
-           liftIO $ ioError $ userError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
-
-lookupGhcTyCon = lookupGhcThing "TyCon" ftc 
-  where ftc (ATyCon x) = Just x
-        ftc _          = Nothing
-
-lookupGhcClass = lookupGhcThing "Class" ftc 
-  where ftc (ATyCon x) = tyConClass_maybe x
-        ftc _          = Nothing
-
-lookupGhcDataCon = lookupGhcThing "DataCon" fdc 
-  where fdc (ADataCon x) = Just x
-        fdc _            = Nothing
-
-lookupGhcId s 
-  = lookupGhcThing "Id" fid s
-  where fid (AnId x)     = Just x
-        fid (ADataCon x) = Just $ dataConWorkId x
-        fid _            = Nothing
-
-stringToName :: HscEnv -> String -> IO Name
-stringToName env k 
-  = case M.lookup k wiredIn of 
-      Just n  -> return n
-      Nothing -> stringToNameEnv env k
-
-stringToNameEnv :: HscEnv -> String -> IO Name
-stringToNameEnv env s 
-    = do L _ rn         <- hscParseIdentifier env s
-         (_, lookupres) <- tcRnLookupRdrName env rn
-         case lookupres of
-           Just (n:_) -> return n
-           _          -> error $ "PredBare.lookupName cannot find name for: " ++ s
-
-
+--class Outputable a => GhcLookup a where
+--  lookupName :: HscEnv -> a -> IO Name
+--
+--instance GhcLookup String where
+--  lookupName = stringToName
+--
+--instance GhcLookup Name where
+--  lookupName _  = return
+--
+----lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> b
+--lookupGhcThing name f x 
+--  = do env     <- ask
+--       (_,res) <- liftIO $ tcRnLookupName env =<< lookupName env x
+--       case f `fmap` res of
+--         Just (Just z) -> 
+--           return z
+--         _      -> 
+--           liftIO $ ioError $ userError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
+--
+--lookupGhcTyCon = lookupGhcThing "TyCon" ftc 
+--  where ftc (ATyCon x) = Just x
+--        ftc _          = Nothing
+--
+--lookupGhcClass = lookupGhcThing "Class" ftc 
+--  where ftc (ATyCon x) = tyConClass_maybe x
+--        ftc _          = Nothing
+--
+--lookupGhcDataCon = lookupGhcThing "DataCon" fdc 
+--  where fdc (ADataCon x) = Just x
+--        fdc _            = Nothing
+--
+--lookupGhcId s 
+--  = lookupGhcThing "Id" fid s
+--  where fid (AnId x)     = Just x
+--        fid (ADataCon x) = Just $ dataConWorkId x
+--        fid _            = Nothing
+--
+--wiredIn :: M.Map String Name
+--wiredIn = M.fromList $
+--  [ ("GHC.Integer.smallInteger" , smallIntegerName) 
+--  , ("GHC.Num.fromInteger", fromIntegerName)
+--  , ("GHC.Types.I#" , dataConName intDataCon)
+--  , ("GHC.Prim.Int#", TC.tyConName intPrimTyCon) ]
+--
+--stringToName :: HscEnv -> String -> IO Name
+--stringToName env k 
+--  = case M.lookup k wiredIn of 
+--      Just n  -> return n
+--      Nothing -> stringToNameEnv env k
+--
+--stringToNameEnv :: HscEnv -> String -> IO Name
+--stringToNameEnv env s 
+--    = do L _ rn         <- hscParseIdentifier env s
+--         (_, lookupres) <- tcRnLookupRdrName env rn
+--         case lookupres of
+--           Just (n:_) -> return n
+--           _          -> error $ "PredBare.lookupName cannot find name for: " ++ s
