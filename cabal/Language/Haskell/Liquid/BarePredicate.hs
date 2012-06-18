@@ -2,7 +2,7 @@
 module Language.Haskell.Liquid.BarePredicate where
 
 import CoreSyn
-import Data.HashTable as HT
+-- import Data.HashTable as HT
 
 import Type 
 import Literal
@@ -59,23 +59,34 @@ import Language.Haskell.Liquid.Misc
 import qualified Control.Exception as Ex
 import Language.Haskell.Liquid.PredType
 
-data PredicateB = PBF String String [(String, String)]
-                | PB String [String]
-                | PBTrue
-                | PBAnd PredicateB PredicateB 
-                deriving (Eq, Show)
+--data PredicateB = PBF String String [(String, String)] -- DECLARATION?
+--                | PB String [String]                   -- USE?
+--                | PBTrue                               
+--                | PBAnd PredicateB PredicateB 
+--                deriving (Eq, Show)
+--
+--data PrTypeP = PrPairP (PredicateB, String)            
+--               -- RVar (RV a) p
+--             | PrPredTyP String [PrTypeP]              
+--               -- RCls c ts
+--             | PrAppTyP String PrTypeP PrTypeP         
+--               -- RFun x t t'
+--             | PrForAllPrP [PredicateB] PrTypeP        
+--               -- RAll (RP ...) t
+--             | PrForAllTyP String PrTypeP              
+--               -- RAll (RV ...) t
+--             | PrTyConAppP String [PrTypeP] [PredicateB] PredicateB 
+--               -- RApp (RTyCon c []) ts ps p
+--             | PrLstP PrTypeP
+--               -- RApp (RTyCon listTyCon []) [t] [] pdTrue
+--             | PrIntP PredicateB
+--               -- RApp (RTyCon intTyCon []) [] [] p
+--             | PrTupP [PrTypeP]
+--               deriving Show
 
-data PrTypeP = PrPairP (PredicateB, String)
-            | PrPredTyP String [PrTypeP]             
-            | PrAppTyP String PrTypeP PrTypeP            
-            | PrForAllPrP [PredicateB] PrTypeP       
-            | PrForAllTyP String PrTypeP             
-            | PrTyConAppP String [PrTypeP] [PredicateB] PredicateB
-            | PrLstP PrTypeP
-            | PrIntP PredicateB
-            | PrTupP [PrTypeP]
-              deriving Show
+data PrTypeP = RType String String String (PVar String) 
 
+type PrTypeP  = BRType (PVar String) 
 
 data DataDecl 
   = D String [String] [PredicateB] [(String, [(String, PrTypeP)])] deriving Show
@@ -93,10 +104,6 @@ ofBDataCon tyCon aps vs pvs (c, xts)
  where (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
 
-
-
-
-
 ofBDataDecl (D tyCon vars ps cts)
   = do c <- lookupGhcTyCon tyCon 
        cs <- mapM (ofBDataCon c (avs, ps') vs preds) cts
@@ -106,6 +113,7 @@ ofBDataDecl (D tyCon vars ps cts)
         ps' = map (ofBPredicate_ avs) ps
         preds = snd $ unzip ps'
 
+ofBPredicate :: ([(String, Var)], [(String, PVar Type)]) -> PredicateB -> Predicate Type
 ofBPredicate _ (PBTrue) 
   = pdTrue
 ofBPredicate avs (PBAnd p1 p2) 
@@ -130,8 +138,6 @@ wiredIn = M.fromList $
   , ("GHC.Num.fromInteger", fromIntegerName)
   , ("GHC.Types.I#" , dataConName intDataCon)
   , ("GHC.Prim.Int#", TC.tyConName intPrimTyCon) ]
- 
-
 
 mkConTypes env dcs = runReaderT mkCon env
   where mkCon = forM dcs ofBDataDecl

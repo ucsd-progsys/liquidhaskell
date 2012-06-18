@@ -65,12 +65,13 @@ class SubstP a where
 --      	  | PrAll   !TyVar     !(PrTy a)
 --      	  | PrAllPr !(PVar a)  !(PrTy a)
 --            | PrClass !Class     ![PrTy a]
---      		| PrFun   !Symbol    !(PrTy a)   !(PrTy a)
+--      	 PrFun   !Symbol    !(PrTy a)   !(PrTy a)
 --      		| PrTyCon !TC.TyCon  ![PrTy a]   ![(Predicate a)] !(Predicate a)
 --            deriving (Data, Typeable)
 -- type PrType = PrTy Type
 
-type PrType = RType Class RTyCon TyVar (PVar Type) (Predicate Type) 
+
+type PrType   = RRType (Predicate Type) 
 
 data TyConP = TyConP { freeTyVarsTy :: ![TyVar]
                      , freePredTy   :: ![(PVar Type)]
@@ -169,11 +170,7 @@ freePreds (RCls _ ts)      = foldl' (\z t -> S.union z (freePreds t)) S.empty ts
 freePreds (RFun _ t1 t2)   = S.union (freePreds t1) (freePreds t2)
 freePreds (RApp _ ts ps p) = unions ((S.fromList (concatMap pvars (p:ps))) : (freePreds <$> ts))
 
-
 --freePreds (PrLit _ p)    = S.fromList $ pvars p
-
-
-
 --normalizeP (PdVar pv)    = [pv]
 --normalizeP (PdAnd p1 p2) = normalizeP p1 ++ normalizeP p2
 --normalizeP _             = []

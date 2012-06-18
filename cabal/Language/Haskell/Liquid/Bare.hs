@@ -85,7 +85,7 @@ import qualified Control.Exception as Ex
 -- show ts                   = undefined
 -- type BareType = BType String (Reft Sort) 
 
-type BareType = RType String String String () (Reft Sort)
+type BareType = BRType (Reft Sort)
 
 instance TyConable String where
   isList = (listConName ==) 
@@ -274,7 +274,9 @@ getClass t
 
 type BareM a = ReaderT HscEnv IO a
 
-ofBareType :: BareType -> BareM RefType
+-- ofBareType :: BareType -> BareM RefType
+-- ofBareType :: RType String String String t r -> BareM (RType Class RTyCon TyVar pv r)
+
 ofBareType (RVar (RV a) r) 
   = return $ RVar (stringRTyVar a) r
 ofBareType (RFun (RB x) t1 t2) 
@@ -328,4 +330,7 @@ mkMeasureSort (Ms.MSpec cm mm)
       liftM (\s' -> m {Ms.sort = s'}) (ofBareType (Ms.sort m))
 
 
+--------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------
 
