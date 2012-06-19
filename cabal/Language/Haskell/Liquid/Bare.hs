@@ -5,7 +5,7 @@
  - and real refinements. -}
 
 module Language.Haskell.Liquid.Bare (
-    BareType (..), DataDecl (..)
+    DataDecl (..)
   , bLst, bTup, bCon, isBoolBareType
   , getClasses
   , mkRefTypes
@@ -71,31 +71,19 @@ import qualified Control.Exception as Ex
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
 
-type BareType = BRType (PVar String) (Reft Sort)
-
 instance TyConable String where
   isList  = (listConName ==) 
   isTuple = (tupConName ==)
 
---instance Reftable PredicateB where
---  ppReft = ppr
---instance Outputable BareType where
---  ppr = ppr_rtype TopPrec
-
-instance (Outputable pv, Reftable r) => RefTypable String String String pv r {- (Reft Sort) -} where
+instance (Outputable pv, Reftable r) => RefTypable String String String pv r where
   ppCls c ts = parens (text c <+> text "...")
 
---instance Show BareType where
---  show = showPpr
-
-mkRefTypes :: HscEnv -> [BRType a (Reft Sort)] -> IO [RRType a (Reft Sort)]
+mkRefTypes :: HscEnv -> [BRType a Reft] -> IO [RRType a Reft]
 mkRefTypes env bs = runReaderT (mapM mkRefType bs) env
 
 mkRefType = liftM canonRefType . ofBareType
                         
--- mkMeasureSpec :: HscEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
-
-mkMeasureSpec :: HscEnv-> Ms.MSpec (BRType (PVar Type) (Reft Sort)) Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
+mkMeasureSpec :: HscEnv-> Ms.MSpec (BRType (PVar Type) Reft) Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
 mkMeasureSpec env m = runReaderT mkSpec env
   where mkSpec = mkMeasureSort m >>= mkMeasureDCon >>= return . Ms.dataConTypes
 
@@ -285,7 +273,6 @@ ofBareType (RCls c ts)
   = liftM2 RCls (lookupGhcClass c) (mapM ofBareType ts)
 
 -- TODO: move back to RefType
--- bareTCApp :: Reft -> [Reft] -> TyCon -> [RefType] -> RefType 
 bareTCApp r rs c ts 
   = RApp (RTyCon c []) ts rs r
 

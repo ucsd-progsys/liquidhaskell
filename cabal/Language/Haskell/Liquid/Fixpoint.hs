@@ -8,7 +8,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , anfPrefix, tempPrefix
   , intKvar
   , Sort (..), Symbol(..), Loc (..), Constant (..), Bop (..), Brel (..), Expr (..)
-  , PVar (..), Pred (..), Refa (..), SortedReft (..), Reft(..), Envt
+  , Pred (..), Refa (..), SortedReft (..), Reft(..), Envt
   , SubC (..), WfC(..), FixResult (..), FixSolution, FInfo (..)
   , emptyFEnv, fromListFEnv, insertFEnv, deleteFEnv
   , vv
@@ -120,7 +120,7 @@ replaceSorts (p, Reft(_, rs)) (Reft(v, ls))
 
 replaceSort (p, k) (Reft(v, ls)) = Reft (v, (concatMap (replaceS (p, [k])) ls))
 
-replaceS :: (Refa a, [Refa a]) -> Refa a -> [Refa a] 
+-- replaceS :: (Refa a, [Refa a]) -> Refa a -> [Refa a] 
 replaceS ((RKvar (S n) (Su s)), k) (RKvar (S n') (Su s')) 
   | n == n'
   = map (addSubs (Su s')) k -- [RKvar (S m) (Su (s `M.union` s1 `M.union` s'))]
@@ -243,7 +243,7 @@ instance Show Symbol where
 newtype Subst  = Su (M.Map Symbol Expr) 
                  deriving (Eq, Ord, Data, Typeable)
 
-instance (Show a) => Outputable (Refa a) where
+instance Outputable Refa where
   ppr  = text . show
 
 instance Outputable Expr where
@@ -269,7 +269,7 @@ stringSymbol :: String -> Symbol
 -- stringSymbol s = traceShow ("stringSymbol s = " ++ s) $ stringSymbol' s
 stringSymbol s
   | isFixSym' s = S s 
-  | otherwise  = S $ fixSymPrefix ++ concatMap encodeChar s
+  | otherwise   = S $ fixSymPrefix ++ concatMap encodeChar s
 
 -- symbolString (S z) = traceShow ("symbolString z = %s: " ++ z) $ symbolString' (S z)
 symbolString :: Symbol -> String
@@ -483,37 +483,23 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
 ----------------- Refinements and Environments  ---------------
 ---------------------------------------------------------------
 
-data PVar t
-  = PV { pname :: !Symbol
-       , ptype :: !t
-       , pargs :: ![(t, Symbol, Symbol)]
-       }
-	deriving (Data, Typeable, Show)
-
-instance Eq (PVar t) where
-  pv == pv' = (pname pv == pname pv') {- UNIFY: What about: && eqArgs pv pv' -}
-
-instance Ord (PVar t) where
-  compare (PV n _ _)  (PV n' _ _) = compare n n'
-
-data Refa t 
+data Refa 
   = RConc !Pred 
   | RKvar !Symbol !Subst
-  | RPvar !(PVar t) -- !Subst: UNIFY: pushed inside PVar 
   deriving (Eq, Ord, Data, Typeable, Show)
 
-data Reft t 
-  = Reft (Symbol, [Refa t]) 
+data Reft  -- t 
+  = Reft (Symbol, [Refa]) 
   deriving (Eq, Ord, Data, Typeable) 
 
-instance (Show a) => Show (Reft a) where
+instance Show Reft where
   show (Reft x) = showSDoc $ toFix x 
 
-instance (Show a) => Outputable (Reft a) where
+instance Outputable Reft where
   ppr = text . show
 
 data SortedReft
-  = RR !Sort !(Reft Sort)
+  = RR !Sort !Reft
   deriving (Eq, Ord, Data, Typeable) 
 
 isNonTrivialSortedReft (RR _ (Reft (_, ras)))
@@ -526,10 +512,7 @@ meet (Reft (v, ras)) (Reft (v', ras'))
 newtype Envt = Envt (M.Map Symbol SortedReft) 
                deriving (Eq, Ord, Data, Typeable) 
  
-instance Functor PVar where
-  fmap f (PV x t txys) = PV x (f t) (mapFst3 f <$> txys)
-
-instance Fixpoint (Refa a) where
+instance Fixpoint Refa where
   toFix (RConc p)    = toFix p
   toFix (RKvar k su) = toFix k <> toFix su
 
@@ -653,9 +636,6 @@ class Subable a where
   subst1 :: a -> (Symbol, Expr) -> a
   subst1 thing (x, e) = subst (Su $ M.singleton x e) thing
 
-instance Subable (PVar a) where
-  subst su (PV p t args) = PV p t $ [(t, x, subst su y) | (t, x, y) <- args]
-
 instance Subable Symbol where
   subst (Su s) x           = subSymbol (M.lookup x s) x
 
@@ -682,11 +662,9 @@ instance Subable Pred where
   subst su p@(PAll _ _)    = errorstar $ "subst: FORALL" 
   subst su p               = p
 
-instance Subable (Refa a) where
+instance Subable Refa where
   subst su (RConc p)     = RConc   $ subst su p
   subst su (RKvar k su') = RKvar k $ su' `catSubst` su 
-  subst su (RPvar pv)    = RPvar   $ subst su pv
-
 
 instance (Subable a, Subable b) => Subable (a,b) where
   subst su (x,y) = (subst su x, subst su y)
@@ -697,7 +675,7 @@ instance Subable a => Subable [a] where
 instance Subable a => Subable (M.Map k a) where
   subst su = M.map $ subst su
 
-instance Subable (Reft a) where
+instance Subable Reft where
   subst su (Reft (v, ras)) = Reft (v, subst su ras)
 
 instance Subable SortedReft where
@@ -730,16 +708,12 @@ canonReft r@(Reft (v, ras))
   | v == vv    = r 
   | otherwise = Reft (vv, ras `subst1` (v, EVar vv))
 
-flattenRefas ::  [Refa Sort] -> [Refa Sort]
+flattenRefas ::  [Refa] -> [Refa]
 flattenRefas = concatMap flatRa
   where flatRa (RConc p) = RConc <$> flatP p
         flatRa ra        = [ra]
         flatP  (PAnd ps) = concatMap flatP ps
         flatP  p         = [p]
-
--- symbolStr (S x) = x
-
-
 
 ----------------------------------------------------------------
 ---------------------- Strictness ------------------------------
@@ -795,15 +769,11 @@ instance NFData Pred where
   rnf (PAtom x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
   rnf (_)              = ()
 
-instance (NFData a) => NFData (PVar a) where
-  rnf (PV n t txys) = rnf n `seq` rnf t `seq` rnf txys
-
-instance (NFData a) => NFData (Refa a) where
+instance NFData Refa where
   rnf (RConc x)     = rnf x
   rnf (RKvar x1 x2) = rnf x1 `seq` rnf x2
-  rnf (RPvar x1)    = rnf x1
 
-instance (NFData a) => NFData (Reft a) where 
+instance NFData Reft where 
   rnf (Reft (v, ras)) = rnf v `seq` rnf ras
 
 instance NFData SortedReft where 
@@ -820,15 +790,11 @@ instance (NFData a) => NFData (WfC a) where
 class MapSymbol a where
   mapSymbol :: (Symbol -> Symbol) -> a -> a
 
-instance MapSymbol (PVar a) where 
-  mapSymbol f (PV p t args) = PV (f p) t [(t, x, f y) | (t, x, y) <- args]
-
-instance MapSymbol (Refa a) where
+instance MapSymbol Refa where
   mapSymbol f (RConc p)    = RConc (mapSymbol f p)
   mapSymbol f (RKvar s su) = RKvar (f s) su
-  mapSymbol f (RPvar p)    = RPvar (mapSymbol f p)
 
-instance MapSymbol (Reft a) where
+instance MapSymbol Reft where
   mapSymbol f (Reft(s, rs)) = Reft(f s, map (mapSymbol f) rs)
 
 instance MapSymbol Pred where

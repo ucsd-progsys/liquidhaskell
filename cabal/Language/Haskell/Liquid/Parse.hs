@@ -289,7 +289,7 @@ refP kindP
       ras <- refasP 
       return $ t (Reft (v, ras))
 
-refasP :: Parser [Refa Sort]
+refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
        <|> liftM ((:[]) . RConc) predP
 
@@ -613,7 +613,7 @@ instance Inputable Pred where
 instance Inputable Expr where
   rr' = doParse' exprP 
 
-instance Inputable [Refa Sort] where
+instance Inputable [Refa] where
   rr' = doParse' refasP
 
 instance Inputable (FixResult Integer) where
@@ -622,13 +622,13 @@ instance Inputable (FixResult Integer) where
 instance Inputable (FixResult Integer, FixSolution) where
   rr' = doParse' solutionFileP 
 
-instance (Outputable a) => Inputable (BRType a (Reft Sort)) where
+instance (Outputable a) => Inputable (BRType a Reft) where
   rr' = doParse' bareTypeP 
 
-instance (Outputable a) => Inputable (Measure.Measure (BRType a (Reft Sort)) Symbol) where
+instance (Outputable a) => Inputable (Measure.Measure (BRType a Reft) Symbol) where
   rr' = doParse' measureP
 
-instance (Outputable a) => Inputable (Measure.Spec (BRType a (Reft Sort)) Symbol) where
+instance (Outputable a) => Inputable (Measure.Spec (BRType a Reft) Symbol) where
   rr' = doParse' specificationP
 
 
@@ -677,8 +677,8 @@ s20 = "forall a . x:Int -> Bool"
 s21 = "x:{v : GHC.Prim.Int# | true } -> {v : Int | true }" 
 
 r0  = (rr s0) :: Pred
-r0' = (rr s0) :: [Refa Sort]
-r1  = (rr s1) :: [Refa Sort]
+r0' = (rr s0) :: [Refa]
+r1  = (rr s1) :: [Refa]
 
 
 e1, e2  :: Expr  

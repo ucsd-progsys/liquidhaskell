@@ -5,7 +5,8 @@
 module Language.Haskell.Liquid.RefType (
     RType (..), RRType (..), BRType (..)
   , RTyCon(..), TyConable (..), Reftable(..), RefTypable (..)
-  , RefType (..), Bind (..), RBind
+  , RefType (..), BareType (..), RedType (..)
+  , Bind (..), RBind, PVar (..)
   , ppr_rtype, mapReft, mapRVar, mapBind
   , ofType, toType
   , rTyVar, rTyVarSymbol, rVar
@@ -62,7 +63,32 @@ import Data.List (isPrefixOf, isSuffixOf, find, foldl')
 ------------------ Generic Type Representation ---------------------
 --------------------------------------------------------------------
 
--- data RBind = RB Symbol | RV TyVar | RP (PVar Type)
+data PVar t
+  = PV { pname :: !Symbol
+       , ptype :: !t
+       , pargs :: ![(t, Symbol, Symbol)]
+       }
+	deriving (Data, Typeable, Show)
+
+instance Eq (PVar t) where
+  pv == pv' = (pname pv == pname pv') {- UNIFY: What about: && eqArgs pv pv' -}
+
+instance Ord (PVar t) where
+  compare (PV n _ _)  (PV n' _ _) = compare n n'
+
+instance Functor PVar where
+  fmap f (PV x t txys) = PV x (f t) (mapFst3 f <$> txys)
+
+instance (NFData a) => NFData (PVar a) where
+  rnf (PV n t txys) = rnf n `seq` rnf t `seq` rnf txys
+
+--instance Subable (PVar a) where
+--  subst su (PV p t args) = PV p t $ [(t, x, subst su y) | (t, x, y) <- args]
+--
+--instance MapSymbol (PVar a) where 
+--  mapSymbol f (PV p t args) = PV (f p) t [(t, x, f y) | (t, x, y) <- args]
+
+
 data Bind tv pv = RB Symbol | RV tv | RP pv 
   deriving (Data, Typeable)
 
@@ -78,9 +104,9 @@ data RType p c tv pv r
 type BRType   = RType String String String   
 type RRType   = RType Class  RTyCon TyVar   
 
-type RefType  = RRType (PVar Type) (Reft Sort)    
-type BareType = BRType (PVar String) (Reft Sort)
-type RedType  = RRType (Empty) (Reft Sort)
+type RefType  = RRType (PVar Type) Reft 
+type BareType = BRType (PVar String) Reft 
+type RedType  = RRType (Empty) Reft
 
 class Reftable r where 
   ppReft   :: r -> SDoc -> SDoc
@@ -178,13 +204,11 @@ strengthenRefType_ (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
 strengthenRefType_ t1 _ 
   = t1
 
--- strengthen  :: RefType -> Reft Sort -> RefType
 strengthen (RApp c ts rs r) r' = RApp c ts rs (r `meet` r') 
 strengthen (RVar a r) r'       = RVar a      (r `meet` r') 
 strengthen t _                 = t 
 
 
--- replaceReft  :: RefType -> Reft Sort -> RefType
 replaceReft (RApp c ts rs _) r' = RApp c ts rs r' 
 replaceReft (RVar a _) r'      = RVar a      r' 
 replaceReft t _                = t 
@@ -271,7 +295,7 @@ instance TyConable RTyCon where
   isList  = (listTyCon ==) . rTyCon
   isTuple = TC.isTupleTyCon   . rTyCon 
 
-instance Reftable (Reft Sort) where
+instance Reftable Reft where
   ppReft      = ppr_reft
   ppReftPs    = ppr_reft_preds 
 

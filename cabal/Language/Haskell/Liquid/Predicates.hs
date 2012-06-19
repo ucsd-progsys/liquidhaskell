@@ -1,8 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables, NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, DeriveDataTypeable, BangPatterns #-}
 module Language.Haskell.Liquid.Predicates (
-		  predType
-		, generatePredicates
-		) where
+    -- predType, 
+    generatePredicates
+  ) where
 
 import Type
 import Var
@@ -64,7 +64,7 @@ data PCGEnv
 
 data PInfo 
   = PInfo { freshIndex :: !Integer
-          , pMap       :: !(M.Map (F.PVar Type) (Predicate Type))
+          , pMap       :: !(M.Map (PVar Type) (Predicate Type))
           , hsCsP      :: ![SubC]
           , tyCons     :: !(M.Map TyCon TyConP)
           , symbolsP   :: !(M.Map F.Symbol F.Symbol)
@@ -394,7 +394,7 @@ addToMap substs
        let m' = foldl' updateSubst m substs
        put $ s { pMap = m' }
 
-updateSubst :: M.Map (F.PVar Type) (Predicate Type) -> (Predicate Type, Predicate Type) -> M.Map (F.PVar Type) (Predicate Type) 
+updateSubst :: M.Map (PVar Type) (Predicate Type) -> (Predicate Type, Predicate Type) -> M.Map (PVar Type) (Predicate Type) 
 updateSubst m (p, p') = foldl' (\m (k, v) -> M.insert k v m) m binds 
   where binds = unifiers $ unifyVars (subp m p) (subp m p')
 
@@ -479,10 +479,10 @@ freshInt = do pi <- get
 
 stringSymbol  = F.S
 freshSymbol s = stringSymbol . (s ++ ) . show <$> freshInt
-freshPr a     = (\sy -> pdVar (F.PV sy a [])) <$> (freshSymbol "p")
+freshPr a     = (\sy -> pdVar (PV sy a [])) <$> (freshSymbol "p")
 truePr _      = pdTrue
 
-freshPrAs p = (\n -> pdVar $ p { F.pname = n }) <$> freshSymbol "p"
+freshPrAs p = (\n -> pdVar $ p { pname = n }) <$> freshSymbol "p"
 
 refreshTy t 
   = do fps <- mapM freshPrAs ps

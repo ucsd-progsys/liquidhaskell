@@ -1,33 +1,22 @@
-Haskell/Liquid/Predicates.hs
-132:  = tyC (subsTyVars (v1, PrVar v2 PdTrue) t1) t2
-180:       return $ (α, t, τ) `subsTyVars_` te 
-270:        tc''         = foldl' (flip subsTyVars) tc' (zip vs ts)
-
-Haskell/Liquid/PredType.hs
-214:subsTyVars :: SubstP (Predicate a) => (Var, PrTy a) -> PrTy a -> PrTy a
-215:subsTyVars s = mapPr (subv (subsTyVarP1_ s)) . mapTyVar (subsTyVar s)
-
-Haskell/Liquid/Constraint.hs
-619:  = do t' <-  unifyS t $ subsTyVars (v', PrVar v PdTrue) pt 
- 
-
-
 Iffy functions:
-
 - normalizePds 
     > how can recur inside functions and hoist preds out?
     > is it needed if Preds are just refts?
 
-RPred Predicate t
-RPred p t ====> RAll (RP p) t
 
-- type RefType  = RType Class RTyCon RBind (Reft Type)
-- type BareType = RType String String String (Reft String)  
-- type PrType   = RType ??? -- ORIG: PrTy Predicate
->>>>> HEREHEREHEREHEREHEREHERE do make at top-level to see next broken file
+--> Single Grammar for SPEC
+            BRType (PVar String) (Reft Sort) -> BRType 
+        >> RRType (PVar String) (Reft Sort) -->
 
+-- BARE
+type BRType   = RType String String String   
 
-- type PrTypeP  = RType ??? -- ORIG: fullblown whatsit
+-- REAL
+type RRType   = RType Class  RTyCon TyVar   
+
+-- BOTH
+type RefType  = RRType (PVar Type) (Reft Sort)  
+
 
 
 
