@@ -16,6 +16,11 @@ import Debug.Trace (trace)
 import Data.Maybe
 import Control.DeepSeq
 
+import Data.Generics.Schemes
+import Data.Generics.Aliases
+import Data.Data
+
+
 ---------------------------------------------------------------------
 -- ($!!) f x = x `deepseq` f x
 
@@ -27,6 +32,9 @@ import Control.DeepSeq
 --
 
 ---------------------------------------------------------------------
+
+data Empty = Emp deriving (Data, Typeable, Eq, Show)
+
 
 unIntersperse x ys
   = case elemIndex x ys of

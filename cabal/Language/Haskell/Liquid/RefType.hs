@@ -77,7 +77,10 @@ data RType p c tv pv r
 
 type BRType   = RType String String String   
 type RRType   = RType Class  RTyCon TyVar   
+
 type RefType  = RRType (PVar Type) (Reft Sort)    
+type BareType = BRType (PVar String) (Reft Sort)
+type RedType  = RRType (Empty) (Reft Sort)
 
 class Reftable r where 
   ppReft   :: r -> SDoc -> SDoc
