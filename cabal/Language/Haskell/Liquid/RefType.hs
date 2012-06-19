@@ -111,8 +111,8 @@ instance Eq RBind where
   RP p == RP p' = pname p == pname p'
   _    == _     = False 
 
-instance Show RefType where
-  show = showPpr
+--instance Show RefType where
+--  show = showPpr
 
 --------------------------------------------------------------------
 ---------------------- Helper Functions ----------------------------
@@ -412,7 +412,7 @@ instance Show Type where
 subsFree ::  Bool -> S.Set TyVar -> (TyVar, RefType) -> RefType -> RefType
 
 subsFree m s z@(α, t') (RAll (RP p) t)         
-  = RAll (RP (subsTyVarsP [(α, toType t')] p)) $ subsFree m s z t
+  = error "TBD" -- RAll (RP (subsTyVarsP [(α, toType t')] p)) $ subsFree m s z t
 subsFree m s z (RAll (RV α) t)         
   = RAll (RV α) $ subsFree m (α `S.insert` s) z t
 subsFree m s z (RFun x t t')       

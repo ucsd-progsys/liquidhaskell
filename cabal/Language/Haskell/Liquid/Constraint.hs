@@ -634,7 +634,6 @@ unifyS (RVar (RV v) a) (RVar (RV v') p)
 unifyS rt@(RApp c ts rs r) pt@(RApp _ pts ps p)
   = do modify $ \s -> s `S.union` (S.fromList (concatMap pvars (p:ps)))
        ts' <- zipWithM unifyS ts pts
-       -- return $ traceShow ("unifyS \n" ++ show rt ++ "\nwith \n" ++ show pt) $  
        return $ RApp c ts' (mapbUnify rs ps) (bUnify r p)
 
 unifyS t1 t2 = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
@@ -691,9 +690,6 @@ cconsE γ e t
 consE :: CGEnv -> Expr Var -> CG RefType 
 -------------------------------------------------------------------
 
---subsTyVarHelper x y = x `subsTyVar` y 
--- {- trace ("PLUGGING" ++ (show x) ++ " into " ++ (show y) ++ " yields " ++ (show res)) $ -} 
-
 consE γ (Var x)   
   = do addLocA (loc γ) (varAnn γ x t)
        return t
@@ -707,7 +703,6 @@ consE γ (App e (Type τ))
        t              <- if isGeneric α te then freshTy e τ else  trueTy τ
        addW       $ WfC γ t
        return     $ (α, t) `subsTyVar_meet` te
---         traceShow ("type app: for " ++ showPpr e ++ showPpr (α, t) ++ (foo γ e) ++ "/n") $ 
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
@@ -715,13 +710,12 @@ consE γ e'@(App e a) | eqType (exprType a) predType
          RAll (RP p@(F.PV pn τ pa)) t -> do s <- freshSort γ p
                                             return $ replaceSort (pToRefa p, s) t 
          t                            -> return t
+
 consE γ e'@(App e a)               
   = do RFun (RB x) tx t <- liftM (checkFun ("Non-fun App with caller", e)) $ consE γ e 
        cconsE γ a tx 
        case argExpr a of 
-         Just e  -> return 
---                      $ traceShow ("App" ++ showPpr e' ++ show (t, tx)) 
-                      $ t `F.subst1` (x, e)
+         Just e  -> return $ t `F.subst1` (x, e)
          Nothing -> errorstar $ "consE: App crashes on" ++ showPpr a 
 
 consE γ (Lam α e) | isTyVar α 
@@ -743,7 +737,6 @@ consE γ e@(Case _ _ _ _)
 
 consE γ (Tick tt e)
   = consE (γ `atLoc` tickSrcSpan tt) e
-
 
 consE γ (Cast e _)      
   = consE γ e 

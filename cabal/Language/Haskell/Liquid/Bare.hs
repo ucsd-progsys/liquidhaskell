@@ -5,7 +5,7 @@
  - and real refinements. -}
 
 module Language.Haskell.Liquid.Bare (
-    BareType (..)
+    BareType (..), DataDecl (..)
   , bLst, bTup, bCon, isBoolBareType
   , getClasses
   , mkRefTypes
@@ -13,7 +13,7 @@ module Language.Haskell.Liquid.Bare (
   , mkAssumeSpec
   , mkIds
   , isDummyBind
-  -- , mkConTypes
+  , mkConTypes
   , mkPredTypes
   )
 where
@@ -85,8 +85,8 @@ instance TyConable String where
 instance (Outputable pv, Reftable r) => RefTypable String String String pv r {- (Reft Sort) -} where
   ppCls c ts = parens (text c <+> text "...")
 
-instance Show BareType where
-  show = showPpr
+--instance Show BareType where
+--  show = showPpr
 
 mkRefTypes :: HscEnv -> [BRType a (Reft Sort)] -> IO [RRType a (Reft Sort)]
 mkRefTypes env bs = runReaderT (mapM mkRefType bs) env
@@ -94,10 +94,11 @@ mkRefTypes env bs = runReaderT (mapM mkRefType bs) env
 mkRefType = liftM canonRefType . ofBareType
                         
 -- mkMeasureSpec :: HscEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
+
+mkMeasureSpec :: HscEnv-> Ms.MSpec (BRType (PVar Type) (Reft Sort)) Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
 mkMeasureSpec env m = runReaderT mkSpec env
   where mkSpec = mkMeasureSort m >>= mkMeasureDCon >>= return . Ms.dataConTypes
 
--- mkAssumeSpec :: HscEnv -> [(Symbol, BareType)] -> IO [(Var, RefType)]
 mkAssumeSpec env xbs = runReaderT mkAspec env
   where mkAspec = forM xbs $ \(x, b) -> liftM2 (,) (lookupGhcId $ symbolString x) (mkRefType b)
 
@@ -239,7 +240,7 @@ isBoolBareType _                = False
 
 
 getClasses (RApp tc ts _ _) 
-  | tc == tupConName 
+  | isTuple tc -- tc == tupConName 
   = getClass `fmap` ts 
 getClasses t 
   = [getClass t]
@@ -311,7 +312,7 @@ mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
 measureCtors ::  Ms.MSpec t Symbol -> [String]
 measureCtors = nubSort . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.ctorMap 
 
--- mkMeasureSort :: Ms.MSpec BareType a -> BareM (Ms.MSpec RefType a)
+mkMeasureSort :: Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
 mkMeasureSort (Ms.MSpec cm mm) 
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> 
       liftM (\s' -> m {Ms.sort = s'}) (ofBareType (Ms.sort m))

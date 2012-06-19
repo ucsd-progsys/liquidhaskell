@@ -265,11 +265,10 @@ varUniqueStr = show . varUnique
 ------------ Extracting Specifications (Measures + Assumptions) --------------------
 ------------------------------------------------------------------------------------
 
---parseSpecs :: [FilePath] -> IO (Ms.Spec BareType Symbol) 
 parseSpecs files 
   = liftIO $ liftM mconcat $ forM files $ \f -> 
       do putStrLn $ "parseSpec: " ++ f 
-         Ex.catch (liftM (rr' f) $ readFile f{-rrWithFile $ f-}) $ \(e :: Ex.IOException) ->
+         Ex.catch (liftM (rr' f) $ readFile f) $ \(e :: Ex.IOException) ->
            ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ f
 
 moduleSpec' mg paths 
@@ -277,7 +276,7 @@ moduleSpec' mg paths
        myspec <- parseSpecs myfs 
        env    <- getSession
        msr    <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec (Ms.measures myspec)
-       refspec <-liftIO $  mkAssumeSpec env (Ms.assumes myspec)
+       refspec <-liftIO $ mkAssumeSpec env (Ms.assumes myspec)
        return  refspec
  
 moduleSpec mg paths impVars 
