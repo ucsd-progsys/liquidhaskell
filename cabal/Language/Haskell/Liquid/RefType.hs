@@ -56,7 +56,7 @@ import qualified Data.Foldable as Fold
 import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GhcMisc2 (eqTv, stringTyVar)
+import Language.Haskell.Liquid.GhcMisc (eqTv, stringTyVar)
 import Data.List (isPrefixOf, isSuffixOf, find, foldl')
 
 --------------------------------------------------------------------

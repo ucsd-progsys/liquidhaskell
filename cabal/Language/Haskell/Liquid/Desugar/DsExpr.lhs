@@ -15,7 +15,7 @@ module Language.Haskell.Liquid.Desugar.DsExpr ( dsExpr, dsLExprWithLoc, dsLocalB
 
 -- #include "HsVersions.h"
 
-import Language.Haskell.Liquid.GhcMisc2 (srcSpanTick)
+import Language.Haskell.Liquid.GhcMisc (srcSpanTick)
 
 import Language.Haskell.Liquid.Desugar.Match
 import Language.Haskell.Liquid.Desugar.DsBinds

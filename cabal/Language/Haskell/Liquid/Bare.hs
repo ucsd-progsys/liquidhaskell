@@ -59,7 +59,7 @@ import Data.Generics.Aliases
 import Data.Data hiding (TyCon, tyConName)
 import qualified Data.Map as M
 
-import Language.Haskell.Liquid.GhcMisc2
+import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType

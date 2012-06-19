@@ -9,9 +9,14 @@ module Language.Haskell.Liquid.Constraint (
   , kvars, kvars' -- symbols  -- debugging purposes
   ) where
 
-import Id               (isDataConId_maybe)
+import Literal          (literalType)
+import Coercion         (coercionType, coercionKind)
+import Pair             (pSnd)
+import PprCore          (pprCoreExpr)
+import FastString       (sLit)
+import Id               (idType, isDataConId_maybe)
 import SrcLoc           
-import CoreSyn
+import CoreSyn  hiding (collectArgs)
 import Type             -- (coreEqType)
 import PrelNames
 import TysPrim
@@ -47,9 +52,9 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType hiding (splitArgsRes)
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc2 (tickSrcSpan)
+import Language.Haskell.Liquid.GhcMisc (tickSrcSpan)
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.MiscExpr (exprType)
+-- import Language.Haskell.Liquid.MiscExpr (exprType)
 import Language.Haskell.Liquid.Bare (isDummyBind)
 
 import Data.Generics.Schemes
@@ -83,15 +88,15 @@ generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fw
 
 kvars :: (Data a) => a -> S.Set F.Symbol
 kvars = everything S.union (S.empty `mkQ` grabKvar)
-  where grabKvar (F.RKvar k _:: F.Refa F.Sort) = S.singleton k
-        grabKvar _                             = S.empty
+  where grabKvar (F.RKvar k _:: F.Refa) = S.singleton k
+        grabKvar _                      = S.empty
 
 
 kvars' :: (Data a) => a -> Int
 kvars' = everything (plus') (0 `mkQ` grabKvar)
-  where grabKvar (F.RKvar k _ :: F.Refa F.Sort) = 1 
-        grabKvar _                              = 0
-        plus' !x !y                             = x + y 
+  where grabKvar (F.RKvar k _ :: F.Refa) = 1 
+        grabKvar _                       = 0
+        plus' !x !y                      = x + y 
 
 --symbols :: (Data a) => a -> S.Set F.Symbol
 --symbols = everything S.union (S.empty `mkQ` grab)
@@ -219,7 +224,7 @@ data WfC      = WfC  { wenv  :: !CGEnv
                      } 
               | WfCS { wenv  :: !CGEnv
                      , ty    :: !Type
-                     , s     :: !(F.Refa F.Sort)
+                     , s     :: !F.Refa
                      }
               deriving (Data, Typeable)
 
@@ -299,7 +304,7 @@ bsplitW γ t
         ci   = Ci (loc γ)
 
 -- rsplitW :: CGEnv -> (F.Reft, Predicate) -> [FixWfC]
-rsplitW γ (r, ((F.PV _ t as)))
+rsplitW γ (r, ((PV _ t as)))
   = [F.WfC env' r' Nothing ci]
   where env' = fenv γ'
         ci   = Ci (loc γ)
@@ -371,7 +376,7 @@ bsplitC γ t1 t2
         r2'     = refTypeSortedReft t2
         ci      = Ci (loc γ)
 
-rsplitC γ ((r1, r2), (F.PV _ t as))
+rsplitC γ ((r1, r2), (PV _ t as))
   = [F.SubC env' F.PTrue r1' r2' Nothing [] ci]
   where env' = fenv γ'
         ci   = Ci (loc γ)
@@ -493,14 +498,14 @@ instance Freshable F.Symbol where
 instance Freshable RBind where
   fresh = liftM RB fresh 
 
-instance Freshable (F.Refa F.Sort) where
+instance Freshable (F.Refa) where
   fresh = liftM (`F.RKvar` F.emptySubst) freshK
     where freshK = liftM F.intKvar fresh
 
-instance Freshable [F.Refa F.Sort] where
+instance Freshable [F.Refa] where
   fresh = liftM single fresh
 
-instance Freshable (F.Reft F.Sort) where
+instance Freshable (F.Reft) where
   fresh = errorstar "fresh Reft"
   true    (F.Reft (v, _)) = return $ F.Reft (v, []) 
   refresh (F.Reft (v, _)) = liftM (F.Reft . (v, )) fresh
@@ -603,7 +608,7 @@ unify :: Maybe PrType -> RefType -> RefType
 unify (Just pt) rt  = evalState (unifyS rt pt) S.empty
 unify _         t   = t
 
-unifyS :: RefType -> PrType -> State (S.Set (F.PVar Type)) RefType
+unifyS :: RefType -> PrType -> State (S.Set (PVar Type)) RefType
 
 unifyS (RAll (RP p) t) pt
   = do t' <- unifyS t pt 
@@ -645,8 +650,8 @@ bUnify a (Pr pvs)   = foldl' F.meet a $ pToReft <$> pvs
 --mapbUnify [] ps = zipWith bUnify (cycle [F.trueReft]) ps
 mapbUnify rs ps = zipWith bUnify (rs ++ cycle [F.trueReft]) ps
 
-pToRefa ((F.PV n t a)) = F.strToRefa n ((\(_, x, y) -> (x, F.EVar y)) <$> a)
-pToReft ((F.PV n t a)) = F.strToReft n ((\(_, x, y) -> (x, F.EVar y)) <$> a)
+pToRefa ((PV n t a)) = F.strToRefa n ((\(_, x, y) -> (x, F.EVar y)) <$> a)
+pToReft ((PV n t a)) = F.strToReft n ((\(_, x, y) -> (x, F.EVar y)) <$> a)
 --pToReft (PdVar n t a)= F.strToReft n  
 --pToRefa (PdVar n t a)= F.strToRefa n 
 
@@ -707,8 +712,8 @@ consE γ (App e (Type τ))
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
        case t0 of
-         RAll (RP p@(F.PV pn τ pa)) t -> do s <- freshSort γ p
-                                            return $ replaceSort (pToRefa p, s) t 
+         RAll (RP p@(PV pn τ pa)) t -> do s <- freshSort γ p
+                                          return $ replaceSort (pToRefa p, s) t 
          t                            -> return t
 
 consE γ e'@(App e a)               
@@ -837,11 +842,11 @@ getSrcSpan' x
 -----------------------------------------------------------------------
 ---------- Helpers: Creating Fresh Refinement ------------------ ------
 -----------------------------------------------------------------------
-freshReftP (F.PV n τ as)
+freshReftP (PV n τ as)
  = do n <- liftM F.intKvar fresh
       return $ F.Reft (F.vv,[(`F.RKvar` F.emptySubst) n])
 
-freshSort γ (F.PV n τ as)
+freshSort γ (PV n τ as)
  = do n <- liftM F.intKvar fresh
       let s = (`F.RKvar` F.emptySubst) n
       addW $ WfCS γ' τ s
@@ -946,6 +951,59 @@ extendγ γ xts
 -- replaceSort :: (F.Refa, F.Refa) -> RefType -> RefType
 replaceSort kp = fmap $ F.replaceSort kp 
 
--- replaceSorts :: (F.Refa Sort, F.Reft) -> RefType -> RefType
+-- replaceSorts :: (F.Refa, F.Reft) -> RefType -> RefType
 replaceSorts pk = fmap $  F.replaceSorts pk
 
+
+-----------------------------------------------------------------------
+---------- CoreSyn functions changed due to predApp -------------------
+-----------------------------------------------------------------------
+
+exprType :: CoreExpr -> Type
+exprType (App e1 (Var v)) | eqType (idType v) predType = exprType e1
+exprType (Var var)           = idType var
+exprType (Lit lit)           = literalType lit
+exprType (Coercion co)       = coercionType co
+exprType (Let _ body)        = exprType body
+exprType (Case _ _ ty _)     = ty
+exprType (Cast _ co)         = pSnd (coercionKind co)
+exprType (Tick _ e)          = exprType e
+exprType (Lam binder expr)   = mkPiType binder (exprType expr)
+exprType e@(App _ _)
+  = case collectArgs e of
+        (fun, args) -> applyTypeToArgs e (exprType fun) args
+
+-- | Takes a nested application expression and returns the the function
+-- being applied and the arguments to which it is applied
+collectArgs :: Expr b -> (Expr b, [Arg b])
+collectArgs expr
+  = go expr []
+  where
+    go (App f (Var v)) as | eqType (idType v) predType = go f as
+    go (App f a) as = go f (a:as)
+    go e 	 as = (e, as)
+
+applyTypeToArgs :: CoreExpr -> Type -> [CoreExpr] -> Type
+-- ^ A more efficient version of 'applyTypeToArg' when we have several arguments.
+-- The first argument is just for debugging, and gives some context
+applyTypeToArgs _ op_ty [] = op_ty
+
+applyTypeToArgs e op_ty (Type ty : args)
+  =     -- Accumulate type arguments so we can instantiate all at once
+    go [ty] args
+  where
+    go rev_tys (Type ty : args) = go (ty:rev_tys) args
+    go rev_tys rest_args         = applyTypeToArgs e op_ty' rest_args
+                                 where
+                                   op_ty' = applyTysD msg op_ty (reverse rev_tys)
+                                   msg = ptext (sLit "MYapplyTypeToArgs") <+>
+                                         panic_msg e op_ty
+
+
+applyTypeToArgs e op_ty (p : args)
+  = case (splitFunTy_maybe op_ty) of
+        Just (_, res_ty) -> applyTypeToArgs e res_ty args
+        Nothing -> pprPanic "MYapplyTypeToArgs" (panic_msg e op_ty)
+
+panic_msg :: CoreExpr -> Type -> SDoc
+panic_msg e op_ty = pprCoreExpr e $$ ppr op_ty
