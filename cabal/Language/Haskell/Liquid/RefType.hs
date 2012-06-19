@@ -6,9 +6,9 @@ module Language.Haskell.Liquid.RefType (
     RType (..), RRType (..), BRType (..)
   , RTyCon(..), TyConable (..), Reftable(..), RefTypable (..)
   , RefType (..), Bind (..), RBind
-  , ppr_rtype, mapReft, mapRVar
+  , ppr_rtype, mapReft, mapRVar, mapBind
   , ofType, toType
-  , rTyVar, rTyVarSymbol
+  , rTyVar, rTyVarSymbol, rVar
   , strengthen, strengthenRefType
   , mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
@@ -75,9 +75,9 @@ data RType p c tv pv r
   | ROth String
   deriving (Data, Typeable)
 
-type BRType   = RType String String String (PVar String)  
-type RRType   = RType Class  RTyCon TyVar  (PVar Type) 
-type RefType  = RRType (Reft Sort)    
+type BRType   = RType String String String   
+type RRType   = RType Class  RTyCon TyVar   
+type RefType  = RRType (PVar Type) (Reft Sort)    
 
 class Reftable r where 
   ppReft   :: r -> SDoc -> SDoc
@@ -85,6 +85,7 @@ class Reftable r where
 
 class TyConable c where
   isList   :: c -> Bool
+  isTuple  :: c -> Bool
 
 class (Outputable p, Outputable c, Outputable tv, Outputable pv, Reftable r, TyConable c) => RefTypable p c tv pv r where
   ppCls    :: p -> [RType p c tv pv r] -> SDoc
@@ -104,7 +105,6 @@ data RTyCon = RTyCon
   }
   deriving (Eq, Data, Typeable)
 
-
 instance Eq RBind where
   RB s == RB s' = s == s'
   RV α == RV α' = α == α'
@@ -118,6 +118,7 @@ instance Show RefType where
 ---------------------- Helper Functions ----------------------------
 --------------------------------------------------------------------
 
+rVar α r            = RVar (rTyVar α) r
 rTyVar α            = RV α
 rTyVarSymbol (RV α) = typeUniqueSymbol $ TyVarTy α
 
@@ -264,7 +265,8 @@ instance Show RBind where
   show = showPpr 
 
 instance TyConable RTyCon where
-  isList c    = rTyCon c == listTyCon 
+  isList  = (listTyCon ==) . rTyCon
+  isTuple = TC.isTupleTyCon   . rTyCon 
 
 instance Reftable (Reft Sort) where
   ppReft      = ppr_reft
@@ -273,22 +275,25 @@ instance Reftable (Reft Sort) where
 instance (Outputable pv, Reftable r) => RefTypable Class RTyCon TyVar pv r where
   ppCls c ts  = parens $ pprClassPred c (toType <$> ts)
 
---instance RefTypable Class RTyCon TyVar (PVar Type) (Reft Sort) where
---  ppCls c ts  = parens $ pprClassPred c (toType <$> ts)
- 
+instance Outputable (PVar String) where
+  ppr  = ppr_pvar text --  (ppr . varUnique)
 
 instance Outputable (PVar Type) where
-  ppr  = ppr_pvar (ppr . varUnique)
+  ppr  = ppr_pvar ppr_pvar_type 
 
-ppr_pvar pprv (PV s (TyVarTy v) []) = ppr s <> colon <> ppr v <> pprv v
-ppr_pvar pprv (PV s t [])           = ppr s <> colon <> ppr t
-ppr_pvar pprv (PV s t xs)           = ppr ((PV s t [])) <+> (parens $ hsep (punctuate comma (pprArgs pprv <$> xs)))
+ppr_pvar_type (TyVarTy v) = ppr $ varUnique v
+ppr_pvar_type t           = ppr t
 
-pprArgs pprv (TyVarTy v, x1, x2) = parens $ ppr x2 <> text " : " <> ppr v <> pprv v
-pprArgs _    (t        , x1, x2) = parens $ ppr t <> text " : " <> ppr x2
+ppr_pvar pprv (PV s t []) = ppr s <> colon <> pprv t
+ppr_pvar pprv (PV s t xs) = ppr ((PV s t [])) <+> (parens $ hsep (punctuate comma (ppArg <$> xs)))
+                            where ppArg (t, _, x) = ppr x <+> colon <+> pprv t
 
 instance (RefTypable p c tv pv r) => Outputable (RType p c tv pv r) where
   ppr = ppRType TopPrec
+
+instance Outputable (RType p c tv pv r) => Show (RType p c tv pv r) where
+  show = showSDoc . ppr
+  
 
 instance Outputable RTyCon where
   ppr (RTyCon c ts) = ppr c -- <+> text "\n<<" <+> hsep (map ppr ts) <+> text ">>\n"
@@ -498,7 +503,15 @@ mapRVar f (RApp c ts rs r) = RApp c (mapRVar f <$> ts) rs r
 mapRVar f (RCls c ts)      = RCls c (mapRVar f <$> ts)
 mapRVar f (ROth s)         = ROth s
 
-mapTop ::  (RefType -> RefType) -> RefType -> RefType
+mapBind f (RVar b r)       = RVar (f b) r
+mapBind f (RFun b t1 t2)   = RFun (f b) (mapBind f t1) (mapBind f t2)
+mapBind f (RAll b t)       = RAll (f b) (mapBind f t) 
+mapBind f (RApp c ts rs r) = RApp c (mapBind f <$> ts) rs r
+mapBind f (RCls c ts)      = RCls c (mapBind f <$> ts)
+mapBind f (ROth s)         = ROth s
+
+
+
 mapTop f t = 
   case f t of
     (RAll a t')      -> RAll a (mapTop f t')
@@ -507,14 +520,12 @@ mapTop f t =
     (RCls c ts)      -> RCls c (mapTop f <$> ts)
     t'               -> t' 
 
-mapBot ::  (RefType -> RefType) -> RefType -> RefType
 mapBot f (RAll a t)       = RAll a (mapBot f t)
 mapBot f (RFun x t t')    = RFun x (mapBot f t) (mapBot f t')
 mapBot f (RApp c ts rs r) = f $ RApp c (mapBot f <$> ts) rs r
 mapBot f (RCls c ts)      = RCls c (mapBot f <$> ts)
 mapBot f t'               = f t' 
 
-canonRefType :: RefType -> RefType
 canonRefType = mapTop zz
   where zz t@(RApp c ts rs r)  = RApp c ts (map canonReft rs) (canonReft r)
         zz t                      = t

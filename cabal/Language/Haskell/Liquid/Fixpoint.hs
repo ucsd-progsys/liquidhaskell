@@ -496,8 +496,6 @@ instance Eq (PVar t) where
 instance Ord (PVar t) where
   compare (PV n _ _)  (PV n' _ _) = compare n n'
 
-
-
 data Refa t 
   = RConc !Pred 
   | RKvar !Symbol !Subst

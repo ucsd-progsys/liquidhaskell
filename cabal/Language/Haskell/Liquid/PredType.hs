@@ -2,11 +2,11 @@
 module Language.Haskell.Liquid.PredType (
     PrType, ofTypeP
   , Predicate (..), pdAnd, pdVar, pdTrue, pvars
-  , TyConP (..), DataConP (..)
+  , TyConP (..), DataConP (..), SubstP (..)
   , PEnv (..), lookupPEnv, fromListPEnv, insertPEnv, emptyPEnv, mapPEnv
   , splitVsPs, typeAbsVsPs, splitArgsRes
   , generalize, generalizeArgs
-  , subp, subsTyVars, substSym, subsTyVarsP, subsTyVars_
+  , subsTyVars, substSym, subsTyVarsP, subsTyVars_
   , dataConTy, dataConPtoPredTy
   , removeExtPreds
   ) where
@@ -71,7 +71,7 @@ class SubstP a where
 -- type PrType = PrTy Type
 
 
-type PrType   = RRType (Predicate Type) 
+type PrType   = RRType (PVar Type) (Predicate Type) 
 
 data TyConP = TyConP { freeTyVarsTy :: ![TyVar]
                      , freePredTy   :: ![(PVar Type)]
@@ -88,8 +88,7 @@ dataConPtoPredTy (DataConP vs ps yts rt) = t3
   where t1 = foldl' (\t2 (x, t1) -> RFun (RB x) t1 t2) rt yts 
         t2 = foldr RAll t1 $ RP <$> ps
         t3 = foldr RAll t2 $ RV <$> vs
-        -- t2 = foldl' (\t pv -> PrAllPr pv t) t1 (reverse ps) 
-        -- t3 = foldl' (\t v -> PrAll v t) t2 (reverse vs)
+
 
 
 instance Outputable TyConP where
@@ -304,11 +303,14 @@ instance Eq (Predicate a) where
 instance Show (Predicate Type) where
   show = showSDoc . ppr
 
-instance Outputable (Predicate Type) where
+instance (Outputable (PVar t)) => Outputable (Predicate t) where
   ppr (Pr [])       = text "True"
   ppr (Pr pvs)      = hsep $ punctuate (text "&") (map ppr pvs)
 
-instance Reftable (Predicate Type) where
+instance Outputable (Predicate t) => Show (Predicate t) where
+  show = showSDoc . ppr
+  
+instance Outputable (PVar t) => Reftable (Predicate t) where
   ppReft r d 
     | isTauto r = d 
     | otherwise = d <> (angleBrackets $ ppr r)
@@ -318,10 +320,8 @@ instance Reftable (Predicate Type) where
 
 isTauto (Pr ps) = null ps 
 
-instance Show PrType where
- show = showSDoc . ppr
-
-
+-- instance Show PrType where
+--  show = showSDoc . ppr
 
 instance Outputable PEnv where
  ppr (PEnv e) = vcat $ map pprxt $ M.toAscList e

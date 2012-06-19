@@ -13,7 +13,7 @@ module Language.Haskell.Liquid.Bare (
   , mkAssumeSpec
   , mkIds
   , isDummyBind
-  , mkConTypes
+  -- , mkConTypes
   , mkPredTypes
   )
 where
@@ -52,6 +52,7 @@ import Data.List (sort)
 import Data.Char (isUpper)
 import ErrUtils
 import Data.Traversable (forM)
+import Control.Applicative  ((<$>))
 import Control.Monad.Reader hiding (forM)
 import Data.Generics.Schemes
 import Data.Generics.Aliases
@@ -61,6 +62,7 @@ import qualified Data.Map as M
 import Language.Haskell.Liquid.GhcMisc2
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Misc
 import qualified Control.Exception as Ex
@@ -69,32 +71,36 @@ import qualified Control.Exception as Ex
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
 
-type BareType = BRType (Reft Sort)
+type BareType = BRType (PVar String) (Reft Sort)
 
 instance TyConable String where
-  isList = (listConName ==) 
- 
-instance RefTypable String String String () (Reft Sort) where
- ppCls c ts = parens (text c <+> text "...")
+  isList  = (listConName ==) 
+  isTuple = (tupConName ==)
 
+--instance Reftable PredicateB where
+--  ppReft = ppr
 --instance Outputable BareType where
 --  ppr = ppr_rtype TopPrec
+
+instance (Outputable pv, Reftable r) => RefTypable String String String pv r {- (Reft Sort) -} where
+  ppCls c ts = parens (text c <+> text "...")
 
 instance Show BareType where
   show = showPpr
 
-mkRefTypes :: HscEnv -> [BareType] -> IO [RefType]
+mkRefTypes :: HscEnv -> [BRType a (Reft Sort)] -> IO [RRType a (Reft Sort)]
 mkRefTypes env bs = runReaderT (mapM mkRefType bs) env
 
 mkRefType = liftM canonRefType . ofBareType
                         
-mkMeasureSpec :: HscEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
+-- mkMeasureSpec :: HscEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
 mkMeasureSpec env m = runReaderT mkSpec env
   where mkSpec = mkMeasureSort m >>= mkMeasureDCon >>= return . Ms.dataConTypes
 
-mkAssumeSpec :: HscEnv -> [(Symbol, BareType)] -> IO [(Var, RefType)]
+-- mkAssumeSpec :: HscEnv -> [(Symbol, BareType)] -> IO [(Var, RefType)]
 mkAssumeSpec env xbs = runReaderT mkAspec env
   where mkAspec = forM xbs $ \(x, b) -> liftM2 (,) (lookupGhcId $ symbolString x) (mkRefType b)
+
 
 mkIds :: HscEnv -> [Name] -> IO [Var]
 mkIds env ns = runReaderT (mapM lookupGhcId ns) env
@@ -252,17 +258,24 @@ type BareM a = ReaderT HscEnv IO a
 -- ofBareType :: BareType -> BareM RefType
 -- ofBareType :: RType String String String t r -> BareM (RType Class RTyCon TyVar pv r)
 
+-- ofBareType :: GhcLookup a => RType a String String t r -> (RType Class RTyCon TyVar pv r)
+-- ofBareType :: GhcLookup a => RType a [Char] String t r -> ReaderT HscEnv IO (RType Class RTyCon TyVar pv r)
+
+ofBareType :: BRType pv r -> BareM (RRType pv r)
 ofBareType (RVar (RV a) r) 
   = return $ RVar (stringRTyVar a) r
+ofBareType (RVar (RP π) r) 
+  = return $ RVar (RP π) r
 ofBareType (RFun (RB x) t1 t2) 
   = liftM2 (RFun (RB x)) (ofBareType t1) (ofBareType t2)
 ofBareType (RAll (RV a) t) 
   = liftM  (RAll (stringRTyVar a)) (ofBareType t)
+ofBareType (RAll (RP π) t) 
+  = liftM  (RAll (RP π)) (ofBareType t)
 ofBareType (RApp tc [t] [] r) 
-  | tc == listConName 
   = liftM (bareTCApp r [] listTyCon . (:[])) (ofBareType t)
 ofBareType (RApp tc ts [] r) 
-  | tc == tupConName 
+  | isTuple tc
   = liftM (bareTCApp r [] c) (mapM ofBareType ts)
     where c = tupleTyCon BoxedTuple (length ts)
 ofBareType (RApp tc ts rs r) 
@@ -279,7 +292,8 @@ rbind ""    = RB dummySymbol
 rbind s     = RB $ stringSymbol s
 
 
-stringRTyVar = rTyVar . stringTyVar 
+stringRTyVar  = rTyVar . stringTyVar 
+stringTyVarTy = TyVarTy . stringTyVar
 
 isDummyBind (RB s) = s == dummySymbol 
 
@@ -297,7 +311,7 @@ mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
 measureCtors ::  Ms.MSpec t Symbol -> [String]
 measureCtors = nubSort . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.ctorMap 
 
-mkMeasureSort :: Ms.MSpec BareType a -> BareM (Ms.MSpec RefType a)
+-- mkMeasureSort :: Ms.MSpec BareType a -> BareM (Ms.MSpec RefType a)
 mkMeasureSort (Ms.MSpec cm mm) 
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> 
       liftM (\s' -> m {Ms.sort = s'}) (ofBareType (Ms.sort m))
@@ -306,38 +320,33 @@ mkMeasureSort (Ms.MSpec cm mm)
 --------------- Bare Predicates ---------------------------------------
 -----------------------------------------------------------------------
 
-type PredicateB = Predicate String
-
-type PrTypeP    = BRType PredicateB 
-
-data DataDecl   = D String [String] [PredicateB] [(String, [(String, PrTypeP)])] 
+type PrTypeP    = BRType (PVar String) (Predicate String) 
+data DataDecl   = D String [String] [PVar String] [(String, [(String, PrTypeP)])] 
                   deriving Show
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: DataCon Definitions ------------------
 -----------------------------------------------------------------------
 
-mkConTypes env dcs = runReaderT mkCon env
-  where mkCon = forM dcs ofBDataDecl
+mkConTypes :: HscEnv-> [DataDecl] -> IO [((TyCon, TyConP), [(DataCon, DataConP)])]
+mkConTypes env dcs = runReaderT (mapM ofBDataDecl dcs) env
 
-ofBDataDecl (D tyCon vars ps cts)
-  = do c <- lookupGhcTyCon tyCon 
-       cs <- mapM (ofBDataCon c (avs, ps') vs preds) cts
-       return $ ((c, TyConP vs preds), cs)
- where  vs = map stringTyVar vars
-        avs = zip vars vs
-        ps' = map (ofBPredicate_ avs) ps
-        preds = snd $ unzip ps'
+ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
+ofBDataDecl (D tc as ps cts)
+  = do tc'   <- lookupGhcTyCon tc 
+       cts'  <- mapM (ofBDataCon tc' αs πs) cts
+       return $ ((tc', TyConP αs πs), cts')
+    where αs = fmap stringTyVar as
+          πs = fmap (fmap stringTyVarTy) ps
 
-ofBDataCon tyCon aps vs pvs (c, xts)
- = do c' <- lookupGhcDataCon c
-      ts' <- mapM (ofPType aps) ts
-      let tc = RTyCon tyCon []
-      let t0 = RApp tc [RVar (RV v) pdTrue | v <- vs] (pdVar <$> pvs) pdTrue
-      let t2 = foldl (\t' (x,t) -> RFun (RB x) t t') t0 (zip xs' ts')
-      let t1 = foldl (\t pv -> RAll (RP pv) t) t2 pvs 
-      let t  = foldl (\t v -> RAll (RV v) t) t1 vs
-      return $ (c', DataConP vs pvs (reverse (zip xs' ts')) t0) 
+ofBDataCon tc αs πs (c, xts)
+ = do c'  <- lookupGhcDataCon c
+      ts' <- mapM (mkPType πs) ts
+      let t0 = RApp (RTyCon tc []) (flip rVar pdTrue <$> αs) (pdVar <$> πs) pdTrue
+      -- let t2 = foldl (\t' (x,t) -> RFun (RB x) t t') t0 (zip xs' ts')
+      -- let t1 = foldl (\t pv -> RAll (RP pv) t) t2 πs 
+      -- let t  = foldl (\t v -> RAll (RV v) t) t1 αs
+      return $ (c', DataConP αs πs (reverse (zip xs' ts')) t0) 
  where (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
 
@@ -345,31 +354,29 @@ ofBDataCon tyCon aps vs pvs (c, xts)
 ---------------- Bare Predicate: RefTypes -----------------------------
 -----------------------------------------------------------------------
 
-mkPredTypes env xbs = runReaderT mkPred env
-  where mkPred = forM xbs $ \(x, b) -> liftM2 (,) (lookupGhcId $ symbolString x) (mkPType b)
+mkPredTypes :: HscEnv -> [(Symbol, BRType (PVar String) (Predicate String))]-> IO [(Id, RRType (PVar Type) (Predicate Type))]
+mkPredTypes env xbs = runReaderT (mapM mkBind xbs) env
+  where mkBind (x, b) = liftM2 (,) (lookupGhcId $ symbolString x) (mkPType [] b)
 
--- 1. Fix predicate args, 2. Convert String to TyVar, 3. Convert rest of type
+mkPType πs = ofBareType . txParams πs . txTyVars
 
-mkPType :: PrTypeP -> BareM (RRType (Predicate Type))
-mkType t = ofBareType $ patchTyVars $ patchPargs t
-  where patchTyVars = fmap $ fmap stringTyVar
-        patchPargs  = fmap $ fmap $ replaceParams pdefs
-        pdefs       = rtypePredBinds t
+txTyVars = mapBind fb . mapReft (fmap stringTyVarTy) 
+  where fb (RP π) = RP (stringTyVarTy <$> π)
+        fb (RB x) = RB x
+        fb (RV α) = RV α
 
-replaceParams m pv = pv { pargs = args' }
-  where args' = zipWith (\(t,x,_) (_,_,y) -> (t, x, y)) (pargs pvo) (pargs pv)
-        pvo   = M.findWithDefault (errorstar err) x m
-        err   = "Bare.replaceParams Unbound Predicate Variable: " ++ show x
+txParams πs t = mapReft (subv (txPvar (predMap πs t))) t
 
-rtypePredBinds :: BareType -> M.Map Symbol (PVar String)
-rtypePredBinds t = assert (M.size xpm == length xps) xpm
-  where xpm = M.fromList xps
-        xps = [(pname pv, pv) | pv <- binds]
-        binds = everything (++) ([] `mkQ` grab) t
-        grab (RAll (RP pv) _) = [pv]
+txPvar m π = π { pargs = args' }
+  where args' = zipWith (\(t,x,_) (_,_,y) -> (t, x, y)) (pargs π') (pargs π)
+        π'    = M.findWithDefault (errorstar err) (pname π) m
+        err   = "Bare.replaceParams Unbound Predicate Variable: " ++ show π
+
+predMap πs t = Ex.assert (M.size xπm == length xπs) xπm 
+  where xπm = M.fromList xπs
+        xπs = [(pname π, π) | π <- πs ++ rtypePredBinds t]
+
+rtypePredBinds t = everything (++) ([] `mkQ` grab) t
+  where grab ((RAll (RP pv) _) :: BRType (PVar Type) (Predicate Type)) = [pv]
         grab _                = []
-
-
-
-
 
