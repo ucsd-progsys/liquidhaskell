@@ -255,6 +255,7 @@ splitArgsRes t = ([], t)
 
 data PEnv = PEnv (M.Map Symbol PrType) deriving (Data, Typeable)
 
+-- UNIFY: MOVE INTO Predicates.hs
 lookupPEnv :: Symbol -> PEnv -> Maybe PrType
 lookupPEnv x (PEnv e) = M.lookup x e
 emptyPEnv = PEnv M.empty

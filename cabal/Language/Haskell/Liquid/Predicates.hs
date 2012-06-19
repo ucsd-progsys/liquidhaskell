@@ -38,6 +38,7 @@ predType = TyVarTy $ stringTyVar "Pred"
 
 consAct info = foldM consCB (initEnv info) $ cbs info
 
+generatePredicates ::  GhcInfo -> ([CoreSyn.Bind CoreBndr], PEnv)
 generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ "PredCBS" ++ show cbs')-} (cbs', nPd)
   where γ    = mapPEnv removeExtPreds $ penv $ evalState act (initPI info)
         act  = consAct info

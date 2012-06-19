@@ -8,6 +8,37 @@ Iffy functions:
             BRType (PVar String) (Reft Sort) -> BRType 
         >> RRType (PVar String) (Reft Sort) -->
 
+
+NEXT: Unify Spec Parser Into Workflow As:
+
+0. Move PENV stuff into Predicates.hs 
+
+1. Parse Specs Into:
+    
+        BRType (PVar String) (Reft, Predicate String)
+
+2. Convert above (via BareM) Into:
+
+        RRType (PVar Type) (Reft, Predicate Type)
+
+3. Strip above into 
+
+        RRType (PVar Type) Reft                 -- RefType  (assm)
+        RRType (PVar Type) (Predicate Type)     -- PrType   (passm)
+
+4. Feed above PrTypes into Predicates.hs to get type-specs
+
+        RRType (PVar Type) (Predicate Type)     -- PrType
+       
+5. Now CONSGEN:
+    
+        unify:: PrType -> RefType -> RefType
+
+   Should work as before.
+        
+
+
+
 -- BARE
 type BRType   = RType String String String   
 
