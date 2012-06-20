@@ -2,9 +2,6 @@ module Range where
 
 import Language.Haskell.Liquid.Prelude
 
---{-# ANN module "spec   $LIQUIDHS/List.spec" #-}
---{-# ANN module "hquals $LIQUIDHS/List.hquals" #-}
-
 goo x = let z = [x] in z
 
 z0 _  = True

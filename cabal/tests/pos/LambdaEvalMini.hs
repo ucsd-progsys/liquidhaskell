@@ -2,9 +2,6 @@ module LambdaEvalMini where
 
 import Language.Haskell.Liquid.Prelude        
 
---{-# ANN module "spec   lambda-mini.hs.spec" #-}
---{-# ANN module "hquals lambda-mini.hs.hquals" #-}
-
 ---------------------------------------------------------------------
 ----------------------- Datatype Definition -------------------------
 ---------------------------------------------------------------------

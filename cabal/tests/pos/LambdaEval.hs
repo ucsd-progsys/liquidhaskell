@@ -4,9 +4,6 @@ import Data.List        (lookup)
 
 import Language.Haskell.Liquid.Prelude   
 
---{-# ANN module "spec   lambdaEval.hs.spec" #-}
---{-# ANN module "hquals lambdaEval.hs.hquals" #-}
-
 ---------------------------------------------------------------------
 ----------------------- Datatype Definition -------------------------
 ---------------------------------------------------------------------

@@ -5,8 +5,10 @@
 module Language.Haskell.Liquid.RefType (
     RType (..), RRType (..), BRType (..)
   , RTyCon(..), TyConable (..), Reftable(..), RefTypable (..)
-  , RefType (..), BareType (..), RedType (..)
-  , Bind (..), RBind, PVar (..)
+  , RefType, PrType, BareType, RedType
+  , PVar (..), Predicate (..)
+  , pdAnd, pdVar, pdTrue, pvars
+  , Bind (..), RBind
   , ppr_rtype, mapReft, mapRVar, mapBind
   , ofType, toType
   , rTyVar, rTyVarSymbol, rVar, rApp
@@ -57,7 +59,7 @@ import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GhcMisc (eqTv, stringTyVar)
-import Data.List (isPrefixOf, isSuffixOf, find, foldl')
+import Data.List (sort, isPrefixOf, isSuffixOf, find, foldl')
 
 --------------------------------------------------------------------
 ------------------ Generic Type Representation ---------------------
@@ -88,6 +90,26 @@ instance (NFData a) => NFData (PVar a) where
 --instance MapSymbol (PVar a) where 
 --  mapSymbol f (PV p t args) = PV (f p) t [(t, x, f y) | (t, x, y) <- args]
 
+newtype Predicate t = Pr [PVar t] deriving (Data, Typeable)
+
+pdTrue         = Pr []
+pdVar v        = Pr [v]
+pvars (Pr pvs) = pvs
+pdAnd ps       = Pr (concatMap pvars ps)
+
+-- UNIFY: Why?!
+instance Eq (Predicate a) where
+  (==) = eqpd
+
+eqpd (Pr vs) (Pr ws) 
+  = and $ (length vs' == length ws') : [v == w | (v, w) <- zip vs' ws']
+    where vs' = sort vs
+          ws' = sort ws
+
+instance Functor Predicate where
+  fmap f (Pr pvs) = Pr (fmap f <$> pvs)
+
+
 
 data Bind tv pv = RB Symbol | RV tv | RP pv 
   deriving (Data, Typeable)
@@ -104,8 +126,11 @@ data RType p c tv pv r
 type BRType   = RType String String String   
 type RRType   = RType Class  RTyCon TyVar   
 
+
+
+type PrType   = RRType (PVar Type) (Predicate Type) 
 type RefType  = RRType (PVar Type) Reft 
-type BareType = BRType (PVar String) Reft 
+type BareType = BRType (PVar String) (Reft, Predicate String) 
 type RedType  = RRType (Empty) Reft
 
 class Reftable r where 
@@ -139,9 +164,6 @@ instance Eq RBind where
   RV α == RV α' = α == α'
   RP p == RP p' = pname p == pname p'
   _    == _     = False 
-
---instance Show RefType where
---  show = showPpr
 
 --------------------------------------------------------------------
 ---------------------- Helper Functions ----------------------------

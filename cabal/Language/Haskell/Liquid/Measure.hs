@@ -10,7 +10,6 @@ module Language.Haskell.Liquid.Measure (
   , qualifySpec
   , mapTy
   , dataConTypes
- -- , measuresSpec
   ) where
 
 import GHC
@@ -106,7 +105,6 @@ instance (Outputable t, Outputable a) => Outputable (MSpec t a) where
 
 mapTy :: (a -> b) -> Measure a c -> Measure b c
 mapTy f (M n ty eqs) = M n (f ty) eqs
-
 
 dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(Symbol, RefType)])
 dataConTypes s = (ctorTys, measTys)

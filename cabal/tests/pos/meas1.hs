@@ -3,9 +3,6 @@ module Range where
 import Control.Applicative
 import Language.Haskell.Liquid.Prelude
 
---{-# ANN module "spec   $LIQUIDHS/List.spec" #-}
---{-# ANN module "hquals $LIQUIDHS/List.hquals" #-}
-
 goo x = [x]
 
 xs = goo (choose 0)

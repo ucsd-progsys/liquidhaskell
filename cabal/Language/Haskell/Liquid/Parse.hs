@@ -325,10 +325,7 @@ tyBindP
        return (name, ty)
 
 measureP 
-  = do --name  <- binderP 
-       --colon >> colon
-       --ty    <- bareTypeP
-       (x, ty) <- tyBindP  
+  = do (x, ty) <- tyBindP  
        whiteSpace
        eqns    <- grabs $ measureDefP $ tyBodyP ty
        return   $ Measure.mkM x ty eqns   
@@ -600,7 +597,6 @@ class Inputable a where
   rr' = \s -> rr
   rr  = rr' "" 
 
-
 instance Inputable Symbol where
   rr' = doParse' symbolP
 
@@ -622,17 +618,14 @@ instance Inputable (FixResult Integer) where
 instance Inputable (FixResult Integer, FixSolution) where
   rr' = doParse' solutionFileP 
 
-instance (Outputable a) => Inputable (BRType a Reft) where
-  rr' = doParse' bareTypeP 
+instance Inputable BareType where
+  rr' = error "TBD" -- doParse' bareTypeP 
 
-instance (Outputable a) => Inputable (Measure.Measure (BRType a Reft) Symbol) where
-  rr' = doParse' measureP
+instance Inputable (Measure.Measure BareType Symbol) where
+  rr' = error "TBD" -- doParse' measureP
 
-instance (Outputable a) => Inputable (Measure.Spec (BRType a Reft) Symbol) where
-  rr' = doParse' specificationP
-
-
-
+instance Inputable (Measure.Spec BareType Symbol) where
+  rr' = error "TBD" -- doParse' specificationP
 
 ---------------------------------------------------------------
 --------------------------- Testing ---------------------------

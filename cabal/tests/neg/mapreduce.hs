@@ -7,9 +7,6 @@ import Language.Haskell.Liquid.Prelude
 import qualified Data.Map as M
 import Data.List (foldl')
 
---{-# ANN module "spec   $LIQUIDHS/List.spec" #-}
---{-# ANN module "hquals $LIQUIDHS/List.hquals" #-}
-
 ----------------------------------------------------------------
 --- Step 1: Map each element into key-value list (concatMap) ---
 ----------------------------------------------------------------

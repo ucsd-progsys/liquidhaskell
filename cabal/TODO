@@ -105,7 +105,6 @@ data Bst k v <forall L :: k -> k -> ? , R :: k -> k -> ?>
 
 max :: forall a. (Ord a) => a -> a -> a
 
-
 max :: forall a <p: a -> ?>. (Ord a) => a<p> -> a<p> -> a<p>
 
 foo :: forall a <p: a -> ?>. (Num a) => a<p> -> a<p> -> a<p>

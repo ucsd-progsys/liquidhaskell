@@ -3,10 +3,6 @@ module BinSearch where
 import Language.Haskell.Liquid.Prelude
 import Data.Vector
 
-{-# ANN module "spec   $LIQUIDHS/List.spec" #-}
-{-# ANN module "spec   $LIQUIDHS/Vector.spec" #-}
-{-# ANN module "hquals $LIQUIDHS/Vector.hquals" #-}
-
 foobar = div
 
 gobble n lo hi 

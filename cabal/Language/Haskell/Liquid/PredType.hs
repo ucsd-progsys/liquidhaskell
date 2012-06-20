@@ -1,9 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
 module Language.Haskell.Liquid.PredType (
     PrType, ofTypeP
-  , Predicate (..), pdAnd, pdVar, pdTrue, pvars
   , TyConP (..), DataConP (..), SubstP (..)
-  -- , PEnv (..), lookupPEnv, fromListPEnv, insertPEnv, emptyPEnv, mapPEnv
   , splitVsPs, typeAbsVsPs, splitArgsRes
   , generalize, generalizeArgs
   , subsTyVars, substSym, subsTyVarsP, subsTyVars_
@@ -37,30 +35,6 @@ import Control.Applicative  ((<$>))
 import Control.DeepSeq
 import Data.Data
 
-newtype Predicate t = Pr [PVar t] deriving (Data, Typeable)
-
-pdTrue         = Pr []
-pdVar v        = Pr [v]
-pvars (Pr pvs) = pvs
-pdAnd ps       = Pr (concatMap pvars ps)
-
--- UNIFY: Why?!
-instance Eq (Predicate a) where
-  (==) = eqpd
-
-eqpd (Pr vs) (Pr ws) 
-  = and $ (length vs' == length ws') : [v == w | (v, w) <- zip vs' ws']
-    where vs' = L.sort vs
-          ws' = L.sort ws
-
-instance Functor Predicate where
-  fmap f (Pr pvs) = Pr (fmap f <$> pvs)
-
-class SubstP a where
-  subp :: M.Map (PVar Type) (Predicate Type) -> a -> a
-  subv :: (PVar Type -> PVar Type) -> a -> a
-
-
 data TyConP = TyConP { freeTyVarsTy :: ![TyVar]
                      , freePredTy   :: ![(PVar Type)]
                      }
@@ -70,9 +44,6 @@ data DataConP = DataConP { freeTyVars :: ![TyVar]
                          , tyArgs     :: ![(Symbol, PrType)]
                          , tyRes      :: !PrType
                          }
-
-type PrType   = RRType (PVar Type) (Predicate Type) 
-
 
 dataConPtoPredTy :: DataConP -> PrType
 dataConPtoPredTy (DataConP vs ps yts rt) = t3						
@@ -167,6 +138,24 @@ showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy t = showSDoc $ ppr t
 
+class SubstP a where
+  subp :: M.Map (PVar Type) (Predicate Type) -> a -> a
+  subv :: (PVar Type -> PVar Type) -> a -> a
+
+lookupP s p@(PV _ _ s')
+  = case M.lookup p s of 
+      Nothing  -> Pr [p]
+      Just q   -> subv (\pv -> pv { pargs = s'}) q
+
+instance SubstP (Predicate Type) where
+  subv f (Pr pvs) = Pr (f <$> pvs)
+  subp s (Pr pvs) = pdAnd (lookupP s <$> pvs) -- RJ: UNIFY: not correct!
+
+instance SubstP PrType where
+  subp s t = fmap (subp s) t
+  subv f t = fmap (subv f) t 
+
+
 subsTyVar (α, (RVar (RV a') p')) (RV a) p
   | α `eqTv` a = RVar (RV a') (pdAnd [p, p'])
   | otherwise  = RVar (RV a) p 
@@ -205,20 +194,6 @@ substSym (x, y) = mapReft fp  -- RJ: UNIFY: BUG  mapTy fxy
 --mapTy f t@(RVar a p)        = t 
 --mapTy f (PrTyCon c ts ps p) = PrTyCon c ((mapTy f) <$> ts) ps p
 --mapTy f (PrClass c ts)      = PrClass c (mapTy f <$> ts)
-
-lookupP s p@(PV _ _ s')
-  = case M.lookup p s of 
-      Nothing  -> Pr [p]
-      Just q   -> subv (\pv -> pv { pargs = s'}) q
-
-instance SubstP (Predicate Type) where
-  subv f (Pr pvs) = Pr (f <$> pvs)
-  subp s (Pr pvs) = pdAnd (lookupP s <$> pvs) -- RJ: UNIFY: not correct!
-
-instance SubstP PrType where
-  subp s t = fmap (subp s) t
-  subv f t = fmap (subv f) t 
-
 typeAbsVsPs t vs ps = t2
   where t1 = foldr RAll t  (RP <$> ps)  -- RJ: UNIFY reverse?
         t2 = foldr RAll t1 (RV <$> vs)
