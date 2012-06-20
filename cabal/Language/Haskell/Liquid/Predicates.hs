@@ -32,20 +32,11 @@ import Control.Applicative      ((<$>))
 import qualified Data.Map as M
 import qualified Data.List as L
 import Data.List (foldl')
-
 import Control.DeepSeq
 import Data.Data hiding (TyCon)
 
-
 predType :: Type
 predType = TyVarTy $ stringTyVar "Pred"
-
-----------------------------------------------------------------------
----- Predicate Environments ------------------------------------------
-----------------------------------------------------------------------
-
---instance NFData PEnv where
---  rnf (F.SE e) = ()
 
 ----------------------------------------------------------------------
 ---- Predicate Environments ------------------------------------------

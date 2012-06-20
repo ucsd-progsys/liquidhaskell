@@ -5,8 +5,6 @@ Iffy functions:
 
 
 --> Single Grammar for SPEC
-            BRType (PVar String) (Reft Sort) -> BRType 
-        >> RRType (PVar String) (Reft Sort) -->
 
 -- REFACTORING
 -- PrFun x t1 t2 ==> RFun (RB x) t1 t2
@@ -25,10 +23,7 @@ Iffy functions:
 -- type PrType = PrTy Type
 
 
-
 NEXT: Unify Spec Parser Into Workflow As:
-
-0. Move PENV stuff into Predicates.hs 
 
 1. Parse Specs Into:
     
@@ -63,12 +58,57 @@ type RRType   = RType Class  RTyCon TyVar
 type RefType  = RRType (PVar Type) (Reft Sort)  
 
 
-
-
 Tidy Annotations
 ----------------
 
 {-@ data List a << p:a (fld:a) >> = Nil | Cons x:a^True y:List a^p(x) << p(fld)>> -- -}
+
+data List a 
+  Nil  :: forall a. List a
+  Cons :: forall a. a -> List a -> List a
+
+data Expr a
+  Ite    :: forall a. Expr Bool -> Expr a -> Expr a -> Expr a
+  Plus   :: Expr Int -> Expr Int -> Expr Int
+  ConstI :: Int  -> Expr Int
+  ConstB :: Bool -> Expr Bool
+
+
+data List a 
+  = Nil
+  | Cons a (List a)
+
+data List a <forall p :: a -> a -> Prop, ...>  
+  = Nil
+  | Cons (h::a) (List<p> a<p(head)>)
+
+data List a <forall p :: a -> a -> Prop, ...>  
+  = Nil
+  | Cons {
+      head :: a 
+    , tail :: List<p> a<p(head)> 
+    }
+
+
+
+data [a]<p :: a -> a -> Prop>  
+  = Nil
+  | Cons  {
+      head :: a 
+    , tail :: [a<p(head)>]<p> 
+    }
+
+data Bst k v <forall L :: k -> k -> Prop, R :: k -> k -> Prop>
+  = Leaf
+  | Node { key   :: k 
+         , val   :: v
+         , left  :: Bst<L, R> k<L(key)> v 
+         , right :: Bst<L, R> k<R(key)> v
+         }
+
+($) :: (a -> b) -> a -> b
+
+($) :: forall <p :: a -> b -> Prop>. (x::a -> b<p(x)>) -> y::a -> b<p(y)>
 
 List a <P :: a -> a -> Prop> 
   = Nil 
