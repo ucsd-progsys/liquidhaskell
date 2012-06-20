@@ -78,27 +78,24 @@ data List a
   = Nil
   | Cons a (List a)
 
-data List a <forall p :: a -> a -> Prop, ...>  
+data List a <forall p : a -> a -> Prop, ...>  
   = Nil
-  | Cons (h::a) (List<p> a<p(head)>)
+  | Cons  (h:a) (List<p> a<p(head)>)
 
-data List a <forall p :: a -> a -> Prop, ...>  
-  = Nil
-  | Cons {
-      head :: a 
-    , tail :: List<p> a<p(head)> 
-    }
+data [a] <forall p : a -> a -> Prop>  
+  = [] 
+  | (:) (h:a) [a<p(h)>]<p>
+
+data Bst k v <l: k -> k -> Prop, r: k -> k -> Prop>
+  = Leaf
+  | Node { key   :: k
+         , value :: v 
+         , left  :: Bst (k<l key>) v <l, r> 
+         , right :: Bst (k<r key>) v <l, r>
+         }
 
 
-
-data [a]<p :: a -> a -> Prop>  
-  = Nil
-  | Cons  {
-      head :: a 
-    , tail :: [a<p(head)>]<p> 
-    }
-
-data Bst k v <forall L :: k -> k -> Prop, R :: k -> k -> Prop>
+data Bst k v <forall L :: k -> k -> ? , R :: k -> k -> ?>
   = Leaf
   | Node { key   :: k 
          , val   :: v
@@ -106,13 +103,20 @@ data Bst k v <forall L :: k -> k -> Prop, R :: k -> k -> Prop>
          , right :: Bst<L, R> k<R(key)> v
          }
 
+max :: forall a. (Ord a) => a -> a -> a
+
+
+max :: forall a <p: a -> ?>. (Ord a) => a<p> -> a<p> -> a<p>
+
+foo :: forall a <p: a -> ?>. (Num a) => a<p> -> a<p> -> a<p>
+
 ($) :: (a -> b) -> a -> b
 
-($) :: forall <p :: a -> b -> Prop>. (x::a -> b<p(x)>) -> y::a -> b<p(y)>
+($) :: forall <p :: a -> b -> Prop>. (x:a -> b<p(x)>) -> y:a -> b<p(y)>
 
-List a <P :: a -> a -> Prop> 
+List a <P : a -> a -> Prop> 
   = Nil 
-  | Cons { head :: a, tail :: List {v:a|P(head)(v)} <P> }
+  | Cons (h: a, tail :: List {v:a|P(head)(v)} <P> }
 
 Bst k v <L :: k -> k -> Prop, R :: k -> k -> Prop>
   = Leaf
