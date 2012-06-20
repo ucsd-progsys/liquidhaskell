@@ -274,7 +274,7 @@ ofBareType (RCls c ts)
 
 -- TODO: move back to RefType
 bareTCApp r rs c ts 
-  = RApp (RTyCon c []) ts rs r
+  = rApp c ts rs r -- RApp (RTyCon c []) ts rs r
 
 rbind ""    = RB dummySymbol
 rbind s     = RB $ stringSymbol s
@@ -330,7 +330,7 @@ ofBDataDecl (D tc as ps cts)
 ofBDataCon tc αs πs (c, xts)
  = do c'  <- lookupGhcDataCon c
       ts' <- mapM (mkPType πs) ts
-      let t0 = RApp (RTyCon tc []) (flip rVar pdTrue <$> αs) (pdVar <$> πs) pdTrue
+      let t0 = rApp tc (flip rVar pdTrue <$> αs) (pdVar <$> πs) pdTrue
       -- let t2 = foldl (\t' (x,t) -> RFun (RB x) t t') t0 (zip xs' ts')
       -- let t1 = foldl (\t pv -> RAll (RP pv) t) t2 πs 
       -- let t  = foldl (\t v -> RAll (RV v) t) t1 αs

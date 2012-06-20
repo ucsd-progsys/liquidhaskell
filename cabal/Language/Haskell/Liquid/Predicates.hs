@@ -33,14 +33,29 @@ import qualified Data.Map as M
 import qualified Data.List as L
 import Data.List (foldl')
 
+import Control.DeepSeq
+import Data.Data hiding (TyCon)
+
+
 predType :: Type
 predType = TyVarTy $ stringTyVar "Pred"
 
+----------------------------------------------------------------------
+---- Predicate Environments ------------------------------------------
+----------------------------------------------------------------------
+
+--instance NFData PEnv where
+--  rnf (F.SE e) = ()
+
+----------------------------------------------------------------------
+---- Predicate Environments ------------------------------------------
+----------------------------------------------------------------------
+
 consAct info = foldM consCB (initEnv info) $ cbs info
 
-generatePredicates ::  GhcInfo -> ([CoreSyn.Bind CoreBndr], PEnv)
+generatePredicates ::  GhcInfo -> ([CoreSyn.Bind CoreBndr], F.SEnv PrType)
 generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ "PredCBS" ++ show cbs')-} (cbs', nPd)
-  where γ    = mapPEnv removeExtPreds $ penv $ evalState act (initPI info)
+  where γ    = fmap removeExtPreds (penv $ evalState act (initPI info))
         act  = consAct info
         cbs' = addPredApp nPd <$> cbs info
 --         γ'   = filterGamma nPd γ 
@@ -49,18 +64,18 @@ generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ "PredCBS" ++ sho
 instance Show CoreBind where
   show = showSDoc . ppr
 
-γ += (x, t) = γ{ penv = insertPEnv (x, t) (penv γ)}
-γ ??= x = lookupPEnv x γ
+γ += (x, t) = γ { penv = F.insertSEnv x t (penv γ)}
+γ ??= x = F.lookupSEnv x γ
 
 
 γ ?= x 
-  = case (lookupPEnv x (penv γ)) of 
+  = case (F.lookupSEnv x (penv γ)) of 
       Just t  -> refreshTy t
-      Nothing -> error $ "PEnvlookupR: unknown = " ++ showPpr x
+      Nothing -> error $ "SEnvlookupR: unknown = " ++ showPpr x
 
 data PCGEnv 
-  = PCGE { loc :: !SrcSpan
-         , penv :: !PEnv
+  = PCGE { loc  :: !SrcSpan
+         , penv :: !(F.SEnv PrType)
          }
 
 data PInfo 
@@ -302,11 +317,6 @@ splitBC (Pr []) (Pr []) = []
 splitBC (Pr []) p2      = [(p2, pdTrue)] 
 splitBC p1      p2      = [(p1, p2)]
 
---splitBC PdTrue PdTrue = []
---splitBC PdTrue p2     = [(p2, PdTrue)]
---splitBC p1     p2     = [(p1, p2)]
-
-
 addC c@(SubC _ t1 t2) = modify $ \s -> s {hsCsP = c : (hsCsP s)}
 
 addPredApp γ (NonRec b e) = NonRec b $ thrd $ pExpr γ e
@@ -404,36 +414,6 @@ unifyVars (Pr v1s) (Pr v2s) = (v1s L.\\ vs, v2s L.\\ vs)
 
 unifiers ([], vs') = [(v', pdTrue) | v' <- vs']
 unifiers (vs, vs') = [(v , Pr vs')      | v  <- vs ]
-  --where p = Pr vs' -- foldr PdAnd PdTrue (PdVar <$> vs') 
-
---pvars (PdVar v)     = [v]
---pvars (PdAnd p1 p2) = pvars p1 ++ pvars p2
---pvars _             = []
-
---addToMap m 
---  = do s <- get
---       let m' = foldl foo (M.toList (pMap s)) m
---       put s { pMap = M.fromList m' }
---
---foo m (k, v) 
---  = kv':(map (rpl kv') m)
---   where k'  = case (L.lookup k m) of 
---                 Nothing -> k
---                 Just k' -> k'
---         v'  = case (L.lookup v m) of 
---                 Nothing -> v
---                 Just v' -> v'
---         kv' = case k' of 
---                 PdTrue -> (v', k')
---                 _      -> (k', v')
---
---rpl (k, v) (k', v')
---  | k == k'
---  = (v, v')
---  | k == v'
---  = (k', v)
---  | otherwise 
---  = (k', v')
 
 splitCons :: PI () 
 splitCons
@@ -442,7 +422,7 @@ splitCons
 
 -- generalize predicates of arguments: used on Rec Definitions
 
-initEnv info = PCGE { loc = noSrcSpan , penv = fromListPEnv bs}
+initEnv info = PCGE { loc = noSrcSpan , penv = F.fromListSEnv bs}
   where dflts  = [(x, trueTy $ varType x) | x <- freeVs]
         dcs    = [(x, dconTy $ varType x) | x <- dcons]
         sdcs   = map (\(x, t) -> (TC.dataConWorkId x, dataConPtoPredTy t)) (dconsP info)
@@ -454,7 +434,7 @@ initEnv info = PCGE { loc = noSrcSpan , penv = fromListPEnv bs}
 
 
 getNeedPd info 
-  = fromListPEnv bs
+  = F.fromListSEnv bs
     where  dcs = map (\(x, t) -> (TC.dataConWorkId x, dataConPtoPredTy t)) (dconsP info)
            assms = passm info
            bs = mapFst mkSymbol <$> (dcs ++ assms)
@@ -472,11 +452,6 @@ freshInt = do pi <- get
               let n = freshIndex pi
               put $ pi {freshIndex = n+1} 
               return n
-
---freshSymbol s = do n <- freshInt
---                   return $ stringSymbol $ s ++ (show n)
-
--- freshPrAs p = freshInt >>= \n -> return $ p {pname = "p" ++ (show n)}
 
 stringSymbol  = F.S
 freshSymbol s = stringSymbol . (s ++ ) . show <$> freshInt
@@ -503,7 +478,7 @@ freshTy t@(TyConApp c τs)
   = freshTy $ substTyWith αs τs τ
   where (αs, τ) = TyCon.synTyConDefn c
 freshTy t@(TyConApp c τs) 
-  = liftM3 (RApp (RTyCon c [])) (mapM freshTy  τs) (freshTyConPreds c) (return (truePr t)) 
+  = liftM3 (rApp c) (mapM freshTy τs) (freshTyConPreds c) (return (truePr t)) 
 freshTy (ForAllTy v t) 
   = liftM (RAll (RV v)) (freshTy t) 
 freshTy t
@@ -527,4 +502,3 @@ checkAll x t                 = error $ showPpr x ++ "type: " ++ showPpr t
 γ `atLoc` src
   | isGoodSrcSpan src = γ { loc = src } 
   | otherwise = γ
-

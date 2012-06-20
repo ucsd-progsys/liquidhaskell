@@ -8,6 +8,23 @@ Iffy functions:
             BRType (PVar String) (Reft Sort) -> BRType 
         >> RRType (PVar String) (Reft Sort) -->
 
+-- REFACTORING
+-- PrFun x t1 t2 ==> RFun (RB x) t1 t2
+-- PrAllPr pv t  ==> RAll (RP pv) t
+-- PrAll v t     ==> RAll (RV v) t
+-- PrVar v p     ==> RVar (RV v) p
+--
+--data PrTy a = PrVar     !TyVar     !(Predicate a)
+--            | PrLit     !Literal   !(Predicate a)
+--      	  | PrAll   !TyVar     !(PrTy a)
+--      	  | PrAllPr !(PVar a)  !(PrTy a)
+--            | PrClass !Class     ![PrTy a]
+--      	 PrFun   !Symbol    !(PrTy a)   !(PrTy a)
+--      		| PrTyCon !TC.TyCon  ![PrTy a]   ![(Predicate a)] !(Predicate a)
+--            deriving (Data, Typeable)
+-- type PrType = PrTy Type
+
+
 
 NEXT: Unify Spec Parser Into Workflow As:
 
@@ -35,9 +52,6 @@ NEXT: Unify Spec Parser Into Workflow As:
         unify:: PrType -> RefType -> RefType
 
    Should work as before.
-        
-
-
 
 -- BARE
 type BRType   = RType String String String   

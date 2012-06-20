@@ -9,7 +9,7 @@ module Language.Haskell.Liquid.RefType (
   , Bind (..), RBind, PVar (..)
   , ppr_rtype, mapReft, mapRVar, mapBind
   , ofType, toType
-  , rTyVar, rTyVarSymbol, rVar
+  , rTyVar, rTyVarSymbol, rVar, rApp
   , strengthen, strengthenRefType
   , mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
@@ -155,6 +155,8 @@ normalizePds t = addPds ps t'
   where (t', ps) = nlzP [] t
 
 rPred p t = RAll (RP p) t
+rApp c    = RApp (RTyCon c []) 
+
 
 addPds ps (RAll v@(RV _) t) = RAll v $ addPds ps t
 addPds ps t                 = foldl' (flip rPred) t ps
@@ -506,7 +508,7 @@ ofPredTree (ClassPred c τs)
  
 
 ofTyConApp  τ@(TyConApp c τs) 
-  = RApp (RTyCon c []) (ofType_ <$> τs) [] trueReft
+  = rApp c (ofType_ <$> τs) [] trueReft
 
 ofSynTyConApp (TyConApp c τs) 
   = ofType_ $ substTyWith αs τs τ
@@ -729,7 +731,7 @@ literalRefType l
 makeRTypeBase (TyVarTy α) x       
   = RVar (rTyVar α) x 
 makeRTypeBase τ@(TyConApp c _) x 
-  = RApp (RTyCon c []) [] [] x
+  = rApp c [] [] x
 
 literalReft l  = exprReft e 
   where (_, e) = literalConst l 

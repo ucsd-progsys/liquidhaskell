@@ -82,7 +82,7 @@ generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fw
         act = consAct (info{cbs = fst pds}) (snd pds)
         fcs = concatMap splitC $ hsCs  st 
         fws = concatMap splitW $ hsWfs st
-        gs  = F.fromListFEnv . map (mapSnd refTypeSortedReft) $ meas info
+        gs  = F.fromListSEnv . map (mapSnd refTypeSortedReft) $ meas info
         pds = generatePredicates info
         cns = M.fromList (tconsP info)
 
@@ -103,7 +103,7 @@ kvars' = everything (plus') (0 `mkQ` grabKvar)
 --  where grab x@(F.S _) = S.singleton x 
 
 
-initEnv :: GhcInfo -> PEnv -> CG CGEnv  
+initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
 initEnv info penv
   = do defaults <- forM freeVars $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- liftM tyConInfo get 
@@ -117,24 +117,24 @@ initEnv info penv
     where freeVars = importVars $ cbs info
 
 unifyts penv (x, t) = (x', unify pt t)
- where pt = lookupPEnv x' penv
+ where pt = F.lookupSEnv x' penv
        x' = mkSymbol x
    
 measEnv info penv = CGE noSrcSpan re0 penv fe0 S.empty
   where bs   = meas info 
         re0  = fromListREnv bs 
-        fe0  = F.fromListFEnv $ mapSnd refTypeSortedReft <$> bs 
+        fe0  = F.fromListSEnv $ mapSnd refTypeSortedReft <$> bs 
 
 
 -------------------------------------------------------------------
 -------- Helpers: Reading/Extending Environment Bindings ----------
 -------------------------------------------------------------------
 
-data CGEnv = CGE { loc  :: !SrcSpan      -- where in orig src
-                 , renv :: !REnv         -- bindings in scope
-                 , penv :: !PEnv         -- bindings in scope
-                 , fenv :: !F.Envt       -- the fixpoint environment 
-                 , recs :: !(S.Set Var)  -- recursive defs being processed (for annotations)
+data CGEnv = CGE { loc  :: !SrcSpan         -- where in orig src
+                 , renv :: !REnv            -- bindings in scope
+                 , penv :: !(F.SEnv PrType) -- bindings in scope
+                 , fenv :: !F.FEnv          -- the fixpoint environment 
+                 , recs :: !(S.Set Var)     -- recursive defs being processed (for annotations)
                  } deriving (Data, Typeable)
 
 instance Outputable CGEnv where
@@ -146,7 +146,7 @@ instance Show CGEnv where
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 γ ++= (x, r') 
   | isBase r 
-  = γ' { fenv = F.insertFEnv x (refTypeSortedReft r) (fenv γ) }
+  = γ' { fenv = F.insertSEnv x (refTypeSortedReft r) (fenv γ) }
   | otherwise
   = γ' { fenv = insertFEnvClass r (fenv γ) }
   where γ' = γ { renv = insertREnv x r (renv γ) }  
@@ -159,7 +159,7 @@ instance Show CGEnv where
   = γ ++= (x, r) 
 
 γ -= x 
-  =  γ { renv = deleteREnv x (renv γ) } { fenv = F.deleteFEnv x (fenv γ) }
+  =  γ { renv = deleteREnv x (renv γ) } { fenv = F.deleteSEnv x (fenv γ) }
 
 (?=) ::  CGEnv -> F.Symbol -> RefType 
 γ ?= x
@@ -168,7 +168,7 @@ instance Show CGEnv where
       Nothing -> errorstar $ "EnvLookup: unknown = " ++ showPpr x
 
 getPrType :: CGEnv -> F.Symbol -> Maybe PrType
-getPrType γ x = lookupPEnv x (penv γ)
+getPrType γ x = F.lookupSEnv x (penv γ)
 
 atLoc :: CGEnv -> SrcSpan -> CGEnv
 γ `atLoc` src 
@@ -199,10 +199,10 @@ isBase (RVar _ _)     = True
 isBase (RApp _ _ _ _) = True
 isBase _                 = False
 
-insertFEnvClass :: RefType -> F.Envt -> F.Envt
+insertFEnvClass :: RefType -> F.FEnv -> F.FEnv
 insertFEnvClass (RCls c ts) fenv
   | isNumericClass c
-  = foldl' (\env x -> F.insertFEnv x numReft env) fenv numVars
+  = foldl' (\env x -> F.insertSEnv x numReft env) fenv numVars
   where numReft = F.trueSortedReft F.FNum
         numVars = [rTyVarSymbol a | (RVar a _) <- ts]
 insertFEnvClass _ fenv 
@@ -394,7 +394,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , hsWfs      :: ![WfC]
                      , fixCs      :: ![FixSubC]
                      , fixWfs     :: ![FixWfC] 
-                     , globals    :: !F.Envt -- [(F.Symbol, F.SortedReft)] 
+                     , globals    :: !F.FEnv -- [(F.Symbol, F.SortedReft)] 
                      , freshIndex :: !Integer 
                      , annotMap   :: !(AnnInfo Annot) 
                      , tyConInfo  :: !(M.Map TC.TyCon RTyCon) 
@@ -418,7 +418,7 @@ ppr_CGInfo cgi
 
 type CG = State CGInfo
 
-initCGI info = CGInfo [] [] [] [] F.emptyFEnv 0 (AI M.empty) tyi
+initCGI info = CGInfo [] [] [] [] F.emptySEnv 0 (AI M.empty) tyi
 		where tyi  = M.fromList $ mkTyCon_ <$> (tconsP info)
 
 showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
@@ -879,7 +879,7 @@ instance NFData Cinfo
 
 instance NFData CGEnv where
   rnf (CGE x1 x2 x3 x4 x5) 
-    = x1 `seq` rnf x2 `seq` rnf x3  `seq` rnf x4
+    = x1 `seq` rnf x2 `seq` {- rnf x3  `seq` -} rnf x4
 
 instance NFData SubC where
   rnf (SubC x1 x2 x3) 

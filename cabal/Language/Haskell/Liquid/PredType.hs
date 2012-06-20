@@ -3,7 +3,7 @@ module Language.Haskell.Liquid.PredType (
     PrType, ofTypeP
   , Predicate (..), pdAnd, pdVar, pdTrue, pvars
   , TyConP (..), DataConP (..), SubstP (..)
-  , PEnv (..), lookupPEnv, fromListPEnv, insertPEnv, emptyPEnv, mapPEnv
+  -- , PEnv (..), lookupPEnv, fromListPEnv, insertPEnv, emptyPEnv, mapPEnv
   , splitVsPs, typeAbsVsPs, splitArgsRes
   , generalize, generalizeArgs
   , subsTyVars, substSym, subsTyVarsP, subsTyVars_
@@ -44,8 +44,14 @@ pdVar v        = Pr [v]
 pvars (Pr pvs) = pvs
 pdAnd ps       = Pr (concatMap pvars ps)
 
--- pand  (Pr ps) (Pr ps')  = Pr (ps ++ ps')
+-- UNIFY: Why?!
+instance Eq (Predicate a) where
+  (==) = eqpd
 
+eqpd (Pr vs) (Pr ws) 
+  = and $ (length vs' == length ws') : [v == w | (v, w) <- zip vs' ws']
+    where vs' = L.sort vs
+          ws' = L.sort ws
 
 instance Functor Predicate where
   fmap f (Pr pvs) = Pr (fmap f <$> pvs)
@@ -54,24 +60,6 @@ class SubstP a where
   subp :: M.Map (PVar Type) (Predicate Type) -> a -> a
   subv :: (PVar Type -> PVar Type) -> a -> a
 
--- REFACTORING
--- PrFun x t1 t2 ==> RFun (RB x) t1 t2
--- PrAllPr pv t  ==> RAll (RP pv) t
--- PrAll v t     ==> RAll (RV v) t
--- PrVar v p     ==> RVar (RV v) p
---
---data PrTy a = PrVar     !TyVar     !(Predicate a)
---            | PrLit     !Literal   !(Predicate a)
---      	  | PrAll   !TyVar     !(PrTy a)
---      	  | PrAllPr !(PVar a)  !(PrTy a)
---            | PrClass !Class     ![PrTy a]
---      	 PrFun   !Symbol    !(PrTy a)   !(PrTy a)
---      		| PrTyCon !TC.TyCon  ![PrTy a]   ![(Predicate a)] !(Predicate a)
---            deriving (Data, Typeable)
--- type PrType = PrTy Type
-
-
-type PrType   = RRType (PVar Type) (Predicate Type) 
 
 data TyConP = TyConP { freeTyVarsTy :: ![TyVar]
                      , freePredTy   :: ![(PVar Type)]
@@ -83,13 +71,14 @@ data DataConP = DataConP { freeTyVars :: ![TyVar]
                          , tyRes      :: !PrType
                          }
 
+type PrType   = RRType (PVar Type) (Predicate Type) 
+
+
 dataConPtoPredTy :: DataConP -> PrType
 dataConPtoPredTy (DataConP vs ps yts rt) = t3						
   where t1 = foldl' (\t2 (x, t1) -> RFun (RB x) t1 t2) rt yts 
         t2 = foldr RAll t1 $ RP <$> ps
         t3 = foldr RAll t2 $ RV <$> vs
-
-
 
 instance Outputable TyConP where
  ppr (TyConP vs ps) 
@@ -123,7 +112,7 @@ dataConTy m t
   | isPredTy t
   = ofPredTree $ classifyPredType t
 dataConTy m (TyConApp c ts)        
-  = RApp (RTyCon c []) (dataConTy m <$> ts) [] pdTrue
+  = rApp c (dataConTy m <$> ts) [] pdTrue
 dataConTy _ t
   = error "ofTypePAppTy"
 
@@ -140,7 +129,7 @@ ofTypeP (TyConApp c ts)
   | TC.isSynTyCon c
   = ofTypeP $ substTyWith αs ts τ
   | otherwise
-  = RApp (RTyCon c []) (map ofTypeP ts) [] pdTrue
+  = rApp c (ofTypeP <$> ts) [] pdTrue
  where (αs, τ) = TC.synTyConDefn c
 ofTypeP t
 	= error "ofTypePAppTy"
@@ -191,7 +180,6 @@ subsTyVar (α, τ) (RV a) p
 -- subsTyVars_ ::  (Var, PrTy Type, Type) -> PrTy Type -> PrTy Type
 subsTyVars_ (v, t, τ) = mapReft (subsTyVarsP [(v, τ)]) . mapRVar (subsTyVar (v, t))
 
-
 subsTyVars s = mapReft (subv (subsTyVarP1_ s)) . mapRVar (subsTyVar s)
 
 subsTyVarsP ::  Functor f => [(Var, Type)] -> f Type -> f Type
@@ -204,7 +192,6 @@ subsTyVarP1_ av@(α, (RVar (RV α') _)) = fmap $ tvSubst (α, TyVarTy α')
 tvSubst (α, t) t'@(TyVarTy α') 
   | eqTv α α' = t
   | otherwise = t'
-
 
 substSym (x, y) = mapReft fp  -- RJ: UNIFY: BUG  mapTy fxy
   where fxy s = if (s == x) then y else s
@@ -232,7 +219,6 @@ instance SubstP PrType where
   subp s t = fmap (subp s) t
   subv f t = fmap (subv f) t 
 
-
 typeAbsVsPs t vs ps = t2
   where t1 = foldr RAll t  (RP <$> ps)  -- RJ: UNIFY reverse?
         t2 = foldr RAll t1 (RV <$> vs)
@@ -242,64 +228,13 @@ splitVsPs t = go ([], []) t
         go (vs, pvs) (RAll (RP pv) t) = go (vs, pv:pvs) t
         go (vs, pvs) t                = (reverse vs, reverse pvs, t)
 
---splitVsPs (RAll (RV v) t) = (v:vs, ps, t')
---  where (vs, ps, t') = splitVsPs t
---splitVsPs (RAll (RP p) t) = (vs, p:ps, t')
---  where (vs, ps, t') = splitVsPs t
---splitVsPs t           = ([], [], t)
-
 splitArgsRes (RFun _ t1 t2) = (t1:t1', t2')
   where (t1', t2') = splitArgsRes t2
 splitArgsRes t = ([], t)
 
-
-data PEnv = PEnv (M.Map Symbol PrType) deriving (Data, Typeable)
-
+----------------------------------------------------------------------
 -- UNIFY: MOVE INTO Predicates.hs
-lookupPEnv :: Symbol -> PEnv -> Maybe PrType
-lookupPEnv x (PEnv e) = M.lookup x e
-emptyPEnv = PEnv M.empty
-mapPEnv f (PEnv m) = PEnv $ M.map f m
-insertPEnv (x, t) (PEnv e) = PEnv $ M.insert x t e
-fromListPEnv = PEnv . M.fromList
-
--- UNIFY: Why?!
-instance Eq (Predicate a) where
-  (Pr vs) == (Pr ws) = (length vs' == length ws') && and [v == w | (v, w) <- zip vs' ws']
-                       where vs' = L.sort vs
-                             ws' = L.sort ws
-
--- (PdVar (PV s1 _ _)) == (PdVar (PV s2 _ _))  
---   = s1 == s2
--- (PdVar _) == _               
---   = False
--- PdTrue  == PdTrue          
---   = True
--- PdTrue  ==  _               
---   = False
--- (PdAnd p11 p12) == (PdAnd p21 p22)
---   = p11 == p21 && p12 == p22
--- (PdAnd p11 p12) == _
---   = False
-
--- UNIFY: Why?!
---instance Ord (Predicate a) where
--- compare (PdVar (PV s1 _ _)) (PdVar (PV s2 _ _))  
---   = compare s1 s2
--- compare (PdVar (PV s  _ _)) _               
---   = GT
--- compare PdTrue         PdTrue          
---   = EQ
--- compare PdTrue         _               
---   = LT
--- compare (PdAnd p11 p12) (PdAnd p21 p22)
---   | q== EQ
---	 = compare p12 p22
---	 | otherwise
---	 = q
---	 where q = compare p11 p21 
--- compare (PdAnd _ _) _ 
---  = LT
+----------------------------------------------------------------------
 
 instance Show (Predicate Type) where
   show = showSDoc . ppr
@@ -320,19 +255,6 @@ instance Outputable (PVar t) => Reftable (Predicate t) where
     | otherwise      = angleBrackets $ hsep $ punctuate comma $ ppr <$> rs
 
 isTauto (Pr ps) = null ps 
-
--- instance Show PrType where
---  show = showSDoc . ppr
-
-instance Outputable PEnv where
- ppr (PEnv e) = vcat $ map pprxt $ M.toAscList e
-	  where pprxt (x, t) = ppr x <+> text "::" <+> ppr t
-
-instance Show PEnv where
- show = showSDoc . ppr
-
-instance NFData PEnv where
-  rnf (PEnv e) = ()
 
 instance NFData (Predicate a) where
   rnf _ = ()

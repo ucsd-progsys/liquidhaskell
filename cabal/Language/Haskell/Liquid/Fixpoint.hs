@@ -8,9 +8,13 @@ module Language.Haskell.Liquid.Fixpoint (
   , anfPrefix, tempPrefix
   , intKvar
   , Sort (..), Symbol(..), Loc (..), Constant (..), Bop (..), Brel (..), Expr (..)
-  , Pred (..), Refa (..), SortedReft (..), Reft(..), Envt
+  , Pred (..), Refa (..), SortedReft (..), Reft(..)
+  , SEnv (..)
+  , FEnv
   , SubC (..), WfC(..), FixResult (..), FixSolution, FInfo (..)
-  , emptyFEnv, fromListFEnv, insertFEnv, deleteFEnv
+  , emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, lookupSEnv
+  -- , emptyFEnv, fromListFEnv, deleteFEnv
+  , insertFEnv 
   , vv
   , meet
   , trueReft, trueSortedReft 
@@ -171,14 +175,14 @@ instance (Fixpoint a, Fixpoint b) => Fixpoint (a,b) where
 
 data FInfo a = FI { cs :: ![SubC a]
                   , ws :: ![WfC a ] 
-                  , gs :: !Envt --[(Symbol, Sort)] 
+                  , gs :: !FEnv -- Envt Symbol, Sort)] 
                   } deriving (Data, Typeable)
 
 toFixpoint x' = gsDoc x' $+$ conDoc x' $+$  csDoc x' $+$ wsDoc x'
   where conDoc     = vcat . map infoConstant . S.elems . S.fromList . getConstants 
         csDoc      = vcat . map toFix . cs 
         wsDoc      = vcat . map toFix . ws 
-        gsDoc      = vcat . map infoConstant . map (\(x, (RR so _)) -> (x, so, False)) . M.assocs . (\(Envt e) -> e) . gs
+        gsDoc      = vcat . map infoConstant . map (\(x, (RR so _)) -> (x, so, False)) . M.assocs . (\(SE e) -> e) . gs
        
 ---------------------------------------------------------------
 ------------------------------ Sorts --------------------------
@@ -509,9 +513,25 @@ meet (Reft (v, ras)) (Reft (v', ras'))
   | v == v'   = Reft (v, ras ++ ras')
   | otherwise = Reft (v, ras ++ (ras' `subst1` (v', EVar v)))
 
-newtype Envt = Envt (M.Map Symbol SortedReft) 
-               deriving (Eq, Ord, Data, Typeable) 
- 
+newtype SEnv a = SE (M.Map Symbol a) 
+                 deriving (Eq, Ord, Data, Typeable) 
+
+fromListSEnv            = SE . M.fromList
+deleteSEnv x (SE env)   = SE (M.delete x env)
+insertSEnv x y (SE env) = SE (M.insert x y env)
+lookupSEnv x (SE env)   = M.lookup x env
+emptySEnv               = SE M.empty
+memberSEnv x (SE env)   = M.member x env
+domainSEnv (SE env)     = M.keys env
+
+instance Functor SEnv where
+  fmap f (SE m) = SE $ fmap f m
+
+type FEnv = SEnv SortedReft 
+
+-- Envt (M.Map Symbol SortedReft) 
+-- deriving (Eq, Ord, Data, Typeable) 
+
 instance Fixpoint Refa where
   toFix (RConc p)    = toFix p
   toFix (RKvar k su) = toFix k <> toFix su
@@ -521,23 +541,34 @@ instance Fixpoint SortedReft where
     = braces 
     $ (toFix v) <+> (text ":") <+> (toFix so) <+> (text "|") <+> toFix ras
 
-instance Fixpoint Envt where
-  toFix (Envt m)  = toFix (M.toAscList m)
+instance Fixpoint FEnv where
+  toFix (SE m)  = toFix (M.toAscList m)
 
-insertFEnv ::  Symbol -> SortedReft -> Envt -> Envt
-insertFEnv (S (s:ss)) r (Envt m) | isUpper s
- = Envt (M.insert (S ((toLower s):ss)) r m)
-insertFEnv x r (Envt m) = Envt (M.insert x r m)
-deleteFEnv x (Envt m)   = Envt (M.delete x m)
-fromListFEnv            = Envt . M.fromList . (builtins ++) 
-  where builtins        = [(tagSymbol, trueSortedReft $ FFunc 1 [FVar 0, FObj])]
-emptyFEnv               = Envt M.empty
+deleteFEnv   = deleteSEnv
+fromListFEnv = fromListSEnv
+emptyFEnv    = emptySEnv
+insertFEnv   = insertSEnv . lower 
+  where lower x@(S (c:cs)) 
+          | isUpper c = S $ (toLower c):cs
+          | otherwise = x
+
+--deleteFEnv x (Envt m)   = Envt (M.delete x m)
+--fromListFEnv            = Envt . M.fromList . (builtins ++) 
+-- where builtins        = [(tagSymbol, trueSortedReft $ FFunc 1 [FVar 0, FObj])]
+-- emptyFEnv               = Envt M.empty
+
+instance (Outputable a) => Outputable (SEnv a) where
+  ppr (SE e) = vcat $ map pprxt $ M.toAscList e
+	where pprxt (x, t) = ppr x <+> dcolon <+> ppr t
+
+instance Outputable (SEnv a) => Show (SEnv a) where
+  show = showSDoc . ppr
 
 ---------------------------------------------------------------
 ----------------- Refinements and Environments  ---------------
 ---------------------------------------------------------------
 
-data SubC a = SubC { senv  :: !Envt
+data SubC a = SubC { senv  :: !FEnv
                    , sgrd  :: !Pred
                    , slhs  :: !SortedReft
                    , srhs  :: !SortedReft
@@ -546,7 +577,7 @@ data SubC a = SubC { senv  :: !Envt
                    , sinfo :: !a
                    } deriving (Eq, Ord, Data, Typeable)
 
-data WfC a  = WfC  { wenv  :: !Envt
+data WfC a  = WfC  { wenv  :: !FEnv
                    , wrft  :: !SortedReft
                    , wid   :: !(Maybe Integer) 
                    , winfo :: !a
@@ -736,10 +767,10 @@ instance NFData Sub where
   rnf (Sub x) = rnf x
 
 instance NFData Subst where
-  rnf (Su x) = () -- rnf x
+  rnf (Su x) = rnf x
 
-instance NFData Envt where
-  rnf (Envt x) = () -- rnf x
+instance NFData FEnv where
+  rnf (SE x) = rnf x
 
 instance NFData Constant where
   rnf (I x) = rnf x

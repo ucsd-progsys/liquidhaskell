@@ -583,10 +583,8 @@ listTyDataCons = ( [(c, TyConP [tyv] [p])]
           xs    = stringSymbol "xs"
           p     = PV (stringSymbol "p") t [(t, fld, fld)]
           px    = pdVar $ PV (stringSymbol "p") t [(t, fld, x)]
-          lt    = RApp (RTyCon c []) [RVar (RV tyv) pdTrue] [pdVar p] pdTrue 
+          lt    = rApp c [RVar (RV tyv) pdTrue] [pdVar p] pdTrue 
           xt    = RVar (RV tyv) pdTrue
-          xst   = RApp (RTyCon c []) [RVar (RV tyv) px] [pdVar p] pdTrue
+          xst   = rApp c [RVar (RV tyv) px] [pdVar p] pdTrue
           cargs = [(xs, xst), (x, xt)]
-
-
 
