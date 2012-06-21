@@ -6,7 +6,6 @@
 
 module Language.Haskell.Liquid.Bare (
     DataDecl (..)
-  , bLst, bTup, bCon, isBoolBareType
   , getClasses
   , mkRefTypes
   , mkMeasureSpec
@@ -70,13 +69,6 @@ import qualified Control.Exception as Ex
 ------------------------------------------------------------------
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
-
-instance TyConable String where
-  isList  = (listConName ==) 
-  isTuple = (tupConName ==)
-
-instance (Outputable pv, Reftable r) => RefTypable String String String pv r where
-  ppCls c ts = parens (text c <+> text "...")
 
 mkRefTypes :: HscEnv -> [BRType a Reft] -> IO [RRType a Reft]
 mkRefTypes env bs = runReaderT (mapM mkRefType bs) env
@@ -213,19 +205,6 @@ wiredIn = M.fromList $
   , ("GHC.Types.I#"             , dataConName intDataCon)
   , ("GHC.Prim.Int#"            , tyConName intPrimTyCon) 
   ]
-
-listConName = "List"
-tupConName  = "Tuple"
-boolConName = "Bool"
-
-bLst t r    = RApp listConName [t] [] r 
-bTup [x] _  = x
-bTup xs  r  = RApp tupConName xs [] r
-bCon b ts r = RApp b ts [] r
-
-isBoolBareType (RApp tc [] _ _) = tc == boolConName
-isBoolBareType _                = False
-
 
 getClasses (RApp tc ts _ _) 
   | isTuple tc -- tc == tupConName 

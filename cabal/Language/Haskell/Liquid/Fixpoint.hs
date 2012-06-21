@@ -21,8 +21,8 @@ module Language.Haskell.Liquid.Fixpoint (
   , trueRefa
   , canonReft, exprReft, symbolReft
   , isNonTrivialSortedReft
-  , isTautoRa
-  , ppr_reft, ppr_reft_preds, flattenRefas
+  , isTautoReft
+  , ppr_reft, ppr_reft_pred, flattenRefas
   , simplify
   , emptySubst, mkSubst, catSubst
   , Subable (..)
@@ -467,11 +467,11 @@ ppr_reft (Reft (v, ras)) d
   | otherwise
   =  braces (ppr v <+> colon <+> d <+> text "|" <+> ppRas ras)
 
-ppr_reft_preds rs 
-  | all isTautoReft rs 
-  = empty
-  | otherwise 
-  = angleBrackets $ hsep $ punctuate comma $ ppr_reft_pred <$> rs
+--ppr_reft_preds rs 
+--  | all isTautoReft rs 
+--  = empty
+--  | otherwise 
+--  = angleBrackets $ hsep $ punctuate comma $ ppr_reft_pred <$> rs
  
 ppr_reft_pred (Reft (v, ras))
   | all isTautoRa ras
@@ -500,7 +500,7 @@ instance Show Reft where
   show (Reft x) = showSDoc $ toFix x 
 
 instance Outputable Reft where
-  ppr = text . show
+  ppr = ppr_reft_pred --text . show
 
 data SortedReft
   = RR !Sort !Reft

@@ -4,10 +4,13 @@
 
 module Language.Haskell.Liquid.RefType (
     RType (..), RRType (..), BRType (..)
-  , RTyCon(..), TyConable (..), Reftable(..), RefTypable (..)
+  , RTyCon(..)
+  , TyConable (..), Reftable(..), RefTypable (..)
   , RefType, PrType, BareType, SpecType
   , PVar (..), Predicate (..)
+  , DataDecl
   , pdAnd, pdVar, pdTrue, pvars
+  , bLst, bTup, bCon, isBoolBareType
   , Bind (..), RBind
   , ppr_rtype, mapReft, mapRVar, mapBind
   , ofType, toType
@@ -62,7 +65,7 @@ import Language.Haskell.Liquid.GhcMisc (eqTv, stringTyVar)
 import Data.List (sort, isPrefixOf, isSuffixOf, find, foldl')
 
 --------------------------------------------------------------------
------------------- Generic Type Representation ---------------------
+------------------ Predicate Variables -----------------------------
 --------------------------------------------------------------------
 
 data PVar t
@@ -90,6 +93,10 @@ instance (NFData a) => NFData (PVar a) where
 --instance MapSymbol (PVar a) where 
 --  mapSymbol f (PV p t args) = PV (f p) t [(t, x, f y) | (t, x, y) <- args]
 
+--------------------------------------------------------------------
+------------------ Predicates --------------------------------------
+--------------------------------------------------------------------
+
 newtype Predicate t = Pr [PVar t] deriving (Data, Typeable)
 
 pdTrue         = Pr []
@@ -109,7 +116,33 @@ eqpd (Pr vs) (Pr ws)
 instance Functor Predicate where
   fmap f (Pr pvs) = Pr (fmap f <$> pvs)
 
+instance Show (Predicate Type) where
+  show = showSDoc . ppr
 
+instance (Outputable (PVar t)) => Outputable (Predicate t) where
+  ppr (Pr [])       = text "True"
+  ppr (Pr pvs)      = hsep $ punctuate (text "&") (map ppr pvs)
+
+instance Outputable (Predicate t) => Show (Predicate t) where
+  show = showSDoc . ppr
+  
+instance Outputable (PVar t) => Reftable (Predicate t) where
+  isTauto (Pr ps) 
+    = null ps
+  ppTy r d 
+    | isTauto r = d 
+    | otherwise = d <> (angleBrackets $ ppr r)
+  
+
+instance NFData (Predicate a) where
+  rnf _ = ()
+
+instance NFData PrType where
+  rnf _ = ()
+
+--------------------------------------------------------------------
+---- Unified Representation of Refinement Types --------------------
+--------------------------------------------------------------------
 
 data Bind tv pv = RB Symbol | RV tv | RP pv 
   deriving (Data, Typeable)
@@ -123,18 +156,21 @@ data RType p c tv pv r
   | ROth String
   deriving (Data, Typeable)
 
-type BRType   = RType String String String   
-type RRType   = RType Class  RTyCon TyVar   
+type BRType     = RType String String String   
+type RRType     = RType Class  RTyCon TyVar   
 
-type BareType = BRType (PVar String) (Reft, Predicate String) 
+newtype UReft t = U (Reft, Predicate t)
+
+type BareType   = BRType (PVar String) (UReft String) 
+type SpecType   = RRType (PVar Type)   (UReft Type)
+type PrType     = RRType (PVar Type)   (Predicate String) 
+type RefType    = RRType (PVar Type)   Reft
+
 data DataDecl = D String [String] [PVar String] [(String, [(String, BareType)])] deriving Show
-type SpecType = RRType (PVar Type) (Reft, Predicate Type)
-type PrType   = RRType (PVar Type) (Predicate String) 
-type RefType  = RRType (PVar Type) Reft
 
-class Reftable r where 
-  ppReft   :: r -> SDoc -> SDoc
-  ppReftPs :: [r] -> SDoc
+class Outputable r => Reftable r where 
+  isTauto :: r -> Bool
+  ppTy    :: r -> SDoc -> SDoc
 
 class TyConable c where
   isList   :: c -> Bool
@@ -319,8 +355,37 @@ instance TyConable RTyCon where
   isTuple = TC.isTupleTyCon   . rTyCon 
 
 instance Reftable Reft where
-  ppReft      = ppr_reft
-  ppReftPs    = ppr_reft_preds 
+  isTauto = isTautoReft
+  ppTy    = ppr_reft
+
+listConName = "List"
+tupConName  = "Tuple"
+boolConName = "Bool"
+isBoolBareType (RApp tc [] _ _) = tc == boolConName
+isBoolBareType _                = False
+
+bLst t r    = RApp listConName [t] [] r 
+bTup [x] _  = x
+bTup xs  r  = RApp tupConName xs [] r
+bCon b ts r = RApp b ts [] r
+
+
+instance TyConable String where
+  isList  = (listConName ==) 
+  isTuple = (tupConName ==)
+
+instance (Outputable pv, Reftable r) => RefTypable String String String pv r where
+  ppCls c ts = parens (text c <+> text "...")
+
+instance Reftable (Predicate t) => Outputable (UReft t) where
+  ppr (U (r, p))
+    | isTauto r  = ppr p
+    | isTauto p  = ppr r
+    | otherwise  = ppr p <> text " & " <> ppr r
+ 
+instance Reftable (Predicate t) => Reftable (UReft t) where
+  isTauto (U (r, p)) = isTauto r && isTauto p 
+  ppTy (U (r, p)) d  = ppTy r (ppTy p d) 
 
 instance (Outputable pv, Reftable r) => RefTypable Class RTyCon TyVar pv r where
   ppCls c ts  = parens $ pprClassPred c (toType <$> ts)
@@ -343,7 +408,6 @@ instance (RefTypable p c tv pv r) => Outputable (RType p c tv pv r) where
 
 instance Outputable (RType p c tv pv r) => Show (RType p c tv pv r) where
   show = showSDoc . ppr
-  
 
 instance Outputable RTyCon where
   ppr (RTyCon c ts) = ppr c -- <+> text "\n<<" <+> hsep (map ppr ts) <+> text ">>\n"
@@ -357,18 +421,23 @@ ppr_rtype p (RAll pv@(RP _) t)
 ppr_rtype p t@(RAll (RV _) _)       
   = ppr_forall p t
 ppr_rtype p (RVar a r)         
-  = ppReft r $ ppr a
+  = ppTy r $ ppr a
 ppr_rtype p (RFun x t t')  
   = pprArrowChain p $ ppr_dbind x t : ppr_fun_tail t'
 ppr_rtype p ty@(RApp c [t] rs r)
   | isList c 
-  = ppReft r $ brackets (ppr_rtype p t) <> ppReftPs rs
+  = ppTy r $ brackets (ppr_rtype p t) <> ppReftPs rs
 ppr_rtype p (RApp c ts rs r)
-  = ppReft r $ ppr c <> ppReftPs rs <+> hsep (ppr_rtype p <$> ts)
+  = ppTy r $ ppr c <> ppReftPs rs <+> hsep (ppr_rtype p <$> ts)
 ppr_rtype _ ty@(RCls c ts)      
   = ppCls c ts
 ppr_rtype _ (ROth s)
   = text "?" <> text s <> text "?"
+
+
+ppReftPs rs 
+  | all isTauto rs = empty -- text "" 
+  | otherwise      = angleBrackets $ hsep $ punctuate comma $ ppr <$> rs
 
 ppr_pred :: (RefTypable p c tv pv r) => Prec -> RType p c tv pv r -> SDoc
 ppr_pred p (RAll pv@(RP _) t)

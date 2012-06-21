@@ -211,28 +211,4 @@ splitArgsRes t = ([], t)
 -- UNIFY: MOVE INTO Predicates.hs
 ----------------------------------------------------------------------
 
-instance Show (Predicate Type) where
-  show = showSDoc . ppr
 
-instance (Outputable (PVar t)) => Outputable (Predicate t) where
-  ppr (Pr [])       = text "True"
-  ppr (Pr pvs)      = hsep $ punctuate (text "&") (map ppr pvs)
-
-instance Outputable (Predicate t) => Show (Predicate t) where
-  show = showSDoc . ppr
-  
-instance Outputable (PVar t) => Reftable (Predicate t) where
-  ppReft r d 
-    | isTauto r = d 
-    | otherwise = d <> (angleBrackets $ ppr r)
-  ppReftPs rs 
-    | all isTauto rs = text "" 
-    | otherwise      = angleBrackets $ hsep $ punctuate comma $ ppr <$> rs
-
-isTauto (Pr ps) = null ps 
-
-instance NFData (Predicate a) where
-  rnf _ = ()
-
-instance NFData PrType where
-  rnf _ = ()
