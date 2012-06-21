@@ -297,6 +297,7 @@ data Pspec ty bndr
   = Meas (Measure.Measure ty bndr) 
   | Assm (bndr, ty) 
   | Impt Symbol
+  | DDecl DataDecl
 
 specificationP 
   = do reserved "module"
@@ -304,15 +305,17 @@ specificationP
        name  <- symbolP
        reserved "where"
        xs    <- grabs (liftM2 const specP whiteSpace)
-       let ms = [m | Meas m <- xs]
-       let as = [a | Assm a <- xs]
-       let is = [i | Impt i <- xs]
-       return $ Measure.qualifySpec name $ Measure.Spec ms as is 
+       let ms = [m | Meas  m <- xs]
+       let as = [a | Assm  a <- xs]
+       let is = [i | Impt  i <- xs]
+       let ds = [d | DDecl d <- xs]
+       return $ Measure.qualifySpec name $ Measure.Spec ms as is ds
 
 specP 
-  = try (reserved "assume"  >> liftM Assm tyBindP)
-    <|> (reserved "measure" >> liftM Meas measureP) 
-    <|> (reserved "import"  >> liftM Impt symbolP)
+  = try (reserved "assume"  >> liftM Assm  tyBindP)
+    <|> (reserved "measure" >> liftM Meas  measureP) 
+    <|> (reserved "import"  >> liftM Impt  symbolP)
+    <|> (reserved "data"    >> liftM DDecl dataDeclP)
 
 tyBindP 
   = do name  <- binderP 
@@ -420,11 +423,8 @@ dataConP
       xts <- sepBy predTypePDD spaces
       return (x, xts)
 
-dataDeclsP
-  = sepBy dataDeclP spaces 
-
 dataDeclP
- = do reserved "data"
+ = do -- reserved "data"
       x <- tyConVarIdP
       spaces
       ts <- sepBy tyVarIdP spaces
@@ -621,11 +621,8 @@ instance Inputable (Measure.Spec BareType Symbol) where
   rr' = error "TBD" -- doParse' specificationP
 
 
-instance Inputable [(Symbol, BRType (Var String) (Predicate String))] where
+instance Inputable [(Symbol, BRType (PVar String) (Predicate String))] where
   rr' = doParse' specPr
-
-instance Inputable [DataDeclP] where
-  rr' = doParse' dataDeclsP 
 
 ---------------------------------------------------------------
 --------------------------- Testing ---------------------------

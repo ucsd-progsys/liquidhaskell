@@ -24,7 +24,6 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 
-data DataDecl = D String [String] [PVar String] [(String, [(String, BareType)])] deriving Show
 
 data Spec ty bndr  = Spec { 
     measures  :: [Measure ty bndr]     -- User-defined properties for ADTs

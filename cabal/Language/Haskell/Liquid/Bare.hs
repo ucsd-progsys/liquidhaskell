@@ -7,13 +7,12 @@
 module Language.Haskell.Liquid.Bare (
     DataDecl (..)
   , getClasses
-  , mkRefTypes
+  , mkRefTypes, mkPredTypes
   , mkMeasureSpec
   , mkAssumeSpec
   , mkIds
   , isDummyBind
   , mkConTypes
-  , mkPredTypes
   )
 where
 
@@ -72,16 +71,16 @@ import qualified Control.Exception as Ex
 
 mkRefTypes :: HscEnv -> [BRType a Reft] -> IO [RRType a Reft]
 mkRefTypes env bs = runReaderT (mapM mkRefType bs) env
-
-mkRefType = liftM canonRefType . ofBareType
                         
+-- mkRefType = liftM canonRefType . ofBareType 
+mkRefType = ofBareType . mapReft canonReft
+
 mkMeasureSpec :: HscEnv-> Ms.MSpec (BRType (PVar Type) Reft) Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
 mkMeasureSpec env m = runReaderT mkSpec env
   where mkSpec = mkMeasureSort m >>= mkMeasureDCon >>= return . Ms.dataConTypes
 
 mkAssumeSpec env xbs = runReaderT mkAspec env
   where mkAspec = forM xbs $ \(x, b) -> liftM2 (,) (lookupGhcId $ symbolString x) (mkRefType b)
-
 
 mkIds :: HscEnv -> [Name] -> IO [Var]
 mkIds env ns = runReaderT (mapM lookupGhcId ns) env
@@ -223,12 +222,6 @@ getClass t
 
 type BareM a = ReaderT HscEnv IO a
 
--- ofBareType :: BareType -> BareM RefType
--- ofBareType :: RType String String String t r -> BareM (RType Class RTyCon TyVar pv r)
-
--- ofBareType :: GhcLookup a => RType a String String t r -> (RType Class RTyCon TyVar pv r)
--- ofBareType :: GhcLookup a => RType a [Char] String t r -> ReaderT HscEnv IO (RType Class RTyCon TyVar pv r)
-
 ofBareType :: BRType pv r -> BareM (RRType pv r)
 ofBareType (RVar (RV a) r) 
   = return $ RVar (stringRTyVar a) r
@@ -287,10 +280,10 @@ mkMeasureSort (Ms.MSpec cm mm)
 ---------------- Bare Predicate: DataCon Definitions ------------------
 -----------------------------------------------------------------------
 
-mkConTypes :: HscEnv -> [DataDecl] -> IO ([(TyCon, TyConP)], [(DataCon, DataConP)])
+mkConTypes :: HscEnv-> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
 mkConTypes env dcs = unzip <$> runReaderT (mapM ofBDataDecl dcs) env
 
-ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
+ofBDataDecl :: DataDecl-> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
 ofBDataDecl (D tc as ps cts)
   = do tc'   <- lookupGhcTyCon tc 
        cts'  <- mapM (ofBDataCon tc' αs πs) cts
@@ -300,7 +293,7 @@ ofBDataDecl (D tc as ps cts)
 
 ofBDataCon tc αs πs (c, xts)
  = do c'  <- lookupGhcDataCon c
-      ts' <- mapM (mkPType πs) ts
+      ts' <- mapM (mkPredType πs) ts
       let t0 = rApp tc (flip rVar pdTrue <$> αs) (pdVar <$> πs) pdTrue
       -- let t2 = foldl (\t' (x,t) -> RFun (RB x) t t') t0 (zip xs' ts')
       -- let t1 = foldl (\t pv -> RAll (RP pv) t) t2 πs 
@@ -315,9 +308,9 @@ ofBDataCon tc αs πs (c, xts)
 
 mkPredTypes :: HscEnv -> [(Symbol, BRType (PVar String) (Predicate String))]-> IO [(Id, RRType (PVar Type) (Predicate Type))]
 mkPredTypes env xbs = runReaderT (mapM mkBind xbs) env
-  where mkBind (x, b) = liftM2 (,) (lookupGhcId $ symbolString x) (mkPType [] b)
+  where mkBind (x, b) = liftM2 (,) (lookupGhcId $ symbolString x) (mkPredType [] b)
 
-mkPType πs = ofBareType . txParams πs . txTyVars
+mkPredType πs = ofBareType . txParams πs . txTyVars
 
 txTyVars = mapBind fb . mapReft (fmap stringTyVarTy) 
   where fb (RP π) = RP (stringTyVarTy <$> π)

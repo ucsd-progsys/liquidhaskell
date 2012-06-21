@@ -25,15 +25,18 @@ Iffy functions:
 
 NEXT: Unify Spec Parser Into Workflow As:
 
-0. USE IMPORTVARS TO GENERATE assm, passm, grty, pgrty in Constraint.hs
+A. USE IMPORTVARS TO GENERATE assm, passm, grty, pgrty in Constraint.hs
+B. fix parser to take in BRType (PVar String) (UReft String)
+C. fix mkAssumeSpec to take in above and produce RRType (PVar Type) (UReft Type)
+    >> BY COMBINING mkRefTypes, mkPredTypes mapReft etc, cu
 
 1. Parse Specs Into:
     
-        BRType (PVar String) (Reft, Predicate String)
+        BRType (PVar String) (UReft String)
 
 2. Convert above (via BareM) Into:
 
-        RRType (PVar Type) (Reft, Predicate Type)
+        RRType (PVar Type) (UReft Type)
 
 3. Strip above into 
 
@@ -49,15 +52,6 @@ NEXT: Unify Spec Parser Into Workflow As:
         unify:: PrType -> RefType -> RefType
 
    Should work as before.
-
--- BARE
-type BRType   = RType String String String   
-
--- REAL
-type RRType   = RType Class  RTyCon TyVar   
-
--- BOTH
-type RefType  = RRType (PVar Type) (Reft Sort)  
 
 
 Tidy Annotations

@@ -66,7 +66,7 @@ import qualified Language.Haskell.HsColour.CSS as CSS
 ------------------------------------------------------------------
 
 data GhcSpec = SP {
-  , imports  :: ![String]
+    imports  :: ![String]
   , tySigs   :: ![(Var, SpecType)]
   , ctor     :: ![(Var, RefType)]
   , meas     :: ![(Symbol, RefType)]
@@ -92,22 +92,22 @@ data GhcInfo = GI {
 --  }
 
 instance Outputable GhcSpec where
-  ppr info =  (text "******* Bound-Annotations (Guarantee) *******")
-           $$ (ppr $ grty info)
-           $$ (text "******* Free-Annotations (Assume) ***********")
-           $$ (ppr $ assm info)
-           $$ (text "******DataCon Specifications (Measure) ******")
-           $$ (ppr $ ctor info)
+  ppr spec =  (text "******* Imports *****************************")
+           $$ (ppr $ imports spec)
+           $$ (text "******* Type Signatures *********************")
+           $$ (ppr $ tySigs spec)
+           $$ (text "******* DataCon Specifications (Measure) ****")
+           $$ (ppr $ ctor spec)
            $$ (text "******* Measure Specifications **************")
-           $$ (ppr $ meas info)
+           $$ (ppr $ meas spec)
 
 instance Outputable GhcInfo where 
   ppr info =  (text "*************** Core Bindings ***************")
            $$ (ppr $ cbs info)
            $$ (text "*************** Free Variables **************")
-           $$ (ppr $ importVars $ cbs info)
+           $$ (ppr $ impVars info)
            $$ (text "*************** Specification ***************")
-           $$ (ppr spec)
+           $$ (ppr $ spec info)
 
 ------------------------------------------------------------------
 -------------- Extracting CoreBindings From File -----------------
@@ -138,7 +138,7 @@ getGhcInfo target paths
       coreBinds   <- liftIO $ anormalize hscEnv modguts
       spec        <- moduleSpec modguts paths 
       liftIO       $ putStrLn $ "Module Imports: " ++ show (imports spec) 
-      hqualFiles  <- moduleHquals modguts paths target ins 
+      hqualFiles  <- moduleHquals modguts paths target $ imports spec 
       return $ GI hscEnv coreBinds (importVars coreBinds) hqualFiles spec
 
 moduleHquals mg paths target imports 
@@ -225,12 +225,12 @@ moduleSpec mg paths
        spec   <- transParseSpecs paths S.empty mempty fs
        setContext [IIModule mod]
        env        <- getSession
-       (cs, ms)   <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec $ Ms.measures spec
-       tySigs     <- liftIO $ mkAssumeSpec env               $ Ms.sigs     spec
-       (tcs, dcs) <- liftIO $ mkConTypes env                 $ Ms.dataDecs spec 
+       (cs, ms)   <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec $ Ms.measures  spec
+       tySigs     <- liftIO $ mkAssumeSpec env               $ Ms.sigs      spec
+       (tcs, dcs) <- liftIO $ mkConTypes env                 $ Ms.dataDecls spec 
        return $ SP { imports = nubSort $ impNames ++ [symbolString x | x <- Ms.imports spec]
                    , tySigs  = tySigs
-                   , ctors   = cs
+                   , ctor    = cs
                    , meas    = ms
                    , dconsP  = concat dcs ++ snd listTyDataCons 
                    , tconsP  = tcs ++ fst listTyDataCons }

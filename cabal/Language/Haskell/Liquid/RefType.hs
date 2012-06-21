@@ -7,8 +7,7 @@ module Language.Haskell.Liquid.RefType (
   , RTyCon(..)
   , TyConable (..), Reftable(..), RefTypable (..)
   , RefType, PrType, BareType, SpecType
-  , PVar (..), Predicate (..)
-  , DataDecl
+  , PVar (..), Predicate (..), DataDecl (..)
   , pdAnd, pdVar, pdTrue, pvars
   , bLst, bTup, bCon, isBoolBareType
   , Bind (..), RBind
@@ -19,7 +18,8 @@ module Language.Haskell.Liquid.RefType (
   , mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, refTypePredSortedReft_,refTypeSortedReft, typeSortedReft, refTypePredSortedReft, rTypeSort
-  , canonRefType, tidyRefType
+  -- , canonRefType
+  , tidyRefType
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalConst
   , REnv, deleteREnv, domREnv, insertREnv, lookupREnv, emptyREnv, memberREnv, fromListREnv
@@ -159,14 +159,19 @@ data RType p c tv pv r
 type BRType     = RType String String String   
 type RRType     = RType Class  RTyCon TyVar   
 
-newtype UReft t = U (Reft, Predicate t)
+newtype UReft t = U (Reft, Predicate t) 
+                  deriving (Data, Typeable)
 
 type BareType   = BRType (PVar String) (UReft String) 
 type SpecType   = RRType (PVar Type)   (UReft Type)
-type PrType     = RRType (PVar Type)   (Predicate String) 
+type PrType     = RRType (PVar Type)   (Predicate Type) 
 type RefType    = RRType (PVar Type)   Reft
 
-data DataDecl = D String [String] [PVar String] [(String, [(String, BareType)])] deriving Show
+data DataDecl   = D String 
+                    [String] 
+                    [PVar String] 
+                    [(String, [(String, BRType (PVar String) (Predicate String))])] 
+                  deriving (Data, Typeable, Show)
 
 class Outputable r => Reftable r where 
   isTauto :: r -> Bool
@@ -631,23 +636,23 @@ mapBind f (ROth s)         = ROth s
 
 
 
-mapTop f t = 
-  case f t of
-    (RAll a t')      -> RAll a (mapTop f t')
-    (RFun x t' t'')  -> RFun x (mapTop f t') (mapTop f t'')
-    (RApp c ts rs r) -> RApp c (mapTop f <$> ts) rs r
-    (RCls c ts)      -> RCls c (mapTop f <$> ts)
-    t'               -> t' 
-
 mapBot f (RAll a t)       = RAll a (mapBot f t)
 mapBot f (RFun x t t')    = RFun x (mapBot f t) (mapBot f t')
 mapBot f (RApp c ts rs r) = f $ RApp c (mapBot f <$> ts) rs r
 mapBot f (RCls c ts)      = RCls c (mapBot f <$> ts)
 mapBot f t'               = f t' 
 
-canonRefType = mapTop zz
-  where zz t@(RApp c ts rs r)  = RApp c ts (map canonReft rs) (canonReft r)
-        zz t                      = t
+--canonRefType = mapTop zz
+--  where zz t@(RApp c ts rs r)  = RApp c ts (map canonReft rs) (canonReft r)
+--        zz t                   = t
+--mapTop f t = 
+--  case f t of
+--    (RAll a t')      -> RAll a (mapTop f t')
+--    (RFun x t' t'')  -> RFun x (mapTop f t') (mapTop f t'')
+--    (RApp c ts rs r) -> RApp c (mapTop f <$> ts) rs r
+--    (RCls c ts)      -> RCls c (mapTop f <$> ts)
+--    t'               -> t' 
+
 
 -------------------------------------------------------------------
 --------------------------- SYB Magic -----------------------------
