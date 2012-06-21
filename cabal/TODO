@@ -25,6 +25,8 @@ Iffy functions:
 
 NEXT: Unify Spec Parser Into Workflow As:
 
+0. USE IMPORTVARS TO GENERATE assm, passm, grty, pgrty in Constraint.hs
+
 1. Parse Specs Into:
     
         BRType (PVar String) (Reft, Predicate String)

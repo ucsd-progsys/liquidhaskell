@@ -1,10 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections #-}
 
-module Language.Haskell.Liquid.Parse 
-( 
-    Inputable (..), specPr, doParse', dataDeclsP
-) 
-where
+module Language.Haskell.Liquid.Parse (Inputable (..), doParse') where
 
 import GHC
 import TypeRep
@@ -424,9 +420,6 @@ dataConP
       xts <- sepBy predTypePDD spaces
       return (x, xts)
 
-
-
--- dataDeclsP = sepBy dataDeclP spaces
 dataDeclsP
   = sepBy dataDeclP spaces 
 
@@ -626,6 +619,13 @@ instance Inputable (Measure.Measure BareType Symbol) where
 
 instance Inputable (Measure.Spec BareType Symbol) where
   rr' = error "TBD" -- doParse' specificationP
+
+
+instance Inputable [(Symbol, BRType (Var String) (Predicate String))] where
+  rr' = doParse' specPr
+
+instance Inputable [DataDeclP] where
+  rr' = doParse' dataDeclsP 
 
 ---------------------------------------------------------------
 --------------------------- Testing ---------------------------

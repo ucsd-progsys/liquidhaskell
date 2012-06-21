@@ -63,23 +63,23 @@ import Data.Data
 import Control.DeepSeq
 
 -----------------------------------------------------------------------
------------------------- Generation: Toplevel -------------------------
+------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
 
 consGrty γ (x, t) 
   = addC (SubC γ (γ ?= (mkSymbol x)) t) ""
 
 consAct info penv
-  = do γ <- initEnv info penv
-       γ1  <-  foldM consCB γ $ cbs info
-       tyi      <- liftM tyConInfo get 
+  = do γ   <- initEnv info penv
+       γ1  <- foldM consCB γ $ cbs info
+       tyi <- liftM tyConInfo get 
        let grty' = mapSnd (addTyConInfo tyi) <$> grty info  
        forM_ grty' (consGrty γ1)
  
 generateConstraints :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fws } { globals = gs }
   where st  = execState act (initCGI info)
-        act = consAct (info{cbs = fst pds}) (snd pds)
+        act = consAct (info {cbs = fst pds}) (snd pds)
         fcs = concatMap splitC $ hsCs  st 
         fws = concatMap splitW $ hsWfs st
         gs  = F.fromListSEnv . map (mapSnd refTypeSortedReft) $ meas info

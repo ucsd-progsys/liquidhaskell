@@ -5,7 +5,7 @@
 module Language.Haskell.Liquid.RefType (
     RType (..), RRType (..), BRType (..)
   , RTyCon(..), TyConable (..), Reftable(..), RefTypable (..)
-  , RefType, PrType, BareType, RedType
+  , RefType, PrType, BareType, SpecType
   , PVar (..), Predicate (..)
   , pdAnd, pdVar, pdTrue, pvars
   , Bind (..), RBind
@@ -126,12 +126,11 @@ data RType p c tv pv r
 type BRType   = RType String String String   
 type RRType   = RType Class  RTyCon TyVar   
 
-
-
-type PrType   = RRType (PVar Type) (Predicate Type) 
-type RefType  = RRType (PVar Type) Reft 
 type BareType = BRType (PVar String) (Reft, Predicate String) 
-type RedType  = RRType (Empty) Reft
+data DataDecl = D String [String] [PVar String] [(String, [(String, BareType)])] deriving Show
+type SpecType = RRType (PVar Type) (Reft, Predicate Type)
+type PrType   = RRType (PVar Type) (Predicate String) 
+type RefType  = RRType (PVar Type) Reft
 
 class Reftable r where 
   ppReft   :: r -> SDoc -> SDoc

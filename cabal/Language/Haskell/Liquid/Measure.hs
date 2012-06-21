@@ -25,9 +25,10 @@ import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 
 data Spec ty bndr  = Spec { 
-    measures   :: [Measure ty bndr]     -- User-defined properties for ADTs
-  , assumes    :: [(Symbol, ty)]        -- Imported functions and types   
-  , imports    :: [Symbol] 
+    measures  :: [Measure ty bndr]     -- User-defined properties for ADTs
+  , sigs      :: [(Symbol, ty)]        -- Imported functions and types   
+  , imports   :: [Symbol] 
+  , dataDecls :: [DataDecl] 
   } deriving (Data, Typeable)
 
 data MSpec ty bndr = MSpec { 
@@ -72,9 +73,9 @@ mkMSpec ms = MSpec cm mm
         ms' = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
 instance Monoid (Spec ty bndr) where
-  mappend (Spec xs ys zs) (Spec xs' ys' zs')
-           = Spec (xs ++ xs') (ys ++ ys') (nubSort (zs ++ zs'))
-  mempty   = Spec [] [] []
+  mappend (Spec xs ys zs ds) (Spec xs' ys' zs' ds')
+           = Spec (xs ++ xs') (ys ++ ys') (nubSort (zs ++ zs')) (ds ++ ds')
+  mempty   = Spec [] [] [] []
 
 instance Functor Def where
   fmap f def = def { ctor = f (ctor def) }

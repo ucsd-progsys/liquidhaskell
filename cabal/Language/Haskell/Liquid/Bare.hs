@@ -305,19 +305,11 @@ mkMeasureSort (Ms.MSpec cm mm)
       liftM (\s' -> m {Ms.sort = s'}) (ofBareType (Ms.sort m))
 
 -----------------------------------------------------------------------
---------------- Bare Predicates ---------------------------------------
------------------------------------------------------------------------
-
-type PrTypeP    = BRType (PVar String) (Predicate String) 
-data DataDecl   = D String [String] [PVar String] [(String, [(String, PrTypeP)])] 
-                  deriving Show
-
------------------------------------------------------------------------
 ---------------- Bare Predicate: DataCon Definitions ------------------
 -----------------------------------------------------------------------
 
-mkConTypes :: HscEnv-> [DataDecl] -> IO [((TyCon, TyConP), [(DataCon, DataConP)])]
-mkConTypes env dcs = runReaderT (mapM ofBDataDecl dcs) env
+mkConTypes :: HscEnv -> [DataDecl] -> IO ([(TyCon, TyConP)], [(DataCon, DataConP)])
+mkConTypes env dcs = unzip <$> runReaderT (mapM ofBDataDecl dcs) env
 
 ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
 ofBDataDecl (D tc as ps cts)

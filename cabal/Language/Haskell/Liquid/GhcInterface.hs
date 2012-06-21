@@ -54,7 +54,6 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Bare
--- import Language.Haskell.Liquid.BarePredicate hiding (wiredIn)
 import Language.Haskell.Liquid.PredType
 
 import qualified Language.Haskell.Liquid.Measure as Ms
@@ -66,27 +65,34 @@ import qualified Language.Haskell.HsColour.CSS as CSS
 ---------------------- GHC Bindings:  Code & Spec ----------------
 ------------------------------------------------------------------
 
---newtype Spec = Spec (VarEnv (Var, RefType))
+data GhcSpec = SP {
+  , imports  :: ![String]
+  , tySigs   :: ![(Var, SpecType)]
+  , ctor     :: ![(Var, RefType)]
+  , meas     :: ![(Symbol, RefType)]
+  , dconsP   :: ![(DataCon, DataConP)]
+  , tconsP   :: ![(TC.TyCon, TyConP)]
+  }
 
-data GhcInfo = GI { env      :: !HscEnv
-                  , cbs      :: ![CoreBind]
-                  , assm     :: ![(Var, RefType)]
-                  , grty     :: ![(Var, RefType)]
-                  , ctor     :: ![(Var, RefType)]
-                  , meas     :: ![(Symbol, RefType)]
-                  , hqFiles  :: ![FilePath]
-                  -- , wiredIn  :: ![(Var, RefType)]
-                  , passm    :: ![(Var, PrType)]
-                  , dconsP   :: ![(DataCon, DataConP)]
-                  , tconsP   :: ![(TC.TyCon, TyConP)]
-                }
+data GhcInfo = GI { 
+    env      :: !HscEnv
+  , cbs      :: ![CoreBind]
+  , impVars  :: ![Var]
+  , hqFiles  :: ![FilePath]
+  , spec     :: !GhcSpec
+  }
 
-instance Outputable GhcInfo where 
-  ppr info =  (text "*************** Core Bindings ***************")
-           $$ (ppr $ cbs info)
-           $$ (text "*************** Free Variables **************")
-           $$ (ppr $ importVars $ cbs info)
-           $$ (text "******* Bound-Annotations (Guarantee) *******")
+--  , assm     :: ![(Var, RefType)]
+--  , grty     :: ![(Var, RefType)]
+--  , ctor     :: ![(Var, RefType)]
+--  , meas     :: ![(Symbol, RefType)]
+--  , passm    :: ![(Var, PrType)]
+--  , dconsP   :: ![(DataCon, DataConP)]
+--  , tconsP   :: ![(TC.TyCon, TyConP)]
+--  }
+
+instance Outputable GhcSpec where
+  ppr info =  (text "******* Bound-Annotations (Guarantee) *******")
            $$ (ppr $ grty info)
            $$ (text "******* Free-Annotations (Assume) ***********")
            $$ (ppr $ assm info)
@@ -94,9 +100,15 @@ instance Outputable GhcInfo where
            $$ (ppr $ ctor info)
            $$ (text "******* Measure Specifications **************")
            $$ (ppr $ meas info)
-           $$ (text "******* Builtin Specifications **************")
-           $$ (ppr $ wiredIn info)
- 
+
+instance Outputable GhcInfo where 
+  ppr info =  (text "*************** Core Bindings ***************")
+           $$ (ppr $ cbs info)
+           $$ (text "*************** Free Variables **************")
+           $$ (ppr $ importVars $ cbs info)
+           $$ (text "*************** Specification ***************")
+           $$ (ppr spec)
+
 ------------------------------------------------------------------
 -------------- Extracting CoreBindings From File -----------------
 ------------------------------------------------------------------
@@ -117,44 +129,17 @@ getGhcModGuts1 fn = do
        mod_guts <- coreModule `fmap` (desugarModuleWithLoc =<< typecheckModule =<< parseModule modSummary)
        return mod_guts
 
-
 getGhcInfo target paths 
   = runGhc (Just libdir) $ do
-      df  <- getSessionDynFlags
+      df          <- getSessionDynFlags
       setSessionDynFlags $ updateDynFlags df paths
-      mg  <- getGhcModGuts1 target
-      -- liftIO $ putStrLn "Raw CoreBinds" 
-      -- liftIO $ putStrLn $ showPpr (mg_binds mg)
-      env <- getSession
-      cbs <- liftIO $ anormalize env mg
-      -- guarantees for variables bound in this module
-      grt  <- varsSpec (mg_module mg) $ concatMap bindings cbs
-      grt' <- moduleSpec' mg paths
-      liftIO $ putStrLn "Guarantee Spec" 
-      liftIO $ putStrLn $ showPpr (grt ++ grt')
-       -- module specifications
-      (ins, asm, msr) <- moduleSpec mg paths (importVars cbs) 
-      -- module qualifiers 
-      hqs  <- moduleHquals mg paths target ins 
-      -- predicate types
-      ps <- modulePred mg paths (importVars cbs)
-      cs <- moduleDat mg paths 
-      let (tcs, dcs) = unzip cs
-      return $ GI env 
-                  cbs 
-                  asm 
-                  (grt ++ grt') 
-                  (fst msr) 
-                  (snd msr) 
-                  hqs 
-                  -- [] 
-                  ps 
-                  (concat dcs ++ snd listTyDataCons) 
-                  (tcs ++ fst listTyDataCons)
-
-printVars s vs 
-  = do putStrLn s 
-       putStrLn $ showPpr [(v, getSrcSpan v) | v <- vs]
+      modguts     <- getGhcModGuts1 target
+      hscEnv      <- getSession
+      coreBinds   <- liftIO $ anormalize hscEnv modguts
+      spec        <- moduleSpec modguts paths 
+      liftIO       $ putStrLn $ "Module Imports: " ++ show (imports spec) 
+      hqualFiles  <- moduleHquals modguts paths target ins 
+      return $ GI hscEnv coreBinds (importVars coreBinds) hqualFiles spec
 
 moduleHquals mg paths target imports 
   = do hqs   <- moduleAnnFiles Hquals paths (mg_module mg)
@@ -163,40 +148,9 @@ moduleHquals mg paths target imports
        liftIO $ putStrLn $ "Reading Qualifiers From: " ++ show rv 
        return rv
 
-parsePred f 
-  = do Ex.catch (liftM (doParse' specPr f) (readFile f)) $ \(e :: Ex.IOException) ->
-         ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ f
-
-parseDat f 
-  = do Ex.catch (liftM (doParse' dataDeclsP f) (readFile f)) $ \(e :: Ex.IOException) ->
-         ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ f
-
-modulePred :: GhcMonad m => ModGuts -> [FilePath] -> [Var] -> m [(Var, PrType)]
-modulePred mg paths  impVars 
-  = do fs     <- moduleImpFiles Pred paths impNames 
-       myfs   <- moduleImpFiles Pred paths [mg_namestring mg]
-       myspec <- liftIO $ mconcat <$> mapM parsePred (myfs ++ fs)
-       env    <- getSession
-       setContext [IIModule mod]
-       xts <- liftIO $ mkPredTypes env myspec
-       return  $ xts
-    where mod      = mg_module mg
-          impNames = (moduleNameString . moduleName) <$> impMods
-          impMods  = moduleEnvKeys $ mg_dir_imps mg
-
-moduleDat mg paths
-  = do fs     <- moduleImpFiles Dat paths impNames 
-       myfs   <- moduleImpFiles Dat paths [mg_namestring mg]
-       myspec <- liftIO $ mconcat <$> mapM parseDat (myfs ++ fs)
-       liftIO  $ putStrLn $ "Module Imports: " ++ show myspec
-       env    <- getSession
-       setContext [IIModule mod]
-       xts <- liftIO $ mkConTypes env myspec
-       liftIO  $ putStrLn $ "Imported Data Decl: " ++ show xts
-       return  $ xts
-    where mod      = mg_module mg
-          impNames = (moduleNameString . moduleName) <$> impMods
-          impMods  = moduleEnvKeys $ mg_dir_imps mg
+printVars s vs 
+  = do putStrLn s 
+       putStrLn $ showPpr [(v, getSrcSpan v) | v <- vs]
 
 mg_namestring = moduleNameString . moduleName . mg_module
 
@@ -205,60 +159,97 @@ importVars = freeVars S.empty
 instance Show TC.TyCon where
  show = showSDoc . ppr
 
-dataCons info = filter isDataCon (importVars $ cbs info)
-
-dataConId v = 
- case (idDetails v) of
-   DataConWorkId i -> i
-   DataConWrapId i -> i
-   _               -> errorstar "dataConId on non DataCon"
-
-isDataCon v = 
- case (idDetails v) of
-   DataConWorkId _ -> True
---   DataConWrapId _ -> True
-   _               -> False
-
-------------------------------------------------------------------
--------------- Desugaring (Taken from GHC) -----------------------
-------------------------------------------------------------------
+--------------------------------------------------------------------------------
+---------------------------- Desugaring (Taken from GHC) -----------------------
+--------------------------------------------------------------------------------
 
 desugarModuleWithLoc tcm = do
- let ms = pm_mod_summary $ tm_parsed_module tcm 
- -- let ms = modSummary tcm
- let (tcg, _) = tm_internals_ tcm
- hsc_env <- getSession
- let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
- guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
- return $
-     DesugaredModule {
-       dm_typechecked_module = tcm,
-       dm_core_module        = guts
-     }
------------------------------------------------------------------------------
----------- Extracting Refinement Type Specifications From Annots ------------
------------------------------------------------------------------------------
+  let ms = pm_mod_summary $ tm_parsed_module tcm 
+  -- let ms = modSummary tcm
+  let (tcg, _) = tm_internals_ tcm
+  hsc_env <- getSession
+  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
+  guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
+  return $ DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
-varsSpec m vs 
-  = do (xs, bs) <- (unzip . catMaybes) <$> mapM varAnnot vs
-       setContext [IIModule m]
-       env      <- getSession
-       rs       <- liftIO $ mkRefTypes env bs 
-       return    $ zip xs rs
+-------------------------------------------------------------------------
+-------- Extracting Specifications (Measures + Assumptions) -------------
+-------------------------------------------------------------------------
+ 
+--getGhcSpec mg paths impVars 
+--  = do (ins, asm, ctors, msrs) <- moduleAssumes mg paths (importVars cbs) 
+--       grt                     <- moduleGuarantees mg paths
+--       (tcs, dcs)              <- unzip <$> moduleDat mg paths 
+--       return (ins, SP { grty   = grt
+--                       , assm   = asm
+--                       , ctor   = ctors 
+--                       , meas   = msrs
+--                       , dconsP = concat dcs ++ snd listTyDataCons 
+--                       , tconsP = tcs ++ fst listTyDataCons})
 
-varAnnot v 
-  = do anns <- findGlobalAnns deserializeWithData $ NamedTarget $ varName v 
-       case anns of 
-         [a] -> return $ Just $ (v, rr' (varUniqueStr v) a)
-         []  -> return $ Nothing 
-         _   -> errorstar $ "Conflicting Spec-Annots for " ++ showPpr v
+--modulePred :: GhcMonad m => ModGuts -> [FilePath] -> [Var] -> m [(Var, PrType)]
+--modulePred mg paths  impVars 
+--  = do fs     <- moduleImpFiles Pred paths impNames 
+--       myfs   <- moduleImpFiles Pred paths [mg_namestring mg]
+--       myspec <- liftIO $ mconcat <$> mapM parsePred (myfs ++ fs)
+--       env    <- getSession
+--       setContext [IIModule mod]
+--       xts <- liftIO $ mkPredTypes env myspec
+--       return  $ xts
+--    where mod      = mg_module mg
+--          impNames = (moduleNameString . moduleName) <$> impMods
+--          impMods  = moduleEnvKeys $ mg_dir_imps mg
 
-varUniqueStr :: Var -> String
-varUniqueStr = show . varUnique
+--moduleDat mg paths
+--  = do fs     <- moduleImpFiles Dat paths impNames 
+--       myfs   <- moduleImpFiles Dat paths [mg_namestring mg]
+--       myspec <- liftIO $ mconcat <$> mapM parseDat (myfs ++ fs)
+--       liftIO  $ putStrLn $ "Module Imports: " ++ show myspec
+--       env    <- getSession
+--       setContext [IIModule mod]
+--       xts <- liftIO $ mkConTypes env myspec
+--       liftIO  $ putStrLn $ "Imported Data Decl: " ++ show xts
+--       return  $ xts
+--    where mod      = mg_module mg
+--          impNames = (moduleNameString . moduleName) <$> impMods
+--          impMods  = moduleEnvKeys $ mg_dir_imps mg
 
---------------------------------------------------------------------------------
--------- Extracting Specifications (Measures + Assumptions) --------------------
---------------------------------------------------------------------------------
+---moduleGuarantees mg paths 
+---  = do myfs    <- moduleImpFiles Spec paths [mg_namestring mg]
+---       myspec  <- parseSpecs myfs 
+---       env     <- getSession
+---       liftIO $ mkAssumeSpec env $ Ms.assumes myspec
+
+moduleSpec mg paths
+  = do fs     <- moduleImpFiles Spec paths allNames 
+       spec   <- transParseSpecs paths S.empty mempty fs
+       setContext [IIModule mod]
+       env        <- getSession
+       (cs, ms)   <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec $ Ms.measures spec
+       tySigs     <- liftIO $ mkAssumeSpec env               $ Ms.sigs     spec
+       (tcs, dcs) <- liftIO $ mkConTypes env                 $ Ms.dataDecs spec 
+       return $ SP { imports = nubSort $ impNames ++ [symbolString x | x <- Ms.imports spec]
+                   , tySigs  = tySigs
+                   , ctors   = cs
+                   , meas    = ms
+                   , dconsP  = concat dcs ++ snd listTyDataCons 
+                   , tconsP  = tcs ++ fst listTyDataCons }
+    where mod      = mg_module mg
+          impNames = (moduleNameString . moduleName) <$> impMods
+          impMods  = moduleEnvKeys $ mg_dir_imps mg
+          allNames = (mg_namestring mg) : impNames
+
+
+--transParseSpecs :: GhcMonad m => [FilePath] -> S.Set FilePath -> Ms.Spec BareType Symbol -> [FilePath] -> m (Ms.Spec BareType Symbol)
+transParseSpecs _ _ spec []       
+  = return spec
+transParseSpecs paths seenFiles spec newFiles 
+  = do newSpec   <- parseSpecs newFiles 
+       impFiles  <- moduleImpFiles Spec paths [symbolString x | x <- Ms.imports newSpec]
+       let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
+       let spec'      = spec `mappend` newSpec
+       let newFiles'  = [f | f <- impFiles, f `S.notMember` seenFiles']
+       transParseSpecs paths seenFiles' spec' newFiles'
 
 parseSpecs files 
   = liftIO $ liftM mconcat $ forM files $ \f -> 
@@ -266,44 +257,6 @@ parseSpecs files
          Ex.catch (liftM (rr' f) $ readFile f) $ \(e :: Ex.IOException) ->
            ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ f
 
-moduleSpec' mg paths 
-  = do myfs   <- moduleImpFiles Spec paths [mg_namestring mg]
-       myspec <- parseSpecs myfs 
-       env    <- getSession
-       -- msr    <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec (Ms.measures myspec)
-       refspec <- liftIO $ mkAssumeSpec env (Ms.assumes myspec)
-       return  refspec
- 
-moduleSpec mg paths impVars 
-  = do fs     <- moduleImpFiles Spec paths impNames 
-       spec   <- moduleSpecLoop paths S.empty mempty fs
-       -- measures from me 
-       myfs   <- moduleImpFiles Spec paths [mg_namestring mg]
-       myspec <- parseSpecs myfs 
-       -- all modules, including specs, imported by me
-       let ins = nubSort $ impNames ++ [symbolString x | x <- Ms.imports spec]
-       liftIO  $ putStrLn $ "Module Imports: " ++ show ins 
-       -- convert to GHC
-       setContext [IIModule mod]
-       env    <- getSession
-       msr    <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec (Ms.measures spec ++ Ms.measures myspec)
-       xts    <- liftIO $ mkAssumeSpec env  $ Ms.assumes spec
-       xts'   <- varsSpec mod impVars
-       return  $ (ins, xts ++ xts', msr)
-    where mod      = mg_module mg
-          impNames = (moduleNameString . moduleName) <$> impMods
-          impMods  = moduleEnvKeys $ mg_dir_imps mg
-
---moduleSpecLoop :: GhcMonad m => [FilePath] -> S.Set FilePath -> Ms.Spec BareType Symbol -> [FilePath] -> m (Ms.Spec BareType Symbol)
-moduleSpecLoop _ _ spec []       
-  = return spec
-moduleSpecLoop paths seenFiles spec newFiles 
-  = do newSpec   <- parseSpecs newFiles 
-       impFiles  <- moduleImpFiles Spec paths [symbolString x | x <- Ms.imports newSpec]
-       let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
-       let spec'      = spec `mappend` newSpec
-       let newFiles'  = [f | f <- impFiles, f `S.notMember` seenFiles']
-       moduleSpecLoop paths seenFiles' spec' newFiles'
 
 moduleImpFiles ext paths names 
   = liftIO $ liftM catMaybes $ forM extNames (namePath paths)
