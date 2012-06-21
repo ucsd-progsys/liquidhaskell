@@ -7,7 +7,7 @@ module Language.Haskell.Liquid.RefType (
   , RTyCon(..)
   , TyConable (..), Reftable(..), RefTypable (..)
   , RefType, PrType, BareType, SpecType
-  , PVar (..), Predicate (..), DataDecl (..)
+  , PVar (..), Predicate (..), UReft(..), DataDecl (..)
   , pdAnd, pdVar, pdTrue, pvars
   , bLst, bTup, bCon, isBoolBareType
   , Bind (..), RBind
@@ -508,6 +508,9 @@ ppr_forall p t
 ---------------------------------------------------------------
 --------------------------- Visitors --------------------------
 ---------------------------------------------------------------
+
+instance Functor UReft where 
+  fmap f (U (r, p)) = U (r, fmap f p)
 
 instance Functor (RType a b c d) where
   fmap f = mapReft f

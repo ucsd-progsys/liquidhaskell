@@ -55,7 +55,7 @@ import Language.Haskell.Liquid.Predicates
 import Language.Haskell.Liquid.GhcMisc (tickSrcSpan)
 import Language.Haskell.Liquid.Misc
 -- import Language.Haskell.Liquid.MiscExpr (exprType)
-import Language.Haskell.Liquid.Bare (isDummyBind)
+-- import Language.Haskell.Liquid.Bare (isDummyBind)
 
 import Data.Generics.Schemes
 import Data.Generics.Aliases
@@ -530,7 +530,7 @@ trueRefType t
 refreshRefType (RAll α t)       
   = liftM (RAll α) (refresh t)
 refreshRefType (RFun b t t')
-  | isDummyBind b
+  | b == (RB dummySymbol) -- isDummyBind b
   = liftM3 RFun fresh (refresh t) (refresh t')
   | otherwise
   = liftM2 (RFun b) (refresh t) (refresh t')

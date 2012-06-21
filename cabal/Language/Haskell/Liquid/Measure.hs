@@ -68,6 +68,7 @@ mkM name typ eqns
   | otherwise
   = errorstar $ "invalid measure definition for " ++ (show name)
 
+mkMSpec ::  [Measure ty Symbol] -> MSpec ty Symbol
 mkMSpec ms = MSpec cm mm 
   where cm  = groupMap ctor $ concatMap eqns ms'
         mm  = fromList [(name m, m) | m <- ms' ]
@@ -104,9 +105,11 @@ instance (Outputable t, Outputable a) => Outputable (Measure t a) where
 instance (Outputable t, Outputable a) => Outputable (MSpec t a) where
   ppr =  vcat . fmap ppr . fmap snd . toList . measMap
 
-
-mapTy :: (a -> b) -> Measure a c -> Measure b c
+mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
 mapTy f (M n ty eqs) = M n (f ty) eqs
+
+
+
 
 dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(Symbol, RefType)])
 dataConTypes s = (ctorTys, measTys)

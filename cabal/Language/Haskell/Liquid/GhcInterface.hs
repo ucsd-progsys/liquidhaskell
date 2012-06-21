@@ -240,7 +240,7 @@ moduleSpec mg paths
           allNames = (mg_namestring mg) : impNames
 
 
---transParseSpecs :: GhcMonad m => [FilePath] -> S.Set FilePath -> Ms.Spec BareType Symbol -> [FilePath] -> m (Ms.Spec BareType Symbol)
+transParseSpecs :: GhcMonad m => [FilePath] -> S.Set FilePath -> Ms.Spec BareType Symbol -> [FilePath] -> m (Ms.Spec BareType Symbol)
 transParseSpecs _ _ spec []       
   = return spec
 transParseSpecs paths seenFiles spec newFiles 

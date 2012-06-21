@@ -151,9 +151,17 @@ instance SubstP (Predicate Type) where
   subv f (Pr pvs) = Pr (f <$> pvs)
   subp s (Pr pvs) = pdAnd (lookupP s <$> pvs) -- RJ: UNIFY: not correct!
 
-instance SubstP PrType where
-  subp s t = fmap (subp s) t
+instance SubstP (UReft Type) where
+  subp f (U (r, p)) = U (r, subp f p)
+  subv f (U (r, p)) = U (r, subv f p)
+
+-- NOTE: This DOES NOT substitute at the binders
+
+instance SubstP PrType where    
+  subp f t = fmap (subp f) t
   subv f t = fmap (subv f) t 
+
+
 
 
 subsTyVar (α, (RVar (RV a') p')) (RV a) p

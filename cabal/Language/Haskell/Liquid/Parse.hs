@@ -268,6 +268,17 @@ bareArrow x t1 ArrowFun t2
 bareArrow x t1 ArrowPred t2
   = foldr (RFun dummyBind) t2 (getClasses t1)
 
+getClasses (RApp tc ts _ _) 
+  | isTuple tc
+  = getClass `fmap` ts 
+getClasses t 
+  = [getClass t]
+
+getClass (RApp c ts _ _)
+  = RCls c ts
+getClass t
+  = errorstar $ "Cannot convert " ++ (show t) ++ " to Class"
+
 stringBind = RB . stringSymbol
 dummyBind  = RB dummySymbol
 
@@ -509,20 +520,6 @@ predFunP
        a  <- arrowP
        t2 <- predTypeP
        return $ bareArrow {- predArrow -} x t1 a t2 
-
---predArrow x t1 ArrowFun t2
---  = PrAppTyP x t1 t2
---predArrow x t1 ArrowPred t2
---  = foldr (PrAppTyP "" )t2 (getClassesPr t1)
---   
---getClassesPr (PrTupP ts) 
---  = getClassPr <$> ts 
---getClassesPr t 
---  = [getClassPr t]
---getClassPr (PrTyConAppP c ts _ _)
---  = PrPredTyP c ts
---getClassPr t
---  = error $ "Cannot convert " ++ (show t) ++ " to Class"
 
 ---------------------------------------------------------------------
 ------------ Interacting with Fixpoint ------------------------------

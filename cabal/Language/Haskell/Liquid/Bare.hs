@@ -6,13 +6,12 @@
 
 module Language.Haskell.Liquid.Bare (
     DataDecl (..)
-  , getClasses
-  , mkRefTypes, mkPredTypes
   , mkMeasureSpec
   , mkAssumeSpec
-  , mkIds
-  , isDummyBind
   , mkConTypes
+  -- , mkIds, mkRefTypes, mkPredTypes
+  -- , getClasses
+  -- , isDummyBind
   )
 where
 
@@ -35,26 +34,23 @@ import DataCon  (dataConWorkId)
 import BasicTypes (TupleSort (..), Boxity (..))
 import TcRnDriver (tcRnLookupRdrName, tcRnLookupName) 
 
-import TysPrim          (intPrimTyCon)
-import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
-import TyCon (tyConName, isAlgTyCon)
-import DataCon (dataConName)
+import TysPrim                  (intPrimTyCon)
+import TysWiredIn               (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
+import TyCon                    (tyConName, isAlgTyCon)
+import DataCon                  (dataConName)
+import Name                     (mkInternalName)
 
-
-
-import Name             (mkInternalName)
-
-import OccName          (mkTyVarOcc)
-import Unique           (getKey, getUnique, initTyVarUnique)
-import Data.List (sort)
-import Data.Char (isUpper)
+import OccName                  (mkTyVarOcc)
+import Unique                   (getKey, getUnique, initTyVarUnique)
+import Data.List                (sort)
+import Data.Char                (isUpper)
 import ErrUtils
-import Data.Traversable (forM)
-import Control.Applicative  ((<$>))
-import Control.Monad.Reader hiding (forM)
+import Data.Traversable         (forM)
+import Control.Applicative      ((<$>))
+import Control.Monad.Reader     hiding (forM)
 import Data.Generics.Schemes
 import Data.Generics.Aliases
-import Data.Data hiding (TyCon, tyConName)
+import Data.Data                hiding (TyCon, tyConName)
 import qualified Data.Map as M
 
 import Language.Haskell.Liquid.GhcMisc
@@ -69,21 +65,28 @@ import qualified Control.Exception as Ex
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
 
-mkRefTypes :: HscEnv -> [BRType a Reft] -> IO [RRType a Reft]
-mkRefTypes env bs = runReaderT (mapM mkRefType bs) env
-                        
--- mkRefType = liftM canonRefType . ofBareType 
-mkRefType = ofBareType . mapReft canonReft
+--mkRefTypes :: HscEnv -> [BRType a Reft] -> IO [RRType a Reft]
+--mkRefTypes env bs = runReaderT (mapM mkRefType bs) env
+ --mkIds :: HscEnv -> [Name] -> IO [Var]
+--mkIds env ns = runReaderT (mapM lookupGhcId ns) env
 
-mkMeasureSpec :: HscEnv-> Ms.MSpec (BRType (PVar Type) Reft) Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
+
+mkMeasureSpec :: HscEnv -> Ms.MSpec (BRType pv (UReft t)) Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
+-- mkMeasureSpec :: HscEnv -> Ms.MSpec (BRType (PVar Type) Reft) Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
 mkMeasureSpec env m = runReaderT mkSpec env
   where mkSpec = mkMeasureSort m >>= mkMeasureDCon >>= return . Ms.dataConTypes
 
+mkAssumeSpec :: HscEnv-> [(Symbol, BareType)] -> IO [(Var, SpecType)]
 mkAssumeSpec env xbs = runReaderT mkAspec env
-  where mkAspec = forM xbs $ \(x, b) -> liftM2 (,) (lookupGhcId $ symbolString x) (mkRefType b)
+  where mkAspec = forM xbs $ \(x, b) -> liftM2 (,) (lookupGhcId $ symbolString x) (mkSpecType b)
 
-mkIds :: HscEnv -> [Name] -> IO [Var]
-mkIds env ns = runReaderT (mapM lookupGhcId ns) env
+-- mkSpecType :: BareType -> BareM SpecType 
+mkSpecType    = ofBareType . mapReft (mapr canonReft) . txParams [] . txTyVars 
+mkPredType πs = ofBareType . txParams πs . txTyVars
+mkRefType     = ofBareType . mapReft canonReft
+               
+mapr f (U (r, p)) = U (f r, p)
+
 
 ------------------------------------------------------------------
 -------------------- Type Checking Raw Strings -------------------
@@ -205,17 +208,6 @@ wiredIn = M.fromList $
   , ("GHC.Prim.Int#"            , tyConName intPrimTyCon) 
   ]
 
-getClasses (RApp tc ts _ _) 
-  | isTuple tc -- tc == tupConName 
-  = getClass `fmap` ts 
-getClasses t 
-  = [getClass t]
-
-getClass (RApp c ts _ _)
-  = RCls c ts
-getClass t
-  = errorstar $ "Cannot convert " ++ (show t) ++ " to Class"
-
 ------------------------------------------------------------------------
 ----------------- Transforming Raw Strings using GHC Env ---------------
 ------------------------------------------------------------------------
@@ -306,11 +298,10 @@ ofBDataCon tc αs πs (c, xts)
 ---------------- Bare Predicate: RefTypes -----------------------------
 -----------------------------------------------------------------------
 
-mkPredTypes :: HscEnv -> [(Symbol, BRType (PVar String) (Predicate String))]-> IO [(Id, RRType (PVar Type) (Predicate Type))]
-mkPredTypes env xbs = runReaderT (mapM mkBind xbs) env
-  where mkBind (x, b) = liftM2 (,) (lookupGhcId $ symbolString x) (mkPredType [] b)
-
-mkPredType πs = ofBareType . txParams πs . txTyVars
+--mkPredTypes :: HscEnv -> [(Symbol, BRType (PVar String) (Predicate String))]-> IO [(Id, RRType (PVar Type) (Predicate Type))]
+--mkPredTypes env xbs = runReaderT (mapM mkBind xbs) env
+--  where mkBind (x, b) = liftM2 (,) (lookupGhcId $ symbolString x) (mkPredType [] b)
+-- mkPredType πs = ofBareType . txParams πs . txTyVars
 
 txTyVars = mapBind fb . mapReft (fmap stringTyVarTy) 
   where fb (RP π) = RP (stringTyVarTy <$> π)
