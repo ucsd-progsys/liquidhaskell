@@ -609,7 +609,7 @@ instance Inputable (FixResult Integer, FixSolution) where
   rr' = doParse' solutionFileP 
 
 instance Inputable BareType where
-  rr' = error "TBD" -- doParse' bareTypeP 
+  rr' = doParse' bareTypeP 
 
 instance Inputable (Measure.Measure BareType Symbol) where
   rr' = error "TBD" -- doParse' measureP

@@ -79,13 +79,15 @@ consAct info penv
  
 generateConstraints :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fws } { globals = gs }
-  where st  = execState act (initCGI info)
+  where st  = execState act $ initCGI spc
         act = consAct (info {cbs = fst pds}) (snd pds)
         fcs = concatMap splitC $ hsCs  st 
         fws = concatMap splitW $ hsWfs st
-        gs  = F.fromListSEnv . map (mapSnd refTypeSortedReft) $ meas info
+        gs  = F.fromListSEnv . map (mapSnd refTypeSortedReft) $ meas spc 
         pds = generatePredicates info
-        cns = M.fromList (tconsP info)
+        cns = M.fromList (tconsP spc)
+        spc = spec info
+
 
 kvars :: (Data a) => a -> S.Set F.Symbol
 kvars = everything S.union (S.empty `mkQ` grabKvar)
@@ -104,9 +106,9 @@ initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv
 initEnv info penv
   = do defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- liftM tyConInfo get 
-       let f0  = defaults     -- default TOP reftype      (for all vars) 
-       let f2  = assm info    -- assumed refinements      (for import ANNs)
-       let f3  = ctor info    -- constructor refinements  (for measures) 
+       let f0  = defaults           -- default TOP reftype      (for all vars) 
+       let f2  = assm info          -- assumed refinements      (for import ANNs)
+       let f3  = ctor $ spec info   -- constructor refinements  (for measures) 
        let bs  = ((second (addTyConInfo tyi)) . unifyts penv <$> concat [f0, f2, f3])
        return  $ foldl' (++=) (measEnv info penv) bs 
 
@@ -115,7 +117,7 @@ unifyts penv (x, t) = (x', unify pt t)
        x' = mkSymbol x
    
 measEnv info penv = CGE noSrcSpan re0 penv fe0 S.empty
-  where bs   = meas info 
+  where bs   = meas $ spec info 
         re0  = fromListREnv bs 
         fe0  = F.fromListSEnv $ mapSnd refTypeSortedReft <$> bs 
 
@@ -246,7 +248,6 @@ instance Outputable Cinfo where
 --instance Outputable a => Outputable (F.SubC a) where
 --  -- ppr (F.SubC {F.sinfo = s}) = text "Liquid Type Error: " <> ppr s
 --  ppr
---
 --
 --instance Outputable a => Outputable (F.WfC a) where
 --  ppr (F.SubC {F.sinfo = s}) = text "Liquid Type Error: " <> ppr s
