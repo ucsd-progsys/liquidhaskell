@@ -51,6 +51,7 @@ import Data.Maybe               (fromMaybe)
 import qualified Data.Map as M
 import qualified Data.Set as S 
 import Control.Applicative  hiding (empty)   
+import Data.Bifunctor
 import Data.Generics.Schemes
 import Data.Generics.Aliases
 import Data.Data
@@ -159,11 +160,11 @@ data RType p c tv pv r
 type BRType     = RType String String String   
 type RRType     = RType Class  RTyCon TyVar   
 
-newtype UReft t = U (Reft, Predicate t) 
+data UReft r t  = U {reft :: !r, pred :: !(Predicate t)}
                   deriving (Data, Typeable)
 
-type BareType   = BRType (PVar String) (UReft String) 
-type SpecType   = RRType (PVar Type)   (UReft Type)
+type BareType   = BRType (PVar String) (UReft Reft String) 
+type SpecType   = RRType (PVar Type)   (UReft Reft Type)
 type PrType     = RRType (PVar Type)   (Predicate Type) 
 type RefType    = RRType (PVar Type)   Reft
 
@@ -382,15 +383,15 @@ instance TyConable String where
 instance (Outputable pv, Reftable r) => RefTypable String String String pv r where
   ppCls c ts = parens (text c <+> text "...")
 
-instance Reftable (Predicate t) => Outputable (UReft t) where
-  ppr (U (r, p))
+instance (Reftable r, Reftable (Predicate t)) => Outputable (UReft r t) where
+  ppr (U r p)
     | isTauto r  = ppr p
     | isTauto p  = ppr r
     | otherwise  = ppr p <> text " & " <> ppr r
  
-instance Reftable (Predicate t) => Reftable (UReft t) where
-  isTauto (U (r, p)) = isTauto r && isTauto p 
-  ppTy (U (r, p)) d  = ppTy r (ppTy p d) 
+instance (Reftable r, Reftable (Predicate t)) => Reftable (UReft r t) where
+  isTauto (U r p) = isTauto r && isTauto p 
+  ppTy (U r p) d  = ppTy r (ppTy p d) 
 
 instance (Outputable pv, Reftable r) => RefTypable Class RTyCon TyVar pv r where
   ppCls c ts  = parens $ pprClassPred c (toType <$> ts)
@@ -509,8 +510,13 @@ ppr_forall p t
 --------------------------- Visitors --------------------------
 ---------------------------------------------------------------
 
-instance Functor UReft where 
-  fmap f (U (r, p)) = U (r, fmap f p)
+--instance Functor (UReft r) where 
+--  fmap = second 
+
+instance Bifunctor UReft where
+  first f (U r p)  = U (f r) p
+  second f (U r p) = U r (fmap f p)
+
 
 instance Functor (RType a b c d) where
   fmap f = mapReft f

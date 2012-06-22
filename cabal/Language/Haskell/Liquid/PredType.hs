@@ -31,6 +31,7 @@ import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType 
 import Language.Haskell.Liquid.GhcMisc
 
+import Data.Bifunctor
 import Control.Applicative  ((<$>))
 import Control.DeepSeq
 import Data.Data
@@ -151,9 +152,10 @@ instance SubstP (Predicate Type) where
   subv f (Pr pvs) = Pr (f <$> pvs)
   subp s (Pr pvs) = pdAnd (lookupP s <$> pvs) -- RJ: UNIFY: not correct!
 
-instance SubstP (UReft Type) where
-  subp f (U (r, p)) = U (r, subp f p)
-  subv f (U (r, p)) = U (r, subv f p)
+instance SubstP (UReft Reft Type) where
+  subp f (U r p) = U r (subp f p)
+  subv f (U r p) = U r (subv f p)
+
 
 -- NOTE: This DOES NOT substitute at the binders
 

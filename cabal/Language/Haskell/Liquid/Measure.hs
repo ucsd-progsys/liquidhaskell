@@ -20,6 +20,9 @@ import Data.Map hiding (null, partition)
 import Data.Data
 import Data.Monoid hiding ((<>))
 import Data.List (partition)
+import Data.Bifunctor
+import Control.Applicative      ((<$>))
+
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
@@ -89,6 +92,24 @@ instance Functor (MSpec t) where
   fmap f (MSpec cm mm) = MSpec (fc cm) (fm mm)
      where fc = fmap $ fmap $ fmap f
            fm = fmap $ fmap f 
+
+instance Bifunctor Measure where
+  first f (M n s eqs)  = M n (f s) eqs
+  second f (M n s eqs) = M n s (fmap f <$> eqs)
+
+instance Bifunctor MSpec   where
+  first f (MSpec cm mm) = MSpec cm (fmap (first f) mm)
+  second                = fmap 
+
+instance Bifunctor Spec    where
+  first f (Spec ms ss x y) = Spec { measures  = fmap (first f) ms
+                                  , sigs      = fmap (second f) ss
+                                  , imports   = x
+                                  , dataDecls = y }
+  second f (Spec ms x y z) = Spec { measures  = fmap (second f) ms
+                                  , sigs      = x 
+                                  , imports   = y
+                                  , dataDecls = z }
 
 instance Outputable Body where
   ppr (E e) = toFix e  

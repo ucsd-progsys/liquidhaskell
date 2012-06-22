@@ -24,7 +24,7 @@ Executable liquid
 Library
    Build-Depends:    base, containers, filepath, parsec, mtl, 
                      ghc, ghc-paths, process, directory, hscolour, syb,
-                     text, deepseq, cmdargs, filemanip
+                     text, deepseq, cmdargs, filemanip, bifunctors 
   
   Exposed-Modules: 
     

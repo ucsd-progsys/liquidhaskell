@@ -51,6 +51,7 @@ import Control.Monad.Reader     hiding (forM)
 import Data.Generics.Schemes
 import Data.Generics.Aliases
 import Data.Data                hiding (TyCon, tyConName)
+import Data.Bifunctor
 import qualified Data.Map as M
 
 import Language.Haskell.Liquid.GhcMisc
@@ -71,22 +72,20 @@ import qualified Control.Exception as Ex
 --mkIds env ns = runReaderT (mapM lookupGhcId ns) env
 
 
-mkMeasureSpec :: HscEnv -> Ms.MSpec (BRType pv (UReft t)) Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
+mkMeasureSpec :: HscEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
 -- mkMeasureSpec :: HscEnv -> Ms.MSpec (BRType (PVar Type) Reft) Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
 mkMeasureSpec env m = runReaderT mkSpec env
-  where mkSpec = mkMeasureSort m >>= mkMeasureDCon >>= return . Ms.dataConTypes
+  where mkSpec = mkMeasureSort m' >>= mkMeasureDCon >>= return . Ms.dataConTypes
+        m'     = first (txTyVarBinds . mapReft reft) m
 
 mkAssumeSpec :: HscEnv-> [(Symbol, BareType)] -> IO [(Var, SpecType)]
 mkAssumeSpec env xbs = runReaderT mkAspec env
   where mkAspec = forM xbs $ \(x, b) -> liftM2 (,) (lookupGhcId $ symbolString x) (mkSpecType b)
 
 -- mkSpecType :: BareType -> BareM SpecType 
-mkSpecType    = ofBareType . mapReft (mapr canonReft) . txParams [] . txTyVars 
-mkPredType πs = ofBareType . txParams πs . txTyVars
-mkRefType     = ofBareType . mapReft canonReft
-               
-mapr f (U (r, p)) = U (f r, p)
-
+mkSpecType    = ofBareType . txParams [] . txTyVarBinds . mapReft (bimap canonReft stringTyVarTy) 
+mkPredType πs = ofBareType . txParams πs . txTyVarBinds . mapReft (fmap stringTyVarTy)
+-- mkRefType     = ofBareType . mapReft canonReft
 
 ------------------------------------------------------------------
 -------------------- Type Checking Raw Strings -------------------
@@ -302,8 +301,9 @@ ofBDataCon tc αs πs (c, xts)
 --mkPredTypes env xbs = runReaderT (mapM mkBind xbs) env
 --  where mkBind (x, b) = liftM2 (,) (lookupGhcId $ symbolString x) (mkPredType [] b)
 -- mkPredType πs = ofBareType . txParams πs . txTyVars
+-- txTyVars = txTyVarBinds . mapReft (second stringTyVarTy) 
 
-txTyVars = mapBind fb . mapReft (fmap stringTyVarTy) 
+txTyVarBinds = mapBind fb
   where fb (RP π) = RP (stringTyVarTy <$> π)
         fb (RB x) = RB x
         fb (RV α) = RV α
