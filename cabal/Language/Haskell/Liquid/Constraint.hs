@@ -42,6 +42,7 @@ import Control.Exception.Base
 import Control.Applicative      ((<$>))
 import Data.Maybe (isJust, maybeToList, fromJust, fromMaybe)
 import qualified Data.Map as M
+import Data.Bifunctor
 import Data.List (inits, find, foldl')
 import qualified Data.Set as S
 import Text.Printf
@@ -98,23 +99,16 @@ kvars' = everything (plus') (0 `mkQ` grabKvar)
         grabKvar _                       = 0
         plus' !x !y                      = x + y 
 
---symbols :: (Data a) => a -> S.Set F.Symbol
---symbols = everything S.union (S.empty `mkQ` grab)
---  where grab x@(F.S _) = S.singleton x 
-
 
 initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
 initEnv info penv
-  = do defaults <- forM freeVars $ \x -> liftM (x,) (trueTy $ varType x)
+  = do defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- liftM tyConInfo get 
        let f0  = defaults     -- default TOP reftype      (for all vars) 
-       let f1  = [] -- wiredIn info -- builtins                 (for prims like I#)
        let f2  = assm info    -- assumed refinements      (for import ANNs)
        let f3  = ctor info    -- constructor refinements  (for measures) 
-       let bs  = ((mapSnd (addTyConInfo tyi)) . unifyts penv 
-                      <$> concat [f0, f1, f2, f3])
+       let bs  = ((second (addTyConInfo tyi)) . unifyts penv <$> concat [f0, f2, f3])
        return  $ foldl' (++=) (measEnv info penv) bs 
-    where freeVars = importVars $ cbs info
 
 unifyts penv (x, t) = (x', unify pt t)
  where pt = F.lookupSEnv x' penv
@@ -125,6 +119,12 @@ measEnv info penv = CGE noSrcSpan re0 penv fe0 S.empty
         re0  = fromListREnv bs 
         fe0  = F.fromListSEnv $ mapSnd refTypeSortedReft <$> bs 
 
+assm = assm_grty S.member
+grty = assm_grty S.notMember
+
+assm_grty rel info = [ (x, mapReft ureft t) | (x, t) <- sigs, x `rel` imps ] 
+  where imps = S.fromList $ impVars $ info
+        sigs = tySigs $ spec info  
 
 -------------------------------------------------------------------
 -------- Helpers: Reading/Extending Environment Bindings ----------
@@ -530,7 +530,7 @@ trueRefType t
 refreshRefType (RAll α t)       
   = liftM (RAll α) (refresh t)
 refreshRefType (RFun b t t')
-  | b == (RB dummySymbol) -- isDummyBind b
+  | b == (RB F.dummySymbol) -- isDummyBind b
   = liftM3 RFun fresh (refresh t) (refresh t')
   | otherwise
   = liftM2 (RFun b) (refresh t) (refresh t')
