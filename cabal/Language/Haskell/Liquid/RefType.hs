@@ -160,7 +160,7 @@ data RType p c tv pv r
 type BRType     = RType String String String   
 type RRType     = RType Class  RTyCon TyVar   
 
-data UReft r t  = U {reft :: !r, pred :: !(Predicate t)}
+data UReft r t  = U {ureft :: !r, upred :: !(Predicate t)}
                   deriving (Data, Typeable)
 
 type BareType   = BRType (PVar String) (UReft Reft String) 

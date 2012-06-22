@@ -4,7 +4,9 @@ module Language.Haskell.Liquid.Predicates (
   , generatePredicates
   ) where
 
+
 import Type
+import Id   (isDataConWorkId)
 import Var
 import OccName (mkTyVarOcc)
 import Name (mkInternalName)
@@ -31,6 +33,7 @@ import Control.Monad.State
 import Control.Applicative      ((<$>))
 import qualified Data.Map as M
 import qualified Data.List as L
+import Data.Bifunctor
 import Data.List (foldl')
 import Control.DeepSeq
 import Data.Data hiding (TyCon)
@@ -46,11 +49,11 @@ consAct info = foldM consCB (initEnv info) $ cbs info
 
 generatePredicates ::  GhcInfo -> ([CoreSyn.Bind CoreBndr], F.SEnv PrType)
 generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ "PredCBS" ++ show cbs')-} (cbs', nPd)
-  where γ    = fmap removeExtPreds (penv $ evalState act (initPI info))
+  where γ    = fmap removeExtPreds (penv $ evalState act (initPI $ tconsP $ spec info))
         act  = consAct info
         cbs' = addPredApp nPd <$> cbs info
 --         γ'   = filterGamma nPd γ 
-        nPd  = getNeedPd info
+        nPd  = getNeedPd $ spec info
 
 instance Show CoreBind where
   show = showSDoc . ppr
@@ -85,12 +88,12 @@ data SubC
 
 addId x y = modify $ \s -> s{symbolsP = M.insert x y (symbolsP s)}
 
-initPI info = PInfo { freshIndex = 1
-                    , pMap = M.empty
-                    , hsCsP = []
-                    , tyCons = M.fromList (tconsP info)
-                    , symbolsP = M.empty
-                    }
+initPI x = PInfo { freshIndex = 1
+                 , pMap       = M.empty
+                 , hsCsP      = []
+                 , tyCons     = M.fromList x -- (tconsP info)
+                 , symbolsP   = M.empty
+                 }
 
 type PI = State PInfo
 
@@ -183,7 +186,7 @@ consE _ e@(Lit c)
 
 consE γ (App e (Type τ)) 
   = do RAll (RV α) te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
-       let t = trueTy τ
+       let t = ofTypeP τ
        return $ (α, t, τ) `subsTyVars_` te 
 --     $ traceShow ("consE TyA " ++ show α ++ show (varUnique α) ++ " with " ++ show t ++ " in " ++ show te ) 
           
@@ -375,8 +378,6 @@ varPredArgs_ Nothing = (0, 0)
 varPredArgs_ (Just t) = (length vs, length ps)
   where (vs, ps, _) = splitVsPs t
 
-trueTy = ofTypeP
-
 generalizeS t 
   = do splitCons
        s <- pMap <$> get 
@@ -414,21 +415,22 @@ splitCons
 -- generalize predicates of arguments: used on Rec Definitions
 
 initEnv info = PCGE { loc = noSrcSpan , penv = F.fromListSEnv bs}
-  where dflts  = [(x, trueTy $ varType x) | x <- freeVs]
+  where dflts  = [(x, ofTypeP $ varType x) | x <- freeVs]
         dcs    = [(x, dconTy $ varType x) | x <- dcons]
-        sdcs   = map (\(x, t) -> (TC.dataConWorkId x, dataConPtoPredTy t)) (dconsP info)
-        assms  = passm info
-        bs     =  mapFst mkSymbol <$> (dflts ++ dcs ++ assms ++ sdcs)
+        sdcs   = bimap TC.dataConWorkId dataConPtoPredTy <$> dconsP (spec info)
+        assms  = passm $ tySigs $ spec info
+        bs     = first mkSymbol <$> (dflts ++ dcs ++ assms ++ sdcs)
         freeVs = [v | v<-importVars $ cbs info]
-        dcons  = filter isDataCon freeVs
+        dcons  = filter isDataConWorkId freeVs
 
-
-
-getNeedPd info 
+getNeedPd spec 
   = F.fromListSEnv bs
-    where  dcs = map (\(x, t) -> (TC.dataConWorkId x, dataConPtoPredTy t)) (dconsP info)
-           assms = passm info
-           bs = mapFst mkSymbol <$> (dcs ++ assms)
+    where  dcs   = bimap TC.dataConWorkId dataConPtoPredTy <$> dconsP spec
+           assms = passm $ tySigs spec 
+           bs    = first mkSymbol <$> (dcs ++ assms)
+
+passm = fmap (second (mapReft upred)) 
+-- specTypePrType = mapReft pred
 
 dconTy t = generalize $ dataConTy vps t
   where vs  = tyVars t
@@ -476,7 +478,7 @@ freshTy t
   = error "freshTy"
 
 freshPredTree (ClassPred c ts)
-  = RCls c (trueTy <$> ts)
+  = RCls c (ofTypeP <$> ts)
 
 freshTyConPreds c 
  = do s <- get

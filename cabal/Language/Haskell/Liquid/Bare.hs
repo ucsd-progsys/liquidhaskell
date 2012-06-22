@@ -76,7 +76,7 @@ mkMeasureSpec :: HscEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(S
 -- mkMeasureSpec :: HscEnv -> Ms.MSpec (BRType (PVar Type) Reft) Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
 mkMeasureSpec env m = runReaderT mkSpec env
   where mkSpec = mkMeasureSort m' >>= mkMeasureDCon >>= return . Ms.dataConTypes
-        m'     = first (txTyVarBinds . mapReft reft) m
+        m'     = first (txTyVarBinds . mapReft ureft) m
 
 mkAssumeSpec :: HscEnv-> [(Symbol, BareType)] -> IO [(Var, SpecType)]
 mkAssumeSpec env xbs = runReaderT mkAspec env

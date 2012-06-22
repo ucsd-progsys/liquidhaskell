@@ -108,7 +108,7 @@ initEnv info penv
   = do defaults <- forM freeVars $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- liftM tyConInfo get 
        let f0  = defaults     -- default TOP reftype      (for all vars) 
-       let f1  = wiredIn info -- builtins                 (for prims like I#)
+       let f1  = [] -- wiredIn info -- builtins                 (for prims like I#)
        let f2  = assm info    -- assumed refinements      (for import ANNs)
        let f3  = ctor info    -- constructor refinements  (for measures) 
        let bs  = ((mapSnd (addTyConInfo tyi)) . unifyts penv 
