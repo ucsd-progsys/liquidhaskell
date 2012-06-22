@@ -9,7 +9,7 @@ module Language.Haskell.Liquid.RefType (
   , RefType, PrType, BareType, SpecType
   , PVar (..), Predicate (..), UReft(..), DataDecl (..)
   , pdAnd, pdVar, pdTrue, pvars
-  , bLst, bTup, bCon, isBoolBareType
+  , listConName, tupConName -- , bLst, bTup, bCon, isBoolBareType, boolConName
   , Bind (..), RBind
   , ppr_rtype, mapReft, mapRVar, mapBind
   , ofType, toType
@@ -171,7 +171,7 @@ type RefType    = RRType (PVar Type)   Reft
 data DataDecl   = D String 
                     [String] 
                     [PVar String] 
-                    [(String, [(String, BRType (PVar String) (Predicate String))])] 
+                    [(String, [(String, BareType)])] 
                   deriving (Data, Typeable, Show)
 
 class Outputable r => Reftable r where 
@@ -366,15 +366,6 @@ instance Reftable Reft where
 
 listConName = "List"
 tupConName  = "Tuple"
-boolConName = "Bool"
-isBoolBareType (RApp tc [] _ _) = tc == boolConName
-isBoolBareType _                = False
-
-bLst t r    = RApp listConName [t] [] r 
-bTup [x] _  = x
-bTup xs  r  = RApp tupConName xs [] r
-bCon b ts r = RApp b ts [] r
-
 
 instance TyConable String where
   isList  = (listConName ==) 

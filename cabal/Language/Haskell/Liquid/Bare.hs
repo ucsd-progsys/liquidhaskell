@@ -5,8 +5,7 @@
  - and real refinements. -}
 
 module Language.Haskell.Liquid.Bare (
-    DataDecl (..)
-  , mkMeasureSpec
+    mkMeasureSpec
   , mkAssumeSpec
   , mkConTypes
   -- , mkIds, mkRefTypes, mkPredTypes
@@ -274,13 +273,14 @@ mkMeasureSort (Ms.MSpec cm mm)
 mkConTypes :: HscEnv-> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
 mkConTypes env dcs = unzip <$> runReaderT (mapM ofBDataDecl dcs) env
 
-ofBDataDecl :: DataDecl-> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
+ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
 ofBDataDecl (D tc as ps cts)
   = do tc'   <- lookupGhcTyCon tc 
-       cts'  <- mapM (ofBDataCon tc' αs πs) cts
+       cts'  <- mapM (ofBDataCon tc' αs πs) cpts
        return $ ((tc', TyConP αs πs), cts')
-    where αs = fmap stringTyVar as
-          πs = fmap (fmap stringTyVarTy) ps
+    where αs   = fmap stringTyVar as
+          πs   = fmap (fmap stringTyVarTy) ps
+          cpts = fmap (second (fmap (second (mapReft upred)))) cts
 
 ofBDataCon tc αs πs (c, xts)
  = do c'  <- lookupGhcDataCon c

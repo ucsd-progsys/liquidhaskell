@@ -21,7 +21,7 @@ import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Measure
-import Language.Haskell.Liquid.Bare
+-- import Language.Haskell.Liquid.Bare
 import Outputable (Outputable (..))
 -- import Language.Haskell.Liquid.BarePredicate
 
@@ -71,6 +71,7 @@ reservedOp = Token.reservedOp lexer
 parens     = Token.parens     lexer
 brackets   = Token.brackets   lexer
 braces     = Token.braces     lexer
+angles     = Token.angles     lexer
 semi       = Token.semi       lexer
 comma      = Token.comma      lexer
 colon      = Token.colon      lexer
@@ -205,10 +206,9 @@ brelP =  (reservedOp "="  >> return (PAtom Eq))
      <|> (reservedOp ">=" >> return (PAtom Ge))
      -- <|> (reservedOp "is" >> return (hasTag  )) 
 
-----------------------------------------------------------------------------------------
------------------------------------- BareTypes -----------------------------------------
-----------------------------------------------------------------------------------------
-
+----------------------------------------------------------------------------------
+------------------------------------ BareTypes -----------------------------------
+----------------------------------------------------------------------------------
 
 bareTypeP   
   =  try bareFunP
@@ -223,19 +223,42 @@ bareAtomP
   =  refP bbaseP 
  <|> try (dummyP bbaseP)
 
+bbaseP :: Parser (Reft -> BareType)
 bbaseP 
-  =  liftM bLst (brackets bareTypeP)
- <|> liftM bTup (parens $ sepBy bareTypeP comma)
- <|> try (liftM2 bCon upperIdP (sepBy bareTypeP blanks))
- <|> try (liftM (`bCon` []) upperIdP)
- <|> liftM (RVar . RV) lowerIdP
+  =  liftM2 bLst (brackets bareTypeP) predicatesP
+ <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
+ <|> try (liftM3 bCon upperIdP (sepBy bareTypeP blanks) predicatesP)
+-- <|> try (liftM (`bCon` []) upperIdP)
+ <|> liftM2 bRVar lowerIdP predicateP
 
 bareAllP 
   = do reserved "forall"
        as <- sepBy1 tyVarIdP comma
+       ps <- predVarDefsP
        dot
        t  <- bareTypeP
-       return $ tr_foldr' RAll t (RV <$> as)
+       return $ foldr (RAll . RV) (foldr (RAll . RP) t ps) as
+
+predVarDefsP 
+  =  try (angles $ sepBy1 predVarDefP comma)
+ <|> return []
+
+predVarDefP
+ = liftM3 bPVar predVarIdP colon predVarTypeP
+   
+bPVar p _ ts  = PV p τ τxs 
+  where τ   = last ts
+        τs  = init ts 
+        τxs = zipWith (\τ x -> (τ, x, x)) τs xs
+        xs  = stringSymbol <$> ["x" ++ show i | i <- [0..]]
+
+
+predVarIdP 
+  = stringSymbol <$> tyVarIdP 
+
+predVarTypeP 
+  =  try ((liftM (: []) tyVarIdP) <* reserved "->" <* reserved boolConName)
+ <|> liftM2 (:) tyVarIdP (reserved "->" >> predVarTypeP)
 
 data ArrowSym = ArrowFun | ArrowPred
 
@@ -261,6 +284,8 @@ bareFunP
        t2 <- bareTypeP
        return $ bareArrow x t1 a t2 
 
+bindP = lowerIdP <* colon
+
 bareArrow "" t1 ArrowFun t2
   = RFun dummyBind t1 t2
 bareArrow x t1 ArrowFun t2
@@ -268,25 +293,25 @@ bareArrow x t1 ArrowFun t2
 bareArrow x t1 ArrowPred t2
   = foldr (RFun dummyBind) t2 (getClasses t1)
 
+boolConName                     = "Prop"
+isBoolBareType (RApp tc [] _ _) = tc == boolConName
+isBoolBareType _                = False
+
 getClasses (RApp tc ts _ _) 
   | isTuple tc
   = getClass `fmap` ts 
 getClasses t 
   = [getClass t]
-
 getClass (RApp c ts _ _)
   = RCls c ts
 getClass t
   = errorstar $ "Cannot convert " ++ (show t) ++ " to Class"
 
-stringBind = RB . stringSymbol
-dummyBind  = RB dummySymbol
-
-bindP = lowerIdP <* colon
-
+dummyP ::  Monad m => m (Reft -> b) -> m b
 dummyP fm 
-  = fm `ap` return (Reft (dummySymbol, []))
+  = fm `ap` return dummyReft 
 
+refP :: Parser (Reft -> a) -> Parser a
 refP kindP 
   = braces $ do
       v   <- symbolP 
@@ -299,6 +324,42 @@ refP kindP
 refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
        <|> liftM ((:[]) . RConc) predP
+
+predicatesP 
+   =  try (angles $ sepBy1 predicate1P comma) 
+  <|> return []
+
+predicateP 
+   = try (angles $ predicate1P) 
+  <|> return pdTrue
+
+predicate1P
+   =  try (reserved "True" >> return pdTrue)
+  <|> try (liftM pdVar (parens predVarUseP))
+  <|> liftM pdVar predVarUseP 
+
+predVarUseP 
+ = do p  <- predVarIdP
+      xs <- sepBy predVarIdP spaces
+      return $ PV p dummyTyId [ (dummyTyId, dummySymbol, x) | x <- xs ]
+
+------------------------------------------------------------------------
+----------------------- Wrapped Constructors ---------------------------
+------------------------------------------------------------------------
+
+bLst t rs r    = RApp listConName [t] (predUReft <$> rs) (reftUReft r) 
+bTup [t] _ _   = t
+bTup ts rs r   = RApp tupConName ts (predUReft <$> rs) (reftUReft r)
+bCon b ts rs r = RApp b ts (predUReft <$> rs) (reftUReft r)
+bRVar α p r    = RVar (RV α) (U r p)
+
+
+reftUReft      = (`U` pdTrue)
+predUReft      = (U dummyReft) 
+stringBind     = RB . stringSymbol
+dummyBind      = RB dummySymbol
+dummyReft      = Reft (dummySymbol, [])
+dummyTyId      = ""
 
 ------------------------------------------------------------------
 --------------------------- Measures -----------------------------
@@ -355,7 +416,6 @@ binderP =  try symbolP
        <|> liftM pwr (parens $ many1 (satisfy $ not . (`elem` "()")))
        where pwr s = stringSymbol $ "(" ++ s ++ ")" 
 
-
 grabs p = try (liftM2 (:) p (grabs p)) 
        <|> return []
 
@@ -368,16 +428,6 @@ measureDefP bodyP
        whiteSpace
        return   $ Measure.Def mname (stringSymbol c) (stringSymbol <$> xs) body
 
-
---measureDefP :: Parser (Measure.Def Symbol)
---measureDefP 
---  = do mname   <- symbolP
---       (c, xs) <- parens $ measurePatP
---       whiteSpace >> reservedOp "=" >> whiteSpace
---       body    <- Measure.E <$> exprP
---       whiteSpace
---       return   $ Measure.Def mname (S c) (S <$> xs) body
-
 measurePatP :: Parser (String, [String])
 measurePatP
   =  try (liftM2 (,)   upperIdP (sepBy lowerIdP whiteSpace))
@@ -387,139 +437,55 @@ measurePatP
 {- len (Cons x1 x2 ...) = e -}
 
 
-----------------------------------------------------------------------------------------
------------------------------------------- Predicates ----------------------------------
-----------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+--------------------------------- Predicates ----------------------------------
+-------------------------------------------------------------------------------
 
-predVarIdP :: Parser Symbol
-predVarIdP = liftM stringSymbol $ condIdP alphanums (isLower . head) 
-  where alphanums = ['a'..'z'] ++ ['0'..'9']
+--tyConVarIdP :: Parser String
+--tyConVarIdP = condIdP alphanums (isUpper . head) 
+--  where alphanums = ['a'..'z'] ++ ['0'..'9']
 
-tyConVarIdP :: Parser String
-tyConVarIdP = condIdP alphanums (isUpper . head) 
-  where alphanums = ['a'..'z'] ++ ['0'..'9']
+--predVarArgP
+-- = do x <- predVarIdP
+--      colon
+--      t <- tyVarIdP
+--      return (t, x, x)
 
+--predVarUseP 
+-- = do p <- predVarIdP
+--      xs <-(try $ parens $ sepBy predVarIdP comma) <|> return []
+--      return $ PV p dummyTyId [ (dummyTyId, dummySymbol, x) | x <- xs ]
+--   where dummyTyId = ""
 
-predVarArgP
- = do x <- predVarIdP
-      colon
-      t <- tyVarIdP
-      return (t, x, x)
+--predicateP 
+--  = try (reserved "True" >> return pdTrue)
+--  <|> liftM pdVar predVarUseP  
 
-predVarDefP
- = do p   <- predVarIdP
-      colon
-      t   <- tyVarIdP
-      xts <- (try $ parens $ sepBy predVarArgP comma) <|> return []
-      return $ PV p t xts
+--predTypeP = liftM (mapReft upred) bareTypeP
 
-predVarUseP 
- = do p <- predVarIdP
-      xs <-(try $ parens $ sepBy predVarIdP comma) <|> return []
-      return $ PV p dummyTyId [ (dummyTyId, dummySymbol, x) | x <- xs ]
-   where dummyTyId = ""
-
-predicateP 
-  = try (reserved "True" >> return pdTrue)
-  <|> liftM pdVar predVarUseP  
-
-predTypePDD
-  = do x  <- try bindP <|> do {p <- getPosition; return $ dummyName p}  
-       t <- try (parens predTypeP) <|> predTypeP
+predTypeDDP
+  = do x <- try bindP <|> do {p <- getPosition; return $ dummyName p}  
+       t <- try (parens bareTypeP) <|> bareTypeP
        return (x, t) 
 
 dataConP
- = do x <- tyConVarIdP
+ = do x <- upperIdP -- tyConVarIdP
       spaces
-      xts <- sepBy predTypePDD spaces
+      xts <- sepBy predTypeDDP spaces
       return (x, xts)
 
 dataDeclP
  = do -- reserved "data"
-      x <- tyConVarIdP
+      x   <- upperIdP -- tyConVarIdP
       spaces
-      ts <- sepBy tyVarIdP spaces
-      reservedOp "<<"
-      ps <- sepBy predVarDefP spaces
-      reservedOp ">>"
-      reservedOp "="
+      ts  <- sepBy tyVarIdP spaces
+      ps  <- predVarDefsP
+      whiteSpace >> reservedOp "=" >> whiteSpace
       dcs <- sepBy dataConP (reserved "|")
-      spaces
-      reservedOp "--"
+      whiteSpace
+      -- spaces
+      -- reservedOp "--"
       return $ D x ts ps dcs
-
-
-----------------------------------------------------------------------------------------
------------------------------------- PredicateTypes ------------------------------------
-----------------------------------------------------------------------------------------
-
-specPr 
-  = many measurePr
-
-measurePr 
-  = do reserved "assume"
-       name <-  binderP 
-       colon >> colon
-       ty <- predTypeP
-       spaces
-       return $ (name, ty)
-
-predTypeP   
-  =  try predFunP
- <|> predTyAllP
- <|> predTyPrAllP
- <|> try predbaseP 
- 
-predArgP 
-  =  predbaseP  
- <|> parens predTypeP
-
-predPsP
-  = do reservedOp "<<"
-       ps <- sepBy predicateP blanks
-       reservedOp ">>"
-       return ps
- <|> return []
-
-maybePredP
-  = do reservedOp "^"
-       p <- predicateP 
-       return p
- <|> return pdTrue 
-
-predAppP 
-  = do c  <- upperIdP
-       ts <- sepBy predTypeP blanks
-       ps <- predPsP
-       p  <- maybePredP
-       return $ RApp c ts ps p
-
-predbaseP 
-  =  liftM2 bLst (brackets predTypeP) (return pdTrue)
- <|> liftM2 bTup (parens $ sepBy predTypeP comma) (return pdTrue)
- <|> try predAppP 
- <|> liftM2 rVar lowerIdP maybePredP
-
-predTyAllP 
-  = do reserved "forall"
-       as <- sepBy tyVarIdP blanks
-       dot
-       t  <- predTypeP
-       return $ foldr RAll t (RV <$> as)
-
-predTyPrAllP 
-  = do reserved "forAll"
-       ps <- sepBy predVarDefP blanks
-       dot
-       t  <- predTypeP
-       return $ foldr RAll t (RP <$> ps)
-
-predFunP  
-  = do x  <- try bindP <|> do {p <- getPosition; return $ dummyName p}  
-       t1 <- predArgP 
-       a  <- arrowP
-       t2 <- predTypeP
-       return $ bareArrow {- predArrow -} x t1 a t2 
 
 ---------------------------------------------------------------------
 ------------ Interacting with Fixpoint ------------------------------
@@ -612,14 +578,13 @@ instance Inputable BareType where
   rr' = doParse' bareTypeP 
 
 instance Inputable (Measure.Measure BareType Symbol) where
-  rr' = error "TBD" -- doParse' measureP
+  rr' = doParse' measureP
 
 instance Inputable (Measure.Spec BareType Symbol) where
-  rr' = error "TBD" -- doParse' specificationP
+  rr' = doParse' specificationP
 
-
-instance Inputable [(Symbol, BRType (PVar String) (Predicate String))] where
-  rr' = doParse' specPr
+--instance Inputable [(Symbol, BRType (PVar String) (Predicate String))] where
+--  rr' = doParse' specPr
 
 ---------------------------------------------------------------
 --------------------------- Testing ---------------------------
