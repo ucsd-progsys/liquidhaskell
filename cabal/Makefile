@@ -13,6 +13,7 @@ OPTS="-O2 -XStandaloneDeriving -XDeriveDataTypeable"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
 CABAL=cabal --with-ghc=$(GHC) 
 #CABAL=cabal --with-ghc=$(GHC) --enable-executable-profiling --enable-library-profiling --reinstall
+CABALPROF= $(CABAL) install --reinstall --ghc-options=$(OPTS) -p 
 
 all:
 	$(CABAL) install --ghc-options=$(OPTS) 
@@ -55,7 +56,20 @@ hsannot:
 dexpose:
 	$(GPG) expose $(API)
 
-
 docs:
 	$(CABAL) hscolour
 	$(CABAL) haddock --hoogle
+
+profdpackages:
+	$(CABALPROF) unix-compat
+	$(CABALPROF) transformers
+	$(CABALPROF) mtl
+	$(CABALPROF) filemanip
+	$(CABALPROF) cmdargs
+	$(CABALPROF) text
+	$(CABALPROF) syb
+	$(CABALPROF) comonad
+	$(CABALPROF) contravariant
+	$(CABALPROF) semigroupoids
+	$(CABALPROF) semigroups
+	$(CABALPROF) bifunctors

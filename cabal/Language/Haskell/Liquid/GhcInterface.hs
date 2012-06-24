@@ -78,18 +78,10 @@ data GhcInfo = GI {
     env      :: !HscEnv
   , cbs      :: ![CoreBind]
   , impVars  :: ![Var]
+  , defVars  :: ![Var]
   , hqFiles  :: ![FilePath]
   , spec     :: !GhcSpec
   }
-
---  , assm     :: ![(Var, RefType)]
---  , grty     :: ![(Var, RefType)]
---  , ctor     :: ![(Var, RefType)]
---  , meas     :: ![(Symbol, RefType)]
---  , passm    :: ![(Var, PrType)]
---  , dconsP   :: ![(DataCon, DataConP)]
---  , tconsP   :: ![(TC.TyCon, TyConP)]
---  }
 
 instance Outputable GhcSpec where
   ppr spec =  (text "******* Imports *****************************")
@@ -104,10 +96,15 @@ instance Outputable GhcSpec where
 instance Outputable GhcInfo where 
   ppr info =  (text "*************** Core Bindings ***************")
            $$ (ppr $ cbs info)
-           $$ (text "*************** Free Variables **************")
+           $$ (text "*************** Imported Variables **********")
            $$ (ppr $ impVars info)
+           $$ (text "*************** Defined Variables ***********")
+           $$ (ppr $ defVars info)
            $$ (text "*************** Specification ***************")
            $$ (ppr $ spec info)
+
+instance Show GhcInfo where
+  show = showPpr 
 
 ------------------------------------------------------------------
 -------------- Extracting CoreBindings From File -----------------
@@ -139,7 +136,8 @@ getGhcInfo target paths
       spec        <- moduleSpec modguts paths 
       liftIO       $ putStrLn $ "Module Imports: " ++ show (imports spec) 
       hqualFiles  <- moduleHquals modguts paths target $ imports spec 
-      return $ GI hscEnv coreBinds (importVars coreBinds) hqualFiles spec
+      return $ traceShow "GhcInfo" 
+             $ GI hscEnv coreBinds (importVars coreBinds) (definedVars coreBinds) hqualFiles spec
 
 moduleHquals mg paths target imports 
   = do hqs   <- moduleAnnFiles Hquals paths (mg_module mg)
@@ -154,7 +152,11 @@ printVars s vs
 
 mg_namestring = moduleNameString . moduleName . mg_module
 
-importVars = freeVars S.empty 
+importVars  = freeVars S.empty 
+definedVars = concatMap defs 
+  where defs (NonRec x _) = [x]
+        defs (Rec xes)    = map fst xes
+
 
 instance Show TC.TyCon where
  show = showSDoc . ppr

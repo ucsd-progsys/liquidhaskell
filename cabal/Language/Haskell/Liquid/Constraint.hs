@@ -112,6 +112,7 @@ initEnv info penv
        let bs  = ((second (addTyConInfo tyi)) . unifyts penv <$> concat [f0, f2, f3])
        return  $ foldl' (++=) (measEnv info penv) bs 
 
+unifyts ::  F.SEnv PrType -> (Var, RefType) -> (F.Symbol, RefType)
 unifyts penv (x, t) = (x', unify pt t)
  where pt = F.lookupSEnv x' penv
        x' = mkSymbol x
@@ -121,12 +122,15 @@ measEnv info penv = CGE noSrcSpan re0 penv fe0 S.empty
         re0  = fromListREnv bs 
         fe0  = F.fromListSEnv $ mapSnd refTypeSortedReft <$> bs 
 
-assm = assm_grty S.member
-grty = assm_grty S.notMember
 
-assm_grty rel info = [ (x, mapReft ureft t) | (x, t) <- sigs, x `rel` imps ] 
-  where imps = S.fromList $ impVars $ info
+assm = traceShow ("****** assm *****\n") . assm_grty impVars 
+grty = traceShow ("****** grty *****\n") . assm_grty defVars
+
+assm_grty f info = [ (x, mapReft ureft t) | (x, t) <- sigs, x `S.member` xs ] 
+  where xs   = S.fromList $ f info 
         sigs = tySigs $ spec info  
+
+
 
 -------------------------------------------------------------------
 -------- Helpers: Reading/Extending Environment Bindings ----------
@@ -414,19 +418,17 @@ ppr_CGInfo cgi
   $$ (text "*********** Fixpoint-WFConstraints ************")
   $$ (ppr $ fixWfs cgi)
 
-
-
-
 type CG = State CGInfo
 
 initCGI info = CGInfo [] [] [] [] F.emptySEnv 0 (AI M.empty) tyi
-		where tyi  = M.fromList $ mkTyCon_ <$> (tconsP info)
+  where tyi  = M.fromList [(c, mkRTyCon c p) | (c, p) <- tconsP info]
 
 showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 
-mkTyCon_ (tc, (TyConP τs' ps)) = (tc, RTyCon tc pvs')
-  where τs  = TyVarTy <$> TC.tyConTyVars tc
+mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
+mkRTyCon tc (TyConP τs' ps) = RTyCon tc pvs'
+  where τs   = TyVarTy <$> TC.tyConTyVars tc
         pvs' = subsTyVarsP (zip τs' τs) <$> ps
 
 addC :: SubC -> String -> CG ()  
@@ -476,7 +478,7 @@ freshTy e τ = freshTy' e τ
 
 trueTy  :: Type -> CG RefType
 trueTy t 
- = do t <- true $ ofType t
+ = do t   <- true $ ofType t
       tyi <- liftM tyConInfo get
       return $ addTyConInfo tyi t
 

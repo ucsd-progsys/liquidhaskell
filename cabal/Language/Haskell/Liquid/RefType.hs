@@ -279,7 +279,8 @@ replaceReft (RVar a _) r'      = RVar a      r'
 replaceReft t _                = t 
 
 
-addTyConInfo tyi = mapBot (addTCI tyi) 
+addTyConInfo :: M.Map TC.TyCon RTyCon -> RRType pv Reft -> RRType pv Reft
+addTyConInfo = mapBot . addTCI
 addTCI tyi t@(RApp c ts rs r)
   = case (M.lookup (rTyCon c) tyi) of
      Just c' -> rConApp c' ts rs r
