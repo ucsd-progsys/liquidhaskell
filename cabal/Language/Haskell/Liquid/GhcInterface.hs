@@ -136,7 +136,7 @@ getGhcInfo target paths
       spec        <- moduleSpec modguts paths 
       liftIO       $ putStrLn $ "Module Imports: " ++ show (imports spec) 
       hqualFiles  <- moduleHquals modguts paths target $ imports spec 
-      return $ traceShow "GhcInfo" 
+      return -- $ traceShow "GhcInfo" 
              $ GI hscEnv coreBinds (importVars coreBinds) (definedVars coreBinds) hqualFiles spec
 
 moduleHquals mg paths target imports 

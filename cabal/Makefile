@@ -73,3 +73,7 @@ profdpackages:
 	$(CABALPROF) semigroupoids
 	$(CABALPROF) semigroups
 	$(CABALPROF) bifunctors
+
+
+test:
+	cd tests && ./regrtest.py && cd ../
