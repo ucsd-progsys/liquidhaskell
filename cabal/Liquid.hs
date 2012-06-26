@@ -21,7 +21,6 @@ import CoreSyn
 
 import System.Console.CmdArgs
 
-
 main    = liquid >>= (exitWith . resultExit)
 
 liquid  = do (targets, includes) <- getOpts
@@ -36,19 +35,15 @@ liquidOne includes target =
   do info    <- getGhcInfo target includes :: IO GhcInfo
      putStrLn $ showPpr (cbs info)
      let cbs' = transformRecExpr (cbs info)
-     putStrLn $ "NEW CBS"
+     putStrLn $ "*************** Transform Rec Expr CoreBinds *****************" 
      putStrLn $ showPpr (cbs')
---      putStrLn $ error "ok"
      let cgi = generateConstraints $ info {cbs = cbs'}
-     -- dummyDeepseq cgi 
-     -- dummyWrite target cgi
-     -- dummyWrite' target cgi
      writeConstraints target cgi
---     putStrLn $ showPpr info           
      (r, sol) <- cgi `deepseq` solve target (hqFiles info) cgi
      annotate target sol $ annotMap cgi
-     putStrLn $ "********** DONE: " ++ showPpr r ++ " ************"
+     putStrLn $ "*************** DONE: " ++ showPpr r ++ " ********************"
      return r
+
 {-
 dummyDeepseq cgi 
   = {-# SCC "DummyWrite" #-} ( (hsCs cgi, hsWfs cgi)  `deepseq` putStrLn "DeepSeq-ed cgi")

@@ -133,7 +133,7 @@ getGhcInfo target paths
       modguts     <- getGhcModGuts1 target
       hscEnv      <- getSession
       coreBinds   <- liftIO $ anormalize hscEnv modguts
-      spec        <- moduleSpec modguts paths 
+      spec        <- moduleSpec target modguts paths 
       liftIO       $ putStrLn $ "Module Imports: " ++ show (imports spec) 
       hqualFiles  <- moduleHquals modguts paths target $ imports spec 
       return -- $ traceShow "GhcInfo" 
@@ -178,53 +178,10 @@ desugarModuleWithLoc tcm = do
 -------- Extracting Specifications (Measures + Assumptions) -------------
 -------------------------------------------------------------------------
  
---getGhcSpec mg paths impVars 
---  = do (ins, asm, ctors, msrs) <- moduleAssumes mg paths (importVars cbs) 
---       grt                     <- moduleGuarantees mg paths
---       (tcs, dcs)              <- unzip <$> moduleDat mg paths 
---       return (ins, SP { grty   = grt
---                       , assm   = asm
---                       , ctor   = ctors 
---                       , meas   = msrs
---                       , dconsP = concat dcs ++ snd listTyDataCons 
---                       , tconsP = tcs ++ fst listTyDataCons})
-
---modulePred :: GhcMonad m => ModGuts -> [FilePath] -> [Var] -> m [(Var, PrType)]
---modulePred mg paths  impVars 
---  = do fs     <- moduleImpFiles Pred paths impNames 
---       myfs   <- moduleImpFiles Pred paths [mg_namestring mg]
---       myspec <- liftIO $ mconcat <$> mapM parsePred (myfs ++ fs)
---       env    <- getSession
---       setContext [IIModule mod]
---       xts <- liftIO $ mkPredTypes env myspec
---       return  $ xts
---    where mod      = mg_module mg
---          impNames = (moduleNameString . moduleName) <$> impMods
---          impMods  = moduleEnvKeys $ mg_dir_imps mg
-
---moduleDat mg paths
---  = do fs     <- moduleImpFiles Dat paths impNames 
---       myfs   <- moduleImpFiles Dat paths [mg_namestring mg]
---       myspec <- liftIO $ mconcat <$> mapM parseDat (myfs ++ fs)
---       liftIO  $ putStrLn $ "Module Imports: " ++ show myspec
---       env    <- getSession
---       setContext [IIModule mod]
---       xts <- liftIO $ mkConTypes env myspec
---       liftIO  $ putStrLn $ "Imported Data Decl: " ++ show xts
---       return  $ xts
---    where mod      = mg_module mg
---          impNames = (moduleNameString . moduleName) <$> impMods
---          impMods  = moduleEnvKeys $ mg_dir_imps mg
-
----moduleGuarantees mg paths 
----  = do myfs    <- moduleImpFiles Spec paths [mg_namestring mg]
----       myspec  <- parseSpecs myfs 
----       env     <- getSession
----       liftIO $ mkAssumeSpec env $ Ms.assumes myspec
-
-moduleSpec mg paths
-  = do fs     <- moduleImpFiles Spec paths allNames 
-       spec   <- transParseSpecs paths S.empty mempty fs
+moduleSpec target mg paths
+  = do spec0      <- getSpecs Spec paths allNames 
+       spec1      <- getSpecs Hs   paths allNames 
+       let spec    = spec0 `mappend` spec1 
        setContext [IIModule mod]
        env        <- getSession
        (cs, ms)   <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec $ Ms.measures  spec
@@ -241,24 +198,26 @@ moduleSpec mg paths
           impMods  = moduleEnvKeys $ mg_dir_imps mg
           allNames = (mg_namestring mg) : impNames
 
+getSpecs ext paths names 
+  = moduleImpFiles ext paths names >>= transParseSpecs ext paths S.empty mempty
 
-transParseSpecs :: GhcMonad m => [FilePath] -> S.Set FilePath -> Ms.Spec BareType Symbol -> [FilePath] -> m (Ms.Spec BareType Symbol)
-transParseSpecs _ _ spec []       
+transParseSpecs _ _ _ spec []       
   = return spec
-transParseSpecs paths seenFiles spec newFiles 
-  = do newSpec   <- parseSpecs newFiles 
-       impFiles  <- moduleImpFiles Spec paths [symbolString x | x <- Ms.imports newSpec]
+transParseSpecs ext paths seenFiles spec newFiles 
+  = do newSpec   <- liftIO $ liftM mconcat $ mapM (parseSpec ext) newFiles 
+       impFiles  <- moduleImpFiles ext paths [symbolString x | x <- Ms.imports newSpec]
        let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
        let spec'      = spec `mappend` newSpec
        let newFiles'  = [f | f <- impFiles, f `S.notMember` seenFiles']
-       transParseSpecs paths seenFiles' spec' newFiles'
+       transParseSpecs ext paths seenFiles' spec' newFiles'
+ 
+parseSpec ext f 
+  = do putStrLn $ "parseSpec: " ++ f 
+       Ex.catch (liftM (specParser ext f) $ readFile f) $ \(e :: Ex.IOException) ->
+         ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ f
 
-parseSpecs files 
-  = liftIO $ liftM mconcat $ forM files $ \f -> 
-      do putStrLn $ "parseSpec: " ++ f 
-         Ex.catch (liftM (rr' f) $ readFile f) $ \(e :: Ex.IOException) ->
-           ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ f
-
+specParser Spec = rr'
+specParser Hs   = hsSpecificationP
 
 moduleImpFiles ext paths names 
   = liftIO $ liftM catMaybes $ forM extNames (namePath paths)

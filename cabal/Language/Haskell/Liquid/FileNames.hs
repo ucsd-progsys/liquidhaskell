@@ -64,6 +64,7 @@ extFileName ext = (`addExtension` (extMap M.! ext))
 
 isExtFile ext = ((extMap M.! ext) `isSuffixOf`)
 
+extModuleName ::  String -> Ext -> FilePath
 extModuleName modName ext = 
   case explode modName of 
     [] -> errorstar $ "malformed module name: " ++ modName

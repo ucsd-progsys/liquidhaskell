@@ -27,10 +27,13 @@ Failed 17 tests:
     , pos/deptup.hs
 
 NEXT UP (HEREHEREHEREHEREHERE)
+
+, pos/niki.hs
+MOVE Niki.Dat into .hs
+
 , pos/deptup0.hs
 , pos/deptup1.hs
-, pos/meas5.hs
-, pos/niki.hs
+
 , pos/niki1.hs
 , pos/vector1.hs
 , pos/vector1a.hs

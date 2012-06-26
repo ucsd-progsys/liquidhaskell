@@ -1,6 +1,9 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections #-}
 
-module Language.Haskell.Liquid.Parse (Inputable (..), doParse') where
+module Language.Haskell.Liquid.Parse (
+  Inputable (..)
+, hsSpecificationP
+) where
 
 import GHC
 import TypeRep
@@ -372,17 +375,20 @@ data Pspec ty bndr
   | Impt Symbol
   | DDecl DataDecl
 
+mkSpec xs = {- Measure.qualifySpec name $ -} Measure.Spec ms as is ds
+  where ms = [m | Meas  m <- xs]
+        as = [a | Assm  a <- xs]
+        is = [i | Impt  i <- xs]
+        ds = [d | DDecl d <- xs]
+
 specificationP 
   = do reserved "module"
        reserved "spec"
        name  <- symbolP
        reserved "where"
        xs    <- grabs (liftM2 const specP whiteSpace)
-       let ms = [m | Meas  m <- xs]
-       let as = [a | Assm  a <- xs]
-       let is = [i | Impt  i <- xs]
-       let ds = [d | DDecl d <- xs]
-       return $ Measure.qualifySpec name $ Measure.Spec ms as is ds
+       return $ mkSpec xs 
+
 
 specP 
   = try (reserved "assume"  >> liftM Assm  tyBindP)
@@ -535,7 +541,7 @@ remainderP p
        str <- stateInput <$> getParserState
        return (res, str) 
 
-doParse p = doParse' p ""
+-- doParse p = doParse' p ""
 
 doParse' parser f s
   = case parse (remainderP p) f s of
@@ -543,6 +549,17 @@ doParse' parser f s
       Right (r, "")  -> r
       Right (r, rem) -> errorstar $ "doParse has leftover when parsing: " ++ rem
   where p = whiteSpace >> parser
+
+
+grabUntil s = try (string s) <|> (anyChar >> grabUntil s)
+
+parseInside left right p 
+  = do grabUntil left
+       x <- p
+       string right
+       return x
+
+hsSpecP = parseInside "{-@" "@-}" specP
 
 ----------------------------------------------------------------------------------------
 ------------------------ Bundling Parsers into a Typeclass -----------------------------
@@ -584,8 +601,8 @@ instance Inputable (Measure.Measure BareType Symbol) where
 instance Inputable (Measure.Spec BareType Symbol) where
   rr' = doParse' specificationP
 
---instance Inputable [(Symbol, BRType (PVar String) (Predicate String))] where
---  rr' = doParse' specPr
+hsSpecificationP 
+  = doParse' $ liftM mkSpec $ grabs (liftM2 const hsSpecP whiteSpace)
 
 ---------------------------------------------------------------
 --------------------------- Testing ---------------------------
