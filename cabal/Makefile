@@ -3,7 +3,9 @@
 BINPATH=/usr/bin
 API=ghc-7.4.1
 
-##################################################
+##############################################################################
+##############################################################################
+##############################################################################
 
 GHC=$(BINPATH)/ghc
 GPG=$(BINPATH)/ghc-pkg
@@ -13,6 +15,8 @@ PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDat
 CABAL=cabal --with-ghc=$(GHC) 
 CABALI=$(CABAL) install --force-reinstalls --reinstall --ghc-options=$(OPTS)
 CABALP=$(CABALI) -p
+
+DEPS=unix-compat transformers mtl filemanip cmdargs text syb parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors
 
 all:
 	$(CABAL) install --ghc-options=$(OPTS) 
@@ -46,36 +50,11 @@ docs:
 	$(CABAL) hscolour
 	$(CABAL) haddock --hoogle
 
-##dpackages:
-##	$(CABAL) install filemanip 
-##	$(CABAL) install transformers 
-##	$(CABAL) install cmdargs 
-##	$(CABAL) install deepseq
-##	$(CABAL) install transformers
-##	$(CABAL) install mtl
-##	$(CABAL) install parsec
-##	$(CABAL) install ghc-paths
-##	$(CABAL) install --ghc-options=$(OPTS) syb 
-##	$(CABAL) install --with-ghc=$(GHC) hscolour 
-##	$(CABAL) install vector
-
-
 deps:
-	$(CABALI) unix-compat
-	$(CABALI) transformers
-	$(CABALI) mtl
-	$(CABALI) filemanip
-	$(CABALI) cmdargs
-	$(CABALI) text
-	$(CABALI) syb
-	$(CABALI) parsec
-	$(CABALI) ghc-paths
-	$(CABALI) deepseq
-	$(CABALI) comonad
-	$(CABALI) contravariant
-	$(CABALI) semigroupoids
-	$(CABALI) semigroups
-	$(CABALI) bifunctors
+	$(CABALI) $(DEPS)
+
+pdeps:
+	$(CABALP) $(DEPS)
 
 test:
 	cd tests && ./regrtest.py && cd ../

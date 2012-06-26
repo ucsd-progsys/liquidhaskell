@@ -2,7 +2,7 @@
 How To Compile
 --------------
 
-  cd src; make
+  $ make deps && make
 
 How To Run 
 ----------
@@ -15,6 +15,12 @@ export LIQUIDHS
 2. ensure "fixpoint.native" is in the executable search path
 
 3. path/to/liquid foo.hs
+
+How To Run Tests 
+----------------
+
+  $ make deps && make && make test
+
 
 How To Include Spec Files 
 -------------------------
@@ -33,8 +39,7 @@ How to Profile
 
 1. Build with profiling on
     
-   0. In the Makefile, replace CABALI ---> CABALP in target "deps" 
-   $ make deps && make prof
+   $ make pdeps && make prof
 
 2. Run with profiling
 
@@ -53,6 +58,4 @@ How to Profile
    $ gv liquid.ps
 
    etc.
-
-
 

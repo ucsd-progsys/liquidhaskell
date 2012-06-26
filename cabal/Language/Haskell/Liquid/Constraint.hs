@@ -705,7 +705,7 @@ cconsE γ e t
 consE :: CGEnv -> Expr Var -> CG RefType 
 -------------------------------------------------------------------
 
-debugsubsTyVar_meet (α, t) te = traceShow msg $ (α, t) `subsTyVar_meet` te
+subsTyVar_meet_debug (α, t) te = traceShow msg $ (α, t) `subsTyVar_meet` te
   where msg = "subsTyVar_meet α = " ++ show α ++ " t = " ++ showPpr t  ++ " te = " ++ showPpr te
 
 consE γ (Var x)   
@@ -720,7 +720,7 @@ consE γ (App e (Type τ))
   = do RAll (RV α) te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
        t              <- if isGeneric α te then freshTy e τ else  trueTy τ
        addW            $ WfC γ t
-       return          $ (α, t) `debugsubsTyVar_meet` te
+       return          $ (α, t) `subsTyVar_meet` te
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
