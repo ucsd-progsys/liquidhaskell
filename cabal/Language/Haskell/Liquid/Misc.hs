@@ -95,7 +95,7 @@ tryIgnore s a = Ex.catch a $ \e ->
                    return ()
 
 traceShow ::  Show a => String -> a -> a
-traceShow s x = trace ("\nTrace: " ++ s ++ " : " ++ show x) $ x
+traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x) $ x
 
 groupMap ::  Ord k => (a -> k) -> [a] -> M.Map k [a]
 groupMap f xs = foldl' adds M.empty $ zip (map f xs) xs

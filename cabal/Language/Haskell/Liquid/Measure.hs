@@ -141,7 +141,7 @@ dataConTypes s = (ctorTys, measTys)
 
 defRefType :: Def DataCon -> RefType
 defRefType (Def f dc xs body) = mkArrow as xts t'
-  where as  = dataConUnivTyVars dc
+  where as  = RTV <$> dataConUnivTyVars dc
         xts = safeZip "defRefType" xs $ ofType `fmap` dataConOrigArgTys dc
         t'  = refineWithCtorBody dc f body t 
         t   = ofType $ dataConOrigResTy dc

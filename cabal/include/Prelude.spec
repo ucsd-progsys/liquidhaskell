@@ -24,10 +24,11 @@ assume GHC.Types.I#             :: x : GHC.Prim.Int# -> {v: Int | v = (x :: Int)
 assume GHC.Num.fromInteger      :: forall a. (Num a) => x:Integer -> {v:a | v = x }
 assume GHC.Integer.smallInteger :: x:GHC.Prim.Int# -> {v:Integer | v = (x :: Integer)}
 
-assume id      :: forall a. x:a -> {v:a | v = x}
+assume id                       :: forall a. x:a -> {v:a | v = x}
 
-assume Prelude.map     :: forall a, b. f:(a -> b) -> xs:[a] -> {v:[b] | len(v) = len(xs)}
-assume Prelude.tail     :: forall a. xs:[a] -> {v:[a] | len(v) = len(xs) - 1}
+assume ($)                      :: forall a, b. (a -> b) -> a -> b
+assume Prelude.map              :: forall a, b. (a -> b) -> [a] -> [b]
+assume Prelude.tail             :: forall a. xs:[a] -> {v:[a] | len(v) = len(xs) - 1}
 
 assume Prelude.zipWith :: forall a, b, c. f:(p:a -> q:b -> c) 
                                -> xs : [a] 

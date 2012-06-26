@@ -4,7 +4,7 @@ module Language.Haskell.Liquid.PredType (
   , TyConP (..), DataConP (..), SubstP (..)
   , splitVsPs, typeAbsVsPs, splitArgsRes
   , generalize, generalizeArgs
-  , subsTyVars, substSym, subsTyVarsP, subsTyVars_
+  , subsTyVars, substSym, subsTyVars_
   , dataConTy, dataConPtoPredTy
   , removeExtPreds
   ) where
@@ -36,11 +36,11 @@ import Control.Applicative  ((<$>))
 import Control.DeepSeq
 import Data.Data
 
-data TyConP = TyConP { freeTyVarsTy :: ![TyVar]
+data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![(PVar Type)]
                      }
 
-data DataConP = DataConP { freeTyVars :: ![TyVar]
+data DataConP = DataConP { freeTyVars :: ![RTyVar]
                          , freePred   :: ![(PVar Type)]
                          , tyArgs     :: ![(Symbol, PrType)]
                          , tyRes      :: !PrType
@@ -75,11 +75,11 @@ removeExtPreds (RAll (RP pv)  t) = removeExtPreds (subp (M.singleton pv pdTrue) 
 removeExtPreds t                 = t
 
 dataConTy m (TyVarTy v)            
-  = M.findWithDefault (RVar (RV v) pdTrue) v m
+  = M.findWithDefault (rVar v pdTrue) (RTV v) m
 dataConTy m (FunTy t1 t2)          
   = RFun (RB dummySymbol) (dataConTy m t1) (dataConTy m t2)
 dataConTy m (ForAllTy α t)          
-  = RAll (RV α) (dataConTy m t)
+  = RAll (rTyVar α) (dataConTy m t)
 dataConTy m t
   | isPredTy t
   = ofPredTree $ classifyPredType t
@@ -89,11 +89,11 @@ dataConTy _ t
   = error "ofTypePAppTy"
 
 ofTypeP (TyVarTy α)            
-  = RVar (RV α) pdTrue
+  = rVar α pdTrue
 ofTypeP (FunTy t1 t2)          
   = RFun (RB dummySymbol) (ofTypeP t1) (ofTypeP t2)
 ofTypeP (ForAllTy α t)          
-  = RAll (RV α) (ofTypeP t)
+  = RAll (rTyVar α) (ofTypeP t)
 ofTypeP t
   | isPredTy t
   = ofPredTree $ classifyPredType t
@@ -164,33 +164,21 @@ instance SubstP PrType where
   subv f t = fmap (subv f) t 
 
 
-
-
 subsTyVar (α, (RVar (RV a') p')) (RV a) p
-  | α `eqTv` a = RVar (RV a') (pdAnd [p, p'])
+  | α == a = RVar (RV a') (pdAnd [p, p'])
   | otherwise  = RVar (RV a) p 
 subsTyVar (α, (RApp c ts ps p')) (RV a) p
-  | α `eqTv` a = RApp c ts ps (pdAnd [p, p'])
+  | α == a = RApp c ts ps (pdAnd [p, p'])
   | otherwise  = RVar (RV a) p 
 subsTyVar (α, τ) (RV a) p 
-  | α `eqTv` a = τ 
+  | α == a = τ 
   | otherwise  = RVar (RV a) p 
 
--- subsTyVars_ ::  (Var, PrTy Type, Type) -> PrTy Type -> PrTy Type
 subsTyVars_ (v, t, τ) = mapReft (subsTyVarsP [(v, τ)]) . mapRVar (subsTyVar (v, t))
 
 subsTyVars s = mapReft (subv (subsTyVarP1_ s)) . mapRVar (subsTyVar s)
-
-subsTyVarsP ::  Functor f => [(Var, Type)] -> f Type -> f Type
-subsTyVarsP vts p = foldl' (flip subsTyVarP) p vts 
-  where subsTyVarP = fmap . tvSubst
-
-subsTyVarP1_ av@(α, (RVar (RV α') _)) = fmap $ tvSubst (α, TyVarTy α')
-  -- RJ: UNIFY: why no deep substitution? (just following subsTyVarAP_)
-
-tvSubst (α, t) t'@(TyVarTy α') 
-  | eqTv α α' = t
-  | otherwise = t'
+  where subsTyVarP1_ (α, (RVar (RV (RTV α')) _)) = fmap $ tvSubst (α, TyVarTy α')
+        -- RJ: UNIFY: why no deep substitution? (just following subsTyVarAP_)
 
 substSym (x, y) = mapReft fp  -- RJ: UNIFY: BUG  mapTy fxy
   where fxy s = if (s == x) then y else s

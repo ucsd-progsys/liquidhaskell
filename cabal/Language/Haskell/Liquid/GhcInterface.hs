@@ -490,11 +490,10 @@ instance NFData a => NFData (AnnInfo a) where
 --      {- rnf -} x8
 
 -- UNIFY: Why not parse this? (TBD)
-
 listTyDataCons :: ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
-listTyDataCons = ( [(c, TyConP [tyv] [p])]
-                 , [(nilDataCon , DataConP [tyv] [p] [] lt)
-                 , (consDataCon, DataConP [tyv] [p]  cargs  lt)])
+listTyDataCons = ( [(c, TyConP [(RTV tyv)] [p])]
+                 , [(nilDataCon , DataConP [(RTV tyv)] [p] [] lt)
+                 , (consDataCon, DataConP [(RTV tyv)] [p]  cargs  lt)])
     where c     = listTyCon
           [tyv] = tyConTyVars c
           t     = TyVarTy tyv
@@ -503,8 +502,8 @@ listTyDataCons = ( [(c, TyConP [tyv] [p])]
           xs    = stringSymbol "xs"
           p     = PV (stringSymbol "p") t [(t, fld, fld)]
           px    = pdVar $ PV (stringSymbol "p") t [(t, fld, x)]
-          lt    = rApp c [RVar (RV tyv) pdTrue] [pdVar p] pdTrue 
-          xt    = RVar (RV tyv) pdTrue
-          xst   = rApp c [RVar (RV tyv) px] [pdVar p] pdTrue
+          lt    = rApp c [xt] [pdVar p] pdTrue 
+          xt    = RVar (RV (RTV tyv)) pdTrue
+          xst   = rApp c [RVar (RV (RTV tyv)) px] [pdVar p] pdTrue
           cargs = [(xs, xst), (x, xt)]
 

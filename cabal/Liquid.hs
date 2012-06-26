@@ -43,7 +43,7 @@ liquidOne includes target =
      -- dummyDeepseq cgi 
      -- dummyWrite target cgi
      -- dummyWrite' target cgi
-     -- writeConstraints target cgi
+     writeConstraints target cgi
 --     putStrLn $ showPpr info           
      (r, sol) <- cgi `deepseq` solve target (hqFiles info) cgi
      annotate target sol $ annotMap cgi

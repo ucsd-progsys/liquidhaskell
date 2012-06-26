@@ -104,10 +104,8 @@ consCB' γ (NonRec x e)
 
 consCB' γ (Rec xes) 
   = do ts       <- mapM (\e -> freshTy $ exprType e) es
---       let tsga = generalizeArgs <$> ts
        let γ'   = foldl' (+=) γ (zip vs ts)
        zipWithM_ (cconsE γ') es ts
---       tsg   <- forM ts generalizeS
        return $ foldl' (+=) γ (zip vs ts)
     where (xs, es) = unzip xes
           vs       = mkSymbol <$> xs
@@ -199,7 +197,7 @@ consE γ (App e a)
          Nothing -> error $ "consE: App crashes on" ++ showPpr a 
 
 consE γ (Lam α e) | isTyVar α 
-  = liftM (RAll (RV α)) (consE γ e) 
+  = liftM (RAll (rTyVar α)) (consE γ e) 
 
 consE γ  e@(Lam x e1) 
   = do tx     <- freshTy τx 
@@ -435,9 +433,9 @@ passm = fmap (second (mapReft upred))
 dconTy t = generalize $ dataConTy vps t
   where vs  = tyVars t
         ps  = truePr <$> vs 
-        vps = M.fromList $ zipWith (\(TyVarTy v) p -> (v, RVar (RV v) p)) vs ps
+        vps = M.fromList $ zipWith (\v p -> (RTV v, rVar v p)) vs ps
 
-tyVars (ForAllTy v t) = (TyVarTy v):(tyVars t)
+tyVars (ForAllTy v t) = v : (tyVars t)
 tyVars t              = []
 
 ---------------------------------- Freshness -------------------------------------
@@ -463,7 +461,7 @@ freshTy t
   | isPredTy t
   = return $ freshPredTree $ (classifyPredType t)
 freshTy t@(TyVarTy v) 
-  = liftM (RVar (RV v)) (freshPr t)
+  = liftM (rVar v) (freshPr t)
 freshTy (FunTy t1 t2) 
   = liftM3 RFun (RB <$> freshSymbol "s") (freshTy t1) (freshTy t2)
 freshTy t@(TyConApp c τs) 
@@ -473,7 +471,7 @@ freshTy t@(TyConApp c τs)
 freshTy t@(TyConApp c τs) 
   = liftM3 (rApp c) (mapM freshTy τs) (freshTyConPreds c) (return (truePr t)) 
 freshTy (ForAllTy v t) 
-  = liftM (RAll (RV v)) (freshTy t) 
+  = liftM (RAll (rTyVar v)) (freshTy t) 
 freshTy t
   = error "freshTy"
 

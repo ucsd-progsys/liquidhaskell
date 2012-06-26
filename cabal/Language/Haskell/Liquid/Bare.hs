@@ -278,20 +278,21 @@ ofBDataDecl (D tc as ps cts)
   = do tc'   <- lookupGhcTyCon tc 
        cts'  <- mapM (ofBDataCon tc' αs πs) cpts
        return $ ((tc', TyConP αs πs), cts')
-    where αs   = fmap stringTyVar as
+    where αs   = fmap (RTV . stringTyVar) as
           πs   = fmap (fmap stringTyVarTy) ps
           cpts = fmap (second (fmap (second (mapReft upred)))) cts
 
 ofBDataCon tc αs πs (c, xts)
  = do c'  <- lookupGhcDataCon c
       ts' <- mapM (mkPredType πs) ts
-      let t0 = rApp tc (flip rVar pdTrue <$> αs) (pdVar <$> πs) pdTrue
+      let t0 = rApp tc rs (pdVar <$> πs) pdTrue
       -- let t2 = foldl (\t' (x,t) -> RFun (RB x) t t') t0 (zip xs' ts')
       -- let t1 = foldl (\t pv -> RAll (RP pv) t) t2 πs 
       -- let t  = foldl (\t v -> RAll (RV v) t) t1 αs
       return $ (c', DataConP αs πs (reverse (zip xs' ts')) t0) 
  where (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
+       rs       = [RVar (RV α) pdTrue | α <- αs]
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: RefTypes -----------------------------

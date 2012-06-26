@@ -1,54 +1,44 @@
-Iffy functions:
+After all regrtests pass:
 
-- normalizePds 
-    > how can recur inside functions and hoist preds out?
-    > is it needed if Preds are just refts?
+0. pull all binders/subst into separate SINGLE file
+    > RTyVar    + instances
+    > RBind     + instances
 
---> Single Grammar for SPEC
+1. nuke GhcInterface.listTyDataCons
 
+2. PredType.dataConTy == (mapReft (\_ -> pdTrue)) . ofType 
 -- REFACTORING
 -- PrFun x t1 t2 ==> RFun (RB x) t1 t2
 -- PrAllPr pv t  ==> RAll (RP pv) t
 -- PrAll v t     ==> RAll (RV v) t
 -- PrVar v p     ==> RVar (RV v) p
---
---data PrTy a = PrVar     !TyVar     !(Predicate a)
---            | PrLit     !Literal   !(Predicate a)
---      	  | PrAll   !TyVar     !(PrTy a)
---      	  | PrAllPr !(PVar a)  !(PrTy a)
---            | PrClass !Class     ![PrTy a]
---      	  | PrFun   !Symbol    !(PrTy a)   !(PrTy a)
---            | PrTyCon !TC.TyCon  ![PrTy a]   ![(Predicate a)] !(Predicate a)
---            deriving (Data, Typeable)
--- type PrType = PrTy Type
+
+GOOD:
+
+  |-  ds_diY:{VV : GHC.Prim.Any {VV : * | k_46} | k_47}
+      -> {VV : GHC.Types.Bool | (? VV)}
+      <:
+      lq_tmp_x4:{VV : GHC.Prim.Any {VV : * | k_51} | k_52,k_5}
+      -> {VV : GHC.Types.Bool | k_53,k_6}
+
+BAD:
+ |-  ds_diX:{VV : GHC.Prim.Any {VV : * | k_6} | k_7}
+      -> {VV : GHC.Types.Bool | (? VV)}
+      <:
+      fix#dummy_#47#home#47#rjhala#47#research#47#LiquidHaskell#47#cabal#47#include#47#Prelude.spec#64#29#44#52:{VV : GHC.Types.Bool | k_13}
+      -> {VV : GHC.Types.Bool | k_13}
 
 
-NEXT: Unify Spec Parser Into Workflow As:
 
-B. fix parser to take in BRType (PVar String) (UReft String)
+1. constant TAG missing from .fq
 
-1. Parse Specs Into:
-    
-        BRType (PVar String) (UReft String)
+    nonnull([x]) = true
 
-2. Convert above (via BareM) Into:
+instead of 
 
-        RRType (PVar Type) (UReft Type)
+    nonnull  <=> true
 
-3. Strip above into 
 
-        RRType (PVar Type) Reft                 -- RefType  (assm)
-        RRType (PVar Type) (Predicate Type)     -- PrType   (passm)
-
-4. Feed above PrTypes into Predicates.hs to get type-specs
-
-        RRType (PVar Type) (Predicate Type)     -- PrType
-       
-5. Now CONSGEN:
-    
-        unify:: PrType -> RefType -> RefType
-
-   Should work as before.
 
 Tidy Annotations
 ----------------

@@ -21,9 +21,10 @@ import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Measure
--- import Language.Haskell.Liquid.Bare
 import Outputable (Outputable (..))
+import Language.Haskell.Liquid.FileNames (dummyName)
 -- import Language.Haskell.Liquid.BarePredicate
+-- import Language.Haskell.Liquid.Bare
 
 --------------------------------------------------------------------
 
@@ -272,13 +273,13 @@ bareFun2P
        t2 <- bareTypeP
        return $ bareArrow "" t1 a t2 
 
-dummyName pos = "dummy_" ++ name ++ ['@'] ++ line ++ [','] ++ colum
+dummyNamePos pos = "dummy_" ++ name ++ ['@'] ++ line ++ [','] ++ colum
   where name  = sourceName pos
         line  = show $ sourceLine pos  
         colum = show $ sourceColumn pos  
 
 bareFunP  
-  = do x  <- try bindP <|> do {p <- getPosition; return $ dummyName p}  
+  = do x  <- try bindP <|> (return dummyName) -- (dummyNamePos <$> getPosition)  
        t1 <- bareArgP 
        a  <- arrowP
        t2 <- bareTypeP
@@ -293,7 +294,7 @@ bareArrow x t1 ArrowFun t2
 bareArrow x t1 ArrowPred t2
   = foldr (RFun dummyBind) t2 (getClasses t1)
 
-boolConName                     = "Prop"
+boolConName                     = "Bool"
 isBoolBareType (RApp tc [] _ _) = tc == boolConName
 isBoolBareType _                = False
 
@@ -464,7 +465,7 @@ measurePatP
 --predTypeP = liftM (mapReft upred) bareTypeP
 
 predTypeDDP
-  = do x <- try bindP <|> do {p <- getPosition; return $ dummyName p}  
+  = do x <- try bindP <|> (dummyNamePos <$> getPosition)  
        t <- try (parens bareTypeP) <|> bareTypeP
        return (x, t) 
 
