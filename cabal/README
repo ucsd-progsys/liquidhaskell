@@ -33,7 +33,8 @@ How to Profile
 
 1. Build with profiling on
     
-   $ make prof
+   0. In the Makefile, replace CABALI ---> CABALP in target "deps" 
+   $ make deps && make prof
 
 2. Run with profiling
 

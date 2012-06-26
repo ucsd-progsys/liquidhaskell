@@ -3,40 +3,38 @@ After all regrtests pass:
 0. pull all binders/subst into separate SINGLE file
     > RTyVar    + instances
     > RBind     + instances
+    
+1. constant TAG missing from .fq
 
-1. nuke GhcInterface.listTyDataCons
+2. nuke GhcInterface.listTyDataCons
 
-2. PredType.dataConTy == (mapReft (\_ -> pdTrue)) . ofType 
+3. PredType.dataConTy == (mapReft (\_ -> pdTrue)) . ofType 
 -- REFACTORING
 -- PrFun x t1 t2 ==> RFun (RB x) t1 t2
 -- PrAllPr pv t  ==> RAll (RP pv) t
 -- PrAll v t     ==> RAll (RV v) t
 -- PrVar v p     ==> RVar (RV v) p
 
-GOOD:
+Failed 17 tests: 
+      neg/concat1.hs
+    , pos/BST.hs
+    , pos/ListISort-LType.hs
+    , pos/ListLen-LType.hs
+    , pos/ListMSort-LType.hs
+    , pos/ListQSort-LType.hs
+    , pos/ListRange-LType.hs
+    , pos/Map.hs
+    , pos/deptup.hs
 
-  |-  ds_diY:{VV : GHC.Prim.Any {VV : * | k_46} | k_47}
-      -> {VV : GHC.Types.Bool | (? VV)}
-      <:
-      lq_tmp_x4:{VV : GHC.Prim.Any {VV : * | k_51} | k_52,k_5}
-      -> {VV : GHC.Types.Bool | k_53,k_6}
-
-BAD:
- |-  ds_diX:{VV : GHC.Prim.Any {VV : * | k_6} | k_7}
-      -> {VV : GHC.Types.Bool | (? VV)}
-      <:
-      fix#dummy_#47#home#47#rjhala#47#research#47#LiquidHaskell#47#cabal#47#include#47#Prelude.spec#64#29#44#52:{VV : GHC.Types.Bool | k_13}
-      -> {VV : GHC.Types.Bool | k_13}
-
-
-
-1. constant TAG missing from .fq
-
-    nonnull([x]) = true
-
-instead of 
-
-    nonnull  <=> true
+NEXT UP (HEREHEREHEREHEREHERE)
+, pos/deptup0.hs
+, pos/deptup1.hs
+, pos/meas5.hs
+, pos/niki.hs
+, pos/niki1.hs
+, pos/vector1.hs
+, pos/vector1a.hs
+, pos/vector1b.hs
 
 
 
