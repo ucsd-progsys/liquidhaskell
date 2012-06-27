@@ -248,7 +248,7 @@ predVarDefsP
  <|> return []
 
 predVarDefP
- = liftM3 bPVar predVarIdP colon predVarTypeP
+ = liftM3 bPVar predVarIdP dcolon predVarTypeP
    
 bPVar p _ ts  = PV p τ τxs 
   where τ   = last ts
@@ -288,7 +288,9 @@ bareFunP
        t2 <- bareTypeP
        return $ bareArrow x t1 a t2 
 
-bindP = lowerIdP <* colon
+bbindP = lowerIdP <* dcolon 
+bindP  = lowerIdP <* colon
+dcolon = string "::" <* spaces
 
 bareArrow "" t1 ArrowFun t2
   = RFun dummyBind t1 t2
@@ -470,10 +472,8 @@ measurePatP
 
 --predTypeP = liftM (mapReft upred) bareTypeP
 
-predTypeDDP
-  = do x <- try bindP <|> (dummyNamePos <$> getPosition)  
-       t <- try (parens bareTypeP) <|> bareTypeP
-       return (x, t) 
+predTypeDDP = parens $ liftM2 (,) bbindP bareTypeP
+
 
 dataConP
  = do x <- upperIdP

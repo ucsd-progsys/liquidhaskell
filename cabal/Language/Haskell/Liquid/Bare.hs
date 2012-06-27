@@ -298,12 +298,6 @@ ofBDataCon tc αs πs (c, xts)
 ---------------- Bare Predicate: RefTypes -----------------------------
 -----------------------------------------------------------------------
 
---mkPredTypes :: HscEnv -> [(Symbol, BRType (PVar String) (Predicate String))]-> IO [(Id, RRType (PVar Type) (Predicate Type))]
---mkPredTypes env xbs = runReaderT (mapM mkBind xbs) env
---  where mkBind (x, b) = liftM2 (,) (lookupGhcId $ symbolString x) (mkPredType [] b)
--- mkPredType πs = ofBareType . txParams πs . txTyVars
--- txTyVars = txTyVarBinds . mapReft (second stringTyVarTy) 
-
 txTyVarBinds = mapBind fb
   where fb (RP π) = RP (stringTyVarTy <$> π)
         fb (RB x) = RB x
@@ -323,4 +317,3 @@ predMap πs t = Ex.assert (M.size xπm == length xπs) xπm
 rtypePredBinds t = everything (++) ([] `mkQ` grab) t
   where grab ((RAll (RP pv) _) :: BRType (PVar Type) (Predicate Type)) = [pv]
         grab _                = []
-

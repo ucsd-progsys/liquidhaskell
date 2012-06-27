@@ -179,9 +179,10 @@ desugarModuleWithLoc tcm = do
 -------------------------------------------------------------------------
  
 moduleSpec target mg paths
-  = do spec0      <- getSpecs Spec paths allNames 
-       spec1      <- getSpecs Hs   paths allNames 
-       let spec    = spec0 `mappend` spec1 
+  = do spec0      <- liftIO $ parseSpec Hs target 
+       spec1      <- getSpecs Spec paths allNames 
+       spec2      <- getSpecs Hs   paths allNames 
+       let spec    = mconcat [spec0, spec1, spec2]
        setContext [IIModule mod]
        env        <- getSession
        (cs, ms)   <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec $ Ms.measures  spec
