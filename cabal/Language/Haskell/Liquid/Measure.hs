@@ -126,6 +126,9 @@ instance (Outputable t, Outputable a) => Outputable (Measure t a) where
 instance (Outputable t, Outputable a) => Outputable (MSpec t a) where
   ppr =  vcat . fmap ppr . fmap snd . toList . measMap
 
+instance (Outputable t, Outputable a) => Show (Measure t a) where
+  show = showPpr
+
 mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
 mapTy f (M n ty eqs) = M n (f ty) eqs
 

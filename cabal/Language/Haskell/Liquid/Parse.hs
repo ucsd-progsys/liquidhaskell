@@ -386,7 +386,7 @@ specificationP
        reserved "spec"
        name  <- symbolP
        reserved "where"
-       xs    <- grabs (liftM2 const specP whiteSpace)
+       xs    <- grabs (specP <* whiteSpace) --(liftM2 const specP whiteSpace)
        return $ mkSpec xs 
 
 
@@ -476,14 +476,13 @@ predTypeDDP
        return (x, t) 
 
 dataConP
- = do x <- upperIdP -- tyConVarIdP
+ = do x <- upperIdP
       spaces
       xts <- sepBy predTypeDDP spaces
       return (x, xts)
 
 dataDeclP
- = do -- reserved "data"
-      x   <- upperIdP -- tyConVarIdP
+ = do x   <- upperIdP
       spaces
       ts  <- sepBy tyVarIdP spaces
       ps  <- predVarDefsP
@@ -550,16 +549,19 @@ doParse' parser f s
       Right (r, rem) -> errorstar $ "doParse has leftover when parsing: " ++ rem
   where p = whiteSpace >> parser
 
+grabUpto p  
+  =  try (lookAhead p >>= return . Just)
+ <|> try (eof         >> return Nothing)
+ <|> (anyChar >> grabUpto p)
 
-grabUntil s = try (string s) <|> (anyChar >> grabUntil s)
+betweenMany leftP rightP p 
+  = do z <- grabUpto leftP
+       case z of
+         Just _  -> liftM2 (:) (between leftP rightP p) (betweenMany leftP rightP p)
+         Nothing -> return []
 
-parseInside left right p 
-  = do grabUntil left
-       x <- p
-       string right
-       return x
-
-hsSpecP = parseInside "{-@" "@-}" specP
+specWrap  = between     (string "{-@" >> spaces) (spaces >> string "@-}")
+specWraps = betweenMany (string "{-@" >> spaces) (spaces >> string "@-}")
 
 ----------------------------------------------------------------------------------------
 ------------------------ Bundling Parsers into a Typeclass -----------------------------
@@ -602,7 +604,8 @@ instance Inputable (Measure.Spec BareType Symbol) where
   rr' = doParse' specificationP
 
 hsSpecificationP 
-  = doParse' $ liftM mkSpec $ grabs (liftM2 const hsSpecP whiteSpace)
+  = doParse' $ liftM mkSpec $ specWraps specP
+
 
 ---------------------------------------------------------------
 --------------------------- Testing ---------------------------

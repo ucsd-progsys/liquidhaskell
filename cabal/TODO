@@ -46,29 +46,23 @@ Tidy Annotations
 
 {-@ data List a << p:a (fld:a) >> = Nil | Cons x:a^True y:List a^p(x) << p(fld)>> -- -}
 
-data List a 
-  Nil  :: forall a. List a
-  Cons :: forall a. a -> List a -> List a
+data Pair a b << q:b (fld0:a) >> = P x:a y:b^q(x) --
 
-data Expr a
-  Ite    :: forall a. Expr Bool -> Expr a -> Expr a -> Expr a
-  Plus   :: Expr Int -> Expr Int -> Expr Int
-  ConstI :: Int  -> Expr Int
-  ConstB :: Bool -> Expr Bool
+data Pair a b <p: a -> b -> Bool> = P (x:a) (b<p x>)
 
 data List a 
   = Nil
   | Cons a (List a)
 
-data List a <forall p : a -> a -> Prop, ...>  
+data List a <forall p : a -> a -> Bool, ...>  
   = Nil
-  | Cons  (h:a) (List<p> a<p(head)>)
+  | Cons  (h:a) (List (a<p h>) <p>)
 
-data [a] <forall p : a -> a -> Prop>  
+data [a] <forall p : a -> a -> Bool>  
   = [] 
-  | (:) (h:a) [a<p(h)>]<p>
+  | (:) (h:a) [a<p h>]<p>
 
-data Bst k v <l: k -> k -> Prop, r: k -> k -> Prop>
+data Bst k v <l: k -> k -> Bool, r: k -> k -> Bool>
   = Leaf
   | Node { key   :: k
          , value :: v 
@@ -76,24 +70,15 @@ data Bst k v <l: k -> k -> Prop, r: k -> k -> Prop>
          , right :: Bst (k<r key>) v <l, r>
          }
 
-
-data Bst k v <forall L :: k -> k -> ? , R :: k -> k -> ?>
-  = Leaf
-  | Node { key   :: k 
-         , val   :: v
-         , left  :: Bst<L, R> k<L(key)> v 
-         , right :: Bst<L, R> k<R(key)> v
-         }
-
 max :: forall a. (Ord a) => a -> a -> a
 
-max :: forall a <p: a -> Prop>. (Ord a) => a<p> -> a<p> -> a<p>
+max :: forall a <p: a -> Bool>. (Ord a) => a<p> -> a<p> -> a<p>
 
 foo :: forall a <p: a -> ?>. (Num a) => a<p> -> a<p> -> a<p>
 
 ($) :: (a -> b) -> a -> b
 
-($) :: forall <p :: a -> b -> Prop>. (x:a -> b<p x>) -> y:a -> b<p y>
+($) :: forall <p :: a -> b -> Bool>. (x:a -> b<p x>) -> y:a -> b<p y>
 
 data Bst k v << p1:k (fld:k) p2:k (fld:k) >> 
   = Empty 
@@ -105,18 +90,18 @@ data Bst k v << p1:k (fld:k) p2:k (fld:k) >>
 
 "BST" =  Bst k v <\fld V -> V < fld, \fld V -> V > fld>
 
-data Tup3 a0 a1 a2 <P :: a0 -> a2 -> Prop> 
+data Tup3 a0 a1 a2 <P :: a0 -> a2 -> Bool> 
   = T3 { x0 :: a0
        , x1 :: a1
        , x2 :: {V: a2| P(x0)(V)} 
        }
 
-data Pair k v <P :: k -> k -> Prop> 
+data Pair k v <P :: k -> k -> Bool> 
   = T3 { x0 :: k
        , x1 :: Bst k v {V: a2| P(x0)(V)} 
        }
 
-data Pair a1 a2 <<P :: a1 -> a2 -> Prop>> 
+data Pair a1 a2 <<P :: a1 -> a2 -> Bool>> 
   = Pair { x1 :: a1,  x2 :: { V : a2 | P(x1)(V) } }
   = Pair { x1 :: a1,  x2 :: a2^P(x1) }
 
@@ -138,22 +123,7 @@ data Pair a b =  P { x :: a, y :: b }
 data List a   =  Nil | Cons { head :: a, tail :: List a }
 
 
-let foo = 
-  let x :: Int = ...
-  let t :: Bst Int String = ...
-  (((Pair @ Int) @ Bst Int String) x) t
-
-
-
-{V:Int | K1}
-
-Bst {V: Int | K2} {V: String : K3} 
-
-
-
-x:a -> b
-
-data Bst k v <L :: k -> k -> Prop, R :: k -> k -> Prop>
+data Bst k v <L :: k -> k -> Bool, R :: k -> k -> Bool>
   = Leaf
   | Node { key   :: k 
          , val   :: v
@@ -162,22 +132,9 @@ data Bst k v <L :: k -> k -> Prop, R :: k -> k -> Prop>
          }
 
 
-
-
-
 Pair Int (Bst Int String)
-
     Int            ==> {V: Int | K1}
     Bst Int String ==> Bst {V: Int | K2} {V: String | K3}
-
-
-
-
-
-
-
-
-
 
 
 {-@ data List a << p:a (fld:a) >> = Nil | Cons x:a^True y:List a^p(x) << p(fld)>> -- -}
