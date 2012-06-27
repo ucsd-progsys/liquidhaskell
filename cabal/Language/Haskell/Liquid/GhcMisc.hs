@@ -52,6 +52,5 @@ stringTyVar s = mkTyVar name liftedTypeKind
  
 tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} show α ++ show (varUnique α)
   
-
-
+intersperse d ds = hsep $ punctuate (space <> d) ds
 

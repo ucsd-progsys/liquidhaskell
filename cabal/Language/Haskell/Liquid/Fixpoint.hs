@@ -16,7 +16,6 @@ module Language.Haskell.Liquid.Fixpoint (
   -- , emptyFEnv, fromListFEnv, deleteFEnv
   , insertFEnv 
   , vv
-  , meet
   , trueReft, trueSortedReft 
   , trueRefa
   , canonReft, exprReft, symbolReft
@@ -509,10 +508,6 @@ data SortedReft
 isNonTrivialSortedReft (RR _ (Reft (_, ras)))
   = not $ null ras
 
-meet (Reft (v, ras)) (Reft (v', ras')) 
-  | v == v'   = Reft (v, ras ++ ras')
-  | otherwise = Reft (v, ras ++ (ras' `subst1` (v', EVar v)))
-
 newtype SEnv a = SE (M.Map Symbol a) 
                  deriving (Eq, Ord, Data, Typeable) 
 
@@ -708,6 +703,13 @@ instance Subable a => Subable (M.Map k a) where
 
 instance Subable Reft where
   subst su (Reft (v, ras)) = Reft (v, subst su ras)
+
+instance Monoid Reft where
+  mempty  = trueReft
+  mappend (Reft (v, ras)) (Reft (v', ras')) 
+    | v == v'   = Reft (v, ras ++ ras')
+    | otherwise = Reft (v, ras ++ (ras' `subst1` (v', EVar v)))
+
 
 instance Subable SortedReft where
   subst su (RR so r) = RR so $ subst su r

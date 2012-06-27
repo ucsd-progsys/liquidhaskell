@@ -1,10 +1,9 @@
 {-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
 module Language.Haskell.Liquid.PredType (
     PrType, ofTypeP
-  , TyConP (..), DataConP (..), SubstP (..)
+  , TyConP (..), DataConP (..)
   , splitVsPs, typeAbsVsPs, splitArgsRes
   , generalize, generalizeArgs
-  , subsTyVars, substSym, subsTyVars_
   , dataConTy, dataConPtoPredTy
   , removeExtPreds
   ) where
@@ -47,15 +46,14 @@ data DataConP = DataConP { freeTyVars :: ![RTyVar]
                          }
 
 dataConPtoPredTy :: DataConP -> PrType
-dataConPtoPredTy (DataConP vs ps yts rt) = t3						
+dataConPtoPredTy x@(DataConP vs ps yts rt) = traceShow ("dataConPtoPredTy: " ++ show x) $  t3						
   where t1 = foldl' (\t2 (x, t1) -> RFun (RB x) t1 t2) rt yts 
         t2 = foldr RAll t1 $ RP <$> ps
         t3 = foldr RAll t2 $ RV <$> vs
 
 instance Outputable TyConP where
- ppr (TyConP vs ps) 
-   = (parens $ hsep (punctuate comma (map ppr vs))) <+>
-     (parens $ hsep (punctuate comma (map ppr ps)))
+  ppr (TyConP vs ps) = (parens $ hsep (punctuate comma (map ppr vs))) <+>
+                       (parens $ hsep (punctuate comma (map ppr ps)))
 
 instance Show TyConP where
  show = showSDoc . ppr
@@ -138,51 +136,6 @@ freePreds (RApp _ ts ps p) = unions ((S.fromList (concatMap pvars (p:ps))) : (fr
 showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy t = showSDoc $ ppr t
-
-class SubstP a where
-  subp :: M.Map (PVar Type) (Predicate Type) -> a -> a
-  subv :: (PVar Type -> PVar Type) -> a -> a
-
-lookupP s p@(PV _ _ s')
-  = case M.lookup p s of 
-      Nothing  -> Pr [p]
-      Just q   -> subv (\pv -> pv { pargs = s'}) q
-
-instance SubstP (Predicate Type) where
-  subv f (Pr pvs) = Pr (f <$> pvs)
-  subp s (Pr pvs) = pdAnd (lookupP s <$> pvs) -- RJ: UNIFY: not correct!
-
-instance SubstP (UReft Reft Type) where
-  subp f (U r p) = U r (subp f p)
-  subv f (U r p) = U r (subv f p)
-
-
--- NOTE: This DOES NOT substitute at the binders
-
-instance SubstP PrType where    
-  subp f t = fmap (subp f) t
-  subv f t = fmap (subv f) t 
-
-
-subsTyVar (α, (RVar (RV a') p')) (RV a) p
-  | α == a = RVar (RV a') (pdAnd [p, p'])
-  | otherwise  = RVar (RV a) p 
-subsTyVar (α, (RApp c ts ps p')) (RV a) p
-  | α == a = RApp c ts ps (pdAnd [p, p'])
-  | otherwise  = RVar (RV a) p 
-subsTyVar (α, τ) (RV a) p 
-  | α == a = τ 
-  | otherwise  = RVar (RV a) p 
-
-subsTyVars_ (v, t, τ) = mapReft (subsTyVarsP [(v, τ)]) . mapRVar (subsTyVar (v, t))
-
-subsTyVars s = mapReft (subv (subsTyVarP1_ s)) . mapRVar (subsTyVar s)
-  where subsTyVarP1_ (α, (RVar (RV (RTV α')) _)) = fmap $ tvSubst (α, TyVarTy α')
-        -- RJ: UNIFY: why no deep substitution? (just following subsTyVarAP_)
-
-substSym (x, y) = mapReft fp  -- RJ: UNIFY: BUG  mapTy fxy
-  where fxy s = if (s == x) then y else s
-        fp    = subv (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
 
 -- RJ: UNIFY: BUG? Do we want to rename bound vars? Probably not.
 --mapTy f (RFun (RB s) t1 t2) = PrFun (RB $ f s) (mapTy f t1) (mapTy f t2)

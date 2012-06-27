@@ -25,9 +25,7 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Outputable (Outputable (..))
-import Language.Haskell.Liquid.FileNames (dummyName)
--- import Language.Haskell.Liquid.BarePredicate
--- import Language.Haskell.Liquid.Bare
+import Language.Haskell.Liquid.FileNames (dummyName, boolConName)
 
 --------------------------------------------------------------------
 
@@ -299,7 +297,6 @@ bareArrow x t1 ArrowFun t2
 bareArrow x t1 ArrowPred t2
   = foldr (RFun dummyBind) t2 (getClasses t1)
 
-boolConName                     = "Bool"
 isBoolBareType (RApp tc [] _ _) = tc == boolConName
 isBoolBareType _                = False
 

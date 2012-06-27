@@ -3,9 +3,8 @@
 {- Refinement Types Mirroring the GHC Type definition -}
 
 module Language.Haskell.Liquid.RefType (
-    RTyVar (..), RType (..), RRType (..), BRType (..)
-  , RTyCon(..)
-  , TyConable (..), Reftable(..), RefTypable (..)
+    RTyVar (..), RType (..), RRType (..), BRType (..), RTyCon(..)
+  , TyConable (..), Reftable(..), RefTypable (..), SubstP (..)
   , RefType, PrType, BareType, SpecType
   , PVar (..), Predicate (..), UReft(..), DataDecl (..)
   , pdAnd, pdVar, pdTrue, pvars
@@ -17,7 +16,7 @@ module Language.Haskell.Liquid.RefType (
   , typeUniqueSymbol
   , strengthen, strengthenRefType
   , mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
-  , tvSubst, subsTyVarsP
+  , tvSubst, subsTyVarsP, subsTyVars, substSym 
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, refTypePredSortedReft_,refTypeSortedReft, typeSortedReft, refTypePredSortedReft, rTypeSort
   -- , canonRefType
@@ -63,7 +62,8 @@ import qualified Data.Foldable as Fold
 import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GhcMisc (tvId, stringTyVar)
+import Language.Haskell.Liquid.GhcMisc (tvId, stringTyVar, intersperse)
+import Language.Haskell.Liquid.FileNames (boolConName)
 import Data.List (sort, isPrefixOf, isSuffixOf, find, foldl')
 
 --------------------------------------------------------------------
@@ -118,6 +118,10 @@ eqpd (Pr vs) (Pr ws)
 instance Functor Predicate where
   fmap f (Pr pvs) = Pr (fmap f <$> pvs)
 
+instance Monoid (Predicate t) where
+  mempty       = pdTrue
+  mappend p p' = pdAnd [p, p']
+
 instance Show (Predicate Type) where
   show = showSDoc . ppr
 
@@ -152,10 +156,17 @@ instance NFData RTyVar where
 data Bind tv pv = RB Symbol | RV tv | RP pv 
   deriving (Data, Typeable)
 
+{- INVARIANTS:
+ measure isTyVarBind :: Bind tv pv -> Bool
+ isTyVarBind (RV _) = true 
+ isTyVarBind (RP _) = false
+ isTyVarBind (RB _) = false
+-}
+
 data RType p c tv pv r
-  = RVar !(Bind tv pv) !r
-  | RFun !(Bind tv pv) !(RType p c tv pv r) !(RType p c tv pv r)  
-  | RAll !(Bind tv pv) !(RType p c tv pv r)
+  = RVar !(Bind tv pv) !r                                           -- INV: RVar {v | isTyVarBind v}
+  | RFun !(Bind tv pv) !(RType p c tv pv r) !(RType p c tv pv r)    -- INV: RFun {v | isSymBind v} t1 t2
+  | RAll !(Bind tv pv) !(RType p c tv pv r)                         -- INV: RAll {v | !(isSymBind v) }
   | RApp !c ![(RType p c tv pv r)] ![r] !r
   | RCls !p ![(RType p c tv pv r)]
   | ROth String
@@ -178,9 +189,16 @@ data DataDecl   = D String
                     [(String, [(String, BareType)])] 
                   deriving (Data, Typeable, Show)
 
-class Outputable r => Reftable r where 
+class (Monoid r, Outputable r) => Reftable r where 
   isTauto :: r -> Bool
   ppTy    :: r -> SDoc -> SDoc
+  
+  top     :: r
+  top     =  mempty
+  
+  meet    :: r -> r -> r
+  meet    = mappend
+
 
 class TyConable c where
   isList   :: c -> Bool
@@ -191,6 +209,8 @@ class (Outputable p, Outputable c, Outputable tv, Outputable pv, Reftable r, TyC
   
   ppRType  :: Prec -> RType p c tv pv r -> SDoc 
   ppRType = ppr_rtype 
+
+
 
 --------------------------------------------------------------------
 ---------------- Refinement Types: RefType -------------------------
@@ -361,8 +381,10 @@ instance (NFData a, NFData b, NFData c, NFData d, NFData e) => NFData (RType a b
 ------------------ Printing Refinement Types -------------------
 ----------------------------------------------------------------
 
+ppr_tyvar = text . tvId
+
 instance Outputable RTyVar where
-  ppr (RTV α) = text $ tvId α -- ppr α <> ppr (varUnique α)
+  ppr (RTV α) = ppr_tyvar α 
 
 instance Show RTyVar where
   show = showPpr 
@@ -378,7 +400,7 @@ instance Show RBind where
 instance TyConable RTyCon where
   isList  = (listTyCon ==) . rTyCon
   isTuple = TC.isTupleTyCon   . rTyCon 
-
+ 
 instance Reftable Reft where
   isTauto = isTautoReft
   ppTy    = ppr_reft
@@ -407,17 +429,20 @@ instance (Outputable pv, Reftable r) => RefTypable Class RTyCon RTyVar pv r wher
   ppCls c ts  = parens $ pprClassPred c (toType <$> ts)
 
 instance Outputable (PVar String) where
-  ppr  = ppr_pvar text --  (ppr . varUnique)
+  ppr  = ppr_pvar text
 
 instance Outputable (PVar Type) where
   ppr  = ppr_pvar ppr_pvar_type 
 
-ppr_pvar_type (TyVarTy v) = ppr $ varUnique v
+ppr_pvar_type (TyVarTy α) = ppr_tyvar α
 ppr_pvar_type t           = ppr t
 
-ppr_pvar pprv (PV s t []) = ppr s <> colon <> pprv t
-ppr_pvar pprv (PV s t xs) = ppr ((PV s t [])) <+> (parens $ hsep (punctuate comma (ppArg <$> xs)))
-                            where ppArg (t, _, x) = ppr x <+> colon <+> pprv t
+ppr_pvar pprv (PV s t xts) = ppr s <+> dcolon <+> intersperse arrow dargs 
+  where dargs = [pprv t | (t,_,_) <- xts] ++ [pprv t, text boolConName]
+
+--ppr_pvar pprv (PV s t []) = ppr s <> colon <> pprv t
+--ppr_pvar pprv (PV s t xs) = ppr ((PV s t [])) <+> (parens $ hsep (punctuate comma (ppArg <$> xs)))
+--                            where ppArg (t, _, x) = ppr x <+> colon <+> pprv t
 
 instance (RefTypable p c tv pv r) => Outputable (RType p c tv pv r) where
   ppr = ppRType TopPrec
@@ -481,8 +506,14 @@ ppr_forall p t
     (αs,  t')           = split [] t
     split αs (RAll α t) = split (α:αs) t
     split αs t	        = (reverse αs, t)
-    ppr_foralls []      = empty
-    ppr_foralls αs      = (text "forall") <+> sep (map ppr αs) <> dot
+   
+ppr_foralls [] = empty
+ppr_foralls bs = text "forall" <+> dαs [ α | RV α <- bs] <+> dπs [ π | RP π <- bs] <> dot
+  where dαs αs = sep $ ppr <$> αs 
+        dπs [] = empty 
+        dπs πs = angleBrackets $ intersperse comma $ ppr <$> πs
+
+
 
 -- UNIFY: Use Niki's code from PredType.hs (below) to improve Class Printing:
 -- Instead of   : C1 t -> C2 d -> [t] -> [d] -> Int
@@ -546,7 +577,6 @@ subsTyVar_meet    = subsTyVar True
 subsTyVars ::  Bool -> [(RTyVar, RefType)] -> RefType -> RefType 
 subsTyVars meet ats t = foldl' (flip (subsTyVar meet)) t ats
 
-subsTyVar ::  Bool -> (RTyVar, RefType) -> RefType -> RefType 
 subsTyVar meet = subsFree meet S.empty
 
 subsFree ::  Bool -> S.Set RTyVar -> (RTyVar, RefType) -> RefType -> RefType
@@ -577,20 +607,92 @@ subsFree _ _ _ t@(ROth _)
 subsFree _ _ _ t      
   = errorstar $ "subsFree fails on: " ++ showPpr t
 
-subsTyVarsP ::  Functor f => [(RTyVar, Type)] -> f Type -> f Type
-subsTyVarsP vts p = foldl' (flip subsTyVarP) p vts 
-  where subsTyVarP = fmap . tvSubst
+---------------------------------------------------------------------
+------------------- Type Substitutions ------------------------------
+---------------------------------------------------------------------
 
---tvSubst (RTV α, t) = substTyWith [α] [t]
-tvSubst (α, t) t'@(TyVarTy α') 
-  | α == (RTV α') = t
-  | otherwise     = t'
+class SubstP a where
+  subp :: M.Map (PVar Type) (Predicate Type) -> a -> a
+  subv :: (PVar Type -> PVar Type) -> a -> a
+  subt :: (RTyVar -> Type) -> a -> a
 
-tvSubst _ t'
-  = t'
 
+lookupP s p@(PV _ _ s')
+  = case M.lookup p s of 
+      Nothing  -> Pr [p]
+      Just q   -> subv (\pv -> pv { pargs = s'}) q
+
+instance SubstP Type where
+  subp _ = id
+  subv _ = id
+  subt f (TyVarTy tv) = f (RTV tv) -- UNIFY: Deep Subst
+
+instance SubstP (PVar Type)
+
+instance SubstP (Predicate Type) where
+  subv f (Pr pvs) = Pr (f <$> pvs)
+  subp s (Pr pvs) = pdAnd (lookupP s <$> pvs) -- RJ: UNIFY: not correct!
+  subt t (Pr pvs) = error "TBD"
+
+instance SubstP (UReft Reft Type) where
+  subp f (U r p) = U r (subp f p)
+  subv f (U r p) = U r (subv f p)
+
+-- NOTE: This DOES NOT substitute at the binders
+instance SubstP PrType where    
+  subp f t = fmap (subp f) t
+  subv f t = fmap (subv f) t 
+
+
+
+
+--subsTyVarsP ::  Functor f => [(RTyVar, Type)] -> f Type -> f Type
+--subsTyVarsP vts p = foldl' (flip subsTyVarP) p vts 
+--  where subsTyVarP = fmap . tvSubst
+
+subsTyVarsP :: (SubstP a) => [(RTyVar, Type)] -> a -> a 
+subsTyVarsP vts x = foldl' (\x su -> subt (tvSubst su) x) vts
+
+tvSubst (α, t) α'@(RTV tv') 
+  | α == α'   = t
+  | otherwise = TyVarTy tv'
+
+--tvSubst ::  (RTyVar, Type) -> Type -> Type
+--tvSubst (α, t) t'@(TyVarTy α') 
+--  | α == (RTV α') = t
+--  | otherwise     = t'
 --tvSubst _ t'
---  = errorstar $ "tvSubst fails on: " ++ showPpr t
+--  = t'
+----tvSubst _ t'
+----  = errorstar $ "tvSubst fails on: " ++ showPpr t
+
+HEREHEREHEREHERE
+mapRVar (subsTyVar s) = subsFree True S.empty s 
+
+
+subsTyVar (α, (RVar (RV a') p')) (RV a) p
+  | α == a     = RVar (RV a') (meet p p')
+  | otherwise  = RVar (RV a) p 
+subsTyVar (α, (RApp c ts ps p')) (RV a) p
+  | α == a     = RApp c ts ps (meet p p')
+  | otherwise  = RVar (RV a) p 
+subsTyVar (α, t) (RV a) p 
+  | α == a     = t 
+  | otherwise  = RVar (RV a) p 
+
+subsTyVars_ (v, t, τ) = mapReft (subsTyVarsP [(v, τ)]) . mapRVar (subsTyVar (v, t))
+
+HEREHEREHEREHEREHERE BUG
+subsTyVars s = traceShow ("subsTyVars s = " ++ show s) . 
+               mapReft (subv (subsTyVarP1_ s)) . mapRVar (subsTyVar s)
+  where subsTyVarP1_ (α, (RVar (RV (RTV α')) _)) = fmap $ tvSubst (α, TyVarTy α')
+        -- RJ: UNIFY: why no deep substitution? (just following subsTyVarAP_)
+
+substSym (x, y) = mapReft fp  -- RJ: UNIFY: BUG  mapTy fxy
+  where fxy s = if (s == x) then y else s
+        fp    = subv (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
+
+
 ---------------------------------------------------------------
 
 -- stripRTypeBase ::  RType a -> Maybe a
@@ -644,6 +746,7 @@ mapReft f (RApp c ts rs r) = RApp c (mapReft f <$> ts) (f <$> rs) (f r)
 mapReft f (RCls c ts)      = RCls c (mapReft f <$> ts) 
 mapReft f (ROth a)         = ROth a 
 
+mapRVar :: (Bind tv pv -> r -> RType p c tv pv r)-> RType p c tv pv r -> RType p c tv pv r
 mapRVar f (RVar b r)       = f b r 
 mapRVar f (RFun b t1 t2)   = RFun b (mapRVar f t1) (mapRVar f t2)
 mapRVar f (RAll b t)       = RAll b (mapRVar f t) 
@@ -787,6 +890,8 @@ dropModuleNames = last . words . (dotWhite <$>)
 ---------------------------------------------------------------
 ---------------------- Embedding RefTypes ---------------------
 ---------------------------------------------------------------
+
+toType ::  RRType a b -> Type
 
 toType (RFun _ t t')   
   = FunTy (toType t) (toType t')

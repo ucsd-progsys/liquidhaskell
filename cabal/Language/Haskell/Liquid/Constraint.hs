@@ -615,8 +615,9 @@ consCB γ b@(NonRec x e)
 unify :: Maybe PrType -> RefType -> RefType 
 -------------------------------------------------------------------
 
-unify (Just pt) rt  = evalState (unifyS rt pt) S.empty
-unify _         t   = t
+unify pt t = traceShow ("unify: \npt = " ++ show pt ++ " \nt = " ++ show t) $ unify_ pt t 
+  where unify_ (Just pt) rt  = evalState (unifyS rt pt) S.empty
+        unify_ _         t   = t
 
 unifyS :: RefType -> PrType -> State (S.Set (PVar Type)) RefType
 
@@ -718,9 +719,9 @@ consE _ (Lit c)
 
 consE γ (App e (Type τ)) 
   = do RAll (RV α) te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
-       t              <- if isGeneric α te then freshTy e τ else  trueTy τ
+       t              <- if isGeneric α te then freshTy e τ else trueTy τ
        addW            $ WfC γ t
-       return          $ (α, t) `subsTyVar_meet` te
+       return          $ (α, t) `subsTyVar_meet_debug` te
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
