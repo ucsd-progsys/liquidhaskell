@@ -25,10 +25,8 @@ prop x = assert (x == r)
 
 -- ok 
 -- propC0 = map prop $ myconcat foo
-
 -- this is safe
 -- propC1 = map prop $ myconcat foo
-
 -- propC2 = map prop $ concat foo
 -- propC3 = map prop $ concat1 id foo
 
