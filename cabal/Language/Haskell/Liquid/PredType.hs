@@ -46,7 +46,7 @@ data DataConP = DataConP { freeTyVars :: ![RTyVar]
                          }
 
 dataConPtoPredTy :: DataConP -> PrType
-dataConPtoPredTy x@(DataConP vs ps yts rt) = traceShow ("dataConPtoPredTy: " ++ show x) $  t3						
+dataConPtoPredTy x@(DataConP vs ps yts rt) = {- traceShow ("dataConPtoPredTy: " ++ show x) $ -}  t3						
   where t1 = foldl' (\t2 (x, t1) -> RFun (RB x) t1 t2) rt yts 
         t2 = foldr RAll t1 $ RP <$> ps
         t3 = foldr RAll t2 $ RV <$> vs

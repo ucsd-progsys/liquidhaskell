@@ -123,8 +123,8 @@ measEnv info penv = CGE noSrcSpan re0 penv fe0 S.empty
         fe0  = F.fromListSEnv $ mapSnd refTypeSortedReft <$> bs 
 
 
-assm = traceShow ("****** assm *****\n") . assm_grty impVars 
-grty = traceShow ("****** grty *****\n") . assm_grty defVars
+assm = {- traceShow ("****** assm *****\n") . -} assm_grty impVars 
+grty = {- traceShow ("****** grty *****\n") . -} assm_grty defVars
 
 assm_grty f info = [ (x, mapReft ureft t) | (x, t) <- sigs, x `S.member` xs ] 
   where xs   = S.fromList $ f info 
@@ -615,9 +615,12 @@ consCB γ b@(NonRec x e)
 unify :: Maybe PrType -> RefType -> RefType 
 -------------------------------------------------------------------
 
-unify pt t = traceShow ("unify: \npt = " ++ show pt ++ " \nt = " ++ show t) $ unify_ pt t 
-  where unify_ (Just pt) rt  = evalState (unifyS rt pt) S.empty
-        unify_ _         t   = t
+--unify pt t = unify_ pt t 
+-- traceShow ("unify: \npt = " ++ show pt ++ " \nt = " ++ show t) $ 
+-- where 
+
+unify (Just pt) rt  = evalState (unifyS rt pt) S.empty
+unify _         t   = t
 
 unifyS :: RefType -> PrType -> State (S.Set (PVar Type)) RefType
 
@@ -706,8 +709,8 @@ cconsE γ e t
 consE :: CGEnv -> Expr Var -> CG RefType 
 -------------------------------------------------------------------
 
-subsTyVar_meet_debug (α, t) te = traceShow msg $ (α, t) `subsTyVar_meet` te
-  where msg = "subsTyVar_meet α = " ++ show α ++ " t = " ++ showPpr t  ++ " te = " ++ showPpr te
+--subsTyVar_meet_debug (α, t) te = traceShow msg $ (α, t) `subsTyVar_meet` te
+--  where msg = "subsTyVar_meet α = " ++ show α ++ " t = " ++ showPpr t  ++ " te = " ++ showPpr te
 
 consE γ (Var x)   
   = do addLocA (loc γ) (varAnn γ x t)
@@ -721,7 +724,7 @@ consE γ (App e (Type τ))
   = do RAll (RV α) te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
        t              <- if isGeneric α te then freshTy e τ else trueTy τ
        addW            $ WfC γ t
-       return          $ (α, t) `subsTyVar_meet_debug` te
+       return          $ (α, t) `subsTyVar_meet` te
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
