@@ -1,6 +1,9 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections #-}
 
-module Language.Haskell.Liquid.Parse (Inputable (..), doParse') where
+module Language.Haskell.Liquid.Parse (
+  Inputable (..)
+, hsSpecificationP
+) where
 
 import GHC
 import TypeRep
@@ -21,9 +24,8 @@ import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Measure
--- import Language.Haskell.Liquid.Bare
 import Outputable (Outputable (..))
--- import Language.Haskell.Liquid.BarePredicate
+import Language.Haskell.Liquid.FileNames (dummyName, boolConName)
 
 --------------------------------------------------------------------
 
@@ -244,7 +246,7 @@ predVarDefsP
  <|> return []
 
 predVarDefP
- = liftM3 bPVar predVarIdP colon predVarTypeP
+ = liftM3 bPVar predVarIdP dcolon predVarTypeP
    
 bPVar p _ ts  = PV p τ τxs 
   where τ   = last ts
@@ -272,19 +274,21 @@ bareFun2P
        t2 <- bareTypeP
        return $ bareArrow "" t1 a t2 
 
-dummyName pos = "dummy_" ++ name ++ ['@'] ++ line ++ [','] ++ colum
+dummyNamePos pos = "dummy_" ++ name ++ ['@'] ++ line ++ [','] ++ colum
   where name  = sourceName pos
         line  = show $ sourceLine pos  
         colum = show $ sourceColumn pos  
 
 bareFunP  
-  = do x  <- try bindP <|> do {p <- getPosition; return $ dummyName p}  
+  = do x  <- try bindP <|> (return dummyName) -- (dummyNamePos <$> getPosition)  
        t1 <- bareArgP 
        a  <- arrowP
        t2 <- bareTypeP
        return $ bareArrow x t1 a t2 
 
-bindP = lowerIdP <* colon
+bbindP = lowerIdP <* dcolon 
+bindP  = lowerIdP <* colon
+dcolon = string "::" <* spaces
 
 bareArrow "" t1 ArrowFun t2
   = RFun dummyBind t1 t2
@@ -293,7 +297,6 @@ bareArrow x t1 ArrowFun t2
 bareArrow x t1 ArrowPred t2
   = foldr (RFun dummyBind) t2 (getClasses t1)
 
-boolConName                     = "Prop"
 isBoolBareType (RApp tc [] _ _) = tc == boolConName
 isBoolBareType _                = False
 
@@ -371,17 +374,20 @@ data Pspec ty bndr
   | Impt Symbol
   | DDecl DataDecl
 
+mkSpec xs = {- Measure.qualifySpec name $ -} Measure.Spec ms as is ds
+  where ms = [m | Meas  m <- xs]
+        as = [a | Assm  a <- xs]
+        is = [i | Impt  i <- xs]
+        ds = [d | DDecl d <- xs]
+
 specificationP 
   = do reserved "module"
        reserved "spec"
        name  <- symbolP
        reserved "where"
-       xs    <- grabs (liftM2 const specP whiteSpace)
-       let ms = [m | Meas  m <- xs]
-       let as = [a | Assm  a <- xs]
-       let is = [i | Impt  i <- xs]
-       let ds = [d | DDecl d <- xs]
-       return $ Measure.qualifySpec name $ Measure.Spec ms as is ds
+       xs    <- grabs (specP <* whiteSpace) --(liftM2 const specP whiteSpace)
+       return $ mkSpec xs 
+
 
 specP 
   = try (reserved "assume"  >> liftM Assm  tyBindP)
@@ -463,20 +469,17 @@ measurePatP
 
 --predTypeP = liftM (mapReft upred) bareTypeP
 
-predTypeDDP
-  = do x <- try bindP <|> do {p <- getPosition; return $ dummyName p}  
-       t <- try (parens bareTypeP) <|> bareTypeP
-       return (x, t) 
+predTypeDDP = parens $ liftM2 (,) bbindP bareTypeP
+
 
 dataConP
- = do x <- upperIdP -- tyConVarIdP
+ = do x <- upperIdP
       spaces
       xts <- sepBy predTypeDDP spaces
       return (x, xts)
 
 dataDeclP
- = do -- reserved "data"
-      x   <- upperIdP -- tyConVarIdP
+ = do x   <- upperIdP
       spaces
       ts  <- sepBy tyVarIdP spaces
       ps  <- predVarDefsP
@@ -534,7 +537,7 @@ remainderP p
        str <- stateInput <$> getParserState
        return (res, str) 
 
-doParse p = doParse' p ""
+-- doParse p = doParse' p ""
 
 doParse' parser f s
   = case parse (remainderP p) f s of
@@ -542,6 +545,20 @@ doParse' parser f s
       Right (r, "")  -> r
       Right (r, rem) -> errorstar $ "doParse has leftover when parsing: " ++ rem
   where p = whiteSpace >> parser
+
+grabUpto p  
+  =  try (lookAhead p >>= return . Just)
+ <|> try (eof         >> return Nothing)
+ <|> (anyChar >> grabUpto p)
+
+betweenMany leftP rightP p 
+  = do z <- grabUpto leftP
+       case z of
+         Just _  -> liftM2 (:) (between leftP rightP p) (betweenMany leftP rightP p)
+         Nothing -> return []
+
+specWrap  = between     (string "{-@" >> spaces) (spaces >> string "@-}")
+specWraps = betweenMany (string "{-@" >> spaces) (spaces >> string "@-}")
 
 ----------------------------------------------------------------------------------------
 ------------------------ Bundling Parsers into a Typeclass -----------------------------
@@ -583,8 +600,9 @@ instance Inputable (Measure.Measure BareType Symbol) where
 instance Inputable (Measure.Spec BareType Symbol) where
   rr' = doParse' specificationP
 
---instance Inputable [(Symbol, BRType (PVar String) (Predicate String))] where
---  rr' = doParse' specPr
+hsSpecificationP 
+  = doParse' $ liftM mkSpec $ specWraps specP
+
 
 ---------------------------------------------------------------
 --------------------------- Testing ---------------------------

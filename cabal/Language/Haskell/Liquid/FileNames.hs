@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Language.Haskell.Liquid.FileNames ( 
-    tagName , dummyName, preludeName
+    tagName , dummyName, preludeName, boolConName
   , Ext (..), repFileName, extFileName, extModuleName, isExtFile
   , getHsTargets
   --, fqName, outName , cgiName, htmlName, annotName, libName, cstName
@@ -37,8 +37,9 @@ envPrefix  = "$" ++ envVarName ++ "/"
 getIncludePath ::  IO String
 getIncludePath = getEnv envVarName 
 
-dummyName = "_LIQUID_dummy"
-tagName   = "TAG"
+dummyName   = "_LIQUID_dummy"
+tagName     = "TAG"
+boolConName = "Bool"
 
 data Ext = Cgi | Out | Fq | Html | Cst | Annot | Hs | Spec | Hquals | Pred | PAss| Dat
            deriving (Eq, Ord)
@@ -64,6 +65,7 @@ extFileName ext = (`addExtension` (extMap M.! ext))
 
 isExtFile ext = ((extMap M.! ext) `isSuffixOf`)
 
+extModuleName ::  String -> Ext -> FilePath
 extModuleName modName ext = 
   case explode modName of 
     [] -> errorstar $ "malformed module name: " ++ modName

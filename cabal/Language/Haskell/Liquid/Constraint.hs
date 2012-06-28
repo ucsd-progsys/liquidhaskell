@@ -184,7 +184,7 @@ atLoc :: CGEnv -> SrcSpan -> CGEnv
 withRecs :: CGEnv -> [Var] -> CGEnv 
 withRecs γ xs = γ { recs = foldl' (flip S.insert) (recs γ) xs }
 
-isGeneric :: TyVar -> RefType -> Bool
+isGeneric :: RTyVar -> RefType -> Bool
 isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConstrs t)
   where classConstrs t = [(c, α') | (c, ts) <- getTyClasses t
                                   , t'      <- ts
@@ -197,8 +197,8 @@ getTyClasses = everything (++) ([] `mkQ` f)
         f _                        = []
 
 getTyVars = everything (++) ([] `mkQ` f)
-  where f ((RVar (RV α') _) :: RefType) = [α'] 
-        f _                             = []
+  where f ((RVar (RV (α')) _) :: RefType) = [α'] 
+        f _                               = []
  
 -- isBase :: RType a -> Bool
 isBase (RVar _ _)     = True
@@ -214,6 +214,7 @@ insertFEnvClass (RCls c ts) fenv
 insertFEnvClass _ fenv 
   = fenv
 
+rTyVarSymbol (RV (RTV α)) = typeUniqueSymbol $ TyVarTy α
 -----------------------------------------------------------------
 ------------------- Constraints: Types --------------------------
 -----------------------------------------------------------------
@@ -238,13 +239,18 @@ type FixSubC  = F.SubC Cinfo
 type FixWfC   = F.WfC Cinfo
 
 instance Outputable SubC where
-  ppr c = ppr (senv c) <> text "\n" <> text " |- " <> 
-          ppr (lhs c) <> text " <: " <> ppr (rhs c) <> 
-          text "\n\n"
+  ppr c = ppr (senv c) <> blankLine 
+          $+$ ((text " |- ") <+>   ( (ppr (lhs c)) 
+                                  $+$ text "<:" 
+                                  $+$ (ppr (rhs c))))
+          $+$ blankLine
+          $+$ blankLine
 
 instance Outputable WfC where
-  ppr w = ppr (wenv w) <> text "\n" <> text " |- " <> ppr (r w) <> 
-          text "\n\n" 
+  ppr (WfC w r)    = ppr w <> blankLine <> text " |- " <> ppr r <> blankLine <> blankLine 
+  ppr (WfCS w τ s) = ppr w <> blankLine <> text " |- " <> braces (ppr τ <+> colon  <+> ppr s)
+  ----ppr w = ppr (wenv w) <> text "\n" <> text " |- " <> ppr (r w) <> 
+  ----        text "\n\n" 
 
 instance Outputable Cinfo where
   ppr (Ci src) = ppr src
@@ -268,7 +274,6 @@ splitW (WfCS γ τ s)
         r'   = typeSortedReft τ s
         ci   = Ci (loc γ)
 
-
 splitW (WfC γ (RFun (RB x) r1 r2)) 
   =  splitW (WfC γ r1) 
   ++ splitW (WfC ((γ, "splitW") += (x, r1)) r2)
@@ -288,6 +293,7 @@ splitW (WfC γ (RCls _ _))
 -- 		 ++ (concatMap (rsplitW γ) (zip rs ps))
 -- 	where ps = rTyConPs c 
 --       ys = (\(RB y) -> y) <$> rTyConBnds c
+
 splitW (WfC γ t@(RApp c ts rs _))
 	= bsplitW γ t 
    ++ (concatMap splitW (map (WfC γ) ts)) 
@@ -427,9 +433,9 @@ showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
-mkRTyCon tc (TyConP τs' ps) = RTyCon tc pvs'
+mkRTyCon tc (TyConP αs' ps) = RTyCon tc pvs'
   where τs   = TyVarTy <$> TC.tyConTyVars tc
-        pvs' = subsTyVarsP (zip τs' τs) <$> ps
+        pvs' = subts (zip αs' τs) <$> ps
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) s 
@@ -540,7 +546,8 @@ refreshRefType (RFun b t t')
 refreshRefType (RApp (rc@RTyCon {rTyCon = c}) ts rs r)  
   = do s <- get 
        let RTyCon c0 ps = M.findWithDefault rc c $ tyConInfo s
-       let c' = RTyCon c0 (map (subsTyVarsP (zip (TC.tyConTyVars c0) (toType <$> ts))) ps)
+       let αs = TC.tyConTyVars c0
+       let c' = RTyCon c0 (map (subts (zip (RTV <$> αs) (toType <$> ts))) ps)
        liftM3 (RApp c') (mapM refresh ts) (mapM freshReftP (rTyConPs c')) (refresh r)
 refreshRefType (RVar a r)  
   = liftM (RVar a) (refresh r)
@@ -608,8 +615,9 @@ consCB γ b@(NonRec x e)
 unify :: Maybe PrType -> RefType -> RefType 
 -------------------------------------------------------------------
 
-unify (Just pt) rt  = evalState (unifyS rt pt) S.empty
-unify _         t   = t
+unify pt t = traceShow ("unify: \npt = " ++ show pt ++ " \nt = " ++ show t) $ unify_ pt t 
+  where unify_ (Just pt) rt  = evalState (unifyS rt pt) S.empty
+        unify_ _         t   = t
 
 unifyS :: RefType -> PrType -> State (S.Set (PVar Type)) RefType
 
@@ -624,7 +632,7 @@ unifyS t (RAll (RP p) pt)
        if (p `S.member` s) then return $ RAll (RP p) t' else return t'
 
 unifyS (RAll (RV v) t) (RAll (RV v') pt) 
-  = do t' <-  unifyS t $ subsTyVars (v', RVar (RV v) pdTrue) pt 
+  = do t' <-  unifyS t $ subsTyVar_meet (v', RVar (RV v) pdTrue) pt 
        return $ RAll (RV v) t'
 
 unifyS (RFun (RB x) rt1 rt2) (RFun (RB x') pt1 pt2)
@@ -646,7 +654,7 @@ unifyS rt@(RApp c ts rs r) pt@(RApp _ pts ps p)
 
 unifyS t1 t2 = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
 
-bUnify a (Pr pvs)   = foldl' F.meet a $ pToReft <$> pvs
+bUnify a (Pr pvs)   = foldl' meet a $ pToReft <$> pvs
 --bUnify a PdTrue     = a
 --bUnify a (PdVar pv) = a `F.meet` (pToReft pv)
 
@@ -698,6 +706,9 @@ cconsE γ e t
 consE :: CGEnv -> Expr Var -> CG RefType 
 -------------------------------------------------------------------
 
+subsTyVar_meet_debug (α, t) te = traceShow msg $ (α, t) `subsTyVar_meet` te
+  where msg = "subsTyVar_meet α = " ++ show α ++ " t = " ++ showPpr t  ++ " te = " ++ showPpr te
+
 consE γ (Var x)   
   = do addLocA (loc γ) (varAnn γ x t)
        return t
@@ -708,9 +719,9 @@ consE _ (Lit c)
 
 consE γ (App e (Type τ)) 
   = do RAll (RV α) te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
-       t              <- if isGeneric α te then freshTy e τ else  trueTy τ
-       addW       $ WfC γ t
-       return     $ (α, t) `subsTyVar_meet` te
+       t              <- if isGeneric α te then freshTy e τ else trueTy τ
+       addW            $ WfC γ t
+       return          $ (α, t) `subsTyVar_meet_debug` te
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
@@ -774,7 +785,7 @@ cconsCase γ x t (DataAlt c, ys, ce)
        (rtd, yts, xt') = unfoldR tdc xt0 ys'
        r1            = dataConReft c $ varType x
        r2            = dataConMsReft rtd ys'
-       xt            = xt0 `strengthen` (r1 `F.meet` r2)
+       xt            = xt0 `strengthen` (r1 `meet` r2)
 
 mkyts γ ys yts = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts
 mkyt (γ, ts) (y, yt)
@@ -845,6 +856,7 @@ getSrcSpan' x
 -----------------------------------------------------------------------
 ---------- Helpers: Creating Fresh Refinement ------------------ ------
 -----------------------------------------------------------------------
+
 freshReftP (PV n τ as)
  = do n <- liftM F.intKvar fresh
       return $ F.Reft (F.vv,[(`F.RKvar` F.emptySubst) n])

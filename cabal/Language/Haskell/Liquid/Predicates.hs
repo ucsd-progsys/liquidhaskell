@@ -104,10 +104,8 @@ consCB' γ (NonRec x e)
 
 consCB' γ (Rec xes) 
   = do ts       <- mapM (\e -> freshTy $ exprType e) es
---       let tsga = generalizeArgs <$> ts
        let γ'   = foldl' (+=) γ (zip vs ts)
        zipWithM_ (cconsE γ') es ts
---       tsg   <- forM ts generalizeS
        return $ foldl' (+=) γ (zip vs ts)
     where (xs, es) = unzip xes
           vs       = mkSymbol <$> xs
@@ -138,8 +136,8 @@ tyC (RAll (RP _) t1) t2
 tyC t1 (RAll (RP _) t2) 
   = tyC t1 t2
 
-tyC (RAll (RV v1) t1) (RAll (RV v2) t2) 
-  = tyC (subsTyVars (v1, RVar (RV v2) pdTrue) t1) t2
+tyC (RAll (RV α1) t1) (RAll (RV α2) t2) 
+  = tyC (subsTyVar_meet (α1, RVar (RV α2) pdTrue) t1) t2
 
 tyC (RVar (RV v1) p1) (RVar (RV v2) p2)
   = do modify $ \(ps, msg) -> ((p2, p1):ps, msg)
@@ -186,10 +184,7 @@ consE _ e@(Lit c)
 
 consE γ (App e (Type τ)) 
   = do RAll (RV α) te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
-       let t = ofTypeP τ
-       return $ (α, t, τ) `subsTyVars_` te 
---     $ traceShow ("consE TyA " ++ show α ++ show (varUnique α) ++ " with " ++ show t ++ " in " ++ show te ) 
-          
+       return $ (α, ofType τ) `subsTyVar_meet` te
 
 consE γ (App e a)               
   = do RFun (RB x) tx t <- liftM (checkFun ("PNon-fun App with caller", e)) $ consE γ e 
@@ -199,7 +194,7 @@ consE γ (App e a)
          Nothing -> error $ "consE: App crashes on" ++ showPpr a 
 
 consE γ (Lam α e) | isTyVar α 
-  = liftM (RAll (RV α)) (consE γ e) 
+  = liftM (RAll (rTyVar α)) (consE γ e) 
 
 consE γ  e@(Lam x e1) 
   = do tx     <- freshTy τx 
@@ -278,11 +273,8 @@ cconsCase γ x t (DataAlt c, ys, ce)
 
 unfold tc (RApp _ ts _ _) _ = splitArgsRes tc''
   where (vs, _, tc') = splitVsPs tc
-        tc''         = foldl' (flip subsTyVars) tc' (zip vs ts) 
-        -- args         = [(α, α') | (α, PrVar α' _) <- zip vs ts]
--- unfold tc _       = splitArgsRes tc'
---  where (vs, _, tc') = splitVsPs tc
-unfold tc t               x  = error $ "unfold" ++ {-(showSDoc (ppr x)) ++-} " : " ++ show t
+        tc''         = subsTyVars_meet (zip vs ts) tc' 
+unfold tc t              x  = error $ "unfold" ++ {-(showSDoc (ppr x)) ++-} " : " ++ show t
 
 splitC (SubC γ (RAll (RV _) t1) (RAll (RV _) t2))
   = splitC (SubC γ t1 t2)
@@ -415,7 +407,7 @@ splitCons
 -- generalize predicates of arguments: used on Rec Definitions
 
 initEnv info = PCGE { loc = noSrcSpan , penv = F.fromListSEnv bs}
-  where dflts  = [(x, ofTypeP $ varType x) | x <- freeVs]
+  where dflts  = [(x, ofType $ varType x) | x <- freeVs]
         dcs    = [(x, dconTy $ varType x) | x <- dcons]
         sdcs   = bimap TC.dataConWorkId dataConPtoPredTy <$> dconsP (spec info)
         assms  = passm $ tySigs $ spec info
@@ -435,9 +427,9 @@ passm = fmap (second (mapReft upred))
 dconTy t = generalize $ dataConTy vps t
   where vs  = tyVars t
         ps  = truePr <$> vs 
-        vps = M.fromList $ zipWith (\(TyVarTy v) p -> (v, RVar (RV v) p)) vs ps
+        vps = M.fromList $ zipWith (\v p -> (RTV v, rVar v p)) vs ps
 
-tyVars (ForAllTy v t) = (TyVarTy v):(tyVars t)
+tyVars (ForAllTy v t) = v : (tyVars t)
 tyVars t              = []
 
 ---------------------------------- Freshness -------------------------------------
@@ -463,7 +455,7 @@ freshTy t
   | isPredTy t
   = return $ freshPredTree $ (classifyPredType t)
 freshTy t@(TyVarTy v) 
-  = liftM (RVar (RV v)) (freshPr t)
+  = liftM (rVar v) (freshPr t)
 freshTy (FunTy t1 t2) 
   = liftM3 RFun (RB <$> freshSymbol "s") (freshTy t1) (freshTy t2)
 freshTy t@(TyConApp c τs) 
@@ -473,12 +465,12 @@ freshTy t@(TyConApp c τs)
 freshTy t@(TyConApp c τs) 
   = liftM3 (rApp c) (mapM freshTy τs) (freshTyConPreds c) (return (truePr t)) 
 freshTy (ForAllTy v t) 
-  = liftM (RAll (RV v)) (freshTy t) 
+  = liftM (RAll (rTyVar v)) (freshTy t) 
 freshTy t
   = error "freshTy"
 
 freshPredTree (ClassPred c ts)
-  = RCls c (ofTypeP <$> ts)
+  = RCls c (ofType <$> ts)
 
 freshTyConPreds c 
  = do s <- get

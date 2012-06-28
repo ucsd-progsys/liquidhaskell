@@ -15,11 +15,14 @@ import Name             (getSrcSpan, getOccString, mkInternalName)
 import OccName          (mkTyVarOcc)
 import Unique           (getKey, getUnique, initTyVarUnique)
 import Literal
-import Type             (mkTyConTy, liftedTypeKind, substTyWith)
+import Type             (mkTyConTy, liftedTypeKind, eqType, substTyWith)
 import TysPrim          (intPrimTyCon)
 import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
 import CoreSyn          
 import CostCentre 
+import Language.Haskell.Liquid.Misc (traceShow)
+import Control.Exception (assert)
+
 -----------------------------------------------------------------------
 --------------- Generic Helpers for Encoding Location -----------------
 -----------------------------------------------------------------------
@@ -41,9 +44,13 @@ stringTyVar s = mkTyVar name liftedTypeKind
   where name = mkInternalName initTyVarUnique occ noSrcSpan 
         occ  = mkTyVarOcc s
 
---stringRTyVar :: String -> RTyVar
---stringRTyVar = rTyVar . stringTyVar 
-
-eqTv α α' = tvId α == tvId α'
-  where tvId α = show α ++ show (varUnique α)
+--eqTv α α' = traceShow msg $ assert (res == eqTv' α α') $ res  
+--  where res = eqType (TyVarTy α) (TyVarTy α')
+--        msg = "eqTv: α = " ++ tvId α ++ " α' = " ++ tvId α' 
+--eqTv α α' = traceShow msg $ tvId α == tvId α'
+--  where msg = "eqTv: α = " ++ tvId α ++ " α' = " ++ tvId α' 
  
+tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} show α ++ show (varUnique α)
+  
+intersperse d ds = hsep $ punctuate (space <> d) ds
+
