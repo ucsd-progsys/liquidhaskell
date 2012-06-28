@@ -1,5 +1,16 @@
 After all regrtests pass:
 
+
+
+
+Failed 14 tests: neg/concat1.hs, pos/BST.hs, pos/ListISort-LType.hs,
+pos/ListLen-LType.hs, pos/ListMSort-LType.hs, pos/ListQSort-LType.hs,
+pos/ListRange-LType.hs, pos/Map.hs, pos/deptup.hs, pos/deptup0.hs,
+pos/deptup1.hs, pos/vector1.hs, pos/vector1a.hs, pos/vector1b.hs
+
+Exceptions thrown on 3 tests: pos/vector1.hs, pos/vector1a.hs,
+pos/vector1b.hs
+
 0. pull all binders/subst into separate SINGLE file
     > RTyVar    + instances
     > RBind     + instances
