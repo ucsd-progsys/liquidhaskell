@@ -136,8 +136,8 @@ tyC (RAll (RP _) t1) t2
 tyC t1 (RAll (RP _) t2) 
   = tyC t1 t2
 
-tyC (RAll (RV v1) t1) (RAll (RV v2) t2) 
-  = tyC (subsTyVars (v1, RVar (RV v2) pdTrue) t1) t2
+tyC (RAll (RV α1) t1) (RAll (RV α2) t2) 
+  = tyC (subsTyVar_meet (α1, RVar (RV α2) pdTrue) t1) t2
 
 tyC (RVar (RV v1) p1) (RVar (RV v2) p2)
   = do modify $ \(ps, msg) -> ((p2, p1):ps, msg)
@@ -184,10 +184,7 @@ consE _ e@(Lit c)
 
 consE γ (App e (Type τ)) 
   = do RAll (RV α) te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
-       let t = ofTypeP τ
-       return $ (α, t, τ) `subsTyVars_` te 
---     $ traceShow ("consE TyA " ++ show α ++ show (varUnique α) ++ " with " ++ show t ++ " in " ++ show te ) 
-          
+       return $ (α, ofTypeP τ) `subsTyVar_meet` te
 
 consE γ (App e a)               
   = do RFun (RB x) tx t <- liftM (checkFun ("PNon-fun App with caller", e)) $ consE γ e 
@@ -276,11 +273,8 @@ cconsCase γ x t (DataAlt c, ys, ce)
 
 unfold tc (RApp _ ts _ _) _ = splitArgsRes tc''
   where (vs, _, tc') = splitVsPs tc
-        tc''         = foldl' (flip subsTyVars) tc' (zip vs ts) 
-        -- args         = [(α, α') | (α, PrVar α' _) <- zip vs ts]
--- unfold tc _       = splitArgsRes tc'
---  where (vs, _, tc') = splitVsPs tc
-unfold tc t               x  = error $ "unfold" ++ {-(showSDoc (ppr x)) ++-} " : " ++ show t
+        tc''         = subsTyVars_meet (zip vs ts) tc' 
+unfold tc t              x  = error $ "unfold" ++ {-(showSDoc (ppr x)) ++-} " : " ++ show t
 
 splitC (SubC γ (RAll (RV _) t1) (RAll (RV _) t2))
   = splitC (SubC γ t1 t2)

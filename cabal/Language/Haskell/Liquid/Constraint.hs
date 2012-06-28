@@ -433,9 +433,9 @@ showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
-mkRTyCon tc (TyConP τs' ps) = RTyCon tc pvs'
+mkRTyCon tc (TyConP αs' ps) = RTyCon tc pvs'
   where τs   = TyVarTy <$> TC.tyConTyVars tc
-        pvs' = subsTyVarsP (zip τs' τs) <$> ps
+        pvs' = subts (zip αs' τs) <$> ps
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) s 
@@ -547,7 +547,7 @@ refreshRefType (RApp (rc@RTyCon {rTyCon = c}) ts rs r)
   = do s <- get 
        let RTyCon c0 ps = M.findWithDefault rc c $ tyConInfo s
        let αs = TC.tyConTyVars c0
-       let c' = RTyCon c0 (map (subsTyVarsP (zip (RTV <$> αs) (toType <$> ts))) ps)
+       let c' = RTyCon c0 (map (subts (zip (RTV <$> αs) (toType <$> ts))) ps)
        liftM3 (RApp c') (mapM refresh ts) (mapM freshReftP (rTyConPs c')) (refresh r)
 refreshRefType (RVar a r)  
   = liftM (RVar a) (refresh r)
@@ -632,7 +632,7 @@ unifyS t (RAll (RP p) pt)
        if (p `S.member` s) then return $ RAll (RP p) t' else return t'
 
 unifyS (RAll (RV v) t) (RAll (RV v') pt) 
-  = do t' <-  unifyS t $ subsTyVars (v', RVar (RV v) pdTrue) pt 
+  = do t' <-  unifyS t $ subsTyVar_meet (v', RVar (RV v) pdTrue) pt 
        return $ RAll (RV v) t'
 
 unifyS (RFun (RB x) rt1 rt2) (RFun (RB x') pt1 pt2)
@@ -654,7 +654,7 @@ unifyS rt@(RApp c ts rs r) pt@(RApp _ pts ps p)
 
 unifyS t1 t2 = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
 
-bUnify a (Pr pvs)   = foldl' F.meet a $ pToReft <$> pvs
+bUnify a (Pr pvs)   = foldl' meet a $ pToReft <$> pvs
 --bUnify a PdTrue     = a
 --bUnify a (PdVar pv) = a `F.meet` (pToReft pv)
 
@@ -785,7 +785,7 @@ cconsCase γ x t (DataAlt c, ys, ce)
        (rtd, yts, xt') = unfoldR tdc xt0 ys'
        r1            = dataConReft c $ varType x
        r2            = dataConMsReft rtd ys'
-       xt            = xt0 `strengthen` (r1 `F.meet` r2)
+       xt            = xt0 `strengthen` (r1 `meet` r2)
 
 mkyts γ ys yts = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts
 mkyt (γ, ts) (y, yt)

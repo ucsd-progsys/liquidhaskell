@@ -16,7 +16,7 @@ module Language.Haskell.Liquid.RefType (
   , typeUniqueSymbol
   , strengthen, strengthenRefType
   , mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
-  , tvSubst, subsTyVarsP, subsTyVars, substSym 
+  , subts, substSym 
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, refTypePredSortedReft_,refTypeSortedReft, typeSortedReft, refTypePredSortedReft, rTypeSort
   -- , canonRefType
@@ -47,7 +47,7 @@ import Type             (isPredTy, mkTyConTy, liftedTypeKind, substTyWith, class
 import TysPrim          (intPrimTyCon)
 import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon, eqDataCon, ltDataCon, gtDataCon)
 
-
+import Data.Monoid      hiding ((<>))
 import Data.Maybe               (fromMaybe)
 import qualified Data.Map as M
 import qualified Data.Set as S 
@@ -325,7 +325,7 @@ showTy v = showSDoc $ ppr v <> ppr (varUnique v)
 
 rConApp (RTyCon c ps) ts rs r = RApp (RTyCon c ps') ts rs' r 
    where τs   = toType <$> ts
-         ps'  = subsTyVarsP (zip cts τs) <$> ps
+         ps'  = subts (zip cts τs) <$> ps
          cts  = RTV <$> TC.tyConTyVars c
          rs'  = if (null rs) then ((\_ -> F.trueReft) <$> ps) else rs
 
@@ -420,7 +420,12 @@ instance (Reftable r, Reftable (Predicate t)) => Outputable (UReft r t) where
     | isTauto r  = ppr p
     | isTauto p  = ppr r
     | otherwise  = ppr p <> text " & " <> ppr r
- 
+
+
+instance (Monoid a) => Monoid (UReft a b) where
+  mempty                    = U mempty mempty
+  mappend (U x y) (U x' y') = U (mappend x x') (mappend y y')
+
 instance (Reftable r, Reftable (Predicate t)) => Reftable (UReft r t) where
   isTauto (U r p) = isTauto r && isTauto p 
   ppTy (U r p) d  = ppTy r (ppTy p d) 
@@ -562,46 +567,40 @@ instance Bifunctor UReft where
 instance Functor (RType a b c d) where
   fmap f = mapReft f
 
-  --fmap f (RVar α r)       = RVar α (f r)
-  --fmap f (RAll a t)       = RAll a (fmap f t)
-  --fmap f (RFun x t t')    = RFun x (fmap f t) (fmap f t')
-  --fmap f (RApp c ts rs r) = RApp c (fmap (fmap f) ts) (f <$> rs) (f r)
-  --fmap f (RCls c ts)      = RCls c (fmap (fmap f) ts)
-  --fmap f (ROth a)         = ROth a 
 
 subsTyVars_meet   = subsTyVars True
 subsTyVars_nomeet = subsTyVars False
 subsTyVar_nomeet  = subsTyVar False
 subsTyVar_meet    = subsTyVar True
 
-subsTyVars ::  Bool -> [(RTyVar, RefType)] -> RefType -> RefType 
+subsTyVar meet        = subsFree meet S.empty
 subsTyVars meet ats t = foldl' (flip (subsTyVar meet)) t ats
 
-subsTyVar meet = subsFree meet S.empty
 
-subsFree ::  Bool -> S.Set RTyVar -> (RTyVar, RefType) -> RefType -> RefType
+subsFree ::  (SubstP r, Reftable r) => Bool -> S.Set RTyVar -> (RTyVar, RRType (PVar Type) r) -> RRType (PVar Type) r -> RRType (PVar Type) r 
 
-subsFree m s z@(α, t') (RAll (RP p) t)         
-  = RAll (RP p') t''
-    where p'  = subsTyVarsP [(α, toType t')] p
-          t'' = subsFree m s z t
-          -- = errorstar $ "subsFree TBD: " ++ showPpr t
+subsFree m s z (RAll (RP p) t)         
+  = RAll (RP p') t'
+    where p' = subt (second toType z) p
+          t' = subsFree m s z t
 subsFree m s z (RAll (RV α) t)         
   = RAll (RV α) $ subsFree m (α `S.insert` s) z t
 subsFree m s z (RFun x t t')       
   = RFun x (subsFree m s z t) (subsFree m s z t') 
 subsFree m s z@(α, t') t@(RApp c ts rs r)     
-  = RApp c' (subsFree m s z <$> ts) rs r  
-    where c' = c {rTyConPs = (subsTyVarsP [(α, toType t')]) <$> (rTyConPs c)}
+  = RApp c' (subsFree m s z <$> ts) (subt z' <$> rs) (subt z' r)  
+    where c' = c {rTyConPs = subt z' <$> rTyConPs c}
+          z' = (α, toType t')
     -- UNIFY: why instantiating INSIDE parameters?
 subsFree m s z (RCls c ts)     
   = RCls c (subsFree m s z <$> ts)
 subsFree meet s (α', t') t@(RVar (RV α) r) 
   | α == α' && α `S.notMember` s 
-  = if meet then t' `strengthen` r else t' 
+  = if meet then t' `strengthen`  r' else t' 
   | otherwise
   = {- traceShow  msg $ -} t
   where msg = ("subsFree MISS: α = " ++ showPpr α ++ " α' = " ++ showPpr α' ++ " s = " ++ showPpr s)
+        r'  = subt (α', toType t') r
 subsFree _ _ _ t@(ROth _)        
   = t
 subsFree _ _ _ t      
@@ -614,8 +613,10 @@ subsFree _ _ _ t
 class SubstP a where
   subp :: M.Map (PVar Type) (Predicate Type) -> a -> a
   subv :: (PVar Type -> PVar Type) -> a -> a
-  subt :: (RTyVar -> Type) -> a -> a
-
+  subt :: (RTyVar, Type) -> a -> a
+  
+-- subts :: (SubstP a) => [(RTyVar, Type)] -> a -> a 
+subts = flip (foldr subt) 
 
 lookupP s p@(PV _ _ s')
   = case M.lookup p s of 
@@ -623,75 +624,42 @@ lookupP s p@(PV _ _ s')
       Just q   -> subv (\pv -> pv { pargs = s'}) q
 
 instance SubstP Type where
-  subp _ = id
-  subv _ = id
-  subt f (TyVarTy tv) = f (RTV tv) -- UNIFY: Deep Subst
+  subp _ = id 
+  subv _ = id 
+  subt (α', t') t@(TyVarTy tv) 
+    | α' == RTV tv = t'
+    | otherwise    = t
+  subt _ t = t -- UNIFY: Deep Subst
 
-instance SubstP (PVar Type)
+instance SubstP Reft where
+  subv _ = id 
+  subp _ = id 
+  subt _ = id
+
+instance SubstP (PVar Type) where
+  subp _    = id
+  subv f x  = f x
+  subt su x = error "TBD"
 
 instance SubstP (Predicate Type) where
   subv f (Pr pvs) = Pr (f <$> pvs)
   subp s (Pr pvs) = pdAnd (lookupP s <$> pvs) -- RJ: UNIFY: not correct!
-  subt t (Pr pvs) = error "TBD"
+  subt f (Pr pvs) = error "TBD"
 
-instance SubstP (UReft Reft Type) where
-  subp f (U r p) = U r (subp f p)
-  subv f (U r p) = U r (subv f p)
+instance SubstP (UReft a Type) where
+  subp f (U r p)  = U r (subp f p)
+  subv f (U r p)  = U r (subv f p)
+  subt f (U r p)  = U r (subt f p)
 
 -- NOTE: This DOES NOT substitute at the binders
 instance SubstP PrType where    
   subp f t = fmap (subp f) t
   subv f t = fmap (subv f) t 
-
-
-
-
---subsTyVarsP ::  Functor f => [(RTyVar, Type)] -> f Type -> f Type
---subsTyVarsP vts p = foldl' (flip subsTyVarP) p vts 
---  where subsTyVarP = fmap . tvSubst
-
-subsTyVarsP :: (SubstP a) => [(RTyVar, Type)] -> a -> a 
-subsTyVarsP vts x = foldl' (\x su -> subt (tvSubst su) x) vts
-
-tvSubst (α, t) α'@(RTV tv') 
-  | α == α'   = t
-  | otherwise = TyVarTy tv'
-
---tvSubst ::  (RTyVar, Type) -> Type -> Type
---tvSubst (α, t) t'@(TyVarTy α') 
---  | α == (RTV α') = t
---  | otherwise     = t'
---tvSubst _ t'
---  = t'
-----tvSubst _ t'
-----  = errorstar $ "tvSubst fails on: " ++ showPpr t
-
-HEREHEREHEREHERE
-mapRVar (subsTyVar s) = subsFree True S.empty s 
-
-
-subsTyVar (α, (RVar (RV a') p')) (RV a) p
-  | α == a     = RVar (RV a') (meet p p')
-  | otherwise  = RVar (RV a) p 
-subsTyVar (α, (RApp c ts ps p')) (RV a) p
-  | α == a     = RApp c ts ps (meet p p')
-  | otherwise  = RVar (RV a) p 
-subsTyVar (α, t) (RV a) p 
-  | α == a     = t 
-  | otherwise  = RVar (RV a) p 
-
-subsTyVars_ (v, t, τ) = mapReft (subsTyVarsP [(v, τ)]) . mapRVar (subsTyVar (v, t))
-
-HEREHEREHEREHEREHERE BUG
-subsTyVars s = traceShow ("subsTyVars s = " ++ show s) . 
-               mapReft (subv (subsTyVarP1_ s)) . mapRVar (subsTyVar s)
-  where subsTyVarP1_ (α, (RVar (RV (RTV α')) _)) = fmap $ tvSubst (α, TyVarTy α')
-        -- RJ: UNIFY: why no deep substitution? (just following subsTyVarAP_)
+  subt f t = error "TBD"
 
 substSym (x, y) = mapReft fp  -- RJ: UNIFY: BUG  mapTy fxy
   where fxy s = if (s == x) then y else s
         fp    = subv (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
-
 
 ---------------------------------------------------------------
 
