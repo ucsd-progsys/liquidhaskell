@@ -811,12 +811,6 @@ tidyDSymbols = tidy pool getS putS
 symSep = '#'
 
 mkSymbol ::  Var -> Symbol
---mkSymbol v = S $ vs ++ [symSep] ++ us
---  where us  = showPpr $ getUnique v 
---        vs  = pprShort v
---
---mkSymbol v = traceShow ("mkSymbol " ++ showPpr v ++ " = ") $ mkSymbol' v
-
 mkSymbol v 
   | us `isSuffixOf` vs = stringSymbol vs  
   | otherwise          = stringSymbol $ vs ++ [symSep] ++ us

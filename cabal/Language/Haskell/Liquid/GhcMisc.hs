@@ -20,7 +20,7 @@ import TysPrim          (intPrimTyCon)
 import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
 import CoreSyn          
 import CostCentre 
-import Language.Haskell.Liquid.Misc (traceShow)
+-- import Language.Haskell.Liquid.Misc (traceShow)
 import Control.Exception (assert)
 
 -----------------------------------------------------------------------
@@ -43,12 +43,6 @@ stringTyVar :: String -> TyVar
 stringTyVar s = mkTyVar name liftedTypeKind
   where name = mkInternalName initTyVarUnique occ noSrcSpan 
         occ  = mkTyVarOcc s
-
---eqTv α α' = traceShow msg $ assert (res == eqTv' α α') $ res  
---  where res = eqType (TyVarTy α) (TyVarTy α')
---        msg = "eqTv: α = " ++ tvId α ++ " α' = " ++ tvId α' 
---eqTv α α' = traceShow msg $ tvId α == tvId α'
---  where msg = "eqTv: α = " ++ tvId α ++ " α' = " ++ tvId α' 
  
 tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} show α ++ show (varUnique α)
   

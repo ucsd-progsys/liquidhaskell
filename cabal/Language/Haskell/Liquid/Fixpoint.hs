@@ -269,12 +269,10 @@ instance Fixpoint Subst where
 ---------------------------------------------------------------------------
 
 stringSymbol :: String -> Symbol
--- stringSymbol s = traceShow ("stringSymbol s = " ++ s) $ stringSymbol' s
 stringSymbol s
   | isFixSym' s = S s 
   | otherwise   = S $ fixSymPrefix ++ concatMap encodeChar s
 
--- symbolString (S z) = traceShow ("symbolString z = %s: " ++ z) $ symbolString' (S z)
 symbolString :: Symbol -> String
 symbolString (S str) 
   = case chopPrefix fixSymPrefix str of
