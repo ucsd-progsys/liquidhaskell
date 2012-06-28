@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
 module Language.Haskell.Liquid.PredType (
-    PrType, ofTypeP
+    PrType
   , TyConP (..), DataConP (..)
   , splitVsPs, typeAbsVsPs, splitArgsRes
   , generalize, generalizeArgs
@@ -86,28 +86,28 @@ dataConTy m (TyConApp c ts)
 dataConTy _ t
   = error "ofTypePAppTy"
 
-ofTypeP (TyVarTy α)            
-  = rVar α pdTrue
-ofTypeP (FunTy t1 t2)          
-  = RFun (RB dummySymbol) (ofTypeP t1) (ofTypeP t2)
-ofTypeP (ForAllTy α t)          
-  = RAll (rTyVar α) (ofTypeP t)
-ofTypeP t
-  | isPredTy t
-  = ofPredTree $ classifyPredType t
-ofTypeP (TyConApp c ts)
-  | TC.isSynTyCon c
-  = ofTypeP $ substTyWith αs ts τ
-  | otherwise
-  = rApp c (ofTypeP <$> ts) [] pdTrue
- where (αs, τ) = TC.synTyConDefn c
-ofTypeP t
-	= error "ofTypePAppTy"
-
-ofPredTree (ClassPred c ts)
-  = RCls c (ofTypeP <$> ts)
-ofPredTree _
-  = error "ofPredTree"
+--ofTypeP (TyVarTy α)            
+--  = rVar α pdTrue
+--ofTypeP (FunTy t1 t2)          
+--  = RFun (RB dummySymbol) (ofTypeP t1) (ofTypeP t2)
+--ofTypeP (ForAllTy α t)          
+--  = RAll (rTyVar α) (ofTypeP t)
+--ofTypeP t
+--  | isPredTy t
+--  = ofPredTree $ classifyPredType t
+--ofTypeP (TyConApp c ts)
+--  | TC.isSynTyCon c
+--  = ofTypeP $ substTyWith αs ts τ
+--  | otherwise
+--  = rApp c (ofTypeP <$> ts) [] pdTrue
+--  where (αs, τ) = TC.synTyConDefn c
+--ofTypeP t
+--	= error "ofTypePAppTy"
+--
+--ofPredTree (ClassPred c ts)
+--  = RCls c (ofType <$> ts)
+--ofPredTree _
+--  = error "ofPredTree"
 
 generalize     = generalize_ freePreds
 generalizeArgs = generalize_ freeArgPreds

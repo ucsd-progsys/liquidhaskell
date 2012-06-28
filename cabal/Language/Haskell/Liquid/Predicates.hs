@@ -184,7 +184,7 @@ consE _ e@(Lit c)
 
 consE γ (App e (Type τ)) 
   = do RAll (RV α) te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
-       return $ (α, ofTypeP τ) `subsTyVar_meet` te
+       return $ (α, ofType τ) `subsTyVar_meet` te
 
 consE γ (App e a)               
   = do RFun (RB x) tx t <- liftM (checkFun ("PNon-fun App with caller", e)) $ consE γ e 
@@ -407,7 +407,7 @@ splitCons
 -- generalize predicates of arguments: used on Rec Definitions
 
 initEnv info = PCGE { loc = noSrcSpan , penv = F.fromListSEnv bs}
-  where dflts  = [(x, ofTypeP $ varType x) | x <- freeVs]
+  where dflts  = [(x, ofType $ varType x) | x <- freeVs]
         dcs    = [(x, dconTy $ varType x) | x <- dcons]
         sdcs   = bimap TC.dataConWorkId dataConPtoPredTy <$> dconsP (spec info)
         assms  = passm $ tySigs $ spec info
@@ -470,7 +470,7 @@ freshTy t
   = error "freshTy"
 
 freshPredTree (ClassPred c ts)
-  = RCls c (ofTypeP <$> ts)
+  = RCls c (ofType <$> ts)
 
 freshTyConPreds c 
  = do s <- get

@@ -4,14 +4,14 @@
 
 module Language.Haskell.Liquid.RefType (
     RTyVar (..), RType (..), RRType (..), BRType (..), RTyCon(..)
-  , TyConable (..), Reftable(..), RefTypable (..), SubstP (..)
+  , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..)
   , RefType, PrType, BareType, SpecType
   , PVar (..), Predicate (..), UReft(..), DataDecl (..)
   , pdAnd, pdVar, pdTrue, pvars
   , listConName, tupConName -- , bLst, bTup, bCon, isBoolBareType, boolConName
   , Bind (..), RBind
   , ppr_rtype, mapReft, mapRVar, mapBind
-  , ofType, toType
+  , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp
   , typeUniqueSymbol
   , strengthen, strengthenRefType
@@ -473,8 +473,11 @@ ppr_rtype p (RFun x t t')
 ppr_rtype p ty@(RApp c [t] rs r)
   | isList c 
   = ppTy r $ brackets (ppr_rtype p t) <> ppReftPs rs
+ppr_rtype p ty@(RApp c ts rs r)
+  | isTuple c 
+  = ppTy r $ parens (intersperse comma (ppr_rtype p <$> ts)) <> ppReftPs rs
 ppr_rtype p (RApp c ts rs r)
-  = ppTy r $ ppr c <> ppReftPs rs <+> hsep (ppr_rtype p <$> ts)
+  = ppTy r $ ppr c <+> hsep (ppr_rtype p <$> ts) <+> ppReftPs rs 
 ppr_rtype _ ty@(RCls c ts)      
   = ppCls c ts
 ppr_rtype _ (ROth s)
@@ -577,7 +580,7 @@ subsTyVar meet        = subsFree meet S.empty
 subsTyVars meet ats t = foldl' (flip (subsTyVar meet)) t ats
 
 
-subsFree ::  (SubstP r, Reftable r) => Bool -> S.Set RTyVar -> (RTyVar, RRType (PVar Type) r) -> RRType (PVar Type) r -> RRType (PVar Type) r 
+subsFree ::  (SubsTy r, Reftable r) => Bool -> S.Set RTyVar -> (RTyVar, RRType (PVar Type) r) -> RRType (PVar Type) r -> RRType (PVar Type) r 
 
 subsFree m s z (RAll (RP p) t)         
   = RAll (RP p') t'
@@ -610,12 +613,12 @@ subsFree _ _ _ t
 ------------------- Type Substitutions ------------------------------
 ---------------------------------------------------------------------
 
-class SubstP a where
+class SubsTy a where
   subp :: M.Map (PVar Type) (Predicate Type) -> a -> a
   subv :: (PVar Type -> PVar Type) -> a -> a
   subt :: (RTyVar, Type) -> a -> a
   
--- subts :: (SubstP a) => [(RTyVar, Type)] -> a -> a 
+-- subts :: (SubsTy a) => [(RTyVar, Type)] -> a -> a 
 subts = flip (foldr subt) 
 
 lookupP s p@(PV _ _ s')
@@ -623,7 +626,7 @@ lookupP s p@(PV _ _ s')
       Nothing  -> Pr [p]
       Just q   -> subv (\pv -> pv { pargs = s'}) q
 
-instance SubstP Type where
+instance SubsTy Type where
   subp _ = id 
   subv _ = id 
   subt (α', t') t@(TyVarTy tv) 
@@ -631,31 +634,31 @@ instance SubstP Type where
     | otherwise    = t
   subt _ t = t -- UNIFY: Deep Subst
 
-instance SubstP Reft where
+instance SubsTy Reft where
   subv _ = id 
   subp _ = id 
   subt _ = id
 
-instance SubstP (PVar Type) where
-  subp _    = id
-  subv f x  = f x
-  subt su x = error "TBD"
+instance SubsTy (PVar Type) where
+  subp _               = id
+  subv f x             = f x
+  subt su (PV n t xts) = PV n (subt su t) [(subt su t, x, y) | (t,x,y) <- xts] 
 
-instance SubstP (Predicate Type) where
+instance SubsTy (Predicate Type) where
   subv f (Pr pvs) = Pr (f <$> pvs)
   subp s (Pr pvs) = pdAnd (lookupP s <$> pvs) -- RJ: UNIFY: not correct!
-  subt f (Pr pvs) = error "TBD"
+  subt f (Pr pvs) = Pr (subt f <$> pvs)
 
-instance SubstP (UReft a Type) where
+instance SubsTy (UReft a Type) where
   subp f (U r p)  = U r (subp f p)
   subv f (U r p)  = U r (subv f p)
   subt f (U r p)  = U r (subt f p)
 
 -- NOTE: This DOES NOT substitute at the binders
-instance SubstP PrType where    
-  subp f t = fmap (subp f) t
-  subv f t = fmap (subv f) t 
-  subt f t = error "TBD"
+instance SubsTy PrType where    
+  subp f t  = fmap (subp f) t
+  subv f t  = fmap (subv f) t 
+  subt      = subsTyVar_meet . second ofType 
 
 substSym (x, y) = mapReft fp  -- RJ: UNIFY: BUG  mapTy fxy
   where fxy s = if (s == x) then y else s
@@ -671,37 +674,33 @@ stripRTypeBase (RVar _ x)
 stripRTypeBase _                
   = Nothing
 
-ofType :: Type -> RefType
+-- ofType ::  Reftable r => Type -> RRType a r
+
 ofType = ofType_ 
 
-ofType_ :: Type -> RefType 
+ofType_ (TyVarTy α)     
+  = rVar α top 
 ofType_ (FunTy τ τ')    
   = RFun (RB dummySymbol) (ofType_ τ) (ofType_ τ')
 ofType_ (ForAllTy α τ)  
   = RAll (rTyVar α) $ ofType_ τ  
-ofType_ (TyVarTy α)     
-  = RVar (rTyVar α) trueReft 
 ofType_ τ
   | isPredTy τ
   = ofPredTree (classifyPredType τ)  
-ofType_ τ@(TyConApp c _)
+ofType_ τ@(TyConApp c τs)
   | TC.isSynTyCon c
-  = ofSynTyConApp τ
+  = ofType_ $ substTyWith αs τs τ
   | otherwise
-  = ofTyConApp τ
+  = rApp c (ofType_ <$> τs) [] top 
+  where (αs, τ) = TC.synTyConDefn c
 ofType_ τ               
-  = ROth (show τ)  
+  = error "ofType" -- ROth (show τ)  
 
 ofPredTree (ClassPred c τs)
   = RCls c (ofType_ <$> τs)
- 
+ofPredTree _
+  = error "ofPredTree"
 
-ofTyConApp  τ@(TyConApp c τs) 
-  = rApp c (ofType_ <$> τs) [] trueReft
-
-ofSynTyConApp (TyConApp c τs) 
-  = ofType_ $ substTyWith αs τs τ
-  where (αs, τ) = TC.synTyConDefn c
 
 -----------------------------------------------------------------
 ---------------------- Scrap this using SYB? --------------------
