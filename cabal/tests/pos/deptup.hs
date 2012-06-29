@@ -6,12 +6,20 @@ import Language.Haskell.Liquid.Prelude
 
 data Pair a b = P a b
 
-mkPair x y = P x y
 
-incr :: Int -> Int 
+{-- TODO: mkP :: forall a b <p :: a -> b -> Bool>. x: a -> y: b<p x> -> Pair <p> a b  --}
+
+mkP :: a -> a -> Pair a a 
+mkP x y = P x y
+
 incr x = x + 1
 
-baz x  = mkPair x (incr x)
+baz x  = mkP x (incr x)
+
+chk (P x y) = assert (x < y)
+
+prop = chk $ baz n
+  where n = choose 100
 
 bazList  xs = map baz xs
 
@@ -21,6 +29,4 @@ xs          = [0,1,2,3,4]
 
 prop_baz    = map chk $ bazList xs 
 
-chk :: (Pair Int Int) -> Bool
-chk (P x y) = assert (x < y)
 
