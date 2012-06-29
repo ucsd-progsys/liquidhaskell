@@ -2,6 +2,12 @@ module ListLen where
 
 import Language.Haskell.Liquid.Prelude
 
+{-@  
+data List a <p :: a -> a -> Bool>  
+  = Nil 
+  | Cons (h :: a) (t :: List <p> (a <p h>))
+@-}
+
 data List a = Nil | Cons a (List a)
 
 make2d :: a -> Int -> Int -> List ([a])

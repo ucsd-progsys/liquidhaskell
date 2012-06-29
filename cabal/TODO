@@ -14,20 +14,8 @@ FEATURE STACK
 
 FAILING TESTS: 
      <--------- HEREHEREHEREHEREHEREHERE
-
-    , pos/ListLen-LType.hs      (type annot issue ???)
-    , pos/ListMSort-LType.hs    ("")
-    , pos/ListQSort-LType.hs    ("")
-    , pos/ListRange-LType.hs    ("")
-    
     , pos/BST.hs
     , pos/Map.hs
-
-    , pos/vector1.hs            (malformed constraints)
-    , pos/vector1a.hs           ("")
-    , pos/vector1b.hs           ("")
-
-
 
 Tidy Annotations
 ----------------
