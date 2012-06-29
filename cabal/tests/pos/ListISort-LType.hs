@@ -16,7 +16,6 @@ data List a
   = Nil 
   | Cons a (List a)
 
-
 checkSort :: List Int -> Bool
 checkSort Nil                        
   = True
@@ -46,10 +45,9 @@ insert y (Cons x xs)
   | y <= x    = y `Cons` (x `Cons` xs) 
   | otherwise = x `Cons` (insert y xs)
 
-mkList ::  Ord a => [a] -> List a
-mkList = foldr insert Nil
+insertSort = foldr insert Nil
 
-bar3 = mkList $ map choose [1 .. 10]
+bar3 = insertSort $ map choose [1 .. 10]
 prop3 = checkSort bar3
 
 

@@ -28,36 +28,27 @@ pos/vector1b.hs
 
 2. nuke GhcInterface.listTyDataCons
 
-3. PredType.dataConTy == (mapReft (\_ -> pdTrue)) . ofType 
--- REFACTORING
--- PrFun x t1 t2 ==> RFun (RB x) t1 t2
--- PrAllPr pv t  ==> RAll (RP pv) t
--- PrAll v t     ==> RAll (RV v) t
--- PrVar v p     ==> RVar (RV v) p
+STACK
+      neg/concat1.hs            (function-refinements)
+    , pos/ListISort-LType.hs    (requires type annot?)
 
 Failed 17 tests: 
-      neg/concat1.hs
+
+    , pos/deptup.hs  <--------- HEREHEREHEREHEREHEREHERE
+    , pos/deptup0.hs
+    , pos/deptup1.hs
+
+    , pos/ListLen-LType.hs      (type annot issue ???)
+    , pos/ListMSort-LType.hs    ("")
+    , pos/ListQSort-LType.hs    ("")
+    , pos/ListRange-LType.hs    ("")
+    
     , pos/BST.hs
-    , pos/ListISort-LType.hs
-    , pos/ListLen-LType.hs
-    , pos/ListMSort-LType.hs
-    , pos/ListQSort-LType.hs
-    , pos/ListRange-LType.hs
     , pos/Map.hs
-    , pos/deptup.hs
 
-NEXT UP (HEREHEREHEREHEREHERE)
-
-, pos/niki.hs
-MOVE Niki.Dat into .hs
-
-, pos/deptup0.hs
-, pos/deptup1.hs
-
-, pos/niki1.hs
-, pos/vector1.hs
-, pos/vector1a.hs
-, pos/vector1b.hs
+    , pos/vector1.hs            (malformed constraints)
+    , pos/vector1a.hs           ("")
+    , pos/vector1b.hs           ("")
 
 
 
