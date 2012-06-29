@@ -12,10 +12,8 @@ FEATURE STACK
       neg/concat1.hs            (function-refinements)
     , pos/deptup.hs             (type signature: for constructor wrapper)
 
-
 FAILING TESTS: 
-
-    , pos/ListISort-LType.hs    (requires type annot?)  <--------- HEREHEREHEREHEREHEREHERE
+     <--------- HEREHEREHEREHEREHEREHERE
 
     , pos/ListLen-LType.hs      (type annot issue ???)
     , pos/ListMSort-LType.hs    ("")

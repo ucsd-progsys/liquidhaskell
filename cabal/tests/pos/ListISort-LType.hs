@@ -16,7 +16,6 @@ data List a
   = Nil 
   | Cons a (List a)
 
-checkSort :: List Int -> Bool
 checkSort Nil                        
   = True
 checkSort (_ `Cons` Nil)             
@@ -28,7 +27,6 @@ xs0 :: List Int
 xs0   = Nil
 prop0 = checkSort xs0
 
-xs1 :: List Int 
 xs1   = 4 `Cons` Nil
 prop1 = checkSort xs1 
 
@@ -49,5 +47,3 @@ insertSort = foldr insert Nil
 
 bar3 = insertSort $ map choose [1 .. 10]
 prop3 = checkSort bar3
-
-

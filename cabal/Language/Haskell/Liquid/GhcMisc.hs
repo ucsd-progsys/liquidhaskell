@@ -48,3 +48,4 @@ tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} show α ++ show (varUniqu
   
 intersperse d ds = hsep $ punctuate (space <> d) ds
 
+tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) $ x
