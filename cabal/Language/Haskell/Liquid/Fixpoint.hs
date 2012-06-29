@@ -462,7 +462,7 @@ ppr_reft (Reft (v, ras)) d
   | all isTautoRa ras
   = d
   | otherwise
-  =  braces (ppr v <+> colon <+> d <+> text "|" <+> ppRas ras)
+  = braces (ppr v <+> colon <+> d <+> text "|" <+> ppRas ras)
 
 --ppr_reft_preds rs 
 --  | all isTautoReft rs 

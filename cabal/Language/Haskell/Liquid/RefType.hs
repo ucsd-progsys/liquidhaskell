@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleContexts, ScopedTypeVariables, NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, DeriveDataTypeable, RankNTypes, GADTs #-}
+{-# LANGUAGE IncoherentInstances, MultiParamTypeClasses, FlexibleContexts, ScopedTypeVariables, NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, DeriveDataTypeable, RankNTypes, GADTs #-}
 
 {- Refinement Types Mirroring the GHC Type definition -}
 
@@ -122,16 +122,13 @@ instance Monoid (Predicate t) where
   mempty       = pdTrue
   mappend p p' = pdAnd [p, p']
 
-instance Show (Predicate Type) where
-  show = showSDoc . ppr
-
 instance (Outputable (PVar t)) => Outputable (Predicate t) where
   ppr (Pr [])       = text "True"
   ppr (Pr pvs)      = hsep $ punctuate (text "&") (map ppr pvs)
 
 instance Outputable (Predicate t) => Show (Predicate t) where
-  show = showSDoc . ppr
-  
+  show = showPpr 
+
 instance Outputable (PVar t) => Reftable (Predicate t) where
   isTauto (Pr ps) 
     = null ps
@@ -199,12 +196,14 @@ class (Monoid r, Outputable r) => Reftable r where
   meet    :: r -> r -> r
   meet    = mappend
 
-
 class TyConable c where
   isList   :: c -> Bool
   isTuple  :: c -> Bool
 
-class (Outputable p, Outputable c, Outputable tv, Outputable pv, Reftable r, TyConable c) => RefTypable p c tv pv r where
+class Outputable pv => PVarable pv where
+  ppr_def :: pv -> SDoc
+
+class (Outputable p, Outputable c, Outputable tv, PVarable pv, Reftable r, TyConable c) => RefTypable p c tv pv r where
   ppCls    :: p -> [RType p c tv pv r] -> SDoc
   
   ppRType  :: Prec -> RType p c tv pv r -> SDoc 
@@ -389,12 +388,18 @@ instance Outputable RTyVar where
 instance Show RTyVar where
   show = showPpr 
 
+-- DEBUG ONLY
+instance Outputable (Bind String (PVar String)) where
+  ppr (RB x) = ppr x
+  ppr (RV a) = text a
+  ppr (RP p) = ppr p
+ 
 instance (Outputable tv, Outputable pv) => Outputable (Bind tv pv) where
   ppr (RB x) = ppr x
   ppr (RV a) = ppr a
   ppr (RP p) = ppr p
 
-instance Show RBind where
+instance Outputable (Bind tv pv) => Show (Bind tv pv) where
   show = showPpr 
 
 instance TyConable RTyCon where
@@ -412,7 +417,7 @@ instance TyConable String where
   isList  = (listConName ==) 
   isTuple = (tupConName ==)
 
-instance (Outputable pv, Reftable r) => RefTypable String String String pv r where
+instance (PVarable pv, Reftable r) => RefTypable String String String pv r where
   ppCls c ts = parens (text c <+> text "...")
 
 instance (Reftable r, Reftable (Predicate t)) => Outputable (UReft r t) where
@@ -421,6 +426,8 @@ instance (Reftable r, Reftable (Predicate t)) => Outputable (UReft r t) where
     | isTauto p  = ppr r
     | otherwise  = ppr p <> text " & " <> ppr r
 
+instance Outputable (UReft r t) => Show (UReft r t) where
+  show = showSDoc . ppr 
 
 instance (Monoid a) => Monoid (UReft a b) where
   mempty                    = U mempty mempty
@@ -430,24 +437,28 @@ instance (Reftable r, Reftable (Predicate t)) => Reftable (UReft r t) where
   isTauto (U r p) = isTauto r && isTauto p 
   ppTy (U r p) d  = ppTy r (ppTy p d) 
 
-instance (Outputable pv, Reftable r) => RefTypable Class RTyCon RTyVar pv r where
+instance (PVarable pv, Reftable r) => RefTypable Class RTyCon RTyVar pv r where
   ppCls c ts  = parens $ pprClassPred c (toType <$> ts)
 
-instance Outputable (PVar String) where
-  ppr  = ppr_pvar text
+instance Outputable (PVar t) where
+  ppr (PV s t xts) = ppr s <+> hsep (ppr <$> dargs xts)
+    where dargs = map thd3 . takeWhile (\(_, x, y) -> x /= y) 
+ 
+instance PVarable (PVar String) where
+  ppr_def = ppr_pvar_def text
 
-instance Outputable (PVar Type) where
-  ppr  = ppr_pvar ppr_pvar_type 
+instance PVarable (PVar Type) where
+  ppr_def = ppr_pvar_def ppr_pvar_type 
+
+ppr_pvar_def pprv (PV s t xts) = ppr s <+> dcolon <+> intersperse arrow dargs 
+  where dargs = [pprv t | (t,_,_) <- xts] ++ [pprv t, text boolConName]
 
 ppr_pvar_type (TyVarTy α) = ppr_tyvar α
 ppr_pvar_type t           = ppr t
 
-ppr_pvar pprv (PV s t xts) = ppr s <+> dcolon <+> intersperse arrow dargs 
-  where dargs = [pprv t | (t,_,_) <- xts] ++ [pprv t, text boolConName]
 
---ppr_pvar pprv (PV s t []) = ppr s <> colon <> pprv t
---ppr_pvar pprv (PV s t xs) = ppr ((PV s t [])) <+> (parens $ hsep (punctuate comma (ppArg <$> xs)))
---                            where ppArg (t, _, x) = ppr x <+> colon <+> pprv t
+-- isPVarDef (PV _ _ xts) = all (\(_, x, y) -> x == y) xts  
+
 
 instance (RefTypable p c tv pv r) => Outputable (RType p c tv pv r) where
   ppr = ppRType TopPrec
@@ -456,17 +467,17 @@ instance Outputable (RType p c tv pv r) => Show (RType p c tv pv r) where
   show = showSDoc . ppr
 
 instance Outputable RTyCon where
-  ppr (RTyCon c ts) = ppr c -- <+> text "\n<<" <+> hsep (map ppr ts) <+> text ">>\n"
-  
+  ppr (RTyCon c ts) = ppr c 
+  -- <+> text "\n<<" <+> hsep (map ppr ts) <+> text ">>\n"
+
 instance Show RTyCon where
  show = showPpr
 
 ppr_rtype :: (RefTypable p c tv pv r) => Prec -> RType p c tv pv r -> SDoc
-ppr_rtype p (RAll pv@(RP _) t)
-  = text "forall" <+> ppr pv <+> ppr_pred p t
-ppr_rtype p t@(RAll (RV _) _)       
+
+ppr_rtype p t@(RAll _ _)       
   = ppr_forall p t
-ppr_rtype p (RVar a r)         
+ppr_rtype p (RVar (RV a) r)         
   = ppTy r $ ppr a
 ppr_rtype p (RFun x t t')  
   = pprArrowChain p $ ppr_dbind x t : ppr_fun_tail t'
@@ -477,12 +488,11 @@ ppr_rtype p ty@(RApp c ts rs r)
   | isTuple c 
   = ppTy r $ parens (intersperse comma (ppr_rtype p <$> ts)) <> ppReftPs rs
 ppr_rtype p (RApp c ts rs r)
-  = ppTy r $ ppr c <+> hsep (ppr_rtype p <$> ts) <+> ppReftPs rs 
+  = ppTy r $ ppr c <+> ppReftPs rs <+> hsep (ppr_rtype p <$> ts)  
 ppr_rtype _ ty@(RCls c ts)      
   = ppCls c ts
 ppr_rtype _ (ROth s)
   = text "?" <> text s <> text "?"
-
 
 ppReftPs rs 
   | all isTauto rs = empty -- text "" 
@@ -519,7 +529,7 @@ ppr_foralls [] = empty
 ppr_foralls bs = text "forall" <+> dαs [ α | RV α <- bs] <+> dπs [ π | RP π <- bs] <> dot
   where dαs αs = sep $ ppr <$> αs 
         dπs [] = empty 
-        dπs πs = angleBrackets $ intersperse comma $ ppr <$> πs
+        dπs πs = angleBrackets $ intersperse comma $ ppr_def <$> πs
 
 
 

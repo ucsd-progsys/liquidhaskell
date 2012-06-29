@@ -229,8 +229,7 @@ bbaseP :: Parser (Reft -> BareType)
 bbaseP 
   =  liftM2 bLst (brackets bareTypeP) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
- <|> try (liftM3 bCon upperIdP (sepBy bareTypeP blanks) predicatesP)
--- <|> try (liftM (`bCon` []) upperIdP)
+ <|> try (liftM3 bCon upperIdP predicatesP (sepBy bareTypeP blanks) )
  <|> liftM2 bRVar lowerIdP predicateP
 
 bareAllP 
@@ -353,7 +352,7 @@ predVarUseP
 bLst t rs r    = RApp listConName [t] (predUReft <$> rs) (reftUReft r) 
 bTup [t] _ _   = t
 bTup ts rs r   = RApp tupConName ts (predUReft <$> rs) (reftUReft r)
-bCon b ts rs r = RApp b ts (predUReft <$> rs) (reftUReft r)
+bCon b rs ts r = RApp b ts (predUReft <$> rs) (reftUReft r)
 bRVar α p r    = RVar (RV α) (U r p)
 
 

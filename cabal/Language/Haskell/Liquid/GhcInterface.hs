@@ -192,8 +192,8 @@ moduleSpec target mg paths
                    , tySigs  = tySigs
                    , ctor    = cs
                    , meas    = ms
-                   , dconsP  = {- traceShow "dconsP:" $ -} concat dcs ++ snd listTyDataCons 
-                   , tconsP  = {- traceShow "tconsP:" $ -} tcs ++ fst listTyDataCons }
+                   , dconsP  = traceShow "dconsP:" $ concat dcs ++ snd listTyDataCons 
+                   , tconsP  = traceShow "tconsP:" $ tcs ++ fst listTyDataCons }
     where mod      = mg_module mg
           impNames = (moduleNameString . moduleName) <$> impMods
           impMods  = moduleEnvKeys $ mg_dir_imps mg
