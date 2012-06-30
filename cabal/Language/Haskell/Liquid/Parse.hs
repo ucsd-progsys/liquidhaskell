@@ -290,11 +290,11 @@ bindP  = lowerIdP <* colon
 dcolon = string "::" <* spaces
 
 bareArrow "" t1 ArrowFun t2
-  = RFun dummyBind t1 t2
+  = rFun dummyBind t1 t2
 bareArrow x t1 ArrowFun t2
-  = RFun (stringBind x) t1 t2
+  = rFun (stringBind x) t1 t2
 bareArrow x t1 ArrowPred t2
-  = foldr (RFun dummyBind) t2 (getClasses t1)
+  = foldr (rFun dummyBind) t2 (getClasses t1)
 
 isBoolBareType (RApp tc [] _ _) = tc == boolConName
 isBoolBareType _                = False
@@ -411,9 +411,9 @@ tyBodyP ty
   = case outTy ty of
       Just bt | isBoolBareType bt -> Measure.P <$> predP 
       _                           -> Measure.E <$> exprP
-    where outTy (RAll _ t)   = outTy t
-          outTy (RFun _ _ t) = Just t
-          outTy _            = Nothing
+    where outTy (RAll _ t)     = outTy t
+          outTy (RFun _ _ t _) = Just t
+          outTy _              = Nothing
 
 
 binderP :: Parser Symbol
@@ -446,30 +446,7 @@ measurePatP
 --------------------------------- Predicates ----------------------------------
 -------------------------------------------------------------------------------
 
---tyConVarIdP :: Parser String
---tyConVarIdP = condIdP alphanums (isUpper . head) 
---  where alphanums = ['a'..'z'] ++ ['0'..'9']
-
---predVarArgP
--- = do x <- predVarIdP
---      colon
---      t <- tyVarIdP
---      return (t, x, x)
-
---predVarUseP 
--- = do p <- predVarIdP
---      xs <-(try $ parens $ sepBy predVarIdP comma) <|> return []
---      return $ PV p dummyTyId [ (dummyTyId, dummySymbol, x) | x <- xs ]
---   where dummyTyId = ""
-
---predicateP 
---  = try (reserved "True" >> return pdTrue)
---  <|> liftM pdVar predVarUseP  
-
---predTypeP = liftM (mapReft upred) bareTypeP
-
 predTypeDDP = parens $ liftM2 (,) bbindP bareTypeP
-
 
 dataConP
  = do x <- upperIdP

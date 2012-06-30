@@ -274,9 +274,10 @@ splitW (WfCS γ τ s)
         r'   = typeSortedReft τ s
         ci   = Ci (loc γ)
 
-splitW (WfC γ (RFun (RB x) r1 r2)) 
-  =  splitW (WfC γ r1) 
-  ++ splitW (WfC ((γ, "splitW") += (x, r1)) r2)
+splitW (WfC γ t@(RFun (RB x) t1 t2 _)) 
+  =  bsplitW γ t
+  ++ splitW (WfC γ t1) 
+  ++ splitW (WfC ((γ, "splitW") += (x, t1)) t2)
 
 splitW (WfC γ (RAll a r)) 
   = splitW (WfC γ r)
@@ -287,17 +288,10 @@ splitW (WfC γ t@(RVar _ r))
 splitW (WfC γ (RCls _ _))
   = []
 
--- splitW (WfC γ t@(RApp c ts rs _))
---  = bsplitW γ t
--- 		 ++ (concatMap splitW $ zipWith WfC γs ts)
--- 		 ++ (concatMap (rsplitW γ) (zip rs ps))
--- 	where ps = rTyConPs c 
---       ys = (\(RB y) -> y) <$> rTyConBnds c
-
 splitW (WfC γ t@(RApp c ts rs _))
-	= bsplitW γ t 
-   ++ (concatMap splitW (map (WfC γ) ts)) 
-   ++ (concatMap (rsplitW γ) (zip rs ps))
+  =  bsplitW γ t 
+  ++ (concatMap splitW (map (WfC γ) ts)) 
+  ++ (concatMap (rsplitW γ) (zip rs ps))
  where ps = rTyConPs c
 
 
@@ -319,19 +313,22 @@ rsplitW γ (r, ((PV _ t as)))
   = [F.WfC env' r' Nothing ci]
   where env' = fenv γ'
         ci   = Ci (loc γ)
-        r'   = refTypePredSortedReft_ (r, t)
+        r'   = refTypePredSortedReft (r, t)
         γ'   = foldl' (++=) γ (map (\(τ, x, _) -> (x, ofType τ)) as) 
 
 ------------------------------------------------------------
 splitC :: SubC -> [FixSubC]
 ------------------------------------------------------------
-splitC (SubC γ t1@(RFun (RB x1) r1 r1') t2@(RFun (RB x2) r2 r2')) 
-  = splitC (SubC γ r2 r1) ++ splitC (SubC γ' r1x2' r2') 
-    where r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
-          γ'    = (γ, "splitC") += (x2, r2) 
 
-splitC (SubC γ (RAll _ r1) (RAll _ r2)) 
-  = splitC (SubC γ r1 r2) 
+splitC (SubC γ t1@(RFun (RB x1) r1 r1' re1) t2@(RFun (RB x2) r2 r2' re2)) 
+  =  bsplitC γ t1 t2 
+  ++ splitC  (SubC γ r2 r1) 
+  ++ splitC  (SubC γ' r1x2' r2') 
+     where r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
+           γ'    = (γ, "splitC") += (x2, r2) 
+
+splitC (SubC γ (RAll _ t1) (RAll _ t2)) 
+  = splitC (SubC γ t1 t2) 
 
 splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
 	= bsplitC γ t1 t2 
@@ -391,8 +388,8 @@ rsplitC γ ((r1, r2), (PV _ t as))
   = [F.SubC env' F.PTrue r1' r2' Nothing [] ci]
   where env' = fenv γ'
         ci   = Ci (loc γ)
-        r1'  = refTypePredSortedReft_ (r1, t)
-        r2'  = refTypePredSortedReft_ (r2, t)
+        r1'  = refTypePredSortedReft (r1, t)
+        r2'  = refTypePredSortedReft (r2, t)
         γ'   = foldl' (++=) γ (map (\(τ, x, _) -> (x, ofType τ)) as) 
 
 -----------------------------------------------------------
@@ -526,8 +523,8 @@ instance Freshable RefType where
 
 trueRefType (RAll α t)       
   = liftM (RAll α) (true t)
-trueRefType (RFun _ t t')    
-  = liftM3 RFun fresh (true t) (true t')
+trueRefType (RFun _ t t' _)    
+  = liftM3 rFun fresh (true t) (true t')
 trueRefType (RApp c ts refs _)  
   = liftM (\ts -> RApp c ts truerefs (F.trueReft)) (mapM true ts)
 		where truerefs = (\_ -> F.trueReft)<$> (rTyConPs c)
@@ -535,14 +532,13 @@ trueRefType t
   = return t
 
 
-
 refreshRefType (RAll α t)       
   = liftM (RAll α) (refresh t)
-refreshRefType (RFun b t t')
-  | b == (RB F.dummySymbol) -- isDummyBind b
-  = liftM3 RFun fresh (refresh t) (refresh t')
+refreshRefType (RFun b t t' _)
+  | b == (RB F.dummySymbol)
+  = liftM3 rFun fresh (refresh t) (refresh t')
   | otherwise
-  = liftM2 (RFun b) (refresh t) (refresh t')
+  = liftM2 (rFun b) (refresh t) (refresh t')
 refreshRefType (RApp (rc@RTyCon {rTyCon = c}) ts rs r)  
   = do s <- get 
        let RTyCon c0 ps = M.findWithDefault rc c $ tyConInfo s
@@ -638,10 +634,10 @@ unifyS (RAll (RV v) t) (RAll (RV v') pt)
   = do t' <-  unifyS t $ subsTyVar_meet (v', RVar (RV v) pdTrue) pt 
        return $ RAll (RV v) t'
 
-unifyS (RFun (RB x) rt1 rt2) (RFun (RB x') pt1 pt2)
+unifyS (RFun (RB x) rt1 rt2 _) (RFun (RB x') pt1 pt2 _)
   = do t1' <- unifyS rt1 pt1
        t2' <- unifyS rt2 (substSym (x', x) pt2)
-       return $ RFun (RB x) t1' t2' 
+       return $ rFun (RB x) t1' t2' 
 
 unifyS t@(RCls c _) (RCls _ _)
   = return t
@@ -688,7 +684,7 @@ cconsE γ ex@(Case e x τ cases) t
 cconsE γ (Lam α e) (RAll _ t) | isTyVar α
   = cconsE γ e t
 
-cconsE γ (Lam x e) (RFun (RB y) ty t) 
+cconsE γ (Lam x e) (RFun (RB y) ty t _) 
   | not (isTyVar x) 
   = do cconsE ((γ, "cconsE") += (mkSymbol x, ty)) e te 
        addIdA x (Left ty) 
@@ -734,7 +730,7 @@ consE γ e'@(App e a) | eqType (exprType a) predType
          t                            -> return t
 
 consE γ e'@(App e a)               
-  = do RFun (RB x) tx t <- liftM (checkFun ("Non-fun App with caller", e)) $ consE γ e 
+  = do RFun (RB x) tx t _ <- liftM (checkFun ("Non-fun App with caller", e)) $ consE γ e 
        cconsE γ a tx 
        case argExpr a of 
          Just e  -> return $ t `F.subst1` (x, e)
@@ -748,7 +744,7 @@ consE γ  e@(Lam x e1)
        t1     <- consE ((γ, "consE") += (mkSymbol x, tx)) e1
        addIdA x (Left tx) 
        addW   $ WfC γ tx 
-       return $ RFun (RB (mkSymbol x)) tx t1
+       return $ rFun (RB (mkSymbol x)) tx t1
     where FunTy τx _ = exprType e 
 
 consE γ e@(Let _ _)       
@@ -826,17 +822,16 @@ addBinders γ0 x' cbs
           γ2     = if x' `memberREnv` (renv γ1) then error "DIE DIE DIE" else γ1
 
 checkTyCon _ t@(RApp _ _ _ _) = t
-checkTyCon x t                   = errorstar $ showPpr x ++ "type: " ++ showPpr t
+checkTyCon x t                = errorstar $ showPpr x ++ "type: " ++ showPpr t
 
-checkRPred _ t@(RAll _ _)       = t
-checkRPred x t                  = errorstar $ showPpr x ++ "type: " ++ showPpr t
+checkRPred _ t@(RAll _ _)     = t
+checkRPred x t                = errorstar $ showPpr x ++ "type: " ++ showPpr t
 
-checkFun _ t@(RFun _ _ _)        = t
-checkFun x t                     = errorstar $ showPpr x ++ "type: " ++ showPpr t
+checkFun _ t@(RFun _ _ _ _)   = t
+checkFun x t                  = errorstar $ showPpr x ++ "type: " ++ showPpr t
 
-checkAll _ t@(RAll _ _)          = t
-checkAll x t                     = errorstar $ showPpr x ++ "type: " ++ showPpr t
-
+checkAll _ t@(RAll _ _)       = t
+checkAll x t                  = errorstar $ showPpr x ++ "type: " ++ showPpr t
 
 varAnn γ x t 
   | x `S.member` recs γ
@@ -946,7 +941,7 @@ exprRefType_ γ (Lam α e) | isTyVar α
   = RAll (rTyVar α) (exprRefType_ γ e)
 
 exprRefType_ γ (Lam x e) 
-  = RFun (RB (mkSymbol x)) (ofType $ varType x) (exprRefType_ γ e)
+  = rFun (RB (mkSymbol x)) (ofType $ varType x) (exprRefType_ γ e)
 
 exprRefType_ γ (Tick _ e)
   = exprRefType_ γ e

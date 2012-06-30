@@ -212,13 +212,13 @@ wiredIn = M.fromList $
 
 type BareM a = ReaderT HscEnv IO a
 
-ofBareType :: BRType pv r -> BareM (RRType pv r)
+ofBareType :: (Reftable r) => BRType pv r -> BareM (RRType pv r)
 ofBareType (RVar (RV a) r) 
   = return $ RVar (stringRTyVar a) r
 ofBareType (RVar (RP π) r) 
   = return $ RVar (RP π) r
-ofBareType (RFun (RB x) t1 t2) 
-  = liftM2 (RFun (RB x)) (ofBareType t1) (ofBareType t2)
+ofBareType (RFun (RB x) t1 t2 _) 
+  = liftM2 (rFun (RB x)) (ofBareType t1) (ofBareType t2)
 ofBareType (RAll (RV a) t) 
   = liftM  (RAll (stringRTyVar a)) (ofBareType t)
 ofBareType (RAll (RP π) t) 
@@ -262,7 +262,7 @@ mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
 measureCtors ::  Ms.MSpec t Symbol -> [String]
 measureCtors = nubSort . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.ctorMap 
 
-mkMeasureSort :: Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
+mkMeasureSort :: (Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
 mkMeasureSort (Ms.MSpec cm mm) 
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> 
       liftM (\s' -> m {Ms.sort = s'}) (ofBareType (Ms.sort m))

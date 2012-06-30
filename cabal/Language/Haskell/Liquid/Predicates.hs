@@ -151,8 +151,9 @@ tyC (RApp c1 ts1 ps1 p1) (RApp c2 ts2 ps2 p2)
 tyC (RCls c1 _) (RCls c2 _) 
   = return $ c1 == c2
 
-tyC (RFun (RB x) t1 t2) (RFun (RB x') t1' t2')
-  = do b1 <- tyC t1 t1'
+tyC (RFun (RB x) t1 t2 p1) (RFun (RB x') t1' t2' p2)
+  = do modify $ \(ps, msg) -> ((p2, p1):ps, msg)
+       b1 <- tyC t1 t1'
        b2 <- tyC (substSym (x, x') t2) t2'
        return $ b1 && b2
 
@@ -187,7 +188,7 @@ consE γ (App e (Type τ))
        return $ (α, ofType τ) `subsTyVar_meet` te
 
 consE γ (App e a)               
-  = do RFun (RB x) tx t <- liftM (checkFun ("PNon-fun App with caller", e)) $ consE γ e 
+  = do RFun (RB x) tx t _ <- liftM (checkFun ("PNon-fun App with caller", e)) $ consE γ e 
        cconsE γ a tx 
        case argExpr a of 
          Just e  -> return $ {-traceShow "App" $-} (x, e) `substSym` t
@@ -199,7 +200,7 @@ consE γ (Lam α e) | isTyVar α
 consE γ  e@(Lam x e1) 
   = do tx     <- freshTy τx 
        t1     <- consE (γ += (mkSymbol x, tx)) e1
-       return $ RFun (RB (mkSymbol x)) tx t1
+       return $ rFun (RB (mkSymbol x)) tx t1
     where FunTy τx _ = exprType e 
 
 consE γ e@(Let _ _)       
@@ -239,7 +240,7 @@ cconsE γ (Case e x τ cases) t
 cconsE γ (Lam α e) (RAll (RV _) t) | isTyVar α
   = cconsE γ e t
 
-cconsE γ (Lam x e) (RFun (RB y) ty t) 
+cconsE γ (Lam x e) (RFun (RB y) ty t _) 
   | not (isTyVar x) 
   = do cconsE (γ += (mkSymbol x, ty)) e te 
        addId y (mkSymbol x)
@@ -282,8 +283,8 @@ splitC (SubC γ (RAll (RV _) t1) (RAll (RV _) t2))
 splitC (SubC γ (RAll (RP _) t1) (RAll (RP _) t2))
   = splitC (SubC γ t1 t2)
 
-splitC (SubC γ (RFun (RB x1) t11 t12) (RFun (RB x2) t21 t22))
-  = splitC (SubC γ t21 t11) ++ splitC (SubC γ' t12' t22)
+splitC (SubC γ (RFun (RB x1) t11 t12 p1) (RFun (RB x2) t21 t22 p2))
+  = [splitBC p1 p2] ++ splitC (SubC γ t21 t11) ++ splitC (SubC γ' t12' t22)
     where t12' = (x1, x2) `substSym` t12
           γ'   = γ += (x2, t21)
 
@@ -457,7 +458,7 @@ freshTy t
 freshTy t@(TyVarTy v) 
   = liftM (rVar v) (freshPr t)
 freshTy (FunTy t1 t2) 
-  = liftM3 RFun (RB <$> freshSymbol "s") (freshTy t1) (freshTy t2)
+  = liftM3 rFun (RB <$> freshSymbol "s") (freshTy t1) (freshTy t2)
 freshTy t@(TyConApp c τs) 
   | TyCon.isSynTyCon c
   = freshTy $ substTyWith αs τs τ
@@ -478,8 +479,8 @@ freshTyConPreds c
        Just x  -> mapM freshPrAs (freePredTy x)
        Nothing -> return []
 
-checkFun _ t@(RFun _ _ _) = t
-checkFun x t              = error $ showPpr x ++ "type: " ++ showPpr t
+checkFun _ t@(RFun _ _ _ _) = t
+checkFun x t                = error $ showPpr x ++ "type: " ++ showPpr t
 
 checkAll _ t@(RAll (RV _) _) = t
 checkAll x t                 = error $ showPpr x ++ "type: " ++ showPpr t
