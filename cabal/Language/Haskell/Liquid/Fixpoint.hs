@@ -2,11 +2,12 @@
 
 module Language.Haskell.Liquid.Fixpoint (
     toFixpoint, toFix
-  , dummySort
+  , dummySort, typeSort, typeUniqueSymbol
   , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tagSymbol, tempSymbol
   , stringSymbol, symbolString
   , anfPrefix, tempPrefix
   , intKvar
+  , PVar (..)
   , Sort (..), Symbol(..), Loc (..), Constant (..), Bop (..), Brel (..), Expr (..)
   , Pred (..), Refa (..), SortedReft (..), Reft(..)
   , SEnv (..)
@@ -25,9 +26,13 @@ module Language.Haskell.Liquid.Fixpoint (
   , simplify
   , emptySubst, mkSubst, catSubst
   , Subable (..)
-		, strToReft, strToRefa, strsToRefa, strsToReft, replaceSort, replaceSorts, refaInReft
+  , isPredInReft
+  , rmRPVarReft, replacePVarReft
   ) where
 
+import TypeRep 
+import PrelNames (intTyConKey, intPrimTyConKey, integerTyConKey, boolTyConKey)
+import TyCon (tyConUnique)
 import Outputable
 import Control.Monad.State
 import Text.Printf
@@ -42,6 +47,7 @@ import Text.Parsec.String
 import Data.Generics.Schemes
 import Data.Generics.Aliases
 import Data.Data
+import Data.Maybe (catMaybes)
 
 
 import Language.Haskell.Liquid.Misc
@@ -58,6 +64,38 @@ class Fixpoint a where
 
   simplify :: a -> a 
   simplify =  id
+
+--------------------------------------------------------------------
+------------------ Predicate Variables -----------------------------
+--------------------------------------------------------------------
+
+data PVar t
+  = PV { pname :: !Symbol
+       , ptype :: !t
+       , pargs :: ![(t, Symbol, Symbol)]
+       }
+	deriving (Data, Typeable, Show)
+
+instance Eq (PVar t) where
+  pv == pv' = (pname pv == pname pv') {- UNIFY: What about: && eqArgs pv pv' -}
+
+instance Ord (PVar t) where
+  compare (PV n _ _)  (PV n' _ _) = compare n n'
+
+instance Functor PVar where
+  fmap f (PV x t txys) = PV x (f t) (mapFst3 f <$> txys)
+
+instance (NFData a) => NFData (PVar a) where
+  rnf (PV n t txys) = rnf n `seq` rnf t `seq` rnf txys
+
+--instance Subable (PVar a) where
+--  subst su (PV p t args) = PV p t $ [(t, x, subst su y) | (t, x, y) <- args]
+--
+--instance MapSymbol (PVar a) where 
+--  mapSymbol f (PV p t args) = PV (f p) t [(t, x, f y) | (t, x, y) <- args]
+
+instance Show Type where
+  show  = showSDoc . ppr
 
 {-
 ------------------------------------------------------------
@@ -105,6 +143,54 @@ freshSym x = do
                   return y 
     Just y  -> return y
 -}
+isPredInReft p (Reft(_, ls)) = or (isPredInRefa p <$> ls)
+isPredInRefa p (RPvar p')    = isSamePvar p p'
+isPredInRefa _ _             = False
+
+
+isSamePvar p1@(PV s1 t1 a1) p2@(PV s2 t2 a2) 
+  | s1 == s2 
+  = if True -- t1==t2 
+     then if chkSameTyArgs a1 a2 
+           then True
+           else error $ 
+              "isSamePvar: same var with different tys in args" ++ 
+              show (p1, p2)
+     else error $
+        "isSamePvar: same var with different sorts" ++ show (p1, p2)
+  | otherwise 
+  = False 
+
+chkSameTyArgs a1 a2
+  = True -- and $ zipWith (==) ts1 ts2
+  where ts1 = map (\(t, _, _) -> t) a1
+        ts2 = map (\(t, _, _) -> t) a2
+
+replacePVarReft (p, r) (Reft(v, rs)) 
+  = Reft(v, concatMap (replaceRPvarRefa (RPvar p, r)) rs)
+replaceRPvarRefa (r1@(RPvar(PV n1 _ ar)), Reft(v, rs)) (RPvar (PV n2 _ _))
+  | n1 == n2
+  = map (subst (pArgsToSub ar)) rs
+  | otherwise
+  = rs
+replaceRPvarRefa _ r = [r]
+
+rmRPVarReft s (Reft(v, ls)) = (Reft(v, ls'), su)
+  where (l, s1) = unzip $ map (rmRPVarRefa s) ls
+        ls' = catMaybes l
+        su = case catMaybes s1 of {[su] -> su; _ -> error "Fixpoint.rmRPVarReft"}
+
+rmRPVarRefa p1@(PV s1 t1 a1) r@(RPvar p2@(PV s2 t2 a2))
+  | s1 == s2
+  = (Nothing, Just $ pArgsToSub a2)
+  | otherwise
+  = (Just r, Nothing) 
+rmRPVarRefa _ r
+  = (Just r, Nothing)
+
+pArgsToSub a = mkSubst $ map (\(_, s1, s2) -> (s1, EVar s2)) a
+
+{-
 
 strsToRefa n as = RConc $ PBexp $ (EApp (S n) ([EVar (S "VV")] ++ (map EVar as)))
 strToRefa n xs = RKvar n (Su (M.fromList xs))
@@ -141,6 +227,7 @@ unionTransSubs (Su s1) (Su s2)
             Just (EVar x) -> (M.adjust (\_ -> EVar x) k s1, M.delete v s2)
             _             -> (s1, s2)
         f _ _ s12 = s12
+-}
 
 getConstants :: (Data a) => a -> [(Symbol, Sort, Bool)]
 getConstants = everything (++) ([] `mkQ` f)
@@ -200,6 +287,40 @@ data Sort = FInt
           | FFunc !Int ![Sort]   -- type-var arity, in-ts ++ [out-t]
 	      deriving (Eq, Ord, Data, Typeable, Show)
 
+typeSort :: Type -> Sort 
+typeSort (TyConApp c [])
+  | k == intTyConKey     = FInt
+  | k == intPrimTyConKey = FInt
+  | k == integerTyConKey = FInt 
+  | k == boolTyConKey    = FBool
+  where k = tyConUnique c
+
+typeSort (ForAllTy _ τ) 
+  = typeSort τ  -- JHALA: Yikes! Fix!!!
+typeSort (FunTy τ1 τ2) 
+  = typeSortFun τ1 τ2
+typeSort τ
+  = FPtr $ FLoc $ typeUniqueSymbol τ
+typeSortFun τ1 τ2
+  = FFunc n $ genArgSorts sos
+  where sos  = typeSort <$> τs
+        τs   = τ1  : grabArgs [] τ2
+        n    = (length sos) - 1
+     
+typeUniqueSymbol :: Type -> Symbol 
+typeUniqueSymbol = stringSymbol . ("sort_" ++) . showSDocDump . ppr
+
+grabArgs τs (FunTy τ1 τ2 ) = grabArgs (τ1:τs) τ2
+grabArgs τs τ              = reverse (τ:τs)
+
+genArgSorts :: [Sort] -> [Sort]
+genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
+  where genSort FInt        = Nothing
+        genSort FBool       = Nothing 
+        genSort so          = Just so
+        genIdx  _ (Just i)  = FPtr (FLvar i) --FVar i
+        genIdx  so  _       = so
+
 newtype Sub = Sub [(Int, Sort)]
 
 
@@ -245,6 +366,11 @@ instance Show Symbol where
 
 newtype Subst  = Su (M.Map Symbol Expr) 
                  deriving (Eq, Ord, Data, Typeable)
+
+{-
+newtype PSubst = PSu (M.Map PredVar Reft) 
+                 deriving (Eq, Ord, Data, Typeable)
+-}
 
 instance Outputable Refa where
   ppr  = text . show
@@ -487,6 +613,7 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
 data Refa 
   = RConc !Pred 
   | RKvar !Symbol !Subst
+  | RPvar !(PVar Type)
   deriving (Eq, Ord, Data, Typeable, Show)
 
 data Reft  -- t 
@@ -524,10 +651,20 @@ type FEnv = SEnv SortedReft
 
 -- Envt (M.Map Symbol SortedReft) 
 -- deriving (Eq, Ord, Data, Typeable) 
+instance Fixpoint (PVar Type) where
+  toFix (PV s so a) 
+   = toFix s <+> (char ':') <+> ppr so <+> braces (toFixArgs a)
+
+toFixArgs a 
+  = sep $ punctuate (char ',') $
+      map (\(s, s1, s2) ->
+          toFix s1 <+> (char ':') <+> ppr s <+> text ":=" <+> toFix s2
+          ) a
 
 instance Fixpoint Refa where
   toFix (RConc p)    = toFix p
   toFix (RKvar k su) = toFix k <> toFix su
+  toFix (RPvar p)    = toFix p
 
 instance Fixpoint SortedReft where
   toFix (RR so (Reft (v, ras))) 
@@ -689,6 +826,7 @@ instance Subable Pred where
 instance Subable Refa where
   subst su (RConc p)     = RConc   $ subst su p
   subst su (RKvar k su') = RKvar k $ su' `catSubst` su 
+  subst su (RPvar p)     = RPvar p
 
 instance (Subable a, Subable b) => Subable (a,b) where
   subst su (x,y) = (subst su x, subst su y)
@@ -803,6 +941,7 @@ instance NFData Pred where
 instance NFData Refa where
   rnf (RConc x)     = rnf x
   rnf (RKvar x1 x2) = rnf x1 `seq` rnf x2
+  rnf (RPvar x)     = () -- rnf x
 
 instance NFData Reft where 
   rnf (Reft (v, ras)) = rnf v `seq` rnf ras
@@ -824,6 +963,7 @@ class MapSymbol a where
 instance MapSymbol Refa where
   mapSymbol f (RConc p)    = RConc (mapSymbol f p)
   mapSymbol f (RKvar s su) = RKvar (f s) su
+  mapSymbol f (RPvar p)    = RPvar p -- RPvar (mapSymbol f p)
 
 instance MapSymbol Reft where
   mapSymbol f (Reft(s, rs)) = Reft(f s, map (mapSymbol f) rs)

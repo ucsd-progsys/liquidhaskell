@@ -103,7 +103,7 @@ freePreds (RAll (RV _) t)  = freePreds t
 freePreds (RAll (RP p) t)  = S.delete p $ freePreds t 
 freePreds (RCls _ ts)      = foldl' (\z t -> S.union z (freePreds t)) S.empty ts
 freePreds (RFun _ t1 t2 _) = S.union (freePreds t1) (freePreds t2)
-freePreds (RApp _ ts ps p) = unions ((S.fromList (concatMap pvars (p:(fromRMono <$> ps)))) : (freePreds <$> ts))
+freePreds (RApp _ ts ps p) = unions ((S.fromList (concatMap pvars (p:((fromRMono "freePreds") <$> ps)))) : (freePreds <$> ts))
 
 showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "

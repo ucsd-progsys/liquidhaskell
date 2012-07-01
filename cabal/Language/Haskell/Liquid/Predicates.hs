@@ -74,7 +74,7 @@ data PCGEnv
 
 data PInfo 
   = PInfo { freshIndex :: !Integer
-          , pMap       :: !(M.Map (PVar Type) (Predicate Type))
+          , pMap       :: !(M.Map (F.PVar Type) (Predicate Type))
           , hsCsP      :: ![SubC]
           , tyCons     :: !(M.Map TyCon TyConP)
           , symbolsP   :: !(M.Map F.Symbol F.Symbol)
@@ -144,7 +144,7 @@ tyC (RVar (RV v1) p1) (RVar (RV v2) p2)
        return $ v1 == v2
 
 tyC (RApp c1 ts1 ps1 p1) (RApp c2 ts2 ps2 p2)
-  = do modify $ \(ps, msg) -> ((p2, p1):(ps ++ zip (fromRMono <$> ps2) (fromRMono <$> ps1)), msg)
+  = do modify $ \(ps, msg) -> ((p2, p1):(ps ++ zip (fromRMono "tyC1" <$> ps2) (fromRMono "tyC2" <$> ps1)), msg)
        b <- zipWithM tyC ts1 ts2
        return $ and b && c1 == c2
 
@@ -390,7 +390,7 @@ addToMap substs
        let m' = foldl' updateSubst m substs
        put $ s { pMap = m' }
 
-updateSubst :: M.Map (PVar Type) (Predicate Type) -> (Predicate Type, Predicate Type) -> M.Map (PVar Type) (Predicate Type) 
+updateSubst :: M.Map (F.PVar Type) (Predicate Type) -> (Predicate Type, Predicate Type) -> M.Map (F.PVar Type) (Predicate Type) 
 updateSubst m (p, p') = foldl' (\m (k, v) -> M.insert k v m) m binds 
   where binds = unifiers $ unifyVars (subp m p) (subp m p')
 
@@ -440,11 +440,11 @@ freshInt = do pi <- get
               return n
 
 stringSymbol  = F.S
-freshSymbol s = stringSymbol . (s ++ ) . show <$> freshInt
-freshPr a     = (\sy -> pdVar (PV sy a [])) <$> (freshSymbol "p")
+freshSymbol s = stringSymbol . (s++) . show <$> freshInt
+freshPr a     = (\sy -> pdVar (F.PV sy a [])) <$> (freshSymbol "p")
 truePr _      = pdTrue
 
-freshPrAs p = (\n -> pdVar $ p { pname = n }) <$> freshSymbol "p"
+freshPrAs p = (\n -> pdVar $ p {F.pname = n}) <$> freshSymbol "p"
 
 refreshTy t 
   = do fps <- mapM freshPrAs ps

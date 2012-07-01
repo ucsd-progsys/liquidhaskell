@@ -6,7 +6,7 @@ module Language.Haskell.Liquid.RefType (
     RTyVar (..), RType (..), RRType (..), BRType (..), RTyCon(..)
   , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..), Ref(..)
   , RefType, PrType, BareType, SpecType
-  , PVar (..), Predicate (..), UReft(..), DataDecl (..)
+  , {-PVar (..),-} Predicate (..), UReft(..), DataDecl (..)
   , pdAnd, pdVar, pdTrue, pvars
   , listConName, tupConName -- , bLst, bTup, bCon, isBoolBareType, boolConName
   , Bind (..), RBind
@@ -26,7 +26,7 @@ module Language.Haskell.Liquid.RefType (
   , REnv, deleteREnv, domREnv, insertREnv, lookupREnv, emptyREnv, memberREnv, fromListREnv
   , addTyConInfo
   , primOrderingSort
-  , fromRMono, idRMono
+  , fromRMono, fromRPoly, idRMono
   ) where
 
 import Text.Printf
@@ -71,6 +71,8 @@ import Data.List (sort, isPrefixOf, isSuffixOf, find, foldl')
 ------------------ Predicate Variables -----------------------------
 --------------------------------------------------------------------
 
+{- moved to Fixpoint.hs -}
+{-
 data PVar t
   = PV { pname :: !Symbol
        , ptype :: !t
@@ -95,7 +97,7 @@ instance (NFData a) => NFData (PVar a) where
 --
 --instance MapSymbol (PVar a) where 
 --  mapSymbol f (PV p t args) = PV (f p) t [(t, x, f y) | (t, x, y) <- args]
-
+-}
 --------------------------------------------------------------------
 ------------------ Predicates --------------------------------------
 --------------------------------------------------------------------
@@ -201,18 +203,33 @@ class (Monoid r, Outputable r) => Reftable r where
   meet    = mappend
 
 {-NEW CODE-}
+fromRMono :: String -> Ref a b -> a
+fromRMono m (RMono r) = r
+fromRMono m _        = error $ "fromMono" ++ m
+fromRPoly (RPoly r) = r
+fromRPoly _        = error "fromPoly"
 
-fromRMono (RMono r) = r
-fromRMono _        = error "fromMono"
 
-idRMono = RMono . fromRMono
+idRMono = RMono . (fromRMono "idRMono")
 {- NEW INSTANCE NV-}
+
+instance (Subable r) => Subable (RType a b c d r) where
+  subst su = fmap (subst su)
+
 instance Reftable (Ref Reft (RType Class RTyCon RTyVar (PVar Type) Reft)) where
   isTauto (RMono r) = isTauto r
   isTauto (RPoly p) = False
 
+  ppTy (RMono r) d = ppr_reft r d
+  ppTy (RPoly t) d = error "wtf" -- ppTy (RMono trueReft) d -- d <+> ppr t
+
+
+instance (Reftable r, Outputable m) => Reftable (Ref r m) where
+  isTauto (RMono r) = isTauto r
+  isTauto (RPoly p) = False
+
   ppTy (RMono r) d = ppTy r d
-  ppTy (RPoly t) d = d <+> ppr t
+  ppTy (RPoly _) _ = error "Reftable r"
 
 
 instance (Reftable r, RefTypable p c tv pv r) => Reftable (Ref r (RType p c tv pv r)) where
@@ -232,13 +249,13 @@ instance (Reftable s, Outputable p) => Outputable (Ref s p) where
   ppr (RMono s) = ppTy s (text "")
   ppr (RPoly p) = ppr p
 
-instance SubsTy r => SubsTy (Ref r (RType Class RTyCon RTyVar (PVar Type) r))  where
+instance (SubsTy r)  => SubsTy (Ref r (RType a b c d r))  where
   subp m (RMono p) = RMono $ subp m p
-  subp _ (RPoly _) = error "subp Poly"
+  subp m (RPoly t) = RPoly $ fmap (subp m) t
   subv m (RMono p) = RMono $ subv m p
-  subv m (RPoly p) = error $ "subv"
+  subv m (RPoly t) = RPoly $ fmap (subv m) t
   subt m (RMono p) = RMono $ subt m p
-  subt m (RPoly p) = error $ "subv"
+  subt m (RPoly t) = RPoly $ fmap (subt m) t
 
 class TyConable c where
   isList   :: c -> Bool
@@ -355,7 +372,7 @@ replaceReft (RVar a _) r'      = RVar a      r'
 replaceReft t _                = t 
 
 
-addTyConInfo :: M.Map TC.TyCon RTyCon -> RRType pv Reft -> RRType pv Reft
+addTyConInfo :: (PVarable pv) => M.Map TC.TyCon RTyCon -> RRType pv Reft -> RRType pv Reft
 addTyConInfo = mapBot . addTCI
 addTCI tyi t@(RApp c ts rs r)
   = case (M.lookup (rTyCon c) tyi) of
@@ -371,7 +388,9 @@ rConApp (RTyCon c ps) ts rs r = RApp (RTyCon c ps') ts rs' r
    where τs   = toType <$> ts
          ps'  = subts (zip cts τs) <$> ps
          cts  = RTV <$> TC.tyConTyVars c
-         rs'  = if (null rs) then ((\_ ->RMono F.trueReft) <$> ps) else rs
+         rs'  = if (null rs) 
+                 then (RPoly . ofType . ptype <$> ps') 
+                 else rs
 
 -- mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
 mkArrow as xts t = mkUnivs as $ mkArrs xts t
@@ -617,7 +636,8 @@ subsFree m s z (RAll (RV α) t)
 subsFree m s z (RFun x t t' r)       
   = RFun x (subsFree m s z t) (subsFree m s z t') (subt (second toType z)  r)
 subsFree m s z@(α, t') t@(RApp c ts rs r)     
-  = RApp c' (subsFree m s z <$> ts) (subt z' <$> rs) (subt z' r)  
+--  = RApp c' (subsFree m s z <$> ts) (subt z' <$> rs) (subt z' r)  
+  = RApp c' (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) (subt z' r)  
     where c' = c {rTyConPs = subt z' <$> rTyConPs c}
           z' = (α, toType t')
     -- UNIFY: why instantiating INSIDE parameters?
@@ -635,6 +655,14 @@ subsFree _ _ _ t@(ROth _)
 subsFree _ _ _ t      
   = errorstar $ "subsFree fails on: " ++ showPpr t
 
+subsFreeRef ::  (SubsTy r, Reftable r, Monoid r) => Bool -> S.Set RTyVar -> (RTyVar, RRType (PVar Type) r) -> Ref r (RRType (PVar Type) r) -> Ref r (RRType (PVar Type) r)
+subsFreeRef m s z (RPoly t) 
+  = RPoly $ subsFree m s z' t
+  where (a, t') = z
+        z' = (a, fmap (\_ -> top) t')
+subsFreeRef m s z (RMono r) 
+  = RMono $ subt (α, toType t) r
+  where (α, t) = z
 ---------------------------------------------------------------------
 ------------------- Type Substitutions ------------------------------
 ---------------------------------------------------------------------
@@ -764,10 +792,12 @@ mapBindRef f (RPoly t) = RPoly $ mapBind f t
 
 mapBot f (RAll a t)       = RAll a (mapBot f t)
 mapBot f (RFun x t t' r)  = RFun x (mapBot f t) (mapBot f t') r
-mapBot f (RApp c ts rs r) = f $ RApp c (mapBot f <$> ts) rs r
+mapBot f (RApp c ts rs r) = f $ RApp c (mapBot f <$> ts) (mapBotRef f <$> rs) r
 mapBot f (RCls c ts)      = RCls c (mapBot f <$> ts)
 mapBot f t'               = f t' 
 
+mapBotRef _ (RMono r) = RMono $ r
+mapBotRef f (RPoly t) = RPoly $ mapBot f t
 -------------------------------------------------------------------
 --------------------------- SYB Magic -----------------------------
 -------------------------------------------------------------------
@@ -864,10 +894,15 @@ dataConMsReft ty ys  = subst su r
 
 pprShort    =  dropModuleNames . showPpr
 
-dropModuleNames = last . words . (dotWhite <$>) 
+-- dropModuleNames = mylast . words . (dotWhite <$>) 
+--   where dotWhite '.' = ' '
+--         dotWhite c   = c
+
+dropModuleNames x =  x -- (mylast x (words (dotWhite <$> x)))
   where dotWhite '.' = ' '
         dotWhite c   = c
-
+mylast x [] = error $ "RefType.last" ++ showPpr x
+mylast x l  = last l
 ---------------------------------------------------------------
 ---------------------- Embedding RefTypes ---------------------
 ---------------------------------------------------------------
@@ -888,6 +923,7 @@ toType (RCls c ts)
 toType (ROth t)      
   = errorstar $ "toType fails: " ++ t
 
+{- moved to Fixpoint.hs
 typeSort :: Type -> Sort 
 typeSort (TyConApp c []) 
   | k == intTyConKey     = FInt
@@ -921,7 +957,7 @@ genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
         genIdx  _ (Just i)  = FPtr (FLvar i) --FVar i
         genIdx  so  _       = so
 
-
+-}
 ---------------------------------------------------------------
 ----------------------- Typing Literals -----------------------
 ---------------------------------------------------------------
@@ -964,8 +1000,6 @@ emptyREnv                 = REnv M.empty
 memberREnv x (REnv env)   = M.member x env
 domREnv (REnv env)        = M.keys env
 
-instance Show Type where
-  show  = showSDoc . ppr
 
 instance Outputable REnv where
   ppr (REnv m)         = vcat $ map pprxt $ M.toAscList m

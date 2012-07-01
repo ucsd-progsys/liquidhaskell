@@ -283,6 +283,7 @@ pprXOT (x, v) = (xd, ppr v)
 applySolution :: FixSolution -> AnnInfo RefType -> AnnInfo RefType
 applySolution = fmap . fmap . mapReft . map . appSolRefa  
   where appSolRefa _ ra@(RConc _) = ra 
+        appSolRefa _ p@(RPvar _)  = p  
         appSolRefa s (RKvar k su) = RConc $ subst su $ M.findWithDefault PTop k s  
         mapReft f (Reft (x, zs)) = Reft (x, f zs)
 
