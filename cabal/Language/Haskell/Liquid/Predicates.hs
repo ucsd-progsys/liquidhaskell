@@ -144,7 +144,7 @@ tyC (RVar (RV v1) p1) (RVar (RV v2) p2)
        return $ v1 == v2
 
 tyC (RApp c1 ts1 ps1 p1) (RApp c2 ts2 ps2 p2)
-  = do modify $ \(ps, msg) -> ((p2, p1):(ps ++ zip ps2 ps1), msg)
+  = do modify $ \(ps, msg) -> ((p2, p1):(ps ++ zip (fromRMono <$> ps2) (fromRMono <$> ps1)), msg)
        b <- zipWithM tyC ts1 ts2
        return $ and b && c1 == c2
 
@@ -293,7 +293,7 @@ splitC (SubC γ (RVar (RV a) p1) (RVar (RV a2) p2))        -- UNIFY: Check a == 
 
 splitC (SubC γ (RApp c1 ts1 ps1 p1) (RApp c2 ts2 ps2 p2)) -- UNIFY: Check c1 == c2?
   = (concatMap splitC (zipWith (SubC γ) ts1 ts2)) 
-    ++ [splitBC x y | (x, y) <- zip ps1 ps2] 
+    ++ [splitBC x y | (RMono x, RMono y) <- zip ps1 ps2] 
     ++ [splitBC p1 p2]
 
 splitC t@(SubC _ t1 t2)
@@ -476,7 +476,7 @@ freshPredTree (ClassPred c ts)
 freshTyConPreds c 
  = do s <- get
       case (M.lookup c (tyCons s)) of 
-       Just x  -> mapM freshPrAs (freePredTy x)
+       Just x  -> do {ps <- mapM freshPrAs (freePredTy x); return $ RMono <$> ps}
        Nothing -> return []
 
 checkFun _ t@(RFun _ _ _ _) = t

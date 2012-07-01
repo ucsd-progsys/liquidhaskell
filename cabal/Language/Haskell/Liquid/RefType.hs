@@ -4,7 +4,7 @@
 
 module Language.Haskell.Liquid.RefType (
     RTyVar (..), RType (..), RRType (..), BRType (..), RTyCon(..)
-  , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..)
+  , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..), Ref(..)
   , RefType, PrType, BareType, SpecType
   , PVar (..), Predicate (..), UReft(..), DataDecl (..)
   , pdAnd, pdVar, pdTrue, pvars
@@ -18,7 +18,7 @@ module Language.Haskell.Liquid.RefType (
   , mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
   , subts, substSym 
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
-  , stripRTypeBase, refTypePredSortedReft, refTypeSortedReft, typeSortedReft, rTypeSort
+  , stripRTypeBase, refTypePredSortedReft, refTypeSortedReft, typeSortedReft, rTypeSort, funcToObj
   -- , canonRefType
   , tidyRefType
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
@@ -26,6 +26,7 @@ module Language.Haskell.Liquid.RefType (
   , REnv, deleteREnv, domREnv, insertREnv, lookupREnv, emptyREnv, memberREnv, fromListREnv
   , addTyConInfo
   , primOrderingSort
+  , fromRMono, idRMono
   ) where
 
 import Text.Printf
@@ -164,9 +165,12 @@ data RType p c tv pv r
   = RVar !(Bind tv pv) !r                                            -- INV: RVar {v | isTyVarBind v}
   | RFun !(Bind tv pv) !(RType p c tv pv r) !(RType p c tv pv r) !r  -- INV: RFun {v | isSymBind v} t1 t2
   | RAll !(Bind tv pv) !(RType p c tv pv r)                          -- INV: RAll {v | !(isSymBind v) }
-  | RApp !c ![(RType p c tv pv r)] ![r] !r
+  | RApp !c ![(RType p c tv pv r)] ![Ref r (RType p c tv pv r)] !r
   | RCls !p ![(RType p c tv pv r)]
   | ROth String
+  deriving (Data, Typeable)
+
+data Ref s m = RMono s | RPoly m
   deriving (Data, Typeable)
 
 type BRType     = RType String String String   
@@ -195,6 +199,46 @@ class (Monoid r, Outputable r) => Reftable r where
   
   meet    :: r -> r -> r
   meet    = mappend
+
+{-NEW CODE-}
+
+fromRMono (RMono r) = r
+fromRMono _        = error "fromMono"
+
+idRMono = RMono . fromRMono
+{- NEW INSTANCE NV-}
+instance Reftable (Ref Reft (RType Class RTyCon RTyVar (PVar Type) Reft)) where
+  isTauto (RMono r) = isTauto r
+  isTauto (RPoly p) = False
+
+  ppTy (RMono r) d = ppTy r d
+  ppTy (RPoly t) d = d <+> ppr t
+
+
+instance (Reftable r, RefTypable p c tv pv r) => Reftable (Ref r (RType p c tv pv r)) where
+  isTauto (RMono r) = isTauto r
+  isTauto (RPoly p) = False
+
+  ppTy (RMono r) d = ppTy r d
+  ppTy (RPoly _) _ = error "Reftable r"
+
+
+instance (Monoid s) => Monoid (Ref s p) where
+  mempty = RMono mempty
+  mappend (RMono r1) (RMono r2) = RMono $ mappend r1 r2
+  mappend _          _          = error "mappend" 
+
+instance (Reftable s, Outputable p) => Outputable (Ref s p) where
+  ppr (RMono s) = ppTy s (text "")
+  ppr (RPoly p) = ppr p
+
+instance SubsTy r => SubsTy (Ref r (RType Class RTyCon RTyVar (PVar Type) r))  where
+  subp m (RMono p) = RMono $ subp m p
+  subp _ (RPoly _) = error "subp Poly"
+  subv m (RMono p) = RMono $ subv m p
+  subv m (RPoly p) = error $ "subv"
+  subt m (RMono p) = RMono $ subt m p
+  subt m (RPoly p) = error $ "subv"
 
 class TyConable c where
   isList   :: c -> Bool
@@ -327,7 +371,7 @@ rConApp (RTyCon c ps) ts rs r = RApp (RTyCon c ps') ts rs' r
    where τs   = toType <$> ts
          ps'  = subts (zip cts τs) <$> ps
          cts  = RTV <$> TC.tyConTyVars c
-         rs'  = if (null rs) then ((\_ -> F.trueReft) <$> ps) else rs
+         rs'  = if (null rs) then ((\_ ->RMono F.trueReft) <$> ps) else rs
 
 -- mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
 mkArrow as xts t = mkUnivs as $ mkArrs xts t
@@ -369,6 +413,10 @@ instance NFData (Bind a b) where
   rnf (RB x) = rnf x
   rnf (RV a) = ()
   rnf (RP p) = () 
+
+instance (NFData a, NFData b) => NFData (Ref a b) where
+  rnf (RMono a) = rnf a
+  rnf (RPoly b) = rnf b
 
 instance (NFData a, NFData b, NFData c, NFData d, NFData e) => NFData (RType a b c d e) where
   rnf (RVar α r)       = rnf α `seq` rnf r 
@@ -688,9 +736,12 @@ ofPredTree _
 mapReft f (RVar α r)       = RVar α (f r)
 mapReft f (RAll a t)       = RAll a (mapReft f t)
 mapReft f (RFun x t t' r)  = RFun x (mapReft f t) (mapReft f t') (f r)
-mapReft f (RApp c ts rs r) = RApp c (mapReft f <$> ts) (f <$> rs) (f r)
+mapReft f (RApp c ts rs r) = RApp c (mapReft f <$> ts) (mapRef f <$> rs) (f r)
 mapReft f (RCls c ts)      = RCls c (mapReft f <$> ts) 
 mapReft f (ROth a)         = ROth a 
+
+mapRef f (RMono r) = RMono $ f r
+mapRef f (RPoly t) = RPoly $ mapReft f t
 
 --mapRVar :: (Bind tv pv -> r -> RType p c tv pv r)-> RType p c tv pv r -> RType p c tv pv r
 --mapRVar f (RVar b r)       = f b r 
@@ -703,10 +754,12 @@ mapReft f (ROth a)         = ROth a
 mapBind f (RVar b r)       = RVar (f b) r
 mapBind f (RFun b t1 t2 r) = RFun (f b) (mapBind f t1) (mapBind f t2) r
 mapBind f (RAll b t)       = RAll (f b) (mapBind f t) 
-mapBind f (RApp c ts rs r) = RApp c (mapBind f <$> ts) rs r
+mapBind f (RApp c ts rs r) = RApp c (mapBind f <$> ts) (mapBindRef f <$> rs) r
 mapBind f (RCls c ts)      = RCls c (mapBind f <$> ts)
 mapBind f (ROth s)         = ROth s
 
+mapBindRef _ (RMono r) = RMono r
+mapBindRef f (RPoly t) = RPoly $ mapBind f t
 
 
 mapBot f (RAll a t)       = RAll a (mapBot f t)
@@ -925,6 +978,9 @@ refTypeSortedReft   ::  RefType -> SortedReft
 refTypeSortedReft t = RR so r
   where so = {- traceShow ("rTypeSort: t = " ++ showPpr t) $ -} rTypeSort t
         r  = fromMaybe trueReft $ stripRTypeBase t 
+
+funcToObj (RR (FFunc _ _) r) = RR FObj r
+funcToObj so                 = so
 
 -- typeSortedReft ::  Type -> Refa -> SortedReft
 typeSortedReft t r = RR so $ Reft(vv,[r])

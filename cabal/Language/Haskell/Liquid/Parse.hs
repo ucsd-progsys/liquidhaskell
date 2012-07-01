@@ -349,10 +349,10 @@ predVarUseP
 ----------------------- Wrapped Constructors ---------------------------
 ------------------------------------------------------------------------
 
-bLst t rs r    = RApp listConName [t] (predUReft <$> rs) (reftUReft r) 
+bLst t rs r    = RApp listConName [t] (RMono . predUReft <$> rs) (reftUReft r) 
 bTup [t] _ _   = t
-bTup ts rs r   = RApp tupConName ts (predUReft <$> rs) (reftUReft r)
-bCon b rs ts r = RApp b ts (predUReft <$> rs) (reftUReft r)
+bTup ts rs r   = RApp tupConName ts (RMono .predUReft <$> rs) (reftUReft r)
+bCon b rs ts r = RApp b ts (RMono . predUReft <$> rs) (reftUReft r)
 bRVar α p r    = RVar (RV α) (U r p)
 
 

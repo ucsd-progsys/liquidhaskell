@@ -231,7 +231,7 @@ ofBareType (RApp tc ts [] r)
   = liftM (bareTCApp r [] c) (mapM ofBareType ts)
     where c = tupleTyCon BoxedTuple (length ts)
 ofBareType (RApp tc ts rs r) 
-  = liftM2 (bareTCApp r rs) (lookupGhcTyCon tc) (mapM ofBareType ts)
+  = liftM2 (bareTCApp r (idRMono <$> rs)) (lookupGhcTyCon tc) (mapM ofBareType ts)
 ofBareType (RCls c ts)
   = liftM2 RCls (lookupGhcClass c) (mapM ofBareType ts)
 
@@ -286,7 +286,7 @@ ofBDataDecl (D tc as ps cts)
 ofBDataCon tc αs πs (c, xts)
  = do c'  <- lookupGhcDataCon c
       ts' <- mapM (mkPredType πs) ts
-      let t0 = rApp tc rs (pdVar <$> πs) pdTrue
+      let t0 = rApp tc rs (RMono . pdVar <$> πs) pdTrue
       -- let t2 = foldl (\t' (x,t) -> RFun (RB x) t t') t0 (zip xs' ts')
       -- let t1 = foldl (\t pv -> RAll (RP pv) t) t2 πs 
       -- let t  = foldl (\t v -> RAll (RV v) t) t1 αs
