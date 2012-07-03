@@ -2,18 +2,16 @@
 
 module Language.Haskell.Liquid.Fixpoint (
     toFixpoint, toFix
-  , dummySort
   , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tagSymbol, tempSymbol
-  , stringSymbol, symbolString
+  , stringTycon, stringSymbol, symbolString
   , anfPrefix, tempPrefix
   , intKvar
-  , Sort (..), Symbol(..), Loc (..), Constant (..), Bop (..), Brel (..), Expr (..)
+  , Sort (..), Symbol(..), Constant (..), Bop (..), Brel (..), Expr (..)
   , Pred (..), Refa (..), SortedReft (..), Reft(..)
   , SEnv (..)
   , FEnv
   , SubC (..), WfC(..), FixResult (..), FixSolution, FInfo (..)
   , emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, lookupSEnv
-  -- , emptyFEnv, fromListFEnv, deleteFEnv
   , insertFEnv 
   , vv
   , trueReft, trueSortedReft 
@@ -25,7 +23,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , simplify
   , emptySubst, mkSubst, catSubst
   , Subable (..)
-		, strToReft, strToRefa, strsToRefa, strsToReft, replaceSort, replaceSorts, refaInReft
+  , strToReft, strToRefa, strsToRefa, strsToReft, replaceSort, replaceSorts, refaInReft
   ) where
 
 import Outputable
@@ -183,41 +181,45 @@ toFixpoint x' = gsDoc x' $+$ conDoc x' $+$  csDoc x' $+$ wsDoc x'
         wsDoc      = vcat . map toFix . ws 
         gsDoc      = vcat . map infoConstant . map (\(x, (RR so _)) -> (x, so, False)) . M.assocs . (\(SE e) -> e) . gs
        
----------------------------------------------------------------
------------------------------- Sorts --------------------------
----------------------------------------------------------------
+----------------------------------------------------------------------
+---------------------------------- Sorts -----------------------------
+----------------------------------------------------------------------
 
-data Loc  = FLoc !Symbol
-          | FLvar !Int 
-	      deriving (Eq, Ord, Data, Typeable, Show)
+-- data Loc  = FLoc !Symbol
+--           | FLvar !Int 
+-- 	         deriving (Eq, Ord, Data, Typeable, Show)
+
+newtype Tycon = TC Symbol deriving (Eq, Ord, Data, Typeable, Show)
 
 data Sort = FInt 
           | FBool
           | FNum                 -- numeric kind for Num tyvars
-          | FObj                 -- uninterpreted type
+          | FObj  Symbol         -- uninterpreted type
           | FVar  !Int           -- fixpoint type variable
-          | FPtr  !Loc           -- haskell  type variable
           | FFunc !Int ![Sort]   -- type-var arity, in-ts ++ [out-t]
+          | FApp Tycon [Sort]    -- constructed type 
 	      deriving (Eq, Ord, Data, Typeable, Show)
 
 newtype Sub = Sub [(Int, Sort)]
 
 
-instance Fixpoint Loc where 
-  toFix (FLoc (S s)) = text s
-  toFix (FLvar i)    = toFix i
+--instance Fixpoint Loc where 
+--  toFix (FLoc (S s)) = text s
+--  toFix (FLvar i)    = toFix i
  
 pprShow = text . show 
 
 instance Fixpoint Sort where
   toFix (FVar i)     =  text "@"   <> parens (ppr i)
-  toFix (FPtr l)     =  text "ptr" <> parens (toFix l)
   toFix FInt         =  text "int"
   toFix FBool        =  text "bool"
-  toFix FObj         =  text "obj"
+  toFix (FObj x)     =  text "Obj" <> parens (toFix [x])
   toFix FNum         =  text "num"
   toFix (FFunc n ts) =  text "func" <> parens ((ppr n) <> (text ", ") <> (toFix ts))
+  toFix (FApp c ts)  =  toFix c <> parens (toFix ts) 
 
+instance Fixpoint Tycon where
+  toFix (TC s)       = toFix s
 
 ---------------------------------------------------------------
 ---------------------------- Symbols --------------------------
@@ -268,6 +270,9 @@ instance Fixpoint Subst where
 ------ Converting Strings To Fixpoint ------------------------------------- 
 ---------------------------------------------------------------------------
 
+stringTycon :: String -> Tycon
+stringTycon = TC . stringSymbol
+
 stringSymbol :: String -> Symbol
 stringSymbol s
   | isFixSym' s = S s 
@@ -309,13 +314,9 @@ decodeStr s
 
 ---------------------------------------------------------------------
 
-vv              = S "VV"
-dummySymbol     = S dummyName
-tagSymbol       = S tagName
-
--- Bogus type for hs values that cannot be embedded into Fixpoint
-dummySort               = FFunc 0 [FObj]
-
+vv                      = S "VV"
+dummySymbol             = S dummyName
+tagSymbol               = S tagName
 intSymbol x i           = S $ x ++ show i           
 
 tempSymbol              ::  String -> Integer -> Symbol
@@ -404,21 +405,6 @@ data Pred = PTrue
           | PAll  ![(Symbol, Sort)] !Pred
           | PTop
           deriving (Eq, Ord, Data, Typeable, Show)
-
---instance Fixpoint Pred where 
---  toFix PTop            = text "???"
---  toFix PTrue           = text "true"
---  toFix PFalse          = text "false"
---  toFix (PBexp e)       = printf "(Bexp %s)"   (toFix e)
---  toFix (PNot p)        = parens (text "~ " <> parens (ppr p))
---  toFix (PImp p1 p2)    = parens (ppr p1 <> text " => " <> ppr p2) 
---  toFix (PIff p1 p2)    = parens (ppr p1 <> text " <=> " <> ppr p2)
---  toFix (PAnd ps)       = text "&& " <> ppr ps
---  toFix (POr  ps)       = text "|| " <> ppr ps 
---  toFix (PAtom r e1 e2) = parens (ppr e1 <> text " " <> ppr r <> text " " <> ppr e2) 
---  toFix (PAll xts p)    = text "forall " <> ppr xts <> text " . " <> ppr p
---  toFix (PBexp e)       = ppr e 
---
 
 instance Fixpoint Pred where
   toFix PTop            = text "???"
@@ -545,11 +531,6 @@ insertFEnv   = insertSEnv . lower
           | isUpper c = S $ (toLower c):cs
           | otherwise = x
 
---deleteFEnv x (Envt m)   = Envt (M.delete x m)
---fromListFEnv            = Envt . M.fromList . (builtins ++) 
--- where builtins        = [(tagSymbol, trueSortedReft $ FFunc 1 [FVar 0, FObj])]
--- emptyFEnv               = Envt M.empty
-
 instance (Outputable a) => Outputable (SEnv a) where
   ppr (SE e) = vcat $ map pprxt $ M.toAscList e
 	where pprxt (x, t) = ppr x <+> dcolon <+> ppr t
@@ -557,9 +538,9 @@ instance (Outputable a) => Outputable (SEnv a) where
 instance Outputable (SEnv a) => Show (SEnv a) where
   show = showSDoc . ppr
 
----------------------------------------------------------------
------------------ Refinements and Environments  ---------------
----------------------------------------------------------------
+-----------------------------------------------------------------------------------
+------------------------- Refinements and Environments ----------------------------
+-----------------------------------------------------------------------------------
 
 data SubC a = SubC { senv  :: !FEnv
                    , sgrd  :: !Pred
@@ -753,14 +734,17 @@ flattenRefas = concatMap flatRa
 instance NFData Symbol where
   rnf (S x) = rnf x
 
-instance NFData Loc where
-  rnf (FLoc x) = rnf x
-  rnf (FLvar x) = rnf x
+--instance NFData Loc where
+--  rnf (FLoc x) = rnf x
+--  rnf (FLvar x) = rnf x
+
+instance NFData Tycon where
+  rnf (TC c)       = rnf c
 
 instance NFData Sort where
   rnf (FVar x)     = rnf x
-  rnf (FPtr x)     = rnf x
-  rnf (FFunc n ts) = rnf n `seq` (map rnf ts) `seq` () 
+  rnf (FFunc n ts) = rnf n `seq` (rnf <$> ts) `seq` () 
+  rnf (FApp c ts)  = rnf c `seq` (rnf <$> ts) `seq` ()
   rnf (z)          = z `seq` ()
 
 instance NFData Sub where

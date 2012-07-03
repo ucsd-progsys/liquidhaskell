@@ -126,7 +126,6 @@ lexprP
  <|> (try $ parens cexprP)
  <|> (try exprfP)
  <|> (try (liftM mkEDat upperIdP))
--- <|> (try (liftM ((`EDat` FObj) . stringSymbol) upperIdP))
  <|> (try (liftM (EVar . stringSymbol) upperIdP))
  <|> liftM EVar symbolP
  <|> liftM ECon constantP
@@ -136,7 +135,7 @@ lexprP
 mkEDat s = EDat (stringSymbol s) (stringSort s)
   where stringSort s = case lookup s wiredSorts of 
                         Just s  -> s
-                        Nothing -> FObj
+                        Nothing -> FObj (stringSymbol s) 
 
 
 wiredSorts = [ ("EQ", primOrderingSort)
@@ -167,7 +166,7 @@ sortP
   =   try (string "Integer" >> return FInt)
   <|> try (string "Int"     >> return FInt)
   <|> try (string "Bool"    >> return FBool)
-  <|> (symCharsP >>= return . FPtr . FLoc . stringSymbol) 
+--   <|> (symCharsP >>= return . FPtr . FLoc . stringSymbol) 
 
 
 symCharsP = (condIdP symChars (\_ -> True))

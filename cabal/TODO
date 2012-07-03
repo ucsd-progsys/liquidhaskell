@@ -1,10 +1,15 @@
-0. nuke GhcInterface.listTyDataCons     <----------- HEREHEREHEREHERE
+0. FIXPOINT-TYCONS <----------- HEREHEREHEREHERE
 
-1. pull all binders/subst into separate SINGLE file
+    > Fixpoint.hs (Generate TyCon Sorts)
+    > Update .hqual files so stuff works
+
+1. nuke GhcInterface.listTyDataCons     
+
+2. pull all binders/subst into separate SINGLE file
     > RTyVar    + instances
     > RBind     + instances
     
-2. constant TAG missing from .fq ???
+3. constant TAG missing from .fq ???
 
 FEATURE STACK
     , pos/deptup.hs             (type signature: for constructor wrapper)

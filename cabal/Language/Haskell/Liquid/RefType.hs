@@ -846,8 +846,14 @@ typeSort (ForAllTy _ τ)
   = typeSort τ  -- JHALA: Yikes! Fix!!!
 typeSort (FunTy τ1 τ2) 
   = typeSortFun τ1 τ2
+typeSort (TyConApp c τs)
+  = FApp (fTycon c) (typeSort <$> τs)
 typeSort τ
-  = FPtr $ FLoc $ typeUniqueSymbol τ
+  = fObj τ
+
+fTycon = stringTycon . showPpr
+fObj   = FObj . typeUniqueSymbol 
+
 typeSortFun τ1 τ2
   = FFunc n $ genArgSorts sos
   where sos  = typeSort <$> τs
@@ -865,7 +871,7 @@ genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
   where genSort FInt        = Nothing
         genSort FBool       = Nothing 
         genSort so          = Just so
-        genIdx  _ (Just i)  = FPtr (FLvar i) --FVar i
+        genIdx  _ (Just i)  = FVar i -- FPtr (FLvar i)
         genIdx  so  _       = so
 
 
