@@ -127,7 +127,13 @@ safeZip msg xs ys
   | length xs == length ys 
   = zip xs ys
   | otherwise              
-  = errorstar $ "lzip called on non-eq-sized lists"
+  = errorstar $ "lzip called on non-eq-sized lists\n" ++ msg
+
+safeZipWith msg f xs ys 
+  | length xs == length ys 
+  = zipWith f xs ys
+  | otherwise              
+  = errorstar $ "lzipWith called on non-eq-sized lists\n" ++ msg
 
 
 safeUnion msg m1 m2 = 

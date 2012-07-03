@@ -1,77 +1,32 @@
-module ListRange where
+module Deptup0 where
 
 import Language.Haskell.Liquid.Prelude
 
-{-@  
-data List a <p :: a -> a -> Bool>  
-  = Nil 
-  | Cons (h :: a) (t :: List <p> (a <p h>))
-@-}
+{-@ data Pair a b <p :: a -> b -> Bool> = P (x :: a) (y :: b<p x>) @-} 
 
-data List a 
-   = Nil 
-   | Cons a (List a)
-
-checkSort Nil                        = True
-checkSort (_ `Cons` Nil)             = True
-checkSort (x1 `Cons` (x2 `Cons` xs)) = assert (x1 <= x2) && checkSort (x2 `Cons` xs)
-
-xs1   = 3 `Cons` (6 `Cons` Nil) 
-prop1 = checkSort xs1 
-
--- ADD THIS AND ITS SAT! WTF!
--- Because the ANF puts temp-names for 3 and 6 in scope making the above
--- sorted (pure accident).
-
-xs2   = 3 `Cons` (6 `Cons` Nil) 
+data Pair a b = P a b
 
 
+{-- TODO: mkP :: forall a b <p :: a -> b -> Bool>. x: a -> y: b<p x> -> Pair <p> a b  --}
 
+mkP :: a -> a -> Pair a a 
+mkP x y = P x y
 
+incr x = x + 1
 
+baz x  = mkP x (incr x)
 
+chk (P x y) = assert (x < y)
 
+prop = chk $ baz n
+  where n = choose 100
 
+bazList  xs = map baz xs
 
+n           = choose 0
 
+xs          = [0,1,2,3,4]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+prop_baz    = map chk $ bazList xs 
 
 
