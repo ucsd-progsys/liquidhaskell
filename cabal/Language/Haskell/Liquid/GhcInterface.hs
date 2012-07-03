@@ -9,6 +9,7 @@ import HscTypes
 import CoreSyn
 import Var
 import TysWiredIn
+import BasicTypes (TupleSort(BoxedTuple), Arity)
 import IdInfo
 import Name     (getSrcSpan)
 import CoreMonad (liftIO)
@@ -192,8 +193,8 @@ moduleSpec target mg paths
                    , tySigs  = tySigs
                    , ctor    = cs
                    , meas    = ms
-                   , dconsP  = {- traceShow "dconsP:" $ -} concat dcs ++ snd listTyDataCons 
-                   , tconsP  = {- traceShow "tconsP:" $ -} tcs ++ fst listTyDataCons }
+                   , dconsP  = {- traceShow "dconsP:" $ -} concat dcs ++ snd wiredTyDataCons 
+                   , tconsP  = {- traceShow "tconsP:" $ -} tcs ++ fst wiredTyDataCons }
     where mod      = mg_module mg
           impNames = (moduleNameString . moduleName) <$> impMods
           impMods  = moduleEnvKeys $ mg_dir_imps mg
@@ -451,6 +452,14 @@ instance NFData a => NFData (AnnInfo a) where
 --      {- rnf -} x8
 
 -- UNIFY: Why not parse this? (TBD)
+
+maxArity :: Arity 
+maxArity = 7
+
+wiredTyDataCons :: ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
+wiredTyDataCons = (\(x, y) -> (concat x, concat y)) $ unzip l
+  where l = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity] 
+
 listTyDataCons :: ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
 listTyDataCons = ( [(c, TyConP [(RTV tyv)] [p])]
                  , [(nilDataCon , DataConP [(RTV tyv)] [p] [] lt)
@@ -468,3 +477,35 @@ listTyDataCons = ( [(c, TyConP [(RTV tyv)] [p])]
           xst   = rApp c [RVar (RV (RTV tyv)) px] [RMono $ pdVar p] pdTrue
           cargs = [(xs, xst), (x, xt)]
 
+tupleTyDataCons :: Int -> ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
+tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyv) ps)]
+                    , [(dc, DataConP (RTV <$> tyv) ps  cargs  lt)])
+  where c       = tupleTyCon BoxedTuple n
+        dc      = tupleCon BoxedTuple n 
+        tyv     = tyConTyVars c
+        (ta:ts) = TyVarTy <$>tyv
+        tvs     = tyv
+        flds    = mks "fld"
+        fld     = stringSymbol "fld"
+        x1:xs   = mks "x"
+        y       = stringSymbol "y"
+        ps      = mkps pnames (ta:ts) ((fld,fld):(zip flds flds))
+        pxs     = mkps pnames (ta:ts) ((fld, x1):(zip flds xs))
+        lt      = rApp c ((\x -> RVar (RV (RTV x)) pdTrue) <$> tyv) 
+                         (RMono . pdVar <$> ps) pdTrue 
+        xts     = zipWith (\v p -> RVar (RV (RTV v))(pdVar p)) 
+                          (tail tvs) pxs
+        cargs   = reverse $ (x1, RVar (RV (RTV (head tvs))) pdTrue)
+                            :(zip xs xts)
+        pnames  = mks_ "p"
+        mks  x  = (\i -> stringSymbol (x++ show i)) <$> [1..n]
+        mks_ x  = (\i ->  (x++ show i)) <$> [2..n]
+
+
+mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ (stringSymbol <$> ns) ts fxs [(t, f, x)] [] 
+
+mkps_ []     _       _          _    ps = ps
+mkps_ (n:ns) (t:ts) ((f, x):xs) args ps
+  = mkps_ ns ts xs (a:args) (p:ps)
+  where p = PV n t args
+        a = (t, f, x)

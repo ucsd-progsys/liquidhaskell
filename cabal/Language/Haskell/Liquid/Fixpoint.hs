@@ -27,7 +27,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , emptySubst, mkSubst, catSubst
   , Subable (..)
   , isPredInReft
-  , rmRPVarReft, replacePVarReft
+  , rmRPVar, rmRPVarReft, replacePVarReft
   ) where
 
 import TypeRep 
@@ -175,6 +175,7 @@ replaceRPvarRefa (r1@(RPvar(PV n1 _ ar)), Reft(v, rs)) (RPvar (PV n2 _ _))
   = rs
 replaceRPvarRefa _ r = [r]
 
+rmRPVar s r = fst $ rmRPVarReft s r
 rmRPVarReft s (Reft(v, ls)) = (Reft(v, ls'), su)
   where (l, s1) = unzip $ map (rmRPVarRefa s) ls
         ls' = catMaybes l
@@ -653,13 +654,17 @@ type FEnv = SEnv SortedReft
 -- deriving (Eq, Ord, Data, Typeable) 
 instance Fixpoint (PVar Type) where
   toFix (PV s so a) 
-   = toFix s <+> (char ':') <+> ppr so <+> braces (toFixArgs a)
+   = parens $ toFix s <+> sep (toFix . thd3 <$> a)
+
+{-
+--   = toFix s <+> (char ':') <+> ppr so <+> braces (toFixArgs a)
 
 toFixArgs a 
   = sep $ punctuate (char ',') $
       map (\(s, s1, s2) ->
           toFix s1 <+> (char ':') <+> ppr s <+> text ":=" <+> toFix s2
           ) a
+-}
 
 instance Fixpoint Refa where
   toFix (RConc p)    = toFix p

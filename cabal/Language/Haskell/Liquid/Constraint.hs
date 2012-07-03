@@ -110,7 +110,7 @@ initEnv info penv
        let f0  = defaults           -- default TOP reftype      (for all vars) 
        let f2  = assm info          -- assumed refinements      (for import ANNs)
        let f3  = ctor $ spec info   -- constructor refinements  (for measures) 
-       let bs  = ((second (addTyConInfo tyi)) . unifyts penv <$> concat [f0, f2, f3])
+       let bs  = ((second (addTyConInfo tyi))  . (unifyts penv) <$> concat [f0, f2, f3])
        return  $ foldl' (++=) (measEnv info penv) bs 
 
 unifyts ::  F.SEnv PrType -> (Var, RefType) -> (F.Symbol, RefType)
@@ -294,7 +294,7 @@ splitW (WfC γ (RCls _ _))
 splitW (WfC γ t@(RApp c ts rs _))
   =  bsplitW γ t 
   ++ (concatMap splitW (map (WfC γ) ts)) 
-  ++ (concatMap (rsplitW γ) (zipSafe "splitW" rs ps))
+  ++ (concatMap (rsplitW γ) (safeZip "splitW" rs ps))
  where ps = rTyConPs c
 
 
@@ -339,13 +339,14 @@ splitC (SubC γ (RAll _ t1) (RAll _ t2))
 
 {-
 splitC (SubC γ t1 (RAll ((RP p@(PV _ τ _))) t2))
-  = splitC (SubC γ t1 (replaceSort (pToRefa p, F.trueRefa) t2))
+--  = splitC (SubC γ t1 (fmap (F.removeRPVar p) t2))
+  = splitC (SubC γ t1 (replacePred (p, RPoly (ofType τ)) t2))
 -}
 
 splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
 	= bsplitC γ t1 t2 
    ++ (concatMap splitC (zipWith (SubC γ) t1s t2s)) 
-   ++ (concatMap (rsplitC γ) (zipSafe "splitC1" (zipSafe ("splitC2"++ show (t1, t2))  r1s r2s) ps))
+   ++ (concatMap (rsplitC γ) (zip (zip r1s r2s) ps))
  where ps = rTyConPs c'
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
@@ -385,13 +386,13 @@ rsplitC γ ((RMono r1, RMono r2), (PV _ t as))
 rsplitC γ ((RPoly r1, RPoly r2), PV _ t as)
   = splitC (SubC γ' r1 r2)
   where γ'   = foldl' (++=) γ (map (\(τ, x, _) -> (x, ofType τ)) as) 
-rsplitC γ ((RPoly t, RMono r), p) 
-  = case stripRTypeBase t of 
+rsplitC γ ((RPoly t, RMono r), p)  = error "rplit Rpoly - RMono"
+{-  = case stripRTypeBase t of 
      Just x  -> rsplitC γ ((RMono x, (RMono r)), p)
      Nothing -> error "rsplitStrip" 
 rsplitC γ ((RMono r, RPoly t), p) 
   = rsplitC γ ((RPoly ((ofType (ptype p)) `strengthen` r), (RPoly t)), p)
-
+-}
 -----------------------------------------------------------
 -------------------- Generation: Types --------------------
 -----------------------------------------------------------
@@ -527,7 +528,7 @@ trueRefType (RFun _ t t' _)
   = liftM3 rFun fresh (true t) (true t')
 trueRefType (RApp c ts refs _)  
   = liftM (\ts -> RApp c ts truerefs (F.trueReft)) (mapM true ts)
-		where truerefs = (\_ -> RMono F.trueReft)<$> (rTyConPs c)
+		where truerefs = (RPoly . ofType . ptype) <$> (rTyConPs c)
 trueRefType t                
   = return t
 
@@ -553,23 +554,6 @@ refreshRefType (RVar a r)
 refreshRefType t                
   = return t
 
-{-
-refreshRefTyCon x@(RAlgTyCon p r)  
-  | isBaseTyCon p
-  = return x
-  | otherwise
-  = liftM (RAlgTyCon p) (refresh r)
-refreshRefTyCon x@(RPrimTyCon _) 
-  = return x
-
-refreshRefAlgRhs (RDataTyCon p dcs) 
-  = liftM (RDataTyCon p) (mapM refresh dcs)
-
-refreshRefDataCon (MkRData p fts) 
-  = liftM (MkRData p) $ liftM2 zip (mapM (\_ -> fresh) fs) (mapM refresh ts)
-    where (fs, ts) = unzip fts
--}
-
 isBaseTyCon c
   | c == intTyCon 
   = True
@@ -586,7 +570,6 @@ consCB :: CGEnv -> CoreBind -> CG CGEnv
 
 consCB γ (Rec xes) 
   = do rts <- mapM (\e -> freshTy_pretty e $ exprType e) es
---       let ts = rts
        let ts = (\(pt, rt) -> unify pt rt) <$> (zip pts rts)
        let γ' = foldl' (\γ z -> (γ, "consCB") += z) (γ `withRecs` xs) (zip vs ts)
        zipWithM_ (cconsE γ') es  ts
@@ -599,7 +582,6 @@ consCB γ (Rec xes)
 
 consCB γ b@(NonRec x e)
   = do rt <- consE γ e
---       let t = {-traceShow ("Unify for "  ++ show x' ++ "\n\n"++ show e ++ "\n\n" ++ show rt ++ "\n" ++ show pt ++ "\n")$-} rt
        let t = {-traceShow ("Unify for "  ++ show x' ++ "\n\n"++ show e ++ "\n\n" ++ show rt ++ "\n" ++ show pt ++ "\n")$-} unify pt rt
        addIdA x (Left t)
        return $  γ ++= (x', t)
@@ -660,7 +642,6 @@ unifyS rt@(RApp c ts rs r) pt@(RApp _ pts ps p)
       
 
 unifyS t1 t2 = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
-ff = fromRMono "unify" 
 bUnify a (Pr pvs)   = foldl' meet a $ pToReft <$> pvs
 
 unifyRef (RMono a) (Pr pvs) = RMono $ foldl' meet a $ pToReft <$> pvs
@@ -671,12 +652,7 @@ zipWithZero f xz yz []     (y:ys) = (f xz y):(zipWithZero f xz yz [] ys)
 zipWithZero f xz yz (x:xs) []     = (f x yz):(zipWithZero f xz yz xs [])
 zipWithZero f xz yz (x:xs) (y:ys) = (f x y) :(zipWithZero f xz yz xs ys)
  
---bUnify a PdTrue     = a
---bUnify a (PdVar pv) = a `F.meet` (pToReft pv)
-
--- mapbUnify rs ps = zipWith bUnify rs ps
-
-pToReft p = F.Reft (F.vv, [F.RPvar p]) -- ((PV n t a)) = F.strToReft n ((\(_, x, y) -> (x, F.EVar y)) <$> a)
+pToReft p = F.Reft (F.vv, [F.RPvar p]) 
 
 -------------------------------------------------------------------
 -------------------- Generation: Expression -----------------------
@@ -747,6 +723,7 @@ consE γ e'@(App e a) | eqType (exprType a) predType
          RAll (RP p) t -> do s <- freshPredRef γ e' p
                              return $ 
 --                               traceShow ("predApp " ++ show (p, s, t)) $ 
+
                               replacePred (p, RPoly s) t 
          t             -> return t
 
@@ -814,36 +791,13 @@ mkyt (γ, ts) (y, yt)
        addW (WfC γ t') 
        return (γ++= (mkSymbol y,t'), t':ts) 
 
-{-
-unfoldR td t0@(RApp tc ts rs _) ys = (rtd, yts, xt')
-  where (vs, ps, td_')  = rsplitVsPs td
-        td''            = foldl' (flip subsTyVar_meet) td' (zip vs ts)
-        rtd             = foldl' (flip replaceSort) td'' (zip ps' rs')
-        ps'             = reverse $ pToRefa <$> ps
-        rs'             = map  (\(F.Reft(_, [r])) -> (F.subst su r)) (fromRMono <$> rs) ++ cycle [F.trueRefa]
-        (ys', yts, xt') = rsplitArgsRes rtd
-        su              = F.mkSubst [(x, F.EVar y) | (x, y)<- zip ys' ys]
-        td'             = td_' 
--}
-
 unfoldR td t0@(RApp tc ts rs _) ys = (t3, yts, rt)
   where (vs, ps, t0) = rsplitVsPs td
         t1 = foldl' (flip subsTyVar_meet) t0 (zip vs ts)
-        t2 = foldl' (flip replacePred) t1 (zipSafe "unfold" (reverse ps) rs)
+        t2 = foldl' (flip replacePred) t1 (safeZip "unfold" (reverse ps) rs)
         (ys0, yts', rt) =  rsplitArgsRes t2
         (t3:yts) = F.subst su <$> (t2:yts')
         su  = F.mkSubst [(x, F.EVar y)| (x, y)<- zip ys0 ys]
-{-
-foldl_ :: (RefType -> (PVar Type, Ref F.Reft RefType)-> RefType) ->  RefType -> [(PVar Type, Ref F.Reft RefType)] -> RefType
-foldl_ f z [] = traceShow "final" z 
-foldl_ f z (x:xs) = foldl_ f (traceShow ("inti" ++ showPpr (x, z)) (f z x) )xs
--}
-zipSafe s xs ys 
-  | length xs == length ys
-  = zip xs ys
-  | otherwise
-  = error s
-
 
 takeReft c (RApp _ _ _ a) 
   | c == nilDataCon || c == consDataCon
@@ -896,10 +850,6 @@ getSrcSpan' x
 ---------- Helpers: Creating Fresh Refinement ------------------ ------
 -----------------------------------------------------------------------
 
-freshReftP (PV n τ as)
- = do n <- liftM F.intKvar fresh
-      return $ RMono $ F.Reft (F.vv,[(`F.RKvar` F.emptySubst) n])
-
 truePredRef pd@(PV n τ as)
  = trueTy τ
 
@@ -910,14 +860,6 @@ freshPredRef γ e pd@(PV n τ as)
       return t
  where γ' = foldl' (++=) γ (map (\(τ, x, _) -> (x, ofType τ)) as) 
 
-{-
-freshSort γ (PV n τ as)
- = do n <- liftM F.intKvar fresh
-      let s = (`F.RKvar` F.emptySubst) n
-      addW $ WfCS γ' τ s
-      return s
-   where γ' = foldl' (++=) γ (map (\(τ, x, _) -> (x, ofType τ)) as) 
--}
 tySort (RVar _ (F.Reft(_, [a])))     = a
 tySort (RApp _ _ _ (F.Reft(_, [a]))) = a
 tySort _                             = error "tySort"
@@ -1023,11 +965,12 @@ replacePred pr@(p, RMono r)  t0 = fmap (F.replacePVarReft (p, r)) t0
 
 substPredP :: Bool -> (PVar Type, RefType) -> (Ref F.Reft RefType) -> (Ref F.Reft RefType)
 substPredP b pt (RPoly t) = RPoly $ substPred b pt t
-substPredP b pt@(p, _) (RMono r) 
-  | p `isPredIn` r
+substPredP b pt@(p, _) (RMono r) = error "RMono found in substPredP"
+{-  | p `isPredIn` r
   = RPoly $ substPred b pt ((ofType (ptype p)) `strengthen` r)
   | otherwise 
   = RMono r
+-}
 
 substPred m pv@(p, RVar a1 r1) t@(RVar a2 r2)
   | ispInr2 && a1 == a2
@@ -1051,32 +994,30 @@ substPred m (p, tp) (RAll (RP q@(PV _ _ _)) t)
 substPred m pt (RAll a@(RV _) t) = RAll a (substPred m pt t)
 substPred m pt@(p, tp) (RFun x t t' r) 
   | p `isPredIn` r
-  = error "pred in Function!"
+  = strengthenRefType (RFun x t t' r') (fmap (F.subst su) tp)
   | otherwise 
   = RFun x (substPred m pt t) (substPred m pt t') r
+  where (r', su) = rmKVarReft p r
 substPred m pt (RCls c ts) = RCls c (substPred m pt <$> ts)
 substPred m pt t = t
 
 substRCon (p, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2) | rc1 == rc2
   =  RApp c1 ts rs $ r2' `mymeet` (addS r1)
   where (r2', su) = rmKVarReft p r2
-        ts = zipWithSafe "substRCon" (\t2 t1 -> strengthenRefType t1 (fmap addS t2)) ts1 ts2
-        rs = rs1 -- zipWithSafe (\t2 t1 -> strengthenRefType t1 (fmap addS t2)) rs1 rs2
-        addS r = F.subst su r
+        ts = safeZipWith "substRCon" (flip strSub) ts1 ts2
+        rs = safeZipWith "substRcon2" (flip strSubR) rs1 rs2
+        addS r         = F.subst su r
         (RTyCon rc1 _) = c1
         (RTyCon rc2 _) = c2
+        strSub t1      = strengthenRefType t1 . fmap addS
+        strSubR t1 t2  = RPoly $ strSub (fromRPoly t1) (fromRPoly t2) 
+
 substRCon pt t = error $ "substRCon" ++ show (pt, t)
 
 mymeet x y = meet x y
 isPredIn = F.isPredInReft
 
 rmKVarReft = F.rmRPVarReft
-
-zipWithSafe m f xs ys
-  | length xs == length ys
-  = zipWith f xs ys
-  | otherwise
-  = error $ "zipWithSafe in " ++ m
 
 -----------------------------------------------------------------------
 ---------- CoreSyn functions changed due to predApp -------------------

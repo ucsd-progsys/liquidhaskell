@@ -464,7 +464,7 @@ freshTy t@(TyConApp c τs)
   = freshTy $ substTyWith αs τs τ
   where (αs, τ) = TyCon.synTyConDefn c
 freshTy t@(TyConApp c τs) 
-  = liftM3 (rApp c) (mapM freshTy τs) (freshTyConPreds c) (return (truePr t)) 
+  = liftM3 (rApp c) (mapM freshTy τs) (freshTyConPreds c τs) (return (truePr t)) 
 freshTy (ForAllTy v t) 
   = liftM (RAll (rTyVar v)) (freshTy t) 
 freshTy t
@@ -473,11 +473,13 @@ freshTy t
 freshPredTree (ClassPred c ts)
   = RCls c (ofType <$> ts)
 
-freshTyConPreds c 
+freshTyConPreds c ts
  = do s <- get
       case (M.lookup c (tyCons s)) of 
-       Just x  -> do {ps <- mapM freshPrAs (freePredTy x); return $ RMono <$> ps}
-       Nothing -> return []
+       Just x  -> liftM (RMono<$>) $ mapM freshPrAs 
+                      ((\t -> foldr subt t (zip (freeTyVarsTy x) ts)) 
+                     <$> freePredTy x)
+       Nothing -> return ([] :: [Ref (Predicate Type) PrType])
 
 checkFun _ t@(RFun _ _ _ _) = t
 checkFun x t                = error $ showPpr x ++ "type: " ++ showPpr t
