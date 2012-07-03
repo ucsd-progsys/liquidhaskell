@@ -8,7 +8,8 @@ module Language.Haskell.Liquid.RefType (
   , RefType, PrType, BareType, SpecType
   , {-PVar (..),-} Predicate (..), UReft(..), DataDecl (..)
   , pdAnd, pdVar, pdTrue, pvars
-  , listConName, tupConName -- , bLst, bTup, bCon, isBoolBareType, boolConName
+  , listConName, tupConName 
+  -- , bLst, bTup, bCon, isBoolBareType, boolConName
   , Bind (..), RBind
   , ppr_rtype, mapReft, mapBind
   , ofType, ofPredTree, toType

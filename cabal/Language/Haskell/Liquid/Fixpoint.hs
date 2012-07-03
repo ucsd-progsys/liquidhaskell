@@ -341,7 +341,7 @@ instance Fixpoint Sort where
   toFix (FVar i)     =  text "@"   <> parens (ppr i)
   toFix FInt         =  text "int"
   toFix FBool        =  text "bool"
-  toFix (FObj x)     =  text "Obj" <> parens (toFix [x])
+  toFix (FObj x)     =  text "ptr" <> parens (toFix x)
   toFix FNum         =  text "num"
   toFix (FFunc n ts) =  text "func" <> parens ((ppr n) <> (text ", ") <> (toFix ts))
   toFix (FApp c ts)  =  toFix c <> parens (toFix ts) 
