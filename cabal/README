@@ -59,3 +59,14 @@ How to Profile
 
    etc.
 
+How to Get Backtraces
+---------------------
+
+1. Build with profiling on
+
+    $ make pdeps && make prof
+
+2. Run with backtraces
+
+    $ liquid +RTS -xc -RTS foo.hs
+
