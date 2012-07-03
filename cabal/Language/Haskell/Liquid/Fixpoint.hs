@@ -8,7 +8,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , stringTycon, stringSymbol, symbolString
   , anfPrefix, tempPrefix
   , intKvar
-  , PVar (..), Sort (..), Symbol(..), Loc (..), Constant (..), Bop (..), Brel (..), Expr (..)
+  , PVar (..), Sort (..), Symbol(..), Constant (..), Bop (..), Brel (..), Expr (..)
   , Pred (..), Refa (..), SortedReft (..), Reft(..)
   , SEnv (..)
   , FEnv
@@ -25,7 +25,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , simplify
   , emptySubst, mkSubst, catSubst
   , Subable (..)
-  , strToReft, strToRefa, strsToRefa, strsToReft, replaceSort, replaceSorts, refaInReft
+--  , strToReft, strToRefa, strsToRefa, strsToReft, replaceSort, replaceSorts, refaInReft
   , isPredInReft
   , rmRPVar, rmRPVarReft, replacePVarReft
   ) where
@@ -191,44 +191,41 @@ rmRPVarRefa _ r
 
 pArgsToSub a = mkSubst $ map (\(_, s1, s2) -> (s1, EVar s2)) a
 
-{-
-
-strsToRefa n as = RConc $ PBexp $ (EApp (S n) ([EVar (S "VV")] ++ (map EVar as)))
-strToRefa n xs = RKvar n (Su (M.fromList xs))
-strToReft n xs = Reft (S "VV", [strToRefa n xs])
-strsToReft n as = Reft (S "VV", [strsToRefa n as])
-
-refaInReft k (Reft(v, ls)) = any (cmpRefa k) ls
-
-cmpRefa (RConc (PBexp (EApp (S n) _))) (RConc (PBexp (EApp (S n') _))) 
-  = n == n'
-cmpRefa _ _ 
-  = False
-
-replaceSorts (p, Reft(_, rs)) (Reft(v, ls))
-  = Reft(v, concatMap (replaceS (p, rs)) ls)
-
-replaceSort (p, k) (Reft(v, ls)) = Reft (v, (concatMap (replaceS (p, [k])) ls))
-
--- replaceS :: (Refa a, [Refa a]) -> Refa a -> [Refa a] 
-replaceS ((RKvar (S n) (Su s)), k) (RKvar (S n') (Su s')) 
-  | n == n'
-  = map (addSubs (Su s')) k -- [RKvar (S m) (Su (s `M.union` s1 `M.union` s'))]
-replaceS (k, v) p = [p]
-
-addSubs s ra@(RKvar k s') = RKvar k (unionTransSubs s s')
-addSubs _ f = f
-
--- union s1 s2 with transitivity : 
--- (x, z) in s1 and (z, y) in s2 => (x, y) in s
-unionTransSubs (Su s1) (Su s2) 
-  = Su $ (\(su1, su2) -> su1 `M.union` su2)(M.foldWithKey f (s1, s2) s1)
-  where f k (EVar v) (s1, s2) 
-          = case M.lookup v s2 of 
-            Just (EVar x) -> (M.adjust (\_ -> EVar x) k s1, M.delete v s2)
-            _             -> (s1, s2)
-        f _ _ s12 = s12
--}
+--strsToRefa n as = RConc $ PBexp $ (EApp (S n) ([EVar (S "VV")] ++ (map EVar as)))
+--strToRefa n xs = RKvar n (Su (M.fromList xs))
+--strToReft n xs = Reft (S "VV", [strToRefa n xs])
+--strsToReft n as = Reft (S "VV", [strsToRefa n as])
+--
+--refaInReft k (Reft(v, ls)) = any (cmpRefa k) ls
+--
+--cmpRefa (RConc (PBexp (EApp (S n) _))) (RConc (PBexp (EApp (S n') _))) 
+--  = n == n'
+--cmpRefa _ _ 
+--  = False
+--
+--replaceSorts (p, Reft(_, rs)) (Reft(v, ls))
+--  = Reft(v, concatMap (replaceS (p, rs)) ls)
+--
+--replaceSort (p, k) (Reft(v, ls)) = Reft (v, (concatMap (replaceS (p, [k])) ls))
+--
+---- replaceS :: (Refa a, [Refa a]) -> Refa a -> [Refa a] 
+--replaceS ((RKvar (S n) (Su s)), k) (RKvar (S n') (Su s')) 
+--  | n == n'
+--  = map (addSubs (Su s')) k -- [RKvar (S m) (Su (s `M.union` s1 `M.union` s'))]
+--replaceS (k, v) p = [p]
+--
+--addSubs s ra@(RKvar k s') = RKvar k (unionTransSubs s s')
+--addSubs _ f = f
+--
+---- union s1 s2 with transitivity : 
+---- (x, z) in s1 and (z, y) in s2 => (x, y) in s
+--unionTransSubs (Su s1) (Su s2) 
+--  = Su $ (\(su1, su2) -> su1 `M.union` su2)(M.foldWithKey f (s1, s2) s1)
+--  where f k (EVar v) (s1, s2) 
+--          = case M.lookup v s2 of 
+--            Just (EVar x) -> (M.adjust (\_ -> EVar x) k s1, M.delete v s2)
+--            _             -> (s1, s2)
+--        f _ _ s12 = s12
 
 getConstants :: (Data a) => a -> [(Symbol, Sort, Bool)]
 getConstants = everything (++) ([] `mkQ` f)
@@ -328,7 +325,7 @@ genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
   where genSort FInt        = Nothing
         genSort FBool       = Nothing 
         genSort so          = Just so
-        genIdx  _ (Just i)  = FPtr (FLvar i) --FVar i
+        genIdx  _ (Just i)  = FVar i
         genIdx  so  _       = so
 
 newtype Sub = Sub [(Int, Sort)]

@@ -1040,12 +1040,12 @@ refTypeSortedReft t = RR so r
   where so = {- traceShow ("rTypeSort: t = " ++ showPpr t) $ -} rTypeSort t
         r  = fromMaybe trueReft $ stripRTypeBase t 
 
-funcToObj (RR (FFunc _ _) r) = RR FObj r
+-- RJ: Commenting this out. Why is FFunc not working?
+-- funcToObj (RR (FFunc _ _) r) = RR FObj r
 funcToObj so                 = so
 
 -- typeSortedReft ::  Type -> Refa -> SortedReft
-typeSortedReft t r = RR so $ Reft(vv,[r])
-  where so = typeSort t
+typeSortedReft t r = RR (typeSort t) (Reft (vv, [r]))
 
 
 -- rTypeSort ::  RType t -> Sort
