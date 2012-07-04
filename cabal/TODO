@@ -15,12 +15,14 @@ FEATURE STACK
     , pos/deptup.hs             (type signature: for constructor wrapper)
 
 Failed 16 tests: 
+ 
     pos/LambdaEval.hs
   , pos/LambdaEvalMini.hs
   , pos/ListLen-LType.hs
   , pos/ListLen.hs
   , pos/mapreduce-bare.hs
   , pos/mapreduce.hs
+
   , pos/meas0.hs
   , pos/meas0a.hs
   , pos/meas1.hs
@@ -28,6 +30,7 @@ Failed 16 tests:
   , pos/meas4.hs
   , pos/meas5.hs
   , pos/meas6.hs
+  
   , pos/vector1.hs
   , pos/vector1a.hs
   , pos/vector1b.hs

@@ -62,7 +62,7 @@ import qualified Data.Foldable as Fold
 import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GhcMisc (tvId, stringTyVar, intersperse)
+import Language.Haskell.Liquid.GhcMisc (tvId, stringTyVar, intersperse, dropModuleNames)
 import Language.Haskell.Liquid.FileNames (listConName, tupConName, boolConName)
 import Data.List (sort, isPrefixOf, isSuffixOf, find, foldl')
 
@@ -911,15 +911,7 @@ dataConMsReft ty ys  = subst su r
 
 pprShort    =  dropModuleNames . showPpr
 
--- dropModuleNames = mylast . words . (dotWhite <$>) 
---   where dotWhite '.' = ' '
---         dotWhite c   = c
 
-dropModuleNames x =  x -- (mylast x (words (dotWhite <$> x)))
-  where dotWhite '.' = ' '
-        dotWhite c   = c
-mylast x [] = error $ "RefType.last" ++ showPpr x
-mylast x l  = last l
 ---------------------------------------------------------------
 ---------------------- Embedding RefTypes ---------------------
 ---------------------------------------------------------------
@@ -940,47 +932,48 @@ toType (RCls c ts)
 toType (ROth t)      
   = errorstar $ "toType fails: " ++ t
 
-{- moved to Fixpoint.hs
-typeSort :: Type -> Sort 
-typeSort (TyConApp c []) 
-  | k == intTyConKey     = FInt
-  | k == intPrimTyConKey = FInt
-  | k == integerTyConKey = FInt 
-  | k == boolTyConKey    = FBool
-  where k = TC.tyConUnique c
-typeSort (ForAllTy _ τ) 
-  = typeSort τ  -- JHALA: Yikes! Fix!!!
-typeSort (FunTy τ1 τ2) 
-  = typeSortFun τ1 τ2
-typeSort (TyConApp c τs)
-  = FApp (fTycon c) (typeSort <$> τs)
-typeSort τ
-  = fObj τ
+--{{{ moved to Fixpoint.hs
+--typeSort :: Type -> Sort 
+--typeSort (TyConApp c []) 
+--  | k == intTyConKey     = FInt
+--  | k == intPrimTyConKey = FInt
+--  | k == integerTyConKey = FInt 
+--  | k == boolTyConKey    = FBool
+--  where k = TC.tyConUnique c
+--typeSort (ForAllTy _ τ) 
+--  = typeSort τ  -- JHALA: Yikes! Fix!!!
+--typeSort (FunTy τ1 τ2) 
+--  = typeSortFun τ1 τ2
+--typeSort (TyConApp c τs)
+--  = FApp (fTycon c) (typeSort <$> τs)
+--typeSort τ
+--  = fObj τ
+--
+--fTycon = stringTycon . showPpr
+--fObj   = FObj . typeUniqueSymbol 
+--
+--typeSortFun τ1 τ2
+--  = FFunc n $ genArgSorts sos
+--  where sos  = typeSort <$> τs
+--        τs   = τ1  : grabArgs [] τ2
+--        n    = (length sos) - 1
+--     
+--typeUniqueSymbol :: Type -> Symbol 
+--typeUniqueSymbol = stringSymbol . {-("sort_" ++) .-} showSDocDump . ppr
+--
+--grabArgs τs (FunTy τ1 τ2 ) = grabArgs (τ1:τs) τ2
+--grabArgs τs τ              = reverse (τ:τs)
+--
+--genArgSorts :: [Sort] -> [Sort]
+--genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
+--  where genSort FInt        = Nothing
+--        genSort FBool       = Nothing 
+--        genSort so          = Just so
+--        genIdx  _ (Just i)  = FVar i -- FPtr (FLvar i)
+--        genIdx  so  _       = so
+--
+--}}}
 
-fTycon = stringTycon . showPpr
-fObj   = FObj . typeUniqueSymbol 
-
-typeSortFun τ1 τ2
-  = FFunc n $ genArgSorts sos
-  where sos  = typeSort <$> τs
-        τs   = τ1  : grabArgs [] τ2
-        n    = (length sos) - 1
-     
-typeUniqueSymbol :: Type -> Symbol 
-typeUniqueSymbol = stringSymbol . ("sort_" ++) . showSDocDump . ppr
-
-grabArgs τs (FunTy τ1 τ2 ) = grabArgs (τ1:τs) τ2
-grabArgs τs τ              = reverse (τ:τs)
-
-genArgSorts :: [Sort] -> [Sort]
-genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
-  where genSort FInt        = Nothing
-        genSort FBool       = Nothing 
-        genSort so          = Just so
-        genIdx  _ (Just i)  = FVar i -- FPtr (FLvar i)
-        genIdx  so  _       = so
-
--}
 ---------------------------------------------------------------
 ----------------------- Typing Literals -----------------------
 ---------------------------------------------------------------

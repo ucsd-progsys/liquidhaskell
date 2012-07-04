@@ -51,3 +51,14 @@ intersperse d ds = hsep $ punctuate (space <> d) ds
 tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) $ x
 
 pprShow = text . show 
+
+dropModuleNames = last . words . (dotWhite `fmap`) 
+  where dotWhite '.' = ' '
+        dotWhite c   = c
+
+--dropModuleNames x =  x -- (mylast x (words (dotWhite <$> x)))
+--  where dotWhite '.' = ' '
+--        dotWhite c   = c
+--
+--mylast x [] = error $ "RefType.last" ++ showPpr x
+--mylast x l  = last l

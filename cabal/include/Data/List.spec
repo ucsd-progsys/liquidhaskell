@@ -1,6 +1,6 @@
 module spec Data.List where
 
-measure len :: forall a . [a] -> Int
+measure len :: forall a. [a] -> Int
 len ([])     = 0
 len (y:ys)   = 1 + len(ys)
 

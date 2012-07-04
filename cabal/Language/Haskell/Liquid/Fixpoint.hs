@@ -40,7 +40,7 @@ import Control.Monad.State
 import Text.Printf
 import Data.Monoid hiding ((<>))
 import Data.Functor
-import Data.List
+import Data.List    hiding (intersperse)
 import Data.Char        (ord, chr, isAlphaNum, isAlpha, isUpper, toLower)
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -307,6 +307,8 @@ tyConName c
   | isTupleTyCon c = tupConName
   | otherwise      = showPpr c
 
+isListTC (TC (S c)) = c == listConName
+
 typeSortFun τ1 τ2
   = FFunc n $ genArgSorts sos
   where sos  = typeSort <$> τs
@@ -314,7 +316,7 @@ typeSortFun τ1 τ2
         n    = (length sos) - 1
      
 typeUniqueSymbol :: Type -> Symbol 
-typeUniqueSymbol = stringSymbol . ("sort_" ++) . showSDocDump . ppr
+typeUniqueSymbol = stringSymbol . {- ("sort_" ++) . -} showSDocDump . ppr
 
 grabArgs τs (FunTy τ1 τ2 ) = grabArgs (τ1:τs) τ2
 grabArgs τs τ              = reverse (τ:τs)
@@ -329,18 +331,20 @@ genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
 
 newtype Sub = Sub [(Int, Sort)]
 
-
 instance Fixpoint Sort where
   toFix = toFix_sort
 
-
-toFix_sort (FVar i)     =  text "@"   <> parens (ppr i)
-toFix_sort FInt         =  text "int"
-toFix_sort FBool        =  text "bool"
-toFix_sort (FObj x)     =  text "ptr" <> parens (toFix x)
-toFix_sort FNum         =  text "num"
-toFix_sort (FFunc n ts) =  text "func" <> parens ((ppr n) <> (text ", ") <> (toFix ts))
-toFix_sort (FApp c ts)  =  toFix c <> parens (toFix ts) 
+toFix_sort (FVar i)     = text "@"   <> parens (ppr i)
+toFix_sort FInt         = text "int"
+toFix_sort FBool        = text "bool"
+toFix_sort (FObj x)     = text "ptr" <> parens (toFix x)
+toFix_sort FNum         = text "num"
+toFix_sort (FFunc n ts) = text "func" <> parens ((ppr n) <> (text ", ") <> (toFix ts))
+toFix_sort (FApp c [t]) 
+  | isListTC c          = brackets $ toFix_sort t 
+toFix_sort (FApp c ts)  = toFix c <+> intersperse space (fp <$> ts)
+                          where fp s@(FApp c (_:_)) = parens $ toFix_sort s 
+                                fp s                = toFix_sort s
 
 
 instance Fixpoint Tycon where
@@ -401,7 +405,7 @@ instance Fixpoint Subst where
 ---------------------------------------------------------------------------
 
 stringTycon :: String -> Tycon
-stringTycon = TC . stringSymbol
+stringTycon = TC . stringSymbol . dropModuleNames
 
 stringSymbol :: String -> Symbol
 stringSymbol s
