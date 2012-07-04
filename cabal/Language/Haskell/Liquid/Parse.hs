@@ -25,7 +25,7 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Outputable (Outputable (..))
-import Language.Haskell.Liquid.FileNames (dummyName, boolConName)
+import Language.Haskell.Liquid.FileNames (dummyName, boolConName, listConName, tupConName)
 
 --------------------------------------------------------------------
 

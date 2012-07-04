@@ -6,10 +6,8 @@ module Language.Haskell.Liquid.RefType (
     RTyVar (..), RType (..), RRType (..), BRType (..), RTyCon(..)
   , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..), Ref(..)
   , RefType, PrType, BareType, SpecType
-  , {-PVar (..),-} Predicate (..), UReft(..), DataDecl (..)
+  , Predicate (..), UReft(..), DataDecl (..)
   , pdAnd, pdVar, pdTrue, pvars
-  , listConName, tupConName 
-  -- , bLst, bTup, bCon, isBoolBareType, boolConName
   , Bind (..), RBind
   , ppr_rtype, mapReft, mapBind
   , ofType, ofPredTree, toType
@@ -65,7 +63,7 @@ import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GhcMisc (tvId, stringTyVar, intersperse)
-import Language.Haskell.Liquid.FileNames (boolConName)
+import Language.Haskell.Liquid.FileNames (listConName, tupConName, boolConName)
 import Data.List (sort, isPrefixOf, isSuffixOf, find, foldl')
 
 --------------------------------------------------------------------
@@ -462,9 +460,6 @@ instance TyConable RTyCon where
 instance Reftable Reft where
   isTauto = isTautoReft
   ppTy    = ppr_reft
-
-listConName = "List"
-tupConName  = "Tuple"
 
 instance TyConable String where
   isList  = (listConName ==) 

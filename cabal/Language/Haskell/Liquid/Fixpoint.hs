@@ -32,7 +32,9 @@ module Language.Haskell.Liquid.Fixpoint (
 
 import TypeRep 
 import PrelNames (intTyConKey, intPrimTyConKey, integerTyConKey, boolTyConKey)
-import TyCon (tyConUnique)
+
+import TysWiredIn       (listTyCon)
+import TyCon            (isTupleTyCon, tyConUnique)
 import Outputable
 import Control.Monad.State
 import Text.Printf
@@ -46,12 +48,12 @@ import Text.Parsec.String
 
 import Data.Generics.Schemes
 import Data.Generics.Aliases
-import Data.Data
+import Data.Data    hiding (tyConName)
 import Data.Maybe (catMaybes)
-
 
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.FileNames
+import Language.Haskell.Liquid.GhcMisc
 
 import qualified Data.Text as T
 
@@ -272,10 +274,6 @@ toFixpoint x' = gsDoc x' $+$ conDoc x' $+$  csDoc x' $+$ wsDoc x'
 ---------------------------------- Sorts -----------------------------
 ----------------------------------------------------------------------
 
--- data Loc  = FLoc !Symbol
---           | FLvar !Int 
--- 	         deriving (Eq, Ord, Data, Typeable, Show)
-
 newtype Tycon = TC Symbol deriving (Eq, Ord, Data, Typeable, Show)
 
 data Sort = FInt 
@@ -300,13 +298,14 @@ typeSort (ForAllTy _ τ)
 typeSort (FunTy τ1 τ2) 
   = typeSortFun τ1 τ2
 typeSort (TyConApp c τs)
-  = FApp (fTycon c) (typeSort <$> τs)
+  = FApp (stringTycon $ tyConName c) (typeSort <$> τs)
 typeSort τ
-  = fObj τ
-
-fTycon = stringTycon . showPpr
-fObj   = FObj . typeUniqueSymbol 
-
+  = FObj $ typeUniqueSymbol τ
+  
+tyConName c 
+  | listTyCon == c = listConName
+  | isTupleTyCon c = tupConName
+  | otherwise      = showPpr c
 
 typeSortFun τ1 τ2
   = FFunc n $ genArgSorts sos
@@ -331,20 +330,18 @@ genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
 newtype Sub = Sub [(Int, Sort)]
 
 
---instance Fixpoint Loc where 
---  toFix (FLoc (S s)) = text s
---  toFix (FLvar i)    = toFix i
- 
-pprShow = text . show 
-
 instance Fixpoint Sort where
-  toFix (FVar i)     =  text "@"   <> parens (ppr i)
-  toFix FInt         =  text "int"
-  toFix FBool        =  text "bool"
-  toFix (FObj x)     =  text "ptr" <> parens (toFix x)
-  toFix FNum         =  text "num"
-  toFix (FFunc n ts) =  text "func" <> parens ((ppr n) <> (text ", ") <> (toFix ts))
-  toFix (FApp c ts)  =  toFix c <> parens (toFix ts) 
+  toFix = toFix_sort
+
+
+toFix_sort (FVar i)     =  text "@"   <> parens (ppr i)
+toFix_sort FInt         =  text "int"
+toFix_sort FBool        =  text "bool"
+toFix_sort (FObj x)     =  text "ptr" <> parens (toFix x)
+toFix_sort FNum         =  text "num"
+toFix_sort (FFunc n ts) =  text "func" <> parens ((ppr n) <> (text ", ") <> (toFix ts))
+toFix_sort (FApp c ts)  =  toFix c <> parens (toFix ts) 
+
 
 instance Fixpoint Tycon where
   toFix (TC s)       = toFix s
