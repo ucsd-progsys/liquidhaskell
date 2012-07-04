@@ -5,14 +5,14 @@
 
 
 //MOVE INTO AN OPTIONAL FILE (cf. liquidc spec)
-qualif NonNull(v:ptr)        : (? (nonnull([v])))
-qualif Null(v:ptr)           : (~ (? (nonnull([v]))))
-qualif EqNull(v:bool,~A:ptr) : ((? v) <=> (? (nonnull([~A]))))
+qualif NonNull(v: List a)             : (? (nonnull([v])))
+qualif Null(v: List a)                : (~ (? (nonnull([v]))))
+qualif EqNull(v:bool, ~A: List a)     : ((? v) <=> (? (nonnull([~A]))))
 
 //MOVE INTO AN OPTIONAL FILE (cf. liquidc spec)
-qualif ListEmpty(v:ptr)      : len([v]) = 0 
-qualif ListLen(v:ptr)        : len([v]) >= 0 
-qualif ListNotEmpty(v:ptr)   : len([v]) > 0 
-qualif SameLen(v:ptr,~A:ptr) : len([v]) = len([~A]) 
-qualif EqLen(v:int,~A:ptr)   : v = len([~A]) 
-qualif LenEq(v:ptr,~A:int)   : ~A = len([v]) 
+qualif ListEmpty(v: List a)           : len([v]) = 0 
+qualif ListLen(v: List a)             : len([v]) >= 0 
+qualif ListNotEmpty(v: List a)        : len([v]) > 0 
+qualif SameLen(v:List a, ~A: List b)  : len([v]) = len([~A]) 
+qualif EqLen(v:int, ~A: List a)       : v = len([~A]) 
+qualif LenEq(v:ptr, ~A:int)           : ~A = len([v]) 
