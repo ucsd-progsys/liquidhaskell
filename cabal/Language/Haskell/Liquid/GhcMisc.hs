@@ -22,6 +22,7 @@ import CoreSyn
 import CostCentre 
 -- import Language.Haskell.Liquid.Misc (traceShow)
 import Control.Exception (assert)
+import Control.Applicative  ((<$>))   
 
 -----------------------------------------------------------------------
 --------------- Generic Helpers for Encoding Location -----------------
@@ -52,7 +53,8 @@ tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) $ x
 
 pprShow = text . show 
 
-dropModuleNames = last . words . (dotWhite `fmap`) 
+dropModuleNames [] = [] 
+dropModuleNames s  = last $ words $ dotWhite <$> s 
   where dotWhite '.' = ' '
         dotWhite c   = c
 
