@@ -1,10 +1,6 @@
-0. FIXPOINT-TYCONS <----------- HEREHEREHEREHERE
 
-    > Fixpoint.hs (Generate TyCon Sorts)
-    > Update .hqual files so stuff works
 
-1. nuke GhcInterface.listTyDataCons     
-
+1. nuke GhcInterface.listTyDataCons     <----------- HEREHEREHEREHERE
 2. pull all binders/subst into separate SINGLE file
     > RTyVar    + instances
     > RBind     + instances
