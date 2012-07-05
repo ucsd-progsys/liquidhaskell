@@ -3,25 +3,26 @@
 
 qualif Bot(v:@(0))   : 0 = 1 
 qualif Bot(v:obj)    : 0 = 1 
-qualif Bot(v:ptr)    : 0 = 1 
+qualif Bot(v:a)      : 0 = 1 
 qualif Bot(v:bool)   : 0 = 1 
+qualif Bot(v:int)    : 0 = 1 
 
 qualif Lt(v:int,~A:int) : v < ~A
 qualif Le(v:int,~A:int) : v <= ~A
 qualif Gt(v:int,~A:int) : ~A < v
 qualif Ge(v:int,~A:int) : ~A <= v
-qualif PosZ(v:int)      : 0 <= v
-qualif Zero(v:int)      : 0 = v
-qualif One(v:int)        : v = 1
-qualif True(v:bool)      : (? v) 
-qualif False(v:bool)     : ~ (? v) 
+qualif PosZ(v:int)    : 0 <= v
+qualif Zero(v:int)    : 0 = v
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
 
 // COMPARING for Ord/Num
-qualif LtP(v:ptr,~A:ptr) : v < ~A
-qualif LeP(v:ptr,~A:ptr) : v <= ~A
-qualif GtP(v:ptr,~A:ptr) : ~A < v
+qualif LtP(v:a, ~A:a) : v < ~A
+qualif LeP(v:a, ~A:a) : v <= ~A
+qualif GtP(v:a, ~A:a) : ~A < v
 
-qualif PosZP(v:ptr)      : 0 <= v
-qualif PosP(v:ptr)       : 0 < v
-qualif GeP(v:ptr,~A:ptr) : ~A <= v
+qualif PosZP(v:a)     : 0 <= v
+qualif PosP(v:a)      : 0 < v
+qualif GeP(v:a,~A:a)  : ~A <= v
 

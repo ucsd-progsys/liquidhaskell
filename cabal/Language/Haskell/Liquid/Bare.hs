@@ -212,25 +212,26 @@ wiredIn = M.fromList $
 
 type BareM a = ReaderT HscEnv IO a
 
-ofBareType :: BRType pv r -> BareM (RRType pv r)
+ofBareType :: (Reftable r) => BRType pv r -> BareM (RRType pv r)
 ofBareType (RVar (RV a) r) 
   = return $ RVar (stringRTyVar a) r
 ofBareType (RVar (RP π) r) 
   = return $ RVar (RP π) r
-ofBareType (RFun (RB x) t1 t2) 
-  = liftM2 (RFun (RB x)) (ofBareType t1) (ofBareType t2)
+ofBareType (RFun (RB x) t1 t2 _) 
+  = liftM2 (rFun (RB x)) (ofBareType t1) (ofBareType t2)
 ofBareType (RAll (RV a) t) 
   = liftM  (RAll (stringRTyVar a)) (ofBareType t)
 ofBareType (RAll (RP π) t) 
   = liftM  (RAll (RP π)) (ofBareType t)
 ofBareType (RApp tc [t] [] r) 
+  | isList tc
   = liftM (bareTCApp r [] listTyCon . (:[])) (ofBareType t)
 ofBareType (RApp tc ts [] r) 
   | isTuple tc
   = liftM (bareTCApp r [] c) (mapM ofBareType ts)
     where c = tupleTyCon BoxedTuple (length ts)
 ofBareType (RApp tc ts rs r) 
-  = liftM2 (bareTCApp r rs) (lookupGhcTyCon tc) (mapM ofBareType ts)
+  = liftM2 (bareTCApp r (idRMono <$> rs)) (lookupGhcTyCon tc) (mapM ofBareType ts)
 ofBareType (RCls c ts)
   = liftM2 RCls (lookupGhcClass c) (mapM ofBareType ts)
 
@@ -261,7 +262,7 @@ mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
 measureCtors ::  Ms.MSpec t Symbol -> [String]
 measureCtors = nubSort . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.ctorMap 
 
-mkMeasureSort :: Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
+mkMeasureSort :: (Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
 mkMeasureSort (Ms.MSpec cm mm) 
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> 
       liftM (\s' -> m {Ms.sort = s'}) (ofBareType (Ms.sort m))
@@ -285,7 +286,7 @@ ofBDataDecl (D tc as ps cts)
 ofBDataCon tc αs πs (c, xts)
  = do c'  <- lookupGhcDataCon c
       ts' <- mapM (mkPredType πs) ts
-      let t0 = rApp tc rs (pdVar <$> πs) pdTrue
+      let t0 = rApp tc rs (RMono . pdVar <$> πs) pdTrue
       -- let t2 = foldl (\t' (x,t) -> RFun (RB x) t t') t0 (zip xs' ts')
       -- let t1 = foldl (\t pv -> RAll (RP pv) t) t2 πs 
       -- let t  = foldl (\t v -> RAll (RV v) t) t1 αs

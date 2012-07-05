@@ -1,6 +1,8 @@
 {-# LANGUAGE NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections #-}
 
-{- Code to convert Core to Administrative Normal Form -}
+-------------------------------------------------------------------------------------
+------------ Code to convert Core to Administrative Normal Form ---------------------
+-------------------------------------------------------------------------------------
 
 module Language.Haskell.Liquid.ANFTransform (anormalize) where
 
@@ -9,11 +11,12 @@ import CoreUtils 		(exprType)
 import Outputable
 import CoreSyn
 import HscTypes
+import Literal
 import DsMonad			(DsM, initDs)
 import Id               (mkSysLocalM)
 import FastString       (fsLit)
 import Control.Monad
-
+import Language.Haskell.Liquid.Misc (traceShow)
 import Language.Haskell.Liquid.Fixpoint                 (anfPrefix)
 import Language.Haskell.Liquid.Misc (errorstar, tr_foldr')
 -- import Bag (bagToList)
@@ -58,6 +61,14 @@ normalizeBind (Rec xes)
 normalizeName :: CoreExpr -> DsM ([CoreBind], CoreExpr)
 ---------------------------------------------------------------------
 
+-- normalizeName_debug e = liftM (tracePpr ("normalizeName" ++ showPpr e)) $ normalizeName e
+
+normalizeName e@(Lit (LitInteger _ _)) 
+  = normalizeLiteral e 
+
+normalizeName e@(Tick _ (Lit (LitInteger _ _))) 
+  = normalizeLiteral e 
+
 normalizeName e
   | isBase e
   = return ([], e)
@@ -71,20 +82,16 @@ normalizeName e
        x        <- freshNormalVar (exprType e)
        return (bs ++ [NonRec x e'], Var x)
 
+normalizeLiteral e = 
+  do x <- freshNormalVar (exprType e)
+     return ([NonRec x e], Var x)
+
 freshNormalVar = mkSysLocalM (fsLit anfPrefix)
 
---maybeNormalizedVar :: CoreExpr -> Maybe Id 
---maybeNormalizedVar (Var x)
---  = Just x
---maybeNormalizedVar (Tick _ e)
---  = maybeNormalizedVar e
---maybeNormalizedVar _ 
---  = Nothing
-
-isBase (Var  _) = True
-isBase (Lit  _) = True
-isBase (Type _) = True
-isBase _        = False
+isBase (Var  _)   = True
+isBase (Type _)   = True
+isBase e@(Lit  _) = True
+isBase _          = False
 
 
 ---------------------------------------------------------------------
@@ -102,7 +109,6 @@ normalize (Let b e)
 
 normalize (Case e x t as)
   = do (bs, n) <- normalizeName e 
-       -- x'      <- freshNormalVar (idType x) 
        as'     <- forM as $ \(c, xs, e) -> liftM ((c, xs,) . stitch) (normalize e)
        return  $ (bs, Case n x t as')
 

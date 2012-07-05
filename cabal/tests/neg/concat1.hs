@@ -2,6 +2,10 @@ module Concat where
 
 import Language.Haskell.Liquid.Prelude
 
+------------------------------------------------------------
+------------ Longer Version of neg/polypred.hs -------------
+------------------------------------------------------------
+
 foo :: [[Int]]
 foo = [[choose 1], [choose 2]]
 
@@ -25,11 +29,10 @@ prop x = assert (x == r)
 
 -- ok 
 -- propC0 = map prop $ myconcat foo
-
 -- this is safe
 -- propC1 = map prop $ myconcat foo
-
 -- propC2 = map prop $ concat foo
 -- propC3 = map prop $ concat1 id foo
 
 propC4 = map prop $ myconcat1 id foo
+

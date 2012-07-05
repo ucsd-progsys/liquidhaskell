@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Language.Haskell.Liquid.FileNames ( 
-    tagName , dummyName, preludeName, boolConName
+    tagName , dummyName, preludeName, boolConName, listConName, tupConName 
   , Ext (..), repFileName, extFileName, extModuleName, isExtFile
   , getHsTargets
   --, fqName, outName , cgiName, htmlName, annotName, libName, cstName
@@ -37,9 +37,7 @@ envPrefix  = "$" ++ envVarName ++ "/"
 getIncludePath ::  IO String
 getIncludePath = getEnv envVarName 
 
-dummyName   = "_LIQUID_dummy"
-tagName     = "TAG"
-boolConName = "Bool"
+
 
 data Ext = Cgi | Out | Fq | Html | Cst | Annot | Hs | Spec | Hquals | Pred | PAss| Dat
            deriving (Eq, Ord)
@@ -78,9 +76,6 @@ preludeName  = "Prelude"
 libName      :: String -> FilePath
 libName ext  = envPrefix ++ "Prelude." ++ ext
 
---libName      ::  String -> IO FilePath
---libName ext  = liftM (</> ("Prelude." ++ ext)) getIncludePath
-
 existingFiles :: String -> [FilePath] -> IO [FilePath]
 existingFiles = filterM . warnMissing
 
@@ -103,13 +98,6 @@ retry ::  IOError -> [IO a] -> IO a
 retry err []     = ioError err
 retry err (a:as) = Ex.catch a $ \(e :: Ex.IOException) -> retry err as
 
---filePaths dir tgt = [tgt, (dir </> tgt)]
---sReadFile ::  FilePath -> IO String
---sReadFile tgt 
---  = do dir <- getIncludePath 
---       retry err $ readFile `fmap` filePaths dir tgt 
---    where err    = userError $ "Cannot Find File: " ++ tgt ++ "\n"
-
 resolvePath :: FilePath -> FilePath -> IO FilePath
 resolvePath base path
   = case stripPrefix envPrefix path of
@@ -127,9 +115,8 @@ getHsSourceFiles = System.FilePath.Find.find dirs hs
   where hs   = extension ==? ".hs" ||? extension ==? ".lhs"
         dirs = liftM (not . ("dist" `isSuffixOf`)) directory
 
-----------------------------------------------------------------------------------
+---------------------------------------------------------------------------
 
--- extModuleName moduleName ext
 
 getFileInDirs :: FilePath -> [FilePath] -> IO (Maybe FilePath)
 getFileInDirs name dirs = findFirst (testM doesFileExist . (</> name)) dirs
@@ -141,3 +128,15 @@ findFileInDirs file dirs
        case p of
          Just p -> return p
          Nothing -> errorstar $ "findFileInDirs: cannot find " ++ file ++ " in " ++ show dirs
+
+
+----------------------------------------------------------------------------
+--------------- Global Name Definitions ------------------------------------
+----------------------------------------------------------------------------
+
+dummyName   = "_LIQUID_dummy"
+tagName     = "TAG"
+boolConName = "Bool"
+listConName = "List"
+tupConName  = "Tuple"
+

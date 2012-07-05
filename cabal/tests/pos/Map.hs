@@ -2,12 +2,24 @@ module Map where
 
 import Language.Haskell.Liquid.Prelude
 
-
+{-@
+data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
+  = Tip 
+  | Bin (sz    :: Size) 
+        (key   :: k) 
+        (value :: a) 
+        (left  :: Map <l, r> (k <l key>) a) 
+        (right :: Map <l, r> (k <r key>) a) 
+  @-}
 data Map k a = Tip
              | Bin Size k a (Map k a) (Map k a)
 
 type Size    = Int
 
+{-@
+data Pair k v <p :: k -> k -> Bool, l :: k -> k -> Bool, r :: k -> k -> Bool>
+  = P (fld0 :: k) (fld1 :: v) (tree :: Map <l, r> (k <p fld0>) v) 
+  @-}
 data Pair k v = P k v (Map k v)
 
 

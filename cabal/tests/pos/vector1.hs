@@ -7,7 +7,7 @@ for lo hi acc f
   | lo < hi   = for (lo + 1) hi (f lo acc) f
   | otherwise = acc 
 
-dotProd v1 v2 = for 0 n 0 $ \i -> (((v1!i) * (v2!i)) +)
+dotProd v1 v2 = for 0 n 0 $ \i -> (((v1!i) {- * (v2!i) -}) +)
   where n = Data.Vector.length v1
 
 sumSquare v = dotProd v v

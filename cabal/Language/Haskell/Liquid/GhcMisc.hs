@@ -22,6 +22,7 @@ import CoreSyn
 import CostCentre 
 -- import Language.Haskell.Liquid.Misc (traceShow)
 import Control.Exception (assert)
+import Control.Applicative  ((<$>))   
 
 -----------------------------------------------------------------------
 --------------- Generic Helpers for Encoding Location -----------------
@@ -48,3 +49,18 @@ tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} show α ++ show (varUniqu
   
 intersperse d ds = hsep $ punctuate (space <> d) ds
 
+tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) $ x
+
+pprShow = text . show 
+
+dropModuleNames [] = [] 
+dropModuleNames s  = last $ words $ dotWhite <$> s 
+  where dotWhite '.' = ' '
+        dotWhite c   = c
+
+--dropModuleNames x =  x -- (mylast x (words (dotWhite <$> x)))
+--  where dotWhite '.' = ' '
+--        dotWhite c   = c
+--
+--mylast x [] = error $ "RefType.last" ++ showPpr x
+--mylast x l  = last l

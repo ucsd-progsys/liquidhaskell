@@ -1,152 +1,18 @@
-After all regrtests pass:
+0. FIXPOINT-TYCONS <----------- HEREHEREHEREHERE
 
-0. pull all binders/subst into separate SINGLE file
+    > Fixpoint.hs (Generate TyCon Sorts)
+    > Update .hqual files so stuff works
+
+1. nuke GhcInterface.listTyDataCons     
+
+2. pull all binders/subst into separate SINGLE file
     > RTyVar    + instances
     > RBind     + instances
     
-1. constant TAG missing from .fq
+3. constant TAG missing from .fq ???
 
-2. nuke GhcInterface.listTyDataCons
-
-3. PredType.dataConTy == (mapReft (\_ -> pdTrue)) . ofType 
--- REFACTORING
--- PrFun x t1 t2 ==> RFun (RB x) t1 t2
--- PrAllPr pv t  ==> RAll (RP pv) t
--- PrAll v t     ==> RAll (RV v) t
--- PrVar v p     ==> RVar (RV v) p
-
-Failed 17 tests: 
-      neg/concat1.hs
-    , pos/BST.hs
-    , pos/ListISort-LType.hs
-    , pos/ListLen-LType.hs
-    , pos/ListMSort-LType.hs
-    , pos/ListQSort-LType.hs
-    , pos/ListRange-LType.hs
-    , pos/Map.hs
-    , pos/deptup.hs
-
-NEXT UP (HEREHEREHEREHEREHERE)
-
-, pos/niki.hs
-MOVE Niki.Dat into .hs
-
-, pos/deptup0.hs
-, pos/deptup1.hs
-
-, pos/niki1.hs
-, pos/vector1.hs
-, pos/vector1a.hs
-, pos/vector1b.hs
-
-
-
-Tidy Annotations
-----------------
-
-{-@ data List a << p:a (fld:a) >> = Nil | Cons x:a^True y:List a^p(x) << p(fld)>> -- -}
-
-data Pair a b << q:b (fld0:a) >> = P x:a y:b^q(x) --
-
-data Pair a b <p: a -> b -> Bool> = P (x:a) (b<p x>)
-
-data List a 
-  = Nil
-  | Cons a (List a)
-
-data List a <forall p : a -> a -> Bool, ...>  
-  = Nil
-  | Cons  (h:a) (List (a<p h>) <p>)
-
-data [a] <forall p : a -> a -> Bool>  
-  = [] 
-  | (:) (h:a) [a<p h>]<p>
-
-data Bst k v <l: k -> k -> Bool, r: k -> k -> Bool>
-  = Leaf
-  | Node { key   :: k
-         , value :: v 
-         , left  :: Bst (k<l key>) v <l, r> 
-         , right :: Bst (k<r key>) v <l, r>
-         }
-
-max :: forall a. (Ord a) => a -> a -> a
-
-max :: forall a <p: a -> Bool>. (Ord a) => a<p> -> a<p> -> a<p>
-
-foo :: forall a <p: a -> ?>. (Num a) => a<p> -> a<p> -> a<p>
-
-($) :: (a -> b) -> a -> b
-
-($) :: forall <p :: a -> b -> Bool>. (x:a -> b<p x>) -> y:a -> b<p y>
-
-data Bst k v << p1:k (fld:k) p2:k (fld:k) >> 
-  = Empty 
-  | Bind { k0 :: k 
-         , v0 :: v 
-         , l  :: (Bst k^p1(k0) v << p1(fld) p2(fld)>>) 
-         , r  :: (Bst k^p2(k0) v << p1(fld) p2(fld)>> ) 
-         }
-
-"BST" =  Bst k v <\fld V -> V < fld, \fld V -> V > fld>
-
-data Tup3 a0 a1 a2 <P :: a0 -> a2 -> Bool> 
-  = T3 { x0 :: a0
-       , x1 :: a1
-       , x2 :: {V: a2| P(x0)(V)} 
-       }
-
-data Pair k v <P :: k -> k -> Bool> 
-  = T3 { x0 :: k
-       , x1 :: Bst k v {V: a2| P(x0)(V)} 
-       }
-
-data Pair a1 a2 <<P :: a1 -> a2 -> Bool>> 
-  = Pair { x1 :: a1,  x2 :: { V : a2 | P(x1)(V) } }
-  = Pair { x1 :: a1,  x2 :: a2^P(x1) }
-
-
-data Pair a b = Pair { x :: a,  y :: b }
-
-C { f1 :: t1    ===> T1 
-  , f2 :: t2    ===> T2
-  , fn :: tn    ===> Tn
-  }
-
-C :: f1:t1 -> f2:t2 -> ... -> fn:tn -> t
-
-Pair :: forall a, b :: x: a -> y: b -> Exists x: a, y: b. Pair a b<x>
-
-
-data Pair a b =  P { x :: a, y :: b }
-
-data List a   =  Nil | Cons { head :: a, tail :: List a }
-
-
-data Bst k v <L :: k -> k -> Bool, R :: k -> k -> Bool>
-  = Leaf
-  | Node { key   :: k 
-         , val   :: v
-         , left  :: Bst {V: k | L(key)(V)} v <L, R>
-         , right :: Bst {V: k | R(key)(V)} v <L, R>
-         }
-
-
-Pair Int (Bst Int String)
-    Int            ==> {V: Int | K1}
-    Bst Int String ==> Bst {V: Int | K2} {V: String | K3}
-
-
-{-@ data List a << p:a (fld:a) >> = Nil | Cons x:a^True y:List a^p(x) << p(fld)>> -- -}
-data List a = Nil | Cons a (List a)
-
-{-@ insert :: (Ord a) => a -> [a]{fld <= V} -> [a]{fld <= V} -}
-insert y Nil         = Cons y Nil
-insert y (Cons x xs) = if (y<x) 
-                        then Cons y (Cons x xs)
-                        else Cons x (insert y xs)
-
-
+FEATURE STACK
+  , pos/deptup.hs             (type signature: for constructor wrapper)
 
 Transition to GHC 7.4
 ---------------------
@@ -182,16 +48,6 @@ KNOWN BUGS
         z  = x3 / 2
 
   so I guess you need some constprop inside the constraint simplification.
-
-- Dependency between specs
-  
-  Must include:
-    
-    {-# ANN module "spec   $LIQUIDHS/List.spec" #-}
-  
-  Whenever you include:
-  
-    {-# ANN module "spec   $LIQUIDHS/Vector.spec" #-}
 
 - tests/pos/data-mono0.hs
   partial pattern match desugars into exception syntax with unhandled

@@ -74,7 +74,7 @@ data PCGEnv
 
 data PInfo 
   = PInfo { freshIndex :: !Integer
-          , pMap       :: !(M.Map (PVar Type) (Predicate Type))
+          , pMap       :: !(M.Map (F.PVar Type) (Predicate Type))
           , hsCsP      :: ![SubC]
           , tyCons     :: !(M.Map TyCon TyConP)
           , symbolsP   :: !(M.Map F.Symbol F.Symbol)
@@ -144,15 +144,16 @@ tyC (RVar (RV v1) p1) (RVar (RV v2) p2)
        return $ v1 == v2
 
 tyC (RApp c1 ts1 ps1 p1) (RApp c2 ts2 ps2 p2)
-  = do modify $ \(ps, msg) -> ((p2, p1):(ps ++ zip ps2 ps1), msg)
+  = do modify $ \(ps, msg) -> ((p2, p1):(ps ++ zip (fromRMono "tyC1" <$> ps2) (fromRMono "tyC2" <$> ps1)), msg)
        b <- zipWithM tyC ts1 ts2
        return $ and b && c1 == c2
 
 tyC (RCls c1 _) (RCls c2 _) 
   = return $ c1 == c2
 
-tyC (RFun (RB x) t1 t2) (RFun (RB x') t1' t2')
-  = do b1 <- tyC t1 t1'
+tyC (RFun (RB x) t1 t2 p1) (RFun (RB x') t1' t2' p2)
+  = do modify $ \(ps, msg) -> ((p2, p1):ps, msg)
+       b1 <- tyC t1 t1'
        b2 <- tyC (substSym (x, x') t2) t2'
        return $ b1 && b2
 
@@ -187,7 +188,7 @@ consE γ (App e (Type τ))
        return $ (α, ofType τ) `subsTyVar_meet` te
 
 consE γ (App e a)               
-  = do RFun (RB x) tx t <- liftM (checkFun ("PNon-fun App with caller", e)) $ consE γ e 
+  = do RFun (RB x) tx t _ <- liftM (checkFun ("PNon-fun App with caller", e)) $ consE γ e 
        cconsE γ a tx 
        case argExpr a of 
          Just e  -> return $ {-traceShow "App" $-} (x, e) `substSym` t
@@ -199,7 +200,7 @@ consE γ (Lam α e) | isTyVar α
 consE γ  e@(Lam x e1) 
   = do tx     <- freshTy τx 
        t1     <- consE (γ += (mkSymbol x, tx)) e1
-       return $ RFun (RB (mkSymbol x)) tx t1
+       return $ rFun (RB (mkSymbol x)) tx t1
     where FunTy τx _ = exprType e 
 
 consE γ e@(Let _ _)       
@@ -239,7 +240,7 @@ cconsE γ (Case e x τ cases) t
 cconsE γ (Lam α e) (RAll (RV _) t) | isTyVar α
   = cconsE γ e t
 
-cconsE γ (Lam x e) (RFun (RB y) ty t) 
+cconsE γ (Lam x e) (RFun (RB y) ty t _) 
   | not (isTyVar x) 
   = do cconsE (γ += (mkSymbol x, ty)) e te 
        addId y (mkSymbol x)
@@ -282,8 +283,8 @@ splitC (SubC γ (RAll (RV _) t1) (RAll (RV _) t2))
 splitC (SubC γ (RAll (RP _) t1) (RAll (RP _) t2))
   = splitC (SubC γ t1 t2)
 
-splitC (SubC γ (RFun (RB x1) t11 t12) (RFun (RB x2) t21 t22))
-  = splitC (SubC γ t21 t11) ++ splitC (SubC γ' t12' t22)
+splitC (SubC γ (RFun (RB x1) t11 t12 p1) (RFun (RB x2) t21 t22 p2))
+  = [splitBC p1 p2] ++ splitC (SubC γ t21 t11) ++ splitC (SubC γ' t12' t22)
     where t12' = (x1, x2) `substSym` t12
           γ'   = γ += (x2, t21)
 
@@ -292,7 +293,7 @@ splitC (SubC γ (RVar (RV a) p1) (RVar (RV a2) p2))        -- UNIFY: Check a == 
 
 splitC (SubC γ (RApp c1 ts1 ps1 p1) (RApp c2 ts2 ps2 p2)) -- UNIFY: Check c1 == c2?
   = (concatMap splitC (zipWith (SubC γ) ts1 ts2)) 
-    ++ [splitBC x y | (x, y) <- zip ps1 ps2] 
+    ++ [splitBC x y | (RMono x, RMono y) <- zip ps1 ps2] 
     ++ [splitBC p1 p2]
 
 splitC t@(SubC _ t1 t2)
@@ -389,7 +390,7 @@ addToMap substs
        let m' = foldl' updateSubst m substs
        put $ s { pMap = m' }
 
-updateSubst :: M.Map (PVar Type) (Predicate Type) -> (Predicate Type, Predicate Type) -> M.Map (PVar Type) (Predicate Type) 
+updateSubst :: M.Map (F.PVar Type) (Predicate Type) -> (Predicate Type, Predicate Type) -> M.Map (F.PVar Type) (Predicate Type) 
 updateSubst m (p, p') = foldl' (\m (k, v) -> M.insert k v m) m binds 
   where binds = unifiers $ unifyVars (subp m p) (subp m p')
 
@@ -439,11 +440,11 @@ freshInt = do pi <- get
               return n
 
 stringSymbol  = F.S
-freshSymbol s = stringSymbol . (s ++ ) . show <$> freshInt
-freshPr a     = (\sy -> pdVar (PV sy a [])) <$> (freshSymbol "p")
+freshSymbol s = stringSymbol . (s++) . show <$> freshInt
+freshPr a     = (\sy -> pdVar (F.PV sy a [])) <$> (freshSymbol "p")
 truePr _      = pdTrue
 
-freshPrAs p = (\n -> pdVar $ p { pname = n }) <$> freshSymbol "p"
+freshPrAs p = (\n -> pdVar $ p {F.pname = n}) <$> freshSymbol "p"
 
 refreshTy t 
   = do fps <- mapM freshPrAs ps
@@ -457,13 +458,13 @@ freshTy t
 freshTy t@(TyVarTy v) 
   = liftM (rVar v) (freshPr t)
 freshTy (FunTy t1 t2) 
-  = liftM3 RFun (RB <$> freshSymbol "s") (freshTy t1) (freshTy t2)
+  = liftM3 rFun (RB <$> freshSymbol "s") (freshTy t1) (freshTy t2)
 freshTy t@(TyConApp c τs) 
   | TyCon.isSynTyCon c
   = freshTy $ substTyWith αs τs τ
   where (αs, τ) = TyCon.synTyConDefn c
 freshTy t@(TyConApp c τs) 
-  = liftM3 (rApp c) (mapM freshTy τs) (freshTyConPreds c) (return (truePr t)) 
+  = liftM3 (rApp c) (mapM freshTy τs) (freshTyConPreds c τs) (return (truePr t)) 
 freshTy (ForAllTy v t) 
   = liftM (RAll (rTyVar v)) (freshTy t) 
 freshTy t
@@ -472,14 +473,16 @@ freshTy t
 freshPredTree (ClassPred c ts)
   = RCls c (ofType <$> ts)
 
-freshTyConPreds c 
+freshTyConPreds c ts
  = do s <- get
       case (M.lookup c (tyCons s)) of 
-       Just x  -> mapM freshPrAs (freePredTy x)
-       Nothing -> return []
+       Just x  -> liftM (RMono<$>) $ mapM freshPrAs 
+                      ((\t -> foldr subt t (zip (freeTyVarsTy x) ts)) 
+                     <$> freePredTy x)
+       Nothing -> return ([] :: [Ref (Predicate Type) PrType])
 
-checkFun _ t@(RFun _ _ _) = t
-checkFun x t              = error $ showPpr x ++ "type: " ++ showPpr t
+checkFun _ t@(RFun _ _ _ _) = t
+checkFun x t                = error $ showPpr x ++ "type: " ++ showPpr t
 
 checkAll _ t@(RAll (RV _) _) = t
 checkAll x t                 = error $ showPpr x ++ "type: " ++ showPpr t

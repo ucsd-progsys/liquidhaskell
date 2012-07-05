@@ -2,7 +2,20 @@ module BST where
 
 import Language.Haskell.Liquid.Prelude
 
+{-@
+data Bst k v <l :: k -> k -> Bool, r :: k -> k -> Bool>
+  = Empty
+  | Bind (key   :: k) 
+         (value :: v) 
+         (left  :: Bst <l, r> (k <l key>) v) 
+         (right :: Bst <l, r> (k <r key>) v)
+  @-}
 data Bst k v = Empty | Bind k v (Bst k v) (Bst k v)
+
+{-@
+data Pair k v <p :: k -> k -> Bool, l :: k -> k -> Bool, r :: k -> k -> Bool>
+  = P (fld0 :: k) (fld1 :: v) (tree :: Bst <l, r> (k <p fld0>) v) 
+  @-}
 data Pair k v = P k v (Bst k v)
 
 -- insert :: (Eq k, Ord k) => k -> v -> Bst k v -> Bst k v
@@ -54,4 +67,3 @@ propDelete  = chk $ delete 1 bst
 propMin     = chkMin x t
     where pr  = getMin bst
           P x _ t = pr
-
