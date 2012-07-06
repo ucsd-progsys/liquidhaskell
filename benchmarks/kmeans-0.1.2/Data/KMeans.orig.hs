@@ -8,9 +8,6 @@ Stability   :  experimental
 A simple implementation of the standard k-means clustering algorithm: <http://en.wikipedia.org/wiki/K-means_clustering>. K-means clustering partitions points into clusters, with each point belonging to the cluster with th nearest mean. As the general problem is NP hard, the standard algorithm, which is relatively rapid, is heuristic and not guaranteed to converge to a global optimum. Varying the input order, from which the initial clusters are generated, can yield different results. For degenerate and malicious cases, the algorithm may take exponential time.
 
 -}
-
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Data.KMeans (kmeans, kmeansGen)
     where
 
@@ -19,25 +16,22 @@ import Data.Function (on)
 import Data.Ord (comparing)
 
 data WrapType a = WrapType {getVect :: [Double], getVal :: a}
-
 instance Eq (WrapType a) where
    (==) = (==) `on` getVect
-
 instance Ord (WrapType a) where
     compare = comparing getVect
 
-dist ::  [Double] -> [Double] -> Double 
 dist a b = sqrt . sum $ zipWith (\x y-> (x-y) ^ 2) a b
 
 centroid points = map (flip (/) l . sum) $ transpose (map getVect points)
     where l = fromIntegral $ length points
 
-closest (n :: Int) points point = minimumBy (comparing $ dist point) points
+closest points point = minimumBy (comparing $ dist point) points
 
-recluster' n centroids points = map (map snd) $ groupBy ((==) `on` fst) reclustered
-    where reclustered = sort [(closest n centroids (getVect a), a) | a <- points]
+recluster' centroids points = map (map snd) $ groupBy ((==) `on` fst) reclustered
+    where reclustered = sort [(closest centroids (getVect a), a) | a <- points]
 
-recluster n clusters = recluster' n centroids $ concat clusters
+recluster clusters = recluster' centroids $ concat clusters
     where centroids = map centroid clusters
 
 part :: (Eq a) => Int -> [a] -> [[a]]
@@ -47,35 +41,19 @@ part x ys
     where (zs, zs') = splitAt x ys
 
 -- | Recluster points
-kmeans'' n clusters
+kmeans'' clusters
     | clusters == clusters' = clusters
-    | otherwise             = kmeans'' n clusters'
-    where clusters' = recluster n clusters
+    | otherwise             = kmeans'' clusters'
+    where clusters' = recluster clusters
 
-kmeans' n k points = kmeans'' n $ part l points
+kmeans' k points = kmeans'' $ part l points
     where l = (length points + k - 1) `div` k
 
 -- | Cluster points in a Euclidian space, represented as lists of Doubles, into at most k clusters.
 -- The initial clusters are chosen arbitrarily.
-{-@ assert kmeans :: n: Int -> k:Int -> points:[{v:[Double] | len(v) = n}] -> [[{ v: [Double] | len(v) = n}]] @-}
-kmeans :: Int -> Int -> [[Double]] -> [[[Double]]]
-kmeans n = kmeansGen n id
+kmeans :: Int -> [[Double]] -> [[[Double]]]
+kmeans = kmeansGen id
 
 -- | A generalized kmeans function. This function operates not on points, but an arbitrary type which may be projected into a Euclidian space. Since the projection may be chosen freely, this allows for weighting dimensions to different degrees, etc.
-{-@ assert kmeansGen :: n: Int -> f:(a -> {v:[Double] | len(v) =n }) -> k:Int -> points:[a] -> [[a]] @-}
-kmeansGen :: Int -> (a -> [Double]) -> Int -> [a] -> [[a]]
-kmeansGen n f k points = map (map getVal) . kmeans' n k . map (\x -> WrapType (f x) x) $ points
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+kmeansGen :: (a -> [Double]) -> Int -> [a] -> [[a]]
+kmeansGen f k points = map (map getVal) . kmeans' k . map (\x -> WrapType (f x) x) $ points
