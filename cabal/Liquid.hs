@@ -19,7 +19,8 @@ import Control.DeepSeq
 import Control.Monad (forM)
 import CoreSyn
 
-import System.Console.CmdArgs
+-- import System.Console.CmdArgs
+
 
 main    = liquid >>= (exitWith . resultExit)
 

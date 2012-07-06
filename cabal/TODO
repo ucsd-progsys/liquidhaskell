@@ -1,22 +1,8 @@
 
-
 1. nuke GhcInterface.listTyDataCons     <----------- HEREHEREHEREHERE
-2. pull all binders/subst into separate SINGLE file
-    > RTyVar    + instances
-    > RBind     + instances
-    
-3. constant TAG missing from .fq ???
 
 FEATURE STACK
   , pos/deptup.hs             (type signature: for constructor wrapper)
-
-Transition to GHC 7.4
----------------------
-
-0. hack fixpoint, to prevent instantiating ~A with vars of type "func"
-1. [] : forall a. [{v:a|false}] and re-enable the set-kvars-to-true.
-2. remove explicit "Double" sigs from KMeans0
-3. get KMeans to work with WrapType
 
 KNOWN BUGS
 ----------
