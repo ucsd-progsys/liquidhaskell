@@ -389,6 +389,7 @@ specificationP
 
 specP 
   = try (reserved "assume"  >> liftM Assm  tyBindP)
+    <|> (reserved "assert"  >> liftM Assm  tyBindP)
     <|> (reserved "measure" >> liftM Meas  measureP) 
     <|> (reserved "import"  >> liftM Impt  symbolP)
     <|> (reserved "data"    >> liftM DDecl dataDeclP)
