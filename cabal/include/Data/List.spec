@@ -12,4 +12,4 @@ measure nonnull :: forall a. [a] -> Bool
 nonnull (y:ys) = true
 nonnull ([])   = false 
 
-assume GHC.List.length :: forall a. x: [a] -> { v: Int | v = len(x) }
+assume Prelude.length :: forall a. x: [a] -> { v: Int | v = len(x) }

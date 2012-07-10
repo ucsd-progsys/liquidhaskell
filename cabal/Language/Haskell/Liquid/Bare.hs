@@ -39,6 +39,7 @@ import Name                     (mkInternalName)
 import OccName                  (mkTyVarOcc)
 import Unique                   (getKey, getUnique, initTyVarUnique)
 import Data.List                (sort)
+import Data.Maybe               (isJust, fromMaybe)
 import Data.Char                (isUpper)
 import ErrUtils
 import Data.Traversable         (forM)
@@ -48,6 +49,7 @@ import Data.Generics.Schemes
 import Data.Generics.Aliases
 import Data.Data                hiding (TyCon, tyConName)
 import Data.Bifunctor
+
 import qualified Data.Map as M
 
 import Language.Haskell.Liquid.GhcMisc
@@ -69,7 +71,9 @@ mkMeasureSpec env m = runReaderT mkSpec env
 
 mkAssumeSpec :: HscEnv-> [(Symbol, BareType)] -> IO [(Var, SpecType)]
 mkAssumeSpec env xbs = runReaderT mkAspec env
-  where mkAspec = forM xbs $ \(x, b) -> liftM2 (,) (lookupGhcId $ symbolString x) (mkSpecType b)
+  where mkAspec = return (first symbolString <$> xbs)
+                  >>= filterM (existsGhcId . fst)
+                  >>= mapM    (\(x, b) -> liftM2 (,) (lookupGhcId x) (mkSpecType b))
 
 -- mkSpecType :: BareType -> BareM SpecType 
 mkSpecType    = ofBareType . txParams [] . txTyVarBinds . mapReft (bimap canonReft stringTyVarTy) 
@@ -105,37 +109,79 @@ fileEnv f
 
 class Outputable a => GhcLookup a where
   lookupName :: HscEnv -> a -> IO Name
+  existsName :: HscEnv -> a -> IO Bool
 
 instance GhcLookup String where
-  lookupName = stringToName
+  lookupName     = stringName
+  existsName     = stringExists 
 
 instance GhcLookup Name where
-  lookupName _  = return
+  lookupName _   = return
+  existsName _ _ = return True
+
+existsGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM Bool 
+existsGhcThing name f x 
+  = do z <- lookupGhcThing' name f x
+       case z of 
+         Just _ -> return True
+         _      -> return False
 
 lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
 lookupGhcThing name f x 
+  = do z <- lookupGhcThing' name f x
+       case z of 
+         Just x -> return x
+         _      -> liftIO $ ioError $ userError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
+
+lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
+lookupGhcThing' name f x 
   = do env     <- ask
        (_,res) <- liftIO $ tcRnLookupName env =<< lookupName env x
        case f `fmap` res of
          Just (Just z) -> 
-           return z
-         _      -> 
-           liftIO $ ioError $ userError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
+           return (Just z)
+         _      ->
+           return Nothing
 
-lookupNameStr :: HscEnv -> String -> IO (Maybe Name)
-lookupNameStr env k 
+--lookupGhcThing name f x 
+--  = do env     <- ask
+--       (_,res) <- liftIO $ tcRnLookupName env =<< lookupName env x
+--       case f `fmap` res of
+--         Just (Just z) -> 
+--           return z
+--         _      -> 
+--           liftIO $ ioError $ userError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
+
+-- lookupNameStr :: HscEnv -> String -> IO (Maybe Name)
+-- lookupNameStr env k 
+--   = case M.lookup k wiredIn of 
+--       Just n  -> return (Just n)
+--       Nothing -> stringToNameEnvStr env k
+--
+
+stringExists env k = isJust        <$> stringLookup env k
+stringName env k   = fromMaybe err <$> stringLookup env k
+                     where err = errorstar $ "Bare.stringName cannot find name for: " ++ k
+
+--stringToName :: HscEnv -> String -> IO Name
+--stringToName env k 
+--  = do z <- foobar env k 
+--       case z of
+--         Just n  -> return n
+--         Nothing -> 
+
+stringLookup :: HscEnv -> String -> IO (Maybe Name)
+stringLookup env k
   = case M.lookup k wiredIn of 
       Just n  -> return (Just n)
-      Nothing -> stringToNameEnvStr env k
+      Nothing -> stringLookupEnv env k
 
-stringToNameEnvStr :: HscEnv -> String -> IO ( Maybe Name)
-stringToNameEnvStr env s 
+stringLookupEnv env s 
     = do L _ rn         <- hscParseIdentifier env s
          (_, lookupres) <- tcRnLookupRdrName env rn
          case lookupres of
            Just (n:_) -> return (Just n)
            _          -> return Nothing
-
 
 lookupGhcTyCon = lookupGhcThing "TyCon" ftc 
   where ftc (ATyCon x) = Just x
@@ -149,43 +195,12 @@ lookupGhcDataCon = lookupGhcThing "DataCon" fdc
   where fdc (ADataCon x) = Just x
         fdc _            = Nothing
 
-lookupGhcId s 
-  = lookupGhcThing "Id" fid s
-  where fid (AnId x)     = Just x
-        fid (ADataCon x) = Just $ dataConWorkId x
-        fid _            = Nothing
+lookupGhcId = lookupGhcThing "Id" thingId 
+existsGhcId = existsGhcThing "Id" thingId 
 
-stringToName :: HscEnv -> String -> IO Name
-stringToName env k 
-  = case M.lookup k wiredIn of 
-      Just n  -> return n
-      Nothing -> stringToNameEnv env k
-
-stringToNameEnv :: HscEnv -> String -> IO Name
-stringToNameEnv env s 
-    = do L _ rn         <- hscParseIdentifier env s
-         (_, lookupres) <- tcRnLookupRdrName env rn
-         case lookupres of
-           Just (n:_) -> return n
-           _          -> errorstar $ "Bare.lookupName cannot find name for: " ++ s
-
--- symbolToSymbol :: Symbol -> BareM Symbol
--- symbolToSymbol (S s) 
---   = lookupGhcThingToSymbol fid s
---   where fid (AnId x)     = Just $ mkSymbol x
---         fid (ADataCon x) = Just $ mkSymbol $ dataConWorkId x
---         fid _            = Nothing
--- 
--- lookupGhcThingToSymbol :: (TyThing -> Maybe Symbol) -> String -> BareM Symbol
--- lookupGhcThingToSymbol f x 
---   = do env     <- ask
---        m <- liftIO $ lookupNameStr env x 
---        case m of 
---           Just n -> do  (_,res) <- liftIO $ tcRnLookupName env n
---                         case f `fmap` res of
---                           Just (Just z) -> return z
---                           _      -> return $ S x
---           _      -> return $ S x
+thingId (AnId x)     = Just x
+thingId (ADataCon x) = Just $ dataConWorkId x
+thingId _            = Nothing
 
 
 wiredIn :: M.Map String Name

@@ -2,7 +2,7 @@
 BINPATH=/home/rjhala/research/ghc-working-local-new/bin
 #BINPATH=/usr/bin
 API=ghc-7.4.1
-NTHREADS=1
+THREADS=1
 
 ##############################################################################
 ##############################################################################
@@ -58,4 +58,4 @@ pdeps:
 	$(CABALP) $(DEPS)
 
 test:
-	cd tests && ./regrtest.py -t $(NTHREADS) && cd ../
+	cd tests && ./regrtest.py -t $(THREADS) && cd ../
