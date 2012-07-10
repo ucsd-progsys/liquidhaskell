@@ -32,7 +32,7 @@ import Language.Haskell.Liquid.FileNames (dummyName, boolConName, listConName, t
 languageDef =
   emptyDef { Token.commentStart    = "/*"
            , Token.commentEnd      = "*/"
-           , Token.commentLine     = "//"
+           , Token.commentLine     = "--"
            , Token.identStart      = satisfy (\_ -> False) -- letter 
            , Token.identLetter     = satisfy (\_ -> False) -- satisfy (`elem` symChars)
            , Token.reservedNames   = [ "SAT"

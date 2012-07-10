@@ -8,9 +8,6 @@ module Language.Haskell.Liquid.Bare (
     mkMeasureSpec
   , mkAssumeSpec
   , mkConTypes
-  -- , mkIds, mkRefTypes, mkPredTypes
-  -- , getClasses
-  -- , isDummyBind
   )
 where
 
@@ -65,14 +62,7 @@ import qualified Control.Exception as Ex
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
 
---mkRefTypes :: HscEnv -> [BRType a Reft] -> IO [RRType a Reft]
---mkRefTypes env bs = runReaderT (mapM mkRefType bs) env
- --mkIds :: HscEnv -> [Name] -> IO [Var]
---mkIds env ns = runReaderT (mapM lookupGhcId ns) env
-
-
 mkMeasureSpec :: HscEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
--- mkMeasureSpec :: HscEnv -> Ms.MSpec (BRType (PVar Type) Reft) Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
 mkMeasureSpec env m = runReaderT mkSpec env
   where mkSpec = mkMeasureSort m' >>= mkMeasureDCon >>= return . Ms.dataConTypes
         m'     = first (txTyVarBinds . mapReft ureft) m
@@ -84,7 +74,6 @@ mkAssumeSpec env xbs = runReaderT mkAspec env
 -- mkSpecType :: BareType -> BareM SpecType 
 mkSpecType    = ofBareType . txParams [] . txTyVarBinds . mapReft (bimap canonReft stringTyVarTy) 
 mkPredType πs = ofBareType . txParams πs . txTyVarBinds . mapReft (fmap stringTyVarTy)
--- mkRefType     = ofBareType . mapReft canonReft
 
 ------------------------------------------------------------------
 -------------------- Type Checking Raw Strings -------------------
@@ -133,17 +122,6 @@ lookupGhcThing name f x
          _      -> 
            liftIO $ ioError $ userError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
 
-lookupGhcThingToSymbol :: (TyThing -> Maybe Symbol) -> String -> BareM Symbol
-lookupGhcThingToSymbol f x 
-  = do env     <- ask
-       m <- liftIO $ lookupNameStr env x 
-       case m of 
-          Just n -> do  (_,res) <- liftIO $ tcRnLookupName env n
-                        case f `fmap` res of
-                          Just (Just z) -> return z
-                          _      -> return $ S x
-          _      -> return $ S x
-
 lookupNameStr :: HscEnv -> String -> IO (Maybe Name)
 lookupNameStr env k 
   = case M.lookup k wiredIn of 
@@ -191,12 +169,24 @@ stringToNameEnv env s
            Just (n:_) -> return n
            _          -> errorstar $ "Bare.lookupName cannot find name for: " ++ s
 
-symbolToSymbol :: Symbol -> BareM Symbol
-symbolToSymbol (S s) 
-  = lookupGhcThingToSymbol fid s
-  where fid (AnId x)     = Just $ mkSymbol x
-        fid (ADataCon x) = Just $ mkSymbol $ dataConWorkId x
-        fid _            = Nothing
+-- symbolToSymbol :: Symbol -> BareM Symbol
+-- symbolToSymbol (S s) 
+--   = lookupGhcThingToSymbol fid s
+--   where fid (AnId x)     = Just $ mkSymbol x
+--         fid (ADataCon x) = Just $ mkSymbol $ dataConWorkId x
+--         fid _            = Nothing
+-- 
+-- lookupGhcThingToSymbol :: (TyThing -> Maybe Symbol) -> String -> BareM Symbol
+-- lookupGhcThingToSymbol f x 
+--   = do env     <- ask
+--        m <- liftIO $ lookupNameStr env x 
+--        case m of 
+--           Just n -> do  (_,res) <- liftIO $ tcRnLookupName env n
+--                         case f `fmap` res of
+--                           Just (Just z) -> return z
+--                           _      -> return $ S x
+--           _      -> return $ S x
+
 
 wiredIn :: M.Map String Name
 wiredIn = M.fromList $
