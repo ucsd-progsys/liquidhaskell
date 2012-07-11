@@ -19,8 +19,7 @@ import Control.Monad
 import Language.Haskell.Liquid.Misc (traceShow)
 import Language.Haskell.Liquid.Fixpoint                 (anfPrefix)
 import Language.Haskell.Liquid.Misc (errorstar, tr_foldr')
--- import Bag (bagToList)
-
+import Language.Haskell.Liquid.GhcMisc (tracePpr)
 
 anormalize :: HscEnv -> ModGuts -> IO [CoreBind]
 anormalize hscEnv modGuts 
@@ -61,7 +60,7 @@ normalizeBind (Rec xes)
 normalizeName :: CoreExpr -> DsM ([CoreBind], CoreExpr)
 ---------------------------------------------------------------------
 
--- normalizeName_debug e = liftM (tracePpr ("normalizeName" ++ showPpr e)) $ normalizeName e
+normalizeName_debug e = liftM (tracePpr ("normalizeName" ++ showPpr e)) $ normalizeName e
 
 normalizeName e@(Lit (LitInteger _ _)) 
   = normalizeLiteral e 
@@ -127,7 +126,7 @@ normalize (Cast e τ)
 
 normalize (App e1 e2)
   = do (bs1, e1') <- normalize e1
-       (bs2, n2 ) <- normalizeName e2
+       (bs2, n2 ) <- normalizeName_debug e2
        return (bs1 ++ bs2, App e1' n2)
 
 normalize (Tick n e)

@@ -108,16 +108,13 @@ fileEnv f
 -----------------------------------------------------------------
 
 class Outputable a => GhcLookup a where
-  lookupName :: HscEnv -> a -> IO Name
-  existsName :: HscEnv -> a -> IO Bool
+  lookupName :: HscEnv -> a -> IO (Maybe Name)
 
 instance GhcLookup String where
-  lookupName     = stringName
-  existsName     = stringExists 
+  lookupName     = stringLookup
 
 instance GhcLookup Name where
-  lookupName _   = return
-  existsName _ _ = return True
+  lookupName _   = return . Just
 
 existsGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM Bool 
 existsGhcThing name f x 
@@ -136,12 +133,10 @@ lookupGhcThing name f x
 lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
 lookupGhcThing' name f x 
   = do env     <- ask
-       (_,res) <- liftIO $ tcRnLookupName env =<< lookupName env x
-       case f `fmap` res of
-         Just (Just z) -> 
-           return (Just z)
-         _      ->
-           return Nothing
+       z       <- liftIO $ lookupName env x
+       case z of
+         Nothing -> return Nothing 
+         Just n  -> liftIO $ liftM (join . (f <$>) . snd) (tcRnLookupName env n)
 
 --lookupGhcThing name f x 
 --  = do env     <- ask
@@ -159,9 +154,8 @@ lookupGhcThing' name f x
 --       Nothing -> stringToNameEnvStr env k
 --
 
-stringExists env k = isJust        <$> stringLookup env k
-stringName env k   = fromMaybe err <$> stringLookup env k
-                     where err = errorstar $ "Bare.stringName cannot find name for: " ++ k
+-- stringName env k   = fromMaybe err <$> stringLookup env k
+--                     where err = errorstar $ "Bare.stringName cannot find name for: " ++ k
 
 --stringToName :: HscEnv -> String -> IO Name
 --stringToName env k 
@@ -196,7 +190,8 @@ lookupGhcDataCon = lookupGhcThing "DataCon" fdc
         fdc _            = Nothing
 
 lookupGhcId = lookupGhcThing "Id" thingId 
-existsGhcId = existsGhcThing "Id" thingId 
+existsGhcId s = do z <- existsGhcThing "Id" thingId s 
+                   return $ traceShow ("existsGhcId " ++ s) $ z
 
 thingId (AnId x)     = Just x
 thingId (ADataCon x) = Just $ dataConWorkId x
