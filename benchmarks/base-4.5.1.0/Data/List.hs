@@ -284,11 +284,11 @@ findIndices      :: (a -> Bool) -> [a] -> [Int]
 findIndices p xs = [ i | (x,i) <- zip xs [0..], p x]
 #else
 -- Efficient definition
-findIndices p ls = loop 0# ls
+findIndices p ls = loop 0 ls
                  where
                    loop _ [] = []
-                   loop n (x:xs) | p x       = I# n : loop (n +# 1#) xs
-                                 | otherwise = loop (n +# 1#) xs
+                   loop n (x:xs) | p x       = n : loop (n + 1) xs
+                                 | otherwise = loop (n + 1) xs
 #endif  /* USE_REPORT_PRELUDE */
 
 -- | The 'isPrefixOf' function takes two lists and returns 'True'
