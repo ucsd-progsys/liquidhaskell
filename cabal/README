@@ -21,6 +21,12 @@ How To Run Tests
 
   $ make deps && make && make test
 
+To use threads to speed up the tests
+
+  $ make THREADS=30 test
+
+or your favorite number of threads, depending on cores etc.
+
 
 How To Include Spec Files 
 -------------------------
