@@ -114,11 +114,11 @@ null (_:_)              =  False
 -- It is an instance of the more general 'Data.List.genericLength',
 -- the result type of which may be any kind of number.
 length                  :: [a] -> Int
-length l                =  len l 0#
+length l                =  lenJHALA l 0#
   where
-    len :: [a] -> Int# -> Int
-    len []     a# = I# a#
-    len (_:xs) a# = len xs (a# +# 1#)
+    lenJHALA :: [a] -> Int# -> Int
+    lenJHALA []     a# = I# a#
+    lenJHALA (_:xs) a# = lenJHALA xs (a# +# 1#)
 
 -- | 'filter', applied to a predicate and a list, returns the list of
 -- those elements that satisfy the predicate; i.e.,
