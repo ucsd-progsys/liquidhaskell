@@ -13,7 +13,7 @@ module Language.Haskell.Liquid.RefType (
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp, rFun
   , typeUniqueSymbol
-  , strengthen, strengthenRefType
+  , strengthen -- , strengthenRefType
   , mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
   , subts, substSym 
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
@@ -633,7 +633,6 @@ subsFree m s z (RAll (RV α) t)
 subsFree m s z (RFun x t t' r)       
   = RFun x (subsFree m s z t) (subsFree m s z t') (subt (second toType z)  r)
 subsFree m s z@(α, t') t@(RApp c ts rs r)     
---  = RApp c' (subsFree m s z <$> ts) (subt z' <$> rs) (subt z' r)  
   = RApp c' (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) (subt z' r)  
     where c' = c {rTyConPs = subt z' <$> rTyConPs c}
           z' = (α, toType t')
@@ -889,6 +888,7 @@ dataConSymbol = mkSymbol . dataConWorkId
 primOrderingSort = typeSort $ dataConRepType eqDataCon
 ordCon s = EDat (S s) primOrderingSort
 
+-- TODO: turn this into a map lookup?
 -- dataConReft   ::  DataCon -> Type -> Reft 
 dataConReft c τ
   | c == trueDataCon

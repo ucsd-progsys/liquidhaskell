@@ -139,7 +139,7 @@ dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(Symbol, RefType)])
 dataConTypes s = (ctorTys, measTys)
   where measTys = [(name m, sort m) | m <- elems $ measMap s]
         ctorTys = [(defsVar ds, defsTy ds) | (_, ds) <- toList $ ctorMap s]
-        defsTy  = reduce strengthenRefType . fmap defRefType 
+        defsTy  = reduce meet {-strengthenRefType-} . fmap defRefType 
         defsVar = dataConWorkId . ctor . safeHead "defsVar" 
 
 defRefType :: Def DataCon -> RefType

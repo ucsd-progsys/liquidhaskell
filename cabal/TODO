@@ -6,6 +6,8 @@ TODO
 
 GHC.List    <---------------------- HEREHEREHEREHERE
 
+case e of cases <-- don't ANF if e is Primitive?
+
 Int# issue. Fix anormalize so that it doesn't transform 
 
     case n# +# 1# (bound to tmp) of ...

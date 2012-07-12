@@ -334,8 +334,16 @@ splitC (SubC γ t1@(RFun (RB x1) r1 r1' re1) t2@(RFun (RB x2) r2 r2' re2))
            γ'    = (γ, "splitC") += (x2, r2) 
 
 
-splitC (SubC γ (RAll _ t1) (RAll _ t2)) 
-  = splitC (SubC γ t1 t2) 
+splitC (SubC γ (RAll b1 t1) (RAll b2 t2))
+  | b1 == b2
+  = splitC $ SubC γ t1 t2
+
+splitC (SubC γ (RAll (RV α1) t1) (RAll (RV α2) t2))
+  = splitC $ SubC γ t1 t2' 
+  where t2' = subsTyVar_meet (α2, RVar (RV α1) top) t2
+
+splitC c@(SubC γ (RAll _ _) (RAll _ _)) 
+  = errorstar $ "splitc unexpected: " ++ showPpr c
 
 {-
 splitC (SubC γ t1 (RAll ((RP p@(PV _ τ _))) t2))
@@ -772,17 +780,26 @@ cconsCase γ _ t (DEFAULT, _, ce)
   = cconsE γ ce t
 
 cconsCase γ x t (DataAlt c, ys, ce) 
- = do yts' <- mkyts γ ys yts
-      let cbs           = zip (x':ys') (xt:yts')
-      let cγ            = addBinders γ x' cbs
+ = do yts'            <- mkyts γ ys yts
+      let cbs          = zip (x':ys') (xt:yts')
+      let cγ           = addBinders γ x' cbs
       cconsE cγ ce t
- where (x':ys')      = mkSymbol <$> (x:ys)
-       xt0           = checkTyCon x $ γ ?= x'
-       tdc           = γ ?= (dataConSymbol c)
+ where (x':ys')        = mkSymbol <$> (x:ys)
+       xt0             = checkTyCon x $ γ ?= x'
+       tdc             = γ ?= (dataConSymbol c)
        (rtd, yts, xt') = unfoldR tdc xt0 ys'
-       r1            = dataConReft c $ varType x
-       r2            = dataConMsReft rtd ys'
-       xt            = xt0 `strengthen` (r1 `meet` r2)
+       r1              = dataConReft c $ varType x
+       r2              = dataConMsReft rtd ys'
+       xt              = xt0 `strengthen` (r1 `meet` r2)
+
+cconsCase γ x t (LitAlt l, [], ce) 
+  = cconsE cγ ce t
+  where cγ  = addBinders γ x' [(x', xt)]
+        x'  = mkSymbol x
+        xt  = (γ ?= x')`meet` (literalRefType l)
+
+cconsCase γ x t z 
+  = errorstar $ "cconsCase TBD: handle " ++ showPpr z
 
 mkyts γ ys yts = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts
 mkyt (γ, ts) (y, yt)
@@ -871,7 +888,7 @@ tySort _                             = error "tySort"
 argExpr ::  CoreExpr -> Maybe F.Expr
 argExpr (Var vy)         = Just $ F.EVar $ mkSymbol vy
 argExpr (Lit c)          = Just $ snd $ literalConst c
-argExpr (Tick _ e)		     = argExpr e
+argExpr (Tick _ e)		 = argExpr e
 argExpr e                = errorstar $ "argExpr: " ++ (showPpr e)
 
 varRefType γ x =  t 
@@ -994,7 +1011,7 @@ substPred m (p, tp) (RAll (RP q@(PV _ _ _)) t)
 substPred m pt (RAll a@(RV _) t) = RAll a (substPred m pt t)
 substPred m pt@(p, tp) (RFun x t t' r) 
   | p `isPredIn` r
-  = strengthenRefType (RFun x t t' r') (fmap (F.subst su) tp)
+  = {- strengthenRefType -} meet (RFun x t t' r') (fmap (F.subst su) tp)
   | otherwise 
   = RFun x (substPred m pt t) (substPred m pt t') r
   where (r', su) = rmKVarReft p r
@@ -1009,7 +1026,7 @@ substRCon (p, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2) | rc1 == rc2
         addS r         = F.subst su r
         (RTyCon rc1 _) = c1
         (RTyCon rc2 _) = c2
-        strSub t1      = strengthenRefType t1 . fmap addS
+        strSub t1      = {- strengthenRefType -} meet t1 . fmap addS
         strSubR t1 t2  = RPoly $ strSub (fromRPoly t1) (fromRPoly t2) 
 
 substRCon pt t = error $ "substRCon" ++ show (pt, t)

@@ -15,6 +15,7 @@ import Literal
 import DsMonad			(DsM, initDs)
 import Id               (mkSysLocalM)
 import FastString       (fsLit)
+import Type             (isPrimitiveType)
 import Control.Monad
 import Language.Haskell.Liquid.Misc (traceShow)
 import Language.Haskell.Liquid.Fixpoint                 (anfPrefix)
@@ -57,9 +58,9 @@ normalizeBind (Rec xes)
        return [Rec (zip xs es')]
     where (xs, es) = unzip xes
 
----------------------------------------------------------------------
-normalizeName :: CoreExpr -> DsM ([CoreBind], CoreExpr)
----------------------------------------------------------------------
+---------------------------------------------------------------------------------------------
+normalizeName, normalizeScrutinee, normalizeLiteral :: CoreExpr -> DsM ([CoreBind], CoreExpr)
+---------------------------------------------------------------------------------------------
 
 normalizeName_debug e = liftM (tracePpr ("normalizeName" ++ showPpr e)) $ normalizeName e
 
@@ -86,6 +87,12 @@ normalizeLiteral e =
   do x <- freshNormalVar (exprType e)
      return ([NonRec x e], Var x)
 
+normalizeScrutinee e 
+  | isPrimitiveType (exprType e) 
+  = return ([], e)
+  | otherwise  
+  = normalizeName e
+
 freshNormalVar = mkSysLocalM (fsLit anfPrefix)
 
 isBase (Var  _)   = True
@@ -108,7 +115,7 @@ normalize (Let b e)
        return (bs' ++ bs'', e')
 
 normalize (Case e x t as)
-  = do (bs, n) <- normalizeName e 
+  = do (bs, n) <- normalizeScrutinee e 
        as'     <- forM as $ \(c, xs, e) -> liftM ((c, xs,) . stitch) (normalize e)
        return  $ (bs, Case n x t as')
 
@@ -127,7 +134,7 @@ normalize (Cast e τ)
 
 normalize (App e1 e2)
   = do (bs1, e1') <- normalize e1
-       (bs2, n2 ) <- normalizeName_debug e2
+       (bs2, n2 ) <- normalizeName e2
        return (bs1 ++ bs2, App e1' n2)
 
 normalize (Tick n e)
