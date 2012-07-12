@@ -1,8 +1,28 @@
-
-1. nuke GhcInterface.listTyDataCons     <----------- HEREHEREHEREHERE
-
 FEATURE STACK
   , pos/deptup.hs             (type signature: for constructor wrapper)
+
+TODO
+----
+
+GHC.List    <---------------------- HEREHEREHEREHERE
+
+Int# issue. Fix anormalize so that it doesn't transform 
+
+    case n# +# 1# (bound to tmp) of ...
+
+is transformed to
+
+    let tmp' = n# +# 1# in
+    case tmp' (bound to tmp) of  ...
+
+which makes GHC throw a hissy fit. Rig ANF so it doesn't do the above:
+
+    case e of ...
+
+1. if e is primitive then leave it be (don't normalize)
+
+2. consgen SHOULD work assuming that there is no fanciness in the PRIMITIVE EXPR
+
 
 KNOWN BUGS
 ----------

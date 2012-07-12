@@ -175,9 +175,9 @@ desugarModuleWithLoc tcm = do
   guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
   return $ DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
--------------------------------------------------------------------------
--------- Extracting Specifications (Measures + Assumptions) -------------
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+--------------- Extracting Specifications (Measures + Assumptions) -------------
+--------------------------------------------------------------------------------
  
 moduleSpec target mg paths
   = do spec0      <- liftIO $ parseSpec Hs target 

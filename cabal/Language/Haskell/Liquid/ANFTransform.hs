@@ -27,10 +27,11 @@ anormalize hscEnv modGuts
        case maybeCbs of
          Just cbs -> return cbs
          Nothing  -> pprPanic "anormalize fails!" (empty)
-    where mod   = mg_module modGuts
-          grEnv = mg_rdr_env modGuts
-          tEnv  = modGutsTypeEnv modGuts
-          act   = liftM concat $ mapM normalizeBind (mg_binds modGuts) 
+    where mod      = mg_module modGuts
+          grEnv    = mg_rdr_env modGuts
+          tEnv     = modGutsTypeEnv modGuts
+          act      = liftM concat $ mapM normalizeBind orig_cbs
+          orig_cbs = tracePpr "********** GHC Corebinds ********* \n" $ mg_binds modGuts 
 
 modGutsTypeEnv :: ModGuts -> TypeEnv
 modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
