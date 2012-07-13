@@ -1,4 +1,4 @@
-module spec Data.List where
+module spec GHC.Base where
 
 measure len :: forall a. [a] -> Int
 len ([])     = 0
@@ -12,4 +12,3 @@ measure nonnull :: forall a. [a] -> Bool
 nonnull (y:ys) = true
 nonnull ([])   = false 
 
-assume Prelude.length :: forall a. x: [a] -> { v: Int | v = len(x) }
