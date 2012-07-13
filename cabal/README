@@ -70,41 +70,43 @@ Writing Specifications
 For modules WITH code
 ---------------------
 
-
-
-For modules WITHOUT code
-------------------------
+Modules WITHOUT code
+--------------------
 
 For a module Foo.Bar.Baz the spec file is
 
     $(INCLUDEDIR)/Foo/Bar/Baz.spec
 
-See
+For example:
 
     - include/Prelude.spec
+    - include/Data/List.spec
     - include/Data/Vector.spec
 
-For example, (tests/pos/spec0.hs)
+Modules WITH code: Data
+-----------------------
+
+Write the specification directly into the .hs or .lhs file, 
+above the data definition. For example (tests/pos/Map.hs)
+
+    {-@
+    data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
+      = Tip 
+      | Bin (sz    :: Size) 
+            (key   :: k) 
+            (value :: a) 
+            (left  :: Map <l, r> (k <l key>) a) 
+            (right :: Map <l, r> (k <r key>) a) 
+    @-}
+    data Map k a = Tip
+                 | Bin Size k a (Map k a) (Map k a)
+
+Modules WITH code: Functions 
+----------------------------
+
+Write the specification directly into the .hs or .lhs file, 
+above the function definition. For example (tests/pos/spec0.hs)
 
     {-@ assert incr :: x:{v: Int | v > 0} -> {v: Int | v > x} @-}
     incr   :: Int -> Int
     incr x = x + 1
-
-
-
-For modules WITH code
----------------------
-
-Write the specification directly into the .hs or .lhs file, 
-above the function definition. For example (
-1. See include/lib.spec for the format of spec files
-
-2. to include a spec file (other than the above) add the line
-        
-        {-# ANN module "spec path/to/file" #-}
-
-   after the import declarations of file you're analyzing. 
-   
-As an example, see: tests/pos/meas0a.hs
-
-

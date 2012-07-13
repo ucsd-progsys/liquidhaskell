@@ -10,3 +10,4 @@ qualif ListNotEmpty(v: [a])   : len([v]) > 0
 qualif SameLen(v:[a], ~A:[b]) : len([v]) = len([~A]) 
 qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
 qualif LenEq(v:ptr, ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B

@@ -6,26 +6,8 @@ TODO
 
 case 
 
-GHC.List    <---------------------- HEREHEREHEREHERE
-
-case e of cases <-- don't ANF if e is Primitive?
-
-Int# issue. Fix anormalize so that it doesn't transform 
-
-    case n# +# 1# (bound to tmp) of ...
-
-is transformed to
-
-    let tmp' = n# +# 1# in
-    case tmp' (bound to tmp) of  ...
-
-which makes GHC throw a hissy fit. Rig ANF so it doesn't do the above:
-
-    case e of ...
-
-1. if e is primitive then leave it be (don't normalize)
-
-2. consgen SHOULD work assuming that there is no fanciness in the PRIMITIVE EXPR
+GHC.List-mini
+    add spec for +# and friends in Prelude.spec <---------------------- HEREHEREHEREHERE
 
 
 KNOWN BUGS
