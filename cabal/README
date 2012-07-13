@@ -1,4 +1,3 @@
-
 How To Compile
 --------------
 
@@ -27,18 +26,6 @@ To use threads to speed up the tests
 
 or your favorite number of threads, depending on cores etc.
 
-
-How To Include Spec Files 
--------------------------
-
-1. See include/lib.spec for the format of spec files
-2. to include a spec file (other than the above) add the line
-        
-        {-# ANN module "spec path/to/file" #-}
-
-   after the import declarations of file you're analyzing. 
-   
-As an example, see: tests/pos/meas0a.hs
 
 How to Profile 
 --------------
@@ -75,4 +62,49 @@ How to Get Backtraces
 2. Run with backtraces
 
     $ liquid +RTS -xc -RTS foo.hs
+
+
+Writing Specifications
+======================
+
+For modules WITH code
+---------------------
+
+
+
+For modules WITHOUT code
+------------------------
+
+For a module Foo.Bar.Baz the spec file is
+
+    $(INCLUDEDIR)/Foo/Bar/Baz.spec
+
+See
+
+    - include/Prelude.spec
+    - include/Data/Vector.spec
+
+For example, (tests/pos/spec0.hs)
+
+    {-@ assert incr :: x:{v: Int | v > 0} -> {v: Int | v > x} @-}
+    incr   :: Int -> Int
+    incr x = x + 1
+
+
+
+For modules WITH code
+---------------------
+
+Write the specification directly into the .hs or .lhs file, 
+above the function definition. For example (
+1. See include/lib.spec for the format of spec files
+
+2. to include a spec file (other than the above) add the line
+        
+        {-# ANN module "spec path/to/file" #-}
+
+   after the import declarations of file you're analyzing. 
+   
+As an example, see: tests/pos/meas0a.hs
+
 
