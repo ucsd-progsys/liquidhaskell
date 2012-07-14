@@ -395,7 +395,7 @@ specP
     <|> (reserved "data"    >> liftM DDecl dataDeclP)
 
 tyBindP 
-  = do name  <- binderP 
+  = do name  <- binderP <* spaces 
        colon >> colon
        ty    <- bareTypeP
        return (name, ty)
@@ -416,7 +416,7 @@ tyBodyP ty
           outTy _              = Nothing
 
 binderP :: Parser Symbol
-binderP =  try (liftM stringSymbol idP)
+binderP =  try $ liftM stringSymbol idP
        <|> liftM pwr (parens idP)
        where pwr s = stringSymbol $ "(" ++ s ++ ")" 
              idP   = many1 (satisfy (not . bad))
