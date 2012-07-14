@@ -16,7 +16,7 @@ import Text.Parsec.String
 import qualified Text.Parsec.Token as Token
 import Control.Applicative ((<$>), (<*))
 import qualified Data.Map as M
-import Data.Char (isLower, isUpper)
+import Data.Char (isLower, isUpper, isSpace)
 import Data.List (intercalate)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Misc
@@ -415,11 +415,12 @@ tyBodyP ty
           outTy (RFun _ _ t _) = Just t
           outTy _              = Nothing
 
-
 binderP :: Parser Symbol
-binderP =  try symbolP 
-       <|> liftM pwr (parens $ many1 (satisfy $ not . (`elem` "()")))
+binderP =  try (liftM stringSymbol idP)
+       <|> liftM pwr (parens idP)
        where pwr s = stringSymbol $ "(" ++ s ++ ")" 
+             idP   = many1 (satisfy (not . bad))
+             bad c = isSpace c || c `elem` "()"
 
 grabs p = try (liftM2 (:) p (grabs p)) 
        <|> return []

@@ -44,7 +44,7 @@ import Name             (getSrcSpan, getOccString, mkInternalName)
 import Unique           (getUnique)
 import Literal
 import Type             (isPredTy, mkTyConTy, liftedTypeKind, substTyWith, classifyPredType, PredTree(..), predTreePredType)
-import TysPrim          (intPrimTyCon)
+-- import TysPrim          (intPrimTyCon)
 import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon, eqDataCon, ltDataCon, gtDataCon)
 
 import Data.Monoid      hiding ((<>))
@@ -644,8 +644,9 @@ subsFree meet s (α', t') t@(RVar (RV α) r)
   = if meet then t' `strengthen`  r' else t' 
   | otherwise
   = {- traceShow  msg $ -} t
-  where msg = ("subsFree MISS: α = " ++ showPpr α ++ " α' = " ++ showPpr α' ++ " s = " ++ showPpr s)
+  where -- msg = ("subsFree MISS: α = " ++ showPpr α ++ " α' = " ++ showPpr α' ++ " s = " ++ showPpr s)
         r'  = subt (α', toType t') r
+
 subsFree _ _ _ t@(ROth _)        
   = t
 subsFree _ _ _ t      
@@ -659,9 +660,10 @@ subsFreeRef m s z (RPoly t)
 subsFreeRef m s z (RMono r) 
   = RMono $ subt (α, toType t) r
   where (α, t) = z
----------------------------------------------------------------------
-------------------- Type Substitutions ------------------------------
----------------------------------------------------------------------
+
+-------------------------------------------------------------------
+------------------- Type Substitutions ----------------------------
+-------------------------------------------------------------------
 
 class SubsTy a where
   subp :: M.Map (PVar Type) (Predicate Type) -> a -> a

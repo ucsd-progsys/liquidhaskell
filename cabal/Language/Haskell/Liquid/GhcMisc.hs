@@ -24,6 +24,8 @@ import CostCentre
 import Control.Exception (assert)
 import Control.Applicative  ((<$>))   
 
+import qualified Data.Map as M
+import qualified Data.Set as S 
 -----------------------------------------------------------------------
 --------------- Generic Helpers for Encoding Location -----------------
 -----------------------------------------------------------------------
@@ -64,3 +66,11 @@ dropModuleNames s  = last $ words $ dotWhite <$> s
 --
 --mylast x [] = error $ "RefType.last" ++ showPpr x
 --mylast x l  = last l
+
+
+--instance Outputable a => Outputable (S.Set a) where
+--  ppr = ppr . S.toList 
+-- 
+--instance (Outputable k, Outputable v) => Outputable (M.Map k v) where
+--  ppr = ppr . M.toList 
+ 

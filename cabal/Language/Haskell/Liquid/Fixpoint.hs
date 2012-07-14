@@ -2,7 +2,6 @@
 
 module Language.Haskell.Liquid.Fixpoint (
     toFixpoint, toFix
--- , dummySort
   , typeSort, typeUniqueSymbol
   , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tagSymbol, tempSymbol
   , stringTycon, stringSymbol, symbolString
@@ -25,7 +24,6 @@ module Language.Haskell.Liquid.Fixpoint (
   , simplify
   , emptySubst, mkSubst, catSubst
   , Subable (..)
---  , strToReft, strToRefa, strsToRefa, strsToReft, replaceSort, replaceSorts, refaInReft
   , isPredInReft
   , rmRPVar, rmRPVarReft, replacePVarReft
   ) where
@@ -368,10 +366,8 @@ instance Fixpoint Symbol where
 
 instance Outputable Symbol where
   ppr (S x) = text x 
-  -- ppr = text . symbolString 
 
 instance Show Symbol where
-  --show = symbolString
   show (S x) = x
 
 newtype Subst  = Su (M.Map Symbol Expr) 
@@ -389,7 +385,7 @@ instance Outputable Expr where
   ppr  = text . show
 
 instance Outputable Subst where
-  ppr (Su m) = ppr m
+  ppr (Su m) = ppr (M.toList m)
 
 instance Show Subst where
   show = showPpr
@@ -778,7 +774,6 @@ pprTag is       = text "tag" <+> toFix is
 
 instance Fixpoint Int where
   toFix = ppr
-
 
 -------------------------------------------------------
 ------------------- Substitutions ---------------------

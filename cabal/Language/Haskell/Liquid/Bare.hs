@@ -15,6 +15,8 @@ import GHC hiding (lookupName)
 import Outputable
 import Var
 import PrelNames
+import PrelInfo     (wiredInThings)
+
 
 import Type       (liftedTypeKind)
 import HscTypes   (HscEnv)
@@ -138,37 +140,14 @@ lookupGhcThing' name f x
          Nothing -> return Nothing 
          Just n  -> liftIO $ liftM (join . (f <$>) . snd) (tcRnLookupName env n)
 
---lookupGhcThing name f x 
---  = do env     <- ask
---       (_,res) <- liftIO $ tcRnLookupName env =<< lookupName env x
---       case f `fmap` res of
---         Just (Just z) -> 
---           return z
---         _      -> 
---           liftIO $ ioError $ userError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
-
--- lookupNameStr :: HscEnv -> String -> IO (Maybe Name)
--- lookupNameStr env k 
---   = case M.lookup k wiredIn of 
---       Just n  -> return (Just n)
---       Nothing -> stringToNameEnvStr env k
---
-
--- stringName env k   = fromMaybe err <$> stringLookup env k
---                     where err = errorstar $ "Bare.stringName cannot find name for: " ++ k
-
---stringToName :: HscEnv -> String -> IO Name
---stringToName env k 
---  = do z <- foobar env k 
---       case z of
---         Just n  -> return n
---         Nothing -> 
-
 stringLookup :: HscEnv -> String -> IO (Maybe Name)
 stringLookup env k
-  = case M.lookup k wiredIn of 
-      Just n  -> return (Just n)
-      Nothing -> stringLookupEnv env k
+  | k `M.member` wiredIn
+  = return $ M.lookup k wiredIn
+  | last k == '#'
+  = errorstar $ "Unknown Primitive Thing: " ++ k
+  | otherwise
+  = stringLookupEnv env k
 
 stringLookupEnv env s 
     = do L _ rn         <- hscParseIdentifier env s
@@ -189,9 +168,11 @@ lookupGhcDataCon = lookupGhcThing "DataCon" fdc
   where fdc (ADataCon x) = Just x
         fdc _            = Nothing
 
-lookupGhcId = lookupGhcThing "Id" thingId 
-existsGhcId s = do z <- existsGhcThing "Id" thingId s 
-                   return $ traceShow ("existsGhcId " ++ s) $ z
+lookupGhcId = lookupGhcThing "Id" thingId
+existsGhcId = existsGhcThing "Id" thingId
+
+-- existsGhcId s = do z <- existsGhcThing "Id" thingId s 
+--                   return $ traceShow ("existsGhcId " ++ s) $ z
 
 thingId (AnId x)     = Just x
 thingId (ADataCon x) = Just $ dataConWorkId x
@@ -199,38 +180,41 @@ thingId _            = Nothing
 
 
 wiredIn :: M.Map String Name
-wiredIn = M.fromList $
-  [ ("GHC.Integer.smallInteger"    , smallIntegerName                      ) 
-  , ("GHC.Num.fromInteger"         , fromIntegerName                       )
-  , ("GHC.Types.I#"                , dataConName intDataCon                )
-  , ("GHC.Prim.Int#"               , tyConName intPrimTyCon                )     
-  , ("GHC.Prim.Char#"              , tyConName charPrimTyCon               )
-  , ("GHC.Prim.Int32#"             , tyConName int32PrimTyCon              )	
-  , ("GHC.Prim.Int64#"             , tyConName int64PrimTyCon              )  	        
-  , ("GHC.Prim.Word#"              , tyConName wordPrimTyCon               )  	        
-  , ("GHC.Prim.Word32#"            , tyConName word32PrimTyCon             )
-  , ("GHC.Prim.Word64#"            , tyConName word64PrimTyCon             )
-  , ("GHC.Prim.Addr#"              , tyConName addrPrimTyCon               )
-  , ("GHC.Prim.Float#"             , tyConName floatPrimTyCon              )
-  , ("GHC.Prim.Double#"            , tyConName doublePrimTyCon             )
-  , ("GHC.Prim.State#"             , tyConName statePrimTyCon              ) 
-  , ("GHC.Prim.~#"                 , tyConName eqPrimTyCon                 )  
-  , ("GHC.Prim.RealWorld"          , tyConName realWorldTyCon              ) 
-  , ("GHC.Prim.Array#"             , tyConName arrayPrimTyCon              )
-  , ("GHC.Prim.ByteArray#"         , tyConName byteArrayPrimTyCon          )   
-  , ("GHC.Prim.ArrayArray#"        , tyConName arrayArrayPrimTyCon         )   
-  , ("GHC.Prim.MutableArray#"      , tyConName mutableArrayPrimTyCon       ) 
-  , ("GHC.Prim.MutableByteArray#"  , tyConName mutableByteArrayPrimTyCon   ) 
-  , ("GHC.Prim.MutableArrayArray#" , tyConName mutableArrayArrayPrimTyCon  ) 
-  , ("GHC.Prim.MutVar#"            , tyConName mutVarPrimTyCon             )    
-  , ("GHC.Prim.MVar#"              , tyConName mVarPrimTyCon               )
-  , ("GHC.Prim.TVar#"              , tyConName tVarPrimTyCon               )
-  , ("GHC.Prim.StablePtr#"         , tyConName stablePtrPrimTyCon          ) 
-  , ("GHC.Prim.StableName#"        , tyConName stableNamePrimTyCon         )  
-  , ("GHC.Prim.BCO#"               , tyConName bcoPrimTyCon                )
-  , ("GHC.Prim.Weak#"              , tyConName weakPrimTyCon               )    
-  , ("GHC.Prim.ThreadId#"          , tyConName threadIdPrimTyCon           ) 
-  ]
+wiredIn = M.fromList $ tracePpr "wiredIn: " $ [ (showPpr n, n) | thing <- wiredInThings, let n = getName thing ]
+
+--wiredIn :: M.Map String Name
+--wiredIn = M.fromList $
+--  [ ("GHC.Integer.smallInteger"    , smallIntegerName                      ) 
+--  , ("GHC.Num.fromInteger"         , fromIntegerName                       )
+--  , ("GHC.Types.I#"                , dataConName intDataCon                )
+--  , ("GHC.Prim.Int#"               , tyConName intPrimTyCon                )     
+--  , ("GHC.Prim.Char#"              , tyConName charPrimTyCon               )
+--  , ("GHC.Prim.Int32#"             , tyConName int32PrimTyCon              )	
+--  , ("GHC.Prim.Int64#"             , tyConName int64PrimTyCon              )  	        
+--  , ("GHC.Prim.Word#"              , tyConName wordPrimTyCon               )  	        
+--  , ("GHC.Prim.Word32#"            , tyConName word32PrimTyCon             )
+--  , ("GHC.Prim.Word64#"            , tyConName word64PrimTyCon             )
+--  , ("GHC.Prim.Addr#"              , tyConName addrPrimTyCon               )
+--  , ("GHC.Prim.Float#"             , tyConName floatPrimTyCon              )
+--  , ("GHC.Prim.Double#"            , tyConName doublePrimTyCon             )
+--  , ("GHC.Prim.State#"             , tyConName statePrimTyCon              ) 
+--  , ("GHC.Prim.~#"                 , tyConName eqPrimTyCon                 )  
+--  , ("GHC.Prim.RealWorld"          , tyConName realWorldTyCon              ) 
+--  , ("GHC.Prim.Array#"             , tyConName arrayPrimTyCon              )
+--  , ("GHC.Prim.ByteArray#"         , tyConName byteArrayPrimTyCon          )   
+--  , ("GHC.Prim.ArrayArray#"        , tyConName arrayArrayPrimTyCon         )   
+--  , ("GHC.Prim.MutableArray#"      , tyConName mutableArrayPrimTyCon       ) 
+--  , ("GHC.Prim.MutableByteArray#"  , tyConName mutableByteArrayPrimTyCon   ) 
+--  , ("GHC.Prim.MutableArrayArray#" , tyConName mutableArrayArrayPrimTyCon  ) 
+--  , ("GHC.Prim.MutVar#"            , tyConName mutVarPrimTyCon             )    
+--  , ("GHC.Prim.MVar#"              , tyConName mVarPrimTyCon               )
+--  , ("GHC.Prim.TVar#"              , tyConName tVarPrimTyCon               )
+--  , ("GHC.Prim.StablePtr#"         , tyConName stablePtrPrimTyCon          ) 
+--  , ("GHC.Prim.StableName#"        , tyConName stableNamePrimTyCon         )  
+--  , ("GHC.Prim.BCO#"               , tyConName bcoPrimTyCon                )
+--  , ("GHC.Prim.Weak#"              , tyConName weakPrimTyCon               )    
+--  , ("GHC.Prim.ThreadId#"          , tyConName threadIdPrimTyCon           ) 
+--  ]
 
 ------------------------------------------------------------------------
 ----------------- Transforming Raw Strings using GHC Env ---------------
