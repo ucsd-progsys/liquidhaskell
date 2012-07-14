@@ -178,9 +178,8 @@ thingId (AnId x)     = Just x
 thingId (ADataCon x) = Just $ dataConWorkId x
 thingId _            = Nothing
 
-
 wiredIn :: M.Map String Name
-wiredIn = M.fromList $ tracePpr "wiredIn: " $ special ++ wiredIns 
+wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns 
   where wiredIns = [ (showPpr n, n) | thing <- wiredInThings, let n = getName thing ]
         special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
                    , ("GHC.Num.fromInteger"     , fromIntegerName ) ]

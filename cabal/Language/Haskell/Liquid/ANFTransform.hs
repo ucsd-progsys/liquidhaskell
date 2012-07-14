@@ -32,7 +32,7 @@ anormalize hscEnv modGuts
           grEnv    = mg_rdr_env modGuts
           tEnv     = modGutsTypeEnv modGuts
           act      = liftM concat $ mapM normalizeBind orig_cbs
-          orig_cbs = tracePpr "********** GHC Corebinds ********* \n" $ mg_binds modGuts 
+          orig_cbs = {- tracePpr "********** GHC Corebinds ********* \n" $ -} mg_binds modGuts 
 
 modGutsTypeEnv :: ModGuts -> TypeEnv
 modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
