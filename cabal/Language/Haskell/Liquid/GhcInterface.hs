@@ -221,7 +221,7 @@ parseSpec' ext f
   = do putStrLn $ "parseSpec: " ++ f 
        str     <- readFile f
        let spec = specParser ext f str
-       bsig    <- liftIO $ putStrLn $ "********* PARSESPEC SIGS: spec ********** \n" ++ (show $ Ms.sigs spec)
+       -- bsig    <- liftIO $ putStrLn $ "********* PARSESPEC SIGS: spec ********** \n" ++ (show $ Ms.sigs spec)
        return   $ spec 
 
 specParser Spec = rr'
@@ -230,8 +230,10 @@ specParser Hs   = hsSpecificationP
 moduleImpFiles ext paths names 
   = liftIO $ liftM catMaybes $ forM extNames (namePath paths)
     where extNames = (`extModuleName` ext) <$> names 
+
+namePath paths name = getFileInDirs name paths
  
-namePath paths name 
+namePath_debug paths name 
   = do res <- getFileInDirs name paths
        case res of
          Just p  -> putStrLn $ "namePath: name = " ++ name ++ " expanded to: " ++ (show p) 

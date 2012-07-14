@@ -4,11 +4,22 @@ FEATURE STACK
 TODO
 ----
 
-case 
+Li.len
+
+len ~~~~> liquid_measure_len
+
+(0) measure prefix: liquid_measure
+    apply automatically in:
+        > all parsed refinement predicates in specs
+        > all measure definitions and bodies
+        > fixpoint output --> backtranslate for printed annots...
+
+    > Yuck.
+
+(1) in refinements --> all function terms in refts are measures? (Yes)
 
 GHC.List-mini
-    add spec for +# and friends in Prelude.spec <---------------------- HEREHEREHEREHERE
-
+  - How to prevent measure shadowing ?  <------------------------- HEREHEREHEREHERE
 
 KNOWN BUGS
 ----------

@@ -68,8 +68,12 @@ import Control.DeepSeq
 ------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
 
-consGrty γ (x, t) 
-  = addC (SubC γ (γ ?= (mkSymbol x)) t) ""
+consGrty γ (x, t) = addC (SubC γ' xt t) "consGrty"
+  where γ' = γ `setLoc` (getSrcSpan x) 
+        xt = γ ?= (mkSymbol x)
+
+--  = addC (SubC γ (γ ?= (mkSymbol x)) t) 
+
 
 consAct info penv
   = do γ   <- initEnv info penv
@@ -177,8 +181,8 @@ instance Show CGEnv where
 getPrType :: CGEnv -> F.Symbol -> Maybe PrType
 getPrType γ x = F.lookupSEnv x (penv γ)
 
-atLoc :: CGEnv -> SrcSpan -> CGEnv
-γ `atLoc` src 
+setLoc :: CGEnv -> SrcSpan -> CGEnv
+γ `setLoc` src 
   | isGoodSrcSpan src = γ { loc = src } 
   | otherwise         = γ
 
@@ -250,8 +254,6 @@ instance Outputable SubC where
 instance Outputable WfC where
   ppr (WfC w r)    = ppr w <> blankLine <> text " |- " <> ppr r <> blankLine <> blankLine 
   ppr (WfCS w τ s) = ppr w <> blankLine <> text " |- " <> braces (ppr τ <+> colon  <+> ppr s)
-  ----ppr w = ppr (wenv w) <> text "\n" <> text " |- " <> ppr (r w) <> 
-  ----        text "\n\n" 
 
 instance Outputable Cinfo where
   ppr (Ci src) = ppr src
@@ -444,8 +446,8 @@ mkRTyCon tc (TyConP αs' ps) = RTyCon tc pvs'
         pvs' = subts (zip αs' τs) <$> ps
 
 addC :: SubC -> String -> CG ()  
-addC !c@(SubC _ t1 t2) s 
-  = -- trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ s) $  
+addC !c@(SubC _ t1 t2) msg 
+  = -- trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ msg) $  
     modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addW   :: WfC -> CG ()  
@@ -688,7 +690,7 @@ cconsE γ (Lam x e) (RFun (RB y) ty t _)
     where te = t `F.subst1` (y, F.EVar $ mkSymbol x)
 
 cconsE γ (Tick tt e) t   
-  = cconsE (γ `atLoc` tickSrcSpan tt) e t
+  = cconsE (γ `setLoc` tickSrcSpan tt) e t
 
 cconsE γ (Cast e _) t     
   = cconsE γ e t 
@@ -760,7 +762,7 @@ consE γ e@(Case _ _ _ _)
   = cconsFreshE γ e
 
 consE γ (Tick tt e)
-  = consE (γ `atLoc` tickSrcSpan tt) e
+  = consE (γ `setLoc` tickSrcSpan tt) e
 
 consE γ (Cast e _)      
   = consE γ e 

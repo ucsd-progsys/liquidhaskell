@@ -719,28 +719,6 @@ instance Outputable a => Outputable (FixResult (SubC a)) where
   ppr Safe          = text "Safe"
   ppr (Unsafe xs)   = text "Unsafe: " <> ppr (sinfo `fmap` xs)
 
---instance Fixpoint SortedReft where
---  toFix (RR so (Reft (v, ras))) 
---    = printf "{%s : %s | %s}" (toFix v) (toFix so) (toFix ras)
---
---instance Fixpoint (SubC a) where 
---  toFix c = printf "constraint: \n  env  %s  \n  grd %s  \n  lhs %s \n  rhs %s \n  %s %s \n\n\n"
---              se sg sl sr (ppid $ sid c) (pptag $ stag c)
---    where se = toFix $ senv c 
---          sg = toFix $ sgrd c 
---          sl = toFix $ slhs c 
---          sr = toFix $ srhs c
---
---instance Outputable (WfC a) where 
---  toFix w = printf "wf: \n  env  %s  \n  reft %s \n  %s \n" se sr (ppid $ wid w)
---    where se = toFix $ wenv w
---          sr = toFix $ wrft w
-
---instance Fixpoint (WfC a) where 
---  toFix w = printf "wf: \n  env  %s  \n  reft %s \n  %s \n" se sr (ppid $ wid w)
---    where se = toFix $ wenv w
---          sr = toFix $ wrft w
-
 toFixPfx s x     = text s <+> toFix x
 
 instance Show (SubC a) where

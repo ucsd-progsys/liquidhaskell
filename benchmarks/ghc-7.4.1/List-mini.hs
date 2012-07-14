@@ -9,14 +9,14 @@ module GHC.List (
 import Data.Maybe
 import GHC.Base
 
-{-@ assert mylength :: forall a. xs:[a] -> {v: Int | v = len(xs)}  @-}
+{-@ assert mylength :: forall a. xs:[a] -> {v: Int | v + 1 = len(xs)}  @-}
 mylength                  :: [a] -> Int
-mylength l                =  go l 0# 
---mylength l                =  lenJHALA l 0#
---  where
---    lenJHALA :: [a] -> Int# -> Int
---    lenJHALA []     a# = I# a#
---    lenJHALA (_:xs) a# = lenJHALA xs (a# +# 1#)
+-- mylength l                =  go l 0# 
+mylength l                =  lenJHALA l 0#
+  where
+    lenJHALA :: [a] -> Int# -> Int
+    lenJHALA []     a# = I# a#
+    lenJHALA (_:xs) a# = lenJHALA xs (a# +# 1#)
 
 go :: [a] -> Int# -> Int
 go []     a# = I# a#
