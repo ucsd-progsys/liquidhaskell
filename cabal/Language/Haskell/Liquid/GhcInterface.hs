@@ -137,8 +137,7 @@ getGhcInfo target paths
       spec        <- moduleSpec target modguts paths 
       liftIO       $ putStrLn $ "Module Imports: " ++ show (imports spec) 
       hqualFiles  <- moduleHquals modguts paths target $ imports spec 
-      return -- $ traceShow "GhcInfo" 
-             $ GI hscEnv coreBinds (importVars coreBinds) (definedVars coreBinds) hqualFiles spec
+      return       $ GI hscEnv coreBinds (importVars coreBinds) (definedVars coreBinds) hqualFiles spec
 
 moduleHquals mg paths target imports 
   = do hqs   <- moduleAnnFiles Hquals paths (mg_module mg)
@@ -214,9 +213,16 @@ transParseSpecs ext paths seenFiles spec newFiles
        transParseSpecs ext paths seenFiles' spec' newFiles'
  
 parseSpec ext f 
+  = Ex.catch (parseSpec' ext f) $ \(e :: Ex.IOException) ->
+      ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ f
+
+
+parseSpec' ext f 
   = do putStrLn $ "parseSpec: " ++ f 
-       Ex.catch (liftM (specParser ext f) $ readFile f) $ \(e :: Ex.IOException) ->
-         ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ f
+       str     <- readFile f
+       let spec = specParser ext f str
+       bsig    <- liftIO $ putStrLn $ "********* PARSESPEC SIGS: spec ********** \n" ++ (show $ Ms.sigs spec)
+       return   $ spec 
 
 specParser Spec = rr'
 specParser Hs   = hsSpecificationP
