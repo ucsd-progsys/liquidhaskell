@@ -113,12 +113,13 @@ null (_:_)              =  False
 -- | /O(n)/. 'length' returns the length of a finite list as an 'Int'.
 -- It is an instance of the more general 'Data.List.genericLength',
 -- the result type of which may be any kind of number.
+{-@ assert length :: forall a. xs:[a] -> {v: Int | v = len(xs)}  @-}
 length                  :: [a] -> Int
-length l                =  lenJHALA l 0#
+length l                =  len l 0#
   where
-    lenJHALA :: [a] -> Int# -> Int
-    lenJHALA []     a# = I# a#
-    lenJHALA (_:xs) a# = lenJHALA xs (a# +# 1#)
+    len :: [a] -> Int# -> Int
+    len []     a# = I# a#
+    len (_:xs) a# = len xs (a# +# 1#)
 
 -- | 'filter', applied to a predicate and a list, returns the list of
 -- those elements that satisfy the predicate; i.e.,

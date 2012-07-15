@@ -59,5 +59,6 @@ dummyWrite' target cgi
 initGhci = parseStaticFlags []
 -}
 
+
 writeConstraints target cgi 
   = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi target) ({-# SCC "PPcgi" #-} showPpr cgi)
