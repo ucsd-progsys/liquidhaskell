@@ -1,22 +1,21 @@
 {-# LANGUAGE Trustworthy #-}
-{-# LANGUAGE CPP, MagicHash #-}
+{-# LANGUAGE CPP, NoImplicitPrelude, MagicHash #-}
 {-# OPTIONS_HADDOCK hide #-}
 
 module GHC.List (
-   mylength
+   length
  ) where
 
 import Data.Maybe
 import GHC.Base
 
-{-@ assert mylength :: forall a. xs:[a] -> {v: Int | v + 1 = len(xs)}  @-}
-mylength                  :: [a] -> Int
--- mylength l                =  go l 0# 
-mylength l                =  lenJHALA l 0#
+{-@ assert length :: forall a. xs:[a] -> {v: Int | v = len(xs)}  @-}
+length                  :: [a] -> Int
+length l                =  len l 0#
   where
-    lenJHALA :: [a] -> Int# -> Int
-    lenJHALA []     a# = I# a#
-    lenJHALA (_:xs) a# = lenJHALA xs (a# +# 1#)
+    len :: [a] -> Int# -> Int
+    len []     a# = I# a#
+    len (_:xs) a# = len xs (a# +# 1#)
 
 go :: [a] -> Int# -> Int
 go []     a# = I# a#
