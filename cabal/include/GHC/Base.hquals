@@ -2,6 +2,7 @@
 qualif NonNull(v: [a])        : (? (nonnull([v])))
 qualif Null(v: [a])           : (~ (? (nonnull([v]))))
 qualif EqNull(v:bool, ~A: [a]): ((? v) <=> (? (nonnull([~A]))))
+qualif IsEmp(v:bool, ~A: [a]) : ((? v) <=> len([~A]) [ > ;  = ] 0)
 
 //MOVE INTO AN OPTIONAL FILE (cf. liquidc spec)
 qualif ListEmpty(v: [a])      : len([v]) = 0 

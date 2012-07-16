@@ -46,10 +46,15 @@ innerScTr = mapBnd scTrans
 scTrans x e = mapExpr scTrans $ foldr Let e0 bs
   where (bs, e0) = collectBnds x [] e 
 
-collectBnds x bs (Let b@(NonRec y (Case (Var v) _  _ _ )) e) | x == v
+collectBnds ::  Id -> [Bind t] -> Expr t -> ([Bind t], Expr t)
+collectBnds x bs (Let b@(NonRec y (Case (Var v) _  _ _ )) e) 
+  | x == v
   = collectBnds x (b:bs) e
-collectBnds x bs (Tick t e) = collectBnds x bs e
-collectBnds _ bs e          = (bs, e)
+collectBnds x bs (Tick t e) 
+  = (bs', Tick t e')
+    where (bs', e') = collectBnds x bs e 
+collectBnds _ bs e          
+  = (bs, e)
 
 
 type TE = State TrEnv
@@ -62,7 +67,7 @@ initEnv = Tr 0 noSrcSpan
 
 transPg cbs = mapM transBd cbs
 
-transBd (NonRec x e) = transExpr e >>= return . NonRec x
+transBd (NonRec x e) = liftM (NonRec x) (transExpr e) -- >>= return . NonRec x
 transBd b            = return b
 
 transExpr :: CoreExpr -> TE CoreExpr
@@ -147,7 +152,6 @@ instance Show (Bag Message) where
 
 instance Show (Bind CoreBndr) where
   show = showSDoc . ppr
-
 
 class Freshable a where
  fresh :: a -> TE a

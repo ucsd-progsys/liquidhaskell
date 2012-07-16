@@ -459,7 +459,9 @@ instance NFData a => NFData (AnnInfo a) where
 --      {- rnf -} x7 `seq` 
 --      {- rnf -} x8
 
--- UNIFY: Why not parse this? (TBD)
+--------------------------------------------------------------------
+------ Predicate Types for WiredIns --------------------------------
+--------------------------------------------------------------------
 
 maxArity :: Arity 
 maxArity = 7

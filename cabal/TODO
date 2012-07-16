@@ -1,10 +1,46 @@
-FEATURE STACK
-  , pos/deptup.hs             (type signature: for constructor wrapper)
-
 TODO
 ----
 
-GHC.List-mini <------------------------- HEREHEREHEREHERE
+GHC.List.lhs
+
+FEATURES 
+--------
+
+- Why no error-location on tests/neg/test00.hs                          <------------------------- HEREHEREHEREHERE
+- Nuke "forall" from specifications. Tedious. Should auto-generalize...
+- Qualifier Scraping
+
+- pos/deptup.hs (type signature: for constructor wrapper)
+- Add/Parse predicate signatures for lists and tuples: [{x: Int | x > 0}]
+
+
+data [a]<p :: a -> a -> Bool> 
+  = []
+  | (:) (h :: a) (t :: [a<p h>]<p>)  
+
+data (a1, a2) 
+  < p1 :: a1 -> Bool
+  , p2 :: a1 -> a2 -> Bool
+  > 
+  = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>)
+
+data (a1, a2, a3) 
+  < p1 :: a1 -> Bool
+  , p2 :: a1 -> a2 -> Bool
+  , p3 :: a1 -> a2 -> a3 -> Bool
+  > 
+  = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>)
+
+data (a1, a2, a3) 
+  < p1 :: a1 -> Bool
+  , p2 :: a1 -> a2 -> Bool
+  , p3 :: a1 -> a2 -> a3 -> Bool
+  , p4 :: a1 -> a2 -> a3 -> a4 -> Bool
+  > 
+  = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>) (x4 :: a4<p4 x1 x2 x3>)
+
+Get ITE predicates to parse:
+{-@ assert drop        :: forall a. n: Int -> xs:[a] -> {v:[a] | (len(xs) <  n) ? (len(v) = 0) : (len(v) = len(xs) - n) } @-}
 
 KNOWN BUGS
 ----------

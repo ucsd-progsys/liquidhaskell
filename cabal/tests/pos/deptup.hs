@@ -2,7 +2,7 @@ module Deptup0 where
 
 import Language.Haskell.Liquid.Prelude
 
-{-@ data Pair a b <p :: a -> b -> Bool> = P (x :: a) (y :: b<p x>) @-} 
+{- data Pair a b <p :: a -> b -> Bool> = P (x :: a) (y :: b<p x>) -}
 
 data Pair a b = P a b
 
@@ -28,5 +28,3 @@ n           = choose 0
 xs          = [0,1,2,3,4]
 
 prop_baz    = map chk $ bazList xs 
-
-
