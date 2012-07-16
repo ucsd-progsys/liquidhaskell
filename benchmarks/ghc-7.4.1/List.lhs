@@ -55,6 +55,7 @@ infix  4 `elem`, `notElem`
 
 \begin{code}
 -- | Extract the first element of a list, which must be non-empty.
+{-@ assert head         :: forall a. xs:{v: [a] | len(v) > 0} -> a @-}
 head                    :: [a] -> a
 head (x:_)              =  x
 head []                 =  badHead
@@ -72,11 +73,13 @@ badHead = errorEmptyList "head"
  #-}
 
 -- | Extract the elements after the head of a list, which must be non-empty.
+{-@ assert tail         :: forall a. xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) - 1}  @-}
 tail                    :: [a] -> [a]
 tail (_:xs)             =  xs
 tail []                 =  errorEmptyList "tail"
 
 -- | Extract the last element of a list, which must be finite and non-empty.
+{-@ assert last         :: forall a. xs:{v: [a] | len(v) > 0} -> a @-}
 last                    :: [a] -> a
 #ifdef USE_REPORT_PRELUDE
 last [x]                =  x
@@ -92,6 +95,7 @@ last (x:xs)             =  last' x xs
 
 -- | Return all the elements of a list except the last one.
 -- The list must be non-empty.
+{-@ assert init         :: forall a. xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) - 1}  @-}
 init                    :: [a] -> [a]
 #ifdef USE_REPORT_PRELUDE
 init [x]                =  []
@@ -106,6 +110,7 @@ init (x:xs)             =  init' x xs
 #endif
 
 -- | Test whether a list is empty.
+{-@ assert null :: forall a. xs:[a] -> {v: Bool | ((? v) <=> len(xs) = 0) }  @-}
 null                    :: [a] -> Bool
 null []                 =  True
 null (_:_)              =  False
@@ -126,6 +131,7 @@ length l                =  len l 0#
 --
 -- > filter p xs = [ x | x <- xs, p x]
 
+{-@ assert filter :: forall a. (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)} @-}
 filter :: (a -> Bool) -> [a] -> [a]
 filter _pred []    = []
 filter pred (x:xs)
@@ -179,7 +185,7 @@ foldl f z0 xs0 = lgo z0 xs0
 -- Note that
 --
 -- > last (scanl f z xs) == foldl f z xs.
-
+{-@ assert scanl        :: forall a, b. (a -> b -> a) -> a -> xs:[b] -> {v: [a] | len(v) = 1 + len(xs) } @-}
 scanl                   :: (a -> b -> a) -> a -> [b] -> [a]
 scanl f q ls            =  q : (case ls of
                                 []   -> []
@@ -189,6 +195,7 @@ scanl f q ls            =  q : (case ls of
 --
 -- > scanl1 f [x1, x2, ...] == [x1, x1 `f` x2, ...]
 
+{-@ assert scanl1       :: forall a. (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) } @-}
 scanl1                  :: (a -> a -> a) -> [a] -> [a]
 scanl1 f (x:xs)         =  scanl f x xs
 scanl1 _ []             =  []
@@ -199,6 +206,7 @@ scanl1 _ []             =  []
 -- | 'foldr1' is a variant of 'foldr' that has no starting value argument,
 -- and thus must be applied to non-empty lists.
 
+{-@ assert foldr1       :: forall a. (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> a @-}
 foldr1                  :: (a -> a -> a) -> [a] -> a
 foldr1 _ [x]            =  x
 foldr1 f (x:xs)         =  f x (foldr1 f xs)
@@ -209,6 +217,7 @@ foldr1 _ []             =  errorEmptyList "foldr1"
 --
 -- > head (scanr f z xs) == foldr f z xs.
 
+{-@ assert scanr        :: forall a, b. (a -> b -> b) -> b -> xs:[a] -> {v: [b] | len(v) = 1 + len(xs) } @-}
 scanr                   :: (a -> b -> b) -> b -> [a] -> [b]
 scanr _ q0 []           =  [q0]
 scanr f q0 (x:xs)       =  f x q : qs
@@ -216,6 +225,7 @@ scanr f q0 (x:xs)       =  f x q : qs
 
 -- | 'scanr1' is a variant of 'scanr' that has no starting value argument.
 
+{-@ assert scanr1       :: forall a. (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) } @-}
 scanr1                  :: (a -> a -> a) -> [a] -> [a]
 scanr1 _ []             =  []
 scanr1 _ [x]            =  [x]
@@ -261,6 +271,7 @@ repeatFB c x = xs where xs = x `c` xs
 -- It is an instance of the more general 'Data.List.genericReplicate',
 -- in which @n@ may be of any integral type.
 {-# INLINE replicate #-}
+{-@ assert replicate    :: forall a. n:Int -> x:a -> {v: [{v:a | v = x}] | len(v) = n} @-}
 replicate               :: Int -> a -> [a]
 replicate n x           =  take n (repeat x)
 
@@ -280,6 +291,7 @@ cycle xs                = xs' where xs' = xs ++ xs'
 -- > takeWhile (< 0) [1,2,3] == []
 --
 
+{-@ assert takeWhile    :: forall a. (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)} @-}
 takeWhile               :: (a -> Bool) -> [a] -> [a]
 takeWhile _ []          =  []
 takeWhile p (x:xs) 
@@ -293,6 +305,7 @@ takeWhile p (x:xs)
 -- > dropWhile (< 0) [1,2,3] == [1,2,3]
 --
 
+{-@ assert dropWhile    :: forall a. (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)} @-}
 dropWhile               :: (a -> Bool) -> [a] -> [a]
 dropWhile _ []          =  []
 dropWhile p xs@(x:xs')
@@ -311,6 +324,9 @@ dropWhile p xs@(x:xs')
 --
 -- It is an instance of the more general 'Data.List.genericTake',
 -- in which @n@ may be of any integral type.
+
+
+{-@ assert take        :: forall a. n: Int -> xs:[a] -> {v:[a] | (len(xs) < n) ? (len(v) = len(xs)) : (len(v) = n) } @-}
 take                   :: Int -> [a] -> [a]
 
 -- | 'drop' @n xs@ returns the suffix of @xs@
@@ -325,6 +341,7 @@ take                   :: Int -> [a] -> [a]
 --
 -- It is an instance of the more general 'Data.List.genericDrop',
 -- in which @n@ may be of any integral type.
+{-@ assert drop        :: forall a. n: Int -> xs:[a] -> {v:[a] | (len(xs) <  n) ? (len(v) = 0) : (len(v) = len(xs) - n) } @-}
 drop                   :: Int -> [a] -> [a]
 
 -- | 'splitAt' @n xs@ returns a tuple where first element is @xs@ prefix of
@@ -342,6 +359,7 @@ drop                   :: Int -> [a] -> [a]
 -- (@splitAt _|_ xs = _|_@).
 -- 'splitAt' is an instance of the more general 'Data.List.genericSplitAt',
 -- in which @n@ may be of any integral type.
+-- Liquid: TODO
 splitAt                :: Int -> [a] -> ([a],[a])
 
 #ifdef USE_REPORT_PRELUDE
@@ -440,8 +458,8 @@ splitAt (I# n#) ls
 -- > span (< 0) [1,2,3] == ([],[1,2,3])
 -- 
 -- 'span' @p xs@ is equivalent to @('takeWhile' p xs, 'dropWhile' p xs)@
-
-span                    :: (a -> Bool) -> [a] -> ([a],[a])
+-- Liquid: TODO
+span                    :: (a -> Bool) -> [a] -> ([a], [a])
 span _ xs@[]            =  (xs, xs)
 span p xs@(x:xs')
          | p x          =  let (ys,zs) = span p xs' in (x:ys,zs)
@@ -456,7 +474,7 @@ span p xs@(x:xs')
 -- > break (> 9) [1,2,3] == ([1,2,3],[])
 --
 -- 'break' @p@ is equivalent to @'span' ('not' . p)@.
-
+-- liquid:TODO
 break                   :: (a -> Bool) -> [a] -> ([a],[a])
 #ifdef USE_REPORT_PRELUDE
 break p                 =  span (not . p)
@@ -470,6 +488,7 @@ break p xs@(x:xs')
 
 -- | 'reverse' @xs@ returns the elements of @xs@ in reverse order.
 -- @xs@ must be finite.
+{-@ assert reverse      :: forall a. xs:[a] -> {v: [a] | len(v) = len(xs)} @-}
 reverse                 :: [a] -> [a]
 #ifdef USE_REPORT_PRELUDE
 reverse                 =  foldl (flip (:)) []
@@ -735,6 +754,7 @@ Common up near identical calls to `error' to reduce the number
 constant strings created when compiled:
 
 \begin{code}
+{-@ assert errorEmptyList :: forall a. {v: String | (0 = 1)} -> a @-}
 errorEmptyList :: String -> a
 errorEmptyList fun =
   error (prel_list_str ++ fun ++ ": empty list")
