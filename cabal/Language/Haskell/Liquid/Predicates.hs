@@ -25,7 +25,7 @@ import TysWiredIn
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.PredType
 import Language.Haskell.Liquid.GhcMisc (stringTyVar, tickSrcSpan)
-import Language.Haskell.Liquid.RefType 
+import Language.Haskell.Liquid.RefType hiding (generalize) 
 import Language.Haskell.Liquid.Misc
 import qualified Language.Haskell.Liquid.Fixpoint as F
 

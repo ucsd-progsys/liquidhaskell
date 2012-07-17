@@ -22,7 +22,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.PredType
+import Language.Haskell.Liquid.PredType hiding (generalize)
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Outputable (Outputable (..))
 import Language.Haskell.Liquid.FileNames (dummyName, boolConName, listConName, tupConName)
@@ -396,9 +396,9 @@ specP
 
 tyBindP 
   = do name  <- binderP <* spaces 
-       colon >> colon
+       dcolon 
        ty    <- bareTypeP
-       return (name, ty)
+       return (name, generalize ty)
 
 measureP 
   = do (x, ty) <- tyBindP  

@@ -76,6 +76,8 @@ mkAssumeSpec env xbs = runReaderT mkAspec env
   where mkAspec = return (first symbolString <$> xbs)
                   >>= filterM (existsGhcId . fst)
                   >>= mapM    (\(x, b) -> liftM2 (,) (lookupGhcId x) (mkSpecType b))
+                  >>= return . checkAssumeSpec
+
 
 -- mkSpecType :: BareType -> BareM SpecType 
 mkSpecType    = ofBareType . txParams [] . txTyVarBinds . mapReft (bimap canonReft stringTyVarTy) 
@@ -333,3 +335,36 @@ predMap πs t = Ex.assert (M.size xπm == length xπs) xπm
 rtypePredBinds t = everything (++) ([] `mkQ` grab) t
   where grab ((RAll (RP pv) _) :: BRType (PVar Type) (Predicate Type)) = [pv]
         grab _                = []
+
+-------------------------------------------------------------------------------
+------- Checking Specifications Refine Haskell Types --------------------------
+-------------------------------------------------------------------------------
+
+specificationError yts = unlines $ "Error in Reftype Specification" : concatMap err yts 
+  where err (y, t) = [ "Haskell: " ++ showPpr y ++ " :: " ++ showPpr (varType y)
+                     , "Liquid : " ++ showPpr y ++ " :: " ++ showPpr t           ]
+
+checkAssumeSpec xts 
+  = case filter specMismatch xts of 
+      []  -> xts
+      yts -> errorstar $ specificationError yts
+  
+specMismatch (x, t) = not $ eqShape t (ofType $ varType x) 
+
+eqShape :: SpecType -> SpecType -> Bool 
+eqShape (RAll (RP _) t) (RAll (RP _) t') 
+  = eqShape t t'
+eqShape (RAll (RP _) t) t' 
+  = eqShape t t'
+eqShape (RAll (RV α) t) (RAll (RV α') t')
+  = eqShape t (subsTyVar_meet (α', RVar (RV α) top) t')
+eqShape (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
+  = eqShape t1 t1' && eqShape t2 t2'
+eqShape (RApp c ts _ _) (RApp c' ts' _ _)
+  = (c == c') && length ts == length ts' && and (zipWith eqShape ts ts')
+eqShape (RCls c ts) (RCls c' ts')
+  = (c == c') && length ts == length ts' && and (zipWith eqShape ts ts')
+eqShape (RVar (RV α) _) (RVar (RV α') _)
+  = α == α' 
+eqShape _ _ 
+  = False

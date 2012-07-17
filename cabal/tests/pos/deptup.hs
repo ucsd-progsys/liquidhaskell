@@ -2,8 +2,7 @@ module Deptup0 where
 
 import Language.Haskell.Liquid.Prelude
 
-{- data Pair a b <p :: a -> b -> Bool> = P (x :: a) (y :: b<p x>) -}
-
+{-@ data Pair a b <p :: a -> b -> Bool> = P (x :: a) (y :: b<p x>) @-}
 data Pair a b = P a b
 
 

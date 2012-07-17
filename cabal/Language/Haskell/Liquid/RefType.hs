@@ -14,7 +14,7 @@ module Language.Haskell.Liquid.RefType (
   , rTyVar, rVar, rApp, rFun
   , typeUniqueSymbol
   , strengthen -- , strengthenRefType
-  , mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
+  , generalize, mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
   , subts, substSym 
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, refTypePredSortedReft, refTypeSortedReft, typeSortedReft, rTypeSort, funcToObj
@@ -350,10 +350,13 @@ rConApp (RTyCon c ps) ts rs r = RApp (RTyCon c ps') ts rs' r
 
 toPoly (RPoly t) _ = RPoly t
 toPoly (RMono r) t = RPoly $ (ofType t) `strengthen` r  
+
 -- mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
 mkArrow as xts t = mkUnivs as $ mkArrs xts t
-  where mkUnivs αs t  = tr_foldr' RAll t $ RV `fmap` αs
-        mkArrs xts t = tr_foldr' (\(x,t) -> rFun (RB x) t) t xts 
+
+mkUnivs αs t     = foldr RAll t $ (RV <$> αs)
+
+mkArrs xts t     = foldr (\(x, t) -> rFun (RB x) t) t xts 
 
 
 
@@ -378,6 +381,18 @@ rsplitVsPs t = ([], [], t)
 rsplitArgsRes (RFun (RB x) t1 t2 _) = (x:xs, t1:ts, r)
   where (xs, ts, r) = rsplitArgsRes t2
 rsplitArgsRes t = ([], [], t)
+
+
+-- generalize ::  Ord tv => RType p c tv pv r -> RType p c tv pv r
+generalize t = mkUnivs αs t 
+  where αs = S.toList $ freeVars t
+         
+freeVars (RAll (RP _) t) = freeVars t
+freeVars (RAll (RV α) t) = S.delete α $ freeVars t
+freeVars (RFun x t t' _) = S.unions   $ freeVars <$> [t, t']  
+freeVars (RApp _ ts _ _) = S.unions   $ freeVars <$> ts
+freeVars (RCls _ ts)     = S.unions   $ freeVars <$> ts 
+freeVars (RVar (RV α) _) = S.singleton α 
 
 ----------------------------------------------------------------
 ---------------------- Strictness ------------------------------

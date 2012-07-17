@@ -6,8 +6,8 @@ GHC.List.lhs
 FEATURES 
 --------
 
-- Why no error-location on tests/neg/test00.hs                          <------------------------- HEREHEREHEREHERE
-- Nuke "forall" from specifications. Tedious. Should auto-generalize...
+- Why no error-location on tests/neg/test00.hs                          
+- Nuke "forall" from specs. Tedious. Should auto-generalize... <------------------------- HEREHEREHEREHERE
 - Qualifier Scraping
 
 - pos/deptup.hs (type signature: for constructor wrapper)
