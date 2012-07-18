@@ -22,7 +22,6 @@ import Language.Haskell.Liquid.Constraint    (CGInfo (..))
 
 import Data.Data
 
-
 solve fn hqs cgi
   = {-# SCC "Solve" #-} execFq fn hqs gs (elems cm) ws >>= exitFq fn cm 
   where cm  = fromAscList $ zipWith (\i c -> (i, c {sid = Just i})) [1..] cs 
