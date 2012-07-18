@@ -159,13 +159,14 @@ bops = [ [Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft]
 
 exprCastP
   = do e  <- exprP 
-       colon >> colon
+       ((try dcolon) <|> colon)
        so <- sortP
        return $ ECst e so
 
 sortP
   =   try (string "Integer" >> return FInt)
   <|> try (string "Int"     >> return FInt)
+  <|> try (string "int"     >> return FInt)
   <|> try (string "Bool"    >> return FBool)
 --   <|> (symCharsP >>= return . FPtr . FLoc . stringSymbol) 
 
