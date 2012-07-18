@@ -12,6 +12,7 @@ import System.Process   (system)
 import System.Exit
 import Text.Printf
 import Outputable hiding (empty)
+import Data.Data
 
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
@@ -20,24 +21,25 @@ import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.Parse         (rr)
 import Language.Haskell.Liquid.Constraint    (CGInfo (..))
 
-import Data.Data
-
 
 solve fn hqs cgi
-  = {-# SCC "Solve" #-} execFq fn hqs gs (elems cm) ws >>= exitFq fn cm 
+  = {-# SCC "Solve" #-} execFq fn hqs gs (elems cm) ws qs >>= exitFq fn cm 
   where cm  = fromAscList $ zipWith (\i c -> (i, c {sid = Just i})) [1..] cs 
         cs  = fixCs cgi
         ws  = fixWfs cgi
         gs  = globals cgi
+        qs  = specQuals cgi
 
-execFq fn hqs globals cs ws 
-  = do {-# SCC "copyFiles" #-} copyFiles  hqs fq
+execFq fn hqs globals cs ws qs 
+  = do copyFiles hqs fq
+       appendFile fq qstr 
        withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPrintDump h d)
        ec <- {-# SCC "sysCall" #-} system $ printf "fixpoint.native -notruekvars -refinesort -noslice -strictsortcheck -out %s %s" fo fq 
        return ec
-    where fq = extFileName Fq  fn
-          fo = extFileName Out fn
-          d  = {-# SCC "FixPointify" #-} toFixpoint (FI cs ws globals)
+    where fq   = extFileName Fq  fn
+          fo   = extFileName Out fn
+          d    = {-# SCC "FixPointify" #-} toFixpoint (FI cs ws globals)
+          qstr = showSDoc $ vcat $ toFix <$> qs
 
 exitFq _ _ (ExitFailure n) | (n /= 1) 
   = return (Crash [] "Unknown Error", empty)

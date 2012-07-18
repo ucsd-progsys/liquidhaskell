@@ -1,7 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
 
 module Language.Haskell.Liquid.Fixpoint (
-    toFixpoint, toFix
+    toFixpoint
+  , Fixpoint (toFix) 
   , typeSort, typeUniqueSymbol
   , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tagSymbol, tempSymbol
   , stringTycon, stringSymbol, symbolString
@@ -143,6 +144,7 @@ freshSym x = do
                   return y 
     Just y  -> return y
 -}
+
 isPredInReft p (Reft(_, ls)) = or (isPredInRefa p <$> ls)
 isPredInRefa p (RPvar p')    = isSamePvar p p'
 isPredInRefa _ _             = False
@@ -233,6 +235,12 @@ getConstants = everything (++) ([] `mkQ` f)
         f (ELit s so) = [(s, so, False)]
         f _           = []
 
+
+
+infoConstant (c, so, _)
+  = text "constant" <+> toFix c <+> text ":" <+> toFix so <> blankLine <> blankLine 
+
+{- {{{ 
 infoConstant (c, so, b)
   | b 
   = vcat [d1, d2, d3] $+$ dn
@@ -244,6 +252,7 @@ infoConstant (c, so, b)
         d2 = text "qualif TEQ" <> d <> text "(v:ptr) : (" <> tg <> text "([v]) =  " <> d <> text ")" 
         d3 = text "qualif TNE" <> d <> text "(v:ptr) : (" <> tg <> text "([v]) !=  " <> d <> text ")" 
         tg = text tagName
+}}} -}
 
 ---------------------------------------------------------------
 ---------- Converting Constraints to Fixpoint Input -----------
