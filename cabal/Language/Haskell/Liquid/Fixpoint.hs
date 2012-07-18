@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , isNonTrivialSortedReft
   , isTautoReft
   , ppr_reft, ppr_reft_pred, flattenRefas
-  , simplify
+  , simplify, pAnd, pOr, pIte
   , emptySubst, mkSubst, catSubst
   , Subable (..)
   , isPredInReft
@@ -573,6 +573,10 @@ hasTag e1 e2 = PAtom Eq (EApp tagSymbol [e1]) e2
 isTautoReft (Reft (_, ras)) = all isTautoRa ras
 isTautoRa (RConc p)         = isTauto p
 isTautoRa _                 = False
+
+pAnd          = simplify . PAnd 
+pOr           = simplify . POr 
+pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3] 
 
 ppr_reft (Reft (v, ras)) d 
   | all isTautoRa ras

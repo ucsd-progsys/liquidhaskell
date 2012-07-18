@@ -177,8 +177,16 @@ symCharsP = (condIdP symChars (\_ -> True))
 
 qmP = reserved "?" <|> reserved "Bexp"
 
+condP = do p1 <- predP 
+           reserved "?"
+           p2 <- predP
+           colon
+           p3 <- predP
+           return $ pIte p1 p2 p3
+
 predP :: Parser Pred
-predP =  parens pred2P
+predP =  try (parens pred2P)
+     <|> try (parens condP)
      <|> (qmP >> liftM PBexp exprP)
      <|> (reserved "true"  >> return PTrue)
      <|> (reserved "false" >> return PFalse)

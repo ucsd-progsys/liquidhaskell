@@ -6,13 +6,9 @@ GHC.List.lhs
 FEATURES 
 --------
 
-- Why no error-location on tests/neg/test00.hs                          
-- Nuke "forall" from specs. Tedious. Should auto-generalize... <------------------------- HEREHEREHEREHERE
-- Qualifier Scraping
-
+- qualifier scraping            <------------------------ HEREHEREHEREHERE
 - pos/deptup.hs (type signature: for constructor wrapper)
 - Add/Parse predicate signatures for lists and tuples: [{x: Int | x > 0}]
-
 
 data [a]<p :: a -> a -> Bool> 
   = []
@@ -41,6 +37,11 @@ data (a1, a2, a3)
 
 Get ITE predicates to parse:
 {-@ assert drop        :: forall a. n: Int -> xs:[a] -> {v:[a] | (len(xs) <  n) ? (len(v) = 0) : (len(v) = len(xs) - n) } @-}
+
+
+e1 ? e2 : e3
+e1 ? e2 : e3
+
 
 KNOWN BUGS
 ----------
