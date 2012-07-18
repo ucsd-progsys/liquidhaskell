@@ -122,11 +122,12 @@ exprP =  expr2P <|> lexprP
 
 lexprP :: Parser Expr 
 lexprP   
-  =  (try $ parens exprP)
- <|> (try $ parens cexprP)
- <|> (try exprfP)
- <|> (try (liftM mkEDat upperIdP))
- <|> (try (liftM (EVar . stringSymbol) upperIdP))
+  =  try (parens exprP)
+ <|> try (parens exprCastP)
+ <|> try (parens $ condP EIte exprP)
+ <|> try exprFunP
+ <|> try (liftM mkEDat upperIdP)
+ <|> try (liftM (EVar . stringSymbol) upperIdP)
  <|> liftM EVar symbolP
  <|> liftM ECon constantP
  <|> (reserved "_|_" >> return EBot)
@@ -143,7 +144,7 @@ wiredSorts = [ ("EQ", primOrderingSort)
              , ("GT", primOrderingSort)
              ]
 
-exprfP        = liftM2 EApp symbolP argsP
+exprFunP      = liftM2 EApp symbolP argsP
   where argsP = try (parens $ brackets esP) <|> parens esP
         esP   = sepBy exprP comma 
 
@@ -156,7 +157,7 @@ bops = [ [Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft]
        , [Infix  (reservedOp "mod" >> return (EBin Mod  )) AssocLeft]
        ]
 
-cexprP 
+exprCastP
   = do e  <- exprP 
        colon >> colon
        so <- sortP
@@ -175,25 +176,22 @@ symCharsP = (condIdP symChars (\_ -> True))
 -------------------------- Predicates -------------------------------
 ---------------------------------------------------------------------
 
-qmP = reserved "?" <|> reserved "Bexp"
-
-condP = do p1 <- predP 
-           reserved "?"
-           p2 <- predP
-           colon
-           p3 <- predP
-           return $ pIte p1 p2 p3
-
 predP :: Parser Pred
 predP =  try (parens pred2P)
-     <|> try (parens condP)
+     <|> try (parens $ condP pIte predP)
+     <|> try (reservedOp "&&" >> liftM PAnd predsP)
+     <|> try (reservedOp "||" >> liftM POr  predsP)
      <|> (qmP >> liftM PBexp exprP)
      <|> (reserved "true"  >> return PTrue)
      <|> (reserved "false" >> return PFalse)
      <|> (try predrP)
-     <|> (try (liftM PBexp exprfP))
+     <|> (try (liftM PBexp exprFunP))
+
+qmP    = reserved "?" <|> reserved "Bexp"
 
 pred2P = buildExpressionParser lops predP 
+
+predsP = brackets $ sepBy predP semi
 
 lops = [ [Prefix (reservedOp "~"   >> return PNot)]
        , [Infix  (reservedOp "&&"  >> return (\x y -> PAnd [x,y])) AssocRight]
@@ -213,7 +211,14 @@ brelP =  (reservedOp "="  >> return (PAtom Eq))
      <|> (reservedOp "<=" >> return (PAtom Le))
      <|> (reservedOp ">"  >> return (PAtom Gt))
      <|> (reservedOp ">=" >> return (PAtom Ge))
-     -- <|> (reservedOp "is" >> return (hasTag  )) 
+
+condP f bodyP 
+  = do p  <- predP 
+       reserved "?"
+       b1 <- bodyP 
+       colon
+       b2 <- bodyP 
+       return $ f p b1 b2
 
 ----------------------------------------------------------------------------------
 ------------------------------------ BareTypes -----------------------------------
@@ -484,6 +489,8 @@ fixResultP pp
   =  (reserved "SAT"   >> return Safe)
  <|> (reserved "UNSAT" >> Unsafe <$> (brackets $ sepBy pp comma))  
  <|> (reserved "CRASH" >> crashP pp)
+
+
 
 crashP pp
   = do i   <- pp

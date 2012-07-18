@@ -6,6 +6,7 @@ GHC.List.lhs
 FEATURES 
 --------
 
+- hacked Fixpoint.infoConstant do tests break?
 - qualifier scraping            <------------------------ HEREHEREHEREHERE
 - pos/deptup.hs (type signature: for constructor wrapper)
 - Add/Parse predicate signatures for lists and tuples: [{x: Int | x > 0}]

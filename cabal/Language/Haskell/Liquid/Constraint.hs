@@ -47,18 +47,16 @@ import Data.List (inits, find, foldl')
 import qualified Data.Set as S
 import Text.Printf
 
-import qualified Language.Haskell.Liquid.Fixpoint as F
-import Language.Haskell.Liquid.Fixpoint (PVar(..))
 import qualified Language.Haskell.Liquid.Measure as Ms
+import qualified Language.Haskell.Liquid.Fixpoint as F
+import Language.Haskell.Liquid.Fixpoint         (PVar(..))
 import Language.Haskell.Liquid.GhcInterface 
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.PredType hiding (splitArgsRes)
+import Language.Haskell.Liquid.PredType hiding  (splitArgsRes)
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc (tickSrcSpan, tvId)
+import Language.Haskell.Liquid.GhcMisc          (tickSrcSpan, tvId)
 import Language.Haskell.Liquid.Misc
--- import Language.Haskell.Liquid.MiscExpr (exprType)
--- import Language.Haskell.Liquid.Bare (isDummyBind)
-
+import Language.Haskell.Liquid.Qualifier        
 import Data.Generics.Schemes
 import Data.Generics.Aliases
 import Data.Data
@@ -134,7 +132,6 @@ grty = {- traceShow ("****** grty *****\n") . -} assm_grty defVars
 assm_grty f info = [ (x, mapReft ureft t) | (x, t) <- sigs, x `S.member` xs ] 
   where xs   = S.fromList $ f info 
         sigs = tySigs $ spec info  
-
 
 
 -------------------------------------------------------------------
@@ -417,6 +414,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , freshIndex :: !Integer 
                      , annotMap   :: !(AnnInfo Annot) 
                      , tyConInfo  :: !(M.Map TC.TyCon RTyCon) 
+                     , specQuals  :: ![Qualifier]
                      } deriving (Data, Typeable)
 
 instance Outputable CGInfo where 
@@ -434,8 +432,9 @@ ppr_CGInfo cgi
 
 type CG = State CGInfo
 
-initCGI info = CGInfo [] [] [] [] F.emptySEnv 0 (AI M.empty) tyi
+initCGI info = CGInfo [] [] [] [] F.emptySEnv 0 (AI M.empty) tyi qs
   where tyi  = M.fromList [(c, mkRTyCon c p) | (c, p) <- tconsP info]
+        qs   = specificationQualifiers info
 
 showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
@@ -929,15 +928,15 @@ instance NFData WfC where
 
 
 instance NFData CGInfo where
-  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 x8) 
+  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 x8 x9) 
     = ({-# SCC "CGIrnf1" #-} rnf x1) `seq` 
       ({-# SCC "CGIrnf2" #-} rnf x2) `seq` 
       ({-# SCC "CGIrnf3" #-} rnf x3) `seq` 
       ({-# SCC "CGIrnf4" #-} rnf x4) `seq` 
       ({-# SCC "CGIrnf5" #-} rnf x5) `seq` 
       ({-# SCC "CGIrnf6" #-} rnf x6) `seq`
-      ({-# SCC "CGIrnf6" #-} rnf x7) 
-
+      ({-# SCC "CGIrnf7" #-} rnf x7) `seq`
+      ({-# SCC "CGIrnf8" #-} rnf x9) 
 
 -----------------------------------------------------------------------
 --------------- Cleaner Signatures For Rec-bindings -------------------
