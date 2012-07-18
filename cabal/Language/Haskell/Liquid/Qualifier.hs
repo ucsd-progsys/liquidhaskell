@@ -4,16 +4,21 @@ module Language.Haskell.Liquid.Qualifier (
   ) where
 
 import Outputable
+import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.Misc
 
+import Control.DeepSeq
 import Control.Applicative      ((<$>))
+import Data.List                (nub, delete)
+import Data.Maybe               (fromMaybe)
+import Data.Bifunctor           (second) 
 import Data.Generics.Schemes
 import Data.Generics.Aliases
 import Data.Data
-import Data.Set
-import Control.DeepSeq
+
 
 data Qualifier = Q { name   :: String
                    , params :: [(Symbol, Sort)]
@@ -38,17 +43,17 @@ pprQual (Q n xts p) = text "qualif" <+> text n <> parens args  <> colon <+> toFi
 
 specificationQualifiers         :: GhcSpec -> [Qualifier] 
 specificationQualifiers spec    = [ q | t <- snd <$> tySigs spec
-                                          , q <- refTypeQuals emptySEnv (ureft <$> t) ] 
+                                      , q <- refTypeQuals $ ureft <$> t ] 
 
-refTypeQuals                    :: FEnv -> RefType -> [Qualifier] 
+refTypeQuals                    :: RefType -> [Qualifier] 
 refTypeQuals t0 = go emptySEnv t0
-where go γ t@(RVar _ _)         = refTopQuals t0 γ t     
-      go γ (RAll α t)           = go γ t 
-      go γ (RFun (RB x) t t' _) = (go γ t) ++ (go (insertSEnv x (rTypeSort t) γ) t')
-      go γ t@(RApp _ ts _ _)    = (refTopQuals t0 γ t) ++ concatMap (go γ) ts 
-      go γ _                    = []
+  where go γ t@(RVar _ _)         = refTopQuals t0 γ t     
+        go γ (RAll α t)           = go γ t 
+        go γ (RFun (RB x) t t' _) = (go γ t) ++ (go (insertSEnv x (rTypeSort t) γ) t')
+        go γ t@(RApp _ ts _ _)    = (refTopQuals t0 γ t) ++ concatMap (go γ) ts 
+        go γ _                    = []
 
-refTopQuals t0 γ 
+refTopQuals t0 γ t 
   = [ mkQual t0 γ v so p | let (RR so (Reft (v, ras))) = refTypeSortedReft t 
                          , RConc p                    <- ras                 ]
 
