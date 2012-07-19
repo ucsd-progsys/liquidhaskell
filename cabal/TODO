@@ -6,10 +6,17 @@ GHC.List.lhs
 FEATURES 
 --------
 
-- hacked Fixpoint.infoConstant do tests break?
-- qualifier scraping            <------------------------ HEREHEREHEREHERE
+foldl f b []     = b
+foldl f b (x:xs) = foldl f (f b x) xs
+
+foldl (\b x -> b + 1) 0 zs ====> go 0 zs
+    where foo = (\b x -> b + 1)
+          go  = foldl @@@ foo
+          i.e. go b []     = b
+               go b (x:xs) = go (foo b x) xs
+
+- Add/Parse predicate signatures for lists<p> and tuples<p>: [{x: Int | x > 0}]  <------------------------ HEREHEREHEREHERE
 - pos/deptup.hs (type signature: for constructor wrapper)
-- Add/Parse predicate signatures for lists and tuples: [{x: Int | x > 0}]
 
 data [a]<p :: a -> a -> Bool> 
   = []

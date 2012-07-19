@@ -82,7 +82,7 @@ consAct info penv
  
 generateConstraints :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fws } { globals = gs }
-  where st  = execState act $ initCGI spc
+  where st  = execState act $ initCGI info 
         act = consAct (info {cbs = fst pds}) (snd pds)
         fcs = concatMap splitC $ hsCs  st 
         fws = concatMap splitW $ hsWfs st
@@ -433,7 +433,7 @@ ppr_CGInfo cgi
 type CG = State CGInfo
 
 initCGI info = CGInfo [] [] [] [] F.emptySEnv 0 (AI M.empty) tyi qs
-  where tyi  = M.fromList [(c, mkRTyCon c p) | (c, p) <- tconsP info]
+  where tyi  = M.fromList [(c, mkRTyCon c p) | (c, p) <- tconsP $ spec info]
         qs   = specificationQualifiers info
 
 showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "

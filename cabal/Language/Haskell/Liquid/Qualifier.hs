@@ -14,6 +14,7 @@ import Control.DeepSeq
 import Control.Applicative      ((<$>))
 import Data.List                (nub, delete)
 import Data.Maybe               (fromMaybe)
+import qualified Data.Set as S
 import Data.Bifunctor           (second) 
 import Data.Generics.Schemes
 import Data.Generics.Aliases
@@ -41,9 +42,11 @@ pprQual (Q n xts p) = text "qualif" <+> text n <> parens args  <> colon <+> toFi
 ------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------
 
-specificationQualifiers         :: GhcSpec -> [Qualifier] 
-specificationQualifiers spec    = [ q | t <- snd <$> tySigs spec
-                                      , q <- refTypeQuals $ ureft <$> t ] 
+specificationQualifiers         :: GhcInfo -> [Qualifier] 
+specificationQualifiers info    = [ q | (x, t) <- tySigs $ spec info
+                                      , x `S.member` xs
+                                      , q      <- refTypeQuals $ ureft <$> t
+                                  ] where xs = S.fromList $ defVars info 
 
 refTypeQuals                    :: RefType -> [Qualifier] 
 refTypeQuals t0 = go emptySEnv t0
