@@ -372,7 +372,7 @@ eqShape' (RFun _ t1 t2 _) (RFun _ t1' t2' _)
   = eqShape t1 t1' && eqShape t2 t2'
 eqShape' t@(RApp c ts _ _) t'@(RApp c' ts' _ _)
   =  ((c == c') && length ts == length ts' && and (zipWith eqShape ts ts'))
-  || (eqType (toType t) (toType t'))
+ -- || (eqType (toType t) (toType t'))
 eqShape' (RCls c ts) (RCls c' ts')
   = (c == c') && length ts == length ts' && and (zipWith eqShape ts ts')
 eqShape' (RVar (RV α) _) (RVar (RV α') _)

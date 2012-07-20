@@ -756,8 +756,8 @@ constant strings created when compiled:
 \begin{code}
 {-@ assert errorEmptyList :: {v: String | (0 = 1)} -> a @-}
 errorEmptyList :: String -> a
-errorEmptyList fun =
-  error (prel_list_str ++ fun ++ ": empty list")
+errorEmptyList fundoo =
+  error (prel_list_str ++ fundoo ++ ": empty list")
 
 prel_list_str :: String
 prel_list_str = "Prelude."
