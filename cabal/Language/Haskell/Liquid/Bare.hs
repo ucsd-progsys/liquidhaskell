@@ -16,7 +16,7 @@ import Outputable
 import Var
 import PrelNames
 import PrelInfo     (wiredInThings)
-
+import Type         (eqType)
 
 import Type       (liftedTypeKind)
 import HscTypes   (HscEnv)
@@ -349,22 +349,33 @@ checkAssumeSpec xts
       []  -> xts
       yts -> errorstar $ specificationError yts
   
-specMismatch (x, t) = not $ eqShape t (ofType $ varType x) 
+specMismatch (x, t) 
+  =  not $ eqShape t (ofType $ varType x) 
+  -- not $ eqType' (toType t) (varType x) 
+
+eqType' τ1 τ2 
+  = tracePpr ("eqty: τ1 = " ++ showPpr τ1 ++ " τ2 = " ++ showPpr τ2) 
+  $ eqType τ1 τ2 
 
 eqShape :: SpecType -> SpecType -> Bool 
-eqShape (RAll (RP _) t) (RAll (RP _) t') 
+eqShape t1 t2 
+  = tracePpr ("eqShape : t1 = " ++ showPpr t1 ++ " t2 = " ++ showPpr t2) 
+  $ eqShape' t1 t2 
+
+eqShape' (RAll (RP _) t) (RAll (RP _) t') 
   = eqShape t t'
-eqShape (RAll (RP _) t) t' 
+eqShape' (RAll (RP _) t) t' 
   = eqShape t t'
-eqShape (RAll (RV α) t) (RAll (RV α') t')
+eqShape' (RAll (RV α) t) (RAll (RV α') t')
   = eqShape t (subsTyVar_meet (α', RVar (RV α) top) t')
-eqShape (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
+eqShape' (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
   = eqShape t1 t1' && eqShape t2 t2'
-eqShape (RApp c ts _ _) (RApp c' ts' _ _)
+eqShape' t@(RApp c ts _ _) t'@(RApp c' ts' _ _)
+  =  ((c == c') && length ts == length ts' && and (zipWith eqShape ts ts'))
+  || (eqType (toType t) (toType t'))
+eqShape' (RCls c ts) (RCls c' ts')
   = (c == c') && length ts == length ts' && and (zipWith eqShape ts ts')
-eqShape (RCls c ts) (RCls c' ts')
-  = (c == c') && length ts == length ts' && and (zipWith eqShape ts ts')
-eqShape (RVar (RV α) _) (RVar (RV α') _)
+eqShape' (RVar (RV α) _) (RVar (RV α') _)
   = α == α' 
-eqShape _ _ 
+eqShape' t1 t2 
   = False

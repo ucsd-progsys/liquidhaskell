@@ -15,7 +15,7 @@ foldl (\b x -> b + 1) 0 zs ====> go 0 zs
           i.e. go b []     = b
                go b (x:xs) = go (foo b x) xs
 
-- Add/Parse predicate signatures for lists<p> and tuples<p>: [{x: Int | x > 0}]  <------------------------ HEREHEREHEREHERE
+- Add/Parse predicate signatures for lists<p> and tuples<p>: [{x: Int | x > 0}]  <---------- HEREHEREHEREHERE
 - pos/deptup.hs (type signature: for constructor wrapper)
 
 data [a]<p :: a -> a -> Bool> 

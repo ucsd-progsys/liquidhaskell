@@ -284,7 +284,7 @@ bareFun2P
   = do t1 <- bareArgP 
        a  <- arrowP
        t2 <- bareTypeP
-       return $ bareArrow "" t1 a t2 
+       return $ bareArrow dummyBind t1 a t2 
 
 dummyNamePos pos = "dummy_" ++ name ++ ['@'] ++ line ++ [','] ++ colum
   where name  = sourceName pos
@@ -292,22 +292,25 @@ dummyNamePos pos = "dummy_" ++ name ++ ['@'] ++ line ++ [','] ++ colum
         colum = show $ sourceColumn pos  
 
 bareFunP  
-  = do x  <- try bindP <|> (return dummyName) -- (dummyNamePos <$> getPosition)  
+  = do b  <- try bindP <|> (return dummyBind) -- (dummyNamePos <$> getPosition)  
        t1 <- bareArgP 
        a  <- arrowP
        t2 <- bareTypeP
-       return $ bareArrow x t1 a t2 
+       return $ bareArrow b t1 a t2 
 
 bbindP = lowerIdP <* dcolon 
-bindP  = lowerIdP <* colon
+
+bindP  = liftM (RB . stringSymbol) (lowerIdP <* colon)
+
 dcolon = string "::" <* spaces
 
-bareArrow "" t1 ArrowFun t2
-  = rFun dummyBind t1 t2
-bareArrow x t1 ArrowFun t2
-  = rFun (stringBind x) t1 t2
-bareArrow x t1 ArrowPred t2
+bareArrow b t1 ArrowFun t2
+  = rFun b t1 t2
+bareArrow _ t1 ArrowPred t2
   = foldr (rFun dummyBind) t2 (getClasses t1)
+
+-- stringBind     = RB . stringSymbol
+
 
 isBoolBareType (RApp tc [] _ _) = tc == boolConName
 isBoolBareType _                = False
@@ -371,7 +374,6 @@ bRVar α p r    = RVar (RV α) (U r p)
 
 reftUReft      = (`U` pdTrue)
 predUReft      = (U dummyReft) 
-stringBind     = RB . stringSymbol
 dummyBind      = RB dummySymbol
 dummyReft      = Reft (dummySymbol, [])
 dummyTyId      = ""

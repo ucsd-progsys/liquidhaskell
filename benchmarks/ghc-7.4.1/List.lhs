@@ -185,7 +185,7 @@ foldl f z0 xs0 = lgo z0 xs0
 -- Note that
 --
 -- > last (scanl f z xs) == foldl f z xs.
-{-@ assert scanl        :: forall a, b. (a -> b -> a) -> a -> xs:[b] -> {v: [a] | len(v) = 1 + len(xs) } @-}
+{-@ assert scanl        :: (a -> b -> a) -> a -> xs:[b] -> {v: [a] | len(v) = 1 + len(xs) } @-}
 scanl                   :: (a -> b -> a) -> a -> [b] -> [a]
 scanl f q ls            =  q : (case ls of
                                 []   -> []
@@ -195,7 +195,7 @@ scanl f q ls            =  q : (case ls of
 --
 -- > scanl1 f [x1, x2, ...] == [x1, x1 `f` x2, ...]
 
-{-@ assert scanl1       :: forall a. (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) } @-}
+{-@ assert scanl1       :: (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) } @-}
 scanl1                  :: (a -> a -> a) -> [a] -> [a]
 scanl1 f (x:xs)         =  scanl f x xs
 scanl1 _ []             =  []
@@ -326,7 +326,7 @@ dropWhile p xs@(x:xs')
 -- in which @n@ may be of any integral type.
 
 
-{-@ assert take        :: forall a. n: Int -> xs:[a] -> {v:[a] | (len(xs) < n) ? (len(v) = len(xs)) : (len(v) = n) } @-}
+{-@ assert take        :: forall a. n: Int -> xs:[a] -> {v:[a] | len(v) = ((len(xs) < n) ? len(xs) : n) } @-}
 take                   :: Int -> [a] -> [a]
 
 -- | 'drop' @n xs@ returns the suffix of @xs@
@@ -341,7 +341,7 @@ take                   :: Int -> [a] -> [a]
 --
 -- It is an instance of the more general 'Data.List.genericDrop',
 -- in which @n@ may be of any integral type.
-{-@ assert drop        :: forall a. n: Int -> xs:[a] -> {v:[a] | (len(xs) <  n) ? (len(v) = 0) : (len(v) = len(xs) - n) } @-}
+{-@ assert drop        :: forall a. n: Int -> xs:[a] -> {v:[a] | len(v) = ((len(xs) <  n) ? 0 : len(xs) - n) } @-}
 drop                   :: Int -> [a] -> [a]
 
 -- | 'splitAt' @n xs@ returns a tuple where first element is @xs@ prefix of
@@ -754,7 +754,7 @@ Common up near identical calls to `error' to reduce the number
 constant strings created when compiled:
 
 \begin{code}
-{-@ assert errorEmptyList :: forall a. {v: String | (0 = 1)} -> a @-}
+{-@ assert errorEmptyList :: {v: String | (0 = 1)} -> a @-}
 errorEmptyList :: String -> a
 errorEmptyList fun =
   error (prel_list_str ++ fun ++ ": empty list")

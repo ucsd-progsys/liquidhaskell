@@ -160,7 +160,9 @@ instance Show CGEnv where
   where γ' = γ { renv = insertREnv x r (renv γ) }  
         r  = normalizePds r'  -- move pred abs in start of the type
 
-(γ, msg) += (x, r) 
+(γ, msg) += (x, r)
+  | x == F.dummySymbol
+  = γ
   | x `memberREnv` (renv γ)
   = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ show x -- ++ " in REnv!\n\n" ++ show γ
   | otherwise
