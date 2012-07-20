@@ -20,3 +20,11 @@ length l                =  len l 0#
 go :: [a] -> Int# -> Int
 go []     a# = I# a#
 go (_:xs) a# = go xs (a# +# 1#) 
+
+{-@ assert scanl        :: forall a, b. (a -> b -> a) -> a -> xs:[b] -> {v: [a] | len(v) = 1 + len(xs) } @-}
+scanl                   :: (a -> b -> a) -> a -> [b] -> [a]
+scanl f q ls            =  q : (case ls of
+                                []   -> []
+                                x:xs -> scanl f (f q x) xs)
+
+
