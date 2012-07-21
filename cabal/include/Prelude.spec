@@ -25,7 +25,7 @@ assume GHC.Num.fromInteger      :: (Num a) => x:Integer -> {v:a | v = x }
 assume GHC.Integer.smallInteger :: x:GHC.Prim.Int# -> {v:Integer | v = (x :: Integer)}
 
 assume id                       :: x:a -> {v:a | v = x}
-assume ($)                      :: (a -> b) -> a -> b
+assume ($)                      :: (x:a -> b) -> a -> b
 
 assume Prelude.length           :: x: [a] -> { v: Int | v = len(x) }
 assume Prelude.map              :: (a -> b) -> [a] -> [b]
