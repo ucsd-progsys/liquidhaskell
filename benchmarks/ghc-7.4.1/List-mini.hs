@@ -3,35 +3,36 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 module GHC.List (
-   foldr1
- , reverse 
+   reverse 
+ , foldr1
+ --, length
  ) where
 
 import Data.Maybe
-import GHC.Base
+import GHC.Base hiding (assert) 
+import Language.Haskell.Liquid.Prelude (crash)
 
-
--- {- ANN module "len.hquals" #-}
-
-{-@ qualifiers <len.hquals> @-}
+{-@ include <len.hquals> @-}
 
 {-@ assert reverse :: xs:[a] -> {v: [a] | len(v) = len(xs)} @-}
 
+reverse :: [a] -> [a]
 reverse l =  rev l []
-rev []     a = a
-rev (x:xs) a = rev xs (x:a)
+  where rev []     a = a
+        rev (x:xs) a = rev xs (x:a)
 
---{-@ assert length :: forall a. xs:[a] -> {v: Int | v = len(xs)}  @-}
+--{- assert length :: xs:[a] -> {v: Int | v = len(xs)}  @-}
 --length                  :: [a] -> Int
 --length l                =  len l 0#
 --  where
 --    len :: [a] -> Int# -> Int
 --    len []     a# = I# a#
 --    len (_:xs) a# = len xs (a# +# 1#)
+----
+----go :: [a] -> Int# -> Int
+----go []     a# = I# a#
+----go (_:xs) a# = go xs (a# +# 1#) 
 --
---go :: [a] -> Int# -> Int
---go []     a# = I# a#
---go (_:xs) a# = go xs (a# +# 1#) 
 
 {-@ assert errorEmptyList :: {v: String | (0 = 1)} -> a @-}
 errorEmptyList :: String -> a
@@ -40,6 +41,7 @@ errorEmptyList fun =
 
 prel_list_str :: String
 prel_list_str = "Prelude."
+
 
 {-@ assert foldr1 :: (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> a @-}
 foldr1            :: (a -> a -> a) -> [a] -> a
