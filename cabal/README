@@ -110,3 +110,30 @@ above the function definition. For example (tests/pos/spec0.hs)
     {-@ assert incr :: x:{v: Int | v > 0} -> {v: Int | v > x} @-}
     incr   :: Int -> Int
     incr x = x + 1
+
+
+Specifying Qualifiers
+---------------------
+
+Qualifier files must end with extension .hquals
+
+You can write qualifier files (see include/Prelude.hquals for an example)
+
+
+
+If a module is called or imports 
+
+    Foo.Bar.Baz
+
+Then the system automatically searches for
+
+    include/Foo/Bar/Baz.hquals
+
+Additional qualifiers may be used by adding lines of the form:
+
+    {-@ include <path/to/file.hquals> @-}
+
+to the Haskell source. See tests/pos/meas5.hs for an example.
+
+
+
