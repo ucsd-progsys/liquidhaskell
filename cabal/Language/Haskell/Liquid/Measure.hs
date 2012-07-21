@@ -32,7 +32,7 @@ data Spec ty bndr  = Spec {
   , sigs      :: ![(Symbol, ty)]        -- Imported functions and types   
   , imports   :: ![Symbol] 
   , dataDecls :: ![DataDecl] 
-  , qualFiles :: ![FilePath]
+  , includes  :: ![FilePath]
   } deriving (Data, Typeable)
 
 data MSpec ty bndr = MSpec { 
@@ -78,9 +78,9 @@ mkMSpec ms = MSpec cm mm
         ms' = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
 instance Monoid (Spec ty bndr) where
-  mappend (Spec xs ys zs ds) (Spec xs' ys' zs' ds')
-           = Spec (xs ++ xs') (ys ++ ys') (nubSort (zs ++ zs')) (ds ++ ds')
-  mempty   = Spec [] [] [] []
+  mappend (Spec xs ys zs ds is) (Spec xs' ys' zs' ds' is')
+           = Spec (xs ++ xs') (ys ++ ys') (nubSort (zs ++ zs')) (ds ++ ds') (nubSort (is ++ is'))
+  mempty   = Spec [] [] [] [] []
 
 instance Functor Def where
   fmap f def = def { ctor = f (ctor def) }
@@ -102,21 +102,18 @@ instance Bifunctor MSpec   where
   second                = fmap 
 
 instance Bifunctor Spec    where
-  first f sp  = sp { measures = fmap (first f) (measures sp) } { sigs = fmap (second f) (sigs sp) }
-  second f sp = sp { measures  = fmap (second f) (measures sp) }
-
-  --first f (Spec ms ss x y z) = Spec { measures  = fmap (first f) ms
-  --                                  , sigs      = fmap (second f) ss
-  --                                  , imports   = x
-  --                                  , dataDecls = y 
-  --                                  , qualFiles = z 
-  --                                  }
-  --second f (Spec ms w x y z) = Spec { measures  = fmap (second f) ms
-  --                                  , sigs      = w 
-  --                                  , imports   = x
-  --                                  , dataDecls = y 
-  --                                  , qualFiles = z
-  --                                  }
+  first f (Spec ms ss x y z) = Spec { measures  = fmap (first f) ms
+                                    , sigs      = fmap (second f) ss
+                                    , imports   = x
+                                    , dataDecls = y 
+                                    , includes  = z 
+                                    }
+  second f (Spec ms w x y z) = Spec { measures  = fmap (second f) ms
+                                    , sigs      = w 
+                                    , imports   = x
+                                    , dataDecls = y 
+                                    , includes  = z
+                                    }
 
 instance Outputable Body where
   ppr (E e) = toFix e  

@@ -81,7 +81,6 @@ dot        = Token.dot        lexer
 whiteSpace = Token.whiteSpace lexer
 identifier = Token.identifier lexer
 
-pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
 
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
@@ -389,14 +388,14 @@ data Pspec ty bndr
   | Assm (bndr, ty) 
   | Impt  Symbol
   | DDecl DataDecl
-  | QFile FilePath
+  | Incl  FilePath
 
-mkSpec xs   = {- Measure.qualifySpec name $ -} Measure.Spec ms as is ds hqs 
-  where ms  = [m | Meas  m <- xs]
-        as  = [a | Assm  a <- xs]
-        is  = [i | Impt  i <- xs]
-        ds  = [d | DDecl d <- xs]
-        hqs = [q | QFile q <- xs]
+mkSpec xs    = {- Measure.qualifySpec name $ -} Measure.Spec ms as is ds incs 
+  where ms   = [m | Meas  m <- xs]
+        as   = [a | Assm  a <- xs]
+        is   = [i | Impt  i <- xs]
+        ds   = [d | DDecl d <- xs]
+        incs = [q | Incl  q <- xs]
 
 specificationP 
   = do reserved "module"
@@ -408,15 +407,17 @@ specificationP
 
 
 specP 
-  = try (reserved "assume"      >> liftM Assm  tyBindP)
-    <|> (reserved "assert"      >> liftM Assm  tyBindP)
-    <|> (reserved "measure"     >> liftM Meas  measureP) 
-    <|> (reserved "import"      >> liftM Impt  symbolP)
-    <|> (reserved "data"        >> liftM DDecl dataDeclP)
-    <|> (reserved "qualifiers"  >> liftM QFile filePathP)
+  = try (reserved "assume"  >> liftM Assm  tyBindP)
+    <|> (reserved "assert"  >> liftM Assm  tyBindP)
+    <|> (reserved "measure" >> liftM Meas  measureP) 
+    <|> (reserved "import"  >> liftM Impt  symbolP)
+    <|> (reserved "data"    >> liftM DDecl dataDeclP)
+    <|> (reserved "include" >> liftM Incl  filePathP)
 
 filePathP :: Parser FilePath
-filePathP = angles 
+filePathP = angles $ many1 pathCharP
+  where pathCharP = choice $ char <$> pathChars 
+        pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
 
 tyBindP 
   = do name  <- binderP <* spaces 

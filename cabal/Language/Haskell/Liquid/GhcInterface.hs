@@ -73,6 +73,7 @@ data GhcSpec = SP {
   , meas     :: ![(Symbol, RefType)]
   , dconsP   :: ![(DataCon, DataConP)]
   , tconsP   :: ![(TC.TyCon, TyConP)]
+  , includes :: ![FilePath]
   }
 
 data GhcInfo = GI { 
@@ -93,6 +94,8 @@ instance Outputable GhcSpec where
            $$ (ppr $ ctor spec)
            $$ (text "******* Measure Specifications **************")
            $$ (ppr $ meas spec)
+           $$ (text "******* Include Files *********************")
+           $$ (ppr $ includes spec)
 
 instance Outputable GhcInfo where 
   ppr info =  (text "*************** Core Bindings ***************")
@@ -136,12 +139,12 @@ getGhcInfo target paths
       coreBinds   <- liftIO $ anormalize hscEnv modguts
       spec        <- moduleSpec target modguts paths 
       liftIO       $ putStrLn $ "Module Imports: " ++ show (imports spec) 
-      hqualFiles  <- moduleHquals modguts paths target $ imports spec 
-      return       $ GI hscEnv coreBinds (importVars coreBinds) (definedVars coreBinds) hqualFiles spec
+      hqualFiles  <- moduleHquals modguts paths target spec 
+      return       $ GI hscEnv coreBinds (importVars coreBinds) (definedVars coreBinds) hqualFiles spec 
 
-moduleHquals mg paths target imports 
-  = do hqs   <- moduleAnnFiles Hquals paths (mg_module mg)
-       hqs'  <- moduleImpFiles Hquals paths ((mg_namestring mg) : imports)
+moduleHquals mg paths target spec
+  = do hqs   <- specIncludes Hquals paths (includes spec)
+       hqs'  <- moduleImports Hquals paths ((mg_namestring mg) : (imports spec))
        let rv = nubSort $ hqs ++ hqs'
        liftIO $ putStrLn $ "Reading Qualifiers From: " ++ show rv 
        return rv
@@ -189,24 +192,26 @@ moduleSpec target mg paths
        tySigs     <- liftIO $ mkAssumeSpec env               $ Ms.sigs      spec
        (tcs, dcs) <- liftIO $ mkConTypes env                 $ Ms.dataDecls spec 
        return $ SP { imports = nubSort $ impNames ++ [symbolString x | x <- Ms.imports spec]
-                   , tySigs  = tySigs
-                   , ctor    = cs
-                   , meas    = ms
-                   , dconsP  = {- traceShow "dconsP:" $ -} concat dcs ++ snd wiredTyDataCons 
-                   , tconsP  = {- traceShow "tconsP:" $ -} tcs ++ fst wiredTyDataCons }
+                   , tySigs   = tySigs
+                   , ctor     = cs
+                   , meas     = ms
+                   , dconsP   = {- traceShow "dconsP:" $ -} concat dcs ++ snd wiredTyDataCons 
+                   , tconsP   = {- traceShow "tconsP:" $ -} tcs ++ fst wiredTyDataCons 
+                   , includes = Ms.includes spec
+                   }
     where mod      = mg_module mg
           impNames = (moduleNameString . moduleName) <$> impMods
           impMods  = moduleEnvKeys $ mg_dir_imps mg
           allNames = (mg_namestring mg) : impNames
 
 getSpecs ext paths names 
-  = moduleImpFiles ext paths names >>= transParseSpecs ext paths S.empty mempty
+  = moduleImports ext paths names >>= transParseSpecs ext paths S.empty mempty
 
 transParseSpecs _ _ _ spec []       
   = return spec
 transParseSpecs ext paths seenFiles spec newFiles 
   = do newSpec   <- liftIO $ liftM mconcat $ mapM (parseSpec ext) newFiles 
-       impFiles  <- moduleImpFiles ext paths [symbolString x | x <- Ms.imports newSpec]
+       impFiles  <- moduleImports ext paths [symbolString x | x <- Ms.imports newSpec]
        let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
        let spec'      = spec `mappend` newSpec
        let newFiles'  = [f | f <- impFiles, f `S.notMember` seenFiles']
@@ -227,7 +232,7 @@ parseSpec' ext f
 specParser Spec = rr'
 specParser Hs   = hsSpecificationP
 
-moduleImpFiles ext paths names 
+moduleImports ext paths names 
   = liftIO $ liftM catMaybes $ forM extNames (namePath paths)
     where extNames = (`extModuleName` ext) <$> names 
 
@@ -240,10 +245,9 @@ namePath_debug paths name
          Nothing -> putStrLn $ "namePath: name = " ++ name ++ " not found in: " ++ (show paths)
        return res
 
-moduleAnnFiles :: GhcMonad m => Ext -> [FilePath] -> Module -> m [FilePath]
-moduleAnnFiles ext paths mod
-  = do reqs  <- (findGlobalAnns deserializeWithData $ ModuleTarget mod)
-       let libFile  = extFileName ext preludeName
+specIncludes :: GhcMonad m => Ext -> [FilePath] -> [FilePath] -> m [FilePath]
+specIncludes ext paths reqs 
+  = do let libFile  = extFileName ext preludeName
        let incFiles = catMaybes $ reqFile ext <$> reqs 
        liftIO $ forM (libFile : incFiles) (`findFileInDirs` paths)
 
