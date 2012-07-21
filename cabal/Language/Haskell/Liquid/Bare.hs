@@ -16,9 +16,8 @@ import Outputable
 import Var
 import PrelNames
 import PrelInfo     (wiredInThings)
-import Type         (eqType)
+import Type         (eqType, expandTypeSynonyms, liftedTypeKind)
 
-import Type       (liftedTypeKind)
 import HscTypes   (HscEnv)
 import qualified CoreMonad as CM 
 import GHC.Paths (libdir)
@@ -229,7 +228,7 @@ wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns
 
 type BareM a = ReaderT HscEnv IO a
 
-ofBareType :: (Reftable r) => BRType pv r -> BareM (RRType pv r)
+-- ofBareType :: (Reftable r) => BRType pv r -> BareM (RRType pv r)
 ofBareType (RVar (RV a) r) 
   = return $ RVar (stringRTyVar a) r
 ofBareType (RVar (RP π) r) 
@@ -254,7 +253,13 @@ ofBareType (RCls c ts)
 
 -- TODO: move back to RefType
 bareTCApp r rs c ts 
-  = rApp c ts rs r -- RApp (RTyCon c []) ts rs r
+  = tracePpr ("bareTCApp: t = " ++ show t) $ if isTrivial t0 then t' else t
+    where t0 = rApp c ts rs top
+          t  = rApp c ts rs r
+          t' = (expandRTypeSynonyms t0) `strengthen` r
+
+expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
+         
 
 rbind ""    = RB dummySymbol
 rbind s     = RB $ stringSymbol s
@@ -279,7 +284,7 @@ mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
 measureCtors ::  Ms.MSpec t Symbol -> [String]
 measureCtors = nubSort . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.ctorMap 
 
-mkMeasureSort :: (Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
+-- mkMeasureSort :: (PVarable pv, Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
 mkMeasureSort (Ms.MSpec cm mm) 
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> 
       liftM (\s' -> m {Ms.sort = s'}) (ofBareType (Ms.sort m))
@@ -340,18 +345,22 @@ rtypePredBinds t = everything (++) ([] `mkQ` grab) t
 ------- Checking Specifications Refine Haskell Types --------------------------
 -------------------------------------------------------------------------------
 
-specificationError yts = unlines $ "Error in Reftype Specification" : concatMap err yts 
-  where err (y, t) = [ "Haskell: " ++ showPpr y ++ " :: " ++ showPpr (varType y)
-                     , "Liquid : " ++ showPpr y ++ " :: " ++ showPpr t           ]
-
 checkAssumeSpec xts 
   = case filter specMismatch xts of 
       []  -> xts
       yts -> errorstar $ specificationError yts
+
+specificationError yts = unlines $ "Error in Reftype Specification" : concatMap err yts 
+  where err (y, t) = [ "Haskell: " ++ showPpr y ++ " :: " ++ showPpr (varType y)
+                     , "Liquid : " ++ showPpr y ++ " :: " ++ showPpr t           ]
   
 specMismatch (x, t) 
   =  not $ eqShape t (ofType $ varType x) 
   -- not $ eqType' (toType t) (varType x) 
+
+---------------------------------------------------------------------------------
+----------------- Helper Predicates on Types ------------------------------------
+---------------------------------------------------------------------------------
 
 eqType' τ1 τ2 
   = tracePpr ("eqty: τ1 = " ++ showPpr τ1 ++ " τ2 = " ++ showPpr τ2) 
@@ -379,3 +388,14 @@ eqShape' (RVar (RV α) _) (RVar (RV α') _)
   = α == α' 
 eqShape' t1 t2 
   = False
+
+isTrivial :: (Reftable r) => RType p c tv pv r -> Bool
+isTrivial (RAll (RV _) t)  = (isTrivial t)
+isTrivial (RFun _ t1 t2 _) = (and $ isTrivial <$> [t1, t2]) 
+isTrivial (RCls _ ts)      = (and $ isTrivial <$> ts)
+isTrivial (RApp _ ts [] r) = (and $ isTrivial <$> ts) && (isTauto r)
+isTrivial (RVar (RV _) r)  = (isTauto r)
+isTrivial _                = False 
+
+
+

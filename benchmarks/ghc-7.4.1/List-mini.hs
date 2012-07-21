@@ -4,10 +4,19 @@
 
 module GHC.List (
    foldr1
+ , reverse 
  ) where
 
 import Data.Maybe
 import GHC.Base
+
+{-# ANN module "len.hquals" #-}
+
+{-@ assert reverse :: xs:[a] -> {v: [a] | len(v) = len(xs)} @-}
+
+reverse l =  rev l []
+rev []     a = a
+rev (x:xs) a = rev xs (x:a)
 
 --{-@ assert length :: forall a. xs:[a] -> {v: Int | v = len(xs)}  @-}
 --length                  :: [a] -> Int
@@ -29,10 +38,20 @@ errorEmptyList fun =
 prel_list_str :: String
 prel_list_str = "Prelude."
 
-{-@ assert foldr1       :: forall a. (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> a @-}
-foldr1                  :: (a -> a -> a) -> [a] -> a
-foldr1 _ [x]            =  x
-foldr1 f (x:xs)         =  f x (foldr1 f xs)
-foldr1 _ []             =  errorEmptyList "foldr1"
+{-@ assert foldr1 :: (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> a @-}
+foldr1            :: (a -> a -> a) -> [a] -> a
+foldr1 _ [x]      =  x
+foldr1 f (x:xs)   =  f x (foldr1 f xs)
+foldr1 _ []       =  errorEmptyList "foldr1"
+
+
+
+
+
+
+
+
+
+
 
 

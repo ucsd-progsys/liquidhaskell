@@ -36,6 +36,7 @@ import Outputable
 import qualified TyCon as TC
 import DataCon
 import TypeRep 
+import Type (expandTypeSynonyms)
 
 import Var
 import VarEnv
@@ -753,7 +754,7 @@ stripRTypeBase _
   = Nothing
 
 -- ofType ::  Reftable r => Type -> RRType a r
-ofType = ofType_ 
+ofType = ofType_ . expandTypeSynonyms 
 
 ofType_ (TyVarTy α)     
   = rVar α top 
