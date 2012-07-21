@@ -1,6 +1,9 @@
 How To Compile
 --------------
 
+Set GHCHOME in config.make.0
+
+  $ cp config.make.0 config.make
   $ make deps && make
 
 How To Run 
