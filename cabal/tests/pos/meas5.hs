@@ -2,7 +2,7 @@ module Meas where
 
 import Language.Haskell.Liquid.Prelude
 
-{-# ANN module "len.hquals" #-}
+{-@ include <len.hquals> @-}
 
 mylen          :: [a] -> Int
 mylen []       = 0

@@ -37,8 +37,8 @@ liquidOne includes target =
      -- putStrLn $ "*************** Original CoreBinds ***************************" 
      -- putStrLn $ showPpr (cbs info)
      let cbs' = transformRecExpr (cbs info)
-     putStrLn $ "*************** Transform Rec Expr CoreBinds *****************" 
-     putStrLn $ showPpr (cbs')
+     -- putStrLn $ "*************** Transform Rec Expr CoreBinds *****************" 
+     -- putStrLn $ showPpr (cbs')
      let cgi = generateConstraints $ info {cbs = cbs'}
      writeConstraints target cgi
      (r, sol) <- cgi `deepseq` solve target (hqFiles info) cgi

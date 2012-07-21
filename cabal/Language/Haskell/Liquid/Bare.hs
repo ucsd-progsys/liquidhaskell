@@ -253,7 +253,8 @@ ofBareType (RCls c ts)
 
 -- TODO: move back to RefType
 bareTCApp r rs c ts 
-  = tracePpr ("bareTCApp: t = " ++ show t) $ if isTrivial t0 then t' else t
+  = {- tracePpr ("bareTCApp: t = " ++ show t) $ -}
+    if isTrivial t0 then t' else t
     where t0 = rApp c ts rs top
           t  = rApp c ts rs r
           t' = (expandRTypeSynonyms t0) `strengthen` r
@@ -363,13 +364,13 @@ specMismatch (x, t)
 ---------------------------------------------------------------------------------
 
 eqType' τ1 τ2 
-  = tracePpr ("eqty: τ1 = " ++ showPpr τ1 ++ " τ2 = " ++ showPpr τ2) 
-  $ eqType τ1 τ2 
+  = -- tracePpr ("eqty: τ1 = " ++ showPpr τ1 ++ " τ2 = " ++ showPpr τ2) $ 
+    eqType τ1 τ2 
 
 eqShape :: SpecType -> SpecType -> Bool 
 eqShape t1 t2 
-  = tracePpr ("eqShape : t1 = " ++ showPpr t1 ++ " t2 = " ++ showPpr t2) 
-  $ eqShape' t1 t2 
+  = -- tracePpr ("eqShape : t1 = " ++ showPpr t1 ++ " t2 = " ++ showPpr t2) $ 
+    eqShape' t1 t2 
 
 eqShape' (RAll (RP _) t) (RAll (RP _) t') 
   = eqShape t t'
