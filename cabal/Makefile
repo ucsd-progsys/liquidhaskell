@@ -1,15 +1,13 @@
-#BINPATH=/home/niki/src/ghc/bin
-BINPATH=/home/rjhala/research/ghc-working-local-new/bin
-#BINPATH=/usr/bin
+include config.make
+
+##############################################################################
+##############################################################################
+##############################################################################
+
 API=ghc-7.4.1
 THREADS=1
-
-##############################################################################
-##############################################################################
-##############################################################################
-
-GHC=$(BINPATH)/ghc
-GPG=$(BINPATH)/ghc-pkg
+GHC=$(GHCHOME)/ghc
+GPG=$(GHCHOME)/ghc-pkg
 
 OPTS="-O2 -XStandaloneDeriving -XDeriveDataTypeable"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"

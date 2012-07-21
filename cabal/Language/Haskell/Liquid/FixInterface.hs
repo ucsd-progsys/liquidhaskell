@@ -41,7 +41,7 @@ execFq fn hqs globals cs ws qs
           qstr = showSDoc $ vcat $ toFix <$> qs
 
 -- execCmd fn = printf "fixpoint.native -notruekvars -refinesort -noslice -strictsortcheck -out %s %s" fo fq 
-execCmd fn = printf "fixpoint.native -notruekvars -refinesort -strictsortcheck -out %s %s" fo fq 
+execCmd fn = printf "fixpoint.native -notruekvars -refinesort -noslice -strictsortcheck -out %s %s" fo fq 
   where fq = extFileName Fq  fn
         fo = extFileName Out fn
  

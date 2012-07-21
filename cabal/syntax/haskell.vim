@@ -222,7 +222,7 @@ sy region  hsBlockComment     start="{-"  end="-}" contains=hsBlockComment,hsCom
 sy region  hsPragma	       start="{-#" end="#-}"
 
 " Liquid Types
-sy region  hsLiquidAnnot   start="{-@" end="@-}" contains=hsLiquidKeyword,hsLiquidReftA,hsLiquidReftB,hsLiquidReftC
+sy region  hsLiquidAnnot   start="{-@\s*\<assert\>" end="@-}" contains=hsLiquidKeyword,hsLiquidReftA,hsLiquidReftB,hsLiquidReftC
 sy keyword hsLiquidKeyword  assume assert contained
 sy region  hsLiquidReftA   start="{\(\s\|\w\)" end=":" contained
 sy region  hsLiquidReftB   start="|" end="}" contained
