@@ -10,7 +10,10 @@ module GHC.List (
 import Data.Maybe
 import GHC.Base
 
-{-# ANN module "len.hquals" #-}
+
+-- {- ANN module "len.hquals" #-}
+
+{-@ qualifiers <len.hquals> @-}
 
 {-@ assert reverse :: xs:[a] -> {v: [a] | len(v) = len(xs)} @-}
 

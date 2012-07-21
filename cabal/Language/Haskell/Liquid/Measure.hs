@@ -27,12 +27,12 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 
-
 data Spec ty bndr  = Spec { 
-    measures  :: [Measure ty bndr]     -- User-defined properties for ADTs
-  , sigs      :: [(Symbol, ty)]        -- Imported functions and types   
-  , imports   :: [Symbol] 
-  , dataDecls :: [DataDecl] 
+    measures  :: ![Measure ty bndr]     -- User-defined properties for ADTs
+  , sigs      :: ![(Symbol, ty)]        -- Imported functions and types   
+  , imports   :: ![Symbol] 
+  , dataDecls :: ![DataDecl] 
+  , qualFiles :: ![FilePath]
   } deriving (Data, Typeable)
 
 data MSpec ty bndr = MSpec { 
@@ -102,14 +102,21 @@ instance Bifunctor MSpec   where
   second                = fmap 
 
 instance Bifunctor Spec    where
-  first f (Spec ms ss x y) = Spec { measures  = fmap (first f) ms
-                                  , sigs      = fmap (second f) ss
-                                  , imports   = x
-                                  , dataDecls = y }
-  second f (Spec ms x y z) = Spec { measures  = fmap (second f) ms
-                                  , sigs      = x 
-                                  , imports   = y
-                                  , dataDecls = z }
+  first f sp  = sp { measures = fmap (first f) (measures sp) } { sigs = fmap (second f) (sigs sp) }
+  second f sp = sp { measures  = fmap (second f) (measures sp) }
+
+  --first f (Spec ms ss x y z) = Spec { measures  = fmap (first f) ms
+  --                                  , sigs      = fmap (second f) ss
+  --                                  , imports   = x
+  --                                  , dataDecls = y 
+  --                                  , qualFiles = z 
+  --                                  }
+  --second f (Spec ms w x y z) = Spec { measures  = fmap (second f) ms
+  --                                  , sigs      = w 
+  --                                  , imports   = x
+  --                                  , dataDecls = y 
+  --                                  , qualFiles = z
+  --                                  }
 
 instance Outputable Body where
   ppr (E e) = toFix e  

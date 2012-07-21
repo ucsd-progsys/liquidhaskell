@@ -81,6 +81,8 @@ dot        = Token.dot        lexer
 whiteSpace = Token.whiteSpace lexer
 identifier = Token.identifier lexer
 
+pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
+
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
 integer =   try (liftM toInt is) 
@@ -102,7 +104,7 @@ condIdP chars f
 
 tyVarIdP :: Parser String
 tyVarIdP = condIdP alphanums (isLower . head) 
-  where alphanums = ['a'..'z'] ++ ['0'..'9']
+           where alphanums = ['a'..'z'] ++ ['0'..'9']
 
 lowerIdP :: Parser String
 lowerIdP = condIdP symChars (isLower . head)
@@ -385,14 +387,16 @@ dummyTyId      = ""
 data Pspec ty bndr 
   = Meas (Measure.Measure ty bndr) 
   | Assm (bndr, ty) 
-  | Impt Symbol
+  | Impt  Symbol
   | DDecl DataDecl
+  | QFile FilePath
 
-mkSpec xs = {- Measure.qualifySpec name $ -} Measure.Spec ms as is ds
-  where ms = [m | Meas  m <- xs]
-        as = [a | Assm  a <- xs]
-        is = [i | Impt  i <- xs]
-        ds = [d | DDecl d <- xs]
+mkSpec xs   = {- Measure.qualifySpec name $ -} Measure.Spec ms as is ds hqs 
+  where ms  = [m | Meas  m <- xs]
+        as  = [a | Assm  a <- xs]
+        is  = [i | Impt  i <- xs]
+        ds  = [d | DDecl d <- xs]
+        hqs = [q | QFile q <- xs]
 
 specificationP 
   = do reserved "module"
@@ -404,11 +408,15 @@ specificationP
 
 
 specP 
-  = try (reserved "assume"  >> liftM Assm  tyBindP)
-    <|> (reserved "assert"  >> liftM Assm  tyBindP)
-    <|> (reserved "measure" >> liftM Meas  measureP) 
-    <|> (reserved "import"  >> liftM Impt  symbolP)
-    <|> (reserved "data"    >> liftM DDecl dataDeclP)
+  = try (reserved "assume"      >> liftM Assm  tyBindP)
+    <|> (reserved "assert"      >> liftM Assm  tyBindP)
+    <|> (reserved "measure"     >> liftM Meas  measureP) 
+    <|> (reserved "import"      >> liftM Impt  symbolP)
+    <|> (reserved "data"        >> liftM DDecl dataDeclP)
+    <|> (reserved "qualifiers"  >> liftM QFile filePathP)
+
+filePathP :: Parser FilePath
+filePathP = angles 
 
 tyBindP 
   = do name  <- binderP <* spaces 
