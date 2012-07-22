@@ -14,4 +14,4 @@ measure nonnull :: forall a. [a] -> Bool
 nonnull (y:ys) = true
 nonnull ([])   = false 
 
-assume error :: {v: String | 0 = 1} -> a
+-- assume error :: {v: String | 0 = 1} -> a
