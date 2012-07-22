@@ -9,15 +9,47 @@ TODO STACK
     > data invariants <---------- HEREHEREHEREHERE
 
 
-*** data invariants
+*** Data (TyCon) invariants
 
+    0. represent as type
+
+        > spec: {... , inv :: Map RTyCon Reft }
+        
+    1. parse
+    
+        > invariant :: T
+
+    2. (USE)    strengthen in consgen
+
+        > 
+    3. (CHECK)  generate constraints -- hmm.
+    
+        γ += (x, t) 
+            = add x t' γ
+              where t' = conjoinTypeInvariant γ t
+
+              conjoinTypeInvariant :: CGEnv -> RefType -> RefType 
+
+
+    4. Add TAG measure (builtin measure)
+
+
+    
     forall xs: {v: [a] | I(v)}
 
     e.g. 
 
-    forall xs: {v: [a] | len(xs) >= 0                  }
-    forall xs: {v: [a] | tag(xs) = ':'  => len(xs) > 0 }
-    forall xs: {v: [a] | tag(xs) = '[]' => len(xs) = 0 }
+    invariant :: forall a. {v: [a] | len(v) >= 0                }
+    invariant :: forall a. {v: [a] | (tag(v) = #:)  => len(v) > 0 }
+    invariant :: forall a. {v: [a] | (tag(v) = #[]) => len(v) = 0 }
+    invariant :: forall a. {v: [a] | (tag(v) = #[] ? len(v) = 0 : len(v) > 0) }
+    invariant :: forall a. {v: Map k v | height(v) >= 0 } 
+
+    invariant :: T
+
+        #:
+        #[]
+
 
     constant ':'  : Tag 
     constant '[]' : Tag
@@ -26,8 +58,7 @@ TODO STACK
     
         p:[a] 
     
-    γ += (x, t) 
-        = add x (t `strengthen` typeInvariant t) γ
+   
 
 
     (A) 

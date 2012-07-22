@@ -753,7 +753,7 @@ stripRTypeBase (RFun _ _ _ x)
 stripRTypeBase _                
   = Nothing
 
--- ofType ::  Reftable r => Type -> RRType a r
+ofType ::  Reftable r => Type -> RRType a r
 ofType = ofType_ . expandTypeSynonyms 
 
 ofType_ (TyVarTy α)     

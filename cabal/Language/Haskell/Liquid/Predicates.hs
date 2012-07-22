@@ -1,7 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, DeriveDataTypeable, BangPatterns #-}
 module Language.Haskell.Liquid.Predicates (
-    predType
-  , generatePredicates
+  generatePredicates
   ) where
 
 
@@ -16,14 +15,14 @@ import Var
 import TyCon
 import SrcLoc
 import CoreSyn
-import CoreUtils
+import CoreUtils (exprType) 
 import qualified DataCon as TC
 import Outputable hiding (empty)
 import IdInfo
 import TysWiredIn
 
 import Language.Haskell.Liquid.GhcInterface
-import Language.Haskell.Liquid.PredType
+import Language.Haskell.Liquid.PredType hiding (exprType)
 import Language.Haskell.Liquid.GhcMisc (stringTyVar, tickSrcSpan)
 import Language.Haskell.Liquid.RefType hiding (generalize) 
 import Language.Haskell.Liquid.Misc
@@ -37,9 +36,6 @@ import Data.Bifunctor
 import Data.List (foldl')
 import Control.DeepSeq
 import Data.Data hiding (TyCon)
-
-predType :: Type
-predType = TyVarTy $ stringTyVar "Pred"
 
 ----------------------------------------------------------------------
 ---- Predicate Environments ------------------------------------------
@@ -341,7 +337,6 @@ pExprN γ (Let (NonRec x1 e1) e) = (0, 0, Let (NonRec x1 e1') e')
  where (_, _, e') = pExpr γ e
        (_, _, e1') = pExpr γ e1
 
-
 pExprN γ (Let bds e) = (0, 0, Let bds' e')
  where (_, _, e') = pExpr γ e
        bds' = addPredApp γ bds
@@ -434,6 +429,7 @@ tyVars (ForAllTy v t) = v : (tyVars t)
 tyVars t              = []
 
 ---------------------------------- Freshness -------------------------------------
+
 freshInt = do pi <- get 
               let n = freshIndex pi
               put $ pi {freshIndex = n+1} 

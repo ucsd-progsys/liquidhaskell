@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 module Language.Haskell.Liquid.Qualifier (
     Qualifier 
   , specificationQualifiers
