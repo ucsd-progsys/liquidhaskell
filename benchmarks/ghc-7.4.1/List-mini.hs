@@ -48,6 +48,19 @@ foldr1 f (x:xs)   =  f x (foldr1 f xs)
 foldr1 _ []       =  errorEmptyList "foldr1"
 
 
+foldr1 f arg = case arg of
+                []     -> crash
+                (x:xs) -> case xs of
+                            [] -> x
+                            _  -> f x (foldr1 f xs) 
+
+len(arg) = 1 + len(xs)
+len(arg) >= 1
+
+len(xs) = len(arg) - 1
+len(xs) >= 0
+
+
 
 
 

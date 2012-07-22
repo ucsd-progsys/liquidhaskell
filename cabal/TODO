@@ -1,33 +1,21 @@
 TODO
 ----
 
-Failed 5 tests: pos/bar.hs, pos/meas3.hs, pos/meas4.hs, pos/meas5.hs, pos/meas6.hs
+- data invariants
+
+    forall xs: {v: [a] | I(v)}
+
+    e.g. 
+
+    forall xs: {v: [a] | len(xs) >= 0}
+    forall xs: {v: [a] | tag(xs) = ':'  => len(xs) > 0 }
+    forall xs: {v: [a] | tag(xs) = '[]' => len(xs) = 0 }
 
 
 GHC.List.lhs <---------- HEREHEREHEREHERE
 
-34, 35 (first arg for length)   TOP
-
-72, 73  (first arg for rev)     TOP
-
-75, 76 (second arg for rev)     BOT ????
-
-75 (pred-ref)
-76 (param-ref)
-
-86 <: 75
-97 <: 75
-
-87 <: 76
-96 <: 76
-
-73 -> 94
-   -> 92
-
-
 ../benchmarks/ghc-7.4.1/List.lhs:115:1-4
 {-@ assert null :: forall a. xs:[a] -> {v: Bool | ((? v) <=> len(xs) = 0) }  @-}
-
 
 ../benchmarks/ghc-7.4.1/List.lhs:296:1-9
 {-@ assert takeWhile    :: forall a. (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)} @-}
