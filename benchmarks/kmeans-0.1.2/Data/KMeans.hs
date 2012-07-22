@@ -57,14 +57,12 @@ kmeans' n k points = kmeans'' n $ part l points
 
 -- | Cluster points in a Euclidian space, represented as lists of Doubles, into at most k clusters.
 -- The initial clusters are chosen arbitrarily.
-
-{-# ANN kmeans "n: Int -> k:Int -> points:[{v:[Double] | len(v) = n}] -> [[{ v: [Double] | len(v) = n}]]" #-}
+{-@ assert kmeans :: n: Int -> k:Int -> points:[{v:[Double] | len(v) = n}] -> [[{ v: [Double] | len(v) = n}]] @-}
 kmeans :: Int -> Int -> [[Double]] -> [[[Double]]]
 kmeans n = kmeansGen n id
 
 -- | A generalized kmeans function. This function operates not on points, but an arbitrary type which may be projected into a Euclidian space. Since the projection may be chosen freely, this allows for weighting dimensions to different degrees, etc.
-
-{-# ANN kmeansGen "n: Int -> f:(a -> {v:[Double] | len(v)=n}) -> k:Int -> points:[a] -> [[a]]" #-}
+{-@ assert kmeansGen :: n: Int -> f:(a -> {v:[Double] | len(v) =n }) -> k:Int -> points:[a] -> [[a]] @-}
 kmeansGen :: Int -> (a -> [Double]) -> Int -> [a] -> [[a]]
 kmeansGen n f k points = map (map getVal) . kmeans' n k . map (\x -> WrapType (f x) x) $ points
 

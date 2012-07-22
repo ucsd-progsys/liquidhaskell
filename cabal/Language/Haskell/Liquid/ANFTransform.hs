@@ -15,12 +15,12 @@ import Literal
 import DsMonad			(DsM, initDs)
 import Id               (mkSysLocalM)
 import FastString       (fsLit)
+import Type             (isPrimitiveType)
 import Control.Monad
 import Language.Haskell.Liquid.Misc (traceShow)
 import Language.Haskell.Liquid.Fixpoint                 (anfPrefix)
 import Language.Haskell.Liquid.Misc (errorstar, tr_foldr')
--- import Bag (bagToList)
-
+import Language.Haskell.Liquid.GhcMisc (tracePpr)
 
 anormalize :: HscEnv -> ModGuts -> IO [CoreBind]
 anormalize hscEnv modGuts 
@@ -28,10 +28,11 @@ anormalize hscEnv modGuts
        case maybeCbs of
          Just cbs -> return cbs
          Nothing  -> pprPanic "anormalize fails!" (empty)
-    where mod   = mg_module modGuts
-          grEnv = mg_rdr_env modGuts
-          tEnv  = modGutsTypeEnv modGuts
-          act   = liftM concat $ mapM normalizeBind (mg_binds modGuts) 
+    where mod      = mg_module modGuts
+          grEnv    = mg_rdr_env modGuts
+          tEnv     = modGutsTypeEnv modGuts
+          act      = liftM concat $ mapM normalizeBind orig_cbs
+          orig_cbs = {- tracePpr "********** GHC Corebinds ********* \n" $ -} mg_binds modGuts 
 
 modGutsTypeEnv :: ModGuts -> TypeEnv
 modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
@@ -57,11 +58,11 @@ normalizeBind (Rec xes)
        return [Rec (zip xs es')]
     where (xs, es) = unzip xes
 
----------------------------------------------------------------------
-normalizeName :: CoreExpr -> DsM ([CoreBind], CoreExpr)
----------------------------------------------------------------------
+---------------------------------------------------------------------------------------------
+normalizeName, normalizeScrutinee, normalizeLiteral :: CoreExpr -> DsM ([CoreBind], CoreExpr)
+---------------------------------------------------------------------------------------------
 
--- normalizeName_debug e = liftM (tracePpr ("normalizeName" ++ showPpr e)) $ normalizeName e
+normalizeName_debug e = liftM (tracePpr ("normalizeName" ++ showPpr e)) $ normalizeName e
 
 normalizeName e@(Lit (LitInteger _ _)) 
   = normalizeLiteral e 
@@ -86,6 +87,12 @@ normalizeLiteral e =
   do x <- freshNormalVar (exprType e)
      return ([NonRec x e], Var x)
 
+normalizeScrutinee e 
+  | isPrimitiveType (exprType e) 
+  = return ([], e)
+  | otherwise  
+  = normalizeName e
+
 freshNormalVar = mkSysLocalM (fsLit anfPrefix)
 
 isBase (Var  _)   = True
@@ -108,7 +115,7 @@ normalize (Let b e)
        return (bs' ++ bs'', e')
 
 normalize (Case e x t as)
-  = do (bs, n) <- normalizeName e 
+  = do (bs, n) <- normalizeScrutinee e 
        as'     <- forM as $ \(c, xs, e) -> liftM ((c, xs,) . stitch) (normalize e)
        return  $ (bs, Case n x t as')
 

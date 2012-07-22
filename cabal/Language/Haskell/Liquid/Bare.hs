@@ -8,9 +8,6 @@ module Language.Haskell.Liquid.Bare (
     mkMeasureSpec
   , mkAssumeSpec
   , mkConTypes
-  -- , mkIds, mkRefTypes, mkPredTypes
-  -- , getClasses
-  -- , isDummyBind
   )
 where
 
@@ -18,8 +15,9 @@ import GHC hiding (lookupName)
 import Outputable
 import Var
 import PrelNames
+import PrelInfo     (wiredInThings)
+import Type         (eqType, expandTypeSynonyms, liftedTypeKind)
 
-import Type       (liftedTypeKind)
 import HscTypes   (HscEnv)
 import qualified CoreMonad as CM 
 import GHC.Paths (libdir)
@@ -33,7 +31,7 @@ import DataCon  (dataConWorkId)
 import BasicTypes (TupleSort (..), Boxity (..))
 import TcRnDriver (tcRnLookupRdrName, tcRnLookupName) 
 
-import TysPrim                  (intPrimTyCon)
+import TysPrim                  
 import TysWiredIn               (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
 import TyCon                    (tyConName, isAlgTyCon)
 import DataCon                  (dataConName)
@@ -42,6 +40,7 @@ import Name                     (mkInternalName)
 import OccName                  (mkTyVarOcc)
 import Unique                   (getKey, getUnique, initTyVarUnique)
 import Data.List                (sort)
+import Data.Maybe               (isJust, fromMaybe)
 import Data.Char                (isUpper)
 import ErrUtils
 import Data.Traversable         (forM)
@@ -51,6 +50,7 @@ import Data.Generics.Schemes
 import Data.Generics.Aliases
 import Data.Data                hiding (TyCon, tyConName)
 import Data.Bifunctor
+
 import qualified Data.Map as M
 
 import Language.Haskell.Liquid.GhcMisc
@@ -65,26 +65,22 @@ import qualified Control.Exception as Ex
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
 
---mkRefTypes :: HscEnv -> [BRType a Reft] -> IO [RRType a Reft]
---mkRefTypes env bs = runReaderT (mapM mkRefType bs) env
- --mkIds :: HscEnv -> [Name] -> IO [Var]
---mkIds env ns = runReaderT (mapM lookupGhcId ns) env
-
-
 mkMeasureSpec :: HscEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
--- mkMeasureSpec :: HscEnv -> Ms.MSpec (BRType (PVar Type) Reft) Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
 mkMeasureSpec env m = runReaderT mkSpec env
   where mkSpec = mkMeasureSort m' >>= mkMeasureDCon >>= return . Ms.dataConTypes
         m'     = first (txTyVarBinds . mapReft ureft) m
 
 mkAssumeSpec :: HscEnv-> [(Symbol, BareType)] -> IO [(Var, SpecType)]
 mkAssumeSpec env xbs = runReaderT mkAspec env
-  where mkAspec = forM xbs $ \(x, b) -> liftM2 (,) (lookupGhcId $ symbolString x) (mkSpecType b)
+  where mkAspec = return (first symbolString <$> xbs)
+                  >>= filterM (existsGhcId . fst)
+                  >>= mapM    (\(x, b) -> liftM2 (,) (lookupGhcId x) (mkSpecType b))
+                  >>= return . checkAssumeSpec
+
 
 -- mkSpecType :: BareType -> BareM SpecType 
 mkSpecType    = ofBareType . txParams [] . txTyVarBinds . mapReft (bimap canonReft stringTyVarTy) 
 mkPredType πs = ofBareType . txParams πs . txTyVarBinds . mapReft (fmap stringTyVarTy)
--- mkRefType     = ofBareType . mapReft canonReft
 
 ------------------------------------------------------------------
 -------------------- Type Checking Raw Strings -------------------
@@ -115,49 +111,51 @@ fileEnv f
 -----------------------------------------------------------------
 
 class Outputable a => GhcLookup a where
-  lookupName :: HscEnv -> a -> IO Name
+  lookupName :: HscEnv -> a -> IO (Maybe Name)
 
 instance GhcLookup String where
-  lookupName = stringToName
+  lookupName     = stringLookup
 
 instance GhcLookup Name where
-  lookupName _  = return
+  lookupName _   = return . Just
+
+existsGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM Bool 
+existsGhcThing name f x 
+  = do z <- lookupGhcThing' name f x
+       case z of 
+         Just _ -> return True
+         _      -> return False
 
 lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
 lookupGhcThing name f x 
+  = do z <- lookupGhcThing' name f x
+       case z of 
+         Just x -> return x
+         _      -> liftIO $ ioError $ userError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
+
+lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
+lookupGhcThing' name f x 
   = do env     <- ask
-       (_,res) <- liftIO $ tcRnLookupName env =<< lookupName env x
-       case f `fmap` res of
-         Just (Just z) -> 
-           return z
-         _      -> 
-           liftIO $ ioError $ userError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
+       z       <- liftIO $ lookupName env x
+       case z of
+         Nothing -> return Nothing 
+         Just n  -> liftIO $ liftM (join . (f <$>) . snd) (tcRnLookupName env n)
 
-lookupGhcThingToSymbol :: (TyThing -> Maybe Symbol) -> String -> BareM Symbol
-lookupGhcThingToSymbol f x 
-  = do env     <- ask
-       m <- liftIO $ lookupNameStr env x 
-       case m of 
-          Just n -> do  (_,res) <- liftIO $ tcRnLookupName env n
-                        case f `fmap` res of
-                          Just (Just z) -> return z
-                          _      -> return $ S x
-          _      -> return $ S x
+stringLookup :: HscEnv -> String -> IO (Maybe Name)
+stringLookup env k
+  | k `M.member` wiredIn
+  = return $ M.lookup k wiredIn
+  | last k == '#'
+  = errorstar $ "Unknown Primitive Thing: " ++ k
+  | otherwise
+  = stringLookupEnv env k
 
-lookupNameStr :: HscEnv -> String -> IO (Maybe Name)
-lookupNameStr env k 
-  = case M.lookup k wiredIn of 
-      Just n  -> return (Just n)
-      Nothing -> stringToNameEnvStr env k
-
-stringToNameEnvStr :: HscEnv -> String -> IO ( Maybe Name)
-stringToNameEnvStr env s 
+stringLookupEnv env s 
     = do L _ rn         <- hscParseIdentifier env s
          (_, lookupres) <- tcRnLookupRdrName env rn
          case lookupres of
            Just (n:_) -> return (Just n)
            _          -> return Nothing
-
 
 lookupGhcTyCon = lookupGhcThing "TyCon" ftc 
   where ftc (ATyCon x) = Just x
@@ -171,40 +169,58 @@ lookupGhcDataCon = lookupGhcThing "DataCon" fdc
   where fdc (ADataCon x) = Just x
         fdc _            = Nothing
 
-lookupGhcId s 
-  = lookupGhcThing "Id" fid s
-  where fid (AnId x)     = Just x
-        fid (ADataCon x) = Just $ dataConWorkId x
-        fid _            = Nothing
+lookupGhcId = lookupGhcThing "Id" thingId
+existsGhcId = existsGhcThing "Id" thingId
 
-stringToName :: HscEnv -> String -> IO Name
-stringToName env k 
-  = case M.lookup k wiredIn of 
-      Just n  -> return n
-      Nothing -> stringToNameEnv env k
+-- existsGhcId s = do z <- existsGhcThing "Id" thingId s 
+--                   return $ traceShow ("existsGhcId " ++ s) $ z
 
-stringToNameEnv :: HscEnv -> String -> IO Name
-stringToNameEnv env s 
-    = do L _ rn         <- hscParseIdentifier env s
-         (_, lookupres) <- tcRnLookupRdrName env rn
-         case lookupres of
-           Just (n:_) -> return n
-           _          -> errorstar $ "Bare.lookupName cannot find name for: " ++ s
-
-symbolToSymbol :: Symbol -> BareM Symbol
-symbolToSymbol (S s) 
-  = lookupGhcThingToSymbol fid s
-  where fid (AnId x)     = Just $ mkSymbol x
-        fid (ADataCon x) = Just $ mkSymbol $ dataConWorkId x
-        fid _            = Nothing
+thingId (AnId x)     = Just x
+thingId (ADataCon x) = Just $ dataConWorkId x
+thingId _            = Nothing
 
 wiredIn :: M.Map String Name
-wiredIn = M.fromList $
-  [ ("GHC.Integer.smallInteger" , smallIntegerName) 
-  , ("GHC.Num.fromInteger"      , fromIntegerName)
-  , ("GHC.Types.I#"             , dataConName intDataCon)
-  , ("GHC.Prim.Int#"            , tyConName intPrimTyCon) 
-  ]
+wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns 
+  where wiredIns = [ (showPpr n, n) | thing <- wiredInThings, let n = getName thing ]
+        special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
+                   , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
+
+-- wiredIn :: M.Map String Name
+-- wiredIn = M.fromList $ tracePpr "wiredIn: " $ [ (showPpr n, n) | thing <- wiredInThings, let n = getName thing ]
+
+--wiredIn :: M.Map String Name
+--wiredIn = M.fromList $
+--  [ ("GHC.Integer.smallInteger"    , smallIntegerName                      ) 
+--  , ("GHC.Num.fromInteger"         , fromIntegerName                       )
+--  , ("GHC.Types.I#"                , dataConName intDataCon                )
+--  , ("GHC.Prim.Int#"               , tyConName intPrimTyCon                )     
+--  , ("GHC.Prim.Char#"              , tyConName charPrimTyCon               )
+--  , ("GHC.Prim.Int32#"             , tyConName int32PrimTyCon              )	
+--  , ("GHC.Prim.Int64#"             , tyConName int64PrimTyCon              )  	        
+--  , ("GHC.Prim.Word#"              , tyConName wordPrimTyCon               )  	        
+--  , ("GHC.Prim.Word32#"            , tyConName word32PrimTyCon             )
+--  , ("GHC.Prim.Word64#"            , tyConName word64PrimTyCon             )
+--  , ("GHC.Prim.Addr#"              , tyConName addrPrimTyCon               )
+--  , ("GHC.Prim.Float#"             , tyConName floatPrimTyCon              )
+--  , ("GHC.Prim.Double#"            , tyConName doublePrimTyCon             )
+--  , ("GHC.Prim.State#"             , tyConName statePrimTyCon              ) 
+--  , ("GHC.Prim.~#"                 , tyConName eqPrimTyCon                 )  
+--  , ("GHC.Prim.RealWorld"          , tyConName realWorldTyCon              ) 
+--  , ("GHC.Prim.Array#"             , tyConName arrayPrimTyCon              )
+--  , ("GHC.Prim.ByteArray#"         , tyConName byteArrayPrimTyCon          )   
+--  , ("GHC.Prim.ArrayArray#"        , tyConName arrayArrayPrimTyCon         )   
+--  , ("GHC.Prim.MutableArray#"      , tyConName mutableArrayPrimTyCon       ) 
+--  , ("GHC.Prim.MutableByteArray#"  , tyConName mutableByteArrayPrimTyCon   ) 
+--  , ("GHC.Prim.MutableArrayArray#" , tyConName mutableArrayArrayPrimTyCon  ) 
+--  , ("GHC.Prim.MutVar#"            , tyConName mutVarPrimTyCon             )    
+--  , ("GHC.Prim.MVar#"              , tyConName mVarPrimTyCon               )
+--  , ("GHC.Prim.TVar#"              , tyConName tVarPrimTyCon               )
+--  , ("GHC.Prim.StablePtr#"         , tyConName stablePtrPrimTyCon          ) 
+--  , ("GHC.Prim.StableName#"        , tyConName stableNamePrimTyCon         )  
+--  , ("GHC.Prim.BCO#"               , tyConName bcoPrimTyCon                )
+--  , ("GHC.Prim.Weak#"              , tyConName weakPrimTyCon               )    
+--  , ("GHC.Prim.ThreadId#"          , tyConName threadIdPrimTyCon           ) 
+--  ]
 
 ------------------------------------------------------------------------
 ----------------- Transforming Raw Strings using GHC Env ---------------
@@ -212,7 +228,7 @@ wiredIn = M.fromList $
 
 type BareM a = ReaderT HscEnv IO a
 
-ofBareType :: (Reftable r) => BRType pv r -> BareM (RRType pv r)
+-- ofBareType :: (Reftable r) => BRType pv r -> BareM (RRType pv r)
 ofBareType (RVar (RV a) r) 
   = return $ RVar (stringRTyVar a) r
 ofBareType (RVar (RP π) r) 
@@ -237,7 +253,14 @@ ofBareType (RCls c ts)
 
 -- TODO: move back to RefType
 bareTCApp r rs c ts 
-  = rApp c ts rs r -- RApp (RTyCon c []) ts rs r
+  = {- tracePpr ("bareTCApp: t = " ++ show t) $ -}
+    if isTrivial t0 then t' else t
+    where t0 = rApp c ts rs top
+          t  = rApp c ts rs r
+          t' = (expandRTypeSynonyms t0) `strengthen` r
+
+expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
+         
 
 rbind ""    = RB dummySymbol
 rbind s     = RB $ stringSymbol s
@@ -262,7 +285,7 @@ mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
 measureCtors ::  Ms.MSpec t Symbol -> [String]
 measureCtors = nubSort . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.ctorMap 
 
-mkMeasureSort :: (Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
+-- mkMeasureSort :: (PVarable pv, Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
 mkMeasureSort (Ms.MSpec cm mm) 
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> 
       liftM (\s' -> m {Ms.sort = s'}) (ofBareType (Ms.sort m))
@@ -318,3 +341,62 @@ predMap πs t = Ex.assert (M.size xπm == length xπs) xπm
 rtypePredBinds t = everything (++) ([] `mkQ` grab) t
   where grab ((RAll (RP pv) _) :: BRType (PVar Type) (Predicate Type)) = [pv]
         grab _                = []
+
+-------------------------------------------------------------------------------
+------- Checking Specifications Refine Haskell Types --------------------------
+-------------------------------------------------------------------------------
+
+checkAssumeSpec xts 
+  = case filter specMismatch xts of 
+      []  -> xts
+      yts -> errorstar $ specificationError yts
+
+specificationError yts = unlines $ "Error in Reftype Specification" : concatMap err yts 
+  where err (y, t) = [ "Haskell: " ++ showPpr y ++ " :: " ++ showPpr (varType y)
+                     , "Liquid : " ++ showPpr y ++ " :: " ++ showPpr t           ]
+  
+specMismatch (x, t) 
+  =  not $ eqShape t (ofType $ varType x) 
+  -- not $ eqType' (toType t) (varType x) 
+
+---------------------------------------------------------------------------------
+----------------- Helper Predicates on Types ------------------------------------
+---------------------------------------------------------------------------------
+
+eqType' τ1 τ2 
+  = -- tracePpr ("eqty: τ1 = " ++ showPpr τ1 ++ " τ2 = " ++ showPpr τ2) $ 
+    eqType τ1 τ2 
+
+eqShape :: SpecType -> SpecType -> Bool 
+eqShape t1 t2 
+  = -- tracePpr ("eqShape : t1 = " ++ showPpr t1 ++ " t2 = " ++ showPpr t2) $ 
+    eqShape' t1 t2 
+
+eqShape' (RAll (RP _) t) (RAll (RP _) t') 
+  = eqShape t t'
+eqShape' (RAll (RP _) t) t' 
+  = eqShape t t'
+eqShape' (RAll (RV α) t) (RAll (RV α') t')
+  = eqShape t (subsTyVar_meet (α', RVar (RV α) top) t')
+eqShape' (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
+  = eqShape t1 t1' && eqShape t2 t2'
+eqShape' t@(RApp c ts _ _) t'@(RApp c' ts' _ _)
+  =  ((c == c') && length ts == length ts' && and (zipWith eqShape ts ts'))
+ -- || (eqType (toType t) (toType t'))
+eqShape' (RCls c ts) (RCls c' ts')
+  = (c == c') && length ts == length ts' && and (zipWith eqShape ts ts')
+eqShape' (RVar (RV α) _) (RVar (RV α') _)
+  = α == α' 
+eqShape' t1 t2 
+  = False
+
+isTrivial :: (Reftable r) => RType p c tv pv r -> Bool
+isTrivial (RAll (RV _) t)  = (isTrivial t)
+isTrivial (RFun _ t1 t2 _) = (and $ isTrivial <$> [t1, t2]) 
+isTrivial (RCls _ ts)      = (and $ isTrivial <$> ts)
+isTrivial (RApp _ ts [] r) = (and $ isTrivial <$> ts) && (isTauto r)
+isTrivial (RVar (RV _) r)  = (isTauto r)
+isTrivial _                = False 
+
+
+

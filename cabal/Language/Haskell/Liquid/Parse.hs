@@ -16,13 +16,13 @@ import Text.Parsec.String
 import qualified Text.Parsec.Token as Token
 import Control.Applicative ((<$>), (<*))
 import qualified Data.Map as M
-import Data.Char (isLower, isUpper)
+import Data.Char (isLower, isUpper, isSpace)
 import Data.List (intercalate)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.PredType
+import Language.Haskell.Liquid.PredType hiding (generalize)
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Outputable (Outputable (..))
 import Language.Haskell.Liquid.FileNames (dummyName, boolConName, listConName, tupConName)
@@ -32,7 +32,7 @@ import Language.Haskell.Liquid.FileNames (dummyName, boolConName, listConName, t
 languageDef =
   emptyDef { Token.commentStart    = "/*"
            , Token.commentEnd      = "*/"
-           , Token.commentLine     = "//"
+           , Token.commentLine     = "--"
            , Token.identStart      = satisfy (\_ -> False) -- letter 
            , Token.identLetter     = satisfy (\_ -> False) -- satisfy (`elem` symChars)
            , Token.reservedNames   = [ "SAT"
@@ -81,6 +81,7 @@ dot        = Token.dot        lexer
 whiteSpace = Token.whiteSpace lexer
 identifier = Token.identifier lexer
 
+
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
 integer =   try (liftM toInt is) 
@@ -102,7 +103,7 @@ condIdP chars f
 
 tyVarIdP :: Parser String
 tyVarIdP = condIdP alphanums (isLower . head) 
-  where alphanums = ['a'..'z'] ++ ['0'..'9']
+           where alphanums = ['a'..'z'] ++ ['0'..'9']
 
 lowerIdP :: Parser String
 lowerIdP = condIdP symChars (isLower . head)
@@ -122,11 +123,12 @@ exprP =  expr2P <|> lexprP
 
 lexprP :: Parser Expr 
 lexprP   
-  =  (try $ parens exprP)
- <|> (try $ parens cexprP)
- <|> (try exprfP)
- <|> (try (liftM mkEDat upperIdP))
- <|> (try (liftM (EVar . stringSymbol) upperIdP))
+  =  try (parens exprP)
+ <|> try (parens exprCastP)
+ <|> try (parens $ condP EIte exprP)
+ <|> try exprFunP
+ <|> try (liftM mkEDat upperIdP)
+ <|> try (liftM (EVar . stringSymbol) upperIdP)
  <|> liftM EVar symbolP
  <|> liftM ECon constantP
  <|> (reserved "_|_" >> return EBot)
@@ -143,7 +145,7 @@ wiredSorts = [ ("EQ", primOrderingSort)
              , ("GT", primOrderingSort)
              ]
 
-exprfP        = liftM2 EApp symbolP argsP
+exprFunP      = liftM2 EApp symbolP argsP
   where argsP = try (parens $ brackets esP) <|> parens esP
         esP   = sepBy exprP comma 
 
@@ -156,15 +158,16 @@ bops = [ [Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft]
        , [Infix  (reservedOp "mod" >> return (EBin Mod  )) AssocLeft]
        ]
 
-cexprP 
+exprCastP
   = do e  <- exprP 
-       colon >> colon
+       ((try dcolon) <|> colon)
        so <- sortP
        return $ ECst e so
 
 sortP
   =   try (string "Integer" >> return FInt)
   <|> try (string "Int"     >> return FInt)
+  <|> try (string "int"     >> return FInt)
   <|> try (string "Bool"    >> return FBool)
 --   <|> (symCharsP >>= return . FPtr . FLoc . stringSymbol) 
 
@@ -175,17 +178,22 @@ symCharsP = (condIdP symChars (\_ -> True))
 -------------------------- Predicates -------------------------------
 ---------------------------------------------------------------------
 
-qmP = reserved "?" <|> reserved "Bexp"
-
 predP :: Parser Pred
-predP =  parens pred2P
+predP =  try (parens pred2P)
+     <|> try (parens $ condP pIte predP)
+     <|> try (reservedOp "&&" >> liftM PAnd predsP)
+     <|> try (reservedOp "||" >> liftM POr  predsP)
      <|> (qmP >> liftM PBexp exprP)
      <|> (reserved "true"  >> return PTrue)
      <|> (reserved "false" >> return PFalse)
      <|> (try predrP)
-     <|> (try (liftM PBexp exprfP))
+     <|> (try (liftM PBexp exprFunP))
+
+qmP    = reserved "?" <|> reserved "Bexp"
 
 pred2P = buildExpressionParser lops predP 
+
+predsP = brackets $ sepBy predP semi
 
 lops = [ [Prefix (reservedOp "~"   >> return PNot)]
        , [Infix  (reservedOp "&&"  >> return (\x y -> PAnd [x,y])) AssocRight]
@@ -205,7 +213,14 @@ brelP =  (reservedOp "="  >> return (PAtom Eq))
      <|> (reservedOp "<=" >> return (PAtom Le))
      <|> (reservedOp ">"  >> return (PAtom Gt))
      <|> (reservedOp ">=" >> return (PAtom Ge))
-     -- <|> (reservedOp "is" >> return (hasTag  )) 
+
+condP f bodyP 
+  = do p  <- predP 
+       reserved "?"
+       b1 <- bodyP 
+       colon
+       b2 <- bodyP 
+       return $ f p b1 b2
 
 ----------------------------------------------------------------------------------
 ------------------------------------ BareTypes -----------------------------------
@@ -270,7 +285,7 @@ bareFun2P
   = do t1 <- bareArgP 
        a  <- arrowP
        t2 <- bareTypeP
-       return $ bareArrow "" t1 a t2 
+       return $ bareArrow dummyBind t1 a t2 
 
 dummyNamePos pos = "dummy_" ++ name ++ ['@'] ++ line ++ [','] ++ colum
   where name  = sourceName pos
@@ -278,22 +293,25 @@ dummyNamePos pos = "dummy_" ++ name ++ ['@'] ++ line ++ [','] ++ colum
         colum = show $ sourceColumn pos  
 
 bareFunP  
-  = do x  <- try bindP <|> (return dummyName) -- (dummyNamePos <$> getPosition)  
+  = do b  <- try bindP <|> (return dummyBind) -- (dummyNamePos <$> getPosition)  
        t1 <- bareArgP 
        a  <- arrowP
        t2 <- bareTypeP
-       return $ bareArrow x t1 a t2 
+       return $ bareArrow b t1 a t2 
 
 bbindP = lowerIdP <* dcolon 
-bindP  = lowerIdP <* colon
+
+bindP  = liftM (RB . stringSymbol) (lowerIdP <* colon)
+
 dcolon = string "::" <* spaces
 
-bareArrow "" t1 ArrowFun t2
-  = rFun dummyBind t1 t2
-bareArrow x t1 ArrowFun t2
-  = rFun (stringBind x) t1 t2
-bareArrow x t1 ArrowPred t2
+bareArrow b t1 ArrowFun t2
+  = rFun b t1 t2
+bareArrow _ t1 ArrowPred t2
   = foldr (rFun dummyBind) t2 (getClasses t1)
+
+-- stringBind     = RB . stringSymbol
+
 
 isBoolBareType (RApp tc [] _ _) = tc == boolConName
 isBoolBareType _                = False
@@ -357,7 +375,6 @@ bRVar α p r    = RVar (RV α) (U r p)
 
 reftUReft      = (`U` pdTrue)
 predUReft      = (U dummyReft) 
-stringBind     = RB . stringSymbol
 dummyBind      = RB dummySymbol
 dummyReft      = Reft (dummySymbol, [])
 dummyTyId      = ""
@@ -369,14 +386,16 @@ dummyTyId      = ""
 data Pspec ty bndr 
   = Meas (Measure.Measure ty bndr) 
   | Assm (bndr, ty) 
-  | Impt Symbol
+  | Impt  Symbol
   | DDecl DataDecl
+  | Incl  FilePath
 
-mkSpec xs = {- Measure.qualifySpec name $ -} Measure.Spec ms as is ds
-  where ms = [m | Meas  m <- xs]
-        as = [a | Assm  a <- xs]
-        is = [i | Impt  i <- xs]
-        ds = [d | DDecl d <- xs]
+mkSpec xs    = {- Measure.qualifySpec name $ -} Measure.Spec ms as is ds incs 
+  where ms   = [m | Meas  m <- xs]
+        as   = [a | Assm  a <- xs]
+        is   = [i | Impt  i <- xs]
+        ds   = [d | DDecl d <- xs]
+        incs = [q | Incl  q <- xs]
 
 specificationP 
   = do reserved "module"
@@ -389,15 +408,22 @@ specificationP
 
 specP 
   = try (reserved "assume"  >> liftM Assm  tyBindP)
+    <|> (reserved "assert"  >> liftM Assm  tyBindP)
     <|> (reserved "measure" >> liftM Meas  measureP) 
     <|> (reserved "import"  >> liftM Impt  symbolP)
     <|> (reserved "data"    >> liftM DDecl dataDeclP)
+    <|> (reserved "include" >> liftM Incl  filePathP)
+
+filePathP :: Parser FilePath
+filePathP = angles $ many1 pathCharP
+  where pathCharP = choice $ char <$> pathChars 
+        pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
 
 tyBindP 
-  = do name  <- binderP 
-       colon >> colon
+  = do name  <- binderP <* spaces 
+       dcolon 
        ty    <- bareTypeP
-       return (name, ty)
+       return (name, generalize ty)
 
 measureP 
   = do (x, ty) <- tyBindP  
@@ -414,11 +440,12 @@ tyBodyP ty
           outTy (RFun _ _ t _) = Just t
           outTy _              = Nothing
 
-
 binderP :: Parser Symbol
-binderP =  try symbolP 
-       <|> liftM pwr (parens $ many1 (satisfy $ not . (`elem` "()")))
+binderP =  try $ liftM stringSymbol idP
+       <|> liftM pwr (parens idP)
        where pwr s = stringSymbol $ "(" ++ s ++ ")" 
+             idP   = many1 (satisfy (not . bad))
+             bad c = isSpace c || c `elem` "()"
 
 grabs p = try (liftM2 (:) p (grabs p)) 
        <|> return []
@@ -474,6 +501,8 @@ fixResultP pp
   =  (reserved "SAT"   >> return Safe)
  <|> (reserved "UNSAT" >> Unsafe <$> (brackets $ sepBy pp comma))  
  <|> (reserved "CRASH" >> crashP pp)
+
+
 
 crashP pp
   = do i   <- pp

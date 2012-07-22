@@ -27,12 +27,12 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 
-
 data Spec ty bndr  = Spec { 
-    measures  :: [Measure ty bndr]     -- User-defined properties for ADTs
-  , sigs      :: [(Symbol, ty)]        -- Imported functions and types   
-  , imports   :: [Symbol] 
-  , dataDecls :: [DataDecl] 
+    measures  :: ![Measure ty bndr]     -- User-defined properties for ADTs
+  , sigs      :: ![(Symbol, ty)]        -- Imported functions and types   
+  , imports   :: ![Symbol] 
+  , dataDecls :: ![DataDecl] 
+  , includes  :: ![FilePath]
   } deriving (Data, Typeable)
 
 data MSpec ty bndr = MSpec { 
@@ -78,9 +78,9 @@ mkMSpec ms = MSpec cm mm
         ms' = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
 instance Monoid (Spec ty bndr) where
-  mappend (Spec xs ys zs ds) (Spec xs' ys' zs' ds')
-           = Spec (xs ++ xs') (ys ++ ys') (nubSort (zs ++ zs')) (ds ++ ds')
-  mempty   = Spec [] [] [] []
+  mappend (Spec xs ys zs ds is) (Spec xs' ys' zs' ds' is')
+           = Spec (xs ++ xs') (ys ++ ys') (nubSort (zs ++ zs')) (ds ++ ds') (nubSort (is ++ is'))
+  mempty   = Spec [] [] [] [] []
 
 instance Functor Def where
   fmap f def = def { ctor = f (ctor def) }
@@ -102,14 +102,18 @@ instance Bifunctor MSpec   where
   second                = fmap 
 
 instance Bifunctor Spec    where
-  first f (Spec ms ss x y) = Spec { measures  = fmap (first f) ms
-                                  , sigs      = fmap (second f) ss
-                                  , imports   = x
-                                  , dataDecls = y }
-  second f (Spec ms x y z) = Spec { measures  = fmap (second f) ms
-                                  , sigs      = x 
-                                  , imports   = y
-                                  , dataDecls = z }
+  first f (Spec ms ss x y z) = Spec { measures  = fmap (first f) ms
+                                    , sigs      = fmap (second f) ss
+                                    , imports   = x
+                                    , dataDecls = y 
+                                    , includes  = z 
+                                    }
+  second f (Spec ms w x y z) = Spec { measures  = fmap (second f) ms
+                                    , sigs      = w 
+                                    , imports   = x
+                                    , dataDecls = y 
+                                    , includes  = z
+                                    }
 
 instance Outputable Body where
   ppr (E e) = toFix e  
@@ -139,7 +143,7 @@ dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(Symbol, RefType)])
 dataConTypes s = (ctorTys, measTys)
   where measTys = [(name m, sort m) | m <- elems $ measMap s]
         ctorTys = [(defsVar ds, defsTy ds) | (_, ds) <- toList $ ctorMap s]
-        defsTy  = reduce strengthenRefType . fmap defRefType 
+        defsTy  = reduce meet {-strengthenRefType-} . fmap defRefType 
         defsVar = dataConWorkId . ctor . safeHead "defsVar" 
 
 defRefType :: Def DataCon -> RefType

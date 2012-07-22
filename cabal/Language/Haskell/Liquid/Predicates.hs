@@ -25,7 +25,7 @@ import TysWiredIn
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.PredType
 import Language.Haskell.Liquid.GhcMisc (stringTyVar, tickSrcSpan)
-import Language.Haskell.Liquid.RefType 
+import Language.Haskell.Liquid.RefType hiding (generalize) 
 import Language.Haskell.Liquid.Misc
 import qualified Language.Haskell.Liquid.Fixpoint as F
 
@@ -210,7 +210,7 @@ consE γ e@(Case _ _ _ _)
   = cconsFreshE γ e
 
 consE γ (Tick tt e)      
-  = consE (γ `atLoc` tickSrcSpan tt) e
+  = consE (γ `putLoc` tickSrcSpan tt) e
 
 consE γ (Cast e _)      
   = consE γ e 
@@ -247,7 +247,7 @@ cconsE γ (Lam x e) (RFun (RB y) ty t _)
     where te = (y, mkSymbol x) `substSym` t
 
 cconsE γ (Tick tt e) t     
-  = cconsE (γ `atLoc` tickSrcSpan tt) e t
+  = cconsE (γ `putLoc` tickSrcSpan tt) e t
 
 cconsE γ (Cast e _) t     
   = cconsE γ e t 
@@ -487,6 +487,6 @@ checkFun x t                = error $ showPpr x ++ "type: " ++ showPpr t
 checkAll _ t@(RAll (RV _) _) = t
 checkAll x t                 = error $ showPpr x ++ "type: " ++ showPpr t
 
-γ `atLoc` src
+γ `putLoc` src
   | isGoodSrcSpan src = γ { loc = src } 
   | otherwise = γ

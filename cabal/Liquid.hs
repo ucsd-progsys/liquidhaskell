@@ -19,7 +19,8 @@ import Control.DeepSeq
 import Control.Monad (forM)
 import CoreSyn
 
-import System.Console.CmdArgs
+-- import System.Console.CmdArgs
+
 
 main    = liquid >>= (exitWith . resultExit)
 
@@ -33,8 +34,8 @@ liquid  = do (targets, includes) <- getOpts
 
 liquidOne includes target = 
   do info    <- getGhcInfo target includes :: IO GhcInfo
-     putStrLn $ "*************** Original CoreBinds ***************************" 
-     putStrLn $ showPpr (cbs info)
+     -- putStrLn $ "*************** Original CoreBinds ***************************" 
+     -- putStrLn $ showPpr (cbs info)
      let cbs' = transformRecExpr (cbs info)
      putStrLn $ "*************** Transform Rec Expr CoreBinds *****************" 
      putStrLn $ showPpr (cbs')
@@ -57,6 +58,7 @@ dummyWrite' target cgi
 
 initGhci = parseStaticFlags []
 -}
+
 
 writeConstraints target cgi 
   = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi target) ({-# SCC "PPcgi" #-} showPpr cgi)

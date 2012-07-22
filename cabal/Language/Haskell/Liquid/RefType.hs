@@ -13,8 +13,8 @@ module Language.Haskell.Liquid.RefType (
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp, rFun
   , typeUniqueSymbol
-  , strengthen, strengthenRefType
-  , mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
+  , strengthen -- , strengthenRefType
+  , generalize, mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
   , subts, substSym 
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, refTypePredSortedReft, refTypeSortedReft, typeSortedReft, rTypeSort, funcToObj
@@ -36,6 +36,7 @@ import Outputable
 import qualified TyCon as TC
 import DataCon
 import TypeRep 
+import Type (expandTypeSynonyms)
 
 import Var
 import VarEnv
@@ -44,7 +45,7 @@ import Name             (getSrcSpan, getOccString, mkInternalName)
 import Unique           (getUnique)
 import Literal
 import Type             (isPredTy, mkTyConTy, liftedTypeKind, substTyWith, classifyPredType, PredTree(..), predTreePredType)
-import TysPrim          (intPrimTyCon)
+-- import TysPrim          (intPrimTyCon)
 import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon, eqDataCon, ltDataCon, gtDataCon)
 
 import Data.Monoid      hiding ((<>))
@@ -350,10 +351,13 @@ rConApp (RTyCon c ps) ts rs r = RApp (RTyCon c ps') ts rs' r
 
 toPoly (RPoly t) _ = RPoly t
 toPoly (RMono r) t = RPoly $ (ofType t) `strengthen` r  
+
 -- mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
 mkArrow as xts t = mkUnivs as $ mkArrs xts t
-  where mkUnivs αs t  = tr_foldr' RAll t $ RV `fmap` αs
-        mkArrs xts t = tr_foldr' (\(x,t) -> rFun (RB x) t) t xts 
+
+mkUnivs αs t     = foldr RAll t $ (RV <$> αs)
+
+mkArrs xts t     = foldr (\(x, t) -> rFun (RB x) t) t xts 
 
 
 
@@ -378,6 +382,18 @@ rsplitVsPs t = ([], [], t)
 rsplitArgsRes (RFun (RB x) t1 t2 _) = (x:xs, t1:ts, r)
   where (xs, ts, r) = rsplitArgsRes t2
 rsplitArgsRes t = ([], [], t)
+
+
+-- generalize ::  Ord tv => RType p c tv pv r -> RType p c tv pv r
+generalize t = mkUnivs αs t 
+  where αs = S.toList $ freeVars t
+         
+freeVars (RAll (RP _) t) = freeVars t
+freeVars (RAll (RV α) t) = S.delete α $ freeVars t
+freeVars (RFun x t t' _) = S.unions   $ freeVars <$> [t, t']  
+freeVars (RApp _ ts _ _) = S.unions   $ freeVars <$> ts
+freeVars (RCls _ ts)     = S.unions   $ freeVars <$> ts 
+freeVars (RVar (RV α) _) = S.singleton α 
 
 ----------------------------------------------------------------
 ---------------------- Strictness ------------------------------
@@ -633,7 +649,6 @@ subsFree m s z (RAll (RV α) t)
 subsFree m s z (RFun x t t' r)       
   = RFun x (subsFree m s z t) (subsFree m s z t') (subt (second toType z)  r)
 subsFree m s z@(α, t') t@(RApp c ts rs r)     
---  = RApp c' (subsFree m s z <$> ts) (subt z' <$> rs) (subt z' r)  
   = RApp c' (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) (subt z' r)  
     where c' = c {rTyConPs = subt z' <$> rTyConPs c}
           z' = (α, toType t')
@@ -645,8 +660,9 @@ subsFree meet s (α', t') t@(RVar (RV α) r)
   = if meet then t' `strengthen`  r' else t' 
   | otherwise
   = {- traceShow  msg $ -} t
-  where msg = ("subsFree MISS: α = " ++ showPpr α ++ " α' = " ++ showPpr α' ++ " s = " ++ showPpr s)
+  where -- msg = ("subsFree MISS: α = " ++ showPpr α ++ " α' = " ++ showPpr α' ++ " s = " ++ showPpr s)
         r'  = subt (α', toType t') r
+
 subsFree _ _ _ t@(ROth _)        
   = t
 subsFree _ _ _ t      
@@ -660,9 +676,10 @@ subsFreeRef m s z (RPoly t)
 subsFreeRef m s z (RMono r) 
   = RMono $ subt (α, toType t) r
   where (α, t) = z
----------------------------------------------------------------------
-------------------- Type Substitutions ------------------------------
----------------------------------------------------------------------
+
+-------------------------------------------------------------------
+------------------- Type Substitutions ----------------------------
+-------------------------------------------------------------------
 
 class SubsTy a where
   subp :: M.Map (PVar Type) (Predicate Type) -> a -> a
@@ -737,7 +754,7 @@ stripRTypeBase _
   = Nothing
 
 -- ofType ::  Reftable r => Type -> RRType a r
-ofType = ofType_ 
+ofType = ofType_ . expandTypeSynonyms 
 
 ofType_ (TyVarTy α)     
   = rVar α top 
@@ -889,6 +906,7 @@ dataConSymbol = mkSymbol . dataConWorkId
 primOrderingSort = typeSort $ dataConRepType eqDataCon
 ordCon s = EDat (S s) primOrderingSort
 
+-- TODO: turn this into a map lookup?
 -- dataConReft   ::  DataCon -> Type -> Reft 
 dataConReft c τ
   | c == trueDataCon
@@ -931,48 +949,6 @@ toType (RCls c ts)
   -- = PredTy (ClassP c (toType <$> ts))
 toType (ROth t)      
   = errorstar $ "toType fails: " ++ t
-
---{{{ moved to Fixpoint.hs
---typeSort :: Type -> Sort 
---typeSort (TyConApp c []) 
---  | k == intTyConKey     = FInt
---  | k == intPrimTyConKey = FInt
---  | k == integerTyConKey = FInt 
---  | k == boolTyConKey    = FBool
---  where k = TC.tyConUnique c
---typeSort (ForAllTy _ τ) 
---  = typeSort τ  -- JHALA: Yikes! Fix!!!
---typeSort (FunTy τ1 τ2) 
---  = typeSortFun τ1 τ2
---typeSort (TyConApp c τs)
---  = FApp (fTycon c) (typeSort <$> τs)
---typeSort τ
---  = fObj τ
---
---fTycon = stringTycon . showPpr
---fObj   = FObj . typeUniqueSymbol 
---
---typeSortFun τ1 τ2
---  = FFunc n $ genArgSorts sos
---  where sos  = typeSort <$> τs
---        τs   = τ1  : grabArgs [] τ2
---        n    = (length sos) - 1
---     
---typeUniqueSymbol :: Type -> Symbol 
---typeUniqueSymbol = stringSymbol . {-("sort_" ++) .-} showSDocDump . ppr
---
---grabArgs τs (FunTy τ1 τ2 ) = grabArgs (τ1:τs) τ2
---grabArgs τs τ              = reverse (τ:τs)
---
---genArgSorts :: [Sort] -> [Sort]
---genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
---  where genSort FInt        = Nothing
---        genSort FBool       = Nothing 
---        genSort so          = Just so
---        genIdx  _ (Just i)  = FVar i -- FPtr (FLvar i)
---        genIdx  so  _       = so
---
---}}}
 
 ---------------------------------------------------------------
 ----------------------- Typing Literals -----------------------

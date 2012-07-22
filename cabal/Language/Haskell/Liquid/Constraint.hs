@@ -47,18 +47,16 @@ import Data.List (inits, find, foldl')
 import qualified Data.Set as S
 import Text.Printf
 
-import qualified Language.Haskell.Liquid.Fixpoint as F
-import Language.Haskell.Liquid.Fixpoint (PVar(..))
 import qualified Language.Haskell.Liquid.Measure as Ms
+import qualified Language.Haskell.Liquid.Fixpoint as F
+import Language.Haskell.Liquid.Fixpoint         (PVar(..))
 import Language.Haskell.Liquid.GhcInterface 
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.PredType hiding (splitArgsRes)
+import Language.Haskell.Liquid.PredType hiding  (splitArgsRes)
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc (tickSrcSpan, tvId)
+import Language.Haskell.Liquid.GhcMisc          (tickSrcSpan, tvId)
 import Language.Haskell.Liquid.Misc
--- import Language.Haskell.Liquid.MiscExpr (exprType)
--- import Language.Haskell.Liquid.Bare (isDummyBind)
-
+import Language.Haskell.Liquid.Qualifier        
 import Data.Generics.Schemes
 import Data.Generics.Aliases
 import Data.Data
@@ -68,8 +66,12 @@ import Control.DeepSeq
 ------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
 
-consGrty γ (x, t) 
-  = addC (SubC γ (γ ?= (mkSymbol x)) t) ""
+consGrty γ (x, t) = addC (SubC γ' xt t) "consGrty"
+  where γ' = γ `setLoc` (getSrcSpan x) 
+        xt = γ ?= (mkSymbol x)
+
+--  = addC (SubC γ (γ ?= (mkSymbol x)) t) 
+
 
 consAct info penv
   = do γ   <- initEnv info penv
@@ -80,7 +82,7 @@ consAct info penv
  
 generateConstraints :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fws } { globals = gs }
-  where st  = execState act $ initCGI spc
+  where st  = execState act $ initCGI info 
         act = consAct (info {cbs = fst pds}) (snd pds)
         fcs = concatMap splitC $ hsCs  st 
         fws = concatMap splitW $ hsWfs st
@@ -132,7 +134,6 @@ assm_grty f info = [ (x, mapReft ureft t) | (x, t) <- sigs, x `S.member` xs ]
         sigs = tySigs $ spec info  
 
 
-
 -------------------------------------------------------------------
 -------- Helpers: Reading/Extending Environment Bindings ----------
 -------------------------------------------------------------------
@@ -159,7 +160,9 @@ instance Show CGEnv where
   where γ' = γ { renv = insertREnv x r (renv γ) }  
         r  = normalizePds r'  -- move pred abs in start of the type
 
-(γ, msg) += (x, r) 
+(γ, msg) += (x, r)
+  | x == F.dummySymbol
+  = γ
   | x `memberREnv` (renv γ)
   = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ show x -- ++ " in REnv!\n\n" ++ show γ
   | otherwise
@@ -177,8 +180,8 @@ instance Show CGEnv where
 getPrType :: CGEnv -> F.Symbol -> Maybe PrType
 getPrType γ x = F.lookupSEnv x (penv γ)
 
-atLoc :: CGEnv -> SrcSpan -> CGEnv
-γ `atLoc` src 
+setLoc :: CGEnv -> SrcSpan -> CGEnv
+γ `setLoc` src 
   | isGoodSrcSpan src = γ { loc = src } 
   | otherwise         = γ
 
@@ -250,8 +253,6 @@ instance Outputable SubC where
 instance Outputable WfC where
   ppr (WfC w r)    = ppr w <> blankLine <> text " |- " <> ppr r <> blankLine <> blankLine 
   ppr (WfCS w τ s) = ppr w <> blankLine <> text " |- " <> braces (ppr τ <+> colon  <+> ppr s)
-  ----ppr w = ppr (wenv w) <> text "\n" <> text " |- " <> ppr (r w) <> 
-  ----        text "\n\n" 
 
 instance Outputable Cinfo where
   ppr (Ci src) = ppr src
@@ -334,8 +335,16 @@ splitC (SubC γ t1@(RFun (RB x1) r1 r1' re1) t2@(RFun (RB x2) r2 r2' re2))
            γ'    = (γ, "splitC") += (x2, r2) 
 
 
-splitC (SubC γ (RAll _ t1) (RAll _ t2)) 
-  = splitC (SubC γ t1 t2) 
+splitC (SubC γ (RAll b1 t1) (RAll b2 t2))
+  | b1 == b2
+  = splitC $ SubC γ t1 t2
+
+splitC (SubC γ (RAll (RV α1) t1) (RAll (RV α2) t2))
+  = splitC $ SubC γ t1 t2' 
+  where t2' = subsTyVar_meet (α2, RVar (RV α1) top) t2
+
+splitC c@(SubC γ (RAll _ _) (RAll _ _)) 
+  = errorstar $ "splitc unexpected: " ++ showPpr c
 
 {-
 splitC (SubC γ t1 (RAll ((RP p@(PV _ τ _))) t2))
@@ -407,6 +416,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , freshIndex :: !Integer 
                      , annotMap   :: !(AnnInfo Annot) 
                      , tyConInfo  :: !(M.Map TC.TyCon RTyCon) 
+                     , specQuals  :: ![Qualifier]
                      } deriving (Data, Typeable)
 
 instance Outputable CGInfo where 
@@ -424,8 +434,9 @@ ppr_CGInfo cgi
 
 type CG = State CGInfo
 
-initCGI info = CGInfo [] [] [] [] F.emptySEnv 0 (AI M.empty) tyi
-  where tyi  = M.fromList [(c, mkRTyCon c p) | (c, p) <- tconsP info]
+initCGI info = CGInfo [] [] [] [] F.emptySEnv 0 (AI M.empty) tyi qs
+  where tyi  = M.fromList [(c, mkRTyCon c p) | (c, p) <- tconsP $ spec info]
+        qs   = specificationQualifiers info
 
 showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
@@ -436,8 +447,8 @@ mkRTyCon tc (TyConP αs' ps) = RTyCon tc pvs'
         pvs' = subts (zip αs' τs) <$> ps
 
 addC :: SubC -> String -> CG ()  
-addC !c@(SubC _ t1 t2) s 
-  = -- trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ s) $  
+addC !c@(SubC _ t1 t2) msg 
+  = -- trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ msg) $  
     modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addW   :: WfC -> CG ()  
@@ -680,7 +691,7 @@ cconsE γ (Lam x e) (RFun (RB y) ty t _)
     where te = t `F.subst1` (y, F.EVar $ mkSymbol x)
 
 cconsE γ (Tick tt e) t   
-  = cconsE (γ `atLoc` tickSrcSpan tt) e t
+  = cconsE (γ `setLoc` tickSrcSpan tt) e t
 
 cconsE γ (Cast e _) t     
   = cconsE γ e t 
@@ -752,7 +763,7 @@ consE γ e@(Case _ _ _ _)
   = cconsFreshE γ e
 
 consE γ (Tick tt e)
-  = consE (γ `atLoc` tickSrcSpan tt) e
+  = consE (γ `setLoc` tickSrcSpan tt) e
 
 consE γ (Cast e _)      
   = consE γ e 
@@ -772,17 +783,26 @@ cconsCase γ _ t (DEFAULT, _, ce)
   = cconsE γ ce t
 
 cconsCase γ x t (DataAlt c, ys, ce) 
- = do yts' <- mkyts γ ys yts
-      let cbs           = zip (x':ys') (xt:yts')
-      let cγ            = addBinders γ x' cbs
+ = do yts'            <- mkyts γ ys yts
+      let cbs          = zip (x':ys') (xt:yts')
+      let cγ           = addBinders γ x' cbs
       cconsE cγ ce t
- where (x':ys')      = mkSymbol <$> (x:ys)
-       xt0           = checkTyCon x $ γ ?= x'
-       tdc           = γ ?= (dataConSymbol c)
+ where (x':ys')        = mkSymbol <$> (x:ys)
+       xt0             = checkTyCon x $ γ ?= x'
+       tdc             = γ ?= (dataConSymbol c)
        (rtd, yts, xt') = unfoldR tdc xt0 ys'
-       r1            = dataConReft c $ varType x
-       r2            = dataConMsReft rtd ys'
-       xt            = xt0 `strengthen` (r1 `meet` r2)
+       r1              = dataConReft c $ varType x
+       r2              = dataConMsReft rtd ys'
+       xt              = xt0 `strengthen` (r1 `meet` r2)
+
+cconsCase γ x t (LitAlt l, [], ce) 
+  = cconsE cγ ce t
+  where cγ  = addBinders γ x' [(x', xt)]
+        x'  = mkSymbol x
+        xt  = (γ ?= x')`meet` (literalRefType l)
+
+cconsCase γ x t z 
+  = errorstar $ "cconsCase TBD: handle " ++ showPpr z
 
 mkyts γ ys yts = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts
 mkyt (γ, ts) (y, yt)
@@ -871,7 +891,7 @@ tySort _                             = error "tySort"
 argExpr ::  CoreExpr -> Maybe F.Expr
 argExpr (Var vy)         = Just $ F.EVar $ mkSymbol vy
 argExpr (Lit c)          = Just $ snd $ literalConst c
-argExpr (Tick _ e)		     = argExpr e
+argExpr (Tick _ e)		 = argExpr e
 argExpr e                = errorstar $ "argExpr: " ++ (showPpr e)
 
 varRefType γ x =  t 
@@ -910,15 +930,15 @@ instance NFData WfC where
 
 
 instance NFData CGInfo where
-  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 x8) 
+  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 x8 x9) 
     = ({-# SCC "CGIrnf1" #-} rnf x1) `seq` 
       ({-# SCC "CGIrnf2" #-} rnf x2) `seq` 
       ({-# SCC "CGIrnf3" #-} rnf x3) `seq` 
       ({-# SCC "CGIrnf4" #-} rnf x4) `seq` 
       ({-# SCC "CGIrnf5" #-} rnf x5) `seq` 
       ({-# SCC "CGIrnf6" #-} rnf x6) `seq`
-      ({-# SCC "CGIrnf6" #-} rnf x7) 
-
+      ({-# SCC "CGIrnf7" #-} rnf x7) `seq`
+      ({-# SCC "CGIrnf8" #-} rnf x9) 
 
 -----------------------------------------------------------------------
 --------------- Cleaner Signatures For Rec-bindings -------------------
@@ -994,7 +1014,7 @@ substPred m (p, tp) (RAll (RP q@(PV _ _ _)) t)
 substPred m pt (RAll a@(RV _) t) = RAll a (substPred m pt t)
 substPred m pt@(p, tp) (RFun x t t' r) 
   | p `isPredIn` r
-  = strengthenRefType (RFun x t t' r') (fmap (F.subst su) tp)
+  = {- strengthenRefType -} meet (RFun x t t' r') (fmap (F.subst su) tp)
   | otherwise 
   = RFun x (substPred m pt t) (substPred m pt t') r
   where (r', su) = rmKVarReft p r
@@ -1009,7 +1029,7 @@ substRCon (p, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2) | rc1 == rc2
         addS r         = F.subst su r
         (RTyCon rc1 _) = c1
         (RTyCon rc2 _) = c2
-        strSub t1      = strengthenRefType t1 . fmap addS
+        strSub t1      = {- strengthenRefType -} meet t1 . fmap addS
         strSubR t1 t2  = RPoly $ strSub (fromRPoly t1) (fromRPoly t2) 
 
 substRCon pt t = error $ "substRCon" ++ show (pt, t)

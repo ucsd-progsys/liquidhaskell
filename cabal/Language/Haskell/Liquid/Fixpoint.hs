@@ -1,8 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
 
 module Language.Haskell.Liquid.Fixpoint (
-    toFixpoint, toFix
--- , dummySort
+    toFixpoint
+  , Fixpoint (toFix) 
   , typeSort, typeUniqueSymbol
   , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tagSymbol, tempSymbol
   , stringTycon, stringSymbol, symbolString
@@ -22,10 +22,9 @@ module Language.Haskell.Liquid.Fixpoint (
   , isNonTrivialSortedReft
   , isTautoReft
   , ppr_reft, ppr_reft_pred, flattenRefas
-  , simplify
+  , simplify, pAnd, pOr, pIte
   , emptySubst, mkSubst, catSubst
   , Subable (..)
---  , strToReft, strToRefa, strsToRefa, strsToReft, replaceSort, replaceSorts, refaInReft
   , isPredInReft
   , rmRPVar, rmRPVarReft, replacePVarReft
   ) where
@@ -145,6 +144,7 @@ freshSym x = do
                   return y 
     Just y  -> return y
 -}
+
 isPredInReft p (Reft(_, ls)) = or (isPredInRefa p <$> ls)
 isPredInRefa p (RPvar p')    = isSamePvar p p'
 isPredInRefa _ _             = False
@@ -235,6 +235,12 @@ getConstants = everything (++) ([] `mkQ` f)
         f (ELit s so) = [(s, so, False)]
         f _           = []
 
+
+
+infoConstant (c, so, _)
+  = text "constant" <+> toFix c <+> text ":" <+> toFix so <> blankLine <> blankLine 
+
+{- {{{ 
 infoConstant (c, so, b)
   | b 
   = vcat [d1, d2, d3] $+$ dn
@@ -246,6 +252,7 @@ infoConstant (c, so, b)
         d2 = text "qualif TEQ" <> d <> text "(v:ptr) : (" <> tg <> text "([v]) =  " <> d <> text ")" 
         d3 = text "qualif TNE" <> d <> text "(v:ptr) : (" <> tg <> text "([v]) !=  " <> d <> text ")" 
         tg = text tagName
+}}} -}
 
 ---------------------------------------------------------------
 ---------- Converting Constraints to Fixpoint Input -----------
@@ -368,10 +375,8 @@ instance Fixpoint Symbol where
 
 instance Outputable Symbol where
   ppr (S x) = text x 
-  -- ppr = text . symbolString 
 
 instance Show Symbol where
-  --show = symbolString
   show (S x) = x
 
 newtype Subst  = Su (M.Map Symbol Expr) 
@@ -389,7 +394,7 @@ instance Outputable Expr where
   ppr  = text . show
 
 instance Outputable Subst where
-  ppr (Su m) = ppr m
+  ppr (Su m) = ppr (M.toList m)
 
 instance Show Subst where
   show = showPpr
@@ -578,6 +583,10 @@ isTautoReft (Reft (_, ras)) = all isTautoRa ras
 isTautoRa (RConc p)         = isTauto p
 isTautoRa _                 = False
 
+pAnd          = simplify . PAnd 
+pOr           = simplify . POr 
+pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3] 
+
 ppr_reft (Reft (v, ras)) d 
   | all isTautoRa ras
   = d
@@ -723,28 +732,6 @@ instance Outputable a => Outputable (FixResult (SubC a)) where
   ppr Safe          = text "Safe"
   ppr (Unsafe xs)   = text "Unsafe: " <> ppr (sinfo `fmap` xs)
 
---instance Fixpoint SortedReft where
---  toFix (RR so (Reft (v, ras))) 
---    = printf "{%s : %s | %s}" (toFix v) (toFix so) (toFix ras)
---
---instance Fixpoint (SubC a) where 
---  toFix c = printf "constraint: \n  env  %s  \n  grd %s  \n  lhs %s \n  rhs %s \n  %s %s \n\n\n"
---              se sg sl sr (ppid $ sid c) (pptag $ stag c)
---    where se = toFix $ senv c 
---          sg = toFix $ sgrd c 
---          sl = toFix $ slhs c 
---          sr = toFix $ srhs c
---
---instance Outputable (WfC a) where 
---  toFix w = printf "wf: \n  env  %s  \n  reft %s \n  %s \n" se sr (ppid $ wid w)
---    where se = toFix $ wenv w
---          sr = toFix $ wrft w
-
---instance Fixpoint (WfC a) where 
---  toFix w = printf "wf: \n  env  %s  \n  reft %s \n  %s \n" se sr (ppid $ wid w)
---    where se = toFix $ wenv w
---          sr = toFix $ wrft w
-
 toFixPfx s x     = text s <+> toFix x
 
 instance Show (SubC a) where
@@ -778,7 +765,6 @@ pprTag is       = text "tag" <+> toFix is
 
 instance Fixpoint Int where
   toFix = ppr
-
 
 -------------------------------------------------------
 ------------------- Substitutions ---------------------

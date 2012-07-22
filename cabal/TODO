@@ -1,22 +1,107 @@
+TODO
+----
 
 
-1. nuke GhcInterface.listTyDataCons     <----------- HEREHEREHEREHERE
-2. pull all binders/subst into separate SINGLE file
-    > RTyVar    + instances
-    > RBind     + instances
+
+TODO STACK
+
+> GHC.List
+    > data invariants <---------- HEREHEREHEREHERE
+
+
+*** data invariants
+
+    forall xs: {v: [a] | I(v)}
+
+    e.g. 
+
+    forall xs: {v: [a] | len(xs) >= 0                  }
+    forall xs: {v: [a] | tag(xs) = ':'  => len(xs) > 0 }
+    forall xs: {v: [a] | tag(xs) = '[]' => len(xs) = 0 }
+
+    constant ':'  : Tag 
+    constant '[]' : Tag
+
+    Uniformly asserted for ALL bindings 
     
-3. constant TAG missing from .fq ???
+        p:[a] 
+    
+    γ += (x, t) 
+        = add x (t `strengthen` typeInvariant t) γ
 
-FEATURE STACK
-  , pos/deptup.hs             (type signature: for constructor wrapper)
 
-Transition to GHC 7.4
----------------------
+    (A) 
 
-0. hack fixpoint, to prevent instantiating ~A with vars of type "func"
-1. [] : forall a. [{v:a|false}] and re-enable the set-kvars-to-true.
-2. remove explicit "Double" sigs from KMeans0
-3. get KMeans to work with WrapType
+
+*** GHC.List.lhs 
+
+../benchmarks/ghc-7.4.1/List.lhs:115:1-4
+{-@ assert null :: forall a. xs:[a] -> {v: Bool | ((? v) <=> len(xs) = 0) }  @-}
+
+../benchmarks/ghc-7.4.1/List.lhs:296:1-9
+{-@ assert takeWhile    :: forall a. (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)} @-}
+
+
+../benchmarks/ghc-7.4.1/List.lhs:400:1-4
+{-@ assert take        :: forall a. n: Int -> xs:[a] -> {v:[a] | len(v) = ((len(xs) < n) ? len(xs) : n) } @-}
+
+
+../benchmarks/ghc-7.4.1/List.lhs:430:1-4
+{-@ assert drop        :: forall a. n: Int -> xs:[a] -> {v:[a] | len(v) = ((len(xs) <  n) ? 0 : len(xs) - n) } @-}
+
+../benchmarks/ghc-7.4.1/List.lhs:496:1-7
+
+
+FEATURES 
+--------
+
+- Add/Parse predicate signatures for lists<p> and tuples<p>: [{x: Int | x > 0}]  
+- pos/deptup.hs (type signature: for constructor wrapper)
+
+
+
+
+foldl f b []     = b
+foldl f b (x:xs) = foldl f (f b x) xs
+
+foldl (\b x -> b + 1) 0 zs ====> go 0 zs
+    where foo = (\b x -> b + 1)
+          go  = foldl @@@ foo
+          i.e. go b []     = b
+               go b (x:xs) = go (foo b x) xs
+
+data [a]<p :: a -> a -> Bool> 
+  = []
+  | (:) (h :: a) (t :: [a<p h>]<p>)  
+
+data (a1, a2) 
+  < p1 :: a1 -> Bool
+  , p2 :: a1 -> a2 -> Bool
+  > 
+  = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>)
+
+data (a1, a2, a3) 
+  < p1 :: a1 -> Bool
+  , p2 :: a1 -> a2 -> Bool
+  , p3 :: a1 -> a2 -> a3 -> Bool
+  > 
+  = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>)
+
+data (a1, a2, a3) 
+  < p1 :: a1 -> Bool
+  , p2 :: a1 -> a2 -> Bool
+  , p3 :: a1 -> a2 -> a3 -> Bool
+  , p4 :: a1 -> a2 -> a3 -> a4 -> Bool
+  > 
+  = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>) (x4 :: a4<p4 x1 x2 x3>)
+
+Get ITE predicates to parse:
+{-@ assert drop        :: forall a. n: Int -> xs:[a] -> {v:[a] | (len(xs) <  n) ? (len(v) = 0) : (len(v) = len(xs) - n) } @-}
+
+
+e1 ? e2 : e3
+e1 ? e2 : e3
+
 
 KNOWN BUGS
 ----------

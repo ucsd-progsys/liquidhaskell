@@ -27,7 +27,7 @@ import qualified Data.Set  as S
 import Data.List  (foldl')
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint
-import Language.Haskell.Liquid.RefType 
+import Language.Haskell.Liquid.RefType  hiding (generalize)
 import Language.Haskell.Liquid.GhcMisc
 
 import Data.Bifunctor

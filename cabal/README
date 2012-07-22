@@ -1,7 +1,9 @@
-
 How To Compile
 --------------
 
+Set GHCHOME in config.make.0
+
+  $ cp config.make.0 config.make
   $ make deps && make
 
 How To Run 
@@ -21,18 +23,12 @@ How To Run Tests
 
   $ make deps && make && make test
 
+To use threads to speed up the tests
 
-How To Include Spec Files 
--------------------------
+  $ make THREADS=30 test
 
-1. See include/lib.spec for the format of spec files
-2. to include a spec file (other than the above) add the line
-        
-        {-# ANN module "spec path/to/file" #-}
+or your favorite number of threads, depending on cores etc.
 
-   after the import declarations of file you're analyzing. 
-   
-As an example, see: tests/pos/meas0a.hs
 
 How to Profile 
 --------------
@@ -69,4 +65,78 @@ How to Get Backtraces
 2. Run with backtraces
 
     $ liquid +RTS -xc -RTS foo.hs
+
+
+Writing Specifications
+======================
+
+For modules WITH code
+---------------------
+
+Modules WITHOUT code
+--------------------
+
+For a module Foo.Bar.Baz the spec file is
+
+    $(INCLUDEDIR)/Foo/Bar/Baz.spec
+
+For example:
+
+    - include/Prelude.spec
+    - include/Data/List.spec
+    - include/Data/Vector.spec
+
+Modules WITH code: Data
+-----------------------
+
+Write the specification directly into the .hs or .lhs file, 
+above the data definition. For example (tests/pos/Map.hs)
+
+    {-@
+    data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
+      = Tip 
+      | Bin (sz    :: Size) 
+            (key   :: k) 
+            (value :: a) 
+            (left  :: Map <l, r> (k <l key>) a) 
+            (right :: Map <l, r> (k <r key>) a) 
+    @-}
+    data Map k a = Tip
+                 | Bin Size k a (Map k a) (Map k a)
+
+Modules WITH code: Functions 
+----------------------------
+
+Write the specification directly into the .hs or .lhs file, 
+above the function definition. For example (tests/pos/spec0.hs)
+
+    {-@ assert incr :: x:{v: Int | v > 0} -> {v: Int | v > x} @-}
+    incr   :: Int -> Int
+    incr x = x + 1
+
+
+Specifying Qualifiers
+---------------------
+
+Qualifier files must end with extension .hquals
+
+You can write qualifier files (see include/Prelude.hquals for an example)
+
+
+
+If a module is called or imports 
+
+    Foo.Bar.Baz
+
+Then the system automatically searches for
+
+    include/Foo/Bar/Baz.hquals
+
+Additional qualifiers may be used by adding lines of the form:
+
+    {-@ include <path/to/file.hquals> @-}
+
+to the Haskell source. See tests/pos/meas5.hs for an example.
+
+
 
