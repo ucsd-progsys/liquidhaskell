@@ -159,7 +159,7 @@ instance Show CGEnv where
 normalize γ = conjoinTypeInvariant γ  . normalizePds
   
 conjoinTypeInvariant     :: CGEnv -> RefType -> RefType
-conjoinTypeInvariant γ t = t -- error "TODO: conjoinTypeInvariant" 
+conjoinTypeInvariant γ t = error "TODO: conjoinTypeInvariant" 
 
 
 -- (+=) :: (CGEnv, String) -> (F.Symbol, RefType) -> CGEnv
