@@ -7,6 +7,7 @@
 module Language.Haskell.Liquid.Bare (
     mkMeasureSpec
   , mkAssumeSpec
+  , mkInvariants
   , mkConTypes
   )
 where
@@ -77,6 +78,8 @@ mkAssumeSpec env xbs = runReaderT mkAspec env
                   >>= mapM    (\(x, b) -> liftM2 (,) (lookupGhcId x) (mkSpecType b))
                   >>= return . checkAssumeSpec
 
+mkInvariants :: HscEnv -> [BareType] -> IO [SpecType]
+mkInvariants env ts = runReaderT (mapM mkSpecType ts) env
 
 -- mkSpecType :: BareType -> BareM SpecType 
 mkSpecType    = ofBareType . txParams [] . txTyVarBinds . mapReft (bimap canonReft stringTyVarTy) 

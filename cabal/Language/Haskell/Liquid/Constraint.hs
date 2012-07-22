@@ -62,12 +62,11 @@ import Control.DeepSeq
 ------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
 
-consGrty γ (x, t) = addC (SubC γ' xt t) "consGrty"
+consGrty γ (x, t) 
+  =  addC (SubC γ' xt t) "consGrty: upperBound" 
+  >> addC (SubC γ' t xt) "consGrty: lowerBound"
   where γ' = γ `setLoc` (getSrcSpan x) 
         xt = γ ?= (mkSymbol x)
-
---  = addC (SubC γ (γ ?= (mkSymbol x)) t) 
-
 
 consAct info penv
   = do γ   <- initEnv info penv
@@ -105,22 +104,21 @@ initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv
 initEnv info penv
   = do defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- liftM tyConInfo get 
-       let f0  = defaults           -- default TOP reftype      (for all vars) 
-       let f2  = assm info          -- assumed refinements      (for import ANNs)
-       let f3  = ctor $ spec info   -- constructor refinements  (for measures) 
-       let bs  = ((second (addTyConInfo tyi))  . (unifyts penv) <$> concat [f0, f2, f3])
-       return  $ foldl' (++=) (measEnv info penv) bs 
-
-unifyts ::  F.SEnv PrType -> (Var, RefType) -> (F.Symbol, RefType)
-unifyts penv (x, t) = (x', unify pt t)
- where pt = F.lookupSEnv x' penv
-       x' = mkSymbol x
-   
-measEnv info penv = CGE noSrcSpan re0 penv fe0 S.empty
-  where bs   = meas $ spec info 
-        re0  = fromListREnv bs 
-        fe0  = F.fromListSEnv $ mapSnd refTypeSortedReft <$> bs 
-
+       let f0    = defaults           -- default TOP reftype      (for all vars) 
+       let f2    = assm info          -- assumed refinements      (for import ANNs)
+       let f3    = ctor $ spec info   -- constructor refinements  (for measures) 
+       let bs    = ((second (addTyConInfo tyi))  . (unifyts penv) <$> concat [f0, f2, f3])
+       let γ0    = measEnv (spec info) penv
+       return    $ foldl' (++=) γ0 bs 
+  
+measEnv sp penv 
+  = CGE { loc  = noSrcSpan
+        , renv = fromListREnv $ meas sp 
+        , penv = penv 
+        , fenv = F.fromListSEnv $ second refTypeSortedReft <$> meas sp 
+        , recs = S.empty 
+        , invs = mkRTyConInv $ invariants sp
+        } 
 
 assm = {- traceShow ("****** assm *****\n") . -} assm_grty impVars 
 grty = {- traceShow ("****** grty *****\n") . -} assm_grty defVars
@@ -129,17 +127,23 @@ assm_grty f info = [ (x, mapReft ureft t) | (x, t) <- sigs, x `S.member` xs ]
   where xs   = S.fromList $ f info 
         sigs = tySigs $ spec info  
 
-
+unifyts ::  F.SEnv PrType -> (Var, RefType) -> (F.Symbol, RefType)
+unifyts penv (x, t) = (x', unify pt t)
+ where pt = F.lookupSEnv x' penv
+       x' = mkSymbol x
+ 
 -------------------------------------------------------------------
 -------- Helpers: Reading/Extending Environment Bindings ----------
 -------------------------------------------------------------------
 
-data CGEnv = CGE { loc  :: !SrcSpan         -- where in orig src
-                 , renv :: !REnv            -- bindings in scope
-                 , penv :: !(F.SEnv PrType) -- bindings in scope
-                 , fenv :: !F.FEnv          -- the fixpoint environment 
-                 , recs :: !(S.Set Var)     -- recursive defs being processed (for annotations)
-                 } deriving (Data, Typeable)
+data CGEnv 
+  = CGE { loc  :: !SrcSpan          -- where in orig src
+        , renv :: !REnv             -- bindings in scope
+        , penv :: !(F.SEnv PrType)  -- bindings in scope
+        , fenv :: !F.FEnv           -- the fixpoint environment 
+        , recs :: !(S.Set Var)      -- recursive defs being processed (for annotations)
+        , invs :: !RTyConInv        -- datatype invariants 
+        } deriving (Data, Typeable)
 
 instance Outputable CGEnv where
   ppr = ppr . renv
@@ -156,12 +160,8 @@ instance Show CGEnv where
   where γ' = γ { renv = insertREnv x r (renv γ) }  
         r  = normalize γ r'  
 
-normalize γ = conjoinTypeInvariant γ  . normalizePds
+normalize γ = addRTyConInv (invs γ) . normalizePds
   
-conjoinTypeInvariant     :: CGEnv -> RefType -> RefType
-conjoinTypeInvariant γ t = error "TODO: conjoinTypeInvariant" 
-
-
 -- (+=) :: (CGEnv, String) -> (F.Symbol, RefType) -> CGEnv
 (γ, msg) += (x, r)
   | x == F.dummySymbol
@@ -438,9 +438,17 @@ ppr_CGInfo cgi
 
 type CG = State CGInfo
 
-initCGI info = CGInfo [] [] [] [] F.emptySEnv 0 (AI M.empty) tyi qs
-  where tyi  = M.fromList [(c, mkRTyCon c p) | (c, p) <- tconsP $ spec info]
-        qs   = specificationQualifiers info
+initCGI info = CGInfo { 
+    hsCs       = [] 
+  , hsWfs      = [] 
+  , fixCs      = []
+  , fixWfs     = [] 
+  , globals    = F.emptySEnv
+  , freshIndex = 0
+  , annotMap   = AI M.empty
+  , tyConInfo  = M.fromList [(c, mkRTyCon c p) | (c, p) <- tconsP $ spec info] 
+  , specQuals  = specificationQualifiers info
+  }
 
 showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
@@ -834,8 +842,8 @@ varRefType γ x =  t
 instance NFData Cinfo 
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x4 x5) 
-    = x1 `seq` rnf x2 `seq` {- rnf x3  `seq` -} rnf x4
+  rnf (CGE x1 x2 x3 x4 x5 x6) 
+    = x1 `seq` rnf x2 `seq` x3 `seq` rnf x4 `seq` rnf x5 `seq` rnf x6 
 
 instance NFData SubC where
   rnf (SubC x1 x2 x3) 
@@ -901,3 +909,5 @@ bindRefType_ γ (NonRec x e)
 
 extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
+
+

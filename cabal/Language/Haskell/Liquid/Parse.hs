@@ -389,13 +389,16 @@ data Pspec ty bndr
   | Impt  Symbol
   | DDecl DataDecl
   | Incl  FilePath
+  | Invt  ty
 
-mkSpec xs    = {- Measure.qualifySpec name $ -} Measure.Spec ms as is ds incs 
-  where ms   = [m | Meas  m <- xs]
-        as   = [a | Assm  a <- xs]
-        is   = [i | Impt  i <- xs]
-        ds   = [d | DDecl d <- xs]
-        incs = [q | Incl  q <- xs]
+mkSpec xs    = {- Measure.qualifySpec name $ -} Measure.Spec 
+  { Measure.measures   = [m | Meas  m <- xs]
+  , Measure.sigs       = [a | Assm  a <- xs]
+  , Measure.invariants = [t | Invt  t <- xs] 
+  , Measure.imports    = [i | Impt  i <- xs]
+  , Measure.dataDecls  = [d | DDecl d <- xs]
+  , Measure.includes   = [q | Incl  q <- xs]
+  }
 
 specificationP 
   = do reserved "module"
@@ -407,23 +410,27 @@ specificationP
 
 
 specP 
-  = try (reserved "assume"  >> liftM Assm  tyBindP)
-    <|> (reserved "assert"  >> liftM Assm  tyBindP)
-    <|> (reserved "measure" >> liftM Meas  measureP) 
-    <|> (reserved "import"  >> liftM Impt  symbolP)
-    <|> (reserved "data"    >> liftM DDecl dataDeclP)
-    <|> (reserved "include" >> liftM Incl  filePathP)
+  = try (reserved "assume"    >> liftM Assm  tyBindP)
+    <|> (reserved "assert"    >> liftM Assm  tyBindP)
+    <|> (reserved "measure"   >> liftM Meas  measureP) 
+    <|> (reserved "import"    >> liftM Impt  symbolP)
+    <|> (reserved "data"      >> liftM DDecl dataDeclP)
+    <|> (reserved "include"   >> liftM Incl  filePathP)
+    <|> (reserved "invariant" >> liftM Invt  genBareTypeP)
 
 filePathP :: Parser FilePath
 filePathP = angles $ many1 pathCharP
   where pathCharP = choice $ char <$> pathChars 
         pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
 
-tyBindP 
-  = do name  <- binderP <* spaces 
-       dcolon 
-       ty    <- bareTypeP
-       return (name, generalize ty)
+tyBindP
+  = do name   <- binderP
+       spaces >> dcolon 
+       ty     <- genBareTypeP
+       return (name, ty)
+
+genBareTypeP
+  = liftM generalize bareTypeP 
 
 measureP 
   = do (x, ty) <- tyBindP  

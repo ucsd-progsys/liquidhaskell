@@ -22,6 +22,7 @@ TODO STACK
     2. (USE)    strengthen in consgen
 
         > 
+
     3. (CHECK)  generate constraints -- hmm.
     
         γ += (x, t) 

@@ -67,13 +67,14 @@ import qualified Language.Haskell.HsColour.CSS as CSS
 ------------------------------------------------------------------
 
 data GhcSpec = SP {
-    imports  :: ![String]
-  , tySigs   :: ![(Var, SpecType)]
-  , ctor     :: ![(Var, RefType)]
-  , meas     :: ![(Symbol, RefType)]
-  , dconsP   :: ![(DataCon, DataConP)]
-  , tconsP   :: ![(TC.TyCon, TyConP)]
-  , includes :: ![FilePath]
+    imports    :: ![String]
+  , tySigs     :: ![(Var, SpecType)]
+  , ctor       :: ![(Var, RefType)]
+  , meas       :: ![(Symbol, RefType)]
+  , dconsP     :: ![(DataCon, DataConP)]
+  , tconsP     :: ![(TC.TyCon, TyConP)]
+  , includes   :: ![FilePath]
+  , invariants :: ![SpecType]
   }
 
 data GhcInfo = GI { 
@@ -188,16 +189,18 @@ moduleSpec target mg paths
        let spec    = mconcat [spec0, spec1, spec2]
        setContext [IIModule mod]
        env        <- getSession
-       (cs, ms)   <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec $ Ms.measures  spec
-       tySigs     <- liftIO $ mkAssumeSpec env               $ Ms.sigs      spec
-       (tcs, dcs) <- liftIO $ mkConTypes env                 $ Ms.dataDecls spec 
-       return $ SP { imports = nubSort $ impNames ++ [symbolString x | x <- Ms.imports spec]
-                   , tySigs   = tySigs
-                   , ctor     = cs
-                   , meas     = ms
-                   , dconsP   = {- traceShow "dconsP:" $ -} concat dcs ++ snd wiredTyDataCons 
-                   , tconsP   = {- traceShow "tconsP:" $ -} tcs ++ fst wiredTyDataCons 
-                   , includes = Ms.includes spec
+       (cs, ms)   <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec $ Ms.measures   spec
+       tySigs     <- liftIO $ mkAssumeSpec  env              $ Ms.sigs       spec
+       (tcs, dcs) <- liftIO $ mkConTypes    env              $ Ms.dataDecls  spec 
+       invs       <- liftIO $ mkInvariants  env              $ Ms.invariants spec 
+       return $ SP { imports    = nubSort $ impNames ++ [symbolString x | x <- Ms.imports spec]
+                   , tySigs     = tySigs
+                   , ctor       = cs
+                   , meas       = ms
+                   , dconsP     = {- traceShow "dconsP:" $ -} concat dcs ++ snd wiredTyDataCons 
+                   , tconsP     = {- traceShow "tconsP:" $ -} tcs ++ fst wiredTyDataCons 
+                   , includes   = Ms.includes spec
+                   , invariants = invs
                    }
     where mod      = mg_module mg
           impNames = (moduleNameString . moduleName) <$> impMods
