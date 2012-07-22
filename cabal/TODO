@@ -7,9 +7,22 @@ TODO
 
     e.g. 
 
-    forall xs: {v: [a] | len(xs) >= 0}
+    forall xs: {v: [a] | len(xs) >= 0                  }
     forall xs: {v: [a] | tag(xs) = ':'  => len(xs) > 0 }
     forall xs: {v: [a] | tag(xs) = '[]' => len(xs) = 0 }
+
+    constant ':'  : Tag 
+    constant '[]' : Tag
+
+    Uniformly asserted for ALL bindings 
+    
+        p:[a] 
+    
+    γ += (x, t) 
+        = add x (t `strengthen` typeInvariant t) γ
+
+
+    (A) 
 
 
 GHC.List.lhs <---------- HEREHEREHEREHERE
