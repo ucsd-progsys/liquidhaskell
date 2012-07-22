@@ -3,8 +3,8 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 module GHC.List (
-   reverse 
- , foldr1
+   -- reverse , 
+   foldr1
  --, length
  ) where
 
@@ -12,15 +12,14 @@ import Data.Maybe
 import GHC.Base hiding (assert) 
 import Language.Haskell.Liquid.Prelude (crash)
 
-{-@ include <len.hquals> @-}
-
-{-@ assert reverse :: xs:[a] -> {v: [a] | len(v) = len(xs)} @-}
-
-reverse :: [a] -> [a]
-reverse l =  rev l []
-  where rev []     a = a
-        rev (x:xs) a = rev xs (x:a)
-
+--{- include <len.hquals> @-}
+--
+--{- assert reverse :: xs:[a] -> {v: [a] | len(v) = len(xs)} @-}
+--reverse :: [a] -> [a]
+--reverse l =  rev l []
+--  where rev []     a = a
+--        rev (x:xs) a = rev xs (x:a)
+--
 --{- assert length :: xs:[a] -> {v: Int | v = len(xs)}  @-}
 --length                  :: [a] -> Int
 --length l                =  len l 0#
@@ -41,7 +40,6 @@ errorEmptyList fun =
 
 prel_list_str :: String
 prel_list_str = "Prelude."
-
 
 {-@ assert foldr1 :: (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> a @-}
 foldr1            :: (a -> a -> a) -> [a] -> a
