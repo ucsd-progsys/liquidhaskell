@@ -26,7 +26,7 @@ module Language.Haskell.Liquid.RefType (
   , addTyConInfo
   , primOrderingSort
   , fromRMono, fromRPoly, idRMono
-  , RTyConInv, mkRTyConInv, addRTyConInv
+  -- , RTyConInv, mkRTyConInv, addRTyConInv
   ) where
 
 import Text.Printf
@@ -955,9 +955,12 @@ refTypePredSortedReft (r, τ) = RR so r
   where so = typeSort τ
 
 refTypeSortedReft   ::  RefType -> SortedReft
-refTypeSortedReft t = RR so r
-  where so = {- traceShow ("rTypeSort: t = " ++ showPpr t) $ -} rTypeSort t
-        r  = fromMaybe trueReft $ stripRTypeBase t 
+refTypeSortedReft t = RR (rTypeSort t) (refTypeReft t)
+
+--  where so = {- traceShow ("rTypeSort: t = " ++ showPpr t) $ -} rTypeSort t
+--        r  = refTypeReft t -- fromMaybe trueReft $ stripRTypeBase t 
+
+refTypeReft = fromMaybe trueReft . stripRTypeBase 
 
 -- RJ: Commenting this out. Why is FFunc not working?
 -- funcToObj (RR (FFunc _ _) r) = RR FObj r
@@ -989,15 +992,4 @@ instance Subable (Predicate Type) where
 instance Subable r => Subable (RType p c tv pv r) where
   subst  = fmap . subst
 
-------------------------------------------------------------------------------
------------ Data TyCon Invariants --------------------------------------------
-------------------------------------------------------------------------------
-
-type RTyConInv = M.Map RTyCon Reft
-
-addRTyConInv :: RTyConInv -> RefType -> RefType
-addRTyConInv γ t = error "TODO: conjoinTypeInvariant" 
-
-mkRTyConInv :: [SpecType] -> RTyConInv 
-mkRTyConInv = error "TODO: mkRTyConInvariants" 
 

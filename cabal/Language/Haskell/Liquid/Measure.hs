@@ -19,7 +19,7 @@ import DataCon
 import Data.Map hiding (null, partition)
 import Data.Data
 import Data.Monoid hiding ((<>))
-import Data.List (partition)
+import Data.List (foldl1', partition)
 import Data.Bifunctor
 import Control.Applicative      ((<$>))
 
@@ -147,7 +147,7 @@ dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(Symbol, RefType)])
 dataConTypes s = (ctorTys, measTys)
   where measTys = [(name m, sort m) | m <- elems $ measMap s]
         ctorTys = [(defsVar ds, defsTy ds) | (_, ds) <- toList $ ctorMap s]
-        defsTy  = reduce meet {-strengthenRefType-} . fmap defRefType 
+        defsTy  = foldl1' meet {-strengthenRefType-} . fmap defRefType 
         defsVar = dataConWorkId . ctor . safeHead "defsVar" 
 
 defRefType :: Def DataCon -> RefType

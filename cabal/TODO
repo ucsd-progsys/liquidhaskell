@@ -8,36 +8,12 @@ TODO STACK
 > GHC.List
     > data invariants <---------- HEREHEREHEREHERE
 
-
 *** Data (TyCon) invariants
-
-    0. represent as type
-
-        > spec: {... , inv :: Map RTyCon Reft }
-        
-    1. parse
-    
-        > invariant :: T
-
-    2. (USE)    strengthen in consgen
-
-        > 
-
-    3. (CHECK)  generate constraints -- hmm.
-    
-        γ += (x, t) 
-            = add x t' γ
-              where t' = conjoinTypeInvariant γ t
-
-              conjoinTypeInvariant :: CGEnv -> RefType -> RefType 
-
-
+    3. (CHECK)  generate constraints. 
     4. Add TAG measure (builtin measure)
-
-
     
     forall xs: {v: [a] | I(v)}
-
+    
     e.g. 
 
     invariant :: forall a. {v: [a] | len(v) >= 0                }

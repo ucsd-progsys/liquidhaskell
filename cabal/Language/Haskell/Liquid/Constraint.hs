@@ -36,6 +36,7 @@ import Control.Monad.Reader
 
 import Control.Exception.Base
 import Control.Applicative      ((<$>))
+import Data.Monoid              (mconcat)
 import Data.Maybe (isJust, maybeToList, fromJust, fromMaybe)
 import qualified Data.Map as M
 import Data.Bifunctor
@@ -910,4 +911,17 @@ bindRefType_ γ (NonRec x e)
 extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
 
+-------------------------------------------------------------------
+----------- Data TyCon Invariants ---------------------------------
+-------------------------------------------------------------------
 
+type RTyConInv = M.Map RTyCon F.Reft
+
+addRTyConInv :: RTyConInv -> RefType -> RefType
+addRTyConInv m t@(RApp c _ _ _) 
+  = fromMaybe t (strengthen t <$> M.lookup c m)
+addRTyConInv _ t 
+  = t 
+
+mkRTyConInv    :: [SpecType] -> RTyConInv 
+mkRTyConInv ts = mconcat <$> group [ (c, r) | RApp c _ _ (U r _) <- ts]

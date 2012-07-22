@@ -94,15 +94,17 @@ tryIgnore s a = Ex.catch a $ \e ->
                    putStrLn ("Warning: Couldn't do " ++ s ++ ": " ++ err)
                    return ()
 
-traceShow ::  Show a => String -> a -> a
+traceShow     ::  Show a => String -> a -> a
 traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x) $ x
 
-groupMap ::  Ord k => (a -> k) -> [a] -> M.Map k [a]
-groupMap f xs = foldl' adds M.empty $ zip (map f xs) xs
-  where adds  m (k, x) = M.insert k (x:finds m k) m  
-        finds m k      = case M.lookup k m of
-                           Just xs -> xs
-                           Nothing -> []
+inserts       ::  Ord k => k -> v -> M.Map k [v] -> M.Map k [v]
+inserts k v m = M.insert k (v : M.findWithDefault [] k m) m
+
+group         :: Ord k => [(k, v)] -> M.Map k [v]
+group         = foldl' (\m (k, v) -> inserts k v m) M.empty 
+
+groupMap      ::  Ord k => (a -> k) -> [a] -> M.Map k [a]
+groupMap f xs = foldl' (\m x -> inserts (f x) x m) M.empty xs 
 
 nubSort :: (Ord a) => [a] -> [a]
 nubSort = nubOrd . sort
@@ -120,8 +122,8 @@ tr_reverse      = foldl' (flip (:)) []
 tr_foldr' ::  (a -> b -> b) -> b -> [a] -> b
 tr_foldr' f b   = foldl' (flip f) b . tr_reverse 
 
-reduce f (x:xs) = foldl' f x xs
-reduce f _      = errorstar $ "reduce called on empty list!"
+-- reduce f (x:xs) = foldl' f x xs
+-- reduce f _      = errorstar $ "reduce called on empty list!"
 
 safeZip msg xs ys 
   | length xs == length ys 
