@@ -13,7 +13,6 @@ module Language.Haskell.Liquid.Prelude where
 {-@ assume geq    :: x:Int -> y:Int -> {v:Bool | ((? v) <=> x >= y)} @-}
 {-@ assume lt     :: x:Int -> y:Int -> {v:Bool | ((? v) <=> x < y)}  @-}
 {-@ assume gt     :: x:Int -> y:Int -> {v:Bool | ((? v) <=> x > y)}  @-}
-{-@ assume assert :: x:{v:Bool | (? v)} -> {v: Bool | (? v)}         @-}
 {-@ assume crash  :: forall a . x:{v:Bool | (? v)} -> a              @-}
 
 {-# NOINLINE plus #-}
@@ -60,6 +59,7 @@ gt x y = x > y
 ------------------------ Specifications ---------------------------
 -------------------------------------------------------------------
 
+{-@ assume assert :: x:{v:Bool | (? v)} -> {v: Bool | (? v)}         @-}
 {-# NOINLINE assert #-}
 assert :: Bool -> Bool
 assert b = b
