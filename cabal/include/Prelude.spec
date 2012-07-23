@@ -10,7 +10,6 @@ assume (-)   :: (Num a) => x:a -> y:a -> {v:a | v = x - y }
 assume GHC.Num.fromInteger      :: (Num a) => x:Integer -> {v:a | v = x }
 assume GHC.Integer.smallInteger :: x:GHC.Prim.Int# -> {v:Integer | v = (x :: Integer)}
 
-assume assert :: x:{v:Bool | (? v)} -> a -> a 
 
 assume Prelude.length           :: x: [a] -> { v: Int | v = len(x) }
 assume Prelude.map              :: (a -> b) -> [a] -> [b]
