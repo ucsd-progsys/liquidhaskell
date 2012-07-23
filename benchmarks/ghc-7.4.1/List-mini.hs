@@ -3,8 +3,9 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 module GHC.List (
-   -- reverse , 
-   foldr1
+ null
+ -- reverse , 
+ --foldr1
  --, length
  ) where
 
