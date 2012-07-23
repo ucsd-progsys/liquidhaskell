@@ -16,7 +16,7 @@ nonnull ([])   = false
 
 -- assume error :: {v: String | 0 = 1} -> a
 
-invariant          {v: [a] | len(v) >= 0 }
+invariant {v: [a] | len(v) >= 0 }
 
 assume True     :: {v : Bool | (? v)}
 assume False    :: {v : Bool | (~ (? v))}
