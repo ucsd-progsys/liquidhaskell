@@ -2,7 +2,7 @@ module Test0 where
 
 import Language.Haskell.Liquid.Prelude
 
-{-@ assert incr :: x:{v: Int | v > 0} -> {v: Int | v > x} @-}
+{-@ assert incr :: x:{v: Int | v >= 0} -> {v: Int | v > x} @-}
 incr   :: Int -> Int
 incr x = x + 1
 
