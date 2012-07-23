@@ -323,16 +323,18 @@ mkUnivs αs t     = foldr RAll t $ (RV <$> αs)
 mkArrs xts t     = foldr (\(x, t) -> rFun (RB x) t) t xts 
 
 -- bkArrow :: RType a -> ([TyVar], [(Symbol, RType a)],  RType a)
-bkArrow ty = (αs, xts, out)
-  where (αs, t)    = bkUniv [] ty
-        (xts, out) = bkArrs [] t
-       
+bkArrow ty = (αs, πs, xts, out)
+  where (αs, πs, t) = bkUniv ty
+        (xts,  out) = bkArrs t
 
-bkUniv αs (RAll (RV α) t) = bkUniv (α : αs) t
-bkUniv αs t               = (reverse αs, t)
+bkUniv = go [] [] 
+  where go αs πs (RAll (RV α) t) = go (α : αs) πs t
+        go αs πs (RAll (RP π) t) = go αs (π : πs) t
+        go αs πs t               = (reverse αs, reverse πs, t)
 
-bkArrs xts (RFun (RB x) t t' _ ) = bkArrs ((x,t):xts) t'
-bkArrs xts t                     = (reverse xts, t)
+bkArrs = go []
+  where go xts (RFun (RB x) t t' _ ) = go ((x,t) : xts) t'
+        go xts t                     = (reverse xts, t)
 
 rsplitVsPs (RAll (RV v) t) = (v:vs, ps, t')
   where (vs, ps, t') = rsplitVsPs t
@@ -877,10 +879,9 @@ dataConReft c τ
   | otherwise
   = Reft (vv, [RConc PTrue]) 
 
-dataConMsReft ty ys  = subst su r 
-  where (_, xts, t)  = bkArrow ty 
-        r            = fromMaybe trueReft $ stripRTypeBase t
-        su           = mkSubst [(x, EVar y) | ((x,_), y) <- zip xts ys] 
+dataConMsReft ty ys  = subst su (refTypeReft t) 
+  where (_, _, xts, t)  = bkArrow ty 
+        su              = mkSubst [(x, EVar y) | ((x,_), y) <- zip xts ys] 
 
 pprShort    =  dropModuleNames . showPpr
 

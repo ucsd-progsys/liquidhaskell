@@ -15,3 +15,18 @@ nonnull (y:ys) = true
 nonnull ([])   = false 
 
 -- assume error :: {v: String | 0 = 1} -> a
+
+invariant          {v: [a] | len(v) >= 0 }
+
+assume True     :: {v : Bool | (? v)}
+assume False    :: {v : Bool | (~ (? v))}
+assume (&&)     :: x: Bool -> y: Bool -> {v: Bool | ((? v) <=> ((? x) && (? y)))}
+assume (==)     :: (Eq  a) => x:a -> y:a -> {v:Bool | ((? v) <=> x = y)}
+assume (/=)     :: (Eq  a) => x:a -> y:a -> {v:Bool | ((? v) <=> x != y)}
+assume (>)      :: (Ord a) => x:a -> y:a -> {v:Bool | ((? v) <=> x > y)}
+assume (>=)     :: (Ord a) => x:a -> y:a -> {v:Bool | ((? v) <=> x >= y)}
+assume (<)      :: (Ord a) => x:a -> y:a -> {v:Bool | ((? v) <=> x < y)}
+assume (<=)     :: (Ord a) => x:a -> y:a -> {v:Bool | ((? v) <=> x <= y)}
+assume compare  :: (Ord a) => x:a -> y:a -> {v:Ordering | (((v = EQ) <=> x = y) && ((v = LT) <=> x < y) && ((v = GT) <=> x > y))}
+assume id       :: x:a -> {v:a | v = x}
+assume ($)      :: (x:a -> b) -> a -> b
