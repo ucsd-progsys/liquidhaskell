@@ -3,49 +3,51 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 module GHC.List (
- null
- -- reverse , 
- --foldr1
- --, length
+ take, drop
  ) where
 
 import Data.Maybe
 import GHC.Base hiding (assert) 
 import Language.Haskell.Liquid.Prelude (crash)
 
-{-@ assert null :: forall a. xs:[a] -> {v: Bool | ((? v) <=> len(xs) = 0) }  @-}
-null                    :: [a] -> Bool
-null []                 =  True
-null (_:_)              =  False
+{-@ assert take  :: n: {v: Int | v >= 0 } -> xs:[a] -> {v:[a] | len(v) = ((len(xs) < n) ? len(xs) : n) } @-}
+{- INLINE [0] take -}
+take                   :: Int -> [a] -> [a]
+take (I# n#) xs = takeUInt n# xs
 
---{- include <len.hquals> @-}
---{- assert reverse :: xs:[a] -> {v: [a] | len(v) = len(xs)} @-}
---reverse :: [a] -> [a]
---reverse l =  rev l []
---  where rev []     a = a
---        rev (x:xs) a = rev xs (x:a)
+takeUInt :: Int# -> [b] -> [b]
+takeUInt n xs
+  | n >=# 0#  =  take_unsafe_UInt n xs
+  | otherwise =  crash False -- []
 
-{-@ assert errorEmptyList :: {v: String | (0 = 1)} -> a @-}
+take_unsafe_UInt :: Int# -> [b] -> [b]
+take_unsafe_UInt 0#  _     = []
+take_unsafe_UInt mother ls =
+  case ls of
+    []     -> []
+    (x:xs) -> x : take_unsafe_UInt (mother -# 1#) xs
 
---errorEmptyList :: String -> a
---errorEmptyList fun =
---  error (prel_list_str ++ fun ++ ": empty list")
---
---prel_list_str :: String
---prel_list_str = "Prelude."
+{-@ assert drop        :: n: {v: Int | v >= 0 } -> xs:[a] -> {v:[a] | len(v) = ((len(xs) <  n) ? 0 : len(xs) - n) } @-}
+drop                   :: Int -> [a] -> [a]
+drop (I# n#) ls
+  | n# <# 0#    = ls
+  | otherwise   = drop# n# ls
+    where
+        drop# :: Int# -> [a] -> [a]
+        drop# 0# xs      = xs
+        drop# _  xs@[]   = xs
+        drop# m# (_:xs)  = drop# (m# -# 1#) xs
 
-{-@ assert foldr1 :: (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> a @-}
 
---foldr1            :: (a -> a -> a) -> [a] -> a
---foldr1 _ [x]      =  x
---foldr1 f (x:xs)   =  f x (foldr1 f xs)
---foldr1 _ []       =  errorEmptyList "foldr1"
 
---foldr1 f arg = case arg of
---                []     -> crash
---                (x:xs) -> case xs of
---                            [] -> x
---                            _  -> f x (foldr1 f xs) 
+
+
+
+
+
+
+
+
 
 
 

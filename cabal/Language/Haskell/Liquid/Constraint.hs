@@ -928,7 +928,4 @@ mkRTyConInv ts = mconcat <$> group [ (c, r) | RApp c _ _ (U r _) <- strip <$> ts
                  where strip (RAll _ t) = strip t
                        strip t          = t
 
-
-                    
-
-
+    --            fmap mconcat . group . mapMaybe extract . fmap strip

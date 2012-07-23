@@ -1,8 +1,6 @@
 TODO
 ----
 
-
-
 TODO STACK
 
 > GHC.List
@@ -22,42 +20,27 @@ TODO STACK
     invariant :: forall a. {v: [a] | (tag(v) = #[] ? len(v) = 0 : len(v) > 0) }
     invariant :: forall a. {v: Map k v | height(v) >= 0 } 
 
-    invariant :: T
-
         #:
         #[]
-
 
     constant ':'  : Tag 
     constant '[]' : Tag
 
-    Uniformly asserted for ALL bindings 
-    
-        p:[a] 
-    
-   
-
-
-    (A) 
-
 
 *** GHC.List.lhs 
-
-../benchmarks/ghc-7.4.1/List.lhs:115:1-4
-{-@ assert null :: forall a. xs:[a] -> {v: Bool | ((? v) <=> len(xs) = 0) }  @-}
-
-../benchmarks/ghc-7.4.1/List.lhs:296:1-9
-{-@ assert takeWhile    :: forall a. (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)} @-}
-
 
 ../benchmarks/ghc-7.4.1/List.lhs:400:1-4
 {-@ assert take        :: forall a. n: Int -> xs:[a] -> {v:[a] | len(v) = ((len(xs) < n) ? len(xs) : n) } @-}
 
-
 ../benchmarks/ghc-7.4.1/List.lhs:430:1-4
 {-@ assert drop        :: forall a. n: Int -> xs:[a] -> {v:[a] | len(v) = ((len(xs) <  n) ? 0 : len(xs) - n) } @-}
 
-../benchmarks/ghc-7.4.1/List.lhs:496:1-7
+../benchmarks/ghc-7.4.1/List.lhs:760:1-14] 
+../benchmarks/ghc-7.4.1/List.lhs:231:1-6,
+../benchmarks/ghc-7.4.1/List.lhs:497:1-7,
+
+../benchmarks/ghc-7.4.1/List.lhs:401:1-4,
+         ../benchmarks/ghc-7.4.1/List.lhs:431:1-4,
 
 
 FEATURES 
