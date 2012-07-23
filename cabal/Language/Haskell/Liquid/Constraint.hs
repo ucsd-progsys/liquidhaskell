@@ -924,10 +924,9 @@ addRTyConInv _ t
   = t 
 
 mkRTyConInv    :: [SpecType] -> RTyConInv 
-mkRTyConInv ts = traceShow "mkRTyConInv" 
-               $ mconcat <$> group [ (c, r) | RApp c _ _ (U r _) <- strip <$> ts]
-               where strip (RAll _ t) = strip t
-                     strip t          = t
+mkRTyConInv ts = mconcat <$> group [ (c, r) | RApp c _ _ (U r _) <- strip <$> ts]
+                 where strip (RAll _ t) = strip t
+                       strip t          = t
 
 
                     
