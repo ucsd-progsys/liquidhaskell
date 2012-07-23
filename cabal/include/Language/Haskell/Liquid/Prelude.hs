@@ -58,10 +58,20 @@ gt x y = x > y
 ------------------------ Specifications ---------------------------
 -------------------------------------------------------------------
 
-{-@ assume assert :: x:{v:Bool | (? v)} -> {v: Bool | (? v)}         @-}
-{-# NOINLINE assert #-}
-assert :: Bool -> Bool
-assert b = b
+{- assume assert :: x:{v:Bool | (? v)} -> {v: Bool | (? v)}      -}
+--{-# NOINLINE assert #-}
+--assert :: Bool -> Bool
+--assert b = b
+
+{-@ assume liquidAssert :: {v:Bool | (? v)} -> a -> a  @-}
+{-# NOINLINE liquidAssert #-}
+liquidAssert :: Bool -> a -> a 
+liquidAssert b x = x
+
+{-@ assume liquidError :: {v: String | 0 = 1} -> a  @-}
+{-# NOINLINE liquidError #-}
+liquidError :: String -> a
+liquidError = error 
 
 {-@ assume crash  :: forall a . x:{v:Bool | (? v)} -> a              @-}
 {-# NOINLINE crash #-}

@@ -42,7 +42,7 @@ module GHC.List (
 
 import Data.Maybe
 import GHC.Base
-import Language.Haskell.Liquid.Prelude (crash)
+import Language.Haskell.Liquid.Prelude (liquidError)
 
 infixl 9  !!
 infix  4 `elem`, `notElem`
@@ -59,10 +59,10 @@ infix  4 `elem`, `notElem`
 {-@ assert head         :: xs:{v: [a] | len(v) > 0} -> a @-}
 head                    :: [a] -> a
 head (x:_)              =  x
-head []                 =  badHead
+head []                 =  errorEmptyList "head"
 
 badHead :: a
-badHead = errorEmptyList "head"
+badHead = error "errorEmptyList head" -- errorEmptyList "head"
 
 -- This rule is useful in cases like 
 --      head [y | (x,y) <- ps, x==t]
@@ -77,7 +77,7 @@ badHead = errorEmptyList "head"
 {-@ assert tail         :: xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) - 1}  @-}
 tail                    :: [a] -> [a]
 tail (_:xs)             =  xs
-tail []                 =  errorEmptyList "tail"
+tail []                 =  liquidError "tail" -- errorEmptyList "tail"
 
 -- | Extract the last element of a list, which must be finite and non-empty.
 {-@ assert last         :: xs:{v: [a] | len(v) > 0} -> a @-}
@@ -85,10 +85,10 @@ last                    :: [a] -> a
 #ifdef USE_REPORT_PRELUDE
 last [x]                =  x
 last (_:xs)             =  last xs
-last []                 =  errorEmptyList "last"
+last []                 =  liquidError "last" -- errorEmptyList "last"
 #else
 -- eliminate repeated cases
-last []                 =  errorEmptyList "last"
+last []                 =  liquidError "last" -- errorEmptyList "last"
 last (x:xs)             =  last' x xs
   where last' y []     = y
         last' _ (y:ys) = last' y ys
@@ -101,10 +101,10 @@ init                    :: [a] -> [a]
 #ifdef USE_REPORT_PRELUDE
 init [x]                =  []
 init (x:xs)             =  x : init xs
-init []                 =  errorEmptyList "init"
+init []                 =  liquidError "init" -- errorEmptyList "init"
 #else
 -- eliminate repeated cases
-init []                 =  errorEmptyList "init"
+init []                 =  liquidError "init" --errorEmptyList "init"
 init (x:xs)             =  init' x xs
   where init' _ []     = []
         init' y (z:zs) = y : init' z zs
@@ -212,7 +212,7 @@ foldr1                  :: (a -> a -> a) -> [a] -> a
 foldr1 _ [x]            =  x
 foldr1 f (x:xs@(_:_))   =  f x (foldr1 f xs)
 -- foldr1 f (x:xs)      =  f x (foldr1 f xs)
-foldr1 _ []             =  errorEmptyList "foldr1"
+foldr1 _ []             =  liquidError "foldr1" -- errorEmptyList "foldr1"
 
 -- | 'scanr' is the right-to-left dual of 'scanl'.
 -- Note that
@@ -281,8 +281,9 @@ replicate n x           =  take n (repeat x)
 -- the infinite repetition of the original list.  It is the identity
 -- on infinite lists.
 
+{-@ assert cycle        :: {v: [a] | len(v) > 0 } -> [a] @-}
 cycle                   :: [a] -> [a]
-cycle []                = error "Prelude.cycle: empty list"
+cycle []                = liquidError {- error -} "Prelude.cycle: empty list"
 cycle xs                = xs' where xs' = xs ++ xs'
 
 -- | 'takeWhile', applied to a predicate @p@ and a list @xs@, returns the
@@ -601,10 +602,12 @@ concat = foldr (++) []
 -- | List index (subscript) operator, starting from 0.
 -- It is an instance of the more general 'Data.List.genericIndex',
 -- which takes an index of any integral type.
+
+{-@ assert (!!)         :: xs:[a] -> {v: Int | ((0 <= v) && (v < len(xs)))} -> a @-}
 (!!)                    :: [a] -> Int -> a
 #ifdef USE_REPORT_PRELUDE
-xs     !! n | n < 0 =  error "Prelude.!!: negative index"
-[]     !! _         =  error "Prelude.!!: index too large"
+xs     !! n | n < 0 =  liquidError {- error -} "Prelude.!!: negative index"
+[]     !! _         =  liquidError {- error -} "Prelude.!!: index too large"
 (x:_)  !! 0         =  x
 (_:xs) !! n         =  xs !! (n-1)
 #else
@@ -612,11 +615,11 @@ xs     !! n | n < 0 =  error "Prelude.!!: negative index"
 -- The semantics is not quite the same for error conditions
 -- in the more efficient version.
 --
-xs !! (I# n0) | n0 <# 0#   =  error "Prelude.(!!): negative index\n"
+xs !! (I# n0) | n0 <# 0#   =  liquidError {- error -} "Prelude.(!!): negative index\n"
                | otherwise =  sub xs n0
                          where
                             sub :: [a] -> Int# -> a
-                            sub []     _ = error "Prelude.(!!): index too large\n"
+                            sub []     _ = liquidError {- error -} "Prelude.(!!): index too large\n"
                             sub (y:ys) n = if n ==# 0#
                                            then y
                                            else sub ys (n -# 1#)
@@ -760,7 +763,7 @@ constant strings created when compiled:
 {-@ assert errorEmptyList :: {v: String | (0 = 1)} -> a @-}
 errorEmptyList :: String -> a
 errorEmptyList fun =
-  error (prel_list_str ++ fun ++ ": empty list")
+  liquidError {- error -} (prel_list_str ++ fun ++ ": empty list")
 
 prel_list_str :: String
 prel_list_str = "Prelude."

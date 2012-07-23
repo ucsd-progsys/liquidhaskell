@@ -173,10 +173,10 @@ lookupGhcDataCon = lookupGhcThing "DataCon" fdc
         fdc _            = Nothing
 
 lookupGhcId = lookupGhcThing "Id" thingId
-existsGhcId = existsGhcThing "Id" thingId
+-- existsGhcId = existsGhcThing "Id" thingId
 
--- existsGhcId s = do z <- existsGhcThing "Id" thingId s 
---                   return $ traceShow ("existsGhcId " ++ s) $ z
+existsGhcId s = do z <- existsGhcThing "Id" thingId s 
+                   return $ traceShow ("existsGhcId " ++ s) $ z
 
 thingId (AnId x)     = Just x
 thingId (ADataCon x) = Just $ dataConWorkId x
