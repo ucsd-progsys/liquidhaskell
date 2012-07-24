@@ -4,7 +4,10 @@ TODO
 TODO STACK
 
 > GHC.List
-    > data invariants <---------- HEREHEREHEREHERE
+    > List-mini.hs <---------- HEREHEREHEREHERE
+      
+      why is wild_Xa unconstrained in id 55?
+
 
 *** Data (TyCon) invariants
     3. (CHECK)  generate constraints. 
