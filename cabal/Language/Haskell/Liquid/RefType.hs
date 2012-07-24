@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.RefType (
   -- , canonRefType
   , tidyRefType
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
-  , literalRefType, literalConst
+  , literalRefType, literalReft, literalConst
   , REnv, deleteREnv, domREnv, insertREnv, lookupREnv, emptyREnv, memberREnv, fromListREnv
   , addTyConInfo
   , primOrderingSort
