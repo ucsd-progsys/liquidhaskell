@@ -4,7 +4,7 @@
 
 module GHC.List (
  -- take, drop, 
- foo, (!!) 
+ foo
  ) where
 
 import Data.Maybe
@@ -19,6 +19,8 @@ fooUInt :: Int# -> Bool
 fooUInt n 
   | n >=# 0#  = fooUInt_unsafe n
   | otherwise = liquidAssert False False
+
+-- fooUInt_unsafe n = if (n ==# 0#) then True else liquidAssert (n ># 0#) True
 
 fooUInt_unsafe 0# = True
 fooUInt_unsafe n  = liquidAssert (n ># 0#) True     -- GET THIS WORKING
@@ -50,17 +52,6 @@ fooUInt_unsafe n  = liquidAssert (n ># 0#) True     -- GET THIS WORKING
 --        drop# 0# xs      = xs
 --        drop# _  xs@[]   = xs
 --        drop# m# (_:xs)  = drop# (m# -# 1#) xs
-
---{- assert (!!)        :: xs:[a] -> {v: Int | ((0 <= v) && (v < len(xs)))} -> a @-}
---(!!)                   :: [a] -> Int -> a
---xs !! (I# n0) | n0 <# 0#  =  liquidError {- error -} "Prelude.(!!): negative index\n"
---              | otherwise =  sub xs n0
---                             where sub :: [a] -> Int# -> a
---                                   sub []     _ = liquidError {- error -} "Prelude.(!!): index too large\n"
---                                   sub (y:ys) n = if n ==# 0#
---                                                  then y
---                                                  else sub ys (n -# 1#)
-
 
 
 
