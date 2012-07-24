@@ -918,8 +918,7 @@ makeRTypeBase (TyVarTy α) x
 makeRTypeBase τ@(TyConApp c _) x 
   = rApp c [] [] x
 
-literalReft l  = exprReft e 
-  where (_, e) = literalConst l 
+literalReft                    = exprReft . snd . literalConst  
 
 literalConst l                 = (sort, mkLit l)
   where sort                   = typeSort $ literalType l 

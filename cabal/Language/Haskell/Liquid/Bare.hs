@@ -174,9 +174,8 @@ lookupGhcDataCon = lookupGhcThing "DataCon" fdc
 
 lookupGhcId = lookupGhcThing "Id" thingId
 -- existsGhcId = existsGhcThing "Id" thingId
-
 existsGhcId s = do z <- existsGhcThing "Id" thingId s 
-                   return $ traceShow ("existsGhcId " ++ s) $ z
+                   return $ if z then z else (warnShow ("existsGhcId " ++ s) $ z)
 
 thingId (AnId x)     = Just x
 thingId (ADataCon x) = Just $ dataConWorkId x

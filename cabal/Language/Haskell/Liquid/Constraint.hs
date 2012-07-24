@@ -626,7 +626,8 @@ cconsE γ (Let b e) t
 
 cconsE γ ex@(Case e x τ cases) t 
   = do γ'  <- consCB γ $ NonRec x e
-       forM_ cases $ cconsCase γ' x t
+       forM_ cases $ cconsCase γ' x t nonDefAlts 
+    where nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
 
 cconsE γ (Lam α e) (RAll _ t) | isTyVar α
   = cconsE γ e t
@@ -721,12 +722,9 @@ cconsFreshE γ e
        cconsE γ e t
        return t
 
-cconsCase :: CGEnv -> Var -> RefType -> (AltCon, [Var], CoreExpr) -> CG ()
+cconsCase :: CGEnv -> Var -> RefType -> [AltCon] -> (AltCon, [Var], CoreExpr) -> CG ()
 
-cconsCase γ _ t (DEFAULT, _, ce) 
-  = cconsE γ ce t
-
-cconsCase γ x t (DataAlt c, ys, ce) 
+cconsCase γ x t _ (DataAlt c, ys, ce) 
  = do yts'            <- mkyts γ ys yts
       let cbs          = zip (x':ys') (xt:yts')
       let cγ           = addBinders γ x' cbs
@@ -739,14 +737,21 @@ cconsCase γ x t (DataAlt c, ys, ce)
        r2              = dataConMsReft rtd ys'
        xt              = xt0 `strengthen` (r1 `meet` r2)
 
-cconsCase γ x t (LitAlt l, [], ce) 
+cconsCase γ x t acs (a, _, ce) 
   = cconsE cγ ce t
-  where cγ  = addBinders γ x' [(x', xt)]
+  where cγ  = addBinders γ x' [(x', xt')]
         x'  = mkSymbol x
-        xt  = (γ ?= x')`meet` (literalRefType l)
+        xt' = altRefType (γ ?= x') acs a 
 
-cconsCase γ x t z 
-  = errorstar $ "cconsCase TBD: handle " ++ showPpr z
+altRefType t _   (LitAlt l) 
+  = t `meet` (literalRefType l)
+    -- TODO: SIMPLIFY TO: t `strengthen` literalReft l
+
+altRefType t acs DEFAULT    
+  = t `strengthen` (mconcat [notLiteralReft l | LitAlt l <- acs])
+          
+notLiteralReft =  F.notExprReft . snd . literalConst 
+
 
 mkyts γ ys yts = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts
 mkyt (γ, ts) (y, yt)

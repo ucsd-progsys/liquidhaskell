@@ -18,7 +18,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , vv
   , trueReft, trueSortedReft 
   , trueRefa
-  , canonReft, exprReft, symbolReft
+  , canonReft, exprReft, notExprReft, symbolReft
   , isNonTrivialSortedReft
   , isTautoReft
   , ppr_reft, ppr_reft_pred, flattenRefas
@@ -843,7 +843,9 @@ mkSubst = Su . M.fromList
 ------------------------------------------------------------
 
 symbolReft = exprReft . EVar 
-exprReft e = Reft (vv, [RConc $ PAtom Eq (EVar vv) e])
+
+exprReft e    = Reft (vv, [RConc $ PAtom Eq (EVar vv) e])
+notExprReft e = Reft (vv, [RConc $ PAtom Ne (EVar vv) e])
 
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft) 
