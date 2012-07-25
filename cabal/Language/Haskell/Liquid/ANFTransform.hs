@@ -16,6 +16,7 @@ import DsMonad			(DsM, initDs)
 import Id               (mkSysLocalM)
 import FastString       (fsLit)
 import Type             (isPrimitiveType)
+import Var              (varType)
 import Control.Monad
 import Language.Haskell.Liquid.Misc (traceShow)
 import Language.Haskell.Liquid.Fixpoint                 (anfPrefix)
@@ -117,7 +118,8 @@ normalize (Let b e)
 normalize (Case e x t as)
   = do (bs, n) <- normalizeScrutinee e 
        as'     <- forM as $ \(c, xs, e) -> liftM ((c, xs,) . stitch) (normalize e)
-       return  $ (bs, Case n x t as')
+       x'      <- freshNormalVar $ varType x -- rename "wild" to avoid shadowing
+       return  $ (bs, Case n x' t as')
 
 normalize e@(Var _)
   = return ([], e)

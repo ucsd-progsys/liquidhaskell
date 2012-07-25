@@ -864,8 +864,8 @@ primOrderingSort = typeSort $ dataConRepType eqDataCon
 ordCon s = EDat (S s) primOrderingSort
 
 -- TODO: turn this into a map lookup?
--- dataConReft   ::  DataCon -> Type -> Reft 
-dataConReft c τ
+-- dataConReft   ::  DataCon -> [Symbol] -> Reft 
+dataConReft c [] 
   | c == trueDataCon
   = Reft (vv, [RConc $ (PBexp (EVar vv))]) 
   | c == falseDataCon
@@ -876,8 +876,13 @@ dataConReft c τ
   = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon "GT"))]) 
   | c == ltDataCon
   = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon "LT"))]) 
-  | otherwise
+dataConReft c [x] 
+  | c == intDataCon 
+  = Reft (vv, [RConc (PAtom Eq (EVar vv) (EVar x))]) 
+dataConReft _ _
   = Reft (vv, [RConc PTrue]) 
+
+
 
 dataConMsReft ty ys  = subst su (refTypeReft t) 
   where (_, _, xts, t)  = bkArrow ty 

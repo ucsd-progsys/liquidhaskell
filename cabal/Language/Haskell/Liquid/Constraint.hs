@@ -608,7 +608,7 @@ consCB γ b@(NonRec x e)
   = do rt <- consE γ e
        let t = {-traceShow ("Unify for "  ++ show x' ++ "\n\n"++ show e ++ "\n\n" ++ show rt ++ "\n" ++ show pt ++ "\n")$-} unify pt rt
        addIdA x (Left t)
-       return $  γ ++= (x', t)
+       return $  (γ, "consCB2") += (x', t)
     where x' = mkSymbol x
           pt = getPrType γ x'
 
@@ -733,7 +733,7 @@ cconsCase γ x t _ (DataAlt c, ys, ce)
        xt0             = checkTyCon x $ γ ?= x'
        tdc             = γ ?= (dataConSymbol c)
        (rtd, yts, xt') = unfoldR tdc xt0 ys'
-       r1              = dataConReft c $ varType x
+       r1              = dataConReft   c   ys' 
        r2              = dataConMsReft rtd ys'
        xt              = xt0 `strengthen` (r1 `meet` r2)
 
