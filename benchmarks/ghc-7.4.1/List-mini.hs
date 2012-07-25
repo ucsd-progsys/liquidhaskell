@@ -14,9 +14,11 @@ import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
 
 {-@ assert mtake  :: n: {v: Int | 0 <= v} -> [a] -> {v:[a] | (len(v) = n)} @-}
 mtake          :: Int -> [a] -> [a]
+-- OK mtake n xs = if n == 0 then [] else case xs of z:zs -> z : mtake (n-1) zs
+
 mtake 0 _      = []
--- mtake n (x:xs) = x : (take (n-1) xs)
 mtake n (x:xs) = x : (mtake ((liquidAssert (n > 0) n)-1) xs)
+--OK: mtake n (x:xs) = x : (take (n-1) xs)
 
 {- assert take  :: n: {v: Int | v >= 0 } -> xs:[a] -> {v:[a] | len(v) = ((len(xs) < n) ? len(xs) : n) } @-}
 
