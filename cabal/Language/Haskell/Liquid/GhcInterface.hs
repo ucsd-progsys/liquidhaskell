@@ -395,7 +395,7 @@ instance CBVisitable (Expr Var) where
   freeVars env (Let b e)       = (freeVars env b) ++ (freeVars (extendEnv env (bindings b)) e)
   freeVars env (Tick _ e)      = freeVars env e
   freeVars env (Cast e _)      = freeVars env e
-  freeVars env (Case e _ _ cs) = (freeVars env e) ++ (concatMap (freeVars env) cs) 
+  freeVars env (Case e x _ cs) = (freeVars env e) ++ (concatMap (freeVars (extendEnv env [x])) cs) 
   freeVars env (Lit _)         = []
   freeVars env (Type _)	       = []
 

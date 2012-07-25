@@ -52,14 +52,14 @@ glue :: k -> Map k a -> Map k a -> Map k a
 glue k Tip r = r
 glue k l Tip = l
 glue k l r
-  | size l > size r = let P km vm lm = deleteFindMax l in balance km vm lm r
-  | otherwise       = let P km vm rm = deleteFindMin r in balance km vm l rm
+  | size l > size r = let P km1 vm lm = deleteFindMax l in balance km1 vm lm r
+  | otherwise       = let P km2 vm rm = deleteFindMin r in balance km2 vm l rm
 
 deleteFindMax :: Map k a -> Pair k a
 deleteFindMax t 
   = case t of
       Bin _ k x l Tip -> P k x l
-      Bin _ k x l r -> let P km vm rm = deleteFindMax r in P km vm (balance k x l rm) 
+      Bin _ k x l r -> let P km3 vm rm = deleteFindMax r in P km3 vm (balance k x l rm) 
       Tip             -> P (error ms) (error ms) Tip
   where ms = "Map.deleteFindMax : can not return the maximal element of an empty Map"   
 
@@ -68,7 +68,7 @@ deleteFindMin :: Map k a -> Pair k a
 deleteFindMin t 
   = case t of
       Bin _ k x Tip r -> P k x r
-      Bin _ k x l r -> let P km vm lm = deleteFindMin l in P km vm (balance k x lm r) 
+      Bin _ k x l r -> let P km4 vm lm = deleteFindMin l in P km4 vm (balance k x lm r) 
       Tip             -> P (error ms) (error ms) Tip
   where ms = "Map.deleteFindMin : can not return the maximal element of an empty Map"   
 

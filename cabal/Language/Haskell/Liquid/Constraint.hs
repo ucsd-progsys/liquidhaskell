@@ -110,7 +110,7 @@ initEnv info penv
        let f3    = ctor $ spec info   -- constructor refinements  (for measures) 
        let bs    = ((second (addTyConInfo tyi))  . (unifyts penv) <$> concat [f0, f2, f3])
        let γ0    = measEnv (spec info) penv
-       return    $ foldl' (++=) γ0 bs 
+       return    $ foldl' (++=) γ0 [("initEnv", x, y) | (x, y) <- bs] 
   
 measEnv sp penv 
   = CGE { loc  = noSrcSpan
@@ -153,12 +153,13 @@ instance Show CGEnv where
   show = showPpr
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
-γ ++= (x, r') 
+γ ++= (msg, x, r') 
   | isBase r 
   = γ' { fenv = F.insertSEnv x (refTypeSortedReft r) (fenv γ) }
   | otherwise
   = γ' { fenv = insertFEnvClass r (fenv γ) }
-  where γ' = γ { renv = insertREnv x r (renv γ) }  
+  where γ' = -- trace ("insertRenv " ++ msg ++ " x = " ++ show x ++ " r = " ++ showPpr r) $ 
+             γ { renv = insertREnv x r (renv γ) }  
         r  = normalize γ r'  
 
 normalize γ = addRTyConInv (invs γ) . normalizePds
@@ -170,7 +171,7 @@ normalize γ = addRTyConInv (invs γ) . normalizePds
   | x `memberREnv` (renv γ)
   = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ show x -- ++ " in REnv!\n\n" ++ show γ
   | otherwise
-  = γ ++= (x, r) 
+  =  γ ++= (msg, x, r) 
 
 γ -= x 
   =  γ { renv = deleteREnv x (renv γ) } { fenv = F.deleteSEnv x (fenv γ) }
@@ -322,11 +323,11 @@ rsplitW γ (RMono r, ((PV _ t as)))
   where env' = fenv γ'
         ci   = Ci (loc γ)
         r'   = funcToObj $ refTypePredSortedReft (r, t)
-        γ'   = foldl' (++=) γ (map (\(τ, x, _) -> (x, ofType τ)) as) 
+        γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitW1", x, ofType τ)) as) 
 
 rsplitW γ (RPoly t0, (PV _ t as))
   = splitW (WfC γ' t0)
-  where γ'   = foldl' (++=) γ (map (\(τ, x, _) -> (x, ofType τ)) as) 
+  where γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitW2", x, ofType τ)) as) 
 
 ------------------------------------------------------------
 splitC :: SubC -> [FixSubC]
@@ -396,10 +397,10 @@ rsplitC γ ((RMono r1, RMono r2), (PV _ t as))
         ci   = Ci (loc γ)
         r1'  = refTypePredSortedReft (r1, t)
         r2'  = refTypePredSortedReft (r2, t)
-        γ'   = foldl' (++=) γ (map (\(τ, x, _) -> (x, ofType τ)) as) 
+        γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitC1", x, ofType τ)) as) 
 rsplitC γ ((RPoly r1, RPoly r2), PV _ t as)
   = splitC (SubC γ' r1 r2)
-  where γ'   = foldl' (++=) γ (map (\(τ, x, _) -> (x, ofType τ)) as) 
+  where γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitC2", x, ofType τ)) as) 
 rsplitC γ ((RPoly t, RMono r), p)  = error "rplit Rpoly - RMono"
 {-  = case stripRTypeBase t of 
      Just x  -> rsplitC γ ((RMono x, (RMono r)), p)
@@ -595,7 +596,7 @@ consCB :: CGEnv -> CoreBind -> CG CGEnv
 consCB γ (Rec xes) 
   = do rts <- mapM (\e -> freshTy_pretty e $ exprType e) es
        let ts = (\(pt, rt) -> unify pt rt) <$> (zip pts rts)
-       let γ' = foldl' (\γ z -> (γ, "consCB") += z) (γ `withRecs` xs) (zip vs ts)
+       let γ' = foldl' (\γ z -> (γ, "consCB1") += z) (γ `withRecs` xs) (zip vs ts)
        zipWithM_ (cconsE γ') es  ts
        zipWithM_ addIdA xs (Left <$> ts)
        mapM_     addW (WfC γ <$> rts)
@@ -608,7 +609,7 @@ consCB γ b@(NonRec x e)
   = do rt <- consE γ e
        let t = {-traceShow ("Unify for "  ++ show x' ++ "\n\n"++ show e ++ "\n\n" ++ show rt ++ "\n" ++ show pt ++ "\n")$-} unify pt rt
        addIdA x (Left t)
-       return $  (γ, "consCB2") += (x', t)
+       return $  γ ++= ("consCB2", x', t)
     where x' = mkSymbol x
           pt = getPrType γ x'
 
@@ -752,13 +753,13 @@ altRefType t acs DEFAULT
           
 notLiteralReft =  F.notExprReft . snd . literalConst 
 
-
-mkyts γ ys yts = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts
+mkyts γ ys yts 
+  = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts
 mkyt (γ, ts) (y, yt)
   = do t' <- freshTy (Var y) (toType yt)
        addC (SubC γ yt t') "mkyts"
        addW (WfC γ t') 
-       return (γ++= (mkSymbol y,t'), t':ts) 
+       return (γ ++= ("mkyt", mkSymbol y, t'), t':ts) 
 
 unfoldR td t0@(RApp tc ts rs _) ys = (t3, yts, rt)
   where (vs, ps, t0) = rsplitVsPs td
@@ -780,10 +781,8 @@ instance Show CoreExpr where
   show = showSDoc . ppr
 
 addBinders γ0 x' cbs 
-  = foldl' wr γ0 cbs
-    where γ1     = {- traceShow ("addBinders γ0 = " ++ (show $ domREnv $ renv γ0))    $ -} (γ0 -= x')
-          wr γ z = {- traceShow ("\nWrapper: keys γ = " ++ (show $ domREnv $ renv γ)) $ -} γ ++= z
-          γ2     = if x' `memberREnv` (renv γ1) then error "DIE DIE DIE" else γ1
+  = foldl' (++=) (γ0 -= x') [("addBinders", x, t) | (x, t) <- cbs]
+    -- where wr γ (x, t) = γ ++= ("addBinders", x, t) 
 
 checkTyCon _ t@(RApp _ _ _ _) = t
 checkTyCon x t                = errorstar $ showPpr x ++ "type: " ++ showPpr t
@@ -821,7 +820,7 @@ freshPredRef γ e pd@(PV n τ as)
   = do t <- freshTy e τ
        addW $ WfC γ' t
        return t
-  where γ' = foldl' (++=) γ (map (\(τ, x, _) -> (x, ofType τ)) as) 
+  where γ' = foldl' (++=) γ (map (\(τ, x, _) -> ("freshPredRef", x, ofType τ)) as) 
 
 tySort (RVar _ (F.Reft(_, [a])))     = a
 tySort (RApp _ _ _ (F.Reft(_, [a]))) = a
