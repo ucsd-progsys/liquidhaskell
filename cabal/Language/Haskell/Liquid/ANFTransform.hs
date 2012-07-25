@@ -74,13 +74,22 @@ normalizeName _ e@(Lit (LitInteger _ _))
 normalizeName _ e@(Tick _ (Lit (LitInteger _ _))) 
   = normalizeLiteral e 
 
-normalizeName _ e
-  | isBase e
+normalizeName γ (Var x)
+  = return ([], Var (lookupWithDefaultVarEnv γ x x))
+
+normalizeName _ e@(Type _)
   = return ([], e)
 
-normalizeName _ e@(Tick _ e')
-  | isBase e'
+normalizeName _ e@(Lit _)
   = return ([], e)
+
+-- normalizeName _ e@(Tick n e')
+  -- | isBase e'
+  -- = return ([], e)
+  
+normalizeName γ (Tick n e)
+  = do (bs, e') <- normalizeName γ e
+       return (bs, Tick n e')
 
 normalizeName γ e
   = do (bs, e') <- normalize γ e
@@ -104,10 +113,10 @@ normalizeLiteral e =
 
 freshNormalVar = mkSysLocalM (fsLit anfPrefix)
 
-isBase (Var  _)   = True
-isBase (Type _)   = True
-isBase e@(Lit  _) = True
-isBase _          = False
+-- isBase (Var  _)   = True
+--isBase (Type _)   = True
+--isBase e@(Lit  _) = True
+--isBase _          = False
 
 
 ---------------------------------------------------------------------
