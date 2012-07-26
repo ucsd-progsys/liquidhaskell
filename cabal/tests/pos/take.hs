@@ -9,7 +9,7 @@ module GHC.List (
 
 import Data.Maybe
 import GHC.Base 
-import Language.Haskell.Liquid.Prelude (liquidAssertB, liquidError) 
+import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError) 
 
 
 {-@ assert take0  :: n: {v: Int | 0 <= v} -> [a] -> {v:[a] | (len(v) = n)} @-}
@@ -27,7 +27,7 @@ take (I# n#) xs = takeUInt n# xs
 takeUInt :: Int# -> [a] -> [a]
 takeUInt n xs
   | n >=# 0#  =  take_unsafe_UInt n xs
-  | otherwise =  liquidAssertB False []
+  | otherwise =  liquidAssert False []
 
 take_unsafe_UInt :: Int# -> [a] -> [a]
 take_unsafe_UInt 0#  _     = []

@@ -8,7 +8,6 @@ module GHC.List (
 
 import Data.Maybe
 import GHC.Base 
-import Language.Haskell.Liquid.Prelude (liquidAssertB, liquidError) 
 
 {-@ assert ztake  :: n: {v: GHC.Prim.Int# | 0 <= v} -> {v: Int | v = n } @-}
 ztake :: Int# -> Int
