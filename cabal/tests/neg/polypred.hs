@@ -3,7 +3,7 @@ module Concat where
 import Language.Haskell.Liquid.Prelude
 
 prop :: Int -> Bool
-prop x = assert (x == 0)
+prop x = liquidAssert (x == 0)
 
 foo :: a -> Int
 foo longVarName = choose 20 

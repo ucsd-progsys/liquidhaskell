@@ -12,8 +12,8 @@ x =  choose 0
 
 prop_id4 = let x'  = myabs x in 
            let x'' = myid2 x' [] in 
-           assert (x'' >= 0) 
+           liquidAssert (x'' >= 0) 
 
-prop_id5 = assert (x'' >= 0)
+prop_id5 = liquidAssert (x'' >= 0)
   where x'  = myabs x 
         x'' = myid2 x' [] 

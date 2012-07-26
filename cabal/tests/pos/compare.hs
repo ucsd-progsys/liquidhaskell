@@ -4,9 +4,9 @@ import Language.Haskell.Liquid.Prelude
 
 foo x y
  = case compare x y of 
-    EQ -> assert (x == y)
-    LT -> assert (x < y)
-    GT -> assert (x > y)
+    EQ -> liquidAssert (x == y)
+    LT -> liquidAssert (x < y)
+    GT -> liquidAssert (x > y)
 
 prop = foo n m 
   where n = choose 0

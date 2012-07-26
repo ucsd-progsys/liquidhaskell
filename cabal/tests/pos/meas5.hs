@@ -25,15 +25,15 @@ zs = [1..100]
 zs' :: [Int]
 zs' = [500..1000]
 
-prop2 = assert (n1 == n2) 
+prop2 = liquidAssert (n1 == n2) 
   where n1 = mylen zs
         n2 = mylen $ mymap (+ 1) zs 
 
-prop3 = assert (n1 == n2) 
+prop3 = liquidAssert (n1 == n2) 
   where n1 = mylen zs
         n2 = mylen $ myreverse zs 
 
-prop4 = assert ((n1 + n2) == n3) 
+prop4 = liquidAssert ((n1 + n2) == n3) 
   where n1 = mylen zs
         n2 = mylen zs'
         n3 = mylen $ myapp zs zs' 

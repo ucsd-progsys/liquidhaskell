@@ -2,4 +2,4 @@ module Range where
 
 import Language.Haskell.Liquid.Prelude
 
-prop0 = assert True 
+prop0 = liquidAssert True 

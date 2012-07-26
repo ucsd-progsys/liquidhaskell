@@ -16,7 +16,7 @@ range i j = C i N
 
 n = choose 0
 
-prop_rng1 = (assert . (0 <=)) `lmap` range 0 n
+prop_rng1 = (liquidAssert . (0 <=)) `lmap` range 0 n
 
 --poo :: LL Int
 poo = C (1 :: Int) 

@@ -8,7 +8,7 @@ myabs x    = if x `gt` 0 then x else 0 `minus` x
 
 myid3 x y  = y
 
-prop_id6 = assert (x' `geq` 10)
+prop_id6 = liquidAssert (x' `geq` 10)
   where x' = myid3 [] $ myabs n 
         n  = choose 0
 

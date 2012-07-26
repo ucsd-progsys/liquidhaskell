@@ -16,4 +16,4 @@ n           = choose 0
 prop_baz    = chk (baz n) 
 
 chk :: Pair Int Int -> Bool								
-chk (P x y) = assert (x <= y)
+chk (P x y) = liquidAssert (x <= y)

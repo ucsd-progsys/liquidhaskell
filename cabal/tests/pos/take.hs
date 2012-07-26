@@ -8,7 +8,7 @@ module GHC.List (
   ) where
 
 import Data.Maybe
-import GHC.Base hiding (assert) 
+import GHC.Base hiding (liquidAssert) 
 import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError) 
 
 

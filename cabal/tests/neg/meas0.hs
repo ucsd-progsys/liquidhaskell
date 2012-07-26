@@ -6,8 +6,8 @@ import Language.Haskell.Liquid.Prelude
 goo x = []
 
 poo (x:_) = True
-poo ([])  = assert False
+poo ([])  = liquidAssert False
 
 xs = goo (choose 0)
 
-prop1 = assert (poo xs)
+prop1 = liquidAssert (poo xs)

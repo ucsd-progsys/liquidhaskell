@@ -12,6 +12,6 @@ mymap f (x:xs) = (f x) : (mymap f xs)
 zs :: [Int]
 zs = [1..100]
 
-prop2 = assert (n1 == n2) 
+prop2 = liquidAssert (n1 == n2) 
   where n1 = mylen zs
         n2 = mylen $ mymap (+ 1) zs 

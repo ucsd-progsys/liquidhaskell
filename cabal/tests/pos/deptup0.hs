@@ -14,5 +14,5 @@ prop :: Bool
 prop = chk $ baz n
   where n = choose 100
 
-chk (P x y) = assert (x < y)
+chk (P x y) = liquidAssert (x < y)
 

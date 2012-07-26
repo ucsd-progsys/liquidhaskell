@@ -25,7 +25,7 @@ myconcat2 f = myconcat
 r :: Int
 r = 5
 
-prop x = assert (x == r)
+prop x = liquidAssert (x == r)
 
 -- ok 
 -- propC0 = map prop $ myconcat foo

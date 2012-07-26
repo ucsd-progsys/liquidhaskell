@@ -24,7 +24,7 @@ chk2 y =
    Nil -> True
    Cons x1 xs -> case xs of 
                  Nil -> True
-                 Cons x2 xs2 -> assert (x1 == x2) && chk2 xs2
+                 Cons x2 xs2 -> liquidAssert (x1 == x2) && chk2 xs2
 																	
 n, m :: Int
 n = choose 0

@@ -15,5 +15,5 @@ bob ms = case ms of
 zs :: [Int]
 zs = [1..100]
 
-prop2 = assert (n2 `eq` 0) 
+prop2 = liquidAssert (n2 `eq` 0) 
   where n2 = bob zs

@@ -15,7 +15,7 @@ chooseList x = [choose x]
 r :: Int
 r = 5
 
-prop x = assert (x == r)
+prop x = liquidAssert (x == r)
 
 propMap  = map prop $ myconcatmap chooseList foo
 propMap1 = map prop $ concatmap   chooseList foo

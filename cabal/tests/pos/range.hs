@@ -18,8 +18,8 @@ myfoldl f z0 xs0 = lgo z0 xs0
 n = choose 0 
 m = choose 1
 
--- prop_rng1 = map (assert . (0 <=)) $ range 0 n
--- prop_rng2 = map (assert . (n <=)) $ range n 100
--- prop_rng3 = map (assert . (n <=)) $ range n m
--- prop_rng4 = map (assert . (<= m)) $ range n m 
-prop_rng5 = assert (0 <= sumTo n)
+-- prop_rng1 = map (liquidAssert . (0 <=)) $ range 0 n
+-- prop_rng2 = map (liquidAssert . (n <=)) $ range n 100
+-- prop_rng3 = map (liquidAssert . (n <=)) $ range n m
+-- prop_rng4 = map (liquidAssert . (<= m)) $ range n m 
+prop_rng5 = liquidAssert (0 <= sumTo n)

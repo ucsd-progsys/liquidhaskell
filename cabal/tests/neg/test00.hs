@@ -6,4 +6,4 @@ x = choose 0
 
 prop_abs = if x > 0 then baz x else False
 
-baz z = assert (z `geq` 10)
+baz z = liquidAssert (z `geq` 10)

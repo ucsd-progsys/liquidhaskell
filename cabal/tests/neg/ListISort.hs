@@ -5,10 +5,10 @@ import Language.Haskell.Liquid.Prelude
 insert y []     = [y]
 insert y (x:xs) = if (y<=x) then (y:(x:xs)) else (x:(insert y xs))
 
-chk [] = assert True
+chk [] = liquidAssert True
 chk (x1:xs) = case xs of 
-               []     -> assert True
-               x2:xs2 -> assert (x1 <= x2) && chk xs
+               []     -> liquidAssert True
+               x2:xs2 -> liquidAssert (x1 <= x2) && chk xs
 																	
 sort = foldr insert []
 

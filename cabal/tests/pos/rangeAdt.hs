@@ -20,9 +20,9 @@ sumTo = foldL plus 0 . range 0
 n = choose 0 
 m = choose 1
 
-prop_rng1 = mapL (assert . (0 <=)) $ range 0 n
-prop_rng2 = mapL (assert . (n <=)) $ range n 100
-prop_rng3 = mapL (assert . (n <=)) $ range n m
-prop_rng4 = mapL (assert . (<= m)) $ range n m 
-prop_rng5 = assert (0 <= sumTo n)
+prop_rng1 = mapL (liquidAssert . (0 <=)) $ range 0 n
+prop_rng2 = mapL (liquidAssert . (n <=)) $ range n 100
+prop_rng3 = mapL (liquidAssert . (n <=)) $ range n m
+prop_rng4 = mapL (liquidAssert . (<= m)) $ range n m 
+prop_rng5 = liquidAssert (0 <= sumTo n)
 

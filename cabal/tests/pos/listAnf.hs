@@ -14,7 +14,7 @@ data List a
 
 checkSort Nil                        = True
 checkSort (_ `Cons` Nil)             = True
-checkSort (x1 `Cons` (x2 `Cons` xs)) = assert (x1 <= x2) && checkSort (x2 `Cons` xs)
+checkSort (x1 `Cons` (x2 `Cons` xs)) = liquidAssert (x1 <= x2) && checkSort (x2 `Cons` xs)
 
 z3 :: List Integer 
 z3    = 3 `Cons` (6 `Cons` Nil)

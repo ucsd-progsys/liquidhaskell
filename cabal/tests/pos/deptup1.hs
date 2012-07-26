@@ -14,5 +14,5 @@ bazList xs  = map baz xs
 n           = choose 0
 xs          = [0..n]
 
-chk (P x y) = assert (x < y)
+chk (P x y) = liquidAssert (x < y)
 prop_baz    = map chk $ bazList xs 

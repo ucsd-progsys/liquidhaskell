@@ -19,5 +19,5 @@ foo = baz n
  where n = choose 10
 -}
 chk :: Pair Int Int -> Bool
-chk (P x y) = assert (x < y)
+chk (P x y) = liquidAssert (x < y)
 

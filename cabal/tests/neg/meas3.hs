@@ -20,5 +20,5 @@ goo _ = 1
 bloo :: [Int] -> Int
 bloo _ = 0
 
-prop1 = assert (n1 `eq` 0) 
+prop1 = liquidAssert (n1 `eq` 0) 
   where n1 = mylen zs

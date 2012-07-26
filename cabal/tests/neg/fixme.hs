@@ -8,7 +8,7 @@ foo = [[1], [2,2]]
 r :: Int
 r = 5
 
-prop x = assert (x == r)
+prop x = liquidAssert (x == r)
 
 myconcat0 :: [[Int]] -> [Int]
 myconcat0 []     = []

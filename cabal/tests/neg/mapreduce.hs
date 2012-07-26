@@ -30,8 +30,8 @@ addKV m (k, v) = M.insert k vs' m
 ----------------------------------------------------------------
 
 collapse f = M.foldrWithKey reduceKV []
-  where reduceKV k (v:vs) acc = if assert False then (k, foldl' f v vs) : acc else acc
-        reduceKV k []     _   = crash False --error $ show (assert False)
+  where reduceKV k (v:vs) acc = if liquidAssert False then (k, foldl' f v vs) : acc else acc
+        reduceKV k []     _   = crash False --error $ show (liquidAssert False)
 
 ----------------------------------------------------------------
 --- Putting it All Together ------------------------------------
