@@ -59,7 +59,7 @@ gt x y = x > y
 -------------------------------------------------------------------
 
 {-@ assume liquidAssertB :: x:{v:Bool | (? v)} -> {v: Bool | (? v)} @-}
-{-# NOINLINE assert #-}
+{-# NOINLINE liquidAssertB #-}
 liquidAssertB :: Bool -> Bool
 liquidAssertB b = b
 
