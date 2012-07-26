@@ -48,8 +48,8 @@ eval sto (Lam x e)
 -----------------------------------------------------------------------
 
 check (Lam _ _)    = True
-check (Var _)      = liquidAssert False
-check (App _ _)    = liquidAssert False
+check (Var _)      = liquidAssertB False
+check (App _ _)    = liquidAssertB False
 
 -----------------------------------------------------------------------
 ---------------------------- Unit Tests -------------------------------

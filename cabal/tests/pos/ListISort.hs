@@ -1,6 +1,6 @@
 module ListSort where
 
-import Language.Haskell.Liquid.Prelude -- (liquidAssert, choose)
+import Language.Haskell.Liquid.Prelude -- (liquidAssertB, choose)
 
 -- insertSort :: (Ord a) => [a] -> [a]
 insertSort                    = foldr insert []
@@ -10,9 +10,9 @@ insert y (x : xs) | y <= x    = y : x : xs
                   | otherwise = x : insert y xs
 
 -- checkSort ::  (Ord a) => [a] -> Bool
-checkSort []                  = liquidAssert True
-checkSort [_]                 = liquidAssert True
-checkSort (x1:x2:xs)          = liquidAssert (x1 <= x2) && checkSort (x2:xs)
+checkSort []                  = liquidAssertB True
+checkSort [_]                 = liquidAssertB True
+checkSort (x1:x2:xs)          = liquidAssertB (x1 <= x2) && checkSort (x2:xs)
 
 -----------------------------------------------------------------------
 

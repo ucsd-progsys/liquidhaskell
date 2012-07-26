@@ -29,7 +29,7 @@ chk y =
    Nil -> True
    Cons x1 xs -> case xs of 
                  Nil -> True
-                 Cons x2 xs2 -> liquidAssert (x1 <= x2) && chk xs
+                 Cons x2 xs2 -> liquidAssertB (x1 <= x2) && chk xs
 																	
 bar = quicksort $ mkList [1 .. 100]
 

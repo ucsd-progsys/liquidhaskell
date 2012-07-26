@@ -16,7 +16,7 @@ incr x = x + 1
 
 baz x  = mkP x (incr x)
 
-chk (P x y) = liquidAssert (x < y)
+chk (P x y) = liquidAssertB (x < y)
 
 prop = chk $ baz n
   where n = choose 100

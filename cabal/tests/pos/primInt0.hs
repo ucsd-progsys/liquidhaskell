@@ -7,8 +7,8 @@ module GHC.List (
  ) where
 
 import Data.Maybe
-import GHC.Base hiding (liquidAssert) 
-import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError) 
+import GHC.Base hiding (liquidAssertB) 
+import Language.Haskell.Liquid.Prelude (liquidAssertB, liquidError) 
 
 {-@ assert ztake  :: n: {v: GHC.Prim.Int# | 0 <= v} -> {v: Int | v = n } @-}
 ztake :: Int# -> Int

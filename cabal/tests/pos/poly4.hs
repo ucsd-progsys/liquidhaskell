@@ -6,4 +6,4 @@ x     = choose 0
 
 baz y = y
 
-prop  = liquidAssert (baz True)
+prop  = liquidAssertB (baz True)

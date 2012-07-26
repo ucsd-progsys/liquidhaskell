@@ -83,12 +83,12 @@ eval sto (Snd e)
 
 check (Const _)    = True
 check (Lam _ _)    = True
-check (Var _)      = liquidAssert False
-check (App _ _)    = liquidAssert False
+check (Var _)      = liquidAssertB False
+check (App _ _)    = liquidAssertB False
 check (Pair v1 v2) = check v1 && check v2
-check (Fst _)      = liquidAssert False
-check (Snd _)      = liquidAssert False
-check (Plus _ _)   = liquidAssert False
+check (Fst _)      = liquidAssertB False
+check (Snd _)      = liquidAssertB False
+check (Plus _ _)   = liquidAssertB False
 
 ---------------------------------------------------------------------
 -------------------------- Unit Tests -------------------------------

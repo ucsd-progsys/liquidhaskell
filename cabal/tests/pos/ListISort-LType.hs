@@ -20,7 +20,7 @@ checkSort Nil
 checkSort (_ `Cons` Nil)             
   = True
 checkSort (x1 `Cons` (x2 `Cons` xs)) 
-  = liquidAssert (x1 <= x2) && checkSort (x2 `Cons` xs)
+  = liquidAssertB (x1 <= x2) && checkSort (x2 `Cons` xs)
 
 xs0 :: List Int
 xs0   = Nil

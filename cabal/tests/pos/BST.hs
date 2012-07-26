@@ -39,17 +39,17 @@ getMin (Bind k v Empty rt) = P k v rt
 getMin (Bind k v lt rt)    = P k0min v0min (Bind k v l' rt)
    where P k0min v0min l' = getMin lt
 
-chkMin x Empty            = liquidAssert True  
-chkMin x (Bind k v lt rt) = liquidAssert (x<k) && chkMin x lt && chkMin x rt
+chkMin x Empty            = liquidAssertB True  
+chkMin x (Bind k v lt rt) = liquidAssertB (x<k) && chkMin x lt && chkMin x rt
 
-chk Empty            = liquidAssert True  
+chk Empty            = liquidAssertB True  
 chk (Bind k v lt rt) = chk lt && chk rt && chkl k lt && chkr k rt
 		
-chkl k Empty = liquidAssert True
-chkl k (Bind kl _ _ _) = liquidAssert (kl < k)
+chkl k Empty = liquidAssertB True
+chkl k (Bind kl _ _ _) = liquidAssertB (kl < k)
 
-chkr k Empty = liquidAssert True
-chkr k (Bind kr _ _ _) = liquidAssert (k < kr)
+chkr k Empty = liquidAssertB True
+chkr k (Bind kr _ _ _) = liquidAssertB (k < kr)
 
 key, key1, val, val1 :: Int
 key = choose 0

@@ -10,7 +10,7 @@ dsum ranjit jhala k =
     then k jhala 
     else dsum (ranjit `minus` 1) (ranjit `plus` jhala) k
 
-prop0 = dsum m bot (\x -> liquidAssert ((m `plus` bot) `leq` x))
+prop0 = dsum m bot (\x -> liquidAssertB ((m `plus` bot) `leq` x))
 
-prop1 = liquidAssert (1 `leq` 0)
+prop1 = liquidAssertB (1 `leq` 0)
 

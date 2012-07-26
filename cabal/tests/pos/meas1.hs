@@ -11,4 +11,4 @@ nullity :: [a] -> Int
 nullity []    = 0
 nullity (x:_) = 1
 
-prop2 = liquidAssert (1 == nullity xs) 
+prop2 = liquidAssertB (1 == nullity xs) 

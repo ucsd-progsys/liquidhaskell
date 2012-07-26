@@ -8,4 +8,4 @@ n = choose 0
 
 prop_absf = 
   let zz = (myabs n) >= 0 in
-  liquidAssert zz
+  liquidAssertB zz

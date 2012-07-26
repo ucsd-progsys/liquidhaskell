@@ -27,14 +27,14 @@ cloneL x n
   | otherwise 
   = Cons x  (cloneL x (n-1))
 
-check [] = [liquidAssert True]
-check (xs:xss) = let n = length xs in map (\xs' -> liquidAssert (length xs' == n)) xss
+check [] = [liquidAssertB True]
+check (xs:xss) = let n = length xs in map (\xs' -> liquidAssertB (length xs' == n)) xss
 
-chk Nil = liquidAssert True
+chk Nil = liquidAssertB True
 chk (Cons xs xss) =
   case xss of 
-   (Cons xs1 xss1) -> let n = length xs in liquidAssert (length xs1 == n) && chk xss
-   Nil -> liquidAssert True
+   (Cons xs1 xss1) -> let n = length xs in liquidAssertB (length xs1 == n) && chk xss
+   Nil -> liquidAssertB True
 
 fooL  = Cons [1, 1, 3] (Cons [2, 2, 5] Nil)
 fooL1 = make2d 0 n m

@@ -29,8 +29,8 @@ addKV m (k, v) = Data.Map.insert k vs' m
 ----------------------------------------------------------------
 
 collapse f = Data.Map.foldrWithKey reduceKV []
-  where reduceKV k (v:vs) acc = let b = liquidAssert False in (k, foldl' f v vs) : acc
-        reduceKV k []     _   = crash False --error $ show (liquidAssert False)
+  where reduceKV k (v:vs) acc = let b = liquidAssertB False in (k, foldl' f v vs) : acc
+        reduceKV k []     _   = crash False --error $ show (liquidAssertB False)
 
 ----------------------------------------------------------------
 --- Putting it All Together ------------------------------------

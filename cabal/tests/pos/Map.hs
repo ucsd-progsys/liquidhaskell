@@ -130,20 +130,20 @@ size t
       Bin sz _ _ _ _ -> sz
 
 
-chkDel x Tip                = liquidAssert True  
-chkDel x (Bin sz k v lt rt) = liquidAssert (not (x == k)) && chkDel x lt && chkDel x rt
+chkDel x Tip                = liquidAssertB True  
+chkDel x (Bin sz k v lt rt) = liquidAssertB (not (x == k)) && chkDel x lt && chkDel x rt
 
-chkMin x Tip                = liquidAssert True  
-chkMin x (Bin sz k v lt rt) = liquidAssert (x<k) && chkMin x lt && chkMin x rt
+chkMin x Tip                = liquidAssertB True  
+chkMin x (Bin sz k v lt rt) = liquidAssertB (x<k) && chkMin x lt && chkMin x rt
 
-chk Tip               = liquidAssert True  
+chk Tip               = liquidAssertB True  
 chk (Bin s k v lt rt) = chk lt && chk rt && chkl k lt && chkr k rt
 		
-chkl k Tip              = liquidAssert True
-chkl k (Bin _ kl _ _ _) = liquidAssert (kl < k)
+chkl k Tip              = liquidAssertB True
+chkl k (Bin _ kl _ _ _) = liquidAssertB (kl < k)
 
-chkr k Tip              = liquidAssert True
-chkr k (Bin _ kr _ _ _) = liquidAssert (k < kr)
+chkr k Tip              = liquidAssertB True
+chkr k (Bin _ kr _ _ _) = liquidAssertB (k < kr)
 
 key, key1, val, val1 :: Int
 key = choose 0

@@ -16,10 +16,10 @@ quicksort (x:xs) = append x xsle xsge
   where xsle = quicksort (takeL x xs)
         xsge = quicksort (takeGE x xs)
 
-chk [] = liquidAssert True
+chk [] = liquidAssertB True
 chk (x1:xs) = case xs of 
-               []     -> liquidAssert True
-               x2:xs2 -> liquidAssert (x1 <= x2) && chk xs
+               []     -> liquidAssertB True
+               x2:xs2 -> liquidAssertB (x1 <= x2) && chk xs
 																	
 rlist = map choose [1 .. 10]
 

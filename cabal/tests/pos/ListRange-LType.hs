@@ -24,6 +24,6 @@ chk y =
    Nil -> True
    Cons x1 xs -> case xs of 
                  Nil -> True
-                 Cons x2 xs2 -> liquidAssert (x1 <= x2) && chk xs2
+                 Cons x2 xs2 -> liquidAssertB (x1 <= x2) && chk xs2
 
 prop3 = chk $ range 1 100 

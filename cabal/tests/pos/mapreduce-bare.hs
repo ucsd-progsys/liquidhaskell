@@ -47,7 +47,7 @@ findWithDefault r k (_:kvs)
 
 collapse f = foldrWithKey reduceKV []
   where reduceKV k (v:vs) acc = (k, foldl' f v vs) : acc
-        reduceKV k []     _   = crash False -- error $ show (liquidAssert False)
+        reduceKV k []     _   = crash False -- error $ show (liquidAssertB False)
 
 foldrWithKey f = foldr (\(k, v) acc -> f k v acc) 
 

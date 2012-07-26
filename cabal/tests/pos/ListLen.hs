@@ -12,14 +12,14 @@ clone x n
   | otherwise 
   = x : (clone x (n-1))
 
-check [] = [liquidAssert True]
-check (xs:xss) = let n = length xs in map (\xs' -> liquidAssert (length xs' == n)) xss
+check [] = [liquidAssertB True]
+check (xs:xss) = let n = length xs in map (\xs' -> liquidAssertB (length xs' == n)) xss
 
-chk [] = liquidAssert True
+chk [] = liquidAssertB True
 chk (xs:xss) =
   case xss of 
-   (xs1:xss1) -> let n = length xs in liquidAssert (length xs1 == n) && chk xss
-   []         -> liquidAssert True
+   (xs1:xss1) -> let n = length xs in liquidAssertB (length xs1 == n) && chk xss
+   []         -> liquidAssertB True
 
 fooL  = [[1, 1, 3], [2, 2, 5]]
 fooL1 = let f = make2d n0 n1 n2 in f

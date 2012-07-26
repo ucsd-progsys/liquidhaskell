@@ -4,5 +4,5 @@ import Language.Haskell.Liquid.Prelude
 
 foo = "dog"
 
-prop1 = liquidAssert (0 == 0)	
-prop2 = liquidAssert (1 /= 0)
+prop1 = liquidAssertB (0 == 0)	
+prop2 = liquidAssertB (1 /= 0)

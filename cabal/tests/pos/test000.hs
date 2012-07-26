@@ -6,5 +6,5 @@ toss :: Bool
 toss = (choose 0) > 10
 
 prop_abs :: Bool
-prop_abs = if toss then (if toss then liquidAssert toss else False) else False
+prop_abs = if toss then (if toss then liquidAssertB toss else False) else False
 

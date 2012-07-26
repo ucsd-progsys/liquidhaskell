@@ -17,4 +17,4 @@ lmap f (C jhala jhalas) = C (f jhala) (lmap f jhalas)
 range :: Int -> Int -> LL Int
 range i j = C i N
 
-prop_rng1 n   = (liquidAssert . (0 <=)) `lmap` range 0 n
+prop_rng1 n   = (liquidAssertB . (0 <=)) `lmap` range 0 n

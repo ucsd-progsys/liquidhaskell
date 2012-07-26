@@ -8,8 +8,8 @@ z0 _  = True
 z1 _  = False
 
 poo (x:_) = 0 == 0 
-poo ([])  = liquidAssert False
+poo ([])  = liquidAssertB False
 
 xs = goo (choose 0)
 
-prop1 = liquidAssert (poo xs)
+prop1 = liquidAssertB (poo xs)

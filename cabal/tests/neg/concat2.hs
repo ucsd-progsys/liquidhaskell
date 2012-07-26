@@ -14,7 +14,7 @@ myconcat1 f (x:xs) = (f x) ++ (myconcat1 f xs)
 r :: Int
 r = 5
 
-prop (x, y) = liquidAssert (x > r)
+prop (x, y) = liquidAssertB (x > r)
 --  where r = 5
 -- this is safe
 propC = map prop $ myconcat1 (\x->[(x, x)]) foo
