@@ -42,7 +42,7 @@ module GHC.List (
 
 import Data.Maybe
 import GHC.Base
-import Language.Haskell.Liquid.Prelude (liquidError)
+import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
 
 infixl 9  !!
 infix  4 `elem`, `notElem`
@@ -409,7 +409,7 @@ take (I# n#) xs = takeUInt n# xs
 takeUInt :: Int# -> [b] -> [b]
 takeUInt n xs
   | n >=# 0#  =  take_unsafe_UInt n xs
-  | otherwise =  []
+  | otherwise =  liquidAssert False []
 
 take_unsafe_UInt :: Int# -> [b] -> [b]
 take_unsafe_UInt 0#  _  = []
