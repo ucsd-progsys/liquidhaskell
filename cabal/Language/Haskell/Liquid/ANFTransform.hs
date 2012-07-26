@@ -8,6 +8,7 @@ module Language.Haskell.Liquid.ANFTransform (anormalize) where
 
 import GHC		hiding 	(exprType)
 import CoreUtils 		(exprType)
+import MkCore           (mkCoreLets)
 import Outputable
 import CoreSyn
 import HscTypes
@@ -133,7 +134,7 @@ normalize γ (Let b e)
        return (bs' ++ bs'', e')
 
 normalize γ (Case e x t as)
-  = do (bs, n) <- normalizeScrutinee γ e 
+  = do (bs, n) <- {- normalizeScrutinee -} normalizeName γ e 
        x'      <- freshNormalVar $ varType x -- rename "wild" to avoid shadowing
        let γ'   = extendVarEnv γ x x'
        as'     <- forM as $ \(c, xs, e) -> liftM ((c, xs,) . stitch) (normalize γ' e)
@@ -165,4 +166,4 @@ normalize _ e
   = errorstar $ "normalize: TODO" ++ showPpr e
 
 stitch :: ([CoreBind], CoreExpr) -> CoreExpr
-stitch (bs, e) = tr_foldr' Let e bs
+stitch (bs, e) = mkCoreLets bs e -- tr_foldr' Let e bs
