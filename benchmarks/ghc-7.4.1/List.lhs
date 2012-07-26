@@ -329,7 +329,7 @@ dropWhile p xs@(x:xs')
 -- in which @n@ may be of any integral type.
 
 
-{-@ assert take        :: n: Int -> xs:[a] -> {v:[a] | len(v) = ((len(xs) < n) ? len(xs) : n) } @-}
+{-@ assert take        :: n: {v: Int | v >= 0 } -> xs:[a] -> {v:[a] | len(v) = ((len(xs) < n) ? len(xs) : n) } @-}
 take                   :: Int -> [a] -> [a]
 
 -- | 'drop' @n xs@ returns the suffix of @xs@
@@ -344,7 +344,7 @@ take                   :: Int -> [a] -> [a]
 --
 -- It is an instance of the more general 'Data.List.genericDrop',
 -- in which @n@ may be of any integral type.
-{-@ assert drop        :: n: Int -> xs:[a] -> {v:[a] | len(v) = ((len(xs) <  n) ? 0 : len(xs) - n) } @-}
+{-@ assert drop        :: n: {v: Int | v >= 0 } -> xs:[a] -> {v:[a] | len(v) = ((len(xs) <  n) ? 0 : len(xs) - n) } @-}
 drop                   :: Int -> [a] -> [a]
 
 -- | 'splitAt' @n xs@ returns a tuple where first element is @xs@ prefix of
@@ -399,7 +399,7 @@ takeFB :: (a -> b -> b) -> b -> a -> (Int# -> b) -> Int# -> b
 takeFB c n x xs m | m <=# 1#  = x `c` n
                   | otherwise = x `c` xs (m -# 1#)
 
-{-# INLINE [0] take #-}
+{-- INLINE [0] take #-}
 take (I# n#) xs = takeUInt n# xs
 
 -- The general code for take, below, checks n <= maxInt

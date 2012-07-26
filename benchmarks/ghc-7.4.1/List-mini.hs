@@ -20,7 +20,9 @@ take_unsafe_UInt0 :: Int# -> [a] -> [a]
 take_unsafe_UInt0 0#  _     = []
 take_unsafe_UInt0 n  (x:xs) = x : take_unsafe_UInt0 (n -# 1#) xs
 
+
 {-@ assert take  :: n: {v: Int | v >= 0 } -> xs:[a] -> {v:[a] | len(v) = ((len(xs) < n) ? len(xs) : n) } @-}
+take                   :: Int -> [a] -> [a]
 take (I# n#) xs = takeUInt n# xs
 -- take (I# n#) xs = take_unsafe_UInt n# xs
 
@@ -35,6 +37,19 @@ take_unsafe_UInt n ls      =
   case ls of
     []     -> []
     (x:xs) -> x : take_unsafe_UInt (n -# 1#) xs
+
+
+{-@ assert drop        :: n: Int -> xs:[a] -> {v:[a] | len(v) = ((len(xs) <  n) ? 0 : len(xs) - n) } @-}
+drop                   :: Int -> [a] -> [a]
+
+drop (I# n#) ls
+  | n# <# 0#    = ls
+  | otherwise   = drop# n# ls
+    where
+        drop# :: Int# -> [a] -> [a]
+        drop# 0# xs      = xs
+        drop# _  xs@[]   = xs
+        drop# m# (_:xs)  = drop# (m# -# 1#) xs
 
 
 
