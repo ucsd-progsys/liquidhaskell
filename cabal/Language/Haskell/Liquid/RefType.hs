@@ -17,7 +17,7 @@ module Language.Haskell.Liquid.RefType (
   , generalize, mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
   , subts, substSym 
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
-  , stripRTypeBase, refTypePredSortedReft, refTypeSortedReft, typeSortedReft, rTypeSort, funcToObj
+  , stripRTypeBase, refTypePredSortedReft, refTypeSortedReft, typeSortedReft, rTypeSort
   -- , canonRefType
   , tidyRefType
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
@@ -966,10 +966,6 @@ refTypeSortedReft t = RR (rTypeSort t) (refTypeReft t)
 --        r  = refTypeReft t -- fromMaybe trueReft $ stripRTypeBase t 
 
 refTypeReft = fromMaybe trueReft . stripRTypeBase 
-
--- RJ: Commenting this out. Why is FFunc not working?
--- funcToObj (RR (FFunc _ _) r) = RR FObj r
-funcToObj so                 = so
 
 -- typeSortedReft ::  Type -> Refa -> SortedReft
 typeSortedReft t r = RR (typeSort t) (Reft (vv, [r]))

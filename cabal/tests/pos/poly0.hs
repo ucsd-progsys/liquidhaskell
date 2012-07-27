@@ -19,4 +19,3 @@ prop_id2 = liquidAssertB (x'' >= 0)
 
 prop_id3 = liquidAssertB (x' >= 0)
   where x' = myid $ myabs x
-

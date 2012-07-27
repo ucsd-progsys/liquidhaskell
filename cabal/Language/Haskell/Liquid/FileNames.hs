@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Language.Haskell.Liquid.FileNames ( 
-    tagName , dummyName, preludeName, boolConName, listConName, tupConName 
+    tagName , dummyName, preludeName, boolConName, listConName, tupConName, vvName 
   , Ext (..), repFileName, extFileName, extModuleName, isExtFile
   , getHsTargets
   --, fqName, outName , cgiName, htmlName, annotName, libName, cstName
@@ -139,4 +139,4 @@ tagName     = "TAG"
 boolConName = "Bool"
 listConName = "List"
 tupConName  = "Tuple"
-
+vvName      = "VV"

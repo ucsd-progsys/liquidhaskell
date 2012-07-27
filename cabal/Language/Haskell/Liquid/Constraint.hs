@@ -275,14 +275,6 @@ instance Outputable Cinfo where
 
 splitW ::  WfC -> [FixWfC]
 
-{- NV think it should be removed
-splitW (WfCS γ τ s) 
-  = [F.WfC env' r' Nothing ci] 
-  where env' = fenv γ
-        r'   = funcToObj $ typeSortedReft τ s
-        ci   = Ci (loc γ)
--}
-
 splitW (WfC γ t@(RFun (RB x) t1 t2 _)) 
   =  bsplitW γ t
   ++ splitW (WfC γ t1) 
@@ -314,7 +306,7 @@ bsplitW γ t
   | otherwise
   = []
   where env' = fenv γ
-        r'   = funcToObj $ refTypeSortedReft t
+        r'   = refTypeSortedReft t
         ci   = Ci (loc γ)
 
 -- rsplitW :: CGEnv -> (F.Reft, Predicate) -> [FixWfC]
@@ -322,7 +314,7 @@ rsplitW γ (RMono r, ((PV _ t as)))
   = [F.WfC env' r' Nothing ci]
   where env' = fenv γ'
         ci   = Ci (loc γ)
-        r'   = funcToObj $ refTypePredSortedReft (r, t)
+        r'   = refTypePredSortedReft (r, t)
         γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitW1", x, ofType τ)) as) 
 
 rsplitW γ (RPoly t0, (PV _ t as))

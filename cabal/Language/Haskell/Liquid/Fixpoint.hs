@@ -19,10 +19,11 @@ module Language.Haskell.Liquid.Fixpoint (
   , trueReft, trueSortedReft 
   , trueRefa
   , canonReft, exprReft, notExprReft, symbolReft
-  , isNonTrivialSortedReft
-  , isTautoRa, isTautoReft
+  , isNonTrivialSortedReft, isTautoReft
   , ppr_reft, ppr_reft_pred, flattenRefas
   , simplify, pAnd, pOr, pIte
+  , isTautoPred
+  -- , conjuncts
   , emptySubst, mkSubst, catSubst
   , Subable (..)
   , isPredInReft
@@ -451,7 +452,7 @@ decodeStr s
 
 ---------------------------------------------------------------------
 
-vv                      = S "VV"
+vv                      = S vvName 
 dummySymbol             = S dummyName
 tagSymbol               = S tagName
 intSymbol x i           = S $ x ++ show i           
@@ -544,42 +545,44 @@ data Pred = PTrue
           deriving (Eq, Ord, Data, Typeable, Show)
 
 instance Fixpoint Pred where
-  toFix PTop            = text "???"
-  toFix PTrue           = text "true"
-  toFix PFalse          = text "false"
-  toFix (PBexp e)       = parens $ text "?" <+> toFix e
-  toFix (PNot p)        = parens $ text "~" <+> parens (toFix p)
-  toFix (PImp p1 p2)    = parens $ (toFix p1) <+> text "=>" <+> (toFix p2)
-  toFix (PIff p1 p2)    = parens $ (toFix p1) <+> text "<=>" <+> (toFix p2)
-  toFix (PAnd ps)       = text "&&" <+> toFix ps
-  toFix (POr  ps)       = text "||" <+> toFix ps
-  toFix (PAtom r e1 e2) = parens $ toFix e1 <+> toFix r <+> toFix e2
-  toFix (PAll xts p)    = text "forall" <+> (toFix xts) <+> text "." <+> (toFix p)
+  toFix PTop             = text "???"
+  toFix PTrue            = text "true"
+  toFix PFalse           = text "false"
+  toFix (PBexp e)        = parens $ text "?" <+> toFix e
+  toFix (PNot p)         = parens $ text "~" <+> parens (toFix p)
+  toFix (PImp p1 p2)     = parens $ (toFix p1) <+> text "=>" <+> (toFix p2)
+  toFix (PIff p1 p2)     = parens $ (toFix p1) <+> text "<=>" <+> (toFix p2)
+  toFix (PAnd ps)        = text "&&" <+> toFix ps
+  toFix (POr  ps)        = text "||" <+> toFix ps
+  toFix (PAtom r e1 e2)  = parens $ toFix e1 <+> toFix r <+> toFix e2
+  toFix (PAll xts p)     = text "forall" <+> (toFix xts) <+> text "." <+> (toFix p)
 
-  simplify (PAnd [])    = PTrue
-  simplify (POr  [])    = PFalse
-  simplify (PAnd [p])   = simplify p
-  simplify (POr  [p])   = simplify p
+  simplify (PAnd [])     = PTrue
+  simplify (POr  [])     = PFalse
+  simplify (PAnd [p])    = simplify p
+  simplify (POr  [p])    = simplify p
   simplify (PAnd ps)    
-    | any isContra ps   = PFalse
-    | otherwise         = PAnd $ map simplify ps
+    | any isContra ps    = PFalse
+    | otherwise          = PAnd $ map simplify ps
   simplify (POr  ps)    
-    | any isTauto ps    = PTrue
-    | otherwise         = POr  $ map simplify ps 
+    | any isTautoPred ps = PTrue
+    | otherwise          = POr  $ map simplify ps 
   simplify p            
-    | isContra p        = PFalse
-    | isTauto  p        = PTrue
-    | otherwise         = p
+    | isContra p         = PFalse
+    | isTautoPred  p     = PTrue
+    | otherwise          = p
 
 zero         = ECon (I 0)
 one          = ECon (I 1)
 isContra     = (`elem` [ PAtom Eq zero one, PAtom Eq one zero, PFalse])   
-isTauto      = (`elem` [ PTrue ])
+isTautoPred  = (`elem` [ PTrue ])
 hasTag e1 e2 = PAtom Eq (EApp tagSymbol [e1]) e2
 
 isTautoReft (Reft (_, ras)) = all isTautoRa ras
-isTautoRa (RConc p)         = isTauto p
+isTautoRa (RConc p)         = isTautoPred p
 isTautoRa _                 = False
+
+
 
 pAnd          = simplify . PAnd 
 pOr           = simplify . POr 
@@ -604,8 +607,6 @@ ppr_reft_pred (Reft (v, ras))
   = ppRas ras
 
 ppRas = cat . punctuate comma . map toFix . flattenRefas
-
-
 
 ---------------------------------------------------------------
 ----------------- Refinements and Environments  ---------------

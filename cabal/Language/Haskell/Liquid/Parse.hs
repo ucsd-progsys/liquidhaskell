@@ -127,8 +127,8 @@ lexprP
  <|> try (parens exprCastP)
  <|> try (parens $ condP EIte exprP)
  <|> try exprFunP
- <|> try (liftM mkEDat upperIdP)
- <|> try (liftM (EVar . stringSymbol) upperIdP)
+ -- <|> try (liftM mkEDat upperIdP)
+ -- <|> try (liftM (EVar . stringSymbol) upperIdP)
  <|> liftM EVar symbolP
  <|> liftM ECon constantP
  <|> (reserved "_|_" >> return EBot)

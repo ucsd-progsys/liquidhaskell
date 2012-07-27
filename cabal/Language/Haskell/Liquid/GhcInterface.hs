@@ -297,9 +297,22 @@ applySolution = fmap . fmap . mapReft . map . appSolRefa
   where appSolRefa _ ra@(RConc _) = ra 
         appSolRefa _ p@(RPvar _)  = p  
         appSolRefa s (RKvar k su) = RConc $ subst su $ M.findWithDefault PTop k s  
-        mapReft f (Reft (x, zs)) = Reft (x, filter (not . isTautoRa) (f zs))
+        mapReft f (Reft (x, zs))  = Reft (x, squishRas $ f zs)
+        
+-- squish ras = traceShow ("squish: " ++ showPpr ras) $ nubSort $ filter (not . isTautoRa) ras
 
-                                            
+squishRas ras = traceShow ("squish: " ++ showPpr ras) $ ras' 
+                where ras'   = (squish [p | RConc p <- ras]) : [ra | ra@(RPvar _) <- ras]
+                      squish = RConc 
+                             . pAnd 
+                             . nubSort 
+                             . filter (not . isTautoPred) 
+                             . concatMap conjuncts   
+
+conjuncts (PAnd ps)          = concatMap conjuncts ps
+conjuncts p | isTautoPred p  = []
+            | otherwise      = [p]
+
 
 -------------------------------------------------------------------
 ------------------- Rendering Inferred Types ----------------------
