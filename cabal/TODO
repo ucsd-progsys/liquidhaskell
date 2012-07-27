@@ -1,23 +1,13 @@
 TODO
 ----
 
-TODO STACK
 
-> GHC.List
-    > List-mini.hs <---------- HEREHEREHEREHERE
-      
-      why is wild_Xa unconstrained in id 55?
+TODO STACK
 
 
 *** Data (TyCon) invariants
     3. (CHECK)  generate constraints. 
     4. Add TAG measure (builtin measure)
-    
-    forall xs: {v: [a] | I(v)}
-    
-    e.g. 
-
-    invariant :: forall a. {v: [a] | len(v) >= 0                }
     invariant :: forall a. {v: [a] | (tag(v) = #:)  => len(v) > 0 }
     invariant :: forall a. {v: [a] | (tag(v) = #[]) => len(v) = 0 }
     invariant :: forall a. {v: [a] | (tag(v) = #[] ? len(v) = 0 : len(v) > 0) }
@@ -29,40 +19,14 @@ TODO STACK
     constant ':'  : Tag 
     constant '[]' : Tag
 
-
-*** GHC.List.lhs 
-
-../benchmarks/ghc-7.4.1/List.lhs:400:1-4
-{-@ assert take        :: forall a. n: Int -> xs:[a] -> {v:[a] | len(v) = ((len(xs) < n) ? len(xs) : n) } @-}
-
-../benchmarks/ghc-7.4.1/List.lhs:430:1-4
-{-@ assert drop        :: forall a. n: Int -> xs:[a] -> {v:[a] | len(v) = ((len(xs) <  n) ? 0 : len(xs) - n) } @-}
-
-../benchmarks/ghc-7.4.1/List.lhs:760:1-14  
-../benchmarks/ghc-7.4.1/List.lhs:231:1-6,
-../benchmarks/ghc-7.4.1/List.lhs:497:1-7,
-
-../benchmarks/ghc-7.4.1/List.lhs:401:1-4,
-../benchmarks/ghc-7.4.1/List.lhs:431:1-4,
-
-
 FEATURES 
 --------
 
-- Add/Parse predicate signatures for lists<p> and tuples<p>: [{x: Int | x > 0}]  
+- Add/Parse predicate signatures for lists<p> and tuples<p> <--------- HEREHEREHEREHEREHEREHERE
+  e.g. [{x: Int | x > 0}]  
+
 - pos/deptup.hs (type signature: for constructor wrapper)
 
-
-
-
-foldl f b []     = b
-foldl f b (x:xs) = foldl f (f b x) xs
-
-foldl (\b x -> b + 1) 0 zs ====> go 0 zs
-    where foo = (\b x -> b + 1)
-          go  = foldl @@@ foo
-          i.e. go b []     = b
-               go b (x:xs) = go (foo b x) xs
 
 data [a]<p :: a -> a -> Bool> 
   = []
