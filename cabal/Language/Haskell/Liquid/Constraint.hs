@@ -645,7 +645,7 @@ cconsE γ (Lam x e) (RFun (RB y) ty t _)
 
 cconsE γ (Tick tt e) t   
   = cconsE (γ `setLoc` tt') e t
-    where tt' = traceShow ("tickSrcSpan: e = " ++ showPpr e) $ tickSrcSpan tt
+    where tt' = {- traceShow ("tickSrcSpan: e = " ++ showPpr e) $ -} tickSrcSpan tt
 
 cconsE γ (Cast e _) t     
   = cconsE γ e t 
@@ -717,7 +717,7 @@ consE γ (Tick tt e)
   = do t <- consE (γ `setLoc` l) e
        addLocA Nothing l (Left t)
        return t
-    where l = traceShow ("tickSrcSpan: e = " ++ showPpr e) $ tickSrcSpan tt
+    where l = {- traceShow ("tickSrcSpan: e = " ++ showPpr e) $ -} tickSrcSpan tt
 
 
 consE γ (Cast e _)      
