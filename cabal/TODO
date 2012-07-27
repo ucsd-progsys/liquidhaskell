@@ -1,28 +1,31 @@
-TODO
-----
-
-
-TODO STACK
-
-
-*** Data (TyCon) invariants
-    3. (CHECK)  generate constraints. 
-    4. Add TAG measure (builtin measure)
-    invariant :: forall a. {v: [a] | (tag(v) = #:)  => len(v) > 0 }
-    invariant :: forall a. {v: [a] | (tag(v) = #[]) => len(v) = 0 }
-    invariant :: forall a. {v: [a] | (tag(v) = #[] ? len(v) = 0 : len(v) > 0) }
-    invariant :: forall a. {v: Map k v | height(v) >= 0 } 
-
-        #:
-        #[]
-
-    constant ':'  : Tag 
-    constant '[]' : Tag
-
 FEATURES 
 --------
 
-- Add/Parse predicate signatures for lists<p> and tuples<p> <--------- HEREHEREHEREHEREHEREHERE
+- Cleanup output (tests/pos/poly0.hs)
+   
+    > "minimize" quals in output (fixpoint) <--------- HEREHEREHEREHEREHEREHERE
+        
+        v = 0 instead of v = 0, v >= 0, v <= 0
+
+        v = x instead of v >= x, v <= x, v = x, true
+
+    e.g. tests/pos/poly0.hs
+
+    solution: k_27 := [((VV >= lq_anf__dxk), Cmp0(VV, lq_anf__dxk))
+                  ;((VV >= lq_anf__dxg), Cmp0(VV, lq_anf__dxg))
+                  ;((VV >= lq_anf__dx9), Cmp0(VV, lq_anf__dx9))
+                  
+                  ;((VV >= fix#x#39##35#avY), Cmp0(VV, fix#x#39##35#avY))
+                  ;((VV <= fix#x#39##35#avY), Cmp2(VV, fix#x#39##35#avY))
+                  ;((VV = fix#x#39##35#avY), Cmp1(VV, fix#x#39##35#avY))
+                  
+                  ;((VV >= x#rgr), Cmp0(VV, x#rgr))
+                  ;((VV >= 0), CmpZ0(VV))] 
+
+    > sexify HsAnnot with Colorized Types? (color refinements blue?)
+
+
+- Add/Parse predicate signatures for lists<p> and tuples<p> 
   e.g. [{x: Int | x > 0}]  
 
 - pos/deptup.hs (type signature: for constructor wrapper)
@@ -53,13 +56,20 @@ data (a1, a2, a3)
   > 
   = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>) (x4 :: a4<p4 x1 x2 x3>)
 
-Get ITE predicates to parse:
-{-@ assert drop        :: forall a. n: Int -> xs:[a] -> {v:[a] | (len(xs) <  n) ? (len(v) = 0) : (len(v) = len(xs) - n) } @-}
 
+*** Data (TyCon) invariants
+    3. (CHECK)  generate constraints. 
+    4. Add TAG measure (builtin measure)
+    
+    invariant :: forall a. {v: [a] | (tag(v) = #:)  => len(v) > 0 }
+    invariant :: forall a. {v: [a] | (tag(v) = #[]) => len(v) = 0 }
+    invariant :: forall a. {v: [a] | (tag(v) = #[] ? len(v) = 0 : len(v) > 0) }
+    invariant :: forall a. {v: Map k v | height(v) >= 0 } 
 
-e1 ? e2 : e3
-e1 ? e2 : e3
+    tags:         #:     #[]
 
+    constant ':'  : Tag 
+    constant '[]' : Tag
 
 KNOWN BUGS
 ----------

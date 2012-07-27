@@ -292,16 +292,14 @@ pprAnnInfoBind (_, _)
 pprXOT (x, v) = (xd, ppr v)
   where xd = maybe (text "unknown") ppr x
 
-  -- where xd = case x of 
-  -- Nothing -> text "unknown"
-  -- Just v  -> ppr v
-
 applySolution :: FixSolution -> AnnInfo RefType -> AnnInfo RefType
 applySolution = fmap . fmap . mapReft . map . appSolRefa  
   where appSolRefa _ ra@(RConc _) = ra 
         appSolRefa _ p@(RPvar _)  = p  
         appSolRefa s (RKvar k su) = RConc $ subst su $ M.findWithDefault PTop k s  
-        mapReft f (Reft (x, zs)) = Reft (x, f zs)
+        mapReft f (Reft (x, zs)) = Reft (x, filter (not . isTautoRa) (f zs))
+
+                                            
 
 -------------------------------------------------------------------
 ------------------- Rendering Inferred Types ----------------------

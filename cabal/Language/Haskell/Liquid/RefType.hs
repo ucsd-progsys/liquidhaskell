@@ -835,7 +835,7 @@ tidyLocalRefas = everywhere (mkT dropLocals)
 
 tidySymbols :: RefType -> RefType
 tidySymbols = everywhere (mkT dropSuffix) 
-  where dropSuffix = stringSymbol . takeWhile (/= symSep) . symbolString
+  where dropSuffix = {- stringSymbol -} S . takeWhile (/= symSep) . symbolString
         dropQualif = stringSymbol . dropModuleNames . symbolString 
 
 tidyDSymbols :: RefType -> RefType
@@ -843,7 +843,7 @@ tidyDSymbols = tidy pool getS putS
   where getS   sy  = let str = symbolString sy in 
                      if "ds_" `isPrefixOf` str then Just str else Nothing
         putS _ str = stringSymbol str 
-        pool       = ["X" ++ show i | i <- [1..]]
+        pool       = ["x" ++ show i | i <- [1..]]
 
 ----------------------------------------------------------------
 ------------------- Converting to Fixpoint ---------------------

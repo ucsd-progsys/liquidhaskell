@@ -20,7 +20,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , trueRefa
   , canonReft, exprReft, notExprReft, symbolReft
   , isNonTrivialSortedReft
-  , isTautoReft
+  , isTautoRa, isTautoReft
   , ppr_reft, ppr_reft_pred, flattenRefas
   , simplify, pAnd, pOr, pIte
   , emptySubst, mkSubst, catSubst
@@ -425,13 +425,11 @@ symbolString (S str)
     where chunks = unIntersperse symSep 
           tx i s = if even i then s else [decodeStr s]
 
-
 okSymChars
   =  ['a' .. 'z']
   ++ ['A' .. 'Z'] 
   ++ ['0' .. '9'] 
   ++ ['_', '.'  ]
- 
 
 symSep = '#'
 fixSymPrefix = "fix" ++ [symSep]
