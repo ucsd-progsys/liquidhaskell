@@ -468,25 +468,29 @@ addC !c@(SubC _ t1 t2) msg
 addW   :: WfC -> CG ()  
 addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
 
+-- Used for annotation binders (i.e. at binder sites)
 addIdA :: Var -> Annot -> CG ()
-addIdA !x !t = modify $ \s -> s { annotMap = addA l v t $ annotMap s } 
-  where l  = getSrcSpan x
-        v  = Just x
+addIdA !x !t  = modify $ \s -> s { annotMap = addA (getSrcSpan x) (Just x) t $ annotMap s } 
 
-addLocA :: SrcSpan -> Annot -> CG ()
-addLocA !l !t 
-  = modify $ \s -> s { annotMap = addA l Nothing t $ annotMap s }
+-- Used for annotating reads (i.e. at Var x sites) 
+addLocA :: Maybe Var -> SrcSpan -> Annot -> CG ()
+addLocA !xo !l !t 
+  = modify $ \s -> s { annotMap = addA l xo t $ annotMap s }
 
---withSrc :: SrcSpan -> CG a -> CG a
---withSrc loc act 
---  = (modify $ \s -> s {src = loc}) >> act
-
-addA !l !xo !t !a@(AI m) 
-  | isGoodSrcSpan l && not (l `M.member` m)
+addA !l !xo@(Just _)  !t !a@(AI m) 
+  | isGoodSrcSpan l -- && not (l `M.member` m)
   = AI $ M.insert l (xo, t) m
-  | otherwise
+addA !l !xo@(Nothing) !t !a@(AI m) 
+  | l `M.member` m  -- only spans known to be variables
+  = AI $ M.insert l (xo, t) m
+addA _ _ _ !a 
   = a
-  -- errorstar $ "Duplicate annot " ++ showPpr xo ++ " at " ++ showPpr l
+
+--addA !l !xo !t !a@(AI m) 
+--  | isGoodSrcSpan l -- && not (l `M.member` m)
+--  = AI $ M.insert l (xo, t) m
+--  | otherwise
+--  = a
 
 -------------------------------------------------------------------
 ------------------------ Generation: Freshness --------------------
@@ -640,7 +644,8 @@ cconsE γ (Lam x e) (RFun (RB y) ty t _)
     where te = t `F.subst1` (y, F.EVar $ mkSymbol x)
 
 cconsE γ (Tick tt e) t   
-  = cconsE (γ `setLoc` tickSrcSpan tt) e t
+  = cconsE (γ `setLoc` tt') e t
+    where tt' = traceShow ("tickSrcSpan: e = " ++ showPpr e) $ tickSrcSpan tt
 
 cconsE γ (Cast e _) t     
   = cconsE γ e t 
@@ -662,7 +667,7 @@ consE :: CGEnv -> Expr Var -> CG RefType
 --  where msg = "subsTyVar_meet α = " ++ show α ++ " t = " ++ showPpr t  ++ " te = " ++ showPpr te
 
 consE γ (Var x)   
-  = do addLocA (loc γ) (varAnn γ x t)
+  = do addLocA (Just x) (loc γ) (varAnn γ x t)
        return t
     where t = varRefType γ x
 
@@ -709,7 +714,11 @@ consE γ e@(Case _ _ _ _)
   = cconsFreshE γ e
 
 consE γ (Tick tt e)
-  = consE (γ `setLoc` tickSrcSpan tt) e
+  = do t <- consE (γ `setLoc` l) e
+       addLocA Nothing l (Left t)
+       return t
+    where l = traceShow ("tickSrcSpan: e = " ++ showPpr e) $ tickSrcSpan tt
+
 
 consE γ (Cast e _)      
   = consE γ e 
