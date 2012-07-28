@@ -135,8 +135,9 @@ getGhcInfo target paths
   = runGhc (Just libdir) $ do
       df          <- getSessionDynFlags
       setSessionDynFlags $ updateDynFlags df paths
-      modguts     <- getGhcModGuts1 target
+      modguts0    <- getGhcModGuts1 target
       hscEnv      <- getSession
+      modguts     <- liftIO $ hscSimplify hscEnv modguts0
       coreBinds   <- liftIO $ anormalize hscEnv modguts
       spec        <- moduleSpec target modguts paths 
       liftIO       $ putStrLn $ "Module Imports: " ++ show (imports spec) 
