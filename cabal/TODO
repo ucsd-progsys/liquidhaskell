@@ -1,11 +1,8 @@
 FEATURES 
 --------
 
-- Cleanup output (tests/pos/poly0.hs)
-       > sexify HsAnnot with Colorized Types? (color refinements blue?) <--------- HEREHEREHEREHEREHEREHERE
-
 - Add/Parse predicate signatures for lists<p> and tuples<p> 
-  e.g. [{x: Int | x > 0}]  
+  e.g. [{x: Int | x > 0}]   <--------- HEREHEREHEREHEREHEREHERE
 
 - pos/deptup.hs (type signature: for constructor wrapper)
 
@@ -35,6 +32,9 @@ data (a1, a2, a3)
   > 
   = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>) (x4 :: a4<p4 x1 x2 x3>)
 
+*** Cleanup output (tests/pos/poly0.hs)
+    > sexify HsAnnot with Colorized Types? (color refinements blue?) 
+
 
 *** Data (TyCon) invariants
     3. (CHECK)  generate constraints. 
@@ -50,25 +50,40 @@ data (a1, a2, a3)
     constant ':'  : Tag 
     constant '[]' : Tag
 
-KNOWN BUGS
+
+BENCHMARKS
 ----------
 
-- tests/todo/fft.hs
+Paper #1
 
-- hmatrix
+[OK] GHC.List
+->   Data.List 
+->   Data.Map
+->   Data.Set
+->   Data.IntSet
+->   Bytestring & Client (Text?)
+->   vector-algorithms "vector bounds checking"
+     > e.g. "unsafeSlice"
+     > maybe only specify types for Vector?
+-> Xmonad properties
+
+-> hmatrix
     > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Matrix.html#Matrix
     > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Vector.html#fromList
-    
-- xmonad properties
+
+Paper #2
+
+-> Haskell + DB / Yesod / Snap
 
 - NDM/catch benchmarks (with refinements)
 
-- cabal integration
-    > so you can build against liquid?
-    > how does this affect ghc integration? (shouldn't matter, because you
-    > can specify --with-ghc
 
-- binsearch crashes because you have chains like:
+KNOWN BUGS
+----------
+
+-> tests/todo/fft.hs
+
+-> binsearch crashes because you have chains like:
         
         x1 = 2
         x2 = x1
