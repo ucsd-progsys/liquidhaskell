@@ -211,7 +211,6 @@ scanl1 _ []             =  []
 foldr1                  :: (a -> a -> a) -> [a] -> a
 foldr1 _ [x]            =  x
 foldr1 f (x:xs@(_:_))   =  f x (foldr1 f xs)
--- foldr1 f (x:xs)      =  f x (foldr1 f xs)
 foldr1 _ []             =  liquidError "foldr1" -- errorEmptyList "foldr1"
 
 -- | 'scanr' is the right-to-left dual of 'scanl'.

@@ -1,67 +1,30 @@
 {-# LANGUAGE Trustworthy #-}
-{-# LANGUAGE CPP,  NoImplicitPrelude, MagicHash #-}
+{-# LANGUAGE CPP,  MagicHash #-}
 {-# OPTIONS_HADDOCK hide #-}
 
 module GHC.List (
-    take0
-  , take
+   mylen
   ) where
 
-import Data.Maybe
 import GHC.Base hiding (assert) 
-import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError) 
 
+{-# INLINE mfoldr #-}
+mfoldr :: (a -> b -> b) -> b -> [a] -> b
+mfoldr k z = go 
+  where go []     = z
+        go (y:ys) = y `k` go ys
 
-{-@ assert take0  :: n: {v: Int | 0 <= v} -> [a] -> {v:[a] | (len(v) = n)} @-}
-take0 :: Int -> [a] -> [a]
-take0 (I# n#) xs = take_unsafe_UInt0 n# xs
+{-@ assert mylen :: xs: [a] -> {v: Int | v = len(xs)} @-}
+mylen :: [a] -> Int
+mylen = mfoldr (\_ -> (1 +)) 0
 
-take_unsafe_UInt0 :: Int# -> [a] -> [a]
-take_unsafe_UInt0 0#  _     = []
-take_unsafe_UInt0 n  (x:xs) = x : take_unsafe_UInt0 (n -# 1#) xs
-
-
-{-@ assert take  :: n: {v: Int | v >= 0 } -> xs:[a] -> {v:[a] | len(v) = ((len(xs) < n) ? len(xs) : n) } @-}
-take                   :: Int -> [a] -> [a]
-take (I# n#) xs = takeUInt n# xs
--- take (I# n#) xs = take_unsafe_UInt n# xs
-
-takeUInt :: Int# -> [a] -> [a]
-takeUInt n xs
-  | n >=# 0#  =  take_unsafe_UInt n xs
-  | otherwise =  liquidAssert False []
-
-take_unsafe_UInt :: Int# -> [a] -> [a]
-take_unsafe_UInt 0#  _     = []
-take_unsafe_UInt n ls      =
-  case ls of
-    []     -> []
-    (x:xs) -> x : take_unsafe_UInt (n -# 1#) xs
-
-
-{-@ assert drop        :: n: Int -> xs:[a] -> {v:[a] | len(v) = ((len(xs) <  n) ? 0 : len(xs) - n) } @-}
-drop                   :: Int -> [a] -> [a]
-
-drop (I# n#) ls
-  | n# <# 0#    = ls
-  | otherwise   = drop# n# ls
-    where
-        drop# :: Int# -> [a] -> [a]
-        drop# 0# xs      = xs
-        drop# _  xs@[]   = xs
-        drop# m# (_:xs)  = drop# (m# -# 1#) xs
-
-
-
-
-
-
-
-
-
-
-
-
+--{-# INLINE mmap #-}
+--mmap f = go 
+--  where go []     = []
+--        go (x:xs) = (f x) : (go xs)
+--
+--myadd :: [Int] -> [Int]
+--myadd = mmap (1 +)
 
 
 
