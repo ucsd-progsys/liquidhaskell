@@ -8,6 +8,8 @@ FEATURES
   Trick: HsColour only transforms code blocks into HTML, leaves rest untouched.
          Pandoc ignores HTML blocks. #win
 
+- Don't print <p> if trivial
+
 - inlining?
 
     cunning trick with contextual/predicates. (See email)

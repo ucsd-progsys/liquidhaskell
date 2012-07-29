@@ -190,7 +190,7 @@ class (Outputable p, Outputable c, Outputable tv, PVarable pv, Reftable r, TyCon
   ppCls    :: p -> [RType p c tv pv r] -> SDoc
   
   ppRType  :: Prec -> RType p c tv pv r -> SDoc 
-  ppRType = ppr_rtype 
+  ppRType = ppr_rtype False 
 
 --------------------------------------------------------------------
 ---------------- Refinement Types: RefType -------------------------
@@ -515,53 +515,54 @@ instance Outputable RTyCon where
 instance Show RTyCon where
  show = showPpr
 
-ppr_rtype :: (Subable r, RefTypable p c tv pv r) => Prec -> RType p c tv pv r -> SDoc
+ppr_rtype :: (Subable r, RefTypable p c tv pv r) => Bool -> Prec -> RType p c tv pv r -> SDoc
 
-ppr_rtype p t@(RAll _ _)       
-  = ppr_forall p t
-ppr_rtype p (RVar (RV a) r)         
+ppr_rtype b p t@(RAll _ _)       
+  = ppr_forall b p t
+ppr_rtype b p (RVar (RV a) r)         
   = ppTy r $ ppr a
-ppr_rtype p (RFun x t t' _)  
-  = pprArrowChain p $ ppr_dbind x t : ppr_fun_tail t'
-ppr_rtype p ty@(RApp c [t] rs r)
+ppr_rtype b p (RFun x t t' _)  
+  = pprArrowChain p $ ppr_dbind b x t : ppr_fun_tail b t'
+ppr_rtype b p ty@(RApp c [t] rs r)
   | isList c 
-  = ppTy r $ brackets (ppr_rtype p t) <> ppReftPs rs
-ppr_rtype p ty@(RApp c ts rs r)
+  = ppTy r $ brackets (ppr_rtype b p t) <> ppReftPs b rs
+ppr_rtype b p ty@(RApp c ts rs r)
   | isTuple c 
-  = ppTy r $ parens (intersperse comma (ppr_rtype p <$> ts)) <> ppReftPs rs
-ppr_rtype p (RApp c ts rs r)
-  = ppTy r $ ppr c <+> ppReftPs rs <+> hsep (ppr_rtype p <$> ts)  
-ppr_rtype _ ty@(RCls c ts)      
+  = ppTy r $ parens (intersperse comma (ppr_rtype b p <$> ts)) <> ppReftPs b rs
+ppr_rtype b p (RApp c ts rs r)
+  = ppTy r $ ppr c <+> ppReftPs b rs <+> hsep (ppr_rtype b p <$> ts)  
+ppr_rtype _ _ ty@(RCls c ts)      
   = ppCls c ts
-ppr_rtype _ (ROth s)
+ppr_rtype _ _ (ROth s)
   = text "?" <> text s <> text "?"
 
-ppReftPs rs 
+ppReftPs b rs 
   | all isTauto rs = empty -- text "" 
+  | not b          = empty 
   | otherwise      = angleBrackets $ hsep $ punctuate comma $ ppr <$> rs
 
-ppr_pred :: (Subable r, RefTypable p c tv pv r) => Prec -> RType p c tv pv r -> SDoc
-ppr_pred p (RAll pv@(RP _) t)
-  = ppr pv <> ppr_pred p t
-ppr_pred p t
-  = dot <+> ppr_rtype p t
+ppr_pred :: (Subable r, RefTypable p c tv pv r) => Bool -> Prec -> RType p c tv pv r -> SDoc
+ppr_pred b p (RAll pv@(RP _) t)
+  = ppr pv <> ppr_pred b p t
+ppr_pred b p t
+  = dot <+> ppr_rtype b p t
 
-ppr_dbind :: (Subable r, RefTypable p c tv pv r) => Bind tv pv -> RType p c tv pv r -> SDoc
-ppr_dbind b@(RB x) t 
+ppr_dbind :: (Subable r, RefTypable p c tv pv r) => Bool -> Bind tv pv -> RType p c tv pv r -> SDoc
+ppr_dbind bb b@(RB x) t 
   | isNonSymbol x 
-  = ppr_rtype FunPrec t
+  = ppr_rtype bb FunPrec t
   | otherwise
-  = {-braces-} (ppr b) <> colon <> ppr_rtype FunPrec t
+  = {-braces-} (ppr b) <> colon <> ppr_rtype bb FunPrec t
 
-ppr_fun_tail :: (Subable r, RefTypable p c tv pv r) => RType p c tv pv r -> [SDoc]
-ppr_fun_tail (RFun b t t' _)  
-  = (ppr_dbind b t) : (ppr_fun_tail t')
-ppr_fun_tail t
-  = [ppr_rtype TopPrec t]
+ppr_fun_tail :: (Subable r, RefTypable p c tv pv r) => Bool -> RType p c tv pv r -> [SDoc]
+ppr_fun_tail bb (RFun b t t' _)  
+  = (ppr_dbind bb b t) : (ppr_fun_tail bb t')
+ppr_fun_tail bb t
+  = [ppr_rtype bb TopPrec t]
 
-ppr_forall :: (Subable r, RefTypable p c tv pv r) => Prec -> RType p c tv pv r -> SDoc
-ppr_forall p t
-  = maybeParen p FunPrec $ sep [ppr_foralls αs, ppr_rtype TopPrec t']
+ppr_forall :: (Subable r, RefTypable p c tv pv r) => Bool -> Prec -> RType p c tv pv r -> SDoc
+ppr_forall b p t
+  = maybeParen p FunPrec $ sep [ppr_foralls αs, ppr_rtype b TopPrec t']
   where
     (αs,  t')           = split [] t
     split αs (RAll α t) = split (α:αs) t
@@ -661,8 +662,8 @@ isTautoTy (RApp c ts rs r) = and $ (isTauto r):((isTautoTy <$> ts) ++ (isTautoRe
 isTautoTy (RCls c ts)      = and (isTautoTy <$> ts) 
 isTautoTy (ROth a)         = True
 
-isTautoRef (RMono r) = isTauto r
-isTautoRef (RPoly t) = isTauto t
+isTautoRef (RMono r)       = isTauto r
+isTautoRef (RPoly t)       = isTauto t
 
 mapBind f (RVar b r)       = RVar (f b) r
 mapBind f (RFun b t1 t2 r) = RFun (f b) (mapBind f t1) (mapBind f t2) r
