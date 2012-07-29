@@ -1,0 +1,22 @@
+name:                   vector-algorithms-bench
+version:                0.3
+license:                BSD3
+license-file:           LICENSE
+author:                 Dan Doel
+maintainer:             Dan Doel <dan.doel@gmail.com>
+homepage:               http://code.haskell.org/~doio/
+category:               Benchmark
+synopsis:               Benchmarks for vector-algorithms
+description:            A suite of various benchmarks for verifying the
+                        performance of the algorithms in vector-algorithms.
+build-type:             Simple
+cabal-version:          >= 1.2
+
+executable vec-bench
+  build-depends:        base, mersenne-random, vector, vector-algorithms, mtl
+
+  ghc-options:          -Wall -Odph
+  main-is:              Main.hs
+
+  extensions:
+      Rank2Types

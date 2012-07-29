@@ -95,13 +95,12 @@ Other Prelude modules are much easier with fewer complex dependencies.
 
 -- #hide
 module GHC.Base
-        (
-        module GHC.Base,
-        module GHC.Classes,
-        module GHC.CString,
-        module GHC.Types,
-        module GHC.Prim,        -- Re-export GHC.Prim and GHC.Err, to avoid lots
-        module GHC.Err          -- of people having to import it explicitly
+        (module GHC.Base
+        ,module GHC.Classes
+        ,module GHC.CString
+        ,module GHC.Types
+        ,module GHC.Prim        -- Re-export GHC.Prim and GHC.Err, to avoid lots
+        , module GHC.Err          -- of people having to import it explicitly
   ) 
         where
 
@@ -109,9 +108,15 @@ import GHC.Types
 import GHC.Classes
 import GHC.CString
 import GHC.Prim
-import {-# SOURCE #-} GHC.Show
-import {-# SOURCE #-} GHC.Err
-import {-# SOURCE #-} GHC.IO (failIO)
+-- import {-# SOURCE #-} GHC.Show
+-- import {-# SOURCE #-} GHC.Err
+-- import {-# SOURCE #-} GHC.IO (failIO)
+import GHC.Show
+import GHC.Err
+import GHC.IO (failIO)
+
+
+
 
 -- This is not strictly speaking required by this module, but is an
 -- implicit dependency whenever () or tuples are mentioned, so adding it
@@ -354,6 +359,7 @@ augment g xs = g (:) xs
 -- > map f [x1, x2, ..., xn] == [f x1, f x2, ..., f xn]
 -- > map f [x1, x2, ...] == [f x1, f x2, ...]
 
+{-@ assert map :: (a -> b) -> xs:[a] -> {v: [b] | len(v) = len(xs)} @-}
 map :: (a -> b) -> [a] -> [b]
 map _ []     = []
 map f (x:xs) = f x : map f xs
@@ -400,6 +406,7 @@ mapFB c f = \x ys -> c (f x) ys
 --
 -- If the first list is not finite, the result is the first list.
 
+{-@ assert (++) :: xs:[a] -> ys:[a] -> {v:[a] | len(v) = (len(xs) + len(ys))} @-}
 (++) :: [a] -> [a] -> [a]
 (++) []     ys = ys
 (++) (x:xs) ys = x : xs ++ ys
@@ -619,8 +626,9 @@ returnIO x = IO $ \ s -> (# s, x #)
 bindIO :: IO a -> (a -> IO b) -> IO b
 bindIO (IO m) k = IO $ \ s -> case m s of (# new_s, a #) -> unIO (k a) new_s
 
-thenIO :: IO a -> IO b -> IO b
-thenIO (IO m) k = IO $ \ s -> case m s of (# new_s, _ #) -> unIO k new_s
+-- LIQUID
+-- thenIO :: IO a -> IO b -> IO b
+-- thenIO (IO m) k = IO $ \ s -> case m s of (# new_s, _ #) -> unIO k new_s
 
 unIO :: IO a -> (State# RealWorld -> (# State# RealWorld, a #))
 unIO (IO a) = a
