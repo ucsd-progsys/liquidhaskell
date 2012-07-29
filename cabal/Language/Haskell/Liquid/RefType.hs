@@ -779,7 +779,7 @@ ofType_ τ@(TyConApp c τs)
   = rApp c (ofType_ <$> τs) [] top 
   where (αs, τ) = TC.synTyConDefn c
 ofType_ τ               
-  = error "ofType" -- ROth (show τ)  
+  = error ("ofType: " ++ show τ) -- ROth (show τ)  
 
 ofPredTree (ClassPred c τs)
   = RCls c (ofType_ <$> τs)
