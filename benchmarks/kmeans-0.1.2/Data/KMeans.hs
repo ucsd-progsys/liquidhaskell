@@ -14,7 +14,7 @@ A simple implementation of the standard k-means clustering algorithm: <http://en
 module Data.KMeans (kmeans, kmeansGen)
     where
 
-import Data.List (transpose, sort, groupBy, minimumBy)
+import Data.List (sort, groupBy, minimumBy)
 import Data.Function (on)
 import Data.Ord (comparing)
 
@@ -28,6 +28,16 @@ instance Ord (WrapType a) where
 
 dist ::  [Double] -> [Double] -> Double 
 dist a b = sqrt . sum $ zipWith (\x y-> (x-y) ^ 2) a b
+
+{-@ assert compre :: xs:[a] -> {v:[(a,a)] | len(v) = len(xs) } @-}
+compre xs = [(x,x) | x <- xs]
+
+{-@ assert transpose :: n: Int -> [{v:[a] | len(v) = n}] -> {v: [[a]] | len(v) = n} @-}
+transpose               :: Int -> [[a]] -> [[a]]
+transpose 0 _              = []
+transpose n ((x:xs) : xss) = (x : [h | (h:_) <- xss]) : transpose (n-1) (xs : [ t | (_:t) <- xss]) 
+-- transpose []             = []
+-- transpose ([]   : xss)   = transpose xss
 
 centroid points = map (flip (/) l . sum) $ transpose (map getVect points)
     where l = fromIntegral $ length points
