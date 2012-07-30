@@ -1,1 +1,0 @@
-qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
