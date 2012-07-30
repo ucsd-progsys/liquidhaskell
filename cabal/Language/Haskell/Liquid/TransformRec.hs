@@ -18,8 +18,10 @@ import CoreLint
 import Bag
 import ErrUtils
 import SrcLoc
-import OccName
-import Name
+import OccName hiding (varName)
+import Name hiding (varName)
+import Id (idOccInfo, setIdInfo)
+import IdInfo
 
 import Control.Monad.State
 
@@ -73,7 +75,7 @@ transBd b            = return b
 transExpr :: CoreExpr -> TE CoreExpr
 transExpr e
   | chkRec e1'
-  = trans tvs ids bs e1' >>= return . keepLam e 
+  = trans tvs ids bs e1'
   | otherwise
   = return e
   where (tvs, ids, e') = collectTyAndValBinders e
@@ -83,9 +85,6 @@ transExpr e
 collectNonRecLets e = go [] e
   where go bs (Let b@(NonRec _ _) e') = go (b:bs) e'
         go bs e                       = (reverse bs, e)
-
-keepLam (Lam x e') e = Lam x (keepLam e' e)
-keepLam e1 e2        = e2
 
 appTysAndIds tvs ids x = mkApps (mkTyApps (Var x) (map TyVarTy tvs)) (map Var ids)
 
@@ -100,8 +99,13 @@ trXEs vs ids (x, e)
          tvs' = map TyVarTy vs'
          sTy  = M.fromList $ zip vs tvs'
 
--- trans :: [TyVar] -> [Id] -> CoreExpr -> TE  CoreExpr
-trans vs ids [] (Let (Rec xes) e)
+trans vs ids bs e
+  = liftM mkLet (trans_ vs liveIds bs e)
+  where liveIds = map mkAlive ids
+        e' = sub (M.fromList (zip ids (map Var liveIds))) e
+        mkLet es = foldr Lam es (vs ++ liveIds)
+
+trans_ vs ids [] (Let (Rec xes) e)
  = do fids <- mapM (mkFreshIds vs ids) xs
       let (ftvs, fxids, fxs) = unzip3 fids
       (se, rs) <- mkFreshBdrs vs ids xs fxs
@@ -112,10 +116,11 @@ trans vs ids [] (Let (Rec xes) e)
       return $ Let (Rec (xes' ++ rs)) (sub se e)
  where (xs, es) = unzip xes
 
-trans vs ids bs (Let (Rec xes) e)
- = trans vs ids [] (Let (Rec (zip xs es')) e)
+trans_ vs ids bs (Let (Rec xes) e)
+ = liftM mkLet $ trans_ vs ids [] (Let (Rec (zip xs es')) e)
  where (xs, es) = unzip xes
        es'      = map (\e0 -> foldr Let e0 bs) es
+       mkLet e  = foldr Let e bs
 
 mkSubs ids tvs ids0 xxs'   
   = M.fromList $ s1 ++ s2
@@ -172,6 +177,12 @@ freshInt
        return n
 
 freshUnique = freshInt >>= return . mkUnique 'X'
+
+mkAlive x
+  | isId x && isDeadOcc (idOccInfo x)
+  = setIdInfo x (setOccInfo (idInfo x) NoOccInfo)
+  | otherwise
+  = x
 
 class Subable a where
   sub   :: (M.Map CoreBndr CoreExpr) -> a -> a
