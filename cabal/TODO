@@ -17,10 +17,25 @@ GITTERY
     $ git pull
     $ git checkout foo
 
-
-
 FEATURES 
 --------
+
+- Allow qualifiers in HS source via {-@ qualif ... @-} annots (tests/pos/trans.hs)
+
+- load specs from module sources:
+
+    e.g. put GHC.List in the include/GHC/List
+
+         use some function from it, e.g. filter. 
+
+- re-export specs from module sources:
+
+    e.g. Data.List imports GHC.List and re-exports,
+
+         use some client from Data.List that is actually in GHC.List and
+         see that it works. Of course, should be transitive. Yikes.
+
+
 
 - tests/pos/getTails.hs
     the list comprehension versions require TAGs (see coreBinds)
@@ -42,8 +57,6 @@ FEATURES
 
   Trick: HsColour only transforms code blocks into HTML, leaves rest untouched.
          Pandoc ignores HTML blocks. #win
-
-- Don't print <p> if trivial
 
 - inlining?
 

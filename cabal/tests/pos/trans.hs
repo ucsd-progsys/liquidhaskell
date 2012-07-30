@@ -21,5 +21,10 @@ getTails n []           = []
 transpose :: Int -> Int -> [[a]] -> [[a]]
 transpose 0 _ _              = []
 transpose n m ((x:xs) : xss) = (x : getHeads xss) : transpose (n - 1) m (xs : getTails n xss)
+
 -- NEEDS TAGS: transpose n m ((x:xs) : xss) = (x : [h | (h:_) <- xss]) : transpose (n-1) m (xs : [ t | (_:t) <- xss]) 
+-- get this to work with:
+-- map tail
+-- map head
+{- qualif .... -}
 
