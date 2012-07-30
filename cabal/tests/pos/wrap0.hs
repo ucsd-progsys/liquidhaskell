@@ -2,8 +2,6 @@ module Wrap0 where
 
 import Language.Haskell.Liquid.Prelude (liquidError, liquidAssertB)
 
-{- data Foo a <p :: a -> Bool> = F (f :: a <p>) -}
-
 data Foo a = F a
 
 type IntFoo = Foo Int
