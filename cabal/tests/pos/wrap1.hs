@@ -7,7 +7,7 @@ import Language.Haskell.Liquid.Prelude (liquidError, liquidAssertB)
 import Data.Function (on)
 import Data.Ord (comparing)
 
-{-@ data WrapTypeGen b a <p :: b -> Bool> = WrapType (f :: b <p>) (gv :: a) @-}
+{- data WrapTypeGen b a <p :: b -> Bool> = WrapType (f :: b <p>) (gv :: a) -}
 data WrapTypeGen b a = WrapType {getVect :: b, getVal :: a}
 
 type WrapType a      = WrapTypeGen [Double] a
