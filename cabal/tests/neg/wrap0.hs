@@ -2,8 +2,7 @@ module Wrap0 where
 
 import Language.Haskell.Liquid.Prelude (liquidError, liquidAssertB)
 
-{- data Foo a <p :: a -> Bool> = F (f :: a <p>) -}
-
+{-@ data Foo a <p :: a -> Bool> = F (f :: a <p>) @-}
 data Foo a = F a
 
 type IntFoo = Foo Int
@@ -18,5 +17,5 @@ prop1 x (F y) = liquidAssertB (x < y)
 
 {-@ assert flibXs :: a -> Bool @-}
 flibXs x     = prop2 (F [x, x, x])
-prop2 (F []) = liquidError "no!"
+prop2 (F _ ) = liquidError "no!"
 prop2 (F _ ) = True
