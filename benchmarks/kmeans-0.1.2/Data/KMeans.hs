@@ -9,7 +9,7 @@ A simple implementation of the standard k-means clustering algorithm: <http://en
 
 -}
 
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances #-}
 
 module Data.KMeans (kmeans, kmeansGen)
     where
@@ -18,29 +18,39 @@ import Data.List (sort, groupBy, minimumBy)
 import Data.Function (on)
 import Data.Ord (comparing)
 
-data WrapType a = WrapType {getVect :: [Double], getVal :: a}
 
-instance Eq (WrapType a) where
+getHeads ((h:_): xss) = h : getHeads xss
+getHeads ([]   : xss) = getHeads xss
+getHeads []           = []
+
+getTails :: Int -> [[a]] -> [[a]]
+getTails n ((_:t): xss) = t : getTails n xss
+getTails n ([]   : xss) = getTails n xss
+getTails n []           = []
+
+{-@ assert transpose :: n:{v: Int | v >= 0} -> m:{v:Int|v >= 0} -> {v:[{v:[a] | len(v) = n}] | len(v) = m} -> {v:[{v:[a] | len(v) = m}] | len(v) = n} @-}
+transpose :: Int -> Int -> [[a]] -> [[a]]
+transpose 0 _ _              = []
+transpose n m ((x:xs) : xss) = (x : getHeads xss) : transpose (n - 1) m (xs : getTails n xss)
+
+
+data WrapType b a = WrapType {getVect :: b, getVal :: a}
+
+instance Eq (WrapType [Double] a) where
    (==) = (==) `on` getVect
 
-instance Ord (WrapType a) where
+instance Ord (WrapType [Double] a) where
     compare = comparing getVect
 
 dist ::  [Double] -> [Double] -> Double 
 dist a b = sqrt . sum $ zipWith (\x y-> (x-y) ^ 2) a b
 
-{-@ assert compre :: xs:[a] -> {v:[(a,a)] | len(v) = len(xs) } @-}
-compre xs = [(x,x) | x <- xs]
 
-{-@ assert transpose :: n: Int -> [{v:[a] | len(v) = n}] -> {v: [[a]] | len(v) = n} @-}
-transpose               :: Int -> [[a]] -> [[a]]
-transpose 0 _              = []
-transpose n ((x:xs) : xss) = (x : [h | (h:_) <- xss]) : transpose (n-1) (xs : [ t | (_:t) <- xss]) 
--- transpose []             = []
--- transpose ([]   : xss)   = transpose xss
+centroid n points = map (flip (/) l . sum) points' 
+    where l = fromIntegral m
+          m = length points 
+          points' = transpose n m (map getVect points)
 
-centroid points = map (flip (/) l . sum) $ transpose (map getVect points)
-    where l = fromIntegral $ length points
 
 closest (n :: Int) points point = minimumBy (comparing $ dist point) points
 
@@ -48,7 +58,7 @@ recluster' n centroids points = map (map snd) $ groupBy ((==) `on` fst) recluste
     where reclustered = sort [(closest n centroids (getVect a), a) | a <- points]
 
 recluster n clusters = recluster' n centroids $ concat clusters
-    where centroids = map centroid clusters
+    where centroids = map (centroid n) clusters
 
 part :: (Eq a) => Int -> [a] -> [[a]]
 part x ys
@@ -72,7 +82,7 @@ kmeans :: Int -> Int -> [[Double]] -> [[[Double]]]
 kmeans n = kmeansGen n id
 
 -- | A generalized kmeans function. This function operates not on points, but an arbitrary type which may be projected into a Euclidian space. Since the projection may be chosen freely, this allows for weighting dimensions to different degrees, etc.
-{-@ assert kmeansGen :: n: Int -> f:(a -> {v:[Double] | len(v) =n }) -> k:Int -> points:[a] -> [[a]] @-}
+{-@ assert kmeansGen :: n: Int -> f:(a -> {v:[Double] | len(v) = n }) -> k:Int -> points:[a] -> [[a]] @-}
 kmeansGen :: Int -> (a -> [Double]) -> Int -> [a] -> [[a]]
 kmeansGen n f k points = map (map getVal) . kmeans' n k . map (\x -> WrapType (f x) x) $ points
 
