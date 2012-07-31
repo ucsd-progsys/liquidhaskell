@@ -35,7 +35,10 @@ FEATURES
          use some client from Data.List that is actually in GHC.List and
          see that it works. Of course, should be transitive. Yikes.
 
-
+- redo KMeans with 
+    
+    getHeads ==> map head
+    getTails ==> map tail
 
 - tests/pos/getTails.hs
     the list comprehension versions require TAGs (see coreBinds)
