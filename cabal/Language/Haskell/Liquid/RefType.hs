@@ -51,8 +51,9 @@ import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, true
 
 import Data.Monoid      hiding ((<>))
 import Data.Maybe               (fromMaybe)
-import qualified Data.Map as M
-import qualified Data.Set as S 
+import qualified Data.Map  as M
+import qualified Data.Set  as S 
+import qualified Data.List as L
 import Control.Applicative  hiding (empty)   
 import Data.Bifunctor
 import Data.Generics.Schemes
@@ -348,14 +349,14 @@ rsplitArgsRes t = ([], [], t)
 
 -- generalize ::  Ord tv => RType p c tv pv r -> RType p c tv pv r
 generalize t = mkUnivs αs t 
-  where αs = S.toList $ freeVars t
+  where αs =  freeVars t
          
 freeVars (RAll (RP _) t) = freeVars t
-freeVars (RAll (RV α) t) = S.delete α $ freeVars t
-freeVars (RFun x t t' _) = S.unions   $ freeVars <$> [t, t']  
-freeVars (RApp _ ts _ _) = S.unions   $ freeVars <$> ts
-freeVars (RCls _ ts)     = S.unions   $ freeVars <$> ts 
-freeVars (RVar (RV α) _) = S.singleton α 
+freeVars (RAll (RV α) t) = freeVars t L.\\ [α]
+freeVars (RFun x t t' _) = freeVars t `L.union` freeVars t' 
+freeVars (RApp _ ts _ _) = L.nub $ concatMap freeVars ts
+freeVars (RCls _ ts)     = L.nub $ concatMap freeVars ts 
+freeVars (RVar (RV α) _) = [α] 
 
 ----------------------------------------------------------------
 ---------------------- Strictness ------------------------------

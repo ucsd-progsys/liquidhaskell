@@ -20,7 +20,7 @@ singleton :: k -> a -> Map k a
 singleton k x
   = Bin 1 k x Tip Tip
 
-{-@ assert insert :: (Ord k) => x:k -> v:a -> Map k a -> Map k a @-}
+{-@ assert insert :: (Ord k) => x:k -> a -> (Map {v : k | v < x} a) -> Map k a @-}
 insert            :: (Ord k) => k -> a -> Map k a -> Map k a
 insert kx x t
   = case t of 
