@@ -34,6 +34,7 @@ liquid  = do (targets, includes) <- getOpts
 
 liquidOne includes target = 
   do info    <- getGhcInfo target includes :: IO GhcInfo
+     putStrLn $ showPpr info 
      putStrLn $ "*************** Original CoreBinds ***************************" 
      putStrLn $ showPpr (cbs info)
      let cbs' = {- transformRecExpr -}  (cbs info)
