@@ -81,7 +81,7 @@ FEATURES
     getHeads ==> map head
     getTails ==> map tail
 
-- tests/pos/getTails.hs
+- tests/todo/getTails.hs
     the list comprehension versions require TAGs (see coreBinds)
         
         [ h | (h:_) <- xss]
