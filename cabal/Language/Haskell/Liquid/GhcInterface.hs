@@ -28,7 +28,7 @@ import MonadUtils (concatMapM, mapSndM)
 import qualified Control.Exception as Ex
 
 import GHC.Paths (libdir)
-import System.FilePath (dropFileName) 
+import System.FilePath (dropExtension, takeFileName, dropFileName) 
 import System.Directory (copyFile) 
 import System.Environment (getArgs)
 import DynFlags (defaultDynFlags, ProfAuto(..))
@@ -184,10 +184,11 @@ desugarModuleWithLoc tcm = do
 --------------------------------------------------------------------------------
  
 moduleSpec target mg paths
-  = do spec0      <- liftIO $ parseSpec Hs target 
+  = do liftIO      $ putStrLn ("paths = " ++ show paths) 
+       -- spec0      <- liftIO $ parseSpec Hs target 
        spec1      <- getSpecs Spec paths allNames 
        spec2      <- getSpecs Hs   paths allNames 
-       let spec    = mconcat [spec0, spec1, spec2]
+       let spec    = mconcat [{- spec0, -} spec1, spec2]
        setContext [IIModule mod]
        env        <- getSession
        (cs, ms)   <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec $ Ms.measures   spec
@@ -206,15 +207,23 @@ moduleSpec target mg paths
     where mod      = mg_module mg
           impNames = (moduleNameString . moduleName) <$> impMods
           impMods  = moduleEnvKeys $ mg_dir_imps mg
-          allNames = (mg_namestring mg) : impNames
+          allNames = traceShow "allNames" $ allNames'
+          allNames' = nubSort $ (targetName target) : (mg_namestring mg) : impNames
+          
+targetName = dropExtension . takeFileName 
+
+
 
 getSpecs ext paths names 
-  = moduleImports ext paths names >>= transParseSpecs ext paths S.empty mempty
+  = do fs <- moduleImports ext paths names 
+       liftIO $ putStrLn ("getSpecs: " ++ show fs)
+       transParseSpecs ext paths S.empty mempty fs
 
 transParseSpecs _ _ _ spec []       
   = return spec
 transParseSpecs ext paths seenFiles spec newFiles 
-  = do newSpec   <- liftIO $ liftM mconcat $ mapM (parseSpec ext) newFiles 
+  = do liftIO $ putStrLn ("txParseSpecs: " ++ show newFiles)
+       newSpec   <- liftIO $ liftM mconcat $ mapM (parseSpec ext) newFiles 
        impFiles  <- moduleImports ext paths [symbolString x | x <- Ms.imports newSpec]
        let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
        let spec'      = spec `mappend` newSpec
