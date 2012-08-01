@@ -448,11 +448,11 @@ tyBodyP ty
           outTy _              = Nothing
 
 binderP :: Parser Symbol
-binderP =  try $ liftM stringSymbolRaw idP
+binderP =  try $ liftM stringSymbol idP
        <|> liftM pwr (parens idP)
        where idP   = many1 (satisfy (not . bad))
              bad c = isSpace c || c `elem` "()"
-             pwr s = stringSymbolRaw $ "(" ++ s ++ ")" 
+             pwr s = stringSymbol $ "(" ++ s ++ ")" 
              
 grabs p = try (liftM2 (:) p (grabs p)) 
        <|> return []

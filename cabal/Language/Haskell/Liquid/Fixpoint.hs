@@ -453,11 +453,19 @@ encodeChar c
 decodeStr s 
   = chr ((read s) :: Int)
 
-qualifySymbol x s@(S y) 
-  | isQualified y = s 
-  | otherwise     = S (x ++ y)
+qualifySymbol x sy 
+  | isQualified x' = sy 
+  | isParened x'   = stringSymbol (wrapParens (x ++ "." ++ stripParens x')) 
+  | otherwise      = stringSymbol (x ++ "." ++ x')
+  where x' = symbolString sy 
 
-isQualified y = '.' `elem` y 
+isQualified y         = '.' `elem` y 
+wrapParens x          = "(" ++ x ++ ")"
+isParened xs          = xs /= stripParens xs
+stripParens ('(':xs)  = stripParens xs
+stripParens xs        = stripParens' (reverse xs)
+stripParens' (')':xs) = stripParens' xs
+stripParens' xs       = reverse xs
 
 ---------------------------------------------------------------------
 
