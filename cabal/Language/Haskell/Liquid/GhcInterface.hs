@@ -210,7 +210,7 @@ moduleSpec vars target mg paths
     where impNames = allDepNames {-target-} mg
           name     = mg_namestring mg
     
-allDepNames {- target -} mg = traceShow "allDepNames" $ allNames'
+allDepNames {- target -} mg = {- traceShow "allDepNames" $ -} allNames'
   where allNames'     = nubSort $ (mg_namestring mg) : {- (targetName target) : -} impNames
         impNames      = moduleNameString <$> (depNames mg ++ dirImportNames mg) 
 
