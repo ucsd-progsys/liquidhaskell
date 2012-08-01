@@ -462,10 +462,6 @@ qualifySymbol x sy
 isQualified y         = '.' `elem` y 
 wrapParens x          = "(" ++ x ++ ")"
 isParened xs          = xs /= stripParens xs
-stripParens ('(':xs)  = stripParens xs
-stripParens xs        = stripParens' (reverse xs)
-stripParens' (')':xs) = stripParens' xs
-stripParens' xs       = reverse xs
 
 ---------------------------------------------------------------------
 

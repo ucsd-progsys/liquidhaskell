@@ -41,7 +41,7 @@ import Name                     (mkInternalName)
 import OccName                  (mkTyVarOcc)
 import Unique                   (getKey, getUnique, initTyVarUnique)
 import Data.List                (sort)
-import Data.Maybe               (isJust, fromMaybe)
+import Data.Maybe               (isJust, fromMaybe, catMaybes)
 import Data.Char                (isUpper)
 import ErrUtils
 import Data.Traversable         (forM)
@@ -71,12 +71,21 @@ mkMeasureSpec env m = runReaderT mkSpec env
   where mkSpec = mkMeasureSort m' >>= mkMeasureDCon >>= return . Ms.dataConTypes
         m'     = first (txTyVarBinds . mapReft ureft) m
 
-mkAssumeSpec :: HscEnv-> [(Symbol, BareType)] -> IO [(Var, SpecType)]
-mkAssumeSpec env xbs = runReaderT mkAspec env
-  where mkAspec = return (first symbolString <$> xbs)
-                  >>= filterM (existsGhcId . fst)
-                  >>= mapM    (\(x, b) -> liftM2 (,) (lookupGhcId x) (mkSpecType b))
-                  >>= return . checkAssumeSpec
+mkAssumeSpec :: [Var] -> HscEnv -> [(Symbol, BareType)] -> IO [(Var, SpecType)]
+mkAssumeSpec vs env xbs = runReaderT mkAspec env
+  where mkAspec = forM vbs (\(v, b) -> liftM (v,) (mkSpecType b)) >>= return . checkAssumeSpec
+        vbs     = joinIds vs (first symbolString <$> xbs) 
+
+--  where mkAspec = return (first symbolString <$> xbs)
+--                  >>= filterM (existsGhcId . fst)
+--                  >>= mapM    (\(x, b) -> liftM2 (,) (lookupGhcId x) (mkSpecType b))
+--                  >>= return . checkAssumeSpec
+
+
+-- joinIds :: [Var] -> [(String, a)] -> [(Var, a)]
+joinIds vs xts = tracePpr "imported spec vars" vts   
+  where vm     = M.fromList [(showPpr v, v) | v <- tracePpr "imported Vars" vs]
+        vts    = catMaybes [(, t) <$> (M.lookup x vm) | (x, t) <- xts]
 
 mkInvariants :: HscEnv -> [BareType] -> IO [SpecType]
 mkInvariants env ts = runReaderT (mapM mkSpecType ts) env
@@ -89,25 +98,25 @@ mkPredType πs = ofBareType . txParams πs . txTyVarBinds . mapReft (fmap string
 -------------------- Type Checking Raw Strings -------------------
 ------------------------------------------------------------------
 
-tcExpr ::  FilePath -> String -> IO Type
-tcExpr f s = 
-    runGhc (Just libdir) $ do
-      df   <- getSessionDynFlags
-      setSessionDynFlags df
-      cm0  <- compileToCoreModule f
-      setContext [IIModule (cm_module cm0)]
-      env  <- getSession
-      r    <- CM.liftIO $ hscTcExpr env s 
-      return r
+--tcExpr ::  FilePath -> String -> IO Type
+--tcExpr f s = 
+--    runGhc (Just libdir) $ do
+--      df   <- getSessionDynFlags
+--      setSessionDynFlags df
+--      cm0  <- compileToCoreModule f
+--      setContext [IIModule (cm_module cm0)]
+--      env  <- getSession
+--      r    <- CM.liftIO $ hscTcExpr env s 
+--      return r
 
-fileEnv f 
-  = runGhc (Just libdir) $ do
-      df    <- getSessionDynFlags
-      setSessionDynFlags df
-      cm0  <- compileToCoreModule f
-      setContext [IIModule (cm_module cm0)]
-      env   <- getSession
-      return env
+--fileEnv f 
+--  = runGhc (Just libdir) $ do
+--      df    <- getSessionDynFlags
+--      setSessionDynFlags df
+--      cm0  <- compileToCoreModule f
+--      setContext [IIModule (cm_module cm0)]
+--      env   <- getSession
+--      return env
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
@@ -115,12 +124,17 @@ fileEnv f
 
 class Outputable a => GhcLookup a where
   lookupName :: HscEnv -> a -> IO (Maybe Name)
+  candidates :: a -> [a]
 
 instance GhcLookup String where
   lookupName     = stringLookup
+  candidates x   = [x, swizzle x] 
+
+swizzle =  dropModuleNames . stripParens
 
 instance GhcLookup Name where
   lookupName _   = return . Just
+  candidates x   = [x]
 
 existsGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM Bool 
 existsGhcThing name f x 
@@ -131,17 +145,17 @@ existsGhcThing name f x
 
 lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
 lookupGhcThing name f x 
-  = do z <- lookupGhcThing' name f x
-       case z of 
-         Just x -> return x
-         _      -> liftIO $ ioError $ userError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
+  = do zs <- catMaybes <$> mapM (lookupGhcThing' name f) (candidates x)
+       case zs of 
+         x:_ -> return x
+         _   -> liftIO $ ioError $ userError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
 
 lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
 lookupGhcThing' name f x 
   = do env     <- ask
        liftIO   $ putStrLn $ "lookupGhcThing' " ++ showPpr x 
        z       <- liftIO $ lookupName env x
-       liftIO   $ putStrLn $ "lookupGhcThing' DONE" 
+       liftIO   $ putStrLn $ "lookupGhcThing' DONE" ++ showPpr z 
        case z of
          Nothing -> return Nothing 
          Just n  -> liftIO $ liftM (join . (f <$>) . snd) (tcRnLookupName env n)
@@ -151,7 +165,7 @@ stringLookup env k
   | k `M.member` wiredIn
   = return $ M.lookup k wiredIn
   | last k == '#'
-  = errorstar $ "Unknown Primitive Thing: " ++ k
+  = return Nothing -- errorstar $ "Unknown Primitive Thing: " ++ k
   | otherwise
   = stringLookupEnv env k
 
@@ -175,9 +189,14 @@ lookupGhcDataCon = lookupGhcThing "DataCon" fdc
         fdc _            = Nothing
 
 lookupGhcId = lookupGhcThing "Id" thingId
+
 -- existsGhcId = existsGhcThing "Id" thingId
-existsGhcId s = do z <- existsGhcThing "Id" thingId s 
-                   return $ if z then z else (warnShow ("existsGhcId " ++ s) $ z)
+existsGhcId s = 
+  do z <- or <$> mapM (existsGhcThing "Id" thingId) (candidates s)
+     if z 
+       then return True 
+       else return (warnShow ("existsGhcId " ++ s) $ False)
+
 
 thingId (AnId x)     = Just x
 thingId (ADataCon x) = Just $ dataConWorkId x

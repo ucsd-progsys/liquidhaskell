@@ -139,7 +139,8 @@ getGhcInfo target paths
       hscEnv      <- getSession
       -- modguts     <- liftIO $ hscSimplify hscEnv modguts
       coreBinds   <- liftIO $ anormalize hscEnv modguts
-      spec        <- moduleSpec target modguts paths 
+      let impvs   = importVars coreBinds 
+      spec        <- moduleSpec impvs target modguts paths 
       liftIO       $ putStrLn $ "Module Imports: " ++ show (imports spec) 
       hqualFiles  <- moduleHquals modguts paths target spec 
       return       $ GI hscEnv coreBinds (importVars coreBinds) (definedVars coreBinds) hqualFiles spec 
@@ -183,7 +184,7 @@ desugarModuleWithLoc tcm = do
 --------------- Extracting Specifications (Measures + Assumptions) -------------
 --------------------------------------------------------------------------------
  
-moduleSpec target mg paths
+moduleSpec impVars target mg paths
   = do liftIO      $ putStrLn ("paths = " ++ show paths) 
        spec1      <- getSpecs Spec paths impNames 
        spec2      <- getSpecs Hs   paths impNames 
@@ -191,7 +192,7 @@ moduleSpec target mg paths
        setContext [IIModule (mg_module mg)]
        env        <- getSession
        (cs, ms)   <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec $ Ms.measures   spec
-       tySigs     <- liftIO $ mkAssumeSpec  env              $ Ms.sigs       spec
+       tySigs     <- liftIO $ mkAssumeSpec  impVars env      $ Ms.sigs       spec
        (tcs, dcs) <- liftIO $ mkConTypes    env              $ Ms.dataDecls  spec 
        invs       <- liftIO $ mkInvariants  env              $ Ms.invariants spec 
        return $ SP { imports    = nubSort $ impNames ++ [symbolString x | x <- Ms.imports spec]
