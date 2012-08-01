@@ -221,7 +221,7 @@ targetName     = dropExtension  . takeFileName
 getSpecs ext paths target name names 
   = do ifs <- moduleImports ext paths names 
        tfs <- liftIO $ testM (doesFileExist . snd) tf
-       let fs = tfs ++ ifs
+       let fs = nubSort $ tfs ++ ifs
        liftIO $ putStrLn ("getSpecs: " ++ show fs)
        transParseSpecs ext paths S.empty mempty fs
     where tf = (name, extFileName ext (dropExtension target))

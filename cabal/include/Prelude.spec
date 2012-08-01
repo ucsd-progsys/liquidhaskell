@@ -1,6 +1,7 @@
 module spec Prelude where
 
 import GHC.Base
+import GHC.List
 
 assume GHC.Integer.smallInteger :: x:GHC.Prim.Int# -> {v:Integer | v = (x :: Integer)}
 assume GHC.Types.True     :: {v : Bool | (? v)}
@@ -13,6 +14,7 @@ assume GHC.Classes.>=     :: (Ord a) => x:a -> y:a -> {v:Bool | ((? v) <=> x >= 
 assume GHC.Classes.<      :: (Ord a) => x:a -> y:a -> {v:Bool | ((? v) <=> x < y)}
 assume GHC.Classes.<=     :: (Ord a) => x:a -> y:a -> {v:Bool | ((? v) <=> x <= y)}
 assume GHC.Base.$         :: (x:a -> b) -> a -> b
+assume GHC.Base.map       :: (a -> b) -> xs:[a] -> {v: [b] | len(v) = len(xs)}
 
 assume GHC.Classes.compare  :: (Ord a) => x:a -> y:a -> {v:Ordering | (((v = EQ) <=> x = y) && ((v = LT) <=> x < y) && ((v = GT) <=> x > y))}
 assume GHC.Base.id :: x:a -> {v:a | v = x}

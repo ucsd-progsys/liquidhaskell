@@ -38,5 +38,4 @@ prop4 = liquidAssertB ((n1 + n2) == n3)
         n2 = mylen zs'
         n3 = mylen $ myapp zs zs' 
 
-prop5 = liquidAssertB (length zs'' == length zs) 
-        where zs'' = zipWith (+) zs (myreverse zs)
+prop5 = zipWith (+) zs (0: myreverse zs)
