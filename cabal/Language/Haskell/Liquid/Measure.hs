@@ -60,9 +60,8 @@ data Body
   | P Pred
   deriving (Data, Typeable)
 
--- TODO
-qualifySpec :: Symbol -> Spec ty bndr -> Spec ty bndr
-qualifySpec specname x = x 
+qualifySpec name sp = sp { sigs = [ (qualifySymbol name x, t) | (x, t) <- sigs sp] }
+
 
 mkM :: Symbol -> ty -> [Def bndr] -> Measure ty bndr
 mkM name typ eqns 

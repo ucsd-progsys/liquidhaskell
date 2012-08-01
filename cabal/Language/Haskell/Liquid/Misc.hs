@@ -196,3 +196,11 @@ testM f x = do b <- f x
 
 unions :: (Ord a) => [S.Set a] -> S.Set a
 unions = foldl' S.union S.empty
+
+
+stripParens ('(':xs)  = stripParens xs
+stripParens xs        = stripParens' (reverse xs)
+stripParens' (')':xs) = stripParens' xs
+stripParens' xs       = reverse xs
+
+
