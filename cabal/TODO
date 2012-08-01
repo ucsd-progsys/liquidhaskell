@@ -20,49 +20,13 @@ GITTERY
 MODULESPECS: Load specs from module sources:
 --------------------------------------------
 
-see tests/tmp/Moo, Loo, Goo
+Failed 7 tests: neg/trans.hs, neg/vector00.hs, neg/wrap0.hs, neg/wrap1.hs,
+pos/ListLen-LType.hs, pos/ListLen.hs, pos/vector0.hs
 
-1. GHC normalizes ALL Names by source module. So
+see tests/pos/Moo, Loo, Goo
 
-    if A defines foo
-    if B re-exports A
-    if C imports and uses "foo" from B (even if qualified) 
-
-    then foo is named: A.foo
-
-2. When reading SPEC files, normalize all names by module name:
-
-    module spec A where
-
-    assume foo :: ...
-    assume bar :: ...
-
-    Should rename to A.foo, A.bar
-
-    Treat imports just as before -- as long as the names were normalized in
-    defining .spec its ok.
-
-3. When reading .HS files,
-
-    - normalize spec by moduleName  {-@ @-}
-    - figure out how to transitively read (there is code that transitively
-      computes module names to hunt down qual/spec files so piggy back off
-      that.
-
-4. Should be possible to then just flatten the qualified specs using the old
-   monoid whatsit.
-
-        Bare.qualifySpecByModule :: ModuleName -> Spec -> Spec
-
-   Hook into this at the right place (parser?) and you are set.
-
-
-
-    e.g. put GHC.List in the include/GHC/List
-
-         use some function from it, e.g. filter. 
-
-
+Next: e.g. put GHC.List in the include/GHC/List
+      use some function from it, e.g. filter. 
 
 FEATURES 
 --------

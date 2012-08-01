@@ -20,7 +20,7 @@ import TysPrim          (intPrimTyCon)
 import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
 import CoreSyn          
 import CostCentre 
--- import Language.Haskell.Liquid.Misc (traceShow)
+import Language.Haskell.Liquid.Misc (stripParens)
 import Control.Exception (assert)
 import Control.Applicative  ((<$>))   
 
@@ -56,7 +56,7 @@ tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) $ x
 pprShow = text . show 
 
 dropModuleNames [] = [] 
-dropModuleNames s  = last $ words $ dotWhite <$> s 
+dropModuleNames s  = last $ words $ dotWhite <$> stripParens s 
   where dotWhite '.' = ' '
         dotWhite c   = c
 
