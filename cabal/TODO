@@ -20,24 +20,13 @@ GITTERY
 MODULESPECS: Load specs from module sources:
 --------------------------------------------
 
-Failed 7 tests: pos/LambdaEval.hs, pos/LambdaEvalMini.hs 
-
-see tests/pos/Moo, Loo, Goo
-
-Next: e.g. put GHC.List in the include/GHC/List
+1. e.g. put GHC.List in the include/GHC/List
       use some function from it, e.g. filter. 
 
 FEATURES 
 --------
 
 - Allow qualifiers in HS source via {-@ qualif ... @-} annots (tests/pos/trans.hs)
-
-- re-export specs from module sources:
-
-    e.g. Data.List imports GHC.List and re-exports,
-
-         use some client from Data.List that is actually in GHC.List and
-         see that it works. Of course, should be transitive. Yikes.
 
 - redo KMeans with 
     
