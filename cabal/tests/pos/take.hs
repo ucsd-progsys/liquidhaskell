@@ -2,7 +2,7 @@
 {-# LANGUAGE CPP,  NoImplicitPrelude, MagicHash #-}
 {-# OPTIONS_HADDOCK hide #-}
 
-module GHC.List (
+module Take (
     take0
   , take
   ) where
