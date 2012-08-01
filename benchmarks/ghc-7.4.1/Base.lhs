@@ -108,9 +108,9 @@ import GHC.Types
 import GHC.Classes
 import GHC.CString
 import GHC.Prim
--- import {-# SOURCE #-} GHC.Show
--- import {-# SOURCE #-} GHC.Err
--- import {-# SOURCE #-} GHC.IO (failIO)
+import {-# SOURCE #-} GHC.Show
+import {-# SOURCE #-} GHC.Err
+import {-# SOURCE #-} GHC.IO (failIO)
 import GHC.Show
 import GHC.Err
 import GHC.IO (failIO)

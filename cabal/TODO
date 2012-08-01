@@ -23,6 +23,12 @@ MODULESPECS: Load specs from module sources:
 1. e.g. put GHC.List in the include/GHC/List
       use some function from it, e.g. filter. 
 
+    Put GHC/Base.lhs
+        GHC/Base.spec
+
+        GHC/List.lhs
+        GHC/List.spec
+
 FEATURES 
 --------
 
