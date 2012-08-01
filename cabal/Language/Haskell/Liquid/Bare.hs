@@ -83,9 +83,9 @@ mkAssumeSpec vs env xbs = runReaderT mkAspec env
 
 
 -- joinIds :: [Var] -> [(String, a)] -> [(Var, a)]
-joinIds vs xts = tracePpr "imported spec vars" vts   
-  where vm     = M.fromList [(showPpr v, v) | v <- tracePpr "imported Vars" vs]
-        vts    = catMaybes [(, t) <$> (M.lookup x vm) | (x, t) <- xts]
+joinIds vs xts = tracePpr "spec vars" vts   
+  where vm     = M.fromList [(showPpr v, v) | v <- tracePpr "vars" vs]
+        vts    = catMaybes [(, t) <$> (M.lookup x vm) | (x, t) <- tracePpr "bareVars" xts]
 
 mkInvariants :: HscEnv -> [BareType] -> IO [SpecType]
 mkInvariants env ts = runReaderT (mapM mkSpecType ts) env

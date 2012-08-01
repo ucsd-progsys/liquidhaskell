@@ -48,6 +48,8 @@ import GHC.Exts         (groupWith, sortWith)
 import TysPrim          (intPrimTyCon)
 import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
 
+import System.Directory (doesFileExist)
+
 import Language.Haskell.Liquid.Fixpoint hiding (Expr) 
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.FileNames
@@ -140,10 +142,11 @@ getGhcInfo target paths
       -- modguts     <- liftIO $ hscSimplify hscEnv modguts
       coreBinds   <- liftIO $ anormalize hscEnv modguts
       let impvs   = importVars coreBinds 
-      spec        <- moduleSpec impvs target modguts paths 
+      let defvs   = definedVars coreBinds 
+      spec        <- moduleSpec (defvs ++ impvs) target modguts paths 
       liftIO       $ putStrLn $ "Module Imports: " ++ show (imports spec) 
       hqualFiles  <- moduleHquals modguts paths target spec 
-      return       $ GI hscEnv coreBinds (importVars coreBinds) (definedVars coreBinds) hqualFiles spec 
+      return       $ GI hscEnv coreBinds impvs defvs hqualFiles spec 
 
 moduleHquals mg paths target spec
   = do hqs   <- specIncludes Hquals paths (includes spec)
@@ -184,15 +187,15 @@ desugarModuleWithLoc tcm = do
 --------------- Extracting Specifications (Measures + Assumptions) -------------
 --------------------------------------------------------------------------------
  
-moduleSpec impVars target mg paths
+moduleSpec vars target mg paths
   = do liftIO      $ putStrLn ("paths = " ++ show paths) 
-       spec1      <- getSpecs Spec paths impNames 
-       spec2      <- getSpecs Hs   paths impNames 
+       spec1      <- getSpecs Spec paths target name impNames 
+       spec2      <- getSpecs Hs   paths target name impNames 
        let spec    = mconcat [spec1, spec2]
        setContext [IIModule (mg_module mg)]
        env        <- getSession
        (cs, ms)   <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec $ Ms.measures   spec
-       tySigs     <- liftIO $ mkAssumeSpec  impVars env      $ Ms.sigs       spec
+       tySigs     <- liftIO $ mkAssumeSpec  vars env      $ Ms.sigs       spec
        (tcs, dcs) <- liftIO $ mkConTypes    env              $ Ms.dataDecls  spec 
        invs       <- liftIO $ mkInvariants  env              $ Ms.invariants spec 
        return $ SP { imports    = nubSort $ impNames ++ [symbolString x | x <- Ms.imports spec]
@@ -204,20 +207,26 @@ moduleSpec impVars target mg paths
                    , includes   = Ms.includes spec
                    , invariants = invs
                    }
-    where impNames = allDepNames target mg
-
-allDepNames target mg = traceShow "allDepNames" $ allNames'
-  where allNames'     = nubSort $ (targetName target) : (mg_namestring mg) : impNames
+    where impNames = allDepNames {-target-} mg
+          name     = mg_namestring mg
+    
+allDepNames {- target -} mg = traceShow "allDepNames" $ allNames'
+  where allNames'     = nubSort $ (mg_namestring mg) : {- (targetName target) : -} impNames
         impNames      = moduleNameString <$> (depNames mg ++ dirImportNames mg) 
 
 depNames       = map fst        . dep_mods      . mg_deps
 dirImportNames = map moduleName . moduleEnvKeys . mg_dir_imps  
 targetName     = dropExtension  . takeFileName 
 
-getSpecs ext paths names 
-  = do fs <- moduleImports ext paths names 
+getSpecs ext paths target name names 
+  = do ifs <- moduleImports ext paths names 
+       tfs <- liftIO $ testM (doesFileExist . snd) tf
+       let fs = tfs ++ ifs
        liftIO $ putStrLn ("getSpecs: " ++ show fs)
        transParseSpecs ext paths S.empty mempty fs
+    where tf = (name, extFileName ext (dropExtension target))
+        
+
 
 transParseSpecs _ _ _ spec []       
   = return spec
