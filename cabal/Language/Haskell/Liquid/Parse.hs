@@ -391,7 +391,7 @@ data Pspec ty bndr
   | Incl  FilePath
   | Invt  ty
 
-mkSpec xs    = {- Measure.qualifySpec name $ -} Measure.Spec 
+mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
   { Measure.measures   = [m | Meas  m <- xs]
   , Measure.sigs       = [a | Assm  a <- xs]
   , Measure.invariants = [t | Invt  t <- xs] 
@@ -403,10 +403,10 @@ mkSpec xs    = {- Measure.qualifySpec name $ -} Measure.Spec
 specificationP 
   = do reserved "module"
        reserved "spec"
-       name  <- symbolP
+       S name <- symbolP
        reserved "where"
-       xs    <- grabs (specP <* whiteSpace) --(liftM2 const specP whiteSpace)
-       return $ mkSpec xs 
+       xs     <- grabs (specP <* whiteSpace) --(liftM2 const specP whiteSpace)
+       return $ mkSpec name xs 
 
 
 specP 
@@ -448,12 +448,12 @@ tyBodyP ty
           outTy _              = Nothing
 
 binderP :: Parser Symbol
-binderP =  try $ liftM stringSymbol idP
+binderP =  try $ liftM stringSymbolRaw idP
        <|> liftM pwr (parens idP)
-       where pwr s = stringSymbol $ "(" ++ s ++ ")" 
-             idP   = many1 (satisfy (not . bad))
+       where idP   = many1 (satisfy (not . bad))
              bad c = isSpace c || c `elem` "()"
-
+             pwr s = stringSymbolRaw $ "(" ++ s ++ ")" 
+             
 grabs p = try (liftM2 (:) p (grabs p)) 
        <|> return []
 
@@ -548,8 +548,6 @@ remainderP p
        str <- stateInput <$> getParserState
        return (res, str) 
 
--- doParse p = doParse' p ""
-
 doParse' parser f s
   = case parse (remainderP p) f s of
       Left e         -> errorstar $ "parseError when parsing " ++ s ++ " : " ++ show e
@@ -611,8 +609,8 @@ instance Inputable (Measure.Measure BareType Symbol) where
 instance Inputable (Measure.Spec BareType Symbol) where
   rr' = doParse' specificationP
 
-hsSpecificationP 
-  = doParse' $ liftM mkSpec $ specWraps specP
+hsSpecificationP name 
+  = doParse' $ liftM (mkSpec name) $ specWraps specP
 
 
 ---------------------------------------------------------------

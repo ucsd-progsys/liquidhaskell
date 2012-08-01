@@ -5,7 +5,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , Fixpoint (toFix) 
   , typeSort, typeUniqueSymbol
   , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tagSymbol, tempSymbol
-  , stringTycon, stringSymbol, symbolString
+  , qualifySymbol, stringTycon, stringSymbol, symbolString, stringSymbolRaw
   , anfPrefix, tempPrefix
   , intKvar
   , PVar (..), Sort (..), Symbol(..), Constant (..), Bop (..), Brel (..), Expr (..)
@@ -413,6 +413,9 @@ instance Fixpoint Subst where
 stringTycon :: String -> Tycon
 stringTycon = TC . stringSymbol . dropModuleNames
 
+stringSymbolRaw :: String -> Symbol
+stringSymbolRaw = S
+
 stringSymbol :: String -> Symbol
 stringSymbol s
   | isFixSym' s = S s 
@@ -449,6 +452,12 @@ encodeChar c
 
 decodeStr s 
   = chr ((read s) :: Int)
+
+qualifySymbol x s@(S y) 
+  | isQualified y = s 
+  | otherwise     = S (x ++ y)
+
+isQualified y = '.' `elem` y 
 
 ---------------------------------------------------------------------
 

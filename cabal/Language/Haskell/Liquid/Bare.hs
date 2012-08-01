@@ -139,7 +139,9 @@ lookupGhcThing name f x
 lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
 lookupGhcThing' name f x 
   = do env     <- ask
+       liftIO   $ putStrLn $ "lookupGhcThing' " ++ showPpr x 
        z       <- liftIO $ lookupName env x
+       liftIO   $ putStrLn $ "lookupGhcThing' DONE" 
        case z of
          Nothing -> return Nothing 
          Just n  -> liftIO $ liftM (join . (f <$>) . snd) (tcRnLookupName env n)
