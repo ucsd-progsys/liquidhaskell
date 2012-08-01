@@ -20,8 +20,7 @@ GITTERY
 MODULESPECS: Load specs from module sources:
 --------------------------------------------
 
-Failed 7 tests: neg/trans.hs, neg/vector00.hs, neg/wrap0.hs, neg/wrap1.hs,
-pos/ListLen-LType.hs, pos/ListLen.hs, pos/vector0.hs
+Failed 7 tests: pos/LambdaEval.hs, pos/LambdaEvalMini.hs 
 
 see tests/pos/Moo, Loo, Goo
 
