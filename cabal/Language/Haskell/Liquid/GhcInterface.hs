@@ -186,10 +186,10 @@ desugarModuleWithLoc tcm = do
 moduleSpec target mg paths
   = do liftIO      $ putStrLn ("paths = " ++ show paths) 
        -- spec0      <- liftIO $ parseSpec Hs target 
-       spec1      <- getSpecs Spec paths allNames 
-       spec2      <- getSpecs Hs   paths allNames 
+       spec1      <- getSpecs Spec paths impNames 
+       spec2      <- getSpecs Hs   paths impNames 
        let spec    = mconcat [{- spec0, -} spec1, spec2]
-       setContext [IIModule mod]
+       setContext [IIModule (mg_module mg)]
        env        <- getSession
        (cs, ms)   <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec $ Ms.measures   spec
        tySigs     <- liftIO $ mkAssumeSpec  env              $ Ms.sigs       spec
@@ -204,15 +204,15 @@ moduleSpec target mg paths
                    , includes   = Ms.includes spec
                    , invariants = invs
                    }
-    where mod      = mg_module mg
-          impNames = (moduleNameString . moduleName) <$> impMods
-          impMods  = moduleEnvKeys $ mg_dir_imps mg
-          allNames = traceShow "allNames" $ allNames'
-          allNames' = nubSort $ (targetName target) : (mg_namestring mg) : impNames
-          
-targetName = dropExtension . takeFileName 
+    where impNames = allDepNames target mg
 
+allDepNames target mg = traceShow "allDepNames" $ allNames'
+  where allNames'     = nubSort $ (targetName target) : (mg_namestring mg) : impNames
+        impNames      = moduleNameString <$> (depNames mg ++ dirImportNames mg) 
 
+depNames       = map fst        . dep_mods      . mg_deps
+dirImportNames = map moduleName . moduleEnvKeys . mg_dir_imps  
+targetName     = dropExtension  . takeFileName 
 
 getSpecs ext paths names 
   = do fs <- moduleImports ext paths names 
