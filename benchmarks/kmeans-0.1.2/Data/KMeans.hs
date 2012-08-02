@@ -18,15 +18,21 @@ module Data.KMeans (kmeans, kmeansGen)
 import Data.List (sort, span, minimumBy)
 import Data.Function (on)
 import Data.Ord (comparing)
-import Language.Haskell.Liquid.Prelude (liquidError)
+import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
 
+-- Liquid: Kept for exposition, can use Data.List.groupBy
 {-@ assert groupBy :: (a -> a -> Bool) -> [a] -> [{v:[a] | len(v) > 0}] @-}
 groupBy                 :: (a -> a -> Bool) -> [a] -> [[a]]
 groupBy _  []           =  []
 groupBy eq (x:xs)       =  (x:ys) : groupBy eq zs
                            where (ys,zs) = span (eq x) xs
 
-{-@ assert transpose :: n:Int -> m:{v:Int | v > 0} -> {v:[{v:[a] | len(v) = n}] | len(v) = m} -> {v:[{v:[a] | len(v) = m}] | len(v) = n} @-}
+{-@ assert transpose :: n:Int
+                     -> m:{v:Int | v > 0} 
+                     -> {v:[{v:[a] | len(v) = n}] | len(v) = m} 
+                     -> {v:[{v:[a] | len(v) = m}] | len(v) = n} 
+  @-}
+
 transpose :: Int -> Int -> [[a]] -> [[a]]
 transpose 0 _ _              = []
 transpose n m ((x:xs) : xss) = (x : map head xss) : transpose (n - 1) m (xs : map tail xss)
@@ -42,13 +48,12 @@ instance Ord (WrapType [Double] a) where
     compare = comparing getVect
 
 dist ::  [Double] -> [Double] -> Double 
-dist a b = sqrt . sum $ zipWith (\x y-> (x-y) ^ 2) a b
+dist a b = sqrt . sum $ zipWith (\x y-> (x-y) ^ 2) a b      -- Liquid: zipWith dimensions
 
-centroid n points = map (( / l) . sum) points' 
-    where l = fromIntegral m
+centroid n points = map (( / l) . sum) points'              -- Liquid: Divide By Zero
+    where l = fromIntegral $ liquidAssert (m > 0) m
           m = length points 
           points' = transpose n m (map getVect points)
-
 
 closest (n :: Int) points point = minimumBy (comparing $ dist point) points
 

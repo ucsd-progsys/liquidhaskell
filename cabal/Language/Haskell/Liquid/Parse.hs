@@ -237,7 +237,7 @@ bareArgP
 
 bareAtomP 
   =  refP bbaseP 
- <|> try (dummyP bbaseP)
+ <|> try (dummyP (bbaseP <* spaces))
 
 bbaseP :: Parser (Reft -> BareType)
 bbaseP 
