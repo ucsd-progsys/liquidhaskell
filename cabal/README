@@ -49,7 +49,7 @@ How to Profile
 
    or by this to see the graph
 
-   $ hp2ps liquid.hp
+   $ hp2ps -e8in -c liquid.hp
 
    $ gv liquid.ps
 

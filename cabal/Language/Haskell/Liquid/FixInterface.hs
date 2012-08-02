@@ -22,7 +22,7 @@ import Language.Haskell.Liquid.Parse         (rr)
 import Language.Haskell.Liquid.Constraint    (CGInfo (..))
 
 solve fn hqs cgi
-  = {-# SCC "Solve" #-} execFq fn hqs gs (elems cm) ws qs >>= exitFq fn cm 
+  = {-# SCC "Solve" #-} execFq fn hqs gs (elems cm) ws qs >>= {-# SCC "exitFq" #-} exitFq fn cm 
   where cm  = fromAscList $ zipWith (\i c -> (i, c {sid = Just i})) [1..] cs 
         cs  = fixCs cgi
         ws  = fixWfs cgi
@@ -40,16 +40,20 @@ execFq fn hqs globals cs ws qs
           d    = {-# SCC "FixPointify" #-} toFixpoint (FI cs ws globals)
           qstr = showSDoc ((vcat $ toFix <$> qs) $$ blankLine)
 
--- execCmd fn = printf "fixpoint.native -notruekvars -refinesort -noslice -strictsortcheck -out %s %s" fo fq 
 execCmd fn = printf "fixpoint.native -notruekvars -refinesort -noslice -strictsortcheck -out %s %s" fo fq 
   where fq = extFileName Fq  fn
         fo = extFileName Out fn
  
 exitFq _ _ (ExitFailure n) | (n /= 1) 
   = return (Crash [] "Unknown Error", empty)
+--exitFq fn cm _ 
+--  = do (x, y) <- (rr . sanitizeFixpointOutput) <$> (readFile $ extFileName Out fn)
+--       return  $ (plugC cm x, y) 
 exitFq fn cm _ 
-  = do (x, y) <- (rr . sanitizeFixpointOutput) <$> (readFile $ extFileName Out fn)
+  = do str <- {-# SCC "readOut" #-} readFile (extFileName Out fn)
+       let (x, y) = {-# SCC "parseFixOut" #-} rr ({-# SCC "sanitizeFixpointOutput" #-} sanitizeFixpointOutput str)
        return  $ (plugC cm x, y) 
+
 
 sanitizeFixpointOutput 
   = unlines 

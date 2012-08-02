@@ -1,7 +1,7 @@
 module spec Prelude where
 
 import GHC.Base
-
+import GHC.List
 
 assume GHC.Integer.smallInteger :: x:GHC.Prim.Int# -> {v:Integer | v = (x :: Integer)}
 assume GHC.Num.+                :: (Num a) => x:a -> y:a -> {v:a | v = x + y }
