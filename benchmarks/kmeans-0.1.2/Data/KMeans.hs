@@ -28,10 +28,19 @@ getTails n ((_:t): xss) = t : getTails n xss
 getTails n ([]   : xss) = getTails n xss
 getTails n []           = []
 
-{-@ assert transpose :: n:{v: Int | v >= 0} -> m:{v:Int|v >= 0} -> {v:[{v:[a] | len(v) = n}] | len(v) = m} -> {v:[{v:[a] | len(v) = m}] | len(v) = n} @-}
+{-@ assert transpose :: n:Int -> m:Int -> {v:[{v:[a] | len(v) = n}] | len(v) = m} -> {v:[{v:[a] | len(v) = m}] | len(v) = n} @-}
 transpose :: Int -> Int -> [[a]] -> [[a]]
 transpose 0 _ _              = []
 transpose n m ((x:xs) : xss) = (x : getHeads xss) : transpose (n - 1) m (xs : getTails n xss)
+
+--{- assert transpose :: n:{v:Int | v >= 0} 
+--                     -> m:{v:Int | v >= 0} 
+--                     -> {v:[{v:[a] | len(v) = n}] | len(v) = m} 
+--                     -> {v:[{v:[a] | len(v) = m}] | len(v) = n} 
+--  -}
+--transpose :: Int -> Int -> [[a]] -> [[a]]
+--transpose 0 _ _              = []
+--transpose n m ((x:xs) : xss) = (x : map head xss) : transpose (n - 1) m (xs : map tail xss)
 
 
 data WrapType b a = WrapType {getVect :: b, getVal :: a}
