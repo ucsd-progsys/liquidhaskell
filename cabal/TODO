@@ -17,41 +17,13 @@ GITTERY
     $ git pull
     $ git checkout foo
 
-MODULESPECS: Load specs from module sources:
---------------------------------------------
-
-1. e.g. put GHC.List in the include/GHC/List
-      use some function from it, e.g. filter. 
-
-    Put GHC/Base.lhs
-        GHC/Base.spec
-
-        GHC/List.lhs
-        GHC/List.spec
-
 FEATURES 
 --------
 
-- Allow qualifiers in HS source via {-@ qualif ... @-} annots (tests/pos/trans.hs)
-
-- redo KMeans with 
+- redo KMeans with <--------- HEREHEREHEREHEREHEREHERE
     
     getHeads ==> map head
     getTails ==> map tail
-
-- tests/todo/getTails.hs
-    the list comprehension versions require TAGs (see coreBinds)
-        
-        [ h | (h:_) <- xss]
-
-    becomes
-
-        foo []       = []
-        foo (tmp:xss) = case tmp of
-                         h:_     -> h : foo xss
-                         DEFAULT -> foo xss
-            
-    and we need TAGS to relate len(v) > 0 and DEFAULT...
 
 - Blogging: 
     
@@ -60,6 +32,8 @@ FEATURES
   Trick: HsColour only transforms code blocks into HTML, leaves rest untouched.
          Pandoc ignores HTML blocks. #win
 
+  
+
 - inlining?
 
     cunning trick with contextual/predicates. (See email)
@@ -67,7 +41,7 @@ FEATURES
 
 - Add/Parse predicate signatures for lists<p> and tuples<p> 
   
-    e.g. [{x: Int | x > 0}]   <--------- HEREHEREHEREHEREHEREHERE
+    e.g. [{x: Int | x > 0}]   
 
 - pos/deptup.hs (type signature: for constructor wrapper)
 
@@ -115,23 +89,48 @@ data (a1, a2, a3)
     constant ':'  : Tag 
     constant '[]' : Tag
 
+- tests/todo/getTails.hs
+    the list comprehension versions require TAGs (see coreBinds)
+        
+        [ h | (h:_) <- xss]
+
+    becomes
+
+        foo []       = []
+        foo (tmp:xss) = case tmp of
+                         h:_     -> h : foo xss
+                         DEFAULT -> foo xss
+            
+    and we need TAGS to relate len(v) > 0 and DEFAULT...
+
 
 BENCHMARKS
 ----------
 
+Blogs
+
+    1. Trivial Stuff (incr, pos, map, fold, etc.)
+    2. Lists         (append, reverse, map-length, filter)
+    3. Lists         (take, transpose)
+    4. KMeans        (++ zipWith etc.)
+    5. LambdaEval
+    6. Sorting I     (Insert)
+    7. Sorting II    (Merge, Quick)
+    8. Map  I        (BST property, add, delete)
+    9. Map II        (Data.Map with balancing etc.)
+
 Paper #1
 
 [OK] GHC.List   (../benchmarks/ghc-7.4.1/List.lhs)
+[OK] Data.KMeans
+[OK] Data.Map
 ->   Data.List  (../base-4.5.1.0/Data/List.hs)
-
-->   Data.Map
 ->   Data.Set
 ->   Data.IntSet
 ->   Bytestring & Client (Text?)
 ->   vector-algorithms "vector bounds checking"
      > e.g. "unsafeSlice"
      > maybe only specify types for Vector?
--> Xmonad properties
 
 -> hmatrix
     > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Matrix.html#Matrix
@@ -140,8 +139,8 @@ Paper #1
 Paper #2
 
 -> Haskell + DB / Yesod / Snap
-
-- NDM/catch benchmarks (with refinements)
+-> Xmonad properties
+-> NDM/catch benchmarks (with refinements)
 
 
 KNOWN BUGS
