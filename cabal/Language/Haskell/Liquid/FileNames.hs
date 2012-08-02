@@ -39,7 +39,7 @@ getIncludePath = getEnv envVarName
 
 
 
-data Ext = Cgi | Out | Fq | Html | Cst | Annot | Hs | Spec | Hquals | Pred | PAss| Dat
+data Ext = Cgi | Out | Fq | Html | Cst | Annot | LHs | Hs | Spec | Hquals | Pred | PAss| Dat
            deriving (Eq, Ord)
 
 extMap   = M.fromList [ (Cgi,    "cgi")
@@ -52,6 +52,7 @@ extMap   = M.fromList [ (Cgi,    "cgi")
                       , (Cst,    "cst")
                       , (Annot,  "annot")
                       , (Hs,     "hs")
+                      , (LHs,    "lhs")
                       , (Spec,   "spec")
                       , (Hquals, "hquals") ]
 

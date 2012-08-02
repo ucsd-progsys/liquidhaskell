@@ -189,9 +189,10 @@ desugarModuleWithLoc tcm = do
  
 moduleSpec vars target mg paths
   = do liftIO      $ putStrLn ("paths = " ++ show paths) 
-       spec1      <- getSpecs Spec paths target name impNames 
-       spec2      <- getSpecs Hs   paths target name impNames 
-       let spec    = mconcat [spec1, spec2]
+       --spec1      <- getSpecs Spec paths target name impNames 
+       --spec2      <- getSpecs Hs   paths target name impNames 
+       --let spec    = mconcat [spec1, spec2]
+       spec       <- mconcat <$> forM [Spec, Hs, LHs] (getSpecs paths target name impNames) 
        setContext [IIModule (mg_module mg)]
        env        <- getSession
        (cs, ms)   <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec $ Ms.measures   spec
@@ -218,7 +219,7 @@ depNames       = map fst        . dep_mods      . mg_deps
 dirImportNames = map moduleName . moduleEnvKeys . mg_dir_imps  
 targetName     = dropExtension  . takeFileName 
 
-getSpecs ext paths target name names 
+getSpecs paths target name names ext 
   = do ifs <- moduleImports ext paths names 
        tfs <- liftIO $ testM (doesFileExist . snd) tf
        let fs = nubSort $ tfs ++ ifs
@@ -253,9 +254,9 @@ parseSpec' ext name file
 specParser Spec _  = rr'
 specParser Hs name = hsSpecificationP name
 
-moduleImports ext paths = liftIO . liftM catMaybes . mapM (mnamePath paths ext) 
-mnamePath paths ext name = fmap (name,) <$> getFileInDirs fileName paths
-  where fileName = name `extModuleName` ext
+moduleImports ext paths  = liftIO . liftM catMaybes . mapM (mnamePath paths ext) 
+mnamePath paths ext name = fmap (name,) <$> getFileInDirs file paths
+                           where file = name `extModuleName` ext
 
 
 --moduleImports ext paths names 
