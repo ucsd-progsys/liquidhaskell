@@ -189,11 +189,8 @@ desugarModuleWithLoc tcm = do
  
 moduleSpec vars target mg paths
   = do liftIO      $ putStrLn ("paths = " ++ show paths) 
-       --spec1      <- getSpecs Spec paths target name impNames 
-       --spec2      <- getSpecs Hs   paths target name impNames 
-       --let spec    = mconcat [spec1, spec2]
        tgtSpec    <- liftIO $ parseSpec (name, target) 
-       impSpec    <- getSpecs paths target name impNames [Spec, Hs, LHs] 
+       impSpec    <- getSpecs paths impNames [Spec, Hs, LHs] 
        let spec    = tgtSpec `mappend` impSpec 
        setContext [IIModule (mg_module mg)]
        env        <- getSession
@@ -213,21 +210,18 @@ moduleSpec vars target mg paths
     where impNames = allDepNames  mg
           name     = mg_namestring mg
     
-allDepNames mg    = {- traceShow "allDepNames" $ -} allNames'
-  where allNames' = nubSort $ {- (mg_namestring mg) : (targetName target) : -} impNames
+allDepNames mg    = traceShow "allDepNames" $ allNames'
+  where allNames' = nubSort impNames
         impNames  = moduleNameString <$> (depNames mg ++ dirImportNames mg) 
 
 depNames       = map fst        . dep_mods      . mg_deps
 dirImportNames = map moduleName . moduleEnvKeys . mg_dir_imps  
 targetName     = dropExtension  . takeFileName 
 
-getSpecs paths target name names exts
-  = do ifs <- moduleImports exts paths names 
-       tfs <- liftIO $ filterM (doesFileExist . snd) tf
-       let fs = nubSort $ tfs ++ ifs
+getSpecs paths names exts
+  = do fs    <- nubSort <$> moduleImports exts paths names 
        liftIO $ putStrLn ("getSpecs: " ++ show fs)
        transParseSpecs exts paths S.empty mempty fs
-    where tf = [(name, extFileName ext (dropExtension target)) | ext <- exts]
 
 transParseSpecs _ _ _ spec []       
   = return spec
