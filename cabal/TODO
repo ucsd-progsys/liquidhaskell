@@ -20,10 +20,7 @@ GITTERY
 FEATURES 
 --------
 
-- redo KMeans with <--------- HEREHEREHEREHEREHEREHERE
-    whats the error with the n, m >= 0?    
-    getHeads ==> map head
-    getTails ==> map tail
+<--------- HEREHEREHEREHEREHEREHERE
 
 - Blogging: 
     
@@ -31,12 +28,6 @@ FEATURES
 
   Trick: HsColour only transforms code blocks into HTML, leaves rest untouched.
          Pandoc ignores HTML blocks. #win
-
-  
-
-- inlining?
-
-    cunning trick with contextual/predicates. (See email)
 
 
 - Add/Parse predicate signatures for lists<p> and tuples<p> 
@@ -74,9 +65,10 @@ data (a1, a2, a3)
 *** Cleanup output (tests/pos/poly0.hs)
     > sexify HsAnnot with Colorized Types? (color refinements blue?) 
 
+- TAGS
 
-*** Data (TyCon) invariants
-    3. (CHECK)  generate constraints. 
+    > also enables cunning trick with contextual/predicates. (See email)
+
     4. Add TAG measure (builtin measure)
     
     invariant :: forall a. {v: [a] | (tag(v) = #:)  => len(v) > 0 }
@@ -89,8 +81,8 @@ data (a1, a2, a3)
     constant ':'  : Tag 
     constant '[]' : Tag
 
-- tests/todo/getTails.hs
-    the list comprehension versions require TAGs (see coreBinds)
+    >  tests/todo/getTails.hs
+       the list comprehension versions require TAGs (see coreBinds)
         
         [ h | (h:_) <- xss]
 
