@@ -150,7 +150,7 @@ getGhcInfo target paths
 
 moduleHquals mg paths target spec
   = do hqs   <- specIncludes Hquals paths (includes spec)
-       hqs'  <- moduleImports Hquals paths ((mg_namestring mg) : (imports spec))
+       hqs'  <- moduleImports [Hquals] paths ((mg_namestring mg) : (imports spec))
        let rv = nubSort $ hqs ++ (snd <$> hqs')
        liftIO $ putStrLn $ "Reading Qualifiers From: " ++ show rv 
        return rv
@@ -192,11 +192,13 @@ moduleSpec vars target mg paths
        --spec1      <- getSpecs Spec paths target name impNames 
        --spec2      <- getSpecs Hs   paths target name impNames 
        --let spec    = mconcat [spec1, spec2]
-       spec       <- mconcat <$> forM [Spec, Hs, LHs] (getSpecs paths target name impNames) 
+       tgtSpec    <- liftIO $ parseSpec (name, target) 
+       impSpec    <- getSpecs paths target name impNames [Spec, Hs, LHs] 
+       let spec    = tgtSpec `mappend` impSpec 
        setContext [IIModule (mg_module mg)]
        env        <- getSession
        (cs, ms)   <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec $ Ms.measures   spec
-       tySigs     <- liftIO $ mkAssumeSpec  vars env      $ Ms.sigs       spec
+       tySigs     <- liftIO $ mkAssumeSpec  vars env         $ Ms.sigs       spec
        (tcs, dcs) <- liftIO $ mkConTypes    env              $ Ms.dataDecls  spec 
        invs       <- liftIO $ mkInvariants  env              $ Ms.invariants spec 
        return $ SP { imports    = nubSort $ impNames ++ [symbolString x | x <- Ms.imports spec]
@@ -205,58 +207,69 @@ moduleSpec vars target mg paths
                    , meas       = ms
                    , dconsP     = {- traceShow "dconsP:" $ -} concat dcs ++ snd wiredTyDataCons 
                    , tconsP     = {- traceShow "tconsP:" $ -} tcs ++ fst wiredTyDataCons 
-                   , includes   = Ms.includes spec
+                   , includes   = Ms.includes tgtSpec 
                    , invariants = invs
                    }
-    where impNames = allDepNames {-target-} mg
+    where impNames = allDepNames  mg
           name     = mg_namestring mg
     
-allDepNames {- target -} mg = {- traceShow "allDepNames" $ -} allNames'
-  where allNames'     = nubSort $ (mg_namestring mg) : {- (targetName target) : -} impNames
-        impNames      = moduleNameString <$> (depNames mg ++ dirImportNames mg) 
+allDepNames mg    = {- traceShow "allDepNames" $ -} allNames'
+  where allNames' = nubSort $ {- (mg_namestring mg) : (targetName target) : -} impNames
+        impNames  = moduleNameString <$> (depNames mg ++ dirImportNames mg) 
 
 depNames       = map fst        . dep_mods      . mg_deps
 dirImportNames = map moduleName . moduleEnvKeys . mg_dir_imps  
 targetName     = dropExtension  . takeFileName 
 
-getSpecs paths target name names ext 
-  = do ifs <- moduleImports ext paths names 
-       tfs <- liftIO $ testM (doesFileExist . snd) tf
+getSpecs paths target name names exts
+  = do ifs <- moduleImports exts paths names 
+       tfs <- liftIO $ filterM (doesFileExist . snd) tf
        let fs = nubSort $ tfs ++ ifs
        liftIO $ putStrLn ("getSpecs: " ++ show fs)
-       transParseSpecs ext paths S.empty mempty fs
-    where tf = (name, extFileName ext (dropExtension target))
-        
-
+       transParseSpecs exts paths S.empty mempty fs
+    where tf = [(name, extFileName ext (dropExtension target)) | ext <- exts]
 
 transParseSpecs _ _ _ spec []       
   = return spec
-transParseSpecs ext paths seenFiles spec newFiles 
+transParseSpecs exts paths seenFiles spec newFiles 
   = do liftIO $ putStrLn ("txParseSpecs: " ++ show newFiles)
-       newSpec   <- liftIO $ liftM mconcat $ mapM (parseSpec ext) newFiles 
-       impFiles  <- moduleImports ext paths [symbolString x | x <- Ms.imports newSpec]
+       newSpec   <- liftIO $ liftM mconcat $ mapM parseSpec newFiles 
+       impFiles  <- moduleImports exts paths [symbolString x | x <- Ms.imports newSpec]
        let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
        let spec'      = spec `mappend` newSpec
        let newFiles'  = [f | f <- impFiles, f `S.notMember` seenFiles']
-       transParseSpecs ext paths seenFiles' spec' newFiles'
+       transParseSpecs exts paths seenFiles' spec' newFiles'
  
-parseSpec ext (name, file) 
-  = Ex.catch (parseSpec' ext name file) $ \(e :: Ex.IOException) ->
+parseSpec (name, file) 
+  = Ex.catch (parseSpec' name file) $ \(e :: Ex.IOException) ->
       ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ file ++ " for module " ++ name 
 
 
-parseSpec' ext name file 
+parseSpec' name file 
   = do putStrLn $ "parseSpec: " ++ file ++ " for module " ++ name  
        str     <- readFile file
-       let spec = specParser ext name file str
+       let spec = specParser name file str
        return   $ spec 
 
-specParser Spec _  = rr'
-specParser Hs name = hsSpecificationP name
+specParser name file str  
+  | isExtFile Spec file  = rr' file str
+  | isExtFile Hs file    = hsSpecificationP name file str
+  | isExtFile LHs file   = hsSpecificationP name file str
+  | otherwise            = errorstar $ "specParser: Cannot Parse File " ++ file
 
-moduleImports ext paths  = liftIO . liftM catMaybes . mapM (mnamePath paths ext) 
-mnamePath paths ext name = fmap (name,) <$> getFileInDirs file paths
-                           where file = name `extModuleName` ext
+--specParser Spec _  = rr'
+--specParser Hs name = hsSpecificationP name
+
+--moduleImports ext paths  = liftIO . liftM catMaybes . mapM (mnamePath paths ext) 
+--mnamePath paths ext name = fmap (name,) <$> getFileInDirs file paths
+--                           where file = name `extModuleName` ext
+
+moduleImports exts paths 
+  = liftIO . liftM concat . mapM (moduleFiles paths exts) 
+
+moduleFiles paths exts name 
+  = do files <- mapM (`getFileInDirs` paths) (extModuleName name <$> exts)
+       return [(name, file) | Just file <- files]
 
 
 --moduleImports ext paths names 

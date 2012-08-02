@@ -62,6 +62,7 @@ repFileName ext = extFileName ext . dropFileName
 extFileName     :: Ext -> FilePath -> FilePath
 extFileName ext = (`addExtension` (extMap M.! ext))
 
+isExtFile ::  Ext -> FilePath -> Bool
 isExtFile ext = ((extMap M.! ext) `isSuffixOf`)
 
 extModuleName ::  String -> Ext -> FilePath
