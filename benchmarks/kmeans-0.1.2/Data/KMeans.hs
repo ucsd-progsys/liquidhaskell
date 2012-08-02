@@ -14,34 +14,24 @@ A simple implementation of the standard k-means clustering algorithm: <http://en
 module Data.KMeans (kmeans, kmeansGen)
     where
 
-import Data.List (sort, groupBy, minimumBy)
+-- import Data.List (transpose, sort, groupBy, minimumBy)
+import Data.List (sort, span, minimumBy)
 import Data.Function (on)
 import Data.Ord (comparing)
+import Language.Haskell.Liquid.Prelude (liquidError)
 
+{-@ assert groupBy :: (a -> a -> Bool) -> [a] -> [{v:[a] | len(v) > 0}] @-}
+groupBy                 :: (a -> a -> Bool) -> [a] -> [[a]]
+groupBy _  []           =  []
+groupBy eq (x:xs)       =  (x:ys) : groupBy eq zs
+                           where (ys,zs) = span (eq x) xs
 
-getHeads ((h:_): xss) = h : getHeads xss
-getHeads ([]   : xss) = getHeads xss
-getHeads []           = []
-
-getTails :: Int -> [[a]] -> [[a]]
-getTails n ((_:t): xss) = t : getTails n xss
-getTails n ([]   : xss) = getTails n xss
-getTails n []           = []
-
-{-@ assert transpose :: n:Int -> m:Int -> {v:[{v:[a] | len(v) = n}] | len(v) = m} -> {v:[{v:[a] | len(v) = m}] | len(v) = n} @-}
+{-@ assert transpose :: n:Int -> m:{v:Int | v > 0} -> {v:[{v:[a] | len(v) = n}] | len(v) = m} -> {v:[{v:[a] | len(v) = m}] | len(v) = n} @-}
 transpose :: Int -> Int -> [[a]] -> [[a]]
 transpose 0 _ _              = []
-transpose n m ((x:xs) : xss) = (x : getHeads xss) : transpose (n - 1) m (xs : getTails n xss)
-
---{- assert transpose :: n:{v:Int | v >= 0} 
---                     -> m:{v:Int | v >= 0} 
---                     -> {v:[{v:[a] | len(v) = n}] | len(v) = m} 
---                     -> {v:[{v:[a] | len(v) = m}] | len(v) = n} 
---  -}
---transpose :: Int -> Int -> [[a]] -> [[a]]
---transpose 0 _ _              = []
---transpose n m ((x:xs) : xss) = (x : map head xss) : transpose (n - 1) m (xs : map tail xss)
-
+transpose n m ((x:xs) : xss) = (x : map head xss) : transpose (n - 1) m (xs : map tail xss)
+transpose n m ([] : _)       = liquidError "transpose1" 
+transpose n m []             = liquidError "transpose2"
 
 data WrapType b a = WrapType {getVect :: b, getVal :: a}
 
@@ -54,8 +44,7 @@ instance Ord (WrapType [Double] a) where
 dist ::  [Double] -> [Double] -> Double 
 dist a b = sqrt . sum $ zipWith (\x y-> (x-y) ^ 2) a b
 
-
-centroid n points = map (flip (/) l . sum) points' 
+centroid n points = map (( / l) . sum) points' 
     where l = fromIntegral m
           m = length points 
           points' = transpose n m (map getVect points)
@@ -69,11 +58,17 @@ recluster' n centroids points = map (map snd) $ groupBy ((==) `on` fst) recluste
 recluster n clusters = recluster' n centroids $ concat clusters
     where centroids = map (centroid n) clusters
 
-part :: (Eq a) => Int -> [a] -> [[a]]
-part x ys
-     | zs' == [] = [zs]
-     | otherwise = zs : part x zs'
-    where (zs, zs') = splitAt x ys
+--part :: (Eq a) => Int -> [a] -> [[a]]
+--part x ys
+--     | zs' == [] = [zs]
+--     | otherwise = zs : part x zs'
+--    where (zs, zs') = splitAt x ys
+
+{-@ assert part :: n:{v:Int | v > 0} -> [a] -> [{v:[a] | len(v) > 0}] @-}
+part n []       = []
+part n ys@(_:_) = zs : part n zs' 
+                  where zs  = take n ys
+                        zs' = drop n ys
 
 -- | Recluster points
 kmeans'' n clusters
@@ -82,7 +77,7 @@ kmeans'' n clusters
     where clusters' = recluster n clusters
 
 kmeans' n k points = kmeans'' n $ part l points
-    where l = (length points + k - 1) `div` k
+    where l = max 1 ((length points + k - 1) `div` k)
 
 -- | Cluster points in a Euclidian space, represented as lists of Doubles, into at most k clusters.
 -- The initial clusters are chosen arbitrarily.
