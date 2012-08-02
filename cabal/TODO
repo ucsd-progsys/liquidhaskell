@@ -21,7 +21,7 @@ FEATURES
 --------
 
 - redo KMeans with <--------- HEREHEREHEREHEREHEREHERE
-    
+    whats the error with the n, m >= 0?    
     getHeads ==> map head
     getTails ==> map tail
 

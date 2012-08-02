@@ -83,7 +83,7 @@ badHead = error "errorEmptyList head" -- errorEmptyList "head"
  #-}
 
 -- | Extract the elements after the head of a list, which must be non-empty.
-{-@ assert tail         :: xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) - 1}  @-}
+{-@ assert tail         :: xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = (len(xs) - 1)}  @-}
 tail                    :: [a] -> [a]
 tail (_:xs)             =  xs
 tail []                 =  liquidError "tail" -- errorEmptyList "tail"

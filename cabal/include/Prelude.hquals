@@ -10,17 +10,3 @@ qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
 qualif One(v:int)     : v = 1
 qualif True(v:bool)   : (? v) 
 qualif False(v:bool)  : ~ (? v) 
-
-// COMPARING for Ord/Num
-//qualif LtP(v:a, ~A:a)   : v < ~A
-//qualif LeP(v:a, ~A:a)   : v <= ~A
-//qualif GtP(v:a, ~A:a)   : ~A < v
-//qualif PosZP(v:a)       : 0 <= v
-//qualif PosP(v:a)        : 0 < v
-//qualif GeP(v:a,~A:a)    : ~A <= v
-//qualif Cmp(v:int,~A:int): v [ < ; <= ; >; >=; = ; != ] ~A
-//qualif Le(v:int,~A:int) : v <= ~A
-//qualif Gt(v:int,~A:int) : ~A < v
-//qualif Ge(v:int,~A:int) : ~A <= v
-//qualif PosZ(v:int)      : 0 <= v
-//qualif Zero(v:int)      : 0 = v
