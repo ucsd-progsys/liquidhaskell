@@ -29,12 +29,6 @@ MODULESPECS: Load specs from module sources:
         GHC/List.lhs
         GHC/List.spec
 
-
-
-Failed 8 tests: neg/meas5.hs, pos/ListLen-LType.hs, pos/ListLen.hs, pos/meas3.hs, pos/meas5.hs, pos/vector0.hs, pos/wrap1.hs, pos/zipW1.hs
-
-Exceptions thrown on 1 tests: pos/meas3.hs
-
 FEATURES 
 --------
 
