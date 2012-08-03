@@ -8,3 +8,8 @@ toss = (choose 0) > 10
 prop_abs :: Bool
 prop_abs = if toss then (if toss then liquidAssertB toss else False) else False
 
+
+foo :: Int -> Int
+foo x = (liquidAssert (x > 0) x) + 1
+
+goo = foo 12

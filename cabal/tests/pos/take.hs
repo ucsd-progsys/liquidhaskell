@@ -5,11 +5,14 @@
 module Take (
     take0
   , take
+  , foo
   ) where
 
 import Data.Maybe
 import GHC.Base 
 import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError) 
+
+
 
 {-@ assert take0  :: n: {v: Int | 0 <= v} -> [a] -> {v:[a] | (len(v) = n)} @-}
 take0 :: Int -> [a] -> [a]
