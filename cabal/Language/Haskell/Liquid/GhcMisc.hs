@@ -38,6 +38,7 @@ import qualified Data.Set as S
 data MGIModGuts = MI { 
     mgi_binds     :: !CoreProgram
   , mgi_module    :: !Module 
+  
   , mgi_deps      :: !Dependencies
   , mgi_dir_imps  :: !ImportedMods
   , mgi_rdr_env   :: !GlobalRdrEnv
