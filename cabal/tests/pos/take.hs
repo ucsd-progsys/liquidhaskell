@@ -5,7 +5,6 @@
 module Take (
     take0
   , take
-  , foo
   ) where
 
 import Data.Maybe
