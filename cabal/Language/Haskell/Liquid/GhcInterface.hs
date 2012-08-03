@@ -187,7 +187,7 @@ getGhcModGuts1 fn = do
        return   $! (miModGuts mod_guts)
 
 -- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
-getGhcModGutsSimplified1 fn = do
+getGhcModGutsSimpl1 fn = do
    liftIO $ deleteBinFiles fn 
    target <- guessTarget fn Nothing
    addTarget target
