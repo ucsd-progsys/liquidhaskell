@@ -48,7 +48,6 @@ import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
 infixl 9  !!
 infix  4 `elem`, `notElem`
 
-{-@ invariant {v: [a] | len(v) >= 0 } @-}
 
 \end{code}
 
