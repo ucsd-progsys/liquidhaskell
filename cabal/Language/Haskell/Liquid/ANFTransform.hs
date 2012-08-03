@@ -24,26 +24,25 @@ import Control.Monad
 import Language.Haskell.Liquid.Misc (traceShow)
 import Language.Haskell.Liquid.Fixpoint                 (anfPrefix)
 import Language.Haskell.Liquid.Misc (errorstar, tr_foldr')
-import Language.Haskell.Liquid.GhcMisc (tracePpr)
+import Language.Haskell.Liquid.GhcMisc (MGIModGuts(..), tracePpr)
 
-anormalize :: HscEnv -> ModGuts -> IO [CoreBind]
+anormalize :: HscEnv -> MGIModGuts -> IO [CoreBind]
 anormalize hscEnv modGuts 
   = do (msgs, maybeCbs) <- initDs hscEnv mod grEnv tEnv act
        case maybeCbs of
          Just cbs -> return cbs
          Nothing  -> pprPanic "anormalize fails!" (empty)
-    where mod      = mg_module modGuts
-          grEnv    = mg_rdr_env modGuts
+    where mod      = mgi_module modGuts
+          grEnv    = mgi_rdr_env modGuts
           tEnv     = modGutsTypeEnv modGuts
           act      = liftM concat $ mapM (normalizeBind emptyVarEnv) orig_cbs
-          orig_cbs = {- tracePpr "********** GHC Corebinds ********* \n" $ -} mg_binds modGuts 
+          orig_cbs = {- tracePpr "********** GHC Corebinds ********* \n" $ -} mgi_binds modGuts 
 
 
-modGutsTypeEnv :: ModGuts -> TypeEnv
 modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
-  where ids = bindersOfBinds (mg_binds mg)
-        tcs = mg_tcs mg
-        fis = mg_fam_insts mg
+  where ids = bindersOfBinds (mgi_binds mg)
+        tcs = mgi_tcs mg
+        fis = mgi_fam_insts mg
 
 
 ------------------------------------------------------------------

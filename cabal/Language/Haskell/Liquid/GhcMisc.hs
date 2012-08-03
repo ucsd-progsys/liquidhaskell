@@ -20,12 +20,41 @@ import TysPrim          (intPrimTyCon)
 import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
 import CoreSyn          
 import CostCentre 
+import HscTypes         (ModGuts(..), Dependencies, ImportedMods)
+import RdrName          (GlobalRdrEnv)
+import FamInstEnv       (FamInst)
+
 import Language.Haskell.Liquid.Misc (stripParens)
 import Control.Exception (assert)
 import Control.Applicative  ((<$>))   
 
 import qualified Data.Map as M
 import qualified Data.Set as S 
+
+-----------------------------------------------------------------------
+--------------- Datatype For Holding GHC ModGuts ----------------------
+-----------------------------------------------------------------------
+
+data MGIModGuts = MI { 
+    mgi_binds     :: !CoreProgram
+  , mgi_module    :: !Module 
+  , mgi_deps      :: !Dependencies
+  , mgi_dir_imps  :: !ImportedMods
+  , mgi_rdr_env   :: !GlobalRdrEnv
+  , mgi_tcs       :: ![TyCon]
+  , mgi_fam_insts :: ![FamInst]
+  }
+
+miModGuts mg = MI { 
+    mgi_binds     = mg_binds mg 
+  , mgi_module    = mg_module mg
+  , mgi_deps      = mg_deps mg
+  , mgi_dir_imps  = mg_dir_imps mg
+  , mgi_rdr_env   = mg_rdr_env mg
+  , mgi_tcs       = mg_tcs mg
+  , mgi_fam_insts = mg_fam_insts mg
+  }
+
 -----------------------------------------------------------------------
 --------------- Generic Helpers for Encoding Location -----------------
 -----------------------------------------------------------------------
