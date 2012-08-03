@@ -226,8 +226,7 @@ getSpecs paths names exts
 transParseSpecs _ _ _ spec []       
   = return spec
 transParseSpecs exts paths seenFiles spec newFiles 
-  = do liftIO $ putStrLn ("txParseSpecs: " ++ show newFiles)
-       newSpec   <- liftIO $ liftM mconcat $ mapM parseSpec newFiles 
+  = do newSpec   <- liftIO $ liftM mconcat $ mapM parseSpec newFiles 
        impFiles  <- moduleImports exts paths [symbolString x | x <- Ms.imports newSpec]
        let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
        let spec'      = spec `mappend` newSpec

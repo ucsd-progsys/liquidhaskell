@@ -14,11 +14,19 @@ data Expr
   | Var Bndr  
   | App Expr Expr
 
+
+
+{-@  measure isValue :: Expr -> Bool
+     isValue (Lam x e)    = true 
+     isValue (Var x)      = false
+     isValue (App e1 e2)  = false
+  @-}
+
 ---------------------------------------------------------------------
 -------------------------- The Evaluator ----------------------------
 ---------------------------------------------------------------------
 
-evalVar x ((y,v):sto) 
+evalVar x ((y, v):sto) 
   | x == y
   = v
   | otherwise
@@ -27,8 +35,8 @@ evalVar x ((y,v):sto)
 evalVar x []      
   = error "unbound variable"
 
-
 -- A "value" is simply: {v: Expr | (? (isValue v)) } *)
+{- assert eval :: [(Bndr, {v: Expr | (? (isValue([v])))})] -> Expr -> {v: Expr | (? (isValue([v])))} -}
 
 eval sto (Var x)  
   = (sto, evalVar x sto)
@@ -47,6 +55,7 @@ eval sto (Lam x e)
 ---------------------------- Value Checker ----------------------------
 -----------------------------------------------------------------------
 
+{-@ assert check :: {v: Expr | (? (isValue([v]))) } -> Bool @-}
 check (Lam _ _)    = True
 check (Var _)      = liquidAssertB False
 check (App _ _)    = liquidAssertB False
