@@ -118,10 +118,14 @@ Paper #1
 [OK] GHC.List   (../benchmarks/ghc-7.4.1/List.lhs)
 [OK] Data.KMeans
 [OK] Data.Map
-->   Data.List  (../base-4.5.1.0/Data/List.hs)
+
+[TAGS] Data.List  (../base-4.5.1.0/Data/List.hs)
+      --> This needs support for the foldl/foldr business / TAGS
+
 ->   Data.Set
 ->   Data.IntSet
 ->   Bytestring & Client (Text?)
+
 ->   vector-algorithms "vector bounds checking"
      > e.g. "unsafeSlice"
      > maybe only specify types for Vector?
