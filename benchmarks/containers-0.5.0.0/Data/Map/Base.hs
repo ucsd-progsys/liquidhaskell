@@ -179,8 +179,8 @@ module Data.Map.Base (
             , elems
             , keys
             , assocs
-            , keysSet
-            , fromSet
+            -- LIQUID, keysSet
+            -- LIQUID, fromSet
 
             -- ** Lists
             , toList
@@ -261,8 +261,8 @@ module Data.Map.Base (
             ) where
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
-import qualified Data.Set.Base as Set
-import Data.StrictPair
+-- LIQUID import qualified Data.Set.Base as Set
+-- LIQUID import Data.StrictPair
 import Data.Monoid (Monoid(..))
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Traversable (Traversable(traverse))
@@ -1888,21 +1888,21 @@ assocs m
 --
 -- > keysSet (fromList [(5,"a"), (3,"b")]) == Data.Set.fromList [3,5]
 -- > keysSet empty == Data.Set.empty
-
+{- LIQUID
 keysSet :: Map k a -> Set.Set k
 keysSet Tip = Set.Tip
 keysSet (Bin sz kx _ l r) = Set.Bin sz kx (keysSet l) (keysSet r)
-
+-}
 -- | /O(n)/. Build a map from a set of keys and a function which for each key
 -- computes its value.
 --
 -- > fromSet (\k -> replicate k 'a') (Data.Set.fromList [3, 5]) == fromList [(5,"aaaaa"), (3,"aaa")]
 -- > fromSet undefined Data.Set.empty == empty
-
+{- LIQUID
 fromSet :: (k -> a) -> Set.Set k -> Map k a
 fromSet _ Set.Tip = Tip
 fromSet f (Set.Bin sz x l r) = Bin sz x (f x) (fromSet f l) (fromSet f r)
-
+-}
 {--------------------------------------------------------------------
   Lists
   use [foldlStrict] to reduce demand on the control-stack
@@ -2147,15 +2147,15 @@ trim (JustS lk) (JustS hk) t = middle lk hk t  where middle lo hi (Bin _ k _ _ r
 trimLookupLo :: Ord k => k -> MaybeS k -> Map k a -> (Maybe a, Map k a)
 trimLookupLo lk NothingS t = greater lk t
   where greater :: Ord k => k -> Map k a -> (Maybe a, Map k a)
-        greater lo t'@(Bin _ kx x l r) = case compare lo kx of LT -> lookup lo l `strictPair` t'
+        greater lo t'@(Bin _ kx x l r) = case compare lo kx of LT -> (lookup lo l, {-`strictPair`-} t')
                                                                EQ -> (Just x, r)
                                                                GT -> greater lo r
         greater _ Tip = (Nothing, Tip)
 trimLookupLo lk (JustS hk) t = middle lk hk t
   where middle :: Ord k => k -> k -> Map k a -> (Maybe a, Map k a)
-        middle lo hi t'@(Bin _ kx x l r) = case compare lo kx of LT | kx < hi -> lookup lo l `strictPair` t'
+        middle lo hi t'@(Bin _ kx x l r) = case compare lo kx of LT | kx < hi -> (lookup lo l, {- `strictPair` -} t')
                                                                     | otherwise -> middle lo hi l
-                                                                 EQ -> Just x `strictPair` lesser hi r
+                                                                 EQ -> (Just x, {-`strictPair`-} lesser hi r)
                                                                  GT -> middle lo hi r
         middle _ _ Tip = (Nothing, Tip)
 

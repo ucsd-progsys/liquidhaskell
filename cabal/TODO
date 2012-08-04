@@ -29,7 +29,6 @@ SLICE causes problem in neg/ass0.hs, doesn't really help either so may as well n
   Trick: HsColour only transforms code blocks into HTML, leaves rest untouched.
          Pandoc ignores HTML blocks. #win
 
-
 - Add/Parse predicate signatures for lists<p> and tuples<p> 
   
     e.g. [{x: Int | x > 0}]   
@@ -81,8 +80,6 @@ data (a1, a2, a3)
     constant ':'  : Tag 
     constant '[]' : Tag
 
-
-
     >  tests/todo/getTails.hs
        the list comprehension versions require TAGs (see coreBinds)
         
@@ -116,19 +113,35 @@ Blogs
 Paper #1
 
 [OK] GHC.List   (../benchmarks/ghc-7.4.1/List.lhs)
-[OK] Data.KMeans
-[OK] Data.Map
 
-[TAGS] Data.List  (../base-4.5.1.0/Data/List.hs)
-      --> This needs support for the foldl/foldr business / TAGS
+[OK] Data.KMeans
+
+->   List-Sorting
+
+->   Data.Map (supersedes set)
+        > ordering
+        > size
+        > key-set-properties
+        > key-dependence
+        > balance (skip)
 
 ->   Data.Set
-->   Data.IntSet
+        > ordering
+        > size
+        > set-properties
+        > balance (skip)
+
+[TAGS]  Data.List  (../base-4.5.1.0/Data/List.hs)
+        --> This needs support for the foldl/foldr business / TAGS
+
 ->   Bytestring & Client (Text?)
 
 ->   vector-algorithms "vector bounds checking"
      > e.g. "unsafeSlice"
      > maybe only specify types for Vector?
+
+[NO] Data.IntSet
+     > tricky bit-level operations/invariants
 
 -> hmatrix
     > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Matrix.html#Matrix
@@ -163,3 +176,102 @@ KNOWN BUGS
                 @ () "pos/data-mono0.hs:8:9-23|(Test.Cons x _)")
              `cast` (UnsafeCo () GHC.Types.Int :: () ~ GHC.Types.Int))
             GHC.Prim.realWorld#;
+
+
+Xmonad
+------
+
+Theorems (from Wouter Swierstra's Coq Development)
+
+    - Invariant: NoDuplicates
+
+    - prop_empty_I      : new  : ? -> {v | invariant(v)} 
+    - prop_view_I       : view : ? -> {v | invariant(v)} 
+    - prop_greedyView_I : view : ? -> {v | invariant(v)}
+    - prop_focusUp_I
+    - prop_focusMaster_I
+    - prop_focusDown_I 
+    - prop_focus_I 
+    - prop_insertUp_I
+    - prop_delete_I
+    - prop_swap_master_I
+    - prop_swap_left_I  
+    - prop_swap_right_I
+    - prop_shift_I 
+    - prop_shift_win_I 
+
+[prop_FOO_I] check that various functions outputs satisfy "invariant"
+
+    FOO :: ??? -> {v: StackSet | invariant(v)}
+
+    > Theorem prop_swap_master_I (s : StackSet.stackSet i l a sd) :
+    > Theorem prop_view_I (l a sd : Set) (n : nat) (s : StackSet.stackSet nat l a sd) :
+    > Theorem prop_greedyView_I (l a sd : Set) (n : nat) (s : StackSet.stackSet nat l a sd) :
+    > Theorem prop_focusUp_I (l a sd : Set) (n : nat) (s : StackSet.stackSet nat l a sd) :
+    > Theorem prop_focusDown_I (l a sd : Set) (n : nat) (s : StackSet.stackSet nat l a sd) :
+    > Theorem prop_focusMaster_I (l a sd : Set) (n : nat) (s : StackSet.stackSet nat l a sd) :
+    > Theorem prop_empty_I (m : l) (wids : {wids : list i | wids <> nil}) 
+    > Theorem prop_empty (m : l) (wids : {wids : list i | wids <> nil}) 
+    > Theorem prop_differentiate (xs : list a) :
+
+[prop_FOO_local] check that various functions preserve a [hidden_spaces] MEASURE 
+
+    FOO :: x: StackSet -> {v: StackSet | hidden_spaces(v) = hidden_spaces(x) }
+
+    > Theorem prop_focus_down_local (s : stackSet i l a sd) :
+    > Theorem prop_focus_up_local (s : stackSet i l a sd) : 
+    > Theorem prop_focus_master_local (s : stackSet i l a sd) :
+    > Theorem prop_delete_local (s : stackSet i l a sd) (eq_dec : forall x y, {x = y} + {x <> y}) :
+    > Theorem prop_swap_master_local (s : stackSet i l a sd) : 
+    > Theorem prop_swap_left_local (s : stackSet i l a sd) : 
+    > Theorem prop_swap_right_local (s : stackSet i l a sd) : 
+    > Theorem prop_shift_master_local (s : stackSet i l a sd) : 
+    > Theorem prop_insert_local (x : stackSet i l a sd) (eq_dec : forall x y, {x = y} + {x <> y}) :
+
+
+BAD: these check that: forall x: foo (bar x) == x
+
+    > Theorem prop_focus_right (s : StackSet.stackSet i l a sd) :
+    > Theorem prop_focus_left (s : StackSet.stackSet i l a sd) :
+
+[prop_swap_*_focus] check that various functions preserve a [peek] MEASURE
+    > Theorem prop_swap_master_focus (x : StackSet.stackSet i l a sd) :
+    > Theorem prop_swap_left_focus (x : StackSet.stackSet i l a sd) :
+    > Theorem prop_swap_right_focus (x : StackSet.stackSet i l a sd) :
+
+
+BAD? forall x. swapMaster (swapMaster x) == x 
+    > Theorem prop_swap_master_idempotent (x : StackSet.stackSet i l a sd) : 
+    
+BAD? forall x. view i (view i x) == (view i x)
+    > Theorem prop_focusMaster_idem (x : StackSet.stackSet i l a sd) :
+
+    NO. Prove: view :: i -> x -> {v: focus(v) = i}
+                    :: i -> x -> {v: focus(x) = i => x = v } 
+        
+    To prove foo_IDEMPOTENT, find a property P such that:
+
+                foo :: x:t -> {v:t | P(v)}
+                foo :: x:t -> {v:t | P(x) => v = x }
+
+SETS: 
+    > Theorem prop_screens (s : stackSet i l a sd) :
+
+
+TRIV/HARD: (function definition)
+    > [TRIV]  Theorem prop_screens_work (x : stackSet i l a sd) :
+    > Theorem prop_mapWorkspaceId (x : stackSet i l a sd) : 
+    > Theorem prop_mapLayoutId (s : stackSet i l a sd) :
+    > Theorem prop_mapLayoutInverse (s : stackSet i nat a sd) :
+    > Theorem prop_mapWorkspaceInverse (s : stackSet nat l a sd) :
+
+Theorem prop_lookup_current (x : stackSet i l a sd) :
+Theorem prop_lookup_visible (x : stackSet i l a sd) : 
+
+
+
+
+
+
+
+

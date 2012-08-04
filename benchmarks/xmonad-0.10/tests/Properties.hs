@@ -16,7 +16,7 @@ import System.Environment
 import Control.Exception    (assert)
 import qualified Control.Exception.Extensible as C
 import Control.Monad
-import Test.QuickCheck hiding (promote)
+import Test.QuickCheck hiding (NonEmpty, NonEmptyList, suchThat, suchThatMaybe, NonZero, Positive, NonNegative, promote)
 import System.IO.Unsafe
 import System.IO
 import System.Random hiding (next)
@@ -850,6 +850,24 @@ prop_resize_max_extra ((NonNegative inc_w))  b@(w,h) =
 
 ------------------------------------------------------------------------
 
+newtype NonEmptyList a = NonEmpty [a]
+ deriving ( Eq, Ord, Show, Read )
+
+newtype NonEmptyNubList a = NonEmptyNubList [a]
+ deriving ( Eq, Ord, Show, Read )
+type Positive a = NonZero (NonNegative a)
+
+newtype NonZero a = NonZero a
+ deriving ( Eq, Ord, Num, Integral, Real, Enum, Show, Read )
+
+newtype NonNegative a = NonNegative a
+ deriving ( Eq, Ord, Num, Integral, Real, Enum, Show, Read )
+
+newtype EmptyStackSet = EmptyStackSet T deriving Show
+
+
+{- JHALA
+
 main :: IO ()
 main = do
     args <- fmap (drop 1) getArgs
@@ -1016,7 +1034,7 @@ debug = False
 
 mytest :: Testable a => a -> Int -> IO (Bool, Int)
 mytest a n = mycheck defaultConfig
-    { configMaxTest=n
+    { configMaxTest = n
     , configEvery   = \n args -> let s = show n in s ++ [ '\b' | _ <- s ] } a
  -- , configEvery= \n args -> if debug then show n ++ ":\n" ++ unlines args else [] } a
 
@@ -1074,7 +1092,7 @@ done mesg ntest stamps = putStr ( mesg ++ " " ++ show ntest ++ " tests" ++ table
 
 instance Arbitrary Char where
     arbitrary = choose ('a','z')
-    coarbitrary n = coarbitrary (ord n)
+    -- coarbitrary n = coarbitrary (ord n)
 
 instance Random Word8 where
   randomR = integralRandomR
@@ -1082,7 +1100,7 @@ instance Random Word8 where
 
 instance Arbitrary Word8 where
   arbitrary     = choose (minBound,maxBound)
-  coarbitrary n = variant (fromIntegral ((fromIntegral n) `rem` 4))
+  -- coarbitrary n = variant (fromIntegral ((fromIntegral n) `rem` 4))
 
 instance Random Word64 where
   randomR = integralRandomR
@@ -1090,7 +1108,7 @@ instance Random Word64 where
 
 instance Arbitrary Word64 where
   arbitrary     = choose (minBound,maxBound)
-  coarbitrary n = variant (fromIntegral ((fromIntegral n) `rem` 4))
+  -- coarbitrary n = variant (fromIntegral ((fromIntegral n) `rem` 4))
 
 integralRandomR :: (Integral a, RandomGen g) => (a,a) -> g -> (a,g)
 integralRandomR  (a,b) g = case randomR (fromIntegral a :: Integer,
@@ -1100,12 +1118,12 @@ integralRandomR  (a,b) g = case randomR (fromIntegral a :: Integer,
 instance Arbitrary Position  where
     arbitrary = do n <- arbitrary :: Gen Word8
                    return (fromIntegral n)
-    coarbitrary = undefined
+    -- coarbitrary = undefined
 
 instance Arbitrary Dimension where
     arbitrary = do n <- arbitrary :: Gen Word8
                    return (fromIntegral n)
-    coarbitrary = undefined
+    -- coarbitrary = undefined
 
 instance Arbitrary Rectangle where
     arbitrary = do
@@ -1114,7 +1132,7 @@ instance Arbitrary Rectangle where
         sw <- arbitrary
         sh <- arbitrary
         return $ Rectangle sx sy sw sh
-    coarbitrary = undefined
+    -- coarbitrary = undefined
 
 instance Arbitrary Rational where
     arbitrary = do
@@ -1122,38 +1140,25 @@ instance Arbitrary Rational where
         d' <- arbitrary
         let d =  if d' == 0 then 1 else d'
         return (n % d)
-    coarbitrary = undefined
+    -- coarbitrary = undefined
 
 ------------------------------------------------------------------------
 -- QC 2
 
 -- from QC2
 -- | NonEmpty xs: guarantees that xs is non-empty.
-newtype NonEmptyList a = NonEmpty [a]
- deriving ( Eq, Ord, Show, Read )
-
 instance Arbitrary a => Arbitrary (NonEmptyList a) where
   arbitrary   = NonEmpty `fmap` (arbitrary `suchThat` (not . null))
-  coarbitrary = undefined
+  -- coarbitrary = undefined
 
-newtype NonEmptyNubList a = NonEmptyNubList [a]
- deriving ( Eq, Ord, Show, Read )
 
 instance (Eq a, Arbitrary a) => Arbitrary (NonEmptyNubList a) where
   arbitrary   = NonEmptyNubList `fmap` ((liftM nub arbitrary) `suchThat` (not . null))
-  coarbitrary = undefined
-
-type Positive a = NonZero (NonNegative a)
-
-newtype NonZero a = NonZero a
- deriving ( Eq, Ord, Num, Integral, Real, Enum, Show, Read )
+  -- coarbitrary = undefined
 
 instance (Num a, Ord a, Arbitrary a) => Arbitrary (NonZero a) where
   arbitrary = fmap NonZero $ arbitrary `suchThat` (/= 0)
-  coarbitrary = undefined
-
-newtype NonNegative a = NonNegative a
- deriving ( Eq, Ord, Num, Integral, Real, Enum, Show, Read )
+  -- coarbitrary = undefined
 
 instance (Num a, Ord a, Arbitrary a) => Arbitrary (NonNegative a) where
   arbitrary =
@@ -1161,9 +1166,8 @@ instance (Num a, Ord a, Arbitrary a) => Arbitrary (NonNegative a) where
       [ (5, (NonNegative . abs) `fmap` arbitrary)
       , (1, return 0)
       ]
-  coarbitrary = undefined
+  -- coarbitrary = undefined
 
-newtype EmptyStackSet = EmptyStackSet T deriving Show
 
 instance Arbitrary EmptyStackSet where
     arbitrary = do
@@ -1172,7 +1176,7 @@ instance Arbitrary EmptyStackSet where
         l <- arbitrary
         -- there cannot be more screens than workspaces:
         return . EmptyStackSet . new l ns $ take (min (length ns) (length sds)) sds
-    coarbitrary = error "coarbitrary EmptyStackSet"
+    -- coarbitrary = error "coarbitrary EmptyStackSet"
 
 -- | Generates a value that satisfies a predicate.
 suchThat :: Gen a -> (a -> Bool) -> Gen a
@@ -1189,3 +1193,5 @@ gen `suchThatMaybe` p = sized (try 0 . max 1)
   try _ 0 = return Nothing
   try k n = do x <- resize (2*k+n) gen
                if p x then return (Just x) else try (k+1) (n-1)
+
+JHALA -}
