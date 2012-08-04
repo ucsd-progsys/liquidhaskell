@@ -47,6 +47,7 @@ import ErrUtils
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>))
 import Control.Monad.Reader     hiding (forM)
+import Control.Monad.Error      hiding (forM)
 import Data.Generics.Schemes
 import Data.Generics.Aliases
 import Data.Data                hiding (TyCon, tyConName)
@@ -63,24 +64,39 @@ import Language.Haskell.Liquid.Misc
 import qualified Control.Exception as Ex
 
 ------------------------------------------------------------------
+---------- Error-Reader-IO For Bare Transformation ---------------
+------------------------------------------------------------------
+
+type BareM a = ErrorT String (ReaderT HscEnv IO) a
+
+execBare :: BareM a -> HscEnv -> IO a
+execBare act hsc_env = 
+   do z <- runReaderT (runErrorT act) hsc_env
+      case z of
+        Left s  -> errorstar $ "execBare:" ++ s
+        Right x -> return x
+
+wrapErr :: (Outputable a) => (a -> BareM b) -> (a -> BareM b)
+wrapErr f x
+  = f x `catchError` \e-> throwError $ "Bare Error Translating " ++ showPpr x ++ "(" ++ e ++ ")"
+
+------------------------------------------------------------------
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
 
 mkMeasureSpec :: HscEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
-mkMeasureSpec env m = runReaderT mkSpec env
-  where mkSpec = mkMeasureSort m' >>= mkMeasureDCon >>= return . Ms.dataConTypes
+mkMeasureSpec env m = execBare mkSpec env
+  where mkSpec = wrapErr mkMeasureSort m' >>= mkMeasureDCon >>= return . Ms.dataConTypes
         m'     = first (txTyVarBinds . mapReft ureft) m
 
 mkAssumeSpec :: [Var] -> HscEnv -> [(Symbol, BareType)] -> IO [(Var, SpecType)]
-mkAssumeSpec vs env xbs = runReaderT mkAspec env
-  where mkAspec = forM vbs (\(v, b) -> liftM (v,) (mkSpecType b)) >>= return . checkAssumeSpec
+mkAssumeSpec vs env xbs = execBare mkAspec env
+  where mkAspec = forM vbs mkVarSpec >>= return . checkAssumeSpec
         vbs     = joinIds vs (first symbolString <$> xbs) 
 
---  where mkAspec = return (first symbolString <$> xbs)
---                  >>= filterM (existsGhcId . fst)
---                  >>= mapM    (\(x, b) -> liftM2 (,) (lookupGhcId x) (mkSpecType b))
---                  >>= return . checkAssumeSpec
-
+mkVarSpec (v, b) 
+  = (liftM (v,) (mkSpecType b)) `catchError` \err ->
+       throwError $ "mkVarSpec fails on " ++ showPpr v ++ " :: "  ++ showPpr b
 
 -- joinIds :: [Var] -> [(String, a)] -> [(Var, a)]
 joinIds vs xts = {-tracePpr "spec vars"-} vts   
@@ -88,11 +104,12 @@ joinIds vs xts = {-tracePpr "spec vars"-} vts
         vts    = catMaybes [(, t) <$> (M.lookup x vm) | (x, t) <- {-tracePpr "bareVars"-} xts]
 
 mkInvariants :: HscEnv -> [BareType] -> IO [SpecType]
-mkInvariants env ts = runReaderT (mapM mkSpecType ts) env
+mkInvariants env ts = execBare (mapM mkSpecType ts) env
 
--- mkSpecType :: BareType -> BareM SpecType 
-mkSpecType    = ofBareType . txParams [] . txTyVarBinds . mapReft (bimap canonReft stringTyVarTy) 
-mkPredType πs = ofBareType . txParams πs . txTyVarBinds . mapReft (fmap stringTyVarTy)
+
+
+mkSpecType    = (wrapErr ofBareType) . txParams [] . txTyVarBinds . mapReft (bimap canonReft stringTyVarTy) 
+mkPredType πs = (wrapErr ofBareType) . txParams πs . txTyVarBinds . mapReft (fmap stringTyVarTy)
 
 ------------------------------------------------------------------
 -------------------- Type Checking Raw Strings -------------------
@@ -148,14 +165,13 @@ lookupGhcThing name f x
   = do zs <- catMaybes <$> mapM (lookupGhcThing' name f) (candidates x)
        case zs of 
          x:_ -> return x
-         _   -> liftIO $ ioError $ userError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
+         _   -> throwError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
+         -- _   -> liftIO $ ioError $ userError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
 
 lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
 lookupGhcThing' name f x 
   = do env     <- ask
-       -- liftIO   $ putStrLn $ "lookupGhcThing' " ++ showPpr x 
        z       <- liftIO $ lookupName env x
-       -- liftIO   $ putStrLn $ "lookupGhcThing' DONE" ++ showPpr z 
        case z of
          Nothing -> return Nothing 
          Just n  -> liftIO $ liftM (join . (f <$>) . snd) (tcRnLookupName env n)
@@ -249,7 +265,8 @@ wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns
 ----------------- Transforming Raw Strings using GHC Env ---------------
 ------------------------------------------------------------------------
 
-type BareM a = ReaderT HscEnv IO a
+-- ofBareType' x = ofBareType x `catchError` \err -> 
+--  throwError $ "ofBareType fails on: " ++ showPpr x ++ "(" ++ err ++ ")"
 
 -- ofBareType :: (Reftable r) => BRType pv r -> BareM (RRType pv r)
 ofBareType (RVar (RV a) r) 
@@ -311,14 +328,14 @@ measureCtors = nubSort . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.c
 -- mkMeasureSort :: (PVarable pv, Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
 mkMeasureSort (Ms.MSpec cm mm) 
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> 
-      liftM (\s' -> m {Ms.sort = s'}) (ofBareType (Ms.sort m))
+      liftM (\s' -> m {Ms.sort = s'}) (wrapErr ofBareType (Ms.sort m))
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: DataCon Definitions ------------------
 -----------------------------------------------------------------------
 
 mkConTypes :: HscEnv-> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
-mkConTypes env dcs = unzip <$> runReaderT (mapM ofBDataDecl dcs) env
+mkConTypes env dcs = unzip <$> execBare (mapM ofBDataDecl dcs) env
 
 ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
 ofBDataDecl (D tc as ps cts)
