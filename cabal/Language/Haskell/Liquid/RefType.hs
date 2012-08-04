@@ -174,9 +174,9 @@ class (Monoid r, Outputable r) => Reftable r where
 
 fromRMono :: String -> Ref a b -> a
 fromRMono m (RMono r) = r
-fromRMono m _        = error $ "fromMono" ++ m
+fromRMono m _        = errorstar $ "fromMono" ++ m
 fromRPoly (RPoly r) = r
-fromRPoly _        = error "fromPoly"
+fromRPoly _        = errorstar "fromPoly"
 
 idRMono = RMono . (fromRMono "idRMono")
 
@@ -396,7 +396,7 @@ instance Show RTyVar where
 
 instance Reftable (RType Class RTyCon RTyVar (PVar Type) Reft) where
   isTauto t = isTautoTy t
-  ppTy      = error "ppTy RPoly Reftable" 
+  ppTy      = errorstar "ppTy RPoly Reftable" 
 
 
 instance Reftable (Ref Reft (RType Class RTyCon RTyVar (PVar Type) Reft)) where
@@ -411,7 +411,7 @@ instance (Reftable r, RefTypable p c tv pv r, Subable r) => Reftable (Ref r (RTy
   isTauto (RPoly p) = False
 
   ppTy (RMono r) d = ppTy r d
-  ppTy (RPoly _) _ = error "Reftable r"
+  ppTy (RPoly _) _ = errorstar "Reftable r"
 
 
 -- DEBUG ONLY
@@ -780,12 +780,12 @@ ofType_ τ@(TyConApp c τs)
   = rApp c (ofType_ <$> τs) [] top 
   where (αs, τ) = TC.synTyConDefn c
 ofType_ τ               
-  = error ("ofType: " ++ show τ) -- ROth (show τ)  
+  = errorstar ("ofType cannot handle: " ++ show τ) -- ROth (show τ)  
 
 ofPredTree (ClassPred c τs)
   = RCls c (ofType_ <$> τs)
 ofPredTree _
-  = error "ofPredTree"
+  = errorstar "ofPredTree"
 
 -----------------------------------------------------------------
 ---------------------- Scrap this using SYB? --------------------

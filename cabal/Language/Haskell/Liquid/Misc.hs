@@ -33,8 +33,10 @@ import Data.Data
 
 ---------------------------------------------------------------------
 
-data Empty = Emp deriving (Data, Typeable, Eq, Show)
+donePhase msg 
+  = putStrLn $ "******************** DONE: " ++ msg ++ "*************************"
 
+data Empty = Emp deriving (Data, Typeable, Eq, Show)
 
 unIntersperse x ys
   = case elemIndex x ys of

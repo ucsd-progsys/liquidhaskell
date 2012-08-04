@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__
--- {- LANGUAGE DeriveDataTypeable, StandaloneDeriving -}
+{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
 #endif
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
@@ -156,7 +156,7 @@ module Data.Map.Base (
             -- ** Map
             , map
             , mapWithKey
-            -- LIQUID, traverseWithKey
+            , traverseWithKey
             , mapAccum
             , mapAccumWithKey
             , mapAccumRWithKey
@@ -179,8 +179,8 @@ module Data.Map.Base (
             , elems
             , keys
             , assocs
-            -- LIQUID, keysSet
-            -- LIQUID, fromSet
+            , keysSet
+            , fromSet
 
             -- ** Lists
             , toList
@@ -261,10 +261,10 @@ module Data.Map.Base (
             ) where
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
--- LIQUID import qualified Data.Set.Base as Set
--- LIQUID import Data.StrictPair
+import qualified Data.Set.Base as Set
+import Data.StrictPair
 import Data.Monoid (Monoid(..))
--- LIQUID import Control.Applicative (Applicative(..), (<$>))
+import Control.Applicative (Applicative(..), (<$>))
 import Data.Traversable (Traversable(traverse))
 import qualified Data.Foldable as Foldable
 -- import Data.Typeable
@@ -334,12 +334,12 @@ instance (Ord k) => Monoid (Map k v) where
 
 -- This instance preserves data abstraction at the cost of inefficiency.
 -- We omit reflection services for the sake of data abstraction.
--- LIQUID instance (Data k, Data a, Ord k) => Data (Map k a) where
--- LIQUID   gfoldl f z m   = z fromList `f` toList m
--- LIQUID   toConstr _     = error "toConstr"
--- LIQUID   gunfold _ _    = error "gunfold"
--- LIQUID   dataTypeOf _   = mkNoRepType "Data.Map.Map"
--- LIQUID   dataCast2 f    = gcast2 f
+instance (Data k, Data a, Ord k) => Data (Map k a) where
+  gfoldl f z m   = z fromList `f` toList m
+  toConstr _     = error "toConstr"
+  gunfold _ _    = error "gunfold"
+  dataTypeOf _   = mkNoRepType "Data.Map.Map"
+  dataCast2 f    = gcast2 f
 #endif
 
 {--------------------------------------------------------------------
@@ -1631,13 +1631,13 @@ mapWithKey f (Bin sx kx x l r) = Bin sx kx (f kx x) (mapWithKey f l) (mapWithKey
 --
 -- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(1, 'a'), (5, 'e')]) == Just (fromList [(1, 'b'), (5, 'f')])
 -- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(2, 'c')])           == Nothing
---{-# INLINE traverseWithKey #-}
---traverseWithKey :: Applicative t => (k -> a -> t b) -> Map k a -> t (Map k b)
---traverseWithKey f = go
---  where
---    go Tip = pure Tip
---    go (Bin s k v l r)
---      = flip (Bin s k) <$> go l <*> f k v <*> go r
+{-# INLINE traverseWithKey #-}
+traverseWithKey :: Applicative t => (k -> a -> t b) -> Map k a -> t (Map k b)
+traverseWithKey f = go
+  where
+    go Tip = pure Tip
+    go (Bin s k v l r)
+      = flip (Bin s k) <$> go l <*> f k v <*> go r
 
 -- | /O(n)/. The function 'mapAccum' threads an accumulating
 -- argument through the map in ascending order of keys.
@@ -1886,18 +1886,18 @@ assocs m
 --
 -- > keysSet (fromList [(5,"a"), (3,"b")]) == Data.Set.fromList [3,5]
 -- > keysSet empty == Data.Set.empty
--- LIQUID keysSet :: Map k a -> Set.Set k
--- LIQUID keysSet Tip = Set.Tip
--- LIQUID keysSet (Bin sz kx _ l r) = Set.Bin sz kx (keysSet l) (keysSet r)
+keysSet :: Map k a -> Set.Set k
+keysSet Tip = Set.Tip
+keysSet (Bin sz kx _ l r) = Set.Bin sz kx (keysSet l) (keysSet r)
 
 -- | /O(n)/. Build a map from a set of keys and a function which for each key
 -- computes its value.
 --
 -- > fromSet (\k -> replicate k 'a') (Data.Set.fromList [3, 5]) == fromList [(5,"aaaaa"), (3,"aaa")]
 -- > fromSet undefined Data.Set.empty == empty
--- LIQUID fromSet :: (k -> a) -> Set.Set k -> Map k a
--- LIQUID fromSet _ Set.Tip = Tip
--- LIQUID fromSet f (Set.Bin sz x l r) = Bin sz x (f x) (fromSet f l) (fromSet f r)
+fromSet :: (k -> a) -> Set.Set k -> Map k a
+fromSet _ Set.Tip = Tip
+fromSet f (Set.Bin sz x l r) = Bin sz x (f x) (fromSet f l) (fromSet f r)
 
 {--------------------------------------------------------------------
   Lists
@@ -2523,49 +2523,48 @@ instance (Ord k, Ord v) => Ord (Map k v) where
 {--------------------------------------------------------------------
   Functor
 --------------------------------------------------------------------}
+instance Functor (Map k) where
+  fmap f m  = map f m
 
--- LIQUID instance Functor (Map k) where
--- LIQUID   fmap f m  = map f m
--- LIQUID 
--- LIQUID instance Traversable (Map k) where
--- LIQUID   traverse f = traverseWithKey (\_ -> f)
--- LIQUID 
--- LIQUID instance Foldable.Foldable (Map k) where
--- LIQUID   fold Tip = mempty
--- LIQUID   fold (Bin _ _ v l r) = Foldable.fold l `mappend` v `mappend` Foldable.fold r
--- LIQUID   foldr = foldr
--- LIQUID   foldl = foldl
--- LIQUID   foldMap _ Tip = mempty
--- LIQUID   foldMap f (Bin _ _ v l r) = Foldable.foldMap f l `mappend` f v `mappend` Foldable.foldMap f r
--- LIQUID 
--- LIQUID instance (NFData k, NFData a) => NFData (Map k a) where
--- LIQUID     rnf Tip = ()
--- LIQUID     rnf (Bin _ kx x l r) = rnf kx `seq` rnf x `seq` rnf l `seq` rnf r
+instance Traversable (Map k) where
+  traverse f = traverseWithKey (\_ -> f)
+
+instance Foldable.Foldable (Map k) where
+  fold Tip = mempty
+  fold (Bin _ _ v l r) = Foldable.fold l `mappend` v `mappend` Foldable.fold r
+  foldr = foldr
+  foldl = foldl
+  foldMap _ Tip = mempty
+  foldMap f (Bin _ _ v l r) = Foldable.foldMap f l `mappend` f v `mappend` Foldable.foldMap f r
+
+instance (NFData k, NFData a) => NFData (Map k a) where
+    rnf Tip = ()
+    rnf (Bin _ kx x l r) = rnf kx `seq` rnf x `seq` rnf l `seq` rnf r
 
 {--------------------------------------------------------------------
   Read
 --------------------------------------------------------------------}
--- LIQUID instance (Ord k, Read k, Read e) => Read (Map k e) where
--- LIQUID #ifdef __GLASGOW_HASKELL__
--- LIQUID   readPrec = parens $ prec 10 $ do
--- LIQUID     Ident "fromList" <- lexP
--- LIQUID     xs <- readPrec
--- LIQUID     return (fromList xs)
--- LIQUID 
--- LIQUID   readListPrec = readListPrecDefault
--- LIQUID #else
--- LIQUID   readsPrec p = readParen (p > 10) $ \ r -> do
--- LIQUID     ("fromList",s) <- lex r
--- LIQUID     (xs,t) <- reads s
--- LIQUID     return (fromList xs,t)
--- LIQUID #endif
+instance (Ord k, Read k, Read e) => Read (Map k e) where
+#ifdef __GLASGOW_HASKELL__
+  readPrec = parens $ prec 10 $ do
+    Ident "fromList" <- lexP
+    xs <- readPrec
+    return (fromList xs)
+
+  readListPrec = readListPrecDefault
+#else
+  readsPrec p = readParen (p > 10) $ \ r -> do
+    ("fromList",s) <- lex r
+    (xs,t) <- reads s
+    return (fromList xs,t)
+#endif
 
 {--------------------------------------------------------------------
   Show
 --------------------------------------------------------------------}
--- LIQUID instance (Show k, Show a) => Show (Map k a) where
--- LIQUID   showsPrec d m  = showParen (d > 10) $
--- LIQUID     showString "fromList " . shows (toList m)
+instance (Show k, Show a) => Show (Map k a) where
+  showsPrec d m  = showParen (d > 10) $
+    showString "fromList " . shows (toList m)
 
 -- | /O(n)/. Show the tree that implements the map. The tree is shown
 -- in a compressed, hanging format. See 'showTreeWith'.
@@ -2665,8 +2664,8 @@ withEmpty bars = "   ":bars
   Typeable
 --------------------------------------------------------------------}
 
--- LIQUID #include "Typeable.h"
--- LIQUID INSTANCE_TYPEABLE2(Map,mapTc,"Map")
+#include "Typeable.h"
+INSTANCE_TYPEABLE2(Map,mapTc,"Map")
 
 {--------------------------------------------------------------------
   Assertions

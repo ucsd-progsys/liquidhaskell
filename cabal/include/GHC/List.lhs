@@ -122,7 +122,7 @@ null (_:_)              =  False
 -- | /O(n)/. 'length' returns the length of a finite list as an 'Int'.
 -- It is an instance of the more general 'Data.List.genericLength',
 -- the result type of which may be any kind of number.
-{-@ assert length :: xs:[a] -> {v: Int | v = len(xs)}  @-}
+{-@ assert length :: xs:[a] -> {v: GHC.Types.Int | v = len(xs)}  @-}
 length                  :: [a] -> Int
 length l                =  len l 0#
   where
@@ -135,7 +135,7 @@ length l                =  len l 0#
 --
 -- > filter p xs = [ x | x <- xs, p x]
 
-{-@ assert filter :: (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)} @-}
+{-@ assert filter :: (a -> GHC.Types.Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)} @-}
 filter :: (a -> Bool) -> [a] -> [a]
 filter _pred []    = []
 filter pred (x:xs)
@@ -275,7 +275,7 @@ repeatFB c x = xs where xs = x `c` xs
 -- It is an instance of the more general 'Data.List.genericReplicate',
 -- in which @n@ may be of any integral type.
 {-# INLINE replicate #-}
-{-@ assert replicate    :: n:Int -> x:a -> {v: [{v:a | v = x}] | len(v) = n} @-}
+{-@ assert replicate    :: n:GHC.Types.Int -> x:a -> {v: [{v:a | v = x}] | len(v) = n} @-}
 replicate               :: Int -> a -> [a]
 replicate n x           =  take n (repeat x)
 

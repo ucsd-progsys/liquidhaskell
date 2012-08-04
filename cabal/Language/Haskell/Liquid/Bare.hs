@@ -76,9 +76,8 @@ execBare act hsc_env =
         Left s  -> errorstar $ "execBare:" ++ s
         Right x -> return x
 
-wrapErr :: (Outputable a) => (a -> BareM b) -> (a -> BareM b)
-wrapErr f x
-  = f x `catchError` \e-> throwError $ "Bare Error Translating " ++ showPpr x ++ "(" ++ e ++ ")"
+wrapErr msg f x
+  = f x `catchError` \e-> throwError $ "Bare Error " ++ "[" ++ msg ++ "]" ++ showPpr x ++ "(" ++ e ++ ")"
 
 ------------------------------------------------------------------
 ------------------- API: Bare Refinement Types -------------------
@@ -86,7 +85,7 @@ wrapErr f x
 
 mkMeasureSpec :: HscEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
 mkMeasureSpec env m = execBare mkSpec env
-  where mkSpec = wrapErr mkMeasureSort m' >>= mkMeasureDCon >>= return . Ms.dataConTypes
+  where mkSpec = wrapErr "mkMeasureSort" mkMeasureSort m' >>= mkMeasureDCon >>= return . Ms.dataConTypes
         m'     = first (txTyVarBinds . mapReft ureft) m
 
 mkAssumeSpec :: [Var] -> HscEnv -> [(Symbol, BareType)] -> IO [(Var, SpecType)]
@@ -94,9 +93,10 @@ mkAssumeSpec vs env xbs = execBare mkAspec env
   where mkAspec = forM vbs mkVarSpec >>= return . checkAssumeSpec
         vbs     = joinIds vs (first symbolString <$> xbs) 
 
-mkVarSpec (v, b) 
-  = (liftM (v,) (mkSpecType b)) `catchError` \err ->
-       throwError $ "mkVarSpec fails on " ++ showPpr v ++ " :: "  ++ showPpr b
+mkVarSpec (v, b) = liftM (v,) (wrapErr msg mkSpecType b)
+  where msg = "mkVarSpec fails on " ++ showPpr v ++ " :: "  ++ showPpr b 
+
+
 
 -- joinIds :: [Var] -> [(String, a)] -> [(Var, a)]
 joinIds vs xts = {-tracePpr "spec vars"-} vts   
@@ -107,9 +107,9 @@ mkInvariants :: HscEnv -> [BareType] -> IO [SpecType]
 mkInvariants env ts = execBare (mapM mkSpecType ts) env
 
 
+mkSpecType    = ofBareType' . txParams [] . txTyVarBinds . mapReft (bimap canonReft stringTyVarTy) 
+mkPredType πs = ofBareType' . txParams πs . txTyVarBinds . mapReft (fmap stringTyVarTy)
 
-mkSpecType    = (wrapErr ofBareType) . txParams [] . txTyVarBinds . mapReft (bimap canonReft stringTyVarTy) 
-mkPredType πs = (wrapErr ofBareType) . txParams πs . txTyVarBinds . mapReft (fmap stringTyVarTy)
 
 ------------------------------------------------------------------
 -------------------- Type Checking Raw Strings -------------------
@@ -265,8 +265,7 @@ wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns
 ----------------- Transforming Raw Strings using GHC Env ---------------
 ------------------------------------------------------------------------
 
--- ofBareType' x = ofBareType x `catchError` \err -> 
---  throwError $ "ofBareType fails on: " ++ showPpr x ++ "(" ++ err ++ ")"
+ofBareType'   = wrapErr "ofBareType" ofBareType
 
 -- ofBareType :: (Reftable r) => BRType pv r -> BareM (RRType pv r)
 ofBareType (RVar (RV a) r) 
@@ -328,7 +327,7 @@ measureCtors = nubSort . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.c
 -- mkMeasureSort :: (PVarable pv, Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
 mkMeasureSort (Ms.MSpec cm mm) 
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> 
-      liftM (\s' -> m {Ms.sort = s'}) (wrapErr ofBareType (Ms.sort m))
+      liftM (\s' -> m {Ms.sort = s'}) (ofBareType' (Ms.sort m))
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: DataCon Definitions ------------------
