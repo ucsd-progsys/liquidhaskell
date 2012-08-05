@@ -25,6 +25,7 @@ module Language.Haskell.Liquid.RefType (
   , addTyConInfo
   , primOrderingSort
   , fromRMono, fromRPoly, idRMono
+  , isTrivial
   ) where
 
 import Text.Printf
@@ -102,11 +103,9 @@ instance Outputable (Predicate t) => Show (Predicate t) where
   show = showPpr 
 
 instance Outputable (PVar t) => Reftable (Predicate t) where
-  isTauto (Pr ps) 
-    = null ps
-  ppTy r d 
-    | isTauto r = d 
-    | otherwise = d <> (angleBrackets $ ppr r)
+  isTauto (Pr ps)      = null ps
+  ppTy r d | isTauto r = d 
+           | otherwise = d <> (angleBrackets $ ppr r)
 
 instance NFData (Predicate a) where
   rnf _ = ()
@@ -396,18 +395,23 @@ instance Reftable (RType Class RTyCon RTyVar (PVar Type) Reft) where
   isTauto = isTrivial -- isTautoTy 
   ppTy    = errorstar "ppTy RPoly Reftable" 
 
+instance Reftable Reft where
+  isTauto = isTautoReft
+  ppTy    = ppr_reft
+
+instance (Reftable r, RefTypable p c tv pv r, Subable r) => Reftable (Ref r (RType p c tv pv r)) where
+  isTauto (RMono r) = isTauto r
+  isTauto (RPoly t) = isTrivial t 
+  ppTy (RMono r) d  = ppTy r d
+  ppTy (RPoly _) _  = errorstar "Reftable r"
+
+
 --instance Reftable (Ref Reft (RType Class RTyCon RTyVar (PVar Type) Reft)) where
 --  isTauto (RMono r) = isTauto r
 --  isTauto (RPoly t) = isTauto t
 --  ppTy (RMono r) = ppTy r
 --  ppTy (RPoly t) = ppTy t
 
-instance (Reftable r, RefTypable p c tv pv r, Subable r) => Reftable (Ref r (RType p c tv pv r)) where
-  isTauto (RMono r) = isTauto r
-  isTauto (RPoly t) = isTrivial t 
-
-  ppTy (RMono r) d = ppTy r d
-  ppTy (RPoly _) _ = errorstar "Reftable r"
 
 
 -- DEBUG ONLY
@@ -435,9 +439,6 @@ instance TyConable RTyCon where
   isList  = (listTyCon ==) . rTyCon
   isTuple = TC.isTupleTyCon   . rTyCon 
  
-instance Reftable Reft where
-  isTauto = isTautoReft
-  ppTy    = ppr_reft
 
 instance TyConable String where
   isList  = (listConName ==) 
@@ -607,10 +608,9 @@ foldRefs                      = foldr . flip . foldRef
 foldRef f z (RMono r)         = f r z
 foldRef f z (RPoly t)         = foldReft f z t
 
--- isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool
-isTrivial :: (Reftable r) => RType p c tv pv r -> Bool
+--isTrivial :: (Reftable r) => RType p c tv pv r -> Bool
+isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool
 isTrivial = Fold.and . fmap isTauto
-
 
 -- isTrivial :: (Reftable r) => RType p c tv pv r -> Bool
 -- isTrivial (RAll (RV _) t)  = (isTrivial t)
@@ -1014,4 +1014,9 @@ instance Subable (Predicate Type) where
 instance Subable r => Subable (RType p c tv pv r) where
   subst  = fmap . subst
 
+
+
+--dummy :: RType Class  RTyCon RTyVar (PVar Type) (UReft Reft Type)
+--dummy = ROth "dumdumdum"
+--foo   = isTauto dummy
 
