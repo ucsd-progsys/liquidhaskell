@@ -395,20 +395,18 @@ instance Show RTyVar where
   show = showPpr 
 
 instance Reftable (RType Class RTyCon RTyVar (PVar Type) Reft) where
-  isTauto t = isTautoTy t
-  ppTy      = errorstar "ppTy RPoly Reftable" 
-
+  isTauto = isTrivial -- isTautoTy 
+  ppTy    = errorstar "ppTy RPoly Reftable" 
 
 --instance Reftable (Ref Reft (RType Class RTyCon RTyVar (PVar Type) Reft)) where
 --  isTauto (RMono r) = isTauto r
 --  isTauto (RPoly t) = isTauto t
---
 --  ppTy (RMono r) = ppTy r
 --  ppTy (RPoly t) = ppTy t
 
 instance (Reftable r, RefTypable p c tv pv r, Subable r) => Reftable (Ref r (RType p c tv pv r)) where
   isTauto (RMono r) = isTauto r
-  isTauto (RPoly p) = False
+  isTauto (RPoly t) = isTrivial t 
 
   ppTy (RMono r) d = ppTy r d
   ppTy (RPoly _) _ = errorstar "Reftable r"
@@ -611,6 +609,11 @@ foldRefs                      = foldr . flip . foldRef
 foldRef f z (RMono r)         = f r z
 foldRef f z (RPoly t)         = foldReft f z t
 
+-- isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool
+isTrivial :: (Reftable r) => RType p c tv pv r -> Bool
+isTrivial = Fold.and . fmap isTauto
+
+
 -- isTrivial :: (Reftable r) => RType p c tv pv r -> Bool
 -- isTrivial (RAll (RV _) t)  = (isTrivial t)
 -- isTrivial (RFun _ t1 t2 _) = (and $ isTrivial <$> [t1, t2]) 
@@ -618,10 +621,18 @@ foldRef f z (RPoly t)         = foldReft f z t
 -- isTrivial (RApp _ ts [] r) = (and $ isTrivial <$> ts) && (isTauto r)
 -- isTrivial (RVar (RV _) r)  = (isTauto r)
 -- isTrivial _                = False 
+--
+--isTautoTy (RVar α r)       = isTauto r
+--isTautoTy (RAll a t)       = isTautoTy t
+--isTautoTy (RFun x t t' r)  = isTautoTy t && isTautoTy t' && isTauto r
+--isTautoTy (RApp c ts rs r) = and $ (isTauto r):((isTautoTy <$> ts) ++ (isTautoRef <$> rs))
+--isTautoTy (RCls c ts)      = and (isTautoTy <$> ts) 
+--isTautoTy (ROth a)         = True
+--
+--isTautoRef (RMono r)       = isTauto r
+--isTautoRef (RPoly t)       = isTauto t
 
--- isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool
-isTrivial :: (Reftable r) => RType p c tv pv r -> Bool
-isTrivial = Fold.and . fmap isTauto
+
 
 ------------------------------------------------------------------------------------------
 -- TODO: Rewrite subsTyvars with Traversable
@@ -675,16 +686,6 @@ subsFreeRef m s z (RMono r)
   = RMono $ subt (α, toType t) r
   where (α, t) = z
 
-
-isTautoTy (RVar α r)       = isTauto r
-isTautoTy (RAll a t)       = isTautoTy t
-isTautoTy (RFun x t t' r)  = isTautoTy t && isTautoTy t' && isTauto r
-isTautoTy (RApp c ts rs r) = and $ (isTauto r):((isTautoTy <$> ts) ++ (isTautoRef <$> rs))
-isTautoTy (RCls c ts)      = and (isTautoTy <$> ts) 
-isTautoTy (ROth a)         = True
-
-isTautoRef (RMono r)       = isTauto r
-isTautoRef (RPoly t)       = isTauto t
 
 mapBind f (RVar b r)       = RVar (f b) r
 mapBind f (RFun b t1 t2 r) = RFun (f b) (mapBind f t1) (mapBind f t2) r
