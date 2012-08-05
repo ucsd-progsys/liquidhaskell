@@ -293,7 +293,7 @@ ofBareType (RCls c ts)
 -- TODO: move back to RefType
 bareTCApp r rs c ts 
   = {- tracePpr ("bareTCApp: t = " ++ show t) $ -}
-    if isTrivial t0 then t' else t
+    if isTauto t0 then t' else t
     where t0 = rApp c ts rs top
           t  = rApp c ts rs r
           t' = (expandRTypeSynonyms t0) `strengthen` r

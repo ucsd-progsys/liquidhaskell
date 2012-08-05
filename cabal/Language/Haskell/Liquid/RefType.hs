@@ -25,8 +25,6 @@ module Language.Haskell.Liquid.RefType (
   , addTyConInfo
   , primOrderingSort
   , fromRMono, fromRPoly, idRMono
-  -- predicates
-  , isTrivial
   ) where
 
 import Text.Printf
