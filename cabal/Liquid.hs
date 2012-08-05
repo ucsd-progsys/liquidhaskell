@@ -34,16 +34,22 @@ liquid  = do (targets, includes) <- getOpts
 
 liquidOne includes target = 
   do info    <- getGhcInfo target includes :: IO GhcInfo
-     putStrLn $ showPpr info 
-     putStrLn $ "*************** Original CoreBinds ***************************" 
-     putStrLn $ showPpr (cbs info)
+     donePhase "getGhcInfo"
+     --putStrLn $ showPpr info 
+     --putStrLn $ "*************** Original CoreBinds ***************************" 
+     --putStrLn $ showPpr (cbs info)
      let cbs' = transformRecExpr (cbs info)
-     putStrLn $ "*************** Transform Rec Expr CoreBinds *****************" 
-     putStrLn $ showPpr (cbs')
-     let cgi = {-# SCC "generateConstraints" #-} generateConstraints $ info {cbs = cbs'}
-     {-# SCC "writeConstraints" #-} writeConstraints target cgi
-     (r, sol) <- cgi `deepseq` solve target (hqFiles info) cgi
+     donePhase "transformRecExpr"
+     --putStrLn $ "*************** Transform Rec Expr CoreBinds *****************" 
+     --putStrLn $ showPpr (cbs')
+     let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs'}
+     cgi `deepseq` donePhase "generateConstraints"
+     -- {-# SCC "writeCGI" #-} writeCGI target cgi
+     -- donePhase "writeCGI"
+     (r, sol) <- {- cgi `deepseq` -} solve target (hqFiles info) cgi
+     donePhase "solve"
      {-# SCC "annotate" #-} annotate target sol $ annotMap cgi
+     donePhase "annotate"
      putStrLn $ "*************** DONE: " ++ showPpr r ++ " ********************"
      return r
 
@@ -61,5 +67,5 @@ initGhci = parseStaticFlags []
 -}
 
 
-writeConstraints target cgi 
+writeCGI target cgi 
   = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi target) ({-# SCC "PPcgi" #-} showPpr cgi)
