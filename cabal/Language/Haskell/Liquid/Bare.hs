@@ -278,7 +278,7 @@ ofBareType (RAll (RV a) t)
   = liftM  (RAll (stringRTyVar a)) (ofBareType t)
 ofBareType (RAll (RP π) t) 
   = liftM  (RAll (RP π)) (ofBareType t)
-ofBareType (RApp tc [t] [TODOTODOTODOHEREHEREHERE] r) 
+ofBareType (RApp tc [t] [] {- TODOTODOTODOHEREHEREHERE -} r) 
   | isList tc
   = liftM (bareTCApp r [] listTyCon . (:[])) (ofBareType t)
 ofBareType (RApp tc ts [] r) 
