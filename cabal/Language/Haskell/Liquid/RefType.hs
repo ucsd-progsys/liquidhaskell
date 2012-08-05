@@ -403,7 +403,7 @@ instance (Reftable r, RefTypable p c tv pv r, Subable r) => Reftable (Ref r (RTy
   isTauto (RMono r) = isTauto r
   isTauto (RPoly t) = isTrivial t 
   ppTy (RMono r) d  = ppTy r d
-  ppTy (RPoly _) _  = errorstar "Reftable r"
+  ppTy (RPoly _) _  = errorstar "Reftable Ref RPoly"
 
 
 --instance Reftable (Ref Reft (RType Class RTyCon RTyVar (PVar Type) Reft)) where
