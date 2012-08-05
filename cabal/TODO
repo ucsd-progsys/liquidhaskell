@@ -23,6 +23,7 @@ rtype BSTMap a b = Map <{\key v -> v < key}, {\key v -> v > key}> a b
 1. Fields MUST have names
 2. Predicates are just refinements over
 
+Looks like tests pass.
 
 BST?
 

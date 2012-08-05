@@ -12,8 +12,11 @@ GPG=$(GHCHOME)/ghc-pkg
 OPTS="-O2 -XStandaloneDeriving -XDeriveDataTypeable"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
 CABAL=cabal --with-ghc=$(GHC) 
+
 CABALI=$(CABAL) install --force-reinstalls --reinstall --ghc-options=$(OPTS)
-CABALP=$(CABALI) -p
+#CABALP=$(CABALI) -p
+
+CABALP=$(CABAL) install --reinstall --ghc-options=$(OPTS) -p
 
 DEPS=unix-compat transformers mtl filemanip cmdargs text syb parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour
 
