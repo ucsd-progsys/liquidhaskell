@@ -429,13 +429,5 @@ eqShape' (RVar (RV α) _) (RVar (RV α') _)
 eqShape' t1 t2 
   = False
 
-isTrivial :: (Reftable r) => RType p c tv pv r -> Bool
-isTrivial (RAll (RV _) t)  = (isTrivial t)
-isTrivial (RFun _ t1 t2 _) = (and $ isTrivial <$> [t1, t2]) 
-isTrivial (RCls _ ts)      = (and $ isTrivial <$> ts)
-isTrivial (RApp _ ts [] r) = (and $ isTrivial <$> ts) && (isTauto r)
-isTrivial (RVar (RV _) r)  = (isTauto r)
-isTrivial _                = False 
-
 
 

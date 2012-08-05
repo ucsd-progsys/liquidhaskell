@@ -1,4 +1,4 @@
-{-# LANGUAGE IncoherentInstances, MultiParamTypeClasses, FlexibleContexts, ScopedTypeVariables, NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, DeriveDataTypeable, RankNTypes, GADTs #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleContexts, ScopedTypeVariables, NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, DeriveDataTypeable, RankNTypes, GADTs #-}
 
 {- Refinement Types Mirroring the GHC Type definition -}
 
@@ -13,12 +13,11 @@ module Language.Haskell.Liquid.RefType (
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp, rFun
   , typeUniqueSymbol
-  , strengthen -- , strengthenRefType
+  , strengthen
   , generalize, mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
   , subts, substSym 
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, refTypePredSortedReft, refTypeSortedReft, typeSortedReft, rTypeSort
-  -- , canonRefType
   , tidyRefType
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalReft, literalConst
@@ -26,7 +25,8 @@ module Language.Haskell.Liquid.RefType (
   , addTyConInfo
   , primOrderingSort
   , fromRMono, fromRPoly, idRMono
-  -- , RTyConInv, mkRTyConInv, addRTyConInv
+  -- predicates
+  , isTrivial
   ) where
 
 import Text.Printf
@@ -191,7 +191,7 @@ class (Outputable p, Outputable c, Outputable tv, PVarable pv, Reftable r, TyCon
   ppCls    :: p -> [RType p c tv pv r] -> SDoc
   
   ppRType  :: Prec -> RType p c tv pv r -> SDoc 
-  ppRType = ppr_rtype False 
+  ppRType = ppr_rtype True -- False 
 
 --------------------------------------------------------------------
 ---------------- Refinement Types: RefType -------------------------
@@ -399,12 +399,12 @@ instance Reftable (RType Class RTyCon RTyVar (PVar Type) Reft) where
   ppTy      = errorstar "ppTy RPoly Reftable" 
 
 
-instance Reftable (Ref Reft (RType Class RTyCon RTyVar (PVar Type) Reft)) where
-  isTauto (RMono r) = isTauto r
-  isTauto (RPoly t) = isTauto t
-
-  ppTy (RMono r) = ppTy r
-  ppTy (RPoly t) = ppTy t
+--instance Reftable (Ref Reft (RType Class RTyCon RTyVar (PVar Type) Reft)) where
+--  isTauto (RMono r) = isTauto r
+--  isTauto (RPoly t) = isTauto t
+--
+--  ppTy (RMono r) = ppTy r
+--  ppTy (RPoly t) = ppTy t
 
 instance (Reftable r, RefTypable p c tv pv r, Subable r) => Reftable (Ref r (RType p c tv pv r)) where
   isTauto (RMono r) = isTauto r
@@ -415,10 +415,10 @@ instance (Reftable r, RefTypable p c tv pv r, Subable r) => Reftable (Ref r (RTy
 
 
 -- DEBUG ONLY
-instance Outputable (Bind String (PVar String)) where
-  ppr (RB x) = ppr x
-  ppr (RV a) = text a
-  ppr (RP p) = ppr p
+--instance Outputable (Bind String (PVar String)) where
+--  ppr (RB x) = ppr x
+--  ppr (RV a) = text a
+--  ppr (RP p) = ppr p
  
 instance (Outputable tv, Outputable pv) => Outputable (Bind tv pv) where
   ppr (RB x) = ppr x
@@ -538,7 +538,7 @@ ppr_rtype _ _ (ROth s)
   = text "?" <> text s <> text "?"
 
 ppReftPs b rs 
-  | all isTauto rs = empty -- text "" 
+  | all isTauto rs = empty
   | not b          = empty 
   | otherwise      = angleBrackets $ hsep $ punctuate comma $ ppr <$> rs
 
@@ -584,28 +584,48 @@ instance Bifunctor UReft where
   second f (U r p) = U r (fmap f p)
 
 instance Functor (RType a b c d) where
-  fmap f = mapReft f
+  fmap  = mapReft 
 
-mapReft f (RVar α r)       = RVar α (f r)
-mapReft f (RAll a t)       = RAll a (mapReft f t)
-mapReft f (RFun x t t' r)  = RFun x (mapReft f t) (mapReft f t') (f r)
-mapReft f (RApp c ts rs r) = RApp c (mapReft f <$> ts) (mapRef f <$> rs) (f r)
-mapReft f (RCls c ts)      = RCls c (mapReft f <$> ts) 
-mapReft f (ROth a)         = ROth a 
+instance Fold.Foldable (RType a b c d) where
+  foldr = foldReft
 
-mapRef f (RMono r) = RMono $ f r
-mapRef f (RPoly t) = RPoly $ mapReft f t
+mapReft f (RVar α r)          = RVar α (f r)
+mapReft f (RAll a t)          = RAll a (mapReft f t)
+mapReft f (RFun x t t' r)     = RFun x (mapReft f t) (mapReft f t') (f r)
+mapReft f (RApp c ts rs r)    = RApp c (mapReft f <$> ts) (mapRef f <$> rs) (f r)
+mapReft f (RCls c ts)         = RCls c (mapReft f <$> ts) 
+mapReft f (ROth a)            = ROth a 
+mapRef f (RMono r)            = RMono $ f r
+mapRef f (RPoly t)            = RPoly $ mapReft f t
 
+foldReft f z (RVar _ r)       = f r z 
+foldReft f z (RAll _ t)       = foldReft f z t
+foldReft f z (RFun _ t t' r)  = f r (foldRefts f z [t, t'])
+foldReft f z (RApp _ ts rs r) = f r (foldRefs f (foldRefts f z ts) rs)
+foldReft f z (RCls _ ts)      = foldRefts f z ts
+foldReft f z (ROth _)         = z 
 
+foldRefts                     = foldr . flip . foldReft
+foldRefs                      = foldr . flip . foldRef
 
+foldRef f z (RMono r)         = f r z
+foldRef f z (RPoly t)         = foldReft f z t
 
+-- isTrivial :: (Reftable r) => RType p c tv pv r -> Bool
+-- isTrivial (RAll (RV _) t)  = (isTrivial t)
+-- isTrivial (RFun _ t1 t2 _) = (and $ isTrivial <$> [t1, t2]) 
+-- isTrivial (RCls _ ts)      = (and $ isTrivial <$> ts)
+-- isTrivial (RApp _ ts [] r) = (and $ isTrivial <$> ts) && (isTauto r)
+-- isTrivial (RVar (RV _) r)  = (isTauto r)
+-- isTrivial _                = False 
 
+-- isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool
+isTrivial :: (Reftable r) => RType p c tv pv r -> Bool
+isTrivial = Fold.and . fmap isTauto
 
-
-
-
-
-
+------------------------------------------------------------------------------------------
+-- TODO: Rewrite subsTyvars with Traversable
+------------------------------------------------------------------------------------------
 
 subsTyVars_meet   = subsTyVars True
 subsTyVars_nomeet = subsTyVars False
@@ -980,8 +1000,8 @@ rTypeSort = typeSort . toType
 -------------------------- Substitution ---------------------------
 -------------------------------------------------------------------
 
-instance Subable RefType  where
-  subst = fmap . subst 
+--instance Subable RefType  where
+--  subst = fmap . subst 
 
 instance Subable (UReft Reft String) where
   subst s (U r p) = U (subst s r) p
