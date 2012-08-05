@@ -244,7 +244,7 @@ bbaseP
   =  liftM2 bLst (brackets bareTypeP) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM3 bCon upperIdP predicatesP (sepBy bareTypeP blanks) )
- <|> liftM2 bRVar lowerIdP predicateP
+ <|> liftM2 bRVar lowerIdP monoPredicateP 
 
 bareAllP 
   = do reserved "forall"
@@ -348,11 +348,15 @@ predicatesP
    =  try (angles $ sepBy1 predicate1P comma) 
   <|> return []
 
-predicateP 
-   = try (angles $ predicate1P) 
+predicate1P 
+   =  try (liftM RPoly (refP bbaseP))
+  <|> liftM (RMono . predUReft) monoPredicate1P
+
+monoPredicateP 
+   = try (angles monoPredicate1P) 
   <|> return pdTrue
 
-predicate1P
+monoPredicate1P
    =  try (reserved "True" >> return pdTrue)
   <|> try (liftM pdVar (parens predVarUseP))
   <|> liftM pdVar predVarUseP 
@@ -366,10 +370,10 @@ predVarUseP
 ----------------------- Wrapped Constructors ---------------------------
 ------------------------------------------------------------------------
 
-bLst t rs r    = RApp listConName [t] (RMono . predUReft <$> rs) (reftUReft r) 
+bLst t rs r    = RApp listConName [t] ({- RMono . predUReft <$> -} rs) (reftUReft r) 
 bTup [t] _ _   = t
-bTup ts rs r   = RApp tupConName ts (RMono .predUReft <$> rs) (reftUReft r)
-bCon b rs ts r = RApp b ts (RMono . predUReft <$> rs) (reftUReft r)
+bTup ts rs r   = RApp tupConName ts ({- RMono . predUReft <$> -} rs) (reftUReft r)
+bCon b rs ts r = RApp b ts ({- RMono . predUReft <$> -} rs) (reftUReft r)
 bRVar α p r    = RVar (RV α) (U r p)
 
 

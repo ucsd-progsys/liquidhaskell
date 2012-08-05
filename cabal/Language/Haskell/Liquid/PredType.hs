@@ -143,10 +143,6 @@ splitArgsRes t = ([], t)
 unify :: Maybe PrType -> RefType -> RefType 
 ---------------------------------------------------------------------------
 
---unify pt t = unify_ pt t 
--- traceShow ("unify: \npt = " ++ show pt ++ " \nt = " ++ show t) $ 
--- where 
-
 unify (Just pt) rt  = evalState (unifyS rt pt) S.empty
 unify _         t   = t
 
@@ -189,6 +185,7 @@ unifyS rt@(RApp c ts rs r) pt@(RApp _ pts ps p)
       
 
 unifyS t1 t2 = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
+
 bUnify a (Pr pvs)   = foldl' meet a $ pToReft <$> pvs
 
 unifyRef (RMono a) (Pr pvs) = RMono $ foldl' meet a $ pToReft <$> pvs

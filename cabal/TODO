@@ -1,39 +1,30 @@
-GITTERY
--------
-
-- To make local branch goo
-
-    $ git branch foo
-    $ git checkout foo
-    $ ...
-    $ git commit -a -m "did work in foo"
-
-- To send branch to the mothership
-
-    $ git push origin foo
-
-- To work with branch elsewhere
-
-    $ git pull
-    $ git checkout foo
-
-FEATURES 
---------
-
-SLICE causes problem in neg/ass0.hs, doesn't really help either so may as well nuke, but find bug in fixpoint <--------- HEREHEREHEREHEREHEREHERE
-
-- Blogging: 
+- Add/Parse predicate signatures for lists<p> and tuples<p>     <--------- HEREHEREHEREHEREHEREHERE
     
-    foo.lhs ---- liquid ----> foo.lhs.html (or foo.lhs.md) ----pandoc----> foo.lhs.md.html
-
-  Trick: HsColour only transforms code blocks into HTML, leaves rest untouched.
-         Pandoc ignores HTML blocks. #win
-
-- Add/Parse predicate signatures for lists<p> and tuples<p> 
-  
     e.g. [{x: Int | x > 0}]   
 
 - pos/deptup.hs (type signature: for constructor wrapper)
+
+Sorted List?
+
+    [a]<{\head v -> v > head}>
+    
+    Map <{\key v -> v < key}, {\key v -> v > key}> Int Bool
+    
+    Map <{v < key}, {v > key}>
+    
+    Map <{v: k | v < key}, {v : k | v > key}>
+
+
+        ==> RPoly (RVar k
+
+
+rtype BSTMap a b = Map <{\key v -> v < key}, {\key v -> v > key}> a b
+
+1. Fields MUST have names
+2. Predicates are just refinements over
+
+
+BST?
 
 
 data [a]<p :: a -> a -> Bool> 
@@ -61,10 +52,47 @@ data (a1, a2, a3)
   > 
   = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>) (x4 :: a4<p4 x1 x2 x3>)
 
+===================================================================================================
+
+
+
+GITTERY
+-------
+
+- To make local branch goo
+
+    $ git branch foo
+    $ git checkout foo
+    $ ...
+    $ git commit -a -m "did work in foo"
+
+- To send branch to the mothership
+
+    $ git push origin foo
+
+- To work with branch elsewhere
+
+    $ git pull
+    $ git checkout foo
+
+FEATURES 
+--------
+
+SLICE causes problem in neg/ass0.hs, doesn't really help either so may as well nuke, but find bug in fixpoint 
+
+- Blogging: 
+    
+    foo.lhs ---- liquid ----> foo.lhs.html (or foo.lhs.md) ----pandoc----> foo.lhs.md.html
+
+  Trick: HsColour only transforms code blocks into HTML, leaves rest untouched.
+         Pandoc ignores HTML blocks. #win
+
+
+
 *** Cleanup output (tests/pos/poly0.hs)
     > sexify HsAnnot with Colorized Types? (color refinements blue?) 
 
-- TAGS
+-> TAGS
 
     > also enables cunning trick with contextual/predicates. (See email)
 
@@ -139,6 +167,8 @@ Paper #1
 ->   vector-algorithms "vector bounds checking"
      > e.g. "unsafeSlice"
      > maybe only specify types for Vector?
+
+->   FingerTrees (containers / Data.Seq)
 
 [NO] Data.IntSet
      > tricky bit-level operations/invariants

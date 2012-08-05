@@ -598,8 +598,8 @@ consCB γ (Rec xes)
        mapM_     addW (WfC γ <$> rts)
        return $ γ'
     where (xs, es) = unzip xes
-          vs       = mkSymbol      <$> xs
-          pts      = (getPrType γ) <$> vs
+          vs       = mkSymbol    <$> xs
+          pts      = getPrType γ <$> vs
 
 consCB γ b@(NonRec x e)
   = do rt <- consE γ e
