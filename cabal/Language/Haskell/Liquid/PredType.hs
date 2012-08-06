@@ -179,14 +179,15 @@ unifyS rt@(RApp c ts rs r) pt@(RApp _ pts ps p)
        ts' <- zipWithM unifyS ts pts
        return $ RApp c ts' rs' (bUnify r p)
   where fm       = S.fromList $ concatMap pvars (fp:fps) 
-        (fp:fps) = p:(fromRMono "unifyS" <$> ps)
-        ms = "unifyS " ++ show (rt, pt)
-        rs' = zipWithZero unifyRef (RMono trueReft) pdTrue rs fps
-      
+        fp : fps = p : (getR <$> ps)
+        rs'      = zipWithZero unifyRef (RMono trueReft) pdTrue rs fps
+        msg      = "unifyS " ++ showPpr ps -- (rt, pt)
+        getR (RMono r) = r
+        getR (RPoly _) = top 
 
-unifyS t1 t2 = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
 
-bUnify a (Pr pvs)   = foldl' meet a $ pToReft <$> pvs
+unifyS t1 t2                = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
+bUnify a (Pr pvs)           = foldl' meet a $ pToReft <$> pvs
 
 unifyRef (RMono a) (Pr pvs) = RMono $ foldl' meet a $ pToReft <$> pvs
 unifyRef (RPoly a) (Pr pvs) = RPoly $ foldl' strengthen a $ pToReft <$> pvs

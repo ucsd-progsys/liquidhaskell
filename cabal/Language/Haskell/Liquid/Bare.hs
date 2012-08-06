@@ -278,20 +278,27 @@ ofBareType (RAll (RV a) t)
   = liftM  (RAll (stringRTyVar a)) (ofBareType t)
 ofBareType (RAll (RP π) t) 
   = liftM  (RAll (RP π)) (ofBareType t)
-ofBareType (RApp tc [t] [] {- TODOTODOTODOHEREHEREHERE -} r) 
+ofBareType (RApp tc ts@[_] rs r) 
   | isList tc
-  = liftM (bareTCApp r [] listTyCon . (:[])) (ofBareType t)
-ofBareType (RApp tc ts [] r) 
+  -- = liftM (bareTCApp r ...rs... listTyCon . (:[])) (ofBareType t)
+  = liftM2 (bareTCApp r listTyCon) (mapM ofRef rs) (mapM ofBareType ts)
+ofBareType (RApp tc ts rs r) 
   | isTuple tc
-  = liftM (bareTCApp r [] c) (mapM ofBareType ts)
+  = liftM2 (bareTCApp r c) (mapM ofRef rs) (mapM ofBareType ts)
     where c = tupleTyCon BoxedTuple (length ts)
 ofBareType (RApp tc ts rs r) 
-  = liftM2 (bareTCApp r (idRMono <$> rs)) (lookupGhcTyCon tc) (mapM ofBareType ts)
+  = liftM3 (bareTCApp r) (lookupGhcTyCon tc) (mapM ofRef rs) (mapM ofBareType ts)
+  -- liftM2 (bareTCApp r) (idRMono <$> rs) (lookupGhcTyCon tc) (mapM ofBareType ts)
 ofBareType (RCls c ts)
   = liftM2 RCls (lookupGhcClass c) (mapM ofBareType ts)
 
+ofRef (RPoly t)   
+  = liftM RPoly (ofBareType t)
+ofRef (RMono r) 
+  = return (RMono r)
+
 -- TODO: move back to RefType
-bareTCApp r rs c ts 
+bareTCApp r c rs ts 
   = {- tracePpr ("bareTCApp: t = " ++ show t) $ -}
     if isTrivial t0 then t' else t
     where t0 = rApp c ts rs top

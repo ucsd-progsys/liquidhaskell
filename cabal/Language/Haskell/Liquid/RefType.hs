@@ -169,13 +169,12 @@ class (Monoid r, Outputable r) => Reftable r where
   meet    :: r -> r -> r
   meet    = mappend
 
-fromRMono :: String -> Ref a b -> a
-fromRMono m (RMono r) = r
-fromRMono m _        = errorstar $ "fromMono" ++ m
-fromRPoly (RPoly r) = r
-fromRPoly _        = errorstar "fromPoly"
-
-idRMono = RMono . (fromRMono "idRMono")
+-- fromRMono :: String -> Ref a b -> a
+fromRMono _ (RMono r) = r
+fromRMono msg z       = errorstar $ "fromMono: " ++ msg -- ++ showPpr z
+fromRPoly (RPoly r)   = r
+fromRPoly _           = errorstar "fromPoly"
+idRMono               = RMono . fromRMono "idRMono"
 
 class TyConable c where
   isList   :: c -> Bool

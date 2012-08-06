@@ -591,7 +591,7 @@ consCB :: CGEnv -> CoreBind -> CG CGEnv
 
 consCB γ (Rec xes) 
   = do rts <- mapM (\e -> freshTy_pretty e $ exprType e) es
-       let ts = (\(pt, rt) -> unify pt rt) <$> (zip pts rts)
+       let ts = zipWith unify pts rts -- (\(pt, rt) -> unify pt rt) <$> (zip pts rts)
        let γ' = foldl' (\γ z -> (γ, "consCB1") += z) (γ `withRecs` xs) (zip vs ts)
        zipWithM_ (cconsE γ') es  ts
        zipWithM_ addIdA xs (Left <$> ts)
