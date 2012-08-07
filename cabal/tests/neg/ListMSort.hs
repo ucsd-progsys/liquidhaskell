@@ -16,6 +16,7 @@ merge (x:xs) (y:ys)
   | otherwise 
   = y:(merge (x:xs) ys)
 
+{-@ assert mergesort :: (Ord a) => xs:[a] -> [a]<{v: a | (v < fld)}>  @-}
 mergesort :: Ord a => [a] -> [a]
 mergesort [] = []
 mergesort [x] = [x]
@@ -24,7 +25,7 @@ mergesort xs = merge (mergesort xs1) (mergesort xs2) where (xs1, xs2) = split xs
 chk [] = liquidAssertB True
 chk (x1:xs) = case xs of 
                []     -> liquidAssertB True
-               x2:xs2 -> liquidAssertB (x1 < x2) && chk xs
+               x2:xs2 -> liquidAssertB (x1 <= x2) && chk xs
 																	
 rlist = map choose [1 .. 10]
 

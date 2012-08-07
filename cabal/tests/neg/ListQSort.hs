@@ -2,8 +2,8 @@ module ListSort where
 
 import Language.Haskell.Liquid.Prelude
 
-app k []     ys = k:ys
-app k (x:xs) ys = x:(app k xs ys) 
+append k []     ys = k:ys
+append k (x:xs) ys = x:(append k xs ys) 
 
 takeL x []     = []
 takeL x (y:ys) = if (y<x) then y:(takeL x ys) else takeL x ys
@@ -12,17 +12,15 @@ takeGE x []     = []
 takeGE x (y:ys) = if (y>=x) then y:(takeGE x ys) else takeGE x ys
 
 
-{-@ assert quicksort :: (Ord a) => xs:[a] -> [a]<{v: a | (v >= fld)}>  @-}
+{-@ assert quicksort :: (Ord a) => xs:[a] -> [a]<{v: a | (v < fld)}>  @-}
 quicksort []     = []
-quicksort (x:xs) = app x xsle xsge
+quicksort (x:xs) = append x xsle xsge
   where xsle = quicksort (takeL x xs)
         xsge = quicksort (takeGE x xs)
 
-{-@ assert qsort :: (Ord a) => xs:[a] -> [a]<{v: a | (v >= fld)}>  @-}
-qsort []     = []
-qsort (x:xs) = app x (qsort [y | y <- xs, y < x]) (qsort [z | z <- xs, z >= x]) 
 
--------------------------------------------------------------------------------
+
+
 
 chk [] = liquidAssertB True
 chk (x1:xs) = case xs of 

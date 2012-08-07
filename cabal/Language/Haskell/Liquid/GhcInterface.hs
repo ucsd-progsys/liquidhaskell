@@ -269,11 +269,11 @@ desugarModuleWithLoc tcm = do
 moduleSpec vars target mg paths
   = do liftIO      $ putStrLn ("paths = " ++ show paths) 
        tgtSpec    <- liftIO $ parseSpec (name, target) 
+       _          <- liftIO $ checkAssertSpec vars             $ Ms.sigs       tgtSpec
        impSpec    <- getSpecs paths impNames [Spec, Hs, LHs] 
        let spec    = tgtSpec `mappend` impSpec 
        setContext [IIModule (mgi_module mg)]
        env        <- getSession
-       _          <- liftIO $ checkAssertSpec vars             $ Ms.sigs       tgtSpec
        (cs, ms)   <- liftIO $ makeMeasureSpec env $ Ms.mkMSpec $ Ms.measures   spec
        tySigs     <- liftIO $ makeAssumeSpec  vars env         $ Ms.sigs       spec
        (tcs, dcs) <- liftIO $ makeConTypes    env              $ Ms.dataDecls  spec 
