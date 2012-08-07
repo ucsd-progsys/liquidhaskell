@@ -601,6 +601,8 @@ consCB γ (Rec xes)
           vs       = mkSymbol    <$> xs
           pts      = getPrType γ <$> vs
 
+
+
 consCB γ b@(NonRec x e)
   = do rt <- consE γ e
        let t = {-traceShow ("Unify for "  ++ show x' ++ "\n\n"++ show e ++ "\n\n" ++ show rt ++ "\n" ++ show pt ++ "\n")$-} unify pt rt

@@ -5,10 +5,11 @@
  - and real refinements. -}
 
 module Language.Haskell.Liquid.Bare (
-    mkMeasureSpec
-  , mkAssumeSpec
-  , mkInvariants
-  , mkConTypes
+    makeMeasureSpec
+  , makeAssumeSpec
+  , makeInvariants
+  , makeConTypes
+  , checkAssertSpec
   )
 where
 
@@ -40,7 +41,7 @@ import Name                     (mkInternalName)
 
 import OccName                  (mkTyVarOcc)
 import Unique                   (getKey, getUnique, initTyVarUnique)
-import Data.List                (sort)
+import Data.List                (sort, intercalate)
 import Data.Maybe               (isJust, fromMaybe, catMaybes)
 import Data.Char                (isUpper)
 import ErrUtils
@@ -83,19 +84,26 @@ wrapErr msg f x
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
 
-mkMeasureSpec :: HscEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
-mkMeasureSpec env m = execBare mkSpec env
+makeMeasureSpec :: HscEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
+makeMeasureSpec env m = execBare mkSpec env
   where mkSpec = wrapErr "mkMeasureSort" mkMeasureSort m' >>= mkMeasureDCon >>= return . Ms.dataConTypes
         m'     = first (txTyVarBinds . mapReft ureft) m
 
-mkAssumeSpec :: [Var] -> HscEnv -> [(Symbol, BareType)] -> IO [(Var, SpecType)]
-mkAssumeSpec vs env xbs = execBare mkAspec env
+makeAssumeSpec :: [Var] -> HscEnv -> [(Symbol, BareType)] -> IO [(Var, SpecType)]
+makeAssumeSpec vs env xbs = execBare mkAspec env
   where mkAspec = forM vbs mkVarSpec >>= return . checkAssumeSpec
         vbs     = joinIds vs (first symbolString <$> xbs) 
 
 mkVarSpec (v, b) = liftM (v,) (wrapErr msg mkSpecType b)
   where msg = "mkVarSpec fails on " ++ showPpr v ++ " :: "  ++ showPpr b 
 
+checkAssertSpec :: [Var] -> [(Symbol, BareType)] -> IO () 
+checkAssertSpec vs xbs =
+  let vm  = M.fromList [(showPpr v, v) | v <- vs] 
+      xs' = [s | (x, _) <- xbs, let s = symbolString x, not (M.member s vm)]
+  in case xs' of 
+    [] -> return () 
+    _  -> errorstar $ "Asserts for Unknown variables: "  ++ (intercalate ", " xs')  
 
 
 -- joinIds :: [Var] -> [(String, a)] -> [(Var, a)]
@@ -103,8 +111,8 @@ joinIds vs xts = {-tracePpr "spec vars"-} vts
   where vm     = M.fromList [(showPpr v, v) | v <- {-tracePpr "vars"-} vs]
         vts    = catMaybes [(, t) <$> (M.lookup x vm) | (x, t) <- {-tracePpr "bareVars"-} xts]
 
-mkInvariants :: HscEnv -> [BareType] -> IO [SpecType]
-mkInvariants env ts = execBare (mapM mkSpecType ts) env
+makeInvariants :: HscEnv -> [BareType] -> IO [SpecType]
+makeInvariants env ts = execBare (mapM mkSpecType ts) env
 
 
 mkSpecType    = ofBareType' . txParams [] . txTyVarBinds . mapReft (bimap canonReft stringTyVarTy) 
@@ -340,8 +348,8 @@ mkMeasureSort (Ms.MSpec cm mm)
 ---------------- Bare Predicate: DataCon Definitions ------------------
 -----------------------------------------------------------------------
 
-mkConTypes :: HscEnv-> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
-mkConTypes env dcs = unzip <$> execBare (mapM ofBDataDecl dcs) env
+makeConTypes :: HscEnv-> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
+makeConTypes env dcs = unzip <$> execBare (mapM ofBDataDecl dcs) env
 
 ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
 ofBDataDecl (D tc as ps cts)

@@ -2,13 +2,12 @@ module ListSort where
 
 import Language.Haskell.Liquid.Prelude -- (liquidAssertB, choose)
 
-{- assert inSort :: (Ord a) => xs:[a] -> {v: [a]<{v: a | (v >= fld)}> | len(v) = len(xs)} @-}
-
-{-@ assert inSort :: (Ord a) => xs:[a] -> [a]<{v: a | (v >= fld)}>  @-}
+{-@ assert inSort :: (Ord a) => xs:[a] -> {v: [a]<{v: a | (v >= fld)}> | len(v) = len(xs)} @-}
 inSort        :: (Ord a) => [a] -> [a]
 inSort []     = []
 inSort (x:xs) = insert x (inSort xs) 
 
+{-@ assert insertSort :: (Ord a) => xs:[a] -> [a]<{v: a | (v >= fld)}>  @-}
 -- insertSort :: (Ord a) => [a] -> [a]
 insertSort xs                 = foldr insert [] xs
 

@@ -199,7 +199,7 @@ getGhcModGutsSimpl1 fn = do
        hsc_env    <- getSession
        simpl_guts <- liftIO $ hscSimplify hsc_env mod_guts
        (cg,_)     <- liftIO $ tidyProgram hsc_env simpl_guts
-       liftIO $ putStrLn "************************ CoreGuts *************************"
+       liftIO $ putStrLn "************************* CoreGuts ****************************************"
        liftIO $ putStrLn (showPpr $ cg_binds cg)
        return $! (miModGuts mod_guts) { mgi_binds = cg_binds cg } 
 
@@ -222,7 +222,7 @@ getGhcInfo target paths
       coreBinds   <- liftIO $ anormalize hscEnv modguts
       let impvs   = importVars coreBinds 
       let defvs   = definedVars coreBinds 
-      spec        <- moduleSpec (defvs ++ impvs) target modguts paths 
+      spec        <- moduleSpec (impvs ++ defvs) target modguts paths 
       liftIO       $ putStrLn $ "Module Imports: " ++ show (imports spec) 
       hqualFiles  <- moduleHquals modguts paths target spec 
       return       $ GI hscEnv coreBinds impvs defvs hqualFiles spec 
@@ -273,10 +273,11 @@ moduleSpec vars target mg paths
        let spec    = tgtSpec `mappend` impSpec 
        setContext [IIModule (mgi_module mg)]
        env        <- getSession
-       (cs, ms)   <- liftIO $ mkMeasureSpec env $ Ms.mkMSpec $ Ms.measures   spec
-       tySigs     <- liftIO $ mkAssumeSpec  vars env         $ Ms.sigs       spec
-       (tcs, dcs) <- liftIO $ mkConTypes    env              $ Ms.dataDecls  spec 
-       invs       <- liftIO $ mkInvariants  env              $ Ms.invariants spec 
+       _          <- liftIO $ checkAssertSpec vars             $ Ms.sigs       tgtSpec
+       (cs, ms)   <- liftIO $ makeMeasureSpec env $ Ms.mkMSpec $ Ms.measures   spec
+       tySigs     <- liftIO $ makeAssumeSpec  vars env         $ Ms.sigs       spec
+       (tcs, dcs) <- liftIO $ makeConTypes    env              $ Ms.dataDecls  spec 
+       invs       <- liftIO $ makeInvariants  env              $ Ms.invariants spec 
        return $ SP { imports    = nubSort $ impNames ++ [symbolString x | x <- Ms.imports spec]
                    , tySigs     = tySigs
                    , ctor       = cs
@@ -288,7 +289,7 @@ moduleSpec vars target mg paths
                    }
     where impNames = allDepNames  mg
           name     = mgi_namestring mg
-    
+
 allDepNames mg    = allNames'
   where allNames' = nubSort impNames
         impNames  = moduleNameString <$> (depNames mg ++ dirImportNames mg) 
