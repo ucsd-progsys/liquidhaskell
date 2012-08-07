@@ -52,3 +52,6 @@ quickSort (x:xs) = app x (quickSort [y | y <- xs, y < x]) (quickSort [z | z <- x
 
 app k []     ys = k : ys
 app k (x:xs) ys = x : app k xs ys
+
+
+
