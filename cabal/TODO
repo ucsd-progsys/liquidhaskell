@@ -199,6 +199,8 @@ Paper #2 (Liquid Types in the Real World, ICFP 2013)
         http://hackage.haskell.org/packages/archive/text/0.11.2.2/doc/html/Data-Text-Lazy-Internal.html
         (See "main invariant")
 
+->   vector/
+
 ->   vector-algorithms "vector bounds checking"
      > e.g. "unsafeSlice"
      > maybe only specify types for Vector?
