@@ -145,7 +145,7 @@ Blogs
     5.  KMeans        (++ zipWith etc.)
     6.  LambdaEval
     7.  Sorting I     (Insert)
-    8.  Sorting II    (Merge, Quick)
+    8.  Sorting II    (Merge, Quick, GHC-wierd-sort)
     9.  Map  I        (BST property, add, delete)
     10. Map II        (Data.Map with elements etc.)
     11. Binary Tree/ Finger Tree?
@@ -154,8 +154,10 @@ Blogs
     14. XMonad I
     15. XMonad II
 
--> Paper #1 (Abstract Predicates, ESOP 2013)
-   
+-----------------------------------------------------------------------------------------------
+Paper #1 (Abstract Predicates, ESOP 2013)
+-----------------------------------------------------------------------------------------------
+
 [OK-PP] Data.KMeans     (Num?, Ord?, Toy-Abs, Toy-$, Toy-Filter)
 
 [OK-PP] List-Sorting    (Order)
@@ -176,8 +178,9 @@ Blogs
 [??-PP] Xmonad-StackSet-Toy
                         (zipping-??)
 
-
+-----------------------------------------------------------------------------------------------
 Paper #2 (Liquid Types in the Real World, ICFP 2013)
+-----------------------------------------------------------------------------------------------
 
 [OK]    Data.KMeans
 
@@ -202,7 +205,7 @@ Paper #2 (Liquid Types in the Real World, ICFP 2013)
 
 ->   xmonad real properties
 
---------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------
 
 ->   hmatrix
      > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Matrix.html#Matrix
