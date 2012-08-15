@@ -366,6 +366,7 @@ predVarUseP
       xs <- sepBy predVarIdP spaces
       return $ PV p dummyTyId [ (dummyTyId, dummySymbol, x) | x <- xs ]
 
+
 ------------------------------------------------------------------------
 ----------------------- Wrapped Constructors ---------------------------
 ------------------------------------------------------------------------
@@ -394,6 +395,8 @@ data Pspec ty bndr
   | DDecl DataDecl
   | Incl  FilePath
   | Invt  ty
+  | Alias Measure.RTAlias
+
 
 mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
   { Measure.measures   = [m | Meas  m <- xs]
@@ -402,6 +405,7 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.imports    = [i | Impt  i <- xs]
   , Measure.dataDecls  = [d | DDecl d <- xs]
   , Measure.includes   = [q | Incl  q <- xs]
+  , Measure.aliases    = [a | Alias a <- xs]
   }
 
 specificationP 
@@ -421,6 +425,7 @@ specP
     <|> (reserved "data"      >> liftM DDecl dataDeclP)
     <|> (reserved "include"   >> liftM Incl  filePathP)
     <|> (reserved "invariant" >> liftM Invt  genBareTypeP)
+    <|> (reserved "reftype"   >> liftM Alias aliasP)
 
 filePathP :: Parser FilePath
 filePathP = angles $ many1 pathCharP
@@ -435,6 +440,14 @@ tyBindP
 
 genBareTypeP
   = liftM generalize bareTypeP 
+
+aliasP 
+  = do name <- upperIdP
+       spaces
+       args <- sepBy tyVarIdP spaces
+       whiteSpace >> reservedOp "=" >> whiteSpace
+       body <- bareTypeP
+       return $ Measure.RTA name args body
 
 measureP 
   = do (x, ty) <- tyBindP  

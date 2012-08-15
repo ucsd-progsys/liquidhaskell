@@ -17,13 +17,14 @@ reftype OMap k a = Map <{v: k | v < key}, {v: k | v > key}> k a
 
 > pos/deptup.hs (type signature: for constructor wrapper)
 
-    Type   :: data Alias = { name :: String
-                           , args :: [String]
-                           , body :: BareType 
-                           }
+    Type   :: data RTAlias = { name :: String
+                             , args :: [String]
+                             , body :: BareType 
+                             }
 
-    Parse  :: String -> Bare 
+    Parse  :: String -> RTAlias
 
+    Env    :: [RTAlias] -> 
     Expand :: Bare 
 
 

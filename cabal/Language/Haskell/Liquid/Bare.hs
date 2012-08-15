@@ -105,7 +105,6 @@ checkAssertSpec vs xbs =
     [] -> return () 
     _  -> errorstar $ "Asserts for Unknown variables: "  ++ (intercalate ", " xs')  
 
-
 -- joinIds :: [Var] -> [(String, a)] -> [(Var, a)]
 joinIds vs xts = {-tracePpr "spec vars"-} vts   
   where vm     = M.fromList [(showPpr v, v) | v <- {-tracePpr "vars"-} vs]

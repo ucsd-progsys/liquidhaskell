@@ -271,7 +271,7 @@ moduleSpec vars target mg paths
        tgtSpec    <- liftIO $ parseSpec (name, target) 
        _          <- liftIO $ checkAssertSpec vars             $ Ms.sigs       tgtSpec
        impSpec    <- getSpecs paths impNames [Spec, Hs, LHs] 
-       let spec    = tgtSpec `mappend` impSpec 
+       let spec    = Ms.expandRTAliases $ tgtSpec `mappend` impSpec 
        setContext [IIModule (mgi_module mg)]
        env        <- getSession
        (cs, ms)   <- liftIO $ makeMeasureSpec env $ Ms.mkMSpec $ Ms.measures   spec

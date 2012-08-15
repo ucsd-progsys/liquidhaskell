@@ -10,6 +10,8 @@ module Language.Haskell.Liquid.Measure (
   , qualifySpec
   , mapTy
   , dataConTypes
+  , RTAlias (..)
+  , expandRTAliases
   ) where
 
 import GHC
@@ -34,6 +36,7 @@ data Spec ty bndr  = Spec {
   , imports    :: ![Symbol]              -- Loaded spec module names
   , dataDecls  :: ![DataDecl]            -- Predicated data definitions 
   , includes   :: ![FilePath]            -- Included qualifier files
+  , aliases    :: ![RTAlias]             -- RefType aliases
   } deriving (Data, Typeable)
 
 data MSpec ty bndr = MSpec { 
@@ -77,9 +80,15 @@ mkMSpec ms = MSpec cm mm
         ms' = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
 instance Monoid (Spec ty bndr) where
-  mappend (Spec xs ys invs zs ds is) (Spec xs' ys' invs' zs' ds' is')
-           = Spec (xs ++ xs') (ys ++ ys') (invs ++ invs') (nubSort (zs ++ zs')) (ds ++ ds') (nubSort (is ++ is'))
-  mempty   = Spec [] [] [] [] [] []
+  mappend (Spec xs ys invs zs ds is as) (Spec xs' ys' invs' zs' ds' is' as')
+           = Spec (xs ++ xs') 
+                  (ys ++ ys') 
+                  (invs ++ invs') 
+                  (nubSort (zs ++ zs')) 
+                  (ds ++ ds') 
+                  (nubSort (is ++ is')) 
+                  (as ++ as')
+  mempty   = Spec [] [] [] [] [] [] []
 
 instance Functor Def where
   fmap f def = def { ctor = f (ctor def) }
@@ -101,21 +110,23 @@ instance Bifunctor MSpec   where
   second                = fmap 
 
 instance Bifunctor Spec    where
-  first f (Spec ms ss is x0 x1 x2) 
+  first f (Spec ms ss is x0 x1 x2 x3) 
     = Spec { measures   = first  f <$> ms
            , sigs       = second f <$> ss
            , invariants =        f <$> is
            , imports    = x0 
            , dataDecls  = x1
            , includes   = x2
+           , aliases    = x3
            }
-  second f (Spec ms x0 x1 x2 x3 x4) 
+  second f (Spec ms x0 x1 x2 x3 x4 x5) 
     = Spec { measures   = fmap (second f) ms
            , sigs       = x0 
            , invariants = x1
            , imports    = x2
            , dataDecls  = x3
            , includes   = x4
+           , aliases    = x5
            }
 
 instance Outputable Body where
@@ -169,3 +180,25 @@ refineWithCtorBody dc f body t =
 --measuresSpec ms = Spec ms' bs 
 --  where (ms', ms'') = partition (not . null . eqns) ms
 --        bs          = [(name m, sort m) | m <- ms'']
+
+-----------------------------------------------------------------------------
+------ Reftype Aliases ------------------------------------------------------
+-----------------------------------------------------------------------------
+
+data RTAlias   = RTA { rtName :: String
+                     , rtArgs :: [String]
+                     , rtBody :: BareType
+                     } deriving (Data, Typeable)
+
+type RTEnv     = Map String RTAlias
+
+makeRTEnv      :: [RTAlias] -> RTEnv      
+makeRTEnv      = error "TODO: makeRTEnv"
+
+expandRTAlias  :: RTEnv -> BareType -> BareType 
+expandRTAlias  = error "TODO: expandRTAlias"
+
+expandRTAliases  :: Spec BareType Symbol -> Spec BareType Symbol
+expandRTAliases sp = first (expandRTAlias env) sp
+                     where env = makeRTEnv (aliases sp)
+
