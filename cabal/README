@@ -115,14 +115,40 @@ above the function definition. For example (tests/pos/spec0.hs)
     incr x = x + 1
 
 
+Refinement Type Aliases
+-----------------------
+
+TODO:
+
+It is often tedious to keep writing 
+
+    {v: Int | v > 0}
+
+Thus, one can have refinement-type aliases of the form:
+
+    {-@ reftype PosInt = {v: Int | v > 0} @-}
+
+or
+
+    {-@ reftype IncList = [a]<{v: a | (v >= fld)}> @-}
+
+or 
+
+    {-@ reftype OMap k a = Map <{v: k | v < key}, {v: k | v > key}> k a @-}
+   
+and then use the above in signatures like:
+
+    {-@ assert insert :: (Ord a) => a -> IncList a -> IncList a @-}
+    {-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
+
+
+
 Specifying Qualifiers
 ---------------------
 
 Qualifier files must end with extension .hquals
 
 You can write qualifier files (see include/Prelude.hquals for an example)
-
-
 
 If a module is called or imports 
 

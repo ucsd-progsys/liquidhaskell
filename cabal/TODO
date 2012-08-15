@@ -1,30 +1,36 @@
-- Add/Parse predicate signatures for lists<p> and tuples<p>     <--------- HEREHEREHEREHEREHEREHERE
-    
-    e.g. [{x: Int | x > 0}]   
+TODO
+====
 
-- pos/deptup.hs (type signature: for constructor wrapper)
+* reftype aliases               <--------- HEREHEREHEREHEREHEREHERE
+* benchmarks: containers.Map
+* TAGs
+* benchmarks: Data.List (foldr) 
+* benchmarks: bytestring
+* tuple-refinements
 
-Sorted List?
+RefType Aliases 
+================
 
-    [a]<{\head v -> v > head}>
-    
-    Map <{\key v -> v < key}, {\key v -> v > key}> Int Bool
-    
-    Map <{v < key}, {v > key}>
-    
-    Map <{v: k | v < key}, {v : k | v > key}>
-        
-        ==> RPoly (RVar k
+reftype OMap k a = Map <{v: k | v < key}, {v: k | v > key}> k a
 
-rtype BSTMap a b = Map <{\key v -> v < key}, {\key v -> v > key}> a b
+{-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
 
-1. Fields MUST have names
-2. Predicates are just refinements over
+> pos/deptup.hs (type signature: for constructor wrapper)
 
-Looks like tests pass.
+    Type   :: data Alias = { name :: String
+                           , args :: [String]
+                           , body :: BareType 
+                           }
 
-BST?
+    Parse  :: String -> Bare 
 
+    Expand :: Bare 
+
+
+Tuple Refinements
+=================
+
+- Add/Parse predicate signatures for tuples<p>     
 
 data [a]<p :: a -> a -> Bool> 
   = []
@@ -51,12 +57,9 @@ data (a1, a2, a3)
   > 
   = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>) (x4 :: a4<p4 x1 x2 x3>)
 
-===================================================================================================
-
-
 
 GITTERY
--------
+=======
 
 - To make local branch goo
 
@@ -74,22 +77,8 @@ GITTERY
     $ git pull
     $ git checkout foo
 
-FEATURES 
---------
-
 SLICE causes problem in neg/ass0.hs, doesn't really help either so may as well nuke, but find bug in fixpoint 
 
-- Blogging: 
-    
-    foo.lhs ---- liquid ----> foo.lhs.html (or foo.lhs.md) ----pandoc----> foo.lhs.md.html
-
-  Trick: HsColour only transforms code blocks into HTML, leaves rest untouched.
-         Pandoc ignores HTML blocks. #win
-
-
-
-*** Cleanup output (tests/pos/poly0.hs)
-    > sexify HsAnnot with Colorized Types? (color refinements blue?) 
 
 -> TAGS
 
@@ -131,10 +120,19 @@ foldr op b (x:xs) = op ~xs~ x (foldr f b xs)
 
 len = foldr (\_ ~xs~ n -> n + 1)
 
-BENCHMARKS
-----------
+Blogging 
+========
 
-Blogs
+    foo.lhs ---- liquid ----> foo.lhs.html (or foo.lhs.md) ----pandoc----> foo.lhs.md.html
+
+  Trick: HsColour only transforms code blocks into HTML, leaves rest untouched.
+         Pandoc ignores HTML blocks. #win
+
+
+
+*** Cleanup output (tests/pos/poly0.hs)
+    > sexify HsAnnot with Colorized Types? (color refinements blue?) 
+
 
     1.  Trivial Stuff (incr, pos, map, fold, etc.)
     2.  Lists I       (append, reverse, map-length, filter)
@@ -152,9 +150,10 @@ Blogs
     14. XMonad I
     15. XMonad II
 
------------------------------------------------------------------------------------------------
+
+
 Paper #1 (Abstract Predicates, ESOP 2013)
------------------------------------------------------------------------------------------------
+=========================================
 
 [OK-PP] Data.KMeans     (Num?, Ord?, Toy-Abs, Toy-$, Toy-Filter)
 
@@ -174,15 +173,10 @@ Paper #1 (Abstract Predicates, ESOP 2013)
                         (folding)
 
 [??-PP] Xmonad-StackSet-Toy
-                        (zipping-??)
+                        (zippering-??)
 
------------------------------------------------------------------------------------------------
 Paper #2 (Liquid Types in the Real World, ICFP 2013)
------------------------------------------------------------------------------------------------
-
-> :help syntastic.txt
-
------------------------------------------------------------------------------------------------
+====================================================
 
 [OK]    Data.KMeans
 
@@ -209,7 +203,9 @@ Paper #2 (Liquid Types in the Real World, ICFP 2013)
 
 ->   xmonad real properties
 
------------------------------------------------------------------------------------------------
+
+Other Benchmarks
+================
 
 ->   hmatrix
      > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Matrix.html#Matrix
@@ -235,8 +231,9 @@ Paper #2
 -> NDM/catch benchmarks (with refinements)
 
 
-KNOWN BUGS
-----------
+
+Known Bugs 
+==========
 
 -> tests/todo/fft.hs
 
@@ -259,8 +256,8 @@ KNOWN BUGS
             GHC.Prim.realWorld#;
 
 
-Xmonad
-------
+Xmonad Case Study
+=================
 
 Theorems (from Wouter Swierstra's Coq Development)
 
