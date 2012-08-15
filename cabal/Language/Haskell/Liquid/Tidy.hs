@@ -13,9 +13,11 @@ data TidyS = T { memo :: M.Map String String
 
 type TidyM = State TidyS
 
+sel :: String -> TidyM (Maybe String)
 sel s 
   = ((s `M.lookup`) . memo) `fmap` get 
 
+upd ::  String -> TidyM String
 upd s 
   = do st <- get
        let (s':t) = pool st
@@ -23,6 +25,7 @@ upd s
        put $ st {memo = M.insert s s' m, pool = t}
        return s'
 
+rename :: String -> TidyM String
 rename s 
   = do so <- sel s
        case so of 
@@ -34,7 +37,7 @@ cleaner getS putS = everywhereM (mkM swiz)
                    Nothing -> return x
                    Just s  -> liftM (putS x) (rename s)
 
-tidy :: (Data a1, Typeable a) => [String] -> (a -> Maybe String) -> (a -> String -> a) -> a1 -> a1
+tidy :: (Data b, Typeable a) => [String] -> (a -> Maybe String) -> (a -> String -> a) -> b -> b 
 tidy pool0 getS putS z = fst $ runState act s0
   where act      = cleaner getS putS z 
         s0       = T { memo = M.empty, pool = pool0 }

@@ -13,10 +13,8 @@ Sorted List?
     Map <{v < key}, {v > key}>
     
     Map <{v: k | v < key}, {v : k | v > key}>
-
-
+        
         ==> RPoly (RVar k
-
 
 rtype BSTMap a b = Map <{\key v -> v < key}, {\key v -> v > key}> a b
 
@@ -180,6 +178,10 @@ Paper #1 (Abstract Predicates, ESOP 2013)
 
 -----------------------------------------------------------------------------------------------
 Paper #2 (Liquid Types in the Real World, ICFP 2013)
+-----------------------------------------------------------------------------------------------
+
+> :help syntastic.txt
+
 -----------------------------------------------------------------------------------------------
 
 [OK]    Data.KMeans

@@ -23,7 +23,6 @@ module Language.Haskell.Liquid.Fixpoint (
   , ppr_reft, ppr_reft_pred, flattenRefas
   , simplify, pAnd, pOr, pIte
   , isTautoPred
-  -- , conjuncts
   , emptySubst, mkSubst, catSubst
   , Subable (..)
   , isPredInReft
@@ -36,15 +35,11 @@ import PrelNames (intTyConKey, intPrimTyConKey, integerTyConKey, boolTyConKey)
 import TysWiredIn       (listTyCon)
 import TyCon            (isTupleTyCon, tyConUnique)
 import Outputable
-import Control.Monad.State
-import Text.Printf
 import Data.Monoid hiding ((<>))
 import Data.Functor
-import Data.List    hiding (intersperse)
-import Data.Char        (ord, chr, isAlphaNum, isAlpha, isUpper, toLower)
+import Data.Char        (ord, chr, isAlpha, isUpper, toLower)
 import qualified Data.Map as M
 import qualified Data.Set as S
-import Text.Parsec.String
 
 import Data.Generics.Schemes
 import Data.Generics.Aliases
@@ -54,12 +49,7 @@ import Data.Maybe (catMaybes)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.GhcMisc
-
-import qualified Data.Text as T
-
 import Control.DeepSeq
-
--- type Output = SDoc -- T.Text
 
 class Fixpoint a where
   toFix    :: a -> SDoc
@@ -96,9 +86,6 @@ instance (NFData a) => NFData (PVar a) where
 --instance MapSymbol (PVar a) where 
 --  mapSymbol f (PV p t args) = PV (f p) t [(t, x, f y) | (t, x, y) <- args]
 
-instance Show Type where
-  show  = showSDoc . ppr
-
 {-
 ------------------------------------------------------------
 ------------------- Sanitizing Symbols ---------------------
@@ -118,6 +105,9 @@ cleanLocs = {-# SCC "CleanLocs" #-} everywhereM (mkM swiz)
           | isFixSym x = return l
           | otherwise  = freshLoc l  
         swiz l = return l
+
+isFixSym (c:chs)  = isAlpha c && all (`elem` okSymChars) chs
+isFixSym _        = False
 
 freshLoc ::  Loc -> Fx Loc
 freshLoc x 
@@ -150,28 +140,11 @@ isPredInReft p (Reft(_, ls)) = or (isPredInRefa p <$> ls)
 isPredInRefa p (RPvar p')    = isSamePvar p p'
 isPredInRefa _ _             = False
 
-
-isSamePvar p1@(PV s1 t1 a1) p2@(PV s2 t2 a2) 
-  | s1 == s2 
-  = if True -- t1==t2 
-     then if chkSameTyArgs a1 a2 
-           then True
-           else error $ 
-              "isSamePvar: same var with different tys in args" ++ 
-              show (p1, p2)
-     else error $
-        "isSamePvar: same var with different sorts" ++ show (p1, p2)
-  | otherwise 
-  = False 
-
-chkSameTyArgs a1 a2
-  = True -- and $ zipWith (==) ts1 ts2
-  where ts1 = map (\(t, _, _) -> t) a1
-        ts2 = map (\(t, _, _) -> t) a2
+isSamePvar (PV s1 _ _) (PV s2 _ _) = s1 == s2
 
 replacePVarReft (p, r) (Reft(v, rs)) 
   = Reft(v, concatMap (replaceRPvarRefa (RPvar p, r)) rs)
-replaceRPvarRefa (r1@(RPvar(PV n1 _ ar)), Reft(v, rs)) (RPvar (PV n2 _ _))
+replaceRPvarRefa (RPvar(PV n1 _ ar), Reft(_, rs)) (RPvar (PV n2 _ _))
   | n1 == n2
   = map (subst (pArgsToSub ar)) rs
   | otherwise
@@ -182,9 +155,9 @@ rmRPVar s r = fst $ rmRPVarReft s r
 rmRPVarReft s (Reft(v, ls)) = (Reft(v, ls'), su)
   where (l, s1) = unzip $ map (rmRPVarRefa s) ls
         ls' = catMaybes l
-        su = case catMaybes s1 of {[su] -> su; _ -> error "Fixpoint.rmRPVarReft"}
+        su = case catMaybes s1 of {[su'] -> su'; _ -> error "Fixpoint.rmRPVarReft"}
 
-rmRPVarRefa p1@(PV s1 t1 a1) r@(RPvar p2@(PV s2 t2 a2))
+rmRPVarRefa (PV s1 _ _) r@(RPvar (PV s2 _ a2))
   | s1 == s2
   = (Nothing, Just $ pArgsToSub a2)
   | otherwise
@@ -351,7 +324,7 @@ toFix_sort (FFunc n ts) = text "func" <> parens ((ppr n) <> (text ", ") <> (toFi
 toFix_sort (FApp c [t]) 
   | isListTC c          = brackets $ toFix_sort t 
 toFix_sort (FApp c ts)  = toFix c <+> intersperse space (fp <$> ts)
-                          where fp s@(FApp c (_:_)) = parens $ toFix_sort s 
+                          where fp s@(FApp _ (_:_)) = parens $ toFix_sort s 
                                 fp s                = toFix_sort s
 
 
@@ -424,10 +397,13 @@ stringSymbol s
 symbolString :: Symbol -> String
 symbolString (S str) 
   = case chopPrefix fixSymPrefix str of
-      Just s  -> concat $ zipWith tx [0..] $ chunks s 
+      Just s  -> concat $ zipWith tx indices $ chunks s 
       Nothing -> str
     where chunks = unIntersperse symSep 
           tx i s = if even i then s else [decodeStr s]
+
+indices :: [Integer]
+indices = [0..]
 
 okSymChars
   =  ['a' .. 'z']
@@ -439,10 +415,8 @@ symSep = '#'
 fixSymPrefix = "fix" ++ [symSep]
 
 
-isFixSym' (c:cs) = isAlpha c && all (`elem` (symSep:okSymChars)) cs
-isFixSym' _      = False
-isFixSym (c:cs) = isAlpha c && all (`elem` okSymChars) cs
-isFixSym _      = False
+isFixSym' (c:chs) = isAlpha c && all (`elem` (symSep:okSymChars)) chs
+isFixSym' _       = False
 
 encodeChar c 
   | c `elem` okSymChars 
@@ -473,7 +447,7 @@ intSymbol x i           = S $ x ++ show i
 tempSymbol              ::  String -> Integer -> Symbol
 tempSymbol prefix n     = intSymbol (tempPrefix ++ prefix) n
 
-isTempSym (S x)         = tempPrefix `isPrefixOf` x
+-- isTempSym (S x)         = tempPrefix `isPrefixOf` x
 tempPrefix              = "lq_tmp_"
 anfPrefix               = "lq_anf_" 
 nonSymbol               = S ""
@@ -589,7 +563,7 @@ zero         = ECon (I 0)
 one          = ECon (I 1)
 isContra     = (`elem` [ PAtom Eq zero one, PAtom Eq one zero, PFalse])   
 isTautoPred  = (`elem` [ PTrue ])
-hasTag e1 e2 = PAtom Eq (EApp tagSymbol [e1]) e2
+-- hasTag e1 e2 = PAtom Eq (EApp tagSymbol [e1]) e2
 
 isTautoReft (Reft (_, ras)) = all isTautoRa ras
 isTautoRa (RConc p)         = isTautoPred p
@@ -613,7 +587,7 @@ ppr_reft (Reft (v, ras)) d
 --  | otherwise 
 --  = angleBrackets $ hsep $ punctuate comma $ ppr_reft_pred <$> rs
  
-ppr_reft_pred (Reft (v, ras))
+ppr_reft_pred (Reft (_, ras))
   | all isTautoRa ras
   = text "true"
   | otherwise
@@ -631,9 +605,12 @@ data Refa
   | RPvar !(PVar Type)
   deriving (Eq, Ord, Data, Typeable, Show)
 
-data Reft  -- t 
+data Reft
   = Reft (Symbol, [Refa]) 
   deriving (Eq, Ord, Data, Typeable) 
+
+instance Show Type where
+   show  = showSDoc . ppr
 
 instance Show Reft where
   show (Reft x) = showSDoc $ toFix x 
@@ -656,8 +633,8 @@ deleteSEnv x (SE env)   = SE (M.delete x env)
 insertSEnv x y (SE env) = SE (M.insert x y env)
 lookupSEnv x (SE env)   = M.lookup x env
 emptySEnv               = SE M.empty
-memberSEnv x (SE env)   = M.member x env
-domainSEnv (SE env)     = M.keys env
+-- memberSEnv x (SE env)   = M.member x env
+-- domainSEnv (SE env)     = M.keys env
 
 instance Functor SEnv where
   fmap f (SE m) = SE $ fmap f m
@@ -667,7 +644,7 @@ type FEnv = SEnv SortedReft
 -- Envt (M.Map Symbol SortedReft) 
 -- deriving (Eq, Ord, Data, Typeable) 
 instance Fixpoint (PVar Type) where
-  toFix (PV s so a) 
+  toFix (PV s _ a) 
    = parens $ toFix s <+> sep (toFix . thd3 <$> a)
 
 {-
@@ -693,13 +670,14 @@ instance Fixpoint SortedReft where
 instance Fixpoint FEnv where
   toFix (SE m)  = toFix (M.toAscList m)
 
-deleteFEnv   = deleteSEnv
-fromListFEnv = fromListSEnv
-emptyFEnv    = emptySEnv
+-- deleteFEnv   = deleteSEnv
+-- fromListFEnv = fromListSEnv
+-- emptyFEnv    = emptySEnv
 insertFEnv   = insertSEnv . lower 
-  where lower x@(S (c:cs)) 
-          | isUpper c = S $ (toLower c):cs
+  where lower x@(S (c:chs)) 
+          | isUpper c = S $ toLower c : chs
           | otherwise = x
+        lower z       = z
 
 instance (Outputable a) => Outputable (SEnv a) where
   ppr (SE e) = vcat $ map pprxt $ M.toAscList e
@@ -738,13 +716,16 @@ instance Monoid (FixResult a) where
   mappend _ c@(Crash _ _)         = c 
   mappend c@(Crash _ _) _         = c 
   mappend (Unsafe xs) (Unsafe ys) = Unsafe (xs ++ ys)
- 
+  mappend UnknownError _          = UnknownError
+  mappend _ UnknownError          = UnknownError
+
 instance Outputable a => Outputable (FixResult (SubC a)) where
   ppr (Crash xs msg) = text "Crash! "  <> ppr (sinfo `fmap` xs) <> parens (text msg) 
-  ppr Safe          = text "Safe"
-  ppr (Unsafe xs)   = text "Unsafe: " <> ppr (sinfo `fmap` xs)
+  ppr Safe           = text "Safe"
+  ppr (Unsafe xs)    = text "Unsafe: " <> ppr (sinfo `fmap` xs)
+  ppr UnknownError   = text "Unknown Error!"
 
-toFixPfx s x     = text s <+> toFix x
+-- toFixPfx s x     = text s <+> toFix x
 
 instance Show (SubC a) where
   show = showPpr 
@@ -801,7 +782,7 @@ instance Subable Expr where
   subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst  su e2)
   subst su (ECst e so)     = ECst (subst su e) so
   subst (Su s) e@(EVar x)  = M.findWithDefault e x s
-  subst su e               = e
+  subst _ e                = e
 
 instance Subable Pred where
   subst su (PAnd ps)       = PAnd $ map (subst su) ps
@@ -811,13 +792,13 @@ instance Subable Pred where
   subst su (PIff p1 p2)    = PIff (subst su p1) (subst su p2)
   subst su (PBexp e)       = PBexp $ subst su e
   subst su (PAtom r e1 e2) = PAtom r (subst su e1) (subst su e2)
-  subst su p@(PAll _ _)    = errorstar $ "subst: FORALL" 
-  subst su p               = p
+  subst _  (PAll _ _)      = errorstar $ "subst: FORALL" 
+  subst _  p               = p
 
 instance Subable Refa where
   subst su (RConc p)     = RConc   $ subst su p
   subst su (RKvar k su') = RKvar k $ su' `catSubst` su 
-  subst su (RPvar p)     = RPvar p
+  subst _  (RPvar p)     = RPvar p
 
 instance (Subable a, Subable b) => Subable (a,b) where
   subst su (x,y) = (subst su x, subst su y)
@@ -937,7 +918,7 @@ instance NFData Pred where
 instance NFData Refa where
   rnf (RConc x)     = rnf x
   rnf (RKvar x1 x2) = rnf x1 `seq` rnf x2
-  rnf (RPvar x)     = () -- rnf x
+  rnf (RPvar _)     = () -- rnf x
 
 instance NFData Reft where 
   rnf (Reft (v, ras)) = rnf v `seq` rnf ras
@@ -959,7 +940,7 @@ class MapSymbol a where
 instance MapSymbol Refa where
   mapSymbol f (RConc p)    = RConc (mapSymbol f p)
   mapSymbol f (RKvar s su) = RKvar (f s) su
-  mapSymbol f (RPvar p)    = RPvar p -- RPvar (mapSymbol f p)
+  mapSymbol _ (RPvar p)    = RPvar p -- RPvar (mapSymbol f p)
 
 instance MapSymbol Reft where
   mapSymbol f (Reft(s, rs)) = Reft(f s, map (mapSymbol f) rs)
@@ -972,7 +953,7 @@ instance MapSymbol Pred where
   mapSymbol f (PIff p1 p2)    = PIff (mapSymbol f p1) (mapSymbol f p2)
   mapSymbol f (PBexp e)       = PBexp (mapSymbol f e)
   mapSymbol f (PAtom b e1 e2) = PAtom b (mapSymbol f e1) (mapSymbol f e2)
-  mapSymbol f (PAll _ _)      = error "mapSymbol PAll"
+  mapSymbol _ (PAll _ _)      = error "mapSymbol PAll"
   mapSymbol _ p               = p 
 
 instance MapSymbol Expr where

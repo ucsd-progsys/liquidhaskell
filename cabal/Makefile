@@ -9,7 +9,7 @@ THREADS=1
 GHC=$(GHCHOME)/ghc
 GPG=$(GHCHOME)/ghc-pkg
 
-OPTS="-O2 -XStandaloneDeriving -XDeriveDataTypeable"
+OPTS="-W -O2 -XStandaloneDeriving -XDeriveDataTypeable"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
 CABAL=cabal --with-ghc=$(GHC) 
 
@@ -60,3 +60,6 @@ pdeps:
 
 test:
 	cd tests && ./regrtest.py -t $(THREADS) && cd ../
+
+lint:
+	hlint --colour --report .

@@ -2,22 +2,21 @@
 
 module Language.Haskell.Liquid.Misc where
 
-import Text.Printf (printf)
-import Control.Monad.State
+-- import System.Directory
+-- import System.Environment
+-- import Text.Printf (printf)
+-- import Control.Monad.State
+-- import Data.Maybe
+-- import Control.DeepSeq
+-- import Data.Generics.Schemes
+-- import Data.Generics.Aliases
+
 import qualified Control.Exception as Ex
-import System.Directory
-
-import System.Environment
-
 import qualified Data.Set as S 
 import qualified Data.Map as M
 import Data.List 
 import Debug.Trace (trace)
-import Data.Maybe
-import Control.DeepSeq
 
-import Data.Generics.Schemes
-import Data.Generics.Aliases
 import Data.Data
 
 
@@ -113,7 +112,7 @@ groupMap f xs = foldl' (\m x -> inserts (f x) x m) M.empty xs
 
 nubSort :: (Ord a) => [a] -> [a]
 nubSort = nubOrd . sort
-  where nubOrd (x:t@(y:zs)) 
+  where nubOrd (x:t@(y:_)) 
           | x == y    = nubOrd t 
           | otherwise = x : nubOrd t
         nubOrd xs = xs
@@ -148,7 +147,7 @@ safeUnion msg m1 m2 =
     Just k  -> errorstar $ "safeUnion with common key = " ++ show k ++ " " ++ msg
     Nothing -> M.union m1 m2
 
-safeHead msg (x:_) = x
+safeHead _   (x:_) = x
 safeHead msg _     = errorstar $ "safeHead with empty list " ++ msg
 
 memoIndex :: (Ord b) => (a -> Maybe b) -> [a] -> [Maybe Int]
@@ -181,7 +180,7 @@ chopPrefix p xs
   = Nothing
 
 findFirst ::  Monad m => (t -> m [a]) -> [t] -> m (Maybe a)
-findFirst f []     = return Nothing
+findFirst _ []     = return Nothing
 findFirst f (x:xs) = do r <- f x
                         case r of 
                           y:_ -> return (Just y)

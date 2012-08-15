@@ -1,7 +1,5 @@
 
-import GHC              --(parseStaticFlags)
 import qualified Control.Exception as Ex
-import Data.List        (isInfixOf)
 import Data.Monoid      (mconcat)
 import System.Exit 
 
@@ -13,15 +11,11 @@ import Language.Haskell.Liquid.Constraint
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint (FixResult (..))
 import Language.Haskell.Liquid.FixInterface      
-import Language.Haskell.Liquid.Predicates      
 import Language.Haskell.Liquid.TransformRec   
 import Control.DeepSeq
 import Control.Monad (forM)
-import CoreSyn
 
--- import System.Console.CmdArgs
-
-
+main ::  IO b
 main    = liquid >>= (exitWith . resultExit)
 
 liquid  = do (targets, includes) <- getOpts
@@ -36,12 +30,12 @@ liquidOne includes target =
   do info    <- getGhcInfo target includes :: IO GhcInfo
      donePhase "getGhcInfo"
      --putStrLn $ showPpr info 
-     putStrLn $ "*************** Original CoreBinds ***************************" 
+     putStrLn "*************** Original CoreBinds ***************************" 
      putStrLn $ showPpr (cbs info)
      let cbs' = transformRecExpr (cbs info)
      donePhase "transformRecExpr"
-     putStrLn $ "*************** Transform Rec Expr CoreBinds *****************" 
-     putStrLn $ showPpr (cbs')
+     putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
+     putStrLn $ showPpr cbs'
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs'}
      cgi `deepseq` donePhase "generateConstraints"
      -- {-# SCC "writeCGI" #-} writeCGI target cgi
