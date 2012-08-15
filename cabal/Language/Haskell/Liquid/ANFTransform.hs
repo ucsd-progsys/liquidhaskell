@@ -1,4 +1,7 @@
-{-# LANGUAGE NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE TypeSynonymInstances      #-}
 
 -------------------------------------------------------------------------------------
 ------------ Code to convert Core to Administrative Normal Form ---------------------
@@ -6,38 +9,33 @@
 
 module Language.Haskell.Liquid.ANFTransform (anormalize) where
 
-import GHC		hiding 	(exprType)
-import CoreUtils 		(exprType)
-import MkCore           (mkCoreLets)
-import Outputable
-import CoreSyn
-import HscTypes
-import Literal
-import DsMonad			(DsM, initDs)
-import Id               (mkSysLocalM)
-import FastString       (fsLit)
-import Type             (isPrimitiveType)
-import Var              (varType)
-import VarEnv           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
-
-import Control.Monad
-import Language.Haskell.Liquid.Misc (traceShow)
-import Language.Haskell.Liquid.Fixpoint                 (anfPrefix)
-import Language.Haskell.Liquid.Misc (errorstar, tr_foldr')
-import Language.Haskell.Liquid.GhcMisc (MGIModGuts(..), tracePpr)
+import           CoreSyn
+import           CoreUtils                        (exprType)
+import           DsMonad                          (DsM, initDs)
+import           FastString                       (fsLit)
+import           GHC                              hiding (exprType)
+import           HscTypes
+import           Id                               (mkSysLocalM)
+import           Literal
+import           MkCore                           (mkCoreLets)
+import           Outputable
+import           Var                              (varType)
+import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
+import           Control.Monad
+import           Language.Haskell.Liquid.Fixpoint (anfPrefix)
+import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..))
+import           Language.Haskell.Liquid.Misc     (errorstar)
+import           Data.Maybe                       (fromMaybe)
 
 anormalize :: HscEnv -> MGIModGuts -> IO [CoreBind]
-anormalize hscEnv modGuts 
-  = do (msgs, maybeCbs) <- initDs hscEnv mod grEnv tEnv act
-       case maybeCbs of
-         Just cbs -> return cbs
-         Nothing  -> pprPanic "anormalize fails!" (empty)
-    where mod      = mgi_module modGuts
+anormalize hscEnv modGuts
+  = liftM (fromMaybe err . snd) $ initDs hscEnv m grEnv tEnv act 
+    where m        = mgi_module modGuts
           grEnv    = mgi_rdr_env modGuts
           tEnv     = modGutsTypeEnv modGuts
           act      = liftM concat $ mapM (normalizeBind emptyVarEnv) orig_cbs
-          orig_cbs = {- tracePpr "********** GHC Corebinds ********* \n" $ -} mgi_binds modGuts 
-
+          orig_cbs = {- tracePpr "********** GHC Corebinds ********* \n" $ -} mgi_binds modGuts
+          err      = errorstar "anormalize fails!"
 
 modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
   where ids = bindersOfBinds (mgi_binds mg)
@@ -53,26 +51,26 @@ modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
 normalizeBind :: VarEnv Id -> CoreBind -> DsM [CoreBind]
 ------------------------------------------------------------------
 
-normalizeBind γ (NonRec x e) 
+normalizeBind γ (NonRec x e)
   = do (bs, e') <- normalize γ e
        return (bs ++ [NonRec x e'])
-       
+
 normalizeBind γ (Rec xes)
-  = do es' <- mapM ((normalize γ) >=> (return . stitch)) es
+  = do es' <- mapM (normalize γ >=> (return . stitch)) es
        return [Rec (zip xs es')]
     where (xs, es) = unzip xes
 
 -------------------------------------------------------------------------------------
-normalizeName, normalizeScrutinee :: VarEnv Id -> CoreExpr -> DsM ([CoreBind], CoreExpr)
+normalizeName :: VarEnv Id -> CoreExpr -> DsM ([CoreBind], CoreExpr)
 -------------------------------------------------------------------------------------
 
-normalizeName_debug γ e = liftM (tracePpr ("normalizeName" ++ showPpr e)) $ normalizeName γ e
+-- normalizeNameDebug γ e = liftM (tracePpr ("normalizeName" ++ showPpr e)) $ normalizeName γ e
 
-normalizeName _ e@(Lit (LitInteger _ _)) 
-  = normalizeLiteral e 
+normalizeName _ e@(Lit (LitInteger _ _))
+  = normalizeLiteral e
 
-normalizeName _ e@(Tick _ (Lit (LitInteger _ _))) 
-  = normalizeLiteral e 
+normalizeName _ e@(Tick _ (Lit (LitInteger _ _)))
+  = normalizeLiteral e
 
 normalizeName γ (Var x)
   = return ([], Var (lookupWithDefaultVarEnv γ x x))
@@ -86,7 +84,7 @@ normalizeName _ e@(Lit _)
 -- normalizeName _ e@(Tick n e')
   -- | isBase e'
   -- = return ([], e)
-  
+
 normalizeName γ (Tick n e)
   = do (bs, e') <- normalizeName γ e
        return (bs, Tick n e')
@@ -96,18 +94,18 @@ normalizeName γ e
        x        <- freshNormalVar $ exprType e
        return (bs ++ [NonRec x e'], Var x)
 
-normalizeScrutinee γ e 
-  | isPrimitiveType (exprType e) 
-  = return ([], e)
-  | otherwise  
-  = normalizeName γ e
+-- normalizeScrutinee γ e
+--   | isPrimitiveType (exprType e)
+--   = return ([], e)
+--   | otherwise
+--   = normalizeName γ e
 
 
 -------------------------------------------------------------------------------------
 normalizeLiteral :: CoreExpr -> DsM ([CoreBind], CoreExpr)
 -------------------------------------------------------------------------------------
 
-normalizeLiteral e = 
+normalizeLiteral e =
   do x <- freshNormalVar (exprType e)
      return ([NonRec x e], Var x)
 
@@ -124,8 +122,8 @@ normalize :: VarEnv Id -> CoreExpr -> DsM ([CoreBind], CoreExpr)
 ---------------------------------------------------------------------
 
 normalize γ (Lam x e)
-  = do e' <- stitch `fmap` normalize γ e 
-       return ([], Lam x e') 
+  = do e' <- stitch `fmap` normalize γ e
+       return ([], Lam x e')
 
 normalize γ (Let b e)
   = do bs'        <- normalizeBind γ b
@@ -133,13 +131,13 @@ normalize γ (Let b e)
        return (bs' ++ bs'', e')
 
 normalize γ (Case e x t as)
-  = do (bs, n) <- {- normalizeScrutinee -} normalizeName γ e 
+  = do (bs, n) <- {- normalizeScrutinee -} normalizeName γ e
        x'      <- freshNormalVar $ varType x -- rename "wild" to avoid shadowing
        let γ'   = extendVarEnv γ x x'
-       as'     <- forM as $ \(c, xs, e) -> liftM ((c, xs,) . stitch) (normalize γ' e)
-       return  $ (bs, Case n x' t as')
+       as'     <- forM as $ \(c, xs, e') -> liftM ((c, xs,) . stitch) (normalize γ' e')
+       return     (bs, Case n x' t as')
 
-normalize γ e@(Var x)
+normalize γ (Var x)
   = return ([], Var (lookupWithDefaultVarEnv γ x x))
 
 normalize _ e@(Lit _)
@@ -158,10 +156,10 @@ normalize γ (App e1 e2)
        return (bs1 ++ bs2, App e1' n2)
 
 normalize γ (Tick n e)
-  = do (bs, e') <- normalize γ e 
-       return (bs, Tick n e') 
+  = do (bs, e') <- normalize γ e
+       return (bs, Tick n e')
 
-normalize _ e 
+normalize _ e
   = errorstar $ "normalize: TODO" ++ showPpr e
 
 stitch :: ([CoreBind], CoreExpr) -> CoreExpr
