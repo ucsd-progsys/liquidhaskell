@@ -1,10 +1,10 @@
 TODO
 ====
 
-* reftype aliases               <--------- HEREHEREHEREHEREHEREHERE
+* reftype aliases
 * benchmarks: containers.Map
 * TAGs
-* benchmarks: Data.List (foldr) 
+* benchmarks: Data.List (foldr)
 * benchmarks: bytestring
 * tuple-refinements
 
@@ -15,23 +15,16 @@ reftype OMap k a = Map <{v: k | v < key}, {v: k | v > key}> k a
 
 {-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
 
-> pos/deptup.hs (type signature: for constructor wrapper)
+Fill in Measure.makeRTEnv, expandRTAlias <-------------------- HEREHEREHEREHEREHERE
 
-    Type   :: data RTAlias = { name :: String
-                             , args :: [String]
-                             , body :: BareType 
-                             }
-
-    Parse  :: String -> RTAlias
-
-    Env    :: [RTAlias] -> 
-    Expand :: Bare 
-
-
+    
 Tuple Refinements
 =================
 
+
 - Add/Parse predicate signatures for tuples<p>     
+
+> pos/deptup.hs (type signature: for constructor wrapper)
 
 data [a]<p :: a -> a -> Bool> 
   = []

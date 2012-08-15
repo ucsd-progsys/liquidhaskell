@@ -142,6 +142,17 @@ data RType p c tv pv r
 data Ref s m = RMono s | RPoly m
   deriving (Data, Typeable)
 
+-- Refinement Type Aliases
+data RTAlias tv ty 
+  = RTA { rtName :: String
+        , rtArgs :: [tv]
+        , rtBody :: ty              
+        } deriving (Data, Typeable)
+
+instance (Show tv, Show ty) => Show (RTAlias tv ty) where
+  show (RTA n args t) = "reftype " ++ n ++ " " ++ as ++ " = " ++ show t 
+                        where as = L.intercalate " " (show <$> args)
+
 type BRType     = RType String String String   
 type RRType     = RType Class  RTyCon RTyVar   
 
@@ -295,8 +306,8 @@ addTyConInfo :: (PVarable pv) => M.Map TC.TyCon RTyCon -> RRType pv Reft -> RRTy
 addTyConInfo = mapBot . addTCI
 addTCI tyi t@(RApp c ts rs r)
   = case (M.lookup (rTyCon c) tyi) of
-     Just c' -> rConApp c' ts rs r
-     Nothing -> rConApp c  ts rs r
+      Just c' -> rConApp c' ts rs r
+      Nothing -> rConApp c  ts rs r
 addTCI _ t
   = t
 
@@ -607,28 +618,8 @@ foldRefs                      = foldr . flip . foldRef
 foldRef f z (RMono r)         = f r z
 foldRef f z (RPoly t)         = foldReft f z t
 
---isTrivial :: (Reftable r) => RType p c tv pv r -> Bool
 isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool
 isTrivial = Fold.and . fmap isTauto
-
--- isTrivial :: (Reftable r) => RType p c tv pv r -> Bool
--- isTrivial (RAll (RV _) t)  = (isTrivial t)
--- isTrivial (RFun _ t1 t2 _) = (and $ isTrivial <$> [t1, t2]) 
--- isTrivial (RCls _ ts)      = (and $ isTrivial <$> ts)
--- isTrivial (RApp _ ts [] r) = (and $ isTrivial <$> ts) && (isTauto r)
--- isTrivial (RVar (RV _) r)  = (isTauto r)
--- isTrivial _                = False 
---
---isTautoTy (RVar α r)       = isTauto r
---isTautoTy (RAll a t)       = isTautoTy t
---isTautoTy (RFun x t t' r)  = isTautoTy t && isTautoTy t' && isTauto r
---isTautoTy (RApp c ts rs r) = and $ (isTauto r):((isTautoTy <$> ts) ++ (isTautoRef <$> rs))
---isTautoTy (RCls c ts)      = and (isTautoTy <$> ts) 
---isTautoTy (ROth a)         = True
---
---isTautoRef (RMono r)       = isTauto r
---isTautoRef (RPoly t)       = isTauto t
-
 
 
 ------------------------------------------------------------------------------------------
@@ -678,7 +669,7 @@ subsFreeRef ::  (SubsTy r, Reftable r, Monoid r, Subable r) => Bool -> S.Set RTy
 subsFreeRef m s z (RPoly t) 
   = RPoly $ subsFree m s z' t
   where (a, t') = z
-        z' = (a, fmap (\_ -> top) t')
+        z'      = (a, fmap (\_ -> top) t')
 subsFreeRef m s z (RMono r) 
   = RMono $ subt (α, toType t) r
   where (α, t) = z
@@ -691,15 +682,15 @@ mapBind f (RApp c ts rs r) = RApp c (mapBind f <$> ts) (mapBindRef f <$> rs) r
 mapBind f (RCls c ts)      = RCls c (mapBind f <$> ts)
 mapBind f (ROth s)         = ROth s
 
-mapBindRef _ (RMono r) = RMono r
-mapBindRef f (RPoly t) = RPoly $ mapBind f t
+mapBindRef _ (RMono r)     = RMono r
+mapBindRef f (RPoly t)     = RPoly $ mapBind f t
 
 
-mapBot f (RAll a t)       = RAll a (mapBot f t)
-mapBot f (RFun x t t' r)  = RFun x (mapBot f t) (mapBot f t') r
-mapBot f (RApp c ts rs r) = f $ RApp c (mapBot f <$> ts) (mapBotRef f <$> rs) r
-mapBot f (RCls c ts)      = RCls c (mapBot f <$> ts)
-mapBot f t'               = f t' 
+mapBot f (RAll a t)        = RAll a (mapBot f t)
+mapBot f (RFun x t t' r)   = RFun x (mapBot f t) (mapBot f t') r
+mapBot f (RApp c ts rs r)  = f $ RApp c (mapBot f <$> ts) (mapBotRef f <$> rs) r
+mapBot f (RCls c ts)       = RCls c (mapBot f <$> ts)
+mapBot f t'                = f t' 
 
 mapBotRef _ (RMono r) = RMono $ r
 mapBotRef f (RPoly t) = RPoly $ mapBot f t

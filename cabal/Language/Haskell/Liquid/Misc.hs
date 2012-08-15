@@ -2,23 +2,12 @@
 
 module Language.Haskell.Liquid.Misc where
 
--- import System.Directory
--- import System.Environment
--- import Text.Printf (printf)
--- import Control.Monad.State
--- import Data.Maybe
--- import Control.DeepSeq
--- import Data.Generics.Schemes
--- import Data.Generics.Aliases
-
 import qualified Control.Exception as Ex
 import qualified Data.Set as S 
 import qualified Data.Map as M
 import Data.List 
 import Debug.Trace (trace)
-
 import Data.Data
-
 
 ---------------------------------------------------------------------
 -- ($!!) f x = x `deepseq` f x
@@ -141,6 +130,11 @@ safeZipWith msg f xs ys
   | otherwise              
   = errorstar $ "lzipWith called on non-eq-sized lists\n" ++ msg
 
+safeFromList :: (Ord k, Show k, Show a) => String -> [(k, a)] -> M.Map k a
+safeFromList msg = foldl' safeAdd M.empty 
+  where safeAdd m (k, v) 
+          | k `M.member` m = errorstar $ msg ++ "Duplicate key " ++ show k ++ "maps to: \n" ++ (show v) ++ "\n and \n" ++ show (m M.! k)
+          | otherwise      = M.insert k v m
 
 safeUnion msg m1 m2 = 
   case Data.List.find (`M.member` m1) (M.keys m2) of

@@ -16,12 +16,12 @@ module Language.Haskell.Liquid.Measure (
 
 import GHC
 import Var
-import Outputable
+import Outputable hiding (empty)
 import DataCon
-import Data.Map hiding (null, partition)
+import Data.Map hiding (null, partition, foldl')
 import Data.Data
 import Data.Monoid hiding ((<>))
-import Data.List (foldl1', partition)
+import Data.List (intercalate, foldl', foldl1', partition)
 import Data.Bifunctor
 import Control.Applicative      ((<$>))
 
@@ -176,29 +176,4 @@ refineWithCtorBody dc f body t =
   where bodyPred v (E e) = PAtom Eq (EApp f [EVar v]) e
         bodyPred v (P p) = PIff  (PBexp (EApp f [EVar v])) p 
 
---measuresSpec ::  [Measure ty bndr] -> Spec ty bndr
---measuresSpec ms = Spec ms' bs 
---  where (ms', ms'') = partition (not . null . eqns) ms
---        bs          = [(name m, sort m) | m <- ms'']
-
------------------------------------------------------------------------------
------- Reftype Aliases ------------------------------------------------------
------------------------------------------------------------------------------
-
-data RTAlias   = RTA { rtName :: String
-                     , rtArgs :: [String]
-                     , rtBody :: BareType
-                     } deriving (Data, Typeable)
-
-type RTEnv     = Map String RTAlias
-
-makeRTEnv      :: [RTAlias] -> RTEnv      
-makeRTEnv      = error "TODO: makeRTEnv"
-
-expandRTAlias  :: RTEnv -> BareType -> BareType 
-expandRTAlias  = error "TODO: expandRTAlias"
-
-expandRTAliases  :: Spec BareType Symbol -> Spec BareType Symbol
-expandRTAliases sp = first (expandRTAlias env) sp
-                     where env = makeRTEnv (aliases sp)
 

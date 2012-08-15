@@ -271,11 +271,12 @@ moduleSpec vars target mg paths
        tgtSpec    <- liftIO $ parseSpec (name, target) 
        _          <- liftIO $ checkAssertSpec vars             $ Ms.sigs       tgtSpec
        impSpec    <- getSpecs paths impNames [Spec, Hs, LHs] 
-       let spec    = Ms.expandRTAliases $ tgtSpec `mappend` impSpec 
+       let spec    = tgtSpec `mappend` impSpec 
        setContext [IIModule (mgi_module mg)]
        env        <- getSession
+       renv       <- liftIO $ makeRTAliasEnv  env              $ Ms.aliases    spec
        (cs, ms)   <- liftIO $ makeMeasureSpec env $ Ms.mkMSpec $ Ms.measures   spec
-       tySigs     <- liftIO $ makeAssumeSpec  vars env         $ Ms.sigs       spec
+       tySigs     <- liftIO $ makeAssumeSpec  vars env renv    $ Ms.sigs       spec
        (tcs, dcs) <- liftIO $ makeConTypes    env              $ Ms.dataDecls  spec 
        invs       <- liftIO $ makeInvariants  env              $ Ms.invariants spec 
        return $ SP { imports    = nubSort $ impNames ++ [symbolString x | x <- Ms.imports spec]
