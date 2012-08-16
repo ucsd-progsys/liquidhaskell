@@ -418,8 +418,8 @@ eqShape' (RAll (RP _) t) (RAll (RP _) t')
 eqShape' (RAll (RP _) t) t' 
   = eqShape t t'
 eqShape' (RAll (RV a@(RTV α)) t) (RAll (RV a') t')
-  = -- GENSUB: eqShape t (subsTyVar_meet (a', TyVarTy α, RVar (RV a) top) t')
-    eqShape t (subsTyVar_meet (a', RVar (RV a) top) t')
+  = eqShape t (subsTyVar_meet (a', TyVarTy α, RVar (RV a) top) t')
+    -- GENSUB: eqShape t (subsTyVar_meet (a', RVar (RV a) top) t')
 eqShape' (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
   = eqShape t1 t1' && eqShape t2 t2'
 eqShape' t@(RApp c ts _ _) t'@(RApp c' ts' _ _)
