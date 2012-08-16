@@ -632,9 +632,11 @@ subsTyVar_meet        = subsTyVar True
 subsTyVars meet ats t = foldl' (flip (subsTyVar meet)) t ats
 subsTyVar meet        = subsFree' meet S.empty
 
+
+{- GENSUB: OLD 
+
 subsFree' x y (p,q,r) = subsFree x y (p, r) 
 
-{- GENSUB: OLD -}
 subsFree ::  (SubsTy RTyVar Type r, Reftable r, Subable r) => Bool -> S.Set RTyVar -> (RTyVar, RRType (PVar Type) r) -> RRType (PVar Type) r -> RRType (PVar Type) r 
 
 subsFree m s z (RAll (RP p) t)         
@@ -656,9 +658,8 @@ subsFree meet s (α', t') t@(RVar (RV α) r)
   | α == α' && α `S.notMember` s 
   = if meet then t' `strengthen`  r' else t' 
   | otherwise
-  = {- traceShow  msg $ -} t
-  where -- msg = ("subsFree MISS: α = " ++ showPpr α ++ " α' = " ++ showPpr α' ++ " s = " ++ showPpr s)
-        r'  = subt (α', toType t') r
+  = t
+  where r' = subt (α', toType t') r
 
 subsFree _ _ _ t@(ROth _)        
   = t
@@ -673,8 +674,12 @@ subsFreeRef m s z (RPoly t)
 subsFreeRef m s z (RMono r) 
   = RMono $ subt (α, toType t) r
   where (α, t) = z
+-}
 
-{- GENSUB: NEW 
+{- GENSUB: NEW -} 
+
+subsFree' = subsFree 
+
 subsFree ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty (PVar ty), SubsTy tv ty c, Reftable r, Subable r, RefTypable p c tv (PVar ty) r) => Bool -> S.Set tv -> (tv, ty, RType p c tv (PVar ty) r) -> RType p c tv (PVar ty) r -> RType p c tv (PVar ty) r 
 subsFree m s z@(α, τ,_) (RAll (RP p) t)         
   = RAll (RP p') t'
@@ -708,7 +713,7 @@ subsFreeRef m s (α', τ', t')  (RPoly t)
 --  = RPoly $ subsFree m s z t
 subsFreeRef m s (α', τ', _) (RMono r) 
   = RMono $ subt (α', τ') r
--}
+
 
 mapBind f (RVar b r)       = RVar (f b) r
 mapBind f (RFun b t1 t2 r) = RFun (f b) (mapBind f t1) (mapBind f t2) r
