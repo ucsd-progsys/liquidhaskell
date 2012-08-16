@@ -126,6 +126,7 @@ rmTs = filter rmT
 --rmTs [] = []
 
 
+
 tyC (RAll (RP _) t1) t2 
   = tyC t1 t2
 
@@ -133,7 +134,7 @@ tyC t1 (RAll (RP _) t2)
   = tyC t1 t2
 
 tyC (RAll (RV α1) t1) (RAll (RV α2) t2) 
-  = tyC (subsTyVar_meet (α1, RVar (RV α2) pdTrue) t1) t2
+  = tyC (subsTyVars_meet' [(α1, RVar (RV α2) pdTrue)] t1) t2
 
 tyC (RVar (RV v1) p1) (RVar (RV v2) p2)
   = do modify $ \(ps, msg) -> ((p2, p1):ps, msg)
@@ -150,7 +151,7 @@ tyC (RCls c1 _) (RCls c2 _)
 tyC (RFun (RB x) t1 t2 p1) (RFun (RB x') t1' t2' p2)
   = do modify $ \(ps, msg) -> ((p2, p1):ps, msg)
        b1 <- tyC t1 t1'
-       b2 <- tyC (substSym (x, x') t2) t2'
+       b2 <- tyC (substParg (x, x') t2) t2'
        return $ b1 && b2
 
 tyC t1 t2 
@@ -181,13 +182,13 @@ consE _ e@(Lit c)
 
 consE γ (App e (Type τ)) 
   = do RAll (RV α) te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
-       return $ (α, ofType τ) `subsTyVar_meet` te
+       return $ subsTyVars_meet' [(α, ofType τ)]  te
 
 consE γ (App e a)               
   = do RFun (RB x) tx t _ <- liftM (checkFun ("PNon-fun App with caller", e)) $ consE γ e 
        cconsE γ a tx 
        case argExpr a of 
-         Just e  -> return $ {-traceShow "App" $-} (x, e) `substSym` t
+         Just e  -> return $ {-traceShow "App" $-} (x, e) `substParg` t
          Nothing -> error $ "consE: App crashes on" ++ showPpr a 
 
 consE γ (Lam α e) | isTyVar α 
@@ -240,7 +241,7 @@ cconsE γ (Lam x e) (RFun (RB y) ty t _)
   | not (isTyVar x) 
   = do cconsE (γ += (mkSymbol x, ty)) e te 
        addId y (mkSymbol x)
-    where te = (y, mkSymbol x) `substSym` t
+    where te = (y, mkSymbol x) `substParg` t
 
 cconsE γ (Tick tt e) t     
   = cconsE (γ `putLoc` tickSrcSpan tt) e t
@@ -266,11 +267,11 @@ cconsCase γ x t (DataAlt c, ys, ce)
        let cγ = foldl' (+=) γ cbs
        cconsE cγ ce t
 
-
+subsTyVars_meet' αts = subsTyVars_meet [(α, toType t, t) | (α, t) <- αts]
 
 unfold tc (RApp _ ts _ _) _ = splitArgsRes tc''
   where (vs, _, tc') = splitVsPs tc
-        tc''         = subsTyVars_meet (zip vs ts) tc' 
+        tc''         = subsTyVars_meet' (zip vs ts) tc' 
 unfold tc t              x  = error $ "unfold" ++ {-(showSDoc (ppr x)) ++-} " : " ++ show t
 
 splitC (SubC γ (RAll (RV _) t1) (RAll (RV _) t2))
@@ -281,7 +282,7 @@ splitC (SubC γ (RAll (RP _) t1) (RAll (RP _) t2))
 
 splitC (SubC γ (RFun (RB x1) t11 t12 p1) (RFun (RB x2) t21 t22 p2))
   = [splitBC p1 p2] ++ splitC (SubC γ t21 t11) ++ splitC (SubC γ' t12' t22)
-    where t12' = (x1, x2) `substSym` t12
+    where t12' = (x1, x2) `substParg` t12
           γ'   = γ += (x2, t21)
 
 splitC (SubC γ (RVar (RV a) p1) (RVar (RV a2) p2))        -- UNIFY: Check a == a2?
@@ -369,7 +370,7 @@ varPredArgs_ (Just t) = (length vs, length ps)
 generalizeS t 
   = do splitCons
        s <- pMap <$> get 
-       return $ {-traceShow ("GENERALIZE " ++ show t ++ " with " ++ show s) $-} generalize $ subp s t
+       return $ generalize $ substPvar s <$> t
 
 getRemoveHsCons 
   = do s <- get
@@ -387,7 +388,7 @@ addToMap substs
 
 updateSubst :: M.Map (F.PVar Type) (Predicate Type) -> (Predicate Type, Predicate Type) -> M.Map (F.PVar Type) (Predicate Type) 
 updateSubst m (p, p') = foldl' (\m (k, v) -> M.insert k v m) m binds 
-  where binds = unifiers $ unifyVars (subp m p) (subp m p')
+  where binds = unifiers $ unifyVars (substPvar m p) (substPvar m p')
 
 unifyVars (Pr v1s) (Pr v2s) = (v1s L.\\ vs, v2s L.\\ vs) 
   where vs  = L.intersect v1s v2s
@@ -444,7 +445,7 @@ freshPrAs p = (\n -> pdVar $ p {F.pname = n}) <$> freshSymbol "p"
 
 refreshTy t 
   = do fps <- mapM freshPrAs ps
-       return $ subp (M.fromList (zip ps fps)) t''
+       return $ substPvar (M.fromList (zip ps fps)) <$> t''
    where (vs, ps, t') = splitVsPs t
          t''          = typeAbsVsPs t' vs []
 

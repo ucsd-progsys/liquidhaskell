@@ -66,6 +66,6 @@ plugC _ Safe          = Safe
 plugC cm (Crash is s) = Crash (mlookup cm `fmap` is) s
 plugC cm (Unsafe is)  = Unsafe (mlookup cm `fmap` is)
 
-resultExit (Crash _ _) = ExitFailure 2
-resultExit (Unsafe _)  = ExitFailure 1
 resultExit Safe        = ExitSuccess
+resultExit (Unsafe _)  = ExitFailure 1
+resultExit _           = ExitFailure 2

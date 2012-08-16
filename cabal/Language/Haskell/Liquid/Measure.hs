@@ -179,7 +179,7 @@ refineWithCtorBody dc f body t =
 ----------- Refinement Type Aliases -------------------------------------------
 -------------------------------------------------------------------------------
 
-makeRTEnv       :: [Aliases] -> Map String BareType
+makeRTEnv       :: [RTAlias String BareType] -> Map String BareType
 expandRTAlias   :: Map String BareType -> BareType -> BareType
 expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
 

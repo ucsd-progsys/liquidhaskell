@@ -339,7 +339,8 @@ splitC (SubC γ (RAll b1 t1) (RAll b2 t2))
 
 splitC (SubC γ (RAll (RV α1) t1) (RAll (RV α2) t2))
   = splitC $ SubC γ t1 t2' 
-  where t2' = subsTyVar_meet (α2, RVar (RV α1) top) t2
+  where t2' = subsTyVar_meet' (α2, RVar (RV α1) top) t2
+
 
 splitC c@(SubC γ (RAll _ _) (RAll _ _)) 
   = errorstar $ "splitc unexpected: " ++ showPpr c
@@ -553,7 +554,6 @@ trueRefType (RApp c ts refs _)
 trueRefType t                
   = return t
 
-
 refreshRefType (RAll α t)       
   = liftM (RAll α) (refresh t)
 refreshRefType (RFun b t t' _)
@@ -600,8 +600,6 @@ consCB γ (Rec xes)
     where (xs, es) = unzip xes
           vs       = mkSymbol    <$> xs
           pts      = getPrType γ <$> vs
-
-
 
 consCB γ b@(NonRec x e)
   = do rt <- consE γ e
@@ -657,9 +655,6 @@ cconsE γ e t
 consE :: CGEnv -> Expr Var -> CG RefType 
 -------------------------------------------------------------------
 
---subsTyVar_meet_debug (α, t) te = traceShow msg $ (α, t) `subsTyVar_meet` te
---  where msg = "subsTyVar_meet α = " ++ show α ++ " t = " ++ showPpr t  ++ " te = " ++ showPpr te
-
 consE γ (Var x)   
   = do addLocA (Just x) (loc γ) (varAnn γ x t)
        return t
@@ -672,9 +667,7 @@ consE γ (App e (Type τ))
   = do RAll (RV α) te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
        t              <- if isGeneric α te then freshTy e τ else trueTy τ
        addW            $ WfC γ t
-       return          $ 
---           traceShow ("typeApp " ++ show (tvId (let RTV a = α in a), t, te)) $ 
-          (α, t) `subsTyVar_meet` te
+       return          $ subsTyVar_meet' (α, t) te
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
@@ -766,7 +759,7 @@ mkyt (γ, ts) (y, yt)
 
 unfoldR td t0@(RApp tc ts rs _) ys = (t3, yts, rt)
   where (vs, ps, t0) = rsplitVsPs td
-        t1 = foldl' (flip subsTyVar_meet) t0 (zip vs ts)
+        t1 = foldl' (flip subsTyVar_meet') t0 (zip vs ts)
         t2 = foldl' (flip replacePred) t1 (safeZip "unfold" (reverse ps) rs)
         (ys0, yts', rt) =  rsplitArgsRes t2
         (t3:yts) = F.subst su <$> (t2:yts')
@@ -842,6 +835,8 @@ argExpr e                = errorstar $ "argExpr: " ++ (showPpr e)
 varRefType γ x =  t 
   where t  = (γ ?= (mkSymbol x)) `strengthen` xr
         xr = F.symbolReft (mkSymbol x)
+
+subsTyVar_meet' (α, t) = subsTyVar_meet (α, toType t, t)
 
 -----------------------------------------------------------------------
 --------------- Forcing Strictness ------------------------------------
@@ -934,5 +929,3 @@ mkRTyConInv    :: [SpecType] -> RTyConInv
 mkRTyConInv ts = mconcat <$> group [ (c, r) | RApp c _ _ (U r _) <- strip <$> ts]
                  where strip (RAll _ t) = strip t
                        strip t          = t
-
-    --            fmap mconcat . group . mapMaybe extract . fmap strip

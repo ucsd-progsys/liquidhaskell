@@ -417,14 +417,11 @@ instance (Reftable r, RefTypable p c tv pv r, Subable r) => Reftable (Ref r (RTy
   ppTy (RMono r) d  = ppTy r d
   ppTy (RPoly _) _  = errorstar "Reftable Ref RPoly"
 
-
 --instance Reftable (Ref Reft (RType Class RTyCon RTyVar (PVar Type) Reft)) where
 --  isTauto (RMono r) = isTauto r
 --  isTauto (RPoly t) = isTauto t
 --  ppTy (RMono r) = ppTy r
 --  ppTy (RPoly t) = ppTy t
-
-
 
 -- DEBUG ONLY
 --instance Outputable (Bind String (PVar String)) where
@@ -633,13 +630,8 @@ subsTyVars_meet   = subsTyVars True
 subsTyVars_nomeet = subsTyVars False
 subsTyVar_nomeet  = subsTyVar False
 subsTyVar_meet    = subsTyVar True
-
 subsTyVar meet        = subsFree meet S.empty
 subsTyVars meet ats t = foldl' (flip (subsTyVar meet)) t ats
-
-
-
--- subsFree ::  (SubsTy tv ty r, Reftable r, Subable r) => Bool -> S.Set tv -> (tv, RRType (PVar ty) r) -> RRType (PVar ty) r -> RRType (PVar ty) r 
 
 subsFree ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty (PVar ty), SubsTy tv ty c, Reftable r, Subable r, RefTypable p c tv (PVar ty) r) => Bool -> S.Set tv -> (tv, ty, RType p c tv (PVar ty) r) -> RType p c tv (PVar ty) r -> RType p c tv (PVar ty) r 
 subsFree m s z@(α, τ,_) (RAll (RP p) t)         
@@ -652,12 +644,7 @@ subsFree m s z@(α, τ, _) (RFun x t t' r)
   = RFun x (subsFree m s z t) (subsFree m s z t') (subt (α, τ) r)
 subsFree m s z@(α, τ, _) t@(RApp c ts rs r)     
   = RApp (subt z' c) (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) (subt z' r)  
-    where z' = (α, τ)
---subsFree m s z@(α, t') t@(RApp c ts rs r)     
---  = RApp c' (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) (subt z' r)  
---    where c' = -- c {rTyConPs = subt z' <$> rTyConPs c}
---          z' = (α, toType t')
---    -- UNIFY: why instantiating INSIDE parameters?
+    where z' = (α, τ) -- UNIFY: why instantiating INSIDE parameters?
 subsFree m s z (RCls c ts)     
   = RCls c (subsFree m s z <$> ts)
 subsFree meet s (α', τ', t') t@(RVar (RV α) r) 
@@ -676,17 +663,6 @@ subsFreeRef m s z (RPoly t)
   = RPoly $ subsFree m s z t
 subsFreeRef m s (α', τ', _) (RMono r) 
   = RMono $ subt (α', τ') r
-
-
--- subsFreeRef ::  (SubsTy r, Reftable r, Monoid r, Subable r) => Bool -> S.Set RTyVar -> (RTyVar, RRType (PVar Type) r) -> Ref r (RRType (PVar Type) r) -> Ref r (RRType (PVar Type) r)
---subsFreeRef m s z (RPoly t) 
---  = RPoly $ subsFree m s z' t
---  where (a, t') = z
---        z'      = (a, fmap (\_ -> top) t')
---subsFreeRef m s z (RMono r) 
---  = RMono $ subt (α, toType t) r
---  where (α, t) = z
-
 
 mapBind f (RVar b r)       = RVar (f b) r
 mapBind f (RFun b t1 t2 r) = RFun (f b) (mapBind f t1) (mapBind f t2) r
@@ -745,8 +721,6 @@ instance SubsTy RTyVar Type PrType where
 
 
 instance (SubsTy tv ty r)  => SubsTy tv ty (Ref r (RType a b c d r))  where
-  -- subv m (RMono p) = RMono $ subv m p
-  -- subv m (RPoly t) = RPoly $ fmap (subv m) t
   subt m (RMono p) = RMono $ subt m p
   subt m (RPoly t) = RPoly $ fmap (subt m) t
 

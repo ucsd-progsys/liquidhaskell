@@ -7,7 +7,7 @@ module Language.Haskell.Liquid.PredType (
   , dataConTy, dataConPtoPredTy
   , removeExtPreds
   , unify, replacePred, exprType, predType
-  , substParg, substPvar
+  , substParg, substPvar, mapPvar
   ) where
 
 import PprCore          (pprCoreExpr)
@@ -78,7 +78,7 @@ instance Outputable DataConP where
 instance Show DataConP where
  show = showSDoc . ppr
 
-removeExtPreds (RAll (RP pv)  t) = removeExtPreds (substPvar (M.singleton pv pdTrue) t) 
+removeExtPreds (RAll (RP pv)  t) = removeExtPreds (substPvar (M.singleton pv pdTrue) <$> t) 
 -- removeExtPreds t@(RAll (RV _) _) = t
 removeExtPreds t                 = t
 
@@ -322,8 +322,8 @@ applyTypeToArgs e op_ty (p : args)
 panic_msg :: CoreExpr -> Type -> SDoc
 panic_msg e op_ty = pprCoreExpr e $$ ppr op_ty
 
-substPvar :: M.Map (PVar Type) (Predicate Type) -> PrType -> PrType
-substPvar s = fmap (\(Pr πs) -> pdAnd (lookupP s <$> πs))
+substPvar :: M.Map (PVar Type) (Predicate Type) -> Predicate Type -> Predicate Type 
+substPvar s = (\(Pr πs) -> pdAnd (lookupP s <$> πs))
 
 substParg (x, y) = fmap fp  -- RJ: UNIFY: BUG  mapTy fxy
   where fxy s = if (s == x) then y else s
