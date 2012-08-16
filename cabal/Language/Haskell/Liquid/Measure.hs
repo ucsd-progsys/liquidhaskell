@@ -10,6 +10,7 @@ module Language.Haskell.Liquid.Measure (
   , qualifySpec
   , mapTy
   , dataConTypes
+  , expandRTAliases
   ) where
 
 import GHC
@@ -174,5 +175,72 @@ refineWithCtorBody dc f body t =
   where bodyPred v (E e) = PAtom Eq (EApp f [EVar v]) e
         bodyPred v (P p) = PIff  (PBexp (EApp f [EVar v])) p 
 
-----------------------------------------------------------------------------------
---
+-------------------------------------------------------------------------------
+----------- Refinement Type Aliases -------------------------------------------
+-------------------------------------------------------------------------------
+
+makeRTEnv       :: [Aliases] -> Map String BareType
+expandRTAlias   :: Map String BareType -> BareType -> BareType
+expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
+
+makeRTEnv       = error "TBD"
+expandRTAliases = error "TBD"
+expandRTAlias   = error "TBD"
+
+{- 
+type ETyC      = Either String RTyCon
+type RTEnv     = M.Map String (RTAlias RTyVar SpecType)
+type RTEnvE    = M.Map String (RTAlias RTyVar SpecTypeE)
+type SpecTypeE = RType Class ETyC RTyVar (PVar Type) (UReft Reft Type)
+
+makeRTAliasEnv  :: HscEnv -> [RTAlias String BareType] -> IO RTEnv
+makeRTAliasEnv = error "TODO"
+
+-- expandRTAliasE  :: RTEnvE -> SpecTypeE -> SpecType
+expandRTAliasE = go []
+  where go = expandAlias go
+
+-- expandRTAlias :: RTEnv -> SpecTypeE -> SpecType
+expandRTAlias = go [] 
+  where go = expandAlias (\_ _ -> id) 
+
+expandAlias f s env = go s 
+  where go s t@(RApp (Left c) ts [] r)    
+          | c `elem` s                = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
+          | otherwise                 = expandRTApp (f (c:s) env) env s c ts r
+        go s (RApp (Right c) ts rs r) = RApp c (go s <$> ts) (go' s <$> rs) r 
+        go s (RAll a t)               = RAll a (go s t)
+        go s (RFun x t t' r)          = RFun x (go s t) (go s t') r
+        go s (RCls c ts)              = RCls c (go s <$> ts) 
+        go s t                        = t
+        go' s (RMono r)               = RMono r
+
+expandRTApp tx env s c ts r
+  = case M.lookup c env of
+      Nothing  -> errorstar $ "Aargh. Unknown Reftype Alias" ++ c 
+      Just rta -> subsTyVars_meet αts t' `strengthen` r
+                  where t'  = tx (rtBody rta) 
+                        αts = Ex.assert (length αs == length ts) $ zip αs ts
+                        αs  = rtArgs rta
+
+-- expandRTAliasE =
+--  where go s t@(RApp (Left c) ts [] r)    
+--          | c `elem` s                = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
+--          | otherwise                 = expandRTApp (expandRTAliasE (c:s) env) env s c ts r
+--        go s (RApp (Right c) ts rs r) = RApp c (go s <$> ts) (go' s <$> rs) r 
+--        go s (RAll a t)               = RAll a (go s t)
+--        go s (RFun x t t' r)          = RFun x (go s t) (go s t') r
+--        go s (RCls c ts)              = RCls c (go s <$> ts) 
+--        go s t                        = t
+--        go' s (RMono r)               = RMono r
+
+
+-- makeRTAliasEnv rtas 
+-- expandRTAliases  :: Spec SpecType Symbol -> Spec SpecType Symbol
+-- expandRTAliases sp 
+--   = first (expandRTAlias env) sp
+--     where env = safeFromList "Reftype Aliases" [(rtName x, x) | x <- aliases sp]
+
+
+-}
+
