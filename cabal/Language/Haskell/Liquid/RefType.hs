@@ -629,9 +629,52 @@ subsTyVars_meet       = subsTyVars True
 subsTyVars_nomeet     = subsTyVars False
 subsTyVar_nomeet      = subsTyVar False
 subsTyVar_meet        = subsTyVar True
-subsTyVar meet        = subsFree meet S.empty
 subsTyVars meet ats t = foldl' (flip (subsTyVar meet)) t ats
+subsTyVar meet        = subsFree' meet S.empty
 
+subsFree' x y (p,q,r) = subsFree x y (p, r) 
+
+{- GENSUB: OLD -}
+subsFree ::  (SubsTy RTyVar Type r, Reftable r, Subable r) => Bool -> S.Set RTyVar -> (RTyVar, RRType (PVar Type) r) -> RRType (PVar Type) r -> RRType (PVar Type) r 
+
+subsFree m s z (RAll (RP p) t)         
+  = RAll (RP p') t'
+    where p' = subt (second toType z) p
+          t' = subsFree m s z t
+subsFree m s z (RAll (RV α) t)         
+  = RAll (RV α) $ subsFree m (α `S.insert` s) z t
+subsFree m s z (RFun x t t' r)       
+  = RFun x (subsFree m s z t) (subsFree m s z t') (subt (second toType z)  r)
+subsFree m s z@(α, t') t@(RApp c ts rs r)     
+  = RApp c' (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) (subt z' r)  
+    where c' = c {rTyConPs = subt z' <$> rTyConPs c}
+          z' = (α, toType t')
+    -- UNIFY: why instantiating INSIDE parameters?
+subsFree m s z (RCls c ts)     
+  = RCls c (subsFree m s z <$> ts)
+subsFree meet s (α', t') t@(RVar (RV α) r) 
+  | α == α' && α `S.notMember` s 
+  = if meet then t' `strengthen`  r' else t' 
+  | otherwise
+  = {- traceShow  msg $ -} t
+  where -- msg = ("subsFree MISS: α = " ++ showPpr α ++ " α' = " ++ showPpr α' ++ " s = " ++ showPpr s)
+        r'  = subt (α', toType t') r
+
+subsFree _ _ _ t@(ROth _)        
+  = t
+subsFree _ _ _ t      
+  = errorstar $ "subsFree fails on: " ++ showPpr t
+
+subsFreeRef ::  (SubsTy RTyVar Type r, Reftable r, Monoid r, Subable r) => Bool -> S.Set RTyVar -> (RTyVar, RRType (PVar Type) r) -> Ref r (RRType (PVar Type) r) -> Ref r (RRType (PVar Type) r)
+subsFreeRef m s z (RPoly t) 
+  = RPoly $ subsFree m s z' t
+  where (a, t') = z
+        z' = (a, fmap (\_ -> top) t')
+subsFreeRef m s z (RMono r) 
+  = RMono $ subt (α, toType t) r
+  where (α, t) = z
+
+{- GENSUB: NEW 
 subsFree ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty (PVar ty), SubsTy tv ty c, Reftable r, Subable r, RefTypable p c tv (PVar ty) r) => Bool -> S.Set tv -> (tv, ty, RType p c tv (PVar ty) r) -> RType p c tv (PVar ty) r -> RType p c tv (PVar ty) r 
 subsFree m s z@(α, τ,_) (RAll (RP p) t)         
   = RAll (RP p') t'
@@ -658,10 +701,14 @@ subsFree _ _ _ t
   = errorstar $ "subsFree fails on: " ++ showPpr t
 
 subsFreeRef ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty (PVar ty), SubsTy tv ty c, Reftable r, Monoid r, Subable r, RefTypable p c tv (PVar ty) r) => Bool -> S.Set tv -> (tv, ty, RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r)
-subsFreeRef m s z (RPoly t) 
-  = RPoly $ subsFree m s z t
+
+subsFreeRef m s (α', τ', t')  (RPoly t) 
+  = RPoly $ subsFree m s (α', τ', fmap (\_ -> top) t') t
+--subsFreeRef m s z (RPoly t) 
+--  = RPoly $ subsFree m s z t
 subsFreeRef m s (α', τ', _) (RMono r) 
   = RMono $ subt (α', τ') r
+-}
 
 mapBind f (RVar b r)       = RVar (f b) r
 mapBind f (RFun b t1 t2 r) = RFun (f b) (mapBind f t1) (mapBind f t2) r
@@ -728,6 +775,7 @@ instance SubsTy RTyVar Type RTyCon where
 
 -- NOTE: This DOES NOT substitute at the binders
 instance SubsTy RTyVar Type PrType where   
+  -- GENSUB: subt (α, τ) = subsTyVar_meet (α, ofType τ) 
   subt (α, τ) = subsTyVar_meet (α, τ, ofType τ)
   subv f t    = fmap (subvPredicate f) t 
 

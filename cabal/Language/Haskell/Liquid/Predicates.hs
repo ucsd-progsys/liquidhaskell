@@ -267,7 +267,7 @@ cconsCase γ x t (DataAlt c, ys, ce)
        let cγ = foldl' (+=) γ cbs
        cconsE cγ ce t
 
-subsTyVars_meet' αts = subsTyVars_meet [(α, toType t, t) | (α, t) <- αts]
+subsTyVars_meet' αts = subsTyVars_meet αts -- GENSUB: subsTyVars_meet [(α, toType t, t) | (α, t) <- αts]
 
 unfold tc (RApp _ ts _ _) _ = splitArgsRes tc''
   where (vs, _, tc') = splitVsPs tc

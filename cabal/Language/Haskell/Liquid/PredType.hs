@@ -160,7 +160,8 @@ unifyS t (RAll (RP p) pt)
        if (p `S.member` s) then return $ RAll (RP p) t' else return t'
 
 unifyS (RAll (RV v@(RTV α)) t) (RAll (RV v') pt) 
-  = do t' <-  unifyS t $ subsTyVar_meet (v', TyVarTy α, RVar (RV v) pdTrue) pt 
+  -- = do t' <-  unifyS t $ subsTyVar_meet (v', RVar (RV v) pdTrue) pt  
+  = do t'    <- subsTyVar_meet (v', TyVarTy α, RVar (RV v) pdTrue) pt 
        return $ RAll (RV v) t'
 
 unifyS (RFun (RB x) rt1 rt2 _) (RFun (RB x') pt1 pt2 _)
