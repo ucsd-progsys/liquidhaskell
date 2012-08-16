@@ -836,7 +836,8 @@ varRefType γ x =  t
   where t  = (γ ?= (mkSymbol x)) `strengthen` xr
         xr = F.symbolReft (mkSymbol x)
 
-subsTyVar_meet' (α, t) = subsTyVar_meet (α, t) -- GENSUB: subsTyVar_meet (α, toType t, t)
+-- GENSUB: subsTyVar_meet' (α, t) = subsTyVar_meet (α, t) 
+subsTyVar_meet' (α, t) = subsTyVar_meet (α, toType t, t)
 
 -----------------------------------------------------------------------
 --------------- Forcing Strictness ------------------------------------
