@@ -22,6 +22,20 @@ Fill in Measure.makeRTEnv, expandRTAlias <-------------------- HEREHEREHEREHEREH
 2. Measure.expandRTAlias   :: Map String BareType -> BareType -> BareType
 3. Measure.expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
 
+
+Failed 10 tests: 
+
+    pos/BST.hs
+  , pos/ListISort-LType.hs
+  , pos/ListISort.hs
+  , pos/ListMSort-LType.hs
+  , pos/ListMSort.hs
+  , pos/ListQSort-LType.hs
+  , pos/ListQSort.hs
+  , pos/ListSort.hs
+  , pos/Map.hs
+  , pos/trans.hs
+
 Tuple Refinements
 =================
 
