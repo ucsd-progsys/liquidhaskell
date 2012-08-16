@@ -358,7 +358,7 @@ txTyVarBinds = mapBind fb
         fb (RB x) = RB x
         fb (RV α) = RV α
 
-txParams :: (Data p, Data c, Data tv, Data pv) =>[PVar Type]-> RType p c tv pv (UReft Reft Type)-> RType p c tv pv (UReft Reft Type)
+-- txParams :: (Data p, Data c, Data tv, Data pv) =>[PVar Type]-> RType p c tv pv (UReft Reft Type)-> RType p c tv pv (UReft Reft Type)
 txParams πs t = mapReft (second (mapPvar (txPvar (predMap πs t)))) t
 -- txParams πs t = mapReft (subv (txPvar (predMap πs t))) t
 

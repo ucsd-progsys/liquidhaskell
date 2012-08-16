@@ -690,39 +690,48 @@ mapBotRef f (RPoly t) = RPoly $ mapBot f t
 
 class SubsTy tv ty a where
   subt :: (tv, ty) -> a -> a
- 
+  subv :: (PVar ty -> PVar ty) -> a -> a
+
 subts = flip (foldr subt) 
 
 instance SubsTy tv ty Reft where
   subt _ = id
+  subv _ = id
 
 instance (SubsTy tv ty ty) => SubsTy tv ty (PVar ty) where
   subt su (PV n t xts) = PV n (subt su t) [(subt su t, x, y) | (t,x,y) <- xts] 
+  subv f x             =  f x
+
 
 instance (SubsTy tv ty ty) => SubsTy tv ty (Predicate ty) where
   subt f (Pr pvs) = Pr (subt f <$> pvs)
+  subv f (Pr pvs) = Pr (f <$> pvs)
 
 instance (SubsTy tv ty ty) => SubsTy tv ty (UReft a ty) where
   subt f (U r p)  = U r (subt f p)
+  subv f (U r p)  = U r (subv f p)
 
 instance SubsTy String String String where
   subt (α, α'@(_:_)) β
     | α == β && not (null α') = α' -- UNIFY: HACK HACK HACK!!! 
     | otherwise               = β
+  subv _ = id
 
 instance SubsTy RTyVar Type Type where
   subt (α', t') t@(TyVarTy tv) 
     | α' == RTV tv = t'
     | otherwise    = t
   subt _ t = t -- UNIFY: Deep Subst
+  subv _   = id
 
 instance SubsTy RTyVar Type RTyCon where  
-  subt z c = c {rTyConPs = subt z  <$> rTyConPs c}
+  subt z c = c {rTyConPs = subt z <$> rTyConPs c}
+  subv f c = c {rTyConPs = subv f <$> rTyConPs c}
 
 -- NOTE: This DOES NOT substitute at the binders
 instance SubsTy RTyVar Type PrType where   
   subt (α, τ) = subsTyVar_meet (α, τ, ofType τ)
-
+  -- subv f c    = c {rTyConPs = subv f <$> rTyConPs c}
 
 instance (SubsTy tv ty r)  => SubsTy tv ty (Ref r (RType a b c d r))  where
   subt m (RMono p) = RMono $ subt m p

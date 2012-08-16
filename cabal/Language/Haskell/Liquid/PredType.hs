@@ -327,15 +327,15 @@ substPvar s = (\(Pr πs) -> pdAnd (lookupP s <$> πs))
 
 substParg (x, y) = fmap fp  -- RJ: UNIFY: BUG  mapTy fxy
   where fxy s = if (s == x) then y else s
-        fp    = mapPvar (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
+        fp    = subv (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
 
-mapPvar :: (PVar ty -> PVar ty) -> Predicate ty -> Predicate ty 
-mapPvar f (Pr pvs) = Pr (f <$> pvs)
+-- mapPvar :: (PVar ty -> PVar ty) -> Predicate ty -> Predicate ty 
+-- mapPvar f (Pr pvs) = Pr (f <$> pvs)
 
 lookupP s p@(PV _ _ s')
   = case M.lookup p s of 
       Nothing  -> Pr [p]
-      Just q   -> mapPvar (\pv -> pv { pargs = s'}) q
+      Just q   -> subv (\pv -> pv { pargs = s'}) q
 
 -- subv_prtype :: (PVar Type -> PVar Type) -> PrType -> PrType
 -- subv_prtype = fmap . subv_predicate 
