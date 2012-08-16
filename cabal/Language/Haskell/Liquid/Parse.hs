@@ -425,7 +425,7 @@ specP
     <|> (reserved "data"      >> liftM DDecl dataDeclP)
     <|> (reserved "include"   >> liftM Incl  filePathP)
     <|> (reserved "invariant" >> liftM Invt  genBareTypeP)
-    <|> (reserved "reftype"   >> liftM Alias aliasP)
+    <|> (reserved "type"      >> liftM Alias aliasP)
 
 filePathP :: Parser FilePath
 filePathP = angles $ many1 pathCharP

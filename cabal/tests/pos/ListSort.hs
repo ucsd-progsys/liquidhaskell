@@ -1,18 +1,20 @@
 module ListSort (insertSort, insertSort', mergeSort, quickSort) where
 
+{-@ type SortedList a = [a]<{v: a | (v >= fld)}> @-}
+
 ------------------------------------------------------------------------------
 -- Insert Sort ---------------------------------------------------------------
 ------------------------------------------------------------------------------
 
 {- assert insertSort :: (Ord a) => xs:[a] -> {v: [a]<{v: a | (v >= fld)}> | len(v) = len(xs)} @-}
 
-{-@ assert insertSort :: (Ord a) => xs:[a] -> [a]<{v: a | (v >= fld)}>  @-}
-insertSort    :: (Ord a) => [a] -> [a]
-insertSort []     = []
-insertSort (x:xs) = insert x (insertSort xs) 
+{-@ assert insertSort :: (Ord a) => xs:[a] -> SortedList a @-}
+insertSort            :: (Ord a) => [a] -> [a]
+insertSort []         = []
+insertSort (x:xs)     = insert x (insertSort xs) 
 
-{-@ assert insertSort' :: (Ord a) => xs:[a] -> [a]<{v: a | (v >= fld)}>  @-}
-insertSort' xs    = foldr insert [] xs
+{-@ assert insertSort' :: (Ord a) => xs:[a] -> SortedList a @-}
+insertSort' xs        = foldr insert [] xs
 
 {- assert insert      :: (Ord a) => x:a -> xs: [a]<{v: a | (v >= fld)}> -> {v: [a]<{v: a | (v >= fld)}> | len(v) = (1 + len(xs)) } @-}
 insert y []                   = [y]
