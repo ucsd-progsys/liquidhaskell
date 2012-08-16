@@ -7,6 +7,7 @@ module Language.Haskell.Liquid.PredType (
   , dataConTy, dataConPtoPredTy
   , removeExtPreds
   , unify, replacePred, exprType, predType
+  , substParg, substPvar
   ) where
 
 import PprCore          (pprCoreExpr)
@@ -77,7 +78,7 @@ instance Outputable DataConP where
 instance Show DataConP where
  show = showSDoc . ppr
 
-removeExtPreds (RAll (RP pv)  t) = removeExtPreds (subp (M.singleton pv pdTrue) t) 
+removeExtPreds (RAll (RP pv)  t) = removeExtPreds (substPvar (M.singleton pv pdTrue) t) 
 -- removeExtPreds t@(RAll (RV _) _) = t
 removeExtPreds t                 = t
 
@@ -158,13 +159,13 @@ unifyS t (RAll (RP p) pt)
        s  <- get
        if (p `S.member` s) then return $ RAll (RP p) t' else return t'
 
-unifyS (RAll (RV v) t) (RAll (RV v') pt) 
-  = do t' <-  unifyS t $ subsTyVar_meet (v', RVar (RV v) pdTrue) pt 
+unifyS (RAll (RV v@(RTV α)) t) (RAll (RV v') pt) 
+  = do t' <-  unifyS t $ subsTyVar_meet (v', TyVarTy α, RVar (RV v) pdTrue) pt 
        return $ RAll (RV v) t'
 
 unifyS (RFun (RB x) rt1 rt2 _) (RFun (RB x') pt1 pt2 _)
   = do t1' <- unifyS rt1 pt1
-       t2' <- unifyS rt2 (substSym (x', x) pt2)
+       t2' <- unifyS rt2 (substParg (x', x) pt2)
        return $ rFun (RB x) t1' t2' 
 
 unifyS t@(RCls c _) (RCls _ _)
@@ -184,7 +185,6 @@ unifyS rt@(RApp c ts rs r) pt@(RApp _ pts ps p)
         msg      = "unifyS " ++ showPpr ps -- (rt, pt)
         getR (RMono r) = r
         getR (RPoly _) = top 
-
 
 unifyS t1 t2                = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
 bUnify a (Pr pvs)           = foldl' meet a $ pToReft <$> pvs
@@ -321,3 +321,26 @@ applyTypeToArgs e op_ty (p : args)
 
 panic_msg :: CoreExpr -> Type -> SDoc
 panic_msg e op_ty = pprCoreExpr e $$ ppr op_ty
+
+substPvar :: M.Map (PVar Type) (Predicate Type) -> PrType -> PrType
+substPvar s = fmap (\(Pr πs) -> pdAnd (lookupP s <$> πs))
+
+substParg (x, y) = fmap fp  -- RJ: UNIFY: BUG  mapTy fxy
+  where fxy s = if (s == x) then y else s
+        fp    = mapPvar (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
+
+mapPvar :: (PVar ty -> PVar ty) -> Predicate ty -> Predicate ty 
+mapPvar f (Pr pvs) = Pr (f <$> pvs)
+
+lookupP s p@(PV _ _ s')
+  = case M.lookup p s of 
+      Nothing  -> Pr [p]
+      Just q   -> mapPvar (\pv -> pv { pargs = s'}) q
+
+-- subv_prtype :: (PVar Type -> PVar Type) -> PrType -> PrType
+-- subv_prtype = fmap . subv_predicate 
+--subv_type :: (PVar Type -> PVar Type) -> Type -> Type
+--subv_type _ = id  
+-- subp :: M.Map (PVar Type) (Predicate Type) -> PrType -> PrType 
+-- subp = error "TODO: subp"
+-- subp s (Pr pvs) = pdAnd (lookupP s <$> pvs) -- RJ: UNIFY: not correct!

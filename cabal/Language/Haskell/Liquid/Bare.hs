@@ -301,9 +301,6 @@ ofBDataCon tc αs πs (c, xts)
  = do c'  <- lookupGhcDataCon c
       ts' <- mapM (mkPredType πs) ts
       let t0 = rApp tc rs (RMono . pdVar <$> πs) pdTrue
-      -- let t2 = foldl (\t' (x,t) -> RFun (RB x) t t') t0 (zip xs' ts')
-      -- let t1 = foldl (\t pv -> RAll (RP pv) t) t2 πs 
-      -- let t  = foldl (\t v -> RAll (RV v) t) t1 αs
       return $ (c', DataConP αs πs (reverse (zip xs' ts')) t0) 
  where (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
@@ -318,7 +315,7 @@ txTyVarBinds = mapBind fb
         fb (RB x) = RB x
         fb (RV α) = RV α
 
-txParams πs t = mapReft (subv (txPvar (predMap πs t))) t
+txParams πs t = mapReft (substParg (txPvar (predMap πs t))) t
 
 txPvar m π = π { pargs = args' }
   where args' = zipWith (\(t,x,_) (_,_,y) -> (t, x, y)) (pargs π') (pargs π)

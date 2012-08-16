@@ -17,7 +17,11 @@ reftype OMap k a = Map <{v: k | v < key}, {v: k | v > key}> k a
 
 Fill in Measure.makeRTEnv, expandRTAlias <-------------------- HEREHEREHEREHEREHERE
 
-    
+   
+1. Measure.makeRTEnv       :: [Aliases] -> Map String BareType
+2. Measure.expandRTAlias   :: Map String BareType -> BareType -> BareType
+3. Measure.expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
+
 Tuple Refinements
 =================
 

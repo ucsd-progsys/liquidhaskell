@@ -174,4 +174,5 @@ refineWithCtorBody dc f body t =
   where bodyPred v (E e) = PAtom Eq (EApp f [EVar v]) e
         bodyPred v (P p) = PIff  (PBexp (EApp f [EVar v])) p 
 
-
+----------------------------------------------------------------------------------
+--
