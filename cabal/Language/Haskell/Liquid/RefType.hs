@@ -625,10 +625,10 @@ mkTrivial = mapReft (\_ -> ())
 -- TODO: Rewrite subsTyvars with Traversable
 ------------------------------------------------------------------------------------------
 
-subsTyVars_meet   = subsTyVars True
-subsTyVars_nomeet = subsTyVars False
-subsTyVar_nomeet  = subsTyVar False
-subsTyVar_meet    = subsTyVar True
+subsTyVars_meet       = subsTyVars True
+subsTyVars_nomeet     = subsTyVars False
+subsTyVar_nomeet      = subsTyVar False
+subsTyVar_meet        = subsTyVar True
 subsTyVar meet        = subsFree meet S.empty
 subsTyVars meet ats t = foldl' (flip (subsTyVar meet)) t ats
 

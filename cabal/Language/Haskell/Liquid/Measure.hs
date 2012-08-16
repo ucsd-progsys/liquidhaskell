@@ -181,41 +181,41 @@ refineWithCtorBody dc f body t =
 -------------------------------------------------------------------------------
 
 expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
-expandRTAliases sp = sp { sigs = sigs' } 
-  where env   = makeRTEnv $ aliases sp
-        sigs' = [(x, expandRTAlias env t) | (x, t) <- sigs sp]
+expandRTAliases sp = sp -- { sigs = sigs' } 
+  -- where env   = makeRTEnv $ aliases sp
+  --      sigs' = [(x, expandRTAlias env t) | (x, t) <- sigs sp]
 
-type RTEnv   = Map String (RTAlias String BareType)
-
-makeRTEnv     :: [RTAlias String BareType] -> RTEnv
-makeRTEnv rts = (\z -> z { rtBody = expandRTAliasE env0 $ rtBody z }) <$> env0
-  where env0 = safeFromList "Reftype Aliases" [(rtName x, x) | x <- rts]
-
-expandRTAliasE  :: RTEnv -> BareType -> BareType 
-expandRTAliasE = go []
-  where go = expandAlias go
-
-expandRTAlias   :: RTEnv -> BareType -> BareType
-expandRTAlias = go [] 
-  where go = expandAlias (\_ _ -> id) 
-
-expandAlias f s env = go s 
-  where go s (RApp c ts rs r)
-          | c `elem` s        = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
-          | c `member` env    = assert (null rs) $ expandRTApp (f (c:s) env) env s c ts rs r
-          | otherwise         = RApp c (go s <$> ts) rs r 
-        go s (RAll a t)       = RAll a (go s t)
-        go s (RFun x t t' r)  = RFun x (go s t) (go s t') r
-        go s (RCls c ts)      = RCls c (go s <$> ts) 
-        go s t                = t
-
-expandRTApp tx env s c ts rs r
-  = (subsTyVars_meet αts' t') `strengthen` r
-    where t'   = tx (rtBody rta)
-          αts' = assert (length αs == length αts) αts
-          αts  = zipWith (\α t -> (α, toTypeRaw t, t)) αs ts
-          αs   = rtArgs rta
-          rta  = env ! c
-
-toTypeRaw (RVar (RV α) _) = α   
-toTypeRaw _               = ""
+--type RTEnv   = Map String (RTAlias String BareType)
+--
+--makeRTEnv     :: [RTAlias String BareType] -> RTEnv
+--makeRTEnv rts = (\z -> z { rtBody = expandRTAliasE env0 $ rtBody z }) <$> env0
+--  where env0 = safeFromList "Reftype Aliases" [(rtName x, x) | x <- rts]
+--
+--expandRTAliasE  :: RTEnv -> BareType -> BareType 
+--expandRTAliasE = go []
+--  where go = expandAlias go
+--
+--expandRTAlias   :: RTEnv -> BareType -> BareType
+--expandRTAlias = go [] 
+--  where go = expandAlias (\_ _ -> id) 
+--
+--expandAlias f s env = go s 
+--  where go s (RApp c ts rs r)
+--          | c `elem` s        = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
+--          | c `member` env    = assert (null rs) $ expandRTApp (f (c:s) env) env s c ts rs r
+--          | otherwise         = RApp c (go s <$> ts) rs r 
+--        go s (RAll a t)       = RAll a (go s t)
+--        go s (RFun x t t' r)  = RFun x (go s t) (go s t') r
+--        go s (RCls c ts)      = RCls c (go s <$> ts) 
+--        go s t                = t
+--
+--expandRTApp tx env s c ts rs r
+--  = (subsTyVars_meet αts' t') `strengthen` r
+--    where t'   = tx (rtBody rta)
+--          αts' = assert (length αs == length αts) αts
+--          αts  = zipWith (\α t -> (α, toTypeRaw t, t)) αs ts
+--          αs   = rtArgs rta
+--          rta  = env ! c
+--
+--toTypeRaw (RVar (RV α) _) = α   
+--toTypeRaw _               = ""
