@@ -23,6 +23,7 @@ import Data.Monoid hiding ((<>))
 import Data.List (intercalate, foldl', foldl1', partition)
 import Data.Bifunctor
 import Control.Applicative      ((<$>))
+import Control.Exception        (assert)
 
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint
@@ -179,68 +180,43 @@ refineWithCtorBody dc f body t =
 ----------- Refinement Type Aliases -------------------------------------------
 -------------------------------------------------------------------------------
 
-makeRTEnv       :: [RTAlias String BareType] -> Map String BareType
-expandRTAlias   :: Map String BareType -> BareType -> BareType
 expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
+expandRTAliases sp = sp { sigs = sigs' } 
+  where env   = makeRTEnv $ aliases sp
+        sigs' = [(x, expandRTAlias env t) | (x, t) <- sigs sp]
 
-makeRTEnv       = error "TBD"
-expandRTAliases = error "TBD"
-expandRTAlias   = error "TBD"
+type RTEnv   = Map String (RTAlias String BareType)
 
-{- 
-type ETyC      = Either String RTyCon
-type RTEnv     = M.Map String (RTAlias RTyVar SpecType)
-type RTEnvE    = M.Map String (RTAlias RTyVar SpecTypeE)
-type SpecTypeE = RType Class ETyC RTyVar (PVar Type) (UReft Reft Type)
+makeRTEnv     :: [RTAlias String BareType] -> RTEnv
+makeRTEnv rts = (\z -> z { rtBody = expandRTAliasE env0 $ rtBody z }) <$> env0
+  where env0 = safeFromList "Reftype Aliases" [(rtName x, x) | x <- rts]
 
-makeRTAliasEnv  :: HscEnv -> [RTAlias String BareType] -> IO RTEnv
-makeRTAliasEnv = error "TODO"
-
--- expandRTAliasE  :: RTEnvE -> SpecTypeE -> SpecType
+expandRTAliasE  :: RTEnv -> BareType -> BareType 
 expandRTAliasE = go []
   where go = expandAlias go
 
--- expandRTAlias :: RTEnv -> SpecTypeE -> SpecType
+expandRTAlias   :: RTEnv -> BareType -> BareType
 expandRTAlias = go [] 
   where go = expandAlias (\_ _ -> id) 
 
 expandAlias f s env = go s 
-  where go s t@(RApp (Left c) ts [] r)    
-          | c `elem` s                = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
-          | otherwise                 = expandRTApp (f (c:s) env) env s c ts r
-        go s (RApp (Right c) ts rs r) = RApp c (go s <$> ts) (go' s <$> rs) r 
-        go s (RAll a t)               = RAll a (go s t)
-        go s (RFun x t t' r)          = RFun x (go s t) (go s t') r
-        go s (RCls c ts)              = RCls c (go s <$> ts) 
-        go s t                        = t
-        go' s (RMono r)               = RMono r
+  where go s (RApp c ts rs r)
+          | c `elem` s        = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
+          | c `member` env    = assert (null rs) $ expandRTApp (f (c:s) env) env s c ts rs r
+          | otherwise         = RApp c (go s <$> ts) (go' s <$> rs) r 
+        go s (RAll a t)       = RAll a (go s t)
+        go s (RFun x t t' r)  = RFun x (go s t) (go s t') r
+        go s (RCls c ts)      = RCls c (go s <$> ts) 
+        go s t                = t
+        go' s (RMono r)       = RMono r
 
-expandRTApp tx env s c ts r
-  = case M.lookup c env of
-      Nothing  -> errorstar $ "Aargh. Unknown Reftype Alias" ++ c 
-      Just rta -> subsTyVars_meet αts t' `strengthen` r
-                  where t'  = tx (rtBody rta) 
-                        αts = Ex.assert (length αs == length ts) $ zip αs ts
-                        αs  = rtArgs rta
+expandRTApp tx env s c ts rs r
+  = (subsTyVars_meet αts' t') `strengthen` r
+    where t'   = tx (rtBody rta)
+          αts' = assert (length αs == length αts) αts
+          αts  = zipWith (\α t -> (α, toTypeRaw t, t)) αs ts
+          αs   = rtArgs rta
+          rta  = env ! c
 
--- expandRTAliasE =
---  where go s t@(RApp (Left c) ts [] r)    
---          | c `elem` s                = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
---          | otherwise                 = expandRTApp (expandRTAliasE (c:s) env) env s c ts r
---        go s (RApp (Right c) ts rs r) = RApp c (go s <$> ts) (go' s <$> rs) r 
---        go s (RAll a t)               = RAll a (go s t)
---        go s (RFun x t t' r)          = RFun x (go s t) (go s t') r
---        go s (RCls c ts)              = RCls c (go s <$> ts) 
---        go s t                        = t
---        go' s (RMono r)               = RMono r
-
-
--- makeRTAliasEnv rtas 
--- expandRTAliases  :: Spec SpecType Symbol -> Spec SpecType Symbol
--- expandRTAliases sp 
---   = first (expandRTAlias env) sp
---     where env = safeFromList "Reftype Aliases" [(rtName x, x) | x <- aliases sp]
-
-
--}
-
+toTypeRaw (RVar (RV α) _) = α   
+toTypeRaw _               = ""

@@ -198,4 +198,3 @@ stripParens xs        = stripParens' (reverse xs)
 stripParens' (')':xs) = stripParens' xs
 stripParens' xs       = reverse xs
 
-

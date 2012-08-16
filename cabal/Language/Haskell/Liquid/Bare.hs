@@ -114,10 +114,10 @@ makeInvariants :: HscEnv -> [BareType] -> IO [SpecType]
 makeInvariants env ts = execBare (mapM mkSpecType ts) env
 
 mkSpecType    :: BareType -> BareM SpecType 
-mkSpecType    = error "FUCKER" -- ofBareType' . txParams [] . txTyVarBinds . mapReft (bimap canonReft stringTyVarTy) 
+mkSpecType    = ofBareType' . txParams [] . txTyVarBinds . mapReft (bimap canonReft stringTyVarTy) 
 
--- mkPredType    :: BareType -> BareM PrType 
-mkPredType πs = error "FUCKER" -- ofBareType' . txParams πs . txTyVarBinds . mapReft (fmap stringTyVarTy)
+-- mkPredType    :: __ BareType -> BareM PrType 
+mkPredType πs = ofBareType' . txParams πs . txTyVarBinds . mapReft (fmap stringTyVarTy)
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
@@ -358,7 +358,8 @@ txTyVarBinds = mapBind fb
         fb (RB x) = RB x
         fb (RV α) = RV α
 
-txParams πs t = mapReft (mapPvar (txPvar (predMap πs t))) t
+txParams :: (Data p, Data c, Data tv, Data pv) =>[PVar Type]-> RType p c tv pv (UReft Reft Type)-> RType p c tv pv (UReft Reft Type)
+txParams πs t = mapReft (second (mapPvar (txPvar (predMap πs t)))) t
 -- txParams πs t = mapReft (subv (txPvar (predMap πs t))) t
 
 txPvar m π = π { pargs = args' }

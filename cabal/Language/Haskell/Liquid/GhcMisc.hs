@@ -9,7 +9,6 @@
 
 module Language.Haskell.Liquid.GhcMisc where
 
-import           Control.Applicative          ((<$>))
 import           CoreSyn
 import           CostCentre
 import           FamInstEnv                   (FamInst)
@@ -23,6 +22,10 @@ import           RdrName                      (GlobalRdrEnv)
 import           Type                         (liftedTypeKind)
 import           Unique                       (initTyVarUnique)
 import           Var
+import           Data.Char                    (isLower, isSpace)
+import           Control.Applicative          ((<$>))
+import           Control.Exception            (assert)
+
 
 -----------------------------------------------------------------------
 --------------- Datatype For Holding GHC ModGuts ----------------------
@@ -69,7 +72,11 @@ tickSrcSpan z
 stringTyVar :: String -> TyVar
 stringTyVar s = mkTyVar name liftedTypeKind
   where name = mkInternalName initTyVarUnique occ noSrcSpan
-        occ  = mkTyVarOcc s
+        occ  = mkTyVarOcc $ assert (validTyVar s) s
+
+validTyVar :: String -> Bool
+validTyVar s@(c:_) = isLower c && all (not . isSpace) s 
+validTyVar _       = False
 
 tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} show α ++ show (varUnique α)
 

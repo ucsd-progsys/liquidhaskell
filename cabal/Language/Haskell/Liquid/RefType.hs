@@ -189,14 +189,14 @@ fromRPoly (RPoly r)   = r
 fromRPoly _           = errorstar "fromPoly"
 idRMono               = RMono . fromRMono "idRMono"
 
-class TyConable c where
+class (Outputable c) => TyConable c where
   isList   :: c -> Bool
   isTuple  :: c -> Bool
 
 class Outputable pv => PVarable pv where
   ppr_def :: pv -> SDoc
 
-class (Outputable p, Outputable c, Outputable tv, PVarable pv, Reftable r, TyConable c, Subable r) => RefTypable p c tv pv r where
+class (Outputable p, TyConable c, Outputable tv, PVarable pv, Reftable r, Subable r) => RefTypable p c tv pv r where
   ppCls    :: p -> [RType p c tv pv r] -> SDoc
   
   ppRType  :: Prec -> RType p c tv pv r -> SDoc 
@@ -453,8 +453,8 @@ instance TyConable String where
   isList  = (listConName ==) 
   isTuple = (tupConName ==)
 
-instance (PVarable pv, Reftable r, Subable r) => RefTypable String String String pv r where
-  ppCls c ts = parens (text c <+> text "...")
+instance (Outputable p, TyConable c, PVarable pv, Reftable r, Subable r) => RefTypable p c String pv r where
+  ppCls c ts = parens (ppr c <+> text "...")
 
 instance (Reftable r, Reftable (Predicate t)) => Outputable (UReft r t) where
   ppr (U r p)
@@ -691,7 +691,6 @@ mapBotRef f (RPoly t) = RPoly $ mapBot f t
 class SubsTy tv ty a where
   subt :: (tv, ty) -> a -> a
  
--- subts :: (SubsTy a) => [(RTyVar, Type)] -> a -> a 
 subts = flip (foldr subt) 
 
 instance SubsTy tv ty Reft where
@@ -705,6 +704,11 @@ instance (SubsTy tv ty ty) => SubsTy tv ty (Predicate ty) where
 
 instance (SubsTy tv ty ty) => SubsTy tv ty (UReft a ty) where
   subt f (U r p)  = U r (subt f p)
+
+instance SubsTy String String String where
+  subt (α, α'@(_:_)) β
+    | α == β && not (null α') = α' -- UNIFY: HACK HACK HACK!!! 
+    | otherwise               = β
 
 instance SubsTy RTyVar Type Type where
   subt (α', t') t@(TyVarTy tv) 
