@@ -1,41 +1,23 @@
 TODO
 ====
 
-* reftype aliases
 * benchmarks: containers.Map
 * TAGs
 * benchmarks: Data.List (foldr)
-* benchmarks: bytestring
+* benchmarks: Data.Bytestring
+* benchmarks: stackset-core
+* benchmarks: Data.Text
 * tuple-refinements
 
-RefType Aliases 
-================
+Benchmarks containers.Map
+=========================
 
-reftype OMap k a = Map <{v: k | v < key}, {v: k | v > key}> k a
+first tests/pos/Map.hs
 
-{-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
+type OMap k a = Map <{v: k | v < key}, {v: k | v > key}> k a
 
-Fill in Measure.makeRTEnv, expandRTAlias <-------------------- HEREHEREHEREHEREHERE
-
+{-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-} <-------------------- HEREHEREHEREHEREHERE
    
-1. Measure.makeRTEnv       :: [Aliases] -> Map String BareType
-2. Measure.expandRTAlias   :: Map String BareType -> BareType -> BareType
-3. Measure.expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
-
-
-Failed 10 tests: 
-
-    pos/BST.hs
-  , pos/ListISort-LType.hs
-  , pos/ListISort.hs
-  , pos/ListMSort-LType.hs
-  , pos/ListMSort.hs
-  , pos/ListQSort-LType.hs
-  , pos/ListQSort.hs
-  , pos/ListSort.hs
-  , pos/Map.hs
-  , pos/trans.hs
-
 Tuple Refinements
 =================
 
@@ -70,29 +52,8 @@ data (a1, a2, a3)
   = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>) (x4 :: a4<p4 x1 x2 x3>)
 
 
-GITTERY
-=======
-
-- To make local branch goo
-
-    $ git branch foo
-    $ git checkout foo
-    $ ...
-    $ git commit -a -m "did work in foo"
-
-- To send branch to the mothership
-
-    $ git push origin foo
-
-- To work with branch elsewhere
-
-    $ git pull
-    $ git checkout foo
-
-SLICE causes problem in neg/ass0.hs, doesn't really help either so may as well nuke, but find bug in fixpoint 
-
-
--> TAGS
+TAGS
+====
 
     > also enables cunning trick with contextual/predicates. (See email)
 
@@ -358,6 +319,28 @@ TRIV/HARD: (function definition)
 Theorem prop_lookup_current (x : stackSet i l a sd) :
 Theorem prop_lookup_visible (x : stackSet i l a sd) : 
 
+
+
+GITTERY
+=======
+
+- To make local branch goo
+
+    $ git branch foo
+    $ git checkout foo
+    $ ...
+    $ git commit -a -m "did work in foo"
+
+- To send branch to the mothership
+
+    $ git push origin foo
+
+- To work with branch elsewhere
+
+    $ git pull
+    $ git checkout foo
+
+SLICE causes problem in neg/ass0.hs, doesn't really help either so may as well nuke, but find bug in fixpoint 
 
 
 

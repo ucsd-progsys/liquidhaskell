@@ -130,7 +130,7 @@ Thus, one can have refinement-type aliases of the form:
 
 or
 
-    {-@ reftype IncList = [a]<{v: a | (v >= fld)}> @-}
+    {-@ reftype SortedList a = [a]<{v: a | (v >= fld)}> @-}
 
 or 
 
@@ -138,9 +138,15 @@ or
    
 and then use the above in signatures like:
 
-    {-@ assert insert :: (Ord a) => a -> IncList a -> IncList a @-}
+    {-@ assert insert :: (Ord a) => a -> SortedList a -> SortedList a @-}
+
+    (tests/pos/ListSort.hs)
+
+and:
+
     {-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
 
+    (tests/pos/Map.hs)
 
 
 Specifying Qualifiers
