@@ -16,8 +16,7 @@ module Language.Haskell.Liquid.RefType (
   , typeUniqueSymbol
   , strengthen
   , generalize, mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
-  , subts
-  -- , substSym 
+  , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, refTypePredSortedReft, refTypeSortedReft, typeSortedReft, rTypeSort
   , tidyRefType
@@ -700,16 +699,15 @@ instance SubsTy tv ty Reft where
 
 instance (SubsTy tv ty ty) => SubsTy tv ty (PVar ty) where
   subt su (PV n t xts) = PV n (subt su t) [(subt su t, x, y) | (t,x,y) <- xts] 
-  subv f x             =  f x
+  subv f x             = f x
 
-
-instance (SubsTy tv ty ty) => SubsTy tv ty (Predicate ty) where
+instance (SubsTy tv ty (PVar ty)) => SubsTy tv ty (Predicate ty) where
   subt f (Pr pvs) = Pr (subt f <$> pvs)
-  subv f (Pr pvs) = Pr (f <$> pvs)
+  subv            = subvPredicate 
 
 instance (SubsTy tv ty ty) => SubsTy tv ty (UReft a ty) where
   subt f (U r p)  = U r (subt f p)
-  subv f (U r p)  = U r (subv f p)
+  subv f (U r p)  = U r (subvPredicate f p)
 
 instance SubsTy String String String where
   subt (α, α'@(_:_)) β
@@ -726,16 +724,31 @@ instance SubsTy RTyVar Type Type where
 
 instance SubsTy RTyVar Type RTyCon where  
   subt z c = c {rTyConPs = subt z <$> rTyConPs c}
-  subv f c = c {rTyConPs = subv f <$> rTyConPs c}
+  subv f c = c {rTyConPs = f <$> rTyConPs c}
 
 -- NOTE: This DOES NOT substitute at the binders
 instance SubsTy RTyVar Type PrType where   
   subt (α, τ) = subsTyVar_meet (α, τ, ofType τ)
-  -- subv f c    = c {rTyConPs = subv f <$> rTyConPs c}
+  subv f t    = fmap (subvPredicate f) t 
 
-instance (SubsTy tv ty r)  => SubsTy tv ty (Ref r (RType a b c d r))  where
+instance (SubsTy tv ty (UReft Reft ty)) => SubsTy tv ty (Ref (UReft Reft ty) (RType p c tv pv (UReft Reft ty)))  where
   subt m (RMono p) = RMono $ subt m p
   subt m (RPoly t) = RPoly $ fmap (subt m) t
+  
+  subv _ (RMono p) = RMono p 
+  subv f (RPoly t) = RPoly $ fmap (subvUReft f) t
+
+subvPredicate :: (PVar ty -> PVar ty) -> Predicate ty -> Predicate ty 
+subvPredicate f (Pr pvs) = Pr (f <$> pvs)
+
+subvUReft     :: (PVar ty -> PVar ty) -> UReft Reft ty -> UReft Reft ty 
+subvUReft f (U r p) = U r (subvPredicate f p)
+
+--subvURefType  :: (PVar ty -> PVar ty) -> RType p c tv pv (UReft Reft ty) -> RType p c tv pv (UReft Reft ty)
+--subvURefType = fmap . subvUReft
+-- subv_predicate :: (PVar ty -> PVar ty) -> Predicate ty -> Predicate ty 
+-- subv_predicate f (Pr pvs) = Pr (f <$> pvs)
+
 
 ---------------------------------------------------------------
 

@@ -114,10 +114,16 @@ makeInvariants :: HscEnv -> [BareType] -> IO [SpecType]
 makeInvariants env ts = execBare (mapM mkSpecType ts) env
 
 mkSpecType    :: BareType -> BareM SpecType 
-mkSpecType    = ofBareType' . txParams [] . txTyVarBinds . mapReft (bimap canonReft stringTyVarTy) 
+mkSpecType    = ofBareType' 
+              . txParams subvUReft [] 
+              . txTyVarBinds 
+              . mapReft (bimap canonReft stringTyVarTy) 
 
--- mkPredType    :: __ BareType -> BareM PrType 
-mkPredType πs = ofBareType' . txParams πs . txTyVarBinds . mapReft (fmap stringTyVarTy)
+-- mkPredType :: [PVar Type]-> BRType (PVar String) (Predicate String) -> BareM PrType 
+mkPredType πs = ofBareType' 
+              . txParams subvPredicate πs 
+              . txTyVarBinds 
+              . mapReft (fmap stringTyVarTy)
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
@@ -359,8 +365,13 @@ txTyVarBinds = mapBind fb
         fb (RV α) = RV α
 
 -- txParams :: (Data p, Data c, Data tv, Data pv) =>[PVar Type]-> RType p c tv pv (UReft Reft Type)-> RType p c tv pv (UReft Reft Type)
-txParams πs t = mapReft (second (mapPvar (txPvar (predMap πs t)))) t
--- txParams πs t = mapReft (subv (txPvar (predMap πs t))) t
+-- txParams πs t = mapReft (second (mapPvar (txPvar (predMap πs t)))) t
+
+--txParamsU πs t = mapReft (subvUReft     (txPvar (predMap πs t))) t
+--txParamsP πs t = mapReft (subvPredicate (txPvar (predMap πs t))) t
+
+txParams subv πs t = mapReft (subv (txPvar (predMap πs t))) t
+
 
 txPvar m π = π { pargs = args' }
   where args' = zipWith (\(t,x,_) (_,_,y) -> (t, x, y)) (pargs π') (pargs π)

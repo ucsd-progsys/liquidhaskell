@@ -7,7 +7,7 @@ module Language.Haskell.Liquid.PredType (
   , dataConTy, dataConPtoPredTy
   , removeExtPreds
   , unify, replacePred, exprType, predType
-  , substParg, substPvar, mapPvar
+  , substParg, substPvar
   ) where
 
 import PprCore          (pprCoreExpr)
@@ -313,7 +313,6 @@ applyTypeToArgs e op_ty (Type ty : args)
                                    msg = ptext (sLit "MYapplyTypeToArgs") <+>
                                          panic_msg e op_ty
 
-
 applyTypeToArgs e op_ty (p : args)
   = case (splitFunTy_maybe op_ty) of
         Just (_, res_ty) -> applyTypeToArgs e res_ty args
@@ -325,22 +324,15 @@ panic_msg e op_ty = pprCoreExpr e $$ ppr op_ty
 substPvar :: M.Map (PVar Type) (Predicate Type) -> Predicate Type -> Predicate Type 
 substPvar s = (\(Pr πs) -> pdAnd (lookupP s <$> πs))
 
+substParg :: Functor f =>(Symbol, Symbol) -> f (Predicate ty) -> f (Predicate ty)
 substParg (x, y) = fmap fp  -- RJ: UNIFY: BUG  mapTy fxy
   where fxy s = if (s == x) then y else s
-        fp    = subv (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
+        fp    = subvPredicate (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
 
--- mapPvar :: (PVar ty -> PVar ty) -> Predicate ty -> Predicate ty 
--- mapPvar f (Pr pvs) = Pr (f <$> pvs)
-
+lookupP ::  M.Map (PVar t) (Predicate t) -> PVar t -> Predicate t
 lookupP s p@(PV _ _ s')
   = case M.lookup p s of 
       Nothing  -> Pr [p]
-      Just q   -> subv (\pv -> pv { pargs = s'}) q
+      Just q   -> subvPredicate (\pv -> pv { pargs = s'}) q
 
--- subv_prtype :: (PVar Type -> PVar Type) -> PrType -> PrType
--- subv_prtype = fmap . subv_predicate 
---subv_type :: (PVar Type -> PVar Type) -> Type -> Type
---subv_type _ = id  
--- subp :: M.Map (PVar Type) (Predicate Type) -> PrType -> PrType 
--- subp = error "TODO: subp"
--- subp s (Pr pvs) = pdAnd (lookupP s <$> pvs) -- RJ: UNIFY: not correct!
+
