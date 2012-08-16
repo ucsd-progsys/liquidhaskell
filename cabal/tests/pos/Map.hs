@@ -2,15 +2,16 @@ module Map where
 
 import Language.Haskell.Liquid.Prelude
 
-{-@
-data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
-  = Tip 
-  | Bin (sz    :: Size) 
-        (key   :: k) 
-        (value :: a) 
-        (left  :: Map <l, r> (k <l key>) a) 
-        (right :: Map <l, r> (k <r key>) a) 
+{-@ 
+  data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
+      = Tip 
+      | Bin (sz    :: Size) 
+            (key   :: k) 
+            (value :: a) 
+            (left  :: Map <l, r> (k <l key>) a) 
+            (right :: Map <l, r> (k <r key>) a) 
   @-}
+
 data Map k a = Tip
              | Bin Size k a (Map k a) (Map k a)
 
