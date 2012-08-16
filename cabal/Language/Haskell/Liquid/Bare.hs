@@ -213,45 +213,44 @@ wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns
 
 ofBareType' re = wrapErr "ofBareType" (liftM (expandRTAlias re) . ofBareType re)
 
--- ofBareType :: (Reftable r) => BRType pv r -> BareM (RRType pv r)
-ofBareType :: (TyConable a, Reftable r, GhcLookup a1, GhcLookup a) => M.Map String z -> RType a1 a String pv r-> BareM (RType Class ETyC RTyVar pv r)
 ofBareType _ (RVar (RV a) r) 
   = return $ RVar (stringRTyVar a) r
 ofBareType _ (RVar (RP π) r) 
   = return $ RVar (RP π) r
 ofBareType re (RFun (RB x) t1 t2 _) 
   = liftM2 (rFun (RB x)) (ofBareType re t1) (ofBareType re t2)
-ofBareType _ (RAll (RV a) t) 
-  = liftM  (RAll (stringRTyVar a)) (ofBareType t)
+ofBareType re (RAll (RV a) t) 
+  = liftM  (RAll (stringRTyVar a)) (ofBareType re t)
 ofBareType re (RAll (RP π) t) 
   = liftM  (RAll (RP π)) (ofBareType re t)
 ofBareType re (RApp tc ts@[_] rs r) 
   | isList tc
-  = liftM2 (bareTCApp r listTyCon) (mapM ofRef rs) (forM ts $ ofBareType re)
+  = liftM2 (bareTCApp r (Right listTyCon)) (forM rs $ ofRef re) (forM ts $ ofBareType re)
 ofBareType re (RApp tc ts rs r) 
   | isTuple tc
-  = liftM2 (bareTCApp r c) (mapM ofRef rs) (forM ts $ ofBareType re)
-    where c = tupleTyCon BoxedTuple (length ts)
+  = liftM2 (bareTCApp r c) (forM rs $ ofRef re) (forM ts $ ofBareType re)
+    where c = Right $ tupleTyCon BoxedTuple (length ts)
 ofBareType re (RApp tc ts [] r)
   | tc `M.member` re
-  = liftM2 (bareTCApp r (Left tc))  (mapM ofRef rs) (forM ts $ ofBareType re)
+  = liftM (bareTCApp r (Left tc) []) (forM ts $ ofBareType re)
 ofBareType re (RApp tc ts rs r)
-  = liftM3 (bareTCApp r)  (Right <$> lookupGhcTyCon tc) (mapM ofRef rs) (forM ts $ ofBareType re)
+  = liftM3 (bareTCApp r)  (Right <$> lookupGhcTyCon tc) (forM rs $ ofRef re) (forM ts $ ofBareType re)
 ofBareType re (RCls c ts)
   = liftM2 RCls (lookupGhcClass c) (forM ts $ ofBareType re)
 
-ofRef (RPoly t)   
-  = liftM RPoly (ofBareType t)
-ofRef (RMono r) 
+ofRef re (RPoly t)   
+  = liftM RPoly (ofBareType re t)
+ofRef re (RMono r) 
   = return (RMono r)
 
 -- TODO: move back to RefType
 bareTCApp r c rs ts 
   = {- tracePpr ("bareTCApp: t = " ++ show t) $ -}
     if isTrivial t0 then t' else t
-    where t0 = rApp c ts rs top
-          t  = rApp c ts rs r
+    where t0 = RApp c' ts rs top
+          t  = RApp c' ts rs r
           t' = (expandRTypeSynonyms t0) `strengthen` r
+          c' = (`RTyCon` []) <$> c
 
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
 
@@ -278,10 +277,9 @@ mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
 measureCtors ::  Ms.MSpec t Symbol -> [String]
 measureCtors = nubSort . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.ctorMap 
 
--- mkMeasureSort :: (PVarable pv, Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
 mkMeasureSort (Ms.MSpec cm mm) 
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> 
-      liftM (\s' -> m {Ms.sort = s'}) (ofBareType' (Ms.sort m))
+      liftM (\s' -> m {Ms.sort = s'}) (ofBareType' M.empty (Ms.sort m))
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: DataCon Definitions ------------------
@@ -388,18 +386,18 @@ eqShape' t1 t2
 -------------------------------------------------------------------------------
 
 type ETyC      = Either String RTyCon
-type RTEnv     = Map String (RTAlias RTyVar SpecType)
-type RTEnvE    = Map String (RTAlias RTyVar SpecTypeE)
-type SpecTypeE = RType Class ETc RTyVar (PVar Type) (UReft Reft Type)
+type RTEnv     = M.Map String (RTAlias RTyVar SpecType)
+type RTEnvE    = M.Map String (RTAlias RTyVar SpecTypeE)
+type SpecTypeE = RType Class ETyC RTyVar (PVar Type) (UReft Reft Type)
 
 makeRTAliasEnv  :: HscEnv -> [RTAlias String BareType] -> IO RTEnv
 makeRTAliasEnv = error "TODO"
 
-expandRTAliasE  :: RTEnvE -> SpecTypeE -> SpecType
+-- expandRTAliasE  :: RTEnvE -> SpecTypeE -> SpecType
 expandRTAliasE = go []
   where go = expandAlias go
 
-expandRTAlias :: RTEnv -> SpecTypeE -> SpecType
+-- expandRTAlias :: RTEnv -> SpecTypeE -> SpecType
 expandRTAlias = go [] 
   where go = expandAlias (\_ _ -> id) 
 
@@ -419,7 +417,7 @@ expandRTApp tx env s c ts r
       Nothing  -> errorstar $ "Aargh. Unknown Reftype Alias" ++ c 
       Just rta -> subsTyVars_meet αts t' `strengthen` r
                   where t'  = tx (rtBody rta) 
-                        αts = Ex.assert (L.length αs  == L.length ts) $ zip αs ts
+                        αts = Ex.assert (length αs == length ts) $ zip αs ts
                         αs  = rtArgs rta
 
 -- expandRTAliasE =

@@ -395,7 +395,7 @@ data Pspec ty bndr
   | DDecl DataDecl
   | Incl  FilePath
   | Invt  ty
-  | Alias Measure.RTAlias
+  | Alias (RTAlias String BareType)
 
 
 mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
@@ -447,7 +447,7 @@ aliasP
        args <- sepBy tyVarIdP spaces
        whiteSpace >> reservedOp "=" >> whiteSpace
        body <- bareTypeP
-       return $ Measure.RTA name args body
+       return $ RTA name args body
 
 measureP 
   = do (x, ty) <- tyBindP  

@@ -10,8 +10,6 @@ module Language.Haskell.Liquid.Measure (
   , qualifySpec
   , mapTy
   , dataConTypes
-  , RTAlias (..)
-  , expandRTAliases
   ) where
 
 import GHC
@@ -30,13 +28,13 @@ import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 
 data Spec ty bndr  = Spec { 
-    measures   :: ![Measure ty bndr]     -- User-defined properties for ADTs
-  , sigs       :: ![(Symbol, ty)]        -- Imported functions and types   
-  , invariants :: ![ty]                  -- Data type invariants  
-  , imports    :: ![Symbol]              -- Loaded spec module names
-  , dataDecls  :: ![DataDecl]            -- Predicated data definitions 
-  , includes   :: ![FilePath]            -- Included qualifier files
-  , aliases    :: ![RTAlias]             -- RefType aliases
+    measures   :: ![Measure ty bndr]         -- User-defined properties for ADTs
+  , sigs       :: ![(Symbol, ty)]            -- Imported functions and types   
+  , invariants :: ![ty]                      -- Data type invariants  
+  , imports    :: ![Symbol]                  -- Loaded spec module names
+  , dataDecls  :: ![DataDecl]                -- Predicated data definitions 
+  , includes   :: ![FilePath]                -- Included qualifier files
+  , aliases    :: ![RTAlias String BareType] -- RefType aliases
   } deriving (Data, Typeable)
 
 data MSpec ty bndr = MSpec { 
