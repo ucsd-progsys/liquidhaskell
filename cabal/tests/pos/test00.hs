@@ -1,7 +1,6 @@
 module Test0 where
 
 import Language.Haskell.Liquid.Prelude
--- import MyPrelude
 
 x = choose 0
 

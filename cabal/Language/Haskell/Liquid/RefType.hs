@@ -188,9 +188,10 @@ fromRPoly (RPoly r)   = r
 fromRPoly _           = errorstar "fromPoly"
 idRMono               = RMono . fromRMono "idRMono"
 
-class (Outputable c) => TyConable c where
+class TyConable c where
   isList   :: c -> Bool
   isTuple  :: c -> Bool
+  ppTycon  :: c -> SDoc
 
 class Outputable pv => PVarable pv where
   ppr_def :: pv -> SDoc
@@ -446,11 +447,12 @@ instance Ord RTyCon where
 instance TyConable RTyCon where
   isList  = (listTyCon ==) . rTyCon
   isTuple = TC.isTupleTyCon   . rTyCon 
- 
+  ppTycon = ppr
 
 instance TyConable String where
   isList  = (listConName ==) 
   isTuple = (tupConName ==)
+  ppTycon = text
 
 instance (Outputable p, TyConable c, PVarable pv, Reftable r, Subable r) => RefTypable p c String pv r where
   ppCls c ts = parens (ppr c <+> text "...")
@@ -536,7 +538,7 @@ ppr_rtype b p ty@(RApp c ts rs r)
   | isTuple c 
   = ppTy r $ parens (intersperse comma (ppr_rtype b p <$> ts)) <> ppReftPs b rs
 ppr_rtype b p (RApp c ts rs r)
-  = ppTy r $ ppr c <+> ppReftPs b rs <+> hsep (ppr_rtype b p <$> ts)  
+  = ppTy r $ ppTycon c <+> ppReftPs b rs <+> hsep (ppr_rtype b p <$> ts)  
 ppr_rtype _ _ ty@(RCls c ts)      
   = ppCls c ts
 ppr_rtype _ _ (ROth s)

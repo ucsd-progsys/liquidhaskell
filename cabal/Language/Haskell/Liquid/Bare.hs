@@ -129,19 +129,22 @@ mkPredType πs = ofBareType'
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
 -----------------------------------------------------------------
 
-class Outputable a => GhcLookup a where
+class GhcLookup a where
   lookupName :: HscEnv -> a -> IO (Maybe Name)
   candidates :: a -> [a]
+  pp         :: a -> String 
 
 instance GhcLookup String where
   lookupName     = stringLookup
   candidates x   = [x, swizzle x] 
+  pp         x   = x
 
 swizzle =  dropModuleNames . stripParens
 
 instance GhcLookup Name where
   lookupName _   = return . Just
   candidates x   = [x]
+  pp             = showPpr  
 
 existsGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM Bool 
 existsGhcThing name f x 
@@ -155,8 +158,7 @@ lookupGhcThing name f x
   = do zs <- catMaybes <$> mapM (lookupGhcThing' name f) (candidates x)
        case zs of 
          x:_ -> return x
-         _   -> throwError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
-         -- _   -> liftIO $ ioError $ userError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (showPpr x)
+         _   -> throwError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (pp x)
 
 lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
 lookupGhcThing' name f x 
