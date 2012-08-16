@@ -321,6 +321,18 @@ data Map k a  = Bin {-# UNPACK #-} !Size !k a !(Map k a) !(Map k a)
 
 type Size     = Int
 
+{-@ 
+  data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
+       = Bin (sz    :: Size) 
+             (key   :: k) 
+             (value :: a) 
+             (left  :: Map <l, r> (k <l key>) a) 
+             (right :: Map <l, r> (k <r key>) a) 
+       | Tip 
+  @-}
+
+{-@ type OMap k a = Map <{v:k | v < key }, {v:k | v > key}> k a @-}
+
 instance (Ord k) => Monoid (Map k v) where
     mempty  = empty
     mappend = union
@@ -395,6 +407,8 @@ size (Bin sz _ _ _ _) = sz
 --
 -- >   John's currency: Just "Euro"
 -- >   Pete's currency: Nothing
+
+{-@ assert lookup :: (Ord k) => k -> OMap k a -> Maybe a @-}
 lookup :: Ord k => k -> Map k a -> Maybe a
 lookup = go
   where
@@ -414,6 +428,8 @@ lookup = go
 --
 -- > member 5 (fromList [(5,'a'), (3,'b')]) == True
 -- > member 1 (fromList [(5,'a'), (3,'b')]) == False
+
+{-@ assert member :: (Ord k) => k -> OMap k a -> Bool @-}
 member :: Ord k => k -> Map k a -> Bool
 member = go
   where
@@ -434,6 +450,7 @@ member = go
 -- > notMember 5 (fromList [(5,'a'), (3,'b')]) == False
 -- > notMember 1 (fromList [(5,'a'), (3,'b')]) == True
 
+{-@ assert notMember :: (Ord k) => k -> OMap k a -> Bool @-}
 notMember :: Ord k => k -> Map k a -> Bool
 notMember k m = not $ member k m
 #if __GLASGOW_HASKELL__ >= 700
@@ -444,6 +461,8 @@ notMember k m = not $ member k m
 
 -- | /O(log n)/. Find the value at a key.
 -- Calls 'error' when the element can not be found.
+
+{-@ assert find :: (Ord k) => k -> OMap k a -> a @-}
 find :: Ord k => k -> Map k a -> a
 find = go
   where
@@ -465,6 +484,8 @@ find = go
 --
 -- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
+
+{-@ assert findWithDefault :: (Ord k) => a -> k -> OMap k a -> a @-}
 findWithDefault :: Ord k => a -> k -> Map k a -> a
 findWithDefault = go
   where
@@ -485,6 +506,7 @@ findWithDefault = go
 --
 -- > lookupLT 3 (fromList [(3,'a'), (5,'b')]) == Nothing
 -- > lookupLT 4 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
+{-@ assert lookupLT :: (Ord k) => k -> OMap k v -> Maybe (k, v) @-}
 lookupLT :: Ord k => k -> Map k v -> Maybe (k, v)
 lookupLT = goNothing
   where
@@ -508,6 +530,7 @@ lookupLT = goNothing
 --
 -- > lookupGT 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
 -- > lookupGT 5 (fromList [(3,'a'), (5,'b')]) == Nothing
+{-@ assert lookupGT :: (Ord k) => k -> OMap k v -> Maybe (k, v) @-}
 lookupGT :: Ord k => k -> Map k v -> Maybe (k, v)
 lookupGT = goNothing
   where
@@ -532,6 +555,7 @@ lookupGT = goNothing
 -- > lookupLE 2 (fromList [(3,'a'), (5,'b')]) == Nothing
 -- > lookupLE 4 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
 -- > lookupLE 5 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
+{-@ assert lookupLE :: (Ord k) => k -> OMap k v -> Maybe (k, v) @-}
 lookupLE :: Ord k => k -> Map k v -> Maybe (k, v)
 lookupLE = goNothing
   where
@@ -558,6 +582,7 @@ lookupLE = goNothing
 -- > lookupGE 3 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
 -- > lookupGE 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
 -- > lookupGE 6 (fromList [(3,'a'), (5,'b')]) == Nothing
+{-@ assert lookupLE :: (Ord k) => k -> OMap k v -> Maybe (k, v) @-}
 lookupGE :: Ord k => k -> Map k v -> Maybe (k, v)
 lookupGE = goNothing
   where
@@ -585,7 +610,7 @@ lookupGE = goNothing
 --
 -- > empty      == fromList []
 -- > size empty == 0
-
+{-@ assert empty :: OMap k a @-}
 empty :: Map k a
 empty = Tip
 {-# INLINE empty #-}
@@ -595,6 +620,7 @@ empty = Tip
 -- > singleton 1 'a'        == fromList [(1, 'a')]
 -- > size (singleton 1 'a') == 1
 
+{-@ assert singleton :: k -> a -> OMap k a @-}
 singleton :: k -> a -> Map k a
 singleton k x = Bin 1 k x Tip Tip
 {-# INLINE singleton #-}
@@ -612,6 +638,7 @@ singleton k x = Bin 1 k x Tip Tip
 -- > insert 5 'x' empty                         == singleton 5 'x'
 
 -- See Note: Type of local 'go' function
+{-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
 insert :: Ord k => k -> a -> Map k a -> Map k a
 insert = go
   where
@@ -660,6 +687,7 @@ insertR = go
 -- > insertWith (++) 7 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "xxx")]
 -- > insertWith (++) 5 "xxx" empty                         == singleton 5 "xxx"
 
+{-@ assert insertWith :: (Ord k) => (a -> a -> a) -> k -> a -> OMap k a -> OMap k a @-}
 insertWith :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWith f = insertWithKey (\_ x' y' -> f x' y')
 #if __GLASGOW_HASKELL__ >= 700
@@ -681,6 +709,8 @@ insertWith f = insertWithKey (\_ x' y' -> f x' y')
 -- > insertWithKey f 5 "xxx" empty                         == singleton 5 "xxx"
 
 -- See Note: Type of local 'go' function
+
+{-@ assert insertWithKey :: (Ord k) => (k -> a -> a -> a) -> k -> a -> OMap k a -> OMap k a @-}
 insertWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWithKey = go
   where
@@ -715,8 +745,9 @@ insertWithKey = go
 -- > insertLookup 7 "x" (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a"), (7, "x")])
 
 -- See Note: Type of local 'go' function
-insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
-                    -> (Maybe a, Map k a)
+
+{-@ assert insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> OMap k a -> (Maybe a, OMap k a) @-}
+insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> (Maybe a, Map k a)
 insertLookupWithKey = go
   where
     go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> (Maybe a, Map k a)
@@ -746,6 +777,7 @@ insertLookupWithKey = go
 -- > delete 5 empty                         == empty
 
 -- See Note: Type of local 'go' function
+{-@ assert delete :: (Ord k) => k -> OMap k a -> OMap k a @-}
 delete :: Ord k => k -> Map k a -> Map k a
 delete = go
   where
