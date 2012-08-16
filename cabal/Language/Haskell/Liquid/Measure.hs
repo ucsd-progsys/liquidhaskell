@@ -203,12 +203,11 @@ expandAlias f s env = go s
   where go s (RApp c ts rs r)
           | c `elem` s        = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
           | c `member` env    = assert (null rs) $ expandRTApp (f (c:s) env) env s c ts rs r
-          | otherwise         = RApp c (go s <$> ts) (go' s <$> rs) r 
+          | otherwise         = RApp c (go s <$> ts) rs r 
         go s (RAll a t)       = RAll a (go s t)
         go s (RFun x t t' r)  = RFun x (go s t) (go s t') r
         go s (RCls c ts)      = RCls c (go s <$> ts) 
         go s t                = t
-        go' s (RMono r)       = RMono r
 
 expandRTApp tx env s c ts rs r
   = (subsTyVars_meet αts' t') `strengthen` r
