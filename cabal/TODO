@@ -28,6 +28,8 @@ type OMap k a = Map <{v: k | v < key}, {v: k | v > key}> k a
 
    requires ALL elts of l less than ALL ELTS of r ...
 
+   TRICK: just change the type of glue/merge ... will break all callers.
+
 -> cleanest solution? "variable packing" a la astree?
 
         l ~ r
