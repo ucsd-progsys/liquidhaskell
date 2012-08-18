@@ -767,6 +767,8 @@ instance SubsTy String String String where
   subt (α, α'@(_:_)) β
     | α == β && not (null α') = α' -- UNIFY: HACK HACK HACK!!! 
     | otherwise               = β
+  subt (_, _) β
+    = β
   subv _ = id
 
 instance SubsTy RTyVar Type Type where

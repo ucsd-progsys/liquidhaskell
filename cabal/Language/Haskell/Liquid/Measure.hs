@@ -183,7 +183,7 @@ refineWithCtorBody dc f body t =
 expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
 expandRTAliases sp = sp { sigs = sigs' } 
   where env   = makeRTEnv $ aliases sp
-        sigs' = [(x, expandRTAlias env t) | (x, t) <- sigs sp]
+        sigs' = [(x, expandRTAlias' env t) | (x, t) <- sigs sp]
 
 type RTEnv   = Map String (RTAlias String BareType)
 
@@ -194,6 +194,8 @@ makeRTEnv rts = (\z -> z { rtBody = expandRTAliasE env0 $ rtBody z }) <$> env0
 expandRTAliasE  :: RTEnv -> BareType -> BareType 
 expandRTAliasE = go []
   where go = expandAlias go
+
+expandRTAlias' env t = traceShow ("expandRTAlias t = " ++ showPpr t) $ expandRTAlias env t
 
 expandRTAlias   :: RTEnv -> BareType -> BareType
 expandRTAlias = go [] 
