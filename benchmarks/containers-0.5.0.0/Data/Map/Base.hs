@@ -788,7 +788,7 @@ delete = go
         case compare k kx of
             LT -> balanceR kx x (go k l) r
             GT -> balanceL kx x l (go k r)
-            EQ -> glue l r
+            EQ -> glue {- LIQUID kx -} l r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE delete #-}
 #else
@@ -872,7 +872,7 @@ updateWithKey = go
            GT -> balanceL kx x l (go f k r)
            EQ -> case f kx x of
                    Just x' -> Bin sx kx x' l r
-                   Nothing -> glue l r
+                   Nothing -> glue {- LIQUID kx -} l r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateWithKey #-}
 #else
@@ -903,7 +903,7 @@ updateLookupWithKey = go
                GT -> let (found,r') = go f k r in (found,balanceL kx x l r')
                EQ -> case f kx x of
                        Just x' -> (Just x',Bin sx kx x' l r)
-                       Nothing -> (Just x,glue l r)
+                       Nothing -> (Just x,glue {- LIQUID kx -} l r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateLookupWithKey #-}
 #else
@@ -939,7 +939,7 @@ alter = go
                GT -> balance kx x l (go f k r)
                EQ -> case f (Just x) of
                        Just x' -> Bin sx kx x' l r
-                       Nothing -> glue l r
+                       Nothing -> glue {- LIQUID kx -} l r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE alter #-}
 #else
@@ -1043,7 +1043,7 @@ updateAt f i t = i `seq`
       GT -> balanceL kx x l (updateAt f (i-sizeL-1) r)
       EQ -> case f kx x of
               Just x' -> Bin sx kx x' l r
-              Nothing -> glue l r
+              Nothing -> glue {- LIQUID kx -} l r
       where
         sizeL = size l
 
@@ -1063,7 +1063,7 @@ deleteAt i t = i `seq`
     Bin _ kx x l r -> case compare i sizeL of
       LT -> balanceR kx x (deleteAt i l) r
       GT -> balanceL kx x l (deleteAt (i-sizeL-1) r)
-      EQ -> glue l r
+      EQ -> glue {- LIQUID kx -} l r
       where
         sizeL = size l
 
@@ -1326,9 +1326,9 @@ difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
 hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
 hedgeDiff _   _   Tip              _ = Tip
 hedgeDiff blo bhi (Bin _ kx x l r) Tip = join kx x (filterGt blo l) (filterLt bhi r)
-hedgeDiff blo bhi t (Bin _ kx _ l r) = merge (hedgeDiff blo bmi (trim blo bmi t) l)
+hedgeDiff blo bhi t (Bin _ kx _ l r) = merge {- LIQUID: kx -} (hedgeDiff blo bmi (trim blo bmi t) l)
                                              (hedgeDiff bmi bhi (trim bmi bhi t) r)
-  where bmi = JustS kx
+  where bmi = JustS kx  -- LIQUID: kx is the separator in [merge]
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE hedgeDiff #-}
 #endif
@@ -1393,7 +1393,7 @@ hedgeInt _ _ _   Tip = Tip
 hedgeInt _ _ Tip _   = Tip
 hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi t2)
                                            r' = hedgeInt bmi bhi r (trim bmi bhi t2)
-                                       in if kx `member` t2 then join kx x l' r' else merge l' r'
+                                       in if kx `member` t2 then join kx x l' r' else merge {- LIQUID: kx -} l' r'
   where bmi = JustS kx
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE hedgeInt #-}
@@ -1483,11 +1483,11 @@ mergeWithKey f g1 g2 = go
                                                  r' = hedgeMerge bmi bhi r trim_t2
                                              in case found of
                                                   Nothing -> case g1 (singleton kx x) of
-                                                               Tip -> merge l' r'
+                                                               Tip -> merge {- LIQUID kx -} l' r'
                                                                (Bin _ _ x' Tip Tip) -> join kx x' l' r'
                                                                _ -> error "mergeWithKey: Given function only1 does not fulfil required conditions (see documentation)"
                                                   Just x2 -> case f kx x x2 of
-                                                               Nothing -> merge l' r'
+                                                               Nothing -> merge {- LIQUID kx -} l' r'
                                                                Just x' -> join kx x' l' r'
       where bmi = JustS kx
 {-# INLINE mergeWithKey #-}
@@ -1602,7 +1602,7 @@ filterWithKey :: (k -> a -> Bool) -> Map k a -> Map k a
 filterWithKey _ Tip = Tip
 filterWithKey p (Bin _ kx x l r)
   | p kx x    = join kx x (filterWithKey p l) (filterWithKey p r)
-  | otherwise = merge (filterWithKey p l) (filterWithKey p r)
+  | otherwise = merge {- LIQUID kx -} (filterWithKey p l) (filterWithKey p r)
 
 -- | /O(n)/. Partition the map according to a predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
@@ -1629,8 +1629,8 @@ partition p m
 partitionWithKey :: (k -> a -> Bool) -> Map k a -> (Map k a, Map k a)
 partitionWithKey _ Tip = (Tip,Tip)
 partitionWithKey p (Bin _ kx x l r)
-  | p kx x    = (join kx x l1 r1,merge l2 r2)
-  | otherwise = (merge l1 r1,join kx x l2 r2)
+  | p kx x    = (join kx x l1 r1,merge {- LIQUID kx -} l2 r2)
+  | otherwise = (merge {- LIQUID kx -} l1 r1,join kx x l2 r2)
   where
     (l1,l2) = partitionWithKey p l
     (r1,r2) = partitionWithKey p r
@@ -1654,7 +1654,7 @@ mapMaybeWithKey :: (k -> a -> Maybe b) -> Map k a -> Map k b
 mapMaybeWithKey _ Tip = Tip
 mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
   Just y  -> join kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
-  Nothing -> merge (mapMaybeWithKey f l) (mapMaybeWithKey f r)
+  Nothing -> merge {- LIQUID -} (mapMaybeWithKey f l) (mapMaybeWithKey f r)
 
 -- | /O(n)/. Map values and separate the 'Left' and 'Right' results.
 --
@@ -1683,8 +1683,8 @@ mapEither f m
 mapEitherWithKey :: (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEitherWithKey _ Tip = (Tip, Tip)
 mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
-  Left y  -> (join kx y l1 r1, merge l2 r2)
-  Right z -> (merge l1 r1, join kx z l2 r2)
+  Left y  -> (join kx y l1 r1, merge {- LIQUID kx -} l2 r2)
+  Right z -> (merge {- LIQUID kx -} l1 r1, join kx z l2 r2)
  where
     (l1,l2) = mapEitherWithKey f l
     (r1,r2) = mapEitherWithKey f r
@@ -2402,22 +2402,22 @@ insertMin kx x t
 {--------------------------------------------------------------------
   [merge l r]: merges two trees.
 --------------------------------------------------------------------}
-merge :: Map k a -> Map k a -> Map k a
-merge Tip r   = r
-merge l Tip   = l
-merge l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
-  | delta*sizeL < sizeR = balanceL ky y (merge l ly) ry
-  | delta*sizeR < sizeL = balanceR kx x lx (merge rx r)
-  | otherwise           = glue l r
+merge :: {- LIQUID x:k -> -} Map k a -> Map k a -> Map k a
+merge {- LIQUID _ -} Tip r   = r
+merge {- LIQUID _ -} l Tip   = l
+merge {- LIQUID x -} l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
+  | delta*sizeL < sizeR = balanceL ky y (merge {- LIQUID x -} l ly) ry
+  | delta*sizeR < sizeL = balanceR kx x lx (merge {- LIQUID x -} rx r)
+  | otherwise           = glue {- LIQUID x -} l r
 
 {--------------------------------------------------------------------
   [glue l r]: glues two trees together.
   Assumes that [l] and [r] are already balanced with respect to each other.
 --------------------------------------------------------------------}
-glue :: Map k a -> Map k a -> Map k a
-glue Tip r = r
-glue l Tip = l
-glue l r
+glue :: {- LIQUID kx: k -> -} Map k a -> Map k a -> Map k a
+glue {- _         -} Tip r = r
+glue {- _         -} l Tip = l
+glue {- LIQUID kx -} l r
   | size l > size r = let ((km,m),l') = deleteFindMax l in balanceR km m l' r
   | otherwise       = let ((km,m),r') = deleteFindMin r in balanceL km m l r'
 
