@@ -1,6 +1,10 @@
 module ListSort where
 
-{-@ assert insert      :: (Ord a) => x:a -> xs: [a]<{v: a | (v >= fld)}> -> {v: [a]<{v: a | (v >= fld)}> | len(v) = (1 + len(xs)) } @-}
-insert y []                   = [y]
-insert y (x : xs) | y <= x    = y : x : xs 
-                  | otherwise = x : insert y xs
+{-@ data LL a <p :: a -> a -> Bool> = Nil | Cons (head :: a) (t :: LL <p> (a <p head>)) @-}
+
+data LL a = Nil | Cons a (LL a)
+
+{-@ single :: a -> LL <{v:a| v >= head}> a @-}
+single :: a -> LL a
+single x = Cons x Nil 
+

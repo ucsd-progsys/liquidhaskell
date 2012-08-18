@@ -267,7 +267,6 @@ bPVar p _ ts  = PV p τ τxs
         τxs = zipWith (\τ x -> (τ, x, x)) τs xs
         xs  = stringSymbol <$> ["x" ++ show i | i <- [0..]]
 
-
 predVarIdP 
   = stringSymbol <$> tyVarIdP 
 

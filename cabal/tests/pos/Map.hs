@@ -30,7 +30,7 @@ singleton :: k -> a -> Map k a
 singleton k x
   = Bin 1 k x Tip Tip
 
-{-@ insert :: (Ord k) => k -> a -> (OMap k a) -> (OMap k a) @-}
+{-@ insert :: Ord k => k -> a -> OMap k a -> OMap k a @-}
 insert :: Ord k => k -> a -> Map k a -> Map k a
 insert kx x t
   = case t of 
