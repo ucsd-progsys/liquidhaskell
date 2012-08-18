@@ -20,23 +20,22 @@ type OMap k a = Map <{v: k | v < key}, {v: k | v > key}> k a
 
 -> Remove "assert" in spec (update haskell.vim too)
 
--> Cannot deal with union/intersection because of glue/merge 
-   which will screw up the balanceL/balanceR so may want to 
-   comment out.
+-> [glue/merge] added explicit witnesses (in "LIQUID" comments)
+        > Cannot deal with union/intersection because of glue/merge 
+          which will screw up the balanceL/balanceR so may want to 
+          comment out.
     
-   [glue l r]
+          [glue l r]
 
-   requires ALL elts of l less than ALL ELTS of r ...
+          requires ALL elts of l less than ALL ELTS of r ...
 
-   TRICK: just change the type of glue/merge ... will break all callers.
+          TRICK: just change the type of glue/merge ... will break all callers.
 
 -> cleanest solution? "variable packing" a la astree?
 
         l ~ r
 
    when you unfold l update r (or vice-versa) whats a clean way to do it?
-
-
 
 Tuple Refinements
 =================

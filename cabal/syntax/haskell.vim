@@ -222,6 +222,7 @@ sy region  hsBlockComment     start="{-"  end="-}" contains=hsBlockComment,hsCom
 sy region  hsPragma	       start="{-#" end="#-}"
 
 " Liquid Types
+sy region  hsLiquidAnnot   start="{-@\s*" end="@-}" contains=hsLiquidKeyword,hsLiquidReftA,hsLiquidReftB,hsLiquidReftC
 sy region  hsLiquidAnnot   start="{-@\s*\<assert\>" end="@-}" contains=hsLiquidKeyword,hsLiquidReftA,hsLiquidReftB,hsLiquidReftC
 sy region  hsLiquidAnnot   start="{-@\s*\<type\>" end="@-}" contains=hsLiquidKeyword,hsLiquidReftA,hsLiquidReftB,hsLiquidReftC
 sy region  hsLiquidAnnot   start="{-@\s*\<data\>" end="@-}" contains=hsLiquidKeyword,hsLiquidReftA,hsLiquidReftB,hsLiquidReftC

@@ -1,22 +1,20 @@
 module ListSort (insertSort, insertSort', mergeSort, quickSort) where
 
-{-@ type SortedList a = [a]<{v: a | (v >= fld)}> @-}
+
+{-@ type OList a = [a]<{v: a | (v >= fld)}> @-}
 
 ------------------------------------------------------------------------------
 -- Insert Sort ---------------------------------------------------------------
 ------------------------------------------------------------------------------
 
-{- assert insertSort :: (Ord a) => xs:[a] -> {v: [a]<{v: a | (v >= fld)}> | len(v) = len(xs)} @-}
-
-{-@ assert insertSort :: (Ord a) => xs:[a] -> SortedList a @-}
+{-@ insertSort :: (Ord a) => xs:[a] -> OList a @-}
 insertSort            :: (Ord a) => [a] -> [a]
 insertSort []         = []
 insertSort (x:xs)     = insert x (insertSort xs) 
 
-{-@ assert insertSort' :: (Ord a) => xs:[a] -> SortedList a @-}
+{-@ insertSort' :: (Ord a) => xs:[a] -> OList a @-}
 insertSort' xs        = foldr insert [] xs
 
-{- assert insert      :: (Ord a) => x:a -> xs: [a]<{v: a | (v >= fld)}> -> {v: [a]<{v: a | (v >= fld)}> | len(v) = (1 + len(xs)) } @-}
 insert y []                   = [y]
 insert y (x : xs) | y <= x    = y : x : xs 
                   | otherwise = x : insert y xs
@@ -25,7 +23,7 @@ insert y (x : xs) | y <= x    = y : x : xs
 -- Merge Sort ----------------------------------------------------------------
 ------------------------------------------------------------------------------
 
-{-@ assert mergeSort :: (Ord a) => xs:[a] -> [a]<{v: a | (v >= fld)}>  @-}
+{-@ mergeSort :: (Ord a) => [a] -> OList a @-}
 mergeSort :: Ord a => [a] -> [a]
 mergeSort []  = []
 mergeSort [x] = [x]
@@ -48,12 +46,14 @@ merge (x:xs) (y:ys)
 -- Quick Sort ----------------------------------------------------------------
 ------------------------------------------------------------------------------
 
-{-@ assert quickSort :: (Ord a) => xs:[a] -> [a]<{v: a | (v >= fld)}>  @-}
+{-@ quickSort :: (Ord a) => [a] -> OList a @-}
 quickSort []     = []
-quickSort (x:xs) = app x (quickSort [y | y <- xs, y < x]) (quickSort [z | z <- xs, z >= x]) 
+quickSort (x:xs) = append x lts gts 
+  where lts = quickSort [y | y <- xs, y < x]
+        gts = quickSort [z | z <- xs, z >= x]
 
-app k []     ys = k : ys
-app k (x:xs) ys = x : app k xs ys
+append k []     ys  = k : ys
+append k (x:xs) ys  = x : append k xs ys
 
 
 

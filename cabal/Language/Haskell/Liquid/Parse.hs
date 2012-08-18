@@ -426,6 +426,7 @@ specP
     <|> (reserved "include"   >> liftM Incl  filePathP)
     <|> (reserved "invariant" >> liftM Invt  genBareTypeP)
     <|> (reserved "type"      >> liftM Alias aliasP)
+    <|> ({- DEFAULT -}           liftM Assm  tyBindP)
 
 filePathP :: Parser FilePath
 filePathP = angles $ many1 pathCharP
