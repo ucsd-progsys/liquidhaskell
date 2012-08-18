@@ -803,6 +803,7 @@ delete = go
 -- > adjust ("new " ++) 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
 -- > adjust ("new " ++) 7 empty                         == empty
 
+{-@ assert adjust :: (Ord k) => (a -> a) -> k -> OMap k a -> OMap k a @-}
 adjust :: Ord k => (a -> a) -> k -> Map k a -> Map k a
 adjust f = adjustWithKey (\_ x -> f x)
 #if __GLASGOW_HASKELL__ >= 700
@@ -819,6 +820,7 @@ adjust f = adjustWithKey (\_ x -> f x)
 -- > adjustWithKey f 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
 -- > adjustWithKey f 7 empty                         == empty
 
+{-@ assert adjustWithKey :: (Ord k) => (k -> a -> a) -> k -> OMap k a -> OMap k a @-}
 adjustWithKey :: Ord k => (k -> a -> a) -> k -> Map k a -> Map k a
 adjustWithKey f = updateWithKey (\k' x' -> Just (f k' x'))
 #if __GLASGOW_HASKELL__ >= 700
@@ -836,6 +838,7 @@ adjustWithKey f = updateWithKey (\k' x' -> Just (f k' x'))
 -- > update f 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
 -- > update f 3 (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
+{-@ update :: (Ord k) => (a -> Maybe a) -> k -> OMap k a -> OMap k a @-}
 update :: Ord k => (a -> Maybe a) -> k -> Map k a -> Map k a
 update f = updateWithKey (\_ x -> f x)
 #if __GLASGOW_HASKELL__ >= 700
@@ -855,6 +858,8 @@ update f = updateWithKey (\_ x -> f x)
 -- > updateWithKey f 3 (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 -- See Note: Type of local 'go' function
+
+{-@ updateWithKey :: (Ord k) => (k -> a -> Maybe a) -> k -> OMap k a -> OMap k a @-}
 updateWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
 updateWithKey = go
   where
@@ -884,6 +889,8 @@ updateWithKey = go
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
 
 -- See Note: Type of local 'go' function
+
+{-@ updateLookupWithKey :: (Ord k) => (k -> a -> Maybe a) -> k -> OMap k a -> (Maybe a, OMap k a) @-}
 updateLookupWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
 updateLookupWithKey = go
  where
@@ -916,6 +923,8 @@ updateLookupWithKey = go
 -- > alter f 5 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "c")]
 
 -- See Note: Type of local 'go' function
+
+{-@ alter :: (Ord k) => (Maybe a -> Maybe a) -> k -> OMap k a -> OMap k a @-}
 alter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
 alter = go
   where
@@ -950,6 +959,8 @@ alter = go
 -- > findIndex 6 (fromList [(5,"a"), (3,"b")])    Error: element is not in the map
 
 -- See Note: Type of local 'go' function
+
+{-@ findIndex :: (Ord k) => k -> OMap k a -> Int @-}
 findIndex :: Ord k => k -> Map k a -> Int
 findIndex = go 0
   where
@@ -974,6 +985,7 @@ findIndex = go 0
 -- > isJust (lookupIndex 6 (fromList [(5,"a"), (3,"b")]))   == False
 
 -- See Note: Type of local 'go' function
+{-@ lookupIndex :: (Ord k) => k -> OMap k a -> Maybe Int @-}
 lookupIndex :: Ord k => k -> Map k a -> Maybe Int
 lookupIndex = go 0
   where
@@ -996,6 +1008,8 @@ lookupIndex = go 0
 -- > elemAt 1 (fromList [(5,"a"), (3,"b")]) == (5, "a")
 -- > elemAt 2 (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
+
+{-@ elemAt :: Int -> OMap k a -> (k, a) @-}
 elemAt :: Int -> Map k a -> (k,a)
 STRICT_1_OF_2(elemAt)
 elemAt _ Tip = error "Map.elemAt: index out of range"
@@ -1019,6 +1033,7 @@ elemAt i (Bin _ kx x l r)
 -- > updateAt (\_ _  -> Nothing)  2    (fromList [(5,"a"), (3,"b")])    Error: index out of range
 -- > updateAt (\_ _  -> Nothing)  (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
+{-@ updateAt :: (k -> a -> Maybe a) -> Int -> OMap k a -> OMap k a @-}
 updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
 updateAt f i t = i `seq`
   case t of
@@ -1040,6 +1055,7 @@ updateAt f i t = i `seq`
 -- > deleteAt 2 (fromList [(5,"a"), (3,"b")])     Error: index out of range
 -- > deleteAt (-1) (fromList [(5,"a"), (3,"b")])  Error: index out of range
 
+{-@ deleteAt :: Int -> OMap k a -> OMap k a @-}
 deleteAt :: Int -> Map k a -> Map k a
 deleteAt i t = i `seq`
   case t of
@@ -1060,6 +1076,7 @@ deleteAt i t = i `seq`
 -- > findMin (fromList [(5,"a"), (3,"b")]) == (3,"b")
 -- > findMin empty                            Error: empty map has no minimal element
 
+{-@ findMin :: OMap k a -> (k, a) @-}
 findMin :: Map k a -> (k,a)
 findMin (Bin _ kx x Tip _)  = (kx,x)
 findMin (Bin _ _  _ l _)    = findMin l
@@ -1070,6 +1087,7 @@ findMin Tip                 = error "Map.findMin: empty map has no minimal eleme
 -- > findMax (fromList [(5,"a"), (3,"b")]) == (5,"a")
 -- > findMax empty                            Error: empty map has no maximal element
 
+{-@ findMax :: OMap k a -> (k, a) @-}
 findMax :: Map k a -> (k,a)
 findMax (Bin _ kx x _ Tip)  = (kx,x)
 findMax (Bin _ _  _ _ r)    = findMax r
@@ -1080,6 +1098,8 @@ findMax Tip                 = error "Map.findMax: empty map has no maximal eleme
 -- > deleteMin (fromList [(5,"a"), (3,"b"), (7,"c")]) == fromList [(5,"a"), (7,"c")]
 -- > deleteMin empty == empty
 
+
+{-@ deleteMin :: OMap k a -> OMap k a @-}
 deleteMin :: Map k a -> Map k a
 deleteMin (Bin _ _  _ Tip r)  = r
 deleteMin (Bin _ kx x l r)    = balanceR kx x (deleteMin l) r
@@ -1090,6 +1110,7 @@ deleteMin Tip                 = Tip
 -- > deleteMax (fromList [(5,"a"), (3,"b"), (7,"c")]) == fromList [(3,"b"), (5,"a")]
 -- > deleteMax empty == empty
 
+{-@ deleteMax :: OMap k a -> OMap k a @-}
 deleteMax :: Map k a -> Map k a
 deleteMax (Bin _ _  _ l Tip)  = l
 deleteMax (Bin _ kx x l r)    = balanceL kx x l (deleteMax r)
@@ -1100,6 +1121,7 @@ deleteMax Tip                 = Tip
 -- > updateMin (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "Xb"), (5, "a")]
 -- > updateMin (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
+{-@ updateMin :: (a -> Maybe a) -> OMap k a -> OMap k a @-}
 updateMin :: (a -> Maybe a) -> Map k a -> Map k a
 updateMin f m
   = updateMinWithKey (\_ x -> f x) m
@@ -1109,6 +1131,7 @@ updateMin f m
 -- > updateMax (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "Xa")]
 -- > updateMax (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
 
+{-@ updateMax :: (a -> Maybe a) -> OMap k a -> OMap k a @-}
 updateMax :: (a -> Maybe a) -> Map k a -> Map k a
 updateMax f m
   = updateMaxWithKey (\_ x -> f x) m
@@ -1119,6 +1142,7 @@ updateMax f m
 -- > updateMinWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"3:b"), (5,"a")]
 -- > updateMinWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
+{-@ updateMinWithKey :: (k -> a -> Maybe a) -> OMap k a -> OMap k a @-}
 updateMinWithKey :: (k -> a -> Maybe a) -> Map k a -> Map k a
 updateMinWithKey _ Tip                 = Tip
 updateMinWithKey f (Bin sx kx x Tip r) = case f kx x of
@@ -1131,6 +1155,7 @@ updateMinWithKey f (Bin _ kx x l r)    = balanceR kx x (updateMinWithKey f l) r
 -- > updateMaxWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"b"), (5,"5:a")]
 -- > updateMaxWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
 
+{-@ updateMaxWithKey :: (k -> a -> Maybe a) -> OMap k a -> OMap k a @-}
 updateMaxWithKey :: (k -> a -> Maybe a) -> Map k a -> Map k a
 updateMaxWithKey _ Tip                 = Tip
 updateMaxWithKey f (Bin sx kx x l Tip) = case f kx x of
@@ -1144,6 +1169,7 @@ updateMaxWithKey f (Bin _ kx x l r)    = balanceL kx x l (updateMaxWithKey f r)
 -- > minViewWithKey (fromList [(5,"a"), (3,"b")]) == Just ((3,"b"), singleton 5 "a")
 -- > minViewWithKey empty == Nothing
 
+{-@ minViewWithKey :: OMap k a -> Maybe ((k, a), OMap k a) @-}
 minViewWithKey :: Map k a -> Maybe ((k,a), Map k a)
 minViewWithKey Tip = Nothing
 minViewWithKey x   = Just (deleteFindMin x)
@@ -1154,6 +1180,7 @@ minViewWithKey x   = Just (deleteFindMin x)
 -- > maxViewWithKey (fromList [(5,"a"), (3,"b")]) == Just ((5,"a"), singleton 3 "b")
 -- > maxViewWithKey empty == Nothing
 
+{-@ maxViewWithKey :: OMap k a -> Maybe ((k, a), OMap k a) @-}
 maxViewWithKey :: Map k a -> Maybe ((k,a), Map k a)
 maxViewWithKey Tip = Nothing
 maxViewWithKey x   = Just (deleteFindMax x)
@@ -1165,6 +1192,7 @@ maxViewWithKey x   = Just (deleteFindMax x)
 -- > minView (fromList [(5,"a"), (3,"b")]) == Just ("b", singleton 5 "a")
 -- > minView empty == Nothing
 
+{-@ minView :: OMap k a -> Maybe (a, OMap k a) @-}
 minView :: Map k a -> Maybe (a, Map k a)
 minView Tip = Nothing
 minView x   = Just (first snd $ deleteFindMin x)
@@ -1175,13 +1203,14 @@ minView x   = Just (first snd $ deleteFindMin x)
 -- > maxView (fromList [(5,"a"), (3,"b")]) == Just ("a", singleton 3 "b")
 -- > maxView empty == Nothing
 
+{-@ maxView :: OMap k a -> Maybe (a, OMap k a) @-}
 maxView :: Map k a -> Maybe (a, Map k a)
 maxView Tip = Nothing
 maxView x   = Just (first snd $ deleteFindMax x)
 
 -- Update the 1st component of a tuple (special case of Control.Arrow.first)
-first :: (a -> b) -> (a,c) -> (b,c)
-first f (x,y) = (f x, y)
+first :: (a -> b) -> (a, c) -> (b, c)
+first f (x, y) = (f x, y)
 
 {--------------------------------------------------------------------
   Union.
@@ -1194,6 +1223,7 @@ first f (x,y) = (f x, y)
 -- > unions [(fromList [(5, "A3"), (3, "B3")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "a"), (3, "b")])]
 -- >     == fromList [(3, "B3"), (5, "A3"), (7, "C")]
 
+{-@ unions :: (Ord k) => [OMap k a] -> OMap k a @-}
 unions :: Ord k => [Map k a] -> Map k a
 unions ts
   = foldlStrict union empty ts
@@ -1207,6 +1237,7 @@ unions ts
 -- > unionsWith (++) [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
 -- >     == fromList [(3, "bB3"), (5, "aAA3"), (7, "C")]
 
+{-@ unionsWith :: (Ord k) => (a->a->a) -> [Map k a] -> Map k a @-}
 unionsWith :: Ord k => (a->a->a) -> [Map k a] -> Map k a
 unionsWith f ts
   = foldlStrict (unionWith f) empty ts
@@ -1222,7 +1253,8 @@ unionsWith f ts
 -- Hedge-union is more efficient on (bigset \``union`\` smallset).
 --
 -- > union (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "a"), (7, "C")]
-
+ 
+{- LIQUIDTODO uses trim guarded spec: union :: (Ord k) => OMap k a -> OMap k a -> OMap k a @-}
 union :: Ord k => Map k a -> Map k a -> Map k a
 union Tip t2  = t2
 union t1 Tip  = t1
@@ -1251,6 +1283,7 @@ hedgeUnion blo bhi (Bin _ kx x l r) t2 = join kx x (hedgeUnion blo bmi l (trim b
 --
 -- > unionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "aA"), (7, "C")]
 
+{-@ unionWith :: (Ord k) => (a -> a -> a) -> OMap k a -> OMap k a -> OMap k a @-}
 unionWith :: Ord k => (a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWith f m1 m2
   = unionWithKey (\_ x y -> f x y) m1 m2
@@ -1265,6 +1298,7 @@ unionWith f m1 m2
 -- > let f key left_value right_value = (show key) ++ ":" ++ left_value ++ "|" ++ right_value
 -- > unionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
 
+{-@ unionWithKey :: (Ord k) => (k -> a -> a -> a) -> OMap k a -> OMap k a -> OMap k a @-}
 unionWithKey :: Ord k => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) id id t1 t2
 #if __GLASGOW_HASKELL__ >= 700
@@ -1280,6 +1314,7 @@ unionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) id id t1 t2
 --
 -- > difference (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 3 "b"
 
+{-@ difference :: (Ord k) => OMap k a -> OMap k b -> OMap k a @-}
 difference :: Ord k => Map k a -> Map k b -> Map k a
 difference Tip _   = Tip
 difference t1 Tip  = t1
@@ -1309,6 +1344,7 @@ hedgeDiff blo bhi t (Bin _ kx _ l r) = merge (hedgeDiff blo bmi (trim blo bmi t)
 -- > differenceWith f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (7, "C")])
 -- >     == singleton 3 "b:B"
 
+{-@ differenceWith :: (Ord k) => (a -> b -> Maybe a) -> OMap k a -> OMap k b -> OMap k a @-}
 differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWith f m1 m2
   = differenceWithKey (\_ x y -> f x y) m1 m2
@@ -1326,6 +1362,7 @@ differenceWith f m1 m2
 -- > differenceWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (10, "C")])
 -- >     == singleton 3 "3:b|B"
 
+{-@ differenceWithKey :: (Ord k) => (k -> a -> b -> Maybe a) -> OMap k a -> OMap k b -> OMap k a @-}
 differenceWithKey :: Ord k => (k -> a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
 #if __GLASGOW_HASKELL__ >= 700
@@ -1342,6 +1379,7 @@ differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
 --
 -- > intersection (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "a"
 
+{-@ intersection :: (Ord k) => OMap k a -> OMap k b -> OMap k a @-}
 intersection :: Ord k => Map k a -> Map k b -> Map k a
 intersection Tip _ = Tip
 intersection _ Tip = Tip
@@ -1365,6 +1403,7 @@ hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi
 --
 -- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
 
+{-@ intersectionWith :: (Ord k) => (a -> b -> c) -> OMap k a -> OMap k b -> OMap k c @-}
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWith f m1 m2
   = intersectionWithKey (\_ x y -> f x y) m1 m2
@@ -1379,6 +1418,7 @@ intersectionWith f m1 m2
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
 
 
+{-@ intersectionWithKey :: (Ord k) => (k -> a -> b -> c) -> OMap k a -> OMap k b -> OMap k c @-}
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (const Tip) (const Tip) t1 t2
 #if __GLASGOW_HASKELL__ >= 700
@@ -1426,6 +1466,8 @@ intersectionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (const
 -- @only2@ are 'id' and @'const' 'empty'@, but for example @'map' f@ or
 -- @'filterWithKey' f@ could be used for any @f@.
 
+{-@ mergeWithKey :: (Ord k) => (k -> a -> b -> Maybe c) -> (OMap k a -> OMap k c) -> (OMap k b -> OMap k c)
+                 -> OMap k a -> OMap k b -> OMap k c @-}
 mergeWithKey :: Ord k => (k -> a -> b -> Maybe c) -> (Map k a -> Map k c) -> (Map k b -> Map k c)
              -> Map k a -> Map k b -> Map k c
 mergeWithKey f g1 g2 = go
@@ -1456,6 +1498,7 @@ mergeWithKey f g1 g2 = go
 -- | /O(n+m)/.
 -- This function is defined as (@'isSubmapOf' = 'isSubmapOfBy' (==)@).
 --
+{-@ isSubmapOf :: (Ord k, Eq a) => OMap k a -> OMap k a -> Bool @-}
 isSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
 isSubmapOf m1 m2 = isSubmapOfBy (==) m1 m2
 #if __GLASGOW_HASKELL__ >= 700
@@ -1480,6 +1523,8 @@ isSubmapOf m1 m2 = isSubmapOfBy (==) m1 m2
 
 
 -}
+
+{-@ isSubmapOfBy :: (Ord k) => (a->b->Bool) -> OMap k a -> OMap k b -> Bool @-}
 isSubmapOfBy :: Ord k => (a->b->Bool) -> Map k a -> Map k b -> Bool
 isSubmapOfBy f t1 t2
   = (size t1 <= size t2) && (submap' f t1 t2)
@@ -1543,6 +1588,7 @@ isProperSubmapOfBy f t1 t2
 -- > filter (> "x") (fromList [(5,"a"), (3,"b")]) == empty
 -- > filter (< "a") (fromList [(5,"a"), (3,"b")]) == empty
 
+{-@  filter :: (a -> Bool) -> OMap k a -> OMap k a @-}
 filter :: (a -> Bool) -> Map k a -> Map k a
 filter p m
   = filterWithKey (\_ x -> p x) m
@@ -1551,6 +1597,7 @@ filter p m
 --
 -- > filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
+{-@ filterWithKey :: (k -> a -> Bool) -> OMap k a -> OMap k a @-}
 filterWithKey :: (k -> a -> Bool) -> Map k a -> Map k a
 filterWithKey _ Tip = Tip
 filterWithKey p (Bin _ kx x l r)
@@ -1565,6 +1612,7 @@ filterWithKey p (Bin _ kx x l r)
 -- > partition (< "x") (fromList [(5,"a"), (3,"b")]) == (fromList [(3, "b"), (5, "a")], empty)
 -- > partition (> "x") (fromList [(5,"a"), (3,"b")]) == (empty, fromList [(3, "b"), (5, "a")])
 
+{-@ partition :: (a -> Bool) -> OMap k a -> (OMap k a, OMap k a) @-}
 partition :: (a -> Bool) -> Map k a -> (Map k a,Map k a)
 partition p m
   = partitionWithKey (\_ x -> p x) m
@@ -1577,7 +1625,8 @@ partition p m
 -- > partitionWithKey (\ k _ -> k < 7) (fromList [(5,"a"), (3,"b")]) == (fromList [(3, "b"), (5, "a")], empty)
 -- > partitionWithKey (\ k _ -> k > 7) (fromList [(5,"a"), (3,"b")]) == (empty, fromList [(3, "b"), (5, "a")])
 
-partitionWithKey :: (k -> a -> Bool) -> Map k a -> (Map k a,Map k a)
+{-@ partitionWithKey :: (k -> a -> Bool) -> OMap k a -> (OMap k a, OMap k a) @-}
+partitionWithKey :: (k -> a -> Bool) -> Map k a -> (Map k a, Map k a)
 partitionWithKey _ Tip = (Tip,Tip)
 partitionWithKey p (Bin _ kx x l r)
   | p kx x    = (join kx x l1 r1,merge l2 r2)
@@ -1591,6 +1640,7 @@ partitionWithKey p (Bin _ kx x l r)
 -- > let f x = if x == "a" then Just "new a" else Nothing
 -- > mapMaybe f (fromList [(5,"a"), (3,"b")]) == singleton 5 "new a"
 
+{-@ mapMaybe :: (a -> Maybe b) -> OMap k a -> OMap k b @-}
 mapMaybe :: (a -> Maybe b) -> Map k a -> Map k b
 mapMaybe f = mapMaybeWithKey (\_ x -> f x)
 
@@ -1599,6 +1649,7 @@ mapMaybe f = mapMaybeWithKey (\_ x -> f x)
 -- > let f k _ = if k < 5 then Just ("key : " ++ (show k)) else Nothing
 -- > mapMaybeWithKey f (fromList [(5,"a"), (3,"b")]) == singleton 3 "key : 3"
 
+{-@ mapMaybeWithKey :: (k -> a -> Maybe b) -> OMap k a -> OMap k b @-}
 mapMaybeWithKey :: (k -> a -> Maybe b) -> Map k a -> Map k b
 mapMaybeWithKey _ Tip = Tip
 mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
@@ -1614,6 +1665,7 @@ mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
 -- > mapEither (\ a -> Right a) (fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
 -- >     == (empty, fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
 
+{-@ mapEither :: (a -> Either b c) -> OMap k a -> (OMap k b, OMap k c) @-}
 mapEither :: (a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEither f m
   = mapEitherWithKey (\_ x -> f x) m
@@ -1627,6 +1679,7 @@ mapEither f m
 -- > mapEitherWithKey (\_ a -> Right a) (fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
 -- >     == (empty, fromList [(1,"x"), (3,"b"), (5,"a"), (7,"z")])
 
+{-@ mapEitherWithKey :: (k -> a -> Either b c) -> OMap k a -> (OMap k b, OMap k c) @-}
 mapEitherWithKey :: (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEitherWithKey _ Tip = (Tip, Tip)
 mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
@@ -1643,6 +1696,7 @@ mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
 --
 -- > map (++ "x") (fromList [(5,"a"), (3,"b")]) == fromList [(3, "bx"), (5, "ax")]
 
+{-@ map :: (a -> b) -> OMap k a -> OMap k b @-}
 map :: (a -> b) -> Map k a -> Map k b
 map _ Tip = Tip
 map f (Bin sx kx x l r) = Bin sx kx (f x) (map f l) (map f r)
@@ -1652,6 +1706,7 @@ map f (Bin sx kx x l r) = Bin sx kx (f x) (map f l) (map f r)
 -- > let f key x = (show key) ++ ":" ++ x
 -- > mapWithKey f (fromList [(5,"a"), (3,"b")]) == fromList [(3, "3:b"), (5, "5:a")]
 
+{-@ mapWithKey :: (k -> a -> b) -> OMap k a -> OMap k b @-}
 mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
 mapWithKey _ Tip = Tip
 mapWithKey f (Bin sx kx x l r) = Bin sx kx (f kx x) (mapWithKey f l) (mapWithKey f r)
@@ -1677,7 +1732,8 @@ mapWithKey f (Bin sx kx x l r) = Bin sx kx (f kx x) (mapWithKey f l) (mapWithKey
 -- > let f a b = (a ++ b, b ++ "X")
 -- > mapAccum f "Everything: " (fromList [(5,"a"), (3,"b")]) == ("Everything: ba", fromList [(3, "bX"), (5, "aX")])
 
-mapAccum :: (a -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
+{-@ mapAccum :: (a -> b -> (a,c)) -> a -> OMap k b -> (a, OMap k c) @-}
+mapAccum :: (a -> b -> (a,c)) -> a -> Map k b -> (a, Map k c)
 mapAccum f a m
   = mapAccumWithKey (\a' _ x' -> f a' x') a m
 
@@ -1687,6 +1743,7 @@ mapAccum f a m
 -- > let f a k b = (a ++ " " ++ (show k) ++ "-" ++ b, b ++ "X")
 -- > mapAccumWithKey f "Everything:" (fromList [(5,"a"), (3,"b")]) == ("Everything: 3-b 5-a", fromList [(3, "bX"), (5, "aX")])
 
+{-@ mapAccumWithKey :: (a -> k -> b -> (a,c)) -> a -> OMap k b -> (a, OMap k c) @-}
 mapAccumWithKey :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccumWithKey f a t
   = mapAccumL f a t
@@ -1703,6 +1760,7 @@ mapAccumL f a (Bin sx kx x l r) =
 
 -- | /O(n)/. The function 'mapAccumR' threads an accumulating
 -- argument through the map in descending order of keys.
+{-@ mapAccumRWithKey :: (a -> k -> b -> (a,c)) -> a -> OMap k b -> (a, OMap k c) @-}
 mapAccumRWithKey :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccumRWithKey _ a Tip = (a,Tip)
 mapAccumRWithKey f a (Bin sx kx x l r) =
@@ -1722,6 +1780,7 @@ mapAccumRWithKey f a (Bin sx kx x l r) =
 -- > mapKeys (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 1 "c"
 -- > mapKeys (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 3 "c"
 
+{-@ mapKeys :: (Ord k2) => (k1 -> k2) -> OMap k1 a -> OMap k2 a @-}
 mapKeys :: Ord k2 => (k1->k2) -> Map k1 a -> Map k2 a
 mapKeys f = fromList . foldrWithKey (\k x xs -> (f k, x) : xs) []
 #if __GLASGOW_HASKELL__ >= 700
@@ -1738,6 +1797,7 @@ mapKeys f = fromList . foldrWithKey (\k x xs -> (f k, x) : xs) []
 -- > mapKeysWith (++) (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 1 "cdab"
 -- > mapKeysWith (++) (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 3 "cdab"
 
+{-@ mapKeysWith :: (Ord k2) => (a -> a -> a) -> (k1->k2) -> OMap k1 a -> OMap k2 a @-}
 mapKeysWith :: Ord k2 => (a -> a -> a) -> (k1->k2) -> Map k1 a -> Map k2 a
 mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
 #if __GLASGOW_HASKELL__ >= 700
@@ -1762,7 +1822,7 @@ mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
 -- > mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")]) == fromList [(6, "b"), (10, "a")]
 -- > valid (mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")])) == True
 -- > valid (mapKeysMonotonic (\ _ -> 1)     (fromList [(5,"a"), (3,"b")])) == False
-
+-- LIQUIDFAIL
 mapKeysMonotonic :: (k1->k2) -> Map k1 a -> Map k2 a
 mapKeysMonotonic _ Tip = Tip
 mapKeysMonotonic f (Bin sz k x l r) =
@@ -1901,6 +1961,7 @@ elems = foldr (:) []
 -- > keys (fromList [(5,"a"), (3,"b")]) == [3,5]
 -- > keys empty == []
 
+{-@ keys :: OMap k a -> [k]<{v: k | v >= fld}> @-}
 keys  :: Map k a -> [k]
 keys = foldrWithKey (\k _ ks -> k : ks) []
 
@@ -1910,6 +1971,7 @@ keys = foldrWithKey (\k _ ks -> k : ks) []
 -- > assocs (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 -- > assocs empty == []
 
+{- LIQUIDTODO: assocs :: OMap k a -> [(k, a)]<{v: (k, a) | fst(v) >= fst(fld) }> @-}
 assocs :: Map k a -> [(k,a)]
 assocs m
   = toAscList m
@@ -1943,6 +2005,7 @@ assocs m
 -- > fromList [(5,"a"), (3,"b"), (5, "c")] == fromList [(5,"c"), (3,"b")]
 -- > fromList [(5,"c"), (3,"b"), (5, "a")] == fromList [(5,"a"), (3,"b")]
 
+{-@ fromList :: (Ord k) => [(k,a)] -> OMap k a @-}
 fromList :: Ord k => [(k,a)] -> Map k a
 fromList xs
   = foldlStrict ins empty xs
@@ -1957,6 +2020,7 @@ fromList xs
 -- > fromListWith (++) [(5,"a"), (5,"b"), (3,"b"), (3,"a"), (5,"a")] == fromList [(3, "ab"), (5, "aba")]
 -- > fromListWith (++) [] == empty
 
+{-@ fromListWith :: (Ord k) => (a -> a -> a) -> [(k,a)] -> OMap k a @-}
 fromListWith :: Ord k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromListWith f xs
   = fromListWithKey (\_ x y -> f x y) xs
@@ -1970,6 +2034,7 @@ fromListWith f xs
 -- > fromListWithKey f [(5,"a"), (5,"b"), (3,"b"), (3,"a"), (5,"a")] == fromList [(3, "3ab"), (5, "5a5ba")]
 -- > fromListWithKey f [] == empty
 
+{-@ fromListWithKey :: (Ord k) => (k -> a -> a -> a) -> [(k,a)] -> OMap k a @-}
 fromListWithKey :: Ord k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
 fromListWithKey f xs
   = foldlStrict ins empty xs
@@ -1984,6 +2049,7 @@ fromListWithKey f xs
 -- > toList (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 -- > toList empty == []
 
+{- LIQUIDTODO: toList:: OMap k a -> [(k, a)]<{v: (k, a) | fst(v) > fst(fld) }> @-}
 toList :: Map k a -> [(k,a)]
 toList = toAscList
 
@@ -1992,6 +2058,7 @@ toList = toAscList
 --
 -- > toAscList (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 
+{- LIQUIDTODO: toAscList :: OMap k a -> [(k, a)]<{v: (k, a) | fst(v) > fst(fld) }> @-}
 toAscList :: Map k a -> [(k,a)]
 toAscList = foldrWithKey (\k x xs -> (k,x):xs) []
 
@@ -2000,6 +2067,7 @@ toAscList = foldrWithKey (\k x xs -> (k,x):xs) []
 --
 -- > toDescList (fromList [(5,"a"), (3,"b")]) == [(5,"a"), (3,"b")]
 
+{- LIQUIDTODO: toAscList :: OMap k a -> [(k, a)]<{v: (k, a) | fst(v) < fst(fld) }> @-}
 toDescList :: Map k a -> [(k,a)]
 toDescList = foldlWithKey (\xs k x -> (k,x):xs) []
 
@@ -2053,6 +2121,7 @@ foldlFB = foldlWithKey
 -- > valid (fromAscList [(3,"b"), (5,"a"), (5,"b")]) == True
 -- > valid (fromAscList [(5,"a"), (3,"b"), (5,"b")]) == False
 
+{- LIQUIDTODO fromAscList :: (Eq k) => [(k,a)]<{v: (k, a) | fst(v) > fst(fld)}> -> OMap k a -}
 fromAscList :: Eq k => [(k,a)] -> Map k a
 fromAscList xs
   = fromAscListWithKey (\_ x _ -> x) xs
@@ -2067,6 +2136,7 @@ fromAscList xs
 -- > valid (fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")]) == True
 -- > valid (fromAscListWith (++) [(5,"a"), (3,"b"), (5,"b")]) == False
 
+{- LIQUIDTODO fromAscListWith :: (Eq k) => (a -> a -> a) -> [(k,a)]<{v: (k, a) | fst(v) > fst(fld)}> -> OMap k a -}
 fromAscListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromAscListWith f xs
   = fromAscListWithKey (\_ x y -> f x y) xs
@@ -2083,6 +2153,7 @@ fromAscListWith f xs
 -- > valid (fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b"), (5,"b")]) == True
 -- > valid (fromAscListWithKey f [(5,"a"), (3,"b"), (5,"b"), (5,"b")]) == False
 
+{- LIQUIDTODO fromAscListWithKey :: (Eq k) => (k -> a -> a -> a) -> [(k,a)]<{v: (k, a) | fst(v) > fst(fld)}> -> OMap k a -}
 fromAscListWithKey :: Eq k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
 fromAscListWithKey f xs
   = fromDistinctAscList (combineEq f xs)
@@ -2110,6 +2181,7 @@ fromAscListWithKey f xs
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a")])          == True
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a"), (5,"b")]) == False
 
+{- LIQUIDTODO fromDistinctAscList :: [(k,a)]<{v: (k, a) | fst(v) > fst(fld)}> -> OMap k a -}
 fromDistinctAscList :: [(k,a)] -> Map k a
 fromDistinctAscList xs
   = create const (length xs) xs
@@ -2236,7 +2308,8 @@ filterLt (JustS b) t = filter' b t
 -- > split 5 (fromList [(5,"a"), (3,"b")]) == (singleton 3 "b", empty)
 -- > split 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], empty)
 
-split :: Ord k => k -> Map k a -> (Map k a,Map k a)
+{-@ split :: (Ord k) => x:k -> OMap k a -> (OMap {v: k | v < x} a, OMap {v:k | v > x} a) @-}
+split :: Ord k => k -> Map k a -> (Map k a, Map k a)
 split k t = k `seq`
   case t of
     Tip            -> (Tip, Tip)
@@ -2257,6 +2330,7 @@ split k t = k `seq`
 -- > splitLookup 5 (fromList [(5,"a"), (3,"b")]) == (singleton 3 "b", Just "a", empty)
 -- > splitLookup 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], Nothing, empty)
 
+{-@ splitLookup :: (Ord k) => x:k -> OMap k a -> (OMap {v: k | v < x} a, Maybe a, OMap {v:k | v > x} a) @-}
 splitLookup :: Ord k => k -> Map k a -> (Map k a,Maybe a,Map k a)
 splitLookup k t = k `seq`
   case t of
@@ -2301,6 +2375,7 @@ splitLookup k t = k `seq`
 {--------------------------------------------------------------------
   Join
 --------------------------------------------------------------------}
+
 join :: k -> a -> Map k a -> Map k a -> Map k a
 join kx x Tip r  = insertMin kx x r
 join kx x l Tip  = insertMax kx x l

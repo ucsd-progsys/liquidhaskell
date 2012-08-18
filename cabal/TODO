@@ -17,7 +17,25 @@ first tests/pos/Map.hs
 type OMap k a = Map <{v: k | v < key}, {v: k | v > key}> k a
 
 {-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-} <-------------------- HEREHEREHEREHEREHERE
-   
+
+-> Remove "assert" in spec (update haskell.vim too)
+
+-> Cannot deal with union/intersection because of glue/merge 
+   which will screw up the balanceL/balanceR so may want to 
+   comment out.
+    
+   [glue l r]
+
+   requires ALL elts of l less than ALL ELTS of r ...
+
+-> cleanest solution? "variable packing" a la astree?
+
+        l ~ r
+
+   when you unfold l update r (or vice-versa) whats a clean way to do it?
+
+
+
 Tuple Refinements
 =================
 
@@ -345,6 +363,11 @@ SLICE causes problem in neg/ass0.hs, doesn't really help either so may as well n
 
 
 
+Benchmark Tags
+==============
 
+- LIQUIDFAIL : impossible to do verify the spec here
+
+- LIQUIDTODO : possible with some further hacking
 
 
