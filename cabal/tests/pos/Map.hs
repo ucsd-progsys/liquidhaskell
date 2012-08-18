@@ -25,12 +25,12 @@ data Pair k v <p :: k -> k -> Bool, l :: k -> k -> Bool, r :: k -> k -> Bool>
   @-}
 data Pair k v = P k v (Map k v)
 
-{-@ assert singleton :: k -> a -> OMap k a @-}
+{-@ singleton :: k -> a -> OMap k a @-}
 singleton :: k -> a -> Map k a
 singleton k x
   = Bin 1 k x Tip Tip
 
-{-@ assert insert :: (Ord k) => k -> a -> (OMap k a) -> (OMap k a) @-}
+{-@ insert :: (Ord k) => k -> a -> (OMap k a) -> (OMap k a) @-}
 insert :: Ord k => k -> a -> Map k a -> Map k a
 insert kx x t
   = case t of 
@@ -41,7 +41,7 @@ insert kx x t
               GT -> balance ky y l (insert kx x r)
               EQ -> Bin sz kx x l r
 
-{-@ assert delete :: Ord k => k -> OMap k a -> OMap k a @-}
+{-@ delete :: (Ord k) => k -> OMap k a -> OMap k a @-}
 delete :: Ord k => k -> Map k a -> Map k a
 delete k t 
   = case t of 

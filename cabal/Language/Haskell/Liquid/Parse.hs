@@ -243,7 +243,7 @@ bbaseP :: Parser (Reft -> BareType)
 bbaseP 
   =  liftM2 bLst (brackets bareTypeP) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
- <|> try (liftM3 bCon upperIdP predicatesP (sepBy bareTypeP blanks) )
+ <|> try (liftM3 bCon upperIdP predicatesP (sepBy bareArgP {- bareTypeP -} blanks) )
  <|> liftM2 bRVar lowerIdP monoPredicateP 
 
 bareAllP 
