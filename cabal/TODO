@@ -9,9 +9,6 @@ TODO
 * benchmarks: Data.Text
 * tuple-refinements
 
-Failed 4 tests: pos/BST.hs, pos/ListLen-LType.hs, pos/Map.hs, pos/fixme.hs
-
-
 Benchmarks containers.Map
 =========================
 
@@ -19,9 +16,8 @@ first tests/pos/Map.hs
 
 type OMap k a = Map <{v: k | v < key}, {v: k | v > key}> k a
 
-{-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-} <-------------------- HEREHEREHEREHEREHERE
+{-@ insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-} <-------------------- HEREHEREHEREHEREHERE
 
--> Remove "assert" in spec (update haskell.vim too)
 
 -> [glue/merge] added explicit witnesses (in "LIQUID" comments)
         > Cannot deal with union/intersection because of glue/merge 
