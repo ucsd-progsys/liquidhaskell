@@ -2,8 +2,12 @@ module Map where
 
 import Language.Haskell.Liquid.Prelude
 
+-- LIQUID: There is some bizarre interaction between the names in Map-pred
+-- and Pair-pred -- because the error goes away if you remove "Pair"
+-- altogether from the code.
+
 {-@ 
-  data Map k a <l :: root:k -> x1:k -> Bool, r :: root:k -> x1:k -> Bool>
+  data Map k a <l :: x00:k -> x1:k -> Bool, r :: x00:k -> x1:k -> Bool>
       = Tip 
       | Bin (sz    :: Size) 
             (key   :: k) 
@@ -12,12 +16,17 @@ import Language.Haskell.Liquid.Prelude
             (right :: Map <l, r> (k <r key>) a) 
   @-}
 
-{-@ type OMap k a = Map <{v:k | v < root }, {v:k | v > root}> k a @-}
+{-@ type OMap k a = Map <{v:k | v < x00 }, {v:k | v > x00}> k a @-}
 
 data Map k a = Tip
              | Bin Size k a (Map k a) (Map k a)
 
 type Size    = Int
+{-@
+data Pair k v <p :: x0:k -> x1:k -> Bool, l :: x0:k -> x1:k -> Bool, r :: x0:k -> x1:k -> Bool>
+  = P (fld0 :: k) (fld1 :: v) (tree :: Map <l, r> (k <p fld0>) v) 
+  @-}
+data Pair k v = P k v (Map k v)
 
 {-@ singleton :: k -> a -> OMap k a @-}
 singleton :: k -> a -> Map k a
@@ -51,22 +60,24 @@ glue :: k -> Map k a -> Map k a -> Map k a
 glue k Tip r = r
 glue k l Tip = l
 glue k l r
-  | size l > size r = let (km1, vm, lm) = deleteFindMax l in balance km1 vm lm r
-  | otherwise       = let (km2, vm, rm) = deleteFindMin r in balance km2 vm l rm
+  | size l > size r = let P km1 vm lm = deleteFindMax l in balance km1 vm lm r
+  | otherwise       = let P km2 vm rm = deleteFindMin r in balance km2 vm l rm
 
+deleteFindMax :: Map k a -> Pair k a
 deleteFindMax t 
   = case t of
-      Bin _ k x l Tip -> (k, x, l)
-      Bin _ k x l r -> let (km3, vm, rm) = deleteFindMax r in (km3, vm, (balance k x l rm))
-      Tip           -> (error ms, error ms, Tip)
+      Bin _ k x l Tip -> P k x l
+      Bin _ k x l r -> let P km3 vm rm = deleteFindMax r in P km3 vm (balance k x l rm) 
+      Tip             -> P (error ms) (error ms) Tip
   where ms = "Map.deleteFindMax : can not return the maximal element of an empty Map"   
 
 
+deleteFindMin :: Map k a -> Pair k a
 deleteFindMin t 
   = case t of
-      Bin _ k x Tip r -> (k, x, r)
-      Bin _ k x l r -> let (km4, vm, lm) = deleteFindMin l in (km4, vm, (balance k x lm r))
-      Tip             -> (error ms, error ms, Tip)
+      Bin _ k x Tip r -> P k x r
+      Bin _ k x l r -> let P km4 vm lm = deleteFindMin l in P km4 vm (balance k x lm r) 
+      Tip             -> P (error ms) (error ms) Tip
   where ms = "Map.deleteFindMin : can not return the maximal element of an empty Map"   
 
 

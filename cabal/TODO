@@ -12,12 +12,7 @@ TODO
 Benchmarks containers.Map
 =========================
 
-first tests/pos/Map.hs
-
-type OMap k a = Map <{v: k | v < key}, {v: k | v > key}> k a
-
-{-@ insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-} <-------------------- HEREHEREHEREHEREHERE
-
+-> see tests/pos/Map-wierd.hs
 
 -> [glue/merge] added explicit witnesses (in "LIQUID" comments)
         > Cannot deal with union/intersection because of glue/merge 
