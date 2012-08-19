@@ -364,8 +364,7 @@ splitC (SubC γ t1 (RAll ((RP p@(PV _ τ _))) t2))
 splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
 	= bsplitC γ t1 t2 
    ++ (concatMap splitC (zipWith (SubC γ) t1s t2s)) 
-   ++ (concatMap (rsplitC γ) (safeZip "splitC2" (safeZip "splitC1" r1s r2s) ps))
- where ps = rTyConPs c'
+   ++ (concatMap (rsplitC γ) (rsplits r1s r2s (rTyConPs c')))
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
@@ -391,6 +390,12 @@ bsplitC γ t1 t2
         r1'     = refTypeSortedReft t1
         r2'     = refTypeSortedReft t2
         ci      = Ci (loc γ)
+
+
+rsplits [] _ _      = []
+rsplits _ [] _      = []
+rsplits _ _ []      = []
+rsplits r1s r2s ps  = safeZip "rsplits1" (safeZip "rsplits2" r1s r2s) ps
 
 rsplitC γ ((RMono r1, RMono r2), (PV _ t as))
   = [F.SubC env' F.PTrue r1' r2' Nothing [] ci]
