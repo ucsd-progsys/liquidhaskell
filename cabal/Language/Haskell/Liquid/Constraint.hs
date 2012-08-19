@@ -179,7 +179,7 @@ normalize γ = addRTyConInv (invs γ) . normalizePds
   | x == F.dummySymbol
   = γ
   | x `memberREnv` (renv γ)
-  = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ show x -- ++ " in REnv!\n\n" ++ show γ
+  = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ F.symbolString x -- ++ " in REnv!\n\n" ++ show γ
   | otherwise
   =  γ ++= (msg, x, r) 
 
@@ -375,9 +375,7 @@ splitC (SubC _ (RCls c1 _) (RCls c2 _)) -- | c1 == c2
   = []
 
 splitC (SubC _ t1 t2) 
-  = -- traceShow ("\nWARNING: splitC mismatch:\n" 
-				--														++ showPpr t1 ++ "\n<\n" ++ showPpr t2 ++ "\n") $
-     []
+  = []
 
 chkTyConIds (RTyCon _ ps1) (RTyCon _ ps2) 
  = length ps1 == length ps2
@@ -630,7 +628,7 @@ consCB γ b@(NonRec x e)
        to' <- consBind γ (x, e, to)
        return $ extender γ (x, to')
 
-extender γ (x, Just t) = (γ, "extender") += (mkSymbol x, t)
+extender γ (x, Just t) = γ ++= ("extender", mkSymbol x, t)
 extender γ _           = γ
 
 consBind γ (x, e, Just t) 
