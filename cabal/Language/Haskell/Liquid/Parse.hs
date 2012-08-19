@@ -289,7 +289,11 @@ predVarTypeP
   =  try ((liftM (: []) predVarArgP) <* reserved "->" <* reserved boolConName)
  <|> liftM2 (:) predVarArgP (reserved "->" >> predVarTypeP)
 
-predVarArgP = xyP predVarIdP colon tyVarIdP 
+-- predVarArgP = xyP predVarIdP colon tyVarIdP 
+
+predVarArgP = xyP argP spaces tyVarIdP
+  where argP  = stringSymbol <$> argP'
+        argP' = try (lowerIdP <* colon) <|> positionNameP
 
 xyP lP sepP rP
   = liftM3 (\x _ y -> (x, y)) lP (spaces >> sepP) rP
@@ -306,13 +310,16 @@ bareFun2P
        t2 <- bareTypeP
        return $ bareArrow dummyBind t1 a t2 
 
+
+positionNameP = dummyNamePos <$> getPosition
+  
 dummyNamePos pos = "dummy_" ++ name ++ ['@'] ++ line ++ [','] ++ colum
-  where name  = sourceName pos
-        line  = show $ sourceLine pos  
-        colum = show $ sourceColumn pos  
+    where name  = sourceName pos
+          line  = show $ sourceLine pos  
+          colum = show $ sourceColumn pos  
 
 bareFunP  
-  = do b  <- try bindP <|> (return dummyBind) -- (dummyNamePos <$> getPosition)  
+  = do b  <- try bindP <|> (return dummyBind) -- (positionNameP)
        t1 <- bareArgP 
        a  <- arrowP
        t2 <- bareTypeP

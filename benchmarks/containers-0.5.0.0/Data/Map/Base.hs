@@ -322,7 +322,7 @@ data Map k a  = Bin {-# UNPACK #-} !Size !k a !(Map k a) !(Map k a)
 type Size     = Int
 
 {-@ 
-  data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
+  data Map k a <l :: x0:k -> x1:k -> Bool, r :: x0:k -> x1:k -> Bool>
        = Bin (sz    :: Size) 
              (key   :: k) 
              (value :: a) 
@@ -331,7 +331,7 @@ type Size     = Int
        | Tip 
   @-}
 
-{-@ type OMap k a = Map <{v:k | v < key }, {v:k | v > key}> k a @-}
+{-@ type OMap k a = Map <{v:k | v < x0}, {v:k | v > x0}> k a @-}
 
 instance (Ord k) => Monoid (Map k v) where
     mempty  = empty
