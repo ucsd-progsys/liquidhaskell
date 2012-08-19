@@ -18,7 +18,9 @@ Benchmarks containers.Map
     Solve.acsolve                 280.170 s
       refine                        73.057 s
    ????
-
+    Solve.acsolve                 300.851 s
+      refine                        87.829 s
+ 
 -> [glue/merge] added explicit witnesses (in "LIQUID" comments)
         > Cannot deal with union/intersection because of glue/merge 
           which will screw up the balanceL/balanceR so may want to 

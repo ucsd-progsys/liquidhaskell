@@ -304,6 +304,7 @@ replaceReft (RApp c ts rs _) r' = RApp c ts rs r'
 replaceReft (RVar a _) r'      = RVar a      r' 
 replaceReft t _                = t 
 
+-- TODO: merge this with rConApp/rApp we should maintain this INVARIANT at all times.
 addTyConInfo :: (PVarable pv) => M.Map TC.TyCon RTyCon -> RRType pv Reft -> RRType pv Reft
 addTyConInfo = mapBot . addTCI
 addTCI tyi t@(RApp c ts rs r)
@@ -1010,7 +1011,6 @@ lookupREnv x (REnv env)   = M.lookup x env
 emptyREnv                 = REnv M.empty
 memberREnv x (REnv env)   = M.member x env
 domREnv (REnv env)        = M.keys env
-
 
 instance Outputable REnv where
   ppr (REnv m)         = vcat $ map pprxt $ M.toAscList m

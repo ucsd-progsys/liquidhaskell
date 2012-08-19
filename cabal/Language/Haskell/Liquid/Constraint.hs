@@ -63,19 +63,24 @@ import Control.DeepSeq
 ------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
 
-consGrty γ (x, t) 
-  =  addC (SubC γ' xt t) "consGrty: upperBound" 
-  >> addC (SubC γ' t xt) "consGrty: lowerBound"
-  where γ' = γ `setLoc` (getSrcSpan x) 
-        xt = γ ?= (mkSymbol x)
+-- consGrty γ (x, t) 
+--   =  addC (SubC γ' xt t) ("consGrty: upperBound " ++ xs)  
+--   >> addC (SubC γ' t xt) ("consGrty: lowerBound " ++ xs) 
+--   where γ' = γ `setLoc` (getSrcSpan x) 
+--         xt = γ ?= (mkSymbol x)
+--         xs = showPpr x
+
+-- consAct info penv
+--   = do γ   <- initEnv info penv
+--        γ1  <- foldM consCB γ $ cbs info
+--        tyi <- liftM tyConInfo get 
+--        let grty' = mapSnd (addTyConInfo tyi) <$> grty info  
+--        forM_ grty' (consGrty γ1)
 
 consAct info penv
-  = do γ   <- initEnv info penv
-       γ1  <- foldM consCB γ $ cbs info
-       tyi <- liftM tyConInfo get 
-       let grty' = mapSnd (addTyConInfo tyi) <$> grty info  
-       forM_ grty' (consGrty γ1)
- 
+  = do γ <- initEnv info penv
+       foldM consCB γ (cbs info)
+
 generateConstraints :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fws } { globals = gs }
   where st  = execState act $ initCGI info 
@@ -106,19 +111,21 @@ initEnv info penv
   = do defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- liftM tyConInfo get 
        let f0    = defaults           -- default TOP reftype      (for all vars) 
-       let f2    = assm info          -- assumed refinements      (for import ANNs)
+       let f1    = grty info          -- asserted refinements     (for defined vars)
+       let f2    = assm info          -- assumed refinements      (for imported vars)
        let f3    = ctor $ spec info   -- constructor refinements  (for measures) 
-       let bs    = ((second (addTyConInfo tyi))  . (unifyts penv) <$> concat [f0, f2, f3])
-       let γ0    = measEnv (spec info) penv
+       let bs    = ((second (addTyConInfo tyi))  . (unifyts penv) <$> concat [f0, f1, f2, f3])
+       let γ0    = measEnv (spec info) penv f1
        return    $ foldl' (++=) γ0 [("initEnv", x, y) | (x, y) <- bs] 
   
-measEnv sp penv 
-  = CGE { loc  = noSrcSpan
-        , renv = fromListREnv $ meas sp 
-        , penv = penv 
-        , fenv = F.fromListSEnv $ second refTypeSortedReft <$> meas sp 
-        , recs = S.empty 
-        , invs = mkRTyConInv $ invariants sp
+measEnv sp penv xts 
+  = CGE { loc   = noSrcSpan
+        , renv  = fromListREnv $ meas sp 
+        , penv  = penv 
+        , fenv  = F.fromListSEnv $ second refTypeSortedReft <$> meas sp 
+        , recs  = S.empty 
+        , invs  = mkRTyConInv $ invariants sp
+        , grtys = mkVarEnv xts
         } 
 
 assm = {- traceShow ("****** assm *****\n") . -} assm_grty impVars 
@@ -138,12 +145,13 @@ unifyts penv (x, t) = (x', unify pt t)
 -------------------------------------------------------------------
 
 data CGEnv 
-  = CGE { loc  :: !SrcSpan          -- where in orig src
-        , renv :: !REnv             -- bindings in scope
-        , penv :: !(F.SEnv PrType)  -- bindings in scope
-        , fenv :: !F.FEnv           -- the fixpoint environment 
-        , recs :: !(S.Set Var)      -- recursive defs being processed (for annotations)
-        , invs :: !RTyConInv        -- datatype invariants 
+  = CGE { loc   :: !SrcSpan          -- where in orig src
+        , renv  :: !REnv             -- bindings in scope
+        , penv  :: !(F.SEnv PrType)  -- bindings in scope
+        , fenv  :: !F.FEnv           -- the fixpoint environment 
+        , recs  :: !(S.Set Var)      -- recursive defs being processed (for annotations)
+        , invs  :: !RTyConInv        -- datatype invariants 
+        , grtys :: !(VarEnv RefType) -- top-level variables with (assert)-guarantees
         } deriving (Data, Typeable)
 
 instance Outputable CGEnv where
@@ -153,6 +161,7 @@ instance Show CGEnv where
   show = showPpr
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
+(++=) :: CGEnv-> (String, F.Symbol, RefType) -> CGEnv
 γ ++= (msg, x, r') 
   | isBase r 
   = γ' { fenv = F.insertSEnv x (refTypeSortedReft r) (fenv γ) }
@@ -410,8 +419,8 @@ newtype CGSpec = CGSpec (Ms.Spec F.Sort DataCon)
 data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , hsWfs      :: ![WfC]
                      , fixCs      :: ![FixSubC]
-                     , fixWfs     :: ![FixWfC] 
-                     , globals    :: !F.FEnv -- [(F.Symbol, F.SortedReft)] 
+                     , fixWfs     :: ![FixWfC]
+                     , globals    :: !F.FEnv
                      , freshIndex :: !Integer 
                      , annotMap   :: !(AnnInfo Annot) 
                      , tyConInfo  :: !(M.Map TC.TyCon RTyCon) 
@@ -561,6 +570,7 @@ refreshRefType (RFun b t t' _)
   = liftM3 rFun fresh (refresh t) (refresh t')
   | otherwise
   = liftM2 (rFun b) (refresh t) (refresh t')
+-- TODO: addTyConInfo? why is there nothing here?
 refreshRefType (RApp (rc@RTyCon {rTyCon = c}) ts rs r)  
   = do s <- get 
        let RTyCon c0 ps = M.findWithDefault rc c $ tyConInfo s
@@ -589,25 +599,63 @@ isBaseTyCon c
 
 consCB :: CGEnv -> CoreBind -> CG CGEnv 
 
+-- OLD
+-- consCB γ b@(NonRec x e)
+--   = do t <- unify pt <$> consE γ e
+--        addIdA x (Left t)
+--        return $  γ ++= ("consCB2", x', t)
+--     where x' = mkSymbol x
+--           pt = getPrType γ x'
+--           
+-- consCB γ (Rec xes) 
+--   = do rts   <- mapM (\e -> freshTy_pretty e $ exprType e) es
+--        let ts = zipWith unify pts rts 
+--        let γ' = foldl' (\γ z -> (γ, "consCB1") += z) (γ `withRecs` xs) (zip vs ts)
+--        zipWithM_ (cconsE γ') es  ts
+--        zipWithM_ addIdA xs (Left <$> ts)
+--        mapM_     addW (WfC γ <$> rts)
+--        return γ'
+--    where (xs, es) = unzip xes
+--          vs       = mkSymbol    <$> xs
+--          pts      = getPrType γ <$> vs
+
+-- NEW
 consCB γ (Rec xes) 
-  = do rts <- mapM (\e -> freshTy_pretty e $ exprType e) es
-       let ts = zipWith unify pts rts -- (\(pt, rt) -> unify pt rt) <$> (zip pts rts)
-       let γ' = foldl' (\γ z -> (γ, "consCB1") += z) (γ `withRecs` xs) (zip vs ts)
-       zipWithM_ (cconsE γ') es  ts
-       zipWithM_ addIdA xs (Left <$> ts)
-       mapM_     addW (WfC γ <$> rts)
-       return $ γ'
-    where (xs, es) = unzip xes
-          vs       = mkSymbol    <$> xs
-          pts      = getPrType γ <$> vs
+  = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+       let xts = [(x, to) | (x, _, to) <- xets, not (x `elemVarEnv` (grtys γ))]
+       let γ'  =  foldl' extender (γ `withRecs` (fst <$> xts)) xts
+       mapM_ (consBind γ') xets
+       return γ' 
 
 consCB γ b@(NonRec x e)
-  = do rt <- consE γ e
-       let t = {-traceShow ("Unify for "  ++ show x' ++ "\n\n"++ show e ++ "\n\n" ++ show rt ++ "\n" ++ show pt ++ "\n")$-} unify pt rt
+  = do to  <- varTemplate γ (x, Nothing) 
+       to' <- consBind γ (x, e, to)
+       return $ extender γ (x, to')
+
+extender γ (x, Just t) = (γ, "extender") += (mkSymbol x, t)
+extender γ _           = γ
+
+consBind γ (x, e, Just t) 
+  = do cconsE γ e t
        addIdA x (Left t)
-       return $  γ ++= ("consCB2", x', t)
-    where x' = mkSymbol x
-          pt = getPrType γ x'
+       return Nothing 
+
+consBind γ (x, e, Nothing) 
+   = do t <- unifyVar γ x <$> consE γ e
+        addIdA x (Left t)
+        return $ Just t
+
+varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Maybe RefType)
+varTemplate γ (x, eo)
+  = case (eo, lookupVarEnv (grtys γ) x) of
+      (_, Just t) -> return $ Just t
+      (Just e, _) -> do t <- unifyVar γ x <$> freshTy_pretty e (exprType e)
+                        addW (WfC γ t)
+                        return $ Just t
+      (_,      _) -> return Nothing
+
+unifyVar γ x rt = unify (getPrType γ (mkSymbol x)) rt
+
 
 -------------------------------------------------------------------
 -------------------- Generation: Expression -----------------------
@@ -846,8 +894,8 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toType t, t)
 instance NFData Cinfo 
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x4 x5 x6) 
-    = x1 `seq` rnf x2 `seq` x3 `seq` rnf x4 `seq` rnf x5 `seq` rnf x6 
+  rnf (CGE x1 x2 x3 x4 x5 x6 x7) 
+    = x1 `seq` rnf x2 `seq` x3 `seq` rnf x4 `seq` rnf x5 `seq` rnf x6  `seq` x7 `seq` ()
 
 instance NFData SubC where
   rnf (SubC x1 x2 x3) 

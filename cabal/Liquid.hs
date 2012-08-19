@@ -44,7 +44,8 @@ liquidOne includes target =
      donePhase "solve"
      {-# SCC "annotate" #-} annotate target sol $ annotMap cgi
      donePhase "annotate"
-     putStrLn $ "*************** DONE: " ++ showPpr r ++ " ********************"
+     donePhase (showPpr r) 
+     -- putStrLn $ "*************** DONE: " ++ showPpr r ++ " ********************"
      return r
 
 {-

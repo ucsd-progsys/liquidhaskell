@@ -316,7 +316,7 @@ m1 \\ m2 = difference m1 m2
 -- | A Map from keys @k@ to values @a@.
 
 -- See Note: Order of constructors
-data Map k a  = Bin {-# UNPACK #-} !Size !k a !(Map k a) !(Map k a)
+data Map k a  = Bin Size k a (Map k a) (Map k a)
               | Tip
 
 type Size     = Int
@@ -788,7 +788,7 @@ delete = go
         case compare k kx of
             LT -> balanceR kx x (go k l) r
             GT -> balanceL kx x l (go k r)
-            EQ -> glue {- LIQUID kx -} l r
+            EQ -> glue kx l r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE delete #-}
 #else
@@ -872,7 +872,7 @@ updateWithKey = go
            GT -> balanceL kx x l (go f k r)
            EQ -> case f kx x of
                    Just x' -> Bin sx kx x' l r
-                   Nothing -> glue {- LIQUID kx -} l r
+                   Nothing -> glue kx l r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateWithKey #-}
 #else
@@ -903,7 +903,7 @@ updateLookupWithKey = go
                GT -> let (found,r') = go f k r in (found,balanceL kx x l r')
                EQ -> case f kx x of
                        Just x' -> (Just x',Bin sx kx x' l r)
-                       Nothing -> (Just x,glue {- LIQUID kx -} l r)
+                       Nothing -> (Just x,glue kx l r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateLookupWithKey #-}
 #else
@@ -939,7 +939,7 @@ alter = go
                GT -> balance kx x l (go f k r)
                EQ -> case f (Just x) of
                        Just x' -> Bin sx kx x' l r
-                       Nothing -> glue {- LIQUID kx -} l r
+                       Nothing -> glue kx l r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE alter #-}
 #else
@@ -1043,7 +1043,7 @@ updateAt f i t = i `seq`
       GT -> balanceL kx x l (updateAt f (i-sizeL-1) r)
       EQ -> case f kx x of
               Just x' -> Bin sx kx x' l r
-              Nothing -> glue {- LIQUID kx -} l r
+              Nothing -> glue kx l r
       where
         sizeL = size l
 
@@ -1063,7 +1063,7 @@ deleteAt i t = i `seq`
     Bin _ kx x l r -> case compare i sizeL of
       LT -> balanceR kx x (deleteAt i l) r
       GT -> balanceL kx x l (deleteAt (i-sizeL-1) r)
-      EQ -> glue {- LIQUID kx -} l r
+      EQ -> glue kx l r
       where
         sizeL = size l
 
@@ -1169,8 +1169,8 @@ updateMaxWithKey f (Bin _ kx x l r)    = balanceL kx x l (updateMaxWithKey f r)
 -- > minViewWithKey (fromList [(5,"a"), (3,"b")]) == Just ((3,"b"), singleton 5 "a")
 -- > minViewWithKey empty == Nothing
 
-{-@ minViewWithKey :: OMap k a -> Maybe ((k, a), OMap k a) @-}
-minViewWithKey :: Map k a -> Maybe ((k,a), Map k a)
+{-@ minViewWithKey :: OMap k a -> Maybe (k, a, OMap k a) @-}
+minViewWithKey :: Map k a -> Maybe (k, a, Map k a)
 minViewWithKey Tip = Nothing
 minViewWithKey x   = Just (deleteFindMin x)
 
@@ -1180,8 +1180,8 @@ minViewWithKey x   = Just (deleteFindMin x)
 -- > maxViewWithKey (fromList [(5,"a"), (3,"b")]) == Just ((5,"a"), singleton 3 "b")
 -- > maxViewWithKey empty == Nothing
 
-{-@ maxViewWithKey :: OMap k a -> Maybe ((k, a), OMap k a) @-}
-maxViewWithKey :: Map k a -> Maybe ((k,a), Map k a)
+{-@ maxViewWithKey :: OMap k a -> Maybe (k, a, OMap k a) @-}
+maxViewWithKey :: Map k a -> Maybe (k, a, Map k a)
 maxViewWithKey Tip = Nothing
 maxViewWithKey x   = Just (deleteFindMax x)
 
@@ -1195,7 +1195,7 @@ maxViewWithKey x   = Just (deleteFindMax x)
 {-@ minView :: OMap k a -> Maybe (a, OMap k a) @-}
 minView :: Map k a -> Maybe (a, Map k a)
 minView Tip = Nothing
-minView x   = Just (first snd $ deleteFindMin x)
+minView x   = let (_, m, t) = deleteFindMin x in Just (m ,t) -- (first snd $ deleteFindMin x)
 
 -- | /O(log n)/. Retrieves the value associated with maximal key of the
 -- map, and the map stripped of that element, or 'Nothing' if passed an
@@ -1206,7 +1206,7 @@ minView x   = Just (first snd $ deleteFindMin x)
 {-@ maxView :: OMap k a -> Maybe (a, OMap k a) @-}
 maxView :: Map k a -> Maybe (a, Map k a)
 maxView Tip = Nothing
-maxView x   = Just (first snd $ deleteFindMax x)
+maxView x   = let (_, m, t) = deleteFindMax x in Just (m, t)
 
 -- Update the 1st component of a tuple (special case of Control.Arrow.first)
 first :: (a -> b) -> (a, c) -> (b, c)
@@ -1326,9 +1326,9 @@ difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
 hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
 hedgeDiff _   _   Tip              _ = Tip
 hedgeDiff blo bhi (Bin _ kx x l r) Tip = join kx x (filterGt blo l) (filterLt bhi r)
-hedgeDiff blo bhi t (Bin _ kx _ l r) = merge {- LIQUID: kx -} (hedgeDiff blo bmi (trim blo bmi t) l)
+hedgeDiff blo bhi t (Bin _ kx _ l r) = merge kx (hedgeDiff blo bmi (trim blo bmi t) l)
                                              (hedgeDiff bmi bhi (trim bmi bhi t) r)
-  where bmi = JustS kx  -- LIQUID: kx is the separator in [merge]
+  where bmi = JustS kx
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE hedgeDiff #-}
 #endif
@@ -1393,7 +1393,7 @@ hedgeInt _ _ _   Tip = Tip
 hedgeInt _ _ Tip _   = Tip
 hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi t2)
                                            r' = hedgeInt bmi bhi r (trim bmi bhi t2)
-                                       in if kx `member` t2 then join kx x l' r' else merge {- LIQUID: kx -} l' r'
+                                       in if kx `member` t2 then join kx x l' r' else merge kx l' r'
   where bmi = JustS kx
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE hedgeInt #-}
@@ -1483,11 +1483,11 @@ mergeWithKey f g1 g2 = go
                                                  r' = hedgeMerge bmi bhi r trim_t2
                                              in case found of
                                                   Nothing -> case g1 (singleton kx x) of
-                                                               Tip -> merge {- LIQUID kx -} l' r'
+                                                               Tip -> merge kx l' r'
                                                                (Bin _ _ x' Tip Tip) -> join kx x' l' r'
                                                                _ -> error "mergeWithKey: Given function only1 does not fulfil required conditions (see documentation)"
                                                   Just x2 -> case f kx x x2 of
-                                                               Nothing -> merge {- LIQUID kx -} l' r'
+                                                               Nothing -> merge kx l' r'
                                                                Just x' -> join kx x' l' r'
       where bmi = JustS kx
 {-# INLINE mergeWithKey #-}
@@ -1602,7 +1602,7 @@ filterWithKey :: (k -> a -> Bool) -> Map k a -> Map k a
 filterWithKey _ Tip = Tip
 filterWithKey p (Bin _ kx x l r)
   | p kx x    = join kx x (filterWithKey p l) (filterWithKey p r)
-  | otherwise = merge {- LIQUID kx -} (filterWithKey p l) (filterWithKey p r)
+  | otherwise = merge kx (filterWithKey p l) (filterWithKey p r)
 
 -- | /O(n)/. Partition the map according to a predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
@@ -1629,8 +1629,8 @@ partition p m
 partitionWithKey :: (k -> a -> Bool) -> Map k a -> (Map k a, Map k a)
 partitionWithKey _ Tip = (Tip,Tip)
 partitionWithKey p (Bin _ kx x l r)
-  | p kx x    = (join kx x l1 r1,merge {- LIQUID kx -} l2 r2)
-  | otherwise = (merge {- LIQUID kx -} l1 r1,join kx x l2 r2)
+  | p kx x    = (join kx x l1 r1,merge kx l2 r2)
+  | otherwise = (merge kx l1 r1,join kx x l2 r2)
   where
     (l1,l2) = partitionWithKey p l
     (r1,r2) = partitionWithKey p r
@@ -1654,7 +1654,7 @@ mapMaybeWithKey :: (k -> a -> Maybe b) -> Map k a -> Map k b
 mapMaybeWithKey _ Tip = Tip
 mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
   Just y  -> join kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
-  Nothing -> merge {- LIQUID -} (mapMaybeWithKey f l) (mapMaybeWithKey f r)
+  Nothing -> merge kx (mapMaybeWithKey f l) (mapMaybeWithKey f r)
 
 -- | /O(n)/. Map values and separate the 'Left' and 'Right' results.
 --
@@ -1683,8 +1683,8 @@ mapEither f m
 mapEitherWithKey :: (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEitherWithKey _ Tip = (Tip, Tip)
 mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
-  Left y  -> (join kx y l1 r1, merge {- LIQUID kx -} l2 r2)
-  Right z -> (merge {- LIQUID kx -} l1 r1, join kx z l2 r2)
+  Left y  -> (join kx y l1 r1, merge kx l2 r2)
+  Right z -> (merge kx l1 r1, join kx z l2 r2)
  where
     (l1,l2) = mapEitherWithKey f l
     (r1,r2) = mapEitherWithKey f r
@@ -2371,11 +2371,11 @@ splitLookup k t = k `seq`
   been able to find out why this is actually the case! Fortunately, it
   doesn't hurt to be a bit more conservative.
 --------------------------------------------------------------------}
-
 {--------------------------------------------------------------------
   Join
 --------------------------------------------------------------------}
 
+{-@ join :: kcut:k -> a -> OMap {v:k | v < kcut} a -> OMap {v:k| v > kcut} a -> OMap k a @-}
 join :: k -> a -> Map k a -> Map k a -> Map k a
 join kx x Tip r  = insertMin kx x r
 join kx x l Tip  = insertMax kx x l
@@ -2383,7 +2383,6 @@ join kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
   | delta*sizeL < sizeR  = balanceL kz z (join kx x l lz) rz
   | delta*sizeR < sizeL  = balanceR ky y ly (join kx x ry r)
   | otherwise            = bin kx x l r
-
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
 insertMax,insertMin :: k -> a -> Map k a -> Map k a
@@ -2402,49 +2401,50 @@ insertMin kx x t
 {--------------------------------------------------------------------
   [merge l r]: merges two trees.
 --------------------------------------------------------------------}
-merge :: {- LIQUID x:k -> -} Map k a -> Map k a -> Map k a
-merge {- LIQUID _ -} Tip r   = r
-merge {- LIQUID _ -} l Tip   = l
-merge {- LIQUID x -} l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
-  | delta*sizeL < sizeR = balanceL ky y (merge {- LIQUID x -} l ly) ry
-  | delta*sizeR < sizeL = balanceR kx x lx (merge {- LIQUID x -} rx r)
-  | otherwise           = glue {- LIQUID x -} l r
+{-@ merge :: kcut:k -> OMap {v:k | v < kcut} a -> OMap {v:k| v > kcut} a -> OMap k a @-}
+merge :: k -> Map k a -> Map k a -> Map k a
+merge _   Tip r   = r
+merge _   l Tip   = l
+merge kcut l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
+  | delta*sizeL < sizeR = balanceL ky y (merge kcut l ly) ry
+  | delta*sizeR < sizeL = balanceR kx x lx (merge kcut rx r)
+  | otherwise           = glue kcut l r
 
 {--------------------------------------------------------------------
   [glue l r]: glues two trees together.
   Assumes that [l] and [r] are already balanced with respect to each other.
 --------------------------------------------------------------------}
-glue :: {- LIQUID kx: k -> -} Map k a -> Map k a -> Map k a
-glue {- _         -} Tip r = r
-glue {- _         -} l Tip = l
-glue {- LIQUID kx -} l r
-  | size l > size r = let ((km,m),l') = deleteFindMax l in balanceR km m l' r
-  | otherwise       = let ((km,m),r') = deleteFindMin r in balanceL km m l r'
-
+{-@ glue :: kcut:k -> OMap {v:k | v < kcut} a -> OMap {v:k| v > kcut} a -> OMap k a @-}
+glue :: k -> Map k a -> Map k a -> Map k a
+glue _    Tip r = r
+glue _    l Tip = l
+glue kcut l r
+  | size l > size r = let (km, m, l') = deleteFindMax l in balanceR km m l' r
+  | otherwise       = let (km, m, r') = deleteFindMin r in balanceL km m l r'
 
 -- | /O(log n)/. Delete and find the minimal element.
 --
 -- > deleteFindMin (fromList [(5,"a"), (3,"b"), (10,"c")]) == ((3,"b"), fromList[(5,"a"), (10,"c")])
 -- > deleteFindMin                                            Error: can not return the minimal element of an empty map
 
-deleteFindMin :: Map k a -> ((k,a),Map k a)
+deleteFindMin :: Map k a -> (k, a, Map k a)
 deleteFindMin t
   = case t of
-      Bin _ k x Tip r -> ((k,x),r)
-      Bin _ k x l r   -> let (km,l') = deleteFindMin l in (km,balanceR k x l' r)
-      Tip             -> (error "Map.deleteFindMin: can not return the minimal element of an empty map", Tip)
+      Bin _ k x Tip r -> (k, x, r)
+      Bin _ k x l r   -> let (km, m, l') = deleteFindMin l in (km, m, balanceR k x l' r)
+      Tip             -> error "Map.deleteFindMin: can not return the minimal element of an empty map"
 
 -- | /O(log n)/. Delete and find the maximal element.
 --
 -- > deleteFindMax (fromList [(5,"a"), (3,"b"), (10,"c")]) == ((10,"c"), fromList [(3,"b"), (5,"a")])
 -- > deleteFindMax empty                                      Error: can not return the maximal element of an empty map
 
-deleteFindMax :: Map k a -> ((k,a),Map k a)
+deleteFindMax :: Map k a -> (k, a, Map k a)
 deleteFindMax t
   = case t of
-      Bin _ k x l Tip -> ((k,x),l)
-      Bin _ k x l r   -> let (km,r') = deleteFindMax r in (km,balanceL k x l r')
-      Tip             -> (error "Map.deleteFindMax: can not return the maximal element of an empty map", Tip)
+      Bin _ k x l Tip -> (k, x, l)
+      Bin _ k x l r   -> let (km, m, r') = deleteFindMax r in (km, m, balanceL k x l r')
+      Tip             -> error "Map.deleteFindMax: can not return the maximal element of an empty map"
 
 
 {--------------------------------------------------------------------
