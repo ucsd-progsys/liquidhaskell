@@ -13,7 +13,7 @@ data Bst k v <l :: x0:k -> x1:k -> Bool, r :: x0:k -> x1:k -> Bool>
 data Bst k v = Empty | Bind k v (Bst k v) (Bst k v)
 
 {-@
-data Pair k v <p :: k -> k -> Bool, l :: k -> k -> Bool, r :: k -> k -> Bool>
+data Pair k v <p :: x0:k -> x1:k -> Bool, l :: x0:k -> x1:k -> Bool, r :: x0:k -> x1:k -> Bool>
   = P (fld0 :: k) (fld1 :: v) (tree :: Bst <l, r> (k <p fld0>) v) 
   @-}
 data Pair k v = P k v (Bst k v)

@@ -9,6 +9,9 @@ TODO
 * benchmarks: Data.Text
 * tuple-refinements
 
+Failed 4 tests: pos/BST.hs, pos/ListLen-LType.hs, pos/Map.hs, pos/fixme.hs
+
+
 Benchmarks containers.Map
 =========================
 

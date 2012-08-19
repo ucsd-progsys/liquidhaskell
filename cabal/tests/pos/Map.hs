@@ -18,9 +18,8 @@ data Map k a = Tip
              | Bin Size k a (Map k a) (Map k a)
 
 type Size    = Int
-
 {-@
-data Pair k v <p :: k -> k -> Bool, l :: k -> k -> Bool, r :: k -> k -> Bool>
+data Pair k v <p :: x0:k -> x1:k -> Bool, l :: x0:k -> x1:k -> Bool, r :: x0:k -> x1:k -> Bool>
   = P (fld0 :: k) (fld1 :: v) (tree :: Map <l, r> (k <p fld0>) v) 
   @-}
 data Pair k v = P k v (Map k v)
