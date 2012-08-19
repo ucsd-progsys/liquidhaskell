@@ -307,10 +307,13 @@ replaceReft t _                = t
 -- TODO: merge this with rConApp/rApp we should maintain this INVARIANT at all times.
 addTyConInfo :: (PVarable pv) => M.Map TC.TyCon RTyCon -> RRType pv Reft -> RRType pv Reft
 addTyConInfo = mapBot . addTCI
-addTCI tyi t@(RApp c ts rs r)
-  = case (M.lookup (rTyCon c) tyi) of
+addTCI tyi (RApp c ts rs r)
+  = case M.lookup (rTyCon c) tyi of
       Just c' -> rConApp c' ts rs r
       Nothing -> rConApp c  ts rs r
+-- BETTER
+--  = rConApp c' ts rs r
+--    where c' = M.findWithDefault c (rTyCon c) tyi 
 addTCI _ t
   = t
 
@@ -322,8 +325,8 @@ rConApp (RTyCon c ps) ts rs r = RApp (RTyCon c ps') ts rs' r
          ps'  = subts (zip cts τs) <$> ps
          cts  = RTV <$> TC.tyConTyVars c
          rs'  = if (null rs) 
-                 then (RPoly . ofType . ptype <$> ps') 
-                 else zipWith toPoly rs (ptype <$> ps')
+                  then (RPoly . ofType . ptype <$> ps') 
+                  else zipWith toPoly rs (ptype <$> ps')
 
 toPoly (RPoly t) _ = RPoly t
 toPoly (RMono r) t = RPoly $ (ofType t) `strengthen` r  

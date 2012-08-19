@@ -110,14 +110,20 @@ initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv
 initEnv info penv
   = do defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- liftM tyConInfo get 
-       let f0    = defaults           -- default TOP reftype      (for all vars) 
-       let f1    = grty info          -- asserted refinements     (for defined vars)
+       let f0    = grty info          -- asserted refinements     (for defined vars)
+       let f1    = defaults           -- default TOP reftype      (for all vars) 
        let f2    = assm info          -- assumed refinements      (for imported vars)
        let f3    = ctor $ spec info   -- constructor refinements  (for measures) 
-       let bs    = ((second (addTyConInfo tyi))  . (unifyts penv) <$> concat [f0, f1, f2, f3])
-       let γ0    = measEnv (spec info) penv f1
-       return    $ foldl' (++=) γ0 [("initEnv", x, y) | (x, y) <- bs] 
-  
+       let bs    = (map (unifyts' tyi penv)) <$> [f0, f1, f2, f3]
+       let γ0    = measEnv (spec info) penv (head bs)
+       return    $ foldl' (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs] 
+
+unifyts' tyi penv = (second (addTyConInfo tyi)) . (unifyts penv)
+
+unifyts penv (x, t) = (x', unify pt t)
+ where pt = F.lookupSEnv x' penv
+       x' = mkSymbol x
+
 measEnv sp penv xts 
   = CGE { loc   = noSrcSpan
         , renv  = fromListREnv $ meas sp 
@@ -125,7 +131,7 @@ measEnv sp penv xts
         , fenv  = F.fromListSEnv $ second refTypeSortedReft <$> meas sp 
         , recs  = S.empty 
         , invs  = mkRTyConInv $ invariants sp
-        , grtys = mkVarEnv xts
+        , grtys = fromListREnv xts 
         } 
 
 assm = {- traceShow ("****** assm *****\n") . -} assm_grty impVars 
@@ -135,11 +141,7 @@ assm_grty f info = [ (x, mapReft ureft t) | (x, t) <- sigs, x `S.member` xs ]
   where xs   = S.fromList $ f info 
         sigs = tySigs $ spec info  
 
-unifyts ::  F.SEnv PrType -> (Var, RefType) -> (F.Symbol, RefType)
-unifyts penv (x, t) = (x', unify pt t)
- where pt = F.lookupSEnv x' penv
-       x' = mkSymbol x
- 
+
 -------------------------------------------------------------------
 -------- Helpers: Reading/Extending Environment Bindings ----------
 -------------------------------------------------------------------
@@ -151,7 +153,7 @@ data CGEnv
         , fenv  :: !F.FEnv           -- the fixpoint environment 
         , recs  :: !(S.Set Var)      -- recursive defs being processed (for annotations)
         , invs  :: !RTyConInv        -- datatype invariants 
-        , grtys :: !(VarEnv RefType) -- top-level variables with (assert)-guarantees
+        , grtys :: !REnv             -- top-level variables with (assert)-guarantees
         } deriving (Data, Typeable)
 
 instance Outputable CGEnv where
@@ -167,8 +169,7 @@ instance Show CGEnv where
   = γ' { fenv = F.insertSEnv x (refTypeSortedReft r) (fenv γ) }
   | otherwise
   = γ' { fenv = insertFEnvClass r (fenv γ) }
-  where γ' = -- trace ("insertRenv " ++ msg ++ " x = " ++ show x ++ " r = " ++ showPpr r) $ 
-             γ { renv = insertREnv x r (renv γ) }  
+  where γ' = γ { renv = insertREnv x r (renv γ) }  
         r  = normalize γ r'  
 
 normalize γ = addRTyConInv (invs γ) . normalizePds
@@ -502,14 +503,10 @@ addA _ _ _ !a
 -- freshTy_pretty = freshTy
 freshTy_pretty e τ = refresh $ {-traceShow ("exprRefType: " ++ showPpr e) $-} exprRefType e
 
--- freshTy_pretty e τ = refresh $ traceShow ("exprRefType: " ++ showPpr e) $ exprRefType e
--- freshTy_pretty e τ = errorstar "GO TO HELL"
-
--- freshTy :: a -> Type -> CG RefType
 freshTy' _ = refresh . ofType 
 
 freshTy :: CoreExpr -> Type -> CG RefType
-freshTy e τ = freshTy' e τ 
+freshTy = freshTy' 
 
 trueTy  :: Type -> CG RefType
 trueTy t 
@@ -622,10 +619,11 @@ consCB :: CGEnv -> CoreBind -> CG CGEnv
 -- NEW
 consCB γ (Rec xes) 
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
-       let xts = [(x, to) | (x, _, to) <- xets, not (x `elemVarEnv` (grtys γ))]
+       let xts = [(x, to) | (x, _, to) <- xets, not (isGrty x)]
        let γ'  =  foldl' extender (γ `withRecs` (fst <$> xts)) xts
        mapM_ (consBind γ') xets
        return γ' 
+    where isGrty x = (mkSymbol x) `memberREnv` (grtys γ)
 
 consCB γ b@(NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
@@ -647,7 +645,7 @@ consBind γ (x, e, Nothing)
 
 varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Maybe RefType)
 varTemplate γ (x, eo)
-  = case (eo, lookupVarEnv (grtys γ) x) of
+  = case (eo, lookupREnv (mkSymbol x) (grtys γ)) of
       (_, Just t) -> return $ Just t
       (Just e, _) -> do t <- unifyVar γ x <$> freshTy_pretty e (exprType e)
                         addW (WfC γ t)
@@ -674,8 +672,8 @@ cconsE γ ex@(Case e x τ cases) t
        forM_ cases $ cconsCase γ' x t nonDefAlts 
     where nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
 
-cconsE γ (Lam α e) (RAll _ t) | isTyVar α
-  = cconsE γ e t
+cconsE γ (Lam α e) (RAll (RV α') t) | isTyVar α 
+  = cconsE γ e $ subsTyVar_meet' (α', rVar α top) t 
 
 cconsE γ (Lam x e) (RFun (RB y) ty t _) 
   | not (isTyVar x) 
@@ -692,11 +690,11 @@ cconsE γ (Cast e _) t
 
 cconsE γ e (RAll (RP p@(PV _ τ _)) t)
   = do s <- truePredRef p
-       cconsE γ e (replacePred (p, RPoly s) t)
+       cconsE γ e (replacePred "cconsE" (p, RPoly s) t)
 
 cconsE γ e t
   = do te <- consE γ e
-       addC (SubC γ te t) ("consE" ++ showPpr e)
+       addC (SubC γ te t) ("cconsE" ++ showPpr e)
 
 
 -------------------------------------------------------------------
@@ -721,7 +719,7 @@ consE γ e'@(App e a) | eqType (exprType a) predType
   = do t0 <- consE γ e
        case t0 of
          RAll (RP p) t -> do s <- freshPredRef γ e' p
-                             return $ replacePred (p, RPoly s) t 
+                             return $ replacePred "consE" (p, RPoly s) t 
          _             -> return t0
 
 consE γ e'@(App e a)               
@@ -808,7 +806,7 @@ mkyt (γ, ts) (y, yt)
 unfoldR td t0@(RApp tc ts rs _) ys = (t3, yts, rt)
   where (vs, ps, t0) = rsplitVsPs td
         t1 = foldl' (flip subsTyVar_meet') t0 (zip vs ts)
-        t2 = foldl' (flip replacePred) t1 (safeZip "unfold" (reverse ps) rs)
+        t2 = foldl' (flip (replacePred "unfoldR" )) t1 (safeZip "unfoldR" (reverse ps) rs)
         (ys0, yts', rt) =  rsplitArgsRes t2
         (t3:yts) = F.subst su <$> (t2:yts')
         su  = F.mkSubst [(x, F.EVar y)| (x, y)<- zip ys0 ys]

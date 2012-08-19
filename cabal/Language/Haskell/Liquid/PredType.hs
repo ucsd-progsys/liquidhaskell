@@ -205,22 +205,18 @@ pToReft p = Reft (vv, [RPvar p])
 ----------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------
-replacePred :: (PVar Type, Ref Reft RefType) -> RefType -> RefType
+replacePred :: String -> (PVar Type, Ref Reft RefType) -> RefType -> RefType
 ----------------------------------------------------------------------------
 
-replacePred pr@(p, RPoly t)  t0 = substPred True (p, t) t0
-replacePred pr@(p, RMono r)  t0 = fmap (replacePVarReft (p, r)) t0
+replacePred msg pr@(p, RPoly t)  t0 = substPred msg True (p, t) t0
+replacePred msg pr@(p, RMono r)  t0 = fmap (replacePVarReft (p, r)) t0
+
 
 substPredP :: Bool -> (PVar Type, RefType) -> (Ref Reft RefType) -> (Ref Reft RefType)
-substPredP b pt (RPoly t) = RPoly $ substPred b pt t
+substPredP b pt (RPoly t) = RPoly $ substPred "substPredP" b pt t
 substPredP b pt@(p, _) (RMono r) = error "RMono found in substPredP"
-{-  | p `isPredIn` r
-  = RPoly $ substPred b pt ((ofType (ptype p)) `strengthen` r)
-  | otherwise 
-  = RMono r
--}
 
-substPred m pv@(p, RVar a1 r1) t@(RVar a2 r2)
+substPred msg m pv@(p, RVar a1 r1) t@(RVar a2 r2)
   | ispInr2 && a1 == a2
   = if m then RVar a1 ((subst su r1) `mymeet` r2') else RVar a1 r1
   | otherwise
@@ -230,37 +226,37 @@ substPred m pv@(p, RVar a1 r1) t@(RVar a2 r2)
   where (r2', su) = rmKVarReft p r2
         ispInr2   = p `isPredIn` r2
 
-substPred m pt@(p, tp) t@(RApp c ts rs r)
+substPred msg m pt@(p, tp) t@(RApp c ts rs r)
   | p `isPredIn` r
-  = if m then substRCon pt rcon else tp
+  = if m then substRCon msg pt rcon else tp
   | otherwise 
   = rcon
-   where rcon = RApp c (substPred m pt <$> ts) (substPredP True pt <$> rs) r
+   where rcon = RApp c (substPred msg m pt <$> ts) (substPredP True pt <$> rs) r
 
-substPred m (p, tp) (RAll (RP q@(PV _ _ _)) t)
-  = RAll (RP q) $ if (p/=q) then (substPred m (p, tp) t) else t
-substPred m pt (RAll a@(RV _) t) = RAll a (substPred m pt t)
-substPred m pt@(p, tp) (RFun x t t' r) 
+substPred msg m (p, tp) (RAll (RP q@(PV _ _ _)) t)
+  = RAll (RP q) $ if (p/=q) then (substPred msg m (p, tp) t) else t
+substPred msg m pt (RAll a@(RV _) t) = RAll a (substPred msg m pt t)
+substPred msg m pt@(p, tp) (RFun x t t' r) 
   | p `isPredIn` r
-  = {- strengthenRefType -} meet (RFun x t t' r') (fmap (subst su) tp)
+  = meet (RFun x t t' r') (fmap (subst su) tp)
   | otherwise 
-  = RFun x (substPred m pt t) (substPred m pt t') r
+  = RFun x (substPred msg m pt t) (substPred msg m pt t') r
   where (r', su) = rmKVarReft p r
-substPred m pt (RCls c ts) = RCls c (substPred m pt <$> ts)
-substPred m pt t = t
+substPred msg m pt (RCls c ts) = RCls c (substPred msg m pt <$> ts)
+substPred msg m pt t = t
 
-substRCon (p, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2) | rc1 == rc2
+substRCon msg (p, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2) | rc1 == rc2
   =  RApp c1 ts rs $ r2' `mymeet` (addS r1)
   where (r2', su) = rmKVarReft p r2
-        ts = safeZipWith "substRCon" (flip strSub) ts1 ts2
-        rs = safeZipWith "substRcon2" (flip strSubR) rs1 rs2
+        ts = safeZipWith (msg ++ ": substRCon") (flip strSub) ts1 ts2
+        rs = safeZipWith (msg ++ ": substRcon2") (flip strSubR) rs1 rs2
         addS r         = subst su r
         (RTyCon rc1 _) = c1
         (RTyCon rc2 _) = c2
         strSub t1      = {- strengthenRefType -} meet t1 . fmap addS
         strSubR t1 t2  = RPoly $ strSub (fromRPoly t1) (fromRPoly t2) 
 
-substRCon pt t = error $ "substRCon" ++ show (pt, t)
+substRCon msg pt t = error $ msg ++ " substRCon " ++ show (pt, t)
 
 mymeet x y = meet x y
 isPredIn = isPredInReft

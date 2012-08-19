@@ -2,16 +2,14 @@ module Tx where
 
 import Language.Haskell.Liquid.Prelude
 
-{-@ assert foo :: x: Int
-                  -> Int
-  @-}
+{-@ foo :: x: Int -> Int @-}
 foo :: Int -> Int
 foo x = x + 1
 
-{-@ assert transpose :: n:Int
-                     -> m:{v:Int | v > 0} 
-                     -> {v:[{v:[a] | len(v) = n}] | len(v) = m} 
-                     -> {v:[{v:[a] | len(v) = m}] | len(v) = n} 
+{-@ transpose :: n:Int
+              -> m:{v:Int | v > 0} 
+              -> {v:[{v:[a] | len(v) = n}] | len(v) = m} 
+              -> {v:[{v:[a] | len(v) = m}] | len(v) = n} 
   @-}
 transpose :: Int -> Int -> [[a]] -> [[a]]
 transpose 0 _ _              = []

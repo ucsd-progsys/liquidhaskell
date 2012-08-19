@@ -122,13 +122,16 @@ safeZip msg xs ys
   | length xs == length ys 
   = zip xs ys
   | otherwise              
-  = errorstar $ "lzip called on non-eq-sized lists\n" ++ msg
+  = errorstar $ "safeZip called on non-eq-sized lists (nxs = " ++ show nxs ++ ", nys = " ++ show nys ++ ") : " ++ msg
+  where nxs = length xs
+        nys = length ys
+
 
 safeZipWith msg f xs ys 
   | length xs == length ys 
   = zipWith f xs ys
   | otherwise              
-  = errorstar $ "lzipWith called on non-eq-sized lists\n" ++ msg
+  = errorstar $ "safeZipWith called on non-eq-sized lists\n" ++ msg
 
 safeFromList :: (Ord k, Show k, Show a) => String -> [(k, a)] -> M.Map k a
 safeFromList msg = foldl' safeAdd M.empty 
