@@ -3,7 +3,7 @@
 module Meas where
 
 import Language.Haskell.Liquid.Prelude
-import qualified Data.Map -- fix the as M
+import qualified Data.Map
 import Data.List (foldl')
 
 ----------------------------------------------------------------
