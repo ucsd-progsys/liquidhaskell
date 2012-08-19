@@ -325,7 +325,7 @@ expandRApp _ t
 appRTyCon tyi rc@(RTyCon c _) ts = RTyCon c ps'
   where ps' = map (subts (zip (RTV <$> αs) (toType <$> ts))) (rTyConPs rc')
         rc' = M.findWithDefault rc c tyi
-        αs  = TC.tyConTyVars c
+        αs  = TC.tyConTyVars $ rTyCon rc'
 
 appRefts rc [] = RPoly . ofType . ptype <$> (rTyConPs rc)
 appRefts rc rs = safeZipWith "appRefts" toPoly rs (ptype <$> (rTyConPs rc))
