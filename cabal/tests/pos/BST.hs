@@ -3,7 +3,7 @@ module BST where
 import Language.Haskell.Liquid.Prelude
 
 {-@
-data Bst k v <l :: k -> k -> Bool, r :: k -> k -> Bool>
+data Bst k v <l :: x0:k -> x1:k -> Bool, r :: x0:k -> x1:k -> Bool>
   = Empty
   | Bind (key   :: k) 
          (value :: v) 

@@ -3,7 +3,7 @@ module Map where
 import Language.Haskell.Liquid.Prelude
 
 {-@ 
-  data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
+  data Map k a <l :: x0:k -> x1:k -> Bool, r :: x0:k -> x1:k -> Bool>
       = Tip 
       | Bin (sz    :: Size) 
             (key   :: k) 
@@ -12,7 +12,7 @@ import Language.Haskell.Liquid.Prelude
             (right :: Map <l, r> (k <r key>) a) 
   @-}
 
-{-@ type OMap k a = Map <{v:k | v < key }, {v:k | v > key}> k a @-}
+{-@ type OMap k a = Map <{v:k | v < x0 }, {v:k | v > x0}> k a @-}
 
 data Map k a = Tip
              | Bin Size k a (Map k a) (Map k a)

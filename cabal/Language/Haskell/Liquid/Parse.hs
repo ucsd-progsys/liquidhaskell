@@ -259,35 +259,39 @@ predVarDefsP
  <|> return []
 
 predVarDefP
- = liftM3 bPVar predVarIdP dcolon predVarTypeP
-   
--- bPVar p _ ts  = PV p τ τxs 
---   where τ   = last ts
---         τs  = init ts 
---         τxs = zipWith (\τ x -> (τ, x, x)) τs xs
---         xs  = stringSymbol <$> ["x" ++ show i | i <- [0..]]
---
---
---Should have explicit variables for Predicate parameters
+  = liftM3 bPVar predVarIdP dcolon predVarTypeP
+
+predVarIdP 
+  = stringSymbol <$> tyVarIdP 
+
+{- OLD
+bPVar p _ ts  = PV p τ τxs 
+  where τ   = last ts
+        τs  = init ts 
+        τxs = zipWith (\τ x -> (τ, x, x)) τs xs
+        xs  = stringSymbol <$> ["x" ++ show i | i <- [0..]]
+
+predVarTypeP 
+  =  try ((liftM (: []) tyVarIdP) <* reserved "->" <* reserved boolConName)
+ <|> liftM2 (:) tyVarIdP (reserved "->" >> predVarTypeP)
+-}
+
 
 bPVar p _ xts  = PV p τ τxs 
   where (_, τ) = last xts
         τxs    = [ (τ, x, x) | (x, τ) <- init xts ]
+        --τxs = zipWith (\τ x -> (τ, x, x)) τs xs
+        --τs  = snd <$> init xts 
+        --xs  = stringSymbol <$> ["x" ++ show i | i <- [0..]]
 
-predVarIdP 
-  = stringSymbol <$> tyVarIdP 
 
 predVarTypeP 
   =  try ((liftM (: []) predVarArgP) <* reserved "->" <* reserved boolConName)
  <|> liftM2 (:) predVarArgP (reserved "->" >> predVarTypeP)
 
-predVarArgP = xBindP binderP colon tyVarIdP 
---  = do name   <- binderP
---       spaces >> colon
---       ty     <- tyVarIdP
---       return (name, ty)
+predVarArgP = xyP predVarIdP colon tyVarIdP 
 
-xBindP lP sepP rP
+xyP lP sepP rP
   = liftM3 (\x _ y -> (x, y)) lP (spaces >> sepP) rP
 
 data ArrowSym = ArrowFun | ArrowPred
@@ -448,7 +452,7 @@ filePathP = angles $ many1 pathCharP
   where pathCharP = choice $ char <$> pathChars 
         pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
 
-tyBindP = xBindP binderP dcolon genBareTypeP
+tyBindP = xyP binderP dcolon genBareTypeP
 --  = do name   <- binderP
 --       spaces >> dcolon 
 --       ty     <- genBareTypeP
