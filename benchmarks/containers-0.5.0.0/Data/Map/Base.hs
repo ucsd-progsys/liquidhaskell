@@ -322,7 +322,7 @@ data Map k a  = Bin {-# UNPACK #-} !Size !k a !(Map k a) !(Map k a)
 type Size     = Int
 
 {-@ 
-  data Map k a <l :: x0:k -> x1:k -> Bool, r :: x0:k -> x1:k -> Bool>
+  data Map k a <l :: root:k -> k -> Bool, r :: root:k -> k -> Bool>
        = Bin (sz    :: Size) 
              (key   :: k) 
              (value :: a) 
@@ -331,7 +331,7 @@ type Size     = Int
        | Tip 
   @-}
 
-{-@ type OMap k a = Map <{v:k | v < x0}, {v:k | v > x0}> k a @-}
+{-@ type OMap k a = Map <{v:k | v < root}, {v:k | v > root}> k a @-}
 
 instance (Ord k) => Monoid (Map k v) where
     mempty  = empty
@@ -620,7 +620,7 @@ empty = Tip
 -- > singleton 1 'a'        == fromList [(1, 'a')]
 -- > size (singleton 1 'a') == 1
 
-{-@ assert singleton :: k -> a -> OMap k a @-}
+{-@ singleton :: k -> a -> OMap k a @-}
 singleton :: k -> a -> Map k a
 singleton k x = Bin 1 k x Tip Tip
 {-# INLINE singleton #-}
@@ -960,7 +960,7 @@ alter = go
 
 -- See Note: Type of local 'go' function
 
-{-@ findIndex :: (Ord k) => k -> OMap k a -> Int @-}
+{-@ findIndex :: (Ord k) => k -> OMap k a -> GHC.Types.Int @-}
 findIndex :: Ord k => k -> Map k a -> Int
 findIndex = go 0
   where
@@ -985,7 +985,7 @@ findIndex = go 0
 -- > isJust (lookupIndex 6 (fromList [(5,"a"), (3,"b")]))   == False
 
 -- See Note: Type of local 'go' function
-{-@ lookupIndex :: (Ord k) => k -> OMap k a -> Maybe Int @-}
+{-@ lookupIndex :: (Ord k) => k -> OMap k a -> Maybe GHC.Types.Int @-}
 lookupIndex :: Ord k => k -> Map k a -> Maybe Int
 lookupIndex = go 0
   where
@@ -1009,7 +1009,7 @@ lookupIndex = go 0
 -- > elemAt 2 (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
 
-{-@ elemAt :: Int -> OMap k a -> (k, a) @-}
+{-@ elemAt :: GHC.Types.Int -> OMap k a -> (k, a) @-}
 elemAt :: Int -> Map k a -> (k,a)
 STRICT_1_OF_2(elemAt)
 elemAt _ Tip = error "Map.elemAt: index out of range"
@@ -1033,7 +1033,7 @@ elemAt i (Bin _ kx x l r)
 -- > updateAt (\_ _  -> Nothing)  2    (fromList [(5,"a"), (3,"b")])    Error: index out of range
 -- > updateAt (\_ _  -> Nothing)  (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
-{-@ updateAt :: (k -> a -> Maybe a) -> Int -> OMap k a -> OMap k a @-}
+{-@ updateAt :: (k -> a -> Maybe a) -> GHC.Types.Int -> OMap k a -> OMap k a @-}
 updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
 updateAt f i t = i `seq`
   case t of
@@ -1055,7 +1055,7 @@ updateAt f i t = i `seq`
 -- > deleteAt 2 (fromList [(5,"a"), (3,"b")])     Error: index out of range
 -- > deleteAt (-1) (fromList [(5,"a"), (3,"b")])  Error: index out of range
 
-{-@ deleteAt :: Int -> OMap k a -> OMap k a @-}
+{-@ deleteAt :: GHC.Types.Int -> OMap k a -> OMap k a @-}
 deleteAt :: Int -> Map k a -> Map k a
 deleteAt i t = i `seq`
   case t of

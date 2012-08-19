@@ -14,11 +14,16 @@ Benchmarks containers.Map
 
 -> see tests/pos/Map-wierd.hs
 
+-> Where is all the time going in Fixpoint?
+    Solve.acsolve                 280.170 s
+      refine                        73.057 s
+   ????
+
 -> [glue/merge] added explicit witnesses (in "LIQUID" comments)
         > Cannot deal with union/intersection because of glue/merge 
           which will screw up the balanceL/balanceR so may want to 
           comment out.
-    
+          
           [glue l r]
 
           requires ALL elts of l less than ALL ELTS of r ...
