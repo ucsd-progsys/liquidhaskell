@@ -12,13 +12,7 @@ TODO
 Benchmarks containers.Map
 =========================
 
-    pos/BST.hs          -- duplicate bind
-  , pos/anfbug.hs       -- duplicate bind
-  , pos/testRec.hs      -- duplicate bind
-  
-  , pos/grty2.hs        -- safeZip. 
-  , pos/trans.hs        -- safeZip.
-  , pos/mapreduce.hs    -- safeZip.
+Failed 3 tests: pos/grty2.hs, pos/grty3.hs, pos/trans.hs
 
 -> Where is all the time going in Fixpoint?
     Solve.acsolve                 280.170 s

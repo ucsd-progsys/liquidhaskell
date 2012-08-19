@@ -13,6 +13,7 @@ module Language.Haskell.Liquid.RefType (
   , ppr_rtype, mapReft, mapBind
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp, rFun
+  , expandRApp
   , typeUniqueSymbol
   , strengthen
   , generalize, mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
@@ -306,30 +307,35 @@ replaceReft t _                = t
 
 -- TODO: merge this with rConApp/rApp we should maintain this INVARIANT at all times.
 addTyConInfo :: (PVarable pv) => M.Map TC.TyCon RTyCon -> RRType pv Reft -> RRType pv Reft
-addTyConInfo = mapBot . addTCI
-addTCI tyi (RApp c ts rs r)
-  = case M.lookup (rTyCon c) tyi of
-      Just c' -> rConApp c' ts rs r
-      Nothing -> rConApp c  ts rs r
--- BETTER
---  = rConApp c' ts rs r
---    where c' = M.findWithDefault c (rTyCon c) tyi 
-addTCI _ t
+addTyConInfo = mapBot . expandRApp -- addTCI
+
+-- addTCI tyi (RApp rc ts rs r)
+--   = RApp rc' ts (appRefts rc' rs) r
+--     where rc' = appRTyCon tyi rc ts
+-- addTCI _ t
+--   = t
+
+expandRApp tyi (RApp rc ts rs r)
+  = RApp rc' ts (appRefts rc' rs) r
+    where rc' = appRTyCon tyi rc ts
+
+expandRApp _ t
   = t
+
+appRTyCon tyi rc@(RTyCon c _) ts = RTyCon c ps'
+  where ps' = map (subts (zip (RTV <$> αs) (toType <$> ts))) (rTyConPs rc')
+        rc' = M.findWithDefault rc c tyi
+        αs  = TC.tyConTyVars c
+
+appRefts rc [] = RPoly . ofType . ptype <$> (rTyConPs rc)
+appRefts rc rs = safeZipWith "appRefts" toPoly rs (ptype <$> (rTyConPs rc))
+
+toPoly (RPoly t) _ = RPoly t
+toPoly (RMono r) t = RPoly $ (ofType t) `strengthen` r  
 
 showTy v = showSDoc $ ppr v <> ppr (varUnique v)
 -- showTy t = showSDoc $ ppr t
 
-rConApp (RTyCon c ps) ts rs r = RApp (RTyCon c ps') ts rs' r 
-   where τs   = toType <$> ts
-         ps'  = subts (zip cts τs) <$> ps
-         cts  = RTV <$> TC.tyConTyVars c
-         rs'  = if (null rs) 
-                  then (RPoly . ofType . ptype <$> ps') 
-                  else zipWith toPoly rs (ptype <$> ps')
-
-toPoly (RPoly t) _ = RPoly t
-toPoly (RMono r) t = RPoly $ (ofType t) `strengthen` r  
 
 -- mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
 mkArrow as xts t = mkUnivs as $ mkArrs xts t

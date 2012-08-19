@@ -570,20 +570,17 @@ refreshRefType (RFun b t t' _)
   = liftM3 rFun fresh (refresh t) (refresh t')
   | otherwise
   = liftM2 (rFun b) (refresh t) (refresh t')
--- TODO: addTyConInfo? why is there nothing here?
-refreshRefType (RApp (rc@RTyCon {rTyCon = c}) ts rs r)  
-  = do s <- get 
-       let RTyCon c0 ps = M.findWithDefault rc c $ tyConInfo s
-       let αs  = TC.tyConTyVars c0
-       let ps' = map (subts (zip (RTV <$> αs) (toType <$> ts))) ps
-       let c'  = RTyCon c0 ps'
-       rs'    <- mapM refresh (ofType . ptype <$> ps')
-       let rs'' = RPoly <$> rs'
-       liftM3 (RApp c') (mapM refresh ts) (return rs'') (refresh r)
+refreshRefType (RApp rc ts _ r)  
+  = do tyi                 <- tyConInfo <$> get
+       let RApp rc' _ rs _  = expandRApp tyi (RApp rc ts [] r)
+       liftM3 (RApp rc') (mapM refresh ts) (mapM refreshRef rs) (refresh r)
 refreshRefType (RVar a r)  
   = liftM (RVar a) (refresh r)
 refreshRefType t                
   = return t
+
+refreshRef (RPoly t) = RPoly <$> (refreshRefType t)
+refreshRef (RMono r) = error "refreshRef: unexpected"
 
 isBaseTyCon c
   | c == intTyCon 
