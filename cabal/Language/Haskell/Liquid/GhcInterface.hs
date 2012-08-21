@@ -41,7 +41,7 @@ import Control.Monad (forM_, forM, liftM, (>=>))
 import Data.Data
 import Data.Monoid hiding ((<>))
 import Data.Char (isSpace)
-import Data.List (isPrefixOf, isSuffixOf, foldl', nub, find, (\\))
+import Data.List (intercalate, isPrefixOf, isSuffixOf, foldl', nub, find, (\\))
 import Data.Maybe (catMaybes, fromMaybe, isJust, mapMaybe)
 import qualified Data.Set as S
 import qualified Data.Map as M
@@ -70,16 +70,6 @@ import qualified Language.Haskell.HsColour.CSS as CSS
 ---------------------- GHC Bindings:  Code & Spec ----------------
 ------------------------------------------------------------------
 
-data GhcSpec = SP {
-    imports    :: ![String]
-  , tySigs     :: ![(Var, SpecType)]
-  , ctor       :: ![(Var, RefType)]
-  , meas       :: ![(Symbol, RefType)]
-  , dconsP     :: ![(DataCon, DataConP)]
-  , tconsP     :: !(M.Map TC.TyCon TyConP) -- ![(TC.TyCon, TyConP)]
-  , includes   :: ![FilePath]
-  , invariants :: ![SpecType]
-  }
 
 data GhcInfo = GI { 
     env      :: !HscEnv
@@ -87,23 +77,25 @@ data GhcInfo = GI {
   , impVars  :: ![Var]
   , defVars  :: ![Var]
   , hqFiles  :: ![FilePath]
+  , imports  :: ![String]
+  , includes :: ![FilePath]
   , spec     :: !GhcSpec
   }
 
 instance Outputable GhcSpec where
-  ppr spec =  (text "******* Imports *****************************")
-           $$ (ppr $ imports spec)
-           $$ (text "******* Type Signatures *********************")
+  ppr spec =  (text "******* Type Signatures *********************")
            $$ (ppr $ tySigs spec)
            $$ (text "******* DataCon Specifications (Measure) ****")
            $$ (ppr $ ctor spec)
            $$ (text "******* Measure Specifications **************")
            $$ (ppr $ meas spec)
-           $$ (text "******* Include Files *********************")
-           $$ (ppr $ includes spec)
 
 instance Outputable GhcInfo where 
-  ppr info =  (text "*************** Core Bindings ***************")
+  ppr info =  (text "*************** Imports *********************")
+           $$ (ppr $ imports info)
+           $$ (text "*************** Includes ********************")
+           $$ (ppr $ includes info)
+           $$ (text "*************** Core Bindings ***************")
            $$ (ppr $ cbs info)
            $$ (text "*************** Imported Variables **********")
            $$ (ppr $ impVars info)
@@ -213,23 +205,23 @@ peepGHCSimple fn
 
 getGhcInfo target paths 
   = runGhc (Just libdir) $ do
-      df          <- getSessionDynFlags
-      setSessionDynFlags $ updateDynFlags df paths
+      df                 <- getSessionDynFlags
+      setSessionDynFlags  $ updateDynFlags df paths
       -- peepGHCSimple target 
-      modguts     <- getGhcModGuts1 target
-      hscEnv      <- getSession
+      modguts            <- getGhcModGuts1 target
+      hscEnv             <- getSession
       -- modguts     <- liftIO $ hscSimplify hscEnv modguts
-      coreBinds   <- liftIO $ anormalize hscEnv modguts
-      let impvs   = importVars coreBinds 
-      let defvs   = definedVars coreBinds 
-      spec        <- moduleSpec (impvs ++ defvs) target modguts paths 
-      liftIO       $ putStrLn $ "Module Imports: " ++ show (imports spec) 
-      hqualFiles  <- moduleHquals modguts paths target spec 
-      return       $ GI hscEnv coreBinds impvs defvs hqualFiles spec 
+      coreBinds          <- liftIO $ anormalize hscEnv modguts
+      let impvs           = importVars coreBinds 
+      let defvs           = definedVars coreBinds 
+      (spec, imps, incs) <- moduleSpec (impvs ++ defvs) target modguts paths 
+      liftIO              $ putStrLn $ "Module Imports: " ++ show imps 
+      hqualFiles         <- moduleHquals modguts paths target imps incs 
+      return              $ GI hscEnv coreBinds impvs defvs hqualFiles imps incs spec 
 
-moduleHquals mg paths target spec
-  = do hqs   <- specIncludes Hquals paths (includes spec)
-       hqs'  <- moduleImports [Hquals] paths ((mgi_namestring mg) : (imports spec))
+moduleHquals mg paths target imps incs 
+  = do hqs   <- specIncludes Hquals paths incs 
+       hqs'  <- moduleImports [Hquals] paths (mgi_namestring mg : imps)
        let rv = nubSort $ hqs ++ (snd <$> hqs')
        liftIO $ putStrLn $ "Reading Qualifiers From: " ++ show rv 
        return rv
@@ -272,21 +264,11 @@ moduleSpec vars target mg paths
        _          <- liftIO $ checkAssertSpec vars             $ Ms.sigs       tgtSpec
        impSpec    <- getSpecs paths impNames [Spec, Hs, LHs] 
        let spec    = Ms.expandRTAliases $ tgtSpec `mappend` impSpec 
+       let imps    = nubSort $ impNames ++ [symbolString x | x <- Ms.imports spec]
        setContext [IIModule (mgi_module mg)]
        env        <- getSession
-       (cs, ms)   <- liftIO $ makeMeasureSpec env $ Ms.mkMSpec $ Ms.measures   spec
-       tySigs     <- liftIO $ makeAssumeSpec  vars env         $ Ms.sigs       spec
-       (tcs, dcs) <- liftIO $ makeConTypes    env              $ Ms.dataDecls  spec 
-       invs       <- liftIO $ makeInvariants  env              $ Ms.invariants spec 
-       return $ SP { imports    = nubSort $ impNames ++ [symbolString x | x <- Ms.imports spec]
-                   , tySigs     = tySigs
-                   , ctor       = cs
-                   , meas       = ms
-                   , dconsP     = {- traceShow "dconsP:" $ -} concat dcs ++ snd wiredTyDataCons 
-                   , tconsP     = {- traceShow "tconsP:" $ -} M.fromList $ tcs ++ fst wiredTyDataCons 
-                   , includes   = Ms.includes tgtSpec 
-                   , invariants = invs
-                   }
+       ghcSpec    <- liftIO $ makeGhcSpec vars env spec
+       return      (ghcSpec, imps, Ms.includes tgtSpec)
     where impNames = allDepNames  mg
           name     = mgi_namestring mg
 
@@ -369,6 +351,13 @@ reqFile ext s
   | otherwise
   = Nothing
 
+checkAssertSpec :: [Var] -> [(Symbol, BareType)] -> IO () 
+checkAssertSpec vs xbs =
+  let vm  = M.fromList [(showPpr v, v) | v <- vs] 
+      xs' = [s | (x, _) <- xbs, let s = symbolString x, not (M.member s vm)]
+  in case xs' of 
+    [] -> return () 
+    _  -> errorstar $ "Asserts for Unknown variables: "  ++ (intercalate ", " xs')  
 ---------------------------------------------------------------
 ---------------- Annotations and Solutions --------------------
 ---------------------------------------------------------------
@@ -579,63 +568,4 @@ instance NFData a => NFData (AnnInfo a) where
 --      {- rnf -} x7 `seq` 
 --      {- rnf -} x8
 
---------------------------------------------------------------------
------- Predicate Types for WiredIns --------------------------------
---------------------------------------------------------------------
 
-maxArity :: Arity 
-maxArity = 7
-
-wiredTyDataCons :: ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
-wiredTyDataCons = (\(x, y) -> (concat x, concat y)) $ unzip l
-  where l = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity] 
-
-listTyDataCons :: ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
-listTyDataCons = ( [(c, TyConP [(RTV tyv)] [p])]
-                 , [(nilDataCon , DataConP [(RTV tyv)] [p] [] lt)
-                 , (consDataCon, DataConP [(RTV tyv)] [p]  cargs  lt)])
-    where c     = listTyCon
-          [tyv] = tyConTyVars c
-          t     = TyVarTy tyv
-          fld   = stringSymbol "fld"
-          x     = stringSymbol "x"
-          xs    = stringSymbol "xs"
-          p     = PV (stringSymbol "p") t [(t, fld, fld)]
-          px    = pdVar $ PV (stringSymbol "p") t [(t, fld, x)]
-          lt    = rApp c [xt] [RMono $ pdVar p] pdTrue 
-          xt    = RVar (RV (RTV tyv)) pdTrue
-          xst   = rApp c [RVar (RV (RTV tyv)) px] [RMono $ pdVar p] pdTrue
-          cargs = [(xs, xst), (x, xt)]
-
-tupleTyDataCons :: Int -> ([(TC.TyCon, TyConP)] , [(DataCon, DataConP)])
-tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyv) ps)]
-                    , [(dc, DataConP (RTV <$> tyv) ps  cargs  lt)])
-  where c       = tupleTyCon BoxedTuple n
-        dc      = tupleCon BoxedTuple n 
-        tyv     = tyConTyVars c
-        (ta:ts) = TyVarTy <$>tyv
-        tvs     = tyv
-        flds    = mks "fld"
-        fld     = stringSymbol "fld"
-        x1:xs   = mks "x"
-        y       = stringSymbol "y"
-        ps      = mkps pnames (ta:ts) ((fld,fld):(zip flds flds))
-        pxs     = mkps pnames (ta:ts) ((fld, x1):(zip flds xs))
-        lt      = rApp c ((\x -> RVar (RV (RTV x)) pdTrue) <$> tyv) 
-                         (RMono . pdVar <$> ps) pdTrue 
-        xts     = zipWith (\v p -> RVar (RV (RTV v))(pdVar p)) 
-                          (tail tvs) pxs
-        cargs   = reverse $ (x1, RVar (RV (RTV (head tvs))) pdTrue)
-                            :(zip xs xts)
-        pnames  = mks_ "p"
-        mks  x  = (\i -> stringSymbol (x++ show i)) <$> [1..n]
-        mks_ x  = (\i ->  (x++ show i)) <$> [2..n]
-
-
-mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ (stringSymbol <$> ns) ts fxs [(t, f, x)] [] 
-
-mkps_ []     _       _          _    ps = ps
-mkps_ (n:ns) (t:ts) ((f, x):xs) args ps
-  = mkps_ ns ts xs (a:args) (p:ps)
-  where p = PV n t args
-        a = (t, f, x)

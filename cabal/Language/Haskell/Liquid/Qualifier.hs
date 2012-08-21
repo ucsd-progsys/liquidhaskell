@@ -5,6 +5,8 @@ module Language.Haskell.Liquid.Qualifier (
   ) where
 
 import Outputable
+
+import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.Fixpoint

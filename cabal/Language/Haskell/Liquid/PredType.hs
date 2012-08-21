@@ -4,7 +4,7 @@ module Language.Haskell.Liquid.PredType (
   , TyConP (..), DataConP (..)
   , splitVsPs, typeAbsVsPs, splitArgsRes
   , generalize, generalizeArgs
-  , dataConTy, dataConPtoPredTy
+  , dataConTy, dataConPtoPredTy, makeTyConInfo
   , removeExtPreds
   , unify, replacePred, exprType, predType
   , substParg, substPvar
@@ -54,6 +54,13 @@ data DataConP = DataConP { freeTyVars :: ![RTyVar]
                          , tyArgs     :: ![(Symbol, PrType)]
                          , tyRes      :: !PrType
                          }
+
+makeTyConInfo = M.mapWithKey mkRTyCon . M.fromList -- . tconsP . spec 
+
+mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
+mkRTyCon tc (TyConP αs' ps) = RTyCon tc pvs'
+  where τs   = TyVarTy <$> TC.tyConTyVars tc
+        pvs' = subts (zip αs' τs) <$> ps
 
 dataConPtoPredTy :: DataConP -> PrType
 dataConPtoPredTy x@(DataConP vs ps yts rt) = {- traceShow ("dataConPtoPredTy: " ++ show x) $ -}  t3						

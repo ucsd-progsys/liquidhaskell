@@ -21,6 +21,7 @@ import Outputable hiding (empty)
 import IdInfo
 import TysWiredIn
 
+import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.PredType hiding (exprType)
 import Language.Haskell.Liquid.GhcMisc (stringTyVar, tickSrcSpan)
@@ -86,7 +87,7 @@ addId x y = modify $ \s -> s{symbolsP = M.insert x y (symbolsP s)}
 initPI x = PInfo { freshIndex = 1
                  , pMap       = M.empty
                  , hsCsP      = []
-                 , tyCons     = x -- M.fromList x
+                 , tyCons     = M.fromList x
                  , symbolsP   = M.empty
                  }
 

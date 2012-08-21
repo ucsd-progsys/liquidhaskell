@@ -5,11 +5,13 @@
  - and real refinements. -}
 
 module Language.Haskell.Liquid.Bare (
-    makeMeasureSpec
-  , makeAssumeSpec
-  , makeInvariants
-  , makeConTypes
-  , checkAssertSpec
+  --  makeMeasureSpec
+  -- , makeAssumeSpec
+  -- , makeInvariants
+  -- , makeConTypes
+  -- , checkAssertSpec
+    GhcSpec (..)
+  , makeGhcSpec
   )
 where
 
@@ -30,7 +32,7 @@ import HscMain
 import TypeRep
 import TysWiredIn
 import DataCon  (dataConWorkId)
-import BasicTypes (TupleSort (..), Boxity (..))
+import BasicTypes (TupleSort (..), Boxity (..), Arity)
 import TcRnDriver (tcRnLookupRdrName, tcRnLookupName) 
 
 import TysPrim                  
@@ -65,6 +67,35 @@ import Language.Haskell.Liquid.Misc
 import qualified Control.Exception as Ex
 
 ------------------------------------------------------------------
+---------- Top Level Output --------------------------------------
+------------------------------------------------------------------
+
+data GhcSpec = SP {
+    tySigs     :: ![(Var, SpecType)]     -- Asserted/Assumed Reftypes
+                                         -- eg.  see include/Prelude.spec
+  , ctor       :: ![(Var, RefType)]      -- Data Constructor Measure Sigs 
+                                         -- eg.  (:) :: a -> xs:[a] -> {v: Int | v = 1 + len(xs) }
+  , meas       :: ![(Symbol, RefType)]   -- Measure Types  
+                                         -- eg.  len :: [a] -> Int
+  , invariants :: ![SpecType]            -- Data Type Invariants
+                                         -- eg.  forall a. {v: [a] | len(v) >= 0}
+  , dconsP     :: ![(DataCon, DataConP)] -- Predicated Data-Constructors
+                                         -- e.g. see tests/pos/Map.hs
+  , tconsP     :: ![(TyCon, TyConP)]     -- Predicated Type-Constructors
+                                         -- eg.  see tests/pos/Map.hs
+  }
+
+makeGhcSpec :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
+makeGhcSpec vars env spec 
+  = do (tcs, dcs) <- makeConTypes    env              $ Ms.dataDecls  spec 
+       let tycons  = tcs ++ tcs'    
+       (cs, ms)   <- makeMeasureSpec env $ Ms.mkMSpec $ Ms.measures   spec
+       sigs       <- makeAssumeSpec  vars tycons env  $ Ms.sigs       spec
+       invs       <- makeInvariants  env              $ Ms.invariants spec 
+       return      $ SP sigs cs ms invs (concat dcs ++ dcs') tycons  
+    where (tcs', dcs') = wiredTyDataCons 
+
+------------------------------------------------------------------
 ---------- Error-Reader-IO For Bare Transformation ---------------
 ------------------------------------------------------------------
 
@@ -89,21 +120,16 @@ makeMeasureSpec env m = execBare mkSpec env
   where mkSpec = wrapErr "mkMeasureSort" mkMeasureSort m' >>= mkMeasureDCon >>= return . Ms.dataConTypes
         m'     = first (txTyVarBinds . mapReft ureft) m
 
-makeAssumeSpec :: [Var] -> HscEnv -> [(Symbol, BareType)] -> IO [(Var, SpecType)]
-makeAssumeSpec vs env xbs = execBare mkAspec env
+makeAssumeSpec :: [Var] -> [(TyCon, TyConP)] -> HscEnv -> [(Symbol, BareType)] -> IO [(Var, SpecType)]
+makeAssumeSpec vs tycons env xbs = execBare mkAspec env
   where mkAspec = forM vbs mkVarSpec >>= return . checkAssumeSpec
         vbs     = joinIds vs (first symbolString <$> xbs) 
+        tyi     = makeTyConInfo tycons 
 
 mkVarSpec (v, b) = liftM (v,) (wrapErr msg mkSpecType b)
   where msg = "mkVarSpec fails on " ++ showPpr v ++ " :: "  ++ showPpr b 
 
-checkAssertSpec :: [Var] -> [(Symbol, BareType)] -> IO () 
-checkAssertSpec vs xbs =
-  let vm  = M.fromList [(showPpr v, v) | v <- vs] 
-      xs' = [s | (x, _) <- xbs, let s = symbolString x, not (M.member s vm)]
-  in case xs' of 
-    [] -> return () 
-    _  -> errorstar $ "Asserts for Unknown variables: "  ++ (intercalate ", " xs')  
+
 
 -- joinIds :: [Var] -> [(String, a)] -> [(Var, a)]
 joinIds vs xts = {-tracePpr "spec vars"-} vts   
@@ -216,42 +242,66 @@ wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns
         special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
                    , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
 
--- wiredIn :: M.Map String Name
--- wiredIn = M.fromList $ tracePpr "wiredIn: " $ [ (showPpr n, n) | thing <- wiredInThings, let n = getName thing ]
+--------------------------------------------------------------------
+------ Predicate Types for WiredIns --------------------------------
+--------------------------------------------------------------------
 
---wiredIn :: M.Map String Name
---wiredIn = M.fromList $
---  [ ("GHC.Integer.smallInteger"    , smallIntegerName                      ) 
---  , ("GHC.Num.fromInteger"         , fromIntegerName                       )
---  , ("GHC.Types.I#"                , dataConName intDataCon                )
---  , ("GHC.Prim.Int#"               , tyConName intPrimTyCon                )     
---  , ("GHC.Prim.Char#"              , tyConName charPrimTyCon               )
---  , ("GHC.Prim.Int32#"             , tyConName int32PrimTyCon              )	
---  , ("GHC.Prim.Int64#"             , tyConName int64PrimTyCon              )  	        
---  , ("GHC.Prim.Word#"              , tyConName wordPrimTyCon               )  	        
---  , ("GHC.Prim.Word32#"            , tyConName word32PrimTyCon             )
---  , ("GHC.Prim.Word64#"            , tyConName word64PrimTyCon             )
---  , ("GHC.Prim.Addr#"              , tyConName addrPrimTyCon               )
---  , ("GHC.Prim.Float#"             , tyConName floatPrimTyCon              )
---  , ("GHC.Prim.Double#"            , tyConName doublePrimTyCon             )
---  , ("GHC.Prim.State#"             , tyConName statePrimTyCon              ) 
---  , ("GHC.Prim.~#"                 , tyConName eqPrimTyCon                 )  
---  , ("GHC.Prim.RealWorld"          , tyConName realWorldTyCon              ) 
---  , ("GHC.Prim.Array#"             , tyConName arrayPrimTyCon              )
---  , ("GHC.Prim.ByteArray#"         , tyConName byteArrayPrimTyCon          )   
---  , ("GHC.Prim.ArrayArray#"        , tyConName arrayArrayPrimTyCon         )   
---  , ("GHC.Prim.MutableArray#"      , tyConName mutableArrayPrimTyCon       ) 
---  , ("GHC.Prim.MutableByteArray#"  , tyConName mutableByteArrayPrimTyCon   ) 
---  , ("GHC.Prim.MutableArrayArray#" , tyConName mutableArrayArrayPrimTyCon  ) 
---  , ("GHC.Prim.MutVar#"            , tyConName mutVarPrimTyCon             )    
---  , ("GHC.Prim.MVar#"              , tyConName mVarPrimTyCon               )
---  , ("GHC.Prim.TVar#"              , tyConName tVarPrimTyCon               )
---  , ("GHC.Prim.StablePtr#"         , tyConName stablePtrPrimTyCon          ) 
---  , ("GHC.Prim.StableName#"        , tyConName stableNamePrimTyCon         )  
---  , ("GHC.Prim.BCO#"               , tyConName bcoPrimTyCon                )
---  , ("GHC.Prim.Weak#"              , tyConName weakPrimTyCon               )    
---  , ("GHC.Prim.ThreadId#"          , tyConName threadIdPrimTyCon           ) 
---  ]
+maxArity :: Arity 
+maxArity = 7
+
+wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
+wiredTyDataCons = (\(x, y) -> (concat x, concat y)) $ unzip l
+  where l = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity] 
+
+listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
+listTyDataCons = ( [(c, TyConP [(RTV tyv)] [p])]
+                 , [(nilDataCon , DataConP [(RTV tyv)] [p] [] lt)
+                 , (consDataCon, DataConP [(RTV tyv)] [p]  cargs  lt)])
+    where c     = listTyCon
+          [tyv] = tyConTyVars c
+          t     = TyVarTy tyv
+          fld   = stringSymbol "fld"
+          x     = stringSymbol "x"
+          xs    = stringSymbol "xs"
+          p     = PV (stringSymbol "p") t [(t, fld, fld)]
+          px    = pdVar $ PV (stringSymbol "p") t [(t, fld, x)]
+          lt    = rApp c [xt] [RMono $ pdVar p] pdTrue 
+          xt    = RVar (RV (RTV tyv)) pdTrue
+          xst   = rApp c [RVar (RV (RTV tyv)) px] [RMono $ pdVar p] pdTrue
+          cargs = [(xs, xst), (x, xt)]
+
+tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
+tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyv) ps)]
+                    , [(dc, DataConP (RTV <$> tyv) ps  cargs  lt)])
+  where c       = tupleTyCon BoxedTuple n
+        dc      = tupleCon BoxedTuple n 
+        tyv     = tyConTyVars c
+        (ta:ts) = TyVarTy <$>tyv
+        tvs     = tyv
+        flds    = mks "fld"
+        fld     = stringSymbol "fld"
+        x1:xs   = mks "x"
+        y       = stringSymbol "y"
+        ps      = mkps pnames (ta:ts) ((fld,fld):(zip flds flds))
+        pxs     = mkps pnames (ta:ts) ((fld, x1):(zip flds xs))
+        lt      = rApp c ((\x -> RVar (RV (RTV x)) pdTrue) <$> tyv) 
+                         (RMono . pdVar <$> ps) pdTrue 
+        xts     = zipWith (\v p -> RVar (RV (RTV v))(pdVar p)) 
+                          (tail tvs) pxs
+        cargs   = reverse $ (x1, RVar (RV (RTV (head tvs))) pdTrue)
+                            :(zip xs xts)
+        pnames  = mks_ "p"
+        mks  x  = (\i -> stringSymbol (x++ show i)) <$> [1..n]
+        mks_ x  = (\i ->  (x++ show i)) <$> [2..n]
+
+
+mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ (stringSymbol <$> ns) ts fxs [(t, f, x)] [] 
+
+mkps_ []     _       _          _    ps = ps
+mkps_ (n:ns) (t:ts) ((f, x):xs) args ps
+  = mkps_ ns ts xs (a:args) (p:ps)
+  where p = PV n t args
+        a = (t, f, x)
 
 ------------------------------------------------------------------------
 ----------------- Transforming Raw Strings using GHC Env ---------------
@@ -348,9 +398,6 @@ ofBDataCon tc αs πs (c, xts)
  = do c'  <- lookupGhcDataCon c
       ts' <- mapM (mkPredType πs) ts
       let t0 = rApp tc rs (RMono . pdVar <$> πs) pdTrue
-      -- let t2 = foldl (\t' (x,t) -> RFun (RB x) t t') t0 (zip xs' ts')
-      -- let t1 = foldl (\t pv -> RAll (RP pv) t) t2 πs 
-      -- let t  = foldl (\t v -> RAll (RV v) t) t1 αs
       return $ (c', DataConP αs πs (reverse (zip xs' ts')) t0) 
  where (xs, ts) = unzip xts
        xs'      = map stringSymbol xs

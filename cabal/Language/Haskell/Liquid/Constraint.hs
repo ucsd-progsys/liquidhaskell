@@ -46,6 +46,7 @@ import Text.Printf
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Haskell.Liquid.Fixpoint as F
+import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Fixpoint         (PVar(..))
 import Language.Haskell.Liquid.GhcInterface 
 import Language.Haskell.Liquid.RefType
@@ -452,17 +453,13 @@ initCGI info = CGInfo {
   , globals    = F.emptySEnv
   , freshIndex = 0
   , annotMap   = AI M.empty
-  , tyConInfo  = M.mapWithKey mkRTyCon $ tconsP $ spec info -- M.fromList [(c, mkRTyCon c p) | (c, p) <- tconsP $ spec info] 
+  , tyConInfo  = mkTyConInfo $ tconsP $ spec info 
   , specQuals  = specificationQualifiers info
   }
 
 showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 
-mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
-mkRTyCon tc (TyConP αs' ps) = RTyCon tc pvs'
-  where τs   = TyVarTy <$> TC.tyConTyVars tc
-        pvs' = subts (zip αs' τs) <$> ps
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) msg 
