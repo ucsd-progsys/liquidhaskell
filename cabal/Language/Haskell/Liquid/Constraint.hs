@@ -89,7 +89,6 @@ generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fw
         fws = concatMap splitW $ hsWfs st
         gs  = F.fromListSEnv . map (mapSnd refTypeSortedReft) $ meas spc 
         pds = generatePredicates info
-        cns = M.fromList (tconsP spc)
         spc = spec info
 
 
@@ -109,7 +108,7 @@ kvars' = everything (plus') (0 `mkQ` grabKvar)
 initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
 initEnv info penv
   = do defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
-       tyi      <- liftM tyConInfo get 
+       tyi      <- tyConInfo <$> get 
        let f0    = grty info          -- asserted refinements     (for defined vars)
        let f1    = defaults           -- default TOP reftype      (for all vars) 
        let f2    = assm info          -- assumed refinements      (for imported vars)
@@ -453,7 +452,7 @@ initCGI info = CGInfo {
   , globals    = F.emptySEnv
   , freshIndex = 0
   , annotMap   = AI M.empty
-  , tyConInfo  = M.fromList [(c, mkRTyCon c p) | (c, p) <- tconsP $ spec info] 
+  , tyConInfo  = M.mapWithKey mkRTyCon $ tconsP $ spec info -- M.fromList [(c, mkRTyCon c p) | (c, p) <- tconsP $ spec info] 
   , specQuals  = specificationQualifiers info
   }
 

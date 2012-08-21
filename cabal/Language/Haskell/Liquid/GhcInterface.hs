@@ -76,7 +76,7 @@ data GhcSpec = SP {
   , ctor       :: ![(Var, RefType)]
   , meas       :: ![(Symbol, RefType)]
   , dconsP     :: ![(DataCon, DataConP)]
-  , tconsP     :: ![(TC.TyCon, TyConP)]
+  , tconsP     :: !(M.Map TC.TyCon TyConP) -- ![(TC.TyCon, TyConP)]
   , includes   :: ![FilePath]
   , invariants :: ![SpecType]
   }
@@ -283,7 +283,7 @@ moduleSpec vars target mg paths
                    , ctor       = cs
                    , meas       = ms
                    , dconsP     = {- traceShow "dconsP:" $ -} concat dcs ++ snd wiredTyDataCons 
-                   , tconsP     = {- traceShow "tconsP:" $ -} tcs ++ fst wiredTyDataCons 
+                   , tconsP     = {- traceShow "tconsP:" $ -} M.fromList $ tcs ++ fst wiredTyDataCons 
                    , includes   = Ms.includes tgtSpec 
                    , invariants = invs
                    }

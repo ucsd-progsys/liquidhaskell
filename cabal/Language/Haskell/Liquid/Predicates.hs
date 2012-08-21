@@ -48,7 +48,6 @@ generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ "PredCBS" ++ sho
   where γ    = fmap removeExtPreds (penv $ evalState act (initPI $ tconsP $ spec info))
         act  = consAct info
         cbs' = addPredApp nPd <$> cbs info
---         γ'   = filterGamma nPd γ 
         nPd  = getNeedPd $ spec info
 
 instance Show CoreBind where
@@ -87,7 +86,7 @@ addId x y = modify $ \s -> s{symbolsP = M.insert x y (symbolsP s)}
 initPI x = PInfo { freshIndex = 1
                  , pMap       = M.empty
                  , hsCsP      = []
-                 , tyCons     = M.fromList x -- (tconsP info)
+                 , tyCons     = x -- M.fromList x
                  , symbolsP   = M.empty
                  }
 
