@@ -10,7 +10,7 @@ module Language.Haskell.Liquid.RefType (
   , Predicate (..), UReft(..), DataDecl (..)
   , pdAnd, pdVar, pdTrue, pvars
   , Bind (..), RBind
-  , ppr_rtype, mapReft, mapBind
+  , ppr_rtype, mapReft, mapBot, mapBind
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp, rFun
   , expandRApp
@@ -24,7 +24,6 @@ module Language.Haskell.Liquid.RefType (
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalReft, literalConst
   , REnv, deleteREnv, domREnv, insertREnv, lookupREnv, emptyREnv, memberREnv, fromListREnv
-  , addTyConInfo
   , primOrderingSort
   , fromRMono, fromRPoly, idRMono
   , isTrivial
@@ -305,16 +304,6 @@ replaceReft (RApp c ts rs _) r' = RApp c ts rs r'
 replaceReft (RVar a _) r'      = RVar a      r' 
 replaceReft t _                = t 
 
--- TODO: merge this with rConApp/rApp we should maintain this INVARIANT at all times.
-addTyConInfo :: (PVarable pv) => M.Map TC.TyCon RTyCon -> RRType pv Reft -> RRType pv Reft
-addTyConInfo = mapBot . expandRApp -- addTCI
-
--- addTCI tyi (RApp rc ts rs r)
---   = RApp rc' ts (appRefts rc' rs) r
---     where rc' = appRTyCon tyi rc ts
--- addTCI _ t
---   = t
-
 expandRApp tyi (RApp rc ts rs r)
   = RApp rc' ts (appRefts rc' rs) r
     where rc' = appRTyCon tyi rc ts
@@ -336,7 +325,6 @@ toPoly (RMono r) t = RPoly $ (ofType t) `strengthen` r
 showTy v = showSDoc $ ppr v <> ppr (varUnique v)
 -- showTy t = showSDoc $ ppr t
 
-
 -- mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
 mkArrow as xts t = mkUnivs as $ mkArrs xts t
 mkUnivs αs t     = foldr RAll t $ (RV <$> αs)
@@ -347,7 +335,7 @@ bkArrow ty = (αs, πs, xts, out)
   where (αs, πs, t) = bkUniv ty
         (xts,  out) = bkArrs t
 
-bkUniv = go [] [] 
+bkUniv = go [] []
   where go αs πs (RAll (RV α) t) = go (α : αs) πs t
         go αs πs (RAll (RP π) t) = go αs (π : πs) t
         go αs πs t               = (reverse αs, reverse πs, t)

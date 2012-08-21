@@ -275,7 +275,6 @@ instance Outputable Cinfo where
 --instance Outputable a => Outputable (F.SubC a) where
 --  -- ppr (F.SubC {F.sinfo = s}) = text "Liquid Type Error: " <> ppr s
 --  ppr
---
 --instance Outputable a => Outputable (F.WfC a) where
 --  ppr (F.SubC {F.sinfo = s}) = text "Liquid Type Error: " <> ppr s
 
@@ -589,6 +588,8 @@ isBaseTyCon c
   = True
   | otherwise
   = False
+
+addTyConInfo = mapBot . expandRApp
 
 -------------------------------------------------------------------
 -------------------- Generation: Corebind -------------------------
