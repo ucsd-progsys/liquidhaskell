@@ -10,10 +10,15 @@ TODO
 * tuple-refinements
 * get Niki to fix the safe0ZipWith nonsense in PredType.hs
 
+
 Benchmarks containers.Map
 =========================
 
-Failed 3 tests: pos/grty2.hs, pos/grty3.hs, pos/trans.hs
+-> fix the grty business so it produces line-numbers for function outputs.
+   
+   e.g. get a good line number output for 
+        
+        tests/neg/grty2.hs <---------------------- HEREHEREHEREHEREHEREHERE
 
 -> Where is all the time going in Fixpoint?
     Solve.acsolve                 280.170 s
