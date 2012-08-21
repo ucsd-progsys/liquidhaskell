@@ -631,7 +631,7 @@ extender γ (x, Just t) = γ ++= ("extender", mkSymbol x, t)
 extender γ _           = γ
 
 consBind γ (x, e, Just t) 
-  = do cconsE γ e t
+  = do cconsE (γ `setLoc` getSrcSpan x) e t
        addIdA x (Left t)
        return Nothing 
 
