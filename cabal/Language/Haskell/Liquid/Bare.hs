@@ -87,11 +87,12 @@ data GhcSpec = SP {
 
 makeGhcSpec :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
 makeGhcSpec vars env spec 
-  = do (tcs, dcs) <- makeConTypes    env              $ Ms.dataDecls  spec 
+  = do (tcs, dcs) <- makeConTypes    env               $ Ms.dataDecls  spec 
        let tycons  = tcs ++ tcs'    
-       (cs, ms)   <- makeMeasureSpec env $ Ms.mkMSpec $ Ms.measures   spec
-       sigs       <- makeAssumeSpec  vars tycons env  $ Ms.sigs       spec
-       invs       <- makeInvariants  env              $ Ms.invariants spec 
+       let benv    = BE (makeTyConInfo tycons) env
+       (cs, ms)   <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
+       sigs       <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
+       invs       <- makeInvariants  benv              $ Ms.invariants spec 
        return      $ SP sigs cs ms invs (concat dcs ++ dcs') tycons  
     where (tcs', dcs') = wiredTyDataCons 
 
@@ -99,11 +100,14 @@ makeGhcSpec vars env spec
 ---------- Error-Reader-IO For Bare Transformation ---------------
 ------------------------------------------------------------------
 
-type BareM a = ErrorT String (ReaderT HscEnv IO) a
+type BareM a = ErrorT String (ReaderT BareEnv IO) a
 
-execBare :: BareM a -> HscEnv -> IO a
-execBare act hsc_env = 
-   do z <- runReaderT (runErrorT act) hsc_env
+data BareEnv = BE { tcEnv  :: !(M.Map TyCon RTyCon)
+                  , hscEnv :: HscEnv }
+
+execBare :: BareM a -> BareEnv -> IO a
+execBare act benv = 
+   do z <- runReaderT (runErrorT act) benv
       case z of
         Left s  -> errorstar $ "execBare:" ++ s
         Right x -> return x
@@ -115,41 +119,40 @@ wrapErr msg f x
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
 
-makeMeasureSpec :: HscEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
-makeMeasureSpec env m = execBare mkSpec env
+makeMeasureSpec :: BareEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
+makeMeasureSpec env m = execBare mkSpec env 
   where mkSpec = wrapErr "mkMeasureSort" mkMeasureSort m' >>= mkMeasureDCon >>= return . Ms.dataConTypes
         m'     = first (txTyVarBinds . mapReft ureft) m
 
-makeAssumeSpec :: [Var] -> [(TyCon, TyConP)] -> HscEnv -> [(Symbol, BareType)] -> IO [(Var, SpecType)]
-makeAssumeSpec vs tycons env xbs = execBare mkAspec env
+makeAssumeSpec :: BareEnv -> [Var] -> [(Symbol, BareType)] -> IO [(Var, SpecType)]
+makeAssumeSpec env vs xbs = execBare mkAspec env 
   where mkAspec = forM vbs mkVarSpec >>= return . checkAssumeSpec
         vbs     = joinIds vs (first symbolString <$> xbs) 
-        tyi     = makeTyConInfo tycons 
 
 mkVarSpec (v, b) = liftM (v,) (wrapErr msg mkSpecType b)
   where msg = "mkVarSpec fails on " ++ showPpr v ++ " :: "  ++ showPpr b 
-
-
 
 -- joinIds :: [Var] -> [(String, a)] -> [(Var, a)]
 joinIds vs xts = {-tracePpr "spec vars"-} vts   
   where vm     = M.fromList [(showPpr v, v) | v <- {-tracePpr "vars"-} vs]
         vts    = catMaybes [(, t) <$> (M.lookup x vm) | (x, t) <- {-tracePpr "bareVars"-} xts]
 
-makeInvariants :: HscEnv -> [BareType] -> IO [SpecType]
-makeInvariants env ts = execBare (mapM mkSpecType ts) env
+makeInvariants :: BareEnv -> [BareType] -> IO [SpecType]
+makeInvariants benv ts = execBare (mapM mkSpecType ts) benv
 
-mkSpecType    :: BareType -> BareM SpecType 
-mkSpecType    = ofBareType' 
-              . txParams subvUReft [] 
-              . txTyVarBinds 
-              . mapReft (bimap canonReft stringTyVarTy) 
+-- mkSpecType    :: BareType -> BareM SpecType 
+mkSpecType 
+  = ofBareType' 
+  . txParams subvUReft [] 
+  . txTyVarBinds 
+  . mapReft (bimap canonReft stringTyVarTy) 
 
 -- mkPredType :: [PVar Type]-> BRType (PVar String) (Predicate String) -> BareM PrType 
-mkPredType πs = ofBareType' 
-              . txParams subvPredicate πs 
-              . txTyVarBinds 
-              . mapReft (fmap stringTyVarTy)
+mkPredType πs 
+  = ofBareType' 
+  . txParams subvPredicate πs 
+  . txTyVarBinds 
+  . mapReft (fmap stringTyVarTy)
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
@@ -188,7 +191,7 @@ lookupGhcThing name f x
 
 lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
 lookupGhcThing' name f x 
-  = do env     <- ask
+  = do env     <- hscEnv <$> ask
        z       <- liftIO $ lookupName env x
        case z of
          Nothing -> return Nothing 
@@ -307,7 +310,7 @@ mkps_ (n:ns) (t:ts) ((f, x):xs) args ps
 ----------------- Transforming Raw Strings using GHC Env ---------------
 ------------------------------------------------------------------------
 
-ofBareType'   = wrapErr "ofBareType" ofBareType
+ofBareType' = wrapErr "ofBareType" ofBareType
 
 -- ofBareType :: (Reftable r) => BRType pv r -> BareM (RRType pv r)
 -- ofBareType :: (TyConable a, Reftable r, GhcLookup a1, GhcLookup a) => RType a1 a String pv r-> BareM (RType Class RTyCon RTyVar pv r)
@@ -323,15 +326,16 @@ ofBareType (RAll (RP π) t)
   = liftM  (RAll (RP π)) (ofBareType t)
 ofBareType (RApp tc ts@[_] rs r) 
   | isList tc
-  -- = liftM (bareTCApp r ...rs... listTyCon . (:[])) (ofBareType t)
-  = liftM2 (bareTCApp r listTyCon) (mapM ofRef rs) (mapM ofBareType ts)
+  = do tyi <- tcEnv <$> ask
+       liftM2 (bareTCApp tyi r listTyCon) (mapM ofRef rs) (mapM ofBareType ts)
 ofBareType (RApp tc ts rs r) 
   | isTuple tc
-  = liftM2 (bareTCApp r c) (mapM ofRef rs) (mapM ofBareType ts)
+  = do tyi <- tcEnv <$> ask
+       liftM2 (bareTCApp tyi r c) (mapM ofRef rs) (mapM ofBareType ts)
     where c = tupleTyCon BoxedTuple (length ts)
 ofBareType (RApp tc ts rs r) 
-  = liftM3 (bareTCApp r) (lookupGhcTyCon tc) (mapM ofRef rs) (mapM ofBareType ts)
-  -- liftM2 (bareTCApp r) (idRMono <$> rs) (lookupGhcTyCon tc) (mapM ofBareType ts)
+  = do tyi <- tcEnv <$> ask
+       liftM3 (bareTCApp tyi r) (lookupGhcTyCon tc) (mapM ofRef rs) (mapM ofBareType ts)
 ofBareType (RCls c ts)
   = liftM2 RCls (lookupGhcClass c) (mapM ofBareType ts)
 
@@ -341,11 +345,14 @@ ofRef (RMono r)
   = return (RMono r)
 
 -- TODO: move back to RefType
-bareTCApp r c rs ts 
+bareTCApp tyi r c rs ts 
   = if isTrivial t0 then t' else t
-    where t0 = rApp c ts rs top
-          t  = rApp c ts rs r
+    where t0 = rAppOld tyi c ts rs top
+          t  = rAppOld tyi c ts rs r
           t' = (expandRTypeSynonyms t0) `strengthen` r
+
+rAppNew tyi c ts rs r = expandRApp tyi $ RApp (RTyCon c []) ts rs r
+rAppOld _             = rApp
 
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
          
@@ -382,8 +389,8 @@ mkMeasureSort (Ms.MSpec cm mm)
 ---------------- Bare Predicate: DataCon Definitions ------------------
 -----------------------------------------------------------------------
 
-makeConTypes :: HscEnv-> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
-makeConTypes env dcs = unzip <$> execBare (mapM ofBDataDecl dcs) env
+makeConTypes :: HscEnv -> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
+makeConTypes env dcs = unzip <$> execBare (mapM ofBDataDecl dcs) (BE M.empty env)
 
 ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
 ofBDataDecl (D tc as ps cts)

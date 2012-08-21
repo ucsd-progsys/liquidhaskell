@@ -215,9 +215,8 @@ pToReft p = Reft (vv, [RPvar p])
 replacePred :: String -> (PVar Type, Ref Reft RefType) -> RefType -> RefType
 ----------------------------------------------------------------------------
 
-replacePred msg pr@(p, RPoly t)  t0 = substPred msg True (p, t) t0
-replacePred msg pr@(p, RMono r)  t0 = fmap (replacePVarReft (p, r)) t0
-
+replacePred msg pr@(p, RPoly t) = substPred msg True (p, t)
+replacePred msg pr@(p, RMono r) = fmap (replacePVarReft (p, r))
 
 substPredP :: Bool -> (PVar Type, RefType) -> (Ref Reft RefType) -> (Ref Reft RefType)
 substPredP b pt (RPoly t) = RPoly $ substPred "substPredP" b pt t
@@ -252,16 +251,28 @@ substPred msg m pt@(p, tp) (RFun x t t' r)
 substPred msg m pt (RCls c ts) = RCls c (substPred msg m pt <$> ts)
 substPred msg m pt t = t
 
-substRCon msg (p, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2) | rc1 == rc2
+substRCon msg (p, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2) 
+  | rTyCon c1 == rTyCon c2
   =  RApp c1 ts rs $ r2' `mymeet` (addS r1)
   where (r2', su) = rmKVarReft p r2
         ts = safeZipWith (msg ++ ": substRCon") (flip strSub) ts1 ts2
-        rs = safeZipWith (msg ++ ": substRcon2") (flip strSubR) rs1 rs2
+        rs = safe0ZipWith (msg ++ ": substRcon2") (flip strSubR) rs1 rs2
         addS r         = subst su r
-        (RTyCon rc1 _) = c1
-        (RTyCon rc2 _) = c2
-        strSub t1      = {- strengthenRefType -} meet t1 . fmap addS
+        strSub t1      = meet t1 . fmap addS
         strSubR t1 t2  = RPoly $ strSub (fromRPoly t1) (fromRPoly t2) 
+        
+        -- rs = gooBer rs1 rs2
+        -- OBVIOUS AND MASSIVE HACK.
+        --gooBer rs1 rs2 
+        --  | length rs1 == length rs2
+        --  = safeZipWith (msg ++ ": substRcon2") (flip strSubR) rs1 rs2
+        --gooBer [] _ 
+        --  = []
+        --gooBer _ []
+        --  = []
+        --gooBer _ _
+        --  = errorstar $ "gooBer: rs1 = " ++ showPpr rs1  ++ " rs2 = " ++ showPpr rs2 
+
 
 substRCon msg pt t = error $ msg ++ " substRCon " ++ show (pt, t)
 

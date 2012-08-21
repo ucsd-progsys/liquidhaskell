@@ -453,7 +453,7 @@ initCGI info = CGInfo {
   , globals    = F.emptySEnv
   , freshIndex = 0
   , annotMap   = AI M.empty
-  , tyConInfo  = mkTyConInfo $ tconsP $ spec info 
+  , tyConInfo  = makeTyConInfo $ tconsP $ spec info 
   , specQuals  = specificationQualifiers info
   }
 

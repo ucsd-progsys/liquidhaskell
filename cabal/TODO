@@ -8,6 +8,7 @@ TODO
 * benchmarks: stackset-core
 * benchmarks: Data.Text
 * tuple-refinements
+* get Niki to fix the safe0ZipWith nonsense in PredType.hs
 
 Benchmarks containers.Map
 =========================
