@@ -333,10 +333,10 @@ type Size     = Int
 
 {-@ type OMap k a = Map <{v:k | v < root}, {v:k | v > root}> k a @-}
 
-instance (Ord k) => Monoid (Map k v) where
-    mempty  = empty
-    mappend = union
-    mconcat = unions
+-- LIQUID instance (Ord k) => Monoid (Map k v) where
+--     mempty  = empty
+--     mappend = union
+--     mconcat = unions
 
 #if __GLASGOW_HASKELL__
 
@@ -1237,7 +1237,7 @@ unions ts
 -- > unionsWith (++) [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
 -- >     == fromList [(3, "bB3"), (5, "aAA3"), (7, "C")]
 
-{-@ unionsWith :: (Ord k) => (a->a->a) -> [Map k a] -> Map k a @-}
+{-@ unionsWith :: (Ord k) => (a->a->a) -> [OMap k a] -> OMap k a @-}
 unionsWith :: Ord k => (a->a->a) -> [Map k a] -> Map k a
 unionsWith f ts
   = foldlStrict (unionWith f) empty ts
@@ -1961,7 +1961,7 @@ elems = foldr (:) []
 -- > keys (fromList [(5,"a"), (3,"b")]) == [3,5]
 -- > keys empty == []
 
-{-@ keys :: OMap k a -> [k]<{v: k | v >= fld}> @-}
+{- LIQUID: SUMMARY-VALUES: keys :: OMap k a -> [k]<{v: k | v >= fld}> @-}
 keys  :: Map k a -> [k]
 keys = foldrWithKey (\k _ ks -> k : ks) []
 
@@ -1971,7 +1971,7 @@ keys = foldrWithKey (\k _ ks -> k : ks) []
 -- > assocs (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 -- > assocs empty == []
 
-{- LIQUIDTODO: assocs :: OMap k a -> [(k, a)]<{v: (k, a) | fst(v) >= fst(fld) }> @-}
+{- LIQUID: SUMMARY-VALUES: assocs :: OMap k a -> [(k, a)]<{v: (k, a) | fst(v) >= fst(fld) }> @-}
 assocs :: Map k a -> [(k,a)]
 assocs m
   = toAscList m
@@ -2554,6 +2554,7 @@ balance k x l r = case l of
 
 -- balanceL is called when left subtree might have been inserted to or when
 -- right subtree might have been deleted from.
+{-@ balanceL :: kcut:k -> a -> OMap {v:k | v < kcut} a -> OMap {v:k| v > kcut} a -> OMap k a @-}
 balanceL :: k -> a -> Map k a -> Map k a -> Map k a
 balanceL k x l r = case r of
   Tip -> case l of
@@ -2579,6 +2580,7 @@ balanceL k x l r = case r of
 
 -- balanceR is called when right subtree might have been inserted to or when
 -- left subtree might have been deleted from.
+{-@ balanceR :: kcut:k -> a -> OMap {v:k | v < kcut} a -> OMap {v:k| v > kcut} a -> OMap k a @-}
 balanceR :: k -> a -> Map k a -> Map k a -> Map k a
 balanceR k x l r = case l of
   Tip -> case r of
