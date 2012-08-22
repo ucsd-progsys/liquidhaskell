@@ -1,5 +1,6 @@
 module Test where
 
+import Language.Haskell.Liquid.Prelude (liquidAssert)
 
 {-@ type OList a = [a]<{v: a | (v >= fld)}> @-}
 
@@ -9,15 +10,23 @@ filterGt ::  Ord a => Maybe a -> [a] -> [a]
 filterGt Nothing  xs = xs
 filterGt (Just x) xs = foo x xs
   
-{-@ foo :: (Ord a) => z:a -> OList a -> OList {v:a | z <= v} @-}
-foo y []     = []
-foo y (x:xs) 
+foo y xs = foo' y xs
+
+foo' :: (Ord a) => a -> [a] -> [a]
+foo' y []     = []
+foo' y (x:xs) 
  = case compare y x of 
-    GT -> foo y xs 
-    LT -> x:xs 
-    EQ -> xs 
---   | y > x    = foo y xs 
---   | y < x    = x:xs 
---   | y == x   = xs 
+     GT -> foo' y xs 
+     LT -> x:xs 
+     EQ -> xs 
+
+{-@ bar :: (Ord a) => z:a -> OList a -> OList {v:a | z <= v} @-}
+bar y xs = bar' y xs
+
+bar' y []     = []
+bar' y (x:xs) 
+  | y > x    = bar' y xs 
+  | y < x    = x:xs 
+  | y == x   = xs 
 
 

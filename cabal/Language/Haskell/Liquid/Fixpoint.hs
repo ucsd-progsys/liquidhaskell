@@ -291,7 +291,7 @@ tyConName c
 isListTC (TC (S c)) = c == listConName
 
 typeSortFun τ1 τ2
-  = FFunc n $ genArgSorts' sos
+  = FFunc n $ genArgSorts sos
   where sos  = typeSort <$> τs
         τs   = τ1  : grabArgs [] τ2
         n    = (length sos) - 1

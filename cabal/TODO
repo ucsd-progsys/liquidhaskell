@@ -1,7 +1,9 @@
 TODO
 ====
 
+
 * benchmarks: containers.Map
+* CHECK: how much performance hit from -nosimple?
 * TAGs
 * benchmarks: Data.List (foldr)
 * benchmarks: Data.Bytestring
