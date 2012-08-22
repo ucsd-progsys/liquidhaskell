@@ -11,3 +11,12 @@ assume GHC.Real.div             :: (Integral a) => x:a -> y:a -> {v:a | v = (x /
 assume GHC.Real./               :: (Fractional a) => x:a -> y:{v:a | v != 0} -> {v: a | v = (x / y) }
 assume GHC.Real.fromIntegral    :: (Integral a, Num b) => x: a -> {v: b | ((x != 0) => (v != 0))}
 assume GHC.Num.fromInteger      :: (Num a) => x:Integer -> {v:a | v = x }
+
+measure isJust :: forall a. Maybe a -> Bool 
+isJust (Just x)  = true
+isJust (Nothing) = false
+
+measure fromJust :: forall a. Maybe a -> a 
+fromJust (Just x) = x 
+
+
