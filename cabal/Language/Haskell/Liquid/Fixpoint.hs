@@ -30,22 +30,22 @@ module Language.Haskell.Liquid.Fixpoint (
   ) where
 
 import TypeRep 
-import PrelNames (intTyConKey, intPrimTyConKey, integerTyConKey, boolTyConKey)
+import PrelNames            (intTyConKey, intPrimTyConKey, integerTyConKey, boolTyConKey)
 
-import TysWiredIn       (listTyCon)
-import TyCon            (isTupleTyCon, tyConUnique)
+import TysWiredIn           (listTyCon)
+import TyCon                (isTupleTyCon, tyConUnique)
 import Outputable
-import Data.Monoid hiding ((<>))
+import Data.Monoid hiding   ((<>))
 import Data.Functor
-import Data.Char        (ord, chr, isAlpha, isUpper, toLower)
-import Data.List        (sort)
+import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
+import Data.List            (sort)
 import qualified Data.Map as M
 import qualified Data.Set as S
 
 import Data.Generics.Schemes
 import Data.Generics.Aliases
-import Data.Data    hiding (tyConName)
-import Data.Maybe (catMaybes)
+import Data.Data    hiding  (tyConName)
+import Data.Maybe           (fromMaybe, catMaybes)
 
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.FileNames
@@ -274,7 +274,6 @@ typeSort (TyConApp c [])
   | k == integerTyConKey = FInt 
   | k == boolTyConKey    = FBool
   where k = tyConUnique c
-
 typeSort (ForAllTy _ τ) 
   = typeSort τ  -- JHALA: Yikes! Fix!!!
 typeSort (FunTy τ1 τ2) 
@@ -292,7 +291,7 @@ tyConName c
 isListTC (TC (S c)) = c == listConName
 
 typeSortFun τ1 τ2
-  = FFunc n $ genArgSorts sos
+  = FFunc n $ genArgSorts' sos
   where sos  = typeSort <$> τs
         τs   = τ1  : grabArgs [] τ2
         n    = (length sos) - 1
@@ -303,13 +302,34 @@ typeUniqueSymbol = stringSymbol . {- ("sort_" ++) . -} showSDocDump . ppr
 grabArgs τs (FunTy τ1 τ2 ) = grabArgs (τ1:τs) τ2
 grabArgs τs τ              = reverse (τ:τs)
 
+genArgSorts' sos = traceShow ("genArgSorts sos = " ++ showPpr sos) $ genArgSorts sos
+
 genArgSorts :: [Sort] -> [Sort]
-genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
-  where genSort FInt        = Nothing
-        genSort FBool       = Nothing 
-        genSort so          = Just so
-        genIdx  _ (Just i)  = FVar i
-        genIdx  so  _       = so
+--genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
+--  where genSort FInt        = Nothing
+--        genSort FBool       = Nothing 
+--        genSort so          = Just so
+--        genIdx  _ (Just i)  = FVar i
+--        genIdx  so  _       = so
+
+genArgSorts xs = sortSubst su <$> xs
+  where su = M.fromList $ zip (nubSort αs) (FVar <$> [0..])
+        αs = concatMap getObjs xs 
+
+getObjs (FObj x)          = [x]
+getObjs (FFunc _ ts)      = concatMap getObjs ts
+getObjs (FApp _ ts)       = concatMap getObjs ts
+getObjs _                 = []
+
+sortSubst su t@(FObj x)   = fromMaybe t (M.lookup x su) 
+sortSubst su (FFunc n ts) = FFunc n (sortSubst su <$> ts)
+sortSubst su (FApp c ts)  = FApp c  (sortSubst su <$> ts)
+sortSubst _  t            = t
+
+
+-- 1. αs    = gather tyvars in xs (all Obj)
+-- 2. subst = nubOrd αs, zipWith [0...] :: Obj -> Int
+-- 3. apply subst <$> xs
 
 newtype Sub = Sub [(Int, Sort)]
 
@@ -319,7 +339,7 @@ instance Fixpoint Sort where
 toFix_sort (FVar i)     = text "@"   <> parens (ppr i)
 toFix_sort FInt         = text "int"
 toFix_sort FBool        = text "bool"
-toFix_sort (FObj x)     = toFix x -- text "ptr" <> parens (toFix x)
+toFix_sort (FObj x)     = toFix x
 toFix_sort FNum         = text "num"
 toFix_sort (FFunc n ts) = text "func" <> parens ((ppr n) <> (text ", ") <> (toFix ts))
 toFix_sort (FApp c [t]) 
@@ -350,6 +370,9 @@ instance Fixpoint Symbol where
 
 instance Outputable Symbol where
   ppr (S x) = text x 
+
+instance Outputable Sort where
+  ppr = text . show 
 
 instance Show Symbol where
   show (S x) = x

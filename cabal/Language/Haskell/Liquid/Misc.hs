@@ -115,9 +115,6 @@ tr_reverse      = foldl' (flip (:)) []
 tr_foldr' ::  (a -> b -> b) -> b -> [a] -> b
 tr_foldr' f b   = foldl' (flip f) b . tr_reverse 
 
--- reduce f (x:xs) = foldl' f x xs
--- reduce f _      = errorstar $ "reduce called on empty list!"
-
 safeZip msg xs ys 
   | length xs == length ys 
   = zip xs ys
