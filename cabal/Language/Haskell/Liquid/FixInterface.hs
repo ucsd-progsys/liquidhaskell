@@ -62,9 +62,10 @@ sanitizeFixpointOutput
   . chopAfter ("//QUALIFIERS" `isPrefixOf`)
   . lines
 
-plugC _ Safe          = Safe
-plugC cm (Crash is s) = Crash (mlookup cm `fmap` is) s
-plugC cm (Unsafe is)  = Unsafe (mlookup cm `fmap` is)
+plugC = fmap . mlookup 
+-- plugC _ Safe          = Safe
+-- plugC cm (Crash is s) = Crash (mlookup cm `fmap` is) s
+-- plugC cm (Unsafe is)  = Unsafe (mlookup cm `fmap` is)
 
 resultExit Safe        = ExitSuccess
 resultExit (Unsafe _)  = ExitFailure 1

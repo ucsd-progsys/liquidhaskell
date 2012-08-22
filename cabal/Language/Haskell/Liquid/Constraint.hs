@@ -238,7 +238,7 @@ rTyVarSymbol (RV (RTV α)) = typeUniqueSymbol $ TyVarTy α
 ------------------- Constraints: Types --------------------------
 -----------------------------------------------------------------
 
-newtype Cinfo = Ci SrcSpan deriving (Data, Typeable)
+newtype Cinfo = Ci SrcSpan deriving (Eq, Ord, Data, Typeable)
 
 data SubC     = SubC { senv  :: !CGEnv
                      , lhs   :: !RefType

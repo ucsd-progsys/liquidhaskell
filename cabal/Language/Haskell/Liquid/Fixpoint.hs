@@ -38,6 +38,7 @@ import Outputable
 import Data.Monoid hiding ((<>))
 import Data.Functor
 import Data.Char        (ord, chr, isAlpha, isUpper, toLower)
+import Data.List        (sort)
 import qualified Data.Map as M
 import qualified Data.Set as S
 
@@ -719,11 +720,20 @@ instance Monoid (FixResult a) where
   mappend UnknownError _          = UnknownError
   mappend _ UnknownError          = UnknownError
 
-instance Outputable a => Outputable (FixResult (SubC a)) where
-  ppr (Crash xs msg) = text "Crash! "  <> ppr (sinfo `fmap` xs) <> parens (text msg) 
+instance Functor FixResult where 
+  fmap f (Crash xs msg) = Crash (f <$> xs) msg
+  fmap f (Unsafe xs)    = Unsafe (f <$> xs)
+  fmap _ Safe           = Safe
+  fmap _ UnknownError   = UnknownError 
+
+instance (Ord a, Outputable a) => Outputable (FixResult (SubC a)) where
+  ppr (Crash xs msg) = text "Crash! "  <> ppr_sinfos xs <> parens (text msg) 
   ppr Safe           = text "Safe"
-  ppr (Unsafe xs)    = text "Unsafe: " <> ppr (sinfo `fmap` xs)
+  ppr (Unsafe xs)    = text "Unsafe: " <> ppr_sinfos xs -- ppr (sinfo `fmap` xs)
   ppr UnknownError   = text "Unknown Error!"
+
+ppr_sinfos :: (Ord a, Outputable a) => [SubC a] -> SDoc
+ppr_sinfos = ppr . sort . fmap sinfo
 
 -- toFixPfx s x     = text s <+> toFix x
 
