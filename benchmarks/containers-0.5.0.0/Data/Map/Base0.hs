@@ -122,6 +122,20 @@ lookup :: Ord k => k -> Map k a -> Maybe a
 lookup = error "TDA"
 
 
+{-@ hedgeDiff  :: (Ord k) => lo0:MaybeS k -> lo: {v: MaybeS {v: k | (isJustS(lo0) && (v = fromJustS(lo0))) } | v = lo0 }  
+                          -> hi0:MaybeS k -> hi:{v: MaybeS {v: k | ( isJustS(hi0) && (v = fromJustS(hi0))) } 
+                                                  | (((isJustS(lo) && isJustS(v)) => (fromJustS(v) >= fromJustS(lo))) && (v = hi0)) }   
+                          
+                          -> {v: OMap k a | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
+                          -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } b 
+                          ->  OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a @-}
+
+hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
+hedgeDiff _ _ _  _   Tip              _          = Tip
+hedgeDiff blo0 blo bhi0 bhi (Bin _ kx x l r) Tip = join kx x (filterGt blo l) (filterLt bhi r)
+hedgeDiff blo0 blo bhi0 bhi t (Bin _ kx _ l r)   = merge kx (hedgeDiff blo0 blo bmi bmi (trim blo bmi t) l)
+                                                            (hedgeDiff bmi bmi bhi0 bhi (trim bmi bhi t) r)
+  where bmi = JustS kx
 ------------------------------------------------------------------------------
 -- {- hedgeUnion :: (Ord k) => lo0:MaybeS k -> lo: {v: MaybeS {v: k | (isJustS(lo0) && (v = fromJustS(lo0))) } | v = lo0 }  
 --                           -> hi0:MaybeS k -> hi:{v: MaybeS {v: k | ( isJustS(hi0) && (v = fromJustS(hi0))) } 
@@ -154,7 +168,7 @@ lookup = error "TDA"
 --   where bmi = JustS kx
 ----------------------------------------------------------------------------------
 
-{-@ mergeWithKey :: (Ord k) => (k -> a -> b -> Maybe c) 
+{- mergeWithKey :: (Ord k) => (k -> a -> b -> Maybe c) 
                           -> (lo:MaybeS k -> hi: MaybeS k 
                               -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a
                               -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c) 
@@ -162,15 +176,13 @@ lookup = error "TDA"
                               -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } b
                               -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c) 
                           -> OMap k a -> OMap k b -> OMap k c @-}
-mergeWithKey :: Ord k => (k -> a -> b -> Maybe c) -> (MaybeS k -> MaybeS k -> Map k a -> Map k c) -> (MaybeS k -> MaybeS k -> Map k b -> Map k c)
-             -> Map k a -> Map k b -> Map k c
-mergeWithKey f g1 g2 = go
-  where
-    go Tip t2 = g2 NothingS NothingS t2
-    go t1 Tip = g1 NothingS NothingS t1
-    go t1 t2  = hedgeMerge f g1 g2 NothingS NothingS NothingS NothingS t1 t2
-
-
+--mergeWithKey :: Ord k => (k -> a -> b -> Maybe c) -> (MaybeS k -> MaybeS k -> Map k a -> Map k c) -> (MaybeS k -> MaybeS k -> Map k b -> Map k c)
+--             -> Map k a -> Map k b -> Map k c
+--mergeWithKey f g1 g2 = go
+--  where
+--    go Tip t2 = g2 NothingS NothingS t2
+--    go t1 Tip = g1 NothingS NothingS t1
+--    go t1 t2  = hedgeMerge f g1 g2 NothingS NothingS NothingS NothingS t1 t2
 
 {-@ hedgeMerge :: (Ord k) => (k -> a -> b -> Maybe c) 
                           -> (lo:MaybeS k -> hi: MaybeS k 
@@ -214,11 +226,6 @@ hedgeMerge f g1 g2 blo0 blo bhi0 bhi (Bin _ kx x l r) t2
                  -> bhi:{v: MaybeS k | (isJustS(v) => (lo < fromJustS(v)))} 
                  -> OMap k a 
                  -> (Maybe a, {v: OMap k a | ((isBin(v) => (lo < key(v))) && ((isBin(v) && isJustS(bhi)) => (fromJustS(bhi) > key(v)))) }) @-}
-                 
-                 -- -> (Maybe a, {v: OMap k a | ((isBin(v) => (lo < key(v))))}) @-}
-                 
-                 -- -> (Maybe a, {v: OMap k a | ((isBin(v) && isJustS(bhi)) => (fromJustS(bhi) > key(v))) }) @-}
-
 
 trimLookupLo :: Ord k => k -> MaybeS k -> Map k a -> (Maybe a, Map k a)
 trimLookupLo lk NothingS t = greater lk t

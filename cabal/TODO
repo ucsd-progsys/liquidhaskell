@@ -1,10 +1,10 @@
 TODO
 ====
 
-
-* benchmarks: containers.Map
+* predicate-aliases 
 * strictness annotations
 * self-invariants
+* fixpoint profile
 * CHECK: how much performance hit from -nosimple?
 * TAGs
 * benchmarks: Data.List (foldr)
@@ -31,45 +31,28 @@ Currently hacked by "copying variables",
 see tests/pos/maybe3.hs [hack which works]
     tests/pos/maybe4.hs [deal with devil which doesn't work]
 
+Predicate Aliases
+=================
 
+Then clean up the spec blowup in Map?
 
+         <---------------------- HEREHEREHEREHEREHEREHERE
 
-Benchmarks containers.Map
-=========================
+{-@ maybeGe(lo, v)     = ((isJustS(lo)) => (v >= fromJustS(lo))) @-}
+{-@ maybeLe(hi, v)     = ((isJustS(lo)) => (v <= fromJustS(hi))) @-}
+{-@ inRange(lo, hi, v) = maybeGe(lo, v) && maybeLe(hi, v)        @-}
 
-     
-    <---------------------- HEREHEREHEREHEREHEREHERE
+inRange(lo, hi, v) = {v:k | (((isJustS(lo)) => (v >= fromJustS(lo))) && (((isJustS(hi)) => (v <= fromJustS(hi)))))} v @-}
 
--- maybeGe(lo, v)     = ((isJustS(lo)) => (v >= fromJustS(lo)))
--- maybeLe(hi, v)     = ((isJustS(lo)) => (v <= fromJustS(hi)))
--- inRange(lo, hi, v) = maybeGe(lo, v) && maybeLe(hi, v) 
-
--- inRange(lo, hi, v) = {v:k | (((isJustS(lo)) => (v >= fromJustS(lo))) && (((isJustS(hi)) => (v <= fromJustS(hi)))))} v @-}
-
+Fixpoint Profile
+================
 
 -> Where is all the time going in Fixpoint?
+    
+    liquid ../benchmarks/containers-0.5.0.0/Data/Map/Base.hs
+
     Solve.acsolve                 280.170 s
       refine                        73.057 s
-   ????
-    Solve.acsolve                 300.851 s
-      refine                        87.829 s
- 
--> [glue/merge] added explicit witnesses (in "LIQUID" comments)
-        > Cannot deal with union/intersection because of glue/merge 
-          which will screw up the balanceL/balanceR so may want to 
-          comment out.
-          
-          [glue l r]
-
-          requires ALL elts of l less than ALL ELTS of r ...
-
-          TRICK: just change the type of glue/merge ... will break all callers.
-
--> cleanest solution? "variable packing" a la astree?
-
-        l ~ r
-
-   when you unfold l update r (or vice-versa) whats a clean way to do it?
 
 Tuple Refinements
 =================

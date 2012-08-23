@@ -1337,7 +1337,7 @@ unionWith f m1 m2
 
 {-@ unionWithKey :: (Ord k) => (k -> a -> a -> a) -> OMap k a -> OMap k a -> OMap k a @-}
 unionWithKey :: Ord k => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
-unionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) id id t1 t2
+unionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (\ _ _ x -> x) (\ _ _ x -> x) t1 t2
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE unionWithKey #-}
 #endif
@@ -1360,11 +1360,18 @@ difference t1 t2   = hedgeDiff NothingS NothingS NothingS NothingS t1 t2
 {-# INLINABLE difference #-}
 #endif
 
+{-@ hedgeDiff  :: (Ord k) => lo0:MaybeS k -> lo: {v: MaybeS {v: k | (isJustS(lo0) && (v = fromJustS(lo0))) } | v = lo0 }  
+                          -> hi0:MaybeS k -> hi:{v: MaybeS {v: k | ( isJustS(hi0) && (v = fromJustS(hi0))) } 
+                                                  | (((isJustS(lo) && isJustS(v)) => (fromJustS(v) >= fromJustS(lo))) && (v = hi0)) }   
+                          -> {v: OMap k a | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
+                          -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } b 
+                          ->  OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a @-}
+
 hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
 hedgeDiff _ _ _  _   Tip              _ = Tip
 hedgeDiff blo0 blo bhi0 bhi (Bin _ kx x l r) Tip = join kx x (filterGt blo l) (filterLt bhi r)
 hedgeDiff blo0 blo bhi0 bhi t (Bin _ kx _ l r) = merge kx (hedgeDiff blo0 blo bmi bmi (trim blo bmi t) l)
-                                             (hedgeDiff bmi bmi bhi0 bhi (trim bmi bhi t) r)
+                                                          (hedgeDiff bmi bmi bhi0 bhi (trim bmi bhi t) r)
   where bmi = JustS kx
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE hedgeDiff #-}
@@ -1401,7 +1408,7 @@ differenceWith f m1 m2
 
 {-@ differenceWithKey :: (Ord k) => (k -> a -> b -> Maybe a) -> OMap k a -> OMap k b -> OMap k a @-}
 differenceWithKey :: Ord k => (k -> a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
-differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
+differenceWithKey f t1 t2 = mergeWithKey f (\_ _ x -> x) (\ _ _ _ -> Tip) t1 t2
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE differenceWithKey #-}
 #endif
@@ -1475,7 +1482,7 @@ intersectionWith f m1 m2
 
 {-@ intersectionWithKey :: (Ord k) => (k -> a -> b -> c) -> OMap k a -> OMap k b -> OMap k c @-}
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
-intersectionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (const Tip) (const Tip) t1 t2
+intersectionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (\ _ _ _ -> Tip) (\ _ _ _ -> Tip) t1 t2
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE intersectionWithKey #-}
 #endif
@@ -1521,34 +1528,85 @@ intersectionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (const
 -- @only2@ are 'id' and @'const' 'empty'@, but for example @'map' f@ or
 -- @'filterWithKey' f@ could be used for any @f@.
 
-{-@ mergeWithKey :: (Ord k) => (k -> a -> b -> Maybe c) -> (OMap k a -> OMap k c) -> (OMap k b -> OMap k c)
-                 -> OMap k a -> OMap k b -> OMap k c @-}
-mergeWithKey :: Ord k => (k -> a -> b -> Maybe c) -> (Map k a -> Map k c) -> (Map k b -> Map k c)
+-- LIQUID mergeWithKey :: Ord k => (k -> a -> b -> Maybe c) -> (Map k a -> Map k c) -> (Map k b -> Map k c)
+-- LIQUID              -> Map k a -> Map k b -> Map k c
+-- LIQUID mergeWithKey f g1 g2 = go
+-- LIQUID   where
+-- LIQUID     go Tip t2 = g2 t2
+-- LIQUID     go t1 Tip = g1 t1
+-- LIQUID     go t1 t2 = hedgeMerge f g1 g2 NothingS NothingS NothingS NothingS t1 t2
+-- LIQUID 
+-- LIQUID hedgeMerge f g1 g2 _ _ _  _   t1  Tip 
+-- LIQUID   = g1 t1
+-- LIQUID hedgeMerge f g1 g2 blo0 blo bhi0 bhi Tip (Bin _ kx x l r) 
+-- LIQUID   = g2 $ join kx x (filterGt blo l) (filterLt bhi r)
+-- LIQUID hedgeMerge f g1 g2 blo0 blo bhi0 bhi (Bin _ kx x l r) t2  
+-- LIQUID   = let bmi = JustS kx 
+-- LIQUID         l' = hedgeMerge f g1 g2 blo0 blo bmi bmi l (trim blo bmi t2)
+-- LIQUID         (found, trim_t2) = trimLookupLo kx bhi t2
+-- LIQUID         r' = hedgeMerge f g1 g2 bmi bmi bhi0 bhi r trim_t2
+-- LIQUID     in case found of
+-- LIQUID          Nothing -> case g1 (singleton kx x) of
+-- LIQUID                       Tip -> merge kx l' r'
+-- LIQUID                       (Bin _ _ x' Tip Tip) -> join kx x' l' r'
+-- LIQUID                       _ -> error "mergeWithKey: Given function only1 does not fulfil required conditions (see documentation)"
+-- LIQUID          Just x2 -> case f kx x x2 of
+-- LIQUID                       Nothing -> merge kx l' r'
+-- LIQUID                       Just x' -> join kx x' l' r'
+-- LIQUID      -- where bmi = JustS kx
+
+{-@ mergeWithKey :: (Ord k) => (k -> a -> b -> Maybe c) 
+                          -> (lo:MaybeS k -> hi: MaybeS k 
+                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a
+                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c) 
+                          -> (lo:MaybeS k -> hi: MaybeS k 
+                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } b
+                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c) 
+                          -> OMap k a -> OMap k b -> OMap k c @-}
+mergeWithKey :: Ord k => (k -> a -> b -> Maybe c) -> (MaybeS k -> MaybeS k -> Map k a -> Map k c) -> (MaybeS k -> MaybeS k -> Map k b -> Map k c)
              -> Map k a -> Map k b -> Map k c
 mergeWithKey f g1 g2 = go
   where
-    go Tip t2 = g2 t2
-    go t1 Tip = g1 t1
-    go t1 t2 = hedgeMerge f g1 g2 NothingS NothingS NothingS NothingS t1 t2
+    go Tip t2 = g2 NothingS NothingS t2
+    go t1 Tip = g1 NothingS NothingS t1
+    go t1 t2  = hedgeMerge f g1 g2 NothingS NothingS NothingS NothingS t1 t2
 
-hedgeMerge f g1 g2 _ _ _  _   t1  Tip 
-  = g1 t1
+{-@ hedgeMerge :: (Ord k) => (k -> a -> b -> Maybe c) 
+                          -> (lo:MaybeS k -> hi: MaybeS k 
+                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a
+                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c) 
+                          -> (lo:MaybeS k -> hi: MaybeS k 
+                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } b
+                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c) 
+                          -> lo0:MaybeS k -> lo: {v: MaybeS {v: k | (isJustS(lo0) && (v = fromJustS(lo0))) } | v = lo0 }  
+                          -> hi0:MaybeS k -> hi:{v: MaybeS {v: k | ( isJustS(hi0) && (v = fromJustS(hi0))) } 
+                                                  | (((isJustS(lo) && isJustS(v)) => (fromJustS(v) >= fromJustS(lo))) && (v = hi0)) }   
+                          -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a 
+                          -> {v: OMap k b | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
+                          ->  OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c @-}
+
+hedgeMerge :: Ord k => (k -> a -> b -> Maybe c) 
+                    -> (MaybeS k -> MaybeS k -> Map k a -> Map k c) 
+                    -> (MaybeS k -> MaybeS k -> Map k b -> Map k c)
+                    -> MaybeS k -> MaybeS k -> MaybeS k -> MaybeS k 
+                    -> Map k a -> Map k b -> Map k c
+hedgeMerge f g1 g2 _ blo _  bhi   t1  Tip 
+  = g1 blo bhi t1
 hedgeMerge f g1 g2 blo0 blo bhi0 bhi Tip (Bin _ kx x l r) 
-  = g2 $ join kx x (filterGt blo l) (filterLt bhi r)
+  = g2 blo bhi $ join kx x (filterGt blo l) (filterLt bhi r)
 hedgeMerge f g1 g2 blo0 blo bhi0 bhi (Bin _ kx x l r) t2  
   = let bmi = JustS kx 
         l' = hedgeMerge f g1 g2 blo0 blo bmi bmi l (trim blo bmi t2)
         (found, trim_t2) = trimLookupLo kx bhi t2
         r' = hedgeMerge f g1 g2 bmi bmi bhi0 bhi r trim_t2
     in case found of
-         Nothing -> case g1 (singleton kx x) of
+         Nothing -> case g1 blo bhi (singleton kx x) of
                       Tip -> merge kx l' r'
                       (Bin _ _ x' Tip Tip) -> join kx x' l' r'
                       _ -> error "mergeWithKey: Given function only1 does not fulfil required conditions (see documentation)"
          Just x2 -> case f kx x x2 of
                       Nothing -> merge kx l' r'
                       Just x' -> join kx x' l' r'
-     -- where bmi = JustS kx
 {-# INLINE mergeWithKey #-}
 
 {--------------------------------------------------------------------
@@ -2317,24 +2375,50 @@ trim (JustS lk) (JustS hk) t = middle lk hk t
 -- @'trim' (JustS lk) hk t@ and @'lookup' lk t@.
 
 -- See Note: Type of local 'go' function
+-- LIQUID trimLookupLo :: Ord k => k -> MaybeS k -> Map k a -> (Maybe a, Map k a)
+-- LIQUID trimLookupLo lk NothingS t = greater lk t
+-- LIQUID   where greater :: Ord k => k -> Map k a -> (Maybe a, Map k a)
+-- LIQUID         greater lo t'@(Bin _ kx x l r) = case compare lo kx of LT -> (lookup lo l, {-`strictPair`-} t')
+-- LIQUID                                                                EQ -> (Just x, r)
+-- LIQUID                                                                GT -> greater lo r
+-- LIQUID         greater _ Tip = (Nothing, Tip)
+-- LIQUID trimLookupLo lk (JustS hk) t = middle lk hk t
+-- LIQUID   where middle :: Ord k => k -> k -> Map k a -> (Maybe a, Map k a)
+-- LIQUID         middle lo hi t'@(Bin _ kx x l r) = case compare lo kx of LT | kx < hi -> (lookup lo l, {- `strictPair` -} t')
+-- LIQUID                                                                     | otherwise -> middle lo hi l
+-- LIQUID                                                                  EQ -> (Just x, {-`strictPair`-} lesser hi r)
+-- LIQUID                                                                  GT -> middle lo hi r
+-- LIQUID         middle _ _ Tip = (Nothing, Tip)
+-- LIQUID 
+-- LIQUID         lesser :: Ord k => k -> Map k a -> Map k a
+-- LIQUID         lesser hi (Bin _ k _ l _) | k >= hi = lesser hi l
+-- LIQUID         lesser _ t' = t'
+
+{-@ trimLookupLo :: (Ord k) 
+                 => lo:k 
+                 -> bhi:{v: MaybeS k | (isJustS(v) => (lo < fromJustS(v)))} 
+                 -> OMap k a 
+                 -> (Maybe a, {v: OMap k a | ((isBin(v) => (lo < key(v))) && ((isBin(v) && isJustS(bhi)) => (fromJustS(bhi) > key(v)))) }) @-}
+
 trimLookupLo :: Ord k => k -> MaybeS k -> Map k a -> (Maybe a, Map k a)
 trimLookupLo lk NothingS t = greater lk t
   where greater :: Ord k => k -> Map k a -> (Maybe a, Map k a)
         greater lo t'@(Bin _ kx x l r) = case compare lo kx of LT -> (lookup lo l, {-`strictPair`-} t')
-                                                               EQ -> (Just x, r)
+                                                               EQ -> (Just x, (case r of {r'@(Bin _ _ _ _ _) -> r' ; r'@Tip -> r'}))
                                                                GT -> greater lo r
         greater _ Tip = (Nothing, Tip)
 trimLookupLo lk (JustS hk) t = middle lk hk t
   where middle :: Ord k => k -> k -> Map k a -> (Maybe a, Map k a)
         middle lo hi t'@(Bin _ kx x l r) = case compare lo kx of LT | kx < hi -> (lookup lo l, {- `strictPair` -} t')
                                                                     | otherwise -> middle lo hi l
-                                                                 EQ -> (Just x, {-`strictPair`-} lesser hi r)
+                                                                 EQ -> (Just x, {-`strictPair`-} lesser lo hi (case r of {r'@(Bin _ _ _ _ _) -> r' ; r'@Tip -> r'}))
                                                                  GT -> middle lo hi r
         middle _ _ Tip = (Nothing, Tip)
-
-        lesser :: Ord k => k -> Map k a -> Map k a
-        lesser hi (Bin _ k _ l _) | k >= hi = lesser hi l
-        lesser _ t' = t'
+ 
+        lesser :: Ord k => k -> k -> Map k a -> Map k a
+        lesser lo hi t'@(Bin _ k _ l _) | k >= hi   = lesser lo hi l
+                                        | otherwise = t'
+        lesser _ _ t'@Tip = t'
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE trimLookupLo #-}
 #endif
