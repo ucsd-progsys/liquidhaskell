@@ -3,6 +3,8 @@ TODO
 
 
 * benchmarks: containers.Map
+* strictness annotations
+* self-invariants
 * CHECK: how much performance hit from -nosimple?
 * TAGs
 * benchmarks: Data.List (foldr)
@@ -12,15 +14,38 @@ TODO
 * tuple-refinements
 * get Niki to fix the safe0ZipWith nonsense in PredType.hs
 
+Strictness Annotations
+======================
+
+Seem to screw up measures. See tests/pos/maybe000.hs
+
+Self-Invariants
+===============
+
+Hack binders to allow things like this:
+
+    invariant z:{v: Maybe {isJust(v) && (v = fromJust(z))}} 
+
+Currently hacked by "copying variables", 
+
+see tests/pos/maybe3.hs [hack which works]
+    tests/pos/maybe4.hs [deal with devil which doesn't work]
+
+
+
 
 Benchmarks containers.Map
 =========================
 
--> fix the grty business so it produces line-numbers for function outputs.
-   
-   e.g. get a good line number output for 
-        
-        tests/neg/grty2.hs <---------------------- HEREHEREHEREHEREHEREHERE
+     
+    <---------------------- HEREHEREHEREHEREHEREHERE
+
+-- maybeGe(lo, v)     = ((isJustS(lo)) => (v >= fromJustS(lo)))
+-- maybeLe(hi, v)     = ((isJustS(lo)) => (v <= fromJustS(hi)))
+-- inRange(lo, hi, v) = maybeGe(lo, v) && maybeLe(hi, v) 
+
+-- inRange(lo, hi, v) = {v:k | (((isJustS(lo)) => (v >= fromJustS(lo))) && (((isJustS(hi)) => (v <= fromJustS(hi)))))} v @-}
+
 
 -> Where is all the time going in Fixpoint?
     Solve.acsolve                 280.170 s

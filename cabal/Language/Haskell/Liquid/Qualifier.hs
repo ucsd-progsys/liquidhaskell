@@ -45,13 +45,13 @@ pprQual (Q n xts p) = text "qualif" <+> text n <> parens args  <> colon <+> toFi
 ------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------
 
-specificationQualifiers         :: GhcInfo -> [Qualifier] 
+specificationQualifiers :: GhcInfo -> [Qualifier] 
 specificationQualifiers info    = [ q | (x, t) <- tySigs $ spec info
                                       , x `S.member` xs
                                       , q      <- refTypeQuals $ ureft <$> t
                                   ] where xs = S.fromList $ defVars info 
 
-refTypeQuals                    :: RefType -> [Qualifier] 
+refTypeQuals :: RefType -> [Qualifier] 
 refTypeQuals t0 = go emptySEnv t0
   where go γ t@(RVar _ _)         = refTopQuals t0 γ t     
         go γ (RAll α t)           = go γ t 
@@ -60,8 +60,10 @@ refTypeQuals t0 = go emptySEnv t0
         go γ _                    = []
 
 refTopQuals t0 γ t 
-  = [ mkQual t0 γ v so p | let (RR so (Reft (v, ras))) = refTypeSortedReft t 
-                         , RConc p                    <- ras                 ]
+  = [ mkQual t0 γ v so pa | let (RR so (Reft (v, ras))) = refTypeSortedReft t 
+                          , RConc p                    <- ras                 
+                          , pa                         <- atoms p
+    ]
 
 mkQual t0 γ v so p = Q "Auto" ((v, so) : yts) p'
   where yts  = [(y, lookupSort t0 x γ) | (x, y) <- xys ]
@@ -70,7 +72,7 @@ mkQual t0 γ v so p = Q "Auto" ((v, so) : yts) p'
         xs   = delete v $ orderedFreeVars p
 
 lookupSort t0 x γ = fromMaybe (errorstar msg) $ lookupSEnv x γ 
-  where msg = "Unknown freeVar " ++ show x ++ "In specification " ++ show t0
+  where msg = "Unknown freeVar " ++ show x ++ " in specification " ++ show t0
 
 orderedFreeVars   :: Pred -> [Symbol]
 orderedFreeVars p = nub $ everything (++) ([] `mkQ` f) p
@@ -78,5 +80,8 @@ orderedFreeVars p = nub $ everything (++) ([] `mkQ` f) p
         f _        = []
 
 
+-- atoms' ps = traceShow ("atoms: ps = " ++ showPpr ps) $ atoms ps
+atoms (PAnd ps) = concatMap atoms ps
+atoms p         = [p]
 
 

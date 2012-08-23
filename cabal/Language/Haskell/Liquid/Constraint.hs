@@ -335,8 +335,8 @@ splitC :: SubC -> [FixSubC]
 ------------------------------------------------------------
 
 splitC (SubC γ t1@(RFun (RB x1) r1 r1' re1) t2@(RFun (RB x2) r2 r2' re2)) 
-  =  bsplitC γ t1 t2 
-  ++ splitC  (SubC γ r2 r1) 
+  =  -- bsplitC γ t1 t2 
+     splitC  (SubC γ r2 r1) 
   ++ splitC  (SubC γ' r1x2' r2') 
      where r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
            γ'    = (γ, "splitC") += (x2, r2) 
