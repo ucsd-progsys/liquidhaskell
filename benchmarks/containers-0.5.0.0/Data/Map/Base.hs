@@ -2777,7 +2777,6 @@ bin k x l r
   = Bin (size l + size r + 1) k x l r
 {-# INLINE bin #-}
 
-
 {--------------------------------------------------------------------
   Eq converts the tree to a list. In a lazy setting, this
   actually seems one of the faster methods to compare two trees
