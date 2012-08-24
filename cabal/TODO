@@ -8,6 +8,7 @@ TODO
 * CHECK: how much performance hit from -nosimple?
 * TAGs
 * benchmarks: Data.List (foldr)
+
 * benchmarks: Data.Bytestring
 * benchmarks: stackset-core
 * benchmarks: Data.Text
@@ -168,7 +169,7 @@ Paper #1 (Abstract Predicates, ESOP 2013)
 
 [OK-PP] List-Sorting    (Order)
 
-[??-PP] Data.Map        (Order) 
+[OK-PP] Data.Map        (Order) 
         > ordering
                 
 [??-PP] http://hackage.haskell.org/packages/archive/llrbtree/0.1.1/doc/html/Data-Set-Splay.html
