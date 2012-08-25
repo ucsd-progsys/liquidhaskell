@@ -779,13 +779,11 @@ cconsCase γ x t acs (a, _, ce)
         xt' = altRefType (γ ?= x') acs a 
 
 altRefType t _   (LitAlt l) 
-  = -- t `meet` (literalRefType l)
-    t `strengthen` literalReft l
+  = t `strengthen` literalReft l
 
 altRefType t acs DEFAULT    
   = t `strengthen` (mconcat [notLiteralReft l | LitAlt l <- acs])
-          
-notLiteralReft =  F.notExprReft . snd . literalConst 
+    where notLiteralReft =  F.notExprReft . snd . literalConst 
 
 mkyts γ ys yts 
   = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts

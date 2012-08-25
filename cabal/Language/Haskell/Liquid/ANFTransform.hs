@@ -20,28 +20,33 @@ import           Literal
 import           MkCore                           (mkCoreLets)
 import           Outputable
 import           Var                              (varType)
+import           TypeRep
+import           TyCon                            (tyConDataCons_maybe)
+import           DataCon                          (dataConInstArgTys)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           Control.Monad
 import           Language.Haskell.Liquid.Fixpoint (anfPrefix)
 import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..))
-import           Language.Haskell.Liquid.Misc     (errorstar)
+import           Language.Haskell.Liquid.Misc     (traceShow, fst3, errorstar)
 import           Data.Maybe                       (fromMaybe)
+import           Data.List                        (sortBy, (\\))
 
 anormalize :: HscEnv -> MGIModGuts -> IO [CoreBind]
 anormalize hscEnv modGuts
-  = liftM (fromMaybe err . snd) $ initDs hscEnv m grEnv tEnv act 
+  = do putStrLn "***************************** GHC CoreBinds ***************************" 
+       putStrLn $ showPpr orig_cbs
+       liftM (fromMaybe err . snd) $ initDs hscEnv m grEnv tEnv act 
     where m        = mgi_module modGuts
           grEnv    = mgi_rdr_env modGuts
           tEnv     = modGutsTypeEnv modGuts
           act      = liftM concat $ mapM (normalizeBind emptyVarEnv) orig_cbs
-          orig_cbs = {- tracePpr "********** GHC Corebinds ********* \n" $ -} mgi_binds modGuts
+          orig_cbs = mgi_binds modGuts
           err      = errorstar "anormalize fails!"
 
 modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
   where ids = bindersOfBinds (mgi_binds mg)
         tcs = mgi_tcs mg
         fis = mgi_fam_insts mg
-
 
 ------------------------------------------------------------------
 ----------------- Actual Normalizing Functions -------------------
@@ -64,7 +69,8 @@ normalizeBind γ (Rec xes)
 normalizeName :: VarEnv Id -> CoreExpr -> DsM ([CoreBind], CoreExpr)
 -------------------------------------------------------------------------------------
 
--- normalizeNameDebug γ e = liftM (tracePpr ("normalizeName" ++ showPpr e)) $ normalizeName γ e
+-- normalizeNameDebug γ e 
+--   = liftM (tracePpr ("normalizeName" ++ showPpr e)) $ normalizeName γ e
 
 normalizeName _ e@(Lit (LitInteger _ _))
   = normalizeLiteral e
@@ -81,10 +87,6 @@ normalizeName _ e@(Type _)
 normalizeName _ e@(Lit _)
   = return ([], e)
 
--- normalizeName _ e@(Tick n e')
-  -- | isBase e'
-  -- = return ([], e)
-
 normalizeName γ (Tick n e)
   = do (bs, e') <- normalizeName γ e
        return (bs, Tick n e')
@@ -93,13 +95,6 @@ normalizeName γ e
   = do (bs, e') <- normalize γ e
        x        <- freshNormalVar $ exprType e
        return (bs ++ [NonRec x e'], Var x)
-
--- normalizeScrutinee γ e
---   | isPrimitiveType (exprType e)
---   = return ([], e)
---   | otherwise
---   = normalizeName γ e
-
 
 -------------------------------------------------------------------------------------
 normalizeLiteral :: CoreExpr -> DsM ([CoreBind], CoreExpr)
@@ -110,12 +105,6 @@ normalizeLiteral e =
      return ([NonRec x e], Var x)
 
 freshNormalVar = mkSysLocalM (fsLit anfPrefix)
-
--- isBase (Var  _)   = True
---isBase (Type _)   = True
---isBase e@(Lit  _) = True
---isBase _          = False
-
 
 ---------------------------------------------------------------------
 normalize :: VarEnv Id -> CoreExpr -> DsM ([CoreBind], CoreExpr)
@@ -131,11 +120,13 @@ normalize γ (Let b e)
        return (bs' ++ bs'', e')
 
 normalize γ (Case e x t as)
-  = do (bs, n) <- {- normalizeScrutinee -} normalizeName γ e
-       x'      <- freshNormalVar $ varType x -- rename "wild" to avoid shadowing
+  = do (bs, n) <- normalizeName γ e
+       x'      <- freshNormalVar τx -- rename "wild" to avoid shadowing
        let γ'   = extendVarEnv γ x x'
        as'     <- forM as $ \(c, xs, e') -> liftM ((c, xs,) . stitch) (normalize γ' e')
-       return     (bs, Case n x' t as')
+       as''    <- expandDefaultCase τx as' 
+       return     (bs, Case n x' t as'')
+    where τx = varType x
 
 normalize γ (Var x)
   = return ([], Var (lookupWithDefaultVarEnv γ x x))
@@ -163,4 +154,26 @@ normalize _ e
   = errorstar $ "normalize: TODO" ++ showPpr e
 
 stitch :: ([CoreBind], CoreExpr) -> CoreExpr
-stitch (bs, e) = mkCoreLets bs e -- tr_foldr' Let e bs
+stitch (bs, e) = mkCoreLets bs e
+
+
+----------------------------------------------------------------------------------
+expandDefaultCase :: Type -> [(AltCon, [Id], CoreExpr)] -> DsM [(AltCon, [Id], CoreExpr)]
+----------------------------------------------------------------------------------
+
+expandDefaultCase (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
+  = case tyConDataCons_maybe tc of
+       Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs] 
+                     dcs'   <- forM ds' $ cloneCase argτs e
+                     return $ sortCases $ dcs' ++ dcs
+       Nothing -> return z --
+
+expandDefaultCase _ z
+   = return z
+
+cloneCase argτs e d 
+  = do xs  <- mapM freshNormalVar $ dataConInstArgTys d argτs
+       return (DataAlt d, xs, e)
+
+sortCases = sortBy (\x y -> cmpAltCon (fst3 x) (fst3 y))
+

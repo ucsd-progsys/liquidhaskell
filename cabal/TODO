@@ -158,6 +158,13 @@ is just,
     invariant :: forall a. {v: [a] | (isNil(v) ? len(v) = 0 : len(v) > 0)}
 
 
+tyConDataCons_maybe :: TyCon -> Maybe [DataCon]
+dataConInstArgTys   :: DataCon -> [Type] -> [Type]
+                       -- dataConInstArgTys dc ts 
+                       -- here ts are the arguments to the scrutinee?
+                       
+
+
 (tag(v) = #Bin) => ...
 
     4. Add TAG measure (builtin measure)
