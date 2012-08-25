@@ -30,7 +30,6 @@ Failed 20 tests:
 , pos/GhcListSort.hs
 , pos/ListLen-LType.hs
 , pos/ListLen.hs
-, pos/adt0.hs
 , pos/deptup.hs
 , pos/deptup1.hs
 , pos/maybe4.hs
