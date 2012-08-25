@@ -10,6 +10,7 @@ module Language.Haskell.Liquid.RefType (
   , Predicate (..), UReft(..), DataDecl (..)
   , pdAnd, pdVar, pdTrue, pvars
   , Bind (..), RBind
+  , dummyBind, isDummyBind
   , ppr_rtype, mapReft, mapBot, mapBind
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp, rFun
@@ -123,6 +124,9 @@ instance NFData RTyVar where
 
 data Bind tv pv = RB Symbol | RV tv | RP pv 
   deriving (Data, Typeable)
+
+dummyBind      = RB dummySymbol
+isDummyBind    = (==) dummyBind
 
 {- INVARIANTS:
  measure isTyVarBind :: Bind tv pv -> Bool

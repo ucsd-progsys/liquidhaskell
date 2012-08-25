@@ -16,7 +16,7 @@ import Text.Parsec.String
 import qualified Text.Parsec.Token as Token
 import Control.Applicative ((<$>), (<*))
 import qualified Data.Map as M
-import Data.Char (isLower, isUpper, isSpace)
+import Data.Char (toLower, isLower, isUpper, isSpace)
 import Data.List (intercalate)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Misc
@@ -313,17 +313,22 @@ bareFun2P
 
 positionNameP = dummyNamePos <$> getPosition
   
-dummyNamePos pos = "dummy_" ++ name ++ ['@'] ++ line ++ [','] ++ colum
-    where name  = sourceName pos
-          line  = show $ sourceLine pos  
-          colum = show $ sourceColumn pos  
+dummyNamePos pos  = "dummy." ++ name ++ ['.'] ++ line ++ ['.'] ++ col
+    where name    = san <$> sourceName pos
+          line    = show $ sourceLine pos  
+          col     = show $ sourceColumn pos  
+          san '/' = '.'
+          san c   = toLower c
 
 bareFunP  
-  = do b  <- try bindP <|> (return dummyBind) -- (positionNameP)
+  = do b  <- try bindP <|> dummyBindP 
        t1 <- bareArgP 
        a  <- arrowP
        t2 <- bareTypeP
        return $ bareArrow b t1 a t2 
+
+dummyBindP 
+  = (RB . stringSymbol) <$> positionNameP -- (return dummyBind) -- (positionNameP)
 
 bbindP = lowerIdP <* dcolon 
 
@@ -336,7 +341,6 @@ bareArrow b t1 ArrowFun t2
 bareArrow _ t1 ArrowPred t2
   = foldr (rFun dummyBind) t2 (getClasses t1)
 
--- stringBind     = RB . stringSymbol
 
 
 isBoolBareType (RApp tc [] _ _) = tc == boolConName
@@ -406,7 +410,6 @@ bRVar α p r    = RVar (RV α) (U r p)
 
 reftUReft      = (`U` pdTrue)
 predUReft      = (U dummyReft) 
-dummyBind      = RB dummySymbol
 dummyReft      = Reft (dummySymbol, [])
 dummyTyId      = ""
 

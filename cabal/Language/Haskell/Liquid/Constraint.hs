@@ -335,12 +335,11 @@ splitC :: SubC -> [FixSubC]
 ------------------------------------------------------------
 
 splitC (SubC γ t1@(RFun (RB x1) r1 r1' re1) t2@(RFun (RB x2) r2 r2' re2)) 
-  =  -- bsplitC γ t1 t2 
-     splitC  (SubC γ r2 r1) 
+  =  bsplitC γ t1 t2 
+  ++ splitC  (SubC γ r2 r1) 
   ++ splitC  (SubC γ' r1x2' r2') 
      where r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
            γ'    = (γ, "splitC") += (x2, r2) 
-
 
 splitC (SubC γ (RAll b1 t1) (RAll b2 t2))
   | b1 == b2
@@ -353,12 +352,6 @@ splitC (SubC γ (RAll (RV α1) t1) (RAll (RV α2) t2))
 
 splitC c@(SubC γ (RAll _ _) (RAll _ _)) 
   = errorstar $ "splitc unexpected: " ++ showPpr c
-
-{-
-splitC (SubC γ t1 (RAll ((RP p@(PV _ τ _))) t2))
---  = splitC (SubC γ t1 (fmap (F.removeRPVar p) t2))
-  = splitC (SubC γ t1 (replacePred (p, RPoly (ofType τ)) t2))
--}
 
 splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
 	= bsplitC γ t1 t2 
@@ -381,6 +374,8 @@ chkTyConIds (RTyCon _ ps1) (RTyCon _ ps2)
 fieldBinds fts = [(x,t) | (RB x, t) <- fts]
 
 bsplitC γ t1 t2 
+  | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
+  = [F.SubC γ' F.PTrue (r1' { F.sr_reft = F.trueReft}) r2' Nothing [] ci]
   | F.isNonTrivialSortedReft r2'
   = [F.SubC γ' F.PTrue r1' r2' Nothing [] ci]
   | otherwise
@@ -561,7 +556,7 @@ trueRefType t
 refreshRefType (RAll α t)       
   = liftM (RAll α) (refresh t)
 refreshRefType (RFun b t t' _)
-  | b == (RB F.dummySymbol)
+  | isDummyBind b -- b == (RB F.dummySymbol)
   = liftM3 rFun fresh (refresh t) (refresh t')
   | otherwise
   = liftM2 (rFun b) (refresh t) (refresh t')

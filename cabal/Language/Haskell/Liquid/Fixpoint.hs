@@ -19,7 +19,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , trueReft, trueSortedReft 
   , trueRefa
   , canonReft, exprReft, notExprReft, symbolReft
-  , isNonTrivialSortedReft, isTautoReft
+  , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft
   , ppr_reft, ppr_reft_pred, flattenRefas
   , simplify, pAnd, pOr, pIte
   , isTautoPred
@@ -640,14 +640,19 @@ instance Show Reft where
   show (Reft x) = showSDoc $ toFix x 
 
 instance Outputable Reft where
-  ppr = ppr_reft_pred --text . show
+  ppr = ppr_reft_pred
 
 data SortedReft
-  = RR !Sort !Reft
+  = RR { sr_sort :: !Sort, sr_reft :: !Reft }
   deriving (Eq, Ord, Data, Typeable) 
 
 isNonTrivialSortedReft (RR _ (Reft (_, ras)))
   = not $ null ras
+
+isFunctionSortedReft (RR (FFunc _ _) _)
+  = True
+isFunctionSortedReft _
+  = False
 
 newtype SEnv a = SE (M.Map Symbol a) 
                  deriving (Eq, Ord, Data, Typeable) 

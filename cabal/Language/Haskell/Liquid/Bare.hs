@@ -4,16 +4,7 @@
  - parsing from raw strings, and functions for converting between bare types
  - and real refinements. -}
 
-module Language.Haskell.Liquid.Bare (
-  --  makeMeasureSpec
-  -- , makeAssumeSpec
-  -- , makeInvariants
-  -- , makeConTypes
-  -- , checkAssertSpec
-    GhcSpec (..)
-  , makeGhcSpec
-  )
-where
+module Language.Haskell.Liquid.Bare (GhcSpec (..), makeGhcSpec) where
 
 import GHC hiding (lookupName)	
 import Outputable
@@ -355,16 +346,10 @@ rAppNew tyi c ts rs r = expandRApp tyi $ RApp (RTyCon c []) ts rs r
 rAppOld _             = rApp
 
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
-         
-
-rbind ""    = RB dummySymbol
-rbind s     = RB $ stringSymbol s
-
 
 stringRTyVar  = rTyVar . stringTyVar 
 stringTyVarTy = TyVarTy . stringTyVar
 
-isDummyBind (RB s) = s == dummySymbol 
 
 
 mkMeasureDCon :: (Data t) => Ms.MSpec t Symbol -> BareM (Ms.MSpec t DataCon)
