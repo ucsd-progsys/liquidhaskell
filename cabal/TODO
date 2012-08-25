@@ -1,14 +1,13 @@
 TODO
 ====
 
+* existentials
+* benchmarks: Data.List (foldr)
 * predicate-aliases 
 * strictness annotations
 * self-invariants
 * fixpoint profile
 * CHECK: how much performance hit from -nosimple?
-* TAGs
-* benchmarks: Data.List (foldr)
-
 * benchmarks: Data.Bytestring
 * benchmarks: stackset-core
 * benchmarks: Data.Text
@@ -89,10 +88,71 @@ data (a1, a2, a3)
   = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>) (x4 :: a4<p4 x1 x2 x3>)
 
 
-TAGS
-====
+Existentials
+============
 
     > also enables cunning trick with contextual/predicates. (See email)
+
+foldr :: (a -> b -> b) -> b -> [a] -> b
+foldr op b []     = b
+foldr op b (x:xs) = x `op` (foldr f b xs) 
+
+foldr :: (xs:[a] ~> x:a -> b<R(xs)> -> b<R(x:xs)>) -> b<[]> -> zs:[a] -> b<R(zs)>
+foldr op b []     = b
+foldr op b (x:xs) = op ~xs~ x (foldr f b xs) 
+
+len = foldr (\_ ~xs~ n -> n + 1)
+
+
+Tags
+====
+
+Can we avoid all this and just tweak GHC-Core so it duplicates with the relevant tags?
+
+(and introduce manual measures for the relevant cases.)
+
+So if you have
+
+    case e of
+      C1 x1.. -> e1
+      C2 x2.. -> e2
+      ...
+      DEFAULT -> edef
+
+CORE rewrites to:
+    case e of
+      C1 x1.. -> e1
+      C2 x2.. -> e2
+      ...
+      D1 y1.. -> edef
+      D2 y2.. -> edef
+      D3 y3.. -> edef
+
+where D1, D2,... are the "missing" constructors of the type for "e".
+
+Only tricky bit is the creation of binders y1... of the relevant type but
+easy enough from the GHCType. Also, need not do this in the CORE but can 
+just hack cconsE so that it analyzes the DEFAULT case by "splitting on" the
+appropriate D1...
+
+How is this transformed?
+
+    case e of
+      Bin xxx | cond      -> e
+              | otherwise -> t 
+      _                   -> t
+
+Next, 
+
+    invariant :: forall a. {v: [a] | (tag(v) = #[] ? len(v) = 0 : len(v) > 0) }
+
+is just,
+
+    invariant :: forall a. {v: [a] | (len(v) >= 0)                       }
+    invariant :: forall a. {v: [a] | (isNil(v) ? len(v) = 0 : len(v) > 0)}
+
+
+(tag(v) = #Bin) => ...
 
     4. Add TAG measure (builtin measure)
     
@@ -119,16 +179,6 @@ TAGS
                          DEFAULT -> foo xss
             
     and we need TAGS to relate len(v) > 0 and DEFAULT...
-
-foldr :: (a -> b -> b) -> b -> [a] -> b
-foldr op b []     = b
-foldr op b (x:xs) = x `op` (foldr f b xs) 
-
-foldr :: (xs:[a] ~> x:a -> b<R(xs)> -> b<R(x:xs)>) -> b<[]> -> zs:[a] -> b<R(zs)>
-foldr op b []     = b
-foldr op b (x:xs) = op ~xs~ x (foldr f b xs) 
-
-len = foldr (\_ ~xs~ n -> n + 1)
 
 Blogging 
 ========
