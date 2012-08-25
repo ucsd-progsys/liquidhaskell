@@ -165,22 +165,8 @@ dataConInstArgTys   :: DataCon -> [Type] -> [Type]
                        
 
 
-(tag(v) = #Bin) => ...
 
-    4. Add TAG measure (builtin measure)
-    
-    invariant :: forall a. {v: [a] | (tag(v) = #:)  => len(v) > 0 }
-    invariant :: forall a. {v: [a] | (tag(v) = #[]) => len(v) = 0 }
-    invariant :: forall a. {v: [a] | (tag(v) = #[] ? len(v) = 0 : len(v) > 0) }
-    invariant :: forall a. {v: Map k v | height(v) >= 0 } 
-
-    tags:         #:     #[]
-
-    constant ':'  : Tag 
-    constant '[]' : Tag
-
-    >  tests/todo/getTails.hs
-       the list comprehension versions require TAGs (see coreBinds)
+>  tests/todo/getTails.hs
         
         [ h | (h:_) <- xss]
 
