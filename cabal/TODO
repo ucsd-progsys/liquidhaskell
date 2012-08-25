@@ -17,17 +17,27 @@ TODO
 Strict Sort Checking has Broken these
 =====================================
 
-Failed 20 tests: neg/concat.hs, neg/concat1.hs, neg/concat2.hs,
-neg/fixme.hs, neg/mapreduce-tiny.hs, neg/meas5.hs, neg/polypred.hs,
-neg/poslist.hs, neg/range.hs, pos/GhcListSort.hs, pos/ListLen-LType.hs,
-pos/ListLen.hs, pos/adt0.hs, pos/deptup.hs, pos/deptup1.hs, pos/maybe4.hs,
-pos/meas5.hs, pos/meas7.hs, pos/poslist.hs, pos/range1.hs
-
-Exceptions thrown on 16 tests: neg/concat.hs, neg/concat1.hs,
-neg/concat2.hs, neg/fixme.hs, neg/mapreduce-tiny.hs, neg/meas5.hs,
-neg/poslist.hs, neg/range.hs, pos/ListLen-LType.hs, pos/ListLen.hs,
-pos/adt0.hs, pos/deptup.hs, pos/deptup1.hs, pos/meas5.hs, pos/poslist.hs,
-pos/range1.hs
+Failed 20 tests: 
+  neg/concat.hs
+, neg/concat1.hs
+, neg/concat2.hs
+, neg/fixme.hs
+, neg/mapreduce-tiny.hs
+, neg/meas5.hs
+, neg/polypred.hs
+, neg/poslist.hs
+, neg/range.hs
+, pos/GhcListSort.hs
+, pos/ListLen-LType.hs
+, pos/ListLen.hs
+, pos/adt0.hs
+, pos/deptup.hs
+, pos/deptup1.hs
+, pos/maybe4.hs
+, pos/meas5.hs
+, pos/meas7.hs
+, pos/poslist.hs
+, pos/range1.hs
 
 
 Strictness Annotations
