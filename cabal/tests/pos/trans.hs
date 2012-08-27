@@ -2,6 +2,8 @@ module Tx where
 
 import Language.Haskell.Liquid.Prelude
 
+{- THIS IS A RANDOM COMMENT -}
+
 {-@ foo :: x: Int -> Int @-}
 foo :: Int -> Int
 foo x = x + 1

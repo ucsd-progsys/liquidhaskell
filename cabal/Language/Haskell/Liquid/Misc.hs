@@ -6,6 +6,8 @@ import qualified Control.Exception as Ex
 import qualified Data.Set as S 
 import qualified Data.Map as M
 import Data.List 
+import Data.Maybe (catMaybes)
+
 import Debug.Trace (trace)
 import Data.Data
 
@@ -190,6 +192,26 @@ chopPrefix p xs
   = Just $ drop (length p) xs
   | otherwise 
   = Nothing
+
+firstElem ::  (Eq a) => [(a, t)] -> [a] -> Maybe Int
+firstElem seps str 
+  = case catMaybes [ elemIndex c str | (c, _) <- seps ] of 
+      [] -> Nothing
+      is -> Just $ minimum is 
+
+chopAlt ::  (Eq a) => [(a, a)] -> [a] -> [[a]]
+chopAlt seps    = go 
+  where go  s   = maybe [s] (go' s) (firstElem seps s)
+        go' s i = let (s0, s1@(c:_)) = splitAt i s 
+                      (Just c')      = lookup c seps 
+                  in case elemIndex c' s1 of
+                       Nothing -> [s1]
+                       Just i' -> let (s2, s3) = splitAt (i' + 1) s1 in 
+                                  s0 : s2 : go s3
+
+
+
+
 
 findFirst ::  Monad m => (t -> m [a]) -> [t] -> m (Maybe a)
 findFirst _ []     = return Nothing

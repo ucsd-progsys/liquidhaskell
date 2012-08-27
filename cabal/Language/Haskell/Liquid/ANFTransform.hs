@@ -33,8 +33,8 @@ import           Data.List                        (sortBy, (\\))
 
 anormalize :: HscEnv -> MGIModGuts -> IO [CoreBind]
 anormalize hscEnv modGuts
-  = do putStrLn "***************************** GHC CoreBinds ***************************" 
-       putStrLn $ showPpr orig_cbs
+  = do -- putStrLn "***************************** GHC CoreBinds ***************************" 
+       -- putStrLn $ showPpr orig_cbs
        liftM (fromMaybe err . snd) $ initDs hscEnv m grEnv tEnv act 
     where m        = mgi_module modGuts
           grEnv    = mgi_rdr_env modGuts
