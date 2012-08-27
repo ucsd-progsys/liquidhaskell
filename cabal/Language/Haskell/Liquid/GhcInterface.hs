@@ -50,7 +50,7 @@ import TysPrim          (intPrimTyCon)
 import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
 
 import System.Directory (doesFileExist)
-
+import Text.Regex.Posix hiding (empty)
 import Language.Haskell.Liquid.Fixpoint hiding (Expr) 
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.FileNames
@@ -62,9 +62,9 @@ import Language.Haskell.Liquid.PredType
 import Language.Haskell.Liquid.GhcMisc
 
 import qualified Language.Haskell.Liquid.Measure as Ms
-import qualified Language.Haskell.HsColour.ACSS as ACSS
+import qualified Language.Haskell.Liquid.ACSS as ACSS
 import qualified Language.Haskell.HsColour.CSS as CSS
--- import Debug.Trace
+import Language.Haskell.HsColour.Classify
 
 ------------------------------------------------------------------
 ---------------------- GHC Bindings:  Code & Spec ----------------
@@ -420,7 +420,7 @@ annotDump :: FilePath -> FilePath -> AnnInfo RefType -> IO ()
 annotDump srcFile htmlFile ann 
   = do src <- readFile srcFile
        -- generate html
-       let body = {-# SCC "hsannot" #-} ACSS.hsannot False (src, mkAnnMap ann)
+       let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) (src, mkAnnMap ann)
        writeFile htmlFile $ CSS.top'n'tail srcFile $! body
        -- generate .annot
        copyFile srcFile annotFile
@@ -457,10 +457,48 @@ closeA a@(AI m)  = cf <$> a
 filterA (AI m) = AI (M.filter ff m)
   where ff (_, Right loc) = loc `M.member` m
         ff _              = True
-        
---instance Show SrcSpan where
---  show = showPpr
 
+
+------------------------------------------------------------------------------
+------------ Tokenizing RefTypes ---------------------------------------------
+------------------------------------------------------------------------------
+
+tokAnnot s = case trimLiquidAnnot s of 
+               Just (l, body, r) -> [(refToken, l)] ++ tokBody body ++ [(refToken, r)]
+               Nothing           -> [(Comment, s)]
+
+trimLiquidAnnot ('{':'-':'@':ss) 
+  | drop (length ss - 3) ss == "@-}"
+  = Just ("{-@", take (length ss - 3) ss, "@-}") 
+  | otherwise
+  = Nothing
+
+tokBody s 
+  | (s =~ dataRE) = tokenise s
+  | (s =~ typeRE) = tokenise s
+  | (s =~ inclRE) = tokenise s
+  | otherwise     = tokeniseSpec s 
+
+refToken = Keyword
+
+tokeniseSpec :: String -> [(TokenType, String)]
+tokeniseSpec s = case (s =~ specRE) of
+                   (_, "", _)  -> [(Comment, s)] 
+                   (x, sep, t) -> (Varid, x) : (Conid, sep) : tokeniseReftype t
+
+tokeniseReftype :: String ->  [(TokenType, String)]
+tokeniseReftype s    = concat $ [(tokenise s0), [(refToken, s1)], (tokenise s3), [(refToken, s4 ++ s6 ++ s7)], (tokenise s8)]
+  where (s0, s1, s2) = (s  =~ rtypePreRE)  :: (String, String, String)  
+        (s3, s4, s5) = (s2 =~ rtypeMidRE)  :: (String, String, String)
+        (s6, s7, s8) = (s5 =~ rtypePostRE) :: (String, String, String) 
+ 
+dataRE      = "[:space:]*data"
+inclRE      = "[:space:]*include"
+typeRE      = "[:space:]*type"
+specRE      = "::" 
+rtypePreRE  = "\\{[:space:]*[:alnum:]+[:space:]*:"
+rtypeMidRE  = "\\|"
+rtypePostRE = "\\}"
 
 
 
