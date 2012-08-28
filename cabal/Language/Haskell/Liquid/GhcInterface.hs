@@ -419,13 +419,14 @@ annotDump :: FilePath -> FilePath -> AnnInfo RefType -> IO ()
 annotDump srcFile htmlFile ann 
   = do src <- readFile srcFile
        -- generate html
-       let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) (src, mkAnnMap ann)
+       let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, mkAnnMap ann)
        writeFile htmlFile $ CSS.top'n'tail srcFile $! body
        -- generate .annot
        copyFile srcFile annotFile
        appendFile annotFile $ show annm
     where annotFile = extFileName Annot srcFile
           annm      = mkAnnMap ann
+          lhs       = isExtFile LHs srcFile  
 
 mkAnnMap :: AnnInfo RefType -> ACSS.AnnMap
 mkAnnMap (AI m) 

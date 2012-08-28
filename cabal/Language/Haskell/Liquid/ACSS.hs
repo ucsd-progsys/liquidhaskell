@@ -16,7 +16,7 @@ import qualified Language.Haskell.HsColour.CSS as CSS
 
 import Data.Maybe  (fromMaybe) 
 import qualified Data.Map as M
-import Data.List   (isSuffixOf, findIndex, elemIndices, intercalate)
+import Data.List   (isPrefixOf, isSuffixOf, findIndex, elemIndices, intercalate)
 import Data.Char   (isLower, isSpace, isAlphaNum)
 import Text.Printf
 import Debug.Trace
@@ -26,20 +26,27 @@ newtype Loc    = L (Int, Int) deriving (Eq, Ord, Show)
 
 -- | Formats Haskell source code using HTML and mouse-over annotations 
 hscolour :: Bool     -- ^ Whether to include anchors.
+         -> Bool     -- ^ Whether input document is literate haskell or not
          -> String   -- ^ Haskell source code, Annotations as comments at end
          -> String   -- ^ Coloured Haskell source code.
 
-hscolour anchor = hsannot anchor Nothing . splitSrcAndAnns
+hscolour anchor lhs = hsannot anchor Nothing lhs . splitSrcAndAnns
 
 type CommentTransform = Maybe (String -> [(TokenType, String)])
 
 -- | Formats Haskell source code using HTML and mouse-over annotations 
 hsannot  :: Bool             -- ^ Whether to include anchors.
          -> CommentTransform -- ^ Function to refine comment tokens 
+         -> Bool             -- ^ Whether input document is literate haskell or not
          -> (String, AnnMap) -- ^ Haskell Source, Annotations
          -> String           -- ^ Coloured Haskell source code.
 
-hsannot anchor tx = 
+hsannot anchor tx False z     = hsannot' anchor tx z
+hsannot anchor tx True (s, m) = concatMap chunk $ joinL $ classify $ inlines s
+                where chunk (Code c) = hsannot' anchor tx (c, m)
+                      chunk (Lit c)  = c
+
+hsannot' anchor tx = 
     CSS.pre
     . (if anchor then concatMap (renderAnchors renderAnnotToken)
                       . insertAnnotAnchors
@@ -57,7 +64,6 @@ tokeniseWithCommentTransform Nothing  = tokenise
 tokeniseWithCommentTransform (Just f) = concatMap (expand f) . tokenise
   where expand f (Comment, s) = f s
         expand f z            = [z]
-
 
 tokenSpans :: [String] -> [Loc]
 tokenSpans = scanl plusLoc (L (1, 1)) 
@@ -152,3 +158,45 @@ instance Show AnnMap where
                                     ++ show c ++ "\n"
                                     ++ show (length $ lines s) ++ "\n"
                                     ++ s ++ "\n\n\n"
+                                   
+
+---------------------------------------------------------------------------------
+---- Code for Dealing With LHS, stolen from Language.Haskell.HsColour.HsColour --
+---------------------------------------------------------------------------------
+
+-- | Separating literate files into code\/comment chunks.
+data Lit = Code {unL :: String} | Lit {unL :: String} deriving (Show)
+
+-- Re-implementation of 'lines', for better efficiency (but decreased laziness).
+-- Also, importantly, accepts non-standard DOS and Mac line ending characters.
+-- And retains the trailing '\n' character in each resultant string.
+inlines :: String -> [String]
+inlines s = lines' s id
+  where
+  lines' []             acc = [acc []]
+  lines' ('\^M':'\n':s) acc = acc ['\n'] : lines' s id	-- DOS
+--lines' ('\^M':s)      acc = acc ['\n'] : lines' s id	-- MacOS
+  lines' ('\n':s)       acc = acc ['\n'] : lines' s id	-- Unix
+  lines' (c:s)          acc = lines' s (acc . (c:))
+
+
+-- | The code for classify is largely stolen from Language.Preprocessor.Unlit.
+classify ::  [String] -> [Lit]
+classify []             = []
+classify (x:xs) | "\\begin{code}"`isPrefixOf`x
+                        = Lit x: allProg xs
+   where allProg []     = []  -- Should give an error message,
+                              -- but I have no good position information.
+         allProg (x:xs) | "\\end{code}"`isPrefixOf`x
+                        = Lit x: classify xs
+         allProg (x:xs) = Code x: allProg xs
+classify (('>':x):xs)   = Code ('>':x) : classify xs
+classify (x:xs)         = Lit x: classify xs
+
+-- | Join up chunks of code\/comment that are next to each other.
+joinL :: [Lit] -> [Lit]
+joinL []                  = []
+joinL (Code c:Code c2:xs) = joinL (Code (c++c2):xs)
+joinL (Lit c :Lit c2 :xs) = joinL (Lit  (c++c2):xs)
+joinL (any:xs)            = any: joinL xs
+
