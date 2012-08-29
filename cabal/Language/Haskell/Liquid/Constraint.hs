@@ -162,6 +162,14 @@ instance Outputable CGEnv where
 instance Show CGEnv where
   show = showPpr
 
+-- HACK: This is used only for Ex 
+insertSymEnv  :: CGEnv -> (F.Symbol, F.SortedReft) -> CGEnv
+insertSymEnv γ (x, r)
+  | x `F.memberSEnv` (fenv γ)
+  = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ F.symbolString x 
+  | otherwise
+  = γ { fenv = F.insertSEnv x r (fenv γ) }
+
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 (++=) :: CGEnv-> (String, F.Symbol, RefType) -> CGEnv
 γ ++= (msg, x, r') 
@@ -173,13 +181,16 @@ instance Show CGEnv where
         r  = normalize γ r'  
 
 normalize γ = addRTyConInv (invs γ) . normalizePds
-  
+
+extendExists :: CGEnv -> (F.Symbol, RefTyp e) -> CGEnv
+extendExists γ += (x, so, e) = CGEnv
+
 -- (+=) :: (CGEnv, String) -> (F.Symbol, RefType) -> CGEnv
 (γ, msg) += (x, r)
   | x == F.dummySymbol
   = γ
   | x `memberREnv` (renv γ)
-  = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ F.symbolString x -- ++ " in REnv!\n\n" ++ show γ
+  = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ F.symbolString x 
   | otherwise
   =  γ ++= (msg, x, r) 
 
@@ -333,6 +344,12 @@ rsplitW γ (RPoly t0, (PV _ t as))
 ------------------------------------------------------------
 splitC :: SubC -> [FixSubC]
 ------------------------------------------------------------
+
+splitC (SubC γ (REx z t1) t2) 
+  = splitC (SubC (addExistsBinds z γ) t1 t2)
+
+splitC (SubC γ t1 (REx z t2))
+  = splitC (SubC (addExistsBinds z γ) t1 t2)
 
 splitC (SubC γ t1@(RFun (RB x1) r1 r1' re1) t2@(RFun (RB x2) r2 r2' re2)) 
   =  bsplitC γ t1 t2 

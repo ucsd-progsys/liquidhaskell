@@ -141,6 +141,7 @@ data RType p c tv pv r
   | RAll !(Bind tv pv) !(RType p c tv pv r)                          -- INV: RAll {v | !(isSymBind v) }
   | RApp !c ![(RType p c tv pv r)] ![Ref r (RType p c tv pv r)] !r
   | RCls !p ![(RType p c tv pv r)]
+  | REx  [(Symbol, Sort, Expr)] (RType p c tv pv r)                  -- INV: Expr = EApp (_, [EVar _]) 
   | ROth String
   deriving (Data, Typeable)
 
@@ -268,6 +269,8 @@ nlzP ps (RAll (RP p) t)
   where (t', ps') = nlzP [] t
 nlzP ps t@(ROth _)
  = (t, ps)
+nlzP ps t@(REx _ _) 
+ = (t, ps) 
 
 strengthenRefType :: RefType -> RefType -> RefType
 strengthenRefType t1 t2 
@@ -368,6 +371,7 @@ freeVars (RFun x t t' _) = freeVars t `L.union` freeVars t'
 freeVars (RApp _ ts _ _) = L.nub $ concatMap freeVars ts
 freeVars (RCls _ ts)     = L.nub $ concatMap freeVars ts 
 freeVars (RVar (RV α) _) = [α] 
+freeVars (REx _ t)       = freeVars t
 
 ----------------------------------------------------------------
 ---------------------- Strictness ------------------------------
@@ -391,6 +395,7 @@ instance (NFData a, NFData b, NFData c, NFData d, NFData e) => NFData (RType a b
   rnf (RFun x t t' r)  = rnf x `seq` rnf t `seq` rnf t' `seq` rnf r
   rnf (RApp c ts rs r) = rnf ts `seq` rnf rs `seq` rnf r
   rnf (RCls c ts)      = c `seq` rnf ts
+  rnf (REx x t)        = rnf x `seq` rnf t
   rnf (ROth _)         = ()
 
 ----------------------------------------------------------------
@@ -543,8 +548,16 @@ ppr_rtype b p (RApp c ts rs r)
   = ppTy r $ ppTycon c <+> ppReftPs b rs <+> hsep (ppr_rtype b p <$> ts)  
 ppr_rtype _ _ ty@(RCls c ts)      
   = ppCls c ts
+ppr_rtype b p (REx z t)
+  = ppExists z t  
 ppr_rtype _ _ (ROth s)
   = text "?" <> text s <> text "?"
+
+ppExists b p z t
+  = text "exists" <+> brackets (intersperse comma (ppExBind <$> z)) <> dot <> ppr_rtype b p t
+ppExBind (x, so, e) 
+  = ppr x <+> colon <+> ppr so <+> equals <+> ppr e 
+
 
 ppReftPs b rs 
   | all isTauto rs = empty
@@ -603,7 +616,9 @@ mapReft f (RAll a t)          = RAll a (mapReft f t)
 mapReft f (RFun x t t' r)     = RFun x (mapReft f t) (mapReft f t') (f r)
 mapReft f (RApp c ts rs r)    = RApp c (mapReft f <$> ts) (mapRef f <$> rs) (f r)
 mapReft f (RCls c ts)         = RCls c (mapReft f <$> ts) 
+mapReft f (REx z t)           = REx  z (mapReft f t)
 mapReft f (ROth a)            = ROth a 
+
 mapRef f (RMono r)            = RMono $ f r
 mapRef f (RPoly t)            = RPoly $ mapReft f t
 
@@ -612,6 +627,7 @@ foldReft f z (RAll _ t)       = foldReft f z t
 foldReft f z (RFun _ t t' r)  = f r (foldRefts f z [t, t'])
 foldReft f z (RApp _ ts rs r) = f r (foldRefs f (foldRefts f z ts) rs)
 foldReft f z (RCls _ ts)      = foldRefts f z ts
+foldReft f z (REx _ t)        = foldReft f z t
 foldReft f z (ROth _)         = z 
 
 foldRefts                     = foldr . flip . foldReft
@@ -637,51 +653,6 @@ subsTyVars meet ats t = foldl' (flip (subsTyVar meet)) t ats
 subsTyVar meet        = subsFree' meet S.empty
 
 
-{- GENSUB: OLD 
-
-subsFree' x y (p,q,r) = subsFree x y (p, r) 
-
-subsFree ::  (SubsTy RTyVar Type r, Reftable r, Subable r) => Bool -> S.Set RTyVar -> (RTyVar, RRType (PVar Type) r) -> RRType (PVar Type) r -> RRType (PVar Type) r 
-
-subsFree m s z (RAll (RP p) t)         
-  = RAll (RP p') t'
-    where p' = subt (second toType z) p
-          t' = subsFree m s z t
-subsFree m s z (RAll (RV α) t)         
-  = RAll (RV α) $ subsFree m (α `S.insert` s) z t
-subsFree m s z (RFun x t t' r)       
-  = RFun x (subsFree m s z t) (subsFree m s z t') (subt (second toType z)  r)
-subsFree m s z@(α, t') t@(RApp c ts rs r)     
-  = RApp c' (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) (subt z' r)  
-    where c' = c {rTyConPs = subt z' <$> rTyConPs c}
-          z' = (α, toType t')
-    -- UNIFY: why instantiating INSIDE parameters?
-subsFree m s z (RCls c ts)     
-  = RCls c (subsFree m s z <$> ts)
-subsFree meet s (α', t') t@(RVar (RV α) r) 
-  | α == α' && α `S.notMember` s 
-  = if meet then t' `strengthen`  r' else t' 
-  | otherwise
-  = t
-  where r' = subt (α', toType t') r
-
-subsFree _ _ _ t@(ROth _)        
-  = t
-subsFree _ _ _ t      
-  = errorstar $ "subsFree fails on: " ++ showPpr t
-
-subsFreeRef ::  (SubsTy RTyVar Type r, Reftable r, Monoid r, Subable r) => Bool -> S.Set RTyVar -> (RTyVar, RRType (PVar Type) r) -> Ref r (RRType (PVar Type) r) -> Ref r (RRType (PVar Type) r)
-subsFreeRef m s z (RPoly t) 
-  = RPoly $ subsFree m s z' t
-  where (a, t') = z
-        z' = (a, fmap (\_ -> top) t')
-subsFreeRef m s z (RMono r) 
-  = RMono $ subt (α, toType t) r
-  where (α, t) = z
--}
-
-{- GENSUB: NEW -} 
-
 subsFree' = subsFree 
 
 subsFree ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty (PVar ty), SubsTy tv ty c, Reftable r, Subable r, RefTypable p c tv (PVar ty) r) => Bool -> S.Set tv -> (tv, ty, RType p c tv (PVar ty) r) -> RType p c tv (PVar ty) r -> RType p c tv (PVar ty) r 
@@ -703,7 +674,8 @@ subsFree meet s (α', τ', t') t@(RVar (RV α) r)
   = if meet then t' `strengthen` subt (α', τ') r else t' 
   | otherwise
   = t
-
+subsFree m s z (REx z t)
+  = REx z (subsFree m s z t)
 subsFree _ _ _ t@(ROth _)        
   = t
 subsFree _ _ _ t      
@@ -724,6 +696,7 @@ mapBind f (RFun b t1 t2 r) = RFun (f b) (mapBind f t1) (mapBind f t2) r
 mapBind f (RAll b t)       = RAll (f b) (mapBind f t) 
 mapBind f (RApp c ts rs r) = RApp c (mapBind f <$> ts) (mapBindRef f <$> rs) r
 mapBind f (RCls c ts)      = RCls c (mapBind f <$> ts)
+mapBind f (REx z t)        = REx z (mapBind f t)
 mapBind f (ROth s)         = ROth s
 
 mapBindRef _ (RMono r)     = RMono r
@@ -968,7 +941,8 @@ toType (RApp (RTyCon {rTyCon = c}) ts _ _)
   = TyConApp c (toType <$> ts)
 toType (RCls c ts)   
   = predTreePredType $ ClassPred c (toType <$> ts)
-  -- = PredTy (ClassP c (toType <$> ts))
+toType (REx _ t)
+  = toType t
 toType (ROth t)      
   = errorstar $ "toType fails: " ++ t
 
@@ -1039,9 +1013,6 @@ rTypeSort = typeSort . toType
 -------------------------- Substitution ---------------------------
 -------------------------------------------------------------------
 
---instance Subable RefType  where
---  subst = fmap . subst 
-
 instance Subable (UReft Reft String) where
   subst s (U r p) = U (subst s r) p
 
@@ -1054,9 +1025,4 @@ instance Subable (Predicate Type) where
 instance Subable r => Subable (RType p c tv pv r) where
   subst  = fmap . subst
 
-
-
---dummy :: RType Class  RTyCon RTyVar (PVar Type) (UReft Reft Type)
---dummy = ROth "dumdumdum"
---foo   = isTauto dummy
 

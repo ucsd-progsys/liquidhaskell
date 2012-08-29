@@ -662,7 +662,7 @@ deleteSEnv x (SE env)   = SE (M.delete x env)
 insertSEnv x y (SE env) = SE (M.insert x y env)
 lookupSEnv x (SE env)   = M.lookup x env
 emptySEnv               = SE M.empty
--- memberSEnv x (SE env)   = M.member x env
+memberSEnv x (SE env)   = M.member x env
 -- domainSEnv (SE env)     = M.keys env
 
 instance Functor SEnv where
