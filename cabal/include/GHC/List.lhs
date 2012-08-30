@@ -221,7 +221,7 @@ foldr1 _ []             =  liquidError "foldr1" -- errorEmptyList "foldr1"
 --
 -- > head (scanr f z xs) == foldr f z xs.
 
-{-@ assert scanr        :: forall a, b. (a -> b -> b) -> b -> xs:[a] -> {v: [b] | len(v) = 1 + len(xs) } @-}
+{-@ assert scanr        :: (a -> b -> b) -> b -> xs:[a] -> {v: [b] | len(v) = 1 + len(xs) } @-}
 scanr                   :: (a -> b -> b) -> b -> [a] -> [b]
 scanr _ q0 []           =  [q0]
 scanr f q0 (x:xs)       =  f x q : qs

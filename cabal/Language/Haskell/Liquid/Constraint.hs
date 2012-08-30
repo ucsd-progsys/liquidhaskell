@@ -52,7 +52,7 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType hiding  (splitArgsRes)
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc          (tickSrcSpan, tvId)
+import Language.Haskell.Liquid.GhcMisc          (tracePpr, tickSrcSpan, tvId)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Qualifier        
 import Data.Generics.Schemes
@@ -595,6 +595,8 @@ consCB :: CGEnv -> CoreBind -> CG CGEnv
 --        return $  γ ++= ("consCB2", x', t)
 --     where x' = mkSymbol x
 --           pt = getPrType γ x'
+--
+--
 --           
 -- consCB γ (Rec xes) 
 --   = do rts   <- mapM (\e -> freshTy_pretty e $ exprType e) es
@@ -607,6 +609,8 @@ consCB :: CGEnv -> CoreBind -> CG CGEnv
 --    where (xs, es) = unzip xes
 --          vs       = mkSymbol    <$> xs
 --          pts      = getPrType γ <$> vs
+
+
 
 -- NEW
 consCB γ (Rec xes) 
@@ -682,7 +686,7 @@ cconsE γ (Cast e _) t
 
 cconsE γ e (RAll (RP p@(PV _ τ _)) t)
   = do s <- truePredRef p
-       cconsE γ e (replacePred "cconsE" (p, RPoly s) t)
+       cconsE γ e (replacePreds "cconsE" t [(p, RPoly s)])
 
 cconsE γ e t
   = do te <- consE γ e
@@ -711,15 +715,25 @@ consE γ e'@(App e a) | eqType (exprType a) predType
   = do t0 <- consE γ e
        case t0 of
          RAll (RP p) t -> do s <- freshPredRef γ e' p
-                             return $ replacePred "consE" (p, RPoly s) t 
+                             return $ replacePreds "consE" t [(p, RPoly s)] 
          _             -> return t0
 
 consE γ e'@(App e a)               
-  = do RFun (RB x) tx t _ <- liftM (checkFun ("Non-fun App with caller", e)) $ consE γ e 
+  = do ([], πs, te)            <- rsplitVsPs <$> consE γ e
+       zs                      <- mapM (\π -> liftM ((π,) . RPoly) $ freshPredRef γ e' π) πs
+       let te'                  = replacePreds "consE" te $ tracePpr "zs = " zs
+       let (RFun (RB x) tx t _) = checkFun ("Non-fun App with caller", e') te' 
        cconsE γ a tx 
-       case argExpr a of 
-         Just e  -> return $ t `F.subst1` (x, e)
-         Nothing -> errorstar $ "consE: App crashes on" ++ showPpr a 
+       return $ maybe err (F.subst1 t . (x,)) (argExpr a)
+    where err = errorstar $ "consE: App crashes on" ++ showPpr a 
+
+
+-- consE γ e'@(App e a)               
+--   = do RFun (RB x) tx t _ <- liftM (checkFun ("Non-fun App with caller", e)) $ consE γ e 
+--        cconsE γ a tx 
+--        case argExpr a of 
+--          Just e  -> return $ t `F.subst1` (x, e)
+--          Nothing -> errorstar $ "consE: App crashes on" ++ showPpr a 
 
 consE γ (Lam α e) | isTyVar α 
   = liftM (RAll (rTyVar α)) (consE γ e) 
@@ -765,7 +779,7 @@ cconsCase γ x t _ (DataAlt c, ys, ce)
       let cγ           = addBinders γ x' cbs
       cconsE cγ ce t
  where (x':ys')        = mkSymbol <$> (x:ys)
-       xt0             = checkTyCon x $ γ ?= x'
+       xt0             = checkTyCon ("checkTycon cconsCase", x) $ γ ?= x'
        tdc             = γ ?= (dataConSymbol c)
        (rtd, yts, xt') = unfoldR tdc xt0 ys'
        r1              = dataConReft   c   ys' 
@@ -796,7 +810,8 @@ mkyt (γ, ts) (y, yt)
 unfoldR td t0@(RApp tc ts rs _) ys = (t3, yts, rt)
   where (vs, ps, t0) = rsplitVsPs td
         t1 = foldl' (flip subsTyVar_meet') t0 (zip vs ts)
-        t2 = foldl' (flip (replacePred "unfoldR" )) t1 (safeZip "unfoldR" (reverse ps) rs)
+        -- t2 = foldl' (flip (replacePred "unfoldR" )) t1 (safeZip "unfoldR" (reverse ps) rs)
+        t2 = replacePreds "unfoldR" t1 $ safeZip "unfoldR" (reverse ps) rs
         (ys0, yts', rt) =  rsplitArgsRes t2
         (t3:yts) = F.subst su <$> (t2:yts')
         su  = F.mkSubst [(x, F.EVar y)| (x, y)<- zip ys0 ys]
@@ -817,16 +832,20 @@ addBinders γ0 x' cbs
     -- where wr γ (x, t) = γ ++= ("addBinders", x, t) 
 
 checkTyCon _ t@(RApp _ _ _ _) = t
-checkTyCon x t                = errorstar $ showPpr x ++ "type: " ++ showPpr t
+checkTyCon x t                = checkErr x t --errorstar $ showPpr x ++ "type: " ++ showPpr t
 
 checkRPred _ t@(RAll _ _)     = t
-checkRPred x t                = errorstar $ showPpr x ++ "type: " ++ showPpr t
+checkRPred x t                = checkErr x t
 
 checkFun _ t@(RFun _ _ _ _)   = t
-checkFun x t                  = errorstar $ showPpr x ++ "type: " ++ showPpr t
+checkFun x t                  = checkErr x t
 
 checkAll _ t@(RAll _ _)       = t
-checkAll x t                  = errorstar $ showPpr x ++ "type: " ++ showPpr t
+checkAll x t                  = checkErr x t
+
+checkErr (msg, e) t          = errorstar $ msg ++ showPpr e ++ "type: " ++ showPpr t
+
+
 
 varAnn γ x t 
   | x `S.member` recs γ
@@ -852,7 +871,7 @@ freshPredRef γ e pd@(PV n τ as)
   = do t <- freshTy e τ
        addW $ WfC γ' t
        return t
-  where γ' = foldl' (++=) γ (map (\(τ, x, _) -> ("freshPredRef", x, ofType τ)) as) 
+    where γ' = foldl' (++=) γ (map (\(τ, x, _) -> ("freshPredRef", x, ofType τ)) as) 
 
 tySort (RVar _ (F.Reft(_, [a])))     = a
 tySort (RApp _ _ _ (F.Reft(_, [a]))) = a

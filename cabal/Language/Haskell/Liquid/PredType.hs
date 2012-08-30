@@ -6,7 +6,7 @@ module Language.Haskell.Liquid.PredType (
   , generalize, generalizeArgs
   , dataConTy, dataConPtoPredTy, makeTyConInfo
   , removeExtPreds
-  , unify, replacePred, exprType, predType
+  , unify, replacePreds, exprType, predType
   , substParg, substPvar
   ) where
 
@@ -210,6 +210,11 @@ pToReft p = Reft (vv, [RPvar p])
 ----------------------------------------------------------------------------
 ---------- Interface: Replace Predicate With Type  -------------------------
 ----------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+replacePreds :: String -> RefType -> [(PVar Type, Ref Reft RefType)] -> RefType
+-------------------------------------------------------------------------------
+replacePreds msg = foldl' (flip (replacePred msg)) 
 
 ----------------------------------------------------------------------------
 replacePred :: String -> (PVar Type, Ref Reft RefType) -> RefType -> RefType

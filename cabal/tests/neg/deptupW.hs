@@ -10,7 +10,7 @@ mkP :: a -> a -> Pair a a
 mkP x y = error "TBD"
 
 incr :: Int -> Int
-incr x = x + 1
+incr x = x - 1
 
 baz x = mkP x (incr x)
 
