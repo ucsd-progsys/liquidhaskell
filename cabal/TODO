@@ -19,6 +19,8 @@ TODO
 Existentials    <---------------------- HEREHEREHEREHEREHEREHERE
 ============
 
+(tests/todo/ex0.hs)
+
 1. rtype
     
         rtype ::= ... | Ex [(Symbol, Sort, Expr)] (rtype)
