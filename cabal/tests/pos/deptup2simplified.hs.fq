@@ -1,0 +1,61 @@
+// original file cleaned
+
+//qualif NonNull(v: [a])        : (? (nonnull([v])))
+//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
+//qualif EqNull(v:bool, ~A: [a]): ((? v) <=> (? (nonnull([~A]))))
+
+qualif IsEmp(v:bool, ~A: [a]) : ((? v) <=> len([~A]) [ > ;  = ] 0)
+qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
+qualif SameLen(v:[a], ~A:[b]) : len([v]) = len([~A]) 
+qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
+qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
+qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+constant fromJust : func(1, [Maybe @(0); @(0)])
+constant isJust : func(1, [Maybe @(0); bool])
+constant len : func(1, [[@(0)]; int])
+
+
+constraint:
+  env [x     : {VV : int | []};
+       y     : {VV : int | [k_44[x#azi:=x]]}]
+  grd true
+  lhs {VV : bool | [((? VV) <=> (x <= y))]}
+  rhs {VV : bool | [(? VV)]}
+  id 10
+
+constraint:
+  env [b_aAk : {VV : num | []};
+       x#azl : {VV : b_aAk | []}]
+  grd true
+  lhs {VV : b_aAk | [k_42[x#azk:=x#azl]]}
+  rhs {VV : b_aAk | [k_44[x#azi:=x#azl]]}
+  id 54 
+
+constraint:
+  env [a_azZ : {VV : num | []};
+       x#azk : {VV : a_azZ | []}]
+  grd true
+  lhs {VV : a_azZ | [(VV > x#azk)]}
+  rhs {VV : a_azZ | [k_42]}
+  id 59 
+
+wf:
+  env [x#azi : {VV : a_aA9 | [k_43]}]
+  reft {VV : b_aAa | [k_44]}
+ 
+wf:
+  env [x#azk : {VV : a_azZ | []}]
+  reft {VV : a_azZ | [k_42]}
