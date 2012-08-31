@@ -11,8 +11,9 @@ TODO
 * benchmarks: stackset-core
 * benchmarks: Data.Text
 * tuple-refinements
-* get Niki to fix the safe0ZipWith nonsense in PredType.hs
 
+* get Niki to fix the safe0ZipWith nonsense in PredType.hs
+* alpha-renaming of predicate params is VERY SHAKY. see tests/pos/deptupW.hs
 
 
 Existentials    <---------------------- HEREHEREHEREHEREHEREHERE
@@ -373,6 +374,22 @@ GITTERY
 
 SLICE causes problem in neg/ass0.hs, doesn't really help either so may as well nuke, but find bug in fixpoint 
 
+
+Alpha-Renaming Predicates
+=========================
+
+see tests/pos/deptupW.hs
+
+We SHOULD be able to write 
+
+    {-@ data Pair a b <p :: x0:a -> x1:b -> Bool> = P (x :: a) (y :: b<p x>) @-} 
+    data Pair a b = P a b
+
+and then write the function sig like:
+
+    {-@ mkP :: forall a <p :: y0:a -> y1:a -> Bool>. x: a -> y: a<p x> -> Pair <p> a a @-}
+    
+instead of HAVING TO use the SAME parameter names x0, x1
 
 
 

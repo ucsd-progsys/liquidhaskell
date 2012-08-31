@@ -131,10 +131,13 @@ joinIds vs xts = {-tracePpr "spec vars"-} vts
 makeInvariants :: BareEnv -> [BareType] -> IO [SpecType]
 makeInvariants benv ts = execBare (mapM mkSpecType ts) benv
 
--- mkSpecType    :: BareType -> BareM SpecType 
-mkSpecType 
+mkSpecType t = mkSpecType' πs t
+  where πs = ofBPreds $ snd3 $ rsplitVsPs t
+
+-- mkSpecType'    :: [PVar Type] -> BareType -> BareM SpecType 
+mkSpecType' πs 
   = ofBareType' 
-  . txParams subvUReft [] 
+  . txParams subvUReft πs
   . txTyVarBinds 
   . mapReft (bimap canonReft stringTyVarTy) 
 
@@ -383,8 +386,10 @@ ofBDataDecl (D tc as ps cts)
        cts'  <- mapM (ofBDataCon tc' αs πs) cpts
        return $ ((tc', TyConP αs πs), cts')
     where αs   = fmap (RTV . stringTyVar) as
-          πs   = fmap (fmap stringTyVarTy) ps
+          πs   = ofBPreds ps -- fmap (fmap stringTyVarTy) ps
           cpts = fmap (second (fmap (second (mapReft upred)))) cts
+
+ofBPreds = fmap (fmap stringTyVarTy)
 
 ofBDataCon tc αs πs (c, xts)
  = do c'  <- lookupGhcDataCon c
@@ -404,14 +409,7 @@ txTyVarBinds = mapBind fb
         fb (RB x) = RB x
         fb (RV α) = RV α
 
--- txParams :: (Data p, Data c, Data tv, Data pv) =>[PVar Type]-> RType p c tv pv (UReft Reft Type)-> RType p c tv pv (UReft Reft Type)
--- txParams πs t = mapReft (second (mapPvar (txPvar (predMap πs t)))) t
-
---txParamsU πs t = mapReft (subvUReft     (txPvar (predMap πs t))) t
---txParamsP πs t = mapReft (subvPredicate (txPvar (predMap πs t))) t
-
 txParams subv πs t = mapReft (subv (txPvar (predMap πs t))) t
-
 
 txPvar m π = π { pargs = args' }
   where args' = zipWith (\(t,x,_) (_,_,y) -> (t, x, y)) (pargs π') (pargs π)

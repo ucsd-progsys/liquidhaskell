@@ -74,8 +74,18 @@ initEnv = Tr 0 noSrcSpan
 
 transPg = mapM transBd
 
-transBd (NonRec x e) = liftM (NonRec x) (transExpr e) -- >>= return . NonRec x
-transBd b            = return b
+applyTransToAllBds = False
+
+transBd (NonRec x e)
+  | applyTransToAllBds
+  = liftM (NonRec x) (transExpr =<< (mapBdM transBd e))
+  | otherwise
+  = liftM (NonRec x) (transExpr e)
+transBd e@(Rec xes)
+  | applyTransToAllBds
+  = liftM Rec (mapM (\(x, e) -> liftM ((,) x) (mapBdM transBd e)) xes)
+  | otherwise
+  = return e
 
 transExpr :: CoreExpr -> TE CoreExpr
 transExpr e
@@ -271,3 +281,12 @@ mapExpr f (Tick t e)              = Tick t (mapExpr f e)
 mapExpr _  e                      = e
 
 mapAlt f (d, bs, e) = (d, bs, mapExpr f e)
+
+mapBdM f (Let b e)        = liftM2 Let (f b) (mapBdM f e)
+mapBdM f (App e1 e2)      = liftM2 App (mapBdM f e1) (mapBdM f e2)
+mapBdM f (Lam b e)        = liftM (Lam b) (mapBdM f e)
+mapBdM f (Case e b t alt) = liftM (Case e b t) (mapM (mapBdAltM f) alt)
+mapBdM f (Tick t e)       = liftM (Tick t) (mapBdM f e)
+mapBdM _  e               = return  e
+
+mapBdAltM f (d, bs, e) = liftM ((,,) d bs) (mapBdM f e)
