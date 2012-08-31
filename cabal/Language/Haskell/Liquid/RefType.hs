@@ -732,9 +732,12 @@ mapBindRef f (RPoly t)     = RPoly $ mapBind f t
 
 mapBot f (RAll a t)        = RAll a (mapBot f t)
 mapBot f (RFun x t t' r)   = RFun x (mapBot f t) (mapBot f t') r
-mapBot f (RApp c ts rs r)  = f $ RApp c (mapBot f <$> ts) (mapBotRef f <$> rs) r
+mapBot f (RApp c ts rs r)  = mapBotRApp f $ f (RApp c ts rs r)
 mapBot f (RCls c ts)       = RCls c (mapBot f <$> ts)
 mapBot f t'                = f t' 
+
+mapBotRApp f (RApp c ts rs r) = RApp c (mapBot f <$> ts) (mapBotRef f <$> rs) r
+mapBotRApp _ _                = error $ "mapBotRApp"
 
 mapBotRef _ (RMono r) = RMono $ r
 mapBotRef f (RPoly t) = RPoly $ mapBot f t

@@ -261,7 +261,7 @@ substRCon msg (p, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2)
   =  RApp c1 ts rs $ r2' `mymeet` (addS r1)
   where (r2', su) = rmKVarReft p r2
         ts = safeZipWith (msg ++ ": substRCon") (flip strSub) ts1 ts2
-        rs = safe0ZipWith (msg ++ ": substRcon2") (flip strSubR) rs1 rs2
+        rs = safeZipWith (msg ++ ": substRcon2") (flip strSubR) rs1 rs2
         addS r         = subst su r
         strSub t1      = meet t1 . fmap addS
         strSubR t1 t2  = RPoly $ strSub (fromRPoly t1) (fromRPoly t2) 
