@@ -303,7 +303,6 @@ mkps_ (n:ns) (t:ts) ((f, x):xs) args ps
 ------------------------------------------------------------------------
 ----------------- Transforming Raw Strings using GHC Env ---------------
 ------------------------------------------------------------------------
-
 ofBareType' = wrapErr "ofBareType" ofBareType
 
 -- ofBareType :: (Reftable r) => BRType pv r -> BareM (RRType pv r)
@@ -341,12 +340,14 @@ ofRef (RMono r)
 -- TODO: move back to RefType
 bareTCApp tyi r c rs ts 
   = if isTrivial t0 then t' else t
-    where t0 = rAppOld tyi c ts rs top
-          t  = rAppOld tyi c ts rs r
+    where t0 = rAppOld2 tyi c rs' ts rs top
+          t  = rAppOld2 tyi c rs' ts rs r
           t' = (expandRTypeSynonyms t0) `strengthen` r
+          rs' = concatMap getPVars rs
 
 rAppNew tyi c ts rs r = expandRApp tyi $ RApp (RTyCon c []) ts rs r
 rAppOld _             = rApp
+rAppOld2 _ c rs            = RApp (RTyCon c rs)
 
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
 
@@ -411,10 +412,12 @@ txTyVarBinds = mapBind fb
 
 txParams subv πs t = mapReft (subv (txPvar (predMap πs t))) t
 
-txPvar m π = π { pargs = args' }
-  where args' = zipWith (\(t,x,_) (_,_,y) -> (t, x, y)) (pargs π') (pargs π)
-        π'    = M.findWithDefault (errorstar err) (pname π) m
-        err   = "Bare.replaceParams Unbound Predicate Variable: " ++ show π
+txPvar m π =  π' { pargs = args' }
+  where args'  | length (pargs π) == 0 = pargs π'
+               | otherwise             = args''
+        args'' = zipWith (\(t,x,_) (_,_,y) -> (t, x, y)) (pargs π') (pargs π)
+        π'     = M.findWithDefault (errorstar err) (pname π) m
+        err    = "Bare.replaceParams Unbound Predicate Variable: " ++ show π
 
 predMap πs t = Ex.assert (M.size xπm == length xπs) xπm 
   where xπm = M.fromList xπs

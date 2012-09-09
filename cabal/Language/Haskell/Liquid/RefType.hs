@@ -6,6 +6,7 @@ module Language.Haskell.Liquid.RefType (
     RTyVar (..), RType (..), RRType (..), BRType (..), RTyCon(..)
   , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..), Ref(..)
   , RTAlias (..)
+  , GetPVar(..)
   , RefType, PrType, BareType, SpecType
   , Predicate (..), UReft(..), DataDecl (..)
   , pdAnd, pdVar, pdTrue, pvars
@@ -224,7 +225,10 @@ data RTyCon = RTyCon
   { rTyCon     :: !TC.TyCon         -- GHC Type Constructor
   , rTyConPs   :: ![PVar Type]      -- Predicate Parameters
   }
-  deriving (Eq, Data, Typeable)
+  deriving (Data, Typeable)
+
+instance Eq RTyCon where
+  (RTyCon c1 _) == (RTyCon c2 _) = c1 == c2
 
 instance Eq RBind where
   RB s == RB s' = s == s'
@@ -315,10 +319,13 @@ expandRApp tyi (RApp rc ts rs r)
 expandRApp _ t
   = t
 
-appRTyCon tyi rc@(RTyCon c _) ts = RTyCon c ps'
+appRTyCon tyi rc@(RTyCon c []) ts = RTyCon c ps'
   where ps' = map (subts (zip (RTV <$> αs) (toType <$> ts))) (rTyConPs rc')
         rc' = M.findWithDefault rc c tyi
         αs  = TC.tyConTyVars $ rTyCon rc'
+appRTyCon _   rc@(RTyCon c ps) ts = RTyCon c ps'
+  where ps' = map (subts (zip (RTV <$> αs) (toType <$> ts))) ps
+        αs  = TC.tyConTyVars c
 
 appRefts rc [] = RPoly . ofType . ptype <$> (rTyConPs rc)
 appRefts rc rs = safeZipWith "appRefts" toPoly rs (ptype <$> (rTyConPs rc))
@@ -624,6 +631,30 @@ isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool
 isTrivial = Fold.and . fmap isTauto
 
 mkTrivial = mapReft (\_ -> ())
+
+class GetPVar a where
+  getPVars :: a -> [PVar Type]
+
+instance GetPVar (Predicate Type) where
+  getPVars (Pr ps) = ps
+
+instance GetPVar (UReft r Type) where
+ getPVars (U _ ps) = getPVars ps
+
+instance GetPVar Refa where
+  getPVars (RPvar p) = [p]
+  getPVars _         = []
+
+instance GetPVar Reft where
+  getPVars (Reft (_, rs)) = concatMap getPVars rs
+
+instance (Data r, Typeable r, GetPVar r) => GetPVar (RType Class RTyCon RTyVar (PVar Type) r) where
+  getPVars = everything (++) ([] `mkQ` go)
+    where go (ref :: r) = getPVars ref
+
+instance (GetPVar r1, Data r2, Typeable r2, GetPVar r2) => GetPVar (Ref r1 (RType Class RTyCon RTyVar (PVar Type) r2)) where
+  getPVars (RMono r) = getPVars r
+  getPVars (RPoly r) = getPVars r
 
 ------------------------------------------------------------------------------------------
 -- TODO: Rewrite subsTyvars with Traversable
