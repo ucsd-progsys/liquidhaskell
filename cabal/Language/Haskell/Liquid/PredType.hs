@@ -231,9 +231,9 @@ substPred msg m pv@(p, RVar a1 r1) t@(RVar a2 r2)
   | ispInr2 && a1 == a2
   = if m then RVar a1 ((subst su r1) `mymeet` r2') else RVar a1 r1
   | otherwise
-  = if ispInr2 
-     then error ("substPred RVar var mismatch" ++ show (pv, t))
-          else t
+  = if ispInr2
+     then error $ "substPred RVar var mismatch" ++ show (pv, t)
+     else t
   where (r2', su) = rmKVarReft p r2
         ispInr2   = p `isPredIn` r2
 
