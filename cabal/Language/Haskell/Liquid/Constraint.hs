@@ -163,12 +163,12 @@ instance Show CGEnv where
   show = showPpr
 
 -- HACK: This is used only for Ex 
-insertSymEnv  :: CGEnv -> (F.Symbol, F.SortedReft) -> CGEnv
-insertSymEnv γ (x, r)
-  | x `F.memberSEnv` (fenv γ)
-  = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ F.symbolString x 
-  | otherwise
-  = γ { fenv = F.insertSEnv x r (fenv γ) }
+--insertSymEnv  :: CGEnv -> (F.Symbol, F.SortedReft) -> CGEnv
+--insertSymEnv γ (x, r)
+--  | x `F.memberSEnv` (fenv γ)
+--  = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ F.symbolString x 
+--  | otherwise
+--  = γ { fenv = F.insertSEnv x r (fenv γ) }
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 (++=) :: CGEnv-> (String, F.Symbol, RefType) -> CGEnv
@@ -181,9 +181,6 @@ insertSymEnv γ (x, r)
         r  = normalize γ r'  
 
 normalize γ = addRTyConInv (invs γ) . normalizePds
-
-extendExists :: CGEnv -> (F.Symbol, RefTyp e) -> CGEnv
-extendExists γ += (x, so, e) = CGEnv
 
 -- (+=) :: (CGEnv, String) -> (F.Symbol, RefType) -> CGEnv
 (γ, msg) += (x, r)
@@ -345,12 +342,14 @@ rsplitW γ (RPoly t0, (PV _ t as))
 splitC :: SubC -> [FixSubC]
 ------------------------------------------------------------
 
-splitC (SubC γ (REx z t1) t2) 
-  = splitC (SubC (addExistsBinds z γ) t1 t2)
+splitC (SubC γ (REx (z, so, e) t1) t2) 
+  = splitC (SubC γ' t1 t2)
+    where γ' = (γ, "addExBind") += (z, fExprRefType γ so e)
 
-splitC (SubC γ t1 (REx z t2))
-  = splitC (SubC (addExistsBinds z γ) t1 t2)
-
+splitC (SubC γ t1 (REx (z, so, e) t2))
+  = splitC (SubC γ' t1 t2)
+    where γ' = (γ, "addExBind") += (z, fExprRefType γ so e)
+  
 splitC (SubC γ t1@(RFun (RB x1) r1 r1' re1) t2@(RFun (RB x2) r2 r2' re2)) 
   =  bsplitC γ t1 t2 
   ++ splitC  (SubC γ r2 r1) 
@@ -603,33 +602,10 @@ addTyConInfo = mapBot . expandRApp
 -------------------- Generation: Corebind -------------------------
 -------------------------------------------------------------------
 
+-------------------------------------------------------------------
 consCB :: CGEnv -> CoreBind -> CG CGEnv 
+-------------------------------------------------------------------
 
--- OLD
--- consCB γ b@(NonRec x e)
---   = do t <- unify pt <$> consE γ e
---        addIdA x (Left t)
---        return $  γ ++= ("consCB2", x', t)
---     where x' = mkSymbol x
---           pt = getPrType γ x'
---
---
---           
--- consCB γ (Rec xes) 
---   = do rts   <- mapM (\e -> freshTy_pretty e $ exprType e) es
---        let ts = zipWith unify pts rts 
---        let γ' = foldl' (\γ z -> (γ, "consCB1") += z) (γ `withRecs` xs) (zip vs ts)
---        zipWithM_ (cconsE γ') es  ts
---        zipWithM_ addIdA xs (Left <$> ts)
---        mapM_     addW (WfC γ <$> rts)
---        return γ'
---    where (xs, es) = unzip xes
---          vs       = mkSymbol    <$> xs
---          pts      = getPrType γ <$> vs
-
-
-
--- NEW
 consCB γ (Rec xes) 
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        let xts = [(x, to) | (x, _, to) <- xets, not (isGrty x)]
@@ -643,9 +619,6 @@ consCB γ b@(NonRec x e)
        to' <- consBind γ (x, e, to)
        return $ extender γ (x, to')
 
-extender γ (x, Just t) = γ ++= ("extender", mkSymbol x, t)
-extender γ _           = γ
-
 consBind γ (x, e, Just t) 
   = do cconsE (γ `setLoc` getSrcSpan x) e t
        addIdA x (Left t)
@@ -655,6 +628,9 @@ consBind γ (x, e, Nothing)
    = do t <- unifyVar γ x <$> consE γ e
         addIdA x (Left t)
         return $ Just t
+
+extender γ (x, Just t) = γ ++= ("extender", mkSymbol x, t)
+extender γ _           = γ
 
 varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Maybe RefType)
 varTemplate γ (x, eo)
@@ -667,12 +643,11 @@ varTemplate γ (x, eo)
 
 unifyVar γ x rt = unify (getPrType γ (mkSymbol x)) rt
 
-
 -------------------------------------------------------------------
 -------------------- Generation: Expression -----------------------
 -------------------------------------------------------------------
 
--------------------------------------------------------------------
+----------------------- Type Checking -----------------------------
 cconsE :: CGEnv -> Expr Var -> RefType -> CG () 
 -------------------------------------------------------------------
 
@@ -709,8 +684,7 @@ cconsE γ e t
   = do te <- consE γ e
        addC (SubC γ te t) ("cconsE" ++ showPpr e)
 
-
--------------------------------------------------------------------
+----------------------- Type Synthesis ----------------------------
 consE :: CGEnv -> Expr Var -> CG RefType 
 -------------------------------------------------------------------
 
@@ -743,14 +717,6 @@ consE γ e'@(App e a)
        cconsE γ a tx 
        return $ maybe err (F.subst1 t . (x,)) (argExpr a)
     where err = errorstar $ "consE: App crashes on" ++ showPpr a 
-
-
--- consE γ e'@(App e a)               
---   = do RFun (RB x) tx t _ <- liftM (checkFun ("Non-fun App with caller", e)) $ consE γ e 
---        cconsE γ a tx 
---        case argExpr a of 
---          Just e  -> return $ t `F.subst1` (x, e)
---          Nothing -> errorstar $ "consE: App crashes on" ++ showPpr a 
 
 consE γ (Lam α e) | isTyVar α 
   = liftM (RAll (rTyVar α)) (consE γ e) 
@@ -788,7 +754,9 @@ cconsFreshE γ e
        cconsE γ e t
        return t
 
+-------------------------------------------------------------------------------------
 cconsCase :: CGEnv -> Var -> RefType -> [AltCon] -> (AltCon, [Var], CoreExpr) -> CG ()
+-------------------------------------------------------------------------------------
 
 cconsCase γ x t _ (DataAlt c, ys, ce) 
  = do yts'            <- mkyts γ ys yts
@@ -861,8 +829,6 @@ checkAll _ t@(RAll _ _)       = t
 checkAll x t                  = checkErr x t
 
 checkErr (msg, e) t          = errorstar $ msg ++ showPpr e ++ "type: " ++ showPpr t
-
-
 
 varAnn γ x t 
   | x `S.member` recs γ
@@ -951,9 +917,22 @@ instance NFData CGInfo where
       ({-# SCC "CGIrnf7" #-} rnf x7) `seq`
       ({-# SCC "CGIrnf8" #-} rnf x9) 
 
------------------------------------------------------------------------
---------------- Cleaner Signatures For Rec-bindings -------------------
------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+--------------------- Reftypes from Fixpoint Expressions ----------------------
+-------------------------------------------------------------------------------
+
+fExprRefType                    :: CGEnv -> F.Sort -> F.Expr -> RefType
+
+fExprRefType γ so (F.EApp f es) = ROth so r
+  where r                       = F.subst su $ F.sr_reft $ refTypeSortedReft t
+        (xs,_ , t)              = rsplitArgsRes $ thd3 $ rsplitVsPs $ γ ?= f 
+        su                      = F.mkSubst $ safeZip "fExprRefType" xs es
+
+fExprRefType γ so e             = ROth so $ F.exprReft e 
+
+-------------------------------------------------------------------------------
+-------------------- Cleaner Signatures For Rec-bindings ----------------------
+-------------------------------------------------------------------------------
 
 exprRefType :: CoreExpr -> RefType
 exprRefType = exprRefType_ M.empty 

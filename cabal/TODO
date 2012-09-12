@@ -16,7 +16,7 @@ TODO
 * alpha-renaming of predicate params is VERY SHAKY. see tests/pos/deptupW.hs
 
 
-Existentials    <---------------------- HEREHEREHEREHEREHEREHERE
+Existentials    
 ============
 
 (tests/todo/ex0.hs)
@@ -29,15 +29,17 @@ Existentials    <---------------------- HEREHEREHEREHEREHEREHERE
         
         That is, they are always ANORMALIZED.
 
-2. parser
-  
-3. splitC (subtyping)
+2. splitC (subtyping)
 
-    4. Γ +++ (x, so, e) 
+3. Γ +++ (x, so, e) 
 
-       which will extend the env only with the sort-binding constrained by EAPP "e"
+   which will extend the env only with the sort-binding constrained by EAPP "e"
 
+4. parser  <---------------------- HEREHEREHEREHEREHEREHERE
+ 
+ 
 > also enables cunning trick with contextual/predicates. (See email)
+
 
 foldr :: (a -> b -> b) -> b -> [a] -> b
 foldr op b []     = b
@@ -48,9 +50,6 @@ foldr op b []     = b
 foldr op b (x:xs) = op ~xs~ x (foldr f b xs) 
 
 len = foldr (\_ ~xs~ n -> n + 1)
-
-
-
 
 Strictness Annotations
 ======================

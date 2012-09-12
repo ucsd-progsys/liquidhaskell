@@ -380,11 +380,6 @@ instance Show Symbol where
 newtype Subst  = Su (M.Map Symbol Expr) 
                  deriving (Eq, Ord, Data, Typeable)
 
-{-
-newtype PSubst = PSu (M.Map PredVar Reft) 
-                 deriving (Eq, Ord, Data, Typeable)
--}
-
 instance Outputable Refa where
   ppr  = text . show
 
@@ -695,6 +690,9 @@ instance Fixpoint SortedReft where
   toFix (RR so (Reft (v, ras))) 
     = braces 
     $ (toFix v) <+> (text ":") <+> (toFix so) <+> (text "|") <+> toFix ras
+
+instance Outputable SortedReft where
+  ppr = toFix
 
 instance Fixpoint FEnv where
   toFix (SE m)  = toFix (M.toAscList m)

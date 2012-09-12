@@ -17,7 +17,8 @@ module Language.Haskell.Liquid.RefType (
   , expandRApp
   , typeUniqueSymbol
   , strengthen
-  , generalize, mkArrow, normalizePds, rsplitVsPs, rsplitArgsRes
+  , generalize, mkArrow, normalizePds
+  , rsplitVsPs, rsplitArgsRes
   , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, refTypePredSortedReft, refTypeSortedReft, typeSortedReft, rTypeSort
@@ -141,8 +142,8 @@ data RType p c tv pv r
   | RAll !(Bind tv pv) !(RType p c tv pv r)                          -- INV: RAll {v | !(isSymBind v) }
   | RApp !c ![(RType p c tv pv r)] ![Ref r (RType p c tv pv r)] !r
   | RCls !p ![(RType p c tv pv r)]
-  | REx  [(Symbol, Sort, Expr)] (RType p c tv pv r)                  -- INV: Expr = EApp (_, [EVar _]) 
-  | ROth String
+  | REx  (Symbol, Sort, Expr) (RType p c tv pv r)                    -- INV: Expr = EApp (_, [EVar _]) 
+  | ROth Sort r                                                      -- for types with no Hs equivalent
   deriving (Data, Typeable)
 
 data Ref s m = RMono s | RPoly m
@@ -267,7 +268,7 @@ nlzP ps t@(RCls c ts)
 nlzP ps (RAll (RP p) t)
  = (t', [p] ++ ps ++ ps')
   where (t', ps') = nlzP [] t
-nlzP ps t@(ROth _)
+nlzP ps t@(ROth _ _)
  = (t, ps)
 nlzP ps t@(REx _ _) 
  = (t, ps) 
@@ -396,7 +397,7 @@ instance (NFData a, NFData b, NFData c, NFData d, NFData e) => NFData (RType a b
   rnf (RApp c ts rs r) = rnf ts `seq` rnf rs `seq` rnf r
   rnf (RCls c ts)      = c `seq` rnf ts
   rnf (REx x t)        = rnf x `seq` rnf t
-  rnf (ROth _)         = ()
+  rnf (ROth so r)      = rnf so `seq` rnf r 
 
 ----------------------------------------------------------------
 ------------------ Printing Refinement Types -------------------
@@ -549,15 +550,17 @@ ppr_rtype b p (RApp c ts rs r)
 ppr_rtype _ _ ty@(RCls c ts)      
   = ppCls c ts
 ppr_rtype b p (REx z t)
-  = ppExists z t  
-ppr_rtype _ _ (ROth s)
-  = text "?" <> text s <> text "?"
+  = ppExists b p z t  
+ppr_rtype _ _ (ROth so r)
+  = ppTy r $ text "Other-" <> ppr so 
 
+ppExists :: (Subable r, RefTypable p c tv pv r) => Bool -> Prec -> (Symbol, Sort, Expr) -> RType p c tv pv r -> SDoc
 ppExists b p z t
-  = text "exists" <+> brackets (intersperse comma (ppExBind <$> z)) <> dot <> ppr_rtype b p t
-ppExBind (x, so, e) 
-  = ppr x <+> colon <+> ppr so <+> equals <+> ppr e 
-
+  = text "exists" <+> brackets (intersperse comma (ppExBind <$> zs)) <> dot <> ppr_rtype b p t'
+    where (zs,  t')           = split [] t
+          split zs (REx z t)  = split (z:zs) t
+          split zs t	      = (reverse zs, t)
+          ppExBind (x, so, e) = ppr x <+> colon <+> ppr so <+> equals <+> ppr e 
 
 ppReftPs b rs 
   | all isTauto rs = empty
@@ -617,7 +620,7 @@ mapReft f (RFun x t t' r)     = RFun x (mapReft f t) (mapReft f t') (f r)
 mapReft f (RApp c ts rs r)    = RApp c (mapReft f <$> ts) (mapRef f <$> rs) (f r)
 mapReft f (RCls c ts)         = RCls c (mapReft f <$> ts) 
 mapReft f (REx z t)           = REx  z (mapReft f t)
-mapReft f (ROth a)            = ROth a 
+mapReft f (ROth so r)         = ROth so (f r) 
 
 mapRef f (RMono r)            = RMono $ f r
 mapRef f (RPoly t)            = RPoly $ mapReft f t
@@ -628,7 +631,7 @@ foldReft f z (RFun _ t t' r)  = f r (foldRefts f z [t, t'])
 foldReft f z (RApp _ ts rs r) = f r (foldRefs f (foldRefts f z ts) rs)
 foldReft f z (RCls _ ts)      = foldRefts f z ts
 foldReft f z (REx _ t)        = foldReft f z t
-foldReft f z (ROth _)         = z 
+foldReft f z (ROth so r)      = f r z 
 
 foldRefts                     = foldr . flip . foldReft
 foldRefs                      = foldr . flip . foldRef
@@ -674,9 +677,9 @@ subsFree meet s (α', τ', t') t@(RVar (RV α) r)
   = if meet then t' `strengthen` subt (α', τ') r else t' 
   | otherwise
   = t
-subsFree m s z (REx z t)
-  = REx z (subsFree m s z t)
-subsFree _ _ _ t@(ROth _)        
+subsFree m s z (REx x t)
+  = REx x (subsFree m s z t)
+subsFree _ _ _ t@(ROth _ _)        
   = t
 subsFree _ _ _ t      
   = errorstar $ "subsFree fails on: " ++ showPpr t
@@ -697,7 +700,7 @@ mapBind f (RAll b t)       = RAll (f b) (mapBind f t)
 mapBind f (RApp c ts rs r) = RApp c (mapBind f <$> ts) (mapBindRef f <$> rs) r
 mapBind f (RCls c ts)      = RCls c (mapBind f <$> ts)
 mapBind f (REx z t)        = REx z (mapBind f t)
-mapBind f (ROth s)         = ROth s
+mapBind f (ROth so r)      = ROth so r
 
 mapBindRef _ (RMono r)     = RMono r
 mapBindRef f (RPoly t)     = RPoly $ mapBind f t
@@ -813,7 +816,7 @@ ofType_ τ@(TyConApp c τs)
   = rApp c (ofType_ <$> τs) [] top 
   where (αs, τ) = TC.synTyConDefn c
 ofType_ τ               
-  = errorstar ("ofType cannot handle: " ++ show τ) -- ROth (show τ)  
+  = errorstar ("ofType cannot handle: " ++ show τ)
 
 ofPredTree (ClassPred c τs)
   = RCls c (ofType_ <$> τs)
@@ -943,8 +946,8 @@ toType (RCls c ts)
   = predTreePredType $ ClassPred c (toType <$> ts)
 toType (REx _ t)
   = toType t
-toType (ROth t)      
-  = errorstar $ "toType fails: " ++ t
+toType t@(ROth _ _)      
+  = errorstar $ "toType fails: ROth "
 
 ---------------------------------------------------------------
 ----------------------- Typing Literals -----------------------
