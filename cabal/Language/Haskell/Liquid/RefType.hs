@@ -142,7 +142,8 @@ data RType p c tv pv r
   | RAll !(Bind tv pv) !(RType p c tv pv r)                          -- INV: RAll {v | !(isSymBind v) }
   | RApp !c ![(RType p c tv pv r)] ![Ref r (RType p c tv pv r)] !r
   | RCls !p ![(RType p c tv pv r)]
-  | REx  (Symbol, Sort, Expr) (RType p c tv pv r)                    -- INV: Expr = EApp (_, [EVar _]) 
+  | REx  !(Bind tv pv) !(RType p c tv pv r) !(RType p c tv pv r)     -- INV: REx {v | isSymBind v} {v | isSingletonReft t1} t2
+  -- | REx  (Symbol, Sort, Expr) (RType p c tv pv r)                    -- INV: Expr = EApp (_, [EVar _]) 
   | ROth Sort r                                                      -- for types with no Hs equivalent
   deriving (Data, Typeable)
 
@@ -270,7 +271,7 @@ nlzP ps (RAll (RP p) t)
   where (t', ps') = nlzP [] t
 nlzP ps t@(ROth _ _)
  = (t, ps)
-nlzP ps t@(REx _ _) 
+nlzP ps t@(REx _ _ _) 
  = (t, ps) 
 
 strengthenRefType :: RefType -> RefType -> RefType
@@ -303,14 +304,10 @@ strengthenRefType_ t1 _
   = t1
 
 strengthen :: Reftable r => RType p c tv pv r -> r -> RType p c tv pv r
-strengthen (RApp c ts rs r) r' = RApp c ts rs (r `meet` r') 
-strengthen (RVar a r) r'       = RVar a       (r `meet` r') 
-strengthen (RFun b t1 t2 r) r' = RFun b t1 t2 (r `meet` r')
-strengthen t _                 = t 
-
-replaceReft (RApp c ts rs _) r' = RApp c ts rs r' 
-replaceReft (RVar a _) r'      = RVar a      r' 
-replaceReft t _                = t 
+strengthen (RApp c ts rs r) r'  = RApp c ts rs (r `meet` r') 
+strengthen (RVar a r) r'        = RVar a       (r `meet` r') 
+strengthen (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `meet` r')
+strengthen t _                  = t 
 
 expandRApp tyi (RApp rc ts rs r)
   = RApp rc' ts (appRefts rc' rs) r
@@ -372,7 +369,7 @@ freeVars (RFun x t t' _) = freeVars t `L.union` freeVars t'
 freeVars (RApp _ ts _ _) = L.nub $ concatMap freeVars ts
 freeVars (RCls _ ts)     = L.nub $ concatMap freeVars ts 
 freeVars (RVar (RV α) _) = [α] 
-freeVars (REx _ t)       = freeVars t
+freeVars (REx _ _ t)     = freeVars t
 
 ----------------------------------------------------------------
 ---------------------- Strictness ------------------------------
@@ -396,7 +393,7 @@ instance (NFData a, NFData b, NFData c, NFData d, NFData e) => NFData (RType a b
   rnf (RFun x t t' r)  = rnf x `seq` rnf t `seq` rnf t' `seq` rnf r
   rnf (RApp c ts rs r) = rnf ts `seq` rnf rs `seq` rnf r
   rnf (RCls c ts)      = c `seq` rnf ts
-  rnf (REx x t)        = rnf x `seq` rnf t
+  rnf (REx x t t')     = rnf x `seq` rnf t `seq` rnf t'
   rnf (ROth so r)      = rnf so `seq` rnf r 
 
 ----------------------------------------------------------------
@@ -533,34 +530,33 @@ instance Show RTyCon where
 
 ppr_rtype :: (Subable r, RefTypable p c tv pv r) => Bool -> Prec -> RType p c tv pv r -> SDoc
 
-ppr_rtype b p t@(RAll _ _)       
-  = ppr_forall b p t
-ppr_rtype b p (RVar (RV a) r)         
+ppr_rtype bb p t@(RAll _ _)       
+  = ppr_forall bb p t
+ppr_rtype _ p (RVar (RV a) r)         
   = ppTy r $ ppr a
-ppr_rtype b p (RFun x t t' _)  
-  = pprArrowChain p $ ppr_dbind b x t : ppr_fun_tail b t'
-ppr_rtype b p ty@(RApp c [t] rs r)
+ppr_rtype bb p (RFun x t t' _)  
+  = pprArrowChain p $ ppr_dbind bb FunPrec x t : ppr_fun_tail bb t'
+ppr_rtype bb p ty@(RApp c [t] rs r)
   | isList c 
-  = ppTy r $ brackets (ppr_rtype b p t) <> ppReftPs b rs
-ppr_rtype b p ty@(RApp c ts rs r)
+  = ppTy r $ brackets (ppr_rtype bb p t) <> ppReftPs bb rs
+ppr_rtype bb p ty@(RApp c ts rs r)
   | isTuple c 
-  = ppTy r $ parens (intersperse comma (ppr_rtype b p <$> ts)) <> ppReftPs b rs
-ppr_rtype b p (RApp c ts rs r)
-  = ppTy r $ ppTycon c <+> ppReftPs b rs <+> hsep (ppr_rtype b p <$> ts)  
+  = ppTy r $ parens (intersperse comma (ppr_rtype bb p <$> ts)) <> ppReftPs bb rs
+ppr_rtype bb p (RApp c ts rs r)
+  = ppTy r $ ppTycon c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)  
 ppr_rtype _ _ ty@(RCls c ts)      
   = ppCls c ts
-ppr_rtype b p (REx z t)
-  = ppExists b p z t  
+ppr_rtype bb p t@(REx _ _ _)
+  = ppExists bb p t
 ppr_rtype _ _ (ROth so r)
   = ppTy r $ text "Other-" <> ppr so 
 
-ppExists :: (Subable r, RefTypable p c tv pv r) => Bool -> Prec -> (Symbol, Sort, Expr) -> RType p c tv pv r -> SDoc
-ppExists b p z t
-  = text "exists" <+> brackets (intersperse comma (ppExBind <$> zs)) <> dot <> ppr_rtype b p t'
-    where (zs,  t')           = split [] t
-          split zs (REx z t)  = split (z:zs) t
-          split zs t	      = (reverse zs, t)
-          ppExBind (x, so, e) = ppr x <+> colon <+> ppr so <+> equals <+> ppr e 
+ppExists :: (Subable r, RefTypable p c tv pv r) => Bool -> Prec -> RType p c tv pv r -> SDoc
+ppExists bb p t
+  = text "exists" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
+    where (zs,  t')             = split [] t
+          split zs (REx x t t') = split ((x,t):zs) t'
+          split zs t	        = (reverse zs, t)
 
 ppReftPs b rs 
   | all isTauto rs = empty
@@ -573,16 +569,23 @@ ppr_pred b p (RAll pv@(RP _) t)
 ppr_pred b p t
   = dot <+> ppr_rtype b p t
 
-ppr_dbind :: (Subable r, RefTypable p c tv pv r) => Bool -> Bind tv pv -> RType p c tv pv r -> SDoc
-ppr_dbind bb b@(RB x) t 
+ppr_dbind :: (Subable r, RefTypable p c tv pv r) => Bool -> Prec -> Bind tv pv -> RType p c tv pv r -> SDoc
+ppr_dbind bb p b@(RB x) t 
   | isNonSymbol x 
-  = ppr_rtype bb FunPrec t
+  = ppr_rtype bb p t
   | otherwise
-  = {-braces-} (ppr b) <> colon <> ppr_rtype bb FunPrec t
+  = ppr b <> colon <> ppr_rtype bb p t
+
+--ppr_dbind :: (Subable r, RefTypable p c tv pv r) => Bool -> Bind tv pv -> RType p c tv pv r -> SDoc
+--ppr_dbind bb b@(RB x) t 
+--  | isNonSymbol x 
+--  = ppr_rtype bb FunPrec t
+--  | otherwise
+--  = {-braces-} (ppr b) <> colon <> ppr_rtype bb FunPrec t
 
 ppr_fun_tail :: (Subable r, RefTypable p c tv pv r) => Bool -> RType p c tv pv r -> [SDoc]
 ppr_fun_tail bb (RFun b t t' _)  
-  = (ppr_dbind bb b t) : (ppr_fun_tail bb t')
+  = (ppr_dbind bb FunPrec b t) : (ppr_fun_tail bb t')
 ppr_fun_tail bb t
   = [ppr_rtype bb TopPrec t]
 
@@ -619,7 +622,7 @@ mapReft f (RAll a t)          = RAll a (mapReft f t)
 mapReft f (RFun x t t' r)     = RFun x (mapReft f t) (mapReft f t') (f r)
 mapReft f (RApp c ts rs r)    = RApp c (mapReft f <$> ts) (mapRef f <$> rs) (f r)
 mapReft f (RCls c ts)         = RCls c (mapReft f <$> ts) 
-mapReft f (REx z t)           = REx  z (mapReft f t)
+mapReft f (REx z t t')        = REx  z (mapReft f t) (mapReft f t')
 mapReft f (ROth so r)         = ROth so (f r) 
 
 mapRef f (RMono r)            = RMono $ f r
@@ -630,7 +633,7 @@ foldReft f z (RAll _ t)       = foldReft f z t
 foldReft f z (RFun _ t t' r)  = f r (foldRefts f z [t, t'])
 foldReft f z (RApp _ ts rs r) = f r (foldRefs f (foldRefts f z ts) rs)
 foldReft f z (RCls _ ts)      = foldRefts f z ts
-foldReft f z (REx _ t)        = foldReft f z t
+foldReft f z (REx _ t t')     = foldRefts f z [t, t']
 foldReft f z (ROth so r)      = f r z 
 
 foldRefts                     = foldr . flip . foldReft
@@ -677,8 +680,8 @@ subsFree meet s (α', τ', t') t@(RVar (RV α) r)
   = if meet then t' `strengthen` subt (α', τ') r else t' 
   | otherwise
   = t
-subsFree m s z (REx x t)
-  = REx x (subsFree m s z t)
+subsFree m s z (REx x t t')
+  = REx x (subsFree m s z t) (subsFree m s z t')
 subsFree _ _ _ t@(ROth _ _)        
   = t
 subsFree _ _ _ t      
@@ -699,7 +702,7 @@ mapBind f (RFun b t1 t2 r) = RFun (f b) (mapBind f t1) (mapBind f t2) r
 mapBind f (RAll b t)       = RAll (f b) (mapBind f t) 
 mapBind f (RApp c ts rs r) = RApp c (mapBind f <$> ts) (mapBindRef f <$> rs) r
 mapBind f (RCls c ts)      = RCls c (mapBind f <$> ts)
-mapBind f (REx z t)        = REx z (mapBind f t)
+mapBind f (REx b t1 t2)    = REx  (f b) (mapBind f t1) (mapBind f t2)
 mapBind f (ROth so r)      = ROth so r
 
 mapBindRef _ (RMono r)     = RMono r
@@ -944,7 +947,7 @@ toType (RApp (RTyCon {rTyCon = c}) ts _ _)
   = TyConApp c (toType <$> ts)
 toType (RCls c ts)   
   = predTreePredType $ ClassPred c (toType <$> ts)
-toType (REx _ t)
+toType (REx _ _ t)
   = toType t
 toType t@(ROth _ _)      
   = errorstar $ "toType fails: ROth "

@@ -43,6 +43,7 @@ languageDef =
                                      , "data"
                                      , "Bexp"
                                      , "forall"
+                                     , "exists"
                                      , "assume"
                                      , "measure"
                                      , "module"
@@ -75,8 +76,8 @@ brackets   = Token.brackets   lexer
 braces     = Token.braces     lexer
 angles     = Token.angles     lexer
 semi       = Token.semi       lexer
-comma      = Token.comma      lexer
 colon      = Token.colon      lexer
+comma      = Token.comma      lexer
 dot        = Token.dot        lexer
 whiteSpace = Token.whiteSpace lexer
 identifier = Token.identifier lexer
@@ -229,6 +230,7 @@ condP f bodyP
 bareTypeP   
   =  try bareFunP
  <|> bareAllP
+ <|> bareExistsP
  <|> bareAtomP 
  
 bareArgP 
@@ -245,6 +247,16 @@ bbaseP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM3 bCon upperIdP predicatesP (sepBy bareArgP blanks))
  <|> liftM2 bRVar lowerIdP monoPredicateP 
+
+bareExistsP 
+  = do reserved "exists"
+       zs <- brackets $ sepBy1 exBindP comma 
+       dot
+       t  <- bareTypeP
+       return $ foldr (uncurry REx) t zs
+     
+exBindP 
+  = liftM3 (\x _ t -> (RB x, t)) binderP colon bareTypeP
 
 bareAllP 
   = do reserved "forall"
@@ -462,12 +474,8 @@ filePathP = angles $ many1 pathCharP
   where pathCharP = choice $ char <$> pathChars 
         pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
 
-tyBindP = xyP binderP dcolon genBareTypeP
---  = do name   <- binderP
---       spaces >> dcolon 
---       ty     <- genBareTypeP
---       return (name, ty)
-
+tyBindP 
+  = xyP binderP dcolon genBareTypeP
 
 genBareTypeP
   = liftM generalize bareTypeP 

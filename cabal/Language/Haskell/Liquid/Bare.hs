@@ -314,6 +314,8 @@ ofBareType (RVar (RP π) r)
   = return $ RVar (RP π) r
 ofBareType (RFun (RB x) t1 t2 _) 
   = liftM2 (rFun (RB x)) (ofBareType t1) (ofBareType t2)
+ofBareType (REx (RB x) t1 t2)
+  = liftM2 (REx (RB x)) (ofBareType t1) (ofBareType t2)
 ofBareType (RAll (RV a) t) 
   = liftM  (RAll (stringRTyVar a)) (ofBareType t)
 ofBareType (RAll (RP π) t) 

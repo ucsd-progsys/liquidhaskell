@@ -4,6 +4,7 @@ TODO
 * existentials
 * benchmarks: Data.List (foldr)
 * predicate-aliases 
+* add fixpoint into liquidhaskell repo
 * strictness annotations (tests/todo/maybe000.hs)
 * self-invariants        (tests/todo/maybe4.hs)
 * fixpoint profile (how much performance hit from -nosimple?)
@@ -14,29 +15,17 @@ TODO
 
 * get Niki to fix the safe0ZipWith nonsense in PredType.hs
 * alpha-renaming of predicate params is VERY SHAKY. see tests/pos/deptupW.hs
+* mcbride's stack machine
 
 
 Existentials    
 ============
 
-(tests/todo/ex0.hs)
-
 1. rtype
-    
-        rtype ::= ... | Ex [(Symbol, Sort, Expr)] (rtype)
-
-        INVARIANT: Expr ::= EApp (Sym, [EVar Sym])
-        
-        That is, they are always ANORMALIZED.
-
 2. splitC (subtyping)
-
-3. Γ +++ (x, so, e) 
-
-   which will extend the env only with the sort-binding constrained by EAPP "e"
-
-4. parser  <---------------------- HEREHEREHEREHEREHEREHERE
- 
+3. parser 
+4. ofBare
+5. tests/todo/ex0.hs <---------------------- HEREHEREHEREHEREHEREHERE
  
 > also enables cunning trick with contextual/predicates. (See email)
 
@@ -400,5 +389,23 @@ Benchmark Tags
 - LIQUIDFAIL : impossible to do verify the spec here
 
 - LIQUIDTODO : possible with some further hacking
+
+
+----------------------------------------------------------------------------
+
+McBride's Stack Machine youtube mcbride icfp 2012 monday keynote agda-curious
+
+    data Instr = Push Val | Add
+    type Val   = Int
+
+    measure needs                :: [Instr] -> Int
+    needs (Add    : is)          = min (2, 1 + needs(is))
+    needs (Push v : is)          = 0
+
+    run                          :: is:[Instr] -> {v:[Val] | len(v) >= needs(is)} -> [Val]
+    run (Add:is)      (x1:x2:vs) = run is (x1 + x2 : vs)
+    run (Push v : is) vs         = run is (v : vs)
+
+----------------------------------------------------------------------------
 
 

@@ -342,14 +342,14 @@ rsplitW γ (RPoly t0, (PV _ t as))
 splitC :: SubC -> [FixSubC]
 ------------------------------------------------------------
 
-splitC (SubC γ (REx (z, so, e) t1) t2) 
+splitC (SubC γ (REx (RB x) tx t1) t2) 
   = splitC (SubC γ' t1 t2)
-    where γ' = (γ, "addExBind") += (z, fExprRefType γ so e)
+    where γ' = (γ, "addExBind") += (x, existentialRefType γ tx)
 
-splitC (SubC γ t1 (REx (z, so, e) t2))
+splitC (SubC γ t1 (REx (RB x) tx t2))
   = splitC (SubC γ' t1 t2)
-    where γ' = (γ, "addExBind") += (z, fExprRefType γ so e)
-  
+    where γ' = (γ, "addExBind") += (x, existentialRefType γ tx)
+ 
 splitC (SubC γ t1@(RFun (RB x1) r1 r1' re1) t2@(RFun (RB x2) r2 r2' re2)) 
   =  bsplitC γ t1 t2 
   ++ splitC  (SubC γ r2 r1) 
@@ -921,14 +921,19 @@ instance NFData CGInfo where
 --------------------- Reftypes from Fixpoint Expressions ----------------------
 -------------------------------------------------------------------------------
 
-fExprRefType                    :: CGEnv -> F.Sort -> F.Expr -> RefType
+existentialRefType     :: CGEnv -> RefType -> RefType
+existentialRefType γ t = withReft t r' 
+  where r'             = maybe top (exReft γ) (F.isSingletonReft r)
+        r              = F.sr_reft $ refTypeSortedReft t
 
-fExprRefType γ so (F.EApp f es) = ROth so r
-  where r                       = F.subst su $ F.sr_reft $ refTypeSortedReft t
-        (xs,_ , t)              = rsplitArgsRes $ thd3 $ rsplitVsPs $ γ ?= f 
-        su                      = F.mkSubst $ safeZip "fExprRefType" xs es
+exReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ refTypeSortedReft t
+  where (xs,_ , t)     = rsplitArgsRes $ thd3 $ rsplitVsPs $ γ ?= f 
+        su             = F.mkSubst $ safeZip "fExprRefType" xs es
+exReft _ e             = F.exprReft e 
 
-fExprRefType γ so e             = ROth so $ F.exprReft e 
+withReft (RApp c ts rs _) r' = RApp c ts rs r' 
+withReft (RVar a _) r'       = RVar a      r' 
+withReft t _                 = t 
 
 -------------------------------------------------------------------------------
 -------------------- Cleaner Signatures For Rec-bindings ----------------------

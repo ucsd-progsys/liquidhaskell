@@ -19,7 +19,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , trueReft, trueSortedReft 
   , trueRefa
   , canonReft, exprReft, notExprReft, symbolReft
-  , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft
+  , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft
   , ppr_reft, ppr_reft_pred, flattenRefas
   , simplify, pAnd, pOr, pIte
   , isTautoPred
@@ -582,13 +582,15 @@ zero         = ECon (I 0)
 one          = ECon (I 1)
 isContra     = (`elem` [ PAtom Eq zero one, PAtom Eq one zero, PFalse])   
 isTautoPred  = (`elem` [ PTrue ])
--- hasTag e1 e2 = PAtom Eq (EApp tagSymbol [e1]) e2
 
 isTautoReft (Reft (_, ras)) = all isTautoRa ras
 isTautoRa (RConc p)         = isTautoPred p
 isTautoRa _                 = False
 
-
+isSingletonReft (Reft (v, [RConc (PAtom Eq e1 e2)])) 
+  | e1 == EVar v = Just e2
+  | e2 == EVar v = Just e1
+isSingletonReft _    = Nothing 
 
 pAnd          = simplify . PAnd 
 pOr           = simplify . POr 
@@ -600,12 +602,6 @@ ppr_reft (Reft (v, ras)) d
   | otherwise
   = braces (ppr v <+> colon <+> d <+> text "|" <+> ppRas ras)
 
---ppr_reft_preds rs 
---  | all isTautoReft rs 
---  = empty
---  | otherwise 
---  = angleBrackets $ hsep $ punctuate comma $ ppr_reft_pred <$> rs
- 
 ppr_reft_pred (Reft (_, ras))
   | all isTautoRa ras
   = text "true"
