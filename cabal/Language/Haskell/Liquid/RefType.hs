@@ -744,13 +744,13 @@ instance (SubsTy tv ty ty) => SubsTy tv ty (UReft a ty) where
   subt f (U r p)  = U r (subt f p)
   subv f (U r p)  = U r (subvPredicate f p)
 
-instance SubsTy String String String where
-  subt (α, α'@(_:_)) β
-    | α == β && not (null α') = α' -- UNIFY: HACK HACK HACK!!! 
-    | otherwise               = β
-  subt (_, _) β
-    = β
-  subv _ = id
+-- instance SubsTy String String String where
+--   subt (α, α'@(_:_)) β
+--     | α == β && not (null α') = α' -- UNIFY: HACK HACK HACK!!! 
+--     | otherwise               = β
+--   subt (_, _) β
+--     = β
+--   subv _ = id
 
 instance SubsTy RTyVar Type Type where
   subt (α', t') t@(TyVarTy tv) 

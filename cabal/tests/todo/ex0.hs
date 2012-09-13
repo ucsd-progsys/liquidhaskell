@@ -9,10 +9,12 @@ module Ex where
               -> a <p n>
   @-}
 foldN :: (Int -> a -> a) -> Int -> a -> a
-foldN f n = go 0 
-  where go i x | i < n     = go (i+1) (f i x)
-               | otherwise = x
+foldN = error "TODO"
+--foldN f n = go 0 
+--  where go i x | i < n     = go (i+1) (f i x)
+--               | otherwise = x
+
 
 {-@ count :: m: {v: Int | v > 0 } -> {v: Int | v = m} @-}
 count :: Int -> Int
-count = foldN (\_ n -> n + 1) 
+count m = foldN (\_ n -> n + 1) m 0

@@ -81,61 +81,53 @@ instance Functor PVar where
 instance (NFData a) => NFData (PVar a) where
   rnf (PV n t txys) = rnf n `seq` rnf t `seq` rnf txys
 
---instance Subable (PVar a) where
---  subst su (PV p t args) = PV p t $ [(t, x, subst su y) | (t, x, y) <- args]
---
---instance MapSymbol (PVar a) where 
---  mapSymbol f (PV p t args) = PV (f p) t [(t, x, f y) | (t, x, y) <- args]
-
-{-
 ------------------------------------------------------------
 ------------------- Sanitizing Symbols ---------------------
 ------------------------------------------------------------
-
-data FxInfo = FxInfo { 
-    symMap     :: !(M.Map Symbol Symbol)
-  , constants  :: !(S.Set (Symbol, Sort, Bool))  -- Bool : whether to generate qualifiers for constant 
-  , locMap     :: !(M.Map Loc Loc) 
-  , freshIdx   :: !Integer }
-
-type Fx     = State FxInfo
-
-cleanLocs    :: (Data a) => a -> Fx a
-cleanLocs = {-# SCC "CleanLocs" #-} everywhereM (mkM swiz)
-  where swiz l@(FLoc x)
-          | isFixSym x = return l
-          | otherwise  = freshLoc l  
-        swiz l = return l
-
-isFixSym (c:chs)  = isAlpha c && all (`elem` okSymChars) chs
-isFixSym _        = False
-
-freshLoc ::  Loc -> Fx Loc
-freshLoc x 
-  = do s <- get
-       case M.lookup x $ locMap s of
-         Nothing -> do let n = freshIdx s 
-                       let y = FLoc ("ty_" ++ show n) 
-                       put $ s {freshIdx = n + 1} { locMap = M.insert x y $ locMap s}
-                       return y 
-         Just y  -> return y
-
-cleanSymbols :: (Data a) => a -> Fx a
-cleanSymbols = {-# SCC "CleanSyms" #-} everywhereM (mkM swiz)
-  where swiz s@(S x) 
-          | isFixSym x = return s
-          | otherwise  = freshSym s
-
-freshSym ::  Symbol -> Fx Symbol
-freshSym x = do 
-  s <- get
-  case M.lookup x $ symMap s of
-    Nothing -> do let n = freshIdx s
-                  let y = tempSymbol "fx" n 
-                  put $ s {freshIdx = n + 1} { symMap = M.insert x y $ symMap s}
-                  return y 
-    Just y  -> return y
--}
+--
+-- data FxInfo = FxInfo { 
+--     symMap     :: !(M.Map Symbol Symbol)
+--   , constants  :: !(S.Set (Symbol, Sort, Bool))  -- Bool : whether to generate qualifiers for constant 
+--   , locMap     :: !(M.Map Loc Loc) 
+--   , freshIdx   :: !Integer }
+-- 
+-- type Fx     = State FxInfo
+-- 
+-- cleanLocs    :: (Data a) => a -> Fx a
+-- cleanLocs = {-# SCC "CleanLocs" #-} everywhereM (mkM swiz)
+--   where swiz l@(FLoc x)
+--           | isFixSym x = return l
+--           | otherwise  = freshLoc l  
+--         swiz l = return l
+-- 
+-- isFixSym (c:chs)  = isAlpha c && all (`elem` okSymChars) chs
+-- isFixSym _        = False
+-- 
+-- freshLoc ::  Loc -> Fx Loc
+-- freshLoc x 
+--   = do s <- get
+--        case M.lookup x $ locMap s of
+--          Nothing -> do let n = freshIdx s 
+--                        let y = FLoc ("ty_" ++ show n) 
+--                        put $ s {freshIdx = n + 1} { locMap = M.insert x y $ locMap s}
+--                        return y 
+--          Just y  -> return y
+-- 
+-- cleanSymbols :: (Data a) => a -> Fx a
+-- cleanSymbols = {-# SCC "CleanSyms" #-} everywhereM (mkM swiz)
+--   where swiz s@(S x) 
+--           | isFixSym x = return s
+--           | otherwise  = freshSym s
+-- 
+-- freshSym ::  Symbol -> Fx Symbol
+-- freshSym x = do 
+--   s <- get
+--   case M.lookup x $ symMap s of
+--     Nothing -> do let n = freshIdx s
+--                   let y = tempSymbol "fx" n 
+--                   put $ s {freshIdx = n + 1} { symMap = M.insert x y $ symMap s}
+--                   return y 
+--     Just y  -> return y
 
 isPredInReft p (Reft(_, ls)) = or (isPredInRefa p <$> ls)
 isPredInRefa p (RPvar p')    = isSamePvar p p'
