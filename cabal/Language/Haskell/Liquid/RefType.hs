@@ -150,33 +150,16 @@ data RType p c tv pv r
 data Ref s m = RMono s | RPoly m
   deriving (Data, Typeable)
 
--- Refinement Type Aliases
-data RTAlias tv ty 
-  = RTA { rtName :: String
-        , rtArgs :: [tv]
-        , rtBody :: ty              
-        } deriving (Data, Typeable)
-
-instance (Show tv, Show ty) => Show (RTAlias tv ty) where
-  show (RTA n args t) = "reftype " ++ n ++ " " ++ as ++ " = " ++ show t 
-                        where as = L.intercalate " " (show <$> args)
-
 type BRType     = RType String String String   
 type RRType     = RType Class  RTyCon RTyVar   
+type BareType   = BRType (PVar Sort) (UReft Reft String) 
+type SpecType   = RRType (PVar Type) (UReft Reft Type)
+type PrType     = RRType (PVar Type) (Predicate Type) 
+type RefType    = RRType (PVar Type) Reft
 
 data UReft r t  = U {ureft :: !r, upred :: !(Predicate t)}
                   deriving (Data, Typeable)
 
-type BareType   = BRType (PVar String) (UReft Reft String) 
-type SpecType   = RRType (PVar Type)   (UReft Reft Type)
-type PrType     = RRType (PVar Type)   (Predicate Type) 
-type RefType    = RRType (PVar Type)   Reft
-
-data DataDecl   = D String 
-                    [String] 
-                    [PVar String] 
-                    [(String, [(String, BareType)])] 
-                  deriving (Data, Typeable, Show)
 
 class (Monoid r, Outputable r) => Reftable r where 
   isTauto :: r -> Bool
@@ -504,8 +487,8 @@ instance Outputable (PVar t) where
   ppr (PV s t xts) = ppr s <+> hsep (ppr <$> dargs xts)
     where dargs = map thd3 . takeWhile (\(_, x, y) -> x /= y) 
  
-instance PVarable (PVar String) where
-  ppr_def = ppr_pvar_def text
+instance PVarable (PVar Sort) where
+  ppr_def = ppr_pvar_def ppr 
 
 instance PVarable (PVar Type) where
   ppr_def = ppr_pvar_def ppr_pvar_type 
@@ -1013,6 +996,7 @@ typeSortedReft t r = RR (typeSort t) (Reft (vv, [r]))
 
 
 -- rTypeSort ::  RType t -> Sort
+rTypeSort ::  RRType a b -> Sort
 rTypeSort = typeSort . toType
 
 -------------------------------------------------------------------
@@ -1030,5 +1014,29 @@ instance Subable (Predicate Type) where
 
 instance Subable r => Subable (RType p c tv pv r) where
   subst  = fmap . subst
+
+------------------------------------------------------------------------
+---------------- Auxiliary Types Used Elsewhere ------------------------
+------------------------------------------------------------------------
+
+--| Data type refinements
+
+data DataDecl   = D String 
+                    [String] 
+                    [PVar Sort] 
+                    [(String, [(String, BareType)])] 
+                  deriving (Data, Typeable, Show)
+
+--| Refinement Type Aliases
+
+data RTAlias tv ty 
+  = RTA { rtName :: String
+        , rtArgs :: [tv]
+        , rtBody :: ty              
+        } deriving (Data, Typeable)
+
+instance (Show tv, Show ty) => Show (RTAlias tv ty) where
+  show (RTA n args t) = "reftype " ++ n ++ " " ++ as ++ " = " ++ show t 
+                        where as = L.intercalate " " (show <$> args)
 
 
