@@ -20,7 +20,7 @@ import DataCon
 import Data.Map hiding (null, partition, foldl')
 import Data.Data
 import Data.Monoid hiding ((<>))
-import Data.List (intercalate, foldl', foldl1', partition)
+import Data.List (foldl1')
 import Data.Bifunctor
 import Control.Applicative      ((<$>))
 import Control.Exception        (assert)
@@ -166,7 +166,7 @@ defRefType (Def f dc xs body) = mkArrow as xts t'
 
 refineWithCtorBody dc f body t = 
   case stripRTypeBase t of 
-    Just (Reft (v, ras)) ->
+    Just (Reft (v, _)) ->
       strengthen t $ Reft (v, [RConc $ bodyPred v body])
     Nothing -> 
       errorstar $ "measure mismatch " ++ showPpr f ++ " on con " ++ showPpr dc
@@ -192,7 +192,7 @@ expandRTAliasE  :: RTEnv -> BareType -> BareType
 expandRTAliasE = go []
   where go = expandAlias go
 
-expandRTAlias' env t = traceShow ("expandRTAlias t = " ++ showPpr t) $ expandRTAlias env t
+-- expandRTAlias' env t = traceShow ("expandRTAlias t = " ++ showPpr t) $ expandRTAlias env t
 
 expandRTAlias   :: RTEnv -> BareType -> BareType
 expandRTAlias = go [] 
@@ -201,21 +201,18 @@ expandRTAlias = go []
 expandAlias f s env = go s 
   where go s (RApp c ts rs r)
           | c `elem` s        = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
-          | c `member` env    = assert (null rs) $ expandRTApp (f (c:s) env) env s c ts rs r
+          | c `member` env    = assert (null rs) $ expandRTApp (f (c:s) env) env c ts r
           | otherwise         = RApp c (go s <$> ts) rs r 
         go s (RAllT a t)      = RAllT a (go s t)
         go s (RAllP a t)      = RAllP a (go s t)
         go s (RFun x t t' r)  = RFun x (go s t) (go s t') r
         go s (RCls c ts)      = RCls c (go s <$> ts) 
-        go s t                = t
+        go _ t                = t
 
-expandRTApp tx env s c ts rs r
+expandRTApp tx env c ts r
   = (subsTyVars_meet αts' t') `strengthen` r
     where t'   = tx (rtBody rta)
           αts' = assert (length αs == length αts) αts
           αts  = zipWith (\α t -> (α, toRSort t, t)) αs ts
           αs   = rtArgs rta
           rta  = env ! c
-
--- toTypeRaw (RVar α _) = α   
--- toTypeRaw _          = ""
