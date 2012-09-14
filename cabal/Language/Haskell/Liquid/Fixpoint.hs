@@ -842,7 +842,6 @@ instance Monoid Reft where
     | v == v'   = Reft (v, ras ++ ras')
     | otherwise = Reft (v, ras ++ (ras' `subst1` (v', EVar v)))
 
-
 instance Subable SortedReft where
   subst su (RR so r) = RR so $ subst su r
 

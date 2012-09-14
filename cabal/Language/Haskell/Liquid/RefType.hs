@@ -93,10 +93,6 @@ eqpd (Pr vs) (Pr ws)
 instance Functor Predicate where
   fmap f (Pr pvs) = Pr (fmap f <$> pvs)
 
-instance Monoid (Predicate t) where
-  mempty       = pdTrue
-  mappend p p' = pdAnd [p, p']
-
 instance (Outputable (PVar t)) => Outputable (Predicate t) where
   ppr (Pr [])       = text "True"
   ppr (Pr pvs)      = hsep $ punctuate (text "&") (map ppr pvs)
@@ -108,6 +104,11 @@ instance Outputable (PVar t) => Reftable (Predicate t) where
   isTauto (Pr ps)      = null ps
   ppTy r d | isTauto r = d 
            | otherwise = d <> (angleBrackets $ ppr r)
+
+instance Outputable REnv where
+  ppr (REnv m)         = vcat $ map pprxt $ M.toAscList m
+    where pprxt (x, t) = ppr x <> dcolon <> ppr t  
+
 
 instance NFData (Predicate a) where
   rnf _ = ()
@@ -147,7 +148,7 @@ data RType p c tv r
     }
 
   | RAllP {
-      rt_pvbind :: !(PVar (RType p c tv r))
+      rt_pvbind :: !(PVar (RType p c tv ()))
     , rt_ty     :: !(RType p c tv r)
     }
 
@@ -186,11 +187,12 @@ type SpecType   = RRType (UReft Reft RSort)
 type PrType     = RRType (Predicate RSort) 
 type RefType    = RRType Reft
 
-
-
 data UReft r t  = U {ureft :: !r, upred :: !(Predicate t)}
                   deriving (Data, Typeable)
 
+--------------------------------------------------------------------
+-------------- (Class) Predicates for Valid Refinement Types -------
+--------------------------------------------------------------------
 
 class (Monoid r, Outputable r) => Reftable r where 
   isTauto :: r -> Bool
@@ -202,29 +204,131 @@ class (Monoid r, Outputable r) => Reftable r where
   meet    :: r -> r -> r
   meet    = mappend
 
--- fromRMono :: String -> Ref a b -> a
-fromRMono _ (RMono r) = r
-fromRMono msg z       = errorstar $ "fromMono: " ++ msg -- ++ showPpr z
-fromRPoly (RPoly r)   = r
-fromRPoly _           = errorstar "fromPoly"
-idRMono               = RMono . fromRMono "idRMono"
-
 class TyConable c where
   isList   :: c -> Bool
   isTuple  :: c -> Bool
   ppTycon  :: c -> SDoc
 
--- class Outputable pv => PVarable pv where
---   ppr_def :: pv -> SDoc
+class ( Outputable p
+      , TyConable c
+      , Outputable tv
+      , Reftable r
+      , Subable r
+      ) => RefTypable p c tv r 
+  where
+    ppCls    :: p -> [RType p c tv r] -> SDoc
+    ppRType  :: Prec -> RType p c tv r -> SDoc 
+    -- ppRType  = ppr_rtype True -- False 
 
-class (Outputable p, TyConable c, Outputable tv, Reftable r, Subable r) => RefTypable p c tv r where
-  ppCls    :: p -> [RType p c tv r] -> SDoc
-  
-  ppRType  :: Prec -> RType p c tv r -> SDoc 
+-- Monoid Instances ---------------------------------------------------------
+
+instance Monoid (Predicate t) where
+  mempty       = pdTrue
+  mappend p p' = pdAnd [p, p']
+
+instance (Monoid a) => Monoid (UReft a b) where
+  mempty                    = U mempty mempty
+  mappend (U x y) (U x' y') = U (mappend x x') (mappend y y')
+
+instance Monoid RefType where
+  mempty  = error "mempty RefType"
+  mappend = strengthenRefType
+
+instance Monoid (Ref Reft RefType) where
+  mempty  = RMono mempty
+  mappend (RMono r1) (RMono r2) = RMono $ r1 `meet` r2
+  mappend (RMono r) (RPoly t)   = RPoly $ t `strengthen` r
+  mappend (RPoly t) (RMono r)   = RPoly $ t `strengthen` r
+  mappend (RPoly t1) (RPoly t2) = RPoly $ t1 `strengthenRefType` t2
+
+instance (Monoid r, Reftable r, Subable r, RefTypable a b c r) => Monoid (Ref r (RType a b c r)) where
+  mempty = RMono mempty
+  mappend (RMono r1) (RMono r2) = RMono $ mappend r1 r2
+  mappend (RMono r) (RPoly t)   = RPoly $ t `strengthen` r
+  mappend (RPoly t) (RMono r)   = RPoly $ t `strengthen` r
+  mappend (RPoly t1) (RPoly t2) = RPoly $ t1 `strengthenRefType_` t2
+
+-- Subable Instances ----------------------------------------------
+
+instance Subable () where
+  subst _ () = ()
+
+instance Subable (UReft Reft t) where
+  subst s (U r z) = U (subst s r) z
+
+-- instance Subable (UReft Reft Type) where
+--   subst s (U r p) = U (subst s r) p
+
+instance Subable (Predicate t) where
+  subst _ = id 
+
+instance Subable r => Subable (RType p c tv r) where
+  subst  = fmap . subst
+
+-- Reftable Instances -------------------------------------------------------
+
+instance Reftable (RType Class RTyCon RTyVar Reft) where
+  isTauto = isTrivial -- isTautoTy 
+  ppTy    = errorstar "ppTy RPoly Reftable" 
+
+instance Reftable Reft where
+  isTauto = isTautoReft
+  ppTy    = ppr_reft
+
+instance Reftable () where
+  isTauto _ = True
+  ppTy _  d = d
+  top       = ()
+  meet _ _  = ()
+
+instance (Reftable r, Reftable (Predicate t)) => Reftable (UReft r t) where
+  isTauto (U r p) = isTauto r && isTauto p 
+  ppTy (U r p) d  = ppTy r (ppTy p d) 
+
+instance (Reftable r, RefTypable p c tv r, Subable r) => Reftable (Ref r (RType p c tv r)) where
+  isTauto (RMono r) = isTauto r
+  isTauto (RPoly t) = isTrivial t 
+  ppTy (RMono r) d  = ppTy r d
+  ppTy (RPoly _) _  = errorstar "Reftable Ref RPoly"
+
+
+-- TyConable Instances -------------------------------------------------------
+
+instance TyConable RTyCon where
+  isList  = (listTyCon ==) . rTyCon
+  isTuple = TC.isTupleTyCon   . rTyCon 
+  ppTycon = ppr
+
+instance TyConable String where
+  isList  = (listConName ==) 
+  isTuple = (tupConName ==)
+  ppTycon = text
+
+
+-- RefTypable Instances -------------------------------------------------------
+
+--instance (Outputable p, TyConable c) => RefTypable p c String () where
+--  ppCls   = ppClass_String
+--  ppRType = ppr_rtype True -- False 
+
+-- instance RefTypable Class RTyCon RTyVar () where
+--   ppCls = ppClass_ClassPred
+
+instance (Outputable p, TyConable c, Reftable r, Subable r) => RefTypable p c String r where
+  ppCls = ppClass_String
   ppRType = ppr_rtype True -- False 
+  -- ppCls = parens (ppr c <+> text "...")
+
+instance (Reftable r, Subable r) => RefTypable Class RTyCon RTyVar r where
+  ppCls = ppClass_ClassPred
+  ppRType = ppr_rtype True -- False 
+  -- ppCls c ts  = parens $ pprClassPred c (toType <$> ts)
+
+ppClass_String    c ts = parens (ppr c <+> text "...")
+ppClass_ClassPred c ts = parens $ pprClassPred c (toType <$> ts)
 
 --------------------------------------------------------------------
----------------- Refinement Types: RefType -------------------------
+--------- Wrappers for GHC Type Elements ---------------------------
 --------------------------------------------------------------------
 
 newtype RTyVar = RTV TyVar deriving (Data, Typeable)
@@ -235,19 +339,14 @@ instance Eq RTyVar where
 instance Ord RTyVar where
   compare (RTV α) (RTV α') = compare (tvId α) (tvId α')
 
--- type RBind = Bind RTyVar (PVar Type)
-
 data RTyCon = RTyCon 
-  { rTyCon     :: !TC.TyCon         -- GHC Type Constructor
-  , rTyConPs   :: ![PVar RSort]      -- Predicate Parameters
+  { rTyCon     :: !TC.TyCon        -- GHC Type Constructor
+  , rTyConPs   :: ![PVar RSort]    -- Predicate Parameters
   }
   deriving (Eq, Data, Typeable)
 
--- instance Eq RBind where
---   RB s == RB s' = s == s'
---   RV α == RV α' = α == α'
---   RP p == RP p' = pname p == pname p'
---   _    == _     = False 
+instance Ord RTyCon where
+  compare x y = compare (rTyCon x) (rTyCon y)
 
 --------------------------------------------------------------------
 ---------------------- Helper Functions ----------------------------
@@ -283,7 +382,7 @@ nlzP ps t@(RCls c ts)
 nlzP ps (RAllP p t)
  = (t', [p] ++ ps ++ ps')
   where (t', ps') = nlzP [] t
-nlzP ps t@(ROth _ _)
+nlzP ps t@(ROth _)
  = (t, ps)
 nlzP ps t@(REx _ _ _) 
  = (t, ps) 
@@ -393,16 +492,11 @@ freeVars (REx _ _ t)     = freeVars t
 instance NFData REnv where
   rnf (REnv m) = () -- rnf m
 
--- instance NFData (Bind a b) where
---   rnf (RB x) = rnf x
---   rnf (RV a) = ()
---   rnf (RP p) = () 
-
 instance (NFData a, NFData b) => NFData (Ref a b) where
   rnf (RMono a) = rnf a
   rnf (RPoly b) = rnf b
 
-instance (NFData a, NFData b, NFData c, NFData d, NFData e) => NFData (RType a b c d e) where
+instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) where
   rnf (RVar α r)       = rnf α `seq` rnf r 
   rnf (RAllT α t)      = rnf α `seq` rnf t
   rnf (RAllP π t)      = rnf π `seq` rnf t
@@ -410,7 +504,7 @@ instance (NFData a, NFData b, NFData c, NFData d, NFData e) => NFData (RType a b
   rnf (RApp c ts rs r) = rnf ts `seq` rnf rs `seq` rnf r
   rnf (RCls c ts)      = c `seq` rnf ts
   rnf (REx x t t')     = rnf x `seq` rnf t `seq` rnf t'
-  rnf (ROth so r)      = rnf so `seq` rnf r 
+  rnf (ROth s)         = rnf s
 
 ----------------------------------------------------------------
 ------------------ Printing Refinement Types -------------------
@@ -423,20 +517,6 @@ instance Outputable RTyVar where
 
 instance Show RTyVar where
   show = showPpr 
-
-instance Reftable (RType Class RTyCon RTyVar Reft) where
-  isTauto = isTrivial -- isTautoTy 
-  ppTy    = errorstar "ppTy RPoly Reftable" 
-
-instance Reftable Reft where
-  isTauto = isTautoReft
-  ppTy    = ppr_reft
-
-instance (Reftable r, RefTypable p c tv r, Subable r) => Reftable (Ref r (RType p c tv r)) where
-  isTauto (RMono r) = isTauto r
-  isTauto (RPoly t) = isTrivial t 
-  ppTy (RMono r) d  = ppTy r d
-  ppTy (RPoly _) _  = errorstar "Reftable Ref RPoly"
 
 --instance Reftable (Ref Reft (RType Class RTyCon RTyVar (PVar Type) Reft)) where
 --  isTauto (RMono r) = isTauto r
@@ -462,22 +542,6 @@ instance (Reftable s, Outputable p) => Outputable (Ref s p) where
   ppr (RMono s) = ppr s
   ppr (RPoly p) = ppr p
 
-instance Ord RTyCon where
-  compare x y = compare (rTyCon x) (rTyCon y)
-
-instance TyConable RTyCon where
-  isList  = (listTyCon ==) . rTyCon
-  isTuple = TC.isTupleTyCon   . rTyCon 
-  ppTycon = ppr
-
-instance TyConable String where
-  isList  = (listConName ==) 
-  isTuple = (tupConName ==)
-  ppTycon = text
-
-instance (Outputable p, TyConable c, Reftable r, Subable r) => RefTypable p c String r where
-  ppCls c ts = parens (ppr c <+> text "...")
-
 instance (Reftable r, Reftable (Predicate t)) => Outputable (UReft r t) where
   ppr (U r p)
     | isTauto r  = ppr p
@@ -486,35 +550,6 @@ instance (Reftable r, Reftable (Predicate t)) => Outputable (UReft r t) where
 
 instance Outputable (UReft r t) => Show (UReft r t) where
   show = showSDoc . ppr 
-
-instance (Monoid a) => Monoid (UReft a b) where
-  mempty                    = U mempty mempty
-  mappend (U x y) (U x' y') = U (mappend x x') (mappend y y')
-
-instance Monoid RefType where
-  mempty  = error "mempty RefType"
-  mappend = strengthenRefType
-
-instance Monoid (Ref Reft RefType) where
-  mempty  = RMono mempty
-  mappend (RMono r1) (RMono r2) = RMono $ r1 `meet` r2
-  mappend (RMono r) (RPoly t)   = RPoly $ t `strengthen` r
-  mappend (RPoly t) (RMono r)   = RPoly $ t `strengthen` r
-  mappend (RPoly t1) (RPoly t2) = RPoly $ t1 `strengthenRefType` t2
-
-instance (Monoid r, Reftable r, Subable r, RefTypable a b c d r) => Monoid (Ref r (RType a b c r)) where
-  mempty = RMono mempty
-  mappend (RMono r1) (RMono r2) = RMono $ mappend r1 r2
-  mappend (RMono r) (RPoly t)   = RPoly $ t `strengthen` r
-  mappend (RPoly t) (RMono r)   = RPoly $ t `strengthen` r
-  mappend (RPoly t1) (RPoly t2) = RPoly $ t1 `strengthenRefType_` t2
-
-instance (Reftable r, Reftable (Predicate t)) => Reftable (UReft r t) where
-  isTauto (U r p) = isTauto r && isTauto p 
-  ppTy (U r p) d  = ppTy r (ppTy p d) 
-
-instance (Reftable r, Subable r) => RefTypable Class RTyCon RTyVar r where
-  ppCls c ts  = parens $ pprClassPred c (toType <$> ts)
 
 instance Outputable (PVar t) where
   ppr (PV s t xts) = ppr s <+> hsep (ppr <$> dargs xts)
@@ -544,7 +579,7 @@ instance Outputable RTyCon where
 instance Show RTyCon where
  show = showPpr
 
-ppr_rtype :: (Subable r, RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
+ppr_rtype :: (Subable r, RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
 
 ppr_rtype bb p t@(RAllT _ _)       
   = ppr_forall bb p t
@@ -566,10 +601,10 @@ ppr_rtype _ _ ty@(RCls c ts)
   = ppCls c ts
 ppr_rtype bb p t@(REx _ _ _)
   = ppExists bb p t
-ppr_rtype _ _ (ROth so r)
-  = ppTy r $ text "Other-" <> ppr so 
+ppr_rtype _ _ (ROth s)
+  = text $ "???-" ++ s 
 
-ppExists :: (Subable r, RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
+ppExists :: (Subable r, RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
 ppExists bb p t
   = text "exists" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
     where (zs,  t')             = split [] t
@@ -581,7 +616,7 @@ ppReftPs b rs
   | not b          = empty 
   | otherwise      = angleBrackets $ hsep $ punctuate comma $ ppr <$> rs
 
-ppr_dbind :: (Subable r, RefTypable p c tv r) => Bool -> Prec -> Symbol -> RType p c tv r -> SDoc
+ppr_dbind :: (Subable r, RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> Symbol -> RType p c tv r -> SDoc
 ppr_dbind bb p x t 
   | isNonSymbol x 
   = ppr_rtype bb p t
@@ -601,13 +636,13 @@ ppr_dbind bb p x t
 --  | otherwise
 --  = {-braces-} (ppr b) <> colon <> ppr_rtype bb FunPrec t
 
-ppr_fun_tail :: (Subable r, RefTypable p c tv r) => Bool -> RType p c tv r -> [SDoc]
+ppr_fun_tail :: (Subable r, RefTypable p c tv (), RefTypable p c tv r) => Bool -> RType p c tv r -> [SDoc]
 ppr_fun_tail bb (RFun b t t' _)  
   = (ppr_dbind bb FunPrec b t) : (ppr_fun_tail bb t')
 ppr_fun_tail bb t
   = [ppr_rtype bb TopPrec t]
 
-ppr_forall :: (Subable r, RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
+ppr_forall :: (Subable r, RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
 ppr_forall b p t
   = maybeParen p FunPrec $ sep [ppr_foralls vs, ppr_rtype b TopPrec t']
   where
@@ -620,8 +655,7 @@ ppr_foralls [] = empty
 ppr_foralls bs = text "forall" <+> dαs [ α | Left α <- bs] <+> dπs [ π | Right π <- bs] <> dot
   where dαs αs = sep $ ppr <$> αs 
         dπs [] = empty 
-        dπs πs = angleBrackets $ intersperse comma $ ppr_def <$> πs
-
+        dπs πs = angleBrackets $ intersperse comma $ ppr_pvar_def ppr <$> πs
 
 ---------------------------------------------------------------
 --------------------------- Visitors --------------------------
@@ -631,10 +665,10 @@ instance Bifunctor UReft where
   first f (U r p)  = U (f r) p
   second f (U r p) = U r (fmap f p)
 
-instance Functor (RType a b c d) where
+instance Functor (RType a b c) where
   fmap  = mapReft 
 
-instance Fold.Foldable (RType a b c d) where
+instance Fold.Foldable (RType a b c) where
   foldr = foldReft
 
 mapReft f (RVar α r)          = RVar  α (f r)
@@ -644,7 +678,7 @@ mapReft f (RFun x t t' r)     = RFun  x (mapReft f t) (mapReft f t') (f r)
 mapReft f (RApp c ts rs r)    = RApp  c (mapReft f <$> ts) (mapRef f <$> rs) (f r)
 mapReft f (RCls c ts)         = RCls  c (mapReft f <$> ts) 
 mapReft f (REx z t t')        = REx   z (mapReft f t) (mapReft f t')
-mapReft f (ROth so r)         = ROth so (f r) 
+mapReft f (ROth s)            = ROth  s 
 
 mapRef f (RMono r)            = RMono $ f r
 mapRef f (RPoly t)            = RPoly $ mapReft f t
@@ -656,7 +690,7 @@ foldReft f z (RFun _ t t' r)  = f r (foldRefts f z [t, t'])
 foldReft f z (RApp _ ts rs r) = f r (foldRefs f (foldRefts f z ts) rs)
 foldReft f z (RCls _ ts)      = foldRefts f z ts
 foldReft f z (REx _ t t')     = foldRefts f z [t, t']
-foldReft f z (ROth so r)      = f r z 
+foldReft f z (ROth s)         = z 
 
 foldRefts                     = foldr . flip . foldReft
 foldRefs                      = foldr . flip . foldRef
@@ -683,8 +717,8 @@ subsTyVar meet        = subsFree' meet S.empty
 
 subsFree' = subsFree 
 
-subsFree ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty (PVar ty), SubsTy tv ty c, Reftable r, Subable r, RefTypable p c tv (PVar ty) r) => Bool -> S.Set tv -> (tv, ty, RType p c tv (PVar ty) r) -> RType p c tv (PVar ty) r -> RType p c tv (PVar ty) r 
-subsFree m s z@(α, τ,_) (RAllP RAllP π t)         
+-- subsFree ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty, SubsTy tv ty c, Reftable r, Subable r, RefTypable p c tv r) => Bool -> S.Set tv -> (tv, ty, RType p c tv r) -> RType p c tv r -> RType p c tv r 
+subsFree m s z@(α, τ,_) (RAllP π t)         
   = RAllP (subt (α, τ) π) (subsFree m s z t)
 subsFree m s z (RAllT α t)         
   = RAllT α $ subsFree m (α `S.insert` s) z t
@@ -702,17 +736,15 @@ subsFree meet s (α', τ', t') t@(RVar α r)
   = t
 subsFree m s z (REx x t t')
   = REx x (subsFree m s z t) (subsFree m s z t')
-subsFree _ _ _ t@(ROth _ _)        
+subsFree _ _ _ t@(ROth _)        
   = t
 subsFree _ _ _ t      
   = errorstar $ "subsFree fails on: " ++ showPpr t
 
-subsFreeRef ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty (PVar ty), SubsTy tv ty c, Reftable r, Monoid r, Subable r, RefTypable p c tv (PVar ty) r) => Bool -> S.Set tv -> (tv, ty, RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r)
+-- subsFreeRef ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty (PVar ty), SubsTy tv ty c, Reftable r, Monoid r, Subable r, RefTypable p c tv (PVar ty) r) => Bool -> S.Set tv -> (tv, ty, RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r)
 
 subsFreeRef m s (α', τ', t')  (RPoly t) 
   = RPoly $ subsFree m s (α', τ', fmap (\_ -> top) t') t
---subsFreeRef m s z (RPoly t) 
---  = RPoly $ subsFree m s z t
 subsFreeRef m s (α', τ', _) (RMono r) 
   = RMono $ subt (α', τ') r
 
@@ -777,7 +809,7 @@ instance SubsTy RTyVar Type PrType where
   subt (α, τ) = subsTyVar_meet (α, τ, ofType τ)
   subv f t    = fmap (subvPredicate f) t 
 
-instance (SubsTy tv ty (UReft Reft ty)) => SubsTy tv ty (Ref (UReft Reft ty) (RType p c tv pv (UReft Reft ty)))  where
+instance (SubsTy tv ty (UReft Reft ty)) => SubsTy tv ty (Ref (UReft Reft ty) (RType p c tv (UReft Reft ty)))  where
   subt m (RMono p) = RMono $ subt m p
   subt m (RPoly t) = RPoly $ fmap (subt m) t
   
@@ -789,12 +821,6 @@ subvPredicate f (Pr pvs) = Pr (f <$> pvs)
 
 subvUReft     :: (PVar ty -> PVar ty) -> UReft Reft ty -> UReft Reft ty 
 subvUReft f (U r p) = U r (subvPredicate f p)
-
---subvURefType  :: (PVar ty -> PVar ty) -> RType p c tv pv (UReft Reft ty) -> RType p c tv pv (UReft Reft ty)
---subvURefType = fmap . subvUReft
--- subv_predicate :: (PVar ty -> PVar ty) -> Predicate ty -> Predicate ty 
--- subv_predicate f (Pr pvs) = Pr (f <$> pvs)
-
 
 ---------------------------------------------------------------
 
@@ -808,7 +834,7 @@ stripRTypeBase (RFun _ _ _ x)
 stripRTypeBase _                
   = Nothing
 
-ofType ::  Reftable r => Type -> RRType a r
+ofType ::  Reftable r => Type -> RRType r
 ofType = ofType_ . expandTypeSynonyms 
 
 ofType_ (TyVarTy α)     
@@ -844,7 +870,7 @@ ofPredTree _
 
 reftypeBindVars :: RefType -> S.Set Symbol
 reftypeBindVars = everything S.union (S.empty `mkQ` grabBind)
-  where grabBind (RFun x _ _) = S.singleton x
+  where grabBind (RFun x _ _ _) = S.singleton x
 
 readSymbols :: (Data a) => a -> S.Set Symbol
 readSymbols = everything S.union (S.empty `mkQ` grabRead)
@@ -943,7 +969,7 @@ pprShort    =  dropModuleNames . showPpr
 ---------------------- Embedding RefTypes ---------------------
 ---------------------------------------------------------------
 
-toType ::  RRType a b -> Type
+toType ::  RRType r -> Type
 
 toType (RFun _ t t' _)   
   = FunTy (toType t) (toType t')
@@ -959,7 +985,7 @@ toType (RCls c ts)
   = predTreePredType $ ClassPred c (toType <$> ts)
 toType (REx _ _ t)
   = toType t
-toType t@(ROth _ _)      
+toType t@(ROth _)      
   = errorstar $ "toType fails: ROth "
 
 ---------------------------------------------------------------
@@ -1003,10 +1029,6 @@ emptyREnv                 = REnv M.empty
 memberREnv x (REnv env)   = M.member x env
 domREnv (REnv env)        = M.keys env
 
-instance Outputable REnv where
-  ppr (REnv m)         = vcat $ map pprxt $ M.toAscList m
-    where pprxt (x, t) = ppr x <> dcolon <> ppr t  
-
 refTypePredSortedReft (r, τ) = RR so r
   where so = typeSort τ
 
@@ -1021,29 +1043,11 @@ refTypeReft = fromMaybe trueReft . stripRTypeBase
 -- typeSortedReft ::  Type -> Refa -> SortedReft
 typeSortedReft t r = RR (typeSort t) (Reft (vv, [r]))
 
-
--- rTypeSort ::  RType t -> Sort
-rTypeSort ::  RRType a b -> Sort
+rTypeSort ::  RRType r -> Sort
 rTypeSort = typeSort . toType
 
--------------------------------------------------------------------
--------------------------- Substitution ---------------------------
--------------------------------------------------------------------
-
-instance Subable (UReft Reft String) where
-  subst s (U r p) = U (subst s r) p
-
-instance Subable (UReft Reft Type) where
-  subst s (U r p) = U (subst s r) p
-
-instance Subable (Predicate Type) where
-  subst _ = id 
-
-instance Subable r => Subable (RType p c tv r) where
-  subst  = fmap . subst
-
 ------------------------------------------------------------------------
----------------- Auxiliary Types Used Elsewhere ------------------------
+---------------- Auxiliary Stuff Used Elsewhere ------------------------
 ------------------------------------------------------------------------
 
 -- | Data type refinements
@@ -1066,4 +1070,11 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
   show (RTA n args t) = "reftype " ++ n ++ " " ++ as ++ " = " ++ show t 
                         where as = L.intercalate " " (show <$> args)
 
+
+-- fromRMono :: String -> Ref a b -> a
+fromRMono _ (RMono r) = r
+fromRMono msg z       = errorstar $ "fromMono: " ++ msg -- ++ showPpr z
+fromRPoly (RPoly r)   = r
+fromRPoly _           = errorstar "fromPoly"
+idRMono               = RMono . fromRMono "idRMono"
 
