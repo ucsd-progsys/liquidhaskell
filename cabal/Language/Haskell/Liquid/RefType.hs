@@ -9,7 +9,7 @@ module Language.Haskell.Liquid.RefType (
   , RefType, PrType, BareType, SpecType
   , Predicate (..), UReft(..), DataDecl (..)
   , pdAnd, pdVar, pdTrue, pvars
-  , dummyBind, isDummyBind
+  -- , dummyBind, isDummyBind
   , ppr_rtype, mapReft, mapBot
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp, rFun
@@ -431,15 +431,15 @@ expandRApp _ t
   = t
 
 appRTyCon tyi rc@(RTyCon c _) ts = RTyCon c ps'
-  where ps' = map (subts (zip (RTV <$> αs) (toType <$> ts))) (rTyConPs rc')
+  where ps' = map (subts (zip (RTV <$> αs) ({- PREDARGS toType -} toRSort <$> ts))) (rTyConPs rc')
         rc' = M.findWithDefault rc c tyi
         αs  = TC.tyConTyVars $ rTyCon rc'
 
-appRefts rc [] = RPoly . ofType . ptype <$> (rTyConPs rc)
+appRefts rc [] = RPoly . {- PREDARGS ofType -} ofRSort . ptype <$> (rTyConPs rc)
 appRefts rc rs = safeZipWith "appRefts" toPoly rs (ptype <$> (rTyConPs rc))
 
 toPoly (RPoly t) _ = RPoly t
-toPoly (RMono r) t = RPoly $ (ofType t) `strengthen` r  
+toPoly (RMono r) t = RPoly $ ({- PREDARGS: ofType -} ofRSort t) `strengthen` r  
 
 showTy v = showSDoc $ ppr v <> ppr (varUnique v)
 -- showTy t = showSDoc $ ppr t
@@ -768,6 +768,10 @@ class SubsTy tv ty a where
 
 subts = flip (foldr subt) 
 
+instance SubsTy tv ty ()   where
+  subt _ = id
+  subv _ = id
+
 instance SubsTy tv ty Reft where
   subt _ = id
   subv _ = id
@@ -792,22 +796,25 @@ instance (SubsTy tv ty ty) => SubsTy tv ty (UReft a ty) where
 --     = β
 --   subv _ = id
 
-instance SubsTy RTyVar Type Type where
-  subt (α', t') t@(TyVarTy tv) 
-    | α' == RTV tv = t'
-    | otherwise    = t
-  subt _ t = t -- UNIFY: Deep Subst
-  subv _   = id
+-- instance SubsTy RTyVar Type Type where
+--  subt (α', t') t@(TyVarTy tv) 
+--    | α' == RTV tv = t'
+--    | otherwise    = t
+--  subt _ t = t -- UNIFY: Deep Subst
+--  subv _   = id
 
-instance SubsTy RTyVar Type RTyCon where  
-  subt z c = c {rTyConPs = subt z <$> rTyConPs c}
-  subv f c = c {rTyConPs = f <$> rTyConPs c}
+instance SubsTy RTyVar {- PREDARGS Type -} RSort RTyCon where  
+   subt z c = c {rTyConPs = subt z <$> rTyConPs c}
+   subv f c = c {rTyConPs = f <$> rTyConPs c}
 
 -- NOTE: This DOES NOT substitute at the binders
-instance SubsTy RTyVar Type PrType where   
-  -- GENSUB: subt (α, τ) = subsTyVar_meet (α, ofType τ) 
-  subt (α, τ) = subsTyVar_meet (α, τ, ofType τ)
+instance SubsTy RTyVar {- PREDARGS Type -} RSort PrType where   
+  subt (α, τ) = subsTyVar_meet (α, τ, {- PREDARGS ofType -} ofRSort τ)
   subv f t    = fmap (subvPredicate f) t 
+
+instance SubsTy RTyVar RSort RSort where   
+  subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
+  subv _      = id 
 
 instance (SubsTy tv ty (UReft Reft ty)) => SubsTy tv ty (Ref (UReft Reft ty) (RType p c tv (UReft Reft ty)))  where
   subt m (RMono p) = RMono $ subt m p
@@ -833,6 +840,7 @@ stripRTypeBase (RFun _ _ _ x)
   = Just x
 stripRTypeBase _                
   = Nothing
+
 
 ofType ::  Reftable r => Type -> RRType r
 ofType = ofType_ . expandTypeSynonyms 
@@ -870,7 +878,8 @@ ofPredTree _
 
 reftypeBindVars :: RefType -> S.Set Symbol
 reftypeBindVars = everything S.union (S.empty `mkQ` grabBind)
-  where grabBind (RFun x _ _ _) = S.singleton x
+  where grabBind :: RefType -> S.Set Symbol
+        grabBind (RFun x _ _ _) = S.singleton x
 
 readSymbols :: (Data a) => a -> S.Set Symbol
 readSymbols = everything S.union (S.empty `mkQ` grabRead)
@@ -891,6 +900,7 @@ tidyRefType = tidyDSymbols
 tidyFunBinds :: RefType -> RefType
 tidyFunBinds t = everywhere (mkT $ dropBind xs) t 
   where xs = readSymbols t
+        dropBind :: S.Set Symbol -> RefType -> RefType
         dropBind xs (RFun x t1 t2 r)
           | x `S.member` xs = RFun x t1 t2 r
           | otherwise       = RFun nonSymbol t1 t2 r
@@ -969,8 +979,13 @@ pprShort    =  dropModuleNames . showPpr
 ---------------------- Embedding RefTypes ---------------------
 ---------------------------------------------------------------
 
-toType ::  RRType r -> Type
+toRSort :: RRType r ->  RSort
+toRSort = fmap (\_  -> ())
 
+ofRSort ::  Reftable r => RSort -> RRType r
+ofRSort = fmap (\_ -> top)
+
+toType  :: RRType r -> Type
 toType (RFun _ t t' _)   
   = FunTy (toType t) (toType t')
 toType (RAllT (RTV α) t)      
