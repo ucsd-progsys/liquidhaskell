@@ -21,6 +21,7 @@ module Language.Haskell.Liquid.RefType (
   , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, refTypePredSortedReft, refTypeSortedReft, typeSortedReft, rTypeSort
+  , ofRSort, toRSort
   , tidyRefType
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalReft, literalConst
@@ -717,7 +718,17 @@ subsTyVar meet        = subsFree' meet S.empty
 
 subsFree' = subsFree 
 
--- subsFree ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty, SubsTy tv ty c, Reftable r, Subable r, RefTypable p c tv r) => Bool -> S.Set tv -> (tv, ty, RType p c tv r) -> RType p c tv r -> RType p c tv r 
+--subsFree :: ( Ord tv
+--            , SubsTy tv ty c
+--            , SubsTy tv ty r
+--            , SubsTy tv ty (PVar (RType p c tv ()))
+--            , RefTypable p c tv r) 
+--            => Bool 
+--            -> S.Set tv
+--            -> (tv, ty, RType p c tv r) 
+--            -> RType p c tv r 
+--            -> RType p c tv r
+
 subsFree m s z@(α, τ,_) (RAllP π t)         
   = RAllP (subt (α, τ) π) (subsFree m s z t)
 subsFree m s z (RAllT α t)         
@@ -796,6 +807,7 @@ instance (SubsTy tv ty ty) => SubsTy tv ty (UReft a ty) where
 --     = β
 --   subv _ = id
 
+
 -- instance SubsTy RTyVar Type Type where
 --  subt (α', t') t@(TyVarTy tv) 
 --    | α' == RTV tv = t'
@@ -813,6 +825,15 @@ instance SubsTy RTyVar {- PREDARGS Type -} RSort PrType where
   subv f t    = fmap (subvPredicate f) t 
 
 instance SubsTy RTyVar RSort RSort where   
+  subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
+  subv _      = id 
+
+-- Here the "String" is a Bare-TyCon. TODO: wrap in newtype 
+instance SubsTy String BSort String where
+  subt _ t = t
+  subv _   = id
+
+instance SubsTy String BSort BSort where
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
   subv _      = id 
 
@@ -979,12 +1000,13 @@ pprShort    =  dropModuleNames . showPpr
 ---------------------- Embedding RefTypes ---------------------
 ---------------------------------------------------------------
 
-toRSort :: RRType r ->  RSort
+toRSort :: RType p c tv r -> RType p c tv () 
 toRSort = fmap (\_  -> ())
 
-ofRSort ::  Reftable r => RSort -> RRType r
+ofRSort ::  Reftable r => RType p c tv () -> RType p c tv r 
 ofRSort = fmap (\_ -> top)
 
+-- TODO: remove toType, generalize typeSort 
 toType  :: RRType r -> Type
 toType (RFun _ t t' _)   
   = FunTy (toType t) (toType t')
