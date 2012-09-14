@@ -411,6 +411,20 @@ txTyVarBinds = mapBind fb
         fb (RB x) = RB x
         fb (RV α) = RV α
 
+mapBind f (RAllT α t)      = RAllT α     (mapBind f t)
+mapBind f (RAllP π t)      = RAllP (f π) (mapBind f t)
+mapBind f (RAll b t)       = RAll (f b)  (mapBind f t) 
+mapBind f (RVar b r)       = RVar (f b) r
+mapBind f (RFun b t1 t2 r) = RFun (f b)  (mapBind f t1) (mapBind f t2) r
+mapBind f (RApp c ts rs r) = RApp c (mapBind f <$> ts) (mapBindRef f <$> rs) r
+mapBind f (RCls c ts)      = RCls c (mapBind f <$> ts)
+mapBind f (REx b t1 t2)    = REx  (f b) (mapBind f t1) (mapBind f t2)
+mapBind f (ROth so r)      = ROth so r
+
+mapBindRef _ (RMono r)     = RMono r
+mapBindRef f (RPoly t)     = RPoly $ mapBind f t
+
+
 txParams subv πs t = mapReft (subv (txPvar (predMap πs t))) t
 
 txPvar m π = π { pargs = args' }
