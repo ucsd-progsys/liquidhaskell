@@ -134,14 +134,14 @@ makeInvariants benv ts = execBare (mapM mkSpecType ts) benv
 mkSpecType t = mkSpecType' πs t
   where πs = ofBPreds $ snd3 $ rsplitVsPs t
 
--- mkSpecType'    :: [PVar Type] -> BareType -> BareM SpecType 
+-- mkSpecType'    :: [RPVar] -> BareType -> BareM SpecType 
 mkSpecType' πs 
   = ofBareType' 
   . txParams subvUReft πs
   . txTyVarBinds 
   . mapReft (bimap canonReft stringTyVarTy) 
 
--- mkPredType :: [PVar Type]-> BRType (PVar String) (Predicate String) -> BareM PrType 
+-- mkPredType :: [RPVar]-> BRType (PVar String) (Predicate String) -> BareM PrType 
 mkPredType πs 
   = ofBareType' 
   . txParams subvPredicate πs 
@@ -437,8 +437,8 @@ predMap πs t = Ex.assert (M.size xπm == length xπs) xπm
         xπs = [(pname π, π) | π <- πs ++ rtypePredBinds t]
 
 rtypePredBinds t = everything (++) ([] `mkQ` grab) t
-  where grab ((RAll (RP pv) _) :: BRType (PVar Type) (Predicate Type)) = [pv]
-        grab _                = []
+  where grab ((RAll (RP pv) _) :: BRType RPVar RPredicate) = [pv]
+        grab _                                             = []
 
 -------------------------------------------------------------------------------
 ------- Checking Specifications Refine Haskell Types --------------------------

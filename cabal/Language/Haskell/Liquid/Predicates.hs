@@ -70,7 +70,7 @@ data PCGEnv
 
 data PInfo 
   = PInfo { freshIndex :: !Integer
-          , pMap       :: !(M.Map (F.PVar Type) (Predicate Type))
+          , pMap       :: !(M.Map RPVar (Predicate Type))
           , hsCsP      :: ![SubC]
           , tyCons     :: !(M.Map TyCon TyConP)
           , symbolsP   :: !(M.Map F.Symbol F.Symbol)
@@ -387,7 +387,7 @@ addToMap substs
        let m' = foldl' updateSubst m substs
        put $ s { pMap = m' }
 
-updateSubst :: M.Map (F.PVar Type) (Predicate Type) -> (Predicate Type, Predicate Type) -> M.Map (F.PVar Type) (Predicate Type) 
+updateSubst :: M.Map RPVar RPredicate -> (RPredicate, RPredicate) -> M.Map RPVar RPredicate 
 updateSubst m (p, p') = foldl' (\m (k, v) -> M.insert k v m) m binds 
   where binds = unifiers $ unifyVars (substPvar m p) (substPvar m p')
 

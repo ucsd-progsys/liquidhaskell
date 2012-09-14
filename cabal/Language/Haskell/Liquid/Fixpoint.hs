@@ -160,6 +160,7 @@ rmRPVarRefa _ r
 
 pArgsToSub a = mkSubst $ map (\(_, s1, s2) -> (s1, EVar s2)) a
 
+--{{{
 --strsToRefa n as = RConc $ PBexp $ (EApp (S n) ([EVar (S "VV")] ++ (map EVar as)))
 --strToRefa n xs = RKvar n (Su (M.fromList xs))
 --strToReft n xs = Reft (S "VV", [strToRefa n xs])
@@ -195,6 +196,21 @@ pArgsToSub a = mkSubst $ map (\(_, s1, s2) -> (s1, EVar s2)) a
 --            Just (EVar x) -> (M.adjust (\_ -> EVar x) k s1, M.delete v s2)
 --            _             -> (s1, s2)
 --        f _ _ s12 = s12
+--
+--
+--
+-- infoConstant (c, so, b)
+--   | b 
+--   = vcat [d1, d2, d3] $+$ dn
+--   | otherwise 
+--   = d1 $+$ dn 
+--   where d1 = text "constant" <+> d <+> text ":" <+> toFix so  
+--         dn = text "\n\n" 
+--         d  = toFix c
+--         d2 = text "qualif TEQ" <> d <> text "(v:ptr) : (" <> tg <> text "([v]) =  " <> d <> text ")" 
+--         d3 = text "qualif TNE" <> d <> text "(v:ptr) : (" <> tg <> text "([v]) !=  " <> d <> text ")" 
+--         tg = text tagName
+-- }}}
 
 getConstants :: (Data a) => a -> [(Symbol, Sort, Bool)]
 getConstants = everything (++) ([] `mkQ` f)
@@ -202,24 +218,9 @@ getConstants = everything (++) ([] `mkQ` f)
         f (ELit s so) = [(s, so, False)]
         f _           = []
 
-
-
 infoConstant (c, so, _)
   = text "constant" <+> toFix c <+> text ":" <+> toFix so <> blankLine <> blankLine 
 
-{- {{{ 
-infoConstant (c, so, b)
-  | b 
-  = vcat [d1, d2, d3] $+$ dn
-  | otherwise 
-  = d1 $+$ dn 
-  where d1 = text "constant" <+> d <+> text ":" <+> toFix so  
-        dn = text "\n\n" 
-        d  = toFix c
-        d2 = text "qualif TEQ" <> d <> text "(v:ptr) : (" <> tg <> text "([v]) =  " <> d <> text ")" 
-        d3 = text "qualif TNE" <> d <> text "(v:ptr) : (" <> tg <> text "([v]) !=  " <> d <> text ")" 
-        tg = text tagName
-}}} -}
 
 ---------------------------------------------------------------
 ---------- Converting Constraints to Fixpoint Input -----------
@@ -317,11 +318,6 @@ sortSubst su t@(FObj x)   = fromMaybe t (M.lookup x su)
 sortSubst su (FFunc n ts) = FFunc n (sortSubst su <$> ts)
 sortSubst su (FApp c ts)  = FApp c  (sortSubst su <$> ts)
 sortSubst _  t            = t
-
-
--- 1. αs    = gather tyvars in xs (all Obj)
--- 2. subst = nubOrd αs, zipWith [0...] :: Obj -> Int
--- 3. apply subst <$> xs
 
 newtype Sub = Sub [(Int, Sort)]
 
@@ -603,13 +599,13 @@ ppr_reft_pred (Reft (_, ras))
 ppRas = cat . punctuate comma . map toFix . flattenRefas
 
 ---------------------------------------------------------------
------------------ Refinements and Environments  ---------------
+----------------- Refinements ---------------------------------
 ---------------------------------------------------------------
 
 data Refa 
   = RConc !Pred 
   | RKvar !Symbol !Subst
-  | RPvar !(PVar Type)
+--   | RPvar !RPVar
   deriving (Eq, Ord, Data, Typeable, Show)
 
 data Reft
@@ -637,6 +633,10 @@ isFunctionSortedReft (RR (FFunc _ _) _)
 isFunctionSortedReft _
   = False
 
+---------------------------------------------------------------
+----------------- Environments  -------------------------------
+---------------------------------------------------------------
+
 newtype SEnv a = SE (M.Map Symbol a) 
                  deriving (Eq, Ord, Data, Typeable) 
 
@@ -653,21 +653,9 @@ instance Functor SEnv where
 
 type FEnv = SEnv SortedReft 
 
--- Envt (M.Map Symbol SortedReft) 
--- deriving (Eq, Ord, Data, Typeable) 
 instance Fixpoint (PVar Type) where
   toFix (PV s _ a) 
    = parens $ toFix s <+> sep (toFix . thd3 <$> a)
-
-{-
---   = toFix s <+> (char ':') <+> ppr so <+> braces (toFixArgs a)
-
-toFixArgs a 
-  = sep $ punctuate (char ',') $
-      map (\(s, s1, s2) ->
-          toFix s1 <+> (char ':') <+> ppr s <+> text ":=" <+> toFix s2
-          ) a
--}
 
 instance Fixpoint Refa where
   toFix (RConc p)    = toFix p
@@ -685,9 +673,6 @@ instance Outputable SortedReft where
 instance Fixpoint FEnv where
   toFix (SE m)  = toFix (M.toAscList m)
 
--- deleteFEnv   = deleteSEnv
--- fromListFEnv = fromListSEnv
--- emptyFEnv    = emptySEnv
 insertFEnv   = insertSEnv . lower 
   where lower x@(S (c:chs)) 
           | isUpper c = S $ toLower c : chs
@@ -702,7 +687,7 @@ instance Outputable (SEnv a) => Show (SEnv a) where
   show = showSDoc . ppr
 
 -----------------------------------------------------------------------------------
-------------------------- Refinements and Environments ----------------------------
+------------------------- Constraints ---------------------------------------------
 -----------------------------------------------------------------------------------
 
 data SubC a = SubC { senv  :: !FEnv
@@ -887,10 +872,6 @@ flattenRefas = concatMap flatRa
 
 instance NFData Symbol where
   rnf (S x) = rnf x
-
---instance NFData Loc where
---  rnf (FLoc x) = rnf x
---  rnf (FLvar x) = rnf x
 
 instance NFData Tycon where
   rnf (TC c)       = rnf c

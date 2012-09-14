@@ -42,20 +42,20 @@ import Control.DeepSeq
 import Control.Monad.State
 import Data.Data
 
-predType :: Type
-predType = TyVarTy $ stringTyVar "Pred"
+predType :: RSort 
+predType = ofType $ TyVarTy $ stringTyVar "Pred"
 
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
-                     , freePredTy   :: ![(PVar Type)]
+                     , freePredTy   :: ![(PVar RSort)]
                      }
 
 data DataConP = DataConP { freeTyVars :: ![RTyVar]
-                         , freePred   :: ![(PVar Type)]
+                         , freePred   :: ![(PVar RSort)]
                          , tyArgs     :: ![(Symbol, PrType)]
                          , tyRes      :: !PrType
                          }
 
-makeTyConInfo = M.mapWithKey mkRTyCon . M.fromList -- . tconsP . spec 
+makeTyConInfo = M.mapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
 mkRTyCon tc (TyConP αs' ps) = RTyCon tc pvs'
@@ -64,9 +64,9 @@ mkRTyCon tc (TyConP αs' ps) = RTyCon tc pvs'
 
 dataConPtoPredTy :: DataConP -> PrType
 dataConPtoPredTy x@(DataConP vs ps yts rt) = {- traceShow ("dataConPtoPredTy: " ++ show x) $ -}  t3						
-  where t1 = foldl' (\t2 (x, t1) -> rFun (RB x) t1 t2) rt yts 
-        t2 = foldr RAll t1 $ RP <$> ps
-        t3 = foldr RAll t2 $ RV <$> vs
+  where t1 = foldl' (\t2 (x, t1) -> rFun x t1 t2) rt yts 
+        t2 = foldr RAllP t1 ps
+        t3 = foldr RAllT t2 vs
 
 instance Outputable TyConP where
   ppr (TyConP vs ps) = (parens $ hsep (punctuate comma (map ppr vs))) <+>
@@ -85,16 +85,15 @@ instance Outputable DataConP where
 instance Show DataConP where
  show = showSDoc . ppr
 
-removeExtPreds (RAll (RP pv)  t) = removeExtPreds (substPvar (M.singleton pv pdTrue) <$> t) 
--- removeExtPreds t@(RAll (RV _) _) = t
-removeExtPreds t                 = t
+removeExtPreds (RAllP pv t) = removeExtPreds (substPvar (M.singleton pv pdTrue) <$> t) 
+removeExtPreds t            = t
 
 dataConTy m (TyVarTy v)            
   = M.findWithDefault (rVar v pdTrue) (RTV v) m
 dataConTy m (FunTy t1 t2)          
-  = rFun (RB dummySymbol) (dataConTy m t1) (dataConTy m t2)
+  = rFun dummySymbol (dataConTy m t1) (dataConTy m t2)
 dataConTy m (ForAllTy α t)          
-  = RAll (rTyVar α) (dataConTy m t)
+  = RAllT (rTyVar α) (dataConTy m t)
 dataConTy m t
   | isPredTy t
   = ofPredTree $ classifyPredType t
@@ -111,13 +110,14 @@ generalize_ f t = typeAbsVsPs t' vs ps
         ps            = (S.toList (f t)) ++ ps'
 
 freeArgPreds (RFun _ t1 t2 _) = freePreds t1 -- RJ: UNIFY What about t2?
-freeArgPreds (RAll _ t)       = freeArgPreds t
+freeArgPreds (RAllT _ t)      = freeArgPreds t
+freeArgPreds (RAllP _ t)      = freeArgPreds t
 freeArgPreds t                = freePreds t
 
--- freePreds :: PrType -> S.Set (Predicate Type)
+-- freePreds :: PrType -> S.Set (RPredicate)
 freePreds (RVar _ p)       = S.fromList $ pvars p
-freePreds (RAll (RV _) t)  = freePreds t 
-freePreds (RAll (RP p) t)  = S.delete p $ freePreds t 
+freePreds (RAllT _ t)      = freePreds t 
+freePreds (RAllP p t)      = S.delete p $ freePreds t 
 freePreds (RCls _ ts)      = foldl' (\z t -> S.union z (freePreds t)) S.empty ts
 freePreds (RFun _ t1 t2 _) = S.union (freePreds t1) (freePreds t2)
 freePreds (RApp _ ts ps p) = unions ((S.fromList (concatMap pvars (p:((fromRMono "freePreds") <$> ps)))) : (freePreds <$> ts))
@@ -127,13 +127,13 @@ showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy t = showSDoc $ ppr t
 
 typeAbsVsPs t vs ps = t2
-  where t1 = foldr RAll t  (RP <$> ps)  -- RJ: UNIFY reverse?
-        t2 = foldr RAll t1 (RV <$> vs)
+  where t1 = foldr RAllP t  ps  -- RJ: UNIFY reverse?
+        t2 = foldr RAllT t1 vs
 
 splitVsPs t = go ([], []) t
-  where go (vs, pvs) (RAll (RV v)  t) = go (v:vs, pvs)  t
-        go (vs, pvs) (RAll (RP pv) t) = go (vs, pv:pvs) t
-        go (vs, pvs) t                = (reverse vs, reverse pvs, t)
+  where go (vs, pvs) (RAllT v  t) = go (v:vs, pvs)  t
+        go (vs, pvs) (RAllP pv t) = go (vs, pv:pvs) t
+        go (vs, pvs) t            = (reverse vs, reverse pvs, t)
 
 splitArgsRes (RFun _ t1 t2 _) = (t1:t1', t2')
   where (t1', t2') = splitArgsRes t2
@@ -154,34 +154,33 @@ unify :: Maybe PrType -> RefType -> RefType
 unify (Just pt) rt  = evalState (unifyS rt pt) S.empty
 unify _         t   = t
 
-unifyS :: RefType -> PrType -> State (S.Set (PVar Type)) RefType
+unifyS :: RefType -> PrType -> State (S.Set (RPVar)) RefType
 
-unifyS (RAll (RP p) t) pt
+unifyS (RAllP p t) pt
   = do t' <- unifyS t pt 
        s  <- get
-       if (p `S.member` s) then return $ RAll (RP p) t' else return t'
+       if (p `S.member` s) then return $ RAllP p t' else return t'
 
-unifyS t (RAll (RP p) pt)
+unifyS t (RAllP p pt)
   = do t' <- unifyS t pt 
        s  <- get
-       if (p `S.member` s) then return $ RAll (RP p) t' else return t'
+       if (p `S.member` s) then return $ RAllP p t' else return t'
 
-unifyS (RAll (RV v@(RTV α)) t) (RAll (RV v') pt) 
-  -- = do t' <-  unifyS t $ subsTyVar_meet (v', RVar (RV v) pdTrue) pt  
-  = do t'    <- unifyS t $ subsTyVar_meet (v', TyVarTy α, RVar (RV v) pdTrue) pt 
-       return $ RAll (RV v) t'
+unifyS (RAllT (v@(RTV α)) t) (RAllT v' pt) 
+  = do t'    <- unifyS t $ subsTyVar_meet (v', TyVarTy α, RVar v pdTrue) pt 
+       return $ RAllT v t'
 
-unifyS (RFun (RB x) rt1 rt2 _) (RFun (RB x') pt1 pt2 _)
+unifyS (RFun x rt1 rt2 _) (RFun x' pt1 pt2 _)
   = do t1' <- unifyS rt1 pt1
        t2' <- unifyS rt2 (substParg (x', x) pt2)
-       return $ rFun (RB x) t1' t2' 
+       return $ rFun x t1' t2' 
 
 unifyS t@(RCls c _) (RCls _ _)
   = return t
 
-unifyS (RVar (RV v) a) (RVar (RV v') p)
+unifyS (RVar v a) (RVar v' p)
   = do modify $ \s -> s `S.union` (S.fromList $ pvars p) -- (filter (/= PdTrue) [p]))
-       return $ RVar (RV v) $ bUnify a p
+       return $ RVar v $ bUnify a p
 
 unifyS rt@(RApp c ts rs r) pt@(RApp _ pts ps p)
   = do modify $ \s -> s `S.union` fm
@@ -212,18 +211,18 @@ pToReft p = Reft (vv, [RPvar p])
 ----------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
-replacePreds :: String -> RefType -> [(PVar Type, Ref Reft RefType)] -> RefType
+replacePreds :: String -> RefType -> [(RPVar, Ref Reft RefType)] -> RefType
 -------------------------------------------------------------------------------
 replacePreds msg = foldl' (flip (replacePred msg)) 
 
 ----------------------------------------------------------------------------
-replacePred :: String -> (PVar Type, Ref Reft RefType) -> RefType -> RefType
+replacePred :: String -> (RPVar, Ref Reft RefType) -> RefType -> RefType
 ----------------------------------------------------------------------------
 
 replacePred msg pr@(p, RPoly t) = substPred msg True (p, t)
 replacePred msg pr@(p, RMono r) = fmap (replacePVarReft (p, r))
 
-substPredP :: Bool -> (PVar Type, RefType) -> (Ref Reft RefType) -> (Ref Reft RefType)
+substPredP :: Bool -> (RPVar, RefType) -> (Ref Reft RefType) -> (Ref Reft RefType)
 substPredP b pt (RPoly t) = RPoly $ substPred "substPredP" b pt t
 substPredP b pt@(p, _) (RMono r) = error "RMono found in substPredP"
 
@@ -244,9 +243,9 @@ substPred msg m pt@(p, tp) t@(RApp c ts rs r)
   = rcon
    where rcon = RApp c (substPred msg m pt <$> ts) (substPredP True pt <$> rs) r
 
-substPred msg m (p, tp) (RAll (RP q@(PV _ _ _)) t)
-  = RAll (RP q) $ if (p/=q) then (substPred msg m (p, tp) t) else t
-substPred msg m pt (RAll a@(RV _) t) = RAll a (substPred msg m pt t)
+substPred msg m (p, tp) (RAllP (q@(PV _ _ _)) t)
+  = RAllP q $ if (p /= q) then (substPred msg m (p, tp) t) else t
+substPred msg m pt (RAllT a t) = RAllT a (substPred msg m pt t)
 substPred msg m pt@(p, tp) (RFun x t t' r) 
   | p `isPredIn` r
   = meet (RFun x t t' r') (fmap (subst su) tp)
@@ -266,18 +265,6 @@ substRCon msg (p, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2)
         strSub t1      = meet t1 . fmap addS
         strSubR t1 t2  = RPoly $ strSub (fromRPoly t1) (fromRPoly t2) 
         
-        -- rs = gooBer rs1 rs2
-        -- OBVIOUS AND MASSIVE HACK.
-        --gooBer rs1 rs2 
-        --  | length rs1 == length rs2
-        --  = safeZipWith (msg ++ ": substRcon2") (flip strSubR) rs1 rs2
-        --gooBer [] _ 
-        --  = []
-        --gooBer _ []
-        --  = []
-        --gooBer _ _
-        --  = errorstar $ "gooBer: rs1 = " ++ showPpr rs1  ++ " rs2 = " ++ showPpr rs2 
-
 
 substRCon msg pt t = error $ msg ++ " substRCon " ++ show (pt, t)
 
@@ -341,7 +328,7 @@ applyTypeToArgs e op_ty (p : args)
 panic_msg :: CoreExpr -> Type -> SDoc
 panic_msg e op_ty = pprCoreExpr e $$ ppr op_ty
 
-substPvar :: M.Map (PVar Type) (Predicate Type) -> Predicate Type -> Predicate Type 
+substPvar :: M.Map RPVar RPredicate -> RPredicate -> RPredicate 
 substPvar s = (\(Pr πs) -> pdAnd (lookupP s <$> πs))
 
 substParg :: Functor f =>(Symbol, Symbol) -> f (Predicate ty) -> f (Predicate ty)

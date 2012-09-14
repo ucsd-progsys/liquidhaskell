@@ -6,7 +6,9 @@ module Language.Haskell.Liquid.RefType (
     RTyVar (..), RType (..), RRType (..), BRType (..), RTyCon(..)
   , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..), Ref(..)
   , RTAlias (..)
-  , RefType, PrType, BareType, SpecType
+  , BSort, BPVar, BPredicate, BareType
+  , RSort, RPVar, RPredicate, RefType
+  , PrType, SpecType
   , Predicate (..), UReft(..), DataDecl (..)
   , pdAnd, pdVar, pdTrue, pvars
   -- , dummyBind, isDummyBind
@@ -180,13 +182,17 @@ data Ref s m = RMono s | RPoly m
 type BRType     = RType String String String   
 type RRType     = RType Class  RTyCon RTyVar   
 
-type BSort      = BRType ()
-type RSort      = RRType ()
+type BSort      = BRType    ()
+type RSort      = RRType    ()
+type RPVar      = PVar      RSort
+type BPVar      = PVar      BSort
+type RPredicate = Predicate RSort
+type BPredicate = Predicate BSort
 
-type BareType   = BRType (UReft Reft BSort) 
-type SpecType   = RRType (UReft Reft RSort)
-type PrType     = RRType (Predicate RSort) 
-type RefType    = RRType Reft
+type BareType   = BRType    (UReft Reft BSort) 
+type SpecType   = RRType    (UReft Reft RSort)
+type PrType     = RRType    (Predicate RSort) 
+type RefType    = RRType    Reft
 
 data UReft r t  = U {ureft :: !r, upred :: !(Predicate t)}
                   deriving (Data, Typeable)
@@ -341,13 +347,14 @@ instance Ord RTyVar where
   compare (RTV α) (RTV α') = compare (tvId α) (tvId α')
 
 data RTyCon = RTyCon 
-  { rTyCon     :: !TC.TyCon        -- GHC Type Constructor
-  , rTyConPs   :: ![PVar RSort]    -- Predicate Parameters
+  { rTyCon     :: !TC.TyCon         -- GHC Type Constructor
+  , rTyConPs   :: ![RPVar]          -- Predicate Parameters
   }
   deriving (Eq, Data, Typeable)
 
 instance Ord RTyCon where
   compare x y = compare (rTyCon x) (rTyCon y)
+
 
 --------------------------------------------------------------------
 ---------------------- Helper Functions ----------------------------
@@ -1091,7 +1098,7 @@ rTypeSort = typeSort . toType
 
 data DataDecl   = D String 
                     [String] 
-                    [PVar Sort] 
+                    [PVar BSort] 
                     [(String, [(String, BareType)])] 
                   deriving (Data, Typeable, Show)
 
