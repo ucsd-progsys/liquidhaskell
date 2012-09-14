@@ -9,7 +9,6 @@ module Language.Haskell.Liquid.RefType (
   , RefType, PrType, BareType, SpecType
   , Predicate (..), UReft(..), DataDecl (..)
   , pdAnd, pdVar, pdTrue, pvars
-  , Bind (..), RBind
   , dummyBind, isDummyBind
   , ppr_rtype, mapReft, mapBot, mapBind
   , ofType, ofPredTree, toType
@@ -123,28 +122,54 @@ instance NFData RTyVar where
 ---- Unified Representation of Refinement Types --------------------
 --------------------------------------------------------------------
 
-data Bind tv pv = RB Symbol | RV tv | RP pv 
-  deriving (Data, Typeable)
+-- data Bind tv pv = RB Symbol | RV tv | RP pv 
+--   deriving (Data, Typeable)
 
-dummyBind      = RB dummySymbol
-isDummyBind    = (==) dummyBind
+-- dummyBind      = RB dummySymbol
+-- isDummyBind    = (==) dummyBind
 
-{- INVARIANTS:
- measure isTyVarBind :: Bind tv pv -> Bool
- isTyVarBind (RV _) = true 
- isTyVarBind (RP _) = false
- isTyVarBind (RB _) = false
--}
+data RType p c tv r
+  = RVar { 
+      rt_var    :: !tv
+    , rt_reft   :: !r 
+    }
+  
+  | RFun  {
+      rt_bind   :: !Symbol
+    , rt_in     :: !(RType p c tv r)
+    , rt_out    :: !(RType p c tv r) 
+    , rt_reft   :: !r
+    }
 
-data RType p c tv pv r
-  = RVar !(Bind tv pv) !r                                            -- INV: RVar {v | isTyVarBind v}
-  | RFun !(Bind tv pv) !(RType p c tv pv r) !(RType p c tv pv r) !r  -- INV: RFun {v | isSymBind v} t1 t2
-  | RAll !(Bind tv pv) !(RType p c tv pv r)                          -- INV: RAll {v | !(isSymBind v) }
-  | RApp !c ![(RType p c tv pv r)] ![Ref r (RType p c tv pv r)] !r
-  | RCls !p ![(RType p c tv pv r)]
-  | REx  !(Bind tv pv) !(RType p c tv pv r) !(RType p c tv pv r)     -- INV: REx {v | isSymBind v} {v | isSingletonReft t1} t2
-  -- | REx  (Symbol, Sort, Expr) (RType p c tv pv r)                    -- INV: Expr = EApp (_, [EVar _]) 
-  | ROth Sort r                                                      -- for types with no Hs equivalent
+  | RAllT { 
+      rt_tvbind :: !tv       
+    , rt_ty     :: !(RType p c tv r)
+    }
+
+  | RAllP {
+      rt_pvbind :: !(PVar (RType p c tv r))
+    , rt_ty     :: !(RType p c tv r)
+    }
+
+  | RApp  { 
+      rt_tycon  :: !c
+    , rt_args   :: ![(RType p c tv r)]     
+    , rt_pargs  :: ![Ref r (RType p c tv r)] 
+    , rt_reft   :: !r
+    }
+
+  | RCls  { 
+      rt_class  :: !p
+    , rt_args   :: ![(RType p c tv r)]
+    }
+
+  | REx   { 
+      rt_bind   :: !Symbol
+    , rt_exarg  :: !(RType p c tv r) 
+    , rt_ty     :: !(RType p c tv r) 
+    }
+
+  | ROth  !String 
   deriving (Data, Typeable)
 
 data Ref s m = RMono s | RPoly m
@@ -152,10 +177,16 @@ data Ref s m = RMono s | RPoly m
 
 type BRType     = RType String String String   
 type RRType     = RType Class  RTyCon RTyVar   
-type BareType   = BRType (PVar Sort) (UReft Reft String) 
-type SpecType   = RRType (PVar Type) (UReft Reft Type)
-type PrType     = RRType (PVar Type) (Predicate Type) 
-type RefType    = RRType (PVar Type) Reft
+
+type BSort      = BRType ()
+type RSort      = RRType ()
+
+type BareType   = BRType (UReft Reft BSort) 
+type SpecType   = RRType (UReft Reft RSort)
+type PrType     = RRType (Predicate RSort) 
+type RefType    = RRType Reft
+
+
 
 data UReft r t  = U {ureft :: !r, upred :: !(Predicate t)}
                   deriving (Data, Typeable)
@@ -204,19 +235,19 @@ instance Eq RTyVar where
 instance Ord RTyVar where
   compare (RTV α) (RTV α') = compare (tvId α) (tvId α')
 
-type RBind = Bind RTyVar (PVar Type)
+-- type RBind = Bind RTyVar (PVar Type)
 
 data RTyCon = RTyCon 
   { rTyCon     :: !TC.TyCon         -- GHC Type Constructor
-  , rTyConPs   :: ![PVar Type]      -- Predicate Parameters
+  , rTyConPs   :: ![PVar RSort]      -- Predicate Parameters
   }
   deriving (Eq, Data, Typeable)
 
-instance Eq RBind where
-  RB s == RB s' = s == s'
-  RV α == RV α' = α == α'
-  RP p == RP p' = pname p == pname p'
-  _    == _     = False 
+-- instance Eq RBind where
+--   RB s == RB s' = s == s'
+--   RV α == RV α' = α == α'
+--   RP p == RP p' = pname p == pname p'
+--   _    == _     = False 
 
 --------------------------------------------------------------------
 ---------------------- Helper Functions ----------------------------
@@ -224,17 +255,17 @@ instance Eq RBind where
 
 rFun b t t'         = RFun b t t' top
 rVar                = RVar . rTyVar 
-rTyVar              = RV . RTV
+rTyVar              = RTV
 
 normalizePds t = addPds ps t'
   where (t', ps) = nlzP [] t
 
-rPred p t = RAll (RP p) t
+rPred p t = RAllP p t
 rApp c    = RApp (RTyCon c []) 
 
 
-addPds ps (RAll v@(RV _) t) = RAll v $ addPds ps t
-addPds ps t                 = foldl' (flip rPred) t ps
+addPds ps (RAllT v t) = RAllT v $ addPds ps t
+addPds ps t           = foldl' (flip rPred) t ps
 
 nlzP ps t@(RVar _ _ ) 
  = (t, ps)
@@ -242,14 +273,14 @@ nlzP ps (RFun b t1 t2 r)
  = (RFun b t1' t2' r, ps ++ ps1 ++ ps2)
   where (t1', ps1) = nlzP [] t1
         (t2', ps2) = nlzP [] t2
-nlzP ps (RAll (RV v) t )
- = (RAll (RV v) t', ps ++ ps')
+nlzP ps (RAllT v t )
+ = (RAllT v t', ps ++ ps')
   where (t', ps') = nlzP [] t
 nlzP ps t@(RApp c ts rs r)
  = (t, ps)
 nlzP ps t@(RCls c ts)
  = (t, ps)
-nlzP ps (RAll (RP p) t)
+nlzP ps (RAllP p t)
  = (t', [p] ++ ps ++ ps')
   where (t', ps') = nlzP [] t
 nlzP ps t@(ROth _ _)
@@ -267,11 +298,12 @@ strengthenRefType t1 t2
               ++ "t2 = " ++ showPpr t2
   where eqt t1 t2 = showPpr (toType t1) == showPpr (toType t2)
   
-strengthenRefType_ (RAll a@(RV _) t1) (RAll _ t2)
-  = RAll a $ strengthenRefType_ t1 t2
+strengthenRefType_ (RAllT a1 t1) (RAllT a2 t2)
+  -- | a1 == a2 ? 
+  = RAllT a1 $ strengthenRefType_ t1 t2
 
-strengthenRefType_ (RFun (RB x1) t1 t1' r1) (RFun (RB x2) t2 t2' r2) 
-  = RFun (RB x1) t t' (r1 `meet` r2)
+strengthenRefType_ (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2) 
+  = RFun x1 t t' (r1 `meet` r2)
     where t  = strengthenRefType_ t1 t2
           t' = strengthenRefType_ t1' $ subst1 t2' (x2, EVar x1)
 
@@ -314,9 +346,9 @@ showTy v = showSDoc $ ppr v <> ppr (varUnique v)
 -- showTy t = showSDoc $ ppr t
 
 -- mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
-mkArrow as xts t = mkUnivs as $ mkArrs xts t
-mkUnivs αs t     = foldr RAll t $ (RV <$> αs)
-mkArrs xts t     = foldr (\(x, t) -> rFun (RB x) t) t xts 
+mkArrow as xts = mkUnivs as . mkArrs xts 
+mkUnivs αs t   = foldr RAllT t αs
+mkArrs xts t   = foldr (uncurry rFun) t xts 
 
 -- bkArrow :: RType a -> ([TyVar], [(Symbol, RType a)],  RType a)
 bkArrow ty = (αs, πs, xts, out)
@@ -324,9 +356,9 @@ bkArrow ty = (αs, πs, xts, out)
         (xts,  out) = bkArrs t
 
 bkUniv = go [] []
-  where go αs πs (RAll (RV α) t) = go (α : αs) πs t
-        go αs πs (RAll (RP π) t) = go αs (π : πs) t
-        go αs πs t               = (reverse αs, reverse πs, t)
+  where go αs πs (RAllT α t) = go (α : αs) πs t
+        go αs πs (RAllP π t) = go αs (π : πs) t
+        go αs πs t           = (reverse αs, reverse πs, t)
 
 bkArrs = go []
   where go xts (RFun (RB x) t t' _ ) = go ((x,t) : xts) t'
@@ -819,7 +851,7 @@ ofPredTree _
 
 reftypeBindVars :: RefType -> S.Set Symbol
 reftypeBindVars = everything S.union (S.empty `mkQ` grabBind)
-  where grabBind ((RB x) :: RBind) = S.singleton x 
+  where grabBind (RFun x _ _) = S.singleton x
 
 readSymbols :: (Data a) => a -> S.Set Symbol
 readSymbols = everything S.union (S.empty `mkQ` grabRead)
@@ -840,10 +872,10 @@ tidyRefType = tidyDSymbols
 tidyFunBinds :: RefType -> RefType
 tidyFunBinds t = everywhere (mkT $ dropBind xs) t 
   where xs = readSymbols t
-        dropBind xs ((RB x) :: RBind) 
-          | x `S.member` xs = RB x
-          | otherwise       = RB nonSymbol
-        dropBind _ z = z
+        dropBind xs (RFun x t1 t2 r)
+          | x `S.member` xs = RFun x t1 t2 r
+          | otherwise       = RFun nonSymbol t1 t2 r
+        dropBind _ z        = z
 
 tidyTyVars :: RefType -> RefType
 tidyTyVars = tidy pool getS putS 
@@ -1019,7 +1051,7 @@ instance Subable r => Subable (RType p c tv pv r) where
 ---------------- Auxiliary Types Used Elsewhere ------------------------
 ------------------------------------------------------------------------
 
---| Data type refinements
+-- | Data type refinements
 
 data DataDecl   = D String 
                     [String] 
@@ -1027,7 +1059,7 @@ data DataDecl   = D String
                     [(String, [(String, BareType)])] 
                   deriving (Data, Typeable, Show)
 
---| Refinement Type Aliases
+-- | Refinement Type Aliases
 
 data RTAlias tv ty 
   = RTA { rtName :: String
