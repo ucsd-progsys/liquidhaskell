@@ -10,6 +10,7 @@ module Language.Haskell.Liquid.RefType (
   , RSort, RPVar, RPredicate, RefType
   , PrType, SpecType
   , Predicate (..), UReft(..), DataDecl (..)
+  , uReft
   , pdAnd, pdVar, pdTrue, pvars
   -- , dummyBind, isDummyBind
   , ppr_rtype, mapReft, mapBot
@@ -189,13 +190,22 @@ type BPVar      = PVar      BSort
 type RPredicate = Predicate RSort
 type BPredicate = Predicate BSort
 
-type BareType   = BRType    (UReft Reft BSort) 
-type SpecType   = RRType    (UReft Reft RSort)
 type PrType     = RRType    (Predicate RSort) 
-type RefType    = RRType    Reft
+type BareType   = BRType    BReft
+type SpecType   = RRType    RReft 
+type RefType    = SpecType  -- RRType    Reft
 
-data UReft r t  = U {ureft :: !r, upred :: !(Predicate t)}
+
+data UReft r t  = U {ur_reft :: !r, ur_pred :: !(Predicate t)}
                   deriving (Data, Typeable)
+
+type RReft      = UReft Reft RSort
+type BReft      = UReft Reft BSort
+
+
+uReft (x, y)    = U (Reft (x, y)) pdTrue
+
+
 
 --------------------------------------------------------------------
 -------------- (Class) Predicates for Valid Refinement Types -------
@@ -244,8 +254,8 @@ instance Monoid RefType where
 instance Monoid (Ref Reft RefType) where
   mempty  = RMono mempty
   mappend (RMono r1) (RMono r2) = RMono $ r1 `meet` r2
-  mappend (RMono r) (RPoly t)   = RPoly $ t `strengthen` r
-  mappend (RPoly t) (RMono r)   = RPoly $ t `strengthen` r
+  mappend (RMono r) (RPoly t)   = RPoly $ t `strengthen` (U r top)
+  mappend (RPoly t) (RMono r)   = RPoly $ t `strengthen` (U r top)
   mappend (RPoly t1) (RPoly t2) = RPoly $ t1 `strengthenRefType` t2
 
 instance (Monoid r, Reftable r, Subable r, RefTypable a b c r) => Monoid (Ref r (RType a b c r)) where
@@ -274,7 +284,7 @@ instance Subable r => Subable (RType p c tv r) where
 
 -- Reftable Instances -------------------------------------------------------
 
-instance Reftable (RType Class RTyCon RTyVar Reft) where
+instance Reftable (RType Class RTyCon RTyVar RReft) where
   isTauto = isTrivial -- isTautoTy 
   ppTy    = errorstar "ppTy RPoly Reftable" 
 
@@ -889,16 +899,12 @@ ofType_ τ@(TyConApp c τs)
   = rApp c (ofType_ <$> τs) [] top 
   where (αs, τ) = TC.synTyConDefn c
 ofType_ τ               
-  = errorstar ("ofType cannot handle: " ++ show τ)
+  = errorstar ("ofType cannot handle: " ++ showPpr τ)
 
 ofPredTree (ClassPred c τs)
   = RCls c (ofType_ <$> τs)
 ofPredTree _
   = errorstar "ofPredTree"
-
------------------------------------------------------------------
----------------------- Scrap this using SYB? --------------------
------------------------------------------------------------------
 
 -------------------------------------------------------------------
 --------------------------- SYB Magic -----------------------------
@@ -1079,12 +1085,8 @@ refTypePredSortedReft (r, τ) = RR so r
 refTypeSortedReft   ::  RefType -> SortedReft
 refTypeSortedReft t = RR (rTypeSort t) (refTypeReft t)
 
---  where so = {- traceShow ("rTypeSort: t = " ++ showPpr t) $ -} rTypeSort t
---        r  = refTypeReft t -- fromMaybe trueReft $ stripRTypeBase t 
+refTypeReft t = fromMaybe top $ ur_reft <$> stripRTypeBase t
 
-refTypeReft = fromMaybe trueReft . stripRTypeBase 
-
--- typeSortedReft ::  Type -> Refa -> SortedReft
 typeSortedReft t r = RR (typeSort t) (Reft (vv, [r]))
 
 rTypeSort ::  RRType r -> Sort

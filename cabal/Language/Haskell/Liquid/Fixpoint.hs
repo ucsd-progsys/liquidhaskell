@@ -25,8 +25,6 @@ module Language.Haskell.Liquid.Fixpoint (
   , isTautoPred
   , emptySubst, mkSubst, catSubst
   , Subable (..)
-  , isPredInReft
-  , rmRPVar, rmRPVarReft, replacePVarReft
   ) where
 
 import TypeRep 
@@ -129,36 +127,8 @@ instance (NFData a) => NFData (PVar a) where
 --                   return y 
 --     Just y  -> return y
 
-isPredInReft p (Reft(_, ls)) = or (isPredInRefa p <$> ls)
-isPredInRefa p (RPvar p')    = isSamePvar p p'
-isPredInRefa _ _             = False
 
-isSamePvar (PV s1 _ _) (PV s2 _ _) = s1 == s2
 
-replacePVarReft (p, r) (Reft(v, rs)) 
-  = Reft(v, concatMap (replaceRPvarRefa (RPvar p, r)) rs)
-replaceRPvarRefa (RPvar(PV n1 _ ar), Reft(_, rs)) (RPvar (PV n2 _ _))
-  | n1 == n2
-  = map (subst (pArgsToSub ar)) rs
-  | otherwise
-  = rs
-replaceRPvarRefa _ r = [r]
-
-rmRPVar s r = fst $ rmRPVarReft s r
-rmRPVarReft s (Reft(v, ls)) = (Reft(v, ls'), su)
-  where (l, s1) = unzip $ map (rmRPVarRefa s) ls
-        ls' = catMaybes l
-        su = case catMaybes s1 of {[su'] -> su'; _ -> error "Fixpoint.rmRPVarReft"}
-
-rmRPVarRefa (PV s1 _ _) r@(RPvar (PV s2 _ a2))
-  | s1 == s2
-  = (Nothing, Just $ pArgsToSub a2)
-  | otherwise
-  = (Just r, Nothing) 
-rmRPVarRefa _ r
-  = (Just r, Nothing)
-
-pArgsToSub a = mkSubst $ map (\(_, s1, s2) -> (s1, EVar s2)) a
 
 --{{{
 --strsToRefa n as = RConc $ PBexp $ (EApp (S n) ([EVar (S "VV")] ++ (map EVar as)))
@@ -612,8 +582,8 @@ data Reft
   = Reft (Symbol, [Refa]) 
   deriving (Eq, Ord, Data, Typeable) 
 
-instance Show Type where
-   show  = showSDoc . ppr
+-- instance Show Type where
+--    show  = showSDoc . ppr
 
 instance Show Reft where
   show (Reft x) = showSDoc $ toFix x 
@@ -660,7 +630,7 @@ instance Fixpoint (PVar Type) where
 instance Fixpoint Refa where
   toFix (RConc p)    = toFix p
   toFix (RKvar k su) = toFix k <> toFix su
-  toFix (RPvar p)    = toFix p
+  -- toFix (RPvar p)    = toFix p
 
 instance Fixpoint SortedReft where
   toFix (RR so (Reft (v, ras))) 
@@ -807,7 +777,7 @@ instance Subable Pred where
 instance Subable Refa where
   subst su (RConc p)     = RConc   $ subst su p
   subst su (RKvar k su') = RKvar k $ su' `catSubst` su 
-  subst _  (RPvar p)     = RPvar p
+  -- subst _  (RPvar p)     = RPvar p
 
 instance (Subable a, Subable b) => Subable (a,b) where
   subst su (x,y) = (subst su x, subst su y)
@@ -922,7 +892,7 @@ instance NFData Pred where
 instance NFData Refa where
   rnf (RConc x)     = rnf x
   rnf (RKvar x1 x2) = rnf x1 `seq` rnf x2
-  rnf (RPvar _)     = () -- rnf x
+  -- rnf (RPvar _)     = () -- rnf x
 
 instance NFData Reft where 
   rnf (Reft (v, ras)) = rnf v `seq` rnf ras
@@ -944,7 +914,7 @@ class MapSymbol a where
 instance MapSymbol Refa where
   mapSymbol f (RConc p)    = RConc (mapSymbol f p)
   mapSymbol f (RKvar s su) = RKvar (f s) su
-  mapSymbol _ (RPvar p)    = RPvar p -- RPvar (mapSymbol f p)
+  -- mapSymbol _ (RPvar p)    = RPvar p -- RPvar (mapSymbol f p)
 
 instance MapSymbol Reft where
   mapSymbol f (Reft(s, rs)) = Reft(f s, map (mapSymbol f) rs)

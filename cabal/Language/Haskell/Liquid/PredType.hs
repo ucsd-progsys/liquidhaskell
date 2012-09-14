@@ -215,12 +215,8 @@ replacePreds :: String -> RefType -> [(RPVar, Ref Reft RefType)] -> RefType
 -------------------------------------------------------------------------------
 replacePreds msg = foldl' (flip (replacePred msg)) 
 
-----------------------------------------------------------------------------
-replacePred :: String -> (RPVar, Ref Reft RefType) -> RefType -> RefType
-----------------------------------------------------------------------------
-
-replacePred msg pr@(p, RPoly t) = substPred msg True (p, t)
-replacePred msg pr@(p, RMono r) = fmap (replacePVarReft (p, r))
+replacePred msg (p, RPoly t) = substPred msg True (p, t)
+replacePred msg (p, RMono r) = fmap (replacePVarReft (p, r))
 
 substPredP :: Bool -> (RPVar, RefType) -> (Ref Reft RefType) -> (Ref Reft RefType)
 substPredP b pt (RPoly t) = RPoly $ substPred "substPredP" b pt t
@@ -342,4 +338,44 @@ lookupP s p@(PV _ _ s')
       Nothing  -> Pr [p]
       Just q   -> subvPredicate (\pv -> pv { pargs = s'}) q
 
+------------------------------------------------------------------------------
+-- RIPPING PredVar Stuff out of Fixpoint
+------------------------------------------------------------------------------
 
+{-
+  -- Related to PVar
+  , isPredInReft, rmRPVar, rmRPVarReft, replacePVarReft
+ 
+isPredInReft p (Reft(_, ls)) = or (isPredInRefa p <$> ls)
+isPredInRefa p (RPvar p')    = isSamePvar p p'
+isPredInRefa _ _             = False
+
+isSamePvar (PV s1 _ _) (PV s2 _ _) = s1 == s2
+
+replacePVarReft (p, r) (Reft(v, rs)) 
+  = Reft(v, concatMap (replaceRPvarRefa (RPvar p, r)) rs)
+
+replaceRPvarRefa (RPvar(PV n1 _ ar), Reft(_, rs)) (RPvar (PV n2 _ _))
+  | n1 == n2
+  = map (subst (pArgsToSub ar)) rs
+  | otherwise
+  = rs
+replaceRPvarRefa _ r = [r]
+
+rmRPVar s r = fst $ rmRPVarReft s r
+rmRPVarReft s (Reft(v, ls)) = (Reft(v, ls'), su)
+  where (l, s1) = unzip $ map (rmRPVarRefa s) ls
+        ls' = catMaybes l
+        su = case catMaybes s1 of {[su'] -> su'; _ -> error "Fixpoint.rmRPVarReft"}
+
+rmRPVarRefa (PV s1 _ _) r@(RPvar (PV s2 _ a2))
+  | s1 == s2
+  = (Nothing, Just $ pArgsToSub a2)
+  | otherwise
+  = (Just r, Nothing) 
+rmRPVarRefa _ r
+  = (Just r, Nothing)
+
+pArgsToSub a = mkSubst $ map (\(_, s1, s2) -> (s1, EVar s2)) a
+
+-}
