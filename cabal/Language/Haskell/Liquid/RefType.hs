@@ -193,7 +193,7 @@ type BPredicate = Predicate BSort
 type PrType     = RRType    (Predicate RSort) 
 type BareType   = BRType    BReft
 type SpecType   = RRType    RReft 
-type RefType    = SpecType  -- RRType    Reft
+type RefType    = RRType    Reft
 
 
 data UReft r t  = U {ur_reft :: !r, ur_pred :: !(Predicate t)}
@@ -203,6 +203,7 @@ type RReft      = UReft Reft RSort
 type BReft      = UReft Reft BSort
 
 
+uReft           ::  (Symbol, [Refa]) -> UReft Reft t
 uReft (x, y)    = U (Reft (x, y)) pdTrue
 
 
@@ -247,12 +248,13 @@ instance (Monoid a) => Monoid (UReft a b) where
   mempty                    = U mempty mempty
   mappend (U x y) (U x' y') = U (mappend x x') (mappend y y')
 
-instance Monoid RefType where
+instance (RefTypable p c tv r) => Monoid (RType p c tv r) where
   mempty  = error "mempty RefType"
   mappend = strengthenRefType
 
-instance Monoid (Ref Reft RefType) where
-  mempty  = RMono mempty
+instance (Reftable r, RefTypable p c tv (UReft r a)) => Monoid (Ref r (RType p c tv (UReft r a))) where
+-- instance Monoid (Ref Reft RefType) where
+  mempty                        = RMono mempty
   mappend (RMono r1) (RMono r2) = RMono $ r1 `meet` r2
   mappend (RMono r) (RPoly t)   = RPoly $ t `strengthen` (U r top)
   mappend (RPoly t) (RMono r)   = RPoly $ t `strengthen` (U r top)
@@ -270,11 +272,8 @@ instance (Monoid r, Reftable r, Subable r, RefTypable a b c r) => Monoid (Ref r 
 instance Subable () where
   subst _ () = ()
 
-instance Subable (UReft Reft t) where
+instance Subable r => Subable (UReft r t) where
   subst s (U r z) = U (subst s r) z
-
--- instance Subable (UReft Reft Type) where
---   subst s (U r p) = U (subst s r) p
 
 instance Subable (Predicate t) where
   subst _ = id 
@@ -285,7 +284,7 @@ instance Subable r => Subable (RType p c tv r) where
 -- Reftable Instances -------------------------------------------------------
 
 instance Reftable (RType Class RTyCon RTyVar RReft) where
-  isTauto = isTrivial -- isTautoTy 
+  isTauto = isTrivial
   ppTy    = errorstar "ppTy RPoly Reftable" 
 
 instance Reftable Reft where
@@ -324,22 +323,15 @@ instance TyConable String where
 
 -- RefTypable Instances -------------------------------------------------------
 
---instance (Outputable p, TyConable c) => RefTypable p c String () where
---  ppCls   = ppClass_String
---  ppRType = ppr_rtype True -- False 
-
--- instance RefTypable Class RTyCon RTyVar () where
---   ppCls = ppClass_ClassPred
-
 instance (Outputable p, TyConable c, Reftable r, Subable r) => RefTypable p c String r where
   ppCls = ppClass_String
   ppRType = ppr_rtype True -- False 
-  -- ppCls = parens (ppr c <+> text "...")
 
 instance (Reftable r, Subable r) => RefTypable Class RTyCon RTyVar r where
   ppCls = ppClass_ClassPred
   ppRType = ppr_rtype True -- False 
-  -- ppCls c ts  = parens $ pprClassPred c (toType <$> ts)
+
+  
 
 ppClass_String    c ts = parens (ppr c <+> text "...")
 ppClass_ClassPred c ts = parens $ pprClassPred c (toType <$> ts)
@@ -405,7 +397,7 @@ nlzP ps t@(ROth _)
 nlzP ps t@(REx _ _ _) 
  = (t, ps) 
 
-strengthenRefType :: RefType -> RefType -> RefType
+strengthenRefType :: RefTypable p c tv r => RType p c tv r -> RType p c tv r -> RType p c tv r
 strengthenRefType t1 t2 
   | eqt t1 t2 
   = strengthenRefType_ t1 t2
@@ -413,8 +405,9 @@ strengthenRefType t1 t2
   = errorstar $ "strengthen on differently shaped reftypes! " 
               ++ "t1 = " ++ showPpr t1 
               ++ "t2 = " ++ showPpr t2
-  where eqt t1 t2 = showPpr (toType t1) == showPpr (toType t2)
+  where eqt t1 t2 = showPpr (toRSort t1) == showPpr (toRSort t2)
   
+strengthenRefType_ :: RefTypable p c tv r =>RType p c tv r -> RType p c tv r -> RType p c tv r
 strengthenRefType_ (RAllT a1 t1) (RAllT a2 t2)
   -- | a1 == a2 ? 
   = RAllT a1 $ strengthenRefType_ t1 t2
@@ -462,7 +455,7 @@ toPoly (RMono r) t = RPoly $ ({- PREDARGS: ofType -} ofRSort t) `strengthen` r
 showTy v = showSDoc $ ppr v <> ppr (varUnique v)
 -- showTy t = showSDoc $ ppr t
 
--- mkArrow ::  [TyVar] -> [(Symbol, RType a)] -> RType a -> RType a
+mkArrow :: Reftable r => [a] -> [(Symbol, RType p c a r)] -> RType p c a r -> RType p c a r
 mkArrow as xts = mkUnivs as . mkArrs xts 
 mkUnivs αs t   = foldr RAllT t αs
 mkArrs xts t   = foldr (uncurry rFun) t xts 
