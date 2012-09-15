@@ -6,7 +6,7 @@ module Language.Haskell.Liquid.RefType (
     RTyVar (..), RType (..), RRType (..), BRType (..), RTyCon(..)
   , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..), Ref(..)
   , RTAlias (..)
-  , BSort, BareType, RSort, UsedPVar, RPVar, RReft, RefType
+  , BSort, BPVar, BareType, RSort, UsedPVar, RPVar, RReft, RefType
   , PrType, SpecType
   , PVar (..) , Predicate (..), UReft(..), DataDecl (..)
   , uReft, uPVar
@@ -103,7 +103,7 @@ type UsedPVar      = PVar ()
 newtype Predicate  = Pr [UsedPVar] deriving (Data, Typeable) 
 
 pdTrue         = Pr []
-pdVar v        = Pr [v]
+pdVar v        = Pr [uPVar v]
 pvars (Pr pvs) = pvs
 pdAnd ps       = Pr (concatMap pvars ps)
 
@@ -203,6 +203,7 @@ type RRType     = RType Class  RTyCon RTyVar
 type BSort      = BRType    ()
 type RSort      = RRType    ()
 
+type BPVar      = PVar      BSort
 type RPVar      = PVar      RSort
 
 type RReft      = UReft     Reft 
@@ -214,6 +215,7 @@ type RefType    = RRType    Reft
 uReft           ::  (Symbol, [Refa]) -> UReft Reft 
 uReft (x, y)    = U (Reft (x, y)) pdTrue
 
+uPVar           :: PVar t -> UsedPVar
 uPVar           = fmap (const ())
 --------------------------------------------------------------------
 -------------- (Class) Predicates for Valid Refinement Types -------
@@ -685,6 +687,9 @@ ppr_foralls bs = text "forall" <+> dαs [ α | Left α <- bs] <+> dπs [ π | Ri
 -- instance Bifunctor UReft where
 --   first f (U r p)  = U (f r) p
 --   second f (U r p) = U r (fmap f p)
+
+instance Functor UReft where
+  fmap f (U r p) = U (f r) p
 
 instance Functor (RType a b c) where
   fmap  = mapReft 

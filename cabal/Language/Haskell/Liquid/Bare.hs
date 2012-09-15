@@ -113,7 +113,7 @@ wrapErr msg f x
 makeMeasureSpec :: BareEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
 makeMeasureSpec env m = execBare mkSpec env 
   where mkSpec = wrapErr "mkMeasureSort" mkMeasureSort m' >>= mkMeasureDCon >>= return . Ms.dataConTypes
-        m'     = first (txTyVarBinds . mapReft ur_reft) m
+        m'     = first ({- txTyVarBinds . -} mapReft ur_reft) m
 
 makeAssumeSpec :: BareEnv -> [Var] -> [(Symbol, BareType)] -> IO [(Var, SpecType)]
 makeAssumeSpec env vs xbs = execBare mkAspec env 
@@ -132,21 +132,21 @@ makeInvariants :: BareEnv -> [BareType] -> IO [SpecType]
 makeInvariants benv ts = execBare (mapM mkSpecType ts) benv
 
 mkSpecType t = mkSpecType' πs t
-  where πs = ofBPreds $ snd3 $ rsplitVsPs t
+  where πs   = fmap uPVar (snd3 $ rsplitVsPs t)
 
--- mkSpecType'    :: [RPVar] -> BareType -> BareM SpecType 
+mkSpecType' :: [UsedPVar] -> BareType -> BareM SpecType
 mkSpecType' πs 
   = ofBareType' 
   . txParams subvUReft πs
-  . txTyVarBinds 
-  . mapReft (bimap canonReft stringTyVarTy) 
+  -- . txTyVarBinds 
+  . mapReft (fmap canonReft) 
 
 -- mkPredType :: [RPVar]-> BRType (PVar String) (Predicate String) -> BareM PrType 
 mkPredType πs 
   = ofBareType' 
   . txParams subvPredicate πs 
-  . txTyVarBinds 
-  . mapReft (fmap stringTyVarTy)
+  -- . txTyVarBinds 
+  -- . mapReft (fmap stringTyVarTy)
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
@@ -256,39 +256,37 @@ listTyDataCons = ( [(c, TyConP [(RTV tyv)] [p])]
                  , (consDataCon, DataConP [(RTV tyv)] [p]  cargs  lt)])
     where c     = listTyCon
           [tyv] = tyConTyVars c
-          t     = TyVarTy tyv
+          t     = {- TyVarTy -} rVar tyv
           fld   = stringSymbol "fld"
           x     = stringSymbol "x"
           xs    = stringSymbol "xs"
           p     = PV (stringSymbol "p") t [(t, fld, fld)]
           px    = pdVar $ PV (stringSymbol "p") t [(t, fld, x)]
-          lt    = rApp c [xt] [RMono $ pdVar p] top                 -- pdTrue 
-          xt    = rVar tyv                                          -- RVar (RV (RTV tyv)) pdTrue
-          xst   = rApp c [RVar (RTV tyv) px] [RMono $ pdVar p] top  -- pdTrue
+          lt    = rApp c [xt] [RMono $ pdVar p] top                 
+          xt    = rVar tyv
+          xst   = rApp c [RVar (RTV tyv) px] [RMono $ pdVar p] top  
           cargs = [(xs, xst), (x, xt)]
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyv) ps)]
                     , [(dc, DataConP (RTV <$> tyv) ps  cargs  lt)])
-  where c       = tupleTyCon BoxedTuple n
-        dc      = tupleCon BoxedTuple n 
-        tyv     = tyConTyVars c
-        (ta:ts) = TyVarTy <$>tyv
-        (tv:tvs)= tyv
-        flds    = mks "fld"
-        fld     = stringSymbol "fld"
-        x1:xs   = mks "x"
-        y       = stringSymbol "y"
-        ps      = mkps pnames (ta:ts) ((fld,fld):(zip flds flds))
-        pxs     = mkps pnames (ta:ts) ((fld, x1):(zip flds xs))
-        lt      = rApp c ({-(\x -> RVar (RV (RTV x)) pdTrue)-} rVar <$> tyv) 
-                         (RMono . pdVar <$> ps) top -- pdTrue 
-        xts     = zipWith (\v p -> RVar (RTV v) (pdVar p)) tvs pxs
-        cargs   = reverse $ (x1, rVar tv {- RVar (RV (RTV (tv))) pdTrue -} ) : (zip xs xts)
-
-        pnames  = mks_ "p"
-        mks  x  = (\i -> stringSymbol (x++ show i)) <$> [1..n]
-        mks_ x  = (\i ->  (x++ show i)) <$> [2..n]
+  where c         = tupleTyCon BoxedTuple n
+        dc        = tupleCon BoxedTuple n 
+        tyv       = tyConTyVars c
+        (ta:ts)   = rVar <$> tyv
+        (tv:tvs)  = tyv
+        flds      = mks "fld"
+        fld       = stringSymbol "fld"
+        x1:xs     = mks "x"
+        y         = stringSymbol "y"
+        ps        = mkps pnames (ta:ts) ((fld,fld):(zip flds flds))
+        pxs       = mkps pnames (ta:ts) ((fld, x1):(zip flds xs))
+        lt        = rApp c (rVar <$> tyv) (RMono . pdVar <$> ps) top
+        xts       = zipWith (\v p -> RVar (RTV v) (pdVar p)) tvs pxs
+        cargs     = reverse $ (x1, rVar tv) : (zip xs xts)
+        pnames    = mks_ "p"
+        mks  x    = (\i -> stringSymbol (x++ show i)) <$> [1..n]
+        mks_ x    = (\i ->  (x++ show i)) <$> [2..n]
 
 
 mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ (stringSymbol <$> ns) ts fxs [(t, f, x)] [] 
@@ -303,10 +301,11 @@ mkps_ (n:ns) (t:ts) ((f, x):xs) args ps
 ----------------- Transforming Raw Strings using GHC Env ---------------
 ------------------------------------------------------------------------
 
+
 ofBareType' = wrapErr "ofBareType" ofBareType
 
--- ofBareType :: (Reftable r) => BRType pv r -> BareM (RRType pv r)
--- ofBareType :: (TyConable a, Reftable r, GhcLookup a1, GhcLookup a) => RType a1 a String pv r-> BareM (RType Class RTyCon RTyVar pv r)
+-- ofBareType :: (Reftable r) => BRType r -> BareM (RRType r)
+ofBareType :: (Reftable r) => RType String String String r -> BareM (RType Class RTyCon RTyVar r)
 ofBareType (RVar a r) 
   = return $ RVar (stringRTyVar a) r
 ofBareType (RFun x t1 t2 _) 
@@ -316,7 +315,7 @@ ofBareType (REx x t1 t2)
 ofBareType (RAllT a t) 
   = liftM  (RAllT (stringRTyVar a)) (ofBareType t)
 ofBareType (RAllP π t) 
-  = liftM  (RAllP π) (ofBareType t)
+  = liftM2 RAllP (ofBPVar π) (ofBareType t)
 ofBareType (RApp tc ts@[_] rs r) 
   | isList tc
   = do tyi <- tcEnv <$> ask
@@ -381,51 +380,61 @@ makeConTypes env dcs = unzip <$> execBare (mapM ofBDataDecl dcs) (BE M.empty env
 
 ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
 ofBDataDecl (D tc as ps cts)
-  = do tc'   <- lookupGhcTyCon tc 
+  = do πs    <- mapM ofBPVar ps                     -- fmap (fmap stringTyVarTy) ps
+       tc'   <- lookupGhcTyCon tc 
        cts'  <- mapM (ofBDataCon tc' αs πs) cpts
        return $ ((tc', TyConP αs πs), cts')
     where αs   = fmap (RTV . stringTyVar) as
-          πs   = ofBPreds ps -- fmap (fmap stringTyVarTy) ps
           cpts = fmap (second (fmap (second (mapReft ur_pred)))) cts
 
-ofBPreds = fmap (fmap stringTyVarTy)
+-- ofBPreds = fmap (fmap stringTyVarTy)
+ofBPVar :: PVar BSort -> BareM (PVar RSort)
+ofBPVar = mapM_pvar ofBareType 
+
+mapM_pvar :: (Monad m) => (a -> m b) -> PVar a -> m (PVar b)
+mapM_pvar f (PV x t txys) 
+  = do t'    <- f t
+       txys' <- mapM (\(t, x, y) -> liftM (, x, y) (f t)) txys 
+       return $ PV x t' txys'
 
 ofBDataCon tc αs πs (c, xts)
  = do c'  <- lookupGhcDataCon c
-      ts' <- mapM (mkPredType πs) ts
-      let t0 = rApp tc rs (RMono . pdVar <$> πs) pdTrue
+      ts' <- mapM (mkPredType (uPVar <$> πs)) ts
+      let t0 = rApp tc rs (RMono . pdVar <$> πs) top 
       return $ (c', DataConP αs πs (reverse (zip xs' ts')) t0) 
  where (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
-       rs       = rVar <$> αs -- [RVar α pdTrue | α <- αs]
+       rs       = [rVar α | RTV α <- αs] -- [RVar α pdTrue | α <- αs]
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: RefTypes -----------------------------
 -----------------------------------------------------------------------
 
-txTyVarBinds = 8 
-  -- mapBind fb
-  -- where fb (RP π) = RP (stringTyVarTy <$> π)
-  --       fb (RB x) = RB x
-  --       fb (RV α) = RV α
+-- txTyVarBinds :: RType p c tv pv r -> RType p c tv pv' r
+-- txTyVarBinds = 
+-- mapBind fb
+-- where fb (RP π) = RP (stringTyVarTy <$> π)
+--       fb (RB x) = RB x
+--       fb (RV α) = RV α
 
-mapBind f (RAllT α t)      = RAllT α     (mapBind f t)
-mapBind f (RAllP π t)      = RAllP (f π) (mapBind f t)
-mapBind f (RVar b r)       = RVar (f b) r
-mapBind f (RFun b t1 t2 r) = RFun (f b)  (mapBind f t1) (mapBind f t2) r
-mapBind f (RApp c ts rs r) = RApp c (mapBind f <$> ts) (mapBindRef f <$> rs) r
-mapBind f (RCls c ts)      = RCls c (mapBind f <$> ts)
-mapBind f (REx b t1 t2)    = REx  (f b) (mapBind f t1) (mapBind f t2)
-mapBind f (ROth so r)      = ROth so r
+-- mapBind f (RAllT α t)      = RAllT α     (mapBind f t)
+-- mapBind f (RAllP π t)      = RAllP (f π) (mapBind f t)
+-- mapBind f (RVar b r)       = RVar (f b) r
+-- mapBind f (RFun b t1 t2 r) = RFun b  (mapBind f t1) (mapBind f t2) r
+-- mapBind f (RApp c ts rs r) = RApp c (mapBind f <$> ts) (mapBindRef f <$> rs) r
+-- mapBind f (RCls c ts)      = RCls c (mapBind f <$> ts)
+-- mapBind f (REx b t1 t2)    = REx  (f b) (mapBind f t1) (mapBind f t2)
+-- mapBind f (ROth so r)      = ROth so r
+-- 
+-- mapBindRef _ (RMono r)     = RMono r
+-- mapBindRef f (RPoly t)     = RPoly $ mapBind f t
 
-mapBindRef _ (RMono r)     = RMono r
-mapBindRef f (RPoly t)     = RPoly $ mapBind f t
 
+txParams f πs t = mapReft (f (txPvar (predMap πs t))) t
 
-txParams subv πs t = mapReft (subv (txPvar (predMap πs t))) t
-
+txPvar :: M.Map Symbol UsedPVar -> UsedPVar -> UsedPVar 
 txPvar m π = π { pargs = args' }
-  where args' = zipWith (\(t,x,_) (_,_,y) -> (t, x, y)) (pargs π') (pargs π)
+  where args' = zipWith (\(_,x ,_) (t,_,y) -> (t, x, y)) (pargs π') (pargs π)
         π'    = M.findWithDefault (errorstar err) (pname π) m
         err   = "Bare.replaceParams Unbound Predicate Variable: " ++ show π
 
@@ -433,9 +442,11 @@ predMap πs t = Ex.assert (M.size xπm == length xπs) xπm
   where xπm = M.fromList xπs
         xπs = [(pname π, π) | π <- πs ++ rtypePredBinds t]
 
-rtypePredBinds t = everything (++) ([] `mkQ` grab) t
-  where grab ((RAllP pv _) :: BRType RPVar RPredicate) = [pv]
-        grab _                                         = []
+rtypePredBinds = map uPVar . snd3 . rsplitVsPs
+
+-- rtypePredBinds t = everything (++) ([] `mkQ` grab) t
+--   where grab ((RAllP pv _) :: BRType RPVar RPredicate) = [pv]
+--         grab _                                         = []
 
 -------------------------------------------------------------------------------
 ------- Checking Specifications Refine Haskell Types --------------------------
@@ -462,14 +473,14 @@ eqType' τ1 τ2
 
 eqShape :: SpecType -> SpecType -> Bool 
 eqShape t1 t2 
-  = eqShape' t1 t2 
+  = eqShape' (toRSort t1) (toRSort t2) 
 
 eqShape' (RAllP _ t) (RAllP _ t') 
   = eqShape t t'
 eqShape' (RAllP _ t) t' 
   = eqShape t t'
 eqShape' (RAllT (a@(RTV α)) t) (RAllT a' t')
-  = eqShape t (subsTyVar_meet (a', TyVarTy α, rVar a) t')
+  = eqShape t (subt (a', rVar α) t') -- (subsTyVar_meet (a', TyVarTy α, rVar a) t')
 eqShape' (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
   = eqShape t1 t1' && eqShape t2 t2'
 eqShape' t@(RApp c ts _ _) t'@(RApp c' ts' _ _)
