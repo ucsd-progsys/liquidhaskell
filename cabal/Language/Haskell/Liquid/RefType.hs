@@ -6,8 +6,8 @@ module Language.Haskell.Liquid.RefType (
     RTyVar (..), RType (..), RRType (..), BRType (..), RTyCon(..)
   , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..), Ref(..)
   , RTAlias (..)
-  , BSort, BPVar, BPredicate, BareType
-  , RSort, RPVar, RPredicate, RefType
+  , BSort, BPVar, BPredicate, BReft, BareType
+  , RSort, RPVar, RPredicate, RReft, RefType
   , PrType, SpecType
   , Predicate (..), UReft(..), DataDecl (..)
   , uReft
@@ -212,7 +212,7 @@ uReft (x, y)    = U (Reft (x, y)) pdTrue
 -------------- (Class) Predicates for Valid Refinement Types -------
 --------------------------------------------------------------------
 
-class (Monoid r, Outputable r) => Reftable r where 
+class (Monoid r, Subable r, Outputable r) => Reftable r where 
   isTauto :: r -> Bool
   ppTy    :: r -> SDoc -> SDoc
   
@@ -231,7 +231,6 @@ class ( Outputable p
       , TyConable c
       , Outputable tv
       , Reftable r
-      , Subable r
       ) => RefTypable p c tv r 
   where
     ppCls    :: p -> [RType p c tv r] -> SDoc
@@ -248,11 +247,11 @@ instance (Monoid a) => Monoid (UReft a b) where
   mempty                    = U mempty mempty
   mappend (U x y) (U x' y') = U (mappend x x') (mappend y y')
 
-instance (RefTypable p c tv r) => Monoid (RType p c tv r) where
+instance (RefTypable p c tv (), RefTypable p c tv r) => Monoid (RType p c tv r) where
   mempty  = error "mempty RefType"
   mappend = strengthenRefType
 
-instance (Reftable r, RefTypable p c tv (UReft r a)) => Monoid (Ref r (RType p c tv (UReft r a))) where
+instance (Reftable r, RefTypable p c tv (), RefTypable p c tv (UReft r a)) => Monoid (Ref r (RType p c tv (UReft r a))) where
 -- instance Monoid (Ref Reft RefType) where
   mempty                        = RMono mempty
   mappend (RMono r1) (RMono r2) = RMono $ r1 `meet` r2
@@ -260,7 +259,7 @@ instance (Reftable r, RefTypable p c tv (UReft r a)) => Monoid (Ref r (RType p c
   mappend (RPoly t) (RMono r)   = RPoly $ t `strengthen` (U r top)
   mappend (RPoly t1) (RPoly t2) = RPoly $ t1 `strengthenRefType` t2
 
-instance (Monoid r, Reftable r, Subable r, RefTypable a b c r) => Monoid (Ref r (RType a b c r)) where
+instance (Monoid r, Reftable r, RefTypable a b c r) => Monoid (Ref r (RType a b c r)) where
   mempty = RMono mempty
   mappend (RMono r1) (RMono r2) = RMono $ mappend r1 r2
   mappend (RMono r) (RPoly t)   = RPoly $ t `strengthen` r
@@ -283,7 +282,7 @@ instance Subable r => Subable (RType p c tv r) where
 
 -- Reftable Instances -------------------------------------------------------
 
-instance Reftable (RType Class RTyCon RTyVar RReft) where
+instance Reftable r => Reftable (RType Class RTyCon RTyVar r) where
   isTauto = isTrivial
   ppTy    = errorstar "ppTy RPoly Reftable" 
 
@@ -301,7 +300,11 @@ instance (Reftable r, Reftable (Predicate t)) => Reftable (UReft r t) where
   isTauto (U r p) = isTauto r && isTauto p 
   ppTy (U r p) d  = ppTy r (ppTy p d) 
 
-instance (Reftable r, RefTypable p c tv r, Subable r) => Reftable (Ref r (RType p c tv r)) where
+instance (Reftable r, RefTypable p c tv r) => Subable (Ref r (RType p c tv r)) where
+  subst su (RMono r) = RMono (subst su r) 
+  subst su (RPoly t) = RPoly (subst su <$> t)
+
+instance (Reftable r, RefTypable p c tv r) => Reftable (Ref r (RType p c tv r)) where
   isTauto (RMono r) = isTauto r
   isTauto (RPoly t) = isTrivial t 
   ppTy (RMono r) d  = ppTy r d
@@ -323,11 +326,11 @@ instance TyConable String where
 
 -- RefTypable Instances -------------------------------------------------------
 
-instance (Outputable p, TyConable c, Reftable r, Subable r) => RefTypable p c String r where
+instance (Outputable p, TyConable c, Reftable r) => RefTypable p c String r where
   ppCls = ppClass_String
   ppRType = ppr_rtype True -- False 
 
-instance (Reftable r, Subable r) => RefTypable Class RTyCon RTyVar r where
+instance (Reftable r) => RefTypable Class RTyCon RTyVar r where
   ppCls = ppClass_ClassPred
   ppRType = ppr_rtype True -- False 
 
@@ -363,7 +366,8 @@ instance Ord RTyCon where
 --------------------------------------------------------------------
 
 rFun b t t' = RFun b t t' top
-rVar        = RVar . rTyVar 
+
+rVar        = (`RVar` top) . RTV 
 rTyVar      = RTV
 
 normalizePds t = addPds ps t'
@@ -397,7 +401,7 @@ nlzP ps t@(ROth _)
 nlzP ps t@(REx _ _ _) 
  = (t, ps) 
 
-strengthenRefType :: RefTypable p c tv r => RType p c tv r -> RType p c tv r -> RType p c tv r
+-- strengthenRefType :: RefTypable p c tv r => RType p c tv r -> RType p c tv r -> RType p c tv r
 strengthenRefType t1 t2 
   | eqt t1 t2 
   = strengthenRefType_ t1 t2
@@ -407,7 +411,7 @@ strengthenRefType t1 t2
               ++ "t2 = " ++ showPpr t2
   where eqt t1 t2 = showPpr (toRSort t1) == showPpr (toRSort t2)
   
-strengthenRefType_ :: RefTypable p c tv r =>RType p c tv r -> RType p c tv r -> RType p c tv r
+-- strengthenRefType_ :: RefTypable p c tv r =>RType p c tv r -> RType p c tv r -> RType p c tv r
 strengthenRefType_ (RAllT a1 t1) (RAllT a2 t2)
   -- | a1 == a2 ? 
   = RAllT a1 $ strengthenRefType_ t1 t2
@@ -590,7 +594,7 @@ instance Outputable RTyCon where
 instance Show RTyCon where
  show = showPpr
 
-ppr_rtype :: (Subable r, RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
+ppr_rtype :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
 
 ppr_rtype bb p t@(RAllT _ _)       
   = ppr_forall bb p t
@@ -615,7 +619,7 @@ ppr_rtype bb p t@(REx _ _ _)
 ppr_rtype _ _ (ROth s)
   = text $ "???-" ++ s 
 
-ppExists :: (Subable r, RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
+ppExists :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
 ppExists bb p t
   = text "exists" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
     where (zs,  t')             = split [] t
@@ -627,7 +631,7 @@ ppReftPs b rs
   | not b          = empty 
   | otherwise      = angleBrackets $ hsep $ punctuate comma $ ppr <$> rs
 
-ppr_dbind :: (Subable r, RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> Symbol -> RType p c tv r -> SDoc
+ppr_dbind :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> Symbol -> RType p c tv r -> SDoc
 ppr_dbind bb p x t 
   | isNonSymbol x 
   = ppr_rtype bb p t
@@ -647,13 +651,13 @@ ppr_dbind bb p x t
 --  | otherwise
 --  = {-braces-} (ppr b) <> colon <> ppr_rtype bb FunPrec t
 
-ppr_fun_tail :: (Subable r, RefTypable p c tv (), RefTypable p c tv r) => Bool -> RType p c tv r -> [SDoc]
+ppr_fun_tail :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> RType p c tv r -> [SDoc]
 ppr_fun_tail bb (RFun b t t' _)  
   = (ppr_dbind bb FunPrec b t) : (ppr_fun_tail bb t')
 ppr_fun_tail bb t
   = [ppr_rtype bb TopPrec t]
 
-ppr_forall :: (Subable r, RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
+ppr_forall :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
 ppr_forall b p t
   = maybeParen p FunPrec $ sep [ppr_foralls vs, ppr_rtype b TopPrec t']
   where
@@ -877,7 +881,7 @@ ofType ::  Reftable r => Type -> RRType r
 ofType = ofType_ . expandTypeSynonyms 
 
 ofType_ (TyVarTy α)     
-  = rVar α top 
+  = rVar α
 ofType_ (FunTy τ τ')    
   = rFun dummySymbol (ofType_ τ) (ofType_ τ') 
 ofType_ (ForAllTy α τ)  
@@ -1075,7 +1079,7 @@ domREnv (REnv env)        = M.keys env
 refTypePredSortedReft (r, τ) = RR so r
   where so = typeSort τ
 
-refTypeSortedReft   ::  RefType -> SortedReft
+-- refTypeSortedReft   ::  RefType -> SortedReft
 refTypeSortedReft t = RR (rTypeSort t) (refTypeReft t)
 
 refTypeReft t = fromMaybe top $ ur_reft <$> stripRTypeBase t

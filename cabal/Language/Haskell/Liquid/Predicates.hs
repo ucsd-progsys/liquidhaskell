@@ -425,7 +425,7 @@ passm = fmap (second (mapReft upred))
 dconTy t = generalize $ dataConTy vps t
   where vs  = tyVars t
         ps  = truePr <$> vs 
-        vps = M.fromList $ zipWith (\v p -> (RTV v, rVar v p)) vs ps
+        vps = M.fromList $ zipWith (\v p -> (RTV v, RVar (RTV v) p)) vs ps
 
 tyVars (ForAllTy v t) = v : (tyVars t)
 tyVars t              = []
@@ -454,7 +454,7 @@ freshTy t
   | isPredTy t
   = return $ freshPredTree $ (classifyPredType t)
 freshTy t@(TyVarTy v) 
-  = liftM (rVar v) (freshPr t)
+  = liftM (RVar (RTV v)) (freshPr t)
 freshTy (FunTy t1 t2) 
   = liftM3 rFun (RB <$> freshSymbol "s") (freshTy t1) (freshTy t2)
 freshTy t@(TyConApp c τs) 

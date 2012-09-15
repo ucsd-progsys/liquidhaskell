@@ -167,7 +167,7 @@ defRefType (Def f dc xs body) = mkArrow as xts t'
 refineWithCtorBody dc f body t = 
   case stripRTypeBase t of 
     Just (Reft (v, _)) ->
-      strengthen t $ uReft (v, [RConc $ bodyPred v body])
+      strengthen t $ Reft (v, [RConc $ bodyPred v body])
     Nothing -> 
       errorstar $ "measure mismatch " ++ showPpr f ++ " on con " ++ showPpr dc
   where bodyPred v (E e) = PAtom Eq (EApp f [EVar v]) e

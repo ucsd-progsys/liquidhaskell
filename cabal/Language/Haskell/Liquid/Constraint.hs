@@ -171,7 +171,7 @@ instance Show CGEnv where
 --  = γ { fenv = F.insertSEnv x r (fenv γ) }
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
-(++=) :: CGEnv-> (String, F.Symbol, RefType) -> CGEnv
+(++=) :: CGEnv-> (String, F.Symbol, SpecType) -> CGEnv
 γ ++= (msg, x, r') 
   | isBase r 
   = γ' { fenv = F.insertSEnv x (refTypeSortedReft r) (fenv γ) }
@@ -182,7 +182,7 @@ instance Show CGEnv where
 
 normalize γ = addRTyConInv (invs γ) . normalizePds
 
--- (+=) :: (CGEnv, String) -> (F.Symbol, RefType) -> CGEnv
+-- (+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CGEnv
 (γ, msg) += (x, r)
   | x == F.dummySymbol
   = γ
@@ -194,7 +194,7 @@ normalize γ = addRTyConInv (invs γ) . normalizePds
 γ -= x 
   =  γ { renv = deleteREnv x (renv γ) } { fenv = F.deleteSEnv x (fenv γ) }
 
-(?=) ::  CGEnv -> F.Symbol -> RefType 
+(?=) ::  CGEnv -> F.Symbol -> SpecType 
 γ ?= x
   = case lookupREnv x (renv γ) of
       Just t  -> t
@@ -211,7 +211,7 @@ setLoc :: CGEnv -> SrcSpan -> CGEnv
 withRecs :: CGEnv -> [Var] -> CGEnv 
 withRecs γ xs = γ { recs = foldl' (flip S.insert) (recs γ) xs }
 
-isGeneric :: RTyVar -> RefType -> Bool
+isGeneric :: RTyVar -> SpecType -> Bool
 isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConstrs t)
   where classConstrs t = [(c, α') | (c, ts) <- getTyClasses t
                                   , t'      <- ts
@@ -220,11 +220,11 @@ isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConst
         isEq           = (eqClassName ==) . className
 
 getTyClasses = everything (++) ([] `mkQ` f)
-  where f ((RCls c ts) :: RefType) = [(c, ts)]
+  where f ((RCls c ts) :: SpecType) = [(c, ts)]
         f _                        = []
 
 getTyVars = everything (++) ([] `mkQ` f)
-  where f ((RVar (RV (α')) _) :: RefType) = [α'] 
+  where f ((RVar (RV (α')) _) :: SpecType) = [α'] 
         f _                               = []
  
 -- isBase :: RType a -> Bool
@@ -232,7 +232,7 @@ isBase (RVar _ _)     = True
 isBase (RApp _ _ _ _) = True
 isBase _              = False
 
-insertFEnvClass :: RefType -> F.FEnv -> F.FEnv
+insertFEnvClass :: SpecType -> F.FEnv -> F.FEnv
 insertFEnvClass (RCls c ts) fenv
   | isNumericClass c
   = foldl' (\env x -> F.insertSEnv x numReft env) fenv numVars
@@ -249,12 +249,12 @@ rTyVarSymbol (RV (RTV α)) = typeUniqueSymbol $ TyVarTy α
 newtype Cinfo = Ci SrcSpan deriving (Eq, Ord, Data, Typeable)
 
 data SubC     = SubC { senv  :: !CGEnv
-                     , lhs   :: !RefType
-                     , rhs   :: !RefType 
+                     , lhs   :: !SpecType
+                     , rhs   :: !SpecType 
                      } deriving (Data, Typeable)
 
 data WfC      = WfC  { wenv  :: !CGEnv
-                     , r     :: !RefType 
+                     , r     :: !SpecType 
                      } 
               | WfCS { wenv  :: !CGEnv
                      , ty    :: !Type
@@ -316,7 +316,7 @@ splitW (WfC γ t@(RApp c ts rs _))
 splitW (WfC _ t) 
   = [] -- errorstar $ "splitW cannot handle: " ++ showPpr t
 
--- bsplitW :: CGEnv -> RefType -> [FixWfC]
+-- bsplitW :: CGEnv -> SpecType -> [FixWfC]
 bsplitW γ t 
   | F.isNonTrivialSortedReft r'
   = [F.WfC env' r' Nothing ci] 
@@ -391,7 +391,7 @@ fieldBinds fts = [(x,t) | (RB x, t) <- fts]
 
 bsplitC γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
-  = [F.SubC γ' F.PTrue (r1' { F.sr_reft = F.trueReft}) r2' Nothing [] ci]
+  = [F.SubC γ' F.PTrue (r1' { F.sr_reft = top {-F.trueReft -}}) r2' Nothing [] ci]
   | F.isNonTrivialSortedReft r2'
   = [F.SubC γ' F.PTrue r1' r2' Nothing [] ci]
   | otherwise
@@ -514,10 +514,10 @@ freshTy_pretty e τ = refresh $ {-traceShow ("exprRefType: " ++ showPpr e) $-} e
 
 freshTy' _ = refresh . ofType 
 
-freshTy :: CoreExpr -> Type -> CG RefType
+freshTy :: CoreExpr -> Type -> CG SpecType
 freshTy = freshTy' 
 
-trueTy  :: Type -> CG RefType
+trueTy  :: Type -> CG SpecType
 trueTy t 
   = do t   <- true $ ofType t
        tyi <- liftM tyConInfo get
@@ -554,7 +554,7 @@ instance Freshable (F.Reft) where
   true    (F.Reft (v, _)) = return $ F.Reft (v, []) 
   refresh (F.Reft (v, _)) = liftM (F.Reft . (v, )) fresh
 
-instance Freshable RefType where
+instance Freshable SpecType where
   fresh   = errorstar "fresh RefType"
   refresh = refreshRefType
   true    = trueRefType 
@@ -564,7 +564,7 @@ trueRefType (RAll α t)
 trueRefType (RFun _ t t' _)    
   = liftM3 rFun fresh (true t) (true t')
 trueRefType (RApp c ts refs _)  
-  = liftM (\ts -> RApp c ts truerefs (F.trueReft)) (mapM true ts)
+  = liftM (\ts -> RApp c ts truerefs top {-F.trueReft-}) (mapM true ts)
 		where truerefs = (RPoly . ofType . ptype) <$> (rTyConPs c)
 trueRefType t                
   = return t
@@ -632,7 +632,7 @@ consBind γ (x, e, Nothing)
 extender γ (x, Just t) = γ ++= ("extender", mkSymbol x, t)
 extender γ _           = γ
 
-varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Maybe RefType)
+varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Maybe SpecType)
 varTemplate γ (x, eo)
   = case (eo, lookupREnv (mkSymbol x) (grtys γ)) of
       (_, Just t) -> return $ Just t
@@ -648,7 +648,7 @@ unifyVar γ x rt = unify (getPrType γ (mkSymbol x)) rt
 -------------------------------------------------------------------
 
 ----------------------- Type Checking -----------------------------
-cconsE :: CGEnv -> Expr Var -> RefType -> CG () 
+cconsE :: CGEnv -> Expr Var -> SpecType -> CG () 
 -------------------------------------------------------------------
 
 cconsE γ (Let b e) t    
@@ -661,7 +661,7 @@ cconsE γ ex@(Case e x τ cases) t
     where nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
 
 cconsE γ (Lam α e) (RAll (RV α') t) | isTyVar α 
-  = cconsE γ e $ subsTyVar_meet' (α', rVar α top) t 
+  = cconsE γ e $ subsTyVar_meet' (α', rVar α) t 
 
 cconsE γ (Lam x e) (RFun (RB y) ty t _) 
   | not (isTyVar x) 
@@ -685,7 +685,7 @@ cconsE γ e t
        addC (SubC γ te t) ("cconsE" ++ showPpr e)
 
 ----------------------- Type Synthesis ----------------------------
-consE :: CGEnv -> Expr Var -> CG RefType 
+consE :: CGEnv -> Expr Var -> CG SpecType 
 -------------------------------------------------------------------
 
 consE γ (Var x)   
@@ -755,7 +755,7 @@ cconsFreshE γ e
        return t
 
 -------------------------------------------------------------------------------------
-cconsCase :: CGEnv -> Var -> RefType -> [AltCon] -> (AltCon, [Var], CoreExpr) -> CG ()
+cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -> CG ()
 -------------------------------------------------------------------------------------
 
 cconsCase γ x t _ (DataAlt c, ys, ce) 
@@ -801,13 +801,13 @@ unfoldR td t0@(RApp tc ts rs _) ys = (t3, yts, rt)
         (t3:yts) = F.subst su <$> (t2:yts')
         su  = F.mkSubst [(x, F.EVar y)| (x, y)<- zip ys0 ys]
 
-takeReft c (RApp _ _ _ a) 
-  | c == nilDataCon || c == consDataCon
-  = a
-  | otherwise
-		= F.trueReft
-takeReft _ _                
-  = F.trueReft
+-- takeReft c (RApp _ _ _ a) 
+--   | c == nilDataCon || c == consDataCon
+--   = a
+--   | otherwise
+--   = top  -- F.trueReft
+-- takeReft _ _                
+--   = top -- F.trueReft
 
 instance Show CoreExpr where
   show = showSDoc . ppr
@@ -921,7 +921,7 @@ instance NFData CGInfo where
 --------------------- Reftypes from Fixpoint Expressions ----------------------
 -------------------------------------------------------------------------------
 
-existentialRefType     :: CGEnv -> RefType -> RefType
+existentialRefType     :: CGEnv -> SpecType -> SpecType
 existentialRefType γ t = withReft t r' 
   where r'             = maybe top (exReft γ) (F.isSingletonReft r)
         r              = F.sr_reft $ refTypeSortedReft t
@@ -939,10 +939,10 @@ withReft t _                 = t
 -------------------- Cleaner Signatures For Rec-bindings ----------------------
 -------------------------------------------------------------------------------
 
-exprRefType :: CoreExpr -> RefType
+exprRefType :: CoreExpr -> SpecType
 exprRefType = exprRefType_ M.empty 
 
-exprRefType_ :: M.Map Var RefType -> CoreExpr -> RefType 
+exprRefType_ :: M.Map Var SpecType -> CoreExpr -> SpecType 
 exprRefType_ γ (Let b e) 
   = exprRefType_ (bindRefType_ γ b) e
 
@@ -976,7 +976,7 @@ extendγ γ xts
 
 type RTyConInv = M.Map RTyCon F.Reft
 
-addRTyConInv :: RTyConInv -> RefType -> RefType
+addRTyConInv :: RTyConInv -> SpecType -> SpecType
 addRTyConInv m t@(RApp c _ _ _) 
   = fromMaybe t (strengthen t <$> M.lookup c m)
 addRTyConInv _ t 

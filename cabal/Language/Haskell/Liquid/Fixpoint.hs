@@ -16,7 +16,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, lookupSEnv
   , insertFEnv 
   , vv
-  , trueReft, trueSortedReft 
+  , trueSortedReft 
   , trueRefa
   , canonReft, exprReft, notExprReft, symbolReft
   , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft
@@ -581,9 +581,6 @@ data Refa
 data Reft
   = Reft (Symbol, [Refa]) 
   deriving (Eq, Ord, Data, Typeable) 
-
--- instance Show Type where
---    show  = showSDoc . ppr
 
 instance Show Reft where
   show (Reft x) = showSDoc $ toFix x 

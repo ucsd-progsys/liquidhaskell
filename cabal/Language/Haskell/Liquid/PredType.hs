@@ -27,10 +27,9 @@ import Pair             (pSnd)
 import FastString       (sLit)
 import Outputable hiding (empty)
 
-import qualified Data.List as L
 import qualified Data.Map  as M
 import qualified Data.Set  as S
-import Data.List  (foldl')
+import Data.List  (partition, foldl')
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint hiding (Expr)
 import Language.Haskell.Liquid.RefType  hiding (generalize)
@@ -41,9 +40,6 @@ import Control.Applicative  ((<$>))
 import Control.DeepSeq
 import Control.Monad.State
 import Data.Data
-
-predType :: RSort 
-predType = ofType $ TyVarTy $ stringTyVar "Pred"
 
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![(PVar RSort)]
@@ -59,7 +55,7 @@ makeTyConInfo = M.mapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
 mkRTyCon tc (TyConP αs' ps) = RTyCon tc pvs'
-  where τs   = TyVarTy <$> TC.tyConTyVars tc
+  where τs   = [rVar α :: RSort |  α <- TC.tyConTyVars tc]
         pvs' = subts (zip αs' τs) <$> ps
 
 dataConPtoPredTy :: DataConP -> PrType
@@ -89,7 +85,7 @@ removeExtPreds (RAllP pv t) = removeExtPreds (substPvar (M.singleton pv pdTrue) 
 removeExtPreds t            = t
 
 dataConTy m (TyVarTy v)            
-  = M.findWithDefault (rVar v pdTrue) (RTV v) m
+  = M.findWithDefault (rVar v) (RTV v) m
 dataConTy m (FunTy t1 t2)          
   = rFun dummySymbol (dataConTy m t1) (dataConTy m t2)
 dataConTy m (ForAllTy α t)          
@@ -144,17 +140,16 @@ splitArgsRes t = ([], t)
 ---------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------
---------------Interfacing: Unify PrType with RefType ----------------------
+--------------Interfacing: Unify PrType with SpecType ---------------------
 ---------------------------------------------------------------------------
 
----------------------------------------------------------------------------
-unify :: Maybe PrType -> RefType -> RefType 
----------------------------------------------------------------------------
-
+unify :: Maybe PrType -> SpecType -> SpecType 
 unify (Just pt) rt  = evalState (unifyS rt pt) S.empty
 unify _         t   = t
 
-unifyS :: RefType -> PrType -> State (S.Set (RPVar)) RefType
+---------------------------------------------------------------------------
+unifyS :: SpecType -> PrType -> State (S.Set RPVar) SpecType 
+---------------------------------------------------------------------------
 
 unifyS (RAllP p t) pt
   = do t' <- unifyS t pt 
@@ -167,7 +162,7 @@ unifyS t (RAllP p pt)
        if (p `S.member` s) then return $ RAllP p t' else return t'
 
 unifyS (RAllT (v@(RTV α)) t) (RAllT v' pt) 
-  = do t'    <- unifyS t $ subsTyVar_meet (v', TyVarTy α, RVar v pdTrue) pt 
+  = do t'    <- unifyS t $ subsTyVar_meet (v', (rVar α) :: RSort, RVar v pdTrue) pt 
        return $ RAllT v t'
 
 unifyS (RFun x rt1 rt2 _) (RFun x' pt1 pt2 _)
@@ -188,13 +183,14 @@ unifyS rt@(RApp c ts rs r) pt@(RApp _ pts ps p)
        return $ RApp c ts' rs' (bUnify r p)
   where fm       = S.fromList $ concatMap pvars (fp:fps) 
         fp : fps = p : (getR <$> ps)
-        rs'      = zipWithZero unifyRef (RMono trueReft) pdTrue rs fps
+        rs'      = zipWithZero unifyRef (RMono top {- trueReft -}) pdTrue rs fps
         msg      = "unifyS " ++ showPpr ps -- (rt, pt)
         getR (RMono r) = r
         getR (RPoly _) = top 
 
 unifyS t1 t2                = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
-bUnify a (Pr pvs)           = foldl' meet a $ pToReft <$> pvs
+
+bUnify a (Pr pvs)        = foldl' meet a $ pToReft <$> pvs
 
 unifyRef (RMono a) (Pr pvs) = RMono $ foldl' meet a $ pToReft <$> pvs
 unifyRef (RPoly a) (Pr pvs) = RPoly $ foldl' strengthen a $ pToReft <$> pvs
@@ -204,36 +200,37 @@ zipWithZero f xz yz []     (y:ys) = (f xz y):(zipWithZero f xz yz [] ys)
 zipWithZero f xz yz (x:xs) []     = (f x yz):(zipWithZero f xz yz xs [])
 zipWithZero f xz yz (x:xs) (y:ys) = (f x y) :(zipWithZero f xz yz xs ys)
  
-pToReft p = Reft (vv, [RPvar p]) 
+-- pToReft p = Reft (vv, [RPvar p]) 
+pToReft = U top . pdVar 
+
 
 ----------------------------------------------------------------------------
 ---------- Interface: Replace Predicate With Type  -------------------------
 ----------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
-replacePreds :: String -> RefType -> [(RPVar, Ref Reft RefType)] -> RefType
+replacePreds :: String -> SpecType -> [(RPVar, Ref Reft SpecType)] -> SpecType 
 -------------------------------------------------------------------------------
+
 replacePreds msg = foldl' (flip (replacePred msg)) 
 
+replacePred :: String -> (RPVar, Ref Reft SpecType) -> SpecType -> SpecType
 replacePred msg (p, RPoly t) = substPred msg True (p, t)
 replacePred msg (p, RMono r) = fmap (replacePVarReft (p, r))
 
-substPredP :: Bool -> (RPVar, RefType) -> (Ref Reft RefType) -> (Ref Reft RefType)
-substPredP b pt (RPoly t) = RPoly $ substPred "substPredP" b pt t
-substPredP b pt@(p, _) (RMono r) = error "RMono found in substPredP"
 
+substPred :: String -> Bool -> (RPVar, SpecType) -> SpecType -> SpecType
 substPred msg m pv@(p, RVar a1 r1) t@(RVar a2 r2)
-  | ispInr2 && a1 == a2
-  = if m then RVar a1 ((subst su r1) `mymeet` r2') else RVar a1 r1
+  | p `isPredInReft` r2 && a1 == a2
+  = if m then RVar a1 ((subst su r1) `meet` r2') else RVar a1 r1
+  | p `isPredInReft` r2 
+  = error ("substPred RVar var mismatch" ++ show (pv, t))
   | otherwise
-  = if ispInr2 
-     then error ("substPred RVar var mismatch" ++ show (pv, t))
-          else t
-  where (r2', su) = rmKVarReft p r2
-        ispInr2   = p `isPredIn` r2
+  = t
+  where (r2', su) = rmRPVarReft p r2
 
 substPred msg m pt@(p, tp) t@(RApp c ts rs r)
-  | p `isPredIn` r
+  | p `isPredInReft` r
   = if m then substRCon msg pt rcon else tp
   | otherwise 
   = rcon
@@ -243,18 +240,18 @@ substPred msg m (p, tp) (RAllP (q@(PV _ _ _)) t)
   = RAllP q $ if (p /= q) then (substPred msg m (p, tp) t) else t
 substPred msg m pt (RAllT a t) = RAllT a (substPred msg m pt t)
 substPred msg m pt@(p, tp) (RFun x t t' r) 
-  | p `isPredIn` r
+  | p `isPredInReft` r
   = meet (RFun x t t' r') (fmap (subst su) tp)
   | otherwise 
   = RFun x (substPred msg m pt t) (substPred msg m pt t') r
-  where (r', su) = rmKVarReft p r
+  where (r', su) = rmRPVarReft p r
 substPred msg m pt (RCls c ts) = RCls c (substPred msg m pt <$> ts)
 substPred msg m pt t = t
 
 substRCon msg (p, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2) 
   | rTyCon c1 == rTyCon c2
-  =  RApp c1 ts rs $ r2' `mymeet` (addS r1)
-  where (r2', su) = rmKVarReft p r2
+  =  RApp c1 ts rs $ r2' `meet` (addS r1)
+  where (r2', su) = rmRPVarReft p r2
         ts = safeZipWith (msg ++ ": substRCon") (flip strSub) ts1 ts2
         rs = safe0ZipWith (msg ++ ": substRcon2") (flip strSubR) rs1 rs2
         addS r         = subst su r
@@ -264,14 +261,39 @@ substRCon msg (p, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2)
 
 substRCon msg pt t = error $ msg ++ " substRCon " ++ show (pt, t)
 
-mymeet x y = meet x y
-isPredIn = isPredInReft
+-- substPredP :: Bool -> (RPVar, RefType) -> (Ref Reft RefType) -> (Ref Reft RefType)
+substPredP b pt (RPoly t) = RPoly $ substPred "substPredP" b pt t
+substPredP b pt@(p, _) (RMono r) = error "RMono found in substPredP"
 
-rmKVarReft = rmRPVarReft
+
+isPredInReft pv (U _ (Pr pvs)) = any (eqPvar pv) pvs 
+
+rmRPVarReft pv (U x (Pr pvs)) = (U x (Pr pvs'), su)
+  where (epvs, pvs') = partition (eqPvar pv)  pvs
+        su           = case (predArgsSubst . pargs) <$> epvs of
+                         [su] -> su
+                         _    -> error "Fixpoint.rmRPVarReft"
+
+eqPvar pv1 pv2 = pname pv1 == pname pv2
+
+-- PREDARGS: This substitution makes no sense to me. They are the WRONG args. 
+-- Use n2's ...?
+replacePVarReft (pv, (Reft (_, ras'))) z@(U (Reft(v, ras)) (Pr pvs)) 
+  | length pvs' == length pvs
+  = z
+  | otherwise
+  = U (Reft (v, ras'')) (Pr pvs')
+  where pvs'  = filter (not . eqPvar pv)  pvs 
+        ras'' = map (subst (predArgsSubst (pargs pv))) ras'
+  
+predArgsSubst = mkSubst . map (\(_, s1, s2) -> (s1, EVar s2)) 
 
 ----------------------------------------------------------------------------
 ---------- Interface: Modified CoreSyn.exprType due to predApp -------------
 ----------------------------------------------------------------------------
+
+predType :: Type 
+predType = TyVarTy $ stringTyVar "Pred"
 
 ----------------------------------------------------------------------------
 exprType :: CoreExpr -> Type
@@ -344,38 +366,37 @@ lookupP s p@(PV _ _ s')
 
 {-
   -- Related to PVar
-  , isPredInReft, rmRPVar, rmRPVarReft, replacePVarReft
+  , isPredInReft, rmRPVar, rmRPVarReft
+  , replacePVarReft
  
-isPredInReft p (Reft(_, ls)) = or (isPredInRefa p <$> ls)
-isPredInRefa p (RPvar p')    = isSamePvar p p'
-isPredInRefa _ _             = False
+--replaceRPvarRefa (PV n1 _ args) (Reft (_, ras)) (PV n2 _ _)
+--  | n1 == n2
+--  = map (subst (predArgsSubst args)) ras
+--  | otherwise
+--  = ras
+--replaceRPvarRefa _ r = [r]
+-
+-- rmRPVar s r = fst $ rmRPVarReft s r
 
-isSamePvar (PV s1 _ _) (PV s2 _ _) = s1 == s2
+-- isPredInReft p (Reft(_, ls)) = or (isPredInRefa p <$> ls)
+-- isPredInRefa p (RPvar p')    = isSamePvar p p'
+-- isPredInRefa _ _             = False
+-- isSamePvar (PV s1 _ _) (PV s2 _ _) = s1 == s2
+--
+-- rmRPVarReft s (Reft(v, ls)) = (Reft(v, ls'), su)
+--   where (l, s1) = unzip $ map (rmRPVarRefa s) ls
+--         ls' = catMaybes l
+--         su = case catMaybes s1 of {[su'] -> su'; _ -> error "Fixpoint.rmRPVarReft"}
+--
+-- rmRPVarRefa (PV s1 _ _) r@(RPvar (PV s2 _ a2))
+--   | s1 == s2
+--   = (Nothing, Just $ predArgsSubst a2)
+--   | otherwise
+--   = (Just r, Nothing) 
+-- 
+-- rmRPVarRefa _ r
+--   = (Just r, Nothing)
 
-replacePVarReft (p, r) (Reft(v, rs)) 
-  = Reft(v, concatMap (replaceRPvarRefa (RPvar p, r)) rs)
 
-replaceRPvarRefa (RPvar(PV n1 _ ar), Reft(_, rs)) (RPvar (PV n2 _ _))
-  | n1 == n2
-  = map (subst (pArgsToSub ar)) rs
-  | otherwise
-  = rs
-replaceRPvarRefa _ r = [r]
-
-rmRPVar s r = fst $ rmRPVarReft s r
-rmRPVarReft s (Reft(v, ls)) = (Reft(v, ls'), su)
-  where (l, s1) = unzip $ map (rmRPVarRefa s) ls
-        ls' = catMaybes l
-        su = case catMaybes s1 of {[su'] -> su'; _ -> error "Fixpoint.rmRPVarReft"}
-
-rmRPVarRefa (PV s1 _ _) r@(RPvar (PV s2 _ a2))
-  | s1 == s2
-  = (Nothing, Just $ pArgsToSub a2)
-  | otherwise
-  = (Just r, Nothing) 
-rmRPVarRefa _ r
-  = (Just r, Nothing)
-
-pArgsToSub a = mkSubst $ map (\(_, s1, s2) -> (s1, EVar s2)) a
 
 -}
