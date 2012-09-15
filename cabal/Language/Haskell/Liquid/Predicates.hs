@@ -31,8 +31,9 @@ import qualified Language.Haskell.Liquid.Fixpoint as F
 
 import Control.Monad.State
 import Control.Applicative      ((<$>))
-import qualified Data.Map as M
+import qualified Data.Map  as M
 import qualified Data.List as L
+import qualified Data.Set  as S
 import Data.Bifunctor
 import Data.List (foldl')
 import Control.DeepSeq
@@ -127,16 +128,16 @@ rmTs = filter rmT
 
 
 
-tyC (RAll (RP _) t1) t2 
+tyC (RAllP _ t1) t2 
   = tyC t1 t2
 
-tyC t1 (RAll (RP _) t2) 
+tyC t1 (RAllP _ t2) 
   = tyC t1 t2
 
-tyC (RAll (RV α1) t1) (RAll (RV α2) t2) 
-  = tyC (subsTyVars_meet' [(α1, RVar (RV α2) pdTrue)] t1) t2
+tyC (RAllT α1 t1) (RAllT α2 t2) 
+  = tyC (subsTyVars_meet' [(α1, RVar α2 top)] t1) t2
 
-tyC (RVar (RV v1) p1) (RVar (RV v2) p2)
+tyC (RVar v1 p1) (RVar v2 p2)
   = do modify $ \(ps, msg) -> ((p2, p1):ps, msg)
        return $ v1 == v2
 
@@ -148,7 +149,7 @@ tyC (RApp c1 ts1 ps1 p1) (RApp c2 ts2 ps2 p2)
 tyC (RCls c1 _) (RCls c2 _) 
   = return $ c1 == c2
 
-tyC (RFun (RB x) t1 t2 p1) (RFun (RB x') t1' t2' p2)
+tyC (RFun x t1 t2 p1) (RFun x' t1' t2' p2)
   = do modify $ \(ps, msg) -> ((p2, p1):ps, msg)
        b1 <- tyC t1 t1'
        b2 <- tyC (substParg (x, x') t2) t2'
@@ -181,23 +182,23 @@ consE _ e@(Lit c)
    where τ = exprType e
 
 consE γ (App e (Type τ)) 
-  = do RAll (RV α) te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
+  = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
        return $ subsTyVars_meet' [(α, ofType τ)]  te
 
 consE γ (App e a)               
-  = do RFun (RB x) tx t _ <- liftM (checkFun ("PNon-fun App with caller", e)) $ consE γ e 
+  = do RFun x tx t _ <- liftM (checkFun ("PNon-fun App with caller", e)) $ consE γ e 
        cconsE γ a tx 
        case argExpr a of 
          Just e  -> return $ {-traceShow "App" $-} (x, e) `substParg` t
          Nothing -> error $ "consE: App crashes on" ++ showPpr a 
 
 consE γ (Lam α e) | isTyVar α 
-  = liftM (RAll (rTyVar α)) (consE γ e) 
+  = liftM (RAllT (rTyVar α)) (consE γ e) 
 
 consE γ  e@(Lam x e1) 
   = do tx     <- freshTy τx 
        t1     <- consE (γ += (mkSymbol x, tx)) e1
-       return $ rFun (RB (mkSymbol x)) tx t1
+       return $ rFun (mkSymbol x) tx t1
     where FunTy τx _ = exprType e 
 
 consE γ e@(Let _ _)       
@@ -234,10 +235,10 @@ cconsE γ (Case e x τ cases) t
   = do γ'  <- consCB' γ $ NonRec x e
        forM_ cases $ cconsCase γ' x t
 
-cconsE γ (Lam α e) (RAll (RV _) t) | isTyVar α
+cconsE γ (Lam α e) (RAllT _ t) | isTyVar α
   = cconsE γ e t
 
-cconsE γ (Lam x e) (RFun (RB y) ty t _) 
+cconsE γ (Lam x e) (RFun y ty t _) 
   | not (isTyVar x) 
   = do cconsE (γ += (mkSymbol x, ty)) e te 
        addId y (mkSymbol x)
@@ -281,18 +282,18 @@ unfold tc t              x  = error $ "unfold" ++ {-(showSDoc (ppr x)) ++-} " : 
 --         tc''         = subsTyVars_meet' (zip vs ts) tc' 
 -- unfold tc t              x  = error $ "unfold" ++ {-(showSDoc (ppr x)) ++-} " : " ++ show t
 
-splitC (SubC γ (RAll (RV _) t1) (RAll (RV _) t2))
+splitC (SubC γ (RAllT _ t1) (RAllT _ t2))
   = splitC (SubC γ t1 t2)
 
-splitC (SubC γ (RAll (RP _) t1) (RAll (RP _) t2))
+splitC (SubC γ (RAllP _ t1) (RAllP _ t2))
   = splitC (SubC γ t1 t2)
 
-splitC (SubC γ (RFun (RB x1) t11 t12 p1) (RFun (RB x2) t21 t22 p2))
+splitC (SubC γ (RFun x1 t11 t12 p1) (RFun x2 t21 t22 p2))
   = [splitBC p1 p2] ++ splitC (SubC γ t21 t11) ++ splitC (SubC γ' t12' t22)
     where t12' = (x1, x2) `substParg` t12
           γ'   = γ += (x2, t21)
 
-splitC (SubC γ (RVar (RV a) p1) (RVar (RV a2) p2))        -- UNIFY: Check a == a2?
+splitC (SubC γ (RVar a p1) (RVar a2 p2))        -- UNIFY: Check a == a2?
   = [splitBC p1 p2]
 
 splitC (SubC γ (RApp c1 ts1 ps1 p1) (RApp c2 ts2 ps2 p2)) -- UNIFY: Check c1 == c2?
@@ -305,7 +306,7 @@ splitC t@(SubC _ t1 t2)
 
 -- UNIFYHERE1: Make output [(PVar t, Predicate t)]
 splitBC (Pr []) (Pr []) = []
-splitBC (Pr []) p2      = [(p2, pdTrue)] 
+splitBC (Pr []) p2      = [(p2, top)] 
 splitBC p1      p2      = [(p1, p2)]
 
 addC c@(SubC _ t1 t2) = modify $ \s -> s {hsCsP = c : (hsCsP s)}
@@ -400,7 +401,7 @@ updateSubst m (p, p') = foldl' (\m (k, v) -> M.insert k v m) m binds
 unifyVars (Pr v1s) (Pr v2s) = (v1s L.\\ vs, v2s L.\\ vs) 
   where vs  = L.intersect v1s v2s
 
-unifiers ([], vs') = [(v', pdTrue) | v' <- vs']
+unifiers ([], vs') = [(v', top) | v' <- vs']
 unifiers (vs, vs') = [(v , Pr vs')      | v  <- vs ]
 
 splitCons :: PI () 
@@ -445,16 +446,16 @@ freshInt = do pi <- get
 
 stringSymbol  = F.S
 freshSymbol s = stringSymbol . (s++) . show <$> freshInt
-freshPr a     = (\sy -> pdVar (F.PV sy a [])) <$> (freshSymbol "p")
-truePr _      = pdTrue
+freshPr a     = (\sy -> pdVar (PV sy a [])) <$> (freshSymbol "p")
+truePr _      = top
 
-freshPrAs p = (\n -> pdVar $ p {F.pname = n}) <$> freshSymbol "p"
+freshPrAs p = (\n -> pdVar $ p {pname = n}) <$> freshSymbol "p"
 
 refreshTy t 
   = do fps <- mapM freshPrAs ps
        return $ substPvar (M.fromList (zip ps fps)) <$> t''
    where (vs, ps, t') = bkUniv t
-         t''          = typeAbsVsPs t' vs []
+         t''          = mkUnivs vs [] t' 
 
 freshTy t 
   | isPredTy t
@@ -462,7 +463,7 @@ freshTy t
 freshTy t@(TyVarTy v) 
   = liftM (RVar (RTV v)) (freshPr t)
 freshTy (FunTy t1 t2) 
-  = liftM3 rFun (RB <$> freshSymbol "s") (freshTy t1) (freshTy t2)
+  = liftM3 rFun (freshSymbol "s") (freshTy t1) (freshTy t2)
 freshTy t@(TyConApp c τs) 
   | TyCon.isSynTyCon c
   = freshTy $ substTyWith αs τs τ
@@ -470,7 +471,7 @@ freshTy t@(TyConApp c τs)
 freshTy t@(TyConApp c τs) 
   = liftM3 (rApp c) (mapM freshTy τs) (freshTyConPreds c τs) (return (truePr t)) 
 freshTy (ForAllTy v t) 
-  = liftM (RAll (rTyVar v)) (freshTy t) 
+  = liftM (RAllT (rTyVar v)) (freshTy t) 
 freshTy t
   = error "freshTy"
 
@@ -488,8 +489,8 @@ freshTyConPreds c ts
 checkFun _ t@(RFun _ _ _ _) = t
 checkFun x t                = error $ showPpr x ++ "type: " ++ showPpr t
 
-checkAll _ t@(RAll (RV _) _) = t
-checkAll x t                 = error $ showPpr x ++ "type: " ++ showPpr t
+checkAll _ t@(RAllT _ _)    = t
+checkAll x t                = error $ showPpr x ++ "type: " ++ showPpr t
 
 γ `putLoc` src
   | isGoodSrcSpan src = γ { loc = src } 
@@ -533,7 +534,7 @@ lookupP s pv
       Nothing -> pdVar pv
       Just p' -> subvPredicate (\pv' -> pv' { pargs = pargs pv }) p'
     
-removeExtPreds (RAllP pv t) = removeExtPreds (substPvar (M.singleton pv pdTrue) <$> t) 
+removeExtPreds (RAllP pv t) = removeExtPreds (substPvar (M.singleton pv top) <$> t) 
 removeExtPreds t            = t
 
 

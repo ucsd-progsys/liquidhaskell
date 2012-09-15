@@ -1,6 +1,8 @@
 TODO
 ====
 
+* remove dependency on Bifunctor 
+
 * existentials
 * benchmarks: Data.List (foldr)
 * predicate-aliases 
