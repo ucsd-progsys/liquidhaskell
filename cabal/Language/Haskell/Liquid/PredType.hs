@@ -3,11 +3,9 @@ module Language.Haskell.Liquid.PredType (
     PrType
   , TyConP (..), DataConP (..)
   , splitVsPs, typeAbsVsPs, splitArgsRes
-  , generalize, generalizeArgs
   , dataConTy, dataConPtoPredTy, makeTyConInfo
-  , removeExtPreds
   , unify, replacePreds, exprType, predType
-  , substParg, substPvar
+  , substParg
   ) where
 
 import PprCore          (pprCoreExpr)
@@ -81,9 +79,6 @@ instance Outputable DataConP where
 instance Show DataConP where
  show = showSDoc . ppr
 
-removeExtPreds (RAllP pv t) = removeExtPreds (substPvar (M.singleton pv pdTrue) <$> t) 
-removeExtPreds t            = t
-
 dataConTy m (TyVarTy v)            
   = M.findWithDefault (rVar v) (RTV v) m
 dataConTy m (FunTy t1 t2)          
@@ -98,25 +93,7 @@ dataConTy m (TyConApp c ts)
 dataConTy _ t
   = error "ofTypePAppTy"
 
-generalize     = generalize_ freePreds
-generalizeArgs = generalize_ freeArgPreds
 
-generalize_ f t = typeAbsVsPs t' vs ps
-  where (vs, ps', t') = splitVsPs t
-        ps            = (S.toList (f t)) ++ ps'
-
-freeArgPreds (RFun _ t1 t2 _) = freePreds t1 -- RJ: UNIFY What about t2?
-freeArgPreds (RAllT _ t)      = freeArgPreds t
-freeArgPreds (RAllP _ t)      = freeArgPreds t
-freeArgPreds t                = freePreds t
-
--- freePreds :: PrType -> S.Set (RPredicate)
-freePreds (RVar _ p)       = S.fromList $ pvars p
-freePreds (RAllT _ t)      = freePreds t 
-freePreds (RAllP p t)      = S.delete p $ freePreds t 
-freePreds (RCls _ ts)      = foldl' (\z t -> S.union z (freePreds t)) S.empty ts
-freePreds (RFun _ t1 t2 _) = S.union (freePreds t1) (freePreds t2)
-freePreds (RApp _ ts ps p) = unions ((S.fromList (concatMap pvars (p:((fromRMono "freePreds") <$> ps)))) : (freePreds <$> ts))
 
 showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
@@ -148,18 +125,18 @@ unify (Just pt) rt  = evalState (unifyS rt pt) S.empty
 unify _         t   = t
 
 ---------------------------------------------------------------------------
-unifyS :: SpecType -> PrType -> State (S.Set RPVar) SpecType 
+unifyS :: SpecType -> PrType -> State (S.Set UsedPVar) SpecType 
 ---------------------------------------------------------------------------
 
 unifyS (RAllP p t) pt
   = do t' <- unifyS t pt 
        s  <- get
-       if (p `S.member` s) then return $ RAllP p t' else return t'
+       if (uPVar p `S.member` s) then return $ RAllP p t' else return t'
 
 unifyS t (RAllP p pt)
   = do t' <- unifyS t pt 
        s  <- get
-       if (p `S.member` s) then return $ RAllP p t' else return t'
+       if (uPVar p `S.member` s) then return $ RAllP p t' else return t'
 
 unifyS (RAllT (v@(RTV α)) t) (RAllT v' pt) 
   = do t'    <- unifyS t $ subsTyVar_meet (v', (rVar α) :: RSort, RVar v pdTrue) pt 
@@ -346,19 +323,10 @@ applyTypeToArgs e op_ty (p : args)
 panic_msg :: CoreExpr -> Type -> SDoc
 panic_msg e op_ty = pprCoreExpr e $$ ppr op_ty
 
-substPvar :: M.Map RPVar RPredicate -> RPredicate -> RPredicate 
-substPvar s = (\(Pr πs) -> pdAnd (lookupP s <$> πs))
-
-substParg :: Functor f =>(Symbol, Symbol) -> f (Predicate ty) -> f (Predicate ty)
+substParg :: Functor f => (Symbol, Symbol) -> f Predicate -> f Predicate
 substParg (x, y) = fmap fp  -- RJ: UNIFY: BUG  mapTy fxy
   where fxy s = if (s == x) then y else s
         fp    = subvPredicate (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
-
-lookupP ::  M.Map (PVar t) (Predicate t) -> PVar t -> Predicate t
-lookupP s p@(PV _ _ s')
-  = case M.lookup p s of 
-      Nothing  -> Pr [p]
-      Just q   -> subvPredicate (\pv -> pv { pargs = s'}) q
 
 ------------------------------------------------------------------------------
 -- RIPPING PredVar Stuff out of Fixpoint
@@ -396,7 +364,5 @@ lookupP s p@(PV _ _ s')
 -- 
 -- rmRPVarRefa _ r
 --   = (Just r, Nothing)
-
-
 
 -}

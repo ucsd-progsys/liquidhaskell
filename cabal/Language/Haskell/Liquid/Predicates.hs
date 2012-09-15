@@ -488,3 +488,46 @@ checkAll x t                 = error $ showPpr x ++ "type: " ++ showPpr t
 γ `putLoc` src
   | isGoodSrcSpan src = γ { loc = src } 
   | otherwise = γ
+
+-- | Generalize free used predicates. 
+-- Requires an environment of predicate definitions.
+
+generalize     = generalize_ freePreds
+generalizeArgs = generalize_ freeArgPreds
+
+generalize_ f t = typeAbsVsPs t' vs ps
+  where (vs, ps', t') = splitVsPs t
+        ps            = S.toList (f t) ++ ps'
+
+freeArgPreds (RFun _ t1 t2 _) = freePreds t1 -- RJ: UNIFY What about t2?
+freeArgPreds (RAllT _ t)      = freeArgPreds t
+freeArgPreds (RAllP _ t)      = freeArgPreds t
+freeArgPreds t                = freePreds t
+
+-- freePreds :: PrType -> S.Set (Predicate)
+freePreds (RVar _ p)       = S.fromList $ pvars p
+freePreds (RAllT _ t)      = freePreds t 
+freePreds (RAllP p t)      = S.delete (uPVar p) $ freePreds t 
+freePreds (RCls _ ts)      = foldl' (\z t -> S.union z (freePreds t)) S.empty ts
+freePreds (RFun _ t1 t2 _) = S.union (freePreds t1) (freePreds t2)
+freePreds (RApp _ ts ps p) = unions ((S.fromList (concatMap pvars (p:((fromRMono "freePreds") <$> ps)))) : (freePreds <$> ts))
+
+
+-- substPvar :: M.Map RPVar Predicate -> Predicate -> Predicate 
+substPvar s = (\(Pr πs) -> pdAnd (lookupP s <$> πs))
+
+-- lookupP ::  M.Map (PVar a) Predicate -> PVar b -> Predicate
+-- lookupP s p@(PV _ _ s')
+--   = case M.lookup p s of 
+--       Nothing  -> Pr [p]
+--       Just q   -> subvPredicate (\pv -> pv { pargs = s'}) q
+
+lookupP s pv 
+  = case M.lookup pv s of 
+      Nothing -> pdVar pv
+      Just p' -> subvPredicate (\pv' -> pv' { pargs = pargs pv }) p'
+    
+removeExtPreds (RAllP pv t) = removeExtPreds (substPvar (M.singleton pv pdTrue) <$> t) 
+removeExtPreds t            = t
+
+

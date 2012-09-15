@@ -6,13 +6,11 @@ module Language.Haskell.Liquid.RefType (
     RTyVar (..), RType (..), RRType (..), BRType (..), RTyCon(..)
   , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..), Ref(..)
   , RTAlias (..)
-  , BSort, BPVar, BPredicate, BReft, BareType
-  , RSort, RPVar, RPredicate, RReft, RefType
+  , BSort, BareType, RSort, UsedPVar, RPVar, RReft, RefType
   , PrType, SpecType
   , PVar (..) , Predicate (..), UReft(..), DataDecl (..)
-  , uReft
+  , uReft, uPVar
   , pdAnd, pdVar, pdTrue, pvars
-  -- , dummyBind, isDummyBind
   , ppr_rtype, mapReft, mapReftM, mapBot
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp, rFun
@@ -48,7 +46,6 @@ import Name             (getSrcSpan, getOccString, mkInternalName)
 import Unique           (getUnique)
 import Literal
 import Type             (isPredTy, mkTyConTy, liftedTypeKind, substTyWith, classifyPredType, PredTree(..), predTreePredType)
--- import TysPrim          (intPrimTyCon)
 import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon, eqDataCon, ltDataCon, gtDataCon)
 
 import Data.Monoid      hiding ((<>))
@@ -102,15 +99,15 @@ instance (NFData a) => NFData (PVar a) where
 ------------------ Predicates --------------------------------------
 --------------------------------------------------------------------
 
-newtype Predicate t = Pr [PVar t] deriving (Data, Typeable)
+type UsedPVar      = PVar ()
+newtype Predicate  = Pr [UsedPVar] deriving (Data, Typeable) 
 
 pdTrue         = Pr []
 pdVar v        = Pr [v]
 pvars (Pr pvs) = pvs
 pdAnd ps       = Pr (concatMap pvars ps)
 
--- UNIFY: Why?!
-instance Eq (Predicate a) where
+instance Eq Predicate where
   (==) = eqpd
 
 eqpd (Pr vs) (Pr ws) 
@@ -118,17 +115,14 @@ eqpd (Pr vs) (Pr ws)
     where vs' = sort vs
           ws' = sort ws
 
-instance Functor Predicate where
-  fmap f (Pr pvs) = Pr (fmap f <$> pvs)
-
-instance (Outputable (PVar t)) => Outputable (Predicate t) where
+instance Outputable Predicate where
   ppr (Pr [])       = text "True"
   ppr (Pr pvs)      = hsep $ punctuate (text "&") (map ppr pvs)
 
-instance Outputable (Predicate t) => Show (Predicate t) where
+instance Show Predicate where
   show = showPpr 
 
-instance Outputable (PVar t) => Reftable (Predicate t) where
+instance Reftable Predicate where
   isTauto (Pr ps)      = null ps
   ppTy r d | isTauto r = d 
            | otherwise = d <> (angleBrackets $ ppr r)
@@ -137,8 +131,7 @@ instance Outputable REnv where
   ppr (REnv m)         = vcat $ map pprxt $ M.toAscList m
     where pprxt (x, t) = ppr x <> dcolon <> ppr t  
 
-
-instance NFData (Predicate a) where
+instance NFData Predicate where
   rnf _ = ()
 
 instance NFData PrType where
@@ -150,12 +143,6 @@ instance NFData RTyVar where
 --------------------------------------------------------------------
 ---- Unified Representation of Refinement Types --------------------
 --------------------------------------------------------------------
-
--- data Bind tv pv = RB Symbol | RV tv | RP pv 
---   deriving (Data, Typeable)
-
--- dummyBind      = RB dummySymbol
--- isDummyBind    = (==) dummyBind
 
 data RType p c tv r
   = RVar { 
@@ -206,8 +193,8 @@ data Ref s m
   | RPoly m
   deriving (Data, Typeable)
 
-data UReft r t 
-  = U { ur_reft :: !r, ur_pred :: !(Predicate t)}
+data UReft r
+  = U { ur_reft :: !r, ur_pred :: !Predicate }
   deriving (Data, Typeable)
 
 type BRType     = RType String String String   
@@ -215,26 +202,19 @@ type RRType     = RType Class  RTyCon RTyVar
 
 type BSort      = BRType    ()
 type RSort      = RRType    ()
-type RPVar      = PVar      RSort
-type BPVar      = PVar      BSort
-type RPredicate = Predicate RSort
-type BPredicate = Predicate BSort
 
-type PrType     = RRType    (Predicate RSort) 
-type BareType   = BRType    BReft
+type RPVar      = PVar      RSort
+
+type RReft      = UReft     Reft 
+type PrType     = RRType    Predicate
+type BareType   = BRType    RReft
 type SpecType   = RRType    RReft 
 type RefType    = RRType    Reft
 
-
-type RReft      = UReft Reft RSort
-type BReft      = UReft Reft BSort
-
-
-uReft           ::  (Symbol, [Refa]) -> UReft Reft t
+uReft           ::  (Symbol, [Refa]) -> UReft Reft 
 uReft (x, y)    = U (Reft (x, y)) pdTrue
 
-
-
+uPVar           = fmap (const ())
 --------------------------------------------------------------------
 -------------- (Class) Predicates for Valid Refinement Types -------
 --------------------------------------------------------------------
@@ -266,11 +246,11 @@ class ( Outputable p
 
 -- Monoid Instances ---------------------------------------------------------
 
-instance Monoid (Predicate t) where
+instance Monoid Predicate where
   mempty       = pdTrue
   mappend p p' = pdAnd [p, p']
 
-instance (Monoid a) => Monoid (UReft a b) where
+instance (Monoid a) => Monoid (UReft a) where
   mempty                    = U mempty mempty
   mappend (U x y) (U x' y') = U (mappend x x') (mappend y y')
 
@@ -278,8 +258,7 @@ instance (RefTypable p c tv (), RefTypable p c tv r) => Monoid (RType p c tv r) 
   mempty  = error "mempty RefType"
   mappend = strengthenRefType
 
-instance (Reftable r, RefTypable p c tv (), RefTypable p c tv (UReft r a)) => Monoid (Ref r (RType p c tv (UReft r a))) where
--- instance Monoid (Ref Reft RefType) where
+instance (Reftable r, RefTypable p c tv (), RefTypable p c tv (UReft r)) => Monoid (Ref r (RType p c tv (UReft r))) where
   mempty                        = RMono mempty
   mappend (RMono r1) (RMono r2) = RMono $ r1 `meet` r2
   mappend (RMono r) (RPoly t)   = RPoly $ t `strengthen` (U r top)
@@ -298,10 +277,10 @@ instance (Monoid r, Reftable r, RefTypable a b c r) => Monoid (Ref r (RType a b 
 instance Subable () where
   subst _ () = ()
 
-instance Subable r => Subable (UReft r t) where
+instance Subable r => Subable (UReft r) where
   subst s (U r z) = U (subst s r) z
 
-instance Subable (Predicate t) where
+instance Subable Predicate where
   subst _ = id 
 
 instance Subable r => Subable (RType p c tv r) where
@@ -323,7 +302,7 @@ instance Reftable () where
   top       = ()
   meet _ _  = ()
 
-instance (Reftable r, Reftable (Predicate t)) => Reftable (UReft r t) where
+instance (Reftable r) => Reftable (UReft r) where
   isTauto (U r p) = isTauto r && isTauto p 
   ppTy (U r p) d  = ppTy r (ppTy p d) 
 
@@ -584,13 +563,13 @@ instance (Reftable s, Outputable p) => Outputable (Ref s p) where
   ppr (RMono s) = ppr s
   ppr (RPoly p) = ppr p
 
-instance (Reftable r, Reftable (Predicate t)) => Outputable (UReft r t) where
+instance (Reftable r) => Outputable (UReft r) where
   ppr (U r p)
     | isTauto r  = ppr p
     | isTauto p  = ppr r
     | otherwise  = ppr p <> text " & " <> ppr r
 
-instance Outputable (UReft r t) => Show (UReft r t) where
+instance Outputable (UReft r) => Show (UReft r) where
   show = showSDoc . ppr 
 
 instance Outputable (PVar t) where
@@ -703,9 +682,9 @@ ppr_foralls bs = text "forall" <+> dαs [ α | Left α <- bs] <+> dπs [ π | Ri
 --------------------------- Visitors --------------------------
 ---------------------------------------------------------------
 
-instance Bifunctor UReft where
-  first f (U r p)  = U (f r) p
-  second f (U r p) = U r (fmap f p)
+-- instance Bifunctor UReft where
+--   first f (U r p)  = U (f r) p
+--   second f (U r p) = U r (fmap f p)
 
 instance Functor (RType a b c) where
   fmap  = mapReft 
@@ -794,15 +773,15 @@ subsFree m s z@(α, τ,_) (RAllP π t)
 subsFree m s z (RAllT α t)         
   = RAllT α $ subsFree m (α `S.insert` s) z t
 subsFree m s z@(α, τ, _) (RFun x t t' r)       
-  = RFun x (subsFree m s z t) (subsFree m s z t') (subt (α, τ) r)
+  = RFun x (subsFree m s z t) (subsFree m s z t') ({- subt (α, τ) -} r)
 subsFree m s z@(α, τ, _) t@(RApp c ts rs r)     
-  = RApp (subt z' c) (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) (subt z' r)  
+  = RApp (subt z' c) (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) ({- subt z' -} r)  
     where z' = (α, τ) -- UNIFY: why instantiating INSIDE parameters?
 subsFree m s z (RCls c ts)     
   = RCls c (subsFree m s z <$> ts)
 subsFree meet s (α', τ', t') t@(RVar α r) 
   | α == α' && α `S.notMember` s 
-  = if meet then t' `strengthen` subt (α', τ') r else t' 
+  = if meet then t' `strengthen` {- subt (α', τ') -} r else t' 
   | otherwise
   = t
 subsFree m s z (REx x t t')
@@ -817,7 +796,7 @@ subsFree _ _ _ t
 subsFreeRef m s (α', τ', t')  (RPoly t) 
   = RPoly $ subsFree m s (α', τ', fmap (\_ -> top) t') t
 subsFreeRef m s (α', τ', _) (RMono r) 
-  = RMono $ subt (α', τ') r
+  = RMono $ {- subt (α', τ') -} r
 
 mapBot f (RAllT α t)       = RAllT α (mapBot f t)
 mapBot f (RAllP π t)       = RAllP π (mapBot f t)
@@ -835,79 +814,53 @@ mapBotRef f (RPoly t) = RPoly $ mapBot f t
 
 class SubsTy tv ty a where
   subt :: (tv, ty) -> a -> a
-  subv :: (PVar ty -> PVar ty) -> a -> a
+  -- subv :: (PVar ty -> PVar ty) -> a -> a
+  -- subv :: (UsedPVar -> UsedPVar) -> a -> a
 
 subts = flip (foldr subt) 
 
 instance SubsTy tv ty ()   where
   subt _ = id
-  subv _ = id
 
 instance SubsTy tv ty Reft where
   subt _ = id
-  subv _ = id
 
 instance (SubsTy tv ty ty) => SubsTy tv ty (PVar ty) where
   subt su (PV n t xts) = PV n (subt su t) [(subt su t, x, y) | (t,x,y) <- xts] 
-  subv f x             = f x
 
-instance (SubsTy tv ty (PVar ty)) => SubsTy tv ty (Predicate ty) where
-  subt f (Pr pvs) = Pr (subt f <$> pvs)
-  subv            = subvPredicate 
-
-instance (SubsTy tv ty ty) => SubsTy tv ty (UReft a ty) where
-  subt f (U r p)  = U r (subt f p)
-  subv f (U r p)  = U r (subvPredicate f p)
-
--- instance SubsTy String String String where
---   subt (α, α'@(_:_)) β
---     | α == β && not (null α') = α' -- UNIFY: HACK HACK HACK!!! 
---     | otherwise               = β
---   subt (_, _) β
---     = β
---   subv _ = id
-
-
--- instance SubsTy RTyVar Type Type where
---  subt (α', t') t@(TyVarTy tv) 
---    | α' == RTV tv = t'
---    | otherwise    = t
---  subt _ t = t -- UNIFY: Deep Subst
---  subv _   = id
-
-instance SubsTy RTyVar {- PREDARGS Type -} RSort RTyCon where  
+instance SubsTy RTyVar RSort RTyCon where  
    subt z c = c {rTyConPs = subt z <$> rTyConPs c}
-   subv f c = c {rTyConPs = f <$> rTyConPs c}
+--    subv f c = c {rTyConPs = f <$> rTyConPs c}
 
 -- NOTE: This DOES NOT substitute at the binders
-instance SubsTy RTyVar {- PREDARGS Type -} RSort PrType where   
-  subt (α, τ) = subsTyVar_meet (α, τ, {- PREDARGS ofType -} ofRSort τ)
-  subv f t    = fmap (subvPredicate f) t 
+instance SubsTy RTyVar RSort PrType where   
+  subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
+--  subv f t    = fmap (subvPredicate f) t 
 
 instance SubsTy RTyVar RSort RSort where   
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
-  subv _      = id 
+--  subv _      = id 
 
 -- Here the "String" is a Bare-TyCon. TODO: wrap in newtype 
 instance SubsTy String BSort String where
   subt _ t = t
-  subv _   = id
+--  subv _   = id
 
 instance SubsTy String BSort BSort where
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
-  subv _      = id 
+--  subv _      = id 
 
-instance (SubsTy tv ty (UReft Reft ty)) => SubsTy tv ty (Ref (UReft Reft ty) (RType p c tv (UReft Reft ty)))  where
+instance (SubsTy tv ty (UReft r)) => SubsTy tv ty (Ref (UReft r) (RType p c tv (UReft r)))  where
   subt m (RMono p) = RMono $ subt m p
   subt m (RPoly t) = RPoly $ fmap (subt m) t
   
-  subv _ (RMono p) = RMono p 
-  subv f (RPoly t) = RPoly $ fmap (subvUReft f) t
+--  subv _ (RMono p) = RMono p 
+--  subv f (RPoly t) = RPoly $ fmap (subvUReft f) t
 
-subvPredicate :: (PVar ty -> PVar ty) -> Predicate ty -> Predicate ty 
+subvPredicate :: (UsedPVar -> UsedPVar) -> Predicate -> Predicate 
 subvPredicate f (Pr pvs) = Pr (f <$> pvs)
 
-subvUReft     :: (PVar ty -> PVar ty) -> UReft Reft ty -> UReft Reft ty 
+subvUReft     :: (UsedPVar -> UsedPVar) -> UReft Reft -> UReft Reft
 subvUReft f (U r p) = U r (subvPredicate f p)
 
 ---------------------------------------------------------------
