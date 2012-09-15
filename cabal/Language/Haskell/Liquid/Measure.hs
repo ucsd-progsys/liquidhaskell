@@ -158,7 +158,7 @@ dataConTypes s = (ctorTys, measTys)
         defsVar = dataConWorkId . ctor . safeHead "defsVar" 
 
 defRefType :: Def DataCon -> RefType
-defRefType (Def f dc xs body) = mkArrow as xts t'
+defRefType (Def f dc xs body) = mkArrow as [] xts t'
   where as  = RTV <$> dataConUnivTyVars dc
         xts = safeZip "defRefType" xs $ ofType `fmap` dataConOrigArgTys dc
         t'  = refineWithCtorBody dc f body t 

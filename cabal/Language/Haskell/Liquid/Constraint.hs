@@ -50,7 +50,7 @@ import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Fixpoint         (PVar(..))
 import Language.Haskell.Liquid.GhcInterface 
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.PredType hiding  (splitArgsRes)
+import Language.Haskell.Liquid.PredType
 import Language.Haskell.Liquid.Predicates
 import Language.Haskell.Liquid.GhcMisc          (tracePpr, tickSrcSpan, tvId)
 import Language.Haskell.Liquid.Misc
@@ -710,7 +710,7 @@ consE γ e'@(App e a) | eqType (exprType a) predType
          _             -> return t0
 
 consE γ e'@(App e a)               
-  = do ([], πs, te)            <- rsplitVsPs <$> consE γ e
+  = do ([], πs, te)            <- bkUniv <$> consE γ e
        zs                      <- mapM (\π -> liftM ((π,) . RPoly) $ freshPredRef γ e' π) πs
        let te'                  = replacePreds "consE" te zs
        let (RFun (RB x) tx t _) = checkFun ("Non-fun App with caller", e') te' 
@@ -793,21 +793,12 @@ mkyt (γ, ts) (y, yt)
        return (γ ++= ("mkyt", mkSymbol y, t'), t':ts) 
 
 unfoldR td t0@(RApp tc ts rs _) ys = (t3, yts, rt)
-  where (vs, ps, t0) = rsplitVsPs td
-        t1 = foldl' (flip subsTyVar_meet') t0 (zip vs ts)
-        -- t2 = foldl' (flip (replacePred "unfoldR" )) t1 (safeZip "unfoldR" (reverse ps) rs)
-        t2 = replacePreds "unfoldR" t1 $ safeZip "unfoldR" (reverse ps) rs
-        (ys0, yts', rt) =  rsplitArgsRes t2
-        (t3:yts) = F.subst su <$> (t2:yts')
-        su  = F.mkSubst [(x, F.EVar y)| (x, y)<- zip ys0 ys]
-
--- takeReft c (RApp _ _ _ a) 
---   | c == nilDataCon || c == consDataCon
---   = a
---   | otherwise
---   = top  -- F.trueReft
--- takeReft _ _                
---   = top -- F.trueReft
+  where (vs, ps, t0)    = bkUniv td
+        t1              = foldl' (flip subsTyVar_meet') t0 (zip vs ts)
+        t2              = replacePreds "unfoldR" t1 $ safeZip "unfoldR" (reverse ps) rs
+        (ys0, yts', rt) =  bkArrow t2
+        (t3:yts)        = F.subst su <$> (t2:yts')
+        su              = F.mkSubst [(x, F.EVar y)| (x, y)<- zip ys0 ys]
 
 instance Show CoreExpr where
   show = showSDoc . ppr
@@ -927,7 +918,7 @@ existentialRefType γ t = withReft t r'
         r              = F.sr_reft $ refTypeSortedReft t
 
 exReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ refTypeSortedReft t
-  where (xs,_ , t)     = rsplitArgsRes $ thd3 $ rsplitVsPs $ γ ?= f 
+  where (xs,_ , t)     = bkArrow $ thd3 $ bkUniv $ γ ?= f 
         su             = F.mkSubst $ safeZip "fExprRefType" xs es
 exReft _ e             = F.exprReft e 
 

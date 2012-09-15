@@ -17,8 +17,8 @@ module Language.Haskell.Liquid.RefType (
   , expandRApp
   , typeUniqueSymbol
   , strengthen
-  , generalize, mkArrow, normalizePds
-  , rsplitVsPs, rsplitArgsRes
+  , mkArrow, mkUnivs, bkUniv, bkArrow 
+  , generalize, normalizePds
   , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, refTypePredSortedReft, refTypeSortedReft, typeSortedReft, rTypeSort
@@ -489,40 +489,35 @@ toPoly (RPoly t) _ = RPoly t
 toPoly (RMono r) t = RPoly $ ({- PREDARGS: ofType -} ofRSort t) `strengthen` r  
 
 showTy v = showSDoc $ ppr v <> ppr (varUnique v)
--- showTy t = showSDoc $ ppr t
 
-mkArrow :: Reftable r => [a] -> [(Symbol, RType p c a r)] -> RType p c a r -> RType p c a r
-mkArrow as xts = mkUnivs as . mkArrs xts 
-mkUnivs αs t   = foldr RAllT t αs
-mkArrs xts t   = foldr (uncurry rFun) t xts 
+mkArrow αs πs xts  = mkUnivs αs πs . mkArrs xts 
+  where mkArrs xts t    = foldr (uncurry rFun) t xts 
 
--- bkArrow :: RType a -> ([TyVar], [(Symbol, RType a)],  RType a)
-bkArrow ty = (αs, πs, xts, out)
-  where (αs, πs, t) = bkUniv ty
-        (xts,  out) = bkArrs t
+mkUnivs αs πs t = foldr RAllT (foldr RAllP t πs) αs 
 
-bkUniv = go [] []
-  where go αs πs (RAllT α t)    = go (α : αs) πs t
-        go αs πs (RAllP π t)    = go αs (π : πs) t
-        go αs πs t              = (reverse αs, reverse πs, t)
+bkUniv (RAllT α t)      = let (αs, πs, t') = bkUniv t in  (α:αs, πs, t') 
+bkUniv (RAllP π t)      = let (αs, πs, t') = bkUniv t in  (αs, π:πs, t') 
+bkUniv t                = ([], [], t)
 
-bkArrs = go []
-  where go xts (RFun x t t' _ ) = go ((x, t) : xts) t'
-        go xts t                = (reverse xts, t)
+bkArrow (RFun x t t' _) = let (xs, ts, t'') = bkArrow t'  in (x:xs, t:ts, t'')
+bkArrow t               = ([], [], t)
 
-rsplitVsPs (RAllT α t) = (α:αs, πs, t')
-  where (αs, πs, t')   = rsplitVsPs t
-rsplitVsPs (RAllP π t) = (αs, π:πs, t')
-  where (αs, πs, t')   = rsplitVsPs t
-rsplitVsPs t           = ([], [], t)
+-- bkArrs = go []
+--   where go xts (RFun x t t' _ ) = go ((x, t) : xts) t'
+--         go xts t                = (reverse xts, t)
 
-rsplitArgsRes (RFun x t1 t2 _) = (x:xs, t1:ts, r)
-  where (xs, ts, r) = rsplitArgsRes t2
-rsplitArgsRes t = ([], [], t)
+-- bkUniv = go [] []
+--   where go αs πs (RAllT α t)    = go (α : αs) πs t
+--         go αs πs (RAllP π t)    = go αs (π : πs) t
+--         go αs πs t              = (reverse αs, reverse πs, t)
 
--- generalize ::  Ord tv => RType p c tv r -> RType p c tv r
-generalize t = mkUnivs αs t 
-  where αs =  freeVars t
+-- splitVsPs t = go ([], []) t
+--   where go (vs, pvs) (RAllT v  t) = go (v:vs, pvs)  t
+--         go (vs, pvs) (RAllP pv t) = go (vs, pv:pvs) t
+--         go (vs, pvs) t            = (reverse vs, reverse pvs, t)
+
+
+generalize t = mkUnivs (freeVars t) [] t 
          
 freeVars (RAllP _ t)     = freeVars t
 freeVars (RAllT α t)     = freeVars t L.\\ [α]
@@ -817,8 +812,8 @@ subsFree m s z (REx x t t')
   = REx x (subsFree m s z t) (subsFree m s z t')
 subsFree _ _ _ t@(ROth _)        
   = t
-subsFree _ _ _ t      
-  = errorstar $ "subsFree fails on: " ++ showPpr t
+-- subsFree _ _ _ t      
+--   = errorstar $ "subsFree fails on: " ++ showPpr t
 
 -- subsFreeRef ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty (PVar ty), SubsTy tv ty c, Reftable r, Monoid r, Subable r, RefTypable p c tv (PVar ty) r) => Bool -> S.Set tv -> (tv, ty, RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r)
 
@@ -1002,6 +997,8 @@ mkSymbol v
   where us  = showPpr $ getUnique v 
         vs  = pprShort v
 
+pprShort    =  dropModuleNames . showPpr
+
 dataConSymbol = mkSymbol . dataConWorkId
 
 primOrderingSort = typeSort $ dataConRepType eqDataCon
@@ -1026,13 +1023,14 @@ dataConReft c [x]
 dataConReft _ _
   = Reft (vv, [RConc PTrue]) 
 
-
-
 dataConMsReft ty ys  = subst su (refTypeReft t) 
-  where (_, _, xts, t)  = bkArrow ty 
-        su              = mkSubst [(x, EVar y) | ((x,_), y) <- zip xts ys] 
+  where (xs, ts, t)  = bkArrow $ thd3 $ bkUniv ty    -- bkArrow ty 
+        su           = mkSubst [(x, EVar y) | ((x,_), y) <- zip (zip xs ts) ys] 
 
-pprShort    =  dropModuleNames . showPpr
+--bkArrow ty = (αs, πs, xts, out)
+--  where (αs, πs, t) = bkUniv ty
+--        (xts,  out) = bkArrs t
+
 
 ---------------------------------------------------------------
 ---------------------- Embedding RefTypes ---------------------

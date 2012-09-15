@@ -22,7 +22,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.PredType hiding (generalize)
+import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Outputable (Outputable (..))
 import Language.Haskell.Liquid.FileNames (dummyName, boolConName, listConName, tupConName)
@@ -33,8 +33,8 @@ languageDef =
   emptyDef { Token.commentStart    = "/*"
            , Token.commentEnd      = "*/"
            , Token.commentLine     = "--"
-           , Token.identStart      = satisfy (\_ -> False) -- letter 
-           , Token.identLetter     = satisfy (\_ -> False) -- satisfy (`elem` symChars)
+           , Token.identStart      = satisfy (\_ -> False) 
+           , Token.identLetter     = satisfy (\_ -> False)
            , Token.reservedNames   = [ "SAT"
                                      , "UNSAT"
                                      , "true"
@@ -256,7 +256,7 @@ bareExistsP
        return $ foldr (uncurry REx) t zs
      
 exBindP 
-  = liftM3 (\x _ t -> (RB x, t)) binderP colon bareTypeP
+  = liftM3 (\x _ t -> (x, t)) binderP colon bareTypeP
 
 bareAllP 
   = do reserved "forall"
@@ -264,7 +264,7 @@ bareAllP
        ps <- predVarDefsP
        dot
        t  <- bareTypeP
-       return $ foldr (RAll . RV) (foldr (RAll . RP) t ps) as
+       return $ foldr RAllT (foldr RAllP t ps) as
 
 predVarDefsP 
   =  try (angles $ sepBy1 predVarDefP comma)
@@ -340,11 +340,11 @@ bareFunP
        return $ bareArrow b t1 a t2 
 
 dummyBindP 
-  = (RB . stringSymbol) <$> positionNameP -- (return dummyBind) -- (positionNameP)
+  = stringSymbol <$> positionNameP -- (return dummyBind) -- (positionNameP)
 
 bbindP = lowerIdP <* dcolon 
 
-bindP  = liftM (RB . stringSymbol) (lowerIdP <* colon)
+bindP  = liftM stringSymbol (lowerIdP <* colon)
 
 dcolon = string "::" <* spaces
 
@@ -413,12 +413,11 @@ predVarUseP
 ----------------------- Wrapped Constructors ---------------------------
 ------------------------------------------------------------------------
 
-bLst t rs r    = RApp listConName [t] ({- RMono . predUReft <$> -} rs) (reftUReft r) 
+bLst t rs r    = RApp listConName [t] rs (reftUReft r) 
 bTup [t] _ _   = t
-bTup ts rs r   = RApp tupConName ts ({- RMono . predUReft <$> -} rs) (reftUReft r)
-bCon b rs ts r = RApp b ts ({- RMono . predUReft <$> -} rs) (reftUReft r)
-bRVar α p r    = RVar (RV α) (U r p)
-
+bTup ts rs r   = RApp tupConName ts rs (reftUReft r)
+bCon b rs ts r = RApp b ts rs (reftUReft r)
+bRVar α p r    = RVar α (U r p)
 
 reftUReft      = (`U` pdTrue)
 predUReft      = (U dummyReft) 

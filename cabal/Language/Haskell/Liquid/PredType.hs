@@ -2,7 +2,6 @@
 module Language.Haskell.Liquid.PredType (
     PrType
   , TyConP (..), DataConP (..)
-  , splitVsPs, typeAbsVsPs, splitArgsRes
   , dataConTy, dataConPtoPredTy, makeTyConInfo
   , unify, replacePreds, exprType, predType
   , substParg
@@ -93,24 +92,9 @@ dataConTy m (TyConApp c ts)
 dataConTy _ t
   = error "ofTypePAppTy"
 
-
-
 showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 showTy t = showSDoc $ ppr t
-
-typeAbsVsPs t vs ps = t2
-  where t1 = foldr RAllP t  ps  -- RJ: UNIFY reverse?
-        t2 = foldr RAllT t1 vs
-
-splitVsPs t = go ([], []) t
-  where go (vs, pvs) (RAllT v  t) = go (v:vs, pvs)  t
-        go (vs, pvs) (RAllP pv t) = go (vs, pv:pvs) t
-        go (vs, pvs) t            = (reverse vs, reverse pvs, t)
-
-splitArgsRes (RFun _ t1 t2 _) = (t1:t1', t2')
-  where (t1', t2') = splitArgsRes t2
-splitArgsRes t = ([], t)
 
 ---------------------------------------------------------------------------
 -------------- Interfacing Between Predicates and Refinements -------------

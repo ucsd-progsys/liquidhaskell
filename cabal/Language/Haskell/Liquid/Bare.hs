@@ -132,7 +132,7 @@ makeInvariants :: BareEnv -> [BareType] -> IO [SpecType]
 makeInvariants benv ts = execBare (mapM mkSpecType ts) benv
 
 mkSpecType t = mkSpecType' πs t
-  where πs   = fmap uPVar (snd3 $ rsplitVsPs t)
+  where πs   = fmap uPVar (snd3 $ bkUniv t)
 
 mkSpecType' :: [UsedPVar] -> BareType -> BareM SpecType
 mkSpecType' πs 
@@ -442,7 +442,7 @@ predMap πs t = Ex.assert (M.size xπm == length xπs) xπm
   where xπm = M.fromList xπs
         xπs = [(pname π, π) | π <- πs ++ rtypePredBinds t]
 
-rtypePredBinds = map uPVar . snd3 . rsplitVsPs
+rtypePredBinds = map uPVar . snd3 . bkUniv
 
 -- rtypePredBinds t = everything (++) ([] `mkQ` grab) t
 --   where grab ((RAllP pv _) :: BRType RPVar RPredicate) = [pv]

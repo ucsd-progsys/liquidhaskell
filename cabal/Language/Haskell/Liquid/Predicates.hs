@@ -270,10 +270,16 @@ cconsCase γ x t (DataAlt c, ys, ce)
 -- GENSUB: subsTyVars_meet' αts = subsTyVars_meet αts 
 subsTyVars_meet' αts = subsTyVars_meet [(α, toType t, t) | (α, t) <- αts]
 
-unfold tc (RApp _ ts _ _) _ = splitArgsRes tc''
-  where (vs, _, tc') = splitVsPs tc
+unfold tc (RApp _ ts _ _) _ =  (x,  y)
+  where (_ , x , y)  = bkArrow tc''
         tc''         = subsTyVars_meet' (zip vs ts) tc' 
+        (vs, _, tc') = bkUniv tc
 unfold tc t              x  = error $ "unfold" ++ {-(showSDoc (ppr x)) ++-} " : " ++ show t
+
+-- unfold tc (RApp _ ts _ _) _ =  splitArgsRes tc''
+--   where (vs, _, tc') = bkUniv tc
+--         tc''         = subsTyVars_meet' (zip vs ts) tc' 
+-- unfold tc t              x  = error $ "unfold" ++ {-(showSDoc (ppr x)) ++-} " : " ++ show t
 
 splitC (SubC γ (RAll (RV _) t1) (RAll (RV _) t2))
   = splitC (SubC γ t1 t2)
@@ -366,7 +372,7 @@ isSpecialId γ x = pl /= 0
 varPredArgs γ x = varPredArgs_ (γ ??= (mkSymbol x))
 varPredArgs_ Nothing = (0, 0)
 varPredArgs_ (Just t) = (length vs, length ps)
-  where (vs, ps, _) = splitVsPs t
+  where (vs, ps, _) = bkUniv t
 
 generalizeS t 
   = do splitCons
@@ -447,7 +453,7 @@ freshPrAs p = (\n -> pdVar $ p {F.pname = n}) <$> freshSymbol "p"
 refreshTy t 
   = do fps <- mapM freshPrAs ps
        return $ substPvar (M.fromList (zip ps fps)) <$> t''
-   where (vs, ps, t') = splitVsPs t
+   where (vs, ps, t') = bkUniv t
          t''          = typeAbsVsPs t' vs []
 
 freshTy t 
@@ -492,11 +498,11 @@ checkAll x t                 = error $ showPpr x ++ "type: " ++ showPpr t
 -- | Generalize free used predicates. 
 -- Requires an environment of predicate definitions.
 
-generalize     = generalize_ freePreds
-generalizeArgs = generalize_ freeArgPreds
+generalize            = generalize_ freePreds
+generalizeArgs        = generalize_ freeArgPreds
 
-generalize_ f t = typeAbsVsPs t' vs ps
-  where (vs, ps', t') = splitVsPs t
+generalize_ f t       = mkUnivs vs ps t' 
+  where (vs, ps', t') = bkUniv t
         ps            = S.toList (f t) ++ ps'
 
 freeArgPreds (RFun _ t1 t2 _) = freePreds t1 -- RJ: UNIFY What about t2?
