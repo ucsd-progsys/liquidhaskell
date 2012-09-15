@@ -347,6 +347,30 @@ instance (Reftable r) => RefTypable Class RTyCon RTyVar r where
 ppClass_String    c ts = parens (ppr c <+> text "...")
 ppClass_ClassPred c ts = parens $ pprClassPred c (toType <$> ts)
 
+-- Eq Instances ------------------------------------------------------
+
+instance Eq RSort where
+  (==) = eqRSort
+
+eqRSort :: RSort -> RSort -> Bool
+
+eqRSort (RAllP _ t) (RAllP _ t') 
+  = eqRSort t t'
+eqRSort (RAllP _ t) t' 
+  = eqRSort t t'
+eqRSort (RAllT (a@(RTV α)) t) (RAllT a' t')
+  = eqRSort t (subt (a', rVar α :: RSort) t') -- (subsTyVar_meet (a', TyVarTy α, rVar a) t')
+eqRSort (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
+  = eqRSort t1 t1' && eqRSort t2 t2'
+eqRSort t@(RApp c ts _ _) t'@(RApp c' ts' _ _)
+  =  ((c == c') && length ts == length ts' && and (zipWith eqRSort ts ts'))
+eqRSort (RCls c ts) (RCls c' ts')
+  = (c == c') && length ts == length ts' && and (zipWith eqRSort ts ts')
+eqRSort (RVar α _) (RVar α' _)
+  = α == α' 
+eqRSort t1 t2 
+  = False
+
 --------------------------------------------------------------------
 --------- Wrappers for GHC Type Elements ---------------------------
 --------------------------------------------------------------------

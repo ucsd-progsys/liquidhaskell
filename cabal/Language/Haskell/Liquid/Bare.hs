@@ -256,37 +256,37 @@ listTyDataCons = ( [(c, TyConP [(RTV tyv)] [p])]
                  , (consDataCon, DataConP [(RTV tyv)] [p]  cargs  lt)])
     where c     = listTyCon
           [tyv] = tyConTyVars c
-          t     = {- TyVarTy -} rVar tyv
+          t     = {- TyVarTy -} rVar tyv :: RSort
           fld   = stringSymbol "fld"
           x     = stringSymbol "x"
           xs    = stringSymbol "xs"
           p     = PV (stringSymbol "p") t [(t, fld, fld)]
-          px    = pdVar $ PV (stringSymbol "p") t [(t, fld, x)]
+          px    = (pdVar $ PV (stringSymbol "p") t [(t, fld, x)]) 
           lt    = rApp c [xt] [RMono $ pdVar p] top                 
           xt    = rVar tyv
           xst   = rApp c [RVar (RTV tyv) px] [RMono $ pdVar p] top  
           cargs = [(xs, xst), (x, xt)]
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyv) ps)]
-                    , [(dc, DataConP (RTV <$> tyv) ps  cargs  lt)])
-  where c         = tupleTyCon BoxedTuple n
-        dc        = tupleCon BoxedTuple n 
-        tyv       = tyConTyVars c
-        (ta:ts)   = rVar <$> tyv
-        (tv:tvs)  = tyv
-        flds      = mks "fld"
-        fld       = stringSymbol "fld"
-        x1:xs     = mks "x"
-        y         = stringSymbol "y"
-        ps        = mkps pnames (ta:ts) ((fld,fld):(zip flds flds))
-        pxs       = mkps pnames (ta:ts) ((fld, x1):(zip flds xs))
-        lt        = rApp c (rVar <$> tyv) (RMono . pdVar <$> ps) top
-        xts       = zipWith (\v p -> RVar (RTV v) (pdVar p)) tvs pxs
-        cargs     = reverse $ (x1, rVar tv) : (zip xs xts)
-        pnames    = mks_ "p"
-        mks  x    = (\i -> stringSymbol (x++ show i)) <$> [1..n]
-        mks_ x    = (\i ->  (x++ show i)) <$> [2..n]
+tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps)]
+                    , [(dc, DataConP (RTV <$> tyvs) ps  cargs  lt)])
+  where c             = tupleTyCon BoxedTuple n
+        dc            = tupleCon BoxedTuple n 
+        tyvs@(tv:tvs) = tyConTyVars c
+        (ta:ts)       = (rVar <$> tyvs) :: [RSort]
+        flds          = mks "fld"
+        fld           = stringSymbol "fld"
+        x1:xs         = mks "x"
+        y             = stringSymbol "y"
+        ps            = mkps pnames (ta:ts) ((fld,fld):(zip flds flds))
+        ups           = uPVar <$> ps
+        pxs           = mkps pnames (ta:ts) ((fld, x1):(zip flds xs))
+        lt            = rApp c (rVar <$> tyvs) (RMono . pdVar <$> ups) top
+        xts           = zipWith (\v p -> RVar (RTV v) (pdVar p)) tvs pxs
+        cargs         = reverse $ (x1, rVar tv) : (zip xs xts)
+        pnames        = mks_ "p"
+        mks  x        = (\i -> stringSymbol (x++ show i)) <$> [1..n]
+        mks_ x        = (\i ->  (x++ show i)) <$> [2..n]
 
 
 mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ (stringSymbol <$> ns) ts fxs [(t, f, x)] [] 
@@ -462,35 +462,16 @@ specificationError yts = unlines $ "Error in Reftype Specification" : concatMap 
                      , "Liquid : " ++ showPpr y ++ " :: " ++ showPpr t           ]
   
 specMismatch (x, t) 
-  =  not $ eqShape t (ofType $ varType x) 
+  =  not $ (toRSort t) == (ofType $ varType x) 
 
 ---------------------------------------------------------------------------------
 ----------------- Helper Predicates on Types ------------------------------------
 ---------------------------------------------------------------------------------
 
-eqType' τ1 τ2 
-  = eqType τ1 τ2 
+-- eqType' τ1 τ2 = eqType τ1 τ2 
 
-eqShape :: SpecType -> SpecType -> Bool 
-eqShape t1 t2 
-  = eqShape' (toRSort t1) (toRSort t2) 
-
-eqShape' (RAllP _ t) (RAllP _ t') 
-  = eqShape t t'
-eqShape' (RAllP _ t) t' 
-  = eqShape t t'
-eqShape' (RAllT (a@(RTV α)) t) (RAllT a' t')
-  = eqShape t (subt (a', rVar α) t') -- (subsTyVar_meet (a', TyVarTy α, rVar a) t')
-eqShape' (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
-  = eqShape t1 t1' && eqShape t2 t2'
-eqShape' t@(RApp c ts _ _) t'@(RApp c' ts' _ _)
-  =  ((c == c') && length ts == length ts' && and (zipWith eqShape ts ts'))
-eqShape' (RCls c ts) (RCls c' ts')
-  = (c == c') && length ts == length ts' && and (zipWith eqShape ts ts')
-eqShape' (RVar α _) (RVar α' _)
-  = α == α' 
-eqShape' t1 t2 
-  = False
+-- eqShape :: SpecType -> SpecType -> Bool 
+-- eqShape t1 t2 = eqShape (toRSort t1) (toRSort t2) 
 
 
 
