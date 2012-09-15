@@ -227,6 +227,10 @@ condP f bodyP
 ------------------------------------ BareTypes -----------------------------------
 ----------------------------------------------------------------------------------
 
+-- | The top-level parser for "bare" refinement types. If refinements are
+-- not supplied, then the default "top" refinement is used.
+
+bareTypeP :: Parser BareType 
 
 bareTypeP   
   =  try bareFunP
