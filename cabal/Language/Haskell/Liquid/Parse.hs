@@ -227,6 +227,7 @@ condP f bodyP
 ------------------------------------ BareTypes -----------------------------------
 ----------------------------------------------------------------------------------
 
+
 bareTypeP   
   =  try bareFunP
  <|> bareAllP
@@ -276,36 +277,20 @@ predVarDefP
 predVarIdP 
   = stringSymbol <$> tyVarIdP 
 
-{- OLD
-bPVar p _ ts  = PV p τ τxs 
-  where τ   = last ts
-        τs  = init ts 
-        τxs = zipWith (\τ x -> (τ, x, x)) τs xs
-        xs  = stringSymbol <$> ["x" ++ show i | i <- [0..]]
-
-predVarTypeP 
-  =  try ((liftM (: []) tyVarIdP) <* reserved "->" <* reserved boolConName)
- <|> liftM2 (:) tyVarIdP (reserved "->" >> predVarTypeP)
--}
-
-
 bPVar p _ xts  = PV p τ τxs 
   where (_, τ) = last xts
         τxs    = [ (τ, x, x) | (x, τ) <- init xts ]
-        --τxs = zipWith (\τ x -> (τ, x, x)) τs xs
-        --τs  = snd <$> init xts 
-        --xs  = stringSymbol <$> ["x" ++ show i | i <- [0..]]
-
 
 predVarTypeP 
   =  try ((liftM (: []) predVarArgP) <* reserved "->" <* reserved boolConName)
  <|> liftM2 (:) predVarArgP (reserved "->" >> predVarTypeP)
 
--- predVarArgP = xyP predVarIdP colon tyVarIdP 
-
-predVarArgP = xyP argP spaces tyVarIdP
+predVarArgP = xyP argP spaces bareSortP {- PREDARGS tyVarIdP -}
   where argP  = stringSymbol <$> argP'
         argP' = try (lowerIdP <* colon) <|> positionNameP
+        
+bareSortP :: Parser BSort
+bareSortP = toRSort <$> bareTypeP
 
 xyP lP sepP rP
   = liftM3 (\x _ y -> (x, y)) lP (spaces >> sepP) rP
@@ -316,12 +301,11 @@ arrowP
   =   (reserved "->" >> return ArrowFun)
   <|> (reserved "=>" >> return ArrowPred)
 
-bareFun2P
-  = do t1 <- bareArgP 
-       a  <- arrowP
-       t2 <- bareTypeP
-       return $ bareArrow dummyBind t1 a t2 
-
+-- bareFun2P
+--   = do t1 <- bareArgP 
+--        a  <- arrowP
+--        t2 <- bareTypeP
+--        return $ bareArrow dummyBind t1 a t2 
 
 positionNameP = dummyNamePos <$> getPosition
   
@@ -351,7 +335,7 @@ dcolon = string "::" <* spaces
 bareArrow b t1 ArrowFun t2
   = rFun b t1 t2
 bareArrow _ t1 ArrowPred t2
-  = foldr (rFun dummyBind) t2 (getClasses t1)
+  = foldr (rFun dummySymbol) t2 (getClasses t1)
 
 
 
@@ -498,7 +482,8 @@ tyBodyP ty
   = case outTy ty of
       Just bt | isBoolBareType bt -> Measure.P <$> predP 
       _                           -> Measure.E <$> exprP
-    where outTy (RAll _ t)     = outTy t
+    where outTy (RAllT _ t)    = outTy t
+          outTy (RAllP _ t)    = outTy t
           outTy (RFun _ _ t _) = Just t
           outTy _              = Nothing
 
