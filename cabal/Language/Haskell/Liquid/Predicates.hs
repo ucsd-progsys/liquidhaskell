@@ -394,7 +394,7 @@ addToMap substs
        let m' = foldl' updateSubst m substs
        put $ s { pMap = m' }
 
-updateSubst :: M.Map RPVar RPredicate -> (RPredicate, RPredicate) -> M.Map RPVar RPredicate 
+updateSubst :: M.Map RPVar Predicate -> (Predicate, Predicate) -> M.Map RPVar Predicate 
 updateSubst m (p, p') = foldl' (\m (k, v) -> M.insert k v m) m binds 
   where binds = unifiers $ unifyVars (substPvar m p) (substPvar m p')
 
@@ -426,7 +426,7 @@ getNeedPd spec
            assms = passm $ tySigs spec 
            bs    = first mkSymbol <$> (dcs ++ assms)
 
-passm = fmap (second (mapReft upred)) 
+passm = fmap (second (mapReft ur_pred)) 
 -- specTypePrType = mapReft pred
 
 dconTy t = generalize $ dataConTy vps t
