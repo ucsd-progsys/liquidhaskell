@@ -9,11 +9,11 @@ module Language.Haskell.Liquid.RefType (
   , BSort, BPVar, BPredicate, BReft, BareType
   , RSort, RPVar, RPredicate, RReft, RefType
   , PrType, SpecType
-  , Predicate (..), UReft(..), DataDecl (..)
+  , PVar (..) , Predicate (..), UReft(..), DataDecl (..)
   , uReft
   , pdAnd, pdVar, pdTrue, pvars
   -- , dummyBind, isDummyBind
-  , ppr_rtype, mapReft, mapBot
+  , ppr_rtype, mapReft, mapReftM, mapBot
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp, rFun
   , expandRApp
@@ -34,9 +34,6 @@ module Language.Haskell.Liquid.RefType (
   , isTrivial
   ) where
 
-import Text.Printf
-import Control.Exception.Base
-import Control.Exception (assert)
 import GHC
 import Outputable
 import qualified TyCon as TC
@@ -59,12 +56,16 @@ import Data.Maybe               (fromMaybe)
 import qualified Data.Map  as M
 import qualified Data.Set  as S 
 import qualified Data.List as L
+import Text.Printf
+import Control.Exception.Base
+import Control.Exception (assert)
 import Control.Applicative  hiding (empty)   
+import Control.DeepSeq
+import Control.Monad  (liftM, liftM2, liftM3)
 import Data.Bifunctor
 import Data.Generics.Schemes
 import Data.Generics.Aliases
 import Data.Data
-import Control.DeepSeq
 import qualified Data.Foldable as Fold
 
 import Language.Haskell.Liquid.Tidy
@@ -73,6 +74,29 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GhcMisc (tvId, stringTyVar, intersperse, dropModuleNames)
 import Language.Haskell.Liquid.FileNames (listConName, tupConName, boolConName)
 import Data.List (sort, isPrefixOf, isSuffixOf, find, foldl')
+
+--------------------------------------------------------------------
+-- | Predicate Variables -------------------------------------------
+--------------------------------------------------------------------
+
+data PVar t
+  = PV { pname :: !Symbol
+       , ptype :: !t
+       , pargs :: ![(t, Symbol, Symbol)]
+       }
+	deriving (Data, Typeable, Show)
+
+instance Eq (PVar t) where
+  pv == pv' = (pname pv == pname pv') {- UNIFY: What about: && eqArgs pv pv' -}
+
+instance Ord (PVar t) where
+  compare (PV n _ _)  (PV n' _ _) = compare n n'
+
+instance Functor PVar where
+  fmap f (PV x t txys) = PV x (f t) (mapFst3 f <$> txys)
+
+instance (NFData a) => NFData (PVar a) where
+  rnf (PV n t txys) = rnf n `seq` rnf t `seq` rnf txys
 
 --------------------------------------------------------------------
 ------------------ Predicates --------------------------------------
@@ -177,7 +201,13 @@ data RType p c tv r
   | ROth  !String 
   deriving (Data, Typeable)
 
-data Ref s m = RMono s | RPoly m
+data Ref s m 
+  = RMono s 
+  | RPoly m
+  deriving (Data, Typeable)
+
+data UReft r t 
+  = U { ur_reft :: !r, ur_pred :: !(Predicate t)}
   deriving (Data, Typeable)
 
 type BRType     = RType String String String   
@@ -195,9 +225,6 @@ type BareType   = BRType    BReft
 type SpecType   = RRType    RReft 
 type RefType    = RRType    Reft
 
-
-data UReft r t  = U {ur_reft :: !r, ur_pred :: !(Predicate t)}
-                  deriving (Data, Typeable)
 
 type RReft      = UReft Reft RSort
 type BReft      = UReft Reft BSort
@@ -686,6 +713,7 @@ instance Functor (RType a b c) where
 instance Fold.Foldable (RType a b c) where
   foldr = foldReft
 
+mapReft ::  (r1 -> r2) -> RType p c tv r1 -> RType p c tv r2
 mapReft f (RVar α r)          = RVar  α (f r)
 mapReft f (RAllT α t)         = RAllT α (mapReft f t)
 mapReft f (RAllP π t)         = RAllP π (mapReft f t)
@@ -695,8 +723,26 @@ mapReft f (RCls c ts)         = RCls  c (mapReft f <$> ts)
 mapReft f (REx z t t')        = REx   z (mapReft f t) (mapReft f t')
 mapReft f (ROth s)            = ROth  s 
 
-mapRef f (RMono r)            = RMono $ f r
-mapRef f (RPoly t)            = RPoly $ mapReft f t
+mapRef :: (t -> s) -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
+mapRef  f (RMono r)           = RMono $ f r
+mapRef  f (RPoly t)           = RPoly $ mapReft f t
+
+
+mapReftM :: (Monad m) => (r1 -> m r2) -> RType p c tv r1 -> m (RType p c tv r2)
+mapReftM f (RVar α r)         = liftM   (RVar  α)   (f r)
+mapReftM f (RAllT α t)        = liftM   (RAllT α)   (mapReftM f t)
+mapReftM f (RAllP π t)        = liftM   (RAllP π)   (mapReftM f t)
+mapReftM f (RFun x t t' r)    = liftM3  (RFun x)    (mapReftM f t)          (mapReftM f t')       (f r)
+mapReftM f (RApp c ts rs r)   = liftM3  (RApp  c)   (mapM (mapReftM f) ts)  (mapM (mapRefM f) rs) (f r)
+mapReftM f (RCls c ts)        = liftM   (RCls  c)   (mapM (mapReftM f) ts) 
+mapReftM f (REx z t t')       = liftM2  (REx z)     (mapReftM f t)          (mapReftM f t')
+mapReftM f (ROth s)           = return  $ ROth  s 
+
+
+mapRefM  :: (Monad m) => (t -> m s) -> Ref t (RType p c tv t) -> m (Ref s (RType p c tv s))
+mapRefM  f (RMono r)          = liftM   RMono       (f r)
+mapRefM  f (RPoly t)          = liftM   RPoly       (mapReftM f t)
+
 
 foldReft f z (RVar _ r)       = f r z 
 foldReft f z (RAllT _ t)      = foldReft f z t

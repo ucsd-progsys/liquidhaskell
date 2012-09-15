@@ -8,7 +8,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , qualifySymbol, stringTycon, stringSymbol, symbolString, stringSymbolRaw
   , anfPrefix, tempPrefix
   , intKvar
-  , PVar (..), Sort (..), Symbol(..), Constant (..), Bop (..), Brel (..), Expr (..)
+  , Sort (..), Symbol(..), Constant (..), Bop (..), Brel (..), Expr (..)
   , Pred (..), Refa (..), SortedReft (..), Reft(..)
   , SEnv (..)
   , FEnv
@@ -55,29 +55,6 @@ class Fixpoint a where
 
   simplify :: a -> a 
   simplify =  id
-
---------------------------------------------------------------------
------------------- Predicate Variables -----------------------------
---------------------------------------------------------------------
-
-data PVar t
-  = PV { pname :: !Symbol
-       , ptype :: !t
-       , pargs :: ![(t, Symbol, Symbol)]
-       }
-	deriving (Data, Typeable, Show)
-
-instance Eq (PVar t) where
-  pv == pv' = (pname pv == pname pv') {- UNIFY: What about: && eqArgs pv pv' -}
-
-instance Ord (PVar t) where
-  compare (PV n _ _)  (PV n' _ _) = compare n n'
-
-instance Functor PVar where
-  fmap f (PV x t txys) = PV x (f t) (mapFst3 f <$> txys)
-
-instance (NFData a) => NFData (PVar a) where
-  rnf (PV n t txys) = rnf n `seq` rnf t `seq` rnf txys
 
 ------------------------------------------------------------
 ------------------- Sanitizing Symbols ---------------------
@@ -575,7 +552,6 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
 data Refa 
   = RConc !Pred 
   | RKvar !Symbol !Subst
---   | RPvar !RPVar
   deriving (Eq, Ord, Data, Typeable, Show)
 
 data Reft
@@ -620,9 +596,9 @@ instance Functor SEnv where
 
 type FEnv = SEnv SortedReft 
 
-instance Fixpoint (PVar Type) where
-  toFix (PV s _ a) 
-   = parens $ toFix s <+> sep (toFix . thd3 <$> a)
+-- instance Fixpoint (PVar Type) where
+--   toFix (PV s _ a) 
+--    = parens $ toFix s <+> sep (toFix . thd3 <$> a)
 
 instance Fixpoint Refa where
   toFix (RConc p)    = toFix p

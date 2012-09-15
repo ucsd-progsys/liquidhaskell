@@ -113,7 +113,7 @@ wrapErr msg f x
 makeMeasureSpec :: BareEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
 makeMeasureSpec env m = execBare mkSpec env 
   where mkSpec = wrapErr "mkMeasureSort" mkMeasureSort m' >>= mkMeasureDCon >>= return . Ms.dataConTypes
-        m'     = first (txTyVarBinds . mapReft ureft) m
+        m'     = first (txTyVarBinds . mapReft ur_reft) m
 
 makeAssumeSpec :: BareEnv -> [Var] -> [(Symbol, BareType)] -> IO [(Var, SpecType)]
 makeAssumeSpec env vs xbs = execBare mkAspec env 
@@ -283,7 +283,7 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyv) ps)]
         pxs     = mkps pnames (ta:ts) ((fld, x1):(zip flds xs))
         lt      = rApp c ({-(\x -> RVar (RV (RTV x)) pdTrue)-} rVar <$> tyv) 
                          (RMono . pdVar <$> ps) top -- pdTrue 
-        xts     = zipWith (\v p -> RVar (RV (RTV v))(pdVar p)) tvs pxs
+        xts     = zipWith (\v p -> RVar (RTV v) (pdVar p)) tvs pxs
         cargs   = reverse $ (x1, rVar tv {- RVar (RV (RTV (tv))) pdTrue -} ) : (zip xs xts)
 
         pnames  = mks_ "p"
@@ -386,7 +386,7 @@ ofBDataDecl (D tc as ps cts)
        return $ ((tc', TyConP αs πs), cts')
     where αs   = fmap (RTV . stringTyVar) as
           πs   = ofBPreds ps -- fmap (fmap stringTyVarTy) ps
-          cpts = fmap (second (fmap (second (mapReft upred)))) cts
+          cpts = fmap (second (fmap (second (mapReft ur_pred)))) cts
 
 ofBPreds = fmap (fmap stringTyVarTy)
 
