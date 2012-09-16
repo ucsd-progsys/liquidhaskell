@@ -23,7 +23,6 @@ import Data.Generics.Schemes
 import Data.Generics.Aliases
 import Data.Data
 
-
 data Qualifier = Q { name   :: String
                    , params :: [(Symbol, Sort)]
                    , pred   :: Pred
@@ -48,14 +47,15 @@ pprQual (Q n xts p) = text "qualif" <+> text n <> parens args  <> colon <+> toFi
 specificationQualifiers :: GhcInfo -> [Qualifier] 
 specificationQualifiers info    = [ q | (x, t) <- tySigs $ spec info
                                       , x `S.member` xs
-                                      , q      <- refTypeQuals $ ureft <$> t
+                                      , q      <- refTypeQuals t
                                   ] where xs = S.fromList $ defVars info 
 
-refTypeQuals :: RefType -> [Qualifier] 
+-- refTypeQuals :: SpecType -> [Qualifier] 
 refTypeQuals t0 = go emptySEnv t0
   where go γ t@(RVar _ _)         = refTopQuals t0 γ t     
-        go γ (RAll α t)           = go γ t 
-        go γ (RFun (RB x) t t' _) = (go γ t) ++ (go (insertSEnv x (rTypeSort t) γ) t')
+        go γ (RAllT _ t)          = go γ t 
+        go γ (RAllP _ t)          = go γ t 
+        go γ (RFun x t t' _)      = (go γ t) ++ (go (insertSEnv x (rTypeSort t) γ) t')
         go γ t@(RApp _ ts _ _)    = (refTopQuals t0 γ t) ++ concatMap (go γ) ts 
         go γ _                    = []
 

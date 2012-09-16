@@ -1096,7 +1096,7 @@ domREnv (REnv env)        = M.keys env
 refTypePredSortedReft (r, τ) = RR so r
   where so = typeSort τ
 
--- refTypeSortedReft   ::  RefType -> SortedReft
+refTypeSortedReft   ::  SpecType -> SortedReft
 refTypeSortedReft t = RR (rTypeSort t) (refTypeReft t)
 
 refTypeReft t = fromMaybe top $ ur_reft <$> stripRTypeBase t
