@@ -47,7 +47,6 @@ import Text.Printf
 import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Bare
-import Language.Haskell.Liquid.Fixpoint         (PVar(..))
 import Language.Haskell.Liquid.GhcInterface 
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
@@ -224,8 +223,8 @@ getTyClasses = everything (++) ([] `mkQ` f)
         f _                        = []
 
 getTyVars = everything (++) ([] `mkQ` f)
-  where f ((RVar (RV (α')) _) :: SpecType) = [α'] 
-        f _                               = []
+  where f ((RVar α' _) :: SpecType) = [α'] 
+        f _                         = []
  
 -- isBase :: RType a -> Bool
 isBase (RVar _ _)     = True
@@ -241,7 +240,8 @@ insertFEnvClass (RCls c ts) fenv
 insertFEnvClass _ fenv 
   = fenv
 
-rTyVarSymbol (RV (RTV α)) = typeUniqueSymbol $ TyVarTy α
+rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
+
 -----------------------------------------------------------------
 ------------------- Constraints: Types --------------------------
 -----------------------------------------------------------------
@@ -292,12 +292,15 @@ instance Outputable Cinfo where
 
 splitW ::  WfC -> [FixWfC]
 
-splitW (WfC γ t@(RFun (RB x) t1 t2 _)) 
+splitW (WfC γ t@(RFun x t1 t2 _)) 
   =  bsplitW γ t
   ++ splitW (WfC γ t1) 
   ++ splitW (WfC ((γ, "splitW") += (x, t1)) t2)
 
-splitW (WfC γ (RAll a r)) 
+splitW (WfC γ (RAllT _ r)) 
+  = splitW (WfC γ r)
+
+splitW (WfC γ (RAllP _ r)) 
   = splitW (WfC γ r)
 
 splitW (WfC γ t@(RVar _ r))
@@ -342,32 +345,31 @@ rsplitW γ (RPoly t0, (PV _ t as))
 splitC :: SubC -> [FixSubC]
 ------------------------------------------------------------
 
-splitC (SubC γ (REx (RB x) tx t1) t2) 
+splitC (SubC γ (REx ( x) tx t1) t2) 
   = splitC (SubC γ' t1 t2)
     where γ' = (γ, "addExBind") += (x, existentialRefType γ tx)
 
-splitC (SubC γ t1 (REx (RB x) tx t2))
+splitC (SubC γ t1 (REx ( x) tx t2))
   = splitC (SubC γ' t1 t2)
     where γ' = (γ, "addExBind") += (x, existentialRefType γ tx)
  
-splitC (SubC γ t1@(RFun (RB x1) r1 r1' re1) t2@(RFun (RB x2) r2 r2' re2)) 
+splitC (SubC γ t1@(RFun x1 r1 r1' re1) t2@(RFun x2 r2 r2' re2)) 
   =  bsplitC γ t1 t2 
   ++ splitC  (SubC γ r2 r1) 
   ++ splitC  (SubC γ' r1x2' r2') 
      where r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
            γ'    = (γ, "splitC") += (x2, r2) 
 
-splitC (SubC γ (RAll b1 t1) (RAll b2 t2))
-  | b1 == b2
+splitC (SubC γ (RAllP p1 t1) (RAllP p2 t2))
+  | p1 == p2
   = splitC $ SubC γ t1 t2
 
-splitC (SubC γ (RAll (RV α1) t1) (RAll (RV α2) t2))
+splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
+  |  α1 ==  α2 
+  = splitC $ SubC γ t1 t2
+  | otherwise   
   = splitC $ SubC γ t1 t2' 
-  where t2' = subsTyVar_meet' (α2, RVar (RV α1) top) t2
-
-
-splitC c@(SubC γ (RAll _ _) (RAll _ _)) 
-  = errorstar $ "splitc unexpected: " ++ showPpr c
+  where t2' = subsTyVar_meet' (α2, RVar α1 top) t2
 
 splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
 	= bsplitC γ t1 t2 
@@ -381,13 +383,17 @@ splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
 splitC (SubC _ (RCls c1 _) (RCls c2 _)) -- | c1 == c2
   = []
 
-splitC (SubC _ t1 t2) 
-  = []
+-- TODO: MASSIVE SOUNDNESS PROBLEM
+-- splitC (SubC _ t1 t2) 
+--   = []
+splitC c@(SubC γ _ _) 
+  = errorstar $ "(Breaks Tests I bet!) splitc unexpected: " ++ showPpr c
+
 
 chkTyConIds (RTyCon _ ps1) (RTyCon _ ps2) 
  = length ps1 == length ps2
   
-fieldBinds fts = [(x,t) | (RB x, t) <- fts]
+fieldBinds fts = [(x,t) | ( x, t) <- fts]
 
 bsplitC γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
@@ -539,9 +545,6 @@ instance Freshable Integer where
 instance Freshable F.Symbol where
   fresh = liftM (F.tempSymbol "x") fresh
 
-instance Freshable RBind where
-  fresh = liftM RB fresh 
-
 instance Freshable (F.Refa) where
   fresh = liftM (`F.RKvar` F.emptySubst) freshK
     where freshK = liftM F.intKvar fresh
@@ -559,8 +562,10 @@ instance Freshable SpecType where
   refresh = refreshRefType
   true    = trueRefType 
 
-trueRefType (RAll α t)       
-  = liftM (RAll α) (true t)
+trueRefType (RAllT α t)       
+  = liftM (RAllT α) (true t)
+trueRefType (RAllP π t)       
+  = liftM (RAllP π) (true t)
 trueRefType (RFun _ t t' _)    
   = liftM3 rFun fresh (true t) (true t')
 trueRefType (RApp c ts refs _)  
@@ -569,8 +574,10 @@ trueRefType (RApp c ts refs _)
 trueRefType t                
   = return t
 
-refreshRefType (RAll α t)       
-  = liftM (RAll α) (refresh t)
+refreshRefType (RAllT α t)       
+  = liftM (RAllT α) (refresh t)
+refreshRefType (RAllP π t)       
+  = liftM (RAllP π) (refresh t)
 refreshRefType (RFun b t t' _)
   | isDummyBind b -- b == (RB F.dummySymbol)
   = liftM3 rFun fresh (refresh t) (refresh t')
@@ -660,10 +667,10 @@ cconsE γ ex@(Case e x τ cases) t
        forM_ cases $ cconsCase γ' x t nonDefAlts 
     where nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
 
-cconsE γ (Lam α e) (RAll (RV α') t) | isTyVar α 
+cconsE γ (Lam α e) (RAllT α' t) | isTyVar α 
   = cconsE γ e $ subsTyVar_meet' (α', rVar α) t 
 
-cconsE γ (Lam x e) (RFun (RB y) ty t _) 
+cconsE γ (Lam x e) (RFun y ty t _) 
   | not (isTyVar x) 
   = do cconsE ((γ, "cconsE") += (mkSymbol x, ty)) e te 
        addIdA x (Left ty) 
@@ -676,7 +683,7 @@ cconsE γ (Tick tt e) t
 cconsE γ (Cast e _) t     
   = cconsE γ e t 
 
-cconsE γ e (RAll (RP p@(PV _ τ _)) t)
+cconsE γ e (RAllP (p@(PV _ τ _)) t)
   = do s <- truePredRef p
        cconsE γ e (replacePreds "cconsE" t [(p, RPoly s)])
 
@@ -697,36 +704,36 @@ consE _ (Lit c)
   = return $ literalRefType c
 
 consE γ (App e (Type τ)) 
-  = do RAll (RV α) te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
-       t              <- if isGeneric α te then freshTy e τ else trueTy τ
-       addW            $ WfC γ t
-       return          $ subsTyVar_meet' (α, t) te
+  = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
+       t          <- if isGeneric α te then freshTy e τ else trueTy τ
+       addW       $ WfC γ t
+       return     $ subsTyVar_meet' (α, t) te
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
        case t0 of
-         RAll (RP p) t -> do s <- freshPredRef γ e' p
-                             return $ replacePreds "consE" t [(p, RPoly s)] 
-         _             -> return t0
+         RAllP p t -> do s <- freshPredRef γ e' p
+                         return $ replacePreds "consE" t [(p, RPoly s)] 
+         _         -> return t0
 
 consE γ e'@(App e a)               
-  = do ([], πs, te)            <- bkUniv <$> consE γ e
-       zs                      <- mapM (\π -> liftM ((π,) . RPoly) $ freshPredRef γ e' π) πs
-       let te'                  = replacePreds "consE" te zs
-       let (RFun (RB x) tx t _) = checkFun ("Non-fun App with caller", e') te' 
+  = do ([], πs, te)        <- bkUniv <$> consE γ e
+       zs                  <- mapM (\π -> liftM ((π,) . RPoly) $ freshPredRef γ e' π) πs
+       let te'             = replacePreds "consE" te zs
+       let (RFun x tx t _) = checkFun ("Non-fun App with caller", e') te' 
        cconsE γ a tx 
        return $ maybe err (F.subst1 t . (x,)) (argExpr a)
     where err = errorstar $ "consE: App crashes on" ++ showPpr a 
 
 consE γ (Lam α e) | isTyVar α 
-  = liftM (RAll (rTyVar α)) (consE γ e) 
+  = liftM (RAllT (rTyVar α)) (consE γ e) 
 
 consE γ  e@(Lam x e1) 
   = do tx     <- freshTy (Var x) τx 
        t1     <- consE ((γ, "consE") += (mkSymbol x, tx)) e1
        addIdA x (Left tx) 
        addW   $ WfC γ tx 
-       return $ rFun (RB (mkSymbol x)) tx t1
+       return $ rFun (mkSymbol x) tx t1
     where FunTy τx _ = exprType e 
 
 consE γ e@(Let _ _)       
@@ -810,13 +817,13 @@ addBinders γ0 x' cbs
 checkTyCon _ t@(RApp _ _ _ _) = t
 checkTyCon x t                = checkErr x t --errorstar $ showPpr x ++ "type: " ++ showPpr t
 
-checkRPred _ t@(RAll _ _)     = t
-checkRPred x t                = checkErr x t
+-- checkRPred _ t@(RAll _ _)     = t
+-- checkRPred x t                = checkErr x t
 
 checkFun _ t@(RFun _ _ _ _)   = t
 checkFun x t                  = checkErr x t
 
-checkAll _ t@(RAll _ _)       = t
+checkAll _ t@(RAllT _ _)      = t
 checkAll x t                  = checkErr x t
 
 checkErr (msg, e) t          = errorstar $ msg ++ showPpr e ++ "type: " ++ showPpr t
@@ -938,10 +945,10 @@ exprRefType_ γ (Let b e)
   = exprRefType_ (bindRefType_ γ b) e
 
 exprRefType_ γ (Lam α e) | isTyVar α
-  = RAll (rTyVar α) (exprRefType_ γ e)
+  = RAllT (rTyVar α) (exprRefType_ γ e)
 
 exprRefType_ γ (Lam x e) 
-  = rFun (RB (mkSymbol x)) (ofType $ varType x) (exprRefType_ γ e)
+  = rFun (mkSymbol x) (ofType $ varType x) (exprRefType_ γ e)
 
 exprRefType_ γ (Tick _ e)
   = exprRefType_ γ e
@@ -975,5 +982,8 @@ addRTyConInv _ t
 
 mkRTyConInv    :: [SpecType] -> RTyConInv 
 mkRTyConInv ts = mconcat <$> group [ (c, r) | RApp c _ _ (U r _) <- strip <$> ts]
-                 where strip (RAll _ t) = strip t
-                       strip t          = t
+                 where strip = thd3 . bkUniv 
+                       -- strip (RAllT _ t) = strip t
+                       -- strip (RAllT _ t) = strip t
+                       -- strip t           = t
+
