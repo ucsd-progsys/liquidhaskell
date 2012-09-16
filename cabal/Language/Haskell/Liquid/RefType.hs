@@ -217,6 +217,7 @@ uReft (x, y)    = U (Reft (x, y)) pdTrue
 
 uPVar           :: PVar t -> UsedPVar
 uPVar           = fmap (const ())
+
 --------------------------------------------------------------------
 -------------- (Class) Predicates for Valid Refinement Types -------
 --------------------------------------------------------------------
@@ -838,8 +839,6 @@ mapBotRef f (RPoly t) = RPoly $ mapBot f t
 
 class SubsTy tv ty a where
   subt :: (tv, ty) -> a -> a
-  -- subv :: (PVar ty -> PVar ty) -> a -> a
-  -- subv :: (UsedPVar -> UsedPVar) -> a -> a
 
 subts = flip (foldr subt) 
 
@@ -854,33 +853,25 @@ instance (SubsTy tv ty ty) => SubsTy tv ty (PVar ty) where
 
 instance SubsTy RTyVar RSort RTyCon where  
    subt z c = c {rTyConPs = subt z <$> rTyConPs c}
---    subv f c = c {rTyConPs = f <$> rTyConPs c}
 
 -- NOTE: This DOES NOT substitute at the binders
 instance SubsTy RTyVar RSort PrType where   
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
---  subv f t    = fmap (subvPredicate f) t 
 
 instance SubsTy RTyVar RSort RSort where   
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
---  subv _      = id 
 
 -- Here the "String" is a Bare-TyCon. TODO: wrap in newtype 
 instance SubsTy String BSort String where
   subt _ t = t
---  subv _   = id
 
 instance SubsTy String BSort BSort where
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
---  subv _      = id 
 
 instance (SubsTy tv ty (UReft r)) => SubsTy tv ty (Ref (UReft r) (RType p c tv (UReft r)))  where
   subt m (RMono p) = RMono $ subt m p
   subt m (RPoly t) = RPoly $ fmap (subt m) t
   
---  subv _ (RMono p) = RMono p 
---  subv f (RPoly t) = RPoly $ fmap (subvUReft f) t
-
 subvPredicate :: (UsedPVar -> UsedPVar) -> Predicate -> Predicate 
 subvPredicate f (Pr pvs) = Pr (f <$> pvs)
 

@@ -34,6 +34,7 @@ import Control.Applicative      ((<$>))
 import qualified Data.Map  as M
 import qualified Data.List as L
 import qualified Data.Set  as S
+import Data.Maybe (fromMaybe)
 import Data.Bifunctor
 import Data.List (foldl')
 import Control.DeepSeq
@@ -47,10 +48,15 @@ consAct info = foldM consCB (initEnv info) $ cbs info
 
 generatePredicates ::  GhcInfo -> ([CoreSyn.Bind CoreBndr], F.SEnv PrType)
 generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ "PredCBS" ++ show cbs')-} (cbs', nPd)
-  where γ    = fmap removeExtPreds (penv $ evalState act (initPI $ tconsP $ spec info))
-        act  = consAct info
+  where -- WHAT?! All the predicate constraint stuff is DEAD CODE?!!
+        -- γ    = fmap removeExtPreds (penv $ evalState act (initPI $ tconsP $ spec info))
+        -- act  = consAct info
         cbs' = addPredApp nPd <$> cbs info
         nPd  = getNeedPd $ spec info
+
+-- removeExtPreds (RAllP pv t) = removeExtPreds (substPvar (M.singleton (uPVar pv) top) <$> t) 
+-- removeExtPreds t            = t
+
 
 instance Show CoreBind where
   show = showSDoc . ppr
@@ -65,13 +71,14 @@ instance Show CoreBind where
       Nothing -> error $ "SEnvlookupR: unknown = " ++ showPpr x
 
 data PCGEnv 
-  = PCGE { loc  :: !SrcSpan
-         , penv :: !(F.SEnv PrType)
+  = PCGE { loc   :: !SrcSpan            -- ^ Source position corresponding to environment
+         , penv  :: !(F.SEnv PrType)    -- ^ Map from (program) variables to PrType
          }
 
 data PInfo 
   = PInfo { freshIndex :: !Integer
-          , pMap       :: !(M.Map RPVar (Predicate Type))
+          , pMap       :: !(M.Map UsedPVar Predicate)
+          , pvMap      :: !(F.SEnv RPVar)               -- ^ Map from (Used) PVar names to actual definitions, used to generalize
           , hsCsP      :: ![SubC]
           , tyCons     :: !(M.Map TyCon TyConP)
           , symbolsP   :: !(M.Map F.Symbol F.Symbol)
@@ -87,6 +94,7 @@ addId x y = modify $ \s -> s{symbolsP = M.insert x y (symbolsP s)}
 
 initPI x = PInfo { freshIndex = 1
                  , pMap       = M.empty
+                 , pvMap      = F.emptySEnv 
                  , hsCsP      = []
                  , tyCons     = M.fromList x
                  , symbolsP   = M.empty
@@ -96,7 +104,6 @@ type PI = State PInfo
 
 consCB' γ (NonRec x e)
   = do t <- consE γ e
---       tg <- generalizeS t
        return $ γ += (mkSymbol x, t)
 
 consCB' γ (Rec xes) 
@@ -107,7 +114,7 @@ consCB' γ (Rec xes)
     where (xs, es) = unzip xes
           vs       = mkSymbol <$> xs
 
-checkOneToOne :: [(Predicate Type, Predicate Type)] -> Bool
+checkOneToOne :: [(Predicate, Predicate)] -> Bool
 checkOneToOne xys = and [y1 == y2 | (x1, y1) <- xys, (x2, y2) <- xys, x1 == x2]
 
 tyCheck x Nothing t2
@@ -121,22 +128,16 @@ rmTs = filter rmT
         rmT (Pr [], _) = error "tmTs in tyC"
         rmT (_    , _) = True
 
---rmTs ((_     , PdTrue):ls) = rmTs ls
---rmTs ((PdTrue, _     ):ls) = error "tmTs in tyC"
---rmTs ((p1    , p2    ):ls) = (p1, p2): (rmTs ls)
---rmTs [] = []
-
-
-
 tyC (RAllP _ t1) t2 
-  = tyC t1 t2
+  = tyC (t1 :: PrType) (t2 :: PrType)
 
 tyC t1 (RAllP _ t2) 
   = tyC t1 t2
 
-tyC (RAllT α1 t1) (RAllT α2 t2) 
-  = tyC (subsTyVars_meet' [(α1, RVar α2 top)] t1) t2
-
+tyC (RAllT α1 t1) (RAllT (RTV α2) t2) 
+  -- = tyC (subsTyVars_meet' [(α1, rVar α2)] t1) t2
+  = tyC (subt (α1, (rVar α2 :: RSort)) t1) t2
+  
 tyC (RVar v1 p1) (RVar v2 p2)
   = do modify $ \(ps, msg) -> ((p2, p1):ps, msg)
        return $ v1 == v2
@@ -168,7 +169,7 @@ consCB γ (Rec xes)
   = do ts       <- mapM (\e -> freshTy $ exprType e) es
        let γ'   = foldl' (+=) γ (zip vs ts)
        zipWithM_ (cconsE γ') es ts
-       tsg   <-forM ts generalizeS
+       tsg      <- forM ts generalizeS
        return $ foldl' (+=) γ (zip vs tsg)
     where (xs, es) = unzip xes
           vs       = mkSymbol <$> xs
@@ -183,7 +184,8 @@ consE _ e@(Lit c)
 
 consE γ (App e (Type τ)) 
   = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
-       return $ subsTyVars_meet' [(α, ofType τ)]  te
+       return $ subt (α, ofType τ :: RSort) te 
+       -- return $ subsTyVars_meet' [(α, ofType τ)]  te
 
 consE γ (App e a)               
   = do RFun x tx t _ <- liftM (checkFun ("PNon-fun App with caller", e)) $ consE γ e 
@@ -268,12 +270,12 @@ cconsCase γ x t (DataAlt c, ys, ce)
        let cγ = foldl' (+=) γ cbs
        cconsE cγ ce t
 
--- GENSUB: subsTyVars_meet' αts = subsTyVars_meet αts 
-subsTyVars_meet' αts = subsTyVars_meet [(α, toType t, t) | (α, t) <- αts]
+-- subsTyVars_meet' αts = subsTyVars_meet [(α, toType t, t) | (α, t) <- αts]
 
 unfold tc (RApp _ ts _ _) _ =  (x,  y)
   where (_ , x , y)  = bkArrow tc''
-        tc''         = subsTyVars_meet' (zip vs ts) tc' 
+        -- tc''      = subsTyVars_meet' (zip vs ts) tc' 
+        tc''         = subts (zip vs (toRSort <$> ts)) tc'
         (vs, _, tc') = bkUniv tc
 unfold tc t              x  = error $ "unfold" ++ {-(showSDoc (ppr x)) ++-} " : " ++ show t
 
@@ -376,9 +378,16 @@ varPredArgs_ (Just t) = (length vs, length ps)
   where (vs, ps, _) = bkUniv t
 
 generalizeS t 
-  = do splitCons
-       s <- pMap <$> get 
-       return $ generalize $ substPvar s <$> t
+  = do hsCs  <- getRemoveHsCons
+       _     <- addToMap ((concat (concatMap splitC hsCs)))
+       su    <- pMap  <$> get
+       pvm   <- pvMap <$> get
+       return $ generalize pvm $ substPvar su <$> t
+
+-- splitCons :: PI () 
+-- splitCons = getRemoveHsCons >>= (addToMap . concat . concatMap splitC)
+--           = do hsCs <- getRemoveHsCons
+--                addToMap ((concat (concatMap splitC hsCs)))
 
 getRemoveHsCons 
   = do s <- get
@@ -387,33 +396,28 @@ getRemoveHsCons
        return cs
 
 -- UNIFYHERE2: normalize m to make sure RHS does not contain LHS Var,
-
 addToMap substs 
-  = do s <- get
-       let m  = pMap s
-       let m' = foldl' updateSubst m substs
-       put $ s { pMap = m' }
+  = do s  <- get
+       put $ s { pMap = foldl' updateSubst (pMap s) substs}
 
-updateSubst :: M.Map RPVar Predicate -> (Predicate, Predicate) -> M.Map RPVar Predicate 
-updateSubst m (p, p') = foldl' (\m (k, v) -> M.insert k v m) m binds 
+addToPVMap pv 
+  = do s <- get
+       put $ s { pvMap = F.insertSEnv (pname pv) pv (pvMap s) }
+
+updateSubst :: M.Map UsedPVar Predicate -> (Predicate, Predicate) -> M.Map UsedPVar Predicate 
+-- updateSubst m (p, p') = foldl' (\m (k, v) -> M.insert k v m) m binds 
+updateSubst m (p, p') = foldr (uncurry M.insert) m binds -- PREDARGS: what if it is already in the Map?!!!
   where binds = unifiers $ unifyVars (substPvar m p) (substPvar m p')
 
 unifyVars (Pr v1s) (Pr v2s) = (v1s L.\\ vs, v2s L.\\ vs) 
   where vs  = L.intersect v1s v2s
 
-unifiers ([], vs') = [(v', top) | v' <- vs']
-unifiers (vs, vs') = [(v , Pr vs')      | v  <- vs ]
+unifiers ([], vs') = [(v', top)     | v' <- vs']
+unifiers (vs, vs') = [(v , Pr vs')  | v  <- vs ]
 
-splitCons :: PI () 
-splitCons
-  = do hsCs <- getRemoveHsCons
-       addToMap ((concat (concatMap splitC hsCs)))
-
--- generalize predicates of arguments: used on Rec Definitions
-
-initEnv info = PCGE { loc = noSrcSpan , penv = F.fromListSEnv bs}
-  where dflts  = [(x, ofType $ varType x) | x <- freeVs]
-        dcs    = [(x, dconTy $ varType x) | x <- dcons]
+initEnv info = PCGE { loc = noSrcSpan , penv = F.fromListSEnv bs }
+  where dflts  = [(x, ofType $ varType x) | x <- freeVs ]
+        dcs    = [(x, dconTy $ varType x) | x <- dcons  ]
         sdcs   = bimap TC.dataConWorkId dataConPtoPredTy <$> dconsP (spec info)
         assms  = passm $ tySigs $ spec info
         bs     = first mkSymbol <$> (dflts ++ dcs ++ assms ++ sdcs)
@@ -429,7 +433,8 @@ getNeedPd spec
 passm = fmap (second (mapReft ur_pred)) 
 -- specTypePrType = mapReft pred
 
-dconTy t = generalize $ dataConTy vps t
+-- PREDARGS: why are we even generalizing here?
+dconTy t = generalize F.emptySEnv $ dataConTy vps t
   where vs  = tyVars t
         ps  = truePr <$> vs 
         vps = M.fromList $ zipWith (\v p -> (RTV v, RVar (RTV v) p)) vs ps
@@ -446,22 +451,31 @@ freshInt = do pi <- get
 
 stringSymbol  = F.S
 freshSymbol s = stringSymbol . (s++) . show <$> freshInt
-freshPr a     = (\sy -> pdVar (PV sy a [])) <$> (freshSymbol "p")
 truePr _      = top
 
-freshPrAs p = (\n -> pdVar $ p {pname = n}) <$> freshSymbol "p"
+-- freshPr a     = (\n -> PV n a [])     <$> freshSymbol "p"
+-- freshPrAs p   = (\n -> p {pname = n}) <$> freshSymbol "p"
+
+freshPr a     = mkFreshPr (\n -> PV n a [])
+freshPrAs pv  = mkFreshPr (\n -> pv { pname = n })
+
+mkFreshPr f   = do pv    <- f <$> freshSymbol "p"
+                   addToPVMap pv 
+                   return $ pdVar pv
+
 
 refreshTy t 
   = do fps <- mapM freshPrAs ps
-       return $ substPvar (M.fromList (zip ps fps)) <$> t''
-   where (vs, ps, t') = bkUniv t
+       return $ substPvar (M.fromList (zip ups fps)) <$> t''
+   where ups          = uPVar <$> ps
+         (vs, ps, t') = bkUniv t
          t''          = mkUnivs vs [] t' 
 
 freshTy t 
   | isPredTy t
   = return $ freshPredTree $ (classifyPredType t)
 freshTy t@(TyVarTy v) 
-  = liftM (RVar (RTV v)) (freshPr t)
+  = liftM (RVar (RTV v)) (freshPr (ofType t :: RSort))
 freshTy (FunTy t1 t2) 
   = liftM3 rFun (freshSymbol "s") (freshTy t1) (freshTy t2)
 freshTy t@(TyConApp c τs) 
@@ -478,14 +492,16 @@ freshTy t
 freshPredTree (ClassPred c ts)
   = RCls c (ofType <$> ts)
 
-freshTyConPreds c ts
+-- PREDARGS : this function is /super/ ugly to read.
+
+freshTyConPreds c τs
  = do s <- get
       case (M.lookup c (tyCons s)) of 
-       Just x  -> liftM (RMono<$>) $ mapM freshPrAs 
-                      ((\t -> foldr subt t (zip (freeTyVarsTy x) ts)) 
-                     <$> freePredTy x)
-       Nothing -> return ([] :: [Ref (Predicate Type) PrType])
-
+        Just x  -> liftM (RMono <$>) $ mapM freshPrAs 
+                      ((\t -> foldr subt t (zip (freeTyVarsTy x) ts)) <$> freePredTy x)
+        Nothing -> return ([] :: [Ref Predicate PrType])
+   where ts = (ofType <$> τs) :: [RSort] 
+   
 checkFun _ t@(RFun _ _ _ _) = t
 checkFun x t                = error $ showPpr x ++ "type: " ++ showPpr t
 
@@ -496,15 +512,20 @@ checkAll x t                = error $ showPpr x ++ "type: " ++ showPpr t
   | isGoodSrcSpan src = γ { loc = src } 
   | otherwise = γ
 
--- | Generalize free used predicates. 
+
+-- | Generalize free predicates: used on Rec Definitions? 
 -- Requires an environment of predicate definitions.
 
-generalize            = generalize_ freePreds
-generalizeArgs        = generalize_ freeArgPreds
+generalize pvm        = generalize_ pvm freePreds
+-- generalizeArgs        = generalize_ freeArgPreds
 
-generalize_ f t       = mkUnivs vs ps t' 
+generalize_ pvm f t   = mkUnivs vs ps t' 
   where (vs, ps', t') = bkUniv t
-        ps            = S.toList (f t) ++ ps'
+        ps            = gps ++ ps'
+        gps           = defPVar pvm <$> S.toList (f t)
+
+defPVar pvm pv        = fromMaybe err $ F.lookupSEnv (pname pv) pvm 
+  where err           = errorstar $ "Predicate.generalize: No definition for PVar" ++ showPpr pv
 
 freeArgPreds (RFun _ t1 t2 _) = freePreds t1 -- RJ: UNIFY What about t2?
 freeArgPreds (RAllT _ t)      = freeArgPreds t
@@ -523,18 +544,16 @@ freePreds (RApp _ ts ps p) = unions ((S.fromList (concatMap pvars (p:((fromRMono
 -- substPvar :: M.Map RPVar Predicate -> Predicate -> Predicate 
 substPvar s = (\(Pr πs) -> pdAnd (lookupP s <$> πs))
 
+lookupP s pv 
+  = case M.lookup pv s of 
+      Nothing -> pdVar pv
+      Just p' -> subvPredicate (\pv' -> pv' { pargs = pargs pv }) p'
+ 
 -- lookupP ::  M.Map (PVar a) Predicate -> PVar b -> Predicate
 -- lookupP s p@(PV _ _ s')
 --   = case M.lookup p s of 
 --       Nothing  -> Pr [p]
 --       Just q   -> subvPredicate (\pv -> pv { pargs = s'}) q
 
-lookupP s pv 
-  = case M.lookup pv s of 
-      Nothing -> pdVar pv
-      Just p' -> subvPredicate (\pv' -> pv' { pargs = pargs pv }) p'
-    
-removeExtPreds (RAllP pv t) = removeExtPreds (substPvar (M.singleton pv top) <$> t) 
-removeExtPreds t            = t
-
+   
 
