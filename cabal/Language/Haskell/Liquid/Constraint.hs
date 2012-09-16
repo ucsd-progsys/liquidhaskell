@@ -136,7 +136,7 @@ measEnv sp penv xts
 assm = {- traceShow ("****** assm *****\n") . -} assm_grty impVars 
 grty = {- traceShow ("****** grty *****\n") . -} assm_grty defVars
 
-assm_grty f info = [ (x, mapReft ureft t) | (x, t) <- sigs, x `S.member` xs ] 
+assm_grty f info = [ (x, ur_reft <$> t) | (x, t) <- sigs, x `S.member` xs ] 
   where xs   = S.fromList $ f info 
         sigs = tySigs $ spec info  
 
@@ -579,7 +579,7 @@ refreshRefType (RAllT α t)
 refreshRefType (RAllP π t)       
   = liftM (RAllP π) (refresh t)
 refreshRefType (RFun b t t' _)
-  | isDummyBind b -- b == (RB F.dummySymbol)
+  | b == F.dummySymbol -- b == (RB F.dummySymbol)
   = liftM3 rFun fresh (refresh t) (refresh t')
   | otherwise
   = liftM2 (rFun b) (refresh t) (refresh t')
