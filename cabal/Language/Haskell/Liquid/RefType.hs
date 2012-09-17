@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.RefType (
   , generalize, normalizePds
   , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
-  , stripRTypeBase, refTypePredSortedReft, refTypeSortedReft, typeSortedReft, rTypeSort
+  , stripRTypeBase, refTypePredSortedReft, rTypeSortedReft, typeSortedReft, rTypeSort
   , ofRSort, toRSort
   , tidyRefType
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
@@ -232,6 +232,8 @@ class (Monoid r, Subable r, Outputable r) => Reftable r where
   meet    :: r -> r -> r
   meet    = mappend
 
+  toReft  :: r -> Reft
+
 class TyConable c where
   isList   :: c -> Bool
   isTuple  :: c -> Bool
@@ -294,20 +296,24 @@ instance Subable r => Subable (RType p c tv r) where
 instance Reftable r => Reftable (RType Class RTyCon RTyVar r) where
   isTauto = isTrivial
   ppTy    = errorstar "ppTy RPoly Reftable" 
+  toReft  = errorstar "toReft on RType"
 
 instance Reftable Reft where
   isTauto = isTautoReft
   ppTy    = ppr_reft
+  toReft  = id
 
 instance Reftable () where
   isTauto _ = True
   ppTy _  d = d
   top       = ()
   meet _ _  = ()
+  toReft _  = top
 
 instance (Reftable r) => Reftable (UReft r) where
   isTauto (U r p) = isTauto r && isTauto p 
   ppTy (U r p) d  = ppTy r (ppTy p d) 
+  toReft (U r _)  = toReft r
 
 instance (Reftable r, RefTypable p c tv r) => Subable (Ref r (RType p c tv r)) where
   subst su (RMono r) = RMono (subst su r) 
@@ -1096,10 +1102,12 @@ domREnv (REnv env)        = M.keys env
 refTypePredSortedReft (r, τ) = RR so r
   where so = typeSort τ
 
-refTypeSortedReft   ::  SpecType -> SortedReft
-refTypeSortedReft t = RR (rTypeSort t) (refTypeReft t)
+rTypeSortedReft   ::  (Reftable r) => RRType r -> SortedReft
+rTypeSortedReft t = RR (rTypeSort t) (refTypeReft t)
 
-refTypeReft t = fromMaybe top $ ur_reft <$> stripRTypeBase t
+refTypeReft :: (Reftable r) => RType p c tv r -> Reft
+refTypeReft = fromMaybe top . fmap toReft . stripRTypeBase 
+-- refTypeReft t = fromMaybe top $ ur_reft <$> stripRTypeBase t
 
 typeSortedReft t r = RR (typeSort t) (Reft (vv, [r]))
 

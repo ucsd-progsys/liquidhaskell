@@ -87,7 +87,7 @@ generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fw
         act = consAct (info {cbs = fst pds}) (snd pds)
         fcs = concatMap splitC $ hsCs  st 
         fws = concatMap splitW $ hsWfs st
-        gs  = F.fromListSEnv . map (mapSnd refTypeSortedReft) $ meas spc 
+        gs  = F.fromListSEnv . map (mapSnd rTypeSortedReft) $ meas spc 
         pds = generatePredicates info
         spc = spec info
 
@@ -127,7 +127,7 @@ measEnv sp penv xts
   = CGE { loc   = noSrcSpan
         , renv  = fromListREnv $ meas sp 
         , penv  = penv 
-        , fenv  = F.fromListSEnv $ second refTypeSortedReft <$> meas sp 
+        , fenv  = F.fromListSEnv $ second rTypeSortedReft <$> meas sp 
         , recs  = S.empty 
         , invs  = mkRTyConInv $ invariants sp
         , grtys = fromListREnv xts 
@@ -136,7 +136,7 @@ measEnv sp penv xts
 assm = {- traceShow ("****** assm *****\n") . -} assm_grty impVars 
 grty = {- traceShow ("****** grty *****\n") . -} assm_grty defVars
 
-assm_grty f info = [ (x, ur_reft <$> t) | (x, t) <- sigs, x `S.member` xs ] 
+assm_grty f info = [ (x, {- ur_reft <$> -} t) | (x, t) <- sigs, x `S.member` xs ] 
   where xs   = S.fromList $ f info 
         sigs = tySigs $ spec info  
 
@@ -173,7 +173,7 @@ instance Show CGEnv where
 (++=) :: CGEnv-> (String, F.Symbol, SpecType) -> CGEnv
 γ ++= (msg, x, r') 
   | isBase r 
-  = γ' { fenv = F.insertSEnv x (refTypeSortedReft r) (fenv γ) }
+  = γ' { fenv = F.insertSEnv x (rTypeSortedReft r) (fenv γ) }
   | otherwise
   = γ' { fenv = insertFEnvClass r (fenv γ) }
   where γ' = γ { renv = insertREnv x r (renv γ) }  
@@ -326,7 +326,7 @@ bsplitW γ t
   | otherwise
   = []
   where env' = fenv γ
-        r'   = refTypeSortedReft t
+        r'   = rTypeSortedReft t
         ci   = Ci (loc γ)
 
 -- rsplitW :: CGEnv -> (F.Reft, Predicate) -> [FixWfC]
@@ -403,8 +403,8 @@ bsplitC γ t1 t2
   | otherwise
   = []
   where γ'      = fenv γ
-        r1'     = refTypeSortedReft t1
-        r2'     = refTypeSortedReft t2
+        r1'     = rTypeSortedReft t1
+        r2'     = rTypeSortedReft t2
         ci      = Ci (loc γ)
 
 
@@ -922,9 +922,9 @@ instance NFData CGInfo where
 existentialRefType     :: CGEnv -> SpecType -> SpecType
 existentialRefType γ t = withReft t r' 
   where r'             = maybe top (exReft γ) (F.isSingletonReft r)
-        r              = F.sr_reft $ refTypeSortedReft t
+        r              = F.sr_reft $ rTypeSortedReft t
 
-exReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ refTypeSortedReft t
+exReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ rTypeSortedReft t
   where (xs,_ , t)     = bkArrow $ thd3 $ bkUniv $ γ ?= f 
         su             = F.mkSubst $ safeZip "fExprRefType" xs es
 exReft _ e             = F.exprReft e 

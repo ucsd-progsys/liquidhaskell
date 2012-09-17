@@ -60,7 +60,7 @@ refTypeQuals t0 = go emptySEnv t0
         go γ _                    = []
 
 refTopQuals t0 γ t 
-  = [ mkQual t0 γ v so pa | let (RR so (Reft (v, ras))) = refTypeSortedReft t 
+  = [ mkQual t0 γ v so pa | let (RR so (Reft (v, ras))) = rTypeSortedReft t 
                           , RConc p                    <- ras                 
                           , pa                         <- atoms p
     ]
