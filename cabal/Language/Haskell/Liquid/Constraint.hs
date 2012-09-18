@@ -125,7 +125,7 @@ unifyts penv (x, t) = (x', unify pt t)
 
 measEnv sp penv xts 
   = CGE { loc   = noSrcSpan
-        , renv  = fromListREnv $ meas sp 
+        , renv  = fromListREnv   $ second uRType          <$> meas sp 
         , penv  = penv 
         , fenv  = F.fromListSEnv $ second rTypeSortedReft <$> meas sp 
         , recs  = S.empty 
@@ -136,7 +136,7 @@ measEnv sp penv xts
 assm = {- traceShow ("****** assm *****\n") . -} assm_grty impVars 
 grty = {- traceShow ("****** grty *****\n") . -} assm_grty defVars
 
-assm_grty f info = [ (x, {- ur_reft <$> -} t) | (x, t) <- sigs, x `S.member` xs ] 
+assm_grty f info = [ (x, {- toReft <$> -} t) | (x, t) <- sigs, x `S.member` xs ] 
   where xs   = S.fromList $ f info 
         sigs = tySigs $ spec info  
 
@@ -321,17 +321,18 @@ bsplitW γ t
         r'   = rTypeSortedReft t
         ci   = Ci (loc γ)
 
--- rsplitW :: CGEnv -> (F.Reft, Predicate) -> [FixWfC]
 rsplitW γ (RMono r, ((PV _ t as)))
   = [F.WfC env' r' Nothing ci]
   where env' = fenv γ'
         ci   = Ci (loc γ)
-        r'   = refTypePredSortedReft (r, t)
-        γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitW1", x, ofType τ)) as) 
+        r'   = mkSortedReft t $ toReft r 
+        γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitW1", x, ofRSort τ)) as) 
 
 rsplitW γ (RPoly t0, (PV _ t as))
   = splitW (WfC γ' t0)
-  where γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitW2", x, ofType τ)) as) 
+  where γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitW2", x, ofRSort τ)) as) 
+
+mkSortedReft = F.RR . rTypeSort
 
 ------------------------------------------------------------
 splitC :: SubC -> [FixSubC]
@@ -379,7 +380,7 @@ splitC (SubC _ (RCls c1 _) (RCls c2 _)) -- | c1 == c2
 -- splitC (SubC _ t1 t2) 
 --   = []
 splitC c@(SubC γ _ _) 
-  = errorstar $ "(Breaks Tests I bet!) splitc unexpected: " ++ showPpr c
+  = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showPpr c
 
 
 chkTyConIds (RTyCon _ ps1) (RTyCon _ ps2) 
@@ -409,13 +410,18 @@ rsplitC γ ((RMono r1, RMono r2), (PV _ t as))
   = [F.SubC env' F.PTrue r1' r2' Nothing [] ci]
   where env' = fenv γ'
         ci   = Ci (loc γ)
-        r1'  = refTypePredSortedReft (r1, t)
-        r2'  = refTypePredSortedReft (r2, t)
-        γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitC1", x, ofType τ)) as) 
+        r1'  = mkSortedReft t (toReft r1)
+        r2'  = mkSortedReft t (toReft r2)
+        γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitC1", x, ofRSort τ)) as) 
+
+
 rsplitC γ ((RPoly r1, RPoly r2), PV _ t as)
   = splitC (SubC γ' r1 r2)
-  where γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitC2", x, ofType τ)) as) 
-rsplitC γ ((RPoly t, RMono r), p)  = error "rplit Rpoly - RMono"
+  where γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitC2", x, ofRSort τ)) as) 
+
+rsplitC γ _  
+  = error "rsplit Rpoly - RMono"
+-- rsplitC γ ((RPoly t, RMono r), p)  = error "rsplit Rpoly - RMono"
 {-  = case stripRTypeBase t of 
      Just x  -> rsplitC γ ((RMono x, (RMono r)), p)
      Nothing -> error "rsplitStrip" 
@@ -515,6 +521,10 @@ freshTy' _ = refresh . ofType
 freshTy :: CoreExpr -> Type -> CG SpecType
 freshTy = freshTy' 
 
+-- TODO: remove freshRSort?
+-- freshRSort :: CoreExpr -> RSort -> CG SpecType
+-- freshRSort e = freshTy e . toType 
+
 trueTy  :: Type -> CG SpecType
 trueTy t 
   = do t   <- true $ ofType t
@@ -545,9 +555,14 @@ instance Freshable [F.Refa] where
   fresh = liftM single fresh
 
 instance Freshable (F.Reft) where
-  fresh = errorstar "fresh Reft"
+  fresh                   = errorstar "fresh Reft"
   true    (F.Reft (v, _)) = return $ F.Reft (v, []) 
   refresh (F.Reft (v, _)) = liftM (F.Reft . (v, )) fresh
+
+instance Freshable RReft where
+  fresh             = errorstar "fresh RReft"
+  true (U r _)      = liftM uTop (true r)  
+  refresh (U r _)   = liftM uTop (refresh r) 
 
 instance Freshable SpecType where
   fresh   = errorstar "fresh RefType"
@@ -561,8 +576,8 @@ trueRefType (RAllP π t)
 trueRefType (RFun _ t t' _)    
   = liftM3 rFun fresh (true t) (true t')
 trueRefType (RApp c ts refs _)  
-  = liftM (\ts -> RApp c ts truerefs top {-F.trueReft-}) (mapM true ts)
-		where truerefs = (RPoly . ofType . ptype) <$> (rTyConPs c)
+  = liftM (\ts -> RApp c ts truerefs top) (mapM true ts)
+		where truerefs = (RPoly . ofRSort . ptype) <$> (rTyConPs c)
 trueRefType t                
   = return t
 
@@ -693,7 +708,7 @@ consE γ (Var x)
     where t = varRefType γ x
 
 consE _ (Lit c) 
-  = return $ literalRefType c
+  = return $ uRType $ literalRefType c
 
 consE γ (App e (Type τ)) 
   = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
@@ -768,20 +783,25 @@ cconsCase γ x t _ (DataAlt c, ys, ce)
        (rtd, yts, xt') = unfoldR tdc xt0 ys'
        r1              = dataConReft   c   ys' 
        r2              = dataConMsReft rtd ys'
-       xt              = xt0 `strengthen` (r1 `meet` r2)
+       xt              = xt0 `strengthen` (uTop (r1 `meet` r2))
 
 cconsCase γ x t acs (a, _, ce) 
   = cconsE cγ ce t
   where cγ  = addBinders γ x' [(x', xt')]
         x'  = mkSymbol x
-        xt' = altRefType (γ ?= x') acs a 
+        xt' = (γ ?= x') `strengthen` uTop (altReft acs a) 
 
-altRefType t _   (LitAlt l) 
-  = t `strengthen` literalReft l
+altReft _ (LitAlt l)   = literalReft l
+altReft acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
+  where notLiteralReft = F.notExprReft . snd . literalConst
 
-altRefType t acs DEFAULT    
-  = t `strengthen` (mconcat [notLiteralReft l | LitAlt l <- acs])
-    where notLiteralReft =  F.notExprReft . snd . literalConst 
+-- PREDARGS
+-- altRefType t _   (LitAlt l) 
+--   = t `strengthen` literalReft l
+-- 
+-- altRefType t acs DEFAULT    
+--   = t `strengthen` (mconcat [notLiteralReft l | LitAlt l <- acs])
+--     where notLiteralReft =  F.notExprReft . snd . literalConst 
 
 mkyts γ ys yts 
   = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts
@@ -838,13 +858,13 @@ getSrcSpan' x
 -----------------------------------------------------------------------
 
 truePredRef pd@(PV n τ as)
-  = trueTy τ
+  = trueTy (toType τ)
 
 freshPredRef γ e pd@(PV n τ as)
-  = do t <- freshTy e τ
+  = do t <- freshTy e (toType τ)
        addW $ WfC γ' t
        return t
-    where γ' = foldl' (++=) γ (map (\(τ, x, _) -> ("freshPredRef", x, ofType τ)) as) 
+    where γ' = foldl' (++=) γ (map (\(τ, x, _) -> ("freshPredRef", x, ofRSort τ)) as) 
 
 tySort (RVar _ (F.Reft(_, [a])))     = a
 tySort (RApp _ _ _ (F.Reft(_, [a]))) = a

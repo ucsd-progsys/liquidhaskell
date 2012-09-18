@@ -11,7 +11,7 @@ module Language.Haskell.Liquid.RefType (
   , PVar (..) , Predicate (..), UReft(..), DataDecl (..)
 
   -- * Functions for lifting Reft-values to Spec-values
-  , uTop, uReft, uRType, uPVar
+  , uTop, uReft, uRType, uRType', uPVar
  
   -- * Functions for manipulating `Predicate`s
   , pdAnd, pdVar, pdTrue, pvars
@@ -25,7 +25,7 @@ module Language.Haskell.Liquid.RefType (
   , generalize, normalizePds
   , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
-  , stripRTypeBase, refTypePredSortedReft, rTypeSortedReft, typeSortedReft, rTypeSort
+  , stripRTypeBase, rTypeSortedReft, typeSortedReft, rTypeSort
   , ofRSort, toRSort
   , tidyRefType
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
@@ -216,14 +216,19 @@ type RefType    = RRType    Reft
 
 -- | Various functions for converting vanilla `Reft` to `Spec`
 
-uReft           ::  (Symbol, [Refa]) -> UReft Reft 
-uReft (x, y)    = U (Reft (x, y)) pdTrue
-
+uRType          ::  RType p c tv a -> RType p c tv (UReft a)
 uRType          = fmap uTop 
+
+uRType'         ::  RType p c tv (UReft a) -> RType p c tv a 
+uRType'         = fmap ur_reft
 
 uPVar           :: PVar t -> UsedPVar
 uPVar           = fmap (const ())
 
+uReft           ::  (Symbol, [Refa]) -> UReft Reft 
+uReft           = uTop . Reft  
+
+uTop            ::  r -> UReft r
 uTop r          = U r top
 
 --------------------------------------------------------------------
@@ -1007,7 +1012,7 @@ primOrderingSort = typeSort $ dataConRepType eqDataCon
 ordCon s = EDat (S s) primOrderingSort
 
 -- TODO: turn this into a map lookup?
--- dataConReft   ::  DataCon -> [Symbol] -> Reft 
+dataConReft ::  DataCon -> [Symbol] -> Reft
 dataConReft c [] 
   | c == trueDataCon
   = Reft (vv, [RConc $ (PBexp (EVar vv))]) 
@@ -1092,9 +1097,6 @@ literalConst l                 = (sort, mkLit l)
 ---------------------------------------------------------------
 ---------------- Annotations and Solutions --------------------
 ---------------------------------------------------------------
-
-refTypePredSortedReft (r, τ) = RR so r
-  where so = typeSort τ
 
 rTypeSortedReft   ::  (Reftable r) => RRType r -> SortedReft
 rTypeSortedReft t = RR (rTypeSort t) (refTypeReft t)

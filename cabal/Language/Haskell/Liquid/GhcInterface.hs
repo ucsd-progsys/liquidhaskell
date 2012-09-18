@@ -366,7 +366,7 @@ newtype AnnInfo a
     deriving (Data, Typeable)
 
 type Annot 
-  = Either RefType SrcSpan
+  = Either SpecType SrcSpan
     -- deriving (Data, Typeable)
 
 instance Functor AnnInfo where
@@ -389,8 +389,8 @@ pprAnnInfoBind (_, _)
 pprXOT (x, v) = (xd, ppr v)
   where xd = maybe (text "unknown") ppr x
 
-applySolution :: FixSolution -> AnnInfo RefType -> AnnInfo RefType
-applySolution = fmap . fmap . mapReft . map . appSolRefa  
+applySolution :: FixSolution -> AnnInfo RefType -> AnnInfo RefType 
+applySolution = fmap . fmap . mapReft . map . appSolRefa 
   where appSolRefa _ ra@(RConc _) = ra 
         -- appSolRefa _ p@(RPvar _)  = p  
         appSolRefa s (RKvar k su) = RConc $ subst su $ M.findWithDefault PTop k s  
@@ -445,8 +445,8 @@ oneLine l
 lineCol l  
   = (srcSpanStartLine l, srcSpanStartCol l)
 
-closeAnnots :: AnnInfo Annot -> AnnInfo RefType
-closeAnnots = closeA . filterA
+closeAnnots :: AnnInfo Annot -> AnnInfo RefType 
+closeAnnots = fmap uRType' . closeA . filterA
   
 closeA a@(AI m)  = cf <$> a 
   where cf (Right loc) = case m `mlookup` loc of

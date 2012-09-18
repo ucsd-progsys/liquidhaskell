@@ -177,11 +177,15 @@ pToReft = U top . pdVar
 -- That is, there are no further `PVar` in the target. 
 
 -------------------------------------------------------------------------------
--- replacePreds :: String -> RefType -> [(PVar Type, Ref Reft RefType)] -> RefType
-replacePreds :: String -> SpecType -> [(RPVar, Ref Reft RefType)] -> SpecType 
--------------------------------------------------------------------------------
+-- TODO: replace implementation which satisfies
+-- with one that satisfies
+replacePreds :: String -> SpecType -> [(RPVar, Ref RReft SpecType)] -> SpecType 
+replacePreds = error "TODO: replacePreds"
+-- Also, make this an instance of SubsTy
+-- instance SubsTy RPVar (Ref RReft SpecType) SpecType where ...
 
-replacePreds msg          = foldl' go 
+replacePredsOLD :: String -> SpecType -> [(RPVar, Ref Reft RefType)] -> SpecType 
+replacePredsOLD msg       = foldl' go 
   where go z (π, RPoly t) = substPred msg   (π, t)     z
         go z (π, RMono r) = replacePVarReft (π, r) <$> z
 
