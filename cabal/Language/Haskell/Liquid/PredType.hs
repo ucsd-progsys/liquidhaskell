@@ -180,15 +180,19 @@ pToReft = U top . pdVar
 
 replacePreds :: String -> SpecType -> [(RPVar, Ref RReft SpecType)] -> SpecType 
 replacePreds = error "TODO: replacePreds"
+replacePreds msg       = foldl' go 
+   where -- go z (π, RPoly t) = substPred msg   (π, t)     z
+         go z (π, RMono r) = replacePVarReft (π, r) <$> z
+
 
 -- TODO: replace `replacePreds` with
 -- instance SubsTy RPVar (Ref RReft SpecType) SpecType where
 --   subt (pv, r) t = replacePreds "replacePred" t (pv, r)
 
--- replacePredsOLD :: String -> SpecType -> [(RPVar, Ref Reft RefType)] -> SpecType 
-replacePredsOLD msg       = foldl' go 
-  where go z (π, RPoly t) = substPred msg   (π, t)     z
-        go z (π, RMono r) = replacePVarReft (π, r) <$> z
+-- replacePreds :: String -> SpecType -> [(RPVar, Ref Reft RefType)] -> SpecType 
+-- replacePreds msg       = foldl' go 
+--   where go z (π, RPoly t) = substPred msg   (π, t)     z
+--         go z (π, RMono r) = replacePVarReft (π, r) <$> z
 
 -------------------------------------------------------------------------------
 substPred :: String -> (RPVar, RefType) -> SpecType -> SpecType
