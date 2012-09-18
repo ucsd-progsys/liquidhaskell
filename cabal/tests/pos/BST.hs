@@ -21,8 +21,8 @@ data Pair k v = P k v (Bst k v)
 -- insert :: (Eq k, Ord k) => k -> v -> Bst k v -> Bst k v
 insert k v Empty  = Bind k v Empty Empty
 insert k v (Bind k' v' l r)
-  | k == k' = Bind k v l r
-  | k < k'  = let lt = insert k v l in Bind k' v' lt r
+  | k == k'   = Bind k v l r
+  | k < k'    = Bind k' v' (insert k v l r
   | otherwise = Bind k' v' l (insert k v r)
 
 -- delete :: (Eq k, Ord k) => k -> Bst k v -> Bst k v

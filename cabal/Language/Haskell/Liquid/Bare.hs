@@ -62,17 +62,17 @@ import qualified Control.Exception as Ex
 ------------------------------------------------------------------
 
 data GhcSpec = SP {
-    tySigs     :: ![(Var, SpecType)]     -- Asserted/Assumed Reftypes
+    tySigs     :: ![(Var, SpecType)]     -- ^ Asserted/Assumed Reftypes
                                          -- eg.  see include/Prelude.spec
-  , ctor       :: ![(Var, RefType)]      -- Data Constructor Measure Sigs 
+  , ctor       :: ![(Var, SpecType)]     -- ^ Data Constructor Measure Sigs 
                                          -- eg.  (:) :: a -> xs:[a] -> {v: Int | v = 1 + len(xs) }
-  , meas       :: ![(Symbol, RefType)]   -- Measure Types  
+  , meas       :: ![(Symbol, RefType)]   -- ^ Measure Types  
                                          -- eg.  len :: [a] -> Int
-  , invariants :: ![SpecType]            -- Data Type Invariants
+  , invariants :: ![SpecType]            -- ^ Data Type Invariants
                                          -- eg.  forall a. {v: [a] | len(v) >= 0}
-  , dconsP     :: ![(DataCon, DataConP)] -- Predicated Data-Constructors
+  , dconsP     :: ![(DataCon, DataConP)] -- ^ Predicated Data-Constructors
                                          -- e.g. see tests/pos/Map.hs
-  , tconsP     :: ![(TyCon, TyConP)]     -- Predicated Type-Constructors
+  , tconsP     :: ![(TyCon, TyConP)]     -- ^ Predicated Type-Constructors
                                          -- eg.  see tests/pos/Map.hs
   }
 
@@ -110,9 +110,11 @@ wrapErr msg f x
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
 
-makeMeasureSpec :: BareEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, RefType)], [(Symbol, RefType)])
+makeMeasureSpec :: BareEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, SpecType)], [(Symbol, SpecType)])
 makeMeasureSpec env m = execBare mkSpec env 
-  where mkSpec = wrapErr "mkMeasureSort" mkMeasureSort m' >>= mkMeasureDCon >>= return . Ms.dataConTypes
+  where mkSpec = wrapErr "mkMeasureSort" mkMeasureSort m' 
+                 >>= mkMeasureDCon 
+                 >>= return . Ms.dataConTypes
         m'     = first ({- txTyVarBinds . -} mapReft ur_reft) m
 
 makeAssumeSpec :: BareEnv -> [Var] -> [(Symbol, BareType)] -> IO [(Var, SpecType)]
