@@ -659,7 +659,7 @@ singleton k x = Bin 1 k x Tip Tip
 -- > insert 5 'x' empty                         == singleton 5 'x'
 
 -- See Note: Type of local 'go' function
-{-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
+{-@ insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
 insert :: Ord k => k -> a -> Map k a -> Map k a
 insert = go
   where
@@ -668,6 +668,7 @@ insert = go
     go kx x Tip = singleton kx x
     go kx x (Bin sz ky y l r) =
         case compare kx ky of
+                  -- Bin ky y (go kx x l) r 
             LT -> balanceL ky y (go kx x l) r
             GT -> balanceR ky y l (go kx x r)
             EQ -> Bin sz kx x l r
