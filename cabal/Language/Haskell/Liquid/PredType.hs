@@ -233,7 +233,7 @@ substPredP su (RPoly t)             = RPoly $ substPred "substPredP" su t
 substPredP _  (RMono r)             = error $ "RMono found in substPredP"
 
 
-uSubst su = fmap (`U` top) . subst su 
+uSubst su = {- fmap (`U` top) -} uRType . subst su 
 
 -- | The next two functions should be combined into a single one that
 -- checks and extracts the relevant predicate substitution. They are used

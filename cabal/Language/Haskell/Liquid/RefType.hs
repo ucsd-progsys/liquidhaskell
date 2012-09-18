@@ -9,7 +9,11 @@ module Language.Haskell.Liquid.RefType (
   , BSort, BPVar, BareType, RSort, UsedPVar, RPVar, RReft, RefType
   , PrType, SpecType
   , PVar (..) , Predicate (..), UReft(..), DataDecl (..)
-  , uReft, uPVar
+
+  -- * Functions for lifting Reft-values to Spec-values
+  , uTop, uReft, uRType, uPVar
+ 
+  -- * Functions for manipulating `Predicate`s
   , pdAnd, pdVar, pdTrue, pvars
   , ppr_rtype, mapReft, mapReftM, mapBot
   , ofType, ofPredTree, toType
@@ -26,7 +30,6 @@ module Language.Haskell.Liquid.RefType (
   , tidyRefType
   , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalReft, literalConst
-  , REnv, deleteREnv, domREnv, insertREnv, lookupREnv, emptyREnv, memberREnv, fromListREnv
   , primOrderingSort
   , fromRMono, fromRPoly, idRMono
   , isTrivial
@@ -127,12 +130,11 @@ instance Reftable Predicate where
   ppTy r d | isTauto r = d 
            | otherwise = d <> (angleBrackets $ ppr r)
 
-instance Outputable REnv where
-  ppr (REnv m)         = vcat $ map pprxt $ M.toAscList m
-    where pprxt (x, t) = ppr x <> dcolon <> ppr t  
-
 instance NFData Predicate where
   rnf _ = ()
+
+instance NFData r => NFData (UReft r) where
+  rnf (U r p) = rnf r `seq` rnf p
 
 instance NFData PrType where
   rnf _ = ()
@@ -212,11 +214,17 @@ type BareType   = BRType    RReft
 type SpecType   = RRType    RReft 
 type RefType    = RRType    Reft
 
+-- | Various functions for converting vanilla `Reft` to `Spec`
+
 uReft           ::  (Symbol, [Refa]) -> UReft Reft 
 uReft (x, y)    = U (Reft (x, y)) pdTrue
 
+uRType          = fmap uTop 
+
 uPVar           :: PVar t -> UsedPVar
 uPVar           = fmap (const ())
+
+uTop r          = U r top
 
 --------------------------------------------------------------------
 -------------- (Class) Predicates for Valid Refinement Types -------
@@ -537,9 +545,6 @@ freeVars (REx _ _ t)     = freeVars t
 ----------------------------------------------------------------
 ---------------------- Strictness ------------------------------
 ----------------------------------------------------------------
-
-instance NFData REnv where
-  rnf (REnv m) = () -- rnf m
 
 instance (NFData a, NFData b) => NFData (Ref a b) where
   rnf (RMono a) = rnf a
@@ -1087,17 +1092,6 @@ literalConst l                 = (sort, mkLit l)
 ---------------------------------------------------------------
 ---------------- Annotations and Solutions --------------------
 ---------------------------------------------------------------
-
-newtype REnv = REnv  (M.Map Symbol RefType)
-               deriving (Data, Typeable)
-
-fromListREnv              = REnv . M.fromList
-deleteREnv x (REnv env)   = REnv (M.delete x env)
-insertREnv x y (REnv env) = REnv (M.insert x y env)
-lookupREnv x (REnv env)   = M.lookup x env
-emptyREnv                 = REnv M.empty
-memberREnv x (REnv env)   = M.member x env
-domREnv (REnv env)        = M.keys env
 
 refTypePredSortedReft (r, τ) = RR so r
   where so = typeSort τ

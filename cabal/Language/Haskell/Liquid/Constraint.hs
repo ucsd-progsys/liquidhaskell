@@ -141,18 +141,18 @@ assm_grty f info = [ (x, {- ur_reft <$> -} t) | (x, t) <- sigs, x `S.member` xs 
         sigs = tySigs $ spec info  
 
 
--------------------------------------------------------------------
--------- Helpers: Reading/Extending Environment Bindings ----------
--------------------------------------------------------------------
+------------------------------------------------------------------------
+-- | Helpers: Reading/Extending Environment Bindings -------------------
+------------------------------------------------------------------------
 
 data CGEnv 
-  = CGE { loc   :: !SrcSpan          -- where in orig src
-        , renv  :: !REnv             -- bindings in scope
-        , penv  :: !(F.SEnv PrType)  -- bindings in scope
-        , fenv  :: !F.FEnv           -- the fixpoint environment 
-        , recs  :: !(S.Set Var)      -- recursive defs being processed (for annotations)
-        , invs  :: !RTyConInv        -- datatype invariants 
-        , grtys :: !REnv             -- top-level variables with (assert)-guarantees
+  = CGE { loc   :: !SrcSpan          -- ^ Location in original source file
+        , renv  :: !REnv             -- ^ SpecTypes for Bindings in scope
+        , penv  :: !(F.SEnv PrType)  -- ^ PrTypes for top-level bindings (merge with renv) 
+        , fenv  :: !F.FEnv           -- ^ Fixpoint environment (with simple Reft)
+        , recs  :: !(S.Set Var)      -- ^ recursive defs being processed (for annotations)
+        , invs  :: !RTyConInv        -- ^ Datatype invariants 
+        , grtys :: !REnv             -- ^ Top-level variables with (assert)-guarantees to verify
         } deriving (Data, Typeable)
 
 instance Outputable CGEnv where
@@ -160,14 +160,6 @@ instance Outputable CGEnv where
 
 instance Show CGEnv where
   show = showPpr
-
--- HACK: This is used only for Ex 
---insertSymEnv  :: CGEnv -> (F.Symbol, F.SortedReft) -> CGEnv
---insertSymEnv γ (x, r)
---  | x `F.memberSEnv` (fenv γ)
---  = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ F.symbolString x 
---  | otherwise
---  = γ { fenv = F.insertSEnv x r (fenv γ) }
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 (++=) :: CGEnv-> (String, F.Symbol, SpecType) -> CGEnv
@@ -870,10 +862,10 @@ argExpr e                = errorstar $ "argExpr: " ++ (showPpr e)
 
 varRefType γ x =  t 
   where t  = (γ ?= (mkSymbol x)) `strengthen` xr
-        xr = F.symbolReft (mkSymbol x)
+        xr = uTop $ F.symbolReft $ mkSymbol x
 
--- GENSUB: subsTyVar_meet' (α, t) = subsTyVar_meet (α, t) 
-subsTyVar_meet' (α, t) = subsTyVar_meet (α, toType t, t)
+-- TODO: should only expose/use subt. Not subsTyVar_meet
+subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 
 -----------------------------------------------------------------------
 --------------- Forcing Strictness ------------------------------------
@@ -920,7 +912,7 @@ instance NFData CGInfo where
 -------------------------------------------------------------------------------
 
 existentialRefType     :: CGEnv -> SpecType -> SpecType
-existentialRefType γ t = withReft t r' 
+existentialRefType γ t = withReft t (uTop r') 
   where r'             = maybe top (exReft γ) (F.isSingletonReft r)
         r              = F.sr_reft $ rTypeSortedReft t
 
@@ -976,7 +968,7 @@ type RTyConInv = M.Map RTyCon F.Reft
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
 addRTyConInv m t@(RApp c _ _ _) 
-  = fromMaybe t (strengthen t <$> M.lookup c m)
+  = fromMaybe t ((strengthen t . uTop) <$> M.lookup c m)
 addRTyConInv _ t 
   = t 
 
@@ -986,4 +978,28 @@ mkRTyConInv ts = mconcat <$> group [ (c, r) | RApp c _ _ (U r _) <- strip <$> ts
                        -- strip (RAllT _ t) = strip t
                        -- strip (RAllT _ t) = strip t
                        -- strip t           = t
+
+---------------------------------------------------------------
+----- Refinement Type Environments ----------------------------
+---------------------------------------------------------------
+
+newtype REnv = REnv  (M.Map F.Symbol SpecType)
+               deriving (Data, Typeable)
+
+instance Outputable REnv where
+  ppr (REnv m)         = vcat $ map pprxt $ M.toAscList m
+    where pprxt (x, t) = ppr x <> dcolon <> ppr t  
+
+instance NFData REnv where
+  rnf (REnv m) = () -- rnf m
+
+fromListREnv              = REnv . M.fromList
+deleteREnv x (REnv env)   = REnv (M.delete x env)
+insertREnv x y (REnv env) = REnv (M.insert x y env)
+lookupREnv x (REnv env)   = M.lookup x env
+emptyREnv                 = REnv M.empty
+memberREnv x (REnv env)   = M.member x env
+domREnv (REnv env)        = M.keys env
+
+
 

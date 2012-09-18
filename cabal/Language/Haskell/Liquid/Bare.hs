@@ -110,11 +110,11 @@ wrapErr msg f x
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
 
-makeMeasureSpec :: BareEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, SpecType)], [(Symbol, SpecType)])
+makeMeasureSpec :: BareEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, SpecType)], [(Symbol, RefType)])
 makeMeasureSpec env m = execBare mkSpec env 
   where mkSpec = wrapErr "mkMeasureSort" mkMeasureSort m' 
                  >>= mkMeasureDCon 
-                 >>= return . Ms.dataConTypes
+                 >>= return . mapFst (mapSnd uRType <$>) . Ms.dataConTypes 
         m'     = first ({- txTyVarBinds . -} mapReft ur_reft) m
 
 makeAssumeSpec :: BareEnv -> [Var] -> [(Symbol, BareType)] -> IO [(Var, SpecType)]

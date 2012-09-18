@@ -150,8 +150,10 @@ instance (Outputable t, Outputable a) => Show (Measure t a) where
 mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
 mapTy f (M n ty eqs) = M n (f ty) eqs
 
-dataConTypes :: MSpec RefType DataCon -> ([(Var, SpecType)], [(Symbol, SpecType)])
-dataConTypes s = (ctorTys, measTys)
+-- dataConTypes :: MSpec RefType DataCon -> ([(Var, SpecType)], [(Symbol, SpecType)])
+-- dataConTypes  s = (mapSnd uRType <$> ctorTys, mapSnd uRType <$> measTys)
+dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(Symbol, RefType)])
+dataConTypes  s = (ctorTys, measTys)
   where measTys = [(name m, sort m) | m <- elems $ measMap s]
         ctorTys = [(defsVar ds, defsTy ds) | (_, ds) <- toList $ ctorMap s]
         defsTy  = foldl1' meet . fmap defRefType 
