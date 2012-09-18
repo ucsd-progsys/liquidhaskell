@@ -518,7 +518,9 @@ freshTy_pretty e τ = refresh $ {-traceShow ("exprRefType: " ++ showPpr e) $-} e
 
 freshTy' _ = refresh . ofType 
 
-freshTy :: CoreExpr -> Type -> CG SpecType
+-- | Right now, we generate NO new pvars. So keep freshTy accurate, weaken
+-- appropriately at use-sites.
+freshTy :: CoreExpr -> Type -> CG RefType 
 freshTy = freshTy' 
 
 -- TODO: remove freshRSort?
@@ -857,9 +859,11 @@ getSrcSpan' x
 ---------- Helpers: Creating Fresh Refinement ------------------ ------
 -----------------------------------------------------------------------
 
+truePredRef ::  PVar (RRType r) -> CG SpecType
 truePredRef pd@(PV n τ as)
   = trueTy (toType τ)
 
+freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecType 
 freshPredRef γ e pd@(PV n τ as)
   = do t <- freshTy e (toType τ)
        addW $ WfC γ' t
