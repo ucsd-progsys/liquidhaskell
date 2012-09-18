@@ -179,9 +179,8 @@ pToReft = U top . pdVar
 -------------------------------------------------------------------------------
 
 replacePreds :: String -> SpecType -> [(RPVar, Ref RReft SpecType)] -> SpecType 
-replacePreds = error "TODO: replacePreds"
 replacePreds msg       = foldl' go 
-   where -- go z (π, RPoly t) = substPred msg   (π, t)     z
+   where go z (π, RPoly t) = substPred msg   (π, t)     z
          go z (π, RMono r) = replacePVarReft (π, r) <$> z
 
 
@@ -195,15 +194,14 @@ replacePreds msg       = foldl' go
 --         go z (π, RMono r) = replacePVarReft (π, r) <$> z
 
 -------------------------------------------------------------------------------
-substPred :: String -> (RPVar, RefType) -> SpecType -> SpecType
+substPred :: String -> (RPVar, SpecType) -> SpecType -> SpecType
 -------------------------------------------------------------------------------
 
 substPred msg (π, RVar a1 r1) t@(RVar a2 r2)
-  | π `isPredInReft` r2 && a1 == a2 = RVar a1 ((subst su ur1) `meet` r2') 
+  | π `isPredInReft` r2 && a1 == a2 = RVar a1 ((subst su r1) `meet` r2') 
   | π `isPredInReft` r2             = errorstar ("substPred RVar Var Mismatch")
   | otherwise                       = t
   where (r2', su) = rmRPVarReft π r2
-        ur1       = U r1 top
 
 substPred msg su@(π, πt) t@(RApp c ts rs r)
   | π `isPredInReft` r              = substRCon msg su t' 
@@ -217,24 +215,23 @@ substPred msg (p, tp) (RAllP (q@(PV _ _ _)) t)
 substPred msg su (RAllT a t)        = RAllT a (substPred msg su t)
 
 substPred msg su@(π, πt) (RFun x t t' r) 
-  | π `isPredInReft` r              = (RFun x t t' r') `meet` (uSubst su' πt)
+  | π `isPredInReft` r              = (RFun x t t' r') `meet` (subst su' πt)
   | otherwise                       = RFun x (substPred msg su t) (substPred msg su t') r
-  where (r', su') = rmRPVarReft π r
+  where (r', su')                   = rmRPVarReft π r
 
 substPred msg pt (RCls c ts)        = RCls c (substPred msg pt <$> ts)
 
 substPred msg pt t                  = t
 
 -- | Requires: @p `isPredInReft` r@
-substRCon :: String -> (RPVar, RefType) -> SpecType -> SpecType
+substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
 substRCon msg (π, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2) 
-  | rTyCon c1 == rTyCon c2          = RApp c1 ts rs $ r2' `meet` U (subst su r1) top
+  | rTyCon c1 == rTyCon c2          = RApp c1 ts rs $ r2' `meet` subst su r1
   where (r2', su)                   = rmRPVarReft π r2
         ts                          = safeZipWith (msg ++ ": substRCon")   strSub  ts1 ts2
         rs                          = safe0ZipWith (msg ++ ": substRcon2") strSubR rs1 rs2
-        strSub t1 t2                = t2 `meet` uSubst su t1
+        strSub t1 t2                = t2 `meet` subst su t1
         strSubR r1 r2               = RPoly $ strSub (fromRPoly r1) (fromRPoly r2)                             
-                                    -- = RPoly $ (fromRPoly r2) `meet` (uSubst su (fromRPoly r1))
 
 substRCon msg su t                  = error $ msg ++ " substRCon " ++ show (su, t)
 
@@ -242,7 +239,7 @@ substPredP su (RPoly t)             = RPoly $ substPred "substPredP" su t
 substPredP _  (RMono r)             = error $ "RMono found in substPredP"
 
 
-uSubst su = {- fmap (`U` top) -} uRType . subst su 
+-- uSubst su = {- fmap (`U` top) -} uRType . subst su 
 
 -- | The next two functions should be combined into a single one that
 -- checks and extracts the relevant predicate substitution. They are used
@@ -259,11 +256,11 @@ rmRPVarReft pv r@(U x (Pr pvs)) = (U x (Pr pvs'), su)
                          _    -> error "Fixpoint.rmRPVarReft"
 
 -- PREDARGS: This substitution makes no sense. They are the WRONG args. Use n2's ...?
-replacePVarReft (pv, (Reft (_, ras'))) z@(U (Reft(v, ras)) (Pr pvs)) 
+replacePVarReft (pv, (U (Reft (_, ras')) p')) z@(U (Reft(v, ras)) (Pr pvs)) 
   | length pvs' == length pvs
   = z
   | otherwise
-  = U (Reft (v, ras'')) (Pr pvs')
+  = U (Reft (v, ras'')) (pdAnd [p', Pr pvs'])
   where pvs'  = filter (uPVar pv /=)  pvs 
         ras'' = map (subst (predArgsSubst (pargs pv))) ras'
   
