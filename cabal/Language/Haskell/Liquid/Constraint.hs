@@ -512,16 +512,20 @@ addA _ _ _ !a
 ------------------------ Generation: Freshness --------------------
 -------------------------------------------------------------------
 
+-- | Right now, we generate NO new pvars. Rather than clutter code 
+-- with `uRType` calls, put it in one place where the above invariant
+-- is /obviously/ enforced.
+
+freshTy   :: CoreExpr -> Type -> CG SpecType 
+freshTy _ = liftM uRType . refresh . ofType 
+
+
 -- To revert to the old setup, just do
 -- freshTy_pretty = freshTy
-freshTy_pretty e τ = refresh $ {-traceShow ("exprRefType: " ++ showPpr e) $-} exprRefType e
+-- freshTy_pretty e τ = refresh $ {-traceShow ("exprRefType: " ++ showPpr e) $-} exprRefType e
+freshTy_pretty e τ = do t <- refresh $ {-traceShow ("exprRefType: " ++ showPpr e) $-} exprRefType e
+                        return $ uRType t
 
-freshTy' _ = refresh . ofType 
-
--- | Right now, we generate NO new pvars. So keep freshTy accurate, weaken
--- appropriately at use-sites.
-freshTy :: CoreExpr -> Type -> CG RefType 
-freshTy = freshTy' 
 
 -- TODO: remove freshRSort?
 -- freshRSort :: CoreExpr -> RSort -> CG SpecType
@@ -531,7 +535,7 @@ trueTy  :: Type -> CG SpecType
 trueTy t 
   = do t   <- true $ ofType t
        tyi <- liftM tyConInfo get
-       return $ addTyConInfo tyi t
+       return $ addTyConInfo tyi (uRType t)
 
 class Freshable a where
   fresh   :: CG a
@@ -566,7 +570,7 @@ instance Freshable RReft where
   true (U r _)      = liftM uTop (true r)  
   refresh (U r _)   = liftM uTop (refresh r) 
 
-instance Freshable SpecType where
+instance Freshable RefType where
   fresh   = errorstar "fresh RefType"
   refresh = refreshRefType
   true    = trueRefType 
@@ -652,7 +656,7 @@ varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Maybe SpecType)
 varTemplate γ (x, eo)
   = case (eo, lookupREnv (mkSymbol x) (grtys γ)) of
       (_, Just t) -> return $ Just t
-      (Just e, _) -> do t <- unifyVar γ x <$> freshTy_pretty e (exprType e)
+      (Just e, _) -> do t  <- unifyVar γ x <$> freshTy_pretty e (exprType e)
                         addW (WfC γ t)
                         return $ Just t
       (_,      _) -> return Nothing
@@ -953,10 +957,10 @@ withReft t _                 = t
 -------------------- Cleaner Signatures For Rec-bindings ----------------------
 -------------------------------------------------------------------------------
 
-exprRefType :: CoreExpr -> SpecType
+exprRefType :: CoreExpr -> RefType 
 exprRefType = exprRefType_ M.empty 
 
-exprRefType_ :: M.Map Var SpecType -> CoreExpr -> SpecType 
+exprRefType_ :: M.Map Var RefType -> CoreExpr -> RefType 
 exprRefType_ γ (Let b e) 
   = exprRefType_ (bindRefType_ γ b) e
 
