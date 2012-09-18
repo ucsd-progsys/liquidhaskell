@@ -23,14 +23,30 @@ TODO
 Existentials    
 ============
 
-1. rtype
-2. splitC (subtyping)
-3. parser 
-4. ofBare
-5. tests/todo/ex0.hs <---------------------- HEREHEREHEREHEREHEREHERE
- 
-> also enables cunning trick with contextual/predicates. (See email)
+  pos/BST.hs
+, pos/ListISort-LType.hs
+, pos/ListLen-LType.hs
+, pos/ListMSort-LType.hs
+, pos/ListQSort-LType.hs
+, pos/ListRange-LType.hs
+, pos/Map.hs
+, pos/Map0.hs
+, pos/deptup.hs
+, pos/deptup0.hs
+, pos/deptup1.hs
+, pos/deptupW.hs
+, pos/fixme0.hs
+, pos/for.hs
+, pos/listAnf.hs
+, pos/maybe2.hs
+, pos/niki.hs
+, pos/niki1.hs
+, pos/pair.hs
+, pos/testMRec.hs
+, pos/testRec.hs
 
+
+[tests/todo/ex0.hs]
 
 foldr :: (a -> b -> b) -> b -> [a] -> b
 foldr op b []     = b
