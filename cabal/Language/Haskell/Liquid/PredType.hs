@@ -26,7 +26,7 @@ import Outputable hiding (empty)
 
 import qualified Data.Map  as M
 import qualified Data.Set  as S
-import Data.List  (partition, foldl')
+import Data.List        (nub, partition, foldl')
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint hiding (Expr)
 import Language.Haskell.Liquid.RefType  hiding (generalize)
@@ -251,9 +251,9 @@ isPredInReft pv (U _ (Pr pvs)) = any (uPVar pv ==) pvs
 
 rmRPVarReft pv r@(U x (Pr pvs)) = (U x (Pr pvs'), su)
   where (epvs, pvs') = partition (uPVar pv ==)  pvs
-        su           = case (predArgsSubst . pargs) <$> epvs of
+        su           = case nub ((predArgsSubst . pargs) <$> epvs) of
                          [su] -> su
-                         _    -> errorstar $ "Fixpoint.rmRPVarReft"
+                         zs   -> errorstar $ "Fixpoint.rmRPVarReft: " ++ show zs ++ " ."
 
 -- PREDARGS: This substitution makes no sense. They are the WRONG args. Use n2's ...?
 replacePVarReft (pv, (U (Reft (_, ras')) p')) z@(U (Reft(v, ras)) (Pr pvs)) 
