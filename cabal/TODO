@@ -23,16 +23,7 @@ TODO
 Existentials    
 ============
 
-  pos/BST.hs
-, pos/ListISort-LType.hs
-, pos/ListLen-LType.hs
-, pos/ListMSort-LType.hs
-, pos/ListQSort-LType.hs
-, pos/ListRange-LType.hs
-, pos/Map.hs
-, pos/Map0.hs
-
-, pos/deptupW.hs
+TWO FAILING TESTS:  pos/deptupW.hs
 
 [tests/todo/ex0.hs]
 
