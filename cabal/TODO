@@ -31,20 +31,8 @@ Existentials
 , pos/ListRange-LType.hs
 , pos/Map.hs
 , pos/Map0.hs
-, pos/deptup.hs
-, pos/deptup0.hs
-, pos/deptup1.hs
-, pos/deptupW.hs
-, pos/fixme0.hs
-, pos/for.hs
-, pos/listAnf.hs
-, pos/maybe2.hs
-, pos/niki.hs
-, pos/niki1.hs
-, pos/pair.hs
-, pos/testMRec.hs
-, pos/testRec.hs
 
+, pos/deptupW.hs
 
 [tests/todo/ex0.hs]
 

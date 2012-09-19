@@ -1044,7 +1044,7 @@ dataConMsReft ty ys  = subst su (refTypeReft t)
 ---------------------------------------------------------------
 
 toRSort :: RType p c tv r -> RType p c tv () 
-toRSort = fmap (\_  -> ())
+toRSort = mapBind (const dummySymbol) . fmap (const ())
 
 ofRSort ::  Reftable r => RType p c tv () -> RType p c tv r 
 ofRSort = fmap (\_ -> top)
@@ -1067,6 +1067,26 @@ toType (REx _ _ t)
   = toType t
 toType t@(ROth _)      
   = errorstar $ "toType fails: ROth "
+
+-- txTyVarBinds :: RType p c tv pv r -> RType p c tv pv' r
+-- txTyVarBinds = 
+-- mapBind fb
+-- where fb (RP π) = RP (stringTyVarTy <$> π)
+--       fb (RB x) = RB x
+--       fb (RV α) = RV α
+
+mapBind f (RAllT α t)      = RAllT α (mapBind f t)
+mapBind f (RAllP π t)      = RAllP π (mapBind f t)
+mapBind f (RFun b t1 t2 r) = RFun (f b)  (mapBind f t1) (mapBind f t2) r
+mapBind f (RApp c ts rs r) = RApp c (mapBind f <$> ts) (mapBindRef f <$> rs) r
+mapBind f (RCls c ts)      = RCls c (mapBind f <$> ts)
+mapBind f (REx b t1 t2)    = REx  (f b) (mapBind f t1) (mapBind f t2)
+mapBind f (RVar α r)       = RVar α r
+mapBind f (ROth s)         = ROth s
+
+mapBindRef _ (RMono r)     = RMono r
+mapBindRef f (RPoly t)     = RPoly $ mapBind f t
+
 
 ---------------------------------------------------------------
 ----------------------- Typing Literals -----------------------

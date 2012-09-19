@@ -233,7 +233,7 @@ substRCon msg (π, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2)
         strSub t1 t2                = t2 `meet` subst su t1
         strSubR r1 r2               = RPoly $ strSub (fromRPoly r1) (fromRPoly r2)                             
 
-substRCon msg su t                  = error $ msg ++ " substRCon " ++ show (su, t)
+substRCon msg su t                  = errorstar $ msg ++ " substRCon " ++ show (su, t)
 
 substPredP su (RPoly t)             = RPoly $ substPred "substPredP" su t
 substPredP _  (RMono r)             = error $ "RMono found in substPredP"
@@ -253,7 +253,7 @@ rmRPVarReft pv r@(U x (Pr pvs)) = (U x (Pr pvs'), su)
   where (epvs, pvs') = partition (uPVar pv ==)  pvs
         su           = case (predArgsSubst . pargs) <$> epvs of
                          [su] -> su
-                         _    -> error "Fixpoint.rmRPVarReft"
+                         _    -> errorstar $ "Fixpoint.rmRPVarReft"
 
 -- PREDARGS: This substitution makes no sense. They are the WRONG args. Use n2's ...?
 replacePVarReft (pv, (U (Reft (_, ras')) p')) z@(U (Reft(v, ras)) (Pr pvs)) 

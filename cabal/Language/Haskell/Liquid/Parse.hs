@@ -24,7 +24,7 @@ import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Measure
-import Outputable (Outputable (..))
+import Outputable (showPpr, Outputable (..))
 import Language.Haskell.Liquid.FileNames (dummyName, boolConName, listConName, tupConName)
 
 --------------------------------------------------------------------
@@ -285,13 +285,20 @@ bPVar p _ xts  = PV p τ τxs
   where (_, τ) = last xts
         τxs    = [ (τ, x, x) | (x, τ) <- init xts ]
 
-predVarTypeP 
-  =  try ((liftM (: []) predVarArgP) <* reserved "->" <* reserved boolConName)
- <|> liftM2 (:) predVarArgP (reserved "->" >> predVarTypeP)
+predVarTypeP :: Parser [(Symbol, BSort)]
+predVarTypeP = do t <- bareTypeP
+                  let (xs, ts, t') = bkArrow $ thd3 $ bkUniv $ t
+                  if isBoolBareType t' 
+                    then return $ zip xs (toRSort <$> ts) 
+                    else parserFail $ "Predicate Variable with non-Bool output sort: " ++ showPpr t
 
-predVarArgP = xyP argP spaces bareSortP {- PREDARGS tyVarIdP -}
-  where argP  = stringSymbol <$> argP'
-        argP' = try (lowerIdP <* colon) <|> positionNameP
+-- predVarTypeP 
+--   =  try ((liftM (: []) predVarArgP) <* reserved "->" <* reserved boolConName)
+--  <|> liftM2 (:) predVarArgP (reserved "->" >> predVarTypeP)
+
+-- predVarArgP = xyP argP spaces bareSortP {- PREDARGS tyVarIdP -}
+--   where argP  = stringSymbol <$> argP'
+--         argP' = try (lowerIdP <* colon) <|> positionNameP
         
 bareSortP :: Parser BSort
 bareSortP = toRSort <$> bareTypeP
@@ -340,8 +347,6 @@ bareArrow b t1 ArrowFun t2
   = rFun b t1 t2
 bareArrow _ t1 ArrowPred t2
   = foldr (rFun dummySymbol) t2 (getClasses t1)
-
-
 
 isBoolBareType (RApp tc [] _ _) = tc == boolConName
 isBoolBareType _                = False
