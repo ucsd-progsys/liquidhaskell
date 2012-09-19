@@ -239,8 +239,6 @@ substPredP su (RPoly t)             = RPoly $ substPred "substPredP" su t
 substPredP _  (RMono r)             = error $ "RMono found in substPredP"
 
 
--- uSubst su = {- fmap (`U` top) -} uRType . subst su 
-
 -- | The next two functions should be combined into a single one that
 -- checks and extracts the relevant predicate substitution. They are used
 -- more or less "atomically" in the `substPred` above.
@@ -248,7 +246,8 @@ substPredP _  (RMono r)             = error $ "RMono found in substPredP"
 isPredInReft pv (U _ (Pr pvs)) = any (uPVar pv ==) pvs 
 
 -- | Requires @pv `isPredInReft` r@
-
+-- Actually, it is ok to have /multiple/ `su` you just have to replace
+-- with /multiple copies/ of the corresponding Refa
 rmRPVarReft pv r@(U x (Pr pvs)) = (U x (Pr pvs'), su)
   where (epvs, pvs') = partition (uPVar pv ==)  pvs
         su           = case nub ((predArgsSubst . pargs) <$> epvs) of
