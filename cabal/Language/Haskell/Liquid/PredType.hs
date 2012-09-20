@@ -149,8 +149,9 @@ unifyS rt@(RApp c ts rs r) pt@(RApp _ pts ps p)
         getR (RMono r) = r
         getR (RPoly _) = top 
 
-unifyS (REx x tx t) (REx x' tx' t') | x == x'
-  = liftM (REx x tx) (unifyS t t')
+unifyS t1@(REx x tx t) t2@(REx x' tx' t') | x == x'
+  = do tEX <- liftM (REx x tx) (unifyS t t')
+       return $ traceShow (showPpr $ "unifyS: " ++ showPpr (t1, t2)) tEX
 
 unifyS t1 t2                = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
 
