@@ -1,9 +1,8 @@
 TODO
 ====
 
-* remove dependency on Bifunctor 
-
 * existentials
+* remove dependency on Bifunctor 
 * benchmarks: Data.List (foldr)
 * predicate-aliases 
 * add fixpoint into liquidhaskell repo
@@ -23,9 +22,10 @@ TODO
 Existentials    
 ============
 
-TWO FAILING TESTS:  pos/deptupW.hs
+[tests/todo/ex0-unsafe.hs] <------------------------------------------- HEREHEREHEREHERE
 
-[tests/todo/ex0.hs]
+    why is k_59 (the KVar for the predicate "p") not getting the LHS reft { v = 0 } ?
+    even though his partner, k_57 is?
 
 foldr :: (a -> b -> b) -> b -> [a] -> b
 foldr op b []     = b
@@ -36,6 +36,7 @@ foldr op b []     = b
 foldr op b (x:xs) = op ~xs~ x (foldr f b xs) 
 
 len = foldr (\_ ~xs~ n -> n + 1)
+
 
 Strictness Annotations
 ======================

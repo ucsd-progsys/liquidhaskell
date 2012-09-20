@@ -2,7 +2,7 @@ module Ex where
 
 -- Testing "existential-types"
 
-{-@ foldN :: forall a <p :: x0:Int -> x1:a -> Bool>. 
+{-@ foldN :: forall a <p :: x0000:Int -> x1111:a -> Bool>. 
                 (i:Int -> a<p i> -> exists [j : {v: Int | v = i + 1}]. a<p j>) 
               -> n:{v: Int | v >= 0}
               -> (exists [z : {v: Int | v = 0}]. a <p z>) 
@@ -21,6 +21,7 @@ fooBar f n = go 0
                | otherwise = x
 
 
-{-@ count :: m: {v: Int | v > 0 } -> {v: Int | v = m} @-}
+{-@ count :: m: {v: Int | v > 0 } -> {v: Int | v = 44 } @-}
 count :: Int -> Int
 count m = foldN (\_ n -> n + 1) m 0
+-- count m = fooBar (\_ n -> n + 1) m 0

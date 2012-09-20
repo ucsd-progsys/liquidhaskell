@@ -34,11 +34,11 @@ liquidOne includes target =
      -- putStrLn $ showPpr (cbs info)
      let cbs' = transformRecExpr (cbs info)
      donePhase "transformRecExpr"
-     -- putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
-     -- putStrLn $ showPpr cbs'
+     putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
+     putStrLn $ showPpr cbs'
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs'}
      cgi `deepseq` donePhase "generateConstraints"
-     -- {-# SCC "writeCGI" #-} writeCGI target cgi
+     {-# SCC "writeCGI" #-} writeCGI target cgi
      -- donePhase "writeCGI"
      (r, sol) <- {- cgi `deepseq` -} solve target (hqFiles info) cgi
      donePhase "solve"

@@ -670,9 +670,9 @@ ppExists bb p t
           split zs (REx x t t') = split ((x,t):zs) t'
           split zs t	        = (reverse zs, t)
 
-ppReftPs b rs 
+ppReftPs bb rs 
   | all isTauto rs = empty
-  | not b          = empty 
+  | not bb         = empty 
   | otherwise      = angleBrackets $ hsep $ punctuate comma $ ppr <$> rs
 
 ppr_dbind :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> Symbol -> RType p c tv r -> SDoc
