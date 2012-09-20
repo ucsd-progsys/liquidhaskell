@@ -1044,10 +1044,20 @@ dataConMsReft ty ys  = subst su (refTypeReft t)
 ---------------------------------------------------------------
 
 toRSort :: RType p c tv r -> RType p c tv () 
-toRSort = mapBind (const dummySymbol) . fmap (const ())
+toRSort = stripQuantifiers . mapBind (const dummySymbol) . fmap (const ())
 
 ofRSort ::  Reftable r => RType p c tv () -> RType p c tv r 
 ofRSort = fmap (\_ -> top)
+
+stripQuantifiers (RAllT α t)      = RAllT α (stripQuantifiers t)
+stripQuantifiers (RAllP _ t)      = stripQuantifiers t
+stripQuantifiers (REx _ _ t)      = stripQuantifiers t
+stripQuantifiers (RFun x t t' r)  = RFun x (stripQuantifiers t) (stripQuantifiers t') r
+stripQuantifiers (RApp c ts rs r) = RApp c (stripQuantifiers <$> ts) (stripQuantifiersRef <$> rs) r
+stripQuantifiers (RCls c ts)      = RCls c (stripQuantifiers <$> ts)
+stripQuantifiers t                = t
+stripQuantifiersRef (RPoly t)     = RPoly $ stripQuantifiers t
+stripQuantifiersRef r             = r
 
 -- TODO: remove toType, generalize typeSort 
 toType  :: RRType r -> Type

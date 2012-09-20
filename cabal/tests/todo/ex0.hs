@@ -3,11 +3,12 @@ module Ex where
 -- Testing "existential-types"
 
 {-@ foldN :: forall a <p :: x0:Int -> x1:a -> Bool>. 
-                (i:Int -> a<p i> -> exists [j : Int = i + 1]. a<p j>) 
+                (i:Int -> a<p i> -> exists [j : {v: Int | v = i + 1}]. a<p j>) 
               -> n:{v: Int | v >= 0}
-              -> (exists [z : Int = 0]. a <p z>) 
+              -> (exists [z : {v: Int | v = 0}]. a <p z>) 
               -> a <p n>
   @-}
+
 foldN :: (Int -> a -> a) -> Int -> a -> a
 foldN = error "TODO"
 --foldN f n = go 0 

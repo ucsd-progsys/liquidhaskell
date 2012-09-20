@@ -261,7 +261,9 @@ bareExistsP
        return $ foldr (uncurry REx) t zs
      
 exBindP 
-  = liftM3 (\x _ t -> (x, t)) binderP colon bareTypeP
+  = xyP binderP colon bareTypeP 
+  
+  -- = liftM3 (\x _ t -> (x, t)) binderP colon bareTypeP
 
 bareAllP 
   = do reserved "forall"

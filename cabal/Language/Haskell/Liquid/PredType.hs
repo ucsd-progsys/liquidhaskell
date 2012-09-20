@@ -149,6 +149,9 @@ unifyS rt@(RApp c ts rs r) pt@(RApp _ pts ps p)
         getR (RMono r) = r
         getR (RPoly _) = top 
 
+unifyS (REx x tx t) (REx x' tx' t') | x == x'
+  = liftM (REx x tx) (unifyS t t')
+
 unifyS t1 t2                = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
 
 bUnify a (Pr pvs)        = foldl' meet a $ pToReft <$> pvs
@@ -247,7 +250,7 @@ isPredInReft pv (U _ (Pr pvs)) = any (uPVar pv ==) pvs
 
 -- | Requires @pv `isPredInReft` r@
 -- Actually, it is ok to have /multiple/ `su` you just have to replace
--- with /multiple copies/ of the corresponding Refa
+-- with /multiple copies/ of the corresponding [Refa].
 rmRPVarReft pv r@(U x (Pr pvs)) = (U x (Pr pvs'), su)
   where (epvs, pvs') = partition (uPVar pv ==)  pvs
         su           = case nub ((predArgsSubst . pargs) <$> epvs) of
@@ -328,41 +331,3 @@ substParg (x, y) = fmap fp  -- RJ: UNIFY: BUG  mapTy fxy
   where fxy s = if (s == x) then y else s
         fp    = subvPredicate (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
 
-------------------------------------------------------------------------------
--- RIPPING PredVar Stuff out of Fixpoint
-------------------------------------------------------------------------------
-
-{-
-  -- Related to PVar
-  , isPredInReft, rmRPVar, rmRPVarReft
-  , replacePVarReft
- 
---replaceRPvarRefa (PV n1 _ args) (Reft (_, ras)) (PV n2 _ _)
---  | n1 == n2
---  = map (subst (predArgsSubst args)) ras
---  | otherwise
---  = ras
---replaceRPvarRefa _ r = [r]
--
--- rmRPVar s r = fst $ rmRPVarReft s r
-
--- isPredInReft p (Reft(_, ls)) = or (isPredInRefa p <$> ls)
--- isPredInRefa p (RPvar p')    = isSamePvar p p'
--- isPredInRefa _ _             = False
--- isSamePvar (PV s1 _ _) (PV s2 _ _) = s1 == s2
---
--- rmRPVarReft s (Reft(v, ls)) = (Reft(v, ls'), su)
---   where (l, s1) = unzip $ map (rmRPVarRefa s) ls
---         ls' = catMaybes l
---         su = case catMaybes s1 of {[su'] -> su'; _ -> error "Fixpoint.rmRPVarReft"}
---
--- rmRPVarRefa (PV s1 _ _) r@(RPvar (PV s2 _ a2))
---   | s1 == s2
---   = (Nothing, Just $ predArgsSubst a2)
---   | otherwise
---   = (Just r, Nothing) 
--- 
--- rmRPVarRefa _ r
---   = (Just r, Nothing)
-
--}
