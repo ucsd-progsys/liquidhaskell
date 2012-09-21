@@ -24,3 +24,7 @@ fooBar f n = go 0
 {-@ count :: m: {v: Int | v > 0 } -> {v: Int | v = m} @-}
 count :: Int -> Int
 count m = foldN (\_ n -> n + 1) m 0
+
+goo x y = x
+
+moo = goo "st" True

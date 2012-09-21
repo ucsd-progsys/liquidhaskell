@@ -47,7 +47,7 @@ import Text.Printf
 import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Bare
-import Language.Haskell.Liquid.GhcInterface 
+import Language.Haskell.Liquid.GhcInterface hiding (isType) 
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
 import Language.Haskell.Liquid.Predicates
@@ -484,14 +484,21 @@ addC !c@(SubC _ t1 t2) msg
 addW   :: WfC -> CG ()  
 addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
 
--- Used for annotation binders (i.e. at binder sites)
+-- | Used for annotation binders (i.e. at binder sites)
+
 addIdA :: Var -> Annot -> CG ()
 addIdA !x !t  = modify $ \s -> s { annotMap = addA (getSrcSpan x) (Just x) t $ annotMap s } 
 
--- Used for annotating reads (i.e. at Var x sites) 
+-- | Used for annotating reads (i.e. at Var x sites) 
+
 addLocA :: Maybe Var -> SrcSpan -> Annot -> CG ()
 addLocA !xo !l !t 
   = modify $ \s -> s { annotMap = addA l xo t $ annotMap s }
+
+-- | Used to update annotations for a location, due to (ghost) predicate applications
+
+updateLocA (_:_)  (Just l) t = addLocA Nothing l (Left t)
+updateLocA _      _        _ = return () 
 
 addA !l !xo@(Just _)  !t !a@(AI m) 
   | isGoodSrcSpan l -- && not (l `M.member` m)
@@ -733,10 +740,13 @@ consE γ e'@(App e a)
   = do ([], πs, te)        <- bkUniv <$> consE γ e
        zs                  <- mapM (\π -> liftM ((π,) . RPoly) $ freshPredRef γ e' π) πs
        let te'             = {- traceShow "replacePreds: " $ -} replacePreds "consE" te zs
+       _                   <- updateLocA πs (exprLoc e) te' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller", e') te' 
        cconsE γ a tx 
        return $ maybe err (F.subst1 t . (x,)) (argExpr a)
     where err = errorstar $ "consE: App crashes on" ++ showPpr a 
+
+ 
 
 consE γ (Lam α e) | isTyVar α 
   = liftM (RAllT (rTyVar α)) (consE γ e) 
@@ -956,6 +966,16 @@ withReft t _                 = t
 -------------------------------------------------------------------------------
 -------------------- Cleaner Signatures For Rec-bindings ----------------------
 -------------------------------------------------------------------------------
+
+exprLoc                         :: CoreExpr -> Maybe SrcSpan
+
+exprLoc (Tick tt _)             = Just $ tickSrcSpan tt
+exprLoc (App e a) | isType a    = exprLoc e
+exprLoc _                       = Nothing
+
+isType (Type _)                 = True
+isType a                        = eqType (exprType a) predType
+
 
 exprRefType :: CoreExpr -> RefType 
 exprRefType = exprRefType_ M.empty 
