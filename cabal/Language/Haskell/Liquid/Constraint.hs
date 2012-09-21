@@ -732,7 +732,7 @@ consE γ e'@(App e a) | eqType (exprType a) predType
 consE γ e'@(App e a)               
   = do ([], πs, te)        <- bkUniv <$> consE γ e
        zs                  <- mapM (\π -> liftM ((π,) . RPoly) $ freshPredRef γ e' π) πs
-       let te'             = replacePreds "consE" te zs
+       let te'             = {- traceShow "replacePreds: " $ -} replacePreds "consE" te zs
        let (RFun x tx t _) = checkFun ("Non-fun App with caller", e') te' 
        cconsE γ a tx 
        return $ maybe err (F.subst1 t . (x,)) (argExpr a)

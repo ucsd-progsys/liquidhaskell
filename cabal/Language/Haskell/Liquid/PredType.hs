@@ -225,6 +225,8 @@ substPred msg su@(π, πt) (RFun x t t' r)
 
 substPred msg pt (RCls c ts)        = RCls c (substPred msg pt <$> ts)
 
+substPred msg su (REx x t t')       = REx x (substPred msg su t) (substPred msg su t')
+
 substPred msg pt t                  = t
 
 -- | Requires: @p `isPredInReft` r@
