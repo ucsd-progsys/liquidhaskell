@@ -25,6 +25,3 @@ fooBar f n = go 0
 count :: Int -> Int
 count m = foldN (\_ n -> n + 1) m 0
 
-goo x y = x
-
-moo = goo "st" True
