@@ -87,6 +87,6 @@ options, args = parser.parse_args()
 
 
 
-[os.system(("cd %s; ../../cleanup.sh; cd ../" % d)) for (d,_) in testdirs]  
+[os.system(("cd %s; cleanup; cd ../" % d)) for (d,_) in testdirs]  
 runner = rtest.TestRunner (Config (options.opts, testdirs, logfile, options.threadcount))
 runner.run ()
