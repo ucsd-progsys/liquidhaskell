@@ -22,7 +22,16 @@ TODO
 Existentials    
 ============
 
-<------------------------------------------- HEREHEREHEREHERE
+tests/pos/ex1.hs    <------------------------------------------- HEREHEREHEREHERE
+
+
+HACK "Pred" parser to parse 
+
+    foo x1 x2 x3 x4 ....
+
+as 
+    foo(x1, x2, x3, x4, ...)
+
 
 foldr :: (a -> b -> b) -> b -> [a] -> b
 foldr op b []     = b

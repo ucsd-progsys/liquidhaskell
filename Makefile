@@ -19,7 +19,7 @@ CABALI=$(CABAL) install --force-reinstalls --reinstall --ghc-options=$(OPTS)
 
 CABALP=$(CABAL) install --reinstall --ghc-options=$(OPTS) -p
 
-DEPS=unix-compat transformers mtl filemanip cmdargs text syb parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour
+DEPS=unix-compat transformers mtl filemanip text syb parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour
 
 all:
 	$(CABAL) install --ghc-options=$(OPTS) 
