@@ -24,11 +24,11 @@ directory of the distribution:
 
 1. Run the `configure` script
 
-    $ ./configure
-    
+    `$ ./configure`
+
 2. Run the generated `build` script
 
-    $ ./build.sh
+    `$ ./build.sh`
 
 3. Append the contents of the generated `install.sh` to your `.bashrc`
    (or set the corresponding environment variables appropriately)
@@ -63,23 +63,23 @@ How to Profile
 
 1. Build with profiling on
     
-    $ make pdeps && make prof
+    `$ make pdeps && make prof`
 
 2. Run with profiling
 
-    $ time liquid range.hs +RTS -hc -p
+    `$ time liquid range.hs +RTS -hc -p`
 
-    $ time liquid range.hs +RTS -hy -p
+    `$ time liquid range.hs +RTS -hy -p`
 
    Followed by this which shows the stats file 
 
-    $ more liquid.prof
+    `$ more liquid.prof`
 
    or by this to see the graph
 
-    $ hp2ps -e8in -c liquid.hp
+    `$ hp2ps -e8in -c liquid.hp`
 
-    $ gv liquid.ps
+    `$ gv liquid.ps`
 
    etc.
 
@@ -88,11 +88,11 @@ How to Get Backtraces
 
 1. Build with profiling on
 
-    $ make pdeps && make prof
+    `$ make pdeps && make prof`
 
 2. Run with backtraces
 
-    $ liquid +RTS -xc -RTS foo.hs
+    `$ liquid +RTS -xc -RTS foo.hs`
 
 
 Writing Specifications
