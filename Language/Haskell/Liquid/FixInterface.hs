@@ -33,7 +33,8 @@ execFq fn hqs globals cs ws qs
   = do copyFiles hqs fq
        appendFile fq qstr 
        withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPrintDump h d)
-       ec <- {-# SCC "sysCall" #-} system $ execCmd fn 
+       fp <- getFixpointPath
+       ec <- {-# SCC "sysCall" #-} system $ execCmd fp fn 
        return ec
     where fq   = extFileName Fq  fn
           fo   = extFileName Out fn
@@ -41,10 +42,11 @@ execFq fn hqs globals cs ws qs
           qstr = showSDoc ((vcat $ toFix <$> qs) $$ blankLine)
 
 -- execCmd fn = printf "fixpoint.native -notruekvars -refinesort -strictsortcheck -out %s %s" fo fq 
-execCmd fn = printf "fixpoint.native -notruekvars -refinesort -noslice -nosimple -strictsortcheck -out %s %s" fo fq 
-  where fq = extFileName Fq  fn
-        fo = extFileName Out fn
- 
+execCmd fp fn = printf "%s -notruekvars -refinesort -noslice -nosimple -strictsortcheck -out %s %s" fp fo fq 
+  where fq    = extFileName Fq  fn
+        fo    = extFileName Out fn
+        fp    = "fixpoint.native"
+
 exitFq _ _ (ExitFailure n) | (n /= 1) 
   = return (Crash [] "Unknown Error", empty)
 --exitFq fn cm _ 
