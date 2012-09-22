@@ -954,9 +954,14 @@ existentialRefType γ t = withReft t (uTop r')
   where r'             = maybe top (exReft γ) (F.isSingletonReft r)
         r              = F.sr_reft $ rTypeSortedReft t
 
+
 exReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ rTypeSortedReft t
   where (xs,_ , t)     = bkArrow $ thd3 $ bkUniv $ γ ?= f 
         su             = F.mkSubst $ safeZip "fExprRefType" xs es
+
+exReft γ (F.EVar x)    = F.sr_reft $ rTypeSortedReft t 
+  where (_,_ , t)      = bkArrow $ thd3 $ bkUniv $ γ ?= x 
+
 exReft _ e             = F.exprReft e 
 
 withReft (RApp c ts rs _) r' = RApp c ts rs r' 
