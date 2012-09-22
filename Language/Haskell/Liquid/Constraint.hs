@@ -338,11 +338,11 @@ mkSortedReft = F.RR . rTypeSort
 splitC :: SubC -> [FixSubC]
 ------------------------------------------------------------
 
-splitC (SubC γ (REx ( x) tx t1) t2) 
+splitC (SubC γ (REx x tx t1) t2) 
   = splitC (SubC γ' t1 t2)
     where γ' = (γ, "addExBind") += (x, existentialRefType γ tx)
 
-splitC (SubC γ t1 (REx ( x) tx t2))
+splitC (SubC γ t1 (REx x tx t2))
   = splitC (SubC γ' t1 t2)
     where γ' = (γ, "addExBind") += (x, existentialRefType γ tx)
  

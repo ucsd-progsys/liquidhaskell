@@ -3,8 +3,8 @@ module Ex where
 -- | Testing "existential-types"
 
 {-@ efoldr :: forall a <p :: x0:L a -> x1:b -> Bool>. 
-                (xs:L a -> x:a -> b <p xs> -> exists [xxs : {v: L a | v = cons(x,xs)}]. b<p xxs>) 
-              -> (exists [x0: {v: L a | v = nil }]. b <p x0>) 
+                (xs:L a -> x:a -> b <p xs> -> exists [xxs : {v: L a | v = Cons x xs)}]. b<p xxs>) 
+              -> (exists [x0: {v: L a | v = Nil}]. b <p x0>) 
               -> ys: L a
               -> b <p ys>
   @-}
