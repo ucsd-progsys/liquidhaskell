@@ -1,0 +1,40 @@
+include ../../config.make
+
+LIBS=-libs unix,str,graph
+
+DIRS=-I misc
+
+IFLAGS=-lflags -I,$(OCAMLGRAPHHOME) \
+       -lflags -I,$(Z3HOME)/lib \
+       -lflags -I,$(Z3HOME)/ocaml 
+
+LFLAGS=-lflags -cc,g++ \
+       -lflags -cclib,-L$(Z3HOME)/lib 
+
+CFLAGS=-cflags -dtypes \
+       -cflags -I,$(Z3HOME)/ocaml \
+       -cflags -I,$(OCAMLGRAPHHOME)
+
+OFLAGS=$(DIRS) $(IFLAGS) $(LFLAGS) $(CFLAGS)
+
+##all:
+##	ln -sf ../misc
+##	ocamlbuild -r $(LIBS) $(OFLAGS) main.native
+##	ocamlbuild -r $(OFLAGS) fix.cmxa
+##	cp _build/main.native .
+##
+
+all:
+	ln -sf ../misc
+	ocamlbuild -r $(LIBS) $(OFLAGS) -tags thread fixpoint.native
+	ocamlbuild -r $(OFLAGS) fix.cmxa
+	cp _build/fixpoint.native .
+
+clean:
+	rm -rf *.byte *.native _build _log
+
+fixtop:
+	ocamlbuild -r $(LIBS) $(OFLAGS) fixtop.native
+
+horn:
+	ocamlbuild -r $(LIBS) $(OFLAGS) hornToInterproc.native

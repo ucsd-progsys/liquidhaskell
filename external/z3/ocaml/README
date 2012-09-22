@@ -1,0 +1,21 @@
+The OCAML API for Z3 was tested using OCaml 3.09.3.
+You also need CamlIDL to be able to generate the OCAML API.
+
+- To download OCaml
+  http://caml.inria.fr/ocaml/      
+
+- To download CamlIDL
+  http://caml.inria.fr/pub/old_caml_site/camlidl
+
+- To build the OCaml API for Z3
+  ./build-lib.sh <OCAMLLIB>
+
+  Example:
+  ./build-lib.sh /usr/local/lib/ocaml
+        
+
+Acknowledgements:
+The OCaml interface for Z3 was written by Jakob Lichtenberg. Many thanks to him!
+The script for building OCaml on Linux was written by Ming Kawaguchi. Many thanks to him!
+
+   

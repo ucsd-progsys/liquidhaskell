@@ -1,22 +1,48 @@
+Prerequisites
+-------------
+
+LiquidHaskell requires (in addition to the Hackage dependencies)
+
+- a recent OCaml compiler
+- the GNU multiprecision library
+- the CamlIDL library
+
+Due to the Z3 dependency, LiquidHaskell can **only be compiled on Linux** at the moment.
+
+How to Clone
+------------
+
+To clone liquidhaskell:
+
+    git clone git@github.com:ucsd-progsys/liquidhaskell.git
+
 How To Compile
 --------------
 
-Set GHCHOME in config.make.0
+To begin building, run the following commands in the root
+directory of the distribution:
 
-  $ cp config.make.0 config.make
-  $ make deps && make
+    1. ./configure
+    2. ./build.sh
+
+To *rebuild* after thist step, just do
+
+    3. make
+
 
 How To Run 
 ----------
   
 1. add this to .bashrc
 
-LIQUIDHS=PATH/TO/LiquidHaskell/cabal/include/
-export LIQUIDHS
+    LIQUIDHS=PATH/TO/LiquidHaskell/cabal/include/
+    export LIQUIDHS
 
 2. ensure "fixpoint.native" is in the executable search path
 
-3. path/to/liquid foo.hs
+3. At the prompt:
+
+    $ path/to/liquid foo.hs
 
 How To Run Tests 
 ----------------
