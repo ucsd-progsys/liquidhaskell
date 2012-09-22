@@ -20,7 +20,6 @@ module Language.Haskell.Liquid.FileNames (
   , getFileInDirs
   , findFileInDirs
   , getIncludePath
-  , resolvePath
   , copyFiles
   , deleteBinFiles
 ) where
@@ -43,10 +42,15 @@ import           System.FilePath.Find
 envVarName = "LIQUIDHS"
 envPrefix  = "$" ++ envVarName ++ "/"
 
-getIncludePath ::  IO String
-getIncludePath = getEnv envVarName
+getIncludePath  ::  IO String
+getIncludePath  = (</> "include") <$> getEnv envVarName
 
-
+getFixpointPath ::  IO String
+getFixpointPath = do p  <- (joinPath . (: suffix)) <$> getEnv envVarName
+                     ex <- doesFileExist p
+                     if ex then return p else err p
+  where suffix  = ["external", "fixpoint", "fixpoint.native"]
+        err p   = errorstar $ "Cannot find fixpoint executable at: " ++ p
 
 data Ext = Cgi | Out | Fq | Html | Cst | Annot | LHs | Hs | Spec | Hquals | Pred | PAss| Dat
            deriving (Eq, Ord)
@@ -84,6 +88,22 @@ extModuleName modName ext =
 preludeName  :: String
 preludeName  = "Prelude"
 
+copyFiles :: [FilePath] -> FilePath -> IO ()
+copyFiles srcs tgt
+  = do Ex.catch (removeFile tgt) $ \(_ :: Ex.IOException) -> return ()
+       forM_ srcs (readFile >=> appendFile tgt)
+
+deleteBinFiles :: FilePath -> IO ()
+deleteBinFiles fn = mapM_ (tryIgnore "delete binaries" . removeFile)
+                  $ (fn `replaceExtension`) `fmap` exts
+  where exts = ["hi", "o"]
+
+-- resolvePath :: FilePath -> FilePath -> IO FilePath
+-- resolvePath base path
+--   = case stripPrefix envPrefix path of
+--       Just path' -> liftM (</> path') getIncludePath
+--       Nothing    -> return $ if isAbsolute path then path else base </> path
+
 -- libName      :: String -> FilePath
 -- libName ext  = envPrefix ++ "Prelude." ++ ext
 
@@ -95,25 +115,6 @@ preludeName  = "Prelude"
 --        unless b $ putStrLn $ printf "WARNING: missing file (%s): %s" s f
 --        return b
 
-copyFiles :: [FilePath] -> FilePath -> IO ()
-copyFiles srcs tgt
-  = do Ex.catch (removeFile tgt) $ \(_ :: Ex.IOException) -> return ()
-       forM_ srcs (readFile >=> appendFile tgt)
-
-deleteBinFiles :: FilePath -> IO ()
-deleteBinFiles fn = mapM_ (tryIgnore "delete binaries" . removeFile)
-                  $ (fn `replaceExtension`) `fmap` exts
-  where exts = ["hi", "o"]
-
--- retry ::  IOError -> [IO a] -> IO a
--- retry err []     = ioError err
--- retry err (a:as) = Ex.catch a $ \(e :: Ex.IOException) -> retry err as
-
-resolvePath :: FilePath -> FilePath -> IO FilePath
-resolvePath base path
-  = case stripPrefix envPrefix path of
-      Just path' -> liftM (</> path') getIncludePath
-      Nothing    -> return $ if isAbsolute path then path else base </> path
 
 
 ----------------------------------------------------------------------------------

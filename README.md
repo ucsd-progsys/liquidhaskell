@@ -1,4 +1,4 @@
-Prerequisites
+Requirements
 -------------
 
 LiquidHaskell requires (in addition to the Hackage dependencies)
@@ -16,42 +16,44 @@ To clone liquidhaskell:
 
     git clone git@github.com:ucsd-progsys/liquidhaskell.git
 
-How To Compile
---------------
+How To Build and Install
+------------------------
 
 To begin building, run the following commands in the root
 directory of the distribution:
 
-    1. ./configure
-    2. ./build.sh
+1. Run the `configure` script
 
-To *rebuild* after thist step, just do
+    $ ./configure
+    
+2. Run the generated `build` script
 
-    3. make
+    $ ./build.sh
+
+3. Append the contents of the generated `install.sh` to your `.bashrc`
+   (or set the corresponding environment variables appropriately)
+
+To *rebuild* after this step, just do
+
+    make
 
 
-How To Run 
+How To Run
 ----------
-  
-1. add this to .bashrc
 
-    LIQUIDHS=PATH/TO/LiquidHaskell/cabal/include/
-    export LIQUIDHS
+To verify a file called `foo.hs` at type
 
-2. ensure "fixpoint.native" is in the executable search path
+    $ liquid foo.hs
 
-3. At the prompt:
 
-    $ path/to/liquid foo.hs
+How To Run Regression Tests 
+---------------------------
 
-How To Run Tests 
-----------------
-
-  $ make deps && make && make test
+    $ make test
 
 To use threads to speed up the tests
 
-  $ make THREADS=30 test
+    $ make THREADS=30 test
 
 or your favorite number of threads, depending on cores etc.
 
@@ -61,23 +63,23 @@ How to Profile
 
 1. Build with profiling on
     
-   $ make pdeps && make prof
+    $ make pdeps && make prof
 
 2. Run with profiling
 
-   $ time liquid range.hs +RTS -hc -p
+    $ time liquid range.hs +RTS -hc -p
 
-   $ time liquid range.hs +RTS -hy -p
+    $ time liquid range.hs +RTS -hy -p
 
    Followed by this which shows the stats file 
 
-   $ more liquid.prof
+    $ more liquid.prof
 
    or by this to see the graph
 
-   $ hp2ps -e8in -c liquid.hp
+    $ hp2ps -e8in -c liquid.hp
 
-   $ gv liquid.ps
+    $ gv liquid.ps
 
    etc.
 
@@ -96,27 +98,24 @@ How to Get Backtraces
 Writing Specifications
 ======================
 
-For modules WITH code
----------------------
-
 Modules WITHOUT code
 --------------------
 
 For a module Foo.Bar.Baz the spec file is
 
-    $(INCLUDEDIR)/Foo/Bar/Baz.spec
+    include/Foo/Bar/Baz.spec
 
-For example:
+See, for example, the contents of
 
-    - include/Prelude.spec
-    - include/Data/List.spec
-    - include/Data/Vector.spec
+    include/Prelude.spec
+    include/Data/List.spec
+    include/Data/Vector.spec
 
 Modules WITH code: Data
 -----------------------
 
 Write the specification directly into the .hs or .lhs file, 
-above the data definition. For example (tests/pos/Map.hs)
+above the data definition. See, for example, `tests/pos/Map.hs`
 
     {-@
     data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
@@ -136,7 +135,7 @@ Modules WITH code: Functions
 Write the specification directly into the .hs or .lhs file, 
 above the function definition. For example (tests/pos/spec0.hs)
 
-    {-@ assert incr :: x:{v: Int | v > 0} -> {v: Int | v > x} @-}
+    {-@ incr :: x:{v: Int | v > 0} -> {v: Int | v > x} @-}
     incr   :: Int -> Int
     incr x = x + 1
 
@@ -194,7 +193,7 @@ Additional qualifiers may be used by adding lines of the form:
 
     {-@ include <path/to/file.hquals> @-}
 
-to the Haskell source. See tests/pos/meas5.hs for an example.
+to the Haskell source. See, for example, `tests/pos/meas5.hs` 
 
 
 
