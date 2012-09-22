@@ -2,8 +2,8 @@ TODO
 ====
 
 * existentials
-* remove dependency on Bifunctor 
-* benchmarks: Data.List (foldr)
+    * benchmarks: Data.List (foldr)
+
 * predicate-aliases 
 * add fixpoint into liquidhaskell repo
 * strictness annotations (tests/todo/maybe000.hs)
