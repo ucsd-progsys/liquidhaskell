@@ -146,9 +146,16 @@ wiredSorts = [ ("EQ", primOrderingSort)
              , ("GT", primOrderingSort)
              ]
 
-exprFunP      = liftM2 EApp symbolP argsP
-  where argsP = try (parens $ brackets esP) <|> parens esP
-        esP   = sepBy exprP comma 
+exprFunP       =  (try exprFunSpacesP) <|> exprFunCommasP
+
+exprFunCommasP = liftM2 EApp symbolP argsP
+  where argsP  = try (parens $ brackets esP) <|> parens esP
+        esP    = sepBy exprP comma 
+
+exprFunSpacesP = parens $ liftM2 EApp symbolP (sepBy exprP spaces) 
+
+
+
 
 expr2P = buildExpressionParser bops lexprP
 
@@ -263,7 +270,6 @@ bareExistsP
 exBindP 
   = xyP binderP colon bareTypeP 
   
-  -- = liftM3 (\x _ t -> (x, t)) binderP colon bareTypeP
 
 bareAllP 
   = do reserved "forall"
@@ -499,11 +505,14 @@ tyBodyP ty
           outTy _              = Nothing
 
 binderP :: Parser Symbol
-binderP =  try $ liftM stringSymbol idP
-       <|> liftM pwr (parens idP)
-       where idP   = many1 (satisfy (not . bad))
-             bad c = isSpace c || c `elem` "()"
-             pwr s = stringSymbol $ "(" ++ s ++ ")" 
+binderP =  try $ liftM stringSymbol (idP badc)
+       <|> liftM pwr (parens (idP bad))
+       where -- idP    = many1 (satisfy (not . bad))
+             -- idcP   = many1 (satisfy (not . badc))
+             idP p  = many1 (satisfy (not . p))
+             badc c = (c == ':') ||  bad c
+             bad c  = isSpace c || c `elem` "()"
+             pwr s  = stringSymbol $ "(" ++ s ++ ")" 
              
 grabs p = try (liftM2 (:) p (grabs p)) 
        <|> return []

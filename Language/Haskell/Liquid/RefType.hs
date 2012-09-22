@@ -127,8 +127,12 @@ instance Show Predicate where
 
 instance Reftable Predicate where
   isTauto (Pr ps)      = null ps
+  
   ppTy r d | isTauto r = d 
            | otherwise = d <> (angleBrackets $ ppr r)
+  
+  toReft  p            = errorstar "TODO: instance of toReft for Predicates. Hmm."
+
 
 instance NFData Predicate where
   rnf _ = ()

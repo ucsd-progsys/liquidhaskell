@@ -1,22 +1,64 @@
+
+-- | A somewhat fancier example demonstrating the use of Abstract Predicates and exist-types
+
 module Ex where
 
--- | Testing "existential-types"
+-------------------------------------------------------------------------
+-- | Data types ---------------------------------------------------------
+-------------------------------------------------------------------------
 
-{-@ efoldr :: forall a <p :: x0:L a -> x1:b -> Bool>. 
-                (xs:L a -> x:a -> b <p xs> -> exists [xxs : {v: L a | v = Cons x xs)}]. b<p xxs>) 
-              -> (exists [x0: {v: L a | v = Nil}]. b <p x0>) 
-              -> ys: L a
-              -> b <p ys>
+data Vec a = Nil | Cons a (Vec a)
+
+-- | We can encode the notion of length as an inductive measure @llen@ 
+
+{-@ measure llen     :: forall a. Vec a -> Int 
+    llen (Nil)       = 0 
+    llen (Cons x xs) = 1 + llen(xs)
   @-}
 
-efoldr :: (L a -> a -> b -> b) -> b -> L a -> b
+
+-- | As a warmup, lets check that a /real/ length function indeed computes
+-- the length of the list.
+
+{-@ sizeOf :: xs:Vec a -> {v: Int | v = llen(xs)} @-}
+sizeOf             :: Vec a -> Int
+sizeOf Nil         = 0
+sizeOf (Cons _ xs) = 1 + sizeOf xs
+
+-------------------------------------------------------------------------
+-- | Higher-order fold -------------------------------------------------- 
+-------------------------------------------------------------------------
+
+-- | Time to roll up the sleeves. Here's a a higher-order @foldr@ function
+-- for our `Vec` type. Note that the `op` argument takes an extra /ghost/
+-- parameter that will let us properly describe the type of `efoldr` 
+
+{-@ efoldr :: forall a <p :: x0:Vec a -> x1:b -> Bool>. 
+                (xs:Vec a -> x:a -> b <p xs> -> exists [xxs : {v: Vec a | v = (Cons x xs)}]. b <p xxs>) 
+              -> (exists [nil: {v: Vec a | v = Nil}]. b <p nil>) 
+              -> ys: Vec a
+              -> b <p ys>
+  @-}
+efoldr :: (Vec a -> a -> b -> b) -> b -> Vec a -> b
 efoldr op b Nil         = b
-efoldr op b (Cons x xs) = op xs x (efoldr f b xs) 
+efoldr op b (Cons x xs) = op xs x (efoldr op b xs) 
 
+-------------------------------------------------------------------------
+-- | Clients of `efold` ------------------------------------------------- 
+-------------------------------------------------------------------------
 
-{-@ size :: xs:L a -> {v: Int | v = llen(xs)} @-}
-size :: L a -> Int
+-- | Finally, lets write a few /client/ functions that use `efoldr` to 
+-- operate on the `Vec`s. 
+
+-- | First: Computing the length using `efoldr`
+{-@ size :: xs:Vec a -> {v: Int | v = llen(xs)} @-}
+size :: Vec a -> Int
 size = efoldr (\_ _ n -> n + 1) 0
 
+-- | Second: Appending two lists using `efoldr`
+{-@ app  :: xs: Vec a -> ys: Vec a -> {v: Vec a | llen(v) = llen(xs) + llen(ys) } @-} 
+app xs ys = efoldr (\_ z zs -> Cons z zs) ys xs 
 
-app xs ys = efoldr (\_ -> Cons) ys xs 
+
+
+
