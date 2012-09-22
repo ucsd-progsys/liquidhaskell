@@ -1,27 +1,37 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
+-- | This module contains Haskell variables representing globally visible 
+-- names for files, paths, extensions and various other constants. 
+-- Rather than have strings floating around the system, all constant names
+-- should be defined here, and the (exported) variables should be used and
+-- manipulated elsewhere.
+
 module Language.Haskell.Liquid.FileNames (
-    Ext (..)
   
+  -- * Hardwired file extension names
+    Ext (..)
   , repFileName
   , extFileName
   , extModuleName
   , isExtFile
-  , tagName 
+ 
+  -- * Hardwired global names 
   , dummyName
-  
   , preludeName
   , boolConName
   , listConName
   , tupConName
   , vvName
   
+  -- * Hardwired paths 
+  , getIncludePath, getFixpointPath
+  
+  -- * Various generic utility functions for finding and removing files
   , getHsTargets
   , getFileInDirs
   , findFileInDirs
-  , getIncludePath
-  , copyFiles
-  , deleteBinFiles
+  , copyFiles, deleteBinFiles
+  
 ) where
 
 import qualified Control.Exception            as Ex
@@ -43,10 +53,10 @@ envVarName = "LIQUIDHS"
 envPrefix  = "$" ++ envVarName ++ "/"
 
 getIncludePath  ::  IO String
-getIncludePath  = (</> "include") <$> getEnv envVarName
+getIncludePath  = (</> "include") `fmap` getEnv envVarName
 
 getFixpointPath ::  IO String
-getFixpointPath = do p  <- (joinPath . (: suffix)) <$> getEnv envVarName
+getFixpointPath = do p  <- (joinPath . (: suffix)) `fmap` getEnv envVarName
                      ex <- doesFileExist p
                      if ex then return p else err p
   where suffix  = ["external", "fixpoint", "fixpoint.native"]

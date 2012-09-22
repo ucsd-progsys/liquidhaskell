@@ -13,7 +13,8 @@ OPTS="-W -O2 -XStandaloneDeriving -XDeriveDataTypeable"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
 CABAL=cabal --with-ghc=$(GHC) 
 
-CABALI=$(CABAL) install --force-reinstalls --reinstall --ghc-options=$(OPTS)
+CABALI=$(CABAL) install --ghc-options=$(OPTS)
+#CABALI=$(CABAL) install --force-reinstalls --reinstall --ghc-options=$(OPTS)
 #CABALP=$(CABALI) -p
 
 CABALP=$(CABAL) install --reinstall --ghc-options=$(OPTS) -p

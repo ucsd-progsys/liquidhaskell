@@ -33,7 +33,7 @@ directory of the distribution:
 3. Append the contents of the generated `install.sh` to your `.bashrc`
    (or set the corresponding environment variables appropriately)
 
-To *rebuild* after this step, just do
+To **rebuild** after this step, just do
 
     make
 

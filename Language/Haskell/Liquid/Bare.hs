@@ -45,7 +45,7 @@ import Control.Monad.Error      hiding (forM)
 import Data.Generics.Schemes
 import Data.Generics.Aliases
 import Data.Data                hiding (TyCon, tyConName)
--- import Data.Bifunctor
+import Data.Bifunctor
 
 import qualified Data.Map as M
 

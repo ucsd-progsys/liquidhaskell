@@ -1,6 +1,6 @@
 Name:                liquidtypes 
-Version:             0.0
-Copyright:           2010-11 Ranjit Jhala, University of California, San Diego.
+Version:             0.1
+Copyright:           2010-12 Ranjit Jhala, University of California, San Diego.
 build-type:			 Simple
 Synopsis:            Liquid Types for Haskell 
 Description:         Liquid Types for Haskell.
