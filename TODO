@@ -14,7 +14,7 @@ TODO
 * benchmarks: Data.Text
 * tuple-refinements
 
-* get Niki to fix the safe0ZipWith nonsense in PredType.hs
+* get Niki to fix the safe0ZipWith stuff in PredType.hs
 * alpha-renaming of predicate params is VERY SHAKY. see tests/pos/deptupW.hs
 * mcbride's stack machine
 * remove /toType/ and  generalize /typeSort/ to work for all RefTypables
@@ -22,10 +22,7 @@ TODO
 Existentials    
 ============
 
-[tests/todo/ex0-unsafe.hs] <------------------------------------------- HEREHEREHEREHERE
-
-    why is k_59 (the KVar for the predicate "p") not getting the LHS reft { v = 0 } ?
-    even though his partner, k_57 is?
+<------------------------------------------- HEREHEREHEREHERE
 
 foldr :: (a -> b -> b) -> b -> [a] -> b
 foldr op b []     = b
@@ -36,7 +33,7 @@ foldr op b []     = b
 foldr op b (x:xs) = op ~xs~ x (foldr f b xs) 
 
 len = foldr (\_ ~xs~ n -> n + 1)
-
+ 
 
 Strictness Annotations
 ======================
@@ -58,8 +55,7 @@ see tests/pos/maybe3.hs [hack which works]
 Predicate Aliases
 =================
 
-Then clean up the spec blowup in Map?
-
+Then clean up the spec blowup in containers/Data/Map/Base.hs ?
 
 {-@ maybeGe(lo, v)     = ((isJustS(lo)) => (v >= fromJustS(lo))) @-}
 {-@ maybeLe(hi, v)     = ((isJustS(lo)) => (v <= fromJustS(hi))) @-}
@@ -77,9 +73,8 @@ Fixpoint Profile
     Solve.acsolve                 280.170 s
       refine                        73.057 s
 
-Tuple Refinements
-=================
-
+Tuple Refinements (DONE: by Niki)
+=================================
 
 - Add/Parse predicate signatures for tuples<p>     
 
@@ -109,7 +104,6 @@ data (a1, a2, a3)
   , p4 :: a1 -> a2 -> a3 -> a4 -> Bool
   > 
   = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>) (x4 :: a4<p4 x1 x2 x3>)
-
 
 
 
