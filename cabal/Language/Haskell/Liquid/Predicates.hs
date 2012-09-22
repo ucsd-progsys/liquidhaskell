@@ -35,7 +35,6 @@ import qualified Data.Map  as M
 import qualified Data.List as L
 import qualified Data.Set  as S
 import Data.Maybe (fromMaybe)
-import Data.Bifunctor
 import Data.List (foldl')
 import Control.DeepSeq
 import Data.Data hiding (TyCon)
@@ -405,7 +404,6 @@ addToPVMap pv
        put $ s { pvMap = F.insertSEnv (pname pv) pv (pvMap s) }
 
 updateSubst :: M.Map UsedPVar Predicate -> (Predicate, Predicate) -> M.Map UsedPVar Predicate 
--- updateSubst m (p, p') = foldl' (\m (k, v) -> M.insert k v m) m binds 
 updateSubst m (p, p') = foldr (uncurry M.insert) m binds -- PREDARGS: what if it is already in the Map?!!!
   where binds = unifiers $ unifyVars (substPvar m p) (substPvar m p')
 
@@ -418,20 +416,19 @@ unifiers (vs, vs') = [(v , Pr vs')  | v  <- vs ]
 initEnv info = PCGE { loc = noSrcSpan , penv = F.fromListSEnv bs }
   where dflts  = [(x, ofType $ varType x) | x <- freeVs ]
         dcs    = [(x, dconTy $ varType x) | x <- dcons  ]
-        sdcs   = bimap TC.dataConWorkId dataConPtoPredTy <$> dconsP (spec info)
+        sdcs   = [(TC.dataConWorkId x, dataConPtoPredTy y) | (x, y) <- dconsP (spec info)]
         assms  = passm $ tySigs $ spec info
-        bs     = first mkSymbol <$> (dflts ++ dcs ++ assms ++ sdcs)
+        bs     = mapFst mkSymbol <$> (dflts ++ dcs ++ assms ++ sdcs)
         freeVs = [v | v<-importVars $ cbs info]
         dcons  = filter isDataConWorkId freeVs
 
 getNeedPd spec 
   = F.fromListSEnv bs
-    where  dcs   = bimap TC.dataConWorkId dataConPtoPredTy <$> dconsP spec
+    where  dcs   = [(TC.dataConWorkId x, dataConPtoPredTy y) | (x, y) <- dconsP spec]
            assms = passm $ tySigs spec 
-           bs    = first mkSymbol <$> (dcs ++ assms)
+           bs    = mapFst mkSymbol <$> (dcs ++ assms)
 
-passm = fmap (second (mapReft ur_pred)) 
--- specTypePrType = mapReft pred
+passm = fmap (mapSnd (mapReft ur_pred)) 
 
 -- PREDARGS: why are we even generalizing here?
 dconTy t = generalize F.emptySEnv $ dataConTy vps t

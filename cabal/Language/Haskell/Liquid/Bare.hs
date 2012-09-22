@@ -45,7 +45,7 @@ import Control.Monad.Error      hiding (forM)
 import Data.Generics.Schemes
 import Data.Generics.Aliases
 import Data.Data                hiding (TyCon, tyConName)
-import Data.Bifunctor
+-- import Data.Bifunctor
 
 import qualified Data.Map as M
 
@@ -115,7 +115,7 @@ makeMeasureSpec env m = execBare mkSpec env
   where mkSpec = wrapErr "mkMeasureSort" mkMeasureSort m' 
                  >>= mkMeasureDCon 
                  >>= return . mapFst (mapSnd uRType <$>) . Ms.dataConTypes 
-        m'     = first ({- txTyVarBinds . -} mapReft ur_reft) m
+        m'     = first (mapReft ur_reft) m
 
 makeAssumeSpec :: BareEnv -> [Var] -> [(Symbol, BareType)] -> IO [(Var, SpecType)]
 makeAssumeSpec env vs xbs = execBare mkAspec env 
