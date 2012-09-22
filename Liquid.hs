@@ -27,7 +27,8 @@ liquid  = do (targets, includes) <- getOpts
              return $ mconcat res
 
 liquidOne includes target = 
-  do info    <- getGhcInfo target includes :: IO GhcInfo
+  do _       <- getFixpointPath 
+     info    <- getGhcInfo target includes :: IO GhcInfo
      donePhase "getGhcInfo"
      --putStrLn $ showPpr info 
      -- putStrLn "*************** Original CoreBinds ***************************" 

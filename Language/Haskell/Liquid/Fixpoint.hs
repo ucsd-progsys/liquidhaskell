@@ -1,10 +1,15 @@
 {-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
 
+-- | This module contains the data types, operations and serialization functions 
+-- for representing Fixpoint's implication (i.e. subtyping) and well-formedness 
+-- constraints in Haskell. The actual constraint solving is done by the
+-- `fixpoint.native` which is written in Ocaml.
+
 module Language.Haskell.Liquid.Fixpoint (
     toFixpoint
   , Fixpoint (toFix) 
   , typeSort, typeUniqueSymbol
-  , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tagSymbol, tempSymbol
+  , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tempSymbol --, tagSymbol 
   , qualifySymbol, stringTycon, stringSymbol, symbolString, stringSymbolRaw
   , anfPrefix, tempPrefix
   , intKvar
@@ -395,7 +400,7 @@ isParened xs          = xs /= stripParens xs
 
 vv                      = S vvName 
 dummySymbol             = S dummyName
-tagSymbol               = S tagName
+-- tagSymbol               = S tagName
 intSymbol x i           = S $ x ++ show i           
 
 tempSymbol              ::  String -> Integer -> Symbol
