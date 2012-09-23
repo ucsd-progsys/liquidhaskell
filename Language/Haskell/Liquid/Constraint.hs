@@ -180,10 +180,13 @@ normalize γ = addRTyConInv (invs γ) . normalizePds
   | x == F.dummySymbol
   = γ
   | x `memberREnv` (renv γ)
-  = errorstar $ "ERROR: " ++ msg ++ " Duplicate Binding for " ++ F.symbolString x 
+  = err 
   | otherwise
   =  γ ++= (msg, x, r) 
-
+  where err = errorstar $ msg ++ " Duplicate binding for " ++ F.symbolString x 
+                              ++ "\n New: " ++ showPpr r
+                              ++ "\n Old: " ++ showPpr (x `lookupREnv` (renv γ))
+                        
 γ -= x =  γ { renv = deleteREnv x (renv γ) } { fenv = F.deleteSEnv x (fenv γ) }
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
@@ -341,14 +344,23 @@ mkSortedReft = F.RR . rTypeSort
 splitC :: SubC -> [FixSubC]
 ------------------------------------------------------------
 
+splitC (SubC γ (REx x tx t1) (REx x2 _ t2))
+  = assert (x == x2) $ splitC (SubC γ' t1 t2)
+    where γ'  = (γ, "addExBind 0") += (x, tx')
+          tx' = {- traceShow ("addExBind 0: " ++ showPpr x) $ -} existentialRefType γ tx
+
+
+
 splitC (SubC γ (REx x tx t1) t2) 
   = splitC (SubC γ' t1 t2)
-    where γ' = (γ, "addExBind") += (x, existentialRefType γ tx)
+    where γ'  = (γ, "addExBind 1") += (x, tx')
+          tx' = {- traceShow ("addExBind 1: " ++ showPpr x) $ -} existentialRefType γ tx
 
 splitC (SubC γ t1 (REx x tx t2))
   = splitC (SubC γ' t1 t2)
-    where γ' = (γ, "addExBind") += (x, existentialRefType γ tx)
- 
+    where γ'  = (γ, "addExBind 2") += (x, tx')
+          tx' = {- traceShow ("addExBind 2: " ++ showPpr x) $ -} existentialRefType γ tx
+
 splitC (SubC γ t1@(RFun x1 r1 r1' re1) t2@(RFun x2 r2 r2' re2)) 
   =  bsplitC γ t1 t2 
   ++ splitC  (SubC γ r2 r1) 
@@ -960,18 +972,18 @@ existentialRefType γ t = withReft t (uTop r')
 
 
 exReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ rTypeSortedReft t
-  where (xs,_ , t)     = bkArrow $ thd3 $ bkUniv $ γ ?= f 
+  where (xs,_ , t)     = bkArrow $ thd3 $ bkUniv $ exReftLookup γ f 
         su             = F.mkSubst $ safeZip "fExprRefType" xs es
 
 exReft γ (F.EVar x)    = F.sr_reft $ rTypeSortedReft t 
-  where (_,_ , t)      = bkArrow $ thd3 $ bkUniv $ γ ?= x 
+  where (_,_ , t)      = bkArrow $ thd3 $ bkUniv $ exReftLookup γ x 
 
 exReft _ e             = F.exprReft e 
 
-exReftLookup γ x       = fromMaybe err $ F.lookupSEnv x (syenv γ)
-  where err            = errorstar $ "exReftLookup: unknown " ++ showPpr x ++ " in syenv" ++ showPpr (syenv γ)
-
-
+exReftLookup γ x       = γ ?= x' 
+  where x'             = fromMaybe err (varSymbol <$> F.lookupSEnv x γ')
+        γ'             = syenv γ
+        err            = errorstar $ "exReftLookup: unknown " ++ showPpr x ++ " in " ++ showPpr  γ'
 withReft (RApp c ts rs _) r' = RApp c ts rs r' 
 withReft (RVar a _) r'       = RVar a      r' 
 withReft t _                 = t 

@@ -29,7 +29,7 @@ import MonadUtils (concatMapM, mapSndM)
 import qualified Control.Exception as Ex
 
 import GHC.Paths (libdir)
-import System.FilePath (dropExtension, takeFileName, dropFileName) 
+import System.FilePath (dropExtension, takeFileName, dropFileName, (</>)) 
 import System.Directory (copyFile) 
 import System.Environment (getArgs)
 import DynFlags (defaultDynFlags, ProfAuto(..))
@@ -417,13 +417,16 @@ annotate fname sol anna
 
 annotDump :: FilePath -> FilePath -> AnnInfo RefType -> IO ()
 annotDump srcFile htmlFile ann 
-  = do src <- readFile srcFile
-       -- generate html
+  = do cssFile <- getCSSPath
+       src     <- readFile srcFile
+       -- | generate html
        let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, mkAnnMap ann)
        writeFile htmlFile $ CSS.top'n'tail srcFile $! body
-       -- generate .annot
+       -- | generate .annot
        copyFile srcFile annotFile
        appendFile annotFile $ show annm
+       -- | copy .css file
+       copyFile cssFile (dropFileName htmlFile </> takeFileName cssFile) 
     where annotFile = extFileName Annot srcFile
           annm      = mkAnnMap ann
           lhs       = isExtFile LHs srcFile  
