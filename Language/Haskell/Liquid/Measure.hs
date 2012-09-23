@@ -84,9 +84,9 @@ instance Monoid (Spec ty bndr) where
            = Spec (xs ++ xs') 
                   (ys ++ ys') 
                   (invs ++ invs') 
-                  (nubSort (zs ++ zs')) 
+                  (sortNub (zs ++ zs')) 
                   (ds ++ ds') 
-                  (nubSort (is ++ is')) 
+                  (sortNub (is ++ is')) 
                   (as ++ as')
   mempty   = Spec [] [] [] [] [] [] []
 
@@ -150,8 +150,6 @@ instance (Outputable t, Outputable a) => Show (Measure t a) where
 mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
 mapTy f (M n ty eqs) = M n (f ty) eqs
 
--- dataConTypes :: MSpec RefType DataCon -> ([(Var, SpecType)], [(Symbol, SpecType)])
--- dataConTypes  s = (mapSnd uRType <$> ctorTys, mapSnd uRType <$> measTys)
 dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(Symbol, RefType)])
 dataConTypes  s = (ctorTys, measTys)
   where measTys = [(name m, sort m) | m <- elems $ measMap s]

@@ -27,7 +27,7 @@ import           VarEnv                           (VarEnv, emptyVarEnv, extendVa
 import           Control.Monad
 import           Language.Haskell.Liquid.Fixpoint (anfPrefix)
 import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..))
-import           Language.Haskell.Liquid.Misc     (traceShow, fst3, errorstar)
+import           Language.Haskell.Liquid.Misc     (fst3, errorstar)
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 

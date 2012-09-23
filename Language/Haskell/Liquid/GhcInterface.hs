@@ -221,7 +221,7 @@ getGhcInfo target paths
 moduleHquals mg paths target imps incs 
   = do hqs   <- specIncludes Hquals paths incs 
        hqs'  <- moduleImports [Hquals] paths (mgi_namestring mg : imps)
-       let rv = nubSort $ hqs ++ (snd <$> hqs')
+       let rv = sortNub $ hqs ++ (snd <$> hqs')
        liftIO $ putStrLn $ "Reading Qualifiers From: " ++ show rv 
        return rv
 
@@ -263,7 +263,7 @@ moduleSpec vars target mg paths
        _          <- liftIO $ checkAssertSpec vars             $ Ms.sigs       tgtSpec
        impSpec    <- getSpecs paths impNames [Spec, Hs, LHs] 
        let spec    = Ms.expandRTAliases $ tgtSpec `mappend` impSpec 
-       let imps    = nubSort $ impNames ++ [symbolString x | x <- Ms.imports spec]
+       let imps    = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
        setContext [IIModule (mgi_module mg)]
        env        <- getSession
        ghcSpec    <- liftIO $ makeGhcSpec vars env spec
@@ -272,7 +272,7 @@ moduleSpec vars target mg paths
           name     = mgi_namestring mg
 
 allDepNames mg    = allNames'
-  where allNames' = nubSort impNames
+  where allNames' = sortNub impNames
         impNames  = moduleNameString <$> (depNames mg ++ dirImportNames mg) 
 
 depNames       = map fst        . dep_mods      . mgi_deps
@@ -280,7 +280,7 @@ dirImportNames = map moduleName . moduleEnvKeys . mgi_dir_imps
 targetName     = dropExtension  . takeFileName 
 
 getSpecs paths names exts
-  = do fs    <- nubSort <$> moduleImports exts paths names 
+  = do fs    <- sortNub <$> moduleImports exts paths names 
        liftIO $ putStrLn ("getSpecs: " ++ show fs)
        transParseSpecs exts paths S.empty mempty fs
 
@@ -397,7 +397,7 @@ applySolution = fmap . fmap . mapReft . map . appSolRefa
         mapReft f (Reft (x, zs))  = Reft (x, squishRas $ f zs)
 
 squishRas ras  = (squish [p | RConc p <- ras]) : [] -- [ra | ra@(RPvar _) <- ras]
-  where squish = RConc . pAnd . nubSort . filter (not . isTautoPred) . concatMap conjuncts   
+  where squish = RConc . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts   
 
 conjuncts (PAnd ps)          = concatMap conjuncts ps
 conjuncts p | isTautoPred p  = []
@@ -509,7 +509,7 @@ class CBVisitable a where
   readVars :: a -> [Var] 
 
 instance CBVisitable [CoreBind] where
-  freeVars env cbs = (nubSort xs) \\ ys 
+  freeVars env cbs = (sortNub xs) \\ ys 
     where xs = concatMap (freeVars env) cbs 
           ys = concatMap bindings cbs
   

@@ -1,8 +1,10 @@
 {-# LANGUAGE MultiParamTypeClasses, NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, DeriveDataTypeable, ScopedTypeVariables  #-}
 
-{- Raw description of pure types (without dependencies on GHC), suitable for
- - parsing from raw strings, and functions for converting between bare types
- - and real refinements. -}
+-- | This module contains the functions that convert /from/ descriptions of 
+-- symbols, names and types (over freshly parsed /bare/ Strings),
+-- /to/ representations connected to GHC vars, names, and types.
+-- The actual /representations/ of bare and real (refinement) types are all
+-- in `RefType` -- they are different instances of `RType`
 
 module Language.Haskell.Liquid.Bare (GhcSpec (..), makeGhcSpec) where
 
@@ -61,6 +63,9 @@ import qualified Control.Exception as Ex
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
 
+-- | The following is the overall type for /specifications/ obtained from
+-- parsing the target source and dependent libraries
+
 data GhcSpec = SP {
     tySigs     :: ![(Var, SpecType)]     -- ^ Asserted/Assumed Reftypes
                                          -- eg.  see include/Prelude.spec
@@ -74,6 +79,8 @@ data GhcSpec = SP {
                                          -- e.g. see tests/pos/Map.hs
   , tconsP     :: ![(TyCon, TyConP)]     -- ^ Predicated Type-Constructors
                                          -- eg.  see tests/pos/Map.hs
+  , freeSyms   :: ![(Symbol, Var)]       -- ^ List of `Symbol` free in spec and corresponding GHC var 
+                                         -- eg. (Cons, Cons#7uz) from tests/pos/ex1.hs
   }
 
 makeGhcSpec :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
@@ -83,8 +90,9 @@ makeGhcSpec vars env spec
        let benv    = BE (makeTyConInfo tycons) env
        (cs, ms)   <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
        sigs       <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
-       invs       <- makeInvariants  benv              $ Ms.invariants spec 
-       return      $ SP sigs cs ms invs (concat dcs ++ dcs') tycons  
+       invs       <- makeInvariants  benv              $ Ms.invariants spec
+       let syms    =  makeSymbols (vars ++ map fst cs) (map fst ms) (map snd sigs) 
+       return      $ SP sigs cs ms invs (concat dcs ++ dcs') tycons syms 
     where (tcs', dcs') = wiredTyDataCons 
 
 ------------------------------------------------------------------
@@ -120,15 +128,24 @@ makeMeasureSpec env m = execBare mkSpec env
 makeAssumeSpec :: BareEnv -> [Var] -> [(Symbol, BareType)] -> IO [(Var, SpecType)]
 makeAssumeSpec env vs xbs = execBare mkAspec env 
   where mkAspec = forM vbs mkVarSpec >>= return . checkAssumeSpec
-        vbs     = joinIds vs (first symbolString <$> xbs) 
+        vbs     = joinIds vs xbs -- (first symbolString <$> xbs) 
 
 mkVarSpec (v, b) = liftM (v,) (wrapErr msg mkSpecType b)
   where msg = "mkVarSpec fails on " ++ showPpr v ++ " :: "  ++ showPpr b 
 
 -- joinIds :: [Var] -> [(String, a)] -> [(Var, a)]
-joinIds vs xts = {-tracePpr "spec vars"-} vts   
-  where vm     = M.fromList [(showPpr v, v) | v <- {-tracePpr "vars"-} vs]
-        vts    = catMaybes [(, t) <$> (M.lookup x vm) | (x, t) <- {-tracePpr "bareVars"-} xts]
+-- joinIds vs xts = vts   
+--   where vm     = M.fromList [(showPpr v, v) | v <- vs]
+--         vts    = catMaybes [(, t) <$> (M.lookup x vm) | (x, t) <- xts]
+
+-- joinIds :: [Var] -> [(Symbol, a)] -> [(Var, a)]
+joinIds vs xts = vts   
+  where vm     = M.fromList [(showPpr v, v) | v <- vs]
+        vts    = catMaybes [(, t) <$> (M.lookup (symbolString x) vm) | (x, t) <- xts]
+
+
+
+
 
 makeInvariants :: BareEnv -> [BareType] -> IO [SpecType]
 makeInvariants benv ts = execBare (mapM mkSpecType ts) benv
@@ -140,15 +157,20 @@ mkSpecType' :: [UsedPVar] -> BareType -> BareM SpecType
 mkSpecType' πs 
   = ofBareType' 
   . txParams subvUReft πs
-  -- . txTyVarBinds 
   . mapReft (fmap canonReft) 
 
--- mkPredType :: [RPVar]-> BRType (PVar String) (Predicate String) -> BareM PrType 
 mkPredType πs 
   = ofBareType' 
   . txParams subvPredicate πs 
-  -- . txTyVarBinds 
-  -- . mapReft (fmap stringTyVarTy)
+
+--makeSymbols :: [Vars] -> [Symbol] -> [SpecType] -> [(Symbol, Var)]
+
+makeSymbols vs xs' ts = [(x,v) | (v, x) <- joinIds vs (zip xs xs)]
+  where xs = (concatMap freeSymbols ts) `sortDiff` xs'
+
+freeSymbols :: SpecType -> [Symbol]
+freeSymbols      = concat . efoldReft f [] [] 
+  where f γ r xs = ((getSymbols (toReft r)) `sortDiff` γ) : xs 
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
@@ -366,7 +388,7 @@ mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
         tx  = mlookup (M.fromList ndcs) . symbolString
 
 measureCtors ::  Ms.MSpec t Symbol -> [String]
-measureCtors = nubSort . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.ctorMap 
+measureCtors = sortNub . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.ctorMap 
 
 -- mkMeasureSort :: (PVarable pv, Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
 mkMeasureSort (Ms.MSpec cm mm) 
