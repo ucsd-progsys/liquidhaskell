@@ -8,7 +8,7 @@ import System.Console.GetOpt
 -- import System.Console.CmdArgs
 import Control.Monad                            (liftM, liftM2)
 import Language.Haskell.Liquid.FileNames        (getHsTargets)
-import Language.Haskell.Liquid.Misc             (errorstar, nubSort)
+import Language.Haskell.Liquid.Misc             (errorstar, sortNub)
 import Language.Haskell.Liquid.FileNames        (getIncludePath)
 import System.FilePath                          (dropFileName)
 
@@ -26,7 +26,7 @@ getOpts
 
 mkOpts :: [Flag] -> [String] -> IO ([FilePath], [FilePath])
 mkOpts flags targets 
-  = do files <- liftM (nubSort . concat) $ mapM getHsTargets targets
+  = do files <- liftM (sortNub . concat) $ mapM getHsTargets targets
        idirs <- if null flags then liftM (:[]) getIncludePath else return [d | IDir d <- flags]
        return (files, [dropFileName f | f <- files] ++ idirs)
 

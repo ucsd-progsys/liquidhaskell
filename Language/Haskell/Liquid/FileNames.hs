@@ -50,7 +50,7 @@ import           System.FilePath.Find
 ------------------------------------------------------------
 
 envVarName = "LIQUIDHS"
-envPrefix  = "$" ++ envVarName ++ "/"
+-- envPrefix  = "$" ++ envVarName ++ "/"
 
 getIncludePath  ::  IO String
 getIncludePath  = (</> "include") `fmap` getEnv envVarName
@@ -154,7 +154,7 @@ findFileInDirs file dirs
 ----------------------------------------------------------------------------
 
 dummyName   = "_LIQUID_dummy"
-tagName     = "TAG"
+-- tagName     = "TAG"
 boolConName = "Bool"
 listConName = "List"
 tupConName  = "Tuple"

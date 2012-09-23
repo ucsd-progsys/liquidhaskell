@@ -2,6 +2,7 @@
 
 {- Refinement Types Mirroring the GHC Type definition -}
 
+-- TODO: Desperately needs re-organization.
 module Language.Haskell.Liquid.RefType (
     RTyVar (..), RType (..), RRType (..), BRType (..), RTyCon(..)
   , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..), Ref(..)
@@ -15,7 +16,7 @@ module Language.Haskell.Liquid.RefType (
  
   -- * Functions for manipulating `Predicate`s
   , pdAnd, pdVar, pdTrue, pvars
-  , ppr_rtype, mapReft, mapReftM, mapBot
+  , ppr_rtype, efoldReft, mapReft, mapReftM, mapBot
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp, rFun
   , expandRApp
@@ -28,7 +29,7 @@ module Language.Haskell.Liquid.RefType (
   , stripRTypeBase, rTypeSortedReft, typeSortedReft, rTypeSort
   , ofRSort, toRSort
   , tidyRefType
-  , mkSymbol, dataConSymbol, dataConMsReft, dataConReft  
+  , varSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalReft, literalConst
   , primOrderingSort
   , fromRMono, fromRPoly, idRMono
@@ -768,20 +769,38 @@ mapRefM  f (RMono r)          = liftM   RMono       (f r)
 mapRefM  f (RPoly t)          = liftM   RPoly       (mapReftM f t)
 
 
-foldReft f z (RVar _ r)       = f r z 
-foldReft f z (RAllT _ t)      = foldReft f z t
-foldReft f z (RAllP _ t)      = foldReft f z t
-foldReft f z (RFun _ t t' r)  = f r (foldRefts f z [t, t'])
-foldReft f z (RApp _ ts rs r) = f r (foldRefs f (foldRefts f z ts) rs)
-foldReft f z (RCls _ ts)      = foldRefts f z ts
-foldReft f z (REx _ t t')     = foldRefts f z [t, t']
-foldReft f z (ROth s)         = z 
+-- foldReft f z (RVar _ r)       = f r z 
+-- foldReft f z (RAllT _ t)      = foldReft f z t
+-- foldReft f z (RAllP _ t)      = foldReft f z t
+-- foldReft f z (RFun _ t t' r)  = f r (foldRefts f z [t, t'])
+-- foldReft f z (RApp _ ts rs r) = f r (foldRefs f (foldRefts f z ts) rs)
+-- foldReft f z (RCls _ ts)      = foldRefts f z ts
+-- foldReft f z (REx _ t t')     = foldRefts f z [t, t']
+-- foldReft f z (ROth s)         = z 
+-- foldRefts                     = foldr . flip . foldReft
+-- foldRefs                      = foldr . flip . foldRef
 
-foldRefts                     = foldr . flip . foldReft
-foldRefs                      = foldr . flip . foldRef
+foldReft f = efoldReft (\_ -> f) [] 
 
-foldRef f z (RMono r)         = f r z
-foldRef f z (RPoly t)         = foldReft f z t
+efoldReft :: ([F.Symbol] -> r -> a -> a) -> [F.Symbol] -> a -> RType p c tv r -> a
+efoldReft f γ z (RVar _ r)       = f γ r z 
+efoldReft f γ z (RAllT _ t)      = efoldReft f γ z t
+efoldReft f γ z (RAllP _ t)      = efoldReft f γ z t
+efoldReft f γ z (RFun x t t' r)  = f γ r (efoldReft f (x:γ) (efoldReft f γ z t) t')
+efoldReft f γ z (RApp _ ts rs r) = f γ r (efoldRefs f γ (efoldRefts f γ z ts) rs)
+efoldReft f γ z (RCls _ ts)      = efoldRefts f γ z ts
+efoldReft f γ z (REx _ t t')     = efoldRefts f γ z [t, t']
+efoldReft f γ z (ROth s)         = z 
+
+efoldRefts :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> [RType t t1 t2 t3] -> c
+efoldRefts f γ z ts              = foldr (flip $ efoldReft f γ) z ts 
+
+efoldRefs :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> [Ref t3 (RType t t1 t2 t3)] -> c
+efoldRefs  f γ z rs              = foldr (flip $ efoldRef f γ) z  rs 
+
+efoldRef :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> Ref t3 (RType t t1 t2 t3) -> c
+efoldRef f γ z (RMono r)         = f γ r z
+efoldRef f γ z (RPoly t)         = efoldReft f γ z t
 
 isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool
 isTrivial = Fold.and . fmap isTauto
@@ -973,7 +992,7 @@ tidyFunBinds t = everywhere (mkT $ dropBind xs) t
 
 tidyTyVars :: RefType -> RefType
 tidyTyVars = tidy pool getS putS 
-  where getS (α :: TyVar)   = Just (symbolString $ mkSymbol α)
+  where getS (α :: TyVar)   = Just (symbolString $ varSymbol α)
         putS (α :: TyVar) x = stringTyVar x
         pool          = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
 
@@ -1001,8 +1020,8 @@ tidyDSymbols = tidy pool getS putS
 
 symSep = '#'
 
-mkSymbol ::  Var -> Symbol
-mkSymbol v 
+varSymbol ::  Var -> Symbol
+varSymbol v 
   | us `isSuffixOf` vs = stringSymbol vs  
   | otherwise          = stringSymbol $ vs ++ [symSep] ++ us
   where us  = showPpr $ getUnique v 
@@ -1010,7 +1029,8 @@ mkSymbol v
 
 pprShort    =  dropModuleNames . showPpr
 
-dataConSymbol = mkSymbol . dataConWorkId
+dataConSymbol ::  DataCon -> Symbol
+dataConSymbol = varSymbol . dataConWorkId
 
 primOrderingSort = typeSort $ dataConRepType eqDataCon
 ordCon s = EDat (S s) primOrderingSort

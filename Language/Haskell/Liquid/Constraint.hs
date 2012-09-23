@@ -67,7 +67,7 @@ import Control.DeepSeq
 --   =  addC (SubC γ' xt t) ("consGrty: upperBound " ++ xs)  
 --   >> addC (SubC γ' t xt) ("consGrty: lowerBound " ++ xs) 
 --   where γ' = γ `setLoc` (getSrcSpan x) 
---         xt = γ ?= (mkSymbol x)
+--         xt = γ ?= (varSymbol x)
 --         xs = showPpr x
 
 -- consAct info penv
@@ -121,15 +121,16 @@ unifyts' tyi penv = (second (addTyConInfo tyi)) . (unifyts penv)
 
 unifyts penv (x, t) = (x', unify pt t)
  where pt = F.lookupSEnv x' penv
-       x' = mkSymbol x
+       x' = varSymbol x
 
 measEnv sp penv xts 
   = CGE { loc   = noSrcSpan
         , renv  = fromListREnv   $ second uRType          <$> meas sp 
+        , syenv = F.fromListSEnv $ freeSyms sp 
         , penv  = penv 
         , fenv  = F.fromListSEnv $ second rTypeSortedReft <$> meas sp 
         , recs  = S.empty 
-        , invs  = mkRTyConInv $ invariants sp
+        , invs  = mkRTyConInv    $ invariants sp
         , grtys = fromListREnv xts 
         } 
 
@@ -148,6 +149,7 @@ assm_grty f info = [ (x, {- toReft <$> -} t) | (x, t) <- sigs, x `S.member` xs ]
 data CGEnv 
   = CGE { loc   :: !SrcSpan          -- ^ Location in original source file
         , renv  :: !REnv             -- ^ SpecTypes for Bindings in scope
+        , syenv :: !(F.SEnv Var)     -- ^ Map from free Symbols (e.g. datacons) to Var
         , penv  :: !(F.SEnv PrType)  -- ^ PrTypes for top-level bindings (merge with renv) 
         , fenv  :: !F.FEnv           -- ^ Fixpoint environment (with simple Reft)
         , recs  :: !(S.Set Var)      -- ^ recursive defs being processed (for annotations)
@@ -640,7 +642,7 @@ consCB γ (Rec xes)
        let γ'  =  foldl' extender (γ `withRecs` (fst <$> xts)) xts
        mapM_ (consBind γ') xets
        return γ' 
-    where isGrty x = (mkSymbol x) `memberREnv` (grtys γ)
+    where isGrty x = (varSymbol x) `memberREnv` (grtys γ)
 
 consCB γ b@(NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
@@ -657,19 +659,19 @@ consBind γ (x, e, Nothing)
         addIdA x (Left t)
         return $ Just t
 
-extender γ (x, Just t) = γ ++= ("extender", mkSymbol x, t)
+extender γ (x, Just t) = γ ++= ("extender", varSymbol x, t)
 extender γ _           = γ
 
 varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Maybe SpecType)
 varTemplate γ (x, eo)
-  = case (eo, lookupREnv (mkSymbol x) (grtys γ)) of
+  = case (eo, lookupREnv (varSymbol x) (grtys γ)) of
       (_, Just t) -> return $ Just t
       (Just e, _) -> do t  <- unifyVar γ x <$> freshTy_pretty e (exprType e)
                         addW (WfC γ t)
                         return $ Just t
       (_,      _) -> return Nothing
 
-unifyVar γ x rt = unify (getPrType γ (mkSymbol x)) rt
+unifyVar γ x rt = unify (getPrType γ (varSymbol x)) rt
 
 -------------------------------------------------------------------
 -------------------- Generation: Expression -----------------------
@@ -693,9 +695,9 @@ cconsE γ (Lam α e) (RAllT α' t) | isTyVar α
 
 cconsE γ (Lam x e) (RFun y ty t _) 
   | not (isTyVar x) 
-  = do cconsE ((γ, "cconsE") += (mkSymbol x, ty)) e te 
+  = do cconsE ((γ, "cconsE") += (varSymbol x, ty)) e te 
        addIdA x (Left ty) 
-    where te = t `F.subst1` (y, F.EVar $ mkSymbol x)
+    where te = t `F.subst1` (y, F.EVar $ varSymbol x)
 
 cconsE γ (Tick tt e) t   
   = cconsE (γ `setLoc` tt') e t
@@ -754,10 +756,10 @@ consE γ (Lam α e) | isTyVar α
 
 consE γ  e@(Lam x e1) 
   = do tx     <- freshTy (Var x) τx 
-       t1     <- consE ((γ, "consE") += (mkSymbol x, tx)) e1
+       t1     <- consE ((γ, "consE") += (varSymbol x, tx)) e1
        addIdA x (Left tx) 
        addW   $ WfC γ tx 
-       return $ rFun (mkSymbol x) tx t1
+       return $ rFun (varSymbol x) tx t1
     where FunTy τx _ = exprType e 
 
 consE γ e@(Let _ _)       
@@ -794,7 +796,7 @@ cconsCase γ x t _ (DataAlt c, ys, ce)
       let cbs          = zip (x':ys') (xt:yts')
       let cγ           = addBinders γ x' cbs
       cconsE cγ ce t
- where (x':ys')        = mkSymbol <$> (x:ys)
+ where (x':ys')        = varSymbol <$> (x:ys)
        xt0             = checkTyCon ("checkTycon cconsCase", x) $ γ ?= x'
        tdc             = γ ?= (dataConSymbol c)
        (rtd, yts, xt') = unfoldR tdc xt0 ys'
@@ -805,7 +807,7 @@ cconsCase γ x t _ (DataAlt c, ys, ce)
 cconsCase γ x t acs (a, _, ce) 
   = cconsE cγ ce t
   where cγ  = addBinders γ x' [(x', xt')]
-        x'  = mkSymbol x
+        x'  = varSymbol x
         xt' = (γ ?= x') `strengthen` uTop (altReft acs a) 
 
 altReft _ (LitAlt l)   = literalReft l
@@ -826,7 +828,7 @@ mkyt (γ, ts) (y, yt)
   = do t' <- freshTy (Var y) (toType yt)
        addC (SubC γ yt t') "mkyts"
        addW (WfC γ t') 
-       return (γ ++= ("mkyt", mkSymbol y, t'), t':ts) 
+       return (γ ++= ("mkyt", varSymbol y, t'), t':ts) 
 
 unfoldR td t0@(RApp tc ts rs _) ys = (t3, yts, rt)
   where (vs, ps, t0)    = bkUniv td
@@ -894,14 +896,14 @@ tySort _                             = error "tySort"
 -----------------------------------------------------------------------
 
 argExpr ::  CoreExpr -> Maybe F.Expr
-argExpr (Var vy)         = Just $ F.EVar $ mkSymbol vy
+argExpr (Var vy)         = Just $ F.EVar $ varSymbol vy
 argExpr (Lit c)          = Just $ snd $ literalConst c
 argExpr (Tick _ e)		 = argExpr e
 argExpr e                = errorstar $ "argExpr: " ++ (showPpr e)
 
 varRefType γ x =  t 
-  where t  = (γ ?= (mkSymbol x)) `strengthen` xr
-        xr = uTop $ F.symbolReft $ mkSymbol x
+  where t  = (γ ?= (varSymbol x)) `strengthen` xr
+        xr = uTop $ F.symbolReft $ varSymbol x
 
 -- TODO: should only expose/use subt. Not subsTyVar_meet
 subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
@@ -913,8 +915,9 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 instance NFData Cinfo 
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x4 x5 x6 x7) 
-    = x1 `seq` rnf x2 `seq` x3 `seq` rnf x4 `seq` rnf x5 `seq` rnf x6  `seq` x7 `seq` ()
+  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8) 
+    = x1 `seq` rnf x2 `seq` seq x3 `seq` x4 `seq` rnf x5 `seq` rnf x6  `seq` x7 `seq` rnf x8
+
 
 instance NFData SubC where
   rnf (SubC x1 x2 x3) 
@@ -965,6 +968,8 @@ exReft γ (F.EVar x)    = F.sr_reft $ rTypeSortedReft t
 
 exReft _ e             = F.exprReft e 
 
+exReftLookup γ x       = 
+
 withReft (RApp c ts rs _) r' = RApp c ts rs r' 
 withReft (RVar a _) r'       = RVar a      r' 
 withReft t _                 = t 
@@ -994,7 +999,7 @@ exprRefType_ γ (Lam α e) | isTyVar α
   = RAllT (rTyVar α) (exprRefType_ γ e)
 
 exprRefType_ γ (Lam x e) 
-  = rFun (mkSymbol x) (ofType $ varType x) (exprRefType_ γ e)
+  = rFun (varSymbol x) (ofType $ varType x) (exprRefType_ γ e)
 
 exprRefType_ γ (Tick _ e)
   = exprRefType_ γ e

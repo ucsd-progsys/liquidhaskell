@@ -101,15 +101,28 @@ group         = foldl' (\m (k, v) -> inserts k v m) M.empty
 groupMap      ::  Ord k => (a -> k) -> [a] -> M.Map k [a]
 groupMap f xs = foldl' (\m x -> inserts (f x) x m) M.empty xs 
 
-nubSort :: (Ord a) => [a] -> [a]
-nubSort = nubOrd . sort
+sortNub :: (Ord a) => [a] -> [a]
+sortNub = nubOrd . sort
   where nubOrd (x:t@(y:_)) 
           | x == y    = nubOrd t 
           | otherwise = x : nubOrd t
         nubOrd xs = xs
 
+
+sortDiff :: (Ord a) => [a] -> [a] -> [a]
+sortDiff x1s x2s                 = go (sortNub x1s) (sortNub x2s)
+  where go xs@(x:xs') ys@(y:ys') 
+          | x <  y               = x : go xs' ys
+          | x == y               = go xs' ys'
+          | otherwise            = go xs ys'
+        go xs []                 = xs
+        go [] _                  = []
+
+
+
+
 distinct ::  Ord a => [a] -> Bool
-distinct xs = length xs == length (nubSort xs)
+distinct xs = length xs == length (sortNub xs)
 
 tr_reverse ::  [a] -> [a]
 tr_reverse      = foldl' (flip (:)) []  

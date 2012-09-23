@@ -103,7 +103,7 @@ type PI = State PInfo
 
 consCB' γ (NonRec x e)
   = do t <- consE γ e
-       return $ γ += (mkSymbol x, t)
+       return $ γ += (varSymbol x, t)
 
 consCB' γ (Rec xes) 
   = do ts       <- mapM (\e -> freshTy $ exprType e) es
@@ -111,7 +111,7 @@ consCB' γ (Rec xes)
        zipWithM_ (cconsE γ') es ts
        return $ foldl' (+=) γ (zip vs ts)
     where (xs, es) = unzip xes
-          vs       = mkSymbol <$> xs
+          vs       = varSymbol <$> xs
 
 checkOneToOne :: [(Predicate, Predicate)] -> Bool
 checkOneToOne xys = and [y1 == y2 | (x1, y1) <- xys, (x2, y2) <- xys, x1 == x2]
@@ -161,8 +161,8 @@ tyC t1 t2
 consCB γ (NonRec x e)
   = do t <- consE γ e
        tg <- generalizeS t
-       let ch = tyCheck x ((penv γ) ??= (mkSymbol x)) tg
-       if (not ch)  then (return $ γ += (mkSymbol x, tg)) else (return γ)
+       let ch = tyCheck x ((penv γ) ??= (varSymbol x)) tg
+       if (not ch)  then (return $ γ += (varSymbol x, tg)) else (return γ)
 
 consCB γ (Rec xes) 
   = do ts       <- mapM (\e -> freshTy $ exprType e) es
@@ -171,10 +171,10 @@ consCB γ (Rec xes)
        tsg      <- forM ts generalizeS
        return $ foldl' (+=) γ (zip vs tsg)
     where (xs, es) = unzip xes
-          vs       = mkSymbol <$> xs
+          vs       = varSymbol <$> xs
 
 consE γ (Var x)
-  = do t<- γ ?= (mkSymbol x)
+  = do t<- γ ?= (varSymbol x)
        return t
 consE _ e@(Lit c) 
   = do t <- freshTy τ
@@ -198,8 +198,8 @@ consE γ (Lam α e) | isTyVar α
 
 consE γ  e@(Lam x e1) 
   = do tx     <- freshTy τx 
-       t1     <- consE (γ += (mkSymbol x, tx)) e1
-       return $ rFun (mkSymbol x) tx t1
+       t1     <- consE (γ += (varSymbol x, tx)) e1
+       return $ rFun (varSymbol x) tx t1
     where FunTy τx _ = exprType e 
 
 consE γ e@(Let _ _)       
@@ -222,7 +222,7 @@ cconsFreshE γ e
        cconsE γ e t
        return t
 
-argExpr (Var vy)         = Just $ mkSymbol vy
+argExpr (Var vy)         = Just $ varSymbol vy
 argExpr (Lit c)          = Just $ stringSymbol "?"
 argExpr (Tick _ e)		 = argExpr e
 argExpr e                = error $ "argExpr: " ++ (showPpr e)
@@ -241,9 +241,9 @@ cconsE γ (Lam α e) (RAllT _ t) | isTyVar α
 
 cconsE γ (Lam x e) (RFun y ty t _) 
   | not (isTyVar x) 
-  = do cconsE (γ += (mkSymbol x, ty)) e te 
-       addId y (mkSymbol x)
-    where te = (y, mkSymbol x) `substParg` t
+  = do cconsE (γ += (varSymbol x, ty)) e te 
+       addId y (varSymbol x)
+    where te = (y, varSymbol x) `substParg` t
 
 cconsE γ (Tick tt e) t     
   = cconsE (γ `putLoc` tickSrcSpan tt) e t
@@ -260,12 +260,12 @@ cconsCase γ _ t (DEFAULT, _, ce)
   = return ()
 
 cconsCase γ x t (DataAlt c, ys, ce)
-  = do tx <- γ ?= mkSymbol x
-       tc <- γ ?= (mkSymbol (TC.dataConWorkId c))
+  = do tx <- γ ?= varSymbol x
+       tc <- γ ?= (varSymbol (TC.dataConWorkId c))
        let (yts, xtt) = unfold tc tx ce
        addC $ SubC γ xtt tx
 --       addC $ SubC γ xtt tx
-       let cbs = zip (mkSymbol <$> ys) yts
+       let cbs = zip (varSymbol <$> ys) yts
        let cγ = foldl' (+=) γ cbs
        cconsE cγ ce t
 
@@ -371,7 +371,7 @@ stringArg s = Var $ mkGlobalVar idDet name predType idInfo
 
 isSpecialId γ x = pl /= 0
   where (_, pl) = varPredArgs γ x
-varPredArgs γ x = varPredArgs_ (γ ??= (mkSymbol x))
+varPredArgs γ x = varPredArgs_ (γ ??= (varSymbol x))
 varPredArgs_ Nothing = (0, 0)
 varPredArgs_ (Just t) = (length vs, length ps)
   where (vs, ps, _) = bkUniv t
@@ -418,7 +418,7 @@ initEnv info = PCGE { loc = noSrcSpan , penv = F.fromListSEnv bs }
         dcs    = [(x, dconTy $ varType x) | x <- dcons  ]
         sdcs   = [(TC.dataConWorkId x, dataConPtoPredTy y) | (x, y) <- dconsP (spec info)]
         assms  = passm $ tySigs $ spec info
-        bs     = mapFst mkSymbol <$> (dflts ++ dcs ++ assms ++ sdcs)
+        bs     = mapFst varSymbol <$> (dflts ++ dcs ++ assms ++ sdcs)
         freeVs = [v | v<-importVars $ cbs info]
         dcons  = filter isDataConWorkId freeVs
 
@@ -426,7 +426,7 @@ getNeedPd spec
   = F.fromListSEnv bs
     where  dcs   = [(TC.dataConWorkId x, dataConPtoPredTy y) | (x, y) <- dconsP spec]
            assms = passm $ tySigs spec 
-           bs    = mapFst mkSymbol <$> (dcs ++ assms)
+           bs    = mapFst varSymbol <$> (dcs ++ assms)
 
 passm = fmap (mapSnd (mapReft ur_pred)) 
 

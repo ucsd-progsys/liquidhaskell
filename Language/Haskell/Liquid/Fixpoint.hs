@@ -30,6 +30,9 @@ module Language.Haskell.Liquid.Fixpoint (
   , isTautoPred
   , emptySubst, mkSubst, catSubst
   , Subable (..)
+
+  -- * Visitors
+  , getSymbols
   ) where
 
 import TypeRep 
@@ -170,6 +173,12 @@ getConstants = everything (++) ([] `mkQ` f)
         f (ELit s so) = [(s, so, False)]
         f _           = []
 
+getSymbols :: (Data a) => a -> [Symbol]
+getSymbols = everything (++) ([] `mkQ` f)
+  where f (S x) = [S x]
+        f _     = []
+
+
 infoConstant (c, so, _)
   = text "constant" <+> toFix c <+> text ":" <+> toFix so <> blankLine <> blankLine 
 
@@ -258,7 +267,7 @@ genArgSorts :: [Sort] -> [Sort]
 --        genIdx  so  _       = so
 
 genArgSorts xs = sortSubst su <$> xs
-  where su = M.fromList $ zip (nubSort αs) (FVar <$> [0..])
+  where su = M.fromList $ zip (sortNub αs) (FVar <$> [0..])
         αs = concatMap getObjs xs 
 
 getObjs (FObj x)          = [x]
