@@ -18,7 +18,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , SEnv (..)
   , FEnv
   , SubC (..), WfC(..), FixResult (..), FixSolution, FInfo (..)
-  , emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, lookupSEnv
+  , emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
   , insertFEnv 
   , vv
   , trueSortedReft 
@@ -175,8 +175,8 @@ getConstants = everything (++) ([] `mkQ` f)
 
 getSymbols :: (Data a) => a -> [Symbol]
 getSymbols = everything (++) ([] `mkQ` f)
-  where f (S x) = [S x]
-        f _     = []
+  where f x@(S _) = [x]
+        f _       = []
 
 
 infoConstant (c, so, _)

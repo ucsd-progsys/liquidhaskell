@@ -24,8 +24,8 @@ module Language.Haskell.Liquid.FileNames (
   , vvName
   
   -- * Hardwired paths 
-  , getIncludePath, getFixpointPath
-  
+  , getIncludePath, getFixpointPath, getCSSPath
+
   -- * Various generic utility functions for finding and removing files
   , getHsTargets
   , getFileInDirs
@@ -46,24 +46,61 @@ import           System.FilePath
 import           System.FilePath.Find
 
 ------------------------------------------------------------
----------------- IO/Paths/Flags/Constants ------------------
+-- | Hardwired Paths and Files -----------------------------
 ------------------------------------------------------------
 
 envVarName = "LIQUIDHS"
 -- envPrefix  = "$" ++ envVarName ++ "/"
 
-getIncludePath  ::  IO String
-getIncludePath  = (</> "include") `fmap` getEnv envVarName
+getIncludePath, getCSSPath, getFixpointPath  ::  IO FilePath 
 
-getFixpointPath ::  IO String
-getFixpointPath = do p  <- (joinPath . (: suffix)) `fmap` getEnv envVarName
-                     ex <- doesFileExist p
-                     if ex then return p else err p
-  where suffix  = ["external", "fixpoint", "fixpoint.native"]
-        err p   = errorstar $ "Cannot find fixpoint executable at: " ++ p
+getIncludePath  = checkM doesDirectoryExist "include directory" =<< getSuffixPath ["include"]
+getCSSPath      = checkM doesFileExist      "css file"          =<< getSuffixPath ["syntax", "hscolour.css"]
+getFixpointPath = checkM doesFileExist      "fixpoint binary"   =<< getSuffixPath ["external", "fixpoint", "fixpoint.native"]
 
-data Ext = Cgi | Out | Fq | Html | Cst | Annot | LHs | Hs | Spec | Hquals | Pred | PAss| Dat
-           deriving (Eq, Ord)
+
+getSuffixPath ::  [FilePath] -> IO FilePath 
+getSuffixPath suff 
+  = (joinPath . (: suff)) `fmap` getEnv envVarName
+
+checkM f msg p 
+  = do ex <- f p
+       if ex then return p else errorstar $ "Cannot find " ++ msg ++ " at :" ++ p
+
+-- getIncludePath  = (</> "include") `fmap` getEnv envVarName
+-- getFixpointPath ::  IO FilePath 
+-- getFixpointPath = do p  <- getSuffixPath ["external", "fixpoint", "fixpoint.native"]
+--                      ex <- doesFileExist p
+--                      if ex then return p else err p
+--                   where err p   = errorstar $ "Cannot find fixpoint executable at: " ++ p
+
+-- checkExists msg p 
+--   = do ex <- doesFileExist p
+--        if ex then return p else err
+--     where err = errorstar $ "Cannot find " ++ msg ++ " at :" ++ p
+
+
+
+
+
+
+
+-----------------------------------------------------------------------------------
+
+data Ext = Cgi    -- ^ Constraint Generation Information 
+         | Fq     -- ^ Input to constraint solving (fixpoint)
+         | Out    -- ^ Output from constraint solving (fixpoint)
+         | Html   -- ^ HTML file with inferred type annotations 
+         | Annot  -- ^ Text file with inferred types 
+         | Hs     -- ^ Target source 
+         | LHs    -- ^ Literate Haskell target source file
+         | Spec   -- ^ Spec file (e.g. include/Prelude.spec) 
+         | Hquals -- ^ Qualifiers file (e.g. include/Prelude.hquals)
+         | Cst    -- ^ I've totally forgotten!
+         | Pred   
+         | PAss    
+         | Dat    
+         deriving (Eq, Ord)
 
 extMap   = M.fromList [ (Cgi,    "cgi")
                       , (Pred,   "pred")

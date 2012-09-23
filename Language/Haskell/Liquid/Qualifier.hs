@@ -70,15 +70,17 @@ mkQual t0 γ v so p = Q "Auto" ((v, so) : yts) p'
   where yts  = [(y, lookupSort t0 x γ) | (x, y) <- xys ]
         p'   = subst (mkSubst (second EVar <$> xys)) p
         xys  = zipWith (\x i -> (x, S ("~A" ++ show i))) xs [0..] 
-        xs   = delete v $ orderedFreeVars p
+        xs   = delete v $ orderedFreeVars γ p
 
 lookupSort t0 x γ = fromMaybe (errorstar msg) $ lookupSEnv x γ 
   where msg = "Unknown freeVar " ++ show x ++ " in specification " ++ show t0
 
-orderedFreeVars   :: Pred -> [Symbol]
-orderedFreeVars p = nub $ everything (++) ([] `mkQ` f) p
-  where f (EVar x) = [x]
-        f _        = []
+orderedFreeVars γ p = filter (`memberSEnv` γ) $ getSymbols p 
+
+-- orderedFreeVars   :: Pred -> [Symbol]
+-- orderedFreeVars p = nub $ everything (++) ([] `mkQ` f) p
+--   where f (EVar x) = [x]
+--         f _        = []
 
 
 -- atoms' ps = traceShow ("atoms: ps = " ++ showPpr ps) $ atoms ps

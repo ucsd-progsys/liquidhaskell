@@ -55,17 +55,13 @@ efoldr op b (Cons x xs) = op xs x (efoldr op b xs)
 size :: Vec a -> Int
 size = efoldr (\_ _ n -> n + 1) 0
 
--- | The above uses a helper that counts up the size. (Pesky hack to avoid writing qualifier v = ~A + 1)
 {-@ suc :: x:Int -> {v: Int | v = x + 1} @-}
 suc :: Int -> Int
 suc x = x + 1 
 
-
-
 -- | Second: Appending two lists using `efoldr`
-{-@ app  :: xs: Vec a -> ys: Vec a -> {v: Vec a | llen(v) = llen(xs) + llen(ys) } @-} 
+{-@ app  :: xs: Vec a -> ys: Vec a -> {v: Vec a | llen(v) = 1 + llen(xs) + llen(ys) } @-} 
 app xs ys = efoldr (\_ z zs -> Cons z zs) ys xs 
-
 
 
 

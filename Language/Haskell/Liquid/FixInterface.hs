@@ -49,9 +49,6 @@ execCmd fp fn = printf "%s -notruekvars -refinesort -noslice -nosimple -strictso
 
 exitFq _ _ (ExitFailure n) | (n /= 1) 
   = return (Crash [] "Unknown Error", empty)
---exitFq fn cm _ 
---  = do (x, y) <- (rr . sanitizeFixpointOutput) <$> (readFile $ extFileName Out fn)
---       return  $ (plugC cm x, y) 
 exitFq fn cm _ 
   = do str <- {-# SCC "readOut" #-} readFile (extFileName Out fn)
        let (x, y) = {-# SCC "parseFixOut" #-} rr ({-# SCC "sanitizeFixpointOutput" #-} sanitizeFixpointOutput str)
@@ -65,9 +62,6 @@ sanitizeFixpointOutput
   . lines
 
 plugC = fmap . mlookup 
--- plugC _ Safe          = Safe
--- plugC cm (Crash is s) = Crash (mlookup cm `fmap` is) s
--- plugC cm (Unsafe is)  = Unsafe (mlookup cm `fmap` is)
 
 resultExit Safe        = ExitSuccess
 resultExit (Unsafe _)  = ExitFailure 1
