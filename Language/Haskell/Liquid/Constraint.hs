@@ -968,7 +968,9 @@ exReft γ (F.EVar x)    = F.sr_reft $ rTypeSortedReft t
 
 exReft _ e             = F.exprReft e 
 
-exReftLookup γ x       = 
+exReftLookup γ x       = fromMaybe err $ F.lookupSEnv x (syenv γ)
+  where err            = errorstar $ "exReftLookup: unknown " ++ showPpr x ++ " in syenv" ++ showPpr (syenv γ)
+
 
 withReft (RApp c ts rs _) r' = RApp c ts rs r' 
 withReft (RVar a _) r'       = RVar a      r' 
