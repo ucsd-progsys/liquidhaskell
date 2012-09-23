@@ -182,14 +182,15 @@ normalize γ = addRTyConInv (invs γ) . normalizePds
   | otherwise
   =  γ ++= (msg, x, r) 
 
-γ -= x 
-  =  γ { renv = deleteREnv x (renv γ) } { fenv = F.deleteSEnv x (fenv γ) }
+γ -= x =  γ { renv = deleteREnv x (renv γ) } { fenv = F.deleteSEnv x (fenv γ) }
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
-γ ?= x
-  = case lookupREnv x (renv γ) of
-      Just t  -> t
-      Nothing -> errorstar $ "EnvLookup: unknown = " ++ showPpr x
+γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
+         where err = errorstar $ "EnvLookup: unknown " ++ showPpr x ++ " in renv " ++ showPpr (renv γ)
+
+  -- =  case lookupREnv x (renv γ) of
+    --   Just t  -> t
+    --   Nothing -> errorstar $ "EnvLookup: unknown " ++ showPpr x ++ " in renv " ++ showPpr (renv γ)
 
 getPrType :: CGEnv -> F.Symbol -> Maybe PrType
 getPrType γ x = F.lookupSEnv x (penv γ)
