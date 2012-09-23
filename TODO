@@ -1,48 +1,22 @@
 TODO
 ====
 
-* existentials
-    * benchmarks: Data.List (foldr)
+* NIKI: fix the safe0ZipWith stuff in PredType.hs
 
+* benchmarks: Data.List (foldr)
 * predicate-aliases 
-* add fixpoint into liquidhaskell repo
 * strictness annotations (tests/todo/maybe000.hs)
 * self-invariants        (tests/todo/maybe4.hs)
 * fixpoint profile (how much performance hit from -nosimple?)
+
 * benchmarks: Data.Bytestring
 * benchmarks: stackset-core
 * benchmarks: Data.Text
-* tuple-refinements
 
-* get Niki to fix the safe0ZipWith stuff in PredType.hs
 * alpha-renaming of predicate params is VERY SHAKY. see tests/pos/deptupW.hs
 * mcbride's stack machine
 * remove /toType/ and  generalize /typeSort/ to work for all RefTypables
 
-Existentials    
-============
-
-tests/pos/ex1.hs    <------------------------------------------- HEREHEREHEREHERE
-
-
-HACK "Pred" parser to parse 
-
-    foo x1 x2 x3 x4 ....
-
-as 
-    foo(x1, x2, x3, x4, ...)
-
-
-foldr :: (a -> b -> b) -> b -> [a] -> b
-foldr op b []     = b
-foldr op b (x:xs) = x `op` (foldr f b xs) 
-
-foldr :: (xs:[a] ~> x:a -> b<R(xs)> -> b<R(x:xs)>) -> b<[]> -> zs:[a] -> b<R(zs)>
-foldr op b []     = b
-foldr op b (x:xs) = op ~xs~ x (foldr f b xs) 
-
-len = foldr (\_ ~xs~ n -> n + 1)
- 
 
 Strictness Annotations
 ======================
