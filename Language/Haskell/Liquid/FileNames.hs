@@ -50,13 +50,12 @@ import           System.FilePath.Find
 ------------------------------------------------------------
 
 envVarName = "LIQUIDHS"
--- envPrefix  = "$" ++ envVarName ++ "/"
 
 getIncludePath, getCSSPath, getFixpointPath  ::  IO FilePath 
 
-getIncludePath  = checkM doesDirectoryExist "include directory" =<< getSuffixPath ["include"]
-getCSSPath      = checkM doesFileExist      "css file"          =<< getSuffixPath ["syntax", "hscolour.css"]
-getFixpointPath = checkM doesFileExist      "fixpoint binary"   =<< getSuffixPath ["external", "fixpoint", "fixpoint.native"]
+getIncludePath  = getSuffixPath ["include"]                                 >>= checkM doesDirectoryExist "include directory"
+getCSSPath      = getSuffixPath ["syntax", "hscolour.css"]                  >>= checkM doesFileExist      "css file"          
+getFixpointPath = getSuffixPath ["external", "fixpoint", "fixpoint.native"] >>= checkM doesFileExist      "fixpoint binary"   
 
 
 getSuffixPath ::  [FilePath] -> IO FilePath 
@@ -67,6 +66,11 @@ checkM f msg p
   = do ex <- f p
        if ex then return p else errorstar $ "Cannot find " ++ msg ++ " at :" ++ p
 
+-- getIncludePath  = checkM doesDirectoryExist "include directory" =<< getSuffixPath ["include"]
+-- getCSSPath      = checkM doesFileExist      "css file"          =<< getSuffixPath ["syntax", "hscolour.css"]
+-- getFixpointPath = checkM doesFileExist      "fixpoint binary"   =<< getSuffixPath ["external", "fixpoint", "fixpoint.native"]
+
+-- envPrefix  = "$" ++ envVarName ++ "/"
 -- getIncludePath  = (</> "include") `fmap` getEnv envVarName
 -- getFixpointPath ::  IO FilePath 
 -- getFixpointPath = do p  <- getSuffixPath ["external", "fixpoint", "fixpoint.native"]
@@ -78,11 +82,6 @@ checkM f msg p
 --   = do ex <- doesFileExist p
 --        if ex then return p else err
 --     where err = errorstar $ "Cannot find " ++ msg ++ " at :" ++ p
-
-
-
-
-
 
 
 -----------------------------------------------------------------------------------

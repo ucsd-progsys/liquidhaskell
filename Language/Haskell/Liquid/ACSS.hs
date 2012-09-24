@@ -41,32 +41,37 @@ hsannot  :: Bool             -- ^ Whether to include anchors.
          -> (String, AnnMap) -- ^ Haskell Source, Annotations
          -> String           -- ^ Coloured Haskell source code.
 
-hsannot anchor tx False z     = hsannot' anchor tx z
-hsannot anchor tx True (s, m) = concatMap chunk $ joinL $ classify $ inlines s
-                where chunk (Code c) = hsannot' anchor tx (c, m)
-                      chunk (Lit c)  = c
+hsannot anchor tx False z     = hsannot' Nothing anchor tx z
+hsannot anchor tx True (s, m) = concatMap chunk $ litSpans $ joinL $ classify $ inlines s
+  where chunk (Code c, l)     = hsannot' (Just l) anchor tx (c, m)
+        chunk (Lit c , l)     = c
 
-hsannot' anchor tx = 
+litSpans :: [Lit] -> [(Lit, Loc)]
+litSpans lits = zip lits $ spans lits
+  where spans = tokenSpans Nothing . map unL
+
+hsannot' baseLoc anchor tx = 
     CSS.pre
     . (if anchor then concatMap (renderAnchors renderAnnotToken)
                       . insertAnnotAnchors
                  else concatMap renderAnnotToken)
-    . annotTokenise tx
+    . annotTokenise baseLoc tx
 
-annotTokenise  :: CommentTransform -> (String, AnnMap) -> [(TokenType, String, Maybe String)] 
-annotTokenise tx (src, Ann annm) 
+annotTokenise :: Maybe Loc -> CommentTransform -> (String, AnnMap) -> [(TokenType, String, Maybe String)] 
+annotTokenise baseLoc tx (src, Ann annm) 
   = zipWith (\(x,y) z -> (x,y, snd `fmap` z)) toks annots 
   where toks       = tokeniseWithCommentTransform tx src 
-        spans      = tokenSpans $ map snd toks 
+        spans      = tokenSpans baseLoc $ map snd toks 
         annots     = map (`M.lookup` annm) spans
 
+tokeniseWithCommentTransform :: Maybe (String -> [(TokenType, String)]) -> String -> [(TokenType, String)]
 tokeniseWithCommentTransform Nothing  = tokenise
 tokeniseWithCommentTransform (Just f) = concatMap (expand f) . tokenise
   where expand f (Comment, s) = f s
         expand f z            = [z]
 
-tokenSpans :: [String] -> [Loc]
-tokenSpans = scanl plusLoc (L (1, 1)) 
+tokenSpans :: Maybe Loc -> [String] -> [Loc]
+tokenSpans = scanl plusLoc . fromMaybe (L (1, 1)) 
 
 plusLoc :: Loc -> String -> Loc
 plusLoc (L (l, c)) s 
