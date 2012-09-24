@@ -1,6 +1,8 @@
 TODO
 ====
 
+* Blogging 
+
 * NIKI: fix the safe0ZipWith stuff in PredType.hs
 * benchmarks: Data.List (foldr)
 
@@ -17,7 +19,7 @@ TODO
 * remove /toType/ and  generalize /typeSort/ to work for all RefTypables
 
 
-Strictness Annotations  <--------------------------------------- HEREHEREHEREHERE
+Strictness Annotations  
 ======================
 
 Seem to screw up measures. See tests/pos/maybe000.hs
@@ -92,15 +94,17 @@ data (a1, a2, a3)
 Blogging 
 ========
 
-    foo.lhs ---- liquid ----> foo.lhs.html (or foo.lhs.md) ----pandoc----> foo.lhs.md.html
+
+   foo.lhs ---- liquid ----> foo.lhs.html (or foo.lhs.md) ----pandoc----> foo.lhs.md.html
 
   Trick: HsColour only transforms code blocks into HTML, leaves rest untouched.
          Pandoc ignores HTML blocks. #win
 
+*** Get annots in .lhs (blog/test000.lhs)  <--------------------------------------- HEREHEREHEREHERE
 
+    > somehow no "annottext" generated for .lhs
 
 *** Cleanup output (tests/pos/poly0.hs)
-    > sexify HsAnnot with Colorized Types? (color refinements blue?) 
 
 
     1.  Trivial Stuff (incr, pos, map, fold, etc.)
