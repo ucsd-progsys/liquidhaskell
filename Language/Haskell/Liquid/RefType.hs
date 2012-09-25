@@ -72,7 +72,7 @@ import qualified Data.Foldable as Fold
 import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GhcMisc (tvId, stringTyVar, intersperse, dropModuleNames)
+import Language.Haskell.Liquid.GhcMisc (tvId, stringTyVar, intersperse, dropModuleNames, getDataConVarUnique)
 import Language.Haskell.Liquid.FileNames (listConName, tupConName, boolConName)
 import Data.List (sort, isPrefixOf, isSuffixOf, find, foldl')
 
@@ -1024,7 +1024,7 @@ varSymbol ::  Var -> Symbol
 varSymbol v 
   | us `isSuffixOf` vs = stringSymbol vs  
   | otherwise          = stringSymbol $ vs ++ [symSep] ++ us
-  where us  = showPpr $ getUnique v 
+  where us  = showPpr $ getDataConVarUnique v
         vs  = pprShort v
 
 pprShort    =  dropModuleNames . showPpr
