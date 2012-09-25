@@ -17,6 +17,7 @@ import           HscTypes                     (Dependencies, ImportedMods, ModGu
 import           Language.Haskell.Liquid.Misc (errorstar, stripParens)
 import           Name                         (mkInternalName)
 import           OccName                      (mkTyVarOcc)
+import           Unique                       (getUnique)
 import           Outputable
 import           RdrName                      (GlobalRdrEnv)
 import           Type                         (liftedTypeKind)
@@ -105,3 +106,10 @@ dropModuleNames s  = last $ words $ dotWhite <$> stripParens s
 --instance (Outputable k, Outputable v) => Outputable (M.Map k v) where
 --  ppr = ppr . M.toList
 
+-----------------------------------------------------------------------
+------------------ Generic Helpers for DataConstructors ---------------
+-----------------------------------------------------------------------
+
+getDataConVarUnique v
+  | isId v && isDataConWorkId v = getUnique $ idDataCon v
+  | otherwise                   = getUnique v
