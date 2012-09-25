@@ -259,7 +259,6 @@ stripParens xs        = stripParens' (reverse xs)
 stripParens' (')':xs) = stripParens' xs
 stripParens' xs       = reverse xs
 
-
 ifM :: (Monad m) => m Bool -> m a -> m a -> m a
 ifM bm xm ym 
   = do b <- bm
@@ -267,7 +266,10 @@ ifM bm xm ym
 
 
 executeShellCommand phase cmd 
-  = Ex.bracket_ (startPhase phase) (donePhase phase) (system cmd)
+  = Ex.bracket_ (startPhase phase) (donePhase phase) 
+    $ putStrLn ("EXEC: " ++ cmd) >> system cmd
+
+
 
 checkExitCode cmd (ExitSuccess)   = return ()
 checkExitCode cmd (ExitFailure n) = errorstar $ "cmd: " ++ cmd ++ " failure code " ++ show n 

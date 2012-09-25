@@ -54,7 +54,7 @@ envVarName = "LIQUIDHS"
 getIncludePath, getCSSPath, getFixpointPath  ::  IO FilePath 
 
 getIncludePath  = getSuffixPath ["include"]                                 >>= checkM doesDirectoryExist "include directory"
-getCSSPath      = getSuffixPath ["syntax", "hscolour.css"]                  >>= checkM doesFileExist      "css file"          
+getCSSPath      = getSuffixPath ["syntax", "liquid.css"]                    >>= checkM doesFileExist      "css file"          
 getFixpointPath = getSuffixPath ["external", "fixpoint", "fixpoint.native"] >>= checkM doesFileExist      "fixpoint binary"   
 
 
