@@ -96,33 +96,54 @@ data Ext = Cgi    -- ^ Constraint Generation Information
          | Spec   -- ^ Spec file (e.g. include/Prelude.spec) 
          | Hquals -- ^ Qualifiers file (e.g. include/Prelude.hquals)
          | Cst    -- ^ I've totally forgotten!
+         | Mkdn   -- ^ Markdown file (temporarily generated from .Lhs + annots) 
          | Pred   
          | PAss    
          | Dat    
-         deriving (Eq, Ord)
+         deriving (Eq, Ord, Show)
 
-extMap   = M.fromList [ (Cgi,    "cgi")
-                      , (Pred,   "pred")
-                      , (PAss,   "pass")
-                      , (Dat,    "dat")
-                      , (Out,    "out")
-                      , (Fq,     "fq")
-                      , (Html,   "html")
-                      , (Cst,    "cst")
-                      , (Annot,  "annot")
-                      , (Hs,     "hs")
-                      , (LHs,    "lhs")
-                      , (Spec,   "spec")
-                      , (Hquals, "hquals") ]
+extMap Cgi    = "cgi"
+extMap Pred   = "pred"
+extMap PAss   = "pass"
+extMap Dat    = "dat"
+extMap Out    = "out"
+extMap Fq     = "fq"
+extMap Html   = "html"
+extMap Cst    = "cst"
+extMap Annot  = "annot"
+extMap Hs     = "hs"
+extMap LHs    = "lhs"
+extMap Mkdn   = "md"
+extMap Spec   = "spec"
+extMap Hquals = "hquals" 
+extMap e      = errorstar $ "extMap: Unknown extension" ++ show e
+
+
+-- extMap   = M.fromList [ (Cgi,    "cgi")
+--                       , (Pred,   "pred")
+--                       , (PAss,   "pass")
+--                       , (Dat,    "dat")
+--                       , (Out,    "out")
+--                       , (Fq,     "fq")
+--                       , (Html,   "html")
+--                       , (Cst,    "cst")
+--                       , (Annot,  "annot")
+--                       , (Hs,     "hs")
+--                       , (LHs,    "lhs")
+--                       , (Mkdn,   "md")
+--                       , (Spec,   "spec")
+--                       , (Hquals, "hquals") ]
+
+
 
 repFileName     :: Ext -> FilePath -> FilePath
 repFileName ext = extFileName ext . dropFileName
 
 extFileName     :: Ext -> FilePath -> FilePath
-extFileName ext = (`addExtension` (extMap M.! ext))
+extFileName ext = (`addExtension` (extMap ext))
 
 isExtFile ::  Ext -> FilePath -> Bool
-isExtFile ext = ((extMap M.! ext) `isSuffixOf`)
+isExtFile ext = ((extMap ext) `isSuffixOf`)
 
 extModuleName ::  String -> Ext -> FilePath
 extModuleName modName ext =

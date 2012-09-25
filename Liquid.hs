@@ -12,6 +12,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint (FixResult (..))
 import Language.Haskell.Liquid.FixInterface      
 import Language.Haskell.Liquid.TransformRec   
+import Language.Haskell.Liquid.Annotate (annotate)
 import Control.DeepSeq
 import Control.Monad (forM)
 

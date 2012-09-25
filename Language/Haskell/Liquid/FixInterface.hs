@@ -8,7 +8,6 @@ import Data.Map hiding (map, filter)
 import Control.Monad (forM_)
 import System.Directory (copyFile, removeFile)
 import System.IO        (withFile, IOMode (..))
-import System.Process   (system)
 import System.Exit
 import Text.Printf
 import Outputable hiding (empty)
@@ -34,7 +33,7 @@ execFq fn hqs globals cs ws qs
        appendFile fq qstr 
        withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPrintDump h d)
        fp <- getFixpointPath
-       ec <- {-# SCC "sysCall" #-} system $ execCmd fp fn 
+       ec <- {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ execCmd fp fn 
        return ec
     where fq   = extFileName Fq  fn
           fo   = extFileName Out fn
