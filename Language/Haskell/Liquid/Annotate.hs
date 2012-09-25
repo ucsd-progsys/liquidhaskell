@@ -84,44 +84,37 @@ annotHtmlDump htmlFile srcFile annm
   = do src     <- readFile srcFile
        let lhs  = isExtFile LHs srcFile
        let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
-       cssFile <- getCSSPath
-       copyFile cssFile (dropFileName htmlFile </> takeFileName cssFile) 
-       renderHtml lhs htmlFile srcFile (takeFileName cssFile) body
+       css     <- readFile =<< getCSSPath
+       -- copyFile cssFile (dropFileName htmlFile </> takeFileName cssFile) 
+       renderHtml lhs htmlFile srcFile css body
 
 renderHtml True  = renderPandoc 
 renderHtml False = renderDirect
-
--- OLD CODE
--- annotHtmlDump srcFile htmlFile annm
---   = do src     <- readFile srcFile
---        -- | generate html
---        let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
---        -- | write html
---        writeFile htmlFile $ CSS.top'n'tail srcFile $! body
---        -- | copy css 
---        cssFile <- getCSSPath
---        copyFile cssFile (dropFileName htmlFile </> takeFileName cssFile) 
---     where lhs = isExtFile LHs srcFile  
 
 -------------------------------------------------------------------------
 -- | Pandoc HTML Rendering (for lhs + markdown source) ------------------ 
 -------------------------------------------------------------------------
      
-renderPandoc htmlFile srcFile cssFile body
+renderPandoc htmlFile srcFile css body
   = do renderFn <- maybe renderDirect renderPandoc' <$> findExecutable "pandoc"  
-       renderFn htmlFile srcFile cssFile body
+       renderFn htmlFile srcFile css body
 
-renderPandoc' pandocPath htmlFile srcFile cssFile body
-  = do writeFile mdFile $ stripCodeBlockMarkers body
+renderPandoc' pandocPath htmlFile srcFile css body
+  = do _  <- writeFile mdFile $ pandocPreProc css body
        ec <- executeShellCommand "pandoc" cmd 
        checkExitCode cmd ec
     where mdFile = extFileName Mkdn srcFile 
-          cmd    = pandocCmd pandocPath cssFile mdFile htmlFile
+          cmd    = pandocCmd pandocPath mdFile htmlFile
 
-pandocCmd pandocPath cssFile mdFile htmlFile
-  = printf "%s -c %s -f markdown -t html %s > %s" pandocPath cssFile mdFile htmlFile  
+pandocCmd pandocPath mdFile htmlFile
+  = printf "%s -f markdown -t html %s > %s" pandocPath mdFile htmlFile  
 
-stripCodeBlockMarkers = T.unpack . stripBegin . stripEnd . T.pack
+pandocPreProc css
+  = T.unpack 
+  . T.append (T.pack $ cssHTML css) 
+  . stripBegin 
+  . stripEnd 
+  . T.pack
   where stripBegin = T.replace (T.pack "\\begin{code}") T.empty 
         stripEnd   = T.replace (T.pack "\\end{code}")   T.empty 
 
@@ -131,18 +124,18 @@ stripCodeBlockMarkers = T.unpack . stripBegin . stripEnd . T.pack
 
 -- More or less taken from hscolour
 
-renderDirect htmlFile srcFile cssFile body 
-  = writeFile htmlFile $ (top'n'tail srcFile cssFile $! body)
+renderDirect htmlFile srcFile css body 
+  = writeFile htmlFile $ (top'n'tail srcFile css $! body)
 
-top'n'tail title cssFile = (htmlHeader title cssFile ++) . (++ htmlClose)
+top'n'tail title css = (htmlHeader title css ++) . (++ htmlClose)
 
-htmlHeader title cssFile = unlines
+htmlHeader title css = unlines
   [ "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">"
   , "<html>"
   , "<head>"
   , "<title>" ++ title ++ "</title>"
-  , "<link type='text/css' rel='stylesheet' href='" ++ cssFile ++ "' />"
   , "</head>"
+  , cssHTML css
   , "<body>"
   , "<h1>Liquid Types: " ++ title ++ "</h1>"
   , "<hr>"
@@ -150,6 +143,16 @@ htmlHeader title cssFile = unlines
   ]
 
 htmlClose  = "\n</body>\n</html>"
+
+cssHTML css = unlines
+  [ "<head>"
+  , "<style media=\"screen\" type=\"text/css\">"
+  , css
+  , "</style>"
+  , "</head>"
+  ]
+
+
 
 ------------------------------------------------------------------------------
 -- | Building Annotation Maps ------------------------------------------------
