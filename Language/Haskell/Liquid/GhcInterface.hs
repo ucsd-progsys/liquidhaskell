@@ -30,7 +30,8 @@ import qualified Control.Exception as Ex
 
 import GHC.Paths (libdir)
 import System.FilePath (dropExtension, takeFileName, dropFileName, (</>)) 
-import System.Directory (copyFile) 
+
+
 import System.Environment (getArgs)
 import DynFlags (defaultDynFlags, ProfAuto(..))
 import Control.Monad (filterM)
@@ -40,12 +41,11 @@ import Control.Applicative  hiding (empty)
 import Control.Monad (forM_, forM, liftM, (>=>))
 import Data.Data
 import Data.Monoid hiding ((<>))
-import Data.Char (isSpace)
 import Data.List (intercalate, isPrefixOf, isSuffixOf, foldl', nub, find, splitAt, elemIndex, (\\))
 import Data.Maybe (catMaybes, fromMaybe, isJust, mapMaybe)
-import qualified Data.Set as S
-import qualified Data.Map as M
-import GHC.Exts         (groupWith, sortWith)
+import qualified Data.Set   as S
+import qualified Data.Map   as M
+
 import TysPrim          (intPrimTyCon)
 import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
 
@@ -59,6 +59,7 @@ import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.PredType
 import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.Annotate
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Haskell.Liquid.ACSS as ACSS
@@ -110,56 +111,56 @@ instance Show GhcInfo where
 -------------- Extracting CoreBindings From File -----------------
 ------------------------------------------------------------------
 
-{- 
-compileCore :: GhcMonad m => Bool -> FilePath -> m CoreModule
-compileCore simplify fn = do
-   -- First, set the target to the desired filename
-   target <- guessTarget fn Nothing
-   addTarget target
-   _ <- load LoadAllTargets
-   -- Then find dependencies
-   modGraph <- depanal [] True
-   case find ((== fn) . msHsFilePath) modGraph of
-     Just modSummary -> do
-       -- Now we have the module name;
-       -- parse, typecheck and desugar the module
-       mod_guts <- coreModule `fmap`
-                      -- TODO: space leaky: call hsc* directly?
-                      (desugarModule =<< typecheckModule =<< parseModule modSummary)
-       liftM (gutsToCoreModule (mg_safe_haskell mod_guts)) $
-         if simplify
-          then do
-             -- If simplify is true: simplify (hscSimplify), then tidy (tidyProgram).
-             hsc_env <- getSession
-             simpl_guts <- liftIO $ hscSimplify hsc_env mod_guts
-             tidy_guts <- liftIO $ tidyProgram hsc_env simpl_guts
-             return $ Left tidy_guts
-          else
-             return $ Right mod_guts
-
-     Nothing -> panic "compileToCoreModule: target FilePath not found in\
-                           module dependency graph"
-  where -- two versions, based on whether we simplify (thus run tidyProgram,
-        -- which returns a (CgGuts, ModDetails) pair, or not (in which case
-        -- we just have a ModGuts.
-        gutsToCoreModule :: SafeHaskellMode
-                         -> Either (CgGuts, ModDetails) ModGuts
-                         -> CoreModule
-        gutsToCoreModule safe_mode (Left (cg, md)) = CoreModule {
-          cm_module = cg_module cg,
-          cm_types  = md_types md,
-          cm_binds  = cg_binds cg,
-          cm_safe   = safe_mode
-        }
-        gutsToCoreModule safe_mode (Right mg) = CoreModule {
-          cm_module  = mg_module mg,
-          cm_types   = typeEnvFromEntities (bindersOfBinds (mg_binds mg))
-                                           (mg_tcs mg)
-                                           (mg_fam_insts mg),
-          cm_binds   = mg_binds mg,
-          cm_safe    = safe_mode
-         }
--}
+--- {{{
+--- compileCore :: GhcMonad m => Bool -> FilePath -> m CoreModule
+--- compileCore simplify fn = do
+---    -- First, set the target to the desired filename
+---    target <- guessTarget fn Nothing
+---    addTarget target
+---    _ <- load LoadAllTargets
+---    -- Then find dependencies
+---    modGraph <- depanal [] True
+---    case find ((== fn) . msHsFilePath) modGraph of
+---      Just modSummary -> do
+---        -- Now we have the module name;
+---        -- parse, typecheck and desugar the module
+---        mod_guts <- coreModule `fmap`
+---                       -- TODO: space leaky: call hsc* directly?
+---                       (desugarModule =<< typecheckModule =<< parseModule modSummary)
+---        liftM (gutsToCoreModule (mg_safe_haskell mod_guts)) $
+---          if simplify
+---           then do
+---              -- If simplify is true: simplify (hscSimplify), then tidy (tidyProgram).
+---              hsc_env <- getSession
+---              simpl_guts <- liftIO $ hscSimplify hsc_env mod_guts
+---              tidy_guts <- liftIO $ tidyProgram hsc_env simpl_guts
+---              return $ Left tidy_guts
+---           else
+---              return $ Right mod_guts
+--- 
+---      Nothing -> panic "compileToCoreModule: target FilePath not found in\
+---                            module dependency graph"
+---   where -- two versions, based on whether we simplify (thus run tidyProgram,
+---         -- which returns a (CgGuts, ModDetails) pair, or not (in which case
+---         -- we just have a ModGuts.
+---         gutsToCoreModule :: SafeHaskellMode
+---                          -> Either (CgGuts, ModDetails) ModGuts
+---                          -> CoreModule
+---         gutsToCoreModule safe_mode (Left (cg, md)) = CoreModule {
+---           cm_module = cg_module cg,
+---           cm_types  = md_types md,
+---           cm_binds  = cg_binds cg,
+---           cm_safe   = safe_mode
+---         }
+---         gutsToCoreModule safe_mode (Right mg) = CoreModule {
+---           cm_module  = mg_module mg,
+---           cm_types   = typeEnvFromEntities (bindersOfBinds (mg_binds mg))
+---                                            (mg_tcs mg)
+---                                            (mg_fam_insts mg),
+---           cm_binds   = mg_binds mg,
+---           cm_safe    = safe_mode
+---          }
+--- }}}
 
 updateDynFlags df ps 
   = df { importPaths  = ps ++ importPaths df  } 
@@ -357,149 +358,7 @@ checkAssertSpec vs xbs =
   in case xs' of 
     [] -> return () 
     _  -> errorstar $ "Asserts for Unknown variables: "  ++ (intercalate ", " xs')  
----------------------------------------------------------------
----------------- Annotations and Solutions --------------------
----------------------------------------------------------------
 
-newtype AnnInfo a 
-  = AI (M.Map SrcSpan (Maybe Var, a))
-    deriving (Data, Typeable)
-
-type Annot 
-  = Either SpecType SrcSpan
-    -- deriving (Data, Typeable)
-
-instance Functor AnnInfo where
-  fmap f (AI m) = AI (fmap (\(x, y) -> (x, f y)) m)
-
-instance Outputable a => Outputable (AnnInfo a) where
-  ppr (AI m) = vcat $ map pprAnnInfoBind $ M.toList m 
- 
-
-pprAnnInfoBind (RealSrcSpan k, xv) 
-  = xd $$ ppr l $$ ppr c $$ ppr n $$ vd $$ text "\n\n\n"
-    where l        = srcSpanStartLine k
-          c        = srcSpanStartCol k
-          (xd, vd) = pprXOT xv 
-          n        = length $ lines $ showSDoc vd
-
-pprAnnInfoBind (_, _) 
-  = empty
-
-pprXOT (x, v) = (xd, ppr v)
-  where xd = maybe (text "unknown") ppr x
-
-applySolution :: FixSolution -> AnnInfo RefType -> AnnInfo RefType 
-applySolution = fmap . fmap . mapReft . map . appSolRefa 
-  where appSolRefa _ ra@(RConc _) = ra 
-        -- appSolRefa _ p@(RPvar _)  = p  
-        appSolRefa s (RKvar k su) = RConc $ subst su $ M.findWithDefault PTop k s  
-        mapReft f (Reft (x, zs))  = Reft (x, squishRas $ f zs)
-
-squishRas ras  = (squish [p | RConc p <- ras]) : [] -- [ra | ra@(RPvar _) <- ras]
-  where squish = RConc . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts   
-
-conjuncts (PAnd ps)          = concatMap conjuncts ps
-conjuncts p | isTautoPred p  = []
-            | otherwise      = [p]
-
-
--------------------------------------------------------------------
-------------------- Rendering Inferred Types ----------------------
--------------------------------------------------------------------
-
-annotate :: FilePath -> FixSolution -> AnnInfo Annot -> IO ()
-annotate fname sol anna 
-  = do annotDump fname (extFileName Html $ extFileName Cst fname) annm
-       annotDump fname (extFileName Html fname) annm'
-    where annm = closeAnnots anna
-          annm' = tidyRefType <$> applySolution sol annm
-
-annotDump :: FilePath -> FilePath -> AnnInfo RefType -> IO ()
-annotDump srcFile htmlFile ann 
-  = do cssFile <- getCSSPath
-       src     <- readFile srcFile
-       -- | generate html
-       let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, mkAnnMap ann)
-       writeFile htmlFile $ CSS.top'n'tail srcFile $! body
-       -- | generate .annot
-       copyFile srcFile annotFile
-       appendFile annotFile $ show annm
-       -- | copy .css file
-       copyFile cssFile (dropFileName htmlFile </> takeFileName cssFile) 
-    where annotFile = extFileName Annot srcFile
-          annm      = mkAnnMap ann
-          lhs       = isExtFile LHs srcFile  
-
-mkAnnMap :: AnnInfo RefType -> ACSS.AnnMap
-mkAnnMap (AI m) 
-  = ACSS.Ann 
-  $ M.fromList
-  $ map (srcSpanLoc *** bindString)
-  $ map (head . sortWith (srcSpanEndCol . fst)) 
-  $ groupWith (lineCol . fst) 
-  $ [ (l, m) | (RealSrcSpan l, m) <- M.toList m, oneLine l]  
-  where bindString = mapPair (showSDocForUser neverQualify) . pprXOT 
-
-srcSpanLoc l 
-  = ACSS.L (srcSpanStartLine l, srcSpanStartCol l)
-oneLine l  
-  = srcSpanStartLine l == srcSpanEndLine l
-lineCol l  
-  = (srcSpanStartLine l, srcSpanStartCol l)
-
-closeAnnots :: AnnInfo Annot -> AnnInfo RefType 
-closeAnnots = fmap uRType' . closeA . filterA
-  
-closeA a@(AI m)  = cf <$> a 
-  where cf (Right loc) = case m `mlookup` loc of
-                           (_, Left t) -> t
-                           _           -> errorstar $ "malformed AnnInfo: " ++ showPpr loc
-        cf (Left t)    = t
-
-filterA (AI m) = AI (M.filter ff m)
-  where ff (_, Right loc) = loc `M.member` m
-        ff _              = True
-
-
-------------------------------------------------------------------------------
------------- Tokenizing RefTypes ---------------------------------------------
-------------------------------------------------------------------------------
-
-refToken = Keyword
-
-tokAnnot s 
-  = case trimLiquidAnnot s of 
-      Just (l, body, r) -> [(refToken, l)] ++ tokBody body ++ [(refToken, r)]
-      Nothing           -> [(Comment, s)]
-
-trimLiquidAnnot ('{':'-':'@':ss) 
-  | drop (length ss - 3) ss == "@-}"
-  = Just ("{-@", take (length ss - 3) ss, "@-}") 
-trimLiquidAnnot _  
-  = Nothing
-
-tokBody s 
-  | isData s  = tokenise s
-  | isType s  = tokenise s
-  | isIncl s  = tokenise s
-  | otherwise = {- traceShow ("tokBody: " ++ s) $ -} tokeniseSpec s 
-
-isData = spacePrefix "data"
-isType = spacePrefix "type"
-isIncl = spacePrefix "include"
-
-spacePrefix str s@(c:cs)
-  | isSpace c   = spacePrefix str cs
-  | otherwise   = (take (length str) s) == str
-spacePrefix _ _ = False 
-
-
-tokeniseSpec = tokAlt . chopAlt [('{', ':'), ('|', '}')] 
-  where tokAlt (s:ss)  = tokenise s ++ tokAlt' ss
-        tokAlt _       = []
-        tokAlt' (s:ss) = (refToken, s) : tokAlt ss
-        tokAlt' _      = []
 
 ------------------------------------------------------------------------------
 -------------------------------- A CoreBind Visitor --------------------------

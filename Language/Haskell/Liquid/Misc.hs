@@ -8,6 +8,8 @@ import qualified Data.Map as M
 import Data.List 
 import Data.Maybe (catMaybes)
 
+import System.Exit
+import System.Process   (system)
 import Debug.Trace (trace)
 import Data.Data
 
@@ -23,8 +25,12 @@ import Data.Data
 
 ---------------------------------------------------------------------
 
-donePhase msg 
-  = putStrLn $ "******************** DONE: " ++ msg ++ "*************************"
+wrapStars msg = "\n****************************** " ++ msg ++ " *****************************"
+
+startPhase = putStrLn . wrapStars .  ("START: " ++)
+donePhase  = putStrLn . wrapStars .  ("DONE : " ++)
+
+  -- = putStrLn $ "******************** DONE: " ++ msg ++ "*************************"
 
 data Empty = Emp deriving (Data, Typeable, Eq, Show)
 
@@ -40,8 +46,10 @@ wrap l r s = l ++ s ++ r
 
 repeats n  = concat . replicate n
 
-errorstar = error . wrap (stars ++ "\n") (stars ++ "\n") 
-  where stars = repeats 3 "\n**************************ERROR***************************************"
+errorstar  = error . wrap (stars ++ "\n") (stars ++ "\n") 
+  where stars = repeats 3 $ wrapStars "ERROR"
+  -- "\n************************* ERROR **************************************"
+
 
 fst3 ::  (a, b, c) -> a
 fst3 (x,_,_) = x
@@ -251,3 +259,15 @@ stripParens xs        = stripParens' (reverse xs)
 stripParens' (')':xs) = stripParens' xs
 stripParens' xs       = reverse xs
 
+
+ifM :: (Monad m) => m Bool -> m a -> m a -> m a
+ifM bm xm ym 
+  = do b <- bm
+       if b then xm else ym
+
+
+executeShellCommand phase cmd 
+  = Ex.bracket_ (startPhase phase) (donePhase phase) (system cmd)
+
+checkExitCode cmd (ExitSuccess)   = return ()
+checkExitCode cmd (ExitFailure n) = errorstar $ "cmd: " ++ cmd ++ " failure code " ++ show n 

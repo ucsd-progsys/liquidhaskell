@@ -47,7 +47,8 @@ import Text.Printf
 import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Bare
-import Language.Haskell.Liquid.GhcInterface hiding (isType) 
+import Language.Haskell.Liquid.Annotate
+import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
 import Language.Haskell.Liquid.Predicates
