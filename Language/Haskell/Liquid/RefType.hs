@@ -1033,7 +1033,7 @@ dataConSymbol ::  DataCon -> Symbol
 dataConSymbol = varSymbol . dataConWorkId
 
 primOrderingSort = typeSort $ dataConRepType eqDataCon
-ordCon s = EDat (S s) primOrderingSort
+ordCon s = EDat (dataConSymbol s) primOrderingSort
 
 -- TODO: turn this into a map lookup?
 dataConReft ::  DataCon -> [Symbol] -> Reft
@@ -1042,12 +1042,8 @@ dataConReft c []
   = Reft (vv, [RConc $ (PBexp (EVar vv))]) 
   | c == falseDataCon
   = Reft (vv, [RConc $ PNot (PBexp (EVar vv))]) 
-  | c == eqDataCon
-  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon "EQ"))]) 
-  | c == gtDataCon
-  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon "GT"))]) 
-  | c == ltDataCon
-  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon "LT"))]) 
+  | c `elem`  [gtDataCon, ltDataCon, eqDataCon]
+  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon c))]) 
 dataConReft c [x] 
   | c == intDataCon 
   = Reft (vv, [RConc (PAtom Eq (EVar vv) (EVar x))]) 
