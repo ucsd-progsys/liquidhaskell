@@ -106,15 +106,16 @@ renderHtml False = renderDirect
 -------------------------------------------------------------------------
 -- | Pandoc HTML Rendering (for lhs + markdown source) ------------------ 
 -------------------------------------------------------------------------
-      
+     
 renderPandoc htmlFile srcFile cssFile body
-  = do renderer <- maybe renderDirect renderPandoc' <$> findExecutable "pandoc"  
-       renderer htmlFile srcFile cssFile body
+  = do renderFn <- maybe renderDirect renderPandoc' <$> findExecutable "pandoc"  
+       renderFn htmlFile srcFile cssFile body
 
 renderPandoc' pandocPath htmlFile srcFile cssFile body
-  = {-# SCC "sysCall:pandoc" #-} executeShellCommand "pandoc" cmd >>= checkExitCode cmd
-    where mdFile = extFileName Html srcFile 
-          body'  = {-# SCC "stripCode" #-} stripCodeBlockMarkers body
+  = do writeFile mdFile $ stripCodeBlockMarkers body
+       ec <- executeShellCommand "pandoc" cmd 
+       checkExitCode cmd ec
+    where mdFile = extFileName Mkdn srcFile 
           cmd    = pandocCmd pandocPath cssFile mdFile htmlFile
 
 pandocCmd pandocPath cssFile mdFile htmlFile
@@ -143,6 +144,9 @@ htmlHeader title cssFile = unlines
   , "<link type='text/css' rel='stylesheet' href='" ++ cssFile ++ "' />"
   , "</head>"
   , "<body>"
+  , "<h1>Liquid Types: " ++ title ++ "</h1>"
+  , "<hr>"
+  , "Put mouse over identifiers to see inferred types"
   ]
 
 htmlClose  = "\n</body>\n</html>"
