@@ -7,7 +7,7 @@ module Language.Haskell.Liquid.Parse (
 
 import GHC
 import TypeRep
-import TysWiredIn   (intTyCon, boolTyCon)
+import TysWiredIn   (intTyCon, boolTyCon, eqDataConId, ltDataConId, gtDataConId)
 import Control.Monad
 import Text.Parsec
 import Text.Parsec.Expr
@@ -128,22 +128,19 @@ lexprP
  <|> try (parens exprCastP)
  <|> try (parens $ condP EIte exprP)
  <|> try exprFunP
- -- <|> try (liftM mkEDat upperIdP)
+ <|> try (liftM makeEDat upperIdP)
  -- <|> try (liftM (EVar . stringSymbol) upperIdP)
  <|> liftM EVar symbolP
  <|> liftM ECon constantP
  <|> (reserved "_|_" >> return EBot)
 
+makeEDat s = wiredEDat $ lookup s wiredSorts
+  where wiredEDat (Just wInfo) = EDat (fst wInfo) (snd wInfo)
+        wiredEDat _            = EVar $ stringSymbol s 
 
-mkEDat s = EDat (stringSymbol s) (stringSort s)
-  where stringSort s = case lookup s wiredSorts of 
-                        Just s  -> s
-                        Nothing -> FObj (stringSymbol s) 
-
-
-wiredSorts = [ ("EQ", primOrderingSort)
-             , ("LT", primOrderingSort)
-             , ("GT", primOrderingSort)
+wiredSorts = [ ("EQ", (varSymbol eqDataConId, primOrderingSort))
+             , ("LT", (varSymbol ltDataConId, primOrderingSort))
+             , ("GT", (varSymbol gtDataConId, primOrderingSort))
              ]
 
 exprFunP       =  (try exprFunSpacesP) <|> exprFunCommasP
