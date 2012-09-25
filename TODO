@@ -94,15 +94,37 @@ data (a1, a2, a3)
 Blogging 
 ========
 
+    0. test000.lhs
 
-   foo.lhs ---- liquid ----> foo.lhs.html (or foo.lhs.md) ----pandoc----> foo.lhs.md.html
+    1. [liquid test000.lhs]                                             ---> test000.lhs.html 
 
-  Trick: HsColour only transforms code blocks into HTML, leaves rest untouched.
-         Pandoc ignores HTML blocks. #win
+    2. [strip "\begin{code} and \end{code}]                             ----> test000.markdown
 
-*** Get annots in .lhs (blog/test000.lhs)  <--------------------------------------- HEREHEREHEREHERE
+    3. [pandoc -f markdown -t html test000.markdown > test000.html]     ----> test000.html
 
-    > somehow no "annottext" generated for .lhs
+Inside "liquid" <------------------------------------------------------------- HEREHEREHERE
+
+A. hack annotDump / ACSS so that NO "top-n-tail" is used, instead, just raw string.
+
+B. use "templating" or raw-string so that:
+
+   HEAD = 
+        <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+        <html><head><title>test000.lhs</title>
+        <link type='text/css' rel='stylesheet' href='liquid.css' />
+        </head>
+
+        or "liquid_dark.css"
+
+   TAIL = 
+        </body>
+        </html>
+
+C. Strip out the \begin{code} and \end{code} if Lhs.
+
+D. Copy liquid.css and not hscolour.css
+
+E. Invoke "pandoc" if it exists.
 
 *** Cleanup output (tests/pos/poly0.hs)
 
