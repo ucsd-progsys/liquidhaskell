@@ -3,10 +3,8 @@ TODO
 
 * Blogging 
 * Port .php based web-demo from dsolve <------------------HEREHEREHEREHERE
-
 * NIKI: fix the safe0ZipWith stuff in PredType.hs
 * benchmarks: Data.List (foldr)
-
 * predicate-aliases 
 * strictness annotations (tests/todo/maybe000.hs)
 * self-invariants        (tests/todo/maybe4.hs)
@@ -114,8 +112,8 @@ Blogging
     14. XMonad I
     15. XMonad II
 
-Paper #1 (Abstract Predicates, ESOP 2013)
-=========================================
+Paper #1 (Abstract Predicates)
+==============================
 
 [OK-PP] Data.KMeans     (Num?, Ord?, Toy-Abs, Toy-$, Toy-Filter)
 
@@ -137,8 +135,8 @@ Paper #1 (Abstract Predicates, ESOP 2013)
 [??-PP] Xmonad-StackSet-Toy
                         (zippering-??)
 
-Paper #2 (Liquid Types in the Real World, ICFP 2013)
-====================================================
+Paper #2 (Liquid Types in the Real World)
+=========================================
 
 [OK]    Data.KMeans
 
