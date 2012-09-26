@@ -15,8 +15,8 @@ TODO
 * benchmarks: stackset-core
 * benchmarks: Data.Text
 * alpha-renaming of predicate params is VERY SHAKY. see tests/pos/deptupW.hs
-* mcbride's stack machine
-* remove /toType/ and  generalize /typeSort/ to work for all RefTypables
+* mcbrides stack machine
+* remove `toType` and  generalize `typeSort` to work for all RefTypables
 
 
 Strictness Annotations  
@@ -41,16 +41,18 @@ Predicate Aliases
 
 Then clean up the spec blowup in containers/Data/Map/Base.hs ?
 
-{-@ maybeGe(lo, v)     = ((isJustS(lo)) => (v >= fromJustS(lo))) @-}
-{-@ maybeLe(hi, v)     = ((isJustS(lo)) => (v <= fromJustS(hi))) @-}
-{-@ inRange(lo, hi, v) = maybeGe(lo, v) && maybeLe(hi, v)        @-}
+    {-@ maybeGe(lo, v)     = ((isJustS(lo)) => (v >= fromJustS(lo))) @-}
+    {-@ maybeLe(hi, v)     = ((isJustS(lo)) => (v <= fromJustS(hi))) @-}
+    {-@ inRange(lo, hi, v) = maybeGe(lo, v) && maybeLe(hi, v)        @-}
 
-inRange(lo, hi, v) = {v:k | (((isJustS(lo)) => (v >= fromJustS(lo))) && (((isJustS(hi)) => (v <= fromJustS(hi)))))} v @-}
+Instead of the grisly
+
+    inRange(lo, hi, v) = {v:k | (((isJustS(lo)) => (v >= fromJustS(lo))) && (((isJustS(hi)) => (v <= fromJustS(hi)))))} v @-}
 
 Fixpoint Profile
 ================
 
--> Where is all the time going in Fixpoint?
+Where is all the time going in Fixpoint?
     
     liquid ../benchmarks/containers-0.5.0.0/Data/Map/Base.hs
 
@@ -62,73 +64,39 @@ Tuple Refinements (DONE: by Niki)
 
 - Add/Parse predicate signatures for tuples<p>     
 
-> pos/deptup.hs (type signature: for constructor wrapper)
+- pos/deptup.hs (type signature: for constructor wrapper)
 
-data [a]<p :: a -> a -> Bool> 
-  = []
-  | (:) (h :: a) (t :: [a<p h>]<p>)  
 
-data (a1, a2) 
-  < p1 :: a1 -> Bool
-  , p2 :: a1 -> a2 -> Bool
-  > 
-  = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>)
-
-data (a1, a2, a3) 
-  < p1 :: a1 -> Bool
-  , p2 :: a1 -> a2 -> Bool
-  , p3 :: a1 -> a2 -> a3 -> Bool
-  > 
-  = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>)
-
-data (a1, a2, a3) 
-  < p1 :: a1 -> Bool
-  , p2 :: a1 -> a2 -> Bool
-  , p3 :: a1 -> a2 -> a3 -> Bool
-  , p4 :: a1 -> a2 -> a3 -> a4 -> Bool
-  > 
-  = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>) (x4 :: a4<p4 x1 x2 x3>)
-
+    data [a]<p :: a -> a -> Bool> 
+      = []
+      | (:) (h :: a) (t :: [a<p h>]<p>)  
+    
+    data (a1, a2) 
+      < p1 :: a1 -> Bool
+      , p2 :: a1 -> a2 -> Bool
+      > 
+      = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>)
+    
+    data (a1, a2, a3) 
+      < p1 :: a1 -> Bool
+      , p2 :: a1 -> a2 -> Bool
+      , p3 :: a1 -> a2 -> a3 -> Bool
+      > 
+      = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>)
+    
+    data (a1, a2, a3) 
+      < p1 :: a1 -> Bool
+      , p2 :: a1 -> a2 -> Bool
+      , p3 :: a1 -> a2 -> a3 -> Bool
+      , p4 :: a1 -> a2 -> a3 -> a4 -> Bool
+      > 
+      = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>) (x4 :: a4<p4 x1 x2 x3>)
 
 
 Blogging 
 ========
 
-    0. test000.lhs
-
-    1. [liquid test000.lhs]                                             ---> test000.lhs.html 
-
-    2. [strip "\begin{code} and \end{code}]                             ----> test000.markdown
-
-    3. [pandoc -f markdown -t html test000.markdown > test000.html]     ----> test000.html
-
-Inside "liquid" <------------------------------------------------------------- HEREHEREHERE
-
-A. hack annotDump / ACSS so that NO "top-n-tail" is used, instead, just raw string.
-
-B. use "templating" or raw-string so that:
-
-   HEAD = 
-        <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-        <html><head><title>test000.lhs</title>
-        <link type='text/css' rel='stylesheet' href='liquid.css' />
-        </head>
-
-        or "liquid_dark.css"
-
-   TAIL = 
-        </body>
-        </html>
-
-C. Strip out the \begin{code} and \end{code} if Lhs.
-
-D. Copy liquid.css and not hscolour.css
-
-E. Invoke "pandoc" if it exists.
-
-*** Cleanup output (tests/pos/poly0.hs)
-
-
+    0. *** Cleanup output (tests/pos/poly0.hs)
     1.  Trivial Stuff (incr, pos, map, fold, etc.)
     2.  Lists I       (append, reverse, map-length, filter)
     3.  Lists II      (take, transpose)
@@ -144,8 +112,6 @@ E. Invoke "pandoc" if it exists.
     13. Union Find
     14. XMonad I
     15. XMonad II
-
-
 
 Paper #1 (Abstract Predicates, ESOP 2013)
 =========================================

@@ -1,3 +1,6 @@
+Building and Running 
+====================
+
 Requirements
 -------------
 
@@ -195,5 +198,20 @@ Additional qualifiers may be used by adding lines of the form:
 
 to the Haskell source. See, for example, `tests/pos/meas5.hs` 
 
+Generating HTML Output
+======================
+
+The system produces HTML files with colorized source, and mouseover 
+inferred type annotations, which are quite handy for debugging failed 
+verification attempts.
+
+- **Regular Haskell** When you run: `liquid foo.hs` you get a file 
+  `foo.hs.html` with the annotations. The coloring is done using
+  `hscolour`.
+
+- **Markdown + Literate Haskell** You can also feed in literate haskell files
+  where the comments are in [Pandoc markdown](http://johnmacfarlane.net/pandoc/demo/example9/pandocs-markdown.html). In this case, the tool will run `pandoc` to generate the HTML from the comments.
+  Of course, this requires that you have `pandoc` installed as a binary on
+  your system. If not, `hscolour` is used to render the HTML.
 
 
