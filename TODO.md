@@ -2,6 +2,7 @@ TODO
 ====
 
 * Blogging 
+* Port .php based web-demo from dsolve <------------------HEREHEREHEREHERE
 
 * NIKI: fix the safe0ZipWith stuff in PredType.hs
 * benchmarks: Data.List (foldr)
