@@ -33,11 +33,8 @@ sort1 = mergeAll . sequences
     mergePairs [x]      = [x]
     mergePairs []       = []
 
-
-{-@ assert merge1 :: (Ord a) => 
-  [a]<{v : a | (v >= fld)}> -> [a]<{v : a | (v >= fld)}> 
-  -> [a]<{v : a | (v >= fld)}>
-@-}
+-- merge1 needs to be toplevel,
+-- to get applied transformRec tx
 merge1 (a:as') (b:bs')
   | a `compare` b == GT = b:merge1 (a:as')  bs'
   | otherwise           = a:merge1 as' (b:bs')
@@ -48,29 +45,30 @@ merge1 as []            = as
 ------------------- Mergesort ---------------------------------------------
 ---------------------------------------------------------------------------
 
-sort2 l = mergesort compare l
-sortBy2 cmp l = mergesort cmp l
+{-@ assert sort2 :: (Ord a) => [a] -> OList a  @-}
+sort2 :: (Ord a) => [a] -> [a]
+sort2 = mergesort
 
-mergesort :: (a -> a -> Ordering) -> [a] -> [a]
-mergesort cmp = mergesort' cmp . map wrap
+mergesort :: (Ord a) => [a] -> [a]
+mergesort = mergesort' . map wrap
 
-mergesort' :: (a -> a -> Ordering) -> [[a]] -> [a]
-mergesort' _   [] = []
-mergesort' _   [xs] = xs
-mergesort' cmp xss = mergesort' cmp (merge_pairs cmp xss)
+mergesort' :: (Ord a) => [[a]] -> [a]
+mergesort' [] = []
+mergesort' [xs] = xs
+mergesort' xss = mergesort' (merge_pairs xss)
 
-merge_pairs :: (a -> a -> Ordering) -> [[a]] -> [[a]]
-merge_pairs _   [] = []
-merge_pairs _   [xs] = [xs]
-merge_pairs cmp (xs:ys:xss) = merge cmp xs ys : merge_pairs cmp xss
+merge_pairs :: (Ord a) => [[a]] -> [[a]]
+merge_pairs [] = []
+merge_pairs [xs] = [xs]
+merge_pairs (xs:ys:xss) = merge xs ys : merge_pairs xss
 
-merge :: (a -> a -> Ordering) -> [a] -> [a] -> [a]
-merge _   [] ys = ys
-merge _   xs [] = xs
-merge cmp (x:xs) (y:ys)
- = case x `cmp` y of
-        GT -> y : merge cmp (x:xs)   ys
-        _  -> x : merge cmp    xs (y:ys)
+merge :: (Ord a) => [a] -> [a] -> [a]
+merge [] ys = ys
+merge xs [] = xs
+merge (x:xs) (y:ys)
+ = case x `compare` y of
+        GT -> y : merge (x:xs)   ys
+        _  -> x : merge    xs (y:ys)
 
 wrap :: a -> [a]
 wrap x = [x]
