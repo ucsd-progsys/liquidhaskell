@@ -245,7 +245,9 @@ instance Subable (Alt Var) where
  subTy s (a, b, e) = (a, map (subTy s) b, subTy s e)
 
 instance Subable Var where
- sub s v   = if M.member v s then error "sub Var" else v
+ sub s v   = if M.member v s then subVar $ s M.! v else v
+   where subVar (Var x) = x
+         subVar  _      = error "sub Var"
  subTy s v = setVarType v (subTy s (varType v))
 
 instance Subable (Bind Var) where
