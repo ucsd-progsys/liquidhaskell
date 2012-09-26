@@ -1,35 +1,48 @@
+module GhcSort where
+
+import Language.Haskell.Liquid.Prelude
+
+{-@ type OList a =  [a]<{v: a | (v >= fld)}>  @-}
 
 ---------------------------------------------------------------------------
 ---------------------------  Official GHC Sort ----------------------------
 ---------------------------------------------------------------------------
 
-sort1 = sortBy1 compare
-sortBy1 cmp = mergeAll . sequences
+{-@ assert sort1 :: (Ord a) => [a] -> OList a  @-}
+sort1 :: (Ord a) => [a] -> [a]
+sort1 = mergeAll . sequences
   where
     sequences (a:b:xs)
-      | a `cmp` b == GT = descending b [a]  xs
-      | otherwise       = ascending  b (a:) xs
-    sequences xs = [xs]
+      | a `compare` b == GT = descending b [a]  xs
+      | otherwise           = ascending  b (a:) xs
+    sequences [x] = [[x]]
+    sequences []  = [[]]
 
     descending a as (b:bs)
-      | a `cmp` b == GT = descending b (a:as) bs
-    descending a as bs  = (a:as): sequences bs
+      | a `compare` b == GT = descending b (a:as) bs
+    descending a as bs      = (a:as): sequences bs
 
     ascending a as (b:bs)
-      | a `cmp` b /= GT = ascending b (\ys -> as (a:ys)) bs
-    ascending a as bs   = as [a]: sequences bs
+      | a `compare` b /= GT = ascending b (\ys -> as (a:ys)) bs
+    ascending a as bs       = as [a]: sequences bs
 
     mergeAll [x] = x
     mergeAll xs  = mergeAll (mergePairs xs)
 
-    mergePairs (a:b:xs) = merge a b: mergePairs xs
-    mergePairs xs       = xs
+    mergePairs (a:b:xs) = merge1 a b: mergePairs xs
+    mergePairs [x]      = [x]
+    mergePairs []       = []
 
-    merge as@(a:as') bs@(b:bs')
-      | a `cmp` b == GT = b:merge as  bs'
-      | otherwise       = a:merge as' bs
-    merge [] bs         = bs
-    merge as []         = as
+
+{-@ assert merge1 :: (Ord a) => 
+  [a]<{v : a | (v >= fld)}> -> [a]<{v : a | (v >= fld)}> 
+  -> [a]<{v : a | (v >= fld)}>
+@-}
+merge1 (a:as') (b:bs')
+  | a `compare` b == GT = b:merge1 (a:as')  bs'
+  | otherwise           = a:merge1 as' (b:bs')
+merge1 [] bs            = bs
+merge1 as []            = as
 
 ---------------------------------------------------------------------------
 ------------------- Mergesort ---------------------------------------------
@@ -66,6 +79,7 @@ wrap x = [x]
 -------------------- QuickSort ---------------------------------------
 ----------------------------------------------------------------------
 
+sort3 :: (Ord a) => [a] -> [a] -> [a]
 sort3 = qsort compare
 
 -- qsort is stable and does not concatenate.
