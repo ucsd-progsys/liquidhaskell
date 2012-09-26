@@ -1,0 +1,289 @@
+<html>
+<head>
+<title>test000.hs</title>
+</head>
+<head>
+<style media="screen" type="text/css">
+
+.hs-keyglyph {
+  color: #007020
+}
+
+.hs-keyword {
+  color: #007020;
+  font-weight: bold;
+}
+
+.hs-comment, .hs-comment a {color: green;}
+
+.hs-str, .hs-chr {color: teal;}
+
+.hs-conid { 
+  color: #902000;
+  /* color: #00FFFF; 
+     color: #0E84B5; */
+  /* font-weight: bold; */ 
+}
+
+
+.hs-definition { 
+  color: #06287E 
+  /* font-weight: bold; */ 
+}
+
+.hs-varid, .hs-varop, .hs-layout {
+  color: black; 
+}
+
+.hs-num {
+  color: #40A070;
+}
+
+.hs-conop {
+  color: #902000; 
+}
+
+.hs-cpp {
+  color: orange;
+}
+
+.hs-sel  {}
+
+a.annot {
+    position:relative; 
+    color:#000;
+    text-decoration:none
+}
+
+a.annot:hover { 
+  z-index:25; 
+  background-color: #D8D8D8;
+}
+
+a.annot span.annottext{display: none}
+
+a.annot:hover span.annottext{ 
+
+  border-radius: 5px 5px;
+
+  -moz-border-radius: 5px; 
+  -webkit-border-radius: 5px; 
+
+  box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.1); 
+  -webkit-box-shadow: 5px 5px rgba(0, 0, 0, 0.1);
+  -moz-box-shadow: 5px 5px rgba(0, 0, 0, 0.1); 
+
+  display:block;
+  position: absolute; 
+  left: 1em; top: 2em; 
+  z-index: 99;
+  margin-left: 5; 
+  background: #FFFFAA; 
+  border: 2px solid #FFAD33;
+  padding: 0.8em 1em;
+}
+
+/********************** Stolen from CSE230 styling ******************/
+
+html {
+
+    font-family: "helvetica";
+  /*
+    font-family: "palatino";
+    font-family: "Andale Mono";
+    font-family: sans-serif;
+    padding: 0px;
+    margin: 0px;
+    background-color: white;
+    color: black;
+    line-height: 160%;
+*/
+}
+
+code {
+   /* font-weight: bold; */
+   background-color: rgb(250, 250, 250); 
+   border: 1px solid rgb(200, 200, 200);
+   padding-left: 4px;
+   padding-right: 4px;
+}
+
+/* pygments */
+
+pre {
+    background-color: #f0f0f0;
+    border-top: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+    padding: 5px;
+    font-size: 13px;
+    font-family: Bitstream Vera Sans Mono,monospace;
+}
+
+/* pre {
+
+  border-radius: 5px 5px;
+
+  font-family: monospace;
+  font-size: 150%;
+  color: rgb(255, 255, 255);
+  background-color: rgb(0, 0, 0);
+  margin-bottom: 2em;
+  padding: 8px;
+  display: block;
+}
+*/
+
+/********************** Links **************************************/
+
+a:hover { 
+  color: black; /* #1d4c77; */
+  /* text-decoration:underline */
+}
+
+
+/********************** General Divs ********************************/
+
+div#navigation {
+    text-align: center;
+    border-bottom: 4px solid black;
+}
+
+div#navigation a {
+    color: white;
+    text-decoration: none;
+    background-color: black;
+    padding: 3px 10px 3px 10px;
+    margin: 0px 10px 0px 10px;
+}
+
+body {
+    width: 700px;
+    /* width: 900px; */
+    margin: 0px auto 0px auto;
+}
+
+div#header {
+    height: 32px;
+    padding: 20px 0px 20px 60px;
+}
+
+div#header img {
+    display: inline;
+    vertical-align: middle;
+}
+
+div#header h1 {
+    padding-left: 10px;
+    display: inline;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+div#main {
+    margin: 0px auto 0px auto;
+    width: 760px;
+}
+
+div#sidebar {
+    margin-right: 30px;
+    width: 160px;
+    float: left;
+    text-align: right;
+}
+
+div#sidebar a {
+    display: block;
+    font-size: 110%;
+    text-decoration: none;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+div#content {
+    width: 570px;
+    float: right;
+}
+
+div#footer {
+    padding-top: 30px;
+    clear: both;
+    font-size: 90%;
+    text-align: center;
+}
+
+
+h2 {
+    font-size: 120%;
+    text-transform: uppercase;
+}
+
+h3 {
+    font-size: 100%;
+    text-transform: uppercase;
+}
+
+div.column {
+    width: 50%;
+    float: left;
+}
+
+div.column p {
+    padding-right: 15px;
+}
+
+img {
+    display: block;
+    margin: 10px auto 10px auto;
+    border: none;
+}
+
+ul {
+    list-style-type: square;
+    padding-left: 1em;
+    margin-left: 1em;
+}
+
+
+
+p.caption {
+    display: none;
+}
+
+img {
+  border:0px;
+  margin-left:auto;
+  margin-right:auto;
+  display:block
+}
+
+</style>
+</head>
+
+<h1 id="liquid-types">Liquid Types</h1>
+<p>This is the <strong>very first</strong> blog entry on the subject of liquid types.</p>
+<p>First, some boring bits, such as</p>
+<pre><span class='hs-keyword'>module</span> <span class='hs-conid'>Abs</span> <span class='hs-keyword'>where</span>
+
+<span class='hs-keyword'>import</span> <span class='hs-conid'>Language</span><span class='hs-varop'>.</span><span class='hs-conid'>Haskell</span><span class='hs-varop'>.</span><span class='hs-conid'>Liquid</span><span class='hs-varop'>.</span><span class='hs-conid'>Prelude</span>  <span class='hs-layout'>(</span><span class='hs-varid'>liquidAssert</span><span class='hs-layout'>)</span>
+</pre>
+
+<p>Ok. With that out of the way, lets look at a <em>tres</em> simple function.</p>
+<pre><span class='hs-keyword'>{-@</span> <span class='hs-varid'>abz</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span> <span class='hs-conid'>Int</span> <span class='hs-keyword'>| v &gt;= 0}</span> <span class='hs-keyword'>@-}</span>
+<span class='hs-definition'>abz</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
+<a class=annot href="#"><span class=annottext>Int -&gt; {VV : Int | (VV &gt;= 0)}</span><span class='hs-definition'>abz</span></a> <a class=annot href="#"><span class=annottext>Int</span><span class='hs-varid'>x</span></a> <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : Int | (VV = x)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>x:Int -&gt; y:Int -&gt; {VV : Bool | ((? VV) &lt;=&gt; (x &gt; y))}</span><span class='hs-varop'>&gt;</span></a> <a class=annot href="#"><span class=annottext>{VV : Int | (VV = (0  :  int))}</span><span class='hs-num'>0</span></a>     <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : Int | (VV = x)}</span><span class='hs-varid'>x</span></a>
+      <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : Int | (VV = (0  :  int))}</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>x:Int -&gt; y:Int -&gt; {VV : Int | (VV = (x - y))}</span><span class='hs-comment'>-</span></a> <a class=annot href="#"><span class=annottext>{VV : Int | (VV = x)}</span><span class='hs-varid'>x</span></a><span class='hs-layout'>)</span>
+</pre>
+
+<p>Now, a little something to test the mouseover highlighting. Put your mouse over <code>abz</code> below for bedazzlement.</p>
+<pre><span class='hs-keyword'>{-@</span> <span class='hs-varid'>prop_abz</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyword'>@-}</span>
+<a class=annot href="#"><span class=annottext>Int -&gt; Int</span><span class='hs-definition'>prop_abz</span></a> <a class=annot href="#"><span class=annottext>Int</span><span class='hs-varid'>z</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : Bool | (? VV)}
+-&gt; {VV : Int | (VV = z'),(VV &gt;= 0)}
+-&gt; {VV : Int | (VV = z'),(VV &gt;= 0)}</span><span class='hs-varid'>liquidAssert</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : Int | (VV = z'),(VV &gt;= 0)}</span><span class='hs-varid'>z'</span></a> <a class=annot href="#"><span class=annottext>x:{VV : Int | (VV &gt;= 0),(VV &lt;= z')}
+-&gt; y:{VV : Int | (VV &gt;= 0),(VV &lt;= z')}
+-&gt; {VV : Bool | ((? VV) &lt;=&gt; (x &gt;= y))}</span><span class='hs-varop'>&gt;=</span></a> <a class=annot href="#"><span class=annottext>{VV : Int | (VV = (0  :  int))}</span><span class='hs-num'>0</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>{VV : Int | (VV = z'),(VV &gt;= 0)}</span><span class='hs-varid'>z'</span></a> 
+  <span class='hs-keyword'>where</span> <a class=annot href="#"><span class=annottext>{VV : Int | (VV &gt;= 0)}</span><span class='hs-varid'>z'</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>Int -&gt; {VV : Int | (VV &gt;= 0)}</span><span class='hs-varid'>abz</span></a> <a class=annot href="#"><span class=annottext>{VV : Int | (VV = z)}</span><span class='hs-varid'>z</span></a>
+</pre>
+
+<p>That's all folks!</p>
+
+</html>
