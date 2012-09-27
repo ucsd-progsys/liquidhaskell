@@ -94,6 +94,7 @@ data Ext = Cgi    -- ^ Constraint Generation Information
          | LHs    -- ^ Literate Haskell target source file
          | Spec   -- ^ Spec file (e.g. include/Prelude.spec) 
          | Hquals -- ^ Qualifiers file (e.g. include/Prelude.hquals)
+         | Result -- ^ Final result: SAFE/UNSAFE
          | Cst    -- ^ I've totally forgotten!
          | Mkdn   -- ^ Markdown file (temporarily generated from .Lhs + annots) 
          | Pred   
@@ -105,7 +106,7 @@ extMap Cgi    = "cgi"
 extMap Pred   = "pred"
 extMap PAss   = "pass"
 extMap Dat    = "dat"
-extMap Out    = "out"
+extMap Out    = "fqout"
 extMap Fq     = "fq"
 extMap Html   = "html"
 extMap Cst    = "cst"
@@ -115,6 +116,7 @@ extMap LHs    = "lhs"
 extMap Mkdn   = "md"
 extMap Spec   = "spec"
 extMap Hquals = "hquals" 
+extMap Result = "out"
 extMap e      = errorstar $ "extMap: Unknown extension" ++ show e
 
 
