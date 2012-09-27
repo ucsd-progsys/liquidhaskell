@@ -222,7 +222,8 @@ getGhcInfo target paths
 moduleHquals mg paths target imps incs 
   = do hqs   <- specIncludes Hquals paths incs 
        hqs'  <- moduleImports [Hquals] paths (mgi_namestring mg : imps)
-       let rv = sortNub $ hqs ++ (snd <$> hqs')
+       hqs'' <- liftIO $ filterM doesFileExist [extFileName Hquals target]
+       let rv = sortNub $ hqs'' ++ hqs ++ (snd <$> hqs')
        liftIO $ putStrLn $ "Reading Qualifiers From: " ++ show rv 
        return rv
 
