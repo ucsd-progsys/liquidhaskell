@@ -13,6 +13,7 @@ cabal-dev
 *.vmap
 *.di?
 *.native
+*.fqout
 *.out
 *.fq
 *.annot
