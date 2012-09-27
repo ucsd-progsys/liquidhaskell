@@ -21,7 +21,8 @@ import Language.Haskell.Liquid.Parse         (rr)
 import Language.Haskell.Liquid.Constraint    (CGInfo (..))
 
 solve fn hqs cgi
-  = {-# SCC "Solve" #-} execFq fn hqs gs (elems cm) ws qs >>= {-# SCC "exitFq" #-} exitFq fn cm 
+  =     {-# SCC "Solve" #-}  execFq fn hqs gs (elems cm) ws qs 
+    >>= {-# SCC "exitFq" #-} exitFq fn cm 
   where cm  = fromAscList $ zipWith (\i c -> (i, c {sid = Just i})) [1..] cs 
         cs  = fixCs cgi
         ws  = fixWfs cgi
