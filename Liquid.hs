@@ -47,8 +47,11 @@ liquidOne includes target =
      {-# SCC "annotate" #-} annotate target sol $ annotMap cgi
      donePhase "annotate"
      donePhase (showPpr r) 
+     writeResult target r
      -- putStrLn $ "*************** DONE: " ++ showPpr r ++ " ********************"
      return r
+
+writeResult target = writeFile (extFileName Result target) . showPpr 
 
 {-
 dummyDeepseq cgi 
