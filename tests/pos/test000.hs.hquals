@@ -1,0 +1,1 @@
+qualif Foo(v: Int): v = 10
