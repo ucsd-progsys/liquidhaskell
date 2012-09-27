@@ -1,128 +1,128 @@
-lib/bitv.cmo: lib/bitv.cmi
-lib/bitv.cmx: lib/bitv.cmi
-lib/heap.cmo: lib/heap.cmi
-lib/heap.cmx: lib/heap.cmi
-lib/unionfind.cmo: lib/unionfind.cmi
-lib/unionfind.cmx: lib/unionfind.cmi
-lib/bitv.cmi:
-lib/heap.cmi:
-lib/unionfind.cmi:
-src/blocks.cmo: src/util.cmi src/sig.cmi
-src/blocks.cmx: src/util.cmx src/sig.cmi
-src/builder.cmo: src/sig.cmi src/builder.cmi
-src/builder.cmx: src/sig.cmi src/builder.cmi
-src/classic.cmo: src/sig.cmi src/builder.cmi src/classic.cmi
-src/classic.cmx: src/sig.cmi src/builder.cmx src/classic.cmi
+lib/bitv.cmo: lib/bitv.cmi 
+lib/bitv.cmx: lib/bitv.cmi 
+lib/heap.cmo: lib/heap.cmi 
+lib/heap.cmx: lib/heap.cmi 
+lib/unionfind.cmo: lib/unionfind.cmi 
+lib/unionfind.cmx: lib/unionfind.cmi 
+lib/bitv.cmi: 
+lib/heap.cmi: 
+lib/unionfind.cmi: 
+src/blocks.cmo: src/util.cmi src/sig.cmi 
+src/blocks.cmx: src/util.cmx src/sig.cmi 
+src/builder.cmo: src/sig.cmi src/builder.cmi 
+src/builder.cmx: src/sig.cmi src/builder.cmi 
+src/classic.cmo: src/sig.cmi src/builder.cmi src/classic.cmi 
+src/classic.cmx: src/sig.cmi src/builder.cmx src/classic.cmi 
 src/cliquetree.cmo: src/util.cmi src/sig.cmi src/persistent.cmi src/oper.cmi \
-    src/gmap.cmi src/builder.cmi src/cliquetree.cmi
+    src/gmap.cmi src/builder.cmi src/cliquetree.cmi 
 src/cliquetree.cmx: src/util.cmx src/sig.cmi src/persistent.cmx src/oper.cmx \
-    src/gmap.cmx src/builder.cmx src/cliquetree.cmi
-src/components.cmo: src/util.cmi src/sig.cmi src/components.cmi
-src/components.cmx: src/util.cmx src/sig.cmi src/components.cmi
-src/delaunay.cmo: src/delaunay.cmi
-src/delaunay.cmx: src/delaunay.cmi
+    src/gmap.cmx src/builder.cmx src/cliquetree.cmi 
+src/components.cmo: src/util.cmi src/sig.cmi src/components.cmi 
+src/components.cmx: src/util.cmx src/sig.cmi src/components.cmi 
+src/delaunay.cmo: src/delaunay.cmi 
+src/delaunay.cmx: src/delaunay.cmi 
 src/dot.cmo: src/dot_parser.cmi src/dot_lexer.cmo src/dot_ast.cmi \
-    src/builder.cmi src/dot.cmi
+    src/builder.cmi src/dot.cmi 
 src/dot.cmx: src/dot_parser.cmx src/dot_lexer.cmx src/dot_ast.cmi \
-    src/builder.cmx src/dot.cmi
-src/dot_lexer.cmo: src/dot_parser.cmi src/dot_ast.cmi
-src/dot_lexer.cmx: src/dot_parser.cmx src/dot_ast.cmi
-src/dot_parser.cmo: src/dot_ast.cmi src/dot_parser.cmi
-src/dot_parser.cmx: src/dot_ast.cmi src/dot_parser.cmi
-src/flow.cmo: src/util.cmi src/sig.cmi src/flow.cmi
-src/flow.cmx: src/util.cmx src/sig.cmi src/flow.cmi
-src/gcoloring.cmo: src/traverse.cmi src/sig.cmi src/gcoloring.cmi
-src/gcoloring.cmx: src/traverse.cmx src/sig.cmi src/gcoloring.cmi
-src/gmap.cmo: src/sig.cmi src/gmap.cmi
-src/gmap.cmx: src/sig.cmi src/gmap.cmi
-src/gml.cmo: src/builder.cmi src/gml.cmi
-src/gml.cmx: src/builder.cmx src/gml.cmi
-src/gpath.cmo: src/util.cmi src/sig.cmi lib/heap.cmi src/gpath.cmi
-src/gpath.cmx: src/util.cmx src/sig.cmi lib/heap.cmx src/gpath.cmi
-src/graphviz.cmo: src/graphviz.cmi
-src/graphviz.cmx: src/graphviz.cmi
+    src/builder.cmx src/dot.cmi 
+src/dot_lexer.cmo: src/dot_parser.cmi src/dot_ast.cmi 
+src/dot_lexer.cmx: src/dot_parser.cmx src/dot_ast.cmi 
+src/dot_parser.cmo: src/dot_ast.cmi src/dot_parser.cmi 
+src/dot_parser.cmx: src/dot_ast.cmi src/dot_parser.cmi 
+src/flow.cmo: src/util.cmi src/sig.cmi src/flow.cmi 
+src/flow.cmx: src/util.cmx src/sig.cmi src/flow.cmi 
+src/gcoloring.cmo: src/traverse.cmi src/sig.cmi src/gcoloring.cmi 
+src/gcoloring.cmx: src/traverse.cmx src/sig.cmi src/gcoloring.cmi 
+src/gmap.cmo: src/sig.cmi src/gmap.cmi 
+src/gmap.cmx: src/sig.cmi src/gmap.cmi 
+src/gml.cmo: src/builder.cmi src/gml.cmi 
+src/gml.cmx: src/builder.cmx src/gml.cmi 
+src/gpath.cmo: src/util.cmi src/sig.cmi lib/heap.cmi src/gpath.cmi 
+src/gpath.cmx: src/util.cmx src/sig.cmi lib/heap.cmx src/gpath.cmi 
+src/graphviz.cmo: src/graphviz.cmi 
+src/graphviz.cmx: src/graphviz.cmi 
 src/imperative.cmo: src/sig.cmi src/blocks.cmo lib/bitv.cmi \
-    src/imperative.cmi
+    src/imperative.cmi 
 src/imperative.cmx: src/sig.cmi src/blocks.cmx lib/bitv.cmx \
-    src/imperative.cmi
-src/kruskal.cmo: src/util.cmi lib/unionfind.cmi src/sig.cmi src/kruskal.cmi
-src/kruskal.cmx: src/util.cmx lib/unionfind.cmx src/sig.cmi src/kruskal.cmi
+    src/imperative.cmi 
+src/kruskal.cmo: src/util.cmi lib/unionfind.cmi src/sig.cmi src/kruskal.cmi 
+src/kruskal.cmx: src/util.cmx lib/unionfind.cmx src/sig.cmi src/kruskal.cmi 
 src/mcs_m.cmo: src/util.cmi src/sig.cmi src/persistent.cmi src/oper.cmi \
-    src/imperative.cmi src/gmap.cmi src/builder.cmi src/mcs_m.cmi
+    src/imperative.cmi src/gmap.cmi src/builder.cmi src/mcs_m.cmi 
 src/mcs_m.cmx: src/util.cmx src/sig.cmi src/persistent.cmx src/oper.cmx \
-    src/imperative.cmx src/gmap.cmx src/builder.cmx src/mcs_m.cmi
+    src/imperative.cmx src/gmap.cmx src/builder.cmx src/mcs_m.cmi 
 src/md.cmo: src/sig.cmi src/oper.cmi src/gmap.cmi src/cliquetree.cmi \
-    src/builder.cmi src/md.cmi
+    src/builder.cmi src/md.cmi 
 src/md.cmx: src/sig.cmi src/oper.cmx src/gmap.cmx src/cliquetree.cmx \
-    src/builder.cmx src/md.cmi
-src/minsep.cmo: src/sig.cmi src/oper.cmi src/components.cmi src/minsep.cmi
-src/minsep.cmx: src/sig.cmi src/oper.cmx src/components.cmx src/minsep.cmi
-src/oper.cmo: src/sig.cmi src/builder.cmi src/oper.cmi
-src/oper.cmx: src/sig.cmi src/builder.cmx src/oper.cmi
+    src/builder.cmx src/md.cmi 
+src/minsep.cmo: src/sig.cmi src/oper.cmi src/components.cmi src/minsep.cmi 
+src/minsep.cmx: src/sig.cmi src/oper.cmx src/components.cmx src/minsep.cmi 
+src/oper.cmo: src/sig.cmi src/builder.cmi src/oper.cmi 
+src/oper.cmx: src/sig.cmi src/builder.cmx src/oper.cmi 
 src/pack.cmo: src/traverse.cmi src/topological.cmi src/sig.cmi src/rand.cmi \
     src/oper.cmi src/kruskal.cmi src/imperative.cmi src/graphviz.cmi \
     src/gpath.cmi src/gml.cmi src/flow.cmi src/dot.cmi src/components.cmi \
-    src/classic.cmi src/builder.cmi src/pack.cmi
+    src/classic.cmi src/builder.cmi src/pack.cmi 
 src/pack.cmx: src/traverse.cmx src/topological.cmx src/sig.cmi src/rand.cmx \
     src/oper.cmx src/kruskal.cmx src/imperative.cmx src/graphviz.cmx \
     src/gpath.cmx src/gml.cmx src/flow.cmx src/dot.cmx src/components.cmx \
-    src/classic.cmx src/builder.cmx src/pack.cmi
+    src/classic.cmx src/builder.cmx src/pack.cmi 
 src/persistent.cmo: src/util.cmi src/sig.cmi src/blocks.cmo \
-    src/persistent.cmi
+    src/persistent.cmi 
 src/persistent.cmx: src/util.cmx src/sig.cmi src/blocks.cmx \
-    src/persistent.cmi
-src/rand.cmo: src/sig.cmi src/delaunay.cmi src/builder.cmi src/rand.cmi
-src/rand.cmx: src/sig.cmi src/delaunay.cmx src/builder.cmx src/rand.cmi
-src/strat.cmo: src/sig.cmi src/strat.cmi
-src/strat.cmx: src/sig.cmi src/strat.cmi
-src/topological.cmo: src/sig.cmi src/topological.cmi
-src/topological.cmx: src/sig.cmi src/topological.cmi
-src/traverse.cmo: src/sig.cmi src/traverse.cmi
-src/traverse.cmx: src/sig.cmi src/traverse.cmi
-src/util.cmo: src/sig.cmi src/util.cmi
-src/util.cmx: src/sig.cmi src/util.cmi
-src/version.cmo:
-src/version.cmx:
-src/builder.cmi: src/sig.cmi
-src/classic.cmi: src/sig.cmi
-src/cliquetree.cmi: src/sig.cmi
-src/components.cmi: src/util.cmi src/sig.cmi
-src/delaunay.cmi:
-src/dot.cmi: src/dot_ast.cmi src/builder.cmi
-src/dot_ast.cmi:
-src/dot_parser.cmi: src/dot_ast.cmi
-src/flow.cmi: src/sig.cmi
-src/gcoloring.cmi: src/sig.cmi
-src/gmap.cmi: src/sig.cmi
-src/gml.cmi: src/builder.cmi
-src/gpath.cmi: src/sig.cmi
-src/graphviz.cmi:
-src/imperative.cmi: src/sig.cmi
-src/kruskal.cmi: src/sig.cmi
-src/mcs_m.cmi: src/sig.cmi
-src/md.cmi: src/sig.cmi
-src/minsep.cmi: src/sig.cmi
-src/oper.cmi: src/sig.cmi src/builder.cmi
-src/pack.cmi: src/sig_pack.cmi
-src/persistent.cmi: src/sig.cmi
-src/rand.cmi: src/sig.cmi src/builder.cmi
-src/sig.cmi:
-src/sig_pack.cmi:
-src/strat.cmi: src/sig.cmi
-src/topological.cmi: src/sig.cmi
-src/traverse.cmi: src/sig.cmi
-src/util.cmi: src/sig.cmi
-editor/ed_display.cmo:
-editor/ed_display.cmx:
-editor/ed_draw.cmo: src/components.cmi
-editor/ed_draw.cmx: src/components.cmx
+    src/persistent.cmi 
+src/rand.cmo: src/sig.cmi src/delaunay.cmi src/builder.cmi src/rand.cmi 
+src/rand.cmx: src/sig.cmi src/delaunay.cmx src/builder.cmx src/rand.cmi 
+src/strat.cmo: src/sig.cmi src/strat.cmi 
+src/strat.cmx: src/sig.cmi src/strat.cmi 
+src/topological.cmo: src/sig.cmi src/topological.cmi 
+src/topological.cmx: src/sig.cmi src/topological.cmi 
+src/traverse.cmo: src/sig.cmi src/traverse.cmi 
+src/traverse.cmx: src/sig.cmi src/traverse.cmi 
+src/util.cmo: src/sig.cmi src/util.cmi 
+src/util.cmx: src/sig.cmi src/util.cmi 
+src/version.cmo: 
+src/version.cmx: 
+src/builder.cmi: src/sig.cmi 
+src/classic.cmi: src/sig.cmi 
+src/cliquetree.cmi: src/sig.cmi 
+src/components.cmi: src/util.cmi src/sig.cmi 
+src/delaunay.cmi: 
+src/dot.cmi: src/dot_ast.cmi src/builder.cmi 
+src/dot_ast.cmi: 
+src/dot_parser.cmi: src/dot_ast.cmi 
+src/flow.cmi: src/sig.cmi 
+src/gcoloring.cmi: src/sig.cmi 
+src/gmap.cmi: src/sig.cmi 
+src/gml.cmi: src/builder.cmi 
+src/gpath.cmi: src/sig.cmi 
+src/graphviz.cmi: 
+src/imperative.cmi: src/sig.cmi 
+src/kruskal.cmi: src/sig.cmi 
+src/mcs_m.cmi: src/sig.cmi 
+src/md.cmi: src/sig.cmi 
+src/minsep.cmi: src/sig.cmi 
+src/oper.cmi: src/sig.cmi src/builder.cmi 
+src/pack.cmi: src/sig_pack.cmi 
+src/persistent.cmi: src/sig.cmi 
+src/rand.cmi: src/sig.cmi src/builder.cmi 
+src/sig.cmi: 
+src/sig_pack.cmi: 
+src/strat.cmi: src/sig.cmi 
+src/topological.cmi: src/sig.cmi 
+src/traverse.cmi: src/sig.cmi 
+src/util.cmi: src/sig.cmi 
+editor/ed_display.cmo: 
+editor/ed_display.cmx: 
+editor/ed_draw.cmo: src/components.cmi 
+editor/ed_draw.cmx: src/components.cmx 
 editor/ed_graph.cmo: src/traverse.cmi src/imperative.cmi src/graphviz.cmi \
     src/gml.cmi src/dot_ast.cmi src/dot.cmi src/components.cmi \
-    src/builder.cmi
+    src/builder.cmi 
 editor/ed_graph.cmx: src/traverse.cmx src/imperative.cmx src/graphviz.cmx \
     src/gml.cmx src/dot_ast.cmi src/dot.cmx src/components.cmx \
-    src/builder.cmx
-editor/ed_hyper.cmo:
-editor/ed_hyper.cmx:
-editor/ed_main.cmo:
-editor/ed_main.cmx:
+    src/builder.cmx 
+editor/ed_hyper.cmo: 
+editor/ed_hyper.cmx: 
+editor/ed_main.cmo: 
+editor/ed_main.cmx: 

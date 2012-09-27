@@ -1,5 +1,6 @@
+{-# LANGUAGE DeriveDataTypeable #-}
+-- MultiParamTypeClasses, NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, , ScopedTypeVariables 
 
-{- LANGUAGE MultiParamTypeClasses, NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, DeriveDataTypeable, ScopedTypeVariables  -}
 
 -- | This module contains the code that uses the inferred types to generate
 -- htmlized source with mouseover annotations.
