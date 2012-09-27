@@ -84,9 +84,9 @@ annotHtmlDump htmlFile srcFile annm
   = do src     <- readFile srcFile
        let lhs  = isExtFile LHs srcFile
        let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
-       css     <- readFile =<< getCSSPath
-       -- copyFile cssFile (dropFileName htmlFile </> takeFileName cssFile) 
-       renderHtml lhs htmlFile srcFile css body
+       cssFile <- getCSSPath
+       copyFile cssFile (dropFileName htmlFile </> takeFileName cssFile) 
+       renderHtml lhs htmlFile srcFile (takeFileName cssFile) body
 
 renderHtml True  = renderPandoc 
 renderHtml False = renderDirect
@@ -146,12 +146,13 @@ htmlClose  = "\n</body>\n</html>"
 
 cssHTML css = unlines
   [ "<head>"
-  , "<style media=\"screen\" type=\"text/css\">"
-  , css
-  , "</style>"
+  -- , "<style media=\"screen\" type=\"text/css\">"
+  -- , css
+  -- , "</style>"
+  , "<link type='text/css' rel='stylesheet' href='"++ css ++ "' />"
   , "</head>"
   ]
-
+  
 
 
 ------------------------------------------------------------------------------

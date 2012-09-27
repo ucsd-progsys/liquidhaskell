@@ -10,7 +10,6 @@ module Language.Haskell.Liquid.FileNames (
   
   -- * Hardwired file extension names
     Ext (..)
-  , repFileName
   , extFileName
   , extModuleName
   , isExtFile
@@ -136,8 +135,8 @@ extMap e      = errorstar $ "extMap: Unknown extension" ++ show e
 
 
 
-repFileName     :: Ext -> FilePath -> FilePath
-repFileName ext = extFileName ext . dropFileName
+-- repFileName     :: Ext -> FilePath -> FilePath
+-- repFileName ext = extFileName ext . dropExtension 
 
 extFileName     :: Ext -> FilePath -> FilePath
 extFileName ext = (`addExtension` (extMap ext))
