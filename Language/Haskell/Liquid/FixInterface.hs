@@ -45,7 +45,7 @@ execFq fn hqs globals cs ws qs
 execCmd fp fn = printf "%s -notruekvars -refinesort -noslice -nosimple -strictsortcheck -out %s %s" fp fo fq 
   where fq    = extFileName Fq  fn
         fo    = extFileName Out fn
-        fp    = "fixpoint.native"
+        -- fp    = "fixpoint.native"
 
 exitFq _ _ (ExitFailure n) | (n /= 1) 
   = return (Crash [] "Unknown Error", empty)
