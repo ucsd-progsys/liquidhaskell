@@ -11,10 +11,12 @@ GPG=$(GHCHOME)/ghc-pkg
 
 OPTS="-W -O2 -XStandaloneDeriving -XDeriveDataTypeable"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
-CABAL=cabal --with-ghc=$(GHC) 
 
-#CABALI=$(CABAL) install --ghc-options=$(OPTS)
-CABALI=$(CABAL) install --force-reinstalls --reinstall --ghc-options=$(OPTS)
+#CABAL=cabal --with-ghc=$(GHC) 
+CABAL=cabal
+
+CABALI=$(CABAL) install --ghc-options=$(OPTS)
+#CABALI=$(CABAL) install --force-reinstalls --reinstall --ghc-options=$(OPTS)
 #CABALP=$(CABALI) -p
 
 CABALP=$(CABAL) install --reinstall --ghc-options=$(OPTS) -p
@@ -24,11 +26,13 @@ DEPS=unix-compat transformers mtl filemanip text syb parsec ghc-paths deepseq co
 all:
 	$(CABAL) install --ghc-options=$(OPTS) 
 
+gotoall:
+	$(CABAL) build --ghc-options=$(OPTS) 
+	cp dist/build/liquid/liquid ~/.cabal/bin/
+
 prof:
 	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS)
 
-oldschool:
-	$(GHC) --make Liquid 
 
 clean:
 	cabal clean
