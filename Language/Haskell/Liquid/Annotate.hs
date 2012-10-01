@@ -138,7 +138,7 @@ htmlHeader title css = unlines
   , "</head>"
   , cssHTML css
   , "<body>"
-  , "<h1>Liquid Types: " ++ title ++ "</h1>"
+  -- , "<h1>Liquid Types: " ++ title ++ "</h1>"
   , "<hr>"
   , "Put mouse over identifiers to see inferred types"
   ]
