@@ -1,8 +1,9 @@
 TODO
 ====
 
-* Blogging 
 * Port .php based web-demo from dsolve <------------------HEREHEREHEREHERE
+
+* Blogging 
 * NIKI: fix the safe0ZipWith stuff in PredType.hs
 * benchmarks: Data.List (foldr)
 * predicate-aliases 
@@ -16,6 +17,19 @@ TODO
 * alpha-renaming of predicate params is VERY SHAKY. see tests/pos/deptupW.hs
 * mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
+
+PHP-Demo
+========
+
+- Fix filename output 
+- Add benchmarks
+    - meas5     // list lengths
+    - kmeans
+    - GHC.List?
+    - mapReduce
+    - lambdaEval
+    - listSort
+    - BST/Map.hs
 
 
 Strictness Annotations  
