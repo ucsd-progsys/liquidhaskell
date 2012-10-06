@@ -155,17 +155,17 @@ safeZipWith msg f xs ys
     where nxs = length xs
           nys = length ys
 
-safe0ZipWith msg f xs ys 
-  | length xs == length ys 
-  = zipWith f xs ys
-safe0ZipWith _ _ [] _
-  = []
-safe0ZipWith _ _ _ []
-  = []
-safe0ZipWith msg _ xs ys 
-  = errorstar $ "safeZipWith called on non-eq-sized lists (nxs = " ++ show nxs ++ ", nys = " ++ show nys ++ ") : " ++ msg
-    where nxs = length xs
-          nys = length ys
+-- safe0ZipWith msg f xs ys 
+--   | length xs == length ys 
+--   = zipWith f xs ys
+-- safe0ZipWith _ _ [] _
+--   = []
+-- safe0ZipWith _ _ _ []
+--   = []
+-- safe0ZipWith msg _ xs ys 
+--   = errorstar $ "safeZipWith called on non-eq-sized lists (nxs = " ++ show nxs ++ ", nys = " ++ show nys ++ ") : " ++ msg
+--     where nxs = length xs
+--           nys = length ys
 
 
 
