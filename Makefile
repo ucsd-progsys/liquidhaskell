@@ -26,7 +26,7 @@ DEPS=unix-compat transformers mtl filemanip text syb parsec ghc-paths deepseq co
 all:
 	$(CABAL) install --ghc-options=$(OPTS) 
 
-gotoall:
+goto:
 	$(CABAL) build --ghc-options=$(OPTS) 
 	cp dist/build/liquid/liquid ~/.cabal/bin/
 
