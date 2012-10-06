@@ -17,11 +17,12 @@ set i x a = \k -> if k == i then x else a k
 get :: Int -> (Int -> a) -> a
 get i a = a i
 
-{-@ zero :: i: Int ->
-            n: Int ->
-            a: (j: Int ->
-                {v: Int | (((0 <= j) && (j < i)) => ((v = 0)))}) ->
-            (k: Int -> {v: Int | (((0 <= k) && (k < n)) => ((v = 0)))}) @-}
+{-@ zero ::
+      i: Int ->
+      n: Int ->
+      a: (j: Int ->
+          {v: Int | (((0 <= j) && (j < i)) => ((v = 0)))}) ->
+      (k: Int -> {v: Int | (((0 <= k) && (k < n)) => ((v = 0)))}) @-}
 zero :: Int -> Int -> (Int -> Int) -> (Int -> Int)
 zero i n a = if i >= n then a
                        else zero (i + 1) n (set i 0 a)
@@ -31,7 +32,19 @@ create x = \i -> x
 {-@ tenZeroes :: j: Int -> {v: Int | (((0 <= j) && (j < 10)) => ((v = 0)))} @-}
 tenZeroes = zero 0 10 (create 1)
 
+{-@ zeroBackwards ::
+      i: Int ->
+      n: Int ->
+      a: (j: Int ->
+          {v: Int | (((i < j) && (j < n)) => ((v = 0)))}) ->
+      (k: Int -> {v: Int | (((0 <= k) && (k < n)) => ((v = 0)))}) @-}
+zeroBackwards :: Int -> Int -> (Int -> Int) -> (Int -> Int)
+zeroBackwards i n a = if i < 0 then a
+                               else zeroBackwards (i - 1) n (set i 0 a)
+
+{-@ tenZeroes :: j: Int -> {v: Int | (((0 <= j) && (j < 10)) => ((v = 0)))} @-}
+tenZeroes' = zeroBackwards 9 10 (create 1)
+
 -- TODO:
---  Backward initialization
 --  Every other element initialization
 --  Higher-order initialization
