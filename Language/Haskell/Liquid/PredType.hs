@@ -236,8 +236,8 @@ substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
 substRCon msg (π, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2) 
   | rTyCon c1 == rTyCon c2          = RApp c1 ts rs $ r2' `meet` subst su r1
   where (r2', su)                   = rmRPVarReft π r2
-        ts                          = safeZipWith (msg ++ ": substRCon")   strSub  ts1 ts2
-        rs                          = safe0ZipWith (msg ++ ": substRcon2") strSubR rs1 rs2
+        ts                          = safeZipWith (msg ++ ": substRCon")  strSub  ts1 ts2
+        rs                          = safeZipWith (msg ++ ": substRcon2") strSubR rs1 rs2
         strSub t1 t2                = t2 `meet` subst su t1
         strSubR r1 r2               = RPoly $ strSub (fromRPoly r1) (fromRPoly r2)                             
 
