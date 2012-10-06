@@ -187,7 +187,7 @@ pToReft = U top . pdVar
 replacePreds :: String -> SpecType -> [(RPVar, Ref RReft SpecType)] -> SpecType 
 replacePreds msg       = foldl' go 
    where go z (π, RPoly t) = substPred msg   (π, t)     z
-         go z (π, RMono r) = replacePVarReft (π, r) <$> z
+         go z (π, RMono r) = error "replacePreds on RMono"
 
 
 -- TODO: replace `replacePreds` with
@@ -204,73 +204,55 @@ substPred :: String -> (RPVar, SpecType) -> SpecType -> SpecType
 -------------------------------------------------------------------------------
 
 substPred msg (π, RVar a1 r1) t@(RVar a2 r2)
-  | π `isPredInReft` r2 && a1 == a2 = RVar a1 ((subst su r1) `meet` r2') 
-  | π `isPredInReft` r2             = errorstar ("substPred RVar Var Mismatch")
-  | otherwise                       = t
-  where (r2', su) = rmRPVarReft π r2
+  | isPredInReft && a1 == a2  = RVar a1 $ meetListWithPSubs πs r1 r2'
+  | isPredInReft              = errorstar ("substPred RVar Var Mismatch")
+  | otherwise                 = t
+  where (r2', πs)             = splitRPvar π r2
+        isPredInReft          = not $ null πs 
 
 substPred msg su@(π, πt) t@(RApp c ts rs r)
-  | π `isPredInReft` r              = substRCon msg su t' 
-  | otherwise                       = t' 
-  where t' = RApp c (substPred msg su <$> ts) (substPredP su <$> rs) r
+  | null πs                   = t' 
+  | otherwise                 = substRCon msg su t' πs r2'
+  where t'        = RApp c (substPred msg su <$> ts) (substPredP su <$> rs) r
+        (r2', πs) = splitRPvar π r
 
 substPred msg (p, tp) (RAllP (q@(PV _ _ _)) t)
-  | p /= q                          = RAllP q $ substPred msg (p, tp) t
-  | otherwise                       = RAllP q t 
+  | p /= q                    = RAllP q $ substPred msg (p, tp) t
+  | otherwise                 = RAllP q t 
 
-substPred msg su (RAllT a t)        = RAllT a (substPred msg su t)
+substPred msg su (RAllT a t)  = RAllT a (substPred msg su t)
 
 substPred msg su@(π, πt) (RFun x t t' r) 
-  | π `isPredInReft` r              = (RFun x t t' r') `meet` (subst su' πt)
-  | otherwise                       = RFun x (substPred msg su t) (substPred msg su t') r
-  where (r', su')                   = rmRPVarReft π r
+  | null πs                   = RFun x (substPred msg su t) (substPred msg su t') r
+  | otherwise                 = meetListWithPSubs πs πt (RFun x t t' r')
+  where (r', πs)              = splitRPvar π r
 
-substPred msg pt (RCls c ts)        = RCls c (substPred msg pt <$> ts)
+substPred msg pt (RCls c ts)  = RCls c (substPred msg pt <$> ts)
 
-substPred msg su (REx x t t')       = REx x (substPred msg su t) (substPred msg su t')
+substPred msg su (REx x t t') = REx x (substPred msg su t) (substPred msg su t')
 
-substPred msg pt t                  = t
+substPred msg pt t            = t
 
--- | Requires: @p `isPredInReft` r@
-substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
-substRCon msg (π, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2) 
-  | rTyCon c1 == rTyCon c2          = RApp c1 ts rs $ r2' `meet` subst su r1
-  where (r2', su)                   = rmRPVarReft π r2
-        ts                          = safeZipWith (msg ++ ": substRCon")  strSub  ts1 ts2
-        rs                          = safeZipWith (msg ++ ": substRcon2") strSubR rs1 rs2
-        strSub t1 t2                = t2 `meet` subst su t1
-        strSubR r1 r2               = RPoly $ strSub (fromRPoly r1) (fromRPoly r2)                             
+-- | Requires: @not $ null πs@
+-- substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
+substRCon msg (π, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 r2) πs r2'
+  | rTyCon c1 == rTyCon c2    = RApp c1 ts rs $ meetListWithPSubs πs r1 r2'
+  where ts                    = safeZipWith (msg ++ ": substRCon")  strSub  ts1 ts2
+        rs                    = safeZipWith (msg ++ ": substRcon2") strSubR rs1 rs2
+        strSub t1 t2          = meetListWithPSubs πs t1 t2
+        strSubR r1 r2         = RPoly $ strSub (fromRPoly r1) (fromRPoly r2)                             
 
-substRCon msg su t                  = errorstar $ msg ++ " substRCon " ++ show (su, t)
+substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ show (su, t)
 
-substPredP su (RPoly t)             = RPoly $ substPred "substPredP" su t
-substPredP _  (RMono r)             = error $ "RMono found in substPredP"
+substPredP su (RPoly t)       = RPoly $ substPred "substPredP" su t
+substPredP _  (RMono r)       = error $ "RMono found in substPredP"
 
+splitRPvar pv (U x (Pr pvs)) = (U x (Pr pvs'), epvs)
+  where (epvs, pvs') = partition (uPVar pv ==) pvs
 
--- | The next two functions should be combined into a single one that
--- checks and extracts the relevant predicate substitution. They are used
--- more or less "atomically" in the `substPred` above.
+meetListWithPSubs πs r1 r2 = foldl' meet r2 $ ((`subst` r1)<$> su ) 
+  where su                 = nub ((predArgsSubst . pargs) <$> πs) 
 
-isPredInReft pv (U _ (Pr pvs)) = any (uPVar pv ==) pvs 
-
--- | Requires @pv `isPredInReft` r@
--- Actually, it is ok to have /multiple/ `su` you just have to replace
--- with /multiple copies/ of the corresponding [Refa].
-rmRPVarReft pv r@(U x (Pr pvs)) = (U x (Pr pvs'), su)
-  where (epvs, pvs') = partition (uPVar pv ==)  pvs
-        su           = case nub ((predArgsSubst . pargs) <$> epvs) of
-                         [su] -> su
-                         zs   -> errorstar $ "Fixpoint.rmRPVarReft: " ++ show zs ++ " ."
-
--- PREDARGS: This substitution makes no sense. They are the WRONG args. Use n2's ...?
-replacePVarReft (pv, (U (Reft (_, ras')) p')) z@(U (Reft(v, ras)) (Pr pvs)) 
-  | length pvs' == length pvs
-  = z
-  | otherwise
-  = U (Reft (v, ras'')) (pdAnd [p', Pr pvs'])
-  where pvs'  = filter (uPVar pv /=)  pvs 
-        ras'' = map (subst (predArgsSubst (pargs pv))) ras'
-  
 predArgsSubst = mkSubst . map (\(_, s1, s2) -> (s1, EVar s2)) 
 
 ----------------------------------------------------------------------------
