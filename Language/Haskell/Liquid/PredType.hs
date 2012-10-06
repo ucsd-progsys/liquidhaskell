@@ -176,9 +176,9 @@ pToReft = U top . pdVar
 ----------------------------------------------------------------------------
 
 -- | This is the main function used to substitute an (abstract) predicate
--- with a concrete Ref, either a base (`RMono`) refinement or a compound
--- (`RPoly`) type. The substitution is invoked to obtain the `SpecType` 
--- resulting at /predicate application/ sites in 'Language.Haskell.Liquid.Constraint'.
+-- with a concrete Ref, of a compound (`RPoly`) type. The substitution is 
+-- invoked to obtain the `SpecType` resulting at /predicate application/ 
+-- sites in 'Language.Haskell.Liquid.Constraint'.
 -- The range of the `PVar` substitutions are /fresh/ or /true/ `RefType`. 
 -- That is, there are no further `PVar` in the target. 
 
@@ -187,7 +187,7 @@ pToReft = U top . pdVar
 replacePreds :: String -> SpecType -> [(RPVar, Ref RReft SpecType)] -> SpecType 
 replacePreds msg       = foldl' go 
    where go z (π, RPoly t) = substPred msg   (π, t)     z
-         go z (π, RMono r) = error "replacePreds on RMono"
+         go z (π, RMono r) = error "replacePreds on RMono" -- replacePVarReft (π, r) <$> z
 
 
 -- TODO: replace `replacePreds` with
