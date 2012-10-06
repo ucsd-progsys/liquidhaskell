@@ -45,6 +45,20 @@ zeroBackwards i n a = if i < 0 then a
 {-@ tenZeroes :: j: Int -> {v: Int | (((0 <= j) && (j < 10)) => ((v = 0)))} @-}
 tenZeroes' = zeroBackwards 9 10 (create 1)
 
+{-@ zeroEveryOther ::
+      i: {v : Int | v mod 2 = 0} ->
+      n: Int ->
+      a: (j: Int ->
+          {v: Int | (((j mod 2 = 0) && (0 <= j) && (j < i)) => ((v = 0)))}) ->
+      (k: Int -> {v: Int | (((k mod 2 = 0) && (0 <= k) && (k < n)) => ((v = 0)))}) @-}
+zeroEveryOther :: Int -> Int -> (Int -> Int) -> (Int -> Int)
+zeroEveryOther i n a = if i >= n then a
+                       else zeroEveryOther (i + 2) n (set i 0 a)
+
+{-@ stridedZeroes ::
+      j: Int ->
+      {v: Int | (((j mod 2 = 0) && (0 <= j) && (j < 10)) => ((v = 0)))} @-}
+stridedZeroes = zeroEveryOther 0 10 (create 1)
+
 -- TODO:
---  Every other element initialization
 --  Higher-order initialization
