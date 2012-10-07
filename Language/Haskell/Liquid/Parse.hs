@@ -248,6 +248,7 @@ bareArgP
 
 bareAtomP 
   =  refP bbaseP 
+
  <|> try (dummyP (bbaseP <* spaces))
 
 bbaseP :: Parser (Reft -> BareType)
@@ -414,8 +415,13 @@ predVarUseP
 bLst t rs r    = RApp listConName [t] rs (reftUReft r) 
 bTup [t] _ _   = t
 bTup ts rs r   = RApp tupConName ts rs (reftUReft r)
-bCon b rs ts r = RApp b ts rs (reftUReft r)
 bRVar α p r    = RVar α (U r p)
+
+bCon b [RMono r1] [] r = RApp b [] [] (r1 `meet` (reftUReft r)) 
+bCon b rs ts r         = RApp b ts rs (reftUReft r)
+
+
+
 
 reftUReft      = (`U` pdTrue)
 predUReft      = (U dummyReft) 
