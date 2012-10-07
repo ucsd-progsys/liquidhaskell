@@ -48,3 +48,31 @@ zeroEveryOther i n a = if i >= n then a
 {-@ stridedZeroes ::
       j: {v: Int | (v mod 2 = 0 && 0 <= v && v < 10)} -> {v: Int | v = 0} @-}
 stridedZeroes = zeroEveryOther 0 10 (create 1)
+
+{-@ initArray :: forall a <p :: x0: Int -> x1: a -> Bool>.
+      f: (z: Int -> a<p z>) ->
+      i: {v: Int | v >= 0} ->
+      n: Int ->
+      a: (j: {v: Int | (0 <= v && v < i)} -> a<p j>) ->
+      (k: {v: Int | (0 <= v && v < n)} -> a<p k>) @-}
+initArray f i n a = if i >= n then a
+                              else initArray f (i + 1) n (set i (f i) a)
+
+{-@ zeroInitArray ::
+      i: {v: Int | v >= 0} ->
+      n: Int ->
+      a: (j: {v: Int | (0 <= v && v < i)} -> {v: Int | v = 0}) ->
+      (k: {v: Int | (0 <= v && v < n)} -> {v: Int | v = 0}) @-}
+zeroInitArray :: Int -> Int -> (Int -> Int) -> (Int -> Int)
+zeroInitArray = initArray (const 0)
+
+{-@ tenZeroes'' :: i: {v: Int | (0 <= v && v < 10)} -> {v: Int | v = 0} @-}
+tenZeroes'' = zeroInitArray 0 10 (create 1)
+
+{-@ initid ::
+      i: {v: Int | v >= 0} ->
+      n: Int ->
+      a: (j: {v: Int | (0 <= v && v < i)} -> {v: Int | v = j}) ->
+      (k: {v: Int | (0 <= v && v < n)} -> {v: Int | v = k}) @-}
+initid :: Int -> Int -> (Int -> Int) -> (Int -> Int)
+initid = initArray id
