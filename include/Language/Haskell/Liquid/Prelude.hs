@@ -68,6 +68,13 @@ liquidAssertB b = b
 liquidAssert :: Bool -> a -> a 
 liquidAssert b x = x
 
+{-@ assume liquidAssume :: b:Bool -> a -> {v: a | (? b)}  @-}
+{-# NOINLINE liquidAssume #-}
+liquidAssume :: Bool -> a -> a 
+liquidAssume b x = x
+
+
+
 {-@ assume liquidError :: {v: String | 0 = 1} -> a  @-}
 {-# NOINLINE liquidError #-}
 liquidError :: String -> a
