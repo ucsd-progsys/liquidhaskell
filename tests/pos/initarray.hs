@@ -12,10 +12,6 @@ zero :: Int -> Int -> (Int -> Int) -> (Int -> Int)
 zero i n a = if i >= n then a
                        else zero (i + 1) n (set i 0 a)
 
-{-@ empty :: i: {v: Int | 0 = 1} -> a @-}
-empty :: Int -> a
-empty = const (error "Empty array!")
-
 {-@ tenZeroes :: i: {v: Int | (0 <= v && v < 10)} -> {v: Int | v = 0} @-}
 tenZeroes = zero 0 10 empty
 

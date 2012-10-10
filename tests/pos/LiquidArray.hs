@@ -14,3 +14,7 @@ set i x a = \k -> if k == i then x else a k
              a<p i> @-}
 get :: Int -> (Int -> a) -> a
 get i a = a i
+
+{-@ empty :: i: {v: Int | 0 = 1} -> a @-}
+empty :: Int -> a
+empty = const (error "Empty array!")
