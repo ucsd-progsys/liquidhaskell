@@ -6,5 +6,5 @@ echo $lines
 python count.py $file $lines
 #echo "Time = "
 #time liquid $file > /dev/null | tail -n1
-echo "\n"
+echo ""
 done
