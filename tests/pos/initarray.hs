@@ -1,14 +1,7 @@
 module Array where
 
 import Language.Haskell.Liquid.Prelude
-
-{-@ set :: forall a <p :: x0: Int -> x1: a -> Bool, r :: x0: Int -> Bool>.
-             i: Int<r> ->
-             x: a<p i> ->
-             a: (j: {v: Int<r> | v != i} -> a<p j>) ->
-             (k: Int<r> -> a<p k>) @-}
-set :: Int -> a -> (Int -> a) -> (Int -> a)
-set i x a = \k -> if k == i then x else a k
+import LiquidArray
 
 {-@ zero ::
       i: {v: Int | v >= 0} ->
@@ -19,10 +12,8 @@ zero :: Int -> Int -> (Int -> Int) -> (Int -> Int)
 zero i n a = if i >= n then a
                        else zero (i + 1) n (set i 0 a)
 
-create x = \i -> x
-
 {-@ tenZeroes :: i: {v: Int | (0 <= v && v < 10)} -> {v: Int | v = 0} @-}
-tenZeroes = zero 0 10 (create 1)
+tenZeroes = zero 0 10 empty
 
 {-@ zeroBackwards ::
       i: Int ->
@@ -34,7 +25,7 @@ zeroBackwards i n a = if i < 0 then a
                                else zeroBackwards (i - 1) n (set i 0 a)
 
 {-@ tenZeroes' :: i: {v: Int | (0 <= v && v < 10)} -> {v: Int | v = 0} @-}
-tenZeroes' = zeroBackwards 9 10 (create 1)
+tenZeroes' = zeroBackwards 9 10 empty
 
 {-@ zeroEveryOther ::
       i: {v: Int | (v >= 0 && v mod 2 = 0)} ->
@@ -47,7 +38,7 @@ zeroEveryOther i n a = if i >= n then a
 
 {-@ stridedZeroes ::
       j: {v: Int | (v mod 2 = 0 && 0 <= v && v < 10)} -> {v: Int | v = 0} @-}
-stridedZeroes = zeroEveryOther 0 10 (create 1)
+stridedZeroes = zeroEveryOther 0 10 empty
 
 {-@ initArray :: forall a <p :: x0: Int -> x1: a -> Bool>.
       f: (z: Int -> a<p z>) ->
@@ -67,7 +58,7 @@ zeroInitArray :: Int -> Int -> (Int -> Int) -> (Int -> Int)
 zeroInitArray = initArray (const 0)
 
 {-@ tenZeroes'' :: i: {v: Int | (0 <= v && v < 10)} -> {v: Int | v = 0} @-}
-tenZeroes'' = zeroInitArray 0 10 (create 1)
+tenZeroes'' = zeroInitArray 0 10 empty
 
 {-@ initid ::
       i: {v: Int | v >= 0} ->
