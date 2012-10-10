@@ -32,6 +32,9 @@ isValue (Fst e)      = false
 isValue (Snd e)      = false
 isValue (Pair e1 e2) = ((? (isValue(e1))) && (? (isValue(e2))))
 @-}
+
+{-@ type Value = {v: Expr | (? (isValue([v]))) } @-}
+
 ---------------------------------------------------------------------
 -------------------------- The Evaluator ----------------------------
 ---------------------------------------------------------------------
@@ -46,8 +49,8 @@ evalVar x ((y,v):sto)
 evalVar x []      
   = error "unbound variable"
 
--- A "value" is simply: {v: Expr | (? (isValue v)) } *)
 
+{-@ eval :: [(Bndr, Value)] -> Expr -> ([(Bndr, Value)], Value) @-}
 eval sto (Const i) 
   = (sto, Const i)
 
