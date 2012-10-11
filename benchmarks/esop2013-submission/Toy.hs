@@ -1,5 +1,7 @@
 module Toy where
 
+import Language.Haskell.Liquid.Prelude (isEven)
+
 -------------------------------------------------------------------------
 -- | Parametric Invariants over Base Types ------------------------------
 -------------------------------------------------------------------------
@@ -7,12 +9,12 @@ module Toy where
 maxInt     :: Int -> Int -> Int 
 maxInt x y = if x <= y then y else x 
 
-maximumInt ::  [Int] -> a
+maximumInt ::  [Int] -> Int 
 maximumInt (x:xs) = foldr maxInt x xs
 
 {-@ maxEvens1 :: [Int] -> {v:Int | v mod 2 = 0 } @-}
 maxEvens1 xs = maximumInt (0 : xs') 
-  where xs' = [ x | x <- xs, x `mod` 2 = 0]
+  where xs' = [ x | x <- xs, isEven x]
 
 -------------------------------------------------------------------------
 -- | Parametric Invariants over Class-Predicated Tyvars -----------------
@@ -26,7 +28,7 @@ maximumPoly (x:xs) = foldr maxPoly x xs
 
 {-@ maxEvens2 :: [Int] -> {v:Int | v mod 2 = 0 } @-}
 maxEvens2 xs = maximumPoly (0 : xs') 
-  where xs' = [ x | x <- xs, x `mod` 2 = 0]
+  where xs' = [ x | x <- xs, isEven x]
 
 -------------------------------------------------------------------------
 -- | Induction over Int Ranges ------------------------------------------
@@ -78,8 +80,8 @@ sizeOf (Cons _ xs) = 1 + sizeOf xs
 -- parameter that will let us properly describe the type of `efoldr` 
 
 {-@ efoldr :: forall a b <p :: x0:Vec a -> x1:b -> Bool>. 
-                (xs:Vec a -> x:a -> b <p xs> -> exists [xxs : {v: Vec a | v = (Ex.Cons x xs)}]. b <p xxs>) 
-              -> (exists [zz: {v: Vec a | v = Ex.Nil}]. b <p zz>) 
+                (xs:Vec a -> x:a -> b <p xs> -> exists [xxs : {v: Vec a | v = (Toy.Cons x xs)}]. b <p xxs>) 
+              -> (exists [zz: {v: Vec a | v = Toy.Nil}]. b <p zz>) 
               -> ys: Vec a
               -> b <p ys>
   @-}
