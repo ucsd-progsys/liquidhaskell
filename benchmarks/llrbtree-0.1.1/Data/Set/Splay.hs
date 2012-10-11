@@ -32,8 +32,8 @@ module Data.Set.Splay (
   , difference
   -- * Helper functions
   , split
-  , minimum
-  , maximum
+  , minimum -- TODO 
+  , maximum -- TODO
   , valid
   , (===)
   , showSet
@@ -42,10 +42,22 @@ module Data.Set.Splay (
 
 import Data.List (foldl')
 import Prelude hiding (minimum, maximum, null)
+import Language.Haskell.Liquid.Prelude
 
 ----------------------------------------------------------------
 
-data Splay a = Leaf | Node (Splay a) a (Splay a) deriving Show
+-- LIQUID left depends on value, so their order had to be changed
+{-@ 
+  data Splay a <l :: root:a -> a -> Bool, r :: root:a -> a -> Bool>
+       = Node (value :: a) 
+              (left  :: Splay <l, r> (a <l value>)) 
+              (right :: Splay <l, r> (a <r value>)) 
+       | Leaf 
+@-}
+
+data Splay a = Leaf | Node a (Splay a) (Splay a) deriving Show
+
+{-@ type OSplay a = Splay <{v:a | v < root}, {v:a | v > root}> a @-}
 
 instance (Eq a) => Eq (Splay a) where
     t1 == t2 = toList t1 == toList t2
@@ -54,7 +66,7 @@ instance (Eq a) => Eq (Splay a) where
 -}
 (===) :: Eq a => Splay a -> Splay a -> Bool
 Leaf            === Leaf            = True
-(Node l1 x1 r1) === (Node l2 x2 r2) = x1 == x2 && l1 === l2 && r1 === r2
+(Node x1 l1 r1) === (Node x2 l2 r2) = x1 == x2 && l1 === l2 && r1 === r2
 _               === _               = False
 
 ----------------------------------------------------------------
@@ -62,32 +74,37 @@ _               === _               = False
 {-| Splitting smaller and bigger with splay.
     Since this is a set implementation, members must be unique.
 -}
+
+{-@ split :: Ord a => x:a -> OSplay a
+             -> (OSplay {v:a | v<x}, Bool, OSplay {v:a | v>x}) 
+@-}
+
 split :: Ord a => a -> Splay a -> (Splay a, Bool, Splay a)
 split _ Leaf = (Leaf,False,Leaf)
-split k x@(Node xl xk xr) = case compare k xk of
+split k (Node xk xl xr) = case compare k xk of
     EQ -> (xl, True, xr)
     GT -> case xr of
-        Leaf -> (x, False, Leaf)
-        Node yl yk yr -> case compare k yk of
-            EQ ->     (Node xl xk yl, True, yr)           -- R  :zig
+        Leaf -> (Node xk xl Leaf, False, Leaf)
+        Node yk yl yr -> case compare k yk of
+            EQ ->     (Node xk xl yl, True, yr)           -- R  :zig
             GT -> let (lt, b, gt) = split k yr            -- RR :zig zag
-                  in  (Node (Node xl xk yl) yk lt, b, gt)
+                  in  (Node yk (Node xk xl yl) lt, b, gt)
             LT -> let (lt, b, gt) = split k yl
-                  in  (Node xl xk lt, b, Node gt yk yr)   -- RL :zig zig
+                  in  (Node xk xl lt, b, Node yk gt yr)   -- RL :zig zig
     LT -> case xl of
-        Leaf          -> (Leaf, False, x)
-        Node yl yk yr -> case compare k yk of
-            EQ ->     (yl, True, Node yr xk xr)           -- L  :zig
+        Leaf          -> (Leaf, False, Node xk Leaf xr)
+        Node yk yl yr -> case compare k yk of
+            EQ ->     (yl, True, Node xk yr xr)           -- L  :zig
             GT -> let (lt, b, gt) = split k yr            -- LR :zig zag
-                  in  (Node yl yk lt, b, Node gt xk xr)
+                  in  (Node yk yl lt, b, Node xk gt xr)
             LT -> let (lt, b, gt) = split k yl            -- LL :zig zig
-                  in  (lt, b, Node gt yk (Node yr xk xr))
+                  in  (lt, b, Node yk gt (Node xk yr xr))
 
 ----------------------------------------------------------------
-
 {-| Empty set.
 -}
 
+{-@ empty :: OSplay a @-}
 empty :: Splay a
 empty = Leaf
 
@@ -107,8 +124,9 @@ null _ = False
 {-| Singleton set.
 -}
 
+{-@ singleton :: a -> OSplay a @-}
 singleton :: a -> Splay a
-singleton x = Node Leaf x Leaf
+singleton x = Node x Leaf Leaf
 
 ----------------------------------------------------------------
 
@@ -122,8 +140,9 @@ True
 True
 -}
 
+{-@ insert :: Ord a => a -> OSplay a -> OSplay a @-}
 insert :: Ord a => a -> Splay a -> Splay a
-insert x t = Node l x r
+insert x t = Node x l r
   where
     (l,_,r) = split x t
 
@@ -139,6 +158,7 @@ True
 True
 -}
 
+{-@ fromList :: Ord a => [a] -> OSplay a @-}
 fromList :: Ord a => [a] -> Splay a
 fromList = foldl' (flip insert) empty
 
@@ -156,10 +176,9 @@ toList :: Splay a -> [a]
 toList t = inorder t []
   where
     inorder Leaf xs = xs
-    inorder (Node l x r) xs = inorder l (x : inorder r xs)
+    inorder (Node x l r) xs = inorder l (x : inorder r xs)
 
 ----------------------------------------------------------------
-
 {-| Checking if this element is a member of a set?
 
 >>> fst $ member 5 (fromList [5,3])
@@ -168,13 +187,15 @@ True
 False
 -}
 
+{- member :: Ord a => a -> OSplay a -> (Bool, OSplay a) @-}
 member :: Ord a => a -> Splay a -> (Bool, Splay a)
 member x t = case split x t of
-    (l,True,r) -> (True, Node l x r)
+    (l,True,r) -> (True, Node x l r)
     (Leaf,_,r) -> (False, r)
     (l,_,Leaf) -> (False, l)
     (l,_,r)    -> let (m,l') = deleteMax l
-                  in (False, Node l' m r)
+                  in (False, t)
+-- LIQUID replace                 in (False, Node m l' r)
 
 ----------------------------------------------------------------
 
@@ -188,7 +209,7 @@ member x t = case split x t of
 
 minimum :: Splay a -> (a, Splay a)
 minimum Leaf = error "minimum"
-minimum t = let (x,mt) = deleteMin t in (x, Node Leaf x mt)
+minimum t = let (x,mt) = deleteMin t in (x, Node x Leaf mt)
 
 {-| Finding the maximum element.
 
@@ -200,7 +221,7 @@ minimum t = let (x,mt) = deleteMin t in (x, Node Leaf x mt)
 
 maximum :: Splay a -> (a, Splay a)
 maximum Leaf = error "maximum"
-maximum t = let (x,mt) = deleteMax t in (x, Node mt x Leaf)
+maximum t = let (x,mt) = deleteMax t in (x, Node x mt Leaf)
 
 ----------------------------------------------------------------
 
@@ -212,12 +233,13 @@ True
 *** Exception: deleteMin
 -}
 
+{-@ deleteMin :: OSplay a -> (a, OSplay a) @-}
 deleteMin :: Splay a -> (a, Splay a)
 deleteMin Leaf                          = error "deleteMin"
-deleteMin (Node Leaf x r)               = (x,r)
-deleteMin (Node (Node Leaf lx lr) x r)  = (lx, Node lr x r)
-deleteMin (Node (Node ll lx lr) x r)    = let (k,mt) = deleteMin ll
-                                          in (k, Node mt lx (Node lr x r))
+deleteMin (Node x Leaf r)               = (x,r)
+deleteMin (Node x (Node lx Leaf lr) r)  = (lx, Node x lr r)
+deleteMin (Node x (Node lx ll lr) r)    = let (k,mt) = deleteMin ll
+                                          in (k, Node lx mt (Node x lr r))
 
 {-| Deleting the maximum
 
@@ -227,13 +249,14 @@ True
 *** Exception: deleteMax
 -}
 
-deleteMax :: Splay a -> (a, Splay a)
-deleteMax Leaf                          = error "deleteMax"
-deleteMax (Node l x Leaf)               = (x,l)
-deleteMax (Node l x (Node rl rx Leaf))  = (rx, Node l x rl)
-deleteMax (Node l x (Node rl rx rr))    = let (k,mt) = deleteMax rr
-                                          in (k, Node (Node l x rl) rx mt)
 
+{-@ deleteMax :: OSplay a -> (a, OSplay a) @-}
+deleteMax :: Splay a -> (,) a (Splay a)
+deleteMax Leaf                          = error "deleteMax"
+deleteMax (Node x l Leaf)               = (x,l)
+deleteMax (Node x l (Node rx rl Leaf))  = (rx, Node x l rl)
+deleteMax (Node x l (Node rx rl rr))    = let (k,mt) = deleteMax rr
+                                          in (k, Node rx (Node x l rl) mt)
 ----------------------------------------------------------------
 
 {-| Deleting this element from a set.
@@ -246,6 +269,9 @@ True
 True
 -}
 
+-- Liquid TOPROVE
+--  delete :: Ord a => x:a -> OSplay a -> OSplay {v:a| v!=x}
+{-@ delete :: Ord a => x:a -> OSplay a -> OSplay a @-}
 delete :: Ord a => a -> Splay a -> Splay a
 delete x t = case split x t of
     (l, True, r) -> union l r
@@ -259,9 +285,10 @@ delete x t = case split x t of
 True
 -}
 
+{-@ union :: Ord a => OSplay a -> OSplay a -> OSplay a@-}
 union :: Ord a => Splay a -> Splay a -> Splay a
 union Leaf t = t
-union (Node a x b) t = Node (union ta a) x (union tb b)
+union (Node x a b) t = Node x (union ta a) (union tb b)
   where
     (ta,_,tb) = split x t
 
@@ -271,11 +298,12 @@ union (Node a x b) t = Node (union ta a) x (union tb b)
 True
 -}
 
+{-@ intersection :: Ord a => OSplay a -> OSplay a -> OSplay a @-}
 intersection :: Ord a => Splay a -> Splay a -> Splay a
 intersection Leaf _          = Leaf
 intersection _ Leaf          = Leaf
-intersection t1 (Node l x r) = case split x t1 of
-    (l', True,  r') -> Node (intersection l' l) x (intersection r' r)
+intersection t1 (Node x l r) = case split x t1 of
+    (l', True,  r') -> Node x (intersection l' l) (intersection r' r)
     (l', False, r') -> union (intersection l' l) (intersection r' r)
 
 {-| Creating a difference set from sets.
@@ -284,17 +312,17 @@ intersection t1 (Node l x r) = case split x t1 of
 True
 -}
 
+{-@ difference :: Ord a => OSplay a -> OSplay a -> OSplay a @-}
 difference :: Ord a => Splay a -> Splay a -> Splay a
 difference Leaf _          = Leaf
 difference t1 Leaf         = t1
-difference t1 (Node l x r) = union (difference l' l) (difference r' r)
+difference t1 (Node x l r) = union (difference l' l) (difference r' r)
   where
     (l',_,r') = split x t1
 
 ----------------------------------------------------------------
 -- Basic operations
 ----------------------------------------------------------------
-
 {-| Checking validity of a set.
 -}
 
@@ -314,7 +342,7 @@ showSet = showSet' ""
 
 showSet' :: Show a => String -> Splay a -> String
 showSet' _ Leaf = "\n"
-showSet' pref (Node l x r) = show x ++ "\n"
+showSet' pref (Node x l r) = show x ++ "\n"
                         ++ pref ++ "+ " ++ showSet' pref' l
                         ++ pref ++ "+ " ++ showSet' pref' r
   where
