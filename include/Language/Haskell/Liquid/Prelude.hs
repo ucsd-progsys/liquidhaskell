@@ -91,3 +91,15 @@ force x = True
 {-# NOINLINE choose #-}
 choose :: Int -> Int
 choose x = undefined 
+
+-------------------------------------------------------------------
+----------- Modular Arithmetic Wrappers ---------------------------
+-------------------------------------------------------------------
+
+-- tedium because fixpoint doesnt want to deal with (x mod y) only (x mod c)
+{-@ assume isEven :: x:Int -> {v:Bool | ((? v) <=> ((x mod 2) = 0))} @-}
+{-# NOINLINE isEven #-}
+isEven   :: Int -> Bool
+isEven x = x `mod` 2 == 0
+
+
