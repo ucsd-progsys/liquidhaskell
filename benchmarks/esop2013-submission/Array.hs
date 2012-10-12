@@ -1,5 +1,7 @@
 module LiquidArray where
 
+import Language.Haskell.Liquid.Prelude (liquidAssume)
+
 {-@ set :: forall a <p :: x0: Int -> x1: a -> Bool, r :: x0: Int -> Bool>.
       i: Int<r> ->
       x: a<p i> ->
@@ -108,3 +110,31 @@ upperCaseString' n i s =
 upperCaseString :: Int -> (Int -> Int) -> (Int -> Int)
 upperCaseString n s = upperCaseString' n 0 s
 
+-------------------------------------------------------------------------------
+---------------------------- memoization --------------------------------------
+-------------------------------------------------------------------------------
+
+{-@ measure fib :: Int -> Int @-}
+
+{-@ type FibV = j:Int -> {v:Int| v!=0 => (v = fib(j))} @-}
+
+{-@ assume axiom_fib :: i:Int -> {v: Bool | (? v) <=> (fib(i) = i <= 1 ? 1 : fib(i-1) + fib(i-2))} @-}
+axiom_fib :: Int -> Bool
+axiom_fib i = undefined
+
+{-@ fastFib :: x:Int -> {v:Int | v = fib(x)} @-}
+fastFib = snd . fibMemo (\_ -> 0)
+
+{-@ fibMemo :: FibV -> i:Int -> (FibV, {v: Int | v = fib(i)}) @-}
+
+fibMemo t i 
+  | i <= 1    
+  = (t, liquidAssume (axiom_fib i) $ 1)
+  
+  | otherwise 
+  = case get i t of   
+      0 -> let (t1, n1) = fibMemo t  (i-1)
+               (t2, n2) = fibMemo t1 (i-2)
+               n        = liquidAssume (axiom_fib i) $ n1 + n2
+           in  (set i n t2,  n)
+      n -> (t, n)
