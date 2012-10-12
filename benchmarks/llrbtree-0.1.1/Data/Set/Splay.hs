@@ -200,8 +200,7 @@ member x t = case split x t of
     (Leaf,_,r) -> (False, r)
     (l,_,Leaf) -> (False, l)
     (l,_,r)    -> let (m,l') = deleteMax l
-                  in (False, t)
--- LIQUID replace                 in (False, Node m l' r)
+                  in (False, Node m l' r)
 
 ----------------------------------------------------------------
 
