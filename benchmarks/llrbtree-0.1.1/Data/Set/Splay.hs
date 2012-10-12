@@ -32,8 +32,8 @@ module Data.Set.Splay (
   , difference
   -- * Helper functions
   , split
-  , minimum -- TODO 
-  , maximum -- TODO
+  , minimum
+  , maximum
   , valid
   , (===)
   , showSet
@@ -58,6 +58,12 @@ import Language.Haskell.Liquid.Prelude
 data Splay a = Leaf | Node a (Splay a) (Splay a) deriving Show
 
 {-@ type OSplay a = Splay <{v:a | v < root}, {v:a | v > root}> a @-}
+
+{-@ type MinSPair   a = (a, OSplay a) <{v : Splay {v:a|v>fld} | 0=0}> @-}
+{-@ type MinEqSPair a = (a, OSplay a) <{v : Splay {v:a|v>=fld}| 0=0}> @-}
+
+{-@ type MaxSPair   a = (a, OSplay a) <{v : Splay {v:a|v<fld} | 0=0}> @-}
+{-@ type MaxEqSPair a = (a, OSplay a) <{v : Splay {v:a|v<=fld}| 0=0}> @-}
 
 instance (Eq a) => Eq (Splay a) where
     t1 == t2 = toList t1 == toList t2
@@ -207,6 +213,7 @@ member x t = case split x t of
 *** Exception: minimum
 -}
 
+{-@ minimum :: OSplay a -> MinEqSPair a @-}
 minimum :: Splay a -> (a, Splay a)
 minimum Leaf = error "minimum"
 minimum t = let (x,mt) = deleteMin t in (x, Node x Leaf mt)
@@ -219,6 +226,7 @@ minimum t = let (x,mt) = deleteMin t in (x, Node x Leaf mt)
 *** Exception: maximum
 -}
 
+{-@ maximum :: OSplay a -> MaxEqSPair a @-}
 maximum :: Splay a -> (a, Splay a)
 maximum Leaf = error "maximum"
 maximum t = let (x,mt) = deleteMax t in (x, Node x mt Leaf)
@@ -233,7 +241,7 @@ True
 *** Exception: deleteMin
 -}
 
-{-@ deleteMin :: OSplay a -> (a, OSplay a) @-}
+{-@ deleteMin :: OSplay a -> MinSPair a @-}
 deleteMin :: Splay a -> (a, Splay a)
 deleteMin Leaf                          = error "deleteMin"
 deleteMin (Node x Leaf r)               = (x,r)
@@ -250,7 +258,7 @@ True
 -}
 
 
-{-@ deleteMax :: OSplay a -> (a, OSplay a) @-}
+{-@ deleteMax :: OSplay a -> MaxSPair a @-}
 deleteMax :: Splay a -> (,) a (Splay a)
 deleteMax Leaf                          = error "deleteMax"
 deleteMax (Node x l Leaf)               = (x,l)
