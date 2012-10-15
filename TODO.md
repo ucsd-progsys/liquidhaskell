@@ -1,36 +1,22 @@
 TODO
 ====
 
-* Port .php based web-demo from dsolve <------------------HEREHEREHEREHERE
-
+* parse predicate signatures for tuples 
+* predicate-aliases 
+* strictness annotations (tests/todo/maybe000.hs)
 * Blogging 
 * NIKI: fix the safe0ZipWith stuff in PredType.hs
 * benchmarks: Data.List (foldr)
-* predicate-aliases 
-* strictness annotations (tests/todo/maybe000.hs)
 * self-invariants        (tests/todo/maybe4.hs)
 * fixpoint profile (how much performance hit from -nosimple?)
-
+* Add SET-Theory to Z3 ? (Or add general axioms)
+* benchmarks: Data.List (foldr) -- needs sets
 * benchmarks: Data.Bytestring
 * benchmarks: stackset-core
 * benchmarks: Data.Text
+* benchmarks: mcbrides stack machine
 * alpha-renaming of predicate params is VERY SHAKY. see tests/pos/deptupW.hs
-* mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
-
-PHP-Demo
-========
-
-- Fix filename output 
-- Add benchmarks
-    - meas5     // list lengths
-    - kmeans
-    - GHC.List?
-    - mapReduce
-    - lambdaEval
-    - listSort
-    - BST/Map.hs
-
 
 Strictness Annotations  
 ======================
@@ -76,6 +62,8 @@ Tuple Refinements (DONE: by Niki)
 =================================
 
 - Add/Parse predicate signatures for tuples<p>     
+
+    (x1, x2, x3)<p1, p2, p3>
 
 - pos/deptup.hs (type signature: for constructor wrapper)
 
@@ -126,29 +114,6 @@ Blogging
     14. XMonad I
     15. XMonad II
 
-Paper #1 (Abstract Predicates)
-==============================
-
-[OK-PP] Data.KMeans     (Num?, Ord?, Toy-Abs, Toy-$, Toy-Filter)
-
-[OK-PP] List-Sorting    (Order)
-
-[OK-PP] Data.Map        (Order) 
-        > ordering
-                
-[??-PP] http://hackage.haskell.org/packages/archive/llrbtree/0.1.1/doc/html/Data-Set-Splay.html
-        > ordering      (Order)
-
-[??-PP] Data.List  (../base-4.5.1.0/Data/List.hs)
-        > This needs support for the foldl/foldr business/TAGS
-                        (folding)
-
-[??-PP] "Array" initialization/copy etc.
-                        (folding)
-
-[??-PP] Xmonad-StackSet-Toy
-                        (zippering-??)
-
 Paper #2 (Liquid Types in the Real World)
 =========================================
 
@@ -177,6 +142,8 @@ Paper #2 (Liquid Types in the Real World)
 
 ->   xmonad real properties
 
+[??-PP] Xmonad-StackSet-Toy
+(zippering-??)
 
 Other Benchmarks
 ================
@@ -203,7 +170,6 @@ Paper #2
 
 -> Haskell + DB / Yesod / Snap
 -> NDM/catch benchmarks (with refinements)
-
 
 
 Known Bugs 
