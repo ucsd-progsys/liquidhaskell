@@ -7,6 +7,7 @@ TODO
 * Blogging 
 * NIKI: fix the safe0ZipWith stuff in PredType.hs
 * benchmarks: Data.List (foldr)
+* predicate-aliases 
 * self-invariants        (tests/todo/maybe4.hs)
 * fixpoint profile (how much performance hit from -nosimple?)
 * Add SET-Theory to Z3 ? (Or add general axioms)
