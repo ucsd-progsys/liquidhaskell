@@ -5,9 +5,7 @@ module Language.Haskell.Liquid.Parse (
 , hsSpecificationP
 ) where
 
-import GHC
-import TypeRep
-import TysWiredIn   (intTyCon, boolTyCon, eqDataConId, ltDataConId, gtDataConId)
+import TysWiredIn   (eqDataConId, ltDataConId, gtDataConId)
 import Control.Monad
 import Text.Parsec
 import Text.Parsec.Expr
@@ -16,16 +14,13 @@ import Text.Parsec.String
 import qualified Text.Parsec.Token as Token
 import Control.Applicative ((<$>), (<*))
 import qualified Data.Map as M
-import Data.Char (toLower, isLower, isUpper, isSpace)
-import Data.List (intercalate)
-import Language.Haskell.Liquid.Misc
+import Data.Char (toLower, isLower, isSpace)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Measure
-import Outputable (showPpr, Outputable (..))
-import Language.Haskell.Liquid.FileNames (dummyName, boolConName, listConName, tupConName)
+import Outputable (showPpr)
+import Language.Haskell.Liquid.FileNames (boolConName, listConName, tupConName)
 
 --------------------------------------------------------------------
 
@@ -80,7 +75,7 @@ colon      = Token.colon      lexer
 comma      = Token.comma      lexer
 dot        = Token.dot        lexer
 whiteSpace = Token.whiteSpace lexer
-identifier = Token.identifier lexer
+-- identifier = Token.identifier lexer
 
 
 blanks  = many (satisfy (`elem` [' ', '\t']))
@@ -99,7 +94,6 @@ condIdP chars f
   = do c  <- letter
        cs <- many (satisfy (`elem` chars))
        blanks
-       let s = c:cs
        if f (c:cs) then return (c:cs) else parserZero
 
 tyVarIdP :: Parser String
@@ -306,8 +300,8 @@ predVarTypeP = do t <- bareTypeP
 --   where argP  = stringSymbol <$> argP'
 --         argP' = try (lowerIdP <* colon) <|> positionNameP
         
-bareSortP :: Parser BSort
-bareSortP = toRSort <$> bareTypeP
+-- bareSortP :: Parser BSort
+-- bareSortP = toRSort <$> bareTypeP
 
 xyP lP sepP rP
   = liftM3 (\x _ y -> (x, y)) lP (spaces >> sepP) rP
@@ -615,7 +609,7 @@ doParse' parser f s
   = case parse (remainderP p) f s of
       Left e         -> errorstar $ "parseError when parsing " ++ s ++ " : " ++ show e
       Right (r, "")  -> r
-      Right (r, rem) -> errorstar $ "doParse has leftover when parsing: " ++ rem
+      Right (_, rem) -> errorstar $ "doParse has leftover when parsing: " ++ rem
   where p = whiteSpace >> parser
 
 grabUpto p  
@@ -629,7 +623,7 @@ betweenMany leftP rightP p
          Just _  -> liftM2 (:) (between leftP rightP p) (betweenMany leftP rightP p)
          Nothing -> return []
 
-specWrap  = between     (string "{-@" >> spaces) (spaces >> string "@-}")
+-- specWrap  = between     (string "{-@" >> spaces) (spaces >> string "@-}")
 specWraps = betweenMany (string "{-@" >> spaces) (spaces >> string "@-}")
 
 ----------------------------------------------------------------------------------------
@@ -639,7 +633,7 @@ specWraps = betweenMany (string "{-@" >> spaces) (spaces >> string "@-}")
 class Inputable a where
   rr  :: String -> a
   rr' :: String -> String -> a
-  rr' = \s -> rr
+  rr' = \_ -> rr
   rr  = rr' "" 
 
 instance Inputable Symbol where
@@ -675,7 +669,7 @@ instance Inputable (Measure.Spec BareType Symbol) where
 hsSpecificationP name 
   = doParse' $ liftM (mkSpec name) $ specWraps specP
 
-
+{-
 ---------------------------------------------------------------
 --------------------------- Testing ---------------------------
 ---------------------------------------------------------------
@@ -759,4 +753,4 @@ m2 = ["tog :: LL a -> Int", "tog (Nil) = 100", "tog (Cons y ys) = 200"]
 me1, me2 :: Measure.Measure BareType Symbol 
 me1 = (rr $ intercalate "\n" m1) 
 me2 = (rr $ intercalate "\n" m2)
-
+-}

@@ -5,16 +5,12 @@ module Language.Haskell.Liquid.FixInterface (solve, resultExit) where
 import Data.Functor
 import Data.List
 import Data.Map hiding (map, filter) 
-import Control.Monad (forM_)
-import System.Directory (copyFile, removeFile)
 import System.IO        (withFile, IOMode (..))
 import System.Exit
 import Text.Printf
 import Outputable hiding (empty)
-import Data.Data
 
 import Language.Haskell.Liquid.Fixpoint
-import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.Parse         (rr)
@@ -37,7 +33,7 @@ execFq fn hqs globals cs ws qs
        ec <- {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ execCmd fp fn 
        return ec
     where fq   = extFileName Fq  fn
-          fo   = extFileName Out fn
+          -- fo   = extFileName Out fn
           d    = {-# SCC "FixPointify" #-} toFixpoint (FI cs ws globals)
           qstr = showSDoc ((vcat $ toFix <$> qs) $$ blankLine)
 
