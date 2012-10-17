@@ -4,46 +4,28 @@ module Language.Haskell.Liquid.Predicates (
   ) where
 
 
-import Type
-import Id   (isDataConWorkId)
 import Var
 import OccName (mkTyVarOcc)
 import Name (mkInternalName)
 import Unique (initTyVarUnique)
-import TypeRep
-import Var
-import TyCon
 import SrcLoc
 import CoreSyn
-import CoreUtils (exprType) 
 import qualified DataCon as TC
-import Outputable hiding (empty)
 import IdInfo
-import TysWiredIn
 
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.PredType hiding (exprType)
-import Language.Haskell.Liquid.GhcMisc (stringTyVar, tickSrcSpan)
 import Language.Haskell.Liquid.RefType hiding (generalize) 
 import Language.Haskell.Liquid.Misc
 import qualified Language.Haskell.Liquid.Fixpoint as F
 
-import Control.Monad.State
 import Control.Applicative      ((<$>))
-import qualified Data.Map  as M
-import qualified Data.List as L
-import qualified Data.Set  as S
-import Data.Maybe (fromMaybe)
-import Data.List (foldl')
-import Control.DeepSeq
-import Data.Data hiding (TyCon)
 
 ----------------------------------------------------------------------
 ---- Predicate Environments ------------------------------------------
 ----------------------------------------------------------------------
 
-consAct info = foldM consCB (initEnv info) $ cbs info
 
 generatePredicates ::  GhcInfo -> ([CoreSyn.Bind CoreBndr], F.SEnv PrType)
 generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ "PredCBS" ++ show cbs')-} (cbs', nPd)
@@ -53,21 +35,95 @@ generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ "PredCBS" ++ sho
         cbs' = addPredApp nPd <$> cbs info
         nPd  = getNeedPd $ spec info
 
+getNeedPd spec 
+  = F.fromListSEnv bs
+    where  dcs   = [(TC.dataConWorkId x, dataConPtoPredTy y) | (x, y) <- dconsP spec]
+           assms = passm $ tySigs spec 
+           bs    = mapFst varSymbol <$> (dcs ++ assms)
+
+passm = fmap (mapSnd (mapReft ur_pred)) 
+
+
+addPredApp γ (NonRec b e) = NonRec b $ thd3 $ pExpr γ e
+addPredApp γ (Rec ls)     = Rec $ zip xs es'
+  where es' = (thd3. pExpr γ) <$> es
+        (xs, es) = unzip ls
+
+pExpr γ e 
+  = if (a == 0 && p /= 0) 
+     then (0, 0, foldl App e' ps) 
+     else (0, p, e')
+ where  (a, p, e') = pExprN γ e
+        ps = (\n -> stringArg ("p" ++ show n)) <$> [1 .. p]
+
+pExprN γ (App e1 e2) = 
+  let (_, _, e2') = pExprN γ e2 in 
+  if (a1 == 0)
+   then (0, 0, (App (foldl App e1' ps) e2'))
+   else (a1-1, p1, (App e1' e2'))
+ where ps = (\n -> stringArg ("p" ++ show n)) <$> [1 .. p1]
+       (a1, p1, e1') = pExprN γ e1
+
+pExprN γ (Lam x e) = (0, 0, Lam x e')
+  where (_, _, e') = pExpr γ e
+
+pExprN γ (Var v) | isSpecialId γ v
+  = (a, p, (Var v))
+    where (a, p) = varPredArgs γ v
+
+pExprN _ (Var v) = (0, 0, Var v)
+
+pExprN γ (Let (NonRec x1 e1) e) = (0, 0, Let (NonRec x1 e1') e')
+ where (_, _, e') = pExpr γ e
+       (_, _, e1') = pExpr γ e1
+
+pExprN γ (Let bds e) = (0, 0, Let bds' e')
+ where (_, _, e') = pExpr γ e
+       bds' = addPredApp γ bds
+pExprN γ (Case e b t es) = (0, 0, Case e' b t (map (pExprNAlt γ ) es))
+  where e' = thd3 $ pExpr γ e
+
+pExprN γ (Tick n e) = (a, p, Tick n e')
+ where (a, p, e') = pExprN γ e
+
+pExprN _ e@(Type _) = (0, 0, e)
+pExprN _ e@(Lit _) = (0, 0, e)
+pExprN _ e = (0, 0, e)
+
+pExprNAlt γ (x, y, e) = (x, y, e')
+ where e' = thd3 $ pExpr γ e
+
+stringArg s = Var $ mkGlobalVar idDet name predType idInfo
+  where  idDet = coVarDetails
+         name  = mkInternalName initTyVarUnique occ noSrcSpan
+         occ = mkTyVarOcc s 
+         idInfo = vanillaIdInfo
+
+isSpecialId γ x = pl /= 0
+  where (_, pl) = varPredArgs γ x
+
+varPredArgs γ x = varPredArgs_ (γ ??= (varSymbol x))
+varPredArgs_ Nothing = (0, 0)
+varPredArgs_ (Just t) = (length vs, length ps)
+  where (vs, ps, _) = bkUniv t
+
+-- γ += (x, t) = γ { penv = F.insertSEnv x t (penv γ)}
+
+γ ??= x = F.lookupSEnv x γ
+
+-- γ ?= x 
+--   = case (F.lookupSEnv x (penv γ)) of 
+--       Just t  -> refreshTy t
+--       Nothing -> error $ "SEnvlookupR: unknown = " ++ showPpr x
+
+{-
 -- removeExtPreds (RAllP pv t) = removeExtPreds (substPvar (M.singleton (uPVar pv) top) <$> t) 
 -- removeExtPreds t            = t
 
+consAct info = foldM consCB (initEnv info) $ cbs info
 
 instance Show CoreBind where
   show = showSDoc . ppr
-
-γ += (x, t) = γ { penv = F.insertSEnv x t (penv γ)}
-γ ??= x = F.lookupSEnv x γ
-
-
-γ ?= x 
-  = case (F.lookupSEnv x (penv γ)) of 
-      Just t  -> refreshTy t
-      Nothing -> error $ "SEnvlookupR: unknown = " ++ showPpr x
 
 data PCGEnv 
   = PCGE { loc   :: !SrcSpan            -- ^ Source position corresponding to environment
@@ -312,69 +368,7 @@ splitBC p1      p2      = [(p1, p2)]
 
 addC c@(SubC _ t1 t2) = modify $ \s -> s {hsCsP = c : (hsCsP s)}
 
-addPredApp γ (NonRec b e) = NonRec b $ thrd $ pExpr γ e
-addPredApp γ (Rec ls)     = Rec $ zip xs es'
-  where es' = (thrd. pExpr γ) <$> es
-        (xs, es) = unzip ls
-
 thrd (_, _, x) = x
-
-pExpr γ e 
-  = if (a == 0 && p /= 0) 
-     then (0, 0, foldl App e' ps) 
-     else (0, p, e')
- where  (a, p, e') = pExprN γ e
-        ps = (\n -> stringArg ("p" ++ show n)) <$> [1 .. p]
-
-pExprN γ (App e1 e2) = 
-  let (a2, p2, e2') = pExprN γ e2 in 
-  if (a1 == 0)
-   then (0, 0, (App (foldl App e1' ps) e2'))
-   else (a1-1, p1, (App e1' e2'))
- where ps = (\n -> stringArg ("p" ++ show n)) <$> [1 .. p1]
-       (a1, p1, e1') = pExprN γ e1
-
-pExprN γ (Lam x e) = (0, 0, Lam x e')
-  where (_, _, e') = pExpr γ e
-
-pExprN γ (Var v) | isSpecialId γ v
-  = (a, p, (Var v))
-    where (a, p) = varPredArgs γ v
-
-pExprN γ (Var v) = (0, 0, Var v)
-
-pExprN γ (Let (NonRec x1 e1) e) = (0, 0, Let (NonRec x1 e1') e')
- where (_, _, e') = pExpr γ e
-       (_, _, e1') = pExpr γ e1
-
-pExprN γ (Let bds e) = (0, 0, Let bds' e')
- where (_, _, e') = pExpr γ e
-       bds' = addPredApp γ bds
-pExprN γ (Case e b t es) = (0, 0, Case e' b t (map (pExprNAlt γ ) es))
-  where e' = thrd $ pExpr γ e
-
-pExprN γ (Tick n e) = (a, p, Tick n e')
- where (a, p, e') = pExprN γ e
-
-pExprN γ e@(Type _) = (0, 0, e)
-pExprN γ e@(Lit _) = (0, 0, e)
-pExprN γ e = (0, 0, e)
-
-pExprNAlt γ (x, y, e) = (x, y, e')
- where e' = thrd $ pExpr γ e
-
-stringArg s = Var $ mkGlobalVar idDet name predType idInfo
-  where  idDet = coVarDetails
-         name  = mkInternalName initTyVarUnique occ noSrcSpan
-         occ = mkTyVarOcc s 
-         idInfo = vanillaIdInfo
-
-isSpecialId γ x = pl /= 0
-  where (_, pl) = varPredArgs γ x
-varPredArgs γ x = varPredArgs_ (γ ??= (varSymbol x))
-varPredArgs_ Nothing = (0, 0)
-varPredArgs_ (Just t) = (length vs, length ps)
-  where (vs, ps, _) = bkUniv t
 
 generalizeS t 
   = do hsCs  <- getRemoveHsCons
@@ -403,9 +397,9 @@ addToPVMap pv
   = do s <- get
        put $ s { pvMap = F.insertSEnv (pname pv) pv (pvMap s) }
 
-updateSubst :: M.Map UsedPVar Predicate -> (Predicate, Predicate) -> M.Map UsedPVar Predicate 
-updateSubst m (p, p') = foldr (uncurry M.insert) m binds -- PREDARGS: what if it is already in the Map?!!!
-  where binds = unifiers $ unifyVars (substPvar m p) (substPvar m p')
+-- updateSubst :: M.Map UsedPVar Predicate -> (Predicate, Predicate) -> M.Map UsedPVar Predicate 
+-- updateSubst m (p, p') = foldr (uncurry M.insert) m binds -- PREDARGS: what if it is already in the Map?!!!
+--   where binds = unifiers $ unifyVars (substPvar m p) (substPvar m p')
 
 unifyVars (Pr v1s) (Pr v2s) = (v1s L.\\ vs, v2s L.\\ vs) 
   where vs  = L.intersect v1s v2s
@@ -422,14 +416,6 @@ initEnv info = PCGE { loc = noSrcSpan , penv = F.fromListSEnv bs }
         freeVs = [v | v<-importVars $ cbs info]
         dcons  = filter isDataConWorkId freeVs
 
-getNeedPd spec 
-  = F.fromListSEnv bs
-    where  dcs   = [(TC.dataConWorkId x, dataConPtoPredTy y) | (x, y) <- dconsP spec]
-           assms = passm $ tySigs spec 
-           bs    = mapFst varSymbol <$> (dcs ++ assms)
-
-passm = fmap (mapSnd (mapReft ur_pred)) 
-
 -- PREDARGS: why are we even generalizing here?
 dconTy t = generalize F.emptySEnv $ dataConTy vps t
   where vs  = tyVars t
@@ -441,105 +427,106 @@ tyVars t              = []
 
 ---------------------------------- Freshness -------------------------------------
 
-freshInt = do pi <- get 
-              let n = freshIndex pi
-              put $ pi {freshIndex = n+1} 
-              return n
-
-stringSymbol  = F.S
-freshSymbol s = stringSymbol . (s++) . show <$> freshInt
-truePr _      = top
+-- freshInt = do pi <- get 
+--               let n = freshIndex pi
+--               put $ pi {freshIndex = n+1} 
+--               return n
+-- 
+-- stringSymbol  = F.S
+-- freshSymbol s = stringSymbol . (s++) . show <$> freshInt
+-- truePr _      = top
 
 -- freshPr a     = (\n -> PV n a [])     <$> freshSymbol "p"
 -- freshPrAs p   = (\n -> p {pname = n}) <$> freshSymbol "p"
 
-freshPr a     = mkFreshPr (\n -> PV n a [])
-freshPrAs pv  = mkFreshPr (\n -> pv { pname = n })
+-- freshPr a     = mkFreshPr (\n -> PV n a [])
+-- freshPrAs pv  = mkFreshPr (\n -> pv { pname = n })
+-- 
+-- mkFreshPr f   = do pv    <- f <$> freshSymbol "p"
+--                    addToPVMap pv 
+--                    return $ pdVar pv
+-- 
 
-mkFreshPr f   = do pv    <- f <$> freshSymbol "p"
-                   addToPVMap pv 
-                   return $ pdVar pv
+-- refreshTy t 
+--   = do fps <- mapM freshPrAs ps
+--        return $ substPvar (M.fromList (zip ups fps)) <$> t''
+--    where ups          = uPVar <$> ps
+--          (vs, ps, t') = bkUniv t
+--          t''          = mkUnivs vs [] t' 
 
-
-refreshTy t 
-  = do fps <- mapM freshPrAs ps
-       return $ substPvar (M.fromList (zip ups fps)) <$> t''
-   where ups          = uPVar <$> ps
-         (vs, ps, t') = bkUniv t
-         t''          = mkUnivs vs [] t' 
-
-freshTy t 
-  | isPredTy t
-  = return $ freshPredTree $ (classifyPredType t)
-freshTy t@(TyVarTy v) 
-  = liftM (RVar (RTV v)) (freshPr (ofType t :: RSort))
-freshTy (FunTy t1 t2) 
-  = liftM3 rFun (freshSymbol "s") (freshTy t1) (freshTy t2)
-freshTy t@(TyConApp c τs) 
-  | TyCon.isSynTyCon c
-  = freshTy $ substTyWith αs τs τ
-  where (αs, τ) = TyCon.synTyConDefn c
-freshTy t@(TyConApp c τs) 
-  = liftM3 (rApp c) (mapM freshTy τs) (freshTyConPreds c τs) (return (truePr t)) 
-freshTy (ForAllTy v t) 
-  = liftM (RAllT (rTyVar v)) (freshTy t) 
-freshTy t
-  = error "freshTy"
-
-freshPredTree (ClassPred c ts)
-  = RCls c (ofType <$> ts)
+-- freshTy t 
+--   | isPredTy t
+--   = return $ freshPredTree $ (classifyPredType t)
+-- freshTy t@(TyVarTy v) 
+--   = liftM (RVar (RTV v)) (freshPr (ofType t :: RSort))
+-- freshTy (FunTy t1 t2) 
+--   = liftM3 rFun (freshSymbol "s") (freshTy t1) (freshTy t2)
+-- freshTy t@(TyConApp c τs) 
+--   | TyCon.isSynTyCon c
+--   = freshTy $ substTyWith αs τs τ
+--   where (αs, τ) = TyCon.synTyConDefn c
+-- freshTy t@(TyConApp c τs) 
+--   = liftM3 (rApp c) (mapM freshTy τs) (freshTyConPreds c τs) (return (truePr t)) 
+-- freshTy (ForAllTy v t) 
+--   = liftM (RAllT (rTyVar v)) (freshTy t) 
+-- freshTy t
+--   = error "freshTy"
+-- 
+-- freshPredTree (ClassPred c ts)
+--   = RCls c (ofType <$> ts)
 
 -- PREDARGS : this function is /super/ ugly to read.
 
-freshTyConPreds c τs
- = do s <- get
-      case (M.lookup c (tyCons s)) of 
-        Just x  -> liftM (RMono <$>) $ mapM freshPrAs 
-                      ((\t -> foldr subt t (zip (freeTyVarsTy x) ts)) <$> freePredTy x)
-        Nothing -> return ([] :: [Ref Predicate PrType])
-   where ts = (ofType <$> τs) :: [RSort] 
-   
-checkFun _ t@(RFun _ _ _ _) = t
-checkFun x t                = error $ showPpr x ++ "type: " ++ showPpr t
-
-checkAll _ t@(RAllT _ _)    = t
-checkAll x t                = error $ showPpr x ++ "type: " ++ showPpr t
-
-γ `putLoc` src
-  | isGoodSrcSpan src = γ { loc = src } 
-  | otherwise = γ
+-- freshTyConPreds c τs
+--  = do s <- get
+--       case (M.lookup c (tyCons s)) of 
+--         Just x  -> liftM (RMono <$>) $ mapM freshPrAs 
+--                       ((\t -> foldr subt t (zip (freeTyVarsTy x) ts)) <$> freePredTy x)
+--         Nothing -> return ([] :: [Ref Predicate PrType])
+--    where ts = (ofType <$> τs) :: [RSort] 
+--    
+-- checkFun _ t@(RFun _ _ _ _) = t
+-- checkFun x t                = error $ showPpr x ++ "type: " ++ showPpr t
+-- 
+-- checkAll _ t@(RAllT _ _)    = t
+-- checkAll x t                = error $ showPpr x ++ "type: " ++ showPpr t
+-- 
+-- γ `putLoc` src
+--   | isGoodSrcSpan src = γ { loc = src } 
+--   | otherwise = γ
 
 
 -- | Generalize free predicates: used on Rec Definitions? 
 -- Requires an environment of predicate definitions.
 
-generalize pvm        = generalize_ pvm freePreds
+-- generalize pvm        = generalize_ pvm freePreds
 -- generalizeArgs        = generalize_ freeArgPreds
 
-generalize_ pvm f t   = mkUnivs vs ps t' 
-  where (vs, ps', t') = bkUniv t
-        ps            = gps ++ ps'
-        gps           = defPVar pvm <$> S.toList (f t)
+-- generalize_ pvm f t   = mkUnivs vs ps t' 
+--   where (vs, ps', t') = bkUniv t
+--         ps            = gps ++ ps'
+--         gps           = defPVar pvm <$> S.toList (f t)
 
-defPVar pvm pv        = fromMaybe err $ F.lookupSEnv (pname pv) pvm 
-  where err           = errorstar $ "Predicate.generalize: No definition for PVar" ++ showPpr pv
+-- defPVar pvm pv        = fromMaybe err $ F.lookupSEnv (pname pv) pvm 
+--   where err           = errorstar $ "Predicate.generalize: No definition for PVar" ++ showPpr pv
 
-freeArgPreds (RFun _ t1 t2 _) = freePreds t1 -- RJ: UNIFY What about t2?
-freeArgPreds (RAllT _ t)      = freeArgPreds t
-freeArgPreds (RAllP _ t)      = freeArgPreds t
-freeArgPreds t                = freePreds t
+-- freeArgPreds (RFun _ t1 t2 _) = freePreds t1 -- RJ: UNIFY What about t2?
+-- freeArgPreds (RAllT _ t)      = freeArgPreds t
+-- freeArgPreds (RAllP _ t)      = freeArgPreds t
+-- freeArgPreds t                = freePreds t
 
 -- freePreds :: PrType -> S.Set (Predicate)
-freePreds (RVar _ p)       = S.fromList $ pvars p
-freePreds (RAllT _ t)      = freePreds t 
-freePreds (RAllP p t)      = S.delete (uPVar p) $ freePreds t 
-freePreds (RCls _ ts)      = foldl' (\z t -> S.union z (freePreds t)) S.empty ts
-freePreds (RFun _ t1 t2 _) = S.union (freePreds t1) (freePreds t2)
-freePreds (RApp _ ts ps p) = unions ((S.fromList (concatMap pvars (p:((fromRMono "freePreds") <$> ps)))) : (freePreds <$> ts))
-
+-- freePreds (RVar _ p)       = S.fromList $ pvars p
+-- freePreds (RAllT _ t)      = freePreds t 
+-- freePreds (RAllP p t)      = S.delete (uPVar p) $ freePreds t 
+-- freePreds (RCls _ ts)      = foldl' (\z t -> S.union z (freePreds t)) S.empty ts
+-- freePreds (RFun _ t1 t2 _) = S.union (freePreds t1) (freePreds t2)
+-- freePreds (RApp _ ts ps p) = unions ((S.fromList (concatMap pvars (p:((fromRMono "freePreds") <$> ps)))) : (freePreds <$> ts))
+-- freePreds (REx _ t1 t2)    = freePreds t1 `S.union` freePreds t2
+-- freePreds (ROth _)         = S.empty
 
 -- substPvar :: M.Map RPVar Predicate -> Predicate -> Predicate 
-substPvar s = (\(Pr πs) -> pdAnd (lookupP s <$> πs))
+-- substPvar s = (\(Pr πs) -> pdAnd (lookupP s <$> πs))
 
 lookupP s pv 
   = case M.lookup pv s of 
@@ -553,4 +540,4 @@ lookupP s pv
 --       Just q   -> subvPredicate (\pv -> pv { pargs = s'}) q
 
    
-
+-}

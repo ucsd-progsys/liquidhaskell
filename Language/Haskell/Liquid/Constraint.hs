@@ -10,41 +10,28 @@ module Language.Haskell.Liquid.Constraint (
   ) where
 
 import CoreSyn
-import Literal          (literalType)
-import Id               (idType, isDataConId_maybe)
 import SrcLoc           
 import Type             -- (coreEqType)
 import PrelNames
-import TysPrim
-import TysWiredIn
 import qualified TyCon as TC
 
-import Type             (mkTyConTy)
 import TypeRep 
-import Unique       -- (getUnique, getKey)
 import Class            (Class, className)
-import PrelNames        (eqClassName, ordClassName)
 import PrelInfo         (isNumericClass)
 import Var
 import Name             (getSrcSpan)
-import VarEnv
 import Outputable   hiding (empty)
-import TysWiredIn   
-import DataCon 
 import Control.Monad.State
-import Control.Monad.Reader
 
 import Control.Exception.Base
 import Control.Applicative      ((<$>))
 import Data.Monoid              (mconcat)
-import Data.Maybe (isJust, maybeToList, fromJust, fromMaybe)
+import Data.Maybe (fromMaybe)
 import qualified Data.Map as M
 import Data.Bifunctor
-import Data.List (inits, find, foldl')
+import Data.List (foldl')
 import qualified Data.Set as S
-import Text.Printf
 
-import qualified Language.Haskell.Liquid.Measure as Ms
 import qualified Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Annotate
@@ -52,7 +39,7 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc          (tracePpr, tickSrcSpan, tvId)
+import Language.Haskell.Liquid.GhcMisc          (tickSrcSpan)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Qualifier        
 import Data.Generics.Schemes
@@ -101,7 +88,7 @@ kvars = everything S.union (S.empty `mkQ` grabKvar)
 
 kvars' :: (Data a) => a -> Int
 kvars' = everything (plus') (0 `mkQ` grabKvar)
-  where grabKvar (F.RKvar k _ :: F.Refa) = 1 
+  where grabKvar (F.RKvar _ _ :: F.Refa) = 1 
         grabKvar _                       = 0
         plus' !x !y                      = x + y 
 
@@ -166,7 +153,7 @@ instance Show CGEnv where
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 (++=) :: CGEnv-> (String, F.Symbol, SpecType) -> CGEnv
-γ ++= (msg, x, r') 
+γ ++= (_, x, r') 
   | isBase r 
   = γ' { fenv = F.insertSEnv x (rTypeSortedReft r) (fenv γ) }
   | otherwise
@@ -252,13 +239,7 @@ data SubC     = SubC { senv  :: !CGEnv
                      , rhs   :: !SpecType 
                      } deriving (Data, Typeable)
 
-data WfC      = WfC  { wenv  :: !CGEnv
-                     , r     :: !SpecType 
-                     } 
-              | WfCS { wenv  :: !CGEnv
-                     , ty    :: !Type
-                     , s     :: !F.Refa
-                     }
+data WfC      = WfC  !CGEnv !SpecType 
               deriving (Data, Typeable)
 
 type FixSubC  = F.SubC Cinfo
@@ -274,7 +255,6 @@ instance Outputable SubC where
 
 instance Outputable WfC where
   ppr (WfC w r)    = ppr w <> blankLine <> text " |- " <> ppr r <> blankLine <> blankLine 
-  ppr (WfCS w τ s) = ppr w <> blankLine <> text " |- " <> braces (ppr τ <+> colon  <+> ppr s)
 
 instance Outputable Cinfo where
   ppr (Ci src) = ppr src
@@ -302,10 +282,10 @@ splitW (WfC γ (RAllT _ r))
 splitW (WfC γ (RAllP _ r)) 
   = splitW (WfC γ r)
 
-splitW (WfC γ t@(RVar _ r))
+splitW (WfC γ t@(RVar _ _))
   =  bsplitW γ t 
 
-splitW (WfC γ (RCls _ _))
+splitW (WfC _ (RCls _ _))
   = []
 
 splitW (WfC γ t@(RApp c ts rs _))
@@ -316,7 +296,7 @@ splitW (WfC γ t@(RApp c ts rs _))
 
 
 splitW (WfC _ t) 
-  = [] -- errorstar $ "splitW cannot handle: " ++ showPpr t
+  = errorstar $ "splitW cannot handle: " ++ showPpr t
 
 -- bsplitW :: CGEnv -> SpecType -> [FixWfC]
 bsplitW γ t 
@@ -335,7 +315,7 @@ rsplitW γ (RMono r, ((PV _ t as)))
         r'   = mkSortedReft t $ toReft r 
         γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitW1", x, ofRSort τ)) as) 
 
-rsplitW γ (RPoly t0, (PV _ t as))
+rsplitW γ (RPoly t0, (PV _ _ as))
   = splitW (WfC γ' t0)
   where γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitW2", x, ofRSort τ)) as) 
 
@@ -362,7 +342,7 @@ splitC (SubC γ t1 (REx x tx t2))
     where γ'  = (γ, "addExBind 2") += (x, tx')
           tx' = {- traceShow ("addExBind 2: " ++ showPpr x) $ -} existentialRefType γ tx
 
-splitC (SubC γ t1@(RFun x1 r1 r1' re1) t2@(RFun x2 r2 r2' re2)) 
+splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
   =  bsplitC γ t1 t2 
   ++ splitC  (SubC γ r2 r1) 
   ++ splitC  (SubC γ' r1x2' r2') 
@@ -380,7 +360,7 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   = splitC $ SubC γ t1 t2' 
   where t2' = subsTyVar_meet' (α2, RVar α1 top) t2
 
-splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
+splitC (SubC γ t1@(RApp _ t1s r1s _) t2@(RApp c' t2s r2s _))
 	= bsplitC γ t1 t2 
    ++ (concatMap splitC (zipWith (SubC γ) t1s t2s)) 
    ++ (concatMap (rsplitC γ) (rsplits r1s r2s (rTyConPs c')))
@@ -389,20 +369,20 @@ splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   | a1 == a2
   = bsplitC γ t1 t2
 
-splitC (SubC _ (RCls c1 _) (RCls c2 _)) -- | c1 == c2
+splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
   = []
 
 -- TODO: MASSIVE SOUNDNESS PROBLEM
 -- splitC (SubC _ t1 t2) 
 --   = []
-splitC c@(SubC γ _ _) 
+splitC c -- @(SubC _ _ _) 
   = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showPpr c
 
 
-chkTyConIds (RTyCon _ ps1) (RTyCon _ ps2) 
- = length ps1 == length ps2
+-- chkTyConIds (RTyCon _ ps1) (RTyCon _ ps2) 
+--  = length ps1 == length ps2
   
-fieldBinds fts = [(x,t) | ( x, t) <- fts]
+-- fieldBinds fts = [(x,t) | ( x, t) <- fts]
 
 bsplitC γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
@@ -431,11 +411,11 @@ rsplitC γ ((RMono r1, RMono r2), (PV _ t as))
         γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitC1", x, ofRSort τ)) as) 
 
 
-rsplitC γ ((RPoly r1, RPoly r2), PV _ t as)
+rsplitC γ ((RPoly r1, RPoly r2), PV _ _ as)
   = splitC (SubC γ' r1 r2)
   where γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitC2", x, ofRSort τ)) as) 
 
-rsplitC γ _  
+rsplitC _ _  
   = error "rsplit Rpoly - RMono"
 -- rsplitC γ ((RPoly t, RMono r), p)  = error "rsplit Rpoly - RMono"
 {-  = case stripRTypeBase t of 
@@ -448,7 +428,7 @@ rsplitC γ ((RMono r, RPoly t), p)
 -------------------- Generation: Types --------------------
 -----------------------------------------------------------
 
-newtype CGSpec = CGSpec (Ms.Spec F.Sort DataCon)
+-- newtype CGSpec = CGSpec (Ms.Spec F.Sort DataCon)
 
 data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , hsWfs      :: ![WfC]
@@ -488,12 +468,13 @@ initCGI info = CGInfo {
   , specQuals  = specificationQualifiers info
   }
 
-showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
-showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
-
+-- showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
+-- showTyV _           = error "Constraint : showTyV"
+-- showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
+-- showTy _           = error "Constraint : showTy"
 
 addC :: SubC -> String -> CG ()  
-addC !c@(SubC _ t1 t2) msg 
+addC !c@(SubC _ _ _) _ -- msg 
   = -- trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ msg) $  
     modify $ \s -> s { hsCs  = c : (hsCs s) }
 
@@ -516,10 +497,10 @@ addLocA !xo !l !t
 updateLocA (_:_)  (Just l) t = addLocA Nothing l (Left t)
 updateLocA _      _        _ = return () 
 
-addA !l !xo@(Just _)  !t !a@(AI m) 
+addA !l !xo@(Just _)  !t !(AI m) 
   | isGoodSrcSpan l -- && not (l `M.member` m)
   = AI $ M.insert l (xo, t) m
-addA !l !xo@(Nothing) !t !a@(AI m) 
+addA !l !xo@(Nothing) !t !(AI m) 
   | l `M.member` m  -- only spans known to be variables
   = AI $ M.insert l (xo, t) m
 addA _ _ _ !a 
@@ -546,7 +527,7 @@ freshTy _ = liftM uRType . refresh . ofType
 -- To revert to the old setup, just do
 -- freshTy_pretty = freshTy
 -- freshTy_pretty e τ = refresh $ {-traceShow ("exprRefType: " ++ showPpr e) $-} exprRefType e
-freshTy_pretty e τ = do t <- refresh $ {-traceShow ("exprRefType: " ++ showPpr e) $-} exprRefType e
+freshTy_pretty e _ = do t <- refresh $ {-traceShow ("exprRefType: " ++ showPpr e) $-} exprRefType e
                         return $ uRType t
 
 
@@ -604,7 +585,7 @@ trueRefType (RAllP π t)
   = liftM (RAllP π) (true t)
 trueRefType (RFun _ t t' _)    
   = liftM3 rFun fresh (true t) (true t')
-trueRefType (RApp c ts refs _)  
+trueRefType (RApp c ts _ _)  
   = liftM (\ts -> RApp c ts truerefs top) (mapM true ts)
 		where truerefs = (RPoly . ofRSort . ptype) <$> (rTyConPs c)
 trueRefType t                
@@ -629,15 +610,15 @@ refreshRefType t
   = return t
 
 refreshRef (RPoly t) = RPoly <$> (refreshRefType t)
-refreshRef (RMono r) = error "refreshRef: unexpected"
+refreshRef (RMono _) = error "refreshRef: unexpected"
 
-isBaseTyCon c
-  | c == intTyCon 
-  = True
-  | c == boolTyCon
-  = True
-  | otherwise
-  = False
+-- isBaseTyCon c
+--   | c == intTyCon 
+--   = True
+--   | c == boolTyCon
+--   = True
+--   | otherwise
+--   = False
 
 addTyConInfo = mapBot . expandRApp
 
@@ -657,7 +638,7 @@ consCB γ (Rec xes)
        return γ' 
     where isGrty x = (varSymbol x) `memberREnv` (grtys γ)
 
-consCB γ b@(NonRec x e)
+consCB γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
        to' <- consBind γ (x, e, to)
        return $ extender γ (x, to')
@@ -698,7 +679,7 @@ cconsE γ (Let b e) t
   = do γ'  <- consCB γ b
        cconsE γ' e t 
 
-cconsE γ ex@(Case e x τ cases) t 
+cconsE γ (Case e x _ cases) t 
   = do γ'  <- consCB γ $ NonRec x e
        forM_ cases $ cconsCase γ' x t nonDefAlts 
     where nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
@@ -719,7 +700,7 @@ cconsE γ (Tick tt e) t
 cconsE γ (Cast e _) t     
   = cconsE γ e t 
 
-cconsE γ e (RAllP (p@(PV _ τ _)) t)
+cconsE γ e (RAllP (p@(PV _ _ _)) t)
   = do s <- truePredRef p
        cconsE γ e (replacePreds "cconsE" t [(p, RPoly s)])
 
@@ -791,7 +772,7 @@ consE γ (Tick tt e)
 consE γ (Cast e _)      
   = consE γ e 
 
-consE env e	    
+consE _ e	    
   = errorstar $ "consE cannot handle " ++ showPpr e
 
 cconsFreshE γ e
@@ -812,7 +793,7 @@ cconsCase γ x t _ (DataAlt c, ys, ce)
  where (x':ys')        = varSymbol <$> (x:ys)
        xt0             = checkTyCon ("checkTycon cconsCase", x) $ γ ?= x'
        tdc             = γ ?= (dataConSymbol c)
-       (rtd, yts, xt') = unfoldR tdc xt0 ys'
+       (rtd, yts, _  ) = unfoldR tdc xt0 ys'
        r1              = dataConReft   c   ys' 
        r2              = dataConMsReft rtd ys'
        xt              = xt0 `strengthen` (uTop (r1 `meet` r2))
@@ -826,6 +807,7 @@ cconsCase γ x t acs (a, _, ce)
 altReft _ (LitAlt l)   = literalReft l
 altReft acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
   where notLiteralReft = F.notExprReft . snd . literalConst
+altReft _ _            = error "Constraint : altReft"
 
 -- PREDARGS
 -- altRefType t _   (LitAlt l) 
@@ -843,13 +825,14 @@ mkyt (γ, ts) (y, yt)
        addW (WfC γ t') 
        return (γ ++= ("mkyt", varSymbol y, t'), t':ts) 
 
-unfoldR td t0@(RApp tc ts rs _) ys = (t3, yts, rt)
+unfoldR td (RApp _ ts rs _) ys = (t3, yts, rt)
   where (vs, ps, t0)    = bkUniv td
         t1              = foldl' (flip subsTyVar_meet') t0 (zip vs ts)
         t2              = replacePreds "unfoldR" t1 $ safeZip "unfoldR" (reverse ps) rs
         (ys0, yts', rt) =  bkArrow t2
         (t3:yts)        = F.subst su <$> (t2:yts')
         su              = F.mkSubst [(x, F.EVar y)| (x, y)<- zip ys0 ys]
+unfoldR _  _                _  = error "Constraint.hs : unfoldR"
 
 instance Show CoreExpr where
   show = showSDoc . ppr
@@ -890,19 +873,19 @@ getSrcSpan' x
 -----------------------------------------------------------------------
 
 truePredRef ::  PVar (RRType r) -> CG SpecType
-truePredRef pd@(PV n τ as)
+truePredRef (PV _ τ _)
   = trueTy (toType τ)
 
 freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecType 
-freshPredRef γ e pd@(PV n τ as)
+freshPredRef γ e (PV _ τ as)
   = do t <- freshTy e (toType τ)
        addW $ WfC γ' t
        return t
     where γ' = foldl' (++=) γ (map (\(τ, x, _) -> ("freshPredRef", x, ofRSort τ)) as) 
 
-tySort (RVar _ (F.Reft(_, [a])))     = a
-tySort (RApp _ _ _ (F.Reft(_, [a]))) = a
-tySort _                             = error "tySort"
+-- tySort (RVar _ (F.Reft(_, [a])))     = a
+-- tySort (RApp _ _ _ (F.Reft(_, [a]))) = a
+-- tySort _                             = error "tySort"
 
 -----------------------------------------------------------------------
 ---------- Helpers: Creating Refinement Types For Various Things ------
@@ -948,11 +931,9 @@ instance NFData Type where
 instance NFData WfC where
   rnf (WfC x1 x2)   
     = rnf x1 `seq` rnf x2
-  rnf (WfCS x1 _ x2)   
-    = rnf x1 `seq` rnf x2
 
 instance NFData CGInfo where
-  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 x8 x9) 
+  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 _ x9) 
     = ({-# SCC "CGIrnf1" #-} rnf x1) `seq` 
       ({-# SCC "CGIrnf2" #-} rnf x2) `seq` 
       ({-# SCC "CGIrnf3" #-} rnf x3) `seq` 
@@ -1022,7 +1003,7 @@ exprRefType_ γ (Tick _ e)
 exprRefType_ γ (Var x) 
   = M.findWithDefault (ofType $ varType x) x γ
 
-exprRefType_ γ e
+exprRefType_ _ e
   = ofType $ exprType e
 
 bindRefType_ γ (Rec xes)
@@ -1065,15 +1046,15 @@ instance Outputable REnv where
     where pprxt (x, t) = ppr x <> dcolon <> ppr t  
 
 instance NFData REnv where
-  rnf (REnv m) = () -- rnf m
+  rnf (REnv _) = () -- rnf m
 
 fromListREnv              = REnv . M.fromList
 deleteREnv x (REnv env)   = REnv (M.delete x env)
 insertREnv x y (REnv env) = REnv (M.insert x y env)
 lookupREnv x (REnv env)   = M.lookup x env
-emptyREnv                 = REnv M.empty
+-- emptyREnv                 = REnv M.empty
 memberREnv x (REnv env)   = M.member x env
-domREnv (REnv env)        = M.keys env
+-- domREnv (REnv env)        = M.keys env
 
 
 
