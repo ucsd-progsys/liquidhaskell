@@ -3,9 +3,7 @@ TODO
 
 * parse predicate signatures for tuples 
 * predicate-aliases 
-* strictness annotations (tests/todo/maybe000.hs)
 * Blogging 
-* NIKI: fix the safe0ZipWith stuff in PredType.hs
 * benchmarks: Data.List (foldr)
 * predicate-aliases 
 * self-invariants        (tests/todo/maybe4.hs)
