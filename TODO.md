@@ -21,12 +21,40 @@ TODO
 Set Theory
 ==========
 
+(tests/pos/meas9.hs)
+
 1. fixpoint/theories.ml [DONE]
    see fixpoint/tests/sets.fq
 
+2. embed
 
-1. Parser 
+ Spec   :  ++ EmbedTyCon a = Embed a Fixpoint.Tycon
    
+ Parser : parse in the above from specs
+
+ Bare   : EmbedTyCon String -> EmbedTyCon GHC.TyCon
+
+ typeSort : Map GHC.TyCon Fixpoint.Tycon -> Type -> Sort
+
+ Fixpoint: 
+
+    intTC  = "int"
+    boolTC = "bool"
+
+ include/Prelude.spec
+ 
+    embed Int       as int
+    embed Integer   as int
+    embed Bool      as bool
+    
+ include/Data/Set.spec
+    
+    embed Set       as Set_Set
+
+------------------------------------------------------------
+
+
+
     measure emp :: Set a 
     measure mem :: a     -> Set a -> Bool
     measure cup :: Set a -> Set a -> Set a
