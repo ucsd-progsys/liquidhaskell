@@ -75,7 +75,7 @@ generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fw
         act = consAct (info {cbs = fst pds}) (snd pds)
         fcs = concatMap splitC $ hsCs  st 
         fws = concatMap splitW $ hsWfs st
-        gs  = F.fromListSEnv . map (mapSnd rTypeSortedReft) $ meas spc 
+        gs  = F.fromListSEnv . map (mapSnd rTypeSortedReft (tcEmbeds spc)) $ meas spc 
         pds = generatePredicates info
         spc = spec info
 
@@ -116,11 +116,13 @@ measEnv sp penv xts
         , renv  = fromListREnv   $ second uRType          <$> meas sp 
         , syenv = F.fromListSEnv $ freeSyms sp 
         , penv  = penv 
-        , fenv  = F.fromListSEnv $ second rTypeSortedReft <$> meas sp 
+        , fenv  = F.fromListSEnv $ second (rTypeSortedReft tce) <$> meas sp 
         , recs  = S.empty 
         , invs  = mkRTyConInv    $ invariants sp
         , grtys = fromListREnv xts 
+        , emb   = tce 
         } 
+    where tce = tcEmbeds sp
 
 assm = {- traceShow ("****** assm *****\n") . -} assm_grty impVars 
 grty = {- traceShow ("****** grty *****\n") . -} assm_grty defVars
@@ -143,6 +145,7 @@ data CGEnv
         , recs  :: !(S.Set Var)      -- ^ recursive defs being processed (for annotations)
         , invs  :: !RTyConInv        -- ^ Datatype invariants 
         , grtys :: !REnv             -- ^ Top-level variables with (assert)-guarantees to verify
+        , emb   :: TCEmb TyCon       -- ^ How to embed GHC Tycons into fixpoint sorts
         } deriving (Data, Typeable)
 
 instance Outputable CGEnv where
@@ -155,7 +158,7 @@ instance Show CGEnv where
 (++=) :: CGEnv-> (String, F.Symbol, SpecType) -> CGEnv
 γ ++= (_, x, r') 
   | isBase r 
-  = γ' { fenv = F.insertSEnv x (rTypeSortedReft r) (fenv γ) }
+  = γ' { fenv = F.insertSEnv x (rTypeSortedReft (emb γ) r) (fenv γ) }
   | otherwise
   = γ' { fenv = insertFEnvClass r (fenv γ) }
   where γ' = γ { renv = insertREnv x r (renv γ) }  
@@ -305,7 +308,7 @@ bsplitW γ t
   | otherwise
   = []
   where env' = fenv γ
-        r'   = rTypeSortedReft t
+        r'   = rTypeSortedReft (emb γ) t
         ci   = Ci (loc γ)
 
 rsplitW γ (RMono r, ((PV _ t as)))
@@ -392,8 +395,8 @@ bsplitC γ t1 t2
   | otherwise
   = []
   where γ'      = fenv γ
-        r1'     = rTypeSortedReft t1
-        r2'     = rTypeSortedReft t2
+        r1'     = rTypeSortedReft (emb γ) t1
+        r2'     = rTypeSortedReft (emb γ) t2
         ci      = Ci (loc γ)
 
 
@@ -439,6 +442,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , annotMap   :: !(AnnInfo Annot) 
                      , tyConInfo  :: !(M.Map TC.TyCon RTyCon) 
                      , specQuals  :: ![Qualifier]
+                     , tyConEmbed :: !(M.Map TC.TyCon  FTycon)
                      } deriving (Data, Typeable)
 
 instance Outputable CGInfo where 
@@ -466,6 +470,7 @@ initCGI info = CGInfo {
   , annotMap   = AI M.empty
   , tyConInfo  = makeTyConInfo $ tconsP $ spec info 
   , specQuals  = specificationQualifiers info
+  , tyConEmbed = tcEmbeds $ spec info 
   }
 
 -- showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
@@ -950,14 +955,14 @@ instance NFData CGInfo where
 existentialRefType     :: CGEnv -> SpecType -> SpecType
 existentialRefType γ t = withReft t (uTop r') 
   where r'             = maybe top (exReft γ) (F.isSingletonReft r)
-        r              = F.sr_reft $ rTypeSortedReft t
+        r              = F.sr_reft $ rTypeSortedReft (emb γ) t
 
 
-exReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ rTypeSortedReft t
+exReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
   where (xs,_ , t)     = bkArrow $ thd3 $ bkUniv $ exReftLookup γ f 
         su             = F.mkSubst $ safeZip "fExprRefType" xs es
 
-exReft γ (F.EVar x)    = F.sr_reft $ rTypeSortedReft t 
+exReft γ (F.EVar x)    = F.sr_reft $ rTypeSortedReft (emb γ) t 
   where (_,_ , t)      = bkArrow $ thd3 $ bkUniv $ exReftLookup γ x 
 
 exReft _ e             = F.exprReft e 

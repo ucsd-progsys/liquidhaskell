@@ -60,7 +60,7 @@ data GhcSpec = SP {
                                          -- eg.  see tests/pos/Map.hs
   , freeSyms   :: ![(Symbol, Var)]       -- ^ List of `Symbol` free in spec and corresponding GHC var 
                                          -- eg. (Cons, Cons#7uz) from tests/pos/ex1.hs
-  , tcEmbeds   :: ![(TyCon, Tycon)]      -- ^ How to embed GHC Tycons into fixpoint sorts
+  , tcEmbeds   :: TCEmb TyCon            -- ^ How to embed GHC Tycons into fixpoint sorts
   }
 
 makeGhcSpec :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
@@ -71,9 +71,9 @@ makeGhcSpec vars env spec
        (cs, ms)   <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
        sigs       <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
        invs       <- makeInvariants  benv              $ Ms.invariants spec
-       embeds     <- makeTyConEmbeds benv              $ Ms.embeds     spec 
+       embs       <- makeTyConEmbeds benv              $ Ms.embeds     spec 
        let syms    =  makeSymbols (vars ++ map fst cs) (map fst ms) (map snd sigs) 
-       return      $ SP sigs cs ms invs (concat dcs ++ dcs') tycons syms 
+       return      $ SP sigs cs ms invs (concat dcs ++ dcs') tycons syms embs 
     where (tcs', dcs') = wiredTyDataCons 
 
 ------------------------------------------------------------------
@@ -125,7 +125,9 @@ joinIds vs xts = vts
         vts    = catMaybes [(, t) <$> (M.lookup (symbolString x) vm) | (x, t) <- xts]
 
 
-
+makeTyConEmbeds  :: BareEnv -> [(String, FTycon)] -> IO (TCEmb TyCon) 
+makeTyConEmbeds benv z = execBare (M.fromList <$> mapM tx (M.assocs z)) benv
+  where tx (x, y) = error "makeTyConEmbeds.FIXTHISHERE"
 
 
 makeInvariants :: BareEnv -> [BareType] -> IO [SpecType]
