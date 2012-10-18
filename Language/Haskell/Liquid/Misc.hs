@@ -5,6 +5,7 @@ module Language.Haskell.Liquid.Misc where
 import qualified Control.Exception as Ex
 import qualified Data.Set as S 
 import qualified Data.Map as M
+import Control.Applicative      ((<$>))
 import Data.List 
 import Data.Maybe (catMaybes)
 
@@ -70,6 +71,8 @@ mapSnd f (x, y)  = (x, f y)
 mapFst3 f (x, y, z) = (f x, y, z)
 mapSnd3 f (x, y, z) = (x, f y, z)
 mapThd3 f (x, y, z) = (x, y, f z)
+
+expandSnd = concatMap (\(fst, snd) -> (\z -> (z, snd)) <$> fst)
 
 mapPair ::  (a -> b) -> (a, a) -> (b, b)
 mapPair f (x, y) = (f x, f y)

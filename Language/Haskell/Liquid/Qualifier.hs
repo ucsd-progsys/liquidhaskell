@@ -15,18 +15,16 @@ import Language.Haskell.Liquid.Misc
 
 import Control.DeepSeq
 import Control.Applicative      ((<$>))
-import Data.List                (nub, delete)
+import Data.List                (delete)
 import Data.Maybe               (fromMaybe)
 import qualified Data.Set as S
 import Data.Bifunctor           (second) 
-import Data.Generics.Schemes
-import Data.Generics.Aliases
 import Data.Data
 
-data Qualifier = Q { name   :: String
-                   , params :: [(Symbol, Sort)]
-                   , pred   :: Pred
-                   } deriving (Eq, Ord, Data, Typeable)
+data Qualifier = Q String           --nam
+                   [(Symbol, Sort)] --params
+                   Pred             --pred
+               deriving (Eq, Ord, Data, Typeable)
 
 instance Fixpoint Qualifier where 
   toFix = pprQual
@@ -58,7 +56,7 @@ refTypeQuals t0 = go emptySEnv t0
         go γ (RFun x t t' _)      = (go γ t) ++ (go (insertSEnv x (rTypeSort t) γ) t')
         go γ t@(RApp _ ts _ _)    = (refTopQuals t0 γ t) ++ concatMap (go γ) ts 
         go γ (REx x t t' )        = (go γ t) ++ (go (insertSEnv x (rTypeSort t) γ) t')
-        go γ _                    = []
+        go _ _                    = []
 
 refTopQuals t0 γ t 
   = [ mkQual t0 γ v so pa | let (RR so (Reft (v, ras))) = rTypeSortedReft t 

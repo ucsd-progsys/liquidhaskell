@@ -13,39 +13,18 @@ import Outputable
 import Var
 import PrelNames
 import PrelInfo     (wiredInThings)
-import Type         (eqType, expandTypeSynonyms, liftedTypeKind)
+import Type         (expandTypeSynonyms)
 
-import HscTypes   (HscEnv)
-import qualified CoreMonad as CM 
-import GHC.Paths (libdir)
-
-import System.Environment (getArgs)
-import DynFlags (defaultDynFlags)
 import HscMain
-import TypeRep
 import TysWiredIn
-import DataCon  (dataConWorkId)
-import BasicTypes (TupleSort (..), Boxity (..), Arity)
+import BasicTypes (TupleSort (..), Arity)
 import TcRnDriver (tcRnLookupRdrName, tcRnLookupName) 
 
-import TysPrim                  
-import TysWiredIn               (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
-import TyCon                    (tyConName, isAlgTyCon)
-import DataCon                  (dataConName)
-import Name                     (mkInternalName)
-
-import OccName                  (mkTyVarOcc)
-import Unique                   (getKey, getUnique, initTyVarUnique)
-import Data.List                (sort, intercalate)
-import Data.Maybe               (isJust, fromMaybe, catMaybes)
-import Data.Char                (isUpper)
-import ErrUtils
+import Data.Maybe               (catMaybes)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>))
 import Control.Monad.Reader     hiding (forM)
 import Control.Monad.Error      hiding (forM)
-import Data.Generics.Schemes
-import Data.Generics.Aliases
 import Data.Data                hiding (TyCon, tyConName)
 import Data.Bifunctor
 
@@ -193,12 +172,12 @@ instance GhcLookup Name where
   candidates x   = [x]
   pp             = showPpr  
 
-existsGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM Bool 
-existsGhcThing name f x 
-  = do z <- lookupGhcThing' name f x
-       case z of 
-         Just _ -> return True
-         _      -> return False
+-- existsGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM Bool 
+-- existsGhcThing name f x 
+--   = do z <- lookupGhcThing' name f x
+--        case z of 
+--          Just _ -> return True
+--          _      -> return False
 
 lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
 lookupGhcThing name f x 
@@ -208,7 +187,7 @@ lookupGhcThing name f x
          _   -> throwError $ "lookupGhcThing unknown " ++ name ++ " : " ++ (pp x)
 
 lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
-lookupGhcThing' name f x 
+lookupGhcThing' _    f x 
   = do env     <- hscEnv <$> ask
        z       <- liftIO $ lookupName env x
        case z of
@@ -243,19 +222,19 @@ lookupGhcDataCon = lookupGhcThing "DataCon" fdc
   where fdc (ADataCon x) = Just x
         fdc _            = Nothing
 
-lookupGhcId = lookupGhcThing "Id" thingId
+-- lookupGhcId = lookupGhcThing "Id" thingId
 
 -- existsGhcId = existsGhcThing "Id" thingId
-existsGhcId s = 
-  do z <- or <$> mapM (existsGhcThing "Id" thingId) (candidates s)
-     if z 
-       then return True 
-       else return (warnShow ("existsGhcId " ++ s) $ False)
+-- existsGhcId s = 
+--   do z <- or <$> mapM (existsGhcThing "Id" thingId) (candidates s)
+--      if z 
+--        then return True 
+--        else return (warnShow ("existsGhcId " ++ s) $ False)
 
 
-thingId (AnId x)     = Just x
-thingId (ADataCon x) = Just $ dataConWorkId x
-thingId _            = Nothing
+-- thingId (AnId x)     = Just x
+-- thingId (ADataCon x) = Just $ dataConWorkId x
+-- thingId _            = Nothing
 
 wiredIn :: M.Map String Name
 wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns 
@@ -301,7 +280,7 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps)]
         flds          = mks "fld"
         fld           = stringSymbol "fld"
         x1:xs         = mks "x"
-        y             = stringSymbol "y"
+        -- y             = stringSymbol "y"
         ps            = mkps pnames (ta:ts) ((fld,fld):(zip flds flds))
         ups           = uPVar <$> ps
         pxs           = mkps pnames (ta:ts) ((fld, x1):(zip flds xs))
@@ -314,12 +293,14 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps)]
 
 
 mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ (stringSymbol <$> ns) ts fxs [(t, f, x)] [] 
+mkps _  _      _           = error "Bare : mkps"
 
 mkps_ []     _       _          _    ps = ps
 mkps_ (n:ns) (t:ts) ((f, x):xs) args ps
   = mkps_ ns ts xs (a:args) (p:ps)
   where p = PV n t args
         a = (t, f, x)
+mkps_ _     _       _          _    _ = error "Bare : mkps_"
 
 ------------------------------------------------------------------------
 ----------------- Transforming Raw Strings using GHC Env ---------------
@@ -354,6 +335,8 @@ ofBareType (RApp tc ts rs r)
        liftM3 (bareTCApp tyi r) (lookupGhcTyCon tc) (mapM ofRef rs) (mapM ofBareType ts)
 ofBareType (RCls c ts)
   = liftM2 RCls (lookupGhcClass c) (mapM ofBareType ts)
+ofBareType _
+  = error "Bare : ofBareType"
 
 ofRef (RPoly t)   
   = liftM RPoly (ofBareType t)
@@ -367,13 +350,13 @@ bareTCApp tyi r c rs ts
           t  = rAppOld tyi c ts rs r
           t' = (expandRTypeSynonyms t0) `strengthen` r
 
-rAppNew tyi c ts rs r = expandRApp tyi $ RApp (RTyCon c []) ts rs r
+-- rAppNew tyi c ts rs r = expandRApp tyi $ RApp (RTyCon c []) ts rs r
 rAppOld _             = rApp
 
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
 
 stringRTyVar  = rTyVar . stringTyVar 
-stringTyVarTy = TyVarTy . stringTyVar
+-- stringTyVarTy = TyVarTy . stringTyVar
 
 
 

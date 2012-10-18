@@ -151,11 +151,11 @@ mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
 mapTy f (M n ty eqs) = M n (f ty) eqs
 
 dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(Symbol, RefType)])
-dataConTypes  s = (ctorTys, measTys)
+dataConTypes  s = (expandSnd ctorTys, measTys)
   where measTys = [(name m, sort m) | m <- elems $ measMap s]
         ctorTys = [(defsVar ds, defsTy ds) | (_, ds) <- toList $ ctorMap s]
         defsTy  = foldl1' meet . fmap defRefType 
-        defsVar = dataConWorkId . ctor . safeHead "defsVar" 
+        defsVar = dataConImplicitIds . ctor . safeHead "defsVar" 
 
 defRefType :: Def DataCon -> RefType
 defRefType (Def f dc xs body) = mkArrow as [] xts t'
