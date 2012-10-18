@@ -30,6 +30,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , isTautoPred
   , emptySubst, mkSubst, catSubst
   , Subable (..)
+  , TCEmb (..)
 
   -- * Visitors
   , getSymbols
@@ -63,6 +64,8 @@ class Fixpoint a where
 
   simplify :: a -> a 
   simplify =  id
+
+type TCEmb a    = Map a FTycon  
 
 ------------------------------------------------------------
 ------------------- Sanitizing Symbols ---------------------
@@ -221,7 +224,7 @@ data Sort = FInt
           | FApp FTycon [Sort]   -- ^ constructed type 
 	      deriving (Eq, Ord, Data, Typeable, Show)
 
-typeSort :: Type -> Sort 
+typeSort :: TCEmb TyCon -> Type -> Sort 
 typeSort (TyConApp c [])
   | k == intTyConKey     = FInt
   | k == intPrimTyConKey = FInt

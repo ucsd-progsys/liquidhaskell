@@ -26,12 +26,12 @@ module Language.Haskell.Liquid.RefType (
   , generalize, normalizePds
   , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
-  , stripRTypeBase, rTypeSortedReft, typeSortedReft, rTypeSort
+  , stripRTypeBase, rTypeSortedReft, rTypeSort -- , typeSortedReft
   , ofRSort, toRSort
   , tidyRefType
   , varSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalReft, literalConst
-  , primOrderingSort
+  -- , primOrderingSort
   , fromRMono, fromRPoly, idRMono
   , isTrivial
   ) where
@@ -1026,8 +1026,8 @@ pprShort    =  dropModuleNames . showPpr
 dataConSymbol ::  DataCon -> Symbol
 dataConSymbol = varSymbol . dataConWorkId
 
-primOrderingSort = typeSort $ dataConRepType eqDataCon
-ordCon s = EDat (dataConSymbol s) primOrderingSort
+ordCon s = EDat (dataConSymbol s) primOrderingSort tce
+primOrderingSort = typeSort M.empty $ dataConRepType eqDataCon
 
 -- TODO: turn this into a map lookup?
 dataConReft ::  DataCon -> [Symbol] -> Reft
@@ -1127,10 +1127,10 @@ makeRTypeBase (TyConApp c _) x
 makeRTypeBase _              _
   = error "RefType : makeRTypeBase"
 
-literalReft                    = exprReft . snd . literalConst  
+literalReft tce                = exprReft . snd . literalConst tce 
 
-literalConst l                 = (sort, mkLit l)
-  where sort                   = typeSort $ literalType l 
+literalConst tce l             = (sort, mkLit l)
+  where sort                   = typeSort tce $ literalType l 
         sym                    = stringSymbol $ "$$" ++ showPpr l
         mkLit (MachInt    n)   = mkI n
         mkLit (MachInt64  n)   = mkI n
@@ -1144,17 +1144,17 @@ literalConst l                 = (sort, mkLit l)
 ---------------- Annotations and Solutions --------------------
 ---------------------------------------------------------------
 
-rTypeSortedReft   ::  (Reftable r) => RRType r -> SortedReft
-rTypeSortedReft t = RR (rTypeSort t) (refTypeReft t)
+rTypeSortedReft       ::  (Reftable r) => TCEmb TyCon -> RRType r -> SortedReft
+rTypeSortedReft emb t = RR (rTypeSort emb t) (refTypeReft t)
 
 refTypeReft :: (Reftable r) => RType p c tv r -> Reft
 refTypeReft = fromMaybe top . fmap toReft . stripRTypeBase 
 -- refTypeReft t = fromMaybe top $ ur_reft <$> stripRTypeBase t
 
-typeSortedReft t r = RR (typeSort t) (Reft (vv, [r]))
+-- typeSortedReft emb t r = RR (typeSort emb t) (Reft (vv, [r]))
 
-rTypeSort ::  RRType r -> Sort
-rTypeSort = typeSort . toType
+rTypeSort     ::  TCEmb TyCon -> RRType r -> Sort
+rTypeSort tce = typeSort tce . toType
 
 ------------------------------------------------------------------------
 ---------------- Auxiliary Stuff Used Elsewhere ------------------------

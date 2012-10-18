@@ -37,8 +37,9 @@ data Spec ty bndr  = Spec {
   , dataDecls  :: ![DataDecl]                -- ^ Predicated data definitions 
   , includes   :: ![FilePath]                -- ^ Included qualifier files
   , aliases    :: ![RTAlias String BareType] -- ^ RefType aliases
-  , embeds     :: ![(String, FTycon)         -- ^ GHC-Tycon-to-fixpoint Tycon map
+  , embeds     :: !TCEmb String              -- ^ GHC-Tycon-to-fixpoint Tycon map
   } deriving (Data, Typeable)
+
 
 data MSpec ty bndr = MSpec { 
     ctorMap :: Map Symbol [Def bndr]
