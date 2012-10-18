@@ -51,6 +51,7 @@ module Sort :
     type sub
    
     val tycon       : string -> tycon
+    val tycon_string: tycon -> string
 
     val to_string   : t -> string
     val print       : Format.formatter -> t -> unit
@@ -68,13 +69,16 @@ module Sort :
     val is_bool     : t -> bool
     val is_int      : t -> bool
     val is_func     : t -> bool
-    val func_of_t   : t -> (t list * t) option
+    val app_of_t    : t -> (tycon * t list) option 
+    val func_of_t   : t -> (int * t list * t) option
     val ptr_of_t    : t -> loc option
  
     val compat      : t -> t -> bool
     val unify       : t list -> t list -> sub option
     val apply       : sub -> t -> t
     val generalize  : t list -> t list
+    val sub_args    : sub -> (int * t) list
+    (* val check_arity : int -> sub -> bool *)
   end
 
 module Symbol : 
@@ -237,5 +241,7 @@ val simplify_pred  : pred -> pred
 val conjuncts      : pred -> pred list
 val sortcheck_expr : (Symbol.t -> Sort.t option) -> expr -> Sort.t option
 val sortcheck_pred : (Symbol.t -> Sort.t option) -> pred -> bool
+val sortcheck_app  : (Symbol.t -> Sort.t option) -> Sort.t option -> Symbol.t -> expr list -> (Sort.sub * Sort.t) option
+
 val into_of_expr   : expr -> int option
 

@@ -147,7 +147,7 @@ and print_expr ppf expr =
   | _ -> assertf "ERROR: ToSmtLib.print_expr %s" (E.to_string expr)
 
 let rec print_sort ppf t = match So.func_of_t t with
-  | Some (ts, t) -> 
+  | Some (_, ts, t) -> 
       Format.fprintf ppf "%a %a"
         (Misc.pprint_many false " " print_sort) ts
         print_sort t

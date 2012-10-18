@@ -22,6 +22,7 @@
 
 (* This file is part of the LiquidC Project *)
 
+module H  = Hashtbl
 module F  = Format
 module Co = Constants
 module BS = BNstats
@@ -33,6 +34,7 @@ module P  = A.Predicate
 module E  = A.Expression
 module Misc = FixMisc open Misc.Ops
 module SSM = Misc.StringMap
+module Th = Theories
 module Prover : ProverArch.PROVER = struct
 
 let mydebug = false 
@@ -49,12 +51,14 @@ type t = {
   c             : Z3.context;
   tint          : Z3.sort;
   tbool         : Z3.sort;
-  vart          : (decl, var_ast) Hashtbl.t;
-  funt          : (decl, Z3.func_decl) Hashtbl.t;
-  tydt          : (So.t, Z3.sort) Hashtbl.t;
+  vart          : (decl, var_ast) H.t;
+  funt          : (decl, Z3.func_decl) H.t;
+  tydt          : (So.t, Z3.sort) H.t;
   mutable vars  : decl list ;
   mutable count : int;
   mutable bnd   : int;
+  thy_sortm     : (So.tycon, Th.sortDef) H.t;
+  thy_symm      : (Sy.t,     Th.appDef)  H.t;
 }
 
 (*************************************************************************)
@@ -145,13 +149,22 @@ let funSort env s =
       if is_select s then select_t else 
         failure "ERROR: could not type function %s in TPZ3 \n" (Sy.to_string s) 
 
-let z3VarType me t =
+let rec z3Type me t =
   Misc.do_memo me.tydt begin fun t -> 
-    if So.is_bool t 
-    then me.tbool 
-    else me.tint
+    if So.is_bool t then me.tbool else
+      if So.is_int t then me.tint else
+        match z3TypeThy me t with 
+          | Some t' -> t'
+          | None    -> me.tint
   end t t
-    
+
+and z3TypeThy me t = match So.app_of_t t with
+ | Some (c, ts) when H.mem me.thy_sortm c -> 
+     let def = H.find me.thy_sortm c   in
+     let zts = List.map (z3Type me) ts in
+     Some (Th.mk_thy_sort def me.c zts)
+ | _ -> None 
+ 
 (***********************************************************************)
 (********************** Identifiers ************************************)
 (***********************************************************************)
@@ -162,7 +175,7 @@ let z3Var_memo me env x =
   let vx  = z3Vbl env x in
   Misc.do_memo me.vart
     (fun () -> 
-      let t   = x |> varSort env |> z3VarType me in
+      let t   = x |> varSort env |> z3Type me in
       let sym = fresh "z3v" 
                 (* >> F.printf "z3Var_memo: %a :->  %s\n" Sy.print x *)
                 |> Z3.mk_string_symbol me.c in 
@@ -174,22 +187,22 @@ let z3Var_memo me env x =
 let z3Var me env x =
   match BS.time "z3Var memo" (z3Var_memo me env) x with
   | Const v     -> v
-  | Bound (b,t) -> Z3.mk_bound me.c (me.bnd - b) (z3VarType me t)
+  | Bound (b,t) -> Z3.mk_bound me.c (me.bnd - b) (z3Type me t)
 
 let z3Bind me env x t =
   let vx = Vbl (x, varSort env x) in
   me.bnd <- me.bnd + 1; 
-  Hashtbl.replace me.vart vx (Bound (me.bnd, t)); 
+  H.replace me.vart vx (Bound (me.bnd, t)); 
   me.vars <- vx :: me.vars;
   Z3.mk_string_symbol me.c (fresh "z3b")
 
 let z3Fun me env p t k = 
   Misc.do_memo me.funt begin fun _ -> 
     match So.func_of_t t with
-    | None          -> assertf "MATCH ERROR: z3ArgTypes" 
-    | Some (ts, rt) ->
-        let ts = List.map (z3VarType me) ts in
-        let rt = z3VarType me rt in
+    | None             -> assertf "MATCH ERROR: z3ArgTypes" 
+    | Some (_, ts, rt) ->
+        let ts = List.map (z3Type me) ts in
+        let rt = z3Type me rt in
         let cf = Z3.mk_string_symbol me.c (fresh "z3f") in
         let rv = Z3.mk_func_decl me.c cf (Array.of_list ts) rt in
         let _  = me.vars <- (Fun (p,k))::me.vars in
@@ -234,10 +247,20 @@ let rec z3Rel me env (e1, r, e2) =
   end
 
 and z3App me env p zes =
-  let t  = funSort env p in
+  let t  = funSort env p                      in
   let cf = z3Fun me env p t (List.length zes) in
   Z3.mk_app me.c cf (Array.of_list zes)
 
+and z3AppThy me env def tyo f es = 
+  match A.sortcheck_app (Misc.flip SM.maybe_find env) tyo f es with 
+    | Some (s, t) ->
+        let zts = So.sub_args s |> List.map (snd <+> z3Type me) in
+        let zes = es            |> List.map (z3Exp me env)      in
+        Th.mk_thy_app def me.c zts zes
+    | None ->
+        A.eApp (f, es)
+        |> E.to_string
+        |> assertf "z3AppThy: sort error %s"
 
 and z3Mul me env = function
   | ((A.Con (A.Constant.Int i), _), e) 
@@ -253,7 +276,11 @@ and z3Exp me env = function
       Z3.mk_int me.c i me.tint 
   | A.Var s, _ -> 
       z3Var me env s
-  | A.App (f, es), _ -> 
+  | A.Cst ((A.App (f, es), _), t), _ when (H.mem me.thy_symm f) -> 
+      z3AppThy me env (H.find me.thy_symm f) (Some t) f es
+  | A.App (f, es), _ when (H.mem me.thy_symm f) -> 
+      z3AppThy me env (H.find me.thy_symm f) None f es
+  | A.App (f, es), _  -> 
       z3App me env f (List.map (z3Exp me env) es)
   | A.Bin (e1, A.Plus, e2), _ ->
       Z3.mk_add me.c (Array.map (z3Exp me env) [|e1; e2|])
@@ -307,7 +334,7 @@ and z3Pred me env = function
  | A.Forall (xts, p), _ -> 
       let (xs, ts) = List.split xts in
       let zargs    = Array.of_list (List.map2 (z3Bind me env) xs ts) in
-      let zts      = Array.of_list (List.map  (z3VarType me) ts) in 
+      let zts      = Array.of_list (List.map  (z3Type me) ts) in 
       let rv       = Z3.mk_forall me.c 0 [||] zts zargs (z3Pred me env p) in
       let _        = me.bnd <- me.bnd - (List.length xs) in
       rv
@@ -403,8 +430,8 @@ let clean_decls me =
   let _         = me.vars <- vars'  in 
   List.iter begin function 
     | Barrier    -> failure "ERROR: TPZ3.clean_decls" 
-    | Vbl _ as d -> Hashtbl.remove me.vart d 
-    | Fun _ as d -> Hashtbl.remove me.funt d
+    | Vbl _ as d -> H.remove me.vart d 
+    | Fun _ as d -> H.remove me.funt d
   end cs
 
 (* DEPRECATED, overall slowdown 
@@ -419,23 +446,33 @@ let filter me =
 *)
 
 let handle_vv me env vv = 
-  Hashtbl.remove me.vart (z3Vbl env vv) (* RJ: why are we removing this? *) 
+  H.remove me.vart (z3Vbl env vv) (* RJ: why are we removing this? *) 
 
 (************************************************************************)
 (********************************* API **********************************)
 (************************************************************************)
 
+let create_theories () =
+  Th.theories () 
+  |> (Misc.hashtbl_of_list_with Th.sort_name <**> Misc.hashtbl_of_list_with Th.sym_name)
+
+
 (* API *)
 let create ts env ps consts =
-  let _  = asserts (ts = []) "ERROR: TPZ3.create non-empty sorts!" in
-  let c  = Z3.mk_context_x [|("MODEL", "false"); ("MODEL_PARTIAL", "true")|] in
-  let me = {c     = c; 
-            tint  = Z3.mk_int_sort c; 
-            tbool = Z3.mk_bool_sort c; 
-            tydt  = Hashtbl.create 37; 
-            vart  = Hashtbl.create 37; 
-            funt  = Hashtbl.create 37; 
-            vars  = []; count = 0; bnd = 0} in
+  let _        = asserts (ts = []) "ERROR: TPZ3.create non-empty sorts!" in
+  let c        = Z3.mk_context_x [|("MODEL", "false"); ("MODEL_PARTIAL", "true")|] in
+  let som, sym = create_theories () in 
+  let me       = { c     = c; 
+                   tint  = Z3.mk_int_sort c; 
+                   tbool = Z3.mk_bool_sort c; 
+                   tydt  = H.create 37; 
+                   vart  = H.create 37; 
+                   funt  = H.create 37; 
+                   vars  = []; count = 0; bnd = 0;
+                   thy_sortm = som; 
+                   thy_symm  = sym 
+                 } 
+  in
   let _  = List.iter (z3Pred me env <+> assert_axiom me) (axioms ++ ps) in
   let _  = if Misc.nonnull consts 
            then (z3Distinct me env consts |> assert_axiom me) 
@@ -525,7 +562,7 @@ let mk_pa me p2z pfx ics =
 (*
 (* API *)
 let unsat_cores me env p ips iqs = 
-  let _  = Hashtbl.clear me.vart                                  in 
+  let _  = H.clear me.vart                                  in 
   let p2z   = A.fixdiv <+> z3Pred me env                          in
   let ipa   = ips |> List.map (Misc.app_snd p2z) |> Array.of_list in 
   let va, f = mk_prop_var_idx me ipa          in
@@ -558,7 +595,7 @@ let unsat_core_one me (va : Z3.ast array) (f: Z3.ast -> 'a) (k, q) =
 
 (* API *)
 let unsat_core me env bgp ips =
-  let _     = Hashtbl.clear me.vart                               in 
+  let _     = H.clear me.vart                               in 
   let p2z   = A.fixdiv <+> z3Pred me env                          in
   let ipa   = ips |> List.map (Misc.app_snd p2z) |> Array.of_list in 
   let va, f = mk_prop_var_idx me ipa                              in

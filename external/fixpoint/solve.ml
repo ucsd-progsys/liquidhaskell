@@ -37,6 +37,7 @@ module C  = FixConstraint
 module Ci = Cindex
 module PP = Prepass
 module Cg = FixConfig
+module Th = Theories
 
 module Misc = FixMisc open Misc.Ops
 
@@ -208,10 +209,13 @@ let solve me s =
   let cx = if !Co.cex && Misc.nonnull u then Dom.ctr_examples s (Ci.to_list me.sri) u else [] in
   (s, u, cx)
 
+let global_symbols cfg = 
+     (SM.to_list cfg.Cg.uops)                                           (* specified globals *) 
+  ++ (Theories.theories () |> snd |>: (Th.sym_name <*> Th.sym_sort))    (* theory globals *)
 
 (* API *)
 let create cfg kf =
-  let gts = SM.to_list cfg.Cg.uops in
+  let gts = global_symbols cfg in
   let sri = cfg.Cg.cs
             >> Co.logPrintf "Pre-Simplify Stats\n%a" print_constr_stats
             |> BS.time  "Constant Env" (List.map (C.add_consts_t gts))
