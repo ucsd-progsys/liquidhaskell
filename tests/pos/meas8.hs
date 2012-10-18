@@ -12,12 +12,12 @@ import Language.Haskell.Liquid.Prelude
 {-@ foo :: a -> {v:[b] | rlen(v) = 0} @-}
 foo x = []
 
---{- mylen :: xs:[a] -> {v:Int | v = rlen(xs)} @-}
---mylen          :: [a] -> Int
---mylen []       = 0
---mylen (_:xs)   = 1 + mylen xs
---
---{- mymap :: (a -> b) -> xs:[a] -> {v:[b] | rlen(v) = rlen(xs)} @-}
---mymap f []     = []
---mymap f (x:xs) = (f x) : (mymap f xs)
---
+{-@ mylen :: xs:[a] -> {v:Int | v = rlen(xs)} @-}
+mylen          :: [a] -> Int
+mylen []       = 0
+mylen (_:xs)   = 1 + mylen xs
+
+{-@ mymap :: (a -> b) -> xs:[a] -> {v:[b] | rlen(v) = rlen(xs)} @-}
+mymap f []     = []
+mymap f (x:xs) = (f x) : (mymap f xs)
+

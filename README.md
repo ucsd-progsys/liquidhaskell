@@ -176,6 +176,40 @@ and:
 
     (tests/pos/Map.hs)
 
+Specifying Measures
+-------------------
+
+Can be placed in .spec file or in .hs/.lhs file wrapped around {-@ @-}
+
+Value measures (include/GHC/Base.spec)
+
+    measure len :: forall a. [a] -> GHC.Types.Int
+    len ([])     = 0
+    len (y:ys)   = 1 + len(ys)
+
+
+Propositional measures (tests/pos/LambdaEval.hs)
+
+    {-@
+    measure isValue      :: Expr -> Bool
+    isValue (Const i)    = true 
+    isValue (Lam x e)    = true 
+    isValue (Var x)      = false
+    isValue (App e1 e2)  = false
+    isValue (Plus e1 e2) = false 
+    isValue (Fst e)      = false
+    isValue (Snd e)      = false
+    isValue (Pair e1 e2) = ((? (isValue(e1))) && (? (isValue(e2))))
+    @-}
+
+Raw measures (tests/pos/meas8.hs)
+
+    {-@ measure rlen :: [a] -> Int 
+    rlen ([])   = {v | v = 0}
+    rlen (y:ys) = {v | v = (1 + rlen(ys))}
+    @-}
+
+
 
 Specifying Qualifiers
 ---------------------
