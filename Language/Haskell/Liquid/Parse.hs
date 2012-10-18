@@ -433,7 +433,7 @@ data Pspec ty bndr
   | Incl  FilePath
   | Invt  ty
   | Alias (RTAlias String BareType)
-
+  | Embed (String, FTycon)
 
 mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
   { Measure.measures   = [m | Meas  m <- xs]
@@ -443,6 +443,7 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.dataDecls  = [d | DDecl d <- xs]
   , Measure.includes   = [q | Incl  q <- xs]
   , Measure.aliases    = [a | Alias a <- xs]
+  , Measure.embeds     = [e | Embed e <- xs]
   }
 
 specificationP 
@@ -463,6 +464,7 @@ specP
     <|> (reserved "include"   >> liftM Incl  filePathP)
     <|> (reserved "invariant" >> liftM Invt  genBareTypeP)
     <|> (reserved "type"      >> liftM Alias aliasP)
+    <|> (reserved "embed"     >> liftM Embed embedP)
     <|> ({- DEFAULT -}           liftM Assm  tyBindP)
 
 filePathP :: Parser FilePath
@@ -475,6 +477,9 @@ tyBindP
 
 genBareTypeP
   = liftM generalize bareTypeP 
+
+embedP 
+  = xyP upperIdP (reserved "as") (stringTycon <$> upperIdP)
 
 aliasP 
   = do name <- upperIdP

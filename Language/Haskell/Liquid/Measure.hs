@@ -30,13 +30,14 @@ import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 
 data Spec ty bndr  = Spec { 
-    measures   :: ![Measure ty bndr]         -- User-defined properties for ADTs
-  , sigs       :: ![(Symbol, ty)]            -- Imported functions and types   
-  , invariants :: ![ty]                      -- Data type invariants  
-  , imports    :: ![Symbol]                  -- Loaded spec module names
-  , dataDecls  :: ![DataDecl]                -- Predicated data definitions 
-  , includes   :: ![FilePath]                -- Included qualifier files
-  , aliases    :: ![RTAlias String BareType] -- RefType aliases
+    measures   :: ![Measure ty bndr]         -- ^ User-defined properties for ADTs
+  , sigs       :: ![(Symbol, ty)]            -- ^ Imported functions and types   
+  , invariants :: ![ty]                      -- ^ Data type invariants  
+  , imports    :: ![Symbol]                  -- ^ Loaded spec module names
+  , dataDecls  :: ![DataDecl]                -- ^ Predicated data definitions 
+  , includes   :: ![FilePath]                -- ^ Included qualifier files
+  , aliases    :: ![RTAlias String BareType] -- ^ RefType aliases
+  , embeds     :: ![(String, FTycon)         -- ^ GHC-Tycon-to-fixpoint Tycon map
   } deriving (Data, Typeable)
 
 data MSpec ty bndr = MSpec { 
@@ -111,7 +112,7 @@ instance Bifunctor MSpec   where
   second                = fmap 
 
 instance Bifunctor Spec    where
-  first f (Spec ms ss is x0 x1 x2 x3) 
+  first f (Spec ms ss is x0 x1 x2 x3 x4) 
     = Spec { measures   = first  f <$> ms
            , sigs       = second f <$> ss
            , invariants =        f <$> is
@@ -119,8 +120,9 @@ instance Bifunctor Spec    where
            , dataDecls  = x1
            , includes   = x2
            , aliases    = x3
+           , embeds     = x4
            }
-  second f (Spec ms x0 x1 x2 x3 x4 x5) 
+  second f (Spec ms x0 x1 x2 x3 x4 x5 x6) 
     = Spec { measures   = fmap (second f) ms
            , sigs       = x0 
            , invariants = x1
@@ -128,6 +130,7 @@ instance Bifunctor Spec    where
            , dataDecls  = x3
            , includes   = x4
            , aliases    = x5
+           , embeds     = x6
            }
 
 instance Outputable Body where
