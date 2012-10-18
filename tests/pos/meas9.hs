@@ -1,6 +1,8 @@
 module Meas where
 
-{-@ measure listElts :: [a] -> Set_set a 
+import Data.Set (Set(..))
+
+{-@ measure listElts :: forall a. [a] -> (Set a)
     listElts([])   = {v | (? Set_emp(v))}
     listElts(x:xs) = {v | v = Set_cup(Set_sng(x), listElts(xs)) }
   @-}
