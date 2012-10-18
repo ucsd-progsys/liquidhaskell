@@ -51,7 +51,7 @@ import qualified Data.Set as S
 import Data.Generics.Schemes
 import Data.Generics.Aliases
 import Data.Data    hiding  (tyConName)
-import Data.Maybe           (fromMaybe, catMaybes)
+import Data.Maybe           (fromMaybe)
 
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.FileNames

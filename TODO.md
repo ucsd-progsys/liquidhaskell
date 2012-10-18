@@ -3,10 +3,9 @@ TODO
 
 * parse predicate signatures for tuples 
 * predicate-aliases 
-* strictness annotations (tests/todo/maybe000.hs)
 * Blogging 
-* NIKI: fix the safe0ZipWith stuff in PredType.hs
 * benchmarks: Data.List (foldr)
+* predicate-aliases 
 * self-invariants        (tests/todo/maybe4.hs)
 * fixpoint profile (how much performance hit from -nosimple?)
 * Add SET-Theory to Z3 ? (Or add general axioms)
@@ -17,6 +16,103 @@ TODO
 * benchmarks: mcbrides stack machine
 * alpha-renaming of predicate params is VERY SHAKY. see tests/pos/deptupW.hs
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
+
+
+Extensible Theories (fixpoint)
+==============================
+
+1. theories.mli [DONE]
+
+2. write .fq level tests
+        
+        -- empty
+        s0 = emp
+        
+        assert not (mem (1, s0))
+        assert not (mem (2, s0))
+        assert not (mem (3, s0))
+       
+        -- union
+        s1 = cup(s0, sng(1))
+        s2 = cup(s1, sng(2))
+        s3 = cup(s2, sng(3))
+
+        assert (mem(1, s3))
+        assert (mem(2, s3))
+        assert (mem(3, s3))
+        assert (not (mem(3, s2)))
+
+        -- equality  
+        t1 = cup(s0, sng(3))
+        t2 = cup(s1, sng(2))
+        t3 = cup(s2, sng(1))
+
+        assert (s3 = t3)
+        assert (s3 = cup(s0, t3))
+        
+        -- intersection
+        assert (s0 = cap(s0, t2))
+        assert (mem(1, cap(s3, t3)))
+        assert (mem(2, cap(s3, t3)))
+        assert (mem(3, cap(s3, t3)))
+        assert (mem(2, cap(s3, t2)))
+        assert (not (mem(1, cap(s3, t2))))
+
+
+3. tpZ3.ml       (call get_theories to encode things into Z3)
+
+4. theories.ml
+
+
+Axioms
+======
+
+1. Parser 
+   
+    measure emp :: Set a 
+    measure mem :: a     -> Set a -> Bool
+    measure cup :: Set a -> Set a -> Set a
+    measure cap :: Set a -> set a -> Set a
+    measure elt :: a     -> Set a
+
+    axiom set_emp
+      :: x:a
+      -> {v: Bool | ~ (mem(x, emp))}
+
+    axiom set_elt
+      :: x:a
+      -> y:a
+      -> {v: Bool | (mem(x, elt(y)) <=> (x = y))}
+
+    axiom set_cup
+      :: x:a 
+      -> s1: Set a 
+      -> s2: Set a 
+      -> {v: Bool | (mem(x, cup(s1, s2)) <=> (mem(x, s1) || mem(x, s2)))}
+
+    axiom set_cap
+      :: x:a 
+      -> s1: Set a 
+      -> s2: Set a 
+      -> {v: Bool | (mem(x, cup(s1, s2)) <=> (mem(x, s1) && mem(x, s2)))}
+
+    axiom set_eq
+      :: s1:Set a
+      -> s2:Set a
+      -> {v: Bool | seteq(s1, s2) <=> (forall x. (mem(x, s1) <=> mem(x, s2))) }
+
+
+forall x, S, T: 
+  S = T <=> (x in S <=> x in T)
+
+    measure elts :: [a] -> Set a
+    elts []      = emp
+    elts (x:xs)  = cup (elt(x), elts(xs)) 
+
+   
+    prop_set1 
+
+
 
 Strictness Annotations  
 ======================

@@ -9,45 +9,29 @@ import HscTypes
 import TidyPgm      (tidyProgram)
 import CoreSyn
 import Var
-import TysWiredIn
-import BasicTypes   (TupleSort(BoxedTuple), Arity)
-import IdInfo
 import Name         (getSrcSpan)
 import CoreMonad    (liftIO)
-import Serialized
-import Annotations
-import CorePrep
-import VarEnv
 import DataCon
-import TyCon
 import qualified TyCon as TC
 import HscMain
-import TypeRep
 import Module
 import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc) 
-import MonadUtils (concatMapM, mapSndM)
 import qualified Control.Exception as Ex
 
 import GHC.Paths (libdir)
-import System.FilePath (dropExtension, takeFileName, dropFileName, (</>)) 
+import System.FilePath (dropExtension, takeFileName) 
 
 
-import System.Environment (getArgs)
-import DynFlags (defaultDynFlags, ProfAuto(..))
+import DynFlags (ProfAuto(..))
 import Control.Monad (filterM)
-import Control.Arrow hiding ((<+>))
 import Control.DeepSeq
 import Control.Applicative  hiding (empty)
-import Control.Monad (forM_, forM, liftM, (>=>))
-import Data.Data
+import Control.Monad (forM, liftM)
 import Data.Monoid hiding ((<>))
-import Data.List (intercalate, isPrefixOf, isSuffixOf, foldl', nub, find, splitAt, elemIndex, (\\))
-import Data.Maybe (catMaybes, fromMaybe, isJust, mapMaybe)
+import Data.List (intercalate, foldl', find, (\\))
+import Data.Maybe (catMaybes)
 import qualified Data.Set   as S
 import qualified Data.Map   as M
-
-import TysPrim          (intPrimTyCon)
-import TysWiredIn       (listTyCon, intTy, intTyCon, boolTyCon, intDataCon, trueDataCon, falseDataCon)
 
 import System.Directory (doesFileExist)
 import Language.Haskell.Liquid.Fixpoint hiding (Expr) 
@@ -57,15 +41,10 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Bare
-import Language.Haskell.Liquid.PredType
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Annotate
 
 import qualified Language.Haskell.Liquid.Measure as Ms
-import qualified Language.Haskell.Liquid.ACSS as ACSS
-import qualified Language.Haskell.HsColour.CSS as CSS
-import Language.Haskell.HsColour.Classify
-
 ------------------------------------------------------------------
 ---------------------- GHC Bindings:  Code & Spec ----------------
 ------------------------------------------------------------------
@@ -177,6 +156,7 @@ getGhcModGuts1 fn = do
      Just modSummary -> do
        mod_guts <- coreModule `fmap` (desugarModuleWithLoc =<< typecheckModule =<< parseModule modSummary)
        return   $! (miModGuts mod_guts)
+     Nothing         -> error "GhcInterface : getGhcModGuts1"
 
 -- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
 getGhcModGutsSimpl1 fn = do
@@ -194,6 +174,7 @@ getGhcModGutsSimpl1 fn = do
        liftIO $ putStrLn "************************* CoreGuts ****************************************"
        liftIO $ putStrLn (showPpr $ cg_binds cg)
        return $! (miModGuts mod_guts) { mgi_binds = cg_binds cg } 
+     Nothing         -> error "GhcInterface : getGhcModGutsSimpl1"
 
 peepGHCSimple fn 
   = do z <- compileToCoreSimplified fn
@@ -384,7 +365,7 @@ instance CBVisitable CoreBind where
                               where (xs,es) = unzip xes 
                                     env'    = extendEnv env xs 
 
-  readVars (NonRec x e)      = readVars e
+  readVars (NonRec _ e)      = readVars e
   readVars (Rec xes)         = concatMap readVars $ map snd xes
 
 instance CBVisitable (Expr Var) where
@@ -395,18 +376,20 @@ instance CBVisitable (Expr Var) where
   freeVars env (Tick _ e)      = freeVars env e
   freeVars env (Cast e _)      = freeVars env e
   freeVars env (Case e x _ cs) = (freeVars env e) ++ (concatMap (freeVars (extendEnv env [x])) cs) 
-  freeVars env (Lit _)         = []
-  freeVars env (Type _)	       = []
+  freeVars _   (Lit _)         = []
+  freeVars _   (Type _)	       = []
+  freeVars _   (Coercion _)	   = []
 
   readVars (Var x)             = [x]
   readVars (App e a)           = concatMap readVars [e, a] 
-  readVars (Lam x e)           = readVars e
+  readVars (Lam _ e)           = readVars e
   readVars (Let b e)           = readVars b ++ readVars e 
   readVars (Tick _ e)          = readVars e
   readVars (Cast e _)          = readVars e
   readVars (Case e _ _ cs)     = (readVars e) ++ (concatMap readVars cs) 
   readVars (Lit _)             = []
   readVars (Type _)	           = []
+  readVars (Coercion _)	       = []
 
 
 instance CBVisitable (Alt Var) where
@@ -451,7 +434,7 @@ ppBlank = text "\n_____________________________\n"
 instance NFData Var
 instance NFData SrcSpan
 instance NFData a => NFData (AnnInfo a) where
-  rnf (AI x) = () -- rnf x
+  rnf (AI x) = rnf x
 
 --instance NFData GhcInfo where
 --  rnf (GI x1 x2 x3 x4 x5 x6 x7 x8 _ _ _) 

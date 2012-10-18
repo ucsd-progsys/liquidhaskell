@@ -14,8 +14,7 @@ module Language.Haskell.Liquid.Annotate (
   ,  annotate
   ) where
 
-import GHC                      ( RealSrcSpan (..)
-                                , SrcSpan (..)
+import GHC                      ( SrcSpan (..)
                                 , srcSpanStartCol
                                 , srcSpanEndCol
                                 , srcSpanStartLine
@@ -25,22 +24,13 @@ import Var                      (Var (..))
 import Outputable
 import GHC.Exts                 (groupWith, sortWith)
 
-import Data.List                (sort, intercalate)
-import Data.Maybe               (isJust, fromMaybe, catMaybes)
-import Data.Char                (isSpace, isUpper)
-import ErrUtils
-import Data.Traversable         (forM)
+import Data.Char                (isSpace)
 
 import Control.Arrow            hiding ((<+>))
 import Control.Applicative      ((<$>))
-import Control.Monad.Reader     hiding (forM)
-import Control.Monad.Error      hiding (forM)
-import Data.Generics.Schemes
-import Data.Generics.Aliases
 import Data.Data                hiding (TyCon, tyConName)
-import Data.Bifunctor
 
-import System.FilePath          (dropExtension, takeFileName, dropFileName, (</>)) 
+import System.FilePath          (takeFileName, dropFileName, (</>)) 
 import System.Directory         (findExecutable)
 import System.Directory         (copyFile) 
 
@@ -51,13 +41,9 @@ import qualified Data.Map   as M
 import qualified Language.Haskell.Liquid.ACSS as ACSS
 import Language.Haskell.HsColour.Classify
 import Language.Haskell.Liquid.FileNames
-import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.PredType
-import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Misc
-import qualified Control.Exception as Ex
 
 -------------------------------------------------------------------
 ------ Rendering HTMLized source with Inferred Types --------------
