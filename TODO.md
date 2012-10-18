@@ -8,7 +8,7 @@ TODO
 * predicate-aliases 
 * self-invariants        (tests/todo/maybe4.hs)
 * fixpoint profile (how much performance hit from -nosimple?)
-* Add SET-Theory to Z3 ? (Or add general axioms)
+* Set Theory
 * benchmarks: Data.List (foldr) -- needs sets
 * benchmarks: Data.Bytestring
 * benchmarks: stackset-core
@@ -18,54 +18,12 @@ TODO
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
 
-Extensible Theories (fixpoint)
-==============================
+Set Theory
+==========
 
-1. theories.mli [DONE]
+1. fixpoint/theories.ml [DONE]
+   see fixpoint/tests/sets.fq
 
-2. write .fq level tests
-        
-        -- empty
-        s0 = emp
-        
-        assert not (mem (1, s0))
-        assert not (mem (2, s0))
-        assert not (mem (3, s0))
-       
-        -- union
-        s1 = cup(s0, sng(1))
-        s2 = cup(s1, sng(2))
-        s3 = cup(s2, sng(3))
-
-        assert (mem(1, s3))
-        assert (mem(2, s3))
-        assert (mem(3, s3))
-        assert (not (mem(3, s2)))
-
-        -- equality  
-        t1 = cup(s0, sng(3))
-        t2 = cup(s1, sng(2))
-        t3 = cup(s2, sng(1))
-
-        assert (s3 = t3)
-        assert (s3 = cup(s0, t3))
-        
-        -- intersection
-        assert (s0 = cap(s0, t2))
-        assert (mem(1, cap(s3, t3)))
-        assert (mem(2, cap(s3, t3)))
-        assert (mem(3, cap(s3, t3)))
-        assert (mem(2, cap(s3, t2)))
-        assert (not (mem(1, cap(s3, t2))))
-
-
-3. tpZ3.ml       (call get_theories to encode things into Z3)
-
-4. theories.ml
-
-
-Axioms
-======
 
 1. Parser 
    
