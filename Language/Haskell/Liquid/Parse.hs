@@ -242,7 +242,6 @@ bareArgP
 
 bareAtomP 
   =  refP bbaseP 
-
  <|> try (dummyP (bbaseP <* spaces))
 
 bbaseP :: Parser (Reft -> BareType)
@@ -488,8 +487,15 @@ aliasP
 measureP 
   = do (x, ty) <- tyBindP  
        whiteSpace
-       eqns    <- grabs $ measureDefP $ tyBodyP ty
+       eqns    <- grabs $ measureDefP $ (rawBodyP <|> tyBodyP ty)
        return   $ Measure.mkM x ty eqns   
+
+rawBodyP 
+  = braces $ do
+      v <- symbolP 
+      reserved "|"
+      p <- predP
+      return $ Measure.R v p
 
 -- tyBodyP :: BareType -> Parser Measure.Body
 tyBodyP ty 
@@ -500,6 +506,8 @@ tyBodyP ty
           outTy (RAllP _ t)    = outTy t
           outTy (RFun _ _ t _) = Just t
           outTy _              = Nothing
+
+
 
 binderP :: Parser Symbol
 binderP =  try $ liftM stringSymbol (idP badc)

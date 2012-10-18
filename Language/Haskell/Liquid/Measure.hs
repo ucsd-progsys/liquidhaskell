@@ -59,8 +59,9 @@ data Def bndr
   } deriving (Data, Typeable)
 
 data Body 
-  = E Expr 
-  | P Pred
+  = E Expr          -- {v | v = e } 
+  | P Pred          -- {v | (? v) <=> p }
+  | R Symbol Pred   -- {v | p}
   deriving (Data, Typeable)
 
 qualifySpec name sp = sp { sigs = [ (qualifySymbol name x, t) | (x, t) <- sigs sp] }
@@ -167,11 +168,16 @@ defRefType (Def f dc xs body) = mkArrow as [] xts t'
 refineWithCtorBody dc f body t = 
   case stripRTypeBase t of 
     Just (Reft (v, _)) ->
-      strengthen t $ Reft (v, [RConc $ bodyPred v body])
+      strengthen t $ Reft (v, [RConc $ bodyPred (EApp f [EVar v]) body])
     Nothing -> 
       errorstar $ "measure mismatch " ++ showPpr f ++ " on con " ++ showPpr dc
-  where bodyPred v (E e) = PAtom Eq (EApp f [EVar v]) e
-        bodyPred v (P p) = PIff  (PBexp (EApp f [EVar v])) p 
+
+
+bodyPred ::  Expr -> Body -> Pred
+bodyPred fv (E e)    = PAtom Eq fv e
+bodyPred fv (P p)    = PIff  (PBexp fv) p 
+bodyPred fv (R v' p) = subst1 p (v', fv)
+
 
 -------------------------------------------------------------------------------
 ----------- Refinement Type Aliases -------------------------------------------
