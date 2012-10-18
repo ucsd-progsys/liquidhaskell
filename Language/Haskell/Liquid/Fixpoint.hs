@@ -210,15 +210,15 @@ toFixpoint x' = gsDoc x' $+$ conDoc x' $+$  csDoc x' $+$ wsDoc x'
 ---------------------------------- Sorts -----------------------------
 ----------------------------------------------------------------------
 
-newtype Tycon = TC Symbol deriving (Eq, Ord, Data, Typeable, Show)
+newtype FTycon = TC Symbol deriving (Eq, Ord, Data, Typeable, Show)
 
 data Sort = FInt 
           | FBool
-          | FNum                 -- numeric kind for Num tyvars
-          | FObj  Symbol         -- uninterpreted type
-          | FVar  !Int           -- fixpoint type variable
-          | FFunc !Int ![Sort]   -- type-var arity, in-ts ++ [out-t]
-          | FApp Tycon [Sort]    -- constructed type 
+          | FNum                 -- ^ numeric kind for Num tyvars
+          | FObj  Symbol         -- ^ uninterpreted type
+          | FVar  !Int           -- ^ fixpoint type variable
+          | FFunc !Int ![Sort]   -- ^ type-var arity, in-ts ++ [out-t]
+          | FApp FTycon [Sort]   -- ^ constructed type 
 	      deriving (Eq, Ord, Data, Typeable, Show)
 
 typeSort :: Type -> Sort 
@@ -298,7 +298,7 @@ toFix_sort (FApp c ts)  = toFix c <+> intersperse space (fp <$> ts)
                                 fp s                = toFix_sort s
 
 
-instance Fixpoint Tycon where
+instance Fixpoint FTycon where
   toFix (TC s)       = toFix s
 
 ---------------------------------------------------------------
@@ -351,7 +351,7 @@ instance Fixpoint Subst where
 ------ Converting Strings To Fixpoint ------------------------------------- 
 ---------------------------------------------------------------------------
 
-stringTycon :: String -> Tycon
+stringTycon :: String -> FTycon
 stringTycon = TC . stringSymbol . dropModuleNames
 
 stringSymbolRaw :: String -> Symbol
@@ -830,7 +830,7 @@ flattenRefas = concatMap flatRa
 instance NFData Symbol where
   rnf (S x) = rnf x
 
-instance NFData Tycon where
+instance NFData FTycon where
   rnf (TC c)       = rnf c
 
 instance NFData Sort where
