@@ -20,4 +20,8 @@ isJust (Nothing) = false
 measure fromJust :: forall a. Maybe a -> a 
 fromJust (Just x) = x 
 
+embed GHC.Prim.Int# as int
+embed Int           as int
+embed Integer       as int
+embed Bool          as bool 
 

@@ -443,7 +443,7 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.dataDecls  = [d | DDecl d <- xs]
   , Measure.includes   = [q | Incl  q <- xs]
   , Measure.aliases    = [a | Alias a <- xs]
-  , Measure.embeds     = [e | Embed e <- xs]
+  , Measure.embeds     = M.fromList [e | Embed e <- xs]
   }
 
 specificationP 
@@ -479,7 +479,14 @@ genBareTypeP
   = liftM generalize bareTypeP 
 
 embedP 
-  = xyP upperIdP (reserved "as") (stringTycon <$> upperIdP)
+  = xyP upperIdP (reserved "as") fTyConP
+
+fTyConP
+  =   (reserved "int"  >> return intFTyCon)
+  <|> (reserved "bool" >> return boolFTyCon)
+  <|> (stringFTycon   <$> upperIdP)
+
+
 
 aliasP 
   = do name <- upperIdP
