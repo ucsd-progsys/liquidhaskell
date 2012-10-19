@@ -10,7 +10,8 @@ module Language.Haskell.Liquid.Fixpoint (
   , Fixpoint (toFix) 
   , typeSort, typeUniqueSymbol
   , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tempSymbol --, tagSymbol 
-  , qualifySymbol, stringTycon, stringSymbol, symbolString, stringSymbolRaw
+  , qualifySymbol, stringSymbol, symbolString, stringSymbolRaw
+  , FTycon, stringFTycon, intFTyCon, boolFTyCon
   , anfPrefix, tempPrefix
   , intKvar
   , Sort (..), Symbol(..), Constant (..), Bop (..), Brel (..), Expr (..)
@@ -40,7 +41,7 @@ import TypeRep
 import PrelNames            (intTyConKey, intPrimTyConKey, integerTyConKey, boolTyConKey)
 
 import TysWiredIn           (listTyCon)
-import TyCon                (isTupleTyCon, tyConUnique)
+import TyCon                (TyCon, isTupleTyCon, tyConUnique)
 import Outputable
 import Data.Monoid hiding   ((<>))
 import Data.Functor
@@ -51,7 +52,7 @@ import qualified Data.Set as S
 
 import Data.Generics.Schemes
 import Data.Generics.Aliases
-import Data.Data    hiding  (tyConName)
+import Data.Data    hiding  (TyCon, tyConName)
 import Data.Maybe           (fromMaybe)
 
 import Language.Haskell.Liquid.Misc
@@ -65,7 +66,7 @@ class Fixpoint a where
   simplify :: a -> a 
   simplify =  id
 
-type TCEmb a    = Map a FTycon  
+type TCEmb a    = M.Map a FTycon  
 
 ------------------------------------------------------------
 ------------------- Sanitizing Symbols ---------------------
@@ -208,12 +209,24 @@ toFixpoint x' = gsDoc x' $+$ conDoc x' $+$  csDoc x' $+$ wsDoc x'
         csDoc      = vcat . map toFix . cs 
         wsDoc      = vcat . map toFix . ws 
         gsDoc      = vcat . map infoConstant . map (\(x, (RR so _)) -> (x, so, False)) . M.assocs . (\(SE e) -> e) . gs
-       
+
+
 ----------------------------------------------------------------------
----------------------------------- Sorts -----------------------------
+------------------------ Type Constructors ---------------------------
 ----------------------------------------------------------------------
 
 newtype FTycon = TC Symbol deriving (Eq, Ord, Data, Typeable, Show)
+
+intFTyCon  = TC (S "int")
+boolFTyCon = TC (S "bool")
+listFTyCon = TC (S listConName)
+
+isListTC   = (listFTyCon ==)
+-- isListTC (TC (S c)) = c == listConName
+
+----------------------------------------------------------------------
+------------------------------- Sorts --------------------------------
+----------------------------------------------------------------------
 
 data Sort = FInt 
           | FBool
@@ -224,20 +237,27 @@ data Sort = FInt
           | FApp FTycon [Sort]   -- ^ constructed type 
 	      deriving (Eq, Ord, Data, Typeable, Show)
 
+fApp c ts 
+  | c == intFTyCon  = FInt
+  | c == boolFTyCon = FBool
+  | otherwise       = FApp c ts
+
 typeSort :: TCEmb TyCon -> Type -> Sort 
-typeSort (TyConApp c [])
-  | k == intTyConKey     = FInt
-  | k == intPrimTyConKey = FInt
-  | k == integerTyConKey = FInt 
-  | k == boolTyConKey    = FBool
-  where k = tyConUnique c
-typeSort (ForAllTy _ τ) 
-  = typeSort τ  -- JHALA: Yikes! Fix!!!
-typeSort (FunTy τ1 τ2) 
-  = typeSortFun τ1 τ2
-typeSort (TyConApp c τs)
-  = FApp (stringTycon $ tyConName c) (typeSort <$> τs)
-typeSort τ
+-- COMMENTED OUT TO TEST EMBED
+-- typeSort tce (TyConApp c [])
+--   | k == intTyConKey     = FInt
+--   | k == intPrimTyConKey = FInt
+--   | k == integerTyConKey = FInt 
+--   | k == boolTyConKey    = FBool
+--   where k = tyConUnique c
+typeSort tce (ForAllTy _ τ) 
+  = typeSort tce τ  -- JHALA: Yikes! Fix!!!
+typeSort tce (FunTy τ1 τ2) 
+  = typeSortFun tce τ1 τ2
+typeSort tce (TyConApp c τs)
+  = fApp ftc (typeSort tce <$> τs)
+  where ftc = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce) 
+typeSort _ τ
   = FObj $ typeUniqueSymbol τ
   
 tyConName c 
@@ -245,14 +265,15 @@ tyConName c
   | isTupleTyCon c = tupConName
   | otherwise      = showPpr c
 
-isListTC (TC (S c)) = c == listConName
 
-typeSortFun τ1 τ2
+typeSortFun tce τ1 τ2
   = FFunc n $ genArgSorts sos
-  where sos  = typeSort <$> τs
+  where sos  = typeSort tce <$> τs
         τs   = τ1  : grabArgs [] τ2
         n    = (length sos) - 1
-     
+   
+
+
 typeUniqueSymbol :: Type -> Symbol 
 typeUniqueSymbol = stringSymbol . {- ("sort_" ++) . -} showSDocDump . ppr
 
@@ -354,8 +375,8 @@ instance Fixpoint Subst where
 ------ Converting Strings To Fixpoint ------------------------------------- 
 ---------------------------------------------------------------------------
 
-stringTycon :: String -> FTycon
-stringTycon = TC . stringSymbol . dropModuleNames
+stringFTycon :: String -> FTycon
+stringFTycon = TC . stringSymbol . dropModuleNames
 
 stringSymbolRaw :: String -> Symbol
 stringSymbolRaw = S

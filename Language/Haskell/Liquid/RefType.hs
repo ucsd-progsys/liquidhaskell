@@ -31,7 +31,7 @@ module Language.Haskell.Liquid.RefType (
   , tidyRefType
   , varSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalReft, literalConst
-  -- , primOrderingSort
+  , primOrderingSort
   , fromRMono, fromRPoly, idRMono
   , isTrivial
   ) where
@@ -58,7 +58,7 @@ import Control.DeepSeq
 import Control.Monad  (liftM, liftM2, liftM3)
 import Data.Generics.Schemes
 import Data.Generics.Aliases
-import Data.Data
+import Data.Data            hiding (TyCon)
 import qualified Data.Foldable as Fold
 
 import Language.Haskell.Liquid.Tidy
@@ -1026,7 +1026,7 @@ pprShort    =  dropModuleNames . showPpr
 dataConSymbol ::  DataCon -> Symbol
 dataConSymbol = varSymbol . dataConWorkId
 
-ordCon s = EDat (dataConSymbol s) primOrderingSort tce
+ordCon s = EDat (dataConSymbol s) primOrderingSort 
 primOrderingSort = typeSort M.empty $ dataConRepType eqDataCon
 
 -- TODO: turn this into a map lookup?
@@ -1116,8 +1116,8 @@ mapBindRef f (RPoly t)     = RPoly $ mapBind f t
 ----------------------- Typing Literals -----------------------
 ---------------------------------------------------------------
 
-literalRefType l 
-  = makeRTypeBase (literalType l) (literalReft l) 
+literalRefType tce l 
+  = makeRTypeBase (literalType l) (literalReft tce l) 
 
 -- makeRTypeBase :: Type -> Reft -> RefType 
 makeRTypeBase (TyVarTy α)    x       

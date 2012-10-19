@@ -125,9 +125,9 @@ joinIds vs xts = vts
         vts    = catMaybes [(, t) <$> (M.lookup (symbolString x) vm) | (x, t) <- xts]
 
 
-makeTyConEmbeds  :: BareEnv -> [(String, FTycon)] -> IO (TCEmb TyCon) 
+makeTyConEmbeds  :: BareEnv -> TCEmb String -> IO (TCEmb TyCon) 
 makeTyConEmbeds benv z = execBare (M.fromList <$> mapM tx (M.assocs z)) benv
-  where tx (x, y) = error "makeTyConEmbeds.FIXTHISHERE"
+  where tx (c, y) = (, y) <$> lookupGhcTyCon c
 
 
 makeInvariants :: BareEnv -> [BareType] -> IO [SpecType]

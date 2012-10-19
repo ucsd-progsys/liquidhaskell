@@ -37,7 +37,7 @@ data Spec ty bndr  = Spec {
   , dataDecls  :: ![DataDecl]                -- ^ Predicated data definitions 
   , includes   :: ![FilePath]                -- ^ Included qualifier files
   , aliases    :: ![RTAlias String BareType] -- ^ RefType aliases
-  , embeds     :: !TCEmb String              -- ^ GHC-Tycon-to-fixpoint Tycon map
+  , embeds     :: !(TCEmb String)            -- ^ GHC-Tycon-to-fixpoint Tycon map
   } deriving (Data, Typeable)
 
 
@@ -83,7 +83,7 @@ mkMSpec ms = MSpec cm mm
         ms' = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
 instance Monoid (Spec ty bndr) where
-  mappend (Spec xs ys invs zs ds is as) (Spec xs' ys' invs' zs' ds' is' as')
+  mappend (Spec xs ys invs zs ds is as es) (Spec xs' ys' invs' zs' ds' is' as' es')
            = Spec (xs ++ xs') 
                   (ys ++ ys') 
                   (invs ++ invs') 
@@ -91,7 +91,8 @@ instance Monoid (Spec ty bndr) where
                   (ds ++ ds') 
                   (sortNub (is ++ is')) 
                   (as ++ as')
-  mempty   = Spec [] [] [] [] [] [] []
+                  (union es es')
+  mempty   = Spec [] [] [] [] [] [] [] empty
 
 instance Functor Def where
   fmap f def = def { ctor = f (ctor def) }
