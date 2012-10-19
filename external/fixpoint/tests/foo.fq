@@ -1,0 +1,10 @@
+
+
+constraint:
+  env [ es : {VV : Set_Set a | [] } ]
+  grd (? Set_emp([es]))
+  lhs {VV : a | []}
+  rhs {VV : a | [(? Set_emp([es]))]}
+  id 35 
+
+

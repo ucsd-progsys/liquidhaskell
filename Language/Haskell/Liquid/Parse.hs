@@ -11,6 +11,7 @@ import Text.Parsec
 import Text.Parsec.Expr
 import Text.Parsec.Language
 import Text.Parsec.String
+import Text.Printf  (printf)
 import qualified Text.Parsec.Token as Token
 import Control.Applicative ((<$>), (<*))
 import qualified Data.Map as M
@@ -627,9 +628,11 @@ remainderP p
 
 doParse' parser f s
   = case parse (remainderP p) f s of
-      Left e         -> errorstar $ "parseError when parsing " ++ s ++ " : " ++ show e
+      Left e         -> errorstar $ printf "parseError %s\n when parsing %s\nfrom %s\n" 
+                                      (show e) s f 
       Right (r, "")  -> r
-      Right (_, rem) -> errorstar $ "doParse has leftover when parsing: " ++ rem
+      Right (_, rem) -> errorstar $ printf "doParse has leftover when parsing: %s\nfrom file %s\n"
+                                      rem f
   where p = whiteSpace >> parser
 
 grabUpto p  
