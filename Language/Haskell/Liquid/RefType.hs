@@ -498,10 +498,13 @@ expandRApp tyi (RApp rc ts rs r)
 expandRApp _ t
   = t
 
-appRTyCon tyi rc@(RTyCon c _) ts = RTyCon c ps'
+appRTyCon tyi rc@(RTyCon c []) ts = RTyCon c ps'
   where ps' = map (subts (zip (RTV <$> αs) ({- PREDARGS toType -} toRSort <$> ts))) (rTyConPs rc')
         rc' = M.findWithDefault rc c tyi
         αs  = TC.tyConTyVars $ rTyCon rc'
+appRTyCon _   (RTyCon c ps) ts = RTyCon c ps'
+  where ps' = map (subts (zip (RTV <$> αs) ({- PREDARGS toType -} toRSort <$> ts))) ps
+        αs  = TC.tyConTyVars c
 
 appRefts rc [] = RPoly . {- PREDARGS ofType -} ofRSort . ptype <$> (rTyConPs rc)
 appRefts rc rs = safeZipWith "appRefts" toPoly rs (ptype <$> (rTyConPs rc))
@@ -818,7 +821,7 @@ instance GetPVar Refa where
   getUPVars _ = []
 
 instance GetPVar Reft where
-  getUPVars r = []
+  getUPVars _ = []
 
 instance (Data r, Typeable r, GetPVar r) 
           => GetPVar (RType Class RTyCon RTyVar r) where
