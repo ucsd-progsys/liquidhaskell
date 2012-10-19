@@ -53,7 +53,9 @@ Set Theory
     embed Set       as Set_Set
 
 
-3. get tests/pos/meas9.hs to pass!      <---------------- HEREHEREHEREHERE
+3. get tests/pos/meas9.hs to pass!      
+
+4. get ALL regrtests to pass.<---------------- HEREHEREHEREHERE
 
 ------------------------------------------------------------
 
