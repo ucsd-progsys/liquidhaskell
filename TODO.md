@@ -21,7 +21,6 @@ TODO
 Set Theory
 ==========
 
-HEREWEARE
 
 (tests/pos/meas9.hs)
 
@@ -52,6 +51,9 @@ HEREWEARE
  include/Data/Set.spec
     
     embed Set       as Set_Set
+
+
+3. get tests/pos/meas9.hs to pass!      <---------------- HEREHEREHEREHERE
 
 ------------------------------------------------------------
 
