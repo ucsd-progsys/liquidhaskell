@@ -300,6 +300,10 @@ instance Subable r => Subable (UReft r) where
 instance Subable Predicate where
   subst _ = id 
 
+instance Subable (Ref F.Reft RefType) where
+  subst su (RMono r) = RMono $ subst su r
+  subst su (RPoly r) = RPoly $ subst su r
+
 instance Subable r => Subable (RType p c tv r) where
   subst  = fmap . subst
 
