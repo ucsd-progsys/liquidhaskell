@@ -7,6 +7,7 @@ module Language.Haskell.Liquid.RefType (
     RTyVar (..), RType (..), RRType, BRType, RTyCon(..)
   , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..), Ref(..)
   , RTAlias (..)
+  , GetPVar (..)
   , BSort, BPVar, BareType, RSort, UsedPVar, RPVar, RReft, RefType
   , PrType, SpecType
   , PVar (..) , Predicate (..), UReft(..), DataDecl (..)
@@ -800,6 +801,34 @@ efoldRef f γ z (RPoly t)         = efoldReft f γ z t
 
 isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool
 isTrivial = Fold.and . fmap isTauto
+
+class GetPVar a where
+  getUPVars :: a  -> [PVar ()]
+
+instance GetPVar () where
+  getUPVars _ = []
+
+instance GetPVar Predicate where
+  getUPVars (Pr ps) = ps
+
+instance GetPVar (UReft r) where
+  getUPVars (U _ ps) = getUPVars ps
+
+instance GetPVar Refa where
+  getUPVars _ = []
+
+instance GetPVar Reft where
+  getUPVars r = []
+
+instance (Data r, Typeable r, GetPVar r) 
+          => GetPVar (RType Class RTyCon RTyVar r) where
+  getUPVars = everything (++) ([] `mkQ` go) 
+    where go (ref :: r) = getUPVars ref
+
+instance (Data r2, Typeable r2, GetPVar r2, GetPVar r1) 
+         => GetPVar (Ref r1 (RType Class RTyCon RTyVar r2)) where
+  getUPVars (RMono r) = getUPVars r
+  getUPVars (RPoly t) = getUPVars t
 
 -- mkTrivial = mapReft (\_ -> ())
 
