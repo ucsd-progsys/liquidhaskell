@@ -405,11 +405,13 @@ data RTyCon = RTyCon
   { rTyCon     :: !TC.TyCon         -- GHC Type Constructor
   , rTyConPs   :: ![RPVar]          -- Predicate Parameters
   }
-  deriving (Eq, Data, Typeable)
+  deriving (Data, Typeable)
 
 instance Ord RTyCon where
   compare x y = compare (rTyCon x) (rTyCon y)
 
+instance Eq RTyCon where
+  x == y = (rTyCon x) == (rTyCon y)
 
 --------------------------------------------------------------------
 ---------------------- Helper Functions ----------------------------
