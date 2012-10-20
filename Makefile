@@ -43,6 +43,10 @@ clean:
 vector:
 	$(CABAL) install vector
 
+ansi-terminal:
+	$(CABAL) install ansi-terminal 
+
+
 bytestring:
 	$(CABAL) install bytestring 
 	$(CABAL) install bytestring-lexing
