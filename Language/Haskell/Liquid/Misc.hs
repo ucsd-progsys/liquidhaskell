@@ -6,12 +6,13 @@ import qualified Control.Exception as Ex
 import qualified Data.Set as S 
 import qualified Data.Map as M
 import Control.Applicative      ((<$>))
+import Control.Monad            (forM_)
 import Data.List 
-import Data.Maybe (catMaybes)
+import Data.Maybe               (catMaybes)
 
 import System.Exit
-import System.Process   (system)
-import Debug.Trace (trace)
+import System.Process           (system)
+import Debug.Trace              (trace)
 import Data.Data
 
 ---------------------------------------------------------------------
@@ -28,10 +29,15 @@ import Data.Data
 
 wrapStars msg = "\n****************************** " ++ msg ++ " *****************************"
 
-startPhase = putStrLn . wrapStars .  ("START: " ++)
-donePhase  = putStrLn . wrapStars .  ("DONE : " ++)
+putPhaseLn msg = putStrLn . wrapStars .  (msg ++)
+startPhase     = putPhaseLn "START: "
+doneLine       = putPhaseLn "DONE:  "
 
-  -- = putStrLn $ "******************** DONE: " ++ msg ++ "*************************"
+donePhase str = case lines str of 
+                  (l:ls) -> doneLine l >> forM_ ls (putPhaseLn "")
+                  _      -> return ()
+
+
 
 data Empty = Emp deriving (Data, Typeable, Eq, Show)
 
