@@ -35,6 +35,9 @@ module Language.Haskell.Liquid.Fixpoint (
 
   -- * Visitors
   , getSymbols
+
+  -- * Functions on @Result@
+  , colorResult 
   ) where
 
 import TypeRep 
@@ -59,6 +62,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.GhcMisc
 import Control.DeepSeq
+import System.Console.ANSI (Color (..))
 
 class Fixpoint a where
   toFix    :: a -> SDoc
@@ -716,6 +720,11 @@ ppr_sinfos :: (Ord a, Outputable a) => String -> [SubC a] -> SDoc
 ppr_sinfos msg = (text msg  <>) . ppr . sort . fmap sinfo
 
 -- toFixPfx s x     = text s <+> toFix x
+
+colorResult (Safe)      = Happy 
+colorResult (Unsafe _)  = Angry 
+colorResult (_)         = Sad 
+
 
 instance Show (SubC a) where
   show = showPpr 

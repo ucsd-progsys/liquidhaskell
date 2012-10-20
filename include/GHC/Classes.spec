@@ -2,6 +2,7 @@ module spec GHC.Classes where
 
 -- TODO: Drop prefix below
 
+
 assume GHC.Classes.&&      :: x: Bool -> y: Bool    -> {v: Bool | ((? v) <=> ((? x) && (? y)))}
 assume GHC.Classes.==      :: (Eq  a) => x:a -> y:a -> {v:Bool | ((? v) <=> x = y)}
 assume GHC.Classes./=      :: (Eq  a) => x:a -> y:a -> {v:Bool | ((? v) <=> x != y)}
