@@ -707,13 +707,13 @@ instance Functor FixResult where
   fmap _ UnknownError   = UnknownError 
 
 instance (Ord a, Outputable a) => Outputable (FixResult (SubC a)) where
-  ppr (Crash xs msg) = text "Crash!\n"  <> ppr_sinfos xs <> parens (text msg) 
+  ppr (Crash xs msg) = text "Crash!\n"  <> ppr_sinfos "CRASH: " xs <> parens (text msg) 
   ppr Safe           = text "Safe"
-  ppr (Unsafe xs)    = text "Unsafe:\n" <> ppr_sinfos xs -- ppr (sinfo `fmap` xs)
+  ppr (Unsafe xs)    = text "Unsafe:\n" <> ppr_sinfos "WARNING: " xs
   ppr UnknownError   = text "Unknown Error!"
 
-ppr_sinfos :: (Ord a, Outputable a) => [SubC a] -> SDoc
-ppr_sinfos = ppr . sort . fmap sinfo
+ppr_sinfos :: (Ord a, Outputable a) => String -> [SubC a] -> SDoc
+ppr_sinfos msg = (text msg  <>) . ppr . sort . fmap sinfo
 
 -- toFixPfx s x     = text s <+> toFix x
 
