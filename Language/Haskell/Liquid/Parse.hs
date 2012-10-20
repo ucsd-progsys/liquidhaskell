@@ -138,16 +138,22 @@ wiredSorts = [ ("EQ", (varSymbol eqDataConId, primOrderingSort))
              , ("GT", (varSymbol gtDataConId, primOrderingSort))
              ]
 
-exprFunP       =  (try exprFunSpacesP) <|> exprFunCommasP
 
-exprFunCommasP = liftM2 EApp symbolP argsP
-  where argsP  = try (parens $ brackets esP) <|> parens esP
-        esP    = sepBy exprP comma 
+
+
+exprFunP       =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
 
 exprFunSpacesP = parens $ liftM2 EApp symbolP (sepBy exprP spaces) 
+exprFunCommasP = liftM2 EApp symbolP (parens        $ sepBy exprP comma)
+exprFunSemisP  = liftM2 EApp symbolP (parenBrackets $ sepBy exprP semi)
 
+parenBrackets  = parens . brackets 
 
-
+-- exprFunP       =  (try exprFunSpacesP) <|> exprFunCommasP
+--exprFunCommasP = liftM2 EApp symbolP argsP
+--  where argsP  =  try (parens $ brackets esP) 
+--              <|> parens esP
+--        esP    = sepBy exprP comma 
 
 expr2P = buildExpressionParser bops lexprP
 

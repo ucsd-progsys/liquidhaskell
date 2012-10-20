@@ -1104,8 +1104,9 @@ let rec sortcheck_expr f e =
 
 (* TODO: OMG! 5 levels of matching!!!!! *)
 and sortcheck_app_sub f so_expected uf es =
+  let yikes uf = F.printf "sortcheck_app_sub: unknown sym = %s \n" (Symbol.to_string uf) in
   sortcheck_sym f uf
-  |> function None -> None | Some t -> 
+  |> function None -> (yikes uf; None) | Some t -> 
        Sort.func_of_t t 
        |> function None -> None | Some (tyArity, i_ts, o_t) -> 
               let _  = asserts (List.length es = List.length i_ts) 
@@ -1128,6 +1129,15 @@ and sortcheck_app_sub f so_expected uf es =
 and sortcheck_app f so_expected uf es = 
   sortcheck_app_sub f so_expected uf es 
   |> Misc.maybe_map snd 
+  (* >> begin function 
+       | Some t -> Format.printf "sortcheck_app: e = %s , t = %s \n"
+                     (expr_to_string (eApp (uf, es))) (Sort.to_string t)
+       | None   -> Format.printf "sortcheck_app: e = %s FAILS\n"
+                     (expr_to_string (eApp (uf, es)))
+     end
+  *)
+
+
 
 and sortcheck_op f (e1, op, e2) = 
   match Misc.map_pair (sortcheck_expr f) (e1, e2) with

@@ -453,6 +453,7 @@ let valid_bindings ys x =
 let sort_compat t1 t2 = A.Sort.unify [t1] [t2] <> None
 
 let valid_bindings_sort env (x, t) =
+  let _ = failwith "valid_bindings_sort: slow AND incorrect. suppressed!" in
   env |> SM.to_list
       |> Misc.filter (snd <+> C.sort_of_reft <+> (sort_compat t))
       |> Misc.map (fun (y,_) -> (x, y))
@@ -462,7 +463,6 @@ let valid_bindings env ys (x, t) =
   if !Co.sorted_quals
   then valid_bindings_sort env (x,t)
   else valid_bindings ys x
-
 
 (* DEBUG ONLY *)
 let print_param ppf (x, t) =
@@ -478,6 +478,7 @@ let wellformed_qual wf f q =
   q |> Q.pred_of_t 
     |> A.sortcheck_pred f
     (* >> (F.printf "\nwellformed: id = %d q = @[%a@] result %b\n" (C.id_of_wf wf) Q.print q) *)
+    (* NEVER uncomment out the above. *)
 
 let inst_qual env ys evv (q : Q.t) : Q.t list =
   let vve = (Q.vv_of_t q, evv) in
@@ -486,14 +487,15 @@ let inst_qual env ys evv (q : Q.t) : Q.t list =
       [(Q.inst q [vve])]
   | xts ->
       xts
-      (* >> F.printf "\n\nparams q = %a: %a" Q.print q print_params) *) 
+      (* >> F.printf "\n\ninst_qual: params q = %a: %a" Q.print q print_params          *)
       |> List.map (valid_bindings env ys)                   (* candidate bindings    *)
       |> Misc.product                                       (* generate combinations *) 
+      (* >> (List.iter (F.printf "\ninst_qual: pre-binds = %a\n" print_valid_bindings)) *)
       |> List.filter is_valid_binding                       (* remove bogus bindings *)
-      (* >> (List.iter (F.printf "\ninst_binds = %a\n" print_valid_bindings)) *)
+      (* >> (List.iter (F.printf "\ninst_qual: post-binds = %a\n" print_valid_bindings)) *)
       |> List.rev_map (List.map (Misc.app_snd A.eVar))      (* instantiations        *)
       |> List.rev_map (fun xes -> Q.inst q (vve::xes))      (* quals *)
-      (* >> (F.printf "\n\ninst_qual q = %a: %a" Q.print q (Misc.pprint_many true "" Q.print)) *)
+      (* >> (F.printf "\n\ninst_qual: result q = %a:\n%a DONE\n" Q.print q (Misc.pprint_many true "" Q.print)) *)
 
 let inst_vars env = 
   env |> Sy.SMap.to_list 
@@ -583,7 +585,7 @@ let apply_facts_c kf me c =
   let ks = rhs |> C.kvars_of_reft |> List.map snd in
   let lps = C.preds_of_lhs kf c in (* Use the known facts here *)
   let rcs = (Misc.flap (rhs_cands me)) ras in
-    if rcs = [] then (* Nothing on the right hand side *)
+    if rcs = [] then               (* Nothing on the right hand side *)
       me
     else if check_tp me env vv t lps [(0, A.pFalse)] = [0] then
       me

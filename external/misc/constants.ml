@@ -232,13 +232,10 @@ let arg_spec =
     Arg.Set sorted_quals,
     " use sorted parameters in the qualifiers, to speed up instantiation. Should
       become default after vetting.");
-    ("-refinesort",
+   ("-refinesort",
     Arg.Set refine_sort,
     " use sortchecking to refine constraints -- and toss out badly instantiated quals. 
       Shouldn't need except for backward compatibility with dsolve constraints, DONT USE!");
-   ("-sortedquals",
-    Arg.Set sorted_quals,
-    " RLG: missing switch required by csolve/fixpoint, I don't know what it does");
    ("-notruekvars",
     Arg.Clear true_unconstrained,
     " don't true unconstrained kvars [true]");
