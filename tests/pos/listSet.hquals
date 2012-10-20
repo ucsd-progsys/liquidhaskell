@@ -1,0 +1,9 @@
+qualif Cup1(VV : [a] , ~A0 : [a] , ~A1 : [a]): (listElts([VV]) = Set_cup([listElts([~A0]);
+                                                                          listElts([~A1])]))
+
+qualif Cup2(VV : [a] , ~A0 : [a] , ~A1 : [a]): (listElts([~A0]) = Set_cup([listElts([VV]);
+                                                                           listElts([~A1])]))
+
+qualif IsEmp(VV: [a]) : (? Set_emp([listElts([VV])]))
+
+qualif EqSet(VV: [a], ~A0: [a]) : (listElts([VV]) = listElts([~A0]))
