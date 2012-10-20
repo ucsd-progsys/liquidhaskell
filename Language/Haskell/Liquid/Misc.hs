@@ -8,7 +8,7 @@ import qualified Data.Map as M
 import qualified Data.List as L
 import Control.Applicative      ((<$>))
 import Data.List 
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, fromMaybe)
 
 import System.Exit
 import System.Process   (system)
@@ -52,9 +52,7 @@ errorstar  = error . wrap (stars ++ "\n") (stars ++ "\n")
   where stars = repeats 3 $ wrapStars "ERROR"
   -- "\n************************* ERROR **************************************"
 
-findWithDefaultL f ls d = case L.find f ls of
-                          Nothing -> d
-                          Just x  -> x
+findWithDefaultL f ls d = fromMaybe d (L.find f ls)
 
 fst3 ::  (a, b, c) -> a
 fst3 (x,_,_) = x
