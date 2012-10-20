@@ -14,6 +14,7 @@ import System.Exit
 import System.Process           (system)
 import Debug.Trace              (trace)
 import Data.Data
+import System.Console.ANSI
 
 ---------------------------------------------------------------------
 -- ($!!) f x = x `deepseq` f x
@@ -27,15 +28,32 @@ import Data.Data
 
 ---------------------------------------------------------------------
 
+data Moods = Ok | Loud | Sad | Happy | Angry 
+
+moodColor Ok    = Black
+moodColor Loud  = Blue 
+moodColor Sad   = Magenta 
+moodColor Happy = Green 
+moodColor Angry = Red 
+
+
 wrapStars msg = "\n****************************** " ++ msg ++ " *****************************"
 
-putPhaseLn msg = putStrLn . wrapStars .  (msg ++)
-startPhase     = putPhaseLn "START: "
-doneLine       = putPhaseLn "DONE:  "
+withColor c act
+  = do setSGR [ SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid c] 
+       act
+       setSGR [ Reset]
 
-donePhase str = case lines str of 
-                  (l:ls) -> doneLine l >> forM_ ls (putPhaseLn "")
-                  _      -> return ()
+colorStrLn c       = withColor (moodColor c) . putStrLn 
+
+colorPhaseLn c msg = colorStrLn c . wrapStars .  (msg ++)
+startPhase c       = colorPhaseLn c "START: "
+doneLine   c       = colorPhaseLn c "DONE:  "
+
+donePhase c str 
+  = case lines str of 
+      (l:ls) -> doneLine c l >> forM_ ls (colorPhaseLn c "")
+      _      -> return ()
 
 
 
@@ -55,7 +73,6 @@ repeats n  = concat . replicate n
 
 errorstar  = error . wrap (stars ++ "\n") (stars ++ "\n") 
   where stars = repeats 3 $ wrapStars "ERROR"
-  -- "\n************************* ERROR **************************************"
 
 
 fst3 ::  (a, b, c) -> a
@@ -275,7 +292,7 @@ ifM bm xm ym
 
 
 executeShellCommand phase cmd 
-  = Ex.bracket_ (startPhase phase) (donePhase phase) 
+  = Ex.bracket_ (startPhase Loud phase) (donePhase Loud phase) 
     $ putStrLn ("EXEC: " ++ cmd) >> system cmd
 
 
