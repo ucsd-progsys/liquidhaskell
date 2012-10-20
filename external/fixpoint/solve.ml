@@ -227,6 +227,7 @@ let create cfg kf =
             |> (!Co.slice <?> BS.time "slice_wf" (Ci.slice_wf sri))
             |> BS.time  "Constant EnvWF" (List.map (C.add_consts_wf gts))
             |> PP.validate_wfs in
+  let cfg = { cfg with Cg.cs = Ci.to_list sri; Cg.ws = ws } in
   let s   = if !Constants.dump_simp <> "" then Dom.empty else Dom.create cfg kf in
   let _   = Co.logPrintf "DONE: Dom.create\n" in
   let _   = Ci.to_list sri

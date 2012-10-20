@@ -1,0 +1,52 @@
+qualif Bot(v:a)       : 0 = 1 
+qualif IsEmp(v:bool, ~A: [a]) : ((? v) <=> len([~A]) [ > ;  = ] 0)
+qualif IsEmp(VV: [a]) : (? Set_emp([listElts([VV])]))
+
+qualif IsEq(VV : [a] , ~A0 : [a]): (listElts([VV]) = listElts([~A0]))
+
+qualif Cup1(VV : [a] , ~A0 : [a] , ~A1 : [a]): (listElts([VV]) = Set_cup([listElts([~A0]);
+                                                                          listElts([~A1])]))
+
+constant listElts : func(1, [[@(0)]; Set_Set @(0)])
+
+//constraint:
+//  env [ ps : {VV : [a] | []}
+//      ; qs : {VV : [a] | [(? Set_emp([listElts([VV])]))]}
+//      ]
+//  grd true
+//  lhs {VV : [a] | [(VV = ps)]}
+//  rhs {VV : [a] | [(listElts([VV]) = Set_cup([listElts([ps]); listElts([qs])]))]}
+//  id 1
+
+constraint:
+  env [ ps : {VV : [a_a1] | []}
+      ; qs : {VV : [a_a1] | [(? Set_emp([listElts([VV])]))]} ]
+  grd true
+  lhs {VV : [a_a1] | [(VV = ps)]}
+  rhs {VV : [a_a1] | [k_6]}
+  id 2 
+
+constraint:
+  env [ ps : {VV : [a_a2] | []}
+      ; qs : {VV : [a_a2] | []} 
+      ]
+  grd true
+  lhs {VV : [a_a2] | [k_6]}
+  rhs {VV : [a_a2] | [(listElts([VV]) = Set_cup([listElts([ps]); listElts([qs])]))]}
+  id 3 
+
+constraint:
+  env [ ps : {VV : [a_a3] | []}
+      ; qs : {VV : [a_a3] | []} 
+      ]
+  grd true
+  lhs {VV : [a_a3] | [k_6]}
+  rhs {VV : [a_a3] | [(listElts([VV]) = listElts([ps]))]}
+  id 4
+
+wf:
+  env [ listElts : {VV : func(1, [[@(0)]; Set_Set @(0)]) | []};
+        ps : {VV : [a_a4] | []};
+        qs : {VV : [a_a4] | []}
+      ]
+  reft {VV : [a_a4] | [k_6]}
