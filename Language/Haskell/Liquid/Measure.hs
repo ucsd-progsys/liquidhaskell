@@ -136,8 +136,9 @@ instance Bifunctor Spec    where
            }
 
 instance Outputable Body where
-  ppr (E e) = toFix e  
-  ppr (P p) = toFix p
+  ppr (E e)   = toFix e  
+  ppr (P p)   = toFix p
+  ppr (R v p) = braces (ppr v <+> text "|" <+> toFix p)   
 
 instance Outputable a => Outputable (Def a) where
   ppr (Def m c bs body) = ppr m <> text " " <> pprPat (c, bs) <> text " = " <> ppr body   
