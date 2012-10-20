@@ -9,7 +9,7 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.Constraint       
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.Fixpoint (FixResult (..))
+import Language.Haskell.Liquid.Fixpoint (colorResult, FixResult (..))
 import Language.Haskell.Liquid.FixInterface      
 import Language.Haskell.Liquid.TransformRec   
 import Language.Haskell.Liquid.Annotate (annotate)
@@ -30,23 +30,23 @@ liquid  = do (targets, includes) <- getOpts
 liquidOne includes target = 
   do _       <- getFixpointPath 
      info    <- getGhcInfo target includes :: IO GhcInfo
-     donePhase "getGhcInfo"
+     donePhase Loud "getGhcInfo"
      -- putStrLn $ showPpr info 
      -- putStrLn "*************** Original CoreBinds ***************************" 
      -- putStrLn $ showPpr (cbs info)
      let cbs' = transformRecExpr (cbs info)
-     donePhase "transformRecExpr"
+     donePhase Loud "transformRecExpr"
      -- putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
      -- putStrLn $ showPpr cbs'
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs'}
-     cgi `deepseq` donePhase "generateConstraints"
+     cgi `deepseq` donePhase Loud "generateConstraints"
      {-# SCC "writeCGI" #-} writeCGI target cgi
-     -- donePhase "writeCGI"
+     -- donePhase Loud "writeCGI"
      (r, sol) <- {- cgi `deepseq` -} solve target (hqFiles info) cgi
-     donePhase "solve"
+     donePhase Loud "solve"
      {-# SCC "annotate" #-} annotate target sol $ annotMap cgi
-     donePhase "annotate"
-     donePhase (showPpr r) 
+     donePhase Loud "annotate"
+     donePhase (colorResult r) (showPpr r) 
      writeResult target r
      -- putStrLn $ "*************** DONE: " ++ showPpr r ++ " ********************"
      return r
