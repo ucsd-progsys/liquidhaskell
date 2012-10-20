@@ -360,10 +360,15 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   = splitC $ SubC γ t1 t2' 
   where t2' = subsTyVar_meet' (α2, RVar α1 top) t2
 
-splitC (SubC γ t1@(RApp _ t1s r1s _) t2@(RApp c' t2s r2s _))
+splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
 	= bsplitC γ t1 t2 
    ++ (concatMap splitC (zipWith (SubC γ) t1s t2s)) 
-   ++ (concatMap (rsplitC γ) (rsplits r1s r2s (rTyConPs c')))
+   ++ (concatMap (rsplitC γ) (rsplits r1s r2s' (rTyConPs c)))
+  where r2s'    = F.subst su <$> r2s
+        su      = F.mkSubst [(x, F.EVar y) | (x, y) <- zip pVars' pVars]
+        pVars   = concatMap getVars (rTyConPs c)
+        pVars'  = concatMap getVars (rTyConPs c')
+        getVars = (snd3 <$>) . pargs
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
