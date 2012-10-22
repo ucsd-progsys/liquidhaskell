@@ -43,23 +43,23 @@ pprQual (Q n xts p) = text "qualif" <+> text n <> parens args  <> colon <+> toFi
 ------------------------------------------------------------------------------------
 
 specificationQualifiers :: GhcInfo -> [Qualifier] 
-specificationQualifiers info    = [ q | (x, t) <- tySigs $ spec info
-                                      , x `S.member` xs
-                                      , q      <- refTypeQuals t
-                                  ] where xs = S.fromList $ defVars info 
+specificationQualifiers info  
+  = [ q | (x, t) <- tySigs $ spec info, x `S.member` xs, q <- refTypeQuals tce t
+    ] where xs  = S.fromList $ defVars info
+            tce = tcEmbeds   $ spec info
 
 -- refTypeQuals :: SpecType -> [Qualifier] 
-refTypeQuals t0 = go emptySEnv t0
-  where go γ t@(RVar _ _)         = refTopQuals t0 γ t     
+refTypeQuals tce t0 = go emptySEnv t0
+  where go γ t@(RVar _ _)         = refTopQuals tce t0 γ t     
         go γ (RAllT _ t)          = go γ t 
         go γ (RAllP _ t)          = go γ t 
-        go γ (RFun x t t' _)      = (go γ t) ++ (go (insertSEnv x (rTypeSort t) γ) t')
-        go γ t@(RApp _ ts _ _)    = (refTopQuals t0 γ t) ++ concatMap (go γ) ts 
-        go γ (REx x t t' )        = (go γ t) ++ (go (insertSEnv x (rTypeSort t) γ) t')
+        go γ (RFun x t t' _)      = (go γ t) ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
+        go γ t@(RApp _ ts _ _)    = (refTopQuals tce t0 γ t) ++ concatMap (go γ) ts 
+        go γ (REx x t t' )        = (go γ t) ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
         go _ _                    = []
 
-refTopQuals t0 γ t 
-  = [ mkQual t0 γ v so pa | let (RR so (Reft (v, ras))) = rTypeSortedReft t 
+refTopQuals tce t0 γ t 
+  = [ mkQual t0 γ v so pa | let (RR so (Reft (v, ras))) = rTypeSortedReft tce t 
                           , RConc p                    <- ras                 
                           , pa                         <- atoms p
     ]

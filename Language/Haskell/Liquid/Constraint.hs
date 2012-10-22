@@ -75,7 +75,7 @@ generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fw
         act = consAct (info {cbs = fst pds}) (snd pds)
         fcs = concatMap splitC $ hsCs  st 
         fws = concatMap splitW $ hsWfs st
-        gs  = F.fromListSEnv . map (mapSnd rTypeSortedReft) $ meas spc 
+        gs  = F.fromListSEnv . map (mapSnd (rTypeSortedReft (tcEmbeds spc))) $ meas spc 
         pds = generatePredicates info
         spc = spec info
 
@@ -116,11 +116,13 @@ measEnv sp penv xts
         , renv  = fromListREnv   $ second uRType          <$> meas sp 
         , syenv = F.fromListSEnv $ freeSyms sp 
         , penv  = penv 
-        , fenv  = F.fromListSEnv $ second rTypeSortedReft <$> meas sp 
+        , fenv  = F.fromListSEnv $ second (rTypeSortedReft tce) <$> meas sp 
         , recs  = S.empty 
         , invs  = mkRTyConInv    $ invariants sp
         , grtys = fromListREnv xts 
+        , emb   = tce 
         } 
+    where tce = tcEmbeds sp
 
 assm = {- traceShow ("****** assm *****\n") . -} assm_grty impVars 
 grty = {- traceShow ("****** grty *****\n") . -} assm_grty defVars
@@ -143,6 +145,7 @@ data CGEnv
         , recs  :: !(S.Set Var)      -- ^ recursive defs being processed (for annotations)
         , invs  :: !RTyConInv        -- ^ Datatype invariants 
         , grtys :: !REnv             -- ^ Top-level variables with (assert)-guarantees to verify
+        , emb   :: F.TCEmb TC.TyCon  -- ^ How to embed GHC Tycons into fixpoint sorts
         } deriving (Data, Typeable)
 
 instance Outputable CGEnv where
@@ -155,7 +158,7 @@ instance Show CGEnv where
 (++=) :: CGEnv-> (String, F.Symbol, SpecType) -> CGEnv
 γ ++= (_, x, r') 
   | isBase r 
-  = γ' { fenv = F.insertSEnv x (rTypeSortedReft r) (fenv γ) }
+  = γ' { fenv = F.insertSEnv x (rTypeSortedReft (emb γ) r) (fenv γ) }
   | otherwise
   = γ' { fenv = insertFEnvClass r (fenv γ) }
   where γ' = γ { renv = insertREnv x r (renv γ) }  
@@ -305,21 +308,21 @@ bsplitW γ t
   | otherwise
   = []
   where env' = fenv γ
-        r'   = rTypeSortedReft t
+        r'   = rTypeSortedReft (emb γ) t
         ci   = Ci (loc γ)
 
 rsplitW γ (RMono r, ((PV _ t as)))
   = [F.WfC env' r' Nothing ci]
   where env' = fenv γ'
         ci   = Ci (loc γ)
-        r'   = mkSortedReft t $ toReft r 
+        r'   = mkSortedReft (emb γ) t $ toReft r 
         γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitW1", x, ofRSort τ)) as) 
 
 rsplitW γ (RPoly t0, (PV _ _ as))
   = splitW (WfC γ' t0)
   where γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitW2", x, ofRSort τ)) as) 
 
-mkSortedReft = F.RR . rTypeSort
+mkSortedReft tce = F.RR . rTypeSort tce
 
 ------------------------------------------------------------
 splitC :: SubC -> [FixSubC]
@@ -397,8 +400,8 @@ bsplitC γ t1 t2
   | otherwise
   = []
   where γ'      = fenv γ
-        r1'     = rTypeSortedReft t1
-        r2'     = rTypeSortedReft t2
+        r1'     = rTypeSortedReft (emb γ) t1
+        r2'     = rTypeSortedReft (emb γ) t2
         ci      = Ci (loc γ)
 
 
@@ -411,8 +414,8 @@ rsplitC γ ((RMono r1, RMono r2), (PV _ t as))
   = [F.SubC env' F.PTrue r1' r2' Nothing [] ci]
   where env' = fenv γ'
         ci   = Ci (loc γ)
-        r1'  = mkSortedReft t (toReft r1)
-        r2'  = mkSortedReft t (toReft r2)
+        r1'  = mkSortedReft (emb γ) t (toReft r1)
+        r2'  = mkSortedReft (emb γ) t (toReft r2)
         γ'   = foldl' (++=) γ (map (\(τ, x, _) -> ("rsplitC1", x, ofRSort τ)) as) 
 
 
@@ -444,6 +447,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , annotMap   :: !(AnnInfo Annot) 
                      , tyConInfo  :: !(M.Map TC.TyCon RTyCon) 
                      , specQuals  :: ![Qualifier]
+                     , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      } deriving (Data, Typeable)
 
 instance Outputable CGInfo where 
@@ -471,6 +475,7 @@ initCGI info = CGInfo {
   , annotMap   = AI M.empty
   , tyConInfo  = makeTyConInfo $ tconsP $ spec info 
   , specQuals  = specificationQualifiers info
+  , tyConEmbed = tcEmbeds $ spec info 
   }
 
 -- showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
@@ -722,8 +727,8 @@ consE γ (Var x)
        return t
     where t = varRefType γ x
 
-consE _ (Lit c) 
-  = return $ uRType $ literalRefType c
+consE γ (Lit c) 
+  = return $ uRType $ literalRefType (emb γ) c
 
 consE γ (App e (Type τ)) 
   = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
@@ -745,7 +750,7 @@ consE γ e'@(App e a)
        _                   <- updateLocA πs (exprLoc e) te' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller", e') te' 
        cconsE γ a tx 
-       return $ maybe err (F.subst1 t . (x,)) (argExpr a)
+       return $ maybe err (F.subst1 t . (x,)) (argExpr γ a)
     where err = errorstar $ "consE: App crashes on" ++ showPpr a 
 
  
@@ -807,12 +812,12 @@ cconsCase γ x t acs (a, _, ce)
   = cconsE cγ ce t
   where cγ  = addBinders γ x' [(x', xt')]
         x'  = varSymbol x
-        xt' = (γ ?= x') `strengthen` uTop (altReft acs a) 
+        xt' = (γ ?= x') `strengthen` uTop (altReft γ acs a) 
 
-altReft _ (LitAlt l)   = literalReft l
-altReft acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
-  where notLiteralReft = F.notExprReft . snd . literalConst
-altReft _ _            = error "Constraint : altReft"
+altReft γ _ (LitAlt l)   = literalReft (emb γ) l
+altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
+  where notLiteralReft   = F.notExprReft . snd . literalConst (emb γ)
+altReft _ _ _            = error "Constraint : altReft"
 
 -- PREDARGS
 -- altRefType t _   (LitAlt l) 
@@ -896,11 +901,11 @@ freshPredRef γ e (PV _ τ as)
 ---------- Helpers: Creating Refinement Types For Various Things ------
 -----------------------------------------------------------------------
 
-argExpr ::  CoreExpr -> Maybe F.Expr
-argExpr (Var vy)         = Just $ F.EVar $ varSymbol vy
-argExpr (Lit c)          = Just $ snd $ literalConst c
-argExpr (Tick _ e)		 = argExpr e
-argExpr e                = errorstar $ "argExpr: " ++ (showPpr e)
+argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
+argExpr _ (Var vy)    = Just $ F.EVar $ varSymbol vy
+argExpr γ (Lit c)     = Just $ snd $ literalConst (emb γ) c
+argExpr γ (Tick _ e)  = argExpr γ e
+argExpr _ e           = errorstar $ "argExpr: " ++ (showPpr e)
 
 varRefType γ x =  t 
   where t  = (γ ?= (varSymbol x)) `strengthen` xr
@@ -916,8 +921,8 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 instance NFData Cinfo 
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8) 
-    = x1 `seq` rnf x2 `seq` seq x3 `seq` x4 `seq` rnf x5 `seq` rnf x6  `seq` x7 `seq` rnf x8
+  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 _) 
+    = x1 `seq` rnf x2 `seq` seq x3 `seq` x4 `seq` rnf x5 `seq` rnf x6  `seq` x7 `seq` rnf x8 `seq` ()
 
 
 instance NFData SubC where
@@ -938,7 +943,7 @@ instance NFData WfC where
     = rnf x1 `seq` rnf x2
 
 instance NFData CGInfo where
-  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 _ x9) 
+  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 _ x9 _) 
     = ({-# SCC "CGIrnf1" #-} rnf x1) `seq` 
       ({-# SCC "CGIrnf2" #-} rnf x2) `seq` 
       ({-# SCC "CGIrnf3" #-} rnf x3) `seq` 
@@ -947,7 +952,6 @@ instance NFData CGInfo where
       ({-# SCC "CGIrnf6" #-} rnf x6) `seq`
       ({-# SCC "CGIrnf7" #-} rnf x7) `seq`
       ({-# SCC "CGIrnf8" #-} rnf x9) 
-
 -------------------------------------------------------------------------------
 --------------------- Reftypes from Fixpoint Expressions ----------------------
 -------------------------------------------------------------------------------
@@ -955,14 +959,14 @@ instance NFData CGInfo where
 existentialRefType     :: CGEnv -> SpecType -> SpecType
 existentialRefType γ t = withReft t (uTop r') 
   where r'             = maybe top (exReft γ) (F.isSingletonReft r)
-        r              = F.sr_reft $ rTypeSortedReft t
+        r              = F.sr_reft $ rTypeSortedReft (emb γ) t
 
 
-exReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ rTypeSortedReft t
+exReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
   where (xs,_ , t)     = bkArrow $ thd3 $ bkUniv $ exReftLookup γ f 
         su             = F.mkSubst $ safeZip "fExprRefType" xs es
 
-exReft γ (F.EVar x)    = F.sr_reft $ rTypeSortedReft t 
+exReft γ (F.EVar x)    = F.sr_reft $ rTypeSortedReft (emb γ) t 
   where (_,_ , t)      = bkArrow $ thd3 $ bkUniv $ exReftLookup γ x 
 
 exReft _ e             = F.exprReft e 

@@ -11,6 +11,7 @@ import Text.Parsec
 import Text.Parsec.Expr
 import Text.Parsec.Language
 import Text.Parsec.String
+import Text.Printf  (printf)
 import qualified Text.Parsec.Token as Token
 import Control.Applicative ((<$>), (<*))
 import qualified Data.Map as M
@@ -137,16 +138,22 @@ wiredSorts = [ ("EQ", (varSymbol eqDataConId, primOrderingSort))
              , ("GT", (varSymbol gtDataConId, primOrderingSort))
              ]
 
-exprFunP       =  (try exprFunSpacesP) <|> exprFunCommasP
 
-exprFunCommasP = liftM2 EApp symbolP argsP
-  where argsP  = try (parens $ brackets esP) <|> parens esP
-        esP    = sepBy exprP comma 
+
+
+exprFunP       =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
 
 exprFunSpacesP = parens $ liftM2 EApp symbolP (sepBy exprP spaces) 
+exprFunCommasP = liftM2 EApp symbolP (parens        $ sepBy exprP comma)
+exprFunSemisP  = liftM2 EApp symbolP (parenBrackets $ sepBy exprP semi)
 
+parenBrackets  = parens . brackets 
 
-
+-- exprFunP       =  (try exprFunSpacesP) <|> exprFunCommasP
+--exprFunCommasP = liftM2 EApp symbolP argsP
+--  where argsP  =  try (parens $ brackets esP) 
+--              <|> parens esP
+--        esP    = sepBy exprP comma 
 
 expr2P = buildExpressionParser bops lexprP
 
@@ -433,7 +440,7 @@ data Pspec ty bndr
   | Incl  FilePath
   | Invt  ty
   | Alias (RTAlias String BareType)
-
+  | Embed (String, FTycon)
 
 mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
   { Measure.measures   = [m | Meas  m <- xs]
@@ -443,6 +450,7 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.dataDecls  = [d | DDecl d <- xs]
   , Measure.includes   = [q | Incl  q <- xs]
   , Measure.aliases    = [a | Alias a <- xs]
+  , Measure.embeds     = M.fromList [e | Embed e <- xs]
   }
 
 specificationP 
@@ -463,6 +471,7 @@ specP
     <|> (reserved "include"   >> liftM Incl  filePathP)
     <|> (reserved "invariant" >> liftM Invt  genBareTypeP)
     <|> (reserved "type"      >> liftM Alias aliasP)
+    <|> (reserved "embed"     >> liftM Embed embedP)
     <|> ({- DEFAULT -}           liftM Assm  tyBindP)
 
 filePathP :: Parser FilePath
@@ -475,6 +484,16 @@ tyBindP
 
 genBareTypeP
   = liftM generalize bareTypeP 
+
+embedP 
+  = xyP upperIdP (reserved "as") fTyConP
+
+fTyConP
+  =   (reserved "int"  >> return intFTyCon)
+  <|> (reserved "bool" >> return boolFTyCon)
+  <|> (stringFTycon   <$> upperIdP)
+
+
 
 aliasP 
   = do name <- upperIdP
@@ -615,9 +634,11 @@ remainderP p
 
 doParse' parser f s
   = case parse (remainderP p) f s of
-      Left e         -> errorstar $ "parseError when parsing " ++ s ++ " : " ++ show e
+      Left e         -> errorstar $ printf "parseError %s\n when parsing %s\nfrom %s\n" 
+                                      (show e) s f 
       Right (r, "")  -> r
-      Right (_, rem) -> errorstar $ "doParse has leftover when parsing: " ++ rem
+      Right (_, rem) -> errorstar $ printf "doParse has leftover when parsing: %s\nfrom file %s\n"
+                                      rem f
   where p = whiteSpace >> parser
 
 grabUpto p  
