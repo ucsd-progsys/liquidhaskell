@@ -307,10 +307,27 @@ mkps_ _     _       _          _    _ = error "Bare : mkps_"
 ------------------------------------------------------------------------
 
 
-ofBareType' = wrapErr "ofBareType" ofBareType
+ofBareType' = wrapErr "ofBareType" ofBareType''
+
+ofBareType'' t
+  = do t' <- ofBareType t
+       let (_, πs, _) = bkUniv t'
+       tyi <- tcEnv <$> ask
+       return $ mapBot (makeRTyConPs tyi πs) t'
+
+makeRTyConPs tyi πs t@(RApp c ts rs r) 
+  | null $ rTyConPs c
+  = expandRApp tyi t
+  | otherwise 
+  = RApp c{rTyConPs = findπ πs <$> rTyConPs c} ts rs r 
+  -- need type application????
+  where findπ πs π = findWithDefaultL (==π) πs (emsg π)
+        emsg π     = errorstar $ "Bare: out of scope predicate" ++ show π
+
+makeRTyConPs _ _ t = t
 
 -- ofBareType :: (Reftable r) => BRType r -> BareM (RRType r)
-ofBareType :: (Reftable r) => RType String String String r -> BareM (RType Class RTyCon RTyVar r)
+ofBareType :: (Reftable r, Data r, GetPVar r) => RType String String String r -> BareM (RType Class RTyCon RTyVar r)
 ofBareType (RVar a r) 
   = return $ RVar (stringRTyVar a) r
 ofBareType (RFun x t1 t2 _) 
@@ -344,14 +361,17 @@ ofRef (RMono r)
   = return (RMono r)
 
 -- TODO: move back to RefType
-bareTCApp tyi r c rs ts 
+bareTCApp _ r c rs ts 
   = if isTrivial t0 then t' else t
-    where t0 = rAppOld tyi c ts rs top
-          t  = rAppOld tyi c ts rs r
+    where t0 = rAppNew c rs' ts rs top
+          t  = rAppNew c rs' ts rs r
           t' = (expandRTypeSynonyms t0) `strengthen` r
+          rs' = concatMap (map dRPVar . getUPVars) rs
 
--- rAppNew tyi c ts rs r = expandRApp tyi $ RApp (RTyCon c []) ts rs r
-rAppOld _             = rApp
+dRPVar ::  UsedPVar -> RPVar
+dRPVar (PV n _ _) = PV n (ROth "dummy RSort") []
+
+rAppNew c rs = RApp (RTyCon c rs)
 
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
 

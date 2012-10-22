@@ -7,6 +7,7 @@ module Language.Haskell.Liquid.RefType (
     RTyVar (..), RType (..), RRType, BRType, RTyCon(..)
   , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..), Ref(..)
   , RTAlias (..)
+  , GetPVar (..)
   , BSort, BPVar, BareType, RSort, UsedPVar, RPVar, RReft, RefType
   , PrType, SpecType
   , PVar (..) , Predicate (..), UReft(..), DataDecl (..)
@@ -299,6 +300,10 @@ instance Subable r => Subable (UReft r) where
 instance Subable Predicate where
   subst _ = id 
 
+instance Subable (Ref F.Reft RefType) where
+  subst su (RMono r) = RMono $ subst su r
+  subst su (RPoly r) = RPoly $ subst su r
+
 instance Subable r => Subable (RType p c tv r) where
   subst  = fmap . subst
 
@@ -405,11 +410,13 @@ data RTyCon = RTyCon
   { rTyCon     :: !TC.TyCon         -- GHC Type Constructor
   , rTyConPs   :: ![RPVar]          -- Predicate Parameters
   }
-  deriving (Eq, Data, Typeable)
+  deriving (Data, Typeable)
 
 instance Ord RTyCon where
   compare x y = compare (rTyCon x) (rTyCon y)
 
+instance Eq RTyCon where
+  x == y = (rTyCon x) == (rTyCon y)
 
 --------------------------------------------------------------------
 ---------------------- Helper Functions ----------------------------
@@ -495,10 +502,13 @@ expandRApp tyi (RApp rc ts rs r)
 expandRApp _ t
   = t
 
-appRTyCon tyi rc@(RTyCon c _) ts = RTyCon c ps'
+appRTyCon tyi rc@(RTyCon c []) ts = RTyCon c ps'
   where ps' = map (subts (zip (RTV <$> αs) ({- PREDARGS toType -} toRSort <$> ts))) (rTyConPs rc')
         rc' = M.findWithDefault rc c tyi
         αs  = TC.tyConTyVars $ rTyCon rc'
+appRTyCon _   (RTyCon c ps) ts = RTyCon c ps'
+  where ps' = map (subts (zip (RTV <$> αs) ({- PREDARGS toType -} toRSort <$> ts))) ps
+        αs  = TC.tyConTyVars c
 
 appRefts rc [] = RPoly . {- PREDARGS ofType -} ofRSort . ptype <$> (rTyConPs rc)
 appRefts rc rs = safeZipWith "appRefts" toPoly rs (ptype <$> (rTyConPs rc))
@@ -798,6 +808,34 @@ efoldRef f γ z (RPoly t)         = efoldReft f γ z t
 
 isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool
 isTrivial = Fold.and . fmap isTauto
+
+class GetPVar a where
+  getUPVars :: a  -> [PVar ()]
+
+instance GetPVar () where
+  getUPVars _ = []
+
+instance GetPVar Predicate where
+  getUPVars (Pr ps) = ps
+
+instance GetPVar (UReft r) where
+  getUPVars (U _ ps) = getUPVars ps
+
+instance GetPVar Refa where
+  getUPVars _ = []
+
+instance GetPVar Reft where
+  getUPVars _ = []
+
+instance (Data r, Typeable r, GetPVar r) 
+          => GetPVar (RType Class RTyCon RTyVar r) where
+  getUPVars = everything (++) ([] `mkQ` go) 
+    where go (ref :: r) = getUPVars ref
+
+instance (Data r2, Typeable r2, GetPVar r2, GetPVar r1) 
+         => GetPVar (Ref r1 (RType Class RTyCon RTyVar r2)) where
+  getUPVars (RMono r) = getUPVars r
+  getUPVars (RPoly t) = getUPVars t
 
 -- mkTrivial = mapReft (\_ -> ())
 
