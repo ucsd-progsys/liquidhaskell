@@ -1,8 +1,8 @@
 TODO
 ====
 
+* THIS
 * use -sortedquals switch for fixpoint. why is it NOT used?!
-
 * parse predicate signatures for tuples 
 * predicate-aliases 
 * Blogging 
