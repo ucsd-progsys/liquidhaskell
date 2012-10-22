@@ -178,9 +178,9 @@ getGhcModGutsSimpl1 fn = do
 
 peepGHCSimple fn 
   = do z <- compileToCoreSimplified fn
-       liftIO $ putStrLn "************************* peeGHCSimple Core Module ************************"
+       liftIO $ putStrLn "************************* peepGHCSimple Core Module ************************"
        liftIO $ putStrLn $ showPpr z
-       liftIO $ putStrLn "************************* peeGHCSimple Bindings ***************************"
+       liftIO $ putStrLn "************************* peepGHCSimple Bindings ***************************"
        liftIO $ putStrLn $ showPpr (cm_binds z)
        errorstar "Done peepGHCSimple"
 
