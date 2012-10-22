@@ -10,7 +10,8 @@ module Language.Haskell.Liquid.Fixpoint (
   , Fixpoint (toFix) 
   , typeSort, typeUniqueSymbol
   , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tempSymbol --, tagSymbol 
-  , qualifySymbol, stringTycon, stringSymbol, symbolString, stringSymbolRaw
+  , qualifySymbol, stringSymbol, symbolString, stringSymbolRaw
+  , FTycon, stringFTycon, intFTyCon, boolFTyCon
   , anfPrefix, tempPrefix
   , intKvar
   , Sort (..), Symbol(..), Constant (..), Bop (..), Brel (..), Expr (..)
@@ -30,16 +31,20 @@ module Language.Haskell.Liquid.Fixpoint (
   , isTautoPred
   , emptySubst, mkSubst, catSubst
   , Subable (..)
+  , TCEmb (..)
 
   -- * Visitors
   , getSymbols
+
+  -- * Functions on @Result@
+  , colorResult 
   ) where
 
 import TypeRep 
 import PrelNames            (intTyConKey, intPrimTyConKey, integerTyConKey, boolTyConKey)
 
 import TysWiredIn           (listTyCon)
-import TyCon                (isTupleTyCon, tyConUnique)
+import TyCon                (TyCon, isTupleTyCon, tyConUnique)
 import Outputable
 import Data.Monoid hiding   ((<>))
 import Data.Functor
@@ -50,19 +55,22 @@ import qualified Data.Set as S
 
 import Data.Generics.Schemes
 import Data.Generics.Aliases
-import Data.Data    hiding  (tyConName)
+import Data.Data    hiding  (TyCon, tyConName)
 import Data.Maybe           (fromMaybe)
 
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.GhcMisc
 import Control.DeepSeq
+import System.Console.ANSI (Color (..))
 
 class Fixpoint a where
   toFix    :: a -> SDoc
 
   simplify :: a -> a 
   simplify =  id
+
+type TCEmb a    = M.Map a FTycon  
 
 ------------------------------------------------------------
 ------------------- Sanitizing Symbols ---------------------
@@ -205,36 +213,55 @@ toFixpoint x' = gsDoc x' $+$ conDoc x' $+$  csDoc x' $+$ wsDoc x'
         csDoc      = vcat . map toFix . cs 
         wsDoc      = vcat . map toFix . ws 
         gsDoc      = vcat . map infoConstant . map (\(x, (RR so _)) -> (x, so, False)) . M.assocs . (\(SE e) -> e) . gs
-       
+
+
 ----------------------------------------------------------------------
----------------------------------- Sorts -----------------------------
+------------------------ Type Constructors ---------------------------
 ----------------------------------------------------------------------
 
-newtype Tycon = TC Symbol deriving (Eq, Ord, Data, Typeable, Show)
+newtype FTycon = TC Symbol deriving (Eq, Ord, Data, Typeable, Show)
+
+intFTyCon  = TC (S "int")
+boolFTyCon = TC (S "bool")
+listFTyCon = TC (S listConName)
+
+isListTC   = (listFTyCon ==)
+-- isListTC (TC (S c)) = c == listConName
+
+----------------------------------------------------------------------
+------------------------------- Sorts --------------------------------
+----------------------------------------------------------------------
 
 data Sort = FInt 
           | FBool
-          | FNum                 -- numeric kind for Num tyvars
-          | FObj  Symbol         -- uninterpreted type
-          | FVar  !Int           -- fixpoint type variable
-          | FFunc !Int ![Sort]   -- type-var arity, in-ts ++ [out-t]
-          | FApp Tycon [Sort]    -- constructed type 
+          | FNum                 -- ^ numeric kind for Num tyvars
+          | FObj  Symbol         -- ^ uninterpreted type
+          | FVar  !Int           -- ^ fixpoint type variable
+          | FFunc !Int ![Sort]   -- ^ type-var arity, in-ts ++ [out-t]
+          | FApp FTycon [Sort]   -- ^ constructed type 
 	      deriving (Eq, Ord, Data, Typeable, Show)
 
-typeSort :: Type -> Sort 
-typeSort (TyConApp c [])
-  | k == intTyConKey     = FInt
-  | k == intPrimTyConKey = FInt
-  | k == integerTyConKey = FInt 
-  | k == boolTyConKey    = FBool
-  where k = tyConUnique c
-typeSort (ForAllTy _ τ) 
-  = typeSort τ  -- JHALA: Yikes! Fix!!!
-typeSort (FunTy τ1 τ2) 
-  = typeSortFun τ1 τ2
-typeSort (TyConApp c τs)
-  = FApp (stringTycon $ tyConName c) (typeSort <$> τs)
-typeSort τ
+fApp c ts 
+  | c == intFTyCon  = FInt
+  | c == boolFTyCon = FBool
+  | otherwise       = FApp c ts
+
+typeSort :: TCEmb TyCon -> Type -> Sort 
+-- COMMENTED OUT TO TEST EMBED
+-- typeSort tce (TyConApp c [])
+--   | k == intTyConKey     = FInt
+--   | k == intPrimTyConKey = FInt
+--   | k == integerTyConKey = FInt 
+--   | k == boolTyConKey    = FBool
+--   where k = tyConUnique c
+typeSort tce (ForAllTy _ τ) 
+  = typeSort tce τ  -- JHALA: Yikes! Fix!!!
+typeSort tce (FunTy τ1 τ2) 
+  = typeSortFun tce τ1 τ2
+typeSort tce (TyConApp c τs)
+  = fApp ftc (typeSort tce <$> τs)
+  where ftc = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce) 
+typeSort _ τ
   = FObj $ typeUniqueSymbol τ
   
 tyConName c 
@@ -242,14 +269,15 @@ tyConName c
   | isTupleTyCon c = tupConName
   | otherwise      = showPpr c
 
-isListTC (TC (S c)) = c == listConName
 
-typeSortFun τ1 τ2
+typeSortFun tce τ1 τ2
   = FFunc n $ genArgSorts sos
-  where sos  = typeSort <$> τs
+  where sos  = typeSort tce <$> τs
         τs   = τ1  : grabArgs [] τ2
         n    = (length sos) - 1
-     
+   
+
+
 typeUniqueSymbol :: Type -> Symbol 
 typeUniqueSymbol = stringSymbol . {- ("sort_" ++) . -} showSDocDump . ppr
 
@@ -298,7 +326,7 @@ toFix_sort (FApp c ts)  = toFix c <+> intersperse space (fp <$> ts)
                                 fp s                = toFix_sort s
 
 
-instance Fixpoint Tycon where
+instance Fixpoint FTycon where
   toFix (TC s)       = toFix s
 
 ---------------------------------------------------------------
@@ -351,8 +379,8 @@ instance Fixpoint Subst where
 ------ Converting Strings To Fixpoint ------------------------------------- 
 ---------------------------------------------------------------------------
 
-stringTycon :: String -> Tycon
-stringTycon = TC . stringSymbol . dropModuleNames
+stringFTycon :: String -> FTycon
+stringFTycon = TC . stringSymbol . dropModuleNames
 
 stringSymbolRaw :: String -> Symbol
 stringSymbolRaw = S
@@ -683,15 +711,20 @@ instance Functor FixResult where
   fmap _ UnknownError   = UnknownError 
 
 instance (Ord a, Outputable a) => Outputable (FixResult (SubC a)) where
-  ppr (Crash xs msg) = text "Crash!\n"  <> ppr_sinfos xs <> parens (text msg) 
+  ppr (Crash xs msg) = text "Crash!\n"  <> ppr_sinfos "CRASH: " xs <> parens (text msg) 
   ppr Safe           = text "Safe"
-  ppr (Unsafe xs)    = text "Unsafe:\n" <> ppr_sinfos xs -- ppr (sinfo `fmap` xs)
+  ppr (Unsafe xs)    = text "Unsafe:\n" <> ppr_sinfos "WARNING: " xs
   ppr UnknownError   = text "Unknown Error!"
 
-ppr_sinfos :: (Ord a, Outputable a) => [SubC a] -> SDoc
-ppr_sinfos = ppr . sort . fmap sinfo
+ppr_sinfos :: (Ord a, Outputable a) => String -> [SubC a] -> SDoc
+ppr_sinfos msg = (text msg  <>) . ppr . sort . fmap sinfo
 
 -- toFixPfx s x     = text s <+> toFix x
+
+colorResult (Safe)      = Happy 
+colorResult (Unsafe _)  = Angry 
+colorResult (_)         = Sad 
+
 
 instance Show (SubC a) where
   show = showPpr 
@@ -830,7 +863,7 @@ flattenRefas = concatMap flatRa
 instance NFData Symbol where
   rnf (S x) = rnf x
 
-instance NFData Tycon where
+instance NFData FTycon where
   rnf (TC c)       = rnf c
 
 instance NFData Sort where

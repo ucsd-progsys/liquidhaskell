@@ -21,10 +21,13 @@ CABALI=$(CABAL) install --ghc-options=$(OPTS)
 
 CABALP=$(CABAL) install --reinstall --ghc-options=$(OPTS) -p
 
-DEPS=unix-compat transformers mtl filemanip text syb parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour
+DEPS=unix-compat transformers mtl filemanip text syb parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour ansi-terminal
 
 all:
 	$(CABAL) install --ghc-options=$(OPTS) 
+
+igoto:
+	$(CABAL) configure --ghc-options=$(OPTS) 
 
 goto:
 	$(CABAL) build --ghc-options=$(OPTS) 
@@ -39,6 +42,10 @@ clean:
 
 vector:
 	$(CABAL) install vector
+
+ansi-terminal:
+	$(CABAL) install ansi-terminal 
+
 
 bytestring:
 	$(CABAL) install bytestring 

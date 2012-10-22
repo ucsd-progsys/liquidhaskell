@@ -20,4 +20,7 @@ isJust (Nothing) = false
 measure fromJust :: forall a. Maybe a -> a 
 fromJust (Just x) = x 
 
+embed Integer  as int
+
+
 

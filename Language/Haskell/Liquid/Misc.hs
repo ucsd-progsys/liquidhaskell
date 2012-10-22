@@ -7,13 +7,15 @@ import qualified Data.Set as S
 import qualified Data.Map as M
 import qualified Data.List as L
 import Control.Applicative      ((<$>))
+import Control.Monad            (forM_)
 import Data.List 
 import Data.Maybe (catMaybes, fromMaybe)
 
 import System.Exit
-import System.Process   (system)
-import Debug.Trace (trace)
+import System.Process           (system)
+import Debug.Trace              (trace)
 import Data.Data
+import System.Console.ANSI
 
 ---------------------------------------------------------------------
 -- ($!!) f x = x `deepseq` f x
@@ -27,12 +29,34 @@ import Data.Data
 
 ---------------------------------------------------------------------
 
+data Moods = Ok | Loud | Sad | Happy | Angry 
+
+moodColor Ok    = Black
+moodColor Loud  = Blue 
+moodColor Sad   = Magenta 
+moodColor Happy = Green 
+moodColor Angry = Red 
+
+
 wrapStars msg = "\n****************************** " ++ msg ++ " *****************************"
 
-startPhase = putStrLn . wrapStars .  ("START: " ++)
-donePhase  = putStrLn . wrapStars .  ("DONE : " ++)
+withColor c act
+  = do setSGR [ SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid c] 
+       act
+       setSGR [ Reset]
 
-  -- = putStrLn $ "******************** DONE: " ++ msg ++ "*************************"
+colorStrLn c       = withColor (moodColor c) . putStrLn 
+
+colorPhaseLn c msg = colorStrLn c . wrapStars .  (msg ++)
+startPhase c       = colorPhaseLn c "START: "
+doneLine   c       = colorPhaseLn c "DONE:  "
+
+donePhase c str 
+  = case lines str of 
+      (l:ls) -> doneLine c l >> forM_ ls (colorPhaseLn c "")
+      _      -> return ()
+
+
 
 data Empty = Emp deriving (Data, Typeable, Eq, Show)
 
@@ -50,7 +74,6 @@ repeats n  = concat . replicate n
 
 errorstar  = error . wrap (stars ++ "\n") (stars ++ "\n") 
   where stars = repeats 3 $ wrapStars "ERROR"
-  -- "\n************************* ERROR **************************************"
 
 findWithDefaultL f ls d = fromMaybe d (L.find f ls)
 
@@ -271,7 +294,7 @@ ifM bm xm ym
 
 
 executeShellCommand phase cmd 
-  = Ex.bracket_ (startPhase phase) (donePhase phase) 
+  = Ex.bracket_ (startPhase Loud phase) (donePhase Loud phase) 
     $ putStrLn ("EXEC: " ++ cmd) >> system cmd
 
 
