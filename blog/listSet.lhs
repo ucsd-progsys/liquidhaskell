@@ -16,7 +16,7 @@ First, lets define a "ghost" type that represents sets.
 data Set a 
 \end{code}
 
-We could also just import @Data.Set@ but we choose to define 
+We could also just import `Data.Set` but we choose to define 
 it here to make things self-contained.
 
 Next, lets write a measure for the set of elements in a list.
@@ -30,7 +30,7 @@ by structural recursion on the list.
   @-}
 \end{code}
 
-Next, we tell the solver to interpret @Set@ *natively* in the
+Next, we tell the solver to interpret `Set` *natively* in the
 refinement logic, via the solver's built in sort.
 
 \begin{code}
@@ -53,10 +53,10 @@ myid (x:xs) = x : myid xs
 A Less Trivial Identity
 -----------------------
 
-Next, lets write a function @myreverse@ that reverses a list. 
+Next, lets write a function `myreverse` that reverses a list. 
 Of course, it should also preserve the set of values thats in 
 the list. This is somewhat more interesting because of the 
-*tail recursive* helper @go@. Mouse over and see what type 
+*tail recursive* helper `go`. Mouse over and see what type 
 is inferred for it!
 
 \begin{code}
@@ -82,7 +82,7 @@ myapp (x:xs) ys = x : myapp xs ys
 Filtering Lists
 ---------------
 
-Finally, to round off this little demo, here's @filter@. We can verify
+Finally, to round off this little demo, here's `filter`. We can verify
 that it returns a subset of the values of the input list.
 
 \begin{code}
