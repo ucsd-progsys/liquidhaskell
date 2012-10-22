@@ -8,102 +8,12 @@ TODO
 * predicate-aliases 
 * self-invariants        (tests/todo/maybe4.hs)
 * fixpoint profile (how much performance hit from -nosimple?)
-* Set Theory
 * benchmarks: Data.List (foldr) -- needs sets
 * benchmarks: Data.Bytestring
 * benchmarks: stackset-core
 * benchmarks: Data.Text
 * benchmarks: mcbrides stack machine
-* alpha-renaming of predicate params is VERY SHAKY. see tests/pos/deptupW.hs
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
-
-
-Set Theory
-==========
-
-(tests/pos/meas9.hs)
-
-1. fixpoint/theories.ml [DONE]
-   see fixpoint/tests/sets.fq
-
-2. embed
-
- Spec   :  ++ EmbedTyCon a = Embed a Fixpoint.Tycon
-   
- Parser : parse in the above from specs
-
- Bare   : EmbedTyCon String -> EmbedTyCon GHC.TyCon
-
- typeSort : Map GHC.TyCon Fixpoint.Tycon -> Type -> Sort
-
- Fixpoint: 
-
-    intTC  = "int"
-    boolTC = "bool"
-
- include/Prelude.spec
- 
-    embed Int       as int
-    embed Integer   as int
-    embed Bool      as bool
-    
- include/Data/Set.spec
-    
-    embed Set       as Set_Set
-
-------------------------------------------------------------
-
-
-
-    measure emp :: Set a 
-    measure mem :: a     -> Set a -> Bool
-    measure cup :: Set a -> Set a -> Set a
-    measure cap :: Set a -> set a -> Set a
-    measure elt :: a     -> Set a
-
-    axiom set_emp
-      :: x:a
-      -> {v: Bool | ~ (mem(x, emp))}
-
-    axiom set_elt
-      :: x:a
-      -> y:a
-      -> {v: Bool | (mem(x, elt(y)) <=> (x = y))}
-
-    axiom set_cup
-      :: x:a 
-      -> s1: Set a 
-      -> s2: Set a 
-      -> {v: Bool | (mem(x, cup(s1, s2)) <=> (mem(x, s1) || mem(x, s2)))}
-
-    axiom set_cap
-      :: x:a 
-      -> s1: Set a 
-      -> s2: Set a 
-      -> {v: Bool | (mem(x, cup(s1, s2)) <=> (mem(x, s1) && mem(x, s2)))}
-
-    axiom set_eq
-      :: s1:Set a
-      -> s2:Set a
-      -> {v: Bool | seteq(s1, s2) <=> (forall x. (mem(x, s1) <=> mem(x, s2))) }
-
-
-forall x, S, T: 
-  S = T <=> (x in S <=> x in T)
-
-    measure elts :: [a] -> Set a
-    elts []      = emp
-    elts (x:xs)  = cup (elt(x), elts(xs)) 
-
-   
-    prop_set1 
-
-
-
-Strictness Annotations  
-======================
-
-Seem to screw up measures. See tests/pos/maybe000.hs
 
 Self-Invariants
 ===============
