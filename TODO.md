@@ -299,8 +299,6 @@ GITTERY
     $ git pull
     $ git checkout foo
 
-SLICE causes problem in neg/ass0.hs, doesn't really help either so may as well nuke, but find bug in fixpoint 
-
 
 Alpha-Renaming Predicates
 =========================
