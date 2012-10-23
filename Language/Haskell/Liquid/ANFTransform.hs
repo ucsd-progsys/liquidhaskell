@@ -65,9 +65,9 @@ normalizeBind γ (Rec xes)
        return [Rec (zip xs es')]
     where (xs, es) = unzip xes
 
--------------------------------------------------------------------------------------
+--------------------------------------------------------------------
 normalizeName :: VarEnv Id -> CoreExpr -> DsM ([CoreBind], CoreExpr)
--------------------------------------------------------------------------------------
+--------------------------------------------------------------------
 
 -- normalizeNameDebug γ e 
 --   = liftM (tracePpr ("normalizeName" ++ showPpr e)) $ normalizeName γ e
