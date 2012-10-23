@@ -39,7 +39,7 @@ anormalize hscEnv modGuts
     where m        = mgi_module modGuts
           grEnv    = mgi_rdr_env modGuts
           tEnv     = modGutsTypeEnv modGuts
-          act      = liftM concat $ mapM (normalizeBind emptyVarEnv) orig_cbs
+          act      = liftM concat $ mapM (normalizeTopBind emptyVarEnv) orig_cbs
           orig_cbs = mgi_binds modGuts
           err      = errorstar "anormalize fails!"
 
@@ -52,13 +52,24 @@ modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
 ----------------- Actual Normalizing Functions -------------------
 ------------------------------------------------------------------
 
+-- Can't make the below default for normalizeBind as it 
+-- fails tests/pos/lets.hs due to GHCs odd let-bindings
+
+normalizeTopBind γ (NonRec x e)
+  = do e' <- stitch `fmap` normalize γ e
+       return [NonRec x e']
+
+normalizeTopBind γ (Rec xes)
+  = normalizeBind γ (Rec xes)
+
+
 ------------------------------------------------------------------
 normalizeBind :: VarEnv Id -> CoreBind -> DsM [CoreBind]
 ------------------------------------------------------------------
 
 normalizeBind γ (NonRec x e)
-  = do (bs, e') <- normalize γ e
-       return (bs ++ [NonRec x e'])
+   = do (bs, e') <- normalize γ e
+        return (bs ++ [NonRec x e'])
 
 normalizeBind γ (Rec xes)
   = do es' <- mapM (normalize γ >=> (return . stitch)) es
@@ -117,8 +128,10 @@ normalize γ (Lam x e)
 normalize γ (Let b e)
   = do bs'        <- normalizeBind γ b
        (bs'', e') <- normalize γ e
-       -- LETSCOPE: return ([], stitch (bs' ++ bs'', e'))
        return (bs' ++ bs'', e')
+       -- Need to float bindings all the way up to the top 
+       -- Due to GHCs odd let-bindings (see tests/pos/lets.hs) 
+
 
 normalize γ (Case e x t as)
   = do (bs, n) <- normalizeName γ e
