@@ -25,7 +25,7 @@ data Expr
 ---------------------------------------------------------------------
 
 {-@ evalVar :: Bndr -> Store -> Value @-}
-evalVar :: Bndr -> LL (Pair Bndr Expr) -> Expr 
+evalVar :: Bndr -> [(Bndr, Expr)] -> Expr 
 evalVar = error "HIDEME"
 
 {-@ eval :: sto:Store -> e:Expr -> (Store, Value) @-}
