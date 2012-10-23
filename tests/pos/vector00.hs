@@ -4,6 +4,6 @@ import Language.Haskell.Liquid.Prelude
 import Data.List
 import Data.Vector hiding (map, concat, zipWith, filter, foldr, foldl, (++))
 
-xs    = [1,2,3,4] :: [Int]
-vs    = fromList xs
-jhala = vs ! 3 
+propVec = (vs ! 3) == 3
+  where xs    = [1,2,3,4] :: [Int]
+        vs    = fromList xs
