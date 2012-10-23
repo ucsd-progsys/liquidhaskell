@@ -1,7 +1,7 @@
 TODO
 ====
-
-* use -sortedquals switch for fixpoint. why is it NOT used?!
+    
+* performance
 * parse predicate signatures for tuples 
 * predicate-aliases 
 * Blogging 
@@ -15,6 +15,25 @@ TODO
 * benchmarks: Data.Text
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
+
+Performance
+===========
+
+Where is all the time going in Fixpoint?
+   
+liquid tests/pos/LambdaEval.hs
+
+real	0m44.740s
+user	0m36.330s
+
+
+
+    liquid ../benchmarks/containers-0.5.0.0/Data/Map/Base.hs
+
+    Solve.acsolve                 280.170 s
+      refine                        73.057 s
+
+    * use -sortedquals switch for fixpoint. why is it NOT used?!
 
 Self-Invariants
 ===============
@@ -40,16 +59,6 @@ Then clean up the spec blowup in containers/Data/Map/Base.hs ?
 Instead of the grisly
 
     inRange(lo, hi, v) = {v:k | (((isJustS(lo)) => (v >= fromJustS(lo))) && (((isJustS(hi)) => (v <= fromJustS(hi)))))} v @-}
-
-Fixpoint Profile
-================
-
-Where is all the time going in Fixpoint?
-    
-    liquid ../benchmarks/containers-0.5.0.0/Data/Map/Base.hs
-
-    Solve.acsolve                 280.170 s
-      refine                        73.057 s
 
 Tuple Refinements (DONE: by Niki)
 =================================
