@@ -117,8 +117,8 @@ normalize γ (Lam x e)
 normalize γ (Let b e)
   = do bs'        <- normalizeBind γ b
        (bs'', e') <- normalize γ e
-       return ([], stitch (bs' ++ bs'', e'))
-       -- return (bs' ++ bs'', e')
+       -- LETSCOPE: return ([], stitch (bs' ++ bs'', e'))
+       return (bs' ++ bs'', e')
 
 normalize γ (Case e x t as)
   = do (bs, n) <- normalizeName γ e
