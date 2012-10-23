@@ -45,6 +45,9 @@ TOTAL                         530.841 s
 - Where is all the time going in Fixpoint?
     - Why so many iterations? Why are ANY constraints seen more than 1 (or maybe 2) times?
 
+        ---> STRIPPED lambdaTiny even more so below dont apply.
+
+
         liquid tests/pos/LambdaEvalTiny.hs
         time ./external/fixpoint/fixpoint.native -notruekvars -refinesort  -strictsortcheck external/fixpoint/LambdaEvalTiny.hs.fq
         
