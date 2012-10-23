@@ -20,6 +20,8 @@ TODO
 Performance
 ===========
 
+-- NEW BRANCH
+
 - Serializing to .fq is WAY slow 
     - time liquid benchmarks/esop2013-submission/Base.hs > log.base 2>&1
         user	24m21.007s
