@@ -25,6 +25,10 @@ liquid tests/pos/LambdaEval.hs
 
 real	0m44.740s
 user	0m36.330s
+Fixpoint Solver Time 
+TOTAL                         18.885 s
+  solve                         12.837 s
+    Solve.unsatcs                  1.516 s
 
 
 
@@ -32,6 +36,27 @@ user	0m36.330s
 
     Solve.acsolve                 280.170 s
       refine                        73.057 s
+
+liquid benchmarks/esop2013/Base.hs (goto) -- most time = rendering constraints to .fq!
+
+Fixpoint
+
+TOTAL                         520.290 s
+  save                           6.580 s
+  solve                         235.400 s
+    Solve.unsatcs                 41.700 s
+      z3Pred                        30.760 s
+    Solve.acsolve                 192.710 s
+      refine                        101.170 s
+  Validate                      62.380 s
+    valid rhs                      1.550 s
+      validate_vars                  0.220 s
+      preds_of_reft                  1.140 s
+    validate_vars                  3.370 s
+  parse                         16.720 s
+  Qual Inst                     197.370 s
+
+
 
     * use -sortedquals switch for fixpoint. why is it NOT used?!
 
