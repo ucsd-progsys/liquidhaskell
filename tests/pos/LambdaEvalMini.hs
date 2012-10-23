@@ -22,6 +22,8 @@ data Expr
      isValue (App e1 e2)  = false
   @-}
 
+{-@ type Value = {v: Expr | (? (isValue([v]))) } @-}
+
 ---------------------------------------------------------------------
 -------------------------- The Evaluator ----------------------------
 ---------------------------------------------------------------------
@@ -37,6 +39,8 @@ evalVar x []
 
 -- A "value" is simply: {v: Expr | (? (isValue v)) } *)
 {- assert eval :: [(Bndr, {v: Expr | (? (isValue([v])))})] -> Expr -> {v: Expr | (? (isValue([v])))} -}
+
+{-@ eval :: [(Bndr, Value)] -> Expr -> ([(Bndr, Value)], Value) @-}
 
 eval sto (Var x)  
   = (sto, evalVar x sto)
@@ -55,7 +59,6 @@ eval sto (Lam x e)
 ---------------------------- Value Checker ----------------------------
 -----------------------------------------------------------------------
 
-{-@ assert check :: {v: Expr | (? (isValue([v]))) } -> Bool @-}
 check (Lam _ _)    = True
 check (Var _)      = liquidAssertB False
 check (App _ _)    = liquidAssertB False

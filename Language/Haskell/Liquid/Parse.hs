@@ -255,8 +255,27 @@ bbaseP :: Parser (Reft -> BareType)
 bbaseP 
   =  liftM2 bLst (brackets bareTypeP) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
- <|> try (liftM3 bCon upperIdP predicatesP (sepBy bareArgP blanks))
+ <|> try (liftM2 bRVar lowerIdP monoPredicateP)
+ <|> liftM3 bCon upperIdP predicatesP (sepBy bareTyArgP blanks)
+
+bbaseNoAppP :: Parser (Reft -> BareType)
+bbaseNoAppP
+  =  liftM2 bLst (brackets bareTypeP) predicatesP
+ <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
+ <|> try (liftM3 bCon upperIdP predicatesP (return []))
  <|> liftM2 bRVar lowerIdP monoPredicateP 
+
+
+bareTyArgP 
+  =  bareAtomNoAppP
+ <|> parens bareTypeP
+
+bareAtomNoAppP 
+  =  refP bbaseNoAppP 
+ <|> try (dummyP (bbaseNoAppP <* spaces))
+
+
+
 
 bareExistsP 
   = do reserved "exists"

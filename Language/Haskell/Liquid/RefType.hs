@@ -664,7 +664,7 @@ ppr_rtype bb p (RApp c ts rs r)
   | isTuple c 
   = ppTy r $ parens (intersperse comma (ppr_rtype bb p <$> ts)) <> ppReftPs bb rs
 ppr_rtype bb p (RApp c ts rs r)
-  = ppTy r $ ppTycon c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)  
+  = ppTy r $ parens $ ppTycon c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)  
 ppr_rtype _ _ (RCls c ts)      
   = ppCls c ts
 ppr_rtype bb p t@(REx _ _ _)
