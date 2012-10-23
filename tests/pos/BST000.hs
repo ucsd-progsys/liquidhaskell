@@ -27,15 +27,30 @@ data Pair k v <p :: x0:k -> x1:k -> Bool, l :: x0:k -> x1:k -> Bool, r :: x0:k -
 
 data Pair k v = P k v (Bst k v)
 
-getMin (Bind k v Empty rt) = P k v rt
-getMin (Bind k v lt rt)    = P k0min v0min (Bind k v l' rt)
-   where P k0min v0min l' = getMin lt
-   
+getMin (Bind k v Empty rt) = (k, rt)
+getMin (Bind k v lt rt)    = case getMin lt of
+                               (k0, l') -> (k0, Bind k v l' rt) 
+
 {-@ propMin :: (Ord k) => OBST k a -> Bool @-}
 propMin :: (Ord k) => Bst k a -> Bool
 propMin bst = chkMin x t
-    where pr  = getMin bst 
-          P x _ t = pr
+    where (x, t) = getMin bst 
+
+
+zoo :: Int -> (Int, Int)
+zoo x = (x, x + 1)
+
+
+m = zoo 12
+
+
+
+
+
+
+
+
+
 
 
 
