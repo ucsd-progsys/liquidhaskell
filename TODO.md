@@ -1,15 +1,14 @@
 TODO
 ====
 
-* THIS
 * use -sortedquals switch for fixpoint. why is it NOT used?!
 * parse predicate signatures for tuples 
 * predicate-aliases 
 * Blogging 
 * benchmarks: Data.List (foldr)
-* predicate-aliases 
 * self-invariants        (tests/todo/maybe4.hs)
 * fixpoint profile (how much performance hit from -nosimple?)
+
 * benchmarks: Data.List (foldr) -- needs sets
 * benchmarks: Data.Bytestring
 * benchmarks: stackset-core
