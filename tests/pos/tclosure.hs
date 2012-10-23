@@ -18,13 +18,15 @@ tclose1 = myfoldr (\i a -> set i (getconcat (get i a) a []) a)
 myfoldr f b []     = b
 myfoldr f b (x:xs) = f x (myfoldr f b xs)
 
-graph1 = empty
-graph2 = set 1 [1] empty
-graph3 = set 2 [1] (set 1 [1, 2] empty)
 
 prop1 = tclosure graph1 []
+  where graph1 = empty
+
 prop2 = tclosure graph2 [1]
+  where graph2 = set 1 [1] empty
+  
 prop3 = tclosure graph3 [1, 2]
+  where graph3 = set 2 [1] (set 1 [1, 2] empty)
 
 
 
