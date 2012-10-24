@@ -45,23 +45,17 @@ TOTAL                         530.841 s
 - Where is all the time going in Fixpoint?
     - Why so many iterations? Why are ANY constraints seen more than 1 (or maybe 2) times?
 
-HEREHEREHEREHERE:
+    1. compute inner ranks   <-------------------------- HEREHEREHEREHERE:
+    2. print out and see smaller SCCs
+    3. update wpush/wpop to use inner ranks
+
 
     - Useful for DIGRAPH VIZ: http://arborjs.org/halfviz/#
-
 
     - print SCCs of CID-DEP-GRAPH
     - print dgraph wtf is the constraint.dot -- something obv wrong with it
         - id 50 writes k_31 which is read in id 51, 52, ...etc. but no
           edges in constraint.dot from 50 -> 51, 50 -> 52 etc. WTF?
-
-    - add to .fq syntax:
-        
-        cut k_1
-        cut k_3
-        cut k_93
-
-      etc.
 
     - cutVars = set of KVARS denoted above
     - cindex += cutSet = Set KVar OR Set Id (where RHS id \in cutVars)
