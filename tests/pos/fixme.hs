@@ -1,26 +1,11 @@
-module ListSetTest where
+module Fib where
 
-import Data.Set (Set(..))
-
-{-@ include <listSet.hquals> @-}
-
-
--- WHY DOES THIS JUST NOT GET ANY MEANINGFUL TYPE?
-{- goo :: xs:[a] 
-       -> ys:[a] 
-       -> {v:[a] | listElts(v) = Set_cup(listElts(xs), listElts(ys))} 
- @-}
-goo :: [a] -> [a] -> [a]
-goo acc []     = acc
-goo acc (y:ys) = error "foo" -- goRev (y:acc) ys
-
-{-@ choo :: [a] -> [a] @-}
-choo :: [a] -> [a]
-choo xs = goo [] xs
-
-
-
-
+{-@ sumn :: (Int, a, b, c, d) -> ({v: Int | v >= 0}, a, b, c, d) @-}
+sumn :: (Int, a, b, c, d) -> (Int, a, b, c, d)
+sumn (n, x1, x2, x3, x4) 
+  | n <= 0    = (0, x1, x2, x3, x4) 
+  | otherwise = let (z, y1, y2, y3, y4) = sumn (n-1, x1, x2, x3, x4) 
+                in (n + z, y1, y2, y3, y4)
 
 
 
