@@ -63,15 +63,15 @@ let pprint_rank ppf r =
     r.id r.scc r.iscc r.cut C.print_tag r.tag
 
 module WH = 
-  Heaps.Functional(struct 
-      type t = int * rank 
-      let compare (ts,r) (ts',r') = 
-        (* let _ = failwith "TBD: handle ISCC" in *)
-        if r.scc <> r'.scc then compare r.scc r'.scc else
+  Heaps.Functional (struct 
+    type t = int * rank 
+    let compare (ts,r) (ts',r') = 
+      if r.scc <> r'.scc then compare r.scc r'.scc else
+        if r.iscc <> r'.iscc then compare r.iscc r'.iscc else
           if ts <> ts' then - (compare ts ts') else 
             if !Constants.ptag && r.tag <> r'.tag then compare r.tag r'.tag else
               compare r.simpl r'.simpl
-    end)
+  end)
 
 type wkl = WH.t
 
@@ -185,11 +185,20 @@ let make_rankm cm ranks =
               ; tag   = C.tag_of_t c }
         end
     |> IM.of_list
-    >> (IM.range <+> print_rank_groups (fun r -> string_of_int r.scc))  
+    >> (IM.range <+> print_rank_groups (fun r -> Printf.sprintf "(%d/%d)" r.scc r.iscc ))  
 
 let inner_ranks cm deps kuts irs = 
   (* let _ = failwith "TBD: compute real_inner_ranks" in *)
   irs |>: fun (id, r) -> (id, r, r, false)
+
+(* id_cstr    = fun i -> IM.find i cm
+ * is_eq_rank = let rm = IM.of_list irs  in  fun i j -> (IM.find i rm = IM.find j rm) in
+ * is_cut_var = let km = SS.of_list kuts in  fun k -> k `mem` ks in
+ * is_cut_cst = List.exists is_cut_var <.> List.map snd <.> C.kvars_of_reft <+> C.rhs_of_t <+> id_cstr 
+ * is_cut_dep = fun (i, j) -> is_cut_cst i && is_eq_rank i j  
+ * deps |> List.filter (not <.> is_cut_dep irs)
+ *      |> scc_rank "inner" (string_of_cid cm) (IM.domain cm)  
+ *)
 
 let make_ranks cm deps kuts =
   Fcommon.scc_rank "constraint" (string_of_cid cm) (IM.domain cm) deps
