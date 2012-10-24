@@ -47,6 +47,9 @@ TOTAL                         530.841 s
 
 HEREHEREHEREHERE:
 
+    - Useful for DIGRAPH VIZ: http://arborjs.org/halfviz/#
+
+
     - print SCCs of CID-DEP-GRAPH
     - print dgraph wtf is the constraint.dot -- something obv wrong with it
         - id 50 writes k_31 which is read in id 51, 52, ...etc. but no
