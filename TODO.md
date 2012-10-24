@@ -20,8 +20,6 @@ TODO
 Performance
 ===========
 
--- NEW BRANCH
-
 - Serializing to .fq is WAY slow 
     - time liquid benchmarks/esop2013-submission/Base.hs > log.base 2>&1
         user	24m21.007s
@@ -48,6 +46,28 @@ TOTAL                         530.841 s
     - Why so many iterations? Why are ANY constraints seen more than 1 (or maybe 2) times?
 
         ---> STRIPPED lambdaTiny even more so below dont apply.
+        liquid tests/pos/LambdaEvalTiny.hs
+        time ./external/fixpoint/fixpoint.native -notruekvars -refinesort -strictsortcheck external/fixpoint/LambdaEvalSuperTiny.hs.fq
+ 
+TERFREQ: 2 times (ch = false) 11 constraints 52,53,54,58,59,60,88,113,118,126,137 
+ITERFREQ: 2 times (ch = true) 8 constraints 88,93,98,104,108,113,73,84 
+ITERFREQ: 3 times (ch = false) 8 constraints 82,92,93,98,102,104,108,125 
+ITERFREQ: 4 times (ch = false) 4 constraints 83,97,103,112 
+ITERFREQ: 6 times (ch = false) 1 constraints 84 
+
+ITERFREQ: 7 times (ch = false) 8 constraints 33,34,41,49,69,70,73,77 
+ITERFREQ: 8 times (ch = false) 11 constraints 25,35,40,43,48,50,56,57,71,72,78 
+ITERFREQ: 9 times (ch = false) 6 constraints 20,27,28,36,44,55 
+ITERFREQ: 10 times (ch = false) 4 constraints 19,24,32,51 
+
+
+let bad  = [33,34,41,49,69,70,73,77, 25,35,40,43,48,50,56,57,71,72,78,20,27,28,36,44,55,19,24,32,51]
+
+
+
+
+
+
 
 
         liquid tests/pos/LambdaEvalTiny.hs
