@@ -45,6 +45,32 @@ TOTAL                         530.841 s
 - Where is all the time going in Fixpoint?
     - Why so many iterations? Why are ANY constraints seen more than 1 (or maybe 2) times?
 
+HEREHEREHEREHERE:
+
+    - print SCCs of CID-DEP-GRAPH
+    - print dgraph wtf is the constraint.dot -- something obv wrong with it
+        - id 50 writes k_31 which is read in id 51, 52, ...etc. but no
+          edges in constraint.dot from 50 -> 51, 50 -> 52 etc. WTF?
+
+    - add to .fq syntax:
+        
+        cut k_1
+        cut k_3
+        cut k_93
+
+      etc.
+
+    - cutVars = set of KVARS denoted above
+    - cindex += cutSet = Set KVar OR Set Id (where RHS id \in cutVars)
+    - worklist priority such that IN an SCC,
+        if a cid has target KVAR \in CutSet 
+          then that cid has LOWER priority than a NON-CUTSET constraint
+        this way, the cutset constraints are only picked ONCE in an
+        iteration through the whole SCC.
+
+    
+
+
         ---> STRIPPED lambdaTiny even more so below dont apply.
         liquid tests/pos/LambdaEvalTiny.hs
         time ./external/fixpoint/fixpoint.native -notruekvars -refinesort -strictsortcheck external/fixpoint/LambdaEvalSuperTiny.hs.fq
