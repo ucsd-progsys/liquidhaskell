@@ -40,28 +40,33 @@ open Misc.Ops
 
 let mydebug = false 
 
+(* TODO: Describe the SCC ordering scheme! *)
+
 (***********************************************************************)
 (***************** Index Data Structures and Accessors *****************)
 (***********************************************************************)
 
 type rank = {
-  id    : C.id;
-  scc   : int;
-  simpl : bool;
-  tag   : C.tag;
+    id    : C.id
+  ; scc   : int    (* SCC number with ALL dependencies    *)
+  ; iscc  : int    (* SCC number without CUT dependencies *)
+  ; simpl : bool   (* Is the RHS simple ?                 *)
+  ; cut   : bool   (* Is the RHS a CUT-VAR                *)
+  ; tag   : C.tag;
 }
 
 let string_of_tag t = 
   Printf.sprintf "[%s]" (Misc.map_to_string string_of_int t)
 
 let pprint_rank ppf r = 
-  Format.fprintf ppf "id=%d, scc=%d, tag=%a" 
-    r.id r.scc C.print_tag r.tag
+  Format.fprintf ppf "id=%d, scc=%d, iscc=%d, cut=%b, tag=%a" 
+    r.id r.scc r.iscc r.cut C.print_tag r.tag
 
 module WH = 
   Heaps.Functional(struct 
       type t = int * rank 
       let compare (ts,r) (ts',r') = 
+        let _ = failwith "TBD: handle ISCC" in
         if r.scc <> r'.scc then compare r.scc r'.scc else
           if ts <> ts' then - (compare ts ts') else 
             if !Constants.ptag && r.tag <> r'.tag then compare r.tag r'.tag else
@@ -78,6 +83,7 @@ type t =
   ; rts   : IS.t                     (* {rank} members are "root" sccs *)
   ; ds    : C.dep list               (* add/del dep list *)
   ; rdeps : (int * int) list         (* real dependencies *)  
+  ; kuts  : Ast.Symbol.t list        (* CUT KVars *)
   }
 
 let get_ref_rank me c =
@@ -151,6 +157,14 @@ let adjust_deps cm ds =
 (**************************** Dependency SCCs **************************)
 (***********************************************************************)
 
+let print_rank_groups f rs = 
+  rs |>  Misc.kgroupby f 
+     |>  List.sort compare 
+     |>  List.iter begin fun (g, rs) ->
+            Format.printf "Group=%d size=%d ids=%a\n" 
+              g (List.length rs) Misc.pprint_ints (List.map (fun r -> r.id) rs) 
+          end
+
 let string_of_cid cm id = 
   try 
     IM.find id cm 
@@ -161,14 +175,23 @@ let string_of_cid cm id =
 
 let make_rankm cm ranks = 
   ranks
-    |>: (fun (id, r) -> 
+    |>: begin fun (id, r, ir, is_cut) -> 
           let c = IM.find id cm in
           id, { id    = id
               ; scc   = r
+              ; iscc  = ir
+              ; cut   = is_cut
               ; simpl = (not !Co.psimple) || (C.is_simple c)
-              ; tag   = C.tag_of_t c})
+              ; tag   = C.tag_of_t c }
+        end
     |> IM.of_list
-    
+    >> (IM.range <+> print_rank_groups (fun r -> r.scc))  
+
+let make_ranks cm deps cutvars =
+  Fcommon.scc_rank "constraint" (string_of_cid cm) (IM.domain cm) deps
+    |> (failwith "TBD: [inner_ranks cm deps cutvars]") 
+    |> make_rankm cm
+
 let make_roots rankm ijs =
   let sccs = rankm |> IM.to_list |> Misc.map (fun (_,r) -> r.scc) in 
   let sccm = List.fold_left (fun is scc -> IS.add scc is) IS.empty sccs in
@@ -201,12 +224,11 @@ let make_lives cm real_deps =
   |> (fst <+> snd) 
   >> (IS.cardinal <+> Printf.printf "#Live Constraints: %d \n") 
 
-let create_raw ds cm dm real_deps =
+let create_raw kuts ds cm dm real_deps =
   let deps = adjust_deps cm ds real_deps in
-  let rnkm = deps |> Fcommon.scc_rank "constraint" (string_of_cid cm) (IM.domain cm)
-                  |> make_rankm cm in
-  { cnst = cm; ds  = ds; rdeps = real_deps; rnkm  = rnkm
-  ; depm = dm; rts = make_roots rnkm deps;  pend = H.create 17}
+  let rnkm = make_ranks cm deps kuts     in
+  { cnst = cm; ds  = ds; kuts = kuts; rdeps = real_deps; rnkm  = rnkm
+  ; depm = dm; rts = make_roots rnkm deps ;  pend = H.create 17}
 
 
 (***********************************************************************)
@@ -230,10 +252,10 @@ let save fname me =
  * "successors" into the worklist. *)
 
 (* API *)
-let create ds cs =
+let create kuts ds cs =
   let cm            = cs |>: (Misc.pad_fst C.id_of_t) |> IM.of_list in 
   let dm, real_deps = make_deps cm in
-  create_raw ds cm dm real_deps 
+  create_raw kuts ds cm dm real_deps 
 
 (* API *)
 let slice me = 
@@ -245,7 +267,7 @@ let slice me =
               |> IM.map (List.filter (fun j -> IS.mem j lives)) in
   let rdeps = me.rdeps 
               |> Misc.filter (fun (i,j) -> IS.mem i lives && IS.mem j lives) in  
-  create_raw me.ds cm dm rdeps
+  create_raw me.kuts me.ds cm dm rdeps
   >> save !Co.save_file
 
 (* API *) 
@@ -288,14 +310,14 @@ let wpush =
   let timestamp = ref 0 in
   fun me w cs ->
     incr timestamp;
-    List.fold_left 
-      (fun w c -> 
-        let id = C.id_of_t c in
-        if Hashtbl.mem me.pend id then w else 
-          (Co.cprintf Co.ol_solve "Pushing %d at %d \n" id !timestamp; 
-           Hashtbl.replace me.pend id (); 
-           WH.add (!timestamp, get_ref_rank me c) w))
-      w cs
+    List.fold_left begin fun w c -> 
+      let id = C.id_of_t c in
+      if Hashtbl.mem me.pend id then w else begin 
+        Co.cprintf Co.ol_solve "Pushing %d at %d \n" id !timestamp; 
+        Hashtbl.replace me.pend id (); 
+        WH.add (!timestamp, get_ref_rank me c) w
+      end
+    end w cs
 
 let wstring w = 
   WH.fold (fun (_,r) acc -> r.id :: acc) w [] 
@@ -308,7 +330,7 @@ let wpop me w =
     let _, r = WH.maximum w in
     let _    = Hashtbl.remove me.pend r.id in
     let c    = get_ref_constraint me r.id in
-    let _    = Co.cprintf Co.ol_solve "popping (%a) "pprint_rank r in
+    let _    = Co.cprintf Co.ol_solve "popping (%a) " pprint_rank r in
     let _    = Co.cprintf Co.ol_solve "from wkl = %s \n" (wstring w) in 
     (Some c, WH.remove w)
   with Heaps.EmptyHeap -> (None, w) 

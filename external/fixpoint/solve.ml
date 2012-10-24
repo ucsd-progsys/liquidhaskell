@@ -221,7 +221,7 @@ let create cfg kf =
             |> BS.time  "Constant Env" (List.map (C.add_consts_t gts))
             |> BS.time  "Simplify" FixSimplify.simplify_ts
             >> Co.logPrintf "Post-Simplify Stats\n%a" print_constr_stats
-            |> BS.time  "Ref Index" Ci.create cfg.Cg.ds
+            |> BS.time  "Ref Index" Ci.create cfg.Cg.kuts cfg.Cg.ds
             |> (!Co.slice <?> BS.time "Slice" Ci.slice) in
   let ws  = cfg.Cg.ws
             |> (!Co.slice <?> BS.time "slice_wf" (Ci.slice_wf sri))

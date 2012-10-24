@@ -119,6 +119,7 @@ rule token = parse
   | "wf"                { WF }
   | "solution"          { SOL }
   | "qualif"            { QUL }
+  | "cut"               { KUT }
   | "add_dep"           { ADP }
   | "del_dep"           { DDP }
   | "env"               { ENV }

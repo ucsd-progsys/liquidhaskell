@@ -75,145 +75,22 @@ HEREHEREHEREHERE:
 
 
         ---> STRIPPED lambdaTiny even more so below dont apply.
-        liquid tests/pos/LambdaEvalTiny.hs
         time ./external/fixpoint/fixpoint.native -notruekvars -refinesort -strictsortcheck external/fixpoint/LambdaEvalSuperTiny.hs.fq
  
-TERFREQ: 2 times (ch = false) 11 constraints 52,53,54,58,59,60,88,113,118,126,137 
-ITERFREQ: 2 times (ch = true) 8 constraints 88,93,98,104,108,113,73,84 
-ITERFREQ: 3 times (ch = false) 8 constraints 82,92,93,98,102,104,108,125 
-ITERFREQ: 4 times (ch = false) 4 constraints 83,97,103,112 
-ITERFREQ: 6 times (ch = false) 1 constraints 84 
-
-ITERFREQ: 7 times (ch = false) 8 constraints 33,34,41,49,69,70,73,77 
-ITERFREQ: 8 times (ch = false) 11 constraints 25,35,40,43,48,50,56,57,71,72,78 
-ITERFREQ: 9 times (ch = false) 6 constraints 20,27,28,36,44,55 
-ITERFREQ: 10 times (ch = false) 4 constraints 19,24,32,51 
+SCC=12 size=14 ids = [ 127; 95; 110; 140; 80; 146; 53; 59; 120; 62; 133; 100; 90; 115]
+SCC=20 size=14 ids = [ 141; 81; 147; 54; 121; 63; 134; 101; 91; 116; 60; 128; 96; 111]
+SCC=40 size=60 ids = [ 143; 83; 149; 49; 50; 56; 123; 125; 129; 69; 25
+                     ; 27; 130; 136; 138; 32; 34; 36; 41; 103; 43; 93
+                     ; 97; 112; 118; 71; 73; 77; 142; 82; 144; 84; 148
+                     ; 88; 44; 48; 51; 55; 57; 122; 124; 20; 24; 28
+                     ; 131; 137; 33; 35; 40; 102; 104; 92; 108; 98; 113
+                     ; 117; 19; 70; 72; 78]
 
 
-let bad  = [33,34,41,49,69,70,73,77, 25,35,40,43,48,50,56,57,71,72,78,20,27,28,36,44,55,19,24,32,51]
+k_31 is the outer output KVAR for eval
+     it is written by id=19,35,50,124,137
 
 
-
-
-
-
-
-
-        liquid tests/pos/LambdaEvalTiny.hs
-        time ./external/fixpoint/fixpoint.native -notruekvars -refinesort  -strictsortcheck external/fixpoint/LambdaEvalTiny.hs.fq
-        
-        ITERFREQ: 1 times (ch = false) 20 constraints 229,81,235,11,12,163,173,253,255,183,114,39,265,203,53,210,289,67,143,223 
-        ITERFREQ: 1 times (ch = true) 50 constraints 27,179,254,183,33,259,114,189,190,265,266,267,268,271,122,47,124,126,127,277,203,128,278,129,209,61,62,213,149,75,150,1,229,4,230,231,232,10,163,13,89,91,241,16,243,169,244,247,22,173 
-        ITERFREQ: 2 times (ch = false) 8 constraints 160,242,94,106,256,200,219,220 
-        ITERFREQ: 2 times (ch = true) 8 constraints 180,191,200,130,210,151,160,170 
-        ITERFREQ: 3 times (ch = false) 4 constraints 180,190,191,209 
-        ITERFREQ: 4 times (ch = false) 5 constraints 169,170,179,189,149 
-        ITERFREQ: 5 times (ch = false) 1 constraints 151 
-        ITERFREQ: 7 times (ch = false) 2 constraints 150,130 
-        ITERFREQ: 8 times (ch = false) 5 constraints 75,89,129,139,140 
-        ITERFREQ: 9 times (ch = false) 19 constraints 77,78,87,88,90,91,100,101,102,103,47,126,127,128,62,63,64,73,74 
-        ITERFREQ: 10 times (ch = false) 8 constraints 36,45,46,49,50,59,60,61 
-        ITERFREQ: 11 times (ch = false) 1 constraints 35 
-
-
-         77  rhs {VV : Tuple ([Tuple int   Expr])   Expr | [k_206]}
-        ,78  rhs {VV : [Tuple int   Expr] | [k_203]}
-        ,87  rhs {VV : Expr | [k_204]}
-        ,88  rhs {VV : Expr | [k_205[fld:=fld]]}
-
-        ,90  rhs {VV : Tuple ([Tuple int   Expr])   Expr | [k_45[ds_djf:=ds_djf][sto#aiB:=sto#aiB]]}
-        ,91  rhs {VV : [Tuple int   Expr] | [k_42[ds_djf:=ds_djf][sto#aiB:=sto#aiB]]}
-        ,100 rhs {VV : Expr | [k_43[ds_djf:=ds_djf][sto#aiB:=sto#aiB]]}
-        
-        ,101 rhs {VV : Expr | [k_44[ds_djf:=ds_djf][fld:=fld][sto#aiB:=sto#aiB]]}
-        ,102 rhs {VV : Expr | [k_33[sto#aiB:=lq_anf__djw]]}
-        ,103 rhs {VV : [Tuple int   Expr] | [k_32]}
-        ,47  rhs {VV : State# RealWorld | [k_222]}
-        ,126 rhs {VV : Expr | [k_180]}
-        ,127 rhs {VV : int | [k_179]}
-        ,128 rhs {VV : Expr | [k_168]}
-        
-        ,62  rhs {VV : Expr | [k_219]}
-        ,63  rhs {VV : Tuple ([Tuple int   Expr])   Expr | [k_45[ds_djf:=ds_djf][sto#aiB:=sto#aiB]]}
-        ,64  rhs {VV : [Tuple int   Expr] | [k_42[ds_djf:=ds_djf][sto#aiB:=sto#aiB]]}
-        ,73  rhs {VV : Expr | [k_43[ds_djf:=ds_djf][sto#aiB:=sto#aiB]]}
-        ,74  rhs {VV : Expr | [k_44[ds_djf:=ds_djf][fld:=fld][sto#aiB:=sto#aiB]]}
-
-    90 >> 90
-    90 >> 102 >> 90
-    90 >> 35 >> 90 >> ??
-    ?? >> 139 >> 90
-
-Heres a random cycle!
-
-    90 >> 46 >> 129 >> 128 >> 90
-
-
-
-  90 -> 35; -- 11
-  90 -> 36; -- 10
-  90 -> 39; -- 1
-  90 -> 45; -- 10
-  90 -> 46; -- 10 
-  90 -> 47; -- 9
-  90 -> 49;
-  90 -> 50;
-  90 -> 53; -- 1
-  90 -> 59;
-  90 -> 60;
-  90 -> 61;
-  90 -> 62;
-  90 -> 63;
-  90 -> 64;
-  90 -> 67; -- 1
-  90 -> 73;
-  90 -> 74;
-  90 -> 75;
-  90 -> 77;
-  90 -> 78;
-  90 -> 81; -- 1
-  90 -> 87;
-  90 -> 88;
-  90 -> 89;
-  90 -> 90;
-  90 -> 91;
-  90 -> 94;
-  90 -> 100;
-  90 -> 101;
-  90 -> 102;
-  90 -> 103;
-  90 -> 106;
-  90 -> 114;
-  90 -> 122;
-  90 -> 124;
-  90 -> 126;
-  90 -> 127;
-  90 -> 128;
-  90 -> 129;
-  90 -> 130;
-  90 -> 139;
-  90 -> 140;
-  90 -> 143;
-  90 -> 149;
-  90 -> 150;
-  90 -> 151;
-  90 -> 160;
-  90 -> 163;
-  90 -> 169;
-  90 -> 170;
-  90 -> 173;
-  90 -> 179;
-  90 -> 180;
-  90 -> 183;
-  90 -> 189;
-  90 -> 190;
-  90 -> 191;
-  90 -> 200;
-  90 -> 203;
-  90 -> 209;
-  90 -> 210;
-  90 -> 213;
- 
 real	0m44.740s
 user	0m36.330s
 Fixpoint Solver Time 
