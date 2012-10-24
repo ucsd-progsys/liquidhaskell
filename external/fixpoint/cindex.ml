@@ -66,7 +66,7 @@ module WH =
   Heaps.Functional(struct 
       type t = int * rank 
       let compare (ts,r) (ts',r') = 
-        let _ = failwith "TBD: handle ISCC" in
+        (* let _ = failwith "TBD: handle ISCC" in *)
         if r.scc <> r'.scc then compare r.scc r'.scc else
           if ts <> ts' then - (compare ts ts') else 
             if !Constants.ptag && r.tag <> r'.tag then compare r.tag r'.tag else
@@ -161,7 +161,7 @@ let print_rank_groups f rs =
   rs |>  Misc.kgroupby f 
      |>  List.sort compare 
      |>  List.iter begin fun (g, rs) ->
-            Format.printf "Group=%d size=%d ids=%a\n" 
+            Format.printf "Group=%s size=%d ids=%a\n" 
               g (List.length rs) Misc.pprint_ints (List.map (fun r -> r.id) rs) 
           end
 
@@ -185,11 +185,15 @@ let make_rankm cm ranks =
               ; tag   = C.tag_of_t c }
         end
     |> IM.of_list
-    >> (IM.range <+> print_rank_groups (fun r -> r.scc))  
+    >> (IM.range <+> print_rank_groups (fun r -> string_of_int r.scc))  
 
-let make_ranks cm deps cutvars =
+let inner_ranks cm deps kuts irs = 
+  (* let _ = failwith "TBD: compute real_inner_ranks" in *)
+  irs |>: fun (id, r) -> (id, r, r, false)
+
+let make_ranks cm deps kuts =
   Fcommon.scc_rank "constraint" (string_of_cid cm) (IM.domain cm) deps
-    |> (failwith "TBD: [inner_ranks cm deps cutvars]") 
+    |> inner_ranks cm deps kuts
     |> make_rankm cm
 
 let make_roots rankm ijs =
