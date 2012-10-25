@@ -39,7 +39,7 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc          (tickSrcSpan)
+import Language.Haskell.Liquid.GhcMisc          (tracePpr, tickSrcSpan)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Qualifier        
 import Data.Generics.Schemes
@@ -448,22 +448,37 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , tyConInfo  :: !(M.Map TC.TyCon RTyCon) 
                      , specQuals  :: ![Qualifier]
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
+                     , kuts       :: !Kuts
                      } deriving (Data, Typeable)
 
 instance Outputable CGInfo where 
   ppr cgi =  {-# SCC "ppr_CGI" #-} ppr_CGInfo cgi
 
 ppr_CGInfo cgi 
-  =  (text "*********** Haskell-SubConstraints ***********")
+  =  (text "*********** Haskell SubConstraints ***********")
   $$ (ppr $ hsCs  cgi)
-  $$ (text "*********** Haskell-WFConstraints ************")
+  $$ (text "*********** Haskell WFConstraints ************")
   $$ (ppr $ hsWfs cgi)
-  $$ (text "*********** Fixpoint-SubConstraints **********")
+  $$ (text "*********** Fixpoint SubConstraints **********")
   $$ (ppr $ fixCs cgi)
-  $$ (text "*********** Fixpoint-WFConstraints ************")
+  $$ (text "*********** Fixpoint WFConstraints ************")
   $$ (ppr $ fixWfs cgi)
+  $$ (text "*********** Fixpoint Kut Variables ************")
+  $$ (ppr $ kuts cgi)
+
 
 type CG = State CGInfo
+
+newtype Kuts = KS (S.Set F.Symbol) deriving (Data, Typeable)
+
+instance Outputable Kuts where
+  ppr (KS s) = ppr s
+
+instance NFData Kuts where
+  rnf (KS s) = rnf s
+
+ksEmpty             = KS S.empty
+ksUnion kvs (KS s') = KS (S.union (S.fromList kvs) s')
 
 initCGI info = CGInfo { 
     hsCs       = [] 
@@ -476,6 +491,7 @@ initCGI info = CGInfo {
   , tyConInfo  = makeTyConInfo $ tconsP $ spec info 
   , specQuals  = specificationQualifiers info
   , tyConEmbed = tcEmbeds $ spec info 
+  , kuts       = ksEmpty 
   }
 
 -- showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
@@ -490,6 +506,15 @@ addC !c@(SubC _ _ _) _ -- msg
 
 addW   :: WfC -> CG ()  
 addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
+
+-- Used to generate "cut" kvars for fixpoint. Typically, KVars for
+-- recursive definitions.
+
+addKuts :: SpecType -> CG ()
+addKuts !t = modify $ \s -> s { kuts = tracePpr "KUTS: " $ updKuts (kuts s) t }
+
+updKuts :: Kuts -> SpecType -> Kuts
+updKuts = foldReft (ksUnion . (F.reftKVars . ur_reft) )
 
 -- | Used for annotation binders (i.e. at binder sites)
 
@@ -644,7 +669,8 @@ consCB γ (Rec xes)
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        let xts = [(x, to) | (x, _, to) <- xets, not (isGrty x)]
        let γ'  =  foldl' extender (γ `withRecs` (fst <$> xts)) xts
-       mapM_ (consBind γ') xets
+       mapM_ addKuts [t | (_,_, Just t) <- xets]
+       mapM_ (consBind γ')    xets
        return γ' 
     where isGrty x = (varSymbol x) `memberREnv` (grtys γ)
 
@@ -943,7 +969,7 @@ instance NFData WfC where
     = rnf x1 `seq` rnf x2
 
 instance NFData CGInfo where
-  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 _ x9 _) 
+  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 _ x9 _ x10) 
     = ({-# SCC "CGIrnf1" #-} rnf x1) `seq` 
       ({-# SCC "CGIrnf2" #-} rnf x2) `seq` 
       ({-# SCC "CGIrnf3" #-} rnf x3) `seq` 
@@ -951,7 +977,9 @@ instance NFData CGInfo where
       ({-# SCC "CGIrnf5" #-} rnf x5) `seq` 
       ({-# SCC "CGIrnf6" #-} rnf x6) `seq`
       ({-# SCC "CGIrnf7" #-} rnf x7) `seq`
-      ({-# SCC "CGIrnf8" #-} rnf x9) 
+      ({-# SCC "CGIrnf8" #-} rnf x9) `seq`
+      ({-# SCC "CGIrnf8" #-} rnf x10) 
+
 -------------------------------------------------------------------------------
 --------------------- Reftypes from Fixpoint Expressions ----------------------
 -------------------------------------------------------------------------------
