@@ -669,7 +669,7 @@ consCB γ (Rec xes)
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        let xts = [(x, to) | (x, _, to) <- xets, not (isGrty x)]
        let γ'  =  foldl' extender (γ `withRecs` (fst <$> xts)) xts
-       mapM_ addKuts [t | (_,_, Just t) <- xets]
+       -- mapM_ addKuts [t | (_,_, Just t) <- xets]
        mapM_ (consBind γ')    xets
        return γ' 
     where isGrty x = (varSymbol x) `memberREnv` (grtys γ)
@@ -698,6 +698,7 @@ varTemplate γ (x, eo)
       (_, Just t) -> return $ Just t
       (Just e, _) -> do t  <- unifyVar γ x <$> freshTy_pretty e (exprType e)
                         addW (WfC γ t)
+                        addKuts t
                         return $ Just t
       (_,      _) -> return Nothing
 
