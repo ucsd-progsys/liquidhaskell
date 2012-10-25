@@ -47,17 +47,15 @@ TOTAL                         530.841 s
 
     1. compute inner ranks 
     2. print out and see smaller SCCs  
-    3. update Constraint.hs to generate "cut" marks <----------------HEREHEREHEREHERE
-    4. update wpush/wpop to use inner ranks [IF NECESSARY]
+    3. update Constraint.hs to generate "cut" marks
+        * regrtest <----------------HEREHEREHEREHERE
+        * use -sortedquals switch for fixpoint. why is it NOT used?!
+        * Data.Text
+        * update wpush/wpop to use inner ranks [IF NECESSARY]
 
     - Useful for DIGRAPH VIZ: http://arborjs.org/halfviz/#
 
-    - print SCCs of CID-DEP-GRAPH
-    - print dgraph wtf is the constraint.dot -- something obv wrong with it
-        - id 50 writes k_31 which is read in id 51, 52, ...etc. but no
-          edges in constraint.dot from 50 -> 51, 50 -> 52 etc. WTF?
-
-    - cutVars = set of KVARS denoted above
+   - cutVars = set of KVARS denoted above
     - cindex += cutSet = Set KVar OR Set Id (where RHS id \in cutVars)
     - worklist priority such that IN an SCC,
         if a cid has target KVAR \in CutSet 
@@ -65,34 +63,12 @@ TOTAL                         530.841 s
         this way, the cutset constraints are only picked ONCE in an
         iteration through the whole SCC.
 
-    
-
-
-        ---> STRIPPED lambdaTiny even more so below dont apply.
-        time ./external/fixpoint/fixpoint.native -notruekvars -refinesort -strictsortcheck external/fixpoint/LambdaEvalSuperTiny.hs.fq
- 
-SCC=12 size=14 ids = [ 127; 95; 110; 140; 80; 146; 53; 59; 120; 62; 133; 100; 90; 115]
-SCC=20 size=14 ids = [ 141; 81; 147; 54; 121; 63; 134; 101; 91; 116; 60; 128; 96; 111]
-SCC=40 size=60 ids = [ 143; 83; 149; 49; 50; 56; 123; 125; 129; 69; 25
-                     ; 27; 130; 136; 138; 32; 34; 36; 41; 103; 43; 93
-                     ; 97; 112; 118; 71; 73; 77; 142; 82; 144; 84; 148
-                     ; 88; 44; 48; 51; 55; 57; 122; 124; 20; 24; 28
-                     ; 131; 137; 33; 35; 40; 102; 104; 92; 108; 98; 113
-                     ; 117; 19; 70; 72; 78]
-
-
-k_31 is the outer output KVAR for eval
-     it is written by id=19,35,50,124,137
-
-
 real	0m44.740s
 user	0m36.330s
 Fixpoint Solver Time 
 TOTAL                         18.885 s
   solve                         12.837 s
     Solve.unsatcs                  1.516 s
-
-
 
     liquid ../benchmarks/containers-0.5.0.0/Data/Map/Base.hs
 
