@@ -46,9 +46,9 @@ TOTAL                         530.841 s
     - Why so many iterations? Why are ANY constraints seen more than 1 (or maybe 2) times?
 
     1. compute inner ranks 
-    2. print out and see smaller SCCs  <----------------HEREHEREHEREHERE
-    3. update wpush/wpop to use inner ranks
-
+    2. print out and see smaller SCCs  
+    3. update Constraint.hs to generate "cut" marks <----------------HEREHEREHEREHERE
+    4. update wpush/wpop to use inner ranks [IF NECESSARY]
 
     - Useful for DIGRAPH VIZ: http://arborjs.org/halfviz/#
 

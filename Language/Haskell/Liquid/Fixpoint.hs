@@ -6,35 +6,49 @@
 -- `fixpoint.native` which is written in Ocaml.
 
 module Language.Haskell.Liquid.Fixpoint (
+
+  -- * Top level serialization  
     toFixpoint
   , Fixpoint (toFix) 
+ 
+  -- * Embedding to Fixpoint Types
+  , Sort (..), FTycon, TCEmb (..)
+  , stringFTycon, intFTyCon, boolFTyCon
   , typeSort, typeUniqueSymbol
+  
+  -- * Symbols
+  , Symbol(..)
+  , anfPrefix, tempPrefix, vv, intKvar
   , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tempSymbol --, tagSymbol 
   , qualifySymbol, stringSymbol, symbolString, stringSymbolRaw
-  , FTycon, stringFTycon, intFTyCon, boolFTyCon
-  , anfPrefix, tempPrefix
-  , intKvar
-  , Sort (..), Symbol(..), Constant (..), Bop (..), Brel (..), Expr (..)
-  , Pred (..), Refa (..), SortedReft (..), Reft(..)
-  , SEnv (..)
-  , FEnv
-  , SubC (..), WfC(..), FixResult (..), FixSolution, FInfo (..)
-  , emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
-  , insertFEnv 
-  , vv
-  , trueSortedReft 
-  , trueRefa
-  , canonReft, exprReft, notExprReft, symbolReft
-  , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft
-  , ppr_reft, ppr_reft_pred, flattenRefas
+
+  -- * Expressions and Predicates
+  , Constant (..), Bop (..), Brel (..), Expr (..), Pred (..)
   , simplify, pAnd, pOr, pIte
   , isTautoPred
-  , emptySubst, mkSubst, catSubst
+ 
+  -- * Constraints and Solutions
+  , SubC (..), WfC(..), FixResult (..), FixSolution, FInfo (..)
+
+  -- * Environments
+  , SEnv (..), emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
+  , FEnv, insertFEnv 
+  
+  -- * Refinements
+  , Refa (..), SortedReft (..), Reft(..)
+  , trueSortedReft, trueRefa
+  , canonReft, exprReft, notExprReft, symbolReft
+  , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft
+  , flattenRefas
+  , ppr_reft, ppr_reft_pred
+
+  -- * Substitutions 
   , Subable (..)
-  , TCEmb (..)
+  , emptySubst, mkSubst, catSubst
 
   -- * Visitors
   , getSymbols
+  , reftKVars
 
   -- * Functions on @Result@
   , colorResult 
@@ -186,6 +200,8 @@ getSymbols = everything (++) ([] `mkQ` f)
   where f x@(S _) = [x]
         f _       = []
 
+reftKVars :: Reft -> [Symbol]
+reftKVars (Reft (_,ras)) = [k | (RKvar k _) <- ras]
 
 infoConstant (c, so, _)
   = text "constant" <+> toFix c <+> text ":" <+> toFix so <> blankLine <> blankLine 
@@ -596,7 +612,7 @@ data Refa
   | RKvar !Symbol !Subst
   deriving (Eq, Ord, Data, Typeable, Show)
 
-data Reft
+newtype Reft
   = Reft (Symbol, [Refa]) 
   deriving (Eq, Ord, Data, Typeable) 
 
