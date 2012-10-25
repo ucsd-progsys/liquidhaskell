@@ -52,6 +52,10 @@ module Language.Haskell.Liquid.Fixpoint (
 
   -- * Functions on @Result@
   , colorResult 
+
+  -- * Cut KVars
+  , Kuts (..), ksEmpty, ksUnion
+
   ) where
 
 import TypeRep 
@@ -206,6 +210,25 @@ reftKVars (Reft (_,ras)) = [k | (RKvar k _) <- ras]
 infoConstant (c, so, _)
   = text "constant" <+> toFix c <+> text ":" <+> toFix so <> blankLine <> blankLine 
 
+---------------------------------------------------------------
+---------- (Kut) Sets of Kvars --------------------------------
+---------------------------------------------------------------
+
+newtype Kuts = KS (S.Set Symbol) deriving (Data, Typeable)
+
+instance Outputable Kuts where
+  ppr (KS s) = ppr s
+
+instance NFData Kuts where
+  rnf (KS s) = rnf s
+
+instance Fixpoint Kuts where
+  toFix (KS s) = vcat $ ((text "cut " <>) . toFix) <$> S.elems s
+
+ksEmpty             = KS S.empty
+ksUnion kvs (KS s') = KS (S.union (S.fromList kvs) s')
+
+
 
 ---------------------------------------------------------------
 ---------- Converting Constraints to Fixpoint Input -----------
@@ -219,15 +242,17 @@ instance (Fixpoint a, Fixpoint b) => Fixpoint (a,b) where
   toFix   (x,y)  = (toFix x) <+> text ":" <+> (toFix y)
   simplify (x,y) = (simplify x, simplify y) 
 
-data FInfo a = FI { cs :: ![SubC a]
-                  , ws :: ![WfC a ] 
-                  , gs :: !FEnv -- Envt Symbol, Sort)] 
+data FInfo a = FI { cs   :: ![SubC a]
+                  , ws   :: ![WfC a ] 
+                  , gs   :: !FEnv
+                  , kuts :: Kuts 
                   } deriving (Data, Typeable)
 
-toFixpoint x' = gsDoc x' $+$ conDoc x' $+$  csDoc x' $+$ wsDoc x'
+toFixpoint x' = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$  csDoc x' $+$ wsDoc x'
   where conDoc     = vcat . map infoConstant . S.elems . S.fromList . getConstants 
         csDoc      = vcat . map toFix . cs 
         wsDoc      = vcat . map toFix . ws 
+        kutsDoc    = toFix . kuts
         gsDoc      = vcat . map infoConstant . map (\(x, (RR so _)) -> (x, so, False)) . M.assocs . (\(SE e) -> e) . gs
 
 
