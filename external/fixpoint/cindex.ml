@@ -173,37 +173,42 @@ let string_of_cid cm id =
     |> Printf.sprintf "%d: %s" id 
   with _ -> assertf "string_of_cid: impossible" 
 
-let make_rankm cm ranks = 
-  ranks
-    |>: begin fun (id, r, ir, is_cut) -> 
-          let c = IM.find id cm in
-          id, { id    = id
-              ; scc   = r
-              ; iscc  = ir
-              ; cut   = is_cut
-              ; simpl = (not !Co.psimple) || (C.is_simple c)
-              ; tag   = C.tag_of_t c }
+let make_rankm cm ranks iranks = 
+  let rm  = IM.of_list ranks  in
+  let irm = IM.of_list iranks in
+  IM.domain cm 
+    |>: begin fun id ->
+          let c         = IM.find id cm  in
+          let r         = IM.find id rm  in
+          let (ir, cut) = IM.find id irm in
+          id, { id    = id; scc   = r; iscc  = ir; cut   = cut; tag   = C.tag_of_t c 
+              ; simpl = (not !Co.psimple) || (C.is_simple c)                         }
         end
     |> IM.of_list
     >> (IM.range <+> print_rank_groups (fun r -> Printf.sprintf "(%d/%d)" r.scc r.iscc ))  
 
-let inner_ranks cm deps kuts irs = 
-  (* let _ = failwith "TBD: compute real_inner_ranks" in *)
-  irs |>: fun (id, r) -> (id, r, r, false)
+(* returns a predicate which is true of ids whose RHS kvar is a kut-var *)
+let is_cut_cst cm kuts = 
+  let id_cstr     = fun i -> IM.find i cm    in
+  let is_cut_kvar = let ks = SS.of_list kuts in 
+                    fun k -> SS.mem k ks  
+  in List.exists is_cut_kvar <.> List.map snd <.> C.kvars_of_reft <.> C.rhs_of_t <.> id_cstr 
 
-(* id_cstr    = fun i -> IM.find i cm
- * is_eq_rank = let rm = IM.of_list irs  in  fun i j -> (IM.find i rm = IM.find j rm) in
- * is_cut_var = let km = SS.of_list kuts in  fun k -> k `mem` ks in
- * is_cut_cst = List.exists is_cut_var <.> List.map snd <.> C.kvars_of_reft <+> C.rhs_of_t <+> id_cstr 
- * is_cut_dep = fun (i, j) -> is_cut_cst i && is_eq_rank i j  
- * deps |> List.filter (not <.> is_cut_dep irs)
- *      |> scc_rank "inner" (string_of_cid cm) (IM.domain cm)  
- *)
+let inner_ranks cm deps irs = function 
+  | [] ->   (* if no kuts specified, use dummys *)
+      irs  |>: (fun (i, r) -> (i, (r, false)))  
+  | kuts -> (* else, redo the SCC computation without cut-dependencies *)
+      let is_eq_rank = let rm = IM.of_list irs in  fun i j -> (IM.find i rm = IM.find j rm)  in
+      let is_cut_id  = is_cut_cst cm kuts                                                    in
+      let is_cut_dep = fun (i, j) -> is_cut_id i && is_eq_rank i j                           in
+      deps |> List.filter (not <.> is_cut_dep)
+           |> Fcommon.scc_rank "inner" (string_of_cid cm) (IM.domain cm)  
+           |>: (fun (i, ir) -> (i, (ir, is_cut_id i)))
 
 let make_ranks cm deps kuts =
-  Fcommon.scc_rank "constraint" (string_of_cid cm) (IM.domain cm) deps
-    |> inner_ranks cm deps kuts
-    |> make_rankm cm
+  let ranks  = Fcommon.scc_rank "constraint" (string_of_cid cm) (IM.domain cm) deps in
+  let iranks = inner_ranks cm deps ranks kuts                                       in
+  make_rankm cm ranks iranks
 
 let make_roots rankm ijs =
   let sccs = rankm |> IM.to_list |> Misc.map (fun (_,r) -> r.scc) in 
