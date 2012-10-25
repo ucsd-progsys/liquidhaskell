@@ -448,7 +448,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , tyConInfo  :: !(M.Map TC.TyCon RTyCon) 
                      , specQuals  :: ![Qualifier]
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
-                     , kuts       :: !Kuts
+                     , kuts       :: !(F.Kuts)
                      } deriving (Data, Typeable)
 
 instance Outputable CGInfo where 
@@ -469,17 +469,6 @@ ppr_CGInfo cgi
 
 type CG = State CGInfo
 
-newtype Kuts = KS (S.Set F.Symbol) deriving (Data, Typeable)
-
-instance Outputable Kuts where
-  ppr (KS s) = ppr s
-
-instance NFData Kuts where
-  rnf (KS s) = rnf s
-
-ksEmpty             = KS S.empty
-ksUnion kvs (KS s') = KS (S.union (S.fromList kvs) s')
-
 initCGI info = CGInfo { 
     hsCs       = [] 
   , hsWfs      = [] 
@@ -491,7 +480,7 @@ initCGI info = CGInfo {
   , tyConInfo  = makeTyConInfo $ tconsP $ spec info 
   , specQuals  = specificationQualifiers info
   , tyConEmbed = tcEmbeds $ spec info 
-  , kuts       = ksEmpty 
+  , kuts       = F.ksEmpty 
   }
 
 -- showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
@@ -513,8 +502,8 @@ addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
 addKuts :: SpecType -> CG ()
 addKuts !t = modify $ \s -> s { kuts = tracePpr "KUTS: " $ updKuts (kuts s) t }
 
-updKuts :: Kuts -> SpecType -> Kuts
-updKuts = foldReft (ksUnion . (F.reftKVars . ur_reft) )
+updKuts :: F.Kuts -> SpecType -> F.Kuts
+updKuts = foldReft (F.ksUnion . (F.reftKVars . ur_reft) )
 
 -- | Used for annotation binders (i.e. at binder sites)
 
@@ -669,7 +658,6 @@ consCB γ (Rec xes)
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        let xts = [(x, to) | (x, _, to) <- xets, not (isGrty x)]
        let γ'  =  foldl' extender (γ `withRecs` (fst <$> xts)) xts
-       -- mapM_ addKuts [t | (_,_, Just t) <- xets]
        mapM_ (consBind γ')    xets
        return γ' 
     where isGrty x = (varSymbol x) `memberREnv` (grtys γ)
