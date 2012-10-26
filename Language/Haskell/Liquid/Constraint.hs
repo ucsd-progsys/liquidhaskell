@@ -811,7 +811,8 @@ cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -
 -------------------------------------------------------------------------------------
 
 cconsCase γ x t _ (DataAlt c, ys, ce) 
- = do yts'            <- mkyts γ ys yts
+ = do -- yts'         <- mkyts γ ys yts
+      let yts'         = yts
       let cbs          = zip (x':ys') (xt:yts')
       let cγ           = addBinders γ x' cbs
       cconsE cγ ce t
