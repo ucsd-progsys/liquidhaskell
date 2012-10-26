@@ -63,6 +63,7 @@ ListSort.hs     :   */7.5       */2.5             */1.5       */1100      */9
 ListISort.hs    :   */1.8       */0.5             */0.3       */200       */7
 GhcListSort.hs  :   23/22     7.3/7.8           4.5/5.0    3700/4400     10/23 
 LambdaEval.hs   :   36/32      17/12           11.7/6.0    8500/3100     12/5
+Base.hs         :  see nohup.out v nohup.out.perf on goto
 
         - hs : ml = 3-5 : 1
             - e.g. 50s : 12  (for tests/pos/Map.hs)
