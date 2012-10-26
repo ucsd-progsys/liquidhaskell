@@ -19,7 +19,6 @@ TODO
 
 Performance
 ===========
-
 - Serializing to .fq is WAY slow 
     - time liquid benchmarks/esop2013-submission/Base.hs > log.base 2>&1
         user	24m21.007s
@@ -49,6 +48,13 @@ TOTAL                         530.841 s
     2. print out and see smaller SCCs  
     3. update Constraint.hs to generate "cut" marks
         * regrtest <----------------HEREHEREHEREHERE
+ 
+        - hs : ml = 3-5 : 1
+            - e.g. 50s : 12  (for tests/pos/Map.hs)
+                   7.8 : 1.2 (for tests/pos/ListSort.hs)
+            - others Map0.hs, ListSort.hs GhcListSort, LambdaEval.hs do by HAND as make test is giving skewed results.
+            - still too many iters
+
         * use -sortedquals switch for fixpoint. why is it NOT used?!
         * Data.Text
         * update wpush/wpop to use inner ranks [IF NECESSARY]
