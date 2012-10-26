@@ -45,10 +45,20 @@ TOTAL                         530.841 s
     - Why so many iterations? Why are ANY constraints seen more than 1 (or maybe 2) times?
 
     1. compute inner ranks 
+    
     2. print out and see smaller SCCs  
+    
     3. update Constraint.hs to generate "cut" marks
+
         * regrtest <----------------HEREHEREHEREHERE
- 
+
+                    time(O|N)   TOTAL(O|N)   solve (O|N)    refines     iterfreq
+Map.hs          :   54/50          21/15         14/8      9100/4900     16/28
+ListSort.hs     :   */7.5       */2.5             */1.5       */1100      */9
+ListISort.hs    :   */1.8       */0.5             */0.3       */200       */7
+GhcListSort.hs  :   23/22     7.3/7.8           4.5/5.0    3700/4400     10/23 
+LambdaEval.hs   :   36/32      17/12           11.7/6.0    8500/3100     12/5
+
         - hs : ml = 3-5 : 1
             - e.g. 50s : 12  (for tests/pos/Map.hs)
                    7.8 : 1.2 (for tests/pos/ListSort.hs)

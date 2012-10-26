@@ -29,8 +29,11 @@ chk (x1:xs) = case xs of
                []     -> liquidAssertB True
                x2:xs2 -> liquidAssertB (x1 <= x2) && chk xs
 																	
-rlist = map choose [1 .. 10]
-
-bar = quicksort rlist
-
 prop0 = chk bar
+  where 
+    rlist = map choose [1 .. 10]
+    bar = quicksort rlist
+
+
+
+
