@@ -500,7 +500,7 @@ addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
 -- recursive definitions.
 
 addKuts :: SpecType -> CG ()
-addKuts !t = modify $ \s -> s { kuts = tracePpr "KUTS: " $ updKuts (kuts s) t }
+addKuts !t = modify $ \s -> s { kuts = {- tracePpr "KUTS: " $-} updKuts (kuts s) t }
 
 updKuts :: F.Kuts -> SpecType -> F.Kuts
 updKuts = foldReft (F.ksUnion . (F.reftKVars . ur_reft) )
@@ -747,21 +747,21 @@ consE γ (Lit c)
 
 consE γ (App e (Type τ)) 
   = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
-       t          <- if isGeneric α te then freshTy e τ else trueTy τ
+       t          <- if isGeneric α te then freshTy e τ =>> addKuts else trueTy τ
        addW       $ WfC γ t
        return     $ subsTyVar_meet' (α, t) te
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
        case t0 of
-         RAllP p t -> do s <- freshPredRef γ e' p
-                         return $ replacePreds "consE" t [(p, RPoly s)] 
+         RAllP p t -> do s  <- freshPredRef γ e' p
+                         (return $ replacePreds "consE" t [(p, RPoly s)]) =>> addKuts
          _         -> return t0
 
 consE γ e'@(App e a)               
   = do ([], πs, te)        <- bkUniv <$> consE γ e
        zs                  <- mapM (\π -> liftM ((π,) . RPoly) $ freshPredRef γ e' π) πs
-       let te'             = {- traceShow "replacePreds: " $ -} replacePreds "consE" te zs
+       te'                 <- return (replacePreds "consE" te zs) =>> addKuts
        _                   <- updateLocA πs (exprLoc e) te' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller", e') te' 
        cconsE γ a tx 
