@@ -52,6 +52,11 @@ TOTAL                         530.841 s
 
         * regrtest <----------------HEREHEREHEREHERE
 
+        fixme.hs
+            many iters. go away when types used for 
+                - takeL/takeGE [odd: not part of SCC]
+                - even app     [ok: part of big SCC]
+
                     time(O|N)   TOTAL(O|N)   solve (O|N)    refines     iterfreq
 Map.hs          :   54/50          21/15         14/8      9100/4900     16/28
 ListSort.hs     :   */7.5       */2.5             */1.5       */1100      */9
