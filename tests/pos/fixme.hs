@@ -9,8 +9,6 @@ app = error "HOLE"
 {-@ takeL :: (Ord a) => x:a -> xs:[a] -> [{v:a | v < x}] @-}
 takeL :: (Ord a) => a -> [a] -> [a]
 takeL = error "HOLE"
--- takeL x []     = []
--- takeL x (y:ys) = if (y<x) then y:(takeL x ys) else takeL x ys
 
 
 {-@ quicksort :: (Ord a) => xs:[a] -> OList a @-}

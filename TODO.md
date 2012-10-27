@@ -50,9 +50,12 @@ TOTAL                         530.841 s
     
     3. update Constraint.hs to generate "cut" marks
 
-        * regrtest <----------------HEREHEREHEREHERE
 
-        fixme.hs
+        tests/pos/fixme. Usual hairy and pointless cycle spanning qsort and takeGE
+            use fname-or-toplevel TAG to prioritize constraints. Just KUTS
+            wont work. <----------------HEREHEREHEREHERE
+            
+            
             many iters. go away when types used for 
                 - takeL/takeGE [odd: not part of SCC]
                 - even app     [ok: part of big SCC]
@@ -70,6 +73,8 @@ Base.hs         :  see nohup.out v nohup.out.perf on goto
                    7.8 : 1.2 (for tests/pos/ListSort.hs)
             - others Map0.hs, ListSort.hs GhcListSort, LambdaEval.hs do by HAND as make test is giving skewed results.
             - still too many iters
+
+            
 
         * use -sortedquals switch for fixpoint. why is it NOT used?!
         * Data.Text

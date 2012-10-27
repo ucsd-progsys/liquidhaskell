@@ -489,8 +489,8 @@ initCGI info = CGInfo {
 -- showTy _           = error "Constraint : showTy"
 
 addC :: SubC -> String -> CG ()  
-addC !c@(SubC _ _ _) _ -- msg 
-  = -- trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ msg) $  
+addC !c@(SubC _ t1 t2) msg 
+  = trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ msg) $  
     modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addW   :: WfC -> CG ()  
@@ -731,7 +731,7 @@ cconsE γ e (RAllP (p@(PV _ _ _)) t)
 
 cconsE γ e t
   = do te <- consE γ e
-       addC (SubC γ te t) ("cconsE" ++ showPpr e)
+       addC (SubC γ te t) ("cconsE " ++ showPpr e)
 
 ----------------------- Type Synthesis ----------------------------
 consE :: CGEnv -> Expr Var -> CG SpecType 
@@ -747,7 +747,7 @@ consE γ (Lit c)
 
 consE γ (App e (Type τ)) 
   = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
-       t          <- if isGeneric α te then freshTy e τ =>> addKuts else trueTy τ
+       t          <- if isGeneric α te then freshTy e τ {- =>> addKuts -} else trueTy τ
        addW       $ WfC γ t
        return     $ subsTyVar_meet' (α, t) te
 
@@ -755,13 +755,13 @@ consE γ e'@(App e a) | eqType (exprType a) predType
   = do t0 <- consE γ e
        case t0 of
          RAllP p t -> do s  <- freshPredRef γ e' p
-                         (return $ replacePreds "consE" t [(p, RPoly s)]) =>> addKuts
+                         (return $ replacePreds "consE" t [(p, RPoly s)]) {- =>> addKuts -}
          _         -> return t0
 
 consE γ e'@(App e a)               
   = do ([], πs, te)        <- bkUniv <$> consE γ e
        zs                  <- mapM (\π -> liftM ((π,) . RPoly) $ freshPredRef γ e' π) πs
-       te'                 <- return (replacePreds "consE" te zs) =>> addKuts
+       te'                 <- return (replacePreds "consE" te zs) {- =>> addKuts -}
        _                   <- updateLocA πs (exprLoc e) te' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller", e') te' 
        cconsE γ a tx 

@@ -157,12 +157,14 @@ let adjust_deps cm ds =
 (**************************** Dependency SCCs **************************)
 (***********************************************************************)
 
+let string_of_ints is = is |> List.map string_of_int |> String.concat ", "
+
 let print_rank_groups f rs = 
   rs |>  Misc.kgroupby f 
      |>  List.sort compare 
      |>  List.iter begin fun (g, rs) ->
-            Format.printf "Group=%s size=%d ids=%a\n" 
-              g (List.length rs) Misc.pprint_ints (List.map (fun r -> r.id) rs) 
+            Format.printf "Group=%s size=%d ids=%s\n" 
+              g (List.length rs) (string_of_ints (List.map (fun r -> r.id) rs)) 
           end
 
 let string_of_cid cm id = 
