@@ -506,7 +506,7 @@ initCGI info = CGInfo {
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) msg 
-  = trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ msg) $  
+  = -- trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ msg) $  
     modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addW   :: WfC -> CG ()  
