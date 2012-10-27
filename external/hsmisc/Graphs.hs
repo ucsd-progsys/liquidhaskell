@@ -58,7 +58,6 @@ findPath g src dst = go M.empty (M.fromList [(src, [])])
    
 updReach = M.unionWith  (\p1 p2 -> if length p1 < length p2 then p1 else p2)
 
-
 postFront g reach frnt 
   = M.fromList 
   $ nubBy (\x y -> fst x == fst y) 
@@ -67,8 +66,4 @@ postFront g reach frnt
                     , v         <- S.elems (post g u)
                     , not (M.member v reach) 
       ]
-
--- preStar :: Graph -> [Int] -> Graph
-
-
 
