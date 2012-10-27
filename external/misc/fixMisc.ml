@@ -518,7 +518,7 @@ let do_catch_ret s f x y =
 
 let do_memo memo f args key = 
   try Hashtbl.find memo key with Not_found ->
-    let rv = f args intn
+    let rv = f args in
     let _ = Hashtbl.replace memo key rv in
     rv
 

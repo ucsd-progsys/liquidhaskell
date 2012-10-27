@@ -6,11 +6,6 @@ module ListSort where
 app :: a -> [a] -> [a] -> [a]
 app = error "HOLE"
 
-{-@ takeL :: (Ord a) => x:a -> xs:[a] -> [{v:a | v < x}] @-}
-takeL :: (Ord a) => a -> [a] -> [a]
-takeL = error "HOLE"
-
-
 {-@ quicksort :: (Ord a) => xs:[a] -> OList a @-}
 quicksort []     = []
 quicksort (x:xs) = app x xsle xsge
@@ -20,5 +15,11 @@ quicksort (x:xs) = app x xsle xsge
 {- takeGE :: (Ord a) => x:a -> xs:[a] -> [{v:a | v >= x}] @-}
 takeGE x []     = []
 takeGE x (y:ysXXX) = if (y>=x) then y:(takeGE x ysXXX) else takeGE x ysXXX
+
+-- {- takeL :: (Ord a) => x:a -> xs:[a] -> [{v:a | v < x}] @-}
+--takeL :: (Ord a) => a -> [a] -> [a]
+takeL x []     = []
+takeL x (y:ysZZZ) = if (y<x) then y:(takeL x ysZZZ) else takeL x ysZZZ
+
 
 
