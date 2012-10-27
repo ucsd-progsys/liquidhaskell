@@ -57,12 +57,10 @@ getTag = M.findWithDefault defaultTag
 
 type CallGraph = [(Var, [Var])] -- caller-callee pairs
 
-
-
 callGraphRanks :: CallGraph -> M.Map Var Int
-callGraphRanks cg = traceShow ("CallGraph Ranks: " ++ show cg) $ callGraphRanks' cg
+-- callGraphRanks cg = traceShow ("CallGraph Ranks: " ++ show cg) $ callGraphRanks' cg
 
-callGraphRanks'  = M.fromList . concat . index . mkScc
+callGraphRanks  = M.fromList . concat . index . mkScc
   where mkScc cg = G.stronglyConnComp [(u, u, vs) | (u, vs) <- cg]
         index    = zipWith (\i -> map (, i) . G.flattenSCC) [1..] 
 
