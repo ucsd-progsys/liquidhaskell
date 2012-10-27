@@ -44,16 +44,30 @@ TOTAL                         530.841 s
 - Where is all the time going in Fixpoint?
     - Why so many iterations? Why are ANY constraints seen more than 1 (or maybe 2) times?
 
-    1. compute inner ranks 
-    2. print out and see smaller SCCs  
-    3. update Constraint.hs to generate "cut" marks
-        * regrtest <----------------HEREHEREHEREHERE
- 
+       tests/pos/fixme. Usual hairy and pointless cycle spanning qsort and takeGE
+         use fname-or-toplevel TAG to prioritize constraints. Just KUTS
+         wont work.
+          CTag.hs: build SCC of CallGraph to get decent numbers for top-binders <----------------HEREHEREHEREHERE
+
+         many iters. go away when types used for 
+           - takeL/takeGE [odd: not part of SCC]
+           - even app     [ok: part of big SCC]
+
+                    time(O|N)   TOTAL(O|N)   solve (O|N)    refines     iterfreq
+Map.hs          :   54/50          21/15         14/8      9100/4900     16/28
+ListSort.hs     :   */7.5       */2.5             */1.5       */1100      */9
+ListISort.hs    :   */1.8       */0.5             */0.3       */200       */7
+GhcListSort.hs  :   23/22     7.3/7.8           4.5/5.0    3700/4400     10/23 
+LambdaEval.hs   :   36/32      17/12           11.7/6.0    8500/3100     12/5
+Base.hs         :  see nohup.out v nohup.out.perf on goto
+
         - hs : ml = 3-5 : 1
             - e.g. 50s : 12  (for tests/pos/Map.hs)
                    7.8 : 1.2 (for tests/pos/ListSort.hs)
             - others Map0.hs, ListSort.hs GhcListSort, LambdaEval.hs do by HAND as make test is giving skewed results.
             - still too many iters
+
+            
 
         * use -sortedquals switch for fixpoint. why is it NOT used?!
         * Data.Text
