@@ -46,21 +46,9 @@ TOTAL                         530.841 s
 
        tests/pos/fixme. Usual hairy and pointless cycle spanning qsort and takeGE
          use fname-or-toplevel TAG to prioritize constraints. Just KUTS
-         wont work. <----------------HEREHEREHEREHERE
+         wont work.
+          CTag.hs: build SCC of CallGraph to get decent numbers for top-binders <----------------HEREHEREHEREHERE
 
-
-            0. Tags:
-                    type Tag    = Int
-                    type TagKey = Var
-                    type TagEnv = Map TagKey Tag 
-
-            1. makeTagMap :: [CoreBind] -> TagMap
-            2. CGEnv  + tagMap
-            3. CGEnv  + tagKey 
-            4. setTag :: Tag -> CG () 
-            5. getTag :: CGEnv -> [Int]
-            6. bsplitC + getTag γ
-    
          many iters. go away when types used for 
            - takeL/takeGE [odd: not part of SCC]
            - even app     [ok: part of big SCC]
