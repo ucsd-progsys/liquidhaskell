@@ -3,8 +3,8 @@ module Graphs where
 import qualified Data.Set as S
 import qualified Data.Map as M
 import Text.Printf
-
-import Data.List (intercalate, sort, foldl')
+import Data.Foldable (find)
+import Data.List (intercalate, sort, sortBy, foldl', nubBy)
 
 type Graph = M.Map Int [Int]
 
@@ -23,7 +23,6 @@ writeGraph f = writeFile f . showGraph
 
 showGraph :: Graph -> String
 showGraph g  = intercalate "\n" [ printf "%d -> %d ;" u v | (u, vs) <- M.toList g, v <- vs] 
-
 
 postStar :: Graph -> S.Set Int -> Graph
 postStar g vs = go vs S.empty
@@ -44,7 +43,27 @@ posts g us = S.unions [post g u | u <- S.toList us]
 post     :: Graph -> Int -> S.Set Int 
 post g u = S.fromList $ M.findWithDefault [] u g
 
--- preStar :: Graph -> [Int] -> Graph
 
+findPath :: Graph -> Int -> Int -> Maybe [Int]
+findPath g src dst = go M.empty (M.fromList [(src, [])]) 
+  where 
+    go :: M.Map Int [Int] -> M.Map Int [Int] -> Maybe [Int]
+    go reach frnt 
+      | M.null frnt = Nothing 
+      | otherwise   = case find ((dst ==) . fst) (M.assocs frnt) of
+                        Just (_, path) -> Just (reverse path)
+                        Nothing        -> let reach' = updReach reach frnt -- (S.fromList $ fst `fmap` S.elems frnt) 
+                                              frnt'  = postFront g reach frnt
+                                        in go reach' frnt'
+   
+updReach = M.unionWith  (\p1 p2 -> if length p1 < length p2 then p1 else p2)
 
+postFront g reach frnt 
+  = M.fromList 
+  $ nubBy (\x y -> fst x == fst y) 
+  $ sortBy (\x y -> let m = length . snd in compare (m x) (m y))
+      [ (v, u:path) | (u, path) <- M.assocs frnt
+                    , v         <- S.elems (post g u)
+                    , not (M.member v reach) 
+      ]
 
