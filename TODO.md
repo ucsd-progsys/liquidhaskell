@@ -44,21 +44,26 @@ TOTAL                         530.841 s
 - Where is all the time going in Fixpoint?
     - Why so many iterations? Why are ANY constraints seen more than 1 (or maybe 2) times?
 
-    1. compute inner ranks 
-    
-    2. print out and see smaller SCCs  
-    
-    3. update Constraint.hs to generate "cut" marks
+       tests/pos/fixme. Usual hairy and pointless cycle spanning qsort and takeGE
+         use fname-or-toplevel TAG to prioritize constraints. Just KUTS
+         wont work. <----------------HEREHEREHEREHERE
 
 
-        tests/pos/fixme. Usual hairy and pointless cycle spanning qsort and takeGE
-            use fname-or-toplevel TAG to prioritize constraints. Just KUTS
-            wont work. <----------------HEREHEREHEREHERE
-            
-            
-            many iters. go away when types used for 
-                - takeL/takeGE [odd: not part of SCC]
-                - even app     [ok: part of big SCC]
+            0. Tags:
+                    type Tag    = Int
+                    type TagKey = Var
+                    type TagEnv = Map TagKey Tag 
+
+            1. makeTagMap :: [CoreBind] -> TagMap
+            2. CGEnv  + tagMap
+            3. CGEnv  + tagKey 
+            4. setTag :: Tag -> CG () 
+            5. getTag :: CGEnv -> [Int]
+            6. bsplitC + getTag γ
+    
+         many iters. go away when types used for 
+           - takeL/takeGE [odd: not part of SCC]
+           - even app     [ok: part of big SCC]
 
                     time(O|N)   TOTAL(O|N)   solve (O|N)    refines     iterfreq
 Map.hs          :   54/50          21/15         14/8      9100/4900     16/28

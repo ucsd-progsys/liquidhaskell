@@ -1,12 +1,18 @@
 {-# LANGUAGE ScopedTypeVariables, NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, DeriveDataTypeable, BangPatterns #-}
 
-{- Representation of Sub and WF Constraints, 
- - and code for syntax-directed constraint generation. -}
+-- | This module defines the representation of Subtyping and WF Constraints, and 
+-- the code for syntax-directed constraint generation. 
 
 module Language.Haskell.Liquid.Constraint (
-    generateConstraints
-  , CGInfo (..)
-  , kvars, kvars' -- symbols  -- debugging purposes
+    
+    -- * Constraint information output by generator 
+    CGInfo (..)
+
+    -- * Function that does the actual generation
+  , generateConstraints
+
+  -- * KVars in constraints, for debug purposes
+  , kvars, kvars'
   ) where
 
 import CoreSyn
@@ -32,7 +38,8 @@ import Data.Bifunctor
 import Data.List (foldl')
 import qualified Data.Set as S
 
-import qualified Language.Haskell.Liquid.Fixpoint as F
+import qualified Language.Haskell.Liquid.CTags      as Tg
+import qualified Language.Haskell.Liquid.Fixpoint   as F
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcInterface
@@ -102,7 +109,7 @@ initEnv info penv
        let f2    = assm info          -- assumed refinements      (for imported vars)
        let f3    = ctor $ spec info   -- constructor refinements  (for measures) 
        let bs    = (map (unifyts' tyi penv)) <$> [f0, f1, f2, f3]
-       let γ0    = measEnv (spec info) penv (head bs)
+       let γ0    = measEnv (spec info) penv (head bs) (cbs info)
        return    $ foldl' (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs] 
 
 unifyts' tyi penv = (second (addTyConInfo tyi)) . (unifyts penv)
@@ -111,7 +118,7 @@ unifyts penv (x, t) = (x', unify pt t)
  where pt = F.lookupSEnv x' penv
        x' = varSymbol x
 
-measEnv sp penv xts 
+measEnv sp penv xts cbs
   = CGE { loc   = noSrcSpan
         , renv  = fromListREnv   $ second uRType          <$> meas sp 
         , syenv = F.fromListSEnv $ freeSyms sp 
@@ -121,6 +128,8 @@ measEnv sp penv xts
         , invs  = mkRTyConInv    $ invariants sp
         , grtys = fromListREnv xts 
         , emb   = tce 
+        , tgEnv = Tg.makeTagEnv cbs
+        , tgKey = Nothing
         } 
     where tce = tcEmbeds sp
 
@@ -137,15 +146,17 @@ assm_grty f info = [ (x, {- toReft <$> -} t) | (x, t) <- sigs, x `S.member` xs ]
 ------------------------------------------------------------------------
 
 data CGEnv 
-  = CGE { loc   :: !SrcSpan          -- ^ Location in original source file
-        , renv  :: !REnv             -- ^ SpecTypes for Bindings in scope
-        , syenv :: !(F.SEnv Var)     -- ^ Map from free Symbols (e.g. datacons) to Var
-        , penv  :: !(F.SEnv PrType)  -- ^ PrTypes for top-level bindings (merge with renv) 
-        , fenv  :: !F.FEnv           -- ^ Fixpoint environment (with simple Reft)
-        , recs  :: !(S.Set Var)      -- ^ recursive defs being processed (for annotations)
-        , invs  :: !RTyConInv        -- ^ Datatype invariants 
-        , grtys :: !REnv             -- ^ Top-level variables with (assert)-guarantees to verify
-        , emb   :: F.TCEmb TC.TyCon  -- ^ How to embed GHC Tycons into fixpoint sorts
+  = CGE { loc    :: !SrcSpan           -- ^ Location in original source file
+        , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
+        , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
+        , penv   :: !(F.SEnv PrType)   -- ^ PrTypes for top-level bindings (merge with renv) 
+        , fenv   :: !F.FEnv            -- ^ Fixpoint environment (with simple Reft)
+        , recs   :: !(S.Set Var)       -- ^ recursive defs being processed (for annotations)
+        , invs   :: !RTyConInv         -- ^ Datatype invariants 
+        , grtys  :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
+        , emb    :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
+        , tgEnv :: !Tg.TagEnv         -- ^ Map from top-level binders to fixpoint tag
+        , tgKey :: !(Maybe Tg.TagKey) -- ^ Current top-level binder
         } deriving (Data, Typeable)
 
 instance Outputable CGEnv where
@@ -184,9 +195,8 @@ normalize γ = addRTyConInv (invs γ) . normalizePds
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
          where err = errorstar $ "EnvLookup: unknown " ++ showPpr x ++ " in renv " ++ showPpr (renv γ)
 
-  -- =  case lookupREnv x (renv γ) of
-    --   Just t  -> t
-    --   Nothing -> errorstar $ "EnvLookup: unknown " ++ showPpr x ++ " in renv " ++ showPpr (renv γ)
+getTag :: CGEnv -> F.Tag
+getTag γ = maybe Tg.defaultTag (`Tg.getTag` (tgEnv γ)) (tgKey γ)
 
 getPrType :: CGEnv -> F.Symbol -> Maybe PrType
 getPrType γ x = F.lookupSEnv x (penv γ)
@@ -197,7 +207,13 @@ setLoc :: CGEnv -> SrcSpan -> CGEnv
   | otherwise         = γ
 
 withRecs :: CGEnv -> [Var] -> CGEnv 
-withRecs γ xs = γ { recs = foldl' (flip S.insert) (recs γ) xs }
+withRecs γ xs  = γ { recs = foldl' (flip S.insert) (recs γ) xs }
+
+setBind :: CGEnv -> Tg.TagKey -> CGEnv  
+setBind γ k 
+  | Tg.memTagEnv k (tgEnv γ) = γ { tgKey = Just k }
+  | otherwise                = γ
+
 
 isGeneric :: RTyVar -> SpecType -> Bool
 isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConstrs t)
@@ -394,16 +410,16 @@ splitC c -- @(SubC _ _ _)
 
 bsplitC γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
-  = [F.SubC γ' F.PTrue (r1' { F.sr_reft = top {-F.trueReft -}}) r2' Nothing [] ci]
+  = [F.SubC γ' F.PTrue (r1' { F.sr_reft = top {-F.trueReft -}}) r2' Nothing tag ci]
   | F.isNonTrivialSortedReft r2'
-  = [F.SubC γ' F.PTrue r1' r2' Nothing [] ci]
+  = [F.SubC γ' F.PTrue r1' r2' Nothing tag ci]
   | otherwise
   = []
   where γ'      = fenv γ
         r1'     = rTypeSortedReft (emb γ) t1
         r2'     = rTypeSortedReft (emb γ) t2
         ci      = Ci (loc γ)
-
+        tag     = getTag γ
 
 rsplits [] _ _      = []
 rsplits _ [] _      = []
@@ -496,14 +512,13 @@ addC !c@(SubC _ t1 t2) msg
 addW   :: WfC -> CG ()  
 addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
 
--- Used to generate "cut" kvars for fixpoint. Typically, KVars for
--- recursive definitions.
+-- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive definitions.
 
 addKuts :: SpecType -> CG ()
 addKuts !t = modify $ \s -> s { kuts = {- tracePpr "KUTS: " $-} updKuts (kuts s) t }
+  where updKuts :: F.Kuts -> SpecType -> F.Kuts
+        updKuts = foldReft (F.ksUnion . (F.reftKVars . ur_reft) )
 
-updKuts :: F.Kuts -> SpecType -> F.Kuts
-updKuts = foldReft (F.ksUnion . (F.reftKVars . ur_reft) )
 
 -- | Used for annotation binders (i.e. at binder sites)
 
@@ -668,12 +683,13 @@ consCB γ (NonRec x e)
        return $ extender γ (x, to')
 
 consBind γ (x, e, Just t) 
-  = do cconsE (γ `setLoc` getSrcSpan x) e t
+  = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x 
+       cconsE γ' e t
        addIdA x (Left t)
        return Nothing 
 
 consBind γ (x, e, Nothing) 
-   = do t <- unifyVar γ x <$> consE γ e
+   = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
         addIdA x (Left t)
         return $ Just t
 
@@ -937,9 +953,9 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 instance NFData Cinfo 
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 _) 
-    = x1 `seq` rnf x2 `seq` seq x3 `seq` x4 `seq` rnf x5 `seq` rnf x6  `seq` x7 `seq` rnf x8 `seq` ()
-
+  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 _ x9 x10) 
+    = x1 `seq` rnf x2 `seq` seq x3 `seq` x4 `seq` rnf x5 `seq` 
+      rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
 instance NFData SubC where
   rnf (SubC x1 x2 x3) 
