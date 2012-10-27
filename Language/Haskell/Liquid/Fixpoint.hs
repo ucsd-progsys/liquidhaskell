@@ -12,7 +12,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , Fixpoint (toFix) 
  
   -- * Embedding to Fixpoint Types
-  , Sort (..), FTycon, TCEmb (..)
+  , Sort (..), FTycon, TCEmb
   , stringFTycon, intFTyCon, boolFTyCon
   , typeSort, typeUniqueSymbol
   
@@ -28,7 +28,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , isTautoPred
  
   -- * Constraints and Solutions
-  , SubC (..), WfC(..), FixResult (..), FixSolution, FInfo (..)
+  , Tag, SubC (..), WfC(..), FixResult (..), FixSolution, FInfo (..)
 
   -- * Environments
   , SEnv (..), emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
@@ -59,10 +59,10 @@ module Language.Haskell.Liquid.Fixpoint (
   ) where
 
 import TypeRep 
-import PrelNames            (intTyConKey, intPrimTyConKey, integerTyConKey, boolTyConKey)
+-- import PrelNames            (intTyConKey, intPrimTyConKey, integerTyConKey, boolTyConKey)
 
 import TysWiredIn           (listTyCon)
-import TyCon                (TyCon, isTupleTyCon, tyConUnique)
+import TyCon                (TyCon, isTupleTyCon) -- , tyConUnique)
 import Outputable
 import Data.Monoid hiding   ((<>))
 import Data.Functor
@@ -80,7 +80,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.GhcMisc
 import Control.DeepSeq
-import System.Console.ANSI (Color (..))
+-- import System.Console.ANSI (Color (..))
 
 class Fixpoint a where
   toFix    :: a -> SDoc
@@ -716,12 +716,15 @@ instance Outputable (SEnv a) => Show (SEnv a) where
 ------------------------- Constraints ---------------------------------------------
 -----------------------------------------------------------------------------------
 
+{-@ type Tag = {v: [Int] | len(v) = 1 } @-}
+type Tag    = [Int] 
+
 data SubC a = SubC { senv  :: !FEnv
                    , sgrd  :: !Pred
                    , slhs  :: !SortedReft
                    , srhs  :: !SortedReft
                    , sid   :: !(Maybe Integer)
-                   , stag  :: ![Int] 
+                   , stag  :: !Tag
                    , sinfo :: !a
                    } deriving (Eq, Ord, Data, Typeable)
 
