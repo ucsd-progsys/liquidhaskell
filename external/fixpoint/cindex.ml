@@ -187,7 +187,7 @@ let make_rankm cm ranks iranks =
               ; simpl = (not !Co.psimple) || (C.is_simple c)                         }
         end
     |> IM.of_list
-    >> (IM.range <+> print_rank_groups (fun r -> Printf.sprintf "(%d/%d)" r.scc r.iscc ))  
+    (* >> (IM.range <+> print_rank_groups (fun r -> Printf.sprintf "(%d/%d)" r.scc r.iscc ))   *)
 
 (* returns a predicate which is true of ids whose RHS kvar is a kut-var *)
 let is_cut_cst cm kuts = 
