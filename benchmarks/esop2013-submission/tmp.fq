@@ -1187,7 +1187,9 @@ wf:
        xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
                                                   (len([VV]) >= 0)]}]
   reft {VV : Tuple k_aa4T   a_aa4U | [k_5272]}
-  
+
+
+
 
 constraint:
   env [EQ#6U : {VV : Ordering | []};
@@ -1324,7 +1326,146 @@ constraint:
   lhs {VV : State# RealWorld | [(VV = realWorld##0f)]}
   rhs {VV : State# RealWorld | [k_5301]}
 
-  id 3375 tag [93]
+  id 33751 tag [93]
+
+ 
+
+constraint:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264[c#a9rU:=c#a9rU]]};
+       ds_davF : {VV : State# RealWorld | [k_5290]};
+       ds_davg : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh]]};
+       ds_davh : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]};
+       ds_davi : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh]]};
+       ds_davj : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]};
+       ds_davk : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][y:=ds_davg][ys:=ds_davh]]};
+       ds_davl : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]};
+       ds_davm : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davk][y:=ds_davg][ys:=ds_davh]]};
+       ds_davn : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]};
+       fix#xs#39##35#a9rV : {VV : [Tuple k_aa4T   a_aa4U] | [k_5273[c#a9rU:=c#a9rU][ds_davB:=ds_davB];
+                                                             (len([VV]) >= 0)]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       k1#a9rY : {VV : k_aa4T | [k_5265[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k1#a9rY][lq_tmp_x27:=x1#a9rZ][y:=ds_davg][ys:=ds_davh]]};
+       k2#a9s0 : {VV : k_aa4T | [k_5265[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh]]};
+       k3#a9s2 : {VV : k_aa4T | [k_5265[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh]]};
+       k4#a9s4 : {VV : k_aa4T | [k_5265[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davk][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh]]};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRX : {VV : int | [(VV = 0)]};
+       lq_anf__daRY : {VV : a_aa4V | [(VV = lq_anf__daRX)]};
+       lq_anf__daRZ : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daRY))]};
+       lq_anf__daS0 : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daRY));
+                                    (VV = lq_anf__daRZ);
+                                    (~ ((? VV)));
+                                    (~ ((? VV)))]};
+       lq_anf__daS1 : {VV : int | [(VV = 5)]};
+       lq_anf__daS2 : {VV : a_aa4V | [(VV = lq_anf__daS1)]};
+       lq_anf__daS3 : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daS2))]};
+       lq_anf__daS4 : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daS2));
+                                    (VV = lq_anf__daS3);
+                                    (? VV);
+                                    (? VV)]};
+       lq_anf__daSe : {VV : [Tuple k_aa4T   a_aa4U] | [k_5273[c#a9rU:=c#a9rU][ds_davB:=ds_davB];
+                                                       (len([VV]) >= 0);
+                                                       (VV = fix#xs#39##35#a9rV);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ds_davh])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daSf : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                     (VV = ds_davg);
+                                                     true]};
+       lq_anf__daSg : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0);
+                                                       (VV = ds_davh);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ds_davj])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daSh : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh];
+                                                     (VV = ds_davi);
+                                                     true]};
+       lq_anf__daSi : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0);
+                                                       (VV = ds_davj);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ds_davl])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daSj : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][y:=ds_davg][ys:=ds_davh];
+                                                     (VV = ds_davk);
+                                                     true]};
+       lq_anf__daSk : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0);
+                                                       (VV = ds_davl);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ds_davn])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daSl : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davk][y:=ds_davg][ys:=ds_davh];
+                                                     (VV = ds_davm);
+                                                     true]};
+       lq_anf__daSm : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0);
+                                                       (VV = ds_davn);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = 0);
+                                                       (len([VV]) >= 0)]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       x1#a9rZ : {VV : a_aa4U | [k_5266[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k1#a9rY][lq_tmp_x27:=x1#a9rZ][y:=ds_davg][ys:=ds_davh];
+                                 k_5267[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=k1#a9rY][lq_tmp_x26:=k1#a9rY][lq_tmp_x27:=x1#a9rZ][y:=ds_davg][ys:=ds_davh]]};
+       x2#a9s1 : {VV : a_aa4U | [k_5266[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh];
+                                 k_5267[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=k2#a9s0][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh]]};
+       x3#a9s3 : {VV : a_aa4U | [k_5266[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5267[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=k3#a9s2][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh]]};
+       x4#a9s5 : {VV : a_aa4U | [k_5266[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davk][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5267[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=k4#a9s4][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davk][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh]]};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  grd true
+  lhs {VV : State# RealWorld | [(VV = realWorld##0f)]}
+  rhs {VV : State# RealWorld | [k_5301]}
+
+  id 33752 tag [93]
 
 
 

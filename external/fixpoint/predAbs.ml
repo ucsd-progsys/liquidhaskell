@@ -216,16 +216,35 @@ let p_read s k =
 (* INV: qs' \subseteq qs *)
 let update m k ds' =
   let ds = SM.finds k m in
-  (not (Misc.same_length ds ds'), SM.add k ds' m)
-  >> (fun _ -> 
-        let n  = List.length ds  in
-        let n' = List.length ds' in 
-        if n' > n && n > 0 then  
-          print_now (Printf.sprintf "OMFG: update k = %s |ds| = %d |ds'| = %d \n" (Sy.to_string k) n n')
-     )
+  let n  = List.length ds  in
+  let n' = List.length ds' in 
+  let _  = asserts (n = 0 || n' <= n) "PredAbs.update: Non-monotone k = %s |ds| = %d |ds'| = %d \n" (Sy.to_string k) n n' in 
+  ((n != n'), SM.add k ds' m)
+  (* >> begin fun _ -> 
+        if n' > n && n > 0 then 
+          print_now  <| Printf.sprintf "OMFG: update k = %s |ds| = %d |ds'| = %d \n" 
+                          (Sy.to_string k) n n'
+     end
+   *)
+
+(* We must ensure there are NO duplicate k-q pairs in the update list.
+ * If there are duplicate KVars in the ks then the kqs must be grouped:
+ * a "k-q" binding is ONLY preserved  IF #bindings = #copies-of-k
+ * If there are NO duplicate KVars there SHOULD BE no duplicate k-q pairs. *)
+
+let group_ks_kqs ks kqs = 
+  if (Misc.cardinality ks = List.length ks) then 
+    kqs (* no duplicate kvars *) 
+  else 
+    let km = SM.frequency ks in
+    kqs |> Misc.frequency 
+        |> Misc.filter (fun ((k, _), n) -> n = SM.find_default 0 k km)
+        |> Misc.map fst 
 
 let p_update me ks kqs = 
-  let _    = print_now (Printf.sprintf "p_update: |kqs| = %d \n" (List.length kqs)) in 
+  (* let _    = print_now (Printf.sprintf "p_update A: |kqs| = %d \n" (List.length kqs)) in *)
+  let kqs  = group_ks_kqs ks kqs in
+  (* let _    = print_now (Printf.sprintf "p_update B: |kqs| = %d \n" (List.length kqs)) in *)
   let kqsm = SM.of_alist kqs in
   let me   = me |> (!Co.cex <?> BS.time "cx_update" (cx_update ks) kqsm) in 
   List.fold_left begin fun (b, m) k ->
@@ -249,11 +268,11 @@ let top s ks =
 (***************************************************************)
 
 let rhs_cands s = function
-  | C.Kvar (su, k) -> k >> (fun k -> print_now ("rhs_cands: k = "^(Sy.to_string k)^"\n"))
+  | C.Kvar (su, k) -> k (* >> (fun k -> print_now ("rhs_cands: k = "^(Sy.to_string k)^"\n")) *)
                         |> p_read s 
-                        >> (fun xs -> print_now ("rhs_cands: size="^(string_of_int (List.length xs))^" BEGIN \n"))
+                        (* >> (fun xs -> print_now ("rhs_cands: size="^(string_of_int (List.length xs))^" BEGIN \n")) *)
                         |>: (Misc.app_snd (Misc.flip A.substs_pred su))
-                        >> (fun xs -> print_now ("rhs_cands: size="^(string_of_int (List.length xs))^" DONE\n"))
+                        (* >> (fun xs -> print_now ("rhs_cands: size="^(string_of_int (List.length xs))^" DONE\n")) *)
   | _ -> []
 
 let check_tp me env vv t lps =  function [] -> [] | rcs ->
@@ -321,26 +340,24 @@ let refts_of_c c =
 let refine_sort_reft env me ((vv, so, ras) as r) = 
   let env' = SM.add vv r env in 
   let ks   = r |> C.kvars_of_reft |>: snd in
-  let _    = let s =  String.concat ", " (List.map Sy.to_string ks) in
-             print_now ("\n refine_sort_reft ks = "^s^"\n") 
-  in
+  (* let _    = let s =  String.concat ", " (List.map Sy.to_string ks) in print_now ("\n refine_sort_reft ks = "^s^"\n")  in  *)
   ras 
   |> Misc.flap (rhs_cands me) (* OMFG blowup due to FLAP if kv appears multiple times...*)
   |> Misc.filter (fun (_, p) -> C.wellformed_pred env' p)
-  |> (fun xs -> print_now (Printf.sprintf "refine_sort_reft map: size = %d\n" (List.length xs)); 
+  |> List.rev_map fst
+(* |> (fun xs -> print_now (Printf.sprintf "refine_sort_reft map: size = %d\n" (List.length xs)); 
                 List.rev_map fst xs)
   >> (fun _ -> print_now "\n refine_sort_reft TICK 4 \n")
+  *)
   |> p_update me ks
-  >> (fun _ -> print_now "\n refine_sort_reft TICK 5 \n")
   |> snd
 
 let refine_sort me c =
   let env = C.env_of_t c in
-  c >> (fun _ -> print_now ("\n refine_sort TICK 0 id = "^(string_of_int (C.id_of_t c))^"\n"))
+  c (* >> (fun _ -> print_now ("\n refine_sort TICK 0 id = "^(string_of_int (C.id_of_t c))^"\n")) *)
     |> refts_of_c
-    >> (fun _ -> print_now "\n refine_sort TICK 1 \n")
     |> List.fold_left (refine_sort_reft env) me  
-    >> (fun _ -> print_now "\n refine_sort TICK 2 \n")
+    (* >> (fun _ -> print_now "\n refine_sort TICK 2 \n") *)
 
 (***************************************************************)
 (************************* Satisfaction ************************)
@@ -639,13 +656,14 @@ let binds_of_quals ws qs =
   >> (fun _ -> print_now "\nDONE: Qualifier Instantiation\n")
   (* >> List.iter ppBinding *)
   |> SM.of_list 
-  >> (fun _ -> print_now "\nDONE: QINST sm_of_list \n")
+  (* >> (fun _ -> print_now "\nDONE: QINST sm_of_list \n") *)
 
 let binds_of_quals ws qs = 
   match !Constants.dump_simp with
   | "" -> binds_of_quals ws qs  (* regular solving mode *)
   | _  -> SM.empty              (* constraint simplification mode *)
 
+(*
 let refine_sort cs me = 
   if !Constants.refine_sort then 
     (* List.fold_left refine_sort me cs -- STACKOVERFLOW!!! *)
@@ -658,20 +676,17 @@ let refine_sort cs me =
     done;
     !mer
   else me
+*)
 
 (* API *)
 let create c facts = 
   binds_of_quals c.Cg.ws c.Cg.qs
 (*  >> (fun _ -> assertf "DIED in predAbs.create 0")  *)
   |> SM.extendWith (fun _ -> (++)) c.Cg.bm
-  >> (fun _ -> print_now "\nDONE: predAbs.create 1 \n")
   |> create c.Cg.ts c.Cg.uops c.Cg.ps c.Cg.cons c.Cg.assm c.Cg.qs
-  >> (fun _ -> print_now "\nDONE: predAbs.create 2 \n")
-  |> refine_sort c.Cg.cs
-  (* |> ((!Constants.refine_sort) <?> Misc.flip (List.fold_left refine_sort) c.Cg.cs) *)
-  >> (fun _ -> print_now "\nDONE: predAbs.create 3 \n")
+  (* |> refine_sort c.Cg.cs *)
+  |> ((!Constants.refine_sort) <?> Misc.flip (List.fold_left refine_sort) c.Cg.cs)
   |> Misc.maybe_apply (apply_facts c.Cg.cs) facts
-  >> (fun _ -> print_now "\nDONE: predAbs.create 4 \n")
 
 
 
