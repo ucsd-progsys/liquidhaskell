@@ -47,18 +47,50 @@ TOTAL                         530.841 s
        tests/pos/fixme. Usual hairy and pointless cycle spanning qsort and takeGE
          use fname-or-toplevel TAG to prioritize constraints. Just KUTS
          wont work.
-          CTag.hs: build SCC of CallGraph to get decent numbers for top-binders <----------------HEREHEREHEREHERE
+          CTag.hs: build SCC of CallGraph to get decent numbers for top-binders 
+
+        benchmarks/esop/Base.hs.fq 
+
+        --> WTF is up with k_5268, k_5272, k_5272?
+            monster kvar with 746497 binders (!!!) and ALL useless the
+            above have type (Tuple k v) AAAAARGH!!!
+            (grep code for k1 k2 k3 k4 k5)
+          
+          why does k_5270 in id 3375 
+                (benchmarks/esop/tmp.fq) have rhs_cands: size = 1
+                (benchmarks/esop/Base.fq) have rhs_cands: size = 48 ?!!!!
+
+            and then in the next iteration -- 144 (!!!!)
+          also k_5271
+
+          HORRIFIC BUG in fixpoint.  <----------------HEREHEREHEREHERE
+          Run
+         ./external/fixpoint/fixpoint.native -notruekvars -strictsortcheck -noslice -nosimple -refinesort benchmarks/esop2013-submission/Base0.fq  > log.Base0
+
+          and grep "OMFG" -- we ADD UP the kvars in refine_sort. Seriously. 
+                note how map is built from kqs and SM.of_alist
+                SOLUTION: COMPACT THE MOFOS, obviously. AAAAAA
+                
+          HOW WAS THIS NOT CAUGHT BEFORE!!!!!!! Sigh.
+          
+          - requires multiple instance of same K in SAME reft or rhs.. hmm.
+          - FIXFIXFIX [p_update/ SM.of_alist kqs] so that it uses cardinality of each k in ks
+            also group k -> (q1,n1,[p1...pn1]), (q1,n2,[p1...pn2)) ...
+                         i.e. how many times does a qual appear for each k
+            also count k in ks
+                if ki appears n times in ks 
+                then take qj ONLY if nj = i
 
          many iters. go away when types used for 
            - takeL/takeGE [odd: not part of SCC]
            - even app     [ok: part of big SCC]
 
-                    time(O|N)   TOTAL(O|N)   solve (O|N)    refines     iterfreq
-Map.hs          :   54/50          21/15         14/8      9100/4900     16/28
-ListSort.hs     :   */7.5       */2.5             */1.5       */1100      */9
-ListISort.hs    :   */1.8       */0.5             */0.3       */200       */7
-GhcListSort.hs  :   23/22     7.3/7.8           4.5/5.0    3700/4400     10/23 
-LambdaEval.hs   :   36/32      17/12           11.7/6.0    8500/3100     12/5
+                    time(O|N)   TOTAL(O|N)   solve (O|N)      refines       iterfreq
+Map.hs          :    54/50/32    21/15/8.7      14/8/4.3    9100/4900/2700    16/28/7
+ListSort.hs     :   */7.5/5.5    */2.5/1.8     */1.5/1.0      */1100/600       */9/7
+ListISort.hs    :     */1.8/?      */0.5/?       */0.3/?       */200/?          */7/?
+GhcListSort.hs  :    23/22/17    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
+LambdaEval.hs   :    36/32/25    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
 Base.hs         :  see nohup.out v nohup.out.perf on goto
 
         - hs : ml = 3-5 : 1

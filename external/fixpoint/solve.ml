@@ -145,7 +145,7 @@ let refine_constraint s c =
 
 let update_worklist me s' c w' = 
   c |> Ci.deps me.sri 
-    |> List.filter (not <.> is_solved s')
+    |> Misc.filter (not <.> is_solved s')
     |> Ci.wpush me.sri w'
 
 let rec acsolve me w s =
