@@ -72,6 +72,14 @@ TOTAL                         530.841 s
                 SOLUTION: COMPACT THE MOFOS, obviously. AAAAAA
                 
           HOW WAS THIS NOT CAUGHT BEFORE!!!!!!! Sigh.
+          
+          - requires multiple instance of same K in SAME reft or rhs.. hmm.
+          - FIXFIXFIX [p_update/ SM.of_alist kqs] so that it uses cardinality of each k in ks
+            also group k -> (q1,n1,[p1...pn1]), (q1,n2,[p1...pn2)) ...
+                         i.e. how many times does a qual appear for each k
+            also count k in ks
+                if ki appears n times in ks 
+                then take qj ONLY if nj = i
 
          many iters. go away when types used for 
            - takeL/takeGE [odd: not part of SCC]
