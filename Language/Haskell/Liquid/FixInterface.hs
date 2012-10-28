@@ -23,10 +23,6 @@ solve fn hqs cgi
         cm  = fromAscList $ zipWith (\i c -> (i, c {sid = Just i})) [1..] $ fixCs cgi 
         qs  = specQuals cgi
         
-        -- ws  = fixWfs cgi
-        -- gs  = globals cgi
-        -- ks  = kuts cgi
-
 execFq fn hqs qs fi -- globals cs ws ks 
   = do copyFiles hqs fq
        appendFile fq qstr 
