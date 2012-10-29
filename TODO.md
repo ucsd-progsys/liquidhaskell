@@ -2,109 +2,41 @@ TODO
 ====
     
 * performance
-    * use -sortedquals switch for fixpoint. why is it NOT used?!
-
 * parse predicate signatures for tuples 
 * predicate-aliases 
 * Blogging 
 * benchmarks: Data.List (foldr)
 * self-invariants        (tests/todo/maybe4.hs)
-* fixpoint profile (how much performance hit from -nosimple?)
 
 * benchmarks: Data.List (foldr) -- needs sets
 * benchmarks: Data.Bytestring
 * benchmarks: stackset-core
 * benchmarks: Data.Text
 * benchmarks: mcbrides stack machine
+
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
 Performance
 ===========
 
-
+Use Map/LambdaEval to find where bottleneck in Hs <---------------HEREHEREHEREHERE
 
 - Majority of remaining 900s in haskell land? doing what? serialize/parse?
-    - time liquid benchmarks/esop2013-submission/Base.hs > log.base 2>&1
+        - time liquid benchmarks/esop2013-submission/Base.hs > log.base 2>&1
           user = 24m ML = 5m
-    - time liquid tests/pos/LambdaEval.hs 
+        - time liquid tests/pos/LambdaEval.hs 
           user = 27s ML = 10s
-    - time liquid tests/pos/Map.hs 
+        - time liquid tests/pos/Map.hs 
           user = 34s ML = 9s
 
-    - Or is it the use of Dynamic/Data to traverse and sanitize constraints?
-    
-    - Serializing to .fq is WAY slow ?
+- Or is it the use of Dynamic/Data to traverse and sanitize constraints?
 
-- Where is all the time going in Fixpoint?
+- Serializing to .fq is WAY slow ?
 
-        ./external/fixpoint/fixpoint.native -notruekvars -strictsortcheck -noslice -nosimple -refinesort benchmarks/esop2013-submission/Base0.fq  > log.Base0
-    
-TOTAL                         327.236 s
-  save                           6.484 s
-  solve                         118.155 s
-    Solve.unsatcs                 29.834 s
-      unsat                          0.256 s
-        Z3.check                       0.232 s
-      Z3.pop                         0.152 s
-      Z3.ass_cst                     0.856 s
-      Z3.push                        1.540 s
-      z3Pred                        21.693 s
-        z3Var memo                     2.048 s
-      fixdiv                         0.248 s
-    Solve.dump                     0.360 s
-    Solve.acsolve                 87.349 s
-      refine                        45.383 s
-        refine                        45.359 s
-          cx_update                      0.000 s
-          check tp                      40.347 s
-            Z3.pop                         1.260 s
-            unsat                         20.737 s
-              Z3.check                      20.473 s
-            Z3.ass_cst                     2.148 s
-            Z3.push                        2.048 s
-            z3Pred                        12.713 s
-              z3Var memo                     1.276 s
-            fixdiv                         0.144 s
-          lhs_contra                     0.012 s
-          preds_of_lhs                   3.856 s
-          rhs_cands                      0.928 s
-    Cindex.winit                   0.068 s
-    Prepass.profile                0.540 s
-  Validate                      26.402 s
-    valid rhs                      1.660 s
-      validate_vars                  0.352 s
-      preds_of_reft                  1.056 s
-    validate_vars                  1.420 s
-  cx_update                      0.352 s
-  Z3.check                       0.000 s
-  Z3 assert axiom                0.000 s
-  z3Var memo                     0.000 s
-  Constant EnvWF                 0.180 s
-  Simplify                       0.016 s
-  Constant Env                   0.228 s
-  Ref Index                      0.000 s
-  create                         0.000 s
-  making_graph                   3.408 s
-  parse                         17.381 s
-  Annots: make qleqs             0.024 s
-    Z3.pop                         0.004 s
-    unsat                          0.008 s
-      Z3.check                       0.008 s
-    Z3.ass_cst                     0.000 s
-    Z3.push                        0.000 s
-    z3Pred                         0.008 s
-      z3Var memo                     0.000 s
-    fixdiv                         0.004 s
-    Z3.check                       0.000 s
-    Z3 assert axiom                0.000 s
-    z3Var memo                     0.000 s
-  Qual Inst                     154.606 s
+Benchmarks
+==========
 
-
-         
-./external/fixpoint/fixpoint.native -notruekvars -strictsortcheck -noslice -nosimple -refinesort benchmarks/esop2013-submission/Base0.fq  > log.Base0
-
-time(O|N)   TOTAL(O|N)   solve (O|N)      refines       iterfreq
+                    time(O|N)    TOTAL(O|N)   solve (O|N)      refines       iterfreq
 Map.hs          :    54/50/32    21/15/8.7      14/8/4.3    9100/4900/2700    16/28/7
 ListSort.hs     :   */7.5/5.5    */2.5/1.8     */1.5/1.0      */1100/600       */9/7
 ListISort.hs    :     */1.8/?      */0.5/?       */0.3/?       */200/?          */7/?
@@ -112,14 +44,6 @@ GhcListSort.hs  :    23/22/17    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/
 LambdaEval.hs   :    36/32/25    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
 Base.hs         :  see nohup.out v nohup.out.perf on goto
 
-        - hs : ml = 3-5 : 1
-            - e.g. 50s : 12  (for tests/pos/Map.hs)
-                   7.8 : 1.2 (for tests/pos/ListSort.hs)
-            - others Map0.hs, ListSort.hs GhcListSort, LambdaEval.hs do by HAND as make test is giving skewed results.
-            - still too many iters
-
-        * use -sortedquals switch for fixpoint. why is it NOT used?!
-        * Data.Text
 
 Self-Invariants
 ===============
