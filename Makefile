@@ -26,6 +26,10 @@ DEPS=unix-compat transformers mtl filemanip text syb parsec ghc-paths deepseq co
 all:
 	$(CABAL) install --ghc-options=$(OPTS) 
 
+rebuild:
+	cd external/fixpoint/ && make clean && make && cd ../../
+	make
+
 igoto:
 	$(CABAL) configure --ghc-options=$(OPTS) 
 
