@@ -333,13 +333,11 @@ module EMap (K: EOrderedType) =
 
     let of_alist (kvs : (key * 'a) list) =
       List.fold_left (fun m (k, v) -> adds k [v] m) empty kvs
-
-    (* Ocaml: Y U NO Like (contains type variables that cannot be generalized) *)
-     let frequency (ks : key list) : int t =
-      List.fold_left begin fun m k -> 
+     
+    let frequency (ks : key list) : int t =
+      List.fold_left (fun m k -> 
         add k (1 + (find_default 0 k m)) m
-      end empty ks 
-    
+      ) empty ks 
 
     let safeFind k m msg =
       try find k m with Not_found -> 
@@ -495,6 +493,7 @@ let map_partial f xs =
         match f x with
         | None   -> acc
         | Some z -> (z::acc)) [] xs)
+
 
 let fold_left_partial f b xs =
   List.fold_left begin fun b xo ->
