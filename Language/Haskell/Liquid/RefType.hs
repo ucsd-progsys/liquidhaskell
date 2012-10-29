@@ -17,7 +17,10 @@ module Language.Haskell.Liquid.RefType (
  
   -- * Functions for manipulating `Predicate`s
   , pdAnd, pdVar, pdTrue, pvars
-  , ppr_rtype, efoldReft, mapReft, mapReftM, mapBot
+
+  -- * Traversing `RType` 
+  , ppr_rtype, efoldReft, foldReft, mapReft, mapReftM, mapBot
+
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp, rFun
   , expandRApp
@@ -784,6 +787,7 @@ mapRefM  f (RPoly t)          = liftM   RPoly       (mapReftM f t)
 -- foldRefts                     = foldr . flip . foldReft
 -- foldRefs                      = foldr . flip . foldRef
 
+-- foldReft ::  (r -> a -> a) -> a -> RType p c tv r -> a
 foldReft f = efoldReft (\_ -> f) [] 
 
 efoldReft :: ([F.Symbol] -> r -> a -> a) -> [F.Symbol] -> a -> RType p c tv r -> a

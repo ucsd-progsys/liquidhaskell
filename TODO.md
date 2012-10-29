@@ -1,200 +1,48 @@
 TODO
 ====
-    
-* performance
-    * use -sortedquals switch for fixpoint. why is it NOT used?!
+
+* performance (in Hs)
 * parse predicate signatures for tuples 
 * predicate-aliases 
 * Blogging 
 * benchmarks: Data.List (foldr)
 * self-invariants        (tests/todo/maybe4.hs)
-* fixpoint profile (how much performance hit from -nosimple?)
 
 * benchmarks: Data.List (foldr) -- needs sets
 * benchmarks: Data.Bytestring
 * benchmarks: stackset-core
 * benchmarks: Data.Text
 * benchmarks: mcbrides stack machine
+
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
 Performance
 ===========
 
-- Serializing to .fq is WAY slow 
-    - time liquid benchmarks/esop2013-submission/Base.hs > log.base 2>&1
-        user	24m21.007s
+Use Map/LambdaEval to find where bottleneck in Hs <---------------HEREHEREHEREHERE
 
-- What is happening inside fq?  (for Base.hs)
+- Majority of remaining 900s in haskell land? doing what? serialize/parse?
+        - time liquid benchmarks/esop2013-submission/Base.hs > log.base 2>&1
+          user = 24m ML = 5m
+        - time liquid tests/pos/LambdaEval.hs 
+          user = 27s ML = 10s
+        - time liquid tests/pos/Map.hs 
+          user = 34s ML = 9s
 
-Majority of remaining 900s in haskell land? doing what? serialize/parse?
+- Or is it the use of Dynamic/Data to traverse and sanitize constraints?
 
-TOTAL                         530.841 s
-  save                           6.204 s
-  solve                         237.431 s
-    Solve.unsatcs                 40.451 s
-    Solve.acsolve                 195.876 s
-     Solve.acsolve                 195.876 s
-      refine                        103.502 s
-  Validate                      71.492 s
-    valid rhs                      1.864 s
-      validate_vars                  0.404 s
-      preds_of_reft                  1.068 s
-    validate_vars                  4.544 s
-  Qual Inst                     195.672 s
+- Serializing to .fq is WAY slow ?
 
-- Where is all the time going in Fixpoint?
-    - Why so many iterations? Why are ANY constraints seen more than 1 (or maybe 2) times?
+Benchmarks
+==========
 
-        ---> STRIPPED lambdaTiny even more so below dont apply.
-
-
-        liquid tests/pos/LambdaEvalTiny.hs
-        time ./external/fixpoint/fixpoint.native -notruekvars -refinesort  -strictsortcheck external/fixpoint/LambdaEvalTiny.hs.fq
-        
-        ITERFREQ: 1 times (ch = false) 20 constraints 229,81,235,11,12,163,173,253,255,183,114,39,265,203,53,210,289,67,143,223 
-        ITERFREQ: 1 times (ch = true) 50 constraints 27,179,254,183,33,259,114,189,190,265,266,267,268,271,122,47,124,126,127,277,203,128,278,129,209,61,62,213,149,75,150,1,229,4,230,231,232,10,163,13,89,91,241,16,243,169,244,247,22,173 
-        ITERFREQ: 2 times (ch = false) 8 constraints 160,242,94,106,256,200,219,220 
-        ITERFREQ: 2 times (ch = true) 8 constraints 180,191,200,130,210,151,160,170 
-        ITERFREQ: 3 times (ch = false) 4 constraints 180,190,191,209 
-        ITERFREQ: 4 times (ch = false) 5 constraints 169,170,179,189,149 
-        ITERFREQ: 5 times (ch = false) 1 constraints 151 
-        ITERFREQ: 7 times (ch = false) 2 constraints 150,130 
-        ITERFREQ: 8 times (ch = false) 5 constraints 75,89,129,139,140 
-        ITERFREQ: 9 times (ch = false) 19 constraints 77,78,87,88,90,91,100,101,102,103,47,126,127,128,62,63,64,73,74 
-        ITERFREQ: 10 times (ch = false) 8 constraints 36,45,46,49,50,59,60,61 
-        ITERFREQ: 11 times (ch = false) 1 constraints 35 
-
-
-         77  rhs {VV : Tuple ([Tuple int   Expr])   Expr | [k_206]}
-        ,78  rhs {VV : [Tuple int   Expr] | [k_203]}
-        ,87  rhs {VV : Expr | [k_204]}
-        ,88  rhs {VV : Expr | [k_205[fld:=fld]]}
-
-        ,90  rhs {VV : Tuple ([Tuple int   Expr])   Expr | [k_45[ds_djf:=ds_djf][sto#aiB:=sto#aiB]]}
-        ,91  rhs {VV : [Tuple int   Expr] | [k_42[ds_djf:=ds_djf][sto#aiB:=sto#aiB]]}
-        ,100 rhs {VV : Expr | [k_43[ds_djf:=ds_djf][sto#aiB:=sto#aiB]]}
-        
-        ,101 rhs {VV : Expr | [k_44[ds_djf:=ds_djf][fld:=fld][sto#aiB:=sto#aiB]]}
-        ,102 rhs {VV : Expr | [k_33[sto#aiB:=lq_anf__djw]]}
-        ,103 rhs {VV : [Tuple int   Expr] | [k_32]}
-        ,47  rhs {VV : State# RealWorld | [k_222]}
-        ,126 rhs {VV : Expr | [k_180]}
-        ,127 rhs {VV : int | [k_179]}
-        ,128 rhs {VV : Expr | [k_168]}
-        
-        ,62  rhs {VV : Expr | [k_219]}
-        ,63  rhs {VV : Tuple ([Tuple int   Expr])   Expr | [k_45[ds_djf:=ds_djf][sto#aiB:=sto#aiB]]}
-        ,64  rhs {VV : [Tuple int   Expr] | [k_42[ds_djf:=ds_djf][sto#aiB:=sto#aiB]]}
-        ,73  rhs {VV : Expr | [k_43[ds_djf:=ds_djf][sto#aiB:=sto#aiB]]}
-        ,74  rhs {VV : Expr | [k_44[ds_djf:=ds_djf][fld:=fld][sto#aiB:=sto#aiB]]}
-
-    90 >> 90
-    90 >> 102 >> 90
-    90 >> 35 >> 90 >> ??
-    ?? >> 139 >> 90
-
-Heres a random cycle!
-
-    90 >> 46 >> 129 >> 128 >> 90
-
-
-
-  90 -> 35; -- 11
-  90 -> 36; -- 10
-  90 -> 39; -- 1
-  90 -> 45; -- 10
-  90 -> 46; -- 10 
-  90 -> 47; -- 9
-  90 -> 49;
-  90 -> 50;
-  90 -> 53; -- 1
-  90 -> 59;
-  90 -> 60;
-  90 -> 61;
-  90 -> 62;
-  90 -> 63;
-  90 -> 64;
-  90 -> 67; -- 1
-  90 -> 73;
-  90 -> 74;
-  90 -> 75;
-  90 -> 77;
-  90 -> 78;
-  90 -> 81; -- 1
-  90 -> 87;
-  90 -> 88;
-  90 -> 89;
-  90 -> 90;
-  90 -> 91;
-  90 -> 94;
-  90 -> 100;
-  90 -> 101;
-  90 -> 102;
-  90 -> 103;
-  90 -> 106;
-  90 -> 114;
-  90 -> 122;
-  90 -> 124;
-  90 -> 126;
-  90 -> 127;
-  90 -> 128;
-  90 -> 129;
-  90 -> 130;
-  90 -> 139;
-  90 -> 140;
-  90 -> 143;
-  90 -> 149;
-  90 -> 150;
-  90 -> 151;
-  90 -> 160;
-  90 -> 163;
-  90 -> 169;
-  90 -> 170;
-  90 -> 173;
-  90 -> 179;
-  90 -> 180;
-  90 -> 183;
-  90 -> 189;
-  90 -> 190;
-  90 -> 191;
-  90 -> 200;
-  90 -> 203;
-  90 -> 209;
-  90 -> 210;
-  90 -> 213;
- 
-real	0m44.740s
-user	0m36.330s
-Fixpoint Solver Time 
-TOTAL                         18.885 s
-  solve                         12.837 s
-    Solve.unsatcs                  1.516 s
-
-
-
-    liquid ../benchmarks/containers-0.5.0.0/Data/Map/Base.hs
-
-    Solve.acsolve                 280.170 s
-      refine                        73.057 s
-
-liquid benchmarks/esop2013/Base.hs (goto) -- most time = rendering constraints to .fq!
-
-Fixpoint
-
-TOTAL                         520.290 s
-  save                           6.580 s
-  solve                         235.400 s
-    Solve.unsatcs                 41.700 s
-      z3Pred                        30.760 s
-    Solve.acsolve                 192.710 s
-      refine                        101.170 s
-  Validate                      62.380 s
-    valid rhs                      1.550 s
-      validate_vars                  0.220 s
-      preds_of_reft                  1.140 s
-    validate_vars                  3.370 s
-  parse                         16.720 s
-  Qual Inst                     197.370 s
+                    time(O|N)    TOTAL(O|N)   solve (O|N)      refines       iterfreq
+Map.hs          :    54/50/32    21/15/8.7      14/8/4.3    9100/4900/2700    16/28/7
+ListSort.hs     :   */7.5/5.5    */2.5/1.8     */1.5/1.0      */1100/600       */9/7
+ListISort.hs    :     */1.8/?      */0.5/?       */0.3/?       */200/?          */7/?
+GhcListSort.hs  :    23/22/17    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
+LambdaEval.hs   :    36/32/25    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
+Base.hs         :  see nohup.out v nohup.out.perf on goto
 
 
 Self-Invariants
@@ -449,6 +297,12 @@ TRIV/HARD: (function definition)
 
 Theorem prop_lookup_current (x : stackSet i l a sd) :
 Theorem prop_lookup_visible (x : stackSet i l a sd) : 
+
+
+Random Links
+============
+
+- Useful for DIGRAPH VIZ: http://arborjs.org/halfviz/#
 
 
 
