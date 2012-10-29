@@ -1,0 +1,2888 @@
+//qualif NonNull(v: [a])        : (? (nonnull([v])))
+//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
+//qualif EqNull(v:bool, ~A: [a]): ((? v) <=> (? (nonnull([~A]))))
+
+qualif IsEmp(v:bool, ~A: [a]) : ((? v) <=> len([~A]) [ > ;  = ] 0)
+qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
+qualif SameLen(v:[a], ~A:[b]) : len([v]) = len([~A]) 
+qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
+qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
+qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+qualif Auto(VV : MaybeS k_a , ~A0 : MaybeS k_a): (VV = ~A0)
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (? isJustS([~A0]))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (VV = fromJustS([~A0]))
+qualif Auto(VV : MaybeS k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): (&& [(? isJustS([~A1]));
+                                                                         (? isJustS([VV]))] => (fromJustS([VV]) >= fromJustS([~A1])))
+qualif Auto(VV : MaybeS k_a , ~A0 : MaybeS k_a): (VV = ~A0)
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (? isJustS([~A0]))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (VV = fromJustS([~A0]))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : Map k_a   a_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): (&& [(? isBin([VV]));
+                                                                            (? isJustS([~A1]))] => (fromJustS([~A1]) < key([VV])))
+qualif Auto(VV : Map k_a   a_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): (&& [(? isBin([VV]));
+                                                                            (? isJustS([~A1]))] => (fromJustS([~A1]) > key([VV])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : MaybeS k_a , ~A0 : MaybeS k_a): (VV = ~A0)
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (? isJustS([~A0]))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (VV = fromJustS([~A0]))
+qualif Auto(VV : MaybeS k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): (&& [(? isJustS([~A1]));
+                                                                         (? isJustS([VV]))] => (fromJustS([VV]) >= fromJustS([~A1])))
+qualif Auto(VV : MaybeS k_a , ~A0 : MaybeS k_a): (VV = ~A0)
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (? isJustS([~A0]))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (VV = fromJustS([~A0]))
+qualif Auto(VV : Map k_a   a_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): (&& [(? isBin([VV]));
+                                                                            (? isJustS([~A1]))] => (fromJustS([~A1]) < key([VV])))
+qualif Auto(VV : Map k_a   a_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): (&& [(? isBin([VV]));
+                                                                            (? isJustS([~A1]))] => (fromJustS([~A1]) > key([VV])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : MaybeS k_a , ~A0 : MaybeS k_a): (VV = ~A0)
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (? isJustS([~A0]))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (VV = fromJustS([~A0]))
+qualif Auto(VV : MaybeS k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): (&& [(? isJustS([~A1]));
+                                                                         (? isJustS([VV]))] => (fromJustS([VV]) >= fromJustS([~A1])))
+qualif Auto(VV : MaybeS k_a , ~A0 : MaybeS k_a): (VV = ~A0)
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (? isJustS([~A0]))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (VV = fromJustS([~A0]))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : Map k_a   b_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): (&& [(? isBin([VV]));
+                                                                            (? isJustS([~A1]))] => (fromJustS([~A1]) < key([VV])))
+qualif Auto(VV : Map k_a   b_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): (&& [(? isBin([VV]));
+                                                                            (? isJustS([~A1]))] => (fromJustS([~A1]) > key([VV])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : MaybeS k_a , ~A0 : MaybeS k_a): (VV = ~A0)
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (? isJustS([~A0]))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (VV = fromJustS([~A0]))
+qualif Auto(VV : MaybeS k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): (&& [(? isJustS([~A1]));
+                                                                         (? isJustS([VV]))] => (fromJustS([VV]) >= fromJustS([~A1])))
+qualif Auto(VV : MaybeS k_a , ~A0 : MaybeS k_a): (VV = ~A0)
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (? isJustS([~A0]))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a): (VV = fromJustS([~A0]))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : Map k_a   b_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): (&& [(? isBin([VV]));
+                                                                            (? isJustS([~A1]))] => (fromJustS([~A1]) < key([VV])))
+qualif Auto(VV : Map k_a   b_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): (&& [(? isBin([VV]));
+                                                                            (? isJustS([~A1]))] => (fromJustS([~A1]) > key([VV])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : Map k_a   a_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): (&& [(? isBin([VV]));
+                                                                            (? isJustS([~A1]))] => (fromJustS([~A1]) < key([VV])))
+qualif Auto(VV : Map k_a   a_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): (&& [(? isBin([VV]));
+                                                                            (? isJustS([~A1]))] => (fromJustS([~A1]) > key([VV])))
+qualif Auto(VV : MaybeS k_a , ~A0 : k_a): ((? isJustS([VV])) => (~A0 < fromJustS([VV])))
+qualif Auto(VV : Map k_a   a_a , ~A0 : k_a): ((? isBin([VV])) => (~A0 < key([VV])))
+qualif Auto(VV : Map k_a   a_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): (&& [(? isBin([VV]));
+                                                                            (? isJustS([~A1]))] => (fromJustS([~A1]) > key([VV])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV > fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : MaybeS k_a , ~A1 : MaybeS k_a): ((? isJustS([~A1])) => (VV < fromJustS([~A1])))
+qualif Auto(VV : k_a , ~A0 : k_a): (VV < ~A0)
+qualif Auto(VV : k_a , ~A0 : k_a): (VV > ~A0)
+qualif Auto(VV : k_a , ~A0 : k_a): (VV < ~A0)
+qualif Auto(VV : k_a , ~A0 : k_a): (VV > ~A0)
+qualif Auto(VV : k_a , ~A0 : k_a): (VV < ~A0)
+qualif Auto(VV : k_a , ~A0 : k_a): (VV > ~A0)
+qualif Auto(VV : k_a , ~A0 : k_a): (VV < ~A0)
+qualif Auto(VV : k_a , ~A0 : k_a): (VV > ~A0)
+qualif Auto(VV : k_a , ~A0 : k_a): (VV < ~A0)
+qualif Auto(VV : k_a , ~A0 : k_a): (VV > ~A0)
+qualif Auto(VV : k_a , ~A0 : k_a): (VV < ~A0)
+qualif Auto(VV : k_a , ~A0 : k_a): (VV > ~A0)
+qualif Auto(VV : k_a , ~A0 : k_a): (VV < ~A0)
+qualif Auto(VV : k_a , ~A0 : k_a): (VV > ~A0)
+cut k_1081
+cut k_1082
+cut k_1083
+cut k_1084
+cut k_1085
+cut k_1086
+cut k_1087
+cut k_1123
+cut k_1124
+cut k_1125
+cut k_1126
+cut k_1127
+cut k_1128
+cut k_1129
+cut k_1159
+cut k_1160
+cut k_1161
+cut k_1162
+cut k_1163
+cut k_1164
+cut k_1165
+cut k_1201
+cut k_1202
+cut k_1203
+cut k_1204
+cut k_1205
+cut k_1206
+cut k_1207
+cut k_1228
+cut k_1229
+cut k_1230
+cut k_1231
+cut k_1232
+cut k_1233
+cut k_1234
+cut k_1235
+cut k_1236
+cut k_1237
+cut k_1238
+cut k_1239
+cut k_1346
+cut k_1348
+cut k_1350
+cut k_1351
+cut k_1352
+cut k_1353
+cut k_1354
+cut k_1355
+cut k_1356
+cut k_1357
+cut k_1358
+cut k_1359
+cut k_1360
+cut k_1361
+cut k_1362
+cut k_1363
+cut k_1364
+cut k_1365
+cut k_1366
+cut k_1367
+cut k_1368
+cut k_1369
+cut k_1370
+cut k_1371
+cut k_1372
+cut k_1578
+cut k_1579
+cut k_1580
+cut k_1581
+cut k_1582
+cut k_1583
+cut k_1584
+cut k_1585
+cut k_1586
+cut k_1587
+cut k_1588
+cut k_1589
+cut k_1590
+cut k_161
+cut k_162
+cut k_163
+cut k_1633
+cut k_1634
+cut k_1635
+cut k_1636
+cut k_1637
+cut k_1638
+cut k_1639
+cut k_164
+cut k_1640
+cut k_1641
+cut k_1642
+cut k_1643
+cut k_165
+cut k_1691
+cut k_1692
+cut k_1693
+cut k_1694
+cut k_1695
+cut k_1696
+cut k_1697
+cut k_1698
+cut k_1699
+cut k_1700
+cut k_1701
+cut k_1702
+cut k_1703
+cut k_1746
+cut k_1747
+cut k_1748
+cut k_1749
+cut k_1750
+cut k_1751
+cut k_1752
+cut k_1753
+cut k_1754
+cut k_1755
+cut k_1756
+cut k_1804
+cut k_1805
+cut k_1806
+cut k_1807
+cut k_1808
+cut k_1809
+cut k_1810
+cut k_1811
+cut k_1812
+cut k_1813
+cut k_1814
+cut k_1815
+cut k_1816
+cut k_1854
+cut k_1855
+cut k_1856
+cut k_1857
+cut k_1858
+cut k_1859
+cut k_1860
+cut k_1861
+cut k_1862
+cut k_1863
+cut k_1864
+cut k_190
+cut k_1907
+cut k_1908
+cut k_1909
+cut k_191
+cut k_1910
+cut k_1911
+cut k_1912
+cut k_1913
+cut k_1914
+cut k_1915
+cut k_1916
+cut k_1917
+cut k_1918
+cut k_1919
+cut k_193
+cut k_194
+cut k_195
+cut k_1957
+cut k_1958
+cut k_1959
+cut k_196
+cut k_1960
+cut k_1961
+cut k_1962
+cut k_1963
+cut k_1964
+cut k_1965
+cut k_1966
+cut k_1967
+cut k_197
+cut k_198
+cut k_199
+cut k_200
+cut k_2004
+cut k_2005
+cut k_2006
+cut k_2007
+cut k_2008
+cut k_2009
+cut k_2010
+cut k_2011
+cut k_2030
+cut k_2031
+cut k_2032
+cut k_2033
+cut k_2034
+cut k_2035
+cut k_2036
+cut k_2056
+cut k_2057
+cut k_2058
+cut k_2059
+cut k_2060
+cut k_2061
+cut k_2062
+cut k_2086
+cut k_2087
+cut k_2088
+cut k_2089
+cut k_2090
+cut k_2091
+cut k_2092
+cut k_2093
+cut k_2107
+cut k_2108
+cut k_2109
+cut k_2110
+cut k_2111
+cut k_2112
+cut k_2113
+cut k_2114
+cut k_2115
+cut k_2116
+cut k_2117
+cut k_2118
+cut k_2119
+cut k_2120
+cut k_2121
+cut k_2122
+cut k_2123
+cut k_2124
+cut k_2125
+cut k_2180
+cut k_2181
+cut k_2182
+cut k_2183
+cut k_2184
+cut k_2185
+cut k_2186
+cut k_2187
+cut k_2188
+cut k_2189
+cut k_2190
+cut k_2191
+cut k_2197
+cut k_2198
+cut k_2199
+cut k_2200
+cut k_2201
+cut k_2202
+cut k_2203
+cut k_2204
+cut k_2205
+cut k_2206
+cut k_2207
+cut k_2208
+cut k_2209
+cut k_2210
+cut k_2211
+cut k_2212
+cut k_2213
+cut k_2214
+cut k_2215
+cut k_2216
+cut k_2289
+cut k_2290
+cut k_2291
+cut k_2292
+cut k_2293
+cut k_2294
+cut k_2295
+cut k_2296
+cut k_2299
+cut k_2301
+cut k_2303
+cut k_2304
+cut k_2305
+cut k_2306
+cut k_2307
+cut k_2308
+cut k_2339
+cut k_2340
+cut k_2341
+cut k_2342
+cut k_2343
+cut k_2344
+cut k_2345
+cut k_2346
+cut k_2347
+cut k_2350
+cut k_2352
+cut k_2354
+cut k_2355
+cut k_2356
+cut k_2357
+cut k_2358
+cut k_2359
+cut k_2360
+cut k_3016
+cut k_3017
+cut k_3018
+cut k_3019
+cut k_3020
+cut k_3021
+cut k_3022
+cut k_3023
+cut k_3024
+cut k_3025
+cut k_3026
+cut k_3027
+cut k_3034
+cut k_3035
+cut k_3036
+cut k_3037
+cut k_3038
+cut k_3039
+cut k_3040
+cut k_3041
+cut k_3042
+cut k_3043
+cut k_3044
+cut k_3045
+cut k_3046
+cut k_3047
+cut k_3048
+cut k_3049
+cut k_3050
+cut k_3051
+cut k_3052
+cut k_327
+cut k_329
+cut k_330
+cut k_331
+cut k_332
+cut k_333
+cut k_334
+cut k_335
+cut k_336
+cut k_337
+cut k_338
+cut k_339
+cut k_340
+cut k_341
+cut k_342
+cut k_343
+cut k_344
+cut k_3445
+cut k_3446
+cut k_3447
+cut k_3448
+cut k_3449
+cut k_345
+cut k_3450
+cut k_3451
+cut k_3452
+cut k_3453
+cut k_3454
+cut k_3455
+cut k_3456
+cut k_3459
+cut k_3461
+cut k_3463
+cut k_3464
+cut k_3465
+cut k_3466
+cut k_3467
+cut k_3468
+cut k_3469
+cut k_347
+cut k_3470
+cut k_3471
+cut k_3472
+cut k_348
+cut k_349
+cut k_350
+cut k_351
+cut k_352
+cut k_3625
+cut k_3626
+cut k_3627
+cut k_3628
+cut k_3629
+cut k_3630
+cut k_3631
+cut k_3632
+cut k_3633
+cut k_3634
+cut k_3635
+cut k_3636
+cut k_3639
+cut k_3641
+cut k_3643
+cut k_3644
+cut k_3645
+cut k_3646
+cut k_3647
+cut k_3648
+cut k_3649
+cut k_3650
+cut k_3651
+cut k_3652
+cut k_3687
+cut k_3689
+cut k_3691
+cut k_3692
+cut k_3693
+cut k_3694
+cut k_3695
+cut k_3696
+cut k_3697
+cut k_3698
+cut k_3699
+cut k_3700
+cut k_3701
+cut k_3702
+cut k_3703
+cut k_3704
+cut k_3708
+cut k_3710
+cut k_3712
+cut k_3713
+cut k_3715
+cut k_3717
+cut k_3719
+cut k_3720
+cut k_3721
+cut k_3722
+cut k_3723
+cut k_3724
+cut k_3725
+cut k_3726
+cut k_3727
+cut k_3728
+cut k_3875
+cut k_3877
+cut k_3879
+cut k_3880
+cut k_3881
+cut k_3882
+cut k_3883
+cut k_3884
+cut k_3885
+cut k_3886
+cut k_3887
+cut k_3888
+cut k_3889
+cut k_3890
+cut k_3891
+cut k_3892
+cut k_3893
+cut k_3894
+cut k_3895
+cut k_3896
+cut k_3897
+cut k_3898
+cut k_3899
+cut k_3900
+cut k_3904
+cut k_3906
+cut k_3908
+cut k_3909
+cut k_3911
+cut k_3913
+cut k_3915
+cut k_3916
+cut k_3917
+cut k_3918
+cut k_3919
+cut k_3920
+cut k_3921
+cut k_3922
+cut k_3923
+cut k_3924
+cut k_3925
+cut k_3926
+cut k_3927
+cut k_3928
+cut k_3929
+cut k_3930
+cut k_3931
+cut k_3932
+cut k_4130
+cut k_4131
+cut k_4132
+cut k_4133
+cut k_4134
+cut k_4135
+cut k_4136
+cut k_4137
+cut k_4138
+cut k_4139
+cut k_4140
+cut k_4141
+cut k_4148
+cut k_4149
+cut k_4150
+cut k_4151
+cut k_4152
+cut k_4153
+cut k_4154
+cut k_4155
+cut k_4156
+cut k_4157
+cut k_4158
+cut k_4159
+cut k_4160
+cut k_4161
+cut k_4162
+cut k_4163
+cut k_4164
+cut k_4165
+cut k_4166
+cut k_4464
+cut k_4465
+cut k_4466
+cut k_4467
+cut k_4468
+cut k_4469
+cut k_4470
+cut k_4471
+cut k_4472
+cut k_4473
+cut k_4474
+cut k_4477
+cut k_4479
+cut k_4480
+cut k_4481
+cut k_4482
+cut k_4483
+cut k_4484
+cut k_4485
+cut k_4486
+cut k_4487
+cut k_4488
+cut k_4527
+cut k_4529
+cut k_4530
+cut k_4531
+cut k_4532
+cut k_4533
+cut k_4534
+cut k_4535
+cut k_4536
+cut k_4537
+cut k_4538
+cut k_4539
+cut k_4540
+cut k_4541
+cut k_4542
+cut k_4546
+cut k_4548
+cut k_4549
+cut k_4550
+cut k_4552
+cut k_4554
+cut k_4555
+cut k_4556
+cut k_4557
+cut k_4558
+cut k_4559
+cut k_456
+cut k_4560
+cut k_4561
+cut k_4562
+cut k_4563
+cut k_458
+cut k_459
+cut k_460
+cut k_461
+cut k_462
+cut k_4621
+cut k_4623
+cut k_4624
+cut k_4625
+cut k_4626
+cut k_4627
+cut k_4628
+cut k_4629
+cut k_463
+cut k_4630
+cut k_4631
+cut k_4632
+cut k_4633
+cut k_4634
+cut k_4635
+cut k_4636
+cut k_4637
+cut k_4638
+cut k_4639
+cut k_464
+cut k_4640
+cut k_4641
+cut k_4642
+cut k_4643
+cut k_4644
+cut k_4648
+cut k_465
+cut k_4650
+cut k_4651
+cut k_4652
+cut k_4654
+cut k_4656
+cut k_4657
+cut k_4658
+cut k_4659
+cut k_466
+cut k_4660
+cut k_4661
+cut k_4662
+cut k_4663
+cut k_4664
+cut k_4665
+cut k_4666
+cut k_4667
+cut k_4668
+cut k_4669
+cut k_467
+cut k_4670
+cut k_4671
+cut k_4672
+cut k_4673
+cut k_468
+cut k_469
+cut k_470
+cut k_471
+cut k_472
+cut k_473
+cut k_474
+cut k_475
+cut k_476
+cut k_477
+cut k_478
+cut k_479
+cut k_480
+cut k_481
+cut k_483
+cut k_484
+cut k_4847
+cut k_4848
+cut k_4849
+cut k_485
+cut k_4850
+cut k_4851
+cut k_4852
+cut k_4853
+cut k_4854
+cut k_4855
+cut k_4856
+cut k_4857
+cut k_4858
+cut k_4859
+cut k_486
+cut k_4860
+cut k_4861
+cut k_4865
+cut k_4866
+cut k_4867
+cut k_4868
+cut k_487
+cut k_4870
+cut k_4872
+cut k_4873
+cut k_4874
+cut k_4875
+cut k_4876
+cut k_4877
+cut k_4878
+cut k_4879
+cut k_488
+cut k_4880
+cut k_4881
+cut k_5214
+cut k_5216
+cut k_5217
+cut k_5218
+cut k_5219
+cut k_5220
+cut k_5222
+cut k_5223
+cut k_5224
+cut k_5225
+cut k_5226
+cut k_5227
+cut k_5228
+cut k_5229
+cut k_5230
+cut k_5231
+cut k_5232
+cut k_5233
+cut k_5234
+cut k_5235
+cut k_5236
+cut k_5237
+cut k_5238
+cut k_5239
+cut k_5240
+cut k_5241
+cut k_5242
+cut k_5243
+cut k_5244
+cut k_5245
+cut k_5246
+cut k_5248
+cut k_5249
+cut k_5250
+cut k_5251
+cut k_5252
+cut k_5254
+cut k_5255
+cut k_5256
+cut k_5257
+cut k_5258
+cut k_5259
+cut k_5260
+cut k_5261
+cut k_5262
+cut k_5263
+cut k_5264
+cut k_5265
+cut k_5266
+cut k_5267
+cut k_5268
+cut k_5269
+cut k_5270
+cut k_5271
+cut k_5272
+cut k_5273
+cut k_5274
+cut k_5504
+cut k_5506
+cut k_5508
+cut k_5509
+cut k_5510
+cut k_5511
+cut k_5512
+cut k_5513
+cut k_5514
+cut k_5515
+cut k_5516
+cut k_5517
+cut k_5518
+cut k_5519
+cut k_5520
+cut k_5521
+cut k_5522
+cut k_5523
+cut k_5524
+cut k_5525
+cut k_5526
+cut k_5527
+cut k_5528
+cut k_5529
+cut k_5530
+cut k_5531
+cut k_5532
+cut k_5533
+cut k_5534
+cut k_5535
+cut k_5536
+cut k_5537
+cut k_5538
+cut k_5539
+cut k_5540
+cut k_5542
+cut k_5543
+cut k_5544
+cut k_5545
+cut k_5547
+cut k_5548
+cut k_5549
+cut k_5550
+cut k_5551
+cut k_5552
+cut k_5553
+cut k_5554
+cut k_5555
+cut k_5556
+cut k_5557
+cut k_5558
+cut k_5559
+cut k_5560
+cut k_5561
+cut k_5562
+cut k_5563
+cut k_5564
+cut k_6203
+cut k_6204
+cut k_6205
+cut k_6206
+cut k_6207
+cut k_6208
+cut k_6209
+cut k_6210
+cut k_6211
+cut k_6212
+cut k_6213
+cut k_6215
+cut k_6217
+cut k_6218
+cut k_6219
+cut k_6220
+cut k_6221
+cut k_6222
+cut k_6223
+cut k_6224
+cut k_6225
+cut k_6226
+cut k_6255
+cut k_6256
+cut k_6257
+cut k_6258
+cut k_6259
+cut k_6260
+cut k_6261
+cut k_6262
+cut k_6263
+cut k_6264
+cut k_6265
+cut k_6267
+cut k_6269
+cut k_6270
+cut k_6271
+cut k_6272
+cut k_6273
+cut k_6274
+cut k_6275
+cut k_6276
+cut k_6277
+cut k_6278
+cut k_669
+cut k_670
+cut k_671
+cut k_672
+cut k_673
+cut k_674
+cut k_675
+cut k_676
+cut k_677
+cut k_678
+cut k_679
+cut k_698
+cut k_699
+cut k_700
+cut k_701
+cut k_702
+cut k_703
+cut k_704
+cut k_705
+cut k_706
+cut k_707
+cut k_708
+cut k_7159
+cut k_7161
+cut k_7162
+cut k_7163
+cut k_7164
+cut k_7165
+cut k_7166
+cut k_7167
+cut k_7168
+cut k_7169
+cut k_7170
+cut k_7171
+cut k_7172
+cut k_7173
+cut k_7285
+cut k_7286
+cut k_7287
+cut k_7288
+cut k_7289
+cut k_729
+cut k_7290
+cut k_730
+cut k_731
+cut k_732
+cut k_7326
+cut k_7327
+cut k_7328
+cut k_7329
+cut k_733
+cut k_7330
+cut k_7331
+cut k_7332
+cut k_734
+cut k_735
+cut k_736
+cut k_737
+cut k_738
+cut k_739
+cut k_740
+cut k_7434
+cut k_7435
+cut k_7436
+cut k_7437
+cut k_7438
+cut k_7440
+cut k_7441
+cut k_7442
+cut k_7443
+cut k_7444
+cut k_7445
+cut k_7499
+cut k_7500
+cut k_7501
+cut k_7502
+cut k_7503
+cut k_7505
+cut k_7506
+cut k_7507
+cut k_7508
+cut k_7509
+cut k_7510
+cut k_7511
+cut k_7512
+cut k_7513
+cut k_7514
+cut k_7516
+cut k_7517
+cut k_7518
+cut k_7519
+cut k_7520
+cut k_7522
+cut k_7523
+cut k_7524
+cut k_7525
+cut k_7526
+cut k_7527
+cut k_7528
+cut k_7529
+cut k_7530
+cut k_7531
+cut k_7533
+cut k_7534
+cut k_7535
+cut k_7536
+cut k_7537
+cut k_7539
+cut k_7540
+cut k_7541
+cut k_7542
+cut k_7543
+cut k_7544
+cut k_7546
+cut k_7547
+cut k_7548
+cut k_7549
+cut k_7550
+cut k_7552
+cut k_7553
+cut k_7554
+cut k_7555
+cut k_7556
+cut k_7557
+cut k_7559
+cut k_7560
+cut k_7561
+cut k_7562
+cut k_7563
+cut k_7565
+cut k_7566
+cut k_7567
+cut k_7568
+cut k_7569
+cut k_7570
+cut k_7572
+cut k_7573
+cut k_7574
+cut k_7575
+cut k_7576
+cut k_7578
+cut k_7579
+cut k_7580
+cut k_7581
+cut k_7582
+cut k_7583
+cut k_777
+cut k_778
+cut k_779
+cut k_780
+cut k_781
+cut k_782
+cut k_783
+cut k_813
+cut k_814
+cut k_815
+cut k_816
+cut k_817
+cut k_818
+cut k_819
+cut k_908
+cut k_909
+cut k_910
+cut k_911
+cut k_912
+cut k_913
+cut k_914
+cut k_944
+cut k_945
+cut k_946
+cut k_947
+cut k_948
+cut k_949
+cut k_950
+constant fromJust : func(1, [Maybe @(0); @(0)])
+constant fromJustS : func(1, [MaybeS @(0); @(0)])
+constant isBin : func(1, [Map @(1)   @(0); bool])
+constant isJust : func(1, [Maybe @(0); bool])
+constant isJustS : func(1, [MaybeS @(0); bool])
+constant key : func(1, [Map @(1)   @(0); @(1)])
+constant len : func(1, [[@(0)]; int])
+constant EQ#6U : Ordering
+constant GT#6W : Ordering
+constant LT#6S : Ordering
+constant fix##36##36##34#benchmarks#47#esop2013#45#submission#47#Base.hs#58##40#1295#44#1#41##45##40#1301#44#22#41##124#function#32#hedgeUnion#34# : Addr#
+constant fix##36##36##34#benchmarks#47#esop2013#45#submission#47#Base.hs#58##40#1371#44#1#41##45##40#1375#44#22#41##124#function#32#hedgeDiff#34# : Addr#
+constant fix##36##36##34#benchmarks#47#esop2013#45#submission#47#Base.hs#58##40#1593#44#1#41##45##40#1609#44#49#41##124#function#32#hedgeMerge#34# : Addr#
+constant fix##36##36##34#benchmarks#47#esop2013#45#submission#47#Base.hs#58##40#1653#44#1#41##45##40#1660#44#36#41##124#function#32#submap#39##34# : Addr#
+constant fix##36##36##34#benchmarks#47#esop2013#45#submission#47#Base.hs#58##40#2285#44#3#41##45##40#2288#44#36#41##124#function#32#combineEq#39##34# : Addr#
+constant fix##36##36##34#benchmarks#47#esop2013#45#submission#47#Base.hs#58##40#2544#44#1#41##45##40#2549#44#39#41##124#function#32#join#34# : Addr#
+constant fix##36##36##34#benchmarks#47#esop2013#45#submission#47#Base.hs#58##40#2570#44#1#41##45##40#2575#44#39#41##124#function#32#merge#34# : Addr#
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : Tuple k_aa4T   a_aa4U | [k_5268]}
+
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264]};
+       fld : {VV : Tuple k_aa4T   a_aa4U | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : Tuple k_aa4T   a_aa4U | [k_5272]}
+
+
+
+
+constraint:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264[c#a9rU:=c#a9rU]]};
+       ds_davF : {VV : State# RealWorld | [k_5290]};
+       ds_davg : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh]]};
+       ds_davh : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]};
+       ds_davi : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh]]};
+       ds_davj : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]};
+       ds_davk : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][y:=ds_davg][ys:=ds_davh]]};
+       ds_davl : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]};
+       ds_davm : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davk][y:=ds_davg][ys:=ds_davh]]};
+       ds_davn : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]};
+       fix#xs#39##35#a9rV : {VV : [Tuple k_aa4T   a_aa4U] | [k_5273[c#a9rU:=c#a9rU][ds_davB:=ds_davB];
+                                                             (len([VV]) >= 0)]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       k1#a9rY : {VV : k_aa4T | [k_5265[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k1#a9rY][lq_tmp_x27:=x1#a9rZ][y:=ds_davg][ys:=ds_davh]]};
+       k2#a9s0 : {VV : k_aa4T | [k_5265[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh]]};
+       k3#a9s2 : {VV : k_aa4T | [k_5265[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh]]};
+       k4#a9s4 : {VV : k_aa4T | [k_5265[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davk][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh]]};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRX : {VV : int | [(VV = 0)]};
+       lq_anf__daRY : {VV : a_aa4V | [(VV = lq_anf__daRX)]};
+       lq_anf__daRZ : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daRY))]};
+       lq_anf__daS0 : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daRY));
+                                    (VV = lq_anf__daRZ);
+                                    (~ ((? VV)));
+                                    (~ ((? VV)))]};
+       lq_anf__daS1 : {VV : int | [(VV = 5)]};
+       lq_anf__daS2 : {VV : a_aa4V | [(VV = lq_anf__daS1)]};
+       lq_anf__daS3 : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daS2))]};
+       lq_anf__daS4 : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daS2));
+                                    (VV = lq_anf__daS3);
+                                    (? VV);
+                                    (? VV)]};
+       lq_anf__daSe : {VV : [Tuple k_aa4T   a_aa4U] | [k_5273[c#a9rU:=c#a9rU][ds_davB:=ds_davB];
+                                                       (len([VV]) >= 0);
+                                                       (VV = fix#xs#39##35#a9rV);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ds_davh])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daSf : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                     (VV = ds_davg);
+                                                     true]};
+       lq_anf__daSg : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0);
+                                                       (VV = ds_davh);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ds_davj])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daSh : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh];
+                                                     (VV = ds_davi);
+                                                     true]};
+       lq_anf__daSi : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0);
+                                                       (VV = ds_davj);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ds_davl])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daSj : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][y:=ds_davg][ys:=ds_davh];
+                                                     (VV = ds_davk);
+                                                     true]};
+       lq_anf__daSk : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0);
+                                                       (VV = ds_davl);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ds_davn])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daSl : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davk][y:=ds_davg][ys:=ds_davh];
+                                                     (VV = ds_davm);
+                                                     true]};
+       lq_anf__daSm : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0);
+                                                       (VV = ds_davn);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = 0);
+                                                       (len([VV]) >= 0)]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       x1#a9rZ : {VV : a_aa4U | [k_5266[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k1#a9rY][lq_tmp_x27:=x1#a9rZ][y:=ds_davg][ys:=ds_davh];
+                                 k_5267[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=k1#a9rY][lq_tmp_x26:=k1#a9rY][lq_tmp_x27:=x1#a9rZ][y:=ds_davg][ys:=ds_davh]]};
+       x2#a9s1 : {VV : a_aa4U | [k_5266[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh];
+                                 k_5267[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=k2#a9s0][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh]]};
+       x3#a9s3 : {VV : a_aa4U | [k_5266[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5267[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=k3#a9s2][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh]]};
+       x4#a9s5 : {VV : a_aa4U | [k_5266[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davk][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5267[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=k4#a9s4][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davk][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh]]};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  grd true
+  lhs {VV : State# RealWorld | [(VV = realWorld##0f)]}
+  rhs {VV : State# RealWorld | [k_5301]}
+
+  id 33751 tag [93]
+
+ 
+
+constraint:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264[c#a9rU:=c#a9rU]]};
+       ds_davF : {VV : State# RealWorld | [k_5290]};
+       ds_davg : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh]]};
+       ds_davh : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]};
+       ds_davi : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh]]};
+       ds_davj : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]};
+       ds_davk : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][y:=ds_davg][ys:=ds_davh]]};
+       ds_davl : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]};
+       ds_davm : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][y:=ds_davg][ys:=ds_davh];
+                                                k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davk][y:=ds_davg][ys:=ds_davh]]};
+       ds_davn : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]};
+       fix#xs#39##35#a9rV : {VV : [Tuple k_aa4T   a_aa4U] | [k_5273[c#a9rU:=c#a9rU][ds_davB:=ds_davB];
+                                                             (len([VV]) >= 0)]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       k1#a9rY : {VV : k_aa4T | [k_5265[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k1#a9rY][lq_tmp_x27:=x1#a9rZ][y:=ds_davg][ys:=ds_davh]]};
+       k2#a9s0 : {VV : k_aa4T | [k_5265[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh]]};
+       k3#a9s2 : {VV : k_aa4T | [k_5265[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh]]};
+       k4#a9s4 : {VV : k_aa4T | [k_5265[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5269[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davk][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh]]};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRX : {VV : int | [(VV = 0)]};
+       lq_anf__daRY : {VV : a_aa4V | [(VV = lq_anf__daRX)]};
+       lq_anf__daRZ : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daRY))]};
+       lq_anf__daS0 : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daRY));
+                                    (VV = lq_anf__daRZ);
+                                    (~ ((? VV)));
+                                    (~ ((? VV)))]};
+       lq_anf__daS1 : {VV : int | [(VV = 5)]};
+       lq_anf__daS2 : {VV : a_aa4V | [(VV = lq_anf__daS1)]};
+       lq_anf__daS3 : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daS2))]};
+       lq_anf__daS4 : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daS2));
+                                    (VV = lq_anf__daS3);
+                                    (? VV);
+                                    (? VV)]};
+       lq_anf__daSe : {VV : [Tuple k_aa4T   a_aa4U] | [k_5273[c#a9rU:=c#a9rU][ds_davB:=ds_davB];
+                                                       (len([VV]) >= 0);
+                                                       (VV = fix#xs#39##35#a9rV);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ds_davh])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daSf : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                     (VV = ds_davg);
+                                                     true]};
+       lq_anf__daSg : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0);
+                                                       (VV = ds_davh);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ds_davj])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daSh : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh];
+                                                     (VV = ds_davi);
+                                                     true]};
+       lq_anf__daSi : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0);
+                                                       (VV = ds_davj);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ds_davl])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daSj : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][y:=ds_davg][ys:=ds_davh];
+                                                     (VV = ds_davk);
+                                                     true]};
+       lq_anf__daSk : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0);
+                                                       (VV = ds_davl);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ds_davn])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daSl : {VV : Tuple k_aa4T   a_aa4U | [k_5268[c#a9rU:=c#a9rU][ds_davB:=ds_davB][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][y:=ds_davg][ys:=ds_davh];
+                                                     k_5272[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davk][y:=ds_davg][ys:=ds_davh];
+                                                     (VV = ds_davm);
+                                                     true]};
+       lq_anf__daSm : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0);
+                                                       (VV = ds_davn);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = 0);
+                                                       (len([VV]) >= 0)]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       x1#a9rZ : {VV : a_aa4U | [k_5266[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k1#a9rY][lq_tmp_x27:=x1#a9rZ][y:=ds_davg][ys:=ds_davh];
+                                 k_5267[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=k1#a9rY][lq_tmp_x26:=k1#a9rY][lq_tmp_x27:=x1#a9rZ][y:=ds_davg][ys:=ds_davh]]};
+       x2#a9s1 : {VV : a_aa4U | [k_5266[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh];
+                                 k_5267[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=k2#a9s0][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k2#a9s0][lq_tmp_x27:=x2#a9s1][y:=ds_davg][ys:=ds_davh]]};
+       x3#a9s3 : {VV : a_aa4U | [k_5266[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5267[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=k3#a9s2][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k3#a9s2][lq_tmp_x27:=x3#a9s3][y:=ds_davg][ys:=ds_davh]]};
+       x4#a9s5 : {VV : a_aa4U | [k_5266[c#a9rU:=c#a9rU][ds_davB:=ds_davB][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5270[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davk][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5267[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=k4#a9s4][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davg][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davi][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh];
+                                 k_5271[c#a9rU:=c#a9rU][ds_davB:=ds_davB][fld:=ds_davk][lq_tmp_x26:=k4#a9s4][lq_tmp_x27:=x4#a9s5][y:=ds_davg][ys:=ds_davh]]};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  grd true
+  lhs {VV : State# RealWorld | [(VV = realWorld##0f)]}
+  rhs {VV : State# RealWorld | [k_5301]}
+
+  id 33752 tag [93]
+
+
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264[c#a9rU:=c#a9rU]]};
+       fix#xs#39##35#a9rV : {VV : [Tuple k_aa4T   a_aa4U] | [k_5273[c#a9rU:=c#a9rU][ds_davB:=ds_davB];
+                                                             (len([VV]) >= 0)]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRX : {VV : int | [(VV = 0)]};
+       lq_anf__daRY : {VV : a_aa4V | [(VV = lq_anf__daRX)]};
+       lq_anf__daRZ : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daRY))]};
+       lq_anf__daS0 : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daRY));
+                                    (VV = lq_anf__daRZ);
+                                    (~ ((? VV)));
+                                    (~ ((? VV)))]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : State# RealWorld | [k_5290]}
+  
+
+
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []}]
+  reft {VV : [Tuple k_aa4m   a_aa4n] | [k_5076]}
+  
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264[c#a9rU:=c#a9rU]]};
+       ds_davF : {VV : State# RealWorld | [k_5290]};
+       fix#xs#39##35#a9rV : {VV : [Tuple k_aa4T   a_aa4U] | [k_5273[c#a9rU:=c#a9rU][ds_davB:=ds_davB];
+                                                             (len([VV]) >= 0)]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRX : {VV : int | [(VV = 0)]};
+       lq_anf__daRY : {VV : a_aa4V | [(VV = lq_anf__daRX)]};
+       lq_anf__daRZ : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daRY))]};
+       lq_anf__daS0 : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daRY));
+                                    (VV = lq_anf__daRZ);
+                                    (~ ((? VV)));
+                                    (~ ((? VV)))]};
+       lq_anf__daS1 : {VV : int | [(VV = 5)]};
+       lq_anf__daS2 : {VV : a_aa4V | [(VV = lq_anf__daS1)]};
+       lq_anf__daS3 : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daS2))]};
+       lq_anf__daS4 : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daS2));
+                                    (VV = lq_anf__daS3);
+                                    (? VV);
+                                    (? VV)]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : State# RealWorld | [k_5301]}
+  
+
+
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264[c#a9rU:=c#a9rU]]};
+       ds_davF : {VV : State# RealWorld | [k_5290]};
+       fix#xs#39##35#a9rV : {VV : [Tuple k_aa4T   a_aa4U] | [k_5273[c#a9rU:=c#a9rU][ds_davB:=ds_davB];
+                                                             (len([VV]) >= 0)]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRX : {VV : int | [(VV = 0)]};
+       lq_anf__daRY : {VV : a_aa4V | [(VV = lq_anf__daRX)]};
+       lq_anf__daRZ : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daRY))]};
+       lq_anf__daS0 : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daRY));
+                                    (VV = lq_anf__daRZ);
+                                    (~ ((? VV)));
+                                    (~ ((? VV)))]};
+       lq_anf__daS1 : {VV : int | [(VV = 5)]};
+       lq_anf__daS2 : {VV : a_aa4V | [(VV = lq_anf__daS1)]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : a_aa4V | [k_5292]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264[c#a9rU:=c#a9rU]]};
+       ds_davF : {VV : State# RealWorld | [k_5290]};
+       fix#xs#39##35#a9rV : {VV : [Tuple k_aa4T   a_aa4U] | [k_5273[c#a9rU:=c#a9rU][ds_davB:=ds_davB];
+                                                             (len([VV]) >= 0)]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRX : {VV : int | [(VV = 0)]};
+       lq_anf__daRY : {VV : a_aa4V | [(VV = lq_anf__daRX)]};
+       lq_anf__daRZ : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daRY))]};
+       lq_anf__daS0 : {VV : bool | [((? VV) <=> (ds_davB = lq_anf__daRY));
+                                    (VV = lq_anf__daRZ);
+                                    (~ ((? VV)));
+                                    (~ ((? VV)))]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : t_aa4W | [k_5291]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264[c#a9rU:=c#a9rU]]};
+       fix#xs#39##35#a9rV : {VV : [Tuple k_aa4T   a_aa4U] | [k_5273[c#a9rU:=c#a9rU][ds_davB:=ds_davB];
+                                                             (len([VV]) >= 0)]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRX : {VV : int | [(VV = 0)]};
+       lq_anf__daRY : {VV : a_aa4V | [(VV = lq_anf__daRX)]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : a_aa4V | [k_5288]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davG : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                  (len([VV]) >= 0)]};
+       ds_davH : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       k#a9sh : {VV : k_aa4T | [k_5237[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       l#a9sg : {VV : Map k_aa4T   a_aa4U | [k_5236[c#a9sf:=c#a9sf][n#a9se:=n#a9se]]};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRT : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                       (len([VV]) >= 0);
+                                                       (VV = ds_davG);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ys#a9sj])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daRV : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                                     (VV = ds_davH);
+                                                     true]};
+       n#a9se : {VV : a_aa4V | [k_5214]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       x#a9si : {VV : a_aa4U | [k_5238[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                k_5239[c#a9sf:=c#a9sf][fld:=k#a9sh][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]};
+       ys#a9sj : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]}]
+  reft {VV : a_aa4U | [k_5287]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davG : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                  (len([VV]) >= 0)]};
+       ds_davH : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       k#a9sh : {VV : k_aa4T | [k_5237[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       l#a9sg : {VV : Map k_aa4T   a_aa4U | [k_5236[c#a9sf:=c#a9sf][n#a9se:=n#a9se]]};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRT : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                       (len([VV]) >= 0);
+                                                       (VV = ds_davG);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ys#a9sj])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daRV : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                                     (VV = ds_davH);
+                                                     true]};
+       n#a9se : {VV : a_aa4V | [k_5214]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       x#a9si : {VV : a_aa4U | [k_5238[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                k_5239[c#a9sf:=c#a9sf][fld:=k#a9sh][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]};
+       ys#a9sj : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]}]
+  reft {VV : k_aa4T | [k_5286]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davG : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                  (len([VV]) >= 0)]};
+       ds_davH : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       k#a9sh : {VV : k_aa4T | [k_5237[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       l#a9sg : {VV : Map k_aa4T   a_aa4U | [k_5236[c#a9sf:=c#a9sf][n#a9se:=n#a9se]]};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRT : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                       (len([VV]) >= 0);
+                                                       (VV = ds_davG);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ys#a9sj])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daRV : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                                     (VV = ds_davH);
+                                                     true]};
+       n#a9se : {VV : a_aa4V | [k_5214]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       x#a9si : {VV : a_aa4U | [k_5238[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                k_5239[c#a9sf:=c#a9sf][fld:=k#a9sh][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]};
+       ys#a9sj : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]}]
+  reft {VV : [Tuple k_aa4T   a_aa4U] | [k_5285]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davG : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                  (len([VV]) >= 0)]};
+       ds_davH : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       k#a9sh : {VV : k_aa4T | [k_5237[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       l#a9sg : {VV : Map k_aa4T   a_aa4U | [k_5236[c#a9sf:=c#a9sf][n#a9se:=n#a9se]]};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRT : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                       (len([VV]) >= 0);
+                                                       (VV = ds_davG);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ys#a9sj])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daRV : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                                     (VV = ds_davH);
+                                                     true]};
+       n#a9se : {VV : a_aa4V | [k_5214]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       x#a9si : {VV : a_aa4U | [k_5238[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                k_5239[c#a9sf:=c#a9sf][fld:=k#a9sh][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]};
+       ys#a9sj : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]}]
+  reft {VV : Tuple k_aa4T   a_aa4U | [k_5280]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davG : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                  (len([VV]) >= 0)]};
+       ds_davH : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       k#a9sh : {VV : k_aa4T | [k_5237[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       l#a9sg : {VV : Map k_aa4T   a_aa4U | [k_5236[c#a9sf:=c#a9sf][n#a9se:=n#a9se]]};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRT : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                       (len([VV]) >= 0);
+                                                       (VV = ds_davG);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ys#a9sj])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daRV : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                                     (VV = ds_davH);
+                                                     true]};
+       n#a9se : {VV : a_aa4V | [k_5214]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       x#a9si : {VV : a_aa4U | [k_5238[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                k_5239[c#a9sf:=c#a9sf][fld:=k#a9sh][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]};
+       ys#a9sj : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]}]
+  reft {VV : k_aa4T | [k_5277]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davG : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                  (len([VV]) >= 0)]};
+       ds_davH : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       k#a9sh : {VV : k_aa4T | [k_5237[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       l#a9sg : {VV : Map k_aa4T   a_aa4U | [k_5236[c#a9sf:=c#a9sf][n#a9se:=n#a9se]]};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRT : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                       (len([VV]) >= 0);
+                                                       (VV = ds_davG);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ys#a9sj])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daRV : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                                     (VV = ds_davH);
+                                                     true]};
+       n#a9se : {VV : a_aa4V | [k_5214]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       x#a9si : {VV : a_aa4U | [k_5238[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                k_5239[c#a9sf:=c#a9sf][fld:=k#a9sh][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]};
+       ys#a9sj : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]}]
+  reft {VV : a_aa4U | [k_5278]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davG : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                  (len([VV]) >= 0)]};
+       ds_davH : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       fld : {VV : k_aa4T | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       k#a9sh : {VV : k_aa4T | [k_5237[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       l#a9sg : {VV : Map k_aa4T   a_aa4U | [k_5236[c#a9sf:=c#a9sf][n#a9se:=n#a9se]]};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRT : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                       (len([VV]) >= 0);
+                                                       (VV = ds_davG);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ys#a9sj])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daRV : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                                     (VV = ds_davH);
+                                                     true]};
+       n#a9se : {VV : a_aa4V | [k_5214]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       x#a9si : {VV : a_aa4U | [k_5238[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                k_5239[c#a9sf:=c#a9sf][fld:=k#a9sh][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]};
+       ys#a9sj : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]}]
+  reft {VV : a_aa4U | [k_5279]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davG : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                  (len([VV]) >= 0)]};
+       ds_davH : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       fld : {VV : Tuple k_aa4T   a_aa4U | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       k#a9sh : {VV : k_aa4T | [k_5237[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       l#a9sg : {VV : Map k_aa4T   a_aa4U | [k_5236[c#a9sf:=c#a9sf][n#a9se:=n#a9se]]};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRT : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                       (len([VV]) >= 0);
+                                                       (VV = ds_davG);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ys#a9sj])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daRV : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                                     (VV = ds_davH);
+                                                     true]};
+       n#a9se : {VV : a_aa4V | [k_5214]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       x#a9si : {VV : a_aa4U | [k_5238[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                k_5239[c#a9sf:=c#a9sf][fld:=k#a9sh][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]};
+       ys#a9sj : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]}]
+  reft {VV : Tuple k_aa4T   a_aa4U | [k_5284]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davG : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                  (len([VV]) >= 0)]};
+       ds_davH : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       fld : {VV : Tuple k_aa4T   a_aa4U | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       k#a9sh : {VV : k_aa4T | [k_5237[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       l#a9sg : {VV : Map k_aa4T   a_aa4U | [k_5236[c#a9sf:=c#a9sf][n#a9se:=n#a9se]]};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRT : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                       (len([VV]) >= 0);
+                                                       (VV = ds_davG);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ys#a9sj])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daRV : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                                     (VV = ds_davH);
+                                                     true]};
+       n#a9se : {VV : a_aa4V | [k_5214]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       x#a9si : {VV : a_aa4U | [k_5238[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                k_5239[c#a9sf:=c#a9sf][fld:=k#a9sh][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]};
+       ys#a9sj : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]}]
+  reft {VV : k_aa4T | [k_5281]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davG : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                  (len([VV]) >= 0)]};
+       ds_davH : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       fld : {VV : Tuple k_aa4T   a_aa4U | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       k#a9sh : {VV : k_aa4T | [k_5237[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       l#a9sg : {VV : Map k_aa4T   a_aa4U | [k_5236[c#a9sf:=c#a9sf][n#a9se:=n#a9se]]};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRT : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                       (len([VV]) >= 0);
+                                                       (VV = ds_davG);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ys#a9sj])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daRV : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                                     (VV = ds_davH);
+                                                     true]};
+       n#a9se : {VV : a_aa4V | [k_5214]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       x#a9si : {VV : a_aa4U | [k_5238[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                k_5239[c#a9sf:=c#a9sf][fld:=k#a9sh][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]};
+       ys#a9sj : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]}]
+  reft {VV : a_aa4U | [k_5282]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davG : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                  (len([VV]) >= 0)]};
+       ds_davH : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       fld : {VV : k_aa4T | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       k#a9sh : {VV : k_aa4T | [k_5237[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       l#a9sg : {VV : Map k_aa4T   a_aa4U | [k_5236[c#a9sf:=c#a9sf][n#a9se:=n#a9se]]};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRT : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                       (len([VV]) >= 0);
+                                                       (VV = ds_davG);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ys#a9sj])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daRV : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                                     (VV = ds_davH);
+                                                     true]};
+       n#a9se : {VV : a_aa4V | [k_5214]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       x#a9si : {VV : a_aa4U | [k_5238[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                k_5239[c#a9sf:=c#a9sf][fld:=k#a9sh][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]};
+       ys#a9sj : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]}]
+  reft {VV : a_aa4U | [k_5283]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davG : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                  (len([VV]) >= 0)]};
+       ds_davH : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       k#a9sh : {VV : k_aa4T | [k_5237[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       l#a9sg : {VV : Map k_aa4T   a_aa4U | [k_5236[c#a9sf:=c#a9sf][n#a9se:=n#a9se]]};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRT : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                       (len([VV]) >= 0);
+                                                       (VV = ds_davG);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = (1 + len([ys#a9sj])));
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daRV : {VV : Tuple k_aa4T   a_aa4U | [k_5240[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                                     (VV = ds_davH);
+                                                     true]};
+       n#a9se : {VV : a_aa4V | [k_5214]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       x#a9si : {VV : a_aa4U | [k_5238[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj];
+                                k_5239[c#a9sf:=c#a9sf][fld:=k#a9sh][l#a9sg:=l#a9sg][lq_tmp_x26:=k#a9sh][lq_tmp_x27:=x#a9si][n#a9se:=n#a9se][y:=ds_davH][ys:=ys#a9sj]]};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]};
+       ys#a9sj : {VV : [Tuple k_aa4T   a_aa4U] | [(len([VV]) >= 0)]}]
+  reft {VV : t_aa4W | [k_5276]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davG : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                  (len([VV]) >= 0)]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       l#a9sg : {VV : Map k_aa4T   a_aa4U | [k_5236[c#a9sf:=c#a9sf][n#a9se:=n#a9se]]};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_anf__daRT : {VV : [Tuple k_aa4T   a_aa4U] | [k_5245[c#a9sf:=c#a9sf][l#a9sg:=l#a9sg][n#a9se:=n#a9se];
+                                                       (len([VV]) >= 0);
+                                                       (VV = ds_davG);
+                                                       (len([VV]) >= 0);
+                                                       true;
+                                                       (len([VV]) = 0);
+                                                       (len([VV]) >= 0)]};
+       lq_anf__daRU : {VV : [Char] | [(len([VV]) >= 0)]};
+       n#a9se : {VV : a_aa4V | [k_5214]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : t_aa4W | [k_5275]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : Map k_aa4T   a_aa4U | [k_5252]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : k_aa4T | [k_5248]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : a_aa4U | [k_5249]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       root : {VV : k_aa4T | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : k_aa4T | [k_5250]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       root : {VV : k_aa4T | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : k_aa4T | [k_5251]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_tmp_x5247 : {VV : Map k_aa4T   a_aa4U | [k_5252]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : [Tuple k_aa4T   a_aa4U] | [k_5262]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_tmp_x5247 : {VV : Map k_aa4T   a_aa4U | [k_5252]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : Tuple k_aa4T   a_aa4U | [k_5257]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_tmp_x5247 : {VV : Map k_aa4T   a_aa4U | [k_5252]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : k_aa4T | [k_5254]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_tmp_x5247 : {VV : Map k_aa4T   a_aa4U | [k_5252]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : a_aa4U | [k_5255]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fld : {VV : k_aa4T | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_tmp_x5247 : {VV : Map k_aa4T   a_aa4U | [k_5252]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : a_aa4U | [k_5256]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fld : {VV : Tuple k_aa4T   a_aa4U | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_tmp_x5247 : {VV : Map k_aa4T   a_aa4U | [k_5252]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : Tuple k_aa4T   a_aa4U | [k_5261]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fld : {VV : Tuple k_aa4T   a_aa4U | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_tmp_x5247 : {VV : Map k_aa4T   a_aa4U | [k_5252]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : k_aa4T | [k_5258]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fld : {VV : Tuple k_aa4T   a_aa4U | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_tmp_x5247 : {VV : Map k_aa4T   a_aa4U | [k_5252]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : a_aa4U | [k_5259]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fld : {VV : k_aa4T | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_tmp_x5247 : {VV : Map k_aa4T   a_aa4U | [k_5252]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : a_aa4U | [k_5260]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       lq_tmp_x5247 : {VV : Map k_aa4T   a_aa4U | [k_5252]};
+       lq_tmp_x5253 : {VV : [Tuple k_aa4T   a_aa4U] | [k_5262;
+                                                       (len([VV]) >= 0)]};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : t_aa4W | [k_5263]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : a_aa4V | [k_5264]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : [Tuple k_aa4T   a_aa4U] | [k_5273]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : Tuple k_aa4T   a_aa4U | [k_5268]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : k_aa4T | [k_5265]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : a_aa4U | [k_5266]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264]};
+       fld : {VV : k_aa4T | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : a_aa4U | [k_5267]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264]};
+       fld : {VV : Tuple k_aa4T   a_aa4U | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : Tuple k_aa4T   a_aa4U | [k_5272]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264]};
+       fld : {VV : Tuple k_aa4T   a_aa4U | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : k_aa4T | [k_5269]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264]};
+       fld : {VV : Tuple k_aa4T   a_aa4U | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : a_aa4U | [k_5270]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264]};
+       fld : {VV : k_aa4T | []};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : a_aa4U | [k_5271]}
+  
+
+
+wf:
+  env [EQ#6U : {VV : Ordering | []};
+       False#68 : {VV : bool | [(~ ((? VV)))]};
+       GT#6W : {VV : Ordering | []};
+       LT#6S : {VV : Ordering | []};
+       True#6u : {VV : bool | [(? VV)]};
+       a_aa4V : {VV : num | []};
+       delta#rF3 : {VV : int | [(VV = (3  :  int))]};
+       ds_davB : {VV : a_aa4V | [k_5264]};
+       fix#xs#39##35#a9rV : {VV : [Tuple k_aa4T   a_aa4U] | [k_5273;
+                                                             (len([VV]) >= 0)]};
+       fromJust : {VV : func(1, [Maybe @(0); @(0)]) | []};
+       fromJustS : {VV : func(1, [MaybeS @(0); @(0)]) | []};
+       isBin : {VV : func(1, [Map @(1)   @(0); bool]) | []};
+       isJust : {VV : func(1, [Maybe @(0); bool]) | []};
+       isJustS : {VV : func(1, [MaybeS @(0); bool]) | []};
+       key : {VV : func(1, [Map @(1)   @(0); @(1)]) | []};
+       len : {VV : func(1, [[@(0)]; int]) | []};
+       node#rFf : {VV : [Char] | [(len([VV]) >= 0)]};
+       ratio#rF4 : {VV : int | [(VV = (2  :  int))]};
+       realWorld##0f : {VV : State# RealWorld | []};
+       xs#a9rQ : {VV : [Tuple k_aa4m   a_aa4n] | [k_5076;
+                                                  (len([VV]) >= 0)]}]
+  reft {VV : t_aa4W | [k_5274]}
+  

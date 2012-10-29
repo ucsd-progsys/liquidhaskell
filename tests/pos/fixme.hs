@@ -1,28 +1,25 @@
-module ListSetTest where
+module ListSort where
 
-import Data.Set (Set(..))
+{-@ type OList a = [a]<{v: a | (v >= fld)}> @-}
 
-{-@ include <listSet.hquals> @-}
+{-@ app :: k:a -> OList {v:a | v < k} -> OList {v:a | v >= k} -> OList a @-}
+app :: a -> [a] -> [a] -> [a]
+app = error "HOLE"
 
+{-@ quicksort :: (Ord a) => xs:[a] -> OList a @-}
+quicksort []     = []
+quicksort (x:xs) = app x xsle xsge
+  where xsle = quicksort (takeL x xs)
+        xsge = quicksort (takeGE x xs)
 
--- WHY DOES THIS JUST NOT GET ANY MEANINGFUL TYPE?
-{- goo :: xs:[a] 
-       -> ys:[a] 
-       -> {v:[a] | listElts(v) = Set_cup(listElts(xs), listElts(ys))} 
- @-}
-goo :: [a] -> [a] -> [a]
-goo acc []     = acc
-goo acc (y:ys) = error "foo" -- goRev (y:acc) ys
+{- takeGE :: (Ord a) => x:a -> xs:[a] -> [{v:a | v >= x}] @-}
+takeGE x []     = []
+takeGE x (y:ysXXX) = if (y>=x) then y:(takeGE x ysXXX) else takeGE x ysXXX
 
-{-@ choo :: [a] -> [a] @-}
-choo :: [a] -> [a]
-choo xs = goo [] xs
-
-
-
-
-
-
+-- {- takeL :: (Ord a) => x:a -> xs:[a] -> [{v:a | v < x}] @-}
+--takeL :: (Ord a) => a -> [a] -> [a]
+takeL x []     = []
+takeL x (y:ysZZZ) = if (y<x) then y:(takeL x ysZZZ) else takeL x ysZZZ
 
 
 

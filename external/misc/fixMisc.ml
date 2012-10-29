@@ -123,6 +123,32 @@ end
 
 open Ops
 
+let maybe_fold f b xs = 
+  let fo = fun bo x -> match bo with Some b -> f b x | _ -> None in
+  List.fold_left fo (Some b) xs
+
+let maybe_map f = function Some x -> Some (f x) | None -> None
+
+let maybe_iter f = function Some x -> f x | None -> ()
+
+let maybe = function Some x -> x | _ -> assertf "maybe called with None"
+
+let maybe_apply f xo v = match xo with Some x -> f x v | None -> v
+
+let maybe_default xo y = match xo with Some x -> x | None -> y
+
+let maybe_string f = function Some x -> "Some " ^ (f x) | None -> "None"
+
+let rec maybe_chain x d = function 
+  | f::fs -> (match f x with 
+              | Some y -> y 
+              | None -> maybe_chain x d fs)
+  | []    -> d
+
+
+
+
+
 let trace s f x =
   let _ = print_now <| Printf.sprintf "BEGIN: %s \n" s in
   let r = f x in
@@ -213,23 +239,25 @@ let maybe_bool = function
 
 module type EMapType = sig
   include Map.S
-  val extendWith : (key -> 'a -> 'a -> 'a) -> 'a t -> 'a t -> 'a t
-  val extend     : 'a t -> 'a t -> 'a t
-  val filter     : (key -> 'a -> bool) -> 'a t -> 'a t
-  val of_list    : (key * 'a) list -> 'a t
-  val to_list    : 'a t -> (key * 'a) list
-  val length     : 'a t -> int
-  val domain     : 'a t -> key list
-  val range      : 'a t -> 'a list
-  val join       : 'a t -> 'b t -> ('a * 'b) t
-  val adds       : key -> 'a list -> 'a list t -> 'a list t
-  val of_alist   : (key * 'a) list -> 'a list t
-  val finds      : key -> 'a list t -> 'a list
-  val safeFind   : key -> 'a t -> string -> 'a
-  val safeAdd    : key -> 'a -> 'a t -> string -> 'a t
-  val maybe_find : key -> 'a t -> 'a option
-  val single     : key -> 'a -> 'a t
-  val map_partial: ('a -> 'b option) -> 'a t -> 'b t
+  val extendWith   : (key -> 'a -> 'a -> 'a) -> 'a t -> 'a t -> 'a t
+  val extend       : 'a t -> 'a t -> 'a t
+  val filter       : (key -> 'a -> bool) -> 'a t -> 'a t
+  val of_list      : (key * 'a) list -> 'a t
+  val to_list      : 'a t -> (key * 'a) list
+  val length       : 'a t -> int
+  val domain       : 'a t -> key list
+  val range        : 'a t -> 'a list
+  val join         : 'a t -> 'b t -> ('a * 'b) t
+  val adds         : key -> 'a list -> 'a list t -> 'a list t
+  val of_alist     : (key * 'a) list -> 'a list t
+  val finds        : key -> 'a list t -> 'a list
+  val safeFind     : key -> 'a t -> string -> 'a
+  val safeAdd      : key -> 'a -> 'a t -> string -> 'a t
+  val single       : key -> 'a -> 'a t
+  val map_partial  : ('a -> 'b option) -> 'a t -> 'b t
+  val maybe_find   : key -> 'a t -> 'a option
+  val find_default : 'a -> key -> 'a t -> 'a
+  val frequency    : key list -> int t
 end
 
 module type ESetType = sig
@@ -291,17 +319,25 @@ module EMap (K: EOrderedType) =
         (v1, find k m2) 
       end m1
 
-    let finds k m = 
-      try find k m with Not_found -> []
+    let maybe_find k m = 
+      try Some (find k m) with Not_found -> None
+
+    let find_default d k m = 
+      maybe_default (maybe_find k m) d 
+
+    (* let finds k m = try find k m with Not_found -> [] *)
+    let finds k m = find_default [] k m
 
     let adds (k: key) (vs: 'a list) (m : ('a list) t) : 'a list t = 
-      add k (vs ++ finds k m) m
+      add k (vs ++ find_default [] k m) m
 
     let of_alist (kvs : (key * 'a) list) =
       List.fold_left (fun m (k, v) -> adds k [v] m) empty kvs
-
-    let maybe_find k m = 
-      try Some (find k m) with Not_found -> None
+     
+    let frequency (ks : key list) : int t =
+      List.fold_left (fun m k -> 
+        add k (1 + (find_default 0 k m)) m
+      ) empty ks 
 
     let safeFind k m msg =
       try find k m with Not_found -> 
@@ -457,6 +493,7 @@ let map_partial f xs =
         match f x with
         | None   -> acc
         | Some z -> (z::acc)) [] xs)
+
 
 let fold_left_partial f b xs =
   List.fold_left begin fun b xo ->
@@ -796,11 +833,10 @@ let suffix_of_string = fun s i -> String.sub s i (String.length s - 1)
 
 (* [count_map xs] = fun x -> number of times x appears in xs if non-zero *)
 let count_map rs =
-  List.fold_left 
-    (fun m r -> 
+  List.fold_left begin fun m r -> 
       let c = try IntMap.find r m with Not_found -> 0 in
-      IntMap.add r (c+1) m)
-    IntMap.empty rs
+      IntMap.add r (c+1) m
+  end IntMap.empty rs
 
 let o2s f = function
   | Some x -> "Some "^ (f x)
@@ -906,28 +942,6 @@ let with_out_formatter file f =
 let get_unique =
   let cnt = ref 0 in
   (fun () -> let rv = !cnt in incr cnt; rv)
-
-let maybe_fold f b xs = 
-  let fo = fun bo x -> match bo with Some b -> f b x | _ -> None in
-  List.fold_left fo (Some b) xs
-
-let maybe_map f = function Some x -> Some (f x) | None -> None
-
-let maybe_iter f = function Some x -> f x | None -> ()
-
-let maybe = function Some x -> x | _ -> assertf "maybe called with None"
-
-let maybe_apply f xo v = match xo with Some x -> f x v | None -> v
-
-let maybe_default xo y = match xo with Some x -> x | None -> y
-
-let maybe_string f = function Some x -> "Some " ^ (f x) | None -> "None"
-
-let rec maybe_chain x d = function 
-  | f::fs -> (match f x with 
-              | Some y -> y 
-              | None -> maybe_chain x d fs)
-  | []    -> d
 
 let lines_of_file filename = 
   let lines = ref [] in
@@ -1117,6 +1131,16 @@ let join f xs ys =
   let ys' = List.map (fun y -> (f y, y)) ys |> List.sort compare in
   fuse [] xs' ys'
 
+let hashtbl_find_default d t x =
+  try Hashtbl.find t x with Not_found -> d
+
+let frequency (xs : 'a list) : ('a * int) list = 
+  let t = Hashtbl.create 17 in
+  List.iter begin fun x ->
+    let n =  hashtbl_find_default 0 t x in
+    Hashtbl.replace t x (n + 1)
+  end xs;
+  hashtbl_to_list t
 
 let kgroupby (f: 'a -> 'b) (xs: 'a list): ('b * 'a list) list =
   let t        = Hashtbl.create 17 in
