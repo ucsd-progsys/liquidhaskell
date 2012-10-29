@@ -20,6 +20,13 @@ Performance
 ===========
 
 Use Map/LambdaEval to find where bottleneck in Hs <---------------HEREHEREHEREHERE
+??? (foxed)
+
+        1. Data.HashMap.Strict/Data.HashSet.Strict [instead of Data.Map/Data.Set]
+      & 2. Compact Constraints
+        
+        3. Remove all dependence on everywhere/everything
+
 
 - Majority of remaining 900s in haskell land? doing what? serialize/parse?
         - time liquid benchmarks/esop2013-submission/Base.hs > log.base 2>&1
@@ -32,6 +39,7 @@ Use Map/LambdaEval to find where bottleneck in Hs <---------------HEREHEREHEREHE
 - Or is it the use of Dynamic/Data to traverse and sanitize constraints?
 
 - Serializing to .fq is WAY slow ?
+        - Compact FQ encoding: shared environment binders
 
 Benchmarks
 ==========
