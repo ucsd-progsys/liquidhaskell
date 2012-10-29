@@ -44,20 +44,22 @@ type deft = Srt of Ast.Sort.t
           (* | Sol of Ast.Symbol.t * (Ast.pred * (Ast.Symbol.t * Ast.Subst.t)) list *)
           | Qul of Q.t
           | Dep of FixConstraint.dep
+          | Kut of Ast.Symbol.t
 
 
 type 'bind cfg = { 
-   a    : int                               (* Tag arity *)
- ; ts   : Ast.Sort.t list                   (* New sorts, now = []*)
- ; ps   : Ast.pred list                     (* New axioms, now = [] *)
- ; cs   : FixConstraint.t list
- ; ws   : FixConstraint.wf list
- ; ds   : FixConstraint.dep list
- ; qs   : Q.t list
- ; bm   : 'bind SM.t                        (* Initial Sol Bindings *)
- ; uops : Ast.Sort.t Ast.Symbol.SMap.t      (* Globals: measures + distinct consts) *)
- ; cons : Ast.Symbol.t list                 (* Distinct Constants, defined in uops *)
- ; assm : FixConstraint.soln                (* Seed Solution -- must be a fixpoint over constraints *)
+   a     : int                               (* Tag arity                            *)
+ ; ts    : Ast.Sort.t list                   (* New sorts, now = []                  *)
+ ; ps    : Ast.pred list                     (* New axioms, now = []                 *)
+ ; cs    : FixConstraint.t list              (* Implication Constraints              *)
+ ; ws    : FixConstraint.wf list             (* Well-formedness Constraints          *)
+ ; ds    : FixConstraint.dep list            (* Constraint Dependencies              *)
+ ; qs    : Q.t list                          (* Qualifiers                           *)
+ ; kuts  : Ast.Symbol.t list                 (* "Cut"-Kvars, which break cycles      *)
+ ; bm    : 'bind SM.t                        (* Initial Sol Bindings                 *)
+ ; uops  : Ast.Sort.t Ast.Symbol.SMap.t      (* Globals: measures + distinct consts) *)
+ ; cons  : Ast.Symbol.t list                 (* Distinct Constants, defined in uops  *)
+ ; assm  : FixConstraint.soln                (* Seed Solution -- must be a fixpoint over constraints *)
 }
 
 let get_arity = function
@@ -73,21 +75,30 @@ let sift_quals qs =
      |> SM.of_list
 
 let extend f cfg = function
-  | Srt t         -> {cfg with ts   = t     :: cfg.ts }
-  | Axm p         -> {cfg with ps   = p     :: cfg.ps }
-  | Cst c         -> {cfg with cs   = c     :: cfg.cs }
-  | Wfc w         -> {cfg with ws   = w     :: cfg.ws }
-  | Dep d         -> {cfg with ds   = d     :: cfg.ds }
-  | Qul q         -> {cfg with qs   = q     :: cfg.qs }
+  | Srt t         -> {cfg with ts   = t     :: cfg.ts   }
+  | Axm p         -> {cfg with ps   = p     :: cfg.ps   }
+  | Cst c         -> {cfg with cs   = c     :: cfg.cs   }
+  | Wfc w         -> {cfg with ws   = w     :: cfg.ws   }
+  | Dep d         -> {cfg with ds   = d     :: cfg.ds   }
+  | Kut k         -> {cfg with kuts = k     :: cfg.kuts }
+  | Qul q         -> {cfg with qs   = q     :: cfg.qs   }
   | Sol (k, fess) -> {cfg with bm   = SM.add k (List.map f fess) cfg.bm  }
   | Con (s,t)     -> {cfg with cons = if So.is_func t then cfg.cons else s :: cfg.cons
                              ; uops = SM.add s t cfg.uops} 
   
-let empty = { a    = 0 ; ts   = []; ps = []
-            ; cs   = []; ws   = []; ds = []
-            ; qs   = []; bm   = SM.empty
-            ; cons = []; uops = SM.empty 
-            ; assm = FixConstraint.empty_solution }
+let empty = { a    = 0 
+            ; ts   = []
+            ; ps   = []
+            ; cs   = []
+            ; ws   = []
+            ; ds   = []
+            ; qs   = []
+            ; kuts = []
+            ; bm   = SM.empty
+            ; cons = []
+            ; uops = SM.empty 
+            ; assm = FixConstraint.empty_solution 
+            }
 
 let fes2q qm (f, es) =
   let q   = SM.safeFind f qm "name2qual" in
@@ -115,17 +126,18 @@ let create ds =
       |> (fun cfg -> {cfg with ws = C.add_wf_ids cfg.ws})
 
 (* API *)
-let create_raw ts env ps a ds cs ws qs assm = 
+let create_raw ts env ps a ds cs ws qs kuts assm = 
   { empty with 
-    a    = a
-  ; ts   = ts
-  ; uops = env
-  ; ps   = ps
-  ; ds   = ds
-  ; cs   = cs
-  ; ws   = C.add_wf_ids ws
-  ; qs   = Q.normalize qs 
-  ; assm = assm
+    a     = a
+  ; ts    = ts
+  ; uops  = env
+  ; ps    = ps
+  ; ds    = ds
+  ; cs    = cs
+  ; ws    = C.add_wf_ids ws
+  ; kuts  = kuts
+  ; qs    = Q.normalize qs 
+  ; assm  = assm
   }
 
 module type SIMPLIFIER = sig

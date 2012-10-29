@@ -56,7 +56,7 @@ let create_qual name vv = Qualifier.create (Sy.of_string name) (Sy.of_string vv)
 %token DIV 
 %token QM DOT ASGN
 %token OBJ INT NUM PTR LFUN BOOL UNINT FUNC
-%token SRT AXM CON CST WF SOL QUL ADP DDP
+%token SRT AXM CON CST WF SOL QUL KUT ADP DDP
 %token ENV GRD LHS RHS REF
 
 %right IFF IFFWORD
@@ -116,7 +116,9 @@ def:
   | WF  COLON wf                        { FixConfig.Wfc $3 }
   | sol                                 { FixConfig.Sol $1 } 
   | QUL qual                            { FixConfig.Qul $2 }
+  | KUT Id                              { FixConfig.Kut (Sy.of_string $2) }
   | dep                                 { FixConfig.Dep $1 }
+
   ;
 
 sorts:

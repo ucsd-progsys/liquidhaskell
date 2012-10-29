@@ -74,6 +74,8 @@ module Sort :
     val ptr_of_t    : t -> loc option
  
     val compat      : t -> t -> bool
+    val empty_sub   : sub
+    val unifyWith   : sub -> t list -> t list -> sub option 
     val unify       : t list -> t list -> sub option
     val apply       : sub -> t -> t
     val generalize  : t list -> t list

@@ -6,45 +6,63 @@
 -- `fixpoint.native` which is written in Ocaml.
 
 module Language.Haskell.Liquid.Fixpoint (
+
+  -- * Top level serialization  
     toFixpoint
   , Fixpoint (toFix) 
+ 
+  -- * Embedding to Fixpoint Types
+  , Sort (..), FTycon, TCEmb
+  , stringFTycon, intFTyCon, boolFTyCon
   , typeSort, typeUniqueSymbol
+  
+  -- * Symbols
+  , Symbol(..)
+  , anfPrefix, tempPrefix, vv, intKvar
   , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tempSymbol --, tagSymbol 
   , qualifySymbol, stringSymbol, symbolString, stringSymbolRaw
-  , FTycon, stringFTycon, intFTyCon, boolFTyCon
-  , anfPrefix, tempPrefix
-  , intKvar
-  , Sort (..), Symbol(..), Constant (..), Bop (..), Brel (..), Expr (..)
-  , Pred (..), Refa (..), SortedReft (..), Reft(..)
-  , SEnv (..)
-  , FEnv
-  , SubC (..), WfC(..), FixResult (..), FixSolution, FInfo (..)
-  , emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
-  , insertFEnv 
-  , vv
-  , trueSortedReft 
-  , trueRefa
-  , canonReft, exprReft, notExprReft, symbolReft
-  , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft
-  , ppr_reft, ppr_reft_pred, flattenRefas
+
+  -- * Expressions and Predicates
+  , Constant (..), Bop (..), Brel (..), Expr (..), Pred (..)
   , simplify, pAnd, pOr, pIte
   , isTautoPred
-  , emptySubst, mkSubst, catSubst
+ 
+  -- * Constraints and Solutions
+  , Tag, SubC (..), WfC(..), FixResult (..), FixSolution, FInfo (..)
+
+  -- * Environments
+  , SEnv (..), emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
+  , FEnv, insertFEnv 
+  
+  -- * Refinements
+  , Refa (..), SortedReft (..), Reft(..)
+  , trueSortedReft, trueRefa
+  , canonReft, exprReft, notExprReft, symbolReft
+  , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft
+  , flattenRefas
+  , ppr_reft, ppr_reft_pred
+
+  -- * Substitutions 
   , Subable (..)
-  , TCEmb (..)
+  , emptySubst, mkSubst, catSubst
 
   -- * Visitors
   , getSymbols
+  , reftKVars
 
   -- * Functions on @Result@
   , colorResult 
+
+  -- * Cut KVars
+  , Kuts (..), ksEmpty, ksUnion
+
   ) where
 
 import TypeRep 
-import PrelNames            (intTyConKey, intPrimTyConKey, integerTyConKey, boolTyConKey)
+-- import PrelNames            (intTyConKey, intPrimTyConKey, integerTyConKey, boolTyConKey)
 
 import TysWiredIn           (listTyCon)
-import TyCon                (TyCon, isTupleTyCon, tyConUnique)
+import TyCon                (TyCon, isTupleTyCon) -- , tyConUnique)
 import Outputable
 import Data.Monoid hiding   ((<>))
 import Data.Functor
@@ -62,7 +80,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.GhcMisc
 import Control.DeepSeq
-import System.Console.ANSI (Color (..))
+-- import System.Console.ANSI (Color (..))
 
 class Fixpoint a where
   toFix    :: a -> SDoc
@@ -186,9 +204,30 @@ getSymbols = everything (++) ([] `mkQ` f)
   where f x@(S _) = [x]
         f _       = []
 
+reftKVars :: Reft -> [Symbol]
+reftKVars (Reft (_,ras)) = [k | (RKvar k _) <- ras]
 
 infoConstant (c, so, _)
   = text "constant" <+> toFix c <+> text ":" <+> toFix so <> blankLine <> blankLine 
+
+---------------------------------------------------------------
+---------- (Kut) Sets of Kvars --------------------------------
+---------------------------------------------------------------
+
+newtype Kuts = KS (S.Set Symbol) deriving (Data, Typeable)
+
+instance Outputable Kuts where
+  ppr (KS s) = ppr s
+
+instance NFData Kuts where
+  rnf (KS s) = rnf s
+
+instance Fixpoint Kuts where
+  toFix (KS s) = vcat $ ((text "cut " <>) . toFix) <$> S.elems s
+
+ksEmpty             = KS S.empty
+ksUnion kvs (KS s') = KS (S.union (S.fromList kvs) s')
+
 
 
 ---------------------------------------------------------------
@@ -203,15 +242,17 @@ instance (Fixpoint a, Fixpoint b) => Fixpoint (a,b) where
   toFix   (x,y)  = (toFix x) <+> text ":" <+> (toFix y)
   simplify (x,y) = (simplify x, simplify y) 
 
-data FInfo a = FI { cs :: ![SubC a]
-                  , ws :: ![WfC a ] 
-                  , gs :: !FEnv -- Envt Symbol, Sort)] 
+data FInfo a = FI { cs   :: ![SubC a]
+                  , ws   :: ![WfC a ] 
+                  , gs   :: !FEnv
+                  , kuts :: Kuts 
                   } deriving (Data, Typeable)
 
-toFixpoint x' = gsDoc x' $+$ conDoc x' $+$  csDoc x' $+$ wsDoc x'
+toFixpoint x' = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$  csDoc x' $+$ wsDoc x'
   where conDoc     = vcat . map infoConstant . S.elems . S.fromList . getConstants 
         csDoc      = vcat . map toFix . cs 
         wsDoc      = vcat . map toFix . ws 
+        kutsDoc    = toFix . kuts
         gsDoc      = vcat . map infoConstant . map (\(x, (RR so _)) -> (x, so, False)) . M.assocs . (\(SE e) -> e) . gs
 
 
@@ -596,7 +637,7 @@ data Refa
   | RKvar !Symbol !Subst
   deriving (Eq, Ord, Data, Typeable, Show)
 
-data Reft
+newtype Reft
   = Reft (Symbol, [Refa]) 
   deriving (Eq, Ord, Data, Typeable) 
 
@@ -675,12 +716,15 @@ instance Outputable (SEnv a) => Show (SEnv a) where
 ------------------------- Constraints ---------------------------------------------
 -----------------------------------------------------------------------------------
 
+{-@ type Tag = {v: [Int] | len(v) = 1 } @-}
+type Tag    = [Int] 
+
 data SubC a = SubC { senv  :: !FEnv
                    , sgrd  :: !Pred
                    , slhs  :: !SortedReft
                    , srhs  :: !SortedReft
                    , sid   :: !(Maybe Integer)
-                   , stag  :: ![Int] 
+                   , stag  :: !Tag
                    , sinfo :: !a
                    } deriving (Eq, Ord, Data, Typeable)
 

@@ -29,12 +29,12 @@
 type t 
 module QSet : FixMisc.ESetType with type elt = t
 
-val create    :  Ast.Symbol.t 
-              -> Ast.Symbol.t 
-              -> Ast.Sort.t 
-              -> (Ast.Symbol.t * Ast.Sort.t) list 
-              -> Ast.pred 
-              -> t 
+val create          :  Ast.Symbol.t 
+                    -> Ast.Symbol.t 
+                    -> Ast.Sort.t 
+                    -> (Ast.Symbol.t * Ast.Sort.t) list 
+                    -> Ast.pred 
+                    -> t 
 
 val name_of_t       : t -> Ast.Symbol.t
 val vv_of_t         : t -> Ast.Symbol.t

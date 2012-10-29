@@ -13,19 +13,21 @@ type deft = Srt of Ast.Sort.t
           | Sol of solbind
           | Qul of Qualifier.t
           | Dep of FixConstraint.dep
+          | Kut of Ast.Symbol.t
 
 type 'bind cfg = { 
-   a    : int                                           (* Tag arity *)
- ; ts   : Ast.Sort.t list                               (* New sorts, now = []*)
- ; ps   : Ast.pred list                                 (* New axioms, now = [] *)
- ; cs   : FixConstraint.t list
- ; ws   : FixConstraint.wf list
- ; ds   : FixConstraint.dep list
- ; qs   : Qualifier.t list
- ; bm   : 'bind Ast.Symbol.SMap.t           (* Initial Sol Bindings *)
- ; uops : Ast.Sort.t Ast.Symbol.SMap.t      (* Globals: measures + distinct consts) *)
- ; cons : Ast.Symbol.t list                 (* Distinct Constants, defined in uops *)
- ; assm : FixConstraint.soln                (* invariant fixpoint assumption for K *)
+   a     : int                               (* Tag arity                            *)
+ ; ts    : Ast.Sort.t list                   (* New sorts, now = []                  *)
+ ; ps    : Ast.pred list                     (* New axioms, now = []                 *)
+ ; cs    : FixConstraint.t list              (* Implication Constraints              *)
+ ; ws    : FixConstraint.wf list             (* Well-formedness Constraints          *)
+ ; ds    : FixConstraint.dep list            (* Constraint Dependencies              *)
+ ; qs    : Qualifier.t list                  (* Qualifiers                           *)
+ ; kuts  : Ast.Symbol.t list                 (* "Cut"-Kvars, which break cycles      *)
+ ; bm    : 'bind Ast.Symbol.SMap.t           (* Initial Sol Bindings                 *)
+ ; uops  : Ast.Sort.t Ast.Symbol.SMap.t      (* Globals: measures + distinct consts) *)
+ ; cons  : Ast.Symbol.t list                 (* Distinct Constants, defined in uops  *)
+ ; assm  : FixConstraint.soln                (* Seed Solution -- must be a fixpoint over constraints *)
 }
 
 
@@ -64,5 +66,6 @@ val create_raw:  Ast.Sort.t list
               -> FixConstraint.t list 
               -> FixConstraint.wf list 
               -> Qualifier.t list
+              -> Ast.Symbol.t list
               -> FixConstraint.soln 
               -> 'a cfg

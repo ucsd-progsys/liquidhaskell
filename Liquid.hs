@@ -40,7 +40,7 @@ liquidOne includes target =
      putStrLn $ showPpr cbs'
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs'}
      cgi `deepseq` donePhase Loud "generateConstraints"
-     {-# SCC "writeCGI" #-} writeCGI target cgi
+     {-# SCC "writeCGI" #-} writeCGI target cgi cbs'
      -- donePhase Loud "writeCGI"
      (r, sol) <- {- cgi `deepseq` -} solve target (hqFiles info) cgi
      donePhase Loud "solve"
@@ -67,5 +67,15 @@ initGhci = parseStaticFlags []
 -}
 
 
-writeCGI target cgi 
-  = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi target) ({-# SCC "PPcgi" #-} showPpr cgi)
+writeCGI target cgi cbs 
+  = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi target) str
+  where str = ({-# SCC "PPcgi" #-} showSDoc (ppr cbs $+$ ppr cgi))
+  
+
+
+
+
+
+
+
+
