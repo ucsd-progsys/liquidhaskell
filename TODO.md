@@ -1,7 +1,7 @@
 TODO
 ====
-    
-* performance
+
+* performance (in Hs)
 * parse predicate signatures for tuples 
 * predicate-aliases 
 * Blogging 
