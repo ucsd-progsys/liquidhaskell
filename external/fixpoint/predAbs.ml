@@ -464,42 +464,7 @@ let qleqs_of_qs ts sm cs ps qs  =
 (******************** Qualifier Instantiation ******************)
 (***************************************************************)
 
-
-let dupfree_binding xys : bool = 
-  let ys  = List.map snd xys in
-  let ys' = Misc.sort_and_compact ys in
-  List.length ys = List.length ys'
-
-let varmatch_ctr = ref 0
-
-let varmatch (x, y) = 
-  let _ = varmatch_ctr += 1 in
-  let (x,y) = Misc.map_pair Sy.to_string (x,y) in
-  if x.[0] = '@' then
-    let x' = Misc.suffix_of_string x 1 in
-    Misc.is_prefix x' y
-  else true
-
-let is_valid_binding xys = 
-  List.for_all varmatch xys
-
-let valid_bindings ys x =
-  ys |> List.map (fun y -> (x, y))
-     |> List.filter varmatch
-
-let sort_compat t1 t2 = A.Sort.unify [t1] [t2] <> None
-
-let valid_bindings_sort env (x, t) =
-  let _ = failwith "valid_bindings_sort: slow AND incorrect. suppressed!" in
-  env |> SM.to_list
-      |> Misc.filter (snd <+> C.sort_of_reft <+> (sort_compat t))
-      |> Misc.map (fun (y,_) -> (x, y))
-      |> Misc.filter varmatch
-
-let valid_bindings env ys (x, t) =
-  if !Co.sorted_quals
-  then valid_bindings_sort env (x,t)
-  else valid_bindings ys x
+type qual_binding = (Sy.t * Sy.t) list
 
 (* DEBUG ONLY *)
 let print_param ppf (x, t) =
@@ -511,15 +476,54 @@ let print_valid_binding ppf (x,y) =
 let print_valid_bindings ppf xys =
   F.printf "[%a]" (Misc.pprint_many false "" print_valid_binding) xys
 
+(* 
+let dupfree_binding xys : bool = 
+  let ys  = List.map snd xys in
+  let ys' = Misc.sort_and_compact ys in
+  List.length ys = List.length ys'
+*)
 
+let varmatch_ctr = ref 0
 
+let varmatch (x, y) = 
+  let _ = varmatch_ctr += 1 in
+  let (x,y) = Misc.map_pair Sy.to_string (x,y) in
+  if x.[0] = '@' then
+    let x' = Misc.suffix_of_string x 1 in
+    Misc.is_prefix x' y
+  else true
 
+let sort_compat t1 t2 = A.Sort.unify [t1] [t2] <> None
+
+(* {{{ DONT DELETE FOR NOW let valid_bindings_sort env (x, t) =
+  let _ = failwith "valid_bindings_sort: slow AND incorrect. suppressed!" in
+  env |> SM.to_list
+      |> Misc.filter (snd <+> C.sort_of_reft <+> (sort_compat t))
+      |> Misc.map (fun (y,_) -> (x, y))
+      |> Misc.filter varmatch
+
+let valid_bindings env ys (x, t) =
+  if !Co.sorted_quals
+  then valid_bindings_sort env (x, t)
+  else valid_bindings ys x
+}}} *)
 
 let wellformed_qual wf f q = 
   q |> Q.pred_of_t 
     |> A.sortcheck_pred f
     (* >> (F.printf "\nwellformed: id = %d q = @[%a@] result %b\n" (C.id_of_wf wf) Q.print q) *)
     (* NEVER uncomment out the above. *)
+
+(********************************************************************************)
+(****** Brute Force (Post-Selection based) Qualifier Instantiation **************)
+(********************************************************************************)
+
+let is_valid_binding (xys : qual_binding) : bool = 
+  List.for_all varmatch xys
+
+let valid_bindings ys (x,_) =
+  ys |> List.map (fun y -> (x, y))
+     |> List.filter varmatch
 
 let inst_qual env ys evv (q : Q.t) : Q.t list =
   let vve = (Q.vv_of_t q, evv) in
@@ -529,7 +533,7 @@ let inst_qual env ys evv (q : Q.t) : Q.t list =
   | xts ->
       xts
       (* >> F.printf "\n\ninst_qual: params q = %a: %a" Q.print q print_params          *)
-      |> List.map (valid_bindings env ys)                   (* candidate bindings    *)
+      |> List.map (valid_bindings ys)                       (* candidate bindings    *)
       |> Misc.product                                       (* generate combinations *) 
       (* >> (List.iter (F.printf "\ninst_qual: pre-binds = %a\n" print_valid_bindings)) *)
       |> List.filter is_valid_binding                       (* remove bogus bindings *)
@@ -556,7 +560,59 @@ let inst_ext qs wf =
      |> Misc.flap   (inst_qual env ys (A.eVar vv))
      |> Misc.filter (wellformed_qual wf env' <&&> C.filter_of_wf wf)
      |> Misc.cross_product ks
+     
+(********************************************************************************)
+(****** Sort Based Qualifier Instantiation **************************************)
+(********************************************************************************)
 
+let inst_binds env = 
+  env |> SM.to_list 
+      |> Misc.map (Misc.app_snd snd3) 
+      |> Misc.filter (not <.> A.Sort.is_func <.> snd)
+
+(* [ (su', (x,y) : xys) | (su, xys) <- wkl
+                        , (y, ty)   <- yts
+                        , varmatch (x, y)
+                        , Some su'  <- unifyWith su [tx] [ty] ]  *)
+
+let ext_bindings yts wkl (x, tx) =
+  let yts = List.filter (fun (y,_) -> varmatch (x, y)) yts in
+  Misc.tr_rev_flap (fun (su, xys) ->
+    Misc.map_partial (fun (y, ty) -> 
+      match A.Sort.unifyWith su [tx] [ty] with
+        | None     -> None
+        | Some su' -> Some (su', (x,y) :: xys)
+    ) yts
+  ) wkl 
+
+let inst_qual_sorted yts vv t q = 
+  let (qvv0, t0) :: xts = Q.all_params_of_t q     in
+  match A.Sort.unify [t0] [t] with 
+    | Some su0 -> 
+        xts |> List.fold_left (ext_bindings yts) [(su0, [(qvv0, vv)])]  (* generate subs-bindings *)
+            |> List.rev_map (List.rev <.> snd)                          (* extract sorted bindings *)
+            |> List.rev_map (List.map (Misc.app_snd A.eVar))            (* instantiations        *)
+            |> List.rev_map (Q.inst q)                                  (* quals *)
+    | None    -> [] 
+
+let inst_ext_sorted qs wf = 
+  let _    = Misc.display_tick ()               in
+  let r    = C.reft_of_wf wf                    in 
+  let ks   = List.map snd <| C.kvars_of_reft r  in
+  let env  = C.env_of_wf wf                     in
+  let vv   = fst3 r                             in
+  let t    = snd3 r                             in
+  let yts  = inst_binds env                     in
+  qs |> Misc.flap (inst_qual_sorted yts vv t)
+     |> Misc.cross_product ks
+
+(*************************************************************************************)
+
+let inst_ext qs wf =
+  if !Co.sorted_quals 
+  then inst_ext_sorted qs wf 
+  else inst_ext        qs wf
+ 
 let inst_ext qs wf =
   if mydebug then 
     let msg = Printf.sprintf "inst_ext wf id = %d" (C.id_of_wf wf) in
@@ -564,6 +620,7 @@ let inst_ext qs wf =
     >> (List.length <+> F.printf "\n\ninst_ext wfid = %d: size = %d\n"  (C.id_of_wf wf))
   else inst_ext qs wf
 
+(* API *)
 let inst ws qs =
   Misc.flap (inst_ext qs) ws 
   |> Misc.kgroupby fst 
