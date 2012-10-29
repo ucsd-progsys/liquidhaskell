@@ -3,6 +3,7 @@ TODO
     
 * performance
     * use -sortedquals switch for fixpoint. why is it NOT used?!
+
 * parse predicate signatures for tuples 
 * predicate-aliases 
 * Blogging 
@@ -19,73 +20,91 @@ TODO
 
 Performance
 ===========
-- Serializing to .fq is WAY slow 
+
+
+
+- Majority of remaining 900s in haskell land? doing what? serialize/parse?
     - time liquid benchmarks/esop2013-submission/Base.hs > log.base 2>&1
-        user	24m21.007s
+          user = 24m ML = 5m
+    - time liquid tests/pos/LambdaEval.hs 
+          user = 27s ML = 10s
+    - time liquid tests/pos/Map.hs 
+          user = 34s ML = 9s
 
-- What is happening inside fq?  (for Base.hs)
-
-Majority of remaining 900s in haskell land? doing what? serialize/parse?
-
-TOTAL                         530.841 s
-  save                           6.204 s
-  solve                         237.431 s
-    Solve.unsatcs                 40.451 s
-    Solve.acsolve                 195.876 s
-     Solve.acsolve                 195.876 s
-      refine                        103.502 s
-  Validate                      71.492 s
-    valid rhs                      1.864 s
-      validate_vars                  0.404 s
-      preds_of_reft                  1.068 s
-    validate_vars                  4.544 s
-  Qual Inst                     195.672 s
+    - Or is it the use of Dynamic/Data to traverse and sanitize constraints?
+    
+    - Serializing to .fq is WAY slow ?
 
 - Where is all the time going in Fixpoint?
-    - Why so many iterations? Why are ANY constraints seen more than 1 (or maybe 2) times?
 
-       tests/pos/fixme. Usual hairy and pointless cycle spanning qsort and takeGE
-         use fname-or-toplevel TAG to prioritize constraints. Just KUTS
-         wont work.
-          CTag.hs: build SCC of CallGraph to get decent numbers for top-binders 
+        ./external/fixpoint/fixpoint.native -notruekvars -strictsortcheck -noslice -nosimple -refinesort benchmarks/esop2013-submission/Base0.fq  > log.Base0
+    
+TOTAL                         327.236 s
+  save                           6.484 s
+  solve                         118.155 s
+    Solve.unsatcs                 29.834 s
+      unsat                          0.256 s
+        Z3.check                       0.232 s
+      Z3.pop                         0.152 s
+      Z3.ass_cst                     0.856 s
+      Z3.push                        1.540 s
+      z3Pred                        21.693 s
+        z3Var memo                     2.048 s
+      fixdiv                         0.248 s
+    Solve.dump                     0.360 s
+    Solve.acsolve                 87.349 s
+      refine                        45.383 s
+        refine                        45.359 s
+          cx_update                      0.000 s
+          check tp                      40.347 s
+            Z3.pop                         1.260 s
+            unsat                         20.737 s
+              Z3.check                      20.473 s
+            Z3.ass_cst                     2.148 s
+            Z3.push                        2.048 s
+            z3Pred                        12.713 s
+              z3Var memo                     1.276 s
+            fixdiv                         0.144 s
+          lhs_contra                     0.012 s
+          preds_of_lhs                   3.856 s
+          rhs_cands                      0.928 s
+    Cindex.winit                   0.068 s
+    Prepass.profile                0.540 s
+  Validate                      26.402 s
+    valid rhs                      1.660 s
+      validate_vars                  0.352 s
+      preds_of_reft                  1.056 s
+    validate_vars                  1.420 s
+  cx_update                      0.352 s
+  Z3.check                       0.000 s
+  Z3 assert axiom                0.000 s
+  z3Var memo                     0.000 s
+  Constant EnvWF                 0.180 s
+  Simplify                       0.016 s
+  Constant Env                   0.228 s
+  Ref Index                      0.000 s
+  create                         0.000 s
+  making_graph                   3.408 s
+  parse                         17.381 s
+  Annots: make qleqs             0.024 s
+    Z3.pop                         0.004 s
+    unsat                          0.008 s
+      Z3.check                       0.008 s
+    Z3.ass_cst                     0.000 s
+    Z3.push                        0.000 s
+    z3Pred                         0.008 s
+      z3Var memo                     0.000 s
+    fixdiv                         0.004 s
+    Z3.check                       0.000 s
+    Z3 assert axiom                0.000 s
+    z3Var memo                     0.000 s
+  Qual Inst                     154.606 s
 
-        benchmarks/esop/Base.hs.fq 
 
-        --> WTF is up with k_5268, k_5272, k_5272?
-            monster kvar with 746497 binders (!!!) and ALL useless the
-            above have type (Tuple k v) AAAAARGH!!!
-            (grep code for k1 k2 k3 k4 k5)
-          
-          why does k_5270 in id 3375 
-                (benchmarks/esop/tmp.fq) have rhs_cands: size = 1
-                (benchmarks/esop/Base.fq) have rhs_cands: size = 48 ?!!!!
+         
+./external/fixpoint/fixpoint.native -notruekvars -strictsortcheck -noslice -nosimple -refinesort benchmarks/esop2013-submission/Base0.fq  > log.Base0
 
-            and then in the next iteration -- 144 (!!!!)
-          also k_5271
-
-          HORRIFIC BUG in fixpoint.  <----------------HEREHEREHEREHERE
-          Run
-         ./external/fixpoint/fixpoint.native -notruekvars -strictsortcheck -noslice -nosimple -refinesort benchmarks/esop2013-submission/Base0.fq  > log.Base0
-
-          and grep "OMFG" -- we ADD UP the kvars in refine_sort. Seriously. 
-                note how map is built from kqs and SM.of_alist
-                SOLUTION: COMPACT THE MOFOS, obviously. AAAAAA
-                
-          HOW WAS THIS NOT CAUGHT BEFORE!!!!!!! Sigh.
-          
-          - requires multiple instance of same K in SAME reft or rhs.. hmm.
-          - FIXFIXFIX [p_update/ SM.of_alist kqs] so that it uses cardinality of each k in ks
-            also group k -> (q1,n1,[p1...pn1]), (q1,n2,[p1...pn2)) ...
-                         i.e. how many times does a qual appear for each k
-            also count k in ks
-                if ki appears n times in ks 
-                then take qj ONLY if nj = i
-
-         many iters. go away when types used for 
-           - takeL/takeGE [odd: not part of SCC]
-           - even app     [ok: part of big SCC]
-
-                    time(O|N)   TOTAL(O|N)   solve (O|N)      refines       iterfreq
+time(O|N)   TOTAL(O|N)   solve (O|N)      refines       iterfreq
 Map.hs          :    54/50/32    21/15/8.7      14/8/4.3    9100/4900/2700    16/28/7
 ListSort.hs     :   */7.5/5.5    */2.5/1.8     */1.5/1.0      */1100/600       */9/7
 ListISort.hs    :     */1.8/?      */0.5/?       */0.3/?       */200/?          */7/?
@@ -99,53 +118,8 @@ Base.hs         :  see nohup.out v nohup.out.perf on goto
             - others Map0.hs, ListSort.hs GhcListSort, LambdaEval.hs do by HAND as make test is giving skewed results.
             - still too many iters
 
-            
-
         * use -sortedquals switch for fixpoint. why is it NOT used?!
         * Data.Text
-        * update wpush/wpop to use inner ranks [IF NECESSARY]
-
-    - Useful for DIGRAPH VIZ: http://arborjs.org/halfviz/#
-
-   - cutVars = set of KVARS denoted above
-    - cindex += cutSet = Set KVar OR Set Id (where RHS id \in cutVars)
-    - worklist priority such that IN an SCC,
-        if a cid has target KVAR \in CutSet 
-          then that cid has LOWER priority than a NON-CUTSET constraint
-        this way, the cutset constraints are only picked ONCE in an
-        iteration through the whole SCC.
-
-real	0m44.740s
-user	0m36.330s
-Fixpoint Solver Time 
-TOTAL                         18.885 s
-  solve                         12.837 s
-    Solve.unsatcs                  1.516 s
-
-    liquid ../benchmarks/containers-0.5.0.0/Data/Map/Base.hs
-
-    Solve.acsolve                 280.170 s
-      refine                        73.057 s
-
-liquid benchmarks/esop2013/Base.hs (goto) -- most time = rendering constraints to .fq!
-
-Fixpoint
-
-TOTAL                         520.290 s
-  save                           6.580 s
-  solve                         235.400 s
-    Solve.unsatcs                 41.700 s
-      z3Pred                        30.760 s
-    Solve.acsolve                 192.710 s
-      refine                        101.170 s
-  Validate                      62.380 s
-    valid rhs                      1.550 s
-      validate_vars                  0.220 s
-      preds_of_reft                  1.140 s
-    validate_vars                  3.370 s
-  parse                         16.720 s
-  Qual Inst                     197.370 s
-
 
 Self-Invariants
 ===============
@@ -399,6 +373,12 @@ TRIV/HARD: (function definition)
 
 Theorem prop_lookup_current (x : stackSet i l a sd) :
 Theorem prop_lookup_visible (x : stackSet i l a sd) : 
+
+
+Random Links
+============
+
+- Useful for DIGRAPH VIZ: http://arborjs.org/halfviz/#
 
 
 
