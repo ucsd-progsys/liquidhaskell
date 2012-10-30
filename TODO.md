@@ -19,7 +19,7 @@ TODO
 Performance: Collateral Damage
 ==============================
 
-- `ordCon`, `dataConReft` : find way to get this information WITHOUT hardwiring.
+- Removed EDat: `ordCon`, `dataConReft` : find way to get this information WITHOUT hardwiring.
 
 
 
