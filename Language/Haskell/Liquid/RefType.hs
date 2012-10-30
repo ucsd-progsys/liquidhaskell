@@ -102,7 +102,7 @@ newtype Predicate  = Pr [UsedPVar] deriving (Data, Typeable)
 pdTrue         = Pr []
 pdVar v        = Pr [uPVar v]
 pvars (Pr pvs) = pvs
-pdAnd ps       = Pr (concatMap pvars ps)
+pdAnd ps       = Pr (L.nub $ concatMap pvars ps)
 
 instance Eq Predicate where
   (==) = eqpd
