@@ -296,19 +296,26 @@ instance (Monoid r, Reftable r, RefTypable a b c r) => Monoid (Ref r (RType a b 
 -- Subable Instances ----------------------------------------------
 
 instance Subable () where
+  syms _     = []
   subst _ () = ()
 
 instance Subable r => Subable (UReft r) where
+  syms (U r p)    = syms r ++ syms p 
   subst s (U r z) = U (subst s r) z
 
 instance Subable Predicate where
-  subst _ = id 
+  syms (Pr ps)    = [] -- TODO: concatMap syms ps 
+  subst _         = id 
 
 instance Subable (Ref F.Reft RefType) where
+  syms (RMono r)     = syms r
+  syms (RPoly r)     = syms r
+
   subst su (RMono r) = RMono $ subst su r
   subst su (RPoly r) = RPoly $ subst su r
 
 instance Subable r => Subable (RType p c tv r) where
+  syms   = foldReft (\r acc -> syms r ++ acc) [] 
   subst  = fmap . subst
 
 -- Reftable Instances -------------------------------------------------------
@@ -336,6 +343,9 @@ instance (Reftable r) => Reftable (UReft r) where
   toReft (U r _)  = toReft r
 
 instance (Reftable r, RefTypable p c tv r) => Subable (Ref r (RType p c tv r)) where
+  syms (RMono r)     = syms r
+  syms (RPoly r)     = syms r
+
   subst su (RMono r) = RMono (subst su r) 
   subst su (RPoly t) = RPoly (subst su <$> t)
 
@@ -698,19 +708,6 @@ ppr_dbind bb p x t
   | otherwise
   = ppr x <> colon <> ppr_rtype bb p t
 
--- ppr_pred :: (Subable r, RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
--- ppr_pred b p (RAllP π t)
---   = ppr π <> ppr_pred b p t
--- ppr_pred b p t
---   = dot <+> ppr_rtype b p t
---
---ppr_dbind :: (Subable r, RefTypable p c tv pv r) => Bool -> Bind tv pv -> RType p c tv pv r -> SDoc
---ppr_dbind bb b@(RB x) t 
---  | isNonSymbol x 
---  = ppr_rtype bb FunPrec t
---  | otherwise
---  = {-braces-} (ppr b) <> colon <> ppr_rtype bb FunPrec t
-
 ppr_fun_tail :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> RType p c tv r -> [SDoc]
 ppr_fun_tail bb (RFun b t t' _)  
   = (ppr_dbind bb FunPrec b t) : (ppr_fun_tail bb t')
@@ -998,10 +995,6 @@ ofPredTree (ClassPred c τs)
   = RCls c (ofType_ <$> τs)
 ofPredTree _
   = errorstar "ofPredTree"
-
----------------------------------------------------------------------
----------- SYB Magic: Cleaning Reftypes Up Before Rendering ---------
----------------------------------------------------------------------
 
 ----------------------------------------------------------------
 ------------------- Converting to Fixpoint ---------------------
