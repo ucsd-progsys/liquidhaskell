@@ -7,7 +7,7 @@ invariants over base types and types with type class constrains.
 \begin{code}
 module Toy where
 
-import Language.Haskell.Liquid.Prelude (isEven, isOdd)
+import Language.Haskell.Liquid.Prelude (isEven)
 \end{code}
 
 Parametric Invariants over Base Types
@@ -58,7 +58,7 @@ isEven   :: Int -> Bool
 isEven x = x `mod` 2 == 0
 \end{code}
 
-And write a function @maxEvens@.
+And write a function `maxEvens`.
 \begin{code}
 maxEvens1 xs = maximumInt (0 : xs') 
   where xs' = [ x | x <- xs, isEven x]
@@ -76,9 +76,61 @@ after which type of `maxEvens1` can be proved to be:
 {-@ maxEvens1 :: xs:[Int] -> {v:Int | v mod 2 = 0 } @-}
 \end{code}
 
-With exactly the same reasoning, we can write the following `maxOdd1` function:
-\begin{code}
-{-@ maxOdds1 :: xs:[Int] -> {v:Int | v mod 2 = 1 } @-}
-maxOdds1 xs = maximumInt (1 : xs') 
-  where xs' = [ x | x <- xs, isOdd x]
+Parametric Invariants over Class-Predicated Type Variables
+----------------------------------------------------------
+
+The example above regularly arises in practice, due to type classes. 
+\begin{code}In Haskell, the functions above are typed
+(<=)    :: (Ord a) => a -> a -> Bool
+max     :: (Ord a) => a -> a -> a
+maximum :: (Ord a) => [a] -> a
 \end{code}
+
+We might be tempted to simply ignore the type class constraint, 
+and just treat `maximum` as `[a] -> a` but, of course, 
+this would be quite unsound, as typeclass predicates trivially preclude
+universal quantification over refinement types. 
+Consider the function `sum :: (Num a) => [a] -> a` which adds the elements 
+of a list.
+
+The `Num` class constraint implies that numeric operations occur 
+in the function, so
+if we pass `sum` a list of odd numbers, 
+we are _not_ guaranteed to get back an odd number. 
+
+Thus, how do we soundly verify the desired type of `maxEvens`
+without instantiating class predicated type parameters with 
+arbitrary refinement types? First, via the same analysis as 
+the monomorphic `Int` case, we establish that
+
+\begin{code}
+{-@ maxPoly :: forall <p :: a -> Bool>. d:(Ord a) => x:a<p> -> y:a<p> -> a<p> @-}
+maxPoly     :: (Ord a) => a -> a -> a 
+maxPoly x y = if x <= y then y else x
+
+{-@ maximumPoly :: forall <p :: a -> Bool>. d:(Ord a) => x:[a<p>] -> a<p> @-}
+maximumPoly :: (Ord a) => [a] -> a
+maximumPoly (x:xs) = foldr maxPoly x xs
+\end{code}
+
+
+We can define `maxEvens2` that uses the above functions:
+
+\begin{code}
+{-@ maxEvens2 :: xs:[Int] -> {v:Int | v mod 2 = 0 } @-}
+maxEvens2 xs = maximumPoly (0 : xs') 
+  where xs' = [ x | x <- xs, isEven x]
+\end{code}
+
+
+Finally, at the call-site for `maximumPoly` in `maxEvens2` we
+instantiate the type variable `a` with `Int`, and 
+the abstract refinement `p` with `{\v -> v % 2 = 0}`
+after which, the verification proceeds as described
+earlier (for the `Int` case).
+Thus, abstract refinements allow us to quantify over 
+invariants without relying on parametric polymorphism, 
+even in the presence of type classes.
+
+
+
