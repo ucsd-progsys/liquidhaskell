@@ -349,7 +349,7 @@ checkAssertSpec vs xbs =
 -- TODO: syb-shrinkage
 
 class CBVisitable a where
-  freeVars :: S.Set Var -> a -> [Var]
+  freeVars :: S.HashSet Var -> a -> [Var]
   readVars :: a -> [Var] 
 
 instance CBVisitable [CoreBind] where

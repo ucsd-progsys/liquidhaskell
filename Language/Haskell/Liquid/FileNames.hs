@@ -101,22 +101,24 @@ data Ext = Cgi    -- ^ Constraint Generation Information
          | Dat    
          deriving (Eq, Ord, Show)
 
-extMap Cgi    = "cgi"
-extMap Pred   = "pred"
-extMap PAss   = "pass"
-extMap Dat    = "dat"
-extMap Out    = "fqout"
-extMap Fq     = "fq"
-extMap Html   = "html"
-extMap Cst    = "cst"
-extMap Annot  = "annot"
-extMap Hs     = "hs"
-extMap LHs    = "lhs"
-extMap Mkdn   = "md"
-extMap Spec   = "spec"
-extMap Hquals = "hquals" 
-extMap Result = "out"
-extMap e      = errorstar $ "extMap: Unknown extension" ++ show e
+extMap e = go e
+  where 
+    go Cgi    = "cgi"
+    go Pred   = "pred"
+    go PAss   = "pass"
+    go Dat    = "dat"
+    go Out    = "fqout"
+    go Fq     = "fq"
+    go Html   = "html"
+    go Cst    = "cst"
+    go Annot  = "annot"
+    go Hs     = "hs"
+    go LHs    = "lhs"
+    go Mkdn   = "md"
+    go Spec   = "spec"
+    go Hquals = "hquals" 
+    go Result = "out"
+    go _      = errorstar $ "extMap: Unknown extension" ++ show e
 
 
 -- extMap   = M.fromList [ (Cgi,    "cgi")
