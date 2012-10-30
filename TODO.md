@@ -1,7 +1,7 @@
 TODO
 ====
 
-* performance
+* performance/collateral damage
 
 * parse predicate signatures for tuples 
 * predicate-aliases 
@@ -21,20 +21,14 @@ Performance: Collateral Damage
 
 - Removed EDat: `ordCon`, `dataConReft` : find way to get this information WITHOUT hardwiring.
 
-
-
 Performance
 ===========
 
-Use Map/LambdaEval to find where bottleneck in Hs <---------------HEREHEREHEREHERE
-??? (foxed)
-
         1. Data.HashMap.Strict/Data.HashSet.Strict [instead of Data.Map/Data.Set]
-
-      & 2. Compact Constraints
+        2. Remove all dependence on everywhere/everything <---------------HEREHEREHEREHERE
+            > Tidy.hs
+        3. Compact Constraints
         
-        3. Remove all dependence on everywhere/everything
-            > c.f. Tidy.hs
 
 - Majority of remaining 900s in haskell land? doing what? serialize/parse?
         - time liquid benchmarks/esop2013-submission/Base.hs > log.base 2>&1
