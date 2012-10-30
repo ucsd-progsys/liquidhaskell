@@ -834,19 +834,22 @@ instance Fixpoint Int where
 -------------------------------------------------------
 
 class Subable a where
+  syms   :: a -> [Symbol]
   subst  :: Subst -> a -> a
-
   subst1 :: a -> (Symbol, Expr) -> a
   subst1 thing (x, e) = subst (Su $ M.singleton x e) thing
 
 instance Subable Symbol where
   subst (Su s) x           = subSymbol (M.lookup x s) x
+  syms x                   = [x]
 
 subSymbol (Just (EVar y)) _ = y
 subSymbol Nothing         x = x
 subSymbol _               _ = error "sub Symbol"
 
 instance Subable Expr where
+  syms                     = exprSymbols
+  
   subst su (EApp f es)     = EApp f $ map (subst su) es 
   subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
   subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst  su e2)
@@ -854,7 +857,10 @@ instance Subable Expr where
   subst (Su s) e@(EVar x)  = M.lookupDefault e x s
   subst _ e                = e
 
+
 instance Subable Pred where
+  syms                     = predSymbols
+
   subst su (PAnd ps)       = PAnd $ map (subst su) ps
   subst su (POr  ps)       = POr  $ map (subst su) ps
   subst su (PNot p)        = PNot $ subst su p
@@ -866,20 +872,26 @@ instance Subable Pred where
   subst _  p               = p
 
 instance Subable Refa where
-  subst su (RConc p)     = RConc   $ subst su p
-  subst su (RKvar k su') = RKvar k $ su' `catSubst` su 
+  syms (RConc p)           = syms p
+  syms (RKvar k su')       = [] 
+  subst su (RConc p)       = RConc   $ subst su p
+  subst su (RKvar k su')   = RKvar k $ su' `catSubst` su 
   -- subst _  (RPvar p)     = RPvar p
 
 instance (Subable a, Subable b) => Subable (a,b) where
+  syms  (x, y)   = syms x ++ syms y
   subst su (x,y) = (subst su x, subst su y)
 
 instance Subable a => Subable [a] where
+  syms     = concatMap syms
   subst su = map $ subst su
 
 instance Subable a => Subable (M.HashMap k a) where
-  subst su = M.map $ subst su
+  syms  = syms . M.elems 
+  subst = M.map . subst 
 
 instance Subable Reft where
+  syms (Reft (v, ras))     = v : syms ras
   subst su (Reft (v, ras)) = Reft (v, subst su ras)
 
 instance Monoid Reft where
@@ -889,6 +901,7 @@ instance Monoid Reft where
     | otherwise = Reft (v, ras ++ (ras' `subst1` (v', EVar v)))
 
 instance Subable SortedReft where
+  syms               = syms . sr_reft 
   subst su (RR so r) = RR so $ subst su r
 
 emptySubst 

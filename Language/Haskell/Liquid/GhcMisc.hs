@@ -127,6 +127,8 @@ instance Hashable Var where
 instance Hashable TyCon where
   hash = uniqueHash 
 
+
+
 uniqueHash = hash . getKey . getUnique
 
 instance Outputable a => Outputable (S.HashSet a) where
