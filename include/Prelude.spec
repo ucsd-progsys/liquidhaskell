@@ -15,9 +15,6 @@ assume GHC.Num.fromInteger      :: (Num a) => x:Integer -> {v:a | v = x }
 
 
 
-assume EQ :: Ordering
-assume LT :: Ordering
-assume GT :: Ordering
 
 measure isJust :: forall a. Maybe a -> Bool 
 isJust (Just x)  = true

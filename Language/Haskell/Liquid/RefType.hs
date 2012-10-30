@@ -296,19 +296,26 @@ instance (Monoid r, Reftable r, RefTypable a b c r) => Monoid (Ref r (RType a b 
 -- Subable Instances ----------------------------------------------
 
 instance Subable () where
+  syms _     = []
   subst _ () = ()
 
 instance Subable r => Subable (UReft r) where
+  syms (U r p)    = syms r ++ syms p 
   subst s (U r z) = U (subst s r) z
 
 instance Subable Predicate where
-  subst _ = id 
+  syms (Pr ps)    = [] -- TODO: concatMap syms ps 
+  subst _         = id 
 
 instance Subable (Ref F.Reft RefType) where
+  syms (RMono r)     = syms r
+  syms (RPoly r)     = syms r
+
   subst su (RMono r) = RMono $ subst su r
   subst su (RPoly r) = RPoly $ subst su r
 
 instance Subable r => Subable (RType p c tv r) where
+  syms   = foldReft (\r acc -> syms r ++ acc) [] 
   subst  = fmap . subst
 
 -- Reftable Instances -------------------------------------------------------
@@ -336,6 +343,9 @@ instance (Reftable r) => Reftable (UReft r) where
   toReft (U r _)  = toReft r
 
 instance (Reftable r, RefTypable p c tv r) => Subable (Ref r (RType p c tv r)) where
+  syms (RMono r)     = syms r
+  syms (RPoly r)     = syms r
+
   subst su (RMono r) = RMono (subst su r) 
   subst su (RPoly t) = RPoly (subst su <$> t)
 
@@ -698,19 +708,6 @@ ppr_dbind bb p x t
   | otherwise
   = ppr x <> colon <> ppr_rtype bb p t
 
--- ppr_pred :: (Subable r, RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
--- ppr_pred b p (RAllP π t)
---   = ppr π <> ppr_pred b p t
--- ppr_pred b p t
---   = dot <+> ppr_rtype b p t
---
---ppr_dbind :: (Subable r, RefTypable p c tv pv r) => Bool -> Bind tv pv -> RType p c tv pv r -> SDoc
---ppr_dbind bb b@(RB x) t 
---  | isNonSymbol x 
---  = ppr_rtype bb FunPrec t
---  | otherwise
---  = {-braces-} (ppr b) <> colon <> ppr_rtype bb FunPrec t
-
 ppr_fun_tail :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> RType p c tv r -> [SDoc]
 ppr_fun_tail bb (RFun b t t' _)  
   = (ppr_dbind bb FunPrec b t) : (ppr_fun_tail bb t')
@@ -998,56 +995,6 @@ ofPredTree (ClassPred c τs)
   = RCls c (ofType_ <$> τs)
 ofPredTree _
   = errorstar "ofPredTree"
-
----------------------------------------------------------------------
----------- SYB Magic: Cleaning Reftypes Up Before Rendering ---------
----------------------------------------------------------------------
-
-tidyRefType :: RefType -> RefType
-tidyRefType = error "TODO: tidyRefType"
---tidyRefType = tidyDSymbols
---            . tidySymbols 
---            . tidyFunBinds
---            . tidyLocalRefas 
---            . tidyTyVars 
-
---tidyFunBinds :: RefType -> RefType
---tidyFunBinds t = everywhere (mkT $ dropBind xs) t 
---  where xs = readSymbols t
---        dropBind :: S.HashSet Symbol -> RefType -> RefType
---        dropBind xs (RFun x t1 t2 r)
---          | x `S.member` xs = RFun x t1 t2 r
---          | otherwise       = RFun nonSymbol t1 t2 r
---        dropBind _ z        = z
---
---tidyTyVars :: RefType -> RefType
---tidyTyVars = tidy pool getS putS 
---  where getS (α :: TyVar)   = Just (symbolString $ varSymbol α)
---        putS (_ :: TyVar) x = stringTyVar x
---        pool          = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
---
---tidyLocalRefas :: RefType -> RefType
---tidyLocalRefas = everywhere (mkT dropLocals) 
---  where dropLocals = filter (not . Fold.any isTmp . readSymbols) . flattenRefas
---        isTmp x    = let str = symbolString x in 
---                     (anfPrefix `isPrefixOf` str) || (tempPrefix `isPrefixOf` str) 
---
---tidySymbols :: RefType -> RefType
---tidySymbols = everywhere (mkT dropSuffix) 
---  where dropSuffix = {- stringSymbol -} S . takeWhile (/= symSep) . symbolString
---        -- dropQualif = stringSymbol . dropModuleNames . symbolString 
---
---tidyDSymbols :: RefType -> RefType
---tidyDSymbols = tidy pool getS putS 
---  where getS   sy  = let str = symbolString sy in 
---                     if "ds_" `isPrefixOf` str then Just str else Nothing
---        putS _ str = stringSymbol str 
---        pool       = ["x" ++ show i | i <- [1..]]
---
---readSymbols :: (Data a) => a -> S.HashSet Symbol
---readSymbols = everything S.union (S.empty `mkQ` grabRead)
---  where grabRead (EVar x) = S.singleton x
---        grabRead _        = S.empty
 
 ----------------------------------------------------------------
 ------------------- Converting to Fixpoint ---------------------
