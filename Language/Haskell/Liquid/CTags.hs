@@ -23,10 +23,10 @@ module Language.Haskell.Liquid.CTags (
 import Var
 import CoreSyn
 
-import qualified Data.List  as L
-import qualified Data.Set   as S
-import qualified Data.Map   as M
-import qualified Data.Graph as G
+import qualified Data.List              as L
+import qualified Data.HashSet           as S
+import qualified Data.HashMap.Strict    as M
+import qualified Data.Graph             as G
 
 import Language.Haskell.Liquid.Misc         (mapSnd, traceShow)
 import Language.Haskell.Liquid.Fixpoint     (Tag)

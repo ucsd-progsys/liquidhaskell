@@ -33,10 +33,10 @@ import Control.Exception.Base
 import Control.Applicative      ((<$>))
 import Data.Monoid              (mconcat)
 import Data.Maybe (fromMaybe)
-import qualified Data.Map as M
+import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet        as S
 import Data.Bifunctor
 import Data.List (foldl')
-import qualified Data.Set as S
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import qualified Language.Haskell.Liquid.Fixpoint   as F

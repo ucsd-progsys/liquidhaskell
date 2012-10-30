@@ -4,7 +4,7 @@ module Language.Haskell.Liquid.FixInterface (solve, resultExit) where
 
 import Data.Functor
 import Data.List
-import Data.Map hiding (map, filter) 
+import qualified Data.HashMap.Strict
 import System.IO        (withFile, IOMode (..))
 import System.Exit
 import Text.Printf

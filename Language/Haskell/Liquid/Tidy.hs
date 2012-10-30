@@ -6,9 +6,9 @@ import Data.Generics.Schemes
 import Data.Generics.Aliases
 import Data.Data
 import Control.Monad.State
-import qualified Data.Map as M
+import qualified Data.HashMap.Strict as M
 
-data TidyS = T { memo :: M.Map String String
+data TidyS = T { memo :: M.HashMap String String
                , pool :: [String] }
 
 type TidyM = State TidyS
