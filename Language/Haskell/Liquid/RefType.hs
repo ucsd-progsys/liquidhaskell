@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleContexts, ScopedTypeVariables, NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, DeriveDataTypeable, RankNTypes, GADTs #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleContexts, ScopedTypeVariables, NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, RankNTypes, GADTs #-}
 
 {- Refinement Types Mirroring the GHC Type definition -}
 
@@ -54,6 +54,7 @@ import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon, eqDat
 
 import Data.Monoid      hiding ((<>))
 import Data.Maybe               (fromMaybe)
+import Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S 
 import qualified Data.List as L
@@ -81,7 +82,7 @@ data PVar t
        , ptype :: !t
        , pargs :: ![(t, Symbol, Symbol)]
        }
-	deriving (Data, Typeable, Show)
+	deriving (Show) -- (Data, Typeable, Show)
 
 instance Eq (PVar t) where
   pv == pv' = (pname pv == pname pv') {- UNIFY: What about: && eqArgs pv pv' -}
@@ -100,7 +101,7 @@ instance (NFData a) => NFData (PVar a) where
 --------------------------------------------------------------------
 
 type UsedPVar      = PVar ()
-newtype Predicate  = Pr [UsedPVar] deriving (Data, Typeable) 
+newtype Predicate  = Pr [UsedPVar] -- deriving (Data, Typeable) 
 
 pdTrue         = Pr []
 pdVar v        = Pr [uPVar v]
@@ -189,17 +190,17 @@ data RType p c tv r
     }
 
   | ROth  !String 
-  deriving (Data, Typeable)
+  -- deriving (Data, Typeable)
 
 
 data Ref s m 
   = RMono s 
   | RPoly m
-  deriving (Data, Typeable)
+  -- deriving (Data, Typeable)
 
 data UReft r
   = U { ur_reft :: !r, ur_pred :: !Predicate }
-  deriving (Data, Typeable)
+  -- deriving (Data, Typeable)
 
 type BRType     = RType String String String   
 type RRType     = RType Class  RTyCon RTyVar   
@@ -401,7 +402,7 @@ eqRSort _ _
 --------- Wrappers for GHC Type Elements ---------------------------
 --------------------------------------------------------------------
 
-newtype RTyVar = RTV TyVar deriving (Data, Typeable)
+newtype RTyVar = RTV TyVar -- deriving (Data, Typeable)
 
 instance Eq RTyVar where
   RTV α == RTV α' = tvId α == tvId α'
@@ -409,11 +410,14 @@ instance Eq RTyVar where
 instance Ord RTyVar where
   compare (RTV α) (RTV α') = compare (tvId α) (tvId α')
 
+instance Hashable RTyVar where
+  hash (RTV α) = hash α
+
 data RTyCon = RTyCon 
   { rTyCon     :: !TC.TyCon         -- GHC Type Constructor
   , rTyConPs   :: ![RPVar]          -- Predicate Parameters
   }
-  deriving (Data, Typeable)
+  -- deriving (Data, Typeable)
 
 instance Ord RTyCon where
   compare x y = compare (rTyCon x) (rTyCon y)
@@ -507,7 +511,7 @@ expandRApp _ t
 
 appRTyCon tyi rc@(RTyCon c []) ts = RTyCon c ps'
   where ps' = map (subts (zip (RTV <$> αs) ({- PREDARGS toType -} toRSort <$> ts))) (rTyConPs rc')
-        rc' = M.findWithDefault rc c tyi
+        rc' = M.lookupDefault rc c tyi
         αs  = TC.tyConTyVars $ rTyCon rc'
 appRTyCon _   (RTyCon c ps) ts = RTyCon c ps'
   where ps' = map (subts (zip (RTV <$> αs) ({- PREDARGS toType -} toRSort <$> ts))) ps
@@ -831,15 +835,18 @@ instance GetPVar Refa where
 instance GetPVar Reft where
   getUPVars _ = []
 
-instance (Data r, Typeable r, GetPVar r) 
-          => GetPVar (RType Class RTyCon RTyVar r) where
-  getUPVars = everything (++) ([] `mkQ` go) 
-    where go (ref :: r) = getUPVars ref
+instance GetPVar r => GetPVar (RType p c tv r) where
+  getUPVars = foldReft (\r acc -> getUPVars r ++ acc) [] 
 
-instance (Data r2, Typeable r2, GetPVar r2, GetPVar r1) 
-         => GetPVar (Ref r1 (RType Class RTyCon RTyVar r2)) where
-  getUPVars (RMono r) = getUPVars r
-  getUPVars (RPoly t) = getUPVars t
+--instance (Data r, Typeable r, GetPVar r) 
+--          => GetPVar (RType Class RTyCon RTyVar r) where
+--  getUPVars = everything (++) ([] `mkQ` go) 
+--    where go (ref :: r) = getUPVars ref
+--
+--instance (Data r2, Typeable r2, GetPVar r2, GetPVar r1) 
+--         => GetPVar (Ref r1 (RType Class RTyCon RTyVar r2)) where
+--  getUPVars (RMono r) = getUPVars r
+--  getUPVars (RPoly t) = getUPVars t
 
 -- mkTrivial = mapReft (\_ -> ())
 
@@ -880,7 +887,7 @@ subsFree m s z@(α, τ, _) (RApp c ts rs r)
 subsFree m s z (RCls c ts)     
   = RCls c (subsFree m s z <$> ts)
 subsFree meet s (α', _, t') t@(RVar α r) 
-  | α == α' && α `S.notMember` s 
+  | α == α' && not (α `S.member` s) 
   = if meet then t' `strengthen` {- subt (α', τ') -} r else t' 
   | otherwise
   = t
@@ -992,63 +999,9 @@ ofPredTree (ClassPred c τs)
 ofPredTree _
   = errorstar "ofPredTree"
 
--------------------------------------------------------------------
---------------------------- SYB Magic -----------------------------
--------------------------------------------------------------------
-
--- reftypeBindVars :: RefType -> S.Set Symbol
--- reftypeBindVars = everything S.union (S.empty `mkQ` grabBind)
---   where grabBind :: RefType -> S.Set Symbol
---         grabBind (RFun x _ _ _) = S.singleton x
-
-readSymbols :: (Data a) => a -> S.Set Symbol
-readSymbols = everything S.union (S.empty `mkQ` grabRead)
-  where grabRead (EVar x) = S.singleton x
-        grabRead _        = S.empty
-
 ---------------------------------------------------------------------
----------- Cleaning Reftypes Up Before Rendering --------------------
+---------- SYB Magic: Cleaning Reftypes Up Before Rendering ---------
 ---------------------------------------------------------------------
-
-tidySpecType :: SpecType -> SpecType
-tidySpecType = tidyDSymbols
-            . tidySymbols 
-            . tidyFunBinds
-            . tidyLocalRefas 
-            . tidyTyVars 
-
-tidyFunBinds :: SpecType -> SpecType
-tidyFunBinds t = everywhere (mkT $ dropBind xs) t 
-  where xs = readSymbols t
-        dropBind :: S.Set Symbol -> RefType -> RefType
-        dropBind xs (RFun x t1 t2 r)
-          | x `S.member` xs = RFun x t1 t2 r
-          | otherwise       = RFun nonSymbol t1 t2 r
-        dropBind _ z        = z
-
-tidyTyVars :: SpecType -> SpecType
-tidyTyVars = tidy pool getS putS 
-  where getS (α :: TyVar)   = Just (symbolString $ varSymbol α)
-        putS (_ :: TyVar) x = stringTyVar x
-        pool          = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
-
-tidyLocalRefas :: SpecType -> SpecType
-tidyLocalRefas = everywhere (mkT dropLocals) 
-  where dropLocals = filter (not . Fold.any isTmp . readSymbols) . flattenRefas
-        isTmp x    = let str = symbolString x in 
-                     (anfPrefix `isPrefixOf` str) || (tempPrefix `isPrefixOf` str) 
-
-tidySymbols :: SpecType -> SpecType
-tidySymbols = everywhere (mkT dropSuffix) 
-  where dropSuffix = {- stringSymbol -} S . takeWhile (/= symSep) . symbolString
-        -- dropQualif = stringSymbol . dropModuleNames . symbolString 
-
-tidyDSymbols :: SpecType -> SpecType
-tidyDSymbols = tidy pool getS putS 
-  where getS   sy  = let str = symbolString sy in 
-                     if "ds_" `isPrefixOf` str then Just str else Nothing
-        putS _ str = stringSymbol str 
-        pool       = ["x" ++ show i | i <- [1..]]
 
 ----------------------------------------------------------------
 ------------------- Converting to Fixpoint ---------------------
@@ -1134,13 +1087,6 @@ toType (REx _ _ t)
 toType (ROth _)      
   = errorstar $ "toType fails: ROth "
 
--- txTyVarBinds :: RType p c tv pv r -> RType p c tv pv' r
--- txTyVarBinds = 
--- mapBind fb
--- where fb (RP π) = RP (stringTyVarTy <$> π)
---       fb (RB x) = RB x
---       fb (RV α) = RV α
-
 mapBind f (RAllT α t)      = RAllT α (mapBind f t)
 mapBind f (RAllP π t)      = RAllP π (mapBind f t)
 mapBind f (RFun b t1 t2 r) = RFun (f b)  (mapBind f t1) (mapBind f t2) r
@@ -1208,7 +1154,7 @@ data DataDecl   = D String
                     [String] 
                     [PVar BSort] 
                     [(String, [(String, BareType)])] 
-                  deriving (Data, Typeable, Show)
+                  deriving (Show) --Data, Typeable
 
 -- | Refinement Type Aliases
 
@@ -1216,7 +1162,7 @@ data RTAlias tv ty
   = RTA { rtName :: String
         , rtArgs :: [tv]
         , rtBody :: ty              
-        } deriving (Data, Typeable)
+        } -- deriving (Data, Typeable)
 
 instance (Show tv, Show ty) => Show (RTAlias tv ty) where
   show (RTA n args t) = "reftype " ++ n ++ " " ++ as ++ " = " ++ show t 

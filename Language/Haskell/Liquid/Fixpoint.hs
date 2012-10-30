@@ -70,9 +70,9 @@ import Data.Hashable
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Data.Generics.Schemes
-import Data.Generics.Aliases
-import Data.Data    hiding  (TyCon, tyConName)
+-- import Data.Generics.Schemes
+-- import Data.Generics.Aliases
+-- import Data.Data    hiding  (TyCon, tyConName)
 import Data.Maybe           (fromMaybe)
 
 import Language.Haskell.Liquid.Misc
@@ -191,18 +191,19 @@ type TCEmb a    = M.HashMap a FTycon
 --         tg = text tagName
 -- }}}
 
-getSymbols = predSymbols 
 
-getConstants :: Expr -> [(Symbol, Sort, Bool)]
-getConstants = go  
-  where 
-    -- go (EDat s so)    = [(s, so, True)]
-    go (ELit s so)    = [(s, so, False)]
-    go (EApp _ es)    = concatMap go es
-    go (EBin _ e1 e2) = concatMap go [e1, e2] 
-    go (EIte _ e1 e2) = concatMap go [e1, e2]
-    go (ECst e _)     = go e  
-    go _              = [] 
+-- getConstants :: Expr -> [(Symbol, Sort, Bool)]
+-- getConstants = go  
+--   where 
+--     -- go (EDat s so)    = [(s, so, True)]
+--     go (ELit s so)    = [(s, so, False)]
+--     go (EApp _ es)    = concatMap go es
+--     go (EBin _ e1 e2) = concatMap go [e1, e2] 
+--     go (EIte _ e1 e2) = concatMap go [e1, e2]
+--     go (ECst e _)     = go e  
+--     go _              = [] 
+
+getSymbols = predSymbols 
 
 exprSymbols :: Expr -> [Symbol]
 exprSymbols = go
