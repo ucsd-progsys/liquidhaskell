@@ -9,6 +9,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.List as L
 import Control.Applicative      ((<$>))
 import Control.Monad            (forM_)
+import Data.Maybe               (fromJust)
 import Data.List 
 import Data.Maybe (catMaybes, fromMaybe)
 
@@ -287,6 +288,7 @@ checkExitCode _   (ExitSuccess)   = return ()
 checkExitCode cmd (ExitFailure n) = errorstar $ "cmd: " ++ cmd ++ " failure code " ++ show n 
 
 
-hashMapToAscList = sortBy (\x y -> compare (fst x) (fst y)) . M.toList
+hashMapToAscList    = sortBy (\x y -> compare (fst x) (fst y)) . M.toList
+hashMapMapWithKey f = fromJust . M.traverseWithKey (\k v -> Just (f k v)) 
 
 

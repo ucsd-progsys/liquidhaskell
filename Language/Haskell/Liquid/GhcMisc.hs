@@ -22,6 +22,8 @@ import           Outputable
 import           RdrName                      (GlobalRdrEnv)
 import           Type                         (liftedTypeKind)
 import           Var
+import           FastString                   (uniq)
+import           SrcLoc                       hiding (L)
 import           Data.Char                    (isLower, isSpace)
 import           Data.Hashable
 import qualified Data.HashSet                 as S    
@@ -127,7 +129,9 @@ instance Hashable Var where
 instance Hashable TyCon where
   hash = uniqueHash 
 
-
+instance Hashable SrcSpan where
+  hash (UnhelpfulSpan s) = hash (uniq s) 
+  hash (RealSrcSpan s)   = hash (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
 
 uniqueHash = hash . getKey . getUnique
 
