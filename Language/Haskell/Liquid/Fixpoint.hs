@@ -64,7 +64,6 @@ import TyCon                (TyCon, isTupleTyCon)
 import Outputable
 import Data.Monoid hiding   ((<>))
 import Data.Functor
-import Data.Foldable
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
 import Data.List            (sort)
 import Data.Hashable
@@ -192,10 +191,12 @@ type TCEmb a    = M.HashMap a FTycon
 --         tg = text tagName
 -- }}}
 
+getSymbols = predSymbols 
+
 getConstants :: Expr -> [(Symbol, Sort, Bool)]
 getConstants = go  
   where 
-    go (EDat s so)    = [(s, so, True)]
+    -- go (EDat s so)    = [(s, so, True)]
     go (ELit s so)    = [(s, so, False)]
     go (EApp _ es)    = concatMap go es
     go (EBin _ e1 e2) = concatMap go [e1, e2] 
@@ -204,8 +205,29 @@ getConstants = go
     go _              = [] 
 
 exprSymbols :: Expr -> [Symbol]
+exprSymbols = go
+  where 
+    go (EVar x)        = [x]
+    -- go (EDat x _)      = [x]
+    go (ELit x _)      = [x]
+    go (EApp f es)     = f : concatMap go es
+    go (EBin _ e1 e2)  = go e1 ++ go e2 
+    go (EIte p e1 e2)  = predSymbols p ++ go e1 ++ go e2 
+    go (ECst e _)      = go e
+    go _               = []
 
 predSymbols :: Pred -> [Symbol]
+predSymbols = go
+  where 
+    go (PAnd ps)        = concatMap go ps
+    go (POr ps)         = concatMap go ps
+    go (PNot p)         = go p
+    go (PIff p1 p2)     = go p1 ++ go p2
+    go (PImp p1 p2)     = go p1 ++ go p2
+    go (PBexp e)        = exprSymbols e
+    go (PAtom _ e1 e2)  = exprSymbols e1 ++ exprSymbols e2
+    go (PAll xts p)     = (fst <$> xts) ++ go p
+    go _                = []
 
 -- getSymbols = everything (++) ([] `mkQ` f)
 --   where f x@(S _) = [x]
@@ -225,7 +247,7 @@ predSymbols :: Pred -> [Symbol]
 reftKVars :: Reft -> [Symbol]
 reftKVars (Reft (_,ras)) = [k | (RKvar k _) <- ras]
 
-infoConstant (c, so, _)
+infoConstant (c, so)
   = text "constant" <+> toFix c <+> text ":" <+> toFix so <> blankLine <> blankLine 
 
 ---------------------------------------------------------------
@@ -263,15 +285,16 @@ instance (Fixpoint a, Fixpoint b) => Fixpoint (a,b) where
 data FInfo a = FI { cs   :: ![SubC a]
                   , ws   :: ![WfC a ] 
                   , gs   :: !FEnv
+                  , lits :: ![(Symbol, Sort)]
                   , kuts :: Kuts 
                   } 
 
 toFixpoint x' = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$  csDoc x' $+$ wsDoc x'
-  where conDoc     = vcat . map infoConstant . S.toList . S.fromList . getConstants 
+  where conDoc     = vcat . map infoConstant . lits
         csDoc      = vcat . map toFix . cs 
         wsDoc      = vcat . map toFix . ws 
         kutsDoc    = toFix . kuts
-        gsDoc      = vcat . map infoConstant . map (\(x, (RR so _)) -> (x, so, False)) . hashMapToAscList . (\(SE e) -> e) . gs
+        gsDoc      = vcat . map (\(x, (RR so _)) -> infoConstant (x, so)) . hashMapToAscList . (\(SE e) -> e) . gs
 
 
 ----------------------------------------------------------------------
@@ -516,7 +539,7 @@ data Bop  = Plus | Minus | Times | Div | Mod
 
 data Expr = ECon !Constant 
           | EVar !Symbol
-          | EDat !Symbol !Sort
+          -- | EDat !Symbol !Sort
           | ELit !Symbol !Sort
           | EApp !Symbol ![Expr]
           | EBin !Bop !Expr !Expr
@@ -550,7 +573,7 @@ instance Fixpoint Bop where
 instance Fixpoint Expr where
   toFix (ECon c)       = toFix c 
   toFix (EVar s)       = toFix s
-  toFix (EDat s _)     = toFix s 
+  -- toFix (EDat s _)     = toFix s 
   toFix (ELit s _)     = toFix s
   toFix (EApp f es)    = (toFix f) <> (parens $ toFix es) 
   toFix (EBin o e1 e2) = parens $ toFix e1 <+> toFix o <+> toFix e2
@@ -937,7 +960,7 @@ instance NFData Bop
 instance NFData Expr where
   rnf (ECon x)        = rnf x
   rnf (EVar x)        = rnf x
-  rnf (EDat x1 x2)    = rnf x1 `seq` rnf x2
+  -- rnf (EDat x1 x2)    = rnf x1 `seq` rnf x2
   rnf (ELit x1 x2)    = rnf x1 `seq` rnf x2
   rnf (EApp x1 x2)    = rnf x1 `seq` rnf x2
   rnf (EBin x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
@@ -999,7 +1022,7 @@ instance MapSymbol Pred where
 
 instance MapSymbol Expr where
   mapSymbol f (EVar s)       = EVar $ f s
-  mapSymbol f (EDat s so)    = EDat (f s) so
+  -- mapSymbol f (EDat s so)    = EDat (f s) so
   mapSymbol f (ELit s so)    = ELit (f s) so
   mapSymbol f (EApp s es)    = EApp (f s) (mapSymbol f <$> es)
   mapSymbol f (EBin b e1 e2) = EBin b (mapSymbol f e1) (mapSymbol f e2)
