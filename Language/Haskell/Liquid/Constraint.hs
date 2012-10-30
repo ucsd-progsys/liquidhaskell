@@ -454,6 +454,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , specQuals  :: ![Qualifier]
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
+                     , lits       :: ![(F.Symbol, F.Sort)]
                      } -- deriving (Data, Typeable)
 
 instance Outputable CGInfo where 
@@ -470,6 +471,8 @@ ppr_CGInfo cgi
   $$ (ppr $ fixWfs cgi)
   $$ (text "*********** Fixpoint Kut Variables ************")
   $$ (ppr $ kuts cgi)
+  $$ (text "*********** Literals in Source     ************")
+  $$ (ppr $ lits cgi)
 
 
 type CG = State CGInfo
@@ -484,9 +487,13 @@ initCGI info = CGInfo {
   , annotMap   = AI M.empty
   , tyConInfo  = makeTyConInfo $ tconsP $ spec info 
   , specQuals  = specificationQualifiers info
-  , tyConEmbed = tcEmbeds $ spec info 
+  , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
-  }
+  , lits       = coreBindLits tce $ cbs info 
+  } where tce  = tcEmbeds $ spec info
+
+coreBindLits tce cbs = [ (x, so) | (_, F.ELit x so) <- lconsts]
+  where lconsts      = literalConst tce <$> literals cbs
 
 -- showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 -- showTyV _           = error "Constraint : showTyV"
@@ -956,7 +963,7 @@ instance NFData WfC where
     = rnf x1 `seq` rnf x2
 
 instance NFData CGInfo where
-  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 _ x9 _ x10) 
+  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 _ x9 _ x10 x11) 
     = ({-# SCC "CGIrnf1" #-} rnf x1) `seq` 
       ({-# SCC "CGIrnf2" #-} rnf x2) `seq` 
       ({-# SCC "CGIrnf3" #-} rnf x3) `seq` 
@@ -965,7 +972,8 @@ instance NFData CGInfo where
       ({-# SCC "CGIrnf6" #-} rnf x6) `seq`
       ({-# SCC "CGIrnf7" #-} rnf x7) `seq`
       ({-# SCC "CGIrnf8" #-} rnf x9) `seq`
-      ({-# SCC "CGIrnf8" #-} rnf x10) 
+      ({-# SCC "CGIrnf8" #-} rnf x10) `seq`
+      ({-# SCC "CGIrnf8" #-} rnf x11) 
 
 -------------------------------------------------------------------------------
 --------------------- Reftypes from Fixpoint Expressions ----------------------
