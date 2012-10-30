@@ -167,7 +167,7 @@ tr_foldr' ::  (a -> b -> b) -> b -> [a] -> b
 tr_foldr' f b   = foldl' (flip f) b . tr_reverse 
 
 safeZip msg xs ys 
-  | length xs == length ys 
+  | nxs == nys 
   = zip xs ys
   | otherwise              
   = errorstar $ "safeZip called on non-eq-sized lists (nxs = " ++ show nxs ++ ", nys = " ++ show nys ++ ") : " ++ msg
@@ -176,7 +176,7 @@ safeZip msg xs ys
 
 
 safeZipWith msg f xs ys 
-  | length xs == length ys 
+  | nxs == nys 
   = zipWith f xs ys
   | otherwise              
   = errorstar $ "safeZipWith called on non-eq-sized lists (nxs = " ++ show nxs ++ ", nys = " ++ show nys ++ ") : " ++ msg
