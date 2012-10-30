@@ -35,7 +35,7 @@ module Language.Haskell.Liquid.RefType (
   , tidySpecType
   , varSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalReft, literalConst
-  , primOrderingSort
+  -- , primOrderingSort
   , fromRMono, fromRPoly, idRMono
   , isTrivial
   ) where
@@ -1068,8 +1068,8 @@ pprShort    =  dropModuleNames . showPpr
 dataConSymbol ::  DataCon -> Symbol
 dataConSymbol = varSymbol . dataConWorkId
 
-ordCon s = EDat (dataConSymbol s) primOrderingSort 
-primOrderingSort = typeSort M.empty $ dataConRepType eqDataCon
+-- ordCon s = EDat (dataConSymbol s) primOrderingSort 
+-- primOrderingSort = typeSort M.empty $ dataConRepType eqDataCon
 
 -- TODO: turn this into a map lookup?
 dataConReft ::  DataCon -> [Symbol] -> Reft
@@ -1078,8 +1078,8 @@ dataConReft c []
   = Reft (vv, [RConc $ (PBexp (EVar vv))]) 
   | c == falseDataCon
   = Reft (vv, [RConc $ PNot (PBexp (EVar vv))]) 
-  | c `elem`  [gtDataCon, ltDataCon, eqDataCon]
-  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon c))]) 
+--  | c `elem`  [gtDataCon, ltDataCon, eqDataCon]
+--  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon c))]) 
 dataConReft c [x] 
   | c == intDataCon 
   = Reft (vv, [RConc (PAtom Eq (EVar vv) (EVar x))]) 

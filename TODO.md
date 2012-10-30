@@ -16,6 +16,13 @@ TODO
 
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
+Performance: Collateral Damage
+==============================
+
+- `ordCon`, `dataConReft` : find way to get this information WITHOUT hardwiring.
+
+
+
 Performance
 ===========
 
