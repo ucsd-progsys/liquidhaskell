@@ -274,7 +274,7 @@ transParseSpecs exts paths seenFiles spec newFiles
        impFiles  <- moduleImports exts paths [symbolString x | x <- Ms.imports newSpec]
        let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
        let spec'      = spec `mappend` newSpec
-       let newFiles'  = [f | f <- impFiles, f `S.notMember` seenFiles']
+       let newFiles'  = [f | f <- impFiles, not (f `S.member` seenFiles')]
        transParseSpecs exts paths seenFiles' spec' newFiles'
  
 parseSpec (name, file) 
