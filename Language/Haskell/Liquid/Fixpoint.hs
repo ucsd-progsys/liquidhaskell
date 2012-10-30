@@ -64,6 +64,7 @@ import TyCon                (TyCon, isTupleTyCon)
 import Outputable
 import Data.Monoid hiding   ((<>))
 import Data.Functor
+import Data.Foldable
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
 import Data.List            (sort)
 import Data.Hashable
@@ -190,6 +191,25 @@ type TCEmb a    = M.HashMap a FTycon
 --         d3 = text "qualif TNE" <> d <> text "(v:ptr) : (" <> tg <> text "([v]) !=  " <> d <> text ")" 
 --         tg = text tagName
 -- }}}
+
+getConstants :: Expr -> [(Symbol, Sort, Bool)]
+getConstants = go  
+  where 
+    go (EDat s so)    = [(s, so, True)]
+    go (ELit s so)    = [(s, so, False)]
+    go (EApp _ es)    = concatMap go es
+    go (EBin _ e1 e2) = concatMap go [e1, e2] 
+    go (EIte _ e1 e2) = concatMap go [e1, e2]
+    go (ECst e _)     = go e  
+    go _              = [] 
+
+exprSymbols :: Expr -> [Symbol]
+
+predSymbols :: Pred -> [Symbol]
+
+-- getSymbols = everything (++) ([] `mkQ` f)
+--   where f x@(S _) = [x]
+--         f _       = []
 
 -- getConstants :: (Data a) => a -> [(Symbol, Sort, Bool)]
 -- getConstants = everything (++) ([] `mkQ` f)
@@ -987,21 +1007,7 @@ instance MapSymbol Expr where
   mapSymbol f (ECst e s)     = ECst (mapSymbol f e) s 
   mapSymbol _ e              = e
 
----------------------------------------------------------------------------
--------------- Foldable Instances -----------------------------------------
----------------------------------------------------------------------------
-
-instance Foldable Sort where
-  foldr = error "TODO"
-
-instance Foldable Expr where
-  foldr = error "TODO"
-
-instance Foldable Pred where
-  foldr = error "TODO"
-
-
----------------------------------------------------------------------------
+----------------------------------------------------------------------------
 -------------- Hashable Instances -----------------------------------------
 ---------------------------------------------------------------------------
 
