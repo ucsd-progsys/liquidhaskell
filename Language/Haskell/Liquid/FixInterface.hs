@@ -4,13 +4,13 @@ module Language.Haskell.Liquid.FixInterface (solve, resultExit) where
 
 import Data.Functor
 import Data.List
-import qualified Data.HashMap.Strict
+import qualified Data.HashMap.Strict as M
 import System.IO        (withFile, IOMode (..))
 import System.Exit
 import Text.Printf
 import Outputable hiding (empty)
 
-import Language.Haskell.Liquid.Fixpoint         hiding (kuts)
+import Language.Haskell.Liquid.Fixpoint         hiding (kuts, lits)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.Parse            (rr)
@@ -19,8 +19,8 @@ import Language.Haskell.Liquid.Constraint       (CGInfo (..))
 solve fn hqs cgi
   =     {-# SCC "Solve" #-}  execFq fn hqs qs fi
     >>= {-# SCC "exitFq" #-} exitFq fn cm 
-  where fi  = FI (elems cm) (fixWfs cgi) (globals cgi) (kuts cgi)
-        cm  = fromAscList $ zipWith (\i c -> (i, c {sid = Just i})) [1..] $ fixCs cgi 
+  where fi  = FI (M.elems cm) (fixWfs cgi) (globals cgi) (lits cgi) (kuts cgi)  
+        cm  = M.fromList $ zipWith (\i c -> (i, c {sid = Just i})) [1..] $ fixCs cgi 
         qs  = specQuals cgi
         
 execFq fn hqs qs fi -- globals cs ws ks 
@@ -40,7 +40,7 @@ execCmd fp fn = printf "%s -notruekvars -refinesort -noslice -nosimple -strictso
         fo    = extFileName Out fn
 
 exitFq _ _ (ExitFailure n) | (n /= 1) 
-  = return (Crash [] "Unknown Error", empty)
+  = return (Crash [] "Unknown Error", M.empty)
 exitFq fn cm _ 
   = do str <- {-# SCC "readOut" #-} readFile (extFileName Out fn)
        let (x, y) = {-# SCC "parseFixOut" #-} rr ({-# SCC "sanitizeFixpointOutput" #-} sanitizeFixpointOutput str)
