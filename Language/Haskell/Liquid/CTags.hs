@@ -35,7 +35,7 @@ import Language.Haskell.Liquid.GhcInterface (freeVars)
 -- | The @TagKey@ is the top-level binder, and @Tag@ is a singleton Int list
 
 type TagKey = Var
-type TagEnv = M.Map TagKey Tag
+type TagEnv = M.HashMap TagKey Tag
 
 -- TODO: use the "callgraph" SCC to do this numbering.
 
@@ -51,13 +51,13 @@ makeTagEnv = M.map (:[]) . callGraphRanks . makeCallGraph
 -- makeTagEnv = M.fromList . (`zip` (map (:[]) [1..])). L.sort . map fst . concatMap bindEqns
 
 getTag :: TagKey -> TagEnv -> Tag
-getTag = M.findWithDefault defaultTag
+getTag = M.lookupDefault defaultTag
 
 ------------------------------------------------------------------------------------------------------
 
 type CallGraph = [(Var, [Var])] -- caller-callee pairs
 
-callGraphRanks :: CallGraph -> M.Map Var Int
+callGraphRanks :: CallGraph -> M.HashMap Var Int
 -- callGraphRanks cg = traceShow ("CallGraph Ranks: " ++ show cg) $ callGraphRanks' cg
 
 callGraphRanks  = M.fromList . concat . index . mkScc
