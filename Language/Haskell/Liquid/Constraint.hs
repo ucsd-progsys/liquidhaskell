@@ -49,9 +49,9 @@ import Language.Haskell.Liquid.Predicates
 import Language.Haskell.Liquid.GhcMisc          (tracePpr, tickSrcSpan)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Qualifier        
-import Data.Generics.Schemes
-import Data.Generics.Aliases
-import Data.Data
+-- import Data.Generics.Schemes
+-- import Data.Generics.Aliases
+-- import Data.Data
 import Control.DeepSeq
 
 -----------------------------------------------------------------------

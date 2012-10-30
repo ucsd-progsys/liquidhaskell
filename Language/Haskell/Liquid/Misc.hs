@@ -2,7 +2,7 @@
 
 module Language.Haskell.Liquid.Misc where
 
--- import Data.Hashable
+import Data.Hashable
 import qualified Control.Exception   as Ex
 -- import qualified Data.HashSet        as S 
 import qualified Data.HashMap.Strict as M
@@ -287,8 +287,12 @@ executeShellCommand phase cmd
 checkExitCode _   (ExitSuccess)   = return ()
 checkExitCode cmd (ExitFailure n) = errorstar $ "cmd: " ++ cmd ++ " failure code " ++ show n 
 
-
+hashMapToAscList    ::  Ord a => M.HashMap a b -> [(a, b)]
 hashMapToAscList    = sortBy (\x y -> compare (fst x) (fst y)) . M.toList
+
+hashMapMapWithKey   :: (k -> v1 -> v2) -> M.HashMap k v1 -> M.HashMap k v2
 hashMapMapWithKey f = fromJust . M.traverseWithKey (\k v -> Just (f k v)) 
 
+hashMapMapKeys      :: (Eq k, Hashable k) => (t -> k) -> M.HashMap t v -> M.HashMap k v
+hashMapMapKeys f    = M.fromList . fmap (mapFst f) . M.toList 
 

@@ -49,7 +49,7 @@ import Type (expandTypeSynonyms)
 import Var
 import Literal
 import Type             (isPredTy, substTyWith, classifyPredType, PredTree(..), predTreePredType)
-import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon, eqDataCon, ltDataCon, gtDataCon)
+import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon) -- , eqDataCon, ltDataCon, gtDataCon)
 
 import Data.Monoid      hiding ((<>))
 import Data.Maybe               (fromMaybe)
@@ -60,18 +60,18 @@ import qualified Data.List as L
 import Control.Applicative  hiding (empty)   
 import Control.DeepSeq
 import Control.Monad  (liftM, liftM2, liftM3)
-import Data.Generics.Schemes
-import Data.Generics.Aliases
-import Data.Data            hiding (TyCon)
+-- import Data.Generics.Schemes
+-- import Data.Generics.Aliases
+-- import Data.Data            hiding (TyCon)
 import qualified Data.Foldable as Fold
 
 -- import Language.Haskell.Liquid.Tidy
 
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GhcMisc (tvId, stringTyVar, intersperse, dropModuleNames, getDataConVarUnique)
+import Language.Haskell.Liquid.GhcMisc (tvId, intersperse, dropModuleNames, getDataConVarUnique)
 import Language.Haskell.Liquid.FileNames (listConName, tupConName, boolConName)
-import Data.List (sort, isPrefixOf, isSuffixOf, foldl')
+import Data.List (sort, isSuffixOf, foldl')
 
 --------------------------------------------------------------------
 -- | Predicate Variables -------------------------------------------
@@ -241,7 +241,7 @@ uTop r          = U r top
 -------------- (Class) Predicates for Valid Refinement Types -------
 --------------------------------------------------------------------
 
-class (Monoid r, Subable r, Outputable r) => Reftable r where 
+class (Monoid r, Subable r, GetPVar r, Outputable r) => Reftable r where 
   isTauto :: r -> Bool
   ppTy    :: r -> SDoc -> SDoc
   
@@ -307,7 +307,7 @@ instance Subable r => Subable (UReft r) where
   subst s (U r z) = U (subst s r) z
 
 instance Subable Predicate where
-  syms (Pr ps)    = [] -- TODO: concatMap syms ps 
+  syms (Pr _)     = [] -- TODO: concatMap syms ps 
   subst _         = id 
 
 instance Subable (Ref F.Reft RefType) where
@@ -838,6 +838,13 @@ instance GetPVar Reft where
 
 instance GetPVar r => GetPVar (RType p c tv r) where
   getUPVars = foldReft (\r acc -> getUPVars r ++ acc) [] 
+
+instance GetPVar r => GetPVar (Ref r (RType p c tv r)) where
+  getUPVars (RMono r) = getUPVars r
+  getUPVars (RPoly t) = getUPVars t
+
+  -- foldReft (\r acc -> getUPVars r ++ acc) [] 
+
 
 --instance (Data r, Typeable r, GetPVar r) 
 --          => GetPVar (RType Class RTyCon RTyVar r) where
