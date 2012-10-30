@@ -30,8 +30,8 @@ import Control.Monad (forM, liftM)
 import Data.Monoid hiding ((<>))
 import Data.List (intercalate, foldl', find, (\\))
 import Data.Maybe (catMaybes)
-import qualified Data.Set   as S
-import qualified Data.Map   as M
+import qualified Data.HashSet        as S
+import qualified Data.HashMap.Strict as M
 
 import System.Directory (doesFileExist)
 import Language.Haskell.Liquid.Fixpoint hiding (Expr) 

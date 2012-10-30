@@ -28,7 +28,6 @@ import Control.Monad.Error      hiding (forM)
 import Data.Data                hiding (TyCon, tyConName)
 import Data.Bifunctor
 
-import qualified Data.Map as M
 
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Fixpoint
@@ -36,6 +35,8 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Misc
+
+import qualified Data.HashMap.Strict as M
 import qualified Control.Exception as Ex
 
 ------------------------------------------------------------------

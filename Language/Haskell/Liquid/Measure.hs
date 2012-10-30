@@ -17,7 +17,7 @@ import GHC
 import Var
 import Outputable hiding (empty)
 import DataCon
-import Data.Map hiding (null, partition, foldl')
+import qualified Data.HashMap.Strict as M 
 import Data.Data
 import Data.Monoid hiding ((<>))
 import Data.List (foldl1')

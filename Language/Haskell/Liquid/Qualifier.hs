@@ -17,7 +17,7 @@ import Control.DeepSeq
 import Control.Applicative      ((<$>))
 import Data.List                (delete)
 import Data.Maybe               (fromMaybe)
-import qualified Data.Set as S
+import qualified Data.HashSet as S
 import Data.Bifunctor           (second) 
 import Data.Data
 
