@@ -203,7 +203,7 @@ type TCEmb a    = M.HashMap a FTycon
 --     go (ECst e _)     = go e  
 --     go _              = [] 
 
-getSymbols = predSymbols 
+-- getSymbols = predSymbols 
 
 exprSymbols :: Expr -> [Symbol]
 exprSymbols = go
@@ -873,7 +873,7 @@ instance Subable Pred where
 
 instance Subable Refa where
   syms (RConc p)           = syms p
-  syms (RKvar k su')       = [] 
+  syms (RKvar k (Su su'))  = k : concatMap syms (M.elems su') 
   subst su (RConc p)       = RConc   $ subst su p
   subst su (RKvar k su')   = RKvar k $ su' `catSubst` su 
   -- subst _  (RPvar p)     = RPvar p
