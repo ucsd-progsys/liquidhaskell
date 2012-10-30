@@ -5,7 +5,7 @@ module Language.Haskell.Liquid.Parse (
 , hsSpecificationP
 ) where
 
-import TysWiredIn   (eqDataConId, ltDataConId, gtDataConId)
+-- import TysWiredIn   (eqDataConId, ltDataConId, gtDataConId)
 import Control.Monad
 import Text.Parsec
 import Text.Parsec.Expr
@@ -140,7 +140,7 @@ lexprP
 -- LT :: Ordering
 -- GT :: Ordering
 
-wiredSorts = [] 
+-- wiredSorts = [] 
 -- [ ("EQ", (varSymbol eqDataConId, primOrderingSort))
 -- , ("LT", (varSymbol ltDataConId, primOrderingSort))
 -- , ("GT", (varSymbol gtDataConId, primOrderingSort))
