@@ -13,6 +13,12 @@ assume GHC.Real./               :: (Fractional a) => x:a -> y:{v:a | v != 0} -> 
 assume GHC.Real.fromIntegral    :: (Integral a, Num b) => x: a -> {v: b | ((x != 0) => (v != 0))}
 assume GHC.Num.fromInteger      :: (Num a) => x:Integer -> {v:a | v = x }
 
+
+
+assume EQ :: Ordering
+assume LT :: Ordering
+assume GT :: Ordering
+
 measure isJust :: forall a. Maybe a -> Bool 
 isJust (Just x)  = true
 isJust (Nothing) = false

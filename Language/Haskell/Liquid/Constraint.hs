@@ -858,14 +858,6 @@ altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
   where notLiteralReft   = F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = error "Constraint : altReft"
 
--- PREDARGS
--- altRefType t _   (LitAlt l) 
---   = t `strengthen` literalReft l
--- 
--- altRefType t acs DEFAULT    
---   = t `strengthen` (mconcat [notLiteralReft l | LitAlt l <- acs])
---     where notLiteralReft =  F.notExprReft . snd . literalConst 
-
 mkyts γ ys yts 
   = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts
 mkyt (γ, ts) (y, yt)
