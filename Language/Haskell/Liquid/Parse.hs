@@ -13,9 +13,11 @@ import Text.Parsec.Language
 import Text.Parsec.String
 import Text.Printf  (printf)
 import qualified Text.Parsec.Token as Token
+import qualified Data.HashMap.Strict as M
+
 import Control.Applicative ((<$>), (<*))
-import qualified Data.Map as M
 import Data.Char (toLower, isLower, isSpace)
+
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType

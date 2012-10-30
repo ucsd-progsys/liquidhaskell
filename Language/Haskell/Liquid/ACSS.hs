@@ -10,19 +10,22 @@ module Language.Haskell.Liquid.ACSS (
 
 import Language.Haskell.HsColour.Anchors
 import Language.Haskell.HsColour.Classify as Classify
-import Language.Haskell.HsColour.HTML (renderAnchors, renderComment,
-                                       renderNewLinesAnchors, escape)
+import Language.Haskell.HsColour.HTML (renderAnchors, escape)
 import qualified Language.Haskell.HsColour.CSS as CSS
 
 import Data.Maybe  (fromMaybe) 
-import qualified Data.Map as M
-import Data.List   (isPrefixOf, isSuffixOf, findIndex, elemIndices, intercalate)
-import Data.Char   (isLower, isSpace, isAlphaNum)
+import Data.Hashable
+import qualified Data.HashMap.Strict as M
+import Data.List   (isPrefixOf, findIndex, elemIndices, intercalate)
+import Data.Char   (isSpace)
 import Text.Printf
-import Debug.Trace
+import Language.Haskell.Liquid.GhcMisc
 
-newtype AnnMap = Ann (M.Map Loc (String, String))                    
-newtype Loc    = L (Int, Int) deriving (Eq, Ord, Show)
+-- import Debug.Trace
+
+newtype AnnMap = Ann (M.HashMap Loc (String, String))                    
+
+
 
 -- | Formats Haskell source code using HTML and mouse-over annotations 
 hscolour :: Bool     -- ^ Whether to include anchors.
@@ -44,7 +47,7 @@ hsannot  :: Bool             -- ^ Whether to include anchors.
 hsannot anchor tx False z     = hsannot' Nothing anchor tx z
 hsannot anchor tx True (s, m) = concatMap chunk $ litSpans $ joinL $ classify $ inlines s
   where chunk (Code c, l)     = hsannot' (Just l) anchor tx (c, m)
-        chunk (Lit c , l)     = c
+        chunk (Lit c , _)     = c
 
 litSpans :: [Lit] -> [(Lit, Loc)]
 litSpans lits = zip lits $ spans lits
@@ -68,7 +71,7 @@ tokeniseWithCommentTransform :: Maybe (String -> [(TokenType, String)]) -> Strin
 tokeniseWithCommentTransform Nothing  = tokenise
 tokeniseWithCommentTransform (Just f) = concatMap (expand f) . tokenise
   where expand f (Comment, s) = f s
-        expand f z            = [z]
+        expand _ z            = [z]
 
 tokenSpans :: Maybe Loc -> [String] -> [Loc]
 tokenSpans = scanl plusLoc . fromMaybe (L (1, 1)) 
@@ -119,7 +122,6 @@ splitSrcAndAnns s =
                where (codes, _:mname:annots) = splitAt i ls
                      ann   = annotParse mname $ dropWhile isSpace $ unlines annots
                      src   = unlines codes
-                     -- mname = srcModuleName src
 
 srcModuleName :: String -> String
 srcModuleName = fromMaybe "Main" . tokenModule . tokenise
@@ -136,13 +138,13 @@ breakS = "MOUSEOVER ANNOTATIONS"
 annotParse :: String -> String -> AnnMap
 annotParse mname = Ann . M.fromList . parseLines mname 0 . lines
 
-parseLines mname i [] 
+parseLines _ _ [] 
   = []
 parseLines mname i ("":ls)      
   = parseLines mname (i+1) ls
 parseLines mname i (x:f:l:c:n:rest) 
-  | f /= mname -- `isSuffixOf` mname 
-  = {- trace ("wrong annot f = " ++ f ++ " mname = " ++ mname) $ -} parseLines mname (i + 5 + num) rest'
+  | f /= mname
+  = parseLines mname (i + 5 + num) rest'
   | otherwise 
   = (L (line, col), (x, anns)) : parseLines mname (i + 5 + num) rest'
     where line  = (read l) :: Int
@@ -153,8 +155,8 @@ parseLines mname i (x:f:l:c:n:rest)
 parseLines _ i _              
   = error $ "Error Parsing Annot Input on Line: " ++ show i
 
-takeFileName s = map slashWhite s
-  where slashWhite '/' = ' '
+-- takeFileName s = map slashWhite s
+--   where slashWhite '/' = ' '
 
 instance Show AnnMap where
   show (Ann m) = "\n\n" ++ (concatMap ppAnnot $ M.toList m)

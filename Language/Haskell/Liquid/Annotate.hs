@@ -36,7 +36,7 @@ import System.Directory         (copyFile)
 
 import Text.Printf              (printf)
 import qualified Data.Text  as T
-import qualified Data.Map   as M
+import qualified Data.HashMap.Strict   as M
 
 import qualified Language.Haskell.Liquid.ACSS as ACSS
 import Language.Haskell.HsColour.Classify

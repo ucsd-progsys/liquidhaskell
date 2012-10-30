@@ -15,7 +15,7 @@ import           Control.Arrow       (second, (***))
 import           Control.Monad.State
 import           CoreLint
 import           CoreSyn
-import qualified Data.Map            as M
+import qualified Data.HashMap.Strict as M
 import           ErrUtils
 import           Id                  (idOccInfo, setIdInfo)
 import           IdInfo
@@ -26,7 +26,7 @@ import           Type                (mkForAllTys)
 import           TypeRep
 import           Unique              hiding (deriveUnique)
 import           Var
-
+import           Language.Haskell.Liquid.GhcMisc
 
 transformRecExpr :: CoreProgram -> CoreProgram
 transformRecExpr cbs
@@ -204,11 +204,11 @@ mkAlive x
   = x
 
 class Subable a where
- sub   :: M.Map CoreBndr CoreExpr -> a -> a
- subTy :: M.Map TyVar Type -> a -> a
+ sub   :: M.HashMap CoreBndr CoreExpr -> a -> a
+ subTy :: M.HashMap TyVar Type -> a -> a
 
 instance Subable CoreExpr where
-  sub s (Var v)        = M.findWithDefault (Var v) v s
+  sub s (Var v)        = M.lookupDefault (Var v) v s
   sub _ (Lit l)        = Lit l
   sub s (App e1 e2)    = App (sub s e1) (sub s e2)
   sub s (Lam b e)      = Lam b (sub s e)
@@ -264,7 +264,7 @@ instance Subable Type where
  sub _ e   = e
  subTy     = substTysWith
 
-substTysWith s tv@(TyVarTy v)  = M.findWithDefault tv v s
+substTysWith s tv@(TyVarTy v)  = M.lookupDefault tv v s
 substTysWith s (FunTy t1 t2)   = FunTy (substTysWith s t1) (substTysWith s t2)
 substTysWith s (ForAllTy v t)  = ForAllTy v (substTysWith (M.delete v s) t)
 substTysWith s (TyConApp c ts) = TyConApp c (map (substTysWith s) ts)

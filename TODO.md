@@ -1,13 +1,13 @@
 TODO
 ====
 
-* performance (in Hs HEREHEREHERE)
+* performance
+
 * parse predicate signatures for tuples 
 * predicate-aliases 
 * Blogging 
 * benchmarks: Data.List (foldr)
 * self-invariants        (tests/todo/maybe4.hs)
-
 * benchmarks: Data.List (foldr) -- needs sets
 * benchmarks: Data.Bytestring
 * benchmarks: stackset-core
