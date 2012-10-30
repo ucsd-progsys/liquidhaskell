@@ -30,10 +30,11 @@ Use Map/LambdaEval to find where bottleneck in Hs <---------------HEREHEREHEREHE
 ??? (foxed)
 
         1. Data.HashMap.Strict/Data.HashSet.Strict [instead of Data.Map/Data.Set]
+
       & 2. Compact Constraints
         
         3. Remove all dependence on everywhere/everything
-
+            > c.f. Tidy.hs
 
 - Majority of remaining 900s in haskell land? doing what? serialize/parse?
         - time liquid benchmarks/esop2013-submission/Base.hs > log.base 2>&1

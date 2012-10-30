@@ -32,7 +32,6 @@ module Language.Haskell.Liquid.RefType (
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, rTypeSortedReft, rTypeSort -- , typeSortedReft
   , ofRSort, toRSort
-  , tidySpecType
   , varSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalReft, literalConst
   -- , primOrderingSort
@@ -66,7 +65,8 @@ import Data.Generics.Aliases
 import Data.Data            hiding (TyCon)
 import qualified Data.Foldable as Fold
 
-import Language.Haskell.Liquid.Tidy
+-- import Language.Haskell.Liquid.Tidy
+
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GhcMisc (tvId, stringTyVar, intersperse, dropModuleNames, getDataConVarUnique)
@@ -95,6 +95,9 @@ instance Functor PVar where
 
 instance (NFData a) => NFData (PVar a) where
   rnf (PV n t txys) = rnf n `seq` rnf t `seq` rnf txys
+
+instance Hashable (PVar a) where
+  hash (PV n _ xys) = hash $ n : (thd3 <$> xys)
 
 --------------------------------------------------------------------
 ------------------ Predicates --------------------------------------
@@ -422,6 +425,7 @@ instance Ord RTyVar where
 
 instance Hashable RTyVar where
   hash (RTV α) = hash α
+
 
 data RTyCon = RTyCon 
   { rTyCon     :: !TC.TyCon         -- GHC Type Constructor

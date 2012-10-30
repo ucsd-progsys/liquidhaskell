@@ -28,7 +28,7 @@ import Data.Char                (isSpace)
 
 import Control.Arrow            hiding ((<+>))
 import Control.Applicative      ((<$>))
-import Data.Data                hiding (TyCon, tyConName)
+-- import Data.Data                hiding (TyCon, tyConName)
 
 import System.FilePath          (takeFileName, dropFileName, (</>)) 
 import System.Directory         (findExecutable)
@@ -43,6 +43,7 @@ import Language.Haskell.HsColour.Classify
 import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Misc
 
 -------------------------------------------------------------------
@@ -226,9 +227,8 @@ tokeniseSpec = tokAlt . chopAlt [('{', ':'), ('|', '}')]
 ---------------- Annotations and Solutions --------------------
 ---------------------------------------------------------------
 
-newtype AnnInfo a 
-  = AI (M.Map SrcSpan (Maybe Var, a))
-    deriving (Data, Typeable)
+newtype AnnInfo a = AI (M.HashMap SrcSpan (Maybe Var, a))
+    -- deriving (Data, Typeable)
 
 type Annot 
   = Either SpecType SrcSpan
@@ -261,7 +261,7 @@ applySolution = fmap . fmap . mapReft . map . appSolRefa
         appSolRefa s (RKvar k su) = RConc $ subst su $ M.findWithDefault PTop k s  
         mapReft f (U (Reft (x, zs)) p)  = U (Reft (x, squishRas $ f zs)) p
 
-squishRas ras  = (squish [p | RConc p <- ras]) : [] -- [ra | ra@(RPvar _) <- ras]
+squishRas ras  = (squish [p | RConc p <- ras]) : []
   where squish = RConc . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts   
 
 conjuncts (PAnd ps)          = concatMap conjuncts ps
