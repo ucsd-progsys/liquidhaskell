@@ -29,7 +29,7 @@ module Language.Haskell.Liquid.RefType (
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, rTypeSortedReft, rTypeSort -- , typeSortedReft
   , ofRSort, toRSort
-  , tidyRefType
+  , tidySpecType
   , varSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalReft, literalConst
   , primOrderingSort
@@ -664,7 +664,7 @@ ppr_rtype bb p (RApp c ts rs r)
   | isTuple c 
   = ppTy r $ parens (intersperse comma (ppr_rtype bb p <$> ts)) <> ppReftPs bb rs
 ppr_rtype bb p (RApp c ts rs r)
-  = ppTy r $ parens $ ppTycon c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)  
+  = ppTy r $ parens $ ppTycon c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)
 ppr_rtype _ _ (RCls c ts)      
   = ppCls c ts
 ppr_rtype bb p t@(REx _ _ _)
@@ -1006,14 +1006,14 @@ readSymbols = everything S.union (S.empty `mkQ` grabRead)
 ---------- Cleaning Reftypes Up Before Rendering --------------------
 ---------------------------------------------------------------------
 
-tidyRefType :: RefType -> RefType
-tidyRefType = tidyDSymbols
+tidySpecType :: SpecType -> SpecType
+tidySpecType = tidyDSymbols
             . tidySymbols 
             . tidyFunBinds
             . tidyLocalRefas 
             . tidyTyVars 
 
-tidyFunBinds :: RefType -> RefType
+tidyFunBinds :: SpecType -> SpecType
 tidyFunBinds t = everywhere (mkT $ dropBind xs) t 
   where xs = readSymbols t
         dropBind :: S.Set Symbol -> RefType -> RefType
@@ -1022,24 +1022,24 @@ tidyFunBinds t = everywhere (mkT $ dropBind xs) t
           | otherwise       = RFun nonSymbol t1 t2 r
         dropBind _ z        = z
 
-tidyTyVars :: RefType -> RefType
+tidyTyVars :: SpecType -> SpecType
 tidyTyVars = tidy pool getS putS 
   where getS (α :: TyVar)   = Just (symbolString $ varSymbol α)
         putS (_ :: TyVar) x = stringTyVar x
         pool          = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
 
-tidyLocalRefas :: RefType -> RefType
+tidyLocalRefas :: SpecType -> SpecType
 tidyLocalRefas = everywhere (mkT dropLocals) 
   where dropLocals = filter (not . Fold.any isTmp . readSymbols) . flattenRefas
         isTmp x    = let str = symbolString x in 
                      (anfPrefix `isPrefixOf` str) || (tempPrefix `isPrefixOf` str) 
 
-tidySymbols :: RefType -> RefType
+tidySymbols :: SpecType -> SpecType
 tidySymbols = everywhere (mkT dropSuffix) 
   where dropSuffix = {- stringSymbol -} S . takeWhile (/= symSep) . symbolString
         -- dropQualif = stringSymbol . dropModuleNames . symbolString 
 
-tidyDSymbols :: RefType -> RefType
+tidyDSymbols :: SpecType -> SpecType
 tidyDSymbols = tidy pool getS putS 
   where getS   sy  = let str = symbolString sy in 
                      if "ds_" `isPrefixOf` str then Just str else Nothing
