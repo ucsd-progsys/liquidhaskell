@@ -7,7 +7,10 @@ import Data.Generics.Aliases
 import Data.Data
 import Control.Monad.State
 import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet        as S
 
+import Language.Haskell.Liquid.Fixpoint
+import Language.Haskell.Liquid.RefType
 
 ---------------------------------------------------------------------
 ---------- SYB Magic: Cleaning Reftypes Up Before Rendering ---------
@@ -57,17 +60,9 @@ tidyRefType = error "TODO: tidyRefType"
 readSymbols :: (Subable a) => a -> S.HashSet Symbol
 readSymbols = S.fromList . syms 
 
-
-
-
-
-
-
-
-
-
-
-
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
 
 data TidyS = T { memo :: M.HashMap String String
                , pool :: [String] }
