@@ -775,6 +775,12 @@ instance Functor (RType a b c) where
 instance Fold.Foldable (RType a b c) where
   foldr = foldReft
 
+instance Traversable (RType a b c) where
+  traverse = travReft 
+
+
+
+
 mapReft ::  (r1 -> r2) -> RType p c tv r1 -> RType p c tv r2
 mapReft f (RVar α r)          = RVar  α (f r)
 mapReft f (RAllT α t)         = RAllT α (mapReft f t)
@@ -788,6 +794,23 @@ mapReft _ (ROth s)            = ROth  s
 mapRef :: (t -> s) -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
 mapRef  f (RMono r)           = RMono $ f r
 mapRef  f (RPoly t)           = RPoly $ mapReft f t
+
+
+travReft ::  (Applicative f) => (r1 -> f r2) -> RType p c tv r1 -> f (RType p c tv r2)
+travReft f (RVar α r)          = RVar  α <$> (f r)
+travReft f (RAllT α t)         = RAllT α <$> (travReft f t)
+travReft f (RAllP π t)         = RAllP π <$> (travReft f t)
+travReft f (RFun x t t' r)     = RFun  x <$> (travReft f t) <*> (travReft f t') <*> f r
+travReft f (RApp c ts rs r)    = RApp  c <$> (travReft f <$> ts) <*> (travRef f <$> rs) <*> f r
+travReft f (RCls c ts)         = RCls  c <$> (travReft f <$> ts) 
+travReft f (REx z t t')        = REx   z <$> (travReft f t) <*> (travReft f t')
+travReft _ (ROth s)            = pure $ ROth  s 
+
+travRef :: (t -> s) -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
+travRef  f (RMono r)           = RMono <$> f r
+travRef  f (RPoly t)           = RPoly <$> travReft f t
+
+------------------------------------------------------------------------------------------------------
 
 
 mapReftM :: (Monad m) => (r1 -> m r2) -> RType p c tv r1 -> m (RType p c tv r2)
@@ -839,6 +862,7 @@ efoldRefs  f γ z rs              = foldr (flip $ efoldRef f γ) z  rs
 efoldRef :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> Ref t3 (RType t t1 t2 t3) -> c
 efoldRef f γ z (RMono r)         = f γ r z
 efoldRef f γ z (RPoly t)         = efoldReft f γ z t
+
 
 isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool
 isTrivial = Fold.and . fmap isTauto
