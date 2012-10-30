@@ -20,6 +20,7 @@ module Language.Haskell.Liquid.RefType (
 
   -- * Traversing `RType` 
   , ppr_rtype, efoldReft, foldReft, mapReft, mapReftM, mapBot
+  , freeTyVars, tyClasses
 
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp, rFun
@@ -439,6 +440,9 @@ instance Ord RTyCon where
 instance Eq RTyCon where
   x == y = (rTyCon x) == (rTyCon y)
 
+instance Hashable RTyCon where
+  hash   = hash . rTyCon  
+
 --------------------------------------------------------------------
 ---------------------- Helper Functions ----------------------------
 --------------------------------------------------------------------
@@ -566,16 +570,37 @@ bkArrow t               = ([], [], t)
 --         go (vs, pvs) t            = (reverse vs, reverse pvs, t)
 
 
-generalize t = mkUnivs (freeVars t) [] t 
+generalize t = mkUnivs (freeTyVars t) [] t 
          
-freeVars (RAllP _ t)     = freeVars t
-freeVars (RAllT α t)     = freeVars t L.\\ [α]
-freeVars (RFun _ t t' _) = freeVars t `L.union` freeVars t' 
-freeVars (RApp _ ts _ _) = L.nub $ concatMap freeVars ts
-freeVars (RCls _ ts)     = L.nub $ concatMap freeVars ts 
-freeVars (RVar α _)      = [α] 
-freeVars (REx _ _ t)     = freeVars t
-freeVars (ROth _)        = []
+freeTyVars (RAllP _ t)     = freeTyVars t
+freeTyVars (RAllT α t)     = freeTyVars t L.\\ [α]
+freeTyVars (RFun _ t t' _) = freeTyVars t `L.union` freeTyVars t' 
+freeTyVars (RApp _ ts _ _) = L.nub $ concatMap freeTyVars ts
+freeTyVars (RCls _ ts)     = L.nub $ concatMap freeTyVars ts 
+freeTyVars (RVar α _)      = [α] 
+freeTyVars (REx _ _ t)     = freeTyVars t
+freeTyVars (ROth _)        = []
+
+--getTyVars = everything (++) ([] `mkQ` f)
+--  where f ((RVar α' _) :: SpecType) = [α'] 
+--        f _                         = []
+
+tyClasses (RAllP _ t)     = tyClasses t
+tyClasses (RAllT α t)     = tyClasses t
+tyClasses (REx _ _ t)     = tyClasses t
+tyClasses (RFun _ t t' _) = tyClasses t ++ tyClasses t'
+tyClasses (RApp _ ts _ _) = concatMap tyClasses ts 
+tyClasses (RCls c ts)     = (c, ts) : concatMap tyClasses ts 
+tyClasses (RVar α _)      = [] 
+tyClasses (ROth _)        = []
+
+
+
+--getTyClasses = everything (++) ([] `mkQ` f)
+--  where f ((RCls c ts) :: SpecType) = [(c, ts)]
+--        f _                        = []
+
+
 
 ----------------------------------------------------------------
 ---------------------- Strictness ------------------------------
@@ -857,6 +882,7 @@ instance GetPVar r => GetPVar (Ref r (RType p c tv r)) where
 --  getUPVars (RPoly t) = getUPVars t
 
 -- mkTrivial = mapReft (\_ -> ())
+
 
 ------------------------------------------------------------------------------------------
 -- TODO: Rewrite subsTyvars with Traversable
