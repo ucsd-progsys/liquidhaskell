@@ -47,7 +47,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , emptySubst, mkSubst, catSubst
 
   -- * Visitors
-  , getSymbols
+  -- , getSymbols
   , reftKVars
 
   -- * Functions on @Result@

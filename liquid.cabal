@@ -14,7 +14,7 @@ Cabal-version: >=1.2
 
 Executable liquid 
   Build-Depends:     base, containers, hashable, unordered-containers, filepath, parsec, mtl, 
-                     ghc, ghc-paths, process, directory, hscolour, syb,
+                     ghc, ghc-paths, process, directory, hscolour,
                      text, deepseq, filemanip, bifunctors, ansi-terminal 
 
   Main-is:           Liquid.hs
@@ -23,7 +23,7 @@ Executable liquid
 
 Library
    Build-Depends:    base, containers, hashable, unordered-containers, filepath, parsec, mtl, 
-                     ghc, ghc-paths, process, directory, hscolour, syb,
+                     ghc, ghc-paths, process, directory, hscolour,
                      text, deepseq, filemanip, bifunctors, ansi-terminal 
   
   Exposed-Modules: 
