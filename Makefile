@@ -9,7 +9,8 @@ THREADS=1
 GHC=$(GHCHOME)/ghc
 GPG=$(GHCHOME)/ghc-pkg
 
-OPTS="-W -O2 -XStandaloneDeriving -XDeriveDataTypeable"
+#OPTS="-W -O2 -XStandaloneDeriving -XDeriveDataTypeable"
+OPTS="-W -O2 -XStandaloneDeriving"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
 
 #CABAL=cabal --with-ghc=$(GHC) 
@@ -21,7 +22,7 @@ CABALI=$(CABAL) install --ghc-options=$(OPTS)
 
 CABALP=$(CABAL) install --reinstall --force-reinstalls --ghc-options=$(OPTS) -p
 
-DEPS=unix-compat transformers mtl filemanip text syb parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour ansi-terminal cmdargs
+DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour ansi-terminal cmdargs
 
 all:
 	$(CABAL) install --ghc-options=$(OPTS) 

@@ -23,7 +23,7 @@ import           RdrName                      (GlobalRdrEnv)
 import           Type                         (liftedTypeKind)
 import           Var
 import           FastString                   (uniq)
-import           SrcLoc                       hiding (L)
+-- import           SrcLoc                       hiding (L)
 import           Data.Char                    (isLower, isSpace)
 import           Data.Hashable
 import qualified Data.HashSet                 as S    
