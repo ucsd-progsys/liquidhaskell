@@ -19,8 +19,8 @@ import Pair             (pSnd)
 import FastString       (sLit)
 import Outputable hiding (empty)
 
-import qualified Data.Map  as M
-import qualified Data.Set  as S
+import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet        as S
 import Data.List        (nub, partition, foldl')
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint hiding (Expr)

@@ -36,7 +36,6 @@ module Language.Haskell.Liquid.FileNames (
 import qualified Control.Exception            as Ex
 import           Control.Monad.State
 import           Data.List                    hiding (find)
--- import qualified Data.Map                     as M
 import           Data.Maybe                   (fromMaybe)
 import           Language.Haskell.Liquid.Misc
 import           System.Directory
