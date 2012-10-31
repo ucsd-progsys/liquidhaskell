@@ -54,7 +54,7 @@ annotate :: FilePath -> FixSolution -> AnnInfo Annot -> IO ()
 annotate fname sol anna 
   = do annotDump fname (extFileName Html $ extFileName Cst fname) annm
        annotDump fname (extFileName Html fname) annm'
-    where annm = closeAnnots anna
+    where annm  = closeAnnots anna
           annm' = tidyRefType <$> applySolution sol annm
 
 annotDump :: FilePath -> FilePath -> AnnInfo RefType -> IO ()

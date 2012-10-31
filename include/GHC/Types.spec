@@ -3,6 +3,20 @@ module spec GHC.Types where
 assume True  :: {v : Bool | (? v)}
 assume False :: {v : Bool | (~ (? v))}
 
-assume EQ    :: Ordering
-assume LT    :: Ordering
-assume GT    :: Ordering
+-- Reusing GHC names, but maybe thats not the best idea.
+
+measure EQ : Ordering
+measure LT : Ordering
+measure GT : Ordering
+
+-- In the below, domain = GHC Datacon, range = logical measure defined above.
+
+measure cmp :: Ordering -> Ordering
+cmp (EQ) = { v | v = EQ }
+cmp (LT) = { v | v = LT }
+cmp (GT) = { v | v = GT }
+
+
+
+
+

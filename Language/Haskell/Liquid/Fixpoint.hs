@@ -835,11 +835,13 @@ instance Fixpoint Int where
 
 class Subable a where
   syms   :: a -> [Symbol]
+  substf :: (Symbol -> Expr) -> a -> a
   subst  :: Subst -> a -> a
   subst1 :: a -> (Symbol, Expr) -> a
   subst1 thing (x, e) = subst (Su $ M.singleton x e) thing
 
 instance Subable Symbol where
+  substf f x               = subSymbol (Just (f x)) x
   subst (Su s) x           = subSymbol (M.lookup x s) x
   syms x                   = [x]
 
@@ -849,7 +851,14 @@ subSymbol _               _ = error "sub Symbol"
 
 instance Subable Expr where
   syms                     = exprSymbols
-  
+
+  substf f (EApp s es)     = EApp s $ map (substf f) es 
+  substf f (EBin op e1 e2) = EBin op (substf f e1) (substf f e2)
+  substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
+  substf f (ECst e so)     = ECst (substf f e) so
+  substf f e@(EVar x)      = f x 
+  substf _ e               = e
+ 
   subst su (EApp f es)     = EApp f $ map (subst su) es 
   subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
   subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst  su e2)
@@ -860,6 +869,16 @@ instance Subable Expr where
 
 instance Subable Pred where
   syms                     = predSymbols
+  
+  substf f (PAnd ps)       = PAnd $ map (substf f) ps
+  substf f (POr  ps)       = POr  $ map (substf f) ps
+  substf f (PNot p)        = PNot $ substf f p
+  substf f (PImp p1 p2)    = PImp (substf f p1) (substf f p2)
+  substf f (PIff p1 p2)    = PIff (substf f p1) (substf f p2)
+  substf f (PBexp e)       = PBexp $ substf f e
+  substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
+  substf _  (PAll _ _)     = errorstar $ "substf: FORALL" 
+  substf _  p              = p
 
   subst su (PAnd ps)       = PAnd $ map (subst su) ps
   subst su (POr  ps)       = POr  $ map (subst su) ps
@@ -878,21 +897,28 @@ instance Subable Refa where
   subst su (RKvar k su')   = RKvar k $ su' `catSubst` su 
   -- subst _  (RPvar p)     = RPvar p
 
+  substf f (RConc p)       = RConc (substf f p)
+  substf _ ra@(RKvar _ _)  = ra
+
 instance (Subable a, Subable b) => Subable (a,b) where
   syms  (x, y)   = syms x ++ syms y
   subst su (x,y) = (subst su x, subst su y)
+  substf f (x,y) = (substf f x, substf f y)
 
 instance Subable a => Subable [a] where
-  syms     = concatMap syms
-  subst su = map $ subst su
+  syms   = concatMap syms
+  subst  = map . subst 
+  substf = map . substf 
 
 instance Subable a => Subable (M.HashMap k a) where
-  syms  = syms . M.elems 
-  subst = M.map . subst 
+  syms   = syms . M.elems 
+  subst  = M.map . subst 
+  substf = M.map . substf 
 
 instance Subable Reft where
   syms (Reft (v, ras))     = v : syms ras
   subst su (Reft (v, ras)) = Reft (v, subst su ras)
+  substf f (Reft (v, ras)) = Reft (v, substf f ras)
 
 instance Monoid Reft where
   mempty  = trueReft
@@ -903,6 +929,7 @@ instance Monoid Reft where
 instance Subable SortedReft where
   syms               = syms . sr_reft 
   subst su (RR so r) = RR so $ subst su r
+  substf f (RR so r) = RR so $ substf f r
 
 emptySubst 
   = Su M.empty
