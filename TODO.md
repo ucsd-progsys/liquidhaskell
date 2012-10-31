@@ -22,6 +22,11 @@ Performance
         2. Remove all dependence on everywhere/everything 
             > Regrtest <---------------HEREHEREHEREHERE
 
+            Failed 23 tests: pos/GhcListSort.hs, pos/GhcSort1.hs, pos/GhcSort2.hs, pos/GhcSort3.hs, pos/LambdaEval.hs, pos/LambdaEvalMini.hs, pos/LambdaEvalSuperTiny.hs, pos/LambdaEvalTiny.hs, pos/Map.hs, pos/Map0.hs, pos/cmptag0.hs, pos/compare.hs, pos/compare1.hs, pos/compare2.hs, pos/deptupW.hs, pos/ex0.hs, pos/ex1.hs, pos/initarray.hs, pos/maybe.hs, pos/maybe1.hs, pos/maybe2.hs, pos/nullterm.hs, pos/zipW.hs
+
+            Exceptions thrown on 18 tests: pos/GhcListSort.hs, pos/GhcSort1.hs, pos/GhcSort2.hs, pos/GhcSort3.hs, pos/LambdaEval.hs, pos/LambdaEvalMini.hs, pos/LambdaEvalSuperTiny.hs, pos/LambdaEvalTiny.hs, pos/Map.hs, pos/Map0.hs, pos/cmptag0.hs, pos/compare.hs, pos/compare1.hs, pos/compare2.hs, pos/maybe.hs, pos/maybe1.hs, pos/maybe2.hs, pos/zipW.hs
+
+
         3. Removed EDat: `ordCon`, `dataConReft` : find way to get this information WITHOUT hardwiring.
 
         4. Compact Constraints 
@@ -39,6 +44,8 @@ Performance
 
 - Serializing to .fq is WAY slow ?
         - Compact FQ encoding: shared environment binders
+
+
 
 Benchmarks
 ==========

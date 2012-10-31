@@ -492,7 +492,7 @@ initCGI info = CGInfo {
   , lits       = coreBindLits tce $ cbs info 
   } where tce  = tcEmbeds $ spec info
 
-coreBindLits tce cbs = [ (x, so) | (_, F.ELit x so) <- lconsts]
+coreBindLits tce cbs = sortNub [ (x, so) | (_, F.ELit x so) <- lconsts]
   where lconsts      = literalConst tce <$> literals cbs
 
 -- showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
