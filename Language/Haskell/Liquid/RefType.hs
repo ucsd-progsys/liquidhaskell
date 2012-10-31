@@ -810,20 +810,6 @@ mapRef  f (RMono r)           = RMono $ f r
 mapRef  f (RPoly t)           = RPoly $ mapReft f t
 
 
---travReft ::  (Applicative f) => (r1 -> f r2) -> RType p c tv r1 -> f (RType p c tv r2)
---travReft f (RVar α r)          = RVar  α <$> (f r)
---travReft f (RAllT α t)         = RAllT α <$> (travReft f t)
---travReft f (RAllP π t)         = RAllP π <$> (travReft f t)
---travReft f (RFun x t t' r)     = RFun  x <$> (travReft f t) <*> (travReft f t') <*> f r
---travReft f (RApp c ts rs r)    = RApp  c <$> (travReft f <$> ts) <*> (travRef f <$> rs) <*> f r
---travReft f (RCls c ts)         = RCls  c <$> (travReft f <$> ts) 
---travReft f (REx z t t')        = REx   z <$> (travReft f t) <*> (travReft f t')
---travReft _ (ROth s)            = pure $ ROth  s 
---
---travRef :: (t -> s) -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
---travRef  f (RMono r)           = RMono <$> f r
---travRef  f (RPoly t)           = RPoly <$> travReft f t
-
 ------------------------------------------------------------------------------------------------------
 
 
