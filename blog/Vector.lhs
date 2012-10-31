@@ -10,13 +10,12 @@ module LiquidArray where
 import Language.Haskell.Liquid.Prelude (liquidAssume)
 \end{code}
 
-Formally, we specify vectors as 
+\begin{code}We specify vectors as 
+type Vec a <dom :: Int -> Bool, rng :: Int -> a -> Bool>
+  = (i:Int <dom> -> a<rng i>)
+\end{code}
 
 \begin{code}
-{-@ type Vec a = forall <dom :: Int -> Bool, rng :: Int -> a -> Bool>.
-                 i:Int <rng> -> a<dom i>
-  @-}
-
 type Vec a = Int -> a
 \end{code}
 
@@ -34,7 +33,7 @@ We can use the following basic functions to create vectors:
 empty :: Vec a
 empty = \_ -> (error "Empty Vec")
 
-{-@ create :: x:a -> (Int -> {v:a | v = x}) @-}
+{-@ create :: x:a -> (i:Int -> {v:a | v = x}) @-}
 create :: a -> Vec a
 create x = (\_ -> x)
 \end{code}
@@ -71,7 +70,7 @@ set :: Int -> a -> Vec a -> Vec a
 set i x a = \k -> if k == i then x else a k
 \end{code}
 
-The signature for `set` requires that (a)~the input vector is defined everywhere at `d` _except_ the index `i`, and (b)~the value supplied must be of type `a<r i>`, ie satisfy the range relation at the index `i` at which the vector is being updated.
+The signature for `set` requires that (a) the input vector is defined everywhere at `d` _except_ the index `i`, and (b) the value supplied must be of type `a<r i>`, ie satisfy the range relation at the index `i` at which the vector is being updated.
 The signature ensures that the output vector is defined at `d` and each value satisfies the index-dependent range refinement `r`.
 
 Note that it is legal to call `get` with a vector that is _also_ defined at the index `i` since, by contravariance, such a vector is a subtype of that required by (a).
@@ -114,7 +113,7 @@ Null-Terminated Strings
 
 We can also use abstract refinements to verify code which manipulates C-style null-terminated strings, where each character is represented as an `Int` and the termination character `\0`, and only that, is represented as `0`.
 
-\begin{code}Formally, a null-terminated string of size `n` has the type
+\begin{code}Formally, a null-terminated string, represented by `Int`s, of size `n` has the type
 type NullTerm n 
      = Vec <{\v -> 0<=v<n}, {\i v -> i=n-1 => v=0}> Int
 \end{code}
