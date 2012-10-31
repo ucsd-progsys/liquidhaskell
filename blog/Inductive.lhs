@@ -65,8 +65,10 @@ Abstract refinements allow us to solve this problem with a very expressive type 
 
 \begin{code}
 {-@ efoldr :: forall a b <p :: x0:Vec a -> x1:b -> Bool>. 
-                (xs:Vec a -> x:a -> b <p xs> -> exists [xxs : {v: Vec a | v = (Inductive.Cons x xs)}]. b <p xxs>) 
-              -> (exists [zz: {v: Vec a | v = Inductive.Nil}]. b <p zz>) 
+                op:(xs:Vec a -> x:a -> b:b <p xs> -> 
+                  exists [xxs : {v: Vec a | v = (Inductive.Cons x xs)}].
+                     b <p xxs>) 
+              -> vs:(exists [zz: {v: Vec a | v = Inductive.Nil}]. b <p zz>) 
               -> ys: Vec a
               -> b <p ys>
   @-}
@@ -76,7 +78,7 @@ efoldr op b (Cons x xs) = op xs x (efoldr op b xs)
 \end{code}
 
 The trick is simply to quantify over the relationship `p` that `efoldr` establishes between the input list `xs` and the output `b` value. This is formalized by the type signature, which encodes an induction principle for lists: 
-the base value `b` must (1) satisfy the relation with the empty list, and the function `op` must take (2) a value that satisfies the relationship with the tail `xs` (we have added the `xs` as an extra ``ghost" parameter to `op`), (3) a head value `x`, and return (4) a new folded value that satisfies the relationship with `x:xs`.
+the base value `b` must (1) satisfy the relation with the empty list, and the function `op` must take (2) a value that satisfies the relationship with the tail `xs` (we have added the `xs` as an extra "ghost" parameter to `op`), (3) a head value `x`, and return (4) a new folded value that satisfies the relationship with `x:xs`.
 If all the above are met, then the value returned by `efoldr` satisfies the relation with the input list `ys`.
 
 This scheme is not novel in itself --- what is new is the encoding, via uninterpreted predicate symbols, in an SMT-decidable refinement type system.
@@ -95,7 +97,9 @@ size = efoldr (\_ _ n -> suc n) 0
 suc :: Int -> Int
 suc x = x + 1 
 
-{-@ myappend'  :: xs: Vec a -> ys: Vec a -> {v: Vec a | llen(v) = llen(xs) + llen(ys) } @-} 
+{-@ 
+   myappend'  :: xs: Vec a -> ys: Vec a -> {v: Vec a | llen(v) = llen(xs) + llen(ys)} 
+  @-} 
 myappend' xs ys = efoldr (\_ z zs -> Cons z zs) ys xs 
 \end{code}
 

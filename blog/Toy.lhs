@@ -19,13 +19,21 @@ maxInt     :: Int -> Int -> Int
 maxInt x y = if x <= y then y else x 
 \end{code}
 
-We can see that if a property holds for both  `x` and `y`, 
-then it also holds for `maxInt x y` and we would like to express this
-fact in the type of `maxInt`.
-We can acchieve this with 
-with _abstract refinements_, which let us 
-quantify or parameterize a type over its constituent refinements.
-For example, we can type `maxInt` as
+\begin{code}`maxInt` could take many refinement types, for example
+maxInt :: x:{v:Int | v > 0} -> y:{v:Int | v > 0} -> {v:Int | v > 0}
+\end{code}
+
+\begin{code}or
+maxInt :: x:{v:Int | v < 10} -> y:{v:Int | v < 10} -> {v:Int | v < 10}
+\end{code}
+
+\begin{code}or even 
+maxInt :: x:{v:Int | prime{v)} -> y:{v:Int | prime(v)} -> {v:Int | prime(v)}
+\end{code}
+
+We can prove that if a property holds for both  `x` and `y`, then it also holds for `maxInt x y`.
+So, we would like to _abstract_ over the refinements that both arguments and the result have.
+We can acchieve this with with _abstract refinements_, which let us quantify or parameterize a type over its constituent refinements.  For example, we can type `maxInt` as
 \begin{code}
 {-@ maxInt :: forall <p :: Int -> Bool>. x:Int <p> -> y:Int <p> -> Int <p>@-}
 \end{code}
@@ -60,8 +68,9 @@ isEven x = x `mod` 2 == 0
 
 And write a function `maxEvens`.
 \begin{code}
-maxEvens1 xs = maximumInt (0 : xs') 
-  where xs' = [ x | x <- xs, isEven x]
+maxEvens1 xs = maximumInt xs''
+  where xs'  = [ x | x <- xs, isEven x]
+        xs'' = 0 : xs'
 \end{code}
 
 Since `(0:xs')` is a list if values with type 
@@ -104,11 +113,11 @@ arbitrary refinement types? First, via the same analysis as
 the monomorphic `Int` case, we establish that
 
 \begin{code}
-{-@ maxPoly :: forall <p :: a -> Bool>. d:(Ord a) => x:a<p> -> y:a<p> -> a<p> @-}
+{-@ maxPoly :: forall <p :: a -> Bool>. (Ord a) => x:a<p> -> y:a<p> -> a<p> @-}
 maxPoly     :: (Ord a) => a -> a -> a 
 maxPoly x y = if x <= y then y else x
 
-{-@ maximumPoly :: forall <p :: a -> Bool>. d:(Ord a) => x:[a<p>] -> a<p> @-}
+{-@ maximumPoly :: forall <p :: a -> Bool>. (Ord a) => x:[a<p>] -> a<p> @-}
 maximumPoly :: (Ord a) => [a] -> a
 maximumPoly (x:xs) = foldr maxPoly x xs
 \end{code}
@@ -118,8 +127,9 @@ We can define `maxEvens2` that uses the above functions:
 
 \begin{code}
 {-@ maxEvens2 :: xs:[Int] -> {v:Int | v mod 2 = 0 } @-}
-maxEvens2 xs = maximumPoly (0 : xs') 
-  where xs' = [ x | x <- xs, isEven x]
+maxEvens2 xs = maximumPoly xs''
+  where xs'  = [ x | x <- xs, isEven x]
+        xs'' = 0 :xs'
 \end{code}
 
 
@@ -131,6 +141,3 @@ earlier (for the `Int` case).
 Thus, abstract refinements allow us to quantify over 
 invariants without relying on parametric polymorphism, 
 even in the presence of type classes.
-
-
-
