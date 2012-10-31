@@ -1,6 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleContexts, ScopedTypeVariables, NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, RankNTypes, GADTs #-}
 
-{- Refinement Types Mirroring the GHC Type definition -}
+-- | Refinement Types. Mostly mirroring the GHC Type definition, but with
+-- room for refinements of various sorts.
 
 -- TODO: Desperately needs re-organization.
 module Language.Haskell.Liquid.RefType (
@@ -19,7 +20,7 @@ module Language.Haskell.Liquid.RefType (
   , pdAnd, pdVar, pdTrue, pvars
 
   -- * Traversing `RType` 
-  , ppr_rtype, efoldReft, foldReft, mapReft, mapReftM, mapBot
+  , ppr_rtype, efoldReft, foldReft, mapReft, mapReftM, mapBot, mapBind
   , freeTyVars, tyClasses
 
   , ofType, ofPredTree, toType
@@ -71,7 +72,7 @@ import qualified Data.Foldable as Fold
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GhcMisc (tvId, intersperse, dropModuleNames, getDataConVarUnique)
-import Language.Haskell.Liquid.FileNames (listConName, tupConName, boolConName)
+import Language.Haskell.Liquid.FileNames (symSepName, listConName, tupConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
 
 --------------------------------------------------------------------
@@ -300,16 +301,19 @@ instance (Monoid r, Reftable r, RefTypable a b c r) => Monoid (Ref r (RType a b 
 -- Subable Instances ----------------------------------------------
 
 instance Subable () where
-  syms _     = []
-  subst _ () = ()
+  syms _      = []
+  subst _ ()  = ()
+  substf _ () = ()
 
 instance Subable r => Subable (UReft r) where
-  syms (U r p)    = syms r ++ syms p 
-  subst s (U r z) = U (subst s r) z
+  syms (U r p)     = syms r ++ syms p 
+  subst s (U r z)  = U (subst s r) z
+  substf f (U r z) = U (substf f r) z
 
 instance Subable Predicate where
   syms (Pr _)     = [] -- TODO: concatMap syms ps 
-  subst _         = id 
+  subst _         = id -- TODO: 
+  substf _        = id -- TODO:
 
 instance Subable (Ref F.Reft RefType) where
   syms (RMono r)     = syms r
@@ -318,9 +322,16 @@ instance Subable (Ref F.Reft RefType) where
   subst su (RMono r) = RMono $ subst su r
   subst su (RPoly r) = RPoly $ subst su r
 
+  substf f (RMono r) = RMono $ substf f r
+  substf f (RPoly r) = RPoly $ substf f r
+
+
+
+
 instance Subable r => Subable (RType p c tv r) where
   syms   = foldReft (\r acc -> syms r ++ acc) [] 
   subst  = fmap . subst
+  substf = fmap . substf
 
 -- Reftable Instances -------------------------------------------------------
 
@@ -352,6 +363,9 @@ instance (Reftable r, RefTypable p c tv r) => Subable (Ref r (RType p c tv r)) w
 
   subst su (RMono r) = RMono (subst su r) 
   subst su (RPoly t) = RPoly (subst su <$> t)
+
+  substf f (RMono r) = RMono (substf f r) 
+  substf f (RPoly t) = RPoly (substf f <$> t)
 
 instance (Reftable r, RefTypable p c tv r) => Reftable (Ref r (RType p c tv r)) where
   isTauto (RMono r) = isTauto r
@@ -775,8 +789,8 @@ instance Functor (RType a b c) where
 instance Fold.Foldable (RType a b c) where
   foldr = foldReft
 
-instance Traversable (RType a b c) where
-  traverse = travReft 
+--instance Traversable (RType a b c) where
+--  traverse = travReft 
 
 
 
@@ -796,19 +810,19 @@ mapRef  f (RMono r)           = RMono $ f r
 mapRef  f (RPoly t)           = RPoly $ mapReft f t
 
 
-travReft ::  (Applicative f) => (r1 -> f r2) -> RType p c tv r1 -> f (RType p c tv r2)
-travReft f (RVar α r)          = RVar  α <$> (f r)
-travReft f (RAllT α t)         = RAllT α <$> (travReft f t)
-travReft f (RAllP π t)         = RAllP π <$> (travReft f t)
-travReft f (RFun x t t' r)     = RFun  x <$> (travReft f t) <*> (travReft f t') <*> f r
-travReft f (RApp c ts rs r)    = RApp  c <$> (travReft f <$> ts) <*> (travRef f <$> rs) <*> f r
-travReft f (RCls c ts)         = RCls  c <$> (travReft f <$> ts) 
-travReft f (REx z t t')        = REx   z <$> (travReft f t) <*> (travReft f t')
-travReft _ (ROth s)            = pure $ ROth  s 
-
-travRef :: (t -> s) -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
-travRef  f (RMono r)           = RMono <$> f r
-travRef  f (RPoly t)           = RPoly <$> travReft f t
+--travReft ::  (Applicative f) => (r1 -> f r2) -> RType p c tv r1 -> f (RType p c tv r2)
+--travReft f (RVar α r)          = RVar  α <$> (f r)
+--travReft f (RAllT α t)         = RAllT α <$> (travReft f t)
+--travReft f (RAllP π t)         = RAllP π <$> (travReft f t)
+--travReft f (RFun x t t' r)     = RFun  x <$> (travReft f t) <*> (travReft f t') <*> f r
+--travReft f (RApp c ts rs r)    = RApp  c <$> (travReft f <$> ts) <*> (travRef f <$> rs) <*> f r
+--travReft f (RCls c ts)         = RCls  c <$> (travReft f <$> ts) 
+--travReft f (REx z t t')        = REx   z <$> (travReft f t) <*> (travReft f t')
+--travReft _ (ROth s)            = pure $ ROth  s 
+--
+--travRef :: (t -> s) -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
+--travRef  f (RMono r)           = RMono <$> f r
+--travRef  f (RPoly t)           = RPoly <$> travReft f t
 
 ------------------------------------------------------------------------------------------------------
 
@@ -1061,12 +1075,11 @@ ofPredTree _
 ------------------- Converting to Fixpoint ---------------------
 ----------------------------------------------------------------
 
-symSep = '#'
 
 varSymbol ::  Var -> Symbol
 varSymbol v 
   | us `isSuffixOf` vs = stringSymbol vs  
-  | otherwise          = stringSymbol $ vs ++ [symSep] ++ us
+  | otherwise          = stringSymbol $ vs ++ [symSepName] ++ us
   where us  = showPpr $ getDataConVarUnique v
         vs  = pprShort v
 
