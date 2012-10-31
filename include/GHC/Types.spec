@@ -8,7 +8,9 @@ assume False :: {v : Bool | (~ (? v))}
 measure EQ : Ordering
 measure LT : Ordering
 measure GT : Ordering
-            
+
+-- In the below, domain = GHC Datacon, range = logical measure defined above.
+
 measure cmp :: Ordering -> Ordering
 cmp (EQ) = { v | v = EQ }
 cmp (LT) = { v | v = LT }
