@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, DeriveDataTypeable, ScopedTypeVariables  #-}
+{-# LANGUAGE MultiParamTypeClasses, NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, ScopedTypeVariables  #-}
 
 -- | This module contains the functions that convert /from/ descriptions of 
 -- symbols, names and types (over freshly parsed /bare/ Strings),
@@ -25,17 +25,18 @@ import Data.Traversable         (forM)
 import Control.Applicative      ((<$>))
 import Control.Monad.Reader     hiding (forM)
 import Control.Monad.Error      hiding (forM)
-import Data.Data                hiding (TyCon, tyConName)
+-- import Data.Data                hiding (TyCon, tyConName)
 import Data.Bifunctor
 
-import qualified Data.Map as M
 
-import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.GhcMisc hiding (L)
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Misc
+
+import qualified Data.HashMap.Strict as M
 import qualified Control.Exception as Ex
 
 ------------------------------------------------------------------
@@ -82,7 +83,7 @@ makeGhcSpec vars env spec
 
 type BareM a = ErrorT String (ReaderT BareEnv IO) a
 
-data BareEnv = BE { tcEnv  :: !(M.Map TyCon RTyCon)
+data BareEnv = BE { tcEnv  :: !(M.HashMap TyCon RTyCon)
                   , hscEnv :: HscEnv }
 
 execBare :: BareM a -> BareEnv -> IO a
@@ -126,7 +127,7 @@ joinIds vs xts = vts
 
 
 makeTyConEmbeds  :: BareEnv -> TCEmb String -> IO (TCEmb TyCon) 
-makeTyConEmbeds benv z = execBare (M.fromList <$> mapM tx (M.assocs z)) benv
+makeTyConEmbeds benv z = execBare (M.fromList <$> mapM tx (M.toList z)) benv
   where tx (c, y) = (, y) <$> lookupGhcTyCon c
 
 
@@ -153,7 +154,7 @@ makeSymbols vs xs' ts = [(x,v) | (v, x) <- joinIds vs (zip xs xs)]
 
 freeSymbols :: SpecType -> [Symbol]
 freeSymbols      = concat . efoldReft f [] [] 
-  where f γ r xs = ((getSymbols (toReft r)) `sortDiff` γ) : xs 
+  where f γ r xs = ((syms (toReft r)) `sortDiff` γ) : xs 
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
@@ -240,7 +241,7 @@ lookupGhcDataCon = lookupGhcThing "DataCon" fdc
 -- thingId (ADataCon x) = Just $ dataConWorkId x
 -- thingId _            = Nothing
 
-wiredIn :: M.Map String Name
+wiredIn :: M.HashMap String Name
 wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns 
   where wiredIns = [ (showPpr n, n) | thing <- wiredInThings, let n = getName thing ]
         special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
@@ -331,7 +332,7 @@ makeRTyConPs tyi πs t@(RApp c ts rs r)
 makeRTyConPs _ _ t = t
 
 -- ofBareType :: (Reftable r) => BRType r -> BareM (RRType r)
-ofBareType :: (Reftable r, Data r, GetPVar r) => RType String String String r -> BareM (RType Class RTyCon RTyVar r)
+ofBareType :: (Reftable r, GetPVar r) => RType String String String r -> BareM (RType Class RTyCon RTyVar r)
 ofBareType (RVar a r) 
   = return $ RVar (stringRTyVar a) r
 ofBareType (RFun x t1 t2 _) 
@@ -384,14 +385,14 @@ stringRTyVar  = rTyVar . stringTyVar
 
 
 
-mkMeasureDCon :: (Data t) => Ms.MSpec t Symbol -> BareM (Ms.MSpec t DataCon)
+mkMeasureDCon :: Ms.MSpec t Symbol -> BareM (Ms.MSpec t DataCon)
 mkMeasureDCon m = (forM (measureCtors m) $ \n -> liftM (n,) (lookupGhcDataCon n))
                   >>= (return . mkMeasureDCon_ m)
 
 mkMeasureDCon_ :: Ms.MSpec t Symbol -> [(String, DataCon)] -> Ms.MSpec t DataCon
 mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
   where m'  = fmap tx m
-        cm' = M.mapKeys (dataConSymbol . tx) $ Ms.ctorMap m'
+        cm' = hashMapMapKeys (dataConSymbol . tx) $ Ms.ctorMap m'
         tx  = mlookup (M.fromList ndcs) . symbolString
 
 measureCtors ::  Ms.MSpec t Symbol -> [String]
@@ -443,10 +444,10 @@ ofBDataCon tc αs πs (c, xts)
 
 txParams f πs t = mapReft (f (txPvar (predMap πs t))) t
 
-txPvar :: M.Map Symbol UsedPVar -> UsedPVar -> UsedPVar 
+txPvar :: M.HashMap Symbol UsedPVar -> UsedPVar -> UsedPVar 
 txPvar m π = π { pargs = args' }
   where args' = zipWith (\(_,x ,_) (t,_,y) -> (t, x, y)) (pargs π') (pargs π)
-        π'    = M.findWithDefault (errorstar err) (pname π) m
+        π'    = M.lookupDefault (errorstar err) (pname π) m
         err   = "Bare.replaceParams Unbound Predicate Variable: " ++ show π
 
 predMap πs t = Ex.assert (M.size xπm == length xπs) xπm 

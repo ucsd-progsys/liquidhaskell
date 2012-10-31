@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, RankNTypes, GADTs #-}
+{- LANGUAGE DeriveDataTypeable, RankNTypes, GADTs -}
 
 module Language.Haskell.Liquid.Measure (  
     Spec (..)
@@ -17,8 +17,8 @@ import GHC
 import Var
 import Outputable hiding (empty)
 import DataCon
-import Data.Map hiding (null, partition, foldl')
-import Data.Data
+import qualified Data.HashMap.Strict as M 
+-- import Data.Data
 import Data.Monoid hiding ((<>))
 import Data.List (foldl1')
 import Data.Bifunctor
@@ -38,19 +38,19 @@ data Spec ty bndr  = Spec {
   , includes   :: ![FilePath]                -- ^ Included qualifier files
   , aliases    :: ![RTAlias String BareType] -- ^ RefType aliases
   , embeds     :: !(TCEmb String)            -- ^ GHC-Tycon-to-fixpoint Tycon map
-  } deriving (Data, Typeable)
+  } -- deriving (Data, Typeable)
 
 
 data MSpec ty bndr = MSpec { 
-    ctorMap :: Map Symbol [Def bndr]
-  , measMap :: Map Symbol (Measure ty bndr) 
-  } deriving (Data, Typeable)
+    ctorMap :: M.HashMap Symbol [Def bndr]
+  , measMap :: M.HashMap Symbol (Measure ty bndr) 
+  } -- deriving (Data, Typeable)
 
 data Measure ty bndr = M { 
     name :: Symbol
   , sort :: ty
   , eqns :: [Def bndr]
-  } deriving (Data, Typeable)
+  } -- deriving (Data, Typeable)
 
 data Def bndr 
   = Def { 
@@ -58,13 +58,13 @@ data Def bndr
   , ctor    :: bndr
   , binds   :: [Symbol]
   , body    :: Body
-  } deriving (Data, Typeable)
+  } -- deriving (Data, Typeable)
 
 data Body 
-  = E Expr          -- {v | v = e } 
-  | P Pred          -- {v | (? v) <=> p }
-  | R Symbol Pred   -- {v | p}
-  deriving (Data, Typeable)
+  = E Expr          -- ^ Measure Refinement: {v | v = e } 
+  | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
+  | R Symbol Pred   -- ^ Measure Refinement: {v | p}
+  -- deriving (Data, Typeable)
 
 qualifySpec name sp = sp { sigs = [ (qualifySymbol name x, t) | (x, t) <- sigs sp] }
 
@@ -79,7 +79,7 @@ mkM name typ eqns
 mkMSpec ::  [Measure ty Symbol] -> MSpec ty Symbol
 mkMSpec ms = MSpec cm mm 
   where cm  = groupMap ctor $ concatMap eqns ms'
-        mm  = fromList [(name m, m) | m <- ms' ]
+        mm  = M.fromList [(name m, m) | m <- ms' ]
         ms' = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
 instance Monoid (Spec ty bndr) where
@@ -91,8 +91,8 @@ instance Monoid (Spec ty bndr) where
                   (ds ++ ds') 
                   (sortNub (is ++ is')) 
                   (as ++ as')
-                  (union es es')
-  mempty   = Spec [] [] [] [] [] [] [] empty
+                  (M.union es es')
+  mempty   = Spec [] [] [] [] [] [] [] M.empty
 
 instance Functor Def where
   fmap f def = def { ctor = f (ctor def) }
@@ -149,7 +149,7 @@ instance (Outputable t, Outputable a) => Outputable (Measure t a) where
                   $$ vcat (ppr `fmap` eqs)
 
 instance (Outputable t, Outputable a) => Outputable (MSpec t a) where
-  ppr =  vcat . fmap ppr . fmap snd . toList . measMap
+  ppr =  vcat . fmap ppr . fmap snd . M.toList . measMap
 
 instance (Outputable t, Outputable a) => Show (Measure t a) where
   show = showPpr
@@ -159,8 +159,8 @@ mapTy f (M n ty eqs) = M n (f ty) eqs
 
 dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(Symbol, RefType)])
 dataConTypes  s = (expandSnd ctorTys, measTys)
-  where measTys = [(name m, sort m) | m <- elems $ measMap s]
-        ctorTys = [(defsVar ds, defsTy ds) | (_, ds) <- toList $ ctorMap s]
+  where measTys = [(name m, sort m) | m <- M.elems $ measMap s]
+        ctorTys = [(defsVar ds, defsTy ds) | (_, ds) <- M.toList $ ctorMap s]
         defsTy  = foldl1' meet . fmap defRefType 
         defsVar = dataConImplicitIds . ctor . safeHead "defsVar" 
 
@@ -194,7 +194,7 @@ expandRTAliases sp = sp { sigs = sigs' }
   where env   = makeRTEnv $ aliases sp
         sigs' = [(x, expandRTAlias env t) | (x, t) <- sigs sp]
 
-type RTEnv   = Map String (RTAlias String BareType)
+type RTEnv   = M.HashMap String (RTAlias String BareType)
 
 makeRTEnv     :: [RTAlias String BareType] -> RTEnv
 makeRTEnv rts = (\z -> z { rtBody = expandRTAliasE env0 $ rtBody z }) <$> env0
@@ -213,7 +213,7 @@ expandRTAlias = go []
 expandAlias f s env = go s 
   where go s (RApp c ts rs r)
           | c `elem` s        = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
-          | c `member` env    = assert (null rs) $ expandRTApp (f (c:s) env) env c ts r
+          | c `M.member` env  = assert (null rs) $ expandRTApp (f (c:s) env) env c ts r
           | otherwise         = RApp c (go s <$> ts) rs r 
         go s (RAllT a t)      = RAllT a (go s t)
         go s (RAllP a t)      = RAllP a (go s t)
@@ -227,4 +227,4 @@ expandRTApp tx env c ts r
           αts' = assert (length αs == length αts) αts
           αts  = zipWith (\α t -> (α, toRSort t, t)) αs ts
           αs   = rtArgs rta
-          rta  = env ! c
+          rta  = env M.! c

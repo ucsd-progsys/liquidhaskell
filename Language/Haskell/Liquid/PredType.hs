@@ -19,8 +19,8 @@ import Pair             (pSnd)
 import FastString       (sLit)
 import Outputable hiding (empty)
 
-import qualified Data.Map  as M
-import qualified Data.Set  as S
+import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet        as S
 import Data.List        (nub, partition, foldl')
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint hiding (Expr)
@@ -40,7 +40,7 @@ data DataConP = DataConP { freeTyVars :: ![RTyVar]
                          , tyRes      :: !PrType
                          }
 
-makeTyConInfo = M.mapWithKey mkRTyCon . M.fromList
+makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
 mkRTyCon tc (TyConP αs' ps) = RTyCon tc pvs'
@@ -71,7 +71,7 @@ instance Show DataConP where
  show = showSDoc . ppr
 
 dataConTy m (TyVarTy v)            
-  = M.findWithDefault (rVar v) (RTV v) m
+  = M.lookupDefault (rVar v) (RTV v) m
 dataConTy m (FunTy t1 t2)          
   = rFun dummySymbol (dataConTy m t1) (dataConTy m t2)
 dataConTy m (ForAllTy α t)          
@@ -97,7 +97,7 @@ unify (Just pt) rt  = evalState (unifyS rt pt) S.empty
 unify _         t   = t
 
 ---------------------------------------------------------------------------
-unifyS :: SpecType -> PrType -> State (S.Set UsedPVar) SpecType 
+unifyS :: SpecType -> PrType -> State (S.HashSet UsedPVar) SpecType 
 ---------------------------------------------------------------------------
 
 unifyS (RAllP p t) pt

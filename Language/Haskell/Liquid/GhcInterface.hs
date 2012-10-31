@@ -7,7 +7,9 @@ import GHC
 import Outputable
 import HscTypes
 import TidyPgm      (tidyProgram)
+import Literal
 import CoreSyn
+
 import Var
 import Name         (getSrcSpan)
 import CoreMonad    (liftIO)
@@ -30,8 +32,8 @@ import Control.Monad (forM, liftM)
 import Data.Monoid hiding ((<>))
 import Data.List (intercalate, foldl', find, (\\))
 import Data.Maybe (catMaybes)
-import qualified Data.Set   as S
-import qualified Data.Map   as M
+import qualified Data.HashSet        as S
+import qualified Data.HashMap.Strict as M
 
 import System.Directory (doesFileExist)
 import Language.Haskell.Liquid.Fixpoint hiding (Expr) 
@@ -274,7 +276,7 @@ transParseSpecs exts paths seenFiles spec newFiles
        impFiles  <- moduleImports exts paths [symbolString x | x <- Ms.imports newSpec]
        let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
        let spec'      = spec `mappend` newSpec
-       let newFiles'  = [f | f <- impFiles, f `S.notMember` seenFiles']
+       let newFiles'  = [f | f <- impFiles, not (f `S.member` seenFiles')]
        transParseSpecs exts paths seenFiles' spec' newFiles'
  
 parseSpec (name, file) 
@@ -349,8 +351,9 @@ checkAssertSpec vs xbs =
 -- TODO: syb-shrinkage
 
 class CBVisitable a where
-  freeVars :: S.Set Var -> a -> [Var]
+  freeVars :: S.HashSet Var -> a -> [Var]
   readVars :: a -> [Var] 
+  literals :: a -> [Literal]
 
 instance CBVisitable [CoreBind] where
   freeVars env cbs = (sortNub xs) \\ ys 
@@ -358,6 +361,7 @@ instance CBVisitable [CoreBind] where
           ys = concatMap bindings cbs
   
   readVars cbs = concatMap readVars cbs  
+  literals cbs = concatMap literals cbs
 
 instance CBVisitable CoreBind where
   freeVars env (NonRec x e) = freeVars (extendEnv env [x]) e 
@@ -368,38 +372,60 @@ instance CBVisitable CoreBind where
   readVars (NonRec _ e)      = readVars e
   readVars (Rec xes)         = concatMap readVars $ map snd xes
 
-instance CBVisitable (Expr Var) where
-  freeVars env (Var x)         = if x `S.member` env then [] else [x]  
-  freeVars env (App e a)       = (freeVars env e) ++ (freeVars env a)
-  freeVars env (Lam x e)       = freeVars (extendEnv env [x]) e
-  freeVars env (Let b e)       = (freeVars env b) ++ (freeVars (extendEnv env (bindings b)) e)
-  freeVars env (Tick _ e)      = freeVars env e
-  freeVars env (Cast e _)      = freeVars env e
-  freeVars env (Case e x _ cs) = (freeVars env e) ++ (concatMap (freeVars (extendEnv env [x])) cs) 
-  freeVars _   (Lit _)         = []
-  freeVars _   (Type _)	       = []
-  freeVars _   (Coercion _)	   = []
+  literals (NonRec _ e)      = literals e
+  literals (Rec xes)         = concatMap literals $ map snd xes
 
-  readVars (Var x)             = [x]
-  readVars (App e a)           = concatMap readVars [e, a] 
-  readVars (Lam _ e)           = readVars e
-  readVars (Let b e)           = readVars b ++ readVars e 
-  readVars (Tick _ e)          = readVars e
-  readVars (Cast e _)          = readVars e
-  readVars (Case e _ _ cs)     = (readVars e) ++ (concatMap readVars cs) 
-  readVars (Lit _)             = []
-  readVars (Type _)	           = []
-  readVars (Coercion _)	       = []
+instance CBVisitable (Expr Var) where
+  freeVars = exprFreeVars
+  readVars = exprReadVars
+  literals = exprLiterals
+
+exprFreeVars = go 
+  where 
+    go env (Var x)         = if x `S.member` env then [] else [x]  
+    go env (App e a)       = (go env e) ++ (go env a)
+    go env (Lam x e)       = go (extendEnv env [x]) e
+    go env (Let b e)       = (freeVars env b) ++ (go (extendEnv env (bindings b)) e)
+    go env (Tick _ e)      = go env e
+    go env (Cast e _)      = go env e
+    go env (Case e x _ cs) = (go env e) ++ (concatMap (freeVars (extendEnv env [x])) cs) 
+    go _   _               = []
+
+exprReadVars = go
+  where
+    go (Var x)             = [x]
+    go (App e a)           = concatMap go [e, a] 
+    go (Lam _ e)           = go e
+    go (Let b e)           = readVars b ++ go e 
+    go (Tick _ e)          = go e
+    go (Cast e _)          = go e
+    go (Case e _ _ cs)     = (go e) ++ (concatMap readVars cs) 
+    go _                   = []
+
+exprLiterals = go
+  where
+    go (Lit l)             = [l]
+    go (App e a)           = concatMap go [e, a] 
+    go (Let b e)           = literals b ++ go e 
+    go (Lam _ e)           = go e
+    go (Tick _ e)          = go e
+    go (Cast e _)          = go e
+    go (Case e _ _ cs)     = (go e) ++ (concatMap literals cs) 
+    go _                   = []
 
 
 instance CBVisitable (Alt Var) where
   freeVars env (a, xs, e) = freeVars env a ++ freeVars (extendEnv env xs) e
   readVars (_,_, e)       = readVars e
+  literals (c,_, e)       = literals c ++ literals e
+
 
 instance CBVisitable AltCon where
   freeVars _ (DataAlt dc) = [dataConWorkId dc]
   freeVars _ _            = []
   readVars _              = []
+  literals (LitAlt l)     = [l]
+  literals _              = []
 
 
 names     = (map varName) . bindings

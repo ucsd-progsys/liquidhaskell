@@ -12,21 +12,23 @@ module Language.Haskell.Liquid.GhcMisc where
 import           CoreSyn
 import           CostCentre
 import           FamInstEnv                   (FamInst)
-import           GHC
+import           GHC                          hiding (L)
 import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..))
 import           Language.Haskell.Liquid.Misc (errorstar, stripParens)
 import           Name                         (mkInternalName)
 import           OccName                      (mkTyVarOcc)
-import           Unique                       (getUnique)
+import           Unique                       
 import           Outputable
 import           RdrName                      (GlobalRdrEnv)
 import           Type                         (liftedTypeKind)
-import           Unique                       (initTyVarUnique)
 import           Var
+import           FastString                   (uniq)
+-- import           SrcLoc                       hiding (L)
 import           Data.Char                    (isLower, isSpace)
+import           Data.Hashable
+import qualified Data.HashSet                 as S    
 import           Control.Applicative          ((<$>))
 import           Control.Exception            (assert)
-
 
 -----------------------------------------------------------------------
 --------------- Datatype For Holding GHC ModGuts ----------------------
@@ -113,3 +115,29 @@ dropModuleNames s  = last $ words $ dotWhite <$> stripParens s
 getDataConVarUnique v
   | isId v && isDataConWorkId v = getUnique $ idDataCon v
   | otherwise                   = getUnique v
+  
+
+newtype Loc    = L (Int, Int) deriving (Eq, Ord, Show)
+
+instance Hashable Loc where
+  hash (L z) = hash z 
+
+--instance (Uniquable a) => Hashable a where
+instance Hashable Var where
+  hash = uniqueHash 
+
+instance Hashable TyCon where
+  hash = uniqueHash 
+
+instance Hashable SrcSpan where
+  hash (UnhelpfulSpan s) = hash (uniq s) 
+  hash (RealSrcSpan s)   = hash (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
+
+uniqueHash = hash . getKey . getUnique
+
+instance Outputable a => Outputable (S.HashSet a) where
+  ppr = ppr . S.toList 
+
+
+
+

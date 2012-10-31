@@ -47,7 +47,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , emptySubst, mkSubst, catSubst
 
   -- * Visitors
-  , getSymbols
+  -- , getSymbols
   , reftKVars
 
   -- * Functions on @Result@
@@ -59,28 +59,26 @@ module Language.Haskell.Liquid.Fixpoint (
   ) where
 
 import TypeRep 
--- import PrelNames            (intTyConKey, intPrimTyConKey, integerTyConKey, boolTyConKey)
-
 import TysWiredIn           (listTyCon)
-import TyCon                (TyCon, isTupleTyCon) -- , tyConUnique)
+import TyCon                (TyCon, isTupleTyCon)
 import Outputable
 import Data.Monoid hiding   ((<>))
 import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
 import Data.List            (sort)
-import qualified Data.Map as M
-import qualified Data.Set as S
+import Data.Hashable
+import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet        as S
 
-import Data.Generics.Schemes
-import Data.Generics.Aliases
-import Data.Data    hiding  (TyCon, tyConName)
+-- import Data.Generics.Schemes
+-- import Data.Generics.Aliases
+-- import Data.Data    hiding  (TyCon, tyConName)
 import Data.Maybe           (fromMaybe)
 
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.GhcMisc
 import Control.DeepSeq
--- import System.Console.ANSI (Color (..))
 
 class Fixpoint a where
   toFix    :: a -> SDoc
@@ -88,7 +86,7 @@ class Fixpoint a where
   simplify :: a -> a 
   simplify =  id
 
-type TCEmb a    = M.Map a FTycon  
+type TCEmb a    = M.HashMap a FTycon  
 
 ------------------------------------------------------------
 ------------------- Sanitizing Symbols ---------------------
@@ -193,37 +191,80 @@ type TCEmb a    = M.Map a FTycon
 --         tg = text tagName
 -- }}}
 
-getConstants :: (Data a) => a -> [(Symbol, Sort, Bool)]
-getConstants = everything (++) ([] `mkQ` f)
-  where f (EDat s so) = [(s, so, True)]
-        f (ELit s so) = [(s, so, False)]
-        f _           = []
 
-getSymbols :: (Data a) => a -> [Symbol]
-getSymbols = everything (++) ([] `mkQ` f)
-  where f x@(S _) = [x]
-        f _       = []
+-- getConstants :: Expr -> [(Symbol, Sort, Bool)]
+-- getConstants = go  
+--   where 
+--     -- go (EDat s so)    = [(s, so, True)]
+--     go (ELit s so)    = [(s, so, False)]
+--     go (EApp _ es)    = concatMap go es
+--     go (EBin _ e1 e2) = concatMap go [e1, e2] 
+--     go (EIte _ e1 e2) = concatMap go [e1, e2]
+--     go (ECst e _)     = go e  
+--     go _              = [] 
+
+-- getSymbols = predSymbols 
+
+exprSymbols :: Expr -> [Symbol]
+exprSymbols = go
+  where 
+    go (EVar x)        = [x]
+    -- go (EDat x _)      = [x]
+    go (ELit x _)      = [x]
+    go (EApp f es)     = f : concatMap go es
+    go (EBin _ e1 e2)  = go e1 ++ go e2 
+    go (EIte p e1 e2)  = predSymbols p ++ go e1 ++ go e2 
+    go (ECst e _)      = go e
+    go _               = []
+
+predSymbols :: Pred -> [Symbol]
+predSymbols = go
+  where 
+    go (PAnd ps)        = concatMap go ps
+    go (POr ps)         = concatMap go ps
+    go (PNot p)         = go p
+    go (PIff p1 p2)     = go p1 ++ go p2
+    go (PImp p1 p2)     = go p1 ++ go p2
+    go (PBexp e)        = exprSymbols e
+    go (PAtom _ e1 e2)  = exprSymbols e1 ++ exprSymbols e2
+    go (PAll xts p)     = (fst <$> xts) ++ go p
+    go _                = []
+
+-- getSymbols = everything (++) ([] `mkQ` f)
+--   where f x@(S _) = [x]
+--         f _       = []
+
+-- getConstants :: (Data a) => a -> [(Symbol, Sort, Bool)]
+-- getConstants = everything (++) ([] `mkQ` f)
+--   where f (EDat s so) = [(s, so, True)]
+--         f (ELit s so) = [(s, so, False)]
+--         f _           = []
+-- 
+-- getSymbols :: (Data a) => a -> [Symbol]
+-- getSymbols = everything (++) ([] `mkQ` f)
+--   where f x@(S _) = [x]
+--         f _       = []
 
 reftKVars :: Reft -> [Symbol]
 reftKVars (Reft (_,ras)) = [k | (RKvar k _) <- ras]
 
-infoConstant (c, so, _)
+infoConstant (c, so)
   = text "constant" <+> toFix c <+> text ":" <+> toFix so <> blankLine <> blankLine 
 
 ---------------------------------------------------------------
 ---------- (Kut) Sets of Kvars --------------------------------
 ---------------------------------------------------------------
 
-newtype Kuts = KS (S.Set Symbol) deriving (Data, Typeable)
+newtype Kuts = KS (S.HashSet Symbol) 
 
 instance Outputable Kuts where
   ppr (KS s) = ppr s
 
 instance NFData Kuts where
-  rnf (KS s) = rnf s
+  rnf (KS _) = () -- rnf s
 
 instance Fixpoint Kuts where
-  toFix (KS s) = vcat $ ((text "cut " <>) . toFix) <$> S.elems s
+  toFix (KS s) = vcat $ ((text "cut " <>) . toFix) <$> S.toList s
 
 ksEmpty             = KS S.empty
 ksUnion kvs (KS s') = KS (S.union (S.fromList kvs) s')
@@ -245,22 +286,23 @@ instance (Fixpoint a, Fixpoint b) => Fixpoint (a,b) where
 data FInfo a = FI { cs   :: ![SubC a]
                   , ws   :: ![WfC a ] 
                   , gs   :: !FEnv
+                  , lits :: ![(Symbol, Sort)]
                   , kuts :: Kuts 
-                  } deriving (Data, Typeable)
+                  } 
 
 toFixpoint x' = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$  csDoc x' $+$ wsDoc x'
-  where conDoc     = vcat . map infoConstant . S.elems . S.fromList . getConstants 
+  where conDoc     = vcat . map infoConstant . lits
         csDoc      = vcat . map toFix . cs 
         wsDoc      = vcat . map toFix . ws 
         kutsDoc    = toFix . kuts
-        gsDoc      = vcat . map infoConstant . map (\(x, (RR so _)) -> (x, so, False)) . M.assocs . (\(SE e) -> e) . gs
+        gsDoc      = vcat . map (\(x, (RR so _)) -> infoConstant (x, so)) . hashMapToAscList . (\(SE e) -> e) . gs
 
 
 ----------------------------------------------------------------------
 ------------------------ Type Constructors ---------------------------
 ----------------------------------------------------------------------
 
-newtype FTycon = TC Symbol deriving (Eq, Ord, Data, Typeable, Show)
+newtype FTycon = TC Symbol deriving (Eq, Ord, Show) -- Data, Typeable, Show)
 
 intFTyCon  = TC (S "int")
 boolFTyCon = TC (S "bool")
@@ -280,7 +322,7 @@ data Sort = FInt
           | FVar  !Int           -- ^ fixpoint type variable
           | FFunc !Int ![Sort]   -- ^ type-var arity, in-ts ++ [out-t]
           | FApp FTycon [Sort]   -- ^ constructed type 
-	      deriving (Eq, Ord, Data, Typeable, Show)
+	      deriving (Eq, Ord, Show) --  Data, Typeable 
 
 fApp c ts 
   | c == intFTyCon  = FInt
@@ -288,13 +330,6 @@ fApp c ts
   | otherwise       = FApp c ts
 
 typeSort :: TCEmb TyCon -> Type -> Sort 
--- COMMENTED OUT TO TEST EMBED
--- typeSort tce (TyConApp c [])
---   | k == intTyConKey     = FInt
---   | k == intPrimTyConKey = FInt
---   | k == integerTyConKey = FInt 
---   | k == boolTyConKey    = FBool
---   where k = tyConUnique c
 typeSort tce (ForAllTy _ τ) 
   = typeSort tce τ  -- JHALA: Yikes! Fix!!!
 typeSort tce (FunTy τ1 τ2) 
@@ -317,8 +352,6 @@ typeSortFun tce τ1 τ2
         τs   = τ1  : grabArgs [] τ2
         n    = (length sos) - 1
    
-
-
 typeUniqueSymbol :: Type -> Symbol 
 typeUniqueSymbol = stringSymbol . {- ("sort_" ++) . -} showSDocDump . ppr
 
@@ -380,8 +413,7 @@ symChars
   ++ ['0' .. '9'] 
   ++ ['_', '%', '.', '#']
 
-data Symbol = S !String 
-              deriving (Eq, Ord, Data, Typeable)
+data Symbol = S !String deriving (Eq, Ord) -- , Data, Typeable)
 
 instance Fixpoint Symbol where
   toFix (S x) = text x
@@ -395,8 +427,7 @@ instance Outputable Sort where
 instance Show Symbol where
   show (S x) = x
 
-newtype Subst  = Su (M.Map Symbol Expr) 
-                 deriving (Eq, Ord, Data, Typeable)
+newtype Subst  = Su (M.HashMap Symbol Expr) deriving (Eq)
 
 instance Outputable Refa where
   ppr  = text . show
@@ -411,7 +442,7 @@ instance Show Subst where
   show = showPpr
 
 instance Fixpoint Subst where
-  toFix (Su m) = case M.toAscList m of 
+  toFix (Su m) = case hashMapToAscList m of 
                    []  -> empty
                    xys -> hcat $ map (\(x,y) -> brackets $ (toFix x) <> text ":=" <> (toFix y)) xys
 
@@ -498,25 +529,25 @@ intKvar                 = intSymbol "k_"
 ---------------------------------------------------------------
 
 data Constant = I !Integer 
-              deriving (Eq, Ord, Data, Typeable, Show)
+              deriving (Eq, Ord, Show) --, Data, Typeable, Show)
 
 data Brel = Eq | Ne | Gt | Ge | Lt | Le 
-            deriving (Eq, Ord, Data, Typeable, Show)
+            deriving (Eq, Ord, Show) -- Data, Typeable, Show)
 
 data Bop  = Plus | Minus | Times | Div | Mod    
-            deriving (Eq, Ord, Data, Typeable, Show)
+            deriving (Eq, Ord, Show) -- Data, Typeable, Show)
 	    -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
 data Expr = ECon !Constant 
           | EVar !Symbol
-          | EDat !Symbol !Sort
+          -- | EDat !Symbol !Sort
           | ELit !Symbol !Sort
           | EApp !Symbol ![Expr]
           | EBin !Bop !Expr !Expr
           | EIte !Pred !Expr !Expr
           | ECst !Expr !Sort
           | EBot
-          deriving (Eq, Ord, Data, Typeable, Show)
+          deriving (Eq, Ord, Show) -- Data, Typeable, Show)
 
 instance Fixpoint Integer where
   toFix = pprShow 
@@ -543,7 +574,7 @@ instance Fixpoint Bop where
 instance Fixpoint Expr where
   toFix (ECon c)       = toFix c 
   toFix (EVar s)       = toFix s
-  toFix (EDat s _)     = toFix s 
+  -- toFix (EDat s _)     = toFix s 
   toFix (ELit s _)     = toFix s
   toFix (EApp f es)    = (toFix f) <> (parens $ toFix es) 
   toFix (EBin o e1 e2) = parens $ toFix e1 <+> toFix o <+> toFix e2
@@ -566,7 +597,7 @@ data Pred = PTrue
           | PAtom !Brel !Expr !Expr
           | PAll  ![(Symbol, Sort)] !Pred
           | PTop
-          deriving (Eq, Ord, Data, Typeable, Show)
+          deriving (Eq, Ord, Show) -- show Data, Typeable, Show)
 
 instance Fixpoint Pred where
   toFix PTop             = text "???"
@@ -635,11 +666,10 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
 data Refa 
   = RConc !Pred 
   | RKvar !Symbol !Subst
-  deriving (Eq, Ord, Data, Typeable, Show)
+  deriving (Eq, Show)
 
-newtype Reft
-  = Reft (Symbol, [Refa]) 
-  deriving (Eq, Ord, Data, Typeable) 
+
+newtype Reft = Reft (Symbol, [Refa]) deriving (Eq) -- , Ord, Data, Typeable) 
 
 instance Show Reft where
   show (Reft x) = showSDoc $ toFix x 
@@ -647,9 +677,7 @@ instance Show Reft where
 instance Outputable Reft where
   ppr = ppr_reft_pred
 
-data SortedReft
-  = RR { sr_sort :: !Sort, sr_reft :: !Reft }
-  deriving (Eq, Ord, Data, Typeable) 
+data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft } deriving (Eq) -- , Ord, Data, Typeable) 
 
 isNonTrivialSortedReft (RR _ (Reft (_, ras)))
   = not $ null ras
@@ -663,8 +691,7 @@ isFunctionSortedReft _
 ----------------- Environments  -------------------------------
 ---------------------------------------------------------------
 
-newtype SEnv a = SE (M.Map Symbol a) 
-                 deriving (Eq, Ord, Data, Typeable) 
+newtype SEnv a = SE (M.HashMap Symbol a) deriving (Eq) -- , Ord, Data, Typeable) 
 
 fromListSEnv            = SE . M.fromList
 deleteSEnv x (SE env)   = SE (M.delete x env)
@@ -697,7 +724,7 @@ instance Outputable SortedReft where
   ppr = toFix
 
 instance Fixpoint FEnv where
-  toFix (SE m)  = toFix (M.toAscList m)
+  toFix (SE m)  = toFix (hashMapToAscList m)
 
 insertFEnv   = insertSEnv . lower 
   where lower x@(S (c:chs)) 
@@ -706,7 +733,7 @@ insertFEnv   = insertSEnv . lower
         lower z       = z
 
 instance (Outputable a) => Outputable (SEnv a) where
-  ppr (SE e) = vcat $ map pprxt $ M.toAscList e
+  ppr (SE e) = vcat $ map pprxt $ hashMapToAscList e
 	where pprxt (x, t) = ppr x <+> dcolon <+> ppr t
 
 instance Outputable (SEnv a) => Show (SEnv a) where
@@ -726,17 +753,17 @@ data SubC a = SubC { senv  :: !FEnv
                    , sid   :: !(Maybe Integer)
                    , stag  :: !Tag
                    , sinfo :: !a
-                   } deriving (Eq, Ord, Data, Typeable)
+                   } deriving (Eq) -- , Ord, Data, Typeable)
 
 data WfC a  = WfC  { wenv  :: !FEnv
                    , wrft  :: !SortedReft
                    , wid   :: !(Maybe Integer) 
                    , winfo :: !a
-                   } deriving (Eq, Ord, Data, Typeable)
+                   } deriving (Eq) -- , Ord, Data, Typeable)
 
 data FixResult a = Crash [a] String | Safe | Unsafe ![a] | UnknownError
 
-type FixSolution = M.Map Symbol Pred
+type FixSolution = M.HashMap Symbol Pred
 
 instance Monoid (FixResult a) where
   mempty                          = Safe
@@ -807,27 +834,52 @@ instance Fixpoint Int where
 -------------------------------------------------------
 
 class Subable a where
+  syms   :: a -> [Symbol]
+  substf :: (Symbol -> Expr) -> a -> a
   subst  :: Subst -> a -> a
-
   subst1 :: a -> (Symbol, Expr) -> a
   subst1 thing (x, e) = subst (Su $ M.singleton x e) thing
 
 instance Subable Symbol where
+  substf f x               = subSymbol (Just (f x)) x
   subst (Su s) x           = subSymbol (M.lookup x s) x
+  syms x                   = [x]
 
 subSymbol (Just (EVar y)) _ = y
 subSymbol Nothing         x = x
 subSymbol _               _ = error "sub Symbol"
 
 instance Subable Expr where
+  syms                     = exprSymbols
+
+  substf f (EApp s es)     = EApp s $ map (substf f) es 
+  substf f (EBin op e1 e2) = EBin op (substf f e1) (substf f e2)
+  substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
+  substf f (ECst e so)     = ECst (substf f e) so
+  substf f e@(EVar x)      = f x 
+  substf _ e               = e
+ 
   subst su (EApp f es)     = EApp f $ map (subst su) es 
   subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
   subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst  su e2)
   subst su (ECst e so)     = ECst (subst su e) so
-  subst (Su s) e@(EVar x)  = M.findWithDefault e x s
+  subst (Su s) e@(EVar x)  = M.lookupDefault e x s
   subst _ e                = e
 
+
 instance Subable Pred where
+  syms                     = predSymbols
+  
+  substf f (PAnd ps)       = PAnd $ map (substf f) ps
+  substf f (POr  ps)       = POr  $ map (substf f) ps
+  substf f (PNot p)        = PNot $ substf f p
+  substf f (PImp p1 p2)    = PImp (substf f p1) (substf f p2)
+  substf f (PIff p1 p2)    = PIff (substf f p1) (substf f p2)
+  substf f (PBexp e)       = PBexp $ substf f e
+  substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
+  substf _  (PAll _ _)     = errorstar $ "substf: FORALL" 
+  substf _  p              = p
+
   subst su (PAnd ps)       = PAnd $ map (subst su) ps
   subst su (POr  ps)       = POr  $ map (subst su) ps
   subst su (PNot p)        = PNot $ subst su p
@@ -839,21 +891,34 @@ instance Subable Pred where
   subst _  p               = p
 
 instance Subable Refa where
-  subst su (RConc p)     = RConc   $ subst su p
-  subst su (RKvar k su') = RKvar k $ su' `catSubst` su 
+  syms (RConc p)           = syms p
+  syms (RKvar k (Su su'))  = k : concatMap syms (M.elems su') 
+  subst su (RConc p)       = RConc   $ subst su p
+  subst su (RKvar k su')   = RKvar k $ su' `catSubst` su 
   -- subst _  (RPvar p)     = RPvar p
 
+  substf f (RConc p)       = RConc (substf f p)
+  substf _ ra@(RKvar _ _)  = ra
+
 instance (Subable a, Subable b) => Subable (a,b) where
+  syms  (x, y)   = syms x ++ syms y
   subst su (x,y) = (subst su x, subst su y)
+  substf f (x,y) = (substf f x, substf f y)
 
 instance Subable a => Subable [a] where
-  subst su = map $ subst su
+  syms   = concatMap syms
+  subst  = map . subst 
+  substf = map . substf 
 
-instance Subable a => Subable (M.Map k a) where
-  subst su = M.map $ subst su
+instance Subable a => Subable (M.HashMap k a) where
+  syms   = syms . M.elems 
+  subst  = M.map . subst 
+  substf = M.map . substf 
 
 instance Subable Reft where
+  syms (Reft (v, ras))     = v : syms ras
   subst su (Reft (v, ras)) = Reft (v, subst su ras)
+  substf f (Reft (v, ras)) = Reft (v, substf f ras)
 
 instance Monoid Reft where
   mempty  = trueReft
@@ -862,7 +927,9 @@ instance Monoid Reft where
     | otherwise = Reft (v, ras ++ (ras' `subst1` (v', EVar v)))
 
 instance Subable SortedReft where
+  syms               = syms . sr_reft 
   subst su (RR so r) = RR so $ subst su r
+  substf f (RR so r) = RR so $ substf f r
 
 emptySubst 
   = Su M.empty
@@ -934,7 +1001,7 @@ instance NFData Bop
 instance NFData Expr where
   rnf (ECon x)        = rnf x
   rnf (EVar x)        = rnf x
-  rnf (EDat x1 x2)    = rnf x1 `seq` rnf x2
+  -- rnf (EDat x1 x2)    = rnf x1 `seq` rnf x2
   rnf (ELit x1 x2)    = rnf x1 `seq` rnf x2
   rnf (EApp x1 x2)    = rnf x1 `seq` rnf x2
   rnf (EBin x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
@@ -996,11 +1063,34 @@ instance MapSymbol Pred where
 
 instance MapSymbol Expr where
   mapSymbol f (EVar s)       = EVar $ f s
-  mapSymbol f (EDat s so)    = EDat (f s) so
+  -- mapSymbol f (EDat s so)    = EDat (f s) so
   mapSymbol f (ELit s so)    = ELit (f s) so
   mapSymbol f (EApp s es)    = EApp (f s) (mapSymbol f <$> es)
   mapSymbol f (EBin b e1 e2) = EBin b (mapSymbol f e1) (mapSymbol f e2)
   mapSymbol f (EIte p e1 e2) = EIte (mapSymbol f p) (mapSymbol f e1) (mapSymbol f e2)
   mapSymbol f (ECst e s)     = ECst (mapSymbol f e) s 
   mapSymbol _ e              = e
+
+----------------------------------------------------------------------------
+-------------- Hashable Instances -----------------------------------------
+---------------------------------------------------------------------------
+
+instance Hashable Symbol where 
+  hash (S s) = hash s
+
+instance Hashable FTycon where
+  hash (TC s) = hash s
+
+instance Hashable Sort where
+  hash = hashSort
+
+hashSort FInt         = 0
+hashSort FBool        = 1
+hashSort FNum         = 2
+hashSort (FObj s)     = 10 `combine` hash s
+hashSort (FVar i)     = 11 `combine` hash i
+hashSort (FFunc _ ts) = hash (hashSort <$> ts)
+hashSort (FApp tc ts) = 12 `combine` (hash tc) `combine` hash (hashSort <$> ts) 
+
+
 
