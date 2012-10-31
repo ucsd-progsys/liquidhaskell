@@ -1,15 +1,13 @@
-{-# LANGUAGE NoMonomorphismRestriction, DeriveDataTypeable, RankNTypes, GADTs, TupleSections  #-}
-
 module Language.Haskell.Liquid.Tidy (tidyRefType) where
 
--- import Data.Generics.Schemes
--- import Data.Generics.Aliases
--- import Data.Data
-
-import Control.Monad.State
+import Control.Applicative
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
+import qualified Data.List           as L
 
+import Language.Haskell.Liquid.Misc 
+import Language.Haskell.Liquid.GhcMisc   (stringTyVar) 
+import Language.Haskell.Liquid.FileNames (symSepName)
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 
@@ -17,49 +15,69 @@ import Language.Haskell.Liquid.RefType
 ---------- SYB Magic: Cleaning Reftypes Up Before Rendering ---------
 ---------------------------------------------------------------------
 
-tidyRefType :: RefType -> RefType
-tidyRefType = error "TODO: tidyRefType"
---tidyRefType = tidyDSymbols
---            . tidySymbols 
---            . tidyFunBinds
---            . tidyLocalRefas 
---            . tidyTyVars 
+tidyRefType :: RefType -> RefType  
+tidyRefType = tidyDSymbols
+            . tidySymbols 
+            . tidyFunBinds
+            . tidyLocalRefas 
+            . tidyTyVars 
 
---tidyFunBinds :: RefType -> RefType
---tidyFunBinds t = everywhere (mkT $ dropBind xs) t 
---  where xs = syms t
---        dropBind :: S.HashSet Symbol -> RefType -> RefType
---        dropBind xs (RFun x t1 t2 r)
---          | x `S.member` xs = RFun x t1 t2 r
---          | otherwise       = RFun nonSymbol t1 t2 r
---        dropBind _ z        = z
---
+tidyFunBinds :: RefType -> RefType
+tidyFunBinds t = mapBind (\x -> if x `S.member` xs then x else nonSymbol) t  
+  where xs     = S.fromList (syms t)
+
+tidyLocalRefas :: RefType -> RefType
+tidyLocalRefas = mapReft (txReft)
+  where 
+    txReft (Reft (v,ras)) = Reft (v, dropLocals ras) 
+    dropLocals            = filter (not . any isTmp . syms) . flattenRefas
+    isTmp x               = let str = symbolString x in 
+                                (anfPrefix `L.isPrefixOf` str) || (tempPrefix `L.isPrefixOf` str) 
+
+tidySymbols :: RefType -> RefType  
+tidySymbols = substf dropSuffix
+  where 
+    dropSuffix = EVar . {- stringSymbol -} S . takeWhile (/= symSepName) . symbolString
+    -- dropQualif = stringSymbol . dropModuleNames . symbolString 
+
+tidyDSymbols :: RefType -> RefType  
+tidyDSymbols t = mapBind tx $ subst su $ t
+  where 
+    tx y = M.lookupDefault y y (M.fromList dxs) 
+    su   = mkSubst (mapSnd EVar <$> dxs)
+    dxs  = zip ds (var <$> [1..])
+    ds   = [ x | x <- syms t, isDs x ]
+    isDs = ("ds_" `L.isPrefixOf`) . symbolString
+    var  = stringSymbol . ('x' :) . show 
+
+tidyTyVars :: RefType -> RefType  
+tidyTyVars t = subsTyVars_meet αβs t
+  where 
+    αβs  = zipWith (\α β -> (α, toRSort β, β)) αs βs 
+    αs   = L.nub (tyVars t)
+    βs   = map (rVar . stringTyVar) pool
+    pool = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
+
+
+tyVars (RAllP _ t)     = tyVars t
+tyVars (RAllT α t)     = α : tyVars t
+tyVars (RFun _ t t' _) = tyVars t ++ tyVars t' 
+tyVars (RApp _ ts _ _) = concatMap tyVars ts
+tyVars (RCls _ ts)     = concatMap tyVars ts 
+tyVars (RVar α _)      = [α] 
+tyVars (REx _ _ t)     = tyVars t
+tyVars (ROth _)        = []
+
+{- 
 --tidyTyVars :: RefType -> RefType
 --tidyTyVars = tidy pool getS putS 
 --  where getS (α :: TyVar)   = Just (symbolString $ varSymbol α)
 --        putS (_ :: TyVar) x = stringTyVar x
 --        pool          = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
 --
---tidyLocalRefas :: RefType -> RefType
---tidyLocalRefas = everywhere (mkT dropLocals) 
---  where dropLocals = filter (not . Fold.any isTmp . readSymbols) . flattenRefas
---        isTmp x    = let str = symbolString x in 
---                     (anfPrefix `isPrefixOf` str) || (tempPrefix `isPrefixOf` str) 
---
---tidySymbols :: RefType -> RefType
---tidySymbols = everywhere (mkT dropSuffix) 
---  where dropSuffix = {- stringSymbol -} S . takeWhile (/= symSep) . symbolString
---        -- dropQualif = stringSymbol . dropModuleNames . symbolString 
---
---tidyDSymbols :: RefType -> RefType
---tidyDSymbols = tidy pool getS putS 
---  where getS   sy  = let str = symbolString sy in 
---                     if "ds_" `isPrefixOf` str then Just str else Nothing
---        putS _ str = stringSymbol str 
---        pool       = ["x" ++ show i | i <- [1..]]
---
-readSymbols :: (Subable a) => a -> S.HashSet Symbol
-readSymbols = S.fromList . syms 
+-
+-- readSymbols :: (Subable a) => a -> S.HashSet Symbol
+-- readSymbols = S.fromList . syms 
 
 ---------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------
@@ -98,3 +116,7 @@ readSymbols = S.fromList . syms
 -- tidy pool0 getS putS z = fst $ runState act s0
 --   where act      = cleaner getS putS z 
 --         s0       = T { memo = M.empty, pool = pool0 }
+--         
+-}
+
+
