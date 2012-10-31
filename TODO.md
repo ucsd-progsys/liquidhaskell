@@ -1,8 +1,7 @@
 TODO
 ====
 
-* performance/collateral damage
-
+* performance
 * parse predicate signatures for tuples 
 * predicate-aliases 
 * Blogging 
@@ -13,22 +12,50 @@ TODO
 * benchmarks: stackset-core
 * benchmarks: Data.Text
 * benchmarks: mcbrides stack machine
-
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
-
-Performance: Collateral Damage
-==============================
-
-- Removed EDat: `ordCon`, `dataConReft` : find way to get this information WITHOUT hardwiring.
 
 Performance
 ===========
 
         1. Data.HashMap.Strict/Data.HashSet.Strict [instead of Data.Map/Data.Set]
-        2. Remove all dependence on everywhere/everything <---------------HEREHEREHEREHERE
-            > Tidy.hs
-        3. Compact Constraints
         
+        2. Remove all dependence on everywhere/everything 
+        3. [EQ/LT/GE Issue] Removed EDat: `ordCon`, `dataConReft` : how to get this info WITHOUT hardwiring.
+                see include/GHC/Types.spec Does it work? <---------------HEREHEREHEREHERE
+
+                  pos/GhcListSort.hs
+                , pos/GhcSort1.hs
+                , pos/GhcSort2.hs
+                , pos/GhcSort3.hs
+                , pos/Map.hs
+                , pos/Map0.hs
+                , pos/cmptag0.hs
+                , pos/compare.hs
+                , pos/compare1.hs
+                , pos/compare2.hs
+                , pos/maybe.hs, pos/maybe1.hs, pos/maybe2.hs
+            
+        4. Predicate Issue?
+                , pos/deptupW.hs
+                , pos/ex0.hs
+                , pos/ex1.hs
+                , pos/initarray.hs
+                , pos/nullterm.hs
+
+        5. Compact Constraints 
+                > but first do this
+                        
+            import Control.Monad (forM)
+    
+            main = forM sizes $ \n -> do putStrLn ("Size = " ++ show n)
+                                         writeFile ("tmp." ++ show n) (gen n)
+                            
+            sizes :: [Integer]
+            sizes  = [10, 100, 1000, 10000, 100000, 1000000]
+    
+            gen   :: Integer -> String
+            gen 0 = "DONE!\n"
+            gen n = show n ++ "\n" ++  gen (n-1)
 
 - Majority of remaining 900s in haskell land? doing what? serialize/parse?
         - time liquid benchmarks/esop2013-submission/Base.hs > log.base 2>&1
@@ -39,7 +66,6 @@ Performance
           user = 34s ML = 9s
 
 - Or is it the use of Dynamic/Data to traverse and sanitize constraints?
-
 - Serializing to .fq is WAY slow ?
         - Compact FQ encoding: shared environment binders
 
