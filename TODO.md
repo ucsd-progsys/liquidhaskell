@@ -1,8 +1,7 @@
 TODO
 ====
 
-* performance/collateral damage
-
+* performance
 * parse predicate signatures for tuples 
 * predicate-aliases 
 * Blogging 
@@ -13,21 +12,19 @@ TODO
 * benchmarks: stackset-core
 * benchmarks: Data.Text
 * benchmarks: mcbrides stack machine
-
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
-
-Performance: Collateral Damage
-==============================
-
-- Removed EDat: `ordCon`, `dataConReft` : find way to get this information WITHOUT hardwiring.
 
 Performance
 ===========
 
         1. Data.HashMap.Strict/Data.HashSet.Strict [instead of Data.Map/Data.Set]
-        2. Remove all dependence on everywhere/everything <---------------HEREHEREHEREHERE
-            > Tidy.hs
-        3. Compact Constraints
+        
+        2. Remove all dependence on everywhere/everything 
+            > Regrtest <---------------HEREHEREHEREHERE
+
+        3. Removed EDat: `ordCon`, `dataConReft` : find way to get this information WITHOUT hardwiring.
+
+        4. Compact Constraints 
         
 
 - Majority of remaining 900s in haskell land? doing what? serialize/parse?

@@ -21,7 +21,8 @@ module Language.Haskell.Liquid.FileNames (
   , listConName
   , tupConName
   , vvName
-  
+  , symSepName
+
   -- * Hardwired paths 
   , getIncludePath, getFixpointPath, getCSSPath
 
@@ -218,3 +219,4 @@ boolConName = "Bool"
 listConName = "List"
 tupConName  = "Tuple"
 vvName      = "VV"
+symSepName  = '#'
