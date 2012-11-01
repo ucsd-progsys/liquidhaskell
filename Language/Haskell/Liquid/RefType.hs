@@ -99,7 +99,7 @@ instance (NFData a) => NFData (PVar a) where
   rnf (PV n t txys) = rnf n `seq` rnf t `seq` rnf txys
 
 instance Hashable (PVar a) where
-  hash (PV n _ xys) = hash $ n : (thd3 <$> xys)
+  hash (PV n _ xys) = hash  n -- : (thd3 <$> xys)
 
 --------------------------------------------------------------------
 ------------------ Predicates --------------------------------------
