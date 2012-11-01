@@ -23,24 +23,7 @@ Performance
         3. [EQ/LT/GE Issue] Removed EDat: `ordCon`, `dataConReft` : how to get this info WITHOUT hardwiring.
                 see include/GHC/Types.spec Does it work? <---------------HEREHEREHEREHERE
 
-                  pos/GhcListSort.hs
-                , pos/GhcSort1.hs
-                , pos/GhcSort2.hs
-                , pos/GhcSort3.hs
-                , pos/Map.hs
-                , pos/Map0.hs
-                , pos/cmptag0.hs
-                , pos/compare.hs
-                , pos/compare1.hs
-                , pos/compare2.hs
-                , pos/maybe.hs, pos/maybe1.hs, pos/maybe2.hs
-            
-        4. Predicate Issue?
-                , pos/deptupW.hs
-                , pos/ex0.hs
-                , pos/ex1.hs
-                , pos/initarray.hs
-                , pos/nullterm.hs
+           FAILING: pos/bar.hs, pos/ex1.hs
 
         5. Compact Constraints 
                 > but first do this

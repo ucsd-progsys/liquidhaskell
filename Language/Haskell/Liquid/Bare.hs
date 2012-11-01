@@ -77,8 +77,10 @@ makeGhcSpec vars env spec
        embs       <- makeTyConEmbeds benv              $ Ms.embeds     spec 
        let syms   = makeSymbols (vars ++ map fst cs) (map fst ms) (sigs ++ cs) ms 
        let tx     = subsFreeSymbols syms
-       return     $ SP (tx sigs) (tx cs) (tx ms) invs (concat dcs ++ dcs') tycons syms embs 
+       let syms'  = [(varSymbol v, v) | (_, v) <- syms]
+       return     $ SP (tx sigs) (tx cs) (tx ms) invs (concat dcs ++ dcs') tycons syms' embs 
     where (tcs', dcs') = wiredTyDataCons
+
 
 subsFreeSymbols xvs = tx
   where su  = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]

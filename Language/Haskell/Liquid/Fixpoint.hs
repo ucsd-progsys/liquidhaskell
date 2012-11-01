@@ -67,6 +67,7 @@ import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
 import Data.List            (sort)
 import Data.Hashable
+import Text.Printf          (printf)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
@@ -847,19 +848,19 @@ instance Subable Symbol where
 
 subSymbol (Just (EVar y)) _ = y
 subSymbol Nothing         x = x
-subSymbol _               _ = error "sub Symbol"
+subSymbol a               b = errorstar (printf "Cannot substitute symbol %s with expression %s" (showPpr b) (showPpr a))
 
 instance Subable Expr where
   syms                     = exprSymbols
 
-  substf f (EApp s es)     = EApp s $ map (substf f) es 
+  substf f (EApp s es)     = EApp (substf f s) $ map (substf f) es 
   substf f (EBin op e1 e2) = EBin op (substf f e1) (substf f e2)
   substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
   substf f (ECst e so)     = ECst (substf f e) so
   substf f e@(EVar x)      = f x 
   substf _ e               = e
  
-  subst su (EApp f es)     = EApp f $ map (subst su) es 
+  subst su (EApp f es)     = EApp (subst su f) $ map (subst su) es 
   subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
   subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst  su e2)
   subst su (ECst e so)     = ECst (subst su e) so
