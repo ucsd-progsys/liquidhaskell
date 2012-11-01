@@ -258,7 +258,7 @@ applySolution :: FixSolution -> AnnInfo SpecType -> AnnInfo SpecType
 applySolution = fmap . fmap . mapReft . map . appSolRefa 
   where appSolRefa _ ra@(RConc _) = ra 
         -- appSolRefa _ p@(RPvar _)  = p  
-        appSolRefa s (RKvar k su) = RConc $ subst su $ M.findWithDefault PTop k s  
+        appSolRefa s (RKvar k su) = RConc $ subst su $ M.lookupDefault PTop k s  
         mapReft f (U (Reft (x, zs)) p)  = U (Reft (x, squishRas $ f zs)) p
 
 squishRas ras  = (squish [p | RConc p <- ras]) : []
