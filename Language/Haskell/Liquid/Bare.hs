@@ -84,7 +84,7 @@ makeGhcSpec vars env spec
 
 subsFreeSymbols xvs = tx
   where su  = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
-        tx  = fmap $ mapSnd $ (\t -> tracePpr ("subsFree: " ++ showPpr t) (subst su t))
+        tx  = fmap $ mapSnd $ subst su {- (\t -> tracePpr ("subsFree: " ++ showPpr t) (subst su t)) -}
 ------------------------------------------------------------------
 ---------- Error-Reader-IO For Bare Transformation ---------------
 ------------------------------------------------------------------
@@ -164,10 +164,10 @@ mkPredType πs
 --         su = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
 
 makeSymbols vs xs' xts yts = 
-  tracePpr ("makeSymbols: vs = " ++ showPpr vs ++ " xs' = " ++ showPpr xs' ++ " ts = " ++ showPpr xts)
-  $ if (all (checkSig env) xts) && (all (checkSig env) yts) 
-      then xvs 
-      else errorstar "malformed type signatures" 
+  -- tracePpr ("makeSymbols: vs = " ++ showPpr vs ++ " xs' = " ++ showPpr xs' ++ " ts = " ++ showPpr xts) $ 
+  if (all (checkSig env) xts) && (all (checkSig env) yts) 
+   then xvs 
+   else errorstar "malformed type signatures" 
   where zs  = (concatMap freeSymbols ((snd <$> xts))) `sortDiff` xs'
         zs' = (concatMap freeSymbols ((snd <$> yts))) `sortDiff` xs'
         xs  = sortNub $ zs ++ zs'
@@ -187,8 +187,8 @@ checkSig' env (x, t)
     where msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showPpr ys) (showPpr x) (showPpr t)
 
 -- freeSymbols :: SpecType -> [Symbol]
-freeSymbols ty   = tracePpr ("freeSymbols: " ++ show ty) 
-                   $ sortNub $ concat $ efoldReft f [] [] ty
+freeSymbols ty   = -- tracePpr ("freeSymbols: " ++ show ty) $ 
+                   sortNub $ concat $ efoldReft f [] [] ty
   where f γ r xs = let Reft (v, ras) = toReft r in ((syms ras) `sortDiff` (v:γ) ) : xs 
 
 -----------------------------------------------------------------
