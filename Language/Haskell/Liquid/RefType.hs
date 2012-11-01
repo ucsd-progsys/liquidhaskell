@@ -1074,15 +1074,18 @@ dataConReft c []
   = Reft (vv, [RConc $ (PBexp (EVar vv))]) 
   | c == falseDataCon
   = Reft (vv, [RConc $ PNot (PBexp (EVar vv))]) 
-  | otherwise
-  = Reft (vv, [RConc $ (PAtom Eq (EVar vv) (EVar (dataConSymbol c)))]) 
+--  | otherwise
+--  = Reft (vv, [RConc $ (PAtom Eq (EVar vv) (EVar (dataConSymbol c)))]) 
 --  | c `elem`  [gtDataCon, ltDataCon, eqDataCon]
 --  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon c))]) 
 dataConReft c [x] 
   | c == intDataCon 
   = Reft (vv, [RConc (PAtom Eq (EVar vv) (EVar x))]) 
-dataConReft c xs
-  = Reft (vv, [RConc (PAtom Eq (EVar vv) (EApp (dataConSymbol c) (EVar <$> xs)))]) 
+dataConReft _ _ 
+ = Reft (vv, [RConc PTrue]) 
+ 
+-- dataConReft c xs
+--  = Reft (vv, [RConc (PAtom Eq (EVar vv) (EApp (dataConSymbol c) (EVar <$> xs)))]) 
   -- = Reft (vv, [RConc PTrue]) 
 
 dataConMsReft ty ys  = subst su (refTypeReft t) 

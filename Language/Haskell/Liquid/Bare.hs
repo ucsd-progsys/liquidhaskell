@@ -69,16 +69,19 @@ data GhcSpec = SP {
 makeGhcSpec :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
 makeGhcSpec vars env spec 
   = do (tcs, dcs) <- makeConTypes    env               $ Ms.dataDecls  spec 
-       let tycons  = tcs ++ tcs'    
-       let benv    = BE (makeTyConInfo tycons) env
+       let tycons = tcs ++ tcs'    
+       let benv   = BE (makeTyConInfo tycons) env
        (cs, ms)   <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
        sigs       <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
        invs       <- makeInvariants  benv              $ Ms.invariants spec
        embs       <- makeTyConEmbeds benv              $ Ms.embeds     spec 
-       let syms    = makeSymbols (vars ++ map fst cs) (map fst ms) sigs 
-       let sigs'   = subsFreeSymbols syms sigs 
-       return      $ SP sigs' cs ms invs (concat dcs ++ dcs') tycons syms embs 
-    where (tcs', dcs') = wiredTyDataCons 
+       let syms   = makeSymbols (vars ++ map fst cs) (map fst ms) sigs 
+       let tx     = subsFreeSymbols syms
+       return     $ SP (tx sigs) (tx cs) (tx ms) invs (concat dcs ++ dcs') tycons syms embs 
+    where (tcs', dcs') = wiredTyDataCons
+
+subsFreeSymbols xvs = fmap $ mapSnd $ subst su
+  where su = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
 
 ------------------------------------------------------------------
 ---------- Error-Reader-IO For Bare Transformation ---------------
@@ -152,9 +155,11 @@ mkPredType πs
 
 --makeSymbols :: [Vars] -> [Symbol] -> [SpecType] -> [(Symbol, Var)]
 
-subsFreeSymbols xvs xts = tracePpr ("subsFreeSyms: xvs =" ++ showPpr xvs)
-                          $ [(x, subst su t) | (x, t) <- xts]
-  where su = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
+
+-- subsFreeSymbols xvs xts yts = (tx xts, tx yts) 
+--   where -- tx zts = fmap (mapSnd (subst su)) zts 
+--         tx = fmap $ mapSnd $ subst su 
+--         su = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
 
 makeSymbols vs xs' xts = 
   tracePpr ("makeSymbols: vs = " ++ showPpr vs ++ " xs' = " ++ showPpr xs' ++ " ts = " ++ showPpr xts)
