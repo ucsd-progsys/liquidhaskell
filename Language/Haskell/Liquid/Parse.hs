@@ -5,7 +5,7 @@ module Language.Haskell.Liquid.Parse (
 , hsSpecificationP
 ) where
 
-import TysWiredIn   (eqDataConId, ltDataConId, gtDataConId)
+-- import TysWiredIn   (eqDataConId, ltDataConId, gtDataConId)
 import Control.Monad
 import Text.Parsec
 import Text.Parsec.Expr
@@ -13,9 +13,11 @@ import Text.Parsec.Language
 import Text.Parsec.String
 import Text.Printf  (printf)
 import qualified Text.Parsec.Token as Token
+import qualified Data.HashMap.Strict as M
+
 import Control.Applicative ((<$>), (<*))
-import qualified Data.Map as M
 import Data.Char (toLower, isLower, isSpace)
+
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
@@ -123,20 +125,26 @@ lexprP
  <|> try (parens exprCastP)
  <|> try (parens $ condP EIte exprP)
  <|> try exprFunP
- <|> try (liftM makeEDat upperIdP)
- -- <|> try (liftM (EVar . stringSymbol) upperIdP)
+--  <|> try (liftM makeEDat upperIdP)
+ <|> try (liftM (EVar . stringSymbol) upperIdP)
  <|> liftM EVar symbolP
  <|> liftM ECon constantP
  <|> (reserved "_|_" >> return EBot)
 
-makeEDat s = wiredEDat $ lookup s wiredSorts
-  where wiredEDat (Just wInfo) = EDat (fst wInfo) (snd wInfo)
-        wiredEDat _            = EVar $ stringSymbol s 
+-- RJ: Removing EDat 
+-- makeEDat s = wiredEDat $ lookup s wiredSorts
+--   where wiredEDat (Just wInfo) = EDat (fst wInfo) (snd wInfo)
+--         wiredEDat _            = EVar $ stringSymbol s 
+-- 
+-- EQ :: Ordering
+-- LT :: Ordering
+-- GT :: Ordering
 
-wiredSorts = [ ("EQ", (varSymbol eqDataConId, primOrderingSort))
-             , ("LT", (varSymbol ltDataConId, primOrderingSort))
-             , ("GT", (varSymbol gtDataConId, primOrderingSort))
-             ]
+-- wiredSorts = [] 
+-- [ ("EQ", (varSymbol eqDataConId, primOrderingSort))
+-- , ("LT", (varSymbol ltDataConId, primOrderingSort))
+-- , ("GT", (varSymbol gtDataConId, primOrderingSort))
+-- ]
 
 
 

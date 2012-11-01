@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 module Language.Haskell.Liquid.Qualifier (
     Qualifier 
   , specificationQualifiers
@@ -15,16 +14,15 @@ import Language.Haskell.Liquid.Misc
 
 import Control.DeepSeq
 import Control.Applicative      ((<$>))
-import Data.List                (delete)
+import Data.List                (delete, nub)
 import Data.Maybe               (fromMaybe)
-import qualified Data.Set as S
+import qualified Data.HashSet as S
 import Data.Bifunctor           (second) 
-import Data.Data
 
 data Qualifier = Q String           --nam
                    [(Symbol, Sort)] --params
                    Pred             --pred
-               deriving (Eq, Ord, Data, Typeable)
+               deriving (Eq, Ord) -- , Data, Typeable)
 
 instance Fixpoint Qualifier where 
   toFix = pprQual
@@ -73,7 +71,7 @@ mkQual t0 γ v so p = Q "Auto" ((v, so) : yts) p'
 lookupSort t0 x γ = fromMaybe (errorstar msg) $ lookupSEnv x γ 
   where msg = "Unknown freeVar " ++ show x ++ " in specification " ++ show t0
 
-orderedFreeVars γ p = filter (`memberSEnv` γ) $ getSymbols p 
+orderedFreeVars γ = nub . filter (`memberSEnv` γ) . syms 
 
 -- orderedFreeVars   :: Pred -> [Symbol]
 -- orderedFreeVars p = nub $ everything (++) ([] `mkQ` f) p

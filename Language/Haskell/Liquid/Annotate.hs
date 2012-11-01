@@ -28,7 +28,7 @@ import Data.Char                (isSpace)
 
 import Control.Arrow            hiding ((<+>))
 import Control.Applicative      ((<$>))
-import Data.Data                hiding (TyCon, tyConName)
+-- import Data.Data                hiding (TyCon, tyConName)
 
 import System.FilePath          (takeFileName, dropFileName, (</>)) 
 import System.Directory         (findExecutable)
@@ -36,13 +36,14 @@ import System.Directory         (copyFile)
 
 import Text.Printf              (printf)
 import qualified Data.Text  as T
-import qualified Data.Map   as M
+import qualified Data.HashMap.Strict   as M
 
 import qualified Language.Haskell.Liquid.ACSS as ACSS
 import Language.Haskell.HsColour.Classify
 import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Misc
 
 -------------------------------------------------------------------
@@ -53,7 +54,7 @@ annotate :: FilePath -> FixSolution -> AnnInfo Annot -> IO ()
 annotate fname sol anna 
   = do annotDump fname (extFileName Html $ extFileName Cst fname) annm
        annotDump fname (extFileName Html fname) annm'
-    where annm = closeAnnots anna
+    where annm  = closeAnnots anna
           annm' = tidyRefType <$> applySolution sol annm
 
 annotDump :: FilePath -> FilePath -> AnnInfo RefType -> IO ()
@@ -226,9 +227,8 @@ tokeniseSpec = tokAlt . chopAlt [('{', ':'), ('|', '}')]
 ---------------- Annotations and Solutions --------------------
 ---------------------------------------------------------------
 
-newtype AnnInfo a 
-  = AI (M.Map SrcSpan (Maybe Var, a))
-    deriving (Data, Typeable)
+newtype AnnInfo a = AI (M.HashMap SrcSpan (Maybe Var, a))
+    -- deriving (Data, Typeable)
 
 type Annot 
   = Either SpecType SrcSpan
@@ -258,10 +258,10 @@ applySolution :: FixSolution -> AnnInfo RefType -> AnnInfo RefType
 applySolution = fmap . fmap . mapReft . map . appSolRefa 
   where appSolRefa _ ra@(RConc _) = ra 
         -- appSolRefa _ p@(RPvar _)  = p  
-        appSolRefa s (RKvar k su) = RConc $ subst su $ M.findWithDefault PTop k s  
+        appSolRefa s (RKvar k su) = RConc $ subst su $ M.lookupDefault PTop k s  
         mapReft f (Reft (x, zs))  = Reft (x, squishRas $ f zs)
 
-squishRas ras  = (squish [p | RConc p <- ras]) : [] -- [ra | ra@(RPvar _) <- ras]
+squishRas ras  = (squish [p | RConc p <- ras]) : []
   where squish = RConc . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts   
 
 conjuncts (PAnd ps)          = concatMap conjuncts ps
