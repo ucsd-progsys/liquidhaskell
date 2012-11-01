@@ -75,14 +75,14 @@ makeGhcSpec vars env spec
        sigs       <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
        invs       <- makeInvariants  benv              $ Ms.invariants spec
        embs       <- makeTyConEmbeds benv              $ Ms.embeds     spec 
-       let syms   = makeSymbols (vars ++ map fst cs) (map fst ms) sigs 
+       let syms   = makeSymbols (vars ++ map fst cs) (map fst ms) (sigs ++ cs) ms 
        let tx     = subsFreeSymbols syms
        return     $ SP (tx sigs) (tx cs) (tx ms) invs (concat dcs ++ dcs') tycons syms embs 
     where (tcs', dcs') = wiredTyDataCons
 
-subsFreeSymbols xvs = fmap $ mapSnd $ subst su
-  where su = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
-
+subsFreeSymbols xvs = tx
+  where su  = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
+        tx  = fmap $ mapSnd $ (\t -> tracePpr ("subsFree: " ++ showPpr t) (subst su t))
 ------------------------------------------------------------------
 ---------- Error-Reader-IO For Bare Transformation ---------------
 ------------------------------------------------------------------
@@ -161,10 +161,14 @@ mkPredType πs
 --         tx = fmap $ mapSnd $ subst su 
 --         su = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
 
-makeSymbols vs xs' xts = 
+makeSymbols vs xs' xts yts = 
   tracePpr ("makeSymbols: vs = " ++ showPpr vs ++ " xs' = " ++ showPpr xs' ++ " ts = " ++ showPpr xts)
-  $ if  (all (checkSig env) xts) then xvs else errorstar "malformed type signatures" 
-  where xs  = (concatMap freeSymbols (snd <$> xts)) `sortDiff` xs'
+  $ if (all (checkSig env) xts) && (all (checkSig env) yts) 
+      then xvs 
+      else errorstar "malformed type signatures" 
+  where zs  = (concatMap freeSymbols ((snd <$> xts))) `sortDiff` xs'
+        zs' = (concatMap freeSymbols ((snd <$> yts))) `sortDiff` xs'
+        xs  = sortNub $ zs ++ zs'
         xvs = sortNub [(x,v) | (v, x) <- joinIds vs (zip xs xs)]
         env = S.fromList ((fst <$> xvs) ++ xs')
 
@@ -176,7 +180,7 @@ checkSig' env (x, t)
       ys -> errorstar (msg ys) 
     where msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showPpr ys) (showPpr x) (showPpr t)
 
-freeSymbols :: SpecType -> [Symbol]
+-- freeSymbols :: SpecType -> [Symbol]
 freeSymbols ty   = tracePpr ("freeSymbols: " ++ show ty) 
                    $ sortNub $ concat $ efoldReft f [] [] ty
   where f γ r xs = let Reft (v, ras) = toReft r in ((syms ras) `sortDiff` (v:γ) ) : xs 
