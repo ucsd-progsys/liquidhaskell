@@ -17,15 +17,10 @@ TODO
 Performance
 ===========
 
-        1. Data.HashMap.Strict/Data.HashSet.Strict [instead of Data.Map/Data.Set]
-        
-        2. Remove all dependence on everywhere/everything 
-        3. [EQ/LT/GE Issue] Removed EDat: `ordCon`, `dataConReft` : how to get this info WITHOUT hardwiring.
-                see include/GHC/Types.spec Does it work? <---------------HEREHEREHEREHERE
+        1. Some more profiling now <-------------------------------------- HEREHEREHERE
 
-           FAILING: pos/bar.hs, pos/ex1.hs
+        2. Compact Constraints 
 
-        5. Compact Constraints 
                 > but first do this
                         
             import Control.Monad (forM)
@@ -48,9 +43,11 @@ Performance
         - time liquid tests/pos/Map.hs 
           user = 34s ML = 9s
 
-- Or is it the use of Dynamic/Data to traverse and sanitize constraints?
-- Serializing to .fq is WAY slow ?
-        - Compact FQ encoding: shared environment binders
+        - Or is it the use of Dynamic/Data to traverse and sanitize constraints?
+            - No!
+
+        - Serializing to .fq is WAY slow ?
+            - Compact FQ encoding: shared environment binders
 
 Benchmarks
 ==========
