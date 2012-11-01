@@ -1,4 +1,4 @@
-module Language.Haskell.Liquid.Tidy (tidyRefType) where
+module Language.Haskell.Liquid.Tidy (tidySpecType) where
 
 import Control.Applicative
 import qualified Data.HashMap.Strict as M
@@ -15,32 +15,32 @@ import Language.Haskell.Liquid.RefType
 ---------- SYB Magic: Cleaning Reftypes Up Before Rendering ---------
 ---------------------------------------------------------------------
 
-tidyRefType :: RefType -> RefType  
-tidyRefType = tidyDSymbols
+tidySpecType :: SpecType -> SpecType  
+tidySpecType = tidyDSymbols
             . tidySymbols 
             . tidyFunBinds
             . tidyLocalRefas 
             . tidyTyVars 
 
-tidyFunBinds :: RefType -> RefType
+tidyFunBinds :: SpecType -> SpecType
 tidyFunBinds t = mapBind (\x -> if x `S.member` xs then x else nonSymbol) t  
   where xs     = S.fromList (syms t)
 
-tidyLocalRefas :: RefType -> RefType
+tidyLocalRefas :: SpecType -> SpecType
 tidyLocalRefas = mapReft (txReft)
   where 
-    txReft (Reft (v,ras)) = Reft (v, dropLocals ras) 
+    txReft (U (Reft (v,ras)) p) = U (Reft (v, dropLocals ras)) p
     dropLocals            = filter (not . any isTmp . syms) . flattenRefas
     isTmp x               = let str = symbolString x in 
                                 (anfPrefix `L.isPrefixOf` str) || (tempPrefix `L.isPrefixOf` str) 
 
-tidySymbols :: RefType -> RefType  
+tidySymbols :: SpecType -> SpecType  
 tidySymbols = substf dropSuffix
   where 
     dropSuffix = EVar . {- stringSymbol -} S . takeWhile (/= symSepName) . symbolString
     -- dropQualif = stringSymbol . dropModuleNames . symbolString 
 
-tidyDSymbols :: RefType -> RefType  
+tidyDSymbols :: SpecType -> SpecType  
 tidyDSymbols t = mapBind tx $ subst su $ t
   where 
     tx y = M.lookupDefault y y (M.fromList dxs) 
@@ -50,7 +50,7 @@ tidyDSymbols t = mapBind tx $ subst su $ t
     isDs = ("ds_" `L.isPrefixOf`) . symbolString
     var  = stringSymbol . ('x' :) . show 
 
-tidyTyVars :: RefType -> RefType  
+tidyTyVars :: SpecType -> SpecType  
 tidyTyVars t = subsTyVars_meet αβs t
   where 
     αβs  = zipWith (\α β -> (α, toRSort β, β)) αs βs 
