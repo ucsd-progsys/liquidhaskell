@@ -7,7 +7,7 @@ data Pair a b = P a b
 
 {-@ mkP :: forall a <q :: y0:a -> y1:a -> Bool>. x: a -> y: a<q x> -> Pair <q> a a @-}
 mkP :: a -> a -> Pair a a
-mkP x y = P x y -- error "TBD"
+mkP x y = P x y 
 
 incr :: Int -> Int
 incr x = x + 1

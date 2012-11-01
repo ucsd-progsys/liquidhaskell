@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 
 import qualified Control.Exception as Ex
 import Data.Monoid      (mconcat)
@@ -41,8 +42,9 @@ liquidOne includes target =
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs'}
      cgi `deepseq` donePhase Loud "generateConstraints"
      {-# SCC "writeCGI" #-} writeCGI target cgi cbs'
-     -- donePhase Loud "writeCGI"
-     (r, sol) <- {- cgi `deepseq` -} solve target (hqFiles info) cgi
+     -- error "STOP RIGHT THERE"
+     donePhase Loud "writeCGI"
+     (r, sol) <- solve target (hqFiles info) cgi
      donePhase Loud "solve"
      {-# SCC "annotate" #-} annotate target sol $ annotMap cgi
      donePhase Loud "annotate"

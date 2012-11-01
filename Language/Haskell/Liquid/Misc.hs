@@ -1,13 +1,15 @@
-{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables #-}
+{-# LANGUAGE DeriveDataTypeable, NoMonomorphismRestriction, ScopedTypeVariables #-}
 
 module Language.Haskell.Liquid.Misc where
 
-import qualified Control.Exception as Ex
-import qualified Data.Set as S 
-import qualified Data.Map as M
+import Data.Hashable
+import qualified Control.Exception   as Ex
+-- import qualified Data.HashSet        as S 
+import qualified Data.HashMap.Strict as M
 import qualified Data.List as L
 import Control.Applicative      ((<$>))
 import Control.Monad            (forM_)
+import Data.Maybe               (fromJust)
 import Data.List 
 import Data.Maybe (catMaybes, fromMaybe)
 
@@ -17,17 +19,9 @@ import Debug.Trace              (trace)
 import Data.Data
 import System.Console.ANSI
 
----------------------------------------------------------------------
--- ($!!) f x = x `deepseq` f x
-
---instance (NFData a, NFData b) => NFData (M.Map a b) where
---  rnf _ = ()
---
---instance (NFData a) => NFData (S.Set a) where
---  rnf _ = ()
---
-
----------------------------------------------------------------------
+-----------------------------------------------------------------------------------
+------------ Support for Colored Logging ------------------------------------------
+-----------------------------------------------------------------------------------
 
 data Moods = Ok | Loud | Sad | Happy | Angry 
 
@@ -56,7 +50,7 @@ donePhase c str
       (l:ls) -> doneLine c l >> forM_ ls (colorPhaseLn c "")
       _      -> return ()
 
-
+-----------------------------------------------------------------------------------
 
 data Empty = Emp deriving (Data, Typeable, Eq, Show)
 
@@ -102,7 +96,7 @@ expandSnd = concatMap (\(fst, snd) -> (\z -> (z, snd)) <$> fst)
 mapPair ::  (a -> b) -> (a, a) -> (b, b)
 mapPair f (x, y) = (f x, f y)
 
-mlookup ::  (Show k, Ord k) => M.Map k v -> k -> v
+-- mlookup ::  (Show k, Hashable k) => M.HashMap k v -> k -> v
 mlookup m k 
   = case M.lookup k m of
       Just v  -> v
@@ -128,13 +122,13 @@ traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x) $ x
 warnShow      ::  Show a => String -> a -> a
 warnShow s x  = trace ("\nWarning: [" ++ s ++ "] : " ++ show x) $ x
 
-inserts       ::  Ord k => k -> v -> M.Map k [v] -> M.Map k [v]
-inserts k v m = M.insert k (v : M.findWithDefault [] k m) m
+-- inserts       ::  Hashable k => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
+inserts k v m = M.insert k (v : M.lookupDefault [] k m) m
 
-group         :: Ord k => [(k, v)] -> M.Map k [v]
+-- group         :: Hashable k => [(k, v)] -> M.HashMap k [v]
 group         = foldl' (\m (k, v) -> inserts k v m) M.empty 
 
-groupMap      ::  Ord k => (a -> k) -> [a] -> M.Map k [a]
+-- groupMap      :: Hashable k => (a -> k) -> [a] -> M.HashMap k [a]
 groupMap f xs = foldl' (\m x -> inserts (f x) x m) M.empty xs 
 
 sortNub :: (Ord a) => [a] -> [a]
@@ -196,10 +190,7 @@ safeZipWith msg f xs ys
 --           nys = length ys
 
 
-
-
-
-safeFromList :: (Ord k, Show k, Show a) => String -> [(k, a)] -> M.Map k a
+-- safeFromList :: (Hashable k, Show k, Show a) => String -> [(k, a)] -> M.HashMap k a
 safeFromList msg = foldl' safeAdd M.empty 
   where safeAdd m (k, v) 
           | k `M.member` m = errorstar $ msg ++ "Duplicate key " ++ show k ++ "maps to: \n" ++ (show v) ++ "\n and \n" ++ show (m M.! k)
@@ -213,7 +204,7 @@ safeUnion msg m1 m2 =
 safeHead _   (x:_) = x
 safeHead msg _     = errorstar $ "safeHead with empty list " ++ msg
 
-memoIndex :: (Ord b) => (a -> Maybe b) -> [a] -> [Maybe Int]
+-- memoIndex :: (Hashable b) => (a -> Maybe b) -> [a] -> [Maybe Int]
 memoIndex f = snd . mapAccumL foo M.empty 
   where 
   foo memo z =
@@ -272,15 +263,9 @@ findFirst f (x:xs) = do r <- f x
 testM f x = do b <- f x
                return $ if b then [x] else [] 
 
---fixM :: (a -> m (Maybe a)) -> a -> m (Maybe a)
---fixM f x = do xo' <- f x
---              case xo' of
---                Just x' -> fixM f x'
---                Nothing -> return x
-
-unions :: (Ord a) => [S.Set a] -> S.Set a
-unions = foldl' S.union S.empty
-
+-- unions :: (Hashable a) => [S.HashSet a] -> S.HashSet a
+-- unions = foldl' S.union S.empty
+-- Just S.unions!
 
 stripParens ('(':xs)  = stripParens xs
 stripParens xs        = stripParens' (reverse xs)
@@ -299,5 +284,15 @@ executeShellCommand phase cmd
 
 
 
-checkExitCode cmd (ExitSuccess)   = return ()
+checkExitCode _   (ExitSuccess)   = return ()
 checkExitCode cmd (ExitFailure n) = errorstar $ "cmd: " ++ cmd ++ " failure code " ++ show n 
+
+hashMapToAscList    ::  Ord a => M.HashMap a b -> [(a, b)]
+hashMapToAscList    = sortBy (\x y -> compare (fst x) (fst y)) . M.toList
+
+hashMapMapWithKey   :: (k -> v1 -> v2) -> M.HashMap k v1 -> M.HashMap k v2
+hashMapMapWithKey f = fromJust . M.traverseWithKey (\k v -> Just (f k v)) 
+
+hashMapMapKeys      :: (Eq k, Hashable k) => (t -> k) -> M.HashMap t v -> M.HashMap k v
+hashMapMapKeys f    = M.fromList . fmap (mapFst f) . M.toList 
+

@@ -1,6 +1,7 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleContexts, ScopedTypeVariables, NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, DeriveDataTypeable, RankNTypes, GADTs #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleContexts, ScopedTypeVariables, NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, RankNTypes, GADTs #-}
 
-{- Refinement Types Mirroring the GHC Type definition -}
+-- | Refinement Types. Mostly mirroring the GHC Type definition, but with
+-- room for refinements of various sorts.
 
 -- TODO: Desperately needs re-organization.
 module Language.Haskell.Liquid.RefType (
@@ -19,7 +20,8 @@ module Language.Haskell.Liquid.RefType (
   , pdAnd, pdVar, pdTrue, pvars
 
   -- * Traversing `RType` 
-  , ppr_rtype, efoldReft, foldReft, mapReft, mapReftM, mapBot
+  , ppr_rtype, efoldReft, foldReft, mapReft, mapReftM, mapBot, mapBind
+  , freeTyVars, tyClasses
 
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp, rFun
@@ -32,10 +34,9 @@ module Language.Haskell.Liquid.RefType (
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , stripRTypeBase, rTypeSortedReft, rTypeSort -- , typeSortedReft
   , ofRSort, toRSort
-  , tidyRefType
   , varSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalReft, literalConst
-  , primOrderingSort
+  -- , primOrderingSort
   , fromRMono, fromRPoly, idRMono
   , isTrivial
   ) where
@@ -50,27 +51,29 @@ import Type (expandTypeSynonyms)
 import Var
 import Literal
 import Type             (isPredTy, substTyWith, classifyPredType, PredTree(..), predTreePredType)
-import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon, eqDataCon, ltDataCon, gtDataCon)
+import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon) -- , eqDataCon, ltDataCon, gtDataCon)
 
 import Data.Monoid      hiding ((<>))
 import Data.Maybe               (fromMaybe)
-import qualified Data.Map  as M
-import qualified Data.Set  as S 
+import Data.Hashable
+import qualified Data.HashMap.Strict  as M
+import qualified Data.HashSet         as S 
 import qualified Data.List as L
 import Control.Applicative  hiding (empty)   
 import Control.DeepSeq
 import Control.Monad  (liftM, liftM2, liftM3)
-import Data.Generics.Schemes
-import Data.Generics.Aliases
-import Data.Data            hiding (TyCon)
+-- import Data.Generics.Schemes
+-- import Data.Generics.Aliases
+-- import Data.Data            hiding (TyCon)
 import qualified Data.Foldable as Fold
 
-import Language.Haskell.Liquid.Tidy
+-- import Language.Haskell.Liquid.Tidy
+
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GhcMisc (tvId, stringTyVar, intersperse, dropModuleNames, getDataConVarUnique)
-import Language.Haskell.Liquid.FileNames (listConName, tupConName, boolConName)
-import Data.List (sort, isPrefixOf, isSuffixOf, foldl')
+import Language.Haskell.Liquid.GhcMisc (tvId, intersperse, dropModuleNames, getDataConVarUnique)
+import Language.Haskell.Liquid.FileNames (symSepName, listConName, tupConName, boolConName)
+import Data.List (sort, isSuffixOf, foldl')
 
 --------------------------------------------------------------------
 -- | Predicate Variables -------------------------------------------
@@ -81,7 +84,7 @@ data PVar t
        , ptype :: !t
        , pargs :: ![(t, Symbol, Symbol)]
        }
-	deriving (Data, Typeable, Show)
+	deriving (Show) -- (Data, Typeable, Show)
 
 instance Eq (PVar t) where
   pv == pv' = (pname pv == pname pv') {- UNIFY: What about: && eqArgs pv pv' -}
@@ -95,12 +98,15 @@ instance Functor PVar where
 instance (NFData a) => NFData (PVar a) where
   rnf (PV n t txys) = rnf n `seq` rnf t `seq` rnf txys
 
+instance Hashable (PVar a) where
+  hash (PV n _ xys) = hash $ n : (thd3 <$> xys)
+
 --------------------------------------------------------------------
 ------------------ Predicates --------------------------------------
 --------------------------------------------------------------------
 
 type UsedPVar      = PVar ()
-newtype Predicate  = Pr [UsedPVar] deriving (Data, Typeable) 
+newtype Predicate  = Pr [UsedPVar] -- deriving (Data, Typeable) 
 
 pdTrue         = Pr []
 pdVar v        = Pr [uPVar v]
@@ -189,17 +195,17 @@ data RType p c tv r
     }
 
   | ROth  !String 
-  deriving (Data, Typeable)
+  -- deriving (Data, Typeable)
 
 
 data Ref s m 
   = RMono s 
   | RPoly m
-  deriving (Data, Typeable)
+  -- deriving (Data, Typeable)
 
 data UReft r
   = U { ur_reft :: !r, ur_pred :: !Predicate }
-  deriving (Data, Typeable)
+  -- deriving (Data, Typeable)
 
 type BRType     = RType String String String   
 type RRType     = RType Class  RTyCon RTyVar   
@@ -237,7 +243,7 @@ uTop r          = U r top
 -------------- (Class) Predicates for Valid Refinement Types -------
 --------------------------------------------------------------------
 
-class (Monoid r, Subable r, Outputable r) => Reftable r where 
+class (Monoid r, Subable r, GetPVar r, Outputable r) => Reftable r where 
   isTauto :: r -> Bool
   ppTy    :: r -> SDoc -> SDoc
   
@@ -295,20 +301,37 @@ instance (Monoid r, Reftable r, RefTypable a b c r) => Monoid (Ref r (RType a b 
 -- Subable Instances ----------------------------------------------
 
 instance Subable () where
-  subst _ () = ()
+  syms _      = []
+  subst _ ()  = ()
+  substf _ () = ()
 
 instance Subable r => Subable (UReft r) where
-  subst s (U r z) = U (subst s r) z
+  syms (U r p)     = syms r ++ syms p 
+  subst s (U r z)  = U (subst s r) z
+  substf f (U r z) = U (substf f r) z
 
 instance Subable Predicate where
-  subst _ = id 
+  syms (Pr _)     = [] -- TODO: concatMap syms ps 
+  subst _         = id -- TODO: 
+  substf _        = id -- TODO:
 
 instance Subable (Ref F.Reft RefType) where
+  syms (RMono r)     = syms r
+  syms (RPoly r)     = syms r
+
   subst su (RMono r) = RMono $ subst su r
   subst su (RPoly r) = RPoly $ subst su r
 
+  substf f (RMono r) = RMono $ substf f r
+  substf f (RPoly r) = RPoly $ substf f r
+
+
+
+
 instance Subable r => Subable (RType p c tv r) where
+  syms   = foldReft (\r acc -> syms r ++ acc) [] 
   subst  = fmap . subst
+  substf = fmap . substf
 
 -- Reftable Instances -------------------------------------------------------
 
@@ -335,8 +358,14 @@ instance (Reftable r) => Reftable (UReft r) where
   toReft (U r _)  = toReft r
 
 instance (Reftable r, RefTypable p c tv r) => Subable (Ref r (RType p c tv r)) where
+  syms (RMono r)     = syms r
+  syms (RPoly r)     = syms r
+
   subst su (RMono r) = RMono (subst su r) 
   subst su (RPoly t) = RPoly (subst su <$> t)
+
+  substf f (RMono r) = RMono (substf f r) 
+  substf f (RPoly t) = RPoly (substf f <$> t)
 
 instance (Reftable r, RefTypable p c tv r) => Reftable (Ref r (RType p c tv r)) where
   isTauto (RMono r) = isTauto r
@@ -401,7 +430,7 @@ eqRSort _ _
 --------- Wrappers for GHC Type Elements ---------------------------
 --------------------------------------------------------------------
 
-newtype RTyVar = RTV TyVar deriving (Data, Typeable)
+newtype RTyVar = RTV TyVar -- deriving (Data, Typeable)
 
 instance Eq RTyVar where
   RTV α == RTV α' = tvId α == tvId α'
@@ -409,17 +438,24 @@ instance Eq RTyVar where
 instance Ord RTyVar where
   compare (RTV α) (RTV α') = compare (tvId α) (tvId α')
 
+instance Hashable RTyVar where
+  hash (RTV α) = hash α
+
+
 data RTyCon = RTyCon 
   { rTyCon     :: !TC.TyCon         -- GHC Type Constructor
   , rTyConPs   :: ![RPVar]          -- Predicate Parameters
   }
-  deriving (Data, Typeable)
+  -- deriving (Data, Typeable)
 
 instance Ord RTyCon where
   compare x y = compare (rTyCon x) (rTyCon y)
 
 instance Eq RTyCon where
   x == y = (rTyCon x) == (rTyCon y)
+
+instance Hashable RTyCon where
+  hash   = hash . rTyCon  
 
 --------------------------------------------------------------------
 ---------------------- Helper Functions ----------------------------
@@ -507,7 +543,7 @@ expandRApp _ t
 
 appRTyCon tyi rc@(RTyCon c []) ts = RTyCon c ps'
   where ps' = map (subts (zip (RTV <$> αs) ({- PREDARGS toType -} toRSort <$> ts))) (rTyConPs rc')
-        rc' = M.findWithDefault rc c tyi
+        rc' = M.lookupDefault rc c tyi
         αs  = TC.tyConTyVars $ rTyCon rc'
 appRTyCon _   (RTyCon c ps) ts = RTyCon c ps'
   where ps' = map (subts (zip (RTV <$> αs) ({- PREDARGS toType -} toRSort <$> ts))) ps
@@ -548,16 +584,37 @@ bkArrow t               = ([], [], t)
 --         go (vs, pvs) t            = (reverse vs, reverse pvs, t)
 
 
-generalize t = mkUnivs (freeVars t) [] t 
+generalize t = mkUnivs (freeTyVars t) [] t 
          
-freeVars (RAllP _ t)     = freeVars t
-freeVars (RAllT α t)     = freeVars t L.\\ [α]
-freeVars (RFun _ t t' _) = freeVars t `L.union` freeVars t' 
-freeVars (RApp _ ts _ _) = L.nub $ concatMap freeVars ts
-freeVars (RCls _ ts)     = L.nub $ concatMap freeVars ts 
-freeVars (RVar α _)      = [α] 
-freeVars (REx _ _ t)     = freeVars t
-freeVars (ROth _)        = []
+freeTyVars (RAllP _ t)     = freeTyVars t
+freeTyVars (RAllT α t)     = freeTyVars t L.\\ [α]
+freeTyVars (RFun _ t t' _) = freeTyVars t `L.union` freeTyVars t' 
+freeTyVars (RApp _ ts _ _) = L.nub $ concatMap freeTyVars ts
+freeTyVars (RCls _ ts)     = L.nub $ concatMap freeTyVars ts 
+freeTyVars (RVar α _)      = [α] 
+freeTyVars (REx _ _ t)     = freeTyVars t
+freeTyVars (ROth _)        = []
+
+--getTyVars = everything (++) ([] `mkQ` f)
+--  where f ((RVar α' _) :: SpecType) = [α'] 
+--        f _                         = []
+
+tyClasses (RAllP _ t)     = tyClasses t
+tyClasses (RAllT α t)     = tyClasses t
+tyClasses (REx _ _ t)     = tyClasses t
+tyClasses (RFun _ t t' _) = tyClasses t ++ tyClasses t'
+tyClasses (RApp _ ts _ _) = concatMap tyClasses ts 
+tyClasses (RCls c ts)     = (c, ts) : concatMap tyClasses ts 
+tyClasses (RVar α _)      = [] 
+tyClasses (ROth _)        = []
+
+
+
+--getTyClasses = everything (++) ([] `mkQ` f)
+--  where f ((RCls c ts) :: SpecType) = [(c, ts)]
+--        f _                        = []
+
+
 
 ----------------------------------------------------------------
 ---------------------- Strictness ------------------------------
@@ -694,19 +751,6 @@ ppr_dbind bb p x t
   | otherwise
   = ppr x <> colon <> ppr_rtype bb p t
 
--- ppr_pred :: (Subable r, RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
--- ppr_pred b p (RAllP π t)
---   = ppr π <> ppr_pred b p t
--- ppr_pred b p t
---   = dot <+> ppr_rtype b p t
---
---ppr_dbind :: (Subable r, RefTypable p c tv pv r) => Bool -> Bind tv pv -> RType p c tv pv r -> SDoc
---ppr_dbind bb b@(RB x) t 
---  | isNonSymbol x 
---  = ppr_rtype bb FunPrec t
---  | otherwise
---  = {-braces-} (ppr b) <> colon <> ppr_rtype bb FunPrec t
-
 ppr_fun_tail :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> RType p c tv r -> [SDoc]
 ppr_fun_tail bb (RFun b t t' _)  
   = (ppr_dbind bb FunPrec b t) : (ppr_fun_tail bb t')
@@ -745,6 +789,12 @@ instance Functor (RType a b c) where
 instance Fold.Foldable (RType a b c) where
   foldr = foldReft
 
+--instance Traversable (RType a b c) where
+--  traverse = travReft 
+
+
+
+
 mapReft ::  (r1 -> r2) -> RType p c tv r1 -> RType p c tv r2
 mapReft f (RVar α r)          = RVar  α (f r)
 mapReft f (RAllT α t)         = RAllT α (mapReft f t)
@@ -758,6 +808,9 @@ mapReft _ (ROth s)            = ROth  s
 mapRef :: (t -> s) -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
 mapRef  f (RMono r)           = RMono $ f r
 mapRef  f (RPoly t)           = RPoly $ mapReft f t
+
+
+------------------------------------------------------------------------------------------------------
 
 
 mapReftM :: (Monad m) => (r1 -> m r2) -> RType p c tv r1 -> m (RType p c tv r2)
@@ -774,18 +827,6 @@ mapReftM _ (ROth s)           = return  $ ROth  s
 mapRefM  :: (Monad m) => (t -> m s) -> Ref t (RType p c tv t) -> m (Ref s (RType p c tv s))
 mapRefM  f (RMono r)          = liftM   RMono       (f r)
 mapRefM  f (RPoly t)          = liftM   RPoly       (mapReftM f t)
-
-
--- foldReft f z (RVar _ r)       = f r z 
--- foldReft f z (RAllT _ t)      = foldReft f z t
--- foldReft f z (RAllP _ t)      = foldReft f z t
--- foldReft f z (RFun _ t t' r)  = f r (foldRefts f z [t, t'])
--- foldReft f z (RApp _ ts rs r) = f r (foldRefs f (foldRefts f z ts) rs)
--- foldReft f z (RCls _ ts)      = foldRefts f z ts
--- foldReft f z (REx _ t t')     = foldRefts f z [t, t']
--- foldReft f z (ROth s)         = z 
--- foldRefts                     = foldr . flip . foldReft
--- foldRefs                      = foldr . flip . foldRef
 
 -- foldReft ::  (r -> a -> a) -> a -> RType p c tv r -> a
 foldReft f = efoldReft (\_ -> f) [] 
@@ -810,6 +851,7 @@ efoldRef :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> Ref t3 (RType t t1 t2 
 efoldRef f γ z (RMono r)         = f γ r z
 efoldRef f γ z (RPoly t)         = efoldReft f γ z t
 
+
 isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool
 isTrivial = Fold.and . fmap isTauto
 
@@ -831,17 +873,28 @@ instance GetPVar Refa where
 instance GetPVar Reft where
   getUPVars _ = []
 
-instance (Data r, Typeable r, GetPVar r) 
-          => GetPVar (RType Class RTyCon RTyVar r) where
-  getUPVars = everything (++) ([] `mkQ` go) 
-    where go (ref :: r) = getUPVars ref
+instance GetPVar r => GetPVar (RType p c tv r) where
+  getUPVars = foldReft (\r acc -> getUPVars r ++ acc) [] 
 
-instance (Data r2, Typeable r2, GetPVar r2, GetPVar r1) 
-         => GetPVar (Ref r1 (RType Class RTyCon RTyVar r2)) where
+instance GetPVar r => GetPVar (Ref r (RType p c tv r)) where
   getUPVars (RMono r) = getUPVars r
   getUPVars (RPoly t) = getUPVars t
 
+  -- foldReft (\r acc -> getUPVars r ++ acc) [] 
+
+
+--instance (Data r, Typeable r, GetPVar r) 
+--          => GetPVar (RType Class RTyCon RTyVar r) where
+--  getUPVars = everything (++) ([] `mkQ` go) 
+--    where go (ref :: r) = getUPVars ref
+--
+--instance (Data r2, Typeable r2, GetPVar r2, GetPVar r1) 
+--         => GetPVar (Ref r1 (RType Class RTyCon RTyVar r2)) where
+--  getUPVars (RMono r) = getUPVars r
+--  getUPVars (RPoly t) = getUPVars t
+
 -- mkTrivial = mapReft (\_ -> ())
+
 
 ------------------------------------------------------------------------------------------
 -- TODO: Rewrite subsTyvars with Traversable
@@ -880,7 +933,7 @@ subsFree m s z@(α, τ, _) (RApp c ts rs r)
 subsFree m s z (RCls c ts)     
   = RCls c (subsFree m s z <$> ts)
 subsFree meet s (α', _, t') t@(RVar α r) 
-  | α == α' && α `S.notMember` s 
+  | α == α' && not (α `S.member` s) 
   = if meet then t' `strengthen` {- subt (α', τ') -} r else t' 
   | otherwise
   = t
@@ -946,7 +999,9 @@ instance SubsTy String BSort BSort where
 instance (SubsTy tv ty (UReft r)) => SubsTy tv ty (Ref (UReft r) (RType p c tv (UReft r)))  where
   subt m (RMono p) = RMono $ subt m p
   subt m (RPoly t) = RPoly $ fmap (subt m) t
-  
+ 
+
+
 subvPredicate :: (UsedPVar -> UsedPVar) -> Predicate -> Predicate 
 subvPredicate f (Pr pvs) = Pr (f <$> pvs)
 
@@ -992,74 +1047,15 @@ ofPredTree (ClassPred c τs)
 ofPredTree _
   = errorstar "ofPredTree"
 
--------------------------------------------------------------------
---------------------------- SYB Magic -----------------------------
--------------------------------------------------------------------
-
--- reftypeBindVars :: RefType -> S.Set Symbol
--- reftypeBindVars = everything S.union (S.empty `mkQ` grabBind)
---   where grabBind :: RefType -> S.Set Symbol
---         grabBind (RFun x _ _ _) = S.singleton x
-
-readSymbols :: (Data a) => a -> S.Set Symbol
-readSymbols = everything S.union (S.empty `mkQ` grabRead)
-  where grabRead (EVar x) = S.singleton x
-        grabRead _        = S.empty
-
----------------------------------------------------------------------
----------- Cleaning Reftypes Up Before Rendering --------------------
----------------------------------------------------------------------
-
-tidyRefType :: RefType -> RefType
-tidyRefType = tidyDSymbols
-            . tidySymbols 
-            . tidyFunBinds
-            . tidyLocalRefas 
-            . tidyTyVars 
-
-tidyFunBinds :: RefType -> RefType
-tidyFunBinds t = everywhere (mkT $ dropBind xs) t 
-  where xs = readSymbols t
-        dropBind :: S.Set Symbol -> RefType -> RefType
-        dropBind xs (RFun x t1 t2 r)
-          | x `S.member` xs = RFun x t1 t2 r
-          | otherwise       = RFun nonSymbol t1 t2 r
-        dropBind _ z        = z
-
-tidyTyVars :: RefType -> RefType
-tidyTyVars = tidy pool getS putS 
-  where getS (α :: TyVar)   = Just (symbolString $ varSymbol α)
-        putS (_ :: TyVar) x = stringTyVar x
-        pool          = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
-
-tidyLocalRefas :: RefType -> RefType
-tidyLocalRefas = everywhere (mkT dropLocals) 
-  where dropLocals = filter (not . Fold.any isTmp . readSymbols) . flattenRefas
-        isTmp x    = let str = symbolString x in 
-                     (anfPrefix `isPrefixOf` str) || (tempPrefix `isPrefixOf` str) 
-
-tidySymbols :: RefType -> RefType
-tidySymbols = everywhere (mkT dropSuffix) 
-  where dropSuffix = {- stringSymbol -} S . takeWhile (/= symSep) . symbolString
-        -- dropQualif = stringSymbol . dropModuleNames . symbolString 
-
-tidyDSymbols :: RefType -> RefType
-tidyDSymbols = tidy pool getS putS 
-  where getS   sy  = let str = symbolString sy in 
-                     if "ds_" `isPrefixOf` str then Just str else Nothing
-        putS _ str = stringSymbol str 
-        pool       = ["x" ++ show i | i <- [1..]]
-
 ----------------------------------------------------------------
 ------------------- Converting to Fixpoint ---------------------
 ----------------------------------------------------------------
 
-symSep = '#'
 
 varSymbol ::  Var -> Symbol
 varSymbol v 
   | us `isSuffixOf` vs = stringSymbol vs  
-  | otherwise          = stringSymbol $ vs ++ [symSep] ++ us
+  | otherwise          = stringSymbol $ vs ++ [symSepName] ++ us
   where us  = showPpr $ getDataConVarUnique v
         vs  = pprShort v
 
@@ -1068,8 +1064,8 @@ pprShort    =  dropModuleNames . showPpr
 dataConSymbol ::  DataCon -> Symbol
 dataConSymbol = varSymbol . dataConWorkId
 
-ordCon s = EDat (dataConSymbol s) primOrderingSort 
-primOrderingSort = typeSort M.empty $ dataConRepType eqDataCon
+-- ordCon s = EDat (dataConSymbol s) primOrderingSort 
+-- primOrderingSort = typeSort M.empty $ dataConRepType eqDataCon
 
 -- TODO: turn this into a map lookup?
 dataConReft ::  DataCon -> [Symbol] -> Reft
@@ -1078,8 +1074,8 @@ dataConReft c []
   = Reft (vv, [RConc $ (PBexp (EVar vv))]) 
   | c == falseDataCon
   = Reft (vv, [RConc $ PNot (PBexp (EVar vv))]) 
-  | c `elem`  [gtDataCon, ltDataCon, eqDataCon]
-  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon c))]) 
+--  | c `elem`  [gtDataCon, ltDataCon, eqDataCon]
+--  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon c))]) 
 dataConReft c [x] 
   | c == intDataCon 
   = Reft (vv, [RConc (PAtom Eq (EVar vv) (EVar x))]) 
@@ -1133,13 +1129,6 @@ toType (REx _ _ t)
   = toType t
 toType (ROth _)      
   = errorstar $ "toType fails: ROth "
-
--- txTyVarBinds :: RType p c tv pv r -> RType p c tv pv' r
--- txTyVarBinds = 
--- mapBind fb
--- where fb (RP π) = RP (stringTyVarTy <$> π)
---       fb (RB x) = RB x
---       fb (RV α) = RV α
 
 mapBind f (RAllT α t)      = RAllT α (mapBind f t)
 mapBind f (RAllP π t)      = RAllP π (mapBind f t)
@@ -1208,7 +1197,7 @@ data DataDecl   = D String
                     [String] 
                     [PVar BSort] 
                     [(String, [(String, BareType)])] 
-                  deriving (Data, Typeable, Show)
+                  deriving (Show) --Data, Typeable
 
 -- | Refinement Type Aliases
 
@@ -1216,7 +1205,7 @@ data RTAlias tv ty
   = RTA { rtName :: String
         , rtArgs :: [tv]
         , rtBody :: ty              
-        } deriving (Data, Typeable)
+        } -- deriving (Data, Typeable)
 
 instance (Show tv, Show ty) => Show (RTAlias tv ty) where
   show (RTA n args t) = "reftype " ++ n ++ " " ++ as ++ " = " ++ show t 

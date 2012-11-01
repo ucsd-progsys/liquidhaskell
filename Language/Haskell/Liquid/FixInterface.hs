@@ -4,23 +4,23 @@ module Language.Haskell.Liquid.FixInterface (solve, resultExit) where
 
 import Data.Functor
 import Data.List
-import Data.Map hiding (map, filter) 
+import qualified Data.HashMap.Strict as M
 import System.IO        (withFile, IOMode (..))
 import System.Exit
 import Text.Printf
 import Outputable hiding (empty)
 
-import Language.Haskell.Liquid.Fixpoint         hiding (kuts)
+import Language.Haskell.Liquid.Fixpoint         hiding (kuts, lits)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.Parse            (rr)
 import Language.Haskell.Liquid.Constraint       (CGInfo (..))
 
 solve fn hqs cgi
-  =     {-# SCC "Solve" #-}  execFq fn hqs qs fi -- (FI gs (elems cm) ws ks) 
+  =     {-# SCC "Solve" #-}  execFq fn hqs qs fi
     >>= {-# SCC "exitFq" #-} exitFq fn cm 
-  where fi  = FI (elems cm) (fixWfs cgi) (globals cgi) (kuts cgi)
-        cm  = fromAscList $ zipWith (\i c -> (i, c {sid = Just i})) [1..] $ fixCs cgi 
+  where fi  = FI (M.elems cm) (fixWfs cgi) (globals cgi) (lits cgi) (kuts cgi)  
+        cm  = M.fromList $ zipWith (\i c -> (i, c {sid = Just i})) [1..] $ fixCs cgi 
         qs  = specQuals cgi
         
 execFq fn hqs qs fi -- globals cs ws ks 
@@ -31,7 +31,6 @@ execFq fn hqs qs fi -- globals cs ws ks
        ec <- {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ execCmd fp fn 
        return ec
     where fq   = extFileName Fq  fn
-          -- fo   = extFileName Out fn
           d    = {-# SCC "FixPointify" #-} toFixpoint fi 
           qstr = showSDoc ((vcat $ toFix <$> qs) $$ blankLine)
 
@@ -39,10 +38,9 @@ execFq fn hqs qs fi -- globals cs ws ks
 execCmd fp fn = printf "%s -notruekvars -refinesort -noslice -nosimple -strictsortcheck -sortedquals -out %s %s" fp fo fq 
   where fq    = extFileName Fq  fn
         fo    = extFileName Out fn
-        -- fp    = "fixpoint.native"
 
 exitFq _ _ (ExitFailure n) | (n /= 1) 
-  = return (Crash [] "Unknown Error", empty)
+  = return (Crash [] "Unknown Error", M.empty)
 exitFq fn cm _ 
   = do str <- {-# SCC "readOut" #-} readFile (extFileName Out fn)
        let (x, y) = {-# SCC "parseFixOut" #-} rr ({-# SCC "sanitizeFixpointOutput" #-} sanitizeFixpointOutput str)

@@ -12,7 +12,7 @@ module Language.Haskell.Liquid.Constraint (
   , generateConstraints
 
   -- * KVars in constraints, for debug purposes
-  , kvars, kvars'
+  -- , kvars, kvars'
   ) where
 
 import CoreSyn
@@ -33,10 +33,10 @@ import Control.Exception.Base
 import Control.Applicative      ((<$>))
 import Data.Monoid              (mconcat)
 import Data.Maybe (fromMaybe)
-import qualified Data.Map as M
+import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet        as S
 import Data.Bifunctor
 import Data.List (foldl')
-import qualified Data.Set as S
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import qualified Language.Haskell.Liquid.Fixpoint   as F
@@ -44,14 +44,11 @@ import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.PredType
+import Language.Haskell.Liquid.PredType         hiding (freeTyVars) 
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc          (tracePpr, tickSrcSpan)
+import Language.Haskell.Liquid.GhcMisc          (tickSrcSpan)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Qualifier        
-import Data.Generics.Schemes
-import Data.Generics.Aliases
-import Data.Data
 import Control.DeepSeq
 
 -----------------------------------------------------------------------
@@ -87,17 +84,17 @@ generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fw
         spc = spec info
 
 
-kvars :: (Data a) => a -> S.Set F.Symbol
-kvars = everything S.union (S.empty `mkQ` grabKvar)
-  where grabKvar (F.RKvar k _:: F.Refa) = S.singleton k
-        grabKvar _                      = S.empty
-
-
-kvars' :: (Data a) => a -> Int
-kvars' = everything (plus') (0 `mkQ` grabKvar)
-  where grabKvar (F.RKvar _ _ :: F.Refa) = 1 
-        grabKvar _                       = 0
-        plus' !x !y                      = x + y 
+-- kvars :: (Data a) => a -> S.Set F.Symbol
+-- kvars = everything S.union (S.empty `mkQ` grabKvar)
+--   where grabKvar (F.RKvar k _:: F.Refa) = S.singleton k
+--         grabKvar _                      = S.empty
+-- 
+-- 
+-- kvars' :: (Data a) => a -> Int
+-- kvars' = everything (plus') (0 `mkQ` grabKvar)
+--   where grabKvar (F.RKvar _ _ :: F.Refa) = 1 
+--         grabKvar _                       = 0
+--         plus' !x !y                      = x + y 
 
 
 initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
@@ -151,13 +148,13 @@ data CGEnv
         , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
         , penv   :: !(F.SEnv PrType)   -- ^ PrTypes for top-level bindings (merge with renv) 
         , fenv   :: !F.FEnv            -- ^ Fixpoint environment (with simple Reft)
-        , recs   :: !(S.Set Var)       -- ^ recursive defs being processed (for annotations)
+        , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
         , invs   :: !RTyConInv         -- ^ Datatype invariants 
         , grtys  :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
         , emb    :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
         , tgEnv :: !Tg.TagEnv         -- ^ Map from top-level binders to fixpoint tag
         , tgKey :: !(Maybe Tg.TagKey) -- ^ Current top-level binder
-        } deriving (Data, Typeable)
+        } -- deriving (Data, Typeable)
 
 instance Outputable CGEnv where
   ppr = ppr . renv
@@ -217,20 +214,12 @@ setBind γ k
 
 isGeneric :: RTyVar -> SpecType -> Bool
 isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConstrs t)
-  where classConstrs t = [(c, α') | (c, ts) <- getTyClasses t
+  where classConstrs t = [(c, α') | (c, ts) <- tyClasses t
                                   , t'      <- ts
-                                  , α'      <- getTyVars t']
+                                  , α'      <- freeTyVars t']
         isOrd          = (ordClassName ==) . className
         isEq           = (eqClassName ==) . className
 
-getTyClasses = everything (++) ([] `mkQ` f)
-  where f ((RCls c ts) :: SpecType) = [(c, ts)]
-        f _                        = []
-
-getTyVars = everything (++) ([] `mkQ` f)
-  where f ((RVar α' _) :: SpecType) = [α'] 
-        f _                         = []
- 
 -- isBase :: RType a -> Bool
 isBase (RVar _ _)     = True
 isBase (RApp _ _ _ _) = True
@@ -251,15 +240,15 @@ rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
 ------------------- Constraints: Types --------------------------
 -----------------------------------------------------------------
 
-newtype Cinfo = Ci SrcSpan deriving (Eq, Ord, Data, Typeable)
+newtype Cinfo = Ci SrcSpan deriving (Eq, Ord) -- , Data, Typeable)
 
 data SubC     = SubC { senv  :: !CGEnv
                      , lhs   :: !SpecType
                      , rhs   :: !SpecType 
-                     } deriving (Data, Typeable)
+                     } -- deriving (Data, Typeable)
 
 data WfC      = WfC  !CGEnv !SpecType 
-              deriving (Data, Typeable)
+              -- deriving (Data, Typeable)
 
 type FixSubC  = F.SubC Cinfo
 type FixWfC   = F.WfC Cinfo
@@ -461,11 +450,12 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , globals    :: !F.FEnv
                      , freshIndex :: !Integer 
                      , annotMap   :: !(AnnInfo Annot) 
-                     , tyConInfo  :: !(M.Map TC.TyCon RTyCon) 
+                     , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) 
                      , specQuals  :: ![Qualifier]
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
-                     } deriving (Data, Typeable)
+                     , lits       :: ![(F.Symbol, F.Sort)]
+                     } -- deriving (Data, Typeable)
 
 instance Outputable CGInfo where 
   ppr cgi =  {-# SCC "ppr_CGI" #-} ppr_CGInfo cgi
@@ -481,6 +471,8 @@ ppr_CGInfo cgi
   $$ (ppr $ fixWfs cgi)
   $$ (text "*********** Fixpoint Kut Variables ************")
   $$ (ppr $ kuts cgi)
+  $$ (text "*********** Literals in Source     ************")
+  $$ (ppr $ lits cgi)
 
 
 type CG = State CGInfo
@@ -495,9 +487,13 @@ initCGI info = CGInfo {
   , annotMap   = AI M.empty
   , tyConInfo  = makeTyConInfo $ tconsP $ spec info 
   , specQuals  = specificationQualifiers info
-  , tyConEmbed = tcEmbeds $ spec info 
+  , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
-  }
+  , lits       = coreBindLits tce $ cbs info 
+  } where tce  = tcEmbeds $ spec info
+
+coreBindLits tce cbs = sortNub [ (x, so) | (_, F.ELit x so) <- lconsts]
+  where lconsts      = literalConst tce <$> literals cbs
 
 -- showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 -- showTyV _           = error "Constraint : showTyV"
@@ -505,7 +501,7 @@ initCGI info = CGInfo {
 -- showTy _           = error "Constraint : showTy"
 
 addC :: SubC -> String -> CG ()  
-addC !c@(SubC _ t1 t2) msg 
+addC !c@(SubC _ _ _) _ 
   = -- trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ msg) $  
     modify $ \s -> s { hsCs  = c : (hsCs s) }
 
@@ -851,14 +847,6 @@ altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
   where notLiteralReft   = F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = error "Constraint : altReft"
 
--- PREDARGS
--- altRefType t _   (LitAlt l) 
---   = t `strengthen` literalReft l
--- 
--- altRefType t acs DEFAULT    
---   = t `strengthen` (mconcat [notLiteralReft l | LitAlt l <- acs])
---     where notLiteralReft =  F.notExprReft . snd . literalConst 
-
 mkyts γ ys yts 
   = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts
 mkyt (γ, ts) (y, yt)
@@ -975,7 +963,7 @@ instance NFData WfC where
     = rnf x1 `seq` rnf x2
 
 instance NFData CGInfo where
-  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 _ x9 _ x10) 
+  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 _ x9 _ x10 x11) 
     = ({-# SCC "CGIrnf1" #-} rnf x1) `seq` 
       ({-# SCC "CGIrnf2" #-} rnf x2) `seq` 
       ({-# SCC "CGIrnf3" #-} rnf x3) `seq` 
@@ -984,7 +972,8 @@ instance NFData CGInfo where
       ({-# SCC "CGIrnf6" #-} rnf x6) `seq`
       ({-# SCC "CGIrnf7" #-} rnf x7) `seq`
       ({-# SCC "CGIrnf8" #-} rnf x9) `seq`
-      ({-# SCC "CGIrnf8" #-} rnf x10) 
+      ({-# SCC "CGIrnf8" #-} rnf x10) `seq`
+      ({-# SCC "CGIrnf8" #-} rnf x11) 
 
 -------------------------------------------------------------------------------
 --------------------- Reftypes from Fixpoint Expressions ----------------------
@@ -1030,7 +1019,7 @@ isType a                        = eqType (exprType a) predType
 exprRefType :: CoreExpr -> RefType 
 exprRefType = exprRefType_ M.empty 
 
-exprRefType_ :: M.Map Var RefType -> CoreExpr -> RefType 
+exprRefType_ :: M.HashMap Var RefType -> CoreExpr -> RefType 
 exprRefType_ γ (Let b e) 
   = exprRefType_ (bindRefType_ γ b) e
 
@@ -1044,7 +1033,7 @@ exprRefType_ γ (Tick _ e)
   = exprRefType_ γ e
 
 exprRefType_ γ (Var x) 
-  = M.findWithDefault (ofType $ varType x) x γ
+  = M.lookupDefault (ofType $ varType x) x γ
 
 exprRefType_ _ e
   = ofType $ exprType e
@@ -1062,7 +1051,7 @@ extendγ γ xts
 ----------- Data TyCon Invariants ---------------------------------
 -------------------------------------------------------------------
 
-type RTyConInv = M.Map RTyCon F.Reft
+type RTyConInv = M.HashMap RTyCon F.Reft
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
 addRTyConInv m t@(RApp c _ _ _) 
@@ -1073,19 +1062,16 @@ addRTyConInv _ t
 mkRTyConInv    :: [SpecType] -> RTyConInv 
 mkRTyConInv ts = mconcat <$> group [ (c, r) | RApp c _ _ (U r _) <- strip <$> ts]
                  where strip = thd3 . bkUniv 
-                       -- strip (RAllT _ t) = strip t
-                       -- strip (RAllT _ t) = strip t
-                       -- strip t           = t
+
 
 ---------------------------------------------------------------
 ----- Refinement Type Environments ----------------------------
 ---------------------------------------------------------------
 
-newtype REnv = REnv  (M.Map F.Symbol SpecType)
-               deriving (Data, Typeable)
+newtype REnv = REnv  (M.HashMap F.Symbol SpecType) -- deriving (Data, Typeable)
 
 instance Outputable REnv where
-  ppr (REnv m)         = vcat $ map pprxt $ M.toAscList m
+  ppr (REnv m)         = vcat $ map pprxt $ M.toList m
     where pprxt (x, t) = ppr x <> dcolon <> ppr t  
 
 instance NFData REnv where
