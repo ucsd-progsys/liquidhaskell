@@ -1,14 +1,14 @@
 module spec GHC.Classes where
 
 -- TODO: Drop prefix below
--- measure EQ :: Ordering
--- measure LT :: Ordering
--- measure GT :: Ordering
+assume GHC.Types.EQ :: {v: Ordering | v = (cmp v) }
+assume GHC.Types.LT :: {v: Ordering | v = (cmp v) }
+assume GHC.Types.GT :: {v: Ordering | v = (cmp v) }
 
--- measure cmp :: Ordering -> Ordering
--- cmp (EQ) = { v | v = GHC.Types.EQ }
--- cmp (LT) = { v | v = GHC.Types.LT }
--- cmp (GT) = { v | v = GHC.Types.GT }
+measure cmp :: Ordering -> Ordering
+cmp (EQ) = { v | v = GHC.Types.EQ }
+cmp (LT) = { v | v = GHC.Types.LT }
+cmp (GT) = { v | v = GHC.Types.GT }
 
 
 assume GHC.Classes.&&      :: x: Bool -> y: Bool    -> {v: Bool | ((? v) <=> ((? x) && (? y)))}
