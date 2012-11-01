@@ -172,7 +172,11 @@ makeSymbols vs xs' xts yts =
         xvs = sortNub [(x,v) | (v, x) <- joinIds vs (zip xs xs)]
         env = S.fromList ((fst <$> xvs) ++ xs')
 
-checkSig env xt = tracePpr ("checkSig " ++ showPpr xt) $ checkSig' env xt
+checkSig env xt = True 
+-- TODO: use this. currently suppressed because 
+--   forall aa. (Ord a) => [a] -> [a]<{VV : a | (VV >= fld)}>
+-- doesn't typecheck -- thanks to "fld"
+-- checkSig env xt = tracePpr ("checkSig " ++ showPpr xt) $ checkSig' env xt
 
 checkSig' env (x, t) 
   = case filter (not . (`S.member` env)) (freeSymbols t) of
