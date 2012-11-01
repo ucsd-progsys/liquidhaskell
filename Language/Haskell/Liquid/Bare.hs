@@ -20,6 +20,7 @@ import TysWiredIn
 import BasicTypes (TupleSort (..), Arity)
 import TcRnDriver (tcRnLookupRdrName, tcRnLookupName) 
 
+import Text.Printf
 import Data.Maybe               (catMaybes)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>))
@@ -36,6 +37,7 @@ import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Misc
 
+import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 import qualified Control.Exception as Ex
 
@@ -73,8 +75,9 @@ makeGhcSpec vars env spec
        sigs       <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
        invs       <- makeInvariants  benv              $ Ms.invariants spec
        embs       <- makeTyConEmbeds benv              $ Ms.embeds     spec 
-       let syms    =  makeSymbols (vars ++ map fst cs) (map fst ms) (map snd sigs) 
-       return      $ SP sigs cs ms invs (concat dcs ++ dcs') tycons syms embs 
+       let syms    = makeSymbols (vars ++ map fst cs) (map fst ms) sigs 
+       let sigs'   = subsFreeSymbols syms sigs 
+       return      $ SP sigs' cs ms invs (concat dcs ++ dcs') tycons syms embs 
     where (tcs', dcs') = wiredTyDataCons 
 
 ------------------------------------------------------------------
@@ -149,12 +152,29 @@ mkPredType πs
 
 --makeSymbols :: [Vars] -> [Symbol] -> [SpecType] -> [(Symbol, Var)]
 
-makeSymbols vs xs' ts = [(x,v) | (v, x) <- joinIds vs (zip xs xs)]
-  where xs = (concatMap freeSymbols ts) `sortDiff` xs'
+subsFreeSymbols xvs xts = tracePpr ("subsFreeSyms: xvs =" ++ showPpr xvs)
+                          $ [(x, subst su t) | (x, t) <- xts]
+  where su = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
+
+makeSymbols vs xs' xts = 
+  tracePpr ("makeSymbols: vs = " ++ showPpr vs ++ " xs' = " ++ showPpr xs' ++ " ts = " ++ showPpr xts)
+  $ if  (all (checkSig env) xts) then xvs else errorstar "malformed type signatures" 
+  where xs  = (concatMap freeSymbols (snd <$> xts)) `sortDiff` xs'
+        xvs = sortNub [(x,v) | (v, x) <- joinIds vs (zip xs xs)]
+        env = S.fromList ((fst <$> xvs) ++ xs')
+
+checkSig env xt = tracePpr ("checkSig " ++ showPpr xt) $ checkSig' env xt
+
+checkSig' env (x, t) 
+  = case filter (not . (`S.member` env)) (freeSymbols t) of
+      [] -> True
+      ys -> errorstar (msg ys) 
+    where msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showPpr ys) (showPpr x) (showPpr t)
 
 freeSymbols :: SpecType -> [Symbol]
-freeSymbols      = concat . efoldReft f [] [] 
-  where f γ r xs = ((syms (toReft r)) `sortDiff` γ) : xs 
+freeSymbols ty   = tracePpr ("freeSymbols: " ++ show ty) 
+                   $ sortNub $ concat $ efoldReft f [] [] ty
+  where f γ r xs = let Reft (v, ras) = toReft r in ((syms ras) `sortDiff` (v:γ) ) : xs 
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
