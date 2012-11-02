@@ -136,21 +136,22 @@ instance Show CGEnv where
   show = showPpr
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
-(++=) :: CGEnv-> (String, F.Symbol, SpecType) -> CGEnv
+(++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 γ ++= (_, x, r') 
-  | isBase r 
-  = γ' { fenv = F.insertSEnv x (rTypeSortedReft (emb γ) r) (fenv γ) }
-  | otherwise
-  = γ' { fenv = insertFEnvClass r (fenv γ) }
-  where γ' = γ { renv = insertREnv x r (renv γ) }  
-        r  = normalize γ r'  
+  = do let r  = normalize γ r'  
+       let γ' = γ { renv = insertREnv x r (renv γ) }  
+       is    <- if isBase r 
+                  then liftM ( :[]) $ addBind x (rTypeSortedReft (emb γ) r) 
+                  else addClassBind r
+       return $ γ' { fenv = F.insertIBindEnv is (fenv γ) }
+
 
 normalize γ = addRTyConInv (invs γ) . normalizePds
 
--- (+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CGEnv
+(+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
 (γ, msg) += (x, r)
   | x == F.dummySymbol
-  = γ
+  = return γ
   | x `memberREnv` (renv γ)
   = err 
   | otherwise
@@ -159,7 +160,7 @@ normalize γ = addRTyConInv (invs γ) . normalizePds
                               ++ "\n New: " ++ showPpr r
                               ++ "\n Old: " ++ showPpr (x `lookupREnv` (renv γ))
                         
-γ -= x =  γ { renv = deleteREnv x (renv γ) } { fenv = F.deleteSEnv x (fenv γ) }
+γ -= x =  γ { renv = deleteREnv x (renv γ) } -- { fenv = F.deleteSEnv x (fenv γ) }
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
@@ -198,14 +199,6 @@ isBase (RVar _ _)     = True
 isBase (RApp _ _ _ _) = True
 isBase _              = False
 
-insertFEnvClass :: SpecType -> F.FEnv -> F.FEnv
-insertFEnvClass (RCls c ts) fenv
-  | isNumericClass c
-  = foldl' (\env x -> F.insertSEnv x numReft env) fenv numVars
-  where numReft = F.trueSortedReft F.FNum
-        numVars = [rTyVarSymbol a | (RVar a _) <- ts]
-insertFEnvClass _ fenv 
-  = fenv
 
 rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
 
@@ -422,7 +415,6 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , fixWfs     :: ![FixWfC]
                      , globals    :: !F.FEnv
                      , freshIndex :: !Integer 
-                     , bindIndex  :: !Int
                      , binds      :: !F.BindEnv 
                      , annotMap   :: !(AnnInfo Annot) 
                      , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) 
@@ -459,7 +451,6 @@ initCGI info = CGInfo {
   , fixWfs     = [] 
   , globals    = F.emptySEnv
   , freshIndex = 0
-  , bindIndex  = 0
   , annotMap   = AI M.empty
   , tyConInfo  = makeTyConInfo $ tconsP $ spec info 
   , specQuals  = specificationQualifiers info
@@ -475,6 +466,26 @@ coreBindLits tce cbs = sortNub [ (x, so) | (_, F.ELit x so) <- lconsts]
 -- showTyV _           = error "Constraint : showTyV"
 -- showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
 -- showTy _           = error "Constraint : showTy"
+
+addBind :: Symbol -> SortedReft -> CG BindId
+addBind x r 
+  = do bs          <- binds <$> get
+       let (i, bs') = F.insertBindEnv x r bs
+       put          $ s { binds = bs' }
+       return i
+
+addClassBind :: SpecType -> CG [BindId] -- F.FEnv -> F.FEnv
+addClassBind (RCls c ts)
+  | isNumericClass c
+  = do let numReft = F.trueSortedReft F.FNum
+       let numVars = [rTyVarSymbol a | (RVar a _) <- ts]
+       is         <- forM numVars (`addBind` numReft)
+       return is
+ addClassBind _ 
+  = return [] 
+
+
+
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ _ _) _ 
