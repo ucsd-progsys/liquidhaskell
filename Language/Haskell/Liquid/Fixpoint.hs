@@ -33,7 +33,7 @@ module Language.Haskell.Liquid.Fixpoint (
   -- * Environments
   , SEnv, emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
   , FEnv, insertFEnv 
-  , IBindEnv, insertIBindEnv, deleteIBindEnv, emptyIBindEnv
+  , IBindEnv, insertsIBindEnv, deleteIBindEnv, emptyIBindEnv
   , BindEnv, insertBindEnv, emptyBindEnv
 
   -- * Refinements
@@ -594,8 +594,8 @@ emptyIBindEnv = FB (S.empty)
 deleteIBindEnv :: BindId -> IBindEnv -> IBindEnv
 deleteIBindEnv i (FB s) = FB (S.delete i s)
 
-insertIBindEnv :: BindId -> IBindEnv -> IBindEnv
-insertIBindEnv i (FB s) = FB (S.insert i s)
+insertsIBindEnv :: [BindId] -> IBindEnv -> IBindEnv
+insertsIBindEnv is (FB s) = FB (foldr S.insert s is)
 
 -- | Functions for Global Binder Environment
 insertBindEnv :: Symbol -> SortedReft -> BindEnv -> (Int, BindEnv)
