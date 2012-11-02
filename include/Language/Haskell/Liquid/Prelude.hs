@@ -102,4 +102,9 @@ choose x = undefined
 isEven   :: Int -> Bool
 isEven x = x `mod` 2 == 0
 
+{-@ assume isOdd :: x:Int -> {v:Bool | ((? v) <=> ((x mod 2) = 1))} @-}
+{-# NOINLINE isOdd #-}
+isOdd   :: Int -> Bool
+isOdd x = x `mod` 2 == 1
+
 

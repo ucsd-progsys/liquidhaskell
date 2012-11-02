@@ -103,11 +103,13 @@ unifyS :: SpecType -> PrType -> State (S.HashSet UsedPVar) SpecType
 unifyS (RAllP p t) pt
   = do t' <- unifyS t pt 
        s  <- get
+       put $ S.delete (uPVar p) s
        if (uPVar p `S.member` s) then return $ RAllP p t' else return t'
 
 unifyS t (RAllP p pt)
   = do t' <- unifyS t pt 
        s  <- get
+       put $ S.delete (uPVar p) s
        if (uPVar p `S.member` s) then return $ RAllP p t' else return t'
 
 unifyS (RAllT (v@(RTV α)) t) (RAllT v' pt) 

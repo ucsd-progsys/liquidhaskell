@@ -388,7 +388,7 @@ splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
 -- TODO: MASSIVE SOUNDNESS PROBLEM
 -- splitC (SubC _ t1 t2) 
 --   = []
-splitC c -- @(SubC _ _ _) 
+splitC c@(SubC _ _ _) 
   = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showPpr c
 
 
@@ -742,8 +742,15 @@ cconsE γ e (RAllP (p@(PV _ _ _)) t)
        cconsE γ e (replacePreds "cconsE" t [(p, RPoly s)])
 
 cconsE γ e t
-  = do te <- consE γ e
-       addC (SubC γ te t) ("cconsE " ++ showPpr e)
+  = do te  <- consE γ e
+       te' <- instantiatePreds γ e te
+       addC (SubC γ te' t) ("cconsE" ++ showPpr e)
+
+instantiatePreds γ e (RAllP p t)
+  = do s <- freshPredRef γ e p
+       return $ replacePreds "consE" t [(p, RPoly s)] 
+instantiatePreds _ _ t
+  = return t
 
 ----------------------- Type Synthesis ----------------------------
 consE :: CGEnv -> Expr Var -> CG SpecType 

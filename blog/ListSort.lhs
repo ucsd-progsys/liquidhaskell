@@ -6,13 +6,13 @@ Let see how we can use the abstract refinements to verify that
 the result of a list sorting function is actually a sorted list.
 
 \begin{code}
-module ListSort (insertSort, insertSort', mergeSort, quickSort) where
+module ListSort (insertSort, mergeSort, quickSort) where
 \end{code}
 
 First, lets describe a sorted list:
 
 \begin{code}The list type is refined with an abstract refinement, yielding the refined type:
-data [a] <p :: a -> a -> Bool> where
+data [a] <p :: fld:a -> a -> Bool> where
   | []  :: [a] <p>
   | (:) :: h:a -> [a<p h>]<p> -> [a]<p>
 \end{code}
@@ -64,13 +64,6 @@ insertSort (x:xs)     = insert x (insertSort xs)
 
 And the system can prove that the result of `insertSort` is a sorted list.
 
-(TODO : foldr)
-
-\begin{code}
-{-@ insertSort' :: (Ord a) => xs:[a] -> SList a @-}
-insertSort' xs        = foldr insert [] xs
-\end{code}
-
 Merge Sort
 ----------
 
@@ -100,7 +93,7 @@ split xs         = (xs, [])
 Finally, using the above functions we write `mergeSort`:
 
 \begin{code}
-{-@ mergeSort :: (Ord a) => [a] -> SList a @-}
+{-@ mergeSort :: (Ord a) => xs:[a] -> SList a @-}
 mergeSort :: Ord a => [a] -> [a]
 mergeSort []  = []
 mergeSort [x] = [x]
@@ -122,8 +115,8 @@ quickSort' (x:xs) = append' lts gts
   where lts = quickSort' [y | y <- xs, y < x]
         gts = quickSort' [z | z <- xs, z >= x]
 
-append []     ys  = k : ys
-append (x:xs) ys  = x : append k xs ys
+append' []     ys  = ys
+append' (x:xs) ys  = x : append' xs ys
 \end{code}
 
 
@@ -132,17 +125,18 @@ append should return a sorted list.
 Thus, we would like to be able to express the fact that `append`
 is called with two sorted lists and each element of the first list 
 is less than each element of the second.
-To do so, we provide `append` one more argument or a ``ghost'' variable, say `k`, of type `a`
+To do so, we provide `append` one more argument or a "ghost" variable, say `k`, of type `a`
 and give it the type
 
 \begin{code}
-{-@ append :: forall a. k:a -> SList {v:a | v<k} -> SList {v:a | v>=k} -> SList a @-}
+{-@ append :: k:a -> l:SList {v:a | v<k} -> ge:SList {v:a | v>=k} -> SList a @-}
 \end{code}
 
 So, `append` is defined as:
 
 \begin{code}
-append k []     ys  = k : ys
+append :: a -> [a] -> [a] -> [a]
+append k []     ys  = ys
 append k (x:xs) ys  = x : append k xs ys
 \end{code}
 

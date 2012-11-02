@@ -111,7 +111,7 @@ newtype Predicate  = Pr [UsedPVar] -- deriving (Data, Typeable)
 pdTrue         = Pr []
 pdVar v        = Pr [uPVar v]
 pvars (Pr pvs) = pvs
-pdAnd ps       = Pr (concatMap pvars ps)
+pdAnd ps       = Pr (L.nub $ concatMap pvars ps)
 
 instance Eq Predicate where
   (==) = eqpd
@@ -724,7 +724,7 @@ ppr_rtype bb p (RApp c ts rs r)
   | isTuple c 
   = ppTy r $ parens (intersperse comma (ppr_rtype bb p <$> ts)) <> ppReftPs bb rs
 ppr_rtype bb p (RApp c ts rs r)
-  = ppTy r $ parens $ ppTycon c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)  
+  = ppTy r $ parens $ ppTycon c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)
 ppr_rtype _ _ (RCls c ts)      
   = ppCls c ts
 ppr_rtype bb p t@(REx _ _ _)

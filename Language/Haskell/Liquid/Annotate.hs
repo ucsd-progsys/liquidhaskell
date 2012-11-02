@@ -54,10 +54,10 @@ annotate :: FilePath -> FixSolution -> AnnInfo Annot -> IO ()
 annotate fname sol anna 
   = do annotDump fname (extFileName Html $ extFileName Cst fname) annm
        annotDump fname (extFileName Html fname) annm'
-    where annm  = closeAnnots anna
-          annm' = tidyRefType <$> applySolution sol annm
+    where annm = closeAnnots anna
+          annm' = tidySpecType <$> applySolution sol annm
 
-annotDump :: FilePath -> FilePath -> AnnInfo RefType -> IO ()
+annotDump :: FilePath -> FilePath -> AnnInfo SpecType -> IO ()
 annotDump srcFile htmlFile ann 
   = do let annm    = mkAnnMap ann
        let annFile = extFileName Annot srcFile
@@ -151,7 +151,7 @@ cssHTML css = unlines
 -- required by `Language.Haskell.HsColour.ACSS` to generate mouseover
 -- annotations.
 
-mkAnnMap :: AnnInfo RefType -> ACSS.AnnMap
+mkAnnMap :: AnnInfo SpecType -> ACSS.AnnMap
 mkAnnMap (AI m) 
   = ACSS.Ann 
   $ M.fromList
@@ -168,8 +168,8 @@ oneLine l
 lineCol l  
   = (srcSpanStartLine l, srcSpanStartCol l)
 
-closeAnnots :: AnnInfo Annot -> AnnInfo RefType 
-closeAnnots = fmap uRType' . closeA . filterA
+closeAnnots :: AnnInfo Annot -> AnnInfo SpecType 
+closeAnnots = closeA . filterA
   
 closeA a@(AI m)  = cf <$> a 
   where cf (Right loc) = case m `mlookup` loc of
@@ -254,12 +254,12 @@ pprAnnInfoBind (_, _)
 pprXOT (x, v) = (xd, ppr v)
   where xd = maybe (text "unknown") ppr x
 
-applySolution :: FixSolution -> AnnInfo RefType -> AnnInfo RefType 
+applySolution :: FixSolution -> AnnInfo SpecType -> AnnInfo SpecType 
 applySolution = fmap . fmap . mapReft . map . appSolRefa 
   where appSolRefa _ ra@(RConc _) = ra 
         -- appSolRefa _ p@(RPvar _)  = p  
         appSolRefa s (RKvar k su) = RConc $ subst su $ M.lookupDefault PTop k s  
-        mapReft f (Reft (x, zs))  = Reft (x, squishRas $ f zs)
+        mapReft f (U (Reft (x, zs)) p)  = U (Reft (x, squishRas $ f zs)) p
 
 squishRas ras  = (squish [p | RConc p <- ras]) : []
   where squish = RConc . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts   
