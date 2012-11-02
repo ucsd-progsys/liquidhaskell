@@ -1093,28 +1093,3 @@ hashSort (FVar i)     = 11 `combine` hash i
 hashSort (FFunc _ ts) = hash (hashSort <$> ts)
 hashSort (FApp tc ts) = 12 `combine` (hash tc) `combine` hash (hashSort <$> ts) 
 
-
-
-----------------------------------------------------------------------------
--------------- Hashable Instances -----------------------------------------
----------------------------------------------------------------------------
-
-instance Hashable Symbol where 
-  hash (S s) = hash s
-
-instance Hashable FTycon where
-  hash (TC s) = hash s
-
-instance Hashable Sort where
-  hash = hashSort
-
-hashSort FInt         = 0
-hashSort FBool        = 1
-hashSort FNum         = 2
-hashSort (FObj s)     = 10 `combine` hash s
-hashSort (FVar i)     = 11 `combine` hash i
-hashSort (FFunc _ ts) = hash (hashSort <$> ts)
-hashSort (FApp tc ts) = 12 `combine` (hash tc) `combine` hash (hashSort <$> ts) 
-
-
-
