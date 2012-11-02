@@ -17,12 +17,11 @@ TODO
 Performance
 ===========
 
-        1. Some more profiling now <-------------------------------------- HEREHEREHERE
-                
+        1. Some more profiling now 
                 > see liquid.{hp, prof}.{Map, LambdaEval}
+                > seems like costs are in output.
 
-        2. Compact Constraints 
-
+        2. Compact Constraints  <-------------------------------------- HEREHEREHERE
                 > but first do this
                         
             import Control.Monad (forM)
