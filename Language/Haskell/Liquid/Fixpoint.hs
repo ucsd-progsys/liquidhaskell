@@ -1093,5 +1093,3 @@ hashSort (FVar i)     = 11 `combine` hash i
 hashSort (FFunc _ ts) = hash (hashSort <$> ts)
 hashSort (FApp tc ts) = 12 `combine` (hash tc) `combine` hash (hashSort <$> ts) 
 
-
-

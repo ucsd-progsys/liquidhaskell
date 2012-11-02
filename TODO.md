@@ -45,11 +45,17 @@ Performance
         - time liquid tests/pos/Map.hs 
           user = 34s ML = 9s
 
+<<<<<<< HEAD
+- Or is it the use of Dynamic/Data to traverse and sanitize constraints?
+- Serializing to .fq is WAY slow ?
+        - Compact FQ encoding: shared environment binders
+=======
         - Or is it the use of Dynamic/Data to traverse and sanitize constraints?
             - No!
 
         - Serializing to .fq is WAY slow ?
             - Compact FQ encoding: shared environment binders
+>>>>>>> master
 
 Benchmarks
 ==========
