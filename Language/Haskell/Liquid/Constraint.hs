@@ -55,20 +55,6 @@ import Control.DeepSeq
 ------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
 
--- consGrty γ (x, t) 
---   =  addC (SubC γ' xt t) ("consGrty: upperBound " ++ xs)  
---   >> addC (SubC γ' t xt) ("consGrty: lowerBound " ++ xs) 
---   where γ' = γ `setLoc` (getSrcSpan x) 
---         xt = γ ?= (varSymbol x)
---         xs = showPpr x
-
--- consAct info penv
---   = do γ   <- initEnv info penv
---        γ1  <- foldM consCB γ $ cbs info
---        tyi <- liftM tyConInfo get 
---        let grty' = mapSnd (addTyConInfo tyi) <$> grty info  
---        forM_ grty' (consGrty γ1)
-
 consAct info penv
   = do γ <- initEnv info penv
        foldM consCB γ (cbs info)
@@ -82,20 +68,6 @@ generateConstraints info = {-# SCC "ConsGen" #-} st { fixCs = fcs} { fixWfs = fw
         gs  = F.fromListSEnv . map (mapSnd (rTypeSortedReft (tcEmbeds spc))) $ meas spc 
         pds = generatePredicates info
         spc = spec info
-
-
--- kvars :: (Data a) => a -> S.Set F.Symbol
--- kvars = everything S.union (S.empty `mkQ` grabKvar)
---   where grabKvar (F.RKvar k _:: F.Refa) = S.singleton k
---         grabKvar _                      = S.empty
--- 
--- 
--- kvars' :: (Data a) => a -> Int
--- kvars' = everything (plus') (0 `mkQ` grabKvar)
---   where grabKvar (F.RKvar _ _ :: F.Refa) = 1 
---         grabKvar _                       = 0
---         plus' !x !y                      = x + y 
-
 
 initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
 initEnv info penv
@@ -147,13 +119,14 @@ data CGEnv
         , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
         , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
         , penv   :: !(F.SEnv PrType)   -- ^ PrTypes for top-level bindings (merge with renv) 
-        , fenv   :: !F.FEnv            -- ^ Fixpoint environment (with simple Reft)
+        , fenv   :: !F.IBindEnv        -- ^ Integer Keys for Fixpoint Environment
+        -- , fenv   :: !F.FEnv            -- ^ Fixpoint environment (with simple Reft)
         , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
         , invs   :: !RTyConInv         -- ^ Datatype invariants 
         , grtys  :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
         , emb    :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
-        , tgEnv :: !Tg.TagEnv         -- ^ Map from top-level binders to fixpoint tag
-        , tgKey :: !(Maybe Tg.TagKey) -- ^ Current top-level binder
+        , tgEnv :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
+        , tgKey :: !(Maybe Tg.TagKey)  -- ^ Current top-level binder
         } -- deriving (Data, Typeable)
 
 instance Outputable CGEnv where
@@ -449,6 +422,8 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , fixWfs     :: ![FixWfC]
                      , globals    :: !F.FEnv
                      , freshIndex :: !Integer 
+                     , bindIndex  :: !Int
+                     , binds      :: !F.BindEnv 
                      , annotMap   :: !(AnnInfo Annot) 
                      , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) 
                      , specQuals  :: ![Qualifier]
@@ -484,6 +459,7 @@ initCGI info = CGInfo {
   , fixWfs     = [] 
   , globals    = F.emptySEnv
   , freshIndex = 0
+  , bindIndex  = 0
   , annotMap   = AI M.empty
   , tyConInfo  = makeTyConInfo $ tconsP $ spec info 
   , specQuals  = specificationQualifiers info
@@ -692,6 +668,9 @@ consBind γ (x, e, Nothing)
 extender γ (x, Just t) = γ ++= ("extender", varSymbol x, t)
 extender γ _           = γ
 
+addBinders γ0 x' cbs   = foldl' (++=) (γ0 -= x') [("addBinders", x, t) | (x, t) <- cbs]
+
+
 varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Maybe SpecType)
 varTemplate γ (x, eo)
   = case (eo, lookupREnv (varSymbol x) (grtys γ)) of
@@ -854,13 +833,13 @@ altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
   where notLiteralReft   = F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = error "Constraint : altReft"
 
-mkyts γ ys yts 
-  = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts
-mkyt (γ, ts) (y, yt)
-  = do t' <- freshTy (Var y) (toType yt)
-       addC (SubC γ yt t') "mkyts"
-       addW (WfC γ t') 
-       return (γ ++= ("mkyt", varSymbol y, t'), t':ts) 
+-- mkyts γ ys yts 
+--   = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts
+-- mkyt (γ, ts) (y, yt)
+--   = do t' <- freshTy (Var y) (toType yt)
+--        addC (SubC γ yt t') "mkyts"
+--        addW (WfC γ t') 
+--        return (γ ++= ("mkyt", varSymbol y, t'), t':ts) 
 
 unfoldR td (RApp _ ts rs _) ys = (t3, yts, rt)
   where (vs, ps, t0)    = bkUniv td
@@ -873,10 +852,6 @@ unfoldR _  _                _  = error "Constraint.hs : unfoldR"
 
 instance Show CoreExpr where
   show = showSDoc . ppr
-
-addBinders γ0 x' cbs 
-  = foldl' (++=) (γ0 -= x') [("addBinders", x, t) | (x, t) <- cbs]
-    -- where wr γ (x, t) = γ ++= ("addBinders", x, t) 
 
 checkTyCon _ t@(RApp _ _ _ _) = t
 checkTyCon x t                = checkErr x t --errorstar $ showPpr x ++ "type: " ++ showPpr t
