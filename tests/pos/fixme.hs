@@ -1,25 +1,19 @@
-module ListSort where
+module GhcSort where
 
-{-@ type OList a = [a]<{v: a | (v >= fld)}> @-}
+import Language.Haskell.Liquid.Prelude
+-- This is SAFE
+{-@ bar :: (Ord a) => a -> a -> {v: Bool | (? v)} @-}
+bar a b
+  = case a `compare` b of
+      GT        -> True
+      otherwise -> liquidAssertB (a <= b)
 
-{-@ app :: k:a -> OList {v:a | v < k} -> OList {v:a | v >= k} -> OList a @-}
-app :: a -> [a] -> [a] -> [a]
-app = error "HOLE"
+-- This is UNSAFE:
+{-@ foo :: (Ord a) => a -> a -> {v: Bool | (? v)} @-}
+foo a b 
+  | a `compare` b == GT = True
+  | otherwise           = liquidAssertB (a <= b)
 
-{-@ quicksort :: (Ord a) => xs:[a] -> OList a @-}
-quicksort []     = []
-quicksort (x:xs) = app x xsle xsge
-  where xsle = quicksort (takeL x xs)
-        xsge = quicksort (takeGE x xs)
-
-{- takeGE :: (Ord a) => x:a -> xs:[a] -> [{v:a | v >= x}] @-}
-takeGE x []     = []
-takeGE x (y:ysXXX) = if (y>=x) then y:(takeGE x ysXXX) else takeGE x ysXXX
-
--- {- takeL :: (Ord a) => x:a -> xs:[a] -> [{v:a | v < x}] @-}
---takeL :: (Ord a) => a -> [a] -> [a]
-takeL x []     = []
-takeL x (y:ysZZZ) = if (y<x) then y:(takeL x ysZZZ) else takeL x ysZZZ
 
 
 
