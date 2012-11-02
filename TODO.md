@@ -17,32 +17,10 @@ TODO
 Performance
 ===========
 
-        1. Data.HashMap.Strict/Data.HashSet.Strict [instead of Data.Map/Data.Set]
-        
-        2. Remove all dependence on everywhere/everything 
-        3. [EQ/LT/GE Issue] Removed EDat: `ordCon`, `dataConReft` : how to get this info WITHOUT hardwiring.
-                see include/GHC/Types.spec Does it work? <---------------HEREHEREHEREHERE
+        1. Some more profiling now <-------------------------------------- HEREHEREHERE
 
-                  pos/GhcListSort.hs
-                , pos/GhcSort1.hs
-                , pos/GhcSort2.hs
-                , pos/GhcSort3.hs
-                , pos/Map.hs
-                , pos/Map0.hs
-                , pos/cmptag0.hs
-                , pos/compare.hs
-                , pos/compare1.hs
-                , pos/compare2.hs
-                , pos/maybe.hs, pos/maybe1.hs, pos/maybe2.hs
-            
-        4. Predicate Issue?
-                , pos/deptupW.hs
-                , pos/ex0.hs
-                , pos/ex1.hs
-                , pos/initarray.hs
-                , pos/nullterm.hs
+        2. Compact Constraints 
 
-        5. Compact Constraints 
                 > but first do this
                         
             import Control.Monad (forM)
@@ -65,9 +43,17 @@ Performance
         - time liquid tests/pos/Map.hs 
           user = 34s ML = 9s
 
+<<<<<<< HEAD
 - Or is it the use of Dynamic/Data to traverse and sanitize constraints?
 - Serializing to .fq is WAY slow ?
         - Compact FQ encoding: shared environment binders
+=======
+        - Or is it the use of Dynamic/Data to traverse and sanitize constraints?
+            - No!
+
+        - Serializing to .fq is WAY slow ?
+            - Compact FQ encoding: shared environment binders
+>>>>>>> master
 
 Benchmarks
 ==========

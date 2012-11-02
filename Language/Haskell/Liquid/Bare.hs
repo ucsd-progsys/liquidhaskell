@@ -20,6 +20,7 @@ import TysWiredIn
 import BasicTypes (TupleSort (..), Arity)
 import TcRnDriver (tcRnLookupRdrName, tcRnLookupName) 
 
+import Text.Printf
 import Data.Maybe               (catMaybes)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>))
@@ -36,6 +37,7 @@ import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Misc
 
+import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 import qualified Control.Exception as Ex
 
@@ -67,16 +69,22 @@ data GhcSpec = SP {
 makeGhcSpec :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
 makeGhcSpec vars env spec 
   = do (tcs, dcs) <- makeConTypes    env               $ Ms.dataDecls  spec 
-       let tycons  = tcs ++ tcs'    
-       let benv    = BE (makeTyConInfo tycons) env
+       let tycons = tcs ++ tcs'    
+       let benv   = BE (makeTyConInfo tycons) env
        (cs, ms)   <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
        sigs       <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
        invs       <- makeInvariants  benv              $ Ms.invariants spec
        embs       <- makeTyConEmbeds benv              $ Ms.embeds     spec 
-       let syms    =  makeSymbols (vars ++ map fst cs) (map fst ms) (map snd sigs) 
-       return      $ SP sigs cs ms invs (concat dcs ++ dcs') tycons syms embs 
-    where (tcs', dcs') = wiredTyDataCons 
+       let syms   = makeSymbols (vars ++ map fst cs) (map fst ms) (sigs ++ cs) ms 
+       let tx     = subsFreeSymbols syms
+       let syms'  = [(varSymbol v, v) | (_, v) <- syms]
+       return     $ SP (tx sigs) (tx cs) (tx ms) invs (concat dcs ++ dcs') tycons syms' embs 
+    where (tcs', dcs') = wiredTyDataCons
 
+
+subsFreeSymbols xvs = tx
+  where su  = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
+        tx  = fmap $ mapSnd $ subst su {- (\t -> tracePpr ("subsFree: " ++ showPpr t) (subst su t)) -}
 ------------------------------------------------------------------
 ---------- Error-Reader-IO For Bare Transformation ---------------
 ------------------------------------------------------------------
@@ -149,12 +157,39 @@ mkPredType πs
 
 --makeSymbols :: [Vars] -> [Symbol] -> [SpecType] -> [(Symbol, Var)]
 
-makeSymbols vs xs' ts = [(x,v) | (v, x) <- joinIds vs (zip xs xs)]
-  where xs = (concatMap freeSymbols ts) `sortDiff` xs'
 
-freeSymbols :: SpecType -> [Symbol]
-freeSymbols      = concat . efoldReft f [] [] 
-  where f γ r xs = ((syms (toReft r)) `sortDiff` γ) : xs 
+-- subsFreeSymbols xvs xts yts = (tx xts, tx yts) 
+--   where -- tx zts = fmap (mapSnd (subst su)) zts 
+--         tx = fmap $ mapSnd $ subst su 
+--         su = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
+
+makeSymbols vs xs' xts yts = 
+  -- tracePpr ("makeSymbols: vs = " ++ showPpr vs ++ " xs' = " ++ showPpr xs' ++ " ts = " ++ showPpr xts) $ 
+  if (all (checkSig env) xts) && (all (checkSig env) yts) 
+   then xvs 
+   else errorstar "malformed type signatures" 
+  where zs  = (concatMap freeSymbols ((snd <$> xts))) `sortDiff` xs'
+        zs' = (concatMap freeSymbols ((snd <$> yts))) `sortDiff` xs'
+        xs  = sortNub $ zs ++ zs'
+        xvs = sortNub [(x,v) | (v, x) <- joinIds vs (zip xs xs)]
+        env = S.fromList ((fst <$> xvs) ++ xs')
+
+checkSig env xt = True 
+-- TODO: use this. currently suppressed because 
+--   forall aa. (Ord a) => [a] -> [a]<{VV : a | (VV >= fld)}>
+-- doesn't typecheck -- thanks to "fld"
+-- checkSig env xt = tracePpr ("checkSig " ++ showPpr xt) $ checkSig' env xt
+
+checkSig' env (x, t) 
+  = case filter (not . (`S.member` env)) (freeSymbols t) of
+      [] -> True
+      ys -> errorstar (msg ys) 
+    where msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showPpr ys) (showPpr x) (showPpr t)
+
+-- freeSymbols :: SpecType -> [Symbol]
+freeSymbols ty   = -- tracePpr ("freeSymbols: " ++ show ty) $ 
+                   sortNub $ concat $ efoldReft f [] [] ty
+  where f γ r xs = let Reft (v, ras) = toReft r in ((syms ras) `sortDiff` (v:γ) ) : xs 
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------

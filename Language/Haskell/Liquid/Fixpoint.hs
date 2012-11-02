@@ -67,6 +67,7 @@ import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
 import Data.List            (sort)
 import Data.Hashable
+import Text.Printf          (printf)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
@@ -847,19 +848,19 @@ instance Subable Symbol where
 
 subSymbol (Just (EVar y)) _ = y
 subSymbol Nothing         x = x
-subSymbol _               _ = error "sub Symbol"
+subSymbol a               b = errorstar (printf "Cannot substitute symbol %s with expression %s" (showPpr b) (showPpr a))
 
 instance Subable Expr where
   syms                     = exprSymbols
 
-  substf f (EApp s es)     = EApp s $ map (substf f) es 
+  substf f (EApp s es)     = EApp (substf f s) $ map (substf f) es 
   substf f (EBin op e1 e2) = EBin op (substf f e1) (substf f e2)
   substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
   substf f (ECst e so)     = ECst (substf f e) so
   substf f e@(EVar x)      = f x 
   substf _ e               = e
  
-  subst su (EApp f es)     = EApp f $ map (subst su) es 
+  subst su (EApp f es)     = EApp (subst su f) $ map (subst su) es 
   subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
   subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst  su e2)
   subst su (ECst e so)     = ECst (subst su e) so
@@ -1039,37 +1040,60 @@ instance (NFData a) => NFData (WfC a) where
   rnf (WfC x1 x2 x3 x4) 
     = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4
 
-class MapSymbol a where
-  mapSymbol :: (Symbol -> Symbol) -> a -> a
+-- class MapSymbol a where
+--   mapSymbol :: (Symbol -> Symbol) -> a -> a
+-- 
+-- instance MapSymbol Refa where
+--   mapSymbol f (RConc p)    = RConc (mapSymbol f p)
+--   mapSymbol f (RKvar s su) = RKvar (f s) su
+--   -- mapSymbol _ (RPvar p)    = RPvar p -- RPvar (mapSymbol f p)
+-- 
+-- instance MapSymbol Reft where
+--   mapSymbol f (Reft(s, rs)) = Reft(f s, map (mapSymbol f) rs)
+-- 
+-- instance MapSymbol Pred where
+--   mapSymbol f (PAnd ps)       = PAnd (mapSymbol f <$> ps)
+--   mapSymbol f (POr ps)        = POr (mapSymbol f <$> ps)
+--   mapSymbol f (PNot p)        = PNot (mapSymbol f p)
+--   mapSymbol f (PImp p1 p2)    = PImp (mapSymbol f p1) (mapSymbol f p2)
+--   mapSymbol f (PIff p1 p2)    = PIff (mapSymbol f p1) (mapSymbol f p2)
+--   mapSymbol f (PBexp e)       = PBexp (mapSymbol f e)
+--   mapSymbol f (PAtom b e1 e2) = PAtom b (mapSymbol f e1) (mapSymbol f e2)
+--   mapSymbol _ (PAll _ _)      = error "mapSymbol PAll"
+--   mapSymbol _ p               = p 
+-- 
+-- instance MapSymbol Expr where
+--   mapSymbol f (EVar s)       = EVar $ f s
+--   -- mapSymbol f (EDat s so)    = EDat (f s) so
+--   mapSymbol f (ELit s so)    = ELit (f s) so
+--   mapSymbol f (EApp s es)    = EApp (f s) (mapSymbol f <$> es)
+--   mapSymbol f (EBin b e1 e2) = EBin b (mapSymbol f e1) (mapSymbol f e2)
+--   mapSymbol f (EIte p e1 e2) = EIte (mapSymbol f p) (mapSymbol f e1) (mapSymbol f e2)
+--   mapSymbol f (ECst e s)     = ECst (mapSymbol f e) s 
+--   mapSymbol _ e              = e
 
-instance MapSymbol Refa where
-  mapSymbol f (RConc p)    = RConc (mapSymbol f p)
-  mapSymbol f (RKvar s su) = RKvar (f s) su
-  -- mapSymbol _ (RPvar p)    = RPvar p -- RPvar (mapSymbol f p)
+----------------------------------------------------------------------------
+-------------- Hashable Instances -----------------------------------------
+---------------------------------------------------------------------------
 
-instance MapSymbol Reft where
-  mapSymbol f (Reft(s, rs)) = Reft(f s, map (mapSymbol f) rs)
+instance Hashable Symbol where 
+  hash (S s) = hash s
 
-instance MapSymbol Pred where
-  mapSymbol f (PAnd ps)       = PAnd (mapSymbol f <$> ps)
-  mapSymbol f (POr ps)        = POr (mapSymbol f <$> ps)
-  mapSymbol f (PNot p)        = PNot (mapSymbol f p)
-  mapSymbol f (PImp p1 p2)    = PImp (mapSymbol f p1) (mapSymbol f p2)
-  mapSymbol f (PIff p1 p2)    = PIff (mapSymbol f p1) (mapSymbol f p2)
-  mapSymbol f (PBexp e)       = PBexp (mapSymbol f e)
-  mapSymbol f (PAtom b e1 e2) = PAtom b (mapSymbol f e1) (mapSymbol f e2)
-  mapSymbol _ (PAll _ _)      = error "mapSymbol PAll"
-  mapSymbol _ p               = p 
+instance Hashable FTycon where
+  hash (TC s) = hash s
 
-instance MapSymbol Expr where
-  mapSymbol f (EVar s)       = EVar $ f s
-  -- mapSymbol f (EDat s so)    = EDat (f s) so
-  mapSymbol f (ELit s so)    = ELit (f s) so
-  mapSymbol f (EApp s es)    = EApp (f s) (mapSymbol f <$> es)
-  mapSymbol f (EBin b e1 e2) = EBin b (mapSymbol f e1) (mapSymbol f e2)
-  mapSymbol f (EIte p e1 e2) = EIte (mapSymbol f p) (mapSymbol f e1) (mapSymbol f e2)
-  mapSymbol f (ECst e s)     = ECst (mapSymbol f e) s 
-  mapSymbol _ e              = e
+instance Hashable Sort where
+  hash = hashSort
+
+hashSort FInt         = 0
+hashSort FBool        = 1
+hashSort FNum         = 2
+hashSort (FObj s)     = 10 `combine` hash s
+hashSort (FVar i)     = 11 `combine` hash i
+hashSort (FFunc _ ts) = hash (hashSort <$> ts)
+hashSort (FApp tc ts) = 12 `combine` (hash tc) `combine` hash (hashSort <$> ts) 
+
+
 
 ----------------------------------------------------------------------------
 -------------- Hashable Instances -----------------------------------------

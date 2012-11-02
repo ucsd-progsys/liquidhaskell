@@ -99,7 +99,7 @@ instance (NFData a) => NFData (PVar a) where
   rnf (PV n t txys) = rnf n `seq` rnf t `seq` rnf txys
 
 instance Hashable (PVar a) where
-  hash (PV n _ xys) = hash $ n : (thd3 <$> xys)
+  hash (PV n _ xys) = hash  n -- : (thd3 <$> xys)
 
 --------------------------------------------------------------------
 ------------------ Predicates --------------------------------------
@@ -828,18 +828,6 @@ mapRefM  :: (Monad m) => (t -> m s) -> Ref t (RType p c tv t) -> m (Ref s (RType
 mapRefM  f (RMono r)          = liftM   RMono       (f r)
 mapRefM  f (RPoly t)          = liftM   RPoly       (mapReftM f t)
 
-
--- foldReft f z (RVar _ r)       = f r z 
--- foldReft f z (RAllT _ t)      = foldReft f z t
--- foldReft f z (RAllP _ t)      = foldReft f z t
--- foldReft f z (RFun _ t t' r)  = f r (foldRefts f z [t, t'])
--- foldReft f z (RApp _ ts rs r) = f r (foldRefs f (foldRefts f z ts) rs)
--- foldReft f z (RCls _ ts)      = foldRefts f z ts
--- foldReft f z (REx _ t t')     = foldRefts f z [t, t']
--- foldReft f z (ROth s)         = z 
--- foldRefts                     = foldr . flip . foldReft
--- foldRefs                      = foldr . flip . foldRef
-
 -- foldReft ::  (r -> a -> a) -> a -> RType p c tv r -> a
 foldReft f = efoldReft (\_ -> f) [] 
 
@@ -1086,13 +1074,19 @@ dataConReft c []
   = Reft (vv, [RConc $ (PBexp (EVar vv))]) 
   | c == falseDataCon
   = Reft (vv, [RConc $ PNot (PBexp (EVar vv))]) 
+--  | otherwise
+--  = Reft (vv, [RConc $ (PAtom Eq (EVar vv) (EVar (dataConSymbol c)))]) 
 --  | c `elem`  [gtDataCon, ltDataCon, eqDataCon]
 --  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon c))]) 
 dataConReft c [x] 
   | c == intDataCon 
   = Reft (vv, [RConc (PAtom Eq (EVar vv) (EVar x))]) 
-dataConReft _ _
-  = Reft (vv, [RConc PTrue]) 
+dataConReft _ _ 
+ = Reft (vv, [RConc PTrue]) 
+ 
+-- dataConReft c xs
+--  = Reft (vv, [RConc (PAtom Eq (EVar vv) (EApp (dataConSymbol c) (EVar <$> xs)))]) 
+  -- = Reft (vv, [RConc PTrue]) 
 
 dataConMsReft ty ys  = subst su (refTypeReft t) 
   where (xs, ts, t)  = bkArrow $ thd3 $ bkUniv ty    -- bkArrow ty 
