@@ -18,6 +18,8 @@ Performance
 ===========
 
         1. Some more profiling now <-------------------------------------- HEREHEREHERE
+                
+                > see liquid.{hp, prof}.{Map, LambdaEval}
 
         2. Compact Constraints 
 
