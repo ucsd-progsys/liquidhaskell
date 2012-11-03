@@ -58,8 +58,9 @@ val preds_of_lhs_nofilter : soln -> t -> Ast.pred list
 val vars_of_t        : soln -> t -> Ast.Symbol.t list
 val is_tauto         : t -> bool
 
-val preds_kvars_of_reft : reft -> (Ast.pred list * (Ast.Subst.t * Ast.Symbol.t) list)
-val env_of_bindings  : (Ast.Symbol.t * reft) list -> envt
+val preds_kvars_of_reft     : reft -> (Ast.pred list * (Ast.Subst.t * Ast.Symbol.t) list)
+val env_of_bindings         : (Ast.Symbol.t * reft) list -> envt
+val env_of_ordered_bindings : (Ast.Symbol.t * reft) list -> envt
 
 (* TODO: Deprecate *)
 val bindings_of_env  : envt -> (Ast.Symbol.t * reft) list

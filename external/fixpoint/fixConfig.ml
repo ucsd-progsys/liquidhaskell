@@ -45,7 +45,7 @@ type deft = Srt of Ast.Sort.t
           | Qul of Q.t
           | Dep of FixConstraint.dep
           | Kut of Ast.Symbol.t
-
+          | IBind of int * Ast.Symbol.t * FixConstraint.reft  
 
 type 'bind cfg = { 
    a     : int                               (* Tag arity                            *)
@@ -85,7 +85,9 @@ let extend f cfg = function
   | Sol (k, fess) -> {cfg with bm   = SM.add k (List.map f fess) cfg.bm  }
   | Con (s,t)     -> {cfg with cons = if So.is_func t then cfg.cons else s :: cfg.cons
                              ; uops = SM.add s t cfg.uops} 
-  
+  | IBind _       -> cfg 
+
+
 let empty = { a    = 0 
             ; ts   = []
             ; ps   = []
