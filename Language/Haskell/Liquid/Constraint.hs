@@ -63,10 +63,12 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI info
 consAct info penv
   = do γ   <- initEnv info penv
        foldM consCB γ (cbs info)
-       st  <- get 
-       fcs <- concat <$> mapM splitC (hsCs st)
-       fws <- concat <$> mapM splitW (hsWfs st)
-       put  $ st { fixCs = fcs } {fixWfs = fws }
+       -- st  <- get
+       hcs <- hsCs  <$> get 
+       hws <- hsWfs <$> get
+       fcs <- concat <$> mapM splitC hcs -- (hsCs st)
+       fws <- concat <$> mapM splitW hws -- (hsWfs st)
+       modify $ \st -> st { fixCs = fcs } { fixWfs = fws }
 
 initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
 initEnv info penv
@@ -414,11 +416,6 @@ initCGI info = CGInfo {
 coreBindLits tce cbs = sortNub [ (x, so) | (_, F.ELit x so) <- lconsts]
   where lconsts      = literalConst tce <$> literals cbs
 
--- showTyV v = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
--- showTyV _           = error "Constraint : showTyV"
--- showTy (TyVarTy v) = showSDoc $ ppr v <> ppr (varUnique v) <> text "  "
--- showTy _           = error "Constraint : showTy"
-
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 γ ++= (_, x, r') 
@@ -440,15 +437,19 @@ normalize γ = addRTyConInv (invs γ) . normalizePds
   = err 
   | otherwise
   =  γ ++= (msg, x, r) 
-  where err = errorstar $ msg ++ " Duplicate binding for " ++ F.symbolString x 
+  where err = errorstar $ msg ++ " Duplicate binding for " 
+                              ++ F.symbolString x 
                               ++ "\n New: " ++ showPpr r
                               ++ "\n Old: " ++ showPpr (x `lookupREnv` (renv γ))
                         
-γ -= x =  γ { renv = deleteREnv x (renv γ) } -- { fenv = F.deleteSEnv x (fenv γ) }
+γ -= x =  γ {renv = deleteREnv x (renv γ)}
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
-         where err = errorstar $ "EnvLookup: unknown " ++ showPpr x ++ " in renv " ++ showPpr (renv γ)
+         where err = errorstar $ "EnvLookup: unknown " 
+                               ++ showPpr x 
+                               ++ " in renv " 
+                               ++ showPpr (renv γ)
 
 
 addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
@@ -456,7 +457,7 @@ addBind x r
   = do st          <- get
        let (i, bs') = F.insertBindEnv x r (binds st)
        put          $ st { binds = bs' }
-       return i
+       return i -- traceShow ("addBind: " ++ showPpr x) i
 
 addClassBind :: SpecType -> CG [F.BindId] -- F.FEnv -> F.FEnv
 addClassBind (RCls c ts)
@@ -805,9 +806,7 @@ cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -
 -------------------------------------------------------------------------------------
 
 cconsCase γ x t _ (DataAlt c, ys, ce) 
- = do -- yts'         <- mkyts γ ys yts
-      let yts'         = yts
-      let cbs          = zip (x':ys') (xt:yts')
+ = do let cbs          = zip (x':ys') (xt:yts)
       cγ              <- addBinders γ x' cbs
       cconsE cγ ce t
  where (x':ys')        = varSymbol <$> (x:ys)
