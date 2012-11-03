@@ -19,7 +19,7 @@ import Language.Haskell.Liquid.Constraint       (CGInfo (..))
 solve fn hqs cgi
   =     {-# SCC "Solve" #-}  execFq fn hqs qs fi
     >>= {-# SCC "exitFq" #-} exitFq fn cm 
-  where fi  = FI (M.elems cm) (fixWfs cgi) (globals cgi) (lits cgi) (kuts cgi)  
+  where fi  = FI (M.elems cm) (fixWfs cgi) (binds cgi) (globals cgi) (lits cgi) (kuts cgi)  
         cm  = M.fromList $ zipWith (\i c -> (i, c {sid = Just i})) [1..] $ fixCs cgi 
         qs  = specQuals cgi
         

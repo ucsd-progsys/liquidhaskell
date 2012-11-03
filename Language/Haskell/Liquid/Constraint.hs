@@ -92,7 +92,7 @@ measEnv sp penv xts cbs
         , renv  = fromListREnv   $ second uRType          <$> meas sp 
         , syenv = F.fromListSEnv $ freeSyms sp 
         , penv  = penv 
-        , fenv  = F.fromListSEnv $ second (rTypeSortedReft tce) <$> meas sp 
+        , fenv  = F.emptyIBindEnv -- F.fromListSEnv $ second (rTypeSortedReft tce) <$> meas sp 
         , recs  = S.empty 
         , invs  = mkRTyConInv    $ invariants sp
         , grtys = fromListREnv xts 
@@ -236,7 +236,7 @@ splitW (WfC _ (RCls _ _))
 splitW (WfC γ t@(RApp c ts rs _))
   =  do let ws = bsplitW γ t 
         ws'   <- concat <$> mapM splitW (map (WfC γ) ts)
-        ws''  <- concat <$> mapM (rsplitW γ) (safeZip "splitW" rs (rTyConPs c)))
+        ws''  <- concat <$> mapM (rsplitW γ) (safeZip "splitW" rs (rTyConPs c))
         return $ ws ++ ws' ++ ws''
 
 splitW (WfC _ t) 
@@ -279,7 +279,7 @@ splitC (SubC γ t1 (REx x tx t2))
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
-  =  do cs       <- bsplitC γ t1 t2 
+  =  do let cs    = bsplitC γ t1 t2 
         cs'      <- splitC  (SubC γ r2 r1) 
         γ'       <- (γ, "splitC") += (x2, r2) 
         let r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
@@ -298,14 +298,15 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   where t2' = subsTyVar_meet' (α2, RVar α1 top) t2
 
 splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
-	= do let cs = bsplitC γ t1 t2 
-         cs'   <- concat <$> mapM splitC (zipWith (SubC γ) t1s t2s)
-         cs''  <- concat <$> mapM rsplitC γ (rsplits r1s r2s' (rTyConPs c))
-      where r2s'    = F.subst su <$> r2s
-            su      = F.mkSubst [(x, F.EVar y) | (x, y) <- zip pVars' pVars]
-            pVars   = concatMap getVars (rTyConPs c)
-            pVars'  = concatMap getVars (rTyConPs c')
-            getVars = (snd3 <$>) . pargs
+  = do let cs = bsplitC γ t1 t2
+       cs'   <- concat <$> mapM splitC (zipWith (SubC γ) t1s t2s)
+       cs''  <- concat <$> mapM (rsplitC γ) (rsplits r1s r2s' (rTyConPs c))
+       return $ cs ++ cs' ++ cs''
+    where r2s'    = F.subst su <$> r2s
+          su      = F.mkSubst [(x, F.EVar y) | (x, y) <- zip pVars' pVars]
+          pVars   = concatMap getVars (rTyConPs c)
+          pVars'  = concatMap getVars (rTyConPs c')
+          getVars = (snd3 <$>) . pargs
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
@@ -399,6 +400,7 @@ initCGI info = CGInfo {
   , fixWfs     = [] 
   , globals    = F.fromListSEnv . map (mapSnd (rTypeSortedReft (tcEmbeds spc))) $ meas spc
   , freshIndex = 0
+  , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
   , tyConInfo  = makeTyConInfo $ tconsP spc
   , specQuals  = specificationQualifiers info
@@ -425,7 +427,7 @@ coreBindLits tce cbs = sortNub [ (x, so) | (_, F.ELit x so) <- lconsts]
        is    <- if isBase r 
                   then liftM ( :[]) $ addBind x (rTypeSortedReft (emb γ) r) 
                   else addClassBind r
-       return $ γ' { fenv = F.insertIBindEnv is (fenv γ) }
+       return $ γ' { fenv = F.insertsIBindEnv is (fenv γ) }
 
 
 normalize γ = addRTyConInv (invs γ) . normalizePds
@@ -449,21 +451,21 @@ normalize γ = addRTyConInv (invs γ) . normalizePds
          where err = errorstar $ "EnvLookup: unknown " ++ showPpr x ++ " in renv " ++ showPpr (renv γ)
 
 
-addBind :: Symbol -> SortedReft -> CG BindId
+addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
 addBind x r 
-  = do bs          <- binds <$> get
-       let (i, bs') = F.insertBindEnv x r bs
-       put          $ s { binds = bs' }
+  = do st          <- get
+       let (i, bs') = F.insertBindEnv x r (binds st)
+       put          $ st { binds = bs' }
        return i
 
-addClassBind :: SpecType -> CG [BindId] -- F.FEnv -> F.FEnv
+addClassBind :: SpecType -> CG [F.BindId] -- F.FEnv -> F.FEnv
 addClassBind (RCls c ts)
   | isNumericClass c
   = do let numReft = F.trueSortedReft F.FNum
        let numVars = [rTyVarSymbol a | (RVar a _) <- ts]
        is         <- forM numVars (`addBind` numReft)
        return is
- addClassBind _ 
+addClassBind _ 
   = return [] 
 
 
@@ -637,8 +639,8 @@ consCB :: CGEnv -> CoreBind -> CG CGEnv
 consCB γ (Rec xes) 
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        let xts = [(x, to) | (x, _, to) <- xets, not (isGrty x)]
-       let γ' <- foldM extender (γ `withRecs` (fst <$> xts)) xts
-       mapM_ (consBind γ')    xets
+       γ'     <- foldM extender (γ `withRecs` (fst <$> xts)) xts
+       mapM_ (consBind γ') xets
        return γ' 
     where isGrty x = (varSymbol x) `memberREnv` (grtys γ)
 
@@ -939,17 +941,17 @@ instance NFData WfC where
     = rnf x1 `seq` rnf x2
 
 instance NFData CGInfo where
-  rnf (CGInfo x1 x2 x3 x4 x5 x6 x7 _ x9 _ x10 x11) 
-    = ({-# SCC "CGIrnf1" #-} rnf x1) `seq` 
-      ({-# SCC "CGIrnf2" #-} rnf x2) `seq` 
-      ({-# SCC "CGIrnf3" #-} rnf x3) `seq` 
-      ({-# SCC "CGIrnf4" #-} rnf x4) `seq` 
-      ({-# SCC "CGIrnf5" #-} rnf x5) `seq` 
-      ({-# SCC "CGIrnf6" #-} rnf x6) `seq`
-      ({-# SCC "CGIrnf7" #-} rnf x7) `seq`
-      ({-# SCC "CGIrnf8" #-} rnf x9) `seq`
-      ({-# SCC "CGIrnf8" #-} rnf x10) `seq`
-      ({-# SCC "CGIrnf8" #-} rnf x11) 
+  rnf x = ({-# SCC "CGIrnf1" #-}  rnf (hsCs x))       `seq` 
+          ({-# SCC "CGIrnf2" #-}  rnf (hsWfs x))      `seq` 
+          ({-# SCC "CGIrnf3" #-}  rnf (fixCs x))      `seq` 
+          ({-# SCC "CGIrnf4" #-}  rnf (fixWfs x))     `seq` 
+          ({-# SCC "CGIrnf5" #-}  rnf (globals x))    `seq` 
+          ({-# SCC "CGIrnf6" #-}  rnf (freshIndex x)) `seq`
+          ({-# SCC "CGIrnf7" #-}  rnf (binds x))      `seq`
+          ({-# SCC "CGIrnf8" #-}  rnf (annotMap x))   `seq`
+          ({-# SCC "CGIrnf9" #-}  rnf (specQuals x))  `seq`
+          ({-# SCC "CGIrnf10" #-} rnf (kuts x))       `seq`
+          ({-# SCC "CGIrnf10" #-} rnf (lits x)) 
 
 -------------------------------------------------------------------------------
 --------------------- Reftypes from Fixpoint Expressions ----------------------
