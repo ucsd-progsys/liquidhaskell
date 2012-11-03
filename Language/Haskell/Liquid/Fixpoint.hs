@@ -634,7 +634,7 @@ instance Fixpoint FEnv where
 instance Fixpoint BindEnv where
   toFix (BE _ m) = vcat $ map toFix_bind $ hashMapToAscList m 
 
-toFix_bind (i, (x, r)) = text "bind " <+> toFix i <+> toFix x <+> text ":" <+> toFix r   
+toFix_bind (i, (x, r)) = text "bind" <+> toFix i <+> toFix x <+> text ":" <+> toFix r   
 
 insertFEnv   = insertSEnv . lower 
   where lower x@(S (c:chs)) 
