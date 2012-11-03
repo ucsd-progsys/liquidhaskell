@@ -16,15 +16,15 @@ PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDat
 #CABAL=cabal --with-ghc=$(GHC) 
 CABAL=cabal
 
-CABALI=$(CABAL) install --ghc-options=$(OPTS)
-#CABALI=$(CABAL) install --force-reinstalls --reinstall --ghc-options=$(OPTS)
+#CABALI=$(CABAL) install --ghc-options=$(OPTS)
+CABALI=$(CABAL) install --force-reinstalls --reinstall --ghc-options=$(OPTS)
 #CABALP=$(CABALI) -p
 
 
 #CABALP=$(CABAL) install --reinstall --force-reinstalls --ghc-options=$(OPTS) -p
 CABALP=$(CABAL) install --ghc-options=$(OPTS) -p
 
-DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour ansi-terminal cmdargs
+DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour ansi-terminal hashable unordered-containers
 
 all:
 	$(CABAL) install --ghc-options=$(OPTS) 
