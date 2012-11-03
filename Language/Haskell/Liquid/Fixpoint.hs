@@ -33,7 +33,7 @@ module Language.Haskell.Liquid.Fixpoint (
   -- * Environments
   , SEnv, emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
   , FEnv, insertFEnv 
-  , IBindEnv, insertsIBindEnv, deleteIBindEnv, emptyIBindEnv
+  , IBindEnv, BindId, insertsIBindEnv, deleteIBindEnv, emptyIBindEnv
   , BindEnv, insertBindEnv, emptyBindEnv
 
   -- * Refinements
@@ -926,6 +926,10 @@ instance NFData FEnv where
 
 instance NFData IBindEnv where
   rnf (FB x) = rnf x
+
+instance NFData BindEnv where
+  rnf (BE x m) = rnf x `seq` rnf m
+
 
 instance NFData Constant where
   rnf (I x) = rnf x
