@@ -14,6 +14,7 @@ type deft = Srt of Ast.Sort.t
           | Qul of Qualifier.t
           | Dep of FixConstraint.dep
           | Kut of Ast.Symbol.t
+          | IBind of int * Ast.Symbol.t * FixConstraint.reft  
 
 type 'bind cfg = { 
    a     : int                               (* Tag arity                            *)

@@ -69,14 +69,10 @@ import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
 import Data.List            (sort)
 import Data.Hashable
+import Data.Maybe           (fromMaybe)
 import Text.Printf          (printf)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
-
--- import Data.Generics.Schemes
--- import Data.Generics.Aliases
--- import Data.Data    hiding  (TyCon, tyConName)
-import Data.Maybe           (fromMaybe)
 
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.FileNames
@@ -116,21 +112,6 @@ predSymbols = go
     go (PAll xts p)     = (fst <$> xts) ++ go p
     go _                = []
 
--- getSymbols = everything (++) ([] `mkQ` f)
---   where f x@(S _) = [x]
---         f _       = []
-
--- getConstants :: (Data a) => a -> [(Symbol, Sort, Bool)]
--- getConstants = everything (++) ([] `mkQ` f)
---   where f (EDat s so) = [(s, so, True)]
---         f (ELit s so) = [(s, so, False)]
---         f _           = []
--- 
--- getSymbols :: (Data a) => a -> [Symbol]
--- getSymbols = everything (++) ([] `mkQ` f)
---   where f x@(S _) = [x]
---         f _       = []
-
 reftKVars :: Reft -> [Symbol]
 reftKVars (Reft (_,ras)) = [k | (RKvar k _) <- ras]
 
@@ -151,8 +132,6 @@ instance Fixpoint Kuts where
 
 ksEmpty             = KS S.empty
 ksUnion kvs (KS s') = KS (S.union (S.fromList kvs) s')
-
-
 
 ---------------------------------------------------------------
 ---------- Converting Constraints to Fixpoint Input -----------
@@ -734,7 +713,7 @@ instance Outputable (WfC a) where
   ppr = toFix 
 
 instance Fixpoint (IBindEnv) where
-  toFix (FB ids) = text "bindenv" <+> toFix ids 
+  toFix (FB ids) = text "env" <+> toFix ids 
 
 instance Fixpoint (SubC a) where
   toFix c     = hang (text "\n\nconstraint:") 2 bd
