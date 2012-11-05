@@ -1,6 +1,8 @@
 
 module Data.Map.Base (trim) where
 
+import Language.Haskell.Liquid.Prelude
+
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 
 data Map k a  = Bin Size k a (Map k a) (Map k a)
@@ -53,7 +55,7 @@ trim :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Map k a
 trim NothingS   NothingS   t = t
 trim (JustS lk) NothingS   t = greater lk t 
   where greater lo t@(Bin _ k _ _ r) | k <= lo      = greater lo r
-                                     | otherwise    = t
+                                     | otherwise    = liquidAssert (k > lo) t
         greater _  t'@Tip                           = t'
 
 -- trim NothingS   (JustS hk) t = lesser hk t 
