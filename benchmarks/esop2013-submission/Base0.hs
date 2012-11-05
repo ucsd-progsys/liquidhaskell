@@ -54,18 +54,19 @@ type Size     = Int
 trim :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Map k a
 trim NothingS   NothingS   t = t
 trim (JustS lk) NothingS   t = greater lk t 
- 
-{-@ greater :: (Ord k) => lo:k -> OMap k a -> {v: OMap k a | ((isBin(v)) => (lo < key(v)))} @-}
-greater lo t@(Bin _ k _ _ r) | k <= lo      = greater lo r
-                             | otherwise    = liquidAssert (k > lo) t
-greater _  t'@Tip                           = t'
+  where greater lo t@(Bin _ k _ _ r) | k <= lo      = greater lo r
+                                     | otherwise    = {- liquidAssert (k > lo) -} t
+        greater _  t'@Tip                           = t'
+trim NothingS   (JustS hk) t = lesser hk t 
+  where lesser  hi t'@(Bin _ k _ l _) | k >= hi     = lesser  hi l
+                                      | otherwise   = t'
+        lesser  _  t'@Tip                           = t'
+trim (JustS lk) (JustS hk) t = middle lk hk t  
+  where middle lo hi t'@(Bin _ k _ l r) | k <= lo   = middle lo hi r
+                                        | k >= hi   = middle lo hi l
+                                        | otherwise = t'
+        middle _ _ t'@Tip = t'  
 
--- trim NothingS   (JustS hk) t = lesser hk t 
---   where lesser  hi t'@(Bin _ k _ l _) | k >= hi     = lesser  hi l
---                                       | otherwise   = t'
---         lesser  _  t'@Tip                           = t'
--- trim (JustS lk) (JustS hk) t = middle lk hk t  
---   where middle lo hi t'@(Bin _ k _ l r) | k <= lo   = middle lo hi r
---                                         | k >= hi   = middle lo hi l
---                                         | otherwise = t'
---         middle _ _ t'@Tip = t'  
+
+
+
