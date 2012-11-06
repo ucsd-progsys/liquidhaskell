@@ -77,7 +77,10 @@ class Config (rtest.TestConfig):
 #####################################################################################
 
 #DEFAULT
-testdirs  = [("pos", 0), ("neg", 1)]
+testdirs  = [ ("pos", 0)
+            , ("neg", 1)
+            , ("../benchmarks/esop2013-submission", 0) 
+            ]
 
 parser = optparse.OptionParser()
 parser.add_option("-t", "--threads", dest="threadcount", default=1, type=int, help="spawn n threads")
