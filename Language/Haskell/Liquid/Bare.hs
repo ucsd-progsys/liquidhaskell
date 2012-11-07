@@ -68,23 +68,36 @@ data GhcSpec = SP {
 
 makeGhcSpec :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
 makeGhcSpec vars env spec 
-  = do (tcs, dcs) <- makeConTypes    env               $ Ms.dataDecls  spec 
-       let tycons = tcs ++ tcs'    
-       let benv   = BE (makeTyConInfo tycons) env
-       (cs, ms)   <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
-       sigs       <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
-       invs       <- makeInvariants  benv              $ Ms.invariants spec
-       embs       <- makeTyConEmbeds benv              $ Ms.embeds     spec 
-       let syms   = makeSymbols (vars ++ map fst cs) (map fst ms) (sigs ++ cs) ms 
-       let tx     = subsFreeSymbols syms
-       let syms'  = [(varSymbol v, v) | (_, v) <- syms]
-       return     $ SP (tx sigs) (tx cs) (tx ms) invs (concat dcs ++ dcs') tycons syms' embs 
-    where (tcs', dcs') = wiredTyDataCons
-
+  = do (tcs, dcs)      <- makeConTypes    env               $ Ms.dataDecls  spec 
+       let (tcs', dcs') = wiredTyDataCons 
+       let tycons       = tcs ++ tcs'    
+       let datacons     = concat dcs ++ dcs'
+       let benv         = BE (makeTyConInfo tycons) env
+       (cs, ms)        <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
+       sigs            <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
+       invs            <- makeInvariants  benv              $ Ms.invariants spec
+       embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec 
+       let cs'         <- meetDataConSpec cs datacons
+       let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms 
+       let tx           = subsFreeSymbols syms
+       let syms'        = [(varSymbol v, v) | (_, v) <- syms]
+       return           $ SP { tySigs     = tx sigs 
+                             , ctor       = tx cs'
+                             , meas       = tx ms 
+                             , invariants = invs 
+                             , dconsP     = datacons
+                             , tconsP     = tycons 
+                             , freeSyms   = syms' 
+                             , tcEmbeds   = embs 
+                             }
 
 subsFreeSymbols xvs = tx
   where su  = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
         tx  = fmap $ mapSnd $ subst su {- (\t -> tracePpr ("subsFree: " ++ showPpr t) (subst su t)) -}
+
+meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
+meetDataConSpec = error "TODO: meetDataConSpec"
+
 ------------------------------------------------------------------
 ---------- Error-Reader-IO For Bare Transformation ---------------
 ------------------------------------------------------------------
