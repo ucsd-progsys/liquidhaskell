@@ -2,7 +2,7 @@
 module Language.Haskell.Liquid.PredType (
     PrType
   , TyConP (..), DataConP (..)
-  , dataConTy, dataConPtoPredTy, makeTyConInfo
+  , dataConTy, dataConPSpecType, makeTyConInfo
   , unify, replacePreds, exprType, predType
   , substParg
   ) where
@@ -47,11 +47,12 @@ mkRTyCon tc (TyConP αs' ps) = RTyCon tc pvs'
   where τs   = [rVar α :: RSort |  α <- TC.tyConTyVars tc]
         pvs' = subts (zip αs' τs) <$> ps
 
-dataConPtoPredTy :: DataConP -> PrType
-dataConPtoPredTy (DataConP vs ps yts rt) = ur_pred <$> t3						
-  where t1 = foldl' (\t2 (x, t1) -> rFun x t1 t2) rt yts 
-        t2 = foldr RAllP t1 ps
-        t3 = foldr RAllT t2 vs
+dataConPSpecType :: DataConP -> SpecType 
+dataConPSpecType (DataConP vs ps yts rt) = mkArrow vs ps yts rt 
+--   where t1 = foldl' (\t2 (x, t1) -> rFun x t1 t2) rt yts 
+--         t2 = foldr RAllP t1 ps
+--         t3 = foldr RAllT t2 vs
+
 
 instance Outputable TyConP where
   ppr (TyConP vs ps) = (parens $ hsep (punctuate comma (map ppr vs))) <+>
