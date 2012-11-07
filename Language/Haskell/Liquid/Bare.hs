@@ -98,11 +98,20 @@ subsFreeSymbols xvs = tx
 -- meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
 meetDataConSpec xts dcs  = strengthen <$> xts 
   where dcm              = dataConSpec dcs 
-        strengthen (x,t) = (x, maybe t (meet t) (M.lookup x dcm))
+        strengthen (x,t) = (x, maybe t (meetPad t) (M.lookup x dcm))
+
 
 -- dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
 dataConSpec dcs = M.fromList [(v, dataConPSpecType t) | (dc, t) <- dcs, v <- dataConImplicitIds dc]
 
+meetPad t1 t2 = 
+  case (bkUniv t1, bkUniv t2) of
+    ((_, π1s, _), (α2s, [], t2')) -> meet t1 (mkUnivs α2s π1s t2')
+    _                             -> errorstar $ "meetPad: t2 has predicate variables!"
+                                             ++ "\nt1 = " ++ showPpr t1 
+                                             ++ "\nt2 = " ++ showPpr t2
+
+ 
 ------------------------------------------------------------------
 ---------- Error-Reader-IO For Bare Transformation ---------------
 ------------------------------------------------------------------
