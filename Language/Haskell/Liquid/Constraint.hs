@@ -467,7 +467,13 @@ addClassBind _
   = return [] 
 
 
-
+addSpecC :: SubC -> CG ()  
+addSpecC (SubC γ t1 t2)
+  = addC (SubC γ t1' t2) "addSpecC"
+  where t1' = mkUnivs as [] (fmap (replacePredsWithRefs su) tbody)
+        (as, πs, tbody) = bkUniv t1'
+        su = []
+        replacePredsWithRefs = \_ -> id
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ _ _) _ 
@@ -647,10 +653,12 @@ consCB γ (NonRec x e)
        to' <- consBind γ (x, e, to)
        extender γ (x, to')
 
-consBind γ (x, e, Just t) 
+consBind γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x 
-       cconsE γ' e t
-       addIdA x (Left t)
+       t <- consE γ' e
+       addSpecC (SubC γ spect t)       
+--     cconsE γ' e t
+       addIdA x (Left spect)
        return Nothing 
 
 consBind γ (x, e, Nothing) 
