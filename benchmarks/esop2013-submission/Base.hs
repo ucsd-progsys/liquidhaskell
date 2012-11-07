@@ -252,7 +252,7 @@ module Data.Map.Base (
             , join
             , merge
             , glue
-            , trim
+            , trim, zoo1, zoo2
             , trimLookupLo
             , foldlStrict
             , MaybeS(..)
@@ -2370,6 +2370,16 @@ trim (JustS lk) (JustS hk) t = middle lk hk t
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE trim #-}
 #endif
+
+-- LIQUID QUALIFIER DEBUG SILLINESS
+{-@ zoo1 :: (Ord k) => lo:k -> OMap k a -> {v: OMap k a | ((isBin(v)) => (lo < key(v)))} @-}
+zoo1 :: Ord k => k -> Map k a -> Map k a
+zoo1 = error "TODO"
+
+{-@ zoo2 :: (Ord k) => lo:k -> OMap k a -> {v: OMap k a | ((isBin(v)) => (lo > key(v)))} @-}
+zoo2 :: Ord k => k -> Map k a -> Map k a
+zoo2 = error "TODO"
+
 
 -- Helper function for 'mergeWithKey'. The @'trimLookupLo' lk hk t@ performs both
 -- @'trim' (JustS lk) hk t@ and @'lookup' lk t@.

@@ -8,6 +8,7 @@ module P  = A.Predicate
 module H  = A.Horn
 module Su = A.Subst
 module C  = FixConstraint
+open FixMisc.Ops
 
 (* 
  *
@@ -37,6 +38,17 @@ let parse_error msg =
 
 let create_qual name vv = Qualifier.create (Sy.of_string name) (Sy.of_string vv) 
 
+let set_ibind, get_ibind =
+  let bindt = Hashtbl.create 37 in
+  ( (fun (i, x, t) -> Hashtbl.replace bindt i (x, t))
+  , (fun i         -> try Hashtbl.find bindt i with Not_found -> assertf "Unknown binding: %d\n" i) 
+  )
+
+let env_of_ibindings is = 
+  is |> FixMisc.sort_and_compact 
+     |> FixMisc.map get_ibind
+     |> C.env_of_ordered_bindings
+
 %}
 
 %token <string> Id
@@ -56,7 +68,7 @@ let create_qual name vv = Qualifier.create (Sy.of_string name) (Sy.of_string vv)
 %token DIV 
 %token QM DOT ASGN
 %token OBJ INT NUM PTR LFUN BOOL UNINT FUNC
-%token SRT AXM CON CST WF SOL QUL KUT ADP DDP
+%token SRT AXM CON CST WF SOL QUL KUT BIND ADP DDP
 %token ENV GRD LHS RHS REF
 
 %right IFF IFFWORD
@@ -118,8 +130,11 @@ def:
   | QUL qual                            { FixConfig.Qul $2 }
   | KUT Id                              { FixConfig.Kut (Sy.of_string $2) }
   | dep                                 { FixConfig.Dep $1 }
-
+  | BIND Num Id COLON reft              { let (i, x, r) = ($2, Sy.of_string $3, $5) 
+                                                          >> set_ibind 
+                                          in FixConfig.IBind (i,x,r)              } 
   ;
+
 
 sorts:
     LB RB                               { [] }
@@ -323,14 +338,19 @@ info:
   ;
 
 cstr:
-    ENV env GRD pred LHS reft RHS reft          { C.make_t $2 $4 $6 $8 None ([],"") }
+  | ENV env GRD pred LHS reft RHS reft          { C.make_t $2 $4 $6 $8 None ([],"") }
   | ENV env GRD pred LHS reft RHS reft info     { C.make_t $2 $4 $6 $8 (fst $9) (snd $9)}
   ;
 
-
 env:
-  LB RB                                 { C.env_of_bindings [] }
+    LB RB                               { C.env_of_bindings [] }
   | LB envne RB                         { C.env_of_bindings $2 }
+  | LB ienvne RB                        { env_of_ibindings $2  }
+  ;
+
+ienvne:
+    Num                                 { [$1] }
+  | Num SEMI ienvne                     { $1 :: $3 }
   ;
 
 envne:
@@ -338,8 +358,13 @@ envne:
   | rbind SEMI envne                    { $1 :: $3 }
   ;
 
+
 rbind: 
   Id COLON reft                         { (Sy.of_string $1, $3) }
+  ;
+
+ibind:
+  Num Id COLON reft                     { ($1, Sy.of_string $2, $4) }    
   ;
 
 reft: 

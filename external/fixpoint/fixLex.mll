@@ -120,6 +120,7 @@ rule token = parse
   | "solution"          { SOL }
   | "qualif"            { QUL }
   | "cut"               { KUT }
+  | "bind"              { BIND }
   | "add_dep"           { ADP }
   | "del_dep"           { DDP }
   | "env"               { ENV }
