@@ -2,18 +2,13 @@ module GhcSort where
 
 import Language.Haskell.Liquid.Prelude
 -- This is SAFE
-{-@ bar :: (Ord a) => a -> a -> {v: Bool | (? v)} @-}
-bar a b
-  = case a `compare` b of
-      GT        -> True
-      otherwise -> liquidAssertB (a <= b)
+{-@ mymax :: forall <p :: a -> Bool>. (Ord a) => a<p> -> a<p> -> a<p> @-}
+mymax a b
+  | a > b     = a
+  | otherwise = b
 
--- This is UNSAFE:
-{-@ foo :: (Ord a) => a -> a -> {v: Bool | (? v)} @-}
-foo a b 
-  | a `compare` b == GT = True
-  | otherwise           = liquidAssertB (a <= b)
-
-
+foo = mymax n m
+  where n = choose 0
+        m = choose 0
 
 

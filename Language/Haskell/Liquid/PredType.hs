@@ -4,7 +4,7 @@ module Language.Haskell.Liquid.PredType (
   , TyConP (..), DataConP (..)
   , dataConTy, dataConPtoPredTy, makeTyConInfo
   , unify, replacePreds, exprType, predType
-  , replacePredsWithRefs, pVartoRConc 
+  , replacePredsWithRefs, pVartoRConc, pVartoLit
   , substParg
   ) where
 
@@ -171,7 +171,13 @@ replacePredsWithRefs su (U (Reft (s, rs)) (Pr ps))
                "PredType.replacePredsWithRefs: " ++ showPpr p ++ " not in su"
 
 pVartoRConc embγ (PV name ptype args)
-  = RConc $ PBexp $ ECst (EVar name) (rTypeSort (embγ) ptype)
+  = RConc $ PBexp $ EApp name ([EVar vv])
+--   = RConc $ PBexp $ ECst (EVar name) (rTypeSort (embγ) ptype)
+
+pVartoLit embγ (PV name ptype args)
+  = (name, FFunc (length args + 1) (pargssort ++ [psort, FBool]))
+  where psort = rTypeSort embγ ptype
+        pargssort = rTypeSort embγ . fst3 <$> args
 
 ----------------------------------------------------------------------------
 ---------- Interface: Replace Predicate With Type  -------------------------
