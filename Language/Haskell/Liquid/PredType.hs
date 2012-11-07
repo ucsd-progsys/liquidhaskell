@@ -36,8 +36,8 @@ data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
 
 data DataConP = DataConP { freeTyVars :: ![RTyVar]
                          , freePred   :: ![(PVar RSort)]
-                         , tyArgs     :: ![(Symbol, PrType)]
-                         , tyRes      :: !PrType
+                         , tyArgs     :: ![(Symbol, SpecType)]
+                         , tyRes      :: !SpecType
                          }
 
 makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
@@ -48,7 +48,7 @@ mkRTyCon tc (TyConP αs' ps) = RTyCon tc pvs'
         pvs' = subts (zip αs' τs) <$> ps
 
 dataConPtoPredTy :: DataConP -> PrType
-dataConPtoPredTy (DataConP vs ps yts rt) = {- traceShow ("dataConPtoPredTy: " ++ show x) $ -}  t3						
+dataConPtoPredTy (DataConP vs ps yts rt) = ur_pred <$> t3						
   where t1 = foldl' (\t2 (x, t1) -> rFun x t1 t2) rt yts 
         t2 = foldr RAllP t1 ps
         t3 = foldr RAllT t2 vs
