@@ -99,12 +99,23 @@ let meet x (v1, t1, ra1s) (v2, t2, ra2s) =
   (Sy.to_string x) (Sy.to_string v1) (A.Sort.to_string t1) (Sy.to_string v2) (A.Sort.to_string t2) ;
   (v1, t1, Misc.sort_and_compact (ra1s ++ ra2s))
 
+let env_of_bindings_ meetb xrs =
+  List.fold_left begin fun env (x, r) -> 
+    let r = if meetb && SM.mem x env then meet x r (SM.find x env) else r in
+    SM.add x r env
+  end SM.empty xrs
+
+(* API *)
+let env_of_bindings         = env_of_bindings_ true
+let env_of_ordered_bindings = env_of_bindings_ false 
+
+(* 
 let env_of_bindings xrs =
   List.fold_left begin fun env (x, r) -> 
     let r = if SM.mem x env then meet x r (SM.find x env) else r in
     SM.add x r env
   end SM.empty xrs
-
+*)
 
 let bindings_of_env = SM.to_list
 

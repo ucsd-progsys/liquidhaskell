@@ -1,0 +1,2 @@
+qualif Bound(VV : Map k a , ~A0 : k): ((? isBin([VV])) => (~A0 [ < ; > ] key([VV])))
+
