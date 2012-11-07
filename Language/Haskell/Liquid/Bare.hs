@@ -14,7 +14,7 @@ import Var
 import PrelNames
 import PrelInfo     (wiredInThings)
 import Type         (expandTypeSynonyms)
-
+import DataCon      (dataConImplicitIds)
 import HscMain
 import TysWiredIn
 import BasicTypes (TupleSort (..), Arity)
@@ -77,7 +77,7 @@ makeGhcSpec vars env spec
        sigs            <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec 
-       let cs'         <- meetDataConSpec cs datacons
+       let cs'          = meetDataConSpec cs datacons
        let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms 
        let tx           = subsFreeSymbols syms
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
@@ -95,8 +95,13 @@ subsFreeSymbols xvs = tx
   where su  = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
         tx  = fmap $ mapSnd $ subst su {- (\t -> tracePpr ("subsFree: " ++ showPpr t) (subst su t)) -}
 
-meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
-meetDataConSpec = error "TODO: meetDataConSpec"
+-- meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
+meetDataConSpec xts dcs  = strengthen <$> xts 
+  where dcm              = dataConSpec dcs 
+        strengthen (x,t) = (x, maybe t (meet t) (M.lookup x dcm))
+
+-- dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
+dataConSpec dcs = M.fromList [(v, dataConPSpecType t) | (dc, t) <- dcs, v <- dataConImplicitIds dc]
 
 ------------------------------------------------------------------
 ---------- Error-Reader-IO For Bare Transformation ---------------
@@ -164,11 +169,11 @@ mkSpecType' πs
   . txParams subvUReft πs
   . mapReft (fmap canonReft) 
 
-mkPredType πs 
-  = ofBareType' 
-  . txParams subvPredicate πs 
+-- mkPredType πs 
+--   = ofBareType' 
+--   . txParams subvPredicate πs 
 
---makeSymbols :: [Vars] -> [Symbol] -> [SpecType] -> [(Symbol, Var)]
+-- makeSymbols :: [Vars] -> [Symbol] -> [SpecType] -> [(Symbol, Var)]
 
 
 -- subsFreeSymbols xvs xts yts = (tx xts, tx yts) 
@@ -307,21 +312,22 @@ wiredTyDataCons = (\(x, y) -> (concat x, concat y)) $ unzip l
   where l = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity] 
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-listTyDataCons = ( [(c, TyConP [(RTV tyv)] [p])]
-                 , [(nilDataCon , DataConP [(RTV tyv)] [p] [] lt)
-                 , (consDataCon, DataConP [(RTV tyv)] [p]  cargs  lt)])
-    where c     = listTyCon
-          [tyv] = tyConTyVars c
-          t     = {- TyVarTy -} rVar tyv :: RSort
-          fld   = stringSymbol "fld"
-          x     = stringSymbol "x"
-          xs    = stringSymbol "xs"
-          p     = PV (stringSymbol "p") t [(t, fld, fld)]
-          px    = (pdVar $ PV (stringSymbol "p") t [(t, fld, x)]) 
-          lt    = rApp c [xt] [RMono $ pdVar p] top                 
-          xt    = rVar tyv
-          xst   = rApp c [RVar (RTV tyv) px] [RMono $ pdVar p] top  
-          cargs = [(xs, xst), (x, xt)]
+listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p])]
+                   , [(nilDataCon , DataConP [(RTV tyv)] [p] [] lt)
+                   , (consDataCon, DataConP [(RTV tyv)] [p]  cargs  lt)])
+    where c      = listTyCon
+          [tyv]  = tyConTyVars c
+          t      = {- TyVarTy -} rVar tyv :: RSort
+          fld    = stringSymbol "fld"
+          x      = stringSymbol "x"
+          xs     = stringSymbol "xs"
+          p      = PV (stringSymbol "p") t [(t, fld, fld)]
+          px     = (pdVarReft $ PV (stringSymbol "p") t [(t, fld, x)]) 
+          lt     = rApp c [xt] [RMono $ pdVarReft p] top                 
+          xt     = rVar tyv
+          xst    = rApp c [RVar (RTV tyv) px] [RMono $ pdVarReft p] top  
+          cargs  = [(xs, xst), (x, xt)]
+ 
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps)]
@@ -337,13 +343,15 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps)]
         ps            = mkps pnames (ta:ts) ((fld,fld):(zip flds flds))
         ups           = uPVar <$> ps
         pxs           = mkps pnames (ta:ts) ((fld, x1):(zip flds xs))
-        lt            = rApp c (rVar <$> tyvs) (RMono . pdVar <$> ups) top
-        xts           = zipWith (\v p -> RVar (RTV v) (pdVar p)) tvs pxs
+        lt            = rApp c (rVar <$> tyvs) (RMono . pdVarReft <$> ups) top
+        xts           = zipWith (\v p -> RVar (RTV v) (pdVarReft p)) tvs pxs
         cargs         = reverse $ (x1, rVar tv) : (zip xs xts)
         pnames        = mks_ "p"
         mks  x        = (\i -> stringSymbol (x++ show i)) <$> [1..n]
         mks_ x        = (\i ->  (x++ show i)) <$> [2..n]
 
+
+pdVarReft = U top . pdVar 
 
 mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ (stringSymbol <$> ns) ts fxs [(t, f, x)] [] 
 mkps _  _      _           = error "Bare : mkps"
@@ -462,10 +470,10 @@ ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
 ofBDataDecl (D tc as ps cts)
   = do πs    <- mapM ofBPVar ps                     -- fmap (fmap stringTyVarTy) ps
        tc'   <- lookupGhcTyCon tc 
-       cts'  <- mapM (ofBDataCon tc' αs πs) cpts
+       cts'  <- mapM (ofBDataCon tc' αs πs) cts     -- cpts
        return $ ((tc', TyConP αs πs), cts')
     where αs   = fmap (RTV . stringTyVar) as
-          cpts = fmap (second (fmap (second (mapReft ur_pred)))) cts
+          -- cpts = fmap (second (fmap (second (mapReft ur_pred)))) cts
 
 -- ofBPreds = fmap (fmap stringTyVarTy)
 ofBPVar :: PVar BSort -> BareM (PVar RSort)
@@ -479,8 +487,8 @@ mapM_pvar f (PV x t txys)
 
 ofBDataCon tc αs πs (c, xts)
  = do c'  <- lookupGhcDataCon c
-      ts' <- mapM (mkPredType (uPVar <$> πs)) ts
-      let t0 = rApp tc rs (RMono . pdVar <$> πs) top 
+      ts' <- mapM (mkSpecType' (uPVar <$> πs)) ts
+      let t0 = rApp tc rs (RMono . pdVarReft <$> πs) top 
       return $ (c', DataConP αs πs (reverse (zip xs' ts')) t0) 
  where (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
