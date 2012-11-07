@@ -1203,7 +1203,7 @@ data DataDecl   = D String
                     [String] 
                     [PVar BSort] 
                     [(String, [(String, BareType)])] 
-                  deriving (Show) --Data, Typeable
+                  deriving (Show) 
 
 -- | Refinement Type Aliases
 
