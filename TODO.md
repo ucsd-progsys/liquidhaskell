@@ -1,18 +1,55 @@
 TODO
 ====
 
-* parse predicate signatures for tuples 
 * predicate-aliases 
+* record invariants
+* parse predicate signatures for tuples 
 * Blogging 
 * benchmarks: Data.List (foldr)
 * self-invariants        (tests/todo/maybe4.hs)
+
 * benchmarks: Data.List (foldr) -- needs sets
 * benchmarks: Data.Bytestring
 * benchmarks: stackset-core
 * benchmarks: Data.Text
+
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
+Predicate Aliases
+=================
+
+Then clean up the spec blowup in containers/Data/Map/Base.hs ?
+
+    {-@ maybeGe(lo, v)     = ((isJustS(lo)) => (v >= fromJustS(lo))) @-}
+    {-@ maybeLe(hi, v)     = ((isJustS(lo)) => (v <= fromJustS(hi))) @-}
+    {-@ inRange(lo, hi, v) = maybeGe(lo, v) && maybeLe(hi, v)        @-}
+
+How about this instead?
+
+    {-@ refinement maybeGe lo v    = ((isJustS lo) => (v >= (fromJustS lo))) @-}
+    {-@ refinement maybeLe hi v    = ((isJustS lo) => (v <= (fromJustS hi))) @-}
+    {-@ refinement inRange lo hi v = (maybeGe lo v) && (maybeLe hi v)        @-}
+
+Instead of the grisly
+
+    inRange(lo, hi, v) = {v:k | (((isJustS(lo)) => (v >= fromJustS(lo))) && (((isJustS(hi)) => (v <= fromJustS(hi)))))} v @-}
+
+Record Invariants
+=================
+
+We should be able to write stuff like:
+
+    {-@ data LL a = B { size  :: {v: Int | v > 0 }
+                      , elems :: {v: a   | (len a) = size }
+                      }
+      @-}
+
+data Stack a = Stack { focus  :: !a    
+                     , up     :: [a] <{\fld v -> fld /= v && v /= focus}>  
+                     , down   :: [a] <{\fld v -> fld /= v && v /= focus}>
+                     }
+    deriving (Show, Read, Eq)
 Benchmarks
 ==========
 
@@ -36,18 +73,7 @@ Currently hacked by "copying variables",
 see tests/pos/maybe3.hs [hack which works]
     tests/pos/maybe4.hs [deal with devil which doesn't work]
 
-Predicate Aliases
-=================
 
-Then clean up the spec blowup in containers/Data/Map/Base.hs ?
-
-    {-@ maybeGe(lo, v)     = ((isJustS(lo)) => (v >= fromJustS(lo))) @-}
-    {-@ maybeLe(hi, v)     = ((isJustS(lo)) => (v <= fromJustS(hi))) @-}
-    {-@ inRange(lo, hi, v) = maybeGe(lo, v) && maybeLe(hi, v)        @-}
-
-Instead of the grisly
-
-    inRange(lo, hi, v) = {v:k | (((isJustS(lo)) => (v >= fromJustS(lo))) && (((isJustS(hi)) => (v <= fromJustS(hi)))))} v @-}
 
 Tuple Refinements (DONE: by Niki)
 =================================
