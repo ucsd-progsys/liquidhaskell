@@ -590,25 +590,32 @@ measurePatP
 --------------------------------- Predicates ----------------------------------
 -------------------------------------------------------------------------------
 
-predTypeDDP = parens $ liftM2 (,) bbindP bareTypeP
+dataConFieldsP 
+  =   (braces $ sepBy predTypeDDP comma)
+  <|> (sepBy (parens predTypeDDP) spaces)
+
+predTypeDDP 
+  = {- parens $ -} liftM2 (,) bbindP bareTypeP
 
 dataConP
- = do x <- upperIdP
-      spaces
-      xts <- sepBy predTypeDDP spaces
-      return (x, xts)
+  = do x <- upperIdP
+       spaces
+       xts <- dataConFieldsP -- sepBy predTypeDDP spaces
+       return (x, xts)
+
+
 
 dataDeclP
- = do x   <- upperIdP
-      spaces
-      ts  <- sepBy tyVarIdP spaces
-      ps  <- predVarDefsP
-      whiteSpace >> reservedOp "=" >> whiteSpace
-      dcs <- sepBy dataConP (reserved "|")
-      whiteSpace
-      -- spaces
-      -- reservedOp "--"
-      return $ D x ts ps dcs
+  = do x   <- upperIdP
+       spaces
+       ts  <- sepBy tyVarIdP spaces
+       ps  <- predVarDefsP
+       whiteSpace >> reservedOp "=" >> whiteSpace
+       dcs <- sepBy dataConP (reserved "|")
+       whiteSpace
+       -- spaces
+       -- reservedOp "--"
+       return $ D x ts ps dcs
 
 ---------------------------------------------------------------------
 ------------ Interacting with Fixpoint ------------------------------

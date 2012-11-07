@@ -1,72 +1,64 @@
 TODO
 ====
 
-* performance
-* parse predicate signatures for tuples 
 * predicate-aliases 
+* record invariants
+* parse predicate signatures for tuples 
 * Blogging 
 * benchmarks: Data.List (foldr)
 * self-invariants        (tests/todo/maybe4.hs)
+
 * benchmarks: Data.List (foldr) -- needs sets
 * benchmarks: Data.Bytestring
 * benchmarks: stackset-core
 * benchmarks: Data.Text
+
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
-Performance
-===========
+Predicate Aliases
+=================
 
-        1. Some more profiling now <-------------------------------------- HEREHEREHERE
-                
-                > see liquid.{hp, prof}.{Map, LambdaEval}
+Then clean up the spec blowup in containers/Data/Map/Base.hs ?
 
-        2. Compact Constraints 
+    {-@ maybeGe(lo, v)     = ((isJustS(lo)) => (v >= fromJustS(lo))) @-}
+    {-@ maybeLe(hi, v)     = ((isJustS(lo)) => (v <= fromJustS(hi))) @-}
+    {-@ inRange(lo, hi, v) = maybeGe(lo, v) && maybeLe(hi, v)        @-}
 
-                > but first do this
-                        
-            import Control.Monad (forM)
-    
-            main = forM sizes $ \n -> do putStrLn ("Size = " ++ show n)
-                                         writeFile ("tmp." ++ show n) (gen n)
-                            
-            sizes :: [Integer]
-            sizes  = [10, 100, 1000, 10000, 100000, 1000000]
-    
-            gen   :: Integer -> String
-            gen 0 = "DONE!\n"
-            gen n = show n ++ "\n" ++  gen (n-1)
+How about this instead?
 
-- Majority of remaining 900s in haskell land? doing what? serialize/parse?
-        - time liquid benchmarks/esop2013-submission/Base.hs > log.base 2>&1
-          user = 24m ML = 5m
-        - time liquid tests/pos/LambdaEval.hs 
-          user = 27s ML = 10s
-        - time liquid tests/pos/Map.hs 
-          user = 34s ML = 9s
+    {-@ refinement maybeGe lo v    = ((isJustS lo) => (v >= (fromJustS lo))) @-}
+    {-@ refinement maybeLe hi v    = ((isJustS lo) => (v <= (fromJustS hi))) @-}
+    {-@ refinement inRange lo hi v = (maybeGe lo v) && (maybeLe hi v)        @-}
 
-<<<<<<< HEAD
-- Or is it the use of Dynamic/Data to traverse and sanitize constraints?
-- Serializing to .fq is WAY slow ?
-        - Compact FQ encoding: shared environment binders
-=======
-        - Or is it the use of Dynamic/Data to traverse and sanitize constraints?
-            - No!
+Instead of the grisly
 
-        - Serializing to .fq is WAY slow ?
-            - Compact FQ encoding: shared environment binders
->>>>>>> master
+    inRange(lo, hi, v) = {v:k | (((isJustS(lo)) => (v >= fromJustS(lo))) && (((isJustS(hi)) => (v <= fromJustS(hi)))))} v @-}
 
+Record Invariants
+=================
+
+We should be able to write stuff like:
+
+    {-@ data LL a = B { size  :: {v: Int | v > 0 }
+                      , elems :: {v: a   | (len a) = size }
+                      }
+      @-}
+
+data Stack a = Stack { focus  :: !a    
+                     , up     :: [a] <{\fld v -> fld /= v && v /= focus}>  
+                     , down   :: [a] <{\fld v -> fld /= v && v /= focus}>
+                     }
+    deriving (Show, Read, Eq)
 Benchmarks
 ==========
 
-                    time(O|N)    TOTAL(O|N)   solve (O|N)      refines       iterfreq
-Map.hs          :    54/50/32    21/15/8.7      14/8/4.3    9100/4900/2700    16/28/7
-ListSort.hs     :   */7.5/5.5    */2.5/1.8     */1.5/1.0      */1100/600       */9/7
-ListISort.hs    :     */1.8/?      */0.5/?       */0.3/?       */200/?          */7/?
-GhcListSort.hs  :    23/22/17    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
-LambdaEval.hs   :    36/32/25    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
-Base.hs         :  see nohup.out v nohup.out.perf on goto
+                    time(O|N|C)    TOTAL(O|N)   solve (O|N)      refines       iterfreq
+Map.hs          :    54/50/32/10    21/15/8.7      14/8/4.3    9100/4900/2700    16/28/7
+ListSort.hs     :   */7.5/5.5/2    */2.5/1.8     */1.5/1.0      */1100/600       */9/7
+GhcListSort.hs  :    23/22/17/5    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
+LambdaEval.hs   :    36/32/25/12    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
+Base.hs         :        26mi/2m
 
 
 Self-Invariants
@@ -81,18 +73,7 @@ Currently hacked by "copying variables",
 see tests/pos/maybe3.hs [hack which works]
     tests/pos/maybe4.hs [deal with devil which doesn't work]
 
-Predicate Aliases
-=================
 
-Then clean up the spec blowup in containers/Data/Map/Base.hs ?
-
-    {-@ maybeGe(lo, v)     = ((isJustS(lo)) => (v >= fromJustS(lo))) @-}
-    {-@ maybeLe(hi, v)     = ((isJustS(lo)) => (v <= fromJustS(hi))) @-}
-    {-@ inRange(lo, hi, v) = maybeGe(lo, v) && maybeLe(hi, v)        @-}
-
-Instead of the grisly
-
-    inRange(lo, hi, v) = {v:k | (((isJustS(lo)) => (v >= fromJustS(lo))) && (((isJustS(hi)) => (v <= fromJustS(hi)))))} v @-}
 
 Tuple Refinements (DONE: by Niki)
 =================================
@@ -348,7 +329,6 @@ GITTERY
 
     $ git pull
     $ git checkout foo
-
 
 Alpha-Renaming Predicates
 =========================
