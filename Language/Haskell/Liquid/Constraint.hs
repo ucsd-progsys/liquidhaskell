@@ -474,9 +474,9 @@ addSpecC :: SubC -> CG ()
 addSpecC (SubC γ t1 t2)
   = addC (SubC γ t1' t2) "addSpecC"
   where t1' = mkUnivs as [] (fmap (replacePredsWithRefs su) tbody)
-        (as, πs, tbody) = bkUniv t1'
-        su = []
-        replacePredsWithRefs = \_ -> id
+        (as, πs, tbody) = bkUniv t1
+        su = M.fromList [(uPVar p, pVartoRConc embγ p) | p <- πs]
+        embγ = emb γ
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ _ _) _ 

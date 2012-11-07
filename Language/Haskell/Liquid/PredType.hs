@@ -4,6 +4,7 @@ module Language.Haskell.Liquid.PredType (
   , TyConP (..), DataConP (..)
   , dataConTy, dataConPtoPredTy, makeTyConInfo
   , unify, replacePreds, exprType, predType
+  , replacePredsWithRefs, pVartoRConc 
   , substParg
   ) where
 
@@ -158,7 +159,19 @@ zipWithZero f xz yz (x:xs) (y:ys) = (f x y) :(zipWithZero f xz yz xs ys)
  
 -- pToReft p = Reft (vv, [RPvar p]) 
 pToReft = U top . pdVar 
+----------------------------------------------------------------------------
+----- Interface: Replace Predicate With Uninterprented Function Symbol -----
+----------------------------------------------------------------------------
 
+replacePredsWithRefs su (U (Reft (s, rs)) (Pr ps)) 
+  = U (Reft (s, rs ++ rs')) (Pr [])
+  where rs' = map (f su) ps
+        f su p = M.lookupDefault (msg p) p su
+        msg = \p ->  errorstar $ 
+               "PredType.replacePredsWithRefs: " ++ showPpr p ++ " not in su"
+
+pVartoRConc embγ (PV name ptype args)
+  = RConc $ PBexp $ ECst (EVar name) (rTypeSort (embγ) ptype)
 
 ----------------------------------------------------------------------------
 ---------- Interface: Replace Predicate With Type  -------------------------
