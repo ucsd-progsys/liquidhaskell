@@ -1000,13 +1000,11 @@ instance (SubsTy tv ty (UReft r)) => SubsTy tv ty (Ref (UReft r) (RType p c tv (
   subt m (RMono p) = RMono $ subt m p
   subt m (RPoly t) = RPoly $ fmap (subt m) t
  
-
+subvUReft     :: (UsedPVar -> UsedPVar) -> UReft Reft -> UReft Reft
+subvUReft f (U r p) = U r (subvPredicate f p)
 
 subvPredicate :: (UsedPVar -> UsedPVar) -> Predicate -> Predicate 
 subvPredicate f (Pr pvs) = Pr (f <$> pvs)
-
-subvUReft     :: (UsedPVar -> UsedPVar) -> UReft Reft -> UReft Reft
-subvUReft f (U r p) = U r (subvPredicate f p)
 
 ---------------------------------------------------------------
 

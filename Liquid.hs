@@ -41,8 +41,8 @@ liquidOne includes target =
      -- putStrLn $ showPpr cbs'
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs'}
      cgi `deepseq` donePhase Loud "generateConstraints"
-     -- {-# SCC "writeCGI" #-} writeCGI target cgi cbs'
-     -- donePhase Loud "writeCGI"
+     {-# SCC "writeCGI" #-} writeCGI target cgi cbs'
+     donePhase Loud "writeCGI"
      (r, sol) <- solve target (hqFiles info) cgi
      donePhase Loud "solve"
      {-# SCC "annotate" #-} annotate target sol $ annotMap cgi

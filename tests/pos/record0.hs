@@ -1,7 +1,7 @@
 module Rec0 (clone, mk) where
 
 {-@ data LL a = B { size  :: {v: Int | v > 0 }
-                  , elems :: {v: a   | (len a) = size }
+                  , elems :: {v: [a] | (len a) = size }
                   }
   @-}
 

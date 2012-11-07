@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, NoMonomorphismRestriction, ScopedTypeVariables #-}
+{-# LANGUAGE DeriveDataTypeable, TupleSections, NoMonomorphismRestriction, ScopedTypeVariables #-}
 
 module Language.Haskell.Liquid.Misc where
 
@@ -91,7 +91,7 @@ mapFst3 f (x, y, z) = (f x, y, z)
 mapSnd3 f (x, y, z) = (x, f y, z)
 mapThd3 f (x, y, z) = (x, y, f z)
 
-expandSnd = concatMap (\(fst, snd) -> (\z -> (z, snd)) <$> fst)
+expandSnd = concatMap (\(xs, y) -> (, y) <$> xs)
 
 mapPair ::  (a -> b) -> (a, a) -> (b, b)
 mapPair f (x, y) = (f x, f y)
