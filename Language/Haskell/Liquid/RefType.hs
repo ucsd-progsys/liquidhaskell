@@ -503,8 +503,8 @@ strengthenRefType t1 t2
   = strengthenRefType_ t1 t2
   | otherwise
   = errorstar $ "strengthen on differently shaped reftypes! " 
-              ++ "t1 = " ++ showPpr t1 
-              ++ "t2 = " ++ showPpr t2
+              ++ "\nt1 = " ++ showPpr t1 
+              ++ "\nt2 = " ++ showPpr t2
   where eqt t1 t2 = showPpr (toRSort t1) == showPpr (toRSort t2)
   
 -- strengthenRefType_ :: RefTypable p c tv r =>RType p c tv r -> RType p c tv r -> RType p c tv r
