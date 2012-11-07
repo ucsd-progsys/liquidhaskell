@@ -591,8 +591,8 @@ measurePatP
 -------------------------------------------------------------------------------
 
 dataConFieldsP 
-  =   braces $ sepBy predTypeDDP comma 
-  <|> sepBy (parens predTypeDDP) spaces
+  =   (braces $ sepBy predTypeDDP comma)
+  <|> (sepBy (parens predTypeDDP) spaces)
 
 predTypeDDP 
   = {- parens $ -} liftM2 (,) bbindP bareTypeP
