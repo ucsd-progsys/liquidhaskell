@@ -113,19 +113,6 @@ meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
     _                             -> errorstar $ "meetPad: " ++ msg
   where msg = "\nt1 = " ++ showPpr t1 ++ "\nt2 = " ++ showPpr t2
  
--- smashArrow t = (αs, πs, zip xs ts, t'')
---   where (αs, πs, t')  = bkUniv t
---         (xs, ts, t'') = bkArrs t'
-
---meetPad tWithoutPVs tWithPVs = traceShow ("meetPad: " ++ msg) $
---  case (bkUniv tWithPVs, bkUniv tWithoutPVs) of
---    ((_, π1s, _), (α2s, [], t2')) -> meet tWithPVs (mkUnivs α2s π1s t2')
---    ((α1s, [], t1'), (_, π2s, _)) -> meet tWithPVs (mkUnivs α2s π1s t2')
---    _                             -> errorstar $ "meetPad: t2 has predicate variables!" ++ msg
---  where msg = "\nt1 = " ++ showPpr tWithPVs ++ "\nt2 = " ++ showPpr tWithoutPVs
-
-
- 
 ------------------------------------------------------------------
 ---------- Error-Reader-IO For Bare Transformation ---------------
 ------------------------------------------------------------------
