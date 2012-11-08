@@ -255,14 +255,14 @@ class (Monoid r, Subable r, GetPVar r, Outputable r) => Reftable r where
 
   toReft  :: r -> Reft
 
-class TyConable c where
+class (Eq c) => TyConable c where
   isList   :: c -> Bool
   isTuple  :: c -> Bool
   ppTycon  :: c -> SDoc
 
 class ( Outputable p
       , TyConable c
-      , Eq tv
+      , Eq p, Eq c, Eq tv
       , Hashable tv
       , Outputable tv
       , Reftable r
@@ -403,7 +403,7 @@ instance TyConable String where
 
 -- RefTypable Instances -------------------------------------------------------
 
-instance (Outputable p, TyConable c, Reftable r) => RefTypable p c String r where
+instance (Eq p, Outputable p, TyConable c, Reftable r) => RefTypable p c String r where
   ppCls = ppClass_String
   ppRType = ppr_rtype True -- False 
 
@@ -418,25 +418,29 @@ ppClass_ClassPred c ts = parens $ pprClassPred c (toType <$> ts)
 
 -- Eq Instances ------------------------------------------------------
 
-instance Eq RSort where
-  (==) = eqRSort
+instance (RefTypable p c tv ()) => Eq (RType p c tv ()) where
+  (==) = eqRSort M.empty 
 
-eqRSort :: RSort -> RSort -> Bool
-eqRSort (RAllP _ t) (RAllP _ t') 
-  = eqRSort t t'
-eqRSort (RAllP _ t) t' 
-  = eqRSort t t'
-eqRSort (RAllT (RTV α) t) (RAllT a' t')
-  = eqRSort t (subt (a', rVar α :: RSort) t') 
-eqRSort (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
-  = eqRSort t1 t1' && eqRSort t2 t2'
-eqRSort (RApp c ts _ _) (RApp c' ts' _ _)
-  =  ((c == c') && length ts == length ts' && and (zipWith eqRSort ts ts'))
-eqRSort (RCls c ts) (RCls c' ts')
-  = (c == c') && length ts == length ts' && and (zipWith eqRSort ts ts')
-eqRSort (RVar α _) (RVar α' _)
-  = α == α' 
-eqRSort _ _ 
+eqRSort m (RAllP _ t) (RAllP _ t') 
+  = eqRSort m t t'
+eqRSort m (RAllP _ t) t' 
+  = eqRSort m t t'
+eqRSort m (RAllT a t) (RAllT a' t')
+  | a == a'
+  = eqRSort m t t'
+  | otherwise
+  = eqRSort (M.insert a' a m) t t' 
+-- eqRSort (RAllT (RTV α) t) (RAllT a' t')
+  -- = eqRSort t (subt (a', rVar α :: RSort) t') 
+eqRSort m (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
+  = eqRSort m t1 t1' && eqRSort m t2 t2'
+eqRSort m (RApp c ts _ _) (RApp c' ts' _ _)
+  =  ((c == c') && length ts == length ts' && and (zipWith (eqRSort m) ts ts'))
+eqRSort m (RCls c ts) (RCls c' ts')
+  = (c == c') && length ts == length ts' && and (zipWith (eqRSort m) ts ts')
+eqRSort m (RVar a _) (RVar a' _)
+  = a == (M.lookupDefault a' a' m) 
+eqRSort _ _ _ 
   = False
 
 --------------------------------------------------------------------
@@ -511,18 +515,18 @@ nlzP ps t@(REx _ _ _)
  = (t, ps) 
 
 
--- NEW: with unifying type variables
+-- NEWISH: with unifying type variables: causes big problems with TUPLES?
 --strengthenRefType t1 t2 = maybe (errorstar msg) (strengthenRefType_ t1) (unifyShape t1 t2)
 --  where msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
 --                 (showPpr t1) (showPpr (toRSort t1)) (showPpr t2) (showPpr (toRSort t2))
 
--- OLD: without unifying type variables
+-- OLD: without unifying type variables, but checking α-equivalence
 strengthenRefType t1 t2 
   | eqt t1 t2 
   = strengthenRefType_ t1 t2
   | otherwise
   = errorstar msg 
-  where eqt t1 t2 = showPpr (toRSort t1) == showPpr (toRSort t2)
+  where eqt t1 t2 = {- showPpr -} (toRSort t1) == {- showPpr -} (toRSort t2)
         msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
                 (showPpr t1) (showPpr (toRSort t1)) (showPpr t2) (showPpr (toRSort t2))
 
