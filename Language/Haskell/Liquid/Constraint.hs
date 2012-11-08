@@ -483,10 +483,7 @@ addSpecC (SubC γ t spect)
   = addC (SubC γ t spect') "addSpecC"
   where spect' = mkUnivs as [] (fmap (replacePredsWithRefs su) tbody)
         (as, πs, tbody) = bkUniv spect
-        su = M.fromList [(uPVar p, pVartoRConc embγ p) | p <- πs]
-        embγ = emb γ
-
-addLits l = modify $ \s -> s { lits  = l ++ (lits s) }
+        su = M.fromList [(uPVar p, pVartoRConc p) | p <- πs]
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ _ _) _ 

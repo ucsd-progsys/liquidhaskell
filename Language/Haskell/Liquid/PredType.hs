@@ -170,8 +170,8 @@ replacePredsWithRefs su (U (Reft (s, rs)) (Pr ps))
         msg = \p ->  errorstar $ 
                "PredType.replacePredsWithRefs: " ++ showPpr p ++ " not in su"
 
-pVartoRConc embγ (PV name ptype args)
-  = RConc $ PBexp $ EApp name ([EVar vv])
+pVartoRConc (PV name ptype args) -- TODO add args in arguments
+  = RConc $ pApp name [EVar vv]
 
 -- pVartoLit embγ (PV name ptype args)
 --   = (name, FFunc (length args + 1) (pargssort ++ [psort, FBool]))
