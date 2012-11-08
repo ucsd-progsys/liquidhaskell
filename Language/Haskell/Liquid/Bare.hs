@@ -106,7 +106,7 @@ meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts
 -- dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
 dataConSpec dcs = M.fromList [(v, dataConPSpecType t) | (dc, t) <- dcs, v <- dataConImplicitIds dc]
 
-meetPad t1 t2 = traceShow ("meetPad: " ++ msg) $
+meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
   case (bkUniv t1, bkUniv t2) of
     ((_, π1s, _), (α2s, [], t2')) -> meet t1 (mkUnivs α2s π1s t2')
     ((α1s, [], t1'), (_, π2s, _)) -> meet (mkUnivs α1s π2s t1') t2
