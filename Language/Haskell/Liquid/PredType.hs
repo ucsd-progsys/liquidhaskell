@@ -4,7 +4,7 @@ module Language.Haskell.Liquid.PredType (
   , TyConP (..), DataConP (..)
   , dataConTy, dataConPtoPredTy, makeTyConInfo
   , unify, replacePreds, exprType, predType
-  , replacePredsWithRefs, pVartoRConc, pVartoLit
+  , replacePredsWithRefs, pVartoRConc, toPredType
   , substParg
   ) where
 
@@ -172,12 +172,20 @@ replacePredsWithRefs su (U (Reft (s, rs)) (Pr ps))
 
 pVartoRConc embγ (PV name ptype args)
   = RConc $ PBexp $ EApp name ([EVar vv])
---   = RConc $ PBexp $ ECst (EVar name) (rTypeSort (embγ) ptype)
 
-pVartoLit embγ (PV name ptype args)
-  = (name, FFunc (length args + 1) (pargssort ++ [psort, FBool]))
-  where psort = rTypeSort embγ ptype
-        pargssort = rTypeSort embγ . fst3 <$> args
+-- pVartoLit embγ (PV name ptype args)
+--   = (name, FFunc (length args + 1) (pargssort ++ [psort, FBool]))
+--   where psort = rTypeSort embγ ptype
+--         pargssort = rTypeSort embγ . fst3 <$> args
+
+-- toPredSort embγ (PV _ ptype args) = FApp predFTyCon (pSort:pargsSort)
+--   where pSort = rTypeSort embγ ptype
+--         pargsSort = rTypeSort embγ . fst3 <$> args
+
+toPredType (PV _ ptype args) = rpredType (ty:tys)
+  where ty = uRTypeGen ptype
+        tys = uRTypeGen . fst3 <$> args
+        
 
 ----------------------------------------------------------------------------
 ---------- Interface: Replace Predicate With Type  -------------------------
@@ -269,6 +277,11 @@ predArgsSubst = mkSubst . map (\(_, s1, s2) -> (s1, EVar s2))
 
 predType :: Type 
 predType = TyVarTy $ stringTyVar "Pred"
+
+rpredType :: Reftable r => [RRType r] -> RRType r
+rpredType ts
+  = RApp tyc ts [] top
+  where tyc = RTyCon (stringTyCon "Pred") []
 
 ----------------------------------------------------------------------------
 exprType :: CoreExpr -> Type
