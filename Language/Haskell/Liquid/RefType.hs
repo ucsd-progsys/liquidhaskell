@@ -310,10 +310,15 @@ instance Subable r => Subable (UReft r) where
   subst s (U r z)  = U (subst s r) (subst s z)
   substf f (U r z) = U (substf f r) (substf f z) 
 
+instance Subable UsedPVar where 
+  syms pv         = [ y | (_, x, y) <- pargs pv, x /= y ]
+  subst s pv      = pv { pargs = mapThd3 (subst s)  <$> pargs pv }  
+  substf f pv     = pv { pargs = mapThd3 (substf f) <$> pargs pv }  
+
 instance Subable Predicate where
-  syms (Pr _)     = [] -- TODO: concatMap syms ps 
-  subst _         = id -- TODO: 
-  substf _        = id -- TODO:
+  syms (Pr pvs)     = concatMap syms pvs 
+  subst s (Pr pvs)  = Pr (subst s <$> pvs)
+  substf f (Pr pvs) = Pr (substf f <$> pvs)
 
 instance Subable (Ref F.Reft RefType) where
   syms (RMono r)     = syms r
@@ -324,9 +329,6 @@ instance Subable (Ref F.Reft RefType) where
 
   substf f (RMono r) = RMono $ substf f r
   substf f (RPoly r) = RPoly $ substf f r
-
-
-
 
 instance Subable r => Subable (RType p c tv r) where
   syms   = foldReft (\r acc -> syms r ++ acc) [] 
@@ -522,12 +524,12 @@ strengthenRefType_ (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2)
 strengthenRefType_ (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
   = RApp tid ts rs (r1 `meet` r2)
     where ts  = zipWith strengthenRefType_ t1s t2s
-          rs  = tracePpr msg $ meets rs1 rs2
+          rs  = {- tracePpr msg $ -} meets rs1 rs2
           msg = "strengthenRefType_: RApp rs1 = " ++ showPpr rs1 ++ " rs2 = " ++ showPpr rs2
 
 
 strengthenRefType_ (RVar v1 r1)  (RVar _ r2)
-  = RVar v1 (tracePpr msg $ r1 `meet` r2)
+  = RVar v1 ({- tracePpr msg $ -} r1 `meet` r2)
     where msg = "strengthenRefType_: RVAR r1 = " ++ showPpr r1 ++ " r2 = " ++ showPpr r2
  
 strengthenRefType_ t1 _ 
