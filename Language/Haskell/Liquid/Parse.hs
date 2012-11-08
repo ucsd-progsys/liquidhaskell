@@ -131,24 +131,6 @@ lexprP
  <|> liftM ECon constantP
  <|> (reserved "_|_" >> return EBot)
 
--- RJ: Removing EDat 
--- makeEDat s = wiredEDat $ lookup s wiredSorts
---   where wiredEDat (Just wInfo) = EDat (fst wInfo) (snd wInfo)
---         wiredEDat _            = EVar $ stringSymbol s 
--- 
--- EQ :: Ordering
--- LT :: Ordering
--- GT :: Ordering
-
--- wiredSorts = [] 
--- [ ("EQ", (varSymbol eqDataConId, primOrderingSort))
--- , ("LT", (varSymbol ltDataConId, primOrderingSort))
--- , ("GT", (varSymbol gtDataConId, primOrderingSort))
--- ]
-
-
-
-
 exprFunP       =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
 
 exprFunSpacesP = parens $ liftM2 EApp symbolP (sepBy exprP spaces) 
@@ -156,12 +138,6 @@ exprFunCommasP = liftM2 EApp symbolP (parens        $ sepBy exprP comma)
 exprFunSemisP  = liftM2 EApp symbolP (parenBrackets $ sepBy exprP semi)
 
 parenBrackets  = parens . brackets 
-
--- exprFunP       =  (try exprFunSpacesP) <|> exprFunCommasP
---exprFunCommasP = liftM2 EApp symbolP argsP
---  where argsP  =  try (parens $ brackets esP) 
---              <|> parens esP
---        esP    = sepBy exprP comma 
 
 expr2P = buildExpressionParser bops lexprP
 
@@ -595,7 +571,7 @@ dataConFieldsP
   <|> (sepBy (parens predTypeDDP) spaces)
 
 predTypeDDP 
-  = {- parens $ -} liftM2 (,) bbindP bareTypeP
+  = liftM2 (,) bbindP bareTypeP
 
 dataConP
   = do x <- upperIdP
