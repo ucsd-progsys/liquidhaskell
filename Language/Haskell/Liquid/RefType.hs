@@ -14,7 +14,7 @@ module Language.Haskell.Liquid.RefType (
   , PVar (..) , Predicate (..), UReft(..), DataDecl (..)
 
   -- * Functions for lifting Reft-values to Spec-values
-  , uTop, uReft, uRType, uRType', uPVar
+  , uTop, uReft, uRType, uRType', uRTypeGen, uPVar
  
   -- * Functions for manipulating `Predicate`s
   , pdAnd, pdVar, pdTrue, pvars
@@ -228,6 +228,9 @@ uRType          = fmap uTop
 
 uRType'         ::  RType p c tv (UReft a) -> RType p c tv a 
 uRType'         = fmap ur_reft
+
+uRTypeGen       :: Reftable b => RType p c tv a -> RType p c tv b
+uRTypeGen       = fmap (\_ -> top)
 
 uPVar           :: PVar t -> UsedPVar
 uPVar           = fmap (const ())

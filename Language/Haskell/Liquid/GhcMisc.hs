@@ -22,6 +22,7 @@ import           Outputable
 import           RdrName                      (GlobalRdrEnv)
 import           Type                         (liftedTypeKind)
 import           Var
+import           TyCon                        (mkSuperKindTyCon)
 import           FastString                   (uniq)
 -- import           SrcLoc                       hiding (L)
 import           Data.Char                    (isLower, isSpace)
@@ -74,6 +75,11 @@ tickSrcSpan z
 
 stringTyVar :: String -> TyVar
 stringTyVar s = mkTyVar name liftedTypeKind
+  where name = mkInternalName initTyVarUnique occ noSrcSpan
+        occ  = mkTyVarOcc $ assert (validTyVar s) s
+
+stringTyCon :: String -> TyCon
+stringTyCon s = mkSuperKindTyCon name
   where name = mkInternalName initTyVarUnique occ noSrcSpan
         occ  = mkTyVarOcc $ assert (validTyVar s) s
 
