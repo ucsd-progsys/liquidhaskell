@@ -38,7 +38,13 @@ Instead of the grisly
 Record Invariants
 =================
 
-   <---- HEREHEREHERE
+tests/pos/fixme.hs  <----------------- HEREHEREHERE
+
+    Some meet is injecting the pesky "p" which is not bound. But from where?
+    
+    Sigh.
+
+
 Failed 14 tests: 
 
 ../benchmarks/esop2013-submission/Base.hs
