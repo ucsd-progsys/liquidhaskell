@@ -37,6 +37,7 @@ import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Misc
 
+import qualified Data.List           as L
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 import qualified Control.Exception as Ex
@@ -71,13 +72,13 @@ makeGhcSpec vars env spec
   = do (tcs, dcs)      <- makeConTypes    env               $ Ms.dataDecls  spec 
        let (tcs', dcs') = wiredTyDataCons 
        let tycons       = tcs ++ tcs'    
-       let datacons     = concat dcs ++ dcs'
+       let datacons     = {- traceShow "ODD DCS" $ -} concat dcs ++ dcs'
        let benv         = BE (makeTyConInfo tycons) env
        (cs, ms)        <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
        sigs            <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec 
-       let cs'          = meetDataConSpec cs datacons
+       let cs'          = {- traceShow "dataConSPEC" $ -} meetDataConSpec cs datacons
        let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms 
        let tx           = subsFreeSymbols syms
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
@@ -96,20 +97,33 @@ subsFreeSymbols xvs = tx
         tx  = fmap $ mapSnd $ subst su {- (\t -> tracePpr ("subsFree: " ++ showPpr t) (subst su t)) -}
 
 -- meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
-meetDataConSpec xts dcs  = strengthen <$> xts 
+meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts 
   where dcm              = dataConSpec dcs 
+        upd dcm (x, t)   = M.insert x (maybe t (meetPad t) (M.lookup x dcm)) dcm
         strengthen (x,t) = (x, maybe t (meetPad t) (M.lookup x dcm))
 
 
 -- dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
 dataConSpec dcs = M.fromList [(v, dataConPSpecType t) | (dc, t) <- dcs, v <- dataConImplicitIds dc]
 
-meetPad t1 t2 = 
+meetPad t1 t2 = traceShow ("meetPad: " ++ msg) $
   case (bkUniv t1, bkUniv t2) of
     ((_, π1s, _), (α2s, [], t2')) -> meet t1 (mkUnivs α2s π1s t2')
-    _                             -> errorstar $ "meetPad: t2 has predicate variables!"
-                                             ++ "\nt1 = " ++ showPpr t1 
-                                             ++ "\nt2 = " ++ showPpr t2
+    ((α1s, [], t1'), (_, π2s, _)) -> meet (mkUnivs α1s π2s t1') t2
+    _                             -> errorstar $ "meetPad: " ++ msg
+  where msg = "\nt1 = " ++ showPpr t1 ++ "\nt2 = " ++ showPpr t2
+ 
+-- smashArrow t = (αs, πs, zip xs ts, t'')
+--   where (αs, πs, t')  = bkUniv t
+--         (xs, ts, t'') = bkArrs t'
+
+--meetPad tWithoutPVs tWithPVs = traceShow ("meetPad: " ++ msg) $
+--  case (bkUniv tWithPVs, bkUniv tWithoutPVs) of
+--    ((_, π1s, _), (α2s, [], t2')) -> meet tWithPVs (mkUnivs α2s π1s t2')
+--    ((α1s, [], t1'), (_, π2s, _)) -> meet tWithPVs (mkUnivs α2s π1s t2')
+--    _                             -> errorstar $ "meetPad: t2 has predicate variables!" ++ msg
+--  where msg = "\nt1 = " ++ showPpr tWithPVs ++ "\nt2 = " ++ showPpr tWithoutPVs
+
 
  
 ------------------------------------------------------------------
