@@ -11,5 +11,5 @@ qualif One(v:int)     : v = 1
 qualif True(v:bool)   : (? v) 
 qualif False(v:bool)  : ~ (? v) 
 
-qualif Papp(v:a,~P:Pred a) : papp(~P, v)
-constant papp : func(2, [Pred @(0); @(0); bool])
+qualif Papp(v:@(0),~P:Pred @(1)) : papp(~P, v)
+constant papp : func(2, [Pred @(0); @(1); bool])
