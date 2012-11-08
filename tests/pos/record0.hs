@@ -1,15 +1,18 @@
 module Rec0 (clone, mk) where
 
-{-@ data LL a = B { size  :: {v: Int | v > 0 }
-                  , elems :: {v: [a] | (len a) = size }
-                  }
+{-@ data LL a = BXYZ { size  :: {v: Int | v > 0 }
+                     , elems :: {v: [a] | (len v) = size }
+                     }
   @-}
 
-data LL a = B { size  :: Int
-              , elems :: [a]
-              }
+data LL a = BXYZ { size  :: Int
+                 , elems :: [a]
+                 }
 
-mk x n = B n (clone x n)
+{-@ mk :: a -> Int -> LL a @-}
+mk x n | n > 0     = BXYZ n (clone x n) 
+       | otherwise = BXYZ 1 [x]
+
 
 {-@ clone :: x:a -> n:Int -> {v:[a]| (len v) = n} @-}
 clone :: a -> Int -> [a]
