@@ -41,6 +41,9 @@ getNeedPd spec
            assms = passm $ tySigs spec 
            bs    = mapFst varSymbol <$> (dcs ++ assms)
 
+dataConPtoPredTy :: DataConP -> PrType
+dataConPtoPredTy = fmap ur_pred . dataConPSpecType
+
 passm = fmap (mapSnd (mapReft ur_pred)) 
 
 

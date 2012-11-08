@@ -71,7 +71,7 @@ import qualified Data.Foldable as Fold
 
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GhcMisc (tvId, intersperse, dropModuleNames, getDataConVarUnique)
+import Language.Haskell.Liquid.GhcMisc (tracePpr, tvId, intersperse, dropModuleNames, getDataConVarUnique)
 import Language.Haskell.Liquid.FileNames (symSepName, listConName, tupConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
 
@@ -307,13 +307,18 @@ instance Subable () where
 
 instance Subable r => Subable (UReft r) where
   syms (U r p)     = syms r ++ syms p 
-  subst s (U r z)  = U (subst s r) z
-  substf f (U r z) = U (substf f r) z
+  subst s (U r z)  = U (subst s r) (subst s z)
+  substf f (U r z) = U (substf f r) (substf f z) 
+
+instance Subable UsedPVar where 
+  syms pv         = [ y | (_, x, y) <- pargs pv, x /= y ]
+  subst s pv      = pv { pargs = mapThd3 (subst s)  <$> pargs pv }  
+  substf f pv     = pv { pargs = mapThd3 (substf f) <$> pargs pv }  
 
 instance Subable Predicate where
-  syms (Pr _)     = [] -- TODO: concatMap syms ps 
-  subst _         = id -- TODO: 
-  substf _        = id -- TODO:
+  syms (Pr pvs)     = concatMap syms pvs 
+  subst s (Pr pvs)  = Pr (subst s <$> pvs)
+  substf f (Pr pvs) = Pr (substf f <$> pvs)
 
 instance Subable (Ref F.Reft RefType) where
   syms (RMono r)     = syms r
@@ -324,9 +329,6 @@ instance Subable (Ref F.Reft RefType) where
 
   substf f (RMono r) = RMono $ substf f r
   substf f (RPoly r) = RPoly $ substf f r
-
-
-
 
 instance Subable r => Subable (RType p c tv r) where
   syms   = foldReft (\r acc -> syms r ++ acc) [] 
@@ -414,7 +416,7 @@ eqRSort (RAllP _ t) (RAllP _ t')
 eqRSort (RAllP _ t) t' 
   = eqRSort t t'
 eqRSort (RAllT (RTV α) t) (RAllT a' t')
-  = eqRSort t (subt (a', rVar α :: RSort) t') -- (subsTyVar_meet (a', TyVarTy α, rVar a) t')
+  = eqRSort t (subt (a', rVar α :: RSort) t') 
 eqRSort (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
   = eqRSort t1 t1' && eqRSort t2 t2'
 eqRSort (RApp c ts _ _) (RApp c' ts' _ _)
@@ -503,14 +505,16 @@ strengthenRefType t1 t2
   = strengthenRefType_ t1 t2
   | otherwise
   = errorstar $ "strengthen on differently shaped reftypes! " 
-              ++ "t1 = " ++ showPpr t1 
-              ++ "t2 = " ++ showPpr t2
+              ++ "\nt1 = " ++ showPpr t1 
+              ++ "\nt2 = " ++ showPpr t2
   where eqt t1 t2 = showPpr (toRSort t1) == showPpr (toRSort t2)
   
 -- strengthenRefType_ :: RefTypable p c tv r =>RType p c tv r -> RType p c tv r -> RType p c tv r
 strengthenRefType_ (RAllT a1 t1) (RAllT _ t2)
-  -- | a1 == a2 ? 
   = RAllT a1 $ strengthenRefType_ t1 t2
+
+strengthenRefType_ (RAllP p1 t1) (RAllP _ t2)
+  = RAllP p1 $ strengthenRefType_ t1 t2
 
 strengthenRefType_ (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2) 
   = RFun x1 t t' (r1 `meet` r2)
@@ -519,14 +523,24 @@ strengthenRefType_ (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2)
 
 strengthenRefType_ (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
   = RApp tid ts rs (r1 `meet` r2)
-    where ts = zipWith strengthenRefType_ t1s t2s
-          rs = zipWith meet rs1 rs2
+    where ts  = zipWith strengthenRefType_ t1s t2s
+          rs  = {- tracePpr msg $ -} meets rs1 rs2
+          msg = "strengthenRefType_: RApp rs1 = " ++ showPpr rs1 ++ " rs2 = " ++ showPpr rs2
+
 
 strengthenRefType_ (RVar v1 r1)  (RVar _ r2)
-  = RVar v1 (r1 `meet` r2)
-
+  = RVar v1 ({- tracePpr msg $ -} r1 `meet` r2)
+    where msg = "strengthenRefType_: RVAR r1 = " ++ showPpr r1 ++ " r2 = " ++ showPpr r2
+ 
 strengthenRefType_ t1 _ 
   = t1
+
+meets [] rs                 = rs
+meets rs []                 = rs
+meets rs rs' 
+  | length rs == length rs' = zipWith meet rs rs'
+  | otherwise               = errorstar "meets: unbalanced rs"
+
 
 strengthen :: Reftable r => RType p c tv r -> r -> RType p c tv r
 strengthen (RApp c ts rs r) r'  = RApp c ts rs (r `meet` r') 
@@ -1000,13 +1014,11 @@ instance (SubsTy tv ty (UReft r)) => SubsTy tv ty (Ref (UReft r) (RType p c tv (
   subt m (RMono p) = RMono $ subt m p
   subt m (RPoly t) = RPoly $ fmap (subt m) t
  
-
+subvUReft     :: (UsedPVar -> UsedPVar) -> UReft Reft -> UReft Reft
+subvUReft f (U r p) = U r (subvPredicate f p)
 
 subvPredicate :: (UsedPVar -> UsedPVar) -> Predicate -> Predicate 
 subvPredicate f (Pr pvs) = Pr (f <$> pvs)
-
-subvUReft     :: (UsedPVar -> UsedPVar) -> UReft Reft -> UReft Reft
-subvUReft f (U r p) = U r (subvPredicate f p)
 
 ---------------------------------------------------------------
 
@@ -1203,7 +1215,7 @@ data DataDecl   = D String
                     [String] 
                     [PVar BSort] 
                     [(String, [(String, BareType)])] 
-                  deriving (Show) --Data, Typeable
+                  deriving (Show) 
 
 -- | Refinement Type Aliases
 

@@ -50,6 +50,25 @@ data Stack a = Stack { focus  :: !a
                      , down   :: [a] <{\fld v -> fld /= v && v /= focus}>
                      }
     deriving (Show, Read, Eq)
+
+get 
+    tests/neg/record0.hs to fail
+and 
+    tests/pos/record0.hs to pass
+
+
+1. Update parser to handle LL a
+2. Generalize DataConP to SpecType
+3. Update dataConPtoPredTy
+   
+   <---- HEREHEREHERE
+
+4. Figure out where DataCon Sigs are used in Constraint.hs  and funnel result of 3 there.
+
+
+
+
+
 Benchmarks
 ==========
 
