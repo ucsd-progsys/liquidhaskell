@@ -512,11 +512,19 @@ addClassBind _
 
 
 addSpecC :: SubC -> CG ()  
-addSpecC (SubC γ t1 t2)
+
+addSpecC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
+  |  α1 ==  α2 
+  = addSpecC $ SubC γ t1 t2
+  | otherwise   
+  = addSpecC $ SubC γ t1 t2' 
+  where t2' = subsTyVar_meet' (α2, RVar α1 top) t2
+
+addSpecC (SubC γ t spect)
   = do addLits (pVartoLit embγ <$> πs)
-       addC (SubC γ t2 t1') "addSpecC"
-  where t1' = mkUnivs as [] (fmap (replacePredsWithRefs su) tbody)
-        (as, πs, tbody) = bkUniv t1
+       addC (SubC γ t spect') "addSpecC"
+  where spect' = mkUnivs as [] (fmap (replacePredsWithRefs su) tbody)
+        (as, πs, tbody) = bkUniv spect
         su = M.fromList [(uPVar p, pVartoRConc embγ p) | p <- πs]
         embγ = emb γ
 
@@ -701,7 +709,7 @@ consCB γ (NonRec x e)
 consBind γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x 
        t <- consE γ' e
-       addSpecC (SubC γ spect t)       
+       addSpecC (SubC γ t spect)       
 --     cconsE γ' e t
        addIdA x (Left spect)
        return Nothing 
