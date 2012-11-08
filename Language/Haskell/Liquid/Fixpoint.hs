@@ -513,7 +513,7 @@ pOr           = simplify . POr
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3] 
 
 pApp :: Symbol -> [Expr] -> Pred
-pApp p es = PBexp $ EApp (S "papp") (EVar p:es)
+pApp p es= PBexp $ EApp (S ("papp" ++ show (length es))) (EVar p:es)
 
 ppr_reft (Reft (v, ras)) d 
   | all isTautoRa ras
