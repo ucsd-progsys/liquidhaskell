@@ -971,9 +971,8 @@ mapBot f (RFun x t t' r)   = RFun x (mapBot f t) (mapBot f t') r
 mapBot f (RApp c ts rs r)  = f $ RApp c (mapBot f <$> ts) (mapBotRef f <$> rs) r
 mapBot f (RCls c ts)       = RCls c (mapBot f <$> ts)
 mapBot f t'                = f t' 
-
-mapBotRef _ (RMono r) = RMono $ r
-mapBotRef f (RPoly t) = RPoly $ mapBot f t
+mapBotRef _ (RMono r)      = RMono $ r
+mapBotRef f (RPoly t)      = RPoly $ mapBot f t
 
 -------------------------------------------------------------------
 ------------------- Type Substitutions ----------------------------

@@ -106,7 +106,7 @@ meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts
 -- dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
 dataConSpec dcs = M.fromList [(v, dataConPSpecType t) | (dc, t) <- dcs, v <- dataConImplicitIds dc]
 
-meetPad t1 t2 = {- traceShow ("meetPad: " ++ msg) $ -}
+meetPad t1 t2 = traceShow ("meetPad: " ++ msg) $
   case (bkUniv t1, bkUniv t2) of
     ((_, π1s, _), (α2s, [], t2')) -> meet t1 (mkUnivs α2s π1s t2')
     ((α1s, [], t1'), (_, π2s, _)) -> meet (mkUnivs α1s π2s t1') t2
@@ -164,12 +164,6 @@ makeAssumeSpec env vs xbs = execBare mkAspec env
 mkVarSpec (v, b) = liftM (v,) (wrapErr msg mkSpecType b)
   where msg = "mkVarSpec fails on " ++ showPpr v ++ " :: "  ++ showPpr b 
 
--- joinIds :: [Var] -> [(String, a)] -> [(Var, a)]
--- joinIds vs xts = vts   
---   where vm     = M.fromList [(showPpr v, v) | v <- vs]
---         vts    = catMaybes [(, t) <$> (M.lookup x vm) | (x, t) <- xts]
-
--- joinIds :: [Var] -> [(Symbol, a)] -> [(Var, a)]
 joinIds vs xts = vts   
   where vm     = M.fromList [(showPpr v, v) | v <- vs]
         vts    = catMaybes [(, t) <$> (M.lookup (symbolString x) vm) | (x, t) <- xts]
@@ -191,18 +185,6 @@ mkSpecType' πs
   = ofBareType' 
   . txParams subvUReft πs
   . mapReft (fmap canonReft) 
-
--- mkPredType πs 
---   = ofBareType' 
---   . txParams subvPredicate πs 
-
--- makeSymbols :: [Vars] -> [Symbol] -> [SpecType] -> [(Symbol, Var)]
-
-
--- subsFreeSymbols xvs xts yts = (tx xts, tx yts) 
---   where -- tx zts = fmap (mapSnd (subst su)) zts 
---         tx = fmap $ mapSnd $ subst su 
---         su = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
 
 makeSymbols vs xs' xts yts = 
   -- tracePpr ("makeSymbols: vs = " ++ showPpr vs ++ " xs' = " ++ showPpr xs' ++ " ts = " ++ showPpr xts) $ 
@@ -395,7 +377,7 @@ ofBareType' = wrapErr "ofBareType" ofBareType''
 
 ofBareType'' t
   = do t' <- ofBareType t
-       let (_, πs, _) = bkUniv t'
+       let (_, πs, _) = bkUniv $ traceShow "makeRTyConPs" $  t'
        tyi <- tcEnv <$> ask
        return $ mapBot (makeRTyConPs tyi πs) t'
 
@@ -405,8 +387,10 @@ makeRTyConPs tyi πs t@(RApp c ts rs r)
   | otherwise 
   = RApp c{rTyConPs = findπ πs <$> rTyConPs c} ts rs r 
   -- need type application????
-  where findπ πs π = findWithDefaultL (==π) πs (emsg π)
+  where findπ πs π = findWithDefaultL (== π) πs (emsg π)
         emsg π     = errorstar $ "Bare: out of scope predicate" ++ show π
+--             throwError $ "Bare: out of scope predicate" ++ show π 
+
 
 makeRTyConPs _ _ t = t
 
