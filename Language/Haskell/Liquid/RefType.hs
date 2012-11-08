@@ -66,7 +66,7 @@ import Control.Monad  (liftM, liftM2, liftM3)
 -- import Data.Generics.Aliases
 -- import Data.Data            hiding (TyCon)
 import qualified Data.Foldable as Fold
-
+import Text.Printf
 -- import Language.Haskell.Liquid.Tidy
 
 import Language.Haskell.Liquid.Fixpoint as F
@@ -262,6 +262,8 @@ class TyConable c where
 
 class ( Outputable p
       , TyConable c
+      , Eq tv
+      , Hashable tv
       , Outputable tv
       , Reftable r
       ) => RefTypable p c tv r 
@@ -280,11 +282,21 @@ instance (Monoid a) => Monoid (UReft a) where
   mempty                    = U mempty mempty
   mappend (U x y) (U x' y') = U (mappend x x') (mappend y y')
 
-instance (RefTypable p c tv (), RefTypable p c tv r) => Monoid (RType p c tv r) where
+
+instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
+         , SubsTy tv (RType p c tv ()) c
+         , RefTypable p c tv ()
+         , RefTypable p c tv r )
+        => Monoid (RType p c tv r)  where
   mempty  = error "mempty RefType"
   mappend = strengthenRefType
 
-instance (Reftable r, RefTypable p c tv (), RefTypable p c tv (UReft r)) => Monoid (Ref r (RType p c tv (UReft r))) where
+instance ( SubsTy tv (RType p c tv ()) (RType p c tv ()),
+           SubsTy tv (RType p c tv ()) c, 
+           Reftable r, 
+           RefTypable p c tv (), 
+           RefTypable p c tv (UReft r)) 
+         => Monoid (Ref r (RType p c tv (UReft r))) where
   mempty                        = RMono mempty
   mappend (RMono r1) (RMono r2) = RMono $ r1 `meet` r2
   mappend (RMono r) (RPoly t)   = RPoly $ t `strengthen` (U r top)
@@ -410,7 +422,6 @@ instance Eq RSort where
   (==) = eqRSort
 
 eqRSort :: RSort -> RSort -> Bool
-
 eqRSort (RAllP _ t) (RAllP _ t') 
   = eqRSort t t'
 eqRSort (RAllP _ t) t' 
@@ -499,16 +510,37 @@ nlzP ps t@(ROth _)
 nlzP ps t@(REx _ _ _) 
  = (t, ps) 
 
+
 -- strengthenRefType :: RefTypable p c tv r => RType p c tv r -> RType p c tv r -> RType p c tv r
-strengthenRefType t1 t2 
-  | eqt t1 t2 
-  = strengthenRefType_ t1 t2
-  | otherwise
-  = errorstar $ "strengthen on differently shaped reftypes! " 
-              ++ "\nt1 = " ++ showPpr t1 
-              ++ "\nt2 = " ++ showPpr t2
+strengthenRefType t1 t2 = maybe (errorstar msg) (strengthenRefType_ t1) (unifyShape t1 t2)
+  where msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
+                 (showPpr t1) (showPpr (toRSort t1)) (showPpr t2) (showPpr (toRSort t2))
+
+-- strengthenRefType t1 t2 = case 
+--   | eqt t1 t2 
+--   = strengthenRefType_ t1 t2
+--   | otherwise
+--   = errorstar msg 
+--   where eqt t1 t2 = showPpr (toRSort t1) == showPpr (toRSort t2)
+--         msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
+--                 (showPpr t1) (showPpr (toRSort t1)) (showPpr t2) (showPpr (toRSort t2))
+
+unifyShape :: ( RefTypable p c tv r
+              , RefTypable p c tv () 
+              , SubsTy tv (RType p c tv ()) (RType p c tv ())
+              , SubsTy tv (RType p c tv ()) c)
+              => RType p c tv r -> RType p c tv r -> Maybe (RType p c tv r)
+
+unifyShape (RAllT a1 t1) (RAllT a2 t2) 
+  | a1 == a2      = RAllT a1 <$> unifyShape t1 t2
+  | otherwise     = RAllT a1 <$> unifyShape t1 (sub a2 a1 t2)
+  where sub a b   = let bt = RVar b top in subsTyVar_meet (a, toRSort bt, bt)
+
+unifyShape t1 t2  
+  | eqt t1 t2     = Just t1
+  | otherwise     = Nothing
   where eqt t1 t2 = showPpr (toRSort t1) == showPpr (toRSort t2)
-  
+--         
 -- strengthenRefType_ :: RefTypable p c tv r =>RType p c tv r -> RType p c tv r -> RType p c tv r
 strengthenRefType_ (RAllT a1 t1) (RAllT _ t2)
   = RAllT a1 $ strengthenRefType_ t1 t2
@@ -576,6 +608,7 @@ mkArrow αs πs xts  = mkUnivs αs πs . mkArrs xts
 
 mkUnivs αs πs t = foldr RAllT (foldr RAllP t πs) αs 
 
+bkUniv :: RType t t1 a t2 -> ([a], [PVar (RType t t1 a ())], RType t t1 a t2)
 bkUniv (RAllT α t)      = let (αs, πs, t') = bkUniv t in  (α:αs, πs, t') 
 bkUniv (RAllP π t)      = let (αs, πs, t') = bkUniv t in  (αs, π:πs, t') 
 bkUniv t                = ([], [], t)
