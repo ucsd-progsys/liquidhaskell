@@ -1,14 +1,8 @@
-module Foo where
+module Pair where 
 
-{-@  
-data List a <p :: x0:a -> x1:a -> Bool>  
-  = Nil 
-  | MYCONOS (h :: a) (t :: List <p> (a <p h>))
-@-}
-
-data List a = Nil | MYCONOS a (List a)
-
-
-
-foo x = 8 
-
+import Language.Haskell.Liquid.Prelude 
+ 
+incr3 x = (x, (True, (0, x+1)))
+chk3 (x, (_, (_, y))) = liquidAssertB (x < y) 
+prop3  = chk3 $ incr3 n
+  where n = choose 0
