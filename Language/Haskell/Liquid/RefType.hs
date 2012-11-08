@@ -511,19 +511,20 @@ nlzP ps t@(REx _ _ _)
  = (t, ps) 
 
 
--- strengthenRefType :: RefTypable p c tv r => RType p c tv r -> RType p c tv r -> RType p c tv r
-strengthenRefType t1 t2 = maybe (errorstar msg) (strengthenRefType_ t1) (unifyShape t1 t2)
-  where msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
-                 (showPpr t1) (showPpr (toRSort t1)) (showPpr t2) (showPpr (toRSort t2))
-
--- strengthenRefType t1 t2 = case 
---   | eqt t1 t2 
---   = strengthenRefType_ t1 t2
---   | otherwise
---   = errorstar msg 
---   where eqt t1 t2 = showPpr (toRSort t1) == showPpr (toRSort t2)
---         msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
+-- NEW: with unifying type variables
+--strengthenRefType t1 t2 = maybe (errorstar msg) (strengthenRefType_ t1) (unifyShape t1 t2)
+--  where msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
 --                 (showPpr t1) (showPpr (toRSort t1)) (showPpr t2) (showPpr (toRSort t2))
+
+-- OLD: without unifying type variables
+strengthenRefType t1 t2 
+  | eqt t1 t2 
+  = strengthenRefType_ t1 t2
+  | otherwise
+  = errorstar msg 
+  where eqt t1 t2 = showPpr (toRSort t1) == showPpr (toRSort t2)
+        msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
+                (showPpr t1) (showPpr (toRSort t1)) (showPpr t2) (showPpr (toRSort t2))
 
 unifyShape :: ( RefTypable p c tv r
               , RefTypable p c tv () 
@@ -540,7 +541,7 @@ unifyShape t1 t2
   | eqt t1 t2     = Just t1
   | otherwise     = Nothing
   where eqt t1 t2 = showPpr (toRSort t1) == showPpr (toRSort t2)
---         
+         
 -- strengthenRefType_ :: RefTypable p c tv r =>RType p c tv r -> RType p c tv r -> RType p c tv r
 strengthenRefType_ (RAllT a1 t1) (RAllT _ t2)
   = RAllT a1 $ strengthenRefType_ t1 t2
