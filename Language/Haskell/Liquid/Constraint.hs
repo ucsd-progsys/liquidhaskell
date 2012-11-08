@@ -707,8 +707,8 @@ consCB γ (NonRec x e)
 
 consBind γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x 
-       t <- consE γ' e
-       γ'' <- foldM (++=) γ [("addSpecC", pname p, toPredType p) | p <- snd3 $ bkUniv spect]
+       γ'' <- foldM (++=) γ' [("addSpecC", pname p, toPredType p) | p <- snd3 $ bkUniv spect]
+       t <- consE γ'' e
        addSpecC (SubC γ'' t spect)
 --     cconsE γ' e t
        addIdA x (Left spect)
