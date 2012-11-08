@@ -13,7 +13,7 @@ module Language.Haskell.Liquid.Fixpoint (
  
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
-  , stringFTycon, intFTyCon, boolFTyCon
+  , stringFTycon, intFTyCon, boolFTyCon, predFTyCon
   , typeSort, typeUniqueSymbol
   
   -- * Symbols
@@ -24,7 +24,7 @@ module Language.Haskell.Liquid.Fixpoint (
 
   -- * Expressions and Predicates
   , Constant (..), Bop (..), Brel (..), Expr (..), Pred (..)
-  , simplify, pAnd, pOr, pIte
+  , simplify, pAnd, pOr, pIte, pApp
   , isTautoPred
  
   -- * Constraints and Solutions
@@ -172,6 +172,7 @@ newtype FTycon = TC Symbol deriving (Eq, Ord, Show) -- Data, Typeable, Show)
 
 intFTyCon  = TC (S "int")
 boolFTyCon = TC (S "bool")
+predFTyCon = TC (S "Pred")
 listFTyCon = TC (S listConName)
 
 isListTC   = (listFTyCon ==)
@@ -510,6 +511,9 @@ isSingletonReft _    = Nothing
 pAnd          = simplify . PAnd 
 pOr           = simplify . POr 
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3] 
+
+pApp :: Symbol -> [Expr] -> Pred
+pApp p es = PBexp $ EApp (S "papp") (EVar p:es)
 
 ppr_reft (Reft (v, ras)) d 
   | all isTautoRa ras
