@@ -1,15 +1,22 @@
-module Rec0 (clone, mk) where
+module Rec0 where
 
-{-@ data LL a = B { size  :: {v: Int | v > 0 }
-                  , elems :: {v: a   | (len a) = size }
-                  }
+import Language.Haskell.Liquid.Prelude
+
+{-@ data LL a = BXYZ { size  :: {v: Int | v > 0 }
+                     , elems :: {v: [a] | (len v) = size }
+                     }
   @-}
 
-data LL a = B { size  :: Int
-              , elems :: [a]
-              }
+data LL a = BXYZ { size  :: Int
+                 , elems :: [a]
+                 }
 
-mk x n = B n (clone x n)
+{-@ mk :: a -> Int -> LL a @-}
+mk x n | n > 0     = BXYZ n (clone x n) 
+       | otherwise = BXYZ 1 [x]
+
+{-@ bk :: LL a -> {v: Int | v > 0} @-}
+bk (BXYZ n xs) = liquidAssert (length xs == n) n
 
 {-@ clone :: x:a -> n:Int -> {v:[a]| (len v) = n} @-}
 clone :: a -> Int -> [a]

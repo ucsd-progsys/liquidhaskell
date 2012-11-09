@@ -122,7 +122,6 @@ data CGEnv
         , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
         , penv   :: !(F.SEnv PrType)   -- ^ PrTypes for top-level bindings (merge with renv) 
         , fenv   :: !F.IBindEnv        -- ^ Integer Keys for Fixpoint Environment
-        -- , fenv   :: !F.FEnv            -- ^ Fixpoint environment (with simple Reft)
         , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
         , invs   :: !RTyConInv         -- ^ Datatype invariants 
         , grtys  :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
@@ -357,8 +356,6 @@ rsplitC _ _
 -----------------------------------------------------------
 -------------------- Generation: Types --------------------
 -----------------------------------------------------------
-
--- newtype CGSpec = CGSpec (Ms.Spec F.Sort DataCon)
 
 data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , hsWfs      :: ![WfC]

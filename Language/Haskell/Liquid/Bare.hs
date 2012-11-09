@@ -14,7 +14,7 @@ import Var
 import PrelNames
 import PrelInfo     (wiredInThings)
 import Type         (expandTypeSynonyms)
-
+import DataCon      (dataConImplicitIds)
 import HscMain
 import TysWiredIn
 import BasicTypes (TupleSort (..), Arity)
@@ -37,6 +37,7 @@ import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Misc
 
+import qualified Data.List           as L
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 import qualified Control.Exception as Ex
@@ -68,23 +69,50 @@ data GhcSpec = SP {
 
 makeGhcSpec :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
 makeGhcSpec vars env spec 
-  = do (tcs, dcs) <- makeConTypes    env               $ Ms.dataDecls  spec 
-       let tycons = tcs ++ tcs'    
-       let benv   = BE (makeTyConInfo tycons) env
-       (cs, ms)   <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
-       sigs       <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
-       invs       <- makeInvariants  benv              $ Ms.invariants spec
-       embs       <- makeTyConEmbeds benv              $ Ms.embeds     spec 
-       let syms   = makeSymbols (vars ++ map fst cs) (map fst ms) (sigs ++ cs) ms 
-       let tx     = subsFreeSymbols syms
-       let syms'  = [(varSymbol v, v) | (_, v) <- syms]
-       return     $ SP (tx sigs) (tx cs) (tx ms) invs (concat dcs ++ dcs') tycons syms' embs 
-    where (tcs', dcs') = wiredTyDataCons
-
+  = do (tcs, dcs)      <- makeConTypes    env               $ Ms.dataDecls  spec 
+       let (tcs', dcs') = wiredTyDataCons 
+       let tycons       = tcs ++ tcs'    
+       let datacons     = {- traceShow "ODD DCS" $ -} concat dcs ++ dcs'
+       let benv         = BE (makeTyConInfo tycons) env
+       (cs, ms)        <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
+       sigs            <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
+       invs            <- makeInvariants  benv              $ Ms.invariants spec
+       embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec 
+       let cs'          = {- traceShow "dataConSPEC" $ -} meetDataConSpec cs datacons
+       let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms 
+       let tx           = subsFreeSymbols syms
+       let syms'        = [(varSymbol v, v) | (_, v) <- syms]
+       return           $ SP { tySigs     = tx sigs 
+                             , ctor       = tx cs'
+                             , meas       = tx ms 
+                             , invariants = invs 
+                             , dconsP     = datacons
+                             , tconsP     = tycons 
+                             , freeSyms   = syms' 
+                             , tcEmbeds   = embs 
+                             }
 
 subsFreeSymbols xvs = tx
   where su  = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
         tx  = fmap $ mapSnd $ subst su {- (\t -> tracePpr ("subsFree: " ++ showPpr t) (subst su t)) -}
+
+-- meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
+meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts 
+  where dcm              = dataConSpec dcs 
+        upd dcm (x, t)   = M.insert x (maybe t (meetPad t) (M.lookup x dcm)) dcm
+        strengthen (x,t) = (x, maybe t (meetPad t) (M.lookup x dcm))
+
+
+-- dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
+dataConSpec dcs = M.fromList [(v, dataConPSpecType t) | (dc, t) <- dcs, v <- dataConImplicitIds dc]
+
+meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
+  case (bkUniv t1, bkUniv t2) of
+    ((_, π1s, _), (α2s, [], t2')) -> meet t1 (mkUnivs α2s π1s t2')
+    ((α1s, [], t1'), (_, π2s, _)) -> meet (mkUnivs α1s π2s t1') t2
+    _                             -> errorstar $ "meetPad: " ++ msg
+  where msg = "\nt1 = " ++ showPpr t1 ++ "\nt2 = " ++ showPpr t2
+ 
 ------------------------------------------------------------------
 ---------- Error-Reader-IO For Bare Transformation ---------------
 ------------------------------------------------------------------
@@ -120,15 +148,9 @@ makeAssumeSpec env vs xbs = execBare mkAspec env
   where mkAspec = forM vbs mkVarSpec >>= return . checkAssumeSpec
         vbs     = joinIds vs xbs -- (first symbolString <$> xbs) 
 
-mkVarSpec (v, b) = liftM (v,) (wrapErr msg mkSpecType b)
+mkVarSpec (v, b) = liftM (v,) (wrapErr msg (mkSpecType msg) b)
   where msg = "mkVarSpec fails on " ++ showPpr v ++ " :: "  ++ showPpr b 
 
--- joinIds :: [Var] -> [(String, a)] -> [(Var, a)]
--- joinIds vs xts = vts   
---   where vm     = M.fromList [(showPpr v, v) | v <- vs]
---         vts    = catMaybes [(, t) <$> (M.lookup x vm) | (x, t) <- xts]
-
--- joinIds :: [Var] -> [(Symbol, a)] -> [(Var, a)]
 joinIds vs xts = vts   
   where vm     = M.fromList [(showPpr v, v) | v <- vs]
         vts    = catMaybes [(, t) <$> (M.lookup (symbolString x) vm) | (x, t) <- xts]
@@ -140,28 +162,16 @@ makeTyConEmbeds benv z = execBare (M.fromList <$> mapM tx (M.toList z)) benv
 
 
 makeInvariants :: BareEnv -> [BareType] -> IO [SpecType]
-makeInvariants benv ts = execBare (mapM mkSpecType ts) benv
+makeInvariants benv ts = execBare (mapM (mkSpecType "invariant") ts) benv
 
-mkSpecType t = mkSpecType' πs t
-  where πs   = fmap uPVar (snd3 $ bkUniv t)
+mkSpecType msg t = mkSpecType' msg πs t
+  where πs   = (snd3 $ bkUniv t)
 
-mkSpecType' :: [UsedPVar] -> BareType -> BareM SpecType
-mkSpecType' πs 
-  = ofBareType' 
-  . txParams subvUReft πs
+mkSpecType' :: String -> [PVar BSort] -> BareType -> BareM SpecType
+mkSpecType' msg πs 
+  = ofBareType' msg πs
+  . txParams subvUReft (uPVar <$> πs)
   . mapReft (fmap canonReft) 
-
-mkPredType πs 
-  = ofBareType' 
-  . txParams subvPredicate πs 
-
---makeSymbols :: [Vars] -> [Symbol] -> [SpecType] -> [(Symbol, Var)]
-
-
--- subsFreeSymbols xvs xts yts = (tx xts, tx yts) 
---   where -- tx zts = fmap (mapSnd (subst su)) zts 
---         tx = fmap $ mapSnd $ subst su 
---         su = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
 
 makeSymbols vs xs' xts yts = 
   -- tracePpr ("makeSymbols: vs = " ++ showPpr vs ++ " xs' = " ++ showPpr xs' ++ " ts = " ++ showPpr xts) $ 
@@ -174,8 +184,9 @@ makeSymbols vs xs' xts yts =
         xvs = sortNub [(x,v) | (v, x) <- joinIds vs (zip xs xs)]
         env = S.fromList ((fst <$> xvs) ++ xs')
 
-checkSig env xt = True 
 -- TODO: use this. currently suppressed because 
+checkSig env xt = True 
+
 --   forall aa. (Ord a) => [a] -> [a]<{VV : a | (VV >= fld)}>
 -- doesn't typecheck -- thanks to "fld"
 -- checkSig env xt = tracePpr ("checkSig " ++ showPpr xt) $ checkSig' env xt
@@ -294,21 +305,22 @@ wiredTyDataCons = (\(x, y) -> (concat x, concat y)) $ unzip l
   where l = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity] 
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-listTyDataCons = ( [(c, TyConP [(RTV tyv)] [p])]
-                 , [(nilDataCon , DataConP [(RTV tyv)] [p] [] lt)
-                 , (consDataCon, DataConP [(RTV tyv)] [p]  cargs  lt)])
-    where c     = listTyCon
-          [tyv] = tyConTyVars c
-          t     = {- TyVarTy -} rVar tyv :: RSort
-          fld   = stringSymbol "fld"
-          x     = stringSymbol "x"
-          xs    = stringSymbol "xs"
-          p     = PV (stringSymbol "p") t [(t, fld, fld)]
-          px    = (pdVar $ PV (stringSymbol "p") t [(t, fld, x)]) 
-          lt    = rApp c [xt] [RMono $ pdVar p] top                 
-          xt    = rVar tyv
-          xst   = rApp c [RVar (RTV tyv) px] [RMono $ pdVar p] top  
-          cargs = [(xs, xst), (x, xt)]
+listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p])]
+                   , [(nilDataCon , DataConP [(RTV tyv)] [p] [] lt)
+                   , (consDataCon, DataConP [(RTV tyv)] [p]  cargs  lt)])
+    where c      = listTyCon
+          [tyv]  = tyConTyVars c
+          t      = {- TyVarTy -} rVar tyv :: RSort
+          fld    = stringSymbol "fld"
+          x      = stringSymbol "x"
+          xs     = stringSymbol "xs"
+          p      = PV (stringSymbol "p") t [(t, fld, fld)]
+          px     = (pdVarReft $ PV (stringSymbol "p") t [(t, fld, x)]) 
+          lt     = rApp c [xt] [RMono $ pdVarReft p] top                 
+          xt     = rVar tyv
+          xst    = rApp c [RVar (RTV tyv) px] [RMono $ pdVarReft p] top  
+          cargs  = [(xs, xst), (x, xt)]
+ 
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps)]
@@ -324,13 +336,15 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps)]
         ps            = mkps pnames (ta:ts) ((fld,fld):(zip flds flds))
         ups           = uPVar <$> ps
         pxs           = mkps pnames (ta:ts) ((fld, x1):(zip flds xs))
-        lt            = rApp c (rVar <$> tyvs) (RMono . pdVar <$> ups) top
-        xts           = zipWith (\v p -> RVar (RTV v) (pdVar p)) tvs pxs
+        lt            = rApp c (rVar <$> tyvs) (RMono . pdVarReft <$> ups) top
+        xts           = zipWith (\v p -> RVar (RTV v) (pdVarReft p)) tvs pxs
         cargs         = reverse $ (x1, rVar tv) : (zip xs xts)
         pnames        = mks_ "p"
         mks  x        = (\i -> stringSymbol (x++ show i)) <$> [1..n]
         mks_ x        = (\i ->  (x++ show i)) <$> [2..n]
 
+
+pdVarReft = U top . pdVar 
 
 mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ (stringSymbol <$> ns) ts fxs [(t, f, x)] [] 
 mkps _  _      _           = error "Bare : mkps"
@@ -347,24 +361,28 @@ mkps_ _     _       _          _    _ = error "Bare : mkps_"
 ------------------------------------------------------------------------
 
 
-ofBareType' = wrapErr "ofBareType" ofBareType''
+ofBareType' msg πs = wrapErr "ofBareType" (ofBareType'' msg πs) 
 
-ofBareType'' t
-  = do t' <- ofBareType t
-       let (_, πs, _) = bkUniv t'
-       tyi <- tcEnv <$> ask
-       return $ mapBot (makeRTyConPs tyi πs) t'
+ofBareType'' msg πs0 t
+  = do πs0' <- mapM ofBPVar πs0 
+       t'   <- ofBareType t
+       let (_, πs, _) = bkUniv $ traceShow "makeRTyConPs" $  t'
+       tyi  <- tcEnv <$> ask
+       return $ mapBot (makeRTyConPs msg tyi (πs0' ++ πs)) t'
 
-makeRTyConPs tyi πs t@(RApp c ts rs r) 
+makeRTyConPs :: Reftable r => String -> M.HashMap TyCon RTyCon -> [RPVar] -> RRType r -> RRType r
+makeRTyConPs msg tyi πs t@(RApp c ts rs r) 
   | null $ rTyConPs c
   = expandRApp tyi t
   | otherwise 
-  = RApp c{rTyConPs = findπ πs <$> rTyConPs c} ts rs r 
+  = RApp c {rTyConPs = findπ πs <$> rTyConPs c} ts rs r 
   -- need type application????
-  where findπ πs π = findWithDefaultL (==π) πs (emsg π)
-        emsg π     = errorstar $ "Bare: out of scope predicate" ++ show π
+  where findπ πs π = findWithDefaultL (== π) πs (emsg π)
+        emsg π     = errorstar $ "Bare: out of scope predicate " ++ msg ++ " " ++ show π
+--             throwError $ "Bare: out of scope predicate" ++ show π 
 
-makeRTyConPs _ _ t = t
+
+makeRTyConPs _ _ _ t = t
 
 -- ofBareType :: (Reftable r) => BRType r -> BareM (RRType r)
 ofBareType :: (Reftable r, GetPVar r) => RType String String String r -> BareM (RType Class RTyCon RTyVar r)
@@ -436,7 +454,7 @@ measureCtors = sortNub . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.c
 -- mkMeasureSort :: (PVarable pv, Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
 mkMeasureSort (Ms.MSpec cm mm) 
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> 
-      liftM (\s' -> m {Ms.sort = s'}) (ofBareType' (Ms.sort m))
+      liftM (\s' -> m {Ms.sort = s'}) (ofBareType' "mkMeasureSort" [] (Ms.sort m))
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: DataCon Definitions ------------------
@@ -447,12 +465,12 @@ makeConTypes env dcs = unzip <$> execBare (mapM ofBDataDecl dcs) (BE M.empty env
 
 ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
 ofBDataDecl (D tc as ps cts)
-  = do πs    <- mapM ofBPVar ps                     -- fmap (fmap stringTyVarTy) ps
+  = do πs    <- mapM ofBPVar ps
        tc'   <- lookupGhcTyCon tc 
-       cts'  <- mapM (ofBDataCon tc' αs πs) cpts
+       cts'  <- mapM (ofBDataCon tc' αs ps πs) cts     -- cpts
        return $ ((tc', TyConP αs πs), cts')
     where αs   = fmap (RTV . stringTyVar) as
-          cpts = fmap (second (fmap (second (mapReft ur_pred)))) cts
+          -- cpts = fmap (second (fmap (second (mapReft ur_pred)))) cts
 
 -- ofBPreds = fmap (fmap stringTyVarTy)
 ofBPVar :: PVar BSort -> BareM (PVar RSort)
@@ -464,14 +482,15 @@ mapM_pvar f (PV x t txys)
        txys' <- mapM (\(t, x, y) -> liftM (, x, y) (f t)) txys 
        return $ PV x t' txys'
 
-ofBDataCon tc αs πs (c, xts)
- = do c'  <- lookupGhcDataCon c
-      ts' <- mapM (mkPredType (uPVar <$> πs)) ts
-      let t0 = rApp tc rs (RMono . pdVar <$> πs) top 
+ofBDataCon tc αs ps πs (c, xts)
+ = do c'    <- lookupGhcDataCon c
+      ts'   <- mapM (mkSpecType' msg ps) ts
+      let t0 = rApp tc rs (RMono . pdVarReft <$> πs) top 
       return $ (c', DataConP αs πs (reverse (zip xs' ts')) t0) 
  where (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
        rs       = [rVar α | RTV α <- αs] -- [RVar α pdTrue | α <- αs]
+       msg      = "ofBDataCon " ++ showPpr c ++ " with πs = " ++ showPpr πs
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: RefTypes -----------------------------
