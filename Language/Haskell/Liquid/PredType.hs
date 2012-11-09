@@ -173,15 +173,6 @@ replacePredsWithRefs su (U (Reft (s, rs)) (Pr ps))
 pVartoRConc (PV name _ args) 
   = RConc $ pApp name $ EVar vv:(EVar . thd3 <$> args)
 
--- pVartoLit embγ (PV name ptype args)
---   = (name, FFunc (length args + 1) (pargssort ++ [psort, FBool]))
---   where psort = rTypeSort embγ ptype
---         pargssort = rTypeSort embγ . fst3 <$> args
-
--- toPredSort embγ (PV _ ptype args) = FApp predFTyCon (pSort:pargsSort)
---   where pSort = rTypeSort embγ ptype
---         pargsSort = rTypeSort embγ . fst3 <$> args
-
 toPredType (PV _ ptype args) = rpredType (ty:tys)
   where ty = uRTypeGen ptype
         tys = uRTypeGen . fst3 <$> args
