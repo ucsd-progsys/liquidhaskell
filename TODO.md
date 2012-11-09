@@ -38,6 +38,31 @@ Instead of the grisly
 Record Invariants
 =================
 
+tests/pos/fixme.hs  <----------------- HEREHEREHERE
+
+    Some meet is injecting the pesky "p" which is not bound. But from where?
+    
+    Sigh.
+
+
+Failed 14 tests: 
+
+../benchmarks/esop2013-submission/Base.hs
+, ../benchmarks/esop2013-submission/Base0.hs
+, ../benchmarks/esop2013-submission/Splay.hs
+, pos/BST.hs
+, pos/BST000.hs
+, pos/ListISort-LType.hs
+, pos/ListLen-LType.hs
+, pos/ListMSort-LType.hs
+, pos/ListQSort-LType.hs
+, pos/ListRange-LType.hs
+, pos/Map.hs
+, pos/Map0.hs
+, pos/listAnf.hs
+, pos/maybe2.hs
+
+
 We should be able to write stuff like:
 
     {-@ data LL a = B { size  :: {v: Int | v > 0 }
@@ -50,6 +75,12 @@ data Stack a = Stack { focus  :: !a
                      , down   :: [a] <{\fld v -> fld /= v && v /= focus}>
                      }
     deriving (Show, Read, Eq)
+  
+
+
+
+
+
 Benchmarks
 ==========
 

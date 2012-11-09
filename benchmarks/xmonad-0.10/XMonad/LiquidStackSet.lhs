@@ -63,10 +63,11 @@ data Stack a = Stack { focus  :: !a
 \end{code}
 
 type DList a = [a]<{\fld v -> fld != v}>
+
 data Stack a = Stack { focus  :: !a    
-                     , up     :: [a] <{\fld v -> fld /= v && v /= focus}>  
-                     , down   :: [a] <{\fld v -> fld /= v && v /= focus}>
-                     }
+                     , up     :: DList {v: a | v != focus}
+                     , down   :: DList {v: a | v != focus}
+                     } 
     deriving (Show, Read, Eq)
 
 
