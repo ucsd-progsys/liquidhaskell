@@ -677,30 +677,38 @@ consCB γ (NonRec x e)
 
 
 consBind γ (x, e, Just spect) 
-  = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x 
-       (pis, γπ) <- extendGetIs γ' [("addSpec1", pname p, toPredType p) | p <- ππs]
-       (xis, γπxs) <- extendGetIs γπ [("addSpec2", x, ofRSort t) | p <- ππs, (t, x, _) <- pargs p]
-       t <- consE γπxs e
-       let as = (`RVar` ()) <$> (fst3 (bkUniv t)) :: [RSort]
-       let su = zip πas as
+  = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
+       (pis, xis, γπ) <- addPsToEnv γ' ππs
+       t <- consE γπ e
+       let as  = (`RVar` ()) <$> (fst3 (bkUniv t)) :: [RSort]
+       let su  = zip πas as
        let πs' = subts su <$> ππs
-       mapM_ (γ +-=) $ zip pis [(pname p, toPredType p) | p <- πs']
-       mapM_ (γ +-=) $ zip xis [(x, ofRSort t) | p <- πs', (t, x, _) <- pargs p]
-       addSpecC (SubC γπxs t spect)
---     cconsE γ' e t
+       updatePs γπ pis xis πs'
+       addSpecC (SubC γπ t spect)
        addIdA x (Left spect)
        return Nothing
-  where (πas, ππs, _) =bkUniv spect
-        extendGetIs γ = foldM go ([], γ) 
-        go (ack, γ) b = do (bs, γ') <- γ+?+=b
-                           return (ack++bs, γ')
-
+  where (πas, ππs, _) = bkUniv spect
 
 consBind γ (x, e, Nothing) 
    = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
         addIdA x (Left t)
         return $ Just t
 
+addPsToEnv γ = foldM go ([], [], γ)
+  where go (pis, xis, γ) π = do (pis', xis', γ') <- addPToEnv γ π
+                                return (pis++pis', xis++xis', γ')
+
+addPToEnv γ π
+  = do (pis, γπ) <- γ  +?+= ("addSpec1", pname π, toPredType π)
+       (xis, γx) <- foldM go ([], γπ) [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
+       return (pis, xis, γx)
+  where go (ack, γ) b = do (pis, γ') <- γ +?+= b
+                           return (pis++ack, γ')
+
+updatePs γ pis xis πs
+  = do mapM_ (γ +-=) $ zip pis [(pname p, toPredType p) | p <- πs]
+       mapM_ (γ +-=) $ zip xis [(x, ofRSort t) | p <- πs, (t, x, _) <- pargs p]
+ 
 extender γ (x, Just t) = γ ++= ("extender", varSymbol x, t)
 extender γ _           = return γ
 
