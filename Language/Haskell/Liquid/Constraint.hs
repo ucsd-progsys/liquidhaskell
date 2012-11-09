@@ -418,13 +418,29 @@ coreBindLits tce cbs = sortNub [ (x, so) | (_, F.ELit x so) <- lconsts]
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-γ ++= (_, x, r') 
+γ ++= (msg, x, r') 
+  = liftM snd (γ +?+= (msg, x, r'))
+--   = do let r  = normalize γ r'  
+--        let γ' = γ { renv = insertREnv x r (renv γ) }  
+--        is    <- if isBase r 
+--                   then liftM ( :[]) $ addBind x (rTypeSortedReft (emb γ) r) 
+--                   else addClassBind r
+--        return $ γ' { fenv = F.insertsIBindEnv is (fenv γ) }
+
+(+?+=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG ([F.BindId], CGEnv)
+γ +?+= (_, x, r') 
   = do let r  = normalize γ r'  
        let γ' = γ { renv = insertREnv x r (renv γ) }  
        is    <- if isBase r 
                   then liftM ( :[]) $ addBind x (rTypeSortedReft (emb γ) r) 
                   else addClassBind r
-       return $ γ' { fenv = F.insertsIBindEnv is (fenv γ) }
+       return $ (is, γ' { fenv = F.insertsIBindEnv is (fenv γ) })
+
+γ +-= (b, (x, r')) 
+  = do let r  = normalize γ r'  
+       st          <- get
+       let bs' = F.updateBindEnv b x (rTypeSortedReft (emb γ) r) (binds st)
+       put          $ st { binds = bs' }
 
 
 normalize γ = addRTyConInv (invs γ) . normalizePds
@@ -450,7 +466,6 @@ normalize γ = addRTyConInv (invs γ) . normalizePds
                                ++ showPpr x 
                                ++ " in renv " 
                                ++ showPpr (renv γ)
-
 
 addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
 addBind x r 
@@ -486,7 +501,7 @@ addSpecC (SubC γ t spect)
         su = M.fromList [(uPVar p, pVartoRConc p) | p <- πs]
 
 addC :: SubC -> String -> CG ()  
-addC !c@(SubC _ _ _) _ 
+addC !c@(SubC _ _ _) _
   = -- trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ msg) $  
     modify $ \s -> s { hsCs  = c : (hsCs s) }
 
@@ -663,16 +678,26 @@ consCB γ (NonRec x e)
        to' <- consBind γ (x, e, to)
        extender γ (x, to')
 
+
 consBind γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x 
-       γπ <- foldM (++=) γ' [("addSpec1", pname p, toPredType p) | p <- πs]
-       γπxs <- foldM (++=) γπ [("addSpec2", x, ofRSort t) | p <- πs, (t, x, _) <- pargs p]
+       (pis, γπ) <- extendGetIs γ' [("addSpec1", pname p, toPredType p) | p <- ππs]
+       (xis, γπxs) <- extendGetIs γπ [("addSpec2", x, ofRSort t) | p <- ππs, (t, x, _) <- pargs p]
        t <- consE γπxs e
+       let as = (`RVar` ()) <$> (fst3 (bkUniv t)) :: [RSort]
+       let su = zip πas as
+       let πs' = subts su <$> ππs
+       mapM_ (γ +-=) $ zip pis [(pname p, toPredType p) | p <- πs']
+       mapM_ (γ +-=) $ zip xis [(x, ofRSort t) | p <- πs', (t, x, _) <- pargs p]
        addSpecC (SubC γπxs t spect)
 --     cconsE γ' e t
        addIdA x (Left spect)
        return Nothing
-  where πs = snd3 $ bkUniv spect
+  where (πas, ππs, _) =bkUniv spect
+        extendGetIs γ = foldM go ([], γ) 
+        go (ack, γ) b = do (bs, γ') <- γ+?+=b
+                           return (ack++bs, γ')
+
 
 consBind γ (x, e, Nothing) 
    = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
