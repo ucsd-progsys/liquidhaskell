@@ -6,6 +6,8 @@ Culling out types and code to understand invariants.
 How do we write the invariants?
 
 
+
+
 \begin{code}
 {-@ 
 
@@ -62,7 +64,8 @@ data Stack a = Stack { focus  :: !a
     deriving (Show, Read, Eq)
 \end{code}
 
-type DList a = [a]<{\fld v -> fld != v}>
+
+type DList a = [a]<{fld != v}>
 
 data Stack a = Stack { focus  :: !a    
                      , up     :: DList {v: a | v != focus}
