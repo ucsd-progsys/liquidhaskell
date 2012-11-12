@@ -6,7 +6,7 @@ module Ex where
                 (i:Int -> a<p i> -> a<p (i+1)>) 
               -> n:{v: Int | v >= 0}
               -> a <p 0> 
-              -> a <p 42>
+              -> a <p n>
   @-}
 
 foldN :: (Int -> a -> a) -> Int -> a -> a
