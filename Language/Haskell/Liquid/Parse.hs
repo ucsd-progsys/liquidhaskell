@@ -288,7 +288,7 @@ predVarDefP
   = liftM3 bPVar predVarIdP dcolon predVarTypeP
 
 predVarIdP 
-  = stringSymbol <$> tyVarIdP 
+  = stringSymbol <$> tyVarIdP
 
 bPVar p _ xts  = PV p τ τxs 
   where (_, τ) = last xts
@@ -407,8 +407,8 @@ monoPredicate1P
 
 predVarUseP 
  = do p  <- predVarIdP
-      xs <- sepBy predVarIdP spaces
-      return $ PV p dummyTyId [ (dummyTyId, dummySymbol, EVar x) | x <- xs ]
+      xs <- sepBy exprP spaces
+      return $ PV p dummyTyId [ (dummyTyId, dummySymbol, x) | x <- xs ]
 
 
 ------------------------------------------------------------------------
