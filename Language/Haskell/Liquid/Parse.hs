@@ -292,7 +292,7 @@ predVarIdP
 
 bPVar p _ xts  = PV p τ τxs 
   where (_, τ) = last xts
-        τxs    = [ (τ, x, x) | (x, τ) <- init xts ]
+        τxs    = [ (τ, x, EVar x) | (x, τ) <- init xts ]
 
 predVarTypeP :: Parser [(Symbol, BSort)]
 predVarTypeP = do t <- bareTypeP
@@ -408,7 +408,7 @@ monoPredicate1P
 predVarUseP 
  = do p  <- predVarIdP
       xs <- sepBy predVarIdP spaces
-      return $ PV p dummyTyId [ (dummyTyId, dummySymbol, x) | x <- xs ]
+      return $ PV p dummyTyId [ (dummyTyId, dummySymbol, EVar x) | x <- xs ]
 
 
 ------------------------------------------------------------------------
