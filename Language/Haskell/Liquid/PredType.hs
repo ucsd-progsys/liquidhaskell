@@ -167,12 +167,12 @@ pToReft = U top . pdVar
 replacePredsWithRefs su (U (Reft (s, rs)) (Pr ps)) 
   = U (Reft (s, rs ++ rs')) (Pr [])
   where rs' = map (f su) ps
-        f su p = M.lookupDefault (msg p) p su
+        f su p = (M.lookupDefault (msg p) p su) (pargs p)
         msg = \p ->  errorstar $ 
                "PredType.replacePredsWithRefs: " ++ showPpr p ++ " not in su"
 
-pVartoRConc (PV name _ args) 
-  = RConc $ pApp name $ EVar vv:(EVar . thd3 <$> args)
+pVartoRConc p args 
+  = RConc $ pApp (pname p) $ EVar vv:(thd3 <$> args)
 
 toPredType (PV _ ptype args) = rpredType (ty:tys)
   where ty = uRTypeGen ptype
