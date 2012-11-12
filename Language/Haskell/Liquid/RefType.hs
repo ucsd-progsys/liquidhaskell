@@ -81,7 +81,7 @@ import Data.List (sort, isSuffixOf, foldl')
 data PVar t
   = PV { pname :: !Symbol
        , ptype :: !t
-       , pargs :: ![(t, Symbol, Symbol)]
+       , pargs :: ![(t, Symbol, Expr)]
        }
 	deriving (Show) -- (Data, Typeable, Show)
 
@@ -325,7 +325,7 @@ instance Subable r => Subable (UReft r) where
   substf f (U r z) = U (substf f r) (substf f z) 
 
 instance Subable UsedPVar where 
-  syms pv         = [ y | (_, x, y) <- pargs pv, x /= y ]
+  syms pv         = concatMap (syms . thd3) (pargs pv)
   subst s pv      = pv { pargs = mapThd3 (subst s)  <$> pargs pv }  
   substf f pv     = pv { pargs = mapThd3 (substf f) <$> pargs pv }  
 
@@ -718,7 +718,7 @@ instance Outputable (UReft r) => Show (UReft r) where
 
 instance Outputable (PVar t) where
   ppr (PV s _ xts) = ppr s <+> hsep (ppr <$> dargs xts)
-    where dargs = map thd3 . takeWhile (\(_, x, y) -> x /= y) 
+    where dargs = map thd3 . takeWhile (\(_, x, y) -> EVar x /= y) 
 
 ppr_pvar_def pprv (PV s t xts) = ppr s <+> dcolon <+> intersperse arrow dargs 
   where dargs = [pprv t | (t,_,_) <- xts] ++ [pprv t, text boolConName]
