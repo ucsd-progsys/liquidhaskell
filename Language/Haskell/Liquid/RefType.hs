@@ -326,7 +326,9 @@ instance Subable r => Subable (UReft r) where
   substf f (U r z) = U (substf f r) (substf f z) 
 
 instance Subable UsedPVar where 
-  syms pv         = concatMap (syms . thd3) (pargs pv)
+  syms pv         = filter (`notElem` binds) ys 
+    where ys      = concatMap (syms . thd3) (pargs pv)
+          binds   = snd3 <$> (pargs pv)
   subst s pv      = pv { pargs = mapThd3 (subst s)  <$> pargs pv }  
   substf f pv     = pv { pargs = mapThd3 (substf f) <$> pargs pv }  
 
@@ -884,6 +886,7 @@ mapRefM  f (RMono r)          = liftM   RMono       (f r)
 mapRefM  f (RPoly t)          = liftM   RPoly       (mapReftM f t)
 
 -- foldReft ::  (r -> a -> a) -> a -> RType p c tv r -> a
+foldReft ::  (r -> a -> a) -> a -> RType p c tv r -> a
 foldReft f = efoldReft (\_ -> f) [] 
 
 efoldReft :: ([F.Symbol] -> r -> a -> a) -> [F.Symbol] -> a -> RType p c tv r -> a
