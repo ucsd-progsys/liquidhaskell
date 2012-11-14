@@ -69,15 +69,16 @@ data GhcSpec = SP {
 
 makeGhcSpec :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
 makeGhcSpec vars env spec 
-  = do (tcs, dcs)      <- makeConTypes    env               $ Ms.dataDecls  spec 
+  = do tcs             <- makeTyCons      env               $ Ms.dataDecls  spec 
        let (tcs', dcs') = wiredTyDataCons 
        let tycons       = tcs ++ tcs'    
-       let datacons     = {- traceShow "ODD DCS" $ -} concat dcs ++ dcs'
        let benv         = BE (makeTyConInfo tycons) env
+       dcs             <- makeDataCons benv                 $ Ms.dataDecls  spec
        (cs, ms)        <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
        sigs            <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec 
+       let datacons     = {- traceShow "ODD DCS" $ -} dcs ++ dcs'
        let cs'          = {- traceShow "dataConSPEC" $ -} meetDataConSpec cs datacons
        let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms 
        let tx           = subsFreeSymbols syms
@@ -460,17 +461,25 @@ mkMeasureSort (Ms.MSpec cm mm)
 ---------------- Bare Predicate: DataCon Definitions ------------------
 -----------------------------------------------------------------------
 
-makeConTypes :: HscEnv -> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
-makeConTypes env dcs = unzip <$> execBare (mapM ofBDataDecl dcs) (BE M.empty env)
+makeTyCons         :: HscEnv -> [DataDecl] -> IO [(TyCon, TyConP)]
+makeTyCons env dcs = execBare (mapM dataDeclTyConP dcs) (BE M.empty env)
 
-ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
+dataDeclTyConP d 
+  = do let αs = fmap (RTV . stringTyVar) (tycTyVars d)  -- as
+       πs    <- mapM ofBPVar (tycPVars d)               -- ps
+       tc'   <- lookupGhcTyCon (tycName d)              -- tc 
+       return $ (tc', TyConP αs πs)
+
+makeDataCons :: BareEnv -> [DataDecl] -> IO [(DataCon, DataConP)]
+makeDataCons env dcs =  concat <$> execBare (mapM ofBDataDecl dcs) env 
+
+ofBDataDecl :: DataDecl -> BareM [(DataCon, DataConP)]
 ofBDataDecl (D tc as ps cts)
-  = do πs    <- mapM ofBPVar ps
+  = do let αs = fmap (RTV . stringTyVar) as
+       πs    <- mapM ofBPVar ps
        tc'   <- lookupGhcTyCon tc 
-       cts'  <- mapM (ofBDataCon tc' αs ps πs) cts     -- cpts
-       return $ ((tc', TyConP αs πs), cts')
-    where αs   = fmap (RTV . stringTyVar) as
-          -- cpts = fmap (second (fmap (second (mapReft ur_pred)))) cts
+       cts'  <- mapM (ofBDataCon tc' αs ps πs) cts
+       return cts'
 
 -- ofBPreds = fmap (fmap stringTyVarTy)
 ofBPVar :: PVar BSort -> BareM (PVar RSort)
