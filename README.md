@@ -86,7 +86,7 @@ How to Profile
 
    etc.
 
-How to Get Backtraces
+How to Get Stack Traces On Exceptions 
 ---------------------
 
 1. Build with profiling on
