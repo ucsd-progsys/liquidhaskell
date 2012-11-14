@@ -190,9 +190,13 @@ bodyPred fv (R v' p) = subst1 p (v', fv)
 -------------------------------------------------------------------------------
 
 expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
-expandRTAliases sp = sp { sigs = sigs' } 
+expandRTAliases sp = sp { sigs = sigs' } { dataDecls = ds' }
   where env   = makeRTEnv $ aliases sp
-        sigs' = [(x, expandRTAlias env t) | (x, t) <- sigs sp]
+        sigs' = [(x, expandRTAlias env t)     | (x, t) <- sigs sp     ]
+        ds'   = [expandRTAliasDataDecl env dc | dc     <- dataDecls sp] 
+
+expandRTAliasDataDecl env dc = dc {tycDCons = dcons' }  
+  where dcons' = map (mapSnd (map (mapSnd (expandRTAlias env)))) (tycDCons dc) 
 
 type RTEnv   = M.HashMap String (RTAlias String BareType)
 
