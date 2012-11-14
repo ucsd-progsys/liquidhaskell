@@ -12,7 +12,7 @@ module Stacks where
 data Stack a = St { focus  :: !a    
                   , up     :: ![a] 
                   , down   :: ![a]
-                  } deriving (Show, Read, Eq)
+                  } deriving (Show, Eq)
 
 
 fresh x = St x [] []
