@@ -51,7 +51,10 @@ Self-Invariants
 
 Hack binders to allow things like this:
 
-    invariant z:{v: Maybe {isJust(v) && (v = fromJust(z))}} 
+    invariant z:: { v : Maybe {isJust(v) && (v = fromJust(z))}  } 
+    invariant z:: { v : List {v:a | (v in listElts(z))}         } 
+
+
 
 Currently hacked by "copying variables", 
 
