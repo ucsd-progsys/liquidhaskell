@@ -20,18 +20,31 @@ TODO
 Self-Invariants
 ===============
 
-    -    lo  : Maybe {v:a | ((isJust lo) && (v = (fromJust lo)))} 
-    -    lo  : {v: Maybe {v1:a | ((isJust v) && (v = (fromJust v)))}} 
+
+get tests/pos/maybe4.hs to <----------------------- HEREHEREHEREHERE
+
+- get bsplitC, F.subC to return a SUBST as well.
+- propagate subst to RAPP case 
+    
+  1. let (cs, su) = bsplitC γ t1 t2 [ at top-level]
+
+  2. t1_ = subst t1 su
+
+  3. γ + t1_ |- innards.
 
 
-    -> Have Fresh use VV_... [Can sanitize later]
+use unifyRefts to 
 
+    > splitC and splitW, on RApp cases, to put top level reft into Env
 
-get tests/pos/maybe4.hs to work     <----------------------- HEREHEREHEREHERE
+        γ |- {v: C t1... | r} <: {v': C t1' ... | r'}
+        
+        ===> 
+        
+               γ |- {v:r} <: {v':r'}
+        γ, {v:r} |- t1... <: t2'...
+        
 
-    -> x:T1 -> T2, WF 
-
-        let x = e in e
 
 Hack binders to allow things like this:
 

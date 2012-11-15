@@ -28,7 +28,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , isTautoPred
  
   -- * Constraints and Solutions
-  , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, FInfo (..), addIds
+  , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, FInfo (..), addIds, unifyRefts
 
   -- * Environments
   , SEnv, emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
@@ -1022,9 +1022,9 @@ hashSort (FApp tc ts) = 12 `combine` (hash tc) `combine` hash (hashSort <$> ts)
 wfC  = WfC
 
 subC γ p r1 r2 x y z = SubC γ p r1' r2' x y z
-  where (r1', r2')   = normalizeRefts r1 r2 
+  where (r1', r2')   = unifyRefts r1 r2 
 
-normalizeRefts r1@(RR _ (Reft (v1, _))) r2@(RR _ (Reft (v2, _)))
+unifyRefts r1@(RR _ (Reft (v1, _))) r2@(RR _ (Reft (v2, _)))
   | v1 == v2   = (r1, r2)
   | v2 /= vv_  = (shiftVV r1 v2, r2) 
   | otherwise  = (r1, shiftVV r2 v1)
