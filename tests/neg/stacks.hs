@@ -1,5 +1,6 @@
 module Stacks where
 
+
 {-@ type DList a = [a]<{v: a | (v != fld)}> @-}
 
 {-@ data Stack a = St { focus  :: a    
@@ -13,14 +14,22 @@ data Stack a = St { focus  :: !a
                   , down   :: ![a]
                   } deriving (Show, Eq)
 
-{-@ fresh :: a -> Stack a @-}
-fresh x = St x [] []
+-- All of the below violate the invariant, get liquid to say so!
 
-{-@ moveUp :: Stack a -> Stack a @-}
-moveUp (St x (y:ys) zs) = St y ys (x:zs)
-moveUp s                = s 
+{-@ bad0 :: a -> Stack a @-}
+bad0   :: a -> Stack a 
+bad0 x = St x [x] []
 
-{-@ moveDn :: Stack a -> Stack a @-}
-moveDn (St x ys (z:zs)) = St z (x:ys) zs
-moveDn s                = s 
+
+{-@ bad1 :: a -> Stack a @-}
+bad1   :: a -> Stack a 
+bad1 x = St x []  [x]
+
+{-@ bad2 :: Int -> Stack Int @-}
+bad2 :: Int -> Stack Int
+bad2 x = St 0 [x] [x]
+
+{-@ bad2 :: Int -> Stack Int @-}
+bad3 :: Int -> Stack Int
+bad3 x = St x [1] [1] 
 

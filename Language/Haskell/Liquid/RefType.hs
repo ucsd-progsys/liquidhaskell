@@ -593,18 +593,18 @@ expandRApp _ t
   = t
 
 appRTyCon tyi rc@(RTyCon c []) ts = RTyCon c ps'
-  where ps' = map (subts (zip (RTV <$> αs) ({- PREDARGS toType -} toRSort <$> ts))) (rTyConPs rc')
+  where ps' = map (subts (zip (RTV <$> αs) (toRSort <$> ts))) (rTyConPs rc')
         rc' = M.lookupDefault rc c tyi
         αs  = TC.tyConTyVars $ rTyCon rc'
 appRTyCon _   (RTyCon c ps) ts = RTyCon c ps'
-  where ps' = map (subts (zip (RTV <$> αs) ({- PREDARGS toType -} toRSort <$> ts))) ps
+  where ps' = map (subts (zip (RTV <$> αs) (toRSort <$> ts))) ps
         αs  = TC.tyConTyVars c
 
-appRefts rc [] = RPoly . {- PREDARGS ofType -} ofRSort . ptype <$> (rTyConPs rc)
-appRefts rc rs = safeZipWith "appRefts" toPoly rs (ptype <$> (rTyConPs rc))
+appRefts rc [] = RPoly . ofRSort . ptype <$> (rTyConPs rc)
+appRefts rc rs = safeZipWith ("appRefts" ++ showPpr rc) toPoly rs (ptype <$> (rTyConPs rc))
 
 toPoly (RPoly t) _ = RPoly t
-toPoly (RMono r) t = RPoly $ ({- PREDARGS: ofType -} ofRSort t) `strengthen` r  
+toPoly (RMono r) t = RPoly $ (ofRSort t) `strengthen` r  
 
 -- showTy v = showSDoc $ ppr v <> ppr (varUnique v)
 
@@ -1248,10 +1248,11 @@ rTypeSort tce = typeSort tce . toType
 
 -- | Data type refinements
 
-data DataDecl   = D String 
-                    [String] 
-                    [PVar BSort] 
-                    [(String, [(String, BareType)])] 
+data DataDecl   = D { tycName   :: String                           -- ^ Type  Constructor Name 
+                    , tycTyVars :: [String]                         -- ^ Tyvar Parameters
+                    , tycPVars  :: [PVar BSort]                     -- ^ PVar  Parameters
+                    , tycDCons  :: [(String, [(String, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]   
+                    }
                   deriving (Show) 
 
 -- | Refinement Type Aliases
