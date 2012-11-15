@@ -104,12 +104,13 @@ Blogging
     2.  Lists I       (append, reverse, map-length, filter)
     3.  Lists II      (take, transpose)
     4.  Lists III     (induction with fold) 
-    5.  KMeans        (++ zipWith etc.)
-    6.  LambdaEval
+  > 5.  KMeans        (++ zipWith etc.)
+  > 6.  LambdaEval
     7.  Sorting I     (Insert)
     8.  Sorting II    (Merge, Quick, GHC-wierd-sort)
-    9.  Map  I        (BST property, add, delete)
-    10. Map II        (Data.Map with elements etc.)
+  > 9.  Map  I        (BST property, add, delete)
+  > 10. Map II        (Data.Map with elements etc.)
+    
     11. Binary Tree/ Finger Tree?
     12. BDD
     13. Union Find
