@@ -9,15 +9,6 @@ qualif Cup1(VV : [a] , ~A0 : [a] , ~A1 : [a]): (listElts([VV]) = Set_cup([listEl
 
 constant listElts : func(1, [[@(0)]; Set_Set @(0)])
 
-//constraint:
-//  env [ ps : {VV : [a] | []}
-//      ; qs : {VV : [a] | [(? Set_emp([listElts([VV])]))]}
-//      ]
-//  grd true
-//  lhs {VV : [a] | [(VV = ps)]}
-//  rhs {VV : [a] | [(listElts([VV]) = Set_cup([listElts([ps]); listElts([qs])]))]}
-//  id 1
-
 constraint:
   env [ ps : {VV : [a_a1] | []}
       ; qs : {VV : [a_a1] | [(? Set_emp([listElts([VV])]))]} ]
