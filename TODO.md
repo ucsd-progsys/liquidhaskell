@@ -20,8 +20,18 @@ TODO
 Self-Invariants
 ===============
 
+    -    lo  : Maybe {v:a | ((isJust lo) && (v = (fromJust lo)))} 
+    -    lo  : {v: Maybe {v1:a | ((isJust v) && (v = (fromJust v)))}} 
+
+
+    -> Have Fresh use VV_... [Can sanitize later]
+
+
 get tests/pos/maybe4.hs to work     <----------------------- HEREHEREHEREHERE
 
+    -> x:T1 -> T2, WF 
+
+        let x = e in e
 
 Hack binders to allow things like this:
 
@@ -302,7 +312,6 @@ Random Links
 ============
 
 - Useful for DIGRAPH VIZ: http://arborjs.org/halfviz/#
-
 
 
 GITTERY

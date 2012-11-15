@@ -389,7 +389,6 @@ ppr_CGInfo cgi
   $$ (text "*********** Literals in Source     ************")
   $$ (ppr $ lits cgi)
 
-
 type CG = State CGInfo
 
 initCGI info = CGInfo { 
@@ -466,13 +465,9 @@ addClassBind (RCls c ts)
 addClassBind _ 
   = return [] 
 
-
-
-
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ _ _) _ 
-  = -- trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ msg) $  
-    modify $ \s -> s { hsCs  = c : (hsCs s) }
+  = modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addW   :: WfC -> CG ()  
 addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
@@ -569,9 +564,10 @@ instance Freshable [F.Refa] where
   fresh = liftM single fresh
 
 instance Freshable (F.Reft) where
-  fresh                   = errorstar "fresh Reft"
-  true    (F.Reft (v, _)) = return $ F.Reft (v, []) 
-  refresh (F.Reft (v, _)) = liftM (F.Reft . (v, )) fresh
+  fresh                  = errorstar "fresh Reft"
+  true    (F.Reft (v,_)) = return $ F.Reft (v, []) 
+  refresh (F.Reft (_,_)) = liftM2 (curry F.Reft) freshVV fresh
+    where freshVV        = liftM (F.vv . Just) fresh
 
 instance Freshable RReft where
   fresh             = errorstar "fresh RReft"
@@ -1055,9 +1051,9 @@ fromListREnv              = REnv . M.fromList
 deleteREnv x (REnv env)   = REnv (M.delete x env)
 insertREnv x y (REnv env) = REnv (M.insert x y env)
 lookupREnv x (REnv env)   = M.lookup x env
--- emptyREnv                 = REnv M.empty
 memberREnv x (REnv env)   = M.member x env
 -- domREnv (REnv env)        = M.keys env
+-- emptyREnv                 = REnv M.empty
 
 
 
