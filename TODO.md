@@ -1,14 +1,15 @@
 TODO
 ====
 
+* self-invariants        (tests/todo/maybe4.hs) <----------------------- HEREHEREHERE
+
 * predicate-aliases 
 * record invariants
 * parse predicate signatures for tuples 
 * Blogging 
 * benchmarks: Data.List (foldr)
-* self-invariants        (tests/todo/maybe4.hs)
 
-* benchmarks: Data.List (foldr) -- needs sets
+* benchmarks: Data.List (foldr) 
 * benchmarks: Data.Bytestring
 * benchmarks: stackset-core
 * benchmarks: Data.Text
@@ -16,20 +17,39 @@ TODO
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
+Self-Invariants
+===============
+
+get tests/pos/maybe4.hs to work     <----------------------- HEREHEREHEREHERE
+
+
+Hack binders to allow things like this:
+
+    invariant z:: { v : Maybe {isJust(v) && (v = fromJust(z))}  } 
+    invariant z:: { v : List {v:a | (v in listElts(z))}         } 
+
+Currently hacked by "copying variables", 
+
+see tests/pos/maybe3.hs [hack which works]
+    tests/pos/maybe4.hs [deal with devil which doesnt work]
+
+
 Predicate Aliases
 =================
 
+Write a test for this.
+
 Then clean up the spec blowup in containers/Data/Map/Base.hs ?
 
-    {-@ maybeGe(lo, v)     = ((isJustS(lo)) => (v >= fromJustS(lo))) @-}
-    {-@ maybeLe(hi, v)     = ((isJustS(lo)) => (v <= fromJustS(hi))) @-}
-    {-@ inRange(lo, hi, v) = maybeGe(lo, v) && maybeLe(hi, v)        @-}
+    {-@ pred maybeGe lo v    = (isJustS lo) => (v >= (fromJustS lo)) @-}
+    {-@ pred maybeLe hi v    = (isJustS lo) => (v <= (fromJustS hi)) @-}
+    {-@ pred inRange lo hi v = (maybeGe lo v) && (maybeLe hi v)      @-}
 
 How about this instead?
-
-    {-@ refinement maybeGe lo v    = ((isJustS lo) => (v >= (fromJustS lo))) @-}
-    {-@ refinement maybeLe hi v    = ((isJustS lo) => (v <= (fromJustS hi))) @-}
-    {-@ refinement inRange lo hi v = (maybeGe lo v) && (maybeLe hi v)        @-}
+        
+    {-@ pred maybeGe lo v    = ((isJustS lo) => (v >= (fromJustS lo))) @-}
+    {-@ pred maybeLe hi v    = ((isJustS lo) => (v <= (fromJustS hi))) @-}
+    {-@ pred inRange lo hi v = (maybeGe lo v) && (maybeLe hi v)        @-}
 
 Instead of the grisly
 
@@ -38,28 +58,13 @@ Instead of the grisly
 Benchmarks
 ==========
 
-                    time(O|N|C)    TOTAL(O|N)   solve (O|N)      refines       iterfreq
-Map.hs          :    54/50/32/10    21/15/8.7      14/8/4.3    9100/4900/2700    16/28/7
-ListSort.hs     :   */7.5/5.5/2    */2.5/1.8     */1.5/1.0      */1100/600       */9/7
-GhcListSort.hs  :    23/22/17/5    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
-LambdaEval.hs   :    36/32/25/12    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
-Base.hs         :        26mi/2m
+                        time(O|N|C)    TOTAL(O|N)   solve (O|N)      refines       iterfreq
+    Map.hs          :    54/50/32/10    21/15/8.7      14/8/4.3    9100/4900/2700    16/28/7
+    ListSort.hs     :   */7.5/5.5/2    */2.5/1.8     */1.5/1.0      */1100/600       */9/7
+    GhcListSort.hs  :    23/22/17/5    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
+    LambdaEval.hs   :    36/32/25/12    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
+    Base.hs         :        26mi/2m
 
-
-Self-Invariants
-===============
-
-Hack binders to allow things like this:
-
-    invariant z:: { v : Maybe {isJust(v) && (v = fromJust(z))}  } 
-    invariant z:: { v : List {v:a | (v in listElts(z))}         } 
-
-
-
-Currently hacked by "copying variables", 
-
-see tests/pos/maybe3.hs [hack which works]
-    tests/pos/maybe4.hs [deal with devil which doesn't work]
 
 
 
