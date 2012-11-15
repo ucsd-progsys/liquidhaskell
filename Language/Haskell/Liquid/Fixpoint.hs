@@ -373,22 +373,25 @@ isParened xs          = xs /= stripParens xs
 
 ---------------------------------------------------------------------
 
-vv                      = S vvName 
-dummySymbol             = S dummyName
--- tagSymbol               = S tagName
-intSymbol x i           = S $ x ++ show i           
+-- vv               = S . (vvName ++) . (maybe "" show)
+vv                  :: Maybe Integer -> Symbol
+vv (Just i)         = S (vvName ++ show i)
+vv Nothing          = S vvName
+-- vv Nothing          = S vvName
 
-tempSymbol              ::  String -> Integer -> Symbol
-tempSymbol prefix n     = intSymbol (tempPrefix ++ prefix) n
+dummySymbol         = S dummyName
+intSymbol x i       = S $ x ++ show i           
 
--- isTempSym (S x)         = tempPrefix `isPrefixOf` x
-tempPrefix              = "lq_tmp_"
-anfPrefix               = "lq_anf_" 
-nonSymbol               = S ""
-isNonSymbol             = (0 ==) . length . symbolString
+tempSymbol          ::  String -> Integer -> Symbol
+tempSymbol prefix n = intSymbol (tempPrefix ++ prefix) n
 
-intKvar                 :: Integer -> Symbol
-intKvar                 = intSymbol "k_" 
+tempPrefix          = "lq_tmp_"
+anfPrefix           = "lq_anf_" 
+nonSymbol           = S ""
+isNonSymbol         = (0 ==) . length . symbolString
+
+intKvar             :: Integer -> Symbol
+intKvar             = intSymbol "k_" 
 
 ---------------------------------------------------------------
 ------------------------- Expressions -------------------------
@@ -535,7 +538,7 @@ data Refa
   deriving (Eq, Show)
 
 
-newtype Reft = Reft (Symbol, [Refa]) deriving (Eq) -- , Ord, Data, Typeable) 
+newtype Reft = Reft (Symbol, [Refa]) deriving (Eq)
 
 instance Show Reft where
   show (Reft x) = showSDoc $ toFix x 
@@ -543,7 +546,7 @@ instance Show Reft where
 instance Outputable Reft where
   ppr = ppr_reft_pred
 
-data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft } deriving (Eq) -- , Ord, Data, Typeable) 
+data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft } deriving (Eq)
 
 isNonTrivialSortedReft (RR _ (Reft (_, ras)))
   = not $ null ras
@@ -855,21 +858,22 @@ mkSubst = Su . M.fromList
 ------------- Generally Useful Refinements -----------------
 ------------------------------------------------------------
 
-symbolReft = exprReft . EVar 
+symbolReft    = exprReft . EVar 
 
-exprReft e    = Reft (vv, [RConc $ PAtom Eq (EVar vv) e])
-notExprReft e = Reft (vv, [RConc $ PAtom Ne (EVar vv) e])
+vv_           = vv Nothing
+exprReft e    = Reft (vv_, [RConc $ PAtom Eq (EVar vv_) e])
+notExprReft e = Reft (vv_, [RConc $ PAtom Ne (EVar vv_) e])
 
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft) 
 
-trueReft = Reft (vv, [])
+trueReft = Reft (vv_, [])
 
 trueRefa = RConc PTrue
 
 canonReft r@(Reft (v, ras)) 
-  | v == vv    = r 
-  | otherwise = Reft (vv, ras `subst1` (v, EVar vv))
+  | v == vv_  = r 
+  | otherwise = Reft (vv_, ras `subst1` (v, EVar vv_))
 
 flattenRefas ::  [Refa] -> [Refa]
 flattenRefas = concatMap flatRa

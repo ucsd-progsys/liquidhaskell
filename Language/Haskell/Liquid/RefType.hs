@@ -430,8 +430,6 @@ eqRSort m (RAllT a t) (RAllT a' t')
   = eqRSort m t t'
   | otherwise
   = eqRSort (M.insert a' a m) t t' 
--- eqRSort (RAllT (RTV α) t) (RAllT a' t')
-  -- = eqRSort t (subt (a', rVar α :: RSort) t') 
 eqRSort m (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
   = eqRSort m t1 t1' && eqRSort m t2 t2'
 eqRSort m (RApp c ts _ _) (RApp c' ts' _ _)
@@ -698,26 +696,6 @@ instance Outputable RTyVar where
 instance Show RTyVar where
   show = showPpr 
 
---instance Reftable (Ref Reft (RType Class RTyCon RTyVar (PVar Type) Reft)) where
---  isTauto (RMono r) = isTauto r
---  isTauto (RPoly t) = isTauto t
---  ppTy (RMono r) = ppTy r
---  ppTy (RPoly t) = ppTy t
-
--- DEBUG ONLY
---instance Outputable (Bind String (PVar String)) where
---  ppr (RB x) = ppr x
---  ppr (RV a) = text a
---  ppr (RP p) = ppr p
---  
--- instance (Outputable tv, Outputable pv) => Outputable (Bind tv pv) where
---   ppr (RB x) = ppr x
---   ppr (RV a) = ppr a
---   ppr (RP p) = ppr p
--- 
--- instance Outputable (Bind tv pv) => Show (Bind tv pv) where
---   show = showPpr 
-
 instance (Reftable s, Outputable p) => Outputable (Ref s p) where
   ppr (RMono s) = ppr s
   ppr (RPoly p) = ppr p
@@ -734,18 +712,9 @@ instance Outputable (UReft r) => Show (UReft r) where
 instance Outputable (PVar t) where
   ppr (PV s _ xts) = ppr s <+> hsep (ppr <$> dargs xts)
     where dargs = map thd3 . takeWhile (\(_, x, y) -> x /= y) 
- 
--- instance PVarable (PVar Sort) where
---   ppr_def = ppr_pvar_def ppr 
-
--- instance PVarable (PVar Type) where
---   ppr_def = ppr_pvar_def ppr_pvar_type 
 
 ppr_pvar_def pprv (PV s t xts) = ppr s <+> dcolon <+> intersperse arrow dargs 
   where dargs = [pprv t | (t,_,_) <- xts] ++ [pprv t, text boolConName]
-
--- ppr_pvar_type (TyVarTy α) = ppr_tyvar α
--- ppr_pvar_type t           = ppr t
 
 instance (RefTypable p c tv r) => Outputable (RType p c tv r) where
   ppr = ppRType TopPrec
@@ -1113,38 +1082,24 @@ pprShort    =  dropModuleNames . showPpr
 dataConSymbol ::  DataCon -> Symbol
 dataConSymbol = varSymbol . dataConWorkId
 
--- ordCon s = EDat (dataConSymbol s) primOrderingSort 
--- primOrderingSort = typeSort M.empty $ dataConRepType eqDataCon
-
 -- TODO: turn this into a map lookup?
 dataConReft ::  DataCon -> [Symbol] -> Reft
 dataConReft c [] 
   | c == trueDataCon
-  = Reft (vv, [RConc $ (PBexp (EVar vv))]) 
+  = Reft (vv_, [RConc $ (PBexp (EVar vv_))]) 
   | c == falseDataCon
-  = Reft (vv, [RConc $ PNot (PBexp (EVar vv))]) 
---  | otherwise
---  = Reft (vv, [RConc $ (PAtom Eq (EVar vv) (EVar (dataConSymbol c)))]) 
---  | c `elem`  [gtDataCon, ltDataCon, eqDataCon]
---  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon c))]) 
+  = Reft (vv_, [RConc $ PNot (PBexp (EVar vv_))]) 
 dataConReft c [x] 
   | c == intDataCon 
-  = Reft (vv, [RConc (PAtom Eq (EVar vv) (EVar x))]) 
+  = Reft (vv_, [RConc (PAtom Eq (EVar vv_) (EVar x))]) 
 dataConReft _ _ 
- = Reft (vv, [RConc PTrue]) 
- 
--- dataConReft c xs
---  = Reft (vv, [RConc (PAtom Eq (EVar vv) (EApp (dataConSymbol c) (EVar <$> xs)))]) 
-  -- = Reft (vv, [RConc PTrue]) 
+ = Reft (vv_, [RConc PTrue]) 
+
+vv_ = vv Nothing
 
 dataConMsReft ty ys  = subst su (refTypeReft t) 
-  where (xs, ts, t)  = bkArrow $ thd3 $ bkUniv ty    -- bkArrow ty 
+  where (xs, ts, t)  = bkArrow $ thd3 $ bkUniv ty
         su           = mkSubst [(x, EVar y) | ((x,_), y) <- zip (zip xs ts) ys] 
-
---bkArrow ty = (αs, πs, xts, out)
---  where (αs, πs, t) = bkUniv ty
---        (xts,  out) = bkArrs t
-
 
 ---------------------------------------------------------------
 ---------------------- Embedding RefTypes ---------------------
