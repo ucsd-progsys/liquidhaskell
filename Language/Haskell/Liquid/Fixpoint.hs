@@ -28,7 +28,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , isTautoPred
  
   -- * Constraints and Solutions
-  , Tag, SubC (..), WfC(..), FixResult (..), FixSolution, FInfo (..)
+  , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, FInfo (..), addIds
 
   -- * Environments
   , SEnv, emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
@@ -1014,3 +1014,23 @@ hashSort (FVar i)     = 11 `combine` hash i
 hashSort (FFunc _ ts) = hash (hashSort <$> ts)
 hashSort (FApp tc ts) = 12 `combine` (hash tc) `combine` hash (hashSort <$> ts) 
 
+--------------------------------------------------------------------------------------
+-------- Constraint Constructor Wrappers ---------------------------------------------
+--------------------------------------------------------------------------------------
+
+-- wfC γ r x y 
+wfC  = WfC
+
+subC γ p r1 r2 x y z = SubC γ p r1' r2' x y z
+  where (r1', r2')   = normalizeRefts r1 r2 
+
+normalizeRefts r1@(RR _ (Reft (v1, _))) r2@(RR _ (Reft (v2, _)))
+  | v1 == v2   = (r1, r2)
+  | v2 /= vv_  = (shiftVV r1 v2, r2) 
+  | otherwise  = (r1, shiftVV r2 v1)
+
+shiftVV (RR t (Reft (v, ras))) v' 
+  = RR t (Reft (v', subst1 ras (v, EVar v'))) 
+
+
+addIds = zipWith (\i c -> (i, c {sid = Just i})) [1..]
