@@ -20,7 +20,7 @@ solve fn hqs cgi
   =     {-# SCC "Solve" #-}  execFq fn hqs qs fi
     >>= {-# SCC "exitFq" #-} exitFq fn cm 
   where fi  = FI (M.elems cm) (fixWfs cgi) (binds cgi) (globals cgi) (lits cgi) (kuts cgi)  
-        cm  = M.fromList $ zipWith (\i c -> (i, c {sid = Just i})) [1..] $ fixCs cgi 
+        cm  = M.fromList $ addIds $ fixCs cgi 
         qs  = specQuals cgi
         
 execFq fn hqs qs fi -- globals cs ws ks 

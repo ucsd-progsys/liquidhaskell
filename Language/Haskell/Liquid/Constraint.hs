@@ -246,7 +246,7 @@ splitW (WfC _ t)
 rsplitW γ (RMono r, ((PV _ t as)))
   = do γ'    <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitW1", x, ofRSort τ)) as) 
        let r' = mkSortedReft (emb γ) t $ toReft r
-       return [F.WfC (fenv γ') r' Nothing (Ci (loc γ))]
+       return [F.wfC (fenv γ') r' Nothing (Ci (loc γ))]
 
 rsplitW γ (RPoly t0, (PV _ _ as))
   = do γ'  <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitW2", x, ofRSort τ)) as) 
@@ -255,7 +255,7 @@ rsplitW γ (RPoly t0, (PV _ _ as))
 bsplitW :: CGEnv -> SpecType -> [FixWfC]
 bsplitW γ t 
   | F.isNonTrivialSortedReft r'
-  = [F.WfC (fenv γ) r' Nothing ci] 
+  = [F.wfC (fenv γ) r' Nothing ci] 
   | otherwise
   = []
   where r' = rTypeSortedReft (emb γ) t
@@ -324,9 +324,9 @@ splitC c@(SubC _ _ _)
 
 bsplitC γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
-  = [F.SubC γ' F.PTrue (r1' {F.sr_reft = top}) r2' Nothing tag ci]
+  = [F.subC γ' F.PTrue (r1' {F.sr_reft = top}) r2' Nothing tag ci]
   | F.isNonTrivialSortedReft r2'
-  = [F.SubC γ' F.PTrue r1' r2' Nothing tag ci]
+  = [F.subC γ' F.PTrue r1' r2' Nothing tag ci]
   | otherwise
   = []
   where γ'      = fenv γ
@@ -344,7 +344,7 @@ rsplitC γ ((RMono r1, RMono r2), (PV _ t as))
   = do let r1'  = mkSortedReft (emb γ) t (toReft r1)
        let r2'  = mkSortedReft (emb γ) t (toReft r2)
        γ'      <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitC1", x, ofRSort τ)) as) 
-       return   $ [F.SubC (fenv γ') F.PTrue r1' r2' Nothing [] (Ci (loc γ))]
+       return   $ [F.subC (fenv γ') F.PTrue r1' r2' Nothing [] (Ci (loc γ))]
 
 rsplitC γ ((RPoly r1, RPoly r2), PV _ _ as)
   = do γ'  <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitC2", x, ofRSort τ)) as) 
