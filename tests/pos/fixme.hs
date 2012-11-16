@@ -1,8 +1,11 @@
-module Pair where 
+module Ex where
 
-import Language.Haskell.Liquid.Prelude 
- 
-incr3 x = (x, (True, (0, x+1)))
-chk3 (x, (_, (_, y))) = liquidAssertB (x < y) 
-prop3  = chk3 $ incr3 n
-  where n = choose 0
+data Vec a = Nil
+
+{-@ efoldr :: forall b a <p :: x0:Vec a -> x1:b -> Bool>. 
+                 (exists [w:{v:Vec a | v = (Ex.Nil)}] . (b <p w>))
+              -> ys : Vec a
+              -> b <p ys>
+  @-}
+efoldr :: b -> Vec a -> b
+efoldr b Nil         = b

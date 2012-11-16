@@ -15,9 +15,20 @@ qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
 constant papp1 : func(2, [Pred @(0); @(1); bool])
 
 qualif Auto(VV : int , ~A0 : int): (VV = ~A0+1)
+
+qualif Auto(VV : Vec a) : (VV = Nil#r9J)
+qualif Auto(VV : Vec a,~X:a,~Xs:Vec a) : (VV = Cons#r9J([~X; ~Xs]))
+
+
+
+
+qualif Papp2(v:a,~X:b,~Y:Vec b,~P:Pred a (Vec b)) : papp2(~P, v, Cons#r9J([~X; ~Y]))
+qualif Papp2(v:a,~P:Pred a (Vec b)) : papp2(~P, v, Nil#r9J)
 qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
-qualif Papp2(v:a,~X:b, ~Z:b,~P:Pred a b) : papp2(~P, v, ~X+~Z)
+
+
 qualif Papp2(v:a,~X:int,~P:Pred a int) : papp2(~P, v, ~X+1)
 qualif Papp2(v:a,~P:Pred a int) : papp2(~P, v, 0)
-qualif Papp2(v:a,~P:Pred a int) : papp2(~P, v, 42)
+
+
 constant papp2 : func(3, [Pred @(0) @(1); @(2); @(3); bool])

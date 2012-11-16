@@ -79,9 +79,13 @@ initEnv info penv
        let f2    = assm info          -- assumed refinements      (for imported vars)
        let f3    = ctor $ spec info   -- constructor refinements  (for measures) 
        let bs    = (map (unifyts' tyi penv)) <$> [f0, f1, f2, f3]
+       let freeSymbols = filter (\(x, v) -> (x `notElem` (fst <$> (concat bs))) || not (isBase (ofType (varType v) :: SpecType))) (freeSyms $ spec info)
+       symbols <- forM freeSymbols $ \(x, v) -> liftM (x,) (trueTy $ varType v)
        let γ0    = measEnv (spec info) penv (head bs) (cbs info)
-       foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
+       γ1 <- foldM (+++=) γ0 [("initEnv", x, y) | (x, y) <- symbols]
+       foldM (++=) γ1 [("initEnv", x, y) | (x, y) <- concat bs]
        -- return    $ foldl' (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs] 
+
 
 unifyts' tyi penv = (second (addTyConInfo tyi)) . (unifyts penv)
 
@@ -429,9 +433,19 @@ coreBindLits tce cbs = sortNub [ (x, so) | (_, F.ELit x so) <- lconsts]
   = do let r  = normalize γ r'  
        let γ' = γ { renv = insertREnv x r (renv γ) }  
        is    <- if isBase r 
-                  then liftM ( :[]) $ addBind x (rTypeSortedReft (emb γ) r) 
-                  else addClassBind r
+                   then liftM ( :[]) $ addBind x (rTypeSortedReft (emb γ) r) 
+                   else addClassBind r
        return $ (is, γ' { fenv = F.insertsIBindEnv is (fenv γ) })
+
+γ +++= (_, x, r') 
+  = do let r  = normalize γ r'  
+       let γ' = γ { renv = insertREnv x r (renv γ) }  
+       is    <- liftM ( :[]) $ addBind x (rTypeSortedReft (emb γ) r) 
+--                 if isBase r 
+--                   then liftM ( :[]) $ addBind x (rTypeSortedReft (emb γ) r) 
+--                   else addClassBind r
+       return $ γ' { fenv = F.insertsIBindEnv is (fenv γ) }
+
 
 γ +-= (b, (x, r')) 
   = do let r  = normalize γ r'  
@@ -684,7 +698,7 @@ consBind γ (x, e, Just spect)
        let su  = zip πas as
        let πs' = subts su <$> ππs
        updatePs γπ pis xis πs'
-       addSpecC (SubC γπ t spect)
+       trace (showPpr t ++ "\n<:\n"  ++ showPpr spect) $ addSpecC (SubC γπ t spect)
        addIdA x (Left spect)
        return Nothing
   where (πas, ππs, _) = bkUniv spect
@@ -797,7 +811,7 @@ consE γ e'@(App e a) | eqType (exprType a) predType
   = do t0 <- consE γ e
        case t0 of
          RAllP p t -> do s  <- freshPredRef γ e' p
-                         (return $ replacePreds "consE" t [(p, RPoly s)]) {- =>> addKuts -}
+                         return $ replacePreds "consE" t [(p, RPoly s)] {- =>> addKuts -}
          _         -> return t0
 
 consE γ e'@(App e a)               

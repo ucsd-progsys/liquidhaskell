@@ -36,9 +36,9 @@ liquidOne includes target =
      -- putStrLn "*************** Original CoreBinds ***************************" 
      -- putStrLn $ showPpr (cbs info)
      let cbs' = transformRecExpr (cbs info)
-     -- donePhase Loud "transformRecExpr"
-     -- putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
-     -- putStrLn $ showPpr cbs'
+     donePhase Loud "transformRecExpr"
+     putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
+     putStrLn $ showPpr cbs'
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs'}
      cgi `deepseq` donePhase Loud "generateConstraints"
      -- donePhase Loud "START: Write CGI (can be slow!)"
