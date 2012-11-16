@@ -32,7 +32,7 @@ import Control.Monad.State
 import Control.Exception.Base
 import Control.Applicative      ((<$>))
 import Data.Monoid              (mconcat)
-import Data.Maybe (fromMaybe)
+import Data.Maybe               (maybeToList, fromMaybe)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.Bifunctor
@@ -280,7 +280,7 @@ splitC (SubC γ t1 (REx x tx t2))
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
-  =  do let cs    = bsplitC γ t1 t2 
+  =  do let cs    = snd $ bsplitC γ t1 t2 
         cs'      <- splitC  (SubC γ r2 r1) 
         γ'       <- (γ, "splitC") += (x2, r2) 
         let r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
@@ -299,19 +299,19 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   where t2' = subsTyVar_meet' (α2, RVar α1 top) t2
 
 splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
-  = do let cs = bsplitC γ t1 t2
-       cs'   <- concat <$> mapM splitC (zipWith (SubC γ) t1s t2s)
-       cs''  <- concat <$> mapM (rsplitC γ) (rsplits r1s r2s' (rTyConPs c))
+  = do cs'   <- concat <$> mapM splitC (zipWith (SubC γ) t1s' t2s')
+       cs''  <- concat <$> mapM (rsplitC γ) (rsplits r1s' r2s' (rTyConPs c))
        return $ cs ++ cs' ++ cs''
-    where r2s'    = F.subst su <$> r2s
-          su      = F.mkSubst [(x, F.EVar y) | (x, y) <- zip pVars' pVars]
-          pVars   = concatMap getVars (rTyConPs c)
-          pVars'  = concatMap getVars (rTyConPs c')
-          getVars = (snd3 <$>) . pargs
+    where r2s'       = F.subst psu? <$> r2s
+          r1s'       = F.subst ...  <$> r1s <----------------------- HEREHEREHEREHERE
+          t1s'       = F.subst ...  <$> t1s
+          t2s'       = F.subst ...  <$> t2s
+          psu        = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (rTyConPVars c') (rTyConPVars c)]
+          (vsu, cs)  = bsplitC γ t1 t2
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
-  = return $ bsplitC γ t1 t2
+  = return $ snd $ bsplitC γ t1 t2
 
 splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
   = return []
@@ -324,16 +324,19 @@ splitC c@(SubC _ _ _)
 
 bsplitC γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
-  = [F.subC γ' F.PTrue (r1' {F.sr_reft = top}) r2' Nothing tag ci]
+  = mapSnd single $ F.subC γ' F.PTrue r1'' r2' Nothing tag ci
   | F.isNonTrivialSortedReft r2'
-  = [F.subC γ' F.PTrue r1' r2' Nothing tag ci]
+  = mapSnd single $ F.subC γ' F.PTrue r1'  r2' Nothing tag ci
   | otherwise
-  = []
-  where γ'      = fenv γ
-        r1'     = rTypeSortedReft (emb γ) t1
-        r2'     = rTypeSortedReft (emb γ) t2
-        ci      = Ci (loc γ)
-        tag     = getTag γ
+  = (Nothing, [])
+  where γ'  = fenv γ
+        r1' = rTypeSortedReft (emb γ) t1
+        r2' = rTypeSortedReft (emb γ) t2
+        ci  = Ci (loc γ)
+        tag = getTag γ
+
+rTyConPVars = concatMap . (snd3 <$>) . pargs . rTyConPs
+
 
 rsplits [] _ _      = []
 rsplits _ [] _      = []
@@ -344,7 +347,7 @@ rsplitC γ ((RMono r1, RMono r2), (PV _ t as))
   = do let r1'  = mkSortedReft (emb γ) t (toReft r1)
        let r2'  = mkSortedReft (emb γ) t (toReft r2)
        γ'      <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitC1", x, ofRSort τ)) as) 
-       return   $ [F.subC (fenv γ') F.PTrue r1' r2' Nothing [] (Ci (loc γ))]
+       return   $ [snd $ F.subC (fenv γ') F.PTrue r1' r2' Nothing [] (Ci (loc γ))]
 
 rsplitC γ ((RPoly r1, RPoly r2), PV _ _ as)
   = do γ'  <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitC2", x, ofRSort τ)) as) 

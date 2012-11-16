@@ -28,7 +28,8 @@ module Language.Haskell.Liquid.Fixpoint (
   , isTautoPred
  
   -- * Constraints and Solutions
-  , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, FInfo (..), addIds, unifyRefts
+  , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, FInfo (..), addIds
+  -- , unifyRefts
 
   -- * Environments
   , SEnv, emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
@@ -1021,16 +1022,15 @@ hashSort (FApp tc ts) = 12 `combine` (hash tc) `combine` hash (hashSort <$> ts)
 -- wfC γ r x y 
 wfC  = WfC
 
-subC γ p r1 r2 x y z = SubC γ p r1' r2' x y z
-  where (r1', r2')   = unifyRefts r1 r2 
+subC γ p r1 r2 x y z   = (su, SubC γ p r1' r2' x y z)
+  where (su, r1', r2') = unifyRefts r1 r2 
 
 unifyRefts r1@(RR _ (Reft (v1, _))) r2@(RR _ (Reft (v2, _)))
-  | v1 == v2   = (r1, r2)
-  | v2 /= vv_  = (shiftVV r1 v2, r2) 
-  | otherwise  = (r1, shiftVV r2 v1)
+  | v1 == v2   = (emptySubst, r1, r2)
+  | v2 /= vv_  = let (su, r1') = shiftVV r1 v2 in (su, r1', r2 ) 
+  | otherwise  = let (su, r2') = shiftVV r2 v1 in (su, r1 , r2')
 
-shiftVV (RR t (Reft (v, ras))) v' 
-  = RR t (Reft (v', subst1 ras (v, EVar v'))) 
-
+shiftVV (RR t (Reft (v, ras))) v' = (su, RR t (Reft (v', subst su ras)) 
+  where su = mkSubst [(v, EVar v')]
 
 addIds = zipWith (\i c -> (i, c {sid = Just i})) [1..]
