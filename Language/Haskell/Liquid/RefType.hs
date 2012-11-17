@@ -344,8 +344,10 @@ instance Subable (Ref F.Reft RefType) where
 
 instance Subable r => Subable (RType p c tv r) where
   syms   = foldReft (\r acc -> syms r ++ acc) [] 
-  subst  = fmap . subst
-  substf = fmap . substf
+  -- subst  = fmap . subst
+  -- substf = fmap . substf
+  substf f = emapReft (substf . substfExcept f) [] 
+  subst su = emapReft (subst  . substExcept su) []
 
 -- Reftable Instances -------------------------------------------------------
 
@@ -797,10 +799,6 @@ ppr_foralls bs = text "forall" <+> dαs [ α | Left α <- bs] <+> dπs [ π | Ri
 --------------------------- Visitors --------------------------
 ---------------------------------------------------------------
 
--- instance Bifunctor UReft where
---   first f (U r p)  = U (f r) p
---   second f (U r p) = U r (fmap f p)
-
 instance Functor UReft where
   fmap f (U r p) = U (f r) p
 
@@ -810,26 +808,24 @@ instance Functor (RType a b c) where
 instance Fold.Foldable (RType a b c) where
   foldr = foldReft
 
---instance Traversable (RType a b c) where
---  traverse = travReft 
-
-
-
-
 mapReft ::  (r1 -> r2) -> RType p c tv r1 -> RType p c tv r2
-mapReft f (RVar α r)          = RVar  α (f r)
-mapReft f (RAllT α t)         = RAllT α (mapReft f t)
-mapReft f (RAllP π t)         = RAllP π (mapReft f t)
-mapReft f (RFun x t t' r)     = RFun  x (mapReft f t) (mapReft f t') (f r)
-mapReft f (RApp c ts rs r)    = RApp  c (mapReft f <$> ts) (mapRef f <$> rs) (f r)
-mapReft f (RCls c ts)         = RCls  c (mapReft f <$> ts) 
-mapReft f (REx z t t')        = REx   z (mapReft f t) (mapReft f t')
-mapReft _ (ROth s)            = ROth  s 
+mapReft f = emapReft (\_ -> f) []
 
-mapRef :: (t -> s) -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
-mapRef  f (RMono r)           = RMono $ f r
-mapRef  f (RPoly t)           = RPoly $ mapReft f t
 
+emapReft ::  ([F.Symbol] -> r1 -> r2) -> [F.Symbol] -> RType p c tv r1 -> RType p c tv r2
+
+emapReft f γ (RVar α r)          = RVar  α (f γ r)
+emapReft f γ (RAllT α t)         = RAllT α (emapReft f γ t)
+emapReft f γ (RAllP π t)         = RAllP π (emapReft f γ t)
+emapReft f γ (RFun x t t' r)     = RFun  x (emapReft f γ t) (emapReft f (x:γ) t') (f γ r)
+emapReft f γ (RApp c ts rs r)    = RApp  c (emapReft f γ <$> ts) (emapRef f γ <$> rs) (f γ r)
+emapReft f γ (RCls c ts)         = RCls  c (emapReft f γ <$> ts) 
+emapReft f γ (REx z t t')        = REx   z (emapReft f γ t) (emapReft f γ t')
+emapReft _ _ (ROth s)            = ROth  s 
+
+emapRef :: ([F.Symbol] -> t -> s) ->  [F.Symbol] -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
+emapRef  f γ (RMono r)           = RMono $ f γ r
+emapRef  f γ (RPoly t)           = RPoly $ emapReft f γ t
 
 ------------------------------------------------------------------------------------------------------
 
@@ -859,7 +855,7 @@ efoldReft f γ z (RAllP _ t)      = efoldReft f γ z t
 efoldReft f γ z (RFun x t t' r)  = f γ r (efoldReft f (x:γ) (efoldReft f γ z t) t')
 efoldReft f γ z (RApp _ ts rs r) = f γ r (efoldRefs f γ (efoldRefts f γ z ts) rs)
 efoldReft f γ z (RCls _ ts)      = efoldRefts f γ z ts
-efoldReft f γ z (REx _ t t')     = efoldRefts f γ z [t, t']
+efoldReft f γ z (REx x t t')     = efoldReft f (x:γ) (efoldReft f γ z t) t' 
 efoldReft _ _ z (ROth _)         = z 
 
 efoldRefts :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> [RType t t1 t2 t3] -> c

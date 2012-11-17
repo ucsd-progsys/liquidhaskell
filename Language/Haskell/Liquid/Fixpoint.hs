@@ -48,6 +48,7 @@ module Language.Haskell.Liquid.Fixpoint (
   -- * Substitutions 
   , Subable (..)
   , emptySubst, mkSubst, catSubst
+  , substExcept, substfExcept
 
   -- * Visitors
   -- , getSymbols
@@ -751,9 +752,17 @@ instance Fixpoint Int where
 class Subable a where
   syms   :: a -> [Symbol]
   substf :: (Symbol -> Expr) -> a -> a
+  
   subst  :: Subst -> a -> a
+  
   subst1 :: a -> (Symbol, Expr) -> a
   subst1 thing (x, e) = subst (Su $ M.singleton x e) thing
+
+substfExcept :: (Symbol -> Expr) -> [Symbol] -> (Symbol -> Expr)
+substfExcept f xs y = if y `elem` xs then EVar y else f y
+
+substExcept  :: Subst -> [Symbol] -> Subst
+substExcept  (Su m) xs = Su (foldr M.delete m xs) 
 
 instance Subable Symbol where
   substf f x               = subSymbol (Just (f x)) x
@@ -832,8 +841,8 @@ instance Subable a => Subable (M.HashMap k a) where
 
 instance Subable Reft where
   syms (Reft (v, ras))     = v : syms ras
-  subst su (Reft (v, ras)) = Reft (v, subst su ras)
-  substf f (Reft (v, ras)) = Reft (v, substf f ras)
+  subst su (Reft (v, ras)) = Reft (v, subst (substExcept su [v]) ras)
+  substf f (Reft (v, ras)) = Reft (v, substf (substfExcept f [v]) ras)
 
 instance Monoid Reft where
   mempty  = trueReft
@@ -1030,7 +1039,7 @@ unifyRefts r1@(RR _ (Reft (v1, _))) r2@(RR _ (Reft (v2, _)))
   | v2 /= vv_  = let (su, r1') = shiftVV r1 v2 in (su, r1', r2 ) 
   | otherwise  = let (su, r2') = shiftVV r2 v1 in (su, r1 , r2')
 
-shiftVV (RR t (Reft (v, ras))) v' = (su, RR t (Reft (v', subst su ras)) 
+shiftVV (RR t (Reft (v, ras))) v' = (su, RR t (Reft (v', subst su ras))) 
   where su = mkSubst [(v, EVar v')]
 
 addIds = zipWith (\i c -> (i, c {sid = Just i})) [1..]

@@ -32,7 +32,7 @@ import Control.Monad.State
 import Control.Exception.Base
 import Control.Applicative      ((<$>))
 import Data.Monoid              (mconcat)
-import Data.Maybe               (maybeToList, fromMaybe)
+import Data.Maybe               (fromMaybe)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.Bifunctor
@@ -300,12 +300,11 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
 
 splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
   = do cs'   <- concat <$> mapM splitC (zipWith (SubC γ) t1s' t2s')
-       cs''  <- concat <$> mapM (rsplitC γ) (rsplits r1s' r2s' (rTyConPs c))
+       cs''  <- concat <$> mapM (rsplitC γ) (rsplits r1s r2s' (rTyConPs c))
        return $ cs ++ cs' ++ cs''
-    where r2s'       = F.subst psu? <$> r2s
-          r1s'       = F.subst ...  <$> r1s <----------------------- HEREHEREHEREHERE
-          t1s'       = F.subst ...  <$> t1s
-          t2s'       = F.subst ...  <$> t2s
+    where r2s'       = F.subst psu <$> r2s
+          t1s'       = F.subst vsu <$> t1s
+          t2s'       = F.subst vsu <$> t2s
           psu        = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (rTyConPVars c') (rTyConPVars c)]
           (vsu, cs)  = bsplitC γ t1 t2
 
@@ -324,18 +323,19 @@ splitC c@(SubC _ _ _)
 
 bsplitC γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
-  = mapSnd single $ F.subC γ' F.PTrue r1'' r2' Nothing tag ci
+  = mapSnd single $ F.subC γ' F.PTrue (r1' { F.sr_reft = top }) r2' Nothing tag ci
   | F.isNonTrivialSortedReft r2'
   = mapSnd single $ F.subC γ' F.PTrue r1'  r2' Nothing tag ci
   | otherwise
-  = (Nothing, [])
+  = (F.emptySubst, [])
   where γ'  = fenv γ
         r1' = rTypeSortedReft (emb γ) t1
         r2' = rTypeSortedReft (emb γ) t2
         ci  = Ci (loc γ)
         tag = getTag γ
 
-rTyConPVars = concatMap . (snd3 <$>) . pargs . rTyConPs
+-- rTyConPVars c = concatMap (snd3 <$>) . concpargs . rTyConPs c
+rTyConPVars c = [ x | pv <- rTyConPs c, (_,x,_) <- pargs pv ]
 
 
 rsplits [] _ _      = []
