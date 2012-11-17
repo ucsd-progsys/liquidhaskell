@@ -20,49 +20,7 @@ TODO
 Self-Invariants
 ===============
 
-Failed 32 tests: ../benchmarks/esop2013-submission/Array.hs,
-../benchmarks/esop2013-submission/Base.hs,
-../benchmarks/esop2013-submission/GhcListSort.hs,
-../benchmarks/esop2013-submission/Splay.hs, neg/trans.hs,
-pos/GhcListSort.hs, pos/GhcSort1.hs, pos/GhcSort2.hs, pos/LambdaEval.hs,
-pos/LambdaEvalMini.hs, pos/LambdaEvalSuperTiny.hs, pos/LambdaEvalTiny.hs,
-pos/LiquidArray.hs, pos/ListLen-LType.hs, pos/ListLen.hs, pos/Map.hs,
-pos/Map0.hs, pos/duplicate-bind.hs, pos/grty2.hs, pos/initarray.hs,
-pos/mapreduce-bare.hs, pos/mapreduce.hs, pos/meas10.hs, pos/modTest.hs,
-pos/record0.hs, pos/record1.hs, pos/stacks.hs, pos/trans.hs,
-pos/transTAG.hs, pos/wrap0.hs, pos/wrap1.hs, pos/zipW.hs
-
-Exceptions thrown on 8 tests:
-../benchmarks/esop2013-submission/GhcListSort.hs, neg/trans.hs,
-pos/GhcListSort.hs, pos/GhcSort1.hs, pos/GhcSort2.hs,
-pos/duplicate-bind.hs, pos/grty2.hs, pos/initarray.hs
-
-
-
-get tests/pos/maybe4.hs to <----------------------- HEREHEREHEREHERE
-
-- get bsplitC, F.subC to return a SUBST as well.
-- propagate subst to RAPP case 
-    
-  1. let (cs, su) = bsplitC γ t1 t2 [ at top-level]
-
-  2. t1_ = subst t1 su
-
-  3. γ + t1_ |- innards.
-
-
-use unifyRefts to 
-
-    > splitC and splitW, on RApp cases, to put top level reft into Env
-
-        γ |- {v: C t1... | r} <: {v': C t1' ... | r'}
-        
-        ===> 
-        
-               γ |- {v:r} <: {v':r'}
-        γ, {v:r} |- t1... <: t2'...
-        
-
+OK: Since this "works" lets remove the hack with Base.hs and nuke the errors we get below <---------------------------- HEREHEREHEREHERE
 
 Hack binders to allow things like this:
 
@@ -73,6 +31,16 @@ Currently hacked by "copying variables",
 
 see tests/pos/maybe3.hs [hack which works]
     tests/pos/maybe4.hs [deal with devil which doesnt work]
+
+
+****************************** WARNING: [benchmarks/esop2013-submission/Base.hs:1282:35-42, *****************************
+******************************           benchmarks/esop2013-submission/Base.hs:1282:53-60, *****************************
+******************************           benchmarks/esop2013-submission/Base.hs:1358:41-48, *****************************
+******************************           benchmarks/esop2013-submission/Base.hs:1358:59-66, *****************************
+******************************           benchmarks/esop2013-submission/Base.hs:1430:40-47, *****************************
+******************************           benchmarks/esop2013-submission/Base.hs:1430:58-65, *****************************
+******************************           benchmarks/esop2013-submission/Base.hs:1572:45-52, *****************************
+******************************           benchmarks/esop2013-submission/Base.hs:1572:63-70] *****************************
 
 
 Predicate Aliases
