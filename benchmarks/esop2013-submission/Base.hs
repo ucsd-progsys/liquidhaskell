@@ -1359,7 +1359,7 @@ difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
                           -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a @-}
 
 hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
-hedgeDiff _ _ _  _   Tip              _ = Tip
+hedgeDiff _  _   Tip _                  = Tip
 hedgeDiff blo bhi (Bin _ kx x l r) Tip  = join kx x (filterGt blo l) (filterLt bhi r)
 hedgeDiff blo bhi t (Bin _ kx _ l r)    = merge kx (hedgeDiff blo bmi (trim blo bmi t) l)
                                                    (hedgeDiff bmi bhi (trim bmi bhi t) r)
