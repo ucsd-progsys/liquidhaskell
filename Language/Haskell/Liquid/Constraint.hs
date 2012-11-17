@@ -32,7 +32,7 @@ import Control.Monad.State
 import Control.Exception.Base
 import Control.Applicative      ((<$>))
 import Data.Monoid              (mconcat)
-import Data.Maybe (fromMaybe)
+import Data.Maybe               (fromMaybe)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.Bifunctor
@@ -176,12 +176,12 @@ rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
 ------------------- Constraints: Types --------------------------
 -----------------------------------------------------------------
 
-newtype Cinfo = Ci SrcSpan deriving (Eq, Ord) -- , Data, Typeable)
+newtype Cinfo = Ci SrcSpan deriving (Eq, Ord) 
 
 data SubC     = SubC { senv  :: !CGEnv
                      , lhs   :: !SpecType
                      , rhs   :: !SpecType 
-                     } -- deriving (Data, Typeable)
+                     }
 
 data WfC      = WfC  !CGEnv !SpecType 
               -- deriving (Data, Typeable)
@@ -216,7 +216,7 @@ instance Outputable Cinfo where
 splitW ::  WfC -> CG [FixWfC]
 
 splitW (WfC γ t@(RFun x t1 t2 _)) 
-  =  do let ws = bsplitW γ t
+  =  do let ws = snd $ bsplitW γ t
         ws'   <- splitW (WfC γ t1) 
         γ'    <- (γ, "splitW") += (x, t1)
         ws''  <- splitW (WfC γ' t2)
@@ -229,14 +229,15 @@ splitW (WfC γ (RAllP _ r))
   = splitW (WfC γ r)
 
 splitW (WfC γ t@(RVar _ _))
-  = return $ bsplitW γ t 
+  = return $ snd $ bsplitW γ t 
 
 splitW (WfC _ (RCls _ _))
   = return []
 
-splitW (WfC γ t@(RApp c ts rs _))
-  =  do let ws = bsplitW γ t 
-        ws'   <- concat <$> mapM splitW (map (WfC γ) ts)
+splitW (WfC γ t@(RApp c ts rs r))
+  =  do let (vv, ws) = bsplitW γ t
+        γ'    <- (γ, "splitW-APP") += (vv, t) 
+        ws'   <- concat <$> mapM splitW (map (WfC γ') ts)
         ws''  <- concat <$> mapM (rsplitW γ) (safeZip "splitW" rs (rTyConPs c))
         return $ ws ++ ws' ++ ws''
 
@@ -252,14 +253,14 @@ rsplitW γ (RPoly t0, (PV _ _ as))
   = do γ'  <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitW2", x, ofRSort τ)) as) 
        splitW (WfC γ' t0)
 
-bsplitW :: CGEnv -> SpecType -> [FixWfC]
 bsplitW γ t 
   | F.isNonTrivialSortedReft r'
-  = [F.wfC (fenv γ) r' Nothing ci] 
+  = (vv, [F.wfC (fenv γ) r' Nothing ci]) 
   | otherwise
-  = []
+  = (vv, [])
   where r' = rTypeSortedReft (emb γ) t
         ci = (Ci (loc γ))
+        F.Reft (vv,_) =  F.sr_reft r'
 
 mkSortedReft tce = F.RR . rTypeSort tce
 
@@ -280,7 +281,7 @@ splitC (SubC γ t1 (REx x tx t2))
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
-  =  do let cs    = bsplitC γ t1 t2 
+  =  do let cs    = snd $ bsplitC γ t1 t2 
         cs'      <- splitC  (SubC γ r2 r1) 
         γ'       <- (γ, "splitC") += (x2, r2) 
         let r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
@@ -299,19 +300,19 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   where t2' = subsTyVar_meet' (α2, RVar α1 top) t2
 
 splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
-  = do let cs = bsplitC γ t1 t2
-       cs'   <- concat <$> mapM splitC (zipWith (SubC γ) t1s t2s)
+  = do γ'    <- (γ, "splitC-APP") += (vv, t1) 
+       cs'   <- concat <$> mapM splitC (zipWith (SubC γ') t1s' t2s')
        cs''  <- concat <$> mapM (rsplitC γ) (rsplits r1s r2s' (rTyConPs c))
        return $ cs ++ cs' ++ cs''
-    where r2s'    = F.subst su <$> r2s
-          su      = F.mkSubst [(x, F.EVar y) | (x, y) <- zip pVars' pVars]
-          pVars   = concatMap getVars (rTyConPs c)
-          pVars'  = concatMap getVars (rTyConPs c')
-          getVars = (snd3 <$>) . pargs
+    where r2s' = F.subst psu <$> r2s
+          t1s' = F.subst vsu <$> t1s
+          t2s' = F.subst vsu <$> t2s
+          psu  = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (rTyConPVars c') (rTyConPVars c), x /= y]
+          ((vv, vsu), cs) = bsplitC γ t1 t2
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
-  = return $ bsplitC γ t1 t2
+  = return (snd $ bsplitC γ t1 t2)
 
 splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
   = return []
@@ -322,18 +323,23 @@ splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
 splitC c@(SubC _ _ _) 
   = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showPpr c
 
+bsplitC :: CGEnv -> SpecType ->  SpecType -> ((F.Symbol, F.Subst), [FixSubC])
 bsplitC γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
-  = [F.subC γ' F.PTrue (r1' {F.sr_reft = top}) r2' Nothing tag ci]
+  = mapSnd single     $ F.subC γ' F.PTrue (r1' { F.sr_reft = top }) r2' Nothing tag ci
   | F.isNonTrivialSortedReft r2'
-  = [F.subC γ' F.PTrue r1' r2' Nothing tag ci]
+  = mapSnd single     $ F.subC γ' F.PTrue r1'  r2' Nothing tag ci
   | otherwise
-  = []
-  where γ'      = fenv γ
-        r1'     = rTypeSortedReft (emb γ) t1
-        r2'     = rTypeSortedReft (emb γ) t2
-        ci      = Ci (loc γ)
-        tag     = getTag γ
+  = mapSnd (\_ -> []) $ F.subC γ' F.PTrue r1'  r2' Nothing tag ci 
+  where γ'  = fenv γ
+        r1' = rTypeSortedReft (emb γ) t1
+        r2' = rTypeSortedReft (emb γ) t2
+        ci  = Ci (loc γ)
+        tag = getTag γ
+
+-- rTyConPVars c = concatMap (snd3 <$>) . concpargs . rTyConPs c
+rTyConPVars c = [ x | pv <- rTyConPs c, (_,x,_) <- pargs pv ]
+
 
 rsplits [] _ _      = []
 rsplits _ [] _      = []
@@ -344,7 +350,7 @@ rsplitC γ ((RMono r1, RMono r2), (PV _ t as))
   = do let r1'  = mkSortedReft (emb γ) t (toReft r1)
        let r2'  = mkSortedReft (emb γ) t (toReft r2)
        γ'      <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitC1", x, ofRSort τ)) as) 
-       return   $ [F.subC (fenv γ') F.PTrue r1' r2' Nothing [] (Ci (loc γ))]
+       return   $ [snd $ F.subC (fenv γ') F.PTrue r1' r2' Nothing [] (Ci (loc γ))]
 
 rsplitC γ ((RPoly r1, RPoly r2), PV _ _ as)
   = do γ'  <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitC2", x, ofRSort τ)) as) 

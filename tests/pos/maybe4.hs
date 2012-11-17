@@ -1,18 +1,13 @@
 module Foo where
 
--- -> hi  : {v: Maybe {v: a | ( isJust(hi0) && (v = fromJust(hi0)) && ((isJust(lo)) => (v >= fromJust(lo))))} | v = hi0 }   
-
-
-{-@ goo   :: lo  : Maybe {v:a | (isJust(lo) && (v = fromJust(lo)))}  
-          -> hi  : {v: Maybe {v: a | ( isJust(hi) && (v = fromJust(hi)))} 
-                     | (((isJust(lo) && isJust(v)) => (fromJust(v) >= fromJust(lo)))) }   
-          -> Bool @-}
+{-@ goo   :: lo:{v0a: Maybe {v:a | ((isJust v0a) && (v = (fromJust v0a)))} | (0=0) } 
+          -> hi:{v0b: Maybe {v:a | ((isJust v0b) && (v = (fromJust v0b)))} | (((isJust(lo) && isJust(v0b)) => (fromJust(v0b) >= fromJust(lo)))) }   
+          -> Bool 
+  @-}
 goo       :: Maybe a -> Maybe a -> Bool
 goo lo hi = bar (id hi) (id lo)
 
-{-@ bar :: hi: Maybe a 
-        -> lo:Maybe {v: a | ((isJust(hi)) => (v <= fromJust(hi))) }  
-        -> Bool @-}
+{-@ bar :: hi: Maybe a -> lo:Maybe {v: a | ((isJust(hi)) => (v <= fromJust(hi)))} -> Bool @-}
 bar :: Maybe a -> Maybe a -> Bool
 bar hi lo = True
 
