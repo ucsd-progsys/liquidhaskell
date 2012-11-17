@@ -20,6 +20,24 @@ TODO
 Self-Invariants
 ===============
 
+Failed 32 tests: ../benchmarks/esop2013-submission/Array.hs,
+../benchmarks/esop2013-submission/Base.hs,
+../benchmarks/esop2013-submission/GhcListSort.hs,
+../benchmarks/esop2013-submission/Splay.hs, neg/trans.hs,
+pos/GhcListSort.hs, pos/GhcSort1.hs, pos/GhcSort2.hs, pos/LambdaEval.hs,
+pos/LambdaEvalMini.hs, pos/LambdaEvalSuperTiny.hs, pos/LambdaEvalTiny.hs,
+pos/LiquidArray.hs, pos/ListLen-LType.hs, pos/ListLen.hs, pos/Map.hs,
+pos/Map0.hs, pos/duplicate-bind.hs, pos/grty2.hs, pos/initarray.hs,
+pos/mapreduce-bare.hs, pos/mapreduce.hs, pos/meas10.hs, pos/modTest.hs,
+pos/record0.hs, pos/record1.hs, pos/stacks.hs, pos/trans.hs,
+pos/transTAG.hs, pos/wrap0.hs, pos/wrap1.hs, pos/zipW.hs
+
+Exceptions thrown on 8 tests:
+../benchmarks/esop2013-submission/GhcListSort.hs, neg/trans.hs,
+pos/GhcListSort.hs, pos/GhcSort1.hs, pos/GhcSort2.hs,
+pos/duplicate-bind.hs, pos/grty2.hs, pos/initarray.hs
+
+
 
 get tests/pos/maybe4.hs to <----------------------- HEREHEREHEREHERE
 
