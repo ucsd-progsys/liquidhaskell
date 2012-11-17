@@ -73,7 +73,6 @@ union :: Ord k => Map k a -> Map k a -> Map k a
 union Tip t2  = t2
 union t1 Tip  = t1
 union t1 t2 = hedgeUnion NothingS NothingS t1 t2
--- union t1 t2 = hedgeUnion NothingS NothingS NothingS NothingS t1 t2
 
 {- hedgeUnion :: (Ord k) => lo0:MaybeS k -> lo: {v: MaybeS {v: k | (isJustS(lo0) && (v = fromJustS(lo0))) } | v = lo0 }  
                           -> hi0:MaybeS k -> hi:{v: MaybeS {v: k | ( isJustS(hi0) && (v = fromJustS(hi0))) } 
