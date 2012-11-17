@@ -1549,7 +1549,7 @@ mergeWithKey f g1 g2 = go
   where
     go Tip t2 = g2 NothingS NothingS t2
     go t1 Tip = g1 NothingS NothingS t1
-    go t1 t2  = hedgeMerge f g1 g2 NothingS NothingS NothingS NothingS t1 t2
+    go t1 t2  = hedgeMerge f g1 g2 NothingS NothingS t1 t2
 
 {-@ hedgeMerge :: (Ord k) => (k -> a -> b -> Maybe c) 
                           -> (lo:MaybeS k -> hi: MaybeS k 
@@ -1558,9 +1558,9 @@ mergeWithKey f g1 g2 = go
                           -> (lo:MaybeS k -> hi: MaybeS k 
                               -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } b
                               -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c) 
-                          -> lo0:MaybeS k -> lo: {v: MaybeS {v: k | (isJustS(lo0) && (v = fromJustS(lo0))) } | v = lo0 }  
-                          -> hi0:MaybeS k -> hi:{v: MaybeS {v: k | ( isJustS(hi0) && (v = fromJustS(hi0))) } 
-                                                  | (((isJustS(lo) && isJustS(v)) => (fromJustS(v) >= fromJustS(lo))) && (v = hi0)) }   
+                          -> lo:{v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
+                          -> hi:{v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } 
+                                                  | (((isJustS(lo) && isJustS(v0)) => (fromJustS(v0) >= fromJustS(lo)))) }   
                           -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a 
                           -> {v: OMap k b | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
                           ->  OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c @-}
@@ -1568,17 +1568,17 @@ mergeWithKey f g1 g2 = go
 hedgeMerge :: Ord k => (k -> a -> b -> Maybe c) 
                     -> (MaybeS k -> MaybeS k -> Map k a -> Map k c) 
                     -> (MaybeS k -> MaybeS k -> Map k b -> Map k c)
-                    -> MaybeS k -> MaybeS k -> MaybeS k -> MaybeS k 
+                    -> MaybeS k -> MaybeS k 
                     -> Map k a -> Map k b -> Map k c
-hedgeMerge f g1 g2 _ blo _  bhi   t1  Tip 
+hedgeMerge f g1 g2 blo bhi   t1  Tip 
   = g1 blo bhi t1
-hedgeMerge f g1 g2 blo0 blo bhi0 bhi Tip (Bin _ kx x l r) 
+hedgeMerge f g1 g2 blo bhi Tip (Bin _ kx x l r) 
   = g2 blo bhi $ join kx x (filterGt blo l) (filterLt bhi r)
-hedgeMerge f g1 g2 blo0 blo bhi0 bhi (Bin _ kx x l r) t2  
+hedgeMerge f g1 g2 blo bhi (Bin _ kx x l r) t2  
   = let bmi = JustS kx 
-        l' = hedgeMerge f g1 g2 blo0 blo bmi bmi l (trim blo bmi t2)
+        l' = hedgeMerge f g1 g2 blo bmi l (trim blo bmi t2)
         (found, trim_t2) = trimLookupLo kx bhi t2
-        r' = hedgeMerge f g1 g2 bmi bmi bhi0 bhi r trim_t2
+        r' = hedgeMerge f g1 g2 bmi bhi r trim_t2
     in case found of
          Nothing -> case g1 blo bhi (singleton kx x) of
                       Tip -> merge kx l' r'
