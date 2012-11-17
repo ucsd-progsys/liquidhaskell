@@ -40,13 +40,14 @@ module Language.Haskell.Liquid.Fixpoint (
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..)
   , trueSortedReft, trueRefa
-  , canonReft, exprReft, notExprReft, symbolReft
+  -- , canonReft
+  , exprReft, notExprReft, symbolReft
   , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft
   , flattenRefas
   , ppr_reft, ppr_reft_pred
 
   -- * Substitutions 
-  , Subable (..)
+  , Subst, Subable (..)
   , emptySubst, mkSubst, catSubst
   , substExcept, substfExcept
 
@@ -558,6 +559,8 @@ isFunctionSortedReft (RR (FFunc _ _) _)
 isFunctionSortedReft _
   = False
 
+sortedReftValueVariable (RR _ (Reft (v,_))) = v
+
 ---------------------------------------------------------------
 ----------------- Environments  -------------------------------
 ---------------------------------------------------------------
@@ -881,9 +884,9 @@ trueReft = Reft (vv_, [])
 
 trueRefa = RConc PTrue
 
-canonReft r@(Reft (v, ras)) 
-  | v == vv_  = r 
-  | otherwise = Reft (vv_, ras `subst1` (v, EVar vv_))
+-- canonReft r@(Reft (v, ras)) 
+--   | v == vv_  = r 
+--   | otherwise = Reft (vv_, ras `subst1` (v, EVar vv_))
 
 flattenRefas ::  [Refa] -> [Refa]
 flattenRefas = concatMap flatRa
@@ -1031,13 +1034,13 @@ hashSort (FApp tc ts) = 12 `combine` (hash tc) `combine` hash (hashSort <$> ts)
 -- wfC γ r x y 
 wfC  = WfC
 
-subC γ p r1 r2 x y z   = (su, SubC γ p r1' r2' x y z)
-  where (su, r1', r2') = unifyRefts r1 r2 
+subC γ p r1 r2 x y z   = (vvsu, SubC γ p r1' r2' x y z)
+  where (vvsu, r1', r2') = unifyRefts r1 r2 
 
 unifyRefts r1@(RR _ (Reft (v1, _))) r2@(RR _ (Reft (v2, _)))
-  | v1 == v2   = (emptySubst, r1, r2)
-  | v2 /= vv_  = let (su, r1') = shiftVV r1 v2 in (su, r1', r2 ) 
-  | otherwise  = let (su, r2') = shiftVV r2 v1 in (su, r1 , r2')
+  | v1 == v2   = ((v1, emptySubst), r1, r2)
+  | v2 /= vv_  = let (su, r1') = shiftVV r1 v2 in ((v2, su), r1', r2 ) 
+  | otherwise  = let (su, r2') = shiftVV r2 v1 in ((v1, su), r1 , r2')
 
 shiftVV (RR t (Reft (v, ras))) v' = (su, RR t (Reft (v', subst su ras))) 
   where su = mkSubst [(v, EVar v')]
