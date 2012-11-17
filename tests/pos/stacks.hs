@@ -1,6 +1,10 @@
 module Stacks where
 
-{-@ type DList a = [a]<{v: a | (v != fld)}> @-}
+import Data.Set (Set(..)) 
+
+{-@ type IList a = {v0: [{v:a | (Set_mem v (listElts v0))}] | true } @-}
+
+{-@ type DList a = IList<{v: a | (v != fld)}> a @-}
 
 {-@ data Stack a = St { focus  :: a    
                       , up     :: DList {v: a | v != focus}
