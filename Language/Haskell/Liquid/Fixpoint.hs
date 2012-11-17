@@ -30,7 +30,6 @@ module Language.Haskell.Liquid.Fixpoint (
  
   -- * Constraints and Solutions
   , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, FInfo (..), addIds
-  -- , unifyRefts
 
   -- * Environments
   , SEnv, emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
@@ -853,9 +852,21 @@ instance Subable Reft where
 
 instance Monoid Reft where
   mempty  = trueReft
-  mappend (Reft (v, ras)) (Reft (v', ras')) 
+  mappend = meetReft
+
+  -- mappend (Reft (v, ras)) (Reft (v', ras')) 
+  --   | v == v'   = Reft (v, ras ++ ras')
+  --   | otherwise = Reft (v, ras ++ (ras' `subst1` (v', EVar v)))
+
+meetReft r@(Reft (v, ras)) r'@(Reft (v', ras')) 
+    | null ras  = r'
+    | null ras' = r
     | v == v'   = Reft (v, ras ++ ras')
-    | otherwise = Reft (v, ras ++ (ras' `subst1` (v', EVar v)))
+    | otherwise = meetReft ur ur' where (_, ur, ur') = unifyRefts r r' 
+    
+    -- Reft (v, ras ++ (ras' `subst1` (v', EVar v)))
+
+
 
 instance Subable SortedReft where
   syms               = syms . sr_reft 
@@ -1039,14 +1050,17 @@ hashSort (FApp tc ts) = 12 `combine` (hash tc) `combine` hash (hashSort <$> ts)
 wfC  = WfC
 
 subC γ p r1 r2 x y z   = (vvsu, SubC γ p r1' r2' x y z)
-  where (vvsu, r1', r2') = unifyRefts r1 r2 
+  where (vvsu, r1', r2') = unifySRefts r1 r2 
 
-unifyRefts r1@(RR _ (Reft (v1, _))) r2@(RR _ (Reft (v2, _)))
+unifySRefts (RR t1 r1) (RR t2 r2) = (z, RR t1 r1', RR t2 r2')
+  where (z, r1', r2')             =  unifyRefts r1 r2
+
+unifyRefts r1@(Reft (v1, _)) r2@(Reft (v2, _))
   | v1 == v2   = ((v1, emptySubst), r1, r2)
   | v2 /= vv_  = let (su, r1') = shiftVV r1 v2 in ((v2, su), r1', r2 ) 
   | otherwise  = let (su, r2') = shiftVV r2 v1 in ((v1, su), r1 , r2')
 
-shiftVV (RR t (Reft (v, ras))) v' = (su, RR t (Reft (v', subst su ras))) 
+shiftVV (Reft (v, ras)) v' = (su, (Reft (v', subst su ras))) 
   where su = mkSubst [(v, EVar v')]
 
 addIds = zipWith (\i c -> (i, c {sid = Just i})) [1..]

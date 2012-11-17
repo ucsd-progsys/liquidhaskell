@@ -13,6 +13,24 @@ TODO
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
+Self Invariants
+===============
+
+see tests/pos/selfList.hs <------------------ HEREHEREHEREHERE
+
+    > How to write self-invariant, and have it refine INSIDE? 
+      strengthen/meet just do the top level.
+    > Option: add invariant into datacons? [Doesnt solve the problem: what of non-constructed values]
+    > Option: basically need a "UNIFY"
+
+            forall a. C a `unify` C T
+
+            use a variant of eqRSort?
+
+            then use strengthenRefType_ 
+
+
+
 Predicate Aliases
 =================
 

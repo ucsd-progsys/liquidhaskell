@@ -321,12 +321,6 @@ arrowP
   =   (reserved "->" >> return ArrowFun)
   <|> (reserved "=>" >> return ArrowPred)
 
--- bareFun2P
---   = do t1 <- bareArgP 
---        a  <- arrowP
---        t2 <- bareTypeP
---        return $ bareArrow dummyBind t1 a t2 
-
 positionNameP = dummyNamePos <$> getPosition
   
 dummyNamePos pos  = "dummy." ++ name ++ ['.'] ++ line ++ ['.'] ++ col
