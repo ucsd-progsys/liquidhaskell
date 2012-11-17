@@ -1,47 +1,17 @@
 TODO
 ====
 
-* self-invariants        (tests/todo/maybe4.hs) <----------------------- HEREHEREHERE
-
 * predicate-aliases 
 * record invariants
 * parse predicate signatures for tuples 
+* benchmarks: stackset-core
 * Blogging 
 * benchmarks: Data.List (foldr)
-
 * benchmarks: Data.List (foldr) 
 * benchmarks: Data.Bytestring
-* benchmarks: stackset-core
 * benchmarks: Data.Text
-
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
-
-Self-Invariants
-===============
-
-OK: Since this "works" lets remove the hack with Base.hs and nuke the errors we get below <---------------------------- HEREHEREHEREHERE
-
-Hack binders to allow things like this:
-
-    invariant z:: { v : Maybe {isJust(v) && (v = fromJust(z))}  } 
-    invariant z:: { v : List {v:a | (v in listElts(z))}         } 
-
-Currently hacked by "copying variables", 
-
-see tests/pos/maybe3.hs [hack which works]
-    tests/pos/maybe4.hs [deal with devil which doesnt work]
-
-
-****************************** WARNING: [benchmarks/esop2013-submission/Base.hs:1282:35-42, *****************************
-******************************           benchmarks/esop2013-submission/Base.hs:1282:53-60, *****************************
-******************************           benchmarks/esop2013-submission/Base.hs:1358:41-48, *****************************
-******************************           benchmarks/esop2013-submission/Base.hs:1358:59-66, *****************************
-******************************           benchmarks/esop2013-submission/Base.hs:1430:40-47, *****************************
-******************************           benchmarks/esop2013-submission/Base.hs:1430:58-65, *****************************
-******************************           benchmarks/esop2013-submission/Base.hs:1572:45-52, *****************************
-******************************           benchmarks/esop2013-submission/Base.hs:1572:63-70] *****************************
-
 
 Predicate Aliases
 =================
