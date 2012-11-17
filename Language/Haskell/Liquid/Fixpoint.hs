@@ -21,6 +21,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , anfPrefix, tempPrefix, vv, intKvar
   , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tempSymbol --, tagSymbol 
   , qualifySymbol, stringSymbol, symbolString, stringSymbolRaw
+  , isNontrivialVV
 
   -- * Expressions and Predicates
   , Constant (..), Bop (..), Brel (..), Expr (..), Pred (..)
@@ -381,6 +382,9 @@ vv                  :: Maybe Integer -> Symbol
 vv (Just i)         = S (vvName ++ show i)
 vv Nothing          = S vvName
 -- vv Nothing          = S vvName
+
+isNontrivialVV v = vv_ /= v 
+
 
 dummySymbol         = S dummyName
 intSymbol x i       = S $ x ++ show i           

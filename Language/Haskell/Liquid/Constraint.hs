@@ -236,7 +236,7 @@ splitW (WfC _ (RCls _ _))
 
 splitW (WfC γ t@(RApp c ts rs r))
   =  do let (vv, ws) = bsplitW γ t
-        γ'    <- (γ, "splitW-APP") += (vv, t) 
+        γ'    <- γ `extendEnvWithVV` (vv, t) 
         ws'   <- concat <$> mapM splitW (map (WfC γ') ts)
         ws''  <- concat <$> mapM (rsplitW γ) (safeZip "splitW" rs (rTyConPs c))
         return $ ws ++ ws' ++ ws''
@@ -300,7 +300,7 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   where t2' = subsTyVar_meet' (α2, RVar α1 top) t2
 
 splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
-  = do γ'    <- (γ, "splitC-APP") += (vv, t1) 
+  = do γ'    <- γ `extendEnvWithVV` (vv, t1) 
        cs'   <- concat <$> mapM splitC (zipWith (SubC γ') t1s' t2s')
        cs''  <- concat <$> mapM (rsplitC γ) (rsplits r1s r2s' (rTyConPs c))
        return $ cs ++ cs' ++ cs''
@@ -453,6 +453,11 @@ normalize γ = addRTyConInv (invs γ) . normalizePds
                                ++ " in renv " 
                                ++ showPpr (renv γ)
 
+extendEnvWithVV γ (vv, t) 
+  | F.isNontrivialVV vv
+  = (γ, "extVV") += (vv, t)
+  | otherwise
+  = return γ
 
 addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
 addBind x r 
