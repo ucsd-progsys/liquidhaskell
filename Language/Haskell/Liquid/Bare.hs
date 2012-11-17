@@ -172,7 +172,7 @@ mkSpecType' :: String -> [PVar BSort] -> BareType -> BareM SpecType
 mkSpecType' msg πs 
   = ofBareType' msg πs
   . txParams subvUReft (uPVar <$> πs)
-  . mapReft (fmap canonReft) 
+  -- . mapReft (fmap canonReft) 
 
 makeSymbols vs xs' xts yts = 
   -- tracePpr ("makeSymbols: vs = " ++ showPpr vs ++ " xs' = " ++ showPpr xs' ++ " ts = " ++ showPpr xts) $ 
