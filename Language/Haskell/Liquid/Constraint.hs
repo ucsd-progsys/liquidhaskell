@@ -234,7 +234,7 @@ splitW (WfC γ t@(RVar _ _))
 splitW (WfC _ (RCls _ _))
   = return []
 
-splitW (WfC γ t@(RApp c ts rs r))
+splitW (WfC γ t@(RApp c ts rs _))
   =  do let ws = bsplitW γ t
         γ'    <- γ `extendEnvWithVV` (rTypeValueVar t, t) 
         ws'   <- concat <$> mapM splitW (map (WfC γ') ts)
@@ -417,7 +417,7 @@ coreBindLits tce cbs = sortNub [ (x, so) | (_, F.ELit x so) <- lconsts]
   where lconsts      = literalConst tce <$> literals cbs
 
 extendEnvWithVV γ (vv, t) 
-  | F.isNontrivialVV vv && not (vv `memberREnv` (renv γ))
+  | F.isNontrivialVV vv --  && not (vv `memberREnv` (renv γ))
   = (γ, "extVV") += (vv, t)
   | otherwise
   = return γ
@@ -425,16 +425,13 @@ extendEnvWithVV γ (vv, t)
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 γ ++= (_, x, t') 
-  = do let t  = normalize γ x t'  
+  = do idx   <- fresh
+       let t  = normalize γ x idx t'  
        let γ' = γ { renv = insertREnv x t (renv γ) }  
        is    <- if isBase t 
-                  then liftM ( :[]) $ addBind x (rTypeSortedReft (emb γ) t) 
+                  then liftM single $ addBind x (rTypeSortedReft (emb γ) t) 
                   else addClassBind t 
        return $ γ' { fenv = F.insertsIBindEnv is (fenv γ) }
-
-
-
-
 
 (+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
 (γ, msg) += (x, r)
@@ -458,17 +455,26 @@ extendEnvWithVV γ (vv, t)
                                ++ " in renv " 
                                ++ showPpr (renv γ)
 
-normalize γ x 
+normalize γ x idx 
   = addRTyConInv (invs γ) 
-  . normalizeVV x 
+  . normalizeVV' x idx 
   . normalizePds
 
-normalizeVV x (RApp c ts rs r)
-  = RApp c (F.subst su <$> ts) rs (r {ur_reft = r'}) 
-    where (su, r') = F.shiftVV (ur_reft r) x
+normalizeVV' x idx t = traceShow ("normalizeVV " ++ showPpr x ++ " idx = " ++ show idx ++ " t = " ++ showPpr t) $ normalizeVV idx t
 
-normalizeVV x t 
+normalizeVV idx t@(RApp _ _ _ _)
+  | not (F.isNontrivialVV (rTypeValueVar t))
+  = shiftVV t (F.vv $ Just idx)
+
+normalizeVV _ t 
   = t 
+
+shiftVV (RApp c ts rs r) vv 
+  = RApp c (F.subst su <$> ts) rs (r {ur_reft = r'})
+    where (su, r') = F.shiftVV (ur_reft r) vv
+
+shiftVV t _ 
+  = errorstar $ "shiftVV: cannot handle " ++ showPpr t
 
 
 addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
@@ -828,7 +834,7 @@ cconsCase γ x t _ (DataAlt c, ys, ce)
  where (x':ys')        = varSymbol <$> (x:ys)
        xt0             = checkTyCon ("checkTycon cconsCase", x) $ γ ?= x'
        tdc             = γ ?= (dataConSymbol c)
-       (rtd, yts, _  ) = unfoldR tdc xt0 ys'
+       (rtd, yts, _  ) = unfoldR tdc (shiftVV xt0 x') ys'
        r1              = dataConReft   c   ys' 
        r2              = dataConMsReft rtd ys'
        xt              = xt0 `strengthen` (uTop (r1 `meet` r2))
@@ -843,14 +849,6 @@ altReft γ _ (LitAlt l)   = literalReft (emb γ) l
 altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
   where notLiteralReft   = F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = error "Constraint : altReft"
-
--- mkyts γ ys yts 
---   = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts
--- mkyt (γ, ts) (y, yt)
---   = do t' <- freshTy (Var y) (toType yt)
---        addC (SubC γ yt t') "mkyts"
---        addW (WfC γ t') 
---        return (γ ++= ("mkyt", varSymbol y, t'), t':ts) 
 
 unfoldR td (RApp _ ts rs _) ys = (t3, yts, rt)
   where (vs, ps, t0)    = bkUniv td
