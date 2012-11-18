@@ -13,10 +13,18 @@ TODO
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
-Self Invariants
+Deep Invariants
 ===============
 
 see tests/pos/selfList.hs <------------------ HEREHEREHEREHERE
+
+- Make Invariants work at all levels. Not just toplevel e.g.
+
+    invariant {v0: [ {v: a | (? Set_mem v (listElts v0)) } ] | true }
+
+  0. Probably parses and generalizes just fine.
+  1. Update `RTyConInv` in Constraint.hs so it has the whole thing not reft alone.
+  2. Write `conjoinInvariant` in the style of strengthenRefType_
 
     > How to write self-invariant, and have it refine INSIDE? 
       strengthen/meet just do the top level.
