@@ -25,6 +25,13 @@ see tests/pos/selfList.hs <------------------ HEREHEREHEREHERE
   0. Probably parses and generalizes just fine.
   1. Update `RTyConInv` in Constraint.hs so it has the whole thing not reft alone.
   2. Write `conjoinInvariant` in the style of strengthenRefType_
+        HOW?
+            - fixpoint exposes "shiftVV"
+            - "normalize" generates new VVNEW for binder
+                uses shiftVV to shift top-level reft [and innards] to VVNEW
+                calls conjoinInv on shifted result
+            - conjoinInv is "left-Biased": unifies
+
 
     > How to write self-invariant, and have it refine INSIDE? 
       strengthen/meet just do the top level.

@@ -216,7 +216,7 @@ instance Outputable Cinfo where
 splitW ::  WfC -> CG [FixWfC]
 
 splitW (WfC γ t@(RFun x t1 t2 _)) 
-  =  do let ws = snd $ bsplitW γ t
+  =  do let ws = bsplitW γ t
         ws'   <- splitW (WfC γ t1) 
         γ'    <- (γ, "splitW") += (x, t1)
         ws''  <- splitW (WfC γ' t2)
@@ -229,14 +229,14 @@ splitW (WfC γ (RAllP _ r))
   = splitW (WfC γ r)
 
 splitW (WfC γ t@(RVar _ _))
-  = return $ snd $ bsplitW γ t 
+  = return $ bsplitW γ t 
 
 splitW (WfC _ (RCls _ _))
   = return []
 
 splitW (WfC γ t@(RApp c ts rs r))
-  =  do let (vv, ws) = bsplitW γ t
-        γ'    <- γ `extendEnvWithVV` (vv, t) 
+  =  do let ws = bsplitW γ t
+        γ'    <- γ `extendEnvWithVV` (rTypeValueVar t, t) 
         ws'   <- concat <$> mapM splitW (map (WfC γ') ts)
         ws''  <- concat <$> mapM (rsplitW γ) (safeZip "splitW" rs (rTyConPs c))
         return $ ws ++ ws' ++ ws''
@@ -255,14 +255,14 @@ rsplitW γ (RPoly t0, (PV _ _ as))
 
 bsplitW γ t 
   | F.isNonTrivialSortedReft r'
-  = (vv, [F.wfC (fenv γ) r' Nothing ci]) 
+  = [F.wfC (fenv γ) r' Nothing ci] 
   | otherwise
-  = (vv, [])
+  = []
   where r' = rTypeSortedReft (emb γ) t
         ci = (Ci (loc γ))
-        F.Reft (vv,_) =  F.sr_reft r'
 
 mkSortedReft tce = F.RR . rTypeSort tce
+
 
 ------------------------------------------------------------
 splitC :: SubC -> CG [FixSubC]
@@ -317,11 +317,10 @@ splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
 splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
   = return []
 
--- TODO: MASSIVE SOUNDNESS PROBLEM
--- splitC (SubC _ t1 t2) 
---   = []
 splitC c@(SubC _ _ _) 
   = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showPpr c
+
+-- | "Base Case" which generates the actual `Fixpoint`-level implication constraint.
 
 bsplitC :: CGEnv -> SpecType ->  SpecType -> ((F.Symbol, F.Subst), [FixSubC])
 bsplitC γ t1 t2 
@@ -339,7 +338,6 @@ bsplitC γ t1 t2
 
 -- rTyConPVars c = concatMap (snd3 <$>) . concpargs . rTyConPs c
 rTyConPVars c = [ x | pv <- rTyConPs c, (_,x,_) <- pargs pv ]
-
 
 rsplits [] _ _      = []
 rsplits _ [] _      = []
@@ -420,16 +418,17 @@ coreBindLits tce cbs = sortNub [ (x, so) | (_, F.ELit x so) <- lconsts]
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-γ ++= (_, x, r') 
-  = do let r  = normalize γ r'  
-       let γ' = γ { renv = insertREnv x r (renv γ) }  
-       is    <- if isBase r 
-                  then liftM ( :[]) $ addBind x (rTypeSortedReft (emb γ) r) 
-                  else addClassBind r
+γ ++= (_, x, t') 
+  = do let t  = normalize γ x t'  
+       let γ' = γ { renv = insertREnv x t (renv γ) }  
+       is    <- if isBase t 
+                  then liftM ( :[]) $ addBind x (rTypeSortedReft (emb γ) t) 
+                  else addClassBind t 
        return $ γ' { fenv = F.insertsIBindEnv is (fenv γ) }
 
 
-normalize γ = addRTyConInv (invs γ) . normalizePds
+
+
 
 (+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
 (γ, msg) += (x, r)
@@ -452,6 +451,21 @@ normalize γ = addRTyConInv (invs γ) . normalizePds
                                ++ showPpr x 
                                ++ " in renv " 
                                ++ showPpr (renv γ)
+
+normalize γ x 
+  = addRTyConInv (invs γ) 
+  . normalizeVV x 
+  . normalizePds
+
+normalizeVV x (RApp c ts rs r)
+  = RApp c (F.subst su <$> ts) rs (r {ur_reft = r'}) 
+    where (su, r') = F.shiftVV (ur_reft r) x
+
+normalizeVV x t 
+  = t 
+ 
+
+
 
 extendEnvWithVV γ (vv, t) 
   | F.isNontrivialVV vv
@@ -1029,21 +1043,41 @@ extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
 
 -------------------------------------------------------------------
------------ Data TyCon Invariants ---------------------------------
+--------- | Strengthening Binders with TyCon Invariants -----------
 -------------------------------------------------------------------
 
-type RTyConInv = M.HashMap RTyCon F.Reft
+--type RTyConInv = M.HashMap RTyCon F.Reft
+--mkRTyConInv    :: [SpecType] -> RTyConInv 
+--mkRTyConInv ts = mconcat <$> group [ (c, r) | RApp c _ _ (U r _) <- strip <$> ts]
+--                 where strip = thd3 . bkUniv 
+--
+-- addRTyConInv :: RTyConInv -> SpecType -> SpecType
+-- addRTyConInv m t@(RApp c _ _ _) 
+--   = fromMaybe t ((strengthen t . uTop) <$> M.lookup c m)
+
+type RTyConInv = M.HashMap RTyCon SpecType
+
+mkRTyConInv    :: [SpecType] -> RTyConInv 
+mkRTyConInv ts = meetInvs <$> group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
+  where 
+    strip      = thd3 . bkUniv 
+    meetInvs   = foldr1 conjoinInvariant 
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
 addRTyConInv m t@(RApp c _ _ _) 
-  = fromMaybe t ((strengthen t . uTop) <$> M.lookup c m)
+  = fromMaybe t (conjoinInvariant t <$> M.lookup c m)
 addRTyConInv _ t 
   = t 
 
-mkRTyConInv    :: [SpecType] -> RTyConInv 
-mkRTyConInv ts = mconcat <$> group [ (c, r) | RApp c _ _ (U r _) <- strip <$> ts]
-                 where strip = thd3 . bkUniv 
+conjoinInvariant (RApp c ts rs r) (RApp ic its _ ir) 
+  | (c == ic && length ts == length its)
+  = RApp c (zipWith conjoinInvariant ts its) rs (r `meet` ir)
 
+conjoinInvariant (RApp c ts rs r) (RVar _ ir) 
+  = RApp c ts rs (r `meet` ir)
+
+conjoinInvariant t _  
+  = t
 
 ---------------------------------------------------------------
 ----- Refinement Type Environments ----------------------------
