@@ -32,11 +32,10 @@ module Language.Haskell.Liquid.RefType (
   , generalize, normalizePds
   , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
-  , stripRTypeBase, rTypeSortedReft, rTypeSort -- , typeSortedReft
+  , stripRTypeBase, rTypeReft, rTypeSortedReft, rTypeSort, rTypeValueVar
   , ofRSort, toRSort
   , varSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalReft, literalConst
-  -- , primOrderingSort
   , fromRMono, fromRPoly, idRMono
   , isTrivial
   ) where
@@ -1093,7 +1092,7 @@ dataConReft _ _
 
 vv_ = vv Nothing
 
-dataConMsReft ty ys  = subst su (refTypeReft t) 
+dataConMsReft ty ys  = subst su (rTypeReft t) 
   where (xs, ts, t)  = bkArrow $ thd3 $ bkUniv ty
         su           = mkSubst [(x, EVar y) | ((x,_), y) <- zip (zip xs ts) ys] 
 
@@ -1182,16 +1181,17 @@ literalConst tce l             = (sort, mkLit l)
 ---------------------------------------------------------------
 
 rTypeSortedReft       ::  (Reftable r) => TCEmb TyCon -> RRType r -> SortedReft
-rTypeSortedReft emb t = RR (rTypeSort emb t) (refTypeReft t)
+rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 
-refTypeReft :: (Reftable r) => RType p c tv r -> Reft
-refTypeReft = fromMaybe top . fmap toReft . stripRTypeBase 
--- refTypeReft t = fromMaybe top $ ur_reft <$> stripRTypeBase t
-
--- typeSortedReft emb t r = RR (typeSort emb t) (Reft (vv, [r]))
+rTypeReft :: (Reftable r) => RType p c tv r -> Reft
+rTypeReft = fromMaybe top . fmap toReft . stripRTypeBase 
 
 rTypeSort     ::  TCEmb TyCon -> RRType r -> Sort
 rTypeSort tce = typeSort tce . toType
+
+rTypeValueVar :: (Reftable r) => RType p c tv r -> Symbol
+rTypeValueVar t = vv where Reft (vv,_) =  rTypeReft t 
+
 
 ------------------------------------------------------------------------
 ---------------- Auxiliary Stuff Used Elsewhere ------------------------

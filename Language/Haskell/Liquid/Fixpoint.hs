@@ -19,7 +19,7 @@ module Language.Haskell.Liquid.Fixpoint (
   -- * Symbols
   , Symbol(..)
   , anfPrefix, tempPrefix, vv, intKvar
-  , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tempSymbol --, tagSymbol 
+  , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tempSymbol
   , qualifySymbol, stringSymbol, symbolString, stringSymbolRaw
   , isNontrivialVV
 
@@ -40,10 +40,9 @@ module Language.Haskell.Liquid.Fixpoint (
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..)
   , trueSortedReft, trueRefa
-  -- , canonReft
   , exprReft, notExprReft, symbolReft
   , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft
-  , flattenRefas
+  , flattenRefas, shiftVV
   , ppr_reft, ppr_reft_pred
 
   -- * Substitutions 
@@ -1056,9 +1055,9 @@ unifySRefts (RR t1 r1) (RR t2 r2) = (z, RR t1 r1', RR t2 r2')
   where (z, r1', r2')             =  unifyRefts r1 r2
 
 unifyRefts r1@(Reft (v1, _)) r2@(Reft (v2, _))
-  | v1 == v2   = ((v1, emptySubst), r1, r2)
-  | v2 /= vv_  = let (su, r1') = shiftVV r1 v2 in ((v2, su), r1', r2 ) 
-  | otherwise  = let (su, r2') = shiftVV r2 v1 in ((v1, su), r1 , r2')
+  | v1 == v2  = ((v1, emptySubst), r1, r2)
+  | v1 /= vv_ = let (su, r2') = shiftVV r2 v1 in ((v1, su), r1 , r2')
+  | otherwise = let (su, r1') = shiftVV r1 v2 in ((v2, su), r1', r2 ) 
 
 shiftVV (Reft (v, ras)) v' = (su, (Reft (v', subst su ras))) 
   where su = mkSubst [(v, EVar v')]
