@@ -1,8 +1,13 @@
-module Pair where 
+module Goo where 
 
-import Language.Haskell.Liquid.Prelude 
- 
-incr3 x = (x, (True, (0, x+1)))
-chk3 (x, (_, (_, y))) = liquidAssertB (x < y) 
-prop3  = chk3 $ incr3 n
-  where n = choose 0
+-- import Data.Set (Set(..))  
+
+{- myid :: xs:[a] -> {v:[a]| listElts(v) = listElts(xs)} @-}
+-- myid :: [b] -> [b]
+
+{-@ myid :: xs:[a] -> {v:[a]| len(v) = len(xs)} @-}
+-- myid :: [b] -> [b]
+myid []     = []
+myid (x:xs) = x : myid xs
+
+

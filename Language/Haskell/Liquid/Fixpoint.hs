@@ -381,7 +381,7 @@ vv (Just i)         = S (vvName ++ show i)
 vv Nothing          = S vvName
 -- vv Nothing          = S vvName
 
-isNontrivialVV v = vv_ /= v 
+isNontrivialVV      = not . (vv_ ==) 
 
 
 dummySymbol         = S dummyName

@@ -416,6 +416,12 @@ initCGI info = CGInfo {
 coreBindLits tce cbs = sortNub [ (x, so) | (_, F.ELit x so) <- lconsts]
   where lconsts      = literalConst tce <$> literals cbs
 
+extendEnvWithVV γ (vv, t) 
+  | F.isNontrivialVV vv && not (vv `memberREnv` (renv γ))
+  = (γ, "extVV") += (vv, t)
+  | otherwise
+  = return γ
+
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 γ ++= (_, x, t') 
@@ -463,15 +469,7 @@ normalizeVV x (RApp c ts rs r)
 
 normalizeVV x t 
   = t 
- 
 
-
-
-extendEnvWithVV γ (vv, t) 
-  | F.isNontrivialVV vv
-  = (γ, "extVV") += (vv, t)
-  | otherwise
-  = return γ
 
 addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
 addBind x r 
