@@ -48,7 +48,7 @@ module Language.Haskell.Liquid.Fixpoint (
   -- * Substitutions 
   , Subst, Subable (..)
   , emptySubst, mkSubst, catSubst
-  , substExcept, substfExcept
+  , substExcept, substfExcept, subst1Except
 
   -- * Visitors
   -- , getSymbols
@@ -295,8 +295,6 @@ instance Outputable Sort where
 instance Show Symbol where
   show (S x) = x
 
-newtype Subst  = Su (M.HashMap Symbol Expr) deriving (Eq)
-
 instance Outputable Refa where
   ppr  = text . show
 
@@ -304,13 +302,13 @@ instance Outputable Expr where
   ppr  = text . show
 
 instance Outputable Subst where
-  ppr (Su m) = ppr (M.toList m)
+  ppr (Su m) = ppr ({- M.toList -} m)
 
 instance Show Subst where
   show = showPpr
 
 instance Fixpoint Subst where
-  toFix (Su m) = case hashMapToAscList m of 
+  toFix (Su m) = case {- hashMapToAscList -} m of 
                    []  -> empty
                    xys -> hcat $ map (\(x,y) -> brackets $ (toFix x) <> text ":=" <> (toFix y)) xys
 
@@ -757,11 +755,15 @@ instance Fixpoint Int where
 class Subable a where
   syms   :: a -> [Symbol]
   substf :: (Symbol -> Expr) -> a -> a
-  
   subst  :: Subst -> a -> a
-  
   subst1 :: a -> (Symbol, Expr) -> a
-  subst1 thing (x, e) = subst (Su $ M.singleton x e) thing
+  -- subst1 y (x, e) = subst (Su $ M.singleton x e) y
+  subst1 y (x, e) = subst (Su [(x,e)]) y
+
+subst1Except :: (Subable a) => [Symbol] -> a -> (Symbol, Expr) -> a
+subst1Except xs z su@(x, _) 
+  | x `elem` xs = z
+  | otherwise   = subst1 z su
 
 substfExcept :: (Symbol -> Expr) -> [Symbol] -> (Symbol -> Expr)
 substfExcept f xs y = if y `elem` xs then EVar y else f y
@@ -845,9 +847,15 @@ instance Subable a => Subable (M.HashMap k a) where
   substf = M.map . substf 
 
 instance Subable Reft where
-  syms (Reft (v, ras))     = v : syms ras
-  subst su (Reft (v, ras)) = Reft (v, subst (substExcept su [v]) ras)
-  substf f (Reft (v, ras)) = Reft (v, substf (substfExcept f [v]) ras)
+  syms (Reft (v, ras))      = v : syms ras
+  subst su (Reft (v, ras))  = Reft (v, subst (substExcept su [v]) ras)
+  substf f (Reft (v, ras))  = Reft (v, substf (substfExcept f [v]) ras)
+  subst1 (Reft (v, ras)) su = Reft (v, subst1Except [v] ras su)
+
+-- subst1Reft r@(Reft (v, ras)) (x, e) 
+--     | x == v               = r 
+--     | otherwise            = Reft (v, subst1 ras (x, e))
+
 
 instance Monoid Reft where
   mempty  = trueReft
@@ -869,14 +877,18 @@ instance Subable SortedReft where
   subst su (RR so r) = RR so $ subst su r
   substf f (RR so r) = RR so $ substf f r
 
+-- newtype Subst  = Su (M.HashMap Symbol Expr) deriving (Eq)
+newtype Subst = Su [(Symbol, Expr)] deriving (Eq)
+
 emptySubst 
-  = Su M.empty
+  = Su [] -- M.empty
 
 catSubst (Su s1) (Su s2) 
-  = Su $ s1' `M.union` s2
-    where s1' = subst (Su s2) `M.map` s1
+  = Su $ s1 ++ s2
+  -- = Su $ s1' `M.union` s2
+  --   where s1' = subst (Su s2) `M.map` s1
 
-mkSubst = Su . M.fromList
+mkSubst = Su -- . M.fromList
 
 ------------------------------------------------------------
 ------------- Generally Useful Refinements -----------------

@@ -1,14 +1,6 @@
-module Goo where 
+module Test where
 
-import Data.Set (Set(..))  
+{-@ type OList a = [a]<{v: a | (v >= fld)}> @-}
 
-{-@ myid1 :: xs:[a] -> {v:[a]| (listElts v) = (listElts xs)} @-}
-myid1 []     = []
-myid1 (x:xs) = x : myid1 xs
-
-
-{-@ myid :: xs:[a] -> {v:[a]| (len v) = (len xs)} @-}
-myid []     = []
-myid (x:xs) = x : myid xs
-
-
+{-@ choo :: OList a -> OList a @-}
+choo (x:xs) = let z = x:xs in z

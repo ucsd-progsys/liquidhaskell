@@ -7,7 +7,7 @@ foo y xs = bar y xs
 
 bar :: (Ord a) => a -> [a] -> [a]
 bar y []     = []
-bar y (x:xs) = case compare y x of 
-                 EQ -> xs
-                 GT -> bar y xs
-                 LT -> x:xs
+bar y z@(x:xs) = case compare y x of 
+                   EQ -> xs
+                   GT -> bar y xs
+                   LT -> x:xs
