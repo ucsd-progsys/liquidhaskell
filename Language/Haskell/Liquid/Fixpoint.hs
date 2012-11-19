@@ -851,19 +851,16 @@ instance Subable Reft where
 
 instance Monoid Reft where
   mempty  = trueReft
-  mappend = meetReft
-
-  -- mappend (Reft (v, ras)) (Reft (v', ras')) 
-  --   | v == v'   = Reft (v, ras ++ ras')
-  --   | otherwise = Reft (v, ras ++ (ras' `subst1` (v', EVar v)))
-
-meetReft r@(Reft (v, ras)) r'@(Reft (v', ras')) 
-    | null ras  = r'
-    | null ras' = r
+  -- mappend = meetReft
+  mappend (Reft (v, ras)) (Reft (v', ras')) 
     | v == v'   = Reft (v, ras ++ ras')
-    | otherwise = meetReft ur ur' where (_, ur, ur') = unifyRefts r r' 
-    
-    -- Reft (v, ras ++ (ras' `subst1` (v', EVar v)))
+    | otherwise = Reft (v, ras ++ (ras' `subst1` (v', EVar v)))
+
+-- meetReft r@(Reft (v, ras)) r'@(Reft (v', ras')) 
+--     | null ras  = r'
+--     | null ras' = r
+--     | v == v'   = Reft (v, ras ++ ras')
+--     | otherwise = meetReft ur ur' where (_, ur, ur') = unifyRefts r r' 
 
 
 
@@ -1045,21 +1042,35 @@ hashSort (FApp tc ts) = 12 `combine` (hash tc) `combine` hash (hashSort <$> ts)
 -------- Constraint Constructor Wrappers ---------------------------------------------
 --------------------------------------------------------------------------------------
 
--- wfC γ r x y 
 wfC  = WfC
 
-subC γ p r1 r2 x y z   = (vvsu, SubC γ p r1' r2' x y z)
-  where (vvsu, r1', r2') = unifySRefts r1 r2 
+subC γ p r1@(RR _ (Reft (v,_))) (RR t2 r2) x y z 
+  = SubC γ p r1 (RR t2 (shiftVV r2 v)) x y z
 
-unifySRefts (RR t1 r1) (RR t2 r2) = (z, RR t1 r1', RR t2 r2')
-  where (z, r1', r2')             =  unifyRefts r1 r2
+shiftVV r@(Reft (v, ras)) v' 
+   | v == v'   = r
+   | otherwise = Reft (v', (subst1 ras (v, EVar v')))
 
-unifyRefts r1@(Reft (v1, _)) r2@(Reft (v2, _))
-  | v1 == v2  = ((v1, emptySubst), r1, r2)
-  | v1 /= vv_ = let (su, r2') = shiftVV r2 v1 in ((v1, su), r1 , r2')
-  | otherwise = let (su, r1') = shiftVV r1 v2 in ((v2, su), r1', r2 ) 
 
-shiftVV (Reft (v, ras)) v' = (su, (Reft (v', subst su ras))) 
-  where su = mkSubst [(v, EVar v')]
+-- subC γ p r1 r2 x y z   = (vvsu, SubC γ p r1' r2' x y z)
+--   where (vvsu, r1', r2') = unifySRefts r1 r2 
+
+-- unifySRefts (RR t1 r1) (RR t2 r2) = (z, RR t1 r1', RR t2 r2')
+--   where (r1', r2')                =  unifyRefts r1 r2
+
+-- unifyRefts r1@(Reft (v1, _)) r2@(Reft (v2, _))
+--    | v1 == v2  = (r1, r2)
+--    | otherwise = (r1, shiftVV r2 v1)
+
+-- unifySRefts (RR t1 r1) (RR t2 r2) = (z, RR t1 r1', RR t2 r2')
+--   where (z, r1', r2')             =  unifyRefts r1 r2
+--
+-- unifyRefts r1@(Reft (v1, _)) r2@(Reft (v2, _))
+--   | v1 == v2  = ((v1, emptySubst), r1, r2)
+--   | v1 /= vv_ = let (su, r2') = shiftVV r2 v1 in ((v1, su), r1 , r2')
+--   | otherwise = let (su, r1') = shiftVV r1 v2 in ((v2, su), r1', r2 ) 
+--
+-- shiftVV (Reft (v, ras)) v' = (su, (Reft (v', subst su ras))) 
+--   where su = mkSubst [(v, EVar v')]
 
 addIds = zipWith (\i c -> (i, c {sid = Just i})) [1..]
