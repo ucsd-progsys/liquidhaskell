@@ -442,7 +442,7 @@ extendEnvWithVV γ t
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 γ ++= (_, x, t') 
   = do idx   <- fresh
-       let t  = normalize' γ x idx t'  
+       let t  = normalize γ {-x-} idx t'  
        let γ' = γ { renv = insertREnv x t (renv γ) }  
        is    <- if isBase t 
                   then liftM single $ addBind x (rTypeSortedReft (emb γ) t) 
@@ -1084,8 +1084,8 @@ addRTyConInv m t@(RApp c _ _ _)
 addRTyConInv _ t 
   = t 
 
-conjoinInvariant' t1 t2 = traceShow ("conjoinInvariant: t1 = " ++ showPpr t1 ++ " t2 = " ++ showPpr t2)
-                          $ conjoinInvariantShift t1 t2
+conjoinInvariant' t1 t2 = -- traceShow ("conjoinInvariant: t1 = " ++ showPpr t1 ++ " t2 = " ++ showPpr t2) $
+                          conjoinInvariantShift t1 t2
 
 conjoinInvariantShift t1 t2
   = conjoinInvariant t1 (shiftVV t2 (rTypeValueVar t1)) 
