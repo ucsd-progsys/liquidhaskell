@@ -63,11 +63,10 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI info
 consAct info penv
   = do γ   <- initEnv info penv
        foldM consCB γ (cbs info)
-       -- st  <- get
        hcs <- hsCs  <$> get 
        hws <- hsWfs <$> get
-       fcs <- concat <$> mapM splitC hcs -- (hsCs st)
-       fws <- concat <$> mapM splitW hws -- (hsWfs st)
+       fcs <- concat <$> mapM splitC hcs 
+       fws <- concat <$> mapM splitW hws
        modify $ \st -> st { fixCs = fcs } { fixWfs = fws }
 
 initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
@@ -236,7 +235,7 @@ splitW (WfC _ (RCls _ _))
 
 splitW (WfC γ t@(RApp c ts rs _))
   =  do let ws = bsplitW γ t
-        γ'    <- γ `extendEnvWithVV` (rTypeValueVar t, t) 
+        γ'    <- γ `extendEnvWithVV` t 
         ws'   <- concat <$> mapM splitW (map (WfC γ') ts)
         ws''  <- concat <$> mapM (rsplitW γ) (safeZip "splitW" rs (rTyConPs c))
         return $ ws ++ ws' ++ ws''
@@ -281,7 +280,7 @@ splitC (SubC γ t1 (REx x tx t2))
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
-  =  do let cs    = snd $ bsplitC γ t1 t2 
+  =  do let cs    = bsplitC γ t1 t2 
         cs'      <- splitC  (SubC γ r2 r1) 
         γ'       <- (γ, "splitC") += (x2, r2) 
         let r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
@@ -299,20 +298,28 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   = splitC $ SubC γ t1 t2' 
   where t2' = subsTyVar_meet' (α2, RVar α1 top) t2
 
-splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
-  = do γ'    <- γ `extendEnvWithVV` (vv, t1) 
-       cs'   <- concat <$> mapM splitC (zipWith (SubC γ') t1s' t2s')
-       cs''  <- concat <$> mapM (rsplitC γ) (rsplits r1s r2s' (rTyConPs c))
-       return $ cs ++ cs' ++ cs''
-    where r2s' = F.subst psu <$> r2s
-          t1s' = F.subst vsu <$> t1s
-          t2s' = F.subst vsu <$> t2s
-          psu  = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (rTyConPVars c') (rTyConPVars c), x /= y]
-          ((vv, vsu), cs) = bsplitC γ t1 t2
+splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
+  = do (t1',t2') <- unifyVV t1 t2
+       let cs     = bsplitC γ t1' t2'
+       γ'        <- γ `extendEnvWithVV` t1' 
+       cs'       <- concat <$> mapM splitC (zipWith (SubC γ') (rt_args t1') (rt_args t2'))
+       cs''      <- concat <$> mapM (rsplitC γ) (rsplits (rt_pargs t1') (rt_pargs t2') (rTyConPs $ rt_tycon t1'))
+       return     $ cs ++ cs' ++ cs''
+
+-- splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
+--   = do γ'    <- γ `extendEnvWithVV` (vv, t1) 
+--        cs'   <- concat <$> mapM splitC (zipWith (SubC γ') t1s' t2s')
+--        cs''  <- concat <$> mapM (rsplitC γ) (rsplits r1s r2s' (rTyConPs c))
+--        return $ cs ++ cs' ++ cs''
+--     where r2s' = F.subst psu <$> r2s
+--           t1s' = F.subst vsu <$> t1s
+--           t2s' = F.subst vsu <$> t2s
+--           psu  = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (rTyConPVars c') (rTyConPVars c), x /= y]
+--           ((vv, vsu), cs) = bsplitC γ t1 t2
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
-  = return (snd $ bsplitC γ t1 t2)
+  = return (bsplitC γ t1 t2)
 
 splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
   = return []
@@ -321,22 +328,30 @@ splitC c@(SubC _ _ _)
   = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showPpr c
 
 -- | "Base Case" which generates the actual `Fixpoint`-level implication constraint.
-
-bsplitC :: CGEnv -> SpecType ->  SpecType -> ((F.Symbol, F.Subst), [FixSubC])
+bsplitC :: CGEnv -> SpecType ->  SpecType -> [FixSubC]
 bsplitC γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
-  = mapSnd single     $ F.subC γ' F.PTrue (r1' { F.sr_reft = top }) r2' Nothing tag ci
+  = [F.subC γ' F.PTrue (r1' { F.sr_reft = top }) r2' Nothing tag ci]
   | F.isNonTrivialSortedReft r2'
-  = mapSnd single     $ F.subC γ' F.PTrue r1'  r2' Nothing tag ci
+  = [F.subC γ' F.PTrue r1'  r2' Nothing tag ci]
   | otherwise
-  = mapSnd (\_ -> []) $ F.subC γ' F.PTrue r1'  r2' Nothing tag ci 
+  = []
   where γ'  = fenv γ
         r1' = rTypeSortedReft (emb γ) t1
         r2' = rTypeSortedReft (emb γ) t2
         ci  = Ci (loc γ)
         tag = getTag γ
 
--- rTyConPVars c = concatMap (snd3 <$>) . concpargs . rTyConPs c
+unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
+unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
+  -- | rTypeValueVar t1 == rTypeValueVar t2
+  -- = return (t1, t2 {rt_pargs = r2s'})
+  -- | otherwise
+  = do vv     <- (F.vv . Just) <$> fresh
+       return  $ (shiftVV t1 vv,  (shiftVV t2 vv) {rt_pargs = r2s'})
+  where r2s' = F.subst psu <$> (rt_pargs t2) 
+        psu  = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (rTyConPVars c2) (rTyConPVars c1), x /= y]
+ 
 rTyConPVars c = [ x | pv <- rTyConPs c, (_,x,_) <- pargs pv ]
 
 rsplits [] _ _      = []
@@ -348,7 +363,7 @@ rsplitC γ ((RMono r1, RMono r2), (PV _ t as))
   = do let r1'  = mkSortedReft (emb γ) t (toReft r1)
        let r2'  = mkSortedReft (emb γ) t (toReft r2)
        γ'      <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitC1", x, ofRSort τ)) as) 
-       return   $ [snd $ F.subC (fenv γ') F.PTrue r1' r2' Nothing [] (Ci (loc γ))]
+       return   $ [F.subC (fenv γ') F.PTrue r1' r2' Nothing [] (Ci (loc γ))]
 
 rsplitC γ ((RPoly r1, RPoly r2), PV _ _ as)
   = do γ'  <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitC2", x, ofRSort τ)) as) 
@@ -416,11 +431,12 @@ initCGI info = CGInfo {
 coreBindLits tce cbs = sortNub [ (x, so) | (_, F.ELit x so) <- lconsts]
   where lconsts      = literalConst tce <$> literals cbs
 
-extendEnvWithVV γ (vv, t) 
-  | F.isNontrivialVV vv --  && not (vv `memberREnv` (renv γ))
+extendEnvWithVV γ t 
+  | F.isNontrivialVV vv
   = (γ, "extVV") += (vv, t)
   | otherwise
   = return γ
+  where vv = rTypeValueVar t
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
@@ -469,9 +485,9 @@ normalizeVV idx t@(RApp _ _ _ _)
 normalizeVV _ t 
   = t 
 
-shiftVV (RApp c ts rs r) vv 
-  = RApp c (F.subst su <$> ts) rs (r {ur_reft = r'})
-    where (su, r') = F.shiftVV (ur_reft r) vv
+shiftVV t@(RApp _ ts _ r) vv' 
+  = t { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
+      { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t _ 
   = errorstar $ "shiftVV: cannot handle " ++ showPpr t
