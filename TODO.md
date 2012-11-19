@@ -17,32 +17,48 @@ Deep Invariants
 ===============
 
 see tests/pos/selfList.hs <------------------ HEREHEREHEREHERE
-
-- Make Invariants work at all levels. Not just toplevel e.g.
-
+- Problem: conjoinInvariant builds [] but when you have
+ 
+    invariant {v: [b] | (len v) >= 0 }
+    
     invariant {v0: [ {v: a | (? Set_mem v (listElts v0)) } ] | true }
 
-  0. Probably parses and generalizes just fine.
-  1. Update `RTyConInv` in Constraint.hs so it has the whole thing not reft alone.
-  2. Write `conjoinInvariant` in the style of strengthenRefType_
-        HOW?
-            - fixpoint exposes "shiftVV"
-            - "normalize" generates new VVNEW for binder
-                uses shiftVV to shift top-level reft [and innards] to VVNEW
-                calls conjoinInv on shifted result
-            - conjoinInv is "left-Biased": unifies
+  the FIRST one PREVENTS the current conjoinInvariant from delving into the SECOND.
+        so the TOP level conjoinInvariant that builds the "main" one is causing problems.
+
+Trace: [conjoinInvariant: 
+
+             t1 = [{VV : aabI | (? Set_mem([VV; listElts([lq_anf__dbS])])),
+                                (? Set_mem([VV; listElts([lq_anf__dbS])])),
+                                (? Set_mem([VV; listElts([lq_anf__dbS])]))}] 
+             
+             
+HEREHEREHERE
+             t2 = {VV : [{VV : aa | (? Set_mem([VV; listElts([v0])]))}] | (len([VV]) >= 0),true}] : 
+             
+             
+             {VV29 : [{VV : aabI | (? Set_mem([VV; listElts([lq_anf__dbS])])),
+                      (? Set_mem([VV; listElts([lq_anf__dbS])])),
+                      (? Set_mem([VV; listElts([lq_anf__dbS])])),
+                      (? Set_mem([VV; listElts([v0])]))}] | (len([VV29]) >= 0),true}
 
 
-    > How to write self-invariant, and have it refine INSIDE? 
-      strengthen/meet just do the top level.
-    > Option: add invariant into datacons? [Doesnt solve the problem: what of non-constructed values]
-    > Option: basically need a "UNIFY"
+Trace: [normalize xs#abE idx = 29 t = [{VV : aabI | (? Set_mem([VV; listElts([lq_anf__dbS])])),
+              (? Set_mem([VV; listElts([lq_anf__dbS])])),
+              (? Set_mem([VV; listElts([lq_anf__dbS])]))}]] : 
+              
+              {VV29 : [{VV : aabI | (? Set_mem([VV; listElts([lq_anf__dbS])])),
+                                    (? Set_mem([VV; listElts([lq_anf__dbS])])),
+                                    (? Set_mem([VV; listElts([lq_anf__dbS])])),
+                                    (? Set_mem([VV; listElts([v0])]))}] | (len([VV29]) >= 0),true}
 
-            forall a. C a `unify` C T
+   
+- Make Invariants work at all levels. Not just toplevel e.g.
 
-            use a variant of eqRSort?
+    invariant {v: [a] | (len v) >= 0 }
+    
+    invariant {v0: [ {v: a | (? Set_mem v (listElts v0)) } ] | true }
 
-            then use strengthenRefType_ 
 
 
 

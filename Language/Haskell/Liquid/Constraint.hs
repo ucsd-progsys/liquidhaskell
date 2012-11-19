@@ -442,7 +442,7 @@ extendEnvWithVV γ t
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 γ ++= (_, x, t') 
   = do idx   <- fresh
-       let t  = normalize γ x idx t'  
+       let t  = normalize' γ x idx t'  
        let γ' = γ { renv = insertREnv x t (renv γ) }  
        is    <- if isBase t 
                   then liftM single $ addBind x (rTypeSortedReft (emb γ) t) 
@@ -471,12 +471,12 @@ extendEnvWithVV γ t
                                ++ " in renv " 
                                ++ showPpr (renv γ)
 
-normalize γ x idx 
-  = addRTyConInv (invs γ) 
-  . normalizeVV' x idx 
-  . normalizePds
+normalize' γ x idx t = traceShow ("normalize " ++ showPpr x ++ " idx = " ++ show idx ++ " t = " ++ showPpr t) $ normalize γ idx t
 
-normalizeVV' x idx t = traceShow ("normalizeVV " ++ showPpr x ++ " idx = " ++ show idx ++ " t = " ++ showPpr t) $ normalizeVV idx t
+normalize γ idx 
+  = addRTyConInv (invs γ) 
+  . normalizeVV idx 
+  . normalizePds
 
 normalizeVV idx t@(RApp _ _ _ _)
   | not (F.isNontrivialVV (rTypeValueVar t))
@@ -490,7 +490,7 @@ shiftVV t@(RApp _ ts _ r) vv'
       { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t _ 
-  = errorstar $ "shiftVV: cannot handle " ++ showPpr t
+  = t -- errorstar $ "shiftVV: cannot handle " ++ showPpr t
 
 
 addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
@@ -1067,26 +1067,38 @@ extendγ γ xts
 -- addRTyConInv m t@(RApp c _ _ _) 
 --   = fromMaybe t ((strengthen t . uTop) <$> M.lookup c m)
 
-type RTyConInv = M.HashMap RTyCon SpecType
+type RTyConInv = M.HashMap RTyCon [SpecType]
 
 mkRTyConInv    :: [SpecType] -> RTyConInv 
-mkRTyConInv ts = meetInvs <$> group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
+mkRTyConInv ts = {- meetInvs <$> -} group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
   where 
     strip      = thd3 . bkUniv 
-    meetInvs   = foldr1 conjoinInvariant 
+    -- meetInvs   = foldr1 conjoinInvariant 
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
-addRTyConInv m t@(RApp c _ _ _) 
-  = fromMaybe t (conjoinInvariant t <$> M.lookup c m)
+addRTyConInv m t@(RApp c _ _ _)
+  = case M.lookup c m of
+      Nothing -> t
+      Just ts -> foldl' conjoinInvariant' t ts
+  -- = fromMaybe t (conjoinInvariant' t <$> M.lookup c m)
 addRTyConInv _ t 
   = t 
 
+conjoinInvariant' t1 t2 = traceShow ("conjoinInvariant: t1 = " ++ showPpr t1 ++ " t2 = " ++ showPpr t2)
+                          $ conjoinInvariantShift t1 t2
+
+conjoinInvariantShift t1 t2
+  = conjoinInvariant t1 (shiftVV t2 (rTypeValueVar t1)) 
+
 conjoinInvariant (RApp c ts rs r) (RApp ic its _ ir) 
   | (c == ic && length ts == length its)
-  = RApp c (zipWith conjoinInvariant ts its) rs (r `meet` ir)
+  = RApp c (zipWith conjoinInvariantShift ts its) rs (r `meet` ir)
 
-conjoinInvariant (RApp c ts rs r) (RVar _ ir) 
-  = RApp c ts rs (r `meet` ir)
+conjoinInvariant t@(RApp _ _ _ r) (RVar _ ir) 
+  = t { rt_reft = r `meet` ir }
+
+conjoinInvariant t@(RVar _ r) (RVar _ ir) 
+  = t { rt_reft = r `meet` ir }
 
 conjoinInvariant t _  
   = t
