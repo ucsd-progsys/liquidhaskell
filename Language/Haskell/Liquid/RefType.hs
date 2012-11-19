@@ -342,11 +342,14 @@ instance Subable (Ref F.Reft RefType) where
   substf f (RPoly r) = RPoly $ substf f r
 
 instance Subable r => Subable (RType p c tv r) where
-  syms   = foldReft (\r acc -> syms r ++ acc) [] 
+  syms        = foldReft (\r acc -> syms r ++ acc) [] 
+  substf f    = emapReft (substf . substfExcept f) [] 
+  subst su    = emapReft (subst  . substExcept su) []
+  subst1 t su = emapReft (\xs r -> subst1Except xs r su) [] t
+
   -- subst  = fmap . subst
   -- substf = fmap . substf
-  substf f = emapReft (substf . substfExcept f) [] 
-  subst su = emapReft (subst  . substExcept su) []
+ 
 
 -- Reftable Instances -------------------------------------------------------
 
