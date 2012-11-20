@@ -1279,36 +1279,27 @@ unionsWith f ts
 union :: Ord k => Map k a -> Map k a -> Map k a
 union Tip t2  = t2
 union t1 Tip  = t1
-union t1 t2 = hedgeUnion NothingS NothingS NothingS NothingS t1 t2
+union t1 t2 = hedgeUnion NothingS NothingS t1 t2
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE union #-}
 #endif
 
--- HACK UNTIL SELF-INVARIANT
-{-@ hedgeUnion :: (Ord k) => lo0:MaybeS k -> lo: {v: MaybeS {v: k | (isJustS(lo0) && (v = fromJustS(lo0))) } | v = lo0 }  
-                          -> hi0:MaybeS k -> hi:{v: MaybeS {v: k | ( isJustS(hi0) && (v = fromJustS(hi0))) } 
-                                                  | (((isJustS(lo) && isJustS(v)) => (fromJustS(v) >= fromJustS(lo))) && (v = hi0)) }   
+-- left-biased hedge union
+{-@ hedgeUnion :: (Ord k) => lo: {v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
+                          -> hi: {v0: MaybeS {v: k | ( isJustS(v0) && (v = fromJustS(v0))) } 
+                                                   | (((isJustS(lo) && isJustS(v0)) => (fromJustS(v0) >= fromJustS(lo)))) }   
                           -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a 
                           -> {v: OMap k a | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
                           ->  OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a @-}
-hedgeUnion :: Ord k => MaybeS k -> MaybeS k -> MaybeS k -> MaybeS k -> Map k b -> Map k b -> Map k b
-hedgeUnion _ _ _ _  t1  Tip = t1
-hedgeUnion blo0 blo bhi0 bhi Tip (Bin _ kx x l r) = join kx x (filterGt blo l) (filterLt bhi r)
-hedgeUnion _ _ _ _   t1  (Bin _ kx x Tip Tip) = insertR kx x t1  -- According to benchmarks, this special case increases
-                                                                 -- performance up to 30%. It does not help in difference or intersection.
-hedgeUnion blo0 blo bhi0 bhi (Bin _ kx x l r) t2 = join kx x (hedgeUnion blo blo bmi bmi l (trim blo bmi t2))
-                                                             (hedgeUnion bmi bmi bhi0 bhi r (trim bmi bhi t2))
-  where bmi = JustS kx
 
--- LIQUID -- left-biased hedge union
--- LIQUID hedgeUnion :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a b -> Map a b
--- LIQUID hedgeUnion _   _   t1  Tip = t1
--- LIQUID hedgeUnion blo bhi Tip (Bin _ kx x l r) = join kx x (filterGt blo l) (filterLt bhi r)
--- LIQUID hedgeUnion _   _   t1  (Bin _ kx x Tip Tip) = insertR kx x t1  -- According to benchmarks, this special case increases
--- LIQUID                                                               -- performance up to 30%. It does not help in difference or intersection.
--- LIQUID hedgeUnion blo bhi (Bin _ kx x l r) t2 = join kx x (hedgeUnion blo bmi l (trim blo bmi t2))
--- LIQUID                                                    (hedgeUnion bmi bhi r (trim bmi bhi t2))
--- LIQUID   where bmi = JustS kx
+hedgeUnion :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a b -> Map a b
+hedgeUnion _   _   t1  Tip = t1
+hedgeUnion blo bhi Tip (Bin _ kx x l r) = join kx x (filterGt blo l) (filterLt bhi r)
+hedgeUnion _   _   t1  (Bin _ kx x Tip Tip) = insertR kx x t1 -- According to benchmarks, this special case increases
+                                                              -- performance up to 30%. It does not help in difference or intersection.
+hedgeUnion blo bhi (Bin _ kx x l r) t2 = join kx x (hedgeUnion blo bmi l (trim blo bmi t2))
+                                                   (hedgeUnion bmi bhi r (trim bmi bhi t2))
+  where bmi = JustS kx
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE hedgeUnion #-}
 #endif
@@ -1355,23 +1346,23 @@ unionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (\ _ _ x -> x
 difference :: Ord k => Map k a -> Map k b -> Map k a
 difference Tip _   = Tip
 difference t1 Tip  = t1
-difference t1 t2   = hedgeDiff NothingS NothingS NothingS NothingS t1 t2
+difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE difference #-}
 #endif
 
-{-@ hedgeDiff  :: (Ord k) => lo0:MaybeS k -> lo: {v: MaybeS {v: k | (isJustS(lo0) && (v = fromJustS(lo0))) } | v = lo0 }  
-                          -> hi0:MaybeS k -> hi:{v: MaybeS {v: k | ( isJustS(hi0) && (v = fromJustS(hi0))) } 
-                                                  | (((isJustS(lo) && isJustS(v)) => (fromJustS(v) >= fromJustS(lo))) && (v = hi0)) }   
+{-@ hedgeDiff  :: (Ord k) => lo:{v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
+                          -> hi:{v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } 
+                                                  | (((isJustS(lo) && isJustS(v0)) => (fromJustS(v0) >= fromJustS(lo)))) }   
                           -> {v: OMap k a | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
                           -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } b 
-                          ->  OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a @-}
+                          -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a @-}
 
-hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
-hedgeDiff _ _ _  _   Tip              _ = Tip
-hedgeDiff blo0 blo bhi0 bhi (Bin _ kx x l r) Tip = join kx x (filterGt blo l) (filterLt bhi r)
-hedgeDiff blo0 blo bhi0 bhi t (Bin _ kx _ l r) = merge kx (hedgeDiff blo0 blo bmi bmi (trim blo bmi t) l)
-                                                          (hedgeDiff bmi bmi bhi0 bhi (trim bmi bhi t) r)
+hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
+hedgeDiff _  _   Tip _                  = Tip
+hedgeDiff blo bhi (Bin _ kx x l r) Tip  = join kx x (filterGt blo l) (filterLt bhi r)
+hedgeDiff blo bhi t (Bin _ kx _ l r)    = merge kx (hedgeDiff blo bmi (trim blo bmi t) l)
+                                                   (hedgeDiff bmi bhi (trim bmi bhi t) r)
   where bmi = JustS kx
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE hedgeDiff #-}
@@ -1427,35 +1418,24 @@ differenceWithKey f t1 t2 = mergeWithKey f (\_ _ x -> x) (\ _ _ _ -> Tip) t1 t2
 intersection :: Ord k => Map k a -> Map k b -> Map k a
 intersection Tip _ = Tip
 intersection _ Tip = Tip
-intersection t1 t2 = hedgeInt NothingS NothingS NothingS NothingS t1 t2
+intersection t1 t2 = hedgeInt NothingS NothingS t1 t2
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE intersection #-}
 #endif
 
--- LIQUID hedgeInt :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Map k b -> Map k a
--- LIQUID hedgeInt _ _ _   Tip = Tip
--- LIQUID hedgeInt _ _ Tip _   = Tip
--- LIQUID hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi t2)
--- LIQUID                                            r' = hedgeInt bmi bhi r (trim bmi bhi t2)
--- LIQUID                                        in if kx `member` t2 then join kx x l' r' else merge kx l' r'
--- LIQUID   where bmi = JustS kx
-
-{-@ hedgeInt   :: (Ord k) => lo0:MaybeS k -> lo: {v: MaybeS {v: k | (isJustS(lo0) && (v = fromJustS(lo0))) } | v = lo0 }  
-                          -> hi0:MaybeS k -> hi:{v: MaybeS {v: k | ( isJustS(hi0) && (v = fromJustS(hi0))) } 
-                                                  | (((isJustS(lo) && isJustS(v)) => (fromJustS(v) >= fromJustS(lo))) && (v = hi0)) }   
+{-@ hedgeInt   :: (Ord k) => lo:{v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
+                          -> hi:{v0: MaybeS {v: k | ( isJustS(v0) && (v = fromJustS(v0))) } 
+                                                  | (((isJustS(lo) && isJustS(v0)) => (fromJustS(v0) >= fromJustS(lo)))) }   
                           -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a 
                           -> {v: OMap k b | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
                           ->  OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a @-}
-hedgeInt :: Ord k => MaybeS k -> MaybeS k -> MaybeS k -> MaybeS k -> Map k a -> Map k b -> Map k a
-hedgeInt _ _ _ _ _   Tip = Tip
-hedgeInt _ _ _ _ Tip _   = Tip
-hedgeInt blo0 blo bhi0 bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo0 blo bmi bmi  l (trim blo bmi t2)
-                                                     r' = hedgeInt bmi bmi bhi0 bhi  r (trim bmi bhi t2)
-                                                 in if kx `member` t2 then join kx x l' r' else merge kx l' r'
+hedgeInt :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Map k b -> Map k a
+hedgeInt _ _ _   Tip = Tip
+hedgeInt _ _ Tip _   = Tip
+hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi t2)
+                                           r' = hedgeInt bmi bhi r (trim bmi bhi t2)
+                                       in if kx `member` t2 then join kx x l' r' else merge kx l' r'
   where bmi = JustS kx
-
-
-
 
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE hedgeInt #-}
@@ -1569,7 +1549,7 @@ mergeWithKey f g1 g2 = go
   where
     go Tip t2 = g2 NothingS NothingS t2
     go t1 Tip = g1 NothingS NothingS t1
-    go t1 t2  = hedgeMerge f g1 g2 NothingS NothingS NothingS NothingS t1 t2
+    go t1 t2  = hedgeMerge f g1 g2 NothingS NothingS t1 t2
 
 {-@ hedgeMerge :: (Ord k) => (k -> a -> b -> Maybe c) 
                           -> (lo:MaybeS k -> hi: MaybeS k 
@@ -1578,9 +1558,9 @@ mergeWithKey f g1 g2 = go
                           -> (lo:MaybeS k -> hi: MaybeS k 
                               -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } b
                               -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c) 
-                          -> lo0:MaybeS k -> lo: {v: MaybeS {v: k | (isJustS(lo0) && (v = fromJustS(lo0))) } | v = lo0 }  
-                          -> hi0:MaybeS k -> hi:{v: MaybeS {v: k | ( isJustS(hi0) && (v = fromJustS(hi0))) } 
-                                                  | (((isJustS(lo) && isJustS(v)) => (fromJustS(v) >= fromJustS(lo))) && (v = hi0)) }   
+                          -> lo:{v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
+                          -> hi:{v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } 
+                                                  | (((isJustS(lo) && isJustS(v0)) => (fromJustS(v0) >= fromJustS(lo)))) }   
                           -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a 
                           -> {v: OMap k b | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
                           ->  OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c @-}
@@ -1588,17 +1568,17 @@ mergeWithKey f g1 g2 = go
 hedgeMerge :: Ord k => (k -> a -> b -> Maybe c) 
                     -> (MaybeS k -> MaybeS k -> Map k a -> Map k c) 
                     -> (MaybeS k -> MaybeS k -> Map k b -> Map k c)
-                    -> MaybeS k -> MaybeS k -> MaybeS k -> MaybeS k 
+                    -> MaybeS k -> MaybeS k 
                     -> Map k a -> Map k b -> Map k c
-hedgeMerge f g1 g2 _ blo _  bhi   t1  Tip 
+hedgeMerge f g1 g2 blo bhi   t1  Tip 
   = g1 blo bhi t1
-hedgeMerge f g1 g2 blo0 blo bhi0 bhi Tip (Bin _ kx x l r) 
+hedgeMerge f g1 g2 blo bhi Tip (Bin _ kx x l r) 
   = g2 blo bhi $ join kx x (filterGt blo l) (filterLt bhi r)
-hedgeMerge f g1 g2 blo0 blo bhi0 bhi (Bin _ kx x l r) t2  
+hedgeMerge f g1 g2 blo bhi (Bin _ kx x l r) t2  
   = let bmi = JustS kx 
-        l' = hedgeMerge f g1 g2 blo0 blo bmi bmi l (trim blo bmi t2)
+        l' = hedgeMerge f g1 g2 blo bmi l (trim blo bmi t2)
         (found, trim_t2) = trimLookupLo kx bhi t2
-        r' = hedgeMerge f g1 g2 bmi bmi bhi0 bhi r trim_t2
+        r' = hedgeMerge f g1 g2 bmi bhi r trim_t2
     in case found of
          Nothing -> case g1 blo bhi (singleton kx x) of
                       Tip -> merge kx l' r'
