@@ -1,8 +1,7 @@
 TODO
 ====
 
-* predicate-aliases 
-* record invariants
+* predicate-aliases      
 * parse predicate signatures for tuples 
 * benchmarks: stackset-core
 * Blogging 
@@ -13,23 +12,17 @@ TODO
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
-Deep Invariants
-===============
-
-bind 5 lq_anf__dbc : {_LIQUID_dummy : [a_ab2] | [(len([_LIQUID_dummy]) >= 0);
-
-
-    invariant {v: [a] | (len v) >= 0 }
-    
-    invariant {v0: [ {v: a | (? Set_mem v (listElts v0)) } ] | true }
-
-
-
-
 Predicate Aliases
 =================
 
-Write a test for this.
+    test/pos/pred.hs <----------------------- HEREHEREHEREHERE
+
+    0. Mimic RTAlias to create Predicate Alias
+        > follow the hook Measure.hs/expandRTAliases
+
+    1. Parse into above
+    2. Apply in Bare/Measure
+
 
 Then clean up the spec blowup in containers/Data/Map/Base.hs ?
 
@@ -44,7 +37,6 @@ How about this instead?
     {-@ pred inRange lo hi v = (maybeGe lo v) && (maybeLe hi v)        @-}
 
 Instead of the grisly
-
     inRange(lo, hi, v) = {v:k | (((isJustS(lo)) => (v >= fromJustS(lo))) && (((isJustS(hi)) => (v <= fromJustS(hi)))))} v @-}
 
 Benchmarks
