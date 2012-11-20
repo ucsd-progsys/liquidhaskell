@@ -342,11 +342,11 @@ bsplitC γ t1 t2
         ci  = Ci (loc γ)
         tag = getTag γ
 
-unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
-unifyVV t1 t2 = do z <- unifyVV' t1 t2 
-                   return $ traceShow ("unifyVV \nt1 = " ++ showPpr t1 ++ "\nt2 = " ++ showPpr t2) z 
+-- unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
+-- unifyVV t1 t2 = do z <- unifyVV' t1 t2 
+--                   return $ traceShow ("unifyVV \nt1 = " ++ showPpr t1 ++ "\nt2 = " ++ showPpr t2) z 
 
-unifyVV' t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
+unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
        return  $ (shiftVV t1 vv,  (shiftVV t2 vv) {rt_pargs = r2s'})
   where r2s' = F.subst psu <$> (rt_pargs t2) 
