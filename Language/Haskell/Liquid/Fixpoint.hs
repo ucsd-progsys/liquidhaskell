@@ -19,8 +19,9 @@ module Language.Haskell.Liquid.Fixpoint (
   -- * Symbols
   , Symbol(..)
   , anfPrefix, tempPrefix, vv, intKvar
-  , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tempSymbol --, tagSymbol 
+  , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tempSymbol
   , qualifySymbol, stringSymbol, symbolString, stringSymbolRaw
+  , isNontrivialVV
 
   -- * Expressions and Predicates
   , Constant (..), Bop (..), Brel (..), Expr (..), Pred (..)
@@ -28,7 +29,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , isTautoPred
  
   -- * Constraints and Solutions
-  , Tag, SubC (..), WfC(..), FixResult (..), FixSolution, FInfo (..)
+  , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, FInfo (..), addIds
 
   -- * Environments
   , SEnv, emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
@@ -39,14 +40,15 @@ module Language.Haskell.Liquid.Fixpoint (
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..)
   , trueSortedReft, trueRefa
-  , canonReft, exprReft, notExprReft, symbolReft
+  , exprReft, notExprReft, symbolReft
   , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft
-  , flattenRefas
+  , flattenRefas, shiftVV
   , ppr_reft, ppr_reft_pred
 
   -- * Substitutions 
-  , Subable (..)
+  , Subst, Subable (..)
   , emptySubst, mkSubst, catSubst
+  , substExcept, substfExcept, subst1Except
 
   -- * Visitors
   -- , getSymbols
@@ -293,8 +295,6 @@ instance Outputable Sort where
 instance Show Symbol where
   show (S x) = x
 
-newtype Subst  = Su (M.HashMap Symbol Expr) deriving (Eq)
-
 instance Outputable Refa where
   ppr  = text . show
 
@@ -302,13 +302,13 @@ instance Outputable Expr where
   ppr  = text . show
 
 instance Outputable Subst where
-  ppr (Su m) = ppr (M.toList m)
+  ppr (Su m) = ppr ({- M.toList -} m)
 
 instance Show Subst where
   show = showPpr
 
 instance Fixpoint Subst where
-  toFix (Su m) = case hashMapToAscList m of 
+  toFix (Su m) = case {- hashMapToAscList -} m of 
                    []  -> empty
                    xys -> hcat $ map (\(x,y) -> brackets $ (toFix x) <> text ":=" <> (toFix y)) xys
 
@@ -373,22 +373,29 @@ isParened xs          = xs /= stripParens xs
 
 ---------------------------------------------------------------------
 
-vv                      = S vvName 
-dummySymbol             = S dummyName
--- tagSymbol               = S tagName
-intSymbol x i           = S $ x ++ show i           
+-- vv               = S . (vvName ++) . (maybe "" show)
+vv                  :: Maybe Integer -> Symbol
+vv (Just i)         = S (vvName ++ show i)
+vv Nothing          = S vvName
+vvCon               = S (vvName ++ "F")
+-- vv Nothing          = S vvName
 
-tempSymbol              ::  String -> Integer -> Symbol
-tempSymbol prefix n     = intSymbol (tempPrefix ++ prefix) n
+isNontrivialVV      = not . (vv_ ==) 
 
--- isTempSym (S x)         = tempPrefix `isPrefixOf` x
-tempPrefix              = "lq_tmp_"
-anfPrefix               = "lq_anf_" 
-nonSymbol               = S ""
-isNonSymbol             = (0 ==) . length . symbolString
 
-intKvar                 :: Integer -> Symbol
-intKvar                 = intSymbol "k_" 
+dummySymbol         = S dummyName
+intSymbol x i       = S $ x ++ show i           
+
+tempSymbol          ::  String -> Integer -> Symbol
+tempSymbol prefix n = intSymbol (tempPrefix ++ prefix) n
+
+tempPrefix          = "lq_tmp_"
+anfPrefix           = "lq_anf_" 
+nonSymbol           = S ""
+isNonSymbol         = (0 ==) . length . symbolString
+
+intKvar             :: Integer -> Symbol
+intKvar             = intSymbol "k_" 
 
 ---------------------------------------------------------------
 ------------------------- Expressions -------------------------
@@ -535,7 +542,7 @@ data Refa
   deriving (Eq, Show)
 
 
-newtype Reft = Reft (Symbol, [Refa]) deriving (Eq) -- , Ord, Data, Typeable) 
+newtype Reft = Reft (Symbol, [Refa]) deriving (Eq)
 
 instance Show Reft where
   show (Reft x) = showSDoc $ toFix x 
@@ -543,7 +550,7 @@ instance Show Reft where
 instance Outputable Reft where
   ppr = ppr_reft_pred
 
-data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft } deriving (Eq) -- , Ord, Data, Typeable) 
+data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft } deriving (Eq)
 
 isNonTrivialSortedReft (RR _ (Reft (_, ras)))
   = not $ null ras
@@ -552,6 +559,8 @@ isFunctionSortedReft (RR (FFunc _ _) _)
   = True
 isFunctionSortedReft _
   = False
+
+sortedReftValueVariable (RR _ (Reft (v,_))) = v
 
 ---------------------------------------------------------------
 ----------------- Environments  -------------------------------
@@ -749,11 +758,26 @@ class Subable a where
   substf :: (Symbol -> Expr) -> a -> a
   subst  :: Subst -> a -> a
   subst1 :: a -> (Symbol, Expr) -> a
-  subst1 thing (x, e) = subst (Su $ M.singleton x e) thing
+  -- subst1 y (x, e) = subst (Su $ M.singleton x e) y
+  subst1 y (x, e) = subst (Su [(x,e)]) y
+
+subst1Except :: (Subable a) => [Symbol] -> a -> (Symbol, Expr) -> a
+subst1Except xs z su@(x, _) 
+  | x `elem` xs = z
+  | otherwise   = subst1 z su
+
+substfExcept :: (Symbol -> Expr) -> [Symbol] -> (Symbol -> Expr)
+substfExcept f xs y = if y `elem` xs then EVar y else f y
+
+substExcept  :: Subst -> [Symbol] -> Subst
+-- substExcept  (Su m) xs = Su (foldr M.delete m xs) 
+substExcept  (Su xes) xs = Su $ filter (not . (`elem` xs) . fst) xes
+
+
 
 instance Subable Symbol where
   substf f x               = subSymbol (Just (f x)) x
-  subst (Su s) x           = subSymbol (M.lookup x s) x
+  subst su x               = subSymbol (Just $ appSubst su x) x -- subSymbol (M.lookup x s) x
   syms x                   = [x]
 
 subSymbol (Just (EVar y)) _ = y
@@ -774,7 +798,7 @@ instance Subable Expr where
   subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
   subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst  su e2)
   subst su (ECst e so)     = ECst (subst su e) so
-  subst (Su s) e@(EVar x)  = M.lookupDefault e x s
+  subst su (EVar x)        = appSubst su x
   subst _ e                = e
 
 
@@ -803,7 +827,7 @@ instance Subable Pred where
 
 instance Subable Refa where
   syms (RConc p)           = syms p
-  syms (RKvar k (Su su'))  = k : concatMap syms (M.elems su') 
+  syms (RKvar k (Su su'))  = k : concatMap syms ({- M.elems -} su') 
   subst su (RConc p)       = RConc   $ subst su p
   subst su (RKvar k su')   = RKvar k $ su' `catSubst` su 
   -- subst _  (RPvar p)     = RPvar p
@@ -827,49 +851,67 @@ instance Subable a => Subable (M.HashMap k a) where
   substf = M.map . substf 
 
 instance Subable Reft where
-  syms (Reft (v, ras))     = v : syms ras
-  subst su (Reft (v, ras)) = Reft (v, subst su ras)
-  substf f (Reft (v, ras)) = Reft (v, substf f ras)
+  syms (Reft (v, ras))      = v : syms ras
+  subst su (Reft (v, ras))  = Reft (v, subst (substExcept su [v]) ras)
+  substf f (Reft (v, ras))  = Reft (v, substf (substfExcept f [v]) ras)
+  subst1 (Reft (v, ras)) su = Reft (v, subst1Except [v] ras su)
+
+-- subst1Reft r@(Reft (v, ras)) (x, e) 
+--     | x == v               = r 
+--     | otherwise            = Reft (v, subst1 ras (x, e))
+
 
 instance Monoid Reft where
   mempty  = trueReft
+  -- mappend = meetReft
   mappend (Reft (v, ras)) (Reft (v', ras')) 
     | v == v'   = Reft (v, ras ++ ras')
     | otherwise = Reft (v, ras ++ (ras' `subst1` (v', EVar v)))
+
+-- meetReft r@(Reft (v, ras)) r'@(Reft (v', ras')) 
+--     | null ras  = r'
+--     | null ras' = r
+--     | v == v'   = Reft (v, ras ++ ras')
+--     | otherwise = meetReft ur ur' where (_, ur, ur') = unifyRefts r r' 
+
+
 
 instance Subable SortedReft where
   syms               = syms . sr_reft 
   subst su (RR so r) = RR so $ subst su r
   substf f (RR so r) = RR so $ substf f r
 
-emptySubst 
-  = Su M.empty
+-- newtype Subst  = Su (M.HashMap Symbol Expr) deriving (Eq)
+newtype Subst = Su [(Symbol, Expr)] deriving (Eq)
 
-catSubst (Su s1) (Su s2) 
-  = Su $ s1' `M.union` s2
-    where s1' = subst (Su s2) `M.map` s1
-
-mkSubst = Su . M.fromList
+mkSubst                  = Su -- . M.fromList
+appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
+emptySubst               = Su [] -- M.empty
+catSubst (Su s1) (Su s2) = Su $ s1' ++ s2
+  where s1' = mapSnd (subst (Su s2)) <$> s1
+  -- = Su $ s1' `M.union` s2
+  --   where s1' = subst (Su s2) `M.map` s1
 
 ------------------------------------------------------------
 ------------- Generally Useful Refinements -----------------
 ------------------------------------------------------------
 
-symbolReft = exprReft . EVar 
+symbolReft    = exprReft . EVar 
 
-exprReft e    = Reft (vv, [RConc $ PAtom Eq (EVar vv) e])
-notExprReft e = Reft (vv, [RConc $ PAtom Ne (EVar vv) e])
+vv_           = vv Nothing
+exprReft e    = Reft (vv_, [RConc $ PAtom Eq (EVar vv_) e])
+notExprReft e = Reft (vv_, [RConc $ PAtom Ne (EVar vv_) e])
 
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft) 
 
-trueReft = Reft (vv, [])
+trueReft = Reft (vv_, [])
 
 trueRefa = RConc PTrue
 
-canonReft r@(Reft (v, ras)) 
-  | v == vv    = r 
-  | otherwise = Reft (vv, ras `subst1` (v, EVar vv))
+-- canonReft r@(Reft (v, ras)) 
+--   | v == vv_  = r 
+--   | otherwise = Reft (vv_, ras `subst1` (v, EVar vv_))
 
 flattenRefas ::  [Refa] -> [Refa]
 flattenRefas = concatMap flatRa
@@ -1010,3 +1052,42 @@ hashSort (FVar i)     = 11 `combine` hash i
 hashSort (FFunc _ ts) = hash (hashSort <$> ts)
 hashSort (FApp tc ts) = 12 `combine` (hash tc) `combine` hash (hashSort <$> ts) 
 
+--------------------------------------------------------------------------------------
+-------- Constraint Constructor Wrappers ---------------------------------------------
+--------------------------------------------------------------------------------------
+
+wfC  = WfC
+
+-- subC γ p r1@(RR _ (Reft (v,_))) (RR t2 r2) x y z 
+--    = SubC γ p r1 (RR t2 (shiftVV r2 v)) x y z
+subC γ p (RR t1 r1) (RR t2 r2) x y z 
+    = SubC γ p (RR t1 (shiftVV r1 vvCon)) (RR t2 (shiftVV r2 vvCon)) x y z
+
+
+shiftVV r@(Reft (v, ras)) v' 
+   | v == v'   = r
+   | otherwise = Reft (v', (subst1 ras (v, EVar v')))
+
+
+-- subC γ p r1 r2 x y z   = (vvsu, SubC γ p r1' r2' x y z)
+--   where (vvsu, r1', r2') = unifySRefts r1 r2 
+
+-- unifySRefts (RR t1 r1) (RR t2 r2) = (z, RR t1 r1', RR t2 r2')
+--   where (r1', r2')                =  unifyRefts r1 r2
+
+-- unifyRefts r1@(Reft (v1, _)) r2@(Reft (v2, _))
+--    | v1 == v2  = (r1, r2)
+--    | otherwise = (r1, shiftVV r2 v1)
+
+-- unifySRefts (RR t1 r1) (RR t2 r2) = (z, RR t1 r1', RR t2 r2')
+--   where (z, r1', r2')             =  unifyRefts r1 r2
+--
+-- unifyRefts r1@(Reft (v1, _)) r2@(Reft (v2, _))
+--   | v1 == v2  = ((v1, emptySubst), r1, r2)
+--   | v1 /= vv_ = let (su, r2') = shiftVV r2 v1 in ((v1, su), r1 , r2')
+--   | otherwise = let (su, r1') = shiftVV r1 v2 in ((v2, su), r1', r2 ) 
+--
+-- shiftVV (Reft (v, ras)) v' = (su, (Reft (v', subst su ras))) 
+--   where su = mkSubst [(v, EVar v')]
+
+addIds = zipWith (\i c -> (i, c {sid = Just i})) [1..]

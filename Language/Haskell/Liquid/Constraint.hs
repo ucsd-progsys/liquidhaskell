@@ -32,7 +32,7 @@ import Control.Monad.State
 import Control.Exception.Base
 import Control.Applicative      ((<$>))
 import Data.Monoid              (mconcat)
-import Data.Maybe (fromMaybe)
+import Data.Maybe               (fromMaybe)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.Bifunctor
@@ -63,11 +63,10 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI info
 consAct info penv
   = do γ   <- initEnv info penv
        foldM consCB γ (cbs info)
-       -- st  <- get
        hcs <- hsCs  <$> get 
        hws <- hsWfs <$> get
-       fcs <- concat <$> mapM splitC hcs -- (hsCs st)
-       fws <- concat <$> mapM splitW hws -- (hsWfs st)
+       fcs <- concat <$> mapM splitC hcs 
+       fws <- concat <$> mapM splitW hws
        modify $ \st -> st { fixCs = fcs } { fixWfs = fws }
 
 initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
@@ -176,12 +175,12 @@ rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
 ------------------- Constraints: Types --------------------------
 -----------------------------------------------------------------
 
-newtype Cinfo = Ci SrcSpan deriving (Eq, Ord) -- , Data, Typeable)
+newtype Cinfo = Ci SrcSpan deriving (Eq, Ord) 
 
 data SubC     = SubC { senv  :: !CGEnv
                      , lhs   :: !SpecType
                      , rhs   :: !SpecType 
-                     } -- deriving (Data, Typeable)
+                     }
 
 data WfC      = WfC  !CGEnv !SpecType 
               -- deriving (Data, Typeable)
@@ -235,8 +234,9 @@ splitW (WfC _ (RCls _ _))
   = return []
 
 splitW (WfC γ t@(RApp c ts rs _))
-  =  do let ws = bsplitW γ t 
-        ws'   <- concat <$> mapM splitW (map (WfC γ) ts)
+  =  do let ws = bsplitW γ t
+        γ'    <- γ `extendEnvWithVV` t 
+        ws'   <- concat <$> mapM splitW (map (WfC γ') ts)
         ws''  <- concat <$> mapM (rsplitW γ) (safeZip "splitW" rs (rTyConPs c))
         return $ ws ++ ws' ++ ws''
 
@@ -246,22 +246,22 @@ splitW (WfC _ t)
 rsplitW γ (RMono r, ((PV _ t as)))
   = do γ'    <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitW1", x, ofRSort τ)) as) 
        let r' = mkSortedReft (emb γ) t $ toReft r
-       return [F.WfC (fenv γ') r' Nothing (Ci (loc γ))]
+       return [F.wfC (fenv γ') r' Nothing (Ci (loc γ))]
 
 rsplitW γ (RPoly t0, (PV _ _ as))
   = do γ'  <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitW2", x, ofRSort τ)) as) 
        splitW (WfC γ' t0)
 
-bsplitW :: CGEnv -> SpecType -> [FixWfC]
 bsplitW γ t 
   | F.isNonTrivialSortedReft r'
-  = [F.WfC (fenv γ) r' Nothing ci] 
+  = [F.wfC (fenv γ) r' Nothing ci] 
   | otherwise
   = []
   where r' = rTypeSortedReft (emb γ) t
         ci = (Ci (loc γ))
 
 mkSortedReft tce = F.RR . rTypeSort tce
+
 
 ------------------------------------------------------------
 splitC :: SubC -> CG [FixSubC]
@@ -298,42 +298,61 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   = splitC $ SubC γ t1 t2' 
   where t2' = subsTyVar_meet' (α2, RVar α1 top) t2
 
-splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
-  = do let cs = bsplitC γ t1 t2
-       cs'   <- concat <$> mapM splitC (zipWith (SubC γ) t1s t2s)
-       cs''  <- concat <$> mapM (rsplitC γ) (rsplits r1s r2s' (rTyConPs c))
-       return $ cs ++ cs' ++ cs''
-    where r2s'    = F.subst su <$> r2s
-          su      = F.mkSubst [(x, F.EVar y) | (x, y) <- zip pVars' pVars]
-          pVars   = concatMap getVars (rTyConPs c)
-          pVars'  = concatMap getVars (rTyConPs c')
-          getVars = (snd3 <$>) . pargs
+splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
+  = do (t1',t2') <- unifyVV t1 t2
+       let cs     = bsplitC γ t1' t2'
+       γ'        <- γ `extendEnvWithVV` t1' 
+       cs'       <- concat <$> mapM splitC (zipWith (SubC γ') (rt_args t1') (rt_args t2'))
+       cs''      <- concat <$> mapM (rsplitC γ) (rsplits (rt_pargs t1') (rt_pargs t2') (rTyConPs $ rt_tycon t1'))
+       return     $ cs ++ cs' ++ cs''
+
+-- splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
+--   = do γ'    <- γ `extendEnvWithVV` (vv, t1) 
+--        cs'   <- concat <$> mapM splitC (zipWith (SubC γ') t1s' t2s')
+--        cs''  <- concat <$> mapM (rsplitC γ) (rsplits r1s r2s' (rTyConPs c))
+--        return $ cs ++ cs' ++ cs''
+--     where r2s' = F.subst psu <$> r2s
+--           t1s' = F.subst vsu <$> t1s
+--           t2s' = F.subst vsu <$> t2s
+--           psu  = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (rTyConPVars c') (rTyConPVars c), x /= y]
+--           ((vv, vsu), cs) = bsplitC γ t1 t2
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
-  = return $ bsplitC γ t1 t2
+  = return (bsplitC γ t1 t2)
 
 splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
   = return []
 
--- TODO: MASSIVE SOUNDNESS PROBLEM
--- splitC (SubC _ t1 t2) 
---   = []
 splitC c@(SubC _ _ _) 
   = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showPpr c
 
+-- | "Base Case" which generates the actual `Fixpoint`-level implication constraint.
+bsplitC :: CGEnv -> SpecType ->  SpecType -> [FixSubC]
 bsplitC γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
-  = [F.SubC γ' F.PTrue (r1' {F.sr_reft = top}) r2' Nothing tag ci]
+  = [F.subC γ' F.PTrue (r1' { F.sr_reft = top }) r2' Nothing tag ci]
   | F.isNonTrivialSortedReft r2'
-  = [F.SubC γ' F.PTrue r1' r2' Nothing tag ci]
+  = [F.subC γ' F.PTrue r1'  r2' Nothing tag ci]
   | otherwise
   = []
-  where γ'      = fenv γ
-        r1'     = rTypeSortedReft (emb γ) t1
-        r2'     = rTypeSortedReft (emb γ) t2
-        ci      = Ci (loc γ)
-        tag     = getTag γ
+  where γ'  = fenv γ
+        r1' = rTypeSortedReft (emb γ) t1
+        r2' = rTypeSortedReft (emb γ) t2
+        ci  = Ci (loc γ)
+        tag = getTag γ
+
+-- unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
+-- unifyVV t1 t2 = do z <- unifyVV' t1 t2 
+--                   return $ traceShow ("unifyVV \nt1 = " ++ showPpr t1 ++ "\nt2 = " ++ showPpr t2) z 
+
+unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
+  = do vv     <- (F.vv . Just) <$> fresh
+       return  $ (shiftVV t1 vv,  (shiftVV t2 vv) {rt_pargs = r2s'})
+  where r2s' = F.subst psu <$> (rt_pargs t2) 
+        psu  = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (rTyConPVars c2) (rTyConPVars c1), x /= y]
+ 
+rTyConPVars c = [ x | pv <- rTyConPs c, (_,x,_) <- pargs pv ]
 
 rsplits [] _ _      = []
 rsplits _ [] _      = []
@@ -344,7 +363,7 @@ rsplitC γ ((RMono r1, RMono r2), (PV _ t as))
   = do let r1'  = mkSortedReft (emb γ) t (toReft r1)
        let r2'  = mkSortedReft (emb γ) t (toReft r2)
        γ'      <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitC1", x, ofRSort τ)) as) 
-       return   $ [F.SubC (fenv γ') F.PTrue r1' r2' Nothing [] (Ci (loc γ))]
+       return   $ [F.subC (fenv γ') F.PTrue r1' r2' Nothing [] (Ci (loc γ))]
 
 rsplitC γ ((RPoly r1, RPoly r2), PV _ _ as)
   = do γ'  <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitC2", x, ofRSort τ)) as) 
@@ -389,7 +408,6 @@ ppr_CGInfo cgi
   $$ (text "*********** Literals in Source     ************")
   $$ (ppr $ lits cgi)
 
-
 type CG = State CGInfo
 
 initCGI info = CGInfo { 
@@ -413,18 +431,23 @@ initCGI info = CGInfo {
 coreBindLits tce cbs = sortNub [ (x, so) | (_, F.ELit x so) <- lconsts]
   where lconsts      = literalConst tce <$> literals cbs
 
+extendEnvWithVV γ t 
+  | F.isNontrivialVV vv
+  = (γ, "extVV") += (vv, t)
+  | otherwise
+  = return γ
+  where vv = rTypeValueVar t
+
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-γ ++= (_, x, r') 
-  = do let r  = normalize γ r'  
-       let γ' = γ { renv = insertREnv x r (renv γ) }  
-       is    <- if isBase r 
-                  then liftM ( :[]) $ addBind x (rTypeSortedReft (emb γ) r) 
-                  else addClassBind r
+γ ++= (_, x, t') 
+  = do idx   <- fresh
+       let t  = normalize γ {-x-} idx t'  
+       let γ' = γ { renv = insertREnv x t (renv γ) }  
+       is    <- if isBase t 
+                  then liftM single $ addBind x (rTypeSortedReft (emb γ) t) 
+                  else addClassBind t 
        return $ γ' { fenv = F.insertsIBindEnv is (fenv γ) }
-
-
-normalize γ = addRTyConInv (invs γ) . normalizePds
 
 (+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
 (γ, msg) += (x, r)
@@ -448,6 +471,27 @@ normalize γ = addRTyConInv (invs γ) . normalizePds
                                ++ " in renv " 
                                ++ showPpr (renv γ)
 
+normalize' γ x idx t = traceShow ("normalize " ++ showPpr x ++ " idx = " ++ show idx ++ " t = " ++ showPpr t) $ normalize γ idx t
+
+normalize γ idx 
+  = addRTyConInv (invs γ) 
+  . normalizeVV idx 
+  . normalizePds
+
+normalizeVV idx t@(RApp _ _ _ _)
+  | not (F.isNontrivialVV (rTypeValueVar t))
+  = shiftVV t (F.vv $ Just idx)
+
+normalizeVV _ t 
+  = t 
+
+shiftVV t@(RApp _ ts _ r) vv' 
+  = t { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
+      { rt_reft = (`F.shiftVV` vv') <$> r }
+
+shiftVV t _ 
+  = t -- errorstar $ "shiftVV: cannot handle " ++ showPpr t
+
 
 addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
 addBind x r 
@@ -466,13 +510,9 @@ addClassBind (RCls c ts)
 addClassBind _ 
   = return [] 
 
-
-
-
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ _ _) _ 
-  = -- trace ("addC " ++ show t1 ++ "\n < \n" ++ show t2 ++ msg) $  
-    modify $ \s -> s { hsCs  = c : (hsCs s) }
+  = modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addW   :: WfC -> CG ()  
 addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
@@ -569,9 +609,10 @@ instance Freshable [F.Refa] where
   fresh = liftM single fresh
 
 instance Freshable (F.Reft) where
-  fresh                   = errorstar "fresh Reft"
-  true    (F.Reft (v, _)) = return $ F.Reft (v, []) 
-  refresh (F.Reft (v, _)) = liftM (F.Reft . (v, )) fresh
+  fresh                  = errorstar "fresh Reft"
+  true    (F.Reft (v,_)) = return $ F.Reft (v, []) 
+  refresh (F.Reft (_,_)) = liftM2 (curry F.Reft) freshVV fresh
+    where freshVV        = liftM (F.vv . Just) fresh
 
 instance Freshable RReft where
   fresh             = errorstar "fresh RReft"
@@ -809,7 +850,7 @@ cconsCase γ x t _ (DataAlt c, ys, ce)
  where (x':ys')        = varSymbol <$> (x:ys)
        xt0             = checkTyCon ("checkTycon cconsCase", x) $ γ ?= x'
        tdc             = γ ?= (dataConSymbol c)
-       (rtd, yts, _  ) = unfoldR tdc xt0 ys'
+       (rtd, yts, _  ) = unfoldR tdc (shiftVV xt0 x') ys'
        r1              = dataConReft   c   ys' 
        r2              = dataConMsReft rtd ys'
        xt              = xt0 `strengthen` (uTop (r1 `meet` r2))
@@ -824,14 +865,6 @@ altReft γ _ (LitAlt l)   = literalReft (emb γ) l
 altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
   where notLiteralReft   = F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = error "Constraint : altReft"
-
--- mkyts γ ys yts 
---   = liftM (reverse . snd) $ foldM mkyt (γ, []) $ zip ys yts
--- mkyt (γ, ts) (y, yt)
---   = do t' <- freshTy (Var y) (toType yt)
---        addC (SubC γ yt t') "mkyts"
---        addW (WfC γ t') 
---        return (γ ++= ("mkyt", varSymbol y, t'), t':ts) 
 
 unfoldR td (RApp _ ts rs _) ys = (t3, yts, rt)
   where (vs, ps, t0)    = bkUniv td
@@ -1022,21 +1055,53 @@ extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
 
 -------------------------------------------------------------------
------------ Data TyCon Invariants ---------------------------------
+--------- | Strengthening Binders with TyCon Invariants -----------
 -------------------------------------------------------------------
 
-type RTyConInv = M.HashMap RTyCon F.Reft
+--type RTyConInv = M.HashMap RTyCon F.Reft
+--mkRTyConInv    :: [SpecType] -> RTyConInv 
+--mkRTyConInv ts = mconcat <$> group [ (c, r) | RApp c _ _ (U r _) <- strip <$> ts]
+--                 where strip = thd3 . bkUniv 
+--
+-- addRTyConInv :: RTyConInv -> SpecType -> SpecType
+-- addRTyConInv m t@(RApp c _ _ _) 
+--   = fromMaybe t ((strengthen t . uTop) <$> M.lookup c m)
+
+type RTyConInv = M.HashMap RTyCon [SpecType]
+
+mkRTyConInv    :: [SpecType] -> RTyConInv 
+mkRTyConInv ts = {- meetInvs <$> -} group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
+  where 
+    strip      = thd3 . bkUniv 
+    -- meetInvs   = foldr1 conjoinInvariant 
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
-addRTyConInv m t@(RApp c _ _ _) 
-  = fromMaybe t ((strengthen t . uTop) <$> M.lookup c m)
+addRTyConInv m t@(RApp c _ _ _)
+  = case M.lookup c m of
+      Nothing -> t
+      Just ts -> foldl' conjoinInvariant' t ts
+  -- = fromMaybe t (conjoinInvariant' t <$> M.lookup c m)
 addRTyConInv _ t 
   = t 
 
-mkRTyConInv    :: [SpecType] -> RTyConInv 
-mkRTyConInv ts = mconcat <$> group [ (c, r) | RApp c _ _ (U r _) <- strip <$> ts]
-                 where strip = thd3 . bkUniv 
+conjoinInvariant' t1 t2 = -- traceShow ("conjoinInvariant: t1 = " ++ showPpr t1 ++ " t2 = " ++ showPpr t2) $
+                          conjoinInvariantShift t1 t2
 
+conjoinInvariantShift t1 t2
+  = conjoinInvariant t1 (shiftVV t2 (rTypeValueVar t1)) 
+
+conjoinInvariant (RApp c ts rs r) (RApp ic its _ ir) 
+  | (c == ic && length ts == length its)
+  = RApp c (zipWith conjoinInvariantShift ts its) rs (r `meet` ir)
+
+conjoinInvariant t@(RApp _ _ _ r) (RVar _ ir) 
+  = t { rt_reft = r `meet` ir }
+
+conjoinInvariant t@(RVar _ r) (RVar _ ir) 
+  = t { rt_reft = r `meet` ir }
+
+conjoinInvariant t _  
+  = t
 
 ---------------------------------------------------------------
 ----- Refinement Type Environments ----------------------------
@@ -1055,9 +1120,9 @@ fromListREnv              = REnv . M.fromList
 deleteREnv x (REnv env)   = REnv (M.delete x env)
 insertREnv x y (REnv env) = REnv (M.insert x y env)
 lookupREnv x (REnv env)   = M.lookup x env
--- emptyREnv                 = REnv M.empty
 memberREnv x (REnv env)   = M.member x env
 -- domREnv (REnv env)        = M.keys env
+-- emptyREnv                 = REnv M.empty
 
 
 

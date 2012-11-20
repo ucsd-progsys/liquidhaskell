@@ -32,11 +32,10 @@ module Language.Haskell.Liquid.RefType (
   , generalize, normalizePds
   , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
-  , stripRTypeBase, rTypeSortedReft, rTypeSort -- , typeSortedReft
+  , stripRTypeBase, rTypeReft, rTypeSortedReft, rTypeSort, rTypeValueVar
   , ofRSort, toRSort
   , varSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalRefType, literalReft, literalConst
-  -- , primOrderingSort
   , fromRMono, fromRPoly, idRMono
   , isTrivial
   ) where
@@ -343,9 +342,14 @@ instance Subable (Ref F.Reft RefType) where
   substf f (RPoly r) = RPoly $ substf f r
 
 instance Subable r => Subable (RType p c tv r) where
-  syms   = foldReft (\r acc -> syms r ++ acc) [] 
-  subst  = fmap . subst
-  substf = fmap . substf
+  syms        = foldReft (\r acc -> syms r ++ acc) [] 
+  substf f    = emapReft (substf . substfExcept f) [] 
+  subst su    = emapReft (subst  . substExcept su) []
+  subst1 t su = emapReft (\xs r -> subst1Except xs r su) [] t
+
+  -- subst  = fmap . subst
+  -- substf = fmap . substf
+ 
 
 -- Reftable Instances -------------------------------------------------------
 
@@ -430,8 +434,6 @@ eqRSort m (RAllT a t) (RAllT a' t')
   = eqRSort m t t'
   | otherwise
   = eqRSort (M.insert a' a m) t t' 
--- eqRSort (RAllT (RTV α) t) (RAllT a' t')
-  -- = eqRSort t (subt (a', rVar α :: RSort) t') 
 eqRSort m (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
   = eqRSort m t1 t1' && eqRSort m t2 t2'
 eqRSort m (RApp c ts _ _) (RApp c' ts' _ _)
@@ -698,26 +700,6 @@ instance Outputable RTyVar where
 instance Show RTyVar where
   show = showPpr 
 
---instance Reftable (Ref Reft (RType Class RTyCon RTyVar (PVar Type) Reft)) where
---  isTauto (RMono r) = isTauto r
---  isTauto (RPoly t) = isTauto t
---  ppTy (RMono r) = ppTy r
---  ppTy (RPoly t) = ppTy t
-
--- DEBUG ONLY
---instance Outputable (Bind String (PVar String)) where
---  ppr (RB x) = ppr x
---  ppr (RV a) = text a
---  ppr (RP p) = ppr p
---  
--- instance (Outputable tv, Outputable pv) => Outputable (Bind tv pv) where
---   ppr (RB x) = ppr x
---   ppr (RV a) = ppr a
---   ppr (RP p) = ppr p
--- 
--- instance Outputable (Bind tv pv) => Show (Bind tv pv) where
---   show = showPpr 
-
 instance (Reftable s, Outputable p) => Outputable (Ref s p) where
   ppr (RMono s) = ppr s
   ppr (RPoly p) = ppr p
@@ -734,18 +716,9 @@ instance Outputable (UReft r) => Show (UReft r) where
 instance Outputable (PVar t) where
   ppr (PV s _ xts) = ppr s <+> hsep (ppr <$> dargs xts)
     where dargs = map thd3 . takeWhile (\(_, x, y) -> x /= y) 
- 
--- instance PVarable (PVar Sort) where
---   ppr_def = ppr_pvar_def ppr 
-
--- instance PVarable (PVar Type) where
---   ppr_def = ppr_pvar_def ppr_pvar_type 
 
 ppr_pvar_def pprv (PV s t xts) = ppr s <+> dcolon <+> intersperse arrow dargs 
   where dargs = [pprv t | (t,_,_) <- xts] ++ [pprv t, text boolConName]
-
--- ppr_pvar_type (TyVarTy α) = ppr_tyvar α
--- ppr_pvar_type t           = ppr t
 
 instance (RefTypable p c tv r) => Outputable (RType p c tv r) where
   ppr = ppRType TopPrec
@@ -828,10 +801,6 @@ ppr_foralls bs = text "forall" <+> dαs [ α | Left α <- bs] <+> dπs [ π | Ri
 --------------------------- Visitors --------------------------
 ---------------------------------------------------------------
 
--- instance Bifunctor UReft where
---   first f (U r p)  = U (f r) p
---   second f (U r p) = U r (fmap f p)
-
 instance Functor UReft where
   fmap f (U r p) = U (f r) p
 
@@ -841,26 +810,24 @@ instance Functor (RType a b c) where
 instance Fold.Foldable (RType a b c) where
   foldr = foldReft
 
---instance Traversable (RType a b c) where
---  traverse = travReft 
-
-
-
-
 mapReft ::  (r1 -> r2) -> RType p c tv r1 -> RType p c tv r2
-mapReft f (RVar α r)          = RVar  α (f r)
-mapReft f (RAllT α t)         = RAllT α (mapReft f t)
-mapReft f (RAllP π t)         = RAllP π (mapReft f t)
-mapReft f (RFun x t t' r)     = RFun  x (mapReft f t) (mapReft f t') (f r)
-mapReft f (RApp c ts rs r)    = RApp  c (mapReft f <$> ts) (mapRef f <$> rs) (f r)
-mapReft f (RCls c ts)         = RCls  c (mapReft f <$> ts) 
-mapReft f (REx z t t')        = REx   z (mapReft f t) (mapReft f t')
-mapReft _ (ROth s)            = ROth  s 
+mapReft f = emapReft (\_ -> f) []
 
-mapRef :: (t -> s) -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
-mapRef  f (RMono r)           = RMono $ f r
-mapRef  f (RPoly t)           = RPoly $ mapReft f t
 
+emapReft ::  ([F.Symbol] -> r1 -> r2) -> [F.Symbol] -> RType p c tv r1 -> RType p c tv r2
+
+emapReft f γ (RVar α r)          = RVar  α (f γ r)
+emapReft f γ (RAllT α t)         = RAllT α (emapReft f γ t)
+emapReft f γ (RAllP π t)         = RAllP π (emapReft f γ t)
+emapReft f γ (RFun x t t' r)     = RFun  x (emapReft f γ t) (emapReft f (x:γ) t') (f γ r)
+emapReft f γ (RApp c ts rs r)    = RApp  c (emapReft f γ <$> ts) (emapRef f γ <$> rs) (f γ r)
+emapReft f γ (RCls c ts)         = RCls  c (emapReft f γ <$> ts) 
+emapReft f γ (REx z t t')        = REx   z (emapReft f γ t) (emapReft f γ t')
+emapReft _ _ (ROth s)            = ROth  s 
+
+emapRef :: ([F.Symbol] -> t -> s) ->  [F.Symbol] -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
+emapRef  f γ (RMono r)           = RMono $ f γ r
+emapRef  f γ (RPoly t)           = RPoly $ emapReft f γ t
 
 ------------------------------------------------------------------------------------------------------
 
@@ -890,7 +857,7 @@ efoldReft f γ z (RAllP _ t)      = efoldReft f γ z t
 efoldReft f γ z (RFun x t t' r)  = f γ r (efoldReft f (x:γ) (efoldReft f γ z t) t')
 efoldReft f γ z (RApp _ ts rs r) = f γ r (efoldRefs f γ (efoldRefts f γ z ts) rs)
 efoldReft f γ z (RCls _ ts)      = efoldRefts f γ z ts
-efoldReft f γ z (REx _ t t')     = efoldRefts f γ z [t, t']
+efoldReft f γ z (REx x t t')     = efoldReft f (x:γ) (efoldReft f γ z t) t' 
 efoldReft _ _ z (ROth _)         = z 
 
 efoldRefts :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> [RType t t1 t2 t3] -> c
@@ -1113,38 +1080,24 @@ pprShort    =  dropModuleNames . showPpr
 dataConSymbol ::  DataCon -> Symbol
 dataConSymbol = varSymbol . dataConWorkId
 
--- ordCon s = EDat (dataConSymbol s) primOrderingSort 
--- primOrderingSort = typeSort M.empty $ dataConRepType eqDataCon
-
 -- TODO: turn this into a map lookup?
 dataConReft ::  DataCon -> [Symbol] -> Reft
 dataConReft c [] 
   | c == trueDataCon
-  = Reft (vv, [RConc $ (PBexp (EVar vv))]) 
+  = Reft (vv_, [RConc $ (PBexp (EVar vv_))]) 
   | c == falseDataCon
-  = Reft (vv, [RConc $ PNot (PBexp (EVar vv))]) 
---  | otherwise
---  = Reft (vv, [RConc $ (PAtom Eq (EVar vv) (EVar (dataConSymbol c)))]) 
---  | c `elem`  [gtDataCon, ltDataCon, eqDataCon]
---  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon c))]) 
+  = Reft (vv_, [RConc $ PNot (PBexp (EVar vv_))]) 
 dataConReft c [x] 
   | c == intDataCon 
-  = Reft (vv, [RConc (PAtom Eq (EVar vv) (EVar x))]) 
+  = Reft (vv_, [RConc (PAtom Eq (EVar vv_) (EVar x))]) 
 dataConReft _ _ 
- = Reft (vv, [RConc PTrue]) 
- 
--- dataConReft c xs
---  = Reft (vv, [RConc (PAtom Eq (EVar vv) (EApp (dataConSymbol c) (EVar <$> xs)))]) 
-  -- = Reft (vv, [RConc PTrue]) 
+ = Reft (vv_, [RConc PTrue]) 
 
-dataConMsReft ty ys  = subst su (refTypeReft t) 
-  where (xs, ts, t)  = bkArrow $ thd3 $ bkUniv ty    -- bkArrow ty 
+vv_ = vv Nothing
+
+dataConMsReft ty ys  = subst su (rTypeReft t) 
+  where (xs, ts, t)  = bkArrow $ thd3 $ bkUniv ty
         su           = mkSubst [(x, EVar y) | ((x,_), y) <- zip (zip xs ts) ys] 
-
---bkArrow ty = (αs, πs, xts, out)
---  where (αs, πs, t) = bkUniv ty
---        (xts,  out) = bkArrs t
-
 
 ---------------------------------------------------------------
 ---------------------- Embedding RefTypes ---------------------
@@ -1231,16 +1184,17 @@ literalConst tce l             = (sort, mkLit l)
 ---------------------------------------------------------------
 
 rTypeSortedReft       ::  (Reftable r) => TCEmb TyCon -> RRType r -> SortedReft
-rTypeSortedReft emb t = RR (rTypeSort emb t) (refTypeReft t)
+rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 
-refTypeReft :: (Reftable r) => RType p c tv r -> Reft
-refTypeReft = fromMaybe top . fmap toReft . stripRTypeBase 
--- refTypeReft t = fromMaybe top $ ur_reft <$> stripRTypeBase t
-
--- typeSortedReft emb t r = RR (typeSort emb t) (Reft (vv, [r]))
+rTypeReft :: (Reftable r) => RType p c tv r -> Reft
+rTypeReft = fromMaybe top . fmap toReft . stripRTypeBase 
 
 rTypeSort     ::  TCEmb TyCon -> RRType r -> Sort
 rTypeSort tce = typeSort tce . toType
+
+rTypeValueVar :: (Reftable r) => RType p c tv r -> Symbol
+rTypeValueVar t = vv where Reft (vv,_) =  rTypeReft t 
+
 
 ------------------------------------------------------------------------
 ---------------- Auxiliary Stuff Used Elsewhere ------------------------

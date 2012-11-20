@@ -223,10 +223,11 @@ sy region  hsPragma	       start="{-#" end="#-}"
 
 " Liquid Types
 sy region  hsLiquidAnnot   start="{-@\s*" end="@-}" contains=hsLiquidKeyword,hsLiquidReftA,hsLiquidReftB,hsLiquidReftC
+sy region  hsLiquidAnnot   start="{-@\s*\<predicate\>" end="@-}" contains=hsLiquidKeyword,hsLiquidReftA,hsLiquidReftB,hsLiquidReftC
 sy region  hsLiquidAnnot   start="{-@\s*\<assert\>" end="@-}" contains=hsLiquidKeyword,hsLiquidReftA,hsLiquidReftB,hsLiquidReftC
 sy region  hsLiquidAnnot   start="{-@\s*\<type\>" end="@-}" contains=hsLiquidKeyword,hsLiquidReftA,hsLiquidReftB,hsLiquidReftC
 sy region  hsLiquidAnnot   start="{-@\s*\<data\>" end="@-}" contains=hsLiquidKeyword,hsLiquidReftA,hsLiquidReftB,hsLiquidReftC
-sy keyword hsLiquidKeyword  assume assert type data contained
+sy keyword hsLiquidKeyword  assume assert predicate type data contained
 sy region  hsLiquidReftA   start="{\(\s\|\w\)" end=":" contained
 sy region  hsLiquidReftB   start="|" end="}" contained
 sy match   hsLiquidReftC   "\w*:" contained
