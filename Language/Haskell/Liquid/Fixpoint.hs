@@ -377,6 +377,7 @@ isParened xs          = xs /= stripParens xs
 vv                  :: Maybe Integer -> Symbol
 vv (Just i)         = S (vvName ++ show i)
 vv Nothing          = S vvName
+vvCon               = S (vvName ++ "F")
 -- vv Nothing          = S vvName
 
 isNontrivialVV      = not . (vv_ ==) 
@@ -769,11 +770,14 @@ substfExcept :: (Symbol -> Expr) -> [Symbol] -> (Symbol -> Expr)
 substfExcept f xs y = if y `elem` xs then EVar y else f y
 
 substExcept  :: Subst -> [Symbol] -> Subst
-substExcept  (Su m) xs = Su (foldr M.delete m xs) 
+-- substExcept  (Su m) xs = Su (foldr M.delete m xs) 
+substExcept  (Su xes) xs = Su $ filter (not . (`elem` xs) . fst) xes
+
+
 
 instance Subable Symbol where
   substf f x               = subSymbol (Just (f x)) x
-  subst (Su s) x           = subSymbol (M.lookup x s) x
+  subst su x               = subSymbol (Just $ appSubst su x) x -- subSymbol (M.lookup x s) x
   syms x                   = [x]
 
 subSymbol (Just (EVar y)) _ = y
@@ -794,7 +798,7 @@ instance Subable Expr where
   subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
   subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst  su e2)
   subst su (ECst e so)     = ECst (subst su e) so
-  subst (Su s) e@(EVar x)  = M.lookupDefault e x s
+  subst su (EVar x)        = appSubst su x
   subst _ e                = e
 
 
@@ -823,7 +827,7 @@ instance Subable Pred where
 
 instance Subable Refa where
   syms (RConc p)           = syms p
-  syms (RKvar k (Su su'))  = k : concatMap syms (M.elems su') 
+  syms (RKvar k (Su su'))  = k : concatMap syms ({- M.elems -} su') 
   subst su (RConc p)       = RConc   $ subst su p
   subst su (RKvar k su')   = RKvar k $ su' `catSubst` su 
   -- subst _  (RPvar p)     = RPvar p
@@ -880,15 +884,13 @@ instance Subable SortedReft where
 -- newtype Subst  = Su (M.HashMap Symbol Expr) deriving (Eq)
 newtype Subst = Su [(Symbol, Expr)] deriving (Eq)
 
-emptySubst 
-  = Su [] -- M.empty
-
-catSubst (Su s1) (Su s2) 
-  = Su $ s1 ++ s2
+mkSubst                  = Su -- . M.fromList
+appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
+emptySubst               = Su [] -- M.empty
+catSubst (Su s1) (Su s2) = Su $ s1' ++ s2
+  where s1' = mapSnd (subst (Su s2)) <$> s1
   -- = Su $ s1' `M.union` s2
   --   where s1' = subst (Su s2) `M.map` s1
-
-mkSubst = Su -- . M.fromList
 
 ------------------------------------------------------------
 ------------- Generally Useful Refinements -----------------
@@ -1056,8 +1058,11 @@ hashSort (FApp tc ts) = 12 `combine` (hash tc) `combine` hash (hashSort <$> ts)
 
 wfC  = WfC
 
-subC γ p r1@(RR _ (Reft (v,_))) (RR t2 r2) x y z 
-  = SubC γ p r1 (RR t2 (shiftVV r2 v)) x y z
+-- subC γ p r1@(RR _ (Reft (v,_))) (RR t2 r2) x y z 
+--    = SubC γ p r1 (RR t2 (shiftVV r2 v)) x y z
+subC γ p (RR t1 r1) (RR t2 r2) x y z 
+    = SubC γ p (RR t1 (shiftVV r1 vvCon)) (RR t2 (shiftVV r2 vvCon)) x y z
+
 
 shiftVV r@(Reft (v, ras)) v' 
    | v == v'   = r
