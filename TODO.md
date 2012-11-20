@@ -16,52 +16,8 @@ TODO
 Deep Invariants
 ===============
 
-
-tests/pos/cmptag0.hs
-
-Failed 17 tests: ../benchmarks/esop2013-submission/Base.hs, ../benchmarks/esop2013-submission/Base0.hs, ../benchmarks/esop2013-submission/GhcListSort.hs, ../benchmarks/esop2013-submission/ListSort.hs, pos/GhcListSort.hs, pos/GhcSort1.hs, pos/GhcSort2.hs, pos/GhcSort3.hs, pos/ListISort.hs, pos/ListMSort.hs, pos/ListQSort.hs, pos/ListRange.hs, pos/ListSort.hs, pos/cmptag0.hs, pos/maybe.hs, pos/maybe2.hs, pos/stacks.hs
-
-
 bind 5 lq_anf__dbc : {_LIQUID_dummy : [a_ab2] | [(len([_LIQUID_dummy]) >= 0);
 
-
-see tests/pos/selfList.hs <------------------ HEREHEREHEREHERE
-- Problem: conjoinInvariant builds [] but when you have
- 
-    invariant {v: [b] | (len v) >= 0 }
-    invariant {v0: [ {v: a | (? Set_mem v (listElts v0)) } ] | true }
-
-  the FIRST one PREVENTS the current conjoinInvariant from delving into the SECOND.
-        so the TOP level conjoinInvariant that builds the "main" one is causing problems.
-
-Trace: [conjoinInvariant: 
-
-             t1 = [{VV : aabI | (? Set_mem([VV; listElts([lq_anf__dbS])])),
-                                (? Set_mem([VV; listElts([lq_anf__dbS])])),
-                                (? Set_mem([VV; listElts([lq_anf__dbS])]))}] 
-             
-             
-HEREHEREHERE
-             t2 = {VV : [{VV : aa | (? Set_mem([VV; listElts([v0])]))}] | (len([VV]) >= 0),true}] : 
-             
-             
-             {VV29 : [{VV : aabI | (? Set_mem([VV; listElts([lq_anf__dbS])])),
-                      (? Set_mem([VV; listElts([lq_anf__dbS])])),
-                      (? Set_mem([VV; listElts([lq_anf__dbS])])),
-                      (? Set_mem([VV; listElts([v0])]))}] | (len([VV29]) >= 0),true}
-
-
-Trace: [normalize xs#abE idx = 29 t = [{VV : aabI | (? Set_mem([VV; listElts([lq_anf__dbS])])),
-              (? Set_mem([VV; listElts([lq_anf__dbS])])),
-              (? Set_mem([VV; listElts([lq_anf__dbS])]))}]] : 
-              
-              {VV29 : [{VV : aabI | (? Set_mem([VV; listElts([lq_anf__dbS])])),
-                                    (? Set_mem([VV; listElts([lq_anf__dbS])])),
-                                    (? Set_mem([VV; listElts([lq_anf__dbS])])),
-                                    (? Set_mem([VV; listElts([v0])]))}] | (len([VV29]) >= 0),true}
-
-   
-- Make Invariants work at all levels. Not just toplevel e.g.
 
     invariant {v: [a] | (len v) >= 0 }
     
