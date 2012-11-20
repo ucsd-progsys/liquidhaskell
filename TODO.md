@@ -21,6 +21,7 @@ Predicate Aliases
         > follow the hook Measure.hs/expandRTAliases
 
     1. Parse into above
+
     2. Apply in Bare/Measure
 
 
