@@ -10,7 +10,12 @@ import Data.Set (Set(..))
 
 -- | To start with, lets check that the `listElts` measure is sensible
 
-{-@ myid :: xs:[a] -> {v:[a]| listElts(v) = listElts(xs)} @-}
+{-@ myid0 :: xs:[a] -> {v:[a]| (len v) = (len xs)} @-}
+myid0 []     = []
+myid0 (x:xs) = x : myid0 xs
+
+
+{-@ myid :: xs:[a] -> {v:[a]| (listElts v) = (listElts xs)} @-}
 myid []     = []
 myid (x:xs) = x : myid xs
 

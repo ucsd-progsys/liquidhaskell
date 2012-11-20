@@ -7,6 +7,7 @@ import Language.Haskell.Liquid.Prelude
                      }
   @-}
 
+
 data LL a = BXYZ { size  :: Int
                  , elems :: [a]
                  }

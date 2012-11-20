@@ -217,6 +217,41 @@ Raw measures (tests/pos/meas8.hs)
     rlen (y:ys) = {v | v = (1 + rlen(ys))}
     @-}
 
+Self-Invariants
+===============
+
+Sometimes, we require specifications that allow *inner* components of a
+type to refer to the *outer* components, typically, to measure-based
+properties of outer components. For example, the following invariant
+about `Maybe` values
+
+    {-@ type IMaybe a = {v0 : Maybe {v : a | ((isJust v0) && v = (fromJust v0))} | 0 = 0 } @-}
+
+states that the *inner* `a` enjoys the property that the *outer* container
+is definitely a `Just` and furthermore, the inner value is exactly the same 
+as the `fromJust` property of the outer container.
+
+As another example, suppose we have a [measure](include/Data/Set/Set.spec):
+
+    measure listElts :: [a] -> (Set a) 
+    listElts([])   = {v | (? Set_emp(v))}
+    listElts(x:xs) = {v | v = Set_cup(Set_sng(x), listElts(xs)) }
+
+Now, all lists enjoy the property 
+
+    {-@ type IList a = {v0 : List  {v : a | (Set_mem v (listElts v0)) } | true } @-}
+
+which simply states that each *inner* element is indeed, a member of the
+set of the elements belonging to the entire list. 
+
+One often needs these *circular* or *self* invariants to connect different
+levels (or rather, to *reify* the connections between the two levels.) See 
+[this test](tests/pos/maybe4.hs) for a simple example and `hedgeUnion` and
+[Data.Map.Base](benchmarks/esop2013-submission/Base.hs) for a complex one.
+
+The easiest way to use such self-invariants or refinements, is to just 
+define a type alias (e.g. `IList` or `IMaybe` and use them in the specification
+and verification.)
 
 
 Specifying Qualifiers

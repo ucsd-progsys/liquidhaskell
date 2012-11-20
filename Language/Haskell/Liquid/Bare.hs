@@ -172,7 +172,7 @@ mkSpecType' :: String -> [PVar BSort] -> BareType -> BareM SpecType
 mkSpecType' msg πs 
   = ofBareType' msg πs
   . txParams subvUReft (uPVar <$> πs)
-  . mapReft (fmap canonReft) 
+  -- . mapReft (fmap canonReft) 
 
 makeSymbols vs xs' xts yts = 
   -- tracePpr ("makeSymbols: vs = " ++ showPpr vs ++ " xs' = " ++ showPpr xs' ++ " ts = " ++ showPpr xts) $ 
@@ -308,7 +308,7 @@ wiredTyDataCons = (\(x, y) -> (concat x, concat y)) $ unzip l
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p])]
                    , [(nilDataCon , DataConP [(RTV tyv)] [p] [] lt)
-                   , (consDataCon, DataConP [(RTV tyv)] [p]  cargs  lt)])
+                   ,  (consDataCon, DataConP [(RTV tyv)] [p] cargs  lt)])
     where c      = listTyCon
           [tyv]  = tyConTyVars c
           t      = {- TyVarTy -} rVar tyv :: RSort

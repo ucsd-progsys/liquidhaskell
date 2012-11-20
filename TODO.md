@@ -1,65 +1,55 @@
 TODO
 ====
 
-* predicate-aliases 
-* record invariants
+* predicate-aliases      
 * parse predicate signatures for tuples 
+* benchmarks: stackset-core
 * Blogging 
 * benchmarks: Data.List (foldr)
-* self-invariants        (tests/todo/maybe4.hs)
-
-* benchmarks: Data.List (foldr) -- needs sets
+* benchmarks: Data.List (foldr) 
 * benchmarks: Data.Bytestring
-* benchmarks: stackset-core
 * benchmarks: Data.Text
-
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
 Predicate Aliases
 =================
 
+    test/pos/pred.hs <----------------------- HEREHEREHEREHERE
+
+    0. Mimic RTAlias to create Predicate Alias
+        > follow the hook Measure.hs/expandRTAliases
+
+    1. Parse into above
+
+    2. Apply in Bare/Measure
+
+
 Then clean up the spec blowup in containers/Data/Map/Base.hs ?
 
-    {-@ maybeGe(lo, v)     = ((isJustS(lo)) => (v >= fromJustS(lo))) @-}
-    {-@ maybeLe(hi, v)     = ((isJustS(lo)) => (v <= fromJustS(hi))) @-}
-    {-@ inRange(lo, hi, v) = maybeGe(lo, v) && maybeLe(hi, v)        @-}
+    {-@ pred maybeGe lo v    = (isJustS lo) => (v >= (fromJustS lo)) @-}
+    {-@ pred maybeLe hi v    = (isJustS lo) => (v <= (fromJustS hi)) @-}
+    {-@ pred inRange lo hi v = (maybeGe lo v) && (maybeLe hi v)      @-}
 
 How about this instead?
-
-    {-@ refinement maybeGe lo v    = ((isJustS lo) => (v >= (fromJustS lo))) @-}
-    {-@ refinement maybeLe hi v    = ((isJustS lo) => (v <= (fromJustS hi))) @-}
-    {-@ refinement inRange lo hi v = (maybeGe lo v) && (maybeLe hi v)        @-}
+        
+    {-@ pred maybeGe lo v    = ((isJustS lo) => (v >= (fromJustS lo))) @-}
+    {-@ pred maybeLe hi v    = ((isJustS lo) => (v <= (fromJustS hi))) @-}
+    {-@ pred inRange lo hi v = (maybeGe lo v) && (maybeLe hi v)        @-}
 
 Instead of the grisly
-
     inRange(lo, hi, v) = {v:k | (((isJustS(lo)) => (v >= fromJustS(lo))) && (((isJustS(hi)) => (v <= fromJustS(hi)))))} v @-}
 
 Benchmarks
 ==========
 
-                    time(O|N|C)    TOTAL(O|N)   solve (O|N)      refines       iterfreq
-Map.hs          :    54/50/32/10    21/15/8.7      14/8/4.3    9100/4900/2700    16/28/7
-ListSort.hs     :   */7.5/5.5/2    */2.5/1.8     */1.5/1.0      */1100/600       */9/7
-GhcListSort.hs  :    23/22/17/5    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
-LambdaEval.hs   :    36/32/25/12    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
-Base.hs         :        26mi/2m
+                        time(O|N|C)    TOTAL(O|N)   solve (O|N)      refines       iterfreq
+    Map.hs          :    54/50/32/10    21/15/8.7      14/8/4.3    9100/4900/2700    16/28/7
+    ListSort.hs     :   */7.5/5.5/2    */2.5/1.8     */1.5/1.0      */1100/600       */9/7
+    GhcListSort.hs  :    23/22/17/5    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
+    LambdaEval.hs   :    36/32/25/12    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
+    Base.hs         :        26mi/2m
 
-
-Self-Invariants
-===============
-
-Hack binders to allow things like this:
-
-    invariant z:: { v : Maybe {isJust(v) && (v = fromJust(z))}  } 
-    invariant z:: { v : List {v:a | (v in listElts(z))}         } 
-
-
-
-Currently hacked by "copying variables", 
-
-see tests/pos/maybe3.hs [hack which works]
-    tests/pos/maybe4.hs [deal with devil which doesn't work]
 
 
 
@@ -107,12 +97,13 @@ Blogging
     2.  Lists I       (append, reverse, map-length, filter)
     3.  Lists II      (take, transpose)
     4.  Lists III     (induction with fold) 
-    5.  KMeans        (++ zipWith etc.)
-    6.  LambdaEval
+  > 5.  KMeans        (++ zipWith etc.)
+  > 6.  LambdaEval
     7.  Sorting I     (Insert)
     8.  Sorting II    (Merge, Quick, GHC-wierd-sort)
-    9.  Map  I        (BST property, add, delete)
-    10. Map II        (Data.Map with elements etc.)
+  > 9.  Map  I        (BST property, add, delete)
+  > 10. Map II        (Data.Map with elements etc.)
+    
     11. Binary Tree/ Finger Tree?
     12. BDD
     13. Union Find
@@ -296,7 +287,6 @@ Random Links
 ============
 
 - Useful for DIGRAPH VIZ: http://arborjs.org/halfviz/#
-
 
 
 GITTERY

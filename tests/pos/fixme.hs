@@ -1,8 +1,8 @@
-module Pair where 
+module Test where
 
-import Language.Haskell.Liquid.Prelude 
- 
-incr3 x = (x, (True, (0, x+1)))
-chk3 (x, (_, (_, y))) = liquidAssertB (x < y) 
-prop3  = chk3 $ incr3 n
-  where n = choose 0
+{-@ type OList a = [a]<{v: a | (v >= fld)}> @-}
+
+{-@ bar :: (Ord a) => z:a -> OList a -> [{v:a | z <= v}] @-}
+bar :: (Ord a) => a -> [a] -> [a]
+bar y z@(x:xs) = case compare y x of 
+                   LT -> x:xs
