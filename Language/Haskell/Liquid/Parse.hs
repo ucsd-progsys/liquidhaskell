@@ -171,6 +171,7 @@ symCharsP = (condIdP symChars (\_ -> True))
 predP :: Parser Pred
 predP =  try (parens pred2P)
      <|> try (parens $ condP pIte predP)
+     <|> try (reservedOp "not" >> liftM PNot predP)
      <|> try (reservedOp "&&" >> liftM PAnd predsP)
      <|> try (reservedOp "||" >> liftM POr  predsP)
      <|> (qmP >> liftM PBexp exprP)
@@ -528,9 +529,7 @@ tyBodyP ty
 binderP :: Parser Symbol
 binderP =  try $ liftM stringSymbol (idP badc)
        <|> liftM pwr (parens (idP bad))
-       where -- idP    = many1 (satisfy (not . bad))
-             -- idcP   = many1 (satisfy (not . badc))
-             idP p  = many1 (satisfy (not . p))
+       where idP p  = many1 (satisfy (not . p))
              badc c = (c == ':') ||  bad c
              bad c  = isSpace c || c `elem` "()"
              pwr s  = stringSymbol $ "(" ++ s ++ ")" 
@@ -607,11 +606,6 @@ crashP pp
 predSolP 
   = parens $ (predP  <* (comma >> iQualP)) 
     
---iQualP 
---  = upperIdP >> many bracketsWithStuffP
---
---bracketsWithStuffP
---  = (brackets $ many (satisfy $ not . (`elem` "[]"))) >> return ()
 
 iQualP
   = upperIdP >> (parens $ sepBy symbolP comma)
