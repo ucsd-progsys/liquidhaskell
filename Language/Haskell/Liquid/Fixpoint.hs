@@ -413,7 +413,6 @@ data Bop  = Plus | Minus | Times | Div | Mod
 
 data Expr = ECon !Constant 
           | EVar !Symbol
-          -- | EDat !Symbol !Sort
           | ELit !Symbol !Sort
           | EApp !Symbol ![Expr]
           | EBin !Bop !Expr !Expr

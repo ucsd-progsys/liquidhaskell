@@ -438,16 +438,18 @@ data Pspec ty bndr
   | Incl  FilePath
   | Invt  ty
   | Alias (RTAlias String BareType)
+  | PAlias (RTAlias Symbol Pred)
   | Embed (String, FTycon)
 
 mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
-  { Measure.measures   = [m | Meas  m <- xs]
-  , Measure.sigs       = [a | Assm  a <- xs]
-  , Measure.invariants = [t | Invt  t <- xs] 
-  , Measure.imports    = [i | Impt  i <- xs]
-  , Measure.dataDecls  = [d | DDecl d <- xs]
-  , Measure.includes   = [q | Incl  q <- xs]
-  , Measure.aliases    = [a | Alias a <- xs]
+  { Measure.measures   = [m | Meas   m <- xs]
+  , Measure.sigs       = [a | Assm   a <- xs]
+  , Measure.invariants = [t | Invt   t <- xs] 
+  , Measure.imports    = [i | Impt   i <- xs]
+  , Measure.dataDecls  = [d | DDecl  d <- xs]
+  , Measure.includes   = [q | Incl   q <- xs]
+  , Measure.aliases    = [a | Alias  a <- xs]
+  , Measure.paliases   = [p | PAlias p <- xs]
   , Measure.embeds     = M.fromList [e | Embed e <- xs]
   }
 
@@ -469,6 +471,7 @@ specP
     <|> (reserved "include"   >> liftM Incl  filePathP)
     <|> (reserved "invariant" >> liftM Invt  genBareTypeP)
     <|> (reserved "type"      >> liftM Alias aliasP)
+    <|> (reserved "predicate" >> liftM PAlias paliasP)
     <|> (reserved "embed"     >> liftM Embed embedP)
     <|> ({- DEFAULT -}           liftM Assm  tyBindP)
 
@@ -492,14 +495,24 @@ fTyConP
   <|> (stringFTycon   <$> upperIdP)
 
 
+aliasP  = rtAliasP tyVarIdP                    bareTypeP
+paliasP = rtAliasP (stringSymbol <$> tyVarIdP) predP
 
-aliasP 
+rtAliasP argsP bodyP
   = do name <- upperIdP
        spaces
-       args <- sepBy tyVarIdP spaces
+       args <- sepBy argsP spaces
        whiteSpace >> reservedOp "=" >> whiteSpace
-       body <- bareTypeP
+       body <- bodyP 
        return $ RTA name args body
+
+-- aliasP 
+--   = do name <- upperIdP
+--        spaces
+--        args <- sepBy tyVarIdP spaces
+--        whiteSpace >> reservedOp "=" >> whiteSpace
+--        body <- bareTypeP
+--        return $ RTA name args body
 
 measureP 
   = do (x, ty) <- tyBindP  
