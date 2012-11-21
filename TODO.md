@@ -19,8 +19,6 @@ Predicate Aliases
 
     * follow the hook Measure.hs/expandRTAliases
         > extend expandRTAliases to also deal with paliases
-        
-
 
 Then clean up the spec blowup in containers/Data/Map/Base.hs ?
 
