@@ -15,14 +15,9 @@ TODO
 Predicate Aliases
 =================
 
-    test/pos/pred.hs <----------------------- HEREHEREHEREHERE
+    test/pos/pred.hs 
 
-    * follow the hook Measure.hs/expandRTAliases
-        > extend expandRTAliases to also deal with paliases
-        
-
-
-Then clean up the spec blowup in containers/Data/Map/Base.hs ?
+    Cleanup spec blowup in Base.hs ? <----------------------- HEREHEREHEREHERE
 
     {-@ pred maybeGe lo v    = (isJustS lo) => (v >= (fromJustS lo)) @-}
     {-@ pred maybeLe hi v    = (isJustS lo) => (v <= (fromJustS hi)) @-}
