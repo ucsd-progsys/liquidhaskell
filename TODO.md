@@ -12,34 +12,6 @@ TODO
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
-Predicate Aliases
-=================
-
-    test/pos/pred.hs <----------------------- HEREHEREHEREHERE
-
-    0. Mimic RTAlias to create Predicate Alias
-        > follow the hook Measure.hs/expandRTAliases
-
-    1. Parse into above
-
-    2. Apply in Bare/Measure
-
-
-Then clean up the spec blowup in containers/Data/Map/Base.hs ?
-
-    {-@ pred maybeGe lo v    = (isJustS lo) => (v >= (fromJustS lo)) @-}
-    {-@ pred maybeLe hi v    = (isJustS lo) => (v <= (fromJustS hi)) @-}
-    {-@ pred inRange lo hi v = (maybeGe lo v) && (maybeLe hi v)      @-}
-
-How about this instead?
-        
-    {-@ pred maybeGe lo v    = ((isJustS lo) => (v >= (fromJustS lo))) @-}
-    {-@ pred maybeLe hi v    = ((isJustS lo) => (v <= (fromJustS hi))) @-}
-    {-@ pred inRange lo hi v = (maybeGe lo v) && (maybeLe hi v)        @-}
-
-Instead of the grisly
-    inRange(lo, hi, v) = {v:k | (((isJustS(lo)) => (v >= fromJustS(lo))) && (((isJustS(hi)) => (v <= fromJustS(hi)))))} v @-}
-
 Benchmarks
 ==========
 
@@ -49,8 +21,6 @@ Benchmarks
     GhcListSort.hs  :    23/22/17/5    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
     LambdaEval.hs   :    36/32/25/12    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
     Base.hs         :        26mi/2m
-
-
 
 
 Tuple Refinements (DONE: by Niki)

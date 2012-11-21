@@ -154,7 +154,14 @@ above the function definition. For example (tests/pos/spec0.hs)
 Refinement Type Aliases
 -----------------------
 
-TODO:
+Predicate Aliases
+-----------------
+
+See tests/pos/pred.hs benchmarks/esop2013-submission/Base.hs
+[copy from home laptop. curses, git.]
+
+Type Aliases
+------------
 
 It is often tedious to keep writing 
 
@@ -183,6 +190,9 @@ and:
     {-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
 
     (tests/pos/Map.hs)
+
+
+
 
 Specifying Measures
 -------------------

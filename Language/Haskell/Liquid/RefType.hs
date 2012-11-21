@@ -1215,7 +1215,7 @@ data RTAlias tv ty
   = RTA { rtName :: String
         , rtArgs :: [tv]
         , rtBody :: ty              
-        } -- deriving (Data, Typeable)
+        } 
 
 instance (Show tv, Show ty) => Show (RTAlias tv ty) where
   show (RTA n args t) = "reftype " ++ n ++ " " ++ as ++ " = " ++ show t 

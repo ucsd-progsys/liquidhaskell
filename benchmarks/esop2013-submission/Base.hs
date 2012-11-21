@@ -352,6 +352,16 @@ type Size     = Int
     key (Bin sz kx x l r) = kx 
   @-}
 
+{-@ invariant {v0: MaybeS {v: a | ((isJustS v0) && (v = (fromJustS v0)))} | true} @-}
+
+{-@ predicate IfDefLe x y         = ((isJustS x) => ((fromJustS x) < y)) @-}
+{-@ predicate IfDefLt x y         = ((isJustS x) => ((fromJustS x) < y)) @-}
+{-@ predicate IfDefGt x y         = ((isJustS x) => (y < (fromJustS x))) @-}
+{-@ predicate RootLt lo v         = ((isBin v) => (IfDefLt lo (key v)))  @-}
+{-@ predicate RootGt hi v         = ((isBin v) => (IfDefGt hi (key v)))  @-}
+{-@ predicate RootBetween lo hi v = ((RootLt lo v) && (RootGt hi v))     @-}
+{-@ predicate KeyBetween lo hi v  = ((IfDefLt lo v) && (IfDefGt hi v))   @-}
+
 
 -- LIQUID instance (Ord k) => Monoid (Map k v) where
 --     mempty  = empty
@@ -1285,13 +1295,11 @@ union t1 t2 = hedgeUnion NothingS NothingS t1 t2
 #endif
 
 -- left-biased hedge union
-{-@ hedgeUnion :: (Ord k) => lo: {v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
-                          -> hi: {v0: MaybeS {v: k | ( isJustS(v0) && (v = fromJustS(v0))) } 
-                                                   | (((isJustS(lo) && isJustS(v0)) => (fromJustS(v0) >= fromJustS(lo)))) }   
-                          -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a 
-                          -> {v: OMap k a | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
-                          ->  OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a @-}
-
+{-@ hedgeUnion :: (Ord k) => lo: MaybeS k 
+                          -> hi: MaybeS {v: k | (IfDefLt lo v) }               
+                          -> OMap {v: k | (KeyBetween lo hi v) } a 
+                          -> {v: OMap k a | (RootBetween lo hi v) }                       
+                          ->  OMap {v: k | (KeyBetween lo hi v)} a @-}
 hedgeUnion :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a b -> Map a b
 hedgeUnion _   _   t1  Tip = t1
 hedgeUnion blo bhi Tip (Bin _ kx x l r) = join kx x (filterGt blo l) (filterLt bhi r)
@@ -1351,12 +1359,11 @@ difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
 {-# INLINABLE difference #-}
 #endif
 
-{-@ hedgeDiff  :: (Ord k) => lo:{v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
-                          -> hi:{v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } 
-                                                  | (((isJustS(lo) && isJustS(v0)) => (fromJustS(v0) >= fromJustS(lo)))) }   
-                          -> {v: OMap k a | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
-                          -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } b 
-                          -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a @-}
+{-@ hedgeDiff  :: (Ord k) => lo: MaybeS k  
+                          -> hi: MaybeS {v: k | (IfDefLt lo v) }               
+                          -> {v: OMap k a | (RootBetween lo hi v) }                       
+                          -> OMap {v: k | (KeyBetween lo hi v) } b 
+                          -> OMap {v: k | (KeyBetween lo hi v) } a @-}
 
 hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
 hedgeDiff _  _   Tip _                  = Tip
@@ -1423,12 +1430,12 @@ intersection t1 t2 = hedgeInt NothingS NothingS t1 t2
 {-# INLINABLE intersection #-}
 #endif
 
-{-@ hedgeInt   :: (Ord k) => lo:{v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
-                          -> hi:{v0: MaybeS {v: k | ( isJustS(v0) && (v = fromJustS(v0))) } 
-                                                  | (((isJustS(lo) && isJustS(v0)) => (fromJustS(v0) >= fromJustS(lo)))) }   
-                          -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a 
-                          -> {v: OMap k b | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
-                          ->  OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a @-}
+{-@ hedgeInt   :: (Ord k) => lo: MaybeS k 
+                          -> hi: MaybeS {v: k | (IfDefLt lo v) }               
+                          -> OMap {v: k | (KeyBetween lo hi v) } a 
+                          -> {v: OMap k b | (RootBetween lo hi v) }                       
+                          ->  OMap {v: k | (KeyBetween lo hi v)} a @-}
+
 hedgeInt :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Map k b -> Map k a
 hedgeInt _ _ _   Tip = Tip
 hedgeInt _ _ Tip _   = Tip
@@ -1508,40 +1515,9 @@ intersectionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (\ _ _
 -- @only2@ are 'id' and @'const' 'empty'@, but for example @'map' f@ or
 -- @'filterWithKey' f@ could be used for any @f@.
 
--- LIQUID mergeWithKey :: Ord k => (k -> a -> b -> Maybe c) -> (Map k a -> Map k c) -> (Map k b -> Map k c)
--- LIQUID              -> Map k a -> Map k b -> Map k c
--- LIQUID mergeWithKey f g1 g2 = go
--- LIQUID   where
--- LIQUID     go Tip t2 = g2 t2
--- LIQUID     go t1 Tip = g1 t1
--- LIQUID     go t1 t2 = hedgeMerge f g1 g2 NothingS NothingS NothingS NothingS t1 t2
--- LIQUID 
--- LIQUID hedgeMerge f g1 g2 _ _ _  _   t1  Tip 
--- LIQUID   = g1 t1
--- LIQUID hedgeMerge f g1 g2 blo0 blo bhi0 bhi Tip (Bin _ kx x l r) 
--- LIQUID   = g2 $ join kx x (filterGt blo l) (filterLt bhi r)
--- LIQUID hedgeMerge f g1 g2 blo0 blo bhi0 bhi (Bin _ kx x l r) t2  
--- LIQUID   = let bmi = JustS kx 
--- LIQUID         l' = hedgeMerge f g1 g2 blo0 blo bmi bmi l (trim blo bmi t2)
--- LIQUID         (found, trim_t2) = trimLookupLo kx bhi t2
--- LIQUID         r' = hedgeMerge f g1 g2 bmi bmi bhi0 bhi r trim_t2
--- LIQUID     in case found of
--- LIQUID          Nothing -> case g1 (singleton kx x) of
--- LIQUID                       Tip -> merge kx l' r'
--- LIQUID                       (Bin _ _ x' Tip Tip) -> join kx x' l' r'
--- LIQUID                       _ -> error "mergeWithKey: Given function only1 does not fulfil required conditions (see documentation)"
--- LIQUID          Just x2 -> case f kx x x2 of
--- LIQUID                       Nothing -> merge kx l' r'
--- LIQUID                       Just x' -> join kx x' l' r'
--- LIQUID      -- where bmi = JustS kx
-
 {-@ mergeWithKey :: (Ord k) => (k -> a -> b -> Maybe c) 
-                          -> (lo:MaybeS k -> hi: MaybeS k 
-                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a
-                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c) 
-                          -> (lo:MaybeS k -> hi: MaybeS k 
-                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } b
-                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c) 
+                          -> (lo:MaybeS k -> hi: MaybeS k -> OMap {v: k | (KeyBetween lo hi v) } a -> OMap {v: k | (KeyBetween lo hi v) } c) 
+                          -> (lo:MaybeS k -> hi: MaybeS k -> OMap {v: k | (KeyBetween lo hi v) } b -> OMap {v: k | (KeyBetween lo hi v) } c)
                           -> OMap k a -> OMap k b -> OMap k c @-}
 mergeWithKey :: Ord k => (k -> a -> b -> Maybe c) -> (MaybeS k -> MaybeS k -> Map k a -> Map k c) -> (MaybeS k -> MaybeS k -> Map k b -> Map k c)
              -> Map k a -> Map k b -> Map k c
@@ -1552,18 +1528,13 @@ mergeWithKey f g1 g2 = go
     go t1 t2  = hedgeMerge f g1 g2 NothingS NothingS t1 t2
 
 {-@ hedgeMerge :: (Ord k) => (k -> a -> b -> Maybe c) 
-                          -> (lo:MaybeS k -> hi: MaybeS k 
-                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a
-                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c) 
-                          -> (lo:MaybeS k -> hi: MaybeS k 
-                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } b
-                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c) 
-                          -> lo:{v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
-                          -> hi:{v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } 
-                                                  | (((isJustS(lo) && isJustS(v0)) => (fromJustS(v0) >= fromJustS(lo)))) }   
-                          -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a 
-                          -> {v: OMap k b | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
-                          ->  OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c @-}
+                          -> (lo:MaybeS k -> hi: MaybeS k -> OMap {v: k | (KeyBetween lo hi v) } a -> OMap {v: k | (KeyBetween lo hi v) } c)
+                          -> (lo:MaybeS k -> hi: MaybeS k -> OMap {v: k | (KeyBetween lo hi v) } b -> OMap {v: k | (KeyBetween lo hi v) } c)
+                          -> lo: MaybeS k 
+                          -> hi: MaybeS {v: k | (IfDefLt lo v) }               
+                          -> OMap {v: k | (KeyBetween lo hi v) } a 
+                          -> {v: OMap k b | (RootBetween lo hi v) }                       
+                          ->  OMap {v: k | (KeyBetween lo hi v)} c @-}
 
 hedgeMerge :: Ord k => (k -> a -> b -> Maybe c) 
                     -> (MaybeS k -> MaybeS k -> Map k a -> Map k c) 
@@ -2329,8 +2300,11 @@ data MaybeS a = NothingS | JustS a -- LIQUID: !-annot-fix
 {-@ trim :: (Ord k) => lo:MaybeS k 
                     -> hi:MaybeS k 
                     -> OMap k a 
-                    -> {v: OMap k a | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && 
-                                       ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } @-}
+                    -> {v: OMap k a | (RootBetween lo hi v) }                       
+                    @-}
+                    
+--  -> {v: OMap k a | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && 
+--                    ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } @-}
 
 trim :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Map k a
 trim NothingS   NothingS   t = t
