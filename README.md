@@ -158,7 +158,7 @@ Predicate Aliases
 -----------------
 
 See tests/pos/pred.hs benchmarks/esop2013-submission/Base.hs
-
+[copy from home laptop. curses, git.]
 
 Type Aliases
 ------------
