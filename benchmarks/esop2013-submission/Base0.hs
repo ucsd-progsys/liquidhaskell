@@ -79,6 +79,8 @@ union t1 t2 = hedgeUnion NothingS NothingS t1 t2
 {-@ predicate MaybeLe2 x y        = ((fromJustS x) <= (fromJustS y))     @-}
 {-@ predicate MaybeDef2 x y       = ((isJustS x) && (isJustS y))         @-}
 {-@ predicate IfDefLe2 x y        = ((MaybeDef2 x y) => (MaybeLe2 x y))  @-}
+
+{-@ predicate IfDefLe x y         = ((isJustS x) => ((fromJustS x) < y)) @-}
 {-@ predicate IfDefLt x y         = ((isJustS x) => ((fromJustS x) < y)) @-}
 {-@ predicate IfDefGt x y         = ((isJustS x) => (y < (fromJustS x))) @-}
 {-@ predicate RootLt lo v         = ((isBin v) => (IfDefLt lo (key v)))  @-}
@@ -88,13 +90,12 @@ union t1 t2 = hedgeUnion NothingS NothingS t1 t2
 
 
 {-@ hedgeUnion :: (Ord k) => lo: MaybeS k   
-                          -> hi: {v0: MaybeS k | (IfDefLe2 lo v0) }   
+                          -> hi: MaybeS {v: k | IfDefLe lo v }               
                           -> OMap {v: k | (KeyBetween lo hi v) } a 
                           -> {v: OMap k a | (RootBetween lo hi v) }                       
                           ->  OMap {v: k | (KeyBetween lo hi v)} a @-}
 
-
-
+                          -- -> hi: {v0: MaybeS k | (IfDefLe2 lo v0) }   
 
 {- OLD hedgeUnion :: (Ord k) => lo: {v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
                           -> hi: {v0: MaybeS {v: k | ( isJustS(v0) && (v = fromJustS(v0))) } 
