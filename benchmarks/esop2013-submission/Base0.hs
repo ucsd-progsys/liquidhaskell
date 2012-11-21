@@ -43,6 +43,7 @@ type Size     = Int
     key (Bin sz kx x l r) = kx 
   @-}
 
+{-@ invariant {v0: MaybeS {v: a | ((isJustS v0) && (v = (fromJustS v0)))} | true} @-}
 
 
 {-@ trim :: (Ord k) => lo:MaybeS k 
@@ -74,22 +75,28 @@ union Tip t2  = t2
 union t1 Tip  = t1
 union t1 t2 = hedgeUnion NothingS NothingS t1 t2
 
-{- hedgeUnion :: (Ord k) => lo0:MaybeS k -> lo: {v: MaybeS {v: k | (isJustS(lo0) && (v = fromJustS(lo0))) } | v = lo0 }  
-                          -> hi0:MaybeS k -> hi:{v: MaybeS {v: k | ( isJustS(hi0) && (v = fromJustS(hi0))) } 
-                                                  | (((isJustS(lo) && isJustS(v)) => (fromJustS(v) >= fromJustS(lo))) && (v = hi0)) }   
-                          -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a 
-                          -> {v: OMap k a | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
-                          ->  OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a @-}
--- hedgeUnion :: Ord k => MaybeS k -> MaybeS k -> MaybeS k -> MaybeS k -> Map k b -> Map k b -> Map k b
--- hedgeUnion _ _ _ _  t1  Tip = t1
--- hedgeUnion blo0 blo bhi0 bhi Tip (Bin _ kx x l r) = join kx x (filterGt blo l) (filterLt bhi r)
--- hedgeUnion _ _ _ _   t1  (Bin _ kx x Tip Tip) = insertR kx x t1  -- According to benchmarks, this special case increases
---                                                                  -- performance up to 30%. It does not help in difference or intersection.
--- hedgeUnion blo0 blo bhi0 bhi (Bin _ kx x l r) t2 = join kx x (hedgeUnion blo blo bmi bmi l (trim blo bmi t2))
---                                                              (hedgeUnion bmi bmi bhi0 bhi r (trim bmi bhi t2))
---   where bmi = JustS kx
 
-{-@ hedgeUnion :: (Ord k) => lo: {v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
+{-@ predicate MaybeLe2 x y        = ((fromJustS x) <= (fromJustS y))     @-}
+{-@ predicate MaybeDef2 x y       = ((isJustS x) && (isJustS y))         @-}
+{-@ predicate IfDefLe2 x y        = ((MaybeDef2 x y) => (MaybeLe2 x y))  @-}
+{-@ predicate IfDefLt x y         = ((isJustS x) => ((fromJustS x) < y)) @-}
+{-@ predicate IfDefGt x y         = ((isJustS x) => (y < (fromJustS x))) @-}
+{-@ predicate RootLt lo v         = ((isBin v) => (IfDefLt lo (key v)))  @-}
+{-@ predicate RootGt hi v         = ((isBin v) => (IfDefGt hi (key v)))  @-}
+{-@ predicate RootBetween lo hi v = ((RootLt lo v) && (RootGt hi v))     @-}
+{-@ predicate KeyBetween lo hi v  = ((IfDefLt lo v) && (IfDefGt hi v))   @-}
+
+
+{-@ hedgeUnion :: (Ord k) => lo: MaybeS k   
+                          -> hi: {v0: MaybeS k | (IfDefLe2 lo v0) }   
+                          -> OMap {v: k | (KeyBetween lo hi v) } a 
+                          -> {v: OMap k a | (RootBetween lo hi v) }                       
+                          ->  OMap {v: k | (KeyBetween lo hi v)} a @-}
+
+
+
+
+{- OLD hedgeUnion :: (Ord k) => lo: {v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
                           -> hi: {v0: MaybeS {v: k | ( isJustS(v0) && (v = fromJustS(v0))) } 
                                                    | (((isJustS(lo) && isJustS(v0)) => (fromJustS(v0) >= fromJustS(lo)))) }   
                           -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a 

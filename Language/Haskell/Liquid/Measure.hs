@@ -280,16 +280,19 @@ expandPAlias tx s env = go s
       | (symbolString f) `M.member` env  
                                   = expandRPApp (tx (f:s) env) env f es
       | otherwise                 = p
-    go s PTrue                = PTrue
-    go s PFalse               = PFalse
-    go s (PAnd ps)            = PAnd (go s <$> ps)
-    go s (POr  ps)            = POr  (go s <$> ps)
-    go s (PNot p)             = PNot (go s p)
-    go s (PImp p q)           = PImp (go s p) (go s q)
-    go s (PIff p q)           = PIff (go s p) (go s q)
-    go s (PAll xts p)         = PAll xts (go s p)
-    go _ p@(PAtom _ _ _)      = p
-    go _ p@(PTop)             = p
+    go s (PAnd ps)                = PAnd (go s <$> ps)
+    go s (POr  ps)                = POr  (go s <$> ps)
+    go s (PNot p)                 = PNot (go s p)
+    go s (PImp p q)               = PImp (go s p) (go s q)
+    go s (PIff p q)               = PIff (go s p) (go s q)
+    go s (PAll xts p)             = PAll xts (go s p)
+    go _ p                        = p
+
+    -- go _ p@(PBexp _)              = p
+    -- go s p@PTrue                  = p 
+    -- go s p@PFalse                 = p
+    -- go _ p@(PTop)                 = p
+    -- go _ p@(PAtom _ _ _)          = p
 
 
 expandRPApp tx env f es = tx (subst su $ rtBody def) 
