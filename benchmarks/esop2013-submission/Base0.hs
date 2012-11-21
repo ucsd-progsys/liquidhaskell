@@ -76,10 +76,6 @@ union t1 Tip  = t1
 union t1 t2 = hedgeUnion NothingS NothingS t1 t2
 
 
-{-@ predicate MaybeLe2 x y        = ((fromJustS x) <= (fromJustS y))     @-}
-{-@ predicate MaybeDef2 x y       = ((isJustS x) && (isJustS y))         @-}
-{-@ predicate IfDefLe2 x y        = ((MaybeDef2 x y) => (MaybeLe2 x y))  @-}
-
 {-@ predicate IfDefLe x y         = ((isJustS x) => ((fromJustS x) < y)) @-}
 {-@ predicate IfDefLt x y         = ((isJustS x) => ((fromJustS x) < y)) @-}
 {-@ predicate IfDefGt x y         = ((isJustS x) => (y < (fromJustS x))) @-}
@@ -89,13 +85,12 @@ union t1 t2 = hedgeUnion NothingS NothingS t1 t2
 {-@ predicate KeyBetween lo hi v  = ((IfDefLt lo v) && (IfDefGt hi v))   @-}
 
 
-{-@ hedgeUnion :: (Ord k) => lo: MaybeS k   
-                          -> hi: MaybeS {v: k | IfDefLe lo v }               
+{-@ hedgeUnion :: (Ord k) => lo: MaybeS k 
+                          -> hi: MaybeS {v: k | (IfDefLe lo v) }               
                           -> OMap {v: k | (KeyBetween lo hi v) } a 
                           -> {v: OMap k a | (RootBetween lo hi v) }                       
                           ->  OMap {v: k | (KeyBetween lo hi v)} a @-}
 
-                          -- -> hi: {v0: MaybeS k | (IfDefLe2 lo v0) }   
 
 {- OLD hedgeUnion :: (Ord k) => lo: {v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
                           -> hi: {v0: MaybeS {v: k | ( isJustS(v0) && (v = fromJustS(v0))) } 
@@ -114,11 +109,11 @@ hedgeUnion blo bhi (Bin _ kx x l r) t2 = join kx x (hedgeUnion blo bmi l (trim b
                                                    (hedgeUnion bmi bhi r (trim bmi bhi t2))
   where bmi = JustS kx
 
-{-@ filterGt :: (Ord k) => x:MaybeS k -> OMap k v -> OMap {v:k | ((isJustS(x)) => (v > fromJustS(x))) } v @-}
+{-@ filterGt :: (Ord k) => x:MaybeS k -> OMap k v -> OMap {v:k | (IfDefLt x v)} v @-}
 filterGt :: (Ord k) => MaybeS k -> Map k v -> Map k v
 filterGt = error ""
 
-{-@ filterLt :: (Ord k) => x:MaybeS k -> OMap k v -> OMap {v:k | ((isJustS(x)) => (v < fromJustS(x))) } v @-}
+{-@ filterLt :: (Ord k) => x:MaybeS k -> OMap k v -> OMap {v:k | (IfDefGt x v)} v @-}
 filterLt :: (Ord k) => MaybeS k -> Map k v -> Map k v
 filterLt = error ""
 
@@ -131,4 +126,71 @@ join :: Ord k => k -> a -> Map k a -> Map k a -> Map k a
 join = error ""
 
 
+
+
+
+
+
+hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
+hedgeDiff _  _   Tip _                  = Tip
+hedgeDiff blo bhi (Bin _ kx x l r) Tip  = join kx x (filterGt blo l) (filterLt bhi r)
+hedgeDiff blo bhi t (Bin _ kx _ l r)    = merge kx (hedgeDiff blo bmi (trim blo bmi t) l)
+                                                   (hedgeDiff bmi bhi (trim bmi bhi t) r)
+  where bmi = JustS kx
+
+
+{-@ hedgeInt   :: (Ord k) => lo:{v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
+                          -> hi:{v0: MaybeS {v: k | ( isJustS(v0) && (v = fromJustS(v0))) } 
+                                                  | (((isJustS(lo) && isJustS(v0)) => (fromJustS(v0) >= fromJustS(lo)))) }   
+                          -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a 
+                          -> {v: OMap k b | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
+                          ->  OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a @-}
+hedgeInt :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Map k b -> Map k a
+hedgeInt _ _ _   Tip = Tip
+hedgeInt _ _ Tip _   = Tip
+hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi t2)
+                                           r' = hedgeInt bmi bhi r (trim bmi bhi t2)
+                                       in if kx `member` t2 then join kx x l' r' else merge kx l' r'
+  where bmi = JustS kx
+
+
+
+
+
+{-@ hedgeMerge :: (Ord k) => (k -> a -> b -> Maybe c) 
+                          -> (lo:MaybeS k -> hi: MaybeS k 
+                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a
+                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c) 
+                          -> (lo:MaybeS k -> hi: MaybeS k 
+                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } b
+                              -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c) 
+                          -> lo:{v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
+                          -> hi:{v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } 
+                                                  | (((isJustS(lo) && isJustS(v0)) => (fromJustS(v0) >= fromJustS(lo)))) }   
+                          -> OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } a 
+                          -> {v: OMap k b | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
+                          ->  OMap {v: k | (((isJustS(lo)) => (v > fromJustS(lo))) && (((isJustS(hi)) => (v < fromJustS(hi))))) } c @-}
+
+hedgeMerge :: Ord k => (k -> a -> b -> Maybe c) 
+                    -> (MaybeS k -> MaybeS k -> Map k a -> Map k c) 
+                    -> (MaybeS k -> MaybeS k -> Map k b -> Map k c)
+                    -> MaybeS k -> MaybeS k 
+                    -> Map k a -> Map k b -> Map k c
+hedgeMerge f g1 g2 blo bhi   t1  Tip 
+  = g1 blo bhi t1
+hedgeMerge f g1 g2 blo bhi Tip (Bin _ kx x l r) 
+  = g2 blo bhi $ join kx x (filterGt blo l) (filterLt bhi r)
+hedgeMerge f g1 g2 blo bhi (Bin _ kx x l r) t2  
+  = let bmi = JustS kx 
+        l' = hedgeMerge f g1 g2 blo bmi l (trim blo bmi t2)
+        (found, trim_t2) = trimLookupLo kx bhi t2
+        r' = hedgeMerge f g1 g2 bmi bhi r trim_t2
+    in case found of
+         Nothing -> case g1 blo bhi (singleton kx x) of
+                      Tip -> merge kx l' r'
+                      (Bin _ _ x' Tip Tip) -> join kx x' l' r'
+                      _ -> error "mergeWithKey: Given function only1 does not fulfil required conditions (see documentation)"
+         Just x2 -> case f kx x x2 of
+                      Nothing -> merge kx l' r'
+                      Just x' -> join kx x' l' r'
 
