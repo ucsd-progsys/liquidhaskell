@@ -173,7 +173,7 @@ replacePredsWithRefs su (U (Reft (s, rs)) (Pr ps))
                "PredType.replacePredsWithRefs: " ++ showPpr p ++ " not in su"
 
 pVartoRConc p args 
-  = RConc $ pApp (pname p) $ EVar vv:(thd3 <$> args)
+  = RConc $ pApp (pname p) $ EVar (vv Nothing):(thd3 <$> args)
 
 toPredType (PV _ ptype args) = rpredType (ty:tys)
   where ty = uRTypeGen ptype

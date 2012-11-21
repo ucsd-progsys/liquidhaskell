@@ -439,7 +439,7 @@ extendEnvWithVV γ t
   where vv = rTypeValueVar t
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
-(+?+=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
+(+?+=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG ([F.BindId], CGEnv)
 γ +?+= (_, x, t') 
   = do idx   <- fresh
        let t  = normalize γ {-x-} idx t'  
@@ -448,6 +448,8 @@ extendEnvWithVV γ t
                   then liftM single $ addBind x (rTypeSortedReft (emb γ) t) 
                   else addClassBind t 
        return $ (is, γ' { fenv = F.insertsIBindEnv is (fenv γ) })
+
+(++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 γ ++= (msg, x, r') 
   = liftM snd (γ +?+= (msg, x, r'))
 --   = do let r  = normalize γ r'  
@@ -457,10 +459,11 @@ extendEnvWithVV γ t
 --                   else addClassBind r
 --        return $ γ' { fenv = F.insertsIBindEnv is (fenv γ) }
 
+(+-=) :: CGEnv -> (F.BindId, (F.Symbol, SpecType)) -> CG ()
 γ +-= (b, (x, r')) 
-  = do let r  = normalize γ r'  
+  = do -- let r  = normalize γ r'  
        st          <- get
-       let bs' = F.updateBindEnv b x (rTypeSortedReft (emb γ) r) (binds st)
+       let bs' = F.updateBindEnv b x (rTypeSortedReft (emb γ) r') (binds st)
        put          $ st { binds = bs' }
 
 (+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
