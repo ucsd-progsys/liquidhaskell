@@ -12,27 +12,6 @@ TODO
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
-Predicate Aliases
-=================
-
-    test/pos/pred.hs 
-
-
-    Cleanup spec blowup in Base.hs ? <----------------------- HEREHEREHEREHERE
-
-    {-@ pred maybeGe lo v    = (isJustS lo) => (v >= (fromJustS lo)) @-}
-    {-@ pred maybeLe hi v    = (isJustS lo) => (v <= (fromJustS hi)) @-}
-    {-@ pred inRange lo hi v = (maybeGe lo v) && (maybeLe hi v)      @-}
-
-How about this instead?
-        
-    {-@ pred maybeGe lo v    = ((isJustS lo) => (v >= (fromJustS lo))) @-}
-    {-@ pred maybeLe hi v    = ((isJustS lo) => (v <= (fromJustS hi))) @-}
-    {-@ pred inRange lo hi v = (maybeGe lo v) && (maybeLe hi v)        @-}
-
-Instead of the grisly
-    inRange(lo, hi, v) = {v:k | (((isJustS(lo)) => (v >= fromJustS(lo))) && (((isJustS(hi)) => (v <= fromJustS(hi)))))} v @-}
-
 Benchmarks
 ==========
 
