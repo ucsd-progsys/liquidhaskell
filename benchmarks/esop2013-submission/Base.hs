@@ -1295,23 +1295,11 @@ union t1 t2 = hedgeUnion NothingS NothingS t1 t2
 #endif
 
 -- left-biased hedge union
-{- hedgeUnion :: (Ord k) => lo: {v0: MaybeS {v: k | (isJustS(v0) && (v = fromJustS(v0))) } | 0 = 0 }  
-                          -> hi: {v0: MaybeS {v: k | ( isJustS(v0) && (v = fromJustS(v0))) } 
-                                                   | (((isJustS(lo) && isJustS(v0)) => (fromJustS(v0) >= fromJustS(lo)))) }   
-                          -> OMap {v: k | (     ((isJustS(lo)) => (v > fromJustS(lo))) 
-                                            && (((isJustS(hi)) => (v < fromJustS(hi))))) } a 
-                          -> {v: OMap k a | (  ((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) 
-                                            && ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } 
-                          ->  OMap {v: k | (   ((isJustS(lo))  => (v > fromJustS(lo))) 
-                                            && (((isJustS(hi)) => (v < fromJustS(hi))))) } a @-}
-
 {-@ hedgeUnion :: (Ord k) => lo: MaybeS k 
                           -> hi: MaybeS {v: k | (IfDefLt lo v) }               
                           -> OMap {v: k | (KeyBetween lo hi v) } a 
                           -> {v: OMap k a | (RootBetween lo hi v) }                       
                           ->  OMap {v: k | (KeyBetween lo hi v)} a @-}
-
-
 hedgeUnion :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a b -> Map a b
 hedgeUnion _   _   t1  Tip = t1
 hedgeUnion blo bhi Tip (Bin _ kx x l r) = join kx x (filterGt blo l) (filterLt bhi r)
