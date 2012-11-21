@@ -37,14 +37,15 @@ data Spec ty bndr  = Spec {
   , dataDecls  :: ![DataDecl]                -- ^ Predicated data definitions 
   , includes   :: ![FilePath]                -- ^ Included qualifier files
   , aliases    :: ![RTAlias String BareType] -- ^ RefType aliases
+  , paliases   :: ![RTAlias Symbol Pred]     -- ^ Refinement/Predicate aliases
   , embeds     :: !(TCEmb String)            -- ^ GHC-Tycon-to-fixpoint Tycon map
-  } -- deriving (Data, Typeable)
+  } 
 
 
 data MSpec ty bndr = MSpec { 
     ctorMap :: M.HashMap Symbol [Def bndr]
   , measMap :: M.HashMap Symbol (Measure ty bndr) 
-  } -- deriving (Data, Typeable)
+  }
 
 data Measure ty bndr = M { 
     name :: Symbol
@@ -83,7 +84,7 @@ mkMSpec ms = MSpec cm mm
         ms' = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
 instance Monoid (Spec ty bndr) where
-  mappend (Spec xs ys invs zs ds is as es) (Spec xs' ys' invs' zs' ds' is' as' es')
+  mappend (Spec xs ys invs zs ds is as ps es) (Spec xs' ys' invs' zs' ds' is' as' ps' es')
            = Spec (xs ++ xs') 
                   (ys ++ ys') 
                   (invs ++ invs') 
@@ -91,8 +92,9 @@ instance Monoid (Spec ty bndr) where
                   (ds ++ ds') 
                   (sortNub (is ++ is')) 
                   (as ++ as')
+                  (ps ++ ps')
                   (M.union es es')
-  mempty   = Spec [] [] [] [] [] [] [] M.empty
+  mempty   = Spec [] [] [] [] [] [] [] [] M.empty
 
 instance Functor Def where
   fmap f def = def { ctor = f (ctor def) }
@@ -114,7 +116,7 @@ instance Bifunctor MSpec   where
   second                = fmap 
 
 instance Bifunctor Spec    where
-  first f (Spec ms ss is x0 x1 x2 x3 x4) 
+  first f (Spec ms ss is x0 x1 x2 x3 x4 x5) 
     = Spec { measures   = first  f <$> ms
            , sigs       = second f <$> ss
            , invariants =        f <$> is
@@ -122,9 +124,10 @@ instance Bifunctor Spec    where
            , dataDecls  = x1
            , includes   = x2
            , aliases    = x3
-           , embeds     = x4
+           , paliases   = x4
+           , embeds     = x5
            }
-  second f (Spec ms x0 x1 x2 x3 x4 x5 x6) 
+  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6) 
     = Spec { measures   = fmap (second f) ms
            , sigs       = x0 
            , invariants = x1
@@ -132,6 +135,7 @@ instance Bifunctor Spec    where
            , dataDecls  = x3
            , includes   = x4
            , aliases    = x5
+           , paliases   = x5'
            , embeds     = x6
            }
 
@@ -189,30 +193,66 @@ bodyPred fv (R v' p) = subst1 p (v', fv)
 ----------- Refinement Type Aliases -------------------------------------------
 -------------------------------------------------------------------------------
 
+data RTEnv   = RTE { typeAliases :: M.HashMap String (RTAlias String BareType)
+                   , predAliases :: M.HashMap String (RTAlias Symbol Pred)
+                   }
+
 expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
 expandRTAliases sp = sp { sigs = sigs' } { dataDecls = ds' }
-  where env   = makeRTEnv $ aliases sp
+  where env   = makeRTEnv (aliases sp) (paliases sp)
         sigs' = [(x, expandRTAlias env t)     | (x, t) <- sigs sp     ]
         ds'   = [expandRTAliasDataDecl env dc | dc     <- dataDecls sp] 
+
+-- | Constructing the Alias Environment
+
+makeRTEnv     :: [RTAlias String BareType] -> [RTAlias Symbol Pred] -> RTEnv
+makeRTEnv  rts pts = RTE typeMap predMap
+  where typeMap    = makeAliasMap expandRTAliasE rts
+        predMap    = makeAliasMap expandRPAliasE pts
+
+makeAliasMap exp xts = expBody <$> env0
+  where env0      = safeFromList "makeAliasMap" [(rtName x, x) | x <- xts]
+        expBody z = z { rtBody = exp env0 $ rtBody z }   
+
+-- makeRTEnv rts pts = rTEnv nrts' npts' 
+--   where nrts      = [(rtName x, x) | x <- rts]
+--         npts      = [(rtName x, x) | x <- pts]
+--         env0      = rTEnv nrts npts 
+--         nrts'     = map (second (expBody expandRTAliasE (typeAliases env0))) nrts 
+--         npts'     = map (second (expBody expandRTAliasE (predAliases env0))) npts
+-- 
+-- rTEnv nrts npts   = RTEnv { typeAliases = safeFromList "Reftype Aliases" nrts  
+--                           , predAliases = safeFromList "Predicate Aliases" npts } 
+
+
+-- | Using the Alias Environment to Expand Definitions
+
+expandRTAlias       :: RTEnv -> BareType -> BareType
+expandRTAlias env   = expReft . expType 
+  where expReft = mapReft (txPredReft expPred) 
+        expType = expandAlias  (\_ _ -> id) [] (typeAliases env)
+        expPred = expandPAlias (\_ _ -> id) [] (predAliases env)
+
+txPredReft f = fmap (txPredReft f)
+  where txPredReft f (Reft (v, ras)) = Reft (v, txPredRefa f <$> ras)
+        txPredRefa f (RConc p)       = RConc (f p)
+        txPredRefa _ z               = z
 
 expandRTAliasDataDecl env dc = dc {tycDCons = dcons' }  
   where dcons' = map (mapSnd (map (mapSnd (expandRTAlias env)))) (tycDCons dc) 
 
-type RTEnv   = M.HashMap String (RTAlias String BareType)
 
-makeRTEnv     :: [RTAlias String BareType] -> RTEnv
-makeRTEnv rts = (\z -> z { rtBody = expandRTAliasE env0 $ rtBody z }) <$> env0
-  where env0 = safeFromList "Reftype Aliases" [(rtName x, x) | x <- rts]
+-- | Using the Alias Environment to Expand Definitions
 
-expandRTAliasE  :: RTEnv -> BareType -> BareType 
+expandRPAliasE  :: M.HashMap String (RTAlias Symbol Pred) -> Pred -> Pred
+expandRPAliasE  = go []
+  where go = expandPAlias go
+
+expandRTAliasE  :: M.HashMap String (RTAlias String BareType) -> BareType -> BareType 
 expandRTAliasE = go []
   where go = expandAlias go
 
 -- expandRTAlias' env t = traceShow ("expandRTAlias t = " ++ showPpr t) $ expandRTAlias env t
-
-expandRTAlias   :: RTEnv -> BareType -> BareType
-expandRTAlias = go [] 
-  where go = expandAlias (\_ _ -> id) 
 
 expandAlias f s env = go s 
   where go s (RApp c ts rs r)
@@ -232,3 +272,30 @@ expandRTApp tx env c ts r
           αts  = zipWith (\α t -> (α, toRSort t, t)) αs ts
           αs   = rtArgs rta
           rta  = env M.! c
+
+expandPAlias tx s env = go s 
+  where 
+    go s p@(PBexp (EApp f es))  
+      | f `elem` s                = errorstar $ "Cyclic Predicate Alias Definition: " ++ show (f:s)
+      | (symbolString f) `M.member` env  
+                                  = expandRPApp (tx (f:s) env) env f es
+      | otherwise                 = p
+    go s (PAnd ps)                = PAnd (go s <$> ps)
+    go s (POr  ps)                = POr  (go s <$> ps)
+    go s (PNot p)                 = PNot (go s p)
+    go s (PImp p q)               = PImp (go s p) (go s q)
+    go s (PIff p q)               = PIff (go s p) (go s q)
+    go s (PAll xts p)             = PAll xts (go s p)
+    go _ p                        = p
+
+    -- go _ p@(PBexp _)              = p
+    -- go s p@PTrue                  = p 
+    -- go s p@PFalse                 = p
+    -- go _ p@(PTop)                 = p
+    -- go _ p@(PAtom _ _ _)          = p
+
+
+expandRPApp tx env f es = tx (subst su $ rtBody def) 
+  where su   = mkSubst $ safeZip msg (rtArgs def) es 
+        def  = env M.! (symbolString f)
+        msg  = "expandRPApp: " ++ show (EApp f es) 
