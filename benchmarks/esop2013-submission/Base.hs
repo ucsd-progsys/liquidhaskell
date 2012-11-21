@@ -354,9 +354,6 @@ type Size     = Int
 
 {-@ invariant {v0: MaybeS {v: a | ((isJustS v0) && (v = (fromJustS v0)))} | true} @-}
 
-{- predicate MaybeLe2 x y        = ((fromJustS x) <= (fromJustS y))     @-}
-{- predicate MaybeDef2 x y       = ((isJustS x) && (isJustS y))         @-}
-{- predicate IfDefLe2 x y        = ((MaybeDef2 x y) => (MaybeLe2 x y))  @-}
 {-@ predicate IfDefLe x y         = ((isJustS x) => ((fromJustS x) < y)) @-}
 {-@ predicate IfDefLt x y         = ((isJustS x) => ((fromJustS x) < y)) @-}
 {-@ predicate IfDefGt x y         = ((isJustS x) => (y < (fromJustS x))) @-}
@@ -364,6 +361,8 @@ type Size     = Int
 {-@ predicate RootGt hi v         = ((isBin v) => (IfDefGt hi (key v)))  @-}
 {-@ predicate RootBetween lo hi v = ((RootLt lo v) && (RootGt hi v))     @-}
 {-@ predicate KeyBetween lo hi v  = ((IfDefLt lo v) && (IfDefGt hi v))   @-}
+
+
 -- LIQUID instance (Ord k) => Monoid (Map k v) where
 --     mempty  = empty
 --     mappend = union
@@ -1307,7 +1306,7 @@ union t1 t2 = hedgeUnion NothingS NothingS t1 t2
                                             && (((isJustS(hi)) => (v < fromJustS(hi))))) } a @-}
 
 {-@ hedgeUnion :: (Ord k) => lo: MaybeS k 
-                          -> hi: MaybeS {v: k | (IfDefLe lo v) }               
+                          -> hi: MaybeS {v: k | (IfDefLt lo v) }               
                           -> OMap {v: k | (KeyBetween lo hi v) } a 
                           -> {v: OMap k a | (RootBetween lo hi v) }                       
                           ->  OMap {v: k | (KeyBetween lo hi v)} a @-}
@@ -1373,7 +1372,7 @@ difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
 #endif
 
 {-@ hedgeDiff  :: (Ord k) => lo: MaybeS k  
-                          -> hi: MaybeS {v: k | (IfDefLe lo v) }               
+                          -> hi: MaybeS {v: k | (IfDefLt lo v) }               
                           -> {v: OMap k a | (RootBetween lo hi v) }                       
                           -> OMap {v: k | (KeyBetween lo hi v) } b 
                           -> OMap {v: k | (KeyBetween lo hi v) } a @-}
@@ -1444,7 +1443,7 @@ intersection t1 t2 = hedgeInt NothingS NothingS t1 t2
 #endif
 
 {-@ hedgeInt   :: (Ord k) => lo: MaybeS k 
-                          -> hi: MaybeS {v: k | (IfDefLe lo v) }               
+                          -> hi: MaybeS {v: k | (IfDefLt lo v) }               
                           -> OMap {v: k | (KeyBetween lo hi v) } a 
                           -> {v: OMap k b | (RootBetween lo hi v) }                       
                           ->  OMap {v: k | (KeyBetween lo hi v)} a @-}
@@ -1544,7 +1543,7 @@ mergeWithKey f g1 g2 = go
                           -> (lo:MaybeS k -> hi: MaybeS k -> OMap {v: k | (KeyBetween lo hi v) } a -> OMap {v: k | (KeyBetween lo hi v) } c)
                           -> (lo:MaybeS k -> hi: MaybeS k -> OMap {v: k | (KeyBetween lo hi v) } b -> OMap {v: k | (KeyBetween lo hi v) } c)
                           -> lo: MaybeS k 
-                          -> hi: MaybeS {v: k | (IfDefLe lo v) }               
+                          -> hi: MaybeS {v: k | (IfDefLt lo v) }               
                           -> OMap {v: k | (KeyBetween lo hi v) } a 
                           -> {v: OMap k b | (RootBetween lo hi v) }                       
                           ->  OMap {v: k | (KeyBetween lo hi v)} c @-}
