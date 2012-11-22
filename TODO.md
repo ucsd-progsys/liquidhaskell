@@ -58,22 +58,26 @@ Tuple Refinements (DONE: by Niki)
       > 
       = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>) (x4 :: a4<p4 x1 x2 x3>)
 
-
 Blogging 
 ========
 
     0. *** Cleanup output (tests/pos/poly0.hs)
-    1.  Trivial Stuff (incr, pos, map, fold, etc.)
+    1.  Trivial Stuff (incr, abs, map, fold, etc.)
     2.  Lists I       (append, reverse, map-length, filter)
+    2a. Lists I-Sets  ("" but with Sets as the measure)
     3.  Lists II      (take, transpose)
     4.  Lists III     (induction with fold) 
-  > 5.  KMeans        (++ zipWith etc.)
-  > 6.  LambdaEval
+    5.  KMeans        (++ zipWith etc.)
+    6.  LambdaEval
     7.  Sorting I     (Insert)
-    8.  Sorting II    (Merge, Quick, GHC-wierd-sort)
-  > 9.  Map  I        (BST property, add, delete)
-  > 10. Map II        (Data.Map with elements etc.)
-    
+    8.  Sorting II    (Merge, Quick) 
+    9.  Sorting III   (GHC-quick) 
+    9.  Sorting IV    (GHC-merge)
+    9.  Sorting V     (GHC-real)
+    9.  Map  I        (BST property, add, delete)
+    10. Map II        (Data.Map with elements etc.)
+    12. StackSet      ...
+
     11. Binary Tree/ Finger Tree?
     12. BDD
     13. Union Find
@@ -84,7 +88,6 @@ Paper #2 (Liquid Types in the Real World)
 =========================================
 
 [OK]    Data.KMeans
-
 [OK]    GHC.List   (../benchmarks/ghc-7.4.1/List.lhs)
 
 [??-PP] Data.Map (supersedes set)
@@ -100,7 +103,7 @@ Paper #2 (Liquid Types in the Real World)
         http://hackage.haskell.org/packages/archive/text/0.11.2.2/doc/html/Data-Text-Lazy-Internal.html
         (See "main invariant")
 
-->   vector/
+->   Data.Vector
 
 ->   vector-algorithms "vector bounds checking"
      > e.g. "unsafeSlice"
