@@ -36,6 +36,22 @@ data Stack a = St { focus  :: !a
 
 ---------------------------------------------------------------------------------------------
 
+--| Super Vanilla Operations on Stacks
+
+{-@ fresh :: a -> Stack a @-}
+fresh x = St x Nil Nil
+
+{-@ moveUp :: Stack a -> Stack a @-}
+moveUp (St x (Cons y ys) zs) = St y ys (Cons x zs)
+moveUp s                     = s 
+
+{-@ moveDn :: Stack a -> Stack a @-}
+moveDn (St x ys (Cons z zs)) = St z (Cons x ys) zs
+moveDn s                     = s 
+
+
+---------------------------------------------------------------------------------------------
+
 {-@ measure MaybeStackElts :: Maybe (Stack a) -> (Set a) 
     MaybeStackElts Nothing  = {v | (? Set_emp(v))  }
     MaybeStackElts (Just s) = {v | v = StackElts s }
@@ -75,20 +91,22 @@ data StackSet i l a sid sd =
              , visible  :: {v : [Screen i l a sid sd] | (Disjoint  (ScreenElts current)     (ListScreenElts v)) }
              , hidden   :: {v : [Workspace i l a]     | ((Disjoint (ScreenElts current)     (ListWorkspaceElts v)) && 
                                                          (Disjoint (ListScreenElts visible) (ListWorkspaceElts v))) }        
+             , floating :: M.Map a RationalRect
              } 
+
+data RationalRect = RationalRect Rational Rational Rational Rational
 
 ----------------------------------------------------------------------------------------------------------------
 
-{-@ fresh :: a -> Stack a @-}
-fresh x = St x Nil Nil
-
-{-@ moveUp :: Stack a -> Stack a @-}
-moveUp (St x (Cons y ys) zs) = St y ys (Cons x zs)
-moveUp s                     = s 
-
-{-@ moveDn :: Stack a -> Stack a @-}
-moveDn (St x ys (Cons z zs)) = St z (Cons x ys) zs
-moveDn s                     = s 
+new :: (Integral s) => l -> [i] -> [sd] -> StackSet i l a s sd
+new l wids m 
+  | not (null wids) && length m <= length wids && not (null m)
+  = StackSet cur visi unseen M.empty
+  where (seen,unseen) = L.splitAt (length m) $ map (\i -> Workspace i l Nothing) wids
+        (cur:visi)    = [ Screen i s sd |  (i, s, sd) <- zip3 seen [0..] m ]
+                -- now zip up visibles with their screen id
+new _ _ _ = abort "non-positive argument to StackSet.new"
 
 
-
+abort :: {v: String | (0 = 1) } -> a
+abort x = error $ "xmonad: StackSet: " ++ x
