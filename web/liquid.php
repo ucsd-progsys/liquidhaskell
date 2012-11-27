@@ -1,5 +1,9 @@
 <?php
 
+// ini_set('display_errors', 'On');
+// error_reporting(E_ALL | E_STRICT);
+
+
 function execCommand($ths, $dir, $log) {
   $cmd_ld_lib = 'LANG=en_US.UTF-8 LD_LIBRARY_PATH='.$dir.'external/z3/lib' ;
   $cmd_liqhs  = 'LIQUIDHS='.$dir;
@@ -74,6 +78,9 @@ function getResultAndWarns($outfile){
               , "warns"  => $warns ); 
 }
 
+/*
+*/
+
 ////////////////////////////////////////////////////////////////////////////////////
 //////////////////// Top Level Server //////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
@@ -82,6 +89,10 @@ function getResultAndWarns($outfile){
 // Get inputs
 $data             = file_get_contents("php://input");
 $query            = json_decode($data);
+
+// echo 'HELLO TO HELL!\n';
+// echo ('PGM\n' . $query->program) ;
+// echo ('QUALS\n' . $query->qualifiers);
 
 // Generate temporary filenames 
 $t                = time();
@@ -96,6 +107,8 @@ $log              = "log";
 writeFileRaw($thq, $query->qualifiers);
 writeFileRaw($ths, $query->program);
 
+// echo 'wrote files';
+
 // Run solver
 $cmd              = execCommand($ths, "./", $log);
 $res              = shell_exec($cmd);
@@ -105,10 +118,13 @@ $out              = getResultAndWarns($tout);
 $out['crash']     = getCrash($log)  ;       
 $out['annotHtml'] = getAnnots($thtml)       ;
 
+
+echo 'result = ' . $out['result'];
+echo 'warns = '  . $out['warns'];
+
 // Cleanup temporary files
 shell_exec("rm -f ".$t."*");
-
+ 
 // Put outputs 
 echo json_encode($out);
 
-?>
