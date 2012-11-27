@@ -22,6 +22,14 @@ qualEditor.setCursor(0, 0);
 //qualEditor.setSize(null, 50); 
 
 /*******************************************************************************/
+/************** URLS ***********************************************************/
+/*******************************************************************************/
+
+function getSrcURL(file)   { return ('demos/' + file);              }
+function getQualsURL(file) { return ('demos/' + file + '.hquals');  }
+function getVerifierURL()  { return 'liquid.php';                   }
+
+/*******************************************************************************/
 /************** Top-Level Demo Controller **************************************/
 /*******************************************************************************/
 
@@ -29,8 +37,8 @@ function LiquidDemoCtrl($scope, $http) {
 
   // List of demos
   $scope.basicDemos   = 
-     [ { "name" : "Blank"   , "file" : "blank.hs"             } , 
-       { "name" : "Test000" , "file" : "test000.hs"           }
+     [ { "name" : "Blank"        , "file" : "blank.hs"       } , 
+       { "name" : "Test000"      , "file" : "test000.hs"     }
      ];
   $scope.measureDemos = 
     [ { "name" : "List Lengths"  , "file" : "ListLength.hs"  } , 
@@ -46,11 +54,12 @@ function LiquidDemoCtrl($scope, $http) {
 
   // Load a particular demo
   $scope.loadSource   = function(demo){
-    var srcURL   = 'demos/' + demo.file;
-    var qualsURL = 'demos/' + demo.file + '.hquals';
+    var srcURL      = 'demos/' + demo.file;
+    var qualsURL    = 'demos/' + demo.file + '.hquals';
     
-    $scope.msg   = demo.file; 
-    
+    $scope.msg      = demo.file; 
+    $scope.outReady = false;
+
     $http.get(srcURL)
       .success(function(src) { progEditor.setValue(src);})
       .error(function(data, stat){ alert("Horrors: No such file!" + srcURL); })
@@ -64,8 +73,49 @@ function LiquidDemoCtrl($scope, $http) {
   // Initialize with Test000.hs
   $scope.loadSource($scope.basicDemos[1]);
 
-  // TODO: call solver, see: http://www.cleverweb.nl/javascript/a-simple-search-with-angularjs-and-php/
-  $scope.verifySource = function(){ alert("TO BE DONE!"); };
+  // TODO: call solver, 
+  // http://www.cleverweb.nl/javascript/a-simple-search-with-angularjs-and-php/
+  $scope.verifySource = function(){ 
+    var query = { "program"    : progEditor.getValue(), 
+                  "qualifiers" : qualEditor.getValue() 
+                };
+
+    $http.post(getVerifierURL(), query)
+         .success(function(data, status) {
+            $scope.outReady  = true;
+            $scope.status    = status;
+
+            $scope.result    = data.result;
+            $scope.warns     = data.warns;
+            $scope.crash     = data.crash; 
+            // $scope.log       = data.log;
+            $scope.annotHtml = data.annotHtml;
+         })
+         .error(function(data, status) {
+            var msg = (data || "Request failed") + status;
+            alert(msg);
+         });
+  };
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
