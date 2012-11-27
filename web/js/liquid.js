@@ -60,10 +60,10 @@ function LiquidDemoCtrl($scope, $http) {
     var srcURL        = 'demos/' + demo.file;
     var qualsURL      = 'demos/' + demo.file + '.hquals';
     
-    $scope.isUnknown  = true;
+    $scope.isSafe     = false;
     $scope.isUnsafe   = false;
     $scope.isCrash    = false; 
-    $scope.isUnknown  = false; 
+    $scope.isUnknown  = true; 
 
     $scope.msg        = demo.file; 
     $scope.outReady   = false;
