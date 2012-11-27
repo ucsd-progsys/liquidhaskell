@@ -1,5 +1,6 @@
 'use strict';
 
+
 /*******************************************************************************/
 /************** Hooking into Codemirror ****************************************/
 /*******************************************************************************/
@@ -56,11 +57,16 @@ function LiquidDemoCtrl($scope, $http) {
 
   // Load a particular demo
   $scope.loadSource   = function(demo){
-    var srcURL      = 'demos/' + demo.file;
-    var qualsURL    = 'demos/' + demo.file + '.hquals';
+    var srcURL        = 'demos/' + demo.file;
+    var qualsURL      = 'demos/' + demo.file + '.hquals';
     
-    $scope.msg      = demo.file; 
-    $scope.outReady = false;
+    $scope.isUnknown  = true;
+    $scope.isUnsafe   = false;
+    $scope.isCrash    = false; 
+    $scope.isUnknown  = false; 
+
+    $scope.msg        = demo.file; 
+    $scope.outReady   = false;
 
     $http.get(srcURL)
       .success(function(src) { progEditor.setValue(src);})
@@ -90,10 +96,11 @@ function LiquidDemoCtrl($scope, $http) {
             globData         = data;
 
             $scope.result    = data.result;
-            
+           
             $scope.isSafe    = (data.result == "safe"  );
             $scope.isUnsafe  = (data.result == "unsafe");
             $scope.isCrash   = (data.result == "crash" );
+            $scope.isUnknown = !($scope.isSafe || $scope.isUnsafe || $scope.isCrash);
             
             $scope.warns     = data.warns;
             $scope.crash     = data.crash; 
@@ -105,12 +112,38 @@ function LiquidDemoCtrl($scope, $http) {
             alert(msg);
          });
   };
-
 }
 
+/* DOESNT WORK
+
+http://jsfiddle.net/xzachtli/K4Kx8/1/
+var myApp = angular.module('myApp', []);
+
+myApp.directive('fadey', function() {
+    return {
+        restrict: 'A',
+        link: function(scope, elm, attrs) {
+            var duration = parseInt(attrs.fadey);
+            if (isNaN(duration)) {
+                duration = 500;
+            }
+            elm = jQuery(elm);
+            elm.hide();
+            elm.fadeIn(duration)
+
+            scope.destroy = function(complete) {
+                elm.fadeOut(duration, function() {
+                    if (complete) {
+                        complete.apply(scope);
+                    }
+                });
+            };
+        }
+    };
+});
 
 
-
+*/
 
 
 

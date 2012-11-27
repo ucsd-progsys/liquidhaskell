@@ -1,16 +1,5 @@
 html {
-    
     font-family: "helvetica";
-  /*
-    font-family: "palatino";
-	font-family: "Andale Mono";
-    font-family: sans-serif;
-    padding: 0px;
-    margin: 0px;
-    background-color: white;
-    color: black;
-    line-height: 160%;
-*/
 }
 
 code {
@@ -31,20 +20,6 @@ pre {
 	font-size: 13px;
 	font-family: Bitstream Vera Sans Mono,monospace;
 }
-
-/* pre {
-  
-  border-radius: 5px 5px;
-  
-  font-family: monospace;
-  font-size: 150%;
-  color: rgb(255, 255, 255);
-  background-color: rgb(0, 0, 0);
-  margin-bottom: 2em;
-  padding: 8px;
-  display: block;
-}
-*/
 
 /********************** Links **************************************/
 

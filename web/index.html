@@ -10,7 +10,7 @@
     <link href="css/bootstrap.css" rel="stylesheet">
     <link href="css/bootstrap-responsive.css" rel="stylesheet">
     <link href="css/docs.css" rel="stylesheet">
-    <!-- <link href="css/liquid.css" type='text/css' rel="stylesheet"> -->
+    <link href="css/liquid.css" type='text/css' rel="stylesheet">
     <link href="css/codemirror.css" rel="stylesheet" >
 
     <script src="js/angular/angular.js"></script>
@@ -104,22 +104,36 @@
            <div class="tab-pane active" id="tabSrc">
              <div id="program-pane" class="well" style="background:#fff">
                  <button class="btn btn-primary" type="button" ng-click="verifySource()">Verify</button>
-                  <!-- <a id="compile-btn" class="btn btn-primary">Verify</a> -->
-                  <div style="float:right">
+
+                 <div style="float:right" ng-show="isUnknown">
                     <span class="label label-info large" id="sourceName">{{msg}}</span>
-                  </div> 
+                 </div> 
+                
+                 <div style="float:right" ng-show="isSafe">
+                    <span class="label label-success large" id="status-safe">Safe</span>
+                 </div> 
+
+                 <div style="float:right" ng-show="isUnsafe">
+                    <span class="label label-important large" id="status-unsafe">Unsafe</span>
+                 </div> 
+
+                 <div style="float:right" ng-show="isCrash">
+                    <span class="label label-warning large" id="status-crash">Crash!</span>
+                 </div> 
+
+
                  <br>
                  <br>
                  <textarea class="field" id='program' name='program' rows='20' cols='80'>
-
-                </textarea>
+                  -- Wait for it ... 
+                 </textarea>
               </div>
            </div>
            
            <div class="tab-pane" id="tabQuals">
              <div id="qualifier-pane" class="well" style="background:#fff">
                <textarea class="field" id='qualifiers' name='qualifiers' rows='20' cols='80'>
-qualif Foo(v: Int): v = 10
+                // Wait for it ... 
                </textarea>
              </div>
            </div>
@@ -130,13 +144,6 @@ qualif Foo(v: Int): v = 10
                <strong>Safe!</strong> Your program is verified!
              </div>
 
-             <!--
-             <h2>Warnings</h2>
-             <ul> 
-               <li ng-repeat="warn in warns">{{warn}}</li>
-             </ul> -->
-             
-
              <div class="alert alert-error" ng-repeat="warn in warns">
                <button type="button" class="close" data-dismiss="alert">×</button>
                <strong>Warning!</strong> Uh, oh! {{warn}}
@@ -146,9 +153,28 @@ qualif Foo(v: Int): v = 10
                <button type="button" class="close" data-dismiss="alert">×</button>
                <strong>Crash!</strong> Oh no, there was a crash. See the <a href="#tabLog">log</a>.
              </div>
-             <div ng-bind-html-unsafe="annotHtml"></div></div>
+
+             <div class="page-header">
+               <h1>Annotated Program  <small> Hover mouse over variables to see inferred types</small></h1>
+             </div>
+             <div ng-bind-html-unsafe="annotHtml"></div>
+
+             <br>
+             <br>
+             <br>
+             <br>
+             <br>
+             <br>
+             <br>
+             <br>
+             <br>
+             <br>
            </div>
            
+           <div class="tab-pane" id="tabLog">
+             Click <a href="log">this</a> to see the log. 
+           </div>
+
          </div>
        </div> 
      </div>

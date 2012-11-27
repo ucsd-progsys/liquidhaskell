@@ -12,12 +12,11 @@ function execCommand($ths, $dir, $log) {
   return $cmd;
 }
 
-function getAnnots($htmlfile){
-  $annothtml = "<h3> Annotated Program </h3>" ;
-  $annothtml = $annothtml."Hover mouse over variables to see inferred types." ;
-  $annothtml = $annothtml.(file_get_contents($htmlfile));
-  return $annothtml;
-}
+// function getAnnots($htmlfile){
+//   $annothtml = $annothtml."Hover mouse over variables to see inferred types." ;
+//   $annothtml = $annothtml.(file_get_contents($htmlfile));
+//   return $annothtml;
+// }
 
 function writeFileRaw($fname, $rawstring){
   $f = fopen($fname, "w");
@@ -114,10 +113,9 @@ $cmd              = execCommand($ths, "./", $log);
 $res              = shell_exec($cmd);
 
 // Parse results
-$out              = getResultAndWarns($tout);
-$out['crash']     = getCrash($log)  ;       
-$out['annotHtml'] = getAnnots($thtml)       ;
-
+$out              = getResultAndWarns($tout) ;
+$out['crash']     = getCrash($log)           ;       
+$out['annotHtml'] = file_get_contents($thtml);
 
 // echo 'result = ' . $out['result'];
 // echo 'warns = '  . $out['warns'];
