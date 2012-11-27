@@ -119,8 +119,8 @@ $out['crash']     = getCrash($log)  ;
 $out['annotHtml'] = getAnnots($thtml)       ;
 
 
-echo 'result = ' . $out['result'];
-echo 'warns = '  . $out['warns'];
+// echo 'result = ' . $out['result'];
+// echo 'warns = '  . $out['warns'];
 
 // Cleanup temporary files
 shell_exec("rm -f ".$t."*");

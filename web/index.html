@@ -125,31 +125,30 @@ qualif Foo(v: Int): v = 10
            </div>
            
            <div class="tab-pane" id="tabOut">
-             <p>And finally! This is the output</p>
-
-             <div ng-show="!warns" class="alert alert-success">
+             <div ng-show="isSafe" class="alert alert-success">
                <button type="button" class="close" data-dismiss="alert">×</button>
                <strong>Safe!</strong> Your program is verified!
              </div>
 
+             <!--
+             <h2>Warnings</h2>
+             <ul> 
+               <li ng-repeat="warn in warns">{{warn}}</li>
+             </ul> -->
+             
+
              <div class="alert alert-error" ng-repeat="warn in warns">
                <button type="button" class="close" data-dismiss="alert">×</button>
-               <strong>Warning!</strong> Uh, oh! {{warn.msg}}
+               <strong>Warning!</strong> Uh, oh! {{warn}}
              </div>
 
              <div class="alert alert-block" ng-show="crash">
                <button type="button" class="close" data-dismiss="alert">×</button>
                <strong>Crash!</strong> Oh no, there was a crash. See the <a href="#tabLog">log</a>.
              </div>
-             
-             <div class="container">
-               {{annotHtml}}
-             </div>
+             <div ng-bind-html-unsafe="annotHtml"></div></div>
            </div>
            
-           <div class="tab-pane" id="tabLog">
-             <a href='log'>log</a><!--<pre>{{log}}</pre>-->
-           </div>
          </div>
        </div> 
      </div>

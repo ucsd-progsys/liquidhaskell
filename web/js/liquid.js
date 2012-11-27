@@ -33,6 +33,8 @@ function getVerifierURL()  { return 'liquid.php';                   }
 /************** Top-Level Demo Controller **************************************/
 /*******************************************************************************/
 
+var globData = null;
+
 function LiquidDemoCtrl($scope, $http) {
 
   // List of demos
@@ -85,7 +87,14 @@ function LiquidDemoCtrl($scope, $http) {
             $scope.outReady  = true;
             $scope.status    = status;
 
+            globData         = data;
+
             $scope.result    = data.result;
+            
+            $scope.isSafe    = (data.result == "safe"  );
+            $scope.isUnsafe  = (data.result == "unsafe");
+            $scope.isCrash   = (data.result == "crash" );
+            
             $scope.warns     = data.warns;
             $scope.crash     = data.crash; 
             // $scope.log       = data.log;
