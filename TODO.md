@@ -69,31 +69,10 @@ Tuple Refinements (DONE: by Niki)
 Blogging 
 ========
 
-    0. *** Cleanup output (tests/pos/poly0.hs)
-    1.  Trivial Stuff (incr, abs, map, fold, etc.)
-    2.  Lists I       (append, reverse, map-length, filter)
-    2a. Lists I-Sets  ("" but with Sets as the measure)
-    3.  Lists II      (take, transpose)
-    4.  Lists III     (induction with fold) 
-    5.  KMeans        (++ zipWith etc.)
-    6.  LambdaEval
-    7.  Sorting I     (Insert)
-    8.  Sorting II    (Merge, Quick) 
-    9.  Sorting III   (GHC-quick) 
-    9.  Sorting IV    (GHC-merge)
-    9.  Sorting V     (GHC-real)
-    9.  Map  I        (BST property, add, delete)
-    10. Map II        (Data.Map with elements etc.)
-    12. StackSet      ...
+see blog/TODO.md
 
-    11. Binary Tree/ Finger Tree?
-    12. BDD
-    13. Union Find
-    14. XMonad I
-    15. XMonad II
-
-Paper #2 (Liquid Types in the Real World)
-=========================================
+Paper: Liquid Types in the Real World)
+======================================
 
 [OK]    Data.KMeans
 [OK]    GHC.List   (../benchmarks/ghc-7.4.1/List.lhs)
