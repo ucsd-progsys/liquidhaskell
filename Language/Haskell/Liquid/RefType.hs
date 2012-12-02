@@ -387,10 +387,12 @@ instance Subable r => Subable (RType p c tv r) where
 -- Reftable Instances -------------------------------------------------------
 
 instance Reftable r => Reftable (RType Class RTyCon RTyVar r) where
-  isTauto = isTrivial
-  ppTy    = errorstar "ppTy RPoly Reftable" 
-  toReft  = errorstar "toReft on RType"
-  fSyms   = fromMaybe [] . fmap fSyms . stripRTypeBase 
+  isTauto     = isTrivial
+  ppTy        = errorstar "ppTy RPoly Reftable" 
+  toReft      = errorstar "toReft on RType"
+  fSyms       = fromMaybe [] . fmap fSyms . stripRTypeBase 
+  addSyms s t = fmap (addSyms s) t
+  dropSyms  t = fmap dropSyms t
 
 instance Reftable Reft where
   isTauto = isTautoReft

@@ -225,12 +225,14 @@ substPred _   _  t            = t
 
 -- | Requires: @not $ null πs@
 -- substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
+
 substRCon msg (_, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 _) πs r2'
   | rTyCon c1 == rTyCon c2    = RApp c1 ts rs $ meetListWithPSubs πs r1 r2'
   where ts                    = safeZipWith (msg ++ ": substRCon")  strSub  ts1 ts2
         rs                    = safeZipWith (msg ++ ": substRcon2") strSubR rs1 rs2
-        strSub t1 t2          = meetListWithPSubs πs t1 t2
+        strSub r1 r2          = meetListWithPSubs πs (addSyms ss r1)r2
         strSubR r1 r2         = RPoly $ strSub (fromRPoly r1) (fromRPoly r2)                             
+        ss = fSyms (RApp c1 ts1 rs1 r1)
 
 substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ show (su, t)
 
@@ -240,10 +242,19 @@ substPredP _  (RMono _)       = error $ "RMono found in substPredP"
 splitRPvar pv (U x (Pr pvs)) = (U x (Pr pvs'), epvs)
   where (epvs, pvs') = partition (uPVar pv ==) pvs
 
-meetListWithPSubs πs r1 r2 = foldl' meet r2 $ ((`subst` r1)<$> su ) 
-  where su                 = nub ((predArgsSubst . pargs) <$> πs) 
+meetListWithPSubs πs r1 r2 = foldl' (meetListWithPSub r1) r2 πs
 
-predArgsSubst = mkSubst . map (\(_, s1, s2) -> (s1, EVar s2)) 
+meetListWithPSub ::  Reftable r => r -> r -> PVar t -> r
+meetListWithPSub r1 r2 π
+  | all (\(_, x, y) -> x == y) (pargs π)
+  = addSyms (fSyms r1) $ r2 `meet` r1'      
+  | all (\(_, x, y) -> x /= y) (pargs π)
+  = r2 `meet` (subst su r1')
+  | otherwise
+  = errorstar $ "PredType.meetListWithPSub partial application to " ++ showPpr π
+  where r1' = dropSyms r1
+        su  = mkSubst xys
+        xys = [(x, EVar y) | (x, (_, _, y)) <- zip (fSyms r1) (pargs π)]
 
 ----------------------------------------------------------------------------
 ---------- Interface: Modified CoreSyn.exprType due to predApp -------------
