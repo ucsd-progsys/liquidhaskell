@@ -35,7 +35,6 @@ import Data.Monoid              (mconcat)
 import Data.Maybe (fromMaybe)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
-import qualified Data.List           as L
 import Data.Bifunctor
 import Data.List (foldl')
 
@@ -252,7 +251,7 @@ bsplitW γ t
        γ'  <- foldM (++=) γ [("rsplitC", x, lookup map x) | x <- fSyms t]
        return $ bsplitW' γ' $ fmap dropSyms t
   where errormsg x   = errorstar $ "Constraint: bsplitW not found " ++ show x
-        lookup map x = fromMaybe (errormsg x) (L.lookup x map)
+        lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
 
 bsplitW' :: CGEnv -> SpecType -> [FixWfC]
 bsplitW' γ t 
@@ -330,7 +329,7 @@ bsplitC γ t1 t2
        return $ bsplitC' γ' (F.subst su t1') t2'
   where t1'          = fmap dropSyms t1
         t2'          = fmap dropSyms t2
-        lookup map x = fromMaybe (errormsg x) (L.lookup x map)
+        lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
         errormsg x   = errorstar $ "Not found " ++ showPpr x
 
 bsplitC' γ t1 t2 
@@ -356,9 +355,8 @@ rsplitC γ (RPoly r1, RPoly r2)
   where su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (fSyms r1) (fSyms r2)]
         r1'          = fmap dropSyms r1
         r2'          = fmap dropSyms r2
-        lookup map x = fromMaybe (errormsg x) (L.lookup x map)
+        lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
         errormsg x   = errorstar $ "Not found " ++ showPpr x
--- TODO refactor this similar code with splitC and splitW
 
 rsplitC _ _  
   = errorstar "rsplit Rpoly - RMono"
@@ -380,7 +378,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
                      , lits       :: ![(F.Symbol, F.Sort)]
-                     , refsymbols :: ![(F.Symbol, SpecType)]
+                     , refsymbols :: !(F.SEnv SpecType)
                      } -- deriving (Data, Typeable)
 
 instance Outputable CGInfo where 
@@ -417,7 +415,7 @@ initCGI info = CGInfo {
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce $ cbs info 
-  , refsymbols = [] --  TODO hashmap instead of list?
+  , refsymbols = F.emptySEnv
   } where tce  = tcEmbeds $ spec info
           spc  = spec info
 
@@ -460,7 +458,7 @@ normalize γ = addRTyConInv (invs γ) . normalizePds
                                ++ " in renv " 
                                ++ showPpr (renv γ)
 addRefSymbols ss
-  = modify $ \s -> s{refsymbols = ss ++ refsymbols s}
+  = modify $ \s -> s{refsymbols = foldl' (\e (x, t) -> F.insertSEnv x t e) (refsymbols s) ss}
 
 addRefSymbolsRef (π, RPoly t1)
   = addRefSymbols newSyms
