@@ -482,7 +482,7 @@ addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
 addKuts :: SpecType -> CG ()
 addKuts !t = modify $ \s -> s { kuts = {- tracePpr "KUTS: " $-} updKuts (kuts s) t }
   where updKuts :: F.Kuts -> SpecType -> F.Kuts
-        updKuts = foldReft (F.ksUnion . (F.reftKVars . ur_reft) )
+        updKuts = foldReft (F.ksUnion . (F.reftKVars . fromFReft  . ur_reft) )
 
 
 -- | Used for annotation binders (i.e. at binder sites)
@@ -734,7 +734,7 @@ consE γ (Var x)
     where t = varRefType γ x
 
 consE γ (Lit c) 
-  = return $ uRType $ literalRefType (emb γ) c
+  = return $ uRType $ literalFRefType (emb γ) c
 
 consE γ (App e (Type τ)) 
   = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
@@ -820,9 +820,9 @@ cconsCase γ x t acs (a, _, ce)
        cγ     <- addBinders γ x' [(x', xt')]
        cconsE cγ ce t
 
-altReft γ _ (LitAlt l)   = literalReft (emb γ) l
+altReft γ _ (LitAlt l)   = literalFReft (emb γ) l
 altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
-  where notLiteralReft   = F.notExprReft . snd . literalConst (emb γ)
+  where notLiteralReft   = toFReft . F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = error "Constraint : altReft"
 
 -- mkyts γ ys yts 
@@ -903,7 +903,7 @@ argExpr _ e           = errorstar $ "argExpr: " ++ (showPpr e)
 
 varRefType γ x =  t 
   where t  = (γ ?= (varSymbol x)) `strengthen` xr
-        xr = uTop $ F.symbolReft $ varSymbol x
+        xr = uTop $ toFReft $ F.symbolReft $ varSymbol x
 
 -- TODO: should only expose/use subt. Not subsTyVar_meet
 subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
@@ -932,6 +932,10 @@ instance NFData RTyCon where
 instance NFData Type where 
   rnf _ = ()
 
+instance NFData FReft where 
+  rnf (FReft x)      = rnf x
+  rnf (FSReft x1 x2) = rnf x1 `seq` rnf x2
+
 instance NFData WfC where
   rnf (WfC x1 x2)   
     = rnf x1 `seq` rnf x2
@@ -955,8 +959,8 @@ instance NFData CGInfo where
 
 existentialRefType     :: CGEnv -> SpecType -> SpecType
 existentialRefType γ t = withReft t (uTop r') 
-  where r'             = maybe top (exReft γ) (F.isSingletonReft r)
-        r              = F.sr_reft $ rTypeSortedReft (emb γ) t
+  where r'             = toFReft $ maybe top (exReft γ) ((F.isSingletonReft) (fromFReft r))
+        r              = toFReft $ F.sr_reft $ rTypeSortedReft (emb γ) t
 
 
 exReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
@@ -1025,7 +1029,7 @@ extendγ γ xts
 ----------- Data TyCon Invariants ---------------------------------
 -------------------------------------------------------------------
 
-type RTyConInv = M.HashMap RTyCon F.Reft
+type RTyConInv = M.HashMap RTyCon FReft
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
 addRTyConInv m t@(RApp c _ _ _) 
