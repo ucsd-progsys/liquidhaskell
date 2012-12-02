@@ -82,7 +82,7 @@ makeGhcSpec vars env spec
        let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms 
        let tx           = subsFreeSymbols syms
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
-       return           $ SP { tySigs     = tx sigs 
+       return           $ SP { tySigs     = tx sigs
                              , ctor       = tx cs'
                              , meas       = tx ms 
                              , invariants = invs 
@@ -361,31 +361,9 @@ mkps_ _     _       _          _    _ = error "Bare : mkps_"
 ------------------------------------------------------------------------
 
 
-ofBareType' msg πs = wrapErr "ofBareType" (ofBareType'' msg πs) 
+ofBareType' msg πs = wrapErr "ofBareType" ofBareType 
 
-ofBareType'' msg πs0 t
-  = do πs0' <- mapM ofBPVar πs0 
-       t'   <- ofBareType t
-       let (_, πs, _) = bkUniv $ traceShow "makeRTyConPs" $  t'
-       tyi  <- tcEnv <$> ask
-       return $ mapBot (makeRTyConPs msg tyi (πs0' ++ πs)) t'
-
-makeRTyConPs :: Reftable r => String -> M.HashMap TyCon RTyCon -> [RPVar] -> RRType r -> RRType r
-makeRTyConPs msg tyi πs t@(RApp c ts rs r) 
-  | null $ rTyConPs c
-  = expandRApp tyi t
-  | otherwise 
-  = RApp c {rTyConPs = findπ πs <$> rTyConPs c} ts rs r 
-  -- need type application????
-  where findπ πs π = findWithDefaultL (== π) πs (emsg π)
-        emsg π     = errorstar $ "Bare: out of scope predicate " ++ msg ++ " " ++ show π
---             throwError $ "Bare: out of scope predicate" ++ show π 
-
-
-makeRTyConPs _ _ _ t = t
-
--- ofBareType :: (Reftable r) => BRType r -> BareM (RRType r)
-ofBareType :: (Reftable r, GetPVar r) => RType String String String r -> BareM (RType Class RTyCon RTyVar r)
+ofBareType :: Reftable r => RType String String String r -> BareM (RType Class RTyCon RTyVar r)
 ofBareType (RVar a r) 
   = return $ RVar (stringRTyVar a) r
 ofBareType (RFun x t1 t2 _) 
@@ -421,15 +399,9 @@ ofRef (RMono r)
 -- TODO: move back to RefType
 bareTCApp _ r c rs ts 
   = if isTrivial t0 then t' else t
-    where t0 = rAppNew c rs' ts rs top
-          t  = rAppNew c rs' ts rs r
+    where t0 = rApp c ts rs top
+          t  = rApp c ts rs r
           t' = (expandRTypeSynonyms t0) `strengthen` r
-          rs' = concatMap (map dRPVar . getUPVars) rs
-
-dRPVar ::  UsedPVar -> RPVar
-dRPVar (PV n _ _) = PV n (ROth "dummy RSort") []
-
-rAppNew c rs = RApp (RTyCon c rs)
 
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
 
