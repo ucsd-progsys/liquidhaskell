@@ -168,10 +168,11 @@ mkSpecType msg t = mkSpecType' msg πs t
   where πs   = (snd3 $ bkUniv t)
 
 mkSpecType' :: String -> [PVar BSort] -> BareType -> BareM SpecType
-mkSpecType' msg πs 
+mkSpecType' msg πs
   = ofBareType' msg πs
   . txParams subvUReft (uPVar <$> πs)
-  . mapReft (fmap canonReft) 
+  . mapReft (fmap (fFReft canonReft))
+
 
 makeSymbols vs xs' xts yts = 
   -- tracePpr ("makeSymbols: vs = " ++ showPpr vs ++ " xs' = " ++ showPpr xs' ++ " ts = " ++ showPpr xts) $ 
@@ -200,7 +201,7 @@ checkSig' env (x, t)
 -- freeSymbols :: SpecType -> [Symbol]
 freeSymbols ty   = -- tracePpr ("freeSymbols: " ++ show ty) $ 
                    sortNub $ concat $ efoldReft f [] [] ty
-  where f γ r xs = let Reft (v, ras) = toReft r in ((syms ras) `sortDiff` (v:γ) ) : xs 
+  where f γ r xs = {-let Reft (v, ras) = toReft r in-} ((syms r) `sortDiff` (vv:γ) ) : xs 
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
