@@ -234,7 +234,7 @@ splitW (WfC γ t@(RVar _ _))
 splitW (WfC _ (RCls _ _))
   = return []
 
-splitW (WfC γ t@(RApp c ts rs _))
+splitW (WfC γ t@(RApp _ ts rs _))
   =  do ws   <- bsplitW γ t 
         ws'  <- concat <$> mapM splitW (map (WfC γ) ts)
         ws'' <- concat <$> mapM (rsplitW γ) rs
@@ -243,7 +243,7 @@ splitW (WfC γ t@(RApp c ts rs _))
 splitW (WfC _ t) 
   = errorstar $ "splitW cannot handle: " ++ showPpr t
 
-rsplitW γ (RMono r)  = errorstar "Constrains: rsplitW for RMono"
+rsplitW _ (RMono _)  = errorstar "Constrains: rsplitW for RMono"
 rsplitW γ (RPoly t0) = splitW $ WfC γ t0
 
 bsplitW γ t
@@ -345,7 +345,7 @@ bsplitC' γ t1 t2
         ci      = Ci (loc γ)
         tag     = getTag γ
 
-rsplitC γ (RMono r1, RMono r2) 
+rsplitC _ (RMono _, RMono _) 
   = errorstar "RefTypes.rsplitC on RMono"
 
 rsplitC γ (RPoly r1, RPoly r2)
@@ -463,7 +463,7 @@ addRefSymbols ss
 addRefSymbolsRef (π, RPoly t1)
   = addRefSymbols newSyms
   where newSyms = zip (fSyms t1) ((ofRSort . fst3) <$> pargs π)
-addRefSymbolsRef (π, RMono _)
+addRefSymbolsRef (_, RMono _)
   = errorstar "Constraint.addRefSymbolsRef RMono"
 
 addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
@@ -593,6 +593,7 @@ instance Freshable (F.Reft) where
 instance Freshable FReft where
   fresh                   = errorstar "fresh FReft" 
   true    (FReft r)       = liftM FReft (true r)
+  true    (FSReft s r)    = liftM (FSReft s) (true r)
   refresh (FReft r)       = liftM FReft (refresh r)
   refresh (FSReft s r)    = liftM (FSReft s) (refresh r)
 
@@ -912,7 +913,7 @@ truePredRef (PV _ τ _)
   = trueTy (toType τ)
 
 freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecType
-freshPredRef γ e pv@(PV n τ as)
+freshPredRef γ e (PV n τ as)
   = do t    <- freshTy e (toType τ)
        args <- mapM (\_ -> fresh) as
        let targs = zip args ((ofRSort . fst3) <$> as)
