@@ -173,8 +173,8 @@ defRefType (Def f dc xs body) = mkArrow as [] xts t'
 
 refineWithCtorBody dc f body t = 
   case stripRTypeBase t of 
-    Just (Reft (v, _)) ->
-      strengthen t $ Reft (v, [RConc $ bodyPred (EApp f [EVar v]) body])
+    Just (FReft (Reft (v, _))) ->
+      strengthen t $ reft (v, [RConc $ bodyPred (EApp f [EVar v]) body])
     Nothing -> 
       errorstar $ "measure mismatch " ++ showPpr f ++ " on con " ++ showPpr dc
 
