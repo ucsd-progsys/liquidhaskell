@@ -1,6 +1,6 @@
 module Test where
 
-{-@ type OList a = [a]<{v: a | (v >= fld)}> @-}
+{-@ type OList a = [a]<\fld -> {v: a | (v >= fld)}> @-}
 
 {-@ foo :: (Ord a) => z:a -> OList a -> [{v:a | z <= v}] @-}
 foo y xs = bar y xs

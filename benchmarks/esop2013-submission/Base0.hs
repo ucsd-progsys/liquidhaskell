@@ -23,7 +23,7 @@ type Size     = Int
          | Tip 
   @-}
 
-{-@ type OMap k a = Map <{v:k | v < root}, {v:k | v > root}> k a @-}
+{-@ type OMap k a = Map <\root -> {v:k | v < root}, \root -> {v:k | v > root}> k a @-}
 
 {-@ measure isJustS :: forall a. MaybeS a -> Bool
     isJustS (JustS x)  = true

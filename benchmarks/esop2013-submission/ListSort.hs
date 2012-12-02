@@ -1,7 +1,7 @@
 module ListSort (insertSort, insertSort', mergeSort, quickSort) where
 
 
-{-@ type OList a = [a]<{v: a | (v >= fld)}> @-}
+{-@ type OList a = [a]<\fld -> {v: a | (v >= fld)}> @-}
 
 ------------------------------------------------------------------------------
 -- Insert Sort ---------------------------------------------------------------
