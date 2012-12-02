@@ -8,6 +8,7 @@ module Language.Haskell.Liquid.RefType (
     RTyVar (..), RType (..), RRType, BRType, RTyCon(..)
   , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..), Ref(..)
   , RTAlias (..)
+  , FReft(..), reft, fFReft, toFReft, fromFReft
   , BSort, BPVar, BareType, RSort, UsedPVar, RPVar, RReft, RefType
   , PrType, SpecType
   , PVar (..) , Predicate (..), UReft(..), DataDecl (..)
@@ -34,7 +35,7 @@ module Language.Haskell.Liquid.RefType (
   , stripRTypeBase, rTypeSortedReft, rTypeSort -- , typeSortedReft
   , ofRSort, toRSort
   , varSymbol, dataConSymbol, dataConMsReft, dataConReft  
-  , literalRefType, literalReft, literalConst
+  , literalFRefType, literalFReft, literalConst
   -- , primOrderingSort
   , fromRMono, fromRPoly, idRMono
   , isTrivial
@@ -124,6 +125,10 @@ instance Outputable Predicate where
   ppr (Pr [])       = text "True"
   ppr (Pr pvs)      = hsep $ punctuate (text "&") (map ppr pvs)
 
+instance Outputable FReft where
+  ppr (FReft r)       = ppr r
+  ppr (FSReft s r)    = text "\\" <+> ppr s <+> text "->" <+> ppr r
+ 
 instance Show Predicate where
   show = showPpr 
 
@@ -206,6 +211,16 @@ data UReft r
   = U { ur_reft :: !r, ur_pred :: !Predicate }
   -- deriving (Data, Typeable)
 
+data FReft = FSReft [Symbol] Reft | FReft Reft
+
+reft (v, r)            = FReft (Reft(v, r))
+toFReft r              = FReft r
+fromFReft (FReft r)    = r
+fromFReft (FSReft _ r) = r
+fFReft f (FReft r)     = FReft $ f r
+fFReft f (FSReft s r)  = FSReft s $ f r
+
+
 type BRType     = RType String String String   
 type RRType     = RType Class  RTyCon RTyVar   
 
@@ -215,11 +230,11 @@ type RSort      = RRType    ()
 type BPVar      = PVar      BSort
 type RPVar      = PVar      RSort
 
-type RReft      = UReft     Reft 
+type RReft      = UReft     FReft 
 type PrType     = RRType    Predicate
 type BareType   = BRType    RReft
 type SpecType   = RRType    RReft 
-type RefType    = RRType    Reft
+type RefType    = RRType    FReft
 
 -- | Various functions for converting vanilla `Reft` to `Spec`
 
@@ -253,6 +268,8 @@ class (Monoid r, Subable r, Outputable r) => Reftable r where
   meet    = mappend
 
   toReft  :: r -> Reft
+  fSyms   :: r -> [Symbol]
+  fSyms _  = []
 
 class (Eq c) => TyConable c where
   isList   :: c -> Bool
@@ -276,6 +293,13 @@ class ( Outputable p
 instance Monoid Predicate where
   mempty       = pdTrue
   mappend p p' = pdAnd [p, p']
+
+instance Monoid FReft where
+  mempty                              = FReft mempty
+  mappend (FReft r)    (FReft r')     = FReft            $ mappend r r'
+  mappend (FSReft s r) (FReft r')     = FSReft s         $ mappend r r'
+  mappend (FReft r)    (FSReft s' r') = FSReft s'        $ mappend r r'
+  mappend (FSReft s r) (FSReft s' r') = FSReft (s ++ s') $ mappend r r'
 
 instance (Monoid a) => Monoid (UReft a) where
   mempty                    = U mempty mempty
@@ -316,6 +340,14 @@ instance Subable () where
   subst _ ()  = ()
   substf _ () = ()
 
+instance Subable FReft  where
+  syms (FReft r)        = syms r
+  syms (FSReft s r)     = s ++ syms r
+  subst s (FReft r)     = FReft     $ subst s r
+  subst s (FSReft ss r) = FSReft ss $ subst s r
+  substf f (FReft r)    = FReft     $ substf f r
+  substf f (FSReft s r) = FSReft s  $ substf f r
+
 instance Subable r => Subable (UReft r) where
   syms (U r p)     = syms r ++ syms p 
   subst s (U r z)  = U (subst s r) (subst s z)
@@ -352,11 +384,26 @@ instance Reftable r => Reftable (RType Class RTyCon RTyVar r) where
   isTauto = isTrivial
   ppTy    = errorstar "ppTy RPoly Reftable" 
   toReft  = errorstar "toReft on RType"
+  fSyms   = fromMaybe [] . fmap fSyms . stripRTypeBase 
 
 instance Reftable Reft where
   isTauto = isTautoReft
   ppTy    = ppr_reft
   toReft  = id
+
+instance Reftable FReft where
+  isTauto (FReft r)       = isTautoReft r
+  isTauto (FSReft _ r)    = isTautoReft r
+  ppTy    (FReft r)     d = ppr_reft r d
+  ppTy    (FSReft [] r) d = ppr_reft r d
+  ppTy    (FSReft s r)  d = ppTySReft s r d
+  toReft  (FReft r)       = id r
+  toReft  (FSReft _ r)    = id r
+  fSyms   (FReft _)       = []
+  fSyms   (FSReft s _)    = s
+
+ppTySReft s r d 
+  = text "\\" <> hsep (ppr <$> s) <+> text "->" <+> ppr_reft r d
 
 instance Reftable () where
   isTauto _ = True
@@ -369,6 +416,7 @@ instance (Reftable r) => Reftable (UReft r) where
   isTauto (U r p) = isTauto r && isTauto p 
   ppTy (U r p) d  = ppTy r (ppTy p d) 
   toReft (U r _)  = toReft r
+  fSyms (U r _)   = fSyms r
 
 instance (Reftable r, RefTypable p c tv r) => Subable (Ref r (RType p c tv r)) where
   syms (RMono r)     = syms r
@@ -384,8 +432,11 @@ instance (Reftable r, RefTypable p c tv r) => Reftable (Ref r (RType p c tv r)) 
   isTauto (RMono r) = isTauto r
   isTauto (RPoly t) = isTrivial t 
   ppTy (RMono r) d  = ppTy r d
-  ppTy (RPoly _) _  = errorstar "Reftable Ref RPoly"
-  toReft = error "RefType : toReft"
+  ppTy (RPoly _) _  = errorstar "RefType: Reftable ppTy in RPoly"
+  toReft            = errorstar "RefType: Reftable toReft"
+  fSyms (RMono r)   = fSyms r
+  fSyms (RPoly _)   = errorstar "RefType: Reftable fSyms in RPoly"
+
 
 -- TyConable Instances -------------------------------------------------------
 
@@ -591,13 +642,10 @@ expandRApp tyi (RApp rc ts rs r)
 expandRApp _ t
   = t
 
-appRTyCon tyi rc@(RTyCon c []) ts = RTyCon c ps'
+appRTyCon tyi rc@(RTyCon c _) ts = RTyCon c ps'
   where ps' = map (subts (zip (RTV <$> αs) ({- PREDARGS toType -} toRSort <$> ts))) (rTyConPs rc')
         rc' = M.lookupDefault rc c tyi
         αs  = TC.tyConTyVars $ rTyCon rc'
-appRTyCon _   (RTyCon c ps) ts = RTyCon c ps'
-  where ps' = map (subts (zip (RTV <$> αs) ({- PREDARGS toType -} toRSort <$> ts))) ps
-        αs  = TC.tyConTyVars c
 
 appRefts rc [] = RPoly . {- PREDARGS ofType -} ofRSort . ptype <$> (rTyConPs rc)
 appRefts rc rs = safeZipWith "appRefts" toPoly rs (ptype <$> (rTyConPs rc))
@@ -1009,7 +1057,7 @@ instance (SubsTy tv ty (UReft r)) => SubsTy tv ty (Ref (UReft r) (RType p c tv (
   subt m (RMono p) = RMono $ subt m p
   subt m (RPoly t) = RPoly $ fmap (subt m) t
  
-subvUReft     :: (UsedPVar -> UsedPVar) -> UReft Reft -> UReft Reft
+subvUReft     :: (UsedPVar -> UsedPVar) -> UReft FReft -> UReft FReft
 subvUReft f (U r p) = U r (subvPredicate f p)
 
 subvPredicate :: (UsedPVar -> UsedPVar) -> Predicate -> Predicate 
@@ -1075,27 +1123,27 @@ dataConSymbol = varSymbol . dataConWorkId
 -- primOrderingSort = typeSort M.empty $ dataConRepType eqDataCon
 
 -- TODO: turn this into a map lookup?
-dataConReft ::  DataCon -> [Symbol] -> Reft
+dataConReft ::  DataCon -> [Symbol] -> FReft
 dataConReft c [] 
   | c == trueDataCon
-  = Reft (vv, [RConc $ (PBexp (EVar vv))]) 
+  = reft (vv, [RConc $ (PBexp (EVar vv))]) 
   | c == falseDataCon
-  = Reft (vv, [RConc $ PNot (PBexp (EVar vv))]) 
+  = reft (vv, [RConc $ PNot (PBexp (EVar vv))]) 
 --  | otherwise
 --  = Reft (vv, [RConc $ (PAtom Eq (EVar vv) (EVar (dataConSymbol c)))]) 
 --  | c `elem`  [gtDataCon, ltDataCon, eqDataCon]
 --  = Reft (vv, [RConc (PAtom Eq (EVar vv) (ordCon c))]) 
 dataConReft c [x] 
   | c == intDataCon 
-  = Reft (vv, [RConc (PAtom Eq (EVar vv) (EVar x))]) 
+  = reft (vv, [RConc (PAtom Eq (EVar vv) (EVar x))]) 
 dataConReft _ _ 
- = Reft (vv, [RConc PTrue]) 
+  = reft (vv, [RConc PTrue]) 
  
 -- dataConReft c xs
 --  = Reft (vv, [RConc (PAtom Eq (EVar vv) (EApp (dataConSymbol c) (EVar <$> xs)))]) 
   -- = Reft (vv, [RConc PTrue]) 
 
-dataConMsReft ty ys  = subst su (refTypeReft t) 
+dataConMsReft ty ys  = toFReft $ subst su (refTypeReft t) 
   where (xs, ts, t)  = bkArrow $ thd3 $ bkUniv ty    -- bkArrow ty 
         su           = mkSubst [(x, EVar y) | ((x,_), y) <- zip (zip xs ts) ys] 
 
@@ -1160,8 +1208,8 @@ mapBindRef f (RPoly t)     = RPoly $ mapBind f t
 ----------------------- Typing Literals -----------------------
 ---------------------------------------------------------------
 
-literalRefType tce l 
-  = makeRTypeBase (literalType l) (literalReft tce l) 
+literalFRefType tce l 
+  = makeRTypeBase (literalType l) (literalFReft tce l) 
 
 -- makeRTypeBase :: Type -> Reft -> RefType 
 makeRTypeBase (TyVarTy α)    x       
@@ -1171,7 +1219,7 @@ makeRTypeBase (TyConApp c _) x
 makeRTypeBase _              _
   = error "RefType : makeRTypeBase"
 
-literalReft tce                = exprReft . snd . literalConst tce 
+literalFReft tce               = toFReft . exprReft . snd . literalConst tce 
 
 literalConst tce l             = (sort, mkLit l)
   where sort                   = typeSort tce $ literalType l 
