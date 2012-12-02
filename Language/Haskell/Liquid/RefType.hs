@@ -271,6 +271,12 @@ class (Monoid r, Subable r, Outputable r) => Reftable r where
   fSyms   :: r -> [Symbol]
   fSyms _  = []
 
+  addSyms :: [Symbol] -> r -> r
+  addSyms _ = id
+
+  dropSyms :: r -> r
+  dropSyms = id
+
 class (Eq c) => TyConable c where
   isList   :: c -> Bool
   isTuple  :: c -> Bool
@@ -401,6 +407,10 @@ instance Reftable FReft where
   toReft  (FSReft _ r)    = id r
   fSyms   (FReft _)       = []
   fSyms   (FSReft s _)    = s
+  dropSyms (FSReft _ r)   = FReft r
+  dropSyms (FReft r)      = FReft r
+  addSyms ss (FReft r)    = FSReft ss r
+  addSyms _  (FSReft s r) = FSReft s  r 
 
 ppTySReft s r d 
   = text "\\" <> hsep (ppr <$> s) <+> text "->" <+> ppr_reft r d
@@ -413,10 +423,12 @@ instance Reftable () where
   toReft _  = top
 
 instance (Reftable r) => Reftable (UReft r) where
-  isTauto (U r p) = isTauto r && isTauto p 
-  ppTy (U r p) d  = ppTy r (ppTy p d) 
-  toReft (U r _)  = toReft r
-  fSyms (U r _)   = fSyms r
+  isTauto (U r p)    = isTauto r && isTauto p 
+  ppTy (U r p) d     = ppTy r (ppTy p d) 
+  toReft (U r _)     = toReft r
+  fSyms (U r _)      = fSyms r
+  dropSyms (U r p)   = U (dropSyms r) p
+  addSyms ss (U r p) = U (addSyms ss r) p
 
 instance (Reftable r, RefTypable p c tv r) => Subable (Ref r (RType p c tv r)) where
   syms (RMono r)     = syms r

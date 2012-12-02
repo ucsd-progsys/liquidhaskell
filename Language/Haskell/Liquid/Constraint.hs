@@ -217,10 +217,10 @@ instance Outputable Cinfo where
 splitW ::  WfC -> CG [FixWfC]
 
 splitW (WfC γ t@(RFun x t1 t2 _)) 
-  =  do let ws = bsplitW γ t
-        ws'   <- splitW (WfC γ t1) 
-        γ'    <- (γ, "splitW") += (x, t1)
-        ws''  <- splitW (WfC γ' t2)
+  =  do ws   <- bsplitW γ t
+        ws'  <- splitW (WfC γ t1) 
+        γ'   <- (γ, "splitW") += (x, t1)
+        ws'' <- splitW (WfC γ' t2)
         return $ ws ++ ws' ++ ws''
 
 splitW (WfC γ (RAllT _ r)) 
@@ -230,31 +230,32 @@ splitW (WfC γ (RAllP _ r))
   = splitW (WfC γ r)
 
 splitW (WfC γ t@(RVar _ _))
-  = return $ bsplitW γ t 
+  =  bsplitW γ t 
 
 splitW (WfC _ (RCls _ _))
   = return []
 
 splitW (WfC γ t@(RApp c ts rs _))
-  =  do let ws = bsplitW γ t 
-        ws'   <- concat <$> mapM splitW (map (WfC γ) ts)
-        ws''  <- concat <$> mapM (rsplitW γ) (safeZip "splitW" rs (rTyConPs c))
+  =  do ws   <- bsplitW γ t 
+        ws'  <- concat <$> mapM splitW (map (WfC γ) ts)
+        ws'' <- concat <$> mapM (rsplitW γ) rs
         return $ ws ++ ws' ++ ws''
 
 splitW (WfC _ t) 
   = errorstar $ "splitW cannot handle: " ++ showPpr t
 
-rsplitW γ (RMono r, ((PV _ t as)))
-  = do γ'    <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitW1", x, ofRSort τ)) as) 
-       let r' = mkSortedReft (emb γ) t $ toReft r
-       return [F.WfC (fenv γ') r' Nothing (Ci (loc γ))]
+rsplitW γ (RMono r)  = errorstar "Constrains: rsplitW for RMono"
+rsplitW γ (RPoly t0) = splitW $ WfC γ t0
 
-rsplitW γ (RPoly t0, (PV _ _ as))
-  = do γ'  <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitW2", x, ofRSort τ)) as) 
-       splitW (WfC γ' t0)
+bsplitW γ t
+  = do map <- refsymbols <$> get 
+       γ'  <- foldM (++=) γ [("rsplitC", x, lookup map x) | x <- fSyms t]
+       return $ bsplitW' γ' $ fmap dropSyms t
+  where errormsg x   = errorstar $ "Constraint: bsplitW not found " ++ show x
+        lookup map x = fromMaybe (errormsg x) (L.lookup x map)
 
-bsplitW :: CGEnv -> SpecType -> [FixWfC]
-bsplitW γ t 
+bsplitW' :: CGEnv -> SpecType -> [FixWfC]
+bsplitW' γ t 
   | F.isNonTrivialSortedReft r'
   = [F.WfC (fenv γ) r' Nothing ci] 
   | otherwise
@@ -281,7 +282,7 @@ splitC (SubC γ t1 (REx x tx t2))
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
-  =  do let cs    = bsplitC γ t1 t2 
+  =  do cs       <- bsplitC γ t1 t2 
         cs'      <- splitC  (SubC γ r2 r1) 
         γ'       <- (γ, "splitC") += (x2, r2) 
         let r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
@@ -300,19 +301,18 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   where t2' = subsTyVar_meet' (α2, RVar α1 top) t2
 
 splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
-  = do let cs = bsplitC γ t1 t2
+  = do cs    <- bsplitC γ t1 t2
+       symss <- refsymbols <$> get
+       mapM addRefSymbolsRef (safeZip "addRef1" (rTyConPs c ) r1s)
+       mapM addRefSymbolsRef (safeZip "addRef2" (rTyConPs c') r2s)
        cs'   <- concat <$> mapM splitC (zipWith (SubC γ) t1s t2s)
-       cs''  <- concat <$> mapM (rsplitC γ) (rsplits r1s r2s' (rTyConPs c))
+       cs''  <- concat <$> mapM (rsplitC γ) (safeZip "rsplitC" r1s r2s)
+       modify $ \s -> s{refsymbols = symss}
        return $ cs ++ cs' ++ cs''
-    where r2s'    = F.subst su <$> r2s
-          su      = F.mkSubst [(x, F.EVar y) | (x, y) <- zip pVars' pVars]
-          pVars   = concatMap getVars (rTyConPs c)
-          pVars'  = concatMap getVars (rTyConPs c')
-          getVars = (snd3 <$>) . pargs
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
-  = return $ bsplitC γ t1 t2
+  = bsplitC γ t1 t2
 
 splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
   = return []
@@ -323,7 +323,17 @@ splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
 splitC c@(SubC _ _ _) 
   = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showPpr c
 
-bsplitC γ t1 t2 
+bsplitC γ t1 t2
+  = do map <- refsymbols <$> get 
+       γ'  <-  foldM (++=) γ [("rsplitC1", x, lookup map x) | x <- fSyms t2]
+       let su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (fSyms t1) (fSyms t2)]
+       return $ bsplitC' γ' (F.subst su t1') t2'
+  where t1'          = fmap dropSyms t1
+        t2'          = fmap dropSyms t2
+        lookup map x = fromMaybe (errormsg x) (L.lookup x map)
+        errormsg x   = errorstar $ "Not found " ++ showPpr x
+
+bsplitC' γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
   = [F.SubC γ' F.PTrue (r1' {F.sr_reft = top}) r2' Nothing tag ci]
   | F.isNonTrivialSortedReft r2'
@@ -336,23 +346,22 @@ bsplitC γ t1 t2
         ci      = Ci (loc γ)
         tag     = getTag γ
 
-rsplits [] _ _      = []
-rsplits _ [] _      = []
-rsplits _ _ []      = []
-rsplits r1s r2s ps  = safeZip "rsplits1" (safeZip "rsplits2" r1s r2s) ps
+rsplitC γ (RMono r1, RMono r2) 
+  = errorstar "RefTypes.rsplitC on RMono"
 
-rsplitC γ ((RMono r1, RMono r2), (PV _ t as))
-  = do let r1'  = mkSortedReft (emb γ) t (toReft r1)
-       let r2'  = mkSortedReft (emb γ) t (toReft r2)
-       γ'      <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitC1", x, ofRSort τ)) as) 
-       return   $ [F.SubC (fenv γ') F.PTrue r1' r2' Nothing [] (Ci (loc γ))]
-
-rsplitC γ ((RPoly r1, RPoly r2), PV _ _ as)
-  = do γ'  <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitC2", x, ofRSort τ)) as) 
-       splitC (SubC γ' r1 r2)
+rsplitC γ (RPoly r1, RPoly r2)
+  = do map <- refsymbols <$> get 
+       γ'  <-  foldM (++=) γ [("rsplitC1", x, lookup map x) | x <- fSyms r2]
+       splitC (SubC γ' (F.subst su r1') r2')
+  where su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (fSyms r1) (fSyms r2)]
+        r1'          = fmap dropSyms r1
+        r2'          = fmap dropSyms r2
+        lookup map x = fromMaybe (errormsg x) (L.lookup x map)
+        errormsg x   = errorstar $ "Not found " ++ showPpr x
+-- TODO refactor this similar code with splitC and splitW
 
 rsplitC _ _  
-  = error "rsplit Rpoly - RMono"
+  = errorstar "rsplit Rpoly - RMono"
 
 -----------------------------------------------------------
 -------------------- Generation: Types --------------------
