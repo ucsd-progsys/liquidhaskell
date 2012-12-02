@@ -35,6 +35,7 @@ import Data.Monoid              (mconcat)
 import Data.Maybe (fromMaybe)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
+import qualified Data.List           as L
 import Data.Bifunctor
 import Data.List (foldl')
 
@@ -370,6 +371,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
                      , lits       :: ![(F.Symbol, F.Sort)]
+                     , refsymbols :: ![(F.Symbol, SpecType)]
                      } -- deriving (Data, Typeable)
 
 instance Outputable CGInfo where 
@@ -392,7 +394,7 @@ ppr_CGInfo cgi
 
 type CG = State CGInfo
 
-initCGI info = CGInfo { 
+initCGI info = CGInfo {
     hsCs       = [] 
   , hsWfs      = [] 
   , fixCs      = []
@@ -406,6 +408,7 @@ initCGI info = CGInfo {
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce $ cbs info 
+  , refsymbols = [] --  TODO hashmap instead of list?
   } where tce  = tcEmbeds $ spec info
           spc  = spec info
 
@@ -447,7 +450,14 @@ normalize γ = addRTyConInv (invs γ) . normalizePds
                                ++ showPpr x 
                                ++ " in renv " 
                                ++ showPpr (renv γ)
+addRefSymbols ss
+  = modify $ \s -> s{refsymbols = ss ++ refsymbols s}
 
+addRefSymbolsRef (π, RPoly t1)
+  = addRefSymbols newSyms
+  where newSyms = zip (fSyms t1) ((ofRSort . fst3) <$> pargs π)
+addRefSymbolsRef (π, RMono _)
+  = errorstar "Constraint.addRefSymbolsRef RMono"
 
 addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
 addBind x r 
@@ -573,6 +583,12 @@ instance Freshable (F.Reft) where
   true    (F.Reft (v, _)) = return $ F.Reft (v, []) 
   refresh (F.Reft (v, _)) = liftM (F.Reft . (v, )) fresh
 
+instance Freshable FReft where
+  fresh                   = errorstar "fresh FReft" 
+  true    (FReft r)       = liftM FReft (true r)
+  refresh (FReft r)       = liftM FReft (refresh r)
+  refresh (FSReft s r)    = liftM (FSReft s) (refresh r)
+
 instance Freshable RReft where
   fresh             = errorstar "fresh RReft"
   true (U r _)      = liftM uTop (true r)  
@@ -607,14 +623,22 @@ refreshRefType (RFun b t t' _)
 refreshRefType (RApp rc ts _ r)  
   = do tyi                 <- tyConInfo <$> get
        let RApp rc' _ rs _  = expandRApp tyi (RApp rc ts [] r)
-       liftM3 (RApp rc') (mapM refresh ts) (mapM refreshRef rs) (refresh r)
+       let rπs              = safeZip "refreshRef" rs (rTyConPs rc')
+       liftM3 (RApp rc') (mapM refresh ts) (mapM refreshRef rπs) (refresh r)
 refreshRefType (RVar a r)  
   = liftM (RVar a) (refresh r)
 refreshRefType t                
   = return t
 
-refreshRef (RPoly t) = RPoly <$> (refreshRefType t)
-refreshRef (RMono _) = error "refreshRef: unexpected"
+refreshRef (RPoly t, π) = RPoly <$> (refreshRefType t >>= addFreshArgs π)
+refreshRef (RMono _, _) = errorstar "refreshRef: unexpected"
+
+addFreshArgs π t
+  = do args <- mapM (\_ -> fresh) πargs
+       addRefSymbols $ zip args ((ofRSort . fst3)  <$> πargs)
+       return $ fmap (addSyms args) t
+  where πargs = pargs π
+
 
 -- isBaseTyCon c
 --   | c == intTyCon 
@@ -745,8 +769,8 @@ consE γ (App e (Type τ))
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
        case t0 of
-         RAllP p t -> do s  <- freshPredRef γ e' p
-                         (return $ replacePreds "consE" t [(p, RPoly s)]) {- =>> addKuts -}
+         RAllP p t -> do s <- freshPredRef γ e' p
+                         return $ replacePreds "consE" t [(p, RPoly s)] {- =>> addKuts -}
          _         -> return t0
 
 consE γ e'@(App e a)               
@@ -880,16 +904,16 @@ truePredRef ::  PVar (RRType r) -> CG SpecType
 truePredRef (PV _ τ _)
   = trueTy (toType τ)
 
-freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecType 
-freshPredRef γ e (PV _ τ as)
-  = do t  <- freshTy e (toType τ)
-       γ' <- foldM (++=) γ (map (\(τ, x, _) -> ("freshPredRef", x, ofRSort τ)) as) 
-       addW $ WfC γ' t
-       return t
-
--- tySort (RVar _ (F.Reft(_, [a])))     = a
--- tySort (RApp _ _ _ (F.Reft(_, [a]))) = a
--- tySort _                             = error "tySort"
+freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecType
+freshPredRef γ e pv@(PV n τ as)
+  = do t    <- freshTy e (toType τ)
+       args <- mapM (\_ -> fresh) as
+       let targs = zip args ((ofRSort . fst3) <$> as)
+       addRefSymbols targs
+       let t' = fmap (addSyms args) t
+       γ' <- foldM (++=) γ [("freshPredRef", x, τ) | (x, τ) <- targs]
+       addW $ WfC γ' t'
+       return t'
 
 -----------------------------------------------------------------------
 ---------- Helpers: Creating Refinement Types For Various Things ------
