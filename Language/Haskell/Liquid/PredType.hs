@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances, TupleSections #-}
 module Language.Haskell.Liquid.PredType (
     PrType
   , TyConP (..), DataConP (..)
@@ -165,13 +165,13 @@ pToReft = U top . pdVar
 ----- Interface: Replace Predicate With Uninterprented Function Symbol -----
 ----------------------------------------------------------------------------
 
-replacePredsWithRefs (p, r) (U (Reft (s, rs)) (Pr ps)) 
-  = U (Reft (s, rs ++ rs')) (Pr ps2)
-  where rs'        = r . pargs <$> ps1
+replacePredsWithRefs (p, r) (U (Reft (v, rs)) (Pr ps)) 
+  = U (Reft (v, rs ++ rs')) (Pr ps2)
+  where rs'        = r . (v,) . pargs <$> ps1
         (ps1, ps2) = partition (==p) ps 
 
-pVartoRConc p args 
-  = RConc $ pApp (pname p) $ EVar (vv Nothing):(thd3 <$> args)
+pVartoRConc p (v, args)
+  = RConc $ pApp (pname p) $ EVar v:(thd3 <$> args)
 
 toPredType (PV _ ptype args) = rpredType (ty:tys)
   where ty = uRTypeGen ptype
