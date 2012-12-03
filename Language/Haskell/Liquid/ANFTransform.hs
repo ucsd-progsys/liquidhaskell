@@ -19,8 +19,9 @@ import           Id                               (mkSysLocalM)
 import           Literal
 import           MkCore                           (mkCoreLets)
 import           Outputable
-import           Var                              (varType)
+import           Var                              (varType, setVarType)
 import           TypeRep
+import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTopTvSubst)
 import           TyCon                            (tyConDataCons_maybe)
 import           DataCon                          (dataConInstArgTys)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
@@ -57,11 +58,24 @@ modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
 
 normalizeTopBind γ (NonRec x e)
   = do e' <- stitch `fmap` normalize γ e
-       return [NonRec x e']
+       return [normalizeTyVars $ NonRec x e']
 
 normalizeTopBind γ (Rec xes)
   = normalizeBind γ (Rec xes)
 
+normalizeTyVars (NonRec x e) = NonRec (setVarType x t') e
+  where t'       = subst msg as as' bt
+        msg      = "WARNING unable to renameVars on " ++ show x
+        as'      = fst $ collectTyBinders e
+        (as, bt) = splitForAllTys (varType x)
+normalizeTyVars (Rec _)      = errorstar "normalizeTyVars: called with Rec"
+
+subst msg as as' bt
+  | length as == length as'
+  = mkForAllTys as' $ substTy su bt
+  | otherwise
+  = trace msg $ mkForAllTys as bt
+  where su = mkTopTvSubst $ zip as (mkTyVarTys as')
 
 ------------------------------------------------------------------
 normalizeBind :: VarEnv Id -> CoreBind -> DsM [CoreBind]
