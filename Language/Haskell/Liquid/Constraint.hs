@@ -724,16 +724,12 @@ consCB γ (NonRec x e)
 
 consBind γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
-       (pis, xis, γπ) <- addPsToEnv γ' ππs
+       (_, _, γπ) <- addPsToEnv γ' πs
        t <- consE γπ e
-       let as  = (`RVar` ()) <$> (fst3 (bkUniv t)) :: [RSort]
-       let su  = zip πas as
-       let πs' = subts su <$> ππs
-       updatePs γπ pis xis πs'
        addSpecC (SubC γπ t spect)
        addIdA x (Left spect)
        return Nothing
-  where (πas, ππs, _) = bkUniv spect
+  where πs = snd3 $ bkUniv spect
 
 consBind γ (x, e, Nothing) 
    = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
