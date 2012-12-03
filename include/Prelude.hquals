@@ -11,6 +11,8 @@ qualif One(v:int)     : v = 1
 qualif True(v:bool)   : (? v) 
 qualif False(v:bool)  : ~ (? v) 
 
+
+// TODO create these automatically with Auto
 qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
 constant papp1 : func(2, [Pred @(0); @(1); bool])
 
@@ -20,3 +22,8 @@ qualif Papp2(v:a,~X:int,~P:Pred a int) : papp2(~P, v, ~X+1)
 qualif Papp2(v:a,~P:Pred a int) : papp2(~P, v, 0)
 qualif Papp2(v:a,~P:Pred a int) : papp2(~P, v, 42)
 constant papp2 : func(3, [Pred @(0) @(1); @(2); @(3); bool])
+
+// for maybe4.hs
+
+qualif Auto(VV : a_abS , ~A0 : Maybe a_abS): (&& [(? isJust([~A0]));(VV = fromJust([~A0]))])
+
