@@ -701,9 +701,9 @@ consCB γ (NonRec x e)
 
 consBind γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
-       (_, _, γπ) <- addPsToEnv γ' πs
-       t <- consE γπ e
-       addSpecC (SubC γπ t spect)
+       γπ    <- foldM addPToEnv γ' πs
+       t     <- consE γπ e
+       addC (SubC γπ t spect) "consBind"
        addIdA x (Left spect)
        return Nothing
   where πs = snd3 $ bkUniv spect
@@ -713,21 +713,10 @@ consBind γ (x, e, Nothing)
         addIdA x (Left t)
         return $ Just t
 
-addPsToEnv γ = foldM go ([], [], γ)
-  where go (pis, xis, γ) π = do (pis', xis', γ') <- addPToEnv γ π
-                                return (pis++pis', xis++xis', γ')
-
 addPToEnv γ π
-  = do (pis, γπ) <- γ  +?+= ("addSpec1", pname π, toPredType π)
-       (xis, γx) <- foldM go ([], γπ) [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
-       return (pis, xis, γx)
-  where go (ack, γ) b = do (pis, γ') <- γ +?+= b
-                           return (pis++ack, γ')
+  = do γπ <- γ ++= ("addSpec1", pname π, toPredType π)
+       foldM (++=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
-updatePs γ pis xis πs
-  = do mapM_ (γ +-=) $ zip pis [(pname p, toPredType p) | p <- πs]
-       mapM_ (γ +-=) $ zip xis [(x, ofRSort t) | p <- πs, (t, x, _) <- pargs p]
- 
 extender γ (x, Just t) = γ ++= ("extender", varSymbol x, t)
 extender γ _           = return γ
 
