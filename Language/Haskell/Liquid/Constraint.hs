@@ -292,14 +292,11 @@ splitC (SubC γ t1 (RAllP p t))
   where t' = fmap (replacePredsWithRefs su) t
         su = (uPVar p, pVartoRConc p)
 
-splitC (SubC γ (RAllP p t) t2)
-  = splitC $ SubC γ t' t2
-  where t' = fmap (replacePredsWithRefs su) t
-        su = (uPVar p, pVartoRConc p)
-
-splitC (SubC γ (RAllP p1 t1) (RAllP p2 t2))
-  | p1 == p2
-  = splitC $ SubC γ t1 t2
+splitC (SubC _ t1@(RAllP _ _) t2) 
+  = errorstar $ "Predicate in lhs of constrain:" ++ showPpr t1 ++ "\n<:\n" ++ showPpr t2
+--   = splitC $ SubC γ t' t2
+--   where t' = fmap (replacePredsWithRefs su) t
+--        su = (uPVar p, pVartoRConc p)
 
 splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2 
