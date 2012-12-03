@@ -83,7 +83,7 @@ makeGhcSpec vars env spec
        let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms 
        let tx           = subsFreeSymbols syms
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
-       return           $ SP { tySigs     = tx sigs 
+       return           $ SP { tySigs     = renameTyVars <$> tx sigs 
                              , ctor       = tx cs'
                              , meas       = tx ms 
                              , invariants = invs 
@@ -92,6 +92,13 @@ makeGhcSpec vars env spec
                              , freeSyms   = syms' 
                              , tcEmbeds   = embs 
                              }
+
+renameTyVars :: (Var, SpecType) -> (Var, SpecType)
+renameTyVars (x, t) = (x, mkUnivs as' [] t')
+  where t'            = subts su (mkUnivs [] ps bt)
+        su            = zip as as'
+        as'           = rTyVar <$> (fst $ splitForAllTys $ varType x)
+        (as, ps, bt)  = bkUniv t
 
 subsFreeSymbols xvs = tx
   where su  = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
