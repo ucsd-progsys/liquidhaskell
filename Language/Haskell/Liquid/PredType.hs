@@ -165,12 +165,10 @@ pToReft = U top . pdVar
 ----- Interface: Replace Predicate With Uninterprented Function Symbol -----
 ----------------------------------------------------------------------------
 
-replacePredsWithRefs su (U (Reft (s, rs)) (Pr ps)) 
-  = U (Reft (s, rs ++ rs')) (Pr [])
-  where rs' = map (f su) ps
-        f su p = (M.lookupDefault (msg p) p su) (pargs p)
-        msg = \p ->  errorstar $ 
-               "PredType.replacePredsWithRefs: " ++ showPpr p ++ " not in su"
+replacePredsWithRefs (p, r) (U (Reft (s, rs)) (Pr ps)) 
+  = U (Reft (s, rs ++ rs')) (Pr ps2)
+  where rs'        = r . pargs <$> ps1
+        (ps1, ps2) = partition (==p) ps 
 
 pVartoRConc p args 
   = RConc $ pApp (pname p) $ EVar (vv Nothing):(thd3 <$> args)
