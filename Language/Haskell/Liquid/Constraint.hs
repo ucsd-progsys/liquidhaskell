@@ -287,6 +287,16 @@ splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _))
         cs''     <- splitC  (SubC γ' r1x2' r2') 
         return    $ cs ++ cs' ++ cs''
 
+splitC (SubC γ t1 (RAllP p t))
+  = splitC $ SubC γ t1 t'
+  where t' = fmap (replacePredsWithRefs su) t
+        su = (uPVar p, pVartoRConc p)
+
+splitC (SubC γ (RAllP p t) t2)
+  = splitC $ SubC γ t' t2
+  where t' = fmap (replacePredsWithRefs su) t
+        su = (uPVar p, pVartoRConc p)
+
 splitC (SubC γ (RAllP p1 t1) (RAllP p2 t2))
   | p1 == p2
   = splitC $ SubC γ t1 t2
@@ -509,22 +519,6 @@ addClassBind (RCls c ts)
        return is
 addClassBind _ 
   = return [] 
-
-
-addSpecC :: SubC -> CG ()  
-
-addSpecC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
-  |  α1 ==  α2 
-  = addSpecC $ SubC γ t1 t2
-  | otherwise   
-  = addSpecC $ SubC γ t1 t2' 
-  where t2' = subsTyVar_meet' (α2, RVar α1 top) t2
-
-addSpecC (SubC γ t spect)
-  = addC (SubC γ t spect') "addSpecC"
-  where spect' = mkUnivs as [] (fmap (replacePredsWithRefs su) tbody)
-        (as, πs, tbody) = bkUniv spect
-        su = M.fromList [(uPVar p, pVartoRConc p) | p <- πs]
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ _ _) _ 
