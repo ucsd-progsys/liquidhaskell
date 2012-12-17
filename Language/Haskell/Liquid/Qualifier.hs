@@ -8,6 +8,7 @@ import Outputable
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.GhcInterface
+import Language.Haskell.Liquid.PredType
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Misc
@@ -46,8 +47,33 @@ specificationQualifiers info
     ] where xs  = S.fromList $ defVars info
             tce = tcEmbeds   $ spec info
 
+refTypeQuals tce t 
+  = quals ++ 
+    [ pAppQual tce p args (v, expr) 
+    | p            <- preds
+    , (s, v, _)    <- pargs p
+    , (args, expr) <- concatMap (expressionsOfSort (rTypeSort tce s)) quals
+    ]  where quals       = refTypeQuals' tce t
+             preds       = snd3 $ bkUniv t
+
+expressionsOfSort sort (Q _ pars (PAtom Eq (EVar v) e2)) | (v, sort) `elem` pars
+  = [(filter (/=(v, sort)) pars, e2)]
+expressionsOfSort _ _  = [] 
+
+pAppQual tce p args (v, expr)
+  =  Q "Papp" freeVars pred
+  where freeVars = (vv, tyvv):(predv,typred):args
+        pred     = pApp predv $ EVar vv:predArgs
+        vv       = S "v"
+        predv    = S "~P"
+        tyvv     = rTypeSort tce $ ptype p
+        typred   = rTypeSort tce (toPredType p :: RRType ())
+        predArgs = mkexpr <$> (snd3 <$> pargs p)
+        mkexpr x | x == v    = expr
+                 | otherwise = EVar x
+
 -- refTypeQuals :: SpecType -> [Qualifier] 
-refTypeQuals tce t0 = go emptySEnv t0
+refTypeQuals' tce t0 = go emptySEnv t0
   where go γ t@(RVar _ _)         = refTopQuals tce t0 γ t     
         go γ (RAllT _ t)          = go γ t 
         go γ (RAllP _ t)          = go γ t 
