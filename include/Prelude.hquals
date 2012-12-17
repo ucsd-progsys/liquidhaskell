@@ -17,10 +17,6 @@ qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
 constant papp1 : func(2, [Pred @(0); @(1); bool])
 
 qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
-qualif Papp2(v:a,~X:b, ~Z:b,~P:Pred a b) : papp2(~P, v, ~X+~Z)
-qualif Papp2(v:a,~X:int,~P:Pred a int) : papp2(~P, v, ~X+1)
-qualif Papp2(v:a,~P:Pred a int) : papp2(~P, v, 0)
-qualif Papp2(v:a,~P:Pred a int) : papp2(~P, v, 42)
 constant papp2 : func(3, [Pred @(0) @(1); @(2); @(3); bool])
 
 // for maybe4.hs
