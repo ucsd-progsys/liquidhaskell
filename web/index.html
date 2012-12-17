@@ -1,0 +1,194 @@
+<html lang="en" ng-app>
+  <head>
+    <meta charset="utf-8">
+    <title>Liquid Haskell · Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <!-- Le styles -->
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/bootstrap-responsive.css" rel="stylesheet">
+    <link href="css/docs.css" rel="stylesheet">
+    <link href="css/liquid.css" type='text/css' rel="stylesheet">
+    <link href="css/codemirror.css" rel="stylesheet" >
+
+    <script src="js/angular/angular.js"></script>
+    <script src="js/codemirror.js"></script>
+    <script src="js/haskell.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+  </head>
+
+<body data-spy="scroll" data-target=".bs-docs-sidebar" ng-controller="LiquidDemoCtrl">
+
+  <!-- Navbar ================================================== -->
+    <div class="navbar navbar-inverse navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="btn btn-navbar" data-toggle="collapse" data-target=".navbar-inverse-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </a>
+          
+          <div class="nav-collapse collapse">
+          <ul class="nav">
+            <!-- <li class="active">
+              <a class="brand" href="./index.html">Liquid Haskell</a>
+              </li> -->
+            <li class="active">
+                <a href="./index.html">Demo</a>
+            </li>
+            <li class="">
+                <a href="http://goto.ucsd.edu/~rjhala/liquid/">Papers</a>
+            </li>
+            <li class="">
+                <a href="https://github.com/ucsd-progsys/liquidhaskell">Code</a>
+            </li>
+            <li class="">
+               <a href="http://liquidtypes.blogspot.com/">Blog</a>
+            </li>
+          </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- SubTitle ================================================== -->
+           
+   <header class="jumbotron subhead" id="overview">
+     <div class="container">
+       <h1>Liquid Haskell</h1>
+       <p class="lead">Dependent Types via SMT and Predicate Abstraction</p>
+     </div>
+     </header>
+
+   
+   <!-- Actual Body ================================================== -->
+   
+   <div class="container-fluid">
+     <div class="row-fluid">
+       <div class="span2">
+       <!--Sidebar content-->
+       <ul class="nav nav-list">
+         
+         <li class="nav-header">New</li>
+         <li><a href="#">Load File</a></li>
+
+         <li class="nav-header">Basics</li>
+         <li ng-repeat="demo in basicDemos"><a href="" ng-click="loadSource(demo)">{{demo.name}}</a></li>
+
+         <li class="nav-header">Datatype Measures</li>
+         <li ng-repeat="demo in measureDemos"><a href="" ng-click="loadSource(demo)">{{demo.name}}</a></li>
+         
+         <li class="nav-header">Abstr. Refinements</li>
+         <li ng-repeat="demo in abstRefDemos"><a href="" ng-click="loadSource(demo)">{{demo.name}}</a></li>
+
+       </ul>
+     </div>
+     
+     <div class="span10">
+
+        <!-- Body content =========================================-->
+
+       <div class="tabbable"> <!-- Only required for left/right tabs -->
+         <ul class="nav nav-tabs">
+           <li class="active"><a href="#tabSrc" data-toggle="tab">Haskell Source</a></li>
+           <li><a href="#tabQuals" data-toggle="tab">Qualifiers</a></li>
+           <li ng-show="outReady"><a href="#tabOut" data-toggle="tab">Result</a></li>
+           <li ng-show="outReady"><a href="#tabLog" data-toggle="tab">Log</a></li>
+         </ul>
+         
+         <div class="tab-content">
+           <div class="tab-pane active" id="tabSrc">
+             <div id="program-pane" class="well" style="background:#fff">
+                 <button class="btn btn-primary" type="button" ng-click="verifySource()">Verify</button>
+
+                 <div style="float:right" ng-show="isUnknown">
+                    <span class="label label-info large" id="sourceName">{{msg}}</span>
+                 </div> 
+                
+                 <div style="float:right" ng-show="isSafe">
+                    <span class="label label-success large" id="status-safe">Safe</span>
+                 </div> 
+
+                 <div style="float:right" ng-show="isUnsafe">
+                    <span class="label label-important large" id="status-unsafe">Unsafe</span>
+                 </div> 
+
+                 <div style="float:right" ng-show="isCrash">
+                    <span class="label label-warning large" id="status-crash">Crash!</span>
+                 </div> 
+
+
+                 <br>
+                 <br>
+                 <textarea class="field" id='program' name='program' rows='20' cols='80'>
+                  -- Wait for it ... 
+                 </textarea>
+              </div>
+           </div>
+           
+           <div class="tab-pane" id="tabQuals">
+             <div id="qualifier-pane" class="well" style="background:#fff">
+               <textarea class="field" id='qualifiers' name='qualifiers' rows='20' cols='80'>
+                // Wait for it ... 
+               </textarea>
+             </div>
+           </div>
+           
+           <div class="tab-pane" id="tabOut">
+             <div ng-show="isSafe" class="alert alert-success">
+               <button type="button" class="close" data-dismiss="alert">×</button>
+               <strong>Safe!</strong> Your program is verified!
+             </div>
+
+             <div class="alert alert-error" ng-repeat="warn in warns">
+               <button type="button" class="close" data-dismiss="alert">×</button>
+               <strong>Warning!</strong> Uh, oh! {{warn}}
+             </div>
+
+             <div class="alert alert-block" ng-show="crash">
+               <button type="button" class="close" data-dismiss="alert">×</button>
+               <strong>Crash!</strong> Oh no, there was a crash. See the <a href="#tabLog">log</a>.
+             </div>
+
+             <div class="page-header">
+               <h1>Annotated Program  <small> Hover mouse over variables to see inferred types</small></h1>
+             </div>
+             <div ng-bind-html-unsafe="annotHtml"></div>
+
+             <br>
+             <br>
+             <br>
+             <br>
+             <br>
+             <br>
+             <br>
+             <br>
+             <br>
+             <br>
+           </div>
+           
+           <div class="tab-pane" id="tabLog">
+             Click <a href="log">this</a> to see the log. 
+           </div>
+
+         </div>
+       </div> 
+     </div>
+   </div>
+ </div>
+
+
+<!-- JavaScript below! ============================================== -->
+         
+<!-- Bootstrap JS: compiled and minified -->
+    <script src="js/jquery-1.7.1.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/liquid.js"></script>
+
+</body>
+
+</html>

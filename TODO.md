@@ -23,6 +23,14 @@ Benchmarks
     Base.hs         :        26mi/2m
 
 
+WebDemo
+=======
+
+web/
+
+- tweak so that annothtml doesnt have title -- just BODY
+
+
 Tuple Refinements (DONE: by Niki)
 =================================
 

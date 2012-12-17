@@ -113,9 +113,16 @@ pandocPreProc css
 -- More or less taken from hscolour
 
 renderDirect htmlFile srcFile css body 
-  = writeFile htmlFile $ (top'n'tail srcFile css $! body)
+  = writeFile htmlFile $! (top'n'tail full srcFile css $! body)
+    where full = False  -- TODO: command-line-option 
 
-top'n'tail title css = (htmlHeader title css ++) . (++ htmlClose)
+-- | @top'n'tail True@ is used for standalone HTML, 
+--   @top'n'tail False@ for embedded HTML
+
+top'n'tail True  title css = (htmlHeader title css ++) . (++ htmlClose)
+top'n'tail False _    _    = id
+
+-- Use this for standalone HTML
 
 htmlHeader title css = unlines
   [ "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">"
@@ -125,7 +132,6 @@ htmlHeader title css = unlines
   , "</head>"
   , cssHTML css
   , "<body>"
-  -- , "<h1>Liquid Types: " ++ title ++ "</h1>"
   , "<hr>"
   , "Put mouse over identifiers to see inferred types"
   ]
@@ -134,14 +140,9 @@ htmlClose  = "\n</body>\n</html>"
 
 cssHTML css = unlines
   [ "<head>"
-  -- , "<style media=\"screen\" type=\"text/css\">"
-  -- , css
-  -- , "</style>"
   , "<link type='text/css' rel='stylesheet' href='"++ css ++ "' />"
   , "</head>"
   ]
-  
-
 
 ------------------------------------------------------------------------------
 -- | Building Annotation Maps ------------------------------------------------
