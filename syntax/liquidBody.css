@@ -1,0 +1,145 @@
+html {
+    font-family: "helvetica";
+}
+
+code {
+   /* font-weight: bold; */
+   background-color: rgb(250, 250, 250); 
+   border: 1px solid rgb(200, 200, 200);
+   padding-left: 4px;
+   padding-right: 4px;
+}
+
+/* pygments */
+
+pre {
+	background-color: #f0f0f0;
+	border-top: 1px solid #ccc;
+	border-bottom: 1px solid #ccc;
+	padding: 5px;
+	font-size: 13px;
+	font-family: Bitstream Vera Sans Mono,monospace;
+}
+
+/********************** Links **************************************/
+
+a:hover { 
+  color: black; /* #1d4c77; */
+  /* text-decoration:underline */
+}
+
+
+/********************** General Divs ********************************/
+
+div#navigation {
+    text-align: center;
+    border-bottom: 4px solid black;
+}
+
+div#navigation a {
+    color: white;
+    text-decoration: none;
+    background-color: black;
+    padding: 3px 10px 3px 10px;
+    margin: 0px 10px 0px 10px;
+}
+
+body {
+    width: 700px;
+    /* width: 900px; */
+    margin: 0px auto 0px auto;
+}
+
+div#header {
+    height: 32px;
+    padding: 20px 0px 20px 60px;
+}
+
+div#header img {
+    display: inline;
+    vertical-align: middle;
+}
+
+div#header h1 {
+    padding-left: 10px;
+    display: inline;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+div#main {
+    margin: 0px auto 0px auto;
+    width: 760px;
+}
+
+div#sidebar {
+    margin-right: 30px;
+    width: 160px;
+    float: left;
+    text-align: right;
+}
+
+div#sidebar a {
+    display: block;
+    font-size: 110%;
+    text-decoration: none;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+div#content {
+    width: 570px;
+    float: right;
+}
+
+div#footer {
+    padding-top: 30px;
+    clear: both;
+    font-size: 90%;
+    text-align: center;
+}
+
+
+h2 {
+    font-size: 120%;
+    text-transform: uppercase;
+}
+
+h3 {
+    font-size: 100%;
+    text-transform: uppercase;
+}
+
+div.column {
+    width: 50%;
+    float: left;
+}
+
+div.column p {
+    padding-right: 15px;
+}
+
+img {
+    display: block;
+    margin: 10px auto 10px auto;
+    border: none;
+}
+
+ul {
+    list-style-type: square;
+    padding-left: 1em;
+    margin-left: 1em;
+}
+
+
+
+p.caption {
+    display: none;
+}
+
+img {
+  border:0px;
+  margin-left:auto;
+  margin-right:auto;
+  display:block
+}
