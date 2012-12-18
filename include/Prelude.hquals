@@ -18,8 +18,3 @@ constant papp1 : func(2, [Pred @(0); @(1); bool])
 
 qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
 constant papp2 : func(3, [Pred @(0) @(1); @(2); @(3); bool])
-
-// for maybe4.hs
-
-qualif Auto(VV : a_abS , ~A0 : Maybe a_abS): (&& [(? isJust([~A0]));(VV = fromJust([~A0]))])
-
