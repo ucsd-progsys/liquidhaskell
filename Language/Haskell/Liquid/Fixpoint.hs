@@ -14,7 +14,7 @@ module Language.Haskell.Liquid.Fixpoint (
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
   , stringFTycon, intFTyCon, boolFTyCon, predFTyCon
-  , typeSort, typeUniqueSymbol
+  , typeSort, typeUniqueSymbol, typeSortDCon
   
   -- * Symbols
   , Symbol(..)
@@ -197,6 +197,11 @@ fApp c ts
   | c == intFTyCon  = FInt
   | c == boolFTyCon = FBool
   | otherwise       = FApp c ts
+
+typeSortDCon :: TCEmb TyCon -> Type -> Sort 
+typeSortDCon tce = go . typeSort tce
+  where go t@(FFunc _ _) = t
+        go t             = FFunc 0 $ genArgSorts [t]
 
 typeSort :: TCEmb TyCon -> Type -> Sort 
 typeSort tce (ForAllTy _ τ) 

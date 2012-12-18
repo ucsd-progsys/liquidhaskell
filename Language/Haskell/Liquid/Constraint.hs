@@ -20,11 +20,13 @@ import SrcLoc
 import Type             -- (coreEqType)
 import PrelNames
 import qualified TyCon as TC
+import DataCon (dataConWorkId)
 
 import TypeRep 
 import Class            (Class, className)
 import PrelInfo         (isNumericClass)
 import Var
+import Id
 import Name             (getSrcSpan)
 import Outputable   hiding (empty)
 import Control.Monad.State
@@ -36,7 +38,7 @@ import Data.Maybe               (fromMaybe)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.Bifunctor
-import Data.List (foldl')
+import Data.List (foldl', filter)
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import qualified Language.Haskell.Liquid.Fixpoint   as F
@@ -430,13 +432,18 @@ initCGI info = CGInfo {
   , specQuals  = specificationQualifiers info
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
-  , lits       = coreBindLits tce $ cbs info 
+  , lits       = coreBindLits tce info 
   } where tce  = tcEmbeds $ spec info
           spc  = spec info
 
 
-coreBindLits tce cbs = sortNub [ (x, so) | (_, F.ELit x so) <- lconsts]
-  where lconsts      = literalConst tce <$> literals cbs
+coreBindLits tce info
+  = sortNub $ [ (x, so) | (_, F.ELit x so) <- lconsts]
+           ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons]
+  where lconsts      = literalConst tce <$> literals (cbs info)
+        dcons        = filter isDataConWorkId $ impVars info
+        dconToSort   = F.typeSortDCon tce . varType 
+        dconToSym    = dataConSymbol . idDataCon
 
 extendEnvWithVV γ t 
   | F.isNontrivialVV vv
