@@ -17,7 +17,7 @@ module Language.Haskell.Liquid.RefType (
   , uTop, uReft, uRType, uRType', uRTypeGen, uPVar
  
   -- * Functions for manipulating `Predicate`s
-  , pdAnd, pdVar, pdTrue, pvars
+  , pdAnd, pdVar, pdTrue, pvars, findPVar
 
   -- * Traversing `RType` 
   , ppr_rtype, efoldReft, foldReft, mapReft, mapReftM, mapBot, mapBind
@@ -147,6 +147,12 @@ instance NFData PrType where
 
 instance NFData RTyVar where
   rnf _ = ()
+
+findPVar :: [PVar (RType p c tv ())] -> UsedPVar -> PVar (RType p c tv ())
+findPVar ps p 
+  = PV name ty $ zipWith (\(_, _, e) (t, s, _) -> (t, s, e))(pargs p) args
+  where PV name ty args = fromMaybe (msg p) $ L.find ((==(pname p)) . pname) ps
+        msg p = errorstar $ "RefType.findPVar" ++ showPpr p ++ "not found"
 
 --------------------------------------------------------------------
 ---- Unified Representation of Refinement Types --------------------

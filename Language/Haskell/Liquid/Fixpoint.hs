@@ -41,7 +41,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , Refa (..), SortedReft (..), Reft(..)
   , trueSortedReft, trueRefa
   , exprReft, notExprReft, symbolReft
-  , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft
+  , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft, isEVar
   , flattenRefas, shiftVV
   , ppr_reft, ppr_reft_pred
 
@@ -508,6 +508,9 @@ isTautoPred  = (`elem` [ PTrue ])
 isTautoReft (Reft (_, ras)) = all isTautoRa ras
 isTautoRa (RConc p)         = isTautoPred p
 isTautoRa _                 = False
+
+isEVar (EVar _) = True
+isEVar _        = False
 
 isSingletonReft (Reft (v, [RConc (PAtom Eq e1 e2)])) 
   | e1 == EVar v = Just e2
