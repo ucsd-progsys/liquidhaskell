@@ -241,6 +241,7 @@ val substs_expr    : expr -> Subst.t -> expr
 val substs_pred    : pred -> Subst.t -> pred 
 val simplify_pred  : pred -> pred
 val conjuncts      : pred -> pred list
+
 val sortcheck_expr : (Symbol.t -> Sort.t option) -> expr -> Sort.t option
 val sortcheck_pred : (Symbol.t -> Sort.t option) -> pred -> bool
 val sortcheck_app  : (Symbol.t -> Sort.t option) -> Sort.t option -> Symbol.t -> expr list -> (Sort.sub * Sort.t) option

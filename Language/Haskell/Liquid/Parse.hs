@@ -645,8 +645,8 @@ remainderP p
 
 doParse' parser f s
   = case parse (remainderP p) f s of
-      Left e         -> errorstar $ printf "parseError %s\n when parsing %s\nfrom %s\n" 
-                                      (show e) s f 
+      Left e         -> errorstar $ printf "parseError %s\n when parsing from %s\n" 
+                                      (show e) f 
       Right (r, "")  -> r
       Right (_, rem) -> errorstar $ printf "doParse has leftover when parsing: %s\nfrom file %s\n"
                                       rem f

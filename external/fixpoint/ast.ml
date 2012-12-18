@@ -1204,6 +1204,10 @@ and sortcheck_pred f p =
         in sortcheck_pred f' p
     | _ -> failwith "Unexpected: sortcheck_pred"
 
+(* and sortcheck_pred f p =
+  sortcheck_pred' f p
+  >> (fun b -> if not b then F.eprintf "WARNING: Malformed Lhs Pred (%a)\n" Predicate.print p) 
+ *)
 
 let uf_arity f uf =  
   match sortcheck_sym f uf with None -> None | Some t -> 
