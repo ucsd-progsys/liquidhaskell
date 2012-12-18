@@ -12,7 +12,6 @@ qualif True(v:bool)   : (? v)
 qualif False(v:bool)  : ~ (? v) 
 
 
-// TODO create these automatically with Auto
 qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
 constant papp1 : func(2, [Pred @(0); @(1); bool])
 
