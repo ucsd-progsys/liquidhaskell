@@ -26,27 +26,29 @@ Say what? Let us jump right in with a simple example, the number `0 :: Int`.
 
 As far as Haskell is concerned, the number is simply an `Int` (lets not
 worry about things like `Num` for the moment.) So are, `2` and `7` and 
-`904`. However, we can dress up `zero` a little bit so that it stands apart. 
-We might say
+`904`. 
+
+With refinements, we can dress up these values so that they stand apart.
+For example, consider the binder
 
 \begin{code}
-{-@ zero' :: {v: Int | 0 <= v} @-}
 zero' :: Int
 zero' = 0
 \end{code}
 
-Here, we have *refined* the basic type `Int` with a predicate.
+We can ascribe to the variable `zero'` the refinement type
 
-\begin{code}In a nutshell, the refinement type
-{v : Int | 0 <= v}
+\begin{code}
+{-@ zero' :: {v: Int | 0 <= v} @-}
 \end{code}
 
+which is simply the basic type `Int` dressed up with a predicate.
 The binder `v` is called the *value variable*, and so the above denotes 
 the set of `Int` values which are greater than `0`. Of course, we can
 attach other predicates to the above value, for example
 
 \begin{code}
-{-@ zero'' :: {v: Int | 0 <= v && v < 100 } @-}
+{-@ zero'' :: {v: Int | ((0 <= v) && (v < 100)) } @-}
 zero'' :: Int
 zero'' = 0
 \end{code}
@@ -54,7 +56,7 @@ zero'' = 0
 which states that the number is in the range `0` to `100`, or
 
 \begin{code}
-{-@ zero''' :: {v: Int | v % 2 = 0} @-}
+{-@ zero''' :: {v: Int | (v mod 2) = 0} @-}
 zero''' :: Int
 zero''' = 0
 \end{code}
@@ -62,24 +64,22 @@ zero''' = 0
 where `%` is the *modulus* operator in the refinement logic. Thus, the type
 above states that zero is an *even* number.
 
-We can also *relate* these different definitions like so
+We can also use a singleton type that precisely describes the constant
 
 \begin{code}
-{-@ zero''' :: {v: Int | v = zero'' } @-}
-zero''' :: Int
-zero''' = 0
+{-@ zero'''' :: {v: Int | v = 0 } @-}
+zero'''' :: Int
+zero'''' = 0
 \end{code}
 
-The above type describes those values which are equal to the value bound to
-the variable `zero''`.
-
 (Aside: we use a different names `zero'`, `zero''` etc. for a silly technical 
-reason -- we want to ascribe a single type to a top-level name.)
+reason -- LiquidHaskell requires that we ascribe a single refinement type to 
+a top-level name.)
 
 Finally, we could write a single type that captures all the properties above:
 
 \begin{code}
-{-@ zero :: {v: Int | (v = zero'') && (0 <= v) && (v % 2 = 0) } @-}
+{-@ zero :: {v: Int | ((0 <= v) && ((v mod 2) = 0)) } @-}
 zero     :: Int
 zero     =  0
 \end{code}
@@ -223,7 +223,7 @@ divide-by-zero errors. Again, if you are *really* want to make sure, put
 in an assertion
 
 \begin{code}
-truncate i max  
+truncate' i max  
   | i' <= max' = i
   | otherwise  = lAssert (i' /= 0) $ max' * (i `divide` i')
     where i'   = abz i
