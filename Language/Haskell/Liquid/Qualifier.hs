@@ -86,7 +86,18 @@ refTopQuals tce t0 γ t
   = [ mkQual t0 γ v so pa | let (RR so (Reft (v, ras))) = rTypeSortedReft tce t 
                           , RConc p                    <- ras                 
                           , pa                         <- atoms p
-    ]
+    ] ++
+    [ mkPQual tce t0 γ s e | let (U _ (Pr ps)) = fromMaybe (msg t) $ stripRTypeBase t
+                           , p <- (findPVar (snd3 (bkUniv t0))) <$> ps
+                           , (s, _, e) <- pargs p
+                           , not $ isEVar e
+    ] where msg t = errorstar $ "Qualifier.refTopQuals: no typebase" ++ showPpr t
+
+mkPQual tce t0 γ t e = mkQual t0 γ' v so pa
+  where v = S "vv"
+        so = rTypeSort tce t
+        γ' = insertSEnv v so γ
+        pa = PAtom Eq (EVar v) e   
 
 mkQual t0 γ v so p = Q "Auto" ((v, so) : yts) p'
   where yts  = [(y, lookupSort t0 x γ) | (x, y) <- xys ]
