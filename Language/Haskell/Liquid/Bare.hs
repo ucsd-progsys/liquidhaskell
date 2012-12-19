@@ -208,7 +208,7 @@ checkSig' env (x, t)
 -- freeSymbols :: SpecType -> [Symbol]
 freeSymbols ty   = -- tracePpr ("freeSymbols: " ++ show ty) $ 
                    sortNub $ concat $ efoldReft f [] [] ty
-  where f γ r xs = let Reft (v, ras) = toReft r in ((syms ras) `sortDiff` (v:γ) ) : xs 
+  where f γ r xs = let Reft (v, _) = toReft r in ((syms r) `sortDiff` (v:γ) ) : xs 
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
