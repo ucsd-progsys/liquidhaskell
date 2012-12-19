@@ -1009,7 +1009,7 @@ instance NFData CGInfo where
 -------------------------------------------------------------------------------
 
 existentialRefType     :: CGEnv -> SpecType -> SpecType
-existentialRefType γ t = withReft t (uTop r') 
+existentialRefType γ t = t `strengthen` (uTop r') 
   where r'             = maybe top (exReft γ) (F.isSingletonReft r)
         r              = F.sr_reft $ rTypeSortedReft (emb γ) t
 
@@ -1027,9 +1027,9 @@ exReftLookup γ x       = γ ?= x'
   where x'             = fromMaybe err (varSymbol <$> F.lookupSEnv x γ')
         γ'             = syenv γ
         err            = errorstar $ "exReftLookup: unknown " ++ showPpr x ++ " in " ++ showPpr  γ'
-withReft (RApp c ts rs _) r' = RApp c ts rs r' 
-withReft (RVar a _) r'       = RVar a      r' 
-withReft t _                 = t 
+-- withReft (RApp c ts rs _) r' = RApp c ts rs r' 
+-- withReft (RVar a _) r'       = RVar a      r' 
+-- withReft t _                 = t 
 
 -------------------------------------------------------------------------------
 -------------------- Cleaner Signatures For Rec-bindings ----------------------
