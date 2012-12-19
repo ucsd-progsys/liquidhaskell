@@ -73,6 +73,7 @@ import Data.List            (sort)
 import Data.Hashable
 import Data.Maybe           (fromMaybe)
 import Text.Printf          (printf)
+import Type                 (splitForAllTys)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
@@ -199,9 +200,10 @@ fApp c ts
   | otherwise       = FApp c ts
 
 typeSortDCon :: TCEmb TyCon -> Type -> Sort 
-typeSortDCon tce = go . typeSort tce
+typeSortDCon tce t0 = go $ typeSort tce t0
   where go t@(FFunc _ _) = t
-        go t             = FFunc 0 $ genArgSorts [t]
+        go t             = FFunc n $ genArgSorts [t]
+        n                = length $ fst $ splitForAllTys t0
 
 typeSort :: TCEmb TyCon -> Type -> Sort 
 typeSort tce (ForAllTy _ τ) 
