@@ -1106,8 +1106,9 @@ dataConReft c []
 dataConReft c [x] 
   | c == intDataCon 
   = Reft (vv_, [RConc (PAtom Eq (EVar vv_) (EVar x))]) 
-dataConReft _ _ 
- = Reft (vv_, [RConc PTrue]) 
+dataConReft c xs
+ = Reft (vv_, [RConc (PAtom Eq (EVar vv_) dcValue)])
+ where dcValue = EApp (dataConSymbol c) (EVar <$> xs)
 
 vv_ = vv Nothing
 
