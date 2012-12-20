@@ -1108,7 +1108,10 @@ dataConReft c [x]
   = Reft (vv_, [RConc (PAtom Eq (EVar vv_) (EVar x))]) 
 dataConReft c xs
  = Reft (vv_, [RConc (PAtom Eq (EVar vv_) dcValue)])
- where dcValue = EApp (dataConSymbol c) (EVar <$> xs)
+ where dcValue | null xs && null (dataConUnivTyVars c) 
+               = EVar $ dataConSymbol c
+               | otherwise
+               = EApp (dataConSymbol c) (EVar <$> xs)
 
 vv_ = vv Nothing
 
