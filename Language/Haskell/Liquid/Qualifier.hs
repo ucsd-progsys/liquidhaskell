@@ -90,7 +90,6 @@ refTopQuals tce t0 γ t
     [ mkPQual tce t0 γ s e | let (U _ (Pr ps)) = fromMaybe (msg t) $ stripRTypeBase t
                            , p <- (findPVar (snd3 (bkUniv t0))) <$> ps
                            , (s, _, e) <- pargs p
-                           , not $ isEVar e
     ] where msg t = errorstar $ "Qualifier.refTopQuals: no typebase" ++ showPpr t
 
 mkPQual tce t0 γ t e = mkQual t0 γ' v so pa
