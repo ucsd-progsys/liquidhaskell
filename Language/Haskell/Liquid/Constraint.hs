@@ -442,7 +442,7 @@ coreBindLits tce info
            ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons]
   where lconsts      = literalConst tce <$> literals (cbs info)
         dcons        = filter isDataConWorkId $ impVars info
-        dconToSort   = F.typeSort tce . varType 
+        dconToSort   = F.typeSort tce . expandTypeSynonyms . varType 
         dconToSym    = dataConSymbol . idDataCon
 
 extendEnvWithVV γ t 
