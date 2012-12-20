@@ -14,7 +14,7 @@ module Language.Haskell.Liquid.Fixpoint (
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
   , stringFTycon, intFTyCon, boolFTyCon, predFTyCon
-  , typeSort, typeUniqueSymbol, typeSortDCon
+  , typeSort, typeUniqueSymbol
   
   -- * Symbols
   , Symbol(..)
@@ -199,16 +199,9 @@ fApp c ts
   | c == boolFTyCon = FBool
   | otherwise       = FApp c ts
 
-typeSortDCon :: TCEmb TyCon -> Type -> Sort 
-typeSortDCon tce t0 = go $ typeSort tce t0
-  where go t@(FFunc _ ts) = FFunc n ts
-        go t              | n==0       = t
-        go t              | otherwise  =  FFunc n $ genArgSorts [t]
-        n                 = length $ fst $ splitForAllTys t0
-
 typeSort :: TCEmb TyCon -> Type -> Sort 
-typeSort tce (ForAllTy _ τ) 
-  = typeSort tce τ  -- JHALA: Yikes! Fix!!!
+typeSort tce τ@(ForAllTy _ _) 
+  = typeSortForAll tce τ
 typeSort tce (FunTy τ1 τ2) 
   = typeSortFun tce τ1 τ2
 typeSort tce (TyConApp c τs)
@@ -216,7 +209,27 @@ typeSort tce (TyConApp c τs)
   where ftc = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce) 
 typeSort _ τ
   = FObj $ typeUniqueSymbol τ
-  
+ 
+typeSortForAll tce τ 
+  = genSort $ typeSort tce tbody
+  where genSort (FFunc _ t) = FFunc n (sortSubst su <$> t)
+        genSort t           = FFunc n [sortSubst su t]
+        (as, tbody)         = splitForAllTys τ 
+        su                  = M.fromList $ zip sas (FVar <$>  [0..])
+        sas                 = (typeUniqueSymbol . TyVarTy) <$> as
+        n                   = length as 
+
+-- typeSort :: TCEmb TyCon -> Type -> Sort 
+-- typeSort tce (ForAllTy _ τ) 
+--   = incrTyVars $ typeSort tce τ
+-- typeSort tce (FunTy τ1 τ2) 
+--   = typeSortFun tce τ1 τ2
+-- typeSort tce (TyConApp c τs)
+--   = fApp ftc (typeSort tce <$> τs)
+--   where ftc = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce) 
+-- typeSort _ τ
+--   = FObj $ typeUniqueSymbol τ
+ 
 tyConName c 
   | listTyCon == c = listConName
   | isTupleTyCon c = tupConName
@@ -224,10 +237,9 @@ tyConName c
 
 
 typeSortFun tce τ1 τ2
-  = FFunc n $ genArgSorts sos
+  = FFunc 0  sos
   where sos  = typeSort tce <$> τs
         τs   = τ1  : grabArgs [] τ2
-        n    = (length sos) - 1
    
 typeUniqueSymbol :: Type -> Symbol 
 typeUniqueSymbol = stringSymbol . {- ("sort_" ++) . -} showSDocDump . ppr
@@ -235,9 +247,9 @@ typeUniqueSymbol = stringSymbol . {- ("sort_" ++) . -} showSDocDump . ppr
 grabArgs τs (FunTy τ1 τ2 ) = grabArgs (τ1:τs) τ2
 grabArgs τs τ              = reverse (τ:τs)
 
-genArgSorts' sos = traceShow ("genArgSorts sos = " ++ showPpr sos) $ genArgSorts sos
+-- genArgSorts' sos = traceShow ("genArgSorts sos = " ++ showPpr sos) $ genArgSorts sos
 
-genArgSorts :: [Sort] -> [Sort]
+-- genArgSorts :: [Sort] -> [Sort]
 --genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
 --  where genSort FInt        = Nothing
 --        genSort FBool       = Nothing 
@@ -245,14 +257,14 @@ genArgSorts :: [Sort] -> [Sort]
 --        genIdx  _ (Just i)  = FVar i
 --        genIdx  so  _       = so
 
-genArgSorts xs = sortSubst su <$> xs
-  where su = M.fromList $ zip (sortNub αs) (FVar <$> [0..])
-        αs = concatMap getObjs xs 
+-- genArgSorts xs = sortSubst su <$> xs
+--   where su = M.fromList $ zip (sortNub αs) (FVar <$> [0..])
+--         αs = concatMap getObjs xs 
 
-getObjs (FObj x)          = [x]
-getObjs (FFunc _ ts)      = concatMap getObjs ts
-getObjs (FApp _ ts)       = concatMap getObjs ts
-getObjs _                 = []
+-- getObjs (FObj x)          = [x]
+-- getObjs (FFunc _ ts)      = concatMap getObjs ts
+-- getObjs (FApp _ ts)       = concatMap getObjs ts
+-- getObjs _                 = []
 
 sortSubst su t@(FObj x)   = fromMaybe t (M.lookup x su) 
 sortSubst su (FFunc n ts) = FFunc n (sortSubst su <$> ts)
