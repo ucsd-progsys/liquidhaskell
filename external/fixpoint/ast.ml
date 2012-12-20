@@ -1192,6 +1192,7 @@ and sortcheck_pred f p =
     | And ps  
     | Or ps ->
         List.for_all (sortcheck_pred f) ps
+    
     | Atom ((Con (Constant.Int(0)),_), _, e) 
     | Atom (e, _, (Con (Constant.Int(0)),_)) 
       when not (!Constants.strictsortcheck)
