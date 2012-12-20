@@ -13,7 +13,9 @@ import Outputable
 import Var
 import PrelNames
 import PrelInfo     (wiredInThings)
-import Type         (expandTypeSynonyms)
+import Id           (isDataConWorkId)
+import DataCon      (dataConWorkId)
+import Type         (expandTypeSynonyms, splitForAllTys, splitFunTy_maybe)
 import DataCon      (dataConImplicitIds)
 import HscMain
 import TysWiredIn
@@ -21,7 +23,7 @@ import BasicTypes (TupleSort (..), Arity)
 import TcRnDriver (tcRnLookupRdrName, tcRnLookupName) 
 
 import Text.Printf
-import Data.Maybe               (catMaybes)
+import Data.Maybe               (catMaybes, isNothing)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>))
 import Control.Monad.Reader     hiding (forM)
@@ -100,8 +102,17 @@ renameTyVars (x, t) = (x, mkUnivs as' [] t')
         as'           = rTyVar <$> (fst $ splitForAllTys $ varType x)
         (as, ps, bt)  = bkUniv t
 
+mkVarExpr v 
+  | isDataConWorkId v && not (null tvs) && isNothing tfun
+  = EApp (dataConSymbol (idDataCon v)) []         
+  | otherwise   
+  = EVar $ varSymbol v
+  where t            = varType v
+        (tvs, tbase) = splitForAllTys t
+        tfun         = splitFunTy_maybe tbase
+
 subsFreeSymbols xvs = tx
-  where su  = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
+  where su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- xvs]
         tx  = fmap $ mapSnd $ subst su {- (\t -> tracePpr ("subsFree: " ++ showPpr t) (subst su t)) -}
 
 -- meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
