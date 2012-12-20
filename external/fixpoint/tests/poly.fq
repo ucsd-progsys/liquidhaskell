@@ -1,0 +1,9 @@
+constant Nil : func(1, [Vec @(0)])
+
+constraint: 
+ env  [ x   : {VV : Vec a | [(VV = Nil([]))]} ] 
+ grd true 
+ lhs {VVF : b_abL | []} 
+ rhs {VVF : b_abL | [(0 = 1)]} 
+ id 1 tag [1] 
+
