@@ -201,8 +201,9 @@ fApp c ts
 
 typeSortDCon :: TCEmb TyCon -> Type -> Sort 
 typeSortDCon tce t0 = go $ typeSort tce t0
-  where go t@(FFunc _ _) = t
-        go t             = head $ genArgSorts [t]
+  where go t@(FFunc _ ts) = FFunc n ts
+        go t              = FFunc n $ genArgSorts [t]
+        n                 = length $ fst $ splitForAllTys t0
 
 typeSort :: TCEmb TyCon -> Type -> Sort 
 typeSort tce (ForAllTy _ τ) 
