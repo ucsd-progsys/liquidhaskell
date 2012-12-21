@@ -26,20 +26,22 @@ verified.
 What is a Refinement Type?
 --------------------------
 
-In a nutshell, 
+{% pullquote %}
+In a nutshell, {"Refinement Types = Types + Logical Predicates"}
+That is, refinement types allow us to decorate types with 
+*logical predicates* which constrain the set of values described
+by the type, and hence, allow us to specify sophisticated invariants 
+of the underlying values.
+{% endpullquote %}
 
-        Refinement Types = Types + Logical Predicates
 
-That is, refinement types allow us to enrich types with *logical
-predicates* which allow us to specify even more sophisticated properties.
-Say what? Let us jump right in with a simple example, the number `0 :: Int`. 
+Say what? 
 
+Let us jump right in with a simple example, the number `0 :: Int`. 
 As far as Haskell is concerned, the number is simply an `Int` (lets not
 worry about things like `Num` for the moment.) So are, `2` and `7` and 
-`904`. 
-
-With refinements, we can dress up these values so that they stand apart.
-For example, consider the binder
+`904`. With refinements, we can dress up these values so that they 
+stand apart. For example, consider the binder
 
 \begin{code}
 zero' :: Int
@@ -71,7 +73,7 @@ zero''' :: Int
 zero''' = 0
 \end{code}
 
-where `%` is the *modulus* operator in the refinement logic. Thus, the type
+where `mod` is the *modulus* operator in the refinement logic. Thus, the type
 above states that zero is an *even* number.
 
 We can also use a singleton type that precisely describes the constant
@@ -120,11 +122,9 @@ error'     = error
 The interesting thing about the type signature for `error'` is that the
 input type has the refinement `false`. That is, the function must only be
 called with `String`s that satisfy the predicate `false`. Of course, there
-are *no* such values. 
-
-    Hence, a program containing the above function typechecks exactly when
-    we can statically verify that the function `error'` is *never called*.
-
+are *no* such values. Thus, a program containing the above function
+typechecks *exactly* when LiquidHaskell can prove that the function
+`error'` is *never called*.
 
 Next, we can use refinements to encode arbitrary programmer-specified 
 **assertions** by defining a function
