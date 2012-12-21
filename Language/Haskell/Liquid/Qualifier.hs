@@ -61,7 +61,7 @@ expressionsOfSort sort (Q _ pars (PAtom Eq (EVar v) e2)) | (v, sort) `elem` pars
 expressionsOfSort _ _  = [] 
 
 pAppQual tce p args (v, expr)
-  =  Q "Papp" freeVars pred
+  =  Q "Auto" freeVars pred
   where freeVars = (vv, tyvv):(predv,typred):args
         pred     = pApp predv $ EVar vv:predArgs
         vv       = S "v"
