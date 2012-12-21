@@ -1,10 +1,12 @@
 ---
 layout: post
 title: "Parametric Invariants via Abstract Refinements"
-date: 2012-12-20 16:12
+date: 2013-01-10 16:12
 comments: true
 external-url:
 categories: abstract refinements
+author: Niki Vazou
+published: false
 ---
 
 Lets see how *abstract refinements* can be used to express *parametric invariants* 

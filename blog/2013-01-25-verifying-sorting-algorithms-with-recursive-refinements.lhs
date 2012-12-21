@@ -4,7 +4,9 @@ title: "Verifing Sorting Algorithms With Recursive Refinements"
 date: 2012-12-20 16:12
 comments: true
 external-url:
-categories: abstract refinements
+categories: abstract-refinements
+author: Niki Vazou
+published: false
 ---
 
 Let see how we can use **abstract refinements* to verify that

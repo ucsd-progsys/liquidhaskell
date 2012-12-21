@@ -4,7 +4,9 @@ title: "Index-Dependent Maps"
 date: 2013-01-20 16:12
 comments: true
 external-url:
-categories: basic
+categories: abstract-refinement, basic
+author: Niki Vazou
+published: false
 ---
 
 In this example, we illustrate how abstract invariants allow us to specify
