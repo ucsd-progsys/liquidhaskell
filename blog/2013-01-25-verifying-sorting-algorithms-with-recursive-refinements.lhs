@@ -1,8 +1,13 @@
-How do we Sort Lists? Reasoning about List Sorting Algorithms
-=============================================================
+---
+layout: post
+title: "Verifing Sorting Algorithms With Recursive Refinements"
+date: 2012-12-20 16:12
+comments: true
+external-url:
+categories: abstractrefinements
+---
 
-
-Let see how we can use the abstract refinements to verify that
+Let see how we can use **abstract refinements* to verify that
 the result of a list sorting function is actually a sorted list.
 
 \begin{code}

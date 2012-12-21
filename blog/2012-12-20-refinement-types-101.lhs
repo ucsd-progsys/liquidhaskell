@@ -4,7 +4,7 @@ title: "Refinement Types 101"
 date: 2012-12-20 16:12
 comments: true
 external-url:
-categories:
+categories: basic
 ---
 
 \begin{code}
