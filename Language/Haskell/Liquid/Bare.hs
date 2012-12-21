@@ -13,7 +13,9 @@ import Outputable
 import Var
 import PrelNames
 import PrelInfo     (wiredInThings)
-import Type         (expandTypeSynonyms)
+import Id           (isDataConWorkId)
+import DataCon      (dataConWorkId)
+import Type         (expandTypeSynonyms, splitForAllTys, splitFunTy_maybe)
 import DataCon      (dataConImplicitIds)
 import HscMain
 import TysWiredIn
@@ -21,7 +23,7 @@ import BasicTypes (TupleSort (..), Arity)
 import TcRnDriver (tcRnLookupRdrName, tcRnLookupName) 
 
 import Text.Printf
-import Data.Maybe               (catMaybes)
+import Data.Maybe               (catMaybes, isNothing)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>))
 import Control.Monad.Reader     hiding (forM)
@@ -83,7 +85,7 @@ makeGhcSpec vars env spec
        let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms 
        let tx           = subsFreeSymbols syms
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
-       return           $ SP { tySigs     = tx sigs 
+       return           $ SP { tySigs     = renameTyVars <$> tx sigs 
                              , ctor       = tx cs'
                              , meas       = tx ms 
                              , invariants = invs 
@@ -93,8 +95,24 @@ makeGhcSpec vars env spec
                              , tcEmbeds   = embs 
                              }
 
+renameTyVars :: (Var, SpecType) -> (Var, SpecType)
+renameTyVars (x, t) = (x, mkUnivs as' [] t')
+  where t'            = subts su (mkUnivs [] ps bt)
+        su            = zip as as'
+        as'           = rTyVar <$> (fst $ splitForAllTys $ varType x)
+        (as, ps, bt)  = bkUniv t
+
+mkVarExpr v 
+  | isDataConWorkId v && not (null tvs) && isNothing tfun
+  = EApp (dataConSymbol (idDataCon v)) []         
+  | otherwise   
+  = EVar $ varSymbol v
+  where t            = varType v
+        (tvs, tbase) = splitForAllTys t
+        tfun         = splitFunTy_maybe tbase
+
 subsFreeSymbols xvs = tx
-  where su  = mkSubst [ (x, EVar (varSymbol v)) | (x, v) <- xvs]
+  where su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- xvs]
         tx  = fmap $ mapSnd $ subst su {- (\t -> tracePpr ("subsFree: " ++ showPpr t) (subst su t)) -}
 
 -- meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
@@ -201,7 +219,7 @@ checkSig' env (x, t)
 -- freeSymbols :: SpecType -> [Symbol]
 freeSymbols ty   = -- tracePpr ("freeSymbols: " ++ show ty) $ 
                    sortNub $ concat $ efoldReft f [] [] ty
-  where f γ r xs = let Reft (v, ras) = toReft r in ((syms ras) `sortDiff` (v:γ) ) : xs 
+  where f γ r xs = let Reft (v, _) = toReft r in ((syms r) `sortDiff` (v:γ) ) : xs 
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
@@ -315,8 +333,8 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p])]
           fld    = stringSymbol "fld"
           x      = stringSymbol "x"
           xs     = stringSymbol "xs"
-          p      = PV (stringSymbol "p") t [(t, fld, fld)]
-          px     = (pdVarReft $ PV (stringSymbol "p") t [(t, fld, x)]) 
+          p      = PV (stringSymbol "p") t [(t, fld, EVar fld)]
+          px     = (pdVarReft $ PV (stringSymbol "p") t [(t, fld, EVar x)]) 
           lt     = rApp c [xt] [RMono $ pdVarReft p] top                 
           xt     = rVar tyv
           xst    = rApp c [RVar (RTV tyv) px] [RMono $ pdVarReft p] top  
@@ -334,9 +352,9 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps)]
         fld           = stringSymbol "fld"
         x1:xs         = mks "x"
         -- y             = stringSymbol "y"
-        ps            = mkps pnames (ta:ts) ((fld,fld):(zip flds flds))
+        ps            = mkps pnames (ta:ts) ((fld, EVar fld):(zip flds (EVar <$>flds)))
         ups           = uPVar <$> ps
-        pxs           = mkps pnames (ta:ts) ((fld, x1):(zip flds xs))
+        pxs           = mkps pnames (ta:ts) ((fld, EVar x1):(zip flds (EVar <$> xs)))
         lt            = rApp c (rVar <$> tyvs) (RMono . pdVarReft <$> ups) top
         xts           = zipWith (\v p -> RVar (RTV v) (pdVarReft p)) tvs pxs
         cargs         = reverse $ (x1, rVar tv) : (zip xs xts)

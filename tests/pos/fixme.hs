@@ -1,8 +1,15 @@
-module Test where
+module Data.Set.Splay  where
 
-{-@ type OList a = [a]<{v: a | (v >= fld)}> @-}
+insert :: a -> a
+insert x = l
+  where
+    (l,w) = split x
 
-{-@ bar :: (Ord a) => z:a -> OList a -> [{v:a | z <= v}] @-}
-bar :: (Ord a) => a -> [a] -> [a]
-bar y z@(x:xs) = case compare y x of 
-                   LT -> x:xs
+-- this crashes
+split :: a -> (a, Bool)
+split x = (x,False)
+
+-- this does not crash
+-- split :: a -> (a, Int)
+-- split x = (x,1)
+

@@ -1192,10 +1192,19 @@ and sortcheck_pred f p =
     | And ps  
     | Or ps ->
         List.for_all (sortcheck_pred f) ps
+    
     | Atom ((Con (Constant.Int(0)),_), _, e) 
     | Atom (e, _, (Con (Constant.Int(0)),_)) 
       when not (!Constants.strictsortcheck)
-      -> not (sortcheck_expr f e = None)
+      -> not (None = sortcheck_expr f e)
+    
+    | Atom ((Var x, _) , Eq, (App (uf, es), _))
+    | Atom ((App (uf, es), _), Eq, (Var x, _))
+      -> begin match sortcheck_sym f x with 
+         | None    -> false 
+         | Some tx -> not (None = sortcheck_app f (Some tx) uf es)
+         end
+
     | Atom (e1, r, e2) ->
         sortcheck_rel f (e1, r, e2)
     | Forall (qs,p) ->

@@ -14,10 +14,10 @@ module Language.Haskell.Liquid.RefType (
   , PVar (..) , Predicate (..), UReft(..), DataDecl (..)
 
   -- * Functions for lifting Reft-values to Spec-values
-  , uTop, uReft, uRType, uRType', uPVar
+  , uTop, uReft, uRType, uRType', uRTypeGen, uPVar
  
   -- * Functions for manipulating `Predicate`s
-  , pdAnd, pdVar, pdTrue, pvars
+  , pdAnd, pdVar, pdTrue, pvars, findPVar
 
   -- * Traversing `RType` 
   , ppr_rtype, efoldReft, foldReft, mapReft, mapReftM, mapBot, mapBind
@@ -81,7 +81,7 @@ import Data.List (sort, isSuffixOf, foldl')
 data PVar t
   = PV { pname :: !Symbol
        , ptype :: !t
-       , pargs :: ![(t, Symbol, Symbol)]
+       , pargs :: ![(t, Symbol, Expr)]
        }
 	deriving (Show) -- (Data, Typeable, Show)
 
@@ -147,6 +147,12 @@ instance NFData PrType where
 
 instance NFData RTyVar where
   rnf _ = ()
+
+findPVar :: [PVar (RType p c tv ())] -> UsedPVar -> PVar (RType p c tv ())
+findPVar ps p 
+  = PV name ty $ zipWith (\(_, _, e) (t, s, _) -> (t, s, e))(pargs p) args
+  where PV name ty args = fromMaybe (msg p) $ L.find ((==(pname p)) . pname) ps
+        msg p = errorstar $ "RefType.findPVar" ++ showPpr p ++ "not found"
 
 --------------------------------------------------------------------
 ---- Unified Representation of Refinement Types --------------------
@@ -228,6 +234,9 @@ uRType          = fmap uTop
 
 uRType'         ::  RType p c tv (UReft a) -> RType p c tv a 
 uRType'         = fmap ur_reft
+
+uRTypeGen       :: Reftable b => RType p c tv a -> RType p c tv b
+uRTypeGen       = fmap (\_ -> top)
 
 uPVar           :: PVar t -> UsedPVar
 uPVar           = fmap (const ())
@@ -322,7 +331,7 @@ instance Subable r => Subable (UReft r) where
   substf f (U r z) = U (substf f r) (substf f z) 
 
 instance Subable UsedPVar where 
-  syms pv         = [ y | (_, x, y) <- pargs pv, x /= y ]
+  syms pv         = concatMap (syms . thd3) (pargs pv)
   subst s pv      = pv { pargs = mapThd3 (subst s)  <$> pargs pv }  
   substf f pv     = pv { pargs = mapThd3 (substf f) <$> pargs pv }  
 
@@ -715,7 +724,7 @@ instance Outputable (UReft r) => Show (UReft r) where
 
 instance Outputable (PVar t) where
   ppr (PV s _ xts) = ppr s <+> hsep (ppr <$> dargs xts)
-    where dargs = map thd3 . takeWhile (\(_, x, y) -> x /= y) 
+    where dargs = map thd3 . takeWhile (\(_, x, y) -> EVar x /= y) 
 
 ppr_pvar_def pprv (PV s t xts) = ppr s <+> dcolon <+> intersperse arrow dargs 
   where dargs = [pprv t | (t,_,_) <- xts] ++ [pprv t, text boolConName]
@@ -1004,6 +1013,13 @@ instance SubsTy RTyVar RSort RTyCon where
 instance SubsTy RTyVar RSort PrType where   
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
 
+instance SubsTy RTyVar RSort SpecType where   
+  subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
+
+instance SubsTy RTyVar RTyVar SpecType where   
+  subt (α, a) = subt (α, RVar a () :: RSort)
+
+
 instance SubsTy RTyVar RSort RSort where   
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
 
@@ -1090,8 +1106,12 @@ dataConReft c []
 dataConReft c [x] 
   | c == intDataCon 
   = Reft (vv_, [RConc (PAtom Eq (EVar vv_) (EVar x))]) 
-dataConReft _ _ 
- = Reft (vv_, [RConc PTrue]) 
+dataConReft c xs
+ = Reft (vv_, [RConc (PAtom Eq (EVar vv_) dcValue)])
+ where dcValue | null xs && null (dataConUnivTyVars c) 
+               = EVar $ dataConSymbol c
+               | otherwise
+               = EApp (dataConSymbol c) (EVar <$> xs)
 
 vv_ = vv Nothing
 

@@ -21,7 +21,9 @@ import           Unique
 import           Outputable
 import           RdrName                      (GlobalRdrEnv)
 import           Type                         (liftedTypeKind)
+import           TypeRep                       
 import           Var
+import           TyCon                        (mkSuperKindTyCon)
 import           FastString                   (uniq)
 -- import           SrcLoc                       hiding (L)
 import           Data.Char                    (isLower, isSpace)
@@ -77,6 +79,18 @@ stringTyVar s = mkTyVar name liftedTypeKind
   where name = mkInternalName initTyVarUnique occ noSrcSpan
         occ  = mkTyVarOcc $ assert (validTyVar s) s
 
+stringTyCon :: String -> TyCon
+stringTyCon s = mkSuperKindTyCon name
+  where name = mkInternalName initTyVarUnique occ noSrcSpan
+        occ  = mkTyVarOcc $ assert (validTyVar s) s
+
+hasBaseTypeVar = isBaseType . varType
+
+-- same as Constraint isBase
+isBaseType (TyVarTy _)     = True
+isBaseType (TyConApp _ ts) = all isBaseType ts
+isBaseType (FunTy t1 t2)   = isBaseType t1 && isBaseType t2
+isBaseType _               = False
 validTyVar :: String -> Bool
 validTyVar s@(c:_) = isLower c && all (not . isSpace) s 
 validTyVar _       = False

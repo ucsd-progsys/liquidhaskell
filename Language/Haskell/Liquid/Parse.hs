@@ -289,11 +289,11 @@ predVarDefP
   = liftM3 bPVar predVarIdP dcolon predVarTypeP
 
 predVarIdP 
-  = stringSymbol <$> tyVarIdP 
+  = stringSymbol <$> tyVarIdP
 
 bPVar p _ xts  = PV p τ τxs 
   where (_, τ) = last xts
-        τxs    = [ (τ, x, x) | (x, τ) <- init xts ]
+        τxs    = [ (τ, x, EVar x) | (x, τ) <- init xts ]
 
 predVarTypeP :: Parser [(Symbol, BSort)]
 predVarTypeP = do t <- bareTypeP
@@ -402,7 +402,7 @@ monoPredicate1P
 
 predVarUseP 
  = do p  <- predVarIdP
-      xs <- sepBy predVarIdP spaces
+      xs <- sepBy exprP spaces
       return $ PV p dummyTyId [ (dummyTyId, dummySymbol, x) | x <- xs ]
 
 

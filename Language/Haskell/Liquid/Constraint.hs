@@ -20,11 +20,13 @@ import SrcLoc
 import Type             -- (coreEqType)
 import PrelNames
 import qualified TyCon as TC
+import DataCon (dataConWorkId)
 
 import TypeRep 
 import Class            (Class, className)
 import PrelInfo         (isNumericClass)
 import Var
+import Id
 import Name             (getSrcSpan)
 import Outputable   hiding (empty)
 import Control.Monad.State
@@ -36,7 +38,7 @@ import Data.Maybe               (fromMaybe)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.Bifunctor
-import Data.List (foldl')
+import Data.List (foldl', filter)
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import qualified Language.Haskell.Liquid.Fixpoint   as F
@@ -46,7 +48,7 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars) 
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc          (tickSrcSpan)
+import Language.Haskell.Liquid.GhcMisc          (tickSrcSpan, hasBaseTypeVar)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Qualifier        
 import Control.DeepSeq
@@ -164,9 +166,10 @@ isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConst
         isEq           = (eqClassName ==) . className
 
 -- isBase :: RType a -> Bool
-isBase (RVar _ _)     = True
-isBase (RApp _ _ _ _) = True
-isBase _              = False
+isBase (RVar _ _)       = True
+isBase (RApp _ ts _ _)  = all isBase ts
+isBase (RFun _ t1 t2 _) = isBase t1 && isBase t2
+isBase _                = False
 
 
 rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
@@ -287,9 +290,16 @@ splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _))
         cs''     <- splitC  (SubC γ' r1x2' r2') 
         return    $ cs ++ cs' ++ cs''
 
-splitC (SubC γ (RAllP p1 t1) (RAllP p2 t2))
-  | p1 == p2
-  = splitC $ SubC γ t1 t2
+splitC (SubC γ t1 (RAllP p t))
+  = splitC $ SubC γ t1 t'
+  where t' = fmap (replacePredsWithRefs su) t
+        su = (uPVar p, pVartoRConc p)
+
+splitC (SubC _ t1@(RAllP _ _) t2) 
+  = errorstar $ "Predicate in lhs of constrain:" ++ showPpr t1 ++ "\n<:\n" ++ showPpr t2
+--   = splitC $ SubC γ t' t2
+--   where t' = fmap (replacePredsWithRefs su) t
+--        su = (uPVar p, pVartoRConc p)
 
 splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2 
@@ -423,13 +433,19 @@ initCGI info = CGInfo {
   , specQuals  = specificationQualifiers info
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
-  , lits       = coreBindLits tce $ cbs info 
+  , lits       = coreBindLits tce info 
   } where tce  = tcEmbeds $ spec info
           spc  = spec info
 
 
-coreBindLits tce cbs = sortNub [ (x, so) | (_, F.ELit x so) <- lconsts]
-  where lconsts      = literalConst tce <$> literals cbs
+coreBindLits tce info
+  = sortNub $ [ (x, so) | (_, F.ELit x so) <- lconsts]
+           ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons]
+  where lconsts      = literalConst tce <$> literals (cbs info)
+        dcons        = filter isLit $ impVars info
+        dconToSort   = F.typeSort tce . expandTypeSynonyms . varType 
+        dconToSym    = dataConSymbol . idDataCon
+        isLit id     = isDataConWorkId id && not (hasBaseTypeVar id)
 
 extendEnvWithVV γ t 
   | F.isNontrivialVV vv
@@ -688,16 +704,24 @@ consCB γ (NonRec x e)
        to' <- consBind γ (x, e, to)
        extender γ (x, to')
 
-consBind γ (x, e, Just t) 
-  = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x 
-       cconsE γ' e t
-       addIdA x (Left t)
-       return Nothing 
+
+consBind γ (x, e, Just spect) 
+  = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
+       γπ    <- foldM addPToEnv γ' πs
+       t     <- consE γπ e
+       addC (SubC γπ t spect) "consBind"
+       addIdA x (Left spect)
+       return Nothing
+  where πs = snd3 $ bkUniv spect
 
 consBind γ (x, e, Nothing) 
    = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
         addIdA x (Left t)
         return $ Just t
+
+addPToEnv γ π
+  = do γπ <- γ ++= ("addSpec1", pname π, toPredType π)
+       foldM (++=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
 extender γ (x, Just t) = γ ++= ("extender", varSymbol x, t)
 extender γ _           = return γ
@@ -987,7 +1011,7 @@ instance NFData CGInfo where
 -------------------------------------------------------------------------------
 
 existentialRefType     :: CGEnv -> SpecType -> SpecType
-existentialRefType γ t = withReft t (uTop r') 
+existentialRefType γ t = t `strengthen` (uTop r') 
   where r'             = maybe top (exReft γ) (F.isSingletonReft r)
         r              = F.sr_reft $ rTypeSortedReft (emb γ) t
 
@@ -1005,9 +1029,9 @@ exReftLookup γ x       = γ ?= x'
   where x'             = fromMaybe err (varSymbol <$> F.lookupSEnv x γ')
         γ'             = syenv γ
         err            = errorstar $ "exReftLookup: unknown " ++ showPpr x ++ " in " ++ showPpr  γ'
-withReft (RApp c ts rs _) r' = RApp c ts rs r' 
-withReft (RVar a _) r'       = RVar a      r' 
-withReft t _                 = t 
+-- withReft (RApp c ts rs _) r' = RApp c ts rs r' 
+-- withReft (RVar a _) r'       = RVar a      r' 
+-- withReft t _                 = t 
 
 -------------------------------------------------------------------------------
 -------------------- Cleaner Signatures For Rec-bindings ----------------------

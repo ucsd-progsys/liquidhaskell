@@ -1,9 +1,10 @@
-{-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances, TupleSections #-}
 module Language.Haskell.Liquid.PredType (
     PrType
   , TyConP (..), DataConP (..)
   , dataConTy, dataConPSpecType, makeTyConInfo
   , unify, replacePreds, exprType, predType
+  , replacePredsWithRefs, pVartoRConc, toPredType
   , substParg
   ) where
 
@@ -24,6 +25,7 @@ import qualified Data.HashSet        as S
 import Data.List        (nub, partition, foldl')
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint hiding (Expr)
+import qualified Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.RefType  hiding (generalize)
 import Language.Haskell.Liquid.GhcMisc
 
@@ -119,7 +121,7 @@ unifyS (RAllT (v@(RTV α)) t) (RAllT v' pt)
 
 unifyS (RFun x rt1 rt2 _) (RFun x' pt1 pt2 _)
   = do t1' <- unifyS rt1 pt1
-       t2' <- unifyS rt2 (substParg (x', x) pt2)
+       t2' <- unifyS rt2 (substParg (x', EVar x) pt2)
        return $ rFun x t1' t2' 
 
 unifyS t@(RCls _ _) (RCls _ _)
@@ -159,7 +161,22 @@ zipWithZero f xz yz (x:xs) (y:ys) = (f x y) :(zipWithZero f xz yz xs ys)
  
 -- pToReft p = Reft (vv, [RPvar p]) 
 pToReft = U top . pdVar 
+----------------------------------------------------------------------------
+----- Interface: Replace Predicate With Uninterprented Function Symbol -----
+----------------------------------------------------------------------------
 
+replacePredsWithRefs (p, r) (U (Reft (v, rs)) (Pr ps)) 
+  = U (Reft (v, rs ++ rs')) (Pr ps2)
+  where rs'        = r . (v,) . pargs <$> ps1
+        (ps1, ps2) = partition (==p) ps 
+
+pVartoRConc p (v, args)
+  = RConc $ pApp (pname p) $ EVar v:(thd3 <$> args)
+
+toPredType (PV _ ptype args) = rpredType (ty:tys)
+  where ty = uRTypeGen ptype
+        tys = uRTypeGen . fst3 <$> args
+        
 
 ----------------------------------------------------------------------------
 ---------- Interface: Replace Predicate With Type  -------------------------
@@ -243,7 +260,7 @@ splitRPvar pv (U x (Pr pvs)) = (U x (Pr pvs'), epvs)
 meetListWithPSubs πs r1 r2 = foldl' meet r2 $ ((`subst` r1)<$> su ) 
   where su                 = nub ((predArgsSubst . pargs) <$> πs) 
 
-predArgsSubst = mkSubst . map (\(_, s1, s2) -> (s1, EVar s2)) 
+predArgsSubst = mkSubst . map (\(_, s1, s2) -> (s1, s2)) 
 
 ----------------------------------------------------------------------------
 ---------- Interface: Modified CoreSyn.exprType due to predApp -------------
@@ -251,6 +268,11 @@ predArgsSubst = mkSubst . map (\(_, s1, s2) -> (s1, EVar s2))
 
 predType :: Type 
 predType = TyVarTy $ stringTyVar "Pred"
+
+rpredType :: Reftable r => [RRType r] -> RRType r
+rpredType ts
+  = RApp tyc ts [] top
+  where tyc = RTyCon (stringTyCon "Pred") []
 
 ----------------------------------------------------------------------------
 exprType :: CoreExpr -> Type
@@ -304,8 +326,8 @@ applyTypeToArgs e op_ty (_ : args)
 panic_msg :: CoreExpr -> Type -> SDoc
 panic_msg e op_ty = pprCoreExpr e $$ ppr op_ty
 
-substParg :: Functor f => (Symbol, Symbol) -> f Predicate -> f Predicate
+substParg :: Functor f => (Symbol, F.Expr) -> f Predicate -> f Predicate
 substParg (x, y) = fmap fp  -- RJ: UNIFY: BUG  mapTy fxy
-  where fxy s = if (s == x) then y else s
+  where fxy s = if (s == EVar x) then y else s
         fp    = subvPredicate (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
 
