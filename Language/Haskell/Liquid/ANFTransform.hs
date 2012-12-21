@@ -26,6 +26,7 @@ import           TyCon                            (tyConDataCons_maybe)
 import           DataCon                          (dataConInstArgTys)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           Control.Monad
+import           Control.Applicative              ((<$>))
 import           Language.Haskell.Liquid.Fixpoint (anfPrefix)
 import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..))
 import           Language.Haskell.Liquid.Misc     (fst3, errorstar)
@@ -61,14 +62,16 @@ normalizeTopBind γ (NonRec x e)
        return [normalizeTyVars $ NonRec x e']
 
 normalizeTopBind γ (Rec xes)
-  = normalizeBind γ (Rec xes)
+  = liftM (map normalizeTyVars)(normalizeBind γ (Rec xes))
 
 normalizeTyVars (NonRec x e) = NonRec (setVarType x t') e
   where t'       = subst msg as as' bt
         msg      = "WARNING unable to renameVars on " ++ show x
         as'      = fst $ collectTyBinders e
         (as, bt) = splitForAllTys (varType x)
-normalizeTyVars (Rec _)      = errorstar "normalizeTyVars: called with Rec"
+normalizeTyVars (Rec xes)    = Rec xes'
+  where nrec = normalizeTyVars <$> ((\(x, e) -> NonRec x e) <$> xes)
+        xes' = (\(NonRec x e) -> (x, e)) <$> nrec
 
 subst msg as as' bt
   | length as == length as'
