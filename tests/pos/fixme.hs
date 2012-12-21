@@ -1,20 +1,15 @@
+module Data.Set.Splay  where
 
--- | A somewhat fancier example demonstrating the use of Abstract Predicates and exist-types
+insert :: a -> a
+insert x = l
+  where
+    (l,w) = split x
 
-module Ex where
+-- this crashes
+split :: a -> (a, Bool)
+split x = (x,False)
 
-
--------------------------------------------------------------------------
--- | Data types ---------------------------------------------------------
--------------------------------------------------------------------------
-
-data Vec a = Nil | Cons a (Vec a)
-
-{-@ efoldr :: forall b a <p :: x0:Vec a -> x1:b -> Bool>. 
-              (exists [zz: {v: Vec a | v = Ex.Nil}]. b <p zz>) 
-              -> ys: Vec a
-              -> b <p ys>
-  @-}
-efoldr :: b -> Vec a -> b
-efoldr b Nil         = b
+-- this does not crash
+-- split :: a -> (a, Int)
+-- split x = (x,1)
 
