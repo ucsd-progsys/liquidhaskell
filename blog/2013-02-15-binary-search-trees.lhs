@@ -4,7 +4,9 @@ title: "Binary Search Trees"
 date: 2013-02-15 16:12
 comments: true
 external-url:
-categories: abstract refinements
+categories: abstract-refinements
+author: Niki Vazou
+published: false
 ---
 
 In this example, we show how we can use multi-parameter abstract refinements 

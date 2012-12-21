@@ -4,8 +4,11 @@ title: "Verifing Efficient Sorting Algorithms"
 date: 2013-02-15 16:12
 comments: true
 external-url:
-categories: abstract refinements
+categories: abstract-refinements
+author: Niki Vazou
+published: false
 ---
+
 
 In this example, we will see how abstract refinements can be used to verify
 complex sorting algorithms, like the ones implemented in `Data.List`.

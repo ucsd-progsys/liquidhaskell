@@ -6,6 +6,8 @@ date: 2013-01-05 16:12
 comments: true
 external-url:
 categories: basic, measures, sets
+author: Ranjit Jhala
+published: false 
 ---
 
 SMT solvers support very expressive logics. Lets see how we can represent the *set of*

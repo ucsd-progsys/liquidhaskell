@@ -5,7 +5,9 @@ title: "Encoding Induction with Abstract Refinements"
 date: 2013-02-20 16:12
 comments: true
 external-url:
-categories: abstract refinements 
+categories: abstract-refinements 
+author: Niki Vazou
+published: false
 ---
 
 In this example, we explain how abstract refinements allow us to formalize
