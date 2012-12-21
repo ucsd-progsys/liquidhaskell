@@ -283,7 +283,6 @@ executeShellCommand phase cmd
     $ putStrLn ("EXEC: " ++ cmd) >> system cmd
 
 
-
 checkExitCode _   (ExitSuccess)   = return ()
 checkExitCode cmd (ExitFailure n) = errorstar $ "cmd: " ++ cmd ++ " failure code " ++ show n 
 
