@@ -4,11 +4,11 @@ title: "Parametric Invariants via Abstract Refinements"
 date: 2012-12-20 16:12
 comments: true
 external-url:
-categories:
+categories: abstract refinements
 ---
 
-Lets see how abstract refinements can be used to express parametric
-invariants over base types and types with type class constrains.
+Lets see how *abstract refinements* can be used to express *parametric invariants* 
+over base types and *typeclasses*. 
 
 \begin{code}
 module Toy where

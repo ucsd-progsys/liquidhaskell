@@ -1,7 +1,14 @@
-How do we efficiently sort lists?
-=================================
+---
+layout: post
+title: "Verifing Efficient Sorting Algorithms"
+date: 2012-12-20 16:12
+comments: true
+external-url:
+categories: abstract refinements
+---
 
-In this example, we will see how abstract refinements can be used to verify complex sorting algorithms. Like the ones implemented by the in haskell's Prelude.
+In this example, we will see how abstract refinements can be used to verify
+complex sorting algorithms, like the ones implemented in `Data.List`.
 
 \begin{code}
 module GhcSort (sort, sort1, sort2) where
