@@ -88,8 +88,9 @@ renderPandoc htmlFile srcFile css body
        renderFn htmlFile srcFile css body
 
 renderPandoc' pandocPath htmlFile srcFile css body
-  = do _  <- writeFile mdFile $ pandocPreProc css body
+  = do _  <- writeFile mdFile $ pandocPreProc body
        ec <- executeShellCommand "pandoc" cmd 
+       writeFilesOrStrings htmlFile [Right (cssHTML css)]
        checkExitCode cmd ec
     where mdFile = extFileName Mkdn srcFile 
           cmd    = pandocCmd pandocPath mdFile htmlFile
@@ -97,9 +98,9 @@ renderPandoc' pandocPath htmlFile srcFile css body
 pandocCmd pandocPath mdFile htmlFile
   = printf "%s -f markdown -t html %s > %s" pandocPath mdFile htmlFile  
 
-pandocPreProc css
+pandocPreProc
   = T.unpack 
-  . T.append (T.pack $ cssHTML css) 
+  -- . T.append (T.pack $ cssHTML css) 
   . stripBegin 
   . stripEnd 
   . T.pack

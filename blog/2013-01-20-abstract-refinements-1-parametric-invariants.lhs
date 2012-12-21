@@ -1,5 +1,11 @@
-Parametric Invariants via Abstract Refinements
-==============================================
+---
+layout: post
+title: "Parametric Invariants via Abstract Refinements"
+date: 2012-12-20 16:12
+comments: true
+external-url:
+categories:
+---
 
 Lets see how abstract refinements can be used to express parametric
 invariants over base types and types with type class constrains.

@@ -1,8 +1,16 @@
-Refinement Types 101
-====================
+---
+layout: post
+title: "Refinement Types 101"
+date: 2012-12-20 16:12
+comments: true
+external-url:
+categories:
+---
 
 \begin{code}
 module Intro where
+
+import Language.Haskell.Liquid.Prelude  (liquidAssert)
 \end{code}
 
 One of the great things about Haskell, is its brainy type system that
@@ -200,6 +208,7 @@ Lets wrap up this introduction with a simple `truncate` function
 that connects all the dots. 
 
 \begin{code}
+{-@ truncate :: Int -> Int -> Int @-}
 truncate i max  
   | i' <= max' = i
   | otherwise  = max' * (i `divide` i')
@@ -223,6 +232,7 @@ divide-by-zero errors. Again, if you are *really* want to make sure, put
 in an assertion
 
 \begin{code}
+{-@ truncate' :: Int -> Int -> Int @-}
 truncate' i max  
   | i' <= max' = i
   | otherwise  = lAssert (i' /= 0) $ max' * (i `divide` i')
@@ -231,6 +241,26 @@ truncate' i max
 \end{code}
 
 and lo! LiquidHaskell will verify it for you.
+
+Modular Verification
+--------------------
+
+Incidentally, note the `import` statement at the top. Rather than rolling
+our own `lAssert` we can import and use a pre-defined version `liquidAssert` 
+defined in an external [module](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Language/Haskell/Liquid/Prelude.hs)
+
+\begin{code}
+{-@ truncate'' :: Int -> Int -> Int @-}
+truncate'' i max  
+  | i' <= max' = i
+  | otherwise  = liquidAssert (i' /= 0) $ max' * (i `divide` i')
+    where i'   = abz i
+          max' = abz max 
+\end{code}
+
+In fact, LiquidHaskell comes equipped with suitable refinements for
+standard functions, and it is easy to add refinements as we shall
+demonstrate in subsequent articles.
 
 Take Away Lessons
 -----------------
