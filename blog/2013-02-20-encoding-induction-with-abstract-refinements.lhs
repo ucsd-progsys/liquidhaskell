@@ -1,7 +1,15 @@
-Inductive Invariants
-====================
 
-In this example, we explain how abstract refinements allow us to formalize some kinds of structural induction within the type system. 
+---
+layout: post
+title: "Encoding Induction with Abstract Refinements"
+date: 2013-02-20 16:12
+comments: true
+external-url:
+categories: abstract refinements 
+---
+
+In this example, we explain how abstract refinements allow us to formalize
+some kinds of structural induction within the type system. 
 
 \begin{code}
 module Inductive where

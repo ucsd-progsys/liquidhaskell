@@ -1,8 +1,14 @@
 
-Whats in a List? Reasoning about Sets of Values 
-===============================================
+---
+layout: post
+title: "Reasoning about Sets of Values"
+date: 2013-01-05 16:12
+comments: true
+external-url:
+categories: basic, measures, sets
+---
 
-SMT solvers are very expressive. Lets see how we can represent the *set of*
+SMT solvers support very expressive logics. Lets see how we can represent the *set of*
 elements in a list, and then write and verify precise specifications about
 those sets.
 

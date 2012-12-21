@@ -1,8 +1,16 @@
-Index-Dependent Invariants
-==========================
+---
+layout: post
+title: "Index-Dependent Maps"
+date: 2013-01-20 16:12
+comments: true
+external-url:
+categories: basic
+---
 
-In this example, we illustrate how abstract invariants allow us to specify and verify index-dependent invariants of key-value maps. 
-To this end, we develop a small library of _extensible vectors_ encoded, for purposes of illustration, as functions from `Int` to some generic range `a`. 
+In this example, we illustrate how abstract invariants allow us to specify
+and verify index-dependent invariants of key-value maps.  To this end, we
+develop a small library of _extensible vectors_ encoded, for purposes of
+illustration, as functions from `Int` to some generic range `a`. 
 
 \begin{code}
 module LiquidArray where

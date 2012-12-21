@@ -1,7 +1,14 @@
-Multiple Recursive Invariants
-=============================
+---
+layout: post
+title: "Binary Search Trees"
+date: 2013-02-15 16:12
+comments: true
+external-url:
+categories: abstract refinements
+---
 
-In this example, we show how we can use abstract refinements on recursive types with multiple parameters.
+In this example, we show how we can use multi-parameter abstract refinements 
+to encode ordering invarants on tree structures.
 
 \begin{code}
 module Map where
