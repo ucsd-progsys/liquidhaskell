@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Verifing Sorting Algorithms With Recursive Refinements"
-date: 2012-12-20 16:12
+date: 2013-01-25 16:12
 comments: true
 external-url:
 categories: abstract-refinements
