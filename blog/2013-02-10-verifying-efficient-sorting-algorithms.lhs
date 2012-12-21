@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Verifing Efficient Sorting Algorithms"
-date: 2012-12-20 16:12
+date: 2013-02-15 16:12
 comments: true
 external-url:
 categories: abstract refinements
