@@ -18,22 +18,25 @@ import Language.Haskell.Liquid.Prelude  (liquidAssert)
 One of the great things about Haskell, is its brainy type system that
 allows one to enforce a variety of invariants at compile time, thereby
 nipping in the bud, a large swathe of run-time errors. Refinement types
-allow us to use modern logic solvers (*aka* SAT and SMT engines) to  
+allow us to use modern logic solvers (*aka* SAT and SMT engines) to
 dramatically extend the scope of invariants that can be statically
-verified. 
+verified.
 
 
 What is a Refinement Type?
 --------------------------
 
-{% pullquote %}
-In a nutshell, {"Refinement Types = Types + Logical Predicates"}
+
+In a nutshell, 
+
+<blockquote><p>
+Refinement Types = Types + Logical Predicates
+</p></blockquote>
+
 That is, refinement types allow us to decorate types with 
 *logical predicates* which constrain the set of values described
 by the type, and hence, allow us to specify sophisticated invariants 
 of the underlying values.
-{% endpullquote %}
-
 
 Say what? 
 
