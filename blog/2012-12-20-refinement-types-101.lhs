@@ -9,12 +9,6 @@ external-url:
 categories: basic
 ---
 
-\begin{code}
-module Intro where
-
-import Language.Haskell.Liquid.Prelude  (liquidAssert)
-\end{code}
-
 One of the great things about Haskell, is its brainy type system that
 allows one to enforce a variety of invariants at compile time, thereby
 nipping in the bud, a large swathe of run-time errors. Refinement types
@@ -22,10 +16,8 @@ allow us to use modern logic solvers (*aka* SAT and SMT engines) to
 dramatically extend the scope of invariants that can be statically
 verified.
 
-
 What is a Refinement Type?
 --------------------------
-
 
 In a nutshell, 
 
@@ -39,6 +31,14 @@ by the type, and hence, allow us to specify sophisticated invariants
 of the underlying values.
 
 Say what? 
+
+<!-- more -->
+
+\begin{code}
+module Intro where
+
+import Language.Haskell.Liquid.Prelude  (liquidAssert)
+\end{code}
 
 Let us jump right in with a simple example, the number `0 :: Int`. 
 As far as Haskell is concerned, the number is simply an `Int` (lets not
@@ -226,9 +226,9 @@ upper bound `max`, and otherwise, *truncates* the value at the maximum.
 LiquidHaskell verifies that the use of `divide` is safe by inferring that 
 at the callsite, 
 
-1. `i' > max'` (from the branch condition),
-2. `0 <= i'`   (from the `abz` postcondition),
-3. `0 <= max'` (from the `abz` postcondition) 
+1. `i' > max'` from the branch condition,
+2. `0 <= i'`   from the `abz` postcondition (hover mouse over `i'`)
+3. `0 <= max'` from the `abz` postcondition (hover mouse over `max'`)
 
 From the above, LiquidHaskell infers that `i' != 0`. That is, at the
 callsite, the argument `i' :: {v: Int | v != 0}` thereby satisfying the
@@ -245,7 +245,7 @@ truncate' i max
           max' = abz max 
 \end{code}
 
-and lo! LiquidHaskell will verify it for you.
+and *lo!* LiquidHaskell will verify it for you.
 
 Modular Verification
 --------------------
