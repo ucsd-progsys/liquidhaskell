@@ -20,7 +20,6 @@ import SrcLoc
 import Type             -- (coreEqType)
 import PrelNames
 import qualified TyCon as TC
-import DataCon (dataConWorkId)
 
 import TypeRep 
 import Class            (Class, className)
@@ -38,7 +37,7 @@ import Data.Maybe               (fromMaybe)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.Bifunctor
-import Data.List (foldl', filter)
+import Data.List (foldl')
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import qualified Language.Haskell.Liquid.Fixpoint   as F
