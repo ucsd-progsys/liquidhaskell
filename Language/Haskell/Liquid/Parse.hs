@@ -298,9 +298,9 @@ bPVar p _ xts  = PV p τ τxs
 predVarTypeP :: Parser [(Symbol, BSort)]
 predVarTypeP = do t <- bareTypeP
                   let (xs, ts, t') = bkArrow $ thd3 $ bkUniv $ t
-                  if isBoolBareType t' 
+                  if isPropBareType t' 
                     then return $ zip xs (toRSort <$> ts) 
-                    else parserFail $ "Predicate Variable with non-Bool output sort: " ++ showPpr t
+                    else parserFail $ "Predicate Variable with non-Prop output sort: " ++ showPpr t
 
 -- predVarTypeP 
 --   =  try ((liftM (: []) predVarArgP) <* reserved "->" <* reserved boolConName)
@@ -352,8 +352,12 @@ bareArrow b t1 ArrowFun t2
 bareArrow _ t1 ArrowPred t2
   = foldr (rFun dummySymbol) t2 (getClasses t1)
 
-isBoolBareType (RApp tc [] _ _) = tc == boolConName
-isBoolBareType _                = False
+-- isBoolBareType (RApp tc [] _ _) = tc == boolConName
+-- isBoolBareType t                = False
+
+isPropBareType t@(RApp _ [] _ _) = showPpr t == "(Prop)"
+isPropBareType _                 = False
+
 
 getClasses (RApp tc ts _ _) 
   | isTuple tc
@@ -530,7 +534,7 @@ rawBodyP
 -- tyBodyP :: BareType -> Parser Measure.Body
 tyBodyP ty 
   = case outTy ty of
-      Just bt | isBoolBareType bt -> Measure.P <$> predP 
+      Just bt | isPropBareType bt -> Measure.P <$> predP 
       _                           -> Measure.E <$> exprP
     where outTy (RAllT _ t)    = outTy t
           outTy (RAllP _ t)    = outTy t
