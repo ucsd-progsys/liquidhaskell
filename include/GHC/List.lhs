@@ -114,7 +114,7 @@ init (x:xs)             =  init' x xs
 #endif
 
 -- | Test whether a list is empty.
-{-@ assert null :: xs:[a] -> {v: Bool | ((? v) <=> len(xs) = 0) }  @-}
+{-@ assert null :: xs:[a] -> {v: Bool | (Prop(v) <=> len(xs) = 0) }  @-}
 null                    :: [a] -> Bool
 null []                 =  True
 null (_:_)              =  False
