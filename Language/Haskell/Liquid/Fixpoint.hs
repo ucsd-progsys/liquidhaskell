@@ -186,7 +186,6 @@ isListTC   = (listFTyCon ==)
 ----------------------------------------------------------------------
 
 data Sort = FInt 
-          | FBool
           | FNum                 -- ^ numeric kind for Num tyvars
           | FObj  Symbol         -- ^ uninterpreted type
           | FVar  !Int           -- ^ fixpoint type variable
@@ -196,7 +195,6 @@ data Sort = FInt
 
 fApp c ts 
   | c == intFTyCon  = FInt
-  | c == boolFTyCon = FBool
   | otherwise       = FApp c ts
 
 typeSort :: TCEmb TyCon -> Type -> Sort 
@@ -278,7 +276,6 @@ instance Fixpoint Sort where
 
 toFix_sort (FVar i)     = text "@"   <> parens (ppr i)
 toFix_sort FInt         = text "int"
-toFix_sort FBool        = text "bool"
 toFix_sort (FObj x)     = toFix x
 toFix_sort FNum         = text "num"
 toFix_sort (FFunc n ts) = text "func" <> parens ((ppr n) <> (text ", ") <> (toFix ts))
@@ -1074,7 +1071,6 @@ instance Hashable Sort where
   hash = hashSort
 
 hashSort FInt         = 0
-hashSort FBool        = 1
 hashSort FNum         = 2
 hashSort (FObj s)     = 10 `combine` hash s
 hashSort (FVar i)     = 11 `combine` hash i

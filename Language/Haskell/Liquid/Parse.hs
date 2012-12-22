@@ -23,7 +23,7 @@ import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Outputable (showPpr)
-import Language.Haskell.Liquid.FileNames (boolConName, listConName, tupConName)
+import Language.Haskell.Liquid.FileNames (listConName, tupConName)
 
 --------------------------------------------------------------------
 
@@ -158,7 +158,6 @@ sortP
   =   try (string "Integer" >> return FInt)
   <|> try (string "Int"     >> return FInt)
   <|> try (string "int"     >> return FInt)
-  <|> try (string "Bool"    >> return FBool)
 --   <|> (symCharsP >>= return . FPtr . FLoc . stringSymbol) 
 
 
