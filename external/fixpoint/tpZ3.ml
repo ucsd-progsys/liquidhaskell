@@ -37,7 +37,7 @@ module SSM = Misc.StringMap
 module Th = Theories
 module Prover : ProverArch.PROVER = struct
 
-let mydebug = true 
+let mydebug = false 
 
 (********************************************************************************)
 (********************************** Type Definitions ****************************)
