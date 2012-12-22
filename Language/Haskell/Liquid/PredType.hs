@@ -272,7 +272,7 @@ predType = TyVarTy $ stringTyVar "Pred"
 rpredType :: Reftable r => [RRType r] -> RRType r
 rpredType ts
   = RApp tyc ts [] top
-  where tyc = RTyCon (stringTyCon "Pred") []
+  where tyc = RTyCon (stringTyCon 'x' 42 "Pred") []
 
 ----------------------------------------------------------------------------
 exprType :: CoreExpr -> Type
