@@ -280,9 +280,12 @@ stringLookupEnv env s
            Just (n:_) -> return (Just n)
            _          -> return Nothing
 
-lookupGhcTyCon = lookupGhcThing "TyCon" ftc 
+lookupGhcTyCon ::  GhcLookup a => a -> BareM TyCon
+lookupGhcTyCon s = (lookupGhcThing "TyCon" ftc s) `catchError` tryPropTyCon
   where ftc (ATyCon x) = Just x
         ftc _          = Nothing
+        tryPropTyCon e | pp s == "Prop" = return propTyCon 
+                       | otherwise      = throwError e
 
 lookupGhcClass = lookupGhcThing "Class" ftc 
   where ftc (ATyCon x) = tyConClass_maybe x 
@@ -474,6 +477,12 @@ measureCtors = sortNub . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.c
 mkMeasureSort (Ms.MSpec cm mm) 
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> 
       liftM (\s' -> m {Ms.sort = s'}) (ofBareType' "mkMeasureSort" [] (Ms.sort m))
+
+-----------------------------------------------------------------------
+----------------------- Prop TyCon Definition -------------------------
+-----------------------------------------------------------------------
+
+propTyCon = stringTyCon 'w' 24 "Prop"
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: DataCon Definitions ------------------
