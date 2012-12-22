@@ -8,7 +8,7 @@ type Size     = Int
 data MaybeS a = NothingS | JustS !a
 
 {-@ 
-  data Map k a <l :: root:k -> k -> Bool, r :: root:k -> k -> Bool>
+  data Map k a <l :: root:k -> k -> Prop, r :: root:k -> k -> Prop>
        = Bin (sz    :: Size) 
              (key   :: k) 
              (value :: a) 
@@ -18,7 +18,7 @@ data MaybeS a = NothingS | JustS !a
   @-}
 
 
-{-@ measure isJustS :: forall a. MaybeS a -> Bool 
+{-@ measure isJustS :: forall a. MaybeS a -> Prop 
     isJustS (JustS x)  = true
     isJustS (NothingS) = false
   @-}
@@ -29,7 +29,7 @@ data MaybeS a = NothingS | JustS !a
 
 {-@ type OMap k a = Map <{v:k | v < root}, {v:k | v > root}> k a @-}
 
-{-@ measure isBin :: Map k a -> Bool
+{-@ measure isBin :: Map k a -> Prop
     isBin (Bin sz kx x l r) = true
     isBin (Tip)             = false
   @-}
@@ -38,7 +38,7 @@ data MaybeS a = NothingS | JustS !a
     key (Bin sz kx x l r) = kx 
   @-}
 
-{-@ isRoot :: t:Map k a -> {v: Bool | ((? v) <=> isBin(t))} @-}
+{-@ isRoot :: t:Map k a -> {v: Bool | (Prop(v) <=> isBin(t))} @-}
 isRoot (Bin _ _ _ _ _) = True
 isRoot (Tip)           = False
 

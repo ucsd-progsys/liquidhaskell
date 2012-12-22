@@ -1,6 +1,6 @@
 module Foo where
 
-{-@ foo :: forall a <p :: x0:Int -> x1:a -> Bool>. 
+{-@ foo :: forall a <p :: x0:Int -> x1:a -> Prop>. 
              (i:Int  -> j : Int-> a<p (i+j)>) -> 
                ii:Int -> jj:Int
               -> a <p (ii+jj)>

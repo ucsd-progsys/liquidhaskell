@@ -22,7 +22,7 @@ data Expr
   | Snd Expr
 
 {-@
-measure isValue      :: Expr -> Bool
+measure isValue      :: Expr -> Prop
 isValue (Const i)    = true 
 isValue (Lam x e)    = true 
 isValue (Var x)      = false

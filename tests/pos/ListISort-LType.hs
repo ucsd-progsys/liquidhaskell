@@ -6,7 +6,7 @@ import Language.Haskell.Liquid.Prelude
 -------------- Defining A List Type --------------------------------
 --------------------------------------------------------------------
 
-{-@ data List a <p :: x0:a -> x1:a -> Bool>  
+{-@ data List a <p :: x0:a -> x1:a -> Prop>  
   = Nil 
   | Cons (h :: a) (t :: List <p> (a <p h>))
   @-}

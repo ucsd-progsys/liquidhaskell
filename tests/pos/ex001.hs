@@ -10,7 +10,7 @@ module Ex where
 
 data Vec a = Nil 
 
-{-@ efoldr :: forall b a <p :: x0:Vec a -> x1:b -> Bool>. 
+{-@ efoldr :: forall b a <p :: x0:Vec a -> x1:b -> Prop>. 
               (exists [zz: {v: Vec a | v = Ex.Nil}]. b <p zz>)
               -> ys: Vec a
               -> b <p ys>
