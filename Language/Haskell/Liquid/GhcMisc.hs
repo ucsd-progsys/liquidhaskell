@@ -16,7 +16,7 @@ import           GHC                          hiding (L)
 import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..))
 import           Language.Haskell.Liquid.Misc (errorstar, stripParens)
 import           Name                         (mkInternalName)
-import           OccName                      (mkTyVarOcc)
+import           OccName                      (mkTyVarOcc, mkTcOcc)
 import           Unique                       
 import           Outputable
 import           RdrName                      (GlobalRdrEnv)
@@ -76,12 +76,12 @@ tickSrcSpan z
 
 stringTyVar :: String -> TyVar
 stringTyVar s = mkTyVar name liftedTypeKind
-  where name = mkInternalName initTyVarUnique occ noSrcSpan
-        occ  = mkTyVarOcc $ assert (validTyVar s) s
+  where name = mkInternalName (mkUnique 'x' 24)  occ noSrcSpan
+        occ  = mkTcOcc s
 
-stringTyCon :: String -> TyCon
-stringTyCon s = mkSuperKindTyCon name
-  where name = mkInternalName initTyVarUnique occ noSrcSpan
+stringTyCon :: Char -> Int -> String -> TyCon
+stringTyCon c n s = mkSuperKindTyCon name
+  where name = mkInternalName (mkUnique c n) occ noSrcSpan
         occ  = mkTyVarOcc $ assert (validTyVar s) s
 
 hasBaseTypeVar = isBaseType . varType
