@@ -2,7 +2,7 @@ module Ex where
 
 -- Testing "existential-types"
 
-{-@ foldN :: forall a <p :: x0:Int -> x1:a -> Bool>. 
+{-@ foldN :: forall a <p :: x0:Int -> x1:a -> Prop>. 
                 (i:Int -> a<p i> -> a<p (i+1)>) 
               -> n:{v: Int | v >= 0}
               -> a <p 0> 

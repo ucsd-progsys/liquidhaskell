@@ -61,7 +61,7 @@ maximumInt (x:xs) = foldr maxInt x xs
 \end{code}
 
 \begin{code}Now, we can use the function `isEven` from Language.Haskell.Liquid.Prelude library:
-{- assume isEven :: x:Int -> {v:Bool | ((? v) <=> ((x mod 2) = 0))} -}
+{- assume isEven :: x:Int -> {v:Bool | (Prop(v) <=> ((x mod 2) = 0))} -}
 isEven   :: Int -> Bool
 isEven x = x `mod` 2 == 0
 \end{code}

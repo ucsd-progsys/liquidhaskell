@@ -1,10 +1,8 @@
 module Test where
 
-import Language.Haskell.Liquid.Prelude (liquidAssert)
-
 data MaybeS a = NothingS | JustS !a
 
-{-@ measure isJustS :: forall a. MaybeS a -> Bool 
+{-@ measure isJustS :: forall a. MaybeS a -> Prop
     isJustS (JustS x)  = true
     isJustS (NothingS) = false
   @-}

@@ -47,7 +47,7 @@ import Language.Haskell.Liquid.Prelude
 ----------------------------------------------------------------
 
 -- LIQUID left depends on value, so their order had to be changed
-{-@ data Splay a <l :: root:a -> a -> Bool, r :: root:a -> a -> Bool>
+{-@ data Splay a <l :: root:a -> a -> Prop, r :: root:a -> a -> Prop>
          = Node (value :: a) 
                 (left  :: Splay <l, r> (a <l value>)) 
                 (right :: Splay <l, r> (a <r value>)) 
