@@ -6,6 +6,7 @@ import GHC.Types
 import GHC.Err  
 
 embed GHC.Types.Int      as int
+embed Prop               as bool
 
 measure len :: forall a. [a] -> GHC.Types.Int
 len ([])     = 0
