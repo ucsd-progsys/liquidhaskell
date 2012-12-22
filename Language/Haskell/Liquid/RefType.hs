@@ -1100,9 +1100,9 @@ dataConSymbol = varSymbol . dataConWorkId
 dataConReft ::  DataCon -> [Symbol] -> Reft
 dataConReft c [] 
   | c == trueDataCon
-  = Reft (vv_, [RConc $ (PBexp (EVar vv_))]) 
+  = Reft (vv_, [RConc $ (PBexp (EApp (S "Prop") [EVar vv_]))]) 
   | c == falseDataCon
-  = Reft (vv_, [RConc $ PNot (PBexp (EVar vv_))]) 
+  = Reft (vv_, [RConc $ PNot (PBexp (EApp (S "Prop") [EVar vv_]))]) 
 dataConReft c [x] 
   | c == intDataCon 
   = Reft (vv_, [RConc (PAtom Eq (EVar vv_) (EVar x))]) 
