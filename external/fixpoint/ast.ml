@@ -1173,7 +1173,7 @@ and sortcheck_rel f (e1, r, e2) =
     -> (sortcheck_loc f l = Some Sort.Num)
   | Eq, Some t1, Some t2
   | Ne, Some t1, Some t2
-    -> t1 = t2
+    -> Misc.maybe_bool (Sort.unify [t1] [t2])
   | _ , Some t1, Some t2
     -> t1 = t2 && t1 != Sort.Bool
   | _ -> false
