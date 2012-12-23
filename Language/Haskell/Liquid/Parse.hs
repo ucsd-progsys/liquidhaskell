@@ -53,7 +53,7 @@ languageDef =
                                      , "_|_"
                                      , "|"
                                      ]
-           , Token.reservedOpNames = [ "+", "-", "*", "/" 
+           , Token.reservedOpNames = [ "+", "-", "*", "/", "\\"
                                      , "<", ">", "<=", ">=", "=", "!="
                                      , "mod", "and", "or" 
                                    --, "is"
@@ -232,17 +232,17 @@ bareArgP
  <|> parens bareTypeP
 
 bareAtomP 
-  =  refP bbaseP 
+  =  frefP bbaseP 
  <|> try (dummyP (bbaseP <* spaces))
 
-bbaseP :: Parser (Reft -> BareType)
+bbaseP :: Parser (FReft -> BareType)
 bbaseP 
   =  liftM2 bLst (brackets bareTypeP) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM2 bRVar lowerIdP monoPredicateP)
  <|> liftM3 bCon upperIdP predicatesP (sepBy bareTyArgP blanks)
 
-bbaseNoAppP :: Parser (Reft -> BareType)
+bbaseNoAppP :: Parser (FReft -> BareType)
 bbaseNoAppP
   =  liftM2 bLst (brackets bareTypeP) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
@@ -255,7 +255,7 @@ bareTyArgP
  <|> parens bareTypeP
 
 bareAtomNoAppP 
-  =  refP bbaseNoAppP 
+  =  frefP bbaseNoAppP 
  <|> try (dummyP (bbaseNoAppP <* spaces))
 
 
@@ -368,19 +368,30 @@ getClass (RApp c ts _ _)
 getClass t
   = errorstar $ "Cannot convert " ++ (show t) ++ " to Class"
 
-dummyP ::  Monad m => m (Reft -> b) -> m b
+dummyP ::  Monad m => m (FReft -> b) -> m b
 dummyP fm 
-  = fm `ap` return dummyReft 
+  = fm `ap` return dummyFReft 
 
-refP :: Parser (Reft -> a) -> Parser a
-refP kindP 
+refP :: Parser (t -> a)-> (Reft -> t)-> Parser a
+refP kindP f
   = braces $ do
       v   <- symbolP 
       colon
       t   <- kindP
       reserved "|"
       ras <- refasP 
-      return $ t (Reft (v, ras))
+      return $ t (f (Reft (v, ras)))
+
+symsP
+  = do reserved "\\"
+       ss <- sepBy symbolP spaces
+       reserved "->"
+       return ss
+
+frefP :: Parser (FReft -> a)-> Parser a
+frefP kindP
+  = (try (do {ss <- symsP ; refP kindP (FSReft ss)}))
+ <|> refP kindP FReft
 
 refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
@@ -391,7 +402,7 @@ predicatesP
   <|> return []
 
 predicate1P 
-   =  try (liftM RPoly (refP bbaseP))
+   =  try (liftM RPoly (frefP bbaseP))
   <|> liftM (RMono . predUReft) monoPredicate1P
 
 monoPredicateP 
@@ -425,8 +436,8 @@ bCon b rs ts r         = RApp b ts rs (reftUReft r)
 
 
 reftUReft      = (`U` pdTrue)
-predUReft      = (U dummyReft) 
-dummyReft      = Reft (dummySymbol, [])
+predUReft      = (U dummyFReft) 
+dummyFReft      = FReft $ Reft (dummySymbol, [])
 dummyTyId      = ""
 
 ------------------------------------------------------------------

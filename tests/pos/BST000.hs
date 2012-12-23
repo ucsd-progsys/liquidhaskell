@@ -13,7 +13,7 @@ data Bst k v <l :: root:k -> x1:k -> Prop, r :: root:k -> x1:k -> Prop>
   @-}
 data Bst k v = Empty | Bind k v (Bst k v) (Bst k v)
 
-{-@ type OBST k a = Bst <{v:k | v < root }, {v:k | v > root}> k a @-}
+{-@ type OBST k a = Bst <\root -> {v:k | v < root }, \root -> {v:k | v > root}> k a @-}
 
 {-@ chkMin :: (Ord k) => x:k -> OBST {v:k | x < v} a -> Bool @-}
 chkMin :: (Ord k) => k -> Bst k a -> Bool

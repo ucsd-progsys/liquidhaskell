@@ -217,10 +217,10 @@ instance Outputable Cinfo where
 splitW ::  WfC -> CG [FixWfC]
 
 splitW (WfC γ t@(RFun x t1 t2 _)) 
-  =  do let ws = bsplitW γ t
-        ws'   <- splitW (WfC γ t1) 
-        γ'    <- (γ, "splitW") += (x, t1)
-        ws''  <- splitW (WfC γ' t2)
+  =  do ws   <- bsplitW γ t
+        ws'  <- splitW (WfC γ t1) 
+        γ'   <- (γ, "splitW") += (x, t1)
+        ws'' <- splitW (WfC γ' t2)
         return $ ws ++ ws' ++ ws''
 
 splitW (WfC γ (RAllT _ r)) 
@@ -230,31 +230,33 @@ splitW (WfC γ (RAllP _ r))
   = splitW (WfC γ r)
 
 splitW (WfC γ t@(RVar _ _))
-  = return $ bsplitW γ t 
+  = bsplitW γ t 
 
 splitW (WfC _ (RCls _ _))
   = return []
 
-splitW (WfC γ t@(RApp c ts rs _))
-  =  do let ws = bsplitW γ t
+splitW (WfC γ t@(RApp _ ts rs _))
+  =  do ws   <- bsplitW γ t 
         γ'    <- γ `extendEnvWithVV` t 
-        ws'   <- concat <$> mapM splitW (map (WfC γ') ts)
-        ws''  <- concat <$> mapM (rsplitW γ) (safeZip "splitW" rs (rTyConPs c))
+        ws'  <- concat <$> mapM splitW (map (WfC γ') ts)
+        ws'' <- concat <$> mapM (rsplitW γ) rs
         return $ ws ++ ws' ++ ws''
 
 splitW (WfC _ t) 
   = errorstar $ "splitW cannot handle: " ++ showPpr t
 
-rsplitW γ (RMono r, ((PV _ t as)))
-  = do γ'    <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitW1", x, ofRSort τ)) as) 
-       let r' = mkSortedReft (emb γ) t $ toReft r
-       return [F.wfC (fenv γ') r' Nothing (Ci (loc γ))]
+rsplitW _ (RMono _)  = errorstar "Constrains: rsplitW for RMono"
+rsplitW γ (RPoly t0) = splitW $ WfC γ t0
 
-rsplitW γ (RPoly t0, (PV _ _ as))
-  = do γ'  <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitW2", x, ofRSort τ)) as) 
-       splitW (WfC γ' t0)
+bsplitW γ t
+  = do map <- refsymbols <$> get 
+       γ'  <- foldM (++=) γ [("rsplitC", x, lookup map x) | x <- fSyms t]
+       return $ bsplitW' γ' $ fmap dropSyms t
+  where errormsg x   = errorstar $ "Constraint: bsplitW not found " ++ show x
+        lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
 
-bsplitW γ t 
+bsplitW' :: CGEnv -> SpecType -> [FixWfC]
+bsplitW' γ t 
   | F.isNonTrivialSortedReft r'
   = [F.wfC (fenv γ) r' Nothing ci] 
   | otherwise
@@ -282,7 +284,7 @@ splitC (SubC γ t1 (REx x tx t2))
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
-  =  do let cs    = bsplitC γ t1 t2 
+  =  do cs       <- bsplitC γ t1 t2 
         cs'      <- splitC  (SubC γ r2 r1) 
         γ'       <- (γ, "splitC") += (x2, r2) 
         let r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
@@ -309,26 +311,21 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
 
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
-       let cs     = bsplitC γ t1' t2'
-       γ'        <- γ `extendEnvWithVV` t1' 
-       cs'       <- concat <$> mapM splitC (zipWith (SubC γ') (rt_args t1') (rt_args t2'))
-       cs''      <- concat <$> mapM (rsplitC γ) (rsplits (rt_pargs t1') (rt_pargs t2') (rTyConPs $ rt_tycon t1'))
-       return     $ cs ++ cs' ++ cs''
-
--- splitC (SubC γ t1@(RApp c t1s r1s _) t2@(RApp c' t2s r2s _))
---   = do γ'    <- γ `extendEnvWithVV` (vv, t1) 
---        cs'   <- concat <$> mapM splitC (zipWith (SubC γ') t1s' t2s')
---        cs''  <- concat <$> mapM (rsplitC γ) (rsplits r1s r2s' (rTyConPs c))
---        return $ cs ++ cs' ++ cs''
---     where r2s' = F.subst psu <$> r2s
---           t1s' = F.subst vsu <$> t1s
---           t2s' = F.subst vsu <$> t2s
---           psu  = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (rTyConPVars c') (rTyConPVars c), x /= y]
---           ((vv, vsu), cs) = bsplitC γ t1 t2
+       cs    <- bsplitC γ t1' t2'
+       γ'    <- γ `extendEnvWithVV` t1' 
+       symss <- refsymbols <$> get
+       let RApp c  t1s r1s _ = t1'
+       let RApp c' t2s r2s _ = t2'
+       mapM addRefSymbolsRef (safeZip "addRef1" (rTyConPs c ) r1s)
+       mapM addRefSymbolsRef (safeZip "addRef2" (rTyConPs c') r2s)
+       cs'   <- concat <$> mapM splitC (zipWith (SubC γ') t1s t2s)
+       cs''  <- concat <$> mapM (rsplitC γ) (safeZip "rsplitC" r1s r2s)
+       modify $ \s -> s{refsymbols = symss}
+       return $ cs ++ cs' ++ cs''
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
-  = return (bsplitC γ t1 t2)
+  = bsplitC γ t1 t2
 
 splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
   = return []
@@ -336,11 +333,19 @@ splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
 splitC c@(SubC _ _ _) 
   = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showPpr c
 
--- | "Base Case" which generates the actual `Fixpoint`-level implication constraint.
-bsplitC :: CGEnv -> SpecType ->  SpecType -> [FixSubC]
-bsplitC γ t1 t2 
+bsplitC γ t1 t2
+  = do map <- refsymbols <$> get 
+       γ'  <-  foldM (++=) γ [("rsplitC1", x, lookup map x) | x <- fSyms t2]
+       let su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (fSyms t1) (fSyms t2)]
+       return $ bsplitC' γ' (F.subst su t1') t2'
+  where t1'          = fmap dropSyms t1
+        t2'          = fmap dropSyms t2
+        lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
+        errormsg x   = errorstar $ "Not found " ++ showPpr x
+
+bsplitC' γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
-  = [F.subC γ' F.PTrue (r1' { F.sr_reft = top }) r2' Nothing tag ci]
+  = [F.subC γ' F.PTrue (r1' {F.sr_reft = top}) r2' Nothing tag ci]
   | F.isNonTrivialSortedReft r2'
   = [F.subC γ' F.PTrue r1'  r2' Nothing tag ci]
   | otherwise
@@ -357,29 +362,27 @@ bsplitC γ t1 t2
 
 unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
-       return  $ (shiftVV t1 vv,  (shiftVV t2 vv) {rt_pargs = r2s'})
-  where r2s' = F.subst psu <$> (rt_pargs t2) 
-        psu  = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (rTyConPVars c2) (rTyConPVars c1), x /= y]
+       return  $ (shiftVV t1 vv,  (shiftVV t2 vv) ) -- {rt_pargs = r2s'})
+--   where r2s' = F.subst psu <$> (rt_pargs t2) 
+--         psu  = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (rTyConPVars c2) (rTyConPVars c1), x /= y]
  
-rTyConPVars c = [ x | pv <- rTyConPs c, (_,x,_) <- pargs pv ]
+-- rTyConPVars c = [ x | pv <- rTyConPs c, (_,x,_) <- pargs pv ]
 
-rsplits [] _ _      = []
-rsplits _ [] _      = []
-rsplits _ _ []      = []
-rsplits r1s r2s ps  = safeZip "rsplits1" (safeZip "rsplits2" r1s r2s) ps
+rsplitC _ (RMono _, RMono _) 
+  = errorstar "RefTypes.rsplitC on RMono"
 
-rsplitC γ ((RMono r1, RMono r2), (PV _ t as))
-  = do let r1'  = mkSortedReft (emb γ) t (toReft r1)
-       let r2'  = mkSortedReft (emb γ) t (toReft r2)
-       γ'      <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitC1", x, ofRSort τ)) as) 
-       return   $ [F.subC (fenv γ') F.PTrue r1' r2' Nothing [] (Ci (loc γ))]
-
-rsplitC γ ((RPoly r1, RPoly r2), PV _ _ as)
-  = do γ'  <- foldM (++=) γ (map (\(τ, x, _) -> ("rsplitC2", x, ofRSort τ)) as) 
-       splitC (SubC γ' r1 r2)
+rsplitC γ (RPoly r1, RPoly r2)
+  = do map <- refsymbols <$> get 
+       γ'  <-  foldM (++=) γ [("rsplitC1", x, lookup map x) | x <- fSyms r2]
+       splitC (SubC γ' (F.subst su r1') r2')
+  where su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (fSyms r1) (fSyms r2)]
+        r1'          = fmap dropSyms r1
+        r2'          = fmap dropSyms r2
+        lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
+        errormsg x   = errorstar $ "Not found " ++ showPpr x
 
 rsplitC _ _  
-  = error "rsplit Rpoly - RMono"
+  = errorstar "rsplit Rpoly - RMono"
 
 -----------------------------------------------------------
 -------------------- Generation: Types --------------------
@@ -398,6 +401,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
                      , lits       :: ![(F.Symbol, F.Sort)]
+                     , refsymbols :: !(F.SEnv SpecType)
                      } -- deriving (Data, Typeable)
 
 instance Outputable CGInfo where 
@@ -419,7 +423,7 @@ ppr_CGInfo cgi
 
 type CG = State CGInfo
 
-initCGI info = CGInfo { 
+initCGI info = CGInfo {
     hsCs       = [] 
   , hsWfs      = [] 
   , fixCs      = []
@@ -433,6 +437,7 @@ initCGI info = CGInfo {
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
+  , refsymbols = F.emptySEnv
   } where tce  = tcEmbeds $ spec info
           spc  = spec info
 
@@ -502,11 +507,19 @@ normalizeVV _ t
 
 shiftVV t@(RApp _ ts _ r) vv' 
   = t { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
-      { rt_reft = (`F.shiftVV` vv') <$> r }
+      { rt_reft = (fFReft  (`F.shiftVV` vv')) <$> r }
 
 shiftVV t _ 
   = t -- errorstar $ "shiftVV: cannot handle " ++ showPpr t
 
+addRefSymbols ss
+  = modify $ \s -> s{refsymbols = foldl' (\e (x, t) -> F.insertSEnv x t e) (refsymbols s) ss}
+
+addRefSymbolsRef (π, RPoly t1)
+  = addRefSymbols newSyms
+  where newSyms = zip (fSyms t1) ((ofRSort . fst3) <$> pargs π)
+addRefSymbolsRef (_, RMono _)
+  = errorstar "Constraint.addRefSymbolsRef RMono"
 
 addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
 addBind x r 
@@ -526,8 +539,9 @@ addClassBind _
   = return [] 
 
 addC :: SubC -> String -> CG ()  
-addC !c@(SubC _ _ _) _ 
-  = modify $ \s -> s { hsCs  = c : (hsCs s) }
+addC !c@(SubC _ t1 t2) _ 
+  = -- trace ("addC" ++ showPpr t1 ++ "\n <: \n" ++ showPpr t2 ) $
+     modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addW   :: WfC -> CG ()  
 addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
@@ -537,7 +551,7 @@ addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
 addKuts :: SpecType -> CG ()
 addKuts !t = modify $ \s -> s { kuts = {- tracePpr "KUTS: " $-} updKuts (kuts s) t }
   where updKuts :: F.Kuts -> SpecType -> F.Kuts
-        updKuts = foldReft (F.ksUnion . (F.reftKVars . ur_reft) )
+        updKuts = foldReft (F.ksUnion . (F.reftKVars . fromFReft  . ur_reft) )
 
 
 -- | Used for annotation binders (i.e. at binder sites)
@@ -629,6 +643,13 @@ instance Freshable (F.Reft) where
   refresh (F.Reft (_,_)) = liftM2 (curry F.Reft) freshVV fresh
     where freshVV        = liftM (F.vv . Just) fresh
 
+instance Freshable FReft where
+  fresh                   = errorstar "fresh FReft" 
+  true    (FReft r)       = liftM FReft (true r)
+  true    (FSReft s r)    = liftM (FSReft s) (true r)
+  refresh (FReft r)       = liftM FReft (refresh r)
+  refresh (FSReft s r)    = liftM (FSReft s) (refresh r)
+
 instance Freshable RReft where
   fresh             = errorstar "fresh RReft"
   true (U r _)      = liftM uTop (true r)  
@@ -663,14 +684,22 @@ refreshRefType (RFun b t t' _)
 refreshRefType (RApp rc ts _ r)  
   = do tyi                 <- tyConInfo <$> get
        let RApp rc' _ rs _  = expandRApp tyi (RApp rc ts [] r)
-       liftM3 (RApp rc') (mapM refresh ts) (mapM refreshRef rs) (refresh r)
+       let rπs              = safeZip "refreshRef" rs (rTyConPs rc')
+       liftM3 (RApp rc') (mapM refresh ts) (mapM refreshRef rπs) (refresh r)
 refreshRefType (RVar a r)  
   = liftM (RVar a) (refresh r)
 refreshRefType t                
   = return t
 
-refreshRef (RPoly t) = RPoly <$> (refreshRefType t)
-refreshRef (RMono _) = error "refreshRef: unexpected"
+refreshRef (RPoly t, π) = RPoly <$> (refreshRefType t >>= addFreshArgs π)
+refreshRef (RMono _, _) = errorstar "refreshRef: unexpected"
+
+addFreshArgs π t
+  = do args <- mapM (\_ -> fresh) πargs
+       addRefSymbols $ zip args ((ofRSort . fst3)  <$> πargs)
+       return $ fmap (addSyms args) t
+  where πargs = pargs π
+
 
 -- isBaseTyCon c
 --   | c == intTyCon 
@@ -702,7 +731,6 @@ consCB γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
        to' <- consBind γ (x, e, to)
        extender γ (x, to')
-
 
 consBind γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
@@ -798,7 +826,7 @@ consE γ (Var x)
     where t = varRefType γ x
 
 consE γ (Lit c) 
-  = return $ uRType $ literalRefType (emb γ) c
+  = return $ uRType $ literalFRefType (emb γ) c
 
 consE γ (App e (Type τ)) 
   = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
@@ -809,8 +837,8 @@ consE γ (App e (Type τ))
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
        case t0 of
-         RAllP p t -> do s  <- freshPredRef γ e' p
-                         (return $ replacePreds "consE" t [(p, RPoly s)]) {- =>> addKuts -}
+         RAllP p t -> do s <- freshPredRef γ e' p
+                         return $ replacePreds "consE" t [(p, RPoly s)] {- =>> addKuts -}
          _         -> return t0
 
 consE γ e'@(App e a)               
@@ -884,9 +912,9 @@ cconsCase γ x t acs (a, _, ce)
        cγ     <- addBinders γ x' [(x', xt')]
        cconsE cγ ce t
 
-altReft γ _ (LitAlt l)   = literalReft (emb γ) l
+altReft γ _ (LitAlt l)   = literalFReft (emb γ) l
 altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
-  where notLiteralReft   = F.notExprReft . snd . literalConst (emb γ)
+  where notLiteralReft   = toFReft . F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = error "Constraint : altReft"
 
 unfoldR td (RApp _ ts rs _) ys = (t3, yts, rt)
@@ -936,16 +964,16 @@ truePredRef ::  PVar (RRType r) -> CG SpecType
 truePredRef (PV _ τ _)
   = trueTy (toType τ)
 
-freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecType 
-freshPredRef γ e (PV _ τ as)
-  = do t  <- freshTy e (toType τ)
-       γ' <- foldM (++=) γ (map (\(τ, x, _) -> ("freshPredRef", x, ofRSort τ)) as) 
-       addW $ WfC γ' t
-       return t
-
--- tySort (RVar _ (F.Reft(_, [a])))     = a
--- tySort (RApp _ _ _ (F.Reft(_, [a]))) = a
--- tySort _                             = error "tySort"
+freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecType
+freshPredRef γ e (PV n τ as)
+  = do t    <- freshTy e (toType τ)
+       args <- mapM (\_ -> fresh) as
+       let targs = zip args ((ofRSort . fst3) <$> as)
+       addRefSymbols targs
+       let t' = fmap (addSyms args) t
+       γ' <- foldM (++=) γ [("freshPredRef", x, τ) | (x, τ) <- targs]
+       addW $ WfC γ' t'
+       return t'
 
 -----------------------------------------------------------------------
 ---------- Helpers: Creating Refinement Types For Various Things ------
@@ -959,7 +987,7 @@ argExpr _ e           = errorstar $ "argExpr: " ++ (showPpr e)
 
 varRefType γ x =  t 
   where t  = (γ ?= (varSymbol x)) `strengthen` xr
-        xr = uTop $ F.symbolReft $ varSymbol x
+        xr = uTop $ toFReft $ F.symbolReft $ varSymbol x
 
 -- TODO: should only expose/use subt. Not subsTyVar_meet
 subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
@@ -988,6 +1016,10 @@ instance NFData RTyCon where
 instance NFData Type where 
   rnf _ = ()
 
+instance NFData FReft where 
+  rnf (FReft x)      = rnf x
+  rnf (FSReft x1 x2) = rnf x1 `seq` rnf x2
+
 instance NFData WfC where
   rnf (WfC x1 x2)   
     = rnf x1 `seq` rnf x2
@@ -1011,8 +1043,8 @@ instance NFData CGInfo where
 
 existentialRefType     :: CGEnv -> SpecType -> SpecType
 existentialRefType γ t = t `strengthen` (uTop r') 
-  where r'             = maybe top (exReft γ) (F.isSingletonReft r)
-        r              = F.sr_reft $ rTypeSortedReft (emb γ) t
+  where r'             = toFReft $ maybe top (exReft γ) ((F.isSingletonReft) (fromFReft r))
+        r              = toFReft $ F.sr_reft $ rTypeSortedReft (emb γ) t
 
 
 exReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
@@ -1081,22 +1113,13 @@ extendγ γ xts
 --------- | Strengthening Binders with TyCon Invariants -----------
 -------------------------------------------------------------------
 
---type RTyConInv = M.HashMap RTyCon F.Reft
---mkRTyConInv    :: [SpecType] -> RTyConInv 
---mkRTyConInv ts = mconcat <$> group [ (c, r) | RApp c _ _ (U r _) <- strip <$> ts]
---                 where strip = thd3 . bkUniv 
---
--- addRTyConInv :: RTyConInv -> SpecType -> SpecType
--- addRTyConInv m t@(RApp c _ _ _) 
---   = fromMaybe t ((strengthen t . uTop) <$> M.lookup c m)
-
 type RTyConInv = M.HashMap RTyCon [SpecType]
 
 mkRTyConInv    :: [SpecType] -> RTyConInv 
-mkRTyConInv ts = {- meetInvs <$> -} group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
+mkRTyConInv ts = group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
   where 
     strip      = thd3 . bkUniv 
-    -- meetInvs   = foldr1 conjoinInvariant 
+-- type RTyConInv = M.HashMap RTyCon FReft
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
 addRTyConInv m t@(RApp c _ _ _)

@@ -1,15 +1,21 @@
-module Data.Set.Splay  where
+module Deptup0 where
 
-insert :: a -> a
-insert x = l
-  where
-    (l,w) = split x
+import Language.Haskell.Liquid.Prelude
 
--- this crashes
-split :: a -> (a, Bool)
-split x = (x,False)
+{-@ data Pair a b <p :: x0:a -> x1:b -> Prop> = P (x :: a) (y :: b<p x>) @-} 
+data Pair a b = P a b
 
--- this does not crash
--- split :: a -> (a, Int)
--- split x = (x,1)
+{-@ mkP :: forall a <q :: x0:a -> x1:a -> Prop>. x: a -> y: a<q x> -> Pair <q> a a @-}
+mkP :: a -> a -> Pair a a
+mkP x y = P x y 
 
+incr :: Int -> Int
+incr x = x + 1
+
+baz x = mkP x (incr x)
+
+chk :: Pair Int Int -> Bool
+chk (P x y) = liquidAssertB (x < y)
+
+prop = chk $ baz n
+  where n = choose 100
