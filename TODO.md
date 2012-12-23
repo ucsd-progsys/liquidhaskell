@@ -66,11 +66,6 @@ Tuple Refinements (DONE: by Niki)
       > 
       = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>) (x4 :: a4<p4 x1 x2 x3>)
 
-Blogging 
-========
-
-see blog/TODO.md
-
 Blog Todo List
 ==============
 
@@ -80,13 +75,18 @@ Basic Refinement Types
 ----------------------
 
 1. RefTypes 101  (Basic Ints, abz, div-by-zero)
-2. Dependent Refinements (abz, +, incr, average, loop, argmin, dot-product, sparse-product, sparse-product-fold)
 
-
-imap
-
-incr, listSum-rec, div-by-zero)
-2. RefTypesPoly  (map-(inc . abs), foldr-+, listSum-fold, div-by-zero-redux)
+2. Dependent Refinements:
+    - Data.Vector
+        - create vector
+        - access vector [safe]
+        - access vector [unsafe]
+    - Vector-Abs-Sum // recursion
+    - loop           // recursion + HOF 
+    - dotProduct     // uses loop use HOF
+    - range          // uses loop  + show LIST
+    - Vector-Abs-Sum // uses range + MAP
+    - argmin         // uses range + map and fold
 
 Measures
 --------
