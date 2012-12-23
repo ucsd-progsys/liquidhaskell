@@ -1,7 +1,7 @@
 TODO
 ====
 
-* predicate-aliases      
+* qualified names break spec imports -- tests/todo/qualifiedvector.hs 
 * parse predicate signatures for tuples 
 * benchmarks: stackset-core
 * Blogging 

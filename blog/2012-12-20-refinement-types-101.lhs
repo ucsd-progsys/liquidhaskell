@@ -103,6 +103,8 @@ The key points are:
 
 1. a refinement type is just a type *decorated* with logical predicates,
 2. a value can have *different* refinement types that describe different properties.
+3. if we *erase* the green bits (i.e. the logical predicates) we get back *exactly* 
+   the usual Haskell types that we know and love.
 
 We have built a refinement type based verifier called LiquidHaskell. 
 Lets see how we can use refinement types to specify and verify interesting 
