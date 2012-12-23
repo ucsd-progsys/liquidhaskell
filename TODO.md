@@ -75,18 +75,7 @@ Basic Refinement Types
 ----------------------
 
 1. RefTypes 101  (Basic Ints, abz, div-by-zero)
-
-2. Dependent Refinements:
-    - Data.Vector
-        - create vector
-        - access vector [safe]
-        - access vector [unsafe]
-    - Vector-Abs-Sum // recursion
-    - loop           // recursion + HOF 
-    - dotProduct     // uses loop use HOF
-    - range          // uses loop  + show LIST
-    - Vector-Abs-Sum // uses range + MAP
-    - argmin         // uses range + map and fold
+2. Dependent Refinements: (Data.Vector, recursion-sum, loop, dotproduct, range, map, fold)
 
 Measures
 --------
