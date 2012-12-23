@@ -22,7 +22,7 @@ import Outputable hiding (empty)
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
-import Data.List        (nub, partition, foldl')
+import Data.List        (partition, foldl')
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint hiding (Expr)
 import qualified Language.Haskell.Liquid.Fixpoint as F
@@ -161,14 +161,18 @@ zipWithZero f xz yz (x:xs) (y:ys) = (f x y) :(zipWithZero f xz yz xs ys)
  
 -- pToReft p = Reft (vv, [RPvar p]) 
 pToReft = U top . pdVar 
+
 ----------------------------------------------------------------------------
 ----- Interface: Replace Predicate With Uninterprented Function Symbol -----
 ----------------------------------------------------------------------------
 
-replacePredsWithRefs (p, r) (U (Reft (v, rs)) (Pr ps)) 
-  = U (Reft (v, rs ++ rs')) (Pr ps2)
-  where rs'        = r . (v,) . pargs <$> ps1
-        (ps1, ps2) = partition (==p) ps 
+replacePredsWithRefs (p, r) (U fr (Pr ps)) 
+  = U (FSReft (freeSymbols++s) (Reft (v, rs ++ rs'))) (Pr ps2)
+  where rs'              = r . (v,) . pargs <$> ps1
+        (ps1, ps2)       = partition (==p) ps
+        (s, Reft(v, rs)) = splitFReft fr
+        freeSymbols      = snd3 <$> filter (\(_, x, y) -> EVar x == y) pargs1
+        pargs1           = concatMap pargs ps1
 
 pVartoRConc p (v, args)
   = RConc $ pApp (pname p) $ EVar v:(thd3 <$> args)
@@ -242,12 +246,14 @@ substPred _   _  t            = t
 
 -- | Requires: @not $ null πs@
 -- substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
+
 substRCon msg (_, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 _) πs r2'
   | rTyCon c1 == rTyCon c2    = RApp c1 ts rs $ meetListWithPSubs πs r1 r2'
   where ts                    = safeZipWith (msg ++ ": substRCon")  strSub  ts1 ts2
         rs                    = safeZipWith (msg ++ ": substRcon2") strSubR rs1 rs2
-        strSub t1 t2          = meetListWithPSubs πs t1 t2
+        strSub r1 r2          = meetListWithPSubs πs (addSyms ss r1)r2
         strSubR r1 r2         = RPoly $ strSub (fromRPoly r1) (fromRPoly r2)                             
+        ss = fSyms (RApp c1 ts1 rs1 r1)
 
 substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ show (su, t)
 
@@ -257,10 +263,19 @@ substPredP _  (RMono _)       = error $ "RMono found in substPredP"
 splitRPvar pv (U x (Pr pvs)) = (U x (Pr pvs'), epvs)
   where (epvs, pvs') = partition (uPVar pv ==) pvs
 
-meetListWithPSubs πs r1 r2 = foldl' meet r2 $ ((`subst` r1)<$> su ) 
-  where su                 = nub ((predArgsSubst . pargs) <$> πs) 
+meetListWithPSubs πs r1 r2 = foldl' (meetListWithPSub r1) r2 πs
 
-predArgsSubst = mkSubst . map (\(_, s1, s2) -> (s1, s2)) 
+meetListWithPSub ::  Reftable r => r -> r -> PVar t -> r
+meetListWithPSub r1 r2 π
+  | all (\(_, x, EVar y) -> x == y) (pargs π)
+  = addSyms (fSyms r1) $ r2 `meet` r1'      
+  | all (\(_, x, EVar y) -> x /= y) (pargs π)
+  = r2 `meet` (subst su r1')
+  | otherwise
+  = errorstar $ "PredType.meetListWithPSub partial application to " ++ showPpr π
+  where r1' = dropSyms r1
+        su  = mkSubst xys
+        xys = [(x, y) | (x, (_, _, y)) <- zip (fSyms r1) (pargs π)]
 
 ----------------------------------------------------------------------------
 ---------- Interface: Modified CoreSyn.exprType due to predApp -------------
