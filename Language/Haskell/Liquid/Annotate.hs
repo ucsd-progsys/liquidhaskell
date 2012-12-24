@@ -115,7 +115,7 @@ pandocPreProc
 
 renderDirect htmlFile srcFile css body 
   = writeFile htmlFile $! (top'n'tail full srcFile css $! body)
-    where full = False  -- TODO: command-line-option 
+    where full = True -- False  -- TODO: command-line-option 
 
 -- | @top'n'tail True@ is used for standalone HTML, 
 --   @top'n'tail False@ for embedded HTML
