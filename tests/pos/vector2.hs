@@ -31,3 +31,12 @@ absoluteSum vec   = if 0 < n then go 0 0 else 0
 
 abz n = if 0 <= n then n else (0 - n) 
 
+loop :: Int -> Int -> a -> (Int -> a -> a) -> a 
+loop lo hi base f = go base lo
+  where
+    go acc i     
+      | i /= n    = go (f i acc) (i + 1)
+      | otherwise = acc
+
+
+
