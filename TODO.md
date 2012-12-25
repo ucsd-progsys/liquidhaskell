@@ -4,6 +4,7 @@ TODO
 * pre-"release" checklist 
     
     * blog: verifying vectors
+    * sparseVector
     * wierd-annot-for-absoluteSum.go
     * niki merge
     * clean up VV121 -> V
