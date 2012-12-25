@@ -1,36 +1,32 @@
-.hs-keyglyph {
-  color: #007020
+.hs-keyglyph, .hs-layout { /* color: red; */ 
+  color: white;
 }
 
 .hs-keyword {
-  color: #007020;
-  // font-weight: bold;
+  color: #75D075 ; 
+  //font-weight: bold;
 }
 
 .hs-comment, .hs-comment a {color: green;}
 
-.hs-str, .hs-chr {color: teal;}
+.hs-str, .hs-chr {color: #7FFFD4;}
 
 .hs-conid { 
-  color: #902000;   /* color: #00FFFF; color: #0E84B5; */
-  //font-weight: bold;  
+  color: #00FFFF; 
+  //font-weight: bold; 
 }
 
 .hs-definition { 
-  color: #06287E 
-  /* font-weight: bold; */ 
+  color: #FFFFFF;   /* #ADFF2F; */
+  // font-weight: bold; 
 }
 
-.hs-varid, .hs-varop, .hs-layout {
-  color: black; 
+.hs-varid, .hs-varop {
+  color: white; /* #BDDEFF; */
 }
 
-.hs-num {
-  color: #40A070;
-}
-
-.hs-conop {
-  color: #902000; 
+.hs-num, .hs-conop {
+  color: aquamarine;
 }
 
 .hs-cpp {
@@ -42,37 +38,36 @@
 a.annot {
   position:relative; 
   color:#000;
-  text-decoration:none; 
+  text-decoration:none;
   white-space: pre; 
 }
 
-a.annot:hover { 
-  z-index:25; 
-  background-color: #D8D8D8;
-}
+// a.annot:hover { 
+//   z-index:25; 
+//   background-color:#585858;
+//   /* background-color:#ff0  */
+// }
 
 a.annot span.annottext{display: none}
 
 a.annot:hover span.annottext{ 
   
   border-radius: 5px 5px;
-  
   -moz-border-radius: 5px; 
   -webkit-border-radius: 5px; 
-  
   box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.1); 
   -webkit-box-shadow: 5px 5px rgba(0, 0, 0, 0.1);
   -moz-box-shadow: 5px 5px rgba(0, 0, 0, 0.1); 
 
-  white-space:pre;
+  white-space:pre ;
   display:block;
   position: absolute; 
   left: 1em; top: 2em; 
-  z-index: 99;
+  z-index: 9999;
   margin-left: 5; 
-  background: #FFFFAA; 
-  border: 3px solid #FFAD33;
   padding: 0.8em 1em;
+  border: 3px solid #6495ED ; // #5F9EA0; #FFAD33;
+  background: #C3F6FA ; // #F7F8FD  #C1CDCD #FFFFAA; 
 }
 
 code {
@@ -84,13 +79,14 @@ code {
 }
 
 pre {
-  background-color: #f0f0f0;
-  border-top: 1px solid #ccc;
-  border-bottom: 1px solid #ccc;
-  padding: 5px;
-  font-size: 120%;
+  border-radius: 5px 5px;
   // font-family: Bitstream Vera Sans Mono,monospace;
+  font-size: 100%;
+  // color: rgb(255, 255, 255);
+  // background-color: rgb(0, 0, 0);
+  // margin-bottom: 2em;
+  padding: 8px;
   display: block;
-  overflow: visible;
+  overflow: visible; 
 }
 

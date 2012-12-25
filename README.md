@@ -132,8 +132,8 @@ above the data definition. See, for example, `tests/pos/Map.hs`
     data Map k a = Tip
                  | Bin Size k a (Map k a) (Map k a)
 
-You can also write invariants for data type definitions together with the
-types. For example see (tests/pos/record0.hs)
+You can also write invariants for data type definitions 
+together with the types. For example see (tests/pos/record0.hs)
 
 {-@ data LL a = BXYZ { size  :: {v: Int | v > 0 }
                      , elems :: {v: [a] | (len v) = size }

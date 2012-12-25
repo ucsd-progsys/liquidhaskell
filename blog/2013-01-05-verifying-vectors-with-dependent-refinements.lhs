@@ -220,8 +220,8 @@ non-negative.
 Bottling Recursion With a Higher-Order `loop`
 ---------------------------------------------
 
-Next, lets refactor the above low-level recursive function into a generic
-higher-order `loop`.
+Next, lets refactor the above low-level recursive function 
+into a generic higher-order `loop`.
 
 \begin{code}
 loop :: Int -> Int -> a -> (Int -> a -> a) -> a 
@@ -397,7 +397,6 @@ generally, to specify and verify properties of recursive, and polymorphic
 functions operating over datatypes. Next time, we'll look at how we can
 teach LiquidHaskell to think about properties of recursive structures
 like lists and trees.
-
 
 [vecspec]: https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec
 [vec]:     http://hackage.haskell.org/package/vector

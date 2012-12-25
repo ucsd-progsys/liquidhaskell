@@ -764,10 +764,11 @@ instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) wher
 ------------------ Printing Refinement Types -------------------
 ----------------------------------------------------------------
 
-ppr_tyvar = text . tvId
+ppr_tyvar       = text . tvId
+ppr_tyvar_short = text . show
 
 instance Outputable RTyVar where
-  ppr (RTV α) = ppr_tyvar α 
+  ppr (RTV α) = ppr_tyvar_short α -- ppr_tyvar α 
 
 instance Show RTyVar where
   show = showPpr 
@@ -820,8 +821,14 @@ ppr_rtype bb p (RApp c [t] rs r)
 ppr_rtype bb p (RApp c ts rs r)
   | isTuple c 
   = ppTy r $ parens (intersperse comma (ppr_rtype bb p <$> ts)) <> ppReftPs bb rs
+
+-- BEXPARSER WHY Does this next case kill the parser for BExp? (e.g. LambdaEval.hs)
+-- ppr_rtype bb p (RApp c [] [] r)
+--   = ppTy r $ {- parens $ -} ppTycon c
+
 ppr_rtype bb p (RApp c ts rs r)
   = ppTy r $ parens $ ppTycon c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)
+
 ppr_rtype _ _ (RCls c ts)      
   = ppCls c ts
 ppr_rtype bb p t@(REx _ _ _)
@@ -955,10 +962,7 @@ subsTyVars_nomeet     = subsTyVars False
 subsTyVar_nomeet      = subsTyVar False
 subsTyVar_meet        = subsTyVar True
 subsTyVars meet ats t = foldl' (flip (subsTyVar meet)) t ats
-subsTyVar meet        = subsFree' meet S.empty
-
-
-subsFree' = subsFree 
+subsTyVar meet        = subsFree meet S.empty
 
 --subsFree :: ( Ord tv
 --            , SubsTy tv ty c

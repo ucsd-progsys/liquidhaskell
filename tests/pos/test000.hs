@@ -13,3 +13,9 @@ foo :: Int -> Int
 foo x = (liquidAssert (x > 0) x) + 1
 
 goo = foo 12
+
+incr x = x + 1
+
+zoo = incr 29
+
+

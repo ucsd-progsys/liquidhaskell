@@ -1,5 +1,6 @@
 module Language.Haskell.Liquid.Tidy (tidySpecType) where
 
+import Outputable   (showPpr) -- hiding (empty)
 import Control.Applicative
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -17,10 +18,10 @@ import Language.Haskell.Liquid.RefType
 
 tidySpecType :: SpecType -> SpecType  
 tidySpecType = tidyDSymbols
-            . tidySymbols 
-            . tidyFunBinds
-            . tidyLocalRefas 
-            . tidyTyVars 
+             . tidySymbols 
+             . tidyFunBinds
+             . tidyLocalRefas 
+             . tidyTyVars 
 
 tidyFunBinds :: SpecType -> SpecType
 tidyFunBinds t = mapBind (\x -> if x `S.member` xs then x else nonSymbol) t  
@@ -51,9 +52,13 @@ tidyDSymbols t = mapBind tx $ subst su $ t
     isDs = ("ds_" `L.isPrefixOf`) . symbolString
     var  = stringSymbol . ('x' :) . show 
 
+
+
 tidyTyVars :: SpecType -> SpecType  
-tidyTyVars t = subsTyVars_meet αβs t
+tidyTyVars t = traceShow ("tidyTyVars t = " ++ showPpr t ++ "a-b-s = " ++ showPpr zz) 
+             $ {- subsTyVars_meet -} subsTyVarsAll αβs t
   where 
+    zz   = [(a, b) | (a, _, (RVar b _)) <- αβs]
     αβs  = zipWith (\α β -> (α, toRSort β, β)) αs βs 
     αs   = L.nub (tyVars t)
     βs   = map (rVar . stringTyVar) pool
@@ -68,6 +73,12 @@ tyVars (RCls _ ts)     = concatMap tyVars ts
 tyVars (RVar α _)      = [α] 
 tyVars (REx _ _ t)     = tyVars t
 tyVars (ROth _)        = []
+
+subsTyVarsAll ats = go
+  where 
+    abm            = M.fromList [(a, b) | (a, _, (RVar b _)) <- ats]
+    go (RAllT a t) = RAllT (M.lookupDefault a a abm) (go t)
+    go t           = subsTyVars_meet ats t
 
 {- 
 --tidyTyVars :: RefType -> RefType
