@@ -4,16 +4,16 @@ TODO
 * pre-"release" checklist 
     
     * blog: verifying vectors
-    * sparseVector
+    * type-alias: sparseVector
     * wierd-annot-for-absoluteSum.go
     * niki merge
     * clean up VV121 -> V
     * clean up (Int) -> Int
- 
     * DEFAULT "true" spec for all exported top-level functions
     * qualified names break spec imports -- tests/todo/qualifiedvector.hs 
-    * error message -- expected XXX got YYY?
    
+    * web demo: list name of Module not XXXASDADADAd.hs 
+    * web demo: error message -- expected XXX got YYY?
     * move demo to liquid/haskell/demo
     * move blog to liquid/haskell/blog
     * direct link to demo for each blog entry
