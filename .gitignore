@@ -28,6 +28,8 @@ config.make
 _build
 *~
 *.swp
+*.swo
+
 TAGS
 a.out
 *.json
