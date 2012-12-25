@@ -323,7 +323,7 @@ type Size     = Int
 
 {-@ include <Base.hquals> @-}
 
-{-@ data Map k a <l :: root:k -> k -> Bool, r :: root:k -> k -> Bool>
+{-@ data Map k a <l :: root:k -> k -> Prop, r :: root:k -> k -> Prop>
          = Bin (sz    :: Size) 
                (key   :: k) 
                (value :: a) 
@@ -332,9 +332,9 @@ type Size     = Int
          | Tip 
   @-}
 
-{-@ type OMap k a = Map <{v:k | v < root}, {v:k | v > root}> k a @-}
+{-@ type OMap k a = Map <\root -> {v:k | v < root}, \root -> {v:k | v > root}> k a @-}
 
-{-@ measure isJustS :: forall a. MaybeS a -> Bool
+{-@ measure isJustS :: forall a. MaybeS a -> Prop
     isJustS (JustS x)  = true
     isJustS (NothingS) = false
 @-}
@@ -343,7 +343,7 @@ type Size     = Int
     fromJustS (JustS x) = x 
   @-}
 
-{-@ measure isBin :: Map k a -> Bool
+{-@ measure isBin :: Map k a -> Prop
     isBin (Bin sz kx x l r) = true
     isBin (Tip)             = false
   @-}

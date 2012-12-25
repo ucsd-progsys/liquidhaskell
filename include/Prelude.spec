@@ -16,7 +16,7 @@ assume GHC.Num.fromInteger      :: (Num a) => x:Integer -> {v:a | v = x }
 
 
 
-measure isJust :: forall a. Maybe a -> Bool 
+measure isJust :: forall a. Maybe a -> Prop
 isJust (Just x)  = true
 isJust (Nothing) = false
 

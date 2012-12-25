@@ -177,8 +177,8 @@ defRefType (Def f dc xs body) = mkArrow as [] xts t'
 
 refineWithCtorBody dc f body t = 
   case stripRTypeBase t of 
-    Just (Reft (v, _)) ->
-      strengthen t $ Reft (v, [RConc $ bodyPred (EApp f [EVar v]) body])
+    Just (FReft (Reft (v, _))) ->
+      strengthen t $ reft (v, [RConc $ bodyPred (EApp f [EVar v]) body])
     Nothing -> 
       errorstar $ "measure mismatch " ++ showPpr f ++ " on con " ++ showPpr dc
 
@@ -229,14 +229,17 @@ makeAliasMap exp xts = expBody <$> env0
 
 expandRTAlias       :: RTEnv -> BareType -> BareType
 expandRTAlias env   = expReft . expType 
-  where expReft = mapReft (txPredReft expPred) 
+  where expReft = fmap (txPredReft expPred) 
         expType = expandAlias  (\_ _ -> id) [] (typeAliases env)
         expPred = expandPAlias (\_ _ -> id) [] (predAliases env)
 
-txPredReft f = fmap (txPredReft f)
+txPredReft f = fmap  (txPredReft' f)
   where txPredReft f (Reft (v, ras)) = Reft (v, txPredRefa f <$> ras)
         txPredRefa f (RConc p)       = RConc (f p)
         txPredRefa _ z               = z
+        txPredReft' f (FReft r)      = FReft $ txPredReft f r
+        txPredReft' f (FSReft s r)   = FSReft s $ txPredReft f r
+       
 
 expandRTAliasDataDecl env dc = dc {tycDCons = dcons' }  
   where dcons' = map (mapSnd (map (mapSnd (expandRTAlias env)))) (tycDCons dc) 

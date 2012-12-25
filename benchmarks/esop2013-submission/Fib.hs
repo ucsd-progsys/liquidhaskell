@@ -2,7 +2,7 @@ module LiquidArray where
 
 import Language.Haskell.Liquid.Prelude (liquidAssume)
 
-{-@ set :: forall a <p :: x0: Int -> x1: a -> Bool, r :: x0: Int -> Bool>.
+{-@ set :: forall a <p :: x0: Int -> x1: a -> Prop, r :: x0: Int -> Prop>.
       i: Int<r> ->
       x: a<p i> ->
       a: (j: {v: Int<r> | v != i} -> a<p j>) ->
@@ -10,7 +10,7 @@ import Language.Haskell.Liquid.Prelude (liquidAssume)
 set :: Int -> a -> (Int -> a) -> (Int -> a)
 set i x a = \k -> if k == i then x else a k
 
-{-@ get :: forall a <p :: x0: Int -> x1: a -> Bool, r :: x0: Int -> Bool>.
+{-@ get :: forall a <p :: x0: Int -> x1: a -> Prop, r :: x0: Int -> Prop>.
              i: Int<r> ->
              a: (j: Int<r> -> a<p j>) ->
              a<p i> @-}
@@ -24,12 +24,12 @@ get i a = a i
 {-@ measure fib :: Int -> Int @-}
 {-@ type FibV = j:Int -> {v:Int| ((v != 0) => (v = fib(j)))} @-}
 
--- {- assume liquidAssume :: b:Bool -> a -> {v: a | (? b)}  @-}
+-- {- assume liquidAssume :: b:Bool -> a -> {v: a | Prop(b)}  @-}
 -- {- NOINLINE liquidAssume #-}
 -- liquidAssume :: Bool -> a -> a 
 -- liquidAssume b x = x
 
-{-@ assume axiom_fib :: i:Int -> {v: Bool | ((? v) <=> (fib(i) = ((i <= 1) ? 1 : ((fib(i-1)) + (fib(i-2)))))) } @-}
+{-@ assume axiom_fib :: i:Int -> {v: Bool | (Prop(v) <=> (fib(i) = ((i <= 1) ? 1 : ((fib(i-1)) + (fib(i-2)))))) } @-}
 axiom_fib :: Int -> Bool
 axiom_fib i = undefined
 

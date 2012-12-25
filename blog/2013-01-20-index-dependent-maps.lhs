@@ -173,7 +173,7 @@ Next, let us illustrate how the same expressive signatures allow us to verify me
 \begin{code}
 {-@ measure fib :: Int -> Int @-}
 
-{-@ axiom_fib :: i:Int -> {v: Bool | ((? v) <=> 
+{-@ axiom_fib :: i:Int -> {v: Bool | (Prop(v) <=> 
                             (fib(i) = ((i <= 1) ? 1 : ((fib(i-1)) + (fib(i-2))))))} 
   @-}
 axiom_fib :: Int -> Bool
