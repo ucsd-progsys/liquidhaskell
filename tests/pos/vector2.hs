@@ -35,7 +35,7 @@ loop :: Int -> Int -> a -> (Int -> a -> a) -> a
 loop lo hi base f = go base lo
   where
     go acc i     
-      | i /= n    = go (f i acc) (i + 1)
+      | i /= hi   = go (f i acc) (i + 1)
       | otherwise = acc
 
 
