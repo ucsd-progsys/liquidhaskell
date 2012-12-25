@@ -261,7 +261,8 @@ applySolution = fmap . fmap . mapReft . map . appSolRefa
   where appSolRefa _ ra@(RConc _) = ra 
         -- appSolRefa _ p@(RPvar _)  = p  
         appSolRefa s (RKvar k su) = RConc $ subst su $ M.lookupDefault PTop k s  
-        mapReft f (U (Reft (x, zs)) p)  = U (Reft (x, squishRas $ f zs)) p
+        mapReft f (U (FReft    (Reft (x, zs))) p) = U (FReft    (Reft (x, squishRas $ f zs))) p
+        mapReft f (U (FSReft s (Reft (x, zs))) p) = U (FSReft s (Reft (x, squishRas $ f zs))) p
 
 squishRas ras  = (squish [p | RConc p <- ras]) : []
   where squish = RConc . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts   

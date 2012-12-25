@@ -1,10 +1,8 @@
 module Test where
 
-import Language.Haskell.Liquid.Prelude (liquidAssert)
-
 data MaybeS a = NothingS | JustS !a
 
-{-@ measure isJustS :: forall a. MaybeS a -> Bool 
+{-@ measure isJustS :: forall a. MaybeS a -> Prop
     isJustS (JustS x)  = true
     isJustS (NothingS) = false
   @-}
@@ -13,7 +11,7 @@ data MaybeS a = NothingS | JustS !a
     fromJustS (JustS x) = x 
   @-}
 
-{-@ type OList a = [a]<{v: a | (v >= fld)}> @-}
+{-@ type OList a = [a]<\fld -> {v: a | (v >= fld)}> @-}
 
 {-@ filterGt :: (Ord a) => x:MaybeS a -> OList a -> OList {v:a | ((isJustS(x)) => (fromJustS(x) <= v)) } @-}
 

@@ -23,7 +23,7 @@ import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Outputable (showPpr)
-import Language.Haskell.Liquid.FileNames (boolConName, listConName, tupConName)
+import Language.Haskell.Liquid.FileNames (listConName, tupConName)
 
 --------------------------------------------------------------------
 
@@ -53,7 +53,7 @@ languageDef =
                                      , "_|_"
                                      , "|"
                                      ]
-           , Token.reservedOpNames = [ "+", "-", "*", "/" 
+           , Token.reservedOpNames = [ "+", "-", "*", "/", "\\"
                                      , "<", ">", "<=", ">=", "=", "!="
                                      , "mod", "and", "or" 
                                    --, "is"
@@ -158,7 +158,6 @@ sortP
   =   try (string "Integer" >> return FInt)
   <|> try (string "Int"     >> return FInt)
   <|> try (string "int"     >> return FInt)
-  <|> try (string "Bool"    >> return FBool)
 --   <|> (symCharsP >>= return . FPtr . FLoc . stringSymbol) 
 
 
@@ -233,17 +232,17 @@ bareArgP
  <|> parens bareTypeP
 
 bareAtomP 
-  =  refP bbaseP 
+  =  frefP bbaseP 
  <|> try (dummyP (bbaseP <* spaces))
 
-bbaseP :: Parser (Reft -> BareType)
+bbaseP :: Parser (FReft -> BareType)
 bbaseP 
   =  liftM2 bLst (brackets bareTypeP) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM2 bRVar lowerIdP monoPredicateP)
  <|> liftM3 bCon upperIdP predicatesP (sepBy bareTyArgP blanks)
 
-bbaseNoAppP :: Parser (Reft -> BareType)
+bbaseNoAppP :: Parser (FReft -> BareType)
 bbaseNoAppP
   =  liftM2 bLst (brackets bareTypeP) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
@@ -256,7 +255,7 @@ bareTyArgP
  <|> parens bareTypeP
 
 bareAtomNoAppP 
-  =  refP bbaseNoAppP 
+  =  frefP bbaseNoAppP 
  <|> try (dummyP (bbaseNoAppP <* spaces))
 
 
@@ -289,18 +288,18 @@ predVarDefP
   = liftM3 bPVar predVarIdP dcolon predVarTypeP
 
 predVarIdP 
-  = stringSymbol <$> tyVarIdP 
+  = stringSymbol <$> tyVarIdP
 
 bPVar p _ xts  = PV p τ τxs 
   where (_, τ) = last xts
-        τxs    = [ (τ, x, x) | (x, τ) <- init xts ]
+        τxs    = [ (τ, x, EVar x) | (x, τ) <- init xts ]
 
 predVarTypeP :: Parser [(Symbol, BSort)]
 predVarTypeP = do t <- bareTypeP
                   let (xs, ts, t') = bkArrow $ thd3 $ bkUniv $ t
-                  if isBoolBareType t' 
+                  if isPropBareType t' 
                     then return $ zip xs (toRSort <$> ts) 
-                    else parserFail $ "Predicate Variable with non-Bool output sort: " ++ showPpr t
+                    else parserFail $ "Predicate Variable with non-Prop output sort: " ++ showPpr t
 
 -- predVarTypeP 
 --   =  try ((liftM (: []) predVarArgP) <* reserved "->" <* reserved boolConName)
@@ -352,8 +351,12 @@ bareArrow b t1 ArrowFun t2
 bareArrow _ t1 ArrowPred t2
   = foldr (rFun dummySymbol) t2 (getClasses t1)
 
-isBoolBareType (RApp tc [] _ _) = tc == boolConName
-isBoolBareType _                = False
+-- isBoolBareType (RApp tc [] _ _) = tc == boolConName
+-- isBoolBareType t                = False
+
+isPropBareType t@(RApp _ [] _ _) = showPpr t == "(Prop)"
+isPropBareType _                 = False
+
 
 getClasses (RApp tc ts _ _) 
   | isTuple tc
@@ -365,19 +368,30 @@ getClass (RApp c ts _ _)
 getClass t
   = errorstar $ "Cannot convert " ++ (show t) ++ " to Class"
 
-dummyP ::  Monad m => m (Reft -> b) -> m b
+dummyP ::  Monad m => m (FReft -> b) -> m b
 dummyP fm 
-  = fm `ap` return dummyReft 
+  = fm `ap` return dummyFReft 
 
-refP :: Parser (Reft -> a) -> Parser a
-refP kindP 
+refP :: Parser (t -> a)-> (Reft -> t)-> Parser a
+refP kindP f
   = braces $ do
       v   <- symbolP 
       colon
       t   <- kindP
       reserved "|"
       ras <- refasP 
-      return $ t (Reft (v, ras))
+      return $ t (f (Reft (v, ras)))
+
+symsP
+  = do reserved "\\"
+       ss <- sepBy symbolP spaces
+       reserved "->"
+       return ss
+
+frefP :: Parser (FReft -> a)-> Parser a
+frefP kindP
+  = (try (do {ss <- symsP ; refP kindP (FSReft ss)}))
+ <|> refP kindP FReft
 
 refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
@@ -388,7 +402,7 @@ predicatesP
   <|> return []
 
 predicate1P 
-   =  try (liftM RPoly (refP bbaseP))
+   =  try (liftM RPoly (frefP bbaseP))
   <|> liftM (RMono . predUReft) monoPredicate1P
 
 monoPredicateP 
@@ -402,7 +416,7 @@ monoPredicate1P
 
 predVarUseP 
  = do p  <- predVarIdP
-      xs <- sepBy predVarIdP spaces
+      xs <- sepBy exprP spaces
       return $ PV p dummyTyId [ (dummyTyId, dummySymbol, x) | x <- xs ]
 
 
@@ -422,8 +436,8 @@ bCon b rs ts r         = RApp b ts rs (reftUReft r)
 
 
 reftUReft      = (`U` pdTrue)
-predUReft      = (U dummyReft) 
-dummyReft      = Reft (dummySymbol, [])
+predUReft      = (U dummyFReft) 
+dummyFReft      = FReft $ Reft (dummySymbol, [])
 dummyTyId      = ""
 
 ------------------------------------------------------------------
@@ -530,7 +544,7 @@ rawBodyP
 -- tyBodyP :: BareType -> Parser Measure.Body
 tyBodyP ty 
   = case outTy ty of
-      Just bt | isBoolBareType bt -> Measure.P <$> predP 
+      Just bt | isPropBareType bt -> Measure.P <$> predP 
       _                           -> Measure.E <$> exprP
     where outTy (RAllT _ t)    = outTy t
           outTy (RAllP _ t)    = outTy t

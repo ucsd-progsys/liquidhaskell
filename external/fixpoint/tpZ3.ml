@@ -366,7 +366,7 @@ let unsat me =
   rv
 
 let assert_axiom me p =
-  (* Co.bprintf mydebug "@[Pushing axiom %s@]@." (Z3.ast_to_string me.c p); *)
+  Co.bprintf mydebug "@[Pushing axiom %s@]@." (Z3.ast_to_string me.c p); 
   BS.time "Z3 assert axiom" (Z3.assert_cnstr me.c) p;
   asserts (not(unsat me)) "ERROR: Axiom makes background theory inconsistent!"
 
@@ -456,7 +456,14 @@ let create_theories () =
   Th.theories () 
   |> (Misc.hashtbl_of_list_with Th.sort_name <**> Misc.hashtbl_of_list_with Th.sym_name)
 
-
+let assert_distinct_constants me env = function [] -> () | cs -> 
+  cs |> Misc.kgroupby (varSort env) 
+     |> List.iter begin fun (_, xs) ->
+          xs >> F.printf "Distinct Constants: %a \n" (Misc.pprint_many false ", " Sy.print)
+             |> z3Distinct me env  
+             |> assert_axiom me
+         end
+ 
 (* API *)
 let create ts env ps consts =
   let _        = asserts (ts = []) "ERROR: TPZ3.create non-empty sorts!" in
@@ -474,9 +481,22 @@ let create ts env ps consts =
                  } 
   in
   let _  = List.iter (z3Pred me env <+> assert_axiom me) (axioms ++ ps) in
-  let _  = if Misc.nonnull consts 
-           then (z3Distinct me env consts |> assert_axiom me) 
+  let _  = assert_distinct_constants me env consts                      in
+  me
+
+
+ 
+(* 
+  let _  = if Misc.nonnull consts then begin
+             consts 
+             >> (fun xs -> F.printf "Distinct Constants: %a \n" (Misc.pprint_many false ", " Sy.print) xs)
+             |> z3Distinct me env  
+             |> assert_axiom me
+           end
   in me
+*)
+
+
 
 (*
 let set me env vv ps =

@@ -1,8 +1,21 @@
-module Test where
+module Deptup0 where
 
-{-@ type OList a = [a]<{v: a | (v >= fld)}> @-}
+import Language.Haskell.Liquid.Prelude
 
-{-@ bar :: (Ord a) => z:a -> OList a -> [{v:a | z <= v}] @-}
-bar :: (Ord a) => a -> [a] -> [a]
-bar y z@(x:xs) = case compare y x of 
-                   LT -> x:xs
+{-@ data Pair a b <p :: x0:a -> x1:b -> Prop> = P (x :: a) (y :: b<p x>) @-} 
+data Pair a b = P a b
+
+{-@ mkP :: forall a <q :: x0:a -> x1:a -> Prop>. x: a -> y: a<q x> -> Pair <q> a a @-}
+mkP :: a -> a -> Pair a a
+mkP x y = P x y 
+
+incr :: Int -> Int
+incr x = x + 1
+
+baz x = mkP x (incr x)
+
+chk :: Pair Int Int -> Bool
+chk (P x y) = liquidAssertB (x < y)
+
+prop = chk $ baz n
+  where n = choose 100

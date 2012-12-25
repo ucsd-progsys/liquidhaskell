@@ -10,3 +10,14 @@ qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
 qualif One(v:int)     : v = 1
 qualif True(v:bool)   : (? v) 
 qualif False(v:bool)  : ~ (? v) 
+qualif True1(v:Bool)   : Prop(v) 
+qualif False1(v:Bool)  : ~ Prop(v) 
+
+
+qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
+constant papp1 : func(2, [Pred @(0); @(1); bool])
+
+qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
+constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+constant Prop : func(0, [Bool; bool])

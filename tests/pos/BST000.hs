@@ -4,7 +4,7 @@ import Language.Haskell.Liquid.Prelude
 
 
 {-@
-data Bst k v <l :: root:k -> x1:k -> Bool, r :: root:k -> x1:k -> Bool>
+data Bst k v <l :: root:k -> x1:k -> Prop, r :: root:k -> x1:k -> Prop>
   = Empty
   | Bind (key   :: k) 
          (value :: v) 
@@ -13,7 +13,7 @@ data Bst k v <l :: root:k -> x1:k -> Bool, r :: root:k -> x1:k -> Bool>
   @-}
 data Bst k v = Empty | Bind k v (Bst k v) (Bst k v)
 
-{-@ type OBST k a = Bst <{v:k | v < root }, {v:k | v > root}> k a @-}
+{-@ type OBST k a = Bst <\root -> {v:k | v < root }, \root -> {v:k | v > root}> k a @-}
 
 {-@ chkMin :: (Ord k) => x:k -> OBST {v:k | x < v} a -> Bool @-}
 chkMin :: (Ord k) => k -> Bst k a -> Bool
@@ -21,7 +21,7 @@ chkMin x Empty            = liquidAssertB True
 chkMin x (Bind k v lt rt) = liquidAssertB (x<k) && chkMin x lt && chkMin x rt
 
 {-@
-data Pair k v <p :: x0:k -> x1:k -> Bool, l :: x0:k -> x1:k -> Bool, r :: x0:k -> x1:k -> Bool>
+data Pair k v <p :: x0:k -> x1:k -> Prop, l :: x0:k -> x1:k -> Prop, r :: x0:k -> x1:k -> Prop>
   = P (fld0 :: k) (fld1 :: v) (tree :: Bst <l, r> (k <p fld0>) v) 
   @-}
 

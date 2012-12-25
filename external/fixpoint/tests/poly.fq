@@ -1,0 +1,26 @@
+constant Nil : func(1, [Vec @(0)])
+
+constraint: 
+ env  [ x   : {VV : Vec a | [(VV = Nil([]))]} ] 
+ grd true 
+ lhs {VVF : b_abL | []} 
+ rhs {VVF : b_abL | [(0 = 1)]} 
+ id 1 tag [1] 
+
+
+constraint:
+ env  [ x#ayu:{VV179 : a_aze | []}
+      ; r#ayw:{VV204 : Map k_azd a_aze | []}
+      ; lq_anf__dAD:{VV185 : Map k_azd a_aze | [ (VV185 = ds_dAb)
+                                               ; (VV185 = Bin#r9O([ds_dAc; kx#ayt; x#ayu; l#ayv; r#ayw]))
+                                               ; (key([VV185]) = kx#ayt)
+                                               ; (isBin(VV185) <=> true)]}
+      ; l#ayv:{VV203 : Map k_azd a_aze | []}
+      ; kx#ayt:{VV177 : k_azd | []}
+      ; key:{VV : func(2, [Map @(0) @(1) ; @(0)]) | []}
+      ; ds_dAc:{VV200 : int | []}
+      ; Bin#r9O:{VV : func(2, [Size ; @(0) ; @(1) ; Map @(0) @(1) ; Map @(0) @(1) ; Map @(0) @(1)]) | []}] 
+ grd true 
+ lhs {VVF : k_azd | []} 
+ rhs {VVF : k_azd | [(0 = 1)]} 
+ id 214 tag [2] //

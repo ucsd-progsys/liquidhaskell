@@ -13,7 +13,7 @@ module Language.Haskell.Liquid.Fixpoint (
  
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
-  , stringFTycon, intFTyCon, boolFTyCon
+  , stringFTycon, intFTyCon, boolFTyCon, predFTyCon
   , typeSort, typeUniqueSymbol
   
   -- * Symbols
@@ -25,7 +25,7 @@ module Language.Haskell.Liquid.Fixpoint (
 
   -- * Expressions and Predicates
   , Constant (..), Bop (..), Brel (..), Expr (..), Pred (..)
-  , simplify, pAnd, pOr, pIte
+  , simplify, pAnd, pOr, pIte, pApp
   , isTautoPred
  
   -- * Constraints and Solutions
@@ -41,7 +41,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , Refa (..), SortedReft (..), Reft(..)
   , trueSortedReft, trueRefa
   , exprReft, notExprReft, symbolReft
-  , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft
+  , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft, isEVar
   , flattenRefas, shiftVV
   , ppr_reft, ppr_reft_pred
 
@@ -73,6 +73,7 @@ import Data.List            (sort)
 import Data.Hashable
 import Data.Maybe           (fromMaybe)
 import Text.Printf          (printf)
+import Type                 (splitForAllTys)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
@@ -174,6 +175,7 @@ newtype FTycon = TC Symbol deriving (Eq, Ord, Show) -- Data, Typeable, Show)
 
 intFTyCon  = TC (S "int")
 boolFTyCon = TC (S "bool")
+predFTyCon = TC (S "Pred")
 listFTyCon = TC (S listConName)
 
 isListTC   = (listFTyCon ==)
@@ -184,7 +186,6 @@ isListTC   = (listFTyCon ==)
 ----------------------------------------------------------------------
 
 data Sort = FInt 
-          | FBool
           | FNum                 -- ^ numeric kind for Num tyvars
           | FObj  Symbol         -- ^ uninterpreted type
           | FVar  !Int           -- ^ fixpoint type variable
@@ -194,12 +195,11 @@ data Sort = FInt
 
 fApp c ts 
   | c == intFTyCon  = FInt
-  | c == boolFTyCon = FBool
   | otherwise       = FApp c ts
 
 typeSort :: TCEmb TyCon -> Type -> Sort 
-typeSort tce (ForAllTy _ τ) 
-  = typeSort tce τ  -- JHALA: Yikes! Fix!!!
+typeSort tce τ@(ForAllTy _ _) 
+  = typeSortForAll tce τ
 typeSort tce (FunTy τ1 τ2) 
   = typeSortFun tce τ1 τ2
 typeSort tce (TyConApp c τs)
@@ -207,7 +207,27 @@ typeSort tce (TyConApp c τs)
   where ftc = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce) 
 typeSort _ τ
   = FObj $ typeUniqueSymbol τ
-  
+ 
+typeSortForAll tce τ 
+  = genSort $ typeSort tce tbody
+  where genSort (FFunc _ t) = FFunc n (sortSubst su <$> t)
+        genSort t           = FFunc n [sortSubst su t]
+        (as, tbody)         = splitForAllTys τ 
+        su                  = M.fromList $ zip sas (FVar <$>  [0..])
+        sas                 = (typeUniqueSymbol . TyVarTy) <$> as
+        n                   = length as 
+
+-- typeSort :: TCEmb TyCon -> Type -> Sort 
+-- typeSort tce (ForAllTy _ τ) 
+--   = incrTyVars $ typeSort tce τ
+-- typeSort tce (FunTy τ1 τ2) 
+--   = typeSortFun tce τ1 τ2
+-- typeSort tce (TyConApp c τs)
+--   = fApp ftc (typeSort tce <$> τs)
+--   where ftc = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce) 
+-- typeSort _ τ
+--   = FObj $ typeUniqueSymbol τ
+ 
 tyConName c 
   | listTyCon == c = listConName
   | isTupleTyCon c = tupConName
@@ -215,10 +235,9 @@ tyConName c
 
 
 typeSortFun tce τ1 τ2
-  = FFunc n $ genArgSorts sos
+  = FFunc 0  sos
   where sos  = typeSort tce <$> τs
         τs   = τ1  : grabArgs [] τ2
-        n    = (length sos) - 1
    
 typeUniqueSymbol :: Type -> Symbol 
 typeUniqueSymbol = stringSymbol . {- ("sort_" ++) . -} showSDocDump . ppr
@@ -226,9 +245,9 @@ typeUniqueSymbol = stringSymbol . {- ("sort_" ++) . -} showSDocDump . ppr
 grabArgs τs (FunTy τ1 τ2 ) = grabArgs (τ1:τs) τ2
 grabArgs τs τ              = reverse (τ:τs)
 
-genArgSorts' sos = traceShow ("genArgSorts sos = " ++ showPpr sos) $ genArgSorts sos
+-- genArgSorts' sos = traceShow ("genArgSorts sos = " ++ showPpr sos) $ genArgSorts sos
 
-genArgSorts :: [Sort] -> [Sort]
+-- genArgSorts :: [Sort] -> [Sort]
 --genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
 --  where genSort FInt        = Nothing
 --        genSort FBool       = Nothing 
@@ -236,14 +255,14 @@ genArgSorts :: [Sort] -> [Sort]
 --        genIdx  _ (Just i)  = FVar i
 --        genIdx  so  _       = so
 
-genArgSorts xs = sortSubst su <$> xs
-  where su = M.fromList $ zip (sortNub αs) (FVar <$> [0..])
-        αs = concatMap getObjs xs 
+-- genArgSorts xs = sortSubst su <$> xs
+--   where su = M.fromList $ zip (sortNub αs) (FVar <$> [0..])
+--         αs = concatMap getObjs xs 
 
-getObjs (FObj x)          = [x]
-getObjs (FFunc _ ts)      = concatMap getObjs ts
-getObjs (FApp _ ts)       = concatMap getObjs ts
-getObjs _                 = []
+-- getObjs (FObj x)          = [x]
+-- getObjs (FFunc _ ts)      = concatMap getObjs ts
+-- getObjs (FApp _ ts)       = concatMap getObjs ts
+-- getObjs _                 = []
 
 sortSubst su t@(FObj x)   = fromMaybe t (M.lookup x su) 
 sortSubst su (FFunc n ts) = FFunc n (sortSubst su <$> ts)
@@ -257,7 +276,6 @@ instance Fixpoint Sort where
 
 toFix_sort (FVar i)     = text "@"   <> parens (ppr i)
 toFix_sort FInt         = text "int"
-toFix_sort FBool        = text "bool"
 toFix_sort (FObj x)     = toFix x
 toFix_sort FNum         = text "num"
 toFix_sort (FFunc n ts) = text "func" <> parens ((ppr n) <> (text ", ") <> (toFix ts))
@@ -508,6 +526,9 @@ isTautoReft (Reft (_, ras)) = all isTautoRa ras
 isTautoRa (RConc p)         = isTautoPred p
 isTautoRa _                 = False
 
+isEVar (EVar _) = True
+isEVar _        = False
+
 isSingletonReft (Reft (v, [RConc (PAtom Eq e1 e2)])) 
   | e1 == EVar v = Just e2
   | e2 == EVar v = Just e1
@@ -516,6 +537,9 @@ isSingletonReft _    = Nothing
 pAnd          = simplify . PAnd 
 pOr           = simplify . POr 
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3] 
+
+pApp :: Symbol -> [Expr] -> Pred
+pApp p es= PBexp $ EApp (S ("papp" ++ show (length es))) (EVar p:es)
 
 ppr_reft (Reft (v, ras)) d 
   | all isTautoRa ras
@@ -592,13 +616,6 @@ emptyBindEnv :: BindEnv
 emptyBindEnv = BE 0 M.empty
 
 
-
-
-
-
-
-
-
 instance Functor SEnv where
   fmap f (SE m) = SE $ fmap f m
 
@@ -651,7 +668,6 @@ newtype SEnv a     = SE (M.HashMap Symbol a) deriving (Eq)
 data BindEnv       = BE { be_size :: Int
                         , be_binds :: M.HashMap BindId (Symbol, SortedReft) 
                         }
-
 data FInfo a = FI { cs   :: ![SubC a]
                   , ws   :: ![WfC a] 
                   , bs   :: !BindEnv
@@ -1044,7 +1060,6 @@ instance Hashable Sort where
   hash = hashSort
 
 hashSort FInt         = 0
-hashSort FBool        = 1
 hashSort FNum         = 2
 hashSort (FObj s)     = 10 `combine` hash s
 hashSort (FVar i)     = 11 `combine` hash i
