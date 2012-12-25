@@ -355,6 +355,8 @@ instance Subable () where
   syms _      = []
   subst _ ()  = ()
   substf _ () = ()
+  substa _ () = ()
+
 
 instance Subable FReft  where
   syms (FReft r)        = syms r
@@ -363,21 +365,28 @@ instance Subable FReft  where
   subst s (FSReft ss r) = FSReft ss $ subst s r
   substf f (FReft r)    = FReft     $ substf f r
   substf f (FSReft s r) = FSReft s  $ substf f r
+  substa f (FReft r)    = FReft     $ substa f r
+  substa f (FSReft s r) = FSReft s  $ substa f r
+ 
 
 instance Subable r => Subable (UReft r) where
   syms (U r p)     = syms r ++ syms p 
   subst s (U r z)  = U (subst s r) (subst s z)
   substf f (U r z) = U (substf f r) (substf f z) 
-
+  substa f (U r z) = U (substa f r) (substa f z) 
+ 
 instance Subable UsedPVar where 
   syms pv         = [ y | (_, x, EVar y) <- pargs pv, x /= y ]
   subst s pv      = pv { pargs = mapThd3 (subst s)  <$> pargs pv }  
   substf f pv     = pv { pargs = mapThd3 (substf f) <$> pargs pv }  
+  substa f pv     = pv { pargs = mapThd3 (substa f) <$> pargs pv }  
+
 
 instance Subable Predicate where
   syms (Pr pvs)     = concatMap syms pvs 
   subst s (Pr pvs)  = Pr (subst s <$> pvs)
   substf f (Pr pvs) = Pr (substf f <$> pvs)
+  substa f (Pr pvs) = Pr (substa f <$> pvs)
 
 instance Subable (Ref F.Reft RefType) where
   syms (RMono r)     = syms r
@@ -388,16 +397,15 @@ instance Subable (Ref F.Reft RefType) where
 
   substf f (RMono r) = RMono $ substf f r
   substf f (RPoly r) = RPoly $ substf f r
+  substa f (RMono r) = RMono $ substa f r
+  substa f (RPoly r) = RPoly $ substa f r
 
-instance Subable r => Subable (RType p c tv r) where
+instance (Subable r, RefTypable p c tv r) => Subable (RType p c tv r) where
   syms        = foldReft (\r acc -> syms r ++ acc) [] 
+  substa f    = mapReft (substa f) 
   substf f    = emapReft (substf . substfExcept f) [] 
   subst su    = emapReft (subst  . substExcept su) []
   subst1 t su = emapReft (\xs r -> subst1Except xs r su) [] t
-
-  -- subst  = fmap . subst
-  -- substf = fmap . substf
- 
 
 -- Reftable Instances -------------------------------------------------------
 
@@ -456,6 +464,9 @@ instance (Reftable r, RefTypable p c tv r) => Subable (Ref r (RType p c tv r)) w
 
   substf f (RMono r) = RMono (substf f r) 
   substf f (RPoly t) = RPoly (substf f <$> t)
+  substa f (RMono r) = RMono (substa f r) 
+  substa f (RPoly t) = RPoly (substa f <$> t)
+
 
 instance (Reftable r, RefTypable p c tv r) => Reftable (Ref r (RType p c tv r)) where
   isTauto (RMono r) = isTauto r

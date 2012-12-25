@@ -19,13 +19,24 @@ import Language.Haskell.Liquid.RefType
 tidySpecType :: SpecType -> SpecType  
 tidySpecType = tidyDSymbols
              . tidySymbols 
-             . tidyFunBinds
+             -- . tidyFunBinds
              . tidyLocalRefas 
              . tidyTyVars 
 
-tidyFunBinds :: SpecType -> SpecType
-tidyFunBinds t = mapBind (\x -> if x `S.member` xs then x else nonSymbol) t  
-  where xs     = S.fromList (syms t)
+tidySymbols :: SpecType -> SpecType
+tidySymbols t = substa dropSuffix
+              $ mapBind dropBind t  
+  where 
+    xs         = S.fromList (syms t)
+    dropSuffix = S . takeWhile (/= symSepName) . symbolString
+    dropBind x = if x `S.member` xs then dropSuffix x else nonSymbol  
+
+-- tidySymbols :: SpecType -> SpecType  
+-- tidySymbols = substf (EVar . dropSuffix) 
+--   where 
+--     dropSuffix = S . takeWhile (/= symSepName) . symbolString
+    -- tx x       = traceShow ("dropSuffix x = " ++ show x) $ dropSuffix x
+    -- dropQualif = stringSymbol . dropModuleNames . symbolString 
 
 tidyLocalRefas :: SpecType -> SpecType
 tidyLocalRefas = mapReft (txReft)
@@ -36,11 +47,6 @@ tidyLocalRefas = mapReft (txReft)
     isTmp x               = let str = symbolString x in 
                                 (anfPrefix `L.isPrefixOf` str) || (tempPrefix `L.isPrefixOf` str) 
 
-tidySymbols :: SpecType -> SpecType  
-tidySymbols = substf dropSuffix
-  where 
-    dropSuffix = EVar . S . takeWhile (/= symSepName) . symbolString
-    -- dropQualif = stringSymbol . dropModuleNames . symbolString 
 
 tidyDSymbols :: SpecType -> SpecType  
 tidyDSymbols t = mapBind tx $ subst su $ t
