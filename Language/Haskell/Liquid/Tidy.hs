@@ -39,7 +39,7 @@ tidyLocalRefas = mapReft (txReft)
 tidySymbols :: SpecType -> SpecType  
 tidySymbols = substf dropSuffix
   where 
-    dropSuffix = EVar . {- stringSymbol -} S . takeWhile (/= symSepName) . symbolString
+    dropSuffix = EVar . S . takeWhile (/= symSepName) . symbolString
     -- dropQualif = stringSymbol . dropModuleNames . symbolString 
 
 tidyDSymbols :: SpecType -> SpecType  
@@ -52,13 +52,13 @@ tidyDSymbols t = mapBind tx $ subst su $ t
     isDs = ("ds_" `L.isPrefixOf`) . symbolString
     var  = stringSymbol . ('x' :) . show 
 
-
-
 tidyTyVars :: SpecType -> SpecType  
-tidyTyVars t = traceShow ("tidyTyVars t = " ++ showPpr t ++ "a-b-s = " ++ showPpr zz) 
-             $ {- subsTyVars_meet -} subsTyVarsAll αβs t
+tidyTyVars t = subsTyVarsAll αβs t 
+             -- traceShow ("tidyTyVars t = " ++ showPpr t ++ "a-b-s = " ++ showPpr zz) 
+             -- $ subsTyVarsAll αβs t
+             -- $ subsTyVars_meet αβs t
   where 
-    zz   = [(a, b) | (a, _, (RVar b _)) <- αβs]
+    -- zz   = [(a, b) | (a, _, (RVar b _)) <- αβs]
     αβs  = zipWith (\α β -> (α, toRSort β, β)) αs βs 
     αs   = L.nub (tyVars t)
     βs   = map (rVar . stringTyVar) pool
