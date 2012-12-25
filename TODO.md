@@ -2,22 +2,20 @@ TODO
 ====
 
 * pre-"release" checklist 
-    
-    * blog: verifying vectors
     * type-alias: sparseVector
+    
     * wierd-annot-for-absoluteSum.go
-    * niki merge
-    * clean up VV121 -> V
-    * clean up (Int) -> Int
-    * DEFAULT "true" spec for all exported top-level functions
-    * qualified names break spec imports -- tests/todo/qualifiedvector.hs 
    
     * web demo: list name of Module not XXXASDADADAd.hs 
-    * web demo: error message -- expected XXX got YYY?
     * move demo to liquid/haskell/demo
     * move blog to liquid/haskell/blog
     * direct link to demo for each blog entry
 
+    * DEFAULT "true" spec for all exported top-level functions
+    * web demo: error message -- expected XXX got YYY?
+    * qualified names break spec imports -- tests/todo/qualifiedvector.hs 
+
+* clean up (Int) -> Int [BEXPARSER]
 * parse predicate signatures for tuples 
 * benchmarks: stackset-core
 * Blogging 
@@ -25,9 +23,39 @@ TODO
 * benchmarks: Data.List (foldr) 
 * benchmarks: Data.Bytestring
 * benchmarks: Data.Text
-
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
+
+
+HEREHEREHEREHERE
+
+* clean up VV121 -> V
+* clean up aa2121 -> a 
+
+
+
+BExp Parser vs. ppr_rtype [BEXPARSER]
+=====================================
+
+WTF is up with the wierd case BEXPARSER?
+
+Why does it kill the BExp parser e.g. tests/pos/LambdaEval.hs (ask Niki)
+
+
+Type-Alias
+==========
+
+How do we allow this?
+
+{-@ type SparseVector a n = [({v: Int | (Btwn 0 v n)}, a)] @-}
+{-@ sparseDotProduct :: (Num a) => x:(Vector a) -> (SparseVector a (vlen x)) -> a @-}
+
+- Add an "Expr" form to RType / Bare
+    | RExpr Expr    -- only to parse Bare Applications for type aliases with Expr arguments 
+
+- Update parser to handle above
+
+- Update alias-transformer
 
 Benchmarks
 ==========
@@ -38,71 +66,6 @@ Benchmarks
     GhcListSort.hs  :    23/22/17/5    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
     LambdaEval.hs   :    36/32/25/12    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
     Base.hs         :        26mi/2m
-=======
-Predicate Aliases
-=================
-
-Then clean up the spec blowup in containers/Data/Map/Base.hs ?
-
-    {-@ maybeGe(lo, v)     = ((isJustS(lo)) => (v >= fromJustS(lo))) @-}
-    {-@ maybeLe(hi, v)     = ((isJustS(lo)) => (v <= fromJustS(hi))) @-}
-    {-@ inRange(lo, hi, v) = maybeGe(lo, v) && maybeLe(hi, v)        @-}
-
-How about this instead?
-
-    {-@ refinement maybeGe lo v    = ((isJustS lo) => (v >= (fromJustS lo))) @-}
-    {-@ refinement maybeLe hi v    = ((isJustS lo) => (v <= (fromJustS hi))) @-}
-    {-@ refinement inRange lo hi v = (maybeGe lo v) && (maybeLe hi v)        @-}
-
-Instead of the grisly
-
-    inRange(lo, hi, v) = {v:k | (((isJustS(lo)) => (v >= fromJustS(lo))) && (((isJustS(hi)) => (v <= fromJustS(hi)))))} v @-}
-
-Record Invariants
-=================
-
-tests/pos/fixme.hs  <----------------- HEREHEREHERE
-
-    Some meet is injecting the pesky "p" which is not bound. But from where?
-    
-    Sigh.
-
-
-Failed 14 tests: 
-
-../benchmarks/esop2013-submission/Base.hs
-, ../benchmarks/esop2013-submission/Base0.hs
-, ../benchmarks/esop2013-submission/Splay.hs
-, pos/BST.hs
-, pos/BST000.hs
-, pos/ListISort-LType.hs
-, pos/ListLen-LType.hs
-, pos/ListMSort-LType.hs
-, pos/ListQSort-LType.hs
-, pos/ListRange-LType.hs
-, pos/Map.hs
-, pos/Map0.hs
-, pos/listAnf.hs
-, pos/maybe2.hs
-
-
-We should be able to write stuff like:
-
-    {-@ data LL a = B { size  :: {v: Int | v > 0 }
-                      , elems :: {v: a   | (len a) = size }
-                      }
-      @-}
-
-data Stack a = Stack { focus  :: !a    
-                     , up     :: [a] <{\fld v -> fld /= v && v /= focus}>  
-                     , down   :: [a] <{\fld v -> fld /= v && v /= focus}>
-                     }
-    deriving (Show, Read, Eq)
-  
-
-
-
-
 
 Benchmarks
 ==========
@@ -113,9 +76,6 @@ ListSort.hs     :   */7.5/5.5/2    */2.5/1.8     */1.5/1.0      */1100/600      
 GhcListSort.hs  :    23/22/17/5    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
 LambdaEval.hs   :    36/32/25/12    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
 Base.hs         :        26mi/2m
-
-
-Self-Invariants
 
 WebDemo
 =======

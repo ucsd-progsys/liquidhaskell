@@ -443,8 +443,6 @@ expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
 stringRTyVar  = rTyVar . stringTyVar 
 -- stringTyVarTy = TyVarTy . stringTyVar
 
-
-
 mkMeasureDCon :: Ms.MSpec t Symbol -> BareM (Ms.MSpec t DataCon)
 mkMeasureDCon m = (forM (measureCtors m) $ \n -> liftM (n,) (lookupGhcDataCon n))
                   >>= (return . mkMeasureDCon_ m)
@@ -556,9 +554,6 @@ specMismatch (x, t)
 ---------------------------------------------------------------------------------
 
 -- eqType' τ1 τ2 = eqType τ1 τ2 
-
 -- eqShape :: SpecType -> SpecType -> Bool 
 -- eqShape t1 t2 = eqShape (toRSort t1) (toRSort t2) 
-
-
 

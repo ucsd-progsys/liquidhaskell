@@ -38,5 +38,16 @@ loop lo hi base f = go base lo
       | i /= hi   = go (f i acc) (i + 1)
       | otherwise = acc
 
+incr x = x + 1
+
+zoo = incr 29
+
+{- type SparseVector a n = [({v: Int | (Btwn 0 v n)}, a)] @-}
+
+{- sparseDotProduct :: (Num a) => x:(Vector a) -> (SparseVector a (vlen x)) -> a @-}
+-- sparseDotProduct x y  = go 0 y
+--   where 
+--     go sum ((i, v) : y') = go (sum + (x ! i) * v) y' 
+--     go sum []            = sum
 
 
