@@ -12,12 +12,14 @@ categories: basic
 
 
 Hopefully, the [previous][ref101] article gave you a basic idea about what
-refinement types look like. Today, lets build on that intuition with a few
-more easy examples that
+refinement types look like. Today, lets build on that intuition with some 
+small examples that illustrate how LiquidHaskell can be used to do 
+compile-time **bounds checking**, while reasoning about 
 
-1. show how to do compile-time **bounds checking** with LiquidHaskell
-2. illustrate functions with **recursion** and **data types**, and, as an added bonus, 
-3. discuss how the types interact with **parametric polymorphism**.
+- *recursion*
+- *higher-order functions*
+- *data types*, and 
+- *polymorphism*.
 
 <!-- more -->
 
@@ -28,22 +30,22 @@ module DependentRefinements (
   , dotProduct
   ) where
 
+import Data.List    (foldl')
 import Data.Vector 
 \end{code}
 
-Bounds for Vectors
-------------------
+Specifying Bounds for Vectors
+-----------------------------
 
-One [classical](http://www.cs.bu.edu/~hwxi/DML/DML.html) use-case 
+One [classical][dml] use-case 
 for refinement types is to verify the safety of accesses of arrays 
 and vectors and such, by proving that the indices used in such accesses 
 are *within bounds*. In this article, we will develop the above ideas 
 by writing a few short functions that manipulate vectors, such as those
-from the popular [vector](http://hackage.haskell.org/package/vector) library.
+from the popular [vector][vec] library.
 
-We can **specify** bounds safety by writing refined versions of the types for the 
-[key functions](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec) 
-exported by the module `Data.Vector`. 
+We can **specify** bounds safety by writing refined versions of the 
+types for the [key functions][vecspec] exported by the module `Data.Vector`. 
 
 ``` haskell Partial Specifications for `Data.Vector` https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec
 module spec Data.Vector where
@@ -173,16 +175,16 @@ where the function `abz` is the absolute value function from [before][ref101].
 abz n = if 0 <= n then n else (0 - n) 
 \end{code}
 
-Digression: Introducing Errors 
+Digression: Introducing Errors  
 ------------------------------
 
-If you are following along in the demo page -- and you *should* --  I heartily 
-recommend that you try the following *(cough)* modifications, one at a time, 
-and see what happens.
+If you are following along in the demo page -- I heartily 
+recommend that you try the following *(cough)* modifications, 
+one at a time, and see what happens.
 
-**What happens if:** You *remove* the check `0 < n` 
-
-**What happens if:** You *replace* the guard with `i <= n` =></=>
+**What happens if:** 
+- You *remove* the check `0 < n` 
+- You *replace* the guard with `i <= n`
 
 In each case, LiquidHaskell will grumble that your program is *unsafe*. 
 Do you understand why?
@@ -196,16 +198,14 @@ the vector accesses `vec ! i`.
 The verification works out because LiquidHaskell is able **automatically**
 infer a suitable type for `go`. Shuffle your mouse over the identifier 
 above to see the inferred type. Observe that the type states that
+The first parameter `acc` (and the output) is `0 <= V`. 
+That is, the returned value is non-negative.
 
-- The first parameter `acc` (and the output) is `0 <= V`. That is, the
-  returned value is non-negative.
-
-- The second parameter `i` is `0 <= V` and `V <= n` and `V <= (vlen vec)` 
-  That is, the parameter is between `0` and the vector length (but not less
-  than the vector length).
-
-LiquidHaskell uses the above facts, and the test that `i /= n` to establish
-that `i` is within bounds in order to verify safety. 
+More importantly, the type states that the second parameter `i` is 
+`0 <= V` and `V <= n` and `V <= (vlen vec)`. That is, the parameter `i` 
+is between `0` and the vector length (inclusive). LiquidHaskell uses these 
+and the test that `i /= n` to establish that `i` is in fact between `0` 
+and `(vlen vec)` thereby verifing safety. 
 
 In fact, if we want to use the function externally (i.e. in another module) 
 we can go ahead and strengthen its type to specify that the output is 
@@ -215,10 +215,7 @@ non-negative.
 {-@ absoluteSum :: Vector Int -> {v: Int | 0 <= v}  @-} 
 \end{code}
 
->=</=>
-
 **What happens if:** You *replace* the output type with `{v: Int | 0 < v }` ?
-
 
 Bottling Recursion With a Higher-Order `loop`
 ---------------------------------------------
@@ -227,7 +224,6 @@ Next, lets refactor the above low-level recursive function into a generic
 higher-order `loop`.
 
 \begin{code}
-{-@ loop :: @-}
 loop :: Int -> Int -> a -> (Int -> a -> a) -> a 
 loop lo hi base f = go base lo
   where
@@ -300,10 +296,11 @@ if `x` is a 10-dimensional vector while `y` has only 3-dimensions? A nasty:
 *** Exception: ./Data/Vector/Generic.hs:244 ((!)): index out of bounds ...
 ```
 
-Yech. Precisely the sort of nastiness we want to banish at compile-time.
+*Yech*. 
 
-Refinements to the rescue! We can specify that the vectors have the same 
-dimensions quite easily
+This is precisely the sort of nasty surprise we want to do away with at 
+compile-time. Refinements to the rescue! We can specify that the vectors 
+have the same dimensions quite easily
 
 \begin{code}
 {-@ dotProduct :: x:(Vector Int) 
@@ -315,20 +312,99 @@ dimensions quite easily
 after which LiquidHaskell will gladly verify that the implementation of
 `dotProduct` is indeed safe!
 
-
 Refining Data Types
---------------------
+-------------------
 
-- range          // uses loop  + show LIST
+Next, suppose we want to write a **sparse** dot product function. 
+That is, a dot product between a vector and a second *sparse vector* 
+that is represented by a list of index-value tuples.
 
+#### Representing Sparse Vectors
+
+We can represent the sparse vector with a **refinement type alias** 
+
+{-@ type SparseVector a n = [({v: Int | (Btwn 0 v n)}, a)] @-}
+
+As with usual types, an alias is just a shorthand for the longer type 
+on the right, it does not actually define a new type. Thus, the above 
+alias is simply a refinement of Haskell's `[(Int, a)]` type, with a 
+size parameter `n` that facilitates ease reuse. Thus, refinements let
+us express invariants of containers in a straightforward manner. 
+
+**Aside:** It is worth reminding readers who might be familiar 
+with *indexed-style* length encoding e.g. as found in [DML][dml] 
+or [Agda][agdavec], that despite appearances, our `SparseVector` 
+definition is *not* indexed. Instead, we deliberately choose to
+encode properties with logical refinement predicates, to 
+facilitate SMT based checking and inference.
+
+#### Verifying Uses of Sparse Vectors
+
+Next, we can write a recursive procedure that computes the sparse product
+
+{-@ sparseDotProduct :: (Num a) => x:(Vector a) -> SparseVector a (vlen x) -> a @-}
+sparseDotProduct x y  = go 0 y
+  where 
+    go sum ((i, v) : y') = go (sum + (x ! i) * v) y' 
+    go sum []            = sum
+
+LiquidHaskell verifies the above by using the specification for `y` to
+conclude that for each tuple `(i, v)` in the list, the value of `i` is 
+within the bounds of the vector `x`, thereby proving the safety of the 
+access `x ! i`.
 
 Refinements and Polymorphism
 ----------------------------
 
-- Vector-Abs-Sum // uses range + MAP
-- argmin         // uses range + map and fold
+The sharp reader will have undoubtedly noticed that the sparse product 
+can be more cleanly expressed as a [left fold][foldl]. Indeed, let us 
+recall the type of the `foldl` operation
+
+```haskell
+foldl' :: (a -> b -> a) -> a -> [b] -> a
+```
+
+Thus, we can simply fold over the sparse vector, accumulating the `sum`
+as we go along
+
+\begin{code}
+{-@ sparseDotProduct' :: (Num a) => x:(Vector a) -> SparseVector a (vlen x) -> a @-}
+sparseDotProduct' x y   = foldl' body 0 y   
+  where body sum (i, v) = sum + (x ! i) * v
+\end{code}
+
+LiquidHaskell digests this too, without much difficulty. 
+
+The main trick is in how the polymorphism of `foldl'` is instantiated. 
+The GHC type inference engine deduces, that at this site, the type variable
+`b` from the signature of `foldl'` is instantiated to the Haskell type `(Int, a)`. 
+
+Correspondingly, LiquidHaskell infers that in fact `b` can be instantiated
+to the *refined* type `({v: Int | (Btwn 0 v (vlen x))}, a)`. Walk the mouse 
+over to `i` to see this inferred type. (You can also hover over `foldl'`above
+to see the rather more verbose fully instantiated type.)
+
+Thus, the inference mechanism saves us a fair bit of typing and allows us to
+reuse existing polymorphic functions over containers and such without any 
+ceremony.
+
+Conclusion
+----------
+
+Thats all for now folks! Hopefully the above gives you a reasonable idea of
+how one can use refinements to verify size related properties, and more
+generally, to specify and verify properties of recursive, and polymorphic
+functions operating over datatypes. Next time, we'll look at how we can
+teach LiquidHaskell to think about properties of recursive structures
+like lists and trees.
+
+
+[vecspec]: https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec
+[vec]:     http://hackage.haskell.org/package/vector
+[dml]:     http://www.cs.bu.edu/~hwxi/DML/DML.html
+[agdavec]: http://code.haskell.org/Agda/examples/Vec.agda
+[ref101]:  /blog/2012/12/20/refinement-types-101.lhs/ "Refinement Types 101"
+[foldl]:   http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#foldl%27
 
 
 
-
-[ref101]: /blog/2012/12/20/refinement-types-101.lhs/ "Refinement Types 101"
