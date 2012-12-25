@@ -2,8 +2,7 @@ TODO
 ====
 
 * pre-"release" checklist 
-    * type-alias: sparseVector
-    
+    * type-alias: sparseVector <------------------ HEREHEREHEREHERE
     * wierd-annot-for-absoluteSum.go
    
     * web demo: list name of Module not XXXASDADADAd.hs 
@@ -25,14 +24,6 @@ TODO
 * benchmarks: Data.Text
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
-
-
-HEREHEREHEREHERE
-
-* clean up VV121 -> V
-* clean up aa2121 -> a 
-
-
 
 BExp Parser vs. ppr_rtype [BEXPARSER]
 =====================================
