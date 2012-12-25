@@ -391,12 +391,11 @@ isParened xs          = xs /= stripParens xs
 
 ---------------------------------------------------------------------
 
--- vv               = S . (vvName ++) . (maybe "" show)
 vv                  :: Maybe Integer -> Symbol
-vv (Just i)         = S (vvName ++ show i)
+vv (Just i)         = S (vvName ++ [symSepName] ++ show i)
 vv Nothing          = S vvName
-vvCon               = S (vvName ++ "F")
--- vv Nothing          = S vvName
+
+vvCon               = S (vvName ++ [symSepName] ++ "F")
 
 isNontrivialVV      = not . (vv_ ==) 
 
@@ -770,6 +769,9 @@ instance Fixpoint Int where
 
 class Subable a where
   syms   :: a -> [Symbol]
+  substa :: (Symbol -> Symbol) -> a -> a
+  -- substa f  = substf (EVar . f) 
+  
   substf :: (Symbol -> Expr) -> a -> a
   subst  :: Subst -> a -> a
   subst1 :: a -> (Symbol, Expr) -> a
@@ -788,9 +790,8 @@ substExcept  :: Subst -> [Symbol] -> Subst
 -- substExcept  (Su m) xs = Su (foldr M.delete m xs) 
 substExcept  (Su xes) xs = Su $ filter (not . (`elem` xs) . fst) xes
 
-
-
 instance Subable Symbol where
+  substa f x               = f x
   substf f x               = subSymbol (Just (f x)) x
   subst su x               = subSymbol (Just $ appSubst su x) x -- subSymbol (M.lookup x s) x
   syms x                   = [x]
@@ -801,7 +802,7 @@ subSymbol a               b = errorstar (printf "Cannot substitute symbol %s wit
 
 instance Subable Expr where
   syms                     = exprSymbols
-
+  substa f                 = substf (EVar . f) 
   substf f (EApp s es)     = EApp (substf f s) $ map (substf f) es 
   substf f (EBin op e1 e2) = EBin op (substf f e1) (substf f e2)
   substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
@@ -819,7 +820,7 @@ instance Subable Expr where
 
 instance Subable Pred where
   syms                     = predSymbols
-  
+  substa f                 = substf (EVar . f) 
   substf f (PAnd ps)       = PAnd $ map (substf f) ps
   substf f (POr  ps)       = POr  $ map (substf f) ps
   substf f (PNot p)        = PNot $ substf f p
@@ -846,7 +847,7 @@ instance Subable Refa where
   subst su (RConc p)       = RConc   $ subst su p
   subst su (RKvar k su')   = RKvar k $ su' `catSubst` su 
   -- subst _  (RPvar p)     = RPvar p
-
+  substa f                 = substf (EVar . f) 
   substf f (RConc p)       = RConc (substf f p)
   substf _ ra@(RKvar _ _)  = ra
 
@@ -854,19 +855,23 @@ instance (Subable a, Subable b) => Subable (a,b) where
   syms  (x, y)   = syms x ++ syms y
   subst su (x,y) = (subst su x, subst su y)
   substf f (x,y) = (substf f x, substf f y)
+  substa f (x,y) = (substa f x, substa f y)
 
 instance Subable a => Subable [a] where
   syms   = concatMap syms
   subst  = map . subst 
   substf = map . substf 
+  substa = map . substa 
 
 instance Subable a => Subable (M.HashMap k a) where
   syms   = syms . M.elems 
   subst  = M.map . subst 
   substf = M.map . substf 
+  substa = M.map . substa
 
 instance Subable Reft where
   syms (Reft (v, ras))      = v : syms ras
+  substa f (Reft (v, ras))  = Reft (f v, substa f ras) 
   subst su (Reft (v, ras))  = Reft (v, subst (substExcept su [v]) ras)
   substf f (Reft (v, ras))  = Reft (v, substf (substfExcept f [v]) ras)
   subst1 (Reft (v, ras)) su = Reft (v, subst1Except [v] ras su)
@@ -895,6 +900,8 @@ instance Subable SortedReft where
   syms               = syms . sr_reft 
   subst su (RR so r) = RR so $ subst su r
   substf f (RR so r) = RR so $ substf f r
+  substa f (RR so r) = RR so $ substa f r
+
 
 -- newtype Subst  = Su (M.HashMap Symbol Expr) deriving (Eq)
 newtype Subst = Su [(Symbol, Expr)] deriving (Eq)
