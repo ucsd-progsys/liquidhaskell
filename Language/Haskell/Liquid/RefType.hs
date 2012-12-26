@@ -71,7 +71,7 @@ import Text.Printf
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GhcMisc (tracePpr, tvId, intersperse, dropModuleNames, getDataConVarUnique)
-import Language.Haskell.Liquid.FileNames (symSepName, listConName, tupConName, boolConName)
+import Language.Haskell.Liquid.FileNames (symSepName, listConName, tupConName, propConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
 
 --------------------------------------------------------------------
@@ -1137,9 +1137,9 @@ dataConSymbol = varSymbol . dataConWorkId
 dataConReft ::  DataCon -> [Symbol] -> FReft
 dataConReft c [] 
   | c == trueDataCon
-  = reft (vv_, [RConc $ (PBexp (EApp (S "Prop") [EVar vv_]))]) 
+  = reft (vv_, [RConc $ mkProp vv_]) 
   | c == falseDataCon
-  = reft (vv_, [RConc $ PNot (PBexp (EApp (S "Prop") [EVar vv_]))]) 
+  = reft (vv_, [RConc $ PNot $ mkProp vv_]) 
 dataConReft c [x] 
   | c == intDataCon 
   = reft (vv_, [RConc (PAtom Eq (EVar vv_) (EVar x))]) 
@@ -1149,6 +1149,8 @@ dataConReft c xs
                = EVar $ dataConSymbol c
                | otherwise
                = EApp (dataConSymbol c) (EVar <$> xs)
+
+mkProp x = PBexp (EApp (S propConName) [EVar x])
 
 vv_ = vv Nothing
 

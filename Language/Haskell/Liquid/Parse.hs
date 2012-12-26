@@ -23,7 +23,7 @@ import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Outputable (showPpr)
-import Language.Haskell.Liquid.FileNames (listConName, tupConName)
+import Language.Haskell.Liquid.FileNames (listConName, propConName, tupConName)
 
 --------------------------------------------------------------------
 
@@ -354,7 +354,8 @@ bareArrow _ t1 ArrowPred t2
 -- isBoolBareType (RApp tc [] _ _) = tc == boolConName
 -- isBoolBareType t                = False
 
-isPropBareType t@(RApp _ [] _ _) = showPpr t == "(Prop)"
+isPropBareType (RApp tc [] _ _) = tc == propConName
+-- isPropBareType t@(RApp _ [] _ _) = showPpr t == "(Prop)"
 isPropBareType _                 = False
 
 

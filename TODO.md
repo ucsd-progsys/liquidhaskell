@@ -25,6 +25,8 @@ TODO
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
+
+
 BExp Parser vs. ppr_rtype [BEXPARSER]
 =====================================
 
@@ -45,6 +47,7 @@ How do we allow this?
     | RExpr Expr    -- only to parse Bare Applications for type aliases with Expr arguments 
 
 - Update parser to handle above
+        -> How to 
 
 - Update alias-transformer
 
@@ -57,16 +60,6 @@ Benchmarks
     GhcListSort.hs  :    23/22/17/5    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
     LambdaEval.hs   :    36/32/25/12    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
     Base.hs         :        26mi/2m
-
-Benchmarks
-==========
-
-                    time(O|N|C)    TOTAL(O|N)   solve (O|N)      refines       iterfreq
-Map.hs          :    54/50/32/10    21/15/8.7      14/8/4.3    9100/4900/2700    16/28/7
-ListSort.hs     :   */7.5/5.5/2    */2.5/1.8     */1.5/1.0      */1100/600       */9/7
-GhcListSort.hs  :    23/22/17/5    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
-LambdaEval.hs   :    36/32/25/12    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
-Base.hs         :        26mi/2m
 
 WebDemo
 =======
