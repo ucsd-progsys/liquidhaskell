@@ -220,5 +220,6 @@ boolConName = "Bool"
 listConName = "List"
 tupConName  = "Tuple"
 propConName = "Prop"
+
 vvName      = "VV"
 symSepName  = '#'

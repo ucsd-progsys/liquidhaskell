@@ -59,13 +59,13 @@ data Def bndr
   , ctor    :: bndr
   , binds   :: [Symbol]
   , body    :: Body
-  } -- deriving (Data, Typeable)
+  } deriving (Show)
 
 data Body 
   = E Expr          -- ^ Measure Refinement: {v | v = e } 
   | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
   | R Symbol Pred   -- ^ Measure Refinement: {v | p}
-  -- deriving (Data, Typeable)
+  deriving (Show)
 
 qualifySpec name sp = sp { sigs = [ (qualifySymbol name x, t) | (x, t) <- sigs sp] }
 

@@ -112,7 +112,6 @@ upperIdP = condIdP symChars (not . isLower . head)
 symbolP :: Parser Symbol
 symbolP = liftM stringSymbol symCharsP 
 
-
 constantP :: Parser Constant
 constantP = liftM I integer
 
@@ -125,17 +124,18 @@ lexprP
  <|> try (parens exprCastP)
  <|> try (parens $ condP EIte exprP)
  <|> try exprFunP
---  <|> try (liftM makeEDat upperIdP)
  <|> try (liftM (EVar . stringSymbol) upperIdP)
  <|> liftM EVar symbolP
  <|> liftM ECon constantP
  <|> (reserved "_|_" >> return EBot)
 
-exprFunP       =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
+exprFunP           =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
+  where 
+    exprFunSpacesP = parens $ liftM2 EApp funSymbolP (sepBy exprP spaces) 
+    exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
+    exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
+    funSymbolP     = symbolP -- liftM stringSymbol lowerIdP
 
-exprFunSpacesP = parens $ liftM2 EApp symbolP (sepBy exprP spaces) 
-exprFunCommasP = liftM2 EApp symbolP (parens        $ sepBy exprP comma)
-exprFunSemisP  = liftM2 EApp symbolP (parenBrackets $ sepBy exprP semi)
 
 parenBrackets  = parens . brackets 
 
@@ -252,6 +252,7 @@ bbaseNoAppP
 
 bareTyArgP 
   =  bareAtomNoAppP
+ <|> angles (liftM RExprArg exprP)
  <|> parens bareTypeP
 
 bareAtomNoAppP 

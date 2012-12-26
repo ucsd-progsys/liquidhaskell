@@ -203,6 +203,8 @@ data RType p c tv r
     , rt_ty     :: !(RType p c tv r) 
     }
 
+  | RExprArg Expr                               -- ^ For expression arguments to type aliases
+                                                --   see tests/pos/vector2.hs
   | ROth  !String 
   -- deriving (Data, Typeable)
 

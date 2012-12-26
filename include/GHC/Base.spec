@@ -10,7 +10,7 @@ embed Prop               as bool
 
 measure len :: forall a. [a] -> GHC.Types.Int
 len ([])     = 0
-len (y:ys)   = 1 + len(ys)
+len (y:ys)   = 1 + (len ys)
 
 invariant {v: [a] | len(v) >= 0 } 
 assume map       :: (x:a -> b) -> xs:[a] -> {v: [b] | len(v) = len(xs)}
