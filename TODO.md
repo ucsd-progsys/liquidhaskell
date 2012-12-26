@@ -47,9 +47,11 @@ How do we allow this?
     | RExpr Expr    -- only to parse Bare Applications for type aliases with Expr arguments 
 
 - Update parser to handle above
-        -> How to 
+    -> How to 
 
 - Update alias-transformer
+    -> Measure.expandRTAliasE
+
 
 Benchmarks
 ==========
