@@ -20,6 +20,7 @@ module Language.Haskell.Liquid.FileNames (
   , boolConName
   , listConName
   , tupConName
+  , propConName
   , vvName
   , symSepName
 
@@ -218,5 +219,6 @@ dummyName   = "_LIQUID_dummy"
 boolConName = "Bool"
 listConName = "List"
 tupConName  = "Tuple"
+propConName = "Prop"
 vvName      = "VV"
 symSepName  = '#'

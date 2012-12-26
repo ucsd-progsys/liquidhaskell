@@ -32,6 +32,7 @@ import Control.Monad.Error      hiding (forM)
 import Data.Bifunctor
 
 
+import Language.Haskell.Liquid.FileNames (propConName)
 import Language.Haskell.Liquid.GhcMisc hiding (L)
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
@@ -283,8 +284,8 @@ lookupGhcTyCon ::  GhcLookup a => a -> BareM TyCon
 lookupGhcTyCon s = (lookupGhcThing "TyCon" ftc s) `catchError` tryPropTyCon
   where ftc (ATyCon x) = Just x
         ftc _          = Nothing
-        tryPropTyCon e | pp s == "Prop" = return propTyCon 
-                       | otherwise      = throwError e
+        tryPropTyCon e | pp s == propConName = return propTyCon 
+                       | otherwise           = throwError e
 
 lookupGhcClass = lookupGhcThing "Class" ftc 
   where ftc (ATyCon x) = tyConClass_maybe x 
@@ -465,7 +466,7 @@ mkMeasureSort (Ms.MSpec cm mm)
 ----------------------- Prop TyCon Definition -------------------------
 -----------------------------------------------------------------------
 
-propTyCon = stringTyCon 'w' 24 "Prop"
+propTyCon = stringTyCon 'w' 24 propConName
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: DataCon Definitions ------------------
