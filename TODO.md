@@ -62,10 +62,9 @@ let (x, ty) = doParse' tyBindP "" str0
 let str = "len :: forall a. [a] -> GHC.Types.Int\nlen ([])     = 0\nlen (y:ys)   = 1 + (len ys)"
 let str1 = "GHC.Types.Int\nlen ([])     = 0\nlen (y:ys)   = 1 + (len ys)"
 
+Failed 14 tests: ../benchmarks/esop2013-submission/Base.hs, ../benchmarks/esop2013-submission/Base0.hs, neg/meas9.hs, pos/listSet.hs, pos/listSetDemo.hs, pos/maybe2.hs, pos/meas10.hs, pos/meas11.hs, pos/meas8.hs, pos/meas9.hs, pos/pred.hs, pos/selfList.hs, pos/stacks0.hs, pos/vector2.hs
 
-Failed 35 tests: ../benchmarks/esop2013-submission/Base.hs, ../benchmarks/esop2013-submission/Base0.hs, ../benchmarks/esop2013-submission/Splay.hs, neg/meas9.hs, pos/BST.hs, pos/BST000.hs, pos/ListISort-LType.hs, pos/ListLen-LType.hs, pos/ListMSort-LType.hs, pos/ListQSort-LType.hs, pos/ListRange-LType.hs, pos/Map.hs, pos/Map0.hs, pos/deptup.hs, pos/deptup0.hs, pos/deptup1.hs, pos/deptupW.hs, pos/fixme.hs, pos/fixme0.hs, pos/listAnf.hs, pos/listSet.hs, pos/listSetDemo.hs, pos/maybe2.hs, pos/meas10.hs, pos/meas11.hs, pos/meas8.hs, pos/meas9.hs, pos/niki.hs, pos/niki1.hs, pos/pair.hs, pos/pred.hs, pos/record0.hs, pos/selfList.hs, pos/stacks0.hs, pos/vector2.hs
-
-Exceptions thrown on 8 tests: neg/meas9.hs, pos/listSet.hs, pos/listSetDemo.hs, pos/meas10.hs, pos/meas11.hs, pos/meas8.hs, pos/meas9.hs, pos/selfList.hs
+Exceptions thrown on 10 tests: ../benchmarks/esop2013-submission/Base0.hs, neg/meas9.hs, pos/listSet.hs, pos/listSetDemo.hs, pos/maybe2.hs, pos/meas10.hs, pos/meas11.hs, pos/meas8.hs, pos/meas9.hs, pos/selfList.hs
 
 
 
