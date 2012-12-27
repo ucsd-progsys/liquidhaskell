@@ -1,8 +1,8 @@
 module Vec0 where
 
 import Prelude hiding (length)
-
 import Data.Vector
+import Language.Haskell.Liquid.Prelude (liquidAssert)
     
 {-@ predicate Lt X Y      = X < Y                         @-}
 {-@ predicate Ge X Y      = not (Lt X Y)                  @-}
@@ -41,6 +41,16 @@ loop lo hi base f = go base lo
 incr x = x + 1
 
 zoo = incr 29
+
+{-@ dpp :: x:(Vector Int) 
+        -> y:{v: (Vector Int) | (vlen v) = (vlen x)} 
+        -> Int 
+  @-}
+dpp     :: Vector Int -> Vector Int -> Int
+dpp x y = liquidAssert (length x == length y) 
+        $ loop 0 (length x) 0 (\i -> (+ (x ! i) * (y ! i))) 
+
+
 
 {-@ type SparseVector a N = [({v: Int | (0 <= v && v < N)}, a)] @-}
 
