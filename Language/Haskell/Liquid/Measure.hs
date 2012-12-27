@@ -21,6 +21,7 @@ import qualified Data.HashMap.Strict as M
 -- import Data.Data
 import Data.Monoid hiding ((<>))
 import Data.List (foldl1')
+import Data.Either (partitionEithers)
 import Data.Bifunctor
 import Control.Applicative      ((<$>))
 import Control.Exception        (assert)
@@ -266,7 +267,7 @@ expandAlias f s env = go s
 --           rta  = env M.! c
 
 expandRTApp tx env c args r
-  | (ts == length αs && es == length εs) 
+  | (length ts == length αs && length es == length εs) 
   = subst su $ (`strengthen` r) $ subsTyVars_meet αts $ tx $ rtBody rta
     -- ((subsTyVars_meet αts (tx (rtBody rta))) `strengthen` r) 
   | otherwise
@@ -274,7 +275,7 @@ expandRTApp tx env c args r
   where 
     (es, ts) = splitRTArgs args
     αts      = zipWith (\α t -> (α, toRSort t, t)) αs ts
-    su       = mkSubst $ zip εs es
+    su       = mkSubst $ zip (stringSymbol <$> εs) es
     αs       = rtTArgs rta 
     εs       = rtVArgs rta 
     rta      = env M.! c
