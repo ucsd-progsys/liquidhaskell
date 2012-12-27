@@ -1,21 +1,20 @@
-module Deptup0 where
+module Fixme where
 
-import Language.Haskell.Liquid.Prelude
+import Prelude hiding (length)
+import Data.Vector
+import Language.Haskell.Liquid.Prelude (liquidAssert)
 
-{-@ data Pair a b <p :: x0:a -> x1:b -> Prop> = P (x :: a) (y :: b<p x>) @-} 
-data Pair a b = P a b
 
-{-@ mkP :: forall a <q :: x0:a -> x1:a -> Prop>. x: a -> y: a<q x> -> Pair <q> a a @-}
-mkP :: a -> a -> Pair a a
-mkP x y = P x y 
+{-@ foo :: x:(Vector Int) 
+        -> y:{v: (Vector Int) | v = x } 
+        -> Int 
+  @-}
+foo     :: Vector Int -> Vector Int -> Int
+foo x y = liquidAssert (x == y) 0
 
-incr :: Int -> Int
-incr x = x + 1
-
-baz x = mkP x (incr x)
-
-chk :: Pair Int Int -> Bool
-chk (P x y) = liquidAssertB (x < y)
-
-prop = chk $ baz n
-  where n = choose 100
+{-@ bar :: x:Int 
+        -> y:{v: Int | v = x } 
+        -> Int 
+  @-}
+bar     :: Int -> Int -> Int
+bar x y = liquidAssert (x == y) 0

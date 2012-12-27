@@ -71,7 +71,7 @@ zero'' = 0
 which states that the number is in the range `0` to `100`, or
 
 \begin{code}
-{-@ zero''' :: {v: Int | (v mod 2) = 0} @-}
+{-@ zero''' :: {v: Int | ((v mod 2) = 0) } @-}
 zero''' :: Int
 zero''' = 0
 \end{code}
@@ -135,7 +135,7 @@ Next, we can use refinements to encode arbitrary programmer-specified
 **assertions** by defining a function
 
 \begin{code}
-{-@ lAssert     :: {v:Bool | (? v)} -> a -> a  @-}
+{-@ lAssert     :: {v:Bool | (? (Prop v))} -> a -> a  @-}
 lAssert         :: Bool -> a -> a 
 lAssert True  x = x
 lAssert False _ = error' "lAssert failure" 
