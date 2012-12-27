@@ -154,42 +154,70 @@ above the function definition. For example (tests/pos/spec0.hs)
 Refinement Type Aliases
 -----------------------
 
-Predicate Aliases
------------------
+#### Predicate Aliases
 
-See tests/pos/pred.hs benchmarks/esop2013-submission/Base.hs
-[copy from home laptop. curses, git.]
+Sometimes, the propositions in the refinements can get rather long and
+verbose. You can write predicate aliases like so:
 
-Type Aliases
-------------
+    {-@ predicate Lt X Y = X < Y        @-}
+    {-@ predicate Ge X Y = not (Lt X Y) @-}
 
-It is often tedious to keep writing 
+and then use the aliases inside refinements, [for example](tests/pos/pred.hs)
+
+    {-@ incr :: x:{v:Int | (Pos v)} -> { v:Int | ((Pos v) && (Ge v x))} @-}
+    incr :: Int -> Int
+    incr x = x + 1
+
+See [Data.Map](benchmarks/esop2013-submission/Base.hs) for a more substantial 
+and compelling example.
+
+**Syntax:** The key requirements for type aliases are:
+
+- Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
+
+#### Type Aliases
+
+Similarly, it is often tedious to keep writing 
 
     {v: Int | v > 0}
 
-Thus, one can have refinement-type aliases of the form:
+Thus, LiquidHaskell supports refinement-type aliases of the form:
 
-    {-@ reftype PosInt = {v: Int | v > 0} @-}
+    {-@ type Gt      N = {v: Int | N <  v} @-}
+    {-@ type GeNum a N = {v: a   | N <= v} @-}
 
 or
 
-    {-@ reftype SortedList a = [a]<{v: a | (v >= fld)}> @-}
+    {-@ type SortedList a = [a]<\fld -> {v: a | (v >= fld)}> @-}
 
 or 
 
-    {-@ reftype OMap k a = Map <{v: k | v < key}, {v: k | v > key}> k a @-}
+    {-@ type OMap k a = Map <\root -> {v:k | v < root }, \root -> {v:k | v > root}> k a @-}
    
 and then use the above in signatures like:
 
+    {-@ incr: x: Int -> GeNum Int x @-}
+    
+    or
+
+    {-@ incr: x: Int -> Gt x @-}
+
+and:
+
     {-@ assert insert :: (Ord a) => a -> SortedList a -> SortedList a @-}
 
-    (tests/pos/ListSort.hs)
+    [see](tests/pos/ListSort.hs)
 
 and:
 
     {-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
 
-    (tests/pos/Map.hs)
+    [see](tests/pos/Map.hs)
+
+**Syntax:** The key requirements for type aliases are:
+
+1. Type parameters are specified in **lower**case: `a`, `b`, `c` etc.
+2. Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
 
 
