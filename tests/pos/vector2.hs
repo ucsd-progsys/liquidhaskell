@@ -4,9 +4,9 @@ import Prelude hiding (length)
 
 import Data.Vector
     
-{-@ predicate Lt x y      = x < y                         @-}
-{-@ predicate Ge x y      = not (Lt x y)                  @-}
-{-@ predicate InBound i a = ((Ge i 0) && (Lt i (vlen a))) @-}
+{-@ predicate Lt X Y      = X < Y                         @-}
+{-@ predicate Ge X Y      = not (Lt X Y)                  @-}
+{-@ predicate InBound I A = ((Ge I 0) && (Lt I (vlen A))) @-}
 
 {-@ unsafeLookup :: vec:Vector a 
                  -> {v: Int | (0 <= v && v < (vlen vec)) } 
