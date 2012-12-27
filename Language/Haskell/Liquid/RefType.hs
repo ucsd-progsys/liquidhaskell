@@ -849,7 +849,7 @@ ppr_rtype _ _ (RCls c ts)
 ppr_rtype bb p t@(REx _ _ _)
   = ppExists bb p t
 ppr_rtype _ _ (RExprArg e)
-  = angleBrackets $ ppr e
+  = braces $ ppr e
 ppr_rtype _ _ (ROth s)
   = text $ "???-" ++ s 
 

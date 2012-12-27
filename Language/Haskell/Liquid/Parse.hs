@@ -518,8 +518,8 @@ paliasP = rtAliasP parserZero (stringSymbol <$> tyVarIdP) predP
 rtAliasP tArgsP vArgsP bodyP
   = do name <- upperIdP
        spaces
-       targs <- sepBy tArgsP spaces
-       vargs <- sepBy vArgsP spaces
+       tArgs <- sepBy tArgsP spaces
+       vArgs <- sepBy vArgsP spaces
        whiteSpace >> reservedOp "=" >> whiteSpace
        body <- bodyP 
        return $ RTA name tArgs vArgs body
