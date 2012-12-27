@@ -2,14 +2,14 @@ TODO
 ====
 
 * pre-"release" checklist 
-    * type-alias: sparseVector <------------------ HEREHEREHEREHERE
-    * wierd-annot-for-absoluteSum.go
+    * update blog articles so they pass <------------------ HEREHEREHEREHERE
    
     * web demo: list name of Module not XXXASDADADAd.hs 
     * move demo to liquid/haskell/demo
     * move blog to liquid/haskell/blog
     * direct link to demo for each blog entry
 
+    * wierd-annot-for-absoluteSum.go
     * DEFAULT "true" spec for all exported top-level functions
     * web demo: error message -- expected XXX got YYY?
     * qualified names break spec imports -- tests/todo/qualifiedvector.hs 
@@ -17,7 +17,6 @@ TODO
 * clean up (Int) -> Int [BEXPARSER]
 * parse predicate signatures for tuples 
 * benchmarks: stackset-core
-* Blogging 
 * benchmarks: Data.List (foldr)
 * benchmarks: Data.List (foldr) 
 * benchmarks: Data.Bytestring
@@ -25,47 +24,16 @@ TODO
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
-
-
 BExp Parser vs. ppr_rtype [BEXPARSER]
 =====================================
 
 WTF is up with the wierd case BEXPARSER?
-
 Why does it kill the BExp parser e.g. tests/pos/LambdaEval.hs (ask Niki)
 
-
-Type-Alias
-==========
-
-How do we allow this?
-
-{-@ type SparseVector a n = [({v: Int | (Btwn 0 v n)}, a)] @-}
-{-@ sparseDotProduct :: (Num a) => x:(Vector a) -> (SparseVector a <vlen x>) -> a @-}
-
-- Add an "Expr" form to RType / Bare
-    | RExpr Expr    -- only to parse Bare Applications for type aliases with Expr arguments 
-
-- Update parser to handle above
-    -> using ANGLEBRACKETS  
-
-- Update alias-transformer
-    -> Measure.expandRTAliasE
-
-let str0 = "len :: forall a. [a] -> GHC.Types.Int"
-let str1 = "len ([])     = 0"
-let str2 = "len (y:ys)   = 1 + (len ys)"
-let str  = intercalate "\n" [str0, str1, str2]
-let (x, ty) = doParse' tyBindP "" str0
-
-
-let str = "len :: forall a. [a] -> GHC.Types.Int\nlen ([])     = 0\nlen (y:ys)   = 1 + (len ys)"
-let str1 = "GHC.Types.Int\nlen ([])     = 0\nlen (y:ys)   = 1 + (len ys)"
-
-Failed 14 tests: ../benchmarks/esop2013-submission/Base.hs, ../benchmarks/esop2013-submission/Base0.hs, neg/meas9.hs, pos/listSet.hs, pos/listSetDemo.hs, pos/maybe2.hs, pos/meas10.hs, pos/meas11.hs, pos/meas8.hs, pos/meas9.hs, pos/pred.hs, pos/selfList.hs, pos/stacks0.hs, pos/vector2.hs
-
-Exceptions thrown on 10 tests: ../benchmarks/esop2013-submission/Base0.hs, neg/meas9.hs, pos/listSet.hs, pos/listSetDemo.hs, pos/maybe2.hs, pos/meas10.hs, pos/meas11.hs, pos/meas8.hs, pos/meas9.hs, pos/selfList.hs
-
+Niki -- if you grep for BEXPARSER in RefType.hs -- you will see there is
+one line in ppr_rtype that I have commented out. For some strange reason 
+when I add that line back in it breaks the PARSER (!!!) I couldnt
+understand why so if you can figure this out it would be great...!
 
 
 Benchmarks
