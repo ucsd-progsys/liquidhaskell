@@ -255,15 +255,12 @@ bareTyArgP
   =  try bareAtomNoAppP
  -- <|> braces (liftM RExprArg exprP) -- ^ braces needed to distinguish tyvar from evar args
  <|> try (parens bareTypeP)
- <|> try (liftM RExprArg exprP) 
- -- <|> liftM RExprArg (parens exprP) 
+ -- <|> try (liftM RExprArg exprP) 
+ <|> liftM RExprArg (parens exprP) 
 
 bareAtomNoAppP 
   =  frefP bbaseNoAppP 
  <|> try (dummyP (bbaseNoAppP <* spaces))
-
-
-
 
 bareExistsP 
   = do reserved "exists"
@@ -503,7 +500,7 @@ tyBindP
   = xyP binderP dcolon genBareTypeP
 
 genBareTypeP
-  = bareTypeP -- liftM generalize bareTypeP 
+  = liftM generalize bareTypeP 
 
 embedP 
   = xyP upperIdP (reserved "as") fTyConP
@@ -528,8 +525,6 @@ rtAliasP f bodyP
 
 aliasIdP :: Parser String
 aliasIdP = condIdP (['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']) (isAlpha . head) 
-
-
 
 -- rtAliasP tArgsP vArgsP bodyP
 --   = do name <- upperIdP

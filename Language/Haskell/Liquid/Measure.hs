@@ -218,7 +218,7 @@ makeAliasMap exp xts = expBody <$> env0
 -- | Using the Alias Environment to Expand Definitions
 
 expandRTAlias       :: RTEnv -> BareType -> BareType
-expandRTAlias env   = generalize . expReft . expType 
+expandRTAlias env   = expReft . expType 
   where expReft = fmap (txPredReft expPred) 
         expType = expandAlias  (\_ _ -> id) [] (typeAliases env)
         expPred = expandPAlias (\_ _ -> id) [] (predAliases env)
