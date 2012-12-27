@@ -78,6 +78,7 @@ tyVars (RApp _ ts _ _) = concatMap tyVars ts
 tyVars (RCls _ ts)     = concatMap tyVars ts 
 tyVars (RVar α _)      = [α] 
 tyVars (REx _ _ t)     = tyVars t
+tyVars (RExprArg _)    = []
 tyVars (ROth _)        = []
 
 subsTyVarsAll ats = go

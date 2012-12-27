@@ -251,8 +251,9 @@ bbaseNoAppP
 
 
 bareTyArgP 
-  =  bareAtomNoAppP
- <|> angles (liftM RExprArg exprP)
+  =  try bareAtomNoAppP
+ -- <|> try (liftM RExprArg exprP) 
+ <|> braces (liftM RExprArg exprP) -- ^ braces needed to distinguish tyvar from evar args
  <|> parens bareTypeP
 
 bareAtomNoAppP 
@@ -511,16 +512,17 @@ fTyConP
   <|> (stringFTycon   <$> upperIdP)
 
 
-aliasP  = rtAliasP tyVarIdP                    bareTypeP
-paliasP = rtAliasP (stringSymbol <$> tyVarIdP) predP
+aliasP  = rtAliasP tyVarIdP   upperIdP                    bareTypeP
+paliasP = rtAliasP parserZero (stringSymbol <$> tyVarIdP) predP
 
-rtAliasP argsP bodyP
+rtAliasP tArgsP vArgsP bodyP
   = do name <- upperIdP
        spaces
-       args <- sepBy argsP spaces
+       targs <- sepBy tArgsP spaces
+       vargs <- sepBy vArgsP spaces
        whiteSpace >> reservedOp "=" >> whiteSpace
        body <- bodyP 
-       return $ RTA name args body
+       return $ RTA name tArgs vArgs body
 
 -- aliasP 
 --   = do name <- upperIdP

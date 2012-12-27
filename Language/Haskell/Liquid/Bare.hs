@@ -424,8 +424,8 @@ ofBareType (RApp tc ts rs r)
        liftM3 (bareTCApp tyi r) (lookupGhcTyCon tc) (mapM ofRef rs) (mapM ofBareType ts)
 ofBareType (RCls c ts)
   = liftM2 RCls (lookupGhcClass c) (mapM ofBareType ts)
-ofBareType _
-  = error "Bare : ofBareType"
+ofBareType t
+  = errorstar $ "Bare : ofBareType cannot handle " ++ show t
 
 ofRef (RPoly t)   
   = liftM RPoly (ofBareType t)

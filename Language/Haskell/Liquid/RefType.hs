@@ -603,7 +603,8 @@ nlzP ps t@(ROth _)
  = (t, ps)
 nlzP ps t@(REx _ _ _) 
  = (t, ps) 
-
+nlzP _ t
+ = errorstar $ "RefType.nlzP: cannot handle " ++ show t
 
 -- NEWISH: with unifying type variables: causes big problems with TUPLES?
 --strengthenRefType t1 t2 = maybe (errorstar msg) (strengthenRefType_ t1) (unifyShape t1 t2)
@@ -732,7 +733,7 @@ freeTyVars (RApp _ ts _ _) = L.nub $ concatMap freeTyVars ts
 freeTyVars (RCls _ ts)     = L.nub $ concatMap freeTyVars ts 
 freeTyVars (RVar α _)      = [α] 
 freeTyVars (REx _ _ t)     = freeTyVars t
-freeTyVars (ROth _)        = []
+freeTyVars t               = errorstar ("RefType.freeTyVars cannot handle" ++ show t)
 
 --getTyVars = everything (++) ([] `mkQ` f)
 --  where f ((RVar α' _) :: SpecType) = [α'] 
@@ -745,7 +746,7 @@ tyClasses (RFun _ t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RApp _ ts _ _) = concatMap tyClasses ts 
 tyClasses (RCls c ts)     = (c, ts) : concatMap tyClasses ts 
 tyClasses (RVar α _)      = [] 
-tyClasses (ROth _)        = []
+tyClasses t               = errorstar ("RefType.tyClasses cannot handle" ++ show t)
 
 
 
@@ -772,6 +773,7 @@ instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) wher
   rnf (RCls c ts)      = c `seq` rnf ts
   rnf (REx x t t')     = rnf x `seq` rnf t `seq` rnf t'
   rnf (ROth s)         = rnf s
+  rnf (RExprArg e)     = rnf e
 
 ----------------------------------------------------------------
 ------------------ Printing Refinement Types -------------------
@@ -846,6 +848,8 @@ ppr_rtype _ _ (RCls c ts)
   = ppCls c ts
 ppr_rtype bb p t@(REx _ _ _)
   = ppExists bb p t
+ppr_rtype _ _ (RExprArg e)
+  = angleBrackets $ ppr e
 ppr_rtype _ _ (ROth s)
   = text $ "???-" ++ s 
 
@@ -915,6 +919,7 @@ emapReft f γ (RFun x t t' r)     = RFun  x (emapReft f γ t) (emapReft f (x:γ)
 emapReft f γ (RApp c ts rs r)    = RApp  c (emapReft f γ <$> ts) (emapRef f γ <$> rs) (f γ r)
 emapReft f γ (RCls c ts)         = RCls  c (emapReft f γ <$> ts) 
 emapReft f γ (REx z t t')        = REx   z (emapReft f γ t) (emapReft f γ t')
+emapReft _ _ (RExprArg e)        = RExprArg e
 emapReft _ _ (ROth s)            = ROth  s 
 
 emapRef :: ([F.Symbol] -> t -> s) ->  [F.Symbol] -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
@@ -932,8 +937,8 @@ mapReftM f (RFun x t t' r)    = liftM3  (RFun x)    (mapReftM f t)          (map
 mapReftM f (RApp c ts rs r)   = liftM3  (RApp  c)   (mapM (mapReftM f) ts)  (mapM (mapRefM f) rs) (f r)
 mapReftM f (RCls c ts)        = liftM   (RCls  c)   (mapM (mapReftM f) ts) 
 mapReftM f (REx z t t')       = liftM2  (REx z)     (mapReftM f t)          (mapReftM f t')
+mapReftM _ (RExprArg e)       = return  $ RExprArg e 
 mapReftM _ (ROth s)           = return  $ ROth  s 
-
 
 mapRefM  :: (Monad m) => (t -> m s) -> Ref t (RType p c tv t) -> m (Ref s (RType p c tv s))
 mapRefM  f (RMono r)          = liftM   RMono       (f r)
@@ -951,6 +956,7 @@ efoldReft f γ z (RApp _ ts rs r) = f γ r (efoldRefs f γ (efoldRefts f γ z ts
 efoldReft f γ z (RCls _ ts)      = efoldRefts f γ z ts
 efoldReft f γ z (REx x t t')     = efoldReft f (x:γ) (efoldReft f γ z t) t' 
 efoldReft _ _ z (ROth _)         = z 
+efoldReft _ _ z (RExprArg _)     = z
 
 efoldRefts :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> [RType t t1 t2 t3] -> c
 efoldRefts f γ z ts              = foldr (flip $ efoldReft f γ) z ts 
@@ -1006,8 +1012,11 @@ subsFree meet s (α', _, t') t@(RVar α r)
   = t
 subsFree m s z (REx x t t')
   = REx x (subsFree m s z t) (subsFree m s z t')
+subsFree _ _ _ t@(RExprArg _)        
+  = t
 subsFree _ _ _ t@(ROth _)        
   = t
+
 -- subsFree _ _ _ t      
 --   = errorstar $ "subsFree fails on: " ++ showPpr t
 
@@ -1181,7 +1190,7 @@ stripQuantifiersRef (RPoly t)     = RPoly $ stripQuantifiers t
 stripQuantifiersRef r             = r
 
 -- TODO: remove toType, generalize typeSort 
-toType  :: RRType r -> Type
+toType  :: (Reftable r) => RRType r -> Type
 toType (RFun _ t t' _)   
   = FunTy (toType t) (toType t')
 toType (RAllT (RTV α) t)      
@@ -1196,8 +1205,10 @@ toType (RCls c ts)
   = predTreePredType $ ClassPred c (toType <$> ts)
 toType (REx _ _ t)
   = toType t
-toType (ROth _)      
-  = errorstar $ "toType fails: ROth "
+toType t@(RExprArg _)
+  = errorstar $ "RefType.toType cannot handle: " ++ show t
+toType t@(ROth _)      
+  = errorstar $ "RefType.toType cannot handle: " ++ show t
 
 mapBind f (RAllT α t)      = RAllT α (mapBind f t)
 mapBind f (RAllP π t)      = RAllP π (mapBind f t)
@@ -1207,6 +1218,7 @@ mapBind f (RCls c ts)      = RCls c (mapBind f <$> ts)
 mapBind f (REx b t1 t2)    = REx  (f b) (mapBind f t1) (mapBind f t2)
 mapBind _ (RVar α r)       = RVar α r
 mapBind _ (ROth s)         = ROth s
+mapBind _ (RExprArg e)     = RExprArg e
 
 mapBindRef _ (RMono r)     = RMono r
 mapBindRef f (RPoly t)     = RPoly $ mapBind f t
@@ -1250,7 +1262,7 @@ rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 rTypeReft :: (Reftable r) => RType p c tv r -> Reft
 rTypeReft = fromMaybe top . fmap toReft . stripRTypeBase 
 
-rTypeSort     ::  TCEmb TyCon -> RRType r -> Sort
+rTypeSort     ::  (Reftable r) => TCEmb TyCon -> RRType r -> Sort
 rTypeSort tce = typeSort tce . toType
 
 rTypeValueVar :: (Reftable r) => RType p c tv r -> Symbol
@@ -1273,15 +1285,17 @@ data DataDecl   = D { tycName   :: String                           -- ^ Type  C
 -- | Refinement Type Aliases
 
 data RTAlias tv ty 
-  = RTA { rtName :: String
-        , rtArgs :: [tv]
-        , rtBody :: ty              
+  = RTA { rtName  :: String
+        , rtTArgs :: [tv]
+        , rtVArgs :: [tv] 
+        , rtBody  :: ty              
         } 
 
 instance (Show tv, Show ty) => Show (RTAlias tv ty) where
-  show (RTA n args t) = "reftype " ++ n ++ " " ++ as ++ " = " ++ show t 
-                        where as = L.intercalate " " (show <$> args)
-
+  show (RTA n as xs t) = printf "type %s %s %s = %s" n 
+                           (L.intercalate " " (show <$> as)) 
+                           (L.intercalate " " (show <$> xs))
+                           (show t) 
 
 -- fromRMono :: String -> Ref a b -> a
 fromRMono _ (RMono r) = r
