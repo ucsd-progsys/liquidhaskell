@@ -218,7 +218,7 @@ makeAliasMap exp xts = expBody <$> env0
 -- | Using the Alias Environment to Expand Definitions
 
 expandRTAlias       :: RTEnv -> BareType -> BareType
-expandRTAlias env   = expReft . expType 
+expandRTAlias env   = generalize . expReft . expType 
   where expReft = fmap (txPredReft expPred) 
         expType = expandAlias  (\_ _ -> id) [] (typeAliases env)
         expPred = expandPAlias (\_ _ -> id) [] (predAliases env)
@@ -267,24 +267,44 @@ expandAlias f s env = go s
 --           rta  = env M.! c
 
 expandRTApp tx env c args r
-  | (length ts == length αs && length es == length εs) 
+  | length args == (length αs) + (length εs)
   = subst su $ (`strengthen` r) $ subsTyVars_meet αts $ tx $ rtBody rta
-    -- ((subsTyVars_meet αts (tx (rtBody rta))) `strengthen` r) 
   | otherwise
-  = errorstar $ "Malformed Type-Alias Application" ++ showPpr (RApp c args [] r)  
+  = errorstar $ "Malformed Type-Alias Application" ++ msg
   where 
-    (es, ts) = splitRTArgs args
-    αts      = zipWith (\α t -> (α, toRSort t, t)) αs ts
-    su       = mkSubst $ zip (stringSymbol <$> εs) es
-    αs       = rtTArgs rta 
-    εs       = rtVArgs rta 
-    rta      = env M.! c
+    αts       = zipWith (\α t -> (α, toRSort t, t)) αs ts
+    su        = mkSubst $ zip (stringSymbol <$> εs) es
+    αs        = rtTArgs rta 
+    εs        = rtVArgs rta 
+    rta       = env M.! c
+    msg       = showPpr (RApp c args [] r)  
+    (ts, es_) = splitAt (length αs) args
+    es        = map exprArg es_
+    -- | exprArg converts a tyVar to an exprVar because parser cannot tell 
+    exprArg (RExprArg e) = e
+    exprArg (RVar x _)   = EVar (stringSymbol x)
+    exprArg _            = errorstar $ "Unexpected expression parameter: " ++ msg 
 
-splitRTArgs         = partitionEithers . map sp 
-  where 
-    sp (RExprArg e) = Left e
-    sp t            = Right t
 
+-- expandRTApp tx env c args r
+--   | (length ts == length αs && length es == length εs) 
+--   = subst su $ (`strengthen` r) $ subsTyVars_meet αts $ tx $ rtBody rta
+--     -- ((subsTyVars_meet αts (tx (rtBody rta))) `strengthen` r) 
+--   | otherwise
+--   = errorstar $ "Malformed Type-Alias Application" ++ msg
+--   where 
+--     (es, ts) = splitRTArgs args
+--     αts      = zipWith (\α t -> (α, toRSort t, t)) αs ts
+--     su       = mkSubst $ zip (stringSymbol <$> εs) es
+--     αs       = rtTArgs rta 
+--     εs       = rtVArgs rta 
+--     rta      = env M.! c
+--     msg      = showPpr (RApp c args [] r)  
+-- 
+-- splitRTArgs         = partitionEithers . map sp 
+--   where 
+--     sp (RExprArg e) = Left e
+--     sp t            = Right t
 
 
 

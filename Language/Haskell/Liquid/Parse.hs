@@ -16,7 +16,8 @@ import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
 
 import Control.Applicative ((<$>), (<*))
-import Data.Char (toLower, isLower, isSpace)
+import Data.Char (toLower, isLower, isSpace, isAlpha)
+import Data.List (partition)
 
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint
@@ -252,9 +253,10 @@ bbaseNoAppP
 
 bareTyArgP 
   =  try bareAtomNoAppP
- -- <|> try (liftM RExprArg exprP) 
- <|> braces (liftM RExprArg exprP) -- ^ braces needed to distinguish tyvar from evar args
- <|> parens bareTypeP
+ -- <|> braces (liftM RExprArg exprP) -- ^ braces needed to distinguish tyvar from evar args
+ <|> try (parens bareTypeP)
+ <|> try (liftM RExprArg exprP) 
+ -- <|> liftM RExprArg (parens exprP) 
 
 bareAtomNoAppP 
   =  frefP bbaseNoAppP 
@@ -501,7 +503,7 @@ tyBindP
   = xyP binderP dcolon genBareTypeP
 
 genBareTypeP
-  = liftM generalize bareTypeP 
+  = bareTypeP -- liftM generalize bareTypeP 
 
 embedP 
   = xyP upperIdP (reserved "as") fTyConP
@@ -512,17 +514,32 @@ fTyConP
   <|> (stringFTycon   <$> upperIdP)
 
 
-aliasP  = rtAliasP tyVarIdP   upperIdP                    bareTypeP
-paliasP = rtAliasP parserZero (stringSymbol <$> tyVarIdP) predP
+aliasP  = rtAliasP id           bareTypeP
+paliasP = rtAliasP stringSymbol predP
 
-rtAliasP tArgsP vArgsP bodyP
+rtAliasP f bodyP
   = do name <- upperIdP
        spaces
-       tArgs <- sepBy tArgsP spaces
-       vArgs <- sepBy vArgsP spaces
+       args <- sepBy aliasIdP spaces
        whiteSpace >> reservedOp "=" >> whiteSpace
        body <- bodyP 
-       return $ RTA name tArgs vArgs body
+       let (tArgs, vArgs) = partition (isLower . head) args
+       return $ RTA name (f <$> tArgs) (f <$> vArgs) body
+
+aliasIdP :: Parser String
+aliasIdP = condIdP (['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']) (isAlpha . head) 
+
+
+
+-- rtAliasP tArgsP vArgsP bodyP
+--   = do name <- upperIdP
+--        spaces
+--        tArgs <- sepBy tArgsP spaces
+--        whiteSpace
+--        vArgs <- sepBy vArgsP spaces
+--        whiteSpace >> reservedOp "=" >> whiteSpace
+--        body <- bodyP 
+--        return $ RTA name tArgs vArgs body
 
 -- aliasP 
 --   = do name <- upperIdP
@@ -554,8 +571,6 @@ tyBodyP ty
           outTy (RAllP _ t)    = outTy t
           outTy (RFun _ _ t _) = Just t
           outTy _              = Nothing
-
-
 
 binderP :: Parser Symbol
 binderP =  try $ liftM stringSymbol (idP badc)

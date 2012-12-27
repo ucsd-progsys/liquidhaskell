@@ -733,6 +733,7 @@ freeTyVars (RApp _ ts _ _) = L.nub $ concatMap freeTyVars ts
 freeTyVars (RCls _ ts)     = L.nub $ concatMap freeTyVars ts 
 freeTyVars (RVar α _)      = [α] 
 freeTyVars (REx _ _ t)     = freeTyVars t
+freeTyVars (RExprArg _)    = []
 freeTyVars t               = errorstar ("RefType.freeTyVars cannot handle" ++ show t)
 
 --getTyVars = everything (++) ([] `mkQ` f)
