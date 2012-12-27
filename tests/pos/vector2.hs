@@ -42,14 +42,16 @@ incr x = x + 1
 
 zoo = incr 29
 
-{-@ dpp :: x:(Vector Int) 
-        -> y:{v: (Vector Int) | (vlen v) = (vlen x)} 
-        -> Int 
+{-@ dotProduct :: x:(Vector Int) 
+               -> y:{v: (Vector Int) | (vlen v) = (vlen x)} 
+               -> Int 
   @-}
-dpp     :: Vector Int -> Vector Int -> Int
-dpp x y = liquidAssert (length x == length y) 
-        $ loop 0 (length x) 0 (\i -> (+ (x ! i) * (y ! i))) 
-
+dotProduct     :: Vector Int -> Vector Int -> Int
+dotProduct x y 
+  | length x == length y
+  = loop 0 (length x) 0 (\i -> (+ (x ! i) * (y ! i))) 
+  | otherwise
+  = error "dotProduct only on equal-sized vectors!"
 
 
 {-@ type SparseVector a N = [({v: Int | (0 <= v && v < N)}, a)] @-}
