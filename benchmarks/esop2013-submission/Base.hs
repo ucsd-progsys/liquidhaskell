@@ -354,13 +354,13 @@ type Size     = Int
 
 {-@ invariant {v0: MaybeS {v: a | ((isJustS v0) && (v = (fromJustS v0)))} | true} @-}
 
-{-@ predicate IfDefLe x y         = ((isJustS x) => ((fromJustS x) < y)) @-}
-{-@ predicate IfDefLt x y         = ((isJustS x) => ((fromJustS x) < y)) @-}
-{-@ predicate IfDefGt x y         = ((isJustS x) => (y < (fromJustS x))) @-}
-{-@ predicate RootLt lo v         = ((isBin v) => (IfDefLt lo (key v)))  @-}
-{-@ predicate RootGt hi v         = ((isBin v) => (IfDefGt hi (key v)))  @-}
-{-@ predicate RootBetween lo hi v = ((RootLt lo v) && (RootGt hi v))     @-}
-{-@ predicate KeyBetween lo hi v  = ((IfDefLt lo v) && (IfDefGt hi v))   @-}
+{-@ predicate IfDefLe X Y         = ((isJustS X) => ((fromJustS X) < Y)) @-}
+{-@ predicate IfDefLt X Y         = ((isJustS X) => ((fromJustS X) < Y)) @-}
+{-@ predicate IfDefGt X Y         = ((isJustS X) => (Y < (fromJustS X))) @-}
+{-@ predicate RootLt Lo V         = ((isBin V) => (IfDefLt Lo (key V)))  @-}
+{-@ predicate RootGt Hi V         = ((isBin V) => (IfDefGt Hi (key V)))  @-}
+{-@ predicate RootBetween Lo Hi V = ((RootLt Lo V) && (RootGt Hi V))     @-}
+{-@ predicate KeyBetween Lo Hi V  = ((IfDefLt Lo V) && (IfDefGt Hi V))   @-}
 
 
 -- LIQUID instance (Ord k) => Monoid (Map k v) where

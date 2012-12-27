@@ -1,8 +1,8 @@
 module Foo where
 
-{-@ predicate Lt x y = x < y @-}
-{-@ predicate Ge x y = not (Lt x y) @-}
-{-@ predicate Pos x  = x > 0 @-}
+{-@ predicate Lt X Y = X < Y        @-}
+{-@ predicate Ge X Y = not (Lt X Y) @-}
+{-@ predicate Pos X  = X > 0        @-}
 
 {-@ incr :: x:{v:Int | (Pos v)} -> { v:Int | ((Pos v) && (Ge v x))} @-}
 incr :: Int -> Int
