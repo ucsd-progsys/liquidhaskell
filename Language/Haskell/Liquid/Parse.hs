@@ -500,7 +500,7 @@ tyBindP
   = xyP binderP dcolon genBareTypeP
 
 genBareTypeP
-  = liftM generalize bareTypeP 
+  = bareTypeP -- liftM generalize bareTypeP 
 
 embedP 
   = xyP upperIdP (reserved "as") fTyConP
