@@ -201,7 +201,7 @@ data RTEnv   = RTE { typeAliases :: M.HashMap String (RTAlias String BareType)
 expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
 expandRTAliases sp = sp { sigs = sigs' } { dataDecls = ds' }
   where env   = makeRTEnv (aliases sp) (paliases sp)
-        sigs' = [(x, expandRTAlias env t)     | (x, t) <- sigs sp     ]
+        sigs' = [(x, generalize $$$$$$$ expandRTAlias env t)     | (x, t) <- sigs sp     ]
         ds'   = [expandRTAliasDataDecl env dc | dc     <- dataDecls sp] 
 
 -- | Constructing the Alias Environment
