@@ -214,17 +214,6 @@ makeAliasMap exp xts = expBody <$> env0
   where env0      = safeFromList "makeAliasMap" [(rtName x, x) | x <- xts]
         expBody z = z { rtBody = exp env0 $ rtBody z }   
 
--- makeRTEnv rts pts = rTEnv nrts' npts' 
---   where nrts      = [(rtName x, x) | x <- rts]
---         npts      = [(rtName x, x) | x <- pts]
---         env0      = rTEnv nrts npts 
---         nrts'     = map (second (expBody expandRTAliasE (typeAliases env0))) nrts 
---         npts'     = map (second (expBody expandRTAliasE (predAliases env0))) npts
--- 
--- rTEnv nrts npts   = RTEnv { typeAliases = safeFromList "Reftype Aliases" nrts  
---                           , predAliases = safeFromList "Predicate Aliases" npts } 
-
-
 -- | Using the Alias Environment to Expand Definitions
 
 expandRTAlias       :: RTEnv -> BareType -> BareType
@@ -268,13 +257,35 @@ expandAlias f s env = go s
         go s (RCls c ts)      = RCls c (go s <$> ts) 
         go _ t                = t
 
-expandRTApp tx env c ts r
-  = (subsTyVars_meet αts' t') `strengthen` r
-    where t'   = tx (rtBody rta)
-          αts' = assert (length αs == length αts) αts
-          αts  = zipWith (\α t -> (α, toRSort t, t)) αs ts
-          αs   = rtArgs rta
-          rta  = env M.! c
+-- expandRTApp tx env c ts r
+--   = (subsTyVars_meet αts' t') `strengthen` r
+--     where t'   = tx (rtBody rta)
+--           αts' = assert (length αs == length αts) αts
+--           αts  = zipWith (\α t -> (α, toRSort t, t)) αs ts
+--           αs   = rtTArgs rta
+--           rta  = env M.! c
+
+expandRTApp tx env c args r
+  | (ts == length αs && es == length εs) 
+  = subst su $ (`strengthen` r) $ subsTyVars_meet αts $ tx $ rtBody rta
+    -- ((subsTyVars_meet αts (tx (rtBody rta))) `strengthen` r) 
+  | otherwise
+  = errorstar $ "Malformed Type-Alias Application" ++ showPpr (RApp c args [] r)  
+  where 
+    (es, ts) = splitRTArgs args
+    αts      = zipWith (\α t -> (α, toRSort t, t)) αs ts
+    su       = mkSubst $ zip εs es
+    αs       = rtTArgs rta 
+    εs       = rtVArgs rta 
+    rta      = env M.! c
+
+splitRTArgs         = partitionEithers . map sp 
+  where 
+    sp (RExprArg e) = Left e
+    sp t            = Right t
+
+
+
 
 expandPAlias tx s env = go s 
   where 
@@ -291,14 +302,7 @@ expandPAlias tx s env = go s
     go s (PAll xts p)             = PAll xts (go s p)
     go _ p                        = p
 
-    -- go _ p@(PBexp _)              = p
-    -- go s p@PTrue                  = p 
-    -- go s p@PFalse                 = p
-    -- go _ p@(PTop)                 = p
-    -- go _ p@(PAtom _ _ _)          = p
-
-
 expandRPApp tx env f es = tx (subst su $ rtBody def) 
-  where su   = mkSubst $ safeZip msg (rtArgs def) es 
+  where su   = mkSubst $ safeZip msg (rtVArgs def) es 
         def  = env M.! (symbolString f)
         msg  = "expandRPApp: " ++ show (EApp f es) 

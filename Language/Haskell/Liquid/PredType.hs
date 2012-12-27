@@ -144,10 +144,8 @@ unifyS (RApp c ts rs r) (RApp _ pts ps p)
 unifyS (REx x tx t) (REx x' _ t') | x == x'
   = liftM (REx x tx) (unifyS t t')
 
-    -- do tEX <- liftM (REx x tx) (unifyS t t')
-    --    return $ traceShow (showPpr $ "unifyS: " ++ showPpr (t1, t2)) tEX
-
-unifyS t1 t2                = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
+unifyS t1 t2                
+  = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
 
 bUnify a (Pr pvs)        = foldl' meet a $ pToReft <$> pvs
 

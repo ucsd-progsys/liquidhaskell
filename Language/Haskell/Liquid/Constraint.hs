@@ -960,7 +960,7 @@ getSrcSpan' x
 ---------- Helpers: Creating Fresh Refinement ------------------ ------
 -----------------------------------------------------------------------
 
-truePredRef ::  PVar (RRType r) -> CG SpecType
+truePredRef :: (Reftable r) => PVar (RRType r) -> CG SpecType
 truePredRef (PV _ τ _)
   = trueTy (toType τ)
 
