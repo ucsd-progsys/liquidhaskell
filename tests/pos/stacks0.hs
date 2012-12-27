@@ -13,8 +13,8 @@ data LL a = Nil | Cons { head :: a, tail :: LL a }
     elts (Cons x xs) = {v | v = (Set_cup (Set_sng x) (elts xs)) }
   @-}
 
-{-@ predicate Disjoint x y = (Set_emp (Set_cap (elts x) (elts y))) @-}  
-{-@ predicate NotIn    x y = not (Set_mem x (elts y))            @-} 
+{-@ predicate Disjoint X Y = (Set_emp (Set_cap (elts X) (elts Y))) @-}  
+{-@ predicate NotIn    X Y = not (Set_mem X (elts Y))              @-} 
 
 ll2 = Cons x0 (Cons x1 (Cons x2 Nil))
   where x0 :: Int 
