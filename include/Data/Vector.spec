@@ -4,7 +4,7 @@ import GHC.Base
 
 measure vlen    :: forall a. (Vector a) -> Int 
 
-invariant       {v: (Vector a) | (vlen v) >= 0 } 
+invariant       {v: Vector a | (vlen v) >= 0 } 
 
 assume !        :: forall a. x:(Vector a) -> {v: Int | ((0 <= v) && (v < (vlen x))) } -> a 
 

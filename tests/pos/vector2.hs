@@ -43,7 +43,7 @@ incr x = x + 1
 zoo = incr 29
 
 {-@ dotProduct :: x:(Vector Int) 
-               -> y:{v: (Vector Int) | (vlen v) = (vlen x)} 
+               -> y:{v: Vector Int | (vlen v) = (vlen x)} 
                -> Int 
   @-}
 dotProduct     :: Vector Int -> Vector Int -> Int
