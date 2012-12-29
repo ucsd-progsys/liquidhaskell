@@ -427,7 +427,8 @@ predVarUseP
 ------------------------------------------------------------------------
 
 bLst t rs r    = RApp listConName [t] rs (reftUReft r) 
-bTup [t] _ _   = t
+bTup [t] rs r  | isTauto r && all isTauto rs = t
+bTup [t] _ _   = errorstar $ "Parse.bTup: " ++ showPpr t ++ "should be written without brackets" 
 bTup ts rs r   = RApp tupConName ts rs (reftUReft r)
 bRVar α p r    = RVar α (U r p)
 
