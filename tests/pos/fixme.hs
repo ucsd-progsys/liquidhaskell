@@ -31,7 +31,7 @@ foo     :: Vec Int -> Vec Int -> Int
 foo x y = liquidAssert (x == y) 0
 
 
-
-
+-- "x: (Vec Int) -> y:{v: Vec Int | v = x } -> Int"
+-- "x: (Vec Int) -> y:{v: (Vec Int) | v = x } -> Int"
 
 

@@ -883,18 +883,12 @@ instance Subable Reft where
 
 instance Monoid Reft where
   mempty  = trueReft
-  -- mappend = meetReft
-  mappend (Reft (v, ras)) (Reft (v', ras')) 
-    | v == v'   = Reft (v, ras ++ ras')
-    | otherwise = Reft (v, ras ++ (ras' `subst1` (v', EVar v)))
+  mappend = meetReft
 
--- meetReft r@(Reft (v, ras)) r'@(Reft (v', ras')) 
---     | null ras  = r'
---     | null ras' = r
---     | v == v'   = Reft (v, ras ++ ras')
---     | otherwise = meetReft ur ur' where (_, ur, ur') = unifyRefts r r' 
-
-
+meetReft r@(Reft (v, ras)) r'@(Reft (v', ras')) 
+  | v == v'          = Reft (v , ras ++ ras')
+  | v == dummySymbol = Reft (v', ras ++ ras') 
+  | otherwise        = Reft (v , ras ++ (ras' `subst1` (v', EVar v)))
 
 instance Subable SortedReft where
   syms               = syms . sr_reft 
