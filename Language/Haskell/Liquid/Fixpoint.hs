@@ -886,9 +886,9 @@ instance Monoid Reft where
   mappend = meetReft
 
 meetReft r@(Reft (v, ras)) r'@(Reft (v', ras')) 
-  | v == v'          = Reft (v , ras ++ ras')
-  | v == dummySymbol = Reft (v', ras ++ ras') 
-  | otherwise        = Reft (v , ras ++ (ras' `subst1` (v', EVar v)))
+  | v == v'          = Reft (v , ras  ++ ras')
+  | v == dummySymbol = Reft (v', ras' ++ (ras `subst1`  (v , EVar v'))) 
+  | otherwise        = Reft (v , ras  ++ (ras' `subst1` (v', EVar v )))
 
 instance Subable SortedReft where
   syms               = syms . sr_reft 
