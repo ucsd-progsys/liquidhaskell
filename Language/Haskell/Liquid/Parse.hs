@@ -426,14 +426,15 @@ predVarUseP
 ----------------------- Wrapped Constructors ---------------------------
 ------------------------------------------------------------------------
 
-bLst t rs r    = RApp listConName [t] rs (reftUReft r) 
-bTup [t] rs r  | isTauto r && all isTauto rs = t
-bTup [t] _ _   = errorstar $ "Parse.bTup: " ++ showPpr t ++ "should be written without brackets" 
-bTup ts rs r   = RApp tupConName ts rs (reftUReft r)
-bRVar α p r    = RVar α (U r p)
+bRVar α p r               = RVar α (U r p)
+bLst t rs r               = RApp listConName [t] rs (reftUReft r) 
 
-bCon b [RMono r1] [] r = RApp b [] [] (r1 `meet` (reftUReft r)) 
-bCon b rs ts r         = RApp b ts rs (reftUReft r)
+bTup [t] _ r | isTauto r  = t
+             | otherwise  = t `strengthen` (reftUReft r) 
+bTup ts rs r              = RApp tupConName ts rs (reftUReft r)
+
+bCon b [RMono r1] [] r    = RApp b [] [] (r1 `meet` (reftUReft r)) 
+bCon b rs ts r            = RApp b ts rs (reftUReft r)
 
 
 
