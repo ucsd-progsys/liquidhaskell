@@ -25,7 +25,7 @@ module DependentRefinements (
   , unsafeLookup, unsafeLookup'
   , absoluteSum, absoluteSum'
   , dotProduct
-  , sparseDotProduct, sparseDotProduct'
+  , sparseProduct, sparseProduct'
   ) where
 
 import Prelude      hiding (length)
@@ -36,7 +36,7 @@ import Data.Vector  hiding (foldl')
 Specifying Bounds for Vectors
 -----------------------------
 
-One [classical][dml] [use-case][dmlarray] for refinement types is to verify
+One [classical][dmlarray] use-case for refinement types is to verify
 the safety of accesses of arrays and vectors and such, by proving that the 
 indices used in such accesses are *within* the vector bounds. 
 In this article, we will illustrate this use case by writing a few short
@@ -70,12 +70,12 @@ Measures define auxiliary (or so-called **ghost**) properties of data
 values that are useful for specification and verification, but which 
 *don't actually exist at run-time*. Thus, they will *only appear in specifications*,
 i.e. inside type refinements, but *never* inside code. Often we will use
-helper functions like `length` in this case, which "pull" (reify?) 
+helper functions like `length` in this case, which *pull* or *materialize*
 the ghost values from the refinement world into the actual code world.
 
 **Assumes**
 
-We write `assume` because in this scenario we are *not verifying* the
+We write `assume` because in this scenario we are not *verifying* the
 implementation of `Data.Vector`, we are simply *using* the properties of
 the library to verify client code.  If we wanted to verify the library
 itself, we would ascribe the above types to the relevant functions in the
@@ -91,8 +91,7 @@ the type
 assume length   :: x:(Vector a) -> {v : Int | v = (vlen x)}
 ```
 
-states that the `Int` output is exactly equal to the number of elements in 
-the input `Vector` (named) `x`.
+states that the `Int` output is exactly equal to the size of the input `Vector` named `x`.
 
 In other words, the output refinement **depends on** the input value, which
 crucially allows us to write properties that *relate* different program values.
@@ -112,7 +111,10 @@ between `0` and the `vlen vec`. Of course, we can specify the bounds
 requirement in the input type
 
 \begin{code}
-{-@ unsafeLookup :: vec:Vector a -> {v: Int | (0 <= v && v < (vlen vec)) } -> a @-}
+{-@ unsafeLookup :: vec:Vector a 
+                 -> {v: Int | (0 <= v && v < (vlen vec))} 
+                 -> a 
+  @-}
 \end{code}
 
 then LiquidHaskell is happy to verify the lookup. Of course, now the burden
@@ -132,22 +134,20 @@ safeLookup x i
 The type for `unsafeLookup` above is rather verbose as we have to spell out
 the upper and lower bounds and conjoin them. Just as we enjoy abstractions
 when programming, we will find it handy to have abstractions in the
-specification mechanism. 
-
-To this end, LiquidHaskell supports *predicate aliases*, which, 
-, like everything else, are best illustrated by example
+specification mechanism. To this end, LiquidHaskell supports 
+*predicate aliases*, which are best illustrated by example
 
 \begin{code}
 {-@ predicate Btwn Lo I Hi = (Lo <= I && I < Hi) @-}
 {-@ predicate InBounds I A = (Btwn 0 I (vlen A)) @-}
 \end{code}
 
-Now, we can simplify (the type for) the unsafe lookup function to
+Now, we can simplify the type for the unsafe lookup function to
 
 \begin{code}
-{-@ unsafeLookup' :: vec:Vector a -> {v: Int | (InBounds v vec)} -> a @-}
+{-@ unsafeLookup' :: x:Vector a -> {v:Int | (InBounds v x)} -> a @-}
 unsafeLookup' :: Vector a -> Int -> a
-unsafeLookup' vec i = vec ! i
+unsafeLookup' x i = x ! i
 \end{code}
 
 
@@ -179,11 +179,13 @@ Digression: Introducing Errors
 ------------------------------
 
 If you are following along in the demo page -- I heartily 
-recommend that you try the following *(cough)* modifications, 
+recommend that you try the following modifications, 
 one at a time, and see what happens.
 
 **What happens if:** 
+
 - You *remove* the check `0 < n` 
+
 - You *replace* the guard with `i <= n`
 
 In each case, LiquidHaskell will grumble that your program is *unsafe*. 
@@ -192,12 +194,11 @@ Do you understand why?
 Refinement Type Inference
 -------------------------
 
-LiquidHaskell happily verifies `absoluteSum` -- to be precise, 
-the vector accesses `vec ! i`. 
-
-The verification works out because LiquidHaskell is able **automatically**
-infer a suitable type for `go`. Shuffle your mouse over the identifier 
-above to see the inferred type. Observe that the type states that
+LiquidHaskell happily verifies `absoluteSum` -- or, to be precise, 
+the safety of the vector accesses `vec ! i`. The verification works 
+out because LiquidHaskell is able **automatically** infer a suitable 
+type for `go`. Shuffle your mouse over the identifier above to see 
+the inferred type. Observe that the type states that
 The first parameter `acc` (and the output) is `0 <= V`. 
 That is, the returned value is non-negative.
 
@@ -215,7 +216,7 @@ non-negative.
 {-@ absoluteSum :: Vector Int -> {v: Int | 0 <= v}  @-} 
 \end{code}
 
-**What happens if:** You *replace* the output type with `{v: Int | 0 < v }` ?
+**What happens if:** You *replace* the output type for `absoluteSum` with `{v: Int | 0 < v }` ?
 
 Bottling Recursion With a Higher-Order `loop`
 ---------------------------------------------
@@ -264,8 +265,8 @@ In english, the above type states that
 
 Inference is a rather convenient option -- it can be tedious to have to keep 
 typing things like the above! Of course, if we wanted to make `loop` a
-public or exported function, we could use the inferred type to write (or
-generate) an explicit signature too.
+public or exported function, we could use the inferred type to generate 
+an explicit signature too.
 
 At the call 
 
@@ -290,7 +291,7 @@ dotProduct x y = loop 0 (length x) 0 (\i -> (+ (x ! i) * (y ! i)))
 \end{code}
 
 The gimlet-eyed reader will realize that the above is quite unsafe -- what
-if `x` is a 10-dimensional vector while `y` has only 3-dimensions? A nasty:
+if `x` is a 10-dimensional vector while `y` has only 3-dimensions? A nasty
 
 ```haskell
 *** Exception: ./Data/Vector/Generic.hs:244 ((!)): index out of bounds ...
@@ -298,7 +299,7 @@ if `x` is a 10-dimensional vector while `y` has only 3-dimensions? A nasty:
 
 *Yech*. 
 
-This is precisely the sort of nasty surprise we want to do away with at 
+This is precisely the sort of unwelcome surprise we want to do away with at 
 compile-time. Refinements to the rescue! We can specify that the vectors 
 have the same dimensions quite easily
 
@@ -315,9 +316,9 @@ after which LiquidHaskell will gladly verify that the implementation of
 Refining Data Types
 -------------------
 
-Next, suppose we want to write a **sparse** dot product function. 
-That is, a dot product between a vector and a second *sparse vector* 
-that is represented by a list of index-value tuples.
+Next, suppose we want to write a *sparse dot product*, that is, 
+the dot product of a vector and a **sparse vector** represented
+by a list of index-value tuples.
 
 **Representing Sparse Vectors**
 
@@ -327,26 +328,30 @@ We can represent the sparse vector with a **refinement type alias**
 {-@ type SparseVector a N = [({v: Int | (Btwn 0 v N)}, a)] @-}
 \end{code}
 
-As with usual types, an alias is just a shorthand for the longer type 
-on the right, it does not actually define a new type. Thus, the above 
-alias is simply a refinement of Haskell's `[(Int, a)]` type, with a 
-size parameter `n` that facilitates ease reuse. Thus, refinements let
-us express invariants of containers in a straightforward manner. 
+As with usual types, the alias `SparseVector` on the left is just a 
+shorthand for the (longer) type on the right, it does not actually 
+define a new type. Thus, the above alias is simply a refinement of
+Haskell's `[(Int, a)]` type, with a size parameter `N` that facilitates 
+easy specification reuse. In this way, refinements let us express 
+invariants of containers like lists in a straightforward manner. 
 
-**Aside:** It is worth reminding readers who might be familiar 
-with *indexed-style* length encoding e.g. as found in [DML][dml] 
-or [Agda][agdavec], that despite appearances, our `SparseVector` 
-definition is *not* indexed. Instead, we deliberately choose to
-encode properties with logical refinement predicates, to 
-facilitate SMT based checking and inference.
+**Aside:** If you are familiar with the *index-style* length 
+encoding e.g. as found in [DML][dml] or [Agda][agdavec], then note
+that despite appearances, our `SparseVector` definition is *not* 
+indexed. Instead, we deliberately choose to encode properties 
+with logical refinement predicates, to facilitate SMT based 
+checking and inference.
 
 **Verifying Uses of Sparse Vectors**
 
 Next, we can write a recursive procedure that computes the sparse product
 
 \begin{code}
-{-@ sparseDotProduct :: (Num a) => x:(Vector a) -> SparseVector a (vlen x) -> a @-}
-sparseDotProduct x y  = go 0 y
+{-@ sparseProduct :: (Num a) => x:(Vector a) 
+                             -> SparseVector a (vlen x) 
+                             -> a 
+  @-}
+sparseProduct x y  = go 0 y
   where 
     go sum ((i, v) : y') = go (sum + (x ! i) * v) y' 
     go sum []            = sum
@@ -361,8 +366,8 @@ Refinements and Polymorphism
 ----------------------------
 
 The sharp reader will have undoubtedly noticed that the sparse product 
-can be more cleanly expressed as a [left fold][foldl]. Indeed, let us 
-recall the type of the `foldl` operation
+can be more cleanly expressed as a [fold][foldl]. Indeed! Let us recall
+the type of the `foldl` operation
 
 ```haskell
 foldl' :: (a -> b -> a) -> a -> [b] -> a
@@ -372,25 +377,29 @@ Thus, we can simply fold over the sparse vector, accumulating the `sum`
 as we go along
 
 \begin{code}
-{-@ sparseDotProduct' :: (Num a) => x:(Vector a) -> SparseVector a (vlen x) -> a @-}
-sparseDotProduct' x y   = foldl' body 0 y   
+{-@ sparseProduct' :: (Num a) => x:(Vector a) 
+                             -> SparseVector a (vlen x) 
+                             -> a 
+  @-}
+sparseProduct' x y   = foldl' body 0 y   
   where body sum (i, v) = sum + (x ! i) * v
 \end{code}
 
 LiquidHaskell digests this too, without much difficulty. 
 
 The main trick is in how the polymorphism of `foldl'` is instantiated. 
-The GHC type inference engine deduces, that at this site, the type variable
-`b` from the signature of `foldl'` is instantiated to the Haskell type `(Int, a)`. 
 
-Correspondingly, LiquidHaskell infers that in fact `b` can be instantiated
-to the *refined* type `({v: Int | (Btwn 0 v (vlen x))}, a)`. Walk the mouse 
-over to `i` to see this inferred type. (You can also hover over `foldl'`above
-to see the rather more verbose fully instantiated type.)
+1. The GHC type inference engine deduces that at this site, the type variable
+   `b` from the signature of `foldl'` is instantiated to the Haskell type `(Int, a)`. 
+
+2. Correspondingly, LiquidHaskell infers that in fact `b` can be instantiated
+   to the *refined* type `({v: Int | (Btwn 0 v (vlen x))}, a)`. 
+   
+Walk the mouse over to `i` to see this inferred type. (You can also hover over
+`foldl'`above to see the rather more verbose fully instantiated type.)
 
 Thus, the inference mechanism saves us a fair bit of typing and allows us to
-reuse existing polymorphic functions over containers and such without any 
-ceremony.
+reuse existing polymorphic functions over containers and such without ceremony.
 
 Conclusion
 ----------
