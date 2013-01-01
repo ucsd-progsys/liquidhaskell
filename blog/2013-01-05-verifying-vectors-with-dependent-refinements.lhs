@@ -14,12 +14,8 @@ categories: basic
 Hopefully, the [previous][ref101] article gave you a basic idea about what
 refinement types look like. Today, lets build on that intuition with some 
 small examples that illustrate how LiquidHaskell can be used to do 
-compile-time **bounds checking**, while reasoning about 
-
-- *recursion*
-- *higher-order functions*
-- *data types*, and 
-- *polymorphism*.
+compile-time **bounds checking**, while reasoning about *recursion*
+*higher-order functions*, *data types*, and *polymorphism*.
 
 <!-- more -->
 
@@ -40,15 +36,15 @@ import Data.Vector  hiding (foldl')
 Specifying Bounds for Vectors
 -----------------------------
 
-One [classical][dml] use-case 
-for refinement types is to verify the safety of accesses of arrays 
-and vectors and such, by proving that the indices used in such accesses 
-are *within bounds*. In this article, we will develop the above ideas 
-by writing a few short functions that manipulate vectors, such as those
-from the popular [vector][vec] library.
+One [classical][dml] [use-case][dmlarray] for refinement types is to verify
+the safety of accesses of arrays and vectors and such, by proving that the 
+indices used in such accesses are *within* the vector bounds. 
+In this article, we will illustrate this use case by writing a few short
+functions that manipulate vectors, in particular, those from the popular
+[vector][vec] library. 
 
-We can **specify** bounds safety by writing refined versions of the 
-types for the [key functions][vecspec] exported by the module `Data.Vector`. 
+To start off, lets **specify** bounds safety by *refining* the types for
+the [key functions][vecspec] exported by the module `Data.Vector`. 
 
 ``` haskell Partial Specifications for `Data.Vector` https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec
 module spec Data.Vector where
@@ -413,5 +409,5 @@ like lists and trees.
 [ref101]:  /blog/2012/12/20/refinement-types-101.lhs/ "Refinement Types 101"
 [foldl]:   http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html
 
-
+[dmlarray]:http://www.cs.bu.edu/~hwxi/academic/papers/pldi98.pdf
 
