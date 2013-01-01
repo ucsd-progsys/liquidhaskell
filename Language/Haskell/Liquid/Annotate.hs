@@ -150,7 +150,7 @@ cssHTML css = unlines
 ------------------------------------------------------------------------------
 
 -- | This function converts our annotation information into that which is
--- required by `Language.Haskell.HsColour.ACSS` to generate mouseover
+-- required by `Language.Haskell.Liquid.ACSS` to generate mouseover
 -- annotations.
 
 mkAnnMap :: AnnInfo SpecType -> ACSS.AnnMap

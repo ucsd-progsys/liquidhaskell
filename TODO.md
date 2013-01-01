@@ -3,17 +3,23 @@ TODO
 
 * pre-"release" checklist 
     * update blog articles so they pass <------------------ HEREHEREHEREHERE
-   
-    * web demo: list name of Module not XXXASDADADAd.hs 
-    * move demo to liquid/haskell/demo
-    * move blog to liquid/haskell/blog
-    * direct link to demo for each blog entry
+    * blog: add caveats about tool to about.markdown
+    * demo: 
+        - list name of Module not XXXASDADADAd.hs 
+        - move demo URL to liquid/haskell/demo
+        - move blog URL to liquid/haskell/blog
+        - add direct link to demo for each blog entry (.lhs)
+        - hack ACSS to generate PINK background for error...
 
     * wierd-annot-for-absoluteSum.go
+    
     * DEFAULT "true" spec for all exported top-level functions
-    * web demo: error message -- expected XXX got YYY?
-    * qualified names break spec imports -- tests/todo/qualifiedvector.hs 
 
+* error messages
+    * typecheck specs to avoid fixpoint errors (at least for unknown symbols?)
+    * error message -- expected XXX got YYY?
+
+* qualified names break spec imports -- tests/todo/qualifiedvector.hs 
 * clean up (Int) -> Int [BEXPARSER]
 * parse predicate signatures for tuples 
 * benchmarks: stackset-core
