@@ -557,7 +557,11 @@ addKuts !t = modify $ \s -> s { kuts = {- tracePpr "KUTS: " $-} updKuts (kuts s)
 -- | Used for annotation binders (i.e. at binder sites)
 
 addIdA :: Var -> Annot -> CG ()
-addIdA !x !t  = modify $ \s -> s { annotMap = addA (getSrcSpan x) (Just x) t $ annotMap s } 
+addIdA !x !t         = modify $ \s -> s { annotMap = upd $ annotMap s }
+  where loc          = getSrcSpan x
+        upd m@(AI z) = if (loc `M.member` z) then m else addA loc (Just x) t m
+
+
 
 -- | Used for annotating reads (i.e. at Var x sites) 
 
@@ -579,11 +583,6 @@ addA !l !xo@(Nothing) !t !(AI m)
 addA _ _ _ !a 
   = a
 
---addA !l !xo !t !a@(AI m) 
---  | isGoodSrcSpan l -- && not (l `M.member` m)
---  = AI $ M.insert l (xo, t) m
---  | otherwise
---  = a
 
 -------------------------------------------------------------------
 ------------------------ Generation: Freshness --------------------
