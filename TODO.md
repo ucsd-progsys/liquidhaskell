@@ -1,15 +1,14 @@
 TODO
 ====
 
-* pre-"release" checklist 
-    * update blog articles so they pass <------------------ HEREHEREHEREHERE
-    * blog: add caveats about tool to about.markdown
+* pre-release checklist 
+    
     * demo: 
-        - list name of Module not XXXASDADADAd.hs 
-        - move demo URL to liquid/haskell/demo
-        - move blog URL to liquid/haskell/blog
-        - add direct link to demo for each blog entry (.lhs)
-        - hack ACSS to generate PINK background for error...
+        -> hack ACSS to generate PINK background for error <------------------------ HEREHERE
+        -> list name of Module not XXXASDADADAd.hs 
+        -> move demo URL to liquid/haskell/demo
+        -> move blog URL to liquid/haskell/blog
+        -> add direct link to demo for each blog entry (.lhs)
 
     * wierd-annot-for-absoluteSum.go
     
