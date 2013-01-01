@@ -269,11 +269,11 @@ In fact, LiquidHaskell comes equipped with suitable refinements for
 standard functions, and it is easy to add refinements as we shall
 demonstrate in subsequent articles.
 
-Take Away Lessons
------------------
+Conclusion
+----------
 
 This concludes our quick introduction to Refinement Types and
-LiquidHaskell. Hopefully you have learnt how to
+LiquidHaskell. Hopefully you have some sense of how to 
 
 1. *Specify* fine-grained properties of values by decorating their
    types with logical predicates,
