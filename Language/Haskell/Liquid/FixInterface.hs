@@ -21,7 +21,6 @@ solve fn hqs cgi
     >>= {-# SCC "exitFq" #-} exitFq fn cm 
   where fi  = FI (M.elems cm) (fixWfs cgi) (binds cgi) (globals cgi) (lits cgi) (kuts cgi)  
         cm  = M.fromList $ addIds $ fixCs cgi 
---        cm  = M.fromList $ zipWith (\i c -> (i, c {sid = Just i})) [1..] $ fixCs cgi 
         qs  = specQuals cgi
         
 execFq fn hqs qs fi -- globals cs ws ks 
@@ -47,6 +46,7 @@ exitFq fn cm _
        let (x, y) = {-# SCC "parseFixOut" #-} rr ({-# SCC "sanitizeFixpointOutput" #-} sanitizeFixpointOutput str)
        return  $ (plugC cm x, y) 
 
+plugC = fmap . mlookup
 
 sanitizeFixpointOutput 
   = unlines 
@@ -54,7 +54,7 @@ sanitizeFixpointOutput
   . chopAfter ("//QUALIFIERS" `isPrefixOf`)
   . lines
 
-plugC = fmap . mlookup 
+
 
 resultExit Safe        = ExitSuccess
 resultExit (Unsafe _)  = ExitFailure 1

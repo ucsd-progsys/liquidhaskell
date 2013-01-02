@@ -2,6 +2,7 @@
 module Language.Haskell.Liquid.ACSS (
     hscolour
   , hsannot
+  , Annotation (..)
   , AnnMap (..)
   , Loc (..)
   , breakS
@@ -13,17 +14,31 @@ import Language.Haskell.HsColour.Classify as Classify
 import Language.Haskell.HsColour.HTML (renderAnchors, escape)
 import qualified Language.Haskell.HsColour.CSS as CSS
 
+import Data.Monoid
 import Data.Maybe  (fromMaybe) 
 import Data.Hashable
 import qualified Data.HashMap.Strict as M
-import Data.List   (isPrefixOf, findIndex, elemIndices, intercalate)
+import Data.List   (foldl', isPrefixOf, findIndex, elemIndices, intercalate)
 import Data.Char   (isSpace)
 import Text.Printf
 import Language.Haskell.Liquid.GhcMisc
 
 -- import Debug.Trace
 
-newtype AnnMap = Ann (M.HashMap Loc (String, String))                    
+newtype AnnMap  = Ann (M.HashMap Loc (String, Annotation)) 
+
+data Annotation = A { typ :: Maybe String
+                    , err :: Maybe String 
+                    } deriving (Eq, Show)
+
+instance Monoid Annotation where
+  mempty        = A Nothing Nothing
+  mappend a1 a2 = A { typ = getFirstMaybe (typ a1) (typ a2)
+                    , err = getFirstMaybe (err a1) (err a2) }
+
+getFirstMaybe x@(Just _) _ = x
+getFirstMaybe Nothing y    = y
+
 
 
 
@@ -60,12 +75,14 @@ hsannot' baseLoc anchor tx =
                  else concatMap renderAnnotToken)
     . annotTokenise baseLoc tx
 
-annotTokenise :: Maybe Loc -> CommentTransform -> (String, AnnMap) -> [(TokenType, String, Maybe String)] 
+annotTokenise :: Maybe Loc -> CommentTransform -> (String, AnnMap) -> [(TokenType, String, Annotation)] 
 annotTokenise baseLoc tx (src, Ann annm) 
-  = zipWith (\(x,y) z -> (x,y, snd `fmap` z)) toks annots 
+  = zipWith (\(x,y) z -> (x,y,z)) toks annots 
   where toks       = tokeniseWithCommentTransform tx src 
         spans      = tokenSpans baseLoc $ map snd toks 
-        annots     = map (`M.lookup` annm) spans
+        annots     = map ((maybe mempty snd) . (`M.lookup` annm)) spans
+                   -- map (\s -> snd $ M.lookup s annm) spans
+                     
 
 tokeniseWithCommentTransform :: Maybe (String -> [(TokenType, String)]) -> String -> [(TokenType, String)]
 tokeniseWithCommentTransform Nothing  = tokenise
@@ -83,12 +100,15 @@ plusLoc (L (l, c)) s
       is -> L ((l + length is), (n - maximum is))
     where n = length s
 
-renderAnnotToken :: (TokenType, String, Maybe String) -> String
-renderAnnotToken (x,y, Nothing) 
-  = CSS.renderToken (x, y)
-renderAnnotToken (x,y, Just ann)
-  = printf template (escape ann) (CSS.renderToken (x, y))
-    where template = "<a class=annot href=\"#\"><span class=annottext>%s</span>%s</a>"
+renderAnnotToken :: (TokenType, String, Annotation) -> String
+renderAnnotToken (x, y, a)  = renderErrAnnot (err a) $ renderTypAnnot (typ a) $ CSS.renderToken (x, y)
+
+renderErrAnnot (Just _) s   = printf "<a class=error href=\"#\">%s</a>" s 
+renderErrAnnot Nothing  s   = s
+
+renderTypAnnot (Just ann) s = printf "<a class=annot href=\"#\"><span class=annottext>%s</span>%s</a>" (escape ann) s
+renderTypAnnot Nothing    s = s     
+
 
 {- Example Annotation:
 <a class=annot href="#"><span class=annottext>x#agV:Int -&gt; {VV_int:Int | (0 &lt;= VV_int),(x#agV &lt;= VV_int)}</span>
@@ -136,7 +156,11 @@ tokenModule toks
 breakS = "MOUSEOVER ANNOTATIONS" 
 
 annotParse :: String -> String -> AnnMap
-annotParse mname = Ann . M.fromList . parseLines mname 0 . lines
+annotParse mname    = Ann . M.map reduce . group . parseLines mname 0 . lines
+  where 
+    group                 = foldl' (\m (k, v) -> inserts k v m) M.empty 
+    reduce anns@((x,_):_) = (x, mconcat $ map snd anns)
+    inserts k v m         = M.insert k (v : M.lookupDefault [] k m) m
 
 parseLines _ _ [] 
   = []
@@ -150,22 +174,31 @@ parseLines mname i (x:f:l:c:n:rest)
     where line  = (read l) :: Int
           col   = (read c) :: Int
           num   = (read n) :: Int
-          anns  = intercalate "\n" $ take num rest
+          anns  = stringAnnotation $ intercalate "\n" $ take num rest
           rest' = drop num rest
 parseLines _ i _              
   = error $ "Error Parsing Annot Input on Line: " ++ show i
+
+stringAnnotation s 
+  | "ERROR" `isPrefixOf` s = A Nothing (Just s)
+  | otherwise              = A (Just s) Nothing
 
 -- takeFileName s = map slashWhite s
 --   where slashWhite '/' = ' '
 
 instance Show AnnMap where
   show (Ann m) = "\n\n" ++ (concatMap ppAnnot $ M.toList m)
-    where ppAnnot (L (l, c), (x,s)) =  x ++ "\n" 
-                                    ++ show l ++ "\n"
-                                    ++ show c ++ "\n"
-                                    ++ show (length $ lines s) ++ "\n"
-                                    ++ s ++ "\n\n\n"
-                                   
+    where 
+      ppAnnot (L (l, c), (x, a)) = maybe "" (showId x l c) (typ a) ++ 
+                                   maybe "" (showId x l c) (err a) 
+      showId x l c s             = printf "%s\n%d\n%d\n%d\n%s\n\n\n" x l c (length $ lines s) s 
+
+--     where ppAnnot (L (l, c), (x,s)) =  x ++ "\n" 
+--                                     ++ show l ++ "\n"
+--                                     ++ show c ++ "\n"
+--                                     ++ show (length $ lines s) ++ "\n"
+--                                     ++ s ++ "\n\n\n"
+
 
 ---------------------------------------------------------------------------------
 ---- Code for Dealing With LHS, stolen from Language.Haskell.HsColour.HsColour --
