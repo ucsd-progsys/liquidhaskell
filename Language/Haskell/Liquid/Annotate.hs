@@ -236,11 +236,8 @@ tokeniseSpec = tokAlt . chopAlt [('{', ':'), ('|', '}')]
 ---------------------------------------------------------------
 
 newtype AnnInfo a = AI (M.HashMap SrcSpan (Maybe Var, a))
-    -- deriving (Data, Typeable)
 
-type Annot 
-  = Either SpecType SrcSpan
-    -- deriving (Data, Typeable)
+type Annot        = Either SpecType SrcSpan
 
 instance Functor AnnInfo where
   fmap f (AI m) = AI (fmap (\(x, y) -> (x, f y)) m)
