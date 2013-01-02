@@ -563,7 +563,10 @@ addKuts !t = modify $ \s -> s { kuts = {- tracePpr "KUTS: " $-} updKuts (kuts s)
 addIdA :: Var -> Annot -> CG ()
 addIdA !x !t         = modify $ \s -> s { annotMap = upd $ annotMap s }
   where loc          = getSrcSpan x
-        upd m@(AI z) = if (loc `M.member` z) then m else addA loc (Just x) t m
+        upd m@(AI z) = case M.lookup loc z of 
+                         Just (_, (Left _)) -> m 
+                         _                 -> addA loc (Just x) t m
+                         -- if (loc `M.member` z) then m else addA loc (Just x) t m
 
 
 
@@ -579,7 +582,7 @@ updateLocA (_:_)  (Just l) t = addLocA Nothing l (Left t)
 updateLocA _      _        _ = return () 
 
 addA !l !xo@(Just _)  !t !(AI m) 
-  | isGoodSrcSpan l -- && not (l `M.member` m)
+  | isGoodSrcSpan l 
   = AI $ M.insert l (xo, t) m
 addA !l !xo@(Nothing) !t !(AI m) 
   | l `M.member` m  -- only spans known to be variables
