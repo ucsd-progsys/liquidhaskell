@@ -60,4 +60,8 @@ sparseDotProduct x y  = go 0 y
     go sum ((i, v) : y') = go (sum + (x ! i) * v) y' 
     go sum []            = sum
 
-
+jhala = vs ! (x + y + z)
+  where x = 2
+        y = 3
+        z = 5
+        vs = fromList [1,2,3,4] 

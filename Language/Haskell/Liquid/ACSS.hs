@@ -21,6 +21,8 @@ import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate)
 import Data.Char   (isSpace)
 import Text.Printf
 import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.Misc
+
 
 -- import Debug.Trace
 
@@ -32,7 +34,7 @@ data AnnMap  = Ann {
 data Annotation = A { 
     typ :: Maybe String
   , err :: Maybe String 
-  }
+  } deriving (Show)
 
 instance Monoid Annotation where
   mempty        = A Nothing Nothing
@@ -84,12 +86,12 @@ annotTokenise baseLoc tx (src, annm) = zipWith (\(x,y) z -> (x,y,z)) toks annots
         spans      = tokenSpans baseLoc $ map snd toks 
         annots     = fmap (spanAnnot annm) spans
 
-spanAnnot (Ann ts es) span = A t e 
-  where t = fmap snd (M.lookup span ts)
-        e = fmap (\_ -> "ERROR") $ find (span `inRange`) es
+spanAnnot (Ann ts es) span = {- traceShow ("spanAnnot: span = " ++ show span) $ -} A t e 
+  where t   = fmap snd (M.lookup span ts)
+        e   = fmap (\_ -> "ERROR") $ find (span `inRange`) es
 
 inRange (L (l0, c0)) (L (l, c), L (l', c')) 
-  = l <= l0 && c <= c0 && l0 <= l' && c0 <= c' 
+  = l <= l0 && c <= c0 && l0 <= l' && c0 < c' 
 
 tokeniseWithCommentTransform :: Maybe (String -> [(TokenType, String)]) -> String -> [(TokenType, String)]
 tokeniseWithCommentTransform Nothing  = tokenise
@@ -108,9 +110,10 @@ plusLoc (L (l, c)) s
     where n = length s
 
 renderAnnotToken :: (TokenType, String, Annotation) -> String
-renderAnnotToken (x, y, a)  = renderErrAnnot (err a) $ renderTypAnnot (typ a) $ CSS.renderToken (x, y)
+renderAnnotToken (x, y, a)  = {- traceShow ("renderAnnotToken: " ++ show (x, y, a)) $ -} 
+                              renderErrAnnot (err a) $ renderTypAnnot (typ a) $ CSS.renderToken (x, y)
 
-renderErrAnnot (Just _) s   = printf "<a class=hs-error href=\"#\">%s</a>" s 
+renderErrAnnot (Just _) s   = printf "<span class=hs-error>%s</span>" s 
 renderErrAnnot Nothing  s   = s
 
 renderTypAnnot (Just ann) s = printf "<a class=annot href=\"#\"><span class=annottext>%s</span>%s</a>" (escape ann) s
@@ -145,7 +148,7 @@ splitSrcAndAnns s =
   let ls = lines s in
   case findIndex (breakS ==) ls of
     Nothing -> (s, Ann M.empty [])
-    Just i  -> (src, {- trace ("annm =" ++ show ann) -} ann)
+    Just i  -> (src, ann)
                where (codes, _:mname:annots) = splitAt i ls
                      ann   = annotParse mname $ dropWhile isSpace $ unlines annots
                      src   = unlines codes
