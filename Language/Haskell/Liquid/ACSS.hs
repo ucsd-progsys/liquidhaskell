@@ -2,7 +2,6 @@
 module Language.Haskell.Liquid.ACSS (
     hscolour
   , hsannot
-  , Annotation (..)
   , AnnMap (..)
   , Loc (..)
   , breakS
@@ -15,21 +14,25 @@ import Language.Haskell.HsColour.HTML (renderAnchors, escape)
 import qualified Language.Haskell.HsColour.CSS as CSS
 
 import Data.Monoid
+import Data.Either (partitionEithers)
 import Data.Maybe  (fromMaybe) 
-import Data.Hashable
 import qualified Data.HashMap.Strict as M
-import Data.List   (foldl', isPrefixOf, findIndex, elemIndices, intercalate)
+import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate)
 import Data.Char   (isSpace)
 import Text.Printf
 import Language.Haskell.Liquid.GhcMisc
 
 -- import Debug.Trace
 
-newtype AnnMap  = Ann (M.HashMap Loc (String, Annotation)) 
-
-data Annotation = A { typ :: Maybe String
-                    , err :: Maybe String 
-                    } deriving (Eq, Show)
+data AnnMap  = Ann { 
+    types  :: M.HashMap Loc (String, String) -- ^ Loc -> (Var, Type)
+  , errors :: [(Loc, Loc)]                   -- ^ List of error intervals
+  } 
+   
+data Annotation = A { 
+    typ :: Maybe String
+  , err :: Maybe String 
+  }
 
 instance Monoid Annotation where
   mempty        = A Nothing Nothing
@@ -38,8 +41,6 @@ instance Monoid Annotation where
 
 getFirstMaybe x@(Just _) _ = x
 getFirstMaybe Nothing y    = y
-
-
 
 
 -- | Formats Haskell source code using HTML and mouse-over annotations 
@@ -75,14 +76,20 @@ hsannot' baseLoc anchor tx =
                  else concatMap renderAnnotToken)
     . annotTokenise baseLoc tx
 
+-- | annotTokenise is absurdly slow: O(#tokens x #errors)
+
 annotTokenise :: Maybe Loc -> CommentTransform -> (String, AnnMap) -> [(TokenType, String, Annotation)] 
-annotTokenise baseLoc tx (src, Ann annm) 
-  = zipWith (\(x,y) z -> (x,y,z)) toks annots 
+annotTokenise baseLoc tx (src, annm) = zipWith (\(x,y) z -> (x,y,z)) toks annots 
   where toks       = tokeniseWithCommentTransform tx src 
         spans      = tokenSpans baseLoc $ map snd toks 
-        annots     = map ((maybe mempty snd) . (`M.lookup` annm)) spans
-                   -- map (\s -> snd $ M.lookup s annm) spans
-                     
+        annots     = fmap (spanAnnot annm) spans
+
+spanAnnot (Ann ts es) span = A t e 
+  where t = fmap snd (M.lookup span ts)
+        e = fmap (\_ -> "ERROR") $ find (span `inRange`) es
+
+inRange (L (l0, c0)) (L (l, c), L (l', c')) 
+  = l <= l0 && c <= c0 && l0 <= l' && c0 <= c' 
 
 tokeniseWithCommentTransform :: Maybe (String -> [(TokenType, String)]) -> String -> [(TokenType, String)]
 tokeniseWithCommentTransform Nothing  = tokenise
@@ -103,7 +110,7 @@ plusLoc (L (l, c)) s
 renderAnnotToken :: (TokenType, String, Annotation) -> String
 renderAnnotToken (x, y, a)  = renderErrAnnot (err a) $ renderTypAnnot (typ a) $ CSS.renderToken (x, y)
 
-renderErrAnnot (Just _) s   = printf "<a class=error href=\"#\">%s</a>" s 
+renderErrAnnot (Just _) s   = printf "<a class=hs-error href=\"#\">%s</a>" s 
 renderErrAnnot Nothing  s   = s
 
 renderTypAnnot (Just ann) s = printf "<a class=annot href=\"#\"><span class=annottext>%s</span>%s</a>" (escape ann) s
@@ -137,7 +144,7 @@ splitSrcAndAnns ::  String -> (String, AnnMap)
 splitSrcAndAnns s = 
   let ls = lines s in
   case findIndex (breakS ==) ls of
-    Nothing -> (s, Ann M.empty)
+    Nothing -> (s, Ann M.empty [])
     Just i  -> (src, {- trace ("annm =" ++ show ann) -} ann)
                where (codes, _:mname:annots) = splitAt i ls
                      ann   = annotParse mname $ dropWhile isSpace $ unlines annots
@@ -155,43 +162,58 @@ tokenModule toks
 
 breakS = "MOUSEOVER ANNOTATIONS" 
 
+-- annotParse :: String -> String -> AnnMap
+-- annotParse mname    = Ann . M.map reduce . group . parseLines mname 0 . lines
+--   where 
+--     group                 = foldl' (\m (k, v) -> inserts k v m) M.empty 
+--     reduce anns@((x,_):_) = (x, mconcat $ map snd anns)
+--     inserts k v m         = M.insert k (v : M.lookupDefault [] k m) m
+
 annotParse :: String -> String -> AnnMap
-annotParse mname    = Ann . M.map reduce . group . parseLines mname 0 . lines
-  where 
-    group                 = foldl' (\m (k, v) -> inserts k v m) M.empty 
-    reduce anns@((x,_):_) = (x, mconcat $ map snd anns)
-    inserts k v m         = M.insert k (v : M.lookupDefault [] k m) m
+annotParse mname s = Ann (M.fromList ts) es
+  where (ts, es)   = partitionEithers $ parseLines mname 0 $ lines s
+
 
 parseLines _ _ [] 
   = []
+
 parseLines mname i ("":ls)      
   = parseLines mname (i+1) ls
+
+parseLines mname i (_:_:l:c:"0":l':c':rest')
+  = Right (L (line, col), L (line', col')) : parseLines mname (i + 7) rest'
+    where line  = (read l)  :: Int
+          col   = (read c)  :: Int
+          line' = (read l') :: Int
+          col'  = (read c') :: Int
+
 parseLines mname i (x:f:l:c:n:rest) 
   | f /= mname
   = parseLines mname (i + 5 + num) rest'
   | otherwise 
-  = (L (line, col), (x, anns)) : parseLines mname (i + 5 + num) rest'
+  = Left (L (line, col), (x, anns)) : parseLines mname (i + 5 + num) rest'
     where line  = (read l) :: Int
           col   = (read c) :: Int
           num   = (read n) :: Int
-          anns  = stringAnnotation $ intercalate "\n" $ take num rest
+          anns  = intercalate "\n" $ take num rest
           rest' = drop num rest
+
 parseLines _ i _              
   = error $ "Error Parsing Annot Input on Line: " ++ show i
 
-stringAnnotation s 
-  | "ERROR" `isPrefixOf` s = A Nothing (Just s)
-  | otherwise              = A (Just s) Nothing
+-- stringAnnotation s 
+--   | "ERROR" `isPrefixOf` s = A Nothing (Just s)
+--   | otherwise              = A (Just s) Nothing
 
 -- takeFileName s = map slashWhite s
 --   where slashWhite '/' = ' '
 
 instance Show AnnMap where
-  show (Ann m) = "\n\n" ++ (concatMap ppAnnot $ M.toList m)
-    where 
-      ppAnnot (L (l, c), (x, a)) = maybe "" (showId x l c) (typ a) ++ 
-                                   maybe "" (showId x l c) (err a) 
-      showId x l c s             = printf "%s\n%d\n%d\n%d\n%s\n\n\n" x l c (length $ lines s) s 
+  show (Ann ts es) =  "\n\n" ++ (concatMap ppAnnotTyp $ M.toList ts)
+                             ++ (concatMap ppAnnotErr $ es         )
+      
+ppAnnotTyp (L (l, c), (x, s))     = printf "%s\n%d\n%d\n%d\n%s\n\n\n" x l c (length $ lines s) s 
+ppAnnotErr (L (l, c), L (l', c')) = printf " \n%d\n%d\n0\n%d\n%d\n\n\n\n" l c l' c'
 
 --     where ppAnnot (L (l, c), (x,s)) =  x ++ "\n" 
 --                                     ++ show l ++ "\n"

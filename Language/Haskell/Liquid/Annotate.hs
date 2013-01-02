@@ -37,7 +37,6 @@ import System.Directory         (copyFile)
 import Text.Printf              (printf)
 import qualified Data.Text  as T
 import qualified Data.HashMap.Strict   as M
-import Data.Monoid              (mappend)
 
 import qualified Language.Haskell.Liquid.ACSS as ACSS
 import Language.Haskell.HsColour.Classify
@@ -155,35 +154,23 @@ cssHTML css = unlines
 -- annotations.
 
 mkAnnMap ::  FixResult SrcSpan -> AnnInfo SpecType -> ACSS.AnnMap
-mkAnnMap res ann = ACSS.Ann $ M.unionWith joinAnnot m1 m2
-  where ACSS.Ann m1   = mkAnnMapTyp ann
-        ACSS.Ann m2   = mkAnnMapErr res
+mkAnnMap res ann = ACSS.Ann (mkAnnMapTyp ann) (mkAnnMapErr res)
     
-joinAnnot (x1, a1) (x2, a2) = (joinVar x1 x2, mappend a1 a2)
-joinVar "" x                = x
-joinVar x ""                = x
-joinVar x _                 = x
--- joinVar x y              = x ++ "/" ++ y
+mkAnnMapErr (Unsafe ls) = [ (srcSpanStartLoc  l, srcSpanEndLoc l) | RealSrcSpan l <- ls] 
+mkAnnMapErr _           = []
 
-mkAnnMapErr (Unsafe (_:_)) = errorstar "TODO" 
-mkAnnMapErr _              = ACSS.Ann M.empty
-
-mkAnnMapTyp :: AnnInfo SpecType -> ACSS.AnnMap
 mkAnnMapTyp (AI m) 
-  = ACSS.Ann 
-  $ M.fromList
-  $ map (srcSpanLoc *** bindString)
+  = M.fromList
+  $ map (srcSpanStartLoc *** bindString)
   $ map (head . sortWith (srcSpanEndCol . fst)) 
   $ groupWith (lineCol . fst) 
   $ [ (l, m) | (RealSrcSpan l, m) <- M.toList m, oneLine l]  
-  where bindString = mapSnd typAnnot . mapPair (showSDocForUser neverQualify) . pprXOT 
-       
-typAnnot s = ACSS.A (Just s) Nothing
-errAnnot s = ACSS.A Nothing  (Just s)
+  where bindString = mapPair (showSDocForUser neverQualify) . pprXOT 
 
-
-srcSpanLoc l 
+srcSpanStartLoc l 
   = ACSS.L (srcSpanStartLine l, srcSpanStartCol l)
+srcSpanEndLoc l 
+  = ACSS.L (srcSpanEndLine l, srcSpanEndCol l)
 oneLine l  
   = srcSpanStartLine l == srcSpanEndLine l
 lineCol l  
