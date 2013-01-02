@@ -1,23 +1,24 @@
 TODO
 ====
-
-* pre-release checklist 
     
-    * demo: 
-        -> list name of Module not XXXASDADADAd.hs (remove ERROR message as we have hilight?) 
-        -> move demo URL to liquid/haskell/demo
-        -> move blog URL to liquid/haskell/blog
-        -> add direct link to demo for each blog entry (.lhs)
+* demo: 
+  -> list name of Module not XXXASDADADAd.hs (remove ERROR message as we have hilight?) 
+  -> move demo URL to liquid/haskell/demo
+  -> move blog URL to liquid/haskell/blog
+  -> add direct link to demo for each blog entry (.lhs)
 
-    * DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
-        -> may break a LOT of regressions
+* DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
+  -> may break a LOT of regressions
 
+* "RELEASE"
 
 * error messages
     * typecheck specs to avoid fixpoint errors (at least for unknown symbols?)
     * error message -- expected XXX got YYY?
 
 * qualified names break spec imports -- tests/todo/qualifiedvector.hs 
+
+
 * clean up (Int) -> Int [BEXPARSER]
 * parse predicate signatures for tuples 
 * benchmarks: stackset-core
