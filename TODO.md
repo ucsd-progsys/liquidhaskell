@@ -4,13 +4,14 @@ TODO
 * pre-release checklist 
     
     * demo: 
-        -> hack ACSS to generate PINK background for error <------------------------ HEREHERE
-        -> list name of Module not XXXASDADADAd.hs 
+        -> list name of Module not XXXASDADADAd.hs (remove ERROR message as we have hilight?) 
         -> move demo URL to liquid/haskell/demo
         -> move blog URL to liquid/haskell/blog
         -> add direct link to demo for each blog entry (.lhs)
-    
-    * DEFAULT "true" spec for all exported top-level functions
+
+    * DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
+        -> may break a LOT of regressions
+
 
 * error messages
     * typecheck specs to avoid fixpoint errors (at least for unknown symbols?)
@@ -26,10 +27,6 @@ TODO
 * benchmarks: Data.Text
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
-
-Error Highlight
-===============
-
 
 
 BExp Parser vs. ppr_rtype [BEXPARSER]
