@@ -7,10 +7,13 @@ module Language.Haskell.Liquid.Constraint (
     
     -- * Constraint information output by generator 
     CGInfo (..)
+  
+    -- * Source information associated with each constraint
+  , Cinfo (..)
 
     -- * Function that does the actual generation
   , generateConstraints
-
+   
   -- * KVars in constraints, for debug purposes
   -- , kvars, kvars'
   ) where
@@ -51,6 +54,7 @@ import Language.Haskell.Liquid.GhcMisc          (tickSrcSpan, hasBaseTypeVar)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Qualifier        
 import Control.DeepSeq
+
 
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------

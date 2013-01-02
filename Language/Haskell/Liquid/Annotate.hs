@@ -37,6 +37,7 @@ import System.Directory         (copyFile)
 import Text.Printf              (printf)
 import qualified Data.Text  as T
 import qualified Data.HashMap.Strict   as M
+import Data.Monoid              (mappend)
 
 import qualified Language.Haskell.Liquid.ACSS as ACSS
 import Language.Haskell.HsColour.Classify
@@ -50,16 +51,16 @@ import Language.Haskell.Liquid.Misc
 ------ Rendering HTMLized source with Inferred Types --------------
 -------------------------------------------------------------------
 
-annotate :: FilePath -> FixSolution -> AnnInfo Annot -> IO ()
-annotate fname sol anna 
-  = do annotDump fname (extFileName Html $ extFileName Cst fname) annm
-       annotDump fname (extFileName Html fname) annm'
+annotate :: FilePath -> FixResult SrcSpan -> FixSolution -> AnnInfo Annot -> IO ()
+annotate fname result sol anna 
+  = do annotDump fname (extFileName Html $ extFileName Cst fname) result annm
+       annotDump fname (extFileName Html fname) result annm'
     where annm = closeAnnots anna
           annm' = tidySpecType <$> applySolution sol annm
 
-annotDump :: FilePath -> FilePath -> AnnInfo SpecType -> IO ()
-annotDump srcFile htmlFile ann 
-  = do let annm    = mkAnnMap ann
+annotDump :: FilePath -> FilePath -> FixResult SrcSpan -> AnnInfo SpecType -> IO ()
+annotDump srcFile htmlFile result ann
+  = do let annm    = mkAnnMap result ann
        let annFile = extFileName Annot srcFile
        writeFilesOrStrings   annFile [Left srcFile, Right (show annm)]
        annotHtmlDump         htmlFile srcFile annm 
@@ -153,15 +154,33 @@ cssHTML css = unlines
 -- required by `Language.Haskell.Liquid.ACSS` to generate mouseover
 -- annotations.
 
-mkAnnMap :: AnnInfo SpecType -> ACSS.AnnMap
-mkAnnMap (AI m) 
+mkAnnMap ::  FixResult SrcSpan -> AnnInfo SpecType -> ACSS.AnnMap
+mkAnnMap res ann = ACSS.Ann $ M.unionWith joinAnnot m1 m2
+  where ACSS.Ann m1   = mkAnnMapTyp ann
+        ACSS.Ann m2   = mkAnnMapErr res
+    
+joinAnnot (x1, a1) (x2, a2) = (joinVar x1 x2, mappend a1 a2)
+joinVar "" x                = x
+joinVar x ""                = x
+joinVar x _                 = x
+-- joinVar x y              = x ++ "/" ++ y
+
+mkAnnMapErr (Unsafe (_:_)) = errorstar "TODO" 
+mkAnnMapErr _              = ACSS.Ann M.empty
+
+mkAnnMapTyp :: AnnInfo SpecType -> ACSS.AnnMap
+mkAnnMapTyp (AI m) 
   = ACSS.Ann 
   $ M.fromList
   $ map (srcSpanLoc *** bindString)
   $ map (head . sortWith (srcSpanEndCol . fst)) 
   $ groupWith (lineCol . fst) 
   $ [ (l, m) | (RealSrcSpan l, m) <- M.toList m, oneLine l]  
-  where bindString = mapPair (showSDocForUser neverQualify) . pprXOT 
+  where bindString = mapSnd typAnnot . mapPair (showSDocForUser neverQualify) . pprXOT 
+       
+typAnnot s = ACSS.A (Just s) Nothing
+errAnnot s = ACSS.A Nothing  (Just s)
+
 
 srcSpanLoc l 
   = ACSS.L (srcSpanStartLine l, srcSpanStartCol l)

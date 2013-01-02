@@ -29,7 +29,7 @@ module Language.Haskell.Liquid.Fixpoint (
   , isTautoPred
  
   -- * Constraints and Solutions
-  , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, FInfo (..), addIds
+  , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, FInfo (..), addIds, sinfo 
 
   -- * Environments
   , SEnv, emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
@@ -682,7 +682,7 @@ data SubC a = SubC { senv  :: !IBindEnv
                    , sid   :: !(Maybe Integer)
                    , stag  :: !Tag
                    , sinfo :: !a
-                   } -- deriving (Eq)
+                   }
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
                    , wrft  :: !SortedReft
@@ -1106,3 +1106,6 @@ shiftVV r@(Reft (v, ras)) v'
 --   where su = mkSubst [(v, EVar v')]
 
 addIds = zipWith (\i c -> (i, c {sid = Just i})) [1..]
+
+
+

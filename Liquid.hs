@@ -10,7 +10,7 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.Constraint       
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.Fixpoint (colorResult, FixResult (..))
+import Language.Haskell.Liquid.Fixpoint (sinfo, colorResult, FixResult (..))
 import Language.Haskell.Liquid.FixInterface      
 import Language.Haskell.Liquid.TransformRec   
 import Language.Haskell.Liquid.Annotate (annotate)
@@ -46,7 +46,7 @@ liquidOne includes target =
      -- donePhase Loud "FINISH: Write CGI"
      (r, sol) <- solve target (hqFiles info) cgi
      donePhase Loud "solve"
-     {-# SCC "annotate" #-} annotate target sol $ annotMap cgi
+     {-# SCC "annotate" #-} annotate target (resultSrcSpan r) sol $ annotMap cgi
      donePhase Loud "annotate"
      donePhase (colorResult r) (showPpr r) 
      writeResult target r
@@ -54,7 +54,8 @@ liquidOne includes target =
      return r
 
 writeResult target = writeFile (extFileName Result target) . showPpr 
-
+resultSrcSpan      = fmap (tx . sinfo) 
+  where tx (Ci x)  = x
 {-
 dummyDeepseq cgi 
   = {-# SCC "DummyWrite" #-} ( (hsCs cgi, hsWfs cgi)  `deepseq` putStrLn "DeepSeq-ed cgi")

@@ -9,8 +9,6 @@ TODO
         -> move demo URL to liquid/haskell/demo
         -> move blog URL to liquid/haskell/blog
         -> add direct link to demo for each blog entry (.lhs)
-
-    * wierd-annot-for-absoluteSum.go
     
     * DEFAULT "true" spec for all exported top-level functions
 
@@ -28,6 +26,11 @@ TODO
 * benchmarks: Data.Text
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
+
+Error Highlight
+===============
+
+
 
 BExp Parser vs. ppr_rtype [BEXPARSER]
 =====================================
