@@ -121,8 +121,9 @@ $out['annotHtml'] = file_get_contents($thtml);
 // echo 'warns = '  . $out['warns'];
 
 // Cleanup temporary files
-shell_exec("mv ".$t."* saved/");
- 
+shell_exec("mv ".$ths." saved/");
+shell_exec("mv ".$thq." saved/");
+
 // Put outputs 
 echo json_encode($out);
 

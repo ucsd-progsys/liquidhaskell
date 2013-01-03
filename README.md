@@ -87,7 +87,7 @@ How to Profile
    etc.
 
 How to Get Stack Traces On Exceptions 
----------------------
+-------------------------------------
 
 1. Build with profiling on
 
@@ -96,6 +96,26 @@ How to Get Stack Traces On Exceptions
 2. Run with backtraces
 
     `$ liquid +RTS -xc -RTS foo.hs`
+
+How to deploy Web Demo
+----------------------
+
+1. Name target directory $(SERVERHOME) in Makefile
+
+2. Create target directory
+
+    mkdir $(SERVERHOME)
+
+3. Build and copy files
+
+    make site
+
+4. Set permissions to allow www-data to write to relevant directories
+
+    make siteperms 
+
+The last step requires sudo access which is tedious and should be fixed.
+
 
 
 Writing Specifications
