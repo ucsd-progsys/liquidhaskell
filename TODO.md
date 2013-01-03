@@ -2,6 +2,7 @@ TODO
 ====
     
 * demo: 
+  -> record each file in a directory somewhere [for later analysis]
   -> list name of Module not XXXASDADADAd.hs (remove ERROR message as we have hilight?) 
   -> move demo URL to liquid/haskell/demo
   -> move blog URL to liquid/haskell/blog
