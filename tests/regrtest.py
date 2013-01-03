@@ -80,6 +80,8 @@ class Config (rtest.TestConfig):
 testdirs  = [ ("pos", 0)
             , ("neg", 1)
             , ("../benchmarks/esop2013-submission", 0) 
+            , ("../web/demos", 0)
+            , ("../blog", 0)
             ]
 
 parser = optparse.OptionParser()
