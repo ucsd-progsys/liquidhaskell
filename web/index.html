@@ -102,6 +102,12 @@
          
          <div class="tab-content">
            <div class="tab-pane active" id="tabSrc">
+             
+             <div class="alert alert-error" ng-repeat="warn in warns">
+               <button type="button" class="close" data-dismiss="alert">×</button>
+               <strong>Warning!</strong> {{warn}}
+             </div>
+             
              <div id="program-pane" class="well" style="background:#fff">
                  <button class="btn btn-primary" type="button" ng-click="verifySource()">Verify</button>
 
@@ -146,7 +152,7 @@
 
              <div class="alert alert-error" ng-repeat="warn in warns">
                <button type="button" class="close" data-dismiss="alert">×</button>
-               <strong>Warning!</strong> Uh, oh! {{warn}}
+               <strong>Warning!</strong> {{warn}}
              </div>
 
              <div class="alert alert-block" ng-show="crash">
