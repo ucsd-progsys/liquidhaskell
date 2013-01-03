@@ -6,18 +6,21 @@
 
 var allDemos =
   { // Basic Demos
-    "blank.hs"      : { "name" : "Blank"       , "type" : "basic"  },
-    "test000.hs"    : { "name" : "Test000"     , "type" : "basic"  },
-    
+    "blank.hs"          : { "name" : "Blank"            , "type" : "basic"  },
+    "refinements101.hs" : { "name" : "Refinements 101"  , "type" : "basic"  },
+    "vectorbounds.hs"   : { "name" : "Vector Bounds"    , "type" : "basic"  },
+
     // Measure Demos
-    "ListLength.hs" : { "name" : "List Lengths", "type" : "measure"},
-    "MapReduce.hs"  : { "name" : "Map Reduce"  , "type" : "measure"}, 
-    "KMeans.hs"     : { "name" : "K-Means"     , "type" : "measure"}, 
-    
+    "ListLength.hs"     : { "name" : "List Lengths"     , "type" : "measure"},
+    "MapReduce.hs"      : { "name" : "Map Reduce"       , "type" : "measure"}, 
+    // FIX FIRST! "KMeans.hs"         : { "name" : "K-Means"          , "type" : "measure"}, 
+    "LambdaEval.hs"     : { "name" : "Lambda Evaluator" , "type" : "measure"}, 
+    "ListElts.hs"       : { "name" : "List Elements"    , "type" : "measure"}, 
+
     // Abstract Refinement Demos
-    "ListSort.hs"   : { "name" : "List-Sort"   , "type" : "absref" },
-    "Map.hs"        : { "name" : "BST"         , "type" : "absref" },
-    "Foldr.hs"      : { "name" : "Induction"   , "type" : "absref" }
+    "ListSort.hs"       : { "name" : "Sorting Lists"    , "type" : "absref" },
+    "Map.hs"            : { "name" : "BinSearch Tree"   , "type" : "absref" },
+    "Foldr.hs"          : { "name" : "Induction"        , "type" : "absref" }
   };
 
 
