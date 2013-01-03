@@ -30,16 +30,14 @@ data AnnMap  = Ann {
     types  :: M.HashMap Loc (String, String) -- ^ Loc -> (Var, Type)
   , errors :: [(Loc, Loc)]                   -- ^ List of error intervals
   } 
-   
-data Annotation = A { 
-    typ :: Maybe String
-  , err :: Maybe String 
-  } deriving (Show)
+  
+emptyAnnMap  = Ann M.empty [] 
 
-instance Monoid Annotation where
-  mempty        = A Nothing Nothing
-  mappend a1 a2 = A { typ = getFirstMaybe (typ a1) (typ a2)
-                    , err = getFirstMaybe (err a1) (err a2) }
+data Annotation = A { 
+    typ :: Maybe String         -- ^ type  string
+  , err :: Maybe String         -- ^ error string 
+  , lin :: Maybe (Int, Int)     -- ^ line number, total width of lines i.e. max (length (show lineNum)) 
+  } deriving (Show)
 
 getFirstMaybe x@(Just _) _ = x
 getFirstMaybe Nothing y    = y
@@ -84,11 +82,18 @@ annotTokenise :: Maybe Loc -> CommentTransform -> (String, AnnMap) -> [(TokenTyp
 annotTokenise baseLoc tx (src, annm) = zipWith (\(x,y) z -> (x,y,z)) toks annots 
   where toks       = tokeniseWithCommentTransform tx src 
         spans      = tokenSpans baseLoc $ map snd toks 
-        annots     = fmap (spanAnnot annm) spans
+        annots     = fmap (spanAnnot linWidth annm) spans
+        linWidth   = length $ show $ length $ lines src
 
-spanAnnot (Ann ts es) span = {- traceShow ("spanAnnot: span = " ++ show span) $ -} A t e 
-  where t   = fmap snd (M.lookup span ts)
-        e   = fmap (\_ -> "ERROR") $ find (span `inRange`) es
+
+spanAnnot w (Ann ts es) span = {- traceShow ("spanAnnot: span = " ++ show span) $ -} A t e b 
+  where t = fmap snd (M.lookup span ts)
+        e = fmap (\_ -> "ERROR") $ find (span `inRange`) es
+        b = spanLine w span
+
+spanLine w (L (l, c)) 
+  | c == 1    = Just (l, w) 
+  | otherwise = Nothing
 
 inRange (L (l0, c0)) (L (l, c), L (l', c')) 
   = l <= l0 && c <= c0 && l0 <= l' && c0 < c' 
@@ -110,15 +115,24 @@ plusLoc (L (l, c)) s
     where n = length s
 
 renderAnnotToken :: (TokenType, String, Annotation) -> String
-renderAnnotToken (x, y, a)  = {- traceShow ("renderAnnotToken: " ++ show (x, y, a)) $ -} 
-                              renderErrAnnot (err a) $ renderTypAnnot (typ a) $ CSS.renderToken (x, y)
+renderAnnotToken (x, y, a)  = renderLinAnnot (lin a)
+                            $ renderErrAnnot (err a) 
+                            $ renderTypAnnot (typ a) 
+                            $ CSS.renderToken (x, y)
 
-renderErrAnnot (Just _) s   = printf "<span class=hs-error>%s</span>" s 
-renderErrAnnot Nothing  s   = s
+
 
 renderTypAnnot (Just ann) s = printf "<a class=annot href=\"#\"><span class=annottext>%s</span>%s</a>" (escape ann) s
 renderTypAnnot Nothing    s = s     
 
+renderErrAnnot (Just _) s   = printf "<span class=hs-error>%s</span>" s 
+renderErrAnnot Nothing  s   = s
+
+renderLinAnnot (Just d) s   = printf "<span class=hs-linenum>%s: </span>%s" (lineString d) s 
+renderLinAnnot Nothing  s   = s
+
+lineString (i, w) = (replicate (w - (length is)) ' ') ++ is
+  where is        = show i
 
 {- Example Annotation:
 <a class=annot href="#"><span class=annottext>x#agV:Int -&gt; {VV_int:Int | (0 &lt;= VV_int),(x#agV &lt;= VV_int)}</span>
