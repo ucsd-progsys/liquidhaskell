@@ -45,6 +45,9 @@ function getResultAndWarns($outfile){
   $fh = fopen($outfile, 'r');
   while (!feof($fh)){
     $s = fgets($fh);
+    if ($wflag == 1){           // Skip the first "Unsafe" start chewing remainder of lines
+      $warns[] = substr($s, 8); // Eschew the prefix "WARNING:" 
+    }
     if (strpos($s,"Safe") !== false){
       $failflag = 0; 
       $wflag    = 0;
@@ -53,9 +56,6 @@ function getResultAndWarns($outfile){
       $failflag = 0; 
       $wflag    = 1;
     }  
-    if ($wflag == 1){
-      $warns[] = $s;
-    }
   } 
   fclose($fh);
   
