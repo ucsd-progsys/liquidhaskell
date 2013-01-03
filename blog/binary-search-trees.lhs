@@ -20,7 +20,7 @@ Take for example the following refined type used to encode functional maps (from
 
 \begin{code}
 {-@ 
-  data Map k a <l :: root:k -> k -> Bool, r :: root:k -> k -> Bool>
+  data Map k a <l :: root:k -> k -> Prop, r :: root:k -> k -> Prop>
       = Tip 
       | Bin (sz    :: Size) 
             (key   :: k) 
@@ -40,15 +40,9 @@ The abstract refinements `l` and `r` relate each `key` of the tree with `all` th
 Thus, if we instantiate the refinements with the following predicates
 
 \begin{code}
-{-@
-type BST k a     = Map <{v:k | v < root},  {v:k | v > root}> k a
-  @-}
-{-@
-type MinHeap k a = Map <{v:k | root <= v}, {v:k | root <= v}> k a
-  @-}
-{-@
-type MaxHeap k a = Map <{v:k | root >= v}, {v:k | root >= v}> k a
-  @-}
+{-@ type BST k a     = Map <\r -> {v:k | v < r }, \r -> {v:k | v > r }> k a @-}
+{-@ type MinHeap k a = Map <\r -> {v:k | r <= v}, \r -> {v:k | r <= v}> k a @-}
+{-@ type MaxHeap k a = Map <\r -> {v:k | r >= v}, \r -> {v:k | r >= v}> k a @-}
 \end{code}
 
 then `BST k v`, `MinHeap k v` and `MaxHeap k v` denote exactly binary-search-ordered, min-heap-ordered, and max-heap-ordered trees (with keys and values of types `k` and `v`).  

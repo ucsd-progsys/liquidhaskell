@@ -19,7 +19,7 @@ module ListSort (insertSort, mergeSort, quickSort) where
 First, lets describe a sorted list:
 
 \begin{code}The list type is refined with an abstract refinement, yielding the refined type:
-data [a] <p :: fld:a -> a -> Bool> where
+data [a] <p :: elt:a -> a -> Bool> where
   | []  :: [a] <p>
   | (:) :: h:a -> [a<p h>]<p> -> [a]<p>
 \end{code}
@@ -32,16 +32,14 @@ tail, ensuring that the relationship `p` holds between all pairs of list element
 
 
 \begin{code}A sorted list is defined by instantiating the abstract refinement `p` with 
-\fld v -> v >= fld
+\elt v -> v >= elt
 \end{code}
 
 So, we define the type-synonym `SList a`
 
 \begin{code}
-{-@ type SList a = [a]<{v: a | (v >= fld)}> @-}
+{-@ type SList a = [a]<\elt -> {v: a | (v >= elt)}> @-}
 \end{code}
-
-
 
 We aim to verify that the result of each sorting function is of type `SList a`
 

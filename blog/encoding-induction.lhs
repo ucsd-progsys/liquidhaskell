@@ -74,7 +74,7 @@ Typing Folds
 Abstract refinements allow us to solve this problem with a very expressive type for _foldr_ whilst remaining firmly within the boundaries of SMT-based decidability. We write a slightly modified fold:
 
 \begin{code}
-{-@ efoldr :: forall a b <p :: x0:Vec a -> x1:b -> Bool>. 
+{-@ efoldr :: forall a b <p :: x0:Vec a -> x1:b -> Prop>. 
                 op:(xs:Vec a -> x:a -> b:b <p xs> -> 
                   exists [xxs : {v: Vec a | v = (Inductive.Cons x xs)}].
                      b <p xxs>) 
