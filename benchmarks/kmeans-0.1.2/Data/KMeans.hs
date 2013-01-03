@@ -48,7 +48,7 @@ instance Ord (WrapType [Double] a) where
     compare = comparing getVect
 
 dist ::  [Double] -> [Double] -> Double 
-dist a b = sqrt . sum $ zipWith (\x y-> (x-y) ^ 2) a b      -- Liquid: zipWith dimensions
+dist a b = sqrt . sum $ zipWith (\x y -> (x - y) ^ 2) a b   -- Liquid: zipWith dimensions
 
 centroid n points = map (( / l) . sum) points'              -- Liquid: Divide By Zero
     where l = fromIntegral $ liquidAssert (m > 0) m
