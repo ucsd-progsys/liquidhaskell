@@ -1,7 +1,7 @@
 include config.make
 
 #SERVERHOME=$(ROOTHOME)/_site/
-SERVERHOME=/home/rjhala/public_html/liquid/haskellnew
+SERVERHOME=/home/rjhala/public_html/liquid/haskell/demo
 
 ##############################################################################
 ##############################################################################
@@ -39,13 +39,18 @@ rebuild:
 site: all
 	cp dist/build/liquid/liquid $(SERVERHOME)/liquid
 	cp -r external $(SERVERHOME)/
-	chmod -R g+rx external 
 	cp -r include $(SERVERHOME)/
-	chmod -R g+rwx include
 	cp -r syntax $(SERVERHOME)/
-	chmod -R g+r syntax
 	cp -r web/* $(SERVERHOME)/
-
+	sudo chgrp -R www-data $(SERVERHOME)/external
+	sudo chgrp -R www-data $(SERVERHOME)/include
+	sudo chgrp -R www-data $(SERVERHOME)/syntax
+	sudo chgrp -R www-data $(SERVERHOME)
+	chmod -R g+rx $(SERVERHOME)/external 
+	chmod -R g+rwx $(SERVERHOME)/include
+	chmod -R g+r $(SERVERHOME)/syntax
+	chmod -R g+r $(SERVERHOME)/*
+	
 igoto:
 	$(CABAL) configure --ghc-options=$(OPTS) 
 
