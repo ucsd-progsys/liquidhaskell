@@ -10,7 +10,7 @@
     <link href="css/bootstrap.css" rel="stylesheet">
     <link href="css/bootstrap-responsive.css" rel="stylesheet">
     <link href="css/docs.css" rel="stylesheet">
-    <link href="css/liquid.css" type='text/css' rel="stylesheet">
+    <link href="syntax/liquid.css" type='text/css' rel="stylesheet">
     <link href="css/codemirror.css" rel="stylesheet" >
 
     <script src="js/angular/angular.js"></script>
@@ -77,13 +77,13 @@
          <li><a href="#">Load File</a></li>
 
          <li class="nav-header">Basics</li>
-         <li ng-repeat="demo in basicDemos"><a href="" ng-click="loadSource(demo)">{{demo.name}}</a></li>
+         <li ng-repeat="demo in basicDemos"><a href="" ng-click="changeTarget(demo)">{{demo.name}}</a></li>
 
          <li class="nav-header">Datatype Measures</li>
-         <li ng-repeat="demo in measureDemos"><a href="" ng-click="loadSource(demo)">{{demo.name}}</a></li>
+         <li ng-repeat="demo in measureDemos"><a href="" ng-click="changeTarget(demo)">{{demo.name}}</a></li>
          
          <li class="nav-header">Abstr. Refinements</li>
-         <li ng-repeat="demo in abstRefDemos"><a href="" ng-click="loadSource(demo)">{{demo.name}}</a></li>
+         <li ng-repeat="demo in abstRefDemos"><a href="" ng-click="changeTarget(demo)">{{demo.name}}</a></li>
 
        </ul>
      </div>
@@ -186,7 +186,7 @@
          
 <!-- Bootstrap JS: compiled and minified -->
     <script src="js/jquery-1.7.1.min.js"></script>
-    <script src="js/bootstrap.min.js"></script>
+    <script src="js/bootstrap.js"></script>
     <script src="js/liquid.js"></script>
 
 </body>

@@ -1,5 +1,40 @@
 'use strict';
 
+/*******************************************************************************/
+/************** Extract Demo from URL ******************************************/
+/*******************************************************************************/
+
+var allDemos =
+  { // Basic Demos
+    "blank.hs"      : { "name" : "Blank"       , "type" : "basic"  },
+    "test000.hs"    : { "name" : "Test000"     , "type" : "basic"  },
+    
+    // Measure Demos
+    "ListLength.hs" : { "name" : "List Lengths", "type" : "measure"},
+    "MapReduce.hs"  : { "name" : "Map Reduce"  , "type" : "measure"}, 
+    "KMeans.hs"     : { "name" : "K-Means"     , "type" : "measure"}, 
+    
+    // Abstract Refinement Demos
+    "ListSort.hs"   : { "name" : "List-Sort"   , "type" : "absref" },
+    "Map.hs"        : { "name" : "BST"         , "type" : "absref" },
+    "Foldr.hs"      : { "name" : "Induction"   , "type" : "absref" }
+  };
+
+
+function getDemo(name){
+  var d = allDemos[name];
+  var res = { "name" : d.name , "file" : name };
+  return res;
+}
+
+function getDemos(ty){ 
+  var a = [];
+  for (var k in allDemos) { 
+    if (allDemos[k].type == ty) 
+      a.push(getDemo(k));
+  };
+  return a;
+}
 
 /*******************************************************************************/
 /************** Hooking into Codemirror ****************************************/
@@ -38,22 +73,10 @@ var globData = null;
 
 function LiquidDemoCtrl($scope, $http, $location) {
 
-  // List of demos
-  $scope.basicDemos   = 
-     [ { "name" : "Blank"        , "file" : "blank.hs"       } , 
-       { "name" : "Test000"      , "file" : "test000.hs"     }
-     ];
-  $scope.measureDemos = 
-    [ { "name" : "List Lengths"  , "file" : "ListLength.hs"  } , 
-      { "name" : "Lambda Eval"   , "file" : "LambdaEval.hs"  } , 
-      { "name" : "Map Reduce"    , "file" : "MapReduce.hs"   } , 
-      { "name" : "KMeans"        , "file" : "KMeans.hs"      }
-    ];
-  $scope.abstRefDemos = 
-    [ { "name" : "List-Sort"     , "file" : "ListSort.hs"    } , 
-      { "name" : "BST"           , "file" : "Map.hs"         } , 
-      { "name" : "Induction"     , "file" : "Foldr.hs"   }
-    ];
+  // Populate list of demos
+  $scope.basicDemos   = getDemos("basic")  ;  
+  $scope.measureDemos = getDemos("measure");
+  $scope.abstRefDemos = getDemos("absref") ;
 
   // Load a particular demo
   $scope.loadSource   = function(demo){
@@ -81,7 +104,19 @@ function LiquidDemoCtrl($scope, $http, $location) {
   // Initialize with Test000.hs
   $scope.loadSource($scope.basicDemos[1]);
 
-  // TODO: call solver, 
+  // Extract demo name from URL 
+  $scope.$watch('location.search()', function() {
+    $scope.demoName = ($location.search()).demo;
+    if ($scope.demoName in allDemos) 
+      $scope.loadSource(getDemo($scope.demoName));
+    }, true);
+
+  // Update demo name in URL 
+  $scope.changeTarget = function(demo) {
+     $location.search('demo', demo.file);
+     $scope.loadSource(demo);
+  };
+
   // http://www.cleverweb.nl/javascript/a-simple-search-with-angularjs-and-php/
   $scope.verifySource = function(){ 
     var query = { "program"    : progEditor.getValue(), 
