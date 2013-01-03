@@ -1,3 +1,9 @@
+.hs-linenum {
+  color: #CCCCCC;
+  font-style: italic;
+}
+
+
 .hs-error {
   background-color: #FF8585 ;
 }

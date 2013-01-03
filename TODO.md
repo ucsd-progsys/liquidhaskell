@@ -2,7 +2,7 @@ TODO
 ====
     
 * demo: 
-  -> list name of Module not XXXASDADADAd.hs (remove ERROR message as we have hilight?) <------------------------------- HEREHEREHEREHERE
+  -> add line numbers to .html <------------------------------- HEREHEREHEREHERE
   -> move blog URL to liquid/haskell/blog
   -> populate demos with blog articles
 
