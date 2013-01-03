@@ -30,6 +30,22 @@ TODO
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
 
+Deploying Demo
+==============
+
+Set permissions
+
+    sudo chgrp -R www-data include/
+    sudo chmod -R g+rwx include/
+    sudo chgrp -R www-data saved/
+    sudo chmod -R g+rwx saved/
+
+then 
+
+    make site
+
+
+
 BExp Parser vs. ppr_rtype [BEXPARSER]
 =====================================
 
