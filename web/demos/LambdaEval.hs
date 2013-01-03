@@ -22,7 +22,7 @@ data Expr
   | Snd Expr
 
 {-@
-measure isValue      :: Expr -> Bool
+measure isValue      :: Expr -> Prop
 isValue (Const i)    = true 
 isValue (Lam x e)    = true 
 isValue (Var x)      = false
@@ -32,6 +32,9 @@ isValue (Fst e)      = false
 isValue (Snd e)      = false
 isValue (Pair e1 e2) = ((? (isValue(e1))) && (? (isValue(e2))))
 @-}
+
+{-@ type Value = {v: Expr | (? (isValue([v]))) } @-}
+
 ---------------------------------------------------------------------
 -------------------------- The Evaluator ----------------------------
 ---------------------------------------------------------------------
@@ -46,8 +49,8 @@ evalVar x ((y,v):sto)
 evalVar x []      
   = error "unbound variable"
 
--- A "value" is simply: {v: Expr | (? (isValue v)) } *)
 
+{-@ eval :: [(Bndr, Value)] -> Expr -> ([(Bndr, Value)], Value) @-}
 eval sto (Const i) 
   = (sto, Const i)
 
@@ -92,7 +95,7 @@ eval sto (Snd e)
 -------------------------- Value Checker ----------------------------
 ---------------------------------------------------------------------
 
-{-@ check :: {v: Expr | (? (isValue([v]))) } -> Bool @-}
+{-@ assert check :: {v: Expr | (? (isValue([v]))) } -> Bool @-}
 check (Const _)    = True
 check (Lam _ _)    = True
 check (Var _)      = liquidAssertB False
