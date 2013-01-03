@@ -2,14 +2,16 @@ TODO
 ====
     
 * demo: 
-  -> add line numbers to .html <------------------------------- HEREHEREHEREHERE
-  -> move blog URL to liquid/haskell/blog
+  -> move blog URL to liquid/haskell/blog <------------------ HEREHEREHEREHERE
   -> populate demos with blog articles
+  -> link blog articles to files
+  -> unify bootstrap css with http://bootswatch.com/readable/
+
+* "RELEASE"
 
 * DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
   -> may break a LOT of regressions
 
-* "RELEASE"
 
 * error messages
     * typecheck specs to avoid fixpoint errors (at least for unknown symbols?)
@@ -27,6 +29,29 @@ TODO
 * benchmarks: Data.Text
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
+
+Populate Demos
+==============
+
+var allDemos =
+  { // Basic Demos
+    "blank.hs"          : { "name" : "Blank"            , "type" : "basic"  },
+    "refinements101.hs" : { "name" : "Refinements 101"  , "type" : "basic"  },
+    "vectorbounds.hs"   : { "name" : "Vector Bounds"    , "type" : "basic"  },
+
+    // Measure Demos
+    "ListLength.hs"     : { "name" : "List Lengths"     , "type" : "measure"},
+    "MapReduce.hs"      : { "name" : "Map Reduce"       , "type" : "measure"}, 
+    "KMeans.hs"         : { "name" : "K-Means"          , "type" : "measure"}, 
+    "LambdaEval.hs"     : { "name" : "Lambda Evaluator" , "type" : "measure"}, 
+    "ListElts.hs"       : { "name" : "List Elements"    , "type" : "measure"}, 
+
+    // Abstract Refinement Demos
+    "ListSort.hs"       : { "name" : "Sorting Lists"    , "type" : "absref" },
+    "Map.hs"            : { "name" : "BinSearch Tree"   , "type" : "absref" },
+    "Foldr.hs"          : { "name" : "Induction"        , "type" : "absref" }
+  };
+
 
 
 BExp Parser vs. ppr_rtype [BEXPARSER]
@@ -50,13 +75,6 @@ Benchmarks
     GhcListSort.hs  :    23/22/17/5    7.3/7.8/5   4.5/5.0/2.7    3700/4400/1900   10/23/6
     LambdaEval.hs   :    36/32/25/12    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
     Base.hs         :        26mi/2m
-
-WebDemo
-=======
-
-web/
-
-- tweak so that annothtml doesnt have title -- just BODY
 
 Tuple Refinements (DONE: by Niki)
 =================================
