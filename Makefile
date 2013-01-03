@@ -42,15 +42,14 @@ site: all
 	cp -r include $(SERVERHOME)/
 	cp -r syntax $(SERVERHOME)/
 	cp -r web/* $(SERVERHOME)/
-	sudo chgrp -R www-data $(SERVERHOME)/external
-	sudo chgrp -R www-data $(SERVERHOME)/include
-	sudo chgrp -R www-data $(SERVERHOME)/syntax
+
+siteperms:
 	sudo chgrp -R www-data $(SERVERHOME)
-	chmod -R g+rx $(SERVERHOME)/external 
-	chmod -R g+rwx $(SERVERHOME)/include
-	chmod -R g+r $(SERVERHOME)/syntax
-	chmod -R g+r $(SERVERHOME)/*
-	
+	sudo chmod -R g+rx $(SERVERHOME)
+	sudo chmod    g+rwx $(SERVERHOME)/
+	sudo chmod -R g+rwx $(SERVERHOME)/include/
+	sudo chmod -R g+rwx $(SERVERHOME)/saved/
+
 igoto:
 	$(CABAL) configure --ghc-options=$(OPTS) 
 

@@ -2,10 +2,10 @@ TODO
 ====
     
 * demo: 
-  -> list name of Module not XXXASDADADAd.hs (remove ERROR message as we have hilight?) 
-  -> move demo URL to liquid/haskell/demo
+  -> list name of Module not XXXASDADADAd.hs (remove ERROR message as we have hilight?) <------------------------------- HEREHEREHEREHERE
+
   -> move blog URL to liquid/haskell/blog
-  -> add direct link to demo for each blog entry (.lhs)
+  -> populate demos with blog articles
 
 * DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
   -> may break a LOT of regressions
@@ -28,25 +28,6 @@ TODO
 * benchmarks: Data.Text
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
-
-
-Deploying Demo
-==============
-
-1. Populate directory
-
-    mkdir $(SERVERHOME)
-    make site
-
-2. Set permissions
-
-    sudo chgrp -R www-data $(SERVERHOME)
-    sudo chmod -R a+rx $(SERVERHOME)
-    sudo chgrp -R www-data $(SERVERHOME)/include/
-    sudo chmod -R g+rwx include/
-    sudo chgrp -R www-data saved/
-    sudo chmod -R g+rwx saved/
-
 
 
 BExp Parser vs. ppr_rtype [BEXPARSER]
