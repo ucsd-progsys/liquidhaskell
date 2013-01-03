@@ -33,16 +33,19 @@ TODO
 Deploying Demo
 ==============
 
-Set permissions
+1. Populate directory
 
-    sudo chgrp -R www-data include/
+    mkdir $(SERVERHOME)
+    make site
+
+2. Set permissions
+
+    sudo chgrp -R www-data $(SERVERHOME)
+    sudo chmod -R a+rx $(SERVERHOME)
+    sudo chgrp -R www-data $(SERVERHOME)/include/
     sudo chmod -R g+rwx include/
     sudo chgrp -R www-data saved/
     sudo chmod -R g+rwx saved/
-
-then 
-
-    make site
 
 
 
