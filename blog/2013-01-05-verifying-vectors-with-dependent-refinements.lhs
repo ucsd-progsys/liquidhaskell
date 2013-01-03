@@ -10,6 +10,7 @@ external-url:
 categories: basic
 ---
 
+[**Try This Demo**](http://goto.ucsd.edu:~rjhala/liquid/haskell/demo/#?demo=vectorbounds.hs)
 
 Hopefully, the [previous][ref101] article gave you a basic idea about what
 refinement types look like. Today, lets build on that intuition with some 
