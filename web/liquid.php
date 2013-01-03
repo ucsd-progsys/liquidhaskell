@@ -12,12 +12,6 @@ function execCommand($ths, $dir, $log) {
   return $cmd;
 }
 
-// function getAnnots($htmlfile){
-//   $annothtml = $annothtml."Hover mouse over variables to see inferred types." ;
-//   $annothtml = $annothtml.(file_get_contents($htmlfile));
-//   return $annothtml;
-// }
-
 function writeFileRaw($fname, $rawstring){
   $f = fopen($fname, "w");
   fwrite($f, $rawstring);
@@ -76,9 +70,6 @@ function getResultAndWarns($outfile){
   return array( "result" => $res
               , "warns"  => $warns ); 
 }
-
-/*
-*/
 
 ////////////////////////////////////////////////////////////////////////////////////
 //////////////////// Top Level Server //////////////////////////////////////////////

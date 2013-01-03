@@ -36,7 +36,7 @@ function getVerifierURL()  { return 'liquid.php';                   }
 
 var globData = null;
 
-function LiquidDemoCtrl($scope, $http) {
+function LiquidDemoCtrl($scope, $http, $location) {
 
   // List of demos
   $scope.basicDemos   = 
@@ -92,7 +92,6 @@ function LiquidDemoCtrl($scope, $http) {
          .success(function(data, status) {
             $scope.outReady  = true;
             $scope.status    = status;
-
             globData         = data;
 
             $scope.result    = data.result;
@@ -113,51 +112,4 @@ function LiquidDemoCtrl($scope, $http) {
          });
   };
 }
-
-/* DOESNT WORK
-
-http://jsfiddle.net/xzachtli/K4Kx8/1/
-var myApp = angular.module('myApp', []);
-
-myApp.directive('fadey', function() {
-    return {
-        restrict: 'A',
-        link: function(scope, elm, attrs) {
-            var duration = parseInt(attrs.fadey);
-            if (isNaN(duration)) {
-                duration = 500;
-            }
-            elm = jQuery(elm);
-            elm.hide();
-            elm.fadeIn(duration)
-
-            scope.destroy = function(complete) {
-                elm.fadeOut(duration, function() {
-                    if (complete) {
-                        complete.apply(scope);
-                    }
-                });
-            };
-        }
-    };
-});
-
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
