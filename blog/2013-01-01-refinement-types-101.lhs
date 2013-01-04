@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Refinement Types 101"
-date: 2012-12-20 16:12
+date: 2013-01-01 16:12
 author: Ranjit Jhala
 published: true
 comments: true
@@ -10,7 +10,6 @@ categories: basic
 demo: refinements101.hs
 ---
 
-(Click the title to demo LiquidHaskell on the code in this article)
 
 One of the great things about Haskell, is its brainy type system that
 allows one to enforce a variety of invariants at compile time, thereby
@@ -36,6 +35,8 @@ of the underlying values.
 Say what? 
 
 <!-- more -->
+
+(Btw, *click the title* to demo LiquidHaskell on the code in this article)
 
 \begin{code}
 module Intro where

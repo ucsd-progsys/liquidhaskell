@@ -10,8 +10,6 @@ categories: basic
 demo: vectorbounds.hs
 ---
 
-(Click the title to demo LiquidHaskell on the code in this article)
-
 Hopefully, the [previous][ref101] article gave you a basic idea about what
 refinement types look like. Today, lets build on that intuition with some 
 small examples that illustrate how LiquidHaskell can be used to do 
@@ -19,6 +17,8 @@ compile-time **bounds checking**, while reasoning about *recursion*
 *higher-order functions*, *data types*, and *polymorphism*.
 
 <!-- more -->
+
+(Btw, *click the title* to demo LiquidHaskell on the code in this article)
 
 \begin{code}
 module DependentRefinements (
