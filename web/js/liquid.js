@@ -18,6 +18,7 @@ var allDemos =
     "ListElts.hs"       : { "name" : "List Elements"    , "type" : "measure"}, 
 
     // Abstract Refinement Demos
+    "absref101.hs"      : { "name" : "Parametric Invariants", "type" : "absref" },  
     "ListSort.hs"       : { "name" : "Sorting Lists"    , "type" : "absref" },
     "Map.hs"            : { "name" : "BinSearch Tree"   , "type" : "absref" },
     "Foldr.hs"          : { "name" : "Induction"        , "type" : "absref" }

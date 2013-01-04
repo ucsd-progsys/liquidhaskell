@@ -21,7 +21,7 @@ import Language.Haskell.Liquid.Prelude (liquidAssume)
 \end{code}
 
 \begin{code}We specify vectors as 
-type Vec a <dom :: Int -> Bool, rng :: Int -> a -> Bool>
+type Vec a <dom :: Int -> Prop, rng :: Int -> a -> Prop>
   = (i:Int <dom> -> a<rng i>)
 \end{code}
 
@@ -38,8 +38,10 @@ Creating Vectors
 We can use the following basic functions to create vectors:
 
 \begin{code}
-{-@ empty :: forall <rng :: Int -> a -> Bool>. 
-              i:{v: Int | 0 = 1} ->  a<rng> @-}
+{- empty :: forall <rng :: Int -> a -> Prop>. 
+              i:{v: Int | 0 = 1} ->  a<rng> -}
+
+{-@ empty :: i: {v: Int | 0 = 1} -> a @-}
 empty :: Vec a
 empty = \_ -> (error "Empty Vec")
 
@@ -56,7 +58,7 @@ Accessing Vectors
 We can write the following `get` function for reading the contents of a vector at a given index:
 
 \begin{code}
-{-@ get :: forall a <d :: x0:Int -> Bool, r :: x0: Int -> x1:a -> Bool>.
+{-@ get :: forall a <d :: x0:Int -> Prop, r :: x0: Int -> x1:a -> Prop>.
              i: Int<d> ->
              a: (j: Int<d> -> a<r j>) ->
              a<r i> 
@@ -70,7 +72,7 @@ The signature states that for any domain `d` and range `r`, if the index `i` is 
 The type for `set`, which _updates_ the vector at a given index, is even more interesting, as it allows us to _extend_ the domain of the vector:
 
 \begin{code}
-{-@ set :: forall a <r :: x0: Int -> x1: a -> Bool, d :: x0: Int -> Bool>.
+{-@ set :: forall a <r :: x0: Int -> x1: a -> Prop, d :: x0: Int -> Prop>.
       i: Int<d> ->
       x: a<r i> ->
       a: (j: {v: Int<d> | v != i} -> a<r j>) ->
@@ -92,7 +94,7 @@ Initializing Vectors
 Next, we can write the following function, `init`, that ''loops'' over a vector, to `set` each index to a value given by some function.
 
 \begin{code}
-{-@ initialize :: forall a <r :: x0: Int -> x1: a -> Bool>.
+{-@ initialize :: forall a <r :: x0: Int -> x1: a -> Prop>.
       f: (z: Int -> a<r z>) ->
       i: {v: Int | v >= 0} ->
       n: Int ->
