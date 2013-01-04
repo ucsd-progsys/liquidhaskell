@@ -1,15 +1,17 @@
 <html lang="en" ng-app>
   <head>
     <meta charset="utf-8">
-    <title>Liquid Haskell · Demo</title>
+    <title>LiquidHaskell · Demo</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="">
     <meta name="author" content="">
 
     <!-- Le styles -->
-    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/bootstrap-readable.css" rel="stylesheet">
     <link href="css/bootstrap-responsive.css" rel="stylesheet">
-    <link href="css/docs.css" rel="stylesheet">
+    <link href="css/bootswatch.css" rel="stylesheet">
+    <!-- <link href="css/docs.css" rel="stylesheet"> -->
+
     <link href="syntax/liquid.css" type='text/css' rel="stylesheet">
     <link href="css/codemirror.css" rel="stylesheet" >
 
@@ -33,21 +35,24 @@
           
           <div class="nav-collapse collapse">
           <ul class="nav">
-            <!-- <li class="active">
-              <a class="brand" href="./index.html">Liquid Haskell</a>
-              </li> -->
+            
             <li class="active">
                 <a href="./index.html">Demo</a>
             </li>
-            <li class="">
-                <a href="http://goto.ucsd.edu/~rjhala/liquid/">Papers</a>
-            </li>
+            
             <li class="">
                 <a href="https://github.com/ucsd-progsys/liquidhaskell">Code</a>
             </li>
+   
             <li class="">
-               <a href="http://liquidtypes.blogspot.com/">Blog</a>
+                <a href="http://goto.ucsd.edu/~rjhala/liquid/blog/about/">About</a>
             </li>
+
+
+            <li class="">
+               <a href="http://goto.ucsd.edu/~rjhala/liquid/blog/">Blog</a>
+            </li>
+          
           </ul>
           </div>
         </div>
@@ -59,10 +64,10 @@
            
    <header class="jumbotron subhead" id="overview">
      <div class="container">
-       <h1>Liquid Haskell</h1>
-       <p class="lead">Dependent Types via SMT and Predicate Abstraction</p>
+         <h1>LiquidHaskell</h1>
+         <p class="lead">Refinement Types via SMT and Predicate Abstraction</p>
      </div>
-     </header>
+   </header>
 
    
    <!-- Actual Body ================================================== -->
@@ -72,9 +77,11 @@
        <div class="span2">
        <!--Sidebar content-->
        <ul class="nav nav-list">
-         
+
+         <!-- TODO
          <li class="nav-header">New</li>
          <li><a href="#">Load File</a></li>
+         -->
 
          <li class="nav-header">Basics</li>
          <li ng-repeat="demo in basicDemos"><a href="" ng-click="changeTarget(demo)">{{demo.name}}</a></li>
@@ -82,7 +89,7 @@
          <li class="nav-header">Datatype Measures</li>
          <li ng-repeat="demo in measureDemos"><a href="" ng-click="changeTarget(demo)">{{demo.name}}</a></li>
          
-         <li class="nav-header">Abstr. Refinements</li>
+         <li class="nav-header">Abstract Refinements</li>
          <li ng-repeat="demo in abstRefDemos"><a href="" ng-click="changeTarget(demo)">{{demo.name}}</a></li>
 
        </ul>
@@ -109,10 +116,10 @@
              </div>
              
              <div id="program-pane" class="well" style="background:#fff">
-                 <button class="btn btn-primary" type="button" ng-click="verifySource()">Verify</button>
+                 <button class="btn btn-info" type="button" ng-click="verifySource()">Verify</button>
 
                  <div style="float:right" ng-show="isUnknown">
-                    <span class="label label-info large" id="sourceName">{{msg}}</span>
+                    <span class="label large" id="sourceName">{{msg}}</span>
                  </div> 
                 
                  <div style="float:right" ng-show="isSafe">
@@ -161,7 +168,7 @@
              </div>
 
              <div class="page-header">
-               <h1>Annotated Program  <small> Hover mouse over variables to see inferred types</small></h1>
+               <h1><small> Hover mouse over variables to see inferred types</small></h1>
              </div>
              <div ng-bind-html-unsafe="annotHtml"></div>
 

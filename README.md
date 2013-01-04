@@ -100,6 +100,10 @@ How to Get Stack Traces On Exceptions
 How to deploy Web Demo
 ----------------------
 
+0. Set $packagedir in web/liquid.php to a suitable package directory, eg
+    
+    $packagedir       = "/home/rjhala/.ghc/x86_64-linux-7.4.1/package.conf.d/";
+
 1. Name target directory $(SERVERHOME) in Makefile
 
 2. Create target directory

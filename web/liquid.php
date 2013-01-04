@@ -4,11 +4,12 @@
 // error_reporting(E_ALL | E_STRICT);
 
 
-function execCommand($ths, $dir, $log) {
-  $cmd_ld_lib = 'LANG=en_US.UTF-8 LD_LIBRARY_PATH='.$dir.'external/z3/lib' ;
-  $cmd_liqhs  = 'LIQUIDHS='.$dir;
-  $cmd_liquid = $dir.'liquid '.$ths ;
-  $cmd        = $cmd_ld_lib.' '.$cmd_liqhs.' '.$cmd_liquid.' > '.$log.' 2>&1';
+function execCommand($ths, $dir, $log, $packagedir) {
+  $cmd_ld_lib  = 'LANG=en_US.UTF-8 LD_LIBRARY_PATH='.$dir.'external/z3/lib' ;
+  $cmd_liqhs   = 'LIQUIDHS='.$dir;
+  $cmd_packdir = 'GHC_PACKAGE_PATH='.$packagedir.':' ;
+  $cmd_liquid  = $dir.'liquid '.$ths ;
+  $cmd         = $cmd_ld_lib.' '.$cmd_liqhs.' '.$cmd_packdir.' '.$cmd_liquid.' > '.$log.' 2>&1';
   return $cmd;
 }
 
@@ -75,6 +76,9 @@ function getResultAndWarns($outfile){
 //////////////////// Top Level Server //////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 
+// Global Constants
+$packagedir       = "/home/rjhala/.ghc/x86_64-linux-7.4.1/package.conf.d/";
+$log              = "log";
 
 // Get inputs
 $data             = file_get_contents("php://input");
@@ -91,7 +95,6 @@ $thq              = $ths . ".hquals";
 $thtml            = $ths . ".html"; 
 $tout             = $ths . ".out";  
 $terr             = $ths . ".err";
-$log              = "log";
 
 // Write query to files
 writeFileRaw($thq, $query->qualifiers);
@@ -100,7 +103,8 @@ writeFileRaw($ths, $query->program);
 // echo 'wrote files';
 
 // Run solver
-$cmd              = execCommand($ths, "./", $log);
+$cmd              = execCommand($ths, "./", $log, $packagedir);
+writeFileRaw("cmdlog", $cmd);
 $res              = shell_exec($cmd);
 
 // Parse results
@@ -114,6 +118,8 @@ $out['annotHtml'] = file_get_contents($thtml);
 // Cleanup temporary files
 shell_exec("mv ".$ths." saved/");
 shell_exec("mv ".$thq." saved/");
+shell_exec("rm -rf ".$t."*");
+
 
 // Put outputs 
 echo json_encode($out);

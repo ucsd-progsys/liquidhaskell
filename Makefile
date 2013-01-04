@@ -38,10 +38,10 @@ rebuild:
 
 site: all
 	cp dist/build/liquid/liquid $(SERVERHOME)/liquid
-	cp -r external $(SERVERHOME)/
-	cp -r include $(SERVERHOME)/
-	cp -r syntax $(SERVERHOME)/
-	cp -r web/* $(SERVERHOME)/
+	cp -rf external $(SERVERHOME)/
+	cp -rf include $(SERVERHOME)/
+	cp -rf syntax $(SERVERHOME)/
+	cp -rf web/* $(SERVERHOME)/
 
 siteperms:
 	sudo chgrp -R www-data $(SERVERHOME)
