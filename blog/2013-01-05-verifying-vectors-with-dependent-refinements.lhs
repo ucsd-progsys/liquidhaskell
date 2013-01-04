@@ -1,7 +1,7 @@
 
 ---
 layout: post
-title: "Verifying Vectors With Dependent Refinements"
+title: "Verifying Vector Bounds"
 date: 2013-01-05 16:12
 author: Ranjit Jhala
 published: true 
@@ -10,7 +10,7 @@ external-url:
 categories: basic
 ---
 
-[**Try This Demo**](http://goto.ucsd.edu:~rjhala/liquid/haskell/demo/#?demo=vectorbounds.hs)
+<a class="btn btn-info" href="http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=vectorbounds.hs">Run Demo</a>
 
 Hopefully, the [previous][ref101] article gave you a basic idea about what
 refinement types look like. Today, lets build on that intuition with some 
@@ -47,7 +47,7 @@ functions that manipulate vectors, in particular, those from the popular
 To start off, lets **specify** bounds safety by *refining* the types for
 the [key functions][vecspec] exported by the module `Data.Vector`. 
 
-``` haskell Partial Specifications for `Data.Vector` https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec
+\begin{code}Specifications for `Data.Vector`
 module spec Data.Vector where
 
 import GHC.Base
@@ -55,7 +55,7 @@ import GHC.Base
 measure vlen    ::   (Vector a) -> Int 
 assume length   :: x:(Vector a) -> {v : Int | v = (vlen x)}
 assume !        :: x:(Vector a) -> {v : Int | ((0 <= v) && (v < (vlen x))) } -> a 
-```
+\end{code}
 
 In particular, we 
 
@@ -85,12 +85,11 @@ Haskell source for `Data.Vector`.
 **Dependent Refinements**
 
 Notice that in the function type (e.g. for `length`) we have *named* the *input*
-parameter `x` so that we can refer to it in the *output* refinement. In this case, 
-the type 
+parameter `x` so that we can refer to it in the *output* refinement. 
 
-``` haskell 
+\begin{code} In this case, the type 
 assume length   :: x:(Vector a) -> {v : Int | v = (vlen x)}
-```
+\end{code}
 
 states that the `Int` output is exactly equal to the size of the input `Vector` named `x`.
 
@@ -269,11 +268,9 @@ typing things like the above! Of course, if we wanted to make `loop` a
 public or exported function, we could use the inferred type to generate 
 an explicit signature too.
 
-At the call 
-
-```haskell
+\begin{code}At the call 
 loop 0 n 0 body 
-```
+\end{code}
 
 the parameters `lo` and `hi` are instantiated with `0` and `n` respectively
 (which, by the way is where the inference engine deduces non-negativity
@@ -292,11 +289,11 @@ dotProduct x y = loop 0 (length x) 0 (\i -> (+ (x ! i) * (y ! i)))
 \end{code}
 
 The gimlet-eyed reader will realize that the above is quite unsafe -- what
-if `x` is a 10-dimensional vector while `y` has only 3-dimensions? A nasty
+if `x` is a 10-dimensional vector while `y` has only 3-dimensions? 
 
-```haskell
+\begin{code}A nasty
 *** Exception: ./Data/Vector/Generic.hs:244 ((!)): index out of bounds ...
-```
+\end{code}
 
 *Yech*. 
 
@@ -367,12 +364,11 @@ Refinements and Polymorphism
 ----------------------------
 
 The sharp reader will have undoubtedly noticed that the sparse product 
-can be more cleanly expressed as a [fold][foldl]. Indeed! Let us recall
-the type of the `foldl` operation
+can be more cleanly expressed as a [fold][foldl]. 
 
-```haskell
+\begin{code} Indeed! Let us recall the type of the `foldl` operation
 foldl' :: (a -> b -> a) -> a -> [b] -> a
-```
+\end{code}
 
 Thus, we can simply fold over the sparse vector, accumulating the `sum`
 as we go along
