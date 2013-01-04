@@ -46,7 +46,7 @@ import Language.Haskell.Liquid.Prelude  (liquidAssert)
 
 Let us jump right in with a simple example, the number `0 :: Int`. 
 As far as Haskell is concerned, the number is simply an `Int` (lets not
-worry about things like `Num` for the moment.) So are, `2` and `7` and 
+worry about things like `Num` for the moment). So are, `2` and `7` and 
 `904`. With refinements, we can dress up these values so that they 
 stand apart. For example, consider the binder
 
