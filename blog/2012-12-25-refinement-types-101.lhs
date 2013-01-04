@@ -7,6 +7,7 @@ published: true
 comments: true
 external-url:
 categories: basic
+demo: refinements101.hs
 ---
 
 <a class="btn btn-info" href="http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=refinements101.hs">Run Demo</a>
