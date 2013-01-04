@@ -10,7 +10,7 @@ categories: basic
 demo: vectorbounds.hs
 ---
 
-<a class="btn btn-info" href="http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=vectorbounds.hs">Run Demo</a>
+(Click the title to demo LiquidHaskell on the code in this article)
 
 Hopefully, the [previous][ref101] article gave you a basic idea about what
 refinement types look like. Today, lets build on that intuition with some 
