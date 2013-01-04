@@ -2,9 +2,9 @@ TODO
 ====
     
 * demo: 
-  -> move blog URL to liquid/haskell/blog <------------------ HEREHEREHEREHERE
   -> populate demos with blog articles
   -> link blog articles to files
+  -> move blog URL to liquid/haskell/blog <------------------ HEREHEREHEREHERE
   -> unify bootstrap css with http://bootswatch.com/readable/
 
 * "RELEASE"
