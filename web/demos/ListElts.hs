@@ -32,7 +32,7 @@ data Set a
 -- by structural recursion on the list.
 
 
-{-@ measure elts :: [a] -> (Set a)
+{-@ measure elts :: [a] -> (Set a) 
     elts ([])   = {v | (? Set_emp(v))}
     elts (x:xs) = {v | v = (Set_cup (Set_sng x) (elts xs)) }
   @-}
@@ -82,7 +82,11 @@ myreverse = go []
 -- that the output indeed includes the elements from both the input lists.
 
 
-{-@ myapp :: xs:[a] -> ys:[a] -> {v:[a] | (elts v) = (Set_cup (elts xs) (elts ys))} @-}
+{-@ myapp :: xs:[a] 
+          -> ys:[a] 
+          -> {v:[a] | (elts v) = (Set_cup (elts xs) (elts ys))} 
+  @-}
+
 myapp []     ys = ys
 myapp (x:xs) ys = x : myapp xs ys
 
