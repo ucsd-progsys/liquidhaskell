@@ -98,7 +98,11 @@ myapp (x:xs) ys = x : myapp xs ys
 -- that it returns a subset of the values of the input list.
 
 
-{-@ myfilter :: (a -> Bool) -> xs:[a] -> {v:[a]| (? (Set_sub (elts v) (elts xs)))} @-}
+{-@ myfilter :: (a -> Bool) 
+             -> xs:[a] 
+             -> {v:[a]| (? (Set_sub (elts v) (elts xs)))} 
+  @-}
+
 myfilter f []     = []
 myfilter f (x:xs)
   | f x           = x : myfilter f xs
