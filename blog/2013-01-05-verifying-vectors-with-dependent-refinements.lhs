@@ -1,4 +1,3 @@
-
 ---
 layout: post
 title: "Verifying Vector Bounds"
@@ -8,6 +7,7 @@ published: true
 comments: true
 external-url:
 categories: basic
+demo: vectorbounds.hs
 ---
 
 <a class="btn btn-info" href="http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=vectorbounds.hs">Run Demo</a>
