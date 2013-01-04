@@ -43,7 +43,7 @@ We can prove that if a property holds for both  `x` and `y`, then it also holds 
 So, we would like to _abstract_ over the refinements that both arguments and the result have.
 We can acchieve this with with _abstract refinements_, which let us quantify or parameterize a type over its constituent refinements.  For example, we can type `maxInt` as
 \begin{code}
-{-@ maxInt :: forall <p :: Int -> Bool>. x:Int <p> -> y:Int <p> -> Int <p>@-}
+{-@ maxInt :: forall <p :: Int -> Prop>. x:Int <p> -> y:Int <p> -> Int <p>@-}
 \end{code}
 
 where `Int<p>` is an abbreviation for the refinement type `{v:Int | p(v)}`.
@@ -63,7 +63,7 @@ type.
 
 By the same reasoning, we can define the `maximumInt` operator on lists:
 \begin{code}
-{-@ maximumInt :: forall <p :: Int -> Bool>. x:[Int <p>] -> Int <p>@-}
+{-@ maximumInt :: forall <p :: Int -> Prop>. x:[Int <p>] -> Int <p>@-}
 maximumInt ::  [Int] -> Int 
 maximumInt (x:xs) = foldr maxInt x xs
 \end{code}
@@ -121,11 +121,11 @@ arbitrary refinement types? First, via the same analysis as
 the monomorphic `Int` case, we establish that
 
 \begin{code}
-{-@ maxPoly :: forall <p :: a -> Bool>. (Ord a) => x:a<p> -> y:a<p> -> a<p> @-}
+{-@ maxPoly :: forall <p :: a -> Prop>. (Ord a) => x:a<p> -> y:a<p> -> a<p> @-}
 maxPoly     :: (Ord a) => a -> a -> a 
 maxPoly x y = if x <= y then y else x
 
-{-@ maximumPoly :: forall <p :: a -> Bool>. (Ord a) => x:[a<p>] -> a<p> @-}
+{-@ maximumPoly :: forall <p :: a -> Prop>. (Ord a) => x:[a<p>] -> a<p> @-}
 maximumPoly :: (Ord a) => [a] -> a
 maximumPoly (x:xs) = foldr maxPoly x xs
 \end{code}
