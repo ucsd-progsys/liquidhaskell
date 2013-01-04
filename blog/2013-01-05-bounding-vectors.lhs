@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Verifying Vector Bounds"
+title: "Bounding Vectors"
 date: 2013-01-05 16:12
 author: Ranjit Jhala
 published: true 
