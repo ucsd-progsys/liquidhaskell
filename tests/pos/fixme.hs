@@ -1,6 +1,6 @@
 module Fixme where
 
-{-@ type IntLess i = {v:Int | (i < v)} @-}
+{-@ type IntLess I = {v:Int | (I < v)} @-}
 
 -- this is safe
 {-@ foo :: i:Int  -> (IntLess i) @-}

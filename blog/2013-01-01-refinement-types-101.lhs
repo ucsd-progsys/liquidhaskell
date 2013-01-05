@@ -139,15 +139,16 @@ Next, we can use refinements to encode arbitrary programmer-specified
 **assertions** by defining a function
 
 \begin{code}
-{-@ lAssert     :: {v:Bool | (? (Prop v))} -> a -> a  @-}
+{-@ lAssert     :: {v:Bool | (Prop v)} -> a -> a  @-}
 lAssert         :: Bool -> a -> a 
 lAssert True  x = x
 lAssert False _ = error' "lAssert failure" 
 \end{code}
 
-The input type for this function specifies that the function must *only* be 
-called with `True` values (the syntax `? v` means `v` interpreted as a
-proposition.)
+In the refinement, `(Prop v)` denotes the Haskell `Bool` value `v` 
+interpreted as a logical predicate. In other words, the input type for 
+this function specifies that the function must *only* be called with
+the value `True`.
 
 
 Refining Function Types : Preconditions
@@ -175,7 +176,7 @@ does so by using the fact that (in the pertinent equation) the denominator
 parameter is in fact `0 :: {v: Int | v = 0}` which *contradicts* the
 precondition.
 In other words, LiquidHaskell deduces by contradiction, that the first equation 
-is *dead code* and hence `error'` will not be called at run-time.
+is **dead code** and hence `error'` will not be called at run-time.
 
 If you are paranoid, you can put in an explicit assertion
 
@@ -212,8 +213,8 @@ deducing that `n` is trivially non-negative when `0 < n` and that in
 the `otherwise` case, i.e. when `not (0 < n)` the value `0 - n` is
 indeed non-negative (lets not worry about underflows for the moment.)
 
-Putting It All Together: A `truncate` function
-----------------------------------------------
+Putting It All Together
+-----------------------
 
 Lets wrap up this introduction with a simple `truncate` function 
 that connects all the dots. 
@@ -239,7 +240,7 @@ at the call site
 From the above, LiquidHaskell infers that `i' != 0`. That is, at the
 call site `i' :: {v: Int | v != 0}`, thereby satisfying the
 precondition for `divide` and verifying that the program has no pesky 
-divide-by-zero errors. Again, if you are *really* want to make sure, put 
+divide-by-zero errors. Again, if you *really* want to make sure, put 
 in an assertion
 
 \begin{code}
@@ -279,11 +280,11 @@ Conclusion
 This concludes our quick introduction to Refinement Types and
 LiquidHaskell. Hopefully you have some sense of how to 
 
-1. *Specify* fine-grained properties of values by decorating their
+1. **Specify** fine-grained properties of values by decorating their
    types with logical predicates.
-2. *Encode* assertions, preconditions, and postconditions with suitable
+2. **Encode** assertions, preconditions, and postconditions with suitable
    function types.
-3. *Verify* semantic properties of code by using automatic logic engines 
+3. **Verify** semantic properties of code by using automatic logic engines 
    (SMT solvers) to track and establish the key relationships between 
    program values.
 
