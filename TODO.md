@@ -30,29 +30,11 @@ TODO
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
-Populate Demos
-==============
+Z3/toSmtLib
+===========
 
-var allDemos =
-  { // Basic Demos
-    "blank.hs"          : { "name" : "Blank"            , "type" : "basic"  },
-    "refinements101.hs" : { "name" : "Refinements 101"  , "type" : "basic"  },
-    "vectorbounds.hs"   : { "name" : "Vector Bounds"    , "type" : "basic"  },
-
-    // Measure Demos
-    "ListLength.hs"     : { "name" : "List Lengths"     , "type" : "measure"},
-    "MapReduce.hs"      : { "name" : "Map Reduce"       , "type" : "measure"}, 
-    "KMeans.hs"         : { "name" : "K-Means"          , "type" : "measure"}, 
-    "LambdaEval.hs"     : { "name" : "Lambda Evaluator" , "type" : "measure"}, 
-    "ListElts.hs"       : { "name" : "List Elements"    , "type" : "measure"}, 
-
-    // Abstract Refinement Demos
-    "ListSort.hs"       : { "name" : "Sorting Lists"    , "type" : "absref" },
-    "Map.hs"            : { "name" : "BinSearch Tree"   , "type" : "absref" },
-    "Foldr.hs"          : { "name" : "Induction"        , "type" : "absref" }
-  };
-
-
+:extrafuns ((cmp Int Int))
+:extrapreds ((Prop Int))
 
 BExp Parser vs. ppr_rtype [BEXPARSER]
 =====================================
