@@ -21,6 +21,8 @@
  *
  *)
 
-(* val render : Format.formatter -> FixConfig.deft list -> unit *)
+(* val render : Format.formatter -> FixConfig.deft list -> unit 
 val render : Format.formatter -> 'a FixConfig.cfg -> unit
+*)
+val dump_smtlib : 'a FixConfig.cfg -> unit
 

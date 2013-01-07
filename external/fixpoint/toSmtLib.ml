@@ -378,6 +378,16 @@ let tx_defs cfg =
 (************* API *******************************************************)
 (*************************************************************************)
 
+  (*
 let render ppf cfg =
   cfg |> tx_defs 
       |> F.fprintf ppf "%a" print
+*)
+let dump_smtlib cfg =
+  let _  = print_now ("BEGIN: Dump SMTLIB \n") in
+  let me = tx_defs cfg                         in
+  let _  = Misc.with_out_formatter !Constants.out_file (fun ppf -> F.fprintf ppf "%a" print me) in
+  let _  = print_now ("DONE: Dump SMTLIB to " ^ !Constants.out_file ^"\n") in
+  exit 1 
+
+

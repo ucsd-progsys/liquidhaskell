@@ -98,19 +98,6 @@ let dump_imp a =
   |> fun _ -> exit 1 
 
 (*****************************************************************)
-(********************* Generate SMTLIB Query *********************)
-(*****************************************************************)
-
-let dump_smtlib a =
-  (* let xs = (List.map (fun c -> Cg.Cst c) a.Cg.cs ++ List.map (fun c -> Cg.Wfc c) a.Cg.ws) in
-  *)
-  let _  = print_now ("BEGIN: Dump SMTLIB \n") in
-  let _  = Misc.with_out_formatter !Co.out_file (fun ppf -> ToSmtLib.render ppf a) in
-  let _  = print_now ("DONE: Dump SMTLIB to " ^ !Co.out_file ^"\n") in
-  exit 1 
-
-
-(*****************************************************************)
 (***************** Generate Simplified Constraints ***************)
 (*****************************************************************)
 
@@ -151,7 +138,7 @@ let main () =
   if !Co.dump_imp then 
     dump_imp cfg 
   else if !Co.dump_smtlib then
-    dump_smtlib cfg
+    ToSmtLib.dump_smtlib cfg
   else if !Co.dump_simp <> "" then 
     dump_simp cfg
   else
