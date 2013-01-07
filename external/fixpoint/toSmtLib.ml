@@ -246,22 +246,26 @@ let vdefs_of_env env r =
 (************* Build VMap : gather all vars/sorts for regular vars *******) 
 (*************************************************************************)
 
+
 let update_vmap vm (x, t) =
   Misc.maybe_iter begin fun t' ->
     asserts (sort_compat x t t') "ERROR: v-sort incompatible %s" (Sy.to_string x)
   end (SM.maybe_find x vm);
   SM.add x t vm
 
+let update_vmap_int vm (x, t) =
+  SM.add x So.t_int vm
+
 let add_c_var_to_vmap vm c =
   let vvl = C.vv_of_reft (C.lhs_of_t c) in
   let vvr = C.vv_of_reft (C.rhs_of_t c) in
   let _   = asserts (vvl = vvr) "Different VVs in Constr: %d" (C.id_of_t c) in
   vdefs_of_env (C.env_of_t c) (C.lhs_of_t c)
-  |> List.fold_left update_vmap vm 
+  |> List.fold_left update_vmap_int vm 
  
 let add_wf_var_to_vmap vm w =
   vdefs_of_env (C.env_of_wf w) (C.reft_of_wf w)
-  |> List.fold_left update_vmap vm 
+  |> List.fold_left update_vmap_int vm 
   
 (*************************************************************************)
 (************ Build KMap: gather scopes for each kvar from wfs** *********)
