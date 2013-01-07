@@ -312,6 +312,18 @@ let tx_constraint s c =
             |  c' -> ([], c')
           end
 
+(*
+
+let shift_vv r i  = 
+  let vv = C.vv_of_reft r   in
+  let t  = C.sort_of_reft r in
+  let rs = C.ras_of_reft r  in
+
+let canonize_vv c = c { lhs = c.lhs 
+
+*)
+
+
 let tx_defs defs = 
   let km  = defs |> make_kmap in
   let s   = soln_of_kmap km   in 

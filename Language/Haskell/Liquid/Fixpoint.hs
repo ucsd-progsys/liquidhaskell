@@ -1108,7 +1108,9 @@ shiftVV r@(Reft (v, ras)) v'
 -- shiftVV (Reft (v, ras)) v' = (su, (Reft (v', subst su ras))) 
 --   where su = mkSubst [(v, EVar v')]
 
-addIds = zipWith (\i c -> (i, c {sid = Just i})) [1..]
-
-
-
+addIds =zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
+  where -- Adding shiftId to have distinct VV for SMT conversion 
+    shiftId i c = c { slhs = shiftSR i $ slhs c } 
+                    { srhs = shiftSR i $ srhs c }
+    shiftSR i sr = sr { sr_reft = shiftR i $ sr_reft sr }
+    shiftR i r@(Reft (S v, _)) = shiftVV r (S (v ++ show i))
