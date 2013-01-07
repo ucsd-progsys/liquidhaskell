@@ -228,10 +228,15 @@ let sort_compat x t t' =
                Printf.printf "WARNING: k-sort incompatible for %s" 
                (Sy.to_string x))
 
+(* HACKY sort_compat because in the end everything is an Int *)
+let sort_compat x t1 t2 = 
+  not (So.is_bool t1) && not (So.is_bool t2)
+
 let vdefs_of_env env r = 
   env |> C.bindings_of_env
       |> (++) [(C.vv_of_reft r, r)]
       |> List.map (Misc.app_snd C.sort_of_reft)
+      |> List.filter (not <.> So.is_func <.> snd) 
       |> Misc.fsort fst
 
 (*************************************************************************)
