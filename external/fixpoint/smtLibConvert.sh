@@ -1,7 +1,7 @@
 #!/bin/bash
 
 FIXPOINT=/home/rjhala/research/liquidhaskell/external/fixpoint/fixpoint.native
-Z3=/home/rjhala/research/csolve/external/z3/bin/z3
+Z3=/home/rjhala/research/liquidhaskell/external/z3/bin/z3
 
 for f in $1/*.fq; do 
   echo "Processing $f ..."; 

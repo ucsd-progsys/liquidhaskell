@@ -62,9 +62,10 @@ type cstr
     }
 
 type smtlib 
-  = { vars  : vdef list
-    ; kvars : kdef list
-    ; cstrs : cstr list 
+  = { vars   : vdef list
+    ; kvars  : kdef list
+    ; cstrs  : cstr list 
+    ; consts : vdef list
   }
 
 type kmap 
@@ -157,10 +158,32 @@ let rec print_sort ppf t = match So.func_of_t t with
   | _ -> 
     Format.fprintf ppf "Int"
 
+(*
+let print_ty_kind ppf t = match So.func_of_t t with
+  | Some (_, ts, t) when So.is_bool t -> Format.fprintf ppf "pred"
+  | _                                 -> Format.fprintf ppf "fun"
+*)
+
+let print_vdef ppf (x, t) = match So.func_of_t t with
+  | Some (_, ts, t') when So.is_bool t' -> 
+      Format.fprintf ppf ":extrapreds ((%a %a))" 
+        Sy.print x 
+        (Misc.pprint_many false " " print_sort) ts
+  | _ ->
+      Format.fprintf ppf ":extrafuns ((%a %a))" 
+        Sy.print x 
+        print_sort t
+
+  (*
 let print_vdef ppf (x, t) = 
-  Format.fprintf ppf ":extrafuns ((%a %a))"
+  Format.fprintf ppf ":extra%as ((%a %a))"
+    print_ty_kind t
     Sy.print x
     print_sort t
+*)
+
+let print_const ppf c = 
+  Format.fprintf ppf "; constant \n%a\n" print_vdef c
 
 let print_kdef ppf (kf, xts) = 
   Format.fprintf ppf ":extrapreds ((%a %a))"
@@ -177,8 +200,9 @@ let print_cstr ppf c =
 
 let print ppf smt = 
   Format.fprintf ppf 
-    "(benchmark unknown\n:status unsat\n:logic AUFLIA\n%a\n%a\n%a\n)"
+    "(benchmark unknown\n:status unsat\n:logic AUFLIA\n%a\n%a\n%a\n%a\n)"
     (Misc.pprint_many true "\n" print_vdef) smt.vars
+    (Misc.pprint_many true "\n" print_const) smt.consts
     (Misc.pprint_many true "\n" print_kdef) smt.kvars
     (Misc.pprint_many true "\n" print_cstr) smt.cstrs
 
@@ -318,15 +342,18 @@ let tx_constraint s c =
           |  c' -> ([], c')
           end
 
-let tx_defs defs = 
-  let km  = defs |> make_kmap in
-  let s   = soln_of_kmap km   in 
-  let cs  = defs |> Misc.map_partial (function Cg.Cst x -> Some x | _ -> None) 
+let tx_defs cfg =
+  let defs = List.map (fun c -> Cg.Cst c) cfg.Cg.cs ++ 
+             List.map (fun c -> Cg.Wfc c) cfg.Cg.ws     in
+  let km   = defs |> make_kmap                          in
+  let s    = soln_of_kmap km                            in 
+  let cs   = defs |> Misc.map_partial (function Cg.Cst x -> Some x | _ -> None) 
                  (* |> Misc.map canonize_vv *) in
   let xts,cs' = List.split <| Misc.flap (tx_constraint s) cs in
-  { vars  = Misc.flatten xts ++ (SM.to_list <| List.fold_left add_var_to_vmap SM.empty cs) 
-  ; kvars = SM.range km
-  ; cstrs = cs'
+  { vars   = Misc.flatten xts ++ (SM.to_list <| List.fold_left add_var_to_vmap SM.empty cs) 
+  ; kvars  = SM.range km
+  ; cstrs  = cs'
+  ; consts = SM.to_list cfg.Cg.uops 
   }
 
 
@@ -334,6 +361,6 @@ let tx_defs defs =
 (************* API *******************************************************)
 (*************************************************************************)
 
-let render ppf defs =
-  defs |> tx_defs 
-       |> F.fprintf ppf "%a" print
+let render ppf cfg =
+  cfg |> tx_defs 
+      |> F.fprintf ppf "%a" print

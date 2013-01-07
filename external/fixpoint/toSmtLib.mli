@@ -21,4 +21,6 @@
  *
  *)
 
-val render : Format.formatter -> FixConfig.deft list -> unit
+(* val render : Format.formatter -> FixConfig.deft list -> unit *)
+val render : Format.formatter -> 'a FixConfig.cfg -> unit
+
