@@ -249,11 +249,15 @@ let update_vmap vm (x, t) =
   end (SM.maybe_find x vm);
   SM.add x t vm
 
-let add_var_to_vmap vm c =
+let add_c_var_to_vmap vm c =
   let vvl = C.vv_of_reft (C.lhs_of_t c) in
   let vvr = C.vv_of_reft (C.rhs_of_t c) in
   let _   = asserts (vvl = vvr) "Different VVs in Constr: %d" (C.id_of_t c) in
   vdefs_of_env (C.env_of_t c) (C.lhs_of_t c)
+  |> List.fold_left update_vmap vm 
+ 
+let add_wf_var_to_vmap vm w =
+  vdefs_of_env (C.env_of_wf w) (C.reft_of_wf w)
   |> List.fold_left update_vmap vm 
   
 (*************************************************************************)
@@ -364,10 +368,12 @@ let tx_defs cfg =
              List.map (fun c -> Cg.Wfc c) cfg.Cg.ws     in
   let km   = defs |> make_kmap                          in
   let s    = soln_of_kmap km                            in 
-  let cs   = defs |> Misc.map_partial (function Cg.Cst x -> Some x | _ -> None) 
-                 (* |> Misc.map canonize_vv *) in
+  let cs   = cfg.Cg.cs                                  in
+  let ws   = cfg.Cg.ws                                  in
   let xts,cs' = List.split <| Misc.flap (tx_constraint s) cs in
-  { vars   = Misc.flatten xts ++ (SM.to_list <| List.fold_left add_var_to_vmap SM.empty cs) 
+  { vars   =  Misc.flatten xts 
+           ++ (SM.to_list <| List.fold_left add_c_var_to_vmap SM.empty cs) 
+           ++ (SM.to_list <| List.fold_left add_wf_var_to_vmap SM.empty ws)
   ; kvars  = SM.range km
   ; cstrs  = cs'
   ; consts = SM.to_list cfg.Cg.uops 
