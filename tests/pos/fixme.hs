@@ -1,12 +1,4 @@
-module Fixme where
+module Data.KMeans where
 
-{-@ type IntLess I = {v:Int | (I < v)} @-}
-
--- this is safe
-{-@ foo :: i:Int  -> (IntLess i) @-}
-foo     :: Int -> Int
-foo n   = n + 1
-
-{-@ bar :: n:Int  -> (IntLess n) @-}
-bar     :: Int -> Int
-bar n   = n + 1
+dist ::  [Double] -> [Double] -> [Double]
+dist a b = zipWith (\ x y -> x + y) a b 
