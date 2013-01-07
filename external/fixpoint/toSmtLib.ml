@@ -260,16 +260,17 @@ let mkFresh cid x =
 
 let fresh_vars env cid es = 
   let t   = Hashtbl.create 17 in
+  let msg = "fresh_vars: cid = "^(string_of_int cid) in   
   let es' = List.map begin fun e -> match e with
             | (A.Var x, _) ->
                 if Hashtbl.mem t x then
                   x |> mkFresh cid >> Hashtbl.add t x |> A.eVar
                 else let _ = Hashtbl.add t x x in e 
-            | _ -> failwith "ERROR fresh_vars"
+            | _ -> failwith ("ERROR: " ^ msg)
             end es in
   let l' = Misc.hashtbl_keys t 
            |> Misc.flap begin fun x -> 
-                let so = SM.safeFind x env "toSmtLib.fresh_vars" in
+                let so = SM.safeFind x env msg in
                 foreach (Hashtbl.find_all t x) begin fun x' ->
                   (x', so), A.pEqual ((A.eVar x), (A.eVar x'))
                 end
@@ -304,25 +305,18 @@ let tx_constraint s c =
                                   | _   -> failwith "tx_constraint")
                           ; id = cid}
           end
-      |>: begin function
-            | { rhs = Some (A.Bexp (A.App (f, es),_), _) } as c' ->
+       
+       |>: begin function
+         (* Ken needed this tx but it messes up with typeclasses... maybe not
+          * needed any more?  
+            
+         | { rhs = Some (A.Bexp (A.App (f, es),_), _) } as c' ->
                 let (xts, eqp), es' = fresh_vars (C.senv_of_t c) cid es in
                 let r'              = A.pBexp (A.eApp (f, es')) in 
                 (xts, {c' with lhs = A.pAnd [eqp; c'.lhs]; rhs = Some r' })
-            |  c' -> ([], c')
+          *)
+          |  c' -> ([], c')
           end
-
-(*
-
-let shift_vv r i  = 
-  let vv = C.vv_of_reft r   in
-  let t  = C.sort_of_reft r in
-  let rs = C.ras_of_reft r  in
-
-let canonize_vv c = c { lhs = c.lhs 
-
-*)
-
 
 let tx_defs defs = 
   let km  = defs |> make_kmap in
