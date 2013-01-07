@@ -1,13 +1,12 @@
 module Fixme where
 
-import Language.Haskell.Liquid.Prelude (liquidAssert)
+{-@ type IntLess I = {v:Int | (I < v)} @-}
 
-loop :: Int -> Int -> a -> (Int -> a -> a) -> a 
-loop lo hi base f = go base lo
-  where
-    go acc i     
-      | i /= hi   = go (f i acc) (i + 1)
-      | otherwise = acc
+-- this is safe
+{-@ foo :: i:Int  -> (IntLess i) @-}
+foo     :: Int -> Int
+foo n   = n + 1
 
-poo = loop 0 10 0 (+)
-
+{-@ bar :: n:Int  -> (IntLess n) @-}
+bar     :: Int -> Int
+bar n   = n + 1

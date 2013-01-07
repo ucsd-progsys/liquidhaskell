@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Refinement Types 101"
-date: 2012-12-20 16:12
+date: 2013-01-01 16:12
 author: Ranjit Jhala
 published: true
 comments: true
@@ -10,11 +10,10 @@ categories: basic
 demo: refinements101.hs
 ---
 
-(Click the title to demo LiquidHaskell on the code in this article)
 
-One of the great things about Haskell, is its brainy type system that
+One of the great things about Haskell is its brainy type system that
 allows one to enforce a variety of invariants at compile time, thereby
-nipping in the bud, a large swathe of run-time errors. Refinement types
+nipping a large swathe of run-time errors in the bud. Refinement types
 allow us to use modern logic solvers (*aka* SAT and SMT engines) to
 dramatically extend the scope of invariants that can be statically
 verified.
@@ -30,12 +29,14 @@ Refinement Types = Types + Logical Predicates
 
 That is, refinement types allow us to decorate types with 
 *logical predicates* which constrain the set of values described
-by the type, and hence, allow us to specify sophisticated invariants 
+by the type, and hence allow us to specify sophisticated invariants 
 of the underlying values.
 
 Say what? 
 
 <!-- more -->
+
+(Btw, *click the title* to demo LiquidHaskell on the code in this article)
 
 \begin{code}
 module Intro where
@@ -45,8 +46,8 @@ import Language.Haskell.Liquid.Prelude  (liquidAssert)
 
 Let us jump right in with a simple example, the number `0 :: Int`. 
 As far as Haskell is concerned, the number is simply an `Int` (lets not
-worry about things like `Num` for the moment.) So are, `2` and `7` and 
-`904`. With refinements, we can dress up these values so that they 
+worry about things like `Num` for the moment). So are `2`, `7`, and 
+`904`. With refinements we can dress up these values so that they 
 stand apart. For example, consider the binder
 
 \begin{code}
@@ -104,12 +105,12 @@ zero     =  0
 
 The key points are:
 
-1. a refinement type is just a type *decorated* with logical predicates,
-2. a value can have *different* refinement types that describe different properties.
-3. if we *erase* the green bits (i.e. the logical predicates) we get back *exactly* 
+1. A refinement type is just a type *decorated* with logical predicates.
+2. A value can have *different* refinement types that describe different properties.
+3. If we *erase* the green bits (i.e. the logical predicates) we get back *exactly* 
    the usual Haskell types that we know and love.
 
-We have built a refinement type based verifier called LiquidHaskell. 
+We have built a refinement type-based verifier called LiquidHaskell. 
 Lets see how we can use refinement types to specify and verify interesting 
 program invariants in LiquidHaskell.
 
@@ -138,15 +139,16 @@ Next, we can use refinements to encode arbitrary programmer-specified
 **assertions** by defining a function
 
 \begin{code}
-{-@ lAssert     :: {v:Bool | (? (Prop v))} -> a -> a  @-}
+{-@ lAssert     :: {v:Bool | (Prop v)} -> a -> a  @-}
 lAssert         :: Bool -> a -> a 
 lAssert True  x = x
 lAssert False _ = error' "lAssert failure" 
 \end{code}
 
-The input type for this function specifies that the function must *only* be 
-called with `True` values (the syntax `? v` means `v` interpreted as a
-proposition.)
+In the refinement, `(Prop v)` denotes the Haskell `Bool` value `v` 
+interpreted as a logical predicate. In other words, the input type for 
+this function specifies that the function must *only* be called with
+the value `True`.
 
 
 Refining Function Types : Preconditions
@@ -174,7 +176,7 @@ does so by using the fact that (in the pertinent equation) the denominator
 parameter is in fact `0 :: {v: Int | v = 0}` which *contradicts* the
 precondition.
 In other words, LiquidHaskell deduces by contradiction, that the first equation 
-is *dead code* and hence `error'` will not be called at run-time.
+is **dead code** and hence `error'` will not be called at run-time.
 
 If you are paranoid, you can put in an explicit assertion
 
@@ -208,11 +210,11 @@ returns non-negative values
 
 LiquidHaskell *verifies* that `abz` indeed enjoys the above type by
 deducing that `n` is trivially non-negative when `0 < n` and that in 
-the `otherwise` case, i.e. when `not (0 < n)`, the value `0 - n` is in
+the `otherwise` case, i.e. when `not (0 < n)` the value `0 - n` is
 indeed non-negative (lets not worry about underflows for the moment.)
 
-Putting It All Together: A `truncate` function
-----------------------------------------------
+Putting It All Together
+-----------------------
 
 Lets wrap up this introduction with a simple `truncate` function 
 that connects all the dots. 
@@ -227,18 +229,18 @@ truncate i max
 \end{code}
 
 `truncate i n` simply returns `i` if its absolute value is less the
-upper bound `max`, and otherwise, *truncates* the value at the maximum.
+upper bound `max`, and otherwise *truncates* the value at the maximum.
 LiquidHaskell verifies that the use of `divide` is safe by inferring that 
-at the callsite, 
+at the call site
 
-1. `i' > max'` from the branch condition,
-2. `0 <= i'`   from the `abz` postcondition (hover mouse over `i'`)
-3. `0 <= max'` from the `abz` postcondition (hover mouse over `max'`)
+1. `i' > max'` from the branch condition.
+2. `0 <= i'`   from the `abz` postcondition (hover mouse over `i'`).
+3. `0 <= max'` from the `abz` postcondition (hover mouse over `max'`).
 
 From the above, LiquidHaskell infers that `i' != 0`. That is, at the
-callsite, the argument `i' :: {v: Int | v != 0}` thereby satisfying the
-precondition for `divide`, thus verifying that the program has no pesky 
-divide-by-zero errors. Again, if you are *really* want to make sure, put 
+call site `i' :: {v: Int | v != 0}`, thereby satisfying the
+precondition for `divide` and verifying that the program has no pesky 
+divide-by-zero errors. Again, if you *really* want to make sure, put 
 in an assertion
 
 \begin{code}
@@ -269,7 +271,7 @@ truncate'' i max
 \end{code}
 
 In fact, LiquidHaskell comes equipped with suitable refinements for
-standard functions, and it is easy to add refinements as we shall
+standard functions and it is easy to add refinements as we shall
 demonstrate in subsequent articles.
 
 Conclusion
@@ -278,11 +280,11 @@ Conclusion
 This concludes our quick introduction to Refinement Types and
 LiquidHaskell. Hopefully you have some sense of how to 
 
-1. *Specify* fine-grained properties of values by decorating their
-   types with logical predicates,
-2. *Encode* assertions, preconditions and postconditions with suitable
-   function types,
-3. *Verify* semantic properties of code by using automatic logic engines 
+1. **Specify** fine-grained properties of values by decorating their
+   types with logical predicates.
+2. **Encode** assertions, preconditions, and postconditions with suitable
+   function types.
+3. **Verify** semantic properties of code by using automatic logic engines 
    (SMT solvers) to track and establish the key relationships between 
    program values.
 
