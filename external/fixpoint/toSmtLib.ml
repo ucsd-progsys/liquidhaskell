@@ -185,6 +185,17 @@ let print_vdef ppf (x, t) =
 let print_const ppf c = 
   Format.fprintf ppf "; constant \n%a\n" print_vdef c
 
+let groupConsts cs = 
+  cs |> Misc.kgroupby snd 
+     |> Misc.map (Misc.app_snd (List.map fst))
+     |> List.filter (snd <+> List.length <+> (>) 0)
+
+let print_distinct ppf (t, cs) =
+  Format.fprintf ppf 
+    "; distinct constants of sort: %a\n(distinct %a)\n"   
+     print_sort t
+     (Misc.pprint_many false " " Sy.print) cs
+
 let print_kdef ppf (kf, xts) = 
   Format.fprintf ppf ":extrapreds ((%a %a))"
     Sy.print kf
@@ -200,11 +211,12 @@ let print_cstr ppf c =
 
 let print ppf smt = 
   Format.fprintf ppf 
-    "(benchmark unknown\n:status unsat\n:logic AUFLIA\n%a\n%a\n%a\n%a\n)"
-    (Misc.pprint_many true "\n" print_vdef) smt.vars
-    (Misc.pprint_many true "\n" print_const) smt.consts
-    (Misc.pprint_many true "\n" print_kdef) smt.kvars
-    (Misc.pprint_many true "\n" print_cstr) smt.cstrs
+    "(benchmark unknown\n:status unsat\n:logic AUFLIA\n%a\n%a\n%a\n%a\n%a\n)"
+    (Misc.pprint_many true "\n" print_vdef)     smt.vars
+    (Misc.pprint_many true "\n" print_const)    smt.consts
+    (Misc.pprint_many true "\n" print_kdef)     smt.kvars
+    (Misc.pprint_many true "\n" print_distinct) (groupConsts smt.consts)
+    (Misc.pprint_many true "\n" print_cstr)     smt.cstrs
 
 (*************************************************************************)
 (************* Helpers for extracting var-sort bindings ******************) 
