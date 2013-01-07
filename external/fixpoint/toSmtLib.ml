@@ -230,13 +230,16 @@ let sort_compat x t t' =
 
 (* HACKY sort_compat because in the end everything is an Int *)
 let sort_compat x t1 t2 = 
-  not (So.is_bool t1) && not (So.is_bool t2)
+  not (So.is_bool t1) 
+  && not (So.is_bool t2) 
+  && (not (So.is_func t1) || (t1 = t2))
+  && (not (So.is_func t2) || (t1 = t2))
 
 let vdefs_of_env env r = 
   env |> C.bindings_of_env
       |> (++) [(C.vv_of_reft r, r)]
       |> List.map (Misc.app_snd C.sort_of_reft)
-      |> List.filter (not <.> So.is_func <.> snd) 
+      (* |> List.filter (not <.> So.is_func <.> snd)  *)
       |> Misc.fsort fst
 
 (*************************************************************************)
