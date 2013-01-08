@@ -184,9 +184,11 @@ closeA a@(AI m)  = cf <$> a
   where cf (Loc loc) = case m `mlookup` loc of
                            [(_, Use t)] -> t
                            [(_, Def t)] -> t
+                           [(_, RDf t)] -> t
                            _            -> errorstar $ "malformed AnnInfo: " ++ showPpr loc
         cf (Use t)   = t
         cf (Def t)   = t
+        cf (RDf t)   = t
 
 filterA (AI m) = AI (M.filter ff m)
   where ff [(_, Loc loc)] = loc `M.member` m
@@ -194,11 +196,13 @@ filterA (AI m) = AI (M.filter ff m)
 
 collapseA (AI m) = AI (fmap pickOneA m)
 
-pickOneA xas = case (ds, ls, us) of
-                 ((x:_), _, _) -> [x]
-                 (_, (x:_), _) -> [x]
-                 (_, _, (x:_)) -> [x]
+pickOneA xas = case (rs, ds, ls, us) of
+                 ((x:_), _, _, _) -> [x]
+                 (_, (x:_), _, _) -> [x]
+                 (_, _, (x:_), _) -> [x]
+                 (_, _, _, (x:_)) -> [x]
   where 
+    rs = [x | x@(_, RDf _) <- xas]
     ds = [x | x@(_, Def _) <- xas]
     ls = [x | x@(_, Loc _) <- xas]
     us = [x | x@(_, Use _) <- xas]
@@ -253,6 +257,7 @@ newtype AnnInfo a = AI (M.HashMap SrcSpan [(Maybe Var, a)])
 
 data Annot        = Use SpecType 
                   | Def SpecType 
+                  | RDf SpecType
                   | Loc SrcSpan
 
 instance Functor AnnInfo where
@@ -266,8 +271,15 @@ instance NFData a => NFData (AnnInfo a) where
 
 instance NFData Annot where
   rnf (Def x) = () -- rnf x
+  rnf (RDf x) = () -- rnf x
   rnf (Use x) = () -- rnf x
   rnf (Loc x) = () -- rnf x
+
+instance Outputable Annot where
+  ppr (Use t) = text "Use" <+> ppr t
+  ppr (Def t) = text "Def" <+> ppr t
+  ppr (RDf t) = text "RDf" <+> ppr t
+  ppr (Loc l) = text "Loc" <+> ppr l
 
 pprAnnInfoBinds (l, xvs) 
   = vcat $ map (pprAnnInfoBind . (l,)) xvs
