@@ -563,7 +563,8 @@ addKuts !t = modify $ \s -> s { kuts = {- tracePpr "KUTS: " $-} updKuts (kuts s)
 addIdA :: Var -> Annot -> CG ()
 addIdA !x !t         = modify $ \s -> s { annotMap = upd $ annotMap s }
   where loc          = getSrcSpan x
-        upd m@(AI z) = addA loc (Just x) t m
+        upd m@(AI z) = -- trace ("addIdA: " ++ show x ++ " :: " ++ showPpr t ++ " at " ++ show loc) $ 
+                       addA loc (Just x) t m
                        --case traceShow ("addIdA: " ++ show x ++ " :: " ++ show t ++ " at " ++ show loc) $ M.lookup loc z of 
                        --  Just (_, (Left _)) -> m 
                        --  _                 -> addA loc (Just x) t m
@@ -730,28 +731,31 @@ consCB γ (Rec xes)
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        let xts = [(x, to) | (x, _, to) <- xets, not (isGrty x)]
        γ'     <- foldM extender (γ `withRecs` (fst <$> xts)) xts
-       mapM_ (consBind γ') xets
+       mapM_ (consBind True γ') xets
        return γ' 
     where isGrty x = (varSymbol x) `memberREnv` (grtys γ)
 
 consCB γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
-       to' <- consBind γ (x, e, to)
+       to' <- consBind False γ (x, e, to)
        extender γ (x, to')
 
-consBind γ (x, e, Just spect) 
+consBind isRec γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
        γπ    <- foldM addPToEnv γ' πs
        t     <- consE γπ e
        addC (SubC γπ t spect) "consBind"
-       addIdA x (Def spect)
+       addIdA x (defAnn isRec spect) 
        return Nothing
-  where πs = snd3 $ bkUniv spect
+  where πs   = snd3 $ bkUniv spect
 
-consBind γ (x, e, Nothing) 
+consBind isRec γ (x, e, Nothing) 
    = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
-        addIdA x (Left t)
+        addIdA x (defAnn isRec t)
         return $ Just t
+
+defAnn True  = RDf
+defAnn False = Def
 
 addPToEnv γ π
   = do γπ <- γ ++= ("addSpec1", pname π, toPredType π)
@@ -867,7 +871,7 @@ consE γ  e@(Lam x e1)
   = do tx     <- freshTy (Var x) τx 
        γ'     <- ((γ, "consE") += (varSymbol x, tx))
        t1     <- consE γ' e1
-       addIdA x (Left tx) 
+       addIdA x (Def tx) 
        addW   $ WfC γ tx 
        return $ rFun (varSymbol x) tx t1
     where FunTy τx _ = exprType e 
@@ -880,7 +884,7 @@ consE γ e@(Case _ _ _ _)
 
 consE γ (Tick tt e)
   = do t <- consE (γ `setLoc` l) e
-       addLocA Nothing l (Left t)
+       addLocA Nothing l (Use t)
        return t
     where l = {- traceShow ("tickSrcSpan: e = " ++ showPpr e) $ -} tickSrcSpan tt
 
