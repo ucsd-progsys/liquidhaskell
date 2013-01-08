@@ -744,7 +744,7 @@ consBind γ (x, e, Just spect)
        γπ    <- foldM addPToEnv γ' πs
        t     <- consE γπ e
        addC (SubC γπ t spect) "consBind"
-       addIdA x (Left spect)
+       addIdA x (Def spect)
        return Nothing
   where πs = snd3 $ bkUniv spect
 
@@ -799,7 +799,7 @@ cconsE γ (Lam x e) (RFun y ty t _)
   | not (isTyVar x) 
   = do γ' <- (γ, "cconsE") += (varSymbol x, ty)
        cconsE γ' e (t `F.subst1` (y, F.EVar $ varSymbol x))
-       addIdA x (Left ty) 
+       addIdA x (Def ty) 
 
 cconsE γ (Tick tt e) t   
   = cconsE (γ `setLoc` tt') e t
@@ -952,9 +952,9 @@ checkErr (msg, e) t          = errorstar $ msg ++ showPpr e ++ "type: " ++ showP
 
 varAnn γ x t 
   | x `S.member` recs γ
-  = Right (getSrcSpan' x) 
+  = Loc (getSrcSpan' x) 
   | otherwise 
-  = Left t
+  = Use t
 
 getSrcSpan' x 
   | loc == noSrcSpan
