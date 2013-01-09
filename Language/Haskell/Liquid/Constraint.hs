@@ -563,9 +563,11 @@ addKuts !t = modify $ \s -> s { kuts = {- tracePpr "KUTS: " $-} updKuts (kuts s)
 addIdA :: Var -> Annot -> CG ()
 addIdA !x !t         = modify $ \s -> s { annotMap = upd $ annotMap s }
   where loc          = getSrcSpan x
-        upd m@(AI z) = case M.lookup loc z of 
-                         Just (_, (Left _)) -> m 
-                         _                 -> addA loc (Just x) t m
+        upd m@(AI z) = -- trace ("addIdA: " ++ show x ++ " :: " ++ showPpr t ++ " at " ++ show loc) $ 
+                       addA loc (Just x) t m
+                       --case traceShow ("addIdA: " ++ show x ++ " :: " ++ show t ++ " at " ++ show loc) $ M.lookup loc z of 
+                       --  Just (_, (Left _)) -> m 
+                       --  _                 -> addA loc (Just x) t m
                          -- if (loc `M.member` z) then m else addA loc (Just x) t m
 
 
@@ -578,15 +580,15 @@ addLocA !xo !l !t
 
 -- | Used to update annotations for a location, due to (ghost) predicate applications
 
-updateLocA (_:_)  (Just l) t = addLocA Nothing l (Left t)
+updateLocA (_:_)  (Just l) t = addLocA Nothing l (Use t)
 updateLocA _      _        _ = return () 
 
 addA !l !xo@(Just _)  !t !(AI m) 
   | isGoodSrcSpan l 
-  = AI $ M.insert l (xo, t) m
+  = AI $ inserts l (xo, t) m
 addA !l !xo@(Nothing) !t !(AI m) 
   | l `M.member` m  -- only spans known to be variables
-  = AI $ M.insert l (xo, t) m
+  = AI $ inserts l (xo, t) m
 addA _ _ _ !a 
   = a
 
@@ -729,28 +731,31 @@ consCB γ (Rec xes)
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        let xts = [(x, to) | (x, _, to) <- xets, not (isGrty x)]
        γ'     <- foldM extender (γ `withRecs` (fst <$> xts)) xts
-       mapM_ (consBind γ') xets
+       mapM_ (consBind True γ') xets
        return γ' 
     where isGrty x = (varSymbol x) `memberREnv` (grtys γ)
 
 consCB γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
-       to' <- consBind γ (x, e, to)
+       to' <- consBind False γ (x, e, to)
        extender γ (x, to')
 
-consBind γ (x, e, Just spect) 
+consBind isRec γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
        γπ    <- foldM addPToEnv γ' πs
        t     <- consE γπ e
        addC (SubC γπ t spect) "consBind"
-       addIdA x (Left spect)
+       addIdA x (defAnn isRec spect) 
        return Nothing
-  where πs = snd3 $ bkUniv spect
+  where πs   = snd3 $ bkUniv spect
 
-consBind γ (x, e, Nothing) 
+consBind isRec γ (x, e, Nothing) 
    = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
-        addIdA x (Left t)
+        addIdA x (defAnn isRec t)
         return $ Just t
+
+defAnn True  = RDf
+defAnn False = Def
 
 addPToEnv γ π
   = do γπ <- γ ++= ("addSpec1", pname π, toPredType π)
@@ -798,7 +803,7 @@ cconsE γ (Lam x e) (RFun y ty t _)
   | not (isTyVar x) 
   = do γ' <- (γ, "cconsE") += (varSymbol x, ty)
        cconsE γ' e (t `F.subst1` (y, F.EVar $ varSymbol x))
-       addIdA x (Left ty) 
+       addIdA x (Def ty) 
 
 cconsE γ (Tick tt e) t   
   = cconsE (γ `setLoc` tt') e t
@@ -866,7 +871,7 @@ consE γ  e@(Lam x e1)
   = do tx     <- freshTy (Var x) τx 
        γ'     <- ((γ, "consE") += (varSymbol x, tx))
        t1     <- consE γ' e1
-       addIdA x (Left tx) 
+       addIdA x (Def tx) 
        addW   $ WfC γ tx 
        return $ rFun (varSymbol x) tx t1
     where FunTy τx _ = exprType e 
@@ -879,7 +884,7 @@ consE γ e@(Case _ _ _ _)
 
 consE γ (Tick tt e)
   = do t <- consE (γ `setLoc` l) e
-       addLocA Nothing l (Left t)
+       addLocA Nothing l (Use t)
        return t
     where l = {- traceShow ("tickSrcSpan: e = " ++ showPpr e) $ -} tickSrcSpan tt
 
@@ -951,9 +956,9 @@ checkErr (msg, e) t          = errorstar $ msg ++ showPpr e ++ "type: " ++ showP
 
 varAnn γ x t 
   | x `S.member` recs γ
-  = Right (getSrcSpan' x) 
+  = Loc (getSrcSpan' x) 
   | otherwise 
-  = Left t
+  = Use t
 
 getSrcSpan' x 
   | loc == noSrcSpan

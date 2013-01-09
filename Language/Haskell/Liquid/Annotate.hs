@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable, TupleSections #-}
 -- MultiParamTypeClasses, NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, , ScopedTypeVariables 
 
 
@@ -8,7 +8,7 @@
 module Language.Haskell.Liquid.Annotate (
   -- * Types representing annotations
     AnnInfo (..)
-  , Annot
+  , Annot (..)
 
   -- * Top-level annotation renderer function
   ,  annotate
@@ -28,6 +28,7 @@ import Data.Char                (isSpace)
 
 import Control.Arrow            hiding ((<+>))
 import Control.Applicative      ((<$>))
+import Control.DeepSeq
 -- import Data.Data                hiding (TyCon, tyConName)
 
 import System.FilePath          (takeFileName, dropFileName, (</>)) 
@@ -164,7 +165,7 @@ mkAnnMapTyp (AI m)
   $ map (srcSpanStartLoc *** bindString)
   $ map (head . sortWith (srcSpanEndCol . fst)) 
   $ groupWith (lineCol . fst) 
-  $ [ (l, m) | (RealSrcSpan l, m) <- M.toList m, oneLine l]  
+  $ [ (l, x) | (RealSrcSpan l, (x:_)) <- M.toList m, oneLine l]  
   where bindString = mapPair (showSDocForUser neverQualify) . pprXOT 
 
 srcSpanStartLoc l 
@@ -177,17 +178,34 @@ lineCol l
   = (srcSpanStartLine l, srcSpanStartCol l)
 
 closeAnnots :: AnnInfo Annot -> AnnInfo SpecType 
-closeAnnots = closeA . filterA
-  
+closeAnnots = closeA . filterA . collapseA
+
 closeA a@(AI m)  = cf <$> a 
-  where cf (Right loc) = case m `mlookup` loc of
-                           (_, Left t) -> t
-                           _           -> errorstar $ "malformed AnnInfo: " ++ showPpr loc
-        cf (Left t)    = t
+  where cf (Loc loc) = case m `mlookup` loc of
+                           [(_, Use t)] -> t
+                           [(_, Def t)] -> t
+                           [(_, RDf t)] -> t
+                           _            -> errorstar $ "malformed AnnInfo: " ++ showPpr loc
+        cf (Use t)   = t
+        cf (Def t)   = t
+        cf (RDf t)   = t
 
 filterA (AI m) = AI (M.filter ff m)
-  where ff (_, Right loc) = loc `M.member` m
+  where ff [(_, Loc loc)] = loc `M.member` m
         ff _              = True
+
+collapseA (AI m) = AI (fmap pickOneA m)
+
+pickOneA xas = case (rs, ds, ls, us) of
+                 ((x:_), _, _, _) -> [x]
+                 (_, (x:_), _, _) -> [x]
+                 (_, _, (x:_), _) -> [x]
+                 (_, _, _, (x:_)) -> [x]
+  where 
+    rs = [x | x@(_, RDf _) <- xas]
+    ds = [x | x@(_, Def _) <- xas]
+    ls = [x | x@(_, Loc _) <- xas]
+    us = [x | x@(_, Use _) <- xas]
 
 ------------------------------------------------------------------------------
 -- | Tokenizing Refinement Type Annotations in @-blocks ----------------------
@@ -235,16 +253,36 @@ tokeniseSpec = tokAlt . chopAlt [('{', ':'), ('|', '}')]
 ---------------- Annotations and Solutions --------------------
 ---------------------------------------------------------------
 
-newtype AnnInfo a = AI (M.HashMap SrcSpan (Maybe Var, a))
+newtype AnnInfo a = AI (M.HashMap SrcSpan [(Maybe Var, a)])
 
-type Annot        = Either SpecType SrcSpan
+data Annot        = Use SpecType 
+                  | Def SpecType 
+                  | RDf SpecType
+                  | Loc SrcSpan
 
 instance Functor AnnInfo where
-  fmap f (AI m) = AI (fmap (\(x, y) -> (x, f y)) m)
+  fmap f (AI m) = AI (fmap (fmap (\(x, y) -> (x, f y))) m)
 
 instance Outputable a => Outputable (AnnInfo a) where
-  ppr (AI m) = vcat $ map pprAnnInfoBind $ M.toList m 
- 
+  ppr (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m 
+
+instance NFData a => NFData (AnnInfo a) where
+  rnf (AI x) = () -- rnf x
+
+instance NFData Annot where
+  rnf (Def x) = () -- rnf x
+  rnf (RDf x) = () -- rnf x
+  rnf (Use x) = () -- rnf x
+  rnf (Loc x) = () -- rnf x
+
+instance Outputable Annot where
+  ppr (Use t) = text "Use" <+> ppr t
+  ppr (Def t) = text "Def" <+> ppr t
+  ppr (RDf t) = text "RDf" <+> ppr t
+  ppr (Loc l) = text "Loc" <+> ppr l
+
+pprAnnInfoBinds (l, xvs) 
+  = vcat $ map (pprAnnInfoBind . (l,)) xvs
 
 pprAnnInfoBind (RealSrcSpan k, xv) 
   = xd $$ ppr l $$ ppr c $$ ppr n $$ vd $$ text "\n\n\n"
