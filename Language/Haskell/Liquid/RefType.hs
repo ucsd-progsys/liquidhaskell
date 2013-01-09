@@ -868,7 +868,7 @@ ppReftPs bb rs
 
 ppr_dbind :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> Symbol -> RType p c tv r -> SDoc
 ppr_dbind bb p x t 
-  | isNonSymbol x 
+  | isNonSymbol x || (x == dummySymbol) 
   = ppr_rtype bb p t
   | otherwise
   = ppr x <> colon <> ppr_rtype bb p t

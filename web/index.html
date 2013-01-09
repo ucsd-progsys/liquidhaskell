@@ -104,7 +104,9 @@
            <li class="active"><a href="#tabSrc" data-toggle="tab">Haskell Source</a></li>
            <li><a href="#tabQuals" data-toggle="tab">Qualifiers</a></li>
            <li ng-show="outReady"><a href="#tabOut" data-toggle="tab">Result</a></li>
-           <li ng-show="outReady"><a href="#tabLog" data-toggle="tab">Log</a></li>
+           <!-- <li ng-show="outReady"><a href="#tabLog" data-toggle="tab">Log</a></li>
+           -->
+
          </ul>
          
          <div class="tab-content">
@@ -115,6 +117,13 @@
                <strong>Warning!</strong> {{warn}}
              </div>
              
+             <div class="alert alert-block" ng-show="isCrash">
+               <button type="button" class="close" data-dismiss="alert">×</button>
+               <strong>Crash!</strong> Uh oh, there was a crash. See the <a href="log">the log</a>.
+             </div>
+
+
+
              <div id="program-pane" class="well" style="background:#fff">
                  <button class="btn btn-info" type="button" ng-click="verifySource()">Verify</button>
 
@@ -162,9 +171,9 @@
                <strong>Warning!</strong> {{warn}}
              </div>
 
-             <div class="alert alert-block" ng-show="crash">
+             <div class="alert alert-block" ng-show="isCrash">
                <button type="button" class="close" data-dismiss="alert">×</button>
-               <strong>Crash!</strong> Oh no, there was a crash. See the <a href="#tabLog">log</a>.
+               <strong>Crash!</strong> Oh no, there was a crash. See the <a href="log">the log</a>.
              </div>
 
              <div class="page-header">
@@ -183,10 +192,12 @@
              <br>
              <br>
            </div>
-           
+
+           <!--
            <div class="tab-pane" id="tabLog">
              Click <a href="log">this</a> to see the log. 
            </div>
+           -->
 
          </div>
        </div> 

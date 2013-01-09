@@ -43,23 +43,26 @@ function getResultAndWarns($outfile){
   $res   = "";
 
   $failflag = 1;
-  $fh = fopen($outfile, 'r');
-  while (!feof($fh)){
-    $s = fgets($fh);
-    if ($wflag == 1){           // Skip the first "Unsafe" start chewing remainder of lines
-      $warns[] = substr($s, 8); // Eschew the prefix "WARNING:" 
-    }
-    if (strpos($s,"Safe") !== false){
-      $failflag = 0; 
-      $wflag    = 0;
+
+  if (file_exists($outfile)){
+    $fh = fopen($outfile, 'r');
+    while (!feof($fh)){
+      $s = fgets($fh);
+      if ($wflag == 1){           // Skip the first "Unsafe" start chewing remainder of lines
+        $warns[] = substr($s, 8); // Eschew the prefix "WARNING:" 
+      }
+      if (strpos($s,"Safe") !== false){
+        $failflag = 0; 
+        $wflag    = 0;
+      }
+      if (strpos($s,"Unsafe") !== false){
+        $failflag = 0; 
+        $wflag    = 1;
+      }
     } 
-    if (strpos($s,"Unsafe") !== false){
-      $failflag = 0; 
-      $wflag    = 1;
-    }  
+    fclose($fh);
   } 
-  fclose($fh);
-  
+
   if ($failflag == 1){
     $res = "crash";
   } else if ($wflag == 0){
@@ -70,19 +73,19 @@ function getResultAndWarns($outfile){
 
   return array( "result" => $res
               , "warns"  => $warns ); 
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
 //////////////////// Top Level Server //////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 
-// Global Constants
-$packagedir       = "/home/rjhala/.ghc/x86_64-linux-7.4.1/package.conf.d/";
-$log              = "log";
 
 // Get inputs
 $data             = file_get_contents("php://input");
 $query            = json_decode($data);
+$packagedir       = "/home/rjhala/.ghc/x86_64-linux-7.4.1/package.conf.d/";
+$log              = "log";
 
 // echo 'HELLO TO HELL!\n';
 // echo ('PGM\n' . $query->program) ;
@@ -116,10 +119,9 @@ $out['annotHtml'] = file_get_contents($thtml);
 // echo 'warns = '  . $out['warns'];
 
 // Cleanup temporary files
-shell_exec("mv ".$ths." saved/");
-shell_exec("mv ".$thq." saved/");
-shell_exec("rm -rf ".$t."*");
-
+shell_exec("rm -rf ".$ths."hi");
+shell_exec("rm -rf ".$ths."o");
+shell_exec("mv ".$t."* saved/");
 
 // Put outputs 
 echo json_encode($out);

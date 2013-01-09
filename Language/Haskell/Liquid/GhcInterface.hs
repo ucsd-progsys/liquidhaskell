@@ -44,7 +44,6 @@ import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
-import Language.Haskell.Liquid.Annotate
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 ------------------------------------------------------------------
@@ -459,8 +458,6 @@ ppBlank = text "\n_____________________________\n"
 
 instance NFData Var
 instance NFData SrcSpan
-instance NFData a => NFData (AnnInfo a) where
-  rnf (AI x) = rnf x
 
 --instance NFData GhcInfo where
 --  rnf (GI x1 x2 x3 x4 x5 x6 x7 x8 _ _ _) 
