@@ -2,23 +2,22 @@ TODO
 ====
     
 * demo: 
-  -> populate demos with blog articles
-  -> link blog articles to files
-  -> move blog URL to liquid/haskell/blog <------------------ HEREHEREHEREHERE
-  -> unify bootstrap css with http://bootswatch.com/readable/
+  -> VALIDATE Specifications: raise error BEFORE fixpoint (Bare?)
+    * typecheck specs to avoid fixpoint errors (at least for unknown symbols?)
+  
+  -> apply predicate-alias-inlining to measure-body [tests/pos/gadtEvalBad.hs]
+  
+  -> fill in blog/measuring-lists-1.lhs
 
 * "RELEASE"
 
 * DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
   -> may break a LOT of regressions
 
-
 * error messages
-    * typecheck specs to avoid fixpoint errors (at least for unknown symbols?)
     * error message -- expected XXX got YYY?
 
 * qualified names break spec imports -- tests/todo/qualifiedvector.hs 
-
 
 * clean up (Int) -> Int [BEXPARSER]
 * parse predicate signatures for tuples 
