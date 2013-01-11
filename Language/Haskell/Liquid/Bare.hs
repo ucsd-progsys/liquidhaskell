@@ -167,6 +167,7 @@ makeAssumeSpec env vs xbs = execBare mkAspec env
   where mkAspec = forM vbs mkVarSpec >>= return . checkAssumeSpec
         vbs     = joinIds vs xbs -- (first symbolString <$> xbs) 
 
+
 mkVarSpec (v, b) = liftM (v,) (wrapErr msg (mkSpecType msg) b)
   where msg = "mkVarSpec fails on " ++ showPpr v ++ " :: "  ++ showPpr b 
 
@@ -538,17 +539,27 @@ rtypePredBinds = map uPVar . snd3 . bkUniv
 ------- Checking Specifications Refine Haskell Types --------------------------
 -------------------------------------------------------------------------------
 
-checkAssumeSpec xts 
-  = case filter specMismatch xts of 
-      []  -> xts
-      yts -> errorstar $ specificationError yts
+checkAssumeSpec = checkMismatch . checkDuplicate 
 
-specificationError yts = unlines $ "Error in Reftype Specification" : concatMap err yts 
-  where err (y, t) = [ "Haskell: " ++ showPpr y ++ " :: " ++ showPpr (varType y)
+checkDuplicate xts = applyNonNull xts (specError . duplicateError) dups
+    where dups     = [ z | z@(x, t1:t2:_) <- M.toList $ group xts ]
+
+duplicateError     = concatMap err
+  where err (x,ts) = ("Multiple Specifications for " ++ (showPpr x)) : (showPpr <$> ts)
+
+checkMismatch xts  = applyNonNull xts (specError . mismatchError) miss
+  where miss       = [ z | z@(x, t) <- xts, not $ (toRSort t) == (ofType $ varType x)]
+
+mismatchError      = concatMap err 
+  where err (y, t) = [ "Specified Liquid Type Does Not Match Haskell Type"
+                     , "Haskell: " ++ showPpr y ++ " :: " ++ showPpr (varType y)
                      , "Liquid : " ++ showPpr y ++ " :: " ++ showPpr t           ]
-  
-specMismatch (x, t) 
-  =  not $ (toRSort t) == (ofType $ varType x) 
+
+specError          = errorstar 
+                   . L.intercalate "\n\n" 
+                   . concatHead "Specification Error: "  
+
+concatHead s (h:t) = (s ++ h) : t 
 
 ---------------------------------------------------------------------------------
 ----------------- Helper Predicates on Types ------------------------------------

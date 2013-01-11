@@ -10,7 +10,6 @@ import qualified Data.List as L
 import Control.Applicative      ((<$>))
 import Control.Monad            (forM_)
 import Data.Maybe               (fromJust)
-import Data.List 
 import Data.Maybe (catMaybes, fromMaybe)
 
 import System.Exit
@@ -55,7 +54,7 @@ donePhase c str
 data Empty = Emp deriving (Data, Typeable, Eq, Show)
 
 unIntersperse x ys
-  = case elemIndex x ys of
+  = case L.elemIndex x ys of
       Nothing -> [ys]
       Just i  -> let (y, _:ys') = splitAt i ys 
                  in (y : unIntersperse x ys')
@@ -108,7 +107,7 @@ mfromJust _ (Just x) = x
 mfromJust s Nothing  = errorstar $ "mfromJust: Nothing " ++ s
 
 boxStrCat ::  String -> [String] -> String 
-boxStrCat sep = ("[" ++) . (++ "]") . intercalate sep 
+boxStrCat sep = ("[" ++) . (++ "]") . L.intercalate sep 
 
 tryIgnore :: String -> IO () -> IO ()
 tryIgnore s a = Ex.catch a $ \e -> 
@@ -126,13 +125,15 @@ warnShow s x  = trace ("\nWarning: [" ++ s ++ "] : " ++ show x) $ x
 inserts k v m = M.insert k (v : M.lookupDefault [] k m) m
 
 -- group         :: Hashable k => [(k, v)] -> M.HashMap k [v]
-group         = foldl' (\m (k, v) -> inserts k v m) M.empty 
+group         = L.foldl' (\m (k, v) -> inserts k v m) M.empty 
+
+groupList     = M.toList . group
 
 -- groupMap      :: Hashable k => (a -> k) -> [a] -> M.HashMap k [a]
-groupMap f xs = foldl' (\m x -> inserts (f x) x m) M.empty xs 
+groupMap f xs = L.foldl' (\m x -> inserts (f x) x m) M.empty xs 
 
 sortNub :: (Ord a) => [a] -> [a]
-sortNub = nubOrd . sort
+sortNub = nubOrd . L.sort
   where nubOrd (x:t@(y:_)) 
           | x == y    = nubOrd t 
           | otherwise = x : nubOrd t
@@ -155,10 +156,10 @@ distinct ::  Ord a => [a] -> Bool
 distinct xs = length xs == length (sortNub xs)
 
 tr_reverse ::  [a] -> [a]
-tr_reverse      = foldl' (flip (:)) []  
+tr_reverse      = L.foldl' (flip (:)) []  
 
 tr_foldr' ::  (a -> b -> b) -> b -> [a] -> b
-tr_foldr' f b   = foldl' (flip f) b . tr_reverse 
+tr_foldr' f b   = L.foldl' (flip f) b . tr_reverse 
 
 safeZip msg xs ys 
   | nxs == nys 
@@ -191,13 +192,13 @@ safeZipWith msg f xs ys
 
 
 -- safeFromList :: (Hashable k, Show k, Show a) => String -> [(k, a)] -> M.HashMap k a
-safeFromList msg = foldl' safeAdd M.empty 
+safeFromList msg = L.foldl' safeAdd M.empty 
   where safeAdd m (k, v) 
           | k `M.member` m = errorstar $ msg ++ "Duplicate key " ++ show k ++ "maps to: \n" ++ (show v) ++ "\n and \n" ++ show (m M.! k)
           | otherwise      = M.insert k v m
 
 safeUnion msg m1 m2 = 
-  case Data.List.find (`M.member` m1) (M.keys m2) of
+  case L.find (`M.member` m1) (M.keys m2) of
     Just k  -> errorstar $ "safeUnion with common key = " ++ show k ++ " " ++ msg
     Nothing -> M.union m1 m2
 
@@ -205,7 +206,7 @@ safeHead _   (x:_) = x
 safeHead msg _     = errorstar $ "safeHead with empty list " ++ msg
 
 -- memoIndex :: (Hashable b) => (a -> Maybe b) -> [a] -> [Maybe Int]
-memoIndex f = snd . mapAccumL foo M.empty 
+memoIndex f = snd . L.mapAccumL foo M.empty 
   where 
   foo memo z =
     case f z of 
@@ -223,19 +224,19 @@ checkFail msg f x
 
 chopAfter ::  (a -> Bool) -> [a] -> [a]
 chopAfter f xs 
-  = case findIndex f xs of
+  = case L.findIndex f xs of
       Just n  -> take n xs
       Nothing -> xs
 
 chopPrefix p xs 
-  | p `isPrefixOf` xs
+  | p `L.isPrefixOf` xs
   = Just $ drop (length p) xs
   | otherwise 
   = Nothing
 
 firstElem ::  (Eq a) => [(a, t)] -> [a] -> Maybe Int
 firstElem seps str 
-  = case catMaybes [ elemIndex c str | (c, _) <- seps ] of 
+  = case catMaybes [ L.elemIndex c str | (c, _) <- seps ] of 
       [] -> Nothing
       is -> Just $ minimum is 
 
@@ -244,7 +245,7 @@ chopAlt seps    = go
   where go  s   = maybe [s] (go' s) (firstElem seps s)
         go' s i = let (s0, s1@(c:_)) = splitAt i s 
                       (Just c')      = lookup c seps 
-                  in case elemIndex c' s1 of
+                  in case L.elemIndex c' s1 of
                        Nothing -> [s1]
                        Just i' -> let (s2, s3) = splitAt (i' + 1) s1 in 
                                   s0 : s2 : go s3
@@ -287,7 +288,7 @@ checkExitCode _   (ExitSuccess)   = return ()
 checkExitCode cmd (ExitFailure n) = errorstar $ "cmd: " ++ cmd ++ " failure code " ++ show n 
 
 hashMapToAscList    ::  Ord a => M.HashMap a b -> [(a, b)]
-hashMapToAscList    = sortBy (\x y -> compare (fst x) (fst y)) . M.toList
+hashMapToAscList    = L.sortBy (\x y -> compare (fst x) (fst y)) . M.toList
 
 hashMapMapWithKey   :: (k -> v1 -> v2) -> M.HashMap k v1 -> M.HashMap k v2
 hashMapMapWithKey f = fromJust . M.traverseWithKey (\k v -> Just (f k v)) 
@@ -295,3 +296,6 @@ hashMapMapWithKey f = fromJust . M.traverseWithKey (\k v -> Just (f k v))
 hashMapMapKeys      :: (Eq k, Hashable k) => (t -> k) -> M.HashMap t v -> M.HashMap k v
 hashMapMapKeys f    = M.fromList . fmap (mapFst f) . M.toList 
 
+
+applyNonNull def _ [] = def
+applyNonNull _   f xs = f xs
