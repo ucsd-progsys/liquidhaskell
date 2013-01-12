@@ -20,7 +20,7 @@ module Language.Haskell.Liquid.RefType (
   , pdAnd, pdVar, pdTrue, pvars, findPVar
 
   -- * Traversing `RType` 
-  , ppr_rtype, efoldReft, foldReft, mapReft, mapReftM, mapBot, mapBind
+  , ppr_rtype, enFoldReft, foldReft, mapReft, mapReftM, mapBot, mapBind
   , freeTyVars, tyClasses
 
   , ofType, ofPredTree, toType
@@ -945,29 +945,58 @@ mapRefM  :: (Monad m) => (t -> m s) -> Ref t (RType p c tv t) -> m (Ref s (RType
 mapRefM  f (RMono r)          = liftM   RMono       (f r)
 mapRefM  f (RPoly t)          = liftM   RPoly       (mapReftM f t)
 
--- foldReft ::  (r -> a -> a) -> a -> RType p c tv r -> a
-foldReft f = efoldReft (\_ -> f) [] 
+foldReft f = enFoldReft (\_ -> f) F.emptySEnv 
 
-efoldReft :: ([F.Symbol] -> r -> a -> a) -> [F.Symbol] -> a -> RType p c tv r -> a
-efoldReft f γ z (RVar _ r)       = f γ r z 
-efoldReft f γ z (RAllT _ t)      = efoldReft f γ z t
-efoldReft f γ z (RAllP _ t)      = efoldReft f γ z t
-efoldReft f γ z (RFun x t t' r)  = f γ r (efoldReft f (x:γ) (efoldReft f γ z t) t')
-efoldReft f γ z (RApp _ ts rs r) = f γ r (efoldRefs f γ (efoldRefts f γ z ts) rs)
-efoldReft f γ z (RCls _ ts)      = efoldRefts f γ z ts
-efoldReft f γ z (REx x t t')     = efoldReft f (x:γ) (efoldReft f γ z t) t' 
-efoldReft _ _ z (ROth _)         = z 
-efoldReft _ _ z (RExprArg _)     = z
+-- Let's also hang onto the types for the binders...
+-- foldReft f = efoldReft (\_ -> f) [] 
+--
+--
+-- efoldReft :: ([F.Symbol] -> r -> a -> a) -> [F.Symbol] -> a -> RType p c tv r -> a
+-- efoldReft f γ z (RVar _ r)       = f γ r z 
+-- efoldReft f γ z (RAllT _ t)      = efoldReft f γ z t
+-- efoldReft f γ z (RAllP _ t)      = efoldReft f γ z t
+-- efoldReft f γ z (RFun x t t' r)  = f γ r (efoldReft f (x:γ) (efoldReft f γ z t) t')
+-- efoldReft f γ z (RApp _ ts rs r) = f γ r (efoldRefs f γ (efoldRefts f γ z ts) rs)
+-- efoldReft f γ z (RCls _ ts)      = efoldRefts f γ z ts
+-- efoldReft f γ z (REx x t t')     = efoldReft f (x:γ) (efoldReft f γ z t) t' 
+-- efoldReft _ _ z (ROth _)         = z 
+-- efoldReft _ _ z (RExprArg _)     = z
+-- 
+-- efoldRefts :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> [RType t t1 t2 t3] -> c
+-- efoldRefts f γ z ts              = foldr (flip $ efoldReft f γ) z ts 
+-- 
+-- efoldRefs :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> [Ref t3 (RType t t1 t2 t3)] -> c
+-- efoldRefs  f γ z rs              = foldr (flip $ efoldRef f γ) z  rs 
+-- 
+-- efoldRef :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> Ref t3 (RType t t1 t2 t3) -> c
+-- efoldRef f γ z (RMono r)         = f γ r z
+-- efoldRef f γ z (RPoly t)         = efoldReft f γ z t
 
-efoldRefts :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> [RType t t1 t2 t3] -> c
-efoldRefts f γ z ts              = foldr (flip $ efoldReft f γ) z ts 
 
-efoldRefs :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> [Ref t3 (RType t t1 t2 t3)] -> c
-efoldRefs  f γ z rs              = foldr (flip $ efoldRef f γ) z  rs 
+enFoldReft :: (SEnv (RType p c tv r) -> r -> a -> a) -> SEnv (RType p c tv r) -> a -> RType p c tv r -> a
+enFoldReft f γ z (RVar _ r)       = f γ r z 
+enFoldReft f γ z (RAllT _ t)      = enFoldReft f γ z t
+enFoldReft f γ z (RAllP _ t)      = enFoldReft f γ z t
+enFoldReft f γ z (RFun x t t' r)  = f γ r (enFoldReft f (insertSEnv x t γ) (enFoldReft f γ z t) t')
+enFoldReft f γ z (RApp _ ts rs r) = f γ r (enFoldRefs f γ (enFoldRefts f γ z ts) rs)
+enFoldReft f γ z (RCls _ ts)      = enFoldRefts f γ z ts
+enFoldReft f γ z (REx x t t')     = enFoldReft f (insertSEnv x t γ) (enFoldReft f γ z t) t' 
+enFoldReft _ _ z (ROth _)         = z 
+enFoldReft _ _ z (RExprArg _)     = z
 
-efoldRef :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> Ref t3 (RType t t1 t2 t3) -> c
-efoldRef f γ z (RMono r)         = f γ r z
-efoldRef f γ z (RPoly t)         = efoldReft f γ z t
+enFoldRefts :: (SEnv (RType p c tv r) -> r -> a -> a) -> SEnv (RType p c tv r) -> a -> [RType p c tv r] -> a
+enFoldRefts f γ z ts              = foldr (flip $ enFoldReft f γ) z ts 
+
+enFoldRefs :: (SEnv (RType p c tv r) -> r -> a -> a)-> SEnv (RType p c tv r) -> a -> [Ref r (RType p c tv r)] -> a
+enFoldRefs  f γ z rs              = foldr (flip $ enFoldRef f γ) z  rs 
+
+enFoldRef :: (SEnv (RType p c tv r) -> r -> a -> a)-> SEnv (RType p c tv r) -> a -> Ref r (RType p c tv r) -> a
+enFoldRef f γ z (RMono r)         = f γ r z
+enFoldRef f γ z (RPoly t)         = enFoldReft f γ z t
+
+
+
+
 
 
 isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool

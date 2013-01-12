@@ -213,11 +213,16 @@ makeSymbols vs xs' xts yts = xvs
 -- doesn't typecheck -- thanks to "fld"
 -- checkSig env xt = tracePpr ("checkSig " ++ showPpr xt) $ checkSig' env xt
 
-
+-- freeSymbols :: SpecType -> [Symbol]
+-- freeSymbols ty   = sortNub $ concat $ efoldReft f [] [] ty
+--   where f γ r xs = let Reft (v, _) = toReft r in ((syms r) `sortDiff` (v:γ) ) : xs 
 
 -- freeSymbols :: SpecType -> [Symbol]
-freeSymbols ty   = sortNub $ concat $ efoldReft f [] [] ty
-  where f γ r xs = let Reft (v, _) = toReft r in ((syms r) `sortDiff` (v:γ) ) : xs 
+freeSymbols ty   = sortNub $ concat $ enFoldReft f emptySEnv [] ty
+  where f γ r xs = let Reft (v, _) = toReft r in 
+                   [ x | x <- syms r, x /= v, not (x `memberSEnv` γ)] : xs
+
+
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
@@ -586,12 +591,13 @@ checkMismatch (x, t) = if ok then Nothing else Just err
                             , text "Haskell:" <+> ppr x <+> dcolon <+> ppr (varType x)
                             , text "Liquid :" <+> ppr x <+> dcolon <+> ppr t           ]
 
+ghcSpecEnv           :: GhcSpec -> SEnv Sort
+ghcSpecEnv           = error "TODO: ghcSpecEnv"
 
 checkRType           :: (Reftable r) => SEnv Sort -> RRType r -> Maybe SDoc 
 checkRType env t     = error "TODO: checkSpecType"
 
-ghcSpecEnv           :: GhcSpec -> SEnv Sort
-ghcSpecEnv           = error "TODO: ghcSpecEnv"
+
 
 checkSig env (x, t) 
   = case filter (not . (`S.member` env)) (freeSymbols t) of
