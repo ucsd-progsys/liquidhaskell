@@ -137,8 +137,8 @@ instance Reftable Predicate where
   ppTy r d | isTauto r = d 
            | otherwise = d <> (angleBrackets $ ppr r)
   
-  toReft               = errorstar "TODO: instance of toReft for Predicates. Hmm."
-
+  toReft               = errorstar "TODO: instance of toReft for Predicate"
+  params               = errorstar "TODO: instance of params for Predicate"
 
 instance NFData Predicate where
   rnf _ = ()
@@ -280,10 +280,12 @@ class (Monoid r, Subable r, Outputable r) => Reftable r where
   meet    = mappend
 
   toReft  :: r -> Reft
-  fSyms   :: r -> [Symbol]
+  params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
+
+  fSyms   :: r -> [Symbol]          -- ^ Niki: what is this fSyms/add/drop for?
   fSyms _  = []
 
-  addSyms :: [Symbol] -> r -> r
+  addSyms :: [Symbol] -> r -> r     
   addSyms _ = id
 
   dropSyms :: r -> r
@@ -415,14 +417,16 @@ instance Reftable r => Reftable (RType Class RTyCon RTyVar r) where
   isTauto     = isTrivial
   ppTy        = errorstar "ppTy RPoly Reftable" 
   toReft      = errorstar "toReft on RType"
+  params      = errorstar "params on RType"
   fSyms       = fromMaybe [] . fmap fSyms . stripRTypeBase 
   addSyms s t = fmap (addSyms s) t
   dropSyms  t = fmap dropSyms t
 
 instance Reftable Reft where
-  isTauto = isTautoReft
-  ppTy    = ppr_reft
-  toReft  = id
+  isTauto  = isTautoReft
+  ppTy     = ppr_reft
+  toReft   = id
+  params _ = []
 
 instance Reftable FReft where
   isTauto (FReft r)       = isTautoReft r
@@ -432,6 +436,8 @@ instance Reftable FReft where
   ppTy    (FSReft s r)  d = ppTySReft s r d
   toReft  (FReft r)       = r
   toReft  (FSReft _ r)    = r
+  params  (FReft _)       = []
+  params  (FSReft xs _)   = xs
   fSyms   (FReft _)       = []
   fSyms   (FSReft s _)    = s
   dropSyms (FSReft _ r)   = FReft r
@@ -448,11 +454,13 @@ instance Reftable () where
   top       = ()
   meet _ _  = ()
   toReft _  = top
+  params _  = []
 
 instance (Reftable r) => Reftable (UReft r) where
   isTauto (U r p)    = isTauto r && isTauto p 
   ppTy (U r p) d     = ppTy r (ppTy p d) 
   toReft (U r _)     = toReft r
+  params (U r _)     = params r
   fSyms (U r _)      = fSyms r
   dropSyms (U r p)   = U (dropSyms r) p
   addSyms ss (U r p) = U (addSyms ss r) p
@@ -476,6 +484,7 @@ instance (Reftable r, RefTypable p c tv r) => Reftable (Ref r (RType p c tv r)) 
   ppTy (RMono r) d  = ppTy r d
   ppTy (RPoly _) _  = errorstar "RefType: Reftable ppTy in RPoly"
   toReft            = errorstar "RefType: Reftable toReft"
+  params            = errorstar "RefType: Reftable params for Ref"
   fSyms (RMono r)   = fSyms r
   fSyms (RPoly _)   = errorstar "RefType: Reftable fSyms in RPoly"
 
