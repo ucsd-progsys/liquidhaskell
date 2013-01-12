@@ -29,6 +29,32 @@ TODO
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
+Validate
+========
+
+Failed 17 tests: 
+    ../benchmarks/esop2013-submission/Base.hs
+  , ../benchmarks/esop2013-submission/Base0.hs
+  , ../benchmarks/esop2013-submission/Splay.hs
+  , ../web/demos/ListElts.hs
+  , neg/truespec.hs
+  , pos/gadtEval.hs
+  , pos/gadtEvalBad.hs
+  , pos/listSet.hs
+  , pos/listSetDemo.hs
+  , pos/maybe4.hs
+  , pos/meas10.hs
+  , pos/meas11.hs
+  , pos/meas9.hs
+  , pos/selfList.hs
+  , pos/stacks0.hs
+  , pos/string00.hs
+  , pos/take.hs
+
+Exceptions thrown on 1 tests: pos/string00.hs
+
+
+
 Z3/toSmtLib
 ===========
 
