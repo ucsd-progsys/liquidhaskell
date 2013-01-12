@@ -3,6 +3,18 @@ module Eval where
 
 import Language.Haskell.Liquid.Prelude (liquidError)
 
+data Expr a where
+  I :: Int -> Expr Int
+  B :: Bool -> Expr Bool
+  Eq :: Expr a -> Expr a -> Expr Bool
+  Pl :: Expr Int -> Expr Int -> Expr Int
+
+eval :: Expr a -> a
+eval (I i)      = i
+eval (B b)      = b
+eval (Eq e1 e2) = (eval e1) == (eval e2)
+eval (Pl e1 e2) = (eval e1) + (eval e2)
+
 data Expr = I     Int
           | B     Bool
           | Equal Expr Expr
@@ -33,6 +45,9 @@ toInt _     = liquidError "impossible"
 toBool (B b) = b
 toBool _     = liquidError "impossible"
 
+data Ty = TInt | TBool
+
+
 {-@ predicate TInt X   = ((eType X) = 0) @-}
 {-@ predicate TBool X  = ((eType X) = 1) @-}
 
@@ -48,11 +63,11 @@ toBool _     = liquidError "impossible"
     isValue (Plus e1 e2)  = false
   @-}  
 
-{-@ measure eType       :: Expr -> Int 
-    eType (I i)         = 0
-    eType (Plus  e1 e2) = 0
-    eType (B b)         = 1
-    eType (Equal e1 e2) = 1
+{-@ measure eType       :: Expr -> Ty 
+    eType (I i)         = TInt  
+    eType (Plus  e1 e2) = TInt 
+    eType (B b)         = TBool 
+    eType (Equal e1 e2) = TBool 
   @-}
 
 {-@ measure isValid       :: Expr -> Prop
