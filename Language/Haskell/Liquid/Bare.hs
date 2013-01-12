@@ -23,7 +23,7 @@ import BasicTypes (TupleSort (..), Arity)
 import TcRnDriver (tcRnLookupRdrName, tcRnLookupName) 
 
 import Text.Printf
-import Data.Maybe               (mapMaybe, catMaybes, isNothing)
+import Data.Maybe               (fromMaybe, mapMaybe, catMaybes, isNothing)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>), (<|>))
 import Control.Monad.Reader     hiding (forM)
@@ -592,11 +592,17 @@ checkMismatch (x, t) = if ok then Nothing else Just err
                             , text "Haskell:" <+> ppr x <+> dcolon <+> ppr (varType x)
                             , text "Liquid :" <+> ppr x <+> dcolon <+> ppr t           ]
 
-ghcSpecEnv sp        =  fromListSEnv binds
+ghcSpecEnv sp        = fromListSEnv binds
   where 
-    emb              =  tcEmbeds sp
-    binds            =  [(x,           rTypeSortedReft emb t) | (x, t) <- meas sp] 
-                     ++ [(varSymbol v, rTypeSortedReft emb t) | (v, t) <- ctor sp]
+    emb              = tcEmbeds sp
+    binds            = [(x,           rSort t) | (x, t) <- meas sp] ++ 
+                       [(varSymbol v, rSort t) | (v, t) <- ctor sp] ++
+                       [(x          , vSort v) | (x, v) <- freeSyms sp] 
+    rSort            = rTypeSortedReft emb
+    vSort            = rSort . varRType 
+    varRType         :: Var -> RRType ()
+    varRType         = ofType . varType
+ 
 
 checkRType           :: (Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe SDoc 
 checkRType emb env t   = enFoldReft (rTypeSortedReft emb) f env Nothing t 
@@ -604,7 +610,9 @@ checkRType emb env t   = enFoldReft (rTypeSortedReft emb) f env Nothing t
 
 checkReft            :: (Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe SDoc 
 checkReft env emb Nothing _  = Nothing -- RMono / Ref case, not sure how to check these yet.  
-checkReft env emb (Just t) _ = checkSortedReft env (rTypeSortedReft emb t) 
+checkReft env emb (Just t) _ = checkSortedReft env xs (rTypeSortedReft emb t) 
+   where xs                  = fromMaybe [] $ params <$> stripRTypeBase t 
+
 
 checkSig env (x, t) 
   = case filter (not . (`S.member` env)) (freeSymbols t) of
