@@ -468,7 +468,8 @@ mkMeasureSort (Ms.MSpec cm mm)
 ----------------------- Prop TyCon Definition -------------------------
 -----------------------------------------------------------------------
 
-propTyCon = stringTyCon 'w' 24 propConName
+propTyCon   = stringTyCon 'w' 24 propConName
+-- propMeasure = (stringSymbolRaw propConName, FFunc  
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: DataCon Definitions ------------------
