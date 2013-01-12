@@ -591,15 +591,19 @@ checkMismatch (x, t) = if ok then Nothing else Just err
                             , text "Haskell:" <+> ppr x <+> dcolon <+> ppr (varType x)
                             , text "Liquid :" <+> ppr x <+> dcolon <+> ppr t           ]
 
-ghcSpecEnv           = error "TODO: ghcSpecEnv"
+ghcSpecEnv sp        =  fromListSEnv binds
+  where 
+    emb              =  tcEmbeds sp
+    binds            =  [(x,           rTypeSortedReft emb t) | (x, t) <- meas sp] 
+                     ++ [(varSymbol v, rTypeSortedReft emb t) | (v, t) <- ctor sp]
 
 checkRType           :: (Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe SDoc 
 checkRType emb env t   = enFoldReft (rTypeSortedReft emb) f env Nothing t 
   where f env me r err = err <|> checkReft env emb me r
 
 checkReft            :: (Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe SDoc 
-checkReft env emb Nothing r  = Nothing -- error "TODO: checkReft"  
-checkReft env emb (Just t) r = Nothing -- error "TODO: 
+checkReft env emb Nothing _  = Nothing -- RMono / Ref case, not sure how to check these yet.  
+checkReft env emb (Just t) _ = checkSortedReft env (rTypeSortedReft emb t) 
 
 checkSig env (x, t) 
   = case filter (not . (`S.member` env)) (freeSymbols t) of
