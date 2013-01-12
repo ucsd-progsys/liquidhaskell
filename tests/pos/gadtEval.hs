@@ -3,23 +3,55 @@ module Eval where
 
 import Language.Haskell.Liquid.Prelude (liquidError)
 
-data Expr a where
-  I :: Int -> Expr Int
-  B :: Bool -> Expr Bool
-  Eq :: Expr a -> Expr a -> Expr Bool
-  Pl :: Expr Int -> Expr Int -> Expr Int
+-- "Classic" GADT 
+-- 
+-- data Expr a where
+--   I :: Int -> Expr Int
+--   B :: Bool -> Expr Bool
+--   Eq :: Expr a -> Expr a -> Expr Bool
+--   Pl :: Expr Int -> Expr Int -> Expr Int
+-- 
+-- eval :: Expr a -> a
+-- eval (I i)      = i
+-- eval (B b)      = b
+-- eval (Eq e1 e2) = (eval e1) == (eval e2)
+-- eval (Pl e1 e2) = (eval e1) + (eval e2)
 
-eval :: Expr a -> a
-eval (I i)      = i
-eval (B b)      = b
-eval (Eq e1 e2) = (eval e1) == (eval e2)
-eval (Pl e1 e2) = (eval e1) + (eval e2)
+data Ty   = TInt 
+          | TBool
 
 data Expr = I     Int
           | B     Bool
           | Equal Expr Expr
           | Plus  Expr Expr
           deriving (Eq, Show)
+
+{-
+check (I _)        = TInt
+check (B _)        = TBool
+check (Plus e1 e2) = case (check e1, check e2) of 
+                       (t1, t2) -> if t1 == TInt && t2 == TInt 
+                                     then TInt 
+                                     else liquidError "impossible"
+check (Eq e1 e2)   = case (check e1, check e2) of
+                       (t1, t2) -> if t1 == t2 
+                                     then TBool 
+                                     else liquidError "impossible"
+
+
+
+check (I _)        = TInt
+check (B _)        = TBool
+check (Plus e1 e2) = case (check e1, check e2) of 
+                       (t1, t2) -> if t1 == TInt && t2 == TInt 
+                                     then TInt 
+                                     else liquidError "impossible"
+check (Eq e1 e2)   = case (check e1, check e2) of
+                       (t1, t2) -> if t1 == t2 
+                                     then TBool 
+                                     else liquidError "impossible"
+
+-}
 
 {-@ eval           :: e:ValidExpr  -> {v:ValidExpr | ((isValue v) && (((eType e) = (eType v))))} @-}
 eval e@(I _)       = e
@@ -45,11 +77,9 @@ toInt _     = liquidError "impossible"
 toBool (B b) = b
 toBool _     = liquidError "impossible"
 
-data Ty = TInt | TBool
 
-
-{-@ predicate TInt X   = ((eType X) = 0) @-}
-{-@ predicate TBool X  = ((eType X) = 1) @-}
+{- predicate TInt X   = ((eType X) = 0) @-}
+{- predicate TBool X  = ((eType X) = 1) @-}
 
 
 {-@ type ValidExpr     = {v: Expr | (isValid v)                     } @-}
@@ -64,10 +94,10 @@ data Ty = TInt | TBool
   @-}  
 
 {-@ measure eType       :: Expr -> Ty 
-    eType (I i)         = TInt  
-    eType (Plus  e1 e2) = TInt 
-    eType (B b)         = TBool 
-    eType (Equal e1 e2) = TBool 
+    eType (I i)         = Eval.TInt  
+    eType (Plus  e1 e2) = Eval.TInt 
+    eType (B b)         = Eval.TBool 
+    eType (Equal e1 e2) = Eval.TBool 
   @-}
 
 {-@ measure isValid       :: Expr -> Prop
