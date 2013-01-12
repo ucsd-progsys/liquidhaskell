@@ -945,11 +945,11 @@ mapRefM  :: (Monad m) => (t -> m s) -> Ref t (RType p c tv t) -> m (Ref s (RType
 mapRefM  f (RMono r)          = liftM   RMono       (f r)
 mapRefM  f (RPoly t)          = liftM   RPoly       (mapReftM f t)
 
-foldReft f = enFoldReft (\_ -> f) F.emptySEnv 
+foldReft :: (r -> a -> a) -> a -> RType p c tv r -> a
+foldReft f = enFoldReft (\_ -> ()) (\_ _ -> f) F.emptySEnv 
 
 -- Let's also hang onto the types for the binders...
 -- foldReft f = efoldReft (\_ -> f) [] 
---
 --
 -- efoldReft :: ([F.Symbol] -> r -> a -> a) -> [F.Symbol] -> a -> RType p c tv r -> a
 -- efoldReft f γ z (RVar _ r)       = f γ r z 
@@ -973,26 +973,48 @@ foldReft f = enFoldReft (\_ -> f) F.emptySEnv
 -- efoldRef f γ z (RPoly t)         = efoldReft f γ z t
 
 
-enFoldReft :: (SEnv (RType p c tv r) -> r -> a -> a) -> SEnv (RType p c tv r) -> a -> RType p c tv r -> a
-enFoldReft f γ z (RVar _ r)       = f γ r z 
-enFoldReft f γ z (RAllT _ t)      = enFoldReft f γ z t
-enFoldReft f γ z (RAllP _ t)      = enFoldReft f γ z t
-enFoldReft f γ z (RFun x t t' r)  = f γ r (enFoldReft f (insertSEnv x t γ) (enFoldReft f γ z t) t')
-enFoldReft f γ z (RApp _ ts rs r) = f γ r (enFoldRefs f γ (enFoldRefts f γ z ts) rs)
-enFoldReft f γ z (RCls _ ts)      = enFoldRefts f γ z ts
-enFoldReft f γ z (REx x t t')     = enFoldReft f (insertSEnv x t γ) (enFoldReft f γ z t) t' 
-enFoldReft _ _ z (ROth _)         = z 
-enFoldReft _ _ z (RExprArg _)     = z
+-- enFoldReft :: (SEnv (RType p c tv r) -> r -> a -> a) -> SEnv (RType p c tv r) -> a -> RType p c tv r -> a
+-- enFoldReft f γ z (RVar _ r)       = f γ r z 
+-- enFoldReft f γ z (RAllT _ t)      = enFoldReft f γ z t
+-- enFoldReft f γ z (RAllP _ t)      = enFoldReft f γ z t
+-- enFoldReft f γ z (RFun x t t' r)  = f γ r (enFoldReft f (insertSEnv x t γ) (enFoldReft f γ z t) t')
+-- enFoldReft f γ z (RApp _ ts rs r) = f γ r (enFoldRefs f γ (enFoldRefts f γ z ts) rs)
+-- enFoldReft f γ z (RCls _ ts)      = enFoldRefts f γ z ts
+-- enFoldReft f γ z (REx x t t')     = enFoldReft f (insertSEnv x t γ) (enFoldReft f γ z t) t' 
+-- enFoldReft _ _ z (ROth _)         = z 
+-- enFoldReft _ _ z (RExprArg _)     = z
+-- 
+-- enFoldRefts :: (SEnv (RType p c tv r) -> r -> a -> a) -> SEnv (RType p c tv r) -> a -> [RType p c tv r] -> a
+-- enFoldRefts f γ z ts              = foldr (flip $ enFoldReft f γ) z ts 
+-- 
+-- enFoldRefs :: (SEnv (RType p c tv r) -> r -> a -> a)-> SEnv (RType p c tv r) -> a -> [Ref r (RType p c tv r)] -> a
+-- enFoldRefs  f γ z rs              = foldr (flip $ enFoldRef f γ) z  rs 
+-- 
+-- enFoldRef :: (SEnv (RType p c tv r) -> r -> a -> a)-> SEnv (RType p c tv r) -> a -> Ref r (RType p c tv r) -> a
+-- enFoldRef f γ z (RMono r)         = f γ r z
+-- enFoldRef f γ z (RPoly t)         = enFoldReft f γ z t
 
-enFoldRefts :: (SEnv (RType p c tv r) -> r -> a -> a) -> SEnv (RType p c tv r) -> a -> [RType p c tv r] -> a
-enFoldRefts f γ z ts              = foldr (flip $ enFoldReft f γ) z ts 
+enFoldReft :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> RType p c tv r -> a
 
-enFoldRefs :: (SEnv (RType p c tv r) -> r -> a -> a)-> SEnv (RType p c tv r) -> a -> [Ref r (RType p c tv r)] -> a
-enFoldRefs  f γ z rs              = foldr (flip $ enFoldRef f γ) z  rs 
+enFoldReft g f γ z me@(RVar _ r)       = f γ (Just me) r z 
+enFoldReft g f γ z (RAllT _ t)         = enFoldReft g f γ z t
+enFoldReft g f γ z (RAllP _ t)         = enFoldReft g f γ z t
+enFoldReft g f γ z me@(RFun x t t' r)  = f γ (Just me) r (enFoldReft g f (insertSEnv x (g t) γ) (enFoldReft g f γ z t) t')
+enFoldReft g f γ z me@(RApp _ ts rs r) = f γ (Just me) r (enFoldRefs g f γ (enFoldRefts g f γ z ts) rs)
+enFoldReft g f γ z (RCls _ ts)         = enFoldRefts g f γ z ts
+enFoldReft g f γ z (REx x t t')        = enFoldReft g f (insertSEnv x (g t) γ) (enFoldReft g f γ z t) t' 
+enFoldReft _ _ _ z (ROth _)            = z 
+enFoldReft _ _ _ z (RExprArg _)        = z
 
-enFoldRef :: (SEnv (RType p c tv r) -> r -> a -> a)-> SEnv (RType p c tv r) -> a -> Ref r (RType p c tv r) -> a
-enFoldRef f γ z (RMono r)         = f γ r z
-enFoldRef f γ z (RPoly t)         = enFoldReft f γ z t
+enFoldRefts :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [RType p c tv r] -> a
+enFoldRefts g f γ z ts                = foldr (flip $ enFoldReft g f γ) z ts 
+
+enFoldRefs :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [Ref r (RType p c tv r)] -> a
+enFoldRefs g f γ z rs               = foldr (flip $ enFoldRef g f γ) z  rs 
+
+enFoldRef :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> Ref r (RType p c tv r) -> a
+enFoldRef g f γ z (RMono r)         = f γ Nothing r z
+enFoldRef g f γ z (RPoly t)         = enFoldReft g f γ z t
 
 
 

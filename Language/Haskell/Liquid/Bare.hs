@@ -25,7 +25,7 @@ import TcRnDriver (tcRnLookupRdrName, tcRnLookupName)
 import Text.Printf
 import Data.Maybe               (mapMaybe, catMaybes, isNothing)
 import Data.Traversable         (forM)
-import Control.Applicative      ((<$>))
+import Control.Applicative      ((<$>), (<|>))
 import Control.Monad.Reader     hiding (forM)
 import Control.Monad.Error      hiding (forM)
 -- import Data.Data                hiding (TyCon, tyConName)
@@ -218,10 +218,9 @@ makeSymbols vs xs' xts yts = xvs
 --   where f γ r xs = let Reft (v, _) = toReft r in ((syms r) `sortDiff` (v:γ) ) : xs 
 
 -- freeSymbols :: SpecType -> [Symbol]
-freeSymbols ty   = sortNub $ concat $ enFoldReft f emptySEnv [] ty
-  where f γ r xs = let Reft (v, _) = toReft r in 
-                   [ x | x <- syms r, x /= v, not (x `memberSEnv` γ)] : xs
-
+freeSymbols ty     = sortNub $ concat $ enFoldReft (\ _ -> ()) f emptySEnv [] ty
+  where f γ _ r xs = let Reft (v, _) = toReft r in 
+                     [ x | x <- syms r, x /= v, not (x `memberSEnv` γ)] : xs
 
 
 -----------------------------------------------------------------
@@ -562,24 +561,25 @@ rtypePredBinds = map uPVar . snd3 . bkUniv
 checkGhcSpec         :: GhcSpec -> GhcSpec 
 checkGhcSpec sp      =  applyNonNull sp specError errors
   where env          =  ghcSpecEnv sp
-        errors       =  mapMaybe (checkBind env) (tySigs     sp)
-                     ++ mapMaybe (checkBind env) (ctor       sp)
-                     ++ mapMaybe (checkBind env) (meas       sp)
-                     ++ mapMaybe (checkInv  env) (invariants sp)
+        emb          =  tcEmbeds sp
+        errors       =  mapMaybe (checkBind emb env) (tySigs     sp)
+                     ++ mapMaybe (checkBind emb env) (ctor       sp)
+                     ++ mapMaybe (checkBind emb env) (meas       sp)
+                     ++ mapMaybe (checkInv  emb env) (invariants sp)
                      ++ mapMaybe checkMismatch   (tySigs sp)
                      ++ checkDuplicate           (tySigs sp)
 
 specError            = errorstar . showSDoc . vcat . (text "Errors found in specification..." :)
 
-checkInv env t       = checkTy msg env t 
+checkInv emb env t   = checkTy msg emb env t 
   where msg          = text "Error in invariant specification"
                        $+$  text "invariant " <+> ppr t
 
-checkBind env (v, t) = checkTy msg env t
+checkBind emb env (v, t) = checkTy msg emb env t
   where msg          = text "Error in type specification"
                        $+$  ppr v <+> dcolon <+> ppr t
 
-checkTy msg env t    = (msg $+$) <$> checkRType env t
+checkTy msg emb env t    = (msg $+$) <$> checkRType emb env t
 
 checkDuplicate xts   = err <$> dups
   where err (x,ts)   = vcat $ (text "Multiple Specifications for" <+> ppr x) : (ppr <$> ts)
@@ -591,13 +591,15 @@ checkMismatch (x, t) = if ok then Nothing else Just err
                             , text "Haskell:" <+> ppr x <+> dcolon <+> ppr (varType x)
                             , text "Liquid :" <+> ppr x <+> dcolon <+> ppr t           ]
 
-ghcSpecEnv           :: GhcSpec -> SEnv Sort
 ghcSpecEnv           = error "TODO: ghcSpecEnv"
 
-checkRType           :: (Reftable r) => SEnv Sort -> RRType r -> Maybe SDoc 
-checkRType env t     = error "TODO: checkSpecType"
+checkRType           :: (Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe SDoc 
+checkRType emb env t   = enFoldReft (rTypeSortedReft emb) f env Nothing t 
+  where f env me r err = err <|> checkReft env emb me r
 
-
+checkReft            :: (Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe SDoc 
+checkReft env emb Nothing r  = Nothing -- error "TODO: checkReft"  
+checkReft env emb (Just t) r = Nothing -- error "TODO: 
 
 checkSig env (x, t) 
   = case filter (not . (`S.member` env)) (freeSymbols t) of
