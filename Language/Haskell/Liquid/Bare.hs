@@ -185,7 +185,7 @@ mkVarSpec (v, b) = liftM (v,) (wrapErr msg (mkSpecType msg) b)
 joinIds vs xts = vts   
   where vm     = M.fromList [(showPpr v, v) | v <- vs]
         vts    = catMaybes [(, t) <$> tx x | (x, t) <- xts]
-        tx x   = traceShow ("joinId x = " ++ showPpr x) $ M.lookup (symbolString x) vm
+        tx x   = {- traceShow ("joinId x = " ++ showPpr x) $-} M.lookup (symbolString x) vm
 
 
 makeTyConEmbeds  :: BareEnv -> TCEmb String -> IO (TCEmb TyCon) 
