@@ -85,19 +85,26 @@ makeGhcSpec' vars env spec
        sigs            <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec 
-       let cs'          = {- traceShow "dataConSPEC" $ -} meetDataConSpec cs datacons
+
+       let cs'          = meetDataConSpec cs datacons
        let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms 
        let tx           = subsFreeSymbols syms
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
        return           $ SP { tySigs     = renameTyVars <$> tx sigs 
                              , ctor       = tx cs'
-                             , meas       = tx ms 
+                             , meas       = tx (ms ++ varMeasures vars) 
                              , invariants = invs 
                              , dconsP     = datacons
                              , tconsP     = tycons 
                              , freeSyms   = syms' 
                              , tcEmbeds   = embs 
                              }
+
+varMeasures vars   = [ (varSymbol v, ofType $ varType v) | v <- vars, isDataConWorkId v, isSimpleType $ varType v]
+
+isSimpleType t = null tvs && isNothing (splitFunTy_maybe tb)
+  where (tvs, tb) = splitForAllTys t 
+
 
 renameTyVars :: (Var, SpecType) -> (Var, SpecType)
 renameTyVars (x, t) = (x, mkUnivs as' [] t')
@@ -177,7 +184,8 @@ mkVarSpec (v, b) = liftM (v,) (wrapErr msg (mkSpecType msg) b)
 
 joinIds vs xts = vts   
   where vm     = M.fromList [(showPpr v, v) | v <- vs]
-        vts    = catMaybes [(, t) <$> (M.lookup (symbolString x) vm) | (x, t) <- xts]
+        vts    = catMaybes [(, t) <$> tx x | (x, t) <- xts]
+        tx x   = traceShow ("joinId x = " ++ showPpr x) $ M.lookup (symbolString x) vm
 
 
 makeTyConEmbeds  :: BareEnv -> TCEmb String -> IO (TCEmb TyCon) 
@@ -198,9 +206,6 @@ mkSpecType' msg πs
   -- . mapReft (fmap canonReft) 
 
 makeSymbols vs xs' xts yts = xvs 
-  -- if (all (checkSig env) xts) && (all (checkSig env) yts) 
-  --  then xvs 
-  --  else errorstar "malformed type signatures" 
   where zs  = (concatMap freeSymbols ((snd <$> xts))) `sortDiff` xs'
         zs' = (concatMap freeSymbols ((snd <$> yts))) `sortDiff` xs'
         xs  = sortNub $ zs ++ zs'
@@ -563,9 +568,9 @@ checkGhcSpec         :: GhcSpec -> GhcSpec
 checkGhcSpec sp      =  applyNonNull sp specError errors
   where env          =  ghcSpecEnv sp
         emb          =  tcEmbeds sp
-        errors       =  mapMaybe (checkBind emb env) (tySigs     sp)
-                     ++ mapMaybe (checkBind emb env) (ctor       sp)
-                     ++ mapMaybe (checkBind emb env) (meas       sp)
+        errors       =  mapMaybe (checkBind "variable"         emb env) (tySigs     sp)
+                     ++ mapMaybe (checkBind "data constructor" emb env) (ctor       sp)
+                     ++ mapMaybe (checkBind "measure"          emb env) (meas       sp)
                      ++ mapMaybe (checkInv  emb env) (invariants sp)
                      ++ mapMaybe checkMismatch   (tySigs sp)
                      ++ checkDuplicate           (tySigs sp)
@@ -576,8 +581,8 @@ checkInv emb env t   = checkTy msg emb env t
   where msg          = text "Error in invariant specification"
                        $+$  text "invariant " <+> ppr t
 
-checkBind emb env (v, t) = checkTy msg emb env t
-  where msg          = text "Error in type specification"
+checkBind d emb env (v, t) = checkTy msg emb env t
+  where msg          = text "Error in type specification for" <+> text d
                        $+$  ppr v <+> dcolon <+> ppr t
 
 checkTy msg emb env t    = (msg $+$) <$> checkRType emb env t

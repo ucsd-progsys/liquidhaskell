@@ -1,5 +1,11 @@
-
-module Eval where 
+-- | NAME resolution is all f-ed up. Why does Eval.TInt not get resolved? 
+module Eval (
+    Expr (..)
+  , Ty (..)
+  , eval
+  , toInt
+  , toBool
+  ) where
 
 import Language.Haskell.Liquid.Prelude (liquidError)
 
@@ -20,18 +26,19 @@ import Language.Haskell.Liquid.Prelude (liquidError)
 data Ty   = TInt 
           | TBool
 
+-- foo True  = TInt
+-- foo False = TBool
+
 data Expr = I     Int
           | B     Bool
           | Equal Expr Expr
           | Plus  Expr Expr
           deriving (Eq, Show)
 
-
-{-@ check          :: e:ValidExpr  -> {v:Ty | (v = (eType e))} @-}
-check (I _)        = TInt
-check (B _)        = TBool
-check (Plus e1 e2) = TInt
-check (Equal _ _)  = TBool
+check (I _)       = TInt
+check (B _)       = TBool
+check (Plus _ _)  = TInt
+check (Equal _ _) = TBool
 
 {-@ eval           :: e:ValidExpr  -> {v:ValidExpr | ((isValue v) && (((eType e) = (eType v))))} @-}
 eval e@(I _)       = e
