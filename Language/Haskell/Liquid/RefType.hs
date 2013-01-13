@@ -913,8 +913,8 @@ instance Functor UReft where
 instance Functor (RType a b c) where
   fmap  = mapReft 
 
-instance Fold.Foldable (RType a b c) where
-  foldr = foldReft
+-- instance Fold.Foldable (RType a b c) where
+--   foldr = foldReft
 
 mapReft ::  (r1 -> r2) -> RType p c tv r1 -> RType p c tv r2
 mapReft f = emapReft (\_ -> f) []
@@ -954,7 +954,7 @@ mapRefM  :: (Monad m) => (t -> m s) -> Ref t (RType p c tv t) -> m (Ref s (RType
 mapRefM  f (RMono r)          = liftM   RMono       (f r)
 mapRefM  f (RPoly t)          = liftM   RPoly       (mapReftM f t)
 
-foldReft :: (r -> a -> a) -> a -> RType p c tv r -> a
+-- foldReft :: (r -> a -> a) -> a -> RType p c tv r -> a
 foldReft f = enFoldReft (\_ -> ()) (\_ _ -> f) F.emptySEnv 
 
 -- Let's also hang onto the types for the binders...
@@ -1003,25 +1003,26 @@ foldReft f = enFoldReft (\_ -> ()) (\_ _ -> f) F.emptySEnv
 -- enFoldRef f γ z (RMono r)         = f γ r z
 -- enFoldRef f γ z (RPoly t)         = enFoldReft f γ z t
 
-enFoldReft :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> RType p c tv r -> a
+
+-- enFoldReft :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> RType p c tv r -> a
 
 enFoldReft g f γ z me@(RVar _ r)       = f γ (Just me) r z 
 enFoldReft g f γ z (RAllT _ t)         = enFoldReft g f γ z t
 enFoldReft g f γ z (RAllP _ t)         = enFoldReft g f γ z t
 enFoldReft g f γ z me@(RFun x t t' r)  = f γ (Just me) r (enFoldReft g f (insertSEnv x (g t) γ) (enFoldReft g f γ z t) t')
-enFoldReft g f γ z me@(RApp _ ts rs r) = f γ (Just me) r (enFoldRefs g f γ (enFoldRefts g f γ z ts) rs)
+enFoldReft g f γ z me@(RApp _ ts rs r) = f γ (Just me) r (enFoldRefs g f γ (enFoldRefts g f (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
 enFoldReft g f γ z (RCls _ ts)         = enFoldRefts g f γ z ts
 enFoldReft g f γ z (REx x t t')        = enFoldReft g f (insertSEnv x (g t) γ) (enFoldReft g f γ z t) t' 
 enFoldReft _ _ _ z (ROth _)            = z 
 enFoldReft _ _ _ z (RExprArg _)        = z
 
-enFoldRefts :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [RType p c tv r] -> a
+-- enFoldRefts :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [RType p c tv r] -> a
 enFoldRefts g f γ z ts                = foldr (flip $ enFoldReft g f γ) z ts 
 
-enFoldRefs :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [Ref r (RType p c tv r)] -> a
+-- enFoldRefs :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [Ref r (RType p c tv r)] -> a
 enFoldRefs g f γ z rs               = foldr (flip $ enFoldRef g f γ) z  rs 
 
-enFoldRef :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> Ref r (RType p c tv r) -> a
+-- enFoldRef :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> Ref r (RType p c tv r) -> a
 enFoldRef g f γ z (RMono r)         = f γ Nothing r z
 enFoldRef g f γ z (RPoly t)         = enFoldReft g f γ z t
 
@@ -1030,8 +1031,9 @@ enFoldRef g f γ z (RPoly t)         = enFoldReft g f γ z t
 
 
 
-isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool
-isTrivial = Fold.and . fmap isTauto
+-- isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool
+-- isTrivial = Fold.and . fmap isTauto
+isTrivial = foldReft (\r b -> isTauto r && b) True   
 
 ------------------------------------------------------------------------------------------
 -- TODO: Rewrite subsTyvars with Traversable
