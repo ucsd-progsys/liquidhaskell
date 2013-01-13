@@ -46,8 +46,7 @@ equal (I i) (I j)  = B (i == j)
 equal (B x) (B y)  = B (x == y)
 equal _       _    = liquidError "don't worry, its impossible" 
 
--- | The next two are silly, for scraping quals. Yuck. 
--- Should scrape from DEFS etc.
+-- | The next two are silly, for scraping quals. Yuck. Should scrape from measure-DEFS etc.
 
 {-@ toInt :: IntExpr -> Int @-}
 toInt (I i) = i
@@ -58,13 +57,14 @@ toBool (B b) = b
 toBool _     = liquidError "impossible"
 
 
-{- predicate TInt X   = ((eType X) = 0) @-}
-{- predicate TBool X  = ((eType X) = 1) @-}
+{-@ predicate TInt X   = ((eType X) = Eval.TInt)  @-}
+{-@ predicate TBool X  = ((eType X) = Eval.TBool) @-}
 
 
 {-@ type ValidExpr     = {v: Expr | (isValid v)                             } @-}
-{-@ type IntExpr       = {v: Expr | ((isValue v) && ((eType v) = Eval.TInt))} @-}
-{-@ type BoolExpr      = {v: Expr | ((isValue v) && ((eType v) = Eval.TBool))} @-}
+{-@ type IntExpr       = {v: Expr | ((isValue v) && (TInt  v))} @-}
+{-@ type BoolExpr      = {v: Expr | ((isValue v) && (TBool v))} @-}
+
 
 {-@ measure isValue       :: Expr -> Prop
     isValue (I i)         = true
@@ -84,8 +84,6 @@ toBool _     = liquidError "impossible"
     isValid (I i)         = true
     isValid (B b)         = true
     isValid (Equal e1 e2) = (((eType e1) = (eType e2)) && (isValid e1) && (isValid e2))
-    isValid (Plus e1 e2)  = (((eType e1) = Eval.TInt) && ((eType e2) = Eval.TInt) && (isValid e1) && (isValid e2))
+    isValid (Plus e1 e2)  = ((TInt e1) && (TInt e2) && (isValid e1) && (isValid e2))
   @-}
-
-
 
