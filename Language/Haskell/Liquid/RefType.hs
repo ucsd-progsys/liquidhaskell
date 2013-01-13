@@ -1003,7 +1003,6 @@ foldReft f = enFoldReft (\_ -> ()) (\_ _ -> f) F.emptySEnv
 -- enFoldRef f γ z (RMono r)         = f γ r z
 -- enFoldRef f γ z (RPoly t)         = enFoldReft f γ z t
 
-
 -- enFoldReft :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> RType p c tv r -> a
 
 enFoldReft g f γ z me@(RVar _ r)       = f γ (Just me) r z 
