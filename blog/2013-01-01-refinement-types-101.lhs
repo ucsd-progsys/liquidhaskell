@@ -28,9 +28,9 @@ Refinement Types = Types + Logical Predicates
 </p></blockquote>
 
 That is, refinement types allow us to decorate types with 
-*logical predicates* which constrain the set of values described
-by the type, and hence allow us to specify sophisticated invariants 
-of the underlying values.
+*logical predicates* (think *boolean-valued* Haskell expressions) 
+which constrain the set of values described by the type, and hence 
+allow us to specify sophisticated invariants of the underlying values. 
 
 Say what? 
 
@@ -66,8 +66,13 @@ The binder `v` is called the *value variable*, and so the above denotes
 the set of `Int` values which are greater than `0`. Of course, we can
 attach other predicates to the above value, for example
 
+**Note:** We will use `@`-marked comments to write refinement type 
+annotations the Haskell source file, making these types, quite literally,
+machine-checked comments!
+
+
 \begin{code}
-{-@ zero'' :: {v: Int | ((0 <= v) && (v < 100)) } @-}
+{-@ zero'' :: {v: Int | (0 <= v && v < 100) } @-}
 zero'' :: Int
 zero'' = 0
 \end{code}
@@ -98,7 +103,7 @@ a top-level name.)
 Finally, we could write a single type that captures all the properties above:
 
 \begin{code}
-{-@ zero :: {v: Int | ((0 <= v) && ((v mod 2) = 0)) } @-}
+{-@ zero :: {v: Int | ((0 <= v) && ((v mod 2) = 0) && (v < 100)) } @-}
 zero     :: Int
 zero     =  0
 \end{code}
@@ -109,6 +114,8 @@ The key points are:
 2. A value can have *different* refinement types that describe different properties.
 3. If we *erase* the green bits (i.e. the logical predicates) we get back *exactly* 
    the usual Haskell types that we know and love.
+4. A vanilla Haskell type, say `Int` has the trivial refinement `true` i.e. is 
+   really `{v: Int | true}`.
 
 We have built a refinement type-based verifier called LiquidHaskell. 
 Lets see how we can use refinement types to specify and verify interesting 
@@ -170,13 +177,21 @@ refinement on the *input* component of the function's type
 {-@ divide :: Int -> {v: Int | v != 0 } -> Int @-}
 \end{code}
 
-To typecheck the `divide` function, LiquidHaskell verifies that `"divide by zero"` 
-is a subtype of `{v:String | false}` at the call to `error'`. LiquidHaskell
-does so by using the fact that (in the pertinent equation) the denominator 
-parameter is in fact `0 :: {v: Int | v = 0}` which *contradicts* the
-precondition.
-In other words, LiquidHaskell deduces by contradiction, that the first equation 
-is **dead code** and hence `error'` will not be called at run-time.
+How *does* LiquidHaskell verify the above function? 
+
+The key step is that LiquidHaskell deduces that the expression 
+`"divide by zero"` is not merely of type `String`, but in fact 
+has the the refined type `{v:String | false}` *in the context* 
+in which the call to `error'` occurs.
+
+LiquidHaskell arrives at this conclusion by using the fact that 
+in the first equation for `divide` the *denominator* parameter 
+is in fact `0 :: {v: Int | v = 0}` which *contradicts* the 
+precondition (i.e. input) type.
+
+In other words, LiquidHaskell deduces by contradiction, that 
+the first equation is **dead code** and hence `error'` will 
+not be called at run-time.
 
 If you are paranoid, you can put in an explicit assertion
 
@@ -212,6 +227,12 @@ LiquidHaskell *verifies* that `abz` indeed enjoys the above type by
 deducing that `n` is trivially non-negative when `0 < n` and that in 
 the `otherwise` case, i.e. when `not (0 < n)` the value `0 - n` is
 indeed non-negative (lets not worry about underflows for the moment.)
+LiquidHaskell is able to automatically make these arithmetic deductions
+by using an [SMT solver](http://rise4fun.com/Z3/) which has decision
+built-in procedures for arithmetic, to reason about the logical
+refinements.
+
+
 
 Putting It All Together
 -----------------------
