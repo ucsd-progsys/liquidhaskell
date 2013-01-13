@@ -612,7 +612,7 @@ lookupLE = goNothing
 -- > lookupGE 3 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
 -- > lookupGE 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
 -- > lookupGE 6 (fromList [(3,'a'), (5,'b')]) == Nothing
-{-@ lookupLE :: (Ord k) => k -> OMap k v -> Maybe (k, v) @-}
+{-@ lookupGE :: (Ord k) => k -> OMap k v -> Maybe (k, v) @-}
 lookupGE :: Ord k => k -> Map k v -> Maybe (k, v)
 lookupGE = goNothing
   where

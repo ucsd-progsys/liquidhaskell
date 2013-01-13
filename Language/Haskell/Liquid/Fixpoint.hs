@@ -60,6 +60,9 @@ module Language.Haskell.Liquid.Fixpoint (
   -- * Cut KVars
   , Kuts (..), ksEmpty, ksUnion
 
+  -- * Checking Well-Formedness
+  , checkSortedReft
+
   ) where
 
 import TypeRep 
@@ -1114,3 +1117,17 @@ addIds =zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
                     { srhs = shiftSR i $ srhs c }
     shiftSR i sr = sr { sr_reft = shiftR i $ sr_reft sr }
     shiftR i r@(Reft (S v, _)) = shiftVV r (S (v ++ show i))
+
+
+-------------------------------------------------------------------------
+--------------- Checking Well Formedness --------------------------------
+-------------------------------------------------------------------------
+
+checkSortedReft :: SEnv SortedReft -> [Symbol] -> SortedReft -> Maybe SDoc
+checkSortedReft env xs sr = applyNonNull Nothing error unknowns 
+  where error             = Just . (text "Unknown symbols:" <+>) . ppr
+        unknowns          = [ x | x <- syms sr, not (x `elem` v : xs), not (x `memberSEnv` env)]    
+        Reft (v,_)        = sr_reft sr 
+
+
+

@@ -374,7 +374,7 @@ dummyP ::  Monad m => m (FReft -> b) -> m b
 dummyP fm 
   = fm `ap` return dummyFReft 
 
-refP :: Parser (t -> a)-> (Reft -> t)-> Parser a
+refP :: Parser (t -> a) -> (Reft -> t)-> Parser a
 refP kindP f
   = braces $ do
       v   <- symbolP 
@@ -390,7 +390,7 @@ symsP
        reserved "->"
        return ss
 
-frefP :: Parser (FReft -> a)-> Parser a
+frefP :: Parser (FReft -> a) -> Parser a
 frefP kindP
   = (try (do {ss <- symsP ; refP kindP (FSReft ss)}))
  <|> refP kindP FReft

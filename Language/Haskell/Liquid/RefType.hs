@@ -137,8 +137,8 @@ instance Reftable Predicate where
   ppTy r d | isTauto r = d 
            | otherwise = d <> (angleBrackets $ ppr r)
   
-  toReft               = errorstar "TODO: instance of toReft for Predicates. Hmm."
-
+  toReft               = errorstar "TODO: instance of toReft for Predicate"
+  params               = errorstar "TODO: instance of params for Predicate"
 
 instance NFData Predicate where
   rnf _ = ()
@@ -280,10 +280,12 @@ class (Monoid r, Subable r, Outputable r) => Reftable r where
   meet    = mappend
 
   toReft  :: r -> Reft
-  fSyms   :: r -> [Symbol]
+  params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
+
+  fSyms   :: r -> [Symbol]          -- ^ Niki: what is this fSyms/add/drop for?
   fSyms _  = []
 
-  addSyms :: [Symbol] -> r -> r
+  addSyms :: [Symbol] -> r -> r     
   addSyms _ = id
 
   dropSyms :: r -> r
@@ -415,14 +417,16 @@ instance Reftable r => Reftable (RType Class RTyCon RTyVar r) where
   isTauto     = isTrivial
   ppTy        = errorstar "ppTy RPoly Reftable" 
   toReft      = errorstar "toReft on RType"
+  params      = errorstar "params on RType"
   fSyms       = fromMaybe [] . fmap fSyms . stripRTypeBase 
   addSyms s t = fmap (addSyms s) t
   dropSyms  t = fmap dropSyms t
 
 instance Reftable Reft where
-  isTauto = isTautoReft
-  ppTy    = ppr_reft
-  toReft  = id
+  isTauto  = isTautoReft
+  ppTy     = ppr_reft
+  toReft   = id
+  params _ = []
 
 instance Reftable FReft where
   isTauto (FReft r)       = isTautoReft r
@@ -432,6 +436,8 @@ instance Reftable FReft where
   ppTy    (FSReft s r)  d = ppTySReft s r d
   toReft  (FReft r)       = r
   toReft  (FSReft _ r)    = r
+  params  (FReft _)       = []
+  params  (FSReft xs _)   = xs
   fSyms   (FReft _)       = []
   fSyms   (FSReft s _)    = s
   dropSyms (FSReft _ r)   = FReft r
@@ -448,11 +454,13 @@ instance Reftable () where
   top       = ()
   meet _ _  = ()
   toReft _  = top
+  params _  = []
 
 instance (Reftable r) => Reftable (UReft r) where
   isTauto (U r p)    = isTauto r && isTauto p 
   ppTy (U r p) d     = ppTy r (ppTy p d) 
   toReft (U r _)     = toReft r
+  params (U r _)     = params r
   fSyms (U r _)      = fSyms r
   dropSyms (U r p)   = U (dropSyms r) p
   addSyms ss (U r p) = U (addSyms ss r) p
@@ -476,6 +484,7 @@ instance (Reftable r, RefTypable p c tv r) => Reftable (Ref r (RType p c tv r)) 
   ppTy (RMono r) d  = ppTy r d
   ppTy (RPoly _) _  = errorstar "RefType: Reftable ppTy in RPoly"
   toReft            = errorstar "RefType: Reftable toReft"
+  params            = errorstar "RefType: Reftable params for Ref"
   fSyms (RMono r)   = fSyms r
   fSyms (RPoly _)   = errorstar "RefType: Reftable fSyms in RPoly"
 
@@ -904,8 +913,8 @@ instance Functor UReft where
 instance Functor (RType a b c) where
   fmap  = mapReft 
 
-instance Fold.Foldable (RType a b c) where
-  foldr = foldReft
+-- instance Fold.Foldable (RType a b c) where
+--   foldr = foldReft
 
 mapReft ::  (r1 -> r2) -> RType p c tv r1 -> RType p c tv r2
 mapReft f = emapReft (\_ -> f) []
@@ -945,33 +954,31 @@ mapRefM  :: (Monad m) => (t -> m s) -> Ref t (RType p c tv t) -> m (Ref s (RType
 mapRefM  f (RMono r)          = liftM   RMono       (f r)
 mapRefM  f (RPoly t)          = liftM   RPoly       (mapReftM f t)
 
--- foldReft ::  (r -> a -> a) -> a -> RType p c tv r -> a
-foldReft f = efoldReft (\_ -> f) [] 
+-- foldReft :: (r -> a -> a) -> a -> RType p c tv r -> a
+foldReft f = efoldReft (\_ -> ()) (\_ _ -> f) F.emptySEnv 
 
-efoldReft :: ([F.Symbol] -> r -> a -> a) -> [F.Symbol] -> a -> RType p c tv r -> a
-efoldReft f γ z (RVar _ r)       = f γ r z 
-efoldReft f γ z (RAllT _ t)      = efoldReft f γ z t
-efoldReft f γ z (RAllP _ t)      = efoldReft f γ z t
-efoldReft f γ z (RFun x t t' r)  = f γ r (efoldReft f (x:γ) (efoldReft f γ z t) t')
-efoldReft f γ z (RApp _ ts rs r) = f γ r (efoldRefs f γ (efoldRefts f γ z ts) rs)
-efoldReft f γ z (RCls _ ts)      = efoldRefts f γ z ts
-efoldReft f γ z (REx x t t')     = efoldReft f (x:γ) (efoldReft f γ z t) t' 
-efoldReft _ _ z (ROth _)         = z 
-efoldReft _ _ z (RExprArg _)     = z
+-- efoldReft :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> RType p c tv r -> a
+efoldReft g f γ z me@(RVar _ r)       = f γ (Just me) r z 
+efoldReft g f γ z (RAllT _ t)         = efoldReft g f γ z t
+efoldReft g f γ z (RAllP _ t)         = efoldReft g f γ z t
+efoldReft g f γ z me@(RFun x t t' r)  = f γ (Just me) r (efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t')
+efoldReft g f γ z me@(RApp _ ts rs r) = f γ (Just me) r (efoldRefs g f γ (efoldRefts g f (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
+efoldReft g f γ z (RCls _ ts)         = efoldRefts g f γ z ts
+efoldReft g f γ z (REx x t t')        = efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t' 
+efoldReft _ _ _ z (ROth _)            = z 
+efoldReft _ _ _ z (RExprArg _)        = z
 
-efoldRefts :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> [RType t t1 t2 t3] -> c
-efoldRefts f γ z ts              = foldr (flip $ efoldReft f γ) z ts 
+-- efoldRefts :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [RType p c tv r] -> a
+efoldRefts g f γ z ts                = foldr (flip $ efoldReft g f γ) z ts 
 
-efoldRefs :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> [Ref t3 (RType t t1 t2 t3)] -> c
-efoldRefs  f γ z rs              = foldr (flip $ efoldRef f γ) z  rs 
+-- efoldRefs :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [Ref r (RType p c tv r)] -> a
+efoldRefs g f γ z rs               = foldr (flip $ efoldRef g f γ) z  rs 
 
-efoldRef :: ([Symbol] -> t3 -> c -> c)-> [Symbol] -> c -> Ref t3 (RType t t1 t2 t3) -> c
-efoldRef f γ z (RMono r)         = f γ r z
-efoldRef f γ z (RPoly t)         = efoldReft f γ z t
+-- efoldRef :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> Ref r (RType p c tv r) -> a
+efoldRef g f γ z (RMono r)         = f γ Nothing r z
+efoldRef g f γ z (RPoly t)         = efoldReft g f γ z t
 
-
-isTrivial :: (Functor t, Fold.Foldable t, Reftable a) => t a -> Bool
-isTrivial = Fold.and . fmap isTauto
+isTrivial = foldReft (\r b -> isTauto r && b) True   
 
 ------------------------------------------------------------------------------------------
 -- TODO: Rewrite subsTyvars with Traversable
