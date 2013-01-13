@@ -23,9 +23,9 @@ import BasicTypes (TupleSort (..), Arity)
 import TcRnDriver (tcRnLookupRdrName, tcRnLookupName) 
 
 import Text.Printf
-import Data.Maybe               (catMaybes, isNothing)
+import Data.Maybe               (fromMaybe, mapMaybe, catMaybes, isNothing)
 import Data.Traversable         (forM)
-import Control.Applicative      ((<$>))
+import Control.Applicative      ((<$>), (<|>))
 import Control.Monad.Reader     hiding (forM)
 import Control.Monad.Error      hiding (forM)
 -- import Data.Data                hiding (TyCon, tyConName)
@@ -43,7 +43,7 @@ import Language.Haskell.Liquid.Misc
 import qualified Data.List           as L
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
-import qualified Control.Exception as Ex
+import qualified Control.Exception   as Ex
 
 ------------------------------------------------------------------
 ---------- Top Level Output --------------------------------------
@@ -72,6 +72,10 @@ data GhcSpec = SP {
 
 makeGhcSpec :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
 makeGhcSpec vars env spec 
+  = checkGhcSpec <$> makeGhcSpec' vars env spec 
+
+makeGhcSpec' :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
+makeGhcSpec' vars env spec 
   = do (tcs, dcs)      <- makeConTypes    env               $ Ms.dataDecls  spec 
        let (tcs', dcs') = wiredTyDataCons 
        let tycons       = tcs ++ tcs'    
@@ -113,7 +117,7 @@ mkVarExpr v
 
 subsFreeSymbols xvs = tx
   where su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- xvs]
-        tx  = fmap $ mapSnd $ subst su {- (\t -> tracePpr ("subsFree: " ++ showPpr t) (subst su t)) -}
+        tx  = fmap $ mapSnd $ subst su 
 
 -- meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
 meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts 
@@ -164,7 +168,7 @@ makeMeasureSpec env m = execBare mkSpec env
 
 makeAssumeSpec :: BareEnv -> [Var] -> [(Symbol, BareType)] -> IO [(Var, SpecType)]
 makeAssumeSpec env vs xbs = execBare mkAspec env 
-  where mkAspec = forM vbs mkVarSpec >>= return . checkAssumeSpec
+  where mkAspec = forM vbs mkVarSpec -- >>= return . checkAssumeSpec
         vbs     = joinIds vs xbs -- (first symbolString <$> xbs) 
 
 
@@ -193,11 +197,10 @@ mkSpecType' msg πs
   . txParams subvUReft (uPVar <$> πs)
   -- . mapReft (fmap canonReft) 
 
-makeSymbols vs xs' xts yts = 
-  -- tracePpr ("makeSymbols: vs = " ++ showPpr vs ++ " xs' = " ++ showPpr xs' ++ " ts = " ++ showPpr xts) $ 
-  if (all (checkSig env) xts) && (all (checkSig env) yts) 
-   then xvs 
-   else errorstar "malformed type signatures" 
+makeSymbols vs xs' xts yts = xvs 
+  -- if (all (checkSig env) xts) && (all (checkSig env) yts) 
+  --  then xvs 
+  --  else errorstar "malformed type signatures" 
   where zs  = (concatMap freeSymbols ((snd <$> xts))) `sortDiff` xs'
         zs' = (concatMap freeSymbols ((snd <$> yts))) `sortDiff` xs'
         xs  = sortNub $ zs ++ zs'
@@ -205,22 +208,20 @@ makeSymbols vs xs' xts yts =
         env = S.fromList ((fst <$> xvs) ++ xs')
 
 -- TODO: use this. currently suppressed because 
-checkSig env xt = True 
-
+-- checkSig env xt = True 
 --   forall aa. (Ord a) => [a] -> [a]<{VV : a | (VV >= fld)}>
 -- doesn't typecheck -- thanks to "fld"
 -- checkSig env xt = tracePpr ("checkSig " ++ showPpr xt) $ checkSig' env xt
 
-checkSig' env (x, t) 
-  = case filter (not . (`S.member` env)) (freeSymbols t) of
-      [] -> True
-      ys -> errorstar (msg ys) 
-    where msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showPpr ys) (showPpr x) (showPpr t)
+-- freeSymbols :: SpecType -> [Symbol]
+-- freeSymbols ty   = sortNub $ concat $ efoldReft f [] [] ty
+--   where f γ r xs = let Reft (v, _) = toReft r in ((syms r) `sortDiff` (v:γ) ) : xs 
 
 -- freeSymbols :: SpecType -> [Symbol]
-freeSymbols ty   = -- tracePpr ("freeSymbols: " ++ show ty) $ 
-                   sortNub $ concat $ efoldReft f [] [] ty
-  where f γ r xs = let Reft (v, _) = toReft r in ((syms r) `sortDiff` (v:γ) ) : xs 
+freeSymbols ty     = sortNub $ concat $ efoldReft (\ _ -> ()) f emptySEnv [] ty
+  where f γ _ r xs = let Reft (v, _) = toReft r in 
+                     [ x | x <- syms r, x /= v, not (x `memberSEnv` γ)] : xs
+
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
@@ -467,7 +468,8 @@ mkMeasureSort (Ms.MSpec cm mm)
 ----------------------- Prop TyCon Definition -------------------------
 -----------------------------------------------------------------------
 
-propTyCon = stringTyCon 'w' 24 propConName
+propTyCon   = stringTyCon 'w' 24 propConName
+-- propMeasure = (stringSymbolRaw propConName, FFunc  
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: DataCon Definitions ------------------
@@ -539,33 +541,83 @@ rtypePredBinds = map uPVar . snd3 . bkUniv
 ------- Checking Specifications Refine Haskell Types --------------------------
 -------------------------------------------------------------------------------
 
-checkAssumeSpec = checkMismatch . checkDuplicate 
+-- checkAssumeSpec = checkMismatch . checkDuplicate 
 
-checkDuplicate xts = applyNonNull xts (specError . duplicateError) dups
-    where dups     = [ z | z@(x, t1:t2:_) <- M.toList $ group xts ]
+-- checkDuplicate xts = applyNonNull xts (specError . duplicateError) dups
+--     where dups     = [ z | z@(x, t1:t2:_) <- M.toList $ group xts ]
 
-duplicateError     = concatMap err
-  where err (x,ts) = ("Multiple Specifications for " ++ (showPpr x)) : (showPpr <$> ts)
+-- checkMismatch xts  = applyNonNull xts (specError . mismatchError) miss
+--   where miss       = [ z | z@(x, t) <- xts, not $ (toRSort t) == (ofType $ varType x)]
+-- 
+-- mismatchError      = concatMap err 
+--   where err (y, t) = [ "Specified Liquid Type Does Not Match Haskell Type"
+--                      , "Haskell: " ++ showPpr y ++ " :: " ++ showPpr (varType y)
+--                      , "Liquid : " ++ showPpr y ++ " :: " ++ showPpr t           ]
 
-checkMismatch xts  = applyNonNull xts (specError . mismatchError) miss
-  where miss       = [ z | z@(x, t) <- xts, not $ (toRSort t) == (ofType $ varType x)]
 
-mismatchError      = concatMap err 
-  where err (y, t) = [ "Specified Liquid Type Does Not Match Haskell Type"
-                     , "Haskell: " ++ showPpr y ++ " :: " ++ showPpr (varType y)
-                     , "Liquid : " ++ showPpr y ++ " :: " ++ showPpr t           ]
+-------------------------------------------------------------------------------
+----- Checking GhcSpec --------------------------------------------------------
+-------------------------------------------------------------------------------
 
-specError          = errorstar 
-                   . L.intercalate "\n\n" 
-                   . concatHead "Specification Error: "  
+checkGhcSpec         :: GhcSpec -> GhcSpec 
+checkGhcSpec sp      =  applyNonNull sp specError errors
+  where env          =  ghcSpecEnv sp
+        emb          =  tcEmbeds sp
+        errors       =  mapMaybe (checkBind emb env) (tySigs     sp)
+                     ++ mapMaybe (checkBind emb env) (ctor       sp)
+                     ++ mapMaybe (checkBind emb env) (meas       sp)
+                     ++ mapMaybe (checkInv  emb env) (invariants sp)
+                     ++ mapMaybe checkMismatch   (tySigs sp)
+                     ++ checkDuplicate           (tySigs sp)
 
-concatHead s (h:t) = (s ++ h) : t 
+specError            = errorstar . showSDoc . vcat . (text "Errors found in specification..." :)
 
----------------------------------------------------------------------------------
------------------ Helper Predicates on Types ------------------------------------
----------------------------------------------------------------------------------
+checkInv emb env t   = checkTy msg emb env t 
+  where msg          = text "Error in invariant specification"
+                       $+$  text "invariant " <+> ppr t
 
--- eqType' τ1 τ2 = eqType τ1 τ2 
--- eqShape :: SpecType -> SpecType -> Bool 
--- eqShape t1 t2 = eqShape (toRSort t1) (toRSort t2) 
+checkBind emb env (v, t) = checkTy msg emb env t
+  where msg          = text "Error in type specification"
+                       $+$  ppr v <+> dcolon <+> ppr t
+
+checkTy msg emb env t    = (msg $+$) <$> checkRType emb env t
+
+checkDuplicate xts   = err <$> dups
+  where err (x,ts)   = vcat $ (text "Multiple Specifications for" <+> ppr x) : (ppr <$> ts)
+        dups         = [ z | z@(x, t1:t2:_) <- M.toList $ group xts ]
+
+checkMismatch (x, t) = if ok then Nothing else Just err
+  where ok           = (toRSort t) == (ofType $ varType x) 
+        err          = vcat [ text "Specified Liquid Type Does Not Match Haskell Type"
+                            , text "Haskell:" <+> ppr x <+> dcolon <+> ppr (varType x)
+                            , text "Liquid :" <+> ppr x <+> dcolon <+> ppr t           ]
+
+ghcSpecEnv sp        = fromListSEnv binds
+  where 
+    emb              = tcEmbeds sp
+    binds            = [(x,           rSort t) | (x, t) <- meas sp] ++ 
+                       [(varSymbol v, rSort t) | (v, t) <- ctor sp] ++
+                       [(x          , vSort v) | (x, v) <- freeSyms sp] 
+    rSort            = rTypeSortedReft emb
+    vSort            = rSort . varRType 
+    varRType         :: Var -> RRType ()
+    varRType         = ofType . varType
+ 
+
+checkRType           :: (Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe SDoc 
+checkRType emb env t   = efoldReft (rTypeSortedReft emb) f env Nothing t 
+  where f env me r err = err <|> checkReft env emb me r
+
+checkReft            :: (Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe SDoc 
+checkReft env emb Nothing _  = Nothing -- RMono / Ref case, not sure how to check these yet.  
+checkReft env emb (Just t) _ = checkSortedReft env xs (rTypeSortedReft emb t) 
+   where xs                  = fromMaybe [] $ params <$> stripRTypeBase t 
+
+
+checkSig env (x, t) 
+  = case filter (not . (`S.member` env)) (freeSymbols t) of
+      [] -> True
+      ys -> errorstar (msg ys) 
+    where msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showPpr ys) (showPpr x) (showPpr t)
+
 

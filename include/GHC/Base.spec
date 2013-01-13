@@ -8,6 +8,8 @@ import GHC.Err
 embed GHC.Types.Int      as int
 embed Prop               as bool
 
+measure Prop   :: Bool -> Prop
+
 measure len :: forall a. [a] -> GHC.Types.Int
 len ([])     = 0
 len (y:ys)   = 1 + (len ys)
