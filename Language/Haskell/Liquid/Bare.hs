@@ -218,7 +218,7 @@ makeSymbols vs xs' xts yts = xvs
 --   where f γ r xs = let Reft (v, _) = toReft r in ((syms r) `sortDiff` (v:γ) ) : xs 
 
 -- freeSymbols :: SpecType -> [Symbol]
-freeSymbols ty     = sortNub $ concat $ enFoldReft (\ _ -> ()) f emptySEnv [] ty
+freeSymbols ty     = sortNub $ concat $ efoldReft (\ _ -> ()) f emptySEnv [] ty
   where f γ _ r xs = let Reft (v, _) = toReft r in 
                      [ x | x <- syms r, x /= v, not (x `memberSEnv` γ)] : xs
 
@@ -605,7 +605,7 @@ ghcSpecEnv sp        = fromListSEnv binds
  
 
 checkRType           :: (Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe SDoc 
-checkRType emb env t   = enFoldReft (rTypeSortedReft emb) f env Nothing t 
+checkRType emb env t   = efoldReft (rTypeSortedReft emb) f env Nothing t 
   where f env me r err = err <|> checkReft env emb me r
 
 checkReft            :: (Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe SDoc 
