@@ -7,7 +7,7 @@ measure Set_cap  :: (Set a) -> (Set a) -> (Set a)
 measure Set_sub  :: (Set a) -> (Set a) -> Prop 
 measure Set_sng  :: a -> (Set a)
 measure Set_emp  :: (Set a) -> Prop
-
+measure Set_mem  :: a -> (Set a) -> Prop
 
 
 measure listElts :: [a] -> (Set a) 

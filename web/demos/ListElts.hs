@@ -18,11 +18,9 @@
 module ListSets where
 
 
--- First, lets define a "ghost" type that represents sets.
+-- First, lets import the @Set@ type ...
 
-
-data Set a
-
+import Data.Set (Set (..))
 
 -- We could also just import `Data.Set` but we choose to define
 -- it here to make things self-contained.

@@ -5,10 +5,9 @@ module ListSets where
 -- | Encoding Sets of Values With Liquid Types --------------------------
 -------------------------------------------------------------------------
 
--- First, lets define a "ghost" type that represents sets. 
--- (We could also just import @Data.Set@)
+-- First, lets import the `Set` type from @Data.Set@
 
-data Set a 
+import Data.Set (Set (..)) 
 
 -- Next, lets write a measure for the set of elements in a list.
 
