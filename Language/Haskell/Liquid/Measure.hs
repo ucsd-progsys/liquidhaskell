@@ -202,8 +202,25 @@ expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
 expandRTAliases sp = sp { sigs       = [ (x, generalize $ expandRTAlias env t) | (x, t) <- sigs sp       ] }
                         { dataDecls  = [ expandRTAliasDataDecl env dc          | dc     <- dataDecls sp  ] } 
                         { invariants = [ generalize $ expandRTAlias env t      | t      <- invariants sp ] }
-                        { measures   = [ m { sort = generalize (sort m) }      | m      <- measures sp   ] } 
-  where      env   = makeRTEnv (aliases sp) (paliases sp)
+                        { measures   = [ expandRTAliasMeasure env m            | m      <- measures sp   ] } 
+  where env        = makeRTEnv (aliases sp) (paliases sp)
+        
+        
+expandRTAliasMeasure env m     = m { sort = generalize (sort m) } 
+                                   { eqns = expandRTAliasDef env <$> (eqns m) }
+
+expandRTAliasDef  :: RTEnv -> Def Symbol -> Def Symbol
+expandRTAliasDef   env d       = d { body = expandRTAliasBody env (body d) }
+
+
+expandRTAliasBody  :: RTEnv -> Body -> Body
+expandRTAliasBody  env (P p)   = P   (expPAlias env p) 
+expandRTAliasBody  env (R x p) = R x (expPAlias env p)
+expandRTAliasBody  env b       = b
+   
+expPAlias :: RTEnv -> Pred -> Pred
+expPAlias env = expandPAlias (\_ _ -> id) [] (predAliases env)
+
 
 -- | Constructing the Alias Environment
 
