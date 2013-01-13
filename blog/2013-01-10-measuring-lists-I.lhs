@@ -20,7 +20,6 @@ list manipulating functions.
 
 <!-- more -->
 
-
 Measuring the Length of a List
 ------------------------------
 
