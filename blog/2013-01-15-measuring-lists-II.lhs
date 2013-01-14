@@ -24,6 +24,8 @@ Basic Operations: Map, Filter, Reverse
 --------------------------------------
 
 \begin{code}
+module List2 where
+
 x = error "TODO"
 \end{code}
 Less Basic: Append, Zip, Take 
