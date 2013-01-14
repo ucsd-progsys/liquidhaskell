@@ -506,12 +506,11 @@ instance TyConable String where
 
 instance (Eq p, Outputable p, TyConable c, Reftable r) => RefTypable p c String r where
   ppCls = ppClass_String
-  ppRType = ppr_rtype True -- False 
+  ppRType = ppr_rtype False -- True 
 
 instance (Reftable r) => RefTypable Class RTyCon RTyVar r where
   ppCls = ppClass_ClassPred
-  ppRType = ppr_rtype True -- False 
-
+  ppRType = ppr_rtype False -- True
   
 
 ppClass_String    c _  = parens (ppr c <+> text "...")
@@ -830,7 +829,11 @@ instance Outputable RTyCon where
 instance Show RTyCon where
  show = showPpr
 
-ppr_rtype :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> SDoc
+ppr_rtype :: (RefTypable p c tv (), RefTypable p c tv r) 
+          => Bool           -- ^ Whether to print reftPs or not e.g. [a]<...> 
+          -> Prec 
+          -> RType p c tv r 
+          -> SDoc
 
 ppr_rtype bb p t@(RAllT _ _)       
   = ppr_forall bb p t
