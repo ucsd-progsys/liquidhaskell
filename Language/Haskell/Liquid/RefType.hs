@@ -205,6 +205,11 @@ data RType p c tv r
 
   | RExprArg Expr                               -- ^ For expression arguments to type aliases
                                                 --   see tests/pos/vector2.hs
+  | RAppTy{
+      rt_ty    :: !(RType p c tv r)
+    , rt_ty'   :: !(RType p c tv r)
+    }
+
   | ROth  !String 
   -- deriving (Data, Typeable)
 
@@ -742,6 +747,7 @@ freeTyVars (RCls _ ts)     = L.nub $ concatMap freeTyVars ts
 freeTyVars (RVar α _)      = [α] 
 freeTyVars (REx _ _ t)     = freeTyVars t
 freeTyVars (RExprArg _)    = []
+freeTyVars (RAppTy t t')   = freeTyVars t `L.union` freeTyVars t'
 freeTyVars t               = errorstar ("RefType.freeTyVars cannot handle" ++ show t)
 
 --getTyVars = everything (++) ([] `mkQ` f)
@@ -783,6 +789,7 @@ instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) wher
   rnf (REx x t t')     = rnf x `seq` rnf t `seq` rnf t'
   rnf (ROth s)         = rnf s
   rnf (RExprArg e)     = rnf e
+  rnf (RAppTy t t')    = rnf t `seq` rnf t'
 
 ----------------------------------------------------------------
 ------------------ Printing Refinement Types -------------------
@@ -863,6 +870,8 @@ ppr_rtype bb p t@(REx _ _ _)
   = ppExists bb p t
 ppr_rtype _ _ (RExprArg e)
   = braces $ ppr e
+ppr_rtype bb p (RAppTy t t')
+  = ppr_type bb p t <+> ppr_type bb p t'
 ppr_rtype _ _ (ROth s)
   = text $ "???-" ++ s 
 
@@ -933,6 +942,7 @@ emapReft f γ (RApp c ts rs r)    = RApp  c (emapReft f γ <$> ts) (emapRef f γ
 emapReft f γ (RCls c ts)         = RCls  c (emapReft f γ <$> ts) 
 emapReft f γ (REx z t t')        = REx   z (emapReft f γ t) (emapReft f γ t')
 emapReft _ _ (RExprArg e)        = RExprArg e
+emapReft f γ (RAppTy t t')       = RAppTy (emapReft f γ t) (emapReft f γ t')
 emapReft _ _ (ROth s)            = ROth  s 
 
 emapRef :: ([F.Symbol] -> t -> s) ->  [F.Symbol] -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
@@ -951,6 +961,7 @@ mapReftM f (RApp c ts rs r)   = liftM3  (RApp  c)   (mapM (mapReftM f) ts)  (map
 mapReftM f (RCls c ts)        = liftM   (RCls  c)   (mapM (mapReftM f) ts) 
 mapReftM f (REx z t t')       = liftM2  (REx z)     (mapReftM f t)          (mapReftM f t')
 mapReftM _ (RExprArg e)       = return  $ RExprArg e 
+mapReftM f (RAppTy t t')      = liftM2 (RAppTy) (mapReftM f t) (mapReftM f t')
 mapReftM _ (ROth s)           = return  $ ROth  s 
 
 mapRefM  :: (Monad m) => (t -> m s) -> Ref t (RType p c tv t) -> m (Ref s (RType p c tv s))
@@ -969,6 +980,7 @@ efoldReft g f γ z me@(RApp _ ts rs r) = f γ (Just me) r (efoldRefs g f γ (efo
 efoldReft g f γ z (RCls _ ts)         = efoldRefts g f γ z ts
 efoldReft g f γ z (REx x t t')        = efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t' 
 efoldReft _ _ _ z (ROth _)            = z 
+efoldReft g f γ z (RAppTy t t')    = efoldReft g f γ (efoldReft g f γ z t) t'
 efoldReft _ _ _ z (RExprArg _)        = z
 
 -- efoldRefts :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [RType p c tv r] -> a
@@ -1023,6 +1035,8 @@ subsFree meet s (α', _, t') t@(RVar α r)
   = t
 subsFree m s z (REx x t t')
   = REx x (subsFree m s z t) (subsFree m s z t')
+subsFree m s z@(_, _, _) (RAppTy t t')       
+  = RAppTy (subsFree m s z t) (subsFree m s z t')
 subsFree _ _ _ t@(RExprArg _)        
   = t
 subsFree _ _ _ t@(ROth _)        
@@ -1130,6 +1144,8 @@ ofType_ (TyConApp c τs)
   | otherwise
   = rApp c (ofType_ <$> τs) [] top 
   where (αs, τ) = TC.synTyConDefn c
+ofType_ (AppTy t1 t2)
+  = RAppTy (ofType_ t1) (ofType t2)               
 ofType_ τ               
   = errorstar ("ofType cannot handle: " ++ showPpr τ)
 
@@ -1216,6 +1232,8 @@ toType (RCls c ts)
   = predTreePredType $ ClassPred c (toType <$> ts)
 toType (REx _ _ t)
   = toType t
+toType (RAppTy t t')   
+  = AppTy (toType t) (toType t')
 toType t@(RExprArg _)
   = errorstar $ "RefType.toType cannot handle: " ++ show t
 toType t@(ROth _)      
@@ -1229,6 +1247,7 @@ mapBind f (RCls c ts)      = RCls c (mapBind f <$> ts)
 mapBind f (REx b t1 t2)    = REx  (f b) (mapBind f t1) (mapBind f t2)
 mapBind _ (RVar α r)       = RVar α r
 mapBind _ (ROth s)         = ROth s
+mapBind f (RAppTy t1 t2)   = RAppTy (mapBind f t1) (mapBind f t2)
 mapBind _ (RExprArg e)     = RExprArg e
 
 mapBindRef _ (RMono r)     = RMono r
