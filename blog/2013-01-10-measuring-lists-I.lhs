@@ -289,7 +289,7 @@ makes a little typing go a long way.
 
 
 
-[vecbounds]:  /blog/2012/01/05/bounding-vectors.lhs/ 
+[vecbounds]:  /blog/2013/01/05/bounding-vectors.lhs/ 
 [ghclist]  : https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/List.lhs#L125
 [ref101]   :  /blog/2013/01/01/refinement-types-101.lhs/ 
 
