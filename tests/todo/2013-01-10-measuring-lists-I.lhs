@@ -3,7 +3,7 @@ layout: post
 title: "Measuring Lists I"
 date: 2013-01-05 16:12
 author: Ranjit Jhala
-published: true 
+published: false 
 comments: true
 external-url:
 categories: basic
@@ -24,9 +24,11 @@ list manipulating functions.
 module ListLengths where
 
 import Prelude hiding (length, map, filter, head, tail, foldl1)
-import Language.Haskell.Liquid.Prelude (liquidError)
+-- import Language.Haskell.Liquid.Prelude (liquidError)
 import qualified Data.HashMap.Strict as M
 import Data.Hashable 
+
+liquidError = error 
 \end{code}
 
 Measuring the Length of a List
@@ -243,11 +245,12 @@ foldl1 _ []     =  liquidError "will. never. happen."
 We can put the whole thing together to write a (*very*) simple *Map-Reduce* library
 
 \begin{code}
-mapReduce   :: (Eq k, Hashable k) 
+{-@ mapReduce   :: (Eq k, Hashable k) 
                 => (a -> [(k, v)]) -- ^ key-mapper
                 -> (v -> v -> v)   -- ^ reduction operator
                 -> [a]             -- ^ inputs
                 -> [(k, v)]        -- ^ output key-values
+  @-}
 
 mapReduce f op  = M.toList 
                 . reduce op 
