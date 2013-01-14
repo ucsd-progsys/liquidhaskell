@@ -11,9 +11,10 @@ var allDemos =
     "vectorbounds.hs"   : { "name" : "Vector Bounds"    , "type" : "basic"  },
 
     // Measure Demos
+    "lenMapReduce.hs"   : { "name" : "List Lengths"     , "type" : "measure"},
     "ListLength.hs"     : { "name" : "List Lengths"     , "type" : "measure"},
-    "MapReduce.hs"      : { "name" : "Map Reduce"       , "type" : "measure"}, 
-    // FIX FIRST! "KMeans.hs"         : { "name" : "K-Means"          , "type" : "measure"}, 
+    // "MapReduce.hs"      : { "name" : "Map Reduce"       , "type" : "measure"}, 
+    "KMeans.hs"         : { "name" : "K-Means"          , "type" : "measure"}, 
     "LambdaEval.hs"     : { "name" : "Lambda Evaluator" , "type" : "measure"}, 
     "ListElts.hs"       : { "name" : "List Elements"    , "type" : "measure"}, 
 
