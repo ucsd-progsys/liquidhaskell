@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Measuring Lists I"
-date: 2013-01-05 16:12
+date: 2013-01-10 16:12
 author: Ranjit Jhala
 published: true 
 comments: true
