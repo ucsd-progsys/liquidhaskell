@@ -24,19 +24,11 @@ tidySpecType = tidyDSymbols
              . tidyTyVars 
 
 tidySymbols :: SpecType -> SpecType
-tidySymbols t = substa dropSuffix
-              $ mapBind dropBind t  
+tidySymbols t = substa dropSuffix $ mapBind dropBind t  
   where 
     xs         = S.fromList (syms t)
-    dropSuffix = S . takeWhile (/= symSepName) . symbolString
     dropBind x = if x `S.member` xs then dropSuffix x else nonSymbol  
-
--- tidySymbols :: SpecType -> SpecType  
--- tidySymbols = substf (EVar . dropSuffix) 
---   where 
---     dropSuffix = S . takeWhile (/= symSepName) . symbolString
-    -- tx x       = traceShow ("dropSuffix x = " ++ show x) $ dropSuffix x
-    -- dropQualif = stringSymbol . dropModuleNames . symbolString 
+    dropSuffix = S . takeWhile (/= symSepName) . symbolString
 
 tidyLocalRefas :: SpecType -> SpecType
 tidyLocalRefas = mapReft (txReft)
@@ -45,18 +37,28 @@ tidyLocalRefas = mapReft (txReft)
     txReft (U (FSReft s (Reft (v,ras))) p) = U (FSReft s (Reft (v, dropLocals ras))) p
     dropLocals            = filter (not . any isTmp . syms) . flattenRefas
     isTmp x               = let str = symbolString x in 
-                                (anfPrefix `L.isPrefixOf` str) || (tempPrefix `L.isPrefixOf` str) 
+                            (anfPrefix `L.isPrefixOf` str)         -- local ANF vars
+                            -- || (tempPrefix `L.isPrefixOf` str)  -- fun-binders 
 
 
 tidyDSymbols :: SpecType -> SpecType  
-tidyDSymbols t = mapBind tx $ subst su $ t
+tidyDSymbols t = mapBind tx $ substa tx t {- subst su t -}
   where 
-    tx y = M.lookupDefault y y (M.fromList dxs) 
-    su   = mkSubst (mapSnd EVar <$> dxs)
-    dxs  = zip ds (var <$> [1..])
-    ds   = [ x | x <- syms t, isDs x ]
-    isDs = ("ds_" `L.isPrefixOf`) . symbolString
-    var  = stringSymbol . ('x' :) . show 
+    tx y  = M.lookupDefault y y (M.fromList dxs) 
+    -- su    = mkSubst (mapSnd EVar <$> dxs)
+    dxs   = zip ds (var <$> [1..])
+    ds    = [ x | x <- syms t, isTmp x ]
+    isTmp = (tempPrefix `L.isPrefixOf`) . symbolString
+    -- isTmp = ("ds_" `L.isPrefixOf`) . symbolString
+    var   = stringSymbol . ('x' :) . show 
+
+
+isTmpSymbol x = (anfPrefix `L.isPrefixOf`  str) || 
+                (tempPrefix `L.isPrefixOf` str) ||
+                ("ds_"      `L.isPrefixOf` str)
+  where str   = symbolString x
+
+
 
 tidyTyVars :: SpecType -> SpecType  
 tidyTyVars t = subsTyVarsAll αβs t 
