@@ -76,6 +76,7 @@ tidyTyVars t = subsTyVarsAll αβs t
 tyVars (RAllP _ t)     = tyVars t
 tyVars (RAllT α t)     = α : tyVars t
 tyVars (RFun _ t t' _) = tyVars t ++ tyVars t' 
+tyVars (RAppTy t t')   = tyVars t ++ tyVars t' 
 tyVars (RApp _ ts _ _) = concatMap tyVars ts
 tyVars (RCls _ ts)     = concatMap tyVars ts 
 tyVars (RVar α _)      = [α] 
