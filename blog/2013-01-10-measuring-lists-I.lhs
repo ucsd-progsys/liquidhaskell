@@ -34,11 +34,10 @@ Measuring the Length of a List
 
 To begin, we need some instrument by which to measure the length of a list.
 [Recall][vecbounds] the auxiliary functions used to represent the number of 
-elements of a `Vector`. Lets reuse this mechanism, this time, providing a 
-[definition](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/Base.spec)
-for the measure
+elements of a `Vector`. 
 
-\begin{code}Specifying the length of a list 
+
+\begin{code} Lets reuse this mechanism, this time, providing a [definition](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/Base.spec) for the measure
 measure len :: forall a. [a] -> GHC.Types.Int
 len ([])     = 0
 len (y:ys)   = 1 + (len ys) 
@@ -65,8 +64,6 @@ ys = ["cat", "dog"]
 {-@ zs :: {v:[String] | (len v) = 3 } @-}
 zs = "hippo" : ys
 \end{code}
-
-Hover your mouse over the `:` and `[]` above to confirm their types!
 
 Dually, when we *de-construct* the lists, LiquidHaskell is able to relate
 the type of the outer list with its constituents. For example,
