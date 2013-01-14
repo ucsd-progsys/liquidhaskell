@@ -82,10 +82,10 @@ contains two elements.
 Reasoning about Lengths
 -----------------------
 
-Great! Lets flex our new vocabulary by uttering types that describe the
+Lets flex our new vocabulary by uttering types that describe the
 behavior of the usual list functions. 
 
-First up: a somewhat simplified version of the [standard library's][ghclist] 
+First up: a somewhat simplified version of the [standard][ghclist] 
 `length` from, slightly simplified for exposition.
 
 \begin{code}
@@ -122,21 +122,17 @@ append [] ys     = ys
 append (x:xs) ys = x : append xs ys
 \end{code}
 
-Warm Up: Safely Catching A List by The `head` (or `tail`)
----------------------------------------------------------
+Warm Up: Safely Catching A List by Its Tail (or Head) 
+-----------------------------------------------------
 
 Now, lets see how we can use these new incantations to banish, forever,
-certain irritating kinds of errors. To wit, recall how we always summon 
-functions like `head` and `tail` with a degree of trepidation, unsure
-whether the arguments are empty, which will awaken certain beasts
-
-```
+certain irritating kinds of errors. 
+\begin{code}Recall how we always summon functions like `head` and `tail` with a degree of trepidation, unsure whether the arguments are empty, which will awaken certain beasts
 Prelude> head []
 *** Exception: Prelude.head: empty list
-```
+\end{code}
 
-Well, now LiquidHaskell can allow us to use these functions with confidence
-and surety, once we type them as:
+LiquidHaskell allows us to use these functions with confidence and surety, as we can type them as:
 
 \begin{code}
 {-@ head   :: {v:[a] | (len v) > 0} -> a @-}
@@ -177,14 +173,10 @@ groupEq (x:xs) = (x:ys) : groupEq zs
 \end{code}
 
 which gathers consecutive equal elements in the list into a single list.
-
- 
 By using the fact that *each element* in the output returned by 
 `groupEq` is in fact of the form `x:ys`, LiquidHaskell infers that
 `groupEq` returns a *list of non-empty lists*. 
-
-(Put your mouse over the `groupEq` identifier in the code above to see this.)
-
+(Hover over the `groupEq` identifier in the code above to see this.)
 Next, by automatically instantiating the type parameter for the `map` 
 in `eliminateStutter` to `(len v) > 0` LiquidHaskell deduces `head` 
 is only called on non-empty lists, thereby verifying the safety of 
@@ -273,6 +265,9 @@ f0 = charFrequency [ "the", "quick" , "brown"
 LiquidHaskell will gobble the whole thing up, and verify that none of the
 undesirable `liquidError` calls are triggered. 
 
+Look Ma! No Types
+-----------------
+
 Conveniently, we *needn't write down any types* for `mapReduce` and friends. 
 
 The main invariant, from which safety follows is that the `Map` 
@@ -285,9 +280,7 @@ In short, by riding on the broad and high shoulders of SMT, LiquidHaskell
 makes a little typing go a long way.
 
 
-
 [vecbounds]:  /blog/2013/01/05/bounding-vectors.lhs/ 
-[ghclist]  : https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/List.lhs#L125
-[ref101]   :  /blog/2013/01/01/refinement-types-101.lhs/ 
-
-[foldl1]   : http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#foldl1
+[ghclist]:    https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/List.lhs#L125
+[ref101]:     /blog/2013/01/01/refinement-types-101.lhs/ 
+[foldl1]:     http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#foldl1
