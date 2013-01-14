@@ -97,7 +97,7 @@ pre {
   border-top: 1px solid #ccc;
   border-bottom: 1px solid #ccc;
   padding: 5px;
-  font-size: 120%;
+  // font-size: 120%;
   // font-family: Bitstream Vera Sans Mono,monospace;
   display: block;
   overflow: visible;
