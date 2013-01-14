@@ -412,7 +412,7 @@ like lists and trees.
 [vec]:     http://hackage.haskell.org/package/vector
 [dml]:     http://www.cs.bu.edu/~hwxi/DML/DML.html
 [agdavec]: http://code.haskell.org/Agda/examples/Vec.agda
-[ref101]:  /blog/2012/12/20/refinement-types-101.lhs/ "Refinement Types 101"
+[ref101]:  /blog/2013/01/01/refinement-types-101.lhs/ 
 [foldl]:   http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html
 
 [dmlarray]:http://www.cs.bu.edu/~hwxi/academic/papers/pldi98.pdf

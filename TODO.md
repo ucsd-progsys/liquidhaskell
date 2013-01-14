@@ -24,33 +24,11 @@ TODO
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
-Blog Fixes
-==========
 
-(via Zach)
-
-- Mention early that refinements are like boolean expressions. I think that will help novices who may be intimidated by "logical predicates".
-
-- Prop confuses me, but probably just because of Prop in CIC. I think the point to make here is that the language of refinements is not just Haskell expressions, it's a superset. In particular, if we want to lift a Haskell boolean expression to be a refinement, we use Prop.
-
-- This paragraph required 3 readings to parse:
-
-   To typecheck the divide function, LiquidHaskell verifies that "divide by zero" is a subtype of {v:String | false} at the call to error'. LiquidHaskell does so by using the fact that (in the pertinent equation) the denominator parameter is in fact 0 :: {v: Int | v = 0} which contradicts the precondition. In other words, LiquidHaskell deduces by contradiction, that the first equation is dead code and hence error' will not be called at run-time.
-
-   I think the confusion arises from (1) the introduction of "subtype" w/out explanation and (2) references to "equations" that we can't see anywhere.
-
-- Maybe for abz example, note that Liquid Types can reason about arithmetic by virtue of arithmetic being built into the underlying SMT solver? Otherwise, sort of magic (but leaving it as a black box could be OK too I guess).
+Blog
+====
 
 - I think clicking the title to access the code seems a bit odd. 
-
-- explain "{-@" so readers don't waste time trying to understand it.
-
-- Is it OK to remove the outer parens here? Less syntactic noise, etc.
-    ((0 <= v) && (v < 100))
-
-- Technically, your last refinement for "zero" doesn't capture all the refinements above, 
-  it misses "0 < 100".
-
 
 
 BExp Parser vs. ppr_rtype [BEXPARSER]
