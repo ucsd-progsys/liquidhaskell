@@ -1040,12 +1040,18 @@ subsFree meet s (α', _, t') t@(RVar α r)
   = t
 subsFree m s z (REx x t t')
   = REx x (subsFree m s z t) (subsFree m s z t')
-subsFree m s z@(_, _, _) (RAppTy t t')       
-  = RAppTy (subsFree m s z t) (subsFree m s z t')
+subsFree m s z@(_, _, _) (RAppTy t t')
+  = subsFreeRAppTy (subsFree m s z t) (subsFree m s z t')
 subsFree _ _ _ t@(RExprArg _)        
   = t
 subsFree _ _ _ t@(ROth _)        
   = t
+
+-- GHC INVARIANT: RApp is Type Application to something other than TYCon
+subsFreeRAppTy (RApp c ts rs r) t'
+  = RApp c (t':ts) rs r
+subsFreeRAppTy t t'
+  = RAppTy t t'
 
 -- subsFree _ _ _ t      
 --   = errorstar $ "subsFree fails on: " ++ showPpr t
