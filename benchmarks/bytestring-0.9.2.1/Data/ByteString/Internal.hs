@@ -27,15 +27,15 @@ module Data.ByteString.Internal (
 
         -- * Low level introduction and elimination
        create,                 -- :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
--- LIQUID        createAndTrim,          -- :: Int -> (Ptr Word8 -> IO Int) -> IO  ByteString
--- LIQUID        createAndTrim',         -- :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (ByteString, a)
--- LIQUID        unsafeCreate,           -- :: Int -> (Ptr Word8 -> IO ()) ->  ByteString
--- LIQUID        mallocByteString,       -- :: Int -> IO (ForeignPtr a)
--- LIQUID
--- LIQUID        -- * Conversion to and from ForeignPtrs
--- LIQUID        fromForeignPtr,         -- :: ForeignPtr Word8 -> Int -> Int -> ByteString
--- LIQUID        toForeignPtr,           -- :: ByteString -> (ForeignPtr Word8, Int, Int)
--- LIQUID
+       createAndTrim,          -- :: Int -> (Ptr Word8 -> IO Int) -> IO  ByteString
+       createAndTrim',         -- :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (ByteString, a)
+       unsafeCreate,           -- :: Int -> (Ptr Word8 -> IO ()) ->  ByteString
+       mallocByteString,       -- :: Int -> IO (ForeignPtr a)
+
+       -- * Conversion to and from ForeignPtrs
+       fromForeignPtr,         -- :: ForeignPtr Word8 -> Int -> Int -> ByteString
+       toForeignPtr,           -- :: ByteString -> (ForeignPtr Word8, Int, Int)
+
 -- LIQUID        -- * Utilities
 -- LIQUID        inlinePerformIO,        -- :: IO a -> a
 -- LIQUID        nullForeignPtr,         -- :: ForeignPtr Word8
@@ -71,92 +71,94 @@ import Foreign.Storable         (Storable(..))
 import Foreign.C.Types          (CInt(..), CSize(..), CULong(..))
 import Foreign.C.String         (CString)
 
--- LIQUID #ifndef __NHC__
--- LIQUID import Control.Exception        (assert)
--- LIQUID #endif
--- LIQUID 
--- LIQUID import Data.Char                (ord)
+#ifndef __NHC__
+import Control.Exception        (assert)
+#endif
+
+import Data.Char                (ord)
 import Data.Word                (Word8)
--- LIQUID 
--- LIQUID #if defined(__GLASGOW_HASKELL__)
--- LIQUID import Data.Typeable            (Typeable)
--- LIQUID #if __GLASGOW_HASKELL__ >= 610
--- LIQUID import Data.Data                (Data)
--- LIQUID #else
--- LIQUID import Data.Generics            (Data)
--- LIQUID #endif
+
+#if defined(__GLASGOW_HASKELL__)
+import Data.Typeable            (Typeable)
+#if __GLASGOW_HASKELL__ >= 610
+import Data.Data                (Data)
+#else
+import Data.Generics            (Data)
+#endif
 -- LIQUID import GHC.Base                 (realWorld#,unsafeChr)
--- LIQUID #if __GLASGOW_HASKELL__ >= 611
--- LIQUID import GHC.IO                   (IO(IO))
--- LIQUID #else
--- LIQUID import GHC.IOBase               (IO(IO),RawBuffer)
--- LIQUID #endif
--- LIQUID #if __GLASGOW_HASKELL__ >= 611
--- LIQUID import GHC.IO                   (unsafeDupablePerformIO)
--- LIQUID #else
--- LIQUID import GHC.IOBase               (unsafeDupablePerformIO)
--- LIQUID #endif
--- LIQUID #else
--- LIQUID import Data.Char                (chr)
--- LIQUID import System.IO.Unsafe         (unsafePerformIO)
--- LIQUID #endif
--- LIQUID 
+#if __GLASGOW_HASKELL__ >= 611
+import GHC.IO                   (IO(IO))
+#else
+import GHC.IOBase               (IO(IO),RawBuffer)
+#endif
+#if __GLASGOW_HASKELL__ >= 611
+import GHC.IO                   (unsafeDupablePerformIO)
+#else
+import GHC.IOBase               (unsafeDupablePerformIO)
+#endif
+#else
+import Data.Char                (chr)
+import System.IO.Unsafe         (unsafePerformIO)
+#endif
+
+import System.IO.Unsafe         (unsafePerformIO) -- LIQUID
+
 #ifdef __GLASGOW_HASKELL__
 import GHC.ForeignPtr           (mallocPlainForeignPtrBytes)
 #else
 import Foreign.ForeignPtr       (mallocForeignPtrBytes)
 #endif
 
--- LIQUID #ifdef __GLASGOW_HASKELL__
--- LIQUID import GHC.ForeignPtr           (ForeignPtr(ForeignPtr))
+#ifdef __GLASGOW_HASKELL__
+import GHC.ForeignPtr           (ForeignPtr(ForeignPtr))
 -- LIQUID import GHC.Base                 (nullAddr#)
--- LIQUID #else
--- LIQUID import Foreign.Ptr              (nullPtr)
--- LIQUID #endif
--- LIQUID 
--- LIQUID #if __HUGS__
--- LIQUID import Hugs.ForeignPtr          (newForeignPtr_)
--- LIQUID #elif __GLASGOW_HASKELL__<=604
--- LIQUID import Foreign.ForeignPtr       (newForeignPtr_)
--- LIQUID #endif
+#else
+import Foreign.Ptr              (nullPtr)
+#endif
+
+#if __HUGS__
+import Hugs.ForeignPtr          (newForeignPtr_)
+#elif __GLASGOW_HASKELL__<=604
+import Foreign.ForeignPtr       (newForeignPtr_)
+#endif
 
 -- CFILES stuff is Hugs only
--- LIQUID {-# CFILES cbits/fpstring.c #-}
--- LIQUID 
--- LIQUID -- An alternative to Control.Exception (assert) for nhc98
--- LIQUID #ifdef __NHC__
--- LIQUID #define assert	assertS "__FILE__ : __LINE__"
--- LIQUID assertS :: String -> Bool -> a -> a
--- LIQUID assertS _ True  = id
--- LIQUID assertS s False = error ("assertion failed at "++s)
--- LIQUID #endif
--- LIQUID 
--- LIQUID -- -----------------------------------------------------------------------------
--- LIQUID --
--- LIQUID -- Useful macros, until we have bang patterns
--- LIQUID --
--- LIQUID 
--- LIQUID #define STRICT1(f) f a | a `seq` False = undefined
--- LIQUID #define STRICT2(f) f a b | a `seq` b `seq` False = undefined
--- LIQUID #define STRICT3(f) f a b c | a `seq` b `seq` c `seq` False = undefined
--- LIQUID #define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
--- LIQUID #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
--- LIQUID 
--- LIQUID -- -----------------------------------------------------------------------------
--- LIQUID 
--- LIQUID -- | A space-efficient representation of a Word8 vector, supporting many
--- LIQUID -- efficient operations.  A 'ByteString' contains 8-bit characters only.
--- LIQUID --
--- LIQUID -- Instances of Eq, Ord, Read, Show, Data, Typeable
--- LIQUID --
+{-# CFILES cbits/fpstring.c #-}
+
+-- An alternative to Control.Exception (assert) for nhc98
+#ifdef __NHC__
+#define assert	assertS "__FILE__ : __LINE__"
+assertS :: String -> Bool -> a -> a
+assertS _ True  = id
+assertS s False = error ("assertion failed at "++s)
+#endif
+
+-- -----------------------------------------------------------------------------
+--
+-- Useful macros, until we have bang patterns
+--
+
+#define STRICT1(f) f a | a `seq` False = undefined
+#define STRICT2(f) f a b | a `seq` b `seq` False = undefined
+#define STRICT3(f) f a b c | a `seq` b `seq` c `seq` False = undefined
+#define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
+#define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
+
+-- -----------------------------------------------------------------------------
+
+-- | A space-efficient representation of a Word8 vector, supporting many
+-- efficient operations.  A 'ByteString' contains 8-bit characters only.
+--
+-- Instances of Eq, Ord, Read, Show, Data, Typeable
+--
 data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
                      {-# UNPACK #-} !Int                -- offset
                      {-# UNPACK #-} !Int                -- length
--- LIQUID 
+
 -- LIQUID #if defined(__GLASGOW_HASKELL__)
 -- LIQUID     deriving (Data, Typeable)
 -- LIQUID #endif
--- LIQUID 
+
 -- LIQUID instance Show ByteString where
 -- LIQUID     showsPrec p ps r = showsPrec p (unpackWith w2c ps) r
 -- LIQUID 
@@ -196,40 +198,40 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 -- LIQUID #endif
 -- LIQUID 
 -- LIQUID -- ---------------------------------------------------------------------
--- LIQUID -- Low level constructors
--- LIQUID 
--- LIQUID -- | /O(1)/ Build a ByteString from a ForeignPtr.
--- LIQUID --
--- LIQUID -- If you do not need the offset parameter then you do should be using
--- LIQUID -- 'Data.ByteString.Unsafe.unsafePackCStringLen' or
--- LIQUID -- 'Data.ByteString.Unsafe.unsafePackCStringFinalizer' instead.
--- LIQUID --
--- LIQUID fromForeignPtr :: ForeignPtr Word8
--- LIQUID                -> Int -- ^ Offset
--- LIQUID                -> Int -- ^ Length
--- LIQUID                -> ByteString
--- LIQUID fromForeignPtr fp s l = PS fp s l
--- LIQUID {-# INLINE fromForeignPtr #-}
--- LIQUID 
--- LIQUID -- | /O(1)/ Deconstruct a ForeignPtr from a ByteString
--- LIQUID toForeignPtr :: ByteString -> (ForeignPtr Word8, Int, Int) -- ^ (ptr, offset, length)
--- LIQUID toForeignPtr (PS ps s l) = (ps, s, l)
--- LIQUID {-# INLINE toForeignPtr #-}
--- LIQUID 
--- LIQUID -- | A way of creating ByteStrings outside the IO monad. The @Int@
--- LIQUID -- argument gives the final size of the ByteString. Unlike
--- LIQUID -- 'createAndTrim' the ByteString is not reallocated if the final size
--- LIQUID -- is less than the estimated size.
--- LIQUID unsafeCreate :: Int -> (Ptr Word8 -> IO ()) -> ByteString
--- LIQUID unsafeCreate l f = unsafeDupablePerformIO (create l f)
--- LIQUID {-# INLINE unsafeCreate #-}
--- LIQUID 
--- LIQUID #ifndef __GLASGOW_HASKELL__
--- LIQUID -- for Hugs, NHC etc
--- LIQUID unsafeDupablePerformIO :: IO a -> a
--- LIQUID unsafeDupablePerformIO = unsafePerformIO
--- LIQUID #endif
--- LIQUID 
+-- Low level constructors
+
+-- | /O(1)/ Build a ByteString from a ForeignPtr.
+--
+-- If you do not need the offset parameter then you do should be using
+-- 'Data.ByteString.Unsafe.unsafePackCStringLen' or
+-- 'Data.ByteString.Unsafe.unsafePackCStringFinalizer' instead.
+--
+fromForeignPtr :: ForeignPtr Word8
+               -> Int -- ^ Offset
+               -> Int -- ^ Length
+               -> ByteString
+fromForeignPtr fp s l = PS fp s l
+{-# INLINE fromForeignPtr #-}
+
+-- | /O(1)/ Deconstruct a ForeignPtr from a ByteString
+toForeignPtr :: ByteString -> (ForeignPtr Word8, Int, Int) -- ^ (ptr, offset, length)
+toForeignPtr (PS ps s l) = (ps, s, l)
+{-# INLINE toForeignPtr #-}
+
+-- | A way of creating ByteStrings outside the IO monad. The @Int@
+-- argument gives the final size of the ByteString. Unlike
+-- 'createAndTrim' the ByteString is not reallocated if the final size
+-- is less than the estimated size.
+unsafeCreate :: Int -> (Ptr Word8 -> IO ()) -> ByteString
+unsafeCreate l f = unsafeDupablePerformIO (create l f)
+{-# INLINE unsafeCreate #-}
+
+#ifndef __GLASGOW_HASKELL__
+-- for Hugs, NHC etc
+unsafeDupablePerformIO :: IO a -> a
+unsafeDupablePerformIO = unsafePerformIO
+#endif
+
 -- | Create ByteString of size @l@ and use action @f@ to fill it's contents.
 create :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
 create l f = do
@@ -238,35 +240,35 @@ create l f = do
     return $! PS fp 0 l
 {-# INLINE create #-}
 
--- LIQUID -- | Given the maximum size needed and a function to make the contents
--- LIQUID -- of a ByteString, createAndTrim makes the 'ByteString'. The generating
--- LIQUID -- function is required to return the actual final size (<= the maximum
--- LIQUID -- size), and the resulting byte array is realloced to this size.
--- LIQUID --
--- LIQUID -- createAndTrim is the main mechanism for creating custom, efficient
--- LIQUID -- ByteString functions, using Haskell or C functions to fill the space.
--- LIQUID --
--- LIQUID createAndTrim :: Int -> (Ptr Word8 -> IO Int) -> IO ByteString
--- LIQUID createAndTrim l f = do
--- LIQUID     fp <- mallocByteString l
--- LIQUID     withForeignPtr fp $ \p -> do
--- LIQUID         l' <- f p
--- LIQUID         if assert (l' <= l) $ l' >= l
--- LIQUID             then return $! PS fp 0 l
--- LIQUID             else create l' $ \p' -> memcpy p' p (fromIntegral l')
--- LIQUID {-# INLINE createAndTrim #-}
--- LIQUID 
--- LIQUID createAndTrim' :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (ByteString, a)
--- LIQUID createAndTrim' l f = do
--- LIQUID     fp <- mallocByteString l
--- LIQUID     withForeignPtr fp $ \p -> do
--- LIQUID         (off, l', res) <- f p
--- LIQUID         if assert (l' <= l) $ l' >= l
--- LIQUID             then return $! (PS fp 0 l, res)
--- LIQUID             else do ps <- create l' $ \p' ->
--- LIQUID                             memcpy p' (p `plusPtr` off) (fromIntegral l')
--- LIQUID                     return $! (ps, res)
--- LIQUID 
+-- | Given the maximum size needed and a function to make the contents
+-- of a ByteString, createAndTrim makes the 'ByteString'. The generating
+-- function is required to return the actual final size (<= the maximum
+-- size), and the resulting byte array is realloced to this size.
+--
+-- createAndTrim is the main mechanism for creating custom, efficient
+-- ByteString functions, using Haskell or C functions to fill the space.
+--
+createAndTrim :: Int -> (Ptr Word8 -> IO Int) -> IO ByteString
+createAndTrim l f = do
+    fp <- mallocByteString l
+    withForeignPtr fp $ \p -> do
+        l' <- f p
+        if assert (l' <= l) $ l' >= l
+            then return $! PS fp 0 l
+            else create l' $ \p' -> memcpy p' p (fromIntegral l')
+{-# INLINE createAndTrim #-}
+
+createAndTrim' :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (ByteString, a)
+createAndTrim' l f = do
+    fp <- mallocByteString l
+    withForeignPtr fp $ \p -> do
+        (off, l', res) <- f p
+        if assert (l' <= l) $ l' >= l
+            then return $! (PS fp 0 l, res)
+            else do ps <- create l' $ \p' ->
+                            memcpy p' (p `plusPtr` off) (fromIntegral l')
+                    return $! (ps, res)
+
 -- LIQUID -- | Wrapper of 'mallocForeignPtrBytes' with faster implementation for GHC
 -- LIQUID --
 mallocByteString :: Int -> IO (ForeignPtr a)
@@ -321,44 +323,44 @@ mallocByteString l = do
 -- LIQUID     c == '\xa0'
 -- LIQUID {-# INLINE isSpaceChar8 #-}
 -- LIQUID 
--- LIQUID ------------------------------------------------------------------------
--- LIQUID 
--- LIQUID -- | Just like unsafePerformIO, but we inline it. Big performance gains as
--- LIQUID -- it exposes lots of things to further inlining. /Very unsafe/. In
--- LIQUID -- particular, you should do no memory allocation inside an
--- LIQUID -- 'inlinePerformIO' block. On Hugs this is just @unsafePerformIO@.
--- LIQUID --
--- LIQUID {-# INLINE inlinePerformIO #-}
--- LIQUID inlinePerformIO :: IO a -> a
+------------------------------------------------------------------------
+
+-- | Just like unsafePerformIO, but we inline it. Big performance gains as
+-- it exposes lots of things to further inlining. /Very unsafe/. In
+-- particular, you should do no memory allocation inside an
+-- 'inlinePerformIO' block. On Hugs this is just @unsafePerformIO@.
+--
+{-# INLINE inlinePerformIO #-}
+inlinePerformIO :: IO a -> a
 -- LIQUID #if defined(__GLASGOW_HASKELL__)
 -- LIQUID inlinePerformIO (IO m) = case m realWorld# of (# _, r #) -> r
 -- LIQUID #else
--- LIQUID inlinePerformIO = unsafePerformIO
+inlinePerformIO = unsafePerformIO
 -- LIQUID #endif
--- LIQUID 
--- LIQUID -- ---------------------------------------------------------------------
--- LIQUID -- 
--- LIQUID -- Standard C functions
--- LIQUID --
--- LIQUID 
--- LIQUID foreign import ccall unsafe "string.h strlen" c_strlen
--- LIQUID     :: CString -> IO CSize
--- LIQUID 
--- LIQUID foreign import ccall unsafe "static stdlib.h &free" c_free_finalizer
--- LIQUID     :: FunPtr (Ptr Word8 -> IO ())
--- LIQUID 
--- LIQUID foreign import ccall unsafe "string.h memchr" c_memchr
--- LIQUID     :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
--- LIQUID 
--- LIQUID memchr :: Ptr Word8 -> Word8 -> CSize -> IO (Ptr Word8)
--- LIQUID memchr p w s = c_memchr p (fromIntegral w) s
--- LIQUID 
--- LIQUID foreign import ccall unsafe "string.h memcmp" memcmp
--- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
--- LIQUID 
--- LIQUID foreign import ccall unsafe "string.h memcpy" c_memcpy
--- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO (Ptr Word8)
--- LIQUID 
+
+-- ---------------------------------------------------------------------
+-- 
+-- Standard C functions
+--
+
+foreign import ccall unsafe "string.h strlen" c_strlen
+    :: CString -> IO CSize
+
+foreign import ccall unsafe "static stdlib.h &free" c_free_finalizer
+    :: FunPtr (Ptr Word8 -> IO ())
+
+foreign import ccall unsafe "string.h memchr" c_memchr
+    :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
+
+memchr :: Ptr Word8 -> Word8 -> CSize -> IO (Ptr Word8)
+memchr p w s = c_memchr p (fromIntegral w) s
+
+foreign import ccall unsafe "string.h memcmp" memcmp
+    :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
+
+foreign import ccall unsafe "string.h memcpy" c_memcpy
+    :: Ptr Word8 -> Ptr Word8 -> CSize -> IO (Ptr Word8)
+memcpy = undefined
 -- LIQUID memcpy :: Ptr Word8 -> Ptr Word8 -> CSize -> IO ()
 -- LIQUID memcpy p q s = c_memcpy p q s >> return ()
 -- LIQUID 
@@ -376,8 +378,7 @@ mallocByteString l = do
 -- LIQUID 
 -- LIQUID memset :: Ptr Word8 -> Word8 -> CSize -> IO (Ptr Word8)
 -- LIQUID memset p w s = c_memset p (fromIntegral w) s
--- LIQUID 
--- LIQUID -- ---------------------------------------------------------------------
+-- ---------------------------------------------------------------------
 -- LIQUID --
 -- LIQUID -- Uses our C code
 -- LIQUID --
