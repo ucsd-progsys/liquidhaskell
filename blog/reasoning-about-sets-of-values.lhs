@@ -18,30 +18,24 @@ those sets.
 module ListSets where
 \end{code}
 
-First, lets define a "ghost" type that represents sets. 
+First, lets import the type `Set a` that represents sets
 
 \begin{code}
-data Set a 
+import Data.Set 
 \end{code}
-
-We could also just import `Data.Set` but we choose to define 
-it here to make things self-contained.
 
 Next, lets write a measure for the set of elements in a list.
 The measure is a simple recursive function that computes the set
 by structural recursion on the list.
 
-\begin{code}
+\begin{code} A measure for the elements of a list
 {-@ measure elts :: [a] -> (Set a) 
     elts ([])   = {v | (? Set_emp(v))}
     elts (x:xs) = {v | v = (Set_cup (Set_sng x) (elts xs)) }
   @-}
 \end{code}
 
-Next, we tell the solver to interpret `Set` *natively* in the
-refinement logic, via the solver's built in sort.
-
-\begin{code}
+\begin{code} we tell the solver to interpret `Set` *natively* in the refinement logic, via the solver's built in sort.
 {-@ embed Set as Set_Set @-}
 \end{code}
 
