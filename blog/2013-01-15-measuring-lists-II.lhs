@@ -23,6 +23,9 @@ of different lists.
 Basic Operations: Map, Filter, Reverse
 --------------------------------------
 
+\begin{code}
+x = error "TODO"
+\end{code}
 Less Basic: Append, Zip, Take 
 -----------------------------
 
