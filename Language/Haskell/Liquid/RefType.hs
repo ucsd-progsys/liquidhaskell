@@ -602,6 +602,10 @@ nlzP ps (RFun b t1 t2 r)
  = (RFun b t1' t2' r, ps ++ ps1 ++ ps2)
   where (t1', ps1) = nlzP [] t1
         (t2', ps2) = nlzP [] t2
+nlzP ps (RAppTy t1 t2) 
+ = (RAppTy t1' t2', ps ++ ps1 ++ ps2)
+  where (t1', ps1) = nlzP [] t1
+        (t2', ps2) = nlzP [] t2
 nlzP ps (RAllT v t )
  = (RAllT v t', ps ++ ps')
   where (t', ps') = nlzP [] t
@@ -758,6 +762,7 @@ tyClasses (RAllP _ t)     = tyClasses t
 tyClasses (RAllT α t)     = tyClasses t
 tyClasses (REx _ _ t)     = tyClasses t
 tyClasses (RFun _ t t' _) = tyClasses t ++ tyClasses t'
+tyClasses (RAppTy t t')   = tyClasses t ++ tyClasses t'
 tyClasses (RApp _ ts _ _) = concatMap tyClasses ts 
 tyClasses (RCls c ts)     = (c, ts) : concatMap tyClasses ts 
 tyClasses (RVar α _)      = [] 
@@ -871,7 +876,7 @@ ppr_rtype bb p t@(REx _ _ _)
 ppr_rtype _ _ (RExprArg e)
   = braces $ ppr e
 ppr_rtype bb p (RAppTy t t')
-  = ppr_type bb p t <+> ppr_type bb p t'
+  = ppr_rtype bb p t <+> ppr_rtype bb p t'
 ppr_rtype _ _ (ROth s)
   = text $ "???-" ++ s 
 
@@ -1126,7 +1131,7 @@ stripRTypeBase _
   = Nothing
 
 
-ofType ::  Reftable r => Type -> RRType r
+-- ofType ::  Reftable r => Type -> RRType r
 ofType = ofType_ . expandTypeSynonyms 
 
 ofType_ (TyVarTy α)     
