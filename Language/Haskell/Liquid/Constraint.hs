@@ -227,6 +227,12 @@ splitW (WfC γ t@(RFun x t1 t2 _))
         ws'' <- splitW (WfC γ' t2)
         return $ ws ++ ws' ++ ws''
 
+splitW (WfC γ t@(RAppTy t1 t2)) 
+  =  do ws   <- bsplitW γ t
+        ws'  <- splitW (WfC γ t1) 
+        ws'' <- splitW (WfC γ t2)
+        return $ ws ++ ws' ++ ws''
+
 splitW (WfC γ (RAllT _ r)) 
   = splitW (WfC γ r)
 
@@ -295,6 +301,12 @@ splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _))
         cs''     <- splitC  (SubC γ' r1x2' r2') 
         return    $ cs ++ cs' ++ cs''
 
+splitC (SubC γ t1@(RAppTy r1 r1') t2@(RAppTy r2 r2')) 
+  =  do cs       <- bsplitC γ t1 t2 
+        cs'      <- splitC  (SubC γ r1 r2) 
+        cs''     <- splitC  (SubC γ r1' r2') 
+        return    $ cs ++ cs' ++ cs''
+
 splitC (SubC γ t1 (RAllP p t))
   = splitC $ SubC γ t1 t'
   where t' = fmap (replacePredsWithRefs su) t
@@ -334,8 +346,8 @@ splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
 splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
   = return []
 
-splitC c@(SubC _ _ _) 
-  = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showPpr c
+splitC c@(SubC _ t1 t2) 
+  = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showPpr t1 ++ "\n\n" ++ showPpr t2
 
 bsplitC γ t1 t2
   = do map <- refsymbols <$> get 
