@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE NamedFieldPuns #-} --LIQUID
 -- We cannot actually specify all the language pragmas, see ghc ticket #
 -- If we could, these are what they would be:
 {- LANGUAGE MagicHash, UnboxedTuples,
@@ -74,138 +75,138 @@ module Data.ByteString (
         transpose,              -- :: [ByteString] -> [ByteString]
 
         -- * Reducing 'ByteString's (folds)
-        foldl,                  -- :: (a -> Word8 -> a) -> a -> ByteString -> a
-        foldl',                 -- :: (a -> Word8 -> a) -> a -> ByteString -> a
-        foldl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
-        foldl1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
-
-        foldr,                  -- :: (Word8 -> a -> a) -> a -> ByteString -> a
-        foldr',                 -- :: (Word8 -> a -> a) -> a -> ByteString -> a
-        foldr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
-        foldr1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
-
-        -- ** Special folds
-        concat,                 -- :: [ByteString] -> ByteString
-        concatMap,              -- :: (Word8 -> ByteString) -> ByteString -> ByteString
-        any,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
-        all,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
-        maximum,                -- :: ByteString -> Word8
-        minimum,                -- :: ByteString -> Word8
-
-        -- * Building ByteStrings
-        -- ** Scans
-        scanl,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
-        scanl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
-        scanr,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
-        scanr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
-
-        -- ** Accumulating maps
-        mapAccumL,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
-        mapAccumR,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
-
-        -- ** Generating and unfolding ByteStrings
-        replicate,              -- :: Int -> Word8 -> ByteString
-        unfoldr,                -- :: (a -> Maybe (Word8, a)) -> a -> ByteString
-        unfoldrN,               -- :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
-
-        -- * Substrings
-
-        -- ** Breaking strings
-        take,                   -- :: Int -> ByteString -> ByteString
-        drop,                   -- :: Int -> ByteString -> ByteString
-        splitAt,                -- :: Int -> ByteString -> (ByteString, ByteString)
-        takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
-        dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
-        span,                   -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-        spanEnd,                -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-        break,                  -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-        breakEnd,               -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-        group,                  -- :: ByteString -> [ByteString]
-        groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
-        inits,                  -- :: ByteString -> [ByteString]
-        tails,                  -- :: ByteString -> [ByteString]
-
-        -- ** Breaking into many substrings
-        split,                  -- :: Word8 -> ByteString -> [ByteString]
-        splitWith,              -- :: (Word8 -> Bool) -> ByteString -> [ByteString]
-
-        -- * Predicates
-        isPrefixOf,             -- :: ByteString -> ByteString -> Bool
-        isSuffixOf,             -- :: ByteString -> ByteString -> Bool
-        isInfixOf,              -- :: ByteString -> ByteString -> Bool
-
-        -- ** Search for arbitrary substrings
-        breakSubstring,         -- :: ByteString -> ByteString -> (ByteString,ByteString)
-        findSubstring,          -- :: ByteString -> ByteString -> Maybe Int
-        findSubstrings,         -- :: ByteString -> ByteString -> [Int]
-
-        -- * Searching ByteStrings
-
-        -- ** Searching by equality
-        elem,                   -- :: Word8 -> ByteString -> Bool
-        notElem,                -- :: Word8 -> ByteString -> Bool
-
-        -- ** Searching with a predicate
-        find,                   -- :: (Word8 -> Bool) -> ByteString -> Maybe Word8
-        filter,                 -- :: (Word8 -> Bool) -> ByteString -> ByteString
-        partition,              -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-
-        -- * Indexing ByteStrings
-        index,                  -- :: ByteString -> Int -> Word8
-        elemIndex,              -- :: Word8 -> ByteString -> Maybe Int
-        elemIndices,            -- :: Word8 -> ByteString -> [Int]
-        elemIndexEnd,           -- :: Word8 -> ByteString -> Maybe Int
-        findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int
-        findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int]
-        count,                  -- :: Word8 -> ByteString -> Int
-
-        -- * Zipping and unzipping ByteStrings
-        zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
-        zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
-        unzip,                  -- :: [(Word8,Word8)] -> (ByteString,ByteString)
-
-        -- * Ordered ByteStrings
-        sort,                   -- :: ByteString -> ByteString
-
-        -- * Low level conversions
-        -- ** Copying ByteStrings
-        copy,                   -- :: ByteString -> ByteString
-
-        -- ** Packing 'CString's and pointers
-        packCString,            -- :: CString -> IO ByteString
-        packCStringLen,         -- :: CStringLen -> IO ByteString
-
-        -- ** Using ByteStrings as 'CString's
-        useAsCString,           -- :: ByteString -> (CString    -> IO a) -> IO a
-        useAsCStringLen,        -- :: ByteString -> (CStringLen -> IO a) -> IO a
-
-        -- * I\/O with 'ByteString's
-
-        -- ** Standard input and output
-        getLine,                -- :: IO ByteString
-        getContents,            -- :: IO ByteString
-        putStr,                 -- :: ByteString -> IO ()
-        putStrLn,               -- :: ByteString -> IO ()
-        interact,               -- :: (ByteString -> ByteString) -> IO ()
-
-        -- ** Files
-        readFile,               -- :: FilePath -> IO ByteString
-        writeFile,              -- :: FilePath -> ByteString -> IO ()
-        appendFile,             -- :: FilePath -> ByteString -> IO ()
-
-        -- ** I\/O with Handles
-        hGetLine,               -- :: Handle -> IO ByteString
-        hGetContents,           -- :: Handle -> IO ByteString
-        hGet,                   -- :: Handle -> Int -> IO ByteString
-        hGetSome,               -- :: Handle -> Int -> IO ByteString
-        hGetNonBlocking,        -- :: Handle -> Int -> IO ByteString
-        hPut,                   -- :: Handle -> ByteString -> IO ()
-        hPutNonBlocking,        -- :: Handle -> ByteString -> IO ByteString
-        hPutStr,                -- :: Handle -> ByteString -> IO ()
-        hPutStrLn,              -- :: Handle -> ByteString -> IO ()
-
-        breakByte
-
+-- LIQUID         foldl,                  -- :: (a -> Word8 -> a) -> a -> ByteString -> a
+-- LIQUID         foldl',                 -- :: (a -> Word8 -> a) -> a -> ByteString -> a
+-- LIQUID         foldl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+-- LIQUID         foldl1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+-- LIQUID 
+-- LIQUID         foldr,                  -- :: (Word8 -> a -> a) -> a -> ByteString -> a
+-- LIQUID         foldr',                 -- :: (Word8 -> a -> a) -> a -> ByteString -> a
+-- LIQUID         foldr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+-- LIQUID         foldr1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+-- LIQUID 
+-- LIQUID         -- ** Special folds
+-- LIQUID         concat,                 -- :: [ByteString] -> ByteString
+-- LIQUID         concatMap,              -- :: (Word8 -> ByteString) -> ByteString -> ByteString
+-- LIQUID         any,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
+-- LIQUID         all,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
+-- LIQUID         maximum,                -- :: ByteString -> Word8
+-- LIQUID         minimum,                -- :: ByteString -> Word8
+-- LIQUID 
+-- LIQUID         -- * Building ByteStrings
+-- LIQUID         -- ** Scans
+-- LIQUID         scanl,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
+-- LIQUID         scanl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
+-- LIQUID         scanr,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
+-- LIQUID         scanr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
+-- LIQUID 
+-- LIQUID         -- ** Accumulating maps
+-- LIQUID         mapAccumL,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
+-- LIQUID         mapAccumR,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
+-- LIQUID 
+-- LIQUID         -- ** Generating and unfolding ByteStrings
+-- LIQUID         replicate,              -- :: Int -> Word8 -> ByteString
+-- LIQUID         unfoldr,                -- :: (a -> Maybe (Word8, a)) -> a -> ByteString
+-- LIQUID         unfoldrN,               -- :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
+-- LIQUID 
+-- LIQUID         -- * Substrings
+-- LIQUID 
+-- LIQUID         -- ** Breaking strings
+-- LIQUID         take,                   -- :: Int -> ByteString -> ByteString
+-- LIQUID         drop,                   -- :: Int -> ByteString -> ByteString
+-- LIQUID         splitAt,                -- :: Int -> ByteString -> (ByteString, ByteString)
+-- LIQUID         takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
+-- LIQUID         dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
+-- LIQUID         span,                   -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+-- LIQUID         spanEnd,                -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+-- LIQUID         break,                  -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+-- LIQUID         breakEnd,               -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+-- LIQUID         group,                  -- :: ByteString -> [ByteString]
+-- LIQUID         groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
+-- LIQUID         inits,                  -- :: ByteString -> [ByteString]
+-- LIQUID         tails,                  -- :: ByteString -> [ByteString]
+-- LIQUID 
+-- LIQUID         -- ** Breaking into many substrings
+-- LIQUID         split,                  -- :: Word8 -> ByteString -> [ByteString]
+-- LIQUID         splitWith,              -- :: (Word8 -> Bool) -> ByteString -> [ByteString]
+-- LIQUID 
+-- LIQUID         -- * Predicates
+-- LIQUID         isPrefixOf,             -- :: ByteString -> ByteString -> Bool
+-- LIQUID         isSuffixOf,             -- :: ByteString -> ByteString -> Bool
+-- LIQUID         isInfixOf,              -- :: ByteString -> ByteString -> Bool
+-- LIQUID 
+-- LIQUID         -- ** Search for arbitrary substrings
+-- LIQUID         breakSubstring,         -- :: ByteString -> ByteString -> (ByteString,ByteString)
+-- LIQUID         findSubstring,          -- :: ByteString -> ByteString -> Maybe Int
+-- LIQUID         findSubstrings,         -- :: ByteString -> ByteString -> [Int]
+-- LIQUID 
+-- LIQUID         -- * Searching ByteStrings
+-- LIQUID 
+-- LIQUID         -- ** Searching by equality
+-- LIQUID         elem,                   -- :: Word8 -> ByteString -> Bool
+-- LIQUID         notElem,                -- :: Word8 -> ByteString -> Bool
+-- LIQUID 
+-- LIQUID         -- ** Searching with a predicate
+-- LIQUID         find,                   -- :: (Word8 -> Bool) -> ByteString -> Maybe Word8
+-- LIQUID         filter,                 -- :: (Word8 -> Bool) -> ByteString -> ByteString
+-- LIQUID         partition,              -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+-- LIQUID 
+-- LIQUID         -- * Indexing ByteStrings
+-- LIQUID         index,                  -- :: ByteString -> Int -> Word8
+-- LIQUID         elemIndex,              -- :: Word8 -> ByteString -> Maybe Int
+-- LIQUID         elemIndices,            -- :: Word8 -> ByteString -> [Int]
+-- LIQUID         elemIndexEnd,           -- :: Word8 -> ByteString -> Maybe Int
+-- LIQUID         findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int
+-- LIQUID         findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int]
+-- LIQUID         count,                  -- :: Word8 -> ByteString -> Int
+-- LIQUID 
+-- LIQUID         -- * Zipping and unzipping ByteStrings
+-- LIQUID         zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
+-- LIQUID         zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
+-- LIQUID         unzip,                  -- :: [(Word8,Word8)] -> (ByteString,ByteString)
+-- LIQUID 
+-- LIQUID         -- * Ordered ByteStrings
+-- LIQUID         sort,                   -- :: ByteString -> ByteString
+-- LIQUID 
+-- LIQUID         -- * Low level conversions
+-- LIQUID         -- ** Copying ByteStrings
+-- LIQUID         copy,                   -- :: ByteString -> ByteString
+-- LIQUID 
+-- LIQUID         -- ** Packing 'CString's and pointers
+-- LIQUID         packCString,            -- :: CString -> IO ByteString
+-- LIQUID         packCStringLen,         -- :: CStringLen -> IO ByteString
+-- LIQUID 
+-- LIQUID         -- ** Using ByteStrings as 'CString's
+-- LIQUID         useAsCString,           -- :: ByteString -> (CString    -> IO a) -> IO a
+-- LIQUID         useAsCStringLen,        -- :: ByteString -> (CStringLen -> IO a) -> IO a
+-- LIQUID 
+-- LIQUID         -- * I\/O with 'ByteString's
+-- LIQUID 
+-- LIQUID         -- ** Standard input and output
+-- LIQUID         getLine,                -- :: IO ByteString
+-- LIQUID         getContents,            -- :: IO ByteString
+-- LIQUID         putStr,                 -- :: ByteString -> IO ()
+-- LIQUID         putStrLn,               -- :: ByteString -> IO ()
+-- LIQUID         interact,               -- :: (ByteString -> ByteString) -> IO ()
+-- LIQUID 
+-- LIQUID         -- ** Files
+-- LIQUID         readFile,               -- :: FilePath -> IO ByteString
+-- LIQUID         writeFile,              -- :: FilePath -> ByteString -> IO ()
+-- LIQUID         appendFile,             -- :: FilePath -> ByteString -> IO ()
+-- LIQUID 
+-- LIQUID         -- ** I\/O with Handles
+-- LIQUID         hGetLine,               -- :: Handle -> IO ByteString
+-- LIQUID         hGetContents,           -- :: Handle -> IO ByteString
+-- LIQUID         hGet,                   -- :: Handle -> Int -> IO ByteString
+-- LIQUID         hGetSome,               -- :: Handle -> Int -> IO ByteString
+-- LIQUID         hGetNonBlocking,        -- :: Handle -> Int -> IO ByteString
+-- LIQUID         hPut,                   -- :: Handle -> ByteString -> IO ()
+-- LIQUID         hPutNonBlocking,        -- :: Handle -> ByteString -> IO ByteString
+-- LIQUID         hPutStr,                -- :: Handle -> ByteString -> IO ()
+-- LIQUID         hPutStrLn,              -- :: Handle -> ByteString -> IO ()
+-- LIQUID 
+-- LIQUID         breakByte
+-- LIQUID 
   ) where
 
 import qualified Prelude as P
@@ -236,7 +237,7 @@ import Control.Exception	(bracket, finally)
 import Control.Monad            (when)
 
 import Foreign.C.String         (CString, CStringLen)
-import Foreign.C.Types          (CSize)
+import Foreign.C.Types          (CSize, CInt) -- LIQUID 
 import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc    (allocaBytes, mallocBytes, reallocBytes, finalizerFree)
 import Foreign.Marshal.Array    (allocaArray)
@@ -262,11 +263,11 @@ import System.IO                (hIsEOF)
 
 import System.IO                (hGetBufNonBlocking, hPutBufNonBlocking)
 
-#if MIN_VERSION_base(4,3,0)
-import System.IO                (hGetBufSome)
-#else
+-- LIQUID #if MIN_VERSION_base(4,3,0)
+-- LIQUID import System.IO                (hGetBufSome)
+-- LIQUID #else
 import System.IO                (hWaitForInput, hIsEOF)
-#endif
+-- LIQUID #endif
 
 #if __GLASGOW_HASKELL__ >= 611
 import Data.IORef
@@ -283,7 +284,7 @@ import GHC.IOBase
 import GHC.Handle
 #endif
 
-import GHC.Prim                 (Word#, (+#), writeWord8OffAddr#)
+-- LIQUID import GHC.Prim                 (Word#, (+#), writeWord8OffAddr#)
 import GHC.Base                 (build)
 import GHC.Word hiding (Word8)
 import GHC.Ptr                  (Ptr(..))
@@ -318,7 +319,8 @@ hWaitForInput _ _ = return ()
 #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
 -- -----------------------------------------------------------------------------
-
+{-@ embed CSize as int @-} -- LIQUID 
+{-@ embed CInt  as int @-} -- LIQUID
 instance Eq  ByteString where
     (==)    = eq
 
@@ -417,29 +419,29 @@ singleton c = unsafeCreate 1 $ \p -> poke p c
 -- bottleneck. In such cases, consider using packAddress (GHC only).
 pack :: [Word8] -> ByteString
 
-#if !defined(__GLASGOW_HASKELL__)
+-- LIQUID #if !defined(__GLASGOW_HASKELL__)
 
 pack str = unsafeCreate (P.length str) $ \p -> go p str
     where
         go _ []     = return ()
         go p (x:xs) = poke p x >> go (p `plusPtr` 1) xs -- less space than pokeElemOff
 
-#else /* hack away */
-
-pack str = unsafeCreate (P.length str) $ \(Ptr p) -> stToIO (go p 0# str)
-    where
-        go _ _ []        = return ()
-        go p i (W8# c:cs) = writeByte p i c >> go p (i +# 1#) cs
-
-        writeByte p i c = ST $ \s# ->
-            case writeWord8OffAddr# p i c s# of s2# -> (# s2#, () #)
-
-#endif
+-- LIQUID #else /* hack away */
+-- LIQUID 
+-- LIQUID pack str = unsafeCreate (P.length str) $ \(Ptr p) -> stToIO (go p 0# str)
+-- LIQUID     where
+-- LIQUID         go _ _ []        = return ()
+-- LIQUID         go p i (W8# c:cs) = writeByte p i c >> go p (i +# 1#) cs
+-- LIQUID 
+-- LIQUID         writeByte p i c = ST $ \s# ->
+-- LIQUID             case writeWord8OffAddr# p i c s# of s2# -> (# s2#, () #)
+-- LIQUID 
+-- LIQUID #endif
 
 -- | /O(n)/ Converts a 'ByteString' to a '[Word8]'.
 unpack :: ByteString -> [Word8]
 
-#if !defined(__GLASGOW_HASKELL__)
+-- LIQUID #if !defined(__GLASGOW_HASKELL__)
 
 unpack (PS _  _ 0) = []
 unpack (PS ps s l) = inlinePerformIO $ withForeignPtr ps $ \p ->
@@ -450,44 +452,44 @@ unpack (PS ps s l) = inlinePerformIO $ withForeignPtr ps $ \p ->
         go p n acc = peekByteOff p n >>= \e -> go p (n-1) (e : acc)
 {-# INLINE unpack #-}
 
-#else
-
-unpack ps = build (unpackFoldr ps)
-{-# INLINE unpack #-}
-
---
--- Have unpack fuse with good list consumers
---
--- critical this isn't strict in the acc
--- as it will break in the presence of list fusion. this is a known
--- issue with seq and build/foldr rewrite rules, which rely on lazy
--- demanding to avoid bottoms in the list.
---
-unpackFoldr :: ByteString -> (Word8 -> a -> a) -> a -> a
-unpackFoldr (PS fp off len) f ch = withPtr fp $ \p -> do
-    let loop q n    _   | q `seq` n `seq` False = undefined -- n.b.
-        loop _ (-1) acc = return acc
-        loop q n    acc = do
-           a <- peekByteOff q n
-           loop q (n-1) (a `f` acc)
-    loop (p `plusPtr` off) (len-1) ch
-{-# INLINE [0] unpackFoldr #-}
-
-unpackList :: ByteString -> [Word8]
-unpackList (PS fp off len) = withPtr fp $ \p -> do
-    let STRICT3(loop)
-        loop _ (-1) acc = return acc
-        loop q n acc = do
-           a <- peekByteOff q n
-           loop q (n-1) (a : acc)
-    loop (p `plusPtr` off) (len-1) []
-
-{-# RULES
-"ByteString unpack-list" [1]  forall p  .
-    unpackFoldr p (:) [] = unpackList p
- #-}
-
-#endif
+-- LIQUID #else
+-- LIQUID 
+-- LIQUID unpack ps = build (unpackFoldr ps)
+-- LIQUID {-# INLINE unpack #-}
+-- LIQUID 
+-- LIQUID --
+-- LIQUID -- Have unpack fuse with good list consumers
+-- LIQUID --
+-- LIQUID -- critical this isn't strict in the acc
+-- LIQUID -- as it will break in the presence of list fusion. this is a known
+-- LIQUID -- issue with seq and build/foldr rewrite rules, which rely on lazy
+-- LIQUID -- demanding to avoid bottoms in the list.
+-- LIQUID --
+-- LIQUID unpackFoldr :: ByteString -> (Word8 -> a -> a) -> a -> a
+-- LIQUID unpackFoldr (PS fp off len) f ch = withPtr fp $ \p -> do
+-- LIQUID     let loop q n    _   | q `seq` n `seq` False = undefined -- n.b.
+-- LIQUID         loop _ (-1) acc = return acc
+-- LIQUID         loop q n    acc = do
+-- LIQUID            a <- peekByteOff q n
+-- LIQUID            loop q (n-1) (a `f` acc)
+-- LIQUID     loop (p `plusPtr` off) (len-1) ch
+-- LIQUID {-# INLINE [0] unpackFoldr #-}
+-- LIQUID 
+-- LIQUID unpackList :: ByteString -> [Word8]
+-- LIQUID unpackList (PS fp off len) = withPtr fp $ \p -> do
+-- LIQUID     let STRICT3(loop)
+-- LIQUID         loop _ (-1) acc = return acc
+-- LIQUID         loop q n acc = do
+-- LIQUID            a <- peekByteOff q n
+-- LIQUID            loop q (n-1) (a : acc)
+-- LIQUID     loop (p `plusPtr` off) (len-1) []
+-- LIQUID 
+-- LIQUID {-# RULES
+-- LIQUID "ByteString unpack-list" [1]  forall p  .
+-- LIQUID     unpackFoldr p (:) [] = unpackList p
+-- LIQUID  #-}
+-- LIQUID 
+-- LIQUID #endif
 
 -- ---------------------------------------------------------------------
 -- Basic interface
@@ -1077,32 +1079,32 @@ spanEnd  p ps = splitAt (findFromEndUntil (not.p) ps) ps
 --
 splitWith :: (Word8 -> Bool) -> ByteString -> [ByteString]
 
-#if defined(__GLASGOW_HASKELL__)
-splitWith _pred (PS _  _   0) = []
-splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp
-  where pred# c# = pred_ (W8# c#)
-
-        STRICT4(splitWith0)
-        splitWith0 pred' off' len' fp' = withPtr fp $ \p ->
-            splitLoop pred' p 0 off' len' fp'
-
-        splitLoop :: (Word# -> Bool)
-                  -> Ptr Word8
-                  -> Int -> Int -> Int
-                  -> ForeignPtr Word8
-                  -> IO [ByteString]
-
-        splitLoop pred' p idx' off' len' fp'
-            | idx' >= len'  = return [PS fp' off' idx']
-            | otherwise = do
-                w <- peekElemOff p (off'+idx')
-                if pred' (case w of W8# w# -> w#)
-                   then return (PS fp' off' idx' :
-                              splitWith0 pred' (off'+idx'+1) (len'-idx'-1) fp')
-                   else splitLoop pred' p (idx'+1) off' len' fp'
-{-# INLINE splitWith #-}
-
-#else
+-- LIQUID #if defined(__GLASGOW_HASKELL__)
+-- LIQUID splitWith _pred (PS _  _   0) = []
+-- LIQUID splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp
+-- LIQUID   where pred# c# = pred_ (W8# c#)
+-- LIQUID 
+-- LIQUID         STRICT4(splitWith0)
+-- LIQUID         splitWith0 pred' off' len' fp' = withPtr fp $ \p ->
+-- LIQUID             splitLoop pred' p 0 off' len' fp'
+-- LIQUID 
+-- LIQUID         splitLoop :: (Word# -> Bool)
+-- LIQUID                   -> Ptr Word8
+-- LIQUID                   -> Int -> Int -> Int
+-- LIQUID                   -> ForeignPtr Word8
+-- LIQUID                   -> IO [ByteString]
+-- LIQUID 
+-- LIQUID         splitLoop pred' p idx' off' len' fp'
+-- LIQUID             | idx' >= len'  = return [PS fp' off' idx']
+-- LIQUID             | otherwise = do
+-- LIQUID                 w <- peekElemOff p (off'+idx')
+-- LIQUID                 if pred' (case w of W8# w# -> w#)
+-- LIQUID                    then return (PS fp' off' idx' :
+-- LIQUID                               splitWith0 pred' (off'+idx'+1) (len'-idx'-1) fp')
+-- LIQUID                    else splitLoop pred' p (idx'+1) off' len' fp'
+-- LIQUID {-# INLINE splitWith #-}
+-- LIQUID 
+-- LIQUID #else
 splitWith _ (PS _ _ 0) = []
 splitWith p ps = loop p ps
     where
@@ -1110,7 +1112,7 @@ splitWith p ps = loop p ps
         loop q qs = if null rest then [chunk]
                                  else chunk : loop q (unsafeTail rest)
             where (chunk,rest) = break q qs
-#endif
+-- LIQUID #endif
 
 -- | /O(n)/ Break a 'ByteString' into pieces separated by the byte
 -- argument, consuming the delimiter. I.e.
@@ -1760,11 +1762,11 @@ getLine = hGetLine stdin
 
 hGetLine :: Handle -> IO ByteString
 
-#if !defined(__GLASGOW_HASKELL__)
-
-hGetLine h = System.IO.hGetLine h >>= return . pack . P.map c2w
-
-#elif __GLASGOW_HASKELL__ >= 611
+-- LIQUID #if !defined(__GLASGOW_HASKELL__)
+-- LIQUID 
+-- LIQUID hGetLine h = System.IO.hGetLine h >>= return . pack . P.map c2w
+-- LIQUID 
+-- LIQUID #elif __GLASGOW_HASKELL__ >= 611
 
 hGetLine h =
   wantReadableHandle_ "Data.ByteString.hGetLine" h $
@@ -1821,72 +1823,72 @@ mkPS buf start end =
  where
    len = end - start
 
-#else
--- GHC 6.10 and older, pre-Unicode IO library
-
-hGetLine h = wantReadableHandle "Data.ByteString.hGetLine" h $ \ handle_ -> do
-    case haBufferMode handle_ of
-       NoBuffering -> error "no buffering"
-       _other      -> hGetLineBuffered handle_
-
- where
-    hGetLineBuffered handle_ = do
-        let ref = haBuffer handle_
-        buf <- readIORef ref
-        hGetLineBufferedLoop handle_ ref buf 0 []
-
-    hGetLineBufferedLoop handle_ ref
-            buf@Buffer{ bufRPtr=r, bufWPtr=w, bufBuf=raw } len xss =
-        len `seq` do
-        off <- findEOL r w raw
-        let new_len = len + off - r
-        xs <- mkPS raw r off
-
-      -- if eol == True, then off is the offset of the '\n'
-      -- otherwise off == w and the buffer is now empty.
-        if off /= w
-            then do if (w == off + 1)
-                            then writeIORef ref buf{ bufRPtr=0, bufWPtr=0 }
-                            else writeIORef ref buf{ bufRPtr = off + 1 }
-                    mkBigPS new_len (xs:xss)
-            else do
-                 maybe_buf <- maybeFillReadBuffer (haFD handle_) True (haIsStream handle_)
-                                    buf{ bufWPtr=0, bufRPtr=0 }
-                 case maybe_buf of
-                    -- Nothing indicates we caught an EOF, and we may have a
-                    -- partial line to return.
-                    Nothing -> do
-                         writeIORef ref buf{ bufRPtr=0, bufWPtr=0 }
-                         if new_len > 0
-                            then mkBigPS new_len (xs:xss)
-                            else ioe_EOF
-                    Just new_buf ->
-                         hGetLineBufferedLoop handle_ ref new_buf new_len (xs:xss)
-
-    -- find the end-of-line character, if there is one
-    findEOL r w raw
-        | r == w = return w
-        | otherwise =  do
-            (c,r') <- readCharFromBuffer raw r
-            if c == '\n'
-                then return r -- NB. not r': don't include the '\n'
-                else findEOL r' w raw
-
-    maybeFillReadBuffer fd is_line is_stream buf = catch
-        (do buf' <- fillReadBuffer fd is_line is_stream buf
-            return (Just buf'))
-        (\e -> if isEOFError e then return Nothing else ioError e)
-
--- TODO, rewrite to use normal memcpy
-mkPS :: RawBuffer -> Int -> Int -> IO ByteString
-mkPS buf start end =
-    let len = end - start
-    in create len $ \p -> do
-        memcpy_ptr_baoff p buf (fromIntegral start) (fromIntegral len)
-        return ()
-
-#endif
-
+-- LIQUID #else
+-- LIQUID -- GHC 6.10 and older, pre-Unicode IO library
+-- LIQUID 
+-- LIQUID hGetLine h = wantReadableHandle "Data.ByteString.hGetLine" h $ \ handle_ -> do
+-- LIQUID     case haBufferMode handle_ of
+-- LIQUID        NoBuffering -> error "no buffering"
+-- LIQUID        _other      -> hGetLineBuffered handle_
+-- LIQUID 
+-- LIQUID  where
+-- LIQUID     hGetLineBuffered handle_ = do
+-- LIQUID         let ref = haBuffer handle_
+-- LIQUID         buf <- readIORef ref
+-- LIQUID         hGetLineBufferedLoop handle_ ref buf 0 []
+-- LIQUID 
+-- LIQUID     hGetLineBufferedLoop handle_ ref
+-- LIQUID             buf@Buffer{ bufRPtr=r, bufWPtr=w, bufBuf=raw } len xss =
+-- LIQUID         len `seq` do
+-- LIQUID         off <- findEOL r w raw
+-- LIQUID         let new_len = len + off - r
+-- LIQUID         xs <- mkPS raw r off
+-- LIQUID 
+-- LIQUID       -- if eol == True, then off is the offset of the '\n'
+-- LIQUID       -- otherwise off == w and the buffer is now empty.
+-- LIQUID         if off /= w
+-- LIQUID             then do if (w == off + 1)
+-- LIQUID                             then writeIORef ref buf{ bufRPtr=0, bufWPtr=0 }
+-- LIQUID                             else writeIORef ref buf{ bufRPtr = off + 1 }
+-- LIQUID                     mkBigPS new_len (xs:xss)
+-- LIQUID             else do
+-- LIQUID                  maybe_buf <- maybeFillReadBuffer (haFD handle_) True (haIsStream handle_)
+-- LIQUID                                     buf{ bufWPtr=0, bufRPtr=0 }
+-- LIQUID                  case maybe_buf of
+-- LIQUID                     -- Nothing indicates we caught an EOF, and we may have a
+-- LIQUID                     -- partial line to return.
+-- LIQUID                     Nothing -> do
+-- LIQUID                          writeIORef ref buf{ bufRPtr=0, bufWPtr=0 }
+-- LIQUID                          if new_len > 0
+-- LIQUID                             then mkBigPS new_len (xs:xss)
+-- LIQUID                             else ioe_EOF
+-- LIQUID                     Just new_buf ->
+-- LIQUID                          hGetLineBufferedLoop handle_ ref new_buf new_len (xs:xss)
+-- LIQUID 
+-- LIQUID     -- find the end-of-line character, if there is one
+-- LIQUID     findEOL r w raw
+-- LIQUID         | r == w = return w
+-- LIQUID         | otherwise =  do
+-- LIQUID             (c,r') <- readCharFromBuffer raw r
+-- LIQUID             if c == '\n'
+-- LIQUID                 then return r -- NB. not r': don't include the '\n'
+-- LIQUID                 else findEOL r' w raw
+-- LIQUID 
+-- LIQUID     maybeFillReadBuffer fd is_line is_stream buf = catch
+-- LIQUID         (do buf' <- fillReadBuffer fd is_line is_stream buf
+-- LIQUID             return (Just buf'))
+-- LIQUID         (\e -> if isEOFError e then return Nothing else ioError e)
+-- LIQUID 
+-- LIQUID -- TODO, rewrite to use normal memcpy
+-- LIQUID mkPS :: RawBuffer -> Int -> Int -> IO ByteString
+-- LIQUID mkPS buf start end =
+-- LIQUID     let len = end - start
+-- LIQUID     in create len $ \p -> do
+-- LIQUID         memcpy_ptr_baoff p buf (fromIntegral start) (fromIntegral len)
+-- LIQUID         return ()
+-- LIQUID 
+-- LIQUID #endif
+-- LIQUID 
 mkBigPS :: Int -> [ByteString] -> IO ByteString
 mkBigPS _ [ps] = return ps
 mkBigPS _ pss = return $! concat (P.reverse pss)
@@ -1907,16 +1909,16 @@ hPut h (PS ps s l) = withForeignPtr ps $ \p-> hPutBuf h (p `plusPtr` s) l
 -- Note: on Windows and with Haskell implementation other than GHC, this
 -- function does not work correctly; it behaves identically to 'hPut'.
 --
-#if defined(__GLASGOW_HASKELL__)
+-- LIQUID #if defined(__GLASGOW_HASKELL__)
 hPutNonBlocking :: Handle -> ByteString -> IO ByteString
 hPutNonBlocking h bs@(PS ps s l) = do
   bytesWritten <- withForeignPtr ps $ \p-> hPutBufNonBlocking h (p `plusPtr` s) l
   return $! drop bytesWritten bs
-#else
-hPutNonBlocking :: Handle -> B.ByteString -> IO Int
-hPutNonBlocking h bs = hPut h bs >> return empty
-#endif
-
+-- LIQUID #else
+-- LIQUID hPutNonBlocking :: Handle -> B.ByteString -> IO Int
+-- LIQUID hPutNonBlocking h bs = hPut h bs >> return empty
+-- LIQUID #endif
+-- LIQUID 
 -- | A synonym for @hPut@, for compatibility 
 hPutStr :: Handle -> ByteString -> IO ()
 hPutStr = hPut
@@ -1987,9 +1989,9 @@ hGetNonBlocking = hGet
 --
 hGetSome :: Handle -> Int -> IO ByteString
 hGetSome hh i
-#if MIN_VERSION_base(4,3,0)
-    | i >  0    = createAndTrim i $ \p -> hGetBufSome hh p i
-#else
+-- LIQUID #if MIN_VERSION_base(4,3,0)
+-- LIQUID     | i >  0    = createAndTrim i $ \p -> hGetBufSome hh p i
+-- LIQUID #else
     | i >  0    = let
                    loop = do
                      s <- hGetNonBlocking hh i
@@ -2002,7 +2004,7 @@ hGetSome hh i
                                          -- Handle should be in binary mode
                                          -- (see GHC ticket #3808)
                   in loop
-#endif
+-- LIQUID #endif
     | i == 0    = return empty
     | otherwise = illegalBufferSize hh "hGetSome" i
 
