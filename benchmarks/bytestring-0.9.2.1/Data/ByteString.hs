@@ -75,77 +75,77 @@ module Data.ByteString (
         transpose,              -- :: [ByteString] -> [ByteString]
 
         -- * Reducing 'ByteString's (folds)
--- LIQUID         foldl,                  -- :: (a -> Word8 -> a) -> a -> ByteString -> a
--- LIQUID         foldl',                 -- :: (a -> Word8 -> a) -> a -> ByteString -> a
--- LIQUID         foldl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
--- LIQUID         foldl1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
--- LIQUID 
--- LIQUID         foldr,                  -- :: (Word8 -> a -> a) -> a -> ByteString -> a
--- LIQUID         foldr',                 -- :: (Word8 -> a -> a) -> a -> ByteString -> a
--- LIQUID         foldr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
--- LIQUID         foldr1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
--- LIQUID 
--- LIQUID         -- ** Special folds
--- LIQUID         concat,                 -- :: [ByteString] -> ByteString
--- LIQUID         concatMap,              -- :: (Word8 -> ByteString) -> ByteString -> ByteString
--- LIQUID         any,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
--- LIQUID         all,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
--- LIQUID         maximum,                -- :: ByteString -> Word8
--- LIQUID         minimum,                -- :: ByteString -> Word8
--- LIQUID 
--- LIQUID         -- * Building ByteStrings
--- LIQUID         -- ** Scans
--- LIQUID         scanl,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
--- LIQUID         scanl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
--- LIQUID         scanr,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
--- LIQUID         scanr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
--- LIQUID 
--- LIQUID         -- ** Accumulating maps
--- LIQUID         mapAccumL,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
--- LIQUID         mapAccumR,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
--- LIQUID 
--- LIQUID         -- ** Generating and unfolding ByteStrings
--- LIQUID         replicate,              -- :: Int -> Word8 -> ByteString
--- LIQUID         unfoldr,                -- :: (a -> Maybe (Word8, a)) -> a -> ByteString
--- LIQUID         unfoldrN,               -- :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
--- LIQUID 
--- LIQUID         -- * Substrings
--- LIQUID 
--- LIQUID         -- ** Breaking strings
--- LIQUID         take,                   -- :: Int -> ByteString -> ByteString
--- LIQUID         drop,                   -- :: Int -> ByteString -> ByteString
--- LIQUID         splitAt,                -- :: Int -> ByteString -> (ByteString, ByteString)
--- LIQUID         takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
--- LIQUID         dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
--- LIQUID         span,                   -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID         spanEnd,                -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID         break,                  -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID         breakEnd,               -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID         group,                  -- :: ByteString -> [ByteString]
--- LIQUID         groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
--- LIQUID         inits,                  -- :: ByteString -> [ByteString]
--- LIQUID         tails,                  -- :: ByteString -> [ByteString]
--- LIQUID 
--- LIQUID         -- ** Breaking into many substrings
--- LIQUID         split,                  -- :: Word8 -> ByteString -> [ByteString]
--- LIQUID         splitWith,              -- :: (Word8 -> Bool) -> ByteString -> [ByteString]
--- LIQUID 
--- LIQUID         -- * Predicates
--- LIQUID         isPrefixOf,             -- :: ByteString -> ByteString -> Bool
--- LIQUID         isSuffixOf,             -- :: ByteString -> ByteString -> Bool
--- LIQUID         isInfixOf,              -- :: ByteString -> ByteString -> Bool
--- LIQUID 
--- LIQUID         -- ** Search for arbitrary substrings
--- LIQUID         breakSubstring,         -- :: ByteString -> ByteString -> (ByteString,ByteString)
--- LIQUID         findSubstring,          -- :: ByteString -> ByteString -> Maybe Int
--- LIQUID         findSubstrings,         -- :: ByteString -> ByteString -> [Int]
--- LIQUID 
--- LIQUID         -- * Searching ByteStrings
--- LIQUID 
--- LIQUID         -- ** Searching by equality
--- LIQUID         elem,                   -- :: Word8 -> ByteString -> Bool
--- LIQUID         notElem,                -- :: Word8 -> ByteString -> Bool
--- LIQUID 
+        foldl,                  -- :: (a -> Word8 -> a) -> a -> ByteString -> a
+        foldl',                 -- :: (a -> Word8 -> a) -> a -> ByteString -> a
+        foldl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+        foldl1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+
+        foldr,                  -- :: (Word8 -> a -> a) -> a -> ByteString -> a
+        foldr',                 -- :: (Word8 -> a -> a) -> a -> ByteString -> a
+        foldr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+        foldr1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+
+        -- ** Special folds
+        concat,                 -- :: [ByteString] -> ByteString
+        concatMap,              -- :: (Word8 -> ByteString) -> ByteString -> ByteString
+        any,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
+        all,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
+        maximum,                -- :: ByteString -> Word8
+        minimum,                -- :: ByteString -> Word8
+
+        -- * Building ByteStrings
+        -- ** Scans
+        scanl,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
+        scanl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
+        scanr,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
+        scanr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
+
+        -- ** Accumulating maps
+        mapAccumL,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
+        mapAccumR,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
+
+        -- ** Generating and unfolding ByteStrings
+        replicate,              -- :: Int -> Word8 -> ByteString
+        unfoldr,                -- :: (a -> Maybe (Word8, a)) -> a -> ByteString
+        unfoldrN,               -- :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
+
+        -- * Substrings
+
+        -- ** Breaking strings
+        take,                   -- :: Int -> ByteString -> ByteString
+        drop,                   -- :: Int -> ByteString -> ByteString
+        splitAt,                -- :: Int -> ByteString -> (ByteString, ByteString)
+        takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
+        dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
+        span,                   -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+        spanEnd,                -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+        break,                  -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+        breakEnd,               -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+        group,                  -- :: ByteString -> [ByteString]
+        groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
+        inits,                  -- :: ByteString -> [ByteString]
+        tails,                  -- :: ByteString -> [ByteString]
+
+        -- ** Breaking into many substrings
+        split,                  -- :: Word8 -> ByteString -> [ByteString]
+        splitWith,              -- :: (Word8 -> Bool) -> ByteString -> [ByteString]
+
+        -- * Predicates
+        isPrefixOf,             -- :: ByteString -> ByteString -> Bool
+        isSuffixOf,             -- :: ByteString -> ByteString -> Bool
+        isInfixOf,              -- :: ByteString -> ByteString -> Bool
+
+        -- ** Search for arbitrary substrings
+        breakSubstring,         -- :: ByteString -> ByteString -> (ByteString,ByteString)
+        findSubstring,          -- :: ByteString -> ByteString -> Maybe Int
+        findSubstrings,         -- :: ByteString -> ByteString -> [Int]
+
+        -- * Searching ByteStrings
+
+        -- ** Searching by equality
+        elem,                   -- :: Word8 -> ByteString -> Bool
+        notElem,                -- :: Word8 -> ByteString -> Bool
+
 -- LIQUID         -- ** Searching with a predicate
 -- LIQUID         find,                   -- :: (Word8 -> Bool) -> ByteString -> Maybe Word8
 -- LIQUID         filter,                 -- :: (Word8 -> Bool) -> ByteString -> ByteString
@@ -237,7 +237,7 @@ import Control.Exception	(bracket, finally)
 import Control.Monad            (when)
 
 import Foreign.C.String         (CString, CStringLen)
-import Foreign.C.Types          (CSize, CInt) -- LIQUID 
+import Foreign.C.Types          (CSize, CInt, CULong) -- LIQUID 
 import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc    (allocaBytes, mallocBytes, reallocBytes, finalizerFree)
 import Foreign.Marshal.Array    (allocaArray)
@@ -319,6 +319,7 @@ hWaitForInput _ _ = return ()
 #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
 -- -----------------------------------------------------------------------------
+{-@ embed CULong as int @-} -- LIQUID 
 {-@ embed CSize as int @-} -- LIQUID 
 {-@ embed CInt  as int @-} -- LIQUID
 instance Eq  ByteString where
