@@ -129,8 +129,9 @@ import Foreign.ForeignPtr       (newForeignPtr_) -- LIQUID
 
 -- CFILES stuff is Hugs only
 {-# CFILES cbits/fpstring.c #-}
-{-@ embed Int32        as int @-}
-{-@ embed CInt        as int @-}
+{-@ embed Int32        as int    @-}
+{-@ embed CInt         as int    @-}
+{-@ embed CSize        as Word32 @-}
 -- An alternative to Control.Exception (assert) for nhc98
 #ifdef __NHC__
 #define assert	assertS "__FILE__ : __LINE__"
