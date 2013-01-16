@@ -146,67 +146,67 @@ module Data.ByteString (
         elem,                   -- :: Word8 -> ByteString -> Bool
         notElem,                -- :: Word8 -> ByteString -> Bool
 
--- LIQUID         -- ** Searching with a predicate
--- LIQUID         find,                   -- :: (Word8 -> Bool) -> ByteString -> Maybe Word8
--- LIQUID         filter,                 -- :: (Word8 -> Bool) -> ByteString -> ByteString
--- LIQUID         partition,              -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID 
--- LIQUID         -- * Indexing ByteStrings
--- LIQUID         index,                  -- :: ByteString -> Int -> Word8
--- LIQUID         elemIndex,              -- :: Word8 -> ByteString -> Maybe Int
--- LIQUID         elemIndices,            -- :: Word8 -> ByteString -> [Int]
--- LIQUID         elemIndexEnd,           -- :: Word8 -> ByteString -> Maybe Int
--- LIQUID         findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int
--- LIQUID         findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int]
--- LIQUID         count,                  -- :: Word8 -> ByteString -> Int
--- LIQUID 
--- LIQUID         -- * Zipping and unzipping ByteStrings
--- LIQUID         zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
--- LIQUID         zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
--- LIQUID         unzip,                  -- :: [(Word8,Word8)] -> (ByteString,ByteString)
--- LIQUID 
--- LIQUID         -- * Ordered ByteStrings
--- LIQUID         sort,                   -- :: ByteString -> ByteString
--- LIQUID 
--- LIQUID         -- * Low level conversions
--- LIQUID         -- ** Copying ByteStrings
--- LIQUID         copy,                   -- :: ByteString -> ByteString
--- LIQUID 
--- LIQUID         -- ** Packing 'CString's and pointers
--- LIQUID         packCString,            -- :: CString -> IO ByteString
--- LIQUID         packCStringLen,         -- :: CStringLen -> IO ByteString
--- LIQUID 
--- LIQUID         -- ** Using ByteStrings as 'CString's
--- LIQUID         useAsCString,           -- :: ByteString -> (CString    -> IO a) -> IO a
--- LIQUID         useAsCStringLen,        -- :: ByteString -> (CStringLen -> IO a) -> IO a
--- LIQUID 
--- LIQUID         -- * I\/O with 'ByteString's
--- LIQUID 
--- LIQUID         -- ** Standard input and output
--- LIQUID         getLine,                -- :: IO ByteString
--- LIQUID         getContents,            -- :: IO ByteString
--- LIQUID         putStr,                 -- :: ByteString -> IO ()
--- LIQUID         putStrLn,               -- :: ByteString -> IO ()
--- LIQUID         interact,               -- :: (ByteString -> ByteString) -> IO ()
--- LIQUID 
--- LIQUID         -- ** Files
--- LIQUID         readFile,               -- :: FilePath -> IO ByteString
--- LIQUID         writeFile,              -- :: FilePath -> ByteString -> IO ()
--- LIQUID         appendFile,             -- :: FilePath -> ByteString -> IO ()
--- LIQUID 
--- LIQUID         -- ** I\/O with Handles
--- LIQUID         hGetLine,               -- :: Handle -> IO ByteString
--- LIQUID         hGetContents,           -- :: Handle -> IO ByteString
--- LIQUID         hGet,                   -- :: Handle -> Int -> IO ByteString
--- LIQUID         hGetSome,               -- :: Handle -> Int -> IO ByteString
--- LIQUID         hGetNonBlocking,        -- :: Handle -> Int -> IO ByteString
--- LIQUID         hPut,                   -- :: Handle -> ByteString -> IO ()
--- LIQUID         hPutNonBlocking,        -- :: Handle -> ByteString -> IO ByteString
--- LIQUID         hPutStr,                -- :: Handle -> ByteString -> IO ()
--- LIQUID         hPutStrLn,              -- :: Handle -> ByteString -> IO ()
--- LIQUID 
--- LIQUID         breakByte
--- LIQUID 
+        -- ** Searching with a predicate
+        find,                   -- :: (Word8 -> Bool) -> ByteString -> Maybe Word8
+        filter,                 -- :: (Word8 -> Bool) -> ByteString -> ByteString
+        partition,              -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+
+        -- * Indexing ByteStrings
+        index,                  -- :: ByteString -> Int -> Word8
+        elemIndex,              -- :: Word8 -> ByteString -> Maybe Int
+        elemIndices,            -- :: Word8 -> ByteString -> [Int]
+        elemIndexEnd,           -- :: Word8 -> ByteString -> Maybe Int
+        findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int
+        findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int]
+        count,                  -- :: Word8 -> ByteString -> Int
+
+        -- * Zipping and unzipping ByteStrings
+        zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
+        zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
+        unzip,                  -- :: [(Word8,Word8)] -> (ByteString,ByteString)
+
+        -- * Ordered ByteStrings
+        sort,                   -- :: ByteString -> ByteString
+
+        -- * Low level conversions
+        -- ** Copying ByteStrings
+        copy,                   -- :: ByteString -> ByteString
+
+        -- ** Packing 'CString's and pointers
+        packCString,            -- :: CString -> IO ByteString
+        packCStringLen,         -- :: CStringLen -> IO ByteString
+
+        -- ** Using ByteStrings as 'CString's
+        useAsCString,           -- :: ByteString -> (CString    -> IO a) -> IO a
+        useAsCStringLen,        -- :: ByteString -> (CStringLen -> IO a) -> IO a
+
+        -- * I\/O with 'ByteString's
+
+        -- ** Standard input and output
+-- LIQUID TODO        getLine,                -- :: IO ByteString
+        getContents,            -- :: IO ByteString
+        putStr,                 -- :: ByteString -> IO ()
+        putStrLn,               -- :: ByteString -> IO ()
+        interact,               -- :: (ByteString -> ByteString) -> IO ()
+
+        -- ** Files
+        readFile,               -- :: FilePath -> IO ByteString
+        writeFile,              -- :: FilePath -> ByteString -> IO ()
+        appendFile,             -- :: FilePath -> ByteString -> IO ()
+
+-- LIQUID TODO        -- ** I\/O with Handles
+-- LIQUID TODO        hGetLine,               -- :: Handle -> IO ByteString
+-- LIQUID TODO        hGetContents,           -- :: Handle -> IO ByteString
+-- LIQUID TODO        hGet,                   -- :: Handle -> Int -> IO ByteString
+-- LIQUID TODO        hGetSome,               -- :: Handle -> Int -> IO ByteString
+-- LIQUID TODO        hGetNonBlocking,        -- :: Handle -> Int -> IO ByteString
+-- LIQUID TODO        hPut,                   -- :: Handle -> ByteString -> IO ()
+-- LIQUID TODO        hPutNonBlocking,        -- :: Handle -> ByteString -> IO ByteString
+-- LIQUID TODO        hPutStr,                -- :: Handle -> ByteString -> IO ()
+-- LIQUID TODO        hPutStrLn,              -- :: Handle -> ByteString -> IO ()
+-- LIQUID TODO
+-- LIQUID TODO        breakByte
+
   ) where
 
 import qualified Prelude as P
