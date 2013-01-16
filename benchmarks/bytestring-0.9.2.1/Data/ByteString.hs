@@ -51,149 +51,149 @@ module Data.ByteString (
 
         -- * Introducing and eliminating 'ByteString's
         empty,                  -- :: ByteString
-        singleton,              -- :: Word8   -> ByteString
-        pack,                   -- :: [Word8] -> ByteString
-        unpack,                 -- :: ByteString -> [Word8]
-
-        -- * Basic interface
-        cons,                   -- :: Word8 -> ByteString -> ByteString
-        snoc,                   -- :: ByteString -> Word8 -> ByteString
-        append,                 -- :: ByteString -> ByteString -> ByteString
-        head,                   -- :: ByteString -> Word8
-        uncons,                 -- :: ByteString -> Maybe (Word8, ByteString)
-        last,                   -- :: ByteString -> Word8
-        tail,                   -- :: ByteString -> ByteString
-        init,                   -- :: ByteString -> ByteString
-        null,                   -- :: ByteString -> Bool
-        length,                 -- :: ByteString -> Int
-
-        -- * Transforming ByteStrings
-        map,                    -- :: (Word8 -> Word8) -> ByteString -> ByteString
-        reverse,                -- :: ByteString -> ByteString
-        intersperse,            -- :: Word8 -> ByteString -> ByteString
-        intercalate,            -- :: ByteString -> [ByteString] -> ByteString
-        transpose,              -- :: [ByteString] -> [ByteString]
-
-        -- * Reducing 'ByteString's (folds)
-        foldl,                  -- :: (a -> Word8 -> a) -> a -> ByteString -> a
-        foldl',                 -- :: (a -> Word8 -> a) -> a -> ByteString -> a
-        foldl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
-        foldl1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
-
-        foldr,                  -- :: (Word8 -> a -> a) -> a -> ByteString -> a
-        foldr',                 -- :: (Word8 -> a -> a) -> a -> ByteString -> a
-        foldr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
-        foldr1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
-
-        -- ** Special folds
-        concat,                 -- :: [ByteString] -> ByteString
-        concatMap,              -- :: (Word8 -> ByteString) -> ByteString -> ByteString
-        any,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
-        all,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
-        maximum,                -- :: ByteString -> Word8
-        minimum,                -- :: ByteString -> Word8
-
-        -- * Building ByteStrings
-        -- ** Scans
-        scanl,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
-        scanl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
-        scanr,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
-        scanr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
-
-        -- ** Accumulating maps
-        mapAccumL,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
-        mapAccumR,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
-
-        -- ** Generating and unfolding ByteStrings
-        replicate,              -- :: Int -> Word8 -> ByteString
-        unfoldr,                -- :: (a -> Maybe (Word8, a)) -> a -> ByteString
-        unfoldrN,               -- :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
-
-        -- * Substrings
-
-        -- ** Breaking strings
-        take,                   -- :: Int -> ByteString -> ByteString
-        drop,                   -- :: Int -> ByteString -> ByteString
-        splitAt,                -- :: Int -> ByteString -> (ByteString, ByteString)
-        takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
-        dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
-        span,                   -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-        spanEnd,                -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-        break,                  -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-        breakEnd,               -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-        group,                  -- :: ByteString -> [ByteString]
-        groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
-        inits,                  -- :: ByteString -> [ByteString]
-        tails,                  -- :: ByteString -> [ByteString]
-
-        -- ** Breaking into many substrings
-        split,                  -- :: Word8 -> ByteString -> [ByteString]
-        splitWith,              -- :: (Word8 -> Bool) -> ByteString -> [ByteString]
-
-        -- * Predicates
-        isPrefixOf,             -- :: ByteString -> ByteString -> Bool
-        isSuffixOf,             -- :: ByteString -> ByteString -> Bool
-        isInfixOf,              -- :: ByteString -> ByteString -> Bool
-
-        -- ** Search for arbitrary substrings
-        breakSubstring,         -- :: ByteString -> ByteString -> (ByteString,ByteString)
-        findSubstring,          -- :: ByteString -> ByteString -> Maybe Int
-        findSubstrings,         -- :: ByteString -> ByteString -> [Int]
-
-        -- * Searching ByteStrings
-
-        -- ** Searching by equality
-        elem,                   -- :: Word8 -> ByteString -> Bool
-        notElem,                -- :: Word8 -> ByteString -> Bool
-
-        -- ** Searching with a predicate
-        find,                   -- :: (Word8 -> Bool) -> ByteString -> Maybe Word8
-        filter,                 -- :: (Word8 -> Bool) -> ByteString -> ByteString
-        partition,              -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-
-        -- * Indexing ByteStrings
-        index,                  -- :: ByteString -> Int -> Word8
-        elemIndex,              -- :: Word8 -> ByteString -> Maybe Int
-        elemIndices,            -- :: Word8 -> ByteString -> [Int]
-        elemIndexEnd,           -- :: Word8 -> ByteString -> Maybe Int
-        findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int
-        findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int]
-        count,                  -- :: Word8 -> ByteString -> Int
-
-        -- * Zipping and unzipping ByteStrings
-        zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
-        zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
-        unzip,                  -- :: [(Word8,Word8)] -> (ByteString,ByteString)
-
-        -- * Ordered ByteStrings
-        sort,                   -- :: ByteString -> ByteString
-
-        -- * Low level conversions
-        -- ** Copying ByteStrings
-        copy,                   -- :: ByteString -> ByteString
-
-        -- ** Packing 'CString's and pointers
-        packCString,            -- :: CString -> IO ByteString
-        packCStringLen,         -- :: CStringLen -> IO ByteString
-
-        -- ** Using ByteStrings as 'CString's
-        useAsCString,           -- :: ByteString -> (CString    -> IO a) -> IO a
-        useAsCStringLen,        -- :: ByteString -> (CStringLen -> IO a) -> IO a
-
-        -- * I\/O with 'ByteString's
-
-        -- ** Standard input and output
+-- LIQUID         singleton,              -- :: Word8   -> ByteString
+-- LIQUID         pack,                   -- :: [Word8] -> ByteString
+-- LIQUID         unpack,                 -- :: ByteString -> [Word8]
+-- LIQUID 
+-- LIQUID         -- * Basic interface
+-- LIQUID         cons,                   -- :: Word8 -> ByteString -> ByteString
+-- LIQUID         snoc,                   -- :: ByteString -> Word8 -> ByteString
+-- LIQUID         append,                 -- :: ByteString -> ByteString -> ByteString
+-- LIQUID         head,                   -- :: ByteString -> Word8
+-- LIQUID         uncons,                 -- :: ByteString -> Maybe (Word8, ByteString)
+-- LIQUID         last,                   -- :: ByteString -> Word8
+-- LIQUID         tail,                   -- :: ByteString -> ByteString
+-- LIQUID         init,                   -- :: ByteString -> ByteString
+-- LIQUID         null,                   -- :: ByteString -> Bool
+-- LIQUID         length,                 -- :: ByteString -> Int
+-- LIQUID 
+-- LIQUID         -- * Transforming ByteStrings
+-- LIQUID         map,                    -- :: (Word8 -> Word8) -> ByteString -> ByteString
+-- LIQUID         reverse,                -- :: ByteString -> ByteString
+-- LIQUID         intersperse,            -- :: Word8 -> ByteString -> ByteString
+-- LIQUID         intercalate,            -- :: ByteString -> [ByteString] -> ByteString
+-- LIQUID         transpose,              -- :: [ByteString] -> [ByteString]
+-- LIQUID 
+-- LIQUID         -- * Reducing 'ByteString's (folds)
+-- LIQUID         foldl,                  -- :: (a -> Word8 -> a) -> a -> ByteString -> a
+-- LIQUID         foldl',                 -- :: (a -> Word8 -> a) -> a -> ByteString -> a
+-- LIQUID         foldl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+-- LIQUID         foldl1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+-- LIQUID 
+-- LIQUID         foldr,                  -- :: (Word8 -> a -> a) -> a -> ByteString -> a
+-- LIQUID         foldr',                 -- :: (Word8 -> a -> a) -> a -> ByteString -> a
+-- LIQUID         foldr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+-- LIQUID         foldr1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+-- LIQUID 
+-- LIQUID         -- ** Special folds
+-- LIQUID         concat,                 -- :: [ByteString] -> ByteString
+-- LIQUID         concatMap,              -- :: (Word8 -> ByteString) -> ByteString -> ByteString
+-- LIQUID         any,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
+-- LIQUID         all,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
+-- LIQUID         maximum,                -- :: ByteString -> Word8
+-- LIQUID         minimum,                -- :: ByteString -> Word8
+-- LIQUID 
+-- LIQUID         -- * Building ByteStrings
+-- LIQUID         -- ** Scans
+-- LIQUID         scanl,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
+-- LIQUID         scanl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
+-- LIQUID         scanr,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
+-- LIQUID         scanr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
+-- LIQUID 
+-- LIQUID         -- ** Accumulating maps
+-- LIQUID         mapAccumL,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
+-- LIQUID         mapAccumR,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
+-- LIQUID 
+-- LIQUID         -- ** Generating and unfolding ByteStrings
+-- LIQUID         replicate,              -- :: Int -> Word8 -> ByteString
+-- LIQUID         unfoldr,                -- :: (a -> Maybe (Word8, a)) -> a -> ByteString
+-- LIQUID         unfoldrN,               -- :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
+-- LIQUID 
+-- LIQUID         -- * Substrings
+-- LIQUID 
+-- LIQUID         -- ** Breaking strings
+-- LIQUID         take,                   -- :: Int -> ByteString -> ByteString
+-- LIQUID         drop,                   -- :: Int -> ByteString -> ByteString
+-- LIQUID         splitAt,                -- :: Int -> ByteString -> (ByteString, ByteString)
+-- LIQUID         takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
+-- LIQUID         dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
+-- LIQUID         span,                   -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+-- LIQUID         spanEnd,                -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+-- LIQUID         break,                  -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+-- LIQUID         breakEnd,               -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+-- LIQUID         group,                  -- :: ByteString -> [ByteString]
+-- LIQUID         groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
+-- LIQUID         inits,                  -- :: ByteString -> [ByteString]
+-- LIQUID         tails,                  -- :: ByteString -> [ByteString]
+-- LIQUID 
+-- LIQUID         -- ** Breaking into many substrings
+-- LIQUID         split,                  -- :: Word8 -> ByteString -> [ByteString]
+-- LIQUID         splitWith,              -- :: (Word8 -> Bool) -> ByteString -> [ByteString]
+-- LIQUID 
+-- LIQUID         -- * Predicates
+-- LIQUID         isPrefixOf,             -- :: ByteString -> ByteString -> Bool
+-- LIQUID         isSuffixOf,             -- :: ByteString -> ByteString -> Bool
+-- LIQUID         isInfixOf,              -- :: ByteString -> ByteString -> Bool
+-- LIQUID 
+-- LIQUID         -- ** Search for arbitrary substrings
+-- LIQUID         breakSubstring,         -- :: ByteString -> ByteString -> (ByteString,ByteString)
+-- LIQUID         findSubstring,          -- :: ByteString -> ByteString -> Maybe Int
+-- LIQUID         findSubstrings,         -- :: ByteString -> ByteString -> [Int]
+-- LIQUID 
+-- LIQUID         -- * Searching ByteStrings
+-- LIQUID 
+-- LIQUID         -- ** Searching by equality
+-- LIQUID         elem,                   -- :: Word8 -> ByteString -> Bool
+-- LIQUID         notElem,                -- :: Word8 -> ByteString -> Bool
+-- LIQUID 
+-- LIQUID         -- ** Searching with a predicate
+-- LIQUID         find,                   -- :: (Word8 -> Bool) -> ByteString -> Maybe Word8
+-- LIQUID         filter,                 -- :: (Word8 -> Bool) -> ByteString -> ByteString
+-- LIQUID         partition,              -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+-- LIQUID 
+-- LIQUID         -- * Indexing ByteStrings
+-- LIQUID         index,                  -- :: ByteString -> Int -> Word8
+-- LIQUID         elemIndex,              -- :: Word8 -> ByteString -> Maybe Int
+-- LIQUID         elemIndices,            -- :: Word8 -> ByteString -> [Int]
+-- LIQUID         elemIndexEnd,           -- :: Word8 -> ByteString -> Maybe Int
+-- LIQUID         findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int
+-- LIQUID         findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int]
+-- LIQUID         count,                  -- :: Word8 -> ByteString -> Int
+-- LIQUID 
+-- LIQUID         -- * Zipping and unzipping ByteStrings
+-- LIQUID         zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
+-- LIQUID         zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
+-- LIQUID         unzip,                  -- :: [(Word8,Word8)] -> (ByteString,ByteString)
+-- LIQUID 
+-- LIQUID         -- * Ordered ByteStrings
+-- LIQUID         sort,                   -- :: ByteString -> ByteString
+-- LIQUID 
+-- LIQUID         -- * Low level conversions
+-- LIQUID         -- ** Copying ByteStrings
+-- LIQUID         copy,                   -- :: ByteString -> ByteString
+-- LIQUID 
+-- LIQUID         -- ** Packing 'CString's and pointers
+-- LIQUID         packCString,            -- :: CString -> IO ByteString
+-- LIQUID         packCStringLen,         -- :: CStringLen -> IO ByteString
+-- LIQUID 
+-- LIQUID         -- ** Using ByteStrings as 'CString's
+-- LIQUID         useAsCString,           -- :: ByteString -> (CString    -> IO a) -> IO a
+-- LIQUID         useAsCStringLen,        -- :: ByteString -> (CStringLen -> IO a) -> IO a
+-- LIQUID 
+-- LIQUID         -- * I\/O with 'ByteString's
+-- LIQUID 
+-- LIQUID         -- ** Standard input and output
 -- LIQUID TODO        getLine,                -- :: IO ByteString
-        getContents,            -- :: IO ByteString
-        putStr,                 -- :: ByteString -> IO ()
-        putStrLn,               -- :: ByteString -> IO ()
-        interact,               -- :: (ByteString -> ByteString) -> IO ()
-
-        -- ** Files
-        readFile,               -- :: FilePath -> IO ByteString
-        writeFile,              -- :: FilePath -> ByteString -> IO ()
-        appendFile,             -- :: FilePath -> ByteString -> IO ()
-
+-- LIQUID         getContents,            -- :: IO ByteString
+-- LIQUID         putStr,                 -- :: ByteString -> IO ()
+-- LIQUID         putStrLn,               -- :: ByteString -> IO ()
+-- LIQUID         interact,               -- :: (ByteString -> ByteString) -> IO ()
+-- LIQUID 
+-- LIQUID         -- ** Files
+-- LIQUID         readFile,               -- :: FilePath -> IO ByteString
+-- LIQUID         writeFile,              -- :: FilePath -> ByteString -> IO ()
+-- LIQUID         appendFile,             -- :: FilePath -> ByteString -> IO ()
+-- LIQUID 
 -- LIQUID TODO        -- ** I\/O with Handles
 -- LIQUID TODO        hGetLine,               -- :: Handle -> IO ByteString
 -- LIQUID TODO        hGetContents,           -- :: Handle -> IO ByteString
@@ -320,27 +320,29 @@ hWaitForInput _ _ = return ()
 
 -- -----------------------------------------------------------------------------
 {-@ embed CULong as int @-} -- LIQUID 
-{-@ embed CSize as int @-} -- LIQUID 
-{-@ embed CInt  as int @-} -- LIQUID
-instance Eq  ByteString where
-    (==)    = eq
+{-@ embed CSize  as int @-} -- LIQUID 
+{-@ embed CInt   as int @-} -- LIQUID
 
-instance Ord ByteString where
-    compare = compareBytes
 
-instance Monoid ByteString where
-    mempty  = empty
-    mappend = append
-    mconcat = concat
-
--- | /O(n)/ Equality on the 'ByteString' type.
-eq :: ByteString -> ByteString -> Bool
-eq a@(PS p s l) b@(PS p' s' l')
-    | l /= l'            = False    -- short cut on length
-    | p == p' && s == s' = True     -- short cut for the same string
-    | otherwise          = compareBytes a b == EQ
-{-# INLINE eq #-}
--- ^ still needed
+-- LIQUID instance Eq  ByteString where
+-- LIQUID     (==)    = eq
+-- LIQUID 
+-- LIQUID instance Ord ByteString where
+-- LIQUID     compare = compareBytes
+-- LIQUID 
+-- LIQUID instance Monoid ByteString where
+-- LIQUID     mempty  = empty
+-- LIQUID     mappend = append
+-- LIQUID     mconcat = concat
+-- LIQUID 
+-- LIQUID -- | /O(n)/ Equality on the 'ByteString' type.
+-- LIQUID eq :: ByteString -> ByteString -> Bool
+-- LIQUID eq a@(PS p s l) b@(PS p' s' l')
+-- LIQUID     | l /= l'            = False    -- short cut on length
+-- LIQUID     | p == p' && s == s' = True     -- short cut for the same string
+-- LIQUID     | otherwise          = compareBytes a b == EQ
+-- LIQUID {-# INLINE eq #-}
+-- LIQUID -- ^ still needed
 
 -- | /O(n)/ 'compareBytes' provides an 'Ordering' for 'ByteStrings' supporting slices. 
 compareBytes :: ByteString -> ByteString -> Ordering
@@ -383,8 +385,8 @@ cmp p1 p2 n len1 len2
 
 -- -----------------------------------------------------------------------------
 -- Introducing and eliminating 'ByteString's
-
 -- | /O(1)/ The empty 'ByteString'
+
 empty :: ByteString
 empty = PS nullForeignPtr 0 0
 
