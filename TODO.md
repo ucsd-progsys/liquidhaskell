@@ -320,18 +320,18 @@ Random Links
 GITTERY
 =======
 
-- To make local branch goo
+To make local branch `goo`
 
     $ git branch foo
     $ git checkout foo
     $ ...
     $ git commit -a -m "did work in foo"
 
-- To send branch to the mothership
+To send branch to the mothership
 
     $ git push origin foo
 
-- To work with branch elsewhere
+To work with branch elsewhere
 
     $ git pull
     $ git checkout foo
@@ -376,13 +376,6 @@ McBride's Stack Machine youtube mcbride icfp 2012 monday keynote agda-curious
     run                          :: is:[Instr] -> {v:[Val] | len(v) >= needs(is)} -> [Val]
     run (Add:is)      (x1:x2:vs) = run is (x1 + x2 : vs)
     run (Push v : is) vs         = run is (v : vs)
-
-----------------------------------------------------------------------------
-
-NIKITODO
-
-Failed 17 tests: pos/ListISort.hs, pos/ListMSort.hs, pos/ListQSort.hs, pos/ListRange.hs, pos/mapreduce-bare.hs, pos/mapreduce.hs, pos/meas0.hs, pos/meas0a.hs, pos/meas1.hs, pos/meas2.hs, pos/meas3.hs, pos/meas4.hs, pos/meas5.hs, pos/meas6.hs, pos/poly3.hs, pos/poly3a.hs, pos/range.hs
-
 
 
 change .html fix (cat fix# leave name)
