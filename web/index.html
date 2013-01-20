@@ -127,10 +127,13 @@
              <div id="program-pane" class="well" style="background:#fff">
                  <button class="btn btn-info" type="button" ng-hide="isChecking" ng-click="verifySource()">Verify</button>
 
-                 <div ng-show="isChecking">
+                 <button class="btn" type="button" ng-show="isChecking"
+                   ng-click="verifySource()">Verifying...</button>
+                 
+                 <!-- <div ng-show="isChecking">
                     <span class="label label-info large"
                       id="status-checking">Verifying...</span>
-                 </div> 
+                  </div> --> 
 
                  <div style="float:right" ng-show="isUnknown">
                     <span class="label large" id="sourceName">{{msg}}</span>
