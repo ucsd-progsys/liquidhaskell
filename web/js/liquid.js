@@ -71,6 +71,37 @@ function getQualsURL(file) { return ('demos/' + file + '.hquals');  }
 function getVerifierURL()  { return 'liquid.php';                   }
 
 /*******************************************************************************/
+/************** Tracking Status ************************************************/
+/*******************************************************************************/
+
+function clearStatus($scope){
+  $scope.isSafe     = false;
+  $scope.isUnsafe   = false;
+  $scope.isCrash    = false;
+  $scope.isChecking = false;
+  $scope.isUnknown  = false;
+}
+
+function setStatusUnknown($scope){
+  clearStatus($scope);
+  $scope.isUnknown = true;
+}
+
+function setStatusChecking($scope){
+  clearStatus($scope);
+  $scope.isChecking = true;
+}
+
+function setStatusResult($scope, result){
+  clearStatus($scope);
+  $scope.isChecking = false;
+  $scope.isSafe     = (result == "safe"  );
+  $scope.isUnsafe   = (result == "unsafe");
+  $scope.isCrash    = (result == "crash" );
+  $scope.isUnknown  = !($scope.isSafe || $scope.isUnsafe || $scope.isCrash);
+}
+
+/*******************************************************************************/
 /************** Top-Level Demo Controller **************************************/
 /*******************************************************************************/
 
@@ -129,20 +160,22 @@ function LiquidDemoCtrl($scope, $http, $location) {
                   "qualifiers" : qualEditor.getValue() 
                 };
 
-    $scope.isChecking = true;
+    setStatusChecking($scope);
 
     $http.post(getVerifierURL(), query)
          .success(function(data, status) {
             $scope.outReady   = true;
             $scope.status     = status;
             globData          = data;
-            $scope.isChecking = false;
             $scope.result     = data.result;
-           
-            $scope.isSafe     = (data.result == "safe"  );
-            $scope.isUnsafe   = (data.result == "unsafe");
-            $scope.isCrash    = (data.result == "crash" );
-            $scope.isUnknown  = !($scope.isSafe || $scope.isUnsafe || $scope.isCrash);
+          
+            setStatusResult($scope, data.result);
+
+            // $scope.isChecking = false;
+            // $scope.isSafe     = (data.result == "safe"  );
+            // $scope.isUnsafe   = (data.result == "unsafe");
+            // $scope.isCrash    = (data.result == "crash" );
+            // $scope.isUnknown  = !($scope.isSafe || $scope.isUnsafe || $scope.isCrash);
             
             $scope.warns     = data.warns;
             $scope.crash     = data.crash; 
