@@ -91,6 +91,7 @@ function LiquidDemoCtrl($scope, $http, $location) {
     $scope.isSafe     = false;
     $scope.isUnsafe   = false;
     $scope.isCrash    = false; 
+    $scope.isChecking = false;
     $scope.isUnknown  = true; 
 
     $scope.msg        = demo.file; 
@@ -128,18 +129,20 @@ function LiquidDemoCtrl($scope, $http, $location) {
                   "qualifiers" : qualEditor.getValue() 
                 };
 
+    $scope.isChecking = true;
+
     $http.post(getVerifierURL(), query)
          .success(function(data, status) {
-            $scope.outReady  = true;
-            $scope.status    = status;
-            globData         = data;
-
-            $scope.result    = data.result;
+            $scope.outReady   = true;
+            $scope.status     = status;
+            globData          = data;
+            $scope.isChecking = false;
+            $scope.result     = data.result;
            
-            $scope.isSafe    = (data.result == "safe"  );
-            $scope.isUnsafe  = (data.result == "unsafe");
-            $scope.isCrash   = (data.result == "crash" );
-            $scope.isUnknown = !($scope.isSafe || $scope.isUnsafe || $scope.isCrash);
+            $scope.isSafe     = (data.result == "safe"  );
+            $scope.isUnsafe   = (data.result == "unsafe");
+            $scope.isCrash    = (data.result == "crash" );
+            $scope.isUnknown  = !($scope.isSafe || $scope.isUnsafe || $scope.isCrash);
             
             $scope.warns     = data.warns;
             $scope.crash     = data.crash; 
