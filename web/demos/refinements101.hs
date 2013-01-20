@@ -56,6 +56,7 @@ divide n d = n `div` d
 
 -- | If you are paranoid, you can put in an explicit assertion
 
+{-@ divide' :: Int -> {v: Int | v != 0 } -> Int @-}
 divide'     :: Int -> Int -> Int
 divide' n 0 = error' "divide by zero"
 divide' n d = lAssert (d /= 0) $ n `div` d
