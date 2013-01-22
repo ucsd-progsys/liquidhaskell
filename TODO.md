@@ -364,6 +364,8 @@ Benchmark Tags
 
 ----------------------------------------------------------------------------
 
+http://www.cs.st-andrews.ac.uk/~eb/writings/fi-cbc.pdf
+
 McBride's Stack Machine youtube mcbride icfp 2012 monday keynote agda-curious
 
     data Instr = Push Val | Add
