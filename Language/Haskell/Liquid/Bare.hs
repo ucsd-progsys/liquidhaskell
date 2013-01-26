@@ -529,7 +529,7 @@ txPvar :: M.HashMap Symbol UsedPVar -> UsedPVar -> UsedPVar
 txPvar m π = π { pargs = args' }
   where args' | not (null (pargs π)) = zipWith (\(_,x ,_) (t,_,y) -> (t, x, y)) (pargs π') (pargs π)
               | otherwise            = pargs π'
-        π'    = M.lookupDefault (errorstar err) (pname π) m
+        π'    = fromMaybe (errorstar err) $ M.lookup (pname π) m
         err   = "Bare.replaceParams Unbound Predicate Variable: " ++ show π
 
 predMap πs t = Ex.assert (M.size xπm == length xπs) xπm 
