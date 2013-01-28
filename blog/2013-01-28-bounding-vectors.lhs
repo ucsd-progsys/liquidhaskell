@@ -1,33 +1,22 @@
 ---
 layout: post
 title: "Bounding Vectors"
-date: 2013-01-27 16:12
+date: 2013-01-29 16:12
 author: Ranjit Jhala
-published: true 
+published: false 
 comments: true
 external-url:
 categories: basic
 demo: vectorbounds.hs
 ---
 
-Hopefully, the [previous][ref101] article gave you a basic idea about what
-refinement types look like. Several folks had interesting comments and
-questions on the blog and on [reddit][reddit101] and to start, lets look at
-some of those, before moving on to some fancier properties -- namely the
-static verification of **vector access bounds.**
-
-
-
-
-
-Next, lets build on that intuition with some small examples that 
-illustrate how LiquidHaskell can be used to do compile-time 
-**bounds checking**, while reasoning about *recursion* 
-*higher-order functions*, *data types*, and *polymorphism*.
+Hopefully, [these][ref101] [articles[ref102] gave you a basic idea about what
+basic refinement types look like. Today, lets move on to some fancier properties -- 
+namely the static verification of **vector access bounds**. Along the way, 
+we'll see some examples that illustrate how LiquidHaskell reasons about 
+*recursion*, *higher-order functions*, *data types*, and *polymorphism*.
 
 <!-- more -->
-
-(Btw, *click the title* to demo LiquidHaskell on the code in this article)
 
 \begin{code}
 module DependentRefinements (
@@ -42,6 +31,76 @@ import Prelude      hiding (length)
 import Data.List    (foldl')
 import Data.Vector  hiding (foldl') 
 \end{code}
+
+
+How to tell a Fib
+-----------------
+
+First, lets consider some very interesting questions posed as a response to
+the [previous entry][ref101].
+
+### Telling a Fib
+
+[Chis Done](https://twitter.com/christopherdone) asked why LiquidHaskell 
+refused to verify the following definition of `fib`.
+
+\begin{code}
+{-@ fib :: a:Int -> { b:Int | (a >= 0 && b >= a) } @-}
+fib :: Int -> Int
+fib 0 = 0
+fib 1 = 1
+fib n = fib (n-1) + fib (n-2)
+\end{code}
+
+It turns out that there are *two* different reasons why. 
+
+First, to say "fibonacci takes some a>=0 and returns some b>=a" you should put the "a >=0" 
+in the precondition that is, write:
+
+{-@ fib :: a:{v:Int | v >= 0} -> { b:Int | (b >= a) } @-}
+
+Otherwise, the type that you have states that it is OK to pass fib *any* value "a" 
+(including *negative* values) and yet, returns values "b" such that (b >= a AND a >= 0) --
+
+and clearly the latter i.e. (a >= 0) is not possible when arbitrary "a" is passed in as input.
+
+Alternatively, think of the input type as a "requires" and the output as "ensures" 
+(or "assume" and "guarantee" respectively) value returned by the function. 
+Thus, its impossible to ensure that (a >=0) if you didn't assume the input was 
+non-negative to start with, hence the UNSAFE.
+
+The second issue is even more interesting, and has to do with the fact that the type
+
+{-@ fib :: a:{v:Int | v >= 0} -> { b:Int | (b >= a) } @-}
+
+is actually not *strong* enough to be inductive. Concretely, think of the recursive case.
+Here, LiquidHaskell reasons that the expression:
+
+fib (n-1) + fib (n-2)
+
+has the type
+
+{v: Int | \exists v1, v2: Int. v = v1 + v2 && v1 >= n-1 && v2 >= n-2 }
+
+by plugging in the parameters "n-1" and "n-2" into the output type for "fib" specified above.
+The SMT solver simplifies the above to
+
+{v: Int | v >= 2n - 2}
+
+which is not necessarily a value >= n (e.g. when n = 1)!
+
+So, actually, you need to *strengthen* the specification to:
+
+{-@ fib :: a:{v:Int | v >= 0} -> { b:Int | ((b >= a) && (b >= 1)) } @-}
+
+and THEN it is verified.
+
+Does that make sense?
+
+
+
+
+
 
 Specifying Bounds for Vectors
 -----------------------------
