@@ -60,24 +60,24 @@ but instead, because LiquidHaskell supports **modular verification**
 where the *only* thing known about `abz` at a *use site* is 
 whatever is specified in its *type*. 
 
-\begin{code}The type 
+\begin{code}Concretely speaking, the type 
 abz :: Int -> {v: Int | 0 <= v }
 \end{code}
 
 is too anemic to verify `f` above, as it tells us nothing 
-about the *relationship* between the output and input. In particular,
-the type does not say that when the *output* is non-zero, the *input* 
-must also have been non-zero.
+about the *relationship* between the output and input -- looking at it,
+we have now way of telling that when the *output* (of `abz`) is 
+non-zero, the *input*  must also have been non-zero.
 
-\begin{code}Instead, we can write a *stronger* type which *does* capture this information, for example
+\begin{code}Instead, we can write a *stronger* type which does capture this information, for example
 abz :: x:Int -> {v:Int | v = (if (x > 0) then x else (0 - x))}
 \end{code}
 
 \begin{code} where 
-v = if p then e1 else e2
+v = (if p then e1 else e2)
 \end{code}
 
-\begin{code} is an abbreviation forthe logical formula 
+\begin{code} is an abbreviation for the formula 
 (p => v == e1) && ((not p) => v = e2)
 \end{code}
 
@@ -176,7 +176,7 @@ the *only information* LiquidHaskell uses about the returned value,
 is that described in the *output type* for that function call.
 
 \begin{code}Thus, LiquidHaskell reasons that the expression:
-fib (n-1) + fib (n-2)
+fib' (n-1) + fib' (n-2)
 \end{code}
 
 \begin{code}has the type
@@ -193,20 +193,19 @@ recursive calls --- we get the above by plugging the parameters
 {b: Int | b >= 2n - 3}
 \end{code}
 
-\begin{code}Finally, to check the output type, the LiquidHaskell checks the subtyping relation
-{b: Int | b >= 2n - 3} <: {b: Int | b >= n}
-\end{code}
-
-\begin{code}which is **rejected** by the SMT solver as the implication
+\begin{code} Finally, to check the output guarantee is met, LiquidHaskell asks the SMT solver to prove that
 (b >= 2n - 2)  =>  (b >= n)
 \end{code}
 
-is *not valid* (e.g. when `n` is `2`) Thus, LiquidHaskell uses 
-the SMT solver to deem `fib'` is indeed, **unsafe**.
+The SMT solver will refuse, of course, since the above implication is 
+*not valid* (e.g. when `n` is `2`) Thus, via SMT, LiquidHaskell proclaims
+that the function `fib'` does not implement the advertised type and hence
+marks it *unsafe*.
 
-**Fixing The Code**
+Fixing The Code
+---------------
 
-How then, do we get Chris' spec to work out? It seems like it 
+How then, do we get Chris' specification to work out? It seems like it 
 *should* hold (except for that pesky case where `n=2`. Indeed,
 let's rig the code, so that all the base cases return `1`.
 
@@ -231,7 +230,8 @@ Here' we specify that not only is the output greater than the input, it is
 {b: Int | b = 2n - 3 && n >= 2 }
 \end{code}
 
-\begin{code}which, the SMT solver is happy to verify, is indeed a subtype of the specified output
+\begin{code}which, the SMT solver is happy to verify, is indeed a subtype
+of (i.e. implies the refinement of) the specified output
 {b: Int | b >= n && b >= 1 } 
 \end{code}
 
