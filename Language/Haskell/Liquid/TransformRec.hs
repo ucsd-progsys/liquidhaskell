@@ -30,12 +30,14 @@ import           Language.Haskell.Liquid.GhcMisc
 
 transformRecExpr :: CoreProgram -> CoreProgram
 transformRecExpr cbs
-  | isEmptyBag e
+  -- | isEmptyBag e
+  | lengthBag e == lengthBag e'
   =  {-trace "new cbs"-} pg 
   | otherwise 
   = error (showPpr pg ++ "Type-check" ++ showSDoc (pprMessageBag e))
-  where pg     = scopeTr $ evalState (transPg cbs) initEnv
-        (_, e) = lintCoreBindings pg
+  where pg      = scopeTr $ evalState (transPg cbs) initEnv
+        (_, e)  = lintCoreBindings pg
+        (_, e') = lintCoreBindings cbs
 
 scopeTr = outerScTr . map innerScTr
 
