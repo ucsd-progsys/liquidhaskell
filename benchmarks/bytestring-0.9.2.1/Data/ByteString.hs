@@ -51,8 +51,8 @@ module Data.ByteString (
 
         -- * Introducing and eliminating 'ByteString's
         empty,                  -- :: ByteString
--- LIQUID         singleton,              -- :: Word8   -> ByteString
--- LIQUID         pack,                   -- :: [Word8] -> ByteString
+        singleton,              -- :: Word8   -> ByteString
+        pack,                   -- :: [Word8] -> ByteString
 -- LIQUID         unpack,                 -- :: ByteString -> [Word8]
 -- LIQUID 
 -- LIQUID         -- * Basic interface
@@ -387,6 +387,7 @@ cmp p1 p2 n len1 len2
 -- Introducing and eliminating 'ByteString's
 -- | /O(1)/ The empty 'ByteString'
 
+{-@ empty :: ByteString @-}
 empty :: ByteString
 empty = PS nullForeignPtr 0 0
 
