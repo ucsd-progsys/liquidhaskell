@@ -53,9 +53,10 @@ languageDef =
                                      , "import"
                                      , "_|_"
                                      , "|"
+                                     , "if", "then", "else"
                                      ]
            , Token.reservedOpNames = [ "+", "-", "*", "/", "\\"
-                                     , "<", ">", "<=", ">=", "=", "!="
+                                     , "<", ">", "<=", ">=", "=", "!=" , "/="
                                      , "mod", "and", "or" 
                                    --, "is"
                                      , "&&", "||"
@@ -200,18 +201,32 @@ predrP = do e1    <- expr2P
 brelP ::  Parser (Expr -> Expr -> Pred)
 brelP =  (reservedOp "="  >> return (PAtom Eq))
      <|> (reservedOp "!=" >> return (PAtom Ne))
+     <|> (reservedOp "/=" >> return (PAtom Ne))
      <|> (reservedOp "<"  >> return (PAtom Lt))
      <|> (reservedOp "<=" >> return (PAtom Le))
      <|> (reservedOp ">"  >> return (PAtom Gt))
      <|> (reservedOp ">=" >> return (PAtom Ge))
 
-condP f bodyP 
+condIteP f bodyP 
+  = do reserved "if" 
+       p <- predP
+       reserved "then"
+       b1 <- bodyP 
+       reserved "else"
+       b2 <- bodyP 
+       return $ f p b1 b2
+
+condQmP f bodyP 
   = do p  <- predP 
        reserved "?"
        b1 <- bodyP 
        colon
        b2 <- bodyP 
        return $ f p b1 b2
+
+condP f bodyP 
+   =   try (condIteP f bodyP)
+   <|> (condQmP f bodyP)
 
 ----------------------------------------------------------------------------------
 ------------------------------------ BareTypes -----------------------------------

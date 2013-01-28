@@ -1,24 +1,23 @@
 ---
 layout: post
 title: "Bounding Vectors"
-date: 2013-01-05 16:12
+date: 2013-01-29 16:12
 author: Ranjit Jhala
-published: true 
+published: false 
 comments: true
 external-url:
 categories: basic
 demo: vectorbounds.hs
 ---
 
-Hopefully, the [previous][ref101] article gave you a basic idea about what
-refinement types look like. Today, lets build on that intuition with some 
-small examples that illustrate how LiquidHaskell can be used to do 
-compile-time **bounds checking**, while reasoning about *recursion*
+Hopefully, [these][ref101] [articles[ref102] gave you a basic idea about 
+what basic refinement types look like. Today, lets move on to some 
+fancier properties, namely, the static verification of 
+**vector access bounds**. Along the way, we'll see some examples that
+illustrate how LiquidHaskell reasons about *recursion*, 
 *higher-order functions*, *data types*, and *polymorphism*.
 
 <!-- more -->
-
-(Btw, *click the title* to demo LiquidHaskell on the code in this article)
 
 \begin{code}
 module DependentRefinements (
@@ -413,6 +412,7 @@ like lists and trees.
 [dml]:     http://www.cs.bu.edu/~hwxi/DML/DML.html
 [agdavec]: http://code.haskell.org/Agda/examples/Vec.agda
 [ref101]:  /blog/2013/01/01/refinement-types-101.lhs/ 
+[ref102]:  /blog/2013/01/27/refinements-101-reax.lhs/ 
 [foldl]:   http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html
 
 [dmlarray]:http://www.cs.bu.edu/~hwxi/academic/papers/pldi98.pdf
