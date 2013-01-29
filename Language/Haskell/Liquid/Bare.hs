@@ -289,10 +289,11 @@ stringLookupEnv env s
 
 lookupGhcTyCon ::  GhcLookup a => a -> BareM TyCon
 lookupGhcTyCon s = (lookupGhcThing "TyCon" ftc s) `catchError` tryPropTyCon
-  where ftc (ATyCon x) = Just x
-        ftc _          = Nothing
-        tryPropTyCon e | pp s == propConName = return propTyCon 
-                       | otherwise           = throwError e
+  where ftc (ATyCon x)   = Just x
+        ftc (ADataCon x) = Just $ dataConTyCon x
+        ftc _            = Nothing
+        tryPropTyCon e   | pp s == propConName = return propTyCon 
+                         | otherwise           = throwError e
 
 lookupGhcClass = lookupGhcThing "Class" ftc 
   where ftc (ATyCon x) = tyConClass_maybe x 
