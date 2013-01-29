@@ -1,23 +1,12 @@
-module Concat where
+module Foo where
 
 import Language.Haskell.Liquid.Prelude
 
-foo :: [[Int]]
-foo = [[1], [2,2]]
+gpp :: [Int] -> [Int]
+gpp []     = []
+gpp (x:xs) = liquidAssert (x==9) x : gpp xs
 
-r :: Int
-r = 5
-
-prop x = liquidAssertB (x == r)
-
-myconcat0 :: [[Int]] -> [Int]
-myconcat0 []     = []
-myconcat0 (x:xs) = x ++ (myconcat0 xs) 
-
-propC4 = map prop $ myconcat0 foo
-
--- myconcat1 :: a -> [[Int]] -> [Int]
--- myconcat1 _ []     = []
--- myconcat1 f (x:xs) = x ++ (myconcat1 f xs) 
-
--- propC4 = map prop $ myconcat1 id foo
+decr x = x : decr (x-1)
+xs :: [Int]
+xs = decr 0
+ys = gpp xs
