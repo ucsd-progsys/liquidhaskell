@@ -71,7 +71,7 @@ import Text.Printf
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GhcMisc (tracePpr, tvId, intersperse, dropModuleNames, getDataConVarUnique)
-import Language.Haskell.Liquid.FileNames (symSepName, listConName, tupConName, propConName, boolConName)
+import Language.Haskell.Liquid.FileNames (symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
 
 --------------------------------------------------------------------
@@ -297,6 +297,7 @@ class (Monoid r, Subable r, Outputable r) => Reftable r where
   dropSyms = id
 
 class (Eq c) => TyConable c where
+  isFun    :: c -> Bool
   isList   :: c -> Bool
   isTuple  :: c -> Bool
   ppTycon  :: c -> SDoc
@@ -497,11 +498,13 @@ instance (Reftable r, RefTypable p c tv r) => Reftable (Ref r (RType p c tv r)) 
 -- TyConable Instances -------------------------------------------------------
 
 instance TyConable RTyCon where
+  isFun   = isFunTyCon . rTyCon
   isList  = (listTyCon ==) . rTyCon
   isTuple = TC.isTupleTyCon   . rTyCon 
   ppTycon = ppr
 
 instance TyConable String where
+  isFun   = (funConName ==) 
   isList  = (listConName ==) 
   isTuple = (tupConName ==)
   ppTycon = text
@@ -517,6 +520,14 @@ instance (Reftable r) => RefTypable Class RTyCon RTyVar r where
   ppCls = ppClass_ClassPred
   ppRType = ppr_rtype False -- True
   
+class FreeVar a v where 
+  freeVars :: a -> [v]
+
+instance FreeVar RTyCon RTyVar where
+  freeVars = (RTV <$>) . tyConTyVars . rTyCon
+
+instance FreeVar String String where
+  freeVars _ = []
 
 ppClass_String    c _  = parens (ppr c <+> text "...")
 ppClass_ClassPred c ts = parens $ pprClassPred c (toType <$> ts)
@@ -639,6 +650,7 @@ strengthenRefType t1 t2
                 (showPpr t1) (showPpr (toRSort t1)) (showPpr t2) (showPpr (toRSort t2))
 
 unifyShape :: ( RefTypable p c tv r
+              , FreeVar c tv
               , RefTypable p c tv () 
               , SubsTy tv (RType p c tv ()) (RType p c tv ())
               , SubsTy tv (RType p c tv ()) c)
@@ -1041,20 +1053,29 @@ subsFree meet s (α', _, t') t@(RVar α r)
 subsFree m s z (REx x t t')
   = REx x (subsFree m s z t) (subsFree m s z t')
 subsFree m s z@(_, _, _) (RAppTy t t')
-  = subsFreeRAppTy (subsFree m s z t) (subsFree m s z t')
+  = subsFreeRAppTy m s (subsFree m s z t) (subsFree m s z t')
 subsFree _ _ _ t@(RExprArg _)        
   = t
 subsFree _ _ _ t@(ROth _)        
   = t
 
--- GHC INVARIANT: RApp is Type Application to something other than TYCon
-subsFreeRAppTy (RApp c ts rs r) t'
-  = RApp c (t':ts) rs r
-subsFreeRAppTy t t'
-  = RAppTy t t'
-
 -- subsFree _ _ _ t      
 --   = errorstar $ "subsFree fails on: " ++ showPpr t
+
+subsFrees m s zs t = foldl' (flip(subsFree m s)) t zs
+
+-- GHC INVARIANT: RApp is Type Application to something other than TYCon
+subsFreeRAppTy m s (RApp c ts rs r) t'
+  = mkRApp m s c (ts++[t']) rs r
+subsFreeRAppTy m s t t'
+  = RAppTy t t'
+
+mkRApp m s c ts rs r
+  | isFun c, [t1, t2] <- ts
+  = RFun dummySymbol t1 t2 top
+  | otherwise 
+  = subsFrees m s zs $ RApp c ts rs r
+  where zs = [(tv, toRSort t, t) | (tv, t) <- zip (freeVars c) ts]
 
 -- subsFreeRef ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty (PVar ty), SubsTy tv ty c, Reftable r, Monoid r, Subable r, RefTypable p c tv (PVar ty) r) => Bool -> S.Set tv -> (tv, ty, RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r)
 
