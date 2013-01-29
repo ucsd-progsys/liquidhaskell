@@ -206,8 +206,8 @@ data RType p c tv r
   | RExprArg Expr                               -- ^ For expression arguments to type aliases
                                                 --   see tests/pos/vector2.hs
   | RAppTy{
-      rt_ty    :: !(RType p c tv r)
-    , rt_ty'   :: !(RType p c tv r)
+      rt_arg   :: !(RType p c tv r)
+    , rt_res   :: !(RType p c tv r)
     }
 
   | ROth  !String 
