@@ -1,6 +1,12 @@
-module ScopeCheck where
+module Foo where
 
-{-@ mmap      :: (a -> b) -> xs:[a] -> {v:[b] | (len v) = (len xs)} @-}
-mmap _ []     = [] 
-mmap f (x:xs) = (f x) : (mmap f xs)
+import Language.Haskell.Liquid.Prelude
 
+gpp :: [Int] -> [Int]
+gpp [] = []
+gpp (x:xs) = liquidAssert (x>=0) x : gpp xs
+
+
+xs :: [Int]
+xs = [0..]
+ys = gpp xs
