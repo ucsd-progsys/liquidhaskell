@@ -555,7 +555,7 @@ addClassBind _
   = return [] 
 
 addC :: SubC -> String -> CG ()  
-addC !c@(SubC _ t1 t2) _ 
+addC !c@(SubC _ t1 t2) _
   = -- trace ("addC" ++ showPpr t1 ++ "\n <: \n" ++ showPpr t2 ) $
      modify $ \s -> s { hsCs  = c : (hsCs s) }
 
@@ -689,6 +689,8 @@ trueRefType (RFun _ t t' _)
 trueRefType (RApp c ts _ _)  
   = liftM (\ts -> RApp c ts truerefs top) (mapM true ts)
 		where truerefs = (RPoly . ofRSort . ptype) <$> (rTyConPs c)
+trueRefType (RAppTy t t')    
+  = liftM2 RAppTy (true t) (true t')
 trueRefType t                
   = return t
 
@@ -708,6 +710,8 @@ refreshRefType (RApp rc ts _ r)
        liftM3 (RApp rc') (mapM refresh ts) (mapM refreshRef rπs) (refresh r)
 refreshRefType (RVar a r)  
   = liftM (RVar a) (refresh r)
+refreshRefType (RAppTy t t')  
+  = liftM2 RAppTy (refresh t) (refresh t')
 refreshRefType t                
   = return t
 
