@@ -548,6 +548,8 @@ eqRSort m (RAllT a t) (RAllT a' t')
   = eqRSort (M.insert a' a m) t t' 
 eqRSort m (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
   = eqRSort m t1 t1' && eqRSort m t2 t2'
+eqRSort m (RAppTy t1 t2) (RAppTy t1' t2') 
+  = eqRSort m t1 t1' && eqRSort m t2 t2'
 eqRSort m (RApp c ts _ _) (RApp c' ts' _ _)
   =  ((c == c') && length ts == length ts' && and (zipWith (eqRSort m) ts ts'))
 eqRSort m (RCls c ts) (RCls c' ts')

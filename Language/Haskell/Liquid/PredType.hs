@@ -124,6 +124,11 @@ unifyS (RFun x rt1 rt2 _) (RFun x' pt1 pt2 _)
        t2' <- unifyS rt2 (substParg (x', EVar x) pt2)
        return $ rFun x t1' t2' 
 
+unifyS (RAppTy rt1 rt2) (RAppTy pt1 pt2)
+  = do t1' <- unifyS rt1 pt1
+       t2' <- unifyS rt2 pt2
+       return $ RAppTy t1' t2' 
+
 unifyS t@(RCls _ _) (RCls _ _)
   = return t
 
