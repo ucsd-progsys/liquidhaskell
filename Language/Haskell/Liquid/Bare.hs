@@ -412,6 +412,8 @@ ofBareType (RVar a r)
   = return $ RVar (stringRTyVar a) r
 ofBareType (RFun x t1 t2 _) 
   = liftM2 (rFun x) (ofBareType t1) (ofBareType t2)
+ofBareType (RAppTy t1 t2) 
+  = liftM2 RAppTy (ofBareType t1) (ofBareType t2)
 ofBareType (REx x t1 t2)
   = liftM2 (REx x) (ofBareType t1) (ofBareType t2)
 ofBareType (RAllT a t) 
