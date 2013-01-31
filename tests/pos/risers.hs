@@ -1,9 +1,7 @@
+module Risers where
+
 {-@ predicate NonNull X = ((len X) > 0) @-}
 
--- THIS WORKS
-{- risers :: (Ord a) => zs:{v: [a] | (len v) >= 0 } -> {v: [[a]] | ((NonNull zs) => (NonNull v)) } @-} 
-
--- THIS DOESNT, ADD invariant to spec-types
 {-@ risers :: (Ord a) => zs:[a] -> {v: [[a]] | ((NonNull zs) => (NonNull v)) } @-} 
 risers []        
   = []
