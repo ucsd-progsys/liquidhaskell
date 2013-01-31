@@ -10,17 +10,16 @@ categories: measures
 demo: lenMapReduce.hs
 ---
 
-[Previously][ref101] we [saw][ref102] some examples of how 
-refinements could be used to encode invariants about simple 
-`Int` values. Of course, one can do a whole lot more! 
+[Previously][ref101] we [saw][ref102] some examples of how refinements
+could be used to encode invariants about basic `Int` values.  Today, lets
+see how refinements allow us specify and verify *structural invariants*
+about recursive data types like lists. In particular, we will
 
-Today, lets see how to encode encode *structural invariants* 
-about data types like lists. In particular, we'll look at a 
-new mechanism called a `measure`, use it to describe the 
-**length** of a list, and use the resulting refinement types 
-to obtain compile-time assurances that canonical list 
-manipulating operations like `head`, `tail`, `foldl1` 
-and (incomplete) pattern matches will not *blow up* at run-time.
+1. learn about at a new mechanism called a `measure`, 
+2. use measures to describe the **length** of a list, and 
+3. use the resulting refinement types to obtain compile-time assurances
+   that canonical list manipulating operations like `head`, `tail`, `foldl1`
+   and (incomplete) pattern matches will not *blow up* at run-time.
 
 <!-- more -->
 
