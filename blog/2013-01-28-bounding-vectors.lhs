@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Bounding Vectors"
-date: 2013-01-29 16:12
+date: 2013-01-30 16:12
 author: Ranjit Jhala
 published: false 
 comments: true
@@ -20,7 +20,7 @@ illustrate how LiquidHaskell reasons about *recursion*,
 <!-- more -->
 
 \begin{code}
-module DependentRefinements (
+module VectorBounds (
     safeLookup 
   , unsafeLookup, unsafeLookup'
   , absoluteSum, absoluteSum'

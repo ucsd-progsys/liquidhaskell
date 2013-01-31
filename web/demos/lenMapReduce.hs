@@ -61,15 +61,17 @@ append (x:xs) ys = x : append xs ys
 
 ------------------------------------------------------------------------------
 
+{-@ predicate NonNull X = ((len X) > 0) @-}
+
 -- | Safe head
 
-{-@ head   :: {v:[a] | (len v) > 0} -> a @-}
+{-@ head   :: {v:[a] | (NonNull v)} -> a @-}
 head (x:_) = x
 head []    = liquidError "Fear not! 'twill ne'er come to pass"
 
 -- | Safe tail
 
-{-@ tail :: {v:[a] | (len v) > 0} -> [a] @-}
+{-@ tail :: {v:[a] | (NonNull v)} -> [a] @-}
 tail (_:xs) = xs
 tail []     = liquidError "Relaxeth! this too shall ne'er be"
 
@@ -78,6 +80,9 @@ tail []     = liquidError "Relaxeth! this too shall ne'er be"
 {-@ eliminateStutter :: (Eq a) => [a] -> [a] @-}
 eliminateStutter xs = map head $ groupEq xs
 
+-- (Put your mouse over the `map` identifier to see inferred type.)
+
+
 -- `groupEq` gathers consecutive equal elements in the list into a single non-empty list.
 
 groupEq []     = []
@@ -85,6 +90,20 @@ groupEq (x:xs) = (x:ys) : groupEq zs
                  where (ys,zs) = span (x ==) xs
 
 -- (Put your mouse over the `groupEq` identifier to see inferred type.)
+
+------------------------------------------------------------------------------
+-- Neil Mitchell's "risers"
+
+{-@ risers :: (Ord a) => zs:[a] -> {v: [[a]] | ((NonNull zs) => (NonNull v)) } @-} 
+
+risers []        = []
+risers [x]       = [[x]]
+risers (x:y:etc) = if x <= y then (x:s):ss else [x]:(s:ss)
+    where 
+      (s, ss)    = safeSplit $ risers (y:etc)
+
+safeSplit (x:xs) = (x, xs)
+safeSplit _      = liquidError "don't worry, be happy"
 
 ------------------------------------------------------------------------------
 

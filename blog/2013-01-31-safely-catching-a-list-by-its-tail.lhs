@@ -1,22 +1,26 @@
 ---
 layout: post
-title: "Measuring Lists I"
-date: 2013-02-1 16:12
+title: "Safely Catching A List By Its Tail"
+date: 2013-01-31 16:12
 author: Ranjit Jhala
-published: false 
+published: true 
 comments: true
 external-url:
-categories: basic
+categories: measures 
 demo: lenMapReduce.hs
 ---
 
-[Previously][vecbounds] we saw how liquid refinements can be pretty 
-handy for enforcing invariants about integers, for example the about 
-whether a `Vector` is being indexed within bounds. Now, lets see how
-they can be used to encode structural invariants about data types, in
-particular, lets see how to use the `measure` mechanism to talk about 
-the **size** of a list, and thereby write safe versions of potentially
-list manipulating functions.
+[Previously][ref101] we [saw][ref102] some examples of how 
+refinements could be used to encode invariants about simple 
+`Int` values. Of course, one can do a whole lot more! 
+
+Today, lets see how to encode encode *structural invariants* 
+about data types like lists. In particular, we'll look at a 
+new mechanism called a `measure`, use it to describe the 
+**length** of a list, and use the resulting refinement types 
+to obtain compile-time assurances that canonical list 
+manipulating operations like `head`, `tail`, `foldl1` 
+and (incomplete) pattern matches will not *blow up* at run-time.
 
 <!-- more -->
 
@@ -33,8 +37,13 @@ Measuring the Length of a List
 ------------------------------
 
 To begin, we need some instrument by which to measure the length of a list.
-[Recall][vecbounds] the auxiliary functions used to represent the number of 
-elements of a `Vector`. 
+To this end, let's introduce a new mechanism called **measures** which 
+define auxiliary (or so-called **ghost**) properties of data values.
+These properties are useful for specification and verification, but
+**don't actually exist at run-time**.
+That is, measures will appear in specifications but *never* inside code.
+
+
 
 
 \begin{code} Lets reuse this mechanism, this time, providing a [definition](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/Base.spec) for the measure
@@ -95,6 +104,12 @@ length []     = 0
 length (x:xs) = 1 + length xs
 \end{code}
 
+**Note:** Recall that `measure` values don't actually exist at run-time.
+However, functions like `length` are useful in that they allow us to
+effectively *pull* or *materialize* the ghost values from the refinement
+world into the actual code world (since the value returned by `length` is
+logically equal to the `len` of the input list.)
+
 Similarly, we can speak and have confirmed, the types for the usual
 list-manipulators like
 
@@ -114,7 +129,7 @@ filter f (x:xs)
   | otherwise   = filter f xs
 \end{code}
 
-and, since, doubtless you are wondering,
+and, since doubtless you are wondering,
 
 \begin{code}
 {-@ append :: xs:[a] -> ys:[a] -> {v:[a] | (len v) = (len xs) + (len ys)} @-}
@@ -122,8 +137,14 @@ append [] ys     = ys
 append (x:xs) ys = x : append xs ys
 \end{code}
 
-Warm Up: Safely Catching A List by Its Tail (or Head) 
------------------------------------------------------
+We will return to the above at some later date. Right now, lets look at
+some interesting programs that LiquidHaskell can prove safe, by reasoning
+about the size of various lists.
+
+
+
+Example 1: Safely Catching A List by Its Tail (or Head) 
+-------------------------------------------------------
 
 Now, lets see how we can use these new incantations to banish, forever,
 certain irritating kinds of errors. 
@@ -132,10 +153,18 @@ Prelude> head []
 *** Exception: Prelude.head: empty list
 \end{code}
 
-LiquidHaskell allows us to use these functions with confidence and surety, as we can type them as:
+LiquidHaskell allows us to use these functions with 
+confidence and surety! First off, lets define a predicate
+alias that describes non-empty lists:
 
 \begin{code}
-{-@ head   :: {v:[a] | (len v) > 0} -> a @-}
+{-@ predicate NonNull X = ((len X) > 0) @-}
+\end{code}
+
+Now, we can type the potentially dangerous `head` as:
+
+\begin{code}
+{-@ head   :: {v:[a] | (NonNull v)} -> a @-}
 head (x:_) = x
 head []    = liquidError "Fear not! 'twill ne'er come to pass"
 \end{code}
@@ -145,10 +174,10 @@ the second equation is *dead code* since the precondition (input) type
 states that the length of the input is strictly positive, which *precludes*
 the case where the parameter is `[]`.
 
-Similarly, we may write
+Similarly, we can write
 
 \begin{code}
-{-@ tail :: {v:[a] | (len v) > 0} -> [a] @-}
+{-@ tail :: {v:[a] | (NonNull v)} -> [a] @-}
 tail (_:xs) = xs
 tail []     = liquidError "Relaxeth! this too shall ne'er be"
 \end{code}
@@ -157,7 +186,7 @@ Once again, LiquidHaskell will use the precondition to verify that the
 `liquidError` is never invoked. 
 
 Lets use the above to write a function that eliminates stuttering, that
-is which converts "ssstringssss liiiiiike thisss"` to "strings like this".
+is which converts `"ssstringssss liiiiiike thisss"` to `"strings like this"`.
 
 \begin{code}
 {-@ eliminateStutter :: (Eq a) => [a] -> [a] @-}
@@ -180,16 +209,81 @@ By using the fact that *each element* in the output returned by
 Next, by automatically instantiating the type parameter for the `map` 
 in `eliminateStutter` to `(len v) > 0` LiquidHaskell deduces `head` 
 is only called on non-empty lists, thereby verifying the safety of 
-`eliminateStutter`.
+`eliminateStutter`. (Hover your mouse over `map` above to see the
+instantiated type for it!)
+
+Example 2: Risers 
+-----------------
+
+Lets look at a more interesting example, popularized by 
+[Neil Mitchell][risersMitchell] which is a key step in 
+an efficient sorting procedure (which may return to in 
+the future when we discuss sorting!)
+
+\begin{code}
+risers           :: (Ord a) => [a] -> [[a]]
+risers []        = []
+risers [x]       = [[x]]
+risers (x:y:etc) = if x <= y then (x:s):ss else [x]:(s:ss)
+    where 
+      (s, ss)    = safeSplit $ risers (y:etc)
+\end{code}
+
+The bit that should cause some worry is `safeSplit` which 
+simply returns the `head` and `tail` of its input, if they
+exist, and otherwise, crashes and burns
+
+\begin{code}
+safeSplit (x:xs)  = (x, xs)
+safeSplit _       = liquidError "don't worry, be happy"
+\end{code}
+
+*How do we ensure that `safeSplit` will not crash?*
+
+The matter is complicated by the fact that since `risers` 
+*does* sometimes return an empty list, we cannot blithely 
+specify that its output type has a `NonNull` refinement.
+
+Once again, logic rides to our rescue!
+
+The crucial property upon which the safety of `risers` rests
+is that when the input list is non-empty, the output list 
+returned by risers is *also* non-empty. It is quite easy clue 
+LiquidHaskell in on this, namely through a type specification:
+
+\begin{code}
+{-@ risers :: (Ord a) 
+           => zs:[a] 
+           -> {v: [[a]] | ((NonNull zs) => (NonNull v)) } @-} 
+\end{code}
+
+Note how we relate the output's non-emptiness to the input's
+non-emptiness,through the (dependent) refinement type.  
+With this specification in place, LiquidHaskell is pleased 
+to verify `risers` (i.e. the call to `safeSplit`) and thus 
+relieved of this anxiety, we may move on.
+
+The convenient thing about refinements, as illustrated by 
+this example, is that we can just keep working with plain 
+old lists, without having to [make up new types][risersApple] 
+(which have the unfortunate effect of cluttering programs 
+with their attendant new functions) in order to enforce 
+invariants like non-emptiness.
 
 
-A Longer Example: MapReduce 
----------------------------
 
-The above examples of `head` and `tail` are simple, but non-empty lists pop
-up in many places, and it is rather convenient to have the type system
+
+
+
+
+
+Example 3: MapReduce 
+--------------------
+
+The above examples of `head` and `tail` are simple, but non-empty lists 
+pop up in many places, and it is rather convenient to have the type system
 track non-emptiness without having to make up special types. Here's a
-longer example.
+longer example that illustrates this: a toy *map-reduce* implementation.
 
 First, lets write a function `keyMap` that expands a list of inputs into a 
 list of key-value pairs:
@@ -279,8 +373,13 @@ us of that tedium.
 In short, by riding on the broad and high shoulders of SMT, LiquidHaskell 
 makes a little typing go a long way.
 
-
 [vecbounds]:  /blog/2013/01/05/bounding-vectors.lhs/ 
 [ghclist]:    https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/List.lhs#L125
-[ref101]:     /blog/2013/01/01/refinement-types-101.lhs/ 
 [foldl1]:     http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#foldl1
+[risersMitchell]: http://neilmitchell.blogspot.com/2008/03/sorting-at-speed.html
+[risersApple]: http://blog.jbapple.com/2008/01/extra-type-safety-using-polymorphic.html
+[ref101]:  /blog/2013/01/01/refinement-types-101.lhs/ 
+[ref102]:  /blog/2013/01/27/refinements101-reax.lhs/ 
+
+
+
