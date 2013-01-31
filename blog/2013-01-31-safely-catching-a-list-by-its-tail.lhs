@@ -213,15 +213,12 @@ instantiated type for it!)
 Example 2: Risers 
 -----------------
 
-The above examples of `head` and `tail` are simple, but 
-non-empty lists pop up in many places, and it is rather 
-convenient to have the type system track non-emptiness 
-without having to make up special types. 
-
-Lets look at a more interesting example, popularized by 
-[Neil Mitchell][risersMitchell] which is a key step in 
-an efficient sorting procedure, which we may return to in 
-the future when we discuss sorting algorithms.
+The above examples of `head` and `tail` are simple, but non-empty lists pop
+up in many places, and it is rather convenient to have the type system
+track non-emptiness without having to make up special types. Lets look at a
+more interesting example, popularized by [Neil Mitchell][risersMitchell]
+which is a key step in an efficient sorting procedure, which we may return
+to in the future when we discuss sorting algorithms.
 
 \begin{code}
 risers           :: (Ord a) => [a] -> [[a]]
@@ -261,10 +258,9 @@ LiquidHaskell in on this, namely through a type specification:
 \end{code}
 
 Note how we relate the output's non-emptiness to the input's
-non-emptiness,through the (dependent) refinement type.  
-With this specification in place, LiquidHaskell is pleased 
-to verify `risers` (i.e. the call to `safeSplit`) and thus 
-relieved of this anxiety, we may move on.
+non-emptiness,through the (dependent) refinement type. With this 
+specification in place, LiquidHaskell is pleased to verify `risers` 
+(i.e. the call to `safeSplit`).
 
 Example 3: MapReduce 
 --------------------
@@ -294,7 +290,7 @@ inserts k v m = M.insert k (v : vs) m
   where vs    = M.lookupDefault [] k m
 \end{code}
 
-Finally, we can write a function that *reduces* the list of values for a given
+Finally, a function that *reduces* the list of values for a given
 key in the table to a single value:
 
 \begin{code}
@@ -341,17 +337,15 @@ f0 = charFrequency [ "the", "quick" , "brown"
                    , "the", "lazy"  , "cow"   ]
 \end{code}
 
-LiquidHaskell will gobble the whole thing up, and verify that none of the
-undesirable `liquidError` calls are triggered. 
-
-**Look Ma! No Types:** By the way, notice that we didn't write down any
-types for `mapReduce` and friends.  The main invariant, from which safety 
-follows is that the `Map` returned by the `group` function binds each key 
-to a *non-empty* list of values.  LiquidHaskell deduces this invariant by
-inferring suitable types for `group`, `inserts`, `foldl1` and `reduce`,
-thereby relieving us of that tedium. In short, by riding on the broad and
-high shoulders of SMT and abstract interpretation, LiquidHaskell makes 
-a little typing go a long way. 
+**Look Ma! No Types:** LiquidHaskell will gobble the whole thing up, and
+verify that none of the undesirable `liquidError` calls are triggered. By
+the way, notice that we didn't write down any types for `mapReduce` and
+friends.  The main invariant, from which safety follows is that the `Map`
+returned by the `group` function binds each key to a *non-empty* list of
+values.  LiquidHaskell deduces this invariant by inferring suitable types
+for `group`, `inserts`, `foldl1` and `reduce`, thereby relieving us of that
+tedium. In short, by riding on the broad and high shoulders of SMT and
+abstract interpretation, LiquidHaskell makes a little typing go a long way. 
 
 
 Conclusions
