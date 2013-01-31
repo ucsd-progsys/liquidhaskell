@@ -248,7 +248,7 @@ Once again, logic rides to our rescue!
 
 The crucial property upon which the safety of `risers` rests
 is that when the input list is non-empty, the output list 
-returned by risers is *also* non-empty. It is quite easy clue 
+returned by risers is *also* non-empty. It is quite easy to clue 
 LiquidHaskell in on this, namely through a type specification:
 
 \begin{code}
