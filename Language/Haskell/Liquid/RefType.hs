@@ -675,6 +675,11 @@ strengthenRefType_ (RAllT a1 t1) (RAllT _ t2)
 strengthenRefType_ (RAllP p1 t1) (RAllP _ t2)
   = RAllP p1 $ strengthenRefType_ t1 t2
 
+strengthenRefType_ (RAppTy t1 t1') (RAppTy t2 t2') 
+  = RAppTy t t'
+    where t  = strengthenRefType_ t1 t2
+          t' = strengthenRefType_ t1' t2'
+
 strengthenRefType_ (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2) 
   = RFun x1 t t' (r1 `meet` r2)
     where t  = strengthenRefType_ t1 t2
@@ -705,6 +710,7 @@ strengthen :: Reftable r => RType p c tv r -> r -> RType p c tv r
 strengthen (RApp c ts rs r) r'  = RApp c ts rs (r `meet` r') 
 strengthen (RVar a r) r'        = RVar a       (r `meet` r') 
 strengthen (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `meet` r')
+-- strengthen (RAppTy t1 t2)       = RAppTy t1 t2
 strengthen t _                  = t 
 
 expandRApp tyi (RApp rc ts rs r)
@@ -999,7 +1005,7 @@ efoldReft g f γ z me@(RApp _ ts rs r) = f γ (Just me) r (efoldRefs g f γ (efo
 efoldReft g f γ z (RCls _ ts)         = efoldRefts g f γ z ts
 efoldReft g f γ z (REx x t t')        = efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t' 
 efoldReft _ _ _ z (ROth _)            = z 
-efoldReft g f γ z (RAppTy t t')    = efoldReft g f γ (efoldReft g f γ z t) t'
+efoldReft g f γ z (RAppTy t t')       = efoldReft g f γ (efoldReft g f γ z t) t'
 efoldReft _ _ _ z (RExprArg _)        = z
 
 -- efoldRefts :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [RType p c tv r] -> a
@@ -1089,6 +1095,7 @@ subsFreeRef _ _ (_, _, _) (RMono r)
 mapBot f (RAllT α t)       = RAllT α (mapBot f t)
 mapBot f (RAllP π t)       = RAllP π (mapBot f t)
 mapBot f (RFun x t t' r)   = RFun x (mapBot f t) (mapBot f t') r
+mapBot f (RAppTy t t')     = RAppTy (mapBot f t) (mapBot f t')
 mapBot f (RApp c ts rs r)  = f $ RApp c (mapBot f <$> ts) (mapBotRef f <$> rs) r
 mapBot f (RCls c ts)       = RCls c (mapBot f <$> ts)
 mapBot f t'                = f t' 
@@ -1244,6 +1251,7 @@ stripQuantifiers (RAllT α t)      = RAllT α (stripQuantifiers t)
 stripQuantifiers (RAllP _ t)      = stripQuantifiers t
 stripQuantifiers (REx _ _ t)      = stripQuantifiers t
 stripQuantifiers (RFun x t t' r)  = RFun x (stripQuantifiers t) (stripQuantifiers t') r
+stripQuantifiers (RAppTy t t')    = RAppTy (stripQuantifiers t) (stripQuantifiers t')
 stripQuantifiers (RApp c ts rs r) = RApp c (stripQuantifiers <$> ts) (stripQuantifiersRef <$> rs) r
 stripQuantifiers (RCls c ts)      = RCls c (stripQuantifiers <$> ts)
 stripQuantifiers t                = t
