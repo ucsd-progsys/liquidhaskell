@@ -92,8 +92,8 @@ Reasoning about Lengths
 Let's flex our new vocabulary by uttering types that describe the
 behavior of the usual list functions. 
 
-First up: a somewhat simplified version of the [standard][ghclist] 
-`length` from, slightly simplified for exposition.
+First up: a version of the [standard][ghclist] 
+`length` function, slightly simplified for exposition.
 
 \begin{code}
 {-@ length :: xs:[a] -> {v: Int | v = (len xs)} @-}
