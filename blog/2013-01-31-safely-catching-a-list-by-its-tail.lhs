@@ -11,7 +11,7 @@ demo: lenMapReduce.hs
 ---
 
 [Previously][ref101] we [saw][ref102] some examples of how refinements
-could be used to encode invariants about basic `Int` values.  Today, lets
+could be used to encode invariants about basic `Int` values.  Today, let's
 see how refinements allow us specify and verify *structural invariants*
 about recursive data types like lists. In particular, we will
 learn about at a new mechanism called a `measure`, 
@@ -44,7 +44,7 @@ That is, measures will appear in specifications but *never* inside code.
 
 
 
-\begin{code} Lets reuse this mechanism, this time, providing a [definition](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/Base.spec) for the measure
+\begin{code} Let's reuse this mechanism, this time, providing a [definition](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/Base.spec) for the measure
 measure len :: forall a. [a] -> GHC.Types.Int
 len ([])     = 0
 len (y:ys)   = 1 + (len ys) 
@@ -89,11 +89,11 @@ contains two elements.
 Reasoning about Lengths
 -----------------------
 
-Lets flex our new vocabulary by uttering types that describe the
+Let's flex our new vocabulary by uttering types that describe the
 behavior of the usual list functions. 
 
-First up: a somewhat simplified version of the [standard][ghclist] 
-`length` from, slightly simplified for exposition.
+First up: a version of the [standard][ghclist] 
+`length` function, slightly simplified for exposition.
 
 \begin{code}
 {-@ length :: xs:[a] -> {v: Int | v = (len xs)} @-}
@@ -135,7 +135,7 @@ append [] ys     = ys
 append (x:xs) ys = x : append xs ys
 \end{code}
 
-We will return to the above at some later date. Right now, lets look at
+We will return to the above at some later date. Right now, let's look at
 some interesting programs that LiquidHaskell can prove safe, by reasoning
 about the size of various lists.
 
@@ -144,7 +144,7 @@ about the size of various lists.
 Example 1: Safely Catching A List by Its Tail (or Head) 
 -------------------------------------------------------
 
-Now, lets see how we can use these new incantations to banish, forever,
+Now, let's see how we can use these new incantations to banish, forever,
 certain irritating kinds of errors. 
 \begin{code}Recall how we always summon functions like `head` and `tail` with a degree of trepidation, unsure whether the arguments are empty, which will awaken certain beasts
 Prelude> head []
@@ -152,7 +152,7 @@ Prelude> head []
 \end{code}
 
 LiquidHaskell allows us to use these functions with 
-confidence and surety! First off, lets define a predicate
+confidence and surety! First off, let's define a predicate
 alias that describes non-empty lists:
 
 \begin{code}
@@ -183,7 +183,7 @@ tail []     = liquidError "Relaxeth! this too shall ne'er be"
 Once again, LiquidHaskell will use the precondition to verify that the 
 `liquidError` is never invoked. 
 
-Lets use the above to write a function that eliminates stuttering, that
+Let's use the above to write a function that eliminates stuttering, that
 is which converts `"ssstringssss liiiiiike thisss"` to `"strings like this"`.
 
 \begin{code}
@@ -215,7 +215,7 @@ Example 2: Risers
 
 The above examples of `head` and `tail` are simple, but non-empty lists pop
 up in many places, and it is rather convenient to have the type system
-track non-emptiness without having to make up special types. Lets look at a
+track non-emptiness without having to make up special types. Let's look at a
 more interesting example, popularized by [Neil Mitchell][risersMitchell]
 which is a key step in an efficient sorting procedure, which we may return
 to in the future when we discuss sorting algorithms.
@@ -248,7 +248,7 @@ Once again, logic rides to our rescue!
 
 The crucial property upon which the safety of `risers` rests
 is that when the input list is non-empty, the output list 
-returned by risers is *also* non-empty. It is quite easy clue 
+returned by risers is *also* non-empty. It is quite easy to clue 
 LiquidHaskell in on this, namely through a type specification:
 
 \begin{code}
@@ -267,7 +267,7 @@ Example 3: MapReduce
 
 Here's a longer example that illustrates this: a toy *map-reduce* implementation.
 
-First, lets write a function `keyMap` that expands a list of inputs into a 
+First, let's write a function `keyMap` that expands a list of inputs into a 
 list of key-value pairs:
 
 \begin{code}
@@ -275,7 +275,7 @@ keyMap :: (a -> [(k, v)]) -> [a] -> [(k, v)]
 keyMap f xs = concatMap f xs
 \end{code}
 
-Next, lets write a function `group` that gathers the key-value pairs into a
+Next, let's write a function `group` that gathers the key-value pairs into a
 `Map` from *keys* to the lists of values with that same key.
 
 \begin{code}
