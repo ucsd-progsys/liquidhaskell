@@ -20,9 +20,10 @@ import Data.Maybe               (fromMaybe)
 import qualified Data.HashSet as S
 import Data.Bifunctor           (second) 
 
-data Qualifier = Q String           -- ^ Name
-                   [(Symbol, Sort)] -- ^ Parameters
-                   Pred             -- ^ Predicate
+data Qualifier = Q { name   :: String           -- ^ Name
+                   , params :: [(Symbol, Sort)] -- ^ Parameters
+                   , body   :: Pred             -- ^ Predicate
+                   }
                deriving (Eq, Ord)  
 
 instance Fixpoint Qualifier where 
