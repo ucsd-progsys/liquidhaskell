@@ -1,0 +1,12 @@
+constant S#r9J : func(1, [func(0, [int; @(0)]); ST @(0)])
+
+constraint: 
+ env  [ f   : {VV : func(0, [int; a_adE]) | []};
+        x   : {VV : ST a_adE | [VV = S#r9J([f])]} 
+      ] 
+ grd true 
+ lhs {VVF : b_abL | []} 
+ rhs {VVF : b_abL | [(0 = 1)]} 
+ id 1 tag [1] 
+
+
