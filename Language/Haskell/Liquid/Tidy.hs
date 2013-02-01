@@ -38,7 +38,6 @@ tidyLocalRefas = mapReft (txReft)
     dropLocals            = filter (not . any isTmp . syms) . flattenRefas
     isTmp x               = let str = symbolString x in 
                             (anfPrefix `L.isPrefixOf` str)         -- local ANF vars
-                            -- || (tempPrefix `L.isPrefixOf` str)  -- fun-binders 
 
 
 tidyDSymbols :: SpecType -> SpecType  
@@ -62,9 +61,6 @@ isTmpSymbol x = (anfPrefix `L.isPrefixOf`  str) ||
 
 tidyTyVars :: SpecType -> SpecType  
 tidyTyVars t = subsTyVarsAll αβs t 
-             -- traceShow ("tidyTyVars t = " ++ showPpr t ++ "a-b-s = " ++ showPpr zz) 
-             -- $ subsTyVarsAll αβs t
-             -- $ subsTyVars_meet αβs t
   where 
     -- zz   = [(a, b) | (a, _, (RVar b _)) <- αβs]
     αβs  = zipWith (\α β -> (α, toRSort β, β)) αs βs 
@@ -72,6 +68,11 @@ tidyTyVars t = subsTyVarsAll αβs t
     βs   = map (rVar . stringTyVar) pool
     pool = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
 
+-- traceShow ("tidyTyVars t = " ++ showPpr t ++ "a-b-s = " ++ showPpr zz) 
+-- subsTyVarsAll αβs t
+-- subsTyVars_meet αβs t
+  
+ 
 
 tyVars (RAllP _ t)     = tyVars t
 tyVars (RAllT α t)     = α : tyVars t

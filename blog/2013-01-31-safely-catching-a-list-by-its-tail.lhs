@@ -301,6 +301,7 @@ reduce op = M.map (foldl1 op)
 where `foldl1` is a [left-fold over *non-empty* lists][foldl1]
 
 \begin{code}
+{-@ foldl1      :: (a -> a -> a) -> {v:[a] | (NonNull v)} -> a @-}
 foldl1 f (x:xs) =  foldl f x xs
 foldl1 _ []     =  liquidError "will. never. happen."
 \end{code}

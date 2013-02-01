@@ -151,6 +151,7 @@ reduce    :: (v -> v -> v) -> M.HashMap k [v] -> M.HashMap k v
 reduce op = M.map (foldl1 op)
 
 
+{-@ foldl1      :: (a -> a -> a) -> {v:[a] | (NonNull v)} -> a @-}
 foldl1 f (x:xs) =  foldl f x xs
 foldl1 _ []     =  liquidError "will. never. happen."
 
