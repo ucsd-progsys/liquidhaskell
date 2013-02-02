@@ -266,12 +266,12 @@ bbaseNoAppP
  <|> try (liftM3 bCon upperIdP predicatesP (return []))
  <|> liftM2 bRVar lowerIdP monoPredicateP 
 
-
 bareTyArgP 
-  =  try bareAtomNoAppP
+  =  try (braces $ (liftM RExprArg exprP))
+ <|> try bareAtomNoAppP
  -- <|> braces (liftM RExprArg exprP) -- ^ braces needed to distinguish tyvar from evar args
  <|> try (parens bareTypeP)
- <|> try (liftM RExprArg exprP) 
+ -- <|> try (liftM RExprArg exprP) 
  -- <|> liftM RExprArg (parens exprP) 
 
 bareAtomNoAppP 
