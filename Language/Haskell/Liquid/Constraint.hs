@@ -227,7 +227,7 @@ splitW (WfC γ t@(RFun x t1 t2 _))
         ws'' <- splitW (WfC γ' t2)
         return $ ws ++ ws' ++ ws''
 
-splitW (WfC γ t@(RAppTy t1 t2)) 
+splitW (WfC γ t@(RAppTy t1 t2 _)) 
   =  do ws   <- bsplitW γ t
         ws'  <- splitW (WfC γ t1) 
         ws'' <- splitW (WfC γ t2)
@@ -301,7 +301,7 @@ splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _))
         cs''     <- splitC  (SubC γ' r1x2' r2') 
         return    $ cs ++ cs' ++ cs''
 
-splitC (SubC γ t1@(RAppTy r1 r1') t2@(RAppTy r2 r2')) 
+splitC (SubC γ t1@(RAppTy r1 r1' _) t2@(RAppTy r2 r2' _)) 
   =  do cs       <- bsplitC γ t1 t2 
         cs'      <- splitC  (SubC γ r1 r2) 
         cs''     <- splitC  (SubC γ r1' r2') 
@@ -689,8 +689,8 @@ trueRefType (RFun _ t t' _)
 trueRefType (RApp c ts _ _)  
   = liftM (\ts -> RApp c ts truerefs top) (mapM true ts)
 		where truerefs = (RPoly . ofRSort . ptype) <$> (rTyConPs c)
-trueRefType (RAppTy t t')    
-  = liftM2 RAppTy (true t) (true t')
+trueRefType (RAppTy t t' _)    
+  = liftM2 rAppTy (true t) (true t')
 trueRefType t                
   = return t
 
@@ -710,8 +710,8 @@ refreshRefType (RApp rc ts _ r)
        liftM3 (RApp rc') (mapM refresh ts) (mapM refreshRef rπs) (refresh r)
 refreshRefType (RVar a r)  
   = liftM (RVar a) (refresh r)
-refreshRefType (RAppTy t t')  
-  = liftM2 RAppTy (refresh t) (refresh t')
+refreshRefType (RAppTy t t' _)  
+  = liftM2 rAppTy (refresh t) (refresh t')
 refreshRefType t                
   = return t
 
