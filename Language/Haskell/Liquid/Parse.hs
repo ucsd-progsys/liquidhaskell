@@ -452,7 +452,7 @@ bTup ts rs r              = RApp tupConName ts rs (reftUReft r)
 bCon b [RMono r1] [] r    = RApp b [] [] (r1 `meet` (reftUReft r)) 
 bCon b rs ts r            = RApp b ts rs (reftUReft r)
 
-bAppTy v t _ = RAppTy (RVar v top) t
+bAppTy v t r              = RAppTy (RVar v top) t (reftUReft r)
 
 
 
