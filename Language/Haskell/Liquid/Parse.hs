@@ -255,6 +255,7 @@ bbaseP :: Parser (FReft -> BareType)
 bbaseP 
   =  liftM2 bLst (brackets bareTypeP) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
+ <|> try (liftM2 bAppTy lowerIdP bareTyArgP)
  <|> try (liftM2 bRVar lowerIdP monoPredicateP)
  <|> liftM3 bCon upperIdP predicatesP (sepBy bareTyArgP blanks)
 
@@ -265,12 +266,12 @@ bbaseNoAppP
  <|> try (liftM3 bCon upperIdP predicatesP (return []))
  <|> liftM2 bRVar lowerIdP monoPredicateP 
 
-
 bareTyArgP 
-  =  try bareAtomNoAppP
+  =  try (braces $ (liftM RExprArg exprP))
+ <|> try bareAtomNoAppP
  -- <|> braces (liftM RExprArg exprP) -- ^ braces needed to distinguish tyvar from evar args
  <|> try (parens bareTypeP)
- <|> try (liftM RExprArg exprP) 
+ -- <|> try (liftM RExprArg exprP) 
  -- <|> liftM RExprArg (parens exprP) 
 
 bareAtomNoAppP 
@@ -450,6 +451,8 @@ bTup ts rs r              = RApp tupConName ts rs (reftUReft r)
 
 bCon b [RMono r1] [] r    = RApp b [] [] (r1 `meet` (reftUReft r)) 
 bCon b rs ts r            = RApp b ts rs (reftUReft r)
+
+bAppTy v t r              = RAppTy (RVar v top) t (reftUReft r)
 
 
 

@@ -24,7 +24,7 @@ module Language.Haskell.Liquid.RefType (
   , freeTyVars, tyClasses
 
   , ofType, ofPredTree, toType
-  , rTyVar, rVar, rApp, rFun
+  , rTyVar, rVar, rApp, rFun, rAppTy
   , expandRApp
   , typeUniqueSymbol
   , strengthen
@@ -71,7 +71,7 @@ import Text.Printf
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GhcMisc (tracePpr, tvId, intersperse, dropModuleNames, getDataConVarUnique)
-import Language.Haskell.Liquid.FileNames (symSepName, listConName, tupConName, propConName, boolConName)
+import Language.Haskell.Liquid.FileNames (symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
 
 --------------------------------------------------------------------
@@ -205,6 +205,12 @@ data RType p c tv r
 
   | RExprArg Expr                               -- ^ For expression arguments to type aliases
                                                 --   see tests/pos/vector2.hs
+  | RAppTy{
+      rt_arg   :: !(RType p c tv r)
+    , rt_res   :: !(RType p c tv r)
+    , rt_reft  :: !r
+    }
+
   | ROth  !String 
   -- deriving (Data, Typeable)
 
@@ -292,6 +298,7 @@ class (Monoid r, Subable r, Outputable r) => Reftable r where
   dropSyms = id
 
 class (Eq c) => TyConable c where
+  isFun    :: c -> Bool
   isList   :: c -> Bool
   isTuple  :: c -> Bool
   ppTycon  :: c -> SDoc
@@ -492,11 +499,13 @@ instance (Reftable r, RefTypable p c tv r) => Reftable (Ref r (RType p c tv r)) 
 -- TyConable Instances -------------------------------------------------------
 
 instance TyConable RTyCon where
+  isFun   = isFunTyCon . rTyCon
   isList  = (listTyCon ==) . rTyCon
   isTuple = TC.isTupleTyCon   . rTyCon 
   ppTycon = ppr
 
 instance TyConable String where
+  isFun   = (funConName ==) 
   isList  = (listConName ==) 
   isTuple = (tupConName ==)
   ppTycon = text
@@ -512,6 +521,14 @@ instance (Reftable r) => RefTypable Class RTyCon RTyVar r where
   ppCls = ppClass_ClassPred
   ppRType = ppr_rtype False -- True
   
+class FreeVar a v where 
+  freeVars :: a -> [v]
+
+instance FreeVar RTyCon RTyVar where
+  freeVars = (RTV <$>) . tyConTyVars . rTyCon
+
+instance FreeVar String String where
+  freeVars _ = []
 
 ppClass_String    c _  = parens (ppr c <+> text "...")
 ppClass_ClassPred c ts = parens $ pprClassPred c (toType <$> ts)
@@ -531,6 +548,8 @@ eqRSort m (RAllT a t) (RAllT a' t')
   | otherwise
   = eqRSort (M.insert a' a m) t t' 
 eqRSort m (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
+  = eqRSort m t1 t1' && eqRSort m t2 t2'
+eqRSort m (RAppTy t1 t2 _) (RAppTy t1' t2' _) 
   = eqRSort m t1 t1' && eqRSort m t2 t2'
 eqRSort m (RApp c ts _ _) (RApp c' ts' _ _)
   =  ((c == c') && length ts == length ts' && and (zipWith (eqRSort m) ts ts'))
@@ -578,6 +597,8 @@ instance Hashable RTyCon where
 
 rFun b t t' = RFun b t t' top
 
+rAppTy t t' = RAppTy t t' top
+
 rVar        = (`RVar` top) . RTV 
 rTyVar      = RTV
 
@@ -595,6 +616,10 @@ nlzP ps t@(RVar _ _ )
  = (t, ps)
 nlzP ps (RFun b t1 t2 r) 
  = (RFun b t1' t2' r, ps ++ ps1 ++ ps2)
+  where (t1', ps1) = nlzP [] t1
+        (t2', ps2) = nlzP [] t2
+nlzP ps (RAppTy t1 t2 r) 
+ = (RAppTy t1' t2' r, ps ++ ps1 ++ ps2)
   where (t1', ps1) = nlzP [] t1
         (t2', ps2) = nlzP [] t2
 nlzP ps (RAllT v t )
@@ -630,6 +655,7 @@ strengthenRefType t1 t2
                 (showPpr t1) (showPpr (toRSort t1)) (showPpr t2) (showPpr (toRSort t2))
 
 unifyShape :: ( RefTypable p c tv r
+              , FreeVar c tv
               , RefTypable p c tv () 
               , SubsTy tv (RType p c tv ()) (RType p c tv ())
               , SubsTy tv (RType p c tv ()) c)
@@ -651,6 +677,11 @@ strengthenRefType_ (RAllT a1 t1) (RAllT _ t2)
 
 strengthenRefType_ (RAllP p1 t1) (RAllP _ t2)
   = RAllP p1 $ strengthenRefType_ t1 t2
+
+strengthenRefType_ (RAppTy t1 t1' r1) (RAppTy t2 t2' r2) 
+  = RAppTy t t' (r1 `meet` r2)
+    where t  = strengthenRefType_ t1 t2
+          t' = strengthenRefType_ t1' t2'
 
 strengthenRefType_ (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2) 
   = RFun x1 t t' (r1 `meet` r2)
@@ -682,6 +713,7 @@ strengthen :: Reftable r => RType p c tv r -> r -> RType p c tv r
 strengthen (RApp c ts rs r) r'  = RApp c ts rs (r `meet` r') 
 strengthen (RVar a r) r'        = RVar a       (r `meet` r') 
 strengthen (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `meet` r')
+strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `meet` r')
 strengthen t _                  = t 
 
 expandRApp tyi (RApp rc ts rs r)
@@ -742,6 +774,7 @@ freeTyVars (RCls _ ts)     = L.nub $ concatMap freeTyVars ts
 freeTyVars (RVar α _)      = [α] 
 freeTyVars (REx _ _ t)     = freeTyVars t
 freeTyVars (RExprArg _)    = []
+freeTyVars (RAppTy t t' _) = freeTyVars t `L.union` freeTyVars t'
 freeTyVars t               = errorstar ("RefType.freeTyVars cannot handle" ++ show t)
 
 --getTyVars = everything (++) ([] `mkQ` f)
@@ -752,6 +785,7 @@ tyClasses (RAllP _ t)     = tyClasses t
 tyClasses (RAllT α t)     = tyClasses t
 tyClasses (REx _ _ t)     = tyClasses t
 tyClasses (RFun _ t t' _) = tyClasses t ++ tyClasses t'
+tyClasses (RAppTy t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RApp _ ts _ _) = concatMap tyClasses ts 
 tyClasses (RCls c ts)     = (c, ts) : concatMap tyClasses ts 
 tyClasses (RVar α _)      = [] 
@@ -783,6 +817,7 @@ instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) wher
   rnf (REx x t t')     = rnf x `seq` rnf t `seq` rnf t'
   rnf (ROth s)         = rnf s
   rnf (RExprArg e)     = rnf e
+  rnf (RAppTy t t' r)  = rnf t `seq` rnf t' `seq` rnf r
 
 ----------------------------------------------------------------
 ------------------ Printing Refinement Types -------------------
@@ -863,6 +898,8 @@ ppr_rtype bb p t@(REx _ _ _)
   = ppExists bb p t
 ppr_rtype _ _ (RExprArg e)
   = braces $ ppr e
+ppr_rtype bb p (RAppTy t t' r)
+  = ppTy r $ ppr_rtype bb p t <+> ppr_rtype bb p t'
 ppr_rtype _ _ (ROth s)
   = text $ "???-" ++ s 
 
@@ -933,6 +970,7 @@ emapReft f γ (RApp c ts rs r)    = RApp  c (emapReft f γ <$> ts) (emapRef f γ
 emapReft f γ (RCls c ts)         = RCls  c (emapReft f γ <$> ts) 
 emapReft f γ (REx z t t')        = REx   z (emapReft f γ t) (emapReft f γ t')
 emapReft _ _ (RExprArg e)        = RExprArg e
+emapReft f γ (RAppTy t t' r)     = RAppTy (emapReft f γ t) (emapReft f γ t') (f γ r)
 emapReft _ _ (ROth s)            = ROth  s 
 
 emapRef :: ([F.Symbol] -> t -> s) ->  [F.Symbol] -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
@@ -951,6 +989,7 @@ mapReftM f (RApp c ts rs r)   = liftM3  (RApp  c)   (mapM (mapReftM f) ts)  (map
 mapReftM f (RCls c ts)        = liftM   (RCls  c)   (mapM (mapReftM f) ts) 
 mapReftM f (REx z t t')       = liftM2  (REx z)     (mapReftM f t)          (mapReftM f t')
 mapReftM _ (RExprArg e)       = return  $ RExprArg e 
+mapReftM f (RAppTy t t' r)    = liftM3 (RAppTy) (mapReftM f t) (mapReftM f t') (f r)
 mapReftM _ (ROth s)           = return  $ ROth  s 
 
 mapRefM  :: (Monad m) => (t -> m s) -> Ref t (RType p c tv t) -> m (Ref s (RType p c tv s))
@@ -969,6 +1008,7 @@ efoldReft g f γ z me@(RApp _ ts rs r) = f γ (Just me) r (efoldRefs g f γ (efo
 efoldReft g f γ z (RCls _ ts)         = efoldRefts g f γ z ts
 efoldReft g f γ z (REx x t t')        = efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t' 
 efoldReft _ _ _ z (ROth _)            = z 
+efoldReft g f γ z me@(RAppTy t t' r)  = f γ (Just me) r (efoldReft g f γ (efoldReft g f γ z t) t')
 efoldReft _ _ _ z (RExprArg _)        = z
 
 -- efoldRefts :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [RType p c tv r] -> a
@@ -1023,6 +1063,8 @@ subsFree meet s (α', _, t') t@(RVar α r)
   = t
 subsFree m s z (REx x t t')
   = REx x (subsFree m s z t) (subsFree m s z t')
+subsFree m s z@(_, _, _) (RAppTy t t' r)
+  = subsFreeRAppTy m s (subsFree m s z t) (subsFree m s z t') r
 subsFree _ _ _ t@(RExprArg _)        
   = t
 subsFree _ _ _ t@(ROth _)        
@@ -1030,6 +1072,29 @@ subsFree _ _ _ t@(ROth _)
 
 -- subsFree _ _ _ t      
 --   = errorstar $ "subsFree fails on: " ++ showPpr t
+
+subsFrees m s zs t = foldl' (flip(subsFree m s)) t zs
+
+-- GHC INVARIANT: RApp is Type Application to something other than TYCon
+subsFreeRAppTy m s (RApp c ts rs r) t' r'
+  = mkRApp m s c (ts++[t']) rs r r'
+subsFreeRAppTy m s t t' r'
+  = RAppTy t t' r'
+
+mkRApp m s c ts rs r r'
+  | isFun c, [t1, t2] <- ts
+  = RFun dummySymbol t1 t2 $ refAppTyToFun r'
+  | otherwise 
+  = subsFrees m s zs $ RApp c ts rs $ r `meet` (refAppTyToApp r')
+  where zs = [(tv, toRSort t, t) | (tv, t) <- zip (freeVars c) ts]
+
+refAppTyToFun r
+  | isTauto r = r
+  | otherwise = errorstar "RefType.refAppTyToFun"
+
+refAppTyToApp r
+  | isTauto r = r
+  | otherwise = errorstar "RefType.refAppTyToApp"
 
 -- subsFreeRef ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty (PVar ty), SubsTy tv ty c, Reftable r, Monoid r, Subable r, RefTypable p c tv (PVar ty) r) => Bool -> S.Set tv -> (tv, ty, RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r)
 
@@ -1041,6 +1106,7 @@ subsFreeRef _ _ (_, _, _) (RMono r)
 mapBot f (RAllT α t)       = RAllT α (mapBot f t)
 mapBot f (RAllP π t)       = RAllP π (mapBot f t)
 mapBot f (RFun x t t' r)   = RFun x (mapBot f t) (mapBot f t') r
+mapBot f (RAppTy t t' r)   = RAppTy (mapBot f t) (mapBot f t') r
 mapBot f (RApp c ts rs r)  = f $ RApp c (mapBot f <$> ts) (mapBotRef f <$> rs) r
 mapBot f (RCls c ts)       = RCls c (mapBot f <$> ts)
 mapBot f t'                = f t' 
@@ -1112,7 +1178,7 @@ stripRTypeBase _
   = Nothing
 
 
-ofType ::  Reftable r => Type -> RRType r
+-- ofType ::  Reftable r => Type -> RRType r
 ofType = ofType_ . expandTypeSynonyms 
 
 ofType_ (TyVarTy α)     
@@ -1130,6 +1196,8 @@ ofType_ (TyConApp c τs)
   | otherwise
   = rApp c (ofType_ <$> τs) [] top 
   where (αs, τ) = TC.synTyConDefn c
+ofType_ (AppTy t1 t2)
+  = RAppTy (ofType_ t1) (ofType t2) top              
 ofType_ τ               
   = errorstar ("ofType cannot handle: " ++ showPpr τ)
 
@@ -1194,6 +1262,7 @@ stripQuantifiers (RAllT α t)      = RAllT α (stripQuantifiers t)
 stripQuantifiers (RAllP _ t)      = stripQuantifiers t
 stripQuantifiers (REx _ _ t)      = stripQuantifiers t
 stripQuantifiers (RFun x t t' r)  = RFun x (stripQuantifiers t) (stripQuantifiers t') r
+stripQuantifiers (RAppTy t t' r)  = RAppTy (stripQuantifiers t) (stripQuantifiers t') r
 stripQuantifiers (RApp c ts rs r) = RApp c (stripQuantifiers <$> ts) (stripQuantifiersRef <$> rs) r
 stripQuantifiers (RCls c ts)      = RCls c (stripQuantifiers <$> ts)
 stripQuantifiers t                = t
@@ -1216,6 +1285,8 @@ toType (RCls c ts)
   = predTreePredType $ ClassPred c (toType <$> ts)
 toType (REx _ _ t)
   = toType t
+toType (RAppTy t t' _)   
+  = AppTy (toType t) (toType t')
 toType t@(RExprArg _)
   = errorstar $ "RefType.toType cannot handle: " ++ show t
 toType t@(ROth _)      
@@ -1229,6 +1300,7 @@ mapBind f (RCls c ts)      = RCls c (mapBind f <$> ts)
 mapBind f (REx b t1 t2)    = REx  (f b) (mapBind f t1) (mapBind f t2)
 mapBind _ (RVar α r)       = RVar α r
 mapBind _ (ROth s)         = ROth s
+mapBind f (RAppTy t1 t2 r) = RAppTy (mapBind f t1) (mapBind f t2) r
 mapBind _ (RExprArg e)     = RExprArg e
 
 mapBindRef _ (RMono r)     = RMono r
