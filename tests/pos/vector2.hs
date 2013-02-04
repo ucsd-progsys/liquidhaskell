@@ -56,7 +56,7 @@ dotProduct x y
 
 {-@ type SparseVector a N = [({v: Int | (0 <= v && v < N)}, a)] @-}
 
-{-@ sparseDotProduct :: (Num a) => x:(Vector a) -> (SparseVector a (vlen x)) -> a @-}
+{-@ sparseDotProduct :: (Num a) => x:(Vector a) -> (SparseVector a {(vlen x)}) -> a @-}
 sparseDotProduct x y  = go 0 y
   where 
     go sum ((i, v) : y') = go (sum + (x ! i) * v) y' 
