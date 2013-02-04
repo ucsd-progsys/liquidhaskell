@@ -93,7 +93,7 @@ dotProduct x y = loop 0 (length x) 0 (\i -> (+ (x ! i) * (y ! i)))
 -- | A sparse product function
 
 {-@ sparseProduct :: (Num a) => x:(Vector a) 
-                             -> SparseVector a (vlen x) 
+                             -> SparseVector a {(vlen x)} 
                              -> a 
   @-}
 
@@ -106,7 +106,7 @@ sparseProduct x y  = go 0 y
 -- | A `foldl` based sparse product
 
 {-@ sparseProduct' :: (Num a) => x:(Vector a) 
-                             -> SparseVector a (vlen x) 
+                             -> SparseVector a {(vlen x)} 
                              -> a 
   @-}
 

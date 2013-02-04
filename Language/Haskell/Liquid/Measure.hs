@@ -273,6 +273,7 @@ expandAlias f s env = go s
         go s (RAllT a t)      = RAllT a (go s t)
         go s (RAllP a t)      = RAllP a (go s t)
         go s (RFun x t t' r)  = RFun x (go s t) (go s t') r
+        go s (RAppTy t t' r)  = RAppTy (go s t) (go s t') r
         go s (RCls c ts)      = RCls c (go s <$> ts) 
         go _ t                = t
 

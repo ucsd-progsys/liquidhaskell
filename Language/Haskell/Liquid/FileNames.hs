@@ -18,6 +18,7 @@ module Language.Haskell.Liquid.FileNames (
   , dummyName
   , preludeName
   , boolConName
+  , funConName
   , listConName
   , tupConName
   , propConName
@@ -217,6 +218,7 @@ findFileInDirs file dirs
 dummyName   = "_LIQUID_dummy"
 -- tagName     = "TAG"
 boolConName = "Bool"
+funConName  = "->"
 listConName = "List"
 tupConName  = "Tuple"
 propConName = "Prop"
