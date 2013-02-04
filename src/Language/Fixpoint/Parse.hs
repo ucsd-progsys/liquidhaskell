@@ -1,6 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections #-}
 
-module Language.Haskell.Liquid.Parse (
+module Language.Fixpoint.Parse (
   Inputable (..)
 , hsSpecificationP
 ) where

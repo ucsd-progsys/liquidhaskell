@@ -1,4 +1,4 @@
-module Language.Haskell.Liquid.FixInterface (solve, resultExit) where
+module Language.Fixpoint.Interface (solve, resultExit) where
 
 {- Interfacing with Fixpoint Binary -}
 

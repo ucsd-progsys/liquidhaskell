@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable, TupleSections, NoMonomorphismRestriction, ScopedTypeVariables #-}
 
-module Language.Haskell.Liquid.Misc where
+module Language.Fixpoint.Misc where
 
 import Data.Hashable
 import qualified Control.Exception   as Ex

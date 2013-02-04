@@ -1,4 +1,4 @@
-module Language.Haskell.Liquid.Qualifier (
+module Language.Fixpoint.Qualifier (
     Qualifier 
   , specificationQualifiers
   ) where

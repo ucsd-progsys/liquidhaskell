@@ -5,7 +5,7 @@
 -- constraints in Haskell. The actual constraint solving is done by the
 -- `fixpoint.native` which is written in Ocaml.
 
-module Language.Haskell.Liquid.Fixpoint (
+module Language.Fixpoint.Types (
 
   -- * Top level serialization  
     toFixpoint
