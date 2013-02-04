@@ -1,10 +1,7 @@
 TODO
 ====
     
-* demo: 
-  -> fill in blog/measuring-lists-1.lhs
-
-* "RELEASE"
+* [Eric] qualified names break spec imports -- tests/todo/qualifiedvector.hs 
 
 * DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
   -> may break a LOT of regressions
@@ -12,7 +9,6 @@ TODO
 * error messages
     * error message -- expected XXX got YYY?
 
-* qualified names break spec imports -- tests/todo/qualifiedvector.hs 
 
 * clean up (Int) -> Int [BEXPARSER]
 * parse predicate signatures for tuples 
@@ -358,7 +354,6 @@ Benchmark Tags
 ==============
 
 - LIQUIDFAIL : impossible to do verify the spec here
-
 - LIQUIDTODO : possible with some further hacking
 
 
