@@ -31,7 +31,7 @@ liquid  = do (targets, includes) <- getOpts
 liquidOne includes target = 
   do _       <- getFixpointPath 
      info    <- getGhcInfo target includes :: IO GhcInfo
-     donePhase Loud "getGhcInfo"
+     -- donePhase Loud "getGhcInfo"
      -- putStrLn $ showPpr info 
      -- putStrLn "*************** Original CoreBinds ***************************" 
      -- putStrLn $ showPpr (cbs info)
