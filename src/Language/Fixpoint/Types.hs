@@ -65,10 +65,10 @@ module Language.Fixpoint.Types (
 
   ) where
 
-import TypeRep 
-import TysWiredIn           (listTyCon)
-import TyCon                (TyCon, isTupleTyCon)
-import Outputable
+-- import TysWiredIn           (listTyCon)
+-- import TyCon                (TyCon, isTupleTyCon)
+-- import Outputable
+
 import Data.Monoid hiding   ((<>))
 import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
@@ -76,7 +76,6 @@ import Data.List            (sort)
 import Data.Hashable
 import Data.Maybe           (fromMaybe)
 import Text.Printf          (printf)
-import Type                 (splitForAllTys)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
@@ -198,30 +197,30 @@ data Sort = FInt
           | FApp FTycon [Sort]   -- ^ constructed type 
 	      deriving (Eq, Ord, Show) --  Data, Typeable 
 
-fApp c ts 
-  | c == intFTyCon  = FInt
-  | otherwise       = FApp c ts
-
-typeSort :: TCEmb TyCon -> Type -> Sort 
-typeSort tce τ@(ForAllTy _ _) 
-  = typeSortForAll tce τ
-typeSort tce (FunTy τ1 τ2) 
-  = typeSortFun tce τ1 τ2
-typeSort tce (TyConApp c τs)
-  = fApp ftc (typeSort tce <$> τs)
-  where ftc = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce) 
-typeSort _ τ
-  = FObj $ typeUniqueSymbol τ
- 
-typeSortForAll tce τ 
-  = genSort $ typeSort tce tbody
-  where genSort (FFunc _ t) = FFunc n (sortSubst su <$> t)
-        genSort t           = FFunc n [sortSubst su t]
-        (as, tbody)         = splitForAllTys τ 
-        su                  = M.fromList $ zip sas (FVar <$>  [0..])
-        sas                 = (typeUniqueSymbol . TyVarTy) <$> as
-        n                   = length as 
-
+-- fApp c ts 
+--   | c == intFTyCon  = FInt
+--   | otherwise       = FApp c ts
+-- 
+-- typeSort :: TCEmb TyCon -> Type -> Sort 
+-- typeSort tce τ@(ForAllTy _ _) 
+--   = typeSortForAll tce τ
+-- typeSort tce (FunTy τ1 τ2) 
+--   = typeSortFun tce τ1 τ2
+-- typeSort tce (TyConApp c τs)
+--   = fApp ftc (typeSort tce <$> τs)
+--   where ftc = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce) 
+-- typeSort _ τ
+--   = FObj $ typeUniqueSymbol τ
+--  
+-- typeSortForAll tce τ 
+--   = genSort $ typeSort tce tbody
+--   where genSort (FFunc _ t) = FFunc n (sortSubst su <$> t)
+--         genSort t           = FFunc n [sortSubst su t]
+--         (as, tbody)         = splitForAllTys τ 
+--         su                  = M.fromList $ zip sas (FVar <$>  [0..])
+--         sas                 = (typeUniqueSymbol . TyVarTy) <$> as
+--         n                   = length as 
+-- 
 -- typeSort :: TCEmb TyCon -> Type -> Sort 
 -- typeSort tce (ForAllTy _ τ) 
 --   = incrTyVars $ typeSort tce τ

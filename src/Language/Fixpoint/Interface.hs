@@ -8,13 +8,15 @@ import qualified Data.HashMap.Strict as M
 import System.IO        (withFile, IOMode (..))
 import System.Exit
 import Text.Printf
-import Outputable hiding (empty)
 
-import Language.Haskell.Liquid.Fixpoint         hiding (kuts, lits)
-import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.FileNames
-import Language.Haskell.Liquid.Parse            (rr)
-import Language.Haskell.Liquid.Constraint       (CGInfo (..))
+-- import Outputable hiding (empty)
+
+import Language.Fixpoint.Types         hiding (kuts, lits)
+import Language.Fixpoint.Misc
+import Language.Fixpoint.Parse            (rr)
+
+-- import Language.Haskell.Liquid.FileNames
+-- import Language.Haskell.Liquid.Constraint       (CGInfo (..))
 
 solve fn hqs cgi
   =     {-# SCC "Solve" #-}  execFq fn hqs qs fi
