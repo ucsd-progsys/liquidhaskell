@@ -80,10 +80,12 @@ import Type                 (splitForAllTys)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.FileNames
-import Language.Haskell.Liquid.GhcMisc
 import Control.DeepSeq
+import Language.Fixpoint.Misc
+
+-- import Language.Haskell.Liquid.FileNames
+-- import Language.Haskell.Liquid.GhcMisc
+
 
 class Fixpoint a where
   toFix    :: a -> SDoc
