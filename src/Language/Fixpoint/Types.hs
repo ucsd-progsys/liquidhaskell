@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE DeriveGeneric, DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
 
 -- | This module contains the data types, operations and serialization functions 
 -- for representing Fixpoint's implication (i.e. subtyping) and well-formedness 
@@ -13,9 +13,8 @@ module Language.Fixpoint.Types (
  
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
-  , stringFTycon, intFTyCon, boolFTyCon, predFTyCon
-  , typeSort, typeUniqueSymbol
-  
+  , intFTyCon, boolFTyCon, predFTyCon
+
   -- * Symbols
   , Symbol(..)
   , anfPrefix, tempPrefix, vv, intKvar
@@ -65,32 +64,33 @@ module Language.Fixpoint.Types (
 
   ) where
 
--- import TysWiredIn           (listTyCon)
--- import TyCon                (TyCon, isTupleTyCon)
--- import Outputable
+import GHC.Generics         (Generic)
 
 import Data.Monoid hiding   ((<>))
 import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
 import Data.List            (sort)
-import Data.Hashable
+import Data.Hashable        
+
 import Data.Maybe           (fromMaybe)
 import Text.Printf          (printf)
+import Control.DeepSeq
+import Language.Fixpoint.Misc
+import Text.PrettyPrint.HughesPJ
+
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Control.DeepSeq
-import Language.Fixpoint.Misc
-
--- import Language.Haskell.Liquid.FileNames
--- import Language.Haskell.Liquid.GhcMisc
-
+import Language.Fixpoint.Names
 
 class Fixpoint a where
-  toFix    :: a -> SDoc
+  toFix    :: a -> Doc
 
   simplify :: a -> a 
   simplify =  id
+
+showPpr :: (Fixpoint a) => a -> String
+showPpr =  render . toFix
 
 type TCEmb a    = M.HashMap a FTycon  
 
@@ -128,9 +128,6 @@ reftKVars (Reft (_,ras)) = [k | (RKvar k _) <- ras]
 
 newtype Kuts = KS (S.HashSet Symbol) 
 
-instance Outputable Kuts where
-  ppr (KS s) = ppr s
-
 instance NFData Kuts where
   rnf (KS _) = () -- rnf s
 
@@ -147,6 +144,10 @@ ksUnion kvs (KS s') = KS (S.union (S.fromList kvs) s')
 instance (Eq a, Hashable a, Fixpoint a) => Fixpoint (S.HashSet a) where
   toFix xs = brackets $ sep $ punctuate (text ";") (toFix <$> S.toList xs)
   simplify = S.fromList . map simplify . S.toList
+
+instance Fixpoint a => Fixpoint (Maybe a) where
+  toFix    = maybe (text "Nothing") ((text "Just" <+>) . toFix)
+  simplify = fmap simplify
 
 instance Fixpoint a => Fixpoint [a] where
   toFix xs = brackets $ sep $ punctuate (text ";") (fmap toFix xs)
@@ -167,7 +168,7 @@ toFixpoint x'    = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csD
 toFix_gs (SE e)        
   = vcat  $ map (toFix_constant . mapSnd sr_sort) $ hashMapToAscList e
 toFix_constant (c, so) 
-  = text "constant" <+> toFix c <+> text ":" <+> toFix so <> blankLine <> blankLine 
+  = text "constant" <+> toFix c <+> text ":" <+> toFix so 
 
 
 
@@ -195,78 +196,9 @@ data Sort = FInt
           | FVar  !Int           -- ^ fixpoint type variable
           | FFunc !Int ![Sort]   -- ^ type-var arity, in-ts ++ [out-t]
           | FApp FTycon [Sort]   -- ^ constructed type 
-	      deriving (Eq, Ord, Show) --  Data, Typeable 
+	      deriving (Eq, Ord, Show, Generic) --  Data, Typeable 
 
--- fApp c ts 
---   | c == intFTyCon  = FInt
---   | otherwise       = FApp c ts
--- 
--- typeSort :: TCEmb TyCon -> Type -> Sort 
--- typeSort tce τ@(ForAllTy _ _) 
---   = typeSortForAll tce τ
--- typeSort tce (FunTy τ1 τ2) 
---   = typeSortFun tce τ1 τ2
--- typeSort tce (TyConApp c τs)
---   = fApp ftc (typeSort tce <$> τs)
---   where ftc = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce) 
--- typeSort _ τ
---   = FObj $ typeUniqueSymbol τ
---  
--- typeSortForAll tce τ 
---   = genSort $ typeSort tce tbody
---   where genSort (FFunc _ t) = FFunc n (sortSubst su <$> t)
---         genSort t           = FFunc n [sortSubst su t]
---         (as, tbody)         = splitForAllTys τ 
---         su                  = M.fromList $ zip sas (FVar <$>  [0..])
---         sas                 = (typeUniqueSymbol . TyVarTy) <$> as
---         n                   = length as 
--- 
--- typeSort :: TCEmb TyCon -> Type -> Sort 
--- typeSort tce (ForAllTy _ τ) 
---   = incrTyVars $ typeSort tce τ
--- typeSort tce (FunTy τ1 τ2) 
---   = typeSortFun tce τ1 τ2
--- typeSort tce (TyConApp c τs)
---   = fApp ftc (typeSort tce <$> τs)
---   where ftc = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce) 
--- typeSort _ τ
---   = FObj $ typeUniqueSymbol τ
- 
-tyConName c 
-  | listTyCon == c = listConName
-  | isTupleTyCon c = tupConName
-  | otherwise      = showPpr c
-
-
-typeSortFun tce τ1 τ2
-  = FFunc 0  sos
-  where sos  = typeSort tce <$> τs
-        τs   = τ1  : grabArgs [] τ2
-   
-typeUniqueSymbol :: Type -> Symbol 
-typeUniqueSymbol = stringSymbol . {- ("sort_" ++) . -} showSDocDump . ppr
-
-grabArgs τs (FunTy τ1 τ2 ) = grabArgs (τ1:τs) τ2
-grabArgs τs τ              = reverse (τ:τs)
-
--- genArgSorts' sos = traceShow ("genArgSorts sos = " ++ showPpr sos) $ genArgSorts sos
-
--- genArgSorts :: [Sort] -> [Sort]
---genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
---  where genSort FInt        = Nothing
---        genSort FBool       = Nothing 
---        genSort so          = Just so
---        genIdx  _ (Just i)  = FVar i
---        genIdx  so  _       = so
-
--- genArgSorts xs = sortSubst su <$> xs
---   where su = M.fromList $ zip (sortNub αs) (FVar <$> [0..])
---         αs = concatMap getObjs xs 
-
--- getObjs (FObj x)          = [x]
--- getObjs (FFunc _ ts)      = concatMap getObjs ts
--- getObjs (FApp _ ts)       = concatMap getObjs ts
--- getObjs _                 = []
+instance Hashable Sort
 
 sortSubst su t@(FObj x)   = fromMaybe t (M.lookup x su) 
 sortSubst su (FFunc n ts) = FFunc n (sortSubst su <$> ts)
@@ -278,17 +210,18 @@ newtype Sub = Sub [(Int, Sort)]
 instance Fixpoint Sort where
   toFix = toFix_sort
 
-toFix_sort (FVar i)     = text "@"   <> parens (ppr i)
+toFix_sort (FVar i)     = text "@"   <> parens (toFix i)
 toFix_sort FInt         = text "int"
 toFix_sort (FObj x)     = toFix x
 toFix_sort FNum         = text "num"
-toFix_sort (FFunc n ts) = text "func" <> parens ((ppr n) <> (text ", ") <> (toFix ts))
+toFix_sort (FFunc n ts) = text "func" <> parens ((toFix n) <> (text ", ") <> (toFix ts))
 toFix_sort (FApp c [t]) 
   | isListTC c          = brackets $ toFix_sort t 
 toFix_sort (FApp c ts)  = toFix c <+> intersperse space (fp <$> ts)
                           where fp s@(FApp _ (_:_)) = parens $ toFix_sort s 
                                 fp s                = toFix_sort s
 
+intersperse sep ds = hcat $ punctuate sep ds
 
 instance Fixpoint FTycon where
   toFix (TC s)       = toFix s
@@ -308,23 +241,8 @@ data Symbol = S !String deriving (Eq, Ord) -- , Data, Typeable)
 instance Fixpoint Symbol where
   toFix (S x) = text x
 
-instance Outputable Symbol where
-  ppr (S x) = text x 
-
-instance Outputable Sort where
-  ppr = text . show 
-
 instance Show Symbol where
   show (S x) = x
-
-instance Outputable Refa where
-  ppr  = text . show
-
-instance Outputable Expr where
-  ppr  = text . show
-
-instance Outputable Subst where
-  ppr (Su m) = ppr ({- M.toList -} m)
 
 instance Show Subst where
   show = showPpr
@@ -338,9 +256,6 @@ instance Fixpoint Subst where
 ---------------------------------------------------------------------------
 ------ Converting Strings To Fixpoint ------------------------------------- 
 ---------------------------------------------------------------------------
-
-stringFTycon :: String -> FTycon
-stringFTycon = TC . stringSymbol . dropModuleNames
 
 stringSymbolRaw :: String -> Symbol
 stringSymbolRaw = S
@@ -443,10 +358,10 @@ data Expr = ECon !Constant
           deriving (Eq, Ord, Show) -- Data, Typeable, Show)
 
 instance Fixpoint Integer where
-  toFix = pprShow 
+  toFix = integer 
 
 instance Fixpoint Constant where
-  toFix (I i) = pprShow i
+  toFix (I i) = toFix i
 
 
 instance Fixpoint Brel where
@@ -548,7 +463,7 @@ ppr_reft (Reft (v, ras)) d
   | all isTautoRa ras
   = d
   | otherwise
-  = braces (ppr v <+> colon <+> d <+> text "|" <+> ppRas ras)
+  = braces (toFix v <+> colon <+> d <+> text "|" <+> ppRas ras)
 
 ppr_reft_pred (Reft (_, ras))
   | all isTautoRa ras
@@ -571,10 +486,7 @@ data Refa
 newtype Reft = Reft (Symbol, [Refa]) deriving (Eq)
 
 instance Show Reft where
-  show (Reft x) = showSDoc $ toFix x 
-
-instance Outputable Reft where
-  ppr = ppr_reft_pred
+  show (Reft x) = render $ toFix x 
 
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft } deriving (Eq)
 
@@ -632,9 +544,6 @@ instance Fixpoint SortedReft where
     = braces 
     $ (toFix v) <+> (text ":") <+> (toFix so) <+> (text "|") <+> toFix ras
 
-instance Outputable SortedReft where
-  ppr = toFix
-
 instance Fixpoint FEnv where
   toFix (SE m)   = toFix (hashMapToAscList m)
 
@@ -649,16 +558,16 @@ insertFEnv   = insertSEnv . lower
           | otherwise = x
         lower z       = z
 
-instance (Outputable a) => Outputable (SEnv a) where
-  ppr (SE e) = vcat $ map pprxt $ hashMapToAscList e
-	where pprxt (x, t) = ppr x <+> dcolon <+> ppr t
+instance (Fixpoint a) => Fixpoint (SEnv a) where
+  toFix (SE e) = vcat $ map pprxt $ hashMapToAscList e
+	where pprxt (x, t) = toFix x <+> colon <> colon  <+> toFix t
 
-instance Outputable (SEnv a) => Show (SEnv a) where
-  show = showSDoc . ppr
+instance Fixpoint (SEnv a) => Show (SEnv a) where
+  show = render . toFix 
 
------------------------------------------------------------------------------------
-------------------------- Constraints ---------------------------------------------
------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+------------------- Constraints ---------------------------------------------
+-----------------------------------------------------------------------------
 
 {-@ type Tag = { v : [Int] | len(v) = 1 } @-}
 type Tag           = [Int] 
@@ -714,18 +623,14 @@ instance Functor FixResult where
   fmap _ Safe           = Safe
   fmap _ UnknownError   = UnknownError 
 
-instance (Ord a, Outputable a) => Outputable (FixResult (SubC a)) where
-  ppr Safe           = text "Safe"
-  ppr UnknownError   = text "Unknown Error!"
-  ppr (Crash xs msg) = vcat $ [ text "Crash!" ] ++  ppr_sinfos "CRASH: " xs ++ [parens (text msg)] 
-  ppr (Unsafe xs)    = vcat $ text "Unsafe:" : ppr_sinfos "WARNING: " xs
+instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
+  toFix Safe           = text "Safe"
+  toFix UnknownError   = text "Unknown Error!"
+  toFix (Crash xs msg) = vcat $ [ text "Crash!" ] ++  ppr_sinfos "CRASH: " xs ++ [parens (text msg)] 
+  toFix (Unsafe xs)    = vcat $ text "Unsafe:" : ppr_sinfos "WARNING: " xs
 
-ppr_sinfos :: (Ord a, Outputable a) => String -> [SubC a] -> [SDoc]
-ppr_sinfos msg = map ((text msg <>) . ppr) . sort . fmap sinfo
-
--- ppr (Unsafe xs)    = text "Unsafe:\n" <> ppr_sinfos "WARNING: " xs
--- ppr_sinfos :: (Ord a, Outputable a) => String -> [SubC a] -> SDoc
--- ppr_sinfos msg = (text msg  <>) . ppr . sort . fmap sinfo
+ppr_sinfos :: (Ord a, Fixpoint a) => String -> [SubC a] -> [Doc]
+ppr_sinfos msg = map ((text msg <>) . toFix) . sort . fmap sinfo
 
 
 colorResult (Safe)      = Happy 
@@ -735,12 +640,6 @@ colorResult (_)         = Sad
 
 instance Show (SubC a) where
   show = showPpr 
-
-instance Outputable (SubC a) where
-  ppr = toFix 
-
-instance Outputable (WfC a) where
-  ppr = toFix 
 
 instance Fixpoint (IBindEnv) where
   toFix (FB ids) = text "env" <+> toFix ids 
@@ -768,7 +667,7 @@ pprTag []       = text ""
 pprTag is       = text "tag" <+> toFix is 
 
 instance Fixpoint Int where
-  toFix = ppr
+  toFix = text . show 
 
 -------------------------------------------------------
 ------------------- Substitutions ---------------------
@@ -1059,20 +958,22 @@ instance (NFData a) => NFData (WfC a) where
 ---------------------------------------------------------------------------
 
 instance Hashable Symbol where 
-  hash (S s) = hash s
+  hashWithSalt i (S s) = hashWithSalt i s
 
 instance Hashable FTycon where
-  hash (TC s) = hash s
+  hashWithSalt i (TC s) = hashWithSalt i s
 
-instance Hashable Sort where
-  hash = hashSort
-
-hashSort FInt         = 0
-hashSort FNum         = 2
-hashSort (FObj s)     = 10 `combine` hash s
-hashSort (FVar i)     = 11 `combine` hash i
-hashSort (FFunc _ ts) = hash (hashSort <$> ts)
-hashSort (FApp tc ts) = 12 `combine` (hash tc) `combine` hash (hashSort <$> ts) 
+-- instance Hashable Sort where
+--   hashWithSalt i = hashSort i
+-- 
+-- hashSort FInt         = 0
+-- hashSort FNum         = 2
+-- hashSort (FObj s)     = 10 `combineTwo` hash s
+-- hashSort (FVar i)     = 11 `combineTwo` hash i
+-- hashSort (FFunc _ ts) = hash (hashSort <$> ts)
+-- hashSort (FApp tc ts) = 12 `combineTwo` (hash tc) `combineTwo` hash (hashSort <$> ts) 
+-- 
+-- combineTwo h1 h2 = h1 `hashWithSalt` h2
 
 --------------------------------------------------------------------------------------
 -------- Constraint Constructor Wrappers ---------------------------------------------
@@ -1124,9 +1025,9 @@ addIds =zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
 --------------- Checking Well Formedness --------------------------------
 -------------------------------------------------------------------------
 
-checkSortedReft :: SEnv SortedReft -> [Symbol] -> SortedReft -> Maybe SDoc
+checkSortedReft :: SEnv SortedReft -> [Symbol] -> SortedReft -> Maybe Doc
 checkSortedReft env xs sr = applyNonNull Nothing error unknowns 
-  where error             = Just . (text "Unknown symbols:" <+>) . ppr
+  where error             = Just . (text "Unknown symbols:" <+>) . toFix 
         unknowns          = [ x | x <- syms sr, not (x `elem` v : xs), not (x `memberSEnv` env)]    
         Reft (v,_)        = sr_reft sr 
 

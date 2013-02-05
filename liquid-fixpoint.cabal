@@ -18,7 +18,8 @@ library
                    Language.Fixpoint.Qualifier, 
                    Language.Fixpoint.Parse,
                    Language.Fixpoint.Misc
-  build-depends:   base, deepseq, containers, hashable, unordered-containers, 
-                   filepath, parsec, process, directory, text, filemanip, ansi-terminal 
+  build-depends:   base, deepseq, pretty, containers, hashable, unordered-containers, 
+                   filepath, parsec, process, directory, text, filemanip,
+                   ansi-terminal, bifunctors
 
 

@@ -5,7 +5,6 @@ module Language.Fixpoint.Parse (
 , hsSpecificationP
 ) where
 
--- import TysWiredIn   (eqDataConId, ltDataConId, gtDataConId)
 import Control.Monad
 import Text.Parsec
 import Text.Parsec.Expr
@@ -18,13 +17,13 @@ import qualified Data.HashMap.Strict as M
 import Control.Applicative ((<$>), (<*))
 import Data.Char (toLower, isLower, isSpace, isAlpha)
 import Data.List (partition)
+import Language.Fixpoint.Misc
+import Language.Fixpoint.Types
 
-import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.Fixpoint
-import Language.Haskell.Liquid.RefType
-import qualified Language.Haskell.Liquid.Measure as Measure
-import Outputable (showPpr)
-import Language.Haskell.Liquid.FileNames (listConName, propConName, tupConName)
+-- import Language.Haskell.Liquid.RefType
+-- import qualified Language.Haskell.Liquid.Measure as Measure
+-- import Outputable (showPpr)
+-- import Language.Haskell.Liquid.FileNames (listConName, propConName, tupConName)
 
 --------------------------------------------------------------------
 

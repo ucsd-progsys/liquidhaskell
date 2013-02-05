@@ -3,15 +3,8 @@ module Language.Fixpoint.Qualifier (
   , specificationQualifiers
   ) where
 
-import Outputable
-
-import Language.Haskell.Liquid.Bare
-import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.GhcInterface
-import Language.Haskell.Liquid.PredType
-import Language.Haskell.Liquid.Fixpoint
-import Language.Haskell.Liquid.GhcMisc
-import Language.Haskell.Liquid.Misc
+import Language.Fixpoint.Types
+import Language.Fixpoint.Misc
 
 import Control.DeepSeq
 import Control.Applicative      ((<$>))
