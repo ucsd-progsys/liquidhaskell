@@ -8,8 +8,7 @@
 module Language.Fixpoint.Types (
 
   -- * Top level serialization  
-    toFixpoint
-  , Fixpoint (toFix)
+    Fixpoint (toFix)
  
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
@@ -28,7 +27,7 @@ module Language.Fixpoint.Types (
   , isTautoPred
  
   -- * Constraints and Solutions
-  , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, FInfo (..), addIds, sinfo 
+  , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, addIds, sinfo 
 
   -- * Environments
   , SEnv, emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
@@ -160,14 +159,6 @@ instance Fixpoint a => Fixpoint [a] where
 instance (Fixpoint a, Fixpoint b) => Fixpoint (a,b) where
   toFix   (x,y)  = (toFix x) <+> text ":" <+> (toFix y)
   simplify (x,y) = (simplify x, simplify y) 
-
-toFixpoint x'    = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x'
-  where conDoc   = vcat     . map toFix_constant . lits
-        csDoc    = vcat     . map toFix . cs 
-        wsDoc    = vcat     . map toFix . ws 
-        kutsDoc  = toFix    . kuts
-        bindsDoc = toFix    . bs
-        gsDoc    = toFix_gs . gs
 
 toFix_gs (SE e)        
   = vcat  $ map (toFix_constant . mapSnd sr_sort) $ hashMapToAscList e
@@ -584,15 +575,6 @@ newtype SEnv a     = SE (M.HashMap Symbol a) deriving (Eq)
 data BindEnv       = BE { be_size :: Int
                         , be_binds :: M.HashMap BindId (Symbol, SortedReft) 
                         }
-
-data FInfo a = FI { cm    :: M.HashMap Int (SubC a)
-                  , ws    :: ![WfC a] 
-                  , bs    :: !BindEnv
-                  , gs    :: !FEnv
-                  , lits  :: ![(Symbol, Sort)]
-                  , kuts  :: Kuts 
-                  , quals :: ![Qualifier]
-                  }
 
 
 data SubC a = SubC { senv  :: !IBindEnv

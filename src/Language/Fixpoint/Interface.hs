@@ -1,4 +1,15 @@
-module Language.Fixpoint.Interface (solve, resultExit) where
+module Language.Fixpoint.Interface (
+    
+    -- * Containing Constraints
+    FInfo (..)
+ 
+    -- * Function to invoke solver
+  , solve
+
+    -- * Function to determine outcome
+  , resultExit
+  
+) where
 
 {- Interfacing with Fixpoint Binary -}
 
@@ -17,6 +28,25 @@ import Language.Fixpoint.Parse            (rr)
 import Language.Fixpoint.Files
 -- import Language.Haskell.Liquid.FileNames
 -- import Language.Haskell.Liquid.Constraint       (CGInfo (..))
+
+data FInfo a = FI { cm    :: M.HashMap Int (SubC a)
+                  , ws    :: ![WfC a] 
+                  , bs    :: !BindEnv
+                  , gs    :: !FEnv
+                  , lits  :: ![(Symbol, Sort)]
+                  , kuts  :: Kuts 
+                  , quals :: ![Qualifier]
+                  }
+
+toFixpoint x'    = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x'
+  where conDoc   = vcat     . map toFix_constant . lits
+        csDoc    = vcat     . map toFix . cs 
+        wsDoc    = vcat     . map toFix . ws 
+        kutsDoc  = toFix    . kuts
+        bindsDoc = toFix    . bs
+        gsDoc    = toFix_gs . gs
+
+
 
 
 solve fn hqs fi

@@ -15,17 +15,6 @@ module Language.Fixpoint.Files (
   , extModuleName
   , isExtFile
  
-  -- * Hardwired global names 
-  , dummyName
-  , preludeName
-  , boolConName
-  , funConName
-  , listConName
-  , tupConName
-  , propConName
-  , vvName
-  , symSepName
-
   -- * Hardwired paths 
   , getIncludePath, getFixpointPath, getCSSPath
 
@@ -38,7 +27,8 @@ module Language.Fixpoint.Files (
 ) where
 
 import qualified Control.Exception            as Ex
-import           Control.Monad.State
+-- import           Control.Monad.State
+import           Control.Monad -- .State
 import           Data.List                    hiding (find)
 import           Data.Maybe                   (fromMaybe)
 import           System.Directory
@@ -118,9 +108,6 @@ extModuleName modName ext =
     [] -> errorstar $ "malformed module name: " ++ modName
     ws -> extFileName ext $ foldr1 (</>) ws
   where explode = words . map (\c -> if c == '.' then ' ' else c)
-
-preludeName  :: String
-preludeName  = "Prelude"
 
 copyFiles :: [FilePath] -> FilePath -> IO ()
 copyFiles srcs tgt
