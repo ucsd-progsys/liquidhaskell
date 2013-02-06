@@ -1,7 +1,10 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections #-}
 
 module Language.Fixpoint.Parse (
-  Inputable (..)
+    Inputable (..)
+  , lexer 
+  , fTyConP
+  , lowerIdP
 ) where
 
 import Control.Monad
@@ -14,15 +17,9 @@ import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
 
 import Control.Applicative ((<$>), (<*))
-import Data.Char (toLower, isLower, isSpace, isAlpha)
-import Data.List (partition)
+import Data.Char (isLower)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types
-
--- COPY import Language.Haskell.Liquid.RefType
--- COPY import qualified Language.Haskell.Liquid.Measure as Measure
--- COPY import Outputable (showPpr)
--- COPY import Language.Haskell.Liquid.FileNames (listConName, propConName, tupConName)
 
 --------------------------------------------------------------------
 
@@ -71,12 +68,10 @@ reserved   = Token.reserved   lexer
 reservedOp = Token.reservedOp lexer
 parens     = Token.parens     lexer
 brackets   = Token.brackets   lexer
-braces     = Token.braces     lexer
-angles     = Token.angles     lexer
+
 semi       = Token.semi       lexer
 colon      = Token.colon      lexer
 comma      = Token.comma      lexer
-dot        = Token.dot        lexer
 whiteSpace = Token.whiteSpace lexer
 -- identifier = Token.identifier lexer
 
@@ -99,15 +94,12 @@ condIdP chars f
        blanks
        if f (c:cs) then return (c:cs) else parserZero
 
-tyVarIdP :: Parser String
-tyVarIdP = condIdP alphanums (isLower . head) 
-           where alphanums = ['a'..'z'] ++ ['0'..'9']
+upperIdP :: Parser String
+upperIdP = condIdP symChars (not . isLower . head)
 
 lowerIdP :: Parser String
 lowerIdP = condIdP symChars (isLower . head)
 
-upperIdP :: Parser String
-upperIdP = condIdP symChars (not . isLower . head)
 
 symbolP :: Parser Symbol
 symbolP = liftM stringSymbol symCharsP 
@@ -294,20 +286,6 @@ doParse' parser f s
       Right (_, rem) -> errorstar $ printf "doParse has leftover when parsing: %s\nfrom file %s\n"
                                       rem f
   where p = whiteSpace >> parser
-
-grabUpto p  
-  =  try (lookAhead p >>= return . Just)
- <|> try (eof         >> return Nothing)
- <|> (anyChar >> grabUpto p)
-
-betweenMany leftP rightP p 
-  = do z <- grabUpto leftP
-       case z of
-         Just _  -> liftM2 (:) (between leftP rightP p) (betweenMany leftP rightP p)
-         Nothing -> return []
-
--- specWrap  = between     (string "{-@" >> spaces) (spaces >> string "@-}")
-specWraps = betweenMany (string "{-@" >> spaces) (spaces >> string "@-}")
 
 ----------------------------------------------------------------------------------------
 ------------------------ Bundling Parsers into a Typeclass -----------------------------
