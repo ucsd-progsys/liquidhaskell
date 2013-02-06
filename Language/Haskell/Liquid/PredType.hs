@@ -45,7 +45,7 @@ data DataConP = DataConP { freeTyVars :: ![RTyVar]
 makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
-mkRTyCon tc (TyConP αs' ps) = RTyCon tc pvs'
+mkRTyCon tc (TyConP αs' ps) = RTyCon tc pvs' (getTyConInfo tc)
   where τs   = [rVar α :: RSort |  α <- TC.tyConTyVars tc]
         pvs' = subts (zip αs' τs) <$> ps
 
@@ -290,7 +290,7 @@ predType = TyVarTy $ stringTyVar "Pred"
 rpredType :: Reftable r => [RRType r] -> RRType r
 rpredType ts
   = RApp tyc ts [] top
-  where tyc = RTyCon (stringTyCon 'x' 42 "Pred") []
+  where tyc = RTyCon (stringTyCon 'x' 42 "Pred") [] defaultTyConInfo
 
 ----------------------------------------------------------------------------
 exprType :: CoreExpr -> Type
