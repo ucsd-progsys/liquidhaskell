@@ -1,3 +1,17 @@
+
+------------------------------------------------------
+-- Liquid.hs
+------------------------------------------------------
+
+cgInfoFInfo :: CGInfo -> FInfo
+cgInfoFInfo cgi = FI (M.fromList $ addIds $ fixCs cgi) 
+                     (fixWfs    cgi) 
+                     (binds     cgi) 
+                     (globals   cgi) 
+                     (lits      cgi) 
+                     (kuts      cgi)  
+                     (specQuals cgi)
+
 ----------------------------------------------------------------
 ----- Fixpoint.hs
 ----------------------------------------------------------------

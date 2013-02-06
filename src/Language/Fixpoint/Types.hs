@@ -9,7 +9,7 @@ module Language.Fixpoint.Types (
 
   -- * Top level serialization  
     toFixpoint
-  , Fixpoint (toFix) 
+  , Fixpoint (toFix)
  
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
@@ -91,6 +91,10 @@ class Fixpoint a where
 
 showPpr :: (Fixpoint a) => a -> String
 showPpr =  render . toFix
+
+
+
+
 
 type TCEmb a    = M.HashMap a FTycon  
 
@@ -580,13 +584,16 @@ newtype SEnv a     = SE (M.HashMap Symbol a) deriving (Eq)
 data BindEnv       = BE { be_size :: Int
                         , be_binds :: M.HashMap BindId (Symbol, SortedReft) 
                         }
-data FInfo a = FI { cs   :: ![SubC a]
-                  , ws   :: ![WfC a] 
-                  , bs   :: !BindEnv
-                  , gs   :: !FEnv
-                  , lits :: ![(Symbol, Sort)]
-                  , kuts :: Kuts 
+
+data FInfo a = FI { cm    :: M.HashMap Int (SubC a)
+                  , ws    :: ![WfC a] 
+                  , bs    :: !BindEnv
+                  , gs    :: !FEnv
+                  , lits  :: ![(Symbol, Sort)]
+                  , kuts  :: Kuts 
+                  , quals :: ![Qualifier]
                   }
+
 
 data SubC a = SubC { senv  :: !IBindEnv
                    , sgrd  :: !Pred
