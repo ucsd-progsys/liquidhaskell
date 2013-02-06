@@ -9,7 +9,9 @@ module Language.Fixpoint.Types (
 
   -- * Top level serialization  
     Fixpoint (toFix)
- 
+  , toFixpoint
+  , FInfo (..)
+
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
   , intFTyCon, boolFTyCon, predFTyCon, stringFTycon
@@ -1022,6 +1024,38 @@ checkSortedReft env xs sr = applyNonNull Nothing error unknowns
 
 stringFTycon :: String -> FTycon
 stringFTycon = TC . stringSymbol . dropModuleNames
+
+data Qualifier = Q { name   :: String           -- ^ Name
+                   , params :: [(Symbol, Sort)] -- ^ Parameters
+                   , body   :: Pred             -- ^ Predicate
+                   }
+               deriving (Eq, Ord)  
+
+instance Fixpoint Qualifier where 
+  toFix = pprQual
+
+instance NFData Qualifier where
+  rnf (Q x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
+
+pprQual (Q n xts p) = text "qualif" <+> text n <> parens args  <> colon <+> toFix p 
+  where args = intersperse comma (toFix <$> xts)
+
+data FInfo a = FI { cm    :: M.HashMap Int (SubC a)
+                  , ws    :: ![WfC a] 
+                  , bs    :: !BindEnv
+                  , gs    :: !FEnv
+                  , lits  :: ![(Symbol, Sort)]
+                  , kuts  :: Kuts 
+                  , quals :: ![Qualifier]
+                  }
+
+toFixpoint x'    = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x'
+  where conDoc   = vcat     . map toFix_constant . lits
+        csDoc    = vcat     . map toFix . M.elems . cm 
+        wsDoc    = vcat     . map toFix . ws 
+        kutsDoc  = toFix    . kuts
+        bindsDoc = toFix    . bs
+        gsDoc    = toFix_gs . gs
 
 
 
