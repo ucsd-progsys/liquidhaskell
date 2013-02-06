@@ -273,6 +273,14 @@ stripParens xs        = stripParens' (reverse xs)
 stripParens' (')':xs) = stripParens' xs
 stripParens' xs       = reverse xs
 
+
+dropModuleNames [] = []
+dropModuleNames s  = last $ words $ dotWhite <$> stripParens s
+  where dotWhite '.' = ' '
+        dotWhite c   = c
+
+
+
 ifM :: (Monad m) => m Bool -> m a -> m a -> m a
 ifM bm xm ym 
   = do b <- bm

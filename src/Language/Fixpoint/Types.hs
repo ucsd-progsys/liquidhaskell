@@ -13,7 +13,7 @@ module Language.Fixpoint.Types (
  
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
-  , intFTyCon, boolFTyCon, predFTyCon
+  , intFTyCon, boolFTyCon, predFTyCon, stringFTycon
 
   -- * Symbols
   , Symbol(..)
@@ -1030,6 +1030,9 @@ checkSortedReft env xs sr = applyNonNull Nothing error unknowns
   where error             = Just . (text "Unknown symbols:" <+>) . toFix 
         unknowns          = [ x | x <- syms sr, not (x `elem` v : xs), not (x `memberSEnv` env)]    
         Reft (v,_)        = sr_reft sr 
+
+stringFTycon :: String -> FTycon
+stringFTycon = TC . stringSymbol . dropModuleNames
 
 
 
