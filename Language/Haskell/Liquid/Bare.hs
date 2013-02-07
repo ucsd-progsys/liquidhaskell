@@ -335,7 +335,7 @@ wiredTyDataCons = (\(x, y) -> (concat x, concat y)) $ unzip l
   where l = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity] 
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p])]
+listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [0] [])]
                    , [(nilDataCon , DataConP [(RTV tyv)] [p] [] lt)
                    , (consDataCon, DataConP [(RTV tyv)] [p]  cargs  lt)])
     where c      = listTyCon
@@ -353,7 +353,7 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p])]
  
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps)]
+tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [0..(n-2)] [])]
                     , [(dc, DataConP (RTV <$> tyvs) ps  cargs  lt)])
   where c             = tupleTyCon BoxedTuple n
         dc            = tupleCon BoxedTuple n 
@@ -491,10 +491,33 @@ ofBDataDecl (D tc as ps cts)
   = do πs    <- mapM ofBPVar ps
        tc'   <- lookupGhcTyCon tc 
        cts'  <- mapM (ofBDataCon tc' αs ps πs) cts     -- cpts
-       return $ ((tc', TyConP αs πs), cts')
+       let tys     = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
+       let initmap = zip (uPVar <$> πs) [0..]
+       let varInfo = concatMap (getPsSig initmap True) tys
+       let cov     = [i | (i, b)<- varInfo, b, i >=0]
+       let contr   = [i | (i, b)<- varInfo, not b, i >=0]
+       return ((tc', TyConP αs πs cov contr), cts')
     where αs   = fmap (RTV . stringTyVar) as
           -- cpts = fmap (second (fmap (second (mapReft ur_pred)))) cts
 
+getPsSig m pos (RAllT _ t) 
+  = getPsSig m pos t
+getPsSig m pos (RApp _ ts rs r) 
+  = addps m pos r ++ concatMap (getPsSig m pos) ts 
+    ++ concatMap (getPsSigPs m pos) rs
+getPsSig m pos (RVar _ r) 
+  = addps m pos r
+getPsSig m pos (RAppTy t1 t2 r) 
+  = addps m pos r ++ getPsSig m pos t1 ++ getPsSig m pos t2
+getPsSig m pos (RFun _ t1 t2 r) 
+  = addps m pos r ++ getPsSig m pos t2 ++ getPsSig m (not pos) t1
+
+
+getPsSigPs m pos (RMono r) = addps m pos r
+getPsSigPs m pos (RPoly t) = getPsSig m pos t
+
+addps m pos (U _ ps) = (flip (,)) pos . f  <$> pvars ps
+  where f = fromMaybe (error "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
 -- ofBPreds = fmap (fmap stringTyVarTy)
 dataDeclTyConP d 
   = do let αs = fmap (RTV . stringTyVar) (tycTyVars d)  -- as
