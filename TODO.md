@@ -1,6 +1,8 @@
 TODO
 ====
-    
+
+* Pull all Fixpoint dependencies into separate package liquid-fixpoint
+
 * [Eric] qualified names break spec imports -- tests/todo/qualifiedvector.hs 
 
 * DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
@@ -20,6 +22,10 @@ TODO
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
+Liquid-Fixpoint
+===============
+
+* Pull all Fixpoint dependencies into separate package liquid-fixpoint
 
 Blog
 ====
