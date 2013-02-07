@@ -19,12 +19,12 @@ import Control.Applicative ((<$>), (<*))
 import Data.Char (toLower, isLower, isSpace, isAlpha)
 import Data.List (partition)
 
-import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Outputable (showPpr)
-import Language.Haskell.Liquid.Names (listConName, propConName, tupConName)
+import Language.Fixpoint.Names (listConName, propConName, tupConName)
+import Language.Fixpoint.Misc
 
 --------------------------------------------------------------------
 

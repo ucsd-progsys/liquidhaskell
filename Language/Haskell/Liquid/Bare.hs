@@ -38,7 +38,7 @@ import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Ms
-import Language.Haskell.Liquid.Misc
+import Language.Fixpoint.Misc
 
 import qualified Data.List           as L
 import qualified Data.HashSet        as S

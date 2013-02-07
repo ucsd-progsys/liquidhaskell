@@ -41,12 +41,14 @@ import qualified Data.HashMap.Strict   as M
 
 import qualified Language.Haskell.Liquid.ACSS as ACSS
 import Language.Haskell.HsColour.Classify
-import Language.Haskell.Liquid.Files
-import Language.Haskell.Liquid.Names
+
+import Language.Fixpoint.Files
+import Language.Fixpoint.Names
+import Language.Fixpoint.Misc
+
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
-import Language.Haskell.Liquid.Misc
 
 -------------------------------------------------------------------
 ------ Rendering HTMLized source with Inferred Types --------------

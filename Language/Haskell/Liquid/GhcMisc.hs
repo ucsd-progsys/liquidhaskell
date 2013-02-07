@@ -137,24 +137,11 @@ tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) x
 
 pprShow = text . show
 
-dropModuleNames [] = []
-dropModuleNames s  = last $ words $ dotWhite <$> stripParens s
-  where dotWhite '.' = ' '
-        dotWhite c   = c
+-- dropModuleNames [] = []
+-- dropModuleNames s  = last $ words $ dotWhite <$> stripParens s
+--   where dotWhite '.' = ' '
+--         dotWhite c   = c
 
---dropModuleNames x =  x -- (mylast x (words (dotWhite <$> x)))
---  where dotWhite '.' = ' '
---        dotWhite c   = c
---
---mylast x [] = error $ "RefType.last" ++ showPpr x
---mylast x l  = last l
-
-
---instance Outputable a => Outputable (S.Set a) where
---  ppr = ppr . S.toList
---
---instance (Outputable k, Outputable v) => Outputable (M.Map k v) where
---  ppr = ppr . M.toList
 
 -----------------------------------------------------------------------
 ------------------ Generic Helpers for DataConstructors ---------------
