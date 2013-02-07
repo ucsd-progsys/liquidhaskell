@@ -17,7 +17,7 @@ import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.PredType hiding (exprType)
 import Language.Haskell.Liquid.RefType hiding (generalize) 
-import Language.Haskell.Liquid.Misc
+import Language.Fixpoint.Misc
 import qualified Language.Haskell.Liquid.Fixpoint as F
 
 import Control.Applicative      ((<$>))

@@ -37,7 +37,7 @@ import qualified Data.HashMap.Strict as M
 
 import System.Directory (doesFileExist)
 import Language.Haskell.Liquid.Fixpoint hiding (Expr) 
-import Language.Haskell.Liquid.Misc
+import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Parse

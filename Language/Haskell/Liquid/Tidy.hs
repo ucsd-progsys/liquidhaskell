@@ -6,7 +6,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
 
-import Language.Haskell.Liquid.Misc 
+import Language.Fixpoint.Misc 
 import Language.Haskell.Liquid.GhcMisc      (stringTyVar) 
 import Language.Fixpoint.Names              (symSepName)
 import Language.Haskell.Liquid.Fixpoint

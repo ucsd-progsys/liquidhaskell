@@ -28,7 +28,7 @@ import qualified Data.HashSet           as S
 import qualified Data.HashMap.Strict    as M
 import qualified Data.Graph             as G
 
-import Language.Haskell.Liquid.Misc         (mapSnd, traceShow)
+import Language.Fixpoint.Misc         (mapSnd, traceShow)
 import Language.Haskell.Liquid.Fixpoint     (Tag)
 import Language.Haskell.Liquid.GhcInterface (freeVars)
 

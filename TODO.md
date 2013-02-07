@@ -28,23 +28,13 @@ Liquid-Fixpoint
 * Pull all Fixpoint dependencies into separate package liquid-fixpoint
 
     Names.hs        [FileNames.hs]  
-    
     Files.hs        [FileNames.hs]
+    Misc.hs         [Misc.hs]        
     
-    Misc.hs         [Misc.hs]       <------- HEREHEREHEREHEREHERE 
-    
-    Types.hs        [Fixpoint.hs]
-    
+    Types.hs        [Fixpoint.hs]       <------- HEREHEREHEREHEREHERE
     Interface.hs    [FixInterface.hs]
-    
     Parse.hs        [Parse.hs]
-
-
-Blog
-====
-
-- I think clicking the title to access the code seems a bit odd. 
-
+    ???             [Qualifiers.hs]
 
 BExp Parser vs. ppr_rtype [BEXPARSER]
 =====================================

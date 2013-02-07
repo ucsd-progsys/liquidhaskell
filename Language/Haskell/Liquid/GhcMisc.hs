@@ -14,7 +14,7 @@ import           CostCentre
 import           FamInstEnv                   (FamInst)
 import           GHC                          hiding (L)
 import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..))
-import           Language.Haskell.Liquid.Misc (errorstar, stripParens)
+import           Language.Fixpoint.Misc (errorstar, stripParens)
 import           Name                         (mkInternalName)
 import           OccName                      (mkTyVarOcc, mkTcOcc)
 import           Unique                       

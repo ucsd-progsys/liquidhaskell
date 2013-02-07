@@ -11,7 +11,7 @@ import Text.Printf
 import Outputable hiding (empty)
 
 import Language.Haskell.Liquid.Fixpoint         hiding (kuts, lits)
-import Language.Haskell.Liquid.Misc
+import Language.Fixpoint.Misc
 
 -- import Language.Haskell.Liquid.FileNames
 import Language.Fixpoint.Files

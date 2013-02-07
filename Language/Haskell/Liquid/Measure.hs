@@ -26,7 +26,7 @@ import Data.Bifunctor
 import Control.Applicative      ((<$>))
 import Control.Exception        (assert)
 
-import Language.Haskell.Liquid.Misc
+import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 
