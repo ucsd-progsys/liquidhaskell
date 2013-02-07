@@ -8,7 +8,7 @@ import qualified Control.Exception   as Ex
 import qualified Data.HashMap.Strict as M
 import qualified Data.List as L
 import Control.Applicative      ((<$>))
-import Control.Monad            (forM_)
+import Control.Monad            (forM_, liftM)
 import Data.Maybe               (fromJust)
 import Data.Maybe (catMaybes, fromMaybe)
 
@@ -69,6 +69,8 @@ errorstar  = error . wrap (stars ++ "\n") (stars ++ "\n")
   where stars = repeats 3 $ wrapStars "ERROR"
 
 findWithDefaultL f ls d = fromMaybe d (L.find f ls)
+
+concatMapM f ls = liftM concat (mapM f ls)
 
 fst3 ::  (a, b, c) -> a
 fst3 (x,_,_) = x
