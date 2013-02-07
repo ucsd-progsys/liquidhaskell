@@ -42,18 +42,21 @@ import           Control.Exception            (assert)
 data TyConInfo = TyConInfo
   { covariantTyArgs     :: ![Int]
   , contravariantTyArgs :: ![Int]
+  , covariantPsArgs     :: ![Int]
+  , contravariantPsArgs :: ![Int]
   }
 
-defaultTyConInfo = TyConInfo [] []
-getTyConInfo :: TyCon -> TyConInfo
-getTyConInfo c 
-  = TyConInfo [i | (i,  b) <- varsigns, b, i>0]
-              [i | (i, b) <- varsigns, not b, i>0]
+defaultTyConInfo = TyConInfo [] [] [] []
+
+mkTyConInfo :: TyCon -> [Int] -> [Int]-> TyConInfo
+mkTyConInfo c
+  = TyConInfo [i | (i,  b) <- varsigns, b, i>=0]
+              [i | (i, b) <- varsigns, not b, i>=0]
   where varsigns = L.nub $ concatMap (go initmap True) tys
-        initmap  = zip (showPpr <$> tyvars) [1..]
+        initmap  = zip (showPpr <$> tyvars) [0..]
         tys = [ ty | dc <- TC.tyConDataCons c
                    , ty <- DC.dataConRepArgTys dc]
-        go m pos (ForAllTy v t)  = go ((showPpr m, 0):m) pos t
+        go m pos (ForAllTy v t)  = go ((showPpr m, -1):m) pos t
         go m pos (TyVarTy v)     = [(varLookup (showPpr v) m, pos)]
         go m pos (AppTy t1 t2)   = go m pos t1 ++ go m pos t2
         go m pos (TyConApp _ ts) = concatMap (go m pos) ts
