@@ -38,12 +38,14 @@ import qualified Data.HashMap.Strict as M
 import System.Directory (doesFileExist)
 import Language.Haskell.Liquid.Fixpoint hiding (Expr) 
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
+
+import Language.Fixpoint.Names
+import Language.Fixpoint.Files
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 ------------------------------------------------------------------

@@ -67,23 +67,6 @@ checkM f msg p
   = do ex <- f p
        if ex then return p else errorstar $ "Cannot find " ++ msg ++ " at :" ++ p
 
--- getIncludePath  = checkM doesDirectoryExist "include directory" =<< getSuffixPath ["include"]
--- getCSSPath      = checkM doesFileExist      "css file"          =<< getSuffixPath ["syntax", "hscolour.css"]
--- getFixpointPath = checkM doesFileExist      "fixpoint binary"   =<< getSuffixPath ["external", "fixpoint", "fixpoint.native"]
-
--- envPrefix  = "$" ++ envVarName ++ "/"
--- getIncludePath  = (</> "include") `fmap` getEnv envVarName
--- getFixpointPath ::  IO FilePath 
--- getFixpointPath = do p  <- getSuffixPath ["external", "fixpoint", "fixpoint.native"]
---                      ex <- doesFileExist p
---                      if ex then return p else err p
---                   where err p   = errorstar $ "Cannot find fixpoint executable at: " ++ p
-
--- checkExists msg p 
---   = do ex <- doesFileExist p
---        if ex then return p else err
---     where err = errorstar $ "Cannot find " ++ msg ++ " at :" ++ p
-
 
 -----------------------------------------------------------------------------------
 
@@ -124,26 +107,6 @@ extMap e = go e
     go _      = errorstar $ "extMap: Unknown extension" ++ show e
 
 
--- extMap   = M.fromList [ (Cgi,    "cgi")
---                       , (Pred,   "pred")
---                       , (PAss,   "pass")
---                       , (Dat,    "dat")
---                       , (Out,    "out")
---                       , (Fq,     "fq")
---                       , (Html,   "html")
---                       , (Cst,    "cst")
---                       , (Annot,  "annot")
---                       , (Hs,     "hs")
---                       , (LHs,    "lhs")
---                       , (Mkdn,   "md")
---                       , (Spec,   "spec")
---                       , (Hquals, "hquals") ]
-
-
-
--- repFileName     :: Ext -> FilePath -> FilePath
--- repFileName ext = extFileName ext . dropExtension 
-
 extFileName     :: Ext -> FilePath -> FilePath
 extFileName ext = (`addExtension` (extMap ext))
 
@@ -169,24 +132,6 @@ deleteBinFiles :: FilePath -> IO ()
 deleteBinFiles fn = mapM_ (tryIgnore "delete binaries" . removeFile)
                   $ (fn `replaceExtension`) `fmap` exts
   where exts = ["hi", "o"]
-
--- resolvePath :: FilePath -> FilePath -> IO FilePath
--- resolvePath base path
---   = case stripPrefix envPrefix path of
---       Just path' -> liftM (</> path') getIncludePath
---       Nothing    -> return $ if isAbsolute path then path else base </> path
-
--- libName      :: String -> FilePath
--- libName ext  = envPrefix ++ "Prelude." ++ ext
-
--- existingFiles :: String -> [FilePath] -> IO [FilePath]
--- existingFiles = filterM . warnMissing
-
--- warnMissing s f
---   = do b <- doesFileExist f
---        unless b $ putStrLn $ printf "WARNING: missing file (%s): %s" s f
---        return b
-
 
 
 ----------------------------------------------------------------------------------

@@ -7,8 +7,8 @@ import qualified Data.HashSet        as S
 import qualified Data.List           as L
 
 import Language.Haskell.Liquid.Misc 
-import Language.Haskell.Liquid.GhcMisc   (stringTyVar) 
-import Language.Haskell.Liquid.FileNames (symSepName)
+import Language.Haskell.Liquid.GhcMisc      (stringTyVar) 
+import Language.Fixpoint.Names              (symSepName)
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 

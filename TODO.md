@@ -27,6 +27,20 @@ Liquid-Fixpoint
 
 * Pull all Fixpoint dependencies into separate package liquid-fixpoint
 
+    Names.hs        [FileNames.hs]  <------- HEREHEREHEREHEREHERE
+    
+    Files.hs        [FileNames.hs]
+    
+    Misc.hs         [Misc.hs]
+    
+    Types.hs        [Fixpoint.hs]
+    
+    Interface.hs    [FixInterface.hs]
+    
+    Parse.hs        [Parse.hs]
+
+
+
 Blog
 ====
 

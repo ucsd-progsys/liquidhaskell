@@ -12,7 +12,11 @@ import Outputable hiding (empty)
 
 import Language.Haskell.Liquid.Fixpoint         hiding (kuts, lits)
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.FileNames
+
+-- import Language.Haskell.Liquid.FileNames
+import Language.Fixpoint.Files
+import Language.Fixpoint.Names
+
 import Language.Haskell.Liquid.Parse            (rr)
 import Language.Haskell.Liquid.Constraint       (CGInfo (..))
 
