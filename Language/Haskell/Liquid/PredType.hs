@@ -34,6 +34,8 @@ import Control.Monad.State
 
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![(PVar RSort)]
+                     , covPs        :: ![Int]
+                     , contravPs    :: ![Int]
                      }
 
 data DataConP = DataConP { freeTyVars :: ![RTyVar]
@@ -45,7 +47,7 @@ data DataConP = DataConP { freeTyVars :: ![RTyVar]
 makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
-mkRTyCon tc (TyConP αs' ps) = RTyCon tc pvs' (getTyConInfo tc)
+mkRTyCon tc (TyConP αs' ps cv conv) = RTyCon tc pvs' (mkTyConInfo tc cv conv)
   where τs   = [rVar α :: RSort |  α <- TC.tyConTyVars tc]
         pvs' = subts (zip αs' τs) <$> ps
 
@@ -57,8 +59,8 @@ dataConPSpecType (DataConP vs ps yts rt) = mkArrow vs ps (reverse yts) rt
 
 
 instance Outputable TyConP where
-  ppr (TyConP vs ps) = (parens $ hsep (punctuate comma (map ppr vs))) <+>
-                       (parens $ hsep (punctuate comma (map ppr ps)))
+  ppr (TyConP vs ps _ _) = (parens $ hsep (punctuate comma (map ppr vs))) <+>
+                           (parens $ hsep (punctuate comma (map ppr ps)))
 
 instance Show TyConP where
  show = showSDoc . ppr
