@@ -80,9 +80,9 @@ import Type                 (splitForAllTys)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.Files
-import Language.Haskell.Liquid.Names
+import Language.Fixpoint.Misc
+import Language.Fixpoint.Files
+import Language.Fixpoint.Names
 import Language.Haskell.Liquid.GhcMisc
 import Control.DeepSeq
 

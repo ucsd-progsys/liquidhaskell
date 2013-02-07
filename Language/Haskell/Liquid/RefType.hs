@@ -70,8 +70,8 @@ import Text.Printf
 
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc (tracePpr, tvId, intersperse, dropModuleNames, getDataConVarUnique, TyConInfo(..), mkTyConInfo)
-import Language.Haskell.Liquid.Names (symSepName, funConName, listConName, tupConName, propConName, boolConName)
+import Language.Haskell.Liquid.GhcMisc (tracePpr, tvId, intersperse, getDataConVarUnique, TyConInfo(..), mkTyConInfo)
+import Language.Fixpoint.Names (symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
 
 --------------------------------------------------------------------

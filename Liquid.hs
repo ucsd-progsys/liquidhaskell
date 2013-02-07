@@ -5,11 +5,12 @@ import Data.Monoid      (mconcat)
 import System.Exit 
 
 import Outputable hiding (empty) 
+import Language.Fixpoint.Files
+import Language.Fixpoint.Names
+import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.CmdLine
 import Language.Haskell.Liquid.GhcInterface 
-import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.Constraint       
-import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Fixpoint (sinfo, colorResult, FixResult (..))
 import Language.Haskell.Liquid.FixInterface      
 import Language.Haskell.Liquid.TransformRec   
