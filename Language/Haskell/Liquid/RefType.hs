@@ -70,7 +70,7 @@ import Text.Printf
 
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GhcMisc (tracePpr, tvId, intersperse, dropModuleNames, getDataConVarUnique, TyConInfo(..), getTyConInfo)
+import Language.Haskell.Liquid.GhcMisc (tracePpr, tvId, intersperse, dropModuleNames, getDataConVarUnique, TyConInfo(..), mkTyConInfo)
 import Language.Haskell.Liquid.FileNames (symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
 
@@ -607,7 +607,7 @@ normalizePds t = addPds ps t'
   where (t', ps) = nlzP [] t
 
 rPred p t = RAllP p t
-rApp c    = RApp (RTyCon c [] (getTyConInfo c)) 
+rApp c    = RApp (RTyCon c [] (mkTyConInfo c [] [])) 
 
 
 addPds ps (RAllT v t) = RAllT v $ addPds ps t
@@ -724,7 +724,7 @@ expandRApp tyi (RApp rc ts rs r)
 expandRApp _ t
   = t
 
-appRTyCon tyi rc@(RTyCon c _ _) ts = RTyCon c ps' (getTyConInfo c)
+appRTyCon tyi rc@(RTyCon c _ _) ts = RTyCon c ps' (rTyConInfo rc')
   where ps' = map (subts (zip (RTV <$> αs) (toRSort <$> ts))) (rTyConPs rc')
         rc' = M.lookupDefault rc c tyi
         αs  = TC.tyConTyVars $ rTyCon rc'
