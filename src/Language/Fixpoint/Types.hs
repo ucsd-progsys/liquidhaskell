@@ -8,7 +8,7 @@
 module Language.Fixpoint.Types (
 
   -- * Top level serialization  
-    Fixpoint (toFix)
+    Fixpoint (..)
   , toFixpoint
   , FInfo (..)
 
@@ -90,12 +90,8 @@ class Fixpoint a where
   simplify :: a -> a 
   simplify =  id
 
-showPpr :: (Fixpoint a) => a -> String
-showPpr =  render . toFix
-
-
-
-
+  showFix :: a -> String
+  showFix =  render . toFix
 
 type TCEmb a    = M.HashMap a FTycon  
 
@@ -197,11 +193,6 @@ data Sort = FInt
 
 instance Hashable Sort
 
-sortSubst su t@(FObj x)   = fromMaybe t (M.lookup x su) 
-sortSubst su (FFunc n ts) = FFunc n (sortSubst su <$> ts)
-sortSubst su (FApp c ts)  = FApp c  (sortSubst su <$> ts)
-sortSubst _  t            = t
-
 newtype Sub = Sub [(Int, Sort)]
 
 instance Fixpoint Sort where
@@ -242,7 +233,7 @@ instance Show Symbol where
   show (S x) = x
 
 instance Show Subst where
-  show = showPpr
+  show = showFix
 
 instance Fixpoint Subst where
   toFix (Su m) = case {- hashMapToAscList -} m of 
@@ -536,6 +527,9 @@ instance Fixpoint Refa where
   toFix (RKvar k su) = toFix k <> toFix su
   -- toFix (RPvar p)    = toFix p
 
+instance Fixpoint Reft where
+  toFix = ppr_reft_pred
+
 instance Fixpoint SortedReft where
   toFix (RR so (Reft (v, ras))) 
     = braces 
@@ -630,7 +624,7 @@ colorResult (_)         = Sad
 
 
 instance Show (SubC a) where
-  show = showPpr 
+  show = showFix 
 
 instance Fixpoint (IBindEnv) where
   toFix (FB ids) = text "env" <+> toFix ids 
@@ -695,7 +689,7 @@ instance Subable Symbol where
 
 subSymbol (Just (EVar y)) _ = y
 subSymbol Nothing         x = x
-subSymbol a               b = errorstar (printf "Cannot substitute symbol %s with expression %s" (showPpr b) (showPpr a))
+subSymbol a               b = errorstar (printf "Cannot substitute symbol %s with expression %s" (showFix b) (showFix a))
 
 instance Subable Expr where
   syms                     = exprSymbols

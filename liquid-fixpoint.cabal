@@ -13,7 +13,9 @@ cabal-version:       >=1.8
 
 library
   hs-source-dirs:  src
-  exposed-modules: Language.Fixpoint.Types, 
+  exposed-modules: Language.Fixpoint.Names,
+                   Language.Fixpoint.Files,
+                   Language.Fixpoint.Types, 
                    Language.Fixpoint.Interface, 
                    Language.Fixpoint.Parse,
                    Language.Fixpoint.Misc

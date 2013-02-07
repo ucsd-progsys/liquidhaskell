@@ -18,7 +18,7 @@ import qualified Data.HashMap.Strict as M
 
 import Control.Applicative ((<$>), (<*))
 import Data.Char (isLower)
-import Language.Fixpoint.Misc
+import Language.Fixpoint.Misc hiding (dcolon)
 import Language.Fixpoint.Types
 
 --------------------------------------------------------------------

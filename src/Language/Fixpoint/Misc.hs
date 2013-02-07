@@ -10,13 +10,15 @@ import qualified Data.List as L
 import Control.Applicative      ((<$>))
 import Control.Monad            (forM_)
 import Data.Maybe               (fromJust)
-import Data.Maybe (catMaybes, fromMaybe)
+import Data.Maybe               (catMaybes, fromMaybe)
 
 import System.Exit
 import System.Process           (system)
 import Debug.Trace              (trace)
 import Data.Data
 import System.Console.ANSI
+
+import Text.PrettyPrint.HughesPJ
 
 -----------------------------------------------------------------------------------
 ------------ Support for Colored Logging ------------------------------------------
@@ -273,13 +275,10 @@ stripParens xs        = stripParens' (reverse xs)
 stripParens' (')':xs) = stripParens' xs
 stripParens' xs       = reverse xs
 
-
 dropModuleNames [] = []
 dropModuleNames s  = last $ words $ dotWhite <$> stripParens s
   where dotWhite '.' = ' '
         dotWhite c   = c
-
-
 
 ifM :: (Monad m) => m Bool -> m a -> m a -> m a
 ifM bm xm ym 
@@ -307,3 +306,12 @@ hashMapMapKeys f    = M.fromList . fmap (mapFst f) . M.toList
 
 applyNonNull def _ [] = def
 applyNonNull _   f xs = f xs
+
+concatMapM f = fmap concat . mapM f 
+
+
+
+angleBrackets p    = char '<' <> p <> char '>'
+dot                = char '.'
+arrow              = text "->"
+dcolon             = colon <> colon
