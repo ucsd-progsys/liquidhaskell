@@ -1,6 +1,5 @@
 module Language.Haskell.Liquid.Qualifier (
-    Qualifier 
-  , specificationQualifiers
+  specificationQualifiers
   ) where
 
 import Outputable
@@ -11,7 +10,7 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.PredType
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.GhcMisc
-import Language.Haskell.Liquid.Misc
+import Language.Fixpoint.Misc
 
 import Control.DeepSeq
 import Control.Applicative      ((<$>))
@@ -20,27 +19,6 @@ import Data.Maybe               (fromMaybe)
 import qualified Data.HashSet as S
 import Data.Bifunctor           (second) 
 
-data Qualifier = Q { name   :: String           -- ^ Name
-                   , params :: [(Symbol, Sort)] -- ^ Parameters
-                   , body   :: Pred             -- ^ Predicate
-                   }
-               deriving (Eq, Ord)  
-
-instance Fixpoint Qualifier where 
-  toFix = pprQual
-
-instance Outputable Qualifier where
-  ppr   = pprQual
-
-instance NFData Qualifier where
-  rnf (Q x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
-
-pprQual (Q n xts p) = text "qualif" <+> text n <> parens args  <> colon <+> toFix p 
-  where args = intersperse comma (toFix <$> xts)
-
-------------------------------------------------------------------------------------
-------------------------------------------------------------------------------------
-------------------------------------------------------------------------------------
 
 specificationQualifiers :: GhcInfo -> [Qualifier] 
 specificationQualifiers info  

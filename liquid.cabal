@@ -43,7 +43,6 @@ Library
                     Language.Haskell.Liquid.Annotate, 
                     Language.Haskell.Liquid.CTags, 
                     Language.Haskell.Liquid.CmdLine, 
-                    Language.Haskell.Liquid.Misc, 
                     Language.Haskell.Liquid.GhcMisc, 
                     Language.Haskell.Liquid.Qualifier, 
                     Language.Haskell.Liquid.TransformRec, 

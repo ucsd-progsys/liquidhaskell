@@ -21,7 +21,7 @@ import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate)
 import Data.Char   (isSpace)
 import Text.Printf
 import Language.Haskell.Liquid.GhcMisc
-import Language.Haskell.Liquid.Misc
+import Language.Fixpoint.Misc
 
 
 -- import Debug.Trace

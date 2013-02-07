@@ -26,7 +26,7 @@ module Language.Haskell.Liquid.RefType (
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp, rFun, rAppTy
   , expandRApp
-  , typeUniqueSymbol
+  , typeSort, typeUniqueSymbol
   , strengthen
   , mkArrow, mkUnivs, bkUniv, bkArrow 
   , generalize, normalizePds
@@ -1387,4 +1387,129 @@ fromRMono msg _       = errorstar $ "fromMono: " ++ msg -- ++ showPpr z
 fromRPoly (RPoly r)   = r
 fromRPoly _           = errorstar "fromPoly"
 idRMono               = RMono . fromRMono "idRMono"
+
+
+----------------------------------------------------------------
+------------ From Old Fixpoint ---------------------------------
+----------------------------------------------------------------
+
+typeUniqueSymbol :: Type -> Symbol 
+typeUniqueSymbol = stringSymbol . {- ("sort_" ++) . -} showSDocDump . ppr
+
+fApp c ts 
+  | c == intFTyCon  = FInt
+  | otherwise       = FApp c ts
+
+typeSort :: TCEmb TyCon -> Type -> Sort 
+typeSort tce τ@(ForAllTy _ _) 
+  = typeSortForAll tce τ
+typeSort tce (FunTy τ1 τ2) 
+  = typeSortFun tce τ1 τ2
+typeSort tce (TyConApp c τs)
+  = fApp ftc (typeSort tce <$> τs)
+  where ftc = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce) 
+typeSort _ τ
+  = FObj $ typeUniqueSymbol τ
+ 
+typeSortForAll tce τ 
+  = genSort $ typeSort tce tbody
+  where genSort (FFunc _ t) = FFunc n (sortSubst su <$> t)
+        genSort t           = FFunc n [sortSubst su t]
+        (as, tbody)         = splitForAllTys τ 
+        su                  = M.fromList $ zip sas (FVar <$>  [0..])
+        sas                 = (typeUniqueSymbol . TyVarTy) <$> as
+        n                   = length as 
+
+typeSort :: TCEmb TyCon -> Type -> Sort 
+typeSort tce (ForAllTy _ τ) 
+  = incrTyVars $ typeSort tce τ
+typeSort tce (FunTy τ1 τ2) 
+  = typeSortFun tce τ1 τ2
+typeSort tce (TyConApp c τs)
+  = fApp ftc (typeSort tce <$> τs)
+  where ftc = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce) 
+typeSort _ τ
+  = FObj $ typeUniqueSymbol τ
+
+tyConName c 
+  | listTyCon == c = listConName
+  | isTupleTyCon c = tupConName
+  | otherwise      = showPpr c
+
+typeSortFun tce τ1 τ2
+  = FFunc 0  sos
+  where sos  = typeSort tce <$> τs
+        τs   = τ1  : grabArgs [] τ2
+grabArgs τs (FunTy τ1 τ2 ) = grabArgs (τ1:τs) τ2
+grabArgs τs τ              = reverse (τ:τs)
+
+genArgSorts' sos = traceShow ("genArgSorts sos = " ++ showPpr sos) $ genArgSorts sos
+
+genArgSorts :: [Sort] -> [Sort]
+genArgSorts xs = zipWith genIdx xs $ memoIndex genSort xs
+  where genSort FInt        = Nothing
+        genSort FBool       = Nothing 
+        genSort so          = Just so
+        genIdx  _ (Just i)  = FVar i
+        genIdx  so  _       = so
+
+genArgSorts xs = sortSubst su <$> xs
+  where su = M.fromList $ zip (sortNub αs) (FVar <$> [0..])
+        αs = concatMap getObjs xs 
+
+getObjs (FObj x)          = [x]
+getObjs (FFunc _ ts)      = concatMap getObjs ts
+getObjs (FApp _ ts)       = concatMap getObjs ts
+getObjs _                 = []
+
+instance Outputable Symbol where
+  ppr (S x) = text x 
+
+instance Outputable Sort where
+  ppr = text . show 
+
+instance Outputable Refa where
+  ppr  = text . show
+
+instance Outputable Expr where
+  ppr  = text . show
+
+instance Outputable Subst where
+  ppr (Su m) = ppr ({- M.toList -} m)
+
+instance Outputable Reft where
+  ppr = ppr_reft_pred
+
+instance Outputable SortedReft where
+  ppr = toFix
+
+instance (Outputable a) => Outputable (SEnv a) where
+  ppr (SE e) = vcat $ map pprxt $ hashMapToAscList e
+	where pprxt (x, t) = ppr x <+> dcolon <+> ppr t
+
+instance Outputable (SEnv a) => Show (SEnv a) where
+  show = showSDoc . ppr
+
+instance Outputable (SubC a) where
+  ppr = toFix 
+
+instance Outputable (WfC a) where
+  ppr = toFix 
+
+
+instance (Ord a, Outputable a) => Outputable (FixResult (SubC a)) where
+  ppr Safe           = text "Safe"
+  ppr UnknownError   = text "Unknown Error!"
+  ppr (Crash xs msg) = vcat $ [ text "Crash!" ] ++  ppr_sinfos "CRASH: " xs ++ [parens (text msg)] 
+  ppr (Unsafe xs)    = vcat $ text "Unsafe:" : ppr_sinfos "WARNING: " xs
+
+instance Outputable Kuts where
+  ppr (KS s) = ppr s
+
+
+
+
+
+
+
 

@@ -52,7 +52,7 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars) 
 import Language.Haskell.Liquid.Predicates
 import Language.Haskell.Liquid.GhcMisc          (TyConInfo(..), tickSrcSpan, hasBaseTypeVar)
-import Language.Haskell.Liquid.Misc
+import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Qualifier        
 import Control.DeepSeq
 
@@ -478,7 +478,7 @@ coreBindLits tce info
            ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons]
   where lconsts      = literalConst tce <$> literals (cbs info)
         dcons        = filter isLit $ impVars info
-        dconToSort   = F.typeSort tce . expandTypeSynonyms . varType 
+        dconToSort   = typeSort tce . expandTypeSynonyms . varType 
         dconToSym    = dataConSymbol . idDataCon
         isLit id     = isDataConWorkId id && not (hasBaseTypeVar id)
 
