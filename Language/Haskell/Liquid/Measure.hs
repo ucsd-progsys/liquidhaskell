@@ -27,7 +27,7 @@ import Control.Applicative      ((<$>))
 import Control.Exception        (assert)
 
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.Fixpoint
+import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 
 data Spec ty bndr  = Spec { 

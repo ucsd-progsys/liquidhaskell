@@ -13,7 +13,6 @@ import Language.Haskell.HsColour.Classify as Classify
 import Language.Haskell.HsColour.HTML (renderAnchors, escape)
 import qualified Language.Haskell.HsColour.CSS as CSS
 
-import Data.Monoid
 import Data.Either (partitionEithers)
 import Data.Maybe  (fromMaybe) 
 import qualified Data.HashMap.Strict as M
@@ -21,7 +20,8 @@ import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate)
 import Data.Char   (isSpace)
 import Text.Printf
 import Language.Haskell.Liquid.GhcMisc
-import Language.Fixpoint.Misc
+-- import Language.Fixpoint.Misc
+-- import Data.Monoid
 
 
 -- import Debug.Trace

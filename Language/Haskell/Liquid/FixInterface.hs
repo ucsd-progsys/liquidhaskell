@@ -10,7 +10,7 @@ import System.Exit
 import Text.Printf
 import Outputable hiding (empty)
 
-import Language.Haskell.Liquid.Fixpoint         hiding (kuts, lits)
+import Language.Fixpoint.Types         hiding (kuts, lits)
 import Language.Fixpoint.Misc
 
 -- import Language.Haskell.Liquid.FileNames

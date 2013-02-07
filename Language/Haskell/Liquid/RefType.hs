@@ -61,14 +61,10 @@ import qualified Data.List as L
 import Control.Applicative  hiding (empty)   
 import Control.DeepSeq
 import Control.Monad  (liftM, liftM2, liftM3)
--- import Data.Generics.Schemes
--- import Data.Generics.Aliases
--- import Data.Data            hiding (TyCon)
 import qualified Data.Foldable as Fold
 import Text.Printf
--- import Language.Haskell.Liquid.Tidy
 
-import Language.Haskell.Liquid.Fixpoint as F
+import Language.Fixpoint.Types as F
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc (tracePpr, tvId, intersperse, getDataConVarUnique, TyConInfo(..), mkTyConInfo)
 import Language.Fixpoint.Names (symSepName, funConName, listConName, tupConName, propConName, boolConName)
@@ -1413,8 +1409,8 @@ typeSort _ τ
  
 typeSortForAll tce τ 
   = genSort $ typeSort tce tbody
-  where genSort (FFunc _ t) = FFunc n (sortSubst su <$> t)
-        genSort t           = FFunc n [sortSubst su t]
+  where genSort (FFunc _ t) = FFunc n (F.sortSubst su <$> t)
+        genSort t           = FFunc n [F.sortSubst su t]
         (as, tbody)         = splitForAllTys τ 
         su                  = M.fromList $ zip sas (FVar <$>  [0..])
         sas                 = (typeUniqueSymbol . TyVarTy) <$> as
