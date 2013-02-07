@@ -24,7 +24,7 @@ import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Outputable (showPpr)
-import Language.Haskell.Liquid.FileNames (listConName, propConName, tupConName)
+import Language.Haskell.Liquid.Names (listConName, propConName, tupConName)
 
 --------------------------------------------------------------------
 

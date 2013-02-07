@@ -41,7 +41,8 @@ import qualified Data.HashMap.Strict   as M
 
 import qualified Language.Haskell.Liquid.ACSS as ACSS
 import Language.Haskell.HsColour.Classify
-import Language.Haskell.Liquid.FileNames
+import Language.Haskell.Liquid.Files
+import Language.Haskell.Liquid.Names
 import Language.Haskell.Liquid.Fixpoint
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy

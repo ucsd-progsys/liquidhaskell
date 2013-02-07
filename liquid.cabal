@@ -24,8 +24,9 @@ Executable liquid
 Library
    Build-Depends:    base, containers, hashable, unordered-containers, filepath, parsec, mtl, 
                      ghc, ghc-paths, process, directory, hscolour,
-                     text, deepseq, filemanip, bifunctors, ansi-terminal 
-  
+                     text, deepseq, filemanip, bifunctors, ansi-terminal, 
+                     liquid-fixpoint
+
   Exposed-Modules: Language.Haskell.Liquid.Bare,
                    Language.Haskell.Liquid.Constraint, 
                    Language.Haskell.Liquid.Measure, 
