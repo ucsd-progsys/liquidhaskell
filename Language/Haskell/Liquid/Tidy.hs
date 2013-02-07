@@ -9,7 +9,7 @@ import qualified Data.List           as L
 import Language.Fixpoint.Misc 
 import Language.Haskell.Liquid.GhcMisc      (stringTyVar) 
 import Language.Fixpoint.Names              (symSepName)
-import Language.Haskell.Liquid.Fixpoint
+import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 
 ---------------------------------------------------------------------

@@ -11,7 +11,7 @@ import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.CmdLine
 import Language.Haskell.Liquid.GhcInterface 
 import Language.Haskell.Liquid.Constraint       
-import Language.Haskell.Liquid.Fixpoint (sinfo, colorResult, FixResult (..))
+import Language.Fixpoint.Types (sinfo, colorResult, FixResult (..))
 import Language.Haskell.Liquid.FixInterface      
 import Language.Haskell.Liquid.TransformRec   
 import Language.Haskell.Liquid.Annotate (annotate)

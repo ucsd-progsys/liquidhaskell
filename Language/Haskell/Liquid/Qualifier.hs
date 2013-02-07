@@ -8,7 +8,7 @@ import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.PredType
-import Language.Haskell.Liquid.Fixpoint
+import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GhcMisc
 import Language.Fixpoint.Misc
 

@@ -19,7 +19,7 @@ import Control.Applicative ((<$>), (<*))
 import Data.Char (toLower, isLower, isSpace, isAlpha)
 import Data.List (partition)
 
-import Language.Haskell.Liquid.Fixpoint
+import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Outputable (showPpr)

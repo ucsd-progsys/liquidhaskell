@@ -44,7 +44,7 @@ import Data.Bifunctor
 import Data.List (foldl')
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
-import qualified Language.Haskell.Liquid.Fixpoint   as F
+import qualified Language.Fixpoint.Types            as F
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcInterface

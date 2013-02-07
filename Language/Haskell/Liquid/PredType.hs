@@ -24,8 +24,8 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.List        (partition, foldl')
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.Fixpoint hiding (Expr)
-import qualified Language.Haskell.Liquid.Fixpoint as F
+import Language.Fixpoint.Types hiding (Expr)
+import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.RefType  hiding (generalize)
 import Language.Haskell.Liquid.GhcMisc
 
