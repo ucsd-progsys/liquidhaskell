@@ -39,6 +39,7 @@ import Data.Monoid              (mconcat)
 import Data.Maybe               (fromMaybe)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
+import qualified Data.List           as L
 import Data.Bifunctor
 import Data.List (foldl')
 
@@ -50,7 +51,7 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars) 
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc          (tickSrcSpan, hasBaseTypeVar)
+import Language.Haskell.Liquid.GhcMisc          (TyConInfo(..), tickSrcSpan, hasBaseTypeVar)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Qualifier        
 import Control.DeepSeq
@@ -334,10 +335,13 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        let RApp c' t2s r2s _ = t2'
        mapM addRefSymbolsRef (safeZip "addRef1" (rTyConPs c ) r1s)
        mapM addRefSymbolsRef (safeZip "addRef2" (rTyConPs c') r2s)
-       cs'   <- concat <$> mapM splitC (zipWith (SubC γ') t1s t2s)
-       cs''  <- concat <$> mapM (rsplitC γ) (safeZip "rsplitC" r1s r2s)
+       let tyInfo = rTyConInfo c
+       cscov  <- splitCIndexed  γ' t1s t2s $ covariantTyArgs tyInfo
+       cscon  <- splitCIndexed  γ' t2s t1s $ contravariantTyArgs tyInfo
+       cscov' <- rsplitCIndexed γ' r1s r2s $ covariantPsArgs tyInfo
+       cscon' <- rsplitCIndexed γ' r2s r1s $ contravariantPsArgs tyInfo
        modify $ \s -> s{refsymbols = symss}
-       return $ cs ++ cs' ++ cs''
+       return $ cs ++ cscov ++ cscon ++ cscov' ++ cscon'
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
@@ -348,6 +352,17 @@ splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
 
 splitC c@(SubC _ t1 t2) 
   = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showPpr t1 ++ "\n\n" ++ showPpr t2
+
+splitCIndexed γ t1s t2s indexes 
+  = concatMapM splitC (zipWith (SubC γ) t1s' t2s')
+  where t1s' = (L.!!) t1s <$> indexes
+        t2s' = (L.!!) t2s <$> indexes
+
+rsplitCIndexed γ t1s t2s indexes 
+  = concatMapM (rsplitC γ) (safeZip "rsplitC" t1s' t2s')
+  where t1s' = (L.!!) t1s <$> indexes
+        t2s' = (L.!!) t2s <$> indexes
+
 
 bsplitC γ t1 t2
   = do map <- refsymbols <$> get 
@@ -448,7 +463,7 @@ initCGI info = CGInfo {
   , freshIndex = 0
   , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
-  , tyConInfo  = makeTyConInfo $ tconsP spc
+  , tyConInfo  = makeTyConInfo (tconsP spc)
   , specQuals  = specificationQualifiers info
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 

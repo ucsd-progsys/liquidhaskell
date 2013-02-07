@@ -70,7 +70,7 @@ import Text.Printf
 
 import Language.Haskell.Liquid.Fixpoint as F
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GhcMisc (tracePpr, tvId, intersperse, dropModuleNames, getDataConVarUnique)
+import Language.Haskell.Liquid.GhcMisc (tracePpr, tvId, intersperse, dropModuleNames, getDataConVarUnique, TyConInfo(..), mkTyConInfo)
 import Language.Haskell.Liquid.FileNames (symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
 
@@ -579,6 +579,7 @@ instance Hashable RTyVar where
 data RTyCon = RTyCon 
   { rTyCon     :: !TC.TyCon         -- GHC Type Constructor
   , rTyConPs   :: ![RPVar]          -- Predicate Parameters
+  , rTyConInfo :: !TyConInfo        -- TyConInfo
   }
   -- deriving (Data, Typeable)
 
@@ -606,7 +607,7 @@ normalizePds t = addPds ps t'
   where (t', ps) = nlzP [] t
 
 rPred p t = RAllP p t
-rApp c    = RApp (RTyCon c []) 
+rApp c    = RApp (RTyCon c [] (mkTyConInfo c [] [])) 
 
 
 addPds ps (RAllT v t) = RAllT v $ addPds ps t
@@ -723,7 +724,7 @@ expandRApp tyi (RApp rc ts rs r)
 expandRApp _ t
   = t
 
-appRTyCon tyi rc@(RTyCon c _) ts = RTyCon c ps'
+appRTyCon tyi rc@(RTyCon c _ _) ts = RTyCon c ps' (rTyConInfo rc')
   where ps' = map (subts (zip (RTV <$> αs) (toRSort <$> ts))) (rTyConPs rc')
         rc' = M.lookupDefault rc c tyi
         αs  = TC.tyConTyVars $ rTyCon rc'
@@ -859,7 +860,7 @@ instance Outputable (RType p c tv r) => Show (RType p c tv r) where
   show = showSDoc . ppr
 
 instance Outputable RTyCon where
-  ppr (RTyCon c _) = ppr c -- <+> text "\n<<" <+> hsep (map ppr ts) <+> text ">>\n"
+  ppr (RTyCon c _ _) = ppr c -- <+> text "\n<<" <+> hsep (map ppr ts) <+> text ">>\n"
 
 instance Show RTyCon where
  show = showPpr
