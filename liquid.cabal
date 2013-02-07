@@ -24,7 +24,7 @@ Executable liquid
 
 Library
    Build-Depends:    base, containers, hashable, unordered-containers, 
-                     filepath, parsec, mtl, 
+                     filepath, parsec, mtl, pretty, 
                      ghc, ghc-paths, process, directory, hscolour,
                      text, deepseq, filemanip, bifunctors, ansi-terminal, 
                      liquid-fixpoint

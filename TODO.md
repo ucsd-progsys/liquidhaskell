@@ -37,6 +37,9 @@ Liquid-Fixpoint
     Parse.hs        [Parse.hs]
     ???             [Qualifiers.hs]
 
+    Nuke dependency on Outputable
+
+
 BExp Parser vs. ppr_rtype [BEXPARSER]
 =====================================
 
