@@ -7,10 +7,10 @@ module Language.Haskell.Liquid.Parse (
 -- import TysWiredIn   (eqDataConId, ltDataConId, gtDataConId)
 import Control.Monad
 import Text.Parsec
-import Text.Parsec.Expr
-import Text.Parsec.Language
+-- import Text.Parsec.Expr
+-- import Text.Parsec.Language
 import Text.Parsec.String
-import Text.Printf  (printf)
+-- import Text.Printf  (printf)
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
 
@@ -21,10 +21,14 @@ import Data.List (partition)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
-import Outputable (showPpr)
+-- import Outputable (showPpr)
 import Language.Fixpoint.Names (listConName, propConName, tupConName)
-import Language.Fixpoint.Misc hiding (dcolon)
+import Language.Fixpoint.Misc hiding (dcolon, dot)
 import Language.Fixpoint.Parse 
+
+dot        = Token.dot        lexer
+braces     = Token.braces     lexer
+angles     = Token.angles     lexer
 
 ----------------------------------------------------------------------------------
 ------------------------------------ BareTypes -----------------------------------
@@ -65,7 +69,7 @@ bbaseNoAppP
  <|> liftM2 bRVar lowerIdP monoPredicateP 
 
 bareTyArgP 
-  =  try (braces $ (liftM RExprArg exprP))
+  =  try (braces $ liftM RExprArg exprP)
  <|> try bareAtomNoAppP
  -- <|> braces (liftM RExprArg exprP) -- ^ braces needed to distinguish tyvar from evar args
  <|> try (parens bareTypeP)
@@ -118,7 +122,7 @@ predVarTypeP = do t <- bareTypeP
                   let (xs, ts, t') = bkArrow $ thd3 $ bkUniv $ t
                   if isPropBareType t' 
                     then return $ zip xs (toRSort <$> ts) 
-                    else parserFail $ "Predicate Variable with non-Prop output sort: " ++ showPpr t
+                    else parserFail $ "Predicate Variable with non-Prop output sort: " ++ showFix t
 
 -- predVarTypeP 
 --   =  try ((liftM (: []) predVarArgP) <* reserved "->" <* reserved boolConName)
@@ -163,7 +167,6 @@ bbindP = lowerIdP <* dcolon
 
 bindP  = liftM stringSymbol (lowerIdP <* colon)
 
-dcolon = string "::" <* spaces
 
 bareArrow b t1 ArrowFun t2
   = rFun b t1 t2
@@ -327,11 +330,6 @@ genBareTypeP
 embedP 
   = xyP upperIdP (reserved "as") fTyConP
 
-fTyConP
-  =   (reserved "int"  >> return intFTyCon)
-  <|> (reserved "bool" >> return boolFTyCon)
-  <|> (stringFTycon   <$> upperIdP)
-
 
 aliasP  = rtAliasP id           bareTypeP
 paliasP = rtAliasP stringSymbol predP
@@ -453,54 +451,19 @@ dataDeclP
 ------------ Interacting with Fixpoint ------------------------------
 ---------------------------------------------------------------------
 
-fixResultP :: Parser a -> Parser (FixResult a)
-fixResultP pp 
-  =  (reserved "SAT"   >> return Safe)
- <|> (reserved "UNSAT" >> Unsafe <$> (brackets $ sepBy pp comma))  
- <|> (reserved "CRASH" >> crashP pp)
-
-
-
-crashP pp
-  = do i   <- pp
-       msg <- many anyChar
-       return $ Crash [i] msg
-
-predSolP 
-  = parens $ (predP  <* (comma >> iQualP)) 
-    
-
-iQualP
-  = upperIdP >> (parens $ sepBy symbolP comma)
-
-solution1P
-  = do reserved "solution:" 
-       k  <- symbolP 
-       reserved ":=" 
-       ps <- brackets $ sepBy predSolP semi
-       return (k, simplify $ PAnd ps)
-
-solutionP 
-  = M.fromList <$> sepBy solution1P whiteSpace
-
-solutionFileP 
-  = liftM2 (,) (fixResultP integer) solutionP
-
-------------------------------------------------------------------------
-
-remainderP p  
-  = do res <- p
-       str <- stateInput <$> getParserState
-       return (res, str) 
-
-doParse' parser f s
-  = case parse (remainderP p) f s of
-      Left e         -> errorstar $ printf "parseError %s\n when parsing from %s\n" 
-                                      (show e) f 
-      Right (r, "")  -> r
-      Right (_, rem) -> errorstar $ printf "doParse has leftover when parsing: %s\nfrom file %s\n"
-                                      rem f
-  where p = whiteSpace >> parser
+-- remainderP p  
+--   = do res <- p
+--        str <- stateInput <$> getParserState
+--        return (res, str) 
+-- 
+-- doParse' parser f s
+--   = case parse (remainderP p) f s of
+--       Left e         -> errorstar $ printf "parseError %s\n when parsing from %s\n" 
+--                                       (show e) f 
+--       Right (r, "")  -> r
+--       Right (_, rem) -> errorstar $ printf "doParse has leftover when parsing: %s\nfrom file %s\n"
+--                                       rem f
+--   where p = whiteSpace >> parser
 
 grabUpto p  
   =  try (lookAhead p >>= return . Just)
@@ -519,33 +482,6 @@ specWraps = betweenMany (string "{-@" >> spaces) (spaces >> string "@-}")
 ----------------------------------------------------------------------------------------
 ------------------------ Bundling Parsers into a Typeclass -----------------------------
 ----------------------------------------------------------------------------------------
-
--- NUKED class Inputable a where
--- NUKED   rr  :: String -> a
--- NUKED   rr' :: String -> String -> a
--- NUKED   rr' = \_ -> rr
--- NUKED   rr  = rr' "" 
--- NUKED 
--- NUKED instance Inputable Symbol where
--- NUKED   rr' = doParse' symbolP
--- NUKED 
--- NUKED instance Inputable Constant where
--- NUKED   rr' = doParse' constantP 
--- NUKED 
--- NUKED instance Inputable Pred where
--- NUKED   rr' = doParse' predP 
--- NUKED 
--- NUKED instance Inputable Expr where
--- NUKED   rr' = doParse' exprP 
--- NUKED 
--- NUKED instance Inputable [Refa] where
--- NUKED   rr' = doParse' refasP
--- NUKED 
--- NUKED instance Inputable (FixResult Integer) where
--- NUKED   rr' = doParse' $ fixResultP integer
--- NUKED 
--- NUKED instance Inputable (FixResult Integer, FixSolution) where
--- NUKED   rr' = doParse' solutionFileP 
 
 instance Inputable BareType where
   rr' = doParse' bareTypeP 
