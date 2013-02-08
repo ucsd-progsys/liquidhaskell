@@ -1234,12 +1234,23 @@ dataConReft c []
 dataConReft c [x] 
   | c == intDataCon 
   = reft (vv_, [RConc (PAtom Eq (EVar vv_) (EVar x))]) 
+dataConReft c _ 
+  | not $ isBaseDataCon c
+  = top
 dataConReft c xs
- = reft (vv_, [RConc (PAtom Eq (EVar vv_) dcValue)])
- where dcValue | null xs && null (dataConUnivTyVars c) 
-               = EVar $ dataConSymbol c
-               | otherwise
-               = EApp (dataConSymbol c) (EVar <$> xs)
+  = reft (vv_, [RConc (PAtom Eq (EVar vv_) dcValue)])
+  where dcValue | null xs && null (dataConUnivTyVars c) 
+                = EVar $ dataConSymbol c
+                | otherwise
+                = EApp (dataConSymbol c) (EVar <$> xs)
+
+isBaseDataCon c = and $ isBaseTy <$> dataConOrigArgTys c ++ dataConRepArgTys c
+
+isBaseTy (TyVarTy _)     = True
+isBaseTy (AppTy t1 t2)   = False
+isBaseTy (TyConApp _ ts) = and $ isBaseTy <$> ts
+isBaseTy (FunTy _ _)     = False
+isBaseTy (ForAllTy _ _)  = False
 
 mkProp x = PBexp (EApp (S propConName) [EVar x])
 
