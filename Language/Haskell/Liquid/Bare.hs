@@ -9,7 +9,8 @@
 module Language.Haskell.Liquid.Bare (GhcSpec (..), makeGhcSpec) where
 
 import GHC hiding (lookupName)	
-import Outputable
+import Outputable (showPpr)
+import Text.PrettyPrint.HughesPJ    hiding (first)
 import Var
 import PrelNames
 import PrelInfo     (wiredInThings)
@@ -141,7 +142,7 @@ meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
     ((_, π1s, _), (α2s, [], t2')) -> meet t1 (mkUnivs α2s π1s t2')
     ((α1s, [], t1'), (_, π2s, _)) -> meet (mkUnivs α1s π2s t1') t2
     _                             -> errorstar $ "meetPad: " ++ msg
-  where msg = "\nt1 = " ++ showPpr t1 ++ "\nt2 = " ++ showPpr t2
+  where msg = "\nt1 = " ++ showFix t1 ++ "\nt2 = " ++ showFix t2
  
 ------------------------------------------------------------------
 ---------- Error-Reader-IO For Bare Transformation ---------------
@@ -160,7 +161,7 @@ execBare act benv =
         Right x -> return x
 
 wrapErr msg f x
-  = f x `catchError` \e-> throwError $ "Bare Error " ++ "[" ++ msg ++ "]" ++ showPpr x ++ "(" ++ e ++ ")"
+  = f x `catchError` \e-> throwError $ "Bare Error " ++ "[" ++ msg ++ "]" ++ showFix x ++ "(" ++ e ++ ")"
 
 ------------------------------------------------------------------
 ------------------- API: Bare Refinement Types -------------------
@@ -180,12 +181,12 @@ makeAssumeSpec env vs xbs = execBare mkAspec env
 
 
 mkVarSpec (v, b) = liftM (v,) (wrapErr msg (mkSpecType msg) b)
-  where msg = "mkVarSpec fails on " ++ showPpr v ++ " :: "  ++ showPpr b 
+  where msg = "mkVarSpec fails on " ++ showFix v ++ " :: "  ++ showFix b 
 
 joinIds vs xts = vts   
-  where vm     = M.fromList [(showPpr v, v) | v <- vs]
+  where vm     = M.fromList [(showFix v, v) | v <- vs]
         vts    = catMaybes [(, t) <$> tx x | (x, t) <- xts]
-        tx x   = {- traceShow ("joinId x = " ++ showPpr x) $-} M.lookup (symbolString x) vm
+        tx x   = {- traceShow ("joinId x = " ++ showFix x) $-} M.lookup (symbolString x) vm
 
 
 makeTyConEmbeds  :: BareEnv -> TCEmb String -> IO (TCEmb TyCon) 
@@ -216,7 +217,7 @@ makeSymbols vs xs' xts yts = xvs
 -- checkSig env xt = True 
 --   forall aa. (Ord a) => [a] -> [a]<{VV : a | (VV >= fld)}>
 -- doesn't typecheck -- thanks to "fld"
--- checkSig env xt = tracePpr ("checkSig " ++ showPpr xt) $ checkSig' env xt
+-- checkSig env xt = tracePpr ("checkSig " ++ showFix xt) $ checkSig' env xt
 
 -- freeSymbols :: SpecType -> [Symbol]
 -- freeSymbols ty   = sortNub $ concat $ efoldReft f [] [] ty
@@ -247,7 +248,7 @@ swizzle =  dropModuleNames . stripParens
 instance GhcLookup Name where
   lookupName _   = return . Just
   candidates x   = [x]
-  pp             = showPpr  
+  pp             = showPpr 
 
 -- existsGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM Bool 
 -- existsGhcThing name f x 
@@ -543,7 +544,7 @@ ofBDataCon tc αs ps πs (c, xts)
  where (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
        rs       = [rVar α | RTV α <- αs] -- [RVar α pdTrue | α <- αs]
-       msg      = "ofBDataCon " ++ showPpr c ++ " with πs = " ++ showPpr πs
+       msg      = "ofBDataCon " ++ showFix c ++ " with πs = " ++ showFix πs
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: RefTypes -----------------------------
@@ -582,8 +583,8 @@ rtypePredBinds = map uPVar . snd3 . bkUniv
 -- 
 -- mismatchError      = concatMap err 
 --   where err (y, t) = [ "Specified Liquid Type Does Not Match Haskell Type"
---                      , "Haskell: " ++ showPpr y ++ " :: " ++ showPpr (varType y)
---                      , "Liquid : " ++ showPpr y ++ " :: " ++ showPpr t           ]
+--                      , "Haskell: " ++ showFix y ++ " :: " ++ showFix (varType y)
+--                      , "Liquid : " ++ showFix y ++ " :: " ++ showFix t           ]
 
 
 -------------------------------------------------------------------------------
@@ -601,27 +602,27 @@ checkGhcSpec sp      =  applyNonNull sp specError errors
                      ++ mapMaybe checkMismatch   (tySigs sp)
                      ++ checkDuplicate           (tySigs sp)
 
-specError            = errorstar . showSDoc . vcat . (text "Errors found in specification..." :)
+specError            = errorstar . render . vcat . (text "Errors found in specification..." :)
 
 checkInv emb env t   = checkTy msg emb env t 
   where msg          = text "Error in invariant specification"
-                       $+$  text "invariant " <+> ppr t
+                       $+$  text "invariant " <+> toFix t
 
 checkBind d emb env (v, t) = checkTy msg emb env t
   where msg          = text "Error in type specification for" <+> text d
-                       $+$  ppr v <+> dcolon <+> ppr t
+                       $+$  toFix v <+> dcolon <+> toFix t
 
 checkTy msg emb env t    = (msg $+$) <$> checkRType emb env t
 
 checkDuplicate xts   = err <$> dups
-  where err (x,ts)   = vcat $ (text "Multiple Specifications for" <+> ppr x) : (ppr <$> ts)
+  where err (x,ts)   = vcat $ (text "Multiple Specifications for" <+> toFix x) : (toFix <$> ts)
         dups         = [ z | z@(x, t1:t2:_) <- M.toList $ group xts ]
 
 checkMismatch (x, t) = if ok then Nothing else Just err
   where ok           = (toRSort t) == (ofType $ varType x) 
         err          = vcat [ text "Specified Liquid Type Does Not Match Haskell Type"
-                            , text "Haskell:" <+> ppr x <+> dcolon <+> ppr (varType x)
-                            , text "Liquid :" <+> ppr x <+> dcolon <+> ppr t           ]
+                            , text "Haskell:" <+> toFix x <+> dcolon <+> toFix (varType x)
+                            , text "Liquid :" <+> toFix x <+> dcolon <+> toFix t           ]
 
 ghcSpecEnv sp        = fromListSEnv binds
   where 
@@ -635,14 +636,14 @@ ghcSpecEnv sp        = fromListSEnv binds
     varRType         = ofType . varType
  
 
-checkRType           :: (Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe SDoc 
+checkRType           :: (Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe Doc 
 checkRType emb env t   = efoldReft (rTypeSortedReft emb) f env Nothing (mapBot expandParams t) 
   where f env me r err = err <|> checkReft env emb me r
 
 expandParams (RApp c ts rs r) = RApp c (fmap (addSyms (params r)) <$> ts) rs r
 expandParams t                = t
 
-checkReft            :: (Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe SDoc 
+checkReft            :: (Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe Doc 
 checkReft env emb Nothing _  = Nothing -- RMono / Ref case, not sure how to check these yet.  
 checkReft env emb (Just t) _ = checkSortedReft env xs (rTypeSortedReft emb t) 
    where xs                  = fromMaybe [] $ params <$> stripRTypeBase t 
@@ -652,6 +653,6 @@ checkSig env (x, t)
   = case filter (not . (`S.member` env)) (freeSymbols t) of
       [] -> True
       ys -> errorstar (msg ys) 
-    where msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showPpr ys) (showPpr x) (showPpr t)
+    where msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showFix ys) (showFix x) (showFix t)
 
 

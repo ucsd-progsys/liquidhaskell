@@ -218,6 +218,17 @@ instance Outputable a => Outputable (S.HashSet a) where
 
 toFixSDoc = text . PJ.render . toFix 
 sDocDoc   = PJ.text . showSDoc 
+pprDoc    = sDocDoc . ppr 
 
 typeUniqueString = {- ("sort_" ++) . -} showSDocDump . ppr
+
+
+instance Fixpoint Var where
+  toFix = pprDoc 
+
+instance Fixpoint Name where
+  toFix = pprDoc 
+
+instance Fixpoint Type where
+  toFix = pprDoc
 
