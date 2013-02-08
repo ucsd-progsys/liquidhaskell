@@ -493,7 +493,7 @@ instance (Reftable r, RefTypable p c tv r) => Reftable (Ref r (RType p c tv r)) 
   toReft            = errorstar "RefType: Reftable toReft"
   params            = errorstar "RefType: Reftable params for Ref"
   fSyms (RMono r)   = fSyms r
-  fSyms (RPoly _)   = errorstar "RefType: Reftable fSyms in RPoly"
+  fSyms (RPoly t)   = fromMaybe [] $ fmap fSyms $ stripRTypeBase t
 
 
 -- TyConable Instances -------------------------------------------------------
