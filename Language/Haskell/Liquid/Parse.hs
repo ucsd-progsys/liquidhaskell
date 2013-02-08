@@ -1,8 +1,7 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections #-}
 
 module Language.Haskell.Liquid.Parse (
-  Inputable (..)
-, hsSpecificationP
+  hsSpecificationP
 ) where
 
 -- import TysWiredIn   (eqDataConId, ltDataConId, gtDataConId)
@@ -24,209 +23,8 @@ import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Outputable (showPpr)
 import Language.Fixpoint.Names (listConName, propConName, tupConName)
-import Language.Fixpoint.Misc
-
---------------------------------------------------------------------
-
-languageDef =
-  emptyDef { Token.commentStart    = "/*"
-           , Token.commentEnd      = "*/"
-           , Token.commentLine     = "--"
-           , Token.identStart      = satisfy (\_ -> False) 
-           , Token.identLetter     = satisfy (\_ -> False)
-           , Token.reservedNames   = [ "SAT"
-                                     , "UNSAT"
-                                     , "true"
-                                     , "false"
-                                     , "mod"
-                                     , "data"
-                                     , "Bexp"
-                                     , "forall"
-                                     , "exists"
-                                     , "assume"
-                                     , "measure"
-                                     , "module"
-                                     , "spec"
-                                     , "where"
-                                     , "True"
-                                     , "Int"
-                                     , "import"
-                                     , "_|_"
-                                     , "|"
-                                     , "if", "then", "else"
-                                     ]
-           , Token.reservedOpNames = [ "+", "-", "*", "/", "\\"
-                                     , "<", ">", "<=", ">=", "=", "!=" , "/="
-                                     , "mod", "and", "or" 
-                                   --, "is"
-                                     , "&&", "||"
-                                     , "~", "=>", "<=>"
-                                     , "->"
-                                     , ":="
-                                     , "&", "^", "<<", ">>", "--"
-                                     , "?", "Bexp" -- , "'"
-                                     ]
-           }
-
-lexer      = Token.makeTokenParser languageDef
-reserved   = Token.reserved   lexer
-reservedOp = Token.reservedOp lexer
-parens     = Token.parens     lexer
-brackets   = Token.brackets   lexer
-braces     = Token.braces     lexer
-angles     = Token.angles     lexer
-semi       = Token.semi       lexer
-colon      = Token.colon      lexer
-comma      = Token.comma      lexer
-dot        = Token.dot        lexer
-whiteSpace = Token.whiteSpace lexer
--- identifier = Token.identifier lexer
-
-
-blanks  = many (satisfy (`elem` [' ', '\t']))
-
-integer =   try (liftM toInt is) 
-       <|>  liftM (negate . toInt) (char '-' >> is)
-  where is      = liftM2 (\is _ -> is) (many1 digit) blanks 
-        toInt s = (read s) :: Integer 
-
-----------------------------------------------------------------
-------------------------- Expressions --------------------------
-----------------------------------------------------------------
-
-condIdP  :: [Char] -> (String -> Bool) -> Parser String
-condIdP chars f 
-  = do c  <- letter
-       cs <- many (satisfy (`elem` chars))
-       blanks
-       if f (c:cs) then return (c:cs) else parserZero
-
-tyVarIdP :: Parser String
-tyVarIdP = condIdP alphanums (isLower . head) 
-           where alphanums = ['a'..'z'] ++ ['0'..'9']
-
-lowerIdP :: Parser String
-lowerIdP = condIdP symChars (isLower . head)
-
-upperIdP :: Parser String
-upperIdP = condIdP symChars (not . isLower . head)
-
-symbolP :: Parser Symbol
-symbolP = liftM stringSymbol symCharsP 
-
-constantP :: Parser Constant
-constantP = liftM I integer
-
-exprP :: Parser Expr 
-exprP =  expr2P <|> lexprP
-
-lexprP :: Parser Expr 
-lexprP   
-  =  try (parens exprP)
- <|> try (parens exprCastP)
- <|> try (parens $ condP EIte exprP)
- <|> try exprFunP
- <|> try (liftM (EVar . stringSymbol) upperIdP)
- <|> liftM EVar symbolP
- <|> liftM ECon constantP
- <|> (reserved "_|_" >> return EBot)
-
-exprFunP           =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
-  where 
-    exprFunSpacesP = parens $ liftM2 EApp funSymbolP (sepBy exprP spaces) 
-    exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
-    exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
-    funSymbolP     = symbolP -- liftM stringSymbol lowerIdP
-
-
-parenBrackets  = parens . brackets 
-
-expr2P = buildExpressionParser bops lexprP
-
-bops = [ [Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft]
-       , [Infix  (reservedOp "/"   >> return (EBin Div  )) AssocLeft]
-       , [Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft]
-       , [Infix  (reservedOp "-"   >> return (EBin Minus)) AssocLeft]
-       , [Infix  (reservedOp "mod" >> return (EBin Mod  )) AssocLeft]
-       ]
-
-exprCastP
-  = do e  <- exprP 
-       ((try dcolon) <|> colon)
-       so <- sortP
-       return $ ECst e so
-
-sortP
-  =   try (string "Integer" >> return FInt)
-  <|> try (string "Int"     >> return FInt)
-  <|> try (string "int"     >> return FInt)
---   <|> (symCharsP >>= return . FPtr . FLoc . stringSymbol) 
-
-
-symCharsP = (condIdP symChars (\_ -> True))
-
----------------------------------------------------------------------
--------------------------- Predicates -------------------------------
----------------------------------------------------------------------
-
-predP :: Parser Pred
-predP =  try (parens pred2P)
-     <|> try (parens $ condP pIte predP)
-     <|> try (reservedOp "not" >> liftM PNot predP)
-     <|> try (reservedOp "&&" >> liftM PAnd predsP)
-     <|> try (reservedOp "||" >> liftM POr  predsP)
-     <|> (qmP >> liftM PBexp exprP)
-     <|> (reserved "true"  >> return PTrue)
-     <|> (reserved "false" >> return PFalse)
-     <|> (try predrP)
-     <|> (try (liftM PBexp exprFunP))
-
-qmP    = reserved "?" <|> reserved "Bexp"
-
-pred2P = buildExpressionParser lops predP 
-
-predsP = brackets $ sepBy predP semi
-
-lops = [ [Prefix (reservedOp "~"   >> return PNot)]
-       , [Infix  (reservedOp "&&"  >> return (\x y -> PAnd [x,y])) AssocRight]
-       , [Infix  (reservedOp "||"  >> return (\x y -> POr  [x,y])) AssocRight]
-       , [Infix  (reservedOp "=>"  >> return PImp) AssocRight]
-       , [Infix  (reservedOp "<=>" >> return PIff) AssocRight]]
-       
-predrP = do e1    <- expr2P
-            r     <- brelP
-            e2    <- expr2P 
-            return $ r e1 e2
-
-brelP ::  Parser (Expr -> Expr -> Pred)
-brelP =  (reservedOp "="  >> return (PAtom Eq))
-     <|> (reservedOp "!=" >> return (PAtom Ne))
-     <|> (reservedOp "/=" >> return (PAtom Ne))
-     <|> (reservedOp "<"  >> return (PAtom Lt))
-     <|> (reservedOp "<=" >> return (PAtom Le))
-     <|> (reservedOp ">"  >> return (PAtom Gt))
-     <|> (reservedOp ">=" >> return (PAtom Ge))
-
-condIteP f bodyP 
-  = do reserved "if" 
-       p <- predP
-       reserved "then"
-       b1 <- bodyP 
-       reserved "else"
-       b2 <- bodyP 
-       return $ f p b1 b2
-
-condQmP f bodyP 
-  = do p  <- predP 
-       reserved "?"
-       b1 <- bodyP 
-       colon
-       b2 <- bodyP 
-       return $ f p b1 b2
-
-condP f bodyP 
-   =   try (condIteP f bodyP)
-   <|> (condQmP f bodyP)
+import Language.Fixpoint.Misc hiding (dcolon)
+import Language.Fixpoint.Parse 
 
 ----------------------------------------------------------------------------------
 ------------------------------------ BareTypes -----------------------------------
@@ -296,6 +94,10 @@ bareAllP
        dot
        t  <- bareTypeP
        return $ foldr RAllT (foldr RAllP t ps) as
+
+tyVarIdP :: Parser String
+tyVarIdP = condIdP alphanums (isLower . head) 
+           where alphanums = ['a'..'z'] ++ ['0'..'9']
 
 predVarDefsP 
   =  try (angles $ sepBy1 predVarDefP comma)
@@ -718,32 +520,32 @@ specWraps = betweenMany (string "{-@" >> spaces) (spaces >> string "@-}")
 ------------------------ Bundling Parsers into a Typeclass -----------------------------
 ----------------------------------------------------------------------------------------
 
-class Inputable a where
-  rr  :: String -> a
-  rr' :: String -> String -> a
-  rr' = \_ -> rr
-  rr  = rr' "" 
-
-instance Inputable Symbol where
-  rr' = doParse' symbolP
-
-instance Inputable Constant where
-  rr' = doParse' constantP 
-
-instance Inputable Pred where
-  rr' = doParse' predP 
-
-instance Inputable Expr where
-  rr' = doParse' exprP 
-
-instance Inputable [Refa] where
-  rr' = doParse' refasP
-
-instance Inputable (FixResult Integer) where
-  rr' = doParse' $ fixResultP integer
-
-instance Inputable (FixResult Integer, FixSolution) where
-  rr' = doParse' solutionFileP 
+-- NUKED class Inputable a where
+-- NUKED   rr  :: String -> a
+-- NUKED   rr' :: String -> String -> a
+-- NUKED   rr' = \_ -> rr
+-- NUKED   rr  = rr' "" 
+-- NUKED 
+-- NUKED instance Inputable Symbol where
+-- NUKED   rr' = doParse' symbolP
+-- NUKED 
+-- NUKED instance Inputable Constant where
+-- NUKED   rr' = doParse' constantP 
+-- NUKED 
+-- NUKED instance Inputable Pred where
+-- NUKED   rr' = doParse' predP 
+-- NUKED 
+-- NUKED instance Inputable Expr where
+-- NUKED   rr' = doParse' exprP 
+-- NUKED 
+-- NUKED instance Inputable [Refa] where
+-- NUKED   rr' = doParse' refasP
+-- NUKED 
+-- NUKED instance Inputable (FixResult Integer) where
+-- NUKED   rr' = doParse' $ fixResultP integer
+-- NUKED 
+-- NUKED instance Inputable (FixResult Integer, FixSolution) where
+-- NUKED   rr' = doParse' solutionFileP 
 
 instance Inputable BareType where
   rr' = doParse' bareTypeP 
