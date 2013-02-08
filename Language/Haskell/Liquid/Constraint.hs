@@ -30,7 +30,9 @@ import PrelInfo         (isNumericClass)
 import Var
 import Id
 import Name             (getSrcSpan)
-import Outputable   hiding (empty)
+import Outputable       (showPpr)
+import Text.PrettyPrint.HughesPJ
+
 import Control.Monad.State
 
 import Control.Exception.Base
@@ -51,7 +53,7 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars) 
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc          (TyConInfo(..), tickSrcSpan, hasBaseTypeVar)
+import Language.Haskell.Liquid.GhcMisc          (pprDoc, TyConInfo(..), tickSrcSpan, hasBaseTypeVar)
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Qualifier        
 import Control.DeepSeq
@@ -126,7 +128,7 @@ data CGEnv
         , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
         , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
         , penv   :: !(F.SEnv PrType)   -- ^ PrTypes for top-level bindings (merge with renv) 
-        , fenv   :: !F.IBindEnv        -- ^ Integer Keys for Fixpoint Environment
+        , fenv   :: !F.IBindEnv        -- ^ Integer Keys for F.Fixpoint Environment
         , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
         , invs   :: !RTyConInv         -- ^ Datatype invariants 
         , grtys  :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
@@ -135,11 +137,11 @@ data CGEnv
         , tgKey :: !(Maybe Tg.TagKey)  -- ^ Current top-level binder
         } -- deriving (Data, Typeable)
 
-instance Outputable CGEnv where
-  ppr = ppr . renv
+instance F.Fixpoint CGEnv where
+  toFix = F.toFix . renv
 
 instance Show CGEnv where
-  show = showPpr
+  show = F.showFix
 
 getTag :: CGEnv -> F.Tag
 getTag γ = maybe Tg.defaultTag (`Tg.getTag` (tgEnv γ)) (tgKey γ)
@@ -195,25 +197,17 @@ data WfC      = WfC  !CGEnv !SpecType
 type FixSubC  = F.SubC Cinfo
 type FixWfC   = F.WfC Cinfo
 
-instance Outputable SubC where
-  ppr c = ppr (senv c) <> blankLine 
-          $+$ ((text " |- ") <+>   ( (ppr (lhs c)) 
-                                  $+$ text "<:" 
-                                  $+$ (ppr (rhs c))))
-          $+$ blankLine
-          $+$ blankLine
+instance F.Fixpoint SubC where
+  toFix c = F.toFix (senv c)
+          $+$ ((text " |- ") <+> ( (F.toFix (lhs c)) 
+                             $+$ text "<:" 
+                             $+$ (F.toFix (rhs c))))
 
-instance Outputable WfC where
-  ppr (WfC w r)    = ppr w <> blankLine <> text " |- " <> ppr r <> blankLine <> blankLine 
+instance F.Fixpoint WfC where
+  toFix (WfC w r) = F.toFix w <> text " |- " <> F.toFix r 
 
-instance Outputable Cinfo where
-  ppr (Ci src) = ppr src
-
---instance Outputable a => Outputable (F.SubC a) where
---  -- ppr (F.SubC {F.sinfo = s}) = text "Liquid Type Error: " <> ppr s
---  ppr
---instance Outputable a => Outputable (F.WfC a) where
---  ppr (F.SubC {F.sinfo = s}) = text "Liquid Type Error: " <> ppr s
+instance F.Fixpoint Cinfo where
+  toFix (Ci src)  = pprDoc src
 
 ------------------------------------------------------------
 ------------------- Constraint Splitting -------------------
@@ -254,7 +248,7 @@ splitW (WfC γ t@(RApp _ ts rs _))
         return $ ws ++ ws' ++ ws''
 
 splitW (WfC _ t) 
-  = errorstar $ "splitW cannot handle: " ++ showPpr t
+  = errorstar $ "splitW cannot handle: " ++ F.showFix t
 
 rsplitW _ (RMono _)  = errorstar "Constrains: rsplitW for RMono"
 rsplitW γ (RPoly t0) = splitW $ WfC γ t0
@@ -314,7 +308,7 @@ splitC (SubC γ t1 (RAllP p t))
         su = (uPVar p, pVartoRConc p)
 
 splitC (SubC _ t1@(RAllP _ _) t2) 
-  = errorstar $ "Predicate in lhs of constrain:" ++ showPpr t1 ++ "\n<:\n" ++ showPpr t2
+  = errorstar $ "Predicate in lhs of constrain:" ++ F.showFix t1 ++ "\n<:\n" ++ F.showFix t2
 --   = splitC $ SubC γ t' t2
 --   where t' = fmap (replacePredsWithRefs su) t
 --        su = (uPVar p, pVartoRConc p)
@@ -351,7 +345,7 @@ splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
   = return []
 
 splitC c@(SubC _ t1 t2) 
-  = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showPpr t1 ++ "\n\n" ++ showPpr t2
+  = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ F.showFix t1 ++ "\n\n" ++ F.showFix t2
 
 splitCIndexed γ t1s t2s indexes 
   = concatMapM splitC (zipWith (SubC γ) t1s' t2s')
@@ -372,7 +366,7 @@ bsplitC γ t1 t2
   where t1'          = fmap dropSyms t1
         t2'          = fmap dropSyms t2
         lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
-        errormsg x   = errorstar $ "Not found " ++ showPpr x
+        errormsg x   = errorstar $ "Not found " ++ F.showFix x
 
 bsplitC' γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
@@ -389,7 +383,7 @@ bsplitC' γ t1 t2
 
 -- unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
 -- unifyVV t1 t2 = do z <- unifyVV' t1 t2 
---                   return $ traceShow ("unifyVV \nt1 = " ++ showPpr t1 ++ "\nt2 = " ++ showPpr t2) z 
+--                   return $ traceShow ("unifyVV \nt1 = " ++ F.showFix t1 ++ "\nt2 = " ++ F.showFix t2) z 
 
 unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
@@ -410,7 +404,7 @@ rsplitC γ (RPoly r1, RPoly r2)
         r1'          = fmap dropSyms r1
         r2'          = fmap dropSyms r2
         lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
-        errormsg x   = errorstar $ "Not found " ++ showPpr x
+        errormsg x   = errorstar $ "Not found " ++ F.showFix x
 
 rsplitC _ _  
   = errorstar "rsplit Rpoly - RMono"
@@ -428,29 +422,29 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , binds      :: !F.BindEnv 
                      , annotMap   :: !(AnnInfo Annot) 
                      , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) 
-                     , specQuals  :: ![Qualifier]
+                     , specQuals  :: ![F.Qualifier]
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
                      , lits       :: ![(F.Symbol, F.Sort)]
                      , refsymbols :: !(F.SEnv SpecType)
                      } -- deriving (Data, Typeable)
 
-instance Outputable CGInfo where 
-  ppr cgi =  {-# SCC "ppr_CGI" #-} ppr_CGInfo cgi
+instance F.Fixpoint CGInfo where 
+  toFix cgi =  {-# SCC "ppr_CGI" #-} ppr_CGInfo cgi
 
 ppr_CGInfo cgi 
   =  (text "*********** Haskell SubConstraints ***********")
-  $$ (ppr $ hsCs  cgi)
+  $$ (F.toFix $ hsCs  cgi)
   $$ (text "*********** Haskell WFConstraints ************")
-  $$ (ppr $ hsWfs cgi)
-  $$ (text "*********** Fixpoint SubConstraints **********")
-  $$ (ppr $ fixCs cgi)
-  $$ (text "*********** Fixpoint WFConstraints ************")
-  $$ (ppr $ fixWfs cgi)
-  $$ (text "*********** Fixpoint Kut Variables ************")
-  $$ (ppr $ kuts cgi)
+  $$ (F.toFix $ hsWfs cgi)
+  $$ (text "*********** F.Fixpoint SubConstraints **********")
+  $$ (F.toFix $ fixCs cgi)
+  $$ (text "*********** F.Fixpoint WFConstraints ************")
+  $$ (F.toFix $ fixWfs cgi)
+  $$ (text "*********** F.Fixpoint Kut Variables ************")
+  $$ (F.toFix $ kuts cgi)
   $$ (text "*********** Literals in Source     ************")
-  $$ (ppr $ lits cgi)
+  $$ (F.toFix $ lits cgi)
 
 type CG = State CGInfo
 
@@ -510,19 +504,19 @@ extendEnvWithVV γ t
   =  γ ++= (msg, x, r) 
   where err = errorstar $ msg ++ " Duplicate binding for " 
                               ++ F.symbolString x 
-                              ++ "\n New: " ++ showPpr r
-                              ++ "\n Old: " ++ showPpr (x `lookupREnv` (renv γ))
+                              ++ "\n New: " ++ F.showFix r
+                              ++ "\n Old: " ++ F.showFix (x `lookupREnv` (renv γ))
                         
 γ -= x =  γ {renv = deleteREnv x (renv γ)}
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
          where err = errorstar $ "EnvLookup: unknown " 
-                               ++ showPpr x 
+                               ++ F.showFix x 
                                ++ " in renv " 
-                               ++ showPpr (renv γ)
+                               ++ F.showFix (renv γ)
 
-normalize' γ x idx t = traceShow ("normalize " ++ showPpr x ++ " idx = " ++ show idx ++ " t = " ++ showPpr t) $ normalize γ idx t
+normalize' γ x idx t = traceShow ("normalize " ++ F.showFix x ++ " idx = " ++ show idx ++ " t = " ++ F.showFix t) $ normalize γ idx t
 
 normalize γ idx 
   = addRTyConInv (invs γ) 
@@ -541,7 +535,7 @@ shiftVV t@(RApp _ ts _ r) vv'
       { rt_reft = (fFReft  (`F.shiftVV` vv')) <$> r }
 
 shiftVV t _ 
-  = t -- errorstar $ "shiftVV: cannot handle " ++ showPpr t
+  = t -- errorstar $ "shiftVV: cannot handle " ++ F.showFix t
 
 addRefSymbols ss
   = modify $ \s -> s{refsymbols = foldl' (\e (x, t) -> F.insertSEnv x t e) (refsymbols s) ss}
@@ -557,7 +551,7 @@ addBind x r
   = do st          <- get
        let (i, bs') = F.insertBindEnv x r (binds st)
        put          $ st { binds = bs' }
-       return i -- traceShow ("addBind: " ++ showPpr x) i
+       return i -- traceShow ("addBind: " ++ F.showFix x) i
 
 addClassBind :: SpecType -> CG [F.BindId] -- F.FEnv -> F.FEnv
 addClassBind (RCls c ts)
@@ -571,7 +565,7 @@ addClassBind _
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) _
-  = -- trace ("addC" ++ showPpr t1 ++ "\n <: \n" ++ showPpr t2 ) $
+  = -- trace ("addC" ++ F.showFix t1 ++ "\n <: \n" ++ F.showFix t2 ) $
      modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addW   :: WfC -> CG ()  
@@ -590,7 +584,7 @@ addKuts !t = modify $ \s -> s { kuts = {- tracePpr "KUTS: " $-} updKuts (kuts s)
 addIdA :: Var -> Annot -> CG ()
 addIdA !x !t         = modify $ \s -> s { annotMap = upd $ annotMap s }
   where loc          = getSrcSpan x
-        upd m@(AI z) = -- trace ("addIdA: " ++ show x ++ " :: " ++ showPpr t ++ " at " ++ show loc) $ 
+        upd m@(AI z) = -- trace ("addIdA: " ++ show x ++ " :: " ++ F.showFix t ++ " at " ++ show loc) $ 
                        addA loc (Just x) t m
                        --case traceShow ("addIdA: " ++ show x ++ " :: " ++ show t ++ " at " ++ show loc) $ M.lookup loc z of 
                        --  Just (_, (Left _)) -> m 
@@ -634,8 +628,8 @@ freshTy _ = liftM uRType . refresh . ofType
 
 -- To revert to the old setup, just do
 -- freshTy_pretty = freshTy
--- freshTy_pretty e τ = refresh $ {-traceShow ("exprRefType: " ++ showPpr e) $-} exprRefType e
-freshTy_pretty e _ = do t <- refresh $ {-traceShow ("exprRefType: " ++ showPpr e) $-} exprRefType e
+-- freshTy_pretty e τ = refresh $ {-traceShow ("exprRefType: " ++ F.showFix e) $-} exprRefType e
+freshTy_pretty e _ = do t <- refresh $ {-traceShow ("exprRefType: " ++ F.showFix e) $-} exprRefType e
                         return $ uRType t
 
 
@@ -838,7 +832,7 @@ cconsE γ (Lam x e) (RFun y ty t _)
 
 cconsE γ (Tick tt e) t   
   = cconsE (γ `setLoc` tt') e t
-    where tt' = {- traceShow ("tickSrcSpan: e = " ++ showPpr e) $ -} tickSrcSpan tt
+    where tt' = {- traceShow ("tickSrcSpan: e = " ++ F.showFix e) $ -} tickSrcSpan tt
 
 cconsE γ (Cast e _) t     
   = cconsE γ e t 
@@ -969,7 +963,7 @@ unfoldR td (RApp _ ts rs _) ys = (t3, yts, rt)
 unfoldR _  _                _  = error "Constraint.hs : unfoldR"
 
 instance Show CoreExpr where
-  show = showSDoc . ppr
+  show = showPpr
 
 checkTyCon _ t@(RApp _ _ _ _) = t
 checkTyCon x t                = checkErr x t --errorstar $ showPpr x ++ "type: " ++ showPpr t
@@ -983,7 +977,7 @@ checkFun x t                  = checkErr x t
 checkAll _ t@(RAllT _ _)      = t
 checkAll x t                  = checkErr x t
 
-checkErr (msg, e) t          = errorstar $ msg ++ showPpr e ++ "type: " ++ showPpr t
+checkErr (msg, e) t          = errorstar $ msg ++ showPpr e ++ "type: " ++ F.showFix t
 
 varAnn γ x t 
   | x `S.member` recs γ
@@ -993,7 +987,7 @@ varAnn γ x t
 
 getSrcSpan' x 
   | loc == noSrcSpan
-  = trace ("myGetSrcSpan: No Location for: " ++ showPpr x) $ loc
+  = traceShow ("myGetSrcSpan: No Location for: " ++ showPpr x) $ loc
   | otherwise
   = loc
   where loc = getSrcSpan x
@@ -1025,7 +1019,7 @@ argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 argExpr _ (Var vy)    = Just $ F.EVar $ varSymbol vy
 argExpr γ (Lit c)     = Just $ snd $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
-argExpr _ e           = errorstar $ "argExpr: " ++ (showPpr e)
+argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
 
 varRefType γ x =  t 
   where t  = (γ ?= (varSymbol x)) `strengthen` xr
@@ -1080,7 +1074,7 @@ instance NFData CGInfo where
           ({-# SCC "CGIrnf10" #-} rnf (lits x)) 
 
 -------------------------------------------------------------------------------
---------------------- Reftypes from Fixpoint Expressions ----------------------
+--------------------- Reftypes from F.Fixpoint Expressions ----------------------
 -------------------------------------------------------------------------------
 
 existentialRefType     :: CGEnv -> SpecType -> SpecType
@@ -1101,7 +1095,7 @@ exReft _ e             = F.exprReft e
 exReftLookup γ x       = γ ?= x' 
   where x'             = fromMaybe err (varSymbol <$> F.lookupSEnv x γ')
         γ'             = syenv γ
-        err            = errorstar $ "exReftLookup: unknown " ++ showPpr x ++ " in " ++ showPpr  γ'
+        err            = errorstar $ "exReftLookup: unknown " ++ F.showFix x ++ " in " ++ F.showFix  γ'
 -- withReft (RApp c ts rs _) r' = RApp c ts rs r' 
 -- withReft (RVar a _) r'       = RVar a      r' 
 -- withReft t _                 = t 
@@ -1172,7 +1166,7 @@ addRTyConInv m t@(RApp c _ _ _)
 addRTyConInv _ t 
   = t 
 
-conjoinInvariant' t1 t2 = -- traceShow ("conjoinInvariant: t1 = " ++ showPpr t1 ++ " t2 = " ++ showPpr t2) $
+conjoinInvariant' t1 t2 = -- traceShow ("conjoinInvariant: t1 = " ++ F.showFix t1 ++ " t2 = " ++ F.showFix t2) $
                           conjoinInvariantShift t1 t2
 
 conjoinInvariantShift t1 t2
@@ -1197,9 +1191,9 @@ conjoinInvariant t _
 
 newtype REnv = REnv  (M.HashMap F.Symbol SpecType) -- deriving (Data, Typeable)
 
-instance Outputable REnv where
-  ppr (REnv m)         = vcat $ map pprxt $ M.toList m
-    where pprxt (x, t) = ppr x <> dcolon <> ppr t  
+instance F.Fixpoint REnv where
+  toFix (REnv m)     = vcat $ map pprxt $ M.toList m
+    where pprxt (x, t) = F.toFix x <> dcolon <> F.toFix t  
 
 instance NFData REnv where
   rnf (REnv _) = () -- rnf m

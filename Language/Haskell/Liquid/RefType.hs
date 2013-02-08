@@ -66,14 +66,12 @@ import Text.Printf
 
 import Text.PrettyPrint.HughesPJ
 
-import Language.Fixpoint.Types as F
+import Language.Fixpoint.Types hiding (params)
+
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc (sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, TyConInfo(..), mkTyConInfo)
 import Language.Fixpoint.Names (symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
-
--- MOVE TO Language.Fixpoint.Misc
-intersperse d ds = hsep $ punctuate (space <> d) ds
 
 --------------------------------------------------------------------
 -- | Predicate Variables -------------------------------------------
@@ -157,7 +155,7 @@ findPVar :: [PVar (RType p c tv ())] -> UsedPVar -> PVar (RType p c tv ())
 findPVar ps p 
   = PV name ty $ zipWith (\(_, _, e) (t, s, _) -> (t, s, e))(pargs p) args
   where PV name ty args = fromMaybe (msg p) $ L.find ((==(pname p)) . pname) ps
-        msg p = errorstar $ "RefType.findPVar" ++ F.showFix p ++ "not found"
+        msg p = errorstar $ "RefType.findPVar" ++ showFix p ++ "not found"
 
 --------------------------------------------------------------------
 ---- Unified Representation of Refinement Types --------------------
@@ -400,7 +398,7 @@ instance Subable Predicate where
   substf f (Pr pvs) = Pr (substf f <$> pvs)
   substa f (Pr pvs) = Pr (substa f <$> pvs)
 
-instance Subable (Ref F.Reft RefType) where
+instance Subable (Ref Reft RefType) where
   syms (RMono r)     = syms r
   syms (RPoly r)     = syms r
 
@@ -663,7 +661,7 @@ strengthenRefType t1 t2
   = errorstar msg 
   where eqt t1 t2 = {- render -} (toRSort t1) == {- render -} (toRSort t2)
         msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
-                (F.showFix t1) (F.showFix (toRSort t1)) (F.showFix t2) (F.showFix (toRSort t2))
+                (showFix t1) (showFix (toRSort t1)) (showFix t2) (showFix (toRSort t2))
 
 unifyShape :: ( RefTypable p c tv r
               , FreeVar c tv
@@ -680,7 +678,7 @@ unifyShape (RAllT a1 t1) (RAllT a2 t2)
 unifyShape t1 t2  
   | eqt t1 t2     = Just t1
   | otherwise     = Nothing
-  where eqt t1 t2 = F.showFix (toRSort t1) == F.showFix (toRSort t2)
+  where eqt t1 t2 = showFix (toRSort t1) == showFix (toRSort t2)
          
 -- strengthenRefType_ :: RefTypable p c tv r =>RType p c tv r -> RType p c tv r -> RType p c tv r
 strengthenRefType_ (RAllT a1 t1) (RAllT _ t2)
@@ -703,12 +701,12 @@ strengthenRefType_ (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
   = RApp tid ts rs (r1 `meet` r2)
     where ts  = zipWith strengthenRefType_ t1s t2s
           rs  = {- tracePpr msg $ -} meets rs1 rs2
-          msg = "strengthenRefType_: RApp rs1 = " ++ F.showFix rs1 ++ " rs2 = " ++ F.showFix rs2
+          msg = "strengthenRefType_: RApp rs1 = " ++ showFix rs1 ++ " rs2 = " ++ showFix rs2
 
 
 strengthenRefType_ (RVar v1 r1)  (RVar _ r2)
   = RVar v1 ({- tracePpr msg $ -} r1 `meet` r2)
-    where msg = "strengthenRefType_: RVAR r1 = " ++ F.showFix r1 ++ " r2 = " ++ F.showFix r2
+    where msg = "strengthenRefType_: RVAR r1 = " ++ showFix r1 ++ " r2 = " ++ showFix r2
  
 strengthenRefType_ t1 _ 
   = t1
@@ -740,7 +738,7 @@ appRTyCon tyi rc@(RTyCon c _ _) ts = RTyCon c ps' (rTyConInfo rc')
         αs  = TC.tyConTyVars $ rTyCon rc'
 
 appRefts rc [] = RPoly . ofRSort . ptype <$> (rTyConPs rc)
-appRefts rc rs = safeZipWith ("appRefts" ++ F.showFix rc) toPoly rs (ptype <$> (rTyConPs rc))
+appRefts rc rs = safeZipWith ("appRefts" ++ showFix rc) toPoly rs (ptype <$> (rTyConPs rc))
 
 toPoly (RPoly t) _ = RPoly t
 toPoly (RMono r) t = RPoly $ (ofRSort t) `strengthen` r  
@@ -841,7 +839,7 @@ instance Fixpoint RTyVar where
   toFix (RTV α) = ppr_tyvar_short α -- ppr_tyvar α 
 
 instance Show RTyVar where
-  show = F.showFix
+  show = showFix
 
 instance (Reftable s, Fixpoint p) => Fixpoint (Ref s p) where
   toFix (RMono s) = toFix s
@@ -854,7 +852,7 @@ instance (Reftable r) => Fixpoint (UReft r) where
     | otherwise  = toFix p <> text " & " <> toFix r
 
 instance Fixpoint (UReft r) => Show (UReft r) where
-  show = F.showFix
+  show = showFix
 
 instance Fixpoint (PVar t) where
   toFix (PV s _ xts) = toFix s <+> hsep (toFix <$> dargs xts)<+> toFix (length xts)
@@ -867,13 +865,13 @@ instance (RefTypable p c tv r) => Fixpoint (RType p c tv r) where
   toFix = ppRType TopPrec
 
 instance Fixpoint (RType p c tv r) => Show (RType p c tv r) where
-  show = F.showFix
+  show = showFix
 
 instance Fixpoint RTyCon where
   toFix (RTyCon c _ _) = text $ showPpr c -- <+> text "\n<<" <+> hsep (map toFix ts) <+> text ">>\n"
 
 instance Show RTyCon where
- show = F.showFix  
+ show = showFix  
 
 ppr_rtype :: (RefTypable p c tv (), RefTypable p c tv r) 
           => Bool           -- ^ Whether to print reftPs or not e.g. [a]<...> 
@@ -986,7 +984,7 @@ mapReft ::  (r1 -> r2) -> RType p c tv r1 -> RType p c tv r2
 mapReft f = emapReft (\_ -> f) []
 
 
-emapReft ::  ([F.Symbol] -> r1 -> r2) -> [F.Symbol] -> RType p c tv r1 -> RType p c tv r2
+emapReft ::  ([Symbol] -> r1 -> r2) -> [Symbol] -> RType p c tv r1 -> RType p c tv r2
 
 emapReft f γ (RVar α r)          = RVar  α (f γ r)
 emapReft f γ (RAllT α t)         = RAllT α (emapReft f γ t)
@@ -999,7 +997,7 @@ emapReft _ _ (RExprArg e)        = RExprArg e
 emapReft f γ (RAppTy t t' r)     = RAppTy (emapReft f γ t) (emapReft f γ t') (f γ r)
 emapReft _ _ (ROth s)            = ROth  s 
 
-emapRef :: ([F.Symbol] -> t -> s) ->  [F.Symbol] -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
+emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> Ref t (RType p c tv t) -> Ref s (RType p c tv s)
 emapRef  f γ (RMono r)           = RMono $ f γ r
 emapRef  f γ (RPoly t)           = RPoly $ emapReft f γ t
 
@@ -1023,7 +1021,7 @@ mapRefM  f (RMono r)          = liftM   RMono       (f r)
 mapRefM  f (RPoly t)          = liftM   RPoly       (mapReftM f t)
 
 -- foldReft :: (r -> a -> a) -> a -> RType p c tv r -> a
-foldReft f = efoldReft (\_ -> ()) (\_ _ -> f) F.emptySEnv 
+foldReft f = efoldReft (\_ -> ()) (\_ _ -> f) emptySEnv 
 
 -- efoldReft :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> RType p c tv r -> a
 efoldReft g f γ z me@(RVar _ r)       = f γ (Just me) r z 
@@ -1097,7 +1095,7 @@ subsFree _ _ _ t@(ROth _)
   = t
 
 -- subsFree _ _ _ t      
---   = errorstar $ "subsFree fails on: " ++ F.showFix t
+--   = errorstar $ "subsFree fails on: " ++ showFix t
 
 subsFrees m s zs t = foldl' (flip(subsFree m s)) t zs
 

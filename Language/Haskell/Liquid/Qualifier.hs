@@ -2,17 +2,17 @@ module Language.Haskell.Liquid.Qualifier (
   specificationQualifiers
   ) where
 
-import Outputable
+-- import Outputable
+-- import Language.Haskell.Liquid.GhcMisc
+-- import Control.DeepSeq
 
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.PredType
 import Language.Fixpoint.Types
-import Language.Haskell.Liquid.GhcMisc
 import Language.Fixpoint.Misc
 
-import Control.DeepSeq
 import Control.Applicative      ((<$>))
 import Data.List                (delete, nub)
 import Data.Maybe               (fromMaybe)
@@ -69,7 +69,7 @@ refTopQuals tce t0 γ t
     [ mkPQual tce t0 γ s e | let (U _ (Pr ps)) = fromMaybe (msg t) $ stripRTypeBase t
                            , p <- (findPVar (snd3 (bkUniv t0))) <$> ps
                            , (s, _, e) <- pargs p
-    ] where msg t = errorstar $ "Qualifier.refTopQuals: no typebase" ++ showPpr t
+    ] where msg t = errorstar $ "Qualifier.refTopQuals: no typebase" ++ showFix t
 
 mkPQual tce t0 γ t e = mkQual t0 γ' v so pa
   where v = S "vv"

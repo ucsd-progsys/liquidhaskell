@@ -4,7 +4,8 @@
 module Language.Haskell.Liquid.GhcInterface where
 
 import GHC 
-import Outputable
+import Outputable   (showPpr)
+import Text.PrettyPrint.HughesPJ
 import HscTypes
 import TidyPgm      (tidyProgram)
 import Literal
@@ -40,14 +41,17 @@ import Language.Fixpoint.Types hiding (Expr)
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
-import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
 
+import Language.Haskell.Liquid.Parse
+import Language.Fixpoint.Parse
 import Language.Fixpoint.Names
 import Language.Fixpoint.Files
 
 import qualified Language.Haskell.Liquid.Measure as Ms
+
+
 ------------------------------------------------------------------
 ---------------------- GHC Bindings:  Code & Spec ----------------
 ------------------------------------------------------------------
@@ -64,30 +68,30 @@ data GhcInfo = GI {
   , spec     :: !GhcSpec
   }
 
-instance Outputable GhcSpec where
-  ppr spec =  (text "******* Type Signatures *********************")
-           $$ (ppr $ tySigs spec)
-           $$ (text "******* DataCon Specifications (Measure) ****")
-           $$ (ppr $ ctor spec)
-           $$ (text "******* Measure Specifications **************")
-           $$ (ppr $ meas spec)
+instance Fixpoint GhcSpec where
+  toFix spec =  (text "******* Type Signatures *********************")
+             $$ (toFix $ tySigs spec)
+             $$ (text "******* DataCon Specifications (Measure) ****")
+             $$ (toFix $ ctor spec)
+             $$ (text "******* Measure Specifications **************")
+             $$ (toFix $ meas spec)
 
-instance Outputable GhcInfo where 
-  ppr info =  (text "*************** Imports *********************")
-           $$ (ppr $ imports info)
-           $$ (text "*************** Includes ********************")
-           $$ (ppr $ includes info)
-           $$ (text "*************** Core Bindings ***************")
-           $$ (ppr $ cbs info)
-           $$ (text "*************** Imported Variables **********")
-           $$ (ppr $ impVars info)
-           $$ (text "*************** Defined Variables ***********")
-           $$ (ppr $ defVars info)
-           $$ (text "*************** Specification ***************")
-           $$ (ppr $ spec info)
+instance Fixpoint GhcInfo where 
+  toFix info =  (text "*************** Imports *********************")
+             $$ (pprDoc $ imports info)
+             $$ (text "*************** Includes ********************")
+             $$ (pprDoc $ includes info)
+             $$ (text "*************** Core Bindings ***************")
+             $$ (pprDoc $ cbs info)
+             $$ (text "*************** Imported Variables **********")
+             $$ (pprDoc $ impVars info)
+             $$ (text "*************** Defined Variables ***********")
+             $$ (pprDoc $ defVars info)
+             $$ (text "*************** Specification ***************")
+             $$ (toFix $ spec info)
 
 instance Show GhcInfo where
-  show = showPpr 
+  show = showFix
 
 ------------------------------------------------------------------
 -------------- Extracting CoreBindings From File -----------------
@@ -222,9 +226,8 @@ definedVars = concatMap defs
   where defs (NonRec x _) = [x]
         defs (Rec xes)    = map fst xes
 
-
-instance Show TC.TyCon where
- show = showSDoc . ppr
+-- instance Show TC.TyCon where
+--   show = showPpr 
 
 --------------------------------------------------------------------------------
 ---------------------------- Desugaring (Taken from GHC) -----------------------
@@ -446,13 +449,13 @@ bindings (Rec  xes  )
 --  ppr (Spec s) = vcat $ map pprAnnot $ varEnvElts s 
 --    where pprAnnot (x,r) = ppr x <> text " @@ " <> ppr r <> text "\n"
 
-ppFreeVars    = showSDoc . vcat .  map ppFreeVar 
-ppFreeVar x   = ppr n <> text " :: " <> ppr t <> text "\n" 
-                where n = varName x
-                      t = varType x
+-- ppFreeVars    = showSDoc . vcat .  map ppFreeVar 
+-- ppFreeVar x   = pprDoc n <> text " :: " <> pprDoc t <> text "\n" 
+--                 where n = varName x
+--                       t = varType x
 
-ppVarExp (x,e) = text "Var " <> ppr x <> text " := " <> ppr e
-ppBlank = text "\n_____________________________\n"
+-- ppVarExp (x,e) = text "Var " <> pprDoc x <> text " := " <> pprDoc e
+-- ppBlank = text "\n_____________________________\n"
 
 --------------------------------------------------------------------
 ------ Strictness --------------------------------------------------
