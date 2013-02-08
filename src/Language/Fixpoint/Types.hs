@@ -51,7 +51,6 @@ module Language.Fixpoint.Types (
   , substExcept, substfExcept, subst1Except
 
   -- * Visitors
-  -- , getSymbols
   , reftKVars
 
   -- * Functions on @Result@
@@ -63,6 +62,8 @@ module Language.Fixpoint.Types (
   -- * Checking Well-Formedness
   , checkSortedReft
 
+  -- * Qualifiers
+  , Qualifier (..)
   ) where
 
 import GHC.Generics         (Generic)
@@ -209,7 +210,6 @@ toFix_sort (FApp c ts)  = toFix c <+> intersperse space (fp <$> ts)
                           where fp s@(FApp _ (_:_)) = parens $ toFix_sort s 
                                 fp s                = toFix_sort s
 
-intersperse sep ds = hcat $ punctuate sep ds
 
 instance Fixpoint FTycon where
   toFix (TC s)       = toFix s
@@ -1018,6 +1018,12 @@ checkSortedReft env xs sr = applyNonNull Nothing error unknowns
 
 stringFTycon :: String -> FTycon
 stringFTycon = TC . stringSymbol . dropModuleNames
+
+
+------------------------------------------------------------------------
+----------------- Qualifiers -------------------------------------------
+------------------------------------------------------------------------
+
 
 data Qualifier = Q { name   :: String           -- ^ Name
                    , params :: [(Symbol, Sort)] -- ^ Parameters

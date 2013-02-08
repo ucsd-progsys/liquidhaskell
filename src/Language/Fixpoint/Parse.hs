@@ -10,10 +10,10 @@ module Language.Fixpoint.Parse (
 
   -- * Some Important keyword and parsers
   , reserved, reservedOp
-  , parens  , brackets  
+  , parens  , brackets
   , semi    , comma     
   , colon   , dcolon 
-  , whiteSpace
+  , whiteSpace, blanks
 
   -- * Parsing basic entities
   , fTyConP     -- ^ Type constructors
@@ -21,7 +21,8 @@ module Language.Fixpoint.Parse (
   , upperIdP    -- ^ Upper-case identifiers
   , symbolP     -- ^ Arbitrary Symbols
   , constantP   -- ^ (Integer) Constants
-  
+  , integer     -- ^ Integer
+
   -- * Parsing recursive entities
   , exprP       -- ^ Expressions
   , predP       -- ^ Refinement Predicates
@@ -29,6 +30,8 @@ module Language.Fixpoint.Parse (
   -- * Some Combinators
   , condIdP     -- ^ condIdP  :: [Char] -> (String -> Bool) -> Parser String
 
+  -- * Parsing Function
+  , doParse' 
   ) where
 
 import Control.Monad
