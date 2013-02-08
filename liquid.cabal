@@ -33,7 +33,6 @@ Library
                     Language.Haskell.Liquid.Constraint, 
                     Language.Haskell.Liquid.Measure, 
                     Language.Haskell.Liquid.Parse, 
-                    Language.Haskell.Liquid.Fixpoint, 
                     Language.Haskell.Liquid.GhcInterface, 
                     Language.Haskell.Liquid.RefType, 
                     Language.Haskell.Liquid.PredType, 
