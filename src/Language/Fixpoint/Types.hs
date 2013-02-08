@@ -577,14 +577,14 @@ data SubC a = SubC { senv  :: !IBindEnv
                    , sgrd  :: !Pred
                    , slhs  :: !SortedReft
                    , srhs  :: !SortedReft
-                   , sid   :: !(Maybe Integer)
+                   , sid   :: !(Maybe Int)
                    , stag  :: !Tag
                    , sinfo :: !a
                    }
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
                    , wrft  :: !SortedReft
-                   , wid   :: !(Maybe Integer) 
+                   , wid   :: !(Maybe Int) 
                    , winfo :: !a
                    } -- deriving (Eq)
 
@@ -998,7 +998,7 @@ shiftVV r@(Reft (v, ras)) v'
 -- shiftVV (Reft (v, ras)) v' = (su, (Reft (v', subst su ras))) 
 --   where su = mkSubst [(v, EVar v')]
 
-addIds =zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
+addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
   where -- Adding shiftId to have distinct VV for SMT conversion 
     shiftId i c = c { slhs = shiftSR i $ slhs c } 
                     { srhs = shiftSR i $ srhs c }

@@ -20,19 +20,11 @@ import System.IO        (hPutStr, withFile, IOMode (..))
 import System.Exit
 import Text.Printf
 
--- import Outputable hiding (empty)
-
 import Language.Fixpoint.Types         hiding (kuts, lits)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Parse            (rr)
 import Language.Fixpoint.Files
 import Text.PrettyPrint.HughesPJ
-
--- import Language.Haskell.Liquid.FileNames
--- import Language.Haskell.Liquid.Constraint       (CGInfo (..))
-
-
-
 
 solve fn hqs fi
   =   {-# SCC "Solve" #-}  execFq fn hqs fi
@@ -69,7 +61,6 @@ sanitizeFixpointOutput
   . filter (not . ("//"     `isPrefixOf`)) 
   . chopAfter ("//QUALIFIERS" `isPrefixOf`)
   . lines
-
 
 resultExit Safe        = ExitSuccess
 resultExit (Unsafe _)  = ExitFailure 1
