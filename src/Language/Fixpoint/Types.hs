@@ -577,14 +577,14 @@ data SubC a = SubC { senv  :: !IBindEnv
                    , sgrd  :: !Pred
                    , slhs  :: !SortedReft
                    , srhs  :: !SortedReft
-                   , sid   :: !(Maybe Int)
+                   , sid   :: !(Maybe Integer)
                    , stag  :: !Tag
                    , sinfo :: !a
                    }
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
                    , wrft  :: !SortedReft
-                   , wid   :: !(Maybe Int) 
+                   , wid   :: !(Maybe Integer) 
                    , winfo :: !a
                    } -- deriving (Eq)
 
@@ -1040,7 +1040,7 @@ instance NFData Qualifier where
 pprQual (Q n xts p) = text "qualif" <+> text n <> parens args  <> colon <+> toFix p 
   where args = intersperse comma (toFix <$> xts)
 
-data FInfo a = FI { cm    :: M.HashMap Int (SubC a)
+data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
                   , ws    :: ![WfC a] 
                   , bs    :: !BindEnv
                   , gs    :: !FEnv
