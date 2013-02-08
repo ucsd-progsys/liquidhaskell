@@ -1,11 +1,35 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections #-}
 
 module Language.Fixpoint.Parse (
+  
+  -- * Top Level Class for Parseable Values  
     Inputable (..)
+ 
+  -- * Lexer to add new tokens
   , lexer 
-  , fTyConP
-  , lowerIdP
-) where
+
+  -- * Some Important keyword and parsers
+  , reserved, reservedOp
+  , parens  , brackets  
+  , semi    , comma     
+  , colon   , dcolon 
+  , whiteSpace
+
+  -- * Parsing basic entities
+  , fTyConP     -- ^ Type constructors
+  , lowerIdP    -- ^ Lower-case identifiers
+  , upperIdP    -- ^ Upper-case identifiers
+  , symbolP     -- ^ Arbitrary Symbols
+  , constantP   -- ^ (Integer) Constants
+  
+  -- * Parsing recursive entities
+  , exprP       -- ^ Expressions
+  , predP       -- ^ Refinement Predicates
+  
+  -- * Some Combinators
+  , condIdP     -- ^ condIdP  :: [Char] -> (String -> Bool) -> Parser String
+
+  ) where
 
 import Control.Monad
 import Text.Parsec
@@ -99,7 +123,6 @@ upperIdP = condIdP symChars (not . isLower . head)
 
 lowerIdP :: Parser String
 lowerIdP = condIdP symChars (isLower . head)
-
 
 symbolP :: Parser Symbol
 symbolP = liftM stringSymbol symCharsP 
