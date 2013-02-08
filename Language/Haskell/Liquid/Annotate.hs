@@ -47,6 +47,7 @@ import Language.Fixpoint.Files
 import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
 
+import Language.Haskell.Liquid.GhcMisc (pprDoc)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
@@ -170,7 +171,7 @@ mkAnnMapTyp (AI m)
   $ map (head . sortWith (srcSpanEndCol . fst)) 
   $ groupWith (lineCol . fst) 
   $ [ (l, x) | (RealSrcSpan l, (x:_)) <- M.toList m, oneLine l]  
-  where bindString = mapPair (showSDocForUser neverQualify) . pprXOT 
+  where bindString = mapPair {- (showSDocForUser neverQualify) -} render . pprXOT 
 
 srcSpanStartLoc l 
   = ACSS.L (srcSpanStartLine l, srcSpanStartCol l)
@@ -283,7 +284,7 @@ instance Fixpoint Annot where
   toFix (Use t) = text "Use" <+> toFix t
   toFix (Def t) = text "Def" <+> toFix t
   toFix (RDf t) = text "RDf" <+> toFix t
-  toFix (Loc l) = text "Loc" <+> toFix l
+  toFix (Loc l) = text "Loc" <+> pprDoc l
 
 pprAnnInfoBinds (l, xvs) 
   = vcat $ map (pprAnnInfoBind . (l,)) xvs

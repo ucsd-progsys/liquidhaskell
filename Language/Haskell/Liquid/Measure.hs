@@ -29,7 +29,7 @@ import Control.Applicative      ((<$>))
 import Control.Exception        (assert)
 
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Types
+import Language.Fixpoint.Types          hiding (name, body)
 import Language.Haskell.Liquid.RefType
 
 data Spec ty bndr  = Spec { 
