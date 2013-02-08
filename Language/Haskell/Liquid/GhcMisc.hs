@@ -137,7 +137,6 @@ validTyVar _       = False
 
 tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} show α ++ show (varUnique α)
 
-intersperse d ds = hsep $ punctuate (space <> d) ds
 
 tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) x
 
@@ -218,6 +217,7 @@ instance Outputable a => Outputable (S.HashSet a) where
 --   ppr = text . PJ.render . toFix 
 
 toFixSDoc = text . PJ.render . toFix 
-
+sDocDoc   = PJ.text . showSDoc 
 
 typeUniqueString = {- ("sort_" ++) . -} showSDocDump . ppr
+

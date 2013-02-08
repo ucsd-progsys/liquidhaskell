@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleContexts, ScopedTypeVariables, NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, RankNTypes, GADTs #-}
+{-# LANGUAGE OverlappingInstances, MultiParamTypeClasses, FlexibleContexts, ScopedTypeVariables, NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, RankNTypes, GADTs #-}
 
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
 -- room for refinements of various sorts.
@@ -44,7 +44,7 @@ import GHC
 import Outputable       (showSDocDump, showPpr)
 import qualified TyCon as TC
 import DataCon
-import TypeRep 
+import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Type (expandTypeSynonyms)
 
 import Var
@@ -68,9 +68,12 @@ import Text.PrettyPrint.HughesPJ
 
 import Language.Fixpoint.Types as F
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc (typeUniqueString, tracePpr, tvId, intersperse, getDataConVarUnique, TyConInfo(..), mkTyConInfo)
+import Language.Haskell.Liquid.GhcMisc (sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, TyConInfo(..), mkTyConInfo)
 import Language.Fixpoint.Names (symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
+
+-- MOVE TO Language.Fixpoint.Misc
+intersperse d ds = hsep $ punctuate (space <> d) ds
 
 --------------------------------------------------------------------
 -- | Predicate Variables -------------------------------------------
@@ -453,6 +456,9 @@ instance Reftable FReft where
 ppTySReft s r d 
   = text "\\" <> hsep (toFix <$> s) <+> text "->" <+> ppr_reft r d
 
+instance Fixpoint () where
+  toFix     = text . show 
+
 instance Reftable () where
   isTauto _ = True
   ppTy _  d = d
@@ -511,6 +517,12 @@ instance TyConable String where
 
 -- RefTypable Instances -------------------------------------------------------
 
+instance Fixpoint String where
+  toFix = text 
+
+instance Fixpoint Class where
+  toFix = text . showPpr
+
 instance (Eq p, Fixpoint p, TyConable c, Reftable r) => RefTypable p c String r where
   ppCls = ppClass_String
   ppRType = ppr_rtype False -- True 
@@ -529,7 +541,7 @@ instance FreeVar String String where
   freeVars _ = []
 
 ppClass_String    c _  = parens (toFix c <+> text "...")
-ppClass_ClassPred c ts = parens $ pprClassPred c (toType <$> ts)
+ppClass_ClassPred c ts = parens $ sDocDoc $ pprClassPred c (toType <$> ts)
 
 -- Eq Instances ------------------------------------------------------
 
@@ -858,7 +870,7 @@ instance Fixpoint (RType p c tv r) => Show (RType p c tv r) where
   show = F.showFix
 
 instance Fixpoint RTyCon where
-  toFix (RTyCon c _ _) = toFix c -- <+> text "\n<<" <+> hsep (map toFix ts) <+> text ">>\n"
+  toFix (RTyCon c _ _) = text $ showPpr c -- <+> text "\n<<" <+> hsep (map toFix ts) <+> text ">>\n"
 
 instance Show RTyCon where
  show = F.showFix  
@@ -902,6 +914,20 @@ ppr_rtype bb p (RAppTy t t' r)
 ppr_rtype _ _ (ROth s)
   = text $ "???-" ++ s 
 
+-- | From GHC: TypeRep 
+-- pprArrowChain p [a,b,c]  generates   a -> b -> c
+pprArrowChain :: Prec -> [Doc] -> Doc
+pprArrowChain _ []         = empty
+pprArrowChain p (arg:args) = maybeParen p FunPrec $
+                             sep [arg, sep (map (arrow <+>) args)]
+
+-- | From GHC: TypeRep 
+maybeParen :: Prec -> Prec -> Doc -> Doc
+maybeParen ctxt_prec inner_prec pretty
+  | ctxt_prec < inner_prec = pretty
+  | otherwise		       = parens pretty
+
+
 ppExists :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
 ppExists bb p t
   = text "exists" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
@@ -936,11 +962,12 @@ ppr_forall b p t
     split vs (RAllP π t) = split (Right π : vs) t 
     split vs t	         = (reverse vs, t)
    
-ppr_foralls [] = empty
-ppr_foralls bs = text "forall" <+> dαs [ α | Left α <- bs] <+> dπs [ π | Right π <- bs] <> dot
-  where dαs αs = sep $ toFix <$> αs 
-        dπs [] = empty 
-        dπs πs = angleBrackets $ intersperse comma $ ppr_pvar_def toFix <$> πs
+    ppr_foralls [] = empty
+    ppr_foralls bs = text "forall" <+> dαs [ α | Left α <- bs] <+> dπs [ π | Right π <- bs] <> dot
+  
+    dαs αs = sep $ toFix <$> αs 
+    dπs [] = empty 
+    dπs πs = angleBrackets $ intersperse comma $ ppr_pvar_def toFix <$> πs
 
 ---------------------------------------------------------------
 --------------------------- Visitors --------------------------
@@ -1198,7 +1225,7 @@ ofType_ (TyConApp c τs)
 ofType_ (AppTy t1 t2)
   = RAppTy (ofType_ t1) (ofType t2) top              
 ofType_ τ               
-  = errorstar ("ofType cannot handle: " ++ F.showFix τ)
+  = errorstar ("ofType cannot handle: " ++ showPpr τ)
 
 ofPredTree (ClassPred c τs)
   = RCls c (ofType_ <$> τs)
@@ -1217,7 +1244,7 @@ varSymbol v
   where us  = showPpr $ getDataConVarUnique v
         vs  = pprShort v
 
-pprShort    =  dropModuleNames . render
+pprShort    =  dropModuleNames . showPpr 
 
 dataConSymbol ::  DataCon -> Symbol
 dataConSymbol = varSymbol . dataConWorkId
@@ -1325,7 +1352,7 @@ literalFReft tce               = toFReft . exprReft . snd . literalConst tce
 
 literalConst tce l             = (sort, mkLit l)
   where sort                   = typeSort tce $ literalType l 
-        sym                    = stringSymbol $ "$$" ++ render l
+        sym                    = stringSymbol $ "$$" ++ showPpr l
         mkLit (MachInt    n)   = mkI n
         mkLit (MachInt64  n)   = mkI n
         mkLit (MachWord   n)   = mkI n
@@ -1427,7 +1454,7 @@ sortSubst _  t            = t
 tyConName c 
   | listTyCon == c    = listConName
   | TC.isTupleTyCon c = tupConName
-  | otherwise         = render c
+  | otherwise         = showPpr c
 
 typeSortFun tce τ1 τ2
   = FFunc 0  sos
