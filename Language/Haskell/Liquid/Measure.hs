@@ -15,7 +15,9 @@ module Language.Haskell.Liquid.Measure (
 
 import GHC
 import Var
-import Outputable hiding (empty)
+import qualified Outputable as O 
+import Text.PrettyPrint.HughesPJ hiding (first)
+
 import DataCon
 import qualified Data.HashMap.Strict as M 
 -- import Data.Data
@@ -140,24 +142,24 @@ instance Bifunctor Spec    where
            , embeds     = x6
            }
 
-instance Outputable Body where
-  ppr (E e)   = toFix e  
-  ppr (P p)   = toFix p
-  ppr (R v p) = braces (ppr v <+> text "|" <+> toFix p)   
+instance Fixpoint Body where
+  toFix (E e)   = toFix e  
+  toFix (P p)   = toFix p
+  toFix (R v p) = braces (toFix v <+> text "|" <+> toFix p)   
 
-instance Outputable a => Outputable (Def a) where
-  ppr (Def m c bs body) = ppr m <> text " " <> pprPat (c, bs) <> text " = " <> ppr body   
-    where pprPat (c, bs) = parens (ppr c <> hsep (ppr `fmap` bs))
+instance Fixpoint a => Fixpoint (Def a) where
+  toFix (Def m c bs body) = toFix m <> text " " <> cbsd <> text " = " <> toFix body   
+    where cbsd = parens (toFix c <> hsep (toFix `fmap` bs))
 
-instance (Outputable t, Outputable a) => Outputable (Measure t a) where
-  ppr (M n s eqs) =  ppr n <> text "::" <> ppr s
-                  $$ vcat (ppr `fmap` eqs)
+instance (Fixpoint t, Fixpoint a) => Fixpoint (Measure t a) where
+  toFix (M n s eqs) =  toFix n <> text "::" <> toFix s
+                    $$ vcat (toFix `fmap` eqs)
 
-instance (Outputable t, Outputable a) => Outputable (MSpec t a) where
-  ppr =  vcat . fmap ppr . fmap snd . M.toList . measMap
+instance (Fixpoint t, Fixpoint a) => Fixpoint (MSpec t a) where
+  toFix =  vcat . fmap toFix . fmap snd . M.toList . measMap
 
-instance (Outputable t, Outputable a) => Show (Measure t a) where
-  show = showPpr
+instance (Fixpoint t , Fixpoint a) => Show (Measure t a) where
+  show = showFix
 
 mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
 mapTy f (M n ty eqs) = M n (f ty) eqs
@@ -181,7 +183,7 @@ refineWithCtorBody dc f body t =
     Just (FReft (Reft (v, _))) ->
       strengthen t $ reft (v, [RConc $ bodyPred (EApp f [EVar v]) body])
     Nothing -> 
-      errorstar $ "measure mismatch " ++ showPpr f ++ " on con " ++ showPpr dc
+      errorstar $ "measure mismatch " ++ showFix f ++ " on con " ++ O.showPpr dc
 
 
 bodyPred ::  Expr -> Body -> Pred
@@ -296,7 +298,7 @@ expandRTApp tx env c args r
     αs        = rtTArgs rta 
     εs        = rtVArgs rta 
     rta       = env M.! c
-    msg       = showPpr (RApp c args [] r)  
+    msg       = showFix (RApp c args [] r)  
     (ts, es_) = splitAt (length αs) args
     es        = map exprArg es_
     -- | exprArg converts a tyVar to an exprVar because parser cannot tell 
