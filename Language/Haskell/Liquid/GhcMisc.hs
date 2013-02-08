@@ -61,13 +61,14 @@ defaultTyConInfo = TyConInfo [] [] [] []
 
 mkTyConInfo :: TyCon -> [Int] -> [Int]-> TyConInfo
 mkTyConInfo c
-  = TyConInfo [i | (i,  b) <- varsigns, b, i>=0]
-              [i | (i, b) <- varsigns, not b, i>=0]
-  where varsigns = L.nub $ concatMap (go initmap True) tys
-        initmap  = zip (showPpr <$> tyvars) [0..]
-        tys = [ ty | dc <- TC.tyConDataCons c
-                   , ty <- DC.dataConRepArgTys dc]
-        go m pos (ForAllTy v t)  = go ((showPpr m, -1):m) pos t
+  = TyConInfo [i | (i, b) <- varsigns, b, i /= dindex]
+              [i | (i, b) <- varsigns, not b, i /= dindex]
+  where varsigns  = L.nub $ concatMap goDCon $ TC.tyConDataCons c
+        initmap   = zip (showPpr <$> tyvars) [0..]
+        mkmap vs  = zip (showPpr <$> vs) (repeat (dindex)) ++ initmap
+        goDCon dc = concatMap (go (mkmap (DC.dataConExTyVars dc)) True)
+                              (DC.dataConOrigArgTys dc)
+        go m pos (ForAllTy v t)  = go ((showPpr v, dindex):m) pos t
         go m pos (TyVarTy v)     = [(varLookup (showPpr v) m, pos)]
         go m pos (AppTy t1 t2)   = go m pos t1 ++ go m pos t2
         go m pos (TyConApp _ ts) = concatMap (go m pos) ts
@@ -75,7 +76,8 @@ mkTyConInfo c
 
         varLookup v m = fromMaybe (errmsg v) $ L.lookup v m
         tyvars        = TC.tyConTyVars c
-        errmsg v      = error $ "GhcMisc.getTyConInfo: var not found" ++ showPpr v -- , ty, zip tyvars [(1 :: Int)..])
+        errmsg v      = error $ "GhcMisc.getTyConInfo: var not found" ++ showPpr v
+        dindex        = -1
 
 -----------------------------------------------------------------------
 --------------- Datatype For Holding GHC ModGuts ----------------------
