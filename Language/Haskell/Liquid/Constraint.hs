@@ -13,7 +13,10 @@ module Language.Haskell.Liquid.Constraint (
 
     -- * Function that does the actual generation
   , generateConstraints
-   
+    
+    -- * Project Constraints to Fixpoint Format
+  , cgInfoFInfo  
+  
   -- * KVars in constraints, for debug purposes
   -- , kvars, kvars'
   ) where
@@ -1206,5 +1209,13 @@ memberREnv x (REnv env)   = M.member x env
 -- domREnv (REnv env)        = M.keys env
 -- emptyREnv                 = REnv M.empty
 
-
+cgInfoFInfo cgi 
+  = F.FI { F.cm    = M.fromList $ F.addIds $ fixCs cgi 
+         , F.ws    = fixWfs cgi  
+         , F.bs    = binds cgi 
+         , F.gs    = globals cgi 
+         , F.lits  = lits cgi 
+         , F.kuts  = kuts cgi 
+         , F.quals = specQuals cgi
+         }
 

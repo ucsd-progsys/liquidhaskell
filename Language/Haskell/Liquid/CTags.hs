@@ -1,9 +1,8 @@
 {-# LANGUAGE TupleSections #-}
 -- | This module contains the code for generating "tags" for constraints
 -- based on their source, i.e. the top-level binders under which the
--- constraint was generated. These tags are used by fixpoint in
--- Language.Haskell.Liquid.FixInterface to prioritize constraints by the
--- source function.
+-- constraint was generated. These tags are used by fixpoint to 
+-- prioritize constraints by the "source-level" function.
 
 module Language.Haskell.Liquid.CTags (
     -- * Type for constraint tags
