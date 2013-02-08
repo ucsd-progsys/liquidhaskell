@@ -34,8 +34,8 @@ import Control.Monad.State
 
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![(PVar RSort)]
-                     , covPs        :: ![Int]
-                     , contravPs    :: ![Int]
+                     , covPs        :: ![Int] -- indexes of covariant predicate arguments
+                     , contravPs    :: ![Int] -- indexes of contravariant predicate arguments
                      }
 
 data DataConP = DataConP { freeTyVars :: ![RTyVar]

@@ -37,14 +37,25 @@ import           Control.Applicative          ((<$>))
 import           Control.Exception            (assert)
 
 -----------------------------------------------------------------------
------------ TyCon get CoVariiance - ContraVariance Info ---------------
+----------- TyCon get CoVariance - ContraVariance Info ----------------
 -----------------------------------------------------------------------
 data TyConInfo = TyConInfo
-  { covariantTyArgs     :: ![Int]
-  , contravariantTyArgs :: ![Int]
-  , covariantPsArgs     :: ![Int]
-  , contravariantPsArgs :: ![Int]
+  { covariantTyArgs     :: ![Int] -- indexes of covariant type arguments
+  , contravariantTyArgs :: ![Int] -- indexes of contravariant type arguments
+  , covariantPsArgs     :: ![Int] -- indexes of covariant predicate arguments
+  , contravariantPsArgs :: ![Int] -- indexes of contravariant predicate arguments
   }
+
+-- indexes start from 0 and type or predicate arguments can be both
+-- covariant and contravaariant
+-- eg, for the below Foo dataType
+-- data Foo a b c <p :: b -> Prop, q :: Int -> Prop, r :: a -> Prop>
+--   = F (a<r> -> b<p>) | Q (c -> a) | G (Int<q> -> a<r>)
+-- there will be 
+--  covariantTyArgs     = [0, 1], for type arguments a and b
+--  contravariantTyArgs = [0, 2], for type arguments a and c
+--  covariantPsArgs     = [0, 2], for predicate arguments p and r
+--  contravariantPsArgs = [1, 2], for predicate arguments q and r
 
 defaultTyConInfo = TyConInfo [] [] [] []
 
