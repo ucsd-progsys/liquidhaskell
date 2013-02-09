@@ -13,7 +13,7 @@ Build-Type:          Simple
 Cabal-version: >=1.2
 
 Executable liquid 
-  Build-Depends:     base, containers, hashable, unordered-containers, 
+  Build-Depends:     base, containers, hashable==1.1.2.5, unordered-containers, 
                      filepath, parsec, mtl, ghc, ghc-paths, process, 
                      directory, hscolour, text, deepseq, filemanip, 
                      bifunctors, ansi-terminal, liquid-fixpoint
@@ -23,7 +23,7 @@ Executable liquid
   Extensions: 
 
 Library
-   Build-Depends:    base, containers, hashable, unordered-containers, 
+   Build-Depends:    base, containers, hashable==1.1.2.5, unordered-containers, 
                      filepath, parsec, mtl, pretty, 
                      ghc, ghc-paths, process, directory, hscolour,
                      text, deepseq, filemanip, bifunctors, ansi-terminal, 
