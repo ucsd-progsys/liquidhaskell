@@ -1,46 +1,24 @@
 module Language.Haskell.Liquid.Qualifier (
-    Qualifier 
-  , specificationQualifiers
+  specificationQualifiers
   ) where
 
-import Outputable
+-- import Outputable
+-- import Language.Haskell.Liquid.GhcMisc
+-- import Control.DeepSeq
 
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.PredType
-import Language.Haskell.Liquid.Fixpoint
-import Language.Haskell.Liquid.GhcMisc
-import Language.Haskell.Liquid.Misc
+import Language.Fixpoint.Types
+import Language.Fixpoint.Misc
 
-import Control.DeepSeq
 import Control.Applicative      ((<$>))
 import Data.List                (delete, nub)
 import Data.Maybe               (fromMaybe)
 import qualified Data.HashSet as S
 import Data.Bifunctor           (second) 
 
-data Qualifier = Q { name   :: String           -- ^ Name
-                   , params :: [(Symbol, Sort)] -- ^ Parameters
-                   , body   :: Pred             -- ^ Predicate
-                   }
-               deriving (Eq, Ord)  
-
-instance Fixpoint Qualifier where 
-  toFix = pprQual
-
-instance Outputable Qualifier where
-  ppr   = pprQual
-
-instance NFData Qualifier where
-  rnf (Q x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
-
-pprQual (Q n xts p) = text "qualif" <+> text n <> parens args  <> colon <+> toFix p 
-  where args = intersperse comma (toFix <$> xts)
-
-------------------------------------------------------------------------------------
-------------------------------------------------------------------------------------
-------------------------------------------------------------------------------------
 
 specificationQualifiers :: GhcInfo -> [Qualifier] 
 specificationQualifiers info  
@@ -79,9 +57,13 @@ refTypeQuals' tce t0 = go emptySEnv t0
         go γ (RAllT _ t)          = go γ t 
         go γ (RAllP _ t)          = go γ t 
         go γ (RFun x t t' _)      = (go γ t) ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
-        go γ t@(RApp _ ts _ _)    = (refTopQuals tce t0 γ t) ++ concatMap (go (insertSEnv (rTypeValueVar t) (rTypeSort tce t) γ)) ts
+        go γ t@(RApp c ts rs _)   = (refTopQuals tce t0 γ t) ++ concatMap (go (insertSEnv (rTypeValueVar t) (rTypeSort tce t) γ)) ts ++ goRefs c (insertSEnv (rTypeValueVar t) (rTypeSort tce t) γ) rs 
         go γ (REx x t t' )        = (go γ t) ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
         go _ _                    = []
+        goRefs c γ rs             = concat $ zipWith (goRef γ) rs (rTyConPs c)
+        goRef γ (RPoly t)  p      = go (insertsSEnv γ (zip (fst3 <$> pargs p) (fSyms t))) t
+        goRef _ (RMono _)  _      = []
+        insertsSEnv               = foldr (\(x, t) γ -> insertSEnv t (rTypeSort tce x) γ)
 
 refTopQuals tce t0 γ t 
   = [ mkQual t0 γ v so pa | let (RR so (Reft (v, ras))) = rTypeSortedReft tce t 
@@ -91,7 +73,7 @@ refTopQuals tce t0 γ t
     [ mkPQual tce t0 γ s e | let (U _ (Pr ps)) = fromMaybe (msg t) $ stripRTypeBase t
                            , p <- (findPVar (snd3 (bkUniv t0))) <$> ps
                            , (s, _, e) <- pargs p
-    ] where msg t = errorstar $ "Qualifier.refTopQuals: no typebase" ++ showPpr t
+    ] where msg t = errorstar $ "Qualifier.refTopQuals: no typebase" ++ showFix t
 
 mkPQual tce t0 γ t e = mkQual t0 γ' v so pa
   where v = S "vv"

@@ -5,13 +5,15 @@ import Data.Monoid      (mconcat)
 import System.Exit 
 
 import Outputable hiding (empty) 
+import Language.Fixpoint.Files
+import Language.Fixpoint.Names
+import Language.Fixpoint.Misc
+import Language.Fixpoint.Interface      
+
 import Language.Haskell.Liquid.CmdLine
 import Language.Haskell.Liquid.GhcInterface 
-import Language.Haskell.Liquid.FileNames
 import Language.Haskell.Liquid.Constraint       
-import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.Fixpoint (sinfo, colorResult, FixResult (..))
-import Language.Haskell.Liquid.FixInterface      
+import Language.Fixpoint.Types (Fixpoint(..), sinfo, colorResult, FixResult (..))
 import Language.Haskell.Liquid.TransformRec   
 import Language.Haskell.Liquid.Annotate (annotate)
 import Control.DeepSeq
@@ -44,16 +46,16 @@ liquidOne includes target =
      -- donePhase Loud "START: Write CGI (can be slow!)"
      -- {-# SCC "writeCGI" #-} writeCGI target cgi cbs'
      --- donePhase Loud "FINISH: Write CGI"
-     (r, sol) <- solve target (hqFiles info) cgi
+     (r, sol) <- solve target (hqFiles info) (cgInfoFInfo cgi)
      donePhase Loud "solve"
      {-# SCC "annotate" #-} annotate target (resultSrcSpan r) sol $ annotMap cgi
      donePhase Loud "annotate"
-     donePhase (colorResult r) (showPpr r) 
+     donePhase (colorResult r) (showFix r) 
      writeResult target r
      -- putStrLn $ "*************** DONE: " ++ showPpr r ++ " ********************"
      return r
 
-writeResult target = writeFile (extFileName Result target) . showPpr 
+writeResult target = writeFile (extFileName Result target) . showFix
 resultSrcSpan      = fmap (tx . sinfo) 
   where tx (Ci x)  = x
 {-
@@ -73,12 +75,5 @@ initGhci = parseStaticFlags []
 writeCGI target cgi cbs 
   = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi target) str
   where str = ({-# SCC "PPcgi" #-} showSDoc (ppr cbs $+$ ppr cgi))
-  
-
-
-
-
-
-
-
+ 
 
