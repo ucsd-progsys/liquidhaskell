@@ -1,6 +1,0 @@
-dsolve/z3 package readme:
-
-current z3 version: 1.3.5
-ocaml binding rudimentary build in cygwin/gcc.
-ocaml binding has been modified to build on 1.3.5's z3.dll, which is
-missing some references

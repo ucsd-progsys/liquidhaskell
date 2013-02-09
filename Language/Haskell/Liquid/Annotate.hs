@@ -21,7 +21,8 @@ import GHC                      ( SrcSpan (..)
                                 , srcSpanEndLine) 
 
 import Var                      (Var (..))                                
-import Outputable
+import Outputable               (showPpr)
+import Text.PrettyPrint.HughesPJ
 import GHC.Exts                 (groupWith, sortWith)
 
 import Data.Char                (isSpace)
@@ -41,11 +42,15 @@ import qualified Data.HashMap.Strict   as M
 
 import qualified Language.Haskell.Liquid.ACSS as ACSS
 import Language.Haskell.HsColour.Classify
-import Language.Haskell.Liquid.FileNames
-import Language.Haskell.Liquid.Fixpoint
+
+import Language.Fixpoint.Files
+import Language.Fixpoint.Names
+import Language.Fixpoint.Misc
+
+import Language.Haskell.Liquid.GhcMisc (pprDoc)
+import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
-import Language.Haskell.Liquid.Misc
 
 -------------------------------------------------------------------
 ------ Rendering HTMLized source with Inferred Types --------------
@@ -166,7 +171,7 @@ mkAnnMapTyp (AI m)
   $ map (head . sortWith (srcSpanEndCol . fst)) 
   $ groupWith (lineCol . fst) 
   $ [ (l, x) | (RealSrcSpan l, (x:_)) <- M.toList m, oneLine l]  
-  where bindString = mapPair (showSDocForUser neverQualify) . pprXOT 
+  where bindString = mapPair {- (showSDocForUser neverQualify) -} render . pprXOT 
 
 srcSpanStartLoc l 
   = ACSS.L (srcSpanStartLine l, srcSpanStartCol l)
@@ -263,8 +268,8 @@ data Annot        = Use SpecType
 instance Functor AnnInfo where
   fmap f (AI m) = AI (fmap (fmap (\(x, y) -> (x, f y))) m)
 
-instance Outputable a => Outputable (AnnInfo a) where
-  ppr (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m 
+instance Fixpoint a => Fixpoint (AnnInfo a) where
+  toFix (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m 
 
 instance NFData a => NFData (AnnInfo a) where
   rnf (AI x) = () -- rnf x
@@ -275,27 +280,27 @@ instance NFData Annot where
   rnf (Use x) = () -- rnf x
   rnf (Loc x) = () -- rnf x
 
-instance Outputable Annot where
-  ppr (Use t) = text "Use" <+> ppr t
-  ppr (Def t) = text "Def" <+> ppr t
-  ppr (RDf t) = text "RDf" <+> ppr t
-  ppr (Loc l) = text "Loc" <+> ppr l
+instance Fixpoint Annot where
+  toFix (Use t) = text "Use" <+> toFix t
+  toFix (Def t) = text "Def" <+> toFix t
+  toFix (RDf t) = text "RDf" <+> toFix t
+  toFix (Loc l) = text "Loc" <+> pprDoc l
 
 pprAnnInfoBinds (l, xvs) 
   = vcat $ map (pprAnnInfoBind . (l,)) xvs
 
 pprAnnInfoBind (RealSrcSpan k, xv) 
-  = xd $$ ppr l $$ ppr c $$ ppr n $$ vd $$ text "\n\n\n"
+  = xd $$ pprDoc l $$ pprDoc c $$ toFix n $$ vd $$ text "\n\n\n"
     where l        = srcSpanStartLine k
           c        = srcSpanStartCol k
           (xd, vd) = pprXOT xv 
-          n        = length $ lines $ showSDoc vd
+          n        = length $ lines $ render vd
 
 pprAnnInfoBind (_, _) 
   = empty
 
-pprXOT (x, v) = (xd, ppr v)
-  where xd = maybe (text "unknown") ppr x
+pprXOT (x, v) = (xd, toFix v)
+  where xd = maybe (text "unknown") toFix x
 
 applySolution :: FixSolution -> AnnInfo SpecType -> AnnInfo SpecType 
 applySolution = fmap . fmap . mapReft . map . appSolRefa 

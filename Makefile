@@ -1,4 +1,4 @@
-include config.make
+#include config.make
 
 #SERVERHOME=$(ROOTHOME)/_site/
 SERVERHOME=/home/rjhala/public_html/liquid/haskell/demo
