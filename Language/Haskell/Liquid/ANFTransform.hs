@@ -27,9 +27,9 @@ import           DataCon                          (dataConInstArgTys)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           Control.Monad
 import           Control.Applicative              ((<$>))
-import           Language.Haskell.Liquid.Fixpoint (anfPrefix)
+import           Language.Fixpoint.Types (anfPrefix)
 import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..))
-import           Language.Haskell.Liquid.Misc     (fst3, errorstar)
+import           Language.Fixpoint.Misc     (fst3, errorstar)
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 

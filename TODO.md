@@ -1,14 +1,12 @@
 TODO
 ====
-    
-* [Eric] qualified names break spec imports -- tests/todo/qualifiedvector.hs 
 
+* [Eric] qualified names break spec imports -- tests/todo/qualifiedvector.hs 
 * DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
   -> may break a LOT of regressions
 
 * error messages
     * error message -- expected XXX got YYY?
-
 
 * clean up (Int) -> Int [BEXPARSER]
 * parse predicate signatures for tuples 
@@ -19,12 +17,6 @@ TODO
 * benchmarks: Data.Text
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
-
-
-Blog
-====
-
-- I think clicking the title to access the code seems a bit odd. 
 
 
 BExp Parser vs. ppr_rtype [BEXPARSER]

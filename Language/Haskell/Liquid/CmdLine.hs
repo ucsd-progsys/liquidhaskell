@@ -7,10 +7,13 @@ import System.Console.GetOpt
 
 -- import System.Console.CmdArgs
 import Control.Monad                            (liftM, liftM2)
-import Language.Haskell.Liquid.FileNames        (getHsTargets)
-import Language.Haskell.Liquid.Misc             (errorstar, sortNub)
-import Language.Haskell.Liquid.FileNames        (getIncludePath)
 import System.FilePath                          (dropFileName)
+
+import Language.Fixpoint.Misc                   (errorstar, sortNub)
+-- import Language.Haskell.Liquid.FileNames        (getHsTargets)
+-- import Language.Haskell.Liquid.FileNames        (getIncludePath)
+import Language.Fixpoint.Files                  (getHsTargets, getIncludePath)
+
 
 ------------------------------------------------------------------------------
 ---------- Old Fashioned, Using getopts --------------------------------------
