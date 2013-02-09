@@ -25,16 +25,6 @@ TODO
 Liquid-Fixpoint
 ===============
 
-* Pull all Fixpoint dependencies into separate package liquid-fixpoint
-    Names.hs        [FileNames.hs]  
-    Files.hs        [FileNames.hs]
-    Misc.hs         [Misc.hs]        
-    Types.hs        [Fixpoint.hs]       
-    Interface.hs    [FixInterface.hs]
-    Parse.hs        [Parse.hs]
-    ???             [Qualifiers.hs]
-    Nuke dependency on Outputable
-
     GET IT TO RUN! <------- HEREHEREHEREHEREHERE
 
 
