@@ -8,7 +8,7 @@ module Language.Haskell.Liquid.PredType (
   , substParg
   ) where
 
-import PprCore          (pprCoreExpr)
+-- import PprCore          (pprCoreExpr)
 import Id               (idType)
 import CoreSyn  hiding (collectArgs)
 import Type
@@ -18,14 +18,15 @@ import Literal
 import Coercion         (coercionType, coercionKind)
 import Pair             (pSnd)
 import FastString       (sLit)
-import Outputable hiding (empty)
+import qualified Outputable as O
+import Text.PrettyPrint.HughesPJ
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.List        (partition, foldl')
-import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.Fixpoint hiding (Expr)
-import qualified Language.Haskell.Liquid.Fixpoint as F
+import Language.Fixpoint.Misc
+import Language.Fixpoint.Types hiding (Expr)
+import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.RefType  hiding (generalize)
 import Language.Haskell.Liquid.GhcMisc
 
@@ -58,22 +59,23 @@ dataConPSpecType (DataConP vs ps yts rt) = mkArrow vs ps (reverse yts) rt
 --         t3 = foldr RAllT t2 vs
 
 
-instance Outputable TyConP where
-  ppr (TyConP vs ps _ _) = (parens $ hsep (punctuate comma (map ppr vs))) <+>
-                           (parens $ hsep (punctuate comma (map ppr ps)))
+instance Fixpoint TyConP where
+  toFix (TyConP vs ps _ _) 
+    = (parens $ hsep (punctuate comma (map toFix vs))) <+>
+      (parens $ hsep (punctuate comma (map toFix ps)))
 
 instance Show TyConP where
- show = showSDoc . ppr
+ show = showFix -- showSDoc . ppr
 
-instance Outputable DataConP where
- ppr (DataConP vs ps yts t) 
-   = (parens $ hsep (punctuate comma (map ppr vs))) <+>
-     (parens $ hsep (punctuate comma (map ppr ps))) <+>
-     (parens $ hsep (punctuate comma (map ppr yts))) <+>
-     ppr t
+instance Fixpoint DataConP where
+  toFix (DataConP vs ps yts t) 
+     = (parens $ hsep (punctuate comma (map toFix vs))) <+>
+       (parens $ hsep (punctuate comma (map toFix ps))) <+>
+       (parens $ hsep (punctuate comma (map toFix yts))) <+>
+       toFix t
 
 instance Show DataConP where
- show = showSDoc . ppr
+  show = showFix -- showSDoc . ppr
 
 dataConTy m (TyVarTy v)            
   = M.lookupDefault (rVar v) (RTV v) m
@@ -277,7 +279,7 @@ meetListWithPSub r1 r2 π
   | all (\(_, x, EVar y) -> x /= y) (pargs π)
   = r2 `meet` (subst su r1')
   | otherwise
-  = errorstar $ "PredType.meetListWithPSub partial application to " ++ showPpr π
+  = errorstar $ "PredType.meetListWithPSub partial application to " ++ showFix π
   where r1' = dropSyms r1
         su  = mkSubst xys
         xys = [(x, y) | (x, (_, _, y)) <- zip (fSyms r1) (pargs π)]
@@ -322,29 +324,34 @@ collectArgs expr
     go (App f a) as = go f (a:as)
     go e 	 as = (e, as)
 
+
+-- | A more efficient version of 'applyTypeToArg' when we have several arguments.
+--   The first argument is just for debugging, and gives some context
+--   RJ: This function is UGLY. Two nested levels of where is a BAD idea.
+--   Please fix.
+
 applyTypeToArgs :: CoreExpr -> Type -> [CoreExpr] -> Type
--- ^ A more efficient version of 'applyTypeToArg' when we have several arguments.
--- The first argument is just for debugging, and gives some context
+
 applyTypeToArgs _ op_ty [] = op_ty
 
 applyTypeToArgs e op_ty (Type ty : args)
-  =     -- Accumulate type arguments so we can instantiate all at once
+  = -- Accumulate type arguments so we can instantiate all at once
     go [ty] args
   where
     go rev_tys (Type ty : args) = go (ty:rev_tys) args
-    go rev_tys rest_args         = applyTypeToArgs e op_ty' rest_args
+    go rev_tys rest_args        = applyTypeToArgs e op_ty' rest_args
                                  where
                                    op_ty' = applyTysD msg op_ty (reverse rev_tys)
-                                   msg = ptext (sLit "MYapplyTypeToArgs") <+>
-                                         panic_msg e op_ty
+                                   msg    = O.text ("MYapplyTypeToArgs: " ++ panic_msg e op_ty)
+
 
 applyTypeToArgs e op_ty (_ : args)
   = case (splitFunTy_maybe op_ty) of
         Just (_, res_ty) -> applyTypeToArgs e res_ty args
-        Nothing          -> pprPanic "MYapplyTypeToArgs" (panic_msg e op_ty)
+        Nothing          -> errorstar $ "MYapplyTypeToArgs" ++ panic_msg e op_ty
 
-panic_msg :: CoreExpr -> Type -> SDoc
-panic_msg e op_ty = pprCoreExpr e $$ ppr op_ty
+panic_msg :: CoreExpr -> Type -> String 
+panic_msg e op_ty = O.showPpr e ++ " :: " ++ O.showPpr op_ty
 
 substParg :: Functor f => (Symbol, F.Expr) -> f Predicate -> f Predicate
 substParg (x, y) = fmap fp  -- RJ: UNIFY: BUG  mapTy fxy

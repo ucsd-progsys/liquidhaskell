@@ -13,39 +13,39 @@ Build-Type:          Simple
 Cabal-version: >=1.2
 
 Executable liquid 
-  Build-Depends:     base, containers, hashable, unordered-containers, filepath, parsec, mtl, 
-                     ghc, ghc-paths, process, directory, hscolour,
-                     text, deepseq, filemanip, bifunctors, ansi-terminal 
+  Build-Depends:     base, containers, hashable, unordered-containers, 
+                     filepath, parsec, mtl, ghc, ghc-paths, process, 
+                     directory, hscolour, text, deepseq, filemanip, 
+                     bifunctors, ansi-terminal, liquid-fixpoint
 
   Main-is:           Liquid.hs
   --ghc-options: -O -W
   Extensions: 
 
 Library
-   Build-Depends:    base, containers, hashable, unordered-containers, filepath, parsec, mtl, 
+   Build-Depends:    base, containers, hashable, unordered-containers, 
+                     filepath, parsec, mtl, pretty, 
                      ghc, ghc-paths, process, directory, hscolour,
-                     text, deepseq, filemanip, bifunctors, ansi-terminal 
-  
-  Exposed-Modules: Language.Haskell.Liquid.Bare,
-                   Language.Haskell.Liquid.Constraint, 
-                   Language.Haskell.Liquid.Measure, 
-                   Language.Haskell.Liquid.Parse, 
-                   Language.Haskell.Liquid.Fixpoint, 
-                   Language.Haskell.Liquid.FileNames, 
-                   Language.Haskell.Liquid.GhcInterface, 
-                   Language.Haskell.Liquid.RefType, 
-                   Language.Haskell.Liquid.PredType, 
-                   Language.Haskell.Liquid.Predicates, 
-                   Language.Haskell.Liquid.ACSS, 
-                   Language.Haskell.Liquid.ANFTransform, 
-                   Language.Haskell.Liquid.Annotate, 
-                   Language.Haskell.Liquid.CTags, 
-                   Language.Haskell.Liquid.CmdLine, 
-                   Language.Haskell.Liquid.Misc, 
-                   Language.Haskell.Liquid.GhcMisc, 
-                   Language.Haskell.Liquid.Qualifier, 
-                   Language.Haskell.Liquid.TransformRec, 
-                   Language.Haskell.Liquid.Tidy 
+                     text, deepseq, filemanip, bifunctors, ansi-terminal, 
+                     liquid-fixpoint
+
+   Exposed-Modules: Language.Haskell.Liquid.Bare,
+                    Language.Haskell.Liquid.Constraint, 
+                    Language.Haskell.Liquid.Measure, 
+                    Language.Haskell.Liquid.Parse, 
+                    Language.Haskell.Liquid.GhcInterface, 
+                    Language.Haskell.Liquid.RefType, 
+                    Language.Haskell.Liquid.PredType, 
+                    Language.Haskell.Liquid.Predicates, 
+                    Language.Haskell.Liquid.ACSS, 
+                    Language.Haskell.Liquid.ANFTransform, 
+                    Language.Haskell.Liquid.Annotate, 
+                    Language.Haskell.Liquid.CTags, 
+                    Language.Haskell.Liquid.CmdLine, 
+                    Language.Haskell.Liquid.GhcMisc, 
+                    Language.Haskell.Liquid.Qualifier, 
+                    Language.Haskell.Liquid.TransformRec, 
+                    Language.Haskell.Liquid.Tidy 
   --ghc-options: -O -W
   Extensions: 
 
