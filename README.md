@@ -30,6 +30,9 @@ directory of the distribution:
     cd liquidhaskell
     cabal install
 
+3. Add to your environment
+
+
 To **rebuild** after this step, just do
 
     make 

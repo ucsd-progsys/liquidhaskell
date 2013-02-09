@@ -97,7 +97,7 @@ instance (NFData a) => NFData (PVar a) where
   rnf (PV n t txys) = rnf n `seq` rnf t `seq` rnf txys
 
 instance Hashable (PVar a) where
-  hash (PV n _ xys) = hash  n -- : (thd3 <$> xys)
+  hashWithSalt i (PV n _ xys) = hashWithSalt i  n -- : (thd3 <$> xys)
 
 --------------------------------------------------------------------
 ------------------ Predicates --------------------------------------
@@ -581,7 +581,7 @@ instance Ord RTyVar where
   compare (RTV α) (RTV α') = compare (tvId α) (tvId α')
 
 instance Hashable RTyVar where
-  hash (RTV α) = hash α
+  hashWithSalt i (RTV α) = hashWithSalt i α
 
 
 data RTyCon = RTyCon 
@@ -598,7 +598,7 @@ instance Eq RTyCon where
   x == y = (rTyCon x) == (rTyCon y)
 
 instance Hashable RTyCon where
-  hash   = hash . rTyCon  
+  hashWithSalt i = hashWithSalt i . rTyCon  
 
 --------------------------------------------------------------------
 ---------------------- Helper Functions ----------------------------

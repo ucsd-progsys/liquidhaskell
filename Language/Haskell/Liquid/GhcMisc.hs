@@ -160,20 +160,20 @@ getDataConVarUnique v
 newtype Loc    = L (Int, Int) deriving (Eq, Ord, Show)
 
 instance Hashable Loc where
-  hash (L z) = hash z 
+  hashWithSalt i (L z) = hashWithSalt i z 
 
 --instance (Uniquable a) => Hashable a where
 instance Hashable Var where
-  hash = uniqueHash 
+  hashWithSalt = uniqueHash 
 
 instance Hashable TyCon where
-  hash = uniqueHash 
+  hashWithSalt = uniqueHash 
 
 instance Hashable SrcSpan where
-  hash (UnhelpfulSpan s) = hash (uniq s) 
-  hash (RealSrcSpan s)   = hash (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
+  hashWithSalt i (UnhelpfulSpan s) = hashWithSalt i (uniq s) 
+  hashWithSalt i (RealSrcSpan s)   = hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
 
-uniqueHash = hash . getKey . getUnique
+uniqueHash i = hashWithSalt i . getKey . getUnique
 
 instance Outputable a => Outputable (S.HashSet a) where
   ppr = ppr . S.toList 
