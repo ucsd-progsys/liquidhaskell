@@ -12,33 +12,31 @@ LiquidHaskell requires (in addition to the Hackage dependencies)
 
 Due to the Z3 dependency, LiquidHaskell can **only be compiled on Linux** at the moment.
 
-How to Clone
-------------
+How To Clone, Build and Install
+-------------------------------
 
-To clone liquidhaskell:
-
-    git clone git@github.com:ucsd-progsys/liquidhaskell.git
-
-How To Build and Install
-------------------------
-
-To begin building, run the following commands in the root
+To begin building, run the following commands in the root 
 directory of the distribution:
 
-1. Run the `configure` script
+1. Install liquid-fixpoint
 
-    `$ ./configure`
+    git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
+    cd liquid-fixpoint
+    cabal install
+   
+2. Install liquidhaskell
 
-2. Run the generated `build` script
-
-    `$ ./build.sh`
-
-3. Append the contents of the generated `install.sh` to your `.bashrc`
-   (or set the corresponding environment variables appropriately)
+    git clone git@github.com:ucsd-progsys/liquidhaskell.git
+    cd liquidhaskell
+    cabal install
 
 To **rebuild** after this step, just do
 
-    make
+    make 
+
+or 
+
+    cabal install
 
 
 How To Run
