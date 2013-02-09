@@ -13,6 +13,7 @@ buildAndCopyFixpoint _ _ pkg lbi
   = do putStrLn $ "POSTCONF HOOKS: " ++ show binDir -- , libDir)
        executeShellCommand "./configure"
        executeShellCommand "./build.sh"
+       executeShellCommand $ "chmod a+x external/fixpoint/fixpoint.native "
        executeShellCommand $ "cp external/fixpoint/fixpoint.native " ++ binDir
        executeShellCommand $ "cp external/z3/lib/libz3.* " ++ binDir
   where 

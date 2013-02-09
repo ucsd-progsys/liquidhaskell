@@ -16,7 +16,7 @@ module Language.Fixpoint.Files (
   , isExtFile
  
   -- * Hardwired paths 
-  , getIncludePath, getFixpointPath, getCSSPath
+  , getIncludePath, getFixpointPath, getZ3LibPath, getCSSPath
 
   -- * Various generic utility functions for finding and removing files
   , getHsTargets
@@ -29,6 +29,7 @@ module Language.Fixpoint.Files (
 import qualified Control.Exception            as Ex
 -- import           Control.Monad.State
 import           Control.Monad -- .State
+import           Data.Functor                 ((<$>))
 import           Data.List                    hiding (find)
 import           Data.Maybe                   (fromMaybe)
 import           System.Directory
