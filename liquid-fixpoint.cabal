@@ -7,7 +7,7 @@ license-file:        LICENSE
 author:              Ranjit Jhala
 maintainer:          jhala@cs.ucsd.edu
 category:            Language
-build-type:          Simple
+build-type:          Custom 
 cabal-version:       >=1.8
 
 

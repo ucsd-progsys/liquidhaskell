@@ -25,7 +25,7 @@ module Language.Fixpoint.Types (
 
   -- * Expressions and Predicates
   , Constant (..), Bop (..), Brel (..), Expr (..), Pred (..)
-  , simplify, pAnd, pOr, pIte, pApp
+  , pAnd, pOr, pIte, pApp
   , isTautoPred
  
   -- * Constraints and Solutions

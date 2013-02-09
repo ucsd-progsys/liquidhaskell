@@ -47,7 +47,6 @@ fi
 cd external/ocamlgraph/; ./configure; make; cd ../../
 cd external/z3/ocaml; ./build-lib.sh; cd ../../../
 cd external/fixpoint; make; cd ../../
-make deps && make
 EOF
 
 chmod a+x build.sh
