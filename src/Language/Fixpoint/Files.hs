@@ -47,7 +47,16 @@ getIncludePath, getCSSPath, getFixpointPath  ::  IO FilePath
 
 getIncludePath  = getSuffixPath ["include"]                                 >>= checkM doesDirectoryExist "include directory"
 getCSSPath      = getSuffixPath ["syntax", "liquid.css"]                    >>= checkM doesFileExist      "css file"          
-getFixpointPath = getSuffixPath ["external", "fixpoint", "fixpoint.native"] >>= checkM doesFileExist      "fixpoint binary"   
+-- getFixpointPath = getSuffixPath ["external", "fixpoint", "fixpoint.native"] >>= checkM doesFileExist      "fixpoint binary"   
+
+getFixpointPath = fromMaybe msg <$> findExecutable "fixpoint.native"
+  where msg     = errorstar "Cannot find fixpoint binary [fixpoint.native]"
+
+-- getZ3LibPath    = do p <- dropFileName <$> getFixpointPath 
+--                      return $ joinPath [p, "external", "z3", "lib"] 
+
+getZ3LibPath    = dropFileName <$> getFixpointPath 
+
 
 
 getSuffixPath ::  [FilePath] -> IO FilePath 

@@ -32,6 +32,4 @@ To clone liquidhaskell:
 How To Build and Install
 ------------------------
 
-**TBD**
-
-
+    cabal install

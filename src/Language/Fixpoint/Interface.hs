@@ -35,7 +35,8 @@ execFq fn hqs fi
        appendFile fq qstr 
        withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPutStr h (render d))
        fp <- getFixpointPath
-       ec <- {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ execCmd fp fn 
+       z3 <- getZ3LibPath
+       ec <- {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ execCmd fp z3 fn 
        return ec
     where 
        fq   = extFileName Fq  fn
@@ -43,9 +44,13 @@ execFq fn hqs fi
        qstr = render ((vcat $ toFix <$> (quals fi)) $$ text "\n")
 
 -- execCmd fn = printf "fixpoint.native -notruekvars -refinesort -strictsortcheck -out %s %s" fo fq 
-execCmd fp fn = printf "%s -notruekvars -refinesort -noslice -nosimple -strictsortcheck -sortedquals -out %s %s" fp fo fq 
-  where fq    = extFileName Fq  fn
-        fo    = extFileName Out fn
+execCmd fp z3 fn = printf "LD_LIBRARY_PATH=%s %s -notruekvars -refinesort -noslice -nosimple -strictsortcheck -sortedquals -out %s %s" ld fp fo fq 
+  where fq       = extFileName Fq  fn
+        fo       = extFileName Out fn
+        ld       = dropFileName fp 
+
+
+
 
 exitFq _ _ (ExitFailure n) | (n /= 1) 
   = return (Crash [] "Unknown Error", M.empty)

@@ -7,20 +7,21 @@ import System.Exit
 
 main = defaultMainWithHooks fixpointHooks
 
-fixpointHooks  = {- simpleUserHooks -} autoconfUserHooks { postConf = buildAndCopyFixpoint } 
+fixpointHooks  = {- autoconfUserHooks -} simpleUserHooks { postConf = buildAndCopyFixpoint } 
    
 buildAndCopyFixpoint _ _ pkg lbi 
-  = do putStrLn $ "POSTCONF HOOKS: " ++ show (binDir, libDir)
+  = do putStrLn $ "POSTCONF HOOKS: " ++ show binDir -- , libDir)
+       executeShellCommand "./configure"
        executeShellCommand "./build.sh"
+       executeShellCommand $ "cp external/fixpoint/fixpoint.native " ++ binDir
+       executeShellCommand $ "cp external/z3/lib/libz3.* " ++ binDir
   where 
     allDirs     = absoluteInstallDirs pkg lbi NoCopyDest
     binDir      = bindir allDirs
-    libDir      = libdir allDirs
+    -- libDir      = libdir allDirs
 
-executeShellCommand cmd           =   putStrLn ("EXEC: " ++ cmd) 
-                                  >>  system cmd 
-                                  >>= checkExitCode cmd
-
-checkExitCode _   (ExitSuccess)   = return ()
-checkExitCode cmd (ExitFailure n) = error $ "cmd: " ++ cmd ++ " failure code " ++ show n 
+executeShellCommand cmd   = putStrLn ("EXEC: " ++ cmd) >> system cmd >>= check
+  where 
+    check (ExitSuccess)   = return ()
+    check (ExitFailure n) = error $ "cmd: " ++ cmd ++ " failure code " ++ show n 
 
