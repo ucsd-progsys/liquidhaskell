@@ -27,7 +27,7 @@ How to Clone
 
 To clone liquidhaskell:
 
-    git clone git@github.com:ucsd-progsys/liquidhaskell.git
+    git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
 
 How To Build and Install
 ------------------------
