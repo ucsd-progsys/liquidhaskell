@@ -18,29 +18,39 @@ How To Clone, Build and Install
 To begin building, run the following commands in the root 
 directory of the distribution:
 
-1. Install liquid-fixpoint
+1. Create top-level project directory
+    
+    mkdir /path/to/liquid
+    cd /path/to/liquid
+    hsenv
+    source .hsenv_liquid/activate/bin
 
+2. Install liquid-fixpoint
+    
     git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
     cd liquid-fixpoint
     cabal install
-   
-2. Install liquidhaskell
+    cd ../
+
+3. Install liquidhaskell
 
     git clone git@github.com:ucsd-progsys/liquidhaskell.git
     cd liquidhaskell
     cabal install
+    cd ../
 
-3. Add to your environment
+4. Add to your environment
 
+    LIQUIDHS=/path/to/liquid/liquidhaskell
+    export LIQUIDHS
 
-To **rebuild** after this step, just do
+To **rebuild** after this step, run
 
-    make 
+    `make` or `cabal install`
 
-or 
+inside
 
-    cabal install
-
+    /path/to/liquid/liquidhaskell/
 
 How To Run
 ----------
