@@ -1,0 +1,46 @@
+name:                text-benchmarks
+version:             0.0.0.0
+synopsis:            Benchmarks for the text package
+description:         Benchmarks for the text package
+homepage:            https://bitbucket.org/bos/text
+license:             BSD3
+license-file:        ../LICENSE
+author:              Jasper Van der Jeugt <jaspervdj@gmail.com>,
+                     Bryan O'Sullivan <bos@serpentine.com>,
+                     Tom Harper <rtomharper@googlemail.com>,
+                     Duncan Coutts <duncan@haskell.org>
+maintainer:          jaspervdj@gmail.com
+category:            Text
+build-type:          Simple
+
+cabal-version:       >=1.2
+
+executable text-benchmarks
+  hs-source-dirs: haskell ..
+  c-sources:      ../cbits/cbits.c
+                  cbits/time_iconv.c
+  main-is:        Benchmarks.hs
+  ghc-options:    -Wall -O2 -fllvm
+  cpp-options:    -DHAVE_DEEPSEQ
+  build-depends:  base == 4.*,
+                  binary,
+                  blaze-builder,
+                  bytestring,
+                  bytestring-lexing,
+                  containers,
+                  criterion >= 0.6.0.1,
+                  deepseq,
+                  directory,
+                  filepath,
+                  ghc-prim,
+                  stringsearch,
+                  utf8-string
+
+executable text-multilang
+  hs-source-dirs: haskell
+  main-is:        Multilang.hs
+  ghc-options:    -Wall -O2 -fllvm
+  build-depends:  base == 4.*,
+                  bytestring,
+                  text,
+                  time
