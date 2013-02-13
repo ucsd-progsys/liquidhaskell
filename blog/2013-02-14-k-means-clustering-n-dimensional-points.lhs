@@ -10,62 +10,61 @@ categories: basic measures
 demo: kmeans.hs
 ---
 
-[Last time][safeList] we introduced a new specification called a 
-*measure* and demonstrated how to use it to encode the *length* 
-of a list, and thereby verify that functions like `head` and `tail` 
-were only called with non-empty lists (whose length was *strictly* 
-greater than `0`.) As several folks pointed out, once LiquidHaskell 
-can reason about lengths, it can do a lot more than just analyze
-non-emptiness. 
+[Last time][safeList] we introduced a new specification called a *measure*
+and demonstrated how to use it to encode the *length* of a list, and
+thereby verify that functions like `head` and `tail` were only called with
+non-empty lists (whose length was *strictly* greater than `0`.) As several
+folks pointed out, once LiquidHaskell can reason about lengths, it can do a
+lot more than just analyze non-emptiness. 
 
 Indeed! 
 
-So today, let me show you how one might implement a k-means 
-algorithm that clusters `n`-dimensional points into at most 
-k groups, and how LiquidHaskell can help us write and enforce 
-these size requirements. 
+So today, let me show you how one might implement a k-means algorithm that
+clusters `n`-dimensional points into at most k groups, and how
+LiquidHaskell can help us write and enforce these size requirements. 
 
 <!-- For example, XXX pointed out that we can use the type
-system to give an *upper bound* on the size of a list (e.g. 
-using a gigantic `MAX_INT` value as a proxy for finite lists.) 
+system to give an *upper* bound on the size of a list, e.g. 
+using lists upper bounded by a gigantic `MAX_INT` value as
+a proxy for finite lists.
 -->
 
 <!-- more -->
 
-{- |
-Module      :  Data.KMeans
-Copyright   :  (c) Keegan Carruthers-Smith, 2009
-License     :  BSD 3 Clause
-Maintainer  :  gershomb@gmail.com
-Stability   :  experimental
+Rather than reinvent the wheel, lets start with an existing implementation
+of K-Means, available [on hackage](hackage-kmeans). This may not be the most 
+efficient implementation, but its a nice introduction to the algorithm, and we 
+speculate that the general invariants will hold for more sophisticated
+implementations.
 
-A simple implementation of the standard k-means clustering algorithm: <http://en.wikipedia.org/wiki/K-means_clustering>. K-means clustering partitions points into clusters, with each point belonging to the cluster with th nearest mean. As the general problem is NP hard, the standard algorithm, which is relatively rapid, is heuristic and not guaranteed to converge to a global optimum. Varying the input order, from which the initial clusters are generated, can yield different results. For degenerate and malicious cases, the algorithm may take exponential time.
-
--}
+\begin{code}
 
 {-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances #-}
 
-module Data.KMeans (kmeans, kmeansGen)
-    where
+module Data.KMeans (kmeans, kmeansGen) where
 
--- import Data.List (transpose, sort, groupBy, minimumBy)
 import Data.List (sort, span, minimumBy)
 import Data.Function (on)
 import Data.Ord (comparing)
 import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
 
--- Liquid: Kept for exposition, can use Data.List.groupBy
-{-@ assert groupBy :: (a -> a -> Bool) -> [a] -> [{v:[a] | len(v) > 0}] @-}
-groupBy                 :: (a -> a -> Bool) -> [a] -> [[a]]
-groupBy _  []           =  []
-groupBy eq (x:xs)       =  (x:ys) : groupBy eq zs
-                           where (ys,zs) = span (eq x) xs
-
-{-@ assert transpose :: n:Int
-                     -> m:{v:Int | v > 0} 
-                     -> {v:[{v:[a] | len(v) = n}] | len(v) = m} 
-                     -> {v:[{v:[a] | len(v) = m}] | len(v) = n} 
+{-@ groupBy :: (a -> a -> Bool) 
+            -> [a] 
+            -> [{v:[a] | len(v) > 0}] 
   @-}
+
+groupBy           :: (a -> a -> Bool) -> [a] -> [[a]]
+groupBy _  []     =  []
+groupBy eq (x:xs) =  (x:ys) : groupBy eq zs
+                     where (ys,zs) = span (eq x) xs
+
+{-@ type Vec a N      = { v : [a] | (len v) = N } @-}
+
+{-@ type Matrix a N M = Vec (Vec a N) M           @-}
+
+{-@ type PosInt       = {v:Int | v > 0}           @-}
+
+{-@ transpose :: n:Int -> m:PosInt -> Matrix a n m -> Matrix a m n @-}
 
 transpose :: Int -> Int -> [[a]] -> [[a]]
 transpose 0 _ _              = []
