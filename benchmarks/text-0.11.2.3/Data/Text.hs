@@ -69,13 +69,13 @@ module Data.Text
     , intersperse
     , transpose
     , reverse
-    , replace
+--LIQUID    , replace
 
     -- ** Case conversion
     -- $case
     , toCaseFold
     , toLower
-    , toUpper
+--LIQUID    , toUpper
 
     -- ** Justification
     , justifyLeft
@@ -130,8 +130,8 @@ module Data.Text
     , splitAt
     , breakOn
     , breakOnEnd
-    , break
-    , span
+--LIQUID    , break
+--LIQUID    , span
     , group
     , groupBy
     , inits
@@ -139,12 +139,12 @@ module Data.Text
 
     -- ** Breaking into many substrings
     -- $split
-    , splitOn
-    , split
+--LIQUID    , splitOn
+--LIQUID    , split
     , chunksOf
 
     -- ** Breaking into lines and words
-    , lines
+--LIQUID    , lines
     --, lines'
     , words
     , unlines
@@ -208,7 +208,7 @@ import Data.String (IsString(..))
 import qualified Data.Text.Fusion as S
 import qualified Data.Text.Fusion.Common as S
 import Data.Text.Fusion (stream, reverseStream, unstream)
-import Data.Text.Private (span_)
+--LIQUID import Data.Text.Private (span_)
 import Data.Text.Internal (Text(..), empty, firstf, safe, text, textP)
 import qualified Prelude as P
 import Data.Text.Unsafe (Iter(..), iter, iter_, lengthWord16, reverseIter,
@@ -228,6 +228,27 @@ import qualified GHC.CString as GHC
 import qualified GHC.Base as GHC
 #endif
 import GHC.Prim (Addr#)
+
+
+--LIQUID
+import Prelude (Integer(..), Num(..), Real(..), Integral(..))
+import Data.Word --(Word16(..))
+import Language.Haskell.Liquid.Prelude
+
+{-@ measure alen :: A.Array -> Int
+    alen (A.Array a l) = l
+  @-}
+
+{-@ measure tlen :: Text -> Int
+    tlen (Text a o l) = l
+  @-}
+
+{-@ data Text = Text
+              (arr :: A.Array)
+              (off :: {v: Int | v >= 0 })
+              (len :: {v: Int | (v >= 0 && ((alen arr) = 0 || v = 0 || off < (alen arr)))})
+  @-}
+
 
 -- $strict
 --
@@ -340,15 +361,15 @@ instance NFData Text
 --  "could we get a Data instance for Data.Text.Text?"
 --  http://groups.google.com/group/haskell-cafe/browse_thread/thread/b5bbb1b28a7e525d/0639d46852575b93
 
-instance Data Text where
-  gfoldl f z txt = z pack `f` (unpack txt)
-  toConstr _     = P.error "Data.Text.Text.toConstr"
-  gunfold _ _    = P.error "Data.Text.Text.gunfold"
-#if __GLASGOW_HASKELL__ >= 612
-  dataTypeOf _   = mkNoRepType "Data.Text.Text"
-#else
-  dataTypeOf _   = mkNorepType "Data.Text.Text"
-#endif
+--LIQUID instance Data Text where
+--LIQUID   gfoldl f z txt = z pack `f` (unpack txt)
+--LIQUID   toConstr _     = P.error "Data.Text.Text.toConstr"
+--LIQUID   gunfold _ _    = P.error "Data.Text.Text.gunfold"
+--LIQUID #if __GLASGOW_HASKELL__ >= 612
+--LIQUID   dataTypeOf _   = mkNoRepType "Data.Text.Text"
+--LIQUID #else
+--LIQUID   dataTypeOf _   = mkNorepType "Data.Text.Text"
+--LIQUID #endif
 
 -- | /O(n)/ Compare two 'Text' values lexicographically.
 compareText :: Text -> Text -> Ordering
@@ -464,7 +485,7 @@ second f (a, b) = (a, f b)
 -- non-empty.  Subject to fusion.
 last :: Text -> Char
 last (Text arr off len)
-    | len <= 0                 = emptyError "last"
+--LIQUID    | len <= 0                 = emptyError "last"
     | n < 0xDC00 || n > 0xDFFF = unsafeChr n
     | otherwise                = U16.chr2 n0 n
     where n  = A.unsafeIndex arr (off+len-1)
@@ -482,7 +503,7 @@ last (Text arr off len)
 -- must be non-empty.  Subject to fusion.
 tail :: Text -> Text
 tail t@(Text arr off len)
-    | len <= 0  = emptyError "tail"
+--LIQUID    | len <= 0  = emptyError "tail"
     | otherwise = textP arr (off+d) (len-d)
     where d = iter_ t 0
 {-# INLINE [1] tail #-}
@@ -497,7 +518,7 @@ tail t@(Text arr off len)
 -- | /O(1)/ Returns all but the last character of a 'Text', which must
 -- be non-empty.  Subject to fusion.
 init :: Text -> Text
-init (Text arr off len) | len <= 0                   = emptyError "init"
+init (Text arr off len) --LIQUID | len <= 0                   = emptyError "init"
                         | n >= 0xDC00 && n <= 0xDFFF = textP arr off (len-2)
                         | otherwise                  = textP arr off (len-1)
     where
@@ -617,12 +638,12 @@ reverse t = S.reverse (stream t)
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
-replace :: Text                 -- ^ Text to search for
-        -> Text                 -- ^ Replacement text
-        -> Text                 -- ^ Input text
-        -> Text
-replace s d = intercalate d . splitOn s
-{-# INLINE replace #-}
+--LIQUID replace :: Text                 -- ^ Text to search for
+--LIQUID         -> Text                 -- ^ Replacement text
+--LIQUID         -> Text                 -- ^ Input text
+--LIQUID         -> Text
+--LIQUID replace s d = intercalate d . splitOn s
+--LIQUID {-# INLINE replace #-}
 
 -- ----------------------------------------------------------------------------
 -- ** Case conversions (folds)
@@ -1100,16 +1121,16 @@ splitAt n t@(Text arr off len)
 -- a pair whose first element is the longest prefix (possibly empty)
 -- of @t@ of elements that satisfy @p@, and whose second is the
 -- remainder of the list.
-span :: (Char -> Bool) -> Text -> (Text, Text)
-span p t = case span_ p t of
-             (# hd,tl #) -> (hd,tl)
-{-# INLINE span #-}
+--LIQUID span :: (Char -> Bool) -> Text -> (Text, Text)
+--LIQUID span p t = case span_ p t of
+--LIQUID              (# hd,tl #) -> (hd,tl)
+--LIQUID {-# INLINE span #-}
 
 -- | /O(n)/ 'break' is like 'span', but the prefix returned is
 -- over elements that fail the predicate @p@.
-break :: (Char -> Bool) -> Text -> (Text, Text)
-break p = span (not . p)
-{-# INLINE break #-}
+--LIQUID break :: (Char -> Bool) -> Text -> (Text, Text)
+--LIQUID break p = span (not . p)
+--LIQUID {-# INLINE break #-}
 
 -- | /O(n)/ Group characters in a string according to a predicate.
 groupBy :: (Char -> Char -> Bool) -> Text -> [Text]
@@ -1170,20 +1191,20 @@ tails t | null t    = [empty]
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
-splitOn :: Text -> Text -> [Text]
-splitOn pat@(Text _ _ l) src@(Text arr off len)
-    | l <= 0          = emptyError "splitOn"
-    | isSingleton pat = split (== unsafeHead pat) src
-    | otherwise       = go 0 (indices pat src)
-  where
-    go !s (x:xs) =  textP arr (s+off) (x-s) : go (x+l) xs
-    go  s _      = [textP arr (s+off) (len-s)]
-{-# INLINE [1] splitOn #-}
+--LIQUID splitOn :: Text -> Text -> [Text]
+--LIQUID splitOn pat@(Text _ _ l) src@(Text arr off len)
+--LIQUID --LIQUID    | l <= 0          = emptyError "splitOn"
+--LIQUID     | isSingleton pat = split (== unsafeHead pat) src
+--LIQUID     | otherwise       = go 0 (indices pat src)
+--LIQUID   where
+--LIQUID     go !s (x:xs) =  textP arr (s+off) (x-s) : go (x+l) xs
+--LIQUID     go  s _      = [textP arr (s+off) (len-s)]
+--LIQUID {-# INLINE [1] splitOn #-}
 
-{-# RULES
-"TEXT splitOn/singleton -> split/==" [~1] forall c t.
-    splitOn (singleton c) t = split (==c) t
-  #-}
+--LIQUID {-# RULES
+--LIQUID "TEXT splitOn/singleton -> split/==" [~1] forall c t.
+--LIQUID     splitOn (singleton c) t = split (==c) t
+--LIQUID   #-}
 
 -- | /O(n)/ Splits a 'Text' into components delimited by separators,
 -- where the predicate returns True for a separator element.  The
@@ -1192,13 +1213,13 @@ splitOn pat@(Text _ _ l) src@(Text arr off len)
 --
 -- > split (=='a') "aabbaca" == ["","","bb","c",""]
 -- > split (=='a') ""        == [""]
-split :: (Char -> Bool) -> Text -> [Text]
-split _ t@(Text _off _arr 0) = [t]
-split p t = loop t
-    where loop s | null s'   = [l]
-                 | otherwise = l : loop (unsafeTail s')
-              where (# l, s' #) = span_ (not . p) s
-{-# INLINE split #-}
+--LIQUID split :: (Char -> Bool) -> Text -> [Text]
+--LIQUID split _ t@(Text _off _arr 0) = [t]
+--LIQUID split p t = loop t
+--LIQUID     where loop s | null s'   = [l]
+--LIQUID                  | otherwise = l : loop (unsafeTail s')
+--LIQUID               where (# l, s' #) = span_ (not . p) s
+--LIQUID {-# INLINE split #-}
 
 -- | /O(n)/ Splits a 'Text' into components of length @k@.  The last
 -- element may be shorter than the other chunks, depending on the
@@ -1266,7 +1287,7 @@ filter p t = unstream (S.filter p (stream t))
 -- towards /O(n*m)/.
 breakOn :: Text -> Text -> (Text, Text)
 breakOn pat src@(Text arr off len)
-    | null pat  = emptyError "breakOn"
+--LIQUID    | null pat  = emptyError "breakOn"
     | otherwise = case indices pat src of
                     []    -> (src, empty)
                     (x:_) -> (textP arr off x, textP arr (off+x) (len-x))
@@ -1307,7 +1328,7 @@ breakOnAll :: Text              -- ^ @needle@ to search for
            -> Text              -- ^ @haystack@ in which to search
            -> [(Text, Text)]
 breakOnAll pat src@(Text arr off slen)
-    | null pat  = emptyError "breakOnAll"
+--LIQUID    | null pat  = emptyError "breakOnAll"
     | otherwise = L.map step (indices pat src)
   where
     step       x = (chunk 0 x, chunk x (slen-x))
@@ -1353,7 +1374,7 @@ findIndex p t = S.findIndex p (stream t)
 -- towards /O(n*m)/.
 count :: Text -> Text -> Int
 count pat src
-    | null pat        = emptyError "count"
+--LIQUID    | null pat        = emptyError "count"
     | isSingleton pat = countChar (unsafeHead pat) src
     | otherwise       = L.length (indices pat src)
 {-# INLINE [1] count #-}
@@ -1407,13 +1428,13 @@ words t@(Text arr off len) = loop 0 0
 
 -- | /O(n)/ Breaks a 'Text' up into a list of 'Text's at
 -- newline 'Char's. The resulting strings do not contain newlines.
-lines :: Text -> [Text]
-lines ps | null ps   = []
-         | otherwise = h : if null t
-                           then []
-                           else lines (unsafeTail t)
-    where (# h,t #) = span_ (/= '\n') ps
-{-# INLINE lines #-}
+--LIQUID lines :: Text -> [Text]
+--LIQUID lines ps | null ps   = []
+--LIQUID          | otherwise = h : if null t
+--LIQUID                            then []
+--LIQUID                            else lines (unsafeTail t)
+--LIQUID     where (# h,t #) = span_ (/= '\n') ps
+--LIQUID {-# INLINE lines #-}
 
 {-
 -- | /O(n)/ Portably breaks a 'Text' up into a list of 'Text's at line
@@ -1569,8 +1590,8 @@ sumP fun = go 0
           where ax = a + x
         go a  _         = a
 
-emptyError :: String -> a
-emptyError fun = P.error $ "Data.Text." ++ fun ++ ": empty input"
+--LIQUID emptyError :: String -> a
+--LIQUID emptyError fun = P.error $ "Data.Text." ++ fun ++ ": empty input"
 
 overflowError :: String -> a
 overflowError fun = P.error $ "Data.Text." ++ fun ++ ": size overflow"

@@ -26,7 +26,8 @@
 module Data.Text.Array
     (
     -- * Types
-      Array(aBA)
+    --LIQUID added Array dataCon export
+      Array(..)
     , MArray(maBA)
 
     -- * Functions
@@ -34,9 +35,9 @@ module Data.Text.Array
     , copyI
     , empty
     , equal
-#if defined(ASSERTS)
+--LIQUID #if defined(ASSERTS)
     , length
-#endif
+--LIQUID #endif
     , run
     , run2
     , toList
@@ -57,9 +58,9 @@ if (_k_) < 0 || (_k_) >= (_len_) then error ("Data.Text.Array." ++ (_func_) ++ "
 
 #include "MachDeps.h"
 
-#if defined(ASSERTS)
+--LIQUID #if defined(ASSERTS)
 import Control.Exception (assert)
-#endif
+--LIQUID #endif
 #if __GLASGOW_HASKELL__ >= 702
 import Control.Monad.ST.Unsafe (unsafeIOToST)
 #else
@@ -83,20 +84,20 @@ import Prelude hiding (length, read)
 -- | Immutable array type.
 data Array = Array {
       aBA :: ByteArray#
-#if defined(ASSERTS)
+--LIQUID #if defined(ASSERTS)
     , aLen :: {-# UNPACK #-} !Int -- length (in units of Word16, not bytes)
-#endif
+--LIQUID #endif
     }
 
 -- | Mutable array type, for use in the ST monad.
 data MArray s = MArray {
       maBA :: MutableByteArray# s
-#if defined(ASSERTS)
+--LIQUID #if defined(ASSERTS)
     , maLen :: {-# UNPACK #-} !Int -- length (in units of Word16, not bytes)
-#endif
+--LIQUID #endif
     }
 
-#if defined(ASSERTS)
+--LIQUID #if defined(ASSERTS)
 -- | Operations supported by all arrays.
 class IArray a where
     -- | Return the length of an array.
@@ -109,7 +110,7 @@ instance IArray Array where
 instance IArray (MArray s) where
     length = maLen
     {-# INLINE length #-}
-#endif
+--LIQUID #endif
 
 -- | Create an uninitialized mutable array.
 new :: forall s. Int -> ST s (MArray s)
@@ -118,9 +119,9 @@ new n
   | otherwise = ST $ \s1# ->
        case newByteArray# len# s1# of
          (# s2#, marr# #) -> (# s2#, MArray marr#
-#if defined(ASSERTS)
+--LIQUID #if defined(ASSERTS)
                                 n
-#endif
+--LIQUID #endif
                                 #)
   where !(I# len#) = bytesInArray n
         highBit    = maxBound `xor` (maxBound `shiftR` 1)
@@ -130,9 +131,9 @@ new n
 unsafeFreeze :: MArray s -> ST s Array
 unsafeFreeze MArray{..} = ST $ \s# ->
                           (# s#, Array (unsafeCoerce# maBA)
-#if defined(ASSERTS)
+--LIQUID #if defined(ASSERTS)
                              maLen
-#endif
+--LIQUID #endif
                              #)
 {-# INLINE unsafeFreeze #-}
 
@@ -192,10 +193,10 @@ copyM :: MArray s               -- ^ Destination
 copyM dest didx src sidx count
     | count <= 0 = return ()
     | otherwise =
-#if defined(ASSERTS)
+--LIQUID #if defined(ASSERTS)
     assert (sidx + count <= length src) .
     assert (didx + count <= length dest) .
-#endif
+--LIQUID #endif
     unsafeIOToST $ memcpyM (maBA dest) (fromIntegral didx)
                            (maBA src) (fromIntegral sidx)
                            (fromIntegral count)
