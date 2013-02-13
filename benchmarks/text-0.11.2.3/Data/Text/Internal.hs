@@ -37,32 +37,43 @@ module Data.Text.Internal
     , showText
     ) where
 
-#if defined(ASSERTS)
+--LIQUID #if defined(ASSERTS)
 import Control.Exception (assert)
-#endif
+--LIQUID #endif
 import Data.Bits ((.&.))
 import qualified Data.Text.Array as A
 import Data.Text.UnsafeChar (ord)
 import Data.Typeable (Typeable)
+
+
+{-@ measure alen :: A.Array -> Integer
+    alen (A.Array a l) = l
+  @-}
+
+{-@ data Text = Text
+              (arr :: A.Array)
+              (off :: {v: Integer | v >= 0 })
+              (len :: {v: Integer | (v >= 0 && ((alen arr) = 0 || v = 0 || off < (alen arr)))})
+  @-}
 
 -- | A space efficient, packed, unboxed Unicode text type.
 data Text = Text
     {-# UNPACK #-} !A.Array          -- payload
     {-# UNPACK #-} !Int              -- offset
     {-# UNPACK #-} !Int              -- length
-    deriving (Typeable)
+--LIQUID    deriving (Typeable)
 
 -- | Smart constructor.
 text :: A.Array -> Int -> Int -> Text
 text arr off len =
-#if defined(ASSERTS)
+--LIQUID #if defined(ASSERTS)
   let c    = A.unsafeIndex arr off
       alen = A.length arr
   in assert (len >= 0) .
      assert (off >= 0) .
      assert (alen == 0 || len == 0 || off < alen) .
      assert (len == 0 || c < 0xDC00 || c > 0xDFFF) $
-#endif
+--LIQUID #endif
      Text arr off len
 {-# INLINE text #-}
 
