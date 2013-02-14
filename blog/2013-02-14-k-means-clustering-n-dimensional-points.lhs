@@ -39,16 +39,15 @@ implementations.
 
 
 \begin{code}
-nearest n centers x = minimumKey distances
-  where distances   = M.map (distance n x) centers
 
-minimumKey :: (Ord v) => M.Map k v -> k
-minimumKey = fst . minimumBy (\x y -> compare (snd x) (snd y)) . M.toList 
+nearest centers x   = minimumKey distances
+  where distances   = M.map (distance x) centers
 
-{-@ distance   :: n:Int -> (Vec Double n) -> (Vec Double n) -> Double @-}
-distance n a b = sqrt . sum $ zipWith (\x y -> (x - y) ^ 2) a b
+minimumKey   :: (Ord v) => M.Map k v -> k
+minimumKey   = fst . minimumBy (\x y -> compare (snd x) (snd y)) . M.toList 
 
-reweight (n :: Int) (c1, s1) (c2, s2) = (zipWith (+) c1 c2, s1 + s2)
+distance     :: [Double] -> [Double] -> [Double]
+distance a b = sqrt . sum $ zipWith (\x y -> (x - y) ^ 2) a b
 
 normalize (n :: Int) = M.map (\(c, s) -> map (`safeDiv` s) c) 
 
@@ -58,30 +57,32 @@ initialCenters :: [a] -> M.HashMap Int [a] ->
 {-@ BoundInt  K   = {v: Int | (1 <= v) && (v <= K) }    @-}
 {-@ Point a   N   = {v: [a] | (len v) = N }             @-}
 {-@ Points a  N   = NNList (Point a n)                  @-}
-{-@ Cluster a K N = M.HashMap (BoundInt K) (Points a N) @-}
+{-@ Cluster a K N = M.HashMap (BoundInt K) (Point a N)  @-}
 
-
-{-@ initialCenters      :: k:{k:Int | k > 0} -> [a] -> M.HashMap (BoundInt k) (NNList a) @-}
-initialCenters          :: Int -> [a] -> M.HashMap Int [a]  
-initialCenters k points = M.fromList $ zip indices partitions 
+{-@ initialCenters  :: k:{k:Int | k > 0} -> [a] -> M.HashMap (BoundInt k) (NNList a) @-}
+initialCenters      :: Int -> [a] -> M.HashMap Int [a]  
+initialCenters k xs = M.fromList $ zip indices partitions 
   where 
-    l                   = max 1 ((length points + k - 1) `div` k)
-    partitions          = part l points
-    nPartitions         = length partitions
-    indices             = liquidAssume (n <= k) [1..n]
+    clusterSize     = max 1 ((length points + k - 1) `div` k)
+    parts           = partition clusterSize points
+    nParts          = length parts
+    indices         = liquidAssume (nParts <= k) [1..nParts]
 
+{-@ partition        :: {v:Int | v > 0} -> [a] -> [(NNList a)] @-}
+partition n []       = []
+partition n ys@(_:_) = zs : part n zs' 
+  where 
+    zs               = take n ys
+    zs'              = drop n ys
 
-{-@ part        :: n:{v:Int | v > 0} -> [a] -> [(NNList a)] @-}
-part n []       = []
-part n ys@(_:_) = zs : part n zs' 
-                  where zs  = take n ys
-                        zs' = drop n ys
+kmeansStep :: n:Int -> [Point Double n] -> M.Map k (Point Double n) -> M.Map k (Point Double n) 
+kmeansStep (n :: Int) centers = M.fromList . mapReduce newCenter mergeCluster
+  where
+    recenter x              = [(nearest centers x, (x, 1))]
+    merge (c1, s1) (c2, s2) = (zipWith (+) c1 c2, s1 + s2)
 
-
-
-kmeans' n k points = kmeans'' n $ part l points
-    where l = max 1 ((length points + k - 1) `div` k)
-
+           
+kmeans n k xs  = initialCenters k xs
 
 \end{code}
 
