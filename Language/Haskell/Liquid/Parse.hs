@@ -42,7 +42,7 @@ bareTypeP :: Parser BareType
 bareTypeP   
   =  try bareFunP
  <|> bareAllP
- <|> bareExistsP
+--  <|> bareExistsP
  <|> bareAtomP 
  
 bareArgP 
@@ -80,12 +80,12 @@ bareAtomNoAppP
   =  frefP bbaseNoAppP 
  <|> try (dummyP (bbaseNoAppP <* spaces))
 
-bareExistsP 
-  = do reserved "exists"
-       zs <- brackets $ sepBy1 exBindP comma 
-       dot
-       t  <- bareTypeP
-       return $ foldr (uncurry REx) t zs
+-- bareExistsP 
+--   = do reserved "exists"
+--        zs <- brackets $ sepBy1 exBindP comma 
+--        dot
+--        t  <- bareTypeP
+--        return $ foldr (uncurry REx) t zs
      
 exBindP 
   = xyP binderP colon bareTypeP 
