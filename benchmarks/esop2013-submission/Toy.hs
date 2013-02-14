@@ -35,9 +35,9 @@ maxEvens2 xs = maximumPoly (0 : xs')
 -------------------------------------------------------------------------
 
 {-@ foldN :: forall a <p :: x0:Int -> x1:a -> Prop>. 
-                (i:Int -> a<p i> -> exists [j : {v: Int | v = i + 1}]. a<p j>) 
+                (i:Int -> a<p i> -> a<p (i+1)>) 
               -> n:{v: Int | v >= 0}
-              -> (exists [z : {v: Int | v = 0}]. a <p z>) 
+              -> a <p 0> 
               -> a <p n>
   @-}
 
@@ -80,8 +80,8 @@ sizeOf (Cons _ xs) = 1 + sizeOf xs
 -- parameter that will let us properly describe the type of `efoldr` 
 
 {-@ efoldr :: forall a b <p :: x0:Vec a -> x1:b -> Prop>. 
-                (xs:Vec a -> x:a -> b <p xs> -> exists [xxs : {v: Vec a | v = (Toy.Cons x xs)}]. b <p xxs>) 
-              -> (exists [zz: {v: Vec a | v = Toy.Nil}]. b <p zz>) 
+                (xs:Vec a -> x:a -> b <p xs> -> b <p (Toy.Cons x xs)>) 
+              -> b <p Toy.Nil> 
               -> ys: Vec a
               -> b <p ys>
   @-}
