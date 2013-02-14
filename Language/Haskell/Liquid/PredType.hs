@@ -150,8 +150,8 @@ unifyS (RApp c ts rs r) (RApp _ pts ps p)
         getR (RMono r) = r
         getR (RPoly _) = top 
 
-unifyS (REx x tx t) (REx x' _ t') | x == x'
-  = liftM (REx x tx) (unifyS t t')
+unifyS (RAllE x tx t) (RAllE x' _ t') | x == x'
+  = liftM (RAllE x tx) (unifyS t t')
 
 unifyS t1 t2                
   = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
@@ -235,19 +235,19 @@ substPred msg su@(π, _ ) (RApp c ts rs r)
         (r2', πs) = splitRPvar π r
 
 substPred msg (p, tp) (RAllP (q@(PV _ _ _)) t)
-  | p /= q                    = RAllP q $ substPred msg (p, tp) t
-  | otherwise                 = RAllP q t 
+  | p /= q                      = RAllP q $ substPred msg (p, tp) t
+  | otherwise                   = RAllP q t 
 
-substPred msg su (RAllT a t)  = RAllT a (substPred msg su t)
+substPred msg su (RAllT a t)    = RAllT a (substPred msg su t)
 
 substPred msg su@(π, πt) (RFun x t t' r) 
-  | null πs                   = RFun x (substPred msg su t) (substPred msg su t') r
-  | otherwise                 = meetListWithPSubs πs πt (RFun x t t' r')
-  where (r', πs)              = splitRPvar π r
+  | null πs                     = RFun x (substPred msg su t) (substPred msg su t') r
+  | otherwise                   = meetListWithPSubs πs πt (RFun x t t' r')
+  where (r', πs)                = splitRPvar π r
 
-substPred msg pt (RCls c ts)  = RCls c (substPred msg pt <$> ts)
+substPred msg pt (RCls c ts)    = RCls c (substPred msg pt <$> ts)
 
-substPred msg su (REx x t t') = REx x (substPred msg su t) (substPred msg su t')
+substPred msg su (RAllE x t t') = RAllE x (substPred msg su t) (substPred msg su t')
 
 substPred _   _  t            = t
 
