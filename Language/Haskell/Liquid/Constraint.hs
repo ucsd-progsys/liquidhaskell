@@ -773,8 +773,7 @@ consCB γ (NonRec x e)
 consBind isRec γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
        γπ    <- foldM addPToEnv γ' πs
-       t     <- consE γπ e
-       addC (SubC γπ t spect) "consBind"
+       cconsE γπ e spect
        addIdA x (defAnn isRec spect) 
        return Nothing
   where πs   = snd3 $ bkUniv spect
@@ -842,9 +841,10 @@ cconsE γ (Tick tt e) t
 cconsE γ (Cast e _) t     
   = cconsE γ e t 
 
-cconsE γ e (RAllP (p@(PV _ _ _)) t)
-  = do s <- truePredRef p
-       cconsE γ e (replacePreds "cconsE" t [(p, RPoly s)])
+cconsE γ e (RAllP p t)
+  = cconsE γ e t'
+  where t' = fmap (replacePredsWithRefs su) t
+        su = (uPVar p, pVartoRConc p)
 
 cconsE γ e t
   = do te  <- consE γ e
