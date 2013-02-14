@@ -279,9 +279,9 @@ mkSortedReft tce = F.RR . rTypeSort tce
 splitC :: SubC -> CG [FixSubC]
 ------------------------------------------------------------
 
-splitC (SubC γ (REx x tx t1) (REx x2 _ t2))
+splitC (SubC γ (REx x tx t1) (REx x2 _ t2)) | x == x2
   = do γ' <- (γ, "addExBind 0") += (x, existentialRefType γ tx)
-       assert (x == x2) $ splitC (SubC γ' t1 t2)
+       splitC (SubC γ' t1 t2)
 
 splitC (SubC γ (REx x tx t1) t2) 
   = do γ' <- (γ, "addExBind 1") += (x, existentialRefType γ tx)
