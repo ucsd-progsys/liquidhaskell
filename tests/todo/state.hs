@@ -1,31 +1,54 @@
 module StateMonad where
 
-type State = Int
-data ST a = S (State -> (a, State))
-{-@ data ST a <p1 :: old:State -> State -> Prop,
-               p2 :: old:State -> a -> Prop> 
-     = S (x::(f:State -> (a<p2 f>, State<p1 f>))) 
+data ST s a = S (s -> (a, s))
+
+{-@ data ST s a <p1 :: old:s -> s -> Prop>
+     = S (x::(f:s -> (a, s<p1 f>))) 
   @-}
-
-{-@ type IState a = (ST a) <\f->{v:State |v=f}, \f->{v:a|v=f+1}>@-}
-
--- apply0 :: ST a -> State -> (a, State)
-
 
 {-@
-apply0 :: forall a <p1 :: old:State -> State -> Prop, 
-                    p2 :: old:State -> a -> Prop>.
-          (ST a) <p1, p2> -> f:State -> (a<p2 f>, State<p1 f>)
+apply :: forall s a <p1 :: old:s -> s -> Prop>.
+          ST <p1> s a-> f:s -> (a, s<p1 f>)
   @-}
-apply0 :: ST a -> State -> (a, State)
-apply0 (S f) x = f x
+apply :: ST s a -> s -> (a, s)
+apply (S f) x = f x
 
--- fresh :: ST Int
-{- fresh :: n:Int -> ({v:Int|v=n}, {v:Int|v=n+1})@-}
-{-@ fresh :: IState State @-}
+
+
+-- TODO >>= does not parse...
+{-@
+seq :: forall <p1 :: old:s -> s -> Prop>.
+        ST <p1> s a -> (a ->  ST <p1> s b) -> ST <p1> s b
+  @-}
+seq :: ST s a -> (a -> ST s b) -> ST s b
+m `seq` k = S $ \s -> 
+  let (a, s') = apply m s in apply (k a) s'
+
+-- The above does is not Safe, because s' is not visible 
+-- in the type signature
+-- The same pattern exists in function composition:
+-- What can we have in the result?
+
+{- foo :: forall <p :: xx:a -> a -> Prop>.
+     (x:a -> a<p x>) -> g:(x:a -> a<p x>) -> y:a -> 
+      a<p ?? >
+ @-}
+foo :: (a -> a) -> (a -> a) -> a -> a
+foo f g x =
+  let s' = g x in f s'
+
+-- We can not have exists [j:{v:a | v = (g x)}]
+
+
+
+
+{-@ fresh :: ST <\st -> {v:Int|v=st+1}> Int Int@-}
+fresh :: ST Int Int
 fresh = S (\n -> (n, n+1))
 
-
+{-@ bar :: (Int, {v:Int|v>=0}) @-}
+bar :: (Int, Int)
+bar = apply fresh 0
 
 -- foo 0 = return []
 -- 
@@ -36,6 +59,4 @@ fresh = S (\n -> (n, n+1))
        
 
 
-{-@ foo :: ({v:Int|v>=0}, Int) @-}
-foo :: (Int, Int)
-foo = apply0 fresh 0
+
