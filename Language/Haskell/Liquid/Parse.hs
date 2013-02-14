@@ -264,7 +264,7 @@ bAppTy v t r              = RAppTy (RVar v top) t (reftUReft r)
 
 reftUReft      = (`U` pdTrue)
 predUReft      = (U dummyFReft) 
-dummyFReft      = FReft $ Reft (dummySymbol, [])
+dummyFReft     = FReft $ top
 dummyTyId      = ""
 
 ------------------------------------------------------------------
