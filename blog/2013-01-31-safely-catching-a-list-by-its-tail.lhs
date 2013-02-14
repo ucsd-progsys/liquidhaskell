@@ -310,10 +310,10 @@ We can put the whole thing together to write a (*very*) simple *Map-Reduce* libr
 
 \begin{code}
 mapReduce   :: (Eq k, Hashable k) 
-                => (a -> [(k, v)]) -- ^ key-mapper
-                -> (v -> v -> v)   -- ^ reduction operator
-                -> [a]             -- ^ inputs
-                -> [(k, v)]        -- ^ output key-values
+            => (a -> [(k, v)])    -- ^ key-mapper
+            -> (v -> v -> v)      -- ^ reduction operator
+            -> [a]                -- ^ inputs
+            -> [(k, v)]           -- ^ output key-values
 
 mapReduce f op  = M.toList 
                 . reduce op 
