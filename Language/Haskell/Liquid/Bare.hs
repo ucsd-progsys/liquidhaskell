@@ -418,8 +418,8 @@ ofBareType (RFun x t1 t2 _)
   = liftM2 (rFun x) (ofBareType t1) (ofBareType t2)
 ofBareType (RAppTy t1 t2 _) 
   = liftM2 rAppTy (ofBareType t1) (ofBareType t2)
-ofBareType (REx x t1 t2)
-  = liftM2 (REx x) (ofBareType t1) (ofBareType t2)
+ofBareType (RAllE x t1 t2)
+  = liftM2 (RAllE x) (ofBareType t1) (ofBareType t2)
 ofBareType (RAllT a t) 
   = liftM  (RAllT (stringRTyVar a)) (ofBareType t)
 ofBareType (RAllP π t) 
@@ -706,7 +706,7 @@ getBinds
 
 addExists t = liftM (M.foldlWithKey' addExist t) getBinds
 
-addExist t x (tx, e) = REx x t' t
+addExist t x (tx, e) = RAllE x t' t
   where t' = (ofRSort tx) `strengthen` uTop r
         r  = reft (vv Nothing, [RConc (PAtom Eq (EVar (vv Nothing)) e)])
 
