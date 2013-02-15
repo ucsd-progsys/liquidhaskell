@@ -65,9 +65,8 @@ generate as
 The Players: Types
 ------------------
 
-Lets make matters concrete by creating types that will denote the different
-elements of the algorithm.
-
+Lets make matters concrete by creating types that will represent the 
+different elements of the algorithm.
 
 1. **Fixed-Length Lists**  We will represent n-dimensional points using 
    good old Haskell lists, refined with a predicate that describes the
@@ -75,22 +74,26 @@ elements of the algorithm.
    into a *type alias* that denotes lists of a given length `N` 
 
 \begin{code}
-{-@ type List a N      = {v : [a] | (len v) = N} @-}
+{-@ type List a N = {v : [a] | (len v) = N} @-}
 \end{code}
 
-2. **Points** Now, we can represent an `N`-dimensional point as list of
+2. **Points** Next, we can represent an `N`-dimensional point as list of
    `Double` of length `N`, or in brief,
 
 \begin{code}
-{-@ type Point N       = List Double N           @-}
+{-@ type Point N = List Double N @-}
 \end{code}
 
-3. Generalized Points
+3. **Generalized Points** To be more flexible, we will support arbitrary
+points as long as they can be **projected** to Euclidian space (which
+allows for weighting dimensions to different degrees.) We encode
+these points as
 
+\begin{code}
+{-@ type GenPoint a N  = WrapType (Point N) a @-} 
+\end{code}
 
-
-3. 
-
+where `WrapType` is simply a Haskell record type
 
 \begin{code}
 data WrapType b a = WrapType {getVect :: b, getVal :: a}
@@ -102,39 +105,83 @@ instance Ord (WrapType [Double] a) where
     compare = comparing getVect
 \end{code}
 
+4. **Clusters** Finally, a cluster is a *non-empty* list of points,
+
 \begin{code}
-{-@ type NNList a      = {v : [a] | (len v) > 0} @-}
-{-@ type Matrix a N M  = List (List a N) M       @-}
-{-@ type GenPoint a N  = WrapType (Point N) a    @-} 
-{-@ type Clustering a  = [(NNList a)]            @-}
+{-@ type NEList a = {v : [a] | (len v) > 0} @-}
+\end{code}
+
+and a `Clustering` is a non-empty list of clusters.
+
+\begin{code}
+{-@ type Clustering a  = [(NEList a)] @-}
 \end{code}
 
 
-Warm-up: Basic List Operations
-------------------------------
+Warm-up: Basic Operations
+-------------------------
+
+Ok, with the types firmly in hand, let us go forth and develop the KMeans
+clustering implementation. We will use a variety of small helper functions
+(of the kind found in `Data.List`.) Lets get started by looking at them
+through our new *refined* eyes.
+
+
+Grouping
+--------
+
+The first such function is [groupBy][URL-groupBy]. We can
+refine its type so that instead of just producing a `[[a]]` we know that it
+produces a `Clustering a`, meaning a list of *non-empty* lists.
 
 \begin{code}
 {-@ groupBy       :: (a -> a -> Bool) -> [a] -> (Clustering a) @-}
 groupBy _  []     =  []
 groupBy eq (x:xs) =  (x:ys) : groupBy eq zs
   where (ys,zs)   = span (eq x) xs
+\end{code}
 
+Intuitively, its pretty easy to see how LiquidHaskell verifies the refined 
+specification:
+
+- Each element of the output list is of the form `x:ys` 
+- For any list `ys` the length is non-negative, i.e. `(len ys) >= 0`
+- The `len` of `x:ys` is `1 + (len ys)`, that is, strictly positive.
+
+Partitioning
+------------
+
+HEREHEREHEREHERE
+
+\begin{code}
 {-@ partition           :: size:PosInt -> [a] -> (Clustering a) @-}
 partition size []       = []
 partition size ys@(_:_) = zs : part size zs' 
   where 
     zs                  = take size ys
     zs'                 = drop size ys
+\end{code}
 
+
+Zipping
+-------
+
+\begin{code}
 {-@ safeZipWith :: (a -> b -> c) -> xs:[a] -> (List b (len xs)) -> (List c (len xs)) @-}
 safeZipWith f (a:as) (b:bs) = f a b : safeZipWith f as bs
 safeZipWith _ [] []         = []
+
+-- Other cases only for exposition 
 safeZipWith _ (_:_) []      = liquidError "safeZipWith1"
 safeZipWith _ [] (_:_)      = liquidError "safeZipWith2"
+\end{code}
 
-{-@ safeDiv   :: (Fractional a) => a -> {v:Int | v != 0} -> a @-}
-safeDiv n 0   = liquidError "divide by zero"
-safeDiv n d   = n / (fromIntegral d)
+
+Transposing
+-----------
+
+\begin{code}
+{-@ type Matrix a N M        = List (List a N) M @-}
 
 {-@ transpose                :: n:Int -> m:{v:Int| v > 0} -> Matrix a n m -> Matrix a m n @-}
 transpose                    :: Int -> Int -> [[a]] -> [[a]]
@@ -144,6 +191,11 @@ transpose n m ((x:xs) : xss) = (x : map head xss) : transpose (n - 1) m (xs : ma
 transpose n m ([] : _)       = liquidError "transpose1" 
 transpose n m []             = liquidError "transpose2"
 \end{code}
+
+
+
+
+
 
 
 Algorithm: Iterative Clustering
@@ -188,7 +240,6 @@ reCluster n clusters   = clusters'
 
     -- 5. Project groups back to the original points
     clusters'          = map (map snd) centeredGroups
-
 \end{code}
 
 
@@ -202,12 +253,18 @@ Computing the Center of a Cluster
 -- Determine the Center of a Cluster of Points ---------------------------------------------
 --------------------------------------------------------------------------------------------
 
-{-@ clusterCenter      :: n:Int -> NNList (GenPoint a n) -> Point n @-}
+{-@ clusterCenter      :: n:Int -> NEList (GenPoint a n) -> Point n @-}
 clusterCenter n points = map ((`safeDiv` numPoints) . sum) points'  -- divide By Zero
   where 
     numPoints          = length points 
     points'            = transpose n numPoints (map getVect points)
+\end{code}
 
+
+\begin{code}
+{- safeDiv   :: (Fractional a) => a -> {v:Int | v != 0} -> a -}
+safeDiv n 0   = liquidError "divide by zero"
+safeDiv n d   = n / (fromIntegral d)
 \end{code}
 
 Finding the Nearest Center
@@ -231,7 +288,6 @@ nearestCenter n centers p = minKey centerDistances
     distance              ::  [Double] -> [Double] -> Double 
     distance a b          = sqrt . sum $ safeZipWith (\x y -> (x-y)^2) a b      -- safeZipWith dimensions
 \end{code}
-
 
 
 Putting It All Together: Top-Level API
@@ -273,10 +329,10 @@ Conclusions
 3. Circumvent limitations of SMT with a touch of **dynamic** checking using **assumes**
 
 
-[vecbounds]:  /blog/2013/01/05/bounding-vectors.lhs/ 
-[ghclist]:    https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/List.lhs#L125
-[foldl1]:     http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#foldl1
-[safeList]:   /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/ 
-
+[vecbounds]:    /blog/2013/01/05/bounding-vectors.lhs/ 
+[ghclist]:      https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/List.lhs#L125
+[foldl1]:       http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#foldl1
+[safeList]:     /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/ 
+[URL-groupBy]:  http://hackage.haskell.org/packages/archive/base/latest/doc/html/Data-List.html#v:groupBy
 
 
