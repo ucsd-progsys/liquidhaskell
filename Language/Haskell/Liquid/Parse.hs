@@ -42,7 +42,7 @@ bareTypeP :: Parser BareType
 bareTypeP   
   =  try bareFunP
  <|> bareAllP
- <|> bareExistsP
+ <|> bareAllExprP
  <|> bareAtomP 
  
 bareArgP 
@@ -80,12 +80,12 @@ bareAtomNoAppP
   =  frefP bbaseNoAppP 
  <|> try (dummyP (bbaseNoAppP <* spaces))
 
-bareExistsP 
-  = do reserved "exists"
+bareAllExprP 
+  = do reserved "forall"
        zs <- brackets $ sepBy1 exBindP comma 
        dot
        t  <- bareTypeP
-       return $ foldr (uncurry REx) t zs
+       return $ foldr (uncurry RAllE) t zs
      
 exBindP 
   = xyP binderP colon bareTypeP 
@@ -264,7 +264,7 @@ bAppTy v t r              = RAppTy (RVar v top) t (reftUReft r)
 
 reftUReft      = (`U` pdTrue)
 predUReft      = (U dummyFReft) 
-dummyFReft      = FReft $ Reft (dummySymbol, [])
+dummyFReft     = FReft $ top
 dummyTyId      = ""
 
 ------------------------------------------------------------------

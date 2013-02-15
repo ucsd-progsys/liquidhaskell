@@ -23,8 +23,10 @@ import TysWiredIn
 import BasicTypes (TupleSort (..), Arity)
 import TcRnDriver (tcRnLookupRdrName, tcRnLookupName) 
 
+import Data.Char                (isLower)
 import Text.Printf
 import Data.Maybe               (fromMaybe, mapMaybe, catMaybes, isNothing)
+import Control.Monad.State      (get, modify, State, evalState)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>), (<|>))
 import Control.Monad.Reader     hiding (forM)
@@ -83,15 +85,16 @@ makeGhcSpec' vars env spec
        let datacons     = concat dcs ++ dcs'    
        let benv         = BE (makeTyConInfo tycons) env
        (cs, ms)        <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
-       sigs            <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
+       sigs'           <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec 
 
+       let sigs         = mapSnd txExpToBind <$> sigs' 
        let cs'          = meetDataConSpec cs datacons
        let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms 
        let tx           = subsFreeSymbols syms
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
-       return           $ SP { tySigs     = renameTyVars <$> tx sigs 
+       return           $ SP { tySigs     = renameTyVars <$> tx sigs
                              , ctor       = tx cs'
                              , meas       = tx (ms ++ varMeasures vars) 
                              , invariants = invs 
@@ -415,8 +418,8 @@ ofBareType (RFun x t1 t2 _)
   = liftM2 (rFun x) (ofBareType t1) (ofBareType t2)
 ofBareType (RAppTy t1 t2 _) 
   = liftM2 rAppTy (ofBareType t1) (ofBareType t2)
-ofBareType (REx x t1 t2)
-  = liftM2 (REx x) (ofBareType t1) (ofBareType t2)
+ofBareType (RAllE x t1 t2)
+  = liftM2 (RAllE x) (ofBareType t1) (ofBareType t2)
 ofBareType (RAllT a t) 
   = liftM  (RAllT (stringRTyVar a)) (ofBareType t)
 ofBareType (RAllP π t) 
@@ -655,4 +658,83 @@ checkSig env (x, t)
       ys -> errorstar (msg ys) 
     where msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showFix ys) (showFix x) (showFix t)
 
+-------------------------------------------------------------------------------
+------------------  Replace Predicate Arguments With Existemtials -------------
+-------------------------------------------------------------------------------
+data ExSt = ExSt { fresh :: Int
+                 , emap  :: M.HashMap Symbol (RSort, Expr)
+                 , pmap  :: M.HashMap Symbol RPVar 
+                 }
+
+txExpToBind   :: SpecType -> SpecType
+txExpToBind t = evalState (expToBindT t) (ExSt 0 M.empty πs)
+  where πs = M.fromList [(pname p, p) | p <- snd3 $ bkUniv t ]
+
+expToBindT :: SpecType -> State ExSt SpecType
+expToBindT (RVar v r) 
+  = expToBindRef r >>= addExists . RVar v
+expToBindT (RFun x t1 t2 r) 
+  = do t1' <- expToBindT t1
+       t2' <- expToBindT t2
+       expToBindRef r >>= addExists . RFun x t1' t2'
+expToBindT (RAllT a t) 
+  = liftM (RAllT a) (expToBindT t)
+expToBindT (RAllP p t)
+  = liftM (RAllP p) (expToBindT t)
+expToBindT (RApp c ts rs r) 
+  = do ts' <- mapM expToBindT ts
+       rs' <- mapM expToBindReft rs
+       expToBindRef r >>= addExists . RApp c ts' rs'
+expToBindT (RCls c ts)
+  = liftM (RCls c) (mapM expToBindT ts)
+expToBindT (RAppTy t1 t2 r)
+  = do t1' <- expToBindT t1
+       t2' <- expToBindT t2
+       expToBindRef r >>= addExists . RAppTy t1' t2'
+expToBindT t 
+  = return t
+
+expToBindReft :: Ref RReft (SpecType) -> State ExSt (Ref RReft SpecType)
+expToBindReft (RPoly t) = liftM RPoly (expToBindT t)
+expToBindReft (RMono r) = liftM RMono (expToBindRef r)
+
+getBinds :: State ExSt (M.HashMap Symbol (RSort, Expr))
+getBinds 
+  = do bds <- emap <$> get
+       modify $ \st -> st{emap = M.empty}
+       return bds
+
+addExists t = liftM (M.foldlWithKey' addExist t) getBinds
+
+addExist t x (tx, e) = RAllE x t' t
+  where t' = (ofRSort tx) `strengthen` uTop r
+        r  = reft (vv Nothing, [RConc (PAtom Eq (EVar (vv Nothing)) e)])
+
+expToBindRef :: UReft r -> State ExSt (UReft r)
+expToBindRef (U r (Pr p))
+  = mapM expToBind p >>= return . U r . Pr
+
+expToBind :: UsedPVar -> State ExSt UsedPVar
+expToBind p
+  = do Just π <- liftM (M.lookup (pname p)) (pmap <$> get)
+       let pargs0 = zip (pargs p) (fst3 <$> pargs π)
+       pargs' <- mapM expToBindParg pargs0
+       return $ p{pargs = pargs'}
+
+expToBindParg :: (((), Symbol, Expr), RSort) -> State ExSt ((), Symbol, Expr)
+expToBindParg ((t, s, e), s') = liftM ((,,) t s) (expToBindExpr e s')
+
+expToBindExpr :: Expr ->  RRType () -> State ExSt Expr
+expToBindExpr e@(EVar (S (c:_))) _ | isLower c
+  = return e
+expToBindExpr e t         
+  = do s <- freshSymbol
+       modify $ \st -> st{emap = M.insert s (t, e) (emap st)}
+       return $ EVar s
+
+freshSymbol :: State ExSt Symbol
+freshSymbol 
+  = do n <- fresh <$> get
+       modify $ \s -> s{fresh = n+1}
+       return $ S $ "ex#" ++ show n
 
