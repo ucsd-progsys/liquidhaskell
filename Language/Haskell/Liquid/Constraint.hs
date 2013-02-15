@@ -271,10 +271,16 @@ bsplitW γ t
 
 mkSortedReft tce = F.RR . rTypeSort tce
 
-
 ------------------------------------------------------------
 splitC :: SubC -> CG [FixSubC]
 ------------------------------------------------------------
+
+
+splitC (SubC γ t1 (REx x tx t2)) 
+  = do γ' <- (γ, "addExBind 1") += (x, forallExprRefType γ tx)
+       let xs  = grapBindsWithType tx γ
+       let t1' = splitExistsCases x xs t1
+       splitC (SubC γ' t1' t2)
 
 splitC (SubC γ (RAllE x tx t1) (RAllE x2 _ t2)) | x == x2
   = do γ' <- (γ, "addExBind 0") += (x, forallExprRefType γ tx)
@@ -1054,6 +1060,18 @@ forallExprReftLookup γ x = γ ?= x'
 -- withReft (RVar a _) r'       = RVar a      r' 
 -- withReft t _                 = t 
 
+
+grapBindsWithType tx γ 
+  = fst <$> toListREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
+
+splitExistsCases z xs 
+  = fmap $ fmap $ mapFReft (refAddEq z xs)
+
+refAddEq z xs (F.Reft(s, rs)) 
+  = F.Reft(s, [go r x | x <- xs, r <- rs])
+  where go (F.RConc r)    x = F.RConc (F.PAnd [r, F.PAtom (F.Eq) (F.EVar x) (F.EVar z)])
+        go (F.RKvar k su) x = F.RKvar k (F.catSubst su (F.mkSubst [(z, F.EVar x)]))
+
 -------------------------------------------------------------------------------
 -------------------- Cleaner Signatures For Rec-bindings ----------------------
 -------------------------------------------------------------------------------
@@ -1152,6 +1170,8 @@ instance F.Fixpoint REnv where
 instance NFData REnv where
   rnf (REnv _) = () -- rnf m
 
+toListREnv (REnv env)     = M.toList env
+filterREnv f (REnv env)   = REnv $ M.filter f env
 fromListREnv              = REnv . M.fromList
 deleteREnv x (REnv env)   = REnv (M.delete x env)
 insertREnv x y (REnv env) = REnv (M.insert x y env)
