@@ -153,6 +153,9 @@ unifyS (RApp c ts rs r) (RApp _ pts ps p)
 unifyS (RAllE x tx t) (RAllE x' _ t') | x == x'
   = liftM (RAllE x tx) (unifyS t t')
 
+unifyS (REx x tx t) (REx x' _ t') | x == x'
+  = liftM (REx x tx) (unifyS t t')
+
 unifyS t1 t2                
   = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
 
