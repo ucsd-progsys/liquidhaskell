@@ -279,16 +279,16 @@ mkSortedReft tce = F.RR . rTypeSort tce
 splitC :: SubC -> CG [FixSubC]
 ------------------------------------------------------------
 
-splitC (SubC γ (REx x tx t1) (REx x2 _ t2))
-  = do γ' <- (γ, "addExBind 0") += (x, existentialRefType γ tx)
-       assert (x == x2) $ splitC (SubC γ' t1 t2)
-
-splitC (SubC γ (REx x tx t1) t2) 
-  = do γ' <- (γ, "addExBind 1") += (x, existentialRefType γ tx)
+splitC (SubC γ (RAllE x tx t1) (RAllE x2 _ t2)) | x == x2
+  = do γ' <- (γ, "addExBind 0") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
-splitC (SubC γ t1 (REx x tx t2))
-  = do γ' <- (γ, "addExBind 2") += (x, existentialRefType γ tx)
+splitC (SubC γ (RAllE x tx t1) t2) 
+  = do γ' <- (γ, "addExBind 1") += (x, forallExprRefType γ tx)
+       splitC (SubC γ' t1 t2)
+
+splitC (SubC γ t1 (RAllE x tx t2))
+  = do γ' <- (γ, "addExBind 2") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
@@ -773,8 +773,7 @@ consCB γ (NonRec x e)
 consBind isRec γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
        γπ    <- foldM addPToEnv γ' πs
-       t     <- consE γπ e
-       addC (SubC γπ t spect) "consBind"
+       cconsE γπ e spect
        addIdA x (defAnn isRec spect) 
        return Nothing
   where πs   = snd3 $ bkUniv spect
@@ -842,9 +841,10 @@ cconsE γ (Tick tt e) t
 cconsE γ (Cast e _) t     
   = cconsE γ e t 
 
-cconsE γ e (RAllP (p@(PV _ _ _)) t)
-  = do s <- truePredRef p
-       cconsE γ e (replacePreds "cconsE" t [(p, RPoly s)])
+cconsE γ e (RAllP p t)
+  = cconsE γ e t'
+  where t' = fmap (replacePredsWithRefs su) t
+        su = (uPVar p, pVartoRConc p)
 
 cconsE γ e t
   = do te  <- consE γ e
@@ -1082,25 +1082,25 @@ instance NFData CGInfo where
 --------------------- Reftypes from F.Fixpoint Expressions ----------------------
 -------------------------------------------------------------------------------
 
-existentialRefType     :: CGEnv -> SpecType -> SpecType
-existentialRefType γ t = t `strengthen` (uTop r') 
-  where r'             = toFReft $ maybe top (exReft γ) ((F.isSingletonReft) (fromFReft r))
+forallExprRefType     :: CGEnv -> SpecType -> SpecType
+forallExprRefType γ t  = t `strengthen` (uTop r') 
+  where r'             = toFReft $ maybe top (forallExprReft γ) ((F.isSingletonReft) (fromFReft r))
         r              = toFReft $ F.sr_reft $ rTypeSortedReft (emb γ) t
 
 
-exReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
-  where (xs,_ , t)     = bkArrow $ thd3 $ bkUniv $ exReftLookup γ f 
-        su             = F.mkSubst $ safeZip "fExprRefType" xs es
+forallExprReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
+  where (xs,_ , t)             = bkArrow $ thd3 $ bkUniv $ forallExprReftLookup γ f 
+        su                     = F.mkSubst $ safeZip "fExprRefType" xs es
 
-exReft γ (F.EVar x)    = F.sr_reft $ rTypeSortedReft (emb γ) t 
-  where (_,_ , t)      = bkArrow $ thd3 $ bkUniv $ exReftLookup γ x 
+forallExprReft γ (F.EVar x) = F.sr_reft $ rTypeSortedReft (emb γ) t 
+  where (_,_ , t)           = bkArrow $ thd3 $ bkUniv $ forallExprReftLookup γ x 
 
-exReft _ e             = F.exprReft e 
+forallExprReft _ e          = F.exprReft e 
 
-exReftLookup γ x       = γ ?= x' 
-  where x'             = fromMaybe err (varSymbol <$> F.lookupSEnv x γ')
-        γ'             = syenv γ
-        err            = errorstar $ "exReftLookup: unknown " ++ F.showFix x ++ " in " ++ F.showFix  γ'
+forallExprReftLookup γ x = γ ?= x' 
+  where x'               = fromMaybe err (varSymbol <$> F.lookupSEnv x γ')
+        γ'               = syenv γ
+        err              = errorstar $ "exReftLookup: unknown " ++ F.showFix x ++ " in " ++ F.showFix  γ'
 -- withReft (RApp c ts rs _) r' = RApp c ts rs r' 
 -- withReft (RVar a _) r'       = RVar a      r' 
 -- withReft t _                 = t 
