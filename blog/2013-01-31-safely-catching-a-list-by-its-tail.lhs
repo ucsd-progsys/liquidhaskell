@@ -376,5 +376,3 @@ Well folks, thats all for now. I trust this article gave you a sense of
 [ref101]:  /blog/2013/01/01/refinement-types-101.lhs/ 
 [ref102]:  /blog/2013/01/27/refinements101-reax.lhs/ 
 
-
-

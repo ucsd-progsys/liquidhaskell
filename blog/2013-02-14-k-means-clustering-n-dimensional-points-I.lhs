@@ -11,17 +11,17 @@ demo: kmeans.hs
 ---
 
 [Last time][safeList] we introduced a new specification called a *measure*
-and demonstrated how to use it to encode the *length* of a list, and
-thereby verify that functions like `head` and `tail` were only called with
-non-empty lists (whose length was *strictly* greater than `0`.) As several
-folks pointed out, once LiquidHaskell can reason about lengths, it can do a
-lot more than just analyze non-emptiness. 
+and demonstrated how to use it to encode the *length* of a list, and thereby
+verify that functions like `head` and `tail` were only called with non-empty 
+lists (whose length was *strictly* greater than `0`.) As several folks pointed
+out, once LiquidHaskell can reason about lengths, it can do a lot more than just
+analyze non-emptiness. 
 
 Indeed! 
 
 So today, let me show you how one might implement a k-means algorithm that
-clusters `n`-dimensional points into at most k groups, and how
-LiquidHaskell can help us write and enforce these size requirements. 
+clusters `n`-dimensional points into at most k groups, and how LiquidHaskell
+can help us write and enforce these size requirements. 
 
 <!-- For example, XXX pointed out that we can use the type
 system to give an *upper* bound on the size of a list, e.g. 
@@ -42,6 +42,9 @@ import Data.Ord (comparing)
 import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
 \end{code}
 
+KMeans Clustering
+=================
+
 Rather than reinvent the wheel, lets modify an existing implementation
 of K-Means, [available on hackage](hackage-kmeans). This may not be the
 most efficient implementation, but its a nice introduction to the algorithm, 
@@ -53,7 +56,8 @@ The Game: Clustering Points
 The goal of [K-Means clustering](http://en.wikipedia.org/wiki/K-means_clustering) 
 is the following. Given as 
 
-- **Input** : A set of *points* represented by *n-dimensional points* in *Euclidian* space
+- **Input** : A set of *points* represented by *n-dimensional points* 
+  in *Euclidian* space
 
 generate as
 
@@ -71,8 +75,8 @@ different elements of the algorithm.
 1. **Fixed-Length Lists**  We will represent n-dimensional points using 
    good old Haskell lists, refined with a predicate that describes the
    dimensionality (i.e. length.) To simplify matters, lets package this 
-   into a *type alias* that denotes lists of a given length `N` 
-
+   into a *type alias* that denotes lists of a given length `N`. 
+   
 \begin{code}
 {-@ type List a N = {v : [a] | (len v) = N} @-}
 \end{code}
@@ -93,7 +97,7 @@ these points as
 {-@ type GenPoint a N  = WrapType (Point N) a @-} 
 \end{code}
 
-where `WrapType` is simply a Haskell record type
+where `WrapType` is just a Haskell record type
 
 \begin{code}
 data WrapType b a = WrapType {getVect :: b, getVal :: a}
@@ -105,7 +109,7 @@ instance Ord (WrapType [Double] a) where
     compare = comparing getVect
 \end{code}
 
-4. **Clusters** Finally, a cluster is a *non-empty* list of points,
+4. **Clusters** Finally, a cluster is a **non-empty** list of points,
 
 \begin{code}
 {-@ type NEList a = {v : [a] | (len v) > 0} @-}
@@ -117,9 +121,12 @@ and a `Clustering` is a non-empty list of clusters.
 {-@ type Clustering a  = [(NEList a)] @-}
 \end{code}
 
+**Note:** When defining refinement type aliases, we use uppercase variables 
+like `N`  to distinguish value- parameters from the lowercase type parameters 
+like `a`.
 
-Warm-up: Basic Operations
--------------------------
+Part I:  Basic Operations
+=========================
 
 Ok, with the types firmly in hand, let us go forth and develop the KMeans
 clustering implementation. We will use a variety of small helper functions
@@ -131,8 +138,9 @@ Grouping
 --------
 
 The first such function is [groupBy][URL-groupBy]. We can
-refine its type so that instead of just producing a `[[a]]` we know that it
-produces a `Clustering a`, meaning a list of *non-empty* lists.
+refine its type so that instead of just producing a `[[a]]` 
+we know that it produces a `Clustering a` which is a list 
+of *non-empty* lists.
 
 \begin{code}
 {-@ groupBy       :: (a -> a -> Bool) -> [a] -> (Clustering a) @-}
@@ -151,10 +159,26 @@ specification:
 Partitioning
 ------------
 
-HEREHEREHEREHERE
+Next, lets look the function
 
 \begin{code}
 {-@ partition           :: size:PosInt -> [a] -> (Clustering a) @-}
+\end{code}
+
+which is given a *strictly positive* integer argument, that is,
+
+\begin{code}
+{-@ type PosInt = {v: Int | v > 0 } @-}
+\end{code}
+
+and a list of `a` values, and which returns a `Clustering a`, 
+that is, a list of non-empty lists. (Each inner list has a length
+that is less than `size` but we shall elide this for simplicity.)
+
+The function is implemented in a straightforward manner, using the 
+library functions `take` and `drop`
+
+\begin{code}
 partition size []       = []
 partition size ys@(_:_) = zs : part size zs' 
   where 
@@ -162,44 +186,116 @@ partition size ys@(_:_) = zs : part size zs'
     zs'                 = drop size ys
 \end{code}
 
+To verify that a valid `Clustering` is produced, LiquidHaskell needs only
+verify that the list `zs` above is non-empty, by suitably connecting the
+properties of the inputs `size` and `ys` with the output. 
+
+\begin{code} We have [previously verified][url-take] that
+take :: n:{v: Int | v >= 0 } 
+     -> xs:[a] 
+     -> {v:[a] | (len v) = (if ((len xs) < n) then (len xs) else n) } 
+\end{code}
+
+In other words, the output list's length is the *smaller of* the input
+list's length and `n`.  Thus, since both `size` and the `(len ys)` are
+greater than `1`, LiquidHaskell deduces that the list returned by `take
+size ys` has a length greater than `1`, i.e., is non-empty.
 
 Zipping
 -------
 
+To compute the *Euclidean distance* between two points, we will use 
+the `zipWith` function. To make sure that it is invoked on points 
+with *the same number of dimensions*. To this end, we write a 
+
 \begin{code}
-{-@ safeZipWith :: (a -> b -> c) -> xs:[a] -> (List b (len xs)) -> (List c (len xs)) @-}
+{-@ safeZipWith :: (a -> b -> c) 
+                -> xs:[a] 
+                -> (List b (len xs)) 
+                -> (List c (len xs)) 
+  @-}
+
 safeZipWith f (a:as) (b:bs) = f a b : safeZipWith f as bs
 safeZipWith _ [] []         = []
 
 -- Other cases only for exposition 
-safeZipWith _ (_:_) []      = liquidError "safeZipWith1"
-safeZipWith _ [] (_:_)      = liquidError "safeZipWith2"
+safeZipWith _ (_:_) []      = liquidError "Dead Code"
+safeZipWith _ [] (_:_)      = liquidError "Dead Code"
 \end{code}
 
+The type stipulates that the second input list and the output have
+the same length as the first input. Furthermore, it rules out the 
+case where one list is empty and the other is not, as in that case, 
+the former's length is zero while the latter's is not.
 
 Transposing
 -----------
 
-\begin{code}
-{-@ type Matrix a N M        = List (List a N) M @-}
+The last basic operation that we will require, is a means to
+*transpose* a `Matrix`, which itself is just a list of lists:
 
-{-@ transpose                :: n:Int -> m:{v:Int| v > 0} -> Matrix a n m -> Matrix a m n @-}
+\begin{code}
+{-@ type Matrix a Cols Rows = List (List a Cols) Rows @-}
+\end{code}
+
+The `transpose` operation flips the rows and columns
+
+\begin{code}
+{-@ transpose :: cols:Int 
+              -> rows:PosInt 
+              -> Matrix a cols rows 
+              -> Matrix a rows cols 
+  @-}
+\end{code}
+
+I confess can never really understand matrices without concrete examples!
+
+So, lets say you have a matrix
+
+~~~~~{.haskell}
+m1  :: Matrix Int 2 4
+m1  =  [ [1, 2]
+       , [3, 4]
+       , [5, 6] 
+       , [7, 8] ]
+~~~~~
+
+then the matrix `m2 = transpose 2 3 m1` should be
+
+~~~~~{.haskell}
+m2 :: Matrix Int 4 2
+m1  =  [ [1, 3, 5, 7]
+       , [2, 4, 6, 8] ]
+~~~~~
+
+As you can work out from the above, the code for `transpose` is quite
+straightforward: each *output row* is simply the list of `head`s of 
+the *input rows*:
+
+
+\begin{code}
 transpose                    :: Int -> Int -> [[a]] -> [[a]]
 transpose 0 _ _              = []
 transpose n m ((x:xs) : xss) = (x : map head xss) : transpose (n - 1) m (xs : map tail xss)
 -- transpose n m ((x:xs) : xss) = (x : [h | (h:_) <- xss]) : transpose (xs : [ t | (_:t) <- xss])
-transpose n m ([] : _)       = liquidError "transpose1" 
-transpose n m []             = liquidError "transpose2"
+transpose n m ([] : _)       = liquidError "dead code" 
+transpose n m []             = liquidError "dead code"
 \end{code}
 
+By the way, the code above is essentially that of `Data.List.transpose`
+[from the prelude][url-transpose] except that we have added dimension
+parameters, used them to ensure that all rows have the same length, and
+to precisely characterize the shape of the input and output lists.
+
+We will use a `Matrix a n m` will denote a *single cluster* 
+of `m` points each of which has `n` dimensions. We will 
+transpose the matrix to make it easy to *sum* the points 
+along *each* dimension, and thereby compute the *centroid* 
+of the cluster.
 
 
-
-
-
-
-Algorithm: Iterative Clustering
--------------------------------
+Part II: KMeans By Iterative Clustering
+=======================================
 
 \begin{code}
 {-@ kmeans' :: n:Int -> k:PosInt -> [(GenPoint a n)] -> (Clustering (GenPoint a n)) @-}
@@ -329,10 +425,10 @@ Conclusions
 3. Circumvent limitations of SMT with a touch of **dynamic** checking using **assumes**
 
 
-[vecbounds]:    /blog/2013/01/05/bounding-vectors.lhs/ 
-[ghclist]:      https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/List.lhs#L125
-[foldl1]:       http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#foldl1
-[safeList]:     /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/ 
-[URL-groupBy]:  http://hackage.haskell.org/packages/archive/base/latest/doc/html/Data-List.html#v:groupBy
-
-
+[vecbounds]:     /blog/2013/01/05/bounding-vectors.lhs/ 
+[ghclist]:       https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/List.lhs#L125
+[foldl1]:        http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#foldl1
+[safeList]:      /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/ 
+[URL-groupBy]:   http://hackage.haskell.org/packages/archive/base/latest/doc/html/Data-List.html#v:groupBy
+[url-transpose]: http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#transpose
+[url-take]:      https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/List.lhs#L334
