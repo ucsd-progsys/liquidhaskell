@@ -1,13 +1,13 @@
 ---
 layout: post
-title: "KMeans Clustering N-Dimensional Points"
+title: "KMeans Clustering: I"
 date: 2013-02-14 16:12
 author: Ranjit Jhala
 published: false 
 comments: true
 external-url:
 categories: basic measures 
-demo: kmeans.hs
+demo: KMeans1.hs
 ---
 
 [Last time][safeList] we introduced a new specification called a *measure*
@@ -19,9 +19,13 @@ analyze non-emptiness.
 
 Indeed! 
 
-So today, let me show you how one might implement a k-means algorithm that
-clusters `n`-dimensional points into at most k groups, and how LiquidHaskell
-can help us write and enforce these size requirements. 
+Over the *next two posts*, let me show you how one might implement a
+Kmeans algorithm that clusters `n`-dimensional points groups, and how
+LiquidHaskell can help us write and enforce various dimensionality
+invariants along the way. 
+
+<!-- more -->
+
 
 <!-- For example, XXX pointed out that we can use the type
 system to give an *upper* bound on the size of a list, e.g. 
@@ -29,12 +33,11 @@ using lists upper bounded by a gigantic `MAX_INT` value as
 a proxy for finite lists.
 -->
 
-<!-- more -->
 
 \begin{code}
 {-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances #-}
 
-module Data.KMeans (kmeans, kmeansGen) where
+module KMeans1 where
 
 import Data.List (sort, span, minimumBy)
 import Data.Function (on)
@@ -42,13 +45,16 @@ import Data.Ord (comparing)
 import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
 \end{code}
 
-KMeans Clustering
-=================
-
-Rather than reinvent the wheel, lets modify an existing implementation
+Rather than reinvent the wheel, we will modify an existing implementation
 of K-Means, [available on hackage](hackage-kmeans). This may not be the
 most efficient implementation, but its a nice introduction to the algorithm, 
 and the general invariants will hold for more sophisticated implementations.
+
+We have broken this entry into two convenient, bite-sized chunks:
+
++ **Part I**  Introduces the basic types and list operations needed by KMeans,
++ **Part II** Describes how the operations are used in the KMeans implementation.
+
 
 The Game: Clustering Points
 ---------------------------
@@ -61,9 +67,8 @@ is the following. Given as
 
 generate as
 
-- **Ouptut** : A partitioning of the points, into K-clusters, 
-  in a manner that minimizes sum of distances between the points 
-  and their K-cluster centers.
+- **Ouptut** : A partitioning of the points, into K clusters, in a manner that 
+  minimizes sum of distances between each point and its cluster center.
 
 
 The Players: Types
@@ -125,8 +130,8 @@ and a `Clustering` is a non-empty list of clusters.
 like `N`  to distinguish value- parameters from the lowercase type parameters 
 like `a`.
 
-Part I:  Basic Operations
-=========================
+Basic Operations
+----------------
 
 Ok, with the types firmly in hand, let us go forth and develop the KMeans
 clustering implementation. We will use a variety of small helper functions
@@ -134,8 +139,7 @@ clustering implementation. We will use a variety of small helper functions
 through our new *refined* eyes.
 
 
-Grouping
---------
+**Grouping**
 
 The first such function is [groupBy][URL-groupBy]. We can
 refine its type so that instead of just producing a `[[a]]` 
@@ -156,8 +160,7 @@ specification:
 - For any list `ys` the length is non-negative, i.e. `(len ys) >= 0`
 - The `len` of `x:ys` is `1 + (len ys)`, that is, strictly positive.
 
-Partitioning
-------------
+**Partitioning**
 
 Next, lets look the function
 
@@ -293,6 +296,12 @@ transpose the matrix to make it easy to *sum* the points
 along *each* dimension, and thereby compute the *centroid* 
 of the cluster.
 
+Intermission
+------------
+
+Time for a break -- [go see a cat video!](http://www.youtube.com/watch?v=8uDuls5TyNE) -- or not! 
+In the next installment, we'll use the types and functions described above,
+to develop the clustering algorithm.
 
 Part II: KMeans By Iterative Clustering
 =======================================
