@@ -330,34 +330,17 @@ aliasP  = rtAliasP id           bareTypeP
 paliasP = rtAliasP stringSymbol predP
 
 rtAliasP f bodyP
-  = do name <- upperIdP
+  = do pos  <- getPosition
+       name <- upperIdP
        spaces
        args <- sepBy aliasIdP spaces
        whiteSpace >> reservedOp "=" >> whiteSpace
        body <- bodyP 
        let (tArgs, vArgs) = partition (isLower . head) args
-       return $ RTA name (f <$> tArgs) (f <$> vArgs) body
+       return $ RTA name (f <$> tArgs) (f <$> vArgs) body pos
 
 aliasIdP :: Parser String
 aliasIdP = condIdP (['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']) (isAlpha . head) 
-
--- rtAliasP tArgsP vArgsP bodyP
---   = do name <- upperIdP
---        spaces
---        tArgs <- sepBy tArgsP spaces
---        whiteSpace
---        vArgs <- sepBy vArgsP spaces
---        whiteSpace >> reservedOp "=" >> whiteSpace
---        body <- bodyP 
---        return $ RTA name tArgs vArgs body
-
--- aliasP 
---   = do name <- upperIdP
---        spaces
---        args <- sepBy tyVarIdP spaces
---        whiteSpace >> reservedOp "=" >> whiteSpace
---        body <- bareTypeP
---        return $ RTA name args body
 
 measureP 
   = do (x, ty) <- tyBindP  
