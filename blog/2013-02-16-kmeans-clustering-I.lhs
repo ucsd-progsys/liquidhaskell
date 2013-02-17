@@ -26,8 +26,6 @@ invariants along the way.
 
 <!-- more -->
 
-
-
 <!-- For example, XXX pointed out that we can use the type system to give an *upper* bound on the size of a list, e.g. using lists 
      upper bounded by a gigantic `MAX_INT` value as a proxy for finite lists. -->
 
@@ -268,32 +266,39 @@ LiquidHaskell verifies that
 {-@ transpose :: c:Int -> r:PosInt -> Matrix a r c -> Matrix a c r @-}
 \end{code}
 
-Lets see how.
+Lets see how. Lean in close.
 
 First, LiquidHaskell use the fact that the third input is a `Matrix a r c`
-that is a `List (List a c) r` to deduce that 
+that is a `List (List a c) r` to deduce that in the **input** list
 
-- `(len ((x:xs) : xss))` equals `r`  and
+- the length of the *outer* list `(len ((x:xs) : xss))` equals the number of *rows* `r`, 
+- and hence, the length of the *outer tail* `(len xss)` equals `r-1`, and
+- the length of the *inner* list `len (x:xs)` equals the number of *columns* `c`,
+- and hence, the length of the *inner tail* `(len xs)` equals `c-1`.
 
-- `len (x:xs)` equals `c`.
+Next, from the above, LiquidHaskell infers that in the recursive call
 
-From To do so LiquidHaskell determines that 
+- the length of the *outer* list `(len (xs : map tail xss))` is `1 + (len xss)` that is *also* `r`
+- the length of the *inner* list `(len xs)` is `c-1`
 
-HEREHEREHEREHERE
+Finally, inductively the output of the recursive call is a `Matrix a (c-1) r` and so in the **output**, 
 
+- the length of the *inner* list is `1 + (len xss)`, that is, `r`,
+- the length of the *outer* list is `c`, that is, `1` plus the outer length `c-1` of the recursive result.
 
+Thus, via SMT based reasoning, LiquidHaskell concludes that the output is
+indeed `Matrix a c r` where the dimensions of the inner and outer lists are
+flipped!
 
-Incidentally, the code above is essentially that of `Data.List.transpose`
-[from the Prelude][URL-transpose] except that we have added dimension
-parameters, used them to ensure that all rows have the same length, and
-to precisely characterize the shape of the input and output lists.
+**Aside: Comprehensions** Incidentally, the code above is essentially that of `Data.List.transpose`
+[from the Prelude][URL-transpose] except that we have added dimension parameters, used them to ensure 
+that all rows have the same length, and to precisely characterize the shape of the input and output lists.
 
-\begin{code}The Prelude implementation uses list comprehensions -- the
-second equation for `transpose` is 
+\begin{code}The Prelude implementation uses list comprehensions -- the second equation for `transpose` is 
 transpose n m ((x:xs) : xss) = (x : [h | (h:_) <- xss]) : transpose (n-1) m (xs : [ t | (_:t) <- xss])
 \end{code}
-We have used `map` and `head` and `tail` just for illustration -- the
-comprehension version works just fine --  go ahead and [demo it for yourself!][demo]
+We have used `map` and `head` and `tail` just for illustration -- the comprehension version works just fine -- 
+go ahead and [demo it for yourself!][demo]
 
 Intermission
 ------------
