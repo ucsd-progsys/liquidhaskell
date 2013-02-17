@@ -1,5 +1,3 @@
-{- LANGUAGE DeriveDataTypeable, RankNTypes, GADTs -}
-
 module Language.Haskell.Liquid.Measure (  
     Spec (..)
   , MSpec (..)

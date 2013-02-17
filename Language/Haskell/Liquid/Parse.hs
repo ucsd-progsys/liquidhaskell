@@ -4,13 +4,9 @@ module Language.Haskell.Liquid.Parse (
   hsSpecificationP
 ) where
 
--- import TysWiredIn   (eqDataConId, ltDataConId, gtDataConId)
 import Control.Monad
 import Text.Parsec
--- import Text.Parsec.Expr
--- import Text.Parsec.Language
 import Text.Parsec.String
--- import Text.Printf  (printf)
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
 
@@ -21,7 +17,6 @@ import Data.List (partition)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
--- import Outputable (showPpr)
 import Language.Fixpoint.Names (listConName, propConName, tupConName)
 import Language.Fixpoint.Misc hiding (dcolon, dot)
 import Language.Fixpoint.Parse 
