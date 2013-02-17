@@ -116,133 +116,302 @@ That is, `GenPoint a N` denotes a general `a` value that has an
 Algorithm: Iterative Clustering
 -------------------------------
 
-\begin{code}
-{-@ kmeans' :: n:Int -> k:PosInt -> [(GenPoint a n)] -> (Clustering (GenPoint a n)) @-}
-kmeans' n k points = kmeansLoop n initialCluster
-  where 
-    initialCluster = partitition clusterSize points 
-    clusterSize    = max 1 ((length points + k - 1) `div` k)
+Terrific, now that all the pieces are in place lets look at the KMeans
+algorithm, implemented in a function `kmeans'` which takes as input a 
+dimension `n`, the maximum number of clusters `k` (which must be positive), 
+a list of *generalized points* of dimension `n` and returns a `Clustering` 
+(i.e. a list of *non-empty lists*) of the generalized points. 
 
-{-@ kmeansLoop :: n:Int -> (Clustering (GenPoint a n)) -> (Clustering (GenPoint a n)) @-}
-kmeansLoop n clusters
-  | clusters == clusters' = clusters
-  | otherwise             = kmeansLoop n clusters'
-  where clusters'         = reCluster n clusters
+So much verbiage -- a type is worth a thousand comments!
+
+\begin{code}
+{-@ kmeans' :: n:Int -> k:PosInt -> points:[(GenPoint a n)] -> (Clustering (GenPoint a n)) @-}
 \end{code}
 
-A Single-Step Of Reclustering
------------------------------
+There! Crisp, and to the point. Sorry. Anyhoo, the function implements the
+above type by
 
 \begin{code}
---------------------------------------------------------------------------------------------
--- One-Step of K-Means: Re-Cluster using current centers -----------------------------------
---------------------------------------------------------------------------------------------
+kmeans' n k points    = fixpoint (refineCluster n) initClustering
+  where 
+    initialClustering = partitition clusterSize points 
+    clusterSize       = max 1 ((length points + k - 1) `div` k)
 
-{-@ reCluster          :: n:Int -> Clustering (GenPoint a n) -> Clustering (GenPoint a n) @-}
-reCluster n clusters   = clusters' 
+    fixpoint          :: (Eq a) => (a -> a) -> a -> a
+    fixpoint f x      = if (f x) == x then x else fixpoint f (f x)  
+\end{code}
+
+That is, `kmeans'` creates an `initialClustering` clustering  by
+`partition`-ing the `points` into chunks with `clusterSize` elements.
+Then, it invokes `fixpoint` to *iteratively refine* the initial 
+clustering  with `refineCluster` until it converges to a stable 
+clustering that cannot be improved upon. This stable clustering 
+is returned as the output.
+
+LiquidHaskell verifies that `kmeans'` adheres to the given signature in two steps.
+
+**1. Initial Clustering** 
+
+\begin{code} First, LiquidHaskell determines from 
+max       :: (Ord a) => x:a -> y:a -> {v: a | (v >= x) && ( v >= y) }
+\end{code}
+
+\begin{code} that `clusterSize` is strictly positive, and hence, from 
+partition :: size:PosInt -> [a] -> (Clustering a)
+\end{code} 
+
+which we saw [last time][kmeansI], that `initialClustering` is indeed
+a valid `Clustering` of `(GenPoint a n)`.
+
+**2. Fixpoint**
+
+Next, LiquidHaskell infers that at the call `fixpoint (refineCluster n)
+...`, the type parameter `a` of `fixpoint` can be *instantiated* with
+`Clustering (GenPoint a n)`.  This is because `initialClustering` is a
+valid clustering, as we saw above, and because `refineCluster` takes- and
+returns- valid `n`-dimensional clusterings, as we shall see below.
+Consequently, the value returned by `kmeans'` is also `Clustering` of
+`GenPoint a n` as required.
+
+Refining A Clustering
+---------------------
+
+Thus, the real work in KMeans happens inside `refineCluster` which takes a
+clustering and improves it, like so:
+
+\begin{code}
+refineCluster n clusters = clusters' 
   where 
     -- 1. Compute cluster centers 
-    centers            = map (clusterCenter n) clusters
-
-    -- 2. Flatten clusters to get all points
-    points             = concat clusters 
+    centers              = map (clusterCenter n) clusters
     
-    -- 3. Map points to their nearest center
-    centeredPoints     = sort [(nearestCenter n centers p, p) | p <- points]
+    -- 2. Map points to their nearest center
+    points               = concat clusters 
+    centeredPoints       = sort [(nearestCenter n centers p, p) | p <- points]
 
-    -- 4. Group points by nearest center
-    centeredGroups     = groupBy ((==) `on` fst) centeredPoints 
-
-    -- 5. Project groups back to the original points
-    clusters'          = map (map snd) centeredGroups
+    -- 3. Group points by nearest center to get new clusters
+    centeredGroups       = groupBy ((==) `on` fst) centeredPoints 
+    clusters'            = map (map snd) centeredGroups
 \end{code}
 
+The behavior of `refineCluster` is pithily captured by its type
+
+\begin{code}
+{-@ reCluster :: n:Int -> Clustering (GenPoint a n) -> Clustering (GenPoint a n) @-}
+\end{code}
+
+The refined clustering is computed in three steps.
+
+1. First, we compute `centers :: [(Point n)]` of the current `clusters`.
+   This is achieved using `clusterCenter`, which maps a list of generalized 
+   `n`-dimensional points to a *single* `n` dimensional point (i.e. `Point n`).
+
+2. Next, we pair each `p` in the list of all `points` with its `nearestCenter`.
+
+3. Finally, the pairs in the list of `centeredPoints` are `groupedBy` the
+   center, i.e. the first element of the tuple. The resulting groups are 
+   projected back to the original generalized points yielding the new
+   clustering.
+
+\begin{code} The type of the output follows directly from 
+groupBy :: (a -> a -> Bool) -> [a] -> (Clustering a)
+\end{code}
+
+from [last time][kmeansI]. At the call site above, LiquidHaskell infers that
+`a` can be instantiated with `((Point n), (GenPoint a n))` thereby establishing
+that, after *projecting away* the first element, the output is a list of 
+non-empty lists of generalized `n`-dimensional points.
+
+That leaves us with the two crucial bits of the algorithm: `clusterCenter` 
+and `nearestCenter`.
 
 Computing the Center of a Cluster
 ---------------------------------
 
-`clusterCenter`
+The center of an `n`-dimensional cluster is simply an `n`-dimensional point
+whose value in each dimension is equal to the *average* value of that
+dimension across all the points in the cluster. 
 
-\begin{code}
---------------------------------------------------------------------------------------------
--- Determine the Center of a Cluster of Points ---------------------------------------------
---------------------------------------------------------------------------------------------
-
-{-@ clusterCenter      :: n:Int -> NonEmptyList (GenPoint a n) -> Point n @-}
-clusterCenter n points = map ((`safeDiv` numPoints) . sum) points'  -- divide By Zero
-  where 
-    numPoints          = length points 
-    points'            = transpose n numPoints (map getVect points)
+\begin{code} For example, consider a cluster of 2-dimensional points,
+exampleCluster = [ [0,  0]
+                 , [1, 10]
+                 , [2, 20]
+                 , [4, 40]
+                 , [5, 50] ]
 \end{code}
 
+\begin{code} The center of the cluster is
+exampleCenter = [ (0 + 1  + 2  + 4  + 5 ) / 5
+                , (0 + 10 + 20 + 40 + 50) / 5 ]
+\end{code}
+
+\begin{code} which is just
+exampleCenter = [ 3, 30 ]
+\end{code}
+
+Thus, we can compute a `clusterCenter` via the following procedure
+
+\begin{code}
+clusterCenter n xs = map average xs'
+  where 
+    numPoints      = length xs 
+    xs'            = transpose n numPoints (map getVect xs)
+    average        = (`safeDiv` numPoints) . sum
+\end{code}
+
+First, we `transpose` the matrix of points in the cluster.
+Suppose that `xs` is the `exampleCluster` from above 
+(and so `n` is `2` and `numPoints` is `5`.)
+
+\begin{code} In this scenario, `xs'` is
+xs' = [ [0,  1,  2,  4,  5]
+      , [0, 10, 20, 40, 50] ]
+\end{code}
+
+and so `map average xs'` evaluates to `exampleCenter` from above. 
+
+We have ensured that the division in the average does not lead to 
+any nasty surprises via a *safe division* function whose precondition
+checks that the denominator is non-zero [as illustrated here][ref101].
 
 \begin{code}
 {- safeDiv   :: (Fractional a) => a -> {v:Int | v != 0} -> a -}
-safeDiv n 0   = liquidError "divide by zero"
-safeDiv n d   = n / (fromIntegral d)
+safeDiv     :: (Fractional a) => a -> Int -> a 
+safeDiv n 0 = liquidError "divide by zero"
+safeDiv n d = n / (fromIntegral d)
 \end{code}
+
+LiquidHaskell verifies that the divide-by-zero never occurs, and furthermore, 
+that `clusterCenter` indeed computes an `n`-dimensional center by inferring that
+
+\begin{code}
+{-@ clusterCenter :: n:Int -> NonEmptyList (GenPoint a n) -> Point n @-}
+\end{code}
+
+LiquidHaskell deduces that the *input* list of points `xs` is non-empty 
+from the fact that `clusterCenter` is only invoked on the elements of a
+`Clustering` which comprise only non-empty lists. Since `xs` is non-empty,
+i.e. `(len xs) > 0` LiquidHaskell infers that `numPoints` is positive
+(hover over `length` to understand why), and hence, LiquidHaskell is 
+satisfied that the call to `safeDiv` will always proceed without any 
+incident.
+
+\begin{code} To establish the *output* type `Point n` LiquidHaskell leans on the fact that 
+transpose :: n:Int -> m:PosInt -> Matrix a m n -> Matrix a n m
+\end{code}
+
+to deduce that `xs'` is of type `Matrix Double n numPoints`, that is to
+say, a list of length `n` containing lists of length `numPoints`. Since
+`map` preserves the length, the value `map average xs'` is also a list 
+of length `n`, i.e. `Point n`.
+
 
 Finding the Nearest Center
 --------------------------
 
-`nearestCenter` 
+The last piece of the puzzle is `nearestCenter` which maps each
+(generalized) point to the center that it is nearest. The code is
+pretty self-explanatory:
 
 \begin{code}
---------------------------------------------------------------------------------------------
---------------------------------------------------------------------------------------------
---------------------------------------------------------------------------------------------
-
-{-@ nearestCenter         :: n:Int -> [(Point n)] -> (GenPoint a n) -> (Point n)  @-} 
-nearestCenter n centers p = minKey centerDistances 
+nearestCenter n cs x = minimumKey centerDistances 
   where 
-    centerDistances       = [(ci, distance ci (getVect p)) | ci <- centers] 
+    centerDistances  = [(c, distance c (getVect x)) | c <- cs] 
     
-    minimumKey            :: (Ord v) => [(k, v)] -> k
-    minimumKey kvs        = minimumBy (\x y -> compare (snd x) (snd y)) kvs
+    minimumKey       :: (Ord v) => [(k, v)] -> k
+    minimumKey kvs   = minimumBy (\x y -> compare (snd x) (snd y)) kvs
 
-    distance              ::  [Double] -> [Double] -> Double 
-    distance a b          = sqrt . sum $ safeZipWith (\x y -> (x-y)^2) a b      -- safeZipWith dimensions
+    distance         ::  [Double] -> [Double] -> Double 
+    distance a b     = sqrt . sum $ safeZipWith (\v1 v2 -> (v1 - v2) ^ 2) a b
 \end{code}
+
+We `map` the centers to a tuple of the `distance` to that center, and then
+select the tuple with the smallest distance. The interesting bit is that the 
+`distance` function uses `safeZipWith` to ensure that the dimensionality of 
+the center and the point match up.
+
+LiquidHaskell verifies `distance` by inferring that
+
+\begin{code}
+{-@ nearestCenter :: n:Int -> [(Point n)] -> (GenPoint a n) -> (Point n) @-} 
+\end{code}
+
+First, LiquidHaskell deduces that each center in `cs` is indeed `n`-dimensional 
+follows from the output type of `clusterCenter`. Since `x` is a `(GenPoint a n)` 
+LiquidHaskell infers that both `c` and `getVect x` are of an equal length `n`. 
+
+\begin{code} Consequently, the call to 
+safeZipWith :: (a -> b -> c) -> xs:[a] -> (List b (len xs)) -> (List c (len xs)) 
+\end{code}
+
+[discussed last time][kmeansI] is determined to be safe.
+
+Finally, the value returned is just one of the input centers and so is a `(Point n)`.
 
 
 Putting It All Together: Top-Level API
 --------------------------------------
 
-Use types to explain top-level
+We can bundle the algorithm into two top-level API functions. 
+
+First, a version that clusters *generalized* points. In this case, we
+require a function that can `project` an `a` value to an `n`-dimensional
+point. This function just wraps each `a`, clusters via `kmeans'` and then
+unwraps the points.
 
 \begin{code}
---------------------------------------------------------------------------------------------
---------------------------------------------------------------------------------------------
---------------------------------------------------------------------------------------------
+{-@ kmeansGen :: n:Int 
+              -> (a -> (Point n)) 
+              -> k:PosInt 
+              -> xs:[a] 
+              -> (Clustering a) 
+  @-}
 
--- | A generalized kmeans function. This function operates not on points, but an arbitrary type 
---   which may be projected into a Euclidian space. Since the projection may be chosen freely, 
---   this allows for weighting dimensions to different degrees, etc.
-
-{-@ kmeansGen :: n:Int -> (a -> (Point n)) -> k:PosInt -> points:[a] -> (Clustering a) @-}
-kmeansGen :: Int -> (a -> [Double]) -> Int -> [a] -> [[a]]
 kmeansGen n project k = map (map getVal) 
                       . kmeans' n k 
                       . map (\x -> WrapType (project x) x) 
+\end{code}
 
--- | A specialized kmeans function, that operates on points in n-dimensional Euclidian space, 
---   where the points are represented as [Double] of length n. Implemented using the general 
---   `kmeansGen` via the trivial `id` projection.
+Second, a specialized version that operates directly on `n`-dimensional
+points. The specialized version just calls the general version with a
+trivial `id` projection.
 
-{-@ kmeans :: n:Int -> k:PosInt -> points:[(Point n)] -> (Clustering (Point n)) @-}
-kmeans     :: Int -> Int -> [[Double]] -> [[[Double]]]
+\begin{code}
+{-@ kmeans :: n:Int 
+           -> k:PosInt 
+           -> points:[(Point n)] 
+           -> (Clustering (Point n)) 
+  @-}
+
 kmeans n   = kmeansGen n id
 \end{code}
 
 Conclusions
 -----------
 
-1. How to do *K-Means Clustering* !
+I hope that over the last two posts, you have gotten a sense of
 
-2. Track precise length properties with **measures**
+1. What KMeans clustering is all about,
 
-3. Circumvent limitations of SMT with a touch of **dynamic** checking using **assumes**
+2. How measures and refinements can be used to describe the behavior 
+   of common list operations like `map`, `transpose`, `groupBy`, `zipWith` and so on,
 
+3. How LiquidHaskell's automated inference makes it easy to write and
+   verify invariants of non-trivial programs.
+
+The sharp reader will have noticed that the one *major*, non syntactic, change to the
+[original code] is the addition of the dimension parameter `n` throughout
+the code. This is critically required so that we can specify the relevant
+invariants (which are in terms of `n`.) The value is actually a ghost, and
+never ever used. Fortunately, Haskell's laziness means that we don't have
+to worry about it (or other ghost variables) imposing any run-time overhead
+at all.
+
+**Exercise:** Incidentally, if you have followed thus far, I would
+encourage you to ponder about how you might modify the types (and
+implementation to verify that KMeans indeed produces at most `k` clusters...
+
+[ref101]:        /blog/2013/01/01/refinement-types-101.lhs/ 
 [safeList]:      /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/ 
 [kmeansI]:       /blog/2013/02/16/kmeans-clustering-I.lhs/
 [kmeansII]:      /blog/2013/02/17/kmeans-clustering-II.lhs/
