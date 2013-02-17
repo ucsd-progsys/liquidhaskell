@@ -27,11 +27,9 @@ invariants along the way.
 <!-- more -->
 
 
-<!-- For example, XXX pointed out that we can use the type
-system to give an *upper* bound on the size of a list, e.g. 
-using lists upper bounded by a gigantic `MAX_INT` value as
-a proxy for finite lists.
--->
+
+<!-- For example, XXX pointed out that we can use the type system to give an *upper* bound on the size of a list, e.g. using lists 
+     upper bounded by a gigantic `MAX_INT` value as a proxy for finite lists. -->
 
 
 \begin{code}
@@ -225,19 +223,9 @@ The last basic operation that we will require, is a means to
 {-@ type Matrix a Rows Cols = List (List a Cols) Rows @-}
 \end{code}
 
-The `transpose` operation flips the rows and columns
-
-\begin{code}
-{-@ transpose :: cols:Int 
-              -> rows:PosInt 
-              -> Matrix a rows cols 
-              -> Matrix a cols rows 
-  @-}
-\end{code}
-
-I confess can never really understand matrices without concrete examples! (And even then, barely.)
-
-So, lets say you have a matrix
+The `transpose` operation flips the rows and columns. I confess
+can never really understand matrices without concrete examples, 
+and even then, barely. So, lets say you have a "matrix"
 
 ~~~~~{.haskell}
 m1  :: Matrix Int 4 2
@@ -268,19 +256,30 @@ the *input rows*:
 transpose                    :: Int -> Int -> [[a]] -> [[a]]
 transpose 0 _ _              = []
 transpose c r ((x:xs) : xss) = (x : map head xss) : transpose (c-1) r (xs : map tail xss)
+
+-- Not needed, just for exposition
 transpose c r ([] : _)       = liquidError "dead code" 
 transpose c r []             = liquidError "dead code"
 \end{code}
 
-How *does* LiquidHaskell figure out that?!
+LiquidHaskell verifies that
 
-\begin{code}
+\begin{code} 
 {-@ transpose :: c:Int -> r:PosInt -> Matrix a r c -> Matrix a c r @-}
 \end{code}
 
-\begin{code}
-HEREHEREHEREHERE -- EXPLAIN THE MAGIC. map, head, tail, xs, xss.
-\end{code}
+Lets see how.
+
+First, LiquidHaskell use the fact that the third input is a `Matrix a r c`
+that is a `List (List a c) r` to deduce that 
+
+- `(len ((x:xs) : xss)) == r`  and
+
+- `len (x:xs) = c`.
+
+From To do so LiquidHaskell determins that 
+
+
 
 
 Incidentally, the code above is essentially that of `Data.List.transpose`
