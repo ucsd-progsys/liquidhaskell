@@ -63,8 +63,8 @@ import Control.DeepSeq
 import Control.Monad  (liftM, liftM2, liftM3)
 import qualified Data.Foldable as Fold
 import Text.Printf
-
 import Text.PrettyPrint.HughesPJ
+import Text.Parsec.Pos  (SourcePos)
 
 import Language.Fixpoint.Types hiding (params)
 
@@ -1406,14 +1406,15 @@ data RTAlias tv ty
   = RTA { rtName  :: String
         , rtTArgs :: [tv]
         , rtVArgs :: [tv] 
-        , rtBody  :: ty              
+        , rtBody  :: ty  
+        , srcPos  :: SourcePos 
         } 
 
 instance (Show tv, Show ty) => Show (RTAlias tv ty) where
-  show (RTA n as xs t) = printf "type %s %s %s = %s" n 
+  show (RTA n as xs t p) = printf "type %s %s %s = %s -- defined at %s" n 
                            (L.intercalate " " (show <$> as)) 
                            (L.intercalate " " (show <$> xs))
-                           (show t) 
+                           (show t) (show p) 
 
 -- fromRMono :: String -> Ref a b -> a
 fromRMono _ (RMono r) = r

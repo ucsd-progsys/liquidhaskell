@@ -277,17 +277,10 @@ expandAlias f s env = go s
         go s (RCls c ts)      = RCls c (go s <$> ts) 
         go _ t                = t
 
--- expandRTApp tx env c ts r
---   = (subsTyVars_meet αts' t') `strengthen` r
---     where t'   = tx (rtBody rta)
---           αts' = assert (length αs == length αts) αts
---           αts  = zipWith (\α t -> (α, toRSort t, t)) αs ts
---           αs   = rtTArgs rta
---           rta  = env M.! c
 
 expandRTApp tx env c args r
   | length args == (length αs) + (length εs)
-  = subst su $ (`strengthen` r) $ subsTyVars_meet αts $ tx $ rtBody rta
+  = subst su  $ (`strengthen` r) $ subsTyVars_meet αts $ tx $ rtBody rta
   | otherwise
   = errorstar $ "Malformed Type-Alias Application" ++ msg
   where 
@@ -296,7 +289,7 @@ expandRTApp tx env c args r
     αs        = rtTArgs rta 
     εs        = rtVArgs rta 
     rta       = env M.! c
-    msg       = showFix (RApp c args [] r)  
+    msg       = showFix (RApp c args [] r) ++ "in " ++ show rta 
     (ts, es_) = splitAt (length αs) args
     es        = map exprArg es_
     -- | exprArg converts a tyVar to an exprVar because parser cannot tell 
