@@ -275,19 +275,28 @@ mkSortedReft tce = F.RR . rTypeSort tce
 splitC :: SubC -> CG [FixSubC]
 ------------------------------------------------------------
 
+splitC (SubC γ (REx x tx t1) (REx x2 _ t2)) | x == x2
+  = do γ' <- (γ, "addExBind 0") += (x, forallExprRefType γ tx)
+       splitC (SubC γ' t1 t2)
 
 splitC (SubC γ t1 (REx x tx t2)) 
   = do γ' <- (γ, "addExBind 1") += (x, forallExprRefType γ tx)
        let xs  = grapBindsWithType tx γ
-       let t1' = splitExistsCases x xs t1
+       let t1' = splitExistsCases x xs tx t1
        splitC (SubC γ' t1' t2)
+
+-- existential at the left hand side is treated like forall
+splitC (SubC γ (REx x tx t1) t2) 
+  = do γ' <- (γ, "addExBind 1") += (x, forallExprRefType γ tx)
+       splitC (SubC γ' t1 t2)
 
 splitC (SubC γ (RAllE x tx t1) (RAllE x2 _ t2)) | x == x2
   = do γ' <- (γ, "addExBind 0") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
-splitC (SubC γ (RAllE x tx t1) t2) 
-  = do γ' <- (γ, "addExBind 1") += (x, forallExprRefType γ tx)
+
+splitC (SubC γ (RAllE x tx t1) t2)
+  = do γ' <- (γ, "addExBind 2") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ t1 (RAllE x tx t2))
@@ -542,8 +551,8 @@ addClassBind _
   = return [] 
 
 addC :: SubC -> String -> CG ()  
-addC !c@(SubC _ t1 t2) _
-  = -- trace ("addC" ++ F.showFix t1 ++ "\n <: \n" ++ F.showFix t2 ) $
+addC !c@(SubC _ t1 t2) _msg 
+  = -- trace ("addC " ++ _msg++ F.showFix t1 ++ "\n <: \n" ++ F.showFix t2 ) $
      modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addW   :: WfC -> CG ()  
@@ -1064,13 +1073,22 @@ forallExprReftLookup γ x = γ ?= x'
 grapBindsWithType tx γ 
   = fst <$> toListREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
 
-splitExistsCases z xs 
-  = fmap $ fmap $ mapFReft (refAddEq z xs)
+splitExistsCases z xs tx
+  = fmap $ fmap $ mapFReft (exrefAddEq z xs tx )
 
-refAddEq z xs (F.Reft(s, rs)) 
+exrefAddEq z xs t (F.Reft(s, rs))
   = F.Reft(s, [go r x | x <- xs, r <- rs])
-  where go (F.RConc r)    x = F.RConc (F.PAnd [r, F.PAtom (F.Eq) (F.EVar x) (F.EVar z)])
-        go (F.RKvar k su) x = F.RKvar k (F.catSubst su (F.mkSubst [(z, F.EVar x)]))
+  where go (F.RConc r)    x = F.RConc (F.PAnd [r, F.PImp (exrefToPred x tref) (eqAtom x z)])
+        go (F.RKvar k su) x = errorstar errmsg
+        tref                = fromMaybe top $ stripRTypeBase t
+        eqAtom x z          = F.PAtom (F.Eq) (F.EVar x) (F.EVar z)
+        errmsg              = "Cannot handle existential type " ++ show t
+
+exrefToPred x uref
+  = F.subst (F.mkSubst [(v, F.EVar x)]) (F.PAnd (refaToPred <$> r))
+  where (F.Reft(v, r))         = fromFReft $ ur_reft uref
+        refaToPred (F.RConc p) = p
+        refaToPred _           = errorstar "can not hanlde existential type with kvars"
 
 -------------------------------------------------------------------------------
 -------------------- Cleaner Signatures For Rec-bindings ----------------------
