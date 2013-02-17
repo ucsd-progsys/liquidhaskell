@@ -108,6 +108,14 @@ and a `Clustering` is a non-empty list of clusters.
 like `N`  to distinguish value- parameters from the lowercase type parameters 
 like `a`.
 
+**Note:** If you are familiar with the *index-style* length 
+encoding e.g. as found in [DML][dml] or [Agda][agdavec], then mark 
+that despite appearances, our `List` and `Point` definitions are 
+*not indexed*, but just abbreviations. We deliberately choose to 
+encode properties with logical refinement predicates, to facilitate 
+SMT based checking and inference.
+
+
 Ok, with the types firmly in hand, let us go forth and develop the KMeans
 clustering implementation. We will use a variety of small helper functions
 (of the kind found in `Data.List`.) Lets get started by looking at them
