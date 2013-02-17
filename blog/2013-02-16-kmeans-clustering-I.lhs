@@ -163,7 +163,7 @@ library functions `take` and `drop`
 
 \begin{code}
 partition size []       = []
-partition size ys@(_:_) = zs : part size zs' 
+partition size ys@(_:_) = zs : partition size zs' 
   where 
     zs                  = take size ys
     zs'                 = drop size ys
