@@ -273,12 +273,13 @@ Lets see how.
 First, LiquidHaskell use the fact that the third input is a `Matrix a r c`
 that is a `List (List a c) r` to deduce that 
 
-- `(len ((x:xs) : xss)) == r`  and
+- `(len ((x:xs) : xss))` equals `r`  and
 
-- `len (x:xs) = c`.
+- `len (x:xs)` equals `c`.
 
-From To do so LiquidHaskell determins that 
+From To do so LiquidHaskell determines that 
 
+HEREHEREHEREHERE
 
 
 
