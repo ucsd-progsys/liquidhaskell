@@ -316,7 +316,7 @@ that `transpose` indeed flips the dimensions of the inner and outer lists.
 **Aside: Comprehensions vs. Map** Incidentally, the code above is essentially 
 that of `transpose` [from the Prelude][URL-transpose] with some extra
 local variables for exposition. You could instead use a `map head` and `map tail` 
-and I encourage you to go ahead and [demo it for yourself!][demo]
+and I encourage you to go ahead and [see for yourself.][demo]
 
 Intermission
 ------------
