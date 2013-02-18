@@ -261,8 +261,8 @@ If you like you can get a hint by seeing how LiquidHaskell figures it out.
 Lets work *backwards*.
 
 \begin{code} LiquidHaskell verifies the output type by inferring that 
-row0'        :: List a r 
-row1s'       :: Matrix a (c-1)  r 
+row0'        :: (List a r) 
+row1s'       :: List (List a r) (c - 1) -- i.e. Matrix a (c - 1) r 
 \end{code}
 
 \begin{code} and so, by simply using the *measure-refined* type for `:`
@@ -270,6 +270,10 @@ row1s'       :: Matrix a (c-1)  r
 \end{code}
 
 \begin{code} LiquidHaskell deduces that
+row0 : rows' :: List (List a r) c 
+\end{code}
+
+\begin{code} That is, 
 row0 : rows' :: Matrix a c r
 \end{code}
 
