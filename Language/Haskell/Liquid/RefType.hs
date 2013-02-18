@@ -20,7 +20,7 @@ module Language.Haskell.Liquid.RefType (
   , pdAnd, pdVar, pdTrue, pvars, findPVar
 
   -- * Traversing `RType` 
-  , ppr_rtype, efoldReft, foldReft, mapReft, mapReftM, mapBot, mapBind
+  , efoldReft, foldReft, mapReft, mapReftM, mapBot, mapBind
   , freeTyVars, tyClasses
 
   , ofType, ofPredTree, toType
@@ -132,9 +132,12 @@ instance Show Predicate where
 
 instance Reftable Predicate where
   isTauto (Pr ps)      = null ps
-  
-  ppTy r d | isTauto r = d 
-           | otherwise = d <> (angleBrackets $ toFix r)
+ 
+  ppTy _ d             = d
+
+  -- HACK: Hiding to not render types in WEB DEMO. NEED TO FIX.
+  -- ppTy r d | isTauto r = d 
+  --          | otherwise = d <> (angleBrackets $ toFix r)
   
   toReft               = errorstar "TODO: instance of toReft for Predicate"
   params               = errorstar "TODO: instance of params for Predicate"
@@ -758,21 +761,6 @@ bkUniv t                = ([], [], t)
 bkArrow (RFun x t t' _) = let (xs, ts, t'') = bkArrow t'  in (x:xs, t:ts, t'')
 bkArrow t               = ([], [], t)
 
--- bkArrs = go []
---   where go xts (RFun x t t' _ ) = go ((x, t) : xts) t'
---         go xts t                = (reverse xts, t)
-
--- bkUniv = go [] []
---   where go αs πs (RAllT α t)    = go (α : αs) πs t
---         go αs πs (RAllP π t)    = go αs (π : πs) t
---         go αs πs t              = (reverse αs, reverse πs, t)
-
--- splitVsPs t = go ([], []) t
---   where go (vs, pvs) (RAllT v  t) = go (v:vs, pvs)  t
---         go (vs, pvs) (RAllP pv t) = go (vs, pv:pvs) t
---         go (vs, pvs) t            = (reverse vs, reverse pvs, t)
-
-
 generalize t = mkUnivs (freeTyVars t) [] t 
          
 freeTyVars (RAllP _ t)     = freeTyVars t
@@ -952,20 +940,20 @@ ppr_fun_tail bb t
   = [ppr_rtype bb TopPrec t]
 
 ppr_forall :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
-ppr_forall b p t
-  = maybeParen p FunPrec $ sep [ppr_foralls vs, ppr_rtype b TopPrec t']
+ppr_forall bb p t
+  = maybeParen p FunPrec $ sep [ ppr_foralls bb αs πs , ppr_rtype bb TopPrec t' ]
   where
-    (vs,  t')            = split [] t
-    split vs (RAllT α t) = split (Left α : vs) t
-    split vs (RAllP π t) = split (Right π : vs) t 
-    split vs t	         = (reverse vs, t)
-   
-    ppr_foralls [] = empty
-    ppr_foralls bs = text "forall" <+> dαs [ α | Left α <- bs] <+> dπs [ π | Right π <- bs] <> dot
+    (αs, πs,  t')          = bkUniv t
   
-    dαs αs = sep $ toFix <$> αs 
-    dπs [] = empty 
-    dπs πs = angleBrackets $ intersperse comma $ ppr_pvar_def toFix <$> πs
+    ppr_foralls False _ _  = empty
+    ppr_foralls _    [] [] = empty
+    ppr_foralls True αs πs = text "forall" <+> dαs αs <+> dπs bb πs <> dot
+
+    dαs αs                 = sep $ toFix <$> αs 
+    
+    dπs _ []               = empty 
+    dπs False _            = empty 
+    dπs True πs            = angleBrackets $ intersperse comma $ ppr_pvar_def toFix <$> πs
 
 ---------------------------------------------------------------
 --------------------------- Visitors --------------------------
