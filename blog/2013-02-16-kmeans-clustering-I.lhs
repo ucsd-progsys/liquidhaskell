@@ -55,12 +55,10 @@ The Game: Clustering Points
 ---------------------------
 
 The goal of [K-Means clustering](http://en.wikipedia.org/wiki/K-means_clustering) 
-is the following. Given as 
+is the following. Given 
 
 - **Input** : A set of *points* represented by *n-dimensional points* 
-  in *Euclidian* space
-
-generate as
+  in *Euclidian* space, return
 
 - **Ouptut** : A partitioning of the points, into K clusters, in a manner that 
   minimizes sum of distances between each point and its cluster center.
@@ -72,23 +70,23 @@ The Players: Types
 Lets make matters concrete by creating types that will represent the 
 different elements of the algorithm.
 
-1. **Fixed-Length Lists**  We will represent n-dimensional points using 
-   good old Haskell lists, refined with a predicate that describes the
-   dimensionality (i.e. length.) To simplify matters, lets package this 
-   into a *type alias* that denotes lists of a given length `N`. 
+**1. Fixed-Length Lists**  We will represent n-dimensional points using 
+good old Haskell lists, refined with a predicate that describes the
+dimensionality (i.e. length.) To simplify matters, lets package this 
+into a *type alias* that denotes lists of a given length `N`. 
    
 \begin{code}
 {-@ type List a N = {v : [a] | (len v) = N} @-}
 \end{code}
 
-2. **Points** Next, we can represent an `N`-dimensional point as list of
+**2. Points** Next, we can represent an `N`-dimensional point as list of
    `Double` of length `N`, or in brief,
 
 \begin{code}
 {-@ type Point N = List Double N @-}
 \end{code}
 
-3. **Clusters** Finally, A cluster is a **non-empty** list of points,
+**3. Clusters** Finally, A cluster is a **non-empty** list of points,
 
 \begin{code}
 {-@ type NonEmptyList a = {v : [a] | (len v) > 0} @-}
@@ -100,9 +98,8 @@ and a `Clustering` is a non-empty list of clusters.
 {-@ type Clustering a  = [(NonEmptyList a)] @-}
 \end{code}
 
-**Note:** When defining refinement type aliases, we use uppercase variables 
-like `N`  to distinguish value- parameters from the lowercase type parameters 
-like `a`.
+When defining refinement type aliases, we use uppercase variables like `N` 
+to distinguish value- parameters from the lowercase type parameters like `a`.
 
 **Note:** If you are familiar with the *index-style* length 
 encoding e.g. as found in [DML][dml] or [Agda][agdavec], then mark 
@@ -223,23 +220,21 @@ The last basic operation that we will require, is a means to
 
 The `transpose` operation flips the rows and columns. I confess
 can never really understand matrices without concrete examples, 
-and even then, barely. So, lets say you have a "matrix"
+and even then, barely. 
 
-~~~~~{.haskell}
+\begin{code} So, lets say we have a *matrix*
 m1  :: Matrix Int 4 2
 m1  =  [ [1, 2]
        , [3, 4]
        , [5, 6] 
        , [7, 8] ]
-~~~~~
+\end{code}
 
-then the matrix `m2 = transpose 2 3 m1` should be
-
-~~~~~{.haskell}
+\begin{code} then the matrix `m2 = transpose 2 3 m1` should be
 m2 :: Matrix Int 2 4
 m1  =  [ [1, 3, 5, 7]
        , [2, 4, 6, 8] ]
-~~~~~
+\end{code}
 
 We will use a `Matrix a m n` to represent a *single cluster* of `m` points 
 each of which has `n` dimensions. We will transpose the matrix to make it 
@@ -251,13 +246,17 @@ straightforward: each *output row* is simply the list of `head`s of
 the *input rows*:
 
 \begin{code}
-transpose                    :: Int -> Int -> [[a]] -> [[a]]
-transpose 0 _ _              = []
-transpose c r ((x:xs) : xss) = (x : map head xss) : transpose (c-1) r (xs : map tail xss)
+transpose       :: Int -> Int -> [[a]] -> [[a]]
 
--- Not needed, just for exposition
-transpose c r ([] : _)       = liquidError "dead code" 
-transpose c r []             = liquidError "dead code"
+transpose 0 _ _  
+  = []
+
+transpose c r ((col00 : col01s) : row1s) 
+  = row0' : row1s'
+    where
+      row0'  = col00  : [ col0  | (col0 : _)  <- row1s ]
+      rest   = col01s : [ col1s | (_ : col1s) <- row1s ] 
+      row1s' = transpose (c-1) r rest 
 \end{code}
 
 LiquidHaskell verifies that
@@ -266,39 +265,50 @@ LiquidHaskell verifies that
 {-@ transpose :: c:Int -> r:PosInt -> Matrix a r c -> Matrix a c r @-}
 \end{code}
 
-Lets see how. Lean in close.
+Try to work it out for yourself on pencil and paper. If you like you can
+*cheat* by seeing how LiquidHaskell figures it out.
 
-First, LiquidHaskell use the fact that the third input is a `Matrix a r c`
-that is a `List (List a c) r` to deduce that in the **input** list
+Lets work *backwards*.
 
-- the length of the *outer* list `(len ((x:xs) : xss))` equals the number of *rows* `r`, 
-- and hence, the length of the *outer tail* `(len xss)` equals `r-1`, and
-- the length of the *inner* list `len (x:xs)` equals the number of *columns* `c`,
-- and hence, the length of the *inner tail* `(len xs)` equals `c-1`.
-
-Next, from the above, LiquidHaskell infers that in the recursive call
-
-- the length of the *outer* list `(len (xs : map tail xss))` is `1 + (len xss)` that is *also* `r`
-- the length of the *inner* list `(len xs)` is `c-1`
-
-Finally, inductively the output of the recursive call is a `Matrix a (c-1) r` and so in the **output**, 
-
-- the length of the *inner* list is `1 + (len xss)`, that is, `r`,
-- the length of the *outer* list is `c`, that is, `1` plus the outer length `c-1` of the recursive result.
-
-Thus, via SMT based reasoning, LiquidHaskell concludes that the output is
-indeed `Matrix a c r` where the dimensions of the inner and outer lists are
-flipped!
-
-**Aside: Comprehensions** Incidentally, the code above is essentially that of `Data.List.transpose`
-[from the Prelude][URL-transpose] except that we have added dimension parameters, used them to ensure 
-that all rows have the same length, and to precisely characterize the shape of the input and output lists.
-
-\begin{code}The Prelude implementation uses list comprehensions -- the second equation for `transpose` is 
-transpose n m ((x:xs) : xss) = (x : [h | (h:_) <- xss]) : transpose (n-1) m (xs : [ t | (_:t) <- xss])
+\begin{code} LiquidHaskell verifies the output type by inferring that 
+row0'        :: List a r 
+row1s'       :: Matrix a (c-1)  r 
 \end{code}
-We have used `map` and `head` and `tail` just for illustration -- the comprehension version works just fine -- 
-go ahead and [demo it for yourself!][demo]
+
+\begin{code} and hence, by simply using the *measure*-refined type for `:`  
+row0 : rows' :: Matrix a c r
+\end{code}
+
+Excellent. How does it infer the types of `row0'` and `row1s'`? The first
+case is easy: `row0'` is just the list of *head's* of each row, hence a `List a r`.
+
+Now, lets look at `row1s'`.
+
+\begin{code} First, notice that `row1s` is the matrix of all *except* the first row of the input Matrix, and so
+row1s        :: Matrix a (r-1) c
+\end{code}
+
+\begin{code} and so, as
+col01s       :: List a (c-1)
+col1s        :: List a (c-1)
+\end{code}
+
+\begin{code} LiquidHaskell deduces that the concatenation of the above two yields
+rest         :: Matrix a r (c-1)
+\end{code}
+
+After which, `row1s' :: Matrix a (c-1) r` follows by inductively plugging in the 
+output type of the recursive call.
+
+*Whew!* That was a fair bit of work, wasn't it! Happily, we didn't have to
+do *any* of it. Instead, using the SMT solver, LiquidHaskell ploughs
+through calculations like that and guarantees to us that `transpose` indeed
+flips the dimensions of the inner and outer lists.
+
+**Aside: Comprehensions vs. Map** Incidentally, the code above is essentially 
+that of `Data.List.transpose` [from the Prelude][URL-transpose] with some
+extra variables for exposition. You could instead use a `map head` and `map tail` 
+and I encourage you to go ahead and [demo it for yourself!][demo]
 
 Intermission
 ------------
@@ -317,4 +327,6 @@ algorithm.
 [maru]:          http://www.youtube.com/watch?v=8uDuls5TyNE
 [demo]:          http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=KMeansHelper.hs
 [URL-kmeans]:    http://hackage.haskell.org/package/kmeans
+[dml]:     http://www.cs.bu.edu/~hwxi/DML/DML.html
+[agdavec]: http://code.haskell.org/Agda/examples/Vec.agda
 
