@@ -17,8 +17,10 @@ module Language.Fixpoint.Names (
   , propConName
   , vvName
   , symSepName
- 
+  , dropModuleNames 
 ) where
+
+import Language.Fixpoint.Misc (safeLast, stripParens)
 
 ----------------------------------------------------------------------------
 --------------- Global Name Definitions ------------------------------------
@@ -28,8 +30,20 @@ preludeName  = "Prelude"
 dummyName    = "_LIQUID_dummy"
 boolConName  = "Bool"
 funConName   = "->"
-listConName  = "List"
-tupConName   = "Tuple"
+listConName  = "[]" -- "List"
+tupConName   = "()" -- "Tuple"
+
 propConName  = "Prop"
 vvName       = "VV"
 symSepName   = '#'
+
+dropModuleNames []  = []
+dropModuleNames s  
+  | s == tupConName = tupConName 
+  | otherwise       = safeLast msg $ words $ dotWhite `fmap` stripParens s
+  where 
+    msg             = "dropModuleNames: " ++ s 
+    dotWhite '.'    = ' '
+    dotWhite c      = c
+
+
