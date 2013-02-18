@@ -411,7 +411,7 @@ I hope that over the last two posts, you have gotten a sense of
    verify invariants of non-trivial programs.
 
 The sharp reader will have noticed that the one *major*, non syntactic, change to the
-[original code] is the addition of the dimension parameter `n` throughout
+[original code][URL-kmeans] is the addition of the dimension parameter `n` throughout
 the code. This is critically required so that we can specify the relevant
 invariants (which are in terms of `n`.) The value is actually a ghost, and
 never ever used. Fortunately, Haskell's laziness means that we don't have
