@@ -279,11 +279,9 @@ row0 : rows' :: Matrix a c r
 
 Excellent! Now, lets work backwards. How does it infer the types of `row0'` and `row1s'`? 
 
-The first case is easy: `row0'` is just the list of *head's* of each row, hence a `List a r`.
+The first case is easy: `row0'` is just the list of *heads* of each row, hence a `List a r`.
 
-Now, lets look at `row1s'`.
-
-\begin{code} First, notice that `row1s` is the matrix of all *except* the first row of the input Matrix, and so
+\begin{code} Now, lets look at `row1s'`. Notice that `row1s` is the matrix of all *except* the first row of the input Matrix, and so
 row1s        :: Matrix a (r-1) c
 \end{code}
 
@@ -292,17 +290,28 @@ col01s       :: List a (c-1)
 col1s        :: List a (c-1)
 \end{code}
 
-\begin{code} LiquidHaskell deduces that the concatenation of the above yields
+\begin{code} LiquidHaskell deduces that since `rest` is the concatenation of `r-1` tails from `row1s`
+rest         = col01s : [ col1s | (_ : col1s) <- row1s ] 
+\end{code}
+
+\begin{code} the type of `rest` is  
+rest         :: List (List a (c - 1)) r
+\end{code}
+
+\begin{code} which is just
 rest         :: Matrix a r (c-1)
 \end{code}
 
-After which, `row1s' :: Matrix a (c-1) r` follows by inductively plugging in the 
-output type of the recursive call.
+Now, LiquidHaskell deduces `row1s' :: Matrix a (c-1) r` by inductively 
+plugging in the output type of the recursive call, thereby checking the 
+function's signature.
 
-*Whew!* That was a fair bit of work, wasn't it! Happily, we didn't have to
-do *any* of it. Instead, using the SMT solver, LiquidHaskell ploughs
-through calculations like that and guarantees to us that `transpose` indeed
-flips the dimensions of the inner and outer lists.
+
+*Whew!* That was a fair bit of work, wasn't it! 
+
+Happily, we didn't have to do *any* of it. Instead, using the SMT solver, 
+LiquidHaskell ploughs through calculations like that and guarantees to us
+that `transpose` indeed flips the dimensions of the inner and outer lists.
 
 **Aside: Comprehensions vs. Map** Incidentally, the code above is essentially 
 that of `transpose` [from the Prelude][URL-transpose] with some extra
@@ -326,6 +335,6 @@ algorithm.
 [maru]:          http://www.youtube.com/watch?v=8uDuls5TyNE
 [demo]:          http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=KMeansHelper.hs
 [URL-kmeans]:    http://hackage.haskell.org/package/kmeans
-[dml]:     http://www.cs.bu.edu/~hwxi/DML/DML.html
-[agdavec]: http://code.haskell.org/Agda/examples/Vec.agda
+[dml]:           http://www.cs.bu.edu/~hwxi/DML/DML.html
+[agdavec]:       http://code.haskell.org/Agda/examples/Vec.agda
 
