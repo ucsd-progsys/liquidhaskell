@@ -254,9 +254,9 @@ LiquidHaskell verifies that
 {-@ transpose :: c:Int -> r:PosInt -> Matrix a r c -> Matrix a c r @-}
 \end{code}
 
-Try to work it out for yourself on pencil and paper. If you like you can
-*cheat* by seeing how LiquidHaskell figures it out.
+Try to work it out for yourself on pencil and paper. 
 
+If you like you can get a hint by seeing how LiquidHaskell figures it out.
 Lets work *backwards*.
 
 \begin{code} LiquidHaskell verifies the output type by inferring that 
@@ -264,12 +264,17 @@ row0'        :: List a r
 row1s'       :: Matrix a (c-1)  r 
 \end{code}
 
-\begin{code} and hence, by simply using the *measure*-refined type for `:`  
+\begin{code} and so, by simply using the *measure-refined* type for `:`
+(:)          :: x:a -> xs:[a] -> { v : [a] | (len v) = 1 + (len xs) }
+\end{code}
+
+\begin{code} LiquidHaskell deduces that
 row0 : rows' :: Matrix a c r
 \end{code}
 
-Excellent. How does it infer the types of `row0'` and `row1s'`? The first
-case is easy: `row0'` is just the list of *head's* of each row, hence a `List a r`.
+Excellent! Now, lets work backwards. How does it infer the types of `row0'` and `row1s'`? 
+
+The first case is easy: `row0'` is just the list of *head's* of each row, hence a `List a r`.
 
 Now, lets look at `row1s'`.
 
@@ -282,7 +287,7 @@ col01s       :: List a (c-1)
 col1s        :: List a (c-1)
 \end{code}
 
-\begin{code} LiquidHaskell deduces that the concatenation of the above two yields
+\begin{code} LiquidHaskell deduces that the concatenation of the above yields
 rest         :: Matrix a r (c-1)
 \end{code}
 
@@ -295,15 +300,15 @@ through calculations like that and guarantees to us that `transpose` indeed
 flips the dimensions of the inner and outer lists.
 
 **Aside: Comprehensions vs. Map** Incidentally, the code above is essentially 
-that of `Data.List.transpose` [from the Prelude][URL-transpose] with some
-extra variables for exposition. You could instead use a `map head` and `map tail` 
+that of `transpose` [from the Prelude][URL-transpose] with some extra
+local variables for exposition. You could instead use a `map head` and `map tail` 
 and I encourage you to go ahead and [demo it for yourself!][demo]
 
 Intermission
 ------------
 
 Time for a break -- [go see a cat video!][maru] -- or skip it, stretch your
-legs, and return post-haste, for the [next installment][kmeans], in which 
+legs, and return post-haste, for the [next installment][kmeansII], in which 
 we will use the types and functions described above, to develop the clustering
 algorithm.
 
