@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "KMeans Clustering: II"
+title: "KMeans Clustering II"
 date: 2013-02-17 16:12
 author: Ranjit Jhala
 published: false 
@@ -62,23 +62,23 @@ the goal of [K-Means clustering](http://en.wikipedia.org/wiki/K-means_clustering
 
 Last time, we introduced a variety of refinement type aliases for Haskell lists
 
-\begin{code} Lists with a Fixed Length 
+\begin{code} **Fixed Length Lists*
 type List a N = {v : [a] | (len v) = N}
 \end{code}
 
-\begin{code} Non-empty Lists
+\begin{code} **Non-empty Lists**
 type NonEmptyList a = {v : [a] | (len v) > 0} 
 \end{code}
 
-\begin{code} `N`-Dimensional Points
+\begin{code} **N-Dimensional Points**
 type Point N = List Double N
 \end{code}
 
-\begin{code} Matrices
+\begin{code} **Matrices**
 type Matrix a Rows Cols = List (List a Cols) Rows
 \end{code}
 
-\begin{code} We also saw a bunch of list operations
+\begin{code} We also saw several basic list operations
 groupBy   :: (a -> a -> Bool) -> [a] -> (Clustering a) 
 partition :: PosInt -> [a] -> (Clustering a) 
 zipWith   :: (a -> b -> c) -> xs:[a] -> (List b (len xs)) -> (List c (len xs))
@@ -125,7 +125,10 @@ a list of *generalized points* of dimension `n` and returns a `Clustering`
 So much verbiage -- a type is worth a thousand comments!
 
 \begin{code}
-{-@ kmeans' :: n:Int -> k:PosInt -> points:[(GenPoint a n)] -> (Clustering (GenPoint a n)) @-}
+{-@ kmeans' :: n:Int 
+            -> k:PosInt 
+            -> points:[(GenPoint a n)] 
+            -> (Clustering (GenPoint a n)) @-}
 \end{code}
 
 There! Crisp, and to the point. Sorry. Anyhoo, the function implements the
@@ -183,21 +186,23 @@ clustering and improves it, like so:
 refineCluster n clusters = clusters' 
   where 
     -- 1. Compute cluster centers 
-    centers              = map (clusterCenter n) clusters
+    centers        = map (clusterCenter n) clusters
     
     -- 2. Map points to their nearest center
-    points               = concat clusters 
-    centeredPoints       = sort [(nearestCenter n p centers, p) | p <- points]
+    points         = concat clusters 
+    centeredPoints = sort [(nearestCenter n p centers, p) | p <- points]
 
     -- 3. Group points by nearest center to get new clusters
-    centeredGroups       = groupBy ((==) `on` fst) centeredPoints 
-    clusters'            = map (map snd) centeredGroups
+    centeredGroups = groupBy ((==) `on` fst) centeredPoints 
+    clusters'      = map (map snd) centeredGroups
 \end{code}
 
 The behavior of `refineCluster` is pithily captured by its type
 
 \begin{code}
-{-@ refineCluster :: n:Int -> Clustering (GenPoint a n) -> Clustering (GenPoint a n) @-}
+{-@ refineCluster :: n:Int 
+                  -> Clustering (GenPoint a n) 
+                  -> Clustering (GenPoint a n)          @-}
 \end{code}
 
 The refined clustering is computed in three steps.

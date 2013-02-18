@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "KMeans Clustering: I"
+title: "KMeans Clustering I"
 date: 2013-02-16 16:12
 author: Ranjit Jhala
 published: false 
