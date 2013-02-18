@@ -132,9 +132,9 @@ There! Crisp, and to the point. Sorry. Anyhoo, the function implements the
 above type by
 
 \begin{code}
-kmeans' n k points    = fixpoint (refineCluster n) initClustering
+kmeans' n k points    = fixpoint (refineCluster n) initialClustering
   where 
-    initialClustering = partitition clusterSize points 
+    initialClustering = partition clusterSize points 
     clusterSize       = max 1 ((length points + k - 1) `div` k)
 
     fixpoint          :: (Eq a) => (a -> a) -> a -> a
@@ -187,7 +187,7 @@ refineCluster n clusters = clusters'
     
     -- 2. Map points to their nearest center
     points               = concat clusters 
-    centeredPoints       = sort [(nearestCenter n centers p, p) | p <- points]
+    centeredPoints       = sort [(nearestCenter n p centers, p) | p <- points]
 
     -- 3. Group points by nearest center to get new clusters
     centeredGroups       = groupBy ((==) `on` fst) centeredPoints 
@@ -197,7 +197,7 @@ refineCluster n clusters = clusters'
 The behavior of `refineCluster` is pithily captured by its type
 
 \begin{code}
-{-@ reCluster :: n:Int -> Clustering (GenPoint a n) -> Clustering (GenPoint a n) @-}
+{-@ refineCluster :: n:Int -> Clustering (GenPoint a n) -> Clustering (GenPoint a n) @-}
 \end{code}
 
 The refined clustering is computed in three steps.
@@ -256,6 +256,8 @@ clusterCenter n xs = map average xs'
   where 
     numPoints      = length xs 
     xs'            = transpose n numPoints (map getVect xs)
+
+    average        :: [Double] -> Double
     average        = (`safeDiv` numPoints) . sum
 \end{code}
 
@@ -314,26 +316,35 @@ The last piece of the puzzle is `nearestCenter` which maps each
 pretty self-explanatory:
 
 \begin{code}
-nearestCenter n cs x = minimumKey centerDistances 
-  where 
-    centerDistances  = [(c, distance c (getVect x)) | c <- cs] 
-    
-    minimumKey       :: (Ord v) => [(k, v)] -> k
-    minimumKey kvs   = minimumBy (\x y -> compare (snd x) (snd y)) kvs
+nearestCenter     :: Int -> WrapType [Double] a -> [[Double]] -> [Double] 
+nearestCenter n x = minKey . map (\c -> (c, distance c (getVect x)))
+\end{code}
+ 
+We `map` the centers to a tuple of center `c` and the `distance` between
+`x` and `c`, and then we select the tuple with the smallest distance
 
-    distance         ::  [Double] -> [Double] -> Double 
-    distance a b     = sqrt . sum $ safeZipWith (\v1 v2 -> (v1 - v2) ^ 2) a b
+\begin{code}
+minKey  :: (Ord v) => [(k, v)] -> k
+minKey  = fst . minimumBy (\x y -> compare (snd x) (snd y)) 
 \end{code}
 
-We `map` the centers to a tuple of the `distance` to that center, and then
-select the tuple with the smallest distance. The interesting bit is that the 
-`distance` function uses `safeZipWith` to ensure that the dimensionality of 
-the center and the point match up.
+The interesting bit is the `distance` function uses `safeZipWith` to 
+ensure that the dimensionality of the center and the point match up.
+   
+\begin{code}
+{- distance :: a:[Double] -> {v:[Double] | (len v) = (len a)} -> Double @-}
+distance     :: [Double] -> [Double] -> Double 
+distance a b = sqrt . sum $ sAFEZipWith (\v1 v2 -> (v1 - v2) ^ 2) a b
+
+{-@ sAFEZipWith :: (a -> b -> c) -> xs:[a] -> (List b (len xs)) -> (List c (len xs)) @-}
+sAFEZipWith f (a:as) (b:bs) = f a b : sAFEZipWith f as bs
+sAFEZipWith _ [] []         = []
+\end{code}
 
 LiquidHaskell verifies `distance` by inferring that
 
 \begin{code}
-{-@ nearestCenter :: n:Int -> [(Point n)] -> (GenPoint a n) -> (Point n) @-} 
+{-@ nearestCenter :: n:Int -> (GenPoint a n) -> [(Point n)] -> (Point n) @-} 
 \end{code}
 
 First, LiquidHaskell deduces that each center in `cs` is indeed `n`-dimensional 
