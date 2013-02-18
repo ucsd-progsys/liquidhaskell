@@ -1,5 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances #-}
-
 module KMeansHelper where
 
 import Data.List (sort, span, minimumBy)
@@ -50,19 +48,13 @@ partition size ys@(_:_) = zs : partition size zs'
 -- | Safe Zipping -----------------------------------------------------
 -----------------------------------------------------------------------
 
-{-@ safeZipWith :: (a -> b -> c)
-                -> xs:[a]
-                -> (List b (len xs))
-                -> (List c (len xs))
-  @-}
-
-safeZipWith f (a:as) (b:bs) = f a b : safeZipWith f as bs
-safeZipWith _ [] []         = []
+{-@ zipWith :: (a -> b -> c) -> xs:[a] -> (List b (len xs)) -> (List c (len xs)) @-}
+zipWith f (a:as) (b:bs) = f a b : zipWith f as bs
+zipWith _ [] []         = []
 
 -- Other cases only for exposition
-safeZipWith _ (_:_) []      = liquidError "Dead Code"
-safeZipWith _ [] (_:_)      = liquidError "Dead Code"
-
+zipWith _ (_:_) []      = liquidError "Dead Code"
+zipWith _ [] (_:_)      = liquidError "Dead Code"
 
 -----------------------------------------------------------------------
 -- | "Matrix" Transposition -------------------------------------------
@@ -75,6 +67,9 @@ safeZipWith _ [] (_:_)      = liquidError "Dead Code"
 transpose                    :: Int -> Int -> [[a]] -> [[a]]
 transpose 0 _ _              = []
 transpose c r ((x:xs) : xss) = (x : map head xss) : transpose (c-1) r (xs : map tail xss)
+
+-- Or, with comprehensions
+-- transpose c r ((x:xs):xss) = (x : [ xs' | (x':_) <- xss ]) : transpose (c-1) r (xs : [xs' | (_ : xs') <- xss])
 
 -- Not needed, just for exposition
 transpose c r ([] : _)       = liquidError "dead code"
