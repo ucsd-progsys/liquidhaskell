@@ -332,13 +332,8 @@ The interesting bit is the `distance` function uses `safeZipWith` to
 ensure that the dimensionality of the center and the point match up.
    
 \begin{code}
-{- distance :: a:[Double] -> {v:[Double] | (len v) = (len a)} -> Double @-}
 distance     :: [Double] -> [Double] -> Double 
-distance a b = sqrt . sum $ sAFEZipWith (\v1 v2 -> (v1 - v2) ^ 2) a b
-
-{-@ sAFEZipWith :: (a -> b -> c) -> xs:[a] -> (List b (len xs)) -> (List c (len xs)) @-}
-sAFEZipWith f (a:as) (b:bs) = f a b : sAFEZipWith f as bs
-sAFEZipWith _ [] []         = []
+distance a b = sqrt . sum $ safeZipWith (\v1 v2 -> (v1 - v2) ^ 2) a b
 \end{code}
 
 LiquidHaskell verifies `distance` by inferring that
