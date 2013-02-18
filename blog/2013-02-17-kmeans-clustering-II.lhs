@@ -32,11 +32,11 @@ contracts which will ward against various unpleasant *lumpenexceptions*.
 module KMeans (kmeans, kmeansGen) where
 
 import KMeansHelper 
-
-import Data.List (sort, span, minimumBy)
-import Data.Function (on)
-import Data.Ord (comparing)
-import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
+import Prelude              hiding      (zipWith)
+import Data.List                        (sort, span, minimumBy)
+import Data.Function                    (on)
+import Data.Ord                         (comparing)
+import Language.Haskell.Liquid.Prelude  (liquidAssert, liquidError)
 
 instance Eq (WrapType [Double] a) where
    (==) = (==) `on` getVect
@@ -78,12 +78,12 @@ type Point N = List Double N
 type Matrix a Rows Cols = List (List a Cols) Rows
 \end{code}
 
-We also saw a bunch of list operations
-
-- `groupBy`
-- `partition`
-- `safeZipWith` 
-- `transpose`  
+\begin{code} We also saw a bunch of list operations
+groupBy   :: (a -> a -> Bool) -> [a] -> (Clustering a) 
+partition :: PosInt -> [a] -> (Clustering a) 
+zipWith   :: (a -> b -> c) -> xs:[a] -> (List b (len xs)) -> (List c (len xs))
+transpose :: c:Int -> r:PosInt -> Matrix a r c -> Matrix a c r
+\end{code}
 
 whose types will prove essential in order to verify the invariants of the 
 clustering algorithm. You might open the [previous episode][kmeansI] in a
