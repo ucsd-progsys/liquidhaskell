@@ -187,7 +187,8 @@ the `zipWith` function. To make sure that it is invoked on points
 with *the same number of dimensions*. To this end, we write a 
 
 \begin{code}
-{-@ zipWith :: (a -> b -> c) -> xs:[a] -> (List b (len xs)) -> (List c (len xs)) @-}
+{-@ zipWith :: (a -> b -> c) 
+            -> xs:[a] -> (List b (len xs)) -> (List c (len xs)) @-}
 zipWith f (a:as) (b:bs) = f a b : zipWith f as bs
 zipWith _ [] []         = []
 \end{code}
