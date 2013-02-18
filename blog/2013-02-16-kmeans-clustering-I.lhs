@@ -218,7 +218,7 @@ The last basic operation that we will require, is a means to
 *transpose* a `Matrix`, which itself is just a list of lists:
 
 \begin{code}
-{-@ type Matrix a Rows Cols = List (List a Cols) Rows @-}
+{-@ type Matrix a Rows Cols = (List (List a Cols) Rows) @-}
 \end{code}
 
 The `transpose` operation flips the rows and columns. I confess
