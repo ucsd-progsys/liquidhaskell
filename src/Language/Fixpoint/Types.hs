@@ -948,6 +948,9 @@ instance Hashable Symbol where
 instance Hashable FTycon where
   hashWithSalt i (TC s) = hashWithSalt i s
 
+
+
+
 -- instance Hashable Sort where
 --   hashWithSalt i = hashSort i
 -- 

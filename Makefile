@@ -33,8 +33,8 @@ clean:
 	cabal clean
 
 docs:
-	$(CABAL) hscolour
-	$(CABAL) haddock --hoogle
+	$(CABAL) haddock --executables --internal --hoogle --hyperlink-source #--html-location=http://goto.ucsd.edu/~rjhala/llvm-haskell/
+
 
 deps:
 	$(CABALI) $(DEPS)

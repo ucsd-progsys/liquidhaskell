@@ -7,10 +7,10 @@ import System.Exit
 
 main = defaultMainWithHooks fixpointHooks
 
-fixpointHooks  = {- autoconfUserHooks -} simpleUserHooks { postConf = buildAndCopyFixpoint } 
+fixpointHooks  = {- autoconfUserHooks -} simpleUserHooks { postInst = buildAndCopyFixpoint } 
    
 buildAndCopyFixpoint _ _ pkg lbi 
-  = do putStrLn $ "POSTCONF HOOKS: " ++ show binDir -- , libDir)
+  = do putStrLn $ "Post Install: " ++ show binDir -- , libDir)
        executeShellCommand "./configure"
        executeShellCommand "./build.sh"
        executeShellCommand $ "chmod a+x external/fixpoint/fixpoint.native "

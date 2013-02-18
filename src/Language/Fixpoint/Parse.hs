@@ -16,19 +16,19 @@ module Language.Fixpoint.Parse (
   , whiteSpace, blanks
 
   -- * Parsing basic entities
-  , fTyConP     -- ^ Type constructors
-  , lowerIdP    -- ^ Lower-case identifiers
-  , upperIdP    -- ^ Upper-case identifiers
-  , symbolP     -- ^ Arbitrary Symbols
-  , constantP   -- ^ (Integer) Constants
-  , integer     -- ^ Integer
+  , fTyConP     -- Type constructors
+  , lowerIdP    -- Lower-case identifiers
+  , upperIdP    -- Upper-case identifiers
+  , symbolP     -- Arbitrary Symbols
+  , constantP   -- (Integer) Constants
+  , integer     -- Integer
 
   -- * Parsing recursive entities
-  , exprP       -- ^ Expressions
-  , predP       -- ^ Refinement Predicates
+  , exprP       -- Expressions
+  , predP       -- Refinement Predicates
   
   -- * Some Combinators
-  , condIdP     -- ^ condIdP  :: [Char] -> (String -> Bool) -> Parser String
+  , condIdP     -- condIdP  :: [Char] -> (String -> Bool) -> Parser String
 
   -- * Parsing Function
   , doParse' 

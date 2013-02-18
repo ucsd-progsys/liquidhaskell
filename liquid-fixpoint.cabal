@@ -20,7 +20,7 @@ Executable fixpoint
 
 library
   hs-source-dirs:  src
-  exposed-modules: Language.Fixpoint.Names,
+  Exposed-Modules: Language.Fixpoint.Names,
                    Language.Fixpoint.Files,
                    Language.Fixpoint.Types, 
                    Language.Fixpoint.Interface, 
