@@ -35,9 +35,17 @@ tidyLocalRefas = mapReft (txReft)
   where 
     txReft (U (FReft    (Reft (v,ras))) p) = U (FReft    (Reft (v, dropLocals ras))) p
     txReft (U (FSReft s (Reft (v,ras))) p) = U (FSReft s (Reft (v, dropLocals ras))) p
-    dropLocals            = filter (not . any isTmp . syms) . flattenRefas
-    isTmp x               = let str = symbolString x in 
-                            (anfPrefix `L.isPrefixOf` str)         -- local ANF vars
+    dropLocals = filter (not . any isTmp . syms) . flattenRefas
+    isTmp x    = any (`L.isPrefixOf` (symbolString x)) [anfPrefix, "ds_"] 
+
+isTmpSymbol x = any (`L.isPrefixOf` str) [anfPrefix, tempPrefix, "ds_"]
+  where str   = symbolString x
+
+-- isTmpSymbol x = (anfPrefix `L.isPrefixOf`  str) || 
+--                 (tempPrefix `L.isPrefixOf` str) ||
+--                 ("ds_"      `L.isPrefixOf` str)
+--   where str   = symbolString x
+
 
 
 tidyDSymbols :: SpecType -> SpecType  
@@ -48,14 +56,7 @@ tidyDSymbols t = mapBind tx $ substa tx t {- subst su t -}
     dxs   = zip ds (var <$> [1..])
     ds    = [ x | x <- syms t, isTmp x ]
     isTmp = (tempPrefix `L.isPrefixOf`) . symbolString
-    -- isTmp = ("ds_" `L.isPrefixOf`) . symbolString
     var   = stringSymbol . ('x' :) . show 
-
-
-isTmpSymbol x = (anfPrefix `L.isPrefixOf`  str) || 
-                (tempPrefix `L.isPrefixOf` str) ||
-                ("ds_"      `L.isPrefixOf` str)
-  where str   = symbolString x
 
 
 
