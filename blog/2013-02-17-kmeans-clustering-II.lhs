@@ -333,12 +333,12 @@ minKey  :: (Ord v) => [(k, v)] -> k
 minKey  = fst . minimumBy (\x y -> compare (snd x) (snd y)) 
 \end{code}
 
-The interesting bit is the `distance` function uses `safeZipWith` to 
+The interesting bit is the `distance` function uses `zipWith` to 
 ensure that the dimensionality of the center and the point match up.
    
 \begin{code}
 distance     :: [Double] -> [Double] -> Double 
-distance a b = sqrt . sum $ safeZipWith (\v1 v2 -> (v1 - v2) ^ 2) a b
+distance a b = sqrt . sum $ zipWith (\v1 v2 -> (v1 - v2) ^ 2) a b
 \end{code}
 
 LiquidHaskell verifies `distance` by inferring that
@@ -352,7 +352,7 @@ follows from the output type of `clusterCenter`. Since `x` is a `(GenPoint a n)`
 LiquidHaskell infers that both `c` and `getVect x` are of an equal length `n`. 
 
 \begin{code} Consequently, the call to 
-safeZipWith :: (a -> b -> c) -> xs:[a] -> (List b (len xs)) -> (List c (len xs)) 
+zipWith :: (a -> b -> c) -> xs:[a] -> (List b (len xs)) -> (List c (len xs)) 
 \end{code}
 
 [discussed last time][kmeansI] is determined to be safe.
