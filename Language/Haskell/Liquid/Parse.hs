@@ -109,7 +109,7 @@ predVarIdP
   = stringSymbol <$> tyVarIdP
 
 bPVar p _ xts  = PV p τ τxs 
-  where (_, τ) = last xts
+  where (_, τ) = safeLast "bPVar last" xts
         τxs    = [ (τ, x, EVar x) | (x, τ) <- init xts ]
 
 predVarTypeP :: Parser [(Symbol, BSort)]
@@ -119,16 +119,6 @@ predVarTypeP = do t <- bareTypeP
                     then return $ zip xs (toRSort <$> ts) 
                     else parserFail $ "Predicate Variable with non-Prop output sort: " ++ showFix t
 
--- predVarTypeP 
---   =  try ((liftM (: []) predVarArgP) <* reserved "->" <* reserved boolConName)
---  <|> liftM2 (:) predVarArgP (reserved "->" >> predVarTypeP)
-
--- predVarArgP = xyP argP spaces bareSortP {- PREDARGS tyVarIdP -}
---   where argP  = stringSymbol <$> argP'
---         argP' = try (lowerIdP <* colon) <|> positionNameP
-        
--- bareSortP :: Parser BSort
--- bareSortP = toRSort <$> bareTypeP
 
 xyP lP sepP rP
   = liftM3 (\x _ y -> (x, y)) lP (spaces >> sepP) rP

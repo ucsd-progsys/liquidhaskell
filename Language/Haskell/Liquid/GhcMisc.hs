@@ -155,12 +155,6 @@ tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) x
 
 pprShow = text . show
 
--- dropModuleNames [] = []
--- dropModuleNames s  = last $ words $ dotWhite <$> stripParens s
---   where dotWhite '.' = ' '
---         dotWhite c   = c
-
-
 -----------------------------------------------------------------------
 ------------------ Generic Helpers for DataConstructors ---------------
 -----------------------------------------------------------------------

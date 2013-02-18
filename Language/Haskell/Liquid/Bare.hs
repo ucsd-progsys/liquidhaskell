@@ -35,7 +35,7 @@ import Control.Monad.Error      hiding (forM)
 import Data.Bifunctor
 
 
-import Language.Fixpoint.Names                  (propConName)
+import Language.Fixpoint.Names                  (propConName, dropModuleNames)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Fixpoint.Types                  hiding (name, params)
 import Language.Haskell.Liquid.RefType

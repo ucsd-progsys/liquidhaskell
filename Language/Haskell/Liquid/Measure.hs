@@ -15,7 +15,7 @@ import GHC
 import Var
 import qualified Outputable as O 
 import Text.PrettyPrint.HughesPJ hiding (first)
-
+import Text.Printf (printf)
 import DataCon
 import qualified Data.HashMap.Strict as M 
 -- import Data.Data
@@ -263,60 +263,53 @@ expandRTAliasE  :: M.HashMap String (RTAlias String BareType) -> BareType -> Bar
 expandRTAliasE = go []
   where go = expandAlias go
 
--- expandRTAlias' env t = traceShow ("expandRTAlias t = " ++ showPpr t) $ expandRTAlias env t
 
 expandAlias f s env = go s 
-  where go s (RApp c ts rs r)
-          | c `elem` s        = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
-          | c `M.member` env  = assert (null rs) $ expandRTApp (f (c:s) env) env c ts r
-          | otherwise         = RApp c (go s <$> ts) rs r 
-        go s (RAllT a t)      = RAllT a (go s t)
-        go s (RAllP a t)      = RAllP a (go s t)
-        go s (RFun x t t' r)  = RFun x (go s t) (go s t') r
-        go s (RAppTy t t' r)  = RAppTy (go s t) (go s t') r
-        go s (RCls c ts)      = RCls c (go s <$> ts) 
-        go _ t                = t
+  where 
+    go s (RApp c ts rs r)
+      | c `elem` s        = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
+      | c `M.member` env  = assert (null rs) $ expandRTApp (f (c:s) env) env c (go s <$> ts) r
+      | otherwise         = RApp c (go s <$> ts) rs r 
+    go s (RAllT a t)      = RAllT a (go s t)
+    go s (RAllP a t)      = RAllP a (go s t)
+    go s (RFun x t t' r)  = RFun x (go s t) (go s t') r
+    go s (RAppTy t t' r)  = RAppTy (go s t) (go s t') r
+    go s (RCls c ts)      = RCls c (go s <$> ts) 
+    go _ t                = t
 
 
 expandRTApp tx env c args r
   | length args == (length αs) + (length εs)
   = subst su  $ (`strengthen` r) $ subsTyVars_meet αts $ tx $ rtBody rta
   | otherwise
-  = errorstar $ "Malformed Type-Alias Application" ++ msg
+  = errorstar $ "Malformed Type-Alias Application" ++ msg ++ show rta
   where 
     αts       = zipWith (\α t -> (α, toRSort t, t)) αs ts
     su        = mkSubst $ zip (stringSymbol <$> εs) es
     αs        = rtTArgs rta 
     εs        = rtVArgs rta 
     rta       = env M.! c
-    msg       = showFix (RApp c args [] r) ++ "in " ++ show rta 
+    msg       = showFix (RApp c args [] r) 
     (ts, es_) = splitAt (length αs) args
-    es        = map exprArg es_
-    -- | exprArg converts a tyVar to an exprVar because parser cannot tell 
-    exprArg (RExprArg e) = e
-    exprArg (RVar x _)   = EVar (stringSymbol x)
-    exprArg _            = errorstar $ "Unexpected expression parameter: " ++ msg 
+    es        = map (exprArg msg) es_
+    
+-- | exprArg converts a tyVar to an exprVar because parser cannot tell 
+-- HORRIBLE HACK To allow treating upperCase X as value variables X
+-- e.g. type Matrix a Row Col = List (List a Row) Col
 
+exprArg _   (RExprArg e)     
+  = e
+exprArg _   (RVar x _)       
+  = EVar (stringSymbol x)
+exprArg _   (RApp x [] [] _) 
+  = EVar (stringSymbol x)
+exprArg msg (RApp f ts [] _) 
+  = EApp (stringSymbol f) (exprArg msg <$> ts) 
+exprArg msg (RAppTy (RVar f _) t _)   
+  = EApp (stringSymbol f) [exprArg msg t]
+exprArg msg z 
+  = errorstar $ printf "Unexpected expression parameter: %s in %s" (show z) msg 
 
--- expandRTApp tx env c args r
---   | (length ts == length αs && length es == length εs) 
---   = subst su $ (`strengthen` r) $ subsTyVars_meet αts $ tx $ rtBody rta
---     -- ((subsTyVars_meet αts (tx (rtBody rta))) `strengthen` r) 
---   | otherwise
---   = errorstar $ "Malformed Type-Alias Application" ++ msg
---   where 
---     (es, ts) = splitRTArgs args
---     αts      = zipWith (\α t -> (α, toRSort t, t)) αs ts
---     su       = mkSubst $ zip (stringSymbol <$> εs) es
---     αs       = rtTArgs rta 
---     εs       = rtVArgs rta 
---     rta      = env M.! c
---     msg      = showPpr (RApp c args [] r)  
--- 
--- splitRTArgs         = partitionEithers . map sp 
---   where 
---     sp (RExprArg e) = Left e
---     sp t            = Right t
 
 
 

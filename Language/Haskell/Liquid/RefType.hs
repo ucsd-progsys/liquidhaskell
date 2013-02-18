@@ -70,7 +70,7 @@ import Language.Fixpoint.Types hiding (params)
 
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc (sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, TyConInfo(..), mkTyConInfo)
-import Language.Fixpoint.Names (symSepName, funConName, listConName, tupConName, propConName, boolConName)
+import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
 
 --------------------------------------------------------------------
