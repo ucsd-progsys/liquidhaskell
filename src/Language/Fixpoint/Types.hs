@@ -175,10 +175,16 @@ newtype FTycon = TC Symbol deriving (Eq, Ord, Show) -- Data, Typeable, Show)
 intFTyCon  = TC (S "int")
 boolFTyCon = TC (S "bool")
 predFTyCon = TC (S "Pred")
-listFTyCon = TC (S listConName)
+-- listFTyCon = TC (S listConName)
 
-isListTC   = (listFTyCon ==)
--- isListTC (TC (S c)) = c == listConName
+-- isListTC   = (listFTyCon ==)
+isListTC (TC (S c)) = c == listConName
+
+stringFTycon :: String -> FTycon
+stringFTycon c 
+  | c == listConName = TC . S $ listConName -- listFTyCon
+  | otherwise        = TC . stringSymbol $ dropModuleNames c
+
 
 ----------------------------------------------------------------------
 ------------------------------- Sorts --------------------------------
@@ -1015,9 +1021,6 @@ checkSortedReft env xs sr = applyNonNull Nothing error unknowns
   where error             = Just . (text "Unknown symbols:" <+>) . toFix 
         unknowns          = [ x | x <- syms sr, not (x `elem` v : xs), not (x `memberSEnv` env)]    
         Reft (v,_)        = sr_reft sr 
-
-stringFTycon :: String -> FTycon
-stringFTycon = TC . stringSymbol . dropModuleNames
 
 
 ------------------------------------------------------------------------

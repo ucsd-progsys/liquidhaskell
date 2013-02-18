@@ -207,6 +207,9 @@ safeUnion msg m1 m2 =
 safeHead _   (x:_) = x
 safeHead msg _     = errorstar $ "safeHead with empty list " ++ msg
 
+safeLast _ xs@(_:_) = last xs
+safeLast msg _      = errorstar $ "safeLast with empty list " ++ msg
+
 -- memoIndex :: (Hashable b) => (a -> Maybe b) -> [a] -> [Maybe Int]
 memoIndex f = snd . L.mapAccumL foo M.empty 
   where 
@@ -274,11 +277,6 @@ stripParens ('(':xs)  = stripParens xs
 stripParens xs        = stripParens' (reverse xs)
 stripParens' (')':xs) = stripParens' xs
 stripParens' xs       = reverse xs
-
-dropModuleNames [] = []
-dropModuleNames s  = last $ words $ dotWhite <$> stripParens s
-  where dotWhite '.' = ' '
-        dotWhite c   = c
 
 ifM :: (Monad m) => m Bool -> m a -> m a -> m a
 ifM bm xm ym 
