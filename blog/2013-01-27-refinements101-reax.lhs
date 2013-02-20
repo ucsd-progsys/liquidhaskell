@@ -103,7 +103,7 @@ and will use it to verify the safety of `f` above.
 How to tell a Fib
 -----------------
 
-[Chis Done](https://twitter.com/christopherdone) [asked][qblog101]
+[Chris Done](https://twitter.com/christopherdone) [asked][qblog101]
 why LiquidHaskell refused to verify the following definition of `fib`.
 
 \begin{code}
