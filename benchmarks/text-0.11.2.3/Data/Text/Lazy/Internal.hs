@@ -20,8 +20,8 @@
 module Data.Text.Lazy.Internal
     (
       Text(..)
-    , chunk
-    , empty
+    -- , chunk
+    -- , empty
     , foldrChunks
     , foldlChunks
     -- * Data type invariant and abstraction functions
@@ -43,9 +43,12 @@ import Data.Typeable (Typeable)
 import Foreign.Storable (sizeOf)
 import qualified Data.Text.Internal as T
 
+
+
 data Text = Empty
           | Chunk {-# UNPACK #-} !T.Text Text
-            deriving (Typeable)
+--LIQUID            deriving (Typeable)
+
 
 -- $invariant
 --
@@ -79,7 +82,7 @@ showStructure (Chunk t ts)    =
 -- | Smart constructor for 'Chunk'. Guarantees the data type invariant.
 chunk :: T.Text -> Text -> Text
 {-# INLINE chunk #-}
-chunk t@(T.Text _ _ len) ts | len == 0 = ts
+chunk t@(T.Text _ _ len) ts | len <= 0  = ts
                             | otherwise = Chunk t ts
 
 -- | Smart constructor for 'Empty'.
@@ -88,6 +91,12 @@ empty :: Text
 empty = Empty
 
 -- | Consume the chunks of a lazy 'Text' with a natural right fold.
+{- foldrChunks :: forall <p :: Text -> a -> Prop>.
+                   (ts:Text -> t:T.Text -> a<p ts> -> a<p (Chunk t ts)>)
+                -> a<p Empty>
+                -> cs:Text
+                -> a<p cs>
+  -}
 foldrChunks :: (T.Text -> a -> a) -> a -> Text -> a
 foldrChunks f z = go
   where go Empty        = z
