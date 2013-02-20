@@ -282,8 +282,8 @@ splitC (SubC γ (REx x tx t1) (REx x2 _ t2)) | x == x2
 splitC (SubC γ t1 (REx x tx t2)) 
   = do γ' <- (γ, "addExBind 1") += (x, forallExprRefType γ tx)
        let xs  = grapBindsWithType tx γ
-       let t1' = splitExistsCases x xs tx t1
-       splitC (SubC γ' t1' t2)
+       let t2' = splitExistsCases x xs tx t2
+       splitC (SubC γ' t1 t2')
 
 -- existential at the left hand side is treated like forall
 splitC (SubC γ (REx x tx t1) t2) 
@@ -1077,18 +1077,17 @@ splitExistsCases z xs tx
   = fmap $ fmap $ mapFReft (exrefAddEq z xs tx )
 
 exrefAddEq z xs t (F.Reft(s, rs))
-  = F.Reft(s, [go r x | x <- xs, r <- rs])
-  where go (F.RConc r)    x = F.RConc (F.PAnd [r, F.PImp (exrefToPred x tref) (eqAtom x z)])
-        go (F.RKvar k su) x = errorstar errmsg
-        tref                = fromMaybe top $ stripRTypeBase t
-        eqAtom x z          = F.PAtom (F.Eq) (F.EVar x) (F.EVar z)
-        errmsg              = "Cannot handle existential type " ++ show t
+  = F.Reft(s, [F.RConc (F.POr [ pand x | x <- xs])])
+  where tref                = fromMaybe top $ stripRTypeBase t
+        pand x              = F.PAnd $ (substzx x) (fFromRConc <$> rs)
+                                       ++ exrefToPred x tref
+        substzx x           = F.subst (F.mkSubst [(z, F.EVar x)])
 
 exrefToPred x uref
-  = F.subst (F.mkSubst [(v, F.EVar x)]) (F.PAnd (refaToPred <$> r))
+  = F.subst (F.mkSubst [(v, F.EVar x)]) ((fFromRConc <$> r))
   where (F.Reft(v, r))         = fromFReft $ ur_reft uref
-        refaToPred (F.RConc p) = p
-        refaToPred _           = errorstar "can not hanlde existential type with kvars"
+fFromRConc (F.RConc p) = p
+fFromRConc _           = errorstar "can not hanlde existential type with kvars"
 
 -------------------------------------------------------------------------------
 -------------------- Cleaner Signatures For Rec-bindings ----------------------
