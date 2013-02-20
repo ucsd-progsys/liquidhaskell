@@ -19,7 +19,7 @@ module Language.Haskell.Liquid.RefType (
   , pdAnd, pdVar, pdTrue, pvars, findPVar
 
   -- * Traversing `RType` 
-  , efoldReft, foldReft, mapReft, mapReftM, mapBot, mapBind
+  , efoldReft, foldReft, mapReft, mapReftM, mapBot, mapBind, mapFReft
   , freeTyVars, tyClasses
 
   , ofType, ofPredTree, toType
