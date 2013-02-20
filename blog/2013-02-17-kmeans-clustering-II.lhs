@@ -347,8 +347,8 @@ LiquidHaskell verifies `distance` by inferring that
 {-@ nearestCenter :: n:Int -> (GenPoint a n) -> [(Point n)] -> (Point n) @-}
 \end{code}
 
-First, LiquidHaskell deduces that each center in `cs` is indeed `n`-dimensional,
-based on the output type of `clusterCenter`. Since `x` is a `(GenPoint a n)`,
+First, LiquidHaskell deduces that each center in `cs` is indeed `n`-dimensional, which
+follows from the output type of `clusterCenter`. Since `x` is a `(GenPoint a n)`
 LiquidHaskell infers that both `c` and `getVect x` are of an equal length `n`.
 
 \begin{code} Consequently, the call to

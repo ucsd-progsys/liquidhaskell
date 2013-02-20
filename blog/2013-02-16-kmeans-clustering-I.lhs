@@ -12,9 +12,9 @@ demo: KMeansHelper.hs
 
 [Last time][safeList] we introduced a new specification mechanism called a
 *measure* and demonstrated how to use it to encode the *length* of a list.
-We saw how measure's could be used to verify that functions like `head` and
+We saw how measures could be used to verify that functions like `head` and
 `tail` were only called with non-empty lists (whose length was strictly
-positive. As several folks pointed out, once LiquidHaskell can reason about
+positive). As several folks pointed out, once LiquidHaskell can reason about
 lengths, it can do a lot more than just analyze non-emptiness.
 
 Indeed!
