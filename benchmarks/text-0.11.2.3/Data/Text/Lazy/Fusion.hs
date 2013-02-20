@@ -60,7 +60,7 @@ unstreamChunks chunkSize (Stream next s0 len0)
               case next s of
                 Done       -> Empty
                 Skip s'    -> outer s'
-                Yield x s' -> I.Text arr 0 len `chunk` outer s''
+                Yield x s' -> I.Text arr 0 len `Chunk` outer s''
                   where (arr, UC s'' len) = A.run2 fill
                         fill = do a <- A.new unknownLength
                                   unsafeWrite a 0 x >>= inner a unknownLength s'

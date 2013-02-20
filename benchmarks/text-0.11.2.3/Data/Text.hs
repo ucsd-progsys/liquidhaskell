@@ -180,6 +180,9 @@ module Data.Text
 
     -- -* Ordered text
     -- , sort
+
+    -- LIQUID
+    , bad
     ) where
 
 import Prelude (Char, Bool(..), Int, Maybe(..), String,
@@ -390,8 +393,9 @@ compareText ta@(Text _arrA _offA lenA) tb@(Text _arrB _offB lenB)
 
 -- | /O(n)/ Convert a 'String' into a 'Text'.  Subject to
 -- fusion.  Performs replacement on invalid scalar values.
+{-@ pack :: String -> Text @-}
 pack :: String -> Text
-pack = unstream . S.streamList . L.map safe
+pack = unstream . S.streamList -- . L.map safe
 {-# INLINE [1] pack #-}
 
 -- | /O(n)/ Convert a Text into a String.  Subject to fusion.
@@ -414,6 +418,7 @@ unpackCString# addr# = unstream (S.streamCString# addr#)
 
 -- | /O(1)/ Convert a character into a Text.  Subject to fusion.
 -- Performs replacement on invalid scalar values.
+{-@ singleton :: Char -> Text @-}
 singleton :: Char -> Text
 singleton = unstream . S.singleton . safe
 {-# INLINE [1] singleton #-}
@@ -557,8 +562,9 @@ isSingleton = S.isSingleton . stream
 
 -- | /O(n)/ Returns the number of characters in a 'Text'.
 -- Subject to fusion.
+{-@ assume length :: t:Text -> {v:Int | v = (tlen t)} @-}
 length :: Text -> Int
-length t = S.length (stream t)
+length t = P.undefined --LIQUID S.length (stream t)
 {-# INLINE length #-}
 
 -- | /O(n)/ Compare the count of characters in a 'Text' to a number.
@@ -974,9 +980,16 @@ unfoldrN n f s = unstream (S.unfoldrN n (firstf safe . f) s)
 -- -----------------------------------------------------------------------------
 -- * Substrings
 
+bad = let x = take 5 (pack "hello world")
+      in liquidAssertB (length x == 4)
+
 -- | /O(n)/ 'take' @n@, applied to a 'Text', returns the prefix of the
 -- 'Text' of length @n@, or the 'Text' itself if @n@ is greater than
 -- the length of the Text. Subject to fusion.
+{-@ take :: n:Int
+         -> t:Text
+         -> {v:Text | (n = (tlen v))}
+  @-}
 take :: Int -> Text -> Text
 take n t@(Text arr off len)
     | n <= 0    = empty
