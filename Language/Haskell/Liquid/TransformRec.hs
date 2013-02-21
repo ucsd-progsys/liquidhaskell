@@ -90,11 +90,13 @@ transBd e@(Rec xes)
 transExpr :: CoreExpr -> TE CoreExpr
 transExpr e
   | chkRec e1'
-  = trans tvs ids bs e1'
+  = trans tvs recids ids bs e1'
   | otherwise
   = return e
-  where (tvs, ids, e') = collectTyAndValBinders e
-        (bs, e1')      = collectNonRecLets e'
+  where (tvs, ids', e') = collectTyAndValBinders e
+        (bs, e1')       = collectNonRecLets e'
+        (recids, ids)   | null tvs  = (ids', [])
+                        | otherwise = ([], ids')
         -- e2'            = e
 
 collectNonRecLets = go []
@@ -114,11 +116,11 @@ appTysAndIds tvs ids x = mkApps (mkTyApps (Var x) (map TyVarTy tvs)) (map Var id
 --         tvs' = map TyVarTy vs'
 --         sTy  = M.fromList $ zip vs tvs'
 
-trans vs ids bs e
+trans vs recids ids bs e
   = liftM mkLet (trans_ vs liveIds bs e)
   where liveIds = map mkAlive ids
         -- e' = sub (M.fromList (zip ids (map Var liveIds))) e
-        mkLet es = foldr Lam es (vs ++ liveIds)
+        mkLet es = foldr Lam es (vs ++ recids ++ liveIds)
 
 trans_ vs ids [] (Let (Rec xes) e)
  = do fids <- mapM (mkFreshIds vs ids) xs
