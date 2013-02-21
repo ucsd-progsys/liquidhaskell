@@ -37,7 +37,7 @@ generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ "PredCBS" ++ sho
 
 getNeedPd spec 
   = F.fromListSEnv bs
-    where  dcs   = [(TC.dataConWorkId x, dataConPtoPredTy y) | (x, y) <- dconsP spec]
+    where  dcs   = concatMap mkDataConIdsTy [(x, dataConPtoPredTy y) | (x, y) <- dconsP spec]
            assms = passm $ tySigs spec 
            bs    = mapFst varSymbol <$> (dcs ++ assms)
 
