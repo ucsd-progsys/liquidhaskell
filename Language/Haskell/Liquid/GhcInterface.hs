@@ -425,7 +425,7 @@ instance CBVisitable (Alt Var) where
 
 
 instance CBVisitable AltCon where
-  freeVars _ (DataAlt dc) = [dataConWorkId dc]
+  freeVars _ (DataAlt dc) = dataConImplicitIds dc
   freeVars _ _            = []
   readVars _              = []
   literals (LitAlt l)     = [l]
