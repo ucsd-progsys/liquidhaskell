@@ -519,10 +519,12 @@ tail t@(Text arr off len)
 
 -- | /O(1)/ Returns all but the last character of a 'Text', which must
 -- be non-empty.  Subject to fusion.
+{-@ init :: t:{v:Text | ((tlen v) > 0)} -> {v:Text | ((tlen t) > (tlen v))} @-}
 init :: Text -> Text
-init (Text arr off len) --LIQUID | len <= 0                   = emptyError "init"
-                        | n >= 0xDC00 && n <= 0xDFFF = textP arr off (len-2)
-                        | otherwise                  = textP arr off (len-1)
+init (Text arr off len)
+--LIQUID     | len <= 0                   = emptyError "init"
+    | n >= 0xDC00 && n <= 0xDFFF = liquidAssert (len > 0) $ textP arr off (len-2)
+    | otherwise                  = liquidAssert (len > 0) $ textP arr off (len-1)
     where
       n = A.unsafeIndex arr (off+len-1)
 {-# INLINE [1] init #-}
@@ -536,12 +538,13 @@ init (Text arr off len) --LIQUID | len <= 0                   = emptyError "init
 
 -- | /O(1)/ Tests whether a 'Text' is empty or not.  Subject to
 -- fusion.
+{-@ null :: t:Text -> {v:Bool | ((Prop v) <=> ((tlen t) = 0))} @-}
 null :: Text -> Bool
 null (Text _arr _off len) =
-#if defined(ASSERTS)
-    assert (len >= 0) $
-#endif
-    len <= 0
+--LIQUID #if defined(ASSERTS)
+    liquidAssert (len >= 0) $
+--LIQUID #endif
+    len == 0
 {-# INLINE [1] null #-}
 
 {-# RULES
