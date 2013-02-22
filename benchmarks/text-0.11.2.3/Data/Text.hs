@@ -180,9 +180,6 @@ module Data.Text
 
     -- -* Ordered text
     -- , sort
-
-    -- LIQUID
-    , bad
     ) where
 
 import Prelude (Char, Bool(..), Int, Maybe(..), String,
@@ -337,8 +334,8 @@ instance Ord Text where
 instance Show Text where
     showsPrec p ps r = showsPrec p (unpack ps) r
 
-instance Read Text where
-    readsPrec p str = [(pack x,y) | (x,y) <- readsPrec p str]
+--LIQUID instance Read Text where
+--LIQUID     readsPrec p str = [(pack x,y) | (x,y) <- readsPrec p str]
 
 instance Monoid Text where
     mempty  = empty
@@ -979,9 +976,6 @@ unfoldrN n f s = unstream (S.unfoldrN n (firstf safe . f) s)
 
 -- -----------------------------------------------------------------------------
 -- * Substrings
-
-bad = let x = take 5 (pack "hello world")
-      in liquidAssertB (length x == 4)
 
 -- | /O(n)/ 'take' @n@, applied to a 'Text', returns the prefix of the
 -- 'Text' of length @n@, or the 'Text' itself if @n@ is greater than
