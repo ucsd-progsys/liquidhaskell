@@ -6,7 +6,7 @@
 -- TODO: Desperately needs re-organization.
 module Language.Haskell.Liquid.RefType (
     RTyVar (..), RType (..), RRType, BRType, RTyCon(..)
-  , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..), Ref(..)
+  , TyConable (..), RefTypable (..), SubsTy (..), Ref(..)
   , RTAlias (..)
   , FReft(..), reft, fFReft, toFReft, fromFReft, splitFReft
   , BSort, BPVar, BareType, RSort, UsedPVar, RPVar, RReft, RefType
@@ -66,7 +66,7 @@ import Text.Printf
 import Text.PrettyPrint.HughesPJ
 import Text.Parsec.Pos  (SourcePos)
 
-import Language.Fixpoint.Types hiding (params)
+import Language.Fixpoint.Types
 
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc (sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, TyConInfo(..), mkTyConInfo)
@@ -277,28 +277,6 @@ uTop r          = U r top
 -------------- (Class) Predicates for Valid Refinement Types -------
 --------------------------------------------------------------------
 
-class (Monoid r, Subable r, Fixpoint r) => Reftable r where 
-  isTauto :: r -> Bool
-  ppTy    :: r -> Doc -> Doc
-  
-  top     :: r
-  top     =  mempty
-  
-  meet    :: r -> r -> r
-  meet    = mappend
-
-  toReft  :: r -> Reft
-  params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
-
-  fSyms   :: r -> [Symbol]          -- ^ Niki: what is this fSyms/add/drop for?
-  fSyms _  = []
-
-  addSyms :: [Symbol] -> r -> r     
-  addSyms _ = id
-
-  dropSyms :: r -> r
-  dropSyms = id
-
 class (Eq c) => TyConable c where
   isFun    :: c -> Bool
   isList   :: c -> Bool
@@ -431,17 +409,17 @@ instance Reftable r => Reftable (RType Class RTyCon RTyVar r) where
   addSyms s t = fmap (addSyms s) t
   dropSyms  t = fmap dropSyms t
 
-instance Reftable Reft where
-  isTauto  = isTautoReft
-  ppTy     = ppr_reft
-  toReft   = id
-  params _ = []
+-- instance Reftable Reft where
+--   isTauto  = isTautoReft
+--   ppTy     = ppr_reft
+--   toReft   = id
+--   params _ = []
 
 instance Reftable FReft where
-  isTauto (FReft r)       = isTautoReft r
-  isTauto (FSReft _ r)    = isTautoReft r
-  ppTy    (FReft r)     d = ppr_reft r d
-  ppTy    (FSReft [] r) d = ppr_reft r d
+  isTauto (FReft r)       = isTauto r
+  isTauto (FSReft _ r)    = isTauto r
+  ppTy    (FReft r)     d = ppTy r d
+  ppTy    (FSReft [] r) d = ppTy r d
   ppTy    (FSReft s r)  d = ppTySReft s r d
   toReft  (FReft r)       = r
   toReft  (FSReft _ r)    = r
@@ -455,7 +433,7 @@ instance Reftable FReft where
   addSyms _  (FSReft s r) = FSReft s  r 
 
 ppTySReft s r d 
-  = text "\\" <> hsep (toFix <$> s) <+> text "->" <+> ppr_reft r d
+  = text "\\" <> hsep (toFix <$> s) <+> text "->" <+> ppTy r d
 
 instance Fixpoint () where
   toFix     = text . show 

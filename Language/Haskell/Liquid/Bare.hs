@@ -37,7 +37,7 @@ import Data.Bifunctor
 
 import Language.Fixpoint.Names                  (propConName, dropModuleNames)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
-import Language.Fixpoint.Types                  hiding (name, params)
+import Language.Fixpoint.Types                  
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Ms
