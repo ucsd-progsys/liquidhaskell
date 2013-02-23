@@ -38,12 +38,11 @@ module Language.Fixpoint.Types (
   , BindEnv, insertBindEnv, emptyBindEnv
 
   -- * Refinements
-  , Refa (..), SortedReft (..), Reft(..)
+  , Refa (..), SortedReft (..), Reft(..), Reftable(..) 
   , trueSortedReft, trueRefa
   , exprReft, notExprReft, symbolReft
   , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft, isEVar
   , flattenRefas, shiftVV
-  , ppr_reft, ppr_reft_pred
 
   -- * Substitutions 
   , Subst, Subable (..)
@@ -983,6 +982,14 @@ shiftVV r@(Reft (v, ras)) v'
    | otherwise = Reft (v', (subst1 ras (v, EVar v')))
 
 
+addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
+  where -- Adding shiftId to have distinct VV for SMT conversion 
+    shiftId i c = c { slhs = shiftSR i $ slhs c } 
+                    { srhs = shiftSR i $ srhs c }
+    shiftSR i sr = sr { sr_reft = shiftR i $ sr_reft sr }
+    shiftR i r@(Reft (S v, _)) = shiftVV r (S (v ++ show i))
+
+
 -- subC γ p r1 r2 x y z   = (vvsu, SubC γ p r1' r2' x y z)
 --   where (vvsu, r1', r2') = unifySRefts r1 r2 
 
@@ -1004,13 +1011,6 @@ shiftVV r@(Reft (v, ras)) v'
 -- shiftVV (Reft (v, ras)) v' = (su, (Reft (v', subst su ras))) 
 --   where su = mkSubst [(v, EVar v')]
 
-addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
-  where -- Adding shiftId to have distinct VV for SMT conversion 
-    shiftId i c = c { slhs = shiftSR i $ slhs c } 
-                    { srhs = shiftSR i $ srhs c }
-    shiftSR i sr = sr { sr_reft = shiftR i $ sr_reft sr }
-    shiftR i r@(Reft (S v, _)) = shiftVV r (S (v ++ show i))
-
 
 -------------------------------------------------------------------------
 --------------- Checking Well Formedness --------------------------------
@@ -1028,9 +1028,9 @@ checkSortedReft env xs sr = applyNonNull Nothing error unknowns
 ------------------------------------------------------------------------
 
 
-data Qualifier = Q { name   :: String           -- ^ Name
-                   , params :: [(Symbol, Sort)] -- ^ Parameters
-                   , body   :: Pred             -- ^ Predicate
+data Qualifier = Q { q_name   :: String           -- ^ Name
+                   , q_params :: [(Symbol, Sort)] -- ^ Parameters
+                   , q_body   :: Pred             -- ^ Predicate
                    }
                deriving (Eq, Ord)  
 
@@ -1059,6 +1059,40 @@ toFixpoint x'    = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csD
         kutsDoc  = toFix    . kuts
         bindsDoc = toFix    . bs
         gsDoc    = toFix_gs . gs
+
+
+-------------------------------------------------------------------------
+-- | A Class Predicates for Valid Refinements Types ---------------------
+-------------------------------------------------------------------------
+
+class (Monoid r, Subable r, Fixpoint r) => Reftable r where 
+  isTauto :: r -> Bool
+  ppTy    :: r -> Doc -> Doc
+  
+  top     :: r
+  top     =  mempty
+  
+  meet    :: r -> r -> r
+  meet    = mappend
+
+  toReft  :: r -> Reft
+  params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
+
+  fSyms   :: r -> [Symbol]          -- ^ Niki: what is this fSyms/add/drop for?
+  fSyms _  = []
+
+  addSyms :: [Symbol] -> r -> r     -- ^ ???? 
+  addSyms _ = id
+
+  dropSyms :: r -> r                -- ^ ????
+  dropSyms = id
+
+instance Reftable Reft where
+  isTauto  = isTautoReft
+  ppTy     = ppr_reft
+  toReft   = id
+  params _ = []
+
 
 
 
