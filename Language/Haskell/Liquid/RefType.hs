@@ -38,6 +38,7 @@ module Language.Haskell.Liquid.RefType (
   , literalFRefType, literalFReft, literalConst
   , fromRMono, fromRPoly, idRMono
   , isTrivial
+  , mkDataConIdsTy
   ) where
 
 import GHC
@@ -45,7 +46,7 @@ import Outputable       (showSDocDump, showPpr)
 import qualified TyCon as TC
 import DataCon
 import TypeRep          hiding (maybeParen, pprArrowChain)  
-import Type (expandTypeSynonyms)
+import Type             (splitFunTys, expandTypeSynonyms)
 
 import Var
 import Literal
@@ -1439,3 +1440,19 @@ typeSortFun tce τ1 τ2
 grabArgs τs (FunTy τ1 τ2 ) = grabArgs (τ1:τs) τ2
 grabArgs τs τ              = reverse (τ:τs)
 
+mkDataConIdsTy (dc, t) = [expandProductType id t | id <- dataConImplicitIds dc]
+
+expandProductType x t 
+  | ofType (varType x) == toRSort t = (x, t) 
+  | otherwise                       = (x, t')
+     where t'           = mkArrow as ps xts' tr
+           τs           = fst $ splitFunTys $ toType t
+           (as, ps, t0) = bkUniv t
+           (xs, ts, tr) = bkArrow t0
+           xts'         = concatMap mkProductTy $ zip3 τs xs ts
+ 
+mkProductTy (τ, x, t) = maybe [(x, t)] f $ deepSplitProductType_maybe τ
+  where f = ((<$>) ((,) dummySymbol . ofType)) . forth4
+          
+-- Move to misc
+forth4 (_, _, _, x)     = x
