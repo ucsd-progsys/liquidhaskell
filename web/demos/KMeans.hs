@@ -1,43 +1,40 @@
-{- |
-Module      :  Data.KMeans
-Copyright   :  (c) Keegan Carruthers-Smith, 2009
-License     :  BSD 3 Clause
-Maintainer  :  gershomb@gmail.com
-Stability   :  experimental
+{-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances #-}
 
-A simple implementation of the standard k-means clustering algorithm: <http://en.wikipedia.org/wiki/K-means_clustering>. K-means clustering partitions points into clusters, with each point belonging to the cluster with th nearest mean. As the general problem is NP hard, the standard algorithm, which is relatively rapid, is heuristic and not guaranteed to converge to a global optimum. Varying the input order, from which the initial clusters are generated, can yield different results. For degenerate and malicious cases, the algorithm may take exponential time.
+-- Modified from Data.KMeans from http://hackage.haskell.org/package/kmeans
+
+module KMeansNew (kmeans, kmeansGen) where
+
+import KMeansHelper
+import Prelude              hiding      (zipWith)
+import Data.List                        (sort, span, minimumBy)
+import Data.Function                    (on)
+import Data.Ord                         (comparing)
+import Language.Haskell.Liquid.Prelude  (liquidAssert, liquidError)
+
+{- Fixed Length Lists 
+
+   type List a N = {v : [a] | (len v) = N}
+
+   Non-empty Lists
+   
+   type NonEmptyList a = {v : [a] | (len v) > 0}
+
+   N-Dimensional Points
+   
+   type Point N = List Double N
+
+   Matrices
+   
+   type Matrix a Rows Cols = List (List a Cols) Rows
+
+   groupBy   :: (a -> a -> Bool) -> [a] -> (Clustering a)
+   partition :: PosInt -> [a] -> (Clustering a)
+   zipWith   :: (a -> b -> c) -> xs:[a] -> (List b (len xs)) -> (List c (len xs))
+   transpose :: c:Int -> r:PosInt -> Matrix a r c -> Matrix a c r
 
 -}
 
-{-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances #-}
-
-module Data.KMeans (kmeans, kmeansGen)
-    where
-
--- import Data.List (transpose, sort, groupBy, minimumBy)
-import Data.List (sort, span, minimumBy)
-import Data.Function (on)
-import Data.Ord (comparing)
-import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
-
--- Liquid: Kept for exposition, can use Data.List.groupBy
-{-@ assert groupBy :: (a -> a -> Bool) -> [a] -> [{v:[a] | len(v) > 0}] @-}
-groupBy                 :: (a -> a -> Bool) -> [a] -> [[a]]
-groupBy _  []           =  []
-groupBy eq (x:xs)       =  (x:ys) : groupBy eq zs
-                           where (ys,zs) = span (eq x) xs
-
-{-@ assert transpose :: n:Int
-                     -> m:{v:Int | v > 0} 
-                     -> {v:[{v:[a] | len(v) = n}] | len(v) = m} 
-                     -> {v:[{v:[a] | len(v) = m}] | len(v) = n} 
-  @-}
-
-transpose :: Int -> Int -> [[a]] -> [[a]]
-transpose 0 _ _              = []
-transpose n m ((x:xs) : xss) = (x : map head xss) : transpose (n - 1) m (xs : map tail xss)
-transpose n m ([] : _)       = liquidError "transpose1" 
-transpose n m []             = liquidError "transpose2"
+-- | Generalized Points
 
 data WrapType b a = WrapType {getVect :: b, getVal :: a}
 
@@ -47,64 +44,96 @@ instance Eq (WrapType [Double] a) where
 instance Ord (WrapType [Double] a) where
     compare = comparing getVect
 
--- dist ::  [Double] -> [Double] -> Double 
-dist a b = sqrt . sum $ zipWith (\x y-> (x-y) ^ 2) a b      -- Liquid: zipWith dimensions
-
-centroid n points = map (( / l) . sum) points'              -- Liquid: Divide By Zero
-    where l = fromIntegral $ liquidAssert (m > 0) m
-          m = length points 
-          points' = transpose n m (map getVect points)
-
-closest (n :: Int) points point = minimumBy (comparing $ dist point) points
-
-recluster' n centroids points = map (map snd) $ groupBy ((==) `on` fst) reclustered
-    where reclustered = sort [(closest n centroids (getVect a), a) | a <- points]
-
-recluster n clusters = recluster' n centroids $ concat clusters
-    where centroids = map (centroid n) clusters
-
---part :: (Eq a) => Int -> [a] -> [[a]]
---part x ys
---     | zs' == [] = [zs]
---     | otherwise = zs : part x zs'
---    where (zs, zs') = splitAt x ys
-
-{-@ assert part :: n:{v:Int | v > 0} -> [a] -> [{v:[a] | len(v) > 0}] @-}
-part n []       = []
-part n ys@(_:_) = zs : part n zs' 
-                  where zs  = take n ys
-                        zs' = drop n ys
-
--- | Recluster points
-kmeans'' n clusters
-    | clusters == clusters' = clusters
-    | otherwise             = kmeans'' n clusters'
-    where clusters' = recluster n clusters
-
-kmeans' n k points = kmeans'' n $ part l points
-    where l = max 1 ((length points + k - 1) `div` k)
-
--- | Cluster points in a Euclidian space, represented as lists of Doubles, into at most k clusters.
--- The initial clusters are chosen arbitrarily.
-{-@ assert kmeans :: n: Int -> k:Int -> points:[{v:[Double] | len(v) = n}] -> [[{ v: [Double] | len(v) = n}]] @-}
-kmeans :: Int -> Int -> [[Double]] -> [[[Double]]]
-kmeans n = kmeansGen n id
-
--- | A generalized kmeans function. This function operates not on points, but an arbitrary type which may be projected into a Euclidian space. Since the projection may be chosen freely, this allows for weighting dimensions to different degrees, etc.
-{-@ assert kmeansGen :: n: Int -> f:(a -> {v:[Double] | len(v) = n }) -> k:Int -> points:[a] -> [[a]] @-}
-kmeansGen :: Int -> (a -> [Double]) -> Int -> [a] -> [[a]]
-kmeansGen n f k points = map (map getVal) . kmeans' n k . map (\x -> WrapType (f x) x) $ points
+{-@ type GenPoint a N  = WrapType (Point N) a @-}
 
 
+-- | Algorithm: Iterative Clustering
+
+{-@ kmeans' :: n:Int
+            -> k:PosInt
+            -> points:[(GenPoint a n)]
+            -> (Clustering (GenPoint a n)) @-}
 
 
+kmeans' n k points    = fixpoint (refineCluster n) initialClustering
+  where
+    initialClustering = partition clusterSize points
+    clusterSize       = max 1 ((length points + k - 1) `div` k)
+
+    fixpoint          :: (Eq a) => (a -> a) -> a -> a
+    fixpoint f x      = if (f x) == x then x else fixpoint f (f x)
+
+-- | Refining A Clustering
+
+{-@ refineCluster :: n:Int
+                  -> Clustering (GenPoint a n)
+                  -> Clustering (GenPoint a n)          @-}
+
+refineCluster n clusters = clusters'
+  where
+    -- 1. Compute cluster centers
+    centers        = map (clusterCenter n) clusters
+
+    -- 2. Map points to their nearest center
+    points         = concat clusters
+    centeredPoints = sort [(nearestCenter n p centers, p) | p <- points]
+
+    -- 3. Group points by nearest center to get new clusters
+    centeredGroups = groupBy ((==) `on` fst) centeredPoints
+    clusters'      = map (map snd) centeredGroups
 
 
+-- | Computing the Center of a Cluster
+
+{-@ clusterCenter :: n:Int -> NonEmptyList (GenPoint a n) -> Point n @-}
+
+clusterCenter n xs = map average xs'
+  where
+    numPoints      = length xs
+    xs'            = transpose n numPoints (map getVect xs)
+
+    average        :: [Double] -> Double
+    average        = (`safeDiv` numPoints) . sum
+
+{- safeDiv   :: (Fractional a) => a -> {v:Int | v != 0} -> a -}
+safeDiv     :: (Fractional a) => a -> Int -> a
+safeDiv n 0 = liquidError "divide by zero"
+safeDiv n d = n / (fromIntegral d)
 
 
+-- | Finding the Nearest Center
+
+{-@ nearestCenter :: n:Int -> (GenPoint a n) -> [(Point n)] -> (Point n) @-}
+nearestCenter     :: Int -> WrapType [Double] a -> [[Double]] -> [Double]
+nearestCenter n x = minKey . map (\c -> (c, distance c (getVect x)))
 
 
+minKey  :: (Ord v) => [(k, v)] -> k
+minKey  = fst . minimumBy (\x y -> compare (snd x) (snd y))
 
 
+distance     :: [Double] -> [Double] -> Double
+distance a b = sqrt . sum $ zipWith (\v1 v2 -> (v1 - v2) ^ 2) a b
 
+
+-- | Top-Level API
+
+{-@ kmeansGen :: n:Int
+              -> (a -> (Point n))
+              -> k:PosInt
+              -> xs:[a]
+              -> (Clustering a)
+  @-}
+
+kmeansGen n project k = map (map getVal)
+                      . kmeans' n k
+                      . map (\x -> WrapType (project x) x)
+
+{-@ kmeans :: n:Int
+           -> k:PosInt
+           -> points:[(Point n)]
+           -> (Clustering (Point n))
+  @-}
+
+kmeans n   = kmeansGen n id
 

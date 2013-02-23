@@ -12,9 +12,10 @@ var allDemos =
     "vectorbounds.hs"   : { "name" : "Vector Bounds"    , "type" : "basic"  },
 
     // Measure Demos
-    "lenMapReduce.hs"   : { "name" : "List Lengths"     , "type" : "measure"},
+    "lenMapReduce.hs"   : { "name" : "Safe List"        , "type" : "measure"},
     // "ListLength.hs"     : { "name" : "List Lengths"     , "type" : "measure"},
     // "MapReduce.hs"      : { "name" : "Map Reduce"       , "type" : "measure"}, 
+    "KMeansHelper.hs"   : { "name" : "K-Means Lib"      , "type" : "measure"},
     "KMeans.hs"         : { "name" : "K-Means"          , "type" : "measure"}, 
     "LambdaEval.hs"     : { "name" : "Lambda Eval"      , "type" : "measure"}, 
     "ListElts.hs"       : { "name" : "List Elements"    , "type" : "measure"}, 

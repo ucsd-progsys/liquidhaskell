@@ -5,7 +5,7 @@
 
 
 function execCommand($ths, $dir, $log, $packagedir) {
-  $cmd_ld_lib  = 'LANG=en_US.UTF-8 LD_LIBRARY_PATH='.$dir.'external/z3/lib' ;
+  $cmd_ld_lib  = 'LANG=en_US.UTF-8 PATH=./:$PATH' ;  #LD_LIBRARY_PATH='.$dir.'external/z3/lib' ;
   $cmd_liqhs   = 'LIQUIDHS='.$dir;
   $cmd_packdir = 'GHC_PACKAGE_PATH='.$packagedir.':' ;
   $cmd_liquid  = $dir.'liquid '.$ths ;
