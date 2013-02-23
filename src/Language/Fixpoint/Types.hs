@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction, DeriveGeneric, DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
 
 -- | This module contains the data types, operations and serialization functions 
 -- for representing Fixpoint's implication (i.e. subtyping) and well-formedness 
@@ -25,6 +25,7 @@ module Language.Fixpoint.Types (
 
   -- * Expressions and Predicates
   , Constant (..), Bop (..), Brel (..), Expr (..), Pred (..)
+  , eVar
   , pAnd, pOr, pIte, pApp
   , isTautoPred
  
@@ -230,6 +231,15 @@ symChars
   ++ ['_', '%', '.', '#']
 
 data Symbol = S !String deriving (Eq, Ord) -- , Data, Typeable)
+
+class Symbolic a where
+  symbol :: a -> Symbol
+
+instance Symbolic String where 
+  symbol = stringSymbol
+
+instance Symbolic Symbol where 
+  symbol = id 
 
 instance Fixpoint Symbol where
   toFix (S x) = text x
@@ -445,6 +455,7 @@ isSingletonReft (Reft (v, [RConc (PAtom Eq e1 e2)]))
   | e2 == EVar v = Just e1
 isSingletonReft _    = Nothing 
 
+eVar          = EVar . symbol 
 pAnd          = simplify . PAnd 
 pOr           = simplify . POr 
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3] 
