@@ -78,6 +78,8 @@ import Data.Hashable
 import Data.Maybe           (fromMaybe)
 import Text.Printf          (printf)
 import Control.DeepSeq
+import Control.Arrow        ((***))
+
 import Language.Fixpoint.Misc
 import Text.PrettyPrint.HughesPJ
 
