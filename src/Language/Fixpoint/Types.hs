@@ -795,14 +795,8 @@ instance Subable Reft where
 --     | otherwise            = Reft (v, subst1 ras (x, e))
 
 
-instance Monoid Reft where
-  mempty  = trueReft
-  mappend = meetReft
 
-meetReft r@(Reft (v, ras)) r'@(Reft (v', ras')) 
-  | v == v'          = Reft (v , ras  ++ ras')
-  | v == dummySymbol = Reft (v', ras' ++ (ras `subst1`  (v , EVar v'))) 
-  | otherwise        = Reft (v , ras  ++ (ras' `subst1` (v', EVar v )))
+
 
 instance Subable SortedReft where
   syms               = syms . sr_reft 
@@ -1105,12 +1099,38 @@ class (Monoid r, Subable r, Fixpoint r) => Reftable r where
   dropSyms :: r -> r                -- ^ ????
   dropSyms = id
 
+instance Monoid Reft where
+  mempty  = trueReft
+  mappend = meetReft
+
+meetReft r@(Reft (v, ras)) r'@(Reft (v', ras')) 
+  | v == v'          = Reft (v , ras  ++ ras')
+  | v == dummySymbol = Reft (v', ras' ++ (ras `subst1`  (v , EVar v'))) 
+  | otherwise        = Reft (v , ras  ++ (ras' `subst1` (v', EVar v )))
+
 instance Reftable Reft where
   isTauto  = isTautoReft
   ppTy     = ppr_reft
   toReft   = id
   params _ = []
 
+instance Monoid Sort where
+  mempty            = FObj (S "any")
+  mappend t1 t2 
+    | t1 == mempty  = t2
+    | t2 == mempty  = t1
+    | t1 == t2      = t1
+    | otherwise     = errorstar $ "mappend-sort: conflicting sorts t1 =" ++ show t1 ++ " t2 = " ++ show t2
+
+instance Monoid SortedReft where
+  mempty        = RR mempty mempty
+  mappend t1 t2 = RR (mappend (sr_sort t1) (sr_sort t2)) (mappend (sr_reft t1) (sr_reft t2))
+
+instance Reftable SortedReft where
+  isTauto  = isTauto . sr_reft
+  ppTy     = ppTy    . sr_reft
+  toReft   = sr_reft
+  params _ = []
 
 
 
