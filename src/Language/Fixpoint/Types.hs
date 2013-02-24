@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction, DeriveGeneric, DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
 
 -- | This module contains the data types, operations and serialization functions 
 -- for representing Fixpoint's implication (i.e. subtyping) and well-formedness 
@@ -14,17 +14,19 @@ module Language.Fixpoint.Types (
 
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
-  , intFTyCon, boolFTyCon, predFTyCon, stringFTycon
+  , intFTyCon, boolFTyCon, propFTyCon, stringFTycon
 
   -- * Symbols
-  , Symbol(..)
+  , Symbol(..), Symbolic (..)
   , anfPrefix, tempPrefix, vv, intKvar
   , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tempSymbol
   , qualifySymbol, stringSymbol, symbolString, stringSymbolRaw
   , isNontrivialVV
+  , symProp
 
   -- * Expressions and Predicates
   , Constant (..), Bop (..), Brel (..), Expr (..), Pred (..)
+  , eVar
   , pAnd, pOr, pIte, pApp
   , isTautoPred
  
@@ -38,12 +40,11 @@ module Language.Fixpoint.Types (
   , BindEnv, insertBindEnv, emptyBindEnv
 
   -- * Refinements
-  , Refa (..), SortedReft (..), Reft(..)
+  , Refa (..), SortedReft (..), Reft(..), Reftable(..) 
   , trueSortedReft, trueRefa
   , exprReft, notExprReft, symbolReft
   , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft, isEVar
   , flattenRefas, shiftVV
-  , ppr_reft, ppr_reft_pred
 
   -- * Substitutions 
   , Subst, Subable (..)
@@ -174,7 +175,9 @@ newtype FTycon = TC Symbol deriving (Eq, Ord, Show) -- Data, Typeable, Show)
 
 intFTyCon  = TC (S "int")
 boolFTyCon = TC (S "bool")
-predFTyCon = TC (S "Pred")
+-- predFTyCon = TC (S "Pred")
+propFTyCon = TC (S propConName)
+
 -- listFTyCon = TC (S listConName)
 
 -- isListTC   = (listFTyCon ==)
@@ -231,6 +234,15 @@ symChars
   ++ ['_', '%', '.', '#']
 
 data Symbol = S !String deriving (Eq, Ord) -- , Data, Typeable)
+
+class Symbolic a where
+  symbol :: a -> Symbol
+
+instance Symbolic String where 
+  symbol = stringSymbol
+
+instance Symbolic Symbol where 
+  symbol = id 
 
 instance Fixpoint Symbol where
   toFix (S x) = text x
@@ -446,9 +458,14 @@ isSingletonReft (Reft (v, [RConc (PAtom Eq e1 e2)]))
   | e2 == EVar v = Just e1
 isSingletonReft _    = Nothing 
 
+eVar          = EVar . symbol 
 pAnd          = simplify . PAnd 
 pOr           = simplify . POr 
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3] 
+
+symProp       = mkProp . eVar
+mkProp        = PBexp . EApp (S propConName) . (: [])
+
 
 pApp :: Symbol -> [Expr] -> Pred
 pApp p es= PBexp $ EApp (S ("papp" ++ show (length es))) (EVar p:es)
@@ -778,14 +795,8 @@ instance Subable Reft where
 --     | otherwise            = Reft (v, subst1 ras (x, e))
 
 
-instance Monoid Reft where
-  mempty  = trueReft
-  mappend = meetReft
 
-meetReft r@(Reft (v, ras)) r'@(Reft (v', ras')) 
-  | v == v'          = Reft (v , ras  ++ ras')
-  | v == dummySymbol = Reft (v', ras' ++ (ras `subst1`  (v , EVar v'))) 
-  | otherwise        = Reft (v , ras  ++ (ras' `subst1` (v', EVar v )))
+
 
 instance Subable SortedReft where
   syms               = syms . sr_reft 
@@ -986,6 +997,14 @@ shiftVV r@(Reft (v, ras)) v'
    | otherwise = Reft (v', (subst1 ras (v, EVar v')))
 
 
+addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
+  where -- Adding shiftId to have distinct VV for SMT conversion 
+    shiftId i c = c { slhs = shiftSR i $ slhs c } 
+                    { srhs = shiftSR i $ srhs c }
+    shiftSR i sr = sr { sr_reft = shiftR i $ sr_reft sr }
+    shiftR i r@(Reft (S v, _)) = shiftVV r (S (v ++ show i))
+
+
 -- subC γ p r1 r2 x y z   = (vvsu, SubC γ p r1' r2' x y z)
 --   where (vvsu, r1', r2') = unifySRefts r1 r2 
 
@@ -1007,13 +1026,6 @@ shiftVV r@(Reft (v, ras)) v'
 -- shiftVV (Reft (v, ras)) v' = (su, (Reft (v', subst su ras))) 
 --   where su = mkSubst [(v, EVar v')]
 
-addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
-  where -- Adding shiftId to have distinct VV for SMT conversion 
-    shiftId i c = c { slhs = shiftSR i $ slhs c } 
-                    { srhs = shiftSR i $ srhs c }
-    shiftSR i sr = sr { sr_reft = shiftR i $ sr_reft sr }
-    shiftR i r@(Reft (S v, _)) = shiftVV r (S (v ++ show i))
-
 
 -------------------------------------------------------------------------
 --------------- Checking Well Formedness --------------------------------
@@ -1031,9 +1043,9 @@ checkSortedReft env xs sr = applyNonNull Nothing error unknowns
 ------------------------------------------------------------------------
 
 
-data Qualifier = Q { name   :: String           -- ^ Name
-                   , params :: [(Symbol, Sort)] -- ^ Parameters
-                   , body   :: Pred             -- ^ Predicate
+data Qualifier = Q { q_name   :: String           -- ^ Name
+                   , q_params :: [(Symbol, Sort)] -- ^ Parameters
+                   , q_body   :: Pred             -- ^ Predicate
                    }
                deriving (Eq, Ord)  
 
@@ -1062,6 +1074,66 @@ toFixpoint x'    = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csD
         kutsDoc  = toFix    . kuts
         bindsDoc = toFix    . bs
         gsDoc    = toFix_gs . gs
+
+
+-------------------------------------------------------------------------
+-- | A Class Predicates for Valid Refinements Types ---------------------
+-------------------------------------------------------------------------
+
+class (Monoid r, Subable r, Fixpoint r) => Reftable r where 
+  isTauto :: r -> Bool
+  ppTy    :: r -> Doc -> Doc
+  
+  top     :: r
+  top     =  mempty
+  
+  meet    :: r -> r -> r
+  meet    = mappend
+
+  toReft  :: r -> Reft
+  params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
+
+  fSyms   :: r -> [Symbol]          -- ^ Niki: what is this fSyms/add/drop for?
+  fSyms _  = []
+
+  addSyms :: [Symbol] -> r -> r     -- ^ ???? 
+  addSyms _ = id
+
+  dropSyms :: r -> r                -- ^ ????
+  dropSyms = id
+
+instance Monoid Reft where
+  mempty  = trueReft
+  mappend = meetReft
+
+meetReft r@(Reft (v, ras)) r'@(Reft (v', ras')) 
+  | v == v'          = Reft (v , ras  ++ ras')
+  | v == dummySymbol = Reft (v', ras' ++ (ras `subst1`  (v , EVar v'))) 
+  | otherwise        = Reft (v , ras  ++ (ras' `subst1` (v', EVar v )))
+
+instance Reftable Reft where
+  isTauto  = isTautoReft
+  ppTy     = ppr_reft
+  toReft   = id
+  params _ = []
+
+instance Monoid Sort where
+  mempty            = FObj (S "any")
+  mappend t1 t2 
+    | t1 == mempty  = t2
+    | t2 == mempty  = t1
+    | t1 == t2      = t1
+    | otherwise     = errorstar $ "mappend-sort: conflicting sorts t1 =" ++ show t1 ++ " t2 = " ++ show t2
+
+instance Monoid SortedReft where
+  mempty        = RR mempty mempty
+  mappend t1 t2 = RR (mappend (sr_sort t1) (sr_sort t2)) (mappend (sr_reft t1) (sr_reft t2))
+
+instance Reftable SortedReft where
+  isTauto  = isTauto . sr_reft
+  ppTy     = ppTy    . sr_reft
+  toReft   = sr_reft
+  params _ = []
 
 
 
