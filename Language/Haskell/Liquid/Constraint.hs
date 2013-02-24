@@ -38,8 +38,9 @@ import Text.PrettyPrint.HughesPJ
 
 import Control.Monad.State
 
-import Control.Exception.Base
 import Control.Applicative      ((<$>))
+import Control.Exception.Base
+
 import Data.Monoid              (mconcat)
 import Data.Maybe               (fromMaybe)
 import qualified Data.HashMap.Strict as M
