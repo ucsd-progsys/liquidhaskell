@@ -215,19 +215,17 @@ data RType p c tv r
     }
 
   | ROth  !String 
-  -- deriving (Data, Typeable)
 
 
 data Ref s m 
   = RMono s 
   | RPoly m
-  -- deriving (Data, Typeable)
 
 data UReft r
   = U { ur_reft :: !r, ur_pred :: !Predicate }
-  -- deriving (Data, Typeable)
 
-data FReft = FSReft [Symbol] Reft | FReft Reft
+data FReft = FSReft [Symbol] Reft | FReft Reft 
+  deriving (Show)
 
 reft (v, r)            = FReft (Reft(v, r))
 toFReft r              = FReft r
@@ -1218,9 +1216,9 @@ dataConSymbol = varSymbol . dataConWorkId
 dataConReft ::  DataCon -> [Symbol] -> FReft
 dataConReft c [] 
   | c == trueDataCon
-  = reft (vv_, [RConc $ mkProp vv_]) 
+  = reft (vv_, [RConc $ symProp vv_]) 
   | c == falseDataCon
-  = reft (vv_, [RConc $ PNot $ mkProp vv_]) 
+  = reft (vv_, [RConc $ PNot $ symProp vv_]) 
 dataConReft c [x] 
   | c == intDataCon 
   = reft (vv_, [RConc (PAtom Eq (EVar vv_) (EVar x))]) 
@@ -1242,7 +1240,7 @@ isBaseTy (TyConApp _ ts) = and $ isBaseTy <$> ts
 isBaseTy (FunTy _ _)     = False
 isBaseTy (ForAllTy _ _)  = False
 
-mkProp x = PBexp (EApp (S propConName) [EVar x])
+-- mkProp x = PBexp (EApp (S propConName) [EVar x])
 
 vv_ = vv Nothing
 
