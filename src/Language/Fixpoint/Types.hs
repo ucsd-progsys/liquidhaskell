@@ -17,7 +17,7 @@ module Language.Fixpoint.Types (
   , intFTyCon, boolFTyCon, predFTyCon, stringFTycon
 
   -- * Symbols
-  , Symbol(..)
+  , Symbol(..), Symbolic (..)
   , anfPrefix, tempPrefix, vv, intKvar
   , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tempSymbol
   , qualifySymbol, stringSymbol, symbolString, stringSymbolRaw
