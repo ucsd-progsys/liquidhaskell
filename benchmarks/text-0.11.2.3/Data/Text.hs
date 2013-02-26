@@ -442,6 +442,7 @@ snoc t c = unstream (S.snoc (stream t) (safe c))
 
 -- | /O(n)/ Appends one 'Text' to the other by copying both of them
 -- into a new 'Text'.  Subject to fusion.
+{-@ append :: t1:Text -> t2:Text -> {v:Text | ((tlen v) = ((tlen t1) + (tlen t2)))} @-}
 append :: Text -> Text -> Text
 append a@(Text arr1 off1 len1) b@(Text arr2 off2 len2)
     | len1 == 0 = b
@@ -466,6 +467,7 @@ append a@(Text arr1 off1 len1) b@(Text arr2 off2 len2)
 
 -- | /O(1)/ Returns the first character of a 'Text', which must be
 -- non-empty.  Subject to fusion.
+{-@ head :: {v:Text | (tlen v) > 0} -> Char @-}
 head :: Text -> Char
 head t = S.head (stream t)
 {-# INLINE head #-}
@@ -485,11 +487,12 @@ second f (a, b) = (a, f b)
 
 -- | /O(1)/ Returns the last character of a 'Text', which must be
 -- non-empty.  Subject to fusion.
+{-@ last :: {v:Text | (tlen v) > 0} -> Char @-}
 last :: Text -> Char
 last (Text arr off len)
 --LIQUID    | len <= 0                 = emptyError "last"
-    | n < 0xDC00 || n > 0xDFFF = unsafeChr n
-    | otherwise                = U16.chr2 n0 n
+    | n < 0xDC00 || n > 0xDFFF = liquidAssert (len > 0) $ unsafeChr n
+    | otherwise                = liquidAssert (len > 0) $ U16.chr2 n0 n
     where n  = A.unsafeIndex arr (off+len-1)
           n0 = A.unsafeIndex arr (off+len-2)
 {-# INLINE [1] last #-}
@@ -503,10 +506,11 @@ last (Text arr off len)
 
 -- | /O(1)/ Returns all characters after the head of a 'Text', which
 -- must be non-empty.  Subject to fusion.
+{-@ tail :: t:{v:Text | (tlen v) > 0} -> {v:Text | ((tlen t) > (tlen v))} @-}
 tail :: Text -> Text
 tail t@(Text arr off len)
 --LIQUID    | len <= 0  = emptyError "tail"
-    | otherwise = textP arr (off+d) (len-d)
+      = liquidAssert (len > 0) $ textP arr (off+d) (len-d)
     where d = iter_ t 0
 {-# INLINE [1] tail #-}
 
@@ -519,7 +523,7 @@ tail t@(Text arr off len)
 
 -- | /O(1)/ Returns all but the last character of a 'Text', which must
 -- be non-empty.  Subject to fusion.
-{-@ init :: t:{v:Text | ((tlen v) > 0)} -> {v:Text | ((tlen t) > (tlen v))} @-}
+{-@ init :: t:{v:Text | (tlen v) > 0} -> {v:Text | ((tlen t) > (tlen v))} @-}
 init :: Text -> Text
 init (Text arr off len)
 --LIQUID     | len <= 0                   = emptyError "init"
@@ -562,7 +566,7 @@ isSingleton = S.isSingleton . stream
 
 -- | /O(n)/ Returns the number of characters in a 'Text'.
 -- Subject to fusion.
-{-@ assume length :: t:Text -> {v:Int | v = (tlen t)} @-}
+{-@ length :: t:Text -> {v:Int | v = (tlen t)} @-}
 length :: Text -> Int
 length t = P.undefined --LIQUID S.length (stream t)
 {-# INLINE length #-}
