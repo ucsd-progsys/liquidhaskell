@@ -38,8 +38,9 @@ import Text.PrettyPrint.HughesPJ
 
 import Control.Monad.State
 
-import Control.Exception.Base
 import Control.Applicative      ((<$>))
+import Control.Exception.Base
+
 import Data.Monoid              (mconcat)
 import Data.Maybe               (fromMaybe)
 import qualified Data.HashMap.Strict as M
@@ -258,8 +259,8 @@ rsplitW γ (RPoly t0) = splitW $ WfC γ t0
 
 bsplitW γ t
   = do map <- refsymbols <$> get 
-       γ'  <- foldM (++=) γ [("rsplitC", x, lookup map x) | x <- fSyms t]
-       return $ bsplitW' γ' $ fmap dropSyms t
+       γ'  <- foldM (++=) γ [("rsplitC", x, lookup map x) | x <- F.fSyms t]
+       return $ bsplitW' γ' $ fmap F.dropSyms t
   where errormsg x   = errorstar $ "Constraint: bsplitW not found " ++ show x
         lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
 
@@ -321,7 +322,7 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   = splitC $ SubC γ t1 t2
   | otherwise   
   = splitC $ SubC γ t1 t2' 
-  where t2' = subsTyVar_meet' (α2, RVar α1 top) t2
+  where t2' = subsTyVar_meet' (α2, RVar α1 F.top) t2
 
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
@@ -363,17 +364,17 @@ rsplitCIndexed γ t1s t2s indexes
 
 bsplitC γ t1 t2
   = do map <- refsymbols <$> get 
-       γ'  <-  foldM (++=) γ [("rsplitC1", x, lookup map x) | x <- fSyms t2]
-       let su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (fSyms t1) (fSyms t2)]
+       γ'  <-  foldM (++=) γ [("rsplitC1", x, lookup map x) | x <- F.fSyms t2]
+       let su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (F.fSyms t1) (F.fSyms t2)]
        return $ bsplitC' γ' (F.subst su t1') t2'
-  where t1'          = fmap dropSyms t1
-        t2'          = fmap dropSyms t2
+  where t1'          = fmap F.dropSyms t1
+        t2'          = fmap F.dropSyms t2
         lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
         errormsg x   = errorstar $ "Not found " ++ F.showFix x
 
 bsplitC' γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
-  = [F.subC γ' F.PTrue (r1' {F.sr_reft = top}) r2' Nothing tag ci]
+  = [F.subC γ' F.PTrue (r1' {F.sr_reft = F.top}) r2' Nothing tag ci]
   | F.isNonTrivialSortedReft r2'
   = [F.subC γ' F.PTrue r1'  r2' Nothing tag ci]
   | otherwise
@@ -401,11 +402,11 @@ rsplitC _ (RMono _, RMono _)
 
 rsplitC γ (RPoly r1, RPoly r2)
   = do map <- refsymbols <$> get 
-       γ'  <-  foldM (++=) γ [("rsplitC1", x, lookup map x) | x <- fSyms r2]
+       γ'  <-  foldM (++=) γ [("rsplitC1", x, lookup map x) | x <- F.fSyms r2]
        splitC (SubC γ' (F.subst su r1') r2')
-  where su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (fSyms r1) (fSyms r2)]
-        r1'          = fmap dropSyms r1
-        r2'          = fmap dropSyms r2
+  where su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (F.fSyms r1) (F.fSyms r2)]
+        r1'          = fmap F.dropSyms r1
+        r2'          = fmap F.dropSyms r2
         lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
         errormsg x   = errorstar $ "Not found " ++ F.showFix x
 
@@ -547,7 +548,7 @@ addRefSymbols ss
 
 addRefSymbolsRef (π, RPoly t1)
   = addRefSymbols newSyms
-  where newSyms = zip (fSyms t1) ((ofRSort . fst3) <$> pargs π)
+  where newSyms = zip (F.fSyms t1) ((ofRSort . fst3) <$> pargs π)
 addRefSymbolsRef (_, RMono _)
   = errorstar "Constraint.addRefSymbolsRef RMono"
 
@@ -701,7 +702,7 @@ trueRefType (RAllP π t)
 trueRefType (RFun _ t t' _)    
   = liftM3 rFun fresh (true t) (true t')
 trueRefType (RApp c ts _ _)  
-  = liftM (\ts -> RApp c ts truerefs top) (mapM true ts)
+  = liftM (\ts -> RApp c ts truerefs F.top) (mapM true ts)
 		where truerefs = (RPoly . ofRSort . ptype) <$> (rTyConPs c)
 trueRefType (RAppTy t t' _)    
   = liftM2 rAppTy (true t) (true t')
@@ -735,7 +736,7 @@ refreshRef (RMono _, _) = errorstar "refreshRef: unexpected"
 addFreshArgs π t
   = do args <- mapM (\_ -> fresh) πargs
        addRefSymbols $ zip args ((ofRSort . fst3)  <$> πargs)
-       return $ fmap (addSyms args) t
+       return $ fmap (F.addSyms args) t
   where πargs = pargs π
 
 
@@ -945,7 +946,7 @@ cconsCase γ x t _ (DataAlt c, ys, ce)
        (rtd, yts, _  ) = unfoldR tdc (shiftVV xt0 x') ys'
        r1              = dataConReft   c   ys' 
        r2              = dataConMsReft rtd ys'
-       xt              = xt0 `strengthen` (uTop (r1 `meet` r2))
+       xt              = xt0 `strengthen` (uTop (r1 `F.meet` r2))
 
 cconsCase γ x t acs (a, _, ce) 
   = do let x'  = varSymbol x
@@ -1001,7 +1002,7 @@ getSrcSpan' x
 ---------- Helpers: Creating Fresh Refinement ------------------ ------
 -----------------------------------------------------------------------
 
-truePredRef :: (Reftable r) => PVar (RRType r) -> CG SpecType
+truePredRef :: (F.Reftable r) => PVar (RRType r) -> CG SpecType
 truePredRef (PV _ τ _)
   = trueTy (toType τ)
 
@@ -1011,7 +1012,7 @@ freshPredRef γ e (PV n τ as)
        args <- mapM (\_ -> fresh) as
        let targs = zip args ((ofRSort . fst3) <$> as)
        addRefSymbols targs
-       let t' = fmap (addSyms args) t
+       let t' = fmap (F.addSyms args) t
        γ' <- foldM (++=) γ [("freshPredRef", x, τ) | (x, τ) <- targs]
        addW $ WfC γ' t'
        return t'
@@ -1084,7 +1085,7 @@ instance NFData CGInfo where
 
 forallExprRefType     :: CGEnv -> SpecType -> SpecType
 forallExprRefType γ t  = t `strengthen` (uTop r') 
-  where r'             = toFReft $ maybe top (forallExprReft γ) ((F.isSingletonReft) (fromFReft r))
+  where r'             = toFReft $ maybe F.top (forallExprReft γ) ((F.isSingletonReft) (fromFReft r))
         r              = toFReft $ F.sr_reft $ rTypeSortedReft (emb γ) t
 
 
@@ -1179,13 +1180,13 @@ conjoinInvariantShift t1 t2
 
 conjoinInvariant (RApp c ts rs r) (RApp ic its _ ir) 
   | (c == ic && length ts == length its)
-  = RApp c (zipWith conjoinInvariantShift ts its) rs (r `meet` ir)
+  = RApp c (zipWith conjoinInvariantShift ts its) rs (r `F.meet` ir)
 
 conjoinInvariant t@(RApp _ _ _ r) (RVar _ ir) 
-  = t { rt_reft = r `meet` ir }
+  = t { rt_reft = r `F.meet` ir }
 
 conjoinInvariant t@(RVar _ r) (RVar _ ir) 
-  = t { rt_reft = r `meet` ir }
+  = t { rt_reft = r `F.meet` ir }
 
 conjoinInvariant t _  
   = t

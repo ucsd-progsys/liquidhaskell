@@ -6,7 +6,7 @@
 -- TODO: Desperately needs re-organization.
 module Language.Haskell.Liquid.RefType (
     RTyVar (..), RType (..), RRType, BRType, RTyCon(..)
-  , TyConable (..), Reftable(..), RefTypable (..), SubsTy (..), Ref(..)
+  , TyConable (..), RefTypable (..), SubsTy (..), Ref(..)
   , RTAlias (..)
   , FReft(..), reft, fFReft, toFReft, fromFReft, splitFReft
   , BSort, BPVar, BareType, RSort, UsedPVar, RPVar, RReft, RefType
@@ -67,7 +67,7 @@ import Text.Printf
 import Text.PrettyPrint.HughesPJ
 import Text.Parsec.Pos  (SourcePos)
 
-import Language.Fixpoint.Types hiding (params)
+import Language.Fixpoint.Types
 
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc (sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, TyConInfo(..), mkTyConInfo)
@@ -215,19 +215,17 @@ data RType p c tv r
     }
 
   | ROth  !String 
-  -- deriving (Data, Typeable)
 
 
 data Ref s m 
   = RMono s 
   | RPoly m
-  -- deriving (Data, Typeable)
 
 data UReft r
   = U { ur_reft :: !r, ur_pred :: !Predicate }
-  -- deriving (Data, Typeable)
 
-data FReft = FSReft [Symbol] Reft | FReft Reft
+data FReft = FSReft [Symbol] Reft | FReft Reft 
+  deriving (Show)
 
 reft (v, r)            = FReft (Reft(v, r))
 toFReft r              = FReft r
@@ -277,28 +275,6 @@ uTop r          = U r top
 --------------------------------------------------------------------
 -------------- (Class) Predicates for Valid Refinement Types -------
 --------------------------------------------------------------------
-
-class (Monoid r, Subable r, Fixpoint r) => Reftable r where 
-  isTauto :: r -> Bool
-  ppTy    :: r -> Doc -> Doc
-  
-  top     :: r
-  top     =  mempty
-  
-  meet    :: r -> r -> r
-  meet    = mappend
-
-  toReft  :: r -> Reft
-  params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
-
-  fSyms   :: r -> [Symbol]          -- ^ Niki: what is this fSyms/add/drop for?
-  fSyms _  = []
-
-  addSyms :: [Symbol] -> r -> r     
-  addSyms _ = id
-
-  dropSyms :: r -> r
-  dropSyms = id
 
 class (Eq c) => TyConable c where
   isFun    :: c -> Bool
@@ -432,17 +408,17 @@ instance Reftable r => Reftable (RType Class RTyCon RTyVar r) where
   addSyms s t = fmap (addSyms s) t
   dropSyms  t = fmap dropSyms t
 
-instance Reftable Reft where
-  isTauto  = isTautoReft
-  ppTy     = ppr_reft
-  toReft   = id
-  params _ = []
+-- instance Reftable Reft where
+--   isTauto  = isTautoReft
+--   ppTy     = ppr_reft
+--   toReft   = id
+--   params _ = []
 
 instance Reftable FReft where
-  isTauto (FReft r)       = isTautoReft r
-  isTauto (FSReft _ r)    = isTautoReft r
-  ppTy    (FReft r)     d = ppr_reft r d
-  ppTy    (FSReft [] r) d = ppr_reft r d
+  isTauto (FReft r)       = isTauto r
+  isTauto (FSReft _ r)    = isTauto r
+  ppTy    (FReft r)     d = ppTy r d
+  ppTy    (FSReft [] r) d = ppTy r d
   ppTy    (FSReft s r)  d = ppTySReft s r d
   toReft  (FReft r)       = r
   toReft  (FSReft _ r)    = r
@@ -456,7 +432,7 @@ instance Reftable FReft where
   addSyms _  (FSReft s r) = FSReft s  r 
 
 ppTySReft s r d 
-  = text "\\" <> hsep (toFix <$> s) <+> text "->" <+> ppr_reft r d
+  = text "\\" <> hsep (toFix <$> s) <+> text "->" <+> ppTy r d
 
 instance Fixpoint () where
   toFix     = text . show 
@@ -1240,9 +1216,9 @@ dataConSymbol = varSymbol . dataConWorkId
 dataConReft ::  DataCon -> [Symbol] -> FReft
 dataConReft c [] 
   | c == trueDataCon
-  = reft (vv_, [RConc $ mkProp vv_]) 
+  = reft (vv_, [RConc $ symProp vv_]) 
   | c == falseDataCon
-  = reft (vv_, [RConc $ PNot $ mkProp vv_]) 
+  = reft (vv_, [RConc $ PNot $ symProp vv_]) 
 dataConReft c [x] 
   | c == intDataCon 
   = reft (vv_, [RConc (PAtom Eq (EVar vv_) (EVar x))]) 
@@ -1264,7 +1240,7 @@ isBaseTy (TyConApp _ ts) = and $ isBaseTy <$> ts
 isBaseTy (FunTy _ _)     = False
 isBaseTy (ForAllTy _ _)  = False
 
-mkProp x = PBexp (EApp (S propConName) [EVar x])
+-- mkProp x = PBexp (EApp (S propConName) [EVar x])
 
 vv_ = vv Nothing
 
