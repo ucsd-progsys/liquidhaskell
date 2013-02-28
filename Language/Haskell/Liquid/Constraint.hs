@@ -220,14 +220,14 @@ instance F.Fixpoint Cinfo where
 splitW ::  WfC -> CG [FixWfC]
 
 splitW (WfC γ t@(RFun x t1 t2 _)) 
-  =  do ws   <- bsplitW γ t
+  =  do let ws = bsplitW γ t
         ws'  <- splitW (WfC γ t1) 
         γ'   <- (γ, "splitW") += (x, t1)
         ws'' <- splitW (WfC γ' t2)
         return $ ws ++ ws' ++ ws''
 
 splitW (WfC γ t@(RAppTy t1 t2 _)) 
-  =  do ws   <- bsplitW γ t
+  =  do let ws = bsplitW γ t
         ws'  <- splitW (WfC γ t1) 
         ws'' <- splitW (WfC γ t2)
         return $ ws ++ ws' ++ ws''
@@ -239,16 +239,16 @@ splitW (WfC γ (RAllP _ r))
   = splitW (WfC γ r)
 
 splitW (WfC γ t@(RVar _ _))
-  = bsplitW γ t 
+  = return $ bsplitW γ t 
 
 splitW (WfC _ (RCls _ _))
   = return []
 
 splitW (WfC γ t@(RApp _ ts rs _))
-  =  do ws   <- bsplitW γ t 
+  =  do let ws = bsplitW γ t 
         γ'    <- γ `extendEnvWithVV` t 
-        ws'  <- concat <$> mapM splitW (map (WfC γ') ts)
-        ws'' <- concat <$> mapM (rsplitW γ) rs
+        ws'   <- concat <$> mapM splitW (map (WfC γ') ts)
+        ws''  <- concat <$> mapM (rsplitW γ) rs
         return $ ws ++ ws' ++ ws''
 
 splitW (WfC _ t) 
@@ -260,15 +260,8 @@ rsplitW γ (RPoly ss t0)
   = do γ' <- foldM (++=) γ [("rsplitC", x, ofRSort s) | (x, s) <- ss]
        splitW $ WfC γ' t0
 
+bsplitW :: CGEnv -> SpecType -> [FixWfC]
 bsplitW γ t
-  = do map <- refsymbols <$> get 
-       γ'  <- foldM (++=) γ [("rsplitC", x, lookup map x) | x <- F.fSyms t]
-       return $ bsplitW' γ' $ fmap F.dropSyms t
-  where errormsg x   = errorstar $ "Constraint: bsplitW not found " ++ show x
-        lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
-
-bsplitW' :: CGEnv -> SpecType -> [FixWfC]
-bsplitW' γ t 
   | F.isNonTrivialSortedReft r'
   = [F.wfC (fenv γ) r' Nothing ci] 
   | otherwise
@@ -296,7 +289,7 @@ splitC (SubC γ t1 (RAllE x tx t2))
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
-  =  do cs       <- bsplitC γ t1 t2 
+  =  do let cs   =  bsplitC γ t1 t2 
         cs'      <- splitC  (SubC γ r2 r1) 
         γ'       <- (γ, "splitC") += (x2, r2) 
         let r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
@@ -304,10 +297,10 @@ splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _))
         return    $ cs ++ cs' ++ cs''
 
 splitC (SubC γ t1@(RAppTy r1 r1' _) t2@(RAppTy r2 r2' _)) 
-  =  do cs       <- bsplitC γ t1 t2 
-        cs'      <- splitC  (SubC γ r1 r2) 
-        cs''     <- splitC  (SubC γ r1' r2') 
-        return    $ cs ++ cs' ++ cs''
+  =  do let cs = bsplitC γ t1 t2 
+        cs'   <- splitC  (SubC γ r1 r2) 
+        cs''  <- splitC  (SubC γ r1' r2') 
+        return $ cs ++ cs' ++ cs''
 
 splitC (SubC γ t1 (RAllP p t))
   = splitC $ SubC γ t1 t'
@@ -329,16 +322,20 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
 
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
-       cs    <- bsplitC γ t1' t2'
+       let cs    = bsplitC γ t1' t2'
        γ'    <- γ `extendEnvWithVV` t1' 
-       w     cscov' <- rsplitCIndexed γ' r1s r2s $ covariantPsArgs tyInfo
+       let RApp c  t1s r1s _ = t1'
+       let RApp c' t2s r2s _ = t2'
+       let tyInfo = rTyConInfo c
+       cscov  <- splitCIndexed  γ' t1s t2s $ covariantTyArgs tyInfo
+       cscon  <- splitCIndexed  γ' t2s t1s $ contravariantTyArgs tyInfo
+       cscov' <- rsplitCIndexed γ' r1s r2s $ covariantPsArgs tyInfo
        cscon' <- rsplitCIndexed γ' r2s r1s $ contravariantPsArgs tyInfo
-       modify $ \s -> s{refsymbols = symss}
        return $ cs ++ cscov ++ cscon ++ cscov' ++ cscon'
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
-  = bsplitC γ t1 t2
+  = return $ bsplitC γ t1 t2
 
 splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
   = return []
@@ -358,16 +355,6 @@ rsplitCIndexed γ t1s t2s indexes
 
 
 bsplitC γ t1 t2
-  = do map <- refsymbols <$> get 
-       γ'  <-  foldM (++=) γ [("rsplitC1", x, lookup map x) | x <- F.fSyms t2]
-       let su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (F.fSyms t1) (F.fSyms t2)]
-       return $ bsplitC' γ' (F.subst su t1') t2'
-  where t1'          = fmap F.dropSyms t1
-        t2'          = fmap F.dropSyms t2
-        lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
-        errormsg x   = errorstar $ "Not found " ++ F.showFix x
-
-bsplitC' γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
   = [F.subC γ' F.PTrue (r1' {F.sr_reft = F.top}) r2' Nothing tag ci]
   | F.isNonTrivialSortedReft r2'
@@ -420,7 +407,6 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
                      , lits       :: ![(F.Symbol, F.Sort)]
-                     , refsymbols :: !(F.SEnv SpecType)
                      } -- deriving (Data, Typeable)
 
 instance F.Fixpoint CGInfo where 
@@ -456,7 +442,6 @@ initCGI info = CGInfo {
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
-  , refsymbols = F.emptySEnv
   } where tce   = tcEmbeds $ spec info
           spc   = spec info
           spec' = spc{tySigs = mapSnd (addTyConInfo tyi) <$> (tySigs spc)} 
@@ -532,15 +517,6 @@ shiftVV t@(RApp _ ts _ r) vv'
 
 shiftVV t _ 
   = t -- errorstar $ "shiftVV: cannot handle " ++ F.showFix t
-
-addRefSymbols ss
-  = modify $ \s -> s{refsymbols = foldl' (\e (x, t) -> F.insertSEnv x t e) (refsymbols s) ss}
-
-addRefSymbolsRef (π, RPoly _ t1)
-  = addRefSymbols newSyms
-  where newSyms = zip (F.fSyms t1) ((ofRSort . fst3) <$> pargs π)
-addRefSymbolsRef (_, RMono _ _)
-  = errorstar "Constraint.addRefSymbolsRef RMono"
 
 addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
 addBind x r 
