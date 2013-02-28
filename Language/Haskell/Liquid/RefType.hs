@@ -1216,9 +1216,9 @@ dataConSymbol = varSymbol . dataConWorkId
 dataConReft ::  DataCon -> [Symbol] -> FReft
 dataConReft c [] 
   | c == trueDataCon
-  = reft (vv_, [RConc $ symProp vv_]) 
+  = reft (vv_, [RConc $ eProp vv_]) 
   | c == falseDataCon
-  = reft (vv_, [RConc $ PNot $ symProp vv_]) 
+  = reft (vv_, [RConc $ PNot $ eProp vv_]) 
 dataConReft c [x] 
   | c == intDataCon 
   = reft (vv_, [RConc (PAtom Eq (EVar vv_) (EVar x))]) 
