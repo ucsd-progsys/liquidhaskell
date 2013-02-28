@@ -45,10 +45,10 @@ bareArgP
  <|> parens bareTypeP
 
 bareAtomP 
-  =  frefP bbaseP 
+  =  refP bbaseP 
  <|> try (dummyP (bbaseP <* spaces))
 
-bbaseP :: Parser (FReft -> BareType)
+bbaseP :: Parser (Reft -> BareType)
 bbaseP 
   =  liftM2 bLst (brackets bareTypeP) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
@@ -56,7 +56,7 @@ bbaseP
  <|> try (liftM2 bRVar lowerIdP monoPredicateP)
  <|> liftM3 bCon upperIdP predicatesP (sepBy bareTyArgP blanks)
 
-bbaseNoAppP :: Parser (FReft -> BareType)
+bbaseNoAppP :: Parser (Reft -> BareType)
 bbaseNoAppP
   =  liftM2 bLst (brackets bareTypeP) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
@@ -72,7 +72,7 @@ bareTyArgP
  -- <|> liftM RExprArg (parens exprP) 
 
 bareAtomNoAppP 
-  =  frefP bbaseNoAppP 
+  =  refP bbaseNoAppP 
  <|> try (dummyP (bbaseNoAppP <* spaces))
 
 bareAllExprP 
@@ -176,19 +176,19 @@ getClass (RApp c ts _ _)
 getClass t
   = errorstar $ "Cannot convert " ++ (show t) ++ " to Class"
 
-dummyP ::  Monad m => m (FReft -> b) -> m b
+dummyP ::  Monad m => m (Reft -> b) -> m b
 dummyP fm 
-  = fm `ap` return dummyFReft 
+  = fm `ap` return dummyReft 
 
-refP :: Parser (t -> a) -> (Reft -> t)-> Parser a
-refP kindP f
+refP :: Parser (Reft -> a) -> Parser a
+refP kindP
   = braces $ do
       v   <- symbolP 
       colon
       t   <- kindP
       reserved "|"
       ras <- refasP 
-      return $ t (f (Reft (v, ras)))
+      return $ t (Reft (v, ras))
 
 symsP
   = do reserved "\\"
@@ -196,10 +196,6 @@ symsP
        reserved "->"
        return $ (, dummyRSort) <$> ss
  <|> return []
-
-frefP :: Parser (FReft -> a) -> Parser a
-frefP kindP
-  =  refP kindP FReft
 
 refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
@@ -210,7 +206,7 @@ predicatesP
   <|> return []
 
 predicate1P 
-   =  try (liftM2 RPoly symsP (frefP bbaseP))
+   =  try (liftM2 RPoly symsP (refP bbaseP))
   <|> liftM (RMono [] . predUReft) monoPredicate1P
 
 monoPredicateP 
@@ -248,8 +244,8 @@ bAppTy v t r              = RAppTy (RVar v top) t (reftUReft r)
 
 
 reftUReft      = (`U` pdTrue)
-predUReft      = (U dummyFReft) 
-dummyFReft     = FReft $ top
+predUReft      = (U dummyReft) 
+dummyReft      = top
 dummyTyId      = ""
 dummyRSort     = ROth "dummy"
 

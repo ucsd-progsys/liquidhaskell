@@ -331,15 +331,7 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
        cs    <- bsplitC γ t1' t2'
        γ'    <- γ `extendEnvWithVV` t1' 
-       symss <- refsymbols <$> get
-       let RApp c  t1s r1s _ = t1'
-       let RApp c' t2s r2s _ = t2'
-       mapM addRefSymbolsRef (safeZip "addRef1" (rTyConPs c ) r1s)
-       mapM addRefSymbolsRef (safeZip "addRef2" (rTyConPs c') r2s)
-       let tyInfo = rTyConInfo c
-       cscov  <- splitCIndexed  γ' t1s t2s $ covariantTyArgs tyInfo
-       cscon  <- splitCIndexed  γ' t2s t1s $ contravariantTyArgs tyInfo
-       cscov' <- rsplitCIndexed γ' r1s r2s $ covariantPsArgs tyInfo
+       w     cscov' <- rsplitCIndexed γ' r1s r2s $ covariantPsArgs tyInfo
        cscon' <- rsplitCIndexed γ' r2s r1s $ contravariantPsArgs tyInfo
        modify $ \s -> s{refsymbols = symss}
        return $ cs ++ cscov ++ cscon ++ cscov' ++ cscon'
@@ -536,7 +528,7 @@ normalizeVV _ t
 
 shiftVV t@(RApp _ ts _ r) vv' 
   = t { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
-      { rt_reft = (fFReft  (`F.shiftVV` vv')) <$> r }
+      { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t _ 
   = t -- errorstar $ "shiftVV: cannot handle " ++ F.showFix t
@@ -580,7 +572,7 @@ addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
 addKuts :: SpecType -> CG ()
 addKuts !t = modify $ \s -> s { kuts = {- tracePpr "KUTS: " $-} updKuts (kuts s) t }
   where updKuts :: F.Kuts -> SpecType -> F.Kuts
-        updKuts = foldReft (F.ksUnion . (F.reftKVars . fromFReft  . ur_reft) )
+        updKuts = foldReft (F.ksUnion . (F.reftKVars . ur_reft) )
 
 
 -- | Used for annotation binders (i.e. at binder sites)
@@ -675,13 +667,6 @@ instance Freshable (F.Reft) where
   true    (F.Reft (v,_)) = return $ F.Reft (v, []) 
   refresh (F.Reft (_,_)) = liftM2 (curry F.Reft) freshVV fresh
     where freshVV        = liftM (F.vv . Just) fresh
-
-instance Freshable FReft where
-  fresh                   = errorstar "fresh FReft" 
-  true    (FReft r)       = liftM FReft (true r)
-  true    (FSReft s r)    = liftM (FSReft s) (true r)
-  refresh (FReft r)       = liftM FReft (refresh r)
-  refresh (FSReft s r)    = liftM (FSReft s) (refresh r)
 
 instance Freshable RReft where
   fresh             = errorstar "fresh RReft"
@@ -949,7 +934,7 @@ cconsCase γ x t acs (a, _, ce)
 
 altReft γ _ (LitAlt l)   = literalFReft (emb γ) l
 altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
-  where notLiteralReft   = toFReft . F.notExprReft . snd . literalConst (emb γ)
+  where notLiteralReft   = F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = error "Constraint : altReft"
 
 unfoldR td (RApp _ ts rs _) ys = (t3, yts, rt)
@@ -1020,7 +1005,7 @@ argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
 
 varRefType γ x =  t 
   where t  = (γ ?= (varSymbol x)) `strengthen` xr
-        xr = uTop $ toFReft $ F.symbolReft $ varSymbol x
+        xr = uTop $ F.symbolReft $ varSymbol x
 
 -- TODO: should only expose/use subt. Not subsTyVar_meet
 subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
@@ -1049,10 +1034,6 @@ instance NFData RTyCon where
 instance NFData Type where 
   rnf _ = ()
 
-instance NFData FReft where 
-  rnf (FReft x)      = rnf x
-  rnf (FSReft x1 x2) = rnf x1 `seq` rnf x2
-
 instance NFData WfC where
   rnf (WfC x1 x2)   
     = rnf x1 `seq` rnf x2
@@ -1076,8 +1057,8 @@ instance NFData CGInfo where
 
 forallExprRefType     :: CGEnv -> SpecType -> SpecType
 forallExprRefType γ t  = t `strengthen` (uTop r') 
-  where r'             = toFReft $ maybe F.top (forallExprReft γ) ((F.isSingletonReft) (fromFReft r))
-        r              = toFReft $ F.sr_reft $ rTypeSortedReft (emb γ) t
+  where r'             = maybe F.top (forallExprReft γ) ((F.isSingletonReft) r)
+        r              = F.sr_reft $ rTypeSortedReft (emb γ) t
 
 
 forallExprReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
