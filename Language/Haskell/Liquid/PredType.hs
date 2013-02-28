@@ -146,9 +146,9 @@ unifyS (RApp c ts rs r) (RApp _ pts ps p)
        return $ RApp c ts' rs' (bUnify r p)
   where fm       = S.fromList $ concatMap pvars (fp:fps) 
         fp : fps = p : (getR <$> ps)
-        rs'      = zipWithZero unifyRef (RMono top {- trueReft -}) pdTrue rs fps
-        getR (RMono r) = r
-        getR (RPoly _) = top 
+        rs'      = zipWithZero unifyRef (RMono [] top {- trueReft -}) pdTrue rs fps
+        getR (RMono _ r) = r
+        getR (RPoly _ _) = top 
 
 unifyS (RAllE x tx t) (RAllE x' _ t') | x == x'
   = liftM (RAllE x tx) (unifyS t t')
@@ -158,8 +158,8 @@ unifyS t1 t2
 
 bUnify a (Pr pvs)        = foldl' meet a $ pToReft <$> pvs
 
-unifyRef (RMono a) (Pr pvs) = RMono $ foldl' meet a $ pToReft <$> pvs
-unifyRef (RPoly a) (Pr pvs) = RPoly $ foldl' strengthen a $ pToReft <$> pvs
+unifyRef (RMono s a) (Pr pvs) = RMono s $ foldl' meet a $ pToReft <$> pvs
+unifyRef (RPoly s a) (Pr pvs) = RPoly s $ foldl' strengthen a $ pToReft <$> pvs
 
 zipWithZero _ _  _  []     []     = []
 zipWithZero f xz yz []     (y:ys) = (f xz y):(zipWithZero f xz yz [] ys)
@@ -202,10 +202,10 @@ toPredType (PV _ ptype args) = rpredType (ty:tys)
 
 -------------------------------------------------------------------------------
 
-replacePreds :: String -> SpecType -> [(RPVar, Ref RReft SpecType)] -> SpecType 
+replacePreds :: String -> SpecType -> [(RPVar, Ref RSort RReft SpecType)] -> SpecType 
 replacePreds msg       = foldl' go 
-   where go z (π, RPoly t) = substPred msg   (π, t)     z
-         go _ (_, RMono _) = error "replacePreds on RMono" -- replacePVarReft (π, r) <$> z
+   where go z (π, t@(RPoly _ _)) = substPred msg   (π, t)     z
+         go _ (_, RMono _ _)     = error "replacePreds on RMono" -- replacePVarReft (π, r) <$> z
 
 
 -- TODO: replace `replacePreds` with
@@ -218,11 +218,11 @@ replacePreds msg       = foldl' go
 --         go z (π, RMono r) = replacePVarReft (π, r) <$> z
 
 -------------------------------------------------------------------------------
-substPred :: String -> (RPVar, SpecType) -> SpecType -> SpecType
+substPred :: String -> (RPVar, Ref RSort RReft SpecType) -> SpecType -> SpecType
 -------------------------------------------------------------------------------
 
-substPred _   (π, RVar a1 r1) t@(RVar a2 r2)
-  | isPredInReft && a1 == a2  = RVar a1 $ meetListWithPSubs πs r1 r2'
+substPred _   (π, RPoly ss (RVar a1 r1)) t@(RVar a2 r2)
+  | isPredInReft && a1 == a2  = RVar a1 $ meetListWithPSubs πs ss r1 r2'
   | isPredInReft              = errorstar ("substPred RVar Var Mismatch")
   | otherwise                 = t
   where (r2', πs)             = splitRPvar π r2
@@ -240,9 +240,9 @@ substPred msg (p, tp) (RAllP (q@(PV _ _ _)) t)
 
 substPred msg su (RAllT a t)    = RAllT a (substPred msg su t)
 
-substPred msg su@(π, πt) (RFun x t t' r) 
+substPred msg su@(π,_ ) (RFun x t t' r) 
   | null πs                     = RFun x (substPred msg su t) (substPred msg su t') r
-  | otherwise                   = meetListWithPSubs πs πt (RFun x t t' r')
+  | otherwise                   = {-meetListWithPSubs πs πt -}(RFun x t t' r')
   where (r', πs)                = splitRPvar π r
 
 substPred msg pt (RCls c ts)    = RCls c (substPred msg pt <$> ts)
@@ -254,35 +254,74 @@ substPred _   _  t            = t
 -- | Requires: @not $ null πs@
 -- substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
 
-substRCon msg (_, RApp c1 ts1 rs1 r1) (RApp c2 ts2 rs2 _) πs r2'
-  | rTyCon c1 == rTyCon c2    = RApp c1 ts rs $ meetListWithPSubs πs r1 r2'
+substRCon msg (_, RPoly ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
+  | rTyCon c1 == rTyCon c2    = RApp c1 ts rs $ meetListWithPSubs πs ss r1 r2'
   where ts                    = safeZipWith (msg ++ ": substRCon")  strSub  ts1 ts2
         rs                    = safeZipWith (msg ++ ": substRcon2") strSubR rs1 rs2
-        strSub r1 r2          = meetListWithPSubs πs (addSyms ss r1)r2
-        strSubR r1 r2         = RPoly $ strSub (fromRPoly r1) (fromRPoly r2)                             
-        ss = fSyms (RApp c1 ts1 rs1 r1)
+        strSub r1 r2          = meetListWithPSubs πs ss r1 r2
+        strSubR r1 r2         = meetListWithPSubsRef πs ss r1 r2
 
-substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ show (su, t)
+substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showFix (su, t)
 
-substPredP su (RPoly t)       = RPoly $ substPred "substPredP" su t
-substPredP _  (RMono _)       = error $ "RMono found in substPredP"
+substPredP su@(p, RPoly ss tt) (RPoly s t)       
+  = RPoly ss' $ substPred "substPredP" su t
+ where ss' = if isPredInType p t then (ss ++ s) else s
+
+substPredP _  (RMono _ _)       
+  = error $ "RMono found in substPredP"
 
 splitRPvar pv (U x (Pr pvs)) = (U x (Pr pvs'), epvs)
   where (epvs, pvs') = partition (uPVar pv ==) pvs
 
-meetListWithPSubs πs r1 r2 = foldl' (meetListWithPSub r1) r2 πs
 
-meetListWithPSub ::  Reftable r => r -> r -> PVar t -> r
-meetListWithPSub r1 r2 π
+isPredInType p (RVar _ r) 
+  = isPredInURef p r
+isPredInType p (RFun _ t1 t2 r) 
+  = isPredInURef p r || isPredInType p t1 || isPredInType p t2
+isPredInType p (RAllT _ t)
+  = isPredInType p t 
+isPredInType p (RAllP p' t)
+  = not (p == p') && isPredInType p t 
+isPredInType p (RApp _ ts _ r) 
+  = isPredInURef p r || any (isPredInType p) ts
+isPredInType p (RCls _ ts) 
+  = any (isPredInType p) ts
+isPredInType p (RAllE _ t1 t2) 
+  = isPredInType p t1 || isPredInType p t2 
+isPredInType p (RAppTy t1 t2 r) 
+  = isPredInURef p r || isPredInType p t1 || isPredInType p t2
+isPredInType _ (RExprArg _)              
+  = False
+isPredInType _ (ROth _)
+  = False
+isPredInType _ (ROth _)
+  = False
+
+isPredInURef p (U _ (Pr ps)) = any (uPVar p ==) ps
+
+
+meetListWithPSubs πs ss r1 r2    = foldl' (meetListWithPSub ss r1) r2 πs
+meetListWithPSubsRef πs ss r1 r2 = foldl' ((meetListWithPSubRef ss) r1) r2 πs
+
+meetListWithPSub ::  (Reftable r, Fixpoint t) => [(Symbol, RSort)]-> r -> r -> PVar t -> r
+meetListWithPSub ss r1 r2 π
   | all (\(_, x, EVar y) -> x == y) (pargs π)
-  = addSyms (fSyms r1) $ r2 `meet` r1'      
+  = r2 `meet` r1
   | all (\(_, x, EVar y) -> x /= y) (pargs π)
-  = r2 `meet` (subst su r1')
+  = r2 `meet` (subst su r1)
   | otherwise
   = errorstar $ "PredType.meetListWithPSub partial application to " ++ showFix π
-  where r1' = dropSyms r1
-        su  = mkSubst xys
-        xys = [(x, y) | (x, (_, _, y)) <- zip (fSyms r1) (pargs π)]
+  where su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
+
+meetListWithPSubRef ss (RPoly s1 r1) (RPoly s2 r2) π
+  | all (\(_, x, EVar y) -> x == y) (pargs π)
+  = RPoly s1 $ r2 `meet` r1      
+  | all (\(_, x, EVar y) -> x /= y) (pargs π)
+  = RPoly s2 $ r2 `meet` (subst su r1)
+  | otherwise
+  = errorstar $ "PredType.meetListWithPSubRef partial application to " ++ showFix π
+  where su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> s1) (pargs π)]
+
 
 ----------------------------------------------------------------------------
 ---------- Interface: Modified CoreSyn.exprType due to predApp -------------

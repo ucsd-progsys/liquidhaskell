@@ -254,8 +254,11 @@ splitW (WfC γ t@(RApp _ ts rs _))
 splitW (WfC _ t) 
   = errorstar $ "splitW cannot handle: " ++ F.showFix t
 
-rsplitW _ (RMono _)  = errorstar "Constrains: rsplitW for RMono"
-rsplitW γ (RPoly t0) = splitW $ WfC γ t0
+rsplitW _ (RMono _ _)  
+  = errorstar "Constrains: rsplitW for RMono"
+rsplitW γ (RPoly ss t0) 
+  = do γ' <- foldM (++=) γ [("rsplitC", x, ofRSort s) | (x, s) <- ss]
+       splitW $ WfC γ' t0
 
 bsplitW γ t
   = do map <- refsymbols <$> get 
@@ -397,18 +400,13 @@ unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
  
 -- rTyConPVars c = [ x | pv <- rTyConPs c, (_,x,_) <- pargs pv ]
 
-rsplitC _ (RMono _, RMono _) 
+rsplitC _ (RMono _ _, RMono _ _) 
   = errorstar "RefTypes.rsplitC on RMono"
 
-rsplitC γ (RPoly r1, RPoly r2)
-  = do map <- refsymbols <$> get 
-       γ'  <-  foldM (++=) γ [("rsplitC1", x, lookup map x) | x <- F.fSyms r2]
-       splitC (SubC γ' (F.subst su r1') r2')
-  where su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (F.fSyms r1) (F.fSyms r2)]
-        r1'          = fmap F.dropSyms r1
-        r2'          = fmap F.dropSyms r2
-        lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
-        errormsg x   = errorstar $ "Not found " ++ F.showFix x
+rsplitC γ (t1@(RPoly s1 r1), t2@(RPoly s2 r2))
+  = do γ'  <-  foldM (++=) γ [("rsplitC1", x, ofRSort s) | (x, s) <- s2]
+       splitC (SubC γ' (F.subst su r1) r2)
+  where su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (fst <$> s1) (fst <$> s2)]
 
 rsplitC _ _  
   = errorstar "rsplit Rpoly - RMono"
@@ -546,10 +544,10 @@ shiftVV t _
 addRefSymbols ss
   = modify $ \s -> s{refsymbols = foldl' (\e (x, t) -> F.insertSEnv x t e) (refsymbols s) ss}
 
-addRefSymbolsRef (π, RPoly t1)
+addRefSymbolsRef (π, RPoly _ t1)
   = addRefSymbols newSyms
   where newSyms = zip (F.fSyms t1) ((ofRSort . fst3) <$> pargs π)
-addRefSymbolsRef (_, RMono _)
+addRefSymbolsRef (_, RMono _ _)
   = errorstar "Constraint.addRefSymbolsRef RMono"
 
 addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
@@ -703,7 +701,7 @@ trueRefType (RFun _ t t' _)
   = liftM3 rFun fresh (true t) (true t')
 trueRefType (RApp c ts _ _)  
   = liftM (\ts -> RApp c ts truerefs F.top) (mapM true ts)
-		where truerefs = (RPoly . ofRSort . ptype) <$> (rTyConPs c)
+		where truerefs = (RPoly []  . ofRSort . ptype) <$> (rTyConPs c)
 trueRefType (RAppTy t t' _)    
   = liftM2 rAppTy (true t) (true t')
 trueRefType t                
@@ -730,15 +728,10 @@ refreshRefType (RAppTy t t' _)
 refreshRefType t                
   = return t
 
-refreshRef (RPoly t, π) = RPoly <$> (refreshRefType t >>= addFreshArgs π)
-refreshRef (RMono _, _) = errorstar "refreshRef: unexpected"
+refreshRef (RPoly s t, π) = liftM2 RPoly (mapM freshSym (pargs π)) (refreshRefType t)
+refreshRef (RMono _ _, _) = errorstar "refreshRef: unexpected"
 
-addFreshArgs π t
-  = do args <- mapM (\_ -> fresh) πargs
-       addRefSymbols $ zip args ((ofRSort . fst3)  <$> πargs)
-       return $ fmap (F.addSyms args) t
-  where πargs = pargs π
-
+freshSym s                = liftM (, fst3 s) fresh
 
 -- isBaseTyCon c
 --   | c == intTyCon 
@@ -854,7 +847,7 @@ cconsE γ e t
 
 instantiatePreds γ e (RAllP p t)
   = do s <- freshPredRef γ e p
-       return $ replacePreds "consE" t [(p, RPoly s)] 
+       return $ replacePreds "consE" t [(p, s)] 
 instantiatePreds _ _ t
   = return t
 
@@ -880,12 +873,12 @@ consE γ e'@(App e a) | eqType (exprType a) predType
   = do t0 <- consE γ e
        case t0 of
          RAllP p t -> do s <- freshPredRef γ e' p
-                         return $ replacePreds "consE" t [(p, RPoly s)] {- =>> addKuts -}
+                         return $ replacePreds "consE" t [(p, s)] {- =>> addKuts -}
          _         -> return t0
 
 consE γ e'@(App e a)               
   = do ([], πs, te)        <- bkUniv <$> consE γ e
-       zs                  <- mapM (\π -> liftM ((π,) . RPoly) $ freshPredRef γ e' π) πs
+       zs                  <- mapM (\π -> liftM ((π,)) $ freshPredRef γ e' π) πs
        te'                 <- return (replacePreds "consE" te zs) {- =>> addKuts -}
        _                   <- updateLocA πs (exprLoc e) te' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller", e') te' 
@@ -963,7 +956,7 @@ unfoldR td (RApp _ ts rs _) ys = (t3, yts, rt)
   where (vs, ps, t0)    = bkUniv td
         t1              = foldl' (flip subsTyVar_meet') t0 (zip vs ts)
         t2              = replacePreds "unfoldR" t1 $ safeZip "unfoldR" (reverse ps) rs
-        (ys0, yts', rt) =  bkArrow t2
+        (ys0, yts', rt) = bkArrow t2
         (t3:yts)        = F.subst su <$> (t2:yts')
         su              = F.mkSubst [(x, F.EVar y)| (x, y)<- zip ys0 ys]
 unfoldR _  _                _  = error "Constraint.hs : unfoldR"
@@ -1006,16 +999,14 @@ truePredRef :: (F.Reftable r) => PVar (RRType r) -> CG SpecType
 truePredRef (PV _ τ _)
   = trueTy (toType τ)
 
-freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecType
+freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG (Ref RSort RReft SpecType)
 freshPredRef γ e (PV n τ as)
   = do t    <- freshTy e (toType τ)
        args <- mapM (\_ -> fresh) as
-       let targs = zip args ((ofRSort . fst3) <$> as)
-       addRefSymbols targs
-       let t' = fmap (F.addSyms args) t
-       γ' <- foldM (++=) γ [("freshPredRef", x, τ) | (x, τ) <- targs]
-       addW $ WfC γ' t'
-       return t'
+       let targs = zip args (fst3 <$> as)
+       γ' <- foldM (++=) γ [("freshPredRef", x, ofRSort τ) | (x, τ) <- targs]
+       addW $ WfC γ' t
+       return $ RPoly targs t
 
 -----------------------------------------------------------------------
 ---------- Helpers: Creating Refinement Types For Various Things ------
