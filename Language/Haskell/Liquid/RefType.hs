@@ -368,9 +368,6 @@ instance Reftable r => Reftable (RType Class RTyCon RTyVar r) where
   ppTy        = errorstar "ppTy RPoly Reftable" 
   toReft      = errorstar "toReft on RType"
   params      = errorstar "params on RType"
-  fSyms       = fromMaybe [] . fmap fSyms . stripRTypeBase 
-  addSyms s t = fmap (addSyms s) t
-  dropSyms  t = fmap dropSyms t
 
 -- instance Reftable Reft where
 --   isTauto  = isTautoReft
@@ -397,9 +394,6 @@ instance (Reftable r) => Reftable (UReft r) where
   ppTy (U r p) d     = ppTy r (ppTy p d) 
   toReft (U r _)     = toReft r
   params (U r _)     = params r
-  fSyms (U r _)      = fSyms r
-  dropSyms (U r p)   = U (dropSyms r) p
-  addSyms ss (U r p) = U (addSyms ss r) p
 
 instance (Reftable r, RefTypable p c tv r) => Subable (Ref (RType p c tv ()) r (RType p c tv r)) where
   syms (RMono ss r)     = (fst <$> ss) ++ syms r
@@ -421,8 +415,6 @@ instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ()) => Reftable (Re
   ppTy (RPoly _ _) _  = errorstar "RefType: Reftable ppTy in RPoly"
   toReft              = errorstar "RefType: Reftable toReft"
   params              = errorstar "RefType: Reftable params for Ref"
-  fSyms (RMono s r)   = (fst <$> s) ++ fSyms r
-  fSyms (RPoly s t)   = (fst <$> s) ++ (fromMaybe [] $ fmap fSyms $ stripRTypeBase t)
 
 
 -- TyConable Instances -------------------------------------------------------

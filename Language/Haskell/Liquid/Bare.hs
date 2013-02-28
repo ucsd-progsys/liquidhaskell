@@ -661,11 +661,8 @@ ghcSpecEnv sp        = fromListSEnv binds
  
 
 checkRType           :: (Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe Doc 
-checkRType emb env t   = efoldReft (rTypeSortedReft emb) f env Nothing (mapBot expandParams t) 
+checkRType emb env t   = efoldReft (rTypeSortedReft emb) f env Nothing t 
   where f env me r err = err <|> checkReft env emb me r
-
-expandParams (RApp c ts rs r) = RApp c (fmap (addSyms (params r)) <$> ts) rs r
-expandParams t                = t
 
 checkReft            :: (Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe Doc 
 checkReft env emb Nothing _  = Nothing -- RMono / Ref case, not sure how to check these yet.  
