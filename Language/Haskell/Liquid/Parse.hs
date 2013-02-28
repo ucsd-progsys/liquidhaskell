@@ -194,12 +194,12 @@ symsP
   = do reserved "\\"
        ss <- sepBy symbolP spaces
        reserved "->"
-       return ss
+       return $ (, dummyRSort) <$> ss
+ <|> return []
 
 frefP :: Parser (FReft -> a) -> Parser a
 frefP kindP
-  = (try (do {ss <- symsP ; refP kindP (FSReft ss)}))
- <|> refP kindP FReft
+  =  refP kindP FReft
 
 refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
@@ -210,8 +210,8 @@ predicatesP
   <|> return []
 
 predicate1P 
-   =  try (liftM RPoly (frefP bbaseP))
-  <|> liftM (RMono . predUReft) monoPredicate1P
+   =  try (liftM2 RPoly symsP (frefP bbaseP))
+  <|> liftM (RMono [] . predUReft) monoPredicate1P
 
 monoPredicateP 
    = try (angles monoPredicate1P) 
@@ -239,7 +239,7 @@ bTup [t] _ r | isTauto r  = t
              | otherwise  = t `strengthen` (reftUReft r) 
 bTup ts rs r              = RApp tupConName ts rs (reftUReft r)
 
-bCon b [RMono r1] [] r    = RApp b [] [] (r1 `meet` (reftUReft r)) 
+bCon b [RMono _ r1] [] r  = RApp b [] [] (r1 `meet` (reftUReft r)) 
 bCon b rs ts r            = RApp b ts rs (reftUReft r)
 
 bAppTy v t r              = RAppTy (RVar v top) t (reftUReft r)
@@ -251,6 +251,7 @@ reftUReft      = (`U` pdTrue)
 predUReft      = (U dummyFReft) 
 dummyFReft     = FReft $ top
 dummyTyId      = ""
+dummyRSort     = ROth "dummy"
 
 ------------------------------------------------------------------
 --------------------------- Measures -----------------------------
