@@ -173,11 +173,10 @@ pToReft = U top . pdVar
 ----- Interface: Replace Predicate With Uninterprented Function Symbol -----
 ----------------------------------------------------------------------------
 
-replacePredsWithRefs (p, r) (U fr (Pr ps)) 
-  = U (FSReft (freeSymbols++s) (Reft (v, rs ++ rs'))) (Pr ps2)
+replacePredsWithRefs (p, r) (U (Reft(v, rs)) (Pr ps)) 
+  = U (Reft (v, rs ++ rs')) (Pr ps2)
   where rs'              = r . (v,) . pargs <$> ps1
         (ps1, ps2)       = partition (==p) ps
-        (s, Reft(v, rs)) = splitFReft fr
         freeSymbols      = snd3 <$> filter (\(_, x, y) -> EVar x == y) pargs1
         pargs1           = concatMap pargs ps1
 
@@ -291,8 +290,6 @@ isPredInType p (RAllE _ t1 t2)
 isPredInType p (RAppTy t1 t2 r) 
   = isPredInURef p r || isPredInType p t1 || isPredInType p t2
 isPredInType _ (RExprArg _)              
-  = False
-isPredInType _ (ROth _)
   = False
 isPredInType _ (ROth _)
   = False
