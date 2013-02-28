@@ -69,6 +69,9 @@ repeats n  = concat . replicate n
 
 errorstar  = error . wrap (stars ++ "\n") (stars ++ "\n") 
   where stars = repeats 3 $ wrapStars "ERROR"
+              
+assertstar _   True  x = x
+assertstar msg False x = errorstar msg 
 
 findWithDefaultL f ls d = fromMaybe d (L.find f ls)
 

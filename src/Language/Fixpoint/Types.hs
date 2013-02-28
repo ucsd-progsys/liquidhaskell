@@ -22,11 +22,11 @@ module Language.Fixpoint.Types (
   , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tempSymbol
   , qualifySymbol, stringSymbol, symbolString, stringSymbolRaw
   , isNontrivialVV
-  , symProp
 
   -- * Expressions and Predicates
   , Constant (..), Bop (..), Brel (..), Expr (..), Pred (..)
   , eVar
+  , eProp
   , pAnd, pOr, pIte, pApp
   , isTautoPred
  
@@ -465,7 +465,7 @@ pAnd          = simplify . PAnd
 pOr           = simplify . POr 
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3] 
 
-symProp       = mkProp . eVar
+eProp         = mkProp . eVar
 mkProp        = PBexp . EApp (S propConName) . (: [])
 
 
@@ -825,8 +825,9 @@ catSubst (Su s1) (Su s2) = Su $ s1' ++ s2
 symbolReft    = exprReft . EVar 
 
 vv_           = vv Nothing
-exprReft e    = Reft (vv_, [RConc $ PAtom Eq (EVar vv_) e])
-notExprReft e = Reft (vv_, [RConc $ PAtom Ne (EVar vv_) e])
+exprReft e    = Reft (vv_, [RConc $ PAtom Eq (eVar vv_)  e])
+notExprReft e = Reft (vv_, [RConc $ PAtom Ne (eVar vv_)  e])
+propReft p    = Reft (vv_, [RConc $ PIff     (eProp vv_) p]) 
 
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft) 
