@@ -41,9 +41,20 @@ module Language.Fixpoint.Types (
 
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..), Reftable(..) 
-  , trueSortedReft, trueRefa
-  , exprReft, notExprReft, symbolReft
-  , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft, isEVar
+ 
+  -- * Constructing Refinements
+  , trueSortedReft          -- trivial reft
+  , trueRefa                -- trivial reft
+  , exprReft                -- singleton: v == e
+  , notExprReft             -- singleton: v /= e
+  , symbolReft              -- singleton: v == x
+  , propReft                -- singleton: Prop(v) <=> p
+
+  , isFunctionSortedReft
+  , isNonTrivialSortedReft
+  , isTautoReft
+  , isSingletonReft
+  , isEVar
   , flattenRefas, shiftVV
 
   -- * Substitutions 
@@ -465,6 +476,7 @@ pAnd          = simplify . PAnd
 pOr           = simplify . POr 
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3] 
 
+eProp         ::  Symbolic a => a -> Pred
 eProp         = mkProp . eVar
 mkProp        = PBexp . EApp (S propConName) . (: [])
 
@@ -517,7 +529,9 @@ sortedReftValueVariable (RR _ (Reft (v,_))) = v
 ----------------- Environments  -------------------------------
 ---------------------------------------------------------------
 
+fromListSEnv            ::  [(Symbol, a)] -> SEnv a
 fromListSEnv            = SE . M.fromList
+
 deleteSEnv x (SE env)   = SE (M.delete x env)
 insertSEnv x y (SE env) = SE (M.insert x y env)
 lookupSEnv x (SE env)   = M.lookup x env
@@ -822,12 +836,13 @@ catSubst (Su s1) (Su s2) = Su $ s1' ++ s2
 ------------- Generally Useful Refinements -----------------
 ------------------------------------------------------------
 
-symbolReft    = exprReft . EVar 
+symbolReft    = exprReft . eVar 
 
 vv_           = vv Nothing
 exprReft e    = Reft (vv_, [RConc $ PAtom Eq (eVar vv_)  e])
 notExprReft e = Reft (vv_, [RConc $ PAtom Ne (eVar vv_)  e])
 propReft p    = Reft (vv_, [RConc $ PIff     (eProp vv_) p]) 
+
 
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft) 
