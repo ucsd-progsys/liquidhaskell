@@ -220,14 +220,14 @@ instance F.Fixpoint Cinfo where
 splitW ::  WfC -> CG [FixWfC]
 
 splitW (WfC γ t@(RFun x t1 t2 _)) 
-  =  do ws   <- bsplitW γ t
+  =  do let ws = bsplitW γ t
         ws'  <- splitW (WfC γ t1) 
         γ'   <- (γ, "splitW") += (x, t1)
         ws'' <- splitW (WfC γ' t2)
         return $ ws ++ ws' ++ ws''
 
 splitW (WfC γ t@(RAppTy t1 t2 _)) 
-  =  do ws   <- bsplitW γ t
+  =  do let ws = bsplitW γ t
         ws'  <- splitW (WfC γ t1) 
         ws'' <- splitW (WfC γ t2)
         return $ ws ++ ws' ++ ws''
@@ -239,33 +239,29 @@ splitW (WfC γ (RAllP _ r))
   = splitW (WfC γ r)
 
 splitW (WfC γ t@(RVar _ _))
-  = bsplitW γ t 
+  = return $ bsplitW γ t 
 
 splitW (WfC _ (RCls _ _))
   = return []
 
 splitW (WfC γ t@(RApp _ ts rs _))
-  =  do ws   <- bsplitW γ t 
+  =  do let ws = bsplitW γ t 
         γ'    <- γ `extendEnvWithVV` t 
-        ws'  <- concat <$> mapM splitW (map (WfC γ') ts)
-        ws'' <- concat <$> mapM (rsplitW γ) rs
+        ws'   <- concat <$> mapM splitW (map (WfC γ') ts)
+        ws''  <- concat <$> mapM (rsplitW γ) rs
         return $ ws ++ ws' ++ ws''
 
 splitW (WfC _ t) 
   = errorstar $ "splitW cannot handle: " ++ F.showFix t
 
-rsplitW _ (RMono _)  = errorstar "Constrains: rsplitW for RMono"
-rsplitW γ (RPoly t0) = splitW $ WfC γ t0
+rsplitW _ (RMono _ _)  
+  = errorstar "Constrains: rsplitW for RMono"
+rsplitW γ (RPoly ss t0) 
+  = do γ' <- foldM (++=) γ [("rsplitC", x, ofRSort s) | (x, s) <- ss]
+       splitW $ WfC γ' t0
 
+bsplitW :: CGEnv -> SpecType -> [FixWfC]
 bsplitW γ t
-  = do map <- refsymbols <$> get 
-       γ'  <- foldM (++=) γ [("rsplitC", x, lookup map x) | x <- F.fSyms t]
-       return $ bsplitW' γ' $ fmap F.dropSyms t
-  where errormsg x   = errorstar $ "Constraint: bsplitW not found " ++ show x
-        lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
-
-bsplitW' :: CGEnv -> SpecType -> [FixWfC]
-bsplitW' γ t 
   | F.isNonTrivialSortedReft r'
   = [F.wfC (fenv γ) r' Nothing ci] 
   | otherwise
@@ -293,7 +289,7 @@ splitC (SubC γ t1 (RAllE x tx t2))
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
-  =  do cs       <- bsplitC γ t1 t2 
+  =  do let cs   =  bsplitC γ t1 t2 
         cs'      <- splitC  (SubC γ r2 r1) 
         γ'       <- (γ, "splitC") += (x2, r2) 
         let r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
@@ -301,10 +297,10 @@ splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _))
         return    $ cs ++ cs' ++ cs''
 
 splitC (SubC γ t1@(RAppTy r1 r1' _) t2@(RAppTy r2 r2' _)) 
-  =  do cs       <- bsplitC γ t1 t2 
-        cs'      <- splitC  (SubC γ r1 r2) 
-        cs''     <- splitC  (SubC γ r1' r2') 
-        return    $ cs ++ cs' ++ cs''
+  =  do let cs = bsplitC γ t1 t2 
+        cs'   <- splitC  (SubC γ r1 r2) 
+        cs''  <- splitC  (SubC γ r1' r2') 
+        return $ cs ++ cs' ++ cs''
 
 splitC (SubC γ t1 (RAllP p t))
   = splitC $ SubC γ t1 t'
@@ -326,24 +322,20 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
 
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
-       cs    <- bsplitC γ t1' t2'
+       let cs    = bsplitC γ t1' t2'
        γ'    <- γ `extendEnvWithVV` t1' 
-       symss <- refsymbols <$> get
        let RApp c  t1s r1s _ = t1'
        let RApp c' t2s r2s _ = t2'
-       mapM addRefSymbolsRef (safeZip "addRef1" (rTyConPs c ) r1s)
-       mapM addRefSymbolsRef (safeZip "addRef2" (rTyConPs c') r2s)
        let tyInfo = rTyConInfo c
        cscov  <- splitCIndexed  γ' t1s t2s $ covariantTyArgs tyInfo
        cscon  <- splitCIndexed  γ' t2s t1s $ contravariantTyArgs tyInfo
        cscov' <- rsplitCIndexed γ' r1s r2s $ covariantPsArgs tyInfo
        cscon' <- rsplitCIndexed γ' r2s r1s $ contravariantPsArgs tyInfo
-       modify $ \s -> s{refsymbols = symss}
        return $ cs ++ cscov ++ cscon ++ cscov' ++ cscon'
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
-  = bsplitC γ t1 t2
+  = return $ bsplitC γ t1 t2
 
 splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
   = return []
@@ -363,16 +355,6 @@ rsplitCIndexed γ t1s t2s indexes
 
 
 bsplitC γ t1 t2
-  = do map <- refsymbols <$> get 
-       γ'  <-  foldM (++=) γ [("rsplitC1", x, lookup map x) | x <- F.fSyms t2]
-       let su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (F.fSyms t1) (F.fSyms t2)]
-       return $ bsplitC' γ' (F.subst su t1') t2'
-  where t1'          = fmap F.dropSyms t1
-        t2'          = fmap F.dropSyms t2
-        lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
-        errormsg x   = errorstar $ "Not found " ++ F.showFix x
-
-bsplitC' γ t1 t2 
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
   = [F.subC γ' F.PTrue (r1' {F.sr_reft = F.top}) r2' Nothing tag ci]
   | F.isNonTrivialSortedReft r2'
@@ -397,18 +379,13 @@ unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
  
 -- rTyConPVars c = [ x | pv <- rTyConPs c, (_,x,_) <- pargs pv ]
 
-rsplitC _ (RMono _, RMono _) 
+rsplitC _ (RMono _ _, RMono _ _) 
   = errorstar "RefTypes.rsplitC on RMono"
 
-rsplitC γ (RPoly r1, RPoly r2)
-  = do map <- refsymbols <$> get 
-       γ'  <-  foldM (++=) γ [("rsplitC1", x, lookup map x) | x <- F.fSyms r2]
-       splitC (SubC γ' (F.subst su r1') r2')
-  where su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (F.fSyms r1) (F.fSyms r2)]
-        r1'          = fmap F.dropSyms r1
-        r2'          = fmap F.dropSyms r2
-        lookup map x = fromMaybe (errormsg x) (F.lookupSEnv x map)
-        errormsg x   = errorstar $ "Not found " ++ F.showFix x
+rsplitC γ (t1@(RPoly s1 r1), t2@(RPoly s2 r2))
+  = do γ'  <-  foldM (++=) γ [("rsplitC1", x, ofRSort s) | (x, s) <- s2]
+       splitC (SubC γ' (F.subst su r1) r2)
+  where su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (fst <$> s1) (fst <$> s2)]
 
 rsplitC _ _  
   = errorstar "rsplit Rpoly - RMono"
@@ -430,7 +407,6 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
                      , lits       :: ![(F.Symbol, F.Sort)]
-                     , refsymbols :: !(F.SEnv SpecType)
                      } -- deriving (Data, Typeable)
 
 instance F.Fixpoint CGInfo where 
@@ -466,7 +442,6 @@ initCGI info = CGInfo {
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
-  , refsymbols = F.emptySEnv
   } where tce   = tcEmbeds $ spec info
           spc   = spec info
           spec' = spc{tySigs = mapSnd (addTyConInfo tyi) <$> (tySigs spc)} 
@@ -538,19 +513,10 @@ normalizeVV _ t
 
 shiftVV t@(RApp _ ts _ r) vv' 
   = t { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
-      { rt_reft = (fFReft  (`F.shiftVV` vv')) <$> r }
+      { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t _ 
   = t -- errorstar $ "shiftVV: cannot handle " ++ F.showFix t
-
-addRefSymbols ss
-  = modify $ \s -> s{refsymbols = foldl' (\e (x, t) -> F.insertSEnv x t e) (refsymbols s) ss}
-
-addRefSymbolsRef (π, RPoly t1)
-  = addRefSymbols newSyms
-  where newSyms = zip (F.fSyms t1) ((ofRSort . fst3) <$> pargs π)
-addRefSymbolsRef (_, RMono _)
-  = errorstar "Constraint.addRefSymbolsRef RMono"
 
 addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
 addBind x r 
@@ -582,7 +548,7 @@ addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
 addKuts :: SpecType -> CG ()
 addKuts !t = modify $ \s -> s { kuts = {- tracePpr "KUTS: " $-} updKuts (kuts s) t }
   where updKuts :: F.Kuts -> SpecType -> F.Kuts
-        updKuts = foldReft (F.ksUnion . (F.reftKVars . fromFReft  . ur_reft) )
+        updKuts = foldReft (F.ksUnion . (F.reftKVars . ur_reft) )
 
 
 -- | Used for annotation binders (i.e. at binder sites)
@@ -678,13 +644,6 @@ instance Freshable (F.Reft) where
   refresh (F.Reft (_,_)) = liftM2 (curry F.Reft) freshVV fresh
     where freshVV        = liftM (F.vv . Just) fresh
 
-instance Freshable FReft where
-  fresh                   = errorstar "fresh FReft" 
-  true    (FReft r)       = liftM FReft (true r)
-  true    (FSReft s r)    = liftM (FSReft s) (true r)
-  refresh (FReft r)       = liftM FReft (refresh r)
-  refresh (FSReft s r)    = liftM (FSReft s) (refresh r)
-
 instance Freshable RReft where
   fresh             = errorstar "fresh RReft"
   true (U r _)      = liftM uTop (true r)  
@@ -703,7 +662,7 @@ trueRefType (RFun _ t t' _)
   = liftM3 rFun fresh (true t) (true t')
 trueRefType (RApp c ts _ _)  
   = liftM (\ts -> RApp c ts truerefs F.top) (mapM true ts)
-		where truerefs = (RPoly . ofRSort . ptype) <$> (rTyConPs c)
+		where truerefs = (RPoly []  . ofRSort . ptype) <$> (rTyConPs c)
 trueRefType (RAppTy t t' _)    
   = liftM2 rAppTy (true t) (true t')
 trueRefType t                
@@ -730,15 +689,10 @@ refreshRefType (RAppTy t t' _)
 refreshRefType t                
   = return t
 
-refreshRef (RPoly t, π) = RPoly <$> (refreshRefType t >>= addFreshArgs π)
-refreshRef (RMono _, _) = errorstar "refreshRef: unexpected"
+refreshRef (RPoly s t, π) = liftM2 RPoly (mapM freshSym (pargs π)) (refreshRefType t)
+refreshRef (RMono _ _, _) = errorstar "refreshRef: unexpected"
 
-addFreshArgs π t
-  = do args <- mapM (\_ -> fresh) πargs
-       addRefSymbols $ zip args ((ofRSort . fst3)  <$> πargs)
-       return $ fmap (F.addSyms args) t
-  where πargs = pargs π
-
+freshSym s                = liftM (, fst3 s) fresh
 
 -- isBaseTyCon c
 --   | c == intTyCon 
@@ -854,7 +808,7 @@ cconsE γ e t
 
 instantiatePreds γ e (RAllP p t)
   = do s <- freshPredRef γ e p
-       return $ replacePreds "consE" t [(p, RPoly s)] 
+       return $ replacePreds "consE" t [(p, s)] 
 instantiatePreds _ _ t
   = return t
 
@@ -880,12 +834,12 @@ consE γ e'@(App e a) | eqType (exprType a) predType
   = do t0 <- consE γ e
        case t0 of
          RAllP p t -> do s <- freshPredRef γ e' p
-                         return $ replacePreds "consE" t [(p, RPoly s)] {- =>> addKuts -}
+                         return $ replacePreds "consE" t [(p, s)] {- =>> addKuts -}
          _         -> return t0
 
 consE γ e'@(App e a)               
   = do ([], πs, te)        <- bkUniv <$> consE γ e
-       zs                  <- mapM (\π -> liftM ((π,) . RPoly) $ freshPredRef γ e' π) πs
+       zs                  <- mapM (\π -> liftM ((π,)) $ freshPredRef γ e' π) πs
        te'                 <- return (replacePreds "consE" te zs) {- =>> addKuts -}
        _                   <- updateLocA πs (exprLoc e) te' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller", e') te' 
@@ -956,14 +910,14 @@ cconsCase γ x t acs (a, _, ce)
 
 altReft γ _ (LitAlt l)   = literalFReft (emb γ) l
 altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
-  where notLiteralReft   = toFReft . F.notExprReft . snd . literalConst (emb γ)
+  where notLiteralReft   = F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = error "Constraint : altReft"
 
 unfoldR td (RApp _ ts rs _) ys = (t3, yts, rt)
   where (vs, ps, t0)    = bkUniv td
         t1              = foldl' (flip subsTyVar_meet') t0 (zip vs ts)
         t2              = replacePreds "unfoldR" t1 $ safeZip "unfoldR" (reverse ps) rs
-        (ys0, yts', rt) =  bkArrow t2
+        (ys0, yts', rt) = bkArrow t2
         (t3:yts)        = F.subst su <$> (t2:yts')
         su              = F.mkSubst [(x, F.EVar y)| (x, y)<- zip ys0 ys]
 unfoldR _  _                _  = error "Constraint.hs : unfoldR"
@@ -1006,16 +960,14 @@ truePredRef :: (F.Reftable r) => PVar (RRType r) -> CG SpecType
 truePredRef (PV _ τ _)
   = trueTy (toType τ)
 
-freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecType
+freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG (Ref RSort RReft SpecType)
 freshPredRef γ e (PV n τ as)
   = do t    <- freshTy e (toType τ)
        args <- mapM (\_ -> fresh) as
-       let targs = zip args ((ofRSort . fst3) <$> as)
-       addRefSymbols targs
-       let t' = fmap (F.addSyms args) t
-       γ' <- foldM (++=) γ [("freshPredRef", x, τ) | (x, τ) <- targs]
-       addW $ WfC γ' t'
-       return t'
+       let targs = zip args (fst3 <$> as)
+       γ' <- foldM (++=) γ [("freshPredRef", x, ofRSort τ) | (x, τ) <- targs]
+       addW $ WfC γ' t
+       return $ RPoly targs t
 
 -----------------------------------------------------------------------
 ---------- Helpers: Creating Refinement Types For Various Things ------
@@ -1029,7 +981,7 @@ argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
 
 varRefType γ x =  t 
   where t  = (γ ?= (varSymbol x)) `strengthen` xr
-        xr = uTop $ toFReft $ F.symbolReft $ varSymbol x
+        xr = uTop $ F.symbolReft $ varSymbol x
 
 -- TODO: should only expose/use subt. Not subsTyVar_meet
 subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
@@ -1058,10 +1010,6 @@ instance NFData RTyCon where
 instance NFData Type where 
   rnf _ = ()
 
-instance NFData FReft where 
-  rnf (FReft x)      = rnf x
-  rnf (FSReft x1 x2) = rnf x1 `seq` rnf x2
-
 instance NFData WfC where
   rnf (WfC x1 x2)   
     = rnf x1 `seq` rnf x2
@@ -1085,8 +1033,8 @@ instance NFData CGInfo where
 
 forallExprRefType     :: CGEnv -> SpecType -> SpecType
 forallExprRefType γ t  = t `strengthen` (uTop r') 
-  where r'             = toFReft $ maybe F.top (forallExprReft γ) ((F.isSingletonReft) (fromFReft r))
-        r              = toFReft $ F.sr_reft $ rTypeSortedReft (emb γ) t
+  where r'             = maybe F.top (forallExprReft γ) ((F.isSingletonReft) r)
+        r              = F.sr_reft $ rTypeSortedReft (emb γ) t
 
 
 forallExprReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
