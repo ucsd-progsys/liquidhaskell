@@ -12,6 +12,10 @@ module Language.Fixpoint.Types (
   , toFixpoint
   , FInfo (..)
 
+  -- * Rendering
+  , showFix
+  , traceFix
+
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
   , intFTyCon, boolFTyCon, propFTyCon, stringFTycon
@@ -79,6 +83,7 @@ module Language.Fixpoint.Types (
   ) where
 
 import GHC.Generics         (Generic)
+import Debug.Trace          (trace)
 
 import Data.Monoid hiding   ((<>))
 import Data.Functor
@@ -105,8 +110,13 @@ class Fixpoint a where
   simplify :: a -> a 
   simplify =  id
 
-  showFix :: a -> String
-  showFix =  render . toFix
+
+showFix :: (Fixpoint a) => a -> String
+showFix =  render . toFix
+
+traceFix     ::  (Fixpoint a) => String -> a -> a
+traceFix s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showFix x) $ x
+
 
 type TCEmb a    = M.HashMap a FTycon  
 
