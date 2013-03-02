@@ -1,6 +1,6 @@
 Liquid Fixpoint
 ===============
-
+edit
 This package is a Haskell wrapper to the SMT (Z3) Based Horn-Clause/
 Logical Implication constraint solver used for Liquid Types. The solver
 itself is written in Ocaml. The Haskell Library contains
