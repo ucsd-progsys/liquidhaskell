@@ -3,9 +3,9 @@ module Ex where
 -- Testing "existential-types"
 
 {-@ foldN :: forall a <p :: x0000:Int -> x1111:a -> Prop>. 
-                (i:Int -> a<p i> -> exists [j : {v: Int | v = i + 1}]. a<p j>) 
+                (i:Int -> a<p i> -> a<p (i+1)>) 
               -> n:{v: Int | v >= 0}
-              -> (exists [z : {v: Int | v = 0}]. a <p z>) 
+              -> a <p 0>
               -> a <p n>
   @-}
 
