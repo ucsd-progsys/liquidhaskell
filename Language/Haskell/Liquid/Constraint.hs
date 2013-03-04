@@ -1074,18 +1074,18 @@ grapBindsWithType tx γ
   = fst <$> toListREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
 
 splitExistsCases z xs tx
-  = fmap $ fmap $ mapFReft (exrefAddEq z xs tx )
+  = fmap $ fmap (exrefAddEq z xs tx)
 
 exrefAddEq z xs t (F.Reft(s, rs))
   = F.Reft(s, [F.RConc (F.POr [ pand x | x <- xs])])
-  where tref                = fromMaybe top $ stripRTypeBase t
+  where tref                = fromMaybe F.top $ stripRTypeBase t
         pand x              = F.PAnd $ (substzx x) (fFromRConc <$> rs)
                                        ++ exrefToPred x tref
         substzx x           = F.subst (F.mkSubst [(z, F.EVar x)])
 
 exrefToPred x uref
   = F.subst (F.mkSubst [(v, F.EVar x)]) ((fFromRConc <$> r))
-  where (F.Reft(v, r))         = fromFReft $ ur_reft uref
+  where (F.Reft(v, r))         = ur_reft uref
 fFromRConc (F.RConc p) = p
 fFromRConc _           = errorstar "can not hanlde existential type with kvars"
 
