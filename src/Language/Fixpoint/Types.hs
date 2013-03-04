@@ -1108,15 +1108,6 @@ class (Monoid r, Subable r, Fixpoint r) => Reftable r where
   toReft  :: r -> Reft
   params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
 
-  fSyms   :: r -> [Symbol]          -- ^ Niki: what is this fSyms/add/drop for?
-  fSyms _  = []
-
-  addSyms :: [Symbol] -> r -> r     -- ^ ???? 
-  addSyms _ = id
-
-  dropSyms :: r -> r                -- ^ ????
-  dropSyms = id
-
 instance Monoid Reft where
   mempty  = trueReft
   mappend = meetReft
