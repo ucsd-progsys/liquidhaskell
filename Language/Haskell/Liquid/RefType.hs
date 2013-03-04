@@ -19,7 +19,7 @@ module Language.Haskell.Liquid.RefType (
   , pdAnd, pdVar, pdTrue, pvars, findPVar
 
   -- * Traversing `RType` 
-  , efoldReft, foldReft, mapReft, mapReftM, mapBot, mapBind, mapFReft
+  , efoldReft, foldReft, mapReft, mapReftM, mapBot, mapBind
   , freeTyVars, tyClasses
 
   , ofType, ofPredTree, toType
@@ -911,11 +911,6 @@ instance Functor (RType a b c) where
 
 mapReft ::  (r1 -> r2) -> RType p c tv r1 -> RType p c tv r2
 mapReft f = emapReft (\_ -> f) []
-
-mapFReft :: (Reft -> Reft) -> FReft -> FReft
-mapFReft f (FSReft s r) = FSReft s (f r)
-mapFReft f (FReft r)    = FReft    (f r)
-
 
 emapReft ::  ([Symbol] -> r1 -> r2) -> [Symbol] -> RType p c tv r1 -> RType p c tv r2
 
