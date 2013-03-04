@@ -201,6 +201,12 @@ data RType p c tv r
     , rt_ty     :: !(RType p c tv r) 
     }
 
+  | REx { 
+      rt_bind   :: !Symbol
+    , rt_exarg  :: !(RType p c tv r) 
+    , rt_ty     :: !(RType p c tv r) 
+    }
+
   | RExprArg Expr                               -- ^ For expression arguments to type aliases
                                                 --   see tests/pos/vector2.hs
   | RAppTy{
@@ -562,6 +568,8 @@ nlzP ps (RAllP p t)
   where (t', ps') = nlzP [] t
 nlzP ps t@(ROth _)
  = (t, ps)
+nlzP ps t@(REx _ _ _) 
+ = (t, ps) 
 nlzP ps t@(RAllE _ _ _) 
  = (t, ps) 
 nlzP _ t
@@ -686,6 +694,7 @@ freeTyVars (RApp _ ts _ _) = L.nub $ concatMap freeTyVars ts
 freeTyVars (RCls _ ts)     = L.nub $ concatMap freeTyVars ts 
 freeTyVars (RVar α _)      = [α] 
 freeTyVars (RAllE _ _ t)   = freeTyVars t
+freeTyVars (REx _ _ t)     = freeTyVars t
 freeTyVars (RExprArg _)    = []
 freeTyVars (RAppTy t t' _) = freeTyVars t `L.union` freeTyVars t'
 freeTyVars t               = errorstar ("RefType.freeTyVars cannot handle" ++ show t)
@@ -697,6 +706,7 @@ freeTyVars t               = errorstar ("RefType.freeTyVars cannot handle" ++ sh
 tyClasses (RAllP _ t)     = tyClasses t
 tyClasses (RAllT α t)     = tyClasses t
 tyClasses (RAllE _ _ t)   = tyClasses t
+tyClasses (REx _ _ t)     = tyClasses t
 tyClasses (RFun _ t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RAppTy t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RApp _ ts _ _) = concatMap tyClasses ts 
@@ -728,6 +738,7 @@ instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) wher
   rnf (RApp _ ts rs r) = rnf ts `seq` rnf rs `seq` rnf r
   rnf (RCls c ts)      = c `seq` rnf ts
   rnf (RAllE x t t')   = rnf x `seq` rnf t `seq` rnf t'
+  rnf (REx x t t')     = rnf x `seq` rnf t `seq` rnf t'
   rnf (ROth s)         = rnf s
   rnf (RExprArg e)     = rnf e
   rnf (RAppTy t t' r)  = rnf t `seq` rnf t' `seq` rnf r
@@ -812,8 +823,10 @@ ppr_rtype bb p (RApp c ts rs r)
 
 ppr_rtype _ _ (RCls c ts)      
   = ppCls c ts
-ppr_rtype bb p t@(RAllE _ _ _)
+ppr_rtype bb p t@(REx _ _ _)
   = ppExists bb p t
+ppr_rtype bb p t@(RAllE _ _ _)
+  = ppAllExpr bb p t
 ppr_rtype _ _ (RExprArg e)
   = braces $ toFix e
 ppr_rtype bb p (RAppTy t t' r)
@@ -838,6 +851,13 @@ maybeParen ctxt_prec inner_prec pretty
 ppExists :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
 ppExists bb p t
   = text "exists" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
+    where (zs,  t')               = split [] t
+          split zs (REx x t t')   = split ((x,t):zs) t'
+          split zs t	            = (reverse zs, t)
+
+ppAllExpr :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
+ppAllExpr bb p t
+  = text "forall" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
     where (zs,  t')               = split [] t
           split zs (RAllE x t t') = split ((x,t):zs) t'
           split zs t	            = (reverse zs, t)
@@ -892,7 +912,6 @@ instance Functor (RType a b c) where
 mapReft ::  (r1 -> r2) -> RType p c tv r1 -> RType p c tv r2
 mapReft f = emapReft (\_ -> f) []
 
-
 emapReft ::  ([Symbol] -> r1 -> r2) -> [Symbol] -> RType p c tv r1 -> RType p c tv r2
 
 emapReft f γ (RVar α r)          = RVar  α (f γ r)
@@ -901,7 +920,8 @@ emapReft f γ (RAllP π t)         = RAllP π (emapReft f γ t)
 emapReft f γ (RFun x t t' r)     = RFun  x (emapReft f γ t) (emapReft f (x:γ) t') (f γ r)
 emapReft f γ (RApp c ts rs r)    = RApp  c (emapReft f γ <$> ts) (emapRef f γ <$> rs) (f γ r)
 emapReft f γ (RCls c ts)         = RCls  c (emapReft f γ <$> ts) 
-emapReft f γ (RAllE z t t')      = RAllE   z (emapReft f γ t) (emapReft f γ t')
+emapReft f γ (RAllE z t t')      = RAllE z (emapReft f γ t) (emapReft f γ t')
+emapReft f γ (REx z t t')        = REx   z (emapReft f γ t) (emapReft f γ t')
 emapReft _ _ (RExprArg e)        = RExprArg e
 emapReft f γ (RAppTy t t' r)     = RAppTy (emapReft f γ t) (emapReft f γ t') (f γ r)
 emapReft _ _ (ROth s)            = ROth  s 
@@ -921,6 +941,7 @@ mapReftM f (RFun x t t' r)    = liftM3  (RFun x)    (mapReftM f t)          (map
 mapReftM f (RApp c ts rs r)   = liftM3  (RApp  c)   (mapM (mapReftM f) ts)  (mapM (mapRefM f) rs) (f r)
 mapReftM f (RCls c ts)        = liftM   (RCls  c)   (mapM (mapReftM f) ts) 
 mapReftM f (RAllE z t t')     = liftM2  (RAllE z)   (mapReftM f t)          (mapReftM f t')
+mapReftM f (REx z t t')       = liftM2  (REx z)     (mapReftM f t)          (mapReftM f t')
 mapReftM _ (RExprArg e)       = return  $ RExprArg e 
 mapReftM f (RAppTy t t' r)    = liftM3 (RAppTy) (mapReftM f t) (mapReftM f t') (f r)
 mapReftM _ (ROth s)           = return  $ ROth  s 
@@ -940,6 +961,7 @@ efoldReft g f γ z me@(RFun x t t' r)  = f γ (Just me) r (efoldReft g f (insert
 efoldReft g f γ z me@(RApp _ ts rs r) = f γ (Just me) r (efoldRefs g f γ (efoldRefts g f (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
 efoldReft g f γ z (RCls _ ts)         = efoldRefts g f γ z ts
 efoldReft g f γ z (RAllE x t t')      = efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t' 
+efoldReft g f γ z (REx x t t')        = efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t' 
 efoldReft _ _ _ z (ROth _)            = z 
 efoldReft g f γ z me@(RAppTy t t' r)  = f γ (Just me) r (efoldReft g f γ (efoldReft g f γ z t) t')
 efoldReft _ _ _ z (RExprArg _)        = z
@@ -998,6 +1020,8 @@ subsFree meet s (α', _, t') t@(RVar α r)
   = t
 subsFree m s z (RAllE x t t')
   = RAllE x (subsFree m s z t) (subsFree m s z t')
+subsFree m s z (REx x t t')
+  = REx x (subsFree m s z t) (subsFree m s z t')
 subsFree m s z@(_, _, _) (RAppTy t t' r)
   = subsFreeRAppTy m s (subsFree m s z t) (subsFree m s z t') r
 subsFree _ _ _ t@(RExprArg _)        
@@ -1207,6 +1231,7 @@ ofRSort = fmap (\_ -> top)
 stripQuantifiers (RAllT α t)      = RAllT α (stripQuantifiers t)
 stripQuantifiers (RAllP _ t)      = stripQuantifiers t
 stripQuantifiers (RAllE _ _ t)    = stripQuantifiers t
+stripQuantifiers (REx _ _ t)      = stripQuantifiers t
 stripQuantifiers (RFun x t t' r)  = RFun x (stripQuantifiers t) (stripQuantifiers t') r
 stripQuantifiers (RAppTy t t' r)  = RAppTy (stripQuantifiers t) (stripQuantifiers t') r
 stripQuantifiers (RApp c ts rs r) = RApp c (stripQuantifiers <$> ts) (stripQuantifiersRef <$> rs) r
@@ -1231,6 +1256,8 @@ toType (RCls c ts)
   = predTreePredType $ ClassPred c (toType <$> ts)
 toType (RAllE _ _ t)
   = toType t
+toType (REx _ _ t)
+  = toType t
 toType (RAppTy t t' _)   
   = AppTy (toType t) (toType t')
 toType t@(RExprArg _)
@@ -1244,6 +1271,7 @@ mapBind f (RFun b t1 t2 r) = RFun (f b)  (mapBind f t1) (mapBind f t2) r
 mapBind f (RApp c ts rs r) = RApp c (mapBind f <$> ts) (mapBindRef f <$> rs) r
 mapBind f (RCls c ts)      = RCls c (mapBind f <$> ts)
 mapBind f (RAllE b t1 t2)  = RAllE  (f b) (mapBind f t1) (mapBind f t2)
+mapBind f (REx b t1 t2)    = REx    (f b) (mapBind f t1) (mapBind f t2)
 mapBind _ (RVar α r)       = RVar α r
 mapBind _ (ROth s)         = ROth s
 mapBind f (RAppTy t1 t2 r) = RAppTy (mapBind f t1) (mapBind f t2) r
