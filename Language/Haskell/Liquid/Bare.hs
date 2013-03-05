@@ -37,7 +37,7 @@ import Data.Bifunctor
 
 import Language.Fixpoint.Names                  (propConName, dropModuleNames)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
-import Language.Fixpoint.Types                  hiding (name, params)
+import Language.Fixpoint.Types                  
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
 import qualified Language.Haskell.Liquid.Measure as Ms
@@ -89,7 +89,7 @@ makeGhcSpec' vars env spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec 
 
-       let sigs         = mapSnd txExpToBind <$> sigs' 
+       let sigs         = mapSnd (txRefSort benv . txExpToBind) <$> sigs' 
        let cs'          = meetDataConSpec cs datacons
        let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms 
        let tx           = subsFreeSymbols syms
@@ -103,6 +103,22 @@ makeGhcSpec' vars env spec
                              , freeSyms   = syms' 
                              , tcEmbeds   = embs 
                              }
+
+
+txRefSort benv = mapBot (addSymSort (tcEnv benv))
+
+addSymSort tcenv (RApp rc@(RTyCon c _ _) ts rs r) 
+  = RApp rc ts (addSymSortRef <$> zip ps rs) r
+  where ps = rTyConPs $ appRTyCon tcenv rc ts
+addSymSort _ t 
+  = t
+            
+addSymSortRef (p, RPoly s r) 
+  = RPoly (safeZip "addRefSortPoly" (fst <$> s) (fst3 <$> pargs p)) r
+addSymSortRef (p, RMono s r@(U _ (Pr [up]))) 
+  = RMono (safeZip "addRefSortMono" (snd3 <$> pargs up) (fst3 <$> pargs p)) r
+addSymSortRef (p, RMono s t)
+  = RMono s t
 
 varMeasures vars   = [ (varSymbol v, ofType $ varType v) | v <- vars, isDataConWorkId v, isSimpleType $ varType v]
 
@@ -138,7 +154,7 @@ meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts
 
 
 -- dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
-dataConSpec dcs = M.fromList [(v, dataConPSpecType t) | (dc, t) <- dcs, v <- dataConImplicitIds dc]
+dataConSpec dcs = M.fromList $ concatMap mkDataConIdsTy [(dc, dataConPSpecType t) | (dc, t) <- dcs]
 
 meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
   case (bkUniv t1, bkUniv t2) of
@@ -350,9 +366,9 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [0] [])]
           xs     = stringSymbol "xs"
           p      = PV (stringSymbol "p") t [(t, fld, EVar fld)]
           px     = (pdVarReft $ PV (stringSymbol "p") t [(t, fld, EVar x)]) 
-          lt     = rApp c [xt] [RMono $ pdVarReft p] top                 
+          lt     = rApp c [xt] [RMono [] $ pdVarReft p] top                 
           xt     = rVar tyv
-          xst    = rApp c [RVar (RTV tyv) px] [RMono $ pdVarReft p] top  
+          xst    = rApp c [RVar (RTV tyv) px] [RMono [] $ pdVarReft p] top  
           cargs  = [(xs, xst), (x, xt)]
  
 
@@ -370,7 +386,7 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [0..(n-2)] [])]
         ps            = mkps pnames (ta:ts) ((fld, EVar fld):(zip flds (EVar <$>flds)))
         ups           = uPVar <$> ps
         pxs           = mkps pnames (ta:ts) ((fld, EVar x1):(zip flds (EVar <$> xs)))
-        lt            = rApp c (rVar <$> tyvs) (RMono . pdVarReft <$> ups) top
+        lt            = rApp c (rVar <$> tyvs) (RMono [] . pdVarReft <$> ups) top
         xts           = zipWith (\v p -> RVar (RTV v) (pdVarReft p)) tvs pxs
         cargs         = reverse $ (x1, rVar tv) : (zip xs xts)
         pnames        = mks_ "p"
@@ -420,6 +436,8 @@ ofBareType (RAppTy t1 t2 _)
   = liftM2 rAppTy (ofBareType t1) (ofBareType t2)
 ofBareType (RAllE x t1 t2)
   = liftM2 (RAllE x) (ofBareType t1) (ofBareType t2)
+ofBareType (REx x t1 t2)
+  = liftM2 (REx x) (ofBareType t1) (ofBareType t2)
 ofBareType (RAllT a t) 
   = liftM  (RAllT (stringRTyVar a)) (ofBareType t)
 ofBareType (RAllP π t) 
@@ -438,13 +456,18 @@ ofBareType (RApp tc ts rs r)
        liftM3 (bareTCApp tyi r) (lookupGhcTyCon tc) (mapM ofRef rs) (mapM ofBareType ts)
 ofBareType (RCls c ts)
   = liftM2 RCls (lookupGhcClass c) (mapM ofBareType ts)
+ofBareType (ROth s)
+  = return $ ROth s
 ofBareType t
   = errorstar $ "Bare : ofBareType cannot handle " ++ show t
 
-ofRef (RPoly t)   
-  = liftM RPoly (ofBareType t)
-ofRef (RMono r) 
-  = return (RMono r)
+ofRef (RPoly ss t)   
+  = liftM2 RPoly (mapM ofSyms ss) (ofBareType t)
+ofRef (RMono ss r) 
+  = liftM (`RMono` r) (mapM ofSyms ss)
+
+ofSyms (x, t)
+  = liftM ((,) x) (ofBareType t)
 
 -- TODO: move back to RefType
 bareTCApp _ r c rs ts 
@@ -517,8 +540,8 @@ getPsSig m pos (RFun _ t1 t2 r)
   = addps m pos r ++ getPsSig m pos t2 ++ getPsSig m (not pos) t1
 
 
-getPsSigPs m pos (RMono r) = addps m pos r
-getPsSigPs m pos (RPoly t) = getPsSig m pos t
+getPsSigPs m pos (RMono _ r) = addps m pos r
+getPsSigPs m pos (RPoly _ t) = getPsSig m pos t
 
 addps m pos (U _ ps) = (flip (,)) pos . f  <$> pvars ps
   where f = fromMaybe (error "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
@@ -542,7 +565,7 @@ mapM_pvar f (PV x t txys)
 ofBDataCon tc αs ps πs (c, xts)
  = do c'    <- lookupGhcDataCon c
       ts'   <- mapM (mkSpecType' msg ps) ts
-      let t0 = rApp tc rs (RMono . pdVarReft <$> πs) top 
+      let t0 = rApp tc rs (RMono [] . pdVarReft <$> πs) top 
       return $ (c', DataConP αs πs (reverse (zip xs' ts')) t0) 
  where (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
@@ -640,11 +663,8 @@ ghcSpecEnv sp        = fromListSEnv binds
  
 
 checkRType           :: (Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe Doc 
-checkRType emb env t   = efoldReft (rTypeSortedReft emb) f env Nothing (mapBot expandParams t) 
+checkRType emb env t   = efoldReft (rTypeSortedReft emb) f env Nothing t 
   where f env me r err = err <|> checkReft env emb me r
-
-expandParams (RApp c ts rs r) = RApp c (fmap (addSyms (params r)) <$> ts) rs r
-expandParams t                = t
 
 checkReft            :: (Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe Doc 
 checkReft env emb Nothing _  = Nothing -- RMono / Ref case, not sure how to check these yet.  
@@ -694,9 +714,9 @@ expToBindT (RAppTy t1 t2 r)
 expToBindT t 
   = return t
 
-expToBindReft :: Ref RReft (SpecType) -> State ExSt (Ref RReft SpecType)
-expToBindReft (RPoly t) = liftM RPoly (expToBindT t)
-expToBindReft (RMono r) = liftM RMono (expToBindRef r)
+expToBindReft :: Ref RSort RReft (SpecType) -> State ExSt (Ref RSort RReft SpecType)
+expToBindReft (RPoly s t) = liftM (RPoly s) (expToBindT t)
+expToBindReft (RMono s r) = liftM (RMono s) (expToBindRef r)
 
 getBinds :: State ExSt (M.HashMap Symbol (RSort, Expr))
 getBinds 
@@ -708,7 +728,7 @@ addExists t = liftM (M.foldlWithKey' addExist t) getBinds
 
 addExist t x (tx, e) = RAllE x t' t
   where t' = (ofRSort tx) `strengthen` uTop r
-        r  = reft (vv Nothing, [RConc (PAtom Eq (EVar (vv Nothing)) e)])
+        r  = Reft (vv Nothing, [RConc (PAtom Eq (EVar (vv Nothing)) e)])
 
 expToBindRef :: UReft r -> State ExSt (UReft r)
 expToBindRef (U r (Pr p))

@@ -27,7 +27,7 @@ import Control.Applicative      ((<$>))
 import Control.Exception        (assert)
 
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Types          hiding (name, body)
+import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 
 data Spec ty bndr  = Spec { 
@@ -163,11 +163,11 @@ mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
 mapTy f (M n ty eqs) = M n (f ty) eqs
 
 dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(Symbol, RefType)])
-dataConTypes  s = (expandSnd ctorTys, measTys)
+dataConTypes  s = (ctorTys, measTys)
   where measTys = [(name m, sort m) | m <- M.elems $ measMap s]
-        ctorTys = [(defsVar ds, defsTy ds) | (_, ds) <- M.toList $ ctorMap s]
+        ctorTys = concatMap mkDataConIdsTy [(defsVar ds, defsTy ds) | (_, ds) <- M.toList $ ctorMap s]
         defsTy  = foldl1' meet . fmap defRefType 
-        defsVar = dataConImplicitIds . ctor . safeHead "defsVar" 
+        defsVar = ctor . safeHead "defsVar" 
 
 defRefType :: Def DataCon -> RefType
 defRefType (Def f dc xs body) = mkArrow as [] xts t'
@@ -178,8 +178,8 @@ defRefType (Def f dc xs body) = mkArrow as [] xts t'
 
 refineWithCtorBody dc f body t = 
   case stripRTypeBase t of 
-    Just (FReft (Reft (v, _))) ->
-      strengthen t $ reft (v, [RConc $ bodyPred (EApp f [EVar v]) body])
+    Just (Reft (v, _)) ->
+      strengthen t $ Reft (v, [RConc $ bodyPred (EApp f [EVar v]) body])
     Nothing -> 
       errorstar $ "measure mismatch " ++ showFix f ++ " on con " ++ O.showPpr dc
 
@@ -241,12 +241,10 @@ expandRTAlias env   = expReft . expType
         expType = expandAlias  (\_ _ -> id) [] (typeAliases env)
         expPred = expandPAlias (\_ _ -> id) [] (predAliases env)
 
-txPredReft f = fmap  (txPredReft' f)
+txPredReft f = fmap  (txPredReft f)
   where txPredReft f (Reft (v, ras)) = Reft (v, txPredRefa f <$> ras)
         txPredRefa f (RConc p)       = RConc (f p)
         txPredRefa _ z               = z
-        txPredReft' f (FReft r)      = FReft $ txPredReft f r
-        txPredReft' f (FSReft s r)   = FSReft s $ txPredReft f r
        
 
 expandRTAliasDataDecl env dc = dc {tycDCons = dcons' }  
