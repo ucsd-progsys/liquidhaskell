@@ -390,12 +390,13 @@ compareText ta@(Text _arrA _offA lenA) tb@(Text _arrB _offB lenB)
 
 -- | /O(n)/ Convert a 'String' into a 'Text'.  Subject to
 -- fusion.  Performs replacement on invalid scalar values.
-{-@ pack :: String -> Text @-}
+{-@ pack :: s:String -> {v:Text | (len s) = (tlen v)} @-}
 pack :: String -> Text
-pack = unstream . S.streamList -- . L.map safe
+pack = unstream . S.streamList . L.map safe
 {-# INLINE [1] pack #-}
 
 -- | /O(n)/ Convert a Text into a String.  Subject to fusion.
+{-@ unpack :: t:Text -> {v:String | (tlen t) = (len v)} @-}
 unpack :: Text -> String
 unpack = S.unstreamList . stream
 {-# INLINE [1] unpack #-}
@@ -415,7 +416,7 @@ unpackCString# addr# = unstream (S.streamCString# addr#)
 
 -- | /O(1)/ Convert a character into a Text.  Subject to fusion.
 -- Performs replacement on invalid scalar values.
-{-@ singleton :: Char -> Text @-}
+{-@ singleton :: Char -> {v:Text | (tlen v) = 1} @-}
 singleton :: Char -> Text
 singleton = unstream . S.singleton . safe
 {-# INLINE [1] singleton #-}
@@ -427,6 +428,7 @@ singleton = unstream . S.singleton . safe
 -- is more costly than its 'List' counterpart because it requires
 -- copying a new array.  Subject to fusion.  Performs replacement on
 -- invalid scalar values.
+{-@ cons :: Char -> t:Text -> {v:Text | (tlen v) > (tlen t)} @-}
 cons :: Char -> Text -> Text
 cons c t = unstream (S.cons (safe c) (stream t))
 {-# INLINE cons #-}
@@ -436,6 +438,7 @@ infixr 5 `cons`
 -- | /O(n)/ Adds a character to the end of a 'Text'.  This copies the
 -- entire array in the process, unless fused.  Subject to fusion.
 -- Performs replacement on invalid scalar values.
+{-@ snoc :: t:Text -> Char -> {v:Text | (tlen v) > (tlen t)} @-}
 snoc :: Text -> Char -> Text
 snoc t c = unstream (S.snoc (stream t) (safe c))
 {-# INLINE snoc #-}
@@ -490,7 +493,7 @@ second f (a, b) = (a, f b)
 {-@ last :: {v:Text | (tlen v) > 0} -> Char @-}
 last :: Text -> Char
 last (Text arr off len)
---LIQUID    | len <= 0                 = emptyError "last"
+    | len <= 0                 = emptyError "last"
     | n < 0xDC00 || n > 0xDFFF = liquidAssert (len > 0) $ unsafeChr n
     | otherwise                = liquidAssert (len > 0) $ U16.chr2 n0 n
     where n  = A.unsafeIndex arr (off+len-1)
@@ -506,7 +509,9 @@ last (Text arr off len)
 
 -- | /O(1)/ Returns all characters after the head of a 'Text', which
 -- must be non-empty.  Subject to fusion.
-{-@ tail :: t:{v:Text | (tlen v) > 0} -> {v:Text | ((tlen t) > (tlen v))} @-}
+{-@ tail :: t:{v:Text | (tlen v) > 0}
+         -> {v:Text | ((tlen t) > (tlen v))}
+  @-}
 tail :: Text -> Text
 tail t@(Text arr off len)
 --LIQUID    | len <= 0  = emptyError "tail"
@@ -523,7 +528,9 @@ tail t@(Text arr off len)
 
 -- | /O(1)/ Returns all but the last character of a 'Text', which must
 -- be non-empty.  Subject to fusion.
-{-@ init :: t:{v:Text | (tlen v) > 0} -> {v:Text | ((tlen t) > (tlen v))} @-}
+{-@ init :: t:{v:Text | (tlen v) > 0}
+         -> {v:Text | ((tlen t) > (tlen v))}
+  @-}
 init :: Text -> Text
 init (Text arr off len)
 --LIQUID     | len <= 0                   = emptyError "init"
@@ -560,6 +567,7 @@ null (Text _arr _off len) =
 
 -- | /O(1)/ Tests whether a 'Text' contains exactly one character.
 -- Subject to fusion.
+{-@ isSingleton :: t:Text -> {v:Bool | ((Prop v) <=> ((tlen t) = 1))} @-}
 isSingleton :: Text -> Bool
 isSingleton = S.isSingleton . stream
 {-# INLINE isSingleton #-}
@@ -621,6 +629,7 @@ compareLength t n = S.compareLengthI (stream t) n
 -- | /O(n)/ 'map' @f@ @t@ is the 'Text' obtained by applying @f@ to
 -- each element of @t@.  Subject to fusion.  Performs replacement on
 -- invalid scalar values.
+{-@ map :: (Char -> Char) -> t:Text -> {v:Text | (tlen t) = (tlen v)} @-}
 map :: (Char -> Char) -> Text -> Text
 map f t = unstream (S.map (safe . f) (stream t))
 {-# INLINE [1] map #-}
@@ -628,6 +637,7 @@ map f t = unstream (S.map (safe . f) (stream t))
 -- | /O(n)/ The 'intercalate' function takes a 'Text' and a list of
 -- 'Text's and concatenates the list after interspersing the first
 -- argument between each element of the list.
+{-@ intercalate :: Text -> [Text] -> Text @-}
 intercalate :: Text -> [Text] -> Text
 intercalate t = concat . (U.intersperse t)
 {-# INLINE intercalate #-}
@@ -635,11 +645,13 @@ intercalate t = concat . (U.intersperse t)
 -- | /O(n)/ The 'intersperse' function takes a character and places it
 -- between the characters of a 'Text'.  Subject to fusion.  Performs
 -- replacement on invalid scalar values.
+{-@ intersperse :: Char -> t:Text -> {v:Text | (tlen v) > (tlen t)} @-}
 intersperse     :: Char -> Text -> Text
 intersperse c t = unstream (S.intersperse (safe c) (stream t))
 {-# INLINE intersperse #-}
 
 -- | /O(n)/ Reverse the characters of a string. Subject to fusion.
+{-@ reverse :: t:Text -> {v:Text | (tlen v) = (tlen t)} @-}
 reverse :: Text -> Text
 reverse t = S.reverse (stream t)
 {-# INLINE reverse #-}
@@ -720,6 +732,7 @@ toUpper t = unstream (S.toUpper (stream t))
 --
 -- > justifyLeft 7 'x' "foo"    == "fooxxxx"
 -- > justifyLeft 3 'x' "foobar" == "foobar"
+{-@ justifyLeft :: i:Int -> Char -> Text -> {v:Text | (tlen v) >= i} @-}
 justifyLeft :: Int -> Char -> Text -> Text
 justifyLeft k c t
     | len >= k  = t
@@ -742,6 +755,7 @@ justifyLeft k c t
 --
 -- > justifyRight 7 'x' "bar"    == "xxxxbar"
 -- > justifyRight 3 'x' "foobar" == "foobar"
+{-@ justifyRight :: i:Int -> Char -> Text -> {v:Text | (tlen v) = i} @-}
 justifyRight :: Int -> Char -> Text -> Text
 justifyRight k c t
     | len >= k  = t
@@ -756,6 +770,7 @@ justifyRight k c t
 -- Examples:
 --
 -- > center 8 'x' "HS" = "xxxHSxxx"
+{-@ center :: i:Int -> Char -> Text -> {v:Text | (tlen v) = i} @-}
 center :: Int -> Char -> Text -> Text
 center k c t
     | len >= k  = t
@@ -932,6 +947,7 @@ mapAccumR f z0 = second reverse . S.mapAccumL g z0 . reverseStream
 
 -- | /O(n*m)/ 'replicate' @n@ @t@ is a 'Text' consisting of the input
 -- @t@ repeated @n@ times.
+{-@ replicate :: i:Int -> t:Text -> {v:Text | (tlen v) = (i * (tlen t))} @-}
 replicate :: Int -> Text -> Text
 replicate n t@(Text a o l)
     | n <= 0 || l <= 0      = empty
@@ -956,6 +972,7 @@ replicate n t@(Text a o l)
 
 -- | /O(n)/ 'replicateChar' @n@ @c@ is a 'Text' of length @n@ with @c@ the
 -- value of every element. Subject to fusion.
+{-@ replicateChar :: i:Int -> Char -> {v:Text | (tlen v) = i} @-}
 replicateChar :: Int -> Char -> Text
 replicateChar n c = unstream (S.replicateCharI n (safe c))
 {-# INLINE replicateChar #-}
@@ -1013,6 +1030,10 @@ take n t@(Text arr off len)
 -- | /O(n)/ 'drop' @n@, applied to a 'Text', returns the suffix of the
 -- 'Text' after the first @n@ characters, or the empty 'Text' if @n@
 -- is greater than the length of the 'Text'. Subject to fusion.
+{-@ drop :: n:Int
+         -> t:Text
+         -> {v:Text | (tlen v) = ((tlen t) - n)}
+  @-}
 drop :: Int -> Text -> Text
 drop n t@(Text arr off len)
     | n <= 0    = t
@@ -1171,6 +1192,7 @@ group = groupBy (==)
 
 -- | /O(n)/ Return all initial segments of the given 'Text', shortest
 -- first.
+{-@ inits :: t:Text -> [{v:Text | (tlen v) < (tlen t)}] @-}
 inits :: Text -> [Text]
 inits t@(Text arr off len) = loop 0
     where loop i | i >= len = [t]
@@ -1178,6 +1200,7 @@ inits t@(Text arr off len) = loop 0
 
 -- | /O(n)/ Return all final segments of the given 'Text', longest
 -- first.
+{-@ tails :: t:Text -> [{v:Text | (tlen v) < (tlen t)}] @-}
 tails :: Text -> [Text]
 tails t | null t    = [empty]
         | otherwise = t : tails (unsafeTail t)
@@ -1241,6 +1264,7 @@ tails t | null t    = [empty]
 --
 -- > chunksOf 3 "foobarbaz"   == ["foo","bar","baz"]
 -- > chunksOf 4 "haskell.org" == ["hask","ell.","org"]
+{-@ chunksOf :: i:Int -> t:Text -> [{v:Text | (tlen v) <= i}] @-}
 chunksOf :: Int -> Text -> [Text]
 chunksOf k = go
   where
@@ -1369,6 +1393,7 @@ breakOnAll pat src@(Text arr off slen)
 -- before and after that index, you would instead use @breakOnAll \"::\"@.
 
 -- | /O(n)/ 'Text' index (subscript) operator, starting from 0.
+{-@ index :: t:Text -> {v:Int | v < (tlen t)} -> Char @-}
 index :: Text -> Int -> Char
 index t n = S.index (stream t) n
 {-# INLINE index #-}
@@ -1386,6 +1411,7 @@ findIndex p t = S.findIndex p (stream t)
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
+{-@ count :: {v:Text | (tlen v) > 0} -> Text -> Int @-}
 count :: Text -> Text -> Int
 count pat src
 --LIQUID    | null pat        = emptyError "count"
@@ -1425,6 +1451,7 @@ zipWith f t1 t2 = unstream (S.zipWith g (stream t1) (stream t2))
 
 -- | /O(n)/ Breaks a 'Text' up into a list of words, delimited by 'Char's
 -- representing white space.
+{-@ words :: t:Text -> [{v:Text | (tlen v) < (tlen t)}] @-}
 words :: Text -> [Text]
 words t@(Text arr off len) = loop 0 0
   where
@@ -1604,8 +1631,8 @@ sumP fun = go 0
           where ax = a + x
         go a  _         = a
 
---LIQUID emptyError :: String -> a
---LIQUID emptyError fun = P.error $ "Data.Text." ++ fun ++ ": empty input"
+emptyError :: String -> a
+emptyError fun = liquidError $ "Data.Text." ++ fun ++ ": empty input"
 
 overflowError :: String -> a
 overflowError fun = P.error $ "Data.Text." ++ fun ++ ": size overflow"
