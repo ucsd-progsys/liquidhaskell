@@ -58,12 +58,13 @@ refTypeQuals' tce t0 = go emptySEnv t0
         go γ (RAllP _ t)          = go γ t 
         go γ (RFun x t t' _)      = (go γ t) ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
         go γ t@(RApp c ts rs _)   = (refTopQuals tce t0 γ t) ++ concatMap (go (insertSEnv (rTypeValueVar t) (rTypeSort tce t) γ)) ts ++ goRefs c (insertSEnv (rTypeValueVar t) (rTypeSort tce t) γ) rs 
-        go γ (RAllE x t t')      = (go γ t) ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
+        go γ (RAllE x t t')       = (go γ t) ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
+        go γ (REx x t t')         = (go γ t) ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
         go _ _                    = []
         goRefs c γ rs             = concat $ zipWith (goRef γ) rs (rTyConPs c)
-        goRef γ (RPoly t)  p      = go (insertsSEnv γ (zip (fst3 <$> pargs p) (fSyms t))) t
-        goRef _ (RMono _)  _      = []
-        insertsSEnv               = foldr (\(x, t) γ -> insertSEnv t (rTypeSort tce x) γ)
+        goRef γ (RPoly s t)  p    = go (insertsSEnv γ s) t
+        goRef _ (RMono _ _)  _    = []
+        insertsSEnv               = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 
 refTopQuals tce t0 γ t 
   = [ mkQual t0 γ v so pa | let (RR so (Reft (v, ras))) = rTypeSortedReft tce t 

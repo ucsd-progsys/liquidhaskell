@@ -1,10 +1,10 @@
 module Toy  where
 
 {-@ foldN :: forall a <p :: x0:Int -> x1:a -> Prop>. 
-                (i:Int -> a<p i> -> exists [j : {v: Int | v = i + 1}]. a<p j>) 
+                (i:Int -> a<p i> -> a<p (i+1)>) 
               -> n:{v: Int | v >= 0}
-              -> (exists [z : {v: Int | v = 0}]. a <p z>) 
-              -> (exists [w : {v: Int | v = 42}] . {v : a | 0=1})
+              -> a <p 0>
+              -> {v : a | 0=1}
   @-}
 
 foldN :: (Int -> a -> a) -> Int -> a -> a
