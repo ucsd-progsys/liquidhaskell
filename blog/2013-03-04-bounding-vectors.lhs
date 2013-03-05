@@ -51,9 +51,9 @@ module spec Data.Vector where
 
 import GHC.Base
 
-measure vlen    ::   (Vector a) -> Int 
-assume length   :: x:(Vector a) -> {v : Int | v = (vlen x)}
-assume !        :: x:(Vector a) -> {v : Int | ((0 <= v) && (v < (vlen x))) } -> a 
+measure vlen  ::   (Vector a) -> Int 
+assume length :: x:(Vector a) -> {v:Int | v = (vlen x)}
+assume !      :: x:(Vector a) -> {v:Int | ((0 <= v) && (v < (vlen x)))} -> a 
 \end{code}
 
 In particular, we 
