@@ -53,7 +53,7 @@ import GHC.Base
 
 measure vlen  ::   (Vector a) -> Int 
 assume length :: x:(Vector a) -> {v:Int | v = (vlen x)}
-assume !      :: x:(Vector a) -> {v:Int | ((0 <= v) && (v < (vlen x)))} -> a 
+assume !      :: x:(Vector a) -> {v:Int | 0 <= v && v < (vlen x)} -> a 
 \end{code}
 
 In particular, we 
@@ -124,6 +124,7 @@ Instead, we might write a *safe* lookup function that performs the *bounds check
 before looking up the vector:
 
 \begin{code}
+{-@ safeLookup :: Vector a -> Int -> Maybe a @-}
 safeLookup x i 
   | 0 <= i && i < length x = Just (x ! i)
   | otherwise              = Nothing 
@@ -196,11 +197,11 @@ Refinement Type Inference
 
 LiquidHaskell happily verifies `absoluteSum` -- or, to be precise, 
 the safety of the vector accesses `vec ! i`. The verification works 
-out because LiquidHaskell is able **automatically** infer a suitable 
+out because LiquidHaskell is able to automatically infer a suitable 
 type for `go`. Shuffle your mouse over the identifier above to see 
-the inferred type. Observe that the type states that
-The first parameter `acc` (and the output) is `0 <= V`. 
-That is, the returned value is non-negative.
+the inferred type. Observe that the type states that the first 
+parameter `acc` (and the output) is `0 <= V`. That is, the returned
+value is non-negative.
 
 More importantly, the type states that the second parameter `i` is 
 `0 <= V` and `V <= n` and `V <= (vlen vec)`. That is, the parameter `i` 
@@ -402,7 +403,7 @@ reuse existing polymorphic functions over containers and such without ceremony.
 Conclusion
 ----------
 
-Thats all for now folks! Hopefully the above gives you a reasonable idea of
+That's all for now folks! Hopefully the above gives you a reasonable idea of
 how one can use refinements to verify size related properties, and more
 generally, to specify and verify properties of recursive, and polymorphic
 functions operating over datatypes. Next time, we'll look at how we can
