@@ -392,7 +392,12 @@ compareText ta@(Text _arrA _offA lenA) tb@(Text _arrB _offB lenB)
 -- fusion.  Performs replacement on invalid scalar values.
 {-@ pack :: s:String -> {v:Text | (len s) = (tlen v)} @-}
 pack :: String -> Text
-pack = unstream . S.streamList . L.map safe
+--LIQUID pack = unstream . S.streamList . L.map safe
+--LIQUID for some reason (.) is losing some of the refinements
+pack str = let l = L.map safe str
+               s = S.streamList l
+               t = unstream s
+           in t
 {-# INLINE [1] pack #-}
 
 -- | /O(n)/ Convert a Text into a String.  Subject to fusion.
