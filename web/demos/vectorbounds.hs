@@ -2,6 +2,7 @@ module VectorBounds (
     safeLookup
   , unsafeLookup, unsafeLookup'
   , absoluteSum, absoluteSum'
+  , absoluteSumNT, goNT
   , dotProduct
   , sparseProduct, sparseProduct'
   ) where
@@ -56,6 +57,24 @@ absoluteSum vec   = if 0 < n then go 0 0 else 0
       | i /= n    = go (acc + abz (vec ! i)) (i + 1)
       | otherwise = acc
     n             = length vec
+
+{-@ absoluteSumNT :: Vector Int -> {v: Int | 0 <= v}  @-}
+absoluteSumNT     :: Vector Int -> Int
+absoluteSumNT vec = goNT vec 0 0 
+
+{-@ goNT          :: vec: (Vector Int) 
+                  -> {v:Int | 0 <= v} 
+                  -> {v:Int | ((0 <= v) && (v <= (vlen vec))) } 
+                  -> {v:Int | 0 <= v} @-}
+                 
+goNT              :: Vector Int -> Int -> Int -> Int                 
+goNT vec acc i
+  | i /= n        = goNT vec (acc + abz (vec ! i)) (i + 1)
+  | otherwise     = acc
+  where n         = length vec
+
+
+
 
 -- | The function `abz` is the absolute value function from [before][ref101].
 
