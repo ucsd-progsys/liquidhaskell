@@ -185,11 +185,13 @@ one at a time, and see what happens.
 
 **What happens if:** 
 
-- You *remove* the check `0 < n` 
+1. You *remove* the check `0 < n` (see `absoluteSumNT` in the demo code)
 
-- You *replace* the guard with `i <= n`
+2. You *replace* the guard with `i <= n`
 
-In each case, LiquidHaskell will grumble that your program is *unsafe*. 
+In the *former* case, LiquidHaskell will *verify* safety, but
+in the *latter* case, it will grumble that your program is *unsafe*. 
+
 Do you understand why?
 
 Refinement Type Inference
