@@ -192,7 +192,9 @@ one at a time, and see what happens.
 In the *former* case, LiquidHaskell will *verify* safety, but
 in the *latter* case, it will grumble that your program is *unsafe*. 
 
-Do you understand why?
+Do you understand why? 
+(Thanks to [smog_alado][smog_alado] for pointing this out :))
+
 
 Refinement Type Inference
 -------------------------
@@ -411,6 +413,8 @@ generally, to specify and verify properties of recursive, and polymorphic
 functions operating over datatypes. Next time, we'll look at how we can
 teach LiquidHaskell to think about properties of recursive structures
 like lists and trees.
+
+[smog_alado]: http://www.reddit.com/user/smog_alado
 
 [vecspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec
 [vec]:      http://hackage.haskell.org/package/vector
