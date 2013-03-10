@@ -21,7 +21,7 @@ module Language.Fixpoint.Types (
   , intFTyCon, boolFTyCon, propFTyCon, stringFTycon
 
   -- * Symbols
-  , Symbol(..), Symbolic (..)
+  , Symbol(..)
   , anfPrefix, tempPrefix, vv, intKvar
   , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
@@ -38,7 +38,12 @@ module Language.Fixpoint.Types (
   , eProp
   , pAnd, pOr, pIte, pApp
   , isTautoPred
- 
+
+  -- * Generalizing Embedding with Typeclasses 
+  , Symbolic (..)
+  , Expression (..)
+  , Predicate (..)
+
   -- * Constraints and Solutions
   , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, addIds, sinfo 
 
@@ -263,15 +268,6 @@ symChars
 
 data Symbol = S !String deriving (Eq, Ord) -- , Data, Typeable)
 
-class Symbolic a where
-  symbol :: a -> Symbol
-
-instance Symbolic String where 
-  symbol = stringSymbol
-
-instance Symbolic Symbol where 
-  symbol = id 
-
 instance Fixpoint Symbol where
   toFix (S x) = text x
 
@@ -392,6 +388,7 @@ data Expr = ECon !Constant
           | EBot
           deriving (Eq, Ord, Show) -- Data, Typeable, Show)
 
+
 instance Fixpoint Integer where
   toFix = integer 
 
@@ -487,13 +484,11 @@ isSingletonReft (Reft (v, [RConc (PAtom Eq e1 e2)]))
   | e2 == EVar v = Just e1
 isSingletonReft _    = Nothing 
 
-eVar          = EVar . symbol 
 pAnd          = simplify . PAnd 
 pOr           = simplify . POr 
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3] 
 
-eProp         ::  Symbolic a => a -> Pred
-eProp         = mkProp . eVar
+
 mkProp        = PBexp . EApp (S propConName) . (: [])
 
 
@@ -513,6 +508,53 @@ ppr_reft_pred (Reft (_, ras))
   = ppRas ras
 
 ppRas = cat . punctuate comma . map toFix . flattenRefas
+
+------------------------------------------------------------------------
+-- | Generalizing Symbol, Expression, Predicate into Classes -----------
+------------------------------------------------------------------------
+
+-- | Values that can be viewed as Symbols
+
+class Symbolic a where
+  symbol :: a -> Symbol
+
+-- | Values that can be viewed as Expressions
+
+class Expression a where
+  expr   :: a -> Expr
+
+-- | Values that can be viewed as Predicates
+
+class Predicate a where
+  pred   :: a -> Pred
+
+instance Symbolic String where 
+  symbol = stringSymbol
+
+instance Symbolic Symbol where 
+  symbol = id 
+
+instance Expression Expr where
+  expr = id
+
+instance Expression Symbol where
+  expr = eVar
+
+instance Expression Integer where
+  expr = ECon . I
+
+instance Expression Int where
+  expr = expr . toInteger
+
+instance Predicate Symbol where
+  pred = eProp
+
+eVar          ::  Symbolic a => a -> Expr 
+eVar          = EVar . symbol 
+
+eProp         ::  Symbolic a => a -> Pred
+eProp         = mkProp . eVar
+
 
 ---------------------------------------------------------------
 ----------------- Refinements ---------------------------------
