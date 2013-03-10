@@ -526,7 +526,7 @@ class Expression a where
 -- | Values that can be viewed as Predicates
 
 class Predicate a where
-  pred   :: a -> Pred
+  prop   :: a -> Pred
 
 instance Symbolic String where 
   symbol = stringSymbol
@@ -547,13 +547,21 @@ instance Expression Int where
   expr = expr . toInteger
 
 instance Predicate Symbol where
-  pred = eProp
+  prop = eProp
 
 eVar          ::  Symbolic a => a -> Expr 
 eVar          = EVar . symbol 
 
 eProp         ::  Symbolic a => a -> Pred
 eProp         = mkProp . eVar
+
+exprReft, notExprReft  ::  (Expression a) => a -> Reft
+exprReft e             = Reft (vv_, [RConc $ PAtom Eq (eVar vv_)  (expr e)])
+notExprReft e          = Reft (vv_, [RConc $ PAtom Ne (eVar vv_)  (expr e)])
+
+propReft               ::  (Predicate a) => a -> Reft
+propReft p             = Reft (vv_, [RConc $ PIff     (eProp vv_) (prop p)]) 
+
 
 
 ---------------------------------------------------------------
@@ -890,9 +898,7 @@ catSubst (Su s1) (Su s2) = Su $ s1' ++ s2
 symbolReft    = exprReft . eVar 
 
 vv_           = vv Nothing
-exprReft e    = Reft (vv_, [RConc $ PAtom Eq (eVar vv_)  e])
-notExprReft e = Reft (vv_, [RConc $ PAtom Ne (eVar vv_)  e])
-propReft p    = Reft (vv_, [RConc $ PIff     (eProp vv_) p]) 
+
 
 
 trueSortedReft :: Sort -> SortedReft
