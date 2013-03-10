@@ -23,9 +23,14 @@ module Language.Fixpoint.Types (
   -- * Symbols
   , Symbol(..), Symbolic (..)
   , anfPrefix, tempPrefix, vv, intKvar
-  , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tempSymbol
-  , qualifySymbol, stringSymbol, symbolString, stringSymbolRaw
+  , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
+  , stringSymbol, symbolString
+  
+  -- * Creating Symbols
+  , dummySymbol, intSymbol, tempSymbol
+  , qualifySymbol, stringSymbolRaw
+  , suffixSymbol
 
   -- * Expressions and Predicates
   , Constant (..), Bop (..), Brel (..), Expr (..), Pred (..)
@@ -314,9 +319,10 @@ okSymChars
 symSep = '#'
 fixSymPrefix = "fix" ++ [symSep]
 
+suffixSymbol s suf = stringSymbol (symbolString s ++ suf)
 
-isFixSym' (c:chs) = isAlpha c && all (`elem` (symSep:okSymChars)) chs
-isFixSym' _       = False
+isFixSym' (c:chs)  = isAlpha c && all (`elem` (symSep:okSymChars)) chs
+isFixSym' _        = False
 
 encodeChar c 
   | c `elem` okSymChars 
@@ -816,13 +822,6 @@ instance Subable Reft where
   substf f (Reft (v, ras))  = Reft (v, substf (substfExcept f [v]) ras)
   subst1 (Reft (v, ras)) su = Reft (v, subst1Except [v] ras su)
 
--- subst1Reft r@(Reft (v, ras)) (x, e) 
---     | x == v               = r 
---     | otherwise            = Reft (v, subst1 ras (x, e))
-
-
-
-
 
 instance Subable SortedReft where
   syms               = syms . sr_reft 
@@ -860,10 +859,6 @@ trueSortedReft = (`RR` trueReft)
 trueReft = Reft (vv_, [])
 
 trueRefa = RConc PTrue
-
--- canonReft r@(Reft (v, ras)) 
---   | v == vv_  = r 
---   | otherwise = Reft (vv_, ras `subst1` (v, EVar vv_))
 
 flattenRefas ::  [Refa] -> [Refa]
 flattenRefas = concatMap flatRa
@@ -951,38 +946,6 @@ instance (NFData a) => NFData (WfC a) where
   rnf (WfC x1 x2 x3 x4) 
     = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4
 
--- class MapSymbol a where
---   mapSymbol :: (Symbol -> Symbol) -> a -> a
--- 
--- instance MapSymbol Refa where
---   mapSymbol f (RConc p)    = RConc (mapSymbol f p)
---   mapSymbol f (RKvar s su) = RKvar (f s) su
---   -- mapSymbol _ (RPvar p)    = RPvar p -- RPvar (mapSymbol f p)
--- 
--- instance MapSymbol Reft where
---   mapSymbol f (Reft(s, rs)) = Reft(f s, map (mapSymbol f) rs)
--- 
--- instance MapSymbol Pred where
---   mapSymbol f (PAnd ps)       = PAnd (mapSymbol f <$> ps)
---   mapSymbol f (POr ps)        = POr (mapSymbol f <$> ps)
---   mapSymbol f (PNot p)        = PNot (mapSymbol f p)
---   mapSymbol f (PImp p1 p2)    = PImp (mapSymbol f p1) (mapSymbol f p2)
---   mapSymbol f (PIff p1 p2)    = PIff (mapSymbol f p1) (mapSymbol f p2)
---   mapSymbol f (PBexp e)       = PBexp (mapSymbol f e)
---   mapSymbol f (PAtom b e1 e2) = PAtom b (mapSymbol f e1) (mapSymbol f e2)
---   mapSymbol _ (PAll _ _)      = error "mapSymbol PAll"
---   mapSymbol _ p               = p 
--- 
--- instance MapSymbol Expr where
---   mapSymbol f (EVar s)       = EVar $ f s
---   -- mapSymbol f (EDat s so)    = EDat (f s) so
---   mapSymbol f (ELit s so)    = ELit (f s) so
---   mapSymbol f (EApp s es)    = EApp (f s) (mapSymbol f <$> es)
---   mapSymbol f (EBin b e1 e2) = EBin b (mapSymbol f e1) (mapSymbol f e2)
---   mapSymbol f (EIte p e1 e2) = EIte (mapSymbol f p) (mapSymbol f e1) (mapSymbol f e2)
---   mapSymbol f (ECst e s)     = ECst (mapSymbol f e) s 
---   mapSymbol _ e              = e
-
 ----------------------------------------------------------------------------
 -------------- Hashable Instances -----------------------------------------
 ---------------------------------------------------------------------------
@@ -992,18 +955,6 @@ instance Hashable Symbol where
 
 instance Hashable FTycon where
   hashWithSalt i (TC s) = hashWithSalt i s
-
--- instance Hashable Sort where
---   hashWithSalt i = hashSort i
--- 
--- hashSort FInt         = 0
--- hashSort FNum         = 2
--- hashSort (FObj s)     = 10 `combineTwo` hash s
--- hashSort (FVar i)     = 11 `combineTwo` hash i
--- hashSort (FFunc _ ts) = hash (hashSort <$> ts)
--- hashSort (FApp tc ts) = 12 `combineTwo` (hash tc) `combineTwo` hash (hashSort <$> ts) 
--- 
--- combineTwo h1 h2 = h1 `hashWithSalt` h2
 
 --------------------------------------------------------------------------------------
 -------- Constraint Constructor Wrappers ---------------------------------------------
