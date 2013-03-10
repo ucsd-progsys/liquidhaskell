@@ -549,6 +549,10 @@ instance Expression Int where
 instance Predicate Symbol where
   prop = eProp
 
+instance Predicate Pred where
+  prop = id 
+
+
 eVar          ::  Symbolic a => a -> Expr 
 eVar          = EVar . symbol 
 
