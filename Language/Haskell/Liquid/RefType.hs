@@ -35,7 +35,6 @@ module Language.Haskell.Liquid.RefType (
   , ofRSort, toRSort
   , varSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalFRefType, literalFReft, literalConst
-  , fromRMono, fromRPoly, idRMono
   , isTrivial
   , mkDataConIdsTy
   ) where
@@ -1354,14 +1353,6 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
                            (L.intercalate " " (show <$> as)) 
                            (L.intercalate " " (show <$> xs))
                            (show t) (show p) 
-
--- fromRMono :: String -> Ref a b -> a
-fromRMono _ (RMono _ r) = r
-fromRMono msg _         = errorstar $ "fromMono: " ++ msg -- ++ render z
-fromRPoly (RPoly _ r)   = r
-fromRPoly _             = errorstar "fromPoly"
-idRMono                 = RMono [] . fromRMono "idRMono"
-
 
 ----------------------------------------------------------------
 ------------ From Old Fixpoint ---------------------------------
