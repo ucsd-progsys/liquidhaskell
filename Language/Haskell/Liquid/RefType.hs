@@ -128,11 +128,10 @@ instance Show Predicate where
 instance Reftable Predicate where
   isTauto (Pr ps)      = null ps
  
-  ppTy r d             = d
-
   -- HACK: Hiding to not render types in WEB DEMO. NEED TO FIX.
-  -- ppTy r d | isTauto r = d 
-  --          | otherwise = d <> (angleBrackets $ toFix r)
+  ppTy r d | isTauto r        = d 
+           | not (ppPs ppEnv) = d
+           | otherwise        = d <> (angleBrackets $ toFix r)
   
   toReft               = errorstar "TODO: instance of toReft for Predicate"
   params               = errorstar "TODO: instance of params for Predicate"
@@ -447,11 +446,11 @@ instance Fixpoint Class where
 
 instance (Eq p, Fixpoint p, TyConable c, Reftable r) => RefTypable p c String r where
   ppCls = ppClass_String
-  ppRType = ppr_rtype False -- True 
+  ppRType = ppr_rtype $ ppPs ppEnv
 
 instance (Reftable r) => RefTypable Class RTyCon RTyVar r where
   ppCls = ppClass_ClassPred
-  ppRType = ppr_rtype False -- True
+  ppRType = ppr_rtype $ ppPs ppEnv
   
 class FreeVar a v where 
   freeVars :: a -> [v]
@@ -750,7 +749,9 @@ ppr_tyvar       = text . tvId
 ppr_tyvar_short = text . show
 
 instance Fixpoint RTyVar where
-  toFix (RTV α) = ppr_tyvar_short α -- ppr_tyvar α 
+  toFix (RTV α) 
+   | ppTyVar ppEnv = ppr_tyvar α
+   | otherwise     = ppr_tyvar_short α
 
 instance Show RTyVar where
   show = showFix
@@ -797,6 +798,16 @@ ppr_rtype :: (RefTypable p c tv (), RefTypable p c tv r)
           -> Prec 
           -> RType p c tv r 
           -> Doc
+
+data PPEnv 
+  = PP { ppPs    :: Bool
+       , ppTyVar :: Bool
+       }
+
+ppEnv           = ppEnvCurrent
+
+ppEnvCurrent    = PP False False
+ppEnvPrintPreds = PP True False
 
 ppr_rtype bb p t@(RAllT _ _)       
   = ppr_forall bb p t
@@ -862,9 +873,9 @@ ppAllExpr bb p t
           split zs t	            = (reverse zs, t)
 
 ppReftPs bb rs 
-  | all isTauto rs = empty
-  | not bb         = empty 
-  | otherwise      = angleBrackets $ hsep $ punctuate comma $ toFix <$> rs
+  | all isTauto rs   = empty
+  | not (ppPs ppEnv) = empty 
+  | otherwise        = angleBrackets $ hsep $ punctuate comma $ toFix <$> rs
 
 ppr_dbind :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> Symbol -> RType p c tv r -> Doc
 ppr_dbind bb p x t 
