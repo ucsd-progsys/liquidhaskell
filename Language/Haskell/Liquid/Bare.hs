@@ -116,6 +116,9 @@ addSymSort _ t
 addSymSortRef (p, RPoly s (RVar _ r)) 
   = RPoly (safeZip "addRefSortPoly" (fst <$> s) (fst3 <$> pargs p)) t
   where t = ofRSort (ptype p) `strengthen` r
+addSymSortRef (p, RPoly s t) 
+  = RPoly (safeZip "addRefSortPoly" (fst <$> s) (fst3 <$> pargs p)) t
+
 addSymSortRef (p, RMono s r@(U _ (Pr [up]))) 
   = RMono (safeZip "addRefSortMono" (snd3 <$> pargs up) (fst3 <$> pargs p)) r
 addSymSortRef (p, RMono s t)
