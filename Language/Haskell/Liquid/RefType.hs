@@ -757,9 +757,9 @@ instance Show RTyVar where
 
 instance (Reftable s, Fixpoint p, Fixpoint t) => Fixpoint (Ref t s p) where
   toFix (RMono [] s) = toFix s
-  toFix (RMono ss s) = text "\\" <+> toFix ss <+> text "-> " <+> toFix s
+  toFix (RMono ss s) = text "\\" <> hsep (toFix . fst <$> ss) <+> text "->" <+> toFix s
   toFix (RPoly [] p) = toFix p
-  toFix (RPoly ss s) = text "\\" <+> toFix ss <+> text "-> " <+> toFix s
+  toFix (RPoly ss s) = text "\\" <> hsep (toFix . fst <$> ss) <+> text "->" <+> toFix s
 
 instance (Reftable r) => Fixpoint (UReft r) where
   toFix (U r p)
@@ -774,8 +774,8 @@ instance (Fixpoint a, Fixpoint b, Fixpoint c) => Fixpoint (a, b, c) where
   toFix (a, b, c) = hsep ([toFix a ,toFix b, toFix c])
 
 instance  Fixpoint t => Fixpoint (PVar t) where
-  toFix (PV s _ xts) = toFix s <+> hsep (toFix <$> dargs xts)<+> toFix (length xts)
-    where dargs xts = [(x, y) | (_, x, y) <- xts]  -- map thd3 . takeWhile (\(_, x, y) -> EVar x /= y) 
+  toFix (PV s _ xts) = toFix s <+> hsep (toFix <$> dargs xts)
+    where dargs = map thd3 . takeWhile (\(_, x, y) -> EVar x /= y) 
 
 ppr_pvar_def pprv (PV s t xts) = toFix s <+> dcolon <+> intersperse (text "->") dargs 
   where dargs = [pprv t | (t,_,_) <- xts] ++ [pprv t, text boolConName]
