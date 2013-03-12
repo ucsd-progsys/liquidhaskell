@@ -216,6 +216,7 @@ predicatesP
 predicate1P 
    =  try (liftM2 RPoly symsP (refP bbaseP))
   <|> liftM (RMono [] . predUReft) monoPredicate1P
+  <|> (braces $ liftM2 bRPoly symsP refasP)
 
 monoPredicateP 
    = try (angles monoPredicate1P) 
@@ -235,6 +236,10 @@ predVarUseP
 ------------------------------------------------------------------------
 ----------------------- Wrapped Constructors ---------------------------
 ------------------------------------------------------------------------
+
+bRPoly []    _    = errorstar "Parse.bRPoly empty list"
+bRPoly syms expr = RPoly ss $ bRVar "bummy" top $ Reft(v, expr)
+  where (ss, (v, _)) = (init syms, last syms)
 
 bRVar α p r               = RVar α (U r p)
 bLst t rs r               = RApp listConName [t] rs (reftUReft r) 
