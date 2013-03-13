@@ -461,8 +461,8 @@ instance FreeVar RTyCon RTyVar where
 instance FreeVar String String where
   freeVars _ = []
 
-ppClass_String    c _  = parens (toFix c <+> text "...")
-ppClass_ClassPred c ts = parens $ sDocDoc $ pprClassPred c (toType <$> ts)
+ppClass_String    c _  = toFix c <+> text "..."
+ppClass_ClassPred c ts = sDocDoc $ pprClassPred c (toType <$> ts)
 
 -- Eq Instances ------------------------------------------------------
 
@@ -683,6 +683,9 @@ bkUniv t                = ([], [], t)
 bkArrow (RFun x t t' _) = let (xs, ts, t'') = bkArrow t'  in (x:xs, t:ts, t'')
 bkArrow t               = ([], [], t)
 
+bkClass (RFun _ (RCls c t) t' _) = let (cs, t'') = bkClass t' in ((c, t):cs, t'')
+bkClass t                        = ([], t)
+
 generalize t = mkUnivs (freeTyVars t) [] t 
          
 freeTyVars (RAllP _ t)     = freeTyVars t
@@ -892,13 +895,16 @@ ppr_fun_tail bb t
 
 ppr_forall :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
 ppr_forall bb p t
-  = maybeParen p FunPrec $ sep [ ppr_foralls bb αs πs , ppr_rtype bb TopPrec t' ]
+  = maybeParen p FunPrec $ sep [ ppr_foralls bb αs πs , ppr_cls cls, ppr_rtype bb TopPrec t' ]
   where
-    (αs, πs,  t')          = bkUniv t
+    (αs, πs,  ct')         = bkUniv t
+    (cls, t')              = bkClass ct'
   
     ppr_foralls False _ _  = empty
     ppr_foralls _    [] [] = empty
     ppr_foralls True αs πs = text "forall" <+> dαs αs <+> dπs bb πs <> dot
+    ppr_cls []             = empty
+    ppr_cls cs             = (parens $ hsep $ punctuate comma (uncurry ppCls <$> cs)) <+> text "=>"
 
     dαs αs                 = sep $ toFix <$> αs 
     
