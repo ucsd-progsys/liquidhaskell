@@ -759,11 +759,15 @@ instance Fixpoint RTyVar where
 instance Show RTyVar where
   show = showFix
 
-instance (Reftable s, Fixpoint p, Fixpoint t) => Fixpoint (Ref t s p) where
-  toFix (RMono [] s) = toFix s
-  toFix (RMono ss s) = text "\\" <> hsep (toFix . fst <$> ss) <+> text "->" <+> toFix s
-  toFix (RPoly [] p) = toFix p
-  toFix (RPoly ss s) = text "\\" <> hsep (toFix . fst <$> ss) <+> text "->" <+> toFix s
+instance (Reftable s, Reftable  p, Fixpoint t) => Fixpoint (Ref t s (RType a b c p)) where
+  toFix (RMono ss s) = ppRefArgs (fst <$> ss) <+> toFix s
+  toFix (RPoly ss s) = ppRefArgs (fst <$> ss) <+> toFix (fromMaybe top (stripRTypeBase s))
+
+ppRefArgs [] = empty
+ppRefArgs ss = text "\\" <> hsep (ppRefSym <$> ss ++ [vv_]) <+> text "->"
+
+ppRefSym (S "") = text "_"
+ppRefSym s      = toFix s
 
 instance (Reftable r) => Fixpoint (UReft r) where
   toFix (U r p)
@@ -807,7 +811,7 @@ data PPEnv
        , ppTyVar :: Bool
        }
 
-ppEnv           = ppEnvCurrent
+ppEnv           = ppEnvPrintPreds
 
 ppEnvCurrent    = PP False False
 ppEnvPrintPreds = PP True False
@@ -1293,8 +1297,8 @@ mapBind _ (ROth s)         = ROth s
 mapBind f (RAppTy t1 t2 r) = RAppTy (mapBind f t1) (mapBind f t2) r
 mapBind _ (RExprArg e)     = RExprArg e
 
-mapBindRef _ (RMono s r)   = RMono s r
-mapBindRef f (RPoly s t)   = RPoly s $ mapBind f t
+mapBindRef f (RMono s r)   = RMono (mapFst f <$> s) r
+mapBindRef f (RPoly s t)   = RPoly (mapFst f <$> s) $ mapBind f t
 
 
 ---------------------------------------------------------------
