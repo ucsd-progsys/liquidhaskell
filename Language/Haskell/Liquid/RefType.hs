@@ -783,7 +783,9 @@ instance (Fixpoint a, Fixpoint b, Fixpoint c) => Fixpoint (a, b, c) where
 
 instance  Fixpoint t => Fixpoint (PVar t) where
   toFix (PV s _ xts) = toFix s <+> hsep (toFix <$> dargs xts)
-    where dargs = map thd3 . takeWhile (\(_, x, y) -> EVar x /= y) 
+    where dargs = map thd3 . takeWhile (\(_, x, y) -> EVar x /= nexpr y)
+          nexpr (EVar (S ss)) = EVar $ stringSymbol ss
+          nexpr e             = e
 
 ppr_pvar_def pprv (PV s t xts) = toFix s <+> dcolon <+> intersperse (text "->") dargs 
   where dargs = [pprv t | (t,_,_) <- xts] ++ [pprv t, text boolConName]
