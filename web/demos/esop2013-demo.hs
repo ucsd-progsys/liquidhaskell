@@ -10,7 +10,7 @@ data L a <p :: a -> a -> Prop>
   | C (h :: a) (tl :: (L <p> a<p h>))
 @-}
 
-{-@ type SL a = L <{\x v -> v >= x}> a @-}
+{-@ type SL a = L <{\hd v -> v >= hd}> a @-}
 
 
 {-@ slist :: SL Int @-}
