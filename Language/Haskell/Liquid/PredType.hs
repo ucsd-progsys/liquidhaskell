@@ -156,6 +156,9 @@ unifyS (RAllE x tx t) (RAllE x' tx' t') | x == x'
 unifyS (REx x tx t) (REx x' tx' t') | x == x'
   = liftM2 (REx x) (unifyS tx tx') (unifyS t t')
 
+unifyS t (REx x' tx' t')
+  = liftM (REx x' (fmap (\p -> U top p) tx')) (unifyS t t')
+
 unifyS t1 t2                
   = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
 
@@ -225,7 +228,7 @@ substPred :: String -> (RPVar, Ref RSort RReft SpecType) -> SpecType -> SpecType
 
 substPred _   (π, RPoly ss (RVar a1 r1)) t@(RVar a2 r2)
   | isPredInReft && a1 == a2  = RVar a1 $ meetListWithPSubs πs ss r1 r2'
-  | isPredInReft              = errorstar ("substPred RVar Var Mismatch")
+  | isPredInReft              = errorstar ("substPred RVar Var Mismatch" ++ show (a1, a2))
   | otherwise                 = t
   where (r2', πs)             = splitRPvar π r2
         isPredInReft          = not $ null πs 
