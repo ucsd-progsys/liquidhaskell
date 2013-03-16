@@ -1,6 +1,6 @@
 module ListSort where
 
-{-@ type OList a = [a]<\ fld -> {v: a | (v >= fld)}> @-}
+{-@ type OList a = [a]<{\fld v -> v >= fld}> @-}
 
 {-@ insertSort    :: (Ord a) => xs:[a] -> {v : OList a | len(v) = len(xs)} @-}
 insertSort        :: (Ord a) => [a] -> [a]
