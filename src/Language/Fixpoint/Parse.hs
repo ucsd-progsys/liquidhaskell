@@ -291,6 +291,7 @@ solution1P
        ps <- brackets $ sepBy predSolP semi
        return (k, simplify $ PAnd ps)
 
+solutionP :: Parser (M.HashMap Symbol Pred)
 solutionP 
   = M.fromList <$> sepBy solution1P whiteSpace
 

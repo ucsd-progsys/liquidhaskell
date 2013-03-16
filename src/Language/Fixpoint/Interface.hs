@@ -4,7 +4,8 @@ module Language.Fixpoint.Interface (
     FInfo (..)
  
     -- * Function to invoke solver
-  , solve, solveFile
+  , solve
+  , solveFile
 
     -- * Function to determine outcome
   , resultExit
@@ -26,6 +27,7 @@ import Language.Fixpoint.Parse            (rr)
 import Language.Fixpoint.Files
 import Text.PrettyPrint.HughesPJ
 
+solve :: FilePath -> [FilePath] -> FInfo a -> IO (FixResult (SubC a), M.HashMap Symbol Pred)
 solve fn hqs fi
   =   {-# SCC "Solve" #-}  execFq fn hqs fi
   >>= {-# SCC "exitFq" #-} exitFq fn (cm fi) 

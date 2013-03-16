@@ -12,24 +12,38 @@ module Language.Fixpoint.Types (
   , toFixpoint
   , FInfo (..)
 
+  -- * Rendering
+  , showFix
+  , traceFix
+
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
   , intFTyCon, boolFTyCon, propFTyCon, stringFTycon
 
   -- * Symbols
-  , Symbol(..), Symbolic (..)
+  , Symbol(..)
   , anfPrefix, tempPrefix, vv, intKvar
-  , symChars, isNonSymbol, nonSymbol, dummySymbol, intSymbol, tempSymbol
-  , qualifySymbol, stringSymbol, symbolString, stringSymbolRaw
+  , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
-  , symProp
+  , stringSymbol, symbolString
+  
+  -- * Creating Symbols
+  , dummySymbol, intSymbol, tempSymbol
+  , qualifySymbol, stringSymbolRaw
+  , suffixSymbol
 
   -- * Expressions and Predicates
   , Constant (..), Bop (..), Brel (..), Expr (..), Pred (..)
   , eVar
+  , eProp
   , pAnd, pOr, pIte, pApp
   , isTautoPred
- 
+
+  -- * Generalizing Embedding with Typeclasses 
+  , Symbolic (..)
+  , Expression (..)
+  , Predicate (..)
+
   -- * Constraints and Solutions
   , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, addIds, sinfo 
 
@@ -41,9 +55,20 @@ module Language.Fixpoint.Types (
 
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..), Reftable(..) 
-  , trueSortedReft, trueRefa
-  , exprReft, notExprReft, symbolReft
-  , isFunctionSortedReft, isNonTrivialSortedReft, isTautoReft, isSingletonReft, isEVar
+ 
+  -- * Constructing Refinements
+  , trueSortedReft          -- trivial reft
+  , trueRefa                -- trivial reft
+  , exprReft                -- singleton: v == e
+  , notExprReft             -- singleton: v /= e
+  , symbolReft              -- singleton: v == x
+  , propReft                -- singleton: Prop(v) <=> p
+
+  , isFunctionSortedReft
+  , isNonTrivialSortedReft
+  , isTautoReft
+  , isSingletonReft
+  , isEVar
   , flattenRefas, shiftVV
 
   -- * Substitutions 
@@ -68,6 +93,7 @@ module Language.Fixpoint.Types (
   ) where
 
 import GHC.Generics         (Generic)
+import Debug.Trace          (trace)
 
 import Data.Monoid hiding   ((<>))
 import Data.Functor
@@ -78,6 +104,8 @@ import Data.Hashable
 import Data.Maybe           (fromMaybe)
 import Text.Printf          (printf)
 import Control.DeepSeq
+import Control.Arrow        ((***))
+
 import Language.Fixpoint.Misc
 import Text.PrettyPrint.HughesPJ
 
@@ -92,8 +120,13 @@ class Fixpoint a where
   simplify :: a -> a 
   simplify =  id
 
-  showFix :: a -> String
-  showFix =  render . toFix
+
+showFix :: (Fixpoint a) => a -> String
+showFix =  render . toFix
+
+traceFix     ::  (Fixpoint a) => String -> a -> a
+traceFix s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showFix x) $ x
+
 
 type TCEmb a    = M.HashMap a FTycon  
 
@@ -235,15 +268,6 @@ symChars
 
 data Symbol = S !String deriving (Eq, Ord) -- , Data, Typeable)
 
-class Symbolic a where
-  symbol :: a -> Symbol
-
-instance Symbolic String where 
-  symbol = stringSymbol
-
-instance Symbolic Symbol where 
-  symbol = id 
-
 instance Fixpoint Symbol where
   toFix (S x) = text x
 
@@ -291,9 +315,10 @@ okSymChars
 symSep = '#'
 fixSymPrefix = "fix" ++ [symSep]
 
+suffixSymbol s suf = stringSymbol (symbolString s ++ suf)
 
-isFixSym' (c:chs) = isAlpha c && all (`elem` (symSep:okSymChars)) chs
-isFixSym' _       = False
+isFixSym' (c:chs)  = isAlpha c && all (`elem` (symSep:okSymChars)) chs
+isFixSym' _        = False
 
 encodeChar c 
   | c `elem` okSymChars 
@@ -362,6 +387,7 @@ data Expr = ECon !Constant
           | ECst !Expr !Sort
           | EBot
           deriving (Eq, Ord, Show) -- Data, Typeable, Show)
+
 
 instance Fixpoint Integer where
   toFix = integer 
@@ -458,12 +484,11 @@ isSingletonReft (Reft (v, [RConc (PAtom Eq e1 e2)]))
   | e2 == EVar v = Just e1
 isSingletonReft _    = Nothing 
 
-eVar          = EVar . symbol 
 pAnd          = simplify . PAnd 
 pOr           = simplify . POr 
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3] 
 
-symProp       = mkProp . eVar
+
 mkProp        = PBexp . EApp (S propConName) . (: [])
 
 
@@ -483,6 +508,65 @@ ppr_reft_pred (Reft (_, ras))
   = ppRas ras
 
 ppRas = cat . punctuate comma . map toFix . flattenRefas
+
+------------------------------------------------------------------------
+-- | Generalizing Symbol, Expression, Predicate into Classes -----------
+------------------------------------------------------------------------
+
+-- | Values that can be viewed as Symbols
+
+class Symbolic a where
+  symbol :: a -> Symbol
+
+-- | Values that can be viewed as Expressions
+
+class Expression a where
+  expr   :: a -> Expr
+
+-- | Values that can be viewed as Predicates
+
+class Predicate a where
+  prop   :: a -> Pred
+
+instance Symbolic String where 
+  symbol = stringSymbol
+
+instance Symbolic Symbol where 
+  symbol = id 
+
+instance Expression Expr where
+  expr = id
+
+instance Expression Symbol where
+  expr = eVar
+
+instance Expression Integer where
+  expr = ECon . I
+
+instance Expression Int where
+  expr = expr . toInteger
+
+instance Predicate Symbol where
+  prop = eProp
+
+instance Predicate Pred where
+  prop = id 
+
+
+eVar          ::  Symbolic a => a -> Expr 
+eVar          = EVar . symbol 
+
+eProp         ::  Symbolic a => a -> Pred
+eProp         = mkProp . eVar
+
+exprReft, notExprReft  ::  (Expression a) => a -> Reft
+exprReft e             = Reft (vv_, [RConc $ PAtom Eq (eVar vv_)  (expr e)])
+notExprReft e          = Reft (vv_, [RConc $ PAtom Ne (eVar vv_)  (expr e)])
+
+propReft               ::  (Predicate a) => a -> Reft
+propReft p             = Reft (vv_, [RConc $ PIff     (eProp vv_) (prop p)]) 
+
+
 
 ---------------------------------------------------------------
 ----------------- Refinements ---------------------------------
@@ -515,7 +599,9 @@ sortedReftValueVariable (RR _ (Reft (v,_))) = v
 ----------------- Environments  -------------------------------
 ---------------------------------------------------------------
 
+fromListSEnv            ::  [(Symbol, a)] -> SEnv a
 fromListSEnv            = SE . M.fromList
+
 deleteSEnv x (SE env)   = SE (M.delete x env)
 insertSEnv x y (SE env) = SE (M.insert x y env)
 lookupSEnv x (SE env)   = M.lookup x env
@@ -790,13 +876,6 @@ instance Subable Reft where
   substf f (Reft (v, ras))  = Reft (v, substf (substfExcept f [v]) ras)
   subst1 (Reft (v, ras)) su = Reft (v, subst1Except [v] ras su)
 
--- subst1Reft r@(Reft (v, ras)) (x, e) 
---     | x == v               = r 
---     | otherwise            = Reft (v, subst1 ras (x, e))
-
-
-
-
 
 instance Subable SortedReft where
   syms               = syms . sr_reft 
@@ -820,11 +899,11 @@ catSubst (Su s1) (Su s2) = Su $ s1' ++ s2
 ------------- Generally Useful Refinements -----------------
 ------------------------------------------------------------
 
-symbolReft    = exprReft . EVar 
+symbolReft    = exprReft . eVar 
 
 vv_           = vv Nothing
-exprReft e    = Reft (vv_, [RConc $ PAtom Eq (EVar vv_) e])
-notExprReft e = Reft (vv_, [RConc $ PAtom Ne (EVar vv_) e])
+
+
 
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft) 
@@ -832,10 +911,6 @@ trueSortedReft = (`RR` trueReft)
 trueReft = Reft (vv_, [])
 
 trueRefa = RConc PTrue
-
--- canonReft r@(Reft (v, ras)) 
---   | v == vv_  = r 
---   | otherwise = Reft (vv_, ras `subst1` (v, EVar vv_))
 
 flattenRefas ::  [Refa] -> [Refa]
 flattenRefas = concatMap flatRa
@@ -923,38 +998,6 @@ instance (NFData a) => NFData (WfC a) where
   rnf (WfC x1 x2 x3 x4) 
     = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4
 
--- class MapSymbol a where
---   mapSymbol :: (Symbol -> Symbol) -> a -> a
--- 
--- instance MapSymbol Refa where
---   mapSymbol f (RConc p)    = RConc (mapSymbol f p)
---   mapSymbol f (RKvar s su) = RKvar (f s) su
---   -- mapSymbol _ (RPvar p)    = RPvar p -- RPvar (mapSymbol f p)
--- 
--- instance MapSymbol Reft where
---   mapSymbol f (Reft(s, rs)) = Reft(f s, map (mapSymbol f) rs)
--- 
--- instance MapSymbol Pred where
---   mapSymbol f (PAnd ps)       = PAnd (mapSymbol f <$> ps)
---   mapSymbol f (POr ps)        = POr (mapSymbol f <$> ps)
---   mapSymbol f (PNot p)        = PNot (mapSymbol f p)
---   mapSymbol f (PImp p1 p2)    = PImp (mapSymbol f p1) (mapSymbol f p2)
---   mapSymbol f (PIff p1 p2)    = PIff (mapSymbol f p1) (mapSymbol f p2)
---   mapSymbol f (PBexp e)       = PBexp (mapSymbol f e)
---   mapSymbol f (PAtom b e1 e2) = PAtom b (mapSymbol f e1) (mapSymbol f e2)
---   mapSymbol _ (PAll _ _)      = error "mapSymbol PAll"
---   mapSymbol _ p               = p 
--- 
--- instance MapSymbol Expr where
---   mapSymbol f (EVar s)       = EVar $ f s
---   -- mapSymbol f (EDat s so)    = EDat (f s) so
---   mapSymbol f (ELit s so)    = ELit (f s) so
---   mapSymbol f (EApp s es)    = EApp (f s) (mapSymbol f <$> es)
---   mapSymbol f (EBin b e1 e2) = EBin b (mapSymbol f e1) (mapSymbol f e2)
---   mapSymbol f (EIte p e1 e2) = EIte (mapSymbol f p) (mapSymbol f e1) (mapSymbol f e2)
---   mapSymbol f (ECst e s)     = ECst (mapSymbol f e) s 
---   mapSymbol _ e              = e
-
 ----------------------------------------------------------------------------
 -------------- Hashable Instances -----------------------------------------
 ---------------------------------------------------------------------------
@@ -964,21 +1007,6 @@ instance Hashable Symbol where
 
 instance Hashable FTycon where
   hashWithSalt i (TC s) = hashWithSalt i s
-
-
-
-
--- instance Hashable Sort where
---   hashWithSalt i = hashSort i
--- 
--- hashSort FInt         = 0
--- hashSort FNum         = 2
--- hashSort (FObj s)     = 10 `combineTwo` hash s
--- hashSort (FVar i)     = 11 `combineTwo` hash i
--- hashSort (FFunc _ ts) = hash (hashSort <$> ts)
--- hashSort (FApp tc ts) = 12 `combineTwo` (hash tc) `combineTwo` hash (hashSort <$> ts) 
--- 
--- combineTwo h1 h2 = h1 `hashWithSalt` h2
 
 --------------------------------------------------------------------------------------
 -------- Constraint Constructor Wrappers ---------------------------------------------
@@ -1092,15 +1120,6 @@ class (Monoid r, Subable r, Fixpoint r) => Reftable r where
 
   toReft  :: r -> Reft
   params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
-
-  fSyms   :: r -> [Symbol]          -- ^ Niki: what is this fSyms/add/drop for?
-  fSyms _  = []
-
-  addSyms :: [Symbol] -> r -> r     -- ^ ???? 
-  addSyms _ = id
-
-  dropSyms :: r -> r                -- ^ ????
-  dropSyms = id
 
 instance Monoid Reft where
   mempty  = trueReft
