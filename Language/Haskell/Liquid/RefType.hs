@@ -35,7 +35,6 @@ module Language.Haskell.Liquid.RefType (
   , ofRSort, toRSort
   , varSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalFRefType, literalFReft, literalConst
-  , fromRMono, fromRPoly, idRMono
   , isTrivial
   , mkDataConIdsTy
   ) where
@@ -129,11 +128,10 @@ instance Show Predicate where
 instance Reftable Predicate where
   isTauto (Pr ps)      = null ps
  
-  ppTy r d             = d
-
   -- HACK: Hiding to not render types in WEB DEMO. NEED TO FIX.
-  -- ppTy r d | isTauto r = d 
-  --          | otherwise = d <> (angleBrackets $ toFix r)
+  ppTy r d | isTauto r        = d 
+           | not (ppPs ppEnv) = d
+           | otherwise        = d <> (angleBrackets $ toFix r)
   
   toReft               = errorstar "TODO: instance of toReft for Predicate"
   params               = errorstar "TODO: instance of params for Predicate"
@@ -448,11 +446,11 @@ instance Fixpoint Class where
 
 instance (Eq p, Fixpoint p, TyConable c, Reftable r) => RefTypable p c String r where
   ppCls = ppClass_String
-  ppRType = ppr_rtype False -- True 
+  ppRType = ppr_rtype $ ppPs ppEnv
 
 instance (Reftable r) => RefTypable Class RTyCon RTyVar r where
   ppCls = ppClass_ClassPred
-  ppRType = ppr_rtype False -- True
+  ppRType = ppr_rtype $ ppPs ppEnv
   
 class FreeVar a v where 
   freeVars :: a -> [v]
@@ -463,8 +461,8 @@ instance FreeVar RTyCon RTyVar where
 instance FreeVar String String where
   freeVars _ = []
 
-ppClass_String    c _  = parens (toFix c <+> text "...")
-ppClass_ClassPred c ts = parens $ sDocDoc $ pprClassPred c (toType <$> ts)
+ppClass_String    c _  = toFix c <+> text "..."
+ppClass_ClassPred c ts = sDocDoc $ pprClassPred c (toType <$> ts)
 
 -- Eq Instances ------------------------------------------------------
 
@@ -685,6 +683,9 @@ bkUniv t                = ([], [], t)
 bkArrow (RFun x t t' _) = let (xs, ts, t'') = bkArrow t'  in (x:xs, t:ts, t'')
 bkArrow t               = ([], [], t)
 
+bkClass (RFun _ (RCls c t) t' _) = let (cs, t'') = bkClass t' in ((c, t):cs, t'')
+bkClass t                        = ([], t)
+
 generalize t = mkUnivs (freeTyVars t) [] t 
          
 freeTyVars (RAllP _ t)     = freeTyVars t
@@ -751,16 +752,22 @@ ppr_tyvar       = text . tvId
 ppr_tyvar_short = text . show
 
 instance Fixpoint RTyVar where
-  toFix (RTV α) = ppr_tyvar_short α -- ppr_tyvar α 
+  toFix (RTV α) 
+   | ppTyVar ppEnv = ppr_tyvar α
+   | otherwise     = ppr_tyvar_short α
 
 instance Show RTyVar where
   show = showFix
 
-instance (Reftable s, Fixpoint p, Fixpoint t) => Fixpoint (Ref t s p) where
-  toFix (RMono [] s) = toFix s
-  toFix (RMono ss s) = text "\\" <+> toFix ss <+> text "-> " <+> toFix s
-  toFix (RPoly [] p) = toFix p
-  toFix (RPoly ss s) = text "\\" <+> toFix ss <+> text "-> " <+> toFix s
+instance (Reftable s, Reftable  p, Fixpoint t) => Fixpoint (Ref t s (RType a b c p)) where
+  toFix (RMono ss s) = ppRefArgs (fst <$> ss) <+> toFix s
+  toFix (RPoly ss s) = ppRefArgs (fst <$> ss) <+> toFix (fromMaybe top (stripRTypeBase s))
+
+ppRefArgs [] = empty
+ppRefArgs ss = text "\\" <> hsep (ppRefSym <$> ss ++ [vv_]) <+> text "->"
+
+ppRefSym (S "") = text "_"
+ppRefSym s      = toFix s
 
 instance (Reftable r) => Fixpoint (UReft r) where
   toFix (U r p)
@@ -775,8 +782,10 @@ instance (Fixpoint a, Fixpoint b, Fixpoint c) => Fixpoint (a, b, c) where
   toFix (a, b, c) = hsep ([toFix a ,toFix b, toFix c])
 
 instance  Fixpoint t => Fixpoint (PVar t) where
-  toFix (PV s _ xts) = toFix s <+> hsep (toFix <$> dargs xts)<+> toFix (length xts)
-    where dargs xts = [(x, y) | (_, x, y) <- xts]  -- map thd3 . takeWhile (\(_, x, y) -> EVar x /= y) 
+  toFix (PV s _ xts) = toFix s <+> hsep (toFix <$> dargs xts)
+    where dargs = map thd3 . takeWhile (\(_, x, y) -> EVar x /= nexpr y)
+          nexpr (EVar (S ss)) = EVar $ stringSymbol ss
+          nexpr e             = e
 
 ppr_pvar_def pprv (PV s t xts) = toFix s <+> dcolon <+> intersperse (text "->") dargs 
   where dargs = [pprv t | (t,_,_) <- xts] ++ [pprv t, text boolConName]
@@ -798,6 +807,16 @@ ppr_rtype :: (RefTypable p c tv (), RefTypable p c tv r)
           -> Prec 
           -> RType p c tv r 
           -> Doc
+
+data PPEnv 
+  = PP { ppPs    :: Bool
+       , ppTyVar :: Bool
+       }
+
+ppEnv           = ppEnvPrintPreds
+
+ppEnvCurrent    = PP False False
+ppEnvPrintPreds = PP True False
 
 ppr_rtype bb p t@(RAllT _ _)       
   = ppr_forall bb p t
@@ -863,9 +882,9 @@ ppAllExpr bb p t
           split zs t	            = (reverse zs, t)
 
 ppReftPs bb rs 
-  | all isTauto rs = empty
-  | not bb         = empty 
-  | otherwise      = angleBrackets $ hsep $ punctuate comma $ toFix <$> rs
+  | all isTauto rs   = empty
+  | not (ppPs ppEnv) = empty 
+  | otherwise        = angleBrackets $ hsep $ punctuate comma $ toFix <$> rs
 
 ppr_dbind :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> Symbol -> RType p c tv r -> Doc
 ppr_dbind bb p x t 
@@ -882,13 +901,16 @@ ppr_fun_tail bb t
 
 ppr_forall :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
 ppr_forall bb p t
-  = maybeParen p FunPrec $ sep [ ppr_foralls bb αs πs , ppr_rtype bb TopPrec t' ]
+  = maybeParen p FunPrec $ sep [ ppr_foralls bb αs πs , ppr_cls cls, ppr_rtype bb TopPrec t' ]
   where
-    (αs, πs,  t')          = bkUniv t
+    (αs, πs,  ct')         = bkUniv t
+    (cls, t')              = bkClass ct'
   
     ppr_foralls False _ _  = empty
     ppr_foralls _    [] [] = empty
     ppr_foralls True αs πs = text "forall" <+> dαs αs <+> dπs bb πs <> dot
+    ppr_cls []             = empty
+    ppr_cls cs             = (parens $ hsep $ punctuate comma (uncurry ppCls <$> cs)) <+> text "=>"
 
     dαs αs                 = sep $ toFix <$> αs 
     
@@ -1277,8 +1299,8 @@ mapBind _ (ROth s)         = ROth s
 mapBind f (RAppTy t1 t2 r) = RAppTy (mapBind f t1) (mapBind f t2) r
 mapBind _ (RExprArg e)     = RExprArg e
 
-mapBindRef _ (RMono s r)   = RMono s r
-mapBindRef f (RPoly s t)   = RPoly s $ mapBind f t
+mapBindRef f (RMono s r)   = RMono (mapFst f <$> s) r
+mapBindRef f (RPoly s t)   = RPoly (mapFst f <$> s) $ mapBind f t
 
 
 ---------------------------------------------------------------
@@ -1354,14 +1376,6 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
                            (L.intercalate " " (show <$> as)) 
                            (L.intercalate " " (show <$> xs))
                            (show t) (show p) 
-
--- fromRMono :: String -> Ref a b -> a
-fromRMono _ (RMono _ r) = r
-fromRMono msg _         = errorstar $ "fromMono: " ++ msg -- ++ render z
-fromRPoly (RPoly _ r)   = r
-fromRPoly _             = errorstar "fromPoly"
-idRMono                 = RMono [] . fromRMono "idRMono"
-
 
 ----------------------------------------------------------------
 ------------ From Old Fixpoint ---------------------------------
