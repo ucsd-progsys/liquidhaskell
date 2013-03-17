@@ -165,11 +165,15 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
     measure (PS p o l) = l 
   @-} 
 
+{-@ predicate BSValid Payload Offset Length = ((plen Payload) = Offset + Length) @-}
+
 {-@ data ByteString = PS { payload :: (ForeignPtr Word8) 
-                         , offset  :: Int                
-                         , length  :: {v: Int | ((v = (plen payload)) && (offset < v)) }                
+                         , offset  :: Nat  
+                         , length  :: {v: Nat | (BSValid payload offset v) }                
 
   @-}
+
+{-@ type ByteStringN = {v: ByteString | (blen v) = N} @-}
 
 -------------------------------------------------------------------------
 
@@ -247,6 +251,7 @@ unsafeDupablePerformIO = unsafePerformIO
 #endif
 
 -- | Create ByteString of size @l@ and use action @f@ to fill it's contents.
+{-@ create :: l:Nat -> (Ptr Word8 -> IO ()) -> IO (ByteStringN l)   @-}
 create :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
 create l f = do
     fp <- mallocByteString l
@@ -285,6 +290,7 @@ createAndTrim' l f = do
 
 -- | Wrapper of 'mallocForeignPtrBytes' with faster implementation for GHC
 --
+{-@ mallocByteString :: l:Nat -> IO (ForeignPtrN a l) @-} 
 mallocByteString :: Int -> IO (ForeignPtr a)
 mallocByteString l = do
 #ifdef __GLASGOW_HASKELL__

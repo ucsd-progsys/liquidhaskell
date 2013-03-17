@@ -30,5 +30,7 @@ fromJust (Just x) = x
 
 embed Integer  as int
 
+type GeInt N = {v: GHC.Types.Int | v >= N }
 
+type Nat     = GeInt 0 
 
