@@ -65,7 +65,7 @@ import Text.Printf
 import Text.PrettyPrint.HughesPJ
 import Text.Parsec.Pos  (SourcePos)
 
-import Language.Fixpoint.Types
+import Language.Fixpoint.Types hiding (Predicate)
 
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc (sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, TyConInfo(..), mkTyConInfo)

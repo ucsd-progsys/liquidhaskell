@@ -2,7 +2,6 @@
 
 #SERVERHOME=$(ROOTHOME)/_site/
 SERVERHOME=/home/rjhala/public_html/liquid/haskell/demo
-
 ##############################################################################
 ##############################################################################
 ##############################################################################
@@ -32,7 +31,7 @@ rebuild:
 	make
 
 site: all
-	cp dist/build/liquid/liquid $(SERVERHOME)/liquid
+	cp dist_liquid/build/liquid/liquid $(SERVERHOME)/liquid
 	cp -rf external $(SERVERHOME)/
 	cp -rf include $(SERVERHOME)/
 	cp -rf syntax $(SERVERHOME)/

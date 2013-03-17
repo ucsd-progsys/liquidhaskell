@@ -25,7 +25,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.List        (partition, foldl')
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Types hiding (Expr)
+import Language.Fixpoint.Types hiding (Predicate, Expr)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.RefType  hiding (generalize)
 import Language.Haskell.Liquid.GhcMisc
@@ -59,20 +59,20 @@ dataConPSpecType (DataConP vs ps yts rt) = mkArrow vs ps (reverse yts) rt
 --         t3 = foldr RAllT t2 vs
 
 
-instance Fixpoint TyConP where
+instance F.Fixpoint TyConP where
   toFix (TyConP vs ps _ _) 
-    = (parens $ hsep (punctuate comma (map toFix vs))) <+>
-      (parens $ hsep (punctuate comma (map toFix ps)))
+    = (parens $ hsep (punctuate comma (map F.toFix vs))) <+>
+      (parens $ hsep (punctuate comma (map F.toFix ps)))
 
 instance Show TyConP where
  show = showFix -- showSDoc . ppr
 
-instance Fixpoint DataConP where
+instance F.Fixpoint DataConP where
   toFix (DataConP vs ps yts t) 
-     = (parens $ hsep (punctuate comma (map toFix vs))) <+>
-       (parens $ hsep (punctuate comma (map toFix ps))) <+>
-       (parens $ hsep (punctuate comma (map toFix yts))) <+>
-       toFix t
+     = (parens $ hsep (punctuate comma (map F.toFix vs))) <+>
+       (parens $ hsep (punctuate comma (map F.toFix ps))) <+>
+       (parens $ hsep (punctuate comma (map F.toFix yts))) <+>
+       F.toFix t
 
 instance Show DataConP where
   show = showFix -- showSDoc . ppr
