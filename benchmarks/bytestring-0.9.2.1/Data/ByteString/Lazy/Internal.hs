@@ -55,11 +55,11 @@ import Data.Generics    (Data)
 -- Instances of Eq, Ord, Read, Show, Data, Typeable
 --
 data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
--- LIQUID     deriving (Show, Read
--- LIQUID #if defined(__GLASGOW_HASKELL__)
--- LIQUID                         ,Data, Typeable
--- LIQUID #endif
--- LIQUID              )
+    deriving (Show, Read
+#if defined(__GLASGOW_HASKELL__)
+                        ,Data, Typeable
+#endif
+             )
 
 ------------------------------------------------------------------------
 
@@ -77,7 +77,7 @@ checkInvariant Empty = Empty
 checkInvariant (Chunk c@(S.PS _ _ len) cs)
     | len > 0   = Chunk c (checkInvariant cs)
     | otherwise = error $ "Data.ByteString.Lazy: invariant violation:"
--- LIQUID                ++ show (Chunk c cs)
+                ++ show (Chunk c cs)
 
 ------------------------------------------------------------------------
 

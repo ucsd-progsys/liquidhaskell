@@ -136,11 +136,11 @@ assertS s False = error ("assertion failed at "++s)
 -- Useful macros, until we have bang patterns
 --
 
--- LIQUID #define STRICT1(f) f a | a `seq` False = undefined
--- LIQUID #define STRICT2(f) f a b | a `seq` b `seq` False = undefined
--- LIQUID #define STRICT3(f) f a b c | a `seq` b `seq` c `seq` False = undefined
--- LIQUID #define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
--- LIQUID #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
+#define STRICT1(f) f a | a `seq` False = undefined
+#define STRICT2(f) f a b | a `seq` b `seq` False = undefined
+#define STRICT3(f) f a b c | a `seq` b `seq` c `seq` False = undefined
+#define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
+#define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
 -- -----------------------------------------------------------------------------
 
@@ -157,11 +157,27 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
     deriving (Data, Typeable)
 #endif
 
+-------------------------------------------------------------------------
+-- LiquidHaskell Specifications -----------------------------------------
+-------------------------------------------------------------------------
+
+{-@ measure blen :: ByteString -> Ghc.Types.Int 
+    measure (PS p o l) = l 
+  @-} 
+
+{-@ data ByteString = PS { payload :: (ForeignPtr Word8) 
+                         , offset  :: Int                
+                         , length  :: {v: Int | ((v = (plen payload)) && (offset < v)) }                
+
+  @-}
+
+-------------------------------------------------------------------------
+
 instance Show ByteString where
     showsPrec p ps r = showsPrec p (unpackWith w2c ps) r
 
-instance Read ByteString where
-    readsPrec p str = [ (packWith c2w x, y) | (x, y) <- readsPrec p str ]
+-- LIQUID instance Read ByteString where
+-- LIQUID     readsPrec p str = [ (packWith c2w x, y) | (x, y) <- readsPrec p str ]
 
 -- | /O(n)/ Converts a 'ByteString' to a '[a]', using a conversion function.
 unpackWith :: (Word8 -> a) -> ByteString -> [a]

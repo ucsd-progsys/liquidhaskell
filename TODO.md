@@ -18,6 +18,7 @@ TODO
 * benchmarks: mcbrides stack machine
 * remove `toType` and  generalize `typeSort` to work for all RefTypables
 
+* wtf is include/KMeansHelper.hs ? Fix module import issue
 
 BExp Parser vs. ppr_rtype [BEXPARSER]
 =====================================
