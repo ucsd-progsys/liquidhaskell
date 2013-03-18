@@ -14,8 +14,6 @@ import Text.PrettyPrint.HughesPJ    hiding (first)
 import Var
 import PrelNames
 import PrelInfo     (wiredInThings)
--- import Id           (isDataConWorkId)
--- import DataCon      (dataConWorkId)
 import Type         (expandTypeSynonyms, splitFunTy_maybe)
 import DataCon      (dataConImplicitIds)
 import HscMain
