@@ -20,6 +20,12 @@ TODO
 
 * wtf is include/KMeansHelper.hs ? Fix module import issue
 
+Spec Errors
+===========
+
+-
+
+
 BExp Parser vs. ppr_rtype [BEXPARSER]
 =====================================
 

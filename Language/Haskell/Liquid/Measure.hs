@@ -28,18 +28,19 @@ import Control.Exception        (assert)
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types
+import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 
 data Spec ty bndr  = Spec { 
-    measures   :: ![Measure ty bndr]         -- ^ User-defined properties for ADTs
-  , sigs       :: ![(Symbol, ty)]            -- ^ Imported functions and types   
-  , invariants :: ![ty]                      -- ^ Data type invariants  
-  , imports    :: ![Symbol]                  -- ^ Loaded spec module names
-  , dataDecls  :: ![DataDecl]                -- ^ Predicated data definitions 
-  , includes   :: ![FilePath]                -- ^ Included qualifier files
-  , aliases    :: ![RTAlias String BareType] -- ^ RefType aliases
-  , paliases   :: ![RTAlias Symbol Pred]     -- ^ Refinement/Predicate aliases
-  , embeds     :: !(TCEmb String)            -- ^ GHC-Tycon-to-fixpoint Tycon map
+    measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
+  , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types   
+  , invariants :: ![ty]                         -- ^ Data type invariants  
+  , imports    :: ![Symbol]                     -- ^ Loaded spec module names
+  , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions 
+  , includes   :: ![FilePath]                   -- ^ Included qualifier files
+  , aliases    :: ![RTAlias String BareType]    -- ^ RefType aliases
+  , paliases   :: ![RTAlias Symbol Pred]        -- ^ Refinement/Predicate aliases
+  , embeds     :: !(TCEmb String)               -- ^ GHC-Tycon-to-fixpoint Tycon map
   } 
 
 
@@ -49,14 +50,14 @@ data MSpec ty bndr = MSpec {
   }
 
 data Measure ty bndr = M { 
-    name :: Symbol
+    name :: LocSymbol
   , sort :: ty
   , eqns :: [Def bndr]
-  } -- deriving (Data, Typeable)
+  } 
 
 data Def bndr 
   = Def { 
-    measure :: Symbol
+    measure :: LocSymbol
   , ctor    :: bndr
   , binds   :: [Symbol]
   , body    :: Body
@@ -68,10 +69,9 @@ data Body
   | R Symbol Pred   -- ^ Measure Refinement: {v | p}
   deriving (Show)
 
-qualifySpec name sp = sp { sigs = [ (qualifySymbol name x, t) | (x, t) <- sigs sp] }
+qualifySpec name sp = sp { sigs = [ (qualifySymbol name <$> x, t) | (x, t) <- sigs sp] }
 
-
-mkM :: Symbol -> ty -> [Def bndr] -> Measure ty bndr
+mkM ::  LocSymbol -> ty -> [Def bndr] -> Measure ty bndr
 mkM name typ eqns 
   | all ((name ==) . measure) eqns
   = M name typ eqns
@@ -81,7 +81,7 @@ mkM name typ eqns
 mkMSpec ::  [Measure ty Symbol] -> MSpec ty Symbol
 mkMSpec ms = MSpec cm mm 
   where cm  = groupMap ctor $ concatMap eqns ms'
-        mm  = M.fromList [(name m, m) | m <- ms' ]
+        mm  = M.fromList [(val $ name m, m) | m <- ms' ]
         ms' = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
 instance Monoid (Spec ty bndr) where
@@ -162,7 +162,7 @@ instance (Fixpoint t , Fixpoint a) => Show (Measure t a) where
 mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
 mapTy f (M n ty eqs) = M n (f ty) eqs
 
-dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(Symbol, RefType)])
+dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(LocSymbol, RefType)])
 dataConTypes  s = (ctorTys, measTys)
   where measTys = [(name m, sort m) | m <- M.elems $ measMap s]
         ctorTys = concatMap mkDataConIdsTy [(defsVar ds, defsTy ds) | (_, ds) <- M.toList $ ctorMap s]
@@ -176,10 +176,10 @@ defRefType (Def f dc xs body) = mkArrow as [] xts t'
         t'  = refineWithCtorBody dc f body t 
         t   = ofType $ dataConOrigResTy dc
 
-refineWithCtorBody dc f body t = 
+refineWithCtorBody dc (Loc _ f) body t = 
   case stripRTypeBase t of 
     Just (Reft (v, _)) ->
-      strengthen t $ Reft (v, [RConc $ bodyPred (EApp f [EVar v]) body])
+      strengthen t $ Reft (v, [RConc $ bodyPred (EApp f [eVar v]) body])
     Nothing -> 
       errorstar $ "measure mismatch " ++ showFix f ++ " on con " ++ O.showPpr dc
 

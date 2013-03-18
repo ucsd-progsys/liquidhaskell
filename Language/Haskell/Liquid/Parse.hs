@@ -15,6 +15,8 @@ import Data.Char (toLower, isLower, isSpace, isAlpha)
 import Data.List (partition)
 
 import Language.Fixpoint.Types
+
+import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Language.Fixpoint.Names (listConName, propConName, tupConName)
@@ -268,7 +270,7 @@ dummyRSort     = ROth "dummy"
 
 data Pspec ty bndr 
   = Meas (Measure.Measure ty bndr) 
-  | Assm (bndr, ty) 
+  | Assm (LocSymbol, ty) 
   | Impt  Symbol
   | DDecl DataDecl
   | Incl  FilePath
@@ -277,6 +279,7 @@ data Pspec ty bndr
   | PAlias (RTAlias Symbol Pred)
   | Embed (String, FTycon)
 
+-- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
   { Measure.measures   = [m | Meas   m <- xs]
   , Measure.sigs       = [a | Assm   a <- xs]
@@ -289,15 +292,17 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.embeds     = M.fromList [e | Embed e <- xs]
   }
 
+specificationP :: Parser (Measure.Spec BareType Symbol)
 specificationP 
   = do reserved "module"
        reserved "spec"
        S name <- symbolP
        reserved "where"
-       xs     <- grabs (specP <* whiteSpace) --(liftM2 const specP whiteSpace)
+       xs     <- grabs (specP <* whiteSpace)
        return $ mkSpec name xs 
 
 
+specP :: Parser (Pspec BareType Symbol)
 specP 
   = try (reserved "assume"    >> liftM Assm  tyBindP)
     <|> (reserved "assert"    >> liftM Assm  tyBindP)
@@ -316,8 +321,12 @@ filePathP = angles $ many1 pathCharP
   where pathCharP = choice $ char <$> pathChars 
         pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
 
-tyBindP 
-  = xyP binderP dcolon genBareTypeP
+tyBindP    :: Parser (LocSymbol, BareType)
+tyBindP    = xyP (locParserP binderP) dcolon genBareTypeP
+
+locParserP :: Parser a -> Parser (Located a)
+locParserP p = liftM2 Loc getPosition p
+
 
 genBareTypeP
   = bareTypeP -- liftM generalize bareTypeP 
@@ -342,6 +351,7 @@ rtAliasP f bodyP
 aliasIdP :: Parser String
 aliasIdP = condIdP (['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']) (isAlpha . head) 
 
+measureP :: Parser (Measure.Measure BareType Symbol)
 measureP 
   = do (x, ty) <- tyBindP  
        whiteSpace
@@ -376,20 +386,23 @@ binderP =  try $ liftM stringSymbol (idP badc)
 grabs p = try (liftM2 (:) p (grabs p)) 
        <|> return []
 
-measureDefP :: Parser Measure.Body -> Parser (Measure.Def Symbol)
+-- measureDefP :: Parser Measure.Body -> Parser (Measure.Def Symbol)
 measureDefP bodyP
-  = do mname   <- symbolP
+  = do mname   <- locParserP symbolP
        (c, xs) <- parens $ measurePatP
        whiteSpace >> reservedOp "=" >> whiteSpace
        body    <- bodyP 
        whiteSpace
-       return   $ Measure.Def mname (stringSymbol c) (stringSymbol <$> xs) body
+       let xs'  = (stringSymbol . val) <$> xs
+       return   $ Measure.Def mname (stringSymbol c) xs' body
 
-measurePatP :: Parser (String, [String])
+measurePatP :: Parser (String, [LocString])
 measurePatP
-  =  try (liftM2 (,)   upperIdP (sepBy lowerIdP whiteSpace))
- <|> try (liftM3 (\x c y -> (c, [x,y])) lowerIdP colon lowerIdP)
+  =  try (liftM2 (,)   upperIdP (sepBy locLowerIdP whiteSpace))
+ <|> try (liftM3 (\x c y -> (c, [x,y])) locLowerIdP colon locLowerIdP)
  <|> (brackets whiteSpace  >> return ("[]",[])) 
+
+locLowerIdP = locParserP lowerIdP 
 
 {- len (Cons x1 x2 ...) = e -}
 

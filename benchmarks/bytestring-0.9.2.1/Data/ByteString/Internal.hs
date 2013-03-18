@@ -41,20 +41,20 @@ module Data.ByteString.Internal (
         nullForeignPtr,         -- :: ForeignPtr Word8
 
         -- * Standard C Functions
-        c_strlen,               -- :: CString -> IO CInt
-        c_free_finalizer,       -- :: FunPtr (Ptr Word8 -> IO ())
+        -- LIQUID c_strlen,               -- :: CString -> IO CInt
+        -- LIQUID c_free_finalizer,       -- :: FunPtr (Ptr Word8 -> IO ())
 
         memchr,                 -- :: Ptr Word8 -> Word8 -> CSize -> IO Ptr Word8
-        memcmp,                 -- :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
+        -- LIQUID memcmp,                 -- :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
         memcpy,                 -- :: Ptr Word8 -> Ptr Word8 -> CSize -> IO ()
         memset,                 -- :: Ptr Word8 -> Word8 -> CSize -> IO (Ptr Word8)
 
         -- * cbits functions
-        c_reverse,              -- :: Ptr Word8 -> Ptr Word8 -> CInt -> IO ()
-        c_intersperse,          -- :: Ptr Word8 -> Ptr Word8 -> CInt -> Word8 -> IO ()
-        c_maximum,              -- :: Ptr Word8 -> CInt -> IO Word8
-        c_minimum,              -- :: Ptr Word8 -> CInt -> IO Word8
-        c_count,                -- :: Ptr Word8 -> CInt -> Word8 -> IO CInt
+        -- LIQUID c_reverse,              -- :: Ptr Word8 -> Ptr Word8 -> CInt -> IO ()
+        -- LIQUID c_intersperse,          -- :: Ptr Word8 -> Ptr Word8 -> CInt -> Word8 -> IO ()
+        -- LIQUID c_maximum,              -- :: Ptr Word8 -> CInt -> IO Word8
+        -- LIQUID c_minimum,              -- :: Ptr Word8 -> CInt -> IO Word8
+        -- LIQUID c_count,                -- :: Ptr Word8 -> CInt -> Word8 -> IO CInt
 #if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ < 611
         -- * Internal GHC magic
         memcpy_ptr_baoff,       -- :: Ptr a -> RawBuffer -> CInt -> CSize -> IO (Ptr ())
@@ -154,10 +154,14 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
                      {-# UNPACK #-} !Int                -- offset
                      {-# UNPACK #-} !Int                -- length
 
-#if defined(__GLASGOW_HASKELL__)
-    deriving (Data, Typeable)
-#endif
-
+-- LIQUID #if defined(__GLASGOW_HASKELL__)
+-- LIQUID     deriving (Data, Typeable)
+-- LIQUID #endif
+-- LIQUID WIERD CONSTANTS like
+-- LIQUID (scc<CAF> Data.Typeable.Internal.mkTyCon)
+-- LIQUID               (scc<CAF> __word64 5047387852870479354))
+-- LIQUID               (scc<CAF> __word64 13413741352319211914))
+             
 -------------------------------------------------------------------------
 -- LiquidHaskell Specifications -----------------------------------------
 -------------------------------------------------------------------------
@@ -377,9 +381,12 @@ inlinePerformIO = unsafePerformIO
 -- LIQUID 
 -- LIQUID foreign import ccall unsafe "string.h memchr" c_memchr
 -- LIQUID     :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
--- LIQUID 
--- LIQUID memchr :: Ptr Word8 -> Word8 -> CSize -> IO (Ptr Word8)
--- LIQUID memchr p w s = c_memchr p (fromIntegral w) s
+c_memchr = undefined
+
+
+memchr :: Ptr Word8 -> Word8 -> CSize -> IO (Ptr Word8)
+memchr p w s = c_memchr p (fromIntegral w) s
+
 -- LIQUID 
 -- LIQUID foreign import ccall unsafe "string.h memcmp" memcmp
 -- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
@@ -393,7 +400,7 @@ inlinePerformIO = unsafePerformIO
            -> IO () 
   @-}
 memcpy :: Ptr Word8 -> Ptr Word8 -> CSize -> IO ()
-memcpy p q s = c_memcpy p q s >> return ()
+memcpy p q s = undefined -- c_memcpy p q s >> return ()
 
 {-
 foreign import ccall unsafe "string.h memmove" c_memmove
@@ -404,8 +411,9 @@ memmove p q s = do c_memmove p q s
                    return ()
 -}
 
-foreign import ccall unsafe "string.h memset" c_memset
-    :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
+-- LIQUID foreign import ccall unsafe "string.h memset" c_memset
+-- LIQUID     :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
+c_memset = undefined
 
 memset :: Ptr Word8 -> Word8 -> CSize -> IO (Ptr Word8)
 memset p w s = c_memset p (fromIntegral w) s
@@ -415,20 +423,20 @@ memset p w s = c_memset p (fromIntegral w) s
 -- Uses our C code
 --
 
-foreign import ccall unsafe "static fpstring.h fps_reverse" c_reverse
-    :: Ptr Word8 -> Ptr Word8 -> CULong -> IO ()
-
-foreign import ccall unsafe "static fpstring.h fps_intersperse" c_intersperse
-    :: Ptr Word8 -> Ptr Word8 -> CULong -> Word8 -> IO ()
-
-foreign import ccall unsafe "static fpstring.h fps_maximum" c_maximum
-    :: Ptr Word8 -> CULong -> IO Word8
-
-foreign import ccall unsafe "static fpstring.h fps_minimum" c_minimum
-    :: Ptr Word8 -> CULong -> IO Word8
-
-foreign import ccall unsafe "static fpstring.h fps_count" c_count
-    :: Ptr Word8 -> CULong -> Word8 -> IO CULong
+-- LIQUID foreign import ccall unsafe "static fpstring.h fps_reverse" c_reverse
+-- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CULong -> IO ()
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "static fpstring.h fps_intersperse" c_intersperse
+-- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CULong -> Word8 -> IO ()
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "static fpstring.h fps_maximum" c_maximum
+-- LIQUID     :: Ptr Word8 -> CULong -> IO Word8
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "static fpstring.h fps_minimum" c_minimum
+-- LIQUID     :: Ptr Word8 -> CULong -> IO Word8
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "static fpstring.h fps_count" c_count
+-- LIQUID     :: Ptr Word8 -> CULong -> Word8 -> IO CULong
 
 -- ---------------------------------------------------------------------
 -- Internal GHC Haskell magic
