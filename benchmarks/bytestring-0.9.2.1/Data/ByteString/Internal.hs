@@ -367,24 +367,31 @@ inlinePerformIO = unsafePerformIO
 -- Standard C functions
 --
 
-foreign import ccall unsafe "string.h strlen" c_strlen
-    :: CString -> IO CSize
+-- LIQUID ANFTransform scope wierdness, see Internal0.hs
+-- LIQUID
+-- LIQUID foreign import ccall unsafe "string.h strlen" c_strlen
+-- LIQUID     :: CString -> IO CSize
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "static stdlib.h &free" c_free_finalizer
+-- LIQUID     :: FunPtr (Ptr Word8 -> IO ())
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "string.h memchr" c_memchr
+-- LIQUID     :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
+-- LIQUID 
+-- LIQUID memchr :: Ptr Word8 -> Word8 -> CSize -> IO (Ptr Word8)
+-- LIQUID memchr p w s = c_memchr p (fromIntegral w) s
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "string.h memcmp" memcmp
+-- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "string.h memcpy" c_memcpy
+-- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO (Ptr Word8)
 
-foreign import ccall unsafe "static stdlib.h &free" c_free_finalizer
-    :: FunPtr (Ptr Word8 -> IO ())
-
-foreign import ccall unsafe "string.h memchr" c_memchr
-    :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
-
-memchr :: Ptr Word8 -> Word8 -> CSize -> IO (Ptr Word8)
-memchr p w s = c_memchr p (fromIntegral w) s
-
-foreign import ccall unsafe "string.h memcmp" memcmp
-    :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
-
-foreign import ccall unsafe "string.h memcpy" c_memcpy
-    :: Ptr Word8 -> Ptr Word8 -> CSize -> IO (Ptr Word8)
-
+{-@ memcpy :: dst:(Ptr Word8) 
+           -> src:(Ptr Word8) 
+           -> {v:CSize| ((plen src) <= v && (plen dst) <= v)} 
+           -> IO () 
+  @-}
 memcpy :: Ptr Word8 -> Ptr Word8 -> CSize -> IO ()
 memcpy p q s = c_memcpy p q s >> return ()
 

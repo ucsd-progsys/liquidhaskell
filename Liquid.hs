@@ -35,8 +35,8 @@ liquidOne includes target =
      info    <- getGhcInfo target includes :: IO GhcInfo
      -- donePhase Loud "getGhcInfo"
      -- putStrLn $ showPpr info 
-     -- putStrLn "*************** Original CoreBinds ***************************" 
-     -- putStrLn $ showPpr (cbs info)
+     putStrLn "*************** Original CoreBinds ***************************" 
+     putStrLn $ showPpr (cbs info)
      let cbs' = transformRecExpr (cbs info)
      donePhase Loud "transformRecExpr"
      putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
