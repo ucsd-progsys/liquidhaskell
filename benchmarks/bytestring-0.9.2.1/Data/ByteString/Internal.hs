@@ -150,14 +150,9 @@ assertS s False = error ("assertion failed at "++s)
 --
 -- Instances of Eq, Ord, Read, Show, Data, Typeable
 --
--- LIQUID data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
--- LIQUID                      {-# UNPACK #-} !Int                -- offset
--- LIQUID                      {-# UNPACK #-} !Int                -- length
-
-data ByteString = PS !(ForeignPtr Word8) -- payload
-                     !Int                -- offset
-                     !Int                -- length
-
+data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
+                     {-# UNPACK #-} !Int                -- offset
+                     {-# UNPACK #-} !Int                -- length
 
 #if defined(__GLASGOW_HASKELL__)
     deriving (Data, Typeable)
@@ -168,19 +163,19 @@ data ByteString = PS !(ForeignPtr Word8) -- payload
 -------------------------------------------------------------------------
 
 {-@ measure blen :: ByteString -> Ghc.Types.Int 
-    measure (PS p o l) = l 
+    blen (PS p o l) = l 
   @-} 
 
 {-@ predicate BSValid Payload Offset Length = ((plen Payload) = Offset + Length) @-}
 
-{-@ data ByteString = PS { payload :: (ForeignPtr Word8) 
-                         , offset  :: Nat  
-                         , length  :: {v: Nat | (BSValid payload offset v) } 
-                         }
+{-@ data ByteString  = PS { payload :: (ForeignPtr Word8) 
+                          , offset  :: Nat  
+                          , length  :: {v: Nat | (BSValid payload offset v) } 
+                          }
 
   @-}
 
-{-@ type ByteStringN = {v: ByteString | (blen v) = N} @-}
+{-@ type ByteStringN N = {v: ByteString | (blen v) = N} @-}
 
 -------------------------------------------------------------------------
 
