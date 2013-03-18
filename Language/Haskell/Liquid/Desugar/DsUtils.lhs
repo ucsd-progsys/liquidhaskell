@@ -76,7 +76,7 @@ import Outputable
 import SrcLoc
 import Util
 import ListSetOps
--- GHC 7.6 import DynFlags
+import DynFlags -- GHC 7.6 
 import FastString
 
 import Control.Monad    ( zipWithM )
@@ -441,9 +441,9 @@ mkErrorAppDs :: Id 		-- The error function
 
 mkErrorAppDs err_id ty msg = do
     src_loc <- getSrcSpanDs
-    -- GHC 7.6 dflags <- getDynFlags
+    dflags  <- getDynFlags -- GHC 7.6 
     let
-        full_msg = showSDoc {- GHC 7.6 dflags -} (hcat [ppr src_loc, text "|", msg])
+        full_msg = showSDoc {- GHC 7.6 -} dflags (hcat [ppr src_loc, text "|", msg])
         core_msg = Lit (mkMachString full_msg)
         -- mkMachString returns a result of type String#
     return (mkApps (Var err_id) [Type ty, core_msg])

@@ -8,7 +8,7 @@
 {-# LANGUAGE UndecidableInstances      #-}
 
 module Language.Haskell.Liquid.GhcMisc where
-
+import           Kind                         (superKind)
 import           CoreSyn
 import           CostCentre
 import           FamInstEnv                   (FamInst)
@@ -24,7 +24,7 @@ import           RdrName                      (GlobalRdrEnv)
 import           Type                         (liftedTypeKind)
 import           TypeRep                       
 import           Var
-import           TyCon                        (mkSuperKindTyCon)
+-- import           TyCon                        (mkSuperKindTyCon)
 import qualified TyCon                        as TC
 import qualified DataCon                      as DC
 import           FastString                   (uniq)
@@ -133,9 +133,10 @@ stringTyVar s = mkTyVar name liftedTypeKind
         occ  = mkTcOcc s
 
 stringTyCon :: Char -> Int -> String -> TyCon
-stringTyCon c n s = mkSuperKindTyCon name
-  where name = mkInternalName (mkUnique c n) occ noSrcSpan
-        occ  = mkTyVarOcc $ assert (validTyVar s) s
+stringTyCon c n s = TC.mkKindTyCon name superKind
+  where 
+    name          = mkInternalName (mkUnique c n) occ noSrcSpan
+    occ           = mkTyVarOcc $ assert (validTyVar s) s
 
 hasBaseTypeVar = isBaseType . varType
 
