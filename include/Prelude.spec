@@ -32,5 +32,5 @@ embed Integer  as int
 
 type GeInt N = {v: GHC.Types.Int | v >= N }
 
-type Nat     = GeInt 0 
+type Nat     = {v: GHC.Types.Int | (v >= 0)}
 

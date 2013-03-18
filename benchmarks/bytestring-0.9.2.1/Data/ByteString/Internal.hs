@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, ForeignFunctionInterface #-}
+{-# LANGUAGE CPP, ForeignFunctionInterface, DeriveDataTypeable #-}
 -- We cannot actually specify all the language pragmas, see ghc ticket #
 -- If we could, these are what they would be:
 {- LANGUAGE UnliftedFFITypes, MagicHash,
@@ -85,7 +85,8 @@ import Data.Data                (Data)
 #else
 import Data.Generics            (Data)
 #endif
-import GHC.Base                 (realWorld#,unsafeChr)
+-- import GHC.Base                 (realWorld#, unsafeChr)
+import GHC.Base                 (unsafeChr) -- LIQUID: strange GHC parse error due to #
 #if __GLASGOW_HASKELL__ >= 611
 import GHC.IO                   (IO(IO))
 #else
@@ -109,7 +110,7 @@ import Foreign.ForeignPtr       (mallocForeignPtrBytes)
 
 #ifdef __GLASGOW_HASKELL__
 import GHC.ForeignPtr           (ForeignPtr(ForeignPtr))
-import GHC.Base                 (nullAddr#)
+-- import GHC.Base                 (nullAddr#) LIQUID: parse issue with '#'
 #else
 import Foreign.Ptr              (nullPtr)
 #endif
@@ -169,7 +170,8 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 {-@ data ByteString = PS { payload :: (ForeignPtr Word8) 
                          , offset  :: Nat  
-                         , length  :: {v: Nat | (BSValid payload offset v) }                
+                         , length  :: {v: Nat | (BSValid payload offset v) } 
+                         }
 
   @-}
 
@@ -207,9 +209,10 @@ packWith k str = unsafeCreate (length str) $ \p -> go p str
 ------------------------------------------------------------------------
 
 -- | The 0 pointer. Used to indicate the empty Bytestring.
+{-@ nullForeignPtr :: ForeignPtr Word8 @-}
 nullForeignPtr :: ForeignPtr Word8
 #ifdef __GLASGOW_HASKELL__
-nullForeignPtr = ForeignPtr nullAddr# undefined --TODO: should ForeignPtrContents be strict?
+nullForeignPtr = undefined -- LIQUID: ForeignPtr nullAddr# undefined --TODO: should ForeignPtrContents be strict?
 #else
 nullForeignPtr = unsafePerformIO $ newForeignPtr_ nullPtr
 {-# NOINLINE nullForeignPtr #-}
@@ -351,9 +354,10 @@ isSpaceChar8 c =
 -- 'inlinePerformIO' block. On Hugs this is just @unsafePerformIO@.
 --
 {-# INLINE inlinePerformIO #-}
+{-@ inlinePerformIO :: IO a -> a @-}
 inlinePerformIO :: IO a -> a
 #if defined(__GLASGOW_HASKELL__)
-inlinePerformIO (IO m) = case m realWorld# of (# _, r #) -> r
+inlinePerformIO (IO m) = undefined -- LIQUID case m realWorld# of (# _, r #) -> r
 #else
 inlinePerformIO = unsafePerformIO
 #endif
