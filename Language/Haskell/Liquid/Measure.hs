@@ -31,6 +31,8 @@ import Language.Fixpoint.Types
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 
+-- MOVE TO TYPES
+
 data Spec ty bndr  = Spec { 
     measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
   , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types   
@@ -44,17 +46,20 @@ data Spec ty bndr  = Spec {
   } 
 
 
+-- MOVE TO TYPES
 data MSpec ty bndr = MSpec { 
     ctorMap :: M.HashMap Symbol [Def bndr]
   , measMap :: M.HashMap Symbol (Measure ty bndr) 
   }
 
+-- MOVE TO TYPES
 data Measure ty bndr = M { 
     name :: LocSymbol
   , sort :: ty
   , eqns :: [Def bndr]
   } 
 
+-- MOVE TO TYPES
 data Def bndr 
   = Def { 
     measure :: LocSymbol
@@ -63,6 +68,7 @@ data Def bndr
   , body    :: Body
   } deriving (Show)
 
+-- MOVE TO TYPES
 data Body 
   = E Expr          -- ^ Measure Refinement: {v | v = e } 
   | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
@@ -84,6 +90,7 @@ mkMSpec ms = MSpec cm mm
         mm  = M.fromList [(val $ name m, m) | m <- ms' ]
         ms' = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
+-- MOVE TO TYPES
 instance Monoid (Spec ty bndr) where
   mappend (Spec xs ys invs zs ds is as ps es) (Spec xs' ys' invs' zs' ds' is' as' ps' es')
            = Spec (xs ++ xs') 
@@ -97,25 +104,31 @@ instance Monoid (Spec ty bndr) where
                   (M.union es es')
   mempty   = Spec [] [] [] [] [] [] [] [] M.empty
 
+-- MOVE TO TYPES
 instance Functor Def where
   fmap f def = def { ctor = f (ctor def) }
 
+-- MOVE TO TYPES
 instance Functor (Measure t) where
   fmap f (M n s eqs) = M n s (fmap (fmap f) eqs)
 
+-- MOVE TO TYPES
 instance Functor (MSpec t) where
   fmap f (MSpec cm mm) = MSpec (fc cm) (fm mm)
      where fc = fmap $ fmap $ fmap f
            fm = fmap $ fmap f 
 
+-- MOVE TO TYPES
 instance Bifunctor Measure where
   first f (M n s eqs)  = M n (f s) eqs
   second f (M n s eqs) = M n s (fmap f <$> eqs)
 
+-- MOVE TO TYPES
 instance Bifunctor MSpec   where
   first f (MSpec cm mm) = MSpec cm (fmap (first f) mm)
   second                = fmap 
 
+-- MOVE TO TYPES
 instance Bifunctor Spec    where
   first f (Spec ms ss is x0 x1 x2 x3 x4 x5) 
     = Spec { measures   = first  f <$> ms
@@ -140,25 +153,31 @@ instance Bifunctor Spec    where
            , embeds     = x6
            }
 
+-- MOVE TO TYPES
 instance Fixpoint Body where
   toFix (E e)   = toFix e  
   toFix (P p)   = toFix p
   toFix (R v p) = braces (toFix v <+> text "|" <+> toFix p)   
 
+-- MOVE TO TYPES
 instance Fixpoint a => Fixpoint (Def a) where
   toFix (Def m c bs body) = toFix m <> text " " <> cbsd <> text " = " <> toFix body   
     where cbsd = parens (toFix c <> hsep (toFix `fmap` bs))
 
+-- MOVE TO TYPES
 instance (Fixpoint t, Fixpoint a) => Fixpoint (Measure t a) where
   toFix (M n s eqs) =  toFix n <> text "::" <> toFix s
                     $$ vcat (toFix `fmap` eqs)
 
+-- MOVE TO TYPES
 instance (Fixpoint t, Fixpoint a) => Fixpoint (MSpec t a) where
   toFix =  vcat . fmap toFix . fmap snd . M.toList . measMap
 
+-- MOVE TO TYPES
 instance (Fixpoint t , Fixpoint a) => Show (Measure t a) where
   show = showFix
 
+-- MOVE TO TYPES
 mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
 mapTy f (M n ty eqs) = M n (f ty) eqs
 
@@ -194,6 +213,7 @@ bodyPred fv (R v' p) = subst1 p (v', fv)
 ----------- Refinement Type Aliases -------------------------------------------
 -------------------------------------------------------------------------------
 
+-- MOVE TO TYPES
 data RTEnv   = RTE { typeAliases :: M.HashMap String (RTAlias String BareType)
                    , predAliases :: M.HashMap String (RTAlias Symbol Pred)
                    }

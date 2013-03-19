@@ -52,9 +52,13 @@ instance Eq a => Eq (Located a) where
 instance Ord a => Ord (Located a) where
   compare x y = compare (val x) (val y)
 
-
-
-
+instance Subable a => Subable (Located a) where
+  syms (Loc _ x)     = syms x
+  substa f (Loc l x) = Loc l (substa f x)
+  substf f (Loc l x) = Loc l (substf f x)
+  subst su (Loc l x) = Loc l (subst su x)
 
 instance Hashable a => Hashable (Located a) where
   hashWithSalt i = hashWithSalt i . val
+
+

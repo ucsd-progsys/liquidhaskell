@@ -51,6 +51,8 @@ import Data.List (foldl')
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import qualified Language.Fixpoint.Types            as F
+
+import Language.Haskell.Liquid.Types            (val)
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcInterface
@@ -88,11 +90,13 @@ initEnv info penv
        let f0    = grty info          -- asserted refinements     (for defined vars)
        let f1    = defaults           -- default TOP reftype      (for all vars) 
        let f2    = assm info          -- assumed refinements      (for imported vars)
-       let f3    = ctor $ spec info   -- constructor refinements  (for measures) 
+       let f3    =  ctor' $ spec info -- constructor refinements  (for measures) 
        let bs    = (map (unifyts' tyi penv)) <$> [f0, f1, f2, f3]
        let γ0    = measEnv (spec info) penv (head bs) (cbs info)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
        -- return    $ foldl' (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs] 
+
+ctor' = map (mapSnd val) . ctor 
 
 unifyts' tyi penv = (second (addTyConInfo tyi)) . (unifyts penv)
 
@@ -102,7 +106,7 @@ unifyts penv (x, t) = (x', unify pt t)
 
 measEnv sp penv xts cbs
   = CGE { loc   = noSrcSpan
-        , renv  = fromListREnv   $ second uRType          <$> meas sp 
+        , renv  = fromListREnv   $ second (uRType . val) <$> meas sp 
         , syenv = F.fromListSEnv $ freeSyms sp 
         , penv  = penv 
         , fenv  = F.emptyIBindEnv -- F.fromListSEnv $ second (rTypeSortedReft tce) <$> meas sp 
@@ -118,7 +122,7 @@ measEnv sp penv xts cbs
 assm = {- traceShow ("****** assm *****\n") . -} assm_grty impVars 
 grty = {- traceShow ("****** grty *****\n") . -} assm_grty defVars
 
-assm_grty f info = [ (x, {- toReft <$> -} t) | (x, t) <- sigs, x `S.member` xs ] 
+assm_grty f info = [ (x, {- toReft <$> -} val t) | (x, t) <- sigs, x `S.member` xs ] 
   where xs   = S.fromList $ f info 
         sigs = tySigs $ spec info  
 
@@ -448,20 +452,24 @@ initCGI info = CGInfo {
   , hsWfs      = [] 
   , fixCs      = []
   , fixWfs     = [] 
-  , globals    = F.fromListSEnv . map (mapSnd (rTypeSortedReft (tcEmbeds spc))) $ meas spc
+  , globals    = globs  -- F.fromListSEnv . map (mapSnd (rTypeSortedReft (tcEmbeds spc))) $ meas spc
   , freshIndex = 0
   , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
   , tyConInfo  = tyi
-  , specQuals  = specificationQualifiers (info{spec = spec'})
+  , specQuals  = specificationQualifiers (info {spec = spec'} )
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
-  } where tce   = tcEmbeds $ spec info
-          spc   = spec info
-          spec' = spc{tySigs = mapSnd (addTyConInfo tyi) <$> (tySigs spc)} 
-          tyi   = makeTyConInfo (tconsP spc)
-
+  } 
+  where 
+    tce        = tcEmbeds $ spec info
+    spc        = spec info
+    spec'      = spc {tySigs = [ (x, addTyConInfo tyi <$> t) | (x, t) <- tySigs spc] }
+    tyi        = makeTyConInfo (tconsP spc)
+    globs      = F.fromListSEnv . map mkSort $ meas spc
+    mkSort     = mapSnd (rTypeSortedReft tce . val)
+                               
 
 coreBindLits tce info
   = sortNub $ [ (x, so) | (_, F.ELit x so) <- lconsts]

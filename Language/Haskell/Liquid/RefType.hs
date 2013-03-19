@@ -5,6 +5,8 @@
 
 -- TODO: Desperately needs re-organization.
 module Language.Haskell.Liquid.RefType (
+
+  -- * All these should be MOVE TO TYPES
     RTyVar (..), RType (..), RRType, BRType, RTyCon(..)
   , TyConable (..), RefTypable (..), SubsTy (..), Ref(..)
   , RTAlias (..)
@@ -76,6 +78,7 @@ import Data.List (sort, isSuffixOf, foldl')
 -- | Predicate Variables -------------------------------------------
 --------------------------------------------------------------------
 
+-- MOVE TO TYPES
 data PVar t
   = PV { pname :: !Symbol
        , ptype :: !t
@@ -158,6 +161,7 @@ findPVar ps p
 ---- Unified Representation of Refinement Types --------------------
 --------------------------------------------------------------------
 
+-- MOVE TO TYPES
 data RType p c tv r
   = RVar { 
       rt_var    :: !tv
@@ -215,14 +219,17 @@ data RType p c tv r
 
   | ROth  !String 
 
+-- MOVE TO TYPES
 
 data Ref t s m 
   = RMono [(Symbol, t)] s 
   | RPoly [(Symbol, t)] m
 
+-- MOVE TO TYPES
 data UReft r
   = U { ur_reft :: !r, ur_pred :: !Predicate }
 
+-- MOVE TO TYPES
 type BRType     = RType String String String   
 type RRType     = RType Class  RTyCon RTyVar   
 
@@ -262,12 +269,14 @@ uTop r          = U r top
 -------------- (Class) Predicates for Valid Refinement Types -------
 --------------------------------------------------------------------
 
+-- MOVE TO TYPES
 class (Eq c) => TyConable c where
   isFun    :: c -> Bool
   isList   :: c -> Bool
   isTuple  :: c -> Bool
   ppTycon  :: c -> Doc
 
+-- MOVE TO TYPES
 class ( Fixpoint p
       , TyConable c
       , Eq p, Eq c, Eq tv
@@ -282,15 +291,18 @@ class ( Fixpoint p
 
 -- Monoid Instances ---------------------------------------------------------
 
+-- MOVE TO TYPES
 instance Monoid Predicate where
   mempty       = pdTrue
   mappend p p' = pdAnd [p, p']
 
+-- MOVE TO TYPES
 instance (Monoid a) => Monoid (UReft a) where
   mempty                    = U mempty mempty
   mappend (U x y) (U x' y') = U (mappend x x') (mappend y y')
 
 
+-- MOVE TO TYPES
 instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
          , SubsTy tv (RType p c tv ()) c
          , RefTypable p c tv ()
@@ -320,6 +332,7 @@ instance (Monoid r, Reftable r, RefTypable a b c r, RefTypable a b c ()) => Mono
 
 -- Subable Instances ----------------------------------------------
 
+-- MOVE TO TYPES
 instance Subable () where
   syms _      = []
   subst _ ()  = ()
@@ -327,12 +340,14 @@ instance Subable () where
   substa _ () = ()
 
 
+-- MOVE TO TYPES
 instance Subable r => Subable (UReft r) where
   syms (U r p)     = syms r ++ syms p 
   subst s (U r z)  = U (subst s r) (subst s z)
   substf f (U r z) = U (substf f r) (substf f z) 
   substa f (U r z) = U (substa f r) (substa f z) 
  
+-- MOVE TO TYPES
 instance Subable UsedPVar where 
   syms pv         = [ y | (_, x, EVar y) <- pargs pv, x /= y ]
   subst s pv      = pv { pargs = mapThd3 (subst s)  <$> pargs pv }  
@@ -340,12 +355,14 @@ instance Subable UsedPVar where
   substa f pv     = pv { pargs = mapThd3 (substa f) <$> pargs pv }  
 
 
+-- MOVE TO TYPES
 instance Subable Predicate where
   syms (Pr pvs)     = concatMap syms pvs 
   subst s (Pr pvs)  = Pr (subst s <$> pvs)
   substf f (Pr pvs) = Pr (substf f <$> pvs)
   substa f (Pr pvs) = Pr (substa f <$> pvs)
 
+-- MOVE TO TYPES
 instance Subable (Ref RSort Reft RefType) where
   syms (RMono ss r)     = (fst <$> ss) ++ syms r
   syms (RPoly ss r)     = (fst <$> ss) ++ syms r
@@ -367,24 +384,21 @@ instance (Subable r, RefTypable p c tv r) => Subable (RType p c tv r) where
 
 -- Reftable Instances -------------------------------------------------------
 
+-- MOVE TO TYPES
 instance Reftable r => Reftable (RType Class RTyCon RTyVar r) where
   isTauto     = isTrivial
   ppTy        = errorstar "ppTy RPoly Reftable" 
   toReft      = errorstar "toReft on RType"
   params      = errorstar "params on RType"
 
--- instance Reftable Reft where
---   isTauto  = isTautoReft
---   ppTy     = ppr_reft
---   toReft   = id
---   params _ = []
-
 ppTySReft s r d 
   = text "\\" <> hsep (toFix <$> s) <+> text "->" <+> ppTy r d
 
+-- MOVE TO TYPES
 instance Fixpoint () where
   toFix     = text . show 
 
+-- MOVE TO TYPES
 instance Reftable () where
   isTauto _ = True
   ppTy _  d = d
@@ -393,12 +407,14 @@ instance Reftable () where
   toReft _  = top
   params _  = []
 
+-- MOVE TO TYPES
 instance (Reftable r) => Reftable (UReft r) where
   isTauto (U r p)    = isTauto r && isTauto p 
   ppTy (U r p) d     = ppTy r (ppTy p d) 
   toReft (U r _)     = toReft r
   params (U r _)     = params r
 
+-- MOVE TO TYPES
 instance (Reftable r, RefTypable p c tv r) => Subable (Ref (RType p c tv ()) r (RType p c tv r)) where
   syms (RMono ss r)     = (fst <$> ss) ++ syms r
   syms (RPoly ss r)     = (fst <$> ss) ++ syms r
@@ -412,6 +428,7 @@ instance (Reftable r, RefTypable p c tv r) => Subable (Ref (RType p c tv ()) r (
   substa f (RPoly ss t) = RPoly ss (substa f <$> t)
 
 
+-- MOVE TO TYPES
 instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ()) => Reftable (Ref (RType p c tv ()) r (RType p c tv r)) where
   isTauto (RMono _ r) = isTauto r
   isTauto (RPoly _ t) = isTrivial t 
@@ -423,12 +440,14 @@ instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ()) => Reftable (Re
 
 -- TyConable Instances -------------------------------------------------------
 
+-- MOVE TO TYPES
 instance TyConable RTyCon where
   isFun   = isFunTyCon . rTyCon
   isList  = (listTyCon ==) . rTyCon
   isTuple = TC.isTupleTyCon   . rTyCon 
   ppTycon = toFix 
 
+-- MOVE TO TYPES
 instance TyConable String where
   isFun   = (funConName ==) 
   isList  = (listConName ==) 
@@ -438,26 +457,33 @@ instance TyConable String where
 
 -- RefTypable Instances -------------------------------------------------------
 
+-- MOVE TO TYPES
 instance Fixpoint String where
   toFix = text 
 
+-- MOVE TO TYPES
 instance Fixpoint Class where
   toFix = text . showPpr
 
+-- MOVE TO TYPES
 instance (Eq p, Fixpoint p, TyConable c, Reftable r) => RefTypable p c String r where
   ppCls = ppClass_String
   ppRType = ppr_rtype $ ppPs ppEnv
 
+-- MOVE TO TYPES
 instance (Reftable r) => RefTypable Class RTyCon RTyVar r where
   ppCls = ppClass_ClassPred
   ppRType = ppr_rtype $ ppPs ppEnv
   
+-- MOVE TO TYPES
 class FreeVar a v where 
   freeVars :: a -> [v]
 
+-- MOVE TO TYPES
 instance FreeVar RTyCon RTyVar where
   freeVars = (RTV <$>) . tyConTyVars . rTyCon
 
+-- MOVE TO TYPES
 instance FreeVar String String where
   freeVars _ = []
 
@@ -466,6 +492,7 @@ ppClass_ClassPred c ts = sDocDoc $ pprClassPred c (toType <$> ts)
 
 -- Eq Instances ------------------------------------------------------
 
+-- MOVE TO TYPES
 instance (RefTypable p c tv ()) => Eq (RType p c tv ()) where
   (==) = eqRSort M.empty 
 
@@ -495,6 +522,7 @@ eqRSort _ _ _
 --------- Wrappers for GHC Type Elements ---------------------------
 --------------------------------------------------------------------
 
+-- MOVE TO TYPES
 newtype RTyVar = RTV TyVar -- deriving (Data, Typeable)
 
 instance Eq RTyVar where
@@ -1354,6 +1382,7 @@ rTypeValueVar t = vv where Reft (vv,_) =  rTypeReft t
 
 -- | Data type refinements
 
+-- MOVE TO TYPES
 data DataDecl   = D { tycName   :: String                           -- ^ Type  Constructor Name 
                     , tycTyVars :: [String]                         -- ^ Tyvar Parameters
                     , tycPVars  :: [PVar BSort]                     -- ^ PVar  Parameters
@@ -1363,6 +1392,7 @@ data DataDecl   = D { tycName   :: String                           -- ^ Type  C
 
 -- | Refinement Type Aliases
 
+-- MOVE TO TYPES
 data RTAlias tv ty 
   = RTA { rtName  :: String
         , rtTArgs :: [tv]
@@ -1371,6 +1401,7 @@ data RTAlias tv ty
         , srcPos  :: SourcePos 
         } 
 
+-- MOVE TO TYPES
 instance (Show tv, Show ty) => Show (RTAlias tv ty) where
   show (RTA n as xs t p) = printf "type %s %s %s = %s -- defined at %s" n 
                            (L.intercalate " " (show <$> as)) 
@@ -1442,3 +1473,5 @@ mkProductTy (τ, x, t) = maybe [(x, t)] f $ deepSplitProductType_maybe τ
           
 -- Move to misc
 forth4 (_, _, _, x)     = x
+
+

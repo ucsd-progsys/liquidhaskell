@@ -39,6 +39,8 @@ import qualified Data.HashMap.Strict as M
 import System.Directory (doesFileExist)
 import Language.Fixpoint.Types hiding (Expr) 
 import Language.Fixpoint.Misc
+
+import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Bare
@@ -249,7 +251,7 @@ desugarModuleWithLoc tcm = do
 moduleSpec vars target mg paths
   = do liftIO      $ putStrLn ("paths = " ++ show paths) 
        tgtSpec    <- liftIO $ parseSpec (name, target) 
-       _          <- liftIO $ checkAssertSpec vars             $ Ms.sigs       tgtSpec
+       _          <- liftIO $ checkAssertSpec vars $ Ms.sigs tgtSpec
        impSpec    <- getSpecs paths impNames [Spec, Hs, LHs] 
        let spec    = Ms.expandRTAliases $ tgtSpec `mappend` impSpec 
        let imps    = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
@@ -339,10 +341,10 @@ reqFile ext s
   | otherwise
   = Nothing
 
-checkAssertSpec :: [Var] -> [(Symbol, BareType)] -> IO () 
+checkAssertSpec :: [Var] -> [(LocSymbol, BareType)] -> IO () 
 checkAssertSpec vs xbs =
   let vm  = M.fromList [(showPpr v, v) | v <- vs] 
-      xs' = [s | (x, _) <- xbs, let s = symbolString x, not (M.member s vm)]
+      xs' = [s | (x, _) <- xbs, let s = symbolString (val x), not (M.member s vm)]
   in case xs' of 
     [] -> return () 
     _  -> errorstar $ "Asserts for Unknown variables: "  ++ (intercalate ", " xs')  
