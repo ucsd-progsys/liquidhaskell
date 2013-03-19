@@ -18,7 +18,7 @@ buildAndCopyFixpoint _ _ pkg lbi
        executeShellCommand $ "cp external/z3/lib/libz3.* " ++ binDir
   where 
     allDirs     = absoluteInstallDirs pkg lbi NoCopyDest
-    binDir      = bindir allDirs
+    binDir      = bindir allDirs ++ "/"
     -- libDir      = libdir allDirs
 
 executeShellCommand cmd   = putStrLn ("EXEC: " ++ cmd) >> system cmd >>= check

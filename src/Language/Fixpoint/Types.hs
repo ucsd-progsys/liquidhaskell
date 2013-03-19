@@ -87,6 +87,7 @@ module Language.Fixpoint.Types (
 
   -- * Checking Well-Formedness
   , checkSortedReft
+  , checkSortedReftFull
 
   -- * Qualifiers
   , Qualifier (..)
@@ -1061,10 +1062,13 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
 
 checkSortedReft :: SEnv SortedReft -> [Symbol] -> SortedReft -> Maybe Doc
 checkSortedReft env xs sr = applyNonNull Nothing error unknowns 
-  where error             = Just . (text "Unknown symbols:" <+>) . toFix 
-        unknowns          = [ x | x <- syms sr, not (x `elem` v : xs), not (x `memberSEnv` env)]    
-        Reft (v,_)        = sr_reft sr 
+  where 
+    error                 = Just . (text "Unknown symbols:" <+>) . toFix 
+    unknowns              = [ x | x <- syms sr, not (x `elem` v : xs), not (x `memberSEnv` env)]    
+    Reft (v,_)            = sr_reft sr 
 
+checkSortedReftFull :: SEnv SortedReft -> SortedReft -> Maybe Doc
+checkSortedReftFull = error "TODO: HEREHEREHEREHEREHEREHEREHEREHERE"
 
 ------------------------------------------------------------------------
 ----------------- Qualifiers -------------------------------------------
