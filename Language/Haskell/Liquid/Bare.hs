@@ -62,7 +62,7 @@ data GhcSpec = SP {
                                                  -- eg.  (:) :: a -> xs:[a] -> {v: Int | v = 1 + len(xs) }
   , meas       :: ![(Symbol, Located RefType)]   -- ^ Measure Types  
                                                  -- eg.  len :: [a] -> Int
-  , invariants :: ![SpecType]                    -- ^ Data Type Invariants
+  , invariants :: ![Located SpecType]            -- ^ Data Type Invariants
                                                  -- eg.  forall a. {v: [a] | len(v) >= 0}
   , dconsP     :: ![(DataCon, DataConP)]         -- ^ Predicated Data-Constructors
                                                  -- e.g. see tests/pos/Map.hs
@@ -229,9 +229,10 @@ makeTyConEmbeds  :: BareEnv -> TCEmb String -> IO (TCEmb TyCon)
 makeTyConEmbeds benv z = execBare (M.fromList <$> mapM tx (M.toList z)) benv
   where tx (c, y) = (, y) <$> lookupGhcTyCon c
 
+makeInvariants :: BareEnv -> [Located BareType] -> IO [Located SpecType]
+makeInvariants benv ts = execBare (mapM mkI ts) benv
+  where mkI (Loc l t)  = liftM (Loc l) (mkSpecType "invariant" t) 
 
-makeInvariants :: BareEnv -> [BareType] -> IO [SpecType]
-makeInvariants benv ts = execBare (mapM (mkSpecType "invariant") ts) benv
 
 mkSpecType msg t = mkSpecType' msg πs t
   where πs   = (snd3 $ bkUniv t)
@@ -638,7 +639,7 @@ checkGhcSpec sp      =  applyNonNull sp specError errors
 
 specError            = errorstar . render . vcat . (text "Errors found in specification..." :)
 
-checkInv emb env t   = checkTy msg emb env t 
+checkInv emb env t   = checkTy msg emb env (val t) 
   where msg          = text "Error in invariant specification"
                        $+$  text "invariant " <+> toFix t
 
@@ -672,8 +673,8 @@ ghcSpecEnv sp        = fromListSEnv binds
     varRType         = ofType . varType
  
 -- | This function checks if a type is malformed. Right now, we only check
--- whether all the free symbols are in scope but that is about to change in
--- a moment! TODO HEREHEREHEREHERE
+-- whether all the free symbols are in scope but that is about to change
+-- ...
 checkRType           :: (Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe Doc 
 checkRType emb env t   = efoldReft (rTypeSortedReft emb) f env Nothing t 
   where f env me r err = err <|> checkReft env emb me r

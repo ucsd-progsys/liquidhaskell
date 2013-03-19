@@ -11,7 +11,7 @@ module Language.Haskell.Liquid.Measure (
   , expandRTAliases
   ) where
 
-import GHC
+import GHC hiding (Located)
 import Var
 import qualified Outputable as O 
 import Text.PrettyPrint.HughesPJ hiding (first)
@@ -36,7 +36,7 @@ import Language.Haskell.Liquid.RefType
 data Spec ty bndr  = Spec { 
     measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
   , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types   
-  , invariants :: ![ty]                         -- ^ Data type invariants  
+  , invariants :: ![Located ty]                 -- ^ Data type invariants  
   , imports    :: ![Symbol]                     -- ^ Loaded spec module names
   , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions 
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
@@ -133,7 +133,7 @@ instance Bifunctor Spec    where
   first f (Spec ms ss is x0 x1 x2 x3 x4 x5) 
     = Spec { measures   = first  f <$> ms
            , sigs       = second f <$> ss
-           , invariants =        f <$> is
+           , invariants = fmap   f <$> is
            , imports    = x0 
            , dataDecls  = x1
            , includes   = x2
@@ -219,10 +219,10 @@ data RTEnv   = RTE { typeAliases :: M.HashMap String (RTAlias String BareType)
                    }
 
 expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
-expandRTAliases sp = sp { sigs       = [ (x, generalize $ expandRTAlias env t) | (x, t) <- sigs sp       ] }
-                        { dataDecls  = [ expandRTAliasDataDecl env dc          | dc     <- dataDecls sp  ] } 
-                        { invariants = [ generalize $ expandRTAlias env t      | t      <- invariants sp ] }
-                        { measures   = [ expandRTAliasMeasure env m            | m      <- measures sp   ] } 
+expandRTAliases sp = sp { sigs       = [ (x, generalize $ expandRTAlias env t)  | (x, t) <- sigs sp       ] }
+                        { dataDecls  = [ expandRTAliasDataDecl env dc           | dc     <- dataDecls sp  ] } 
+                        { invariants = [ generalize <$> expandRTAlias env <$> t | t      <- invariants sp ] }
+                        { measures   = [ expandRTAliasMeasure env m             | m      <- measures sp   ] } 
   where env        = makeRTEnv (aliases sp) (paliases sp)
         
         
