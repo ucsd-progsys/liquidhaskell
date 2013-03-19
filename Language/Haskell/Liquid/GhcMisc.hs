@@ -14,8 +14,12 @@ import           CostCentre
 import           FamInstEnv                   (FamInst)
 import           GHC                          hiding (L)
 import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..))
+import           SrcLoc                       (srcSpanFile, srcSpanStartLine, srcSpanStartCol)
+
 import           Language.Fixpoint.Misc       (errorstar, stripParens)
+import           Text.Parsec.Pos              (SourcePos, newPos) 
 import           Language.Fixpoint.Types       
+import           Language.Haskell.Liquid.Types 
 import           Name                         (mkInternalName)
 import           OccName                      (mkTyVarOcc, mkTcOcc)
 import           Unique                       
@@ -27,7 +31,7 @@ import           Var
 import           TyCon                        (mkSuperKindTyCon)
 import qualified TyCon                        as TC
 import qualified DataCon                      as DC
-import           FastString                   (uniq)
+import           FastString                   (uniq, unpackFS)
 import           Data.Char                    (isLower, isSpace)
 import           Data.Maybe
 import           Data.Hashable
@@ -239,3 +243,15 @@ instance Fixpoint Name where
 instance Fixpoint Type where
   toFix = pprDoc
 
+
+
+srcSpanSourcePos :: SrcSpan -> SourcePos
+srcSpanSourcePos (UnhelpfulSpan _) = dummyPos 
+srcSpanSourcePos (RealSrcSpan s)   = realSrcSpanSourcePos s
+
+realSrcSpanSourcePos :: RealSrcSpan -> SourcePos 
+realSrcSpanSourcePos s = newPos file line col
+  where 
+    file               = unpackFS $ srcSpanFile s
+    line               = srcSpanStartLine       s
+    col                = srcSpanStartCol        s

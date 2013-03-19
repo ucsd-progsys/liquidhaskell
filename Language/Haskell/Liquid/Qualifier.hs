@@ -2,14 +2,11 @@ module Language.Haskell.Liquid.Qualifier (
   specificationQualifiers
   ) where
 
--- import Outputable
--- import Language.Haskell.Liquid.GhcMisc
--- import Control.DeepSeq
-
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.PredType
+import Language.Haskell.Liquid.Types
 import Language.Fixpoint.Types
 import Language.Fixpoint.Misc
 
@@ -21,10 +18,11 @@ import Data.Bifunctor           (second)
 
 
 specificationQualifiers :: GhcInfo -> [Qualifier] 
-specificationQualifiers info  
-  = [ q | (x, t) <- tySigs $ spec info, x `S.member` xs, q <- refTypeQuals tce t
-    ] where xs  = S.fromList $ defVars info
-            tce = tcEmbeds   $ spec info
+specificationQualifiers info 
+  = [ q | (x, t) <- tySigs $ spec info
+        , x `S.member` (S.fromList $ defVars info)
+        , q <- refTypeQuals (tcEmbeds $ spec info) (val t) 
+    ]
 
 refTypeQuals tce t 
   = quals ++ 
