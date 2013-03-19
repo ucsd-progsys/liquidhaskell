@@ -274,7 +274,7 @@ data Pspec ty bndr
   | Impt  Symbol
   | DDecl DataDecl
   | Incl  FilePath
-  | Invt  ty
+  | Invt  (Located ty)
   | Alias (RTAlias String BareType)
   | PAlias (RTAlias Symbol Pred)
   | Embed (String, FTycon)
@@ -310,7 +310,7 @@ specP
     <|> (reserved "import"    >> liftM Impt  symbolP)
     <|> (reserved "data"      >> liftM DDecl dataDeclP)
     <|> (reserved "include"   >> liftM Incl  filePathP)
-    <|> (reserved "invariant" >> liftM Invt  genBareTypeP)
+    <|> (reserved "invariant" >> liftM Invt  invariantP)
     <|> (reserved "type"      >> liftM Alias aliasP)
     <|> (reserved "predicate" >> liftM PAlias paliasP)
     <|> (reserved "embed"     >> liftM Embed embedP)
@@ -327,6 +327,7 @@ tyBindP    = xyP (locParserP binderP) dcolon genBareTypeP
 locParserP :: Parser a -> Parser (Located a)
 locParserP p = liftM2 Loc getPosition p
 
+invariantP   = locParserP genBareTypeP 
 
 genBareTypeP
   = bareTypeP -- liftM generalize bareTypeP 

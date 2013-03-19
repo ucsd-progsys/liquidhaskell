@@ -17,8 +17,10 @@ module Language.Haskell.Liquid.Types (
   )
   where
 
-
+import Control.Applicative          ((<$>))
+import Data.Foldable
 import Data.Hashable
+import Data.Traversable
 import Text.Parsec.Pos              (SourcePos, newPos) 
 import Language.Fixpoint.Types 
 
@@ -42,6 +44,12 @@ instance Expression a => Expression (Located a) where
 
 instance Functor Located where
   fmap f (Loc l x) =  Loc l (f x)
+
+instance Foldable Located where
+  foldMap f (Loc l x) = f x
+
+instance Traversable Located where 
+  traverse f (Loc l x) = Loc l <$> f x
 
 instance Show a => Show (Located a) where
   show (Loc l x) = show x ++ " defined at " ++ show l

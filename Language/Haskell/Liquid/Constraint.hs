@@ -1148,11 +1148,10 @@ extendγ γ xts
 
 type RTyConInv = M.HashMap RTyCon [SpecType]
 
-mkRTyConInv    :: [SpecType] -> RTyConInv 
+-- mkRTyConInv    :: [Located SpecType] -> RTyConInv 
 mkRTyConInv ts = group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
   where 
-    strip      = thd3 . bkUniv 
--- type RTyConInv = M.HashMap RTyCon FReft
+    strip      = thd3 . bkUniv . val 
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
 addRTyConInv m t@(RApp c _ _ _)
