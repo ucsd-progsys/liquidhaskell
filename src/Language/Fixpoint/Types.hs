@@ -85,10 +85,6 @@ module Language.Fixpoint.Types (
   -- * Cut KVars
   , Kuts (..), ksEmpty, ksUnion
 
-  -- * Checking Well-Formedness
-  , checkSortedReft
-  , checkSortedReftFull
-
   -- * Qualifiers
   , Qualifier (..)
   ) where
@@ -212,6 +208,8 @@ boolFTyCon = TC (S "bool")
 -- predFTyCon = TC (S "Pred")
 propFTyCon = TC (S propConName)
 
+
+
 -- listFTyCon = TC (S listConName)
 
 -- isListTC   = (listFTyCon ==)
@@ -256,6 +254,7 @@ toFix_sort (FApp c ts)  = toFix c <+> intersperse space (fp <$> ts)
 
 instance Fixpoint FTycon where
   toFix (TC s)       = toFix s
+
 
 ---------------------------------------------------------------
 ---------------------------- Symbols --------------------------
@@ -370,14 +369,14 @@ intKvar             = intSymbol "k_"
 ---------------------------------------------------------------
 
 data Constant = I !Integer 
-              deriving (Eq, Ord, Show) --, Data, Typeable, Show)
+              deriving (Eq, Ord, Show) 
 
 data Brel = Eq | Ne | Gt | Ge | Lt | Le 
-            deriving (Eq, Ord, Show) -- Data, Typeable, Show)
+            deriving (Eq, Ord, Show) 
 
 data Bop  = Plus | Minus | Times | Div | Mod    
-            deriving (Eq, Ord, Show) -- Data, Typeable, Show)
-	    -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
+            deriving (Eq, Ord, Show) 
+	      -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
 data Expr = ECon !Constant 
           | EVar !Symbol
@@ -387,8 +386,7 @@ data Expr = ECon !Constant
           | EIte !Pred !Expr !Expr
           | ECst !Expr !Sort
           | EBot
-          deriving (Eq, Ord, Show) -- Data, Typeable, Show)
-
+          deriving (Eq, Ord, Show)
 
 instance Fixpoint Integer where
   toFix = integer 
@@ -1055,20 +1053,6 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
 -- shiftVV (Reft (v, ras)) v' = (su, (Reft (v', subst su ras))) 
 --   where su = mkSubst [(v, EVar v')]
 
-
--------------------------------------------------------------------------
---------------- Checking Well Formedness --------------------------------
--------------------------------------------------------------------------
-
-checkSortedReft :: SEnv SortedReft -> [Symbol] -> SortedReft -> Maybe Doc
-checkSortedReft env xs sr = applyNonNull Nothing error unknowns 
-  where 
-    error                 = Just . (text "Unknown symbols:" <+>) . toFix 
-    unknowns              = [ x | x <- syms sr, not (x `elem` v : xs), not (x `memberSEnv` env)]    
-    Reft (v,_)            = sr_reft sr 
-
-checkSortedReftFull :: SEnv SortedReft -> SortedReft -> Maybe Doc
-checkSortedReftFull = error "TODO: HEREHEREHEREHEREHEREHEREHEREHERE"
 
 ------------------------------------------------------------------------
 ----------------- Qualifiers -------------------------------------------
