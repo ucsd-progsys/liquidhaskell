@@ -1006,13 +1006,21 @@ take n t@(Text arr off len)
     | n >= len  = t
     | otherwise = Text arr off len'
  where
-     len' = loop_take n t 0 0
+     len' = loop_take n t 0 z
+     z = (liquidAssume (axiom_numchars arr off) 0)
      -- FIXME: step through this on paper, try to prove (loop 0 0) <= len
      -- cnt : {Int | numchars(arr, off, i) = cnt}
-     loop !i !cnt
-          | i >= len || cnt >= n = i
-          | otherwise            = loop (i+d) (cnt+1)
-          where d = iter_ t i
+     -- loop !i !cnt
+     --      | i >= len || cnt >= n = i
+     --      | otherwise            = loop (i+d) (cnt+1)
+     --      where d = iter_ t i
+
+{-@ axiom_numchars :: a:A.Array
+                   -> o:Int
+                   -> {v:Bool | ((Prop v) <=> ((numchars a o 0) = 0))}
+  @-}
+axiom_numchars :: A.Array -> Int -> Bool
+axiom_numchars _ _ = P.undefined
 
 {-@ loop_take :: n:{v:Int | v >= 0}
               -> t:Text
