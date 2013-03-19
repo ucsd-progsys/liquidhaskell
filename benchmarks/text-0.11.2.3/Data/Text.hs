@@ -235,20 +235,7 @@ import Prelude (Integer(..), Num(..), Real(..), Integral(..))
 import Data.Word --(Word16(..))
 import Language.Haskell.Liquid.Prelude
 
-{-@ measure alen :: A.Array -> Int
-    alen (A.Array a l) = l
-  @-}
-
-{-@ measure tlen :: Text -> Int
-    tlen (Text a o l) = l
-  @-}
-
-{-@ data Text = Text
-              (arr :: A.Array)
-              (off :: {v: Int | v >= 0 })
-              (len :: {v: Int | (v >= 0 && ((alen arr) = 0 || v = 0 || off < (alen arr)))})
-  @-}
-
+{-@ predicate Max V X Y = ((V >= X) && (V >= Y)) @-}
 
 -- $strict
 --
@@ -1009,20 +996,40 @@ unfoldrN n f s = unstream (S.unfoldrN n (firstf safe . f) s)
 -- | /O(n)/ 'take' @n@, applied to a 'Text', returns the prefix of the
 -- 'Text' of length @n@, or the 'Text' itself if @n@ is greater than
 -- the length of the Text. Subject to fusion.
-{-@ take :: n:Int
+{-@ take :: n:{v:Int | v >= 0}
          -> t:Text
-         -> {v:Text | (n = (tlen v))}
+         -> {v:Text | (numchars (tarr v) (toff v) (tlen v)) <= n}
   @-}
 take :: Int -> Text -> Text
 take n t@(Text arr off len)
     | n <= 0    = empty
     | n >= len  = t
-    | otherwise = Text arr off (loop 0 0)
-  where
-      loop !i !cnt
-           | i >= len || cnt >= n = i
-           | otherwise            = loop (i+d) (cnt+1)
-           where d = iter_ t i
+    | otherwise = Text arr off len'
+ where
+     len' = loop_take n t 0 0
+     -- FIXME: step through this on paper, try to prove (loop 0 0) <= len
+     -- cnt : {Int | numchars(arr, off, i) = cnt}
+     loop !i !cnt
+          | i >= len || cnt >= n = i
+          | otherwise            = loop (i+d) (cnt+1)
+          where d = iter_ t i
+
+{-@ loop_take :: n:{v:Int | v >= 0}
+              -> t:Text
+              -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
+              -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
+                            && (v <= n))}
+              -> {v:Int | (numchars (tarr t) (toff t) v) <= n}
+  @-}
+loop_take :: Int -> Text -> Int -> Int -> Int
+loop_take n t@(Text arr off len) !i !cnt
+     | i >= len || cnt >= n = i
+     --LIQUID need to inject (i<len && cnt<n) into the environment
+     | i < len  && cnt < n  = let d = iter_ t i
+                                  cnt' = cnt + 1
+                              in loop_take n t (i+d) cnt'
+     --LIQUID where d = iter_ t i
+
 {-# INLINE [1] take #-}
 
 {-# RULES
