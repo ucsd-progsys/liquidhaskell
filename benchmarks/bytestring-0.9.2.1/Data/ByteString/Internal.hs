@@ -396,7 +396,7 @@ memchr p w s = c_memchr p (fromIntegral w) s
 
 {-@ memcpy :: dst:(Ptr Word8) 
            -> src:(Ptr Word8) 
-           -> {v:CSize| ((plen src) <= v && (plen dst) <= v)} 
+           -> size: {v:CSize| ((plen src) <= v && (plen dst) <= v)} 
            -> IO () 
   @-}
 memcpy :: Ptr Word8 -> Ptr Word8 -> CSize -> IO ()
