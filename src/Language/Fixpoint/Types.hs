@@ -48,7 +48,7 @@ module Language.Fixpoint.Types (
   , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, addIds, sinfo 
 
   -- * Environments
-  , SEnv, emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
+  , SEnv, emptySEnv, fromListSEnv, mapSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
   , FEnv, insertFEnv 
   , IBindEnv, BindId, insertsIBindEnv, deleteIBindEnv, emptyIBindEnv
   , BindEnv, insertBindEnv, emptyBindEnv
@@ -601,6 +601,7 @@ sortedReftValueVariable (RR _ (Reft (v,_))) = v
 fromListSEnv            ::  [(Symbol, a)] -> SEnv a
 fromListSEnv            = SE . M.fromList
 
+mapSEnv f (SE env)      = SE (fmap f env)
 deleteSEnv x (SE env)   = SE (M.delete x env)
 insertSEnv x y (SE env) = SE (M.insert x y env)
 lookupSEnv x (SE env)   = M.lookup x env
