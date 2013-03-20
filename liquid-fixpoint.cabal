@@ -12,7 +12,7 @@ cabal-version:       >=1.8
 
 Executable fixpoint
   build-depends:   base, deepseq, pretty, containers, hashable, unordered-containers, 
-                   filepath, parsec, process, directory, text, filemanip,
+                   filepath, parsec, process, directory, text, filemanip, mtl,
                    ansi-terminal, bifunctors, ghc-prim, liquid-fixpoint
 
   Main-is:         Fixpoint.hs
@@ -22,13 +22,15 @@ library
   hs-source-dirs:  src
   Exposed-Modules: Language.Fixpoint.Names,
                    Language.Fixpoint.Files,
-                   Language.Fixpoint.Types, 
+                   Language.Fixpoint.Types,
+                   Language.Fixpoint.Sort,
                    Language.Fixpoint.Interface, 
                    Language.Fixpoint.Parse,
                    Language.Fixpoint.Misc
   
-  build-depends:   base, deepseq, pretty, containers, hashable, unordered-containers, 
-                   filepath, parsec, process, directory, text, filemanip,
-                   ansi-terminal, bifunctors, ghc-prim
+  build-depends:   base, deepseq, pretty, containers, hashable, 
+                   unordered-containers, filepath, parsec, process, 
+                   directory, text, filemanip, mtl, ansi-terminal, 
+                   bifunctors, ghc-prim
 
 

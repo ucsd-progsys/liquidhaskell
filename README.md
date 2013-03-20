@@ -16,11 +16,16 @@ The package include the Ocaml fixpoint code, as well as the z3 binaries
 
 In addition to the .cabal dependencies, to build you must have
 
+- the GNU multiprecision library 
 - a recent OCaml compiler
-- the GNU multiprecision library
 - the CamlIDL library
 
 Due to the Z3 dependency, LiquidHaskell can **only be compiled on Linux** at the moment.
+
+The above can be carried out in one shot on a recent Linux by
+
+    sudo apt-get install haskell-platform ocaml camlidl g++ libgmp3c2
+
 
 How to Clone
 ------------
