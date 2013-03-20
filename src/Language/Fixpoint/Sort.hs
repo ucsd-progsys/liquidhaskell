@@ -4,9 +4,18 @@
 
 module Language.Fixpoint.Sort  ( 
   -- * Checking Well-Formedness
-  , checkSortedReft
+    checkSortedReft
   , checkSortedReftFull
   ) where
+
+import Language.Fixpoint.Types
+import Language.Fixpoint.Misc
+import Text.PrettyPrint.HughesPJ
+import Text.Printf
+import Control.Monad.Error (throwError)
+import Control.Monad
+import Control.Applicative
+
 
 -- | Types used throughout checker
 
@@ -31,8 +40,9 @@ checkSortedReftFull = error "TODO: HEREHEREHEREHEREHEREHEREHEREHERE"
 
 -------------------------------------------------------------------------
 -- | Checking Expressions -----------------------------------------------
-checkExpr                  :: Env -> Expr -> CheckM Sort 
 -------------------------------------------------------------------------
+
+checkExpr                  :: Env -> Expr -> CheckM Sort 
 
 checkExpr _ EBot           = throwError "Type Error: Bot"
 checkExpr _ (ECon _)       = return FInt 
@@ -64,7 +74,7 @@ checkCst f t (EApp g es)
   = checkApp f (Just t) g es
 checkCst f t e           
   = do t' <- checkExpr f e
-       if t `sortCompat` t' 
+       if t == t' 
          then return t
          else throwError (errCast e t' t)
 
@@ -75,12 +85,12 @@ checkApp' f to g es
        (n, its, ot) <- sortFunction gt
        unless (length its == length es) $ throwError (errArgArity g its es)
        ets          <- mapM (checkExpr f) es
-       θ            <- sortUnify its ets
-       let t         = sortApply θ ot
+       θ            <- unify its ets
+       let t         = apply θ ot
        case to of
          Nothing    -> return (θ, t)
-         Just t'    -> do θ' <- sortUnifyWith θ [t] [t']
-                          return (θ', sortApply θ' t)
+         Just t'    -> do θ' <- unifyMany θ [t] [t']
+                          return (θ', apply θ' t)
 
 checkApp f to g es
   = snd <$> checkApp' f to g es
@@ -104,13 +114,14 @@ checkOpTy f e _ t t'
 
 checkNumeric f l 
   = do t <- checkSym f l
-       unless (t == FNum) (throwError $ errNonNumeric l)
+       unless (t == FNum) (throwError $ errNonNumeric t l)
        return ()
 
 -------------------------------------------------------------------------
 -- | Checking Predicates ------------------------------------------------
-checkExpr :: Env -> Pred -> CheckM () 
 -------------------------------------------------------------------------
+
+checkPred                  :: Env -> Pred -> CheckM () 
 
 checkPred f PTrue          = return ()
 checkPred f PFalse         = return ()
@@ -120,7 +131,7 @@ checkPred f (PImp p p')    = mapM_ (checkPred f) [p, p']
 checkPred f (PIff p p')    = mapM_ (checkPred f) [p, p']
 checkPred f (PAnd ps)      = mapM_ (checkPred f) ps
 checkPred f (POr ps)       = mapM_ (checkPred f) ps
-checkPred f (PAtom r e e') = checkRel f r e1 e2
+checkPred f (PAtom r e e') = checkRel f r e e'
 checkPred f p              = throwError $ errUnexpectedPred p
 
 checkPredBExp f e          = do t <- checkExpr f e
@@ -175,17 +186,56 @@ errUnbound x         = printf "Unbound Symbol %s" (showFix x)
 
 errNonFunction t     = printf "Sort %s is not a function" (showFix t)
 
+errNonNumeric _ l    = printf "FObj sort %s is not numeric" (showFix l)
+
+errUnexpectedPred p  = printf "Sort Checking: Unexpected Predicate %s" (showFix p)
+
 -------------------------------------------------------------------------
 -- | Utilities for working with sorts -----------------------------------
 -------------------------------------------------------------------------
 
 -- | Unification of Sorts
 
-sortUnifyWith = error "TODO"
-sortUnify     = error "TODO"
+unify   = unifyMany (Th M.empty)
 
+unifyMany 0 ts ts' 
+  | length ts == length ts'        = foldM (uncurry . unify1) θ $ zip ts ts'
+  | otherwise                      = throwError $ errUnifyMany ts ts'
 
--- | Deconstruct a function-sort
+unify1 _ FNum _                    = Nothing
+unify1 θ (FVar i) t                = unifyVar θ i t
+unify1 θ t (FVar i)                = unifyVar θ i t
+unify1 θ (FApp c ts) (FApp c' ts')  
+  | c == c'                        = unifyMany θ ts ts' 
+unify1 θ t1 t2  
+  | t1 == t2                       = return θ
+  | otherwise                      = throwError $ errUnify t1 t2
+
+unifyVar θ i t 
+  = case lookupVar i Θ of
+      Just t' -> if t == t' then Just θ else Nothing 
+      Nothing -> Just $ updateVar i t Θ
+
+-- | Sort Substitutions
+newtype TVSubst      = Th (M.HashMap Int Sort) 
+
+-- | API for manipulating substitutions
+lookupVar i (Th m)   = M.lookup i m
+updateVar i t (Th m) = Th (M.insert i t m)
+
+-------------------------------------------------------------------------
+-- | Applying a Type Substitution ---------------------------------------
+-------------------------------------------------------------------------
+
+apply θ = error "TODO"
+
+sortMap f (FFunc n ts) = FFunc n (sortMap f <$> ts)
+sortMap f (FApp  c ts) = FApp  c (sortMap f <$> ts)
+sortMap f t            = f t
+
+------------------------------------------------------------------------
+-- | Deconstruct a function-sort ---------------------------------------
+------------------------------------------------------------------------
 
 sortFunction (FFunc n ts') = return (n, ts, t) 
   where 
@@ -194,6 +244,9 @@ sortFunction (FFunc n ts') = return (n, ts, t)
     numArgs                = length ts' - 1
 
 sortFunction t             = throwError $ errNonFunction t 
+
+
+
 
 -- let uf_arity f uf =  
 --   match sortcheck_sym f uf with None -> None | Some t -> 
