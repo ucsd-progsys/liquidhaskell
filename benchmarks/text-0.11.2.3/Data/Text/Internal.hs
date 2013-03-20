@@ -78,6 +78,7 @@ text arr off len =
 {-# INLINE text #-}
 
 -- | /O(1)/ The empty 'Text'.
+{-@ empty :: {v:Text | (tlen v) = 0} @-}
 empty :: Text
 empty = Text A.empty 0 0
 {-# INLINE [1] empty #-}
