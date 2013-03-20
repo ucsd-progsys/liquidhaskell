@@ -636,11 +636,17 @@ checkGhcSpec sp      =  applyNonNull sp specError errors
                      ++ mapMaybe checkMismatch                          (tySigs     sp)
                      ++ checkDuplicate                                  (tySigs     sp)
 
-specError            = errorstar . render . vcat . (text "Errors found in specification..." :)
+specError            = errorstar 
+                     . render 
+                     . vcat 
+                     . punctuate (text "\n----\n") 
+                     . (text "Alas, errors found in specification..." :)
+
 
 checkInv emb env t   = checkTy msg emb env (val t) 
-  where msg          = text "Error in invariant specification"
-                       $+$  text "invariant " <+> toFix t
+  where msg          =   text "\n---"
+                     $+$ text "Error in invariant specification"
+                     $+$ text "invariant " <+> toFix t
 
 checkBind d emb env (v, Loc l t) = checkTy msg emb env t
   where 
@@ -685,9 +691,14 @@ checkRType emb env t = efoldReft cb (rTypeSortedReft emb) f env Nothing t
     cb c ts          = classBinds (RCls c ts)
     f env me r err   = err <|> checkReft env emb me r
 
-checkReft            :: (Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe Doc 
+checkReft                    :: (Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe Doc 
+
 checkReft env emb Nothing _  = Nothing -- RMono / Ref case, not sure how to check these yet.  
-checkReft env emb (Just t) _ = checkSortedReftFull env (rTypeSortedReft emb t)
+checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env r 
+  where 
+    r                        = rTypeSortedReft emb t
+    dr                       = text "Sort Error in Refinement:" <+> toFix r 
+
 
 -- DONT DELETE the below till we've added pred-checking as well
 -- checkReft env emb (Just t) _ = checkSortedReft env xs (rTypeSortedReft emb t) 
