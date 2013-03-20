@@ -22,6 +22,8 @@
 --
 module Data.ByteString.Internal (
 
+        liquidCanary,
+
         -- * The @ByteString@ type and representation
         ByteString(..),         -- instances: Eq, Ord, Show, Read, Data, Typeable
 
@@ -170,7 +172,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
     blen (PS p o l) = l 
   @-} 
 
-{-@ predicate BSValid Payload Offset Length = ((plen Payload) = Offset + Length) @-}
+{-@ predicate BSValid Payload Offset Length = ((fplen Payload) = Offset + Length) @-}
 
 {-@ data ByteString  = PS { payload :: (ForeignPtr Word8) 
                           , offset  :: Nat  
@@ -401,6 +403,10 @@ memchr p w s = c_memchr p (fromIntegral w) s
   @-}
 memcpy :: Ptr Word8 -> Ptr Word8 -> CSize -> IO ()
 memcpy p q s = undefined -- c_memcpy p q s >> return ()
+
+{-@ liquidCanary :: x:Int -> {v: Int | v > x} @-}
+liquidCanary     :: Int -> Int
+liquidCanary x   = x - 1
 
 {-
 foreign import ccall unsafe "string.h memmove" c_memmove

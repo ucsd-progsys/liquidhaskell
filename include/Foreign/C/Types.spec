@@ -1,6 +1,8 @@
 module spec Foreign.C.Types where
 
-measure asInt :: CSize -> GHC.Types.Int
+-- measure cSizeInt :: CSize -> GHC.Types.Int
+-- invariant {v: CSize | (cSizeInt v) >= 0}
 
-invariant {v: CSize | (asInt v) >= 0}
+embed CSize as int
+
 
