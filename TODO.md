@@ -23,12 +23,10 @@ TODO
 Spec Errors
 ===========
 
-[OK] Add Located a [for a in SpecType, RefType, etc.]
-[OK] run all tests                             
-[OK] Add Located Invariant (GhcInfo)
-- run all tests
-- Update Fixpoint.Types.checkSortedReft/Full <---------- HEREHEREHEREHEREHEREHERE
-- run all tests
+[OK] Add Located a [for a in SpecType, RefType, Invariant]
+[OK] run all tests
+-    Update Fixpoint.Types.checkSortedReft/Full <---------- HEREHEREHEREHEREHEREHERE
+-    run all tests
 
 BExp Parser vs. ppr_rtype [BEXPARSER]
 =====================================
