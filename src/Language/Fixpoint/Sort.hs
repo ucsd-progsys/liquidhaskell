@@ -24,8 +24,8 @@ import qualified Data.HashMap.Strict as M
 
 type CheckM a = Either String a
 type Env      = Symbol -> Maybe Sort
-fBool         = FApp boolFTyCon [] 
-fProp         = FApp propFTyCon [] 
+fProp         = FApp boolFTyCon [] 
+-- fProp         = FApp propFTyCon [] 
 
 -------------------------------------------------------------------------
 -- | Checking Refinements -----------------------------------------------
