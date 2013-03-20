@@ -98,6 +98,12 @@ clusterCenter n xs = map average xs'
 safeDiv n 0 = liquidError "divide by zero"
 safeDiv n d = n / (fromIntegralNZ d)
 
+fromIntegralNZ = assumeNZ . fromIntegral . assertNZ
+  where 
+    assertNZ v = liquidAssert (v /= 0) v 
+    assumeNZ v = liquidAssume (v /= 0) v
+
+
 -- | Finding the Nearest Center
 
 {-@ nearestCenter :: n:Int -> (GenPoint a n) -> [(Point n)] -> (Point n) @-}
