@@ -174,6 +174,7 @@ safeZip msg xs ys
   where nxs = length xs
         nys = length ys
 
+-- eqLen = on (==) length 
 
 safeZipWith msg f xs ys 
   | nxs == nys 
@@ -317,3 +318,5 @@ dot                = char '.'
 arrow              = text "->"
 dcolon             = colon <> colon
 intersperse d ds   = hsep $ punctuate (space <> d) ds
+
+

@@ -48,7 +48,7 @@ module Language.Fixpoint.Types (
   , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, addIds, sinfo 
 
   -- * Environments
-  , SEnv, emptySEnv, fromListSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
+  , SEnv, emptySEnv, fromListSEnv, mapSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
   , FEnv, insertFEnv 
   , IBindEnv, BindId, insertsIBindEnv, deleteIBindEnv, emptyIBindEnv
   , BindEnv, insertBindEnv, emptyBindEnv
@@ -84,9 +84,6 @@ module Language.Fixpoint.Types (
 
   -- * Cut KVars
   , Kuts (..), ksEmpty, ksUnion
-
-  -- * Checking Well-Formedness
-  , checkSortedReft
 
   -- * Qualifiers
   , Qualifier (..)
@@ -211,6 +208,8 @@ boolFTyCon = TC (S "bool")
 -- predFTyCon = TC (S "Pred")
 propFTyCon = TC (S propConName)
 
+
+
 -- listFTyCon = TC (S listConName)
 
 -- isListTC   = (listFTyCon ==)
@@ -255,6 +254,7 @@ toFix_sort (FApp c ts)  = toFix c <+> intersperse space (fp <$> ts)
 
 instance Fixpoint FTycon where
   toFix (TC s)       = toFix s
+
 
 ---------------------------------------------------------------
 ---------------------------- Symbols --------------------------
@@ -369,14 +369,14 @@ intKvar             = intSymbol "k_"
 ---------------------------------------------------------------
 
 data Constant = I !Integer 
-              deriving (Eq, Ord, Show) --, Data, Typeable, Show)
+              deriving (Eq, Ord, Show) 
 
 data Brel = Eq | Ne | Gt | Ge | Lt | Le 
-            deriving (Eq, Ord, Show) -- Data, Typeable, Show)
+            deriving (Eq, Ord, Show) 
 
 data Bop  = Plus | Minus | Times | Div | Mod    
-            deriving (Eq, Ord, Show) -- Data, Typeable, Show)
-	    -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
+            deriving (Eq, Ord, Show) 
+	      -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
 data Expr = ECon !Constant 
           | EVar !Symbol
@@ -386,8 +386,7 @@ data Expr = ECon !Constant
           | EIte !Pred !Expr !Expr
           | ECst !Expr !Sort
           | EBot
-          deriving (Eq, Ord, Show) -- Data, Typeable, Show)
-
+          deriving (Eq, Ord, Show)
 
 instance Fixpoint Integer where
   toFix = integer 
@@ -602,6 +601,7 @@ sortedReftValueVariable (RR _ (Reft (v,_))) = v
 fromListSEnv            ::  [(Symbol, a)] -> SEnv a
 fromListSEnv            = SE . M.fromList
 
+mapSEnv f (SE env)      = SE (fmap f env)
 deleteSEnv x (SE env)   = SE (M.delete x env)
 insertSEnv x y (SE env) = SE (M.insert x y env)
 lookupSEnv x (SE env)   = M.lookup x env
@@ -1053,17 +1053,6 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
 --
 -- shiftVV (Reft (v, ras)) v' = (su, (Reft (v', subst su ras))) 
 --   where su = mkSubst [(v, EVar v')]
-
-
--------------------------------------------------------------------------
---------------- Checking Well Formedness --------------------------------
--------------------------------------------------------------------------
-
-checkSortedReft :: SEnv SortedReft -> [Symbol] -> SortedReft -> Maybe Doc
-checkSortedReft env xs sr = applyNonNull Nothing error unknowns 
-  where error             = Just . (text "Unknown symbols:" <+>) . toFix 
-        unknowns          = [ x | x <- syms sr, not (x `elem` v : xs), not (x `memberSEnv` env)]    
-        Reft (v,_)        = sr_reft sr 
 
 
 ------------------------------------------------------------------------
