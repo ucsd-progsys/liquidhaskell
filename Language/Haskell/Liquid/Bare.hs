@@ -36,7 +36,7 @@ import Data.Bifunctor
 import Language.Fixpoint.Names                  (propConName, dropModuleNames)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Fixpoint.Types                  
-
+import Language.Fixpoint.Sort                   (checkSortedReft, checkSortedReftFull)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
@@ -645,8 +645,9 @@ checkInv emb env t   = checkTy msg emb env (val t)
 
 checkBind d emb env (v, Loc l t) = checkTy msg emb env t
   where 
-    msg = text "Error in type specification for" <+> text d
-          $+$  toFix v <+> dcolon <+> toFix t
+    msg = text "Error in type specification for" <+> text d 
+          $+$ text "defined at: " <+> toFix l
+          $+$ toFix v <+> dcolon  <+> toFix t
 
 checkTy msg emb env t    = (msg $+$) <$> checkRType emb env t
 
@@ -681,8 +682,9 @@ checkRType emb env t   = efoldReft (rTypeSortedReft emb) f env Nothing t
 
 checkReft            :: (Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe Doc 
 checkReft env emb Nothing _  = Nothing -- RMono / Ref case, not sure how to check these yet.  
-checkReft env emb (Just t) _ = checkSortedReft env xs (rTypeSortedReft emb t) 
-   where xs                  = fromMaybe [] $ params <$> stripRTypeBase t 
+checkReft env emb (Just t) _ = checkSortedReftFull env (rTypeSortedReft emb t) 
+-- checkReft env emb (Just t) _ = checkSortedReft env xs (rTypeSortedReft emb t) 
+--    where xs                  = fromMaybe [] $ params <$> stripRTypeBase t 
 
 
 checkSig env (x, t) 
