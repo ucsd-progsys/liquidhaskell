@@ -75,7 +75,7 @@ module Data.Text
     -- $case
     , toCaseFold
     , toLower
---LIQUID    , toUpper
+    , toUpper
 
     -- ** Justification
     , justifyLeft
@@ -208,7 +208,7 @@ import Data.String (IsString(..))
 import qualified Data.Text.Fusion as S
 import qualified Data.Text.Fusion.Common as S
 import Data.Text.Fusion (stream, reverseStream, unstream)
---LIQUID import Data.Text.Private (span_)
+import Data.Text.Private (span_)
 import Data.Text.Internal (Text(..), empty, firstf, safe, text, textP)
 import qualified Prelude as P
 import Data.Text.Unsafe (Iter(..), iter, iter_, lengthWord16, reverseIter,
@@ -235,7 +235,6 @@ import Prelude (Integer(..), Num(..), Real(..), Integral(..))
 import Data.Word --(Word16(..))
 import Language.Haskell.Liquid.Prelude
 
-{-@ predicate Max V X Y = ((V >= X) && (V >= Y)) @-}
 
 -- $strict
 --
@@ -475,6 +474,7 @@ head t = S.head (stream t)
 
 -- | /O(1)/ Returns the first character and rest of a 'Text', or
 -- 'Nothing' if empty. Subject to fusion.
+--LIQUID FIXME: Can I say something useful here?
 uncons :: Text -> Maybe (Char, Text)
 uncons t@(Text arr off len)
     | len <= 0  = Nothing
@@ -584,6 +584,7 @@ length t = S.length (stream t)
 -- This function gives the same answer as comparing against the result
 -- of 'length', but can short circuit if the count of characters is
 -- greater than the number, and hence be more efficient.
+--LIQUID FIXME: needs numchar
 compareLength :: Text -> Int -> Ordering
 compareLength t n = S.compareLengthI (stream t) n
 {-# INLINE [1] compareLength #-}
@@ -636,6 +637,7 @@ map f t = unstream (S.map (safe . f) (stream t))
 -- | /O(n)/ The 'intercalate' function takes a 'Text' and a list of
 -- 'Text's and concatenates the list after interspersing the first
 -- argument between each element of the list.
+--LIQUID FIXME: want to express something like `(tlen v) > sum (tlen ts)`
 {-@ intercalate :: Text -> [Text] -> Text @-}
 intercalate :: Text -> [Text] -> Text
 intercalate t = concat . (U.intersperse t)
@@ -702,6 +704,7 @@ reverse t = S.reverse (stream t)
 -- \"&#x576;\" (now, U+0576), while the Greek \"&#xb5;\" (micro sign,
 -- U+00B5) is case folded to \"&#x3bc;\" (small letter mu, U+03BC)
 -- instead of itself.
+{-@ toCaseFold :: t:Text -> {v:Text | (tlen v) >= (tlen t)} @-}
 toCaseFold :: Text -> Text
 toCaseFold t = unstream (S.toCaseFold (stream t))
 {-# INLINE [0] toCaseFold #-}
@@ -711,6 +714,7 @@ toCaseFold t = unstream (S.toCaseFold (stream t))
 -- For instance, \"&#x130;\" (Latin capital letter I with dot above,
 -- U+0130) maps to the sequence \"i\" (Latin small letter i, U+0069) followed
 -- by \" &#x307;\" (combining dot above, U+0307).
+{-@ toLower :: t:Text -> {v:Text | (tlen v) >= (tlen t)} @-}
 toLower :: Text -> Text
 toLower t = unstream (S.toLower (stream t))
 {-# INLINE toLower #-}
@@ -719,6 +723,7 @@ toLower t = unstream (S.toLower (stream t))
 -- conversion.  The result string may be longer than the input string.
 -- For instance, the German \"&#xdf;\" (eszett, U+00DF) maps to the
 -- two-letter sequence \"SS\".
+{-@ toUpper :: t:Text -> {v:Text | (tlen v) >= (tlen t)} @-}
 toUpper :: Text -> Text
 toUpper t = unstream (S.toUpper (stream t))
 {-# INLINE toUpper #-}
@@ -796,6 +801,7 @@ center k c t
 -- of its 'Text' argument.  Note that this function uses 'pack',
 -- 'unpack', and the list version of transpose, and is thus not very
 -- efficient.
+--LIQUID FIXME: can i say anything here?
 transpose :: [Text] -> [Text]
 transpose ts = P.map pack (L.transpose (P.map unpack ts))
 
@@ -817,11 +823,13 @@ foldl' f z t = S.foldl' f z (stream t)
 
 -- | /O(n)/ A variant of 'foldl' that has no starting value argument,
 -- and thus must be applied to a non-empty 'Text'.  Subject to fusion.
+{-@ foldl1 :: (Char -> Char -> Char) -> {v:Text | (tlen v) > 0} -> Char @-}
 foldl1 :: (Char -> Char -> Char) -> Text -> Char
 foldl1 f t = S.foldl1 f (stream t)
 {-# INLINE foldl1 #-}
 
 -- | /O(n)/ A strict version of 'foldl1'.  Subject to fusion.
+{-@ foldl1' :: (Char -> Char -> Char) -> {v:Text | (tlen v) > 0} -> Char @-}
 foldl1' :: (Char -> Char -> Char) -> Text -> Char
 foldl1' f t = S.foldl1' f (stream t)
 {-# INLINE foldl1' #-}
@@ -837,6 +845,7 @@ foldr f z t = S.foldr f z (stream t)
 -- | /O(n)/ A variant of 'foldr' that has no starting value argument,
 -- and thus must be applied to a non-empty 'Text'.  Subject to
 -- fusion.
+{-@ foldr1 :: (Char -> Char -> Char) -> {v:Text | (tlen v) > 0} -> Char @-}
 foldr1 :: (Char -> Char -> Char) -> Text -> Char
 foldr1 f t = S.foldr1 f (stream t)
 {-# INLINE foldr1 #-}
@@ -845,6 +854,7 @@ foldr1 f t = S.foldr1 f (stream t)
 -- ** Special folds
 
 -- | /O(n)/ Concatenate a list of 'Text's.
+--LIQUID FIXME: want to say `forall t in ts. (tlen v) > (tlen t)`
 concat :: [Text] -> Text
 concat ts = case ts' of
               [] -> empty
@@ -911,6 +921,7 @@ scanl f z t = unstream (S.scanl g z (stream t))
 -- invalid scalar values.
 --
 -- > scanl1 f [x1, x2, ...] == [x1, x1 `f` x2, ...]
+{-@ scanl1 :: (Char -> Char -> Char) -> {v:Text | (tlen v) > 0} -> Text @-}
 scanl1 :: (Char -> Char -> Char) -> Text -> Text
 scanl1 f t | null t    = empty
            | otherwise = scanl f (unsafeHead t) (unsafeTail t)
@@ -928,6 +939,7 @@ scanr f z = S.reverse . S.reverseScanr g z . reverseStream
 -- | /O(n)/ 'scanr1' is a variant of 'scanr' that has no starting
 -- value argument.  Subject to fusion.  Performs replacement on
 -- invalid scalar values.
+{-@ scanr1 :: (Char -> Char -> Char) -> {v:Text | (tlen v) > 0} -> Text @-}
 scanr1 :: (Char -> Char -> Char) -> Text -> Text
 scanr1 f t | null t    = empty
            | otherwise = scanr f (last t) (init t)
@@ -960,7 +972,7 @@ mapAccumR f z0 = second reverse . S.mapAccumL g z0 . reverseStream
 -- @t@ repeated @n@ times.
 {-@ replicate :: n:{v:Int | v >= 0}
               -> t:Text
-              -> {v:Text | (((n > 0) || ((tlen t) > 0)) ? ((tlen v) > (tlen t)) : ((tlen v) = 0)) } @-}
+              -> {v:Text | ((n = 0) ? ((tlen v) = 0) : ((tlen v) >= (tlen t)))} @-}
 replicate :: Int -> Text -> Text
 replicate n t@(Text a o l)
     | n <= 0 || l <= 0      = empty
@@ -1099,6 +1111,7 @@ drop n t@(Text arr off len)
 -- | /O(n)/ 'takeWhile', applied to a predicate @p@ and a 'Text',
 -- returns the longest prefix (possibly empty) of elements that
 -- satisfy @p@.  Subject to fusion.
+{-@ takeWhile :: (Char -> Bool) -> t:Text -> {v:Text | (tlen v) <= (tlen t)} @-}
 takeWhile :: (Char -> Bool) -> Text -> Text
 takeWhile p t@(Text arr off len) = loop 0
   where loop !i | i >= len    = t
@@ -1116,6 +1129,7 @@ takeWhile p t@(Text arr off len) = loop 0
 
 -- | /O(n)/ 'dropWhile' @p@ @t@ returns the suffix remaining after
 -- 'takeWhile' @p@ @t@. Subject to fusion.
+{-@ dropWhile :: (Char -> Bool) -> t:Text -> {v:Text | (tlen v) <= (tlen t)} @-}
 dropWhile :: (Char -> Bool) -> Text -> Text
 dropWhile p t@(Text arr off len) = loop 0 0
   where loop !i !l | l >= len  = empty
@@ -1137,6 +1151,7 @@ dropWhile p t@(Text arr off len) = loop 0 0
 -- Examples:
 --
 -- > dropWhileEnd (=='.') "foo..." == "foo"
+{-@ dropWhileEnd :: (Char -> Bool) -> t:Text -> {v:Text | (tlen v) <= (tlen t)} @-}
 dropWhileEnd :: (Char -> Bool) -> Text -> Text
 dropWhileEnd p t@(Text arr off len) = loop (len-1) len
   where loop !i !l | l <= 0    = empty
@@ -1155,6 +1170,7 @@ dropWhileEnd p t@(Text arr off len) = loop (len-1) len
 -- | /O(n)/ 'dropAround' @p@ @t@ returns the substring remaining after
 -- dropping characters that fail the predicate @p@ from both the
 -- beginning and end of @t@.  Subject to fusion.
+{-@ dropAround :: (Char -> Bool) -> t:Text -> {v:Text | (tlen v) <= (tlen t)} @-}
 dropAround :: (Char -> Bool) -> Text -> Text
 dropAround p = dropWhile p . dropWhileEnd p
 {-# INLINE [1] dropAround #-}
@@ -1162,6 +1178,7 @@ dropAround p = dropWhile p . dropWhileEnd p
 -- | /O(n)/ Remove leading white space from a string.  Equivalent to:
 --
 -- > dropWhile isSpace
+{-@ stripStart :: t:Text -> {v:Text | (tlen v) <= (tlen t)} @-}
 stripStart :: Text -> Text
 stripStart = dropWhile isSpace
 {-# INLINE [1] stripStart #-}
@@ -1169,6 +1186,7 @@ stripStart = dropWhile isSpace
 -- | /O(n)/ Remove trailing white space from a string.  Equivalent to:
 --
 -- > dropWhileEnd isSpace
+{-@ stripEnd :: t:Text -> {v:Text | (tlen v) <= (tlen t)} @-}
 stripEnd :: Text -> Text
 stripEnd = dropWhileEnd isSpace
 {-# INLINE [1] stripEnd #-}
@@ -1177,6 +1195,7 @@ stripEnd = dropWhileEnd isSpace
 -- Equivalent to:
 --
 -- > dropAround isSpace
+{-@ strip :: t:Text -> {v:Text | (tlen v) <= (tlen t)} @-}
 strip :: Text -> Text
 strip = dropAround isSpace
 {-# INLINE [1] strip #-}
@@ -1216,6 +1235,7 @@ splitAt n t@(Text arr off len)
 --LIQUID {-# INLINE break #-}
 
 -- | /O(n)/ Group characters in a string according to a predicate.
+--LIQUID FIXME: what to say?
 groupBy :: (Char -> Char -> Bool) -> Text -> [Text]
 groupBy p = loop
   where

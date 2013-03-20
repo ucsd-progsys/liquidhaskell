@@ -14,3 +14,7 @@ map :: (Char -> Char) -> s:S.Stream Char -> {v:S.Stream Char | (slen v) = (slen 
 intersperse :: Char -> s:S.Stream Char -> {v:S.Stream Char | (slen v) > (slen s)}
 
 replicateCharI :: Integral a => l:a -> Char -> {v:S.Stream Char | (slen v) = l}
+
+toCaseFold :: s:S.Stream Char -> {v:S.Stream Char | (slen v) >= (slen s)}
+toUpper    :: s:S.Stream Char -> {v:S.Stream Char | (slen v) >= (slen s)}
+toLower    :: s:S.Stream Char -> {v:S.Stream Char | (slen v) >= (slen s)}
