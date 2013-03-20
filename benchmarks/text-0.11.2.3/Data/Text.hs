@@ -390,7 +390,8 @@ pack str = let l = L.map safe str
 -- | /O(n)/ Convert a Text into a String.  Subject to fusion.
 {-@ unpack :: t:Text -> {v:String | (tlen t) = (len v)} @-}
 unpack :: Text -> String
-unpack = S.unstreamList . stream
+--LIQUID unpack = S.unstreamList . stream
+unpack t = S.unstreamList $ stream t
 {-# INLINE [1] unpack #-}
 
 -- | /O(n)/ Convert a literal string into a Text.
@@ -410,7 +411,12 @@ unpackCString# addr# = unstream (S.streamCString# addr#)
 -- Performs replacement on invalid scalar values.
 {-@ singleton :: Char -> {v:Text | (tlen v) = 1} @-}
 singleton :: Char -> Text
-singleton = unstream . S.singleton . safe
+--LIQUID singleton = unstream . S.singleton . safe
+--LIQUID another weird issue here: `S.singleton $ safe c` does not get the
+--LIQUID (slen = 1) refinement, but the following code does...
+singleton c = let c' = safe c
+                  s = S.singleton c'
+              in unstream s
 {-# INLINE [1] singleton #-}
 
 -- -----------------------------------------------------------------------------
@@ -437,7 +443,7 @@ snoc t c = unstream (S.snoc (stream t) (safe c))
 
 -- | /O(n)/ Appends one 'Text' to the other by copying both of them
 -- into a new 'Text'.  Subject to fusion.
-{-@ append :: t1:Text -> t2:Text -> {v:Text | ((tlen v) = ((tlen t1) + (tlen t2)))} @-}
+{-@ append :: t1:Text -> t2:Text -> {v:Text | (tlen v) = ((tlen t1) + (tlen t2))} @-}
 append :: Text -> Text -> Text
 append a@(Text arr1 off1 len1) b@(Text arr2 off2 len2)
     | len1 == 0 = b
@@ -485,9 +491,9 @@ second f (a, b) = (a, f b)
 {-@ last :: {v:Text | (tlen v) > 0} -> Char @-}
 last :: Text -> Char
 last (Text arr off len)
-    | len <= 0                 = emptyError "last"
-    | n < 0xDC00 || n > 0xDFFF = liquidAssert (len > 0) $ unsafeChr n
-    | otherwise                = liquidAssert (len > 0) $ U16.chr2 n0 n
+    | len <= 0                 = liquidError "last"
+    | n < 0xDC00 || n > 0xDFFF = unsafeChr n
+    | otherwise                = U16.chr2 n0 n
     where n  = A.unsafeIndex arr (off+len-1)
           n0 = A.unsafeIndex arr (off+len-2)
 {-# INLINE [1] last #-}
@@ -502,12 +508,12 @@ last (Text arr off len)
 -- | /O(1)/ Returns all characters after the head of a 'Text', which
 -- must be non-empty.  Subject to fusion.
 {-@ tail :: t:{v:Text | (tlen v) > 0}
-         -> {v:Text | ((tlen t) > (tlen v))}
+         -> {v:Text | (tlen t) > (tlen v)}
   @-}
 tail :: Text -> Text
 tail t@(Text arr off len)
---LIQUID    | len <= 0  = emptyError "tail"
-      = liquidAssert (len > 0) $ textP arr (off+d) (len-d)
+    | len <= 0   = liquidError "tail"
+    | otherwise  = textP arr (off+d) (len-d)
     where d = iter_ t 0
 {-# INLINE [1] tail #-}
 
@@ -525,9 +531,9 @@ tail t@(Text arr off len)
   @-}
 init :: Text -> Text
 init (Text arr off len)
---LIQUID     | len <= 0                   = emptyError "init"
-    | n >= 0xDC00 && n <= 0xDFFF = liquidAssert (len > 0) $ textP arr off (len-2)
-    | otherwise                  = liquidAssert (len > 0) $ textP arr off (len-1)
+    | len <= 0                   = liquidError "init"
+    | n >= 0xDC00 && n <= 0xDFFF = textP arr off (len-2)
+    | otherwise                  = textP arr off (len-1)
     where
       n = A.unsafeIndex arr (off+len-1)
 {-# INLINE [1] init #-}
@@ -561,14 +567,15 @@ null (Text _arr _off len) =
 -- Subject to fusion.
 {-@ isSingleton :: t:Text -> {v:Bool | ((Prop v) <=> ((tlen t) = 1))} @-}
 isSingleton :: Text -> Bool
-isSingleton = S.isSingleton . stream
+--LIQUID isSingleton = S.isSingleton . stream
+isSingleton t = S.isSingleton $ stream t
 {-# INLINE isSingleton #-}
 
 -- | /O(n)/ Returns the number of characters in a 'Text'.
 -- Subject to fusion.
 {-@ length :: t:Text -> {v:Int | v = (tlen t)} @-}
 length :: Text -> Int
-length t = P.undefined --LIQUID S.length (stream t)
+length t = S.length (stream t)
 {-# INLINE length #-}
 
 -- | /O(n)/ Compare the count of characters in a 'Text' to a number.
@@ -724,7 +731,11 @@ toUpper t = unstream (S.toUpper (stream t))
 --
 -- > justifyLeft 7 'x' "foo"    == "fooxxxx"
 -- > justifyLeft 3 'x' "foobar" == "foobar"
-{-@ justifyLeft :: i:Int -> Char -> Text -> {v:Text | (tlen v) >= i} @-}
+{-@ justifyLeft :: i:Int
+                -> Char
+                -> t:Text
+                -> {v:Text | (Max (tlen v) i (tlen t))}
+  @-}
 justifyLeft :: Int -> Char -> Text -> Text
 justifyLeft k c t
     | len >= k  = t
@@ -747,7 +758,11 @@ justifyLeft k c t
 --
 -- > justifyRight 7 'x' "bar"    == "xxxxbar"
 -- > justifyRight 3 'x' "foobar" == "foobar"
-{-@ justifyRight :: i:Int -> Char -> Text -> {v:Text | (tlen v) = i} @-}
+{-@ justifyRight :: i:Int
+                 -> Char
+                 -> t:Text
+                 -> {v:Text | (Max (tlen v) i (tlen t))}
+  @-}
 justifyRight :: Int -> Char -> Text -> Text
 justifyRight k c t
     | len >= k  = t
@@ -762,7 +777,11 @@ justifyRight k c t
 -- Examples:
 --
 -- > center 8 'x' "HS" = "xxxHSxxx"
-{-@ center :: i:Int -> Char -> Text -> {v:Text | (tlen v) = i} @-}
+{-@ center :: i:Int
+           -> Char
+           -> t:Text
+           -> {v:Text | (Max (tlen v) i (tlen t))}
+  @-}
 center :: Int -> Char -> Text -> Text
 center k c t
     | len >= k  = t
@@ -939,7 +958,9 @@ mapAccumR f z0 = second reverse . S.mapAccumL g z0 . reverseStream
 
 -- | /O(n*m)/ 'replicate' @n@ @t@ is a 'Text' consisting of the input
 -- @t@ repeated @n@ times.
-{-@ replicate :: i:Int -> t:Text -> {v:Text | (tlen v) = (i * (tlen t))} @-}
+{-@ replicate :: n:{v:Int | v >= 0}
+              -> t:Text
+              -> {v:Text | (((n > 0) || ((tlen t) > 0)) ? ((tlen v) > (tlen t)) : ((tlen v) = 0)) } @-}
 replicate :: Int -> Text -> Text
 replicate n t@(Text a o l)
     | n <= 0 || l <= 0      = empty
@@ -996,10 +1017,10 @@ unfoldrN n f s = unstream (S.unfoldrN n (firstf safe . f) s)
 -- | /O(n)/ 'take' @n@, applied to a 'Text', returns the prefix of the
 -- 'Text' of length @n@, or the 'Text' itself if @n@ is greater than
 -- the length of the Text. Subject to fusion.
-{-@ take :: n:{v:Int | v >= 0}
+{-LIQUID take :: n:{v:Int | v >= 0}
          -> t:Text
          -> {v:Text | (numchars (tarr v) (toff v) (tlen v)) <= n}
-  @-}
+  -}
 take :: Int -> Text -> Text
 take n t@(Text arr off len)
     | n <= 0    = empty
@@ -1015,20 +1036,20 @@ take n t@(Text arr off len)
      --      | otherwise            = loop (i+d) (cnt+1)
      --      where d = iter_ t i
 
-{-@ axiom_numchars :: a:A.Array
+{-LIQUID axiom_numchars :: a:A.Array
                    -> o:Int
                    -> {v:Bool | ((Prop v) <=> ((numchars a o 0) = 0))}
-  @-}
+  -}
 axiom_numchars :: A.Array -> Int -> Bool
 axiom_numchars _ _ = P.undefined
 
-{-@ loop_take :: n:{v:Int | v >= 0}
+{-LIQUID loop_take :: n:{v:Int | v >= 0}
               -> t:Text
               -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
               -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
                             && (v <= n))}
               -> {v:Int | (numchars (tarr t) (toff t) v) <= n}
-  @-}
+  -}
 loop_take :: Int -> Text -> Int -> Int -> Int
 loop_take n t@(Text arr off len) !i !cnt
      | i >= len || cnt >= n = i
@@ -1050,10 +1071,13 @@ loop_take n t@(Text arr off len) !i !cnt
 -- | /O(n)/ 'drop' @n@, applied to a 'Text', returns the suffix of the
 -- 'Text' after the first @n@ characters, or the empty 'Text' if @n@
 -- is greater than the length of the 'Text'. Subject to fusion.
-{-@ drop :: n:Int
+{- drop :: n:Int
          -> t:Text
-         -> {v:Text | (tlen v) = ((tlen t) - n)}
-  @-}
+         -> {v:Text | ((((tlen t) > n)  <=> ((tlen v) = ((tlen t) - n)))
+                    && (((tlen t) <= n) <=> ((tlen v) = 0)))}
+  -}
+--LIQUID          -> {v:Text | (tlen v) <= ((tlen t) - n)}
+--LIQUID FIXME: need to assign a useful type to `iter_' but what should it be??
 drop :: Int -> Text -> Text
 drop n t@(Text arr off len)
     | n <= 0    = t
@@ -1160,6 +1184,10 @@ strip = dropAround isSpace
 -- | /O(n)/ 'splitAt' @n t@ returns a pair whose first element is a
 -- prefix of @t@ of length @n@, and whose second is the remainder of
 -- the string. It is equivalent to @('take' n t, 'drop' n t)@.
+{-LIQUID splitAt :: n:{v:Int | v >= 0}
+            -> t:Text
+            -> ({v:Text | (numchars (tarr v) (toff v) (tlen v)) <= n},Text)
+  -}
 splitAt :: Int -> Text -> (Text, Text)
 splitAt n t@(Text arr off len)
     | n <= 0    = (empty, t)
@@ -1220,7 +1248,7 @@ inits t@(Text arr off len) = loop 0
 
 -- | /O(n)/ Return all final segments of the given 'Text', longest
 -- first.
-{-@ tails :: t:Text -> [{v:Text | (tlen v) < (tlen t)}] @-}
+{-@ tails :: t:Text -> [{v:Text | (tlen v) <= (tlen t)}] @-}
 tails :: Text -> [Text]
 tails t | null t    = [empty]
         | otherwise = t : tails (unsafeTail t)
@@ -1284,7 +1312,7 @@ tails t | null t    = [empty]
 --
 -- > chunksOf 3 "foobarbaz"   == ["foo","bar","baz"]
 -- > chunksOf 4 "haskell.org" == ["hask","ell.","org"]
-{-@ chunksOf :: i:Int -> t:Text -> [{v:Text | (tlen v) <= i}] @-}
+{-@ chunksOf :: k:Int -> t:Text -> [{v:Text | (tlen v) <= k}] @-}
 chunksOf :: Int -> Text -> [Text]
 chunksOf k = go
   where
@@ -1345,7 +1373,7 @@ filter p t = unstream (S.filter p (stream t))
 -- towards /O(n*m)/.
 breakOn :: Text -> Text -> (Text, Text)
 breakOn pat src@(Text arr off len)
---LIQUID    | null pat  = emptyError "breakOn"
+    | null pat  = liquidError "breakOn"
     | otherwise = case indices pat src of
                     []    -> (src, empty)
                     (x:_) -> (textP arr off x, textP arr (off+x) (len-x))
@@ -1386,7 +1414,7 @@ breakOnAll :: Text              -- ^ @needle@ to search for
            -> Text              -- ^ @haystack@ in which to search
            -> [(Text, Text)]
 breakOnAll pat src@(Text arr off slen)
---LIQUID    | null pat  = emptyError "breakOnAll"
+    | null pat  = liquidError "breakOnAll"
     | otherwise = L.map step (indices pat src)
   where
     step       x = (chunk 0 x, chunk x (slen-x))
@@ -1434,7 +1462,7 @@ findIndex p t = S.findIndex p (stream t)
 {-@ count :: {v:Text | (tlen v) > 0} -> Text -> Int @-}
 count :: Text -> Text -> Int
 count pat src
---LIQUID    | null pat        = emptyError "count"
+    | null pat        = emptyError "count"
     | isSingleton pat = countChar (unsafeHead pat) src
     | otherwise       = L.length (indices pat src)
 {-# INLINE [1] count #-}
