@@ -9,7 +9,7 @@ import Prelude              hiding      (zipWith)
 import Data.List                        (sort, span, minimumBy)
 import Data.Function                    (on)
 import Data.Ord                         (comparing)
-import Language.Haskell.Liquid.Prelude  (liquidAssert, liquidError)
+import Language.Haskell.Liquid.Prelude  (liquidError, liquidAssume, liquidAssert)
 
 {- Fixed Length Lists 
 
@@ -95,11 +95,8 @@ clusterCenter n xs = map average xs'
     average        :: [Double] -> Double
     average        = (`safeDiv` numPoints) . sum
 
-{- safeDiv   :: (Fractional a) => a -> {v:Int | v != 0} -> a -}
-safeDiv     :: (Fractional a) => a -> Int -> a
 safeDiv n 0 = liquidError "divide by zero"
-safeDiv n d = n / (fromIntegral d)
-
+safeDiv n d = n / (fromIntegralNZ d)
 
 -- | Finding the Nearest Center
 
