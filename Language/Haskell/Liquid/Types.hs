@@ -22,6 +22,7 @@ import Data.Foldable
 import Data.Hashable
 import Data.Traversable
 import Text.Parsec.Pos              (SourcePos, newPos) 
+import Text.PrettyPrint.HughesPJ    (text)
 import Language.Fixpoint.Types 
 
 data Located a = Loc { loc :: !SourcePos
@@ -32,6 +33,9 @@ type LocSymbol = Located Symbol
 type LocString = Located String
 
 dummyPos = newPos "?" 0 0 
+
+instance Fixpoint SourcePos where
+  toFix = text . show 
 
 instance Fixpoint a => Fixpoint (Located a) where
   toFix = toFix . val 
