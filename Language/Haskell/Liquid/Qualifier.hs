@@ -18,7 +18,7 @@ import Data.Bifunctor           (second)
 
 
 specificationQualifiers :: GhcInfo -> [Qualifier] 
-specificationQualifiers info = filter okQual qs 
+specificationQualifiers info = {- filter okQual -} qs 
   where
     qs                       = concatMap refTypeQualifiers ts 
     refTypeQualifiers        = refTypeQuals $ tcEmbeds spc 
