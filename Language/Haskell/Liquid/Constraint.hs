@@ -29,7 +29,6 @@ import qualified TyCon as TC
 
 import TypeRep 
 import Class            (Class, className)
-import PrelInfo         (isNumericClass)
 import Var
 import Id
 import Name             (getSrcSpan)
@@ -184,9 +183,6 @@ isBase (RVar _ _)       = True
 isBase (RApp _ ts _ _)  = all isBase ts
 isBase (RFun _ t1 t2 _) = isBase t1 && isBase t2
 isBase _                = False
-
-
-rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
 
 -----------------------------------------------------------------
 ------------------- Constraints: Types --------------------------
@@ -548,15 +544,17 @@ addBind x r
        put          $ st { binds = bs' }
        return i -- traceShow ("addBind: " ++ F.showFix x) i
 
-addClassBind :: SpecType -> CG [F.BindId] -- F.FEnv -> F.FEnv
-addClassBind (RCls c ts)
-  | isNumericClass c
-  = do let numReft = F.trueSortedReft F.FNum
-       let numVars = [rTyVarSymbol a | (RVar a _) <- ts]
-       is         <- forM numVars (`addBind` numReft)
-       return is
-addClassBind _ 
-  = return [] 
+addClassBind :: SpecType -> CG [F.BindId]
+addClassBind = mapM (uncurry addBind) . classBinds
+
+-- addClassBind (RCls c ts)
+--   | isNumericClass c
+--   = do let numReft = F.trueSortedReft F.FNum
+--        let numVars = [rTyVarSymbol a | (RVar a _) <- ts]
+--        is         <- forM numVars (`addBind` numReft)
+--        return is
+-- addClassBind _ 
+--   = return [] 
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) _msg 

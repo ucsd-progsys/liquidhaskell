@@ -269,11 +269,10 @@ makeSymbols vs xs' xts yts = xvs
 
 -- freeSymbols :: SpecType -> [Symbol]
 -- freeSymbols ::  Reftable r => RType p c tv r -> [Symbol]
-freeSymbols ty = sortNub $ concat $ efoldReft (\ _ -> ()) f emptySEnv [] (val ty)
+freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> []) (\ _ -> ()) f emptySEnv [] (val ty)
   where 
     f γ _ r xs = let Reft (v, _) = toReft r in 
                  [ x | x <- syms r, x /= v, not (x `memberSEnv` γ)] : xs
-
 
 -----------------------------------------------------------------
 ------ Querying GHC for Id, Type, Class, Con etc. ---------------
@@ -672,29 +671,33 @@ ghcSpecEnv sp        = fromListSEnv binds
     vSort            = rSort . varRType 
     varRType         :: Var -> RRType ()
     varRType         = ofType . varType
- 
--- | This function checks if a type is malformed. Right now, we only check
--- whether all the free symbols are in scope but that is about to change
--- ...
-checkRType           :: (Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe Doc 
-checkRType emb env t   = efoldReft (rTypeSortedReft emb) f env Nothing t 
-  where f env me r err = err <|> checkReft env emb me r
+
+-------------------------------------------------------------------------------------
+-- | This function checks if a type is malformed in a given environment -------------
+-------------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------------
+checkRType :: (Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe Doc 
+-------------------------------------------------------------------------------------
+
+checkRType emb env t = efoldReft cb (rTypeSortedReft emb) f env Nothing t 
+  where 
+    cb c ts          = classBinds (RCls c ts)
+    f env me r err   = err <|> checkReft env emb me r
 
 checkReft            :: (Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe Doc 
 checkReft env emb Nothing _  = Nothing -- RMono / Ref case, not sure how to check these yet.  
-checkReft env emb (Just t) _ = checkSortedReftFull env (rTypeSortedReft emb t) 
+checkReft env emb (Just t) _ = checkSortedReftFull env (rTypeSortedReft emb t)
+
+-- DONT DELETE the below till we've added pred-checking as well
 -- checkReft env emb (Just t) _ = checkSortedReft env xs (rTypeSortedReft emb t) 
 --    where xs                  = fromMaybe [] $ params <$> stripRTypeBase t 
-
 
 checkSig env (x, t) 
   = case filter (not . (`S.member` env)) (freeSymbols t) of
       [] -> True
       ys -> errorstar (msg ys) 
     where msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showFix ys) (showFix x) (showFix t)
-
-
---  checkAssumeSpec :: [(LocSymbol, RefType)] -> [(Var, LocSymbol, SpecType)] -> [(Var, SpecType)]
 
 
 
