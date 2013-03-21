@@ -22,14 +22,16 @@ specificationQualifiers info = filter okQual qs
   where
     qs                       = concatMap refTypeQualifiers ts 
     refTypeQualifiers        = refTypeQuals $ tcEmbeds spc 
-    ts                       = val <$> (snd <$> tySigs spc) ++ (snd <$> ctor spc)
+    ts                       = val <$> t1s ++ t2s 
+    t1s                      = [t | (x, t) <- tySigs spc, x `S.member` definedVars] 
+    t2s                      = [t | (_, t) <- ctor spc                            ]
+    definedVars              = S.fromList $ defVars info
     spc                      = spec info
 
-
-okQual                         = not . any isPred . map snd . q_params 
+okQual                       = not . any isPred . map snd . q_params 
   where
-    isPred (FApp tc _)         = tc == stringFTycon "Pred" 
-    isPred _                   = False
+    isPred (FApp tc _)       = tc == stringFTycon "Pred" 
+    isPred _                 = False
 
 
 -- specificationQualifiers info 
