@@ -11,7 +11,7 @@ module Language.Haskell.Liquid.Measure (
   , expandRTAliases
   ) where
 
-import GHC
+import GHC hiding (Located)
 import Var
 import qualified Outputable as O 
 import Text.PrettyPrint.HughesPJ hiding (first)
@@ -28,50 +28,57 @@ import Control.Exception        (assert)
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types
+import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 
+-- MOVE TO TYPES
+
 data Spec ty bndr  = Spec { 
-    measures   :: ![Measure ty bndr]         -- ^ User-defined properties for ADTs
-  , sigs       :: ![(Symbol, ty)]            -- ^ Imported functions and types   
-  , invariants :: ![ty]                      -- ^ Data type invariants  
-  , imports    :: ![Symbol]                  -- ^ Loaded spec module names
-  , dataDecls  :: ![DataDecl]                -- ^ Predicated data definitions 
-  , includes   :: ![FilePath]                -- ^ Included qualifier files
-  , aliases    :: ![RTAlias String BareType] -- ^ RefType aliases
-  , paliases   :: ![RTAlias Symbol Pred]     -- ^ Refinement/Predicate aliases
-  , embeds     :: !(TCEmb String)            -- ^ GHC-Tycon-to-fixpoint Tycon map
+    measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
+  , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types   
+  , invariants :: ![Located ty]                 -- ^ Data type invariants  
+  , imports    :: ![Symbol]                     -- ^ Loaded spec module names
+  , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions 
+  , includes   :: ![FilePath]                   -- ^ Included qualifier files
+  , aliases    :: ![RTAlias String BareType]    -- ^ RefType aliases
+  , paliases   :: ![RTAlias Symbol Pred]        -- ^ Refinement/Predicate aliases
+  , embeds     :: !(TCEmb String)               -- ^ GHC-Tycon-to-fixpoint Tycon map
+  , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
   } 
 
 
+-- MOVE TO TYPES
 data MSpec ty bndr = MSpec { 
     ctorMap :: M.HashMap Symbol [Def bndr]
   , measMap :: M.HashMap Symbol (Measure ty bndr) 
   }
 
+-- MOVE TO TYPES
 data Measure ty bndr = M { 
-    name :: Symbol
+    name :: LocSymbol
   , sort :: ty
   , eqns :: [Def bndr]
-  } -- deriving (Data, Typeable)
+  } 
 
+-- MOVE TO TYPES
 data Def bndr 
   = Def { 
-    measure :: Symbol
+    measure :: LocSymbol
   , ctor    :: bndr
   , binds   :: [Symbol]
   , body    :: Body
   } deriving (Show)
 
+-- MOVE TO TYPES
 data Body 
   = E Expr          -- ^ Measure Refinement: {v | v = e } 
   | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
   | R Symbol Pred   -- ^ Measure Refinement: {v | p}
   deriving (Show)
 
-qualifySpec name sp = sp { sigs = [ (qualifySymbol name x, t) | (x, t) <- sigs sp] }
+qualifySpec name sp = sp { sigs = [ (qualifySymbol name <$> x, t) | (x, t) <- sigs sp] }
 
-
-mkM :: Symbol -> ty -> [Def bndr] -> Measure ty bndr
+mkM ::  LocSymbol -> ty -> [Def bndr] -> Measure ty bndr
 mkM name typ eqns 
   | all ((name ==) . measure) eqns
   = M name typ eqns
@@ -81,11 +88,12 @@ mkM name typ eqns
 mkMSpec ::  [Measure ty Symbol] -> MSpec ty Symbol
 mkMSpec ms = MSpec cm mm 
   where cm  = groupMap ctor $ concatMap eqns ms'
-        mm  = M.fromList [(name m, m) | m <- ms' ]
+        mm  = M.fromList [(val $ name m, m) | m <- ms' ]
         ms' = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
+-- MOVE TO TYPES
 instance Monoid (Spec ty bndr) where
-  mappend (Spec xs ys invs zs ds is as ps es) (Spec xs' ys' invs' zs' ds' is' as' ps' es')
+  mappend (Spec xs ys invs zs ds is as ps es qs) (Spec xs' ys' invs' zs' ds' is' as' ps' es' qs')
            = Spec (xs ++ xs') 
                   (ys ++ ys') 
                   (invs ++ invs') 
@@ -95,40 +103,48 @@ instance Monoid (Spec ty bndr) where
                   (as ++ as')
                   (ps ++ ps')
                   (M.union es es')
-  mempty   = Spec [] [] [] [] [] [] [] [] M.empty
+                  (qs ++ qs')
+  mempty   = Spec [] [] [] [] [] [] [] [] M.empty []
 
+-- MOVE TO TYPES
 instance Functor Def where
   fmap f def = def { ctor = f (ctor def) }
 
+-- MOVE TO TYPES
 instance Functor (Measure t) where
   fmap f (M n s eqs) = M n s (fmap (fmap f) eqs)
 
+-- MOVE TO TYPES
 instance Functor (MSpec t) where
   fmap f (MSpec cm mm) = MSpec (fc cm) (fm mm)
      where fc = fmap $ fmap $ fmap f
            fm = fmap $ fmap f 
 
+-- MOVE TO TYPES
 instance Bifunctor Measure where
   first f (M n s eqs)  = M n (f s) eqs
   second f (M n s eqs) = M n s (fmap f <$> eqs)
 
+-- MOVE TO TYPES
 instance Bifunctor MSpec   where
   first f (MSpec cm mm) = MSpec cm (fmap (first f) mm)
   second                = fmap 
 
+-- MOVE TO TYPES
 instance Bifunctor Spec    where
-  first f (Spec ms ss is x0 x1 x2 x3 x4 x5) 
+  first f (Spec ms ss is x0 x1 x2 x3 x4 x5 x6) 
     = Spec { measures   = first  f <$> ms
            , sigs       = second f <$> ss
-           , invariants =        f <$> is
+           , invariants = fmap   f <$> is
            , imports    = x0 
            , dataDecls  = x1
            , includes   = x2
            , aliases    = x3
            , paliases   = x4
            , embeds     = x5
+           , qualifiers = x6
            }
-  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6) 
+  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6 x7) 
     = Spec { measures   = fmap (second f) ms
            , sigs       = x0 
            , invariants = x1
@@ -138,31 +154,38 @@ instance Bifunctor Spec    where
            , aliases    = x5
            , paliases   = x5'
            , embeds     = x6
+           , qualifiers = x7
            }
 
+-- MOVE TO TYPES
 instance Fixpoint Body where
   toFix (E e)   = toFix e  
   toFix (P p)   = toFix p
   toFix (R v p) = braces (toFix v <+> text "|" <+> toFix p)   
 
+-- MOVE TO TYPES
 instance Fixpoint a => Fixpoint (Def a) where
   toFix (Def m c bs body) = toFix m <> text " " <> cbsd <> text " = " <> toFix body   
     where cbsd = parens (toFix c <> hsep (toFix `fmap` bs))
 
+-- MOVE TO TYPES
 instance (Fixpoint t, Fixpoint a) => Fixpoint (Measure t a) where
   toFix (M n s eqs) =  toFix n <> text "::" <> toFix s
                     $$ vcat (toFix `fmap` eqs)
 
+-- MOVE TO TYPES
 instance (Fixpoint t, Fixpoint a) => Fixpoint (MSpec t a) where
   toFix =  vcat . fmap toFix . fmap snd . M.toList . measMap
 
+-- MOVE TO TYPES
 instance (Fixpoint t , Fixpoint a) => Show (Measure t a) where
   show = showFix
 
+-- MOVE TO TYPES
 mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
 mapTy f (M n ty eqs) = M n (f ty) eqs
 
-dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(Symbol, RefType)])
+dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(LocSymbol, RefType)])
 dataConTypes  s = (ctorTys, measTys)
   where measTys = [(name m, sort m) | m <- M.elems $ measMap s]
         ctorTys = concatMap mkDataConIdsTy [(defsVar ds, defsTy ds) | (_, ds) <- M.toList $ ctorMap s]
@@ -176,10 +199,10 @@ defRefType (Def f dc xs body) = mkArrow as [] xts t'
         t'  = refineWithCtorBody dc f body t 
         t   = ofType $ dataConOrigResTy dc
 
-refineWithCtorBody dc f body t = 
+refineWithCtorBody dc (Loc _ f) body t = 
   case stripRTypeBase t of 
     Just (Reft (v, _)) ->
-      strengthen t $ Reft (v, [RConc $ bodyPred (EApp f [EVar v]) body])
+      strengthen t $ Reft (v, [RConc $ bodyPred (EApp f [eVar v]) body])
     Nothing -> 
       errorstar $ "measure mismatch " ++ showFix f ++ " on con " ++ O.showPpr dc
 
@@ -194,15 +217,16 @@ bodyPred fv (R v' p) = subst1 p (v', fv)
 ----------- Refinement Type Aliases -------------------------------------------
 -------------------------------------------------------------------------------
 
+-- MOVE TO TYPES
 data RTEnv   = RTE { typeAliases :: M.HashMap String (RTAlias String BareType)
                    , predAliases :: M.HashMap String (RTAlias Symbol Pred)
                    }
 
 expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
-expandRTAliases sp = sp { sigs       = [ (x, generalize $ expandRTAlias env t) | (x, t) <- sigs sp       ] }
-                        { dataDecls  = [ expandRTAliasDataDecl env dc          | dc     <- dataDecls sp  ] } 
-                        { invariants = [ generalize $ expandRTAlias env t      | t      <- invariants sp ] }
-                        { measures   = [ expandRTAliasMeasure env m            | m      <- measures sp   ] } 
+expandRTAliases sp = sp { sigs       = [ (x, generalize $ expandRTAlias env t)  | (x, t) <- sigs sp       ] }
+                        { dataDecls  = [ expandRTAliasDataDecl env dc           | dc     <- dataDecls sp  ] } 
+                        { invariants = [ generalize <$> expandRTAlias env <$> t | t      <- invariants sp ] }
+                        { measures   = [ expandRTAliasMeasure env m             | m      <- measures sp   ] } 
   where env        = makeRTEnv (aliases sp) (paliases sp)
         
         
