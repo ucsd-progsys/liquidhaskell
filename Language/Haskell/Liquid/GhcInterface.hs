@@ -46,8 +46,8 @@ import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
 
-import Language.Haskell.Liquid.Parse
-import Language.Fixpoint.Parse
+import Language.Haskell.Liquid.Parse 
+import Language.Fixpoint.Parse          hiding (comma)
 import Language.Fixpoint.Names
 import Language.Fixpoint.Files
 
@@ -78,19 +78,21 @@ instance Fixpoint GhcSpec where
              $$ (text "******* Measure Specifications **************")
              $$ (toFix $ meas spec)
 
+
+
 instance Fixpoint GhcInfo where 
-  toFix info =  (text "*************** Imports *********************")
-             $$ (pprDoc $ imports info)
-             $$ (text "*************** Includes ********************")
-             $$ (pprDoc $ includes info)
-             $$ (text "*************** Core Bindings ***************")
-             $$ (pprDoc $ cbs info)
-             $$ (text "*************** Imported Variables **********")
-             $$ (pprDoc $ impVars info)
-             $$ (text "*************** Defined Variables ***********")
-             $$ (pprDoc $ defVars info)
-             $$ (text "*************** Specification ***************")
-             $$ (toFix $ spec info)
+  toFix info =   (text "*************** Imports *********************")
+             $+$ (intersperse comma $ text <$> imports info)
+             $+$ (text "*************** Includes ********************")
+             $+$ (intersperse comma $ text <$> includes info)
+             $+$ (text "*************** Imported Variables **********")
+             $+$ (pprDoc $ impVars info)
+             $+$ (text "*************** Defined Variables ***********")
+             $+$ (pprDoc $ defVars info)
+             $+$ (text "*************** Specification ***************")
+             $+$ (toFix $ spec info)
+             $+$ (text "*************** Core Bindings ***************")
+             $+$ (pprDoc $ cbs info)
 
 instance Show GhcInfo where
   show = showFix

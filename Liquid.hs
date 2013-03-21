@@ -33,8 +33,8 @@ liquid  = do (targets, includes) <- getOpts
 liquidOne includes target = 
   do _       <- getFixpointPath 
      info    <- getGhcInfo target includes :: IO GhcInfo
-     -- donePhase Loud "getGhcInfo"
-     -- putStrLn $ showPpr info 
+     donePhase Loud "getGhcInfo"
+     putStrLn $ showFix info 
      putStrLn "*************** Original CoreBinds ***************************" 
      putStrLn $ showPpr (cbs info)
      let cbs' = transformRecExpr (cbs info)
@@ -44,8 +44,8 @@ liquidOne includes target =
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs'}
      cgi `deepseq` donePhase Loud "generateConstraints"
      -- donePhase Loud "START: Write CGI (can be slow!)"
-     -- {-# SCC "writeCGI" #-} writeCGI target cgi cbs'
-     --- donePhase Loud "FINISH: Write CGI"
+     -- {-# SCC "writeCGI" #-} writeCGI target cgi 
+     -- donePhase Loud "FINISH: Write CGI"
      (r, sol) <- solve target (hqFiles info) (cgInfoFInfo cgi)
      donePhase Loud "solve"
      {-# SCC "annotate" #-} annotate target (resultSrcSpan r) sol $ annotMap cgi
@@ -72,8 +72,8 @@ initGhci = parseStaticFlags []
 -}
 
 
-writeCGI target cgi cbs 
+writeCGI target cgi
   = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi target) str
-  where str = ({-# SCC "PPcgi" #-} showSDoc (ppr cbs $+$ ppr cgi))
+  where str = {-# SCC "PPcgi" #-} showFix cgi
  
 
