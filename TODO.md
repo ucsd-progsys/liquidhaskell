@@ -1,9 +1,7 @@
 TODO
 ====
 
-* {-@ qualif ... @-} definitions in HS source, no hquals files
-
-* Auto-gen qualifs from datacon definitions
+* Auto-gen qualifs from datacon definitions <---------------- HEREHEREHERE
 
 * error messages: expected XXX got YYY?
 
