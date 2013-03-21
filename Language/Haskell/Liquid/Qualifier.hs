@@ -18,11 +18,19 @@ import Data.Bifunctor           (second)
 
 
 specificationQualifiers :: GhcInfo -> [Qualifier] 
-specificationQualifiers info 
-  = [ q | (x, t) <- tySigs $ spec info
-        , x `S.member` (S.fromList $ defVars info)
-        , q <- refTypeQuals (tcEmbeds $ spec info) (val t) 
-    ]
+specificationQualifiers info = concatMap refTypeQualifiers $ val <$> ts ++ ts' 
+  where 
+    refTypeQualifiers        = refTypeQuals  tce 
+    ts                       = snd <$> tySigs spc
+    ts'                      = snd <$> ctor   spc     
+    tce                      = tcEmbeds spc
+    spc                      = spec info
+
+-- specificationQualifiers info 
+--   = [ q | (x, t) <- tySigs $ spec info
+--         , x `S.member` (S.fromList $ defVars info)
+--         , q <- refTypeQuals (tcEmbeds $ spec info) (val t) 
+--     ]
 
 refTypeQuals tce t 
   = quals ++ 
