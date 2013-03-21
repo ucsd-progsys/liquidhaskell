@@ -277,7 +277,11 @@ fromForeignPtr fp s l = PS fp s l
 
 -- | /O(1)/ Deconstruct a ForeignPtr from a ByteString
 
-{-@ toForeignPtr :: b:ByteString -> ({v:(ForeignPtr Word8) | v = (bPayload b)} , {v:Int | v = (bOffset b)}, {v:Int| v = (bLength b)}) @-} 
+{-@ toForeignPtr :: b:ByteString 
+                 -> ( {v:(ForeignPtr Word8) | v = (bPayload b)} 
+                    , {v:Int | v = (bOffset b)}
+                    , {v:Int | v = (bLength b)}               ) 
+  @-} 
 toForeignPtr :: ByteString -> (ForeignPtr Word8, Int, Int) -- ^ (ptr, offset, length)
 toForeignPtr (PS ps s l) = (ps, s, l)
 {-# INLINE toForeignPtr #-}
