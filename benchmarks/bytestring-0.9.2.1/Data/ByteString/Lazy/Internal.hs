@@ -1,13 +1,8 @@
-{-# LANGUAGE CPP, ForeignFunctionInterface #-}
--- We cannot actually specify all the language pragmas, see ghc ticket #
--- If we could, these are what they would be:
-{- LANGUAGE DeriveDataTypeable -}
-{-# OPTIONS_HADDOCK hide #-}
-
+{-# OPTIONS_GHC -cpp -fglasgow-exts #-}
 -- |
 -- Module      : Data.ByteString.Lazy.Internal
 -- License     : BSD-style
--- Maintainer  : dons@galois.com, duncan@haskell.org
+-- Maintainer  : dons@cse.unsw.edu.au, duncan@haskell.org
 -- Stability   : experimental
 -- Portability : portable
 -- 
@@ -38,15 +33,10 @@ module Data.ByteString.Lazy.Internal (
 
 import qualified Data.ByteString.Internal as S
 
-import Foreign.Storable (Storable(sizeOf))
+import Foreign.Storable (sizeOf)
 
 #if defined(__GLASGOW_HASKELL__)
-import Data.Typeable    (Typeable)
-#if __GLASGOW_HASKELL__ >= 610
-import Data.Data        (Data)
-#else
-import Data.Generics    (Data)
-#endif
+import Data.Generics            (Data(..), Typeable(..))
 #endif
 
 -- | A space-efficient representation of a Word8 vector, supporting many
@@ -77,7 +67,7 @@ checkInvariant Empty = Empty
 checkInvariant (Chunk c@(S.PS _ _ len) cs)
     | len > 0   = Chunk c (checkInvariant cs)
     | otherwise = error $ "Data.ByteString.Lazy: invariant violation:"
-                ++ show (Chunk c cs)
+               ++ show (Chunk c cs)
 
 ------------------------------------------------------------------------
 
