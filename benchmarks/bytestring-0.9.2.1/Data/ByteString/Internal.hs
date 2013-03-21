@@ -73,6 +73,8 @@ import Foreign.Storable         (Storable(..))
 import Foreign.C.Types          (CInt(..), CSize(..), CULong(..))
 import Foreign.C.String         (CString)
 
+import Language.Haskell.Liquid.Prelude (liquidAssert)
+
 #ifndef __NHC__
 import Control.Exception        (assert)
 #endif
@@ -175,7 +177,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ predicate BSValid Payload Offset Length = ((fplen Payload) = Offset + Length) @-}
 
 {-@ data ByteString  = PS { payload :: (ForeignPtr Word8) 
-                          , offset  :: Nat  
+                          , offset  :: {v: Nat | (v <= (fplen payload))     }  
                           , length  :: {v: Nat | (BSValid payload offset v) } 
                           }
 
@@ -192,15 +194,20 @@ instance Show ByteString where
 -- LIQUID     readsPrec p str = [ (packWith c2w x, y) | (x, y) <- readsPrec p str ]
 
 -- | /O(n)/ Converts a 'ByteString' to a '[a]', using a conversion function.
+
+
+{-@ unpackWith :: (Word8 -> a) -> ByteString -> [a] @-}
 unpackWith :: (Word8 -> a) -> ByteString -> [a]
 unpackWith _ (PS _  _ 0) = []
 unpackWith k (PS ps s l) = inlinePerformIO $ withForeignPtr ps $ \p ->
-        go (p `plusPtr` s) (l - 1) []
+        go (p `plusPtr` (id s)) (l - 1) []
     where
         STRICT3(go)
         go p 0 acc = peek p          >>= \e -> return (k e : acc)
         go p n acc = peekByteOff p n >>= \e -> go p (n-1) (k e : acc)
 {-# INLINE unpackWith #-}
+
+
 
 -- | /O(n)/ Convert a '[a]' into a 'ByteString' using some
 -- conversion function
@@ -403,6 +410,9 @@ memchr p w s = c_memchr p (fromIntegral w) s
   @-}
 memcpy :: Ptr Word8 -> Ptr Word8 -> CSize -> IO ()
 memcpy p q s = undefined -- c_memcpy p q s >> return ()
+
+
+
 
 {-@ liquidCanary :: x:Int -> {v: Int | v > x} @-}
 liquidCanary     :: Int -> Int

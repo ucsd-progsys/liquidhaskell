@@ -453,13 +453,13 @@ initCGI info = CGInfo {
   , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
   , tyConInfo  = tyi
-  , specQuals  = specificationQualifiers (info {spec = spec'} )
+  , specQuals  = qualifiers spc ++ specificationQualifiers (info {spec = spec'})
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
   } 
   where 
-    tce        = tcEmbeds $ spec info
+    tce        = tcEmbeds spc 
     spc        = spec info
     spec'      = spc {tySigs = [ (x, addTyConInfo tyi <$> t) | (x, t) <- tySigs spc] }
     tyi        = makeTyConInfo (tconsP spc)

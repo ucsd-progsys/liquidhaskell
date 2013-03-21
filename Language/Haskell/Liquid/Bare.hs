@@ -71,6 +71,9 @@ data GhcSpec = SP {
   , freeSyms   :: ![(Symbol, Var)]               -- ^ List of `Symbol` free in spec and corresponding GHC var 
                                                  -- eg. (Cons, Cons#7uz) from tests/pos/ex1.hs
   , tcEmbeds   :: TCEmb TyCon                    -- ^ How to embed GHC Tycons into fixpoint sorts
+                                                 -- e.g. "embed Set as Set_set" from include/Data/Set.spec
+  , qualifiers :: ![Qualifier]                   -- ^ Qualifiers in Source/Spec files
+                                                 -- e.g tests/pos/qualTest.hs
   }
 
 makeGhcSpec :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
@@ -104,6 +107,7 @@ makeGhcSpec' vars env spec
                              , tconsP     = tycons 
                              , freeSyms   = syms' 
                              , tcEmbeds   = embs 
+                             , qualifiers = Ms.qualifiers spec 
                              }
 
 
