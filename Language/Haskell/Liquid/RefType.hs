@@ -39,8 +39,10 @@ module Language.Haskell.Liquid.RefType (
   , literalFRefType, literalFReft, literalConst
   , isTrivial
   , mkDataConIdsTy
+  , classBinds
   ) where
 
+import PrelInfo         (isNumericClass)
 import GHC
 import Outputable       (showSDocDump, showPpr)
 import qualified TyCon as TC
@@ -1001,33 +1003,61 @@ mapRefM  f (RMono s r)        = liftM   (RMono s)      (f r)
 mapRefM  f (RPoly s t)        = liftM   (RPoly s)      (mapReftM f t)
 
 -- foldReft :: (r -> a -> a) -> a -> RType p c tv r -> a
-foldReft f = efoldReft (\_ -> ()) (\_ _ -> f) emptySEnv 
+foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) emptySEnv 
 
--- efoldReft :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> RType p c tv r -> a
-efoldReft g f γ z me@(RVar _ r)       = f γ (Just me) r z 
-efoldReft g f γ z (RAllT _ t)         = efoldReft g f γ z t
-efoldReft g f γ z (RAllP _ t)         = efoldReft g f γ z t
-efoldReft g f γ z me@(RFun x t t' r)  = f γ (Just me) r (efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t')
-efoldReft g f γ z me@(RApp _ ts rs r) = f γ (Just me) r (efoldRefs g f γ (efoldRefts g f (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
-efoldReft g f γ z (RCls _ ts)         = efoldRefts g f γ z ts
-efoldReft g f γ z (RAllE x t t')      = efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t' 
-efoldReft g f γ z (REx x t t')        = efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t' 
-efoldReft _ _ _ z (ROth _)            = z 
-efoldReft g f γ z me@(RAppTy t t' r)  = f γ (Just me) r (efoldReft g f γ (efoldReft g f γ z t) t')
-efoldReft _ _ _ z (RExprArg _)        = z
+-- efoldReft :: Reftable r =>(p -> [RType p c tv r] -> [(Symbol, a)])-> (RType p c tv r -> a)-> (SEnv a -> Maybe (RType p c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType p c tv r-> c1
+efoldReft cb g f = go 
+  where
+    -- folding over RType 
+    go γ z me@(RVar _ r)                = f γ (Just me) r z 
+    go γ z (RAllT _ t)                  = go γ z t
+    go γ z (RAllP _ t)                  = go γ z t
+    go γ z me@(RFun _ (RCls c ts) t' r) = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t') 
+    go γ z me@(RFun x t t' r)           = f γ (Just me) r (go (insertSEnv x (g t) γ) (go γ z t) t')
+    go γ z me@(RApp _ ts rs r)          = f γ (Just me) r (ho' γ (go' (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
+    
+    go γ z (RCls c ts)                  = go' γ z ts
+    go γ z (RAllE x t t')               = go (insertSEnv x (g t) γ) (go γ z t) t' 
+    go γ z (REx x t t')                 = go (insertSEnv x (g t) γ) (go γ z t) t' 
+    go _ z (ROth _)                     = z 
+    go γ z me@(RAppTy t t' r)           = f γ (Just me) r (go γ (go γ z t) t')
+    go _ z (RExprArg _)                 = z
 
--- efoldRefts :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [RType p c tv r] -> a
-efoldRefts g f γ z ts                = foldr (flip $ efoldReft g f γ) z ts 
+    -- folding over Ref 
+    ho  γ z (RMono ss r)                = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
+    ho  γ z (RPoly ss t)                = go (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
+   
+    -- folding over [RType]
+    go' γ z ts                 = foldr (flip $ go γ) z ts 
 
--- efoldRefs :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [Ref r (RType p c tv r)] -> a
-efoldRefs g f γ z rs               = foldr (flip $ efoldRef g f γ) z  rs 
+    -- folding over [Ref]
+    ho' γ z rs                 = foldr (flip $ ho γ) z rs 
 
--- efoldRef :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> Ref r (RType p c tv r) -> a
-efoldRef g f γ z (RMono ss r)         = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
-efoldRef g f γ z (RPoly ss t)         = efoldReft g f (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
+-- ORIG delete after regrtest-ing specerror
+-- -- efoldReft :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> RType p c tv r -> a
+-- efoldReft g f γ z me@(RVar _ r)       = f γ (Just me) r z 
+-- efoldReft g f γ z (RAllT _ t)         = efoldReft g f γ z t
+-- efoldReft g f γ z (RAllP _ t)         = efoldReft g f γ z t
+-- efoldReft g f γ z me@(RFun x t t' r)  = f γ (Just me) r (efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t')
+-- efoldReft g f γ z me@(RApp _ ts rs r) = f γ (Just me) r (efoldRefs g f γ (efoldRefts g f (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
+-- efoldReft g f γ z (RCls _ ts)         = efoldRefts g f γ z ts
+-- efoldReft g f γ z (RAllE x t t')      = efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t' 
+-- efoldReft g f γ z (REx x t t')        = efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t' 
+-- efoldReft _ _ _ z (ROth _)            = z 
+-- efoldReft g f γ z me@(RAppTy t t' r)  = f γ (Just me) r (efoldReft g f γ (efoldReft g f γ z t) t')
+-- efoldReft _ _ _ z (RExprArg _)        = z
+-- 
+-- -- efoldRefts :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [RType p c tv r] -> a
+-- efoldRefts g f γ z ts                = foldr (flip $ efoldReft g f γ) z ts 
+-- 
+-- -- efoldRefs :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [Ref r (RType p c tv r)] -> a
+-- efoldRefs g f γ z rs               = foldr (flip $ efoldRef g f γ) z  rs 
+-- 
+-- -- efoldRef :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> Ref r (RType p c tv r) -> a
+-- efoldRef g f γ z (RMono ss r)         = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
+-- efoldRef g f γ z (RPoly ss t)         = efoldReft g f (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
 
 insertsSEnv  = foldr (\(x, t) γ -> insertSEnv x t γ)
-
 isTrivial = foldReft (\r b -> isTauto r && b) True   
 
 ------------------------------------------------------------------------------------------
@@ -1474,4 +1504,13 @@ mkProductTy (τ, x, t) = maybe [(x, t)] f $ deepSplitProductType_maybe τ
 -- Move to misc
 forth4 (_, _, _, x)     = x
 
+-----------------------------------------------------------------------------------------
+-- | Binders generated by class predicates, typically for constraining tyvars (e.g. FNum)
+-----------------------------------------------------------------------------------------
+
+classBinds (RCls c ts) 
+  | isNumericClass c = [(rTyVarSymbol a, trueSortedReft FNum) | (RVar a _) <- ts]
+classBinds _         = [] 
+
+rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
 
