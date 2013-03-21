@@ -1,5 +1,7 @@
 module Language.Haskell.Liquid.Prelude where
 
+import Foreign.C.Types          (CSize(..))
+
 -------------------------------------------------------------------
 --------------------------- Arithmetic ----------------------------
 -------------------------------------------------------------------
@@ -107,4 +109,9 @@ isEven x = x `mod` 2 == 0
 isOdd   :: Int -> Bool
 isOdd x = x `mod` 2 == 1
 
+-----------------------------------------------------------------------------------------------
 
+{-@ assume intCSize :: x:Int -> {v: CSize | v = x } @-}
+{-# NOINLINE intCSize #-}
+intCSize :: Int -> CSize
+intCSize = fromIntegral 

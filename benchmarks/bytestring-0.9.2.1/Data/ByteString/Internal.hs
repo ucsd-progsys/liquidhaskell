@@ -22,7 +22,8 @@
 --
 module Data.ByteString.Internal (
 
-        liquidCanary,
+        liquidCanary,   -- LIQUID
+        packWith,       -- LIQUID, because we hid the Read instance... FIX.
 
         -- * The @ByteString@ type and representation
         ByteString(..),         -- instances: Eq, Ord, Show, Read, Data, Typeable
@@ -73,7 +74,7 @@ import Foreign.Storable         (Storable(..))
 import Foreign.C.Types          (CInt(..), CSize(..), CULong(..))
 import Foreign.C.String         (CString)
 
-import Language.Haskell.Liquid.Prelude (liquidAssert)
+import Language.Haskell.Liquid.Prelude (intCSize, liquidAssert)
 
 #ifndef __NHC__
 import Control.Exception        (assert)
@@ -170,8 +171,16 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 -- LiquidHaskell Specifications -----------------------------------------
 -------------------------------------------------------------------------
 
-{-@ measure blen :: ByteString -> Ghc.Types.Int 
-    blen (PS p o l) = l 
+{-@ measure bLength     :: ByteString -> Int 
+    bLength (PS p o l)  = l 
+  @-}
+
+{-@ measure bOffset     :: ByteString -> Int 
+    bOffset (PS p o l)  = o 
+  @-} 
+    
+{-@ measure bPayload   :: ByteString -> (ForeignPtr Word8) 
+    bPayload (PS p o l) = p 
   @-} 
 
 {-@ predicate BSValid Payload Offset Length = ((fplen Payload) = Offset + Length) @-}
@@ -179,17 +188,22 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 {-@ data ByteString  = PS { payload :: (ForeignPtr Word8) 
                           , offset  :: {v: Nat | (v <= (fplen payload))     }  
-                          , length  :: {v: Nat | (0 <= v && (BSValid payload offset v)) } 
+                          , length  :: {v: Nat | (BSValid payload offset v) } 
                           }
 
   @-}
 
-{-@ type ByteStringN N = {v: ByteString | (blen v) = N} @-}
-
+{-@ type ByteStringN N = {v: ByteString | (bLength v) = N} @-}
 
 {-@ qualif EqPLen(v: ForeignPtr a, x: Ptr a): (fplen v) = (plen x) @-}
 {-@ qualif EqPLen(v: Ptr a, x: ForeignPtr a): (plen v) = (fplen x) @-}
 {-@ qualif PValid(v: Int, p: Ptr a): v <= (plen p)                 @-}
+{-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p)                   @-}
+
+
+{-@ assume Foreign.Storable.poke        :: (Storable a) => {v: (Ptr a) | 0 <= (plen v)} -> a -> (IO ()) @-}
+{-@ assume Foreign.Storable.peek        :: (Storable a) => {v: (Ptr a) | 0 <= (plen v)} -> (IO a) @-}
+{-@ assume Foreign.Storable.peekByteOff :: (Storable a) => forall b. p:(Ptr b) -> {v: Int | (PValid p v) } -> (IO a) @-}
 
 -------------------------------------------------------------------------
 
@@ -201,29 +215,24 @@ instance Show ByteString where
 
 -- | /O(n)/ Converts a 'ByteString' to a '[a]', using a conversion function.
 
-{-@ assume Foreign.Storable.peek        :: (Storable a) => {v: (Ptr a) | 0 <= (plen v)} -> (IO a) @-}
-{-@ assume Foreign.Storable.peekByteOff :: (Storable a) => forall b. p:(Ptr b) -> {v: Int | (PValid p v) } -> (IO a) @-}
-
 {-@ unpackWith :: (Word8 -> a) -> ByteString -> [a] @-}
 unpackWith :: (Word8 -> a) -> ByteString -> [a]
 unpackWith _ (PS _  _ 0) = []
 unpackWith k (PS ps s l) = inlinePerformIO $ withForeignPtr ps $ \p ->
-         ugo k (p `plusPtr` s) (l - 1) []
---         go (p `plusPtr` s) (l - 1) []
---      where
---          STRICT3(go)
---          go p 0 acc = peek p          >>= \e -> return (k e : acc)
---          go p n acc = peekByteOff p n >>= \e -> go p (n-1) (k e : acc)
+         go (p `plusPtr` s) (l - 1) []
+      where
+          STRICT3(go)
+          go p 0 acc = peek p          >>= \e -> return (k e : acc)
+          go p n acc = peekByteOff p n >>= \e -> go p (n-1) (k e : acc)
 {-# INLINE unpackWith #-}
 
-ugo :: (Word8 -> a) -> Ptr Word8 -> Int -> [a] -> IO [a] 
-ugo k p 0 acc = peek p          >>= \e -> return (k e : acc)
-ugo k p n acc = peekByteOff p n >>= \e -> ugo k p (n-1) (k e : acc)
 
 
 
 -- | /O(n)/ Convert a '[a]' into a 'ByteString' using some
 -- conversion function
+
+{-@ packWith :: (a -> Word8) -> [a] -> ByteString @-}
 packWith :: (a -> Word8) -> [a] -> ByteString
 packWith k str = unsafeCreate (length str) $ \p -> go p str
     where
@@ -253,6 +262,12 @@ nullForeignPtr = unsafePerformIO $ newForeignPtr_ nullPtr
 -- 'Data.ByteString.Unsafe.unsafePackCStringLen' or
 -- 'Data.ByteString.Unsafe.unsafePackCStringFinalizer' instead.
 --
+
+{-@ fromForeignPtr :: p:(ForeignPtr Word8) 
+                   -> o:{v:Nat | v <= (fplen p)} 
+                   -> l:{v:Nat | (BSValid p o v)} 
+                   -> ByteStringN l
+  @-}
 fromForeignPtr :: ForeignPtr Word8
                -> Int -- ^ Offset
                -> Int -- ^ Length
@@ -261,6 +276,8 @@ fromForeignPtr fp s l = PS fp s l
 {-# INLINE fromForeignPtr #-}
 
 -- | /O(1)/ Deconstruct a ForeignPtr from a ByteString
+
+{-@ toForeignPtr :: b:ByteString -> ({v:(ForeignPtr Word8) | v = (bPayload b)} , {v:Int | v = (bOffset b)}, {v:Int| v = (bLength b)}) @-} 
 toForeignPtr :: ByteString -> (ForeignPtr Word8, Int, Int) -- ^ (ptr, offset, length)
 toForeignPtr (PS ps s l) = (ps, s, l)
 {-# INLINE toForeignPtr #-}
@@ -269,6 +286,8 @@ toForeignPtr (PS ps s l) = (ps, s, l)
 -- argument gives the final size of the ByteString. Unlike
 -- 'createAndTrim' the ByteString is not reallocated if the final size
 -- is less than the estimated size.
+
+{-@ unsafeCreate :: l:Nat -> ((PtrN Word8 l) -> IO ()) -> (ByteStringN l) @-}
 unsafeCreate :: Int -> (Ptr Word8 -> IO ()) -> ByteString
 unsafeCreate l f = unsafeDupablePerformIO (create l f)
 {-# INLINE unsafeCreate #-}
@@ -280,7 +299,7 @@ unsafeDupablePerformIO = unsafePerformIO
 #endif
 
 -- | Create ByteString of size @l@ and use action @f@ to fill it's contents.
-{-@ create :: l:Nat -> (Ptr Word8 -> IO ()) -> IO (ByteStringN l)   @-}
+{-@ create :: l:Nat -> ((PtrN Word8 l) -> IO ()) -> IO (ByteStringN l)   @-}
 create :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
 create l f = do
     fp <- mallocByteString l
@@ -295,7 +314,12 @@ create l f = do
 --
 -- createAndTrim is the main mechanism for creating custom, efficient
 -- ByteString functions, using Haskell or C functions to fill the space.
---
+
+
+{-@ createAndTrim :: l:Nat 
+                  -> ((PtrN Word8 l) -> IO {v:Nat | v <= l}) 
+                  -> IO {v:ByteString | (bLength v) <= l}   
+  @-}
 createAndTrim :: Int -> (Ptr Word8 -> IO Int) -> IO ByteString
 createAndTrim l f = do
     fp <- mallocByteString l
@@ -303,9 +327,14 @@ createAndTrim l f = do
         l' <- f p
         if assert (l' <= l) $ l' >= l
             then return $! PS fp 0 l
-            else create l' $ \p' -> memcpy p' p (fromIntegral l')
+            else create l' $ \p' -> memcpy p' p ({- LIQUID fromIntegral -} intCSize l')
 {-# INLINE createAndTrim #-}
 
+{-@ createAndTrim' :: l:Nat 
+                   -> ((PtrN Word8 l) -> IO ((Nat, Nat, a)<{\o v -> (v <= l - o)}, {\o l v -> true}>)) 
+                   -> IO ({v:ByteString | (bLength v) <= l}, a) 
+  @-}
+ 
 createAndTrim' :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (ByteString, a)
 createAndTrim' l f = do
     fp <- mallocByteString l
@@ -314,7 +343,7 @@ createAndTrim' l f = do
         if assert (l' <= l) $ l' >= l
             then return $! (PS fp 0 l, res)
             else do ps <- create l' $ \p' ->
-                            memcpy p' (p `plusPtr` off) (fromIntegral l')
+                            memcpy p' (p `plusPtr` off) ({- LIQUID fromIntegral -} intCSize l')
                     return $! (ps, res)
 
 -- | Wrapper of 'mallocForeignPtrBytes' with faster implementation for GHC
@@ -416,15 +445,13 @@ memchr p w s = c_memchr p (fromIntegral w) s
 -- LIQUID foreign import ccall unsafe "string.h memcpy" c_memcpy
 -- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO (Ptr Word8)
 
-{-@ memcpy :: dst:(Ptr Word8) 
-           -> src:(Ptr Word8) 
-           -> size: {v:CSize| ((plen src) <= v && (plen dst) <= v)} 
+{-@ memcpy :: dst:(PtrV Word8)
+           -> src:(PtrV Word8) 
+           -> size: {v:CSize| (v <= (plen src) && v <= (plen dst))} 
            -> IO () 
   @-}
 memcpy :: Ptr Word8 -> Ptr Word8 -> CSize -> IO ()
 memcpy p q s = undefined -- c_memcpy p q s >> return ()
-
-
 
 
 {-@ liquidCanary :: x:Int -> {v: Int | v > x} @-}
