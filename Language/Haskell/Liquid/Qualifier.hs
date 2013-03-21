@@ -24,7 +24,7 @@ specificationQualifiers info = filter okQual qs
     refTypeQualifiers        = refTypeQuals $ tcEmbeds spc 
     ts                       = val <$> t1s ++ t2s 
     t1s                      = [t | (x, t) <- tySigs spc, x `S.member` definedVars] 
-    t2s                      = [t | (_, t) <- ctor spc                            ]
+    t2s                      = [] -- [t | (_, t) <- ctor spc                            ]
     definedVars              = S.fromList $ defVars info
     spc                      = spec info
 
