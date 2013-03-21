@@ -1,28 +1,31 @@
 TODO
 ====
 
-* inferred types for inner-"go" are crap. e.g. 
+* [jhala]  benchmarks: Data.Bytestring
+    ? Upgrade to GHC 7.6.1 (boxed tuple commenting out C issue)
+    ? readsPrec
+
+* Upgrade
+
+* Inferred types for inner-"go" are crap. e.g. 
     - tests/pos/go.hs
 
 * error messages: expected XXX got YYY?
-
-* [Eric] qualified names break spec imports -- tests/todo/qualifiedvector.hs 
+* wtf is include/KMeansHelper.hs ? Fix module import issue
+* qualified names break spec imports -- tests/todo/qualifiedvector.hs 
 
 * DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
   -> may break a LOT of regressions
 
-
-* clean up (Int) -> Int [BEXPARSER]
-* parse predicate signatures for tuples 
+* [seidel] benchmarks: Data.Text
 * benchmarks: stackset-core
+
 * benchmarks: Data.List (foldr)
 * benchmarks: Data.List (foldr) 
-* benchmarks: Data.Bytestring
-* benchmarks: Data.Text
 * benchmarks: mcbrides stack machine
-* remove `toType` and  generalize `typeSort` to work for all RefTypables
 
-* wtf is include/KMeansHelper.hs ? Fix module import issue
+* Move stuff into Types.hs
+    - remove `toType` and  generalize `typeSort` to work for all RefTypables
 
 
 BExp Parser vs. ppr_rtype [BEXPARSER]
