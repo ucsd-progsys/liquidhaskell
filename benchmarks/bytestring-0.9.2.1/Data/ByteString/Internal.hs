@@ -175,15 +175,21 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
   @-} 
 
 {-@ predicate BSValid Payload Offset Length = ((fplen Payload) = Offset + Length) @-}
+{-@ predicate PValid P N                    = ((0 <= N) && (N <= (plen P)))       @-}
 
 {-@ data ByteString  = PS { payload :: (ForeignPtr Word8) 
                           , offset  :: {v: Nat | (v <= (fplen payload))     }  
-                          , length  :: {v: Nat | (BSValid payload offset v) } 
+                          , length  :: {v: Nat | (0 <= v && (BSValid payload offset v)) } 
                           }
 
   @-}
 
 {-@ type ByteStringN N = {v: ByteString | (blen v) = N} @-}
+
+
+{-@ qualif EqPLen(v: ForeignPtr a, x: Ptr a): (fplen v) = (plen x) @-}
+{-@ qualif EqPLen(v: Ptr a, x: ForeignPtr a): (plen v) = (fplen x) @-}
+{-@ qualif PValid(v: Int, p: Ptr a): v <= (plen p)                 @-}
 
 -------------------------------------------------------------------------
 
@@ -195,17 +201,24 @@ instance Show ByteString where
 
 -- | /O(n)/ Converts a 'ByteString' to a '[a]', using a conversion function.
 
+{-@ assume Foreign.Storable.peek        :: (Storable a) => {v: (Ptr a) | 0 <= (plen v)} -> (IO a) @-}
+{-@ assume Foreign.Storable.peekByteOff :: (Storable a) => forall b. p:(Ptr b) -> {v: Int | (PValid p v) } -> (IO a) @-}
 
 {-@ unpackWith :: (Word8 -> a) -> ByteString -> [a] @-}
 unpackWith :: (Word8 -> a) -> ByteString -> [a]
 unpackWith _ (PS _  _ 0) = []
 unpackWith k (PS ps s l) = inlinePerformIO $ withForeignPtr ps $ \p ->
-        go (p `plusPtr` (id s)) (l - 1) []
-    where
-        STRICT3(go)
-        go p 0 acc = peek p          >>= \e -> return (k e : acc)
-        go p n acc = peekByteOff p n >>= \e -> go p (n-1) (k e : acc)
+         ugo k (p `plusPtr` s) (l - 1) []
+--         go (p `plusPtr` s) (l - 1) []
+--      where
+--          STRICT3(go)
+--          go p 0 acc = peek p          >>= \e -> return (k e : acc)
+--          go p n acc = peekByteOff p n >>= \e -> go p (n-1) (k e : acc)
 {-# INLINE unpackWith #-}
+
+ugo :: (Word8 -> a) -> Ptr Word8 -> Int -> [a] -> IO [a] 
+ugo k p 0 acc = peek p          >>= \e -> return (k e : acc)
+ugo k p n acc = peekByteOff p n >>= \e -> ugo k p (n-1) (k e : acc)
 
 
 

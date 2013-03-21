@@ -1,7 +1,10 @@
 TODO
 ====
 
-* Auto-gen qualifs from datacon definitions <---------------- HEREHEREHERE
+* inferred types for inner-"go" are crap. e.g. 
+    - tests/pos/go.hs
+    - bytestring/Data/Bytestring/Internal.hs (unpackWith/go) 
+      not showing the dependency on the parameter "p"! (ok when you fork into toplevel)
 
 * error messages: expected XXX got YYY?
 
