@@ -168,12 +168,9 @@ bareArrow b t1 ArrowFun t2
 bareArrow _ t1 ArrowPred t2
   = foldr (rFun dummySymbol) t2 (getClasses t1)
 
--- isBoolBareType (RApp tc [] _ _) = tc == boolConName
--- isBoolBareType t                = False
 
 isPropBareType (RApp tc [] _ _) = tc == propConName
--- isPropBareType t@(RApp _ [] _ _) = showPpr t == "(Prop)"
-isPropBareType _                 = False
+isPropBareType _                = False
 
 
 getClasses (RApp tc ts _ _) 
@@ -269,15 +266,16 @@ dummyRSort     = ROth "dummy"
 ------------------------------------------------------------------
 
 data Pspec ty bndr 
-  = Meas (Measure.Measure ty bndr) 
-  | Assm (LocSymbol, ty) 
-  | Impt  Symbol
-  | DDecl DataDecl
-  | Incl  FilePath
-  | Invt  (Located ty)
-  | Alias (RTAlias String BareType)
-  | PAlias (RTAlias Symbol Pred)
-  | Embed (String, FTycon)
+  = Meas    (Measure.Measure ty bndr) 
+  | Assm    (LocSymbol, ty) 
+  | Impt    Symbol
+  | DDecl   DataDecl
+  | Incl    FilePath
+  | Invt    (Located ty)
+  | Alias   (RTAlias String BareType)
+  | PAlias  (RTAlias Symbol Pred)
+  | Embed   (String, FTycon)
+  | Qualif  Qualifier
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
@@ -290,6 +288,7 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.aliases    = [a | Alias  a <- xs]
   , Measure.paliases   = [p | PAlias p <- xs]
   , Measure.embeds     = M.fromList [e | Embed e <- xs]
+  , Measure.qualifiers = [q | Qualif q <- xs]
   }
 
 specificationP :: Parser (Measure.Spec BareType Symbol)
@@ -304,17 +303,18 @@ specificationP
 
 specP :: Parser (Pspec BareType Symbol)
 specP 
-  = try (reserved "assume"    >> liftM Assm  tyBindP)
-    <|> (reserved "assert"    >> liftM Assm  tyBindP)
-    <|> (reserved "measure"   >> liftM Meas  measureP) 
-    <|> (reserved "import"    >> liftM Impt  symbolP)
-    <|> (reserved "data"      >> liftM DDecl dataDeclP)
-    <|> (reserved "include"   >> liftM Incl  filePathP)
-    <|> (reserved "invariant" >> liftM Invt  invariantP)
-    <|> (reserved "type"      >> liftM Alias aliasP)
-    <|> (reserved "predicate" >> liftM PAlias paliasP)
-    <|> (reserved "embed"     >> liftM Embed embedP)
-    <|> ({- DEFAULT -}           liftM Assm  tyBindP)
+  = try (reserved "assume"    >> liftM Assm   tyBindP   )
+    <|> (reserved "assert"    >> liftM Assm   tyBindP   )
+    <|> (reserved "measure"   >> liftM Meas   measureP  ) 
+    <|> (reserved "import"    >> liftM Impt   symbolP   )
+    <|> (reserved "data"      >> liftM DDecl  dataDeclP )
+    <|> (reserved "include"   >> liftM Incl   filePathP )
+    <|> (reserved "invariant" >> liftM Invt   invariantP)
+    <|> (reserved "type"      >> liftM Alias  aliasP    )
+    <|> (reserved "predicate" >> liftM PAlias paliasP   )
+    <|> (reserved "embed"     >> liftM Embed  embedP    )
+    <|> (reserved "qualif"    >> liftM Qualif qualifierP)
+    <|> ({- DEFAULT -}           liftM Assm   tyBindP   )
 
 filePathP :: Parser FilePath
 filePathP = angles $ many1 pathCharP

@@ -1,12 +1,17 @@
 TODO
 ====
 
+* {-@ qualif ... @-} definitions in HS source, no hquals files
+
+* Auto-gen qualifs from datacon definitions
+
+* error messages: expected XXX got YYY?
+
 * [Eric] qualified names break spec imports -- tests/todo/qualifiedvector.hs 
+
 * DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
   -> may break a LOT of regressions
 
-* error messages
-    * error message -- expected XXX got YYY?
 
 * clean up (Int) -> Int [BEXPARSER]
 * parse predicate signatures for tuples 
@@ -20,13 +25,6 @@ TODO
 
 * wtf is include/KMeansHelper.hs ? Fix module import issue
 
-Spec Errors
-===========
-
-[OK] Add Located a [for a in SpecType, RefType, Invariant]
-[OK] run all tests
--    Update Fixpoint.Types.checkSortedReft/Full <---------- HEREHEREHEREHEREHEREHERE
--    run all tests
 
 BExp Parser vs. ppr_rtype [BEXPARSER]
 =====================================
