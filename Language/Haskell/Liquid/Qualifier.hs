@@ -18,13 +18,19 @@ import Data.Bifunctor           (second)
 
 
 specificationQualifiers :: GhcInfo -> [Qualifier] 
-specificationQualifiers info = concatMap refTypeQualifiers $ val <$> ts ++ ts' 
-  where 
-    refTypeQualifiers        = refTypeQuals  tce 
-    ts                       = snd <$> tySigs spc
-    ts'                      = snd <$> ctor   spc     
-    tce                      = tcEmbeds spc
+specificationQualifiers info = filter okQual qs 
+  where
+    qs                       = concatMap refTypeQualifiers ts 
+    refTypeQualifiers        = refTypeQuals $ tcEmbeds spc 
+    ts                       = val <$> (snd <$> tySigs spc) ++ (snd <$> ctor spc)
     spc                      = spec info
+
+
+okQual                         = not . any isPred . map snd . q_params 
+  where
+    isPred (FApp tc _)         = tc == stringFTycon "Pred" 
+    isPred _                   = False
+
 
 -- specificationQualifiers info 
 --   = [ q | (x, t) <- tySigs $ spec info
@@ -68,7 +74,7 @@ refTypeQuals' tce t0 = go emptySEnv t0
         go γ (REx x t t')         = (go γ t) ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
         go _ _                    = []
         goRefs c γ rs             = concat $ zipWith (goRef γ) rs (rTyConPs c)
-        goRef γ (RPoly s t)  p    = go (insertsSEnv γ s) t
+        goRef γ (RPoly s t)  _    = go (insertsSEnv γ s) t
         goRef _ (RMono _ _)  _    = []
         insertsSEnv               = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 
