@@ -1,6 +1,22 @@
 TODO
 ====
 
+Failed 4 tests: ../benchmarks/esop2013-submission/Toy.hs, ../web/demos/refinements101reax.hs, pos/ex0.hs, pos/foldN.hs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 * [Eric] qualified names break spec imports -- tests/todo/qualifiedvector.hs 
 * DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
   -> may break a LOT of regressions
