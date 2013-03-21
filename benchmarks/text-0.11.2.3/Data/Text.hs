@@ -1029,14 +1029,14 @@ unfoldrN n f s = unstream (S.unfoldrN n (firstf safe . f) s)
 -- | /O(n)/ 'take' @n@, applied to a 'Text', returns the prefix of the
 -- 'Text' of length @n@, or the 'Text' itself if @n@ is greater than
 -- the length of the Text. Subject to fusion.
-{-LIQUID take :: n:{v:Int | v >= 0}
+{-@ take :: n:{v:Int | v >= 0}
          -> t:Text
          -> {v:Text | (numchars (tarr v) (toff v) (tlen v)) <= n}
-  -}
+  @-}
 take :: Int -> Text -> Text
 take n t@(Text arr off len)
     | n <= 0    = empty
-    | n >= len  = t
+    | n >= len  = liquidAssume (axiom_numchars_length arr off len) t
     | otherwise = Text arr off len'
  where
      len' = loop_take n t 0 z
@@ -1048,20 +1048,28 @@ take n t@(Text arr off len)
      --      | otherwise            = loop (i+d) (cnt+1)
      --      where d = iter_ t i
 
-{-LIQUID axiom_numchars :: a:A.Array
+{-@ axiom_numchars :: a:A.Array
                    -> o:Int
                    -> {v:Bool | ((Prop v) <=> ((numchars a o 0) = 0))}
-  -}
+  @-}
 axiom_numchars :: A.Array -> Int -> Bool
 axiom_numchars _ _ = P.undefined
 
-{-LIQUID loop_take :: n:{v:Int | v >= 0}
+{-@ axiom_numchars_length :: a:A.Array
+                   -> o:Int
+                   -> l:Int
+                   -> {v:Bool | ((Prop v) <=> ((numchars a o l) <= l))}
+  @-}
+axiom_numchars_length :: A.Array -> Int -> Int -> Bool
+axiom_numchars_length = P.undefined
+
+{-@ loop_take :: n:{v:Int | v >= 0}
               -> t:Text
               -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
               -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
                             && (v <= n))}
-              -> {v:Int | (numchars (tarr t) (toff t) v) <= n}
-  -}
+              -> {v:Int | (((numchars (tarr t) (toff t) v) <= n) && (v >= 0))}
+  @-}
 loop_take :: Int -> Text -> Int -> Int -> Int
 loop_take n t@(Text arr off len) !i !cnt
      | i >= len || cnt >= n = i

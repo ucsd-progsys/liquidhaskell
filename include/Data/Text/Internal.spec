@@ -19,4 +19,4 @@ measure numchars :: A.Array -> Int -> Int -> Int
 -- numchars a o 0 = 0
 
 textP :: A.Array -> Int -> len:Int -> {v:Text | ((tlen v) = len)}
-empty :: {v:Text | (tlen v) = 0}
+empty :: {v:Text | (((tlen v) = 0) && ((numchars (tarr v) (toff v) (tlen v)) = 0))}
