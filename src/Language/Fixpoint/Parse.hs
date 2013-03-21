@@ -24,9 +24,10 @@ module Language.Fixpoint.Parse (
   , integer     -- Integer
 
   -- * Parsing recursive entities
-  , exprP       -- Expressions
-  , predP       -- Refinement Predicates
-  
+  , exprP       -- ^ Expressions
+  , predP       -- ^ Refinement Predicates
+  , qualifierP  -- ^ Qualifiers
+
   -- * Some Combinators
   , condIdP     -- condIdP  :: [Char] -> (String -> Bool) -> Parser String
 
@@ -34,6 +35,7 @@ module Language.Fixpoint.Parse (
   , doParse' 
   ) where
 
+import Control.Applicative ((<*>), (<$>), (<*))
 import Control.Monad
 import Text.Parsec
 import Text.Parsec.Expr
@@ -43,8 +45,7 @@ import Text.Printf  (printf)
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
 
-import Control.Applicative ((<$>), (<*))
-import Data.Char (isLower)
+import Data.Char (isLower, toUpper)
 import Language.Fixpoint.Misc hiding (dcolon)
 import Language.Fixpoint.Types
 
@@ -166,6 +167,7 @@ bops = [ [Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft]
        , [Infix  (reservedOp "mod" >> return (EBin Mod  )) AssocLeft]
        ]
 
+
 exprCastP
   = do e  <- exprP 
        ((try dcolon) <|> colon)
@@ -175,13 +177,13 @@ exprCastP
 dcolon = string "::" <* spaces
 
 sortP
-  =   try (string "Integer" >> return FInt)
-  <|> try (string "Int"     >> return FInt)
-  <|> try (string "int"     >> return FInt)
---   <|> (symCharsP >>= return . FPtr . FLoc . stringSymbol) 
+  =   try (string "Integer" >>  return FInt)
+  <|> try (string "Int"     >>  return FInt)
+  <|> try (string "int"     >>  return FInt)
+  <|> try (FObj . stringSymbol <$> lowerIdP)
+  <|> (FApp <$> fTyConP <*> many sortP     )
 
-
-symCharsP = (condIdP symChars (\_ -> True))
+symCharsP  = (condIdP symChars (\_ -> True))
 
 ---------------------------------------------------------------------
 -------------------------- Predicates -------------------------------
@@ -258,6 +260,30 @@ fTyConP
 refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
        <|> liftM ((:[]) . RConc) predP
+
+---------------------------------------------------------------------
+-- | Parsing Qualifiers ---------------------------------------------
+---------------------------------------------------------------------
+
+-- qualifierP = mkQual <$> upperIdP <*> parens $ sepBy1 sortBindP comma <*> predP
+
+qualifierP = do n      <- upperIdP 
+                params <- parens $ sepBy1 sortBindP comma
+                _      <- colon
+                body   <- predP
+                return  $ mkQual n params body
+
+sortBindP  = (,) <$> symbolP <* colon <*> sortP
+
+mkQual n xts p = Q n ((vv, t) : yts) (subst su p)
+  where 
+    (vv,t):zts = xts
+    yts        = mapFst mkParam <$> zts
+    su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts 
+                       
+mkParam s      = stringSymbolRaw ('~' : toUpper c : cs) 
+  where 
+    (c:cs)     = symbolString s 
 
 
 ---------------------------------------------------------------------
