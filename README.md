@@ -322,17 +322,19 @@ levels (or rather, to *reify* the connections between the two levels.) See
 [this test](tests/pos/maybe4.hs) for a simple example and `hedgeUnion` and
 [Data.Map.Base](benchmarks/esop2013-submission/Base.hs) for a complex one.
 
-The easiest way to use such self-invariants or refinements, is to just 
-define a type alias (e.g. `IList` or `IMaybe` and use them in the specification
-and verification.)
+The easiest way to use such self-invariants or refinements, is to just define a type 
+alias (e.g. `IList` or `IMaybe` and use them in the specification and verification.)
 
 
 Specifying Qualifiers
----------------------
+=====================
 
-Qualifier files must end with extension .hquals
+There are several ways to specify qualifiers.
 
-You can write qualifier files (see include/Prelude.hquals for an example)
+By Separate `.hquals` Files 
+---------------------------
+
+You can write qualifier files e.g. [Prelude.hquals](include/Prelude.hquals) 
 
 If a module is called or imports 
 
@@ -342,11 +344,33 @@ Then the system automatically searches for
 
     include/Foo/Bar/Baz.hquals
 
+By Including `.hquals` Files
+----------------------------
+
 Additional qualifiers may be used by adding lines of the form:
 
     {-@ include <path/to/file.hquals> @-}
 
-to the Haskell source. See, for example, `tests/pos/meas5.hs` 
+to the Haskell source. See, [this](tests/pos/meas5.hs) for example.
+
+
+In Haskell Source or Spec Files
+-------------------------------
+
+Finally, you can specifiers directly inside source (.hs or .lhs) or spec (.spec)
+files by writing as shown [here](tests/pos/qualTest.hs) 
+
+    {-@ qualif Foo(v:Int, a: Int) : (v = a + 100)   @-}
+
+
+**Note** In addition to these, LiquidHaskell scrapes qualifiers from all
+the specifications you write i.e. 
+
+1. all imported type signatures, 
+2. measure bodies and,
+3. data constructor definitions.
+
+
 
 Generating HTML Output
 ======================

@@ -2,14 +2,11 @@ module Language.Haskell.Liquid.Qualifier (
   specificationQualifiers
   ) where
 
--- import Outputable
--- import Language.Haskell.Liquid.GhcMisc
--- import Control.DeepSeq
-
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.PredType
+import Language.Haskell.Liquid.Types
 import Language.Fixpoint.Types
 import Language.Fixpoint.Misc
 
@@ -21,10 +18,27 @@ import Data.Bifunctor           (second)
 
 
 specificationQualifiers :: GhcInfo -> [Qualifier] 
-specificationQualifiers info  
-  = [ q | (x, t) <- tySigs $ spec info, x `S.member` xs, q <- refTypeQuals tce t
-    ] where xs  = S.fromList $ defVars info
-            tce = tcEmbeds   $ spec info
+specificationQualifiers info = {- filter okQual -} qs 
+  where
+    qs                       = concatMap refTypeQualifiers ts 
+    refTypeQualifiers        = refTypeQuals $ tcEmbeds spc 
+    ts                       = val <$> t1s ++ t2s 
+    t1s                      = [t | (x, t) <- tySigs spc, x `S.member` definedVars] 
+    t2s                      = [] -- [t | (_, t) <- ctor spc                            ]
+    definedVars              = S.fromList $ defVars info
+    spc                      = spec info
+
+okQual                       = not . any isPred . map snd . q_params 
+  where
+    isPred (FApp tc _)       = tc == stringFTycon "Pred" 
+    isPred _                 = False
+
+
+-- specificationQualifiers info 
+--   = [ q | (x, t) <- tySigs $ spec info
+--         , x `S.member` (S.fromList $ defVars info)
+--         , q <- refTypeQuals (tcEmbeds $ spec info) (val t) 
+--     ]
 
 refTypeQuals tce t 
   = quals ++ 
@@ -62,7 +76,7 @@ refTypeQuals' tce t0 = go emptySEnv t0
         go γ (REx x t t')         = (go γ t) ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
         go _ _                    = []
         goRefs c γ rs             = concat $ zipWith (goRef γ) rs (rTyConPs c)
-        goRef γ (RPoly s t)  p    = go (insertsSEnv γ s) t
+        goRef γ (RPoly s t)  _    = go (insertsSEnv γ s) t
         goRef _ (RMono _ _)  _    = []
         insertsSEnv               = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 

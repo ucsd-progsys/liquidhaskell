@@ -18,7 +18,7 @@ module Data.KMeans (kmeans, kmeansGen)
 import Data.List (sort, span, minimumBy)
 import Data.Function (on)
 import Data.Ord (comparing)
-import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
+import Language.Haskell.Liquid.Prelude (liquidAssume, liquidAssert, liquidError)
 
 -- Liquid: Kept for exposition, can use Data.List.groupBy
 {-@ assert groupBy :: (a -> a -> Bool) -> [a] -> [{v:[a] | len(v) > 0}] @-}
@@ -51,9 +51,18 @@ instance Ord (WrapType [Double] a) where
 dist a b = sqrt . sum $ zipWith (\x y-> (x-y) ^ 2) a b      -- Liquid: zipWith dimensions
 
 centroid n points = map (( / l) . sum) points'              -- Liquid: Divide By Zero
-    where l = fromIntegral $ liquidAssert (m > 0) m
-          m = length points 
-          points' = transpose n m (map getVect points)
+    where 
+      l  = fromIntegralNZ m 
+      m  = length points 
+      points' = transpose n m (map getVect points)
+
+fromIntegralNZ = assumeNZ . fromIntegral . assertNZ
+  where 
+    assertNZ v = liquidAssert (v /= 0) v 
+    assumeNZ v = liquidAssume (v /= 0) v
+
+
+
 
 closest (n :: Int) points point = minimumBy (comparing $ dist point) points
 

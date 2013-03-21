@@ -1,6 +1,6 @@
 Name:                liquidtypes 
 Version:             0.1
-Copyright:           2010-12 Ranjit Jhala, University of California, San Diego.
+Copyright:           2010-13 Ranjit Jhala, University of California, San Diego.
 build-type:			 Simple
 Synopsis:            Liquid Types for Haskell 
 Description:         Liquid Types for Haskell.
@@ -45,7 +45,8 @@ Library
                     Language.Haskell.Liquid.GhcMisc, 
                     Language.Haskell.Liquid.Qualifier, 
                     Language.Haskell.Liquid.TransformRec, 
-                    Language.Haskell.Liquid.Tidy 
+                    Language.Haskell.Liquid.Tidy, 
+                    Language.Haskell.Liquid.Types
   --ghc-options: -O -W
   Extensions: 
 
