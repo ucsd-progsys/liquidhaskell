@@ -217,7 +217,7 @@ isListTC (TC (S c)) = c == listConName
 
 stringFTycon :: String -> FTycon
 stringFTycon c 
-  | c == listConName = TC . S $ listConName -- listFTyCon
+  | c == listConName = TC . S $ listConName
   | otherwise        = TC . stringSymbol $ dropModuleNames c
 
 
@@ -1083,6 +1083,8 @@ data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
                   , kuts  :: Kuts 
                   , quals :: ![Qualifier]
                   }
+
+-- toFixs = brackets . hsep . punctuate comma -- . map toFix 
 
 toFixpoint x'    = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x'
   where conDoc   = vcat     . map toFix_constant . lits

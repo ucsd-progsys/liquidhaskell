@@ -14,7 +14,7 @@ import Language.Fixpoint.Types
 import Language.Fixpoint.Misc
 import Text.PrettyPrint.HughesPJ
 import Text.Printf
-import Control.Monad.Error (throwError)
+import Control.Monad.Error (catchError, throwError)
 import Control.Monad
 import Control.Applicative
 import Data.Maybe           (fromMaybe)
@@ -129,7 +129,7 @@ checkOpTy f e t t'
 
 checkNumeric f l 
   = do t <- checkSym f l
-       unless (t == FNum) (throwError $ errNonNumeric t l)
+       unless (t == FNum) (throwError $ errNonNumeric l)
        return ()
 
 -------------------------------------------------------------------------
@@ -162,8 +162,9 @@ checkRel f r  e1 e2                = do t1 <- checkExpr f e1
                                         t2 <- checkExpr f e2
                                         checkRelTy f (PAtom r e1 e2) r t1 t2
 
-checkRelTy f _ _ FInt (FObj l)     = checkNumeric f l
-checkRelTy f _ _ (FObj l) FInt     = checkNumeric f l
+checkRelTy :: (Fixpoint a) =>(Symbol -> Maybe Sort) -> a -> Brel -> Sort -> Sort -> CheckM ()
+checkRelTy f _ _ FInt (FObj l)     = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l) 
+checkRelTy f _ _ (FObj l) FInt     = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l)
 checkRelTy _ e Eq t1 t2            = unless (t1 == t2 && t1 /= fProp) (throwError $ errRel e t1 t2)
 checkRelTy _ e Ne t1 t2            = unless (t1 == t2 && t1 /= fProp) (throwError $ errRel e t1 t2)
 checkRelTy _ e _  t1 t2            = unless (t1 == t2)                (throwError $ errRel e t1 t2)
@@ -211,7 +212,7 @@ errUnbound x         = printf "Unbound Symbol %s" (showFix x)
 
 errNonFunction t     = printf "Sort %s is not a function" (showFix t)
 
-errNonNumeric _ l    = printf "FObj sort %s is not numeric" (showFix l)
+errNonNumeric  l     = printf "FObj sort %s is not numeric" (showFix l)
 
 errUnexpectedPred p  = printf "Sort Checking: Unexpected Predicate %s" (showFix p)
 
