@@ -14,7 +14,6 @@ TODO
 * wtf is include/KMeansHelper.hs ? Fix module import issue
 * qualified names break spec imports -- tests/todo/qualifiedvector.hs 
 
->>>>>>> d83db40b28f680a27ca41b8f30322c863cf3d862
 * DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
   -> may break a LOT of regressions
 
