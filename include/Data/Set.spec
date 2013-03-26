@@ -31,13 +31,13 @@ measure Set_sub  :: (Set a) -> (Set a) -> Prop
 -- | Refined Types for Data.Set Operations --------------------------------------------------
 ---------------------------------------------------------------------------------------------
 
-isSubsetOf    :: Ord a => xs:(Set a) -> ys:(Set a) -> {v:Bool | (Prop v) <=> (Set_sub xs ys)}
-member        :: Ord a => x:a -> xs:(Set a) -> {v:Bool | (Prop v) <=> (Set_mem x xs)}
+isSubsetOf    :: (Ord a) => x:(Set a) -> y:(Set a) -> {v:Bool | ((Prop v) <=> (Set_sub x y))}
+member        :: (Ord a) => x:a -> xs:(Set a) -> {v:Bool | ((Prop v) <=> (Set_mem x xs))}
 
 empty         :: {v:(Set a) | (Set_emp v)}
 singleton     :: x:a -> {v:(Set a) | v = (Set_sng x)}
-insert        :: Ord a => x:a -> xs:(Set a) -> {v:(Set a) | v = (Set_cup xs (Set_sng x))}
-delete        :: Ord a => x:a -> xs:(Set a) -> {v:(Set a) | v = (Set_dif xs (Set_sng x))}
+insert        :: (Ord a) => x:a -> xs:(Set a) -> {v:(Set a) | v = (Set_cup xs (Set_sng x))}
+delete        :: (Ord a) => x:a -> xs:(Set a) -> {v:(Set a) | v = (Set_dif xs (Set_sng x))}
 
 union         :: Ord a => xs:(Set a) -> ys:(Set a) -> {v:(Set a) | v = (Set_cup xs ys)}
 intersection  :: Ord a => xs:(Set a) -> ys:(Set a) -> {v:(Set a) | v = (Set_cap xs ys)}

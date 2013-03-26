@@ -142,7 +142,7 @@ Lets check that `intersection` is commutative ...
 
 \begin{code}
 {-@ prop_cap_comm :: Set Int -> Set Int -> Bool @-}
-prop_cap_comm :: Set Int -> Set Int -> Bool
+prop_cap_comm     :: Set Int -> Set Int -> Bool
 prop_cap_comm x y 
   = boolAssert 
   $ (x `intersection` y) == (y `intersection` x)
@@ -151,27 +151,33 @@ prop_cap_comm x y
 that `union` is associative ...
 
 \begin{code}
--- prop_cup_assoc x y z 
---   = boolAssert 
---   $ (x `union` (y `union` z)) == (x `union` y) `union` z
+{-@ prop_cup_assoc :: Set Int -> Set Int -> Set Int -> Bool @-}
+prop_cup_assoc     :: Set Int -> Set Int -> Set Int -> Bool
+prop_cup_assoc x y z 
+  = boolAssert 
+  $ (x `union` (y `union` z)) == (x `union` y) `union` z
 \end{code}
 
 and that `union` distributes over `intersection`.
 
 \begin{code}
--- prop_cap_distributive x y z 
---   = boolAssert 
---   $  (x `intersection` (y `union` z)) 
---   == (x `intersection` y) `union` (x `intersection` z) 
+{-@ prop_cap_dist :: Set Int -> Set Int -> Set Int -> Bool @-}
+prop_cap_dist     :: Set Int -> Set Int -> Set Int -> Bool
+prop_cap_dist x y z 
+  = boolAssert 
+  $  (x `intersection` (y `union` z)) 
+  == (x `intersection` y) `union` (x `intersection` z) 
 \end{code}
   
 Of course, while we're at it, lets make sure LiquidHaskell 
-doesn't prove anything thats *not true*...
+doesn't prove anything thats *not* true ...
 
 \begin{code}
--- prop_cup_dif_bad x y
---   = boolAssert 
---   $ x == (x `union` y) `difference` y
+{-@ prop_cup_dif_bad :: Set Int -> Set Int -> Bool @-}
+prop_cup_dif_bad     :: Set Int -> Set Int -> Bool
+prop_cup_dif_bad x y
+   = boolAssert 
+   $ x == (x `union` y) `difference` y
 \end{code}
 
 Hmm. You do know why the above doesn't hold, right? It would be nice to
@@ -234,11 +240,10 @@ A Less Trivial Identity
 
 Next, lets write a function to `reverse` a list. Of course, we'd like to
 verify that `reverse` doesn't leave any elements behind; that is that the 
-output has the same set of values as the input list!
-
-This is somewhat more interesting because of the *tail recursive* helper `go`. 
-Do you understand the type that is inferred for it? (Put your mouse over `go` 
-to see the inferred type.)
+output has the same set of values as the input list. This is somewhat more 
+interesting because of the *tail recursive* helper `go`. Do you understand 
+the type that is inferred for it? (Put your mouse over `go` to see the 
+inferred type.)
 
 \begin{code}
 {-@ reverse       :: xs:[a] -> {v:[a]| (SameElts v xs)} @-}
@@ -303,7 +308,7 @@ split (x:xs) = (x:zs, ys)
     (ys, zs) = split xs
 \end{code}
 
-LiquidHaskell deduces that the relevant property of `split` is
+LiquidHaskell verifies that the relevant property of `split` is
 
 \begin{code}
 {-@ split :: xs:[a] -> ([a], [a])<{\ys zs -> (UnionElts xs ys zs)}> @-}
@@ -317,7 +322,6 @@ later to understand whats going on with the odd syntax.)
 
 Merge
 -----
-
 
 Dually, we `merge` two (sorted) lists like so:
 
