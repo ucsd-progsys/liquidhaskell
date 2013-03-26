@@ -69,7 +69,7 @@ module Data.Text
     , intersperse
     , transpose
     , reverse
---LIQUID    , replace
+    , replace
 
     -- ** Case conversion
     -- $case
@@ -140,7 +140,7 @@ module Data.Text
     -- ** Breaking into many substrings
     -- $split
 --LIQUID    , splitOn
---LIQUID    , split
+    , split
     , chunksOf
 
     -- ** Breaking into lines and words
@@ -222,12 +222,12 @@ import Data.ByteString (ByteString)
 import qualified Data.Text.Lazy as L
 import Data.Int (Int64)
 #endif
-#if __GLASGOW_HASKELL__ >= 702
-import qualified GHC.CString as GHC
-#else
-import qualified GHC.Base as GHC
-#endif
-import GHC.Prim (Addr#)
+--LIQUID #if __GLASGOW_HASKELL__ >= 702
+--LIQUID import qualified GHC.CString as GHC
+--LIQUID #else
+--LIQUID import qualified GHC.Base as GHC
+--LIQUID #endif
+--LIQUID import GHC.Prim (Addr#)
 
 
 --LIQUID
@@ -323,10 +323,10 @@ instance Show Text where
 --LIQUID instance Read Text where
 --LIQUID     readsPrec p str = [(pack x,y) | (x,y) <- readsPrec p str]
 
-instance Monoid Text where
-    mempty  = empty
-    mappend = append
-    mconcat = concat
+--LIQUID instance Monoid Text where
+--LIQUID     mempty  = empty
+--LIQUID     mappend = append
+--LIQUID     mconcat = concat
 
 instance IsString Text where
     fromString = pack
@@ -394,17 +394,17 @@ unpack t = S.unstreamList $ stream t
 {-# INLINE [1] unpack #-}
 
 -- | /O(n)/ Convert a literal string into a Text.
-unpackCString# :: Addr# -> Text
-unpackCString# addr# = unstream (S.streamCString# addr#)
-{-# NOINLINE unpackCString# #-}
-
-{-# RULES "TEXT literal" forall a.
-    unstream (S.streamList (L.map safe (GHC.unpackCString# a)))
-      = unpackCString# a #-}
-
-{-# RULES "TEXT literal UTF8" forall a.
-    unstream (S.streamList (L.map safe (GHC.unpackCStringUtf8# a)))
-      = unpackCString# a #-}
+--LIQUID unpackCString# :: Addr# -> Text
+--LIQUID unpackCString# addr# = unstream (S.streamCString# addr#)
+--LIQUID {-# NOINLINE unpackCString# #-}
+--LIQUID
+--LIQUID {-# RULES "TEXT literal" forall a.
+--LIQUID     unstream (S.streamList (L.map safe (GHC.unpackCString# a)))
+--LIQUID       = unpackCString# a #-}
+--LIQUID
+--LIQUID {-# RULES "TEXT literal UTF8" forall a.
+--LIQUID     unstream (S.streamList (L.map safe (GHC.unpackCStringUtf8# a)))
+--LIQUID       = unpackCString# a #-}
 
 -- | /O(1)/ Convert a character into a Text.  Subject to fusion.
 -- Performs replacement on invalid scalar values.
@@ -661,12 +661,12 @@ reverse t = S.reverse (stream t)
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
---LIQUID replace :: Text                 -- ^ Text to search for
---LIQUID         -> Text                 -- ^ Replacement text
---LIQUID         -> Text                 -- ^ Input text
---LIQUID         -> Text
---LIQUID replace s d = intercalate d . splitOn s
---LIQUID {-# INLINE replace #-}
+replace :: Text                 -- ^ Text to search for
+        -> Text                 -- ^ Replacement text
+        -> Text                 -- ^ Input text
+        -> Text
+replace s d = intercalate d . splitOn s
+{-# INLINE replace #-}
 
 -- ----------------------------------------------------------------------------
 -- ** Case conversions (folds)
@@ -978,10 +978,11 @@ replicate n t@(Text a o l)
     | n <= 0 || l <= 0      = empty
     | n == 1                = t
     | isSingleton t         = replicateChar n (unsafeHead t)
-    | n <= maxBound `div` l = Text (A.run x) 0 len
-    | otherwise             = overflowError "replicate"
+    | otherwise             = Text (A.run x) 0 len
+    --LIQUID | n <= maxBound `div` l = Text (A.run x) 0 len
+    --LIQUID | otherwise             = overflowError "replicate"
   where
-    len = l * n
+    len = liquidAssume (l > 0 && n > 0) $ l * n
     x = do
       arr <- A.new len
       let loop !d !i | i >= n    = return arr
@@ -1036,32 +1037,14 @@ unfoldrN n f s = unstream (S.unfoldrN n (firstf safe . f) s)
 take :: Int -> Text -> Text
 take n t@(Text arr off len)
     | n <= 0    = empty
-    | n >= len  = liquidAssume (axiom_numchars_length arr off len) t
+    | n >= len  = t
     | otherwise = Text arr off len'
  where
-     len' = loop_take n t 0 z
-     z = (liquidAssume (axiom_numchars arr off) 0)
-     -- FIXME: step through this on paper, try to prove (loop 0 0) <= len
-     -- cnt : {Int | numchars(arr, off, i) = cnt}
-     -- loop !i !cnt
-     --      | i >= len || cnt >= n = i
-     --      | otherwise            = loop (i+d) (cnt+1)
-     --      where d = iter_ t i
-
-{-@ axiom_numchars :: a:A.Array
-                   -> o:Int
-                   -> {v:Bool | ((Prop v) <=> ((numchars a o 0) = 0))}
-  @-}
-axiom_numchars :: A.Array -> Int -> Bool
-axiom_numchars _ _ = P.undefined
-
-{-@ axiom_numchars_length :: a:A.Array
-                   -> o:Int
-                   -> l:Int
-                   -> {v:Bool | ((Prop v) <=> ((numchars a o l) <= l))}
-  @-}
-axiom_numchars_length :: A.Array -> Int -> Int -> Bool
-axiom_numchars_length = P.undefined
+     len' = loop_take n t 0 0
+     --LIQUID loop !i !cnt
+     --LIQUID      | i >= len || cnt >= n = i
+     --LIQUID      | otherwise            = loop (i+d) (cnt+1)
+     --LIQUID      where d = iter_ t i
 
 {-@ loop_take :: n:{v:Int | v >= 0}
               -> t:Text
@@ -1077,7 +1060,6 @@ loop_take n t@(Text arr off len) !i !cnt
      | i < len  && cnt < n  = let d = iter_ t i
                                   cnt' = cnt + 1
                               in loop_take n t (i+d) cnt'
-     --LIQUID where d = iter_ t i
 
 {-# INLINE [1] take #-}
 
@@ -1304,20 +1286,20 @@ tails t | null t    = [empty]
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
---LIQUID splitOn :: Text -> Text -> [Text]
---LIQUID splitOn pat@(Text _ _ l) src@(Text arr off len)
---LIQUID --LIQUID    | l <= 0          = emptyError "splitOn"
---LIQUID     | isSingleton pat = split (== unsafeHead pat) src
---LIQUID     | otherwise       = go 0 (indices pat src)
---LIQUID   where
---LIQUID     go !s (x:xs) =  textP arr (s+off) (x-s) : go (x+l) xs
---LIQUID     go  s _      = [textP arr (s+off) (len-s)]
---LIQUID {-# INLINE [1] splitOn #-}
+splitOn :: Text -> Text -> [Text]
+splitOn pat@(Text _ _ l) src@(Text arr off len)
+    | l <= 0          = liquidError "splitOn"
+    | isSingleton pat = split (== unsafeHead pat) src
+    | otherwise       = go 0 (indices pat src)
+  where
+    go !s (x:xs) =  textP arr (s+off) (x-s) : go (x+l) xs
+    go  s _      = [textP arr (s+off) (len-s)]
+{-# INLINE [1] splitOn #-}
 
---LIQUID {-# RULES
---LIQUID "TEXT splitOn/singleton -> split/==" [~1] forall c t.
---LIQUID     splitOn (singleton c) t = split (==c) t
---LIQUID   #-}
+{-# RULES
+"TEXT splitOn/singleton -> split/==" [~1] forall c t.
+    splitOn (singleton c) t = split (==c) t
+  #-}
 
 -- | /O(n)/ Splits a 'Text' into components delimited by separators,
 -- where the predicate returns True for a separator element.  The
@@ -1327,12 +1309,13 @@ tails t | null t    = [empty]
 -- > split (=='a') "aabbaca" == ["","","bb","c",""]
 -- > split (=='a') ""        == [""]
 --LIQUID split :: (Char -> Bool) -> Text -> [Text]
---LIQUID split _ t@(Text _off _arr 0) = [t]
---LIQUID split p t = loop t
---LIQUID     where loop s | null s'   = [l]
---LIQUID                  | otherwise = l : loop (unsafeTail s')
---LIQUID               where (# l, s' #) = span_ (not . p) s
---LIQUID {-# INLINE split #-}
+split = P.undefined
+-- split _ t@(Text _off _arr 0) = [t]
+-- split p t = loop t
+--     where loop s | null s'   = [l]
+--                  | otherwise = l : loop (unsafeTail s')
+--               where (# l, s' #) = span_ (not . p) s
+{-# INLINE split #-}
 
 -- | /O(n)/ Splits a 'Text' into components of length @k@.  The last
 -- element may be shorter than the other chunks, depending on the
