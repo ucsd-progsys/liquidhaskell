@@ -72,40 +72,6 @@ Benchmarks
     LambdaEval.hs   :    36/32/25/12    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
     Base.hs         :        26mi/2m
 
-Tuple Refinements (DONE: by Niki)
-=================================
-
-- Add/Parse predicate signatures for tuples<p>     
-
-    (x1, x2, x3)<p1, p2, p3>
-
-- pos/deptup.hs (type signature: for constructor wrapper)
-
-
-    data [a]<p :: a -> a -> Bool> 
-      = []
-      | (:) (h :: a) (t :: [a<p h>]<p>)  
-    
-    data (a1, a2) 
-      < p1 :: a1 -> Bool
-      , p2 :: a1 -> a2 -> Bool
-      > 
-      = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>)
-    
-    data (a1, a2, a3) 
-      < p1 :: a1 -> Bool
-      , p2 :: a1 -> a2 -> Bool
-      , p3 :: a1 -> a2 -> a3 -> Bool
-      > 
-      = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>)
-    
-    data (a1, a2, a3) 
-      < p1 :: a1 -> Bool
-      , p2 :: a1 -> a2 -> Bool
-      , p3 :: a1 -> a2 -> a3 -> Bool
-      , p4 :: a1 -> a2 -> a3 -> a4 -> Bool
-      > 
-      = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>) (x4 :: a4<p4 x1 x2 x3>)
 
 Blog Todo List
 ==============
@@ -115,18 +81,18 @@ Blog Todo List
 Basic Refinement Types
 ----------------------
 
-1. RefTypes 101  (Basic Ints, abz, div-by-zero)
-2. Dependent Refinements: (Data.Vector, recursion-sum, loop, dotproduct, range, map, fold)
+[DONE] RefTypes 101  (Basic Ints, abz, div-by-zero)
+[DONE] Dependent Refinements: (Data.Vector, recursion-sum, loop, dotproduct, range, map, fold)
+[DONE] Lists I       (append, reverse, map-length, filter)
+[DONE] Lists II      (take, transpose)
+[DONE] MapReduce
+[DONE] KMeans        (++ zipWith etc.)
 
 Measures
 --------
 
-3. Lists I       (append, reverse, map-length, filter)
 4. Lists I-Sets  ("" but with Sets as the measure)
-5. Lists II      (take, transpose)
-6. MapReduce
-7. KMeans        (++ zipWith etc.)
-8. LambdaEval
+8. LambdaEval	<------------------------ HEREHERE
 
 Abstract Refinements
 --------------------
@@ -162,31 +128,29 @@ Paper: Liquid Types in the Real World)
 ======================================
 
 [OK]    Data.KMeans
+
 [OK]    GHC.List   (../benchmarks/ghc-7.4.1/List.lhs)
 
 [??-PP] Data.Map (supersedes set)
-        > ordering
+        > ordering [OK]
         > size
         > key-set-properties
         > key-dependence
         > balance (NO)
+        
+->   	Data.Bytestring (& Client?)
 
-->   Data.Bytestring & Client 
-
-->   Data.Text (client of bytestring?)
+->   	Data.Text (client of bytestring?)
         http://hackage.haskell.org/packages/archive/text/0.11.2.2/doc/html/Data-Text-Lazy-Internal.html
         (See "main invariant")
 
-->   Data.Vector
+->   	Xmonad real properties
 
-->   vector-algorithms "vector bounds checking"
-     > e.g. "unsafeSlice"
-     > maybe only specify types for Vector?
+->   	Data.Vector
 
-->   xmonad real properties
-
-[??-PP] Xmonad-StackSet-Toy
-(zippering-??)
+->   	vector-algorithms "vector bounds checking"
+     	> e.g. "unsafeSlice"
+     	> maybe only specify types for Vector?
 
 Other Benchmarks
 ================
