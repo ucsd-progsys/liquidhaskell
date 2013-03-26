@@ -1,6 +1,12 @@
 TODO
 ====
 
+* fix the test/pos/go_ugly_type.hs 
+    -- WHY DO we get first unrolled type for go?
+    -- tests/pos/go.hs
+
+* release the sets-blog-entry    
+
 * [jhala]  benchmarks: Data.Bytestring
     ? Upgrade to GHC 7.6.1 (boxed tuple commenting out C issue)
     ? readsPrec
