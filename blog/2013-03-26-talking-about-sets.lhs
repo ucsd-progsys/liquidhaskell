@@ -21,8 +21,19 @@ LiquidHaskell uses SMT to talk about **sets of values**, for example,
 the contents of a list, and to specify and verify properties about 
 those sets.
 
+<!-- more -->
+
 \begin{code}
 module TalkingAboutSets where
+
+import Data.Set hiding (filter, split)
+import Prelude  hiding (reverse, filter)
+
+prop_cup_dif_bad  :: Set Int -> Set Int -> Bool
+prop_cup_assoc    :: Set Int -> Set Int -> Set Int -> Bool
+prop_cap_comm     :: Set Int -> Set Int -> Bool
+prop_cap_dist     :: Set Int -> Set Int -> Set Int -> Bool
+{-@ split         :: xs:[a] -> ([a], [a])<{\ys zs -> (UnionElts xs ys zs)}> @-}
 \end{code}
 
 Talking about Sets (In Logic)
@@ -32,15 +43,9 @@ First, we need a way to talk about sets in the refinement logic. We could
 roll our own special Haskell type, but why not just use the `Set a` type
 from `Data.Set`.
 
-\begin{code}
-import Data.Set hiding (filter, split)
-import Prelude  hiding (reverse, filter)
-\end{code}
-
-The above, also instructs LiquidHaskell to import in the various 
+The `import Data.Set` , also instructs LiquidHaskell to import in the various 
 specifications defined for the `Data.Set` module that we have *predefined* 
 in [Data/Set.spec][setspec] 
-
 
 \begin{code} Lets look at the specifications.
 module spec Data.Set where
@@ -325,18 +330,21 @@ Split
 We can `split` a list into two, roughly equal parts like so:
 
 \begin{code}
-{- split     :: xs:[a] -> ([a], [a])<{\ys zs -> (UnionElts xs ys zs)}> -}
 split []     = ([], [])
 split (x:xs) = (x:zs, ys)
   where 
     (ys, zs) = split xs
 \end{code}
 
+\begin{code} LiquidHaskell verifies that the relevant property of split is
+{- split :: xs:[a] -> ([a], [a])<{\ys zs -> (UnionElts xs ys zs)}> -} 
+\end{code}
+
 The funny syntax with angle brackets simply says that the output of `split`
 is a *pair* `(ys, zs)` whose union is the list of elements of the input `xs`.
 
-(**Aside** yes, this is indeed a dependent tuple; we will revisit tuples
-later to understand whats going on with the odd syntax.)
+**Aside** yes, this is indeed a dependent pair; we will revisit these  
+later to understand whats going on with the odd syntax.
 
 Merge
 -----
@@ -377,14 +385,6 @@ output list is indeed the same as in the input list. Of course, it says
 nothing about whether the list is *actually sorted*. 
 
 Well, Rome wasn't built in a day...
-
-\begin{code}
-prop_cup_dif_bad  :: Set Int -> Set Int -> Bool
-prop_cup_assoc    :: Set Int -> Set Int -> Set Int -> Bool
-prop_cap_comm     :: Set Int -> Set Int -> Bool
-prop_cap_dist     :: Set Int -> Set Int -> Set Int -> Bool
-{-@ split         :: xs:[a] -> ([a], [a])<{\ys zs -> (UnionElts xs ys zs)}> @-}
-\end{code}
 
 [sbv]:      https://github.com/LeventErkok/sbv
 [setspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Set.spec
