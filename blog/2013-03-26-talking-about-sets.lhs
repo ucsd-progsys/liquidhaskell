@@ -6,7 +6,7 @@ comments: true
 external-url:
 categories: basic, measures, sets
 author: Ranjit Jhala
-published: false 
+published: true 
 ---
 
 In the posts so far, we've seen how LiquidHaskell allows you to use SMT 
