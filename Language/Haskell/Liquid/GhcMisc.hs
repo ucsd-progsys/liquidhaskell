@@ -20,7 +20,7 @@ import           Language.Fixpoint.Misc       (errorstar, stripParens)
 import           Text.Parsec.Pos              (SourcePos, newPos) 
 import           Language.Fixpoint.Types       
 import           Language.Haskell.Liquid.Types 
-import           Name                         (mkInternalName)
+import           Name                         (mkInternalName, getSrcSpan)
 import           OccName                      (mkTyVarOcc, mkTcOcc)
 import           Unique                       
 
@@ -255,3 +255,5 @@ realSrcSpanSourcePos s = newPos file line col
     file               = unpackFS $ srcSpanFile s
     line               = srcSpanStartLine       s
     col                = srcSpanStartCol        s
+
+getSourcePos           = srcSpanSourcePos . getSrcSpan 

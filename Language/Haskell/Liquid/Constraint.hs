@@ -58,7 +58,7 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars) 
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc          (pprDoc, TyConInfo(..), tickSrcSpan, hasBaseTypeVar)
+import Language.Haskell.Liquid.GhcMisc          (getSourcePos, pprDoc, TyConInfo(..), tickSrcSpan, hasBaseTypeVar)
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Qualifier        
 import Control.DeepSeq
@@ -118,12 +118,21 @@ measEnv sp penv xts cbs
         } 
     where tce = tcEmbeds sp
 
-assm = {- traceShow ("****** assm *****\n") . -} assm_grty impVars 
-grty = {- traceShow ("****** grty *****\n") . -} assm_grty defVars
+assm info        = assm_grty impVars info
+grty info        = assm_grty defVars info ++ grtyTop info
 
-assm_grty f info = [ (x, {- toReft <$> -} val t) | (x, t) <- sigs, x `S.member` xs ] 
-  where xs   = S.fromList $ f info 
-        sigs = tySigs $ spec info  
+assm_grty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ] 
+  where 
+    xs           = S.fromList $ f info 
+    sigs         = tySigs $ spec info  
+
+grtyTop info = traceShow "grtyTop" [(v, val $ varSpecType v) | v <- defVars info, isTop v]
+  where 
+    isTop v  = isExportedId v && not (v `S.member` useVs) && not (v `S.member` sigVs)
+    useVs    = S.fromList $ impVars info
+    sigVs    = S.fromList $ [v | (v,_) <- tySigs $ spec info]
+
+-- defined /\ isExp /\ not imported
 
 
 ------------------------------------------------------------------------

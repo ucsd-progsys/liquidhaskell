@@ -6,7 +6,11 @@
 -- The actual /representations/ of bare and real (refinement) types are all
 -- in `RefType` -- they are different instances of `RType`
 
-module Language.Haskell.Liquid.Bare (GhcSpec (..), makeGhcSpec) where
+module Language.Haskell.Liquid.Bare (
+    GhcSpec (..)
+  , makeGhcSpec
+  , varSpecType
+  ) where
 
 import GHC hiding               (lookupName, Located)	
 import Outputable (showPpr)
@@ -20,7 +24,6 @@ import HscMain
 import TysWiredIn
 import BasicTypes               (TupleSort (..), Arity)
 import TcRnDriver               (tcRnLookupRdrName, tcRnLookupName) 
-import Name                     (getSrcSpan)
 import Data.Char                (isLower)
 import Text.Printf
 import Data.Maybe               (listToMaybe, fromMaybe, mapMaybe, catMaybes, isNothing)
@@ -129,11 +132,14 @@ addSymSortRef (p, RMono s r@(U _ (Pr [up])))
 addSymSortRef (p, RMono s t)
   = RMono s t
 
-varMeasures vars  = [ (varSymbol v, Loc l (ofType $ varType v)) 
+varMeasures vars  = [ (varSymbol v, varSpecType v) 
                     | v <- vars
                     , isDataConWorkId v
                     , isSimpleType $ varType v
-                    , let l = srcSpanSourcePos $ getSrcSpan v ]
+                    ]
+
+varSpecType v      = Loc (getSourcePos v) (ofType $ varType v)
+
 
 isSimpleType t = null tvs && isNothing (splitFunTy_maybe tb)
   where (tvs, tb) = splitForAllTys t 
@@ -211,7 +217,7 @@ makeMeasureSpec env m = execBare mkSpec env
         m'     = first (mapReft ur_reft) m
 
 makeAssumeSpec :: BareEnv -> [Var] -> [(LocSymbol, BareType)] -> IO [(Var, Located SpecType)]
-makeAssumeSpec env vs xbs = execBare mkAspec env 
+makeAssumeSpec env vs xbs = showTopLevelVars vs >> execBare mkAspec env 
   where 
     mkAspec               = forM vbs mkVarSpec
     vbs                   = joinIds vs xbs 
@@ -220,6 +226,12 @@ mkVarSpec                 :: (Var, LocSymbol, BareType) -> BareM (Var, Located S
 mkVarSpec (v, Loc l _, b) = liftM ((v, ) . (Loc l)) (wrapErr msg (mkSpecType msg) b)
   where 
     msg                   = "mkVarSpec fails on " ++ showFix v ++ " :: "  ++ showFix b 
+
+showTopLevelVars vs = 
+  forM vs $ \v -> 
+    if isExportedId v 
+      then donePhase Loud ("Exported: " ++ show v)
+      else return ()
 
 ----------------------------------------------------------------------
 
