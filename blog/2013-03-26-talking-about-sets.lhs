@@ -16,7 +16,7 @@ that are non-zero, integer indices that are within the range of an
 array, vectors that have the right number of dimensions and so on.
 
 However, SMT solvers are not limited to numbers, and in fact, support
-rather expressive logics. In the next couple of posts, lets see how 
+rather expressive logics. In the next couple of posts, let's see how
 LiquidHaskell uses SMT to talk about **sets of values**, for example, 
 the contents of a list, and to specify and verify properties about 
 those sets.
@@ -47,7 +47,7 @@ The `import Data.Set` , also instructs LiquidHaskell to import in the various
 specifications defined for the `Data.Set` module that we have *predefined* 
 in [Data/Set.spec][setspec] 
 
-\begin{code} Lets look at the specifications.
+\begin{code} Let's look at the specifications.
 module spec Data.Set where
 
 embed Set as Set_Set
@@ -75,18 +75,18 @@ Interpreted Operations
 
 The above operators are *interpreted* by the SMT solver. 
 
-\begin{code} That is, just like the SMT solver *"knows that"* 
+\begin{code} That is, just like the SMT solver "knows that"
 2 + 2 == 4
 \end{code}
 
-\begin{code} the SMT solver also *"knows that"* 
+\begin{code} the SMT solver also "knows that"
 (Set_sng 1) == (Set_cap (Set_sng 1) (Set_cup (Set_sng 2) (Set_sng 1)))
 \end{code}
 
 This is because, the above formulas belong to a decidable Theory of Sets
 which can be reduced to McCarthy's more general [Theory of Arrays][mccarthy]. 
 See [this recent paper][z3cal] if you want to learn more about how modern SMT 
-solvers *"know"* the above equality holds...
+solvers "know" the above equality holds...
 
 Talking about Sets (In Code)
 ============================
@@ -144,13 +144,13 @@ But thats a story for another day...
 Proving Theorems With LiquidHaskell
 ===================================
 
-OK, lets take our refined operators from `Data.Set` out for a spin!
+OK, let's take our refined operators from `Data.Set` out for a spin!
 One pleasant consequence of being able to precisely type the operators 
 from `Data.Set` is that we have a pleasant interface for using the SMT
 solver to *prove theorems* about sets, while remaining firmly rooted in
 Haskell. 
 
-First, lets write a simple function that asserts that its input is `True`
+First, let's write a simple function that asserts that its input is `True`
 
 \begin{code}
 {-@ boolAssert :: {v: Bool | (Prop v)} -> {v:Bool | (Prop v)} @-}
@@ -163,7 +163,7 @@ indeed look like QuickCheck properties -- but here, instead of generating
 tests and executing the code, the type system is proving to us that the
 properties will *always* evaluate to `True`) 
 
-Lets check that `intersection` is commutative ...
+Let's check that `intersection` is commutative ...
 
 \begin{code}
 {-@ prop_cap_comm :: Set Int -> Set Int -> Bool @-}
@@ -192,8 +192,8 @@ prop_cap_dist x y z
   == (x `intersection` y) `union` (x `intersection` z) 
 \end{code}
   
-Of course, while we're at it, lets make sure LiquidHaskell 
-doesn't prove anything thats *not* true ...
+Of course, while we're at it, let's make sure LiquidHaskell
+doesn't prove anything that *isn't* true ...
 
 \begin{code}
 {-@ prop_cup_dif_bad :: Set Int -> Set Int -> Bool @-}
@@ -203,7 +203,7 @@ prop_cup_dif_bad x y
 \end{code}
 
 Hmm. You do know why the above doesn't hold, right? It would be nice to
-get a *counterexample* wouldn't it. Well, for the moment, there is
+get a *counterexample* wouldn't it? Well, for the moment, there is
 QuickCheck!
 
 Thus, the refined types offer a nice interface for interacting with the SMT
@@ -221,9 +221,9 @@ properties of programs.
 The Set of Values in a List
 ===========================
 
-Lets see how we might reason about sets of values in regular Haskell programs. 
+Let's see how we might reason about sets of values in regular Haskell programs.
 
-Lets begin with Lists, the jack-of-all-data-types. Now, instead of just
+We'll begin with Lists, the jack-of-all-data-types. Now, instead of just
 talking about the **number of** elements in a list, we can write a measure
 that describes the **set of** elements in a list:
 
@@ -234,9 +234,9 @@ listElts ([])    = {v | (? Set_emp(v))}
 listElts (x:xs)  = {v | v = (Set_cup (Set_sng x) (listElts xs)) }
 \end{code}
 
-That is, `(elts xs)` describes the set of elements contained in a list `xs`.
+That is, `(listElts xs)` describes the set of elements contained in a list `xs`.
 
-Next, to make the specifications concise, lets define a few predicate aliases:
+Next, to make the specifications concise, let's define a few predicate aliases:
 
 \begin{code}
 {-@ predicate EqElts  X Y = 
@@ -252,7 +252,7 @@ Next, to make the specifications concise, lets define a few predicate aliases:
 A Trivial Identity
 ------------------
 
-OK, now lets write some code to check that the `elts` measure is sensible!
+OK, now let's write some code to check that the `listElts` measure is sensible!
 
 \begin{code}
 {-@ listId    :: xs:[a] -> {v:[a] | (EqElts v xs)} @-}
@@ -266,7 +266,7 @@ is the same as those in the input.
 A Less Trivial Identity
 -----------------------
 
-Next, lets write a function to `reverse` a list. Of course, we'd like to
+Next, let's write a function to `reverse` a list. Of course, we'd like to
 verify that `reverse` doesn't leave any elements behind; that is that the 
 output has the same set of values as the input list. This is somewhat more 
 interesting because of the *tail recursive* helper `go`. Do you understand 
@@ -296,7 +296,7 @@ append (x:xs) ys = x : append xs ys
 Filtering Lists
 ---------------
 
-Lets round off the list trilogy, with `filter`. Here, we can verify
+Let's round off the list trilogy, with `filter`. Here, we can verify
 that it returns a **subset of** the values of the input list.
 
 \begin{code}
@@ -311,13 +311,13 @@ filter f (x:xs)
 Merge Sort
 ==========
 
-Lets conclude this entry with one larger example: `mergeSort`. 
+Let's conclude this entry with one larger example: `mergeSort`.
 We'd like to verify that, well, the list that is returned 
 contains the same set of elements as the input list. 
 
 And so we will!
 
-But first, lets remind ourselves of how `mergeSort` works
+But first, let's remind ourselves of how `mergeSort` works:
 
 1. `split` the input list into two halves, 
 2. `sort`  each half, recursively, 
@@ -343,7 +343,7 @@ split (x:xs) = (x:zs, ys)
 The funny syntax with angle brackets simply says that the output of `split`
 is a *pair* `(ys, zs)` whose union is the list of elements of the input `xs`.
 
-**Aside** yes, this is indeed a dependent pair; we will revisit these  
+**Aside:** yes, this is indeed a dependent pair; we will revisit these
 later to understand whats going on with the odd syntax.
 
 Merge
