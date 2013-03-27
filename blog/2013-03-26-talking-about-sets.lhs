@@ -1,10 +1,10 @@
 ---
 layout: post
 title: "Talking About Sets"
-date: 2013-01-05 16:12
+date: 2013-03-26 16:12
 comments: true
 external-url:
-categories: basic, measures, sets
+categories: basic measures sets
 author: Ranjit Jhala
 published: true 
 demo: TalkingAboutSets.hs
@@ -41,15 +41,15 @@ The above, also instructs LiquidHaskell to import in the various
 specifications defined for the `Data.Set` module that we have *predefined* 
 in [Data/Set.spec][setspec] 
 
-Lets look at the specifications.
 
-\begin{code} The `embed` directive tells LiquidHaskell to model the **Haskell** 
-type constructor `Set` with the **SMT** type constructor `Set_Set`.
-
+\begin{code} Lets look at the specifications.
 module spec Data.Set where
 
 embed Set as Set_Set
 \end{code}
+
+The `embed` directive tells LiquidHaskell to model the **Haskell** 
+type constructor `Set` with the **SMT** type constructor `Set_Set`.
 
 \begin{code} First, we define the logical operators (i.e. `measure`s) 
 measure Set_sng  :: a -> (Set a)                    -- ^ singleton
@@ -71,11 +71,11 @@ Interpreted Operations
 The above operators are *interpreted* by the SMT solver. 
 
 \begin{code} That is, just like the SMT solver *"knows that"* 
-    2 + 2 == 4
+2 + 2 == 4
 \end{code}
 
-\begin{code} The SMT solver also *"knows that"* 
-    (Set_sng 1) == (Set_cap (Set_sng 1) (Set_cup (Set_sng 2) (Set_sng 1)))
+\begin{code} the SMT solver also *"knows that"* 
+(Set_sng 1) == (Set_cap (Set_sng 1) (Set_cup (Set_sng 2) (Set_sng 1)))
 \end{code}
 
 This is because, the above formulas belong to a decidable Theory of Sets
@@ -99,30 +99,37 @@ singleton :: x:a -> {v:(Set a) | v = (Set_sng x)}
 \end{code}
 
 \begin{code} Next, the functions that operate on elements and `Set` values
-insert :: Ord a => x:a -> xs:(Set a) 
+insert :: Ord a => x:a 
+                -> xs:(Set a) 
                 -> {v:(Set a) | v = (Set_cup xs (Set_sng x))}
 
-delete :: Ord a => x:a -> xs:(Set a) 
+delete :: Ord a => x:a 
+                -> xs:(Set a) 
                 -> {v:(Set a) | v = (Set_dif xs (Set_sng x))}
 \end{code}
 
 \begin{code} Then, the binary `Set` operators
-union        :: Ord a => xs:(Set a) -> ys:(Set a) 
-             -> {v:(Set a) | v = (Set_cup xs ys)}
+union        :: Ord a => xs:(Set a) 
+                      -> ys:(Set a) 
+                      -> {v:(Set a) | v = (Set_cup xs ys)}
 
-intersection :: Ord a => xs:(Set a) -> ys:(Set a) 
-             -> {v:(Set a) | v = (Set_cap xs ys)}
+intersection :: Ord a => xs:(Set a) 
+                      -> ys:(Set a) 
+                      -> {v:(Set a) | v = (Set_cap xs ys)}
 
-difference   :: Ord a => xs:(Set a) -> ys:(Set a) 
-             -> {v:(Set a) | v = (Set_dif xs ys)}
+difference   :: Ord a => xs:(Set a) 
+                      -> ys:(Set a) 
+                      -> {v:(Set a) | v = (Set_dif xs ys)}
 \end{code}
 
 \begin{code} And finally, the predicates on `Set` values:
 isSubsetOf :: Ord a => xs:(Set a) 
-           -> ys:(Set a) -> {v:Bool | (Prop v) <=> (Set_sub xs ys)}
+                    -> ys:(Set a) 
+                    -> {v:Bool | (Prop v) <=> (Set_sub xs ys)}
 
-member     :: Ord a => x:a -> xs:(Set a) 
-           -> {v:Bool | (Prop v) <=> (Set_mem x xs)}
+member     :: Ord a => x:a 
+                    -> xs:(Set a) 
+                    -> {v:Bool | (Prop v) <=> (Set_mem x xs)}
 \end{code}
 
 **Note:** Oh quite. We shouldn't and needn't really *assume*, but should and
@@ -276,7 +283,7 @@ Next, here's good old `append`, but now with a specification that states
 that the output indeed includes the elements from both the input lists.
 
 \begin{code}
-{-@ append       :: xs:[a] -> ys:[a] -> {v:[a] | (UnionElts v xs ys) } @-}
+{-@ append       :: xs:[a] -> ys:[a] -> {v:[a]| (UnionElts v xs ys)} @-}
 append []     ys = ys
 append (x:xs) ys = x : append xs ys
 \end{code}
@@ -318,20 +325,15 @@ Split
 We can `split` a list into two, roughly equal parts like so:
 
 \begin{code}
+{- split     :: xs:[a] -> ([a], [a])<{\ys zs -> (UnionElts xs ys zs)}> -}
 split []     = ([], [])
 split (x:xs) = (x:zs, ys)
   where 
     (ys, zs) = split xs
 \end{code}
 
-LiquidHaskell verifies that the relevant property of `split` is
-
-\begin{code}
-{-@ split :: xs:[a] -> ([a], [a])<{\ys zs -> (UnionElts xs ys zs)}> @-}
-\end{code}
-
-The funny syntax with angle brackets simply says that the output is a 
-a *pair* `(ys, zs)` whose union is the list of elements of the input.
+The funny syntax with angle brackets simply says that the output of `split`
+is a *pair* `(ys, zs)` whose union is the list of elements of the input `xs`.
 
 (**Aside** yes, this is indeed a dependent tuple; we will revisit tuples
 later to understand whats going on with the odd syntax.)
@@ -353,7 +355,7 @@ As you might expect, the elements of the returned list are the union of the
 elements of the input, or as LiquidHaskell might say,
 
 \begin{code}
-{-@ merge :: (Ord a) => x:[a] -> y:[a] -> {v:[a] | (UnionElts v x y)} @-}
+{-@ merge :: (Ord a) => x:[a] -> y:[a] -> {v:[a]| (UnionElts v x y)} @-}
 \end{code}
 
 Sort
@@ -381,6 +383,7 @@ prop_cup_dif_bad  :: Set Int -> Set Int -> Bool
 prop_cup_assoc    :: Set Int -> Set Int -> Set Int -> Bool
 prop_cap_comm     :: Set Int -> Set Int -> Bool
 prop_cap_dist     :: Set Int -> Set Int -> Set Int -> Bool
+{-@ split         :: xs:[a] -> ([a], [a])<{\ys zs -> (UnionElts xs ys zs)}> @-}
 \end{code}
 
 [sbv]:      https://github.com/LeventErkok/sbv
