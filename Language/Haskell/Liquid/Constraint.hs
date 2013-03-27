@@ -566,24 +566,23 @@ addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive definitions.
 
-addKuts :: SpecType -> CG ()
-addKuts !t = modify $ \s -> s { kuts = {- tracePpr "KUTS: " $-} updKuts (kuts s) t }
-  where updKuts :: F.Kuts -> SpecType -> F.Kuts
-        updKuts = foldReft (F.ksUnion . (F.reftKVars . ur_reft) )
+addKuts     :: SpecType -> CG ()
+addKuts !t  = modify $ \s -> s { kuts = updKuts (kuts s) t }
+  where 
+    updKuts :: F.Kuts -> SpecType -> F.Kuts
+    updKuts = foldReft (F.ksUnion . (F.reftKVars . ur_reft) )
 
 
 -- | Used for annotation binders (i.e. at binder sites)
 
-addIdA :: Var -> Annot -> CG ()
-addIdA !x !t         = modify $ \s -> s { annotMap = upd $ annotMap s }
-  where loc          = getSrcSpan x
-        upd m@(AI z) = -- trace ("addIdA: " ++ show x ++ " :: " ++ F.showFix t ++ " at " ++ show loc) $ 
-                       addA loc (Just x) t m
-                       --case traceShow ("addIdA: " ++ show x ++ " :: " ++ show t ++ " at " ++ show loc) $ M.lookup loc z of 
-                       --  Just (_, (Left _)) -> m 
-                       --  _                 -> addA loc (Just x) t m
-                         -- if (loc `M.member` z) then m else addA loc (Just x) t m
+addIdA            :: Var -> Annot -> CG ()
+addIdA !x !t      = modify $ \s -> s { annotMap = upd $ annotMap s }
+  where 
+    loc           = getSrcSpan x
+    upd m@(AI z)  = if boundRecVar loc m then m else addA loc (Just x) t m
+    -- loc        = traceShow ("addIdA: " ++ show x ++ " :: " ++ F.showFix t ++ " at ") $ getSrcSpan x
 
+boundRecVar l (AI m) = not $ null [t | (_, RDf t) <- M.lookupDefault [] l m]
 
 
 -- | Used for annotating reads (i.e. at Var x sites) 
@@ -601,7 +600,7 @@ addA !l !xo@(Just _)  !t !(AI m)
   | isGoodSrcSpan l 
   = AI $ inserts l (xo, t) m
 addA !l !xo@(Nothing) !t !(AI m) 
-  | l `M.member` m  -- only spans known to be variables
+  | l `M.member` m                  -- only spans known to be variables
   = AI $ inserts l (xo, t) m
 addA _ _ _ !a 
   = a

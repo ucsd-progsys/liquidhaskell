@@ -23,7 +23,7 @@ import TcRnDriver               (tcRnLookupRdrName, tcRnLookupName)
 import Name                     (getSrcSpan)
 import Data.Char                (isLower)
 import Text.Printf
-import Data.Maybe               (fromMaybe, mapMaybe, catMaybes, isNothing)
+import Data.Maybe               (listToMaybe, fromMaybe, mapMaybe, catMaybes, isNothing)
 import Control.Monad.State      (get, modify, State, evalState)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>), (<|>))
@@ -33,7 +33,7 @@ import Control.Monad.Error      hiding (forM)
 import Data.Bifunctor
 
 
-import Language.Fixpoint.Names                  (propConName, dropModuleNames)
+import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Fixpoint.Types                  
 import Language.Fixpoint.Sort                   (checkSortedReft, checkSortedReftFull)
@@ -93,7 +93,6 @@ makeGhcSpec' vars env spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec 
 
        let sigs         = [(x, (txRefSort benv . txExpToBind) <$> t) | (x, t) <- sigs'] 
-       -- let sigs         = mapSnd (txRefSort benv . txExpToBind) <$> sigs' 
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs datacons
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms ] -- first val <$> ms 
        let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms' 
@@ -222,12 +221,7 @@ mkVarSpec (v, Loc l _, b) = liftM ((v, ) . (Loc l)) (wrapErr msg (mkSpecType msg
   where 
     msg                   = "mkVarSpec fails on " ++ showFix v ++ " :: "  ++ showFix b 
 
-joinIds        ::  (Symbolic a) => [Var] -> [(a, t)] -> [(Var, a, t)]
-joinIds vs xts = catMaybes [(, x, t) <$> tx x | (x, t) <- xts]   
-  where 
-    vm         = M.fromList [(showFix v, v) | v <- vs]
-    tx x       = {- traceShow ("joinId x = " ++ showFix x) $-} M.lookup (ss x) vm
-    ss         = symbolString . symbol 
+----------------------------------------------------------------------
 
 makeTyConEmbeds  :: BareEnv -> TCEmb String -> IO (TCEmb TyCon) 
 makeTyConEmbeds benv z = execBare (M.fromList <$> mapM tx (M.toList z)) benv
@@ -261,18 +255,27 @@ makeSymbols vs xs' xts yts = xvs
     xvs  = sortNub [(x, v) | (v, _, x) <- joinIds vs (zip xs xs)]
     -- env = S.fromList ((fst <$> xvs) ++ xs')
 
--- TODO: use this. currently suppressed because 
--- checkSig env xt = True 
---   forall aa. (Ord a) => [a] -> [a]<{VV : a | (VV >= fld)}>
--- doesn't typecheck -- thanks to "fld"
--- checkSig env xt = tracePpr ("checkSig " ++ showFix xt) $ checkSig' env xt
+-- joinIds        ::  (Symbolic a) => [Var] -> [(a, t)] -> [(Var, a, t)]
+-- joinIds vs xts = catMaybes [(, x, t) <$> tx x | (x, t) <- xts]   
+--   where 
+--     vm         = M.fromList [(showFix v, v) | v <- vs]
+--     tx x       = {- traceShow ("joinId x = " ++ showFix x) $-} M.lookup (ss x) vm
+--     ss         = symbolString . symbol 
 
--- freeSymbols :: SpecType -> [Symbol]
--- freeSymbols ty   = sortNub $ concat $ efoldReft f [] [] ty
---   where f γ r xs = let Reft (v, _) = toReft r in ((syms r) `sortDiff` (v:γ) ) : xs 
 
--- freeSymbols :: SpecType -> [Symbol]
--- freeSymbols ::  Reftable r => RType p c tv r -> [Symbol]
+joinIds        ::  (Symbolic a) => [Var] -> [(a, t)] -> [(Var, a, t)]
+joinIds vs xts = catMaybes [(, x, t) <$> tx x | (x, t) <- xts]   
+  where 
+    vm         = group [(dropModuleNames $ showFix v, v) | v <- vs]
+    tx x       = listToMaybe $ filter (symCompat x) $ M.lookupDefault [] (ss x) vm
+    ss         = dropModuleNames . symbolString . symbol 
+
+symCompat :: (Symbolic a) => a -> Var -> Bool
+symCompat x v   = (symbolString $ symbol x) `comp` (showFix v)
+  where 
+    comp sx sv  = sx == sv || (takeModuleNames sx `L.isPrefixOf` takeModuleNames sv)
+
+
 freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> []) (\ _ -> ()) f emptySEnv [] (val ty)
   where 
     f γ _ r xs = let Reft (v, _) = toReft r in 
@@ -289,10 +292,8 @@ class GhcLookup a where
 
 instance GhcLookup String where
   lookupName     = stringLookup
-  candidates x   = [x, swizzle x] 
+  candidates x   = [x, dropModuleNames x] 
   pp         x   = x
-
-swizzle =  dropModuleNames . stripParens
 
 instance GhcLookup Name where
   lookupName _   = return . Just
@@ -665,11 +666,14 @@ checkDuplicate xts   = err <$> dups
         dups         = [ z | z@(x, t1:t2:_) <- M.toList $ group xts ]
 
 checkMismatch (x, t) = if ok then Nothing else Just err
-  where ok           = (toRSort t') == (ofType $ varType x) 
+  where ok           = tyCompat x t' --(toRSort t') == (ofType $ varType x) 
         err          = vcat [ text "Specified Liquid Type Does Not Match Haskell Type"
                             , text "Haskell:" <+> toFix x <+> dcolon <+> toFix (varType x)
                             , text "Liquid :" <+> toFix x <+> dcolon <+> toFix t           ]
         t'           = val t
+
+tyCompat x t         = (toRSort t) == (ofType $ varType x)
+
 
 ghcSpecEnv sp        = fromListSEnv binds
   where 
@@ -715,19 +719,17 @@ checkSig env (x, t)
     where msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showFix ys) (showFix x) (showFix t)
 
 
-
-
-
-
-
 -------------------------------------------------------------------------------
-------------------  Replace Predicate Arguments With Existemtials -------------
+------------------  Replace Predicate Arguments With Existentials -------------
 -------------------------------------------------------------------------------
 
 data ExSt = ExSt { fresh :: Int
                  , emap  :: M.HashMap Symbol (RSort, Expr)
                  , pmap  :: M.HashMap Symbol RPVar 
                  }
+
+-- | Niki: please write more documentation for this, maybe an example? 
+-- I can't really tell whats going on... (RJ)
 
 txExpToBind   :: SpecType -> SpecType
 txExpToBind t = evalState (expToBindT t) (ExSt 0 M.empty πs)

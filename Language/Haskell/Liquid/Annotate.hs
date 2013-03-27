@@ -11,7 +11,7 @@ module Language.Haskell.Liquid.Annotate (
   , Annot (..)
 
   -- * Top-level annotation renderer function
-  ,  annotate
+  , annotate
   ) where
 
 import GHC                      ( SrcSpan (..)
@@ -60,8 +60,9 @@ annotate :: FilePath -> FixResult SrcSpan -> FixSolution -> AnnInfo Annot -> IO 
 annotate fname result sol anna 
   = do annotDump fname (extFileName Html $ extFileName Cst fname) result annm
        annotDump fname (extFileName Html fname) result annm'
-    where annm = closeAnnots anna
-          annm' = tidySpecType <$> applySolution sol annm
+    where 
+       annm  = closeAnnots anna
+       annm' = tidySpecType <$> applySolution sol annm
 
 annotDump :: FilePath -> FilePath -> FixResult SrcSpan -> AnnInfo SpecType -> IO ()
 annotDump srcFile htmlFile result ann
@@ -264,6 +265,7 @@ data Annot        = Use SpecType
                   | Def SpecType 
                   | RDf SpecType
                   | Loc SrcSpan
+
 
 instance Functor AnnInfo where
   fmap f (AI m) = AI (fmap (fmap (\(x, y) -> (x, f y))) m)

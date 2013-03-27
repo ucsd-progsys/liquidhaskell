@@ -19,8 +19,8 @@ import Language.Haskell.Liquid.RefType
 tidySpecType :: SpecType -> SpecType  
 tidySpecType = tidyDSymbols
              . tidySymbols 
-             -- . tidyFunBinds
              . tidyLocalRefas 
+             . tidyFunBinds
              . tidyTyVars 
 
 tidySymbols :: SpecType -> SpecType
@@ -37,27 +37,20 @@ tidyLocalRefas = mapReft (txReft)
     dropLocals = filter (not . any isTmp . syms) . flattenRefas
     isTmp x    = any (`L.isPrefixOf` (symbolString x)) [anfPrefix, "ds_"] 
 
-isTmpSymbol x = any (`L.isPrefixOf` str) [anfPrefix, tempPrefix, "ds_"]
-  where str   = symbolString x
-
--- isTmpSymbol x = (anfPrefix `L.isPrefixOf`  str) || 
---                 (tempPrefix `L.isPrefixOf` str) ||
---                 ("ds_"      `L.isPrefixOf` str)
---   where str   = symbolString x
-
+isTmpSymbol x  = any (`L.isPrefixOf` str) [anfPrefix, tempPrefix, "ds_"]
+  where str    = symbolString x
 
 
 tidyDSymbols :: SpecType -> SpecType  
-tidyDSymbols t = mapBind tx $ substa tx t {- subst su t -}
+tidyDSymbols t = mapBind tx $ substa tx t
   where 
-    tx y  = M.lookupDefault y y (M.fromList dxs) 
-    -- su    = mkSubst (mapSnd EVar <$> dxs)
-    dxs   = zip ds (var <$> [1..])
-    ds    = [ x | x <- syms t, isTmp x ]
-    isTmp = (tempPrefix `L.isPrefixOf`) . symbolString
-    var   = stringSymbol . ('x' :) . show 
+    tx         = bindersTx [x | x <- syms t, isTmp x]
+    isTmp      = (tempPrefix `L.isPrefixOf`) . symbolString
 
-
+tidyFunBinds :: SpecType -> SpecType
+tidyFunBinds t = mapBind tx $ substa tx t
+  where
+    tx         = bindersTx $ filter isTmpSymbol $ funBinds t
 
 tidyTyVars :: SpecType -> SpecType  
 tidyTyVars t = subsTyVarsAll αβs t 
@@ -68,10 +61,11 @@ tidyTyVars t = subsTyVarsAll αβs t
     βs   = map (rVar . stringTyVar) pool
     pool = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
 
--- traceShow ("tidyTyVars t = " ++ showPpr t ++ "a-b-s = " ++ showPpr zz) 
--- subsTyVarsAll αβs t
--- subsTyVars_meet αβs t
-  
+
+bindersTx ds   = \y -> M.lookupDefault y y m  
+  where 
+    m          = M.fromList $ zip ds $ var <$> [1..]
+    var        = stringSymbol . ('x' :) . show 
  
 
 tyVars (RAllP _ t)     = tyVars t
@@ -92,55 +86,16 @@ subsTyVarsAll ats = go
     go (RAllT a t) = RAllT (M.lookupDefault a a abm) (go t)
     go t           = subsTyVars_meet ats t
 
-{- 
---tidyTyVars :: RefType -> RefType
---tidyTyVars = tidy pool getS putS 
---  where getS (α :: TyVar)   = Just (symbolString $ varSymbol α)
---        putS (_ :: TyVar) x = stringTyVar x
---        pool          = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
---
--
--- readSymbols :: (Subable a) => a -> S.HashSet Symbol
--- readSymbols = S.fromList . syms 
 
----------------------------------------------------------------------------------
----------------------------------------------------------------------------------
----------------------------------------------------------------------------------
-
--- data TidyS = T { memo :: M.HashMap String String
---                , pool :: [String] }
--- 
--- type TidyM = State TidyS
--- 
--- sel :: String -> TidyM (Maybe String)
--- sel s 
---   = ((s `M.lookup`) . memo) `fmap` get 
--- 
--- upd ::  String -> TidyM String
--- upd s 
---   = do st <- get
---        let (s':t) = pool st
---        let m      = memo st
---        put $ st {memo = M.insert s s' m, pool = t}
---        return s'
--- 
--- rename :: String -> TidyM String
--- rename s 
---   = do so <- sel s
---        case so of 
---          Just s' -> return s'
---          Nothing -> upd s 
--- 
--- cleaner getS putS = everywhereM (mkM swiz)
---   where swiz x = case getS x of 
---                    Nothing -> return x
---                    Just s  -> liftM (putS x) (rename s)
--- 
--- tidy :: (Data b, Typeable a) => [String] -> (a -> Maybe String) -> (a -> String -> a) -> b -> b 
--- tidy pool0 getS putS z = fst $ runState act s0
---   where act      = cleaner getS putS z 
---         s0       = T { memo = M.empty, pool = pool0 }
---         
--}
-
+funBinds (RAllT _ t)      = funBinds t
+funBinds (RAllP _ t)      = funBinds t
+funBinds (RFun b t1 t2 _) = b : funBinds t1 ++ funBinds t2
+funBinds (RApp _ ts _ _)  = concatMap funBinds ts
+funBinds (RCls _ ts)      = concatMap funBinds ts 
+funBinds (RAllE b t1 t2)  = b : funBinds t1 ++ funBinds t2
+funBinds (REx b t1 t2)    = b : funBinds t1 ++ funBinds t2
+funBinds (RVar _ _)       = [] 
+funBinds (ROth _)         = []
+funBinds (RAppTy t1 t2 r) = funBinds t1 ++ funBinds t2
+funBinds (RExprArg e)     = []
 
