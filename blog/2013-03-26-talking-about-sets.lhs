@@ -68,14 +68,15 @@ measure Set_sub  :: (Set a) -> (Set a) -> Prop      -- ^ inclusion
 Interpreted Operations
 ----------------------
 
-The above operators are *interpreted* by the SMT solver. That is, just 
-like the SMT solver *"knows that"* 
+The above operators are *interpreted* by the SMT solver. 
 
+\begin{code} That is, just like the SMT solver *"knows that"* 
     2 + 2 == 4
+\end{code}
 
-the SMT solver *"knows that"* 
-
+\begin{code} The SMT solver also *"knows that"* 
     (Set_sng 1) == (Set_cap (Set_sng 1) (Set_cup (Set_sng 2) (Set_sng 1)))
+\end{code}
 
 This is because, the above formulas belong to a decidable Theory of Sets
 which can be reduced to McCarthy's more general [Theory of Arrays][mccarthy]. 
@@ -98,19 +99,30 @@ singleton :: x:a -> {v:(Set a) | v = (Set_sng x)}
 \end{code}
 
 \begin{code} Next, the functions that operate on elements and `Set` values
-insert :: Ord a => x:a -> xs:(Set a) -> {v:(Set a) | v = (Set_cup xs (Set_sng x))}
-delete :: Ord a => x:a -> xs:(Set a) -> {v:(Set a) | v = (Set_dif xs (Set_sng x))}
+insert :: Ord a => x:a -> xs:(Set a) 
+                -> {v:(Set a) | v = (Set_cup xs (Set_sng x))}
+
+delete :: Ord a => x:a -> xs:(Set a) 
+                -> {v:(Set a) | v = (Set_dif xs (Set_sng x))}
 \end{code}
 
 \begin{code} Then, the binary `Set` operators
-union        :: Ord a => xs:(Set a) -> ys:(Set a) -> {v:(Set a) | v = (Set_cup xs ys)}
-intersection :: Ord a => xs:(Set a) -> ys:(Set a) -> {v:(Set a) | v = (Set_cap xs ys)}
-difference   :: Ord a => xs:(Set a) -> ys:(Set a) -> {v:(Set a) | v = (Set_dif xs ys)}
+union        :: Ord a => xs:(Set a) -> ys:(Set a) 
+             -> {v:(Set a) | v = (Set_cup xs ys)}
+
+intersection :: Ord a => xs:(Set a) -> ys:(Set a) 
+             -> {v:(Set a) | v = (Set_cap xs ys)}
+
+difference   :: Ord a => xs:(Set a) -> ys:(Set a) 
+             -> {v:(Set a) | v = (Set_dif xs ys)}
 \end{code}
 
 \begin{code} And finally, the predicates on `Set` values:
-isSubsetOf :: Ord a => xs:(Set a) -> ys:(Set a) -> {v:Bool | (Prop v) <=> (Set_sub xs ys)}
-member     :: Ord a => x:a -> xs:(Set a) -> {v:Bool | (Prop v) <=> (Set_mem x xs)}
+isSubsetOf :: Ord a => xs:(Set a) 
+           -> ys:(Set a) -> {v:Bool | (Prop v) <=> (Set_sub xs ys)}
+
+member     :: Ord a => x:a -> xs:(Set a) 
+           -> {v:Bool | (Prop v) <=> (Set_mem x xs)}
 \end{code}
 
 **Note:** Oh quite. We shouldn't and needn't really *assume*, but should and
@@ -143,7 +155,6 @@ Lets check that `intersection` is commutative ...
 
 \begin{code}
 {-@ prop_cap_comm :: Set Int -> Set Int -> Bool @-}
-prop_cap_comm     :: Set Int -> Set Int -> Bool
 prop_cap_comm x y 
   = boolAssert 
   $ (x `intersection` y) == (y `intersection` x)
@@ -153,7 +164,7 @@ that `union` is associative ...
 
 \begin{code}
 {-@ prop_cup_assoc :: Set Int -> Set Int -> Set Int -> Bool @-}
-prop_cup_assoc     :: Set Int -> Set Int -> Set Int -> Bool
+
 prop_cup_assoc x y z 
   = boolAssert 
   $ (x `union` (y `union` z)) == (x `union` y) `union` z
@@ -163,7 +174,6 @@ and that `union` distributes over `intersection`.
 
 \begin{code}
 {-@ prop_cap_dist :: Set Int -> Set Int -> Set Int -> Bool @-}
-prop_cap_dist     :: Set Int -> Set Int -> Set Int -> Bool
 prop_cap_dist x y z 
   = boolAssert 
   $  (x `intersection` (y `union` z)) 
@@ -175,7 +185,6 @@ doesn't prove anything thats *not* true ...
 
 \begin{code}
 {-@ prop_cup_dif_bad :: Set Int -> Set Int -> Bool @-}
-prop_cup_dif_bad     :: Set Int -> Set Int -> Bool
 prop_cup_dif_bad x y
    = boolAssert 
    $ x == (x `union` y) `difference` y
@@ -194,6 +203,7 @@ While the above is a nice warm up exercise to understanding how
 LiquidHaskell reasons about sets, our overall goal is not to prove 
 theorems about set operators, but instead to specify and verify 
 properties of programs. 
+
 
 
 The Set of Values in a List
@@ -217,9 +227,14 @@ That is, `(elts xs)` describes the set of elements contained in a list `xs`.
 Next, to make the specifications concise, lets define a few predicate aliases:
 
 \begin{code}
-{-@ predicate SameElts  X Y   = ((listElts X) = (listElts Y))                        @-}
-{-@ predicate SubElts   X Y   = (Set_sub (listElts X) (listElts Y))                   @-}
-{-@ predicate UnionElts X Y Z = ((listElts X) = (Set_cup (listElts Y) (listElts Z))) @-}
+{-@ predicate EqElts  X Y = 
+      ((listElts X) = (listElts Y))                        @-}
+
+{-@ predicate SubElts   X Y = 
+      (Set_sub (listElts X) (listElts Y))                  @-}
+
+{-@ predicate UnionElts X Y Z = 
+      ((listElts X) = (Set_cup (listElts Y) (listElts Z))) @-}
 \end{code}
 
 A Trivial Identity
@@ -228,7 +243,7 @@ A Trivial Identity
 OK, now lets write some code to check that the `elts` measure is sensible!
 
 \begin{code}
-{-@ listId    :: xs:[a] -> {v:[a]| (SameElts v xs)} @-}
+{-@ listId    :: xs:[a] -> {v:[a] | (EqElts v xs)} @-}
 listId []     = []
 listId (x:xs) = x : listId xs
 \end{code}
@@ -247,7 +262,7 @@ the type that is inferred for it? (Put your mouse over `go` to see the
 inferred type.)
 
 \begin{code}
-{-@ reverse       :: xs:[a] -> {v:[a]| (SameElts v xs)} @-}
+{-@ reverse       :: xs:[a] -> {v:[a] | (EqElts v xs)} @-}
 reverse           = go [] 
   where 
     go acc []     = acc
@@ -324,14 +339,14 @@ later to understand whats going on with the odd syntax.)
 Merge
 -----
 
-Dually, we `merge` two (sorted) lists like so:
+Next, we can `merge` two (sorted) lists like so:
 
 \begin{code}
 merge xs []         = xs
 merge [] ys         = ys
-merge (x:xs) (yozz:ys) 
-  | x <= yozz       = x : merge xs (yozz:ys)
-  | otherwise       = yozz : merge (x:xs) ys
+merge (x:xs) (y:ys) 
+  | x <= y          = x : merge xs (y : ys)
+  | otherwise       = y : merge (x : xs) ys
 \end{code}
 
 As you might expect, the elements of the returned list are the union of the
@@ -347,7 +362,7 @@ Sort
 Finally, we put all the pieces together by
 
 \begin{code}
-{-@ mergeSort :: (Ord a) => xs:[a] -> {v:[a] | (SameElts v xs)} @-}
+{-@ mergeSort :: (Ord a) => xs:[a] -> {v:[a] | (EqElts v xs)} @-}
 mergeSort []  = []
 mergeSort [x] = [x]
 mergeSort xs  = merge (mergeSort ys) (mergeSort zs) 
@@ -360,6 +375,13 @@ output list is indeed the same as in the input list. Of course, it says
 nothing about whether the list is *actually sorted*. 
 
 Well, Rome wasn't built in a day...
+
+\begin{code}
+prop_cup_dif_bad  :: Set Int -> Set Int -> Bool
+prop_cup_assoc    :: Set Int -> Set Int -> Set Int -> Bool
+prop_cap_comm     :: Set Int -> Set Int -> Bool
+prop_cap_dist     :: Set Int -> Set Int -> Set Int -> Bool
+\end{code}
 
 [sbv]:      https://github.com/LeventErkok/sbv
 [setspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Set.spec
