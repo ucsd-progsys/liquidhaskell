@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Lets Talk About Sets"
+title: "Talking About Sets"
 date: 2013-01-05 16:12
 comments: true
 external-url:
