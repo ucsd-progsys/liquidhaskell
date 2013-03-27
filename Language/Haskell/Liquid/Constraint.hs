@@ -124,15 +124,13 @@ grty info        = assm_grty defVars info ++ grtyTop info
 assm_grty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ] 
   where 
     xs           = S.fromList $ f info 
-    sigs         = tySigs $ spec info  
+    sigs         = tySigs     $ spec info  
 
-grtyTop info = traceShow "grtyTop" [(v, val $ varSpecType v) | v <- defVars info, isTop v]
+grtyTop info     = {- traceShow "grtyTop" -} [(v, val $ varSpecType v) | v <- defVars info, isTop v]
   where 
-    isTop v  = isExportedId v && not (v `S.member` useVs) && not (v `S.member` sigVs)
-    useVs    = S.fromList $ impVars info
-    sigVs    = S.fromList $ [v | (v,_) <- tySigs $ spec info]
-
--- defined /\ isExp /\ not imported
+    isTop v      = isExportedId v && not (v `S.member` useVs) && not (v `S.member` sigVs)
+    useVs        = S.fromList $ useVars info
+    sigVs        = S.fromList $ [v | (v,_) <- tySigs $ spec info]
 
 
 ------------------------------------------------------------------------

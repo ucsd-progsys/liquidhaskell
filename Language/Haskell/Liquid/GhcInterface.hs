@@ -64,6 +64,7 @@ data GhcInfo = GI {
   , cbs      :: ![CoreBind]
   , impVars  :: ![Var]
   , defVars  :: ![Var]
+  , useVars  :: ![Var]
   , hqFiles  :: ![FilePath]
   , imports  :: ![String]
   , includes :: ![FilePath]
@@ -204,18 +205,19 @@ getGhcInfo target paths
       hscEnv             <- getSession
       -- modguts     <- liftIO $ hscSimplify hscEnv modguts
       coreBinds          <- liftIO $ anormalize hscEnv modguts
-      let impvs           = importVars coreBinds 
-      let defvs           = definedVars coreBinds 
-      (spec, imps, incs) <- moduleSpec (impvs ++ defvs) target modguts paths 
+      let impVs           = importVars  coreBinds 
+      let defVs           = definedVars coreBinds 
+      let useVs           = readVars    coreBinds
+      (spec, imps, incs) <- moduleSpec (impVs ++ defVs) target modguts paths 
       liftIO              $ putStrLn $ "Module Imports: " ++ show imps 
       hqualFiles         <- moduleHquals modguts paths target imps incs 
-      return              $ GI hscEnv coreBinds impvs defvs hqualFiles imps incs spec 
+      return              $ GI hscEnv coreBinds impVs defVs useVs hqualFiles imps incs spec 
 
 moduleHquals mg paths target imps incs 
   = do hqs   <- specIncludes Hquals paths incs 
        hqs'  <- moduleImports [Hquals] paths (mgi_namestring mg : imps)
-       hqs'' <- liftIO $ filterM doesFileExist [extFileName Hquals target]
-       let rv = sortNub $ hqs'' ++ hqs ++ (snd <$> hqs')
+       hqs'' <- liftIO   $ filterM doesFileExist [extFileName Hquals target]
+       let rv = sortNub  $ hqs'' ++ hqs ++ (snd <$> hqs')
        liftIO $ putStrLn $ "Reading Qualifiers From: " ++ show rv 
        return rv
 
