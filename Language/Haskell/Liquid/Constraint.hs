@@ -578,8 +578,9 @@ addKuts !t  = modify $ \s -> s { kuts = updKuts (kuts s) t }
 addIdA            :: Var -> Annot -> CG ()
 addIdA !x !t      = modify $ \s -> s { annotMap = upd $ annotMap s }
   where 
-    loc           = traceShow ("addIdA: " ++ show x ++ " :: " ++ F.showFix t ++ " at ") $ getSrcSpan x
+    loc           = getSrcSpan x
     upd m@(AI z)  = if boundRecVar loc m then m else addA loc (Just x) t m
+    -- loc        = traceShow ("addIdA: " ++ show x ++ " :: " ++ F.showFix t ++ " at ") $ getSrcSpan x
 
 boundRecVar l (AI m) = not $ null [t | (_, RDf t) <- M.lookupDefault [] l m]
 
