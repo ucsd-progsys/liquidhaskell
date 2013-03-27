@@ -214,6 +214,10 @@ safeHead msg _     = errorstar $ "safeHead with empty list " ++ msg
 safeLast _ xs@(_:_) = last xs
 safeLast msg _      = errorstar $ "safeLast with empty list " ++ msg
 
+safeInit _ xs@(_:_) = init xs
+safeInit msg _      = errorstar $ "safeInit with empty list " ++ msg
+
+
 -- memoIndex :: (Hashable b) => (a -> Maybe b) -> [a] -> [Maybe Int]
 memoIndex f = snd . L.mapAccumL foo M.empty 
   where 
