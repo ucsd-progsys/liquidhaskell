@@ -1,6 +1,9 @@
 TODO
 ====
 
+
+-- all tests pass..
+
 * fix the test/pos/go_ugly_type.hs 
     -- WHY DO we get first unrolled type for go?
     -- tests/pos/go.hs
