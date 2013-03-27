@@ -225,13 +225,13 @@ printVars s vs
 
 mgi_namestring = moduleNameString . moduleName . mgi_module
 
-importVars  = freeVars S.empty 
-definedVars = concatMap defs 
-  where defs (NonRec x _) = [x]
-        defs (Rec xes)    = map fst xes
+importVars            = freeVars S.empty 
 
--- instance Show TC.TyCon where
---   show = showPpr 
+definedVars           = concatMap defs 
+  where 
+    defs (NonRec x _) = [x]
+    defs (Rec xes)    = map fst xes
+
 
 --------------------------------------------------------------------------------
 ---------------------------- Desugaring (Taken from GHC) -----------------------
