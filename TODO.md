@@ -1,22 +1,12 @@
 TODO
 ====
 
-
--- all tests pass..
-
-* fix the test/pos/go_ugly_type.hs 
-    -- WHY DO we get first unrolled type for go?
-    -- tests/pos/go.hs
-
 * release the sets-blog-entry    
 
 * [jhala]  benchmarks: Data.Bytestring
     ? Upgrade to GHC 7.6.1 (boxed tuple commenting out C issue)
     ? readsPrec
     ? big constants issue : _word64 34534523452134213524525 due to (deriving Typeable)
-
-* Inferred types for inner-"go" are crap. e.g. 
-    - tests/pos/go.hs
 
 * error messages: expected XXX got YYY?
 
