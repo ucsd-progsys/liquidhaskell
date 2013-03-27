@@ -7,6 +7,7 @@ external-url:
 categories: basic, measures, sets
 author: Ranjit Jhala
 published: true 
+demo: TalkingAboutSets.hs
 ---
 
 In the posts so far, we've seen how LiquidHaskell allows you to use SMT 
@@ -21,7 +22,7 @@ the contents of a list, and to specify and verify properties about
 those sets.
 
 \begin{code}
-module ListSets where
+module TalkingAboutSets where
 \end{code}
 
 Talking about Sets (In Logic)

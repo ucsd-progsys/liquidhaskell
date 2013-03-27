@@ -7,7 +7,7 @@ import Data.Char            (isSpace)
 main         = getArgs >>= mapM lhs2hsFile
 
 lhs2hsFile f = do str <- readFile f
-                  writeFile (replaceExtension f ".hs") $ lhs2hs txBird $ str
+                  writeFile (replaceExtension f ".hs") $ lhs2hs txBeginEnd {- txBird -} $ str
 
 lhs2hs tx    = unlines . tx . map trimSpaces . lines 
 trimSpaces   = reverse . dropWhile isSpace . reverse 
