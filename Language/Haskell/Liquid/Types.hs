@@ -14,6 +14,8 @@ module Language.Haskell.Liquid.Types (
   -- * Default unknown position
   , dummyPos
 
+  -- * Default unknown name
+  , dummyName, isDummy
   )
   where
 
@@ -31,6 +33,11 @@ data Located a = Loc { loc :: !SourcePos
 
 type LocSymbol = Located Symbol
 type LocString = Located String
+
+dummyName = "dummy"
+
+isDummy :: (Show a) => a -> Bool
+isDummy a = show a == dummyName
 
 dummyPos = newPos "?" 0 0 
 

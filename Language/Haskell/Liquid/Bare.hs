@@ -121,8 +121,8 @@ addSymSort tcenv (RApp rc@(RTyCon c _ _) ts rs r)
   where ps = rTyConPs $ appRTyCon tcenv rc ts
 addSymSort _ t 
   = t
-            
-addSymSortRef (p, RPoly s (RVar _ r)) 
+
+addSymSortRef (p, RPoly s (RVar v r)) | isDummy v
   = RPoly (safeZip "addRefSortPoly" (fst <$> s) (fst3 <$> pargs p)) t
   where t = ofRSort (ptype p) `strengthen` r
 addSymSortRef (p, RPoly s t) 
