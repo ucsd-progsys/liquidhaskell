@@ -192,7 +192,7 @@ True
 False
 -}
 
-{- member :: Ord a => a -> OSplay a -> (Bool, OSplay a) @-}
+{-@ member :: Ord a => a -> OSplay a -> (Bool, OSplay a) @-}
 member :: Ord a => a -> Splay a -> (Bool, Splay a)
 member x t = case split x t of
     (l,True,r) -> (True, Node x l r)

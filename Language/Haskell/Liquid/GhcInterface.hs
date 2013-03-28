@@ -255,13 +255,12 @@ desugarModuleWithLoc tcm = do
 moduleSpec vars target mg paths
   = do liftIO      $ putStrLn ("paths = " ++ show paths) 
        tgtSpec    <- liftIO $ parseSpec (name, target) 
-       _          <- liftIO $ checkAssertSpec vars $ Ms.sigs tgtSpec
        impSpec    <- getSpecs paths impNames [Spec, Hs, LHs] 
        let spec    = Ms.expandRTAliases $ tgtSpec `mappend` impSpec 
        let imps    = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
        setContext [IIModule (mgi_module mg)]
        env        <- getSession
-       ghcSpec    <- liftIO $ makeGhcSpec vars env spec
+       ghcSpec    <- liftIO $ makeGhcSpec name vars env spec
        return      (ghcSpec, imps, Ms.includes tgtSpec)
     where impNames = allDepNames  mg
           name     = mgi_namestring mg
@@ -344,14 +343,6 @@ reqFile ext s
   = Just s 
   | otherwise
   = Nothing
-
-checkAssertSpec :: [Var] -> [(LocSymbol, BareType)] -> IO () 
-checkAssertSpec vs xbs =
-  let vm  = M.fromList [(showPpr v, v) | v <- vs] 
-      xs' = [s | (x, _) <- xbs, let s = symbolString (val x), not (M.member s vm)]
-  in case xs' of 
-    [] -> return () 
-    _  -> errorstar $ "Asserts for Unknown variables: "  ++ (intercalate ", " xs')  
 
 
 ------------------------------------------------------------------------------
