@@ -52,7 +52,6 @@ TODO
 Top-Level Top
 =============
       
-      ../benchmarks/esop2013-submission/Base.hs
     , ../web/demos/TalkingAboutSets.hs
     , ../web/demos/refinements101reax.hs
     , pos/tclosure.hs (?)

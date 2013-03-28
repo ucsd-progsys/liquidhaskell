@@ -87,10 +87,11 @@ initEnv info penv
   = do defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- tyConInfo <$> get 
        let f0    = grty info          -- asserted refinements     (for defined vars)
+       f0'      <- grtyTop info       -- default TOP reftype      (for exported vars without spec) 
        let f1    = defaults           -- default TOP reftype      (for all vars) 
        let f2    = assm info          -- assumed refinements      (for imported vars)
        let f3    =  ctor' $ spec info -- constructor refinements  (for measures) 
-       let bs    = (map (unifyts' tyi penv)) <$> [f0, f1, f2, f3]
+       let bs    = (map (unifyts' tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
        let γ0    = measEnv (spec info) penv (head bs) (cbs info)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
        -- return    $ foldl' (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs] 
@@ -118,16 +119,17 @@ measEnv sp penv xts cbs
         } 
     where tce = tcEmbeds sp
 
-assm info        = assm_grty impVars info
-grty info        = assm_grty defVars info ++ grtyTop info
+assm = assm_grty impVars 
+grty = assm_grty defVars
 
 assm_grty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ] 
   where 
     xs           = S.fromList $ f info 
     sigs         = tySigs     $ spec info  
 
-grtyTop info     = {- traceShow "grtyTop" -} [(v, val $ varSpecType v) | v <- defVars info, isTop v]
-  where 
+grtyTop info     = forM topVs $ \v -> (v,) <$> (trueTy $ varType v) -- val $ varSpecType v) | v <- defVars info, isTop v]
+  where
+    topVs        = filter isTop $ defVars info
     isTop v      = isExportedId v && not (v `S.member` useVs) && not (v `S.member` sigVs)
     useVs        = S.fromList $ useVars info
     sigVs        = S.fromList $ [v | (v,_) <- tySigs $ spec info]
