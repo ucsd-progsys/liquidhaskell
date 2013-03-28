@@ -2,40 +2,16 @@
 
 module Language.Haskell.Liquid.CmdLine (getOpts) where
 
--- import System.Environment                       (getArgs)
--- import System.Console.GetOpt
-import Control.Monad                            (liftM, liftM2)
+import Control.Applicative                      ((<$>))
 import System.FilePath                          (dropFileName)
-import Language.Fixpoint.Misc                   (errorstar, sortNub)
+import Language.Fixpoint.Misc                   (single, sortNub) 
 import Language.Fixpoint.Files                  (getHsTargets, getIncludePath)
 import Language.Haskell.Liquid.Types
 import System.Console.CmdArgs                  
 
-------------------------------------------------------------------------------
----------- Old Fashioned, Using getopts --------------------------------------
-------------------------------------------------------------------------------
-
--- getOpts :: IO ([FilePath], [FilePath]) 
--- getOpts
---   = do args <- getArgs
---        putStrLn $ banner args
---        case getOpt RequireOrder options args of
---          (flags, targets, []) -> mkOpts [ d | IDir d <- flags ] targets
---          (_,     _,     msgs) -> errorstar $ concat msgs ++ usageInfo header options
--- 
--- 
--- data Flag = IDir FilePath
---   deriving (Eq, Show)
--- 
--- options :: [OptDescr Flag]
--- options = [ Option ['i'] ["include"] (ReqArg IDir "PATH") "Include Directory" ] 
--- 
--- header = "Usage: liquid [OPTION...] file\n" ++ 
---          "Usage: liquid [OPTION...] dir" 
-
--------------------------------------------------------------------------------
---- Using cmdargs, seems to not like my ghc version ---------------------------
--------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+-- Parsing Command Line----------------------------------------------------------
+---------------------------------------------------------------------------------
 
 config = Config { 
    files = def &= typ "TARGET" 
@@ -66,15 +42,9 @@ banner args =  "LiquidHaskell © Copyright 2009-13 Regents of the University of 
             ++ "All Rights Reserved.\n"
             ++ "liquid " ++ show args ++ "\n" 
 
--- mkOpts :: [FilePath] -> [FilePath] -> IO ([FilePath], [FilePath])
--- mkOpts flags targets 
---   = do files <- liftM (sortNub . concat) $ mapM getHsTargets targets
---        idirs <- if null flags then liftM (:[]) getIncludePath else return flags
---        return (files, [dropFileName f | f <- files] ++ idirs)
-
 mkOpts :: Config -> IO Config
 mkOpts md  
-  = do files' <- liftM (sortNub . concat) $ mapM getHsTargets (files md) 
-       idirs' <- if null (idirs md) then liftM (:[]) getIncludePath else return (idirs md) 
+  = do files' <- sortNub . concat <$> mapM getHsTargets (files md) 
+       idirs' <- if null (idirs md) then single <$> getIncludePath else return (idirs md) 
        return  $ md { files = files' } { idirs = map dropFileName files' ++ idirs' }
                                         -- tests fail if you flip order of idirs'
