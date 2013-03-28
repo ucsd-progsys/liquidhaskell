@@ -132,7 +132,7 @@ member     :: Ord a => x:a
                     -> {v:Bool | (Prop v) <=> (Set_mem x xs)}
 \end{code}
 
-**Note:** Oh quite. We shouldn't and needn't really *assume*, but should and
+**Note:** Of course we shouldn't and needn't really *assume*, but should and
 will *guarantee* that the functions from `Data.Set` implement the above types. 
 But thats a story for another day...
 
@@ -332,11 +332,10 @@ LiquidHaskell verifies that the relevant property of split is
 {-@ split :: xs:[a] -> ([a], [a])<{\ys zs -> (UnionElts xs ys zs)}> @-}
 \end{code}
 
-The funny syntax with angle brackets simply says that the output of `split`
+The funny syntax with angle brackets simply says that the output of `split` 
 is a *pair* `(ys, zs)` whose union is the list of elements of the input `xs`.
-
-**Aside:** yes, this is indeed a dependent pair; we will revisit these
-later to understand whats going on with the odd syntax.
+(Yes, this is indeed a dependent pair; we will revisit these later to
+understand whats going on with the odd syntax.)
 
 Merge
 -----
