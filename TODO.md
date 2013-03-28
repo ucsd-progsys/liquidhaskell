@@ -1,8 +1,6 @@
 TODO
 ====
 
-* release the sets-blog-entry    
-
 * [jhala]  benchmarks: Data.Bytestring
     ? Upgrade to GHC 7.6.1 (boxed tuple commenting out C issue)
     ? readsPrec
@@ -48,26 +46,22 @@ TODO
 * Move stuff into Types.hs
     - remove `toType` and  generalize `typeSort` to work for all RefTypables
 
+Incremental Checking
+====================
 
-Top-Level Top
-=============
-      
-    , ../web/demos/TalkingAboutSets.hs
-    , ../web/demos/refinements101reax.hs
-    , pos/tclosure.hs (?)
-    , pos/vector1a.hs
+1. Command Line Arguments <-------------------------- HEREHEREHEREHERE 
+    - Specify WHICH binders to verify [DEFAULT = ALL] 
+    - liquid tests/pos/goo.hs -check foo bar baz 
+    - Print out vars/hs-types
 
+2. CONSGEN for subset 
 
-BExp Parser vs. ppr_rtype [BEXPARSER]
-=====================================
+3. CONSGEN for subset using TRUE for all other functions
 
-WTF is up with the wierd case BEXPARSER?
-Why does it kill the BExp parser e.g. tests/pos/LambdaEval.hs (ask Niki)
+4. SAVE out inferred-types for top-level binders
 
-Niki -- if you grep for BEXPARSER in RefType.hs -- you will see there is
-one line in ppr_rtype that I have commented out. For some strange reason 
-when I add that line back in it breaks the PARSER (!!!) I couldnt
-understand why so if you can figure this out it would be great...!
+5. REUSE pre-inferred types for other functions 
+
 
 
 Benchmarks
