@@ -3,36 +3,39 @@
 import qualified Control.Exception as Ex
 import Data.Monoid      (mconcat)
 import System.Exit 
+import Control.DeepSeq
+import Control.Monad (forM)
+
 
 import Outputable hiding (empty) 
+
 import Language.Fixpoint.Files
 import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Interface      
+import Language.Fixpoint.Types (Fixpoint(..), sinfo, colorResult, FixResult (..),showFix)
 
+import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.CmdLine
 import Language.Haskell.Liquid.GhcInterface 
 import Language.Haskell.Liquid.Constraint       
-import Language.Fixpoint.Types (Fixpoint(..), sinfo, colorResult, FixResult (..),showFix)
 import Language.Haskell.Liquid.TransformRec   
 import Language.Haskell.Liquid.Annotate (annotate)
-import Control.DeepSeq
-import Control.Monad (forM)
 
 main ::  IO b
 main    = liquid >>= (exitWith . resultExit)
 
-liquid  = do (targets, includes) <- getOpts
-             res <- forM targets $ \t ->
-                      Ex.catch (liquidOne includes t) $ \e -> 
+liquid  = do cfg <- getOpts
+             res <- forM (files cfg) $ \t ->
+                      Ex.catch (liquidOne cfg t) $ \e -> 
                       do let err = show (e :: Ex.IOException)
                          putStrLn $ "Unexpected Error: " ++ err
                          return $ Crash [] "Whoops! Unknown Failure"
              return $ mconcat res
 
-liquidOne includes target = 
+liquidOne cfg target = 
   do _       <- getFixpointPath 
-     info    <- getGhcInfo target includes :: IO GhcInfo
+     info    <- getGhcInfo cfg target 
      donePhase Loud "getGhcInfo"
      putStrLn $ showFix info 
      putStrLn "*************** Original CoreBinds ***************************" 

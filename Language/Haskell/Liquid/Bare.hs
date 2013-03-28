@@ -55,30 +55,6 @@ import qualified Control.Exception   as Ex
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
 
--- | The following is the overall type for /specifications/ obtained from
--- parsing the target source and dependent libraries
-
-data GhcSpec = SP {
-    tySigs     :: ![(Var, Located SpecType)]     -- ^ Asserted/Assumed Reftypes
-                                                 -- eg.  see include/Prelude.spec
-  , ctor       :: ![(Var, Located SpecType)]     -- ^ Data Constructor Measure Sigs 
-                                                 -- eg.  (:) :: a -> xs:[a] -> {v: Int | v = 1 + len(xs) }
-  , meas       :: ![(Symbol, Located RefType)]   -- ^ Measure Types  
-                                                 -- eg.  len :: [a] -> Int
-  , invariants :: ![Located SpecType]            -- ^ Data Type Invariants
-                                                 -- eg.  forall a. {v: [a] | len(v) >= 0}
-  , dconsP     :: ![(DataCon, DataConP)]         -- ^ Predicated Data-Constructors
-                                                 -- e.g. see tests/pos/Map.hs
-  , tconsP     :: ![(TyCon, TyConP)]             -- ^ Predicated Type-Constructors
-                                                 -- eg.  see tests/pos/Map.hs
-  , freeSyms   :: ![(Symbol, Var)]               -- ^ List of `Symbol` free in spec and corresponding GHC var 
-                                                 -- eg. (Cons, Cons#7uz) from tests/pos/ex1.hs
-  , tcEmbeds   :: TCEmb TyCon                    -- ^ How to embed GHC Tycons into fixpoint sorts
-                                                 -- e.g. "embed Set as Set_set" from include/Data/Set.spec
-  , qualifiers :: ![Qualifier]                   -- ^ Qualifiers in Source/Spec files
-                                                 -- e.g tests/pos/qualTest.hs
-  }
-
 makeGhcSpec :: String -> [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
 makeGhcSpec name vars env spec 
   = checkGhcSpec <$> makeGhcSpec' name vars env spec 

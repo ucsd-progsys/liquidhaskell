@@ -7,11 +7,11 @@ import qualified Data.HashSet        as S
 import qualified Data.List           as L
 
 import Language.Fixpoint.Misc 
-import Language.Haskell.Liquid.GhcMisc      (stringTyVar) 
 import Language.Fixpoint.Names              (symSepName)
 import Language.Fixpoint.Types
+import Language.Haskell.Liquid.GhcMisc      (stringTyVar) 
+import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
-
 ---------------------------------------------------------------------
 ---------- SYB Magic: Cleaning Reftypes Up Before Rendering ---------
 ---------------------------------------------------------------------
