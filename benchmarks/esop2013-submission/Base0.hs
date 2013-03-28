@@ -1,5 +1,5 @@
 
-module Data.Map.Base where
+module Goober where
 
 import Language.Haskell.Liquid.Prelude
 
