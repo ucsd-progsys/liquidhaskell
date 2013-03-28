@@ -76,4 +76,5 @@ mkOpts :: Config -> IO Config
 mkOpts md  
   = do files' <- liftM (sortNub . concat) $ mapM getHsTargets (files md) 
        idirs' <- if null (idirs md) then liftM (:[]) getIncludePath else return (idirs md) 
-       return  $ md { files = files' } { idirs =  idirs' ++ map dropFileName files' }
+       return  $ md { files = files' } { idirs = map dropFileName files' ++ idirs' }
+                                        -- tests fail if you flip order of idirs'
