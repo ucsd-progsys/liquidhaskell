@@ -234,7 +234,7 @@ predVarUseP
 ------------------------------------------------------------------------
 
 bRPoly []    _    = errorstar "Parse.bRPoly empty list"
-bRPoly syms expr = RPoly ss $ bRVar "dummy" top $ Reft(v, expr)
+bRPoly syms expr = RPoly ss $ bRVar dummyName top $ Reft(v, expr)
   where (ss, (v, _)) = (init syms, last syms)
 
 bRVar α p r               = RVar α (U r p)
