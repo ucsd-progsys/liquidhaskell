@@ -79,17 +79,18 @@ data GhcSpec = SP {
                                                  -- e.g tests/pos/qualTest.hs
   }
 
-makeGhcSpec :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
-makeGhcSpec vars env spec 
-  = checkGhcSpec <$> makeGhcSpec' vars env spec 
+makeGhcSpec :: String -> [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
+makeGhcSpec name vars env spec 
+  = checkGhcSpec <$> makeGhcSpec' name vars env spec 
 
-makeGhcSpec' :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
-makeGhcSpec' vars env spec 
-  = do (tcs, dcs)      <- makeConTypes    env               $ Ms.dataDecls  spec 
+
+makeGhcSpec' :: String -> [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
+makeGhcSpec' name vars env spec 
+  = do (tcs, dcs)      <- makeConTypes    env  name         $ Ms.dataDecls  spec 
        let (tcs', dcs') = wiredTyDataCons 
        let tycons       = tcs ++ tcs'    
        let datacons     = concat dcs ++ dcs'    
-       let benv         = BE (makeTyConInfo tycons) env
+       let benv         = BE name (makeTyConInfo tycons) env
        (cs, ms)        <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
        sigs'           <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
@@ -192,14 +193,15 @@ meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
 
 type BareM a = ErrorT String (ReaderT BareEnv IO) a
 
-data BareEnv = BE { tcEnv  :: !(M.HashMap TyCon RTyCon)
-                  , hscEnv :: HscEnv }
+data BareEnv = BE { modName :: !String 
+                  , tcEnv   :: !(M.HashMap TyCon RTyCon)
+                  , hscEnv  :: HscEnv }
 
 execBare :: BareM a -> BareEnv -> IO a
 execBare act benv = 
    do z <- runReaderT (runErrorT act) benv
       case z of
-        Left s  -> errorstar $ "execBare:" ++ s
+        Left s  -> errorstar $ "execBare: " ++ s
         Right x -> return x
 
 wrapErr msg f x
@@ -217,10 +219,26 @@ makeMeasureSpec env m = execBare mkSpec env
         m'     = first (mapReft ur_reft) m
 
 makeAssumeSpec :: BareEnv -> [Var] -> [(LocSymbol, BareType)] -> IO [(Var, Located SpecType)]
-makeAssumeSpec env vs xbs = showTopLevelVars vs >> execBare mkAspec env 
+makeAssumeSpec env vs xbs = execBare mkAspec env 
   where 
-    mkAspec               = forM vbs mkVarSpec
     vbs                   = joinIds vs xbs 
+    mkAspec               = checkDefAsserts env vbs xbs >> forM vbs mkVarSpec
+
+checkDefAsserts env vbs xbs = applyNonNull (return ()) grumble  undefSigs
+  where
+    undefSigs               = [x | (x, _) <- assertSigs, not (x `S.member` definedSigs)] 
+    assertSigs              = filter isTarget xbs 
+    definedSigs             = S.fromList $ snd3 <$> vbs 
+    errorMsg                = (text "Specification for unknown variable:" <+>) . locatedSymbolText 
+    grumble                 = throwError . render . hsep . fmap errorMsg 
+    moduleName              = modName env
+    isTarget                = L.isPrefixOf moduleName . symbolStringRaw . val . fst
+    symbolStringRaw         = stripParens . symbolString 
+
+
+locatedSymbolText z         = text (symbolString $ val z) <+> text "defined at:" <+> toFix (loc z)    
+
+
 
 mkVarSpec                 :: (Var, LocSymbol, BareType) -> BareM (Var, Located SpecType)
 mkVarSpec (v, Loc l _, b) = liftM ((v, ) . (Loc l)) (wrapErr msg (mkSpecType msg) b)
@@ -553,8 +571,8 @@ propTyCon   = stringTyCon 'w' 24 propConName
 ---------------- Bare Predicate: DataCon Definitions ------------------
 -----------------------------------------------------------------------
 
-makeConTypes :: HscEnv -> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
-makeConTypes env dcs = unzip <$> execBare (mapM ofBDataDecl dcs) (BE M.empty env)
+makeConTypes :: HscEnv -> String -> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
+makeConTypes env name dcs = unzip <$> execBare (mapM ofBDataDecl dcs) (BE name M.empty env)
 
 ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
 ofBDataDecl (D tc as ps cts)
@@ -644,9 +662,10 @@ rtypePredBinds = map uPVar . snd3 . bkUniv
 
 checkGhcSpec         :: GhcSpec -> GhcSpec 
 checkGhcSpec sp      =  applyNonNull sp specError errors
-  where env          =  ghcSpecEnv sp
-        emb          =  tcEmbeds sp
-        errors       =  mapMaybe (checkBind "variable"         emb env) (tySigs     sp)
+  where 
+    env              =  ghcSpecEnv sp
+    emb              =  tcEmbeds sp
+    errors           =  mapMaybe (checkBind "variable"         emb env) (tySigs     sp)
                      ++ mapMaybe (checkBind "data constructor" emb env) (ctor       sp)
                      ++ mapMaybe (checkBind "measure"          emb env) (meas       sp)
                      ++ mapMaybe (checkInv  emb env)                    (invariants sp)
@@ -658,7 +677,6 @@ specError            = errorstar
                      . vcat 
                      . punctuate (text "\n----\n") 
                      . (text "Alas, errors found in specification..." :)
-
 
 checkInv emb env t   = checkTy msg emb env (val t) 
   where msg          =   text "\n---"
@@ -697,6 +715,13 @@ ghcSpecEnv sp        = fromListSEnv binds
     vSort            = rSort . varRType 
     varRType         :: Var -> RRType ()
     varRType         = ofType . varType
+
+--   let vm  = M.fromList [(showPpr v, v) | v <- vs] 
+--       xs' = [s | (x, _) <- xbs, let s = symbolString (val x), not (M.member s vm)]
+--   in case xs' of 
+--     [] -> return () 
+--     _  -> errorstar $ "Asserts for Unknown variables: "  ++ (intercalate ", " xs')  
+
 
 -------------------------------------------------------------------------------------
 -- | This function checks if a type is malformed in a given environment -------------

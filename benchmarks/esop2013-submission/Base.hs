@@ -297,6 +297,7 @@ infixl 9 !,\\ --
 -- > fromList [(5,'a'), (3,'b')] ! 1    Error: element not in the map
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
+{-@ (!) :: (Ord k) => OMap k a -> k -> a @-}
 (!) :: Ord k => Map k a -> k -> a
 m ! k = find k m
 #if __GLASGOW_HASKELL__ >= 700
@@ -304,6 +305,7 @@ m ! k = find k m
 #endif
 
 -- | Same as 'difference'.
+{-@ (\\) :: Ord k => OMap k a -> OMap k b -> OMap k a @-}
 (\\) :: Ord k => Map k a -> Map k b -> Map k a
 m1 \\ m2 = difference m1 m2
 #if __GLASGOW_HASKELL__ >= 700

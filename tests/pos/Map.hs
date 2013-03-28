@@ -35,7 +35,7 @@ insert kx x t
               GT -> balance ky y l (insert kx x r)
               EQ -> Bin sz kx x l r
 
-{-@ delete :: (Ord k) => k -> OMap k a -> OMap k a @-}
+{-@ delete :: (Ord k) => k:k -> OMap k a -> OMap {v:k| (v /= k)} a @-}
 delete :: Ord k => k -> Map k a -> Map k a
 delete k t 
   = case t of 
@@ -127,11 +127,11 @@ size t
       Bin sz _ _ _ _ -> sz
 
 
-chkDel x Tip                = liquidAssertB True  
-chkDel x (Bin sz k v lt rt) = liquidAssertB (not (x == k)) && chkDel x lt && chkDel x rt
+-- chkDel x Tip                = liquidAssertB True  
+-- chkDel x (Bin sz k v lt rt) = liquidAssertB (not (x == k)) && chkDel x lt && chkDel x rt
 
-chkMin x Tip                = liquidAssertB True  
-chkMin x (Bin sz k v lt rt) = liquidAssertB (x<k) && chkMin x lt && chkMin x rt
+-- chkMin x Tip                = liquidAssertB True  
+-- chkMin x (Bin sz k v lt rt) = liquidAssertB (x<k) && chkMin x lt && chkMin x rt
 
 chk Tip               = liquidAssertB True  
 chk (Bin s k v lt rt) = chk lt && chk rt && chkl k lt && chkr k rt
@@ -156,5 +156,7 @@ mkBst = foldl (\t (k, v) -> insert k v t) Tip
 prop        = chk bst1
 prop1       = chk $ mkBst $ zip [1..] [1..]
 
-propDelete  = chk $ delete x bst
-   where x = choose 0
+propDelete  = chk bst' -- && chkDel x bst' 
+   where 
+     x      = choose 0
+     bst'   = delete x bst
