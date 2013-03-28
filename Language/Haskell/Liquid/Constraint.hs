@@ -51,14 +51,14 @@ import Data.List (foldl')
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import qualified Language.Fixpoint.Types            as F
 
-import Language.Haskell.Liquid.Types            (val)
+import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars)  
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.PredType         hiding (freeTyVars) 
+import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc          (getSourcePos, pprDoc, TyConInfo(..), tickSrcSpan, hasBaseTypeVar)
+import Language.Haskell.Liquid.GhcMisc          (getSourcePos, pprDoc, tickSrcSpan, hasBaseTypeVar)
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Qualifier        
 import Control.DeepSeq

@@ -51,6 +51,7 @@ import Language.Haskell.Liquid.GhcMisc (pprDoc)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
+import Language.Haskell.Liquid.Types hiding (Located(..))
 
 -------------------------------------------------------------------
 ------ Rendering HTMLized source with Inferred Types --------------

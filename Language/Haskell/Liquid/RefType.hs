@@ -6,16 +6,8 @@
 -- TODO: Desperately needs re-organization.
 module Language.Haskell.Liquid.RefType (
 
-  -- * All these should be MOVE TO TYPES
-    RTyVar (..), RType (..), RRType, BRType, RTyCon(..)
-  , TyConable (..), RefTypable (..), SubsTy (..), Ref(..)
-  , RTAlias (..)
-  , BSort, BPVar, BareType, RSort, UsedPVar, RPVar, RReft, RefType
-  , PrType, SpecType
-  , PVar (..) , Predicate (..), UReft(..), DataDecl (..)
-
   -- * Functions for lifting Reft-values to Spec-values
-  , uTop, uReft, uRType, uRType', uRTypeGen, uPVar
+    uTop, uReft, uRType, uRType', uRTypeGen, uPVar
  
   -- * Functions for manipulating `Predicate`s
   , pdAnd, pdVar, pdTrue, pvars, findPVar
@@ -70,182 +62,23 @@ import Text.PrettyPrint.HughesPJ
 import Text.Parsec.Pos  (SourcePos)
 
 import Language.Fixpoint.Types hiding (Predicate)
+import Language.Haskell.Liquid.Types hiding (DataConP (..))
 
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc (sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, TyConInfo(..), mkTyConInfo)
+import Language.Haskell.Liquid.GhcMisc (sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, mkTyConInfo)
 import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
-
---------------------------------------------------------------------
--- | Predicate Variables -------------------------------------------
---------------------------------------------------------------------
-
--- MOVE TO TYPES
-data PVar t
-  = PV { pname :: !Symbol
-       , ptype :: !t
-       , pargs :: ![(t, Symbol, Expr)]
-       }
-	deriving (Show)
-
-instance Eq (PVar t) where
-  pv == pv' = (pname pv == pname pv') {- UNIFY: What about: && eqArgs pv pv' -}
-
-instance Ord (PVar t) where
-  compare (PV n _ _)  (PV n' _ _) = compare n n'
-
-instance Functor PVar where
-  fmap f (PV x t txys) = PV x (f t) (mapFst3 f <$> txys)
-
-instance (NFData a) => NFData (PVar a) where
-  rnf (PV n t txys) = rnf n `seq` rnf t `seq` rnf txys
-
-instance Hashable (PVar a) where
-  hashWithSalt i (PV n _ xys) = hashWithSalt i  n -- : (thd3 <$> xys)
-
---------------------------------------------------------------------
------------------- Predicates --------------------------------------
---------------------------------------------------------------------
-
-type UsedPVar      = PVar ()
-newtype Predicate  = Pr [UsedPVar] -- deriving (Data, Typeable) 
 
 pdTrue         = Pr []
 pdVar v        = Pr [uPVar v]
 pvars (Pr pvs) = pvs
 pdAnd ps       = Pr (L.nub $ concatMap pvars ps)
 
-instance Eq Predicate where
-  (==) = eqpd
-
-eqpd (Pr vs) (Pr ws) 
-  = and $ (length vs' == length ws') : [v == w | (v, w) <- zip vs' ws']
-    where vs' = sort vs
-          ws' = sort ws
-
-instance Fixpoint Predicate where
-  toFix (Pr [])       = text "True"
-  toFix (Pr pvs)      = hsep $ punctuate (text "&") (map toFix pvs)
-
-instance Show Predicate where
-  show = render . toFix 
-
-instance Reftable Predicate where
-  isTauto (Pr ps)      = null ps
- 
-  -- HACK: Hiding to not render types in WEB DEMO. NEED TO FIX.
-  ppTy r d | isTauto r        = d 
-           | not (ppPs ppEnv) = d
-           | otherwise        = d <> (angleBrackets $ toFix r)
-  
-  toReft               = errorstar "TODO: instance of toReft for Predicate"
-  params               = errorstar "TODO: instance of params for Predicate"
-
-instance NFData Predicate where
-  rnf _ = ()
-
-instance NFData r => NFData (UReft r) where
-  rnf (U r p) = rnf r `seq` rnf p
-
-instance NFData PrType where
-  rnf _ = ()
-
-instance NFData RTyVar where
-  rnf _ = ()
-
 findPVar :: [PVar (RType p c tv ())] -> UsedPVar -> PVar (RType p c tv ())
 findPVar ps p 
   = PV name ty $ zipWith (\(_, _, e) (t, s, _) -> (t, s, e))(pargs p) args
   where PV name ty args = fromMaybe (msg p) $ L.find ((==(pname p)) . pname) ps
         msg p = errorstar $ "RefType.findPVar" ++ showFix p ++ "not found"
-
---------------------------------------------------------------------
----- Unified Representation of Refinement Types --------------------
---------------------------------------------------------------------
-
--- MOVE TO TYPES
-data RType p c tv r
-  = RVar { 
-      rt_var    :: !tv
-    , rt_reft   :: !r 
-    }
-  
-  | RFun  {
-      rt_bind   :: !Symbol
-    , rt_in     :: !(RType p c tv r)
-    , rt_out    :: !(RType p c tv r) 
-    , rt_reft   :: !r
-    }
-
-  | RAllT { 
-      rt_tvbind :: !tv       
-    , rt_ty     :: !(RType p c tv r)
-    }
-
-  | RAllP {
-      rt_pvbind :: !(PVar (RType p c tv ()))
-    , rt_ty     :: !(RType p c tv r)
-    }
-
-  | RApp  { 
-      rt_tycon  :: !c
-    , rt_args   :: ![(RType p c tv r)]     
-    , rt_pargs  :: ![Ref (RType p c tv ()) r (RType p c tv r)] 
-    , rt_reft   :: !r
-    }
-
-  | RCls  { 
-      rt_class  :: !p
-    , rt_args   :: ![(RType p c tv r)]
-    }
-
-  | RAllE { 
-      rt_bind   :: !Symbol
-    , rt_allarg  :: !(RType p c tv r) 
-    , rt_ty     :: !(RType p c tv r) 
-    }
-
-  | REx { 
-      rt_bind   :: !Symbol
-    , rt_exarg  :: !(RType p c tv r) 
-    , rt_ty     :: !(RType p c tv r) 
-    }
-
-  | RExprArg Expr                               -- ^ For expression arguments to type aliases
-                                                --   see tests/pos/vector2.hs
-  | RAppTy{
-      rt_arg   :: !(RType p c tv r)
-    , rt_res   :: !(RType p c tv r)
-    , rt_reft  :: !r
-    }
-
-  | ROth  !String 
-
--- MOVE TO TYPES
-
-data Ref t s m 
-  = RMono [(Symbol, t)] s 
-  | RPoly [(Symbol, t)] m
-
--- MOVE TO TYPES
-data UReft r
-  = U { ur_reft :: !r, ur_pred :: !Predicate }
-
--- MOVE TO TYPES
-type BRType     = RType String String String   
-type RRType     = RType Class  RTyCon RTyVar   
-
-type BSort      = BRType    ()
-type RSort      = RRType    ()
-
-type BPVar      = PVar      BSort
-type RPVar      = PVar      RSort
-
-type RReft      = UReft     Reft 
-type PrType     = RRType    Predicate
-type BareType   = BRType    RReft
-type SpecType   = RRType    RReft 
-type RefType    = RRType    Reft
 
 -- | Various functions for converting vanilla `Reft` to `Spec`
 
@@ -271,27 +104,26 @@ uTop r          = U r top
 -------------- (Class) Predicates for Valid Refinement Types -------
 --------------------------------------------------------------------
 
--- MOVE TO TYPES
-class (Eq c) => TyConable c where
-  isFun    :: c -> Bool
-  isList   :: c -> Bool
-  isTuple  :: c -> Bool
-  ppTycon  :: c -> Doc
-
--- MOVE TO TYPES
-class ( Fixpoint p
-      , TyConable c
-      , Eq p, Eq c, Eq tv
-      , Hashable tv
-      , Fixpoint tv
-      , Reftable r
-      ) => RefTypable p c tv r 
-  where
-    ppCls    :: p -> [RType p c tv r] -> Doc
-    ppRType  :: Prec -> RType p c tv r -> Doc 
-    -- ppRType  = ppr_rtype True -- False 
-
 -- Monoid Instances ---------------------------------------------------------
+instance Fixpoint Predicate where
+  toFix (Pr [])       = text "True"
+  toFix (Pr pvs)      = hsep $ punctuate (text "&") (map toFix pvs)
+
+instance Show Predicate where
+  show = render . toFix 
+
+
+instance Reftable Predicate where
+  isTauto (Pr ps)      = null ps
+ 
+  -- HACK: Hiding to not render types in WEB DEMO. NEED TO FIX.
+  ppTy r d | isTauto r        = d 
+           | not (ppPs ppEnv) = d
+           | otherwise        = d <> (angleBrackets $ toFix r)
+  
+  toReft               = errorstar "TODO: instance of toReft for Predicate"
+  params               = errorstar "TODO: instance of params for Predicate"
+
 
 -- MOVE TO TYPES
 instance Monoid Predicate where
@@ -524,8 +356,14 @@ eqRSort _ _ _
 --------- Wrappers for GHC Type Elements ---------------------------
 --------------------------------------------------------------------
 
--- MOVE TO TYPES
-newtype RTyVar = RTV TyVar -- deriving (Data, Typeable)
+instance Eq Predicate where
+  (==) = eqpd
+
+eqpd (Pr vs) (Pr ws) 
+  = and $ (length vs' == length ws') : [v == w | (v, w) <- zip vs' ws']
+    where vs' = sort vs
+          ws' = sort ws
+
 
 instance Eq RTyVar where
   RTV α == RTV α' = tvId α == tvId α'
@@ -536,13 +374,6 @@ instance Ord RTyVar where
 instance Hashable RTyVar where
   hashWithSalt i (RTV α) = hashWithSalt i α
 
-
-data RTyCon = RTyCon 
-  { rTyCon     :: !TC.TyCon         -- GHC Type Constructor
-  , rTyConPs   :: ![RPVar]          -- Predicate Parameters
-  , rTyConInfo :: !TyConInfo        -- TyConInfo
-  }
-  -- deriving (Data, Typeable)
 
 instance Ord RTyCon where
   compare x y = compare (rTyCon x) (rTyCon y)
@@ -1156,9 +987,6 @@ mapBotRef f (RPoly s t)    = RPoly s $ mapBot f t
 ------------------- Type Substitutions ----------------------------
 -------------------------------------------------------------------
 
-class SubsTy tv ty a where
-  subt :: (tv, ty) -> a -> a
-
 subts = flip (foldr subt) 
 
 instance SubsTy tv ty ()   where
@@ -1409,27 +1237,6 @@ rTypeValueVar t = vv where Reft (vv,_) =  rTypeReft t
 ------------------------------------------------------------------------
 ---------------- Auxiliary Stuff Used Elsewhere ------------------------
 ------------------------------------------------------------------------
-
--- | Data type refinements
-
--- MOVE TO TYPES
-data DataDecl   = D { tycName   :: String                           -- ^ Type  Constructor Name 
-                    , tycTyVars :: [String]                         -- ^ Tyvar Parameters
-                    , tycPVars  :: [PVar BSort]                     -- ^ PVar  Parameters
-                    , tycDCons  :: [(String, [(String, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]   
-                    }
-     --              deriving (Show) 
-
--- | Refinement Type Aliases
-
--- MOVE TO TYPES
-data RTAlias tv ty 
-  = RTA { rtName  :: String
-        , rtTArgs :: [tv]
-        , rtVArgs :: [tv] 
-        , rtBody  :: ty  
-        , srcPos  :: SourcePos 
-        } 
 
 -- MOVE TO TYPES
 instance (Show tv, Show ty) => Show (RTAlias tv ty) where

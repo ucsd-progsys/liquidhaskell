@@ -2,13 +2,10 @@
 
 module Language.Haskell.Liquid.CmdLine (getOpts) where
 
-import System.Environment                       (getArgs)
-import System.Console.GetOpt
-
--- import System.Console.CmdArgs
+-- import System.Environment                       (getArgs)
+-- import System.Console.GetOpt
 import Control.Monad                            (liftM, liftM2)
 import System.FilePath                          (dropFileName)
-
 import Language.Fixpoint.Misc                   (errorstar, sortNub)
 import Language.Fixpoint.Files                  (getHsTargets, getIncludePath)
 import Language.Haskell.Liquid.Types
@@ -36,16 +33,6 @@ import System.Console.CmdArgs
 -- header = "Usage: liquid [OPTION...] file\n" ++ 
 --          "Usage: liquid [OPTION...] dir" 
 
-banner args =  "LiquidHaskell © Copyright 2009-13 Regents of the University of California.\n" 
-            ++ "All Rights Reserved.\n"
-            ++ "liquid " ++ show args ++ "\n" 
-
-mkOpts :: [FilePath] -> [FilePath] -> IO ([FilePath], [FilePath])
-mkOpts flags targets 
-  = do files <- liftM (sortNub . concat) $ mapM getHsTargets targets
-       idirs <- if null flags then liftM (:[]) getIncludePath else return flags
-       return (files, [dropFileName f | f <- files] ++ idirs)
-
 -------------------------------------------------------------------------------
 --- Using cmdargs, seems to not like my ghc version ---------------------------
 -------------------------------------------------------------------------------
@@ -70,8 +57,23 @@ config = Config {
               , "  liquid foo.hs "
               ]
 
-getOpts :: IO ([FilePath], [FilePath])
+getOpts :: IO Config 
 getOpts = do md <- cmdArgs config 
              putStrLn $ banner md
-             mkOpts (idirs md) (files md)
+             mkOpts md -- (idirs md) (files md)
 
+banner args =  "LiquidHaskell © Copyright 2009-13 Regents of the University of California.\n" 
+            ++ "All Rights Reserved.\n"
+            ++ "liquid " ++ show args ++ "\n" 
+
+-- mkOpts :: [FilePath] -> [FilePath] -> IO ([FilePath], [FilePath])
+-- mkOpts flags targets 
+--   = do files <- liftM (sortNub . concat) $ mapM getHsTargets targets
+--        idirs <- if null flags then liftM (:[]) getIncludePath else return flags
+--        return (files, [dropFileName f | f <- files] ++ idirs)
+
+mkOpts :: Config -> IO Config
+mkOpts md  
+  = do files' <- liftM (sortNub . concat) $ mapM getHsTargets (files md) 
+       idirs' <- if null (idirs md) then liftM (:[]) getIncludePath else return (idirs md) 
+       return  $ md { files = files' } { idirs =  idirs' ++ map dropFileName files' }
