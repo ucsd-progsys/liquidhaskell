@@ -56,7 +56,7 @@ import Language.Haskell.Liquid.Prelude
 
 data Splay a = Leaf | Node a (Splay a) (Splay a) deriving Show
 
-{-@ type OSplay a = Splay <\root -> {v:a | v < root}, \root -> {v:a | v > root}> a @-}
+{-@ type OSplay a = Splay <{\root v -> v < root}, {\root v -> v > root}> a @-}
 
 {-@ type MinSPair   a = (a, OSplay a) <\fld -> {v : Splay {v:a|v>fld} | 0=0}> @-}
 {-@ type MinEqSPair a = (a, OSplay a) <\fld -> {v : Splay {v:a|v>=fld}| 0=0}> @-}
