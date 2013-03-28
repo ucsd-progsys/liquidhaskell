@@ -40,9 +40,9 @@ type Size    = Int
 -- Thus, if we instantiate the refinements with the following predicates
 
 
-{-@ type BST k a     = Map <\r -> {v:k | v < r }, \r -> {v:k | v > r }> k a @-}
-{-@ type MinHeap k a = Map <\r -> {v:k | r <= v}, \r -> {v:k | r <= v}> k a @-}
-{-@ type MaxHeap k a = Map <\r -> {v:k | r >= v}, \r -> {v:k | r >= v}> k a @-}
+{-@ type BST k a     = Map <{\r v -> v < r }, {\r v -> v > r }> k a @-}
+{-@ type MinHeap k a = Map <{\r v -> r <= v}, {\r v -> r <= v}> k a @-}
+{-@ type MaxHeap k a = Map <{\r v -> r >= v}, {\r v -> r >= v}> k a @-}
 
 
 -- then `BST k v`, `MinHeap k v` and `MaxHeap k v` denote exactly binary-search-ordered, min-heap-ordered, and max-heap-ordered trees (with keys and values of types `k` and `v`).

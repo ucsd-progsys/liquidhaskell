@@ -1,7 +1,7 @@
 module Stacks where
 
 
-{-@ type DList a = [a]<\fld -> {v: a | (v != fld)}> @-}
+{-@ type DList a = [a]<{\fld v -> (v != fld)}> @-}
 
 {-@ data Stack a = St { focus  :: a    
                       , up     :: DList {v: a | v != focus}

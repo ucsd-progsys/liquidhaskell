@@ -223,11 +223,15 @@ Thus, LiquidHaskell supports refinement-type aliases of the form:
 
 or
 
-    {-@ type SortedList a = [a]<\fld -> {v: a | (v >= fld)}> @-}
+    {-@ type SortedList a = [a]<{\fld v -> (v >= fld)}> @-}
 
 or 
 
-    {-@ type OMap k a = Map <\root -> {v:k | v < root }, \root -> {v:k | v > root}> k a @-}
+    {-@ type OMap k a = Map <{\root v -> v < root}, {\root v -> v > root}> k a @-}
+ 
+or 
+
+    {-@ type MinSPair a = (a, OSplay a) <\fld -> {v : Splay {v:a|v>fld} | 0=0}> @-}
    
 and then use the above in signatures like:
 

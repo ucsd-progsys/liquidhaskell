@@ -12,7 +12,7 @@ takeGE x []     = []
 takeGE x (y:ys) = if (y>=x) then y:(takeGE x ys) else takeGE x ys
 
 
-{-@ quicksort :: (Ord a) => xs:[a] -> [a]<\fld -> {v: a | (v < fld)}>  @-}
+{-@ quicksort :: (Ord a) => xs:[a] -> [a]<{\fld v -> (v < fld)}>  @-}
 quicksort []     = []
 quicksort (x:xs) = append x xsle xsge
   where xsle = quicksort (takeL x xs)

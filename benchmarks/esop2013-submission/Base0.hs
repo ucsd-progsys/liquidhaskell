@@ -24,7 +24,7 @@ type Size     = Int
   @-}
 
 
-{-@ type OMap k a = Map <\root -> {v:k | v < root}, \root -> {v:k | v > root}> k a @-}
+{-@ type OMap k a = Map <{\root v -> v < root}, {\root v -> v > root}> k a @-}
 
 {-@ measure isJustS :: forall a. MaybeS a -> Prop
     isJustS (JustS x)  = true
