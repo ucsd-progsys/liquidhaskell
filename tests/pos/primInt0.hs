@@ -2,7 +2,7 @@
 {-# LANGUAGE CPP,  MagicHash #-}
 {-# OPTIONS_HADDOCK hide #-}
 
-module GHC.List (
+module PrimInt (
  ptake, mtake, ztake, itake
  ) where
 
