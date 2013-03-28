@@ -17,6 +17,7 @@ module Language.Haskell.Liquid.Types (
   -- * Ghc Information
   , GhcInfo (..)
   , GhcSpec (..)
+  , TargetVars (..)
 
   -- * Located Things
   , Located (..)
@@ -129,7 +130,7 @@ instance Hashable a => Hashable (Located a) where
 ------------------------------------------------------------------
 -- | GHC Information :  Code & Spec ------------------------------
 ------------------------------------------------------------------
--- 
+ 
 data GhcInfo = GI { 
     env      :: !HscEnv
   , cbs      :: ![CoreBind]
@@ -164,7 +165,10 @@ data GhcSpec = SP {
                                                  -- e.g. "embed Set as Set_set" from include/Data/Set.spec
   , qualifiers :: ![Qualifier]                   -- ^ Qualifiers in Source/Spec files
                                                  -- e.g tests/pos/qualTest.hs
+  , tgtVars  :: !TargetVars                      -- ^ Top-level Binders To Verify (empty means ALL binders)
+  
   }
+  
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![(PVar RSort)]
                      , covPs        :: ![Int] -- indexes of covariant predicate arguments
@@ -176,6 +180,11 @@ data DataConP = DataConP { freeTyVars :: ![RTyVar]
                          , tyArgs     :: ![(Symbol, SpecType)]
                          , tyRes      :: !SpecType
                          }
+
+
+-- | Which Top-Level Binders Should be Verified
+data TargetVars = AllVars | Only ![Var]
+
 
 --------------------------------------------------------------------
 -- | Predicate Variables -------------------------------------------

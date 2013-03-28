@@ -128,7 +128,7 @@ getGhcInfo cfg target
       let impVs           = importVars  coreBinds 
       let defVs           = definedVars coreBinds 
       let useVs           = readVars    coreBinds
-      (spec, imps, incs) <- moduleSpec (impVs ++ defVs) target modguts (idirs cfg) 
+      (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) target modguts (idirs cfg) 
       liftIO              $ putStrLn $ "Module Imports: " ++ show imps 
       hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs 
       return              $ GI hscEnv coreBinds impVs defVs useVs hqualFiles imps incs spec 
@@ -224,7 +224,7 @@ moduleHquals mg paths target imps incs
 -- | Extracting Specifications (Measures + Assumptions) ------------------------
 --------------------------------------------------------------------------------
  
-moduleSpec vars target mg paths
+moduleSpec cfg vars target mg paths
   = do liftIO      $ putStrLn ("paths = " ++ show paths) 
        tgtSpec    <- liftIO $ parseSpec (name, target) 
        impSpec    <- getSpecs paths impNames [Spec, Hs, LHs] 
@@ -232,7 +232,7 @@ moduleSpec vars target mg paths
        let imps    = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
        setContext [IIModule (mgi_module mg)]
        env        <- getSession
-       ghcSpec    <- liftIO $ makeGhcSpec name vars env spec
+       ghcSpec    <- liftIO $ makeGhcSpec cfg name vars env spec
        return      (ghcSpec, imps, Ms.includes tgtSpec)
     where impNames = allDepNames  mg
           name     = mgi_namestring mg
@@ -416,8 +416,13 @@ bindings (Rec  xes  )
 
 instance NFData Var
 instance NFData SrcSpan
+
+
+
 instance Fixpoint GhcSpec where
-  toFix spec =  (text "******* Type Signatures *********************")
+  toFix spec =  (text "******* Target Variables ********************")
+             $$ (toFix $ tgtVars spec)
+             $$ (text "******* Type Signatures *********************")
              $$ (toFix $ tySigs spec)
              $$ (text "******* DataCon Specifications (Measure) ****")
              $$ (toFix $ ctor spec)
@@ -441,4 +446,6 @@ instance Fixpoint GhcInfo where
 instance Show GhcInfo where
   show = showFix
 
-
+instance Fixpoint TargetVars where
+  toFix AllVars   = text "All Variables"
+  toFix (Only vs) = text "Only Variables: " <+> toFix vs 
