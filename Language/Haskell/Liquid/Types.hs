@@ -1,11 +1,15 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 
 -- | This module (should) contain all the global type definitions and basic
 -- instances. Need to gradually pull things into here, especially from @RefType@
 
 module Language.Haskell.Liquid.Types (
- 
+
+  -- * Options
+    Config (..)
+
   -- * Located Things
-    Located (..)
+  , Located (..)
 
   -- * Symbols
   , LocSymbol
@@ -18,12 +22,29 @@ module Language.Haskell.Liquid.Types (
   where
 
 import Control.Applicative          ((<$>))
+import Data.Typeable
+import Data.Generics
 import Data.Foldable
 import Data.Hashable
 import Data.Traversable
 import Text.Parsec.Pos              (SourcePos, newPos) 
 import Text.PrettyPrint.HughesPJ    (text)
 import Language.Fixpoint.Types 
+
+-----------------------------------------------------------------------------
+-- | Command Line Config Options --------------------------------------------
+-----------------------------------------------------------------------------
+
+data Config = Config { 
+    files :: [FilePath] -- ^ source files to check
+  , idirs :: [FilePath] -- ^ path to directory for including specs
+  , binds :: ![String]  -- ^ top-level binders to check (empty means check ALL) 
+  } deriving (Data, Typeable, Show, Eq)
+
+
+-----------------------------------------------------------------------------
+-- | Located Values ---------------------------------------------------------
+-----------------------------------------------------------------------------
 
 data Located a = Loc { loc :: !SourcePos
                      , val :: a
