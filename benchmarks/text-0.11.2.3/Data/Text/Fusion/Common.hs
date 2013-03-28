@@ -643,7 +643,8 @@ mapAccumL f z0 (Stream next0 s0 len) = Stream next (s0 :*: z0) len -- HINT depen
 -- -----------------------------------------------------------------------------
 -- ** Generating and unfolding streams
 
-replicateCharI :: Integral a => a -> Char -> Stream Char
+--LIQUID replicateCharI :: Integral a => a -> Char -> Stream Char
+replicateCharI :: Int -> Char -> Stream Char
 replicateCharI n c
     | n < 0     = empty
     | otherwise = Stream next 0 (fromIntegral n) -- HINT maybe too low
