@@ -7,7 +7,7 @@ data ST a = S (State -> (a, State))
      = S (x::(f:State<p1> -> (a, State<p2>))) 
   @-}
 
-{-@ fresh :: ST <{v:Int|v>=0}, {v:Int|v>=0}> Int @-}
+{-@ fresh :: ST <{\v -> v>=0}, {\v -> v>=0}> Int @-}
 fresh :: ST Int
 fresh = S $ \n -> (n, n-1)
 

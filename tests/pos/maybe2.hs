@@ -27,7 +27,7 @@ data MaybeS a = NothingS | JustS !a
     fromJustS (JustS x) = x 
   @-}
 
-{-@ type OMap k a = Map <\root -> {v:k | v < root}, \root -> {v:k | v > root}> k a @-}
+{-@ type OMap k a = Map <{\root v -> v < root}, {\root v -> v > root}> k a @-}
 
 {-@ measure isBin :: Map k a -> Prop
     isBin (Bin sz kx x l r) = true

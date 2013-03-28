@@ -38,7 +38,7 @@ module ListSort (insertSort, mergeSort, quickSort) where
 -- So, we define the type-synonym `SList a`
 
 
-{-@ type SList a = [a]<\elt -> {v: a | (v >= elt)}> @-}
+{-@ type SList a = [a]<{\elt v -> (v >= elt)}> @-}
 
 
 -- We aim to verify that the result of each sorting function is of type `SList a`

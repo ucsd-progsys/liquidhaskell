@@ -2,7 +2,7 @@ module ListSort where
 
 import Language.Haskell.Liquid.Prelude -- (liquidAssertB, choose)
 
-{-@ type OList a = [a]<\fld -> {v: a | (v >= fld)}> @-}
+{-@ type OList a = [a]<{\fld v -> (v >= fld)}> @-}
 {-@ assert sort1 :: (Ord a) => [a] -> OList a  @-}
 sort1 :: (Ord a) => [a] -> [a]
 sort1 = mergeAll . sequences
