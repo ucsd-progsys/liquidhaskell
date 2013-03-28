@@ -9,7 +9,7 @@
 module Language.Haskell.Liquid.Bare (
     GhcSpec (..)
   , makeGhcSpec
-  , varSpecType
+  -- , varSpecType
   ) where
 
 import GHC hiding               (lookupName, Located)	
