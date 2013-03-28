@@ -249,11 +249,17 @@ spacePrefix str s@(c:cs)
 spacePrefix _ _ = False 
 
 
-tokeniseSpec = tokAlt . chopAlt [('{', ':'), ('|', '}')] 
-  where tokAlt (s:ss)  = tokenise s ++ tokAlt' ss
-        tokAlt _       = []
-        tokAlt' (s:ss) = (refToken, s) : tokAlt ss
-        tokAlt' _      = []
+tokeniseSpec       ::  String -> [(TokenType, String)]
+tokeniseSpec str   = {- traceShow ("tokeniseSpec: " ++ str) $ -} tokeniseSpec' str
+
+tokeniseSpec'      = tokAlt . chopAltDBG -- [('{', ':'), ('|', '}')] 
+  where 
+    tokAlt (s:ss)  = tokenise s ++ tokAlt' ss
+    tokAlt _       = []
+    tokAlt' (s:ss) = (refToken, s) : tokAlt ss
+    tokAlt' _      = []
+
+chopAltDBG y = {- traceShow ("chopAlts: " ++ y) $ -} chopAlts [("<{", "}>"), ("{", ":"), ("|", "}")] y
 
 ---------------------------------------------------------------
 ---------------- Annotations and Solutions --------------------
