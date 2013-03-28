@@ -329,7 +329,7 @@ split (x:xs) = (x:zs, ys)
 LiquidHaskell verifies that the relevant property of split is
 
 \begin{code} 
-{-@ split         :: xs:[a] -> ([a], [a])<{\ys zs -> (UnionElts xs ys zs)}> @-}
+{-@ split :: xs:[a] -> ([a], [a])<{\ys zs -> (UnionElts xs ys zs)}> @-}
 \end{code}
 
 The funny syntax with angle brackets simply says that the output of `split`

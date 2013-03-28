@@ -2,7 +2,7 @@
 {-# LANGUAGE CPP,  MagicHash #-}
 {-# OPTIONS_HADDOCK hide #-}
 
-module PrimInt (
+module PrimInt(
  ptake, mtake, ztake, itake
  ) where
 
