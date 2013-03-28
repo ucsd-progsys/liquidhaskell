@@ -29,11 +29,6 @@ module TalkingAboutSets where
 import Data.Set hiding (filter, split)
 import Prelude  hiding (reverse, filter)
 
-prop_cup_dif_bad  :: Set Int -> Set Int -> Bool
-prop_cup_assoc    :: Set Int -> Set Int -> Set Int -> Bool
-prop_cap_comm     :: Set Int -> Set Int -> Bool
-prop_cap_dist     :: Set Int -> Set Int -> Set Int -> Bool
-{-@ split         :: xs:[a] -> ([a], [a])<{\ys zs -> (UnionElts xs ys zs)}> @-}
 \end{code}
 
 Talking about Sets (In Logic)
@@ -166,7 +161,6 @@ properties will *always* evaluate to `True`)
 Lets check that `intersection` is commutative ...
 
 \begin{code}
-{-@ prop_cap_comm :: Set Int -> Set Int -> Bool @-}
 prop_cap_comm x y 
   = boolAssert 
   $ (x `intersection` y) == (y `intersection` x)
@@ -175,8 +169,6 @@ prop_cap_comm x y
 that `union` is associative ...
 
 \begin{code}
-{-@ prop_cup_assoc :: Set Int -> Set Int -> Set Int -> Bool @-}
-
 prop_cup_assoc x y z 
   = boolAssert 
   $ (x `union` (y `union` z)) == (x `union` y) `union` z
@@ -185,7 +177,6 @@ prop_cup_assoc x y z
 and that `union` distributes over `intersection`.
 
 \begin{code}
-{-@ prop_cap_dist :: Set Int -> Set Int -> Set Int -> Bool @-}
 prop_cap_dist x y z 
   = boolAssert 
   $  (x `intersection` (y `union` z)) 
@@ -196,7 +187,6 @@ Of course, while we're at it, lets make sure LiquidHaskell
 doesn't prove anything thats *not* true ...
 
 \begin{code}
-{-@ prop_cup_dif_bad :: Set Int -> Set Int -> Bool @-}
 prop_cup_dif_bad x y
    = boolAssert 
    $ x == (x `union` y) `difference` y
@@ -336,8 +326,10 @@ split (x:xs) = (x:zs, ys)
     (ys, zs) = split xs
 \end{code}
 
-\begin{code} LiquidHaskell verifies that the relevant property of split is
-{- split :: xs:[a] -> ([a], [a])<{\ys zs -> (UnionElts xs ys zs)}> -} 
+LiquidHaskell verifies that the relevant property of split is
+
+\begin{code} 
+{-@ split         :: xs:[a] -> ([a], [a])<{\ys zs -> (UnionElts xs ys zs)}> @-}
 \end{code}
 
 The funny syntax with angle brackets simply says that the output of `split`

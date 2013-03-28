@@ -69,10 +69,7 @@ bbaseNoAppP
 bareTyArgP 
   =  try (braces $ liftM RExprArg exprP)
  <|> try bareAtomNoAppP
- -- <|> braces (liftM RExprArg exprP) -- ^ braces needed to distinguish tyvar from evar args
  <|> try (parens bareTypeP)
- -- <|> try (liftM RExprArg exprP) 
- -- <|> liftM RExprArg (parens exprP) 
 
 bareAtomNoAppP 
   =  refP bbaseNoAppP 
