@@ -55,13 +55,12 @@ import qualified Control.Exception   as Ex
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
 
-makeGhcSpec :: String -> [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
-makeGhcSpec name vars env spec 
-  = checkGhcSpec <$> makeGhcSpec' name vars env spec 
+makeGhcSpec, makeGhcSpec' :: Config -> String -> [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
+makeGhcSpec cfg name vars env spec 
+  = checkGhcSpec <$> makeGhcSpec' cfg name vars env spec 
 
 
-makeGhcSpec' :: String -> [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
-makeGhcSpec' name vars env spec 
+makeGhcSpec' cfg name vars env spec 
   = do (tcs, dcs)      <- makeConTypes    env  name         $ Ms.dataDecls  spec 
        let (tcs', dcs') = wiredTyDataCons 
        let tycons       = tcs ++ tcs'    
@@ -70,8 +69,7 @@ makeGhcSpec' name vars env spec
        (cs, ms)        <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
        sigs'           <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
-       embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec 
-
+       embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec
        let sigs         = [(x, (txRefSort benv . txExpToBind) <$> t) | (x, t) <- sigs'] 
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs datacons
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms ] -- first val <$> ms 
@@ -87,6 +85,7 @@ makeGhcSpec' name vars env spec
                              , freeSyms   = syms' 
                              , tcEmbeds   = embs 
                              , qualifiers = Ms.qualifiers spec 
+                             , tgtVars    = makeTargetVars vars (binds cfg)
                              }
 
 
@@ -194,6 +193,9 @@ makeMeasureSpec env m = execBare mkSpec env
                  >>= return . mapFst (mapSnd uRType <$>) . Ms.dataConTypes 
         m'     = first (mapReft ur_reft) m
 
+makeTargetVars :: [Var] -> [String] -> TargetVars
+makeTargetVars = undefined 
+
 makeAssumeSpec :: BareEnv -> [Var] -> [(LocSymbol, BareType)] -> IO [(Var, Located SpecType)]
 makeAssumeSpec env vs xbs = execBare mkAspec env 
   where 
@@ -259,15 +261,6 @@ makeSymbols vs xs' xts yts = xvs
     zs'  = (concatMap freeSymbols ((snd <$> yts))) `sortDiff` xs''
     xs   = sortNub $ zs ++ zs'
     xvs  = sortNub [(x, v) | (v, _, x) <- joinIds vs (zip xs xs)]
-    -- env = S.fromList ((fst <$> xvs) ++ xs')
-
--- joinIds        ::  (Symbolic a) => [Var] -> [(a, t)] -> [(Var, a, t)]
--- joinIds vs xts = catMaybes [(, x, t) <$> tx x | (x, t) <- xts]   
---   where 
---     vm         = M.fromList [(showFix v, v) | v <- vs]
---     tx x       = {- traceShow ("joinId x = " ++ showFix x) $-} M.lookup (ss x) vm
---     ss         = symbolString . symbol 
-
 
 joinIds        ::  (Symbolic a) => [Var] -> [(a, t)] -> [(Var, a, t)]
 joinIds vs xts = catMaybes [(, x, t) <$> tx x | (x, t) <- xts]   
