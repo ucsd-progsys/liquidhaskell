@@ -1078,22 +1078,37 @@ loop_take n t@(Text arr off len) !i !cnt
 -- | /O(n)/ 'drop' @n@, applied to a 'Text', returns the suffix of the
 -- 'Text' after the first @n@ characters, or the empty 'Text' if @n@
 -- is greater than the length of the 'Text'. Subject to fusion.
-{- drop :: n:Int
+{-@ drop :: n:{v:Int | v >= 0}
          -> t:Text
-         -> {v:Text | ((((tlen t) > n)  <=> ((tlen v) = ((tlen t) - n)))
-                    && (((tlen t) <= n) <=> ((tlen v) = 0)))}
-  -}
+         -> {v:Text | ((tlength v) <= ((((tlength t) - n) <= 0) ? 0 : ((tlength t) - n)))}
+  @-}
+         -- -> {v:Text | ((((tlen t) > n)  <=> ((tlen v) = ((tlen t) - n)))
+         --            && (((tlen t) <= n) <=> ((tlen v) = 0)))}
 --LIQUID          -> {v:Text | (tlen v) <= ((tlen t) - n)}
---LIQUID FIXME: need to assign a useful type to `iter_' but what should it be??
 drop :: Int -> Text -> Text
-drop n t@(Text arr off len)
+drop = drop'
+drop' n t@(Text arr off len)
     | n <= 0    = t
     | n >= len  = empty
-    | otherwise = loop 0 0
-  where loop !i !cnt
-            | i >= len || cnt >= n   = Text arr (off+i) (len-i)
-            | otherwise              = loop (i+d) (cnt+1)
-            where d = iter_ t i
+    | otherwise = loop_drop n t 0 0
+  -- where loop !i !cnt
+  --           | i >= len || cnt >= n   = P.id $ Text arr (off+i) (P.id (len-i))
+  --           | i <  len && cnt <  n   = let d = iter_ t i
+  --                                      in loop (i+d) (cnt+1)
+--LIQUID            where d = iter_ t i
+{-@ loop_drop :: n:{v:Int | v >= 0}
+              -> t:Text
+              -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
+              -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
+                            && (v <= n))}
+              -> {v:Text | ((tlength v) <= ((((tlength t) - n) <= 0) ? 0 : ((tlength t) - n)))}
+  @-}
+loop_drop :: Int -> Text -> Int -> Int -> Text
+loop_drop n t@(Text arr off len) !i !cnt
+    | i >= len || cnt >= n   = P.id $ Text arr (off+i) (P.id (len-i))
+    | i <  len && cnt <  n   = let d = iter_ t i
+                                       in loop_drop n t (i+d) (cnt+1)
+
 {-# INLINE [1] drop #-}
 
 {-# RULES
