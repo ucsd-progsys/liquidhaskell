@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 
+import qualified Data.HashMap.Strict as M
 import qualified Control.Exception as Ex
 import Data.Monoid      (mconcat)
 import System.Exit 
@@ -13,7 +14,7 @@ import Language.Fixpoint.Files
 import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Interface      
-import Language.Fixpoint.Types (Fixpoint(..), sinfo, colorResult, FixResult (..),showFix)
+import Language.Fixpoint.Types (Fixpoint(..), sinfo, colorResult, FixResult (..),showFix, isFalse)
 
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.CmdLine
@@ -49,7 +50,11 @@ liquidOne cfg target =
      -- donePhase Loud "START: Write CGI (can be slow!)"
      -- {-# SCC "writeCGI" #-} writeCGI target cgi 
      -- donePhase Loud "FINISH: Write CGI"
-     (r, sol) <- solve target (hqFiles info) (cgInfoFInfo cgi)
+     hqBot <- getHqBotPath
+     (_, solBot) <- solve target [hqBot] (cgInfoFInfoBot cgi)
+     let falseKvars = M.keys (M.filterWithKey (const isFalse) solBot)
+     putStrLn $ "False KVars" ++ show falseKvars
+     (r, sol)    <- solve target (hqFiles info) (cgInfoFInfo cgi falseKvars)
      donePhase Loud "solve"
      {-# SCC "annotate" #-} annotate target (resultSrcSpan r) sol $ annotMap cgi
      donePhase Loud "annotate"

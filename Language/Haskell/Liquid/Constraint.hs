@@ -15,7 +15,7 @@ module Language.Haskell.Liquid.Constraint (
   , generateConstraints
     
     -- * Project Constraints to Fixpoint Format
-  , cgInfoFInfo  
+  , cgInfoFInfo , cgInfoFInfoBot
   
   -- * KVars in constraints, for debug purposes
   -- , kvars, kvars'
@@ -41,7 +41,7 @@ import Control.Applicative      ((<$>))
 import Control.Exception.Base
 
 import Data.Monoid              (mconcat)
-import Data.Maybe               (fromMaybe)
+import Data.Maybe               (fromMaybe, catMaybes)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
@@ -1210,8 +1210,15 @@ memberREnv x (REnv env)   = M.member x env
 -- domREnv (REnv env)        = M.keys env
 -- emptyREnv                 = REnv M.empty
 
-cgInfoFInfo cgi 
-  = F.FI { F.cm    = M.fromList $ F.addIds $ fixCs cgi 
+
+cgInfoFInfoBot cgi = cgInfo cgi{specQuals=[]}
+
+cgInfoFInfo cgi kvars = cgInfo cgi{fixCs = fixCs' ++ trueCs}
+  where fixCs' = concatMap (updateCs kvars) (fixCs cgi) 
+        trueCs = (`F.trueSubCKvar` Ci noSrcSpan) <$> kvars
+
+cgInfo cgi
+  = F.FI { F.cm    = M.fromList $ F.addIds $ fixCs cgi
          , F.ws    = fixWfs cgi  
          , F.bs    = binds cgi 
          , F.gs    = globals cgi 
@@ -1220,3 +1227,15 @@ cgInfoFInfo cgi
          , F.quals = specQuals cgi
          }
 
+updateCs kvars cs
+  | null lhskvars || F.isFalse rhs
+  = [cs] 
+  | all (`elem` kvars) lhskvars 
+  = []
+  | any (`elem` kvars) lhskvars
+  = [F.removeLhsKvars cs kvars]
+  | otherwise 
+  = [cs]
+  where lhskvars = F.reftKVars lhs
+        lhs      = F.lhsCs cs
+        rhs      = F.rhsCs cs
