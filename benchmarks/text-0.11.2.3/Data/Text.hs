@@ -974,15 +974,20 @@ mapAccumR f z0 = second reverse . S.mapAccumL g z0 . reverseStream
               -> t:Text
               -> {v:Text | ((n = 0) ? ((tlen v) = 0) : ((tlen v) >= (tlen t)))} @-}
 replicate :: Int -> Text -> Text
+--LIQUID split into separate definitions to help liquidhaskell...
+replicate 0 _              = empty
+replicate 1 t@(Text a o l) = t
+replicate n t@(Text a o 0) = t
 replicate n t@(Text a o l)
-    | n <= 0 || l <= 0      = empty
-    | n == 1                = t
+    --LIQUID | n <= 0 || l <= 0      = let Text _ _ l' = empty
+    --LIQUID                           in liquidAssert (l' == 0) empty
+    --LIQUID | n == 1                = liquidAssert (l >= l && n > 0) t
     | isSingleton t         = replicateChar n (unsafeHead t)
     | otherwise             = Text (A.run x) 0 len
     --LIQUID | n <= maxBound `div` l = Text (A.run x) 0 len
     --LIQUID | otherwise             = overflowError "replicate"
   where
-    len = liquidAssume (l > 0 && n > 0) $ l * n
+    len = l * n
     x = do
       arr <- A.new len
       let loop !d !i | i >= n    = return arr
