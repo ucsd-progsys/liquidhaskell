@@ -4,14 +4,36 @@ TODO
 * [jhala]  benchmarks: Data.Bytestring
     ? Upgrade to GHC 7.6.1 (boxed tuple commenting out C issue)
     ? readsPrec
-
-* Upgrade
+    ? big constants issue : _word64 34534523452134213524525 due to (deriving Typeable)
 
 * Inferred types for inner-"go" are crap. e.g. 
     - tests/pos/go.hs
 
 * error messages: expected XXX got YYY?
+
+* incremental checking
+    - save top-level types to file (.spec)
+    - reload
+    - check all but specified function
+
+* deep-measures: measures over nested type constructors
+
+    measure fst :: (a, b) -> a
+    fst (x, y)     =  x
+
+    measure snd :: (a, b) -> b
+    fst (x, y)     =  y
+
+    measure listKeys :: [(k, v)] -> (Set a) 
+    listKeys([])   = {v | (? Set_emp(v))}
+    listKeys(x:xs) = {v | v = (Set_cup (Set_sng (fst x)) (listKeys xs)) }
+
+    measure llElts :: [[a]] -> (Set a)
+    llElts ([])    = {v | (? Set_emp(v)) }
+    llElts (x:xs)  = {v | v = (Set_cup (listElts x) (llElts xs)) } 
+
 * wtf is include/KMeansHelper.hs ? Fix module import issue
+
 * qualified names break spec imports -- tests/todo/qualifiedvector.hs 
 
 * DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
