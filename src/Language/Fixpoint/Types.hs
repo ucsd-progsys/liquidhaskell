@@ -45,7 +45,9 @@ module Language.Fixpoint.Types (
   , Predicate (..)
 
   -- * Constraints and Solutions
-  , SubC, WfC, subC, wfC, Tag, FixResult (..), FixSolution, addIds, sinfo 
+  , SubC, WfC, subC, lhsCs, rhsCs, wfC, Tag, FixResult (..), FixSolution, addIds, sinfo 
+  , trueSubCKvar
+  , removeLhsKvars
 
   -- * Environments
   , SEnv, emptySEnv, fromListSEnv, mapSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
@@ -69,6 +71,7 @@ module Language.Fixpoint.Types (
   , isTautoReft
   , isSingletonReft
   , isEVar
+  , isFalse
   , flattenRefas, shiftVV
 
   -- * Substitutions 
@@ -1019,6 +1022,18 @@ wfC  = WfC
 subC γ p (RR t1 r1) (RR t2 r2) x y z 
     = SubC γ p (RR t1 (shiftVV r1 vvCon)) (RR t2 (shiftVV r2 vvCon)) x y z
 
+lhsCs = sr_reft . slhs
+rhsCs = sr_reft . srhs
+
+removeLhsKvars cs vs 
+  = cs{slhs = goRR (slhs cs)} 
+  where goRR rr                     = rr{sr_reft = goReft (sr_reft rr)} 
+        goReft (Reft(v, rs))        = Reft(v, filter f rs)
+        f (RKvar v _) | v `elem` vs = False
+        f r                         = True 
+        
+trueSubCKvar v
+  = subC emptyIBindEnv PTrue mempty (RR mempty (Reft(vv_, [RKvar v emptySubst]))) Nothing [0] 
 
 shiftVV r@(Reft (v, ras)) v' 
    | v == v'   = r
@@ -1145,5 +1160,17 @@ instance Reftable SortedReft where
   toReft   = sr_reft
   params _ = []
 
+class Falseable a where
+  isFalse :: a -> Bool
 
+instance Falseable Pred where
+  isFalse (PFalse) = True
+  isFalse _        = False
+
+instance Falseable Refa where
+  isFalse (RConc p) = isFalse p
+  isFalse _         = False
+
+instance Falseable Reft where
+  isFalse (Reft(_, rs)) = or [isFalse p | RConc p <- rs]
 
