@@ -85,7 +85,7 @@ makeGhcSpec' cfg name vars env spec
                              , freeSyms   = syms' 
                              , tcEmbeds   = embs 
                              , qualifiers = Ms.qualifiers spec 
-                             , tgtVars    = makeTargetVars vars (binds cfg)
+                             , tgtVars    = AllVars -- makeTargetVars vars (binds cfg)
                              }
 
 
