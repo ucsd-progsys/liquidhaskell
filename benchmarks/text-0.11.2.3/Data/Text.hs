@@ -1080,34 +1080,46 @@ loop_take n t@(Text arr off len) !i !cnt
 -- is greater than the length of the 'Text'. Subject to fusion.
 {-@ drop :: n:{v:Int | v >= 0}
          -> t:Text
-         -> {v:Text | ((tlength v) <= ((((tlength t) - n) <= 0) ? 0 : ((tlength t) - n)))}
+         -> {v:Text | ((tlength v) = (((tlength t) <= n) ? 0 : ((tlength t) - n)))}
   @-}
-         -- -> {v:Text | ((((tlen t) > n)  <=> ((tlen v) = ((tlen t) - n)))
-         --            && (((tlen t) <= n) <=> ((tlen v) = 0)))}
---LIQUID          -> {v:Text | (tlen v) <= ((tlen t) - n)}
 drop :: Int -> Text -> Text
-drop = drop'
-drop' n t@(Text arr off len)
-    | n <= 0    = t
+drop n t@(Text arr off len)
     | n >= len  = empty
-    | otherwise = loop_drop n t 0 0
-  -- where loop !i !cnt
-  --           | i >= len || cnt >= n   = P.id $ Text arr (off+i) (P.id (len-i))
-  --           | i <  len && cnt <  n   = let d = iter_ t i
-  --                                      in loop (i+d) (cnt+1)
---LIQUID            where d = iter_ t i
-{-@ loop_drop :: n:{v:Int | v >= 0}
-              -> t:Text
+    --LIQUID FIXME: this changes the running time, should really move it back into loop_drop
+    | n >= length t = empty
+    --LIQUID rearrange checks to ease typechecking
+    | n <= 0    = t
+    | otherwise = loop_drop t n 0 0
+  --LIQUID where loop !i !cnt
+  --LIQUID           | i >= len || cnt >= n   = Text arr (off+i) (len-i)
+  --LIQUID           | i <  len && cnt <  n   = let d = iter_ t i
+  --LIQUID                                      in loop (i+d) (cnt+1)
+  --LIQUID          where d = iter_ t i
+
+{-@ loop_drop :: t:Text
+              -> n:{v:Int | ((v >= 0) && (v < (tlength t)))}
               -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
               -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
                             && (v <= n))}
-              -> {v:Text | ((tlength v) <= ((((tlength t) - n) <= 0) ? 0 : ((tlength t) - n)))}
+              -> {v:Text | ((tlength v) = ((tlength t) - n))}
   @-}
-loop_drop :: Int -> Text -> Int -> Int -> Text
-loop_drop n t@(Text arr off len) !i !cnt
-    | i >= len || cnt >= n   = P.id $ Text arr (off+i) (P.id (len-i))
+loop_drop :: Text -> Int -> Int -> Int -> Text
+loop_drop t@(Text arr off len) n !i !cnt
+    | i >= len               = Text arr (off+i) (len-i)
+    | cnt == n               = let len' = liquidAssume (axiom_numchars_split t i) (len-i)
+                               in Text arr (off+i) len'
     | i <  len && cnt <  n   = let d = iter_ t i
-                                       in loop_drop n t (i+d) (cnt+1)
+                               in loop_drop t n (i+d) (cnt+1)
+
+{-@ axiom_numchars_split
+      :: t:Text
+      -> i:Int
+      -> {v:Bool | ((Prop v) <=>
+                    ((numchars (tarr t) (toff t) (tlen t))
+                     = ((numchars (tarr t) (toff t) i)
+                        + (numchars (tarr t) ((toff t) + i) ((tlen t) - i)))))}@-}
+axiom_numchars_split :: Text -> Int -> Bool
+axiom_numchars_split = P.undefined
 
 {-# INLINE [1] drop #-}
 
