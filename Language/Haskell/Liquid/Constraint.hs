@@ -15,7 +15,7 @@ module Language.Haskell.Liquid.Constraint (
   , generateConstraints
     
     -- * Project Constraints to Fixpoint Format
-  , cgInfoFInfo , cgInfoFInfoBot
+  , cgInfoFInfo , cgInfoFInfoBot, cgInfoFInfoKvars
   
   -- * KVars in constraints, for debug purposes
   -- , kvars, kvars'
@@ -1211,13 +1211,13 @@ memberREnv x (REnv env)   = M.member x env
 -- emptyREnv                 = REnv M.empty
 
 
-cgInfoFInfoBot cgi = cgInfo cgi{specQuals=[]}
+cgInfoFInfoBot cgi = cgInfoFInfo cgi{specQuals=[]}
 
-cgInfoFInfo cgi kvars = cgInfo cgi{fixCs = fixCs' ++ trueCs}
+cgInfoFInfoKvars cgi kvars = cgInfoFInfo cgi{fixCs = fixCs' ++ trueCs}
   where fixCs' = concatMap (updateCs kvars) (fixCs cgi) 
         trueCs = (`F.trueSubCKvar` Ci noSrcSpan) <$> kvars
 
-cgInfo cgi
+cgInfoFInfo cgi
   = F.FI { F.cm    = M.fromList $ F.addIds $ fixCs cgi
          , F.ws    = fixWfs cgi  
          , F.bs    = binds cgi 
@@ -1230,12 +1230,15 @@ cgInfo cgi
 updateCs kvars cs
   | null lhskvars || F.isFalse rhs
   = [cs] 
-  | all (`elem` kvars) lhskvars 
+  | all (`elem` kvars) lhskvars && null lhsconcs
   = []
   | any (`elem` kvars) lhskvars
   = [F.removeLhsKvars cs kvars]
   | otherwise 
   = [cs]
   where lhskvars = F.reftKVars lhs
+        rhskvars = F.reftKVars rhs
         lhs      = F.lhsCs cs
         rhs      = F.rhsCs cs
+        F.Reft(_, lhspds) = lhs
+        lhsconcs = [p | F.RConc p <- lhspds]

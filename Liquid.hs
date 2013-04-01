@@ -50,11 +50,7 @@ liquidOne cfg target =
      -- donePhase Loud "START: Write CGI (can be slow!)"
      -- {-# SCC "writeCGI" #-} writeCGI target cgi 
      -- donePhase Loud "FINISH: Write CGI"
-     hqBot <- getHqBotPath
-     (_, solBot) <- solve target [hqBot] (cgInfoFInfoBot cgi)
-     let falseKvars = M.keys (M.filterWithKey (const isFalse) solBot)
-     putStrLn $ "False KVars" ++ show falseKvars
-     (r, sol)    <- solve target (hqFiles info) (cgInfoFInfo cgi falseKvars)
+     (r, sol) <- solveCs (nofalse cfg) target cgi info
      donePhase Loud "solve"
      {-# SCC "annotate" #-} annotate target (resultSrcSpan r) sol $ annotMap cgi
      donePhase Loud "annotate"
@@ -62,6 +58,16 @@ liquidOne cfg target =
      writeResult target r
      -- putStrLn $ "*************** DONE: " ++ showPpr r ++ " ********************"
      return r
+
+solveCs nofalse target cgi info | nofalse
+  = do  hqBot <- getHqBotPath
+        (_, solBot) <- solve target [hqBot] (cgInfoFInfoBot cgi)
+        let falseKvars = M.keys (M.filterWithKey (const isFalse) solBot)
+        putStrLn $ "False KVars" ++ show falseKvars
+        solve target (hqFiles info) (cgInfoFInfoKvars cgi falseKvars)
+
+solveCs nofalse target cgi info
+  = solve target (hqFiles info) (cgInfoFInfo cgi)
 
 writeResult target = writeFile (extFileName Result target) . showFix
 resultSrcSpan      = fmap (tx . sinfo) 
