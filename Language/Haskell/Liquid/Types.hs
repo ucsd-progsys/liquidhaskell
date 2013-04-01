@@ -73,6 +73,7 @@ data Config = Config {
     files :: [FilePath] -- ^ source files to check
   , idirs :: [FilePath] -- ^ path to directory for including specs
   , binds :: ![String]  -- ^ top-level binders to check (empty means check ALL) 
+  , noCheckUnknown :: Bool -- ^ whether to complain about specifications for unexported and unused values
   } deriving (Data, Typeable, Show, Eq)
 
 
