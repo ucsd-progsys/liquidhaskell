@@ -12,6 +12,7 @@ cmp (GT) = { v | v = GHC.Types.GT }
 
 
 assume GHC.Classes.&&      :: x: Bool -> y: Bool    -> {v: Bool | (Prop(v) <=> (Prop(x) && Prop(y)))}
+assume GHC.Classes.||      :: x: Bool -> y: Bool    -> {v: Bool | (Prop(v) <=> (Prop(x) || Prop(y)))}
 assume GHC.Classes.==      :: (Eq  a) => x:a -> y:a -> {v:Bool | (Prop(v) <=> x = y)}
 assume GHC.Classes./=      :: (Eq  a) => x:a -> y:a -> {v:Bool | (Prop(v) <=> x != y)}
 assume GHC.Classes.>       :: (Ord a) => x:a -> y:a -> {v:Bool | (Prop(v) <=> x > y)}
