@@ -21,6 +21,9 @@ invariant {v:Text | (numchars (tarr v) (toff v) 0) = 0}
 invariant {v:Text | (numchars (tarr v) (toff v) (tlen v)) >= 0}
 invariant {v:Text | (numchars (tarr v) (toff v) (tlen v)) <= (tlen v)}
 
+invariant {v:Text | (((tlength v) = 0) <=> ((tlen v) = 0))}
+invariant {v:Text | (tlength v) >= 0}
+
 measure tlength :: Text -> Int
 tlength (Text a o l) = numchars(a,o,l)
 
