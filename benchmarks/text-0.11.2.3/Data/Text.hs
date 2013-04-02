@@ -233,6 +233,7 @@ import Data.Int (Int64)
 --LIQUID
 import Prelude (Integer(..), Num(..), Real(..), Integral(..))
 import Data.Word --(Word16(..))
+import Data.Text.Axioms
 import Language.Haskell.Liquid.Prelude
 
 
@@ -376,7 +377,7 @@ compareText ta@(Text _arrA _offA lenA) tb@(Text _arrB _offB lenB)
 
 -- | /O(n)/ Convert a 'String' into a 'Text'.  Subject to
 -- fusion.  Performs replacement on invalid scalar values.
-{-@ pack :: s:String -> {v:Text | (len s) = (tlen v)} @-}
+{-@ pack :: s:String -> {v:Text | (len s) = (tlength v)} @-}
 pack :: String -> Text
 --LIQUID pack = unstream . S.streamList . L.map safe
 --LIQUID for some reason (.) is losing some of the refinements
@@ -387,7 +388,7 @@ pack str = let l = L.map safe str
 {-# INLINE [1] pack #-}
 
 -- | /O(n)/ Convert a Text into a String.  Subject to fusion.
-{-@ unpack :: t:Text -> {v:String | (tlen t) = (len v)} @-}
+{-@ unpack :: t:Text -> {v:String | (tlength t) = (len v)} @-}
 unpack :: Text -> String
 --LIQUID unpack = S.unstreamList . stream
 unpack t = S.unstreamList $ stream t
@@ -408,7 +409,7 @@ unpack t = S.unstreamList $ stream t
 
 -- | /O(1)/ Convert a character into a Text.  Subject to fusion.
 -- Performs replacement on invalid scalar values.
-{-@ singleton :: Char -> {v:Text | (tlen v) = 1} @-}
+{-@ singleton :: Char -> {v:Text | (tlength v) = 1} @-}
 singleton :: Char -> Text
 --LIQUID singleton = unstream . S.singleton . safe
 --LIQUID another weird issue here: `S.singleton $ safe c` does not get the
@@ -425,7 +426,7 @@ singleton c = let c' = safe c
 -- is more costly than its 'List' counterpart because it requires
 -- copying a new array.  Subject to fusion.  Performs replacement on
 -- invalid scalar values.
-{-@ cons :: Char -> t:Text -> {v:Text | (tlen v) > (tlen t)} @-}
+{-@ cons :: Char -> t:Text -> {v:Text | (tlength v) > (tlength t)} @-}
 cons :: Char -> Text -> Text
 cons c t = unstream (S.cons (safe c) (stream t))
 {-# INLINE cons #-}
@@ -435,19 +436,21 @@ infixr 5 `cons`
 -- | /O(n)/ Adds a character to the end of a 'Text'.  This copies the
 -- entire array in the process, unless fused.  Subject to fusion.
 -- Performs replacement on invalid scalar values.
-{-@ snoc :: t:Text -> Char -> {v:Text | (tlen v) > (tlen t)} @-}
+{-@ snoc :: t:Text -> Char -> {v:Text | (tlength v) > (tlength t)} @-}
 snoc :: Text -> Char -> Text
 snoc t c = unstream (S.snoc (stream t) (safe c))
 {-# INLINE snoc #-}
 
 -- | /O(n)/ Appends one 'Text' to the other by copying both of them
 -- into a new 'Text'.  Subject to fusion.
-{-@ append :: t1:Text -> t2:Text -> {v:Text | (tlen v) = ((tlen t1) + (tlen t2))} @-}
+{-@ append :: t1:Text -> t2:Text -> {v:Text | (tlength v) = ((tlength t1) + (tlength t2))} @-}
 append :: Text -> Text -> Text
 append a@(Text arr1 off1 len1) b@(Text arr2 off2 len2)
     | len1 == 0 = b
     | len2 == 0 = a
-    | len > 0   = Text (A.run x) 0 len
+    | len > 0   = let t = Text (A.run x) 0 len
+                  --LIQUID FIXME: this axiom is fragile, would prefer to reason about `A.run x`
+                  in liquidAssume (axiom_numchars_append a b t) t
     | otherwise = overflowError "append"
     where
       len = len1+len2
@@ -467,7 +470,7 @@ append a@(Text arr1 off1 len1) b@(Text arr2 off2 len2)
 
 -- | /O(1)/ Returns the first character of a 'Text', which must be
 -- non-empty.  Subject to fusion.
-{-@ head :: {v:Text | (tlen v) > 0} -> Char @-}
+{-@ head :: {v:Text | (tlength v) > 0} -> Char @-}
 head :: Text -> Char
 head t = S.head (stream t)
 {-# INLINE head #-}
@@ -488,7 +491,7 @@ second f (a, b) = (a, f b)
 
 -- | /O(1)/ Returns the last character of a 'Text', which must be
 -- non-empty.  Subject to fusion.
-{-@ last :: {v:Text | (tlen v) > 0} -> Char @-}
+{-@ last :: {v:Text | (tlength v) > 0} -> Char @-}
 last :: Text -> Char
 last (Text arr off len)
     | len <= 0                 = liquidError "last"
@@ -507,14 +510,15 @@ last (Text arr off len)
 
 -- | /O(1)/ Returns all characters after the head of a 'Text', which
 -- must be non-empty.  Subject to fusion.
-{-@ tail :: t:{v:Text | (tlen v) > 0}
-         -> {v:Text | (tlen t) > (tlen v)}
+{-@ tail :: t:{v:Text | (tlength v) > 0}
+         -> {v:Text | (tlength v) < (tlength t)}
   @-}
 tail :: Text -> Text
 tail t@(Text arr off len)
     | len <= 0   = liquidError "tail"
-    | otherwise  = textP arr (off+d) (len-d)
+    | otherwise  = Text arr (off+d) len'
     where d = iter_ t 0
+          len' = liquidAssume (axiom_numchars_split t d) (len-d)
 {-# INLINE [1] tail #-}
 
 {-# RULES
@@ -547,11 +551,11 @@ init (Text arr off len)
 
 -- | /O(1)/ Tests whether a 'Text' is empty or not.  Subject to
 -- fusion.
-{-@ null :: t:Text -> {v:Bool | ((Prop v) <=> ((tlen t) = 0))} @-}
+{-@ null :: t:Text -> {v:Bool | ((Prop v) <=> ((tlength t) = 0))} @-}
 null :: Text -> Bool
 null (Text _arr _off len) =
 --LIQUID #if defined(ASSERTS)
-    liquidAssert (len >= 0) $
+--LIQUID    assert (len >= 0) $
 --LIQUID #endif
     len == 0
 {-# INLINE [1] null #-}
@@ -565,7 +569,7 @@ null (Text _arr _off len) =
 
 -- | /O(1)/ Tests whether a 'Text' contains exactly one character.
 -- Subject to fusion.
-{-@ isSingleton :: t:Text -> {v:Bool | ((Prop v) <=> ((tlen t) = 1))} @-}
+{-@ isSingleton :: t:Text -> {v:Bool | ((Prop v) <=> ((tlength t) = 1))} @-}
 isSingleton :: Text -> Bool
 --LIQUID isSingleton = S.isSingleton . stream
 isSingleton t = S.isSingleton $ stream t
@@ -573,7 +577,7 @@ isSingleton t = S.isSingleton $ stream t
 
 -- | /O(n)/ Returns the number of characters in a 'Text'.
 -- Subject to fusion.
-{-@ length :: t:Text -> {v:Int | v = (tlen t)} @-}
+{-@ length :: t:Text -> {v:Int | v = (tlength t)} @-}
 length :: Text -> Int
 length t = S.length (stream t)
 {-# INLINE length #-}
@@ -629,7 +633,7 @@ compareLength t n = S.compareLengthI (stream t) n
 -- | /O(n)/ 'map' @f@ @t@ is the 'Text' obtained by applying @f@ to
 -- each element of @t@.  Subject to fusion.  Performs replacement on
 -- invalid scalar values.
-{-@ map :: (Char -> Char) -> t:Text -> {v:Text | (tlen t) = (tlen v)} @-}
+{-@ map :: (Char -> Char) -> t:Text -> {v:Text | (tlength t) = (tlength v)} @-}
 map :: (Char -> Char) -> Text -> Text
 map f t = unstream (S.map (safe . f) (stream t))
 {-# INLINE [1] map #-}
@@ -646,13 +650,13 @@ intercalate t = concat . (U.intersperse t)
 -- | /O(n)/ The 'intersperse' function takes a character and places it
 -- between the characters of a 'Text'.  Subject to fusion.  Performs
 -- replacement on invalid scalar values.
-{-@ intersperse :: Char -> t:Text -> {v:Text | (tlen v) > (tlen t)} @-}
+{-@ intersperse :: Char -> t:Text -> {v:Text | (tlength v) > (tlength t)} @-}
 intersperse     :: Char -> Text -> Text
 intersperse c t = unstream (S.intersperse (safe c) (stream t))
 {-# INLINE intersperse #-}
 
 -- | /O(n)/ Reverse the characters of a string. Subject to fusion.
-{-@ reverse :: t:Text -> {v:Text | (tlen v) = (tlen t)} @-}
+{-@ reverse :: t:Text -> {v:Text | (tlength v) = (tlength t)} @-}
 reverse :: Text -> Text
 reverse t = S.reverse (stream t)
 {-# INLINE reverse #-}
@@ -704,7 +708,7 @@ replace s d = intercalate d . splitOn s
 -- \"&#x576;\" (now, U+0576), while the Greek \"&#xb5;\" (micro sign,
 -- U+00B5) is case folded to \"&#x3bc;\" (small letter mu, U+03BC)
 -- instead of itself.
-{-@ toCaseFold :: t:Text -> {v:Text | (tlen v) >= (tlen t)} @-}
+{-@ toCaseFold :: t:Text -> {v:Text | (tlength v) >= (tlength t)} @-}
 toCaseFold :: Text -> Text
 toCaseFold t = unstream (S.toCaseFold (stream t))
 {-# INLINE [0] toCaseFold #-}
@@ -714,7 +718,7 @@ toCaseFold t = unstream (S.toCaseFold (stream t))
 -- For instance, \"&#x130;\" (Latin capital letter I with dot above,
 -- U+0130) maps to the sequence \"i\" (Latin small letter i, U+0069) followed
 -- by \" &#x307;\" (combining dot above, U+0307).
-{-@ toLower :: t:Text -> {v:Text | (tlen v) >= (tlen t)} @-}
+{-@ toLower :: t:Text -> {v:Text | (tlength v) >= (tlength t)} @-}
 toLower :: Text -> Text
 toLower t = unstream (S.toLower (stream t))
 {-# INLINE toLower #-}
@@ -723,7 +727,7 @@ toLower t = unstream (S.toLower (stream t))
 -- conversion.  The result string may be longer than the input string.
 -- For instance, the German \"&#xdf;\" (eszett, U+00DF) maps to the
 -- two-letter sequence \"SS\".
-{-@ toUpper :: t:Text -> {v:Text | (tlen v) >= (tlen t)} @-}
+{-@ toUpper :: t:Text -> {v:Text | (tlength v) >= (tlength t)} @-}
 toUpper :: Text -> Text
 toUpper t = unstream (S.toUpper (stream t))
 {-# INLINE toUpper #-}
@@ -739,7 +743,7 @@ toUpper t = unstream (S.toUpper (stream t))
 {-@ justifyLeft :: i:Int
                 -> Char
                 -> t:Text
-                -> {v:Text | (Max (tlen v) i (tlen t))}
+                -> {v:Text | (Max (tlength v) i (tlength t))}
   @-}
 justifyLeft :: Int -> Char -> Text -> Text
 justifyLeft k c t
@@ -766,7 +770,7 @@ justifyLeft k c t
 {-@ justifyRight :: i:Int
                  -> Char
                  -> t:Text
-                 -> {v:Text | (Max (tlen v) i (tlen t))}
+                 -> {v:Text | (Max (tlength v) i (tlength t))}
   @-}
 justifyRight :: Int -> Char -> Text -> Text
 justifyRight k c t
@@ -785,7 +789,7 @@ justifyRight k c t
 {-@ center :: i:Int
            -> Char
            -> t:Text
-           -> {v:Text | (Max (tlen v) i (tlen t))}
+           -> {v:Text | (Max (tlength v) i (tlength t))}
   @-}
 center :: Int -> Char -> Text -> Text
 center k c t
@@ -921,7 +925,6 @@ scanl f z t = unstream (S.scanl g z (stream t))
 -- invalid scalar values.
 --
 -- > scanl1 f [x1, x2, ...] == [x1, x1 `f` x2, ...]
-{-@ scanl1 :: (Char -> Char -> Char) -> {v:Text | (tlen v) > 0} -> Text @-}
 scanl1 :: (Char -> Char -> Char) -> Text -> Text
 scanl1 f t | null t    = empty
            | otherwise = scanl f (unsafeHead t) (unsafeTail t)
@@ -939,7 +942,6 @@ scanr f z = S.reverse . S.reverseScanr g z . reverseStream
 -- | /O(n)/ 'scanr1' is a variant of 'scanr' that has no starting
 -- value argument.  Subject to fusion.  Performs replacement on
 -- invalid scalar values.
-{-@ scanr1 :: (Char -> Char -> Char) -> {v:Text | (tlen v) > 0} -> Text @-}
 scanr1 :: (Char -> Char -> Char) -> Text -> Text
 scanr1 f t | null t    = empty
            | otherwise = scanr f (last t) (init t)
@@ -972,18 +974,20 @@ mapAccumR f z0 = second reverse . S.mapAccumL g z0 . reverseStream
 -- @t@ repeated @n@ times.
 {-@ replicate :: n:{v:Int | v >= 0}
               -> t:Text
-              -> {v:Text | ((n = 0) ? ((tlen v) = 0) : ((tlen v) >= (tlen t)))} @-}
+              -> {v:Text | ((n = 0) ? ((tlength v) = 0) : ((tlength v) >= (tlength t)))} @-}
 replicate :: Int -> Text -> Text
+replicate = replicate'
 --LIQUID split into separate definitions to help liquidhaskell...
-replicate 0 _              = empty
-replicate 1 t@(Text a o l) = t
-replicate n t@(Text a o 0) = t
-replicate n t@(Text a o l)
+replicate' 0 _              = empty
+replicate' 1 t@(Text a o l) = t
+replicate' n t@(Text a o 0) = t
+replicate' n t@(Text a o l)
     --LIQUID | n <= 0 || l <= 0      = let Text _ _ l' = empty
     --LIQUID                           in liquidAssert (l' == 0) empty
     --LIQUID | n == 1                = liquidAssert (l >= l && n > 0) t
     | isSingleton t         = replicateChar n (unsafeHead t)
-    | otherwise             = Text (A.run x) 0 len
+    | otherwise             = let t' = Text (A.run x) 0 len
+                              in liquidAssume (axiom_numchars_replicate t t') t'
     --LIQUID | n <= maxBound `div` l = Text (A.run x) 0 len
     --LIQUID | otherwise             = overflowError "replicate"
   where
@@ -1003,7 +1007,7 @@ replicate n t@(Text a o l)
 
 -- | /O(n)/ 'replicateChar' @n@ @c@ is a 'Text' of length @n@ with @c@ the
 -- value of every element. Subject to fusion.
-{-@ replicateChar :: i:Int -> Char -> {v:Text | (tlen v) = i} @-}
+{-@ replicateChar :: n:Int -> Char -> {v:Text | (tlength v) = n} @-}
 replicateChar :: Int -> Char -> Text
 replicateChar n c = unstream (S.replicateCharI n (safe c))
 {-# INLINE replicateChar #-}
@@ -1110,17 +1114,6 @@ loop_drop t@(Text arr off len) n !i !cnt
                                in Text arr (off+i) len'
     | i <  len && cnt <  n   = let d = iter_ t i
                                in loop_drop t n (i+d) (cnt+1)
-
-{-@ axiom_numchars_split
-      :: t:Text
-      -> i:Int
-      -> {v:Bool | ((Prop v) <=>
-                    ((numchars (tarr t) (toff t) (tlen t))
-                     = ((numchars (tarr t) (toff t) i)
-                        + (numchars (tarr t) ((toff t) + i) ((tlen t) - i)))))}@-}
-axiom_numchars_split :: Text -> Int -> Bool
-axiom_numchars_split = P.undefined
-
 {-# INLINE [1] drop #-}
 
 {-# RULES
@@ -1151,7 +1144,7 @@ takeWhile p t@(Text arr off len) = loop 0
 
 -- | /O(n)/ 'dropWhile' @p@ @t@ returns the suffix remaining after
 -- 'takeWhile' @p@ @t@. Subject to fusion.
-{-@ dropWhile :: (Char -> Bool) -> t:Text -> {v:Text | (tlen v) <= (tlen t)} @-}
+{-@ dropWhile :: (Char -> Bool) -> t:Text -> {v:Text | (tlength v) <= (tlength t)} @-}
 dropWhile :: (Char -> Bool) -> Text -> Text
 dropWhile p t@(Text arr off len) = loop 0 0
   where loop !i !l | l >= len  = empty
