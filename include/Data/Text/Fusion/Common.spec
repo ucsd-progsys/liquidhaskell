@@ -10,6 +10,7 @@ streamList   :: l:[a] -> {v:S.Stream a | (slen v) = (len l)}
 unstreamList :: s:S.Stream a -> {v:[a] | (len v) = (slen s)}
 
 map :: (Char -> Char) -> s:S.Stream Char -> {v:S.Stream Char | (slen v) = (slen s)}
+filter :: (Char -> Bool) -> s:S.Stream Char -> {v:S.Stream Char | (slen v) <= (slen s)}
 
 intersperse :: Char -> s:S.Stream Char -> {v:S.Stream Char | (slen v) > (slen s)}
 

@@ -69,7 +69,7 @@ module Data.Text
     , intersperse
     , transpose
     , reverse
-    , replace
+--LIQUID    , replace
 
     -- ** Case conversion
     -- $case
@@ -140,7 +140,7 @@ module Data.Text
     -- ** Breaking into many substrings
     -- $split
 --LIQUID    , splitOn
-    , split
+--LIQUID    , split
     , chunksOf
 
     -- ** Breaking into lines and words
@@ -531,8 +531,8 @@ tail t@(Text arr off len)
 
 -- | /O(1)/ Returns all but the last character of a 'Text', which must
 -- be non-empty.  Subject to fusion.
-{-@ init :: t:{v:Text | (tlen v) > 0}
-         -> {v:Text | ((tlen t) > (tlen v))}
+{-@ init :: t:{v:Text | (tlength v) > 0}
+         -> {v:Text | ((tlength t) > (tlength v))}
   @-}
 init :: Text -> Text
 init (Text arr off len)
@@ -666,12 +666,12 @@ reverse t = S.reverse (stream t)
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
-replace :: Text                 -- ^ Text to search for
-        -> Text                 -- ^ Replacement text
-        -> Text                 -- ^ Input text
-        -> Text
-replace s d = intercalate d . splitOn s
-{-# INLINE replace #-}
+--LIQUID replace :: Text                 -- ^ Text to search for
+--LIQUID         -> Text                 -- ^ Replacement text
+--LIQUID         -> Text                 -- ^ Input text
+--LIQUID         -> Text
+--LIQUID replace s d = intercalate d . splitOn s
+--LIQUID {-# INLINE replace #-}
 
 -- ----------------------------------------------------------------------------
 -- ** Case conversions (folds)
@@ -1036,7 +1036,7 @@ unfoldrN n f s = unstream (S.unfoldrN n (firstf safe . f) s)
 -- the length of the Text. Subject to fusion.
 {-@ take :: n:{v:Int | v >= 0}
          -> t:Text
-         -> {v:Text | (numchars (tarr v) (toff v) (tlen v)) <= n}
+         -> {v:Text | (tlength v) <= n}
   @-}
 take :: Int -> Text -> Text
 take n t@(Text arr off len)
@@ -1161,7 +1161,7 @@ dropWhile p t@(Text arr off len) = loop 0 0
 -- Examples:
 --
 -- > dropWhileEnd (=='.') "foo..." == "foo"
-{-@ dropWhileEnd :: (Char -> Bool) -> t:Text -> {v:Text | (tlen v) <= (tlen t)} @-}
+{-@ dropWhileEnd :: (Char -> Bool) -> t:Text -> {v:Text | (tlength v) <= (tlength t)} @-}
 dropWhileEnd :: (Char -> Bool) -> Text -> Text
 dropWhileEnd p t@(Text arr off len) = loop (len-1) len
   where loop !i !l | l <= 0    = empty
@@ -1180,7 +1180,7 @@ dropWhileEnd p t@(Text arr off len) = loop (len-1) len
 -- | /O(n)/ 'dropAround' @p@ @t@ returns the substring remaining after
 -- dropping characters that fail the predicate @p@ from both the
 -- beginning and end of @t@.  Subject to fusion.
-{-@ dropAround :: (Char -> Bool) -> t:Text -> {v:Text | (tlen v) <= (tlen t)} @-}
+{-@ dropAround :: (Char -> Bool) -> t:Text -> {v:Text | (tlength v) <= (tlength t)} @-}
 dropAround :: (Char -> Bool) -> Text -> Text
 dropAround p = dropWhile p . dropWhileEnd p
 {-# INLINE [1] dropAround #-}
@@ -1188,7 +1188,7 @@ dropAround p = dropWhile p . dropWhileEnd p
 -- | /O(n)/ Remove leading white space from a string.  Equivalent to:
 --
 -- > dropWhile isSpace
-{-@ stripStart :: t:Text -> {v:Text | (tlen v) <= (tlen t)} @-}
+{-@ stripStart :: t:Text -> {v:Text | (tlength v) <= (tlength t)} @-}
 stripStart :: Text -> Text
 stripStart = dropWhile isSpace
 {-# INLINE [1] stripStart #-}
@@ -1196,7 +1196,7 @@ stripStart = dropWhile isSpace
 -- | /O(n)/ Remove trailing white space from a string.  Equivalent to:
 --
 -- > dropWhileEnd isSpace
-{-@ stripEnd :: t:Text -> {v:Text | (tlen v) <= (tlen t)} @-}
+{-@ stripEnd :: t:Text -> {v:Text | (tlength v) <= (tlength t)} @-}
 stripEnd :: Text -> Text
 stripEnd = dropWhileEnd isSpace
 {-# INLINE [1] stripEnd #-}
@@ -1205,7 +1205,7 @@ stripEnd = dropWhileEnd isSpace
 -- Equivalent to:
 --
 -- > dropAround isSpace
-{-@ strip :: t:Text -> {v:Text | (tlen v) <= (tlen t)} @-}
+{-@ strip :: t:Text -> {v:Text | (tlength v) <= (tlength t)} @-}
 strip :: Text -> Text
 strip = dropAround isSpace
 {-# INLINE [1] strip #-}
@@ -1213,10 +1213,11 @@ strip = dropAround isSpace
 -- | /O(n)/ 'splitAt' @n t@ returns a pair whose first element is a
 -- prefix of @t@ of length @n@, and whose second is the remainder of
 -- the string. It is equivalent to @('take' n t, 'drop' n t)@.
-{-LIQUID splitAt :: n:{v:Int | v >= 0}
+{-@ splitAt :: n:{v:Int | v >= 0}
             -> t:Text
-            -> ({v:Text | (numchars (tarr v) (toff v) (tlen v)) <= n},Text)
-  -}
+            -> ( {v:Text | (tlength v) <= n}
+               , {v:Text | ((tlength v) = (((tlength t) <= n) ? 0 : ((tlength t) - n)))})
+  @-}
 splitAt :: Int -> Text -> (Text, Text)
 splitAt n t@(Text arr off len)
     | n <= 0    = (empty, t)
@@ -1251,18 +1252,24 @@ groupBy p = loop
   where
     loop t@(Text arr off len)
         | null t    = []
-        | otherwise = text arr off n : loop (text arr (off+n) (len-n))
-        where Iter c d = iter t 0
-              n     = d + findAIndexOrEnd (not . p c) (Text arr (off+d) (len-d))
+        | otherwise = let Iter c d = iter t 0
+                          n = d + findAIndexOrEnd (not . p c) (Text arr (off+d) (len-d))
+                      in text arr off n : loop (text arr (off+n) (len-n))
+        --LIQUID where Iter c d = iter t 0
+        --LIQUID       n     = d + findAIndexOrEnd (not . p c) (Text arr (off+d) (len-d))
 
 -- | Returns the /array/ index (in units of 'Word16') at which a
 -- character may be found.  This is /not/ the same as the logical
 -- index returned by e.g. 'findIndex'.
 findAIndexOrEnd :: (Char -> Bool) -> Text -> Int
 findAIndexOrEnd q t@(Text _arr _off len) = go 0
-    where go !i | i >= len || q c       = i
-                | otherwise             = go (i+d)
-                where Iter c d          = iter t i
+    --LIQUID where go !i | i >= len || q c       = i
+    --LIQUID             | otherwise             = go (i+d)
+    --LIQUID             where Iter c d          = iter t i
+    where go !i = if i >= len then i
+                  else let Iter c d = iter t i
+                       in if q c then i
+                          else go (i+d)
 
 -- | /O(n)/ Group characters in a string by equality.
 group :: Text -> [Text]
@@ -1278,7 +1285,7 @@ inits t@(Text arr off len) = loop 0
 
 -- | /O(n)/ Return all final segments of the given 'Text', longest
 -- first.
-{-@ tails :: t:Text -> [{v:Text | (tlen v) <= (tlen t)}] @-}
+{-@ tails :: t:Text -> [{v:Text | (tlength v) <= (tlength t)}] @-}
 tails :: Text -> [Text]
 tails t | null t    = [empty]
         | otherwise = t : tails (unsafeTail t)
@@ -1306,20 +1313,20 @@ tails t | null t    = [empty]
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
-splitOn :: Text -> Text -> [Text]
-splitOn pat@(Text _ _ l) src@(Text arr off len)
-    | l <= 0          = liquidError "splitOn"
-    | isSingleton pat = split (== unsafeHead pat) src
-    | otherwise       = go 0 (indices pat src)
-  where
-    go !s (x:xs) =  textP arr (s+off) (x-s) : go (x+l) xs
-    go  s _      = [textP arr (s+off) (len-s)]
-{-# INLINE [1] splitOn #-}
+--LIQUID splitOn :: Text -> Text -> [Text]
+--LIQUID splitOn pat@(Text _ _ l) src@(Text arr off len)
+--LIQUID     | l <= 0          = liquidError "splitOn"
+--LIQUID     | isSingleton pat = split (== unsafeHead pat) src
+--LIQUID     | otherwise       = go 0 (indices pat src)
+--LIQUID   where
+--LIQUID     go !s (x:xs) =  textP arr (s+off) (x-s) : go (x+l) xs
+--LIQUID     go  s _      = [textP arr (s+off) (len-s)]
+--LIQUID {-# INLINE [1] splitOn #-}
 
-{-# RULES
-"TEXT splitOn/singleton -> split/==" [~1] forall c t.
-    splitOn (singleton c) t = split (==c) t
-  #-}
+--LIQUID {-# RULES
+--LIQUID "TEXT splitOn/singleton -> split/==" [~1] forall c t.
+--LIQUID     splitOn (singleton c) t = split (==c) t
+--LIQUID   #-}
 
 -- | /O(n)/ Splits a 'Text' into components delimited by separators,
 -- where the predicate returns True for a separator element.  The
@@ -1329,13 +1336,12 @@ splitOn pat@(Text _ _ l) src@(Text arr off len)
 -- > split (=='a') "aabbaca" == ["","","bb","c",""]
 -- > split (=='a') ""        == [""]
 --LIQUID split :: (Char -> Bool) -> Text -> [Text]
-split = P.undefined
--- split _ t@(Text _off _arr 0) = [t]
--- split p t = loop t
---     where loop s | null s'   = [l]
---                  | otherwise = l : loop (unsafeTail s')
---               where (# l, s' #) = span_ (not . p) s
-{-# INLINE split #-}
+--LIQUID split _ t@(Text _off _arr 0) = [t]
+--LIQUID split p t = loop t
+--LIQUID     where loop s | null s'   = [l]
+--LIQUID                  | otherwise = l : loop (unsafeTail s')
+--LIQUID               where (# l, s' #) = span_ (not . p) s
+--LIQUID {-# INLINE split #-}
 
 -- | /O(n)/ Splits a 'Text' into components of length @k@.  The last
 -- element may be shorter than the other chunks, depending on the
@@ -1343,7 +1349,7 @@ split = P.undefined
 --
 -- > chunksOf 3 "foobarbaz"   == ["foo","bar","baz"]
 -- > chunksOf 4 "haskell.org" == ["hask","ell.","org"]
-{-@ chunksOf :: k:Int -> t:Text -> [{v:Text | (tlen v) <= k}] @-}
+{-@ chunksOf :: k:{v:Int | v >= 0} -> t:Text -> [{v:Text | (tlength v) <= k}] @-}
 chunksOf :: Int -> Text -> [Text]
 chunksOf k = go
   where
@@ -1370,6 +1376,11 @@ find p t = S.findBy p (stream t)
 -- satisfy the predicate, respectively; i.e.
 --
 -- > partition p t == (filter p t, filter (not . p) t)
+{-@ partition :: (Char -> Bool)
+              -> t:Text
+              -> ( {v:Text | (tlength v) <= (tlength t)}
+                 , {v:Text | (tlength v) <= (tlength t)})
+   @-}
 partition :: (Char -> Bool) -> Text -> (Text, Text)
 partition p t = (filter p t, filter (not . p) t)
 {-# INLINE partition #-}
@@ -1377,6 +1388,7 @@ partition p t = (filter p t, filter (not . p) t)
 -- | /O(n)/ 'filter', applied to a predicate and a 'Text',
 -- returns a 'Text' containing those characters that satisfy the
 -- predicate.
+{-@ filter :: (Char -> Bool) -> t:Text -> {v:Text | (tlength v) <= (tlength t)} @-}
 filter :: (Char -> Bool) -> Text -> Text
 filter p t = unstream (S.filter p (stream t))
 {-# INLINE filter #-}
@@ -1402,6 +1414,7 @@ filter p t = unstream (S.filter p (stream t))
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
+{-@ breakOn :: pat:{v:Text | (tlength v) > 0} -> src:Text -> (Text, Text) @-}
 breakOn :: Text -> Text -> (Text, Text)
 breakOn pat src@(Text arr off len)
     | null pat  = liquidError "breakOn"
@@ -1418,6 +1431,7 @@ breakOn pat src@(Text arr off len)
 -- remainder of @haystack@, following the match.
 --
 -- > breakOnEnd "::" "a::b::c" ==> ("a::b::", "c")
+{-@ breakOnEnd :: pat:{v:Text | (tlength v) > 0} -> src:Text -> (Text, Text) @-}
 breakOnEnd :: Text -> Text -> (Text, Text)
 breakOnEnd pat src = (reverse b, reverse a)
     where (a,b) = breakOn (reverse pat) (reverse src)
@@ -1441,6 +1455,7 @@ breakOnEnd pat src = (reverse b, reverse a)
 -- towards /O(n*m)/.
 --
 -- The @needle@ parameter may not be empty.
+{-@ breakOnAll :: pat:{v:Text | (tlength v) > 0} -> src:Text -> [(Text, Text)] @-}
 breakOnAll :: Text              -- ^ @needle@ to search for
            -> Text              -- ^ @haystack@ in which to search
            -> [(Text, Text)]
@@ -1472,7 +1487,7 @@ breakOnAll pat src@(Text arr off slen)
 -- before and after that index, you would instead use @breakOnAll \"::\"@.
 
 -- | /O(n)/ 'Text' index (subscript) operator, starting from 0.
-{-@ index :: t:Text -> {v:Int | v < (tlen t)} -> Char @-}
+{-@ index :: t:Text -> {v:Int | v < (tlength t)} -> Char @-}
 index :: Text -> Int -> Char
 index t n = S.index (stream t) n
 {-# INLINE index #-}
@@ -1530,20 +1545,31 @@ zipWith f t1 t2 = unstream (S.zipWith g (stream t1) (stream t2))
 
 -- | /O(n)/ Breaks a 'Text' up into a list of words, delimited by 'Char's
 -- representing white space.
-{-@ words :: t:Text -> [{v:Text | (tlen v) < (tlen t)}] @-}
+{-@ words :: t:Text -> [{v:Text | (tlength v) < (tlength t)}] @-}
 words :: Text -> [Text]
 words t@(Text arr off len) = loop 0 0
+  --LIQUID  where
+  --LIQUID    loop !start !n
+  --LIQUID        | n >= len = if start == n
+  --LIQUID                     then []
+  --LIQUID                     else [Text arr (start+off) (n-start)]
+  --LIQUID        | isSpace c =
+  --LIQUID            if start == n
+  --LIQUID            then loop (start+1) (start+1)
+  --LIQUID            else Text arr (start+off) (n-start) : loop (n+d) (n+d)
+  --LIQUID        | otherwise = loop start (n+d)
+  --LIQUID        where Iter c d = iter t n
   where
-    loop !start !n
-        | n >= len = if start == n
-                     then []
-                     else [Text arr (start+off) (n-start)]
-        | isSpace c =
-            if start == n
-            then loop (start+1) (start+1)
-            else Text arr (start+off) (n-start) : loop (n+d) (n+d)
-        | otherwise = loop start (n+d)
-        where Iter c d = iter t n
+    loop !start !n =
+        if n >= len then if start == n
+                         then []
+                         else [Text arr (start+off) (n-start)]
+        else let Iter c d = iter t n
+             in if isSpace c then
+                    if start == n
+                    then loop (start+1) (start+1)
+                    else Text arr (start+off) (n-start) : loop (n+d) (n+d)
+                else loop start (n+d)
 {-# INLINE words #-}
 
 -- | /O(n)/ Breaks a 'Text' up into a list of 'Text's at
