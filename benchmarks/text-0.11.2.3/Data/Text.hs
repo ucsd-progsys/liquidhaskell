@@ -212,7 +212,7 @@ import Data.Text.Private (span_)
 import Data.Text.Internal (Text(..), empty, firstf, safe, text, textP)
 import qualified Prelude as P
 import Data.Text.Unsafe (--LIQUID Iter(..), iter,
-                         iter_, lengthWord16, --LIQUIDreverseIter,
+                         iter_, lengthWord16, --LIQUID reverseIter,
                          unsafeHead, unsafeTail)
 import Data.Text.UnsafeChar (unsafeChr)
 import qualified Data.Text.Util as U
@@ -394,18 +394,25 @@ instance NFData Text
 --LIQUID #endif
 
 -- | /O(n)/ Compare two 'Text' values lexicographically.
+{-@ compareText :: Text -> Text -> Ordering @-}
 compareText :: Text -> Text -> Ordering
 compareText ta@(Text _arrA _offA lenA) tb@(Text _arrB _offB lenB)
     | lenA == 0 && lenB == 0 = EQ
     | otherwise              = go 0 0
   where
     go !i !j
-        | i >= lenA || j >= lenB = compare lenA lenB
-        | a < b                  = LT
-        | a > b                  = GT
-        | otherwise              = go (i+di) (j+dj)
-      where Iter a di = iter ta i
-            Iter b dj = iter tb j
+      --   | i >= lenA || j >= lenB = compare lenA lenB
+      --   | a < b                  = LT
+      --   | a > b                  = GT
+      --   | otherwise              = go (i+di) (j+dj)
+      -- where Iter a di = iter ta i
+      --       Iter b dj = iter tb j
+        = if i >= lenA || j >= lenB then compare lenA lenB
+          else let Iter a di = iter ta i
+                   Iter b dj = iter tb j
+               in if a < b then LT
+                  else if a > b then GT
+                  else go (i+di) (j+dj)
 
 -- -----------------------------------------------------------------------------
 -- * Conversion to/from 'Text'
@@ -461,7 +468,7 @@ singleton c = let c' = safe c
 -- is more costly than its 'List' counterpart because it requires
 -- copying a new array.  Subject to fusion.  Performs replacement on
 -- invalid scalar values.
-{-@ cons :: Char -> t:Text -> {v:Text | (tlength v) > (tlength t)} @-}
+{-@ cons :: Char -> t:Text -> {v:Text | (tlength v) = (1 + (tlength t))} @-}
 cons :: Char -> Text -> Text
 cons c t = unstream (S.cons (safe c) (stream t))
 {-# INLINE cons #-}
@@ -471,7 +478,7 @@ infixr 5 `cons`
 -- | /O(n)/ Adds a character to the end of a 'Text'.  This copies the
 -- entire array in the process, unless fused.  Subject to fusion.
 -- Performs replacement on invalid scalar values.
-{-@ snoc :: t:Text -> Char -> {v:Text | (tlength v) > (tlength t)} @-}
+{-@ snoc :: t:Text -> Char -> {v:Text | (tlength v) = (1 + (tlength t))} @-}
 snoc :: Text -> Char -> Text
 snoc t c = unstream (S.snoc (stream t) (safe c))
 {-# INLINE snoc #-}
@@ -1738,10 +1745,15 @@ isPrefixOf a@(Text _ _ alen) b@(Text _ _ blen) =
 -- 'True' iff the first is a suffix of the second.
 isSuffixOf :: Text -> Text -> Bool
 isSuffixOf a@(Text _aarr _aoff alen) b@(Text barr boff blen) =
-    d >= 0 && a == b'
-  where d              = blen - alen
-        b' | d == 0    = b
-           | otherwise = Text barr (boff+d) alen
+  --   d >= 0 && a == b'
+  -- where d              = blen - alen
+  --       b' | d == 0    = b
+  --          | otherwise = Text barr (boff+d) alen
+    let d = blen - alen
+    in if d >= 0
+       then let b' = if d == 0 then b else Text barr (boff+d) alen
+            in a == b'
+       else False
 {-# INLINE isSuffixOf #-}
 
 -- | /O(n+m)/ The 'isInfixOf' function takes two 'Text's and returns
