@@ -211,7 +211,8 @@ import Data.Text.Fusion (stream, reverseStream, unstream)
 import Data.Text.Private (span_)
 import Data.Text.Internal (Text(..), empty, firstf, safe, text, textP)
 import qualified Prelude as P
-import Data.Text.Unsafe (Iter(..), iter, iter_, lengthWord16, reverseIter,
+import Data.Text.Unsafe (--LIQUID Iter(..), iter,
+                         iter_, lengthWord16, reverseIter,
                          unsafeHead, unsafeTail)
 import Data.Text.UnsafeChar (unsafeChr)
 import qualified Data.Text.Util as U
@@ -236,6 +237,27 @@ import Data.Word --(Word16(..))
 import Data.Text.Axioms
 import Language.Haskell.Liquid.Prelude
 
+
+--LIQUID copied from Data.Text.Unsafe
+data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
+
+{-@ measure iter_d :: Iter -> Int
+   iter_d (Iter c d) = d
+  @-}
+
+{-@ assume iter :: t:Text -> i:{v:Int | (Btwn v 0 (tlen t))}
+                -> {v:Iter | ((BtwnEI ((iter_d v)+i) i (tlen t))
+                          && ((numchars (tarr t) (toff t) (i+(iter_d v)))
+                              = (1 + (numchars (tarr t) (toff t) i)))
+                          && ((numchars (tarr t) (toff t) (i+(iter_d v)))
+                              <= (tlength t)))}
+  @-}
+iter :: Text -> Int -> Iter
+iter = P.undefined
+
+{-@ iter_d :: i:Iter -> {v:Int | v = (iter_d i)} @-}
+iter_d (Iter c d) = d
+--LIQUID end of copied defs
 
 -- $strict
 --
@@ -1121,13 +1143,28 @@ loop_drop t@(Text arr off len) n !i !cnt
 -- | /O(n)/ 'takeWhile', applied to a predicate @p@ and a 'Text',
 -- returns the longest prefix (possibly empty) of elements that
 -- satisfy @p@.  Subject to fusion.
-{-@ takeWhile :: (Char -> Bool) -> t:Text -> {v:Text | (tlen v) <= (tlen t)} @-}
+{-@ takeWhile :: (Char -> Bool) -> t:Text -> {v:Text | (tlength v) <= (tlength t)} @-}
 takeWhile :: (Char -> Bool) -> Text -> Text
-takeWhile p t@(Text arr off len) = loop 0
-  where loop !i | i >= len    = t
-                | p c         = loop (i+d)
-                | otherwise   = textP arr off i
-            where Iter c d    = iter t i
+takeWhile p t@(Text arr off len) = loop_takeWhile t p 0 0
+--LIQUID  where loop !i | i >= len    = t
+--LIQUID                | p c         = let Iter c d = iter t i
+--LIQUID                                in loop (i+d)
+--LIQUID                | otherwise   = textP arr off i
+--LIQUID            where Iter c d    = iter t i
+
+{-@ loop_takeWhile :: t:Text
+                   -> p:(Char -> Bool)
+                   -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
+                   -> cnt:{v:Int | ((v = (numchars (tarr t) (toff t) i)) && (v <= (tlength t)))}
+                   -> {v:Text | (tlength v) <= (tlength t)}
+  @-}
+loop_takeWhile :: Text -> (Char -> Bool) -> Int -> Int -> Text
+loop_takeWhile t@(Text arr off len) p !i cnt
+    = if i >= len then t
+      else let it@(Iter c _) = iter t i
+               d = iter_d it
+           in if p c then loop_takeWhile t p (i+d) (cnt+1)
+              else        Text arr off i
 {-# INLINE [1] takeWhile #-}
 
 {-# RULES
@@ -1696,13 +1733,17 @@ stripPrefix p@(Text _arr _off plen) t@(Text arr off len)
 commonPrefixes :: Text -> Text -> Maybe (Text,Text,Text)
 commonPrefixes t0@(Text arr0 off0 len0) t1@(Text arr1 off1 len1) = go 0 0
   where
-    go !i !j | i < len0 && j < len1 && a == b = go (i+d0) (j+d1)
+    go !i !j | i < len0 && j < len1 = -- && a == b = go (i+d0) (j+d1)
+                    let Iter a d0 = iter t0 i
+                        Iter b d1 = iter t1 j
+                    in if a == b then go (i+d0) (j+d1)
+                       else Nothing
              | i > 0     = Just (Text arr0 off0 i,
                                  textP arr0 (off0+i) (len0-i),
                                  textP arr1 (off1+j) (len1-j))
              | otherwise = Nothing
-      where Iter a d0 = iter t0 i
-            Iter b d1 = iter t1 j
+      -- where Iter a d0 = iter t0 i
+      --       Iter b d1 = iter t1 j
 
 -- | /O(n)/ Return the prefix of the second string if its suffix
 -- matches the entire first string.
