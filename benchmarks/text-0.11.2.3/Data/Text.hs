@@ -567,13 +567,15 @@ tail t@(Text arr off len)
 -- | /O(1)/ Returns all but the last character of a 'Text', which must
 -- be non-empty.  Subject to fusion.
 {-@ init :: t:{v:Text | (tlength v) > 0}
-         -> {v:Text | ((tlength t) > (tlength v))}
+         -> {v:Text | ((tlength v) < (tlength t))}
   @-}
 init :: Text -> Text
-init (Text arr off len)
+init t@(Text arr off len)
     | len <= 0                   = liquidError "init"
-    | n >= 0xDC00 && n <= 0xDFFF = textP arr off (len-2)
-    | otherwise                  = textP arr off (len-1)
+    | n >= 0xDC00 && n <= 0xDFFF = let t' = textP arr off (len-2)
+                                   in liquidAssume (axiom_numchars_init t t') t'
+    | otherwise                  = let t' = textP arr off (len-1)
+                                   in liquidAssume (axiom_numchars_init t t') t'
     where
       n = A.unsafeIndex arr (off+len-1)
 {-# INLINE [1] init #-}

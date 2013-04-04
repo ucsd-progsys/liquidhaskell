@@ -6,10 +6,17 @@ axiom_numchars_append
   -> {v:Bool | ((Prop v) <=> (((tlen t) = (tlen a) + (tlen b))
                               => ((tlength t) = (tlength a) + (tlength b))))}
 
+-- FIXME: I don't like the replicate and init axioms.. they only hold when
+-- t2 is generated from t1
 axiom_numchars_replicate
   :: t1:Text -> t2:Text
   -> {v:Bool | ((Prop v) <=> (((tlen t2) >= (tlen t1))
                               => ((tlength t2) >= (tlength t1))))}
+
+axiom_numchars_init
+  :: t1:Text -> t2:Text
+  -> {v:Bool | ((Prop v) <=> (((tlen t2) < (tlen t1))
+                              => ((tlength t2) < (tlength t1))))}
 
 axiom_numchars_split
   :: t:Text
