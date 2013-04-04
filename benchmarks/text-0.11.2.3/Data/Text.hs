@@ -865,13 +865,13 @@ foldl' f z t = S.foldl' f z (stream t)
 
 -- | /O(n)/ A variant of 'foldl' that has no starting value argument,
 -- and thus must be applied to a non-empty 'Text'.  Subject to fusion.
-{-@ foldl1 :: (Char -> Char -> Char) -> {v:Text | (tlen v) > 0} -> Char @-}
+{-@ foldl1 :: (Char -> Char -> Char) -> {v:Text | (tlength v) > 0} -> Char @-}
 foldl1 :: (Char -> Char -> Char) -> Text -> Char
 foldl1 f t = S.foldl1 f (stream t)
 {-# INLINE foldl1 #-}
 
 -- | /O(n)/ A strict version of 'foldl1'.  Subject to fusion.
-{-@ foldl1' :: (Char -> Char -> Char) -> {v:Text | (tlen v) > 0} -> Char @-}
+{-@ foldl1' :: (Char -> Char -> Char) -> {v:Text | (tlength v) > 0} -> Char @-}
 foldl1' :: (Char -> Char -> Char) -> Text -> Char
 foldl1' f t = S.foldl1' f (stream t)
 {-# INLINE foldl1' #-}
@@ -887,7 +887,7 @@ foldr f z t = S.foldr f z (stream t)
 -- | /O(n)/ A variant of 'foldr' that has no starting value argument,
 -- and thus must be applied to a non-empty 'Text'.  Subject to
 -- fusion.
-{-@ foldr1 :: (Char -> Char -> Char) -> {v:Text | (tlen v) > 0} -> Char @-}
+{-@ foldr1 :: (Char -> Char -> Char) -> {v:Text | (tlength v) > 0} -> Char @-}
 foldr1 :: (Char -> Char -> Char) -> Text -> Char
 foldr1 f t = S.foldr1 f (stream t)
 {-# INLINE foldr1 #-}
@@ -1137,8 +1137,7 @@ drop n t@(Text arr off len)
               -> {v:Text | ((tlength v) = (((tlength t) <= n) ? 0 : ((tlength t) - n)))}
   @-}
 loop_drop :: Text -> Int -> Int -> Int -> Text
-loop_drop = loop_drop'
-loop_drop' t@(Text arr off len) n !i !cnt
+loop_drop t@(Text arr off len) n !i !cnt
     | i >= len || cnt >= n   = let len' = liquidAssume (axiom_numchars_split t i) (len-i)
                                    t' = Text arr (off+i) len'
                                in t'
@@ -1302,12 +1301,29 @@ splitAt :: Int -> Text -> (Text, Text)
 splitAt n t@(Text arr off len)
     | n <= 0    = (empty, t)
     | n >= len  = (t, empty)
-    | otherwise = (Text arr off k, Text arr (off+k) (len-k))
-  where k = loop 0 0
-        loop !i !cnt
-            | i >= len || cnt >= n = i
-            | otherwise            = loop (i+d) (cnt+1)
-            where d                = iter_ t i
+    --LIQUID push Text creation into loop
+    | otherwise = loop_splitAt t n 0 0
+--LIQUID  where k = loop_splitAt t n 0 0
+--LIQUID        loop !i !cnt
+--LIQUID            | i >= len || cnt >= n = i
+--LIQUID            | otherwise            = loop (i+d) (cnt+1)
+--LIQUID            where d                = iter_ t i
+
+{-@ loop_splitAt :: t:Text
+              -> n:{v:Int | ((v >= 0) && (v < (tlen t)))}
+              -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
+              -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
+                            && (v <= n))}
+            -> ( {v:Text | (tlength v) <= n}
+               , {v:Text | ((tlength v) = (((tlength t) <= n) ? 0 : ((tlength t) - n)))})
+  @-}
+loop_splitAt :: Text -> Int -> Int -> Int -> (Text, Text)
+loop_splitAt t@(Text arr off len) n !i !cnt
+    | i >= len || cnt >= n   = let len' = liquidAssume (axiom_numchars_split t i) (len-i)
+                                   t' = Text arr (off+i) len'
+                               in (Text arr off i, t')
+    | otherwise              = let d = iter_ t i
+                               in loop_splitAt t n (i+d) (cnt+1)
 {-# INLINE splitAt #-}
 
 -- | /O(n)/ 'span', applied to a predicate @p@ and text @t@, returns
@@ -1596,7 +1612,7 @@ findIndex p t = S.findIndex p (stream t)
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
-{-@ count :: {v:Text | (tlen v) > 0} -> Text -> Int @-}
+{-@ count :: {v:Text | (tlength v) > 0} -> Text -> Int @-}
 count :: Text -> Text -> Int
 count pat src
     | null pat        = emptyError "count"
