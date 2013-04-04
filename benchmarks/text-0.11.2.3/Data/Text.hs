@@ -1147,8 +1147,7 @@ loop_drop t@(Text arr off len) n !i !cnt
 takeWhile :: (Char -> Bool) -> Text -> Text
 takeWhile p t@(Text arr off len) = loop_takeWhile t p 0 0
 --LIQUID  where loop !i | i >= len    = t
---LIQUID                | p c         = let Iter c d = iter t i
---LIQUID                                in loop (i+d)
+--LIQUID                | p c         = loop (i+d)
 --LIQUID                | otherwise   = textP arr off i
 --LIQUID            where Iter c d    = iter t i
 
@@ -1178,11 +1177,27 @@ loop_takeWhile t@(Text arr off len) p !i cnt
 -- 'takeWhile' @p@ @t@. Subject to fusion.
 {-@ dropWhile :: (Char -> Bool) -> t:Text -> {v:Text | (tlength v) <= (tlength t)} @-}
 dropWhile :: (Char -> Bool) -> Text -> Text
-dropWhile p t@(Text arr off len) = loop 0 0
-  where loop !i !l | l >= len  = empty
-                   | p c       = loop (i+d) (l+d)
-                   | otherwise = Text arr (off+i) (len-l)
-            where Iter c d     = iter t i
+dropWhile p t@(Text arr off len) = loop_dropWhile t p 0 0
+--LIQUID  where loop !i !l | l >= len  = empty
+--LIQUID                   | p c       = loop (i+d) (l+d)
+--LIQUID                   | otherwise = Text arr (off+i) (len-l)
+--LIQUID            where Iter c d     = iter t i
+
+{-@ loop_dropWhile :: t:Text
+                   -> p:(Char -> Bool)
+                   -> i:{v:Int | (BtwnII v 0 (tlen t))}
+                   -> cnt:{v:Int | ((v = (numchars (tarr t) (toff t) i))
+                                    && (BtwnII v 0 (tlength t)))}
+                   -> {v:Text | (tlength v) <= (tlength t)}
+  @-}
+loop_dropWhile :: Text -> (Char -> Bool) -> Int -> Int -> Text
+loop_dropWhile t@(Text arr off len) p !i cnt
+    = if i >= len then empty
+      else let it@(Iter c _) = iter t i
+               d = iter_d it
+           in if p c      then loop_dropWhile t p (i+d) (cnt+1)
+              else let len' = liquidAssume (axiom_numchars_split t i) (len-i)
+                   in Text arr (off+i) len'
 {-# INLINE [1] dropWhile #-}
 
 {-# RULES
