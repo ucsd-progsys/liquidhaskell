@@ -1097,8 +1097,7 @@ take n t@(Text arr off len)
 loop_take :: Int -> Text -> Int -> Int -> Int
 loop_take n t@(Text arr off len) !i !cnt
      | i >= len || cnt >= n = i
-     --LIQUID need to inject (i<len && cnt<n) into the environment
-     | i < len  && cnt < n  = let d = iter_ t i
+     | otherwise            = let d = iter_ t i
                                   cnt' = cnt + 1
                               in loop_take n t (i+d) cnt'
 
@@ -1120,31 +1119,30 @@ loop_take n t@(Text arr off len) !i !cnt
   @-}
 drop :: Int -> Text -> Text
 drop n t@(Text arr off len)
-    | n >= len  = empty
-    --LIQUID FIXME: this changes the running time, should really move it back into loop_drop
-    | n >= length t = empty
     --LIQUID rearrange checks to ease typechecking
+    | n >= len  = empty
     | n <= 0    = t
     | otherwise = loop_drop t n 0 0
   --LIQUID where loop !i !cnt
   --LIQUID           | i >= len || cnt >= n   = Text arr (off+i) (len-i)
-  --LIQUID           | i <  len && cnt <  n   = let d = iter_ t i
+  --LIQUID           | otherwise              = let d = iter_ t i
   --LIQUID                                      in loop (i+d) (cnt+1)
   --LIQUID          where d = iter_ t i
 
 {-@ loop_drop :: t:Text
-              -> n:{v:Int | ((v >= 0) && (v < (tlength t)))}
+              -> n:{v:Int | ((v >= 0) && (v < (tlen t)))}
               -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
               -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
                             && (v <= n))}
-              -> {v:Text | ((tlength v) = ((tlength t) - n))}
+              -> {v:Text | ((tlength v) = (((tlength t) <= n) ? 0 : ((tlength t) - n)))}
   @-}
 loop_drop :: Text -> Int -> Int -> Int -> Text
-loop_drop t@(Text arr off len) n !i !cnt
-    | i >= len               = Text arr (off+i) (len-i)
-    | cnt == n               = let len' = liquidAssume (axiom_numchars_split t i) (len-i)
-                               in Text arr (off+i) len'
-    | i <  len && cnt <  n   = let d = iter_ t i
+loop_drop = loop_drop'
+loop_drop' t@(Text arr off len) n !i !cnt
+    | i >= len || cnt >= n   = let len' = liquidAssume (axiom_numchars_split t i) (len-i)
+                                   t' = Text arr (off+i) len'
+                               in t'
+    | otherwise              = let d = iter_ t i
                                in loop_drop t n (i+d) (cnt+1)
 {-# INLINE [1] drop #-}
 
