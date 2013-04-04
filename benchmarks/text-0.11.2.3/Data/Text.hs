@@ -1357,11 +1357,22 @@ group = groupBy (==)
 
 -- | /O(n)/ Return all initial segments of the given 'Text', shortest
 -- first.
-{-@ inits :: t:Text -> [{v:Text | (tlen v) < (tlen t)}] @-}
+{-@ inits :: t:Text -> [{v:Text | (tlength v) <= (tlength t)}] @-}
 inits :: Text -> [Text]
-inits t@(Text arr off len) = loop 0
-    where loop i | i >= len = [t]
-                 | otherwise = Text arr off i : loop (i + iter_ t i)
+inits t@(Text arr off len) = loop_inits t 0 0
+--LIQUID     where loop i | i >= len = [t]
+--LIQUID                  | otherwise = Text arr off i : loop (i + iter_ t i)
+{-@ loop_inits :: t:Text
+               -> i:{v:Int | v >= 0}
+               -> cnt:{v:Int | (numchars (tarr t) (toff t) i) = v}
+               -> [{v:Text | (tlength v) <= (tlength t)}]
+  @-}
+--LIQUID would like to say something like
+--LIQUID [Text]<{\x y -> (((tlength x) < (tlength y)) && (cnt = (tlength x)))}>
+loop_inits :: Text -> Int -> Int -> [Text]
+loop_inits t@(Text arr off len) i cnt
+    | i >= len = [t]
+    | otherwise = Text arr off i : loop_inits t (i + iter_ t i) (cnt + 1)
 
 -- | /O(n)/ Return all final segments of the given 'Text', longest
 -- first.
