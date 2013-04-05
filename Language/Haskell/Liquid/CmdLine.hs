@@ -21,9 +21,12 @@ config = Config {
  , idirs = def &= typDir 
                &= help "Paths to Spec Include Directory " 
  
- , binds = def &= help "Top-level binders to verify (DEFAULT = all)" 
+ , binds = def &= help "Top-level binders to verify (DEFAULT = all)"
  
- } &= verbosity 
+ , noCheckUnknown = def &= explicit
+                        &= name "no-check-unknown"
+                        &= help "Don't complain about specifications for unexported and unused values "
+ } &= verbosity
    &= program "liquid" 
    &= help    "Refinement Types for Haskell" 
    &= summary "LiquidHaskell © Copyright 2009-13 Regents of the University of California." 
