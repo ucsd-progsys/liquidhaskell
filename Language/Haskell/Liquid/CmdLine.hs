@@ -18,10 +18,12 @@ config = Config {
                &= args 
                &= typFile 
  
- , idirs = def &= typDir 
-               &= help "Paths to Spec Include Directory " 
- 
- , binds = def &= help "Top-level binders to verify (DEFAULT = all)"
+ , idirs   = def &= typDir 
+                 &= help "Paths to Spec Include Directory " 
+   
+ , binds   = def &= help "Top-level binders to verify (DEFAULT = all)" 
+
+ , nofalse = def &= help "Remove false predicates from the refinements"
  
  , noCheckUnknown = def &= explicit
                         &= name "no-check-unknown"
