@@ -67,7 +67,7 @@ makeGhcSpec' cfg name vars env spec
        let datacons     = concat dcs ++ dcs'    
        let benv         = BE name (makeTyConInfo tycons) env
        (cs, ms)        <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
-       sigs'           <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
+       sigs'           <- makeAssumeSpec  cfg benv vars     $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec
        let sigs         = [(x, (txRefSort benv . txExpToBind) <$> t) | (x, t) <- sigs'] 
@@ -196,22 +196,24 @@ makeMeasureSpec env m = execBare mkSpec env
 makeTargetVars :: [Var] -> [String] -> TargetVars
 makeTargetVars = undefined 
 
-makeAssumeSpec :: BareEnv -> [Var] -> [(LocSymbol, BareType)] -> IO [(Var, Located SpecType)]
-makeAssumeSpec env vs xbs = execBare mkAspec env 
+makeAssumeSpec :: Config -> BareEnv -> [Var] -> [(LocSymbol, BareType)] -> IO [(Var, Located SpecType)]
+makeAssumeSpec cfg env vs xbs = execBare mkAspec env
   where 
     vbs                   = joinIds vs xbs 
-    mkAspec               = checkDefAsserts env vbs xbs >> forM vbs mkVarSpec
+    mkAspec               = do when (not $ noCheckUnknown cfg)
+                                 $ checkDefAsserts env vbs xbs
+                               forM vbs mkVarSpec
 
-checkDefAsserts env vbs xbs = applyNonNull (return ()) grumble  undefSigs
-  where
-    undefSigs               = [x | (x, _) <- assertSigs, not (x `S.member` definedSigs)] 
-    assertSigs              = filter isTarget xbs 
-    definedSigs             = S.fromList $ snd3 <$> vbs 
-    errorMsg                = (text "Specification for unknown variable:" <+>) . locatedSymbolText 
-    grumble                 = throwError . render . vcat . fmap errorMsg 
-    moduleName              = modName env
-    isTarget                = L.isPrefixOf moduleName . symbolStringRaw . val . fst
-    symbolStringRaw         = stripParens . symbolString 
+    checkDefAsserts env vbs xbs = applyNonNull (return ()) grumble  undefSigs
+        where
+          undefSigs               = [x | (x, _) <- assertSigs, not (x `S.member` definedSigs)]
+          assertSigs              = filter isTarget xbs
+          definedSigs             = S.fromList $ snd3 <$> vbs
+          errorMsg                = (text "Specification for unknown variable:" <+>) . locatedSymbolText
+          grumble                 = throwError . render . vcat . fmap errorMsg
+          moduleName              = modName env
+          isTarget                = L.isPrefixOf moduleName . symbolStringRaw . val . fst
+          symbolStringRaw         = stripParens . symbolString
 
 
 locatedSymbolText z         = text (symbolString $ val z) <+> text "defined at:" <+> toFix (loc z)    
