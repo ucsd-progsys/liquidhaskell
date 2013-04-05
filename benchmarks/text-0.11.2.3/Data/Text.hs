@@ -1301,15 +1301,19 @@ strip = dropAround isSpace
 -- the string. It is equivalent to @('take' n t, 'drop' n t)@.
 {-@ splitAt :: n:{v:Int | v >= 0}
             -> t:Text
-            -> ( {v:Text | (tlength v) <= n}
-               , {v:Text | ((tlength v) = (((tlength t) <= n) ? 0 : ((tlength t) - n)))})
+            -> (Text, Text)<{\x y ->
+                              (((tlength x) <= n)
+                              && ((tlength y) = ((tlength t) - (tlength x))))}>
   @-}
 splitAt :: Int -> Text -> (Text, Text)
 splitAt n t@(Text arr off len)
     | n <= 0    = (empty, t)
     | n >= len  = (t, empty)
-    --LIQUID push Text creation into loop
-    | otherwise = loop_splitAt t n 0 0
+    | otherwise = let k = loop_splitAt t n 0 0
+                      len' = liquidAssume (axiom_numchars_split t k) (len-k)
+                  in ( Text arr off k
+                     , Text arr (off+k) len')
+--LIQUID    | otherwise = (Text arr off k, Text arr (off+k) (len-k))
 --LIQUID  where k = loop_splitAt t n 0 0
 --LIQUID        loop !i !cnt
 --LIQUID            | i >= len || cnt >= n = i
@@ -1320,17 +1324,16 @@ splitAt n t@(Text arr off len)
               -> n:{v:Int | ((v >= 0) && (v < (tlen t)))}
               -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
               -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
-                            && (v <= n))}
-            -> ( {v:Text | (tlength v) <= n}
-               , {v:Text | ((tlength v) = (((tlength t) <= n) ? 0 : ((tlength t) - n)))})
+                              && (v <= n))}
+              -> {v:Int | (((numchars (tarr t) (toff t) v) <= n)
+                          && (BtwnII v 0 (tlen t)))}
   @-}
-loop_splitAt :: Text -> Int -> Int -> Int -> (Text, Text)
+loop_splitAt :: Text -> Int -> Int -> Int -> Int
 loop_splitAt t@(Text arr off len) n !i !cnt
-    | i >= len || cnt >= n   = let len' = liquidAssume (axiom_numchars_split t i) (len-i)
-                                   t' = Text arr (off+i) len'
-                               in (Text arr off i, t')
-    | otherwise              = let d = iter_ t i
-                               in loop_splitAt t n (i+d) (cnt+1)
+     | i >= len || cnt >= n = i
+     | otherwise            = let d = iter_ t i
+                                  cnt' = cnt + 1
+                              in loop_splitAt t n (i+d) cnt'
 {-# INLINE splitAt #-}
 
 -- | /O(n)/ 'span', applied to a predicate @p@ and text @t@, returns
