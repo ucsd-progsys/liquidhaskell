@@ -131,7 +131,14 @@ How to deploy Web Demo
 
 The last step requires sudo access which is tedious and should be fixed.
 
+Ignore False Predicates
+-----------------------
 
+To ignore false predicates use the nofalse option
+ 
+    liquid --nofalse test.hs
+
+See <a url="tests/neg/lazy.lhs">tests/neg/lazy.lhs</a>
 
 Writing Specifications
 ======================
