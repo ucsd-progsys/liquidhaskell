@@ -33,14 +33,16 @@ def logged_sys_call(args, out=None, err=None):
   print "exec: " + " ".join(args)
   return subprocess.call(args, stdout=out, stderr=err)
 
-def solve_quals(file,bare,time,quiet,flags):
+def solve_quals(file,bare,time,quiet,flags,dargs):
   if quiet: out = null
   else: out = None
   if time: time = ["time"]
   else: time = []
+  if dargs: dargs = ["--" + " --".join(dargs.split())]
+  else: dargs = []
   hygiene_flags = [] # [("--liquidcprefix=%s" % (file)), "-o", "/dev/null"]
   out = open(file + ".log", "w")
-  rv  = logged_sys_call(time + solve + flags + hygiene_flags + [file], out)
+  rv  = logged_sys_call(time + solve + flags + dargs + hygiene_flags + [file], out)
   out.close()
   return rv
 
@@ -67,7 +69,7 @@ class Config (rtest.TestConfig):
     os.environ['LCCFLAGS'] = self.dargs
     if file.endswith(".hs"):
       fargs = getfileargs(file)
-      return solve_quals(file, True, False, True, fargs)
+      return solve_quals(file, True, False, True, fargs, self.dargs)
     elif file.endswith(".sh"):
       return run_script(file, True)
 
