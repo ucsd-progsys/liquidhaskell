@@ -27,8 +27,8 @@ cloneL x n
   | otherwise 
   = Cons x  (cloneL x (n-1))
 
-check [] = [liquidAssertB True]
-check (xs:xss) = let n = length xs in map (\xs' -> liquidAssertB (length xs' == n)) xss
+-- check [] = [liquidAssertB True]
+-- check (xs:xss) = let n = length xs in map (\xs' -> liquidAssertB (length xs' == n)) xss
 
 chk Nil = liquidAssertB True
 chk (Cons xs xss) =

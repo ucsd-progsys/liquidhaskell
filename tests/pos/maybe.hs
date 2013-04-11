@@ -2,7 +2,7 @@ module Test where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
 
-{-@ type OList a = [a]<\fld -> {v: a | (v >= fld)}> @-}
+{-@ type OList a = [a]<{\fld v -> (v >= fld)}> @-}
 
 {-@ filterGt :: (Ord a) => x:Maybe a -> OList a -> OList {v:a | ((isJust(x)) => (fromJust(x) <= v)) } @-}
 

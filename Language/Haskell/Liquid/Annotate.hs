@@ -11,7 +11,7 @@ module Language.Haskell.Liquid.Annotate (
   , Annot (..)
 
   -- * Top-level annotation renderer function
-  ,  annotate
+  , annotate
   ) where
 
 import GHC                      ( SrcSpan (..)
@@ -54,6 +54,7 @@ import Language.Haskell.Liquid.GhcMisc (pprDoc)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
+import Language.Haskell.Liquid.Types hiding (Located(..))
 
 -------------------------------------------------------------------
 ------ Rendering HTMLized source with Inferred Types --------------
@@ -260,11 +261,17 @@ spacePrefix str s@(c:cs)
 spacePrefix _ _ = False 
 
 
-tokeniseSpec = tokAlt . chopAlt [('{', ':'), ('|', '}')] 
-  where tokAlt (s:ss)  = tokenise s ++ tokAlt' ss
-        tokAlt _       = []
-        tokAlt' (s:ss) = (refToken, s) : tokAlt ss
-        tokAlt' _      = []
+tokeniseSpec       ::  String -> [(TokenType, String)]
+tokeniseSpec str   = {- traceShow ("tokeniseSpec: " ++ str) $ -} tokeniseSpec' str
+
+tokeniseSpec'      = tokAlt . chopAltDBG -- [('{', ':'), ('|', '}')] 
+  where 
+    tokAlt (s:ss)  = tokenise s ++ tokAlt' ss
+    tokAlt _       = []
+    tokAlt' (s:ss) = (refToken, s) : tokAlt ss
+    tokAlt' _      = []
+
+chopAltDBG y = {- traceShow ("chopAlts: " ++ y) $ -} chopAlts [("<{", "}>"), ("{", ":"), ("|", "}")] y
 
 ---------------------------------------------------------------
 ---------------- Annotations and Solutions --------------------
@@ -276,6 +283,7 @@ data Annot        = Use SpecType
                   | Def SpecType 
                   | RDf SpecType
                   | Loc SrcSpan
+
 
 instance Functor AnnInfo where
   fmap f (AI m) = AI (fmap (fmap (\(x, y) -> (x, f y))) m)

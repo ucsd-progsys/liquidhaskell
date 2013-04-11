@@ -69,10 +69,7 @@ bbaseNoAppP
 bareTyArgP 
   =  try (braces $ liftM RExprArg exprP)
  <|> try bareAtomNoAppP
- -- <|> braces (liftM RExprArg exprP) -- ^ braces needed to distinguish tyvar from evar args
  <|> try (parens bareTypeP)
- -- <|> try (liftM RExprArg exprP) 
- -- <|> liftM RExprArg (parens exprP) 
 
 bareAtomNoAppP 
   =  refP bbaseNoAppP 
@@ -237,7 +234,7 @@ predVarUseP
 ------------------------------------------------------------------------
 
 bRPoly []    _    = errorstar "Parse.bRPoly empty list"
-bRPoly syms expr = RPoly ss $ bRVar "dummy" top $ Reft(v, expr)
+bRPoly syms expr = RPoly ss $ bRVar dummyName top $ Reft(v, expr)
   where (ss, (v, _)) = (init syms, last syms)
 
 bRVar α p r               = RVar α (U r p)
