@@ -9,12 +9,12 @@ data Vec a <dom :: Int -> Prop, rng :: Int -> a -> Prop>
   @-}
 
 
-{-@ empty :: forall <p :: Int -> a -> Prop>. Vec <{v:Int|0=1}, p> a @-}
+{-@ empty :: forall <p :: Int -> a -> Prop>. Vec <{\v -> 0=1}, p> a @-}
 empty     :: Vec  a
 empty     = V $ \_ -> (error "Empty array!")
 
 
-{-@ create :: x:a -> Vec <{v:Int|0=0}, \i-> {v:a|v=x}> a @-}
+{-@ create :: x:a -> Vec <{\v -> 0=0}, {\i v-> v=x}> a @-}
 create     :: a -> Vec  a
 create x   = V $ \_ -> x
 
@@ -41,12 +41,12 @@ set i v (V f) = V $ \k -> if k == i then v else f k
 {-@ zero ::
       i: {v: Int | v >= 0} ->
       n: Int ->
-      a: Vec <{v: Int | (0 <= v && v < i)}, \d -> {v: Int | v = 0}> Int ->
-      Vec <{v: Int | (0 <= v && v < n)}, \d -> {v: Int | v = 0}> Int @-}
+      a: Vec <{\v -> (0 <= v && v < i)}, {\d v -> v = 0}> Int ->
+      Vec <{\v -> (0 <= v && v < n)}, {\d v ->  v = 0}> Int @-}
 zero :: Int -> Int -> Vec Int -> Vec Int
 zero i n a = if i >= n then a
                        else zero (i + 1) n (set i 0 a)
-{-@ tenZeroes :: Vec <{v: Int | (0 <= v && v < 10)}, \d -> {v: Int | v = 0}> Int  @-}
+{-@ tenZeroes :: Vec <{\v ->  (0 <= v && v < 10)}, {\d v ->  v = 0}> Int  @-}
 tenZeroes = zero z ten empty
   where z   = 0
         ten = 10 
@@ -54,14 +54,14 @@ tenZeroes = zero z ten empty
 {-@ zeroBackwards ::
       i: Int ->
       n: {v: Int | v > i} ->
-      a: Vec <{v: Int | (i < v && v < n)}, \d -> {v: Int | v = 0}> Int ->
-      Vec <{v: Int | (0 <= v && v < n)}, \d -> {v: Int | v = 0}> Int @-}
+      a: Vec <{\v ->  (i < v && v < n)}, {\d v ->  v = 0}> Int ->
+      Vec <{\v ->  (0 <= v && v < n)}, {\d v ->  v = 0}> Int @-}
 zeroBackwards :: Int -> Int -> Vec Int ->  Vec Int
 zeroBackwards i n a = if i < 0 then a
                                else zeroBackwards (i - 1) n (set i 0 a)
 
 
-{-@ tenZeroes' :: Vec <{v: Int | (0 <= v && v < 10)}, \d -> {v: Int | v = 0}> Int @-}
+{-@ tenZeroes' :: Vec <{\v -> (0 <= v && v < 10)}, {\d v -> v = 0}> Int @-}
 tenZeroes' :: Vec Int
 tenZeroes' = zeroBackwards nine ten empty
   where nine = 9
@@ -70,25 +70,25 @@ tenZeroes' = zeroBackwards nine ten empty
 {-@ zeroEveryOther ::
       i: {v: Int | (v >= 0 && v mod 2 = 0)} ->
       n: Int ->
-      a: Vec <{v: Int | (0 <= v && v < i && v mod 2 = 0)}, \d -> {v: Int | v = 0}> Int ->
-      Vec <{v: Int | (0 <= v && v < n && v mod 2 = 0)}, \d -> {v: Int | v = 0}> Int @-}
+      a: Vec <{\v -> (0 <= v && v < i && v mod 2 = 0)}, {\d v -> v = 0}> Int ->
+      Vec <{\v ->  (0 <= v && v < n && v mod 2 = 0)}, {\d v -> v = 0}> Int @-}
 zeroEveryOther :: Int -> Int -> Vec Int -> Vec Int
 zeroEveryOther i n a = if i >= n then a
                        else zeroEveryOther (i + 2) n (set i 0 a)
 
 {-@ stridedZeroes ::
-      Vec <{v: Int | (v mod 2 = 0 && 0 <= v && v < 10)}, \d -> {v: Int | v = 0}> Int @-}
+      Vec <{\v -> (v mod 2 = 0 && 0 <= v && v < 10)}, {\d v -> v = 0}> Int @-}
 stridedZeroes :: Vec Int
 stridedZeroes = zeroEveryOther z ten empty
   where z     = 0
         ten   = 10
 
 {-@ initArray :: forall a <p :: x0: Int -> x1: a -> Prop>.
-      f: Vec <{v:Int | 0=0}, p> a ->
+      f: Vec <{\v ->  0=0}, p> a ->
       i: {v: Int | v >= 0} ->
       n: Int ->
-      a: Vec <{v: Int | (0 <= v && v < i)}, p> a ->
-      Vec <{v: Int | (0 <= v && v < n)}, p> a  @-}
+      a: Vec <{\v -> (0 <= v && v < i)}, p> a ->
+      Vec <{\v -> (0 <= v && v < n)}, p> a  @-}
 initArray :: Vec a -> Int -> Int -> Vec a -> Vec a
 initArray (V f) i n a = if i >= n then a
                               else initArray (V f) (i + 1) n (set i (f i) a)
@@ -96,12 +96,12 @@ initArray (V f) i n a = if i >= n then a
 {-@ zeroInitArray ::
       i: {v: Int | v >= 0} ->
       n: Int ->
-      a: Vec <{v: Int | (0 <= v && v < i)}, \d -> {v: Int | v = 0}> Int ->
-      Vec <{v: Int | (0 <= v && v < n)}, \d -> {v: Int | v = 0}> Int @-}
+      a: Vec <{\v -> (0 <= v && v < i)}, {\d v -> v = 0}> Int ->
+      Vec <{\v -> (0 <= v && v < n)}, {\d v ->  v = 0}> Int @-}
 zeroInitArray :: Int -> Int -> Vec Int -> Vec Int
 zeroInitArray = initArray (V (\_ ->  0))
 
-{-@ tenZeroes'' :: Vec <{v: Int | (0 <= v && v < 10)}, \d -> {v: Int | v = 0}> Int @-}
+{-@ tenZeroes'' :: Vec <{\v -> (0 <= v && v < 10)}, {\d v -> v = 0}> Int @-}
 tenZeroes'' :: Vec Int
 tenZeroes'' = zeroInitArray z ten empty
   where z   = 0
@@ -110,8 +110,8 @@ tenZeroes'' = zeroInitArray z ten empty
 {-@ initid ::
       i: {v: Int | v >= 0} ->
       n: Int ->
-      a: Vec <{v: Int | (0 <= v && v < i)}, \j -> {v: Int | v = j}> Int ->
-      Vec <{v: Int | (0 <= v && v < n)}, \k -> {v: Int | v = k}> Int @-}
+      a: Vec <{\v -> (0 <= v && v < i)}, {\j v -> v = j}> Int ->
+      Vec <{\v -> (0 <= v && v < n)}, {\k v ->  v = k}> Int @-}
 initid :: Int -> Int -> Vec Int -> Vec Int
 initid = initArray (V id)
 
@@ -127,9 +127,8 @@ upperCaseString' n i s =
 
 {-@ upperCaseString ::
       n: {v: Int | v > 0} ->
-      s: Vec <{v : Int | (0 <= v && v < n)}, \j -> {v: Int | (j = n - 1 => v = 0)}> Int ->
-      Vec <{v : Int | (0 <= v && v < n)}, \j -> 
-       {v: Int | (j = n - 1 => v = 0)}> Int
+      s: Vec <{\v -> (0 <= v && v < n)}, {\j v -> (j = n - 1 => v = 0)}> Int ->
+      Vec <{\v -> (0 <= v && v < n)}, {\j v -> (j = n - 1 => v = 0)}> Int
 @-}
 upperCaseString :: Int -> Vec Int -> Vec Int
 upperCaseString n s = upperCaseString' n 0 s
@@ -141,7 +140,7 @@ upperCaseString n s = upperCaseString' n 0 s
 ---------------------------- memoization --------------------------------------
 -------------------------------------------------------------------------------
 {-@ measure fib :: Int -> Int @-}
-{-@ type FibV = Vec <{v:Int|0=0}, \j -> {v:Int| ((v != 0) => (v = fib(j)))}> Int @-}
+{-@ type FibV = Vec <{\v -> 0=0}, {\j v -> ((v != 0) => (v = fib(j)))}> Int @-}
 
 
 {-@ assume axiom_fib :: i:Int -> {v: Bool | (Prop(v) <=> (fib(i) = ((i <= 1) ? 1 : ((fib(i-1)) + (fib(i-2)))))) } @-}

@@ -182,7 +182,7 @@ normalize γ (Tick n e)
        return (bs, Tick n e')
 
 normalize _ e
-  = errorstar $ "normalize: TODO" ++ showPpr e
+  = errorstar $ "ANFTransform.normalize: TODO" ++ showPpr e
 
 stitch :: ([CoreBind], CoreExpr) -> CoreExpr
 stitch (bs, e) = mkCoreLets bs e

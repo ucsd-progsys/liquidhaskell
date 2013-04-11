@@ -12,7 +12,7 @@ import Language.Haskell.Liquid.Prelude
             (right :: Map <l, r> (k <r key>) a) 
   @-}
 
-{-@ type OMap k a = Map <\root -> {v:k | v < root }, \root -> {v:k | v > root}> k a @-}
+{-@ type OMap k a = Map <{\root v -> v < root }, {\root v -> v > root}> k a @-}
 
 data Map k a = Tip
              | Bin Size k a (Map k a) (Map k a)
@@ -35,7 +35,7 @@ insert kx x t
               GT -> balance ky y l (insert kx x r)
               EQ -> Bin sz kx x l r
 
-{-@ delete :: (Ord k) => k -> OMap k a -> OMap k a @-}
+{-@ delete :: (Ord k) => k:k -> OMap k a -> OMap {v:k | (v /= k)} a @-}
 delete :: Ord k => k -> Map k a -> Map k a
 delete k t 
   = case t of 
@@ -127,11 +127,11 @@ size t
       Bin sz _ _ _ _ -> sz
 
 
-chkDel x Tip                = liquidAssertB True  
-chkDel x (Bin sz k v lt rt) = liquidAssertB (not (x == k)) && chkDel x lt && chkDel x rt
-
-chkMin x Tip                = liquidAssertB True  
-chkMin x (Bin sz k v lt rt) = liquidAssertB (x<k) && chkMin x lt && chkMin x rt
+-- chkDel x Tip                = liquidAssertB True  
+-- chkDel x (Bin sz k v lt rt) = liquidAssertB (not (x == k)) && chkDel x lt && chkDel x rt
+-- 
+-- chkMin x Tip                = liquidAssertB True  
+-- chkMin x (Bin sz k v lt rt) = liquidAssertB (x<k) && chkMin x lt && chkMin x rt
 
 chk Tip               = liquidAssertB True  
 chk (Bin s k v lt rt) = chk lt && chk rt && chkl k lt && chkr k rt

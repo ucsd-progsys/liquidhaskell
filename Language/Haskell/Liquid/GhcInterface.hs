@@ -1,7 +1,14 @@
 
 {-# LANGUAGE NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, DeriveDataTypeable, ScopedTypeVariables #-}
 
-module Language.Haskell.Liquid.GhcInterface where
+module Language.Haskell.Liquid.GhcInterface (
+  
+  -- * extract all information needed for verification
+    getGhcInfo
+
+  -- * visitors 
+  , CBVisitable (..) 
+  ) where
 
 import GHC 
 import Outputable   (showPpr)
@@ -38,13 +45,15 @@ import qualified Data.HashMap.Strict as M
 import System.Directory (doesFileExist)
 import Language.Fixpoint.Types hiding (Expr) 
 import Language.Fixpoint.Misc
+
+import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
 
-import Language.Haskell.Liquid.Parse
-import Language.Fixpoint.Parse
+import Language.Haskell.Liquid.Parse 
+import Language.Fixpoint.Parse          hiding (comma)
 import Language.Fixpoint.Names
 import Language.Fixpoint.Files
 
@@ -52,54 +61,49 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 
 
 ------------------------------------------------------------------
----------------------- GHC Bindings:  Code & Spec ----------------
+getGhcInfo :: Config -> FilePath -> IO GhcInfo
 ------------------------------------------------------------------
 
+getGhcInfo cfg target 
+  = runGhc (Just libdir) $ do
+      df                 <- getSessionDynFlags
+      setSessionDynFlags  $ updateDynFlags df (idirs cfg) 
+      -- peepGHCSimple target 
+      modguts            <- getGhcModGuts1 target
+      hscEnv             <- getSession
+      -- modguts     <- liftIO $ hscSimplify hscEnv modguts
+      coreBinds          <- liftIO $ anormalize hscEnv modguts
+      let impVs           = importVars  coreBinds 
+      let defVs           = definedVars coreBinds 
+      let useVs           = readVars    coreBinds
+      (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) target modguts (idirs cfg) 
+      liftIO              $ putStrLn $ "Module Imports: " ++ show imps 
+      hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs 
+      return              $ GI hscEnv coreBinds impVs defVs useVs hqualFiles imps incs spec 
 
-data GhcInfo = GI { 
-    env      :: !HscEnv
-  , cbs      :: ![CoreBind]
-  , impVars  :: ![Var]
-  , defVars  :: ![Var]
-  , hqFiles  :: ![FilePath]
-  , imports  :: ![String]
-  , includes :: ![FilePath]
-  , spec     :: !GhcSpec
-  }
-
-instance Fixpoint GhcSpec where
-  toFix spec =  (text "******* Type Signatures *********************")
-             $$ (toFix $ tySigs spec)
-             $$ (text "******* DataCon Specifications (Measure) ****")
-             $$ (toFix $ ctor spec)
-             $$ (text "******* Measure Specifications **************")
-             $$ (toFix $ meas spec)
-
-instance Fixpoint GhcInfo where 
-  toFix info =  (text "*************** Imports *********************")
-             $$ (pprDoc $ imports info)
-             $$ (text "*************** Includes ********************")
-             $$ (pprDoc $ includes info)
-             $$ (text "*************** Core Bindings ***************")
-             $$ (pprDoc $ cbs info)
-             $$ (text "*************** Imported Variables **********")
-             $$ (pprDoc $ impVars info)
-             $$ (text "*************** Defined Variables ***********")
-             $$ (pprDoc $ defVars info)
-             $$ (text "*************** Specification ***************")
-             $$ (toFix $ spec info)
-
-instance Show GhcInfo where
-  show = showFix
-
-------------------------------------------------------------------
--------------- Extracting CoreBindings From File -----------------
-------------------------------------------------------------------
 
 updateDynFlags df ps 
   = df { importPaths  = ps ++ importPaths df  } 
        { libraryPaths = ps ++ libraryPaths df }
        { profAuto     = ProfAutoCalls         }
+
+printVars s vs 
+  = do putStrLn s 
+       putStrLn $ showPpr [(v, getSrcSpan v) | v <- vs]
+
+mgi_namestring = moduleNameString . moduleName . mgi_module
+
+importVars            = freeVars S.empty 
+
+definedVars           = concatMap defs 
+  where 
+    defs (NonRec x _) = [x]
+    defs (Rec xes)    = map fst xes
+
+
+------------------------------------------------------------------
+-- | Extracting CoreBindings From File ---------------------------
+------------------------------------------------------------------
 
 getGhcModGuts1 fn = do
    liftIO $ deleteBinFiles fn 
@@ -139,46 +143,8 @@ peepGHCSimple fn
        liftIO $ putStrLn $ showPpr (cm_binds z)
        errorstar "Done peepGHCSimple"
 
-getGhcInfo target paths 
-  = runGhc (Just libdir) $ do
-      df                 <- getSessionDynFlags
-      setSessionDynFlags  $ updateDynFlags df paths
-      -- peepGHCSimple target 
-      modguts            <- getGhcModGuts1 target
-      hscEnv             <- getSession
-      -- modguts     <- liftIO $ hscSimplify hscEnv modguts
-      coreBinds          <- liftIO $ anormalize hscEnv modguts
-      let impvs           = importVars coreBinds 
-      let defvs           = definedVars coreBinds 
-      (spec, imps, incs) <- moduleSpec (impvs ++ defvs) target modguts paths 
-      liftIO              $ putStrLn $ "Module Imports: " ++ show imps 
-      hqualFiles         <- moduleHquals modguts paths target imps incs 
-      return              $ GI hscEnv coreBinds impvs defvs hqualFiles imps incs spec 
-
-moduleHquals mg paths target imps incs 
-  = do hqs   <- specIncludes Hquals paths incs 
-       hqs'  <- moduleImports [Hquals] paths (mgi_namestring mg : imps)
-       hqs'' <- liftIO $ filterM doesFileExist [extFileName Hquals target]
-       let rv = sortNub $ hqs'' ++ hqs ++ (snd <$> hqs')
-       liftIO $ putStrLn $ "Reading Qualifiers From: " ++ show rv 
-       return rv
-
-printVars s vs 
-  = do putStrLn s 
-       putStrLn $ showPpr [(v, getSrcSpan v) | v <- vs]
-
-mgi_namestring = moduleNameString . moduleName . mgi_module
-
-importVars  = freeVars S.empty 
-definedVars = concatMap defs 
-  where defs (NonRec x _) = [x]
-        defs (Rec xes)    = map fst xes
-
--- instance Show TC.TyCon where
---   show = showPpr 
-
 --------------------------------------------------------------------------------
----------------------------- Desugaring (Taken from GHC) -----------------------
+-- | Desugaring (Taken from GHC, modified to hold onto Loc in Ticks) -----------
 --------------------------------------------------------------------------------
 
 desugarModuleWithLoc tcm = do
@@ -191,19 +157,30 @@ desugarModuleWithLoc tcm = do
   return $ DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
 --------------------------------------------------------------------------------
---------------- Extracting Specifications (Measures + Assumptions) -------------
+-- | Extracting Qualifiers -----------------------------------------------------
+--------------------------------------------------------------------------------
+
+moduleHquals mg paths target imps incs 
+  = do hqs   <- specIncludes Hquals paths incs 
+       hqs'  <- moduleImports [Hquals] paths (mgi_namestring mg : imps)
+       hqs'' <- liftIO   $ filterM doesFileExist [extFileName Hquals target]
+       let rv = sortNub  $ hqs'' ++ hqs ++ (snd <$> hqs')
+       liftIO $ putStrLn $ "Reading Qualifiers From: " ++ show rv 
+       return rv
+
+--------------------------------------------------------------------------------
+-- | Extracting Specifications (Measures + Assumptions) ------------------------
 --------------------------------------------------------------------------------
  
-moduleSpec vars target mg paths
+moduleSpec cfg vars target mg paths
   = do liftIO      $ putStrLn ("paths = " ++ show paths) 
        tgtSpec    <- liftIO $ parseSpec (name, target) 
-       _          <- liftIO $ checkAssertSpec vars             $ Ms.sigs       tgtSpec
        impSpec    <- getSpecs paths impNames [Spec, Hs, LHs] 
        let spec    = Ms.expandRTAliases $ tgtSpec `mappend` impSpec 
        let imps    = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
        setContext [IIModule (mgi_module mg)]
        env        <- getSession
-       ghcSpec    <- liftIO $ makeGhcSpec vars env spec
+       ghcSpec    <- liftIO $ makeGhcSpec cfg name vars env spec
        return      (ghcSpec, imps, Ms.includes tgtSpec)
     where impNames = allDepNames  mg
           name     = mgi_namestring mg
@@ -289,14 +266,6 @@ reqFile ext s
   = Just s 
   | otherwise
   = Nothing
-
-checkAssertSpec :: [Var] -> [(Symbol, BareType)] -> IO () 
-checkAssertSpec vs xbs =
-  let vm  = M.fromList [(showPpr v, v) | v <- vs] 
-      xs' = [s | (x, _) <- xbs, let s = symbolString x, not (M.member s vm)]
-  in case xs' of 
-    [] -> return () 
-    _  -> errorstar $ "Asserts for Unknown variables: "  ++ (intercalate ", " xs')  
 
 
 ------------------------------------------------------------------------------
@@ -392,22 +361,6 @@ bindings (NonRec x _)
 bindings (Rec  xes  ) 
   = map fst xes
 
----------------------------------------------------------------
------------------- Printing Related Functions -----------------
----------------------------------------------------------------
-
---instance Outputable Spec where
---  ppr (Spec s) = vcat $ map pprAnnot $ varEnvElts s 
---    where pprAnnot (x,r) = ppr x <> text " @@ " <> ppr r <> text "\n"
-
--- ppFreeVars    = showSDoc . vcat .  map ppFreeVar 
--- ppFreeVar x   = pprDoc n <> text " :: " <> pprDoc t <> text "\n" 
---                 where n = varName x
---                       t = varType x
-
--- ppVarExp (x,e) = text "Var " <> pprDoc x <> text " := " <> pprDoc e
--- ppBlank = text "\n_____________________________\n"
-
 --------------------------------------------------------------------
 ------ Strictness --------------------------------------------------
 --------------------------------------------------------------------
@@ -415,16 +368,35 @@ bindings (Rec  xes  )
 instance NFData Var
 instance NFData SrcSpan
 
---instance NFData GhcInfo where
---  rnf (GI x1 x2 x3 x4 x5 x6 x7 x8 _ _ _) 
---    = {-# SCC "NFGhcInfo" #-} 
---      x1 `seq` 
---      x2 `seq` 
---      {- rnf -} x3 `seq` 
---      {- rnf -} x4 `seq` 
---      {- rnf -} x5 `seq` 
---      {- rnf -} x6 `seq` 
---      {- rnf -} x7 `seq` 
---      {- rnf -} x8
 
 
+instance Fixpoint GhcSpec where
+  toFix spec =  (text "******* Target Variables ********************")
+             $$ (toFix $ tgtVars spec)
+             $$ (text "******* Type Signatures *********************")
+             $$ (toFix $ tySigs spec)
+             $$ (text "******* DataCon Specifications (Measure) ****")
+             $$ (toFix $ ctor spec)
+             $$ (text "******* Measure Specifications **************")
+             $$ (toFix $ meas spec)
+
+instance Fixpoint GhcInfo where 
+  toFix info =   (text "*************** Imports *********************")
+             $+$ (intersperse comma $ text <$> imports info)
+             $+$ (text "*************** Includes ********************")
+             $+$ (intersperse comma $ text <$> includes info)
+             $+$ (text "*************** Imported Variables **********")
+             $+$ (pprDoc $ impVars info)
+             $+$ (text "*************** Defined Variables ***********")
+             $+$ (pprDoc $ defVars info)
+             $+$ (text "*************** Specification ***************")
+             $+$ (toFix $ spec info)
+             $+$ (text "*************** Core Bindings ***************")
+             $+$ (pprDoc $ cbs info)
+
+instance Show GhcInfo where
+  show = showFix
+
+instance Fixpoint TargetVars where
+  toFix AllVars   = text "All Variables"
+  toFix (Only vs) = text "Only Variables: " <+> toFix vs 

@@ -13,6 +13,7 @@ import CoreSyn
 import qualified DataCon as TC
 import IdInfo
 
+import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.PredType hiding (exprType)
@@ -38,13 +39,12 @@ generatePredicates info = {-trace ("Predicates\n" ++ show γ ++ "PredCBS" ++ sho
 getNeedPd spec 
   = F.fromListSEnv bs
     where  dcs   = concatMap mkDataConIdsTy [(x, dataConPtoPredTy y) | (x, y) <- dconsP spec]
-           assms = passm $ tySigs spec 
+           assms = (mapSnd (mapReft ur_pred . val)) <$> tySigs spec 
            bs    = mapFst varSymbol <$> (dcs ++ assms)
 
 dataConPtoPredTy :: DataConP -> PrType
 dataConPtoPredTy = fmap ur_pred . dataConPSpecType
 
-passm = fmap (mapSnd (mapReft ur_pred)) 
 
 
 addPredApp γ (NonRec b e) = NonRec b $ thd3 $ pExpr γ e

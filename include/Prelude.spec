@@ -16,8 +16,9 @@ assume GHC.Num.*                :: (Num a) => x:a -> y:a -> {v:a | (((x >= 0) &&
 assume GHC.Real.div             :: (Integral a) => x:a -> y:a -> {v:a | v = (x / y) }
 assume GHC.Real.mod             :: (Integral a) => x:a -> y:a -> {v:a | v = (x mod y) }
 assume GHC.Real./               :: (Fractional a) => x:a -> y:{v:a | v != 0} -> {v: a | v = (x / y) }
-assume GHC.Real.fromIntegral    :: (Integral a, Num b) => x: a -> {v: b | ((x != 0) => (v != 0))}
 assume GHC.Num.fromInteger      :: (Num a) => x:Integer -> {v:a | v = x }
+
+-- assume GHC.Real.fromIntegral    :: (Integral a, Num b) => x: a -> {v: b | ((x != 0) => (v != 0))}
 
 
 
@@ -30,5 +31,7 @@ fromJust (Just x) = x
 
 embed Integer  as int
 
+type GeInt N = {v: GHC.Types.Int | v >= N }
 
+type Nat     = {v: GHC.Types.Int | (v >= 0)}
 

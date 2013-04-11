@@ -11,7 +11,7 @@ data MaybeS a = NothingS | JustS !a
     fromJustS (JustS x) = x 
   @-}
 
-{-@ type OList a = [a]<\fld -> {v: a | (v >= fld)}> @-}
+{-@ type OList a = [a]<{\fld v -> (v >= fld)}> @-}
 
 {-@ filterGt :: (Ord a) => x:MaybeS a -> OList a -> OList {v:a | ((isJustS(x)) => (fromJustS(x) <= v)) } @-}
 
