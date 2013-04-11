@@ -24,26 +24,16 @@ import Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.List        (partition, foldl')
+
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types hiding (Predicate, Expr)
 import qualified Language.Fixpoint.Types as F
+import Language.Haskell.Liquid.Types 
 import Language.Haskell.Liquid.RefType  hiding (generalize)
 import Language.Haskell.Liquid.GhcMisc
 
 import Control.Applicative  ((<$>))
 import Control.Monad.State
-
-data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
-                     , freePredTy   :: ![(PVar RSort)]
-                     , covPs        :: ![Int] -- indexes of covariant predicate arguments
-                     , contravPs    :: ![Int] -- indexes of contravariant predicate arguments
-                     }
-
-data DataConP = DataConP { freeTyVars :: ![RTyVar]
-                         , freePred   :: ![(PVar RSort)]
-                         , tyArgs     :: ![(Symbol, SpecType)]
-                         , tyRes      :: !SpecType
-                         }
 
 makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 

@@ -6,7 +6,11 @@
 -- The actual /representations/ of bare and real (refinement) types are all
 -- in `RefType` -- they are different instances of `RType`
 
-module Language.Haskell.Liquid.Bare (GhcSpec (..), makeGhcSpec) where
+module Language.Haskell.Liquid.Bare (
+    GhcSpec (..)
+  , makeGhcSpec
+  -- , varSpecType
+  ) where
 
 import GHC hiding               (lookupName, Located)	
 import Outputable (showPpr)
@@ -20,10 +24,9 @@ import HscMain
 import TysWiredIn
 import BasicTypes               (TupleSort (..), Arity)
 import TcRnDriver               (tcRnLookupRdrName, tcRnLookupName) 
-import Name                     (getSrcSpan)
 import Data.Char                (isLower)
 import Text.Printf
-import Data.Maybe               (fromMaybe, mapMaybe, catMaybes, isNothing)
+import Data.Maybe               (listToMaybe, fromMaybe, mapMaybe, catMaybes, isNothing)
 import Control.Monad.State      (get, modify, State, evalState)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>), (<|>))
@@ -33,7 +36,7 @@ import Control.Monad.Error      hiding (forM)
 import Data.Bifunctor
 
 
-import Language.Fixpoint.Names                  (propConName, dropModuleNames)
+import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Fixpoint.Types                  
 import Language.Fixpoint.Sort                   (checkSortedReft, checkSortedReftFull)
@@ -52,48 +55,22 @@ import qualified Control.Exception   as Ex
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
 
--- | The following is the overall type for /specifications/ obtained from
--- parsing the target source and dependent libraries
+makeGhcSpec, makeGhcSpec' :: Config -> String -> [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
+makeGhcSpec cfg name vars env spec 
+  = checkGhcSpec <$> makeGhcSpec' cfg name vars env spec 
 
-data GhcSpec = SP {
-    tySigs     :: ![(Var, Located SpecType)]     -- ^ Asserted/Assumed Reftypes
-                                                 -- eg.  see include/Prelude.spec
-  , ctor       :: ![(Var, Located SpecType)]     -- ^ Data Constructor Measure Sigs 
-                                                 -- eg.  (:) :: a -> xs:[a] -> {v: Int | v = 1 + len(xs) }
-  , meas       :: ![(Symbol, Located RefType)]   -- ^ Measure Types  
-                                                 -- eg.  len :: [a] -> Int
-  , invariants :: ![Located SpecType]            -- ^ Data Type Invariants
-                                                 -- eg.  forall a. {v: [a] | len(v) >= 0}
-  , dconsP     :: ![(DataCon, DataConP)]         -- ^ Predicated Data-Constructors
-                                                 -- e.g. see tests/pos/Map.hs
-  , tconsP     :: ![(TyCon, TyConP)]             -- ^ Predicated Type-Constructors
-                                                 -- eg.  see tests/pos/Map.hs
-  , freeSyms   :: ![(Symbol, Var)]               -- ^ List of `Symbol` free in spec and corresponding GHC var 
-                                                 -- eg. (Cons, Cons#7uz) from tests/pos/ex1.hs
-  , tcEmbeds   :: TCEmb TyCon                    -- ^ How to embed GHC Tycons into fixpoint sorts
-                                                 -- e.g. "embed Set as Set_set" from include/Data/Set.spec
-  , qualifiers :: ![Qualifier]                   -- ^ Qualifiers in Source/Spec files
-                                                 -- e.g tests/pos/qualTest.hs
-  }
 
-makeGhcSpec :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
-makeGhcSpec vars env spec 
-  = checkGhcSpec <$> makeGhcSpec' vars env spec 
-
-makeGhcSpec' :: [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
-makeGhcSpec' vars env spec 
-  = do (tcs, dcs)      <- makeConTypes    env               $ Ms.dataDecls  spec 
+makeGhcSpec' cfg name vars env spec 
+  = do (tcs, dcs)      <- makeConTypes    env  name         $ Ms.dataDecls  spec 
        let (tcs', dcs') = wiredTyDataCons 
        let tycons       = tcs ++ tcs'    
        let datacons     = concat dcs ++ dcs'    
-       let benv         = BE (makeTyConInfo tycons) env
+       let benv         = BE name (makeTyConInfo tycons) env
        (cs, ms)        <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
-       sigs'           <- makeAssumeSpec  benv vars         $ Ms.sigs       spec
+       sigs'           <- makeAssumeSpec  cfg benv vars     $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
-       embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec 
-
+       embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec
        let sigs         = [(x, (txRefSort benv . txExpToBind) <$> t) | (x, t) <- sigs'] 
-       -- let sigs         = mapSnd (txRefSort benv . txExpToBind) <$> sigs' 
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs datacons
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms ] -- first val <$> ms 
        let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms' 
@@ -108,6 +85,7 @@ makeGhcSpec' vars env spec
                              , freeSyms   = syms' 
                              , tcEmbeds   = embs 
                              , qualifiers = Ms.qualifiers spec 
+                             , tgtVars    = AllVars -- makeTargetVars vars (binds cfg)
                              }
 
 
@@ -118,8 +96,8 @@ addSymSort tcenv (RApp rc@(RTyCon c _ _) ts rs r)
   where ps = rTyConPs $ appRTyCon tcenv rc ts
 addSymSort _ t 
   = t
-            
-addSymSortRef (p, RPoly s (RVar _ r)) 
+
+addSymSortRef (p, RPoly s (RVar v r)) | isDummy v
   = RPoly (safeZip "addRefSortPoly" (fst <$> s) (fst3 <$> pargs p)) t
   where t = ofRSort (ptype p) `strengthen` r
 addSymSortRef (p, RPoly s t) 
@@ -130,11 +108,14 @@ addSymSortRef (p, RMono s r@(U _ (Pr [up])))
 addSymSortRef (p, RMono s t)
   = RMono s t
 
-varMeasures vars  = [ (varSymbol v, Loc l (ofType $ varType v)) 
+varMeasures vars  = [ (varSymbol v, varSpecType v) 
                     | v <- vars
                     , isDataConWorkId v
                     , isSimpleType $ varType v
-                    , let l = srcSpanSourcePos $ getSrcSpan v ]
+                    ]
+
+varSpecType v      = Loc (getSourcePos v) (ofType $ varType v)
+
 
 isSimpleType t = null tvs && isNothing (splitFunTy_maybe tb)
   where (tvs, tb) = splitForAllTys t 
@@ -187,14 +168,15 @@ meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
 
 type BareM a = ErrorT String (ReaderT BareEnv IO) a
 
-data BareEnv = BE { tcEnv  :: !(M.HashMap TyCon RTyCon)
-                  , hscEnv :: HscEnv }
+data BareEnv = BE { modName :: !String 
+                  , tcEnv   :: !(M.HashMap TyCon RTyCon)
+                  , hscEnv  :: HscEnv }
 
 execBare :: BareM a -> BareEnv -> IO a
 execBare act benv = 
    do z <- runReaderT (runErrorT act) benv
       case z of
-        Left s  -> errorstar $ "execBare:" ++ s
+        Left s  -> errorstar $ "execBare: " ++ s
         Right x -> return x
 
 wrapErr msg f x
@@ -211,23 +193,45 @@ makeMeasureSpec env m = execBare mkSpec env
                  >>= return . mapFst (mapSnd uRType <$>) . Ms.dataConTypes 
         m'     = first (mapReft ur_reft) m
 
-makeAssumeSpec :: BareEnv -> [Var] -> [(LocSymbol, BareType)] -> IO [(Var, Located SpecType)]
-makeAssumeSpec env vs xbs = execBare mkAspec env 
+makeTargetVars :: [Var] -> [String] -> TargetVars
+makeTargetVars = undefined 
+
+makeAssumeSpec :: Config -> BareEnv -> [Var] -> [(LocSymbol, BareType)] -> IO [(Var, Located SpecType)]
+makeAssumeSpec cfg env vs xbs = execBare mkAspec env
   where 
-    mkAspec               = forM vbs mkVarSpec
     vbs                   = joinIds vs xbs 
+    mkAspec               = do when (not $ noCheckUnknown cfg)
+                                 $ checkDefAsserts env vbs xbs
+                               forM vbs mkVarSpec
+
+    checkDefAsserts env vbs xbs = applyNonNull (return ()) grumble  undefSigs
+        where
+          undefSigs               = [x | (x, _) <- assertSigs, not (x `S.member` definedSigs)]
+          assertSigs              = filter isTarget xbs
+          definedSigs             = S.fromList $ snd3 <$> vbs
+          errorMsg                = (text "Specification for unknown variable:" <+>) . locatedSymbolText
+          grumble                 = throwError . render . vcat . fmap errorMsg
+          moduleName              = modName env
+          isTarget                = L.isPrefixOf moduleName . symbolStringRaw . val . fst
+          symbolStringRaw         = stripParens . symbolString
+
+
+locatedSymbolText z         = text (symbolString $ val z) <+> text "defined at:" <+> toFix (loc z)    
+
+
 
 mkVarSpec                 :: (Var, LocSymbol, BareType) -> BareM (Var, Located SpecType)
 mkVarSpec (v, Loc l _, b) = liftM ((v, ) . (Loc l)) (wrapErr msg (mkSpecType msg) b)
   where 
     msg                   = "mkVarSpec fails on " ++ showFix v ++ " :: "  ++ showFix b 
 
-joinIds        ::  (Symbolic a) => [Var] -> [(a, t)] -> [(Var, a, t)]
-joinIds vs xts = catMaybes [(, x, t) <$> tx x | (x, t) <- xts]   
-  where 
-    vm         = M.fromList [(showFix v, v) | v <- vs]
-    tx x       = {- traceShow ("joinId x = " ++ showFix x) $-} M.lookup (ss x) vm
-    ss         = symbolString . symbol 
+showTopLevelVars vs = 
+  forM vs $ \v -> 
+    if isExportedId v 
+      then donePhase Loud ("Exported: " ++ show v)
+      else return ()
+
+----------------------------------------------------------------------
 
 makeTyConEmbeds  :: BareEnv -> TCEmb String -> IO (TCEmb TyCon) 
 makeTyConEmbeds benv z = execBare (M.fromList <$> mapM tx (M.toList z)) benv
@@ -259,20 +263,20 @@ makeSymbols vs xs' xts yts = xvs
     zs'  = (concatMap freeSymbols ((snd <$> yts))) `sortDiff` xs''
     xs   = sortNub $ zs ++ zs'
     xvs  = sortNub [(x, v) | (v, _, x) <- joinIds vs (zip xs xs)]
-    -- env = S.fromList ((fst <$> xvs) ++ xs')
 
--- TODO: use this. currently suppressed because 
--- checkSig env xt = True 
---   forall aa. (Ord a) => [a] -> [a]<{VV : a | (VV >= fld)}>
--- doesn't typecheck -- thanks to "fld"
--- checkSig env xt = tracePpr ("checkSig " ++ showFix xt) $ checkSig' env xt
+joinIds        ::  (Symbolic a) => [Var] -> [(a, t)] -> [(Var, a, t)]
+joinIds vs xts = catMaybes [(, x, t) <$> tx x | (x, t) <- xts]   
+  where 
+    vm         = group [(dropModuleNames $ showFix v, v) | v <- vs]
+    tx x       = listToMaybe $ filter (symCompat x) $ M.lookupDefault [] (ss x) vm
+    ss         = dropModuleNames . symbolString . symbol 
 
--- freeSymbols :: SpecType -> [Symbol]
--- freeSymbols ty   = sortNub $ concat $ efoldReft f [] [] ty
---   where f γ r xs = let Reft (v, _) = toReft r in ((syms r) `sortDiff` (v:γ) ) : xs 
+symCompat :: (Symbolic a) => a -> Var -> Bool
+symCompat x v   = (symbolString $ symbol x) `comp` (showFix v)
+  where 
+    comp sx sv  = sx == sv || (takeModuleNames sx `L.isPrefixOf` takeModuleNames sv)
 
--- freeSymbols :: SpecType -> [Symbol]
--- freeSymbols ::  Reftable r => RType p c tv r -> [Symbol]
+
 freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> []) (\ _ -> ()) f emptySEnv [] (val ty)
   where 
     f γ _ r xs = let Reft (v, _) = toReft r in 
@@ -289,10 +293,8 @@ class GhcLookup a where
 
 instance GhcLookup String where
   lookupName     = stringLookup
-  candidates x   = [x, swizzle x] 
+  candidates x   = [x, dropModuleNames x] 
   pp         x   = x
-
-swizzle =  dropModuleNames . stripParens
 
 instance GhcLookup Name where
   lookupName _   = return . Just
@@ -540,8 +542,8 @@ propTyCon   = stringTyCon 'w' 24 propConName
 ---------------- Bare Predicate: DataCon Definitions ------------------
 -----------------------------------------------------------------------
 
-makeConTypes :: HscEnv -> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
-makeConTypes env dcs = unzip <$> execBare (mapM ofBDataDecl dcs) (BE M.empty env)
+makeConTypes :: HscEnv -> String -> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
+makeConTypes env name dcs = unzip <$> execBare (mapM ofBDataDecl dcs) (BE name M.empty env)
 
 ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
 ofBDataDecl (D tc as ps cts)
@@ -631,9 +633,10 @@ rtypePredBinds = map uPVar . snd3 . bkUniv
 
 checkGhcSpec         :: GhcSpec -> GhcSpec 
 checkGhcSpec sp      =  applyNonNull sp specError errors
-  where env          =  ghcSpecEnv sp
-        emb          =  tcEmbeds sp
-        errors       =  mapMaybe (checkBind "variable"         emb env) (tySigs     sp)
+  where 
+    env              =  ghcSpecEnv sp
+    emb              =  tcEmbeds sp
+    errors           =  mapMaybe (checkBind "variable"         emb env) (tySigs     sp)
                      ++ mapMaybe (checkBind "data constructor" emb env) (ctor       sp)
                      ++ mapMaybe (checkBind "measure"          emb env) (meas       sp)
                      ++ mapMaybe (checkInv  emb env)                    (invariants sp)
@@ -645,7 +648,6 @@ specError            = errorstar
                      . vcat 
                      . punctuate (text "\n----\n") 
                      . (text "Alas, errors found in specification..." :)
-
 
 checkInv emb env t   = checkTy msg emb env (val t) 
   where msg          =   text "\n---"
@@ -665,11 +667,14 @@ checkDuplicate xts   = err <$> dups
         dups         = [ z | z@(x, t1:t2:_) <- M.toList $ group xts ]
 
 checkMismatch (x, t) = if ok then Nothing else Just err
-  where ok           = (toRSort t') == (ofType $ varType x) 
+  where ok           = tyCompat x t' --(toRSort t') == (ofType $ varType x) 
         err          = vcat [ text "Specified Liquid Type Does Not Match Haskell Type"
                             , text "Haskell:" <+> toFix x <+> dcolon <+> toFix (varType x)
                             , text "Liquid :" <+> toFix x <+> dcolon <+> toFix t           ]
         t'           = val t
+
+tyCompat x t         = (toRSort t) == (ofType $ varType x)
+
 
 ghcSpecEnv sp        = fromListSEnv binds
   where 
@@ -681,6 +686,13 @@ ghcSpecEnv sp        = fromListSEnv binds
     vSort            = rSort . varRType 
     varRType         :: Var -> RRType ()
     varRType         = ofType . varType
+
+--   let vm  = M.fromList [(showPpr v, v) | v <- vs] 
+--       xs' = [s | (x, _) <- xbs, let s = symbolString (val x), not (M.member s vm)]
+--   in case xs' of 
+--     [] -> return () 
+--     _  -> errorstar $ "Asserts for Unknown variables: "  ++ (intercalate ", " xs')  
+
 
 -------------------------------------------------------------------------------------
 -- | This function checks if a type is malformed in a given environment -------------
@@ -715,19 +727,17 @@ checkSig env (x, t)
     where msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showFix ys) (showFix x) (showFix t)
 
 
-
-
-
-
-
 -------------------------------------------------------------------------------
-------------------  Replace Predicate Arguments With Existemtials -------------
+------------------  Replace Predicate Arguments With Existentials -------------
 -------------------------------------------------------------------------------
 
 data ExSt = ExSt { fresh :: Int
                  , emap  :: M.HashMap Symbol (RSort, Expr)
                  , pmap  :: M.HashMap Symbol RPVar 
                  }
+
+-- | Niki: please write more documentation for this, maybe an example? 
+-- I can't really tell whats going on... (RJ)
 
 txExpToBind   :: SpecType -> SpecType
 txExpToBind t = evalState (expToBindT t) (ExSt 0 M.empty πs)

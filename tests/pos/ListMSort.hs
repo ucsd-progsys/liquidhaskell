@@ -16,7 +16,7 @@ merge (x:xs) (y:ys)
   | otherwise 
   = y:(merge (x:xs) ys)
 
-{-@ mergesort :: (Ord a) => xs:[a] -> [a]<\fld -> {v: a | (v >= fld)}>  @-}
+{-@ mergesort :: (Ord a) => xs:[a] -> [a]<{\fld v -> (v >= fld)}>  @-}
 mergesort :: Ord a => [a] -> [a]
 mergesort [] = []
 mergesort [x] = [x]

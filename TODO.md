@@ -1,19 +1,10 @@
 TODO
 ====
 
-* fix the test/pos/go_ugly_type.hs 
-    -- WHY DO we get first unrolled type for go?
-    -- tests/pos/go.hs
-
-* release the sets-blog-entry    
-
 * [jhala]  benchmarks: Data.Bytestring
     ? Upgrade to GHC 7.6.1 (boxed tuple commenting out C issue)
     ? readsPrec
     ? big constants issue : _word64 34534523452134213524525 due to (deriving Typeable)
-
-* Inferred types for inner-"go" are crap. e.g. 
-    - tests/pos/go.hs
 
 * error messages: expected XXX got YYY?
 
@@ -55,17 +46,22 @@ TODO
 * Move stuff into Types.hs
     - remove `toType` and  generalize `typeSort` to work for all RefTypables
 
+Incremental Checking
+====================
 
-BExp Parser vs. ppr_rtype [BEXPARSER]
-=====================================
+1. Command Line Arguments  
+    - Specify WHICH binders to verify [DEFAULT = ALL]  
+    - liquid tests/pos/goo.hs -check foo bar baz 
+    - Print out vars/hs-types <-------------------------- HEREHEREHEREHERE
 
-WTF is up with the wierd case BEXPARSER?
-Why does it kill the BExp parser e.g. tests/pos/LambdaEval.hs (ask Niki)
+2. CONSGEN for subset 
 
-Niki -- if you grep for BEXPARSER in RefType.hs -- you will see there is
-one line in ppr_rtype that I have commented out. For some strange reason 
-when I add that line back in it breaks the PARSER (!!!) I couldnt
-understand why so if you can figure this out it would be great...!
+3. CONSGEN for subset using TRUE for all other functions
+
+4. SAVE out inferred-types for top-level binders
+
+5. REUSE pre-inferred types for other functions 
+
 
 
 Benchmarks
