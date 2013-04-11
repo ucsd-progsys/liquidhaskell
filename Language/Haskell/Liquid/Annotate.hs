@@ -18,8 +18,7 @@ import GHC                      ( SrcSpan (..)
                                 , srcSpanStartCol
                                 , srcSpanEndCol
                                 , srcSpanStartLine
-                                , srcSpanEndLine
-                                , isExportedId)
+                                , srcSpanEndLine)
 
 import Var                      (Var (..))                                
 import Outputable               (showPpr)
@@ -27,12 +26,13 @@ import Text.PrettyPrint.HughesPJ
 import GHC.Exts                 (groupWith, sortWith)
 
 import Data.Char                (isSpace)
-import Data.Maybe               (fromJust, isJust)
+import Data.Function            (on)
+import Data.List                (sortBy)
 
 import Control.Arrow            hiding ((<+>))
 import Control.Applicative      ((<$>))
 import Control.DeepSeq
-import Control.Monad            (forM_, when)
+import Control.Monad            (when)
 -- import Data.Data                hiding (TyCon, tyConName)
 
 import System.FilePath          (takeFileName, dropFileName, (</>)) 
@@ -63,16 +63,17 @@ annotate :: FilePath -> FixResult SrcSpan -> FixSolution -> AnnInfo Annot -> IO 
 annotate fname result sol anna 
   = do annotDump fname (extFileName Html $ extFileName Cst fname) result annm
        annotDump fname (extFileName Html fname) result annm'
-       mapM_ showBots $ M.toList untidy
-    where annm = closeAnnots anna
-          AI untidy = applySolution sol annm
-          annm' = tidySpecType <$> AI untidy
-          showBots (src, specs) = forM_ specs $ \(v, spec) ->
-                                     when (and [ isJust v
-                                               , isExportedId (fromJust v)
-                                               , isContraReft (rTypeReft spec)])
-                                          (printf "WARNING: Found false in %s\n%s\n\n"
-                                                      (showPpr src) (show spec))
+       showBots annm'
+    where
+      annm  = closeAnnots anna
+      annm' = tidySpecType <$> applySolution sol annm
+
+showBots (AI m) = mapM_ showBot $ sortBy (compare `on` fst) $ M.toList m
+  where
+    showBot (src, (Just v, spec):_) =
+        when (isFalse (rTypeReft spec)) $
+             printf "WARNING: Found false in %s\n" (showPpr src)
+    showBot _ = return ()
 
 annotDump :: FilePath -> FilePath -> FixResult SrcSpan -> AnnInfo SpecType -> IO ()
 annotDump srcFile htmlFile result ann
