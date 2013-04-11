@@ -297,6 +297,7 @@ infixl 9 !,\\ --
 -- > fromList [(5,'a'), (3,'b')] ! 1    Error: element not in the map
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
+{-@ (!) :: (Ord k) => OMap k a -> k -> a @-}
 (!) :: Ord k => Map k a -> k -> a
 m ! k = find k m
 #if __GLASGOW_HASKELL__ >= 700
@@ -304,6 +305,7 @@ m ! k = find k m
 #endif
 
 -- | Same as 'difference'.
+{-@ (\\) :: Ord k => OMap k a -> OMap k b -> OMap k a @-}
 (\\) :: Ord k => Map k a -> Map k b -> Map k a
 m1 \\ m2 = difference m1 m2
 #if __GLASGOW_HASKELL__ >= 700
@@ -332,7 +334,7 @@ type Size     = Int
          | Tip 
   @-}
 
-{-@ type OMap k a = Map <\root -> {v:k | v < root}, \root -> {v:k | v > root}> k a @-}
+{-@ type OMap k a = Map <{\root v -> v < root}, {\root v -> v > root}> k a @-}
 
 {-@ measure isJustS :: forall a. MaybeS a -> Prop
     isJustS (JustS x)  = true
@@ -1615,6 +1617,8 @@ submap' f (Bin _ kx x l r) t
 
 -- | /O(n+m)/. Is this a proper submap? (ie. a submap but not equal).
 -- Defined as (@'isProperSubmapOf' = 'isProperSubmapOfBy' (==)@).
+
+{-@ isProperSubmapOf :: (Ord k,Eq a) => OMap k a -> OMap k a -> Bool @-}
 isProperSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
 isProperSubmapOf m1 m2
   = isProperSubmapOfBy (==) m1 m2
@@ -1640,6 +1644,7 @@ isProperSubmapOf m1 m2
 
 
 -}
+{-@ isProperSubmapOfBy :: Ord k => (a -> b -> Bool) -> OMap k a -> OMap k b -> Bool @-}
 isProperSubmapOfBy :: Ord k => (a -> b -> Bool) -> Map k a -> Map k b -> Bool
 isProperSubmapOfBy f t1 t2
   = (size t1 < size t2) && (submap' f t1 t2)
@@ -2190,6 +2195,7 @@ foldlFB = foldlWithKey
 -- > valid (fromAscList [(5,"a"), (3,"b"), (5,"b")]) == False
 
 {- LIQUIDTODO fromAscList :: (Eq k) => [(k,a)]<{v: (k, a) | fst(v) > fst(fld)}> -> OMap k a -}
+{-@ fromAscList :: (Eq k) => {v: [(k,a)] | false} -> OMap k a @-}
 fromAscList :: Eq k => [(k,a)] -> Map k a
 fromAscList xs
   = fromAscListWithKey (\_ x _ -> x) xs
@@ -2205,6 +2211,7 @@ fromAscList xs
 -- > valid (fromAscListWith (++) [(5,"a"), (3,"b"), (5,"b")]) == False
 
 {- LIQUIDTODO fromAscListWith :: (Eq k) => (a -> a -> a) -> [(k,a)]<{v: (k, a) | fst(v) > fst(fld)}> -> OMap k a -}
+{-@ fromAscListWith :: Eq k => (a -> a -> a) -> {v:[(k,a)] | false} -> OMap k a @-}
 fromAscListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromAscListWith f xs
   = fromAscListWithKey (\_ x y -> f x y) xs
@@ -2222,6 +2229,7 @@ fromAscListWith f xs
 -- > valid (fromAscListWithKey f [(5,"a"), (3,"b"), (5,"b"), (5,"b")]) == False
 
 {- LIQUIDTODO fromAscListWithKey :: (Eq k) => (k -> a -> a -> a) -> [(k,a)]<{v: (k, a) | fst(v) > fst(fld)}> -> OMap k a -}
+{-@ fromAscListWithKey :: (Eq k) => (k -> a -> a -> a) -> {v: [(k,a)] | false} -> OMap k a @-}
 fromAscListWithKey :: Eq k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
 fromAscListWithKey f xs
   = fromDistinctAscList (combineEq f xs)
@@ -2250,6 +2258,7 @@ fromAscListWithKey f xs
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a"), (5,"b")]) == False
 
 {- LIQUIDTODO fromDistinctAscList :: [(k,a)]<{v: (k, a) | fst(v) > fst(fld)}> -> OMap k a -}
+{-@ fromDistinctAscList :: {v: [(k, a)] | false} -> OMap k a @-}
 fromDistinctAscList :: [(k,a)] -> Map k a
 fromDistinctAscList xs
   = create const (length xs) xs
@@ -2503,7 +2512,7 @@ splitLookup k t = k `seq`
   Join
 --------------------------------------------------------------------}
 
-{-@ join :: kcut:k -> a -> OMap {v:k | v < kcut} a -> OMap {v:k| v > kcut} a -> OMap k a @-}
+{-@ join :: k:k -> a -> OMap {v:k | v < k} a -> OMap {v:k| v > k} a -> OMap k a @-}
 join :: k -> a -> Map k a -> Map k a -> Map k a
 join kx x Tip r  = insertMin kx x r
 join kx x l Tip  = insertMax kx x l
@@ -2513,7 +2522,7 @@ join kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
   | otherwise            = bin kx x l r
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
-insertMax,insertMin :: k -> a -> Map k a -> Map k a
+insertMax, insertMin :: k -> a -> Map k a -> Map k a
 insertMax kx x t
   = case t of
       Tip -> singleton kx x
@@ -2736,6 +2745,7 @@ balanceR k x l r = case l of
 {--------------------------------------------------------------------
   The bin constructor maintains the size of the tree
 --------------------------------------------------------------------}
+{-@ bin :: k:k -> a -> OMap {v:k | v < k} a -> OMap {v:k| v > k} a -> OMap k a @-}
 bin :: k -> a -> Map k a -> Map k a -> Map k a
 bin k x l r
   = Bin (size l + size r + 1) k x l r

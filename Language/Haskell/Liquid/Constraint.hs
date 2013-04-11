@@ -15,7 +15,7 @@ module Language.Haskell.Liquid.Constraint (
   , generateConstraints
     
     -- * Project Constraints to Fixpoint Format
-  , cgInfoFInfo  
+  , cgInfoFInfo , cgInfoFInfoBot, cgInfoFInfoKvars
   
   -- * KVars in constraints, for debug purposes
   -- , kvars, kvars'
@@ -29,7 +29,6 @@ import qualified TyCon as TC
 
 import TypeRep 
 import Class            (Class, className)
-import PrelInfo         (isNumericClass)
 import Var
 import Id
 import Name             (getSrcSpan)
@@ -42,7 +41,7 @@ import Control.Applicative      ((<$>))
 import Control.Exception.Base
 
 import Data.Monoid              (mconcat)
-import Data.Maybe               (fromMaybe)
+import Data.Maybe               (fromMaybe, catMaybes)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
@@ -51,13 +50,15 @@ import Data.List (foldl')
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import qualified Language.Fixpoint.Types            as F
+
+import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars)  
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.PredType         hiding (freeTyVars) 
+import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc          (pprDoc, TyConInfo(..), tickSrcSpan, hasBaseTypeVar)
+import Language.Haskell.Liquid.GhcMisc          (getSourcePos, pprDoc, tickSrcSpan, hasBaseTypeVar)
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Qualifier        
 import Control.DeepSeq
@@ -86,13 +87,16 @@ initEnv info penv
   = do defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- tyConInfo <$> get 
        let f0    = grty info          -- asserted refinements     (for defined vars)
+       f0'      <- grtyTop info       -- default TOP reftype      (for exported vars without spec) 
        let f1    = defaults           -- default TOP reftype      (for all vars) 
        let f2    = assm info          -- assumed refinements      (for imported vars)
-       let f3    = ctor $ spec info   -- constructor refinements  (for measures) 
-       let bs    = (map (unifyts' tyi penv)) <$> [f0, f1, f2, f3]
+       let f3    =  ctor' $ spec info -- constructor refinements  (for measures) 
+       let bs    = (map (unifyts' tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
        let γ0    = measEnv (spec info) penv (head bs) (cbs info)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
        -- return    $ foldl' (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs] 
+
+ctor' = map (mapSnd val) . ctor 
 
 unifyts' tyi penv = (second (addTyConInfo tyi)) . (unifyts penv)
 
@@ -102,7 +106,7 @@ unifyts penv (x, t) = (x', unify pt t)
 
 measEnv sp penv xts cbs
   = CGE { loc   = noSrcSpan
-        , renv  = fromListREnv   $ second uRType          <$> meas sp 
+        , renv  = fromListREnv   $ second (uRType . val) <$> meas sp 
         , syenv = F.fromListSEnv $ freeSyms sp 
         , penv  = penv 
         , fenv  = F.emptyIBindEnv -- F.fromListSEnv $ second (rTypeSortedReft tce) <$> meas sp 
@@ -115,12 +119,20 @@ measEnv sp penv xts cbs
         } 
     where tce = tcEmbeds sp
 
-assm = {- traceShow ("****** assm *****\n") . -} assm_grty impVars 
-grty = {- traceShow ("****** grty *****\n") . -} assm_grty defVars
+assm = assm_grty impVars 
+grty = assm_grty defVars
 
-assm_grty f info = [ (x, {- toReft <$> -} t) | (x, t) <- sigs, x `S.member` xs ] 
-  where xs   = S.fromList $ f info 
-        sigs = tySigs $ spec info  
+assm_grty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ] 
+  where 
+    xs           = S.fromList $ f info 
+    sigs         = tySigs     $ spec info  
+
+grtyTop info     = forM topVs $ \v -> (v,) <$> (trueTy $ varType v) -- val $ varSpecType v) | v <- defVars info, isTop v]
+  where
+    topVs        = filter isTop $ defVars info
+    isTop v      = isExportedId v && not (v `S.member` useVs) && not (v `S.member` sigVs)
+    useVs        = S.fromList $ useVars info
+    sigVs        = S.fromList $ [v | (v,_) <- tySigs $ spec info]
 
 
 ------------------------------------------------------------------------
@@ -180,9 +192,6 @@ isBase (RVar _ _)       = True
 isBase (RApp _ ts _ _)  = all isBase ts
 isBase (RFun _ t1 t2 _) = isBase t1 && isBase t2
 isBase _                = False
-
-
-rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
 
 -----------------------------------------------------------------
 ------------------- Constraints: Types --------------------------
@@ -448,20 +457,24 @@ initCGI info = CGInfo {
   , hsWfs      = [] 
   , fixCs      = []
   , fixWfs     = [] 
-  , globals    = F.fromListSEnv . map (mapSnd (rTypeSortedReft (tcEmbeds spc))) $ meas spc
+  , globals    = globs  -- F.fromListSEnv . map (mapSnd (rTypeSortedReft (tcEmbeds spc))) $ meas spc
   , freshIndex = 0
   , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
   , tyConInfo  = tyi
-  , specQuals  = specificationQualifiers (info{spec = spec'})
+  , specQuals  = qualifiers spc ++ specificationQualifiers (info {spec = spec'})
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
-  } where tce   = tcEmbeds $ spec info
-          spc   = spec info
-          spec' = spc{tySigs = mapSnd (addTyConInfo tyi) <$> (tySigs spc)} 
-          tyi   = makeTyConInfo (tconsP spc)
-
+  } 
+  where 
+    tce        = tcEmbeds spc 
+    spc        = spec info
+    spec'      = spc {tySigs = [ (x, addTyConInfo tyi <$> t) | (x, t) <- tySigs spc] }
+    tyi        = makeTyConInfo (tconsP spc)
+    globs      = F.fromListSEnv . map mkSort $ meas spc
+    mkSort     = mapSnd (rTypeSortedReft tce . val)
+                               
 
 coreBindLits tce info
   = sortNub $ [ (x, so) | (_, F.ELit x so) <- lconsts]
@@ -540,15 +553,17 @@ addBind x r
        put          $ st { binds = bs' }
        return i -- traceShow ("addBind: " ++ F.showFix x) i
 
-addClassBind :: SpecType -> CG [F.BindId] -- F.FEnv -> F.FEnv
-addClassBind (RCls c ts)
-  | isNumericClass c
-  = do let numReft = F.trueSortedReft F.FNum
-       let numVars = [rTyVarSymbol a | (RVar a _) <- ts]
-       is         <- forM numVars (`addBind` numReft)
-       return is
-addClassBind _ 
-  = return [] 
+addClassBind :: SpecType -> CG [F.BindId]
+addClassBind = mapM (uncurry addBind) . classBinds
+
+-- addClassBind (RCls c ts)
+--   | isNumericClass c
+--   = do let numReft = F.trueSortedReft F.FNum
+--        let numVars = [rTyVarSymbol a | (RVar a _) <- ts]
+--        is         <- forM numVars (`addBind` numReft)
+--        return is
+-- addClassBind _ 
+--   = return [] 
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) _msg 
@@ -560,24 +575,23 @@ addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive definitions.
 
-addKuts :: SpecType -> CG ()
-addKuts !t = modify $ \s -> s { kuts = {- tracePpr "KUTS: " $-} updKuts (kuts s) t }
-  where updKuts :: F.Kuts -> SpecType -> F.Kuts
-        updKuts = foldReft (F.ksUnion . (F.reftKVars . ur_reft) )
+addKuts     :: SpecType -> CG ()
+addKuts !t  = modify $ \s -> s { kuts = updKuts (kuts s) t }
+  where 
+    updKuts :: F.Kuts -> SpecType -> F.Kuts
+    updKuts = foldReft (F.ksUnion . (F.reftKVars . ur_reft) )
 
 
 -- | Used for annotation binders (i.e. at binder sites)
 
-addIdA :: Var -> Annot -> CG ()
-addIdA !x !t         = modify $ \s -> s { annotMap = upd $ annotMap s }
-  where loc          = getSrcSpan x
-        upd m@(AI z) = -- trace ("addIdA: " ++ show x ++ " :: " ++ F.showFix t ++ " at " ++ show loc) $ 
-                       addA loc (Just x) t m
-                       --case traceShow ("addIdA: " ++ show x ++ " :: " ++ show t ++ " at " ++ show loc) $ M.lookup loc z of 
-                       --  Just (_, (Left _)) -> m 
-                       --  _                 -> addA loc (Just x) t m
-                         -- if (loc `M.member` z) then m else addA loc (Just x) t m
+addIdA            :: Var -> Annot -> CG ()
+addIdA !x !t      = modify $ \s -> s { annotMap = upd $ annotMap s }
+  where 
+    loc           = getSrcSpan x
+    upd m@(AI z)  = if boundRecVar loc m then m else addA loc (Just x) t m
+    -- loc        = traceShow ("addIdA: " ++ show x ++ " :: " ++ F.showFix t ++ " at ") $ getSrcSpan x
 
+boundRecVar l (AI m) = not $ null [t | (_, RDf t) <- M.lookupDefault [] l m]
 
 
 -- | Used for annotating reads (i.e. at Var x sites) 
@@ -595,7 +609,7 @@ addA !l !xo@(Just _)  !t !(AI m)
   | isGoodSrcSpan l 
   = AI $ inserts l (xo, t) m
 addA !l !xo@(Nothing) !t !(AI m) 
-  | l `M.member` m  -- only spans known to be variables
+  | l `M.member` m                  -- only spans known to be variables
   = AI $ inserts l (xo, t) m
 addA _ _ _ !a 
   = a
@@ -1140,11 +1154,10 @@ extendγ γ xts
 
 type RTyConInv = M.HashMap RTyCon [SpecType]
 
-mkRTyConInv    :: [SpecType] -> RTyConInv 
+-- mkRTyConInv    :: [Located SpecType] -> RTyConInv 
 mkRTyConInv ts = group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
   where 
-    strip      = thd3 . bkUniv 
--- type RTyConInv = M.HashMap RTyCon FReft
+    strip      = thd3 . bkUniv . val 
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
 addRTyConInv m t@(RApp c _ _ _)
@@ -1197,8 +1210,15 @@ memberREnv x (REnv env)   = M.member x env
 -- domREnv (REnv env)        = M.keys env
 -- emptyREnv                 = REnv M.empty
 
-cgInfoFInfo cgi 
-  = F.FI { F.cm    = M.fromList $ F.addIds $ fixCs cgi 
+
+cgInfoFInfoBot cgi = cgInfoFInfo cgi{specQuals=[]}
+
+cgInfoFInfoKvars cgi kvars = cgInfoFInfo cgi{fixCs = fixCs' ++ trueCs}
+  where fixCs' = concatMap (updateCs kvars) (fixCs cgi) 
+        trueCs = (`F.trueSubCKvar` Ci noSrcSpan) <$> kvars
+
+cgInfoFInfo cgi
+  = F.FI { F.cm    = M.fromList $ F.addIds $ fixCs cgi
          , F.ws    = fixWfs cgi  
          , F.bs    = binds cgi 
          , F.gs    = globals cgi 
@@ -1207,3 +1227,18 @@ cgInfoFInfo cgi
          , F.quals = specQuals cgi
          }
 
+updateCs kvars cs
+  | null lhskvars || F.isFalse rhs
+  = [cs] 
+  | all (`elem` kvars) lhskvars && null lhsconcs
+  = []
+  | any (`elem` kvars) lhskvars
+  = [F.removeLhsKvars cs kvars]
+  | otherwise 
+  = [cs]
+  where lhskvars = F.reftKVars lhs
+        rhskvars = F.reftKVars rhs
+        lhs      = F.lhsCs cs
+        rhs      = F.rhsCs cs
+        F.Reft(_, lhspds) = lhs
+        lhsconcs = [p | F.RConc p <- lhspds]

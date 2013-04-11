@@ -2,7 +2,7 @@ module Foo where
 
 import Language.Haskell.Liquid.Prelude 
 
-{-@ type OList a = [a]<\fld -> {v: a | (v >= fld)}> @-}
+{-@ type OList a = [a]<{\fld v -> (v >= fld)}> @-}
 {-@ gpp :: Ord a =>  Monad m => [a] -> m (OList a) @-}
 gpp :: Ord a =>  Monad m => [a] -> m [a]
 gpp ls = return $ insertSort ls

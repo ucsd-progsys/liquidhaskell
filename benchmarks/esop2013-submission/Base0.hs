@@ -1,5 +1,5 @@
 
-module Data.Map.Base where
+module Goober where
 
 import Language.Haskell.Liquid.Prelude
 
@@ -24,7 +24,7 @@ type Size     = Int
   @-}
 
 
-{-@ type OMap k a = Map <\root -> {v:k | v < root}, \root -> {v:k | v > root}> k a @-}
+{-@ type OMap k a = Map <{\root v -> v < root}, {\root v -> v > root}> k a @-}
 
 {-@ measure isJustS :: forall a. MaybeS a -> Prop
     isJustS (JustS x)  = true
@@ -69,5 +69,69 @@ trim (JustS lk) (JustS hk) t = middle lk hk t
                                         | otherwise = t'
         middle _ _ t'@Tip = t'  
 
+delta,ratio :: Int
+delta = 3
+ratio = 2
+
+
+
+
+size :: Map k a -> Int
+size Tip              = 0
+size (Bin sz _ _ _ _) = sz
+
+{-@ bin :: k:k -> a -> OMap {v:k | v < k} a -> OMap {v:k| v > k} a -> OMap k a @-}
+bin :: k -> a -> Map k a -> Map k a -> Map k a
+bin k x l r
+  = Bin (size l + size r + 1) k x l r
+
+
+-- insertMin and insertMax don't perform potentially expensive comparisons.
+insertMax, insertMin :: k -> a -> Map k a -> Map k a
+insertMax kx x t
+  = case t of
+      Tip -> singleton kx x
+      Bin _ ky y l r
+          -> balanceR ky y l (insertMax kx x r)
+
+insertMin kx x t
+  = case t of
+      Tip -> singleton kx x
+      Bin _ ky y l r
+          -> balanceL ky y (insertMin kx x l) r
+
+
+{-@ singleton :: k -> a -> OMap k a @-}
+singleton :: k -> a -> Map k a
+singleton k x = Bin 1 k x Tip Tip
+
+{-@ balanceL :: kcut:k -> a -> OMap {v:k | v < kcut} a -> OMap {v:k| v > kcut} a -> OMap k a @-}
+balanceL :: k -> a -> Map k a -> Map k a -> Map k a 
+balanceL = undefined
+
+{-@ balanceR :: kcut:k -> a -> OMap {v:k | v < kcut} a -> OMap {v:k| v > kcut} a -> OMap k a @-}
+balanceR :: k -> a -> Map k a -> Map k a -> Map k a 
+balanceR = undefined
+
+{- LIQUIDTODO fromDistinctAscList :: [(k,a)]<{v: (k, a) | fst(v) > fst(fld)}> -> OMap k a -}
+{-@ fromDistinctAscList :: {v: [(k, a)] | false} -> OMap k a @-}
+fromDistinctAscList :: [(k,a)] -> Map k a
+fromDistinctAscList xs
+  = create const (length xs) xs
+  where
+    -- 1) use continuations so that we use heap space instead of stack space.
+    -- 2) special case for n==5 to create bushier trees.
+    create c 0 xs' = c Tip xs'
+    create c 5 xs' = case xs' of
+                       ((k1,x1):(k2,x2):(k3,x3):(k4,x4):(k5,x5):xx)
+                            -> c (bin k4 x4 (bin k2 x2 (singleton k1 x1) (singleton k3 x3)) (singleton k5 x5)) xx
+                       _ -> error "fromDistinctAscList create"
+    create c n xs' = seq nr $ create (createR nr c) nl xs'
+      where nl = n `div` 2
+            nr = n - nl - 1
+
+    createR n c l ((k,x):ys) = create (createB l k x c) n ys
+    createR _ _ _ []         = error "fromDistinctAscList createR []"
+    createB l k x c r zs     = c (bin k x l r) zs
 
 

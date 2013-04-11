@@ -8,15 +8,22 @@
 {-# LANGUAGE UndecidableInstances      #-}
 
 module Language.Haskell.Liquid.GhcMisc where
+
+import           Debug.Trace
+
 import           Kind                         (superKind)
 import           CoreSyn
 import           CostCentre
 import           FamInstEnv                   (FamInst)
 import           GHC                          hiding (L)
 import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..))
+import           SrcLoc                       (srcSpanFile, srcSpanStartLine, srcSpanStartCol)
+
 import           Language.Fixpoint.Misc       (errorstar, stripParens)
+import           Text.Parsec.Pos              (SourcePos, newPos) 
 import           Language.Fixpoint.Types       
-import           Name                         (mkInternalName)
+import           Language.Haskell.Liquid.Types 
+import           Name                         (mkInternalName, getSrcSpan)
 import           OccName                      (mkTyVarOcc, mkTcOcc)
 import           Unique                       
 
@@ -27,7 +34,7 @@ import           Var
 -- import           TyCon                        (mkSuperKindTyCon)
 import qualified TyCon                        as TC
 import qualified DataCon                      as DC
-import           FastString                   (uniq)
+import           FastString                   (uniq, unpackFS)
 import           Data.Char                    (isLower, isSpace)
 import           Data.Maybe
 import           Data.Hashable
@@ -35,33 +42,11 @@ import qualified Data.HashSet                 as S
 import qualified Data.List                    as L    
 import           Control.Applicative          ((<$>))
 import           Control.Exception            (assert)
-import           Outputable
+import           Outputable                   (Outputable (..), text, showPpr, ppr, showSDoc, showSDocDump)
+import           Language.Haskell.Liquid.Types
 
 -- import qualified Pretty                       as P
 import qualified Text.PrettyPrint.HughesPJ    as PJ
-
-
------------------------------------------------------------------------
------------ TyCon get CoVariance - ContraVariance Info ----------------
------------------------------------------------------------------------
-
-data TyConInfo = TyConInfo
-  { covariantTyArgs     :: ![Int] -- indexes of covariant type arguments
-  , contravariantTyArgs :: ![Int] -- indexes of contravariant type arguments
-  , covariantPsArgs     :: ![Int] -- indexes of covariant predicate arguments
-  , contravariantPsArgs :: ![Int] -- indexes of contravariant predicate arguments
-  }
-
--- indexes start from 0 and type or predicate arguments can be both
--- covariant and contravaariant
--- eg, for the below Foo dataType
--- data Foo a b c <p :: b -> Prop, q :: Int -> Prop, r :: a -> Prop>
---   = F (a<r> -> b<p>) | Q (c -> a) | G (Int<q> -> a<r>)
--- there will be 
---  covariantTyArgs     = [0, 1], for type arguments a and b
---  contravariantTyArgs = [0, 2], for type arguments a and c
---  covariantPsArgs     = [0, 2], for predicate arguments p and r
---  contravariantPsArgs = [1, 2], for predicate arguments q and r
 
 defaultTyConInfo = TyConInfo [] [] [] []
 
@@ -151,7 +136,6 @@ validTyVar _       = False
 
 tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} show α ++ show (varUnique α)
 
-
 tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) x
 
 pprShow = text . show
@@ -224,11 +208,12 @@ instance Outputable a => Outputable (S.HashSet a) where
 -- instance Fixpoint a => Outputable a where 
 --   ppr = text . PJ.render . toFix 
 
-toFixSDoc = text . PJ.render . toFix 
+toFixSDoc = PJ.text . PJ.render . toFix 
 sDocDoc   = PJ.text . showSDoc 
 pprDoc    = sDocDoc . ppr 
 
 typeUniqueString = {- ("sort_" ++) . -} showSDocDump . ppr
+
 
 
 instance Fixpoint Var where
@@ -239,4 +224,19 @@ instance Fixpoint Name where
 
 instance Fixpoint Type where
   toFix = pprDoc
+
+
+
+srcSpanSourcePos :: SrcSpan -> SourcePos
+srcSpanSourcePos (UnhelpfulSpan _) = dummyPos 
+srcSpanSourcePos (RealSrcSpan s)   = realSrcSpanSourcePos s
+
+realSrcSpanSourcePos :: RealSrcSpan -> SourcePos 
+realSrcSpanSourcePos s = newPos file line col
+  where 
+    file               = unpackFS $ srcSpanFile s
+    line               = srcSpanStartLine       s
+    col                = srcSpanStartCol        s
+
+getSourcePos           = srcSpanSourcePos . getSrcSpan 
 

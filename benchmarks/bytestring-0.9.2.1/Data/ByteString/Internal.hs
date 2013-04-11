@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, ForeignFunctionInterface #-}
+{-# LANGUAGE CPP, ForeignFunctionInterface, DeriveDataTypeable #-}
 -- We cannot actually specify all the language pragmas, see ghc ticket #
 -- If we could, these are what they would be:
 {- LANGUAGE UnliftedFFITypes, MagicHash,
@@ -22,6 +22,9 @@
 --
 module Data.ByteString.Internal (
 
+        liquidCanary,   -- LIQUID
+        packWith,       -- LIQUID, because we hid the Read instance... FIX.
+
         -- * The @ByteString@ type and representation
         ByteString(..),         -- instances: Eq, Ord, Show, Read, Data, Typeable
 
@@ -41,20 +44,20 @@ module Data.ByteString.Internal (
         nullForeignPtr,         -- :: ForeignPtr Word8
 
         -- * Standard C Functions
-        c_strlen,               -- :: CString -> IO CInt
-        c_free_finalizer,       -- :: FunPtr (Ptr Word8 -> IO ())
+        -- LIQUID c_strlen,               -- :: CString -> IO CInt
+        -- LIQUID c_free_finalizer,       -- :: FunPtr (Ptr Word8 -> IO ())
 
         memchr,                 -- :: Ptr Word8 -> Word8 -> CSize -> IO Ptr Word8
-        memcmp,                 -- :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
+        -- LIQUID memcmp,                 -- :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
         memcpy,                 -- :: Ptr Word8 -> Ptr Word8 -> CSize -> IO ()
         memset,                 -- :: Ptr Word8 -> Word8 -> CSize -> IO (Ptr Word8)
 
         -- * cbits functions
-        c_reverse,              -- :: Ptr Word8 -> Ptr Word8 -> CInt -> IO ()
-        c_intersperse,          -- :: Ptr Word8 -> Ptr Word8 -> CInt -> Word8 -> IO ()
-        c_maximum,              -- :: Ptr Word8 -> CInt -> IO Word8
-        c_minimum,              -- :: Ptr Word8 -> CInt -> IO Word8
-        c_count,                -- :: Ptr Word8 -> CInt -> Word8 -> IO CInt
+        -- LIQUID c_reverse,              -- :: Ptr Word8 -> Ptr Word8 -> CInt -> IO ()
+        -- LIQUID c_intersperse,          -- :: Ptr Word8 -> Ptr Word8 -> CInt -> Word8 -> IO ()
+        -- LIQUID c_maximum,              -- :: Ptr Word8 -> CInt -> IO Word8
+        -- LIQUID c_minimum,              -- :: Ptr Word8 -> CInt -> IO Word8
+        -- LIQUID c_count,                -- :: Ptr Word8 -> CInt -> Word8 -> IO CInt
 #if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ < 611
         -- * Internal GHC magic
         memcpy_ptr_baoff,       -- :: Ptr a -> RawBuffer -> CInt -> CSize -> IO (Ptr ())
@@ -71,6 +74,8 @@ import Foreign.Storable         (Storable(..))
 import Foreign.C.Types          (CInt(..), CSize(..), CULong(..))
 import Foreign.C.String         (CString)
 
+import Language.Haskell.Liquid.Prelude (intCSize, liquidAssert)
+
 #ifndef __NHC__
 import Control.Exception        (assert)
 #endif
@@ -85,7 +90,8 @@ import Data.Data                (Data)
 #else
 import Data.Generics            (Data)
 #endif
-import GHC.Base                 (realWorld#,unsafeChr)
+-- import GHC.Base                 (realWorld#, unsafeChr)
+import GHC.Base                 (unsafeChr) -- LIQUID: strange GHC parse error due to #
 #if __GLASGOW_HASKELL__ >= 611
 import GHC.IO                   (IO(IO))
 #else
@@ -109,7 +115,7 @@ import Foreign.ForeignPtr       (mallocForeignPtrBytes)
 
 #ifdef __GLASGOW_HASKELL__
 import GHC.ForeignPtr           (ForeignPtr(ForeignPtr))
-import GHC.Base                 (nullAddr#)
+-- import GHC.Base                 (nullAddr#) LIQUID: parse issue with '#'
 #else
 import Foreign.Ptr              (nullPtr)
 #endif
@@ -136,11 +142,11 @@ assertS s False = error ("assertion failed at "++s)
 -- Useful macros, until we have bang patterns
 --
 
--- LIQUID #define STRICT1(f) f a | a `seq` False = undefined
--- LIQUID #define STRICT2(f) f a b | a `seq` b `seq` False = undefined
--- LIQUID #define STRICT3(f) f a b c | a `seq` b `seq` c `seq` False = undefined
--- LIQUID #define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
--- LIQUID #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
+#define STRICT1(f) f a | a `seq` False = undefined
+#define STRICT2(f) f a b | a `seq` b `seq` False = undefined
+#define STRICT3(f) f a b c | a `seq` b `seq` c `seq` False = undefined
+#define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
+#define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
 -- -----------------------------------------------------------------------------
 
@@ -153,29 +159,80 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
                      {-# UNPACK #-} !Int                -- offset
                      {-# UNPACK #-} !Int                -- length
 
-#if defined(__GLASGOW_HASKELL__)
-    deriving (Data, Typeable)
-#endif
+-- LIQUID #if defined(__GLASGOW_HASKELL__)
+-- LIQUID     deriving (Data, Typeable)
+-- LIQUID #endif
+-- LIQUID WIERD CONSTANTS like
+-- LIQUID (scc<CAF> Data.Typeable.Internal.mkTyCon)
+-- LIQUID               (scc<CAF> __word64 5047387852870479354))
+-- LIQUID               (scc<CAF> __word64 13413741352319211914))
+             
+-------------------------------------------------------------------------
+-- LiquidHaskell Specifications -----------------------------------------
+-------------------------------------------------------------------------
+
+{-@ measure bLength     :: ByteString -> Int 
+    bLength (PS p o l)  = l 
+  @-}
+
+{-@ measure bOffset     :: ByteString -> Int 
+    bOffset (PS p o l)  = o 
+  @-} 
+    
+{-@ measure bPayload   :: ByteString -> (ForeignPtr Word8) 
+    bPayload (PS p o l) = p 
+  @-} 
+
+{-@ predicate BSValid Payload Offset Length = ((fplen Payload) = Offset + Length) @-}
+{-@ predicate PValid P N                    = ((0 <= N) && (N <= (plen P)))       @-}
+
+{-@ data ByteString  = PS { payload :: (ForeignPtr Word8) 
+                          , offset  :: {v: Nat | (v <= (fplen payload))     }  
+                          , length  :: {v: Nat | (BSValid payload offset v) } 
+                          }
+
+  @-}
+
+{-@ type ByteStringN N = {v: ByteString | (bLength v) = N} @-}
+
+{-@ qualif EqPLen(v: ForeignPtr a, x: Ptr a): (fplen v) = (plen x) @-}
+{-@ qualif EqPLen(v: Ptr a, x: ForeignPtr a): (plen v) = (fplen x) @-}
+{-@ qualif PValid(v: Int, p: Ptr a): v <= (plen p)                 @-}
+{-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p)                   @-}
+
+
+{-@ assume Foreign.Storable.poke        :: (Storable a) => {v: (Ptr a) | 0 <= (plen v)} -> a -> (IO ()) @-}
+{-@ assume Foreign.Storable.peek        :: (Storable a) => {v: (Ptr a) | 0 <= (plen v)} -> (IO a) @-}
+{-@ assume Foreign.Storable.peekByteOff :: (Storable a) => forall b. p:(Ptr b) -> {v: Int | (PValid p v) } -> (IO a) @-}
+
+-------------------------------------------------------------------------
 
 instance Show ByteString where
     showsPrec p ps r = showsPrec p (unpackWith w2c ps) r
 
-instance Read ByteString where
-    readsPrec p str = [ (packWith c2w x, y) | (x, y) <- readsPrec p str ]
+-- LIQUID instance Read ByteString where
+-- LIQUID     readsPrec p str = [ (packWith c2w x, y) | (x, y) <- readsPrec p str ]
 
 -- | /O(n)/ Converts a 'ByteString' to a '[a]', using a conversion function.
+
+{-@ unpackWith :: (Word8 -> a) -> ByteString -> [a] @-}
 unpackWith :: (Word8 -> a) -> ByteString -> [a]
 unpackWith _ (PS _  _ 0) = []
 unpackWith k (PS ps s l) = inlinePerformIO $ withForeignPtr ps $ \p ->
-        go (p `plusPtr` s) (l - 1) []
-    where
-        STRICT3(go)
-        go p 0 acc = peek p          >>= \e -> return (k e : acc)
-        go p n acc = peekByteOff p n >>= \e -> go p (n-1) (k e : acc)
+         go (p `plusPtr` s) (l - 1) []
+      where
+          STRICT3(go)
+          go p 0 acc = peek p          >>= \e -> return (k e : acc)
+          go p n acc = peekByteOff p n >>= \e -> go p (n-1) (k e : acc)
 {-# INLINE unpackWith #-}
+
+
+
 
 -- | /O(n)/ Convert a '[a]' into a 'ByteString' using some
 -- conversion function
+
+{-@ packWith :: (a -> Word8) -> [a] -> ByteString @-}
 packWith :: (a -> Word8) -> [a] -> ByteString
 packWith k str = unsafeCreate (length str) $ \p -> go p str
     where
@@ -187,9 +244,10 @@ packWith k str = unsafeCreate (length str) $ \p -> go p str
 ------------------------------------------------------------------------
 
 -- | The 0 pointer. Used to indicate the empty Bytestring.
+{-@ nullForeignPtr :: ForeignPtr Word8 @-}
 nullForeignPtr :: ForeignPtr Word8
 #ifdef __GLASGOW_HASKELL__
-nullForeignPtr = ForeignPtr nullAddr# undefined --TODO: should ForeignPtrContents be strict?
+nullForeignPtr = undefined -- LIQUID: ForeignPtr nullAddr# undefined --TODO: should ForeignPtrContents be strict?
 #else
 nullForeignPtr = unsafePerformIO $ newForeignPtr_ nullPtr
 {-# NOINLINE nullForeignPtr #-}
@@ -204,6 +262,12 @@ nullForeignPtr = unsafePerformIO $ newForeignPtr_ nullPtr
 -- 'Data.ByteString.Unsafe.unsafePackCStringLen' or
 -- 'Data.ByteString.Unsafe.unsafePackCStringFinalizer' instead.
 --
+
+{-@ fromForeignPtr :: p:(ForeignPtr Word8) 
+                   -> o:{v:Nat | v <= (fplen p)} 
+                   -> l:{v:Nat | (BSValid p o v)} 
+                   -> ByteStringN l
+  @-}
 fromForeignPtr :: ForeignPtr Word8
                -> Int -- ^ Offset
                -> Int -- ^ Length
@@ -212,6 +276,12 @@ fromForeignPtr fp s l = PS fp s l
 {-# INLINE fromForeignPtr #-}
 
 -- | /O(1)/ Deconstruct a ForeignPtr from a ByteString
+
+{-@ toForeignPtr :: b:ByteString 
+                 -> ( {v:(ForeignPtr Word8) | v = (bPayload b)} 
+                    , {v:Int | v = (bOffset b)}
+                    , {v:Int | v = (bLength b)}               ) 
+  @-} 
 toForeignPtr :: ByteString -> (ForeignPtr Word8, Int, Int) -- ^ (ptr, offset, length)
 toForeignPtr (PS ps s l) = (ps, s, l)
 {-# INLINE toForeignPtr #-}
@@ -220,6 +290,8 @@ toForeignPtr (PS ps s l) = (ps, s, l)
 -- argument gives the final size of the ByteString. Unlike
 -- 'createAndTrim' the ByteString is not reallocated if the final size
 -- is less than the estimated size.
+
+{-@ unsafeCreate :: l:Nat -> ((PtrN Word8 l) -> IO ()) -> (ByteStringN l) @-}
 unsafeCreate :: Int -> (Ptr Word8 -> IO ()) -> ByteString
 unsafeCreate l f = unsafeDupablePerformIO (create l f)
 {-# INLINE unsafeCreate #-}
@@ -231,6 +303,7 @@ unsafeDupablePerformIO = unsafePerformIO
 #endif
 
 -- | Create ByteString of size @l@ and use action @f@ to fill it's contents.
+{-@ create :: l:Nat -> ((PtrN Word8 l) -> IO ()) -> IO (ByteStringN l)   @-}
 create :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
 create l f = do
     fp <- mallocByteString l
@@ -245,7 +318,12 @@ create l f = do
 --
 -- createAndTrim is the main mechanism for creating custom, efficient
 -- ByteString functions, using Haskell or C functions to fill the space.
---
+
+
+{-@ createAndTrim :: l:Nat 
+                  -> ((PtrN Word8 l) -> IO {v:Nat | v <= l}) 
+                  -> IO {v:ByteString | (bLength v) <= l}   
+  @-}
 createAndTrim :: Int -> (Ptr Word8 -> IO Int) -> IO ByteString
 createAndTrim l f = do
     fp <- mallocByteString l
@@ -253,9 +331,14 @@ createAndTrim l f = do
         l' <- f p
         if assert (l' <= l) $ l' >= l
             then return $! PS fp 0 l
-            else create l' $ \p' -> memcpy p' p (fromIntegral l')
+            else create l' $ \p' -> memcpy p' p ({- LIQUID fromIntegral -} intCSize l')
 {-# INLINE createAndTrim #-}
 
+{-@ createAndTrim' :: l:Nat 
+                   -> ((PtrN Word8 l) -> IO ((Nat, Nat, a)<{\o v -> (v <= l - o)}, {\o l v -> true}>)) 
+                   -> IO ({v:ByteString | (bLength v) <= l}, a) 
+  @-}
+ 
 createAndTrim' :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (ByteString, a)
 createAndTrim' l f = do
     fp <- mallocByteString l
@@ -264,11 +347,12 @@ createAndTrim' l f = do
         if assert (l' <= l) $ l' >= l
             then return $! (PS fp 0 l, res)
             else do ps <- create l' $ \p' ->
-                            memcpy p' (p `plusPtr` off) (fromIntegral l')
+                            memcpy p' (p `plusPtr` off) ({- LIQUID fromIntegral -} intCSize l')
                     return $! (ps, res)
 
 -- | Wrapper of 'mallocForeignPtrBytes' with faster implementation for GHC
 --
+{-@ mallocByteString :: l:Nat -> IO (ForeignPtrN a l) @-} 
 mallocByteString :: Int -> IO (ForeignPtr a)
 mallocByteString l = do
 #ifdef __GLASGOW_HASKELL__
@@ -329,9 +413,10 @@ isSpaceChar8 c =
 -- 'inlinePerformIO' block. On Hugs this is just @unsafePerformIO@.
 --
 {-# INLINE inlinePerformIO #-}
+{-@ inlinePerformIO :: IO a -> a @-}
 inlinePerformIO :: IO a -> a
 #if defined(__GLASGOW_HASKELL__)
-inlinePerformIO (IO m) = case m realWorld# of (# _, r #) -> r
+inlinePerformIO (IO m) = undefined -- LIQUID case m realWorld# of (# _, r #) -> r
 #else
 inlinePerformIO = unsafePerformIO
 #endif
@@ -341,26 +426,41 @@ inlinePerformIO = unsafePerformIO
 -- Standard C functions
 --
 
-foreign import ccall unsafe "string.h strlen" c_strlen
-    :: CString -> IO CSize
+-- LIQUID ANFTransform scope wierdness, see Internal0.hs
+-- LIQUID
+-- LIQUID foreign import ccall unsafe "string.h strlen" c_strlen
+-- LIQUID     :: CString -> IO CSize
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "static stdlib.h &free" c_free_finalizer
+-- LIQUID     :: FunPtr (Ptr Word8 -> IO ())
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "string.h memchr" c_memchr
+-- LIQUID     :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
+c_memchr = undefined
 
-foreign import ccall unsafe "static stdlib.h &free" c_free_finalizer
-    :: FunPtr (Ptr Word8 -> IO ())
-
-foreign import ccall unsafe "string.h memchr" c_memchr
-    :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
 
 memchr :: Ptr Word8 -> Word8 -> CSize -> IO (Ptr Word8)
 memchr p w s = c_memchr p (fromIntegral w) s
 
-foreign import ccall unsafe "string.h memcmp" memcmp
-    :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "string.h memcmp" memcmp
+-- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "string.h memcpy" c_memcpy
+-- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO (Ptr Word8)
 
-foreign import ccall unsafe "string.h memcpy" c_memcpy
-    :: Ptr Word8 -> Ptr Word8 -> CSize -> IO (Ptr Word8)
-
+{-@ memcpy :: dst:(PtrV Word8)
+           -> src:(PtrV Word8) 
+           -> size: {v:CSize| (v <= (plen src) && v <= (plen dst))} 
+           -> IO () 
+  @-}
 memcpy :: Ptr Word8 -> Ptr Word8 -> CSize -> IO ()
-memcpy p q s = c_memcpy p q s >> return ()
+memcpy p q s = undefined -- c_memcpy p q s >> return ()
+
+
+{-@ liquidCanary :: x:Int -> {v: Int | v > x} @-}
+liquidCanary     :: Int -> Int
+liquidCanary x   = x - 1
 
 {-
 foreign import ccall unsafe "string.h memmove" c_memmove
@@ -371,8 +471,9 @@ memmove p q s = do c_memmove p q s
                    return ()
 -}
 
-foreign import ccall unsafe "string.h memset" c_memset
-    :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
+-- LIQUID foreign import ccall unsafe "string.h memset" c_memset
+-- LIQUID     :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
+c_memset = undefined
 
 memset :: Ptr Word8 -> Word8 -> CSize -> IO (Ptr Word8)
 memset p w s = c_memset p (fromIntegral w) s
@@ -382,20 +483,20 @@ memset p w s = c_memset p (fromIntegral w) s
 -- Uses our C code
 --
 
-foreign import ccall unsafe "static fpstring.h fps_reverse" c_reverse
-    :: Ptr Word8 -> Ptr Word8 -> CULong -> IO ()
-
-foreign import ccall unsafe "static fpstring.h fps_intersperse" c_intersperse
-    :: Ptr Word8 -> Ptr Word8 -> CULong -> Word8 -> IO ()
-
-foreign import ccall unsafe "static fpstring.h fps_maximum" c_maximum
-    :: Ptr Word8 -> CULong -> IO Word8
-
-foreign import ccall unsafe "static fpstring.h fps_minimum" c_minimum
-    :: Ptr Word8 -> CULong -> IO Word8
-
-foreign import ccall unsafe "static fpstring.h fps_count" c_count
-    :: Ptr Word8 -> CULong -> Word8 -> IO CULong
+-- LIQUID foreign import ccall unsafe "static fpstring.h fps_reverse" c_reverse
+-- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CULong -> IO ()
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "static fpstring.h fps_intersperse" c_intersperse
+-- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CULong -> Word8 -> IO ()
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "static fpstring.h fps_maximum" c_maximum
+-- LIQUID     :: Ptr Word8 -> CULong -> IO Word8
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "static fpstring.h fps_minimum" c_minimum
+-- LIQUID     :: Ptr Word8 -> CULong -> IO Word8
+-- LIQUID 
+-- LIQUID foreign import ccall unsafe "static fpstring.h fps_count" c_count
+-- LIQUID     :: Ptr Word8 -> CULong -> Word8 -> IO CULong
 
 -- ---------------------------------------------------------------------
 -- Internal GHC Haskell magic

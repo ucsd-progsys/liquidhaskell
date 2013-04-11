@@ -1,12 +1,13 @@
-module Foo where
+module ListSort where
 
-import Language.Haskell.Liquid.Prelude
 
-gpp :: [Int] -> [Int]
-gpp []     = []
-gpp (x:xs) = liquidAssert (x==9) x : gpp xs
+data P a = P a Int
 
-decr x = x : decr (x-1)
-xs :: [Int]
-xs = decr 0
-ys = gpp xs
+{-@ data P a <p :: a -> Int -> Prop>
+     = P (i :: a) (v :: Int<p i>)
+  @-}
+{-@ type OP  = P <{\p v ->  p > v}> Int @-}
+
+foo :: P Int
+{-@ foo :: OP @-}
+foo = P 3 2

@@ -10,7 +10,7 @@ data ST s a = S (s -> (a, s))
 {-@ foo :: (Int, {v:Int|v >=0})@-}
 foo = apply action 0
 
-{-@ action :: ST <{v:Int| v>=0}> Int Int@-}
+{-@ action :: ST <{\v -> v>=0 }> Int Int@-}
 action :: ST Int Int
 action
  = act1 `comp` \n1 -> 
@@ -18,7 +18,7 @@ action
    return n1
 
 
-{-@ act1 :: ST <{v:Int|v>=0} > Int Int @-}
+{-@ act1 :: ST <{\v -> v>=0 } > Int Int @-}
 act1 :: ST Int Int
 act1 = S (\n -> (n, n+1))
 

@@ -12,8 +12,10 @@ clone x n
   | otherwise 
   = x : (clone x (n-1))
 
-check [] = [liquidAssertB True]
-check (xs:xss) = let n = length xs in map (\xs' -> liquidAssertB (length xs' == n)) xss
+
+
+-- check [] = [liquidAssertB True]
+-- check (xs:xss) = let n = length xs in map (\xs' -> liquidAssertB (length xs' == n)) xss
 
 chk [] = liquidAssertB True
 chk (xs:xss) =

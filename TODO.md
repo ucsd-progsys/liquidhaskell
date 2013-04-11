@@ -1,34 +1,67 @@
 TODO
 ====
 
-* [Eric] qualified names break spec imports -- tests/todo/qualifiedvector.hs 
+* [jhala]  benchmarks: Data.Bytestring
+    ? Upgrade to GHC 7.6.1 (boxed tuple commenting out C issue)
+    ? readsPrec
+    ? big constants issue : _word64 34534523452134213524525 due to (deriving Typeable)
+
+* error messages: expected XXX got YYY?
+
+* incremental checking
+    - save top-level types to file (.spec)
+    - reload
+    - check all but specified function
+
+* deep-measures: measures over nested type constructors
+
+    measure fst :: (a, b) -> a
+    fst (x, y)     =  x
+
+    measure snd :: (a, b) -> b
+    fst (x, y)     =  y
+
+    measure listKeys :: [(k, v)] -> (Set a) 
+    listKeys([])   = {v | (? Set_emp(v))}
+    listKeys(x:xs) = {v | v = (Set_cup (Set_sng (fst x)) (listKeys xs)) }
+
+    measure llElts :: [[a]] -> (Set a)
+    llElts ([])    = {v | (? Set_emp(v)) }
+    llElts (x:xs)  = {v | v = (Set_cup (listElts x) (llElts xs)) } 
+
+* wtf is include/KMeansHelper.hs ? Fix module import issue
+
+* qualified names break spec imports -- tests/todo/qualifiedvector.hs 
+
 * DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
   -> may break a LOT of regressions
 
-* error messages
-    * error message -- expected XXX got YYY?
-
-* clean up (Int) -> Int [BEXPARSER]
-* parse predicate signatures for tuples 
+* [seidel] benchmarks: Data.Text
 * benchmarks: stackset-core
+
 * benchmarks: Data.List (foldr)
 * benchmarks: Data.List (foldr) 
-* benchmarks: Data.Bytestring
-* benchmarks: Data.Text
 * benchmarks: mcbrides stack machine
-* remove `toType` and  generalize `typeSort` to work for all RefTypables
 
+* Move stuff into Types.hs
+    - remove `toType` and  generalize `typeSort` to work for all RefTypables
 
-BExp Parser vs. ppr_rtype [BEXPARSER]
-=====================================
+Incremental Checking
+====================
 
-WTF is up with the wierd case BEXPARSER?
-Why does it kill the BExp parser e.g. tests/pos/LambdaEval.hs (ask Niki)
+1. Command Line Arguments  
+    - Specify WHICH binders to verify [DEFAULT = ALL]  
+    - liquid tests/pos/goo.hs -check foo bar baz 
+    - Print out vars/hs-types <-------------------------- HEREHEREHEREHERE
 
-Niki -- if you grep for BEXPARSER in RefType.hs -- you will see there is
-one line in ppr_rtype that I have commented out. For some strange reason 
-when I add that line back in it breaks the PARSER (!!!) I couldnt
-understand why so if you can figure this out it would be great...!
+2. CONSGEN for subset 
+
+3. CONSGEN for subset using TRUE for all other functions
+
+4. SAVE out inferred-types for top-level binders
+
+5. REUSE pre-inferred types for other functions 
+
 
 
 Benchmarks
@@ -41,40 +74,6 @@ Benchmarks
     LambdaEval.hs   :    36/32/25/12    17/12/10     11.7/6.0/5    8500/3100/2400   12/5/5
     Base.hs         :        26mi/2m
 
-Tuple Refinements (DONE: by Niki)
-=================================
-
-- Add/Parse predicate signatures for tuples<p>     
-
-    (x1, x2, x3)<p1, p2, p3>
-
-- pos/deptup.hs (type signature: for constructor wrapper)
-
-
-    data [a]<p :: a -> a -> Bool> 
-      = []
-      | (:) (h :: a) (t :: [a<p h>]<p>)  
-    
-    data (a1, a2) 
-      < p1 :: a1 -> Bool
-      , p2 :: a1 -> a2 -> Bool
-      > 
-      = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>)
-    
-    data (a1, a2, a3) 
-      < p1 :: a1 -> Bool
-      , p2 :: a1 -> a2 -> Bool
-      , p3 :: a1 -> a2 -> a3 -> Bool
-      > 
-      = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>)
-    
-    data (a1, a2, a3) 
-      < p1 :: a1 -> Bool
-      , p2 :: a1 -> a2 -> Bool
-      , p3 :: a1 -> a2 -> a3 -> Bool
-      , p4 :: a1 -> a2 -> a3 -> a4 -> Bool
-      > 
-      = (,) (x1 :: a1<p1>) (x2 :: a2<p2 x1>) (x3 :: a3<p3 x1 x2>) (x4 :: a4<p4 x1 x2 x3>)
 
 Blog Todo List
 ==============
@@ -84,18 +83,18 @@ Blog Todo List
 Basic Refinement Types
 ----------------------
 
-1. RefTypes 101  (Basic Ints, abz, div-by-zero)
-2. Dependent Refinements: (Data.Vector, recursion-sum, loop, dotproduct, range, map, fold)
+[DONE] RefTypes 101  (Basic Ints, abz, div-by-zero)
+[DONE] Dependent Refinements: (Data.Vector, recursion-sum, loop, dotproduct, range, map, fold)
+[DONE] Lists I       (append, reverse, map-length, filter)
+[DONE] Lists II      (take, transpose)
+[DONE] MapReduce
+[DONE] KMeans        (++ zipWith etc.)
 
 Measures
 --------
 
-3. Lists I       (append, reverse, map-length, filter)
 4. Lists I-Sets  ("" but with Sets as the measure)
-5. Lists II      (take, transpose)
-6. MapReduce
-7. KMeans        (++ zipWith etc.)
-8. LambdaEval
+8. LambdaEval	<------------------------ HEREHERE
 
 Abstract Refinements
 --------------------
@@ -131,31 +130,29 @@ Paper: Liquid Types in the Real World)
 ======================================
 
 [OK]    Data.KMeans
+
 [OK]    GHC.List   (../benchmarks/ghc-7.4.1/List.lhs)
 
 [??-PP] Data.Map (supersedes set)
-        > ordering
+        > ordering [OK]
         > size
         > key-set-properties
         > key-dependence
         > balance (NO)
+        
+->   	Data.Bytestring (& Client?)
 
-->   Data.Bytestring & Client 
-
-->   Data.Text (client of bytestring?)
+->   	Data.Text (client of bytestring?)
         http://hackage.haskell.org/packages/archive/text/0.11.2.2/doc/html/Data-Text-Lazy-Internal.html
         (See "main invariant")
 
-->   Data.Vector
+->   	Xmonad real properties
 
-->   vector-algorithms "vector bounds checking"
-     > e.g. "unsafeSlice"
-     > maybe only specify types for Vector?
+->   	Data.Vector
 
-->   xmonad real properties
-
-[??-PP] Xmonad-StackSet-Toy
-(zippering-??)
+->   	vector-algorithms "vector bounds checking"
+     	> e.g. "unsafeSlice"
+     	> maybe only specify types for Vector?
 
 Other Benchmarks
 ================

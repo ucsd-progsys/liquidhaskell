@@ -6,19 +6,20 @@
 
 var allDemos =
   { // Basic Demos
-    "blank.hs"          : { "name" : "Blank"            , "type" : "basic"  },
-    "refinements101.hs" : { "name" : "Refinements 101"  , "type" : "basic"  },
+    "blank.hs"              : { "name" : "Blank"            , "type" : "basic"  },
+    "refinements101.hs"     : { "name" : "Refinements 101"  , "type" : "basic"  },
     "refinements101reax.hs" : { "name" : "Refinements 102"  , "type" : "basic"  },
-    "vectorbounds.hs"   : { "name" : "Vector Bounds"    , "type" : "basic"  },
+    "vectorbounds.hs"       : { "name" : "Vector Bounds"    , "type" : "basic"  },
 
     // Measure Demos
-    "lenMapReduce.hs"   : { "name" : "Safe List"        , "type" : "measure"},
+    "lenMapReduce.hs"       : { "name" : "Safe List"        , "type" : "measure"},
     // "ListLength.hs"     : { "name" : "List Lengths"     , "type" : "measure"},
     // "MapReduce.hs"      : { "name" : "Map Reduce"       , "type" : "measure"}, 
-    "KMeansHelper.hs"   : { "name" : "K-Means Lib"      , "type" : "measure"},
-    "KMeans.hs"         : { "name" : "K-Means"          , "type" : "measure"}, 
-    "LambdaEval.hs"     : { "name" : "Lambda Eval"      , "type" : "measure"}, 
-    "ListElts.hs"       : { "name" : "List Elements"    , "type" : "measure"}, 
+    "KMeansHelper.hs"       : { "name" : "K-Means Lib"      , "type" : "measure"},
+    "KMeans.hs"             : { "name" : "K-Means"          , "type" : "measure"}, 
+    "TalkingAboutSets.hs"   : { "name" : "Talk About Sets"  , "type" : "measure"},
+    "LambdaEval.hs"         : { "name" : "Lambda Eval"      , "type" : "measure"}, 
+    // "ListElts.hs"           : { "name" : "List Elements"    , "type" : "measure"}, 
 
     // Abstract Refinement Demos
     "absref101.hs"      : { "name" : "Parametric Invariants", "type" : "absref" },  
