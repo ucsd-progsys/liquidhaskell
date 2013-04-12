@@ -52,10 +52,17 @@ measures over nested type constructors
     llElts (x:xs)  = {v | v = (Set_cup (listElts x) (llElts xs)) } 
 
 
-- Write fancy measure sigs (as above)
-- Conjoin all constructor definitions
-- Before adding binder to env, prune out malformed refinements 
--  eg for "fst x" where x :: Int
+0. Parse tuple measure e.g. fst (x, y) = x    <---------HERE
+
+1. Parse nested measure e.g. keys :: [(a, b)] -> (Set a)
+
+1. Write fancy measure sigs (as above)
+
+2. Conjoin all constructor definitions
+
+3. Before adding binder to env, prune out malformed refinements 
+
+4. eg for "fst x" where x :: Int
 
 
 Incremental Checking
@@ -66,7 +73,7 @@ Incremental Checking
 1. Command Line Arguments  
     - Specify WHICH binders to verify [DEFAULT = ALL]  
     - liquid tests/pos/goo.hs -check foo bar baz 
-    - Print out vars/hs-types <-------------------------- HEREHEREHEREHERE
+    - Print out vars/hs-types <---------------------- STOPSTOPSTOPSTOPSTOP 
 
 2. CONSGEN for subset 
 3. CONSGEN for subset using TRUE for all other functions
@@ -96,7 +103,7 @@ Basic Refinement Types
 ----------------------
 
 [DONE] RefTypes 101  (Basic Ints, abz, div-by-zero)
-[DONE] Dependent Refinements: (Data.Vector, recursion-sum, loop, dotproduct, range, map, fold)
+[DONE] Dep Refinements: (Data.Vector, recursion-sum, dotprod, range, map, fold)
 [DONE] Lists I       (append, reverse, map-length, filter)
 [DONE] Lists II      (take, transpose)
 [DONE] MapReduce
