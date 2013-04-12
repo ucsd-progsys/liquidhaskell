@@ -18,7 +18,6 @@ import Text.PrettyPrint.HughesPJ hiding (first)
 import Text.Printf (printf)
 import DataCon
 import qualified Data.HashMap.Strict as M 
--- import Data.Data
 import Data.Monoid hiding ((<>))
 import Data.List (foldl1')
 import Data.Either (partitionEithers)
@@ -48,23 +47,23 @@ data Spec ty bndr  = Spec {
 
 
 -- MOVE TO TYPES
-data MSpec ty bndr = MSpec { 
-    ctorMap :: M.HashMap Symbol [Def bndr]
-  , measMap :: M.HashMap Symbol (Measure ty bndr) 
+data MSpec ty ctor = MSpec { 
+    ctorMap :: M.HashMap Symbol [Def ctor]
+  , measMap :: M.HashMap Symbol (Measure ty ctor) 
   }
 
 -- MOVE TO TYPES
-data Measure ty bndr = M { 
+data Measure ty ctor = M { 
     name :: LocSymbol
   , sort :: ty
-  , eqns :: [Def bndr]
+  , eqns :: [Def ctor]
   } 
 
 -- MOVE TO TYPES
-data Def bndr 
+data Def ctor 
   = Def { 
     measure :: LocSymbol
-  , ctor    :: bndr
+  , ctor    :: ctor 
   , binds   :: [Symbol]
   , body    :: Body
   } deriving (Show)
@@ -87,9 +86,10 @@ mkM name typ eqns
 
 mkMSpec ::  [Measure ty Symbol] -> MSpec ty Symbol
 mkMSpec ms = MSpec cm mm 
-  where cm  = groupMap ctor $ concatMap eqns ms'
-        mm  = M.fromList [(val $ name m, m) | m <- ms' ]
-        ms' = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
+  where 
+    cm     = groupMap ctor $ concatMap eqns ms'
+    mm     = M.fromList [(val $ name m, m) | m <- ms' ]
+    ms'    = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
 -- MOVE TO TYPES
 instance Monoid (Spec ty bndr) where
@@ -163,6 +163,10 @@ instance Fixpoint Body where
   toFix (P p)   = toFix p
   toFix (R v p) = braces (toFix v <+> text "|" <+> toFix p)   
 
+instance Fixpoint a => Fixpoint (BDataCon a) where
+  toFix (BDc c)  = toFix c
+  toFix (BTup n) = parens $ toFix n
+
 -- MOVE TO TYPES
 instance Fixpoint a => Fixpoint (Def a) where
   toFix (Def m c bs body) = toFix m <> text " " <> cbsd <> text " = " <> toFix body   
@@ -187,17 +191,21 @@ mapTy f (M n ty eqs) = M n (f ty) eqs
 
 dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(LocSymbol, RefType)])
 dataConTypes  s = (ctorTys, measTys)
-  where measTys = [(name m, sort m) | m <- M.elems $ measMap s]
-        ctorTys = concatMap mkDataConIdsTy [(defsVar ds, defsTy ds) | (_, ds) <- M.toList $ ctorMap s]
-        defsTy  = foldl1' meet . fmap defRefType 
-        defsVar = ctor . safeHead "defsVar" 
+  where 
+    measTys     = [(name m, sort m) | m <- M.elems $ measMap s]
+    ctorTys     = concatMap mkDataConIdsTy [(defsVar ds, defsTy ds) | (_, ds) <- M.toList $ ctorMap s]
+    defsTy      = foldl1' meet . fmap defRefType 
+    defsVar     = ctor . safeHead "defsVar" 
 
 defRefType :: Def DataCon -> RefType
 defRefType (Def f dc xs body) = mkArrow as [] xts t'
-  where as  = RTV <$> dataConUnivTyVars dc
-        xts = safeZip "defRefType" xs $ ofType `fmap` dataConOrigArgTys dc
-        t'  = refineWithCtorBody dc f body t 
-        t   = ofType $ dataConOrigResTy dc
+  where 
+    as  = RTV <$> dataConUnivTyVars dc
+    xts = safeZip msg xs $ ofType `fmap` dataConOrigArgTys dc
+    t'  = refineWithCtorBody dc f body t 
+    t   = ofType $ dataConOrigResTy dc
+    msg = "defRefType dc = " ++ show dc 
+
 
 refineWithCtorBody dc (Loc _ f) body t = 
   case stripRTypeBase t of 

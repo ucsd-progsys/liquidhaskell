@@ -29,6 +29,9 @@ module Language.Haskell.Liquid.Types (
   -- * Default unknown position
   , dummyPos
 
+  -- * Data Constructors
+  , BDataCon (..)
+
   -- * All these should be MOVE TO TYPES
   , RTyVar (..), RType (..), RRType, BRType, RTyCon(..)
   , TyConable (..), RefTypable (..), SubsTy (..), Ref(..)
@@ -389,11 +392,11 @@ class ( Fixpoint p
     ppRType  :: Prec -> RType p c tv r -> Doc 
     -- ppRType  = ppr_rtype True -- False 
 
-
+--------------------------------------------------------------------------
+-- | Values Related to Specifications ------------------------------------
+--------------------------------------------------------------------------
 
 -- | Data type refinements
-
--- MOVE TO TYPES
 data DataDecl   = D { tycName   :: String                           -- ^ Type  Constructor Name 
                     , tycTyVars :: [String]                         -- ^ Tyvar Parameters
                     , tycPVars  :: [PVar BSort]                     -- ^ PVar  Parameters
@@ -403,7 +406,6 @@ data DataDecl   = D { tycName   :: String                           -- ^ Type  C
 
 -- | Refinement Type Aliases
 
--- MOVE TO TYPES
 data RTAlias tv ty 
   = RTA { rtName  :: String
         , rtTArgs :: [tv]
@@ -412,4 +414,18 @@ data RTAlias tv ty
         , srcPos  :: SourcePos 
         } 
 
+-- | Datacons
+
+data BDataCon a 
+  = BDc a       -- ^ Raw named data constructor
+  | BTup Int    -- ^ Tuple constructor + arity
+  deriving (Eq, Ord, Show)
+
+instance Functor BDataCon where
+  fmap f (BDc x)  = BDc (f x)
+  fmap f (BTup i) = BTup i
+
+instance Hashable a => Hashable (BDataCon a) where
+  hashWithSalt i (BDc x)  = hashWithSalt i x
+  hashWithSalt i (BTup j) = hashWithSalt i j
 
