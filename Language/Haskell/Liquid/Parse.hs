@@ -10,7 +10,7 @@ import Text.Parsec.String
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
 
-import Control.Applicative ((<$>), (<*))
+import Control.Applicative ((<$>), (<*), (<*>))
 import Data.Char (toLower, isLower, isSpace, isAlpha)
 import Data.List (partition)
 
@@ -387,18 +387,31 @@ grabs p = try (liftM2 (:) p (grabs p))
 -- measureDefP :: Parser Measure.Body -> Parser (Measure.Def Symbol)
 measureDefP bodyP
   = do mname   <- locParserP symbolP
-       (c, xs) <- parens $ measurePatP
+       (c, xs) <- {- ORIGINAL parens $ -} measurePatP
        whiteSpace >> reservedOp "=" >> whiteSpace
        body    <- bodyP 
        whiteSpace
        let xs'  = (stringSymbol . val) <$> xs
        return   $ Measure.Def mname (stringSymbol c) xs' body
 
+-- ORIGINAL
+-- measurePatP :: Parser (String, [LocString])
+-- measurePatP
+--   =  try (liftM2 (,)   upperIdP (sepBy locLowerIdP whiteSpace))
+--  <|> try (liftM3 (\x c y -> (c, [x,y])) locLowerIdP colon locLowerIdP)
+--  <|> (brackets whiteSpace  >> return ("[]",[])) 
+
 measurePatP :: Parser (String, [LocString])
-measurePatP
-  =  try (liftM2 (,)   upperIdP (sepBy locLowerIdP whiteSpace))
- <|> try (liftM3 (\x c y -> (c, [x,y])) locLowerIdP colon locLowerIdP)
- <|> (brackets whiteSpace  >> return ("[]",[])) 
+measurePatP 
+  =  try tupPatP 
+ <|> try (parens conPatP)
+ <|> try (parens consPatP)
+ <|>     (parens nilPatP)
+
+tupPatP  = (tupConName,)          <$> (parens      $  sepBy locLowerIdP comma)
+conPatP  = (,)                    <$> upperIdP    <*> sepBy locLowerIdP whiteSpace 
+consPatP = (\x c y -> (c, [x,y])) <$> locLowerIdP <*> colon <*> locLowerIdP
+nilPatP  = (\_ -> ("[]", []))     <$> brackets whiteSpace 
 
 locLowerIdP = locParserP lowerIdP 
 
