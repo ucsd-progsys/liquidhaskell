@@ -186,7 +186,10 @@ wrapErr msg f x
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
 
-makeMeasureSpec :: BareEnv -> Ms.MSpec BareType Symbol -> IO ([(Var, SpecType)], [(LocSymbol, RefType)])
+makeMeasureSpec :: BareEnv 
+                -> Ms.MSpec BareType Symbol 
+                -> IO ([(Var, SpecType)], [(LocSymbol, RefType)])
+
 makeMeasureSpec env m = execBare mkSpec env 
   where mkSpec = wrapErr "mkMeasureSort" mkMeasureSort m' 
                  >>= mkMeasureDCon 
@@ -347,13 +350,23 @@ lookupGhcTyCon s = (lookupGhcThing "TyCon" ftc s) `catchError` tryPropTyCon
         tryPropTyCon e   | pp s == propConName = return propTyCon 
                          | otherwise           = throwError e
 
-lookupGhcClass = lookupGhcThing "Class" ftc 
-  where ftc (ATyCon x) = tyConClass_maybe x 
-        ftc _          = Nothing
+lookupGhcClass       = lookupGhcThing "Class" ftc 
+  where 
+    ftc (ATyCon x)   = tyConClass_maybe x 
+    ftc _            = Nothing
 
-lookupGhcDataCon = lookupGhcThing "DataCon" fdc 
-  where fdc (ADataCon x) = Just x
-        fdc _            = Nothing
+lookupGhcDataCon dc  = case isTupleDC dc of 
+                         Just n  -> return $ tupleCon BoxedTuple n
+                         Nothing -> lookupGhcDataCon' dc 
+
+isTupleDC zs@('(':',':_) = Just $ length zs - 1
+isTupleDC _              = Nothing
+
+
+lookupGhcDataCon'    = lookupGhcThing "DataCon" fdc
+  where 
+    fdc (ADataCon x) = Just x
+    fdc _            = Nothing
 
 -- lookupGhcId = lookupGhcThing "Id" thingId
 
@@ -383,8 +396,10 @@ maxArity :: Arity
 maxArity = 7
 
 wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-wiredTyDataCons = (\(x, y) -> (concat x, concat y)) $ unzip l
-  where l = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity] 
+wiredTyDataCons = (concat tcs, concat dcs)
+  where 
+    (tcs, dcs)  = unzip l
+    l           = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity]
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [0] [])]
@@ -514,14 +529,16 @@ stringRTyVar  = rTyVar . stringTyVar
 -- stringTyVarTy = TyVarTy . stringTyVar
 
 mkMeasureDCon :: Ms.MSpec t Symbol -> BareM (Ms.MSpec t DataCon)
-mkMeasureDCon m = (forM (measureCtors m) $ \n -> liftM (n,) (lookupGhcDataCon n))
+mkMeasureDCon m = (forM (measureCtors m) $ \n -> (n,) <$> lookupGhcDataCon n)
                   >>= (return . mkMeasureDCon_ m)
 
 mkMeasureDCon_ :: Ms.MSpec t Symbol -> [(String, DataCon)] -> Ms.MSpec t DataCon
 mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
-  where m'  = fmap tx m
-        cm' = hashMapMapKeys (dataConSymbol . tx) $ Ms.ctorMap m'
-        tx  = mlookup (M.fromList ndcs) . symbolString
+  where 
+    m'  = fmap tx m
+    cm' = hashMapMapKeys (tx' . tx) $ Ms.ctorMap m'
+    tx  = mlookup (M.fromList ndcs) . symbolString
+    tx' = dataConSymbol
 
 measureCtors ::  Ms.MSpec t Symbol -> [String]
 measureCtors = sortNub . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.ctorMap 

@@ -262,8 +262,8 @@ dummyRSort     = ROth "dummy"
 --------------------------- Measures -----------------------------
 ------------------------------------------------------------------
 
-data Pspec ty bndr 
-  = Meas    (Measure.Measure ty bndr) 
+data Pspec ty ctor 
+  = Meas    (Measure.Measure ty ctor) 
   | Assm    (LocSymbol, ty) 
   | Impt    Symbol
   | DDecl   DataDecl
@@ -288,7 +288,9 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.qualifiers = [q | Qualif q <- xs]
   }
 
-specificationP :: Parser (Measure.Spec BareType Symbol)
+type BareSpec = (Measure.Spec BareType Symbol)
+
+specificationP :: Parser BareSpec 
 specificationP 
   = do reserved "module"
        reserved "spec"
@@ -384,7 +386,7 @@ binderP =  try $ liftM stringSymbol (idP badc)
 grabs p = try (liftM2 (:) p (grabs p)) 
        <|> return []
 
--- measureDefP :: Parser Measure.Body -> Parser (Measure.Def Symbol)
+measureDefP :: Parser Measure.Body -> Parser (Measure.Def Symbol)
 measureDefP bodyP
   = do mname   <- locParserP symbolP
        (c, xs) <- {- ORIGINAL parens $ -} measurePatP
@@ -408,11 +410,16 @@ measurePatP
  <|> try (parens consPatP)
  <|>     (parens nilPatP)
 
-tupPatP  = (tupConName,)          <$> (parens      $  sepBy locLowerIdP comma)
-conPatP  = (,)                    <$> upperIdP    <*> sepBy locLowerIdP whiteSpace 
-consPatP = (\x c y -> (c, [x,y])) <$> locLowerIdP <*> colon <*> locLowerIdP
-nilPatP  = (\_ -> ("[]", []))     <$> brackets whiteSpace 
+tupPatP  = mkTupPat  <$> (parens      $  sepBy locLowerIdP comma)
+conPatP  = (,)       <$> (upperIdP)  <*> sepBy locLowerIdP whiteSpace 
+consPatP = mkConsPat <$> locLowerIdP <*> colon <*> locLowerIdP
+nilPatP  = mkNilPat  <$> brackets whiteSpace 
 
+mkTupPat zs     = (tupDataCon (length zs), zs)
+mkNilPat _      = ("[]", []    )
+mkConsPat x c y = (":" , [x, y]) 
+
+tupDataCon n    = "(" ++ replicate (n - 1) ',' ++ ")"
 locLowerIdP = locParserP lowerIdP 
 
 {- len (Cons x1 x2 ...) = e -}
@@ -430,12 +437,10 @@ predTypeDDP
   = liftM2 (,) bbindP bareTypeP
 
 dataConP
-  = do x <- upperIdP
+  = do x   <- upperIdP
        spaces
-       xts <- dataConFieldsP -- sepBy predTypeDDP spaces
+       xts <- dataConFieldsP
        return (x, xts)
-
-
 
 dataDeclP
   = do x   <- upperIdP
@@ -491,7 +496,7 @@ instance Inputable BareType where
 instance Inputable (Measure.Measure BareType Symbol) where
   rr' = doParse' measureP
 
-instance Inputable (Measure.Spec BareType Symbol) where
+instance Inputable BareSpec where
   rr' = doParse' specificationP
 
 hsSpecificationP name 
