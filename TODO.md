@@ -8,12 +8,34 @@ TODO
 
 * error messages: expected XXX got YYY?
 
-* incremental checking
+* incremental checking (see below) 
     - save top-level types to file (.spec)
     - reload
     - check all but specified function
 
-* deep-measures: measures over nested type constructors
+* deep-measures
+
+* wtf is include/KMeansHelper.hs ? Fix module import issue
+
+* qualified names break spec imports -- tests/todo/qualifiedvector.hs 
+
+* DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
+  -> may break a LOT of regressions
+
+* [seidel] benchmarks: Data.Text
+* benchmarks: stackset-core
+* benchmarks: Data.List (foldr)
+* benchmarks: Data.List (foldr) 
+* benchmarks: mcbrides stack machine
+* Move stuff into Types.hs
+    - remove `toType` and  generalize `typeSort` to work for all RefTypables
+
+Deep Measures
+=============
+
+See tests/todo/PairMeasure.hs
+
+measures over nested type constructors
 
     measure fst :: (a, b) -> a
     fst (x, y)     =  x
@@ -29,25 +51,17 @@ TODO
     llElts ([])    = {v | (? Set_emp(v)) }
     llElts (x:xs)  = {v | v = (Set_cup (listElts x) (llElts xs)) } 
 
-* wtf is include/KMeansHelper.hs ? Fix module import issue
 
-* qualified names break spec imports -- tests/todo/qualifiedvector.hs 
+- Write fancy measure sigs (as above)
+- Conjoin all constructor definitions
+- Before adding binder to env, prune out malformed refinements 
+-  eg for "fst x" where x :: Int
 
-* DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
-  -> may break a LOT of regressions
-
-* [seidel] benchmarks: Data.Text
-* benchmarks: stackset-core
-
-* benchmarks: Data.List (foldr)
-* benchmarks: Data.List (foldr) 
-* benchmarks: mcbrides stack machine
-
-* Move stuff into Types.hs
-    - remove `toType` and  generalize `typeSort` to work for all RefTypables
 
 Incremental Checking
 ====================
+
+[see branch "inccheck" look for the field "binds" in CmdLine.hs]
 
 1. Command Line Arguments  
     - Specify WHICH binders to verify [DEFAULT = ALL]  
@@ -55,12 +69,10 @@ Incremental Checking
     - Print out vars/hs-types <-------------------------- HEREHEREHEREHERE
 
 2. CONSGEN for subset 
-
 3. CONSGEN for subset using TRUE for all other functions
-
 4. SAVE out inferred-types for top-level binders
-
 5. REUSE pre-inferred types for other functions 
+
 
 
 
