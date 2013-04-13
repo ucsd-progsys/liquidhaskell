@@ -11,7 +11,8 @@ module Foo where
 {-@ type OList a    = [a]<\h -> {v: a | (v >= h)}> @-}
 
 {-@ getFsts          :: OPList a b -> OList a @-}
-
 getFsts []           = [] 
 getFsts ((x,_) : xs) = x : getFsts xs
 
+{-@ canary :: a -> {v:a | false} @-}
+canary x = x 

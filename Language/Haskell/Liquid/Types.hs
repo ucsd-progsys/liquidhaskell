@@ -429,3 +429,4 @@ instance Hashable a => Hashable (BDataCon a) where
   hashWithSalt i (BDc x)  = hashWithSalt i x
   hashWithSalt i (BTup j) = hashWithSalt i j
 
+
