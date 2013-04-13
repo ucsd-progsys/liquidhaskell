@@ -35,9 +35,7 @@ Deep Measures
 
 measures over nested type constructors
 
-    measure listKeys :: [(k, v)] -> (Set a) 
-    listKeys([])   = {v | (? Set_emp(v))}
-    listKeys(x:xs) = {v | v = (Set_cup (Set_sng (fst x)) (listKeys xs)) }
+tests/todo/deepmeas0.hs
 
     measure llElts :: [[a]] -> (Set a)
     llElts ([])    = {v | (? Set_emp(v)) }
