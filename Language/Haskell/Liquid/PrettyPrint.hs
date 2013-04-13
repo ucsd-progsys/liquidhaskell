@@ -37,47 +37,78 @@ instance PPrint Bop where
   pprint  = toFix 
 
 instance PPrint Expr where
-  pprint (ECon c)        = toFix c 
-  pprint (EVar s)        = toFix s
-  pprint (ELit s _)      = toFix s
-  pprint (EApp f es)     = (toFix f) <> (parens $ toFix es) 
-  pprint (EBin o e1 e2)  = parens $ toFix e1 <+> toFix o <+> toFix e2
-  pprint (EIte p e1 e2)  = parens $ toFix p <+> text "?" <+> toFix e1 <+> text ":" <+> toFix e2 
-  pprint (ECst e so)     = parens $ toFix e <+> text " : " <+> toFix so 
+  pprint (EApp f es)     = parens $ intersperse empty $ pprint f : pprint es 
+  pprint (ECon c)        = pprint c 
+  pprint (EVar s)        = pprint s
+  pprint (ELit s _)      = pprint s
+  pprint (EBin o e1 e2)  = parens $ pprint e1 <+> pprint o <+> pprint e2
+  pprint (EIte p e1 e2)  = parens $ text "if" <+> pprint p <+> text "then" <+> pprint e1 <+> text "else" <+> pprint e2 
+  pprint (ECst e so)     = parens $ pprint e <+> text " : " <+> pprint so 
   pprint (EBot)          = text "_|_"
 
 instance PPrint Pred where
   pprint PTop            = text "???"
-  pprint PTrue           = text "true"
-  pprint PFalse          = text "false"
-  pprint (PBexp e)       = parens $ text "?" <+> toFix e
-  pprint (PNot p)        = parens $ text "~" <+> parens (toFix p)
-  pprint (PImp p1 p2)    = parens $ (toFix p1) <+> text "=>" <+> (toFix p2)
-  pprint (PIff p1 p2)    = parens $ (toFix p1) <+> text "<=>" <+> (toFix p2)
-  pprint (PAnd ps)       = text "&&" <+> toFix ps
-  pprint (POr  ps)       = text "||" <+> toFix ps
-  pprint (PAtom r e1 e2) = parens $ toFix e1 <+> toFix r <+> toFix e2
-  pprint (PAll xts p)    = text "forall" <+> (toFix xts) <+> text "." <+> (toFix p)
+  pprint PTrue           = trueD 
+  pprint PFalse          = falseD
+  pprint (PBexp e)       = parens $ pprint e
+  pprint (PNot p)        = parens $ text "not" <+> parens (pprint p)
+  pprint (PImp p1 p2)    = parens $ (pprint p1) <+> text "=>"  <+> (pprint p2)
+  pprint (PIff p1 p2)    = parens $ (pprint p1) <+> text "<=>" <+> (pprint p2)
+  pprint (PAnd ps)       = parens $ pprintBin trueD  (text "&&") ps
+  pprint (POr  ps)       = parens $ pprintBin falseD (text "&&") ps 
+  pprint (PAtom r e1 e2) = parens $ pprint e1 <+> pprint r <+> pprint e2
+  pprint (PAll xts p)    = text "forall" <+> toFix xts <+> text "." <+> pprint p
+
+trueD  = text "true"
+falseD = text "false"
+
+instance PPrint a => PPrint (Maybe a) where
+  pprint = maybe (text "Nothing") ((text "Just" <+>) . pprint)
+
+instance PPrint a => PPrint [a] where
+  pprint = brackets . intersperse comma . map pprint
+
+pprintBin b o []     = b
+pprintBin b o [x]    = pprint x
+pprintBin b o (x:xs) = pprint x <+> o <+> pprintBin b o xs 
+
+instance PPrint SourcePos where
+  pprint = toFix
+
+instance PPrint Var where
+  pprint = pprDoc 
+
+instance PPrint Name where
+  pprint = pprDoc 
+
+instance PPrint Type where
+  pprint = pprDoc
+
+instance PPrint SourcePos where
+  pprint = tshow 
+
+instance PPrint a => PPrint (Located a) where
+  pprint = pprint . val 
+
 
 
 {- 
 [hsenv]rjhala@ubuntu:~/research/liquid/liquidhaskell/Language (deepmeasure)$ ack-grep Fixpoint | grep "instance"
-Haskell/Liquid/GhcMisc.hs:216:instance Fixpoint Var where
-Haskell/Liquid/GhcMisc.hs:219:instance Fixpoint Name where
-Haskell/Liquid/GhcMisc.hs:222:instance Fixpoint Type where
-Haskell/Liquid/Types.hs:102:instance Fixpoint SourcePos where
-Haskell/Liquid/Types.hs:105:instance Fixpoint a => Fixpoint (Located a) where
+
 Haskell/Liquid/Constraint.hs:156:instance F.Fixpoint CGEnv where
 Haskell/Liquid/Constraint.hs:213:instance F.Fixpoint SubC where
 Haskell/Liquid/Constraint.hs:219:instance F.Fixpoint WfC where
 Haskell/Liquid/Constraint.hs:222:instance F.Fixpoint Cinfo where
 Haskell/Liquid/Constraint.hs:436:instance F.Fixpoint CGInfo where 
 Haskell/Liquid/Constraint.hs:1196:instance F.Fixpoint REnv where
+
 Haskell/Liquid/PredType.hs:52:instance F.Fixpoint TyConP where
 Haskell/Liquid/PredType.hs:60:instance F.Fixpoint DataConP where
+
 Haskell/Liquid/GhcInterface.hs:422:instance Fixpoint GhcSpec where
 Haskell/Liquid/GhcInterface.hs:432:instance Fixpoint GhcInfo where 
 Haskell/Liquid/GhcInterface.hs:449:instance Fixpoint TargetVars where
+
 Haskell/Liquid/RefType.hs:108:instance Fixpoint Predicate where
 Haskell/Liquid/RefType.hs:232:instance Fixpoint () where
 Haskell/Liquid/RefType.hs:295:instance Fixpoint String where
