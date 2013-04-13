@@ -757,14 +757,14 @@ instance Fixpoint (WfC a) where
               $+$ text "reft" <+> toFix (wrft w) 
               $+$ pprId (wid w)
 
-pprId (Just i)  = text "id" <+> (text $ show i)
+pprId (Just i)  = text "id" <+> tshow i
 pprId _         = text ""
 
 pprTag []       = text ""
 pprTag is       = text "tag" <+> toFix is 
 
 instance Fixpoint Int where
-  toFix = text . show 
+  toFix = tshow 
 
 -------------------------------------------------------
 ------------------- Substitutions ---------------------
