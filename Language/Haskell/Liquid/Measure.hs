@@ -230,7 +230,7 @@ data RTEnv   = RTE { typeAliases :: M.HashMap String (RTAlias String BareType)
                    , predAliases :: M.HashMap String (RTAlias Symbol Pred)
                    }
 
-expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
+expandRTAliases    :: Spec BareType Symbol -> Spec BareType Symbol
 expandRTAliases sp = sp { sigs       = [ (x, generalize $ expandRTAlias env t)  | (x, t) <- sigs sp       ] }
                         { dataDecls  = [ expandRTAliasDataDecl env dc           | dc     <- dataDecls sp  ] } 
                         { invariants = [ generalize <$> expandRTAlias env <$> t | t      <- invariants sp ] }
@@ -267,20 +267,23 @@ makeAliasMap exp xts = expBody <$> env0
 
 -- | Using the Alias Environment to Expand Definitions
 
-expandRTAlias       :: RTEnv -> BareType -> BareType
-expandRTAlias env   = expReft . expType 
-  where expReft = fmap (txPredReft expPred) 
-        expType = expandAlias  (\_ _ -> id) [] (typeAliases env)
-        expPred = expandPAlias (\_ _ -> id) [] (predAliases env)
+expandRTAlias     :: RTEnv -> BareType -> BareType
+expandRTAlias env = expReft . expType 
+  where 
+    expReft       = fmap (txPredReft expPred) 
+    expType       = expandAlias  (\_ _ -> id) [] (typeAliases env)
+    expPred       = expandPAlias (\_ _ -> id) [] (predAliases env)
 
-txPredReft f = fmap  (txPredReft f)
-  where txPredReft f (Reft (v, ras)) = Reft (v, txPredRefa f <$> ras)
-        txPredRefa f (RConc p)       = RConc (f p)
-        txPredRefa _ z               = z
+txPredReft f      = fmap  (txPredReft f)
+  where 
+    txPredReft f (Reft (v, ras)) = Reft (v, txPredRefa f <$> ras)
+    txPredRefa f (RConc p)       = RConc (f p)
+    txPredRefa _ z               = z
        
 
 expandRTAliasDataDecl env dc = dc {tycDCons = dcons' }  
-  where dcons' = map (mapSnd (map (mapSnd (expandRTAlias env)))) (tycDCons dc) 
+  where 
+    dcons' = map (mapSnd (map (mapSnd (expandRTAlias env)))) (tycDCons dc) 
 
 
 -- | Using the Alias Environment to Expand Definitions
@@ -299,7 +302,7 @@ expandAlias f s env = go s
     go s (RApp c ts rs r)
       | c `elem` s        = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
       | c `M.member` env  = assert (null rs) $ expandRTApp (f (c:s) env) env c (go s <$> ts) r
-      | otherwise         = RApp c (go s <$> ts) rs r 
+      | otherwise         = RApp c (go s <$> ts) (go' s <$> rs) r 
     go s (RAllT a t)      = RAllT a (go s t)
     go s (RAllP a t)      = RAllP a (go s t)
     go s (RFun x t t' r)  = RFun x (go s t) (go s t') r
@@ -307,12 +310,14 @@ expandAlias f s env = go s
     go s (RCls c ts)      = RCls c (go s <$> ts) 
     go _ t                = t
 
+    go' s z@(RMono _ _)   = z
+    go' s (RPoly ss t)    = RPoly ss (go s t)
 
 expandRTApp tx env c args r
   | length args == (length αs) + (length εs)
   = subst su  $ (`strengthen` r) $ subsTyVars_meet αts $ tx $ rtBody rta
   | otherwise
-  = errorstar $ "Malformed Type-Alias Application" ++ msg ++ show rta
+  = errortext $ text "Malformed Type-Alias Application" $+$ text msg $+$ showFix rta
   where 
     αts       = zipWith (\α t -> (α, toRSort t, t)) αs ts
     su        = mkSubst $ zip (stringSymbol <$> εs) es
