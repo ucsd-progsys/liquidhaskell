@@ -52,7 +52,8 @@ measures over nested type constructors
     llElts (x:xs)  = {v | v = (Set_cup (listElts x) (llElts xs)) } 
 
 
-0. Parse tuple measure e.g. fst (x, y) = x    <---------HERE
+0. Parse tuple measure e.g. fst (x, y) = x    
+    - tests/todo/PairMeasure.hs <---------HERE
 
 1. Parse nested measure e.g. keys :: [(a, b)] -> (Set a)
 
