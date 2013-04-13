@@ -317,7 +317,7 @@ expandRTApp tx env c args r
   | length args == (length αs) + (length εs)
   = subst su  $ (`strengthen` r) $ subsTyVars_meet αts $ tx $ rtBody rta
   | otherwise
-  = errortext $ text "Malformed Type-Alias Application" $+$ text msg $+$ showFix rta
+  = errortext $ (text "Malformed Type-Alias Application" $+$ text msg $+$ tshow rta)
   where 
     αts       = zipWith (\α t -> (α, toRSort t, t)) αs ts
     su        = mkSubst $ zip (stringSymbol <$> εs) es
