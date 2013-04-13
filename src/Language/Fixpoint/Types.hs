@@ -397,7 +397,6 @@ instance Fixpoint Integer where
 instance Fixpoint Constant where
   toFix (I i) = toFix i
 
-
 instance Fixpoint Brel where
   toFix Eq = text "="
   toFix Ne = text "!="
@@ -416,7 +415,6 @@ instance Fixpoint Bop where
 instance Fixpoint Expr where
   toFix (ECon c)       = toFix c 
   toFix (EVar s)       = toFix s
-  -- toFix (EDat s _)     = toFix s 
   toFix (ELit s _)     = toFix s
   toFix (EApp f es)    = (toFix f) <> (parens $ toFix es) 
   toFix (EBin o e1 e2) = parens $ toFix e1 <+> toFix o <+> toFix e2
@@ -442,19 +440,7 @@ data Pred = PTrue
           deriving (Eq, Ord, Show) -- show Data, Typeable, Show)
 
 instance Fixpoint Pred where
-  toFix PTop             = text "???"
-  toFix PTrue            = text "true"
-  toFix PFalse           = text "false"
-  toFix (PBexp e)        = parens $ text "?" <+> toFix e
-  toFix (PNot p)         = parens $ text "~" <+> parens (toFix p)
-  toFix (PImp p1 p2)     = parens $ (toFix p1) <+> text "=>" <+> (toFix p2)
-  toFix (PIff p1 p2)     = parens $ (toFix p1) <+> text "<=>" <+> (toFix p2)
-  toFix (PAnd ps)        = text "&&" <+> toFix ps
-  toFix (POr  ps)        = text "||" <+> toFix ps
-  toFix (PAtom r e1 e2)  = parens $ toFix e1 <+> toFix r <+> toFix e2
-  toFix (PAll xts p)     = text "forall" <+> (toFix xts) <+> text "." <+> (toFix p)
-
-  simplify (PAnd [])     = PTrue
+r simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
   simplify (PAnd [p])    = simplify p
   simplify (POr  [p])    = simplify p
