@@ -91,8 +91,5 @@ pdeps:
 test:
 	cd tests && ./regrtest.py -t $(THREADS) && cd ../
 
-test-nofalse:
-	cd tests && ./regrtest.py -t $(THREADS) -o nofalse && cd ../
-
 lint:
 	hlint --colour --report .
