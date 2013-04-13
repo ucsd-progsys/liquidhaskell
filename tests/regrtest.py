@@ -28,21 +28,22 @@ null       = open("/dev/null", "w")
 now	   = (time.asctime(time.localtime(time.time()))).replace(" ","_")
 logfile    = "../tests/logs/regrtest_results_%s_%s" % (socket.gethostname (), now)
 argcomment = "--! run with "
+liquidcomment = "{--! run liquid with "
+endcomment = "-}"
 
 def logged_sys_call(args, out=None, err=None):
   print "exec: " + " ".join(args)
   return subprocess.call(args, stdout=out, stderr=err)
-
-def solve_quals(file,bare,time,quiet,flags,dargs):
+ 
+def solve_quals(file,bare,time,quiet,flags,lflags):
   if quiet: out = null
   else: out = None
   if time: time = ["time"]
   else: time = []
-  if dargs: dargs = ["--" + " --".join(dargs.split())]
-  else: dargs = []
+  if lflags: lflags = ["--" + " --".join(lflags)]
   hygiene_flags = [] # [("--liquidcprefix=%s" % (file)), "-o", "/dev/null"]
   out = open(file + ".log", "w")
-  rv  = logged_sys_call(time + solve + flags + dargs + hygiene_flags + [file], out)
+  rv  = logged_sys_call(time + solve + flags + lflags + hygiene_flags + [file], out)
   out.close()
   return rv
 
@@ -60,6 +61,17 @@ def getfileargs(file):
   else:
     return []
 
+def getliquidargs(file):
+  f = open(file)
+  l = f.readline()
+  f.close()
+  if l.startswith(liquidcomment):
+    return [arg for arg in l[len(liquidcomment):].strip().split(" ")
+                     if arg!=endcomment]
+  else:
+    return []
+
+
 class Config (rtest.TestConfig):
   def __init__ (self, dargs, testdirs, logfile, threadcount):
     rtest.TestConfig.__init__ (self, testdirs, logfile, threadcount)
@@ -69,7 +81,8 @@ class Config (rtest.TestConfig):
     os.environ['LCCFLAGS'] = self.dargs
     if file.endswith(".hs"):
       fargs = getfileargs(file)
-      return solve_quals(file, True, False, True, fargs, self.dargs)
+      lflags = getliquidargs(file)
+      return solve_quals(file, True, False, True, fargs, lflags)
     elif file.endswith(".sh"):
       return run_script(file, True)
 

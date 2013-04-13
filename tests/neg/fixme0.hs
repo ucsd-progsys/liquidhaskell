@@ -1,3 +1,5 @@
+{--! run liquid with nofalse -}
+
 module HaskellElephant where 
 
 {-@ f :: a -> {v : b | false} @-}
