@@ -100,7 +100,7 @@ isDummy a = show a == dummyName
 dummyPos = newPos "?" 0 0 
 
 instance Fixpoint SourcePos where
-  toFix = text . show 
+  toFix = tshow 
 
 instance Fixpoint a => Fixpoint (Located a) where
   toFix = toFix . val 
