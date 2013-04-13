@@ -33,15 +33,7 @@ TODO
 Deep Measures
 =============
 
-See tests/todo/PairMeasure.hs
-
 measures over nested type constructors
-
-    measure fst :: (a, b) -> a
-    fst (x, y)     =  x
-
-    measure snd :: (a, b) -> b
-    fst (x, y)     =  y
 
     measure listKeys :: [(k, v)] -> (Set a) 
     listKeys([])   = {v | (? Set_emp(v))}
@@ -51,19 +43,11 @@ measures over nested type constructors
     llElts ([])    = {v | (? Set_emp(v)) }
     llElts (x:xs)  = {v | v = (Set_cup (listElts x) (llElts xs)) } 
 
-
-0. Parse tuple measure e.g. fst (x, y) = x    
-    - tests/todo/PairMeasure.hs <---------HERE
-
-1. Parse nested measure e.g. keys :: [(a, b)] -> (Set a)
-
-1. Write fancy measure sigs (as above)
-
-2. Conjoin all constructor definitions
-
-3. Before adding binder to env, prune out malformed refinements 
-
-4. eg for "fst x" where x :: Int
+1. Parse nested measure e.g. keys :: [(a, b)] -> (Set a) <---------HERE
+2. Write fancy measure sigs (as above)
+3. Conjoin all constructor definitions
+4. Before adding binder to env, prune out malformed refinements 
+5. eg for "listElts x" where `x :: Int` or `x :: a` or such.
 
 
 Incremental Checking
