@@ -47,6 +47,17 @@ tests/todo/deepmeas0.hs
 4. Before adding binder to env, prune out malformed refinements 
 5. eg for "listElts x" where `x :: Int` or `x :: a` or such.
 
+Pretty Print [EASY]
+===================
+
+The /real/ fixpoint interface is in liquid-fixpoint and untouched, 
+thats what deals with the backend solver. liquidhaskell should have
+ZERO dependency on `class Fixpoint` and `toFix`
+
+1. Rewrite pretty printer in: Language.Haskell.Liquid.PrettyPrint
+2. Fill in other definitions/copy "Fixpoint" instances here
+3. Replace all uses of `toFix` with `pprint`
+
 
 Incremental Checking
 ====================
