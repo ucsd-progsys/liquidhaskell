@@ -139,6 +139,7 @@ instance Hashable a => Hashable (Located a) where
   hashWithSalt i = hashWithSalt i . val
 
 
+
 ------------------------------------------------------------------
 -- | GHC Information :  Code & Spec ------------------------------
 ------------------------------------------------------------------

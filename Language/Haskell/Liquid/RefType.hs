@@ -230,7 +230,7 @@ ppTySReft s r d
 
 -- MOVE TO TYPES
 instance Fixpoint () where
-  toFix     = text . show 
+  toFix     = tshow 
 
 -- MOVE TO TYPES
 instance Reftable () where
@@ -667,21 +667,20 @@ instance Fixpoint RTyCon where
 instance Show RTyCon where
  show = showFix  
 
-ppr_rtype :: (RefTypable p c tv (), RefTypable p c tv r) 
-          => Bool           -- ^ Whether to print reftPs or not e.g. [a]<...> 
-          -> Prec 
-          -> RType p c tv r 
-          -> Doc
-
 data PPEnv 
   = PP { ppPs    :: Bool
        , ppTyVar :: Bool
        }
 
 ppEnv           = ppEnvPrintPreds
-
 ppEnvCurrent    = PP False False
 ppEnvPrintPreds = PP True False
+
+ppr_rtype :: (RefTypable p c tv (), RefTypable p c tv r) 
+          => Bool           -- ^ Whether to print reftPs or not e.g. [a]<...> 
+          -> Prec 
+          -> RType p c tv r 
+          -> Doc
 
 ppr_rtype bb p t@(RAllT _ _)       
   = ppr_forall bb p t
