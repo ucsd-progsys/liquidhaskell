@@ -165,7 +165,7 @@ isDummy a = show a == dummyName
 dummyPos = newPos "?" 0 0 
 
 instance Fixpoint SourcePos where
-  toFix = tshow 
+  toFix = text . show 
 
 instance Fixpoint a => Fixpoint (Located a) where
   toFix = toFix . val 
@@ -486,6 +486,7 @@ class ( TyConable c
     ppCls    :: p -> [RType p c tv r] -> Doc
     ppRType  :: Prec -> RType p c tv r -> Doc 
     -- ppRType  = ppr_rtype True -- False 
+    -- ppBase   :: r -> Doc -> Doc
 
 --------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------
@@ -563,11 +564,23 @@ instance Reftable () where
   params _  = []
 
 
-instance (Reftable r) => Reftable (UReft r) where
-  isTauto (U r p)    = isTauto r && isTauto p 
-  ppTy (U r p) d     = ppTy r (ppTy p d) 
+instance (PPrint r, Reftable r) => Reftable (UReft r) where
+  isTauto            = isTauto_ureft 
+  -- ppTy (U r p) d     = ppTy r (ppTy p d) 
+  ppTy               = ppTy_ureft
   toReft (U r _)     = toReft r
   params (U r _)     = params r
+
+isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u)
+
+ppTy_ureft u@(U r p) d 
+  | isTauto_ureft u  = d
+  | otherwise        = ppr_reft r (ppTy p d)
+
+ppr_reft r d         = braces (toFix v <+> colon <+> d <+> text "|" <+> pprint r')
+  where 
+    r'@(Reft (v, _)) = toReft r
+
 
 instance Subable () where
   syms _      = []
@@ -794,10 +807,10 @@ stripRTypeBase _
 -----------------------------------------------------------------------------
 
 instance PPrint SourcePos where
-  pprint = tshow 
+  pprint = text . show 
 
 instance PPrint () where
-  pprint = tshow 
+  pprint = text . show 
 
 instance PPrint String where 
   pprint = text 
@@ -846,13 +859,18 @@ instance PPrint Pred where
   pprint (PNot p)        = parens $ text "not" <+> parens (pprint p)
   pprint (PImp p1 p2)    = parens $ (pprint p1) <+> text "=>"  <+> (pprint p2)
   pprint (PIff p1 p2)    = parens $ (pprint p1) <+> text "<=>" <+> (pprint p2)
-  pprint (PAnd ps)       = parens $ pprintBin trueD  (text "&&") ps
-  pprint (POr  ps)       = parens $ pprintBin falseD (text "&&") ps 
+  pprint (PAnd ps)       = parens $ pprintBin trueD  andD ps
+  pprint (POr  ps)       = parens $ pprintBin falseD orD  ps 
   pprint (PAtom r e1 e2) = parens $ pprint e1 <+> pprint r <+> pprint e2
   pprint (PAll xts p)    = text "forall" <+> toFix xts <+> text "." <+> pprint p
 
 trueD  = text "true"
 falseD = text "false"
+andD   = text "&&"
+orD    = text "||"
+
+pprintBin b _ [] = b
+pprintBin _ o xs = intersperse o $ pprint <$> xs 
 
 pprintBin b o []     = b
 pprintBin b o [x]    = pprint x
@@ -865,7 +883,6 @@ instance PPrint a => PPrint (PVar a) where
       nexpr (EVar (S ss)) = EVar $ stringSymbol ss
       nexpr e             = e
 
-
 instance PPrint Predicate where
   pprint (Pr [])       = text "True"
   pprint (Pr pvs)      = hsep $ punctuate (text "&") (map pprint pvs)
@@ -875,9 +892,11 @@ instance PPrint Refa where
   pprint k             = toFix k
  
 instance PPrint Reft where 
-  pprint r@(Reft (_,ras))
+  pprint r@(Reft (_,ras)) 
     | isTauto r        = text "true"
-    | otherwise        = intersperse comma $ pprint <$> flattenRefas ras
+    | otherwise        = {- intersperse comma -} pprintBin trueD andD $ flattenRefas ras
+
+ 
 
 instance PPrint SortedReft where
   pprint (RR so (Reft (v, ras))) 

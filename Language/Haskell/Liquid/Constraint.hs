@@ -216,8 +216,6 @@ instance PPrint SubC where
                              $+$ text "<:" 
                              $+$ (pprint (rhs c))))
 
-
-
 instance PPrint WfC where
   pprint (WfC w r) = pprint w <> text " |- " <> pprint r 
 

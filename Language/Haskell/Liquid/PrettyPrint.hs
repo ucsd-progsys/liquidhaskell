@@ -214,10 +214,10 @@ ppRefArgs ss = text "\\" <> hsep (ppRefSym <$> ss ++ [vv Nothing]) <+> text "->"
 ppRefSym (S "") = text "_"
 ppRefSym s      = pprint s
 
-instance (Fixpoint r, Reftable r) => PPrint (UReft r) where
+instance (PPrint r, Reftable r) => PPrint (UReft r) where
   pprint (U r p)
     | isTauto r  = pprint p
-    | isTauto p  = toFix r
-    | otherwise  = pprint p <> text " & " <> toFix r
+    | isTauto p  = pprint r
+    | otherwise  = pprint p <> text " & " <> pprint r
 
 
