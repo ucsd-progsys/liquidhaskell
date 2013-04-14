@@ -1154,7 +1154,7 @@ instance Monoid SortedReft where
 
 instance Reftable SortedReft where
   isTauto  = isTauto . sr_reft
-  ppTy     = ppTy    . sr_reft
+  ppTy     = ppTy . sr_reft
   toReft   = sr_reft
   params _ = []
 
