@@ -15,6 +15,8 @@ TODO
 
 * deep-measures
 
+* have liquid-fixpoint sort checker RETURN ERROR (rather than errorstar-inside) so we can give nicer messages.
+
 * wtf is include/KMeansHelper.hs ? Fix module import issue
 
 * qualified names break spec imports -- tests/todo/qualifiedvector.hs 
@@ -41,23 +43,23 @@ tests/todo/deepmeas0.hs
     llElts ([])    = {v | (? Set_emp(v)) }
     llElts (x:xs)  = {v | v = (Set_cup (listElts x) (llElts xs)) } 
 
-1. Parse nested measure e.g. keys :: [(a, b)] -> (Set a) <---------HERE
-2. Write fancy measure sigs (as above)
-3. Conjoin all constructor definitions
-4. Before adding binder to env, prune out malformed refinements 
-5. eg for "listElts x" where `x :: Int` or `x :: a` or such.
+1. Parse nested measure e.g. keys :: [(a, b)] -> (Set a) 
+2. Write fancy measure sigs (as above)  <--------- HEREHEREHEREHEREHERE
 
-Pretty Print [EASY]
-===================
+    - This breaks the sort-checker nicely. how to fix ?
 
-The /real/ fixpoint interface is in liquid-fixpoint and untouched, 
-thats what deals with the backend solver. liquidhaskell should have
-ZERO dependency on `class Fixpoint` and `toFix`
+    A. intersection of different types -- add the ones that SURVIVE ?
+            
+            (:) :: a      -> [a]      -> [a]
+                /\ (a, b) -> [(a, b)] -> [(a, b)]
+                /\ [a]    -> [[a]]    -> [[a]]
 
-1. Rewrite pretty printer in: Language.Haskell.Liquid.PrettyPrint
-2. Fill in other definitions/copy "Fixpoint" instances here
-3. Replace all uses of `toFix` with `pprint`
+    OR
 
+    B. Conjoin all constructor definitions (DONE)
+       - Suppress checker
+       - Before adding binder to env, prune out malformed refinements 
+       - eg for "listElts x" where `x :: Int` or `x :: a` or such.
 
 Incremental Checking
 ====================
