@@ -440,7 +440,19 @@ data Pred = PTrue
           deriving (Eq, Ord, Show) -- show Data, Typeable, Show)
 
 instance Fixpoint Pred where
-r simplify (PAnd [])     = PTrue
+  toFix PTop             = text "???"
+  toFix PTrue            = text "true"
+  toFix PFalse           = text "false"
+  toFix (PBexp e)        = parens $ text "?" <+> toFix e
+  toFix (PNot p)         = parens $ text "~" <+> parens (toFix p)
+  toFix (PImp p1 p2)     = parens $ (toFix p1) <+> text "=>" <+> (toFix p2)
+  toFix (PIff p1 p2)     = parens $ (toFix p1) <+> text "<=>" <+> (toFix p2)
+  toFix (PAnd ps)        = text "&&" <+> toFix ps
+  toFix (POr  ps)        = text "||" <+> toFix ps
+  toFix (PAtom r e1 e2)  = parens $ toFix e1 <+> toFix r <+> toFix e2
+  toFix (PAll xts p)     = text "forall" <+> (toFix xts) <+> text "." <+> (toFix p)
+
+  simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
   simplify (PAnd [p])    = simplify p
   simplify (POr  [p])    = simplify p
@@ -1100,7 +1112,7 @@ toFixpoint x'    = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csD
 -- | A Class Predicates for Valid Refinements Types ---------------------
 -------------------------------------------------------------------------
 
-class (Monoid r, Subable r, Fixpoint r) => Reftable r where 
+class (Monoid r, Subable r) => Reftable r where 
   isTauto :: r -> Bool
   ppTy    :: r -> Doc -> Doc
   
