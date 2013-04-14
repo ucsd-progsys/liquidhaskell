@@ -1,79 +1,27 @@
+{-# LANGUAGE FlexibleContexts           #-} 
+{-# LANGUAGE FlexibleInstances          #-}
+
 -- | Module with all the printing routines
 
 module Language.Haskell.Liquid.PrettyPrint (
-
-  -- * Class for values that can be pretty printed 
-  PPrint (..)
   
+  -- * Printing RType
+    ppr_rtype
+  , showpp
   ) where
 
+import GHC                              (Name)
+import Language.Haskell.Liquid.GhcMisc
 import Text.PrettyPrint.HughesPJ
-import Language.Fixpoint.Types
+import Language.Fixpoint.Types hiding (Predicate)
+import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types
-
------------------------------------------------------------------------------
-
--- | Class for values that can be 
-class PPrint a where
-  pprint :: a -> Doc
-
-pshow :: PPrint a => a -> String
-pshow = render . pprint
-
------------------------------------------------------------------------------
-
-instance PPrint Integer where
-  pprint = toFix
-
-instance PPrint Constant where
-  pprint = toFix i
-
-instance PPrint Brel where
-  toFix Eq = text "=="
-  toFix Ne = text "/="
-  pprint r = toFix r
-
-instance PPrint Bop where
-  pprint  = toFix 
-
-instance PPrint Expr where
-  pprint (EApp f es)     = parens $ intersperse empty $ pprint f : pprint es 
-  pprint (ECon c)        = pprint c 
-  pprint (EVar s)        = pprint s
-  pprint (ELit s _)      = pprint s
-  pprint (EBin o e1 e2)  = parens $ pprint e1 <+> pprint o <+> pprint e2
-  pprint (EIte p e1 e2)  = parens $ text "if" <+> pprint p <+> text "then" <+> pprint e1 <+> text "else" <+> pprint e2 
-  pprint (ECst e so)     = parens $ pprint e <+> text " : " <+> pprint so 
-  pprint (EBot)          = text "_|_"
-
-instance PPrint Pred where
-  pprint PTop            = text "???"
-  pprint PTrue           = trueD 
-  pprint PFalse          = falseD
-  pprint (PBexp e)       = parens $ pprint e
-  pprint (PNot p)        = parens $ text "not" <+> parens (pprint p)
-  pprint (PImp p1 p2)    = parens $ (pprint p1) <+> text "=>"  <+> (pprint p2)
-  pprint (PIff p1 p2)    = parens $ (pprint p1) <+> text "<=>" <+> (pprint p2)
-  pprint (PAnd ps)       = parens $ pprintBin trueD  (text "&&") ps
-  pprint (POr  ps)       = parens $ pprintBin falseD (text "&&") ps 
-  pprint (PAtom r e1 e2) = parens $ pprint e1 <+> pprint r <+> pprint e2
-  pprint (PAll xts p)    = text "forall" <+> toFix xts <+> text "." <+> pprint p
-
-trueD  = text "true"
-falseD = text "false"
-
-instance PPrint a => PPrint (Maybe a) where
-  pprint = maybe (text "Nothing") ((text "Just" <+>) . pprint)
-
-instance PPrint a => PPrint [a] where
-  pprint = brackets . intersperse comma . map pprint
-
-pprintBin b o []     = b
-pprintBin b o [x]    = pprint x
-pprintBin b o (x:xs) = pprint x <+> o <+> pprintBin b o xs 
-
-instance PPrint SourcePos where
-  pprint = toFix
+import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName, propConName, boolConName)
+import TypeRep          hiding (maybeParen, pprArrowChain)  
+import Text.Parsec.Pos  (SourcePos)
+import Var              (Var)
+import Control.Applicative ((<$>))
+import Data.Maybe   (fromMaybe)
 
 instance PPrint Var where
   pprint = pprDoc 
@@ -84,12 +32,8 @@ instance PPrint Name where
 instance PPrint Type where
   pprint = pprDoc
 
-instance PPrint SourcePos where
-  pprint = tshow 
-
-instance PPrint a => PPrint (Located a) where
-  pprint = pprint . val 
-
+instance Show Predicate where
+  show = showpp
 
 
 {- 
@@ -133,3 +77,147 @@ Haskell/Liquid/Measure.hs:181:instance (Fixpoint t, Fixpoint a) => Fixpoint (MSp
 Haskell/Liquid/Measure.hs:185:instance (Fixpoint t , Fixpoint a) => Show (Measure t a) where
 
 -}
+
+---------------------------------------------------------------
+-- | Pretty Printing RefType ----------------------------------
+---------------------------------------------------------------
+
+-- pprint_rtype    = ppr_rtype $ ppPs ppEnv 
+
+-- ppr_rtype :: (PPrint tv, RefTypable p c tv (), RefTypable p c tv r) 
+--           => Bool           -- ^ Whether to print reftPs or not e.g. [a]<...> 
+--           -> Prec 
+--           -> RType p c tv r 
+--           -> Doc
+
+ppr_rtype bb p t@(RAllT _ _)       
+  = ppr_forall bb p t
+ppr_rtype bb p t@(RAllP _ _)       
+  = ppr_forall bb p t
+ppr_rtype _ _ (RVar a r)         
+  = ppTy r $ pprint a
+ppr_rtype bb p (RFun x t t' _)  
+  = pprArrowChain p $ ppr_dbind bb FunPrec x t : ppr_fun_tail bb t'
+ppr_rtype bb p (RApp c [t] rs r)
+  | isList c 
+  = ppTy r $ brackets (ppr_rtype bb p t) <> ppReftPs bb rs
+ppr_rtype bb p (RApp c ts rs r)
+  | isTuple c 
+  = ppTy r $ parens (intersperse comma (ppr_rtype bb p <$> ts)) <> ppReftPs bb rs
+
+-- BEXPARSER WHY Does this next case kill the parser for BExp? (e.g. LambdaEval.hs)
+-- ppr_rtype bb p (RApp c [] [] r)
+--   = ppTy r $ {- parens $ -} ppTycon c
+
+ppr_rtype bb p (RApp c ts rs r)
+  = ppTy r $ parens $ ppTycon c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)
+
+ppr_rtype _ _ (RCls c ts)      
+  = ppCls c ts
+ppr_rtype bb p t@(REx _ _ _)
+  = ppExists bb p t
+ppr_rtype bb p t@(RAllE _ _ _)
+  = ppAllExpr bb p t
+ppr_rtype _ _ (RExprArg e)
+  = braces $ pprint e
+ppr_rtype bb p (RAppTy t t' r)
+  = ppTy r $ ppr_rtype bb p t <+> ppr_rtype bb p t'
+ppr_rtype _ _ (ROth s)
+  = text $ "???-" ++ s 
+
+-- | From GHC: TypeRep 
+-- pprArrowChain p [a,b,c]  generates   a -> b -> c
+pprArrowChain :: Prec -> [Doc] -> Doc
+pprArrowChain _ []         = empty
+pprArrowChain p (arg:args) = maybeParen p FunPrec $
+                             sep [arg, sep (map (arrow <+>) args)]
+
+-- | From GHC: TypeRep 
+maybeParen :: Prec -> Prec -> Doc -> Doc
+maybeParen ctxt_prec inner_prec pretty
+  | ctxt_prec < inner_prec = pretty
+  | otherwise		       = parens pretty
+
+
+-- ppExists :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
+ppExists bb p t
+  = text "exists" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
+    where (zs,  t')               = split [] t
+          split zs (REx x t t')   = split ((x,t):zs) t'
+          split zs t	            = (reverse zs, t)
+
+-- ppAllExpr :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
+ppAllExpr bb p t
+  = text "forall" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
+    where (zs,  t')               = split [] t
+          split zs (RAllE x t t') = split ((x,t):zs) t'
+          split zs t	            = (reverse zs, t)
+
+ppReftPs bb rs 
+  | all isTauto rs   = empty
+  | not (ppPs ppEnv) = empty 
+  | otherwise        = angleBrackets $ hsep $ punctuate comma $ pprint <$> rs
+
+-- ppr_dbind :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> Symbol -> RType p c tv r -> Doc
+ppr_dbind bb p x t 
+  | isNonSymbol x || (x == dummySymbol) 
+  = ppr_rtype bb p t
+  | otherwise
+  = pprint x <> colon <> ppr_rtype bb p t
+
+-- ppr_fun_tail :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> RType p c tv r -> [Doc]
+ppr_fun_tail bb (RFun b t t' _)  
+  = (ppr_dbind bb FunPrec b t) : (ppr_fun_tail bb t')
+ppr_fun_tail bb t
+  = [ppr_rtype bb TopPrec t]
+
+-- ppr_forall :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
+ppr_forall bb p t
+  = maybeParen p FunPrec $ sep [ ppr_foralls bb αs πs , ppr_cls cls, ppr_rtype bb TopPrec t' ]
+  where
+    (αs, πs,  ct')         = bkUniv t
+    (cls, t')              = bkClass ct'
+  
+    ppr_foralls False _ _  = empty
+    ppr_foralls _    [] [] = empty
+    ppr_foralls True αs πs = text "forall" <+> dαs αs <+> dπs bb πs <> dot
+    ppr_cls []             = empty
+    ppr_cls cs             = (parens $ hsep $ punctuate comma (uncurry ppCls <$> cs)) <+> text "=>"
+
+    dαs αs                 = sep $ pprint <$> αs 
+    
+    dπs _ []               = empty 
+    dπs False _            = empty 
+    dπs True πs            = angleBrackets $ intersperse comma $ ppr_pvar_def pprint <$> πs
+
+ppr_pvar_def pprv (PV s t xts) = pprint s <+> dcolon <+> intersperse arrow dargs 
+  where 
+    dargs = [pprv t | (t,_,_) <- xts] ++ [pprv t, text boolConName]
+
+
+
+instance PPrint RTyVar where
+  pprint (RTV α) 
+   | ppTyVar ppEnv = ppr_tyvar α
+   | otherwise     = ppr_tyvar_short α
+
+ppr_tyvar       = text . tvId
+ppr_tyvar_short = tshow
+
+instance (Reftable s, PPrint s, PPrint p, Reftable  p, PPrint t) => PPrint (Ref t s (RType a b c p)) where
+  pprint (RMono ss s) = ppRefArgs (fst <$> ss) <+> pprint s
+  pprint (RPoly ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe top (stripRTypeBase s))
+
+ppRefArgs [] = empty
+ppRefArgs ss = text "\\" <> hsep (ppRefSym <$> ss ++ [vv Nothing]) <+> text "->"
+
+ppRefSym (S "") = text "_"
+ppRefSym s      = pprint s
+
+instance (Fixpoint r, Reftable r) => PPrint (UReft r) where
+  pprint (U r p)
+    | isTauto r  = pprint p
+    | isTauto p  = toFix r
+    | otherwise  = pprint p <> text " & " <> toFix r
+
+

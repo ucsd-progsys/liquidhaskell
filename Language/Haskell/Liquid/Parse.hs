@@ -13,6 +13,7 @@ import qualified Data.HashMap.Strict as M
 import Control.Applicative ((<$>), (<*), (<*>))
 import Data.Char (toLower, isLower, isSpace, isAlpha)
 import Data.List (partition)
+import Data.Monoid (mempty)
 
 import Language.Fixpoint.Types
 
@@ -124,7 +125,7 @@ predVarTypeP = do t <- bareTypeP
                   let (xs, ts, t') = bkArrow $ thd3 $ bkUniv $ t
                   if isPropBareType t' 
                     then return $ zip xs (toRSort <$> ts) 
-                    else parserFail $ "Predicate Variable with non-Prop output sort: " ++ showFix t
+                    else parserFail $ "Predicate Variable with non-Prop output sort: " ++ showpp t
 
 
 xyP lP sepP rP
@@ -216,10 +217,10 @@ predicate1P
 
 monoPredicateP 
    = try (angles monoPredicate1P) 
-  <|> return pdTrue
+  <|> return mempty
 
 monoPredicate1P
-   =  try (reserved "True" >> return pdTrue)
+   =  try (reserved "True" >> return mempty)
   <|> try (liftM pdVar (parens predVarUseP))
   <|> liftM pdVar predVarUseP 
 
@@ -252,7 +253,7 @@ bAppTy v t r              = RAppTy (RVar v top) t (reftUReft r)
 
 
 
-reftUReft      = (`U` pdTrue)
+reftUReft      = (`U` mempty)
 predUReft      = (U dummyReft) 
 dummyReft      = top
 dummyTyId      = ""

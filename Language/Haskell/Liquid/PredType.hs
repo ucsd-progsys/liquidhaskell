@@ -24,6 +24,7 @@ import Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.List        (partition, foldl')
+import Data.Monoid      (mempty)
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types hiding (Predicate, Expr)
@@ -49,23 +50,23 @@ dataConPSpecType (DataConP vs ps yts rt) = mkArrow vs ps (reverse yts) rt
 --         t3 = foldr RAllT t2 vs
 
 
-instance F.Fixpoint TyConP where
-  toFix (TyConP vs ps _ _) 
-    = (parens $ hsep (punctuate comma (map F.toFix vs))) <+>
-      (parens $ hsep (punctuate comma (map F.toFix ps)))
+instance PPrint TyConP where
+  pprint (TyConP vs ps _ _) 
+    = (parens $ hsep (punctuate comma (map pprint vs))) <+>
+      (parens $ hsep (punctuate comma (map pprint ps)))
 
 instance Show TyConP where
- show = showFix -- showSDoc . ppr
+ show = showpp -- showSDoc . ppr
 
-instance F.Fixpoint DataConP where
-  toFix (DataConP vs ps yts t) 
-     = (parens $ hsep (punctuate comma (map F.toFix vs))) <+>
-       (parens $ hsep (punctuate comma (map F.toFix ps))) <+>
-       (parens $ hsep (punctuate comma (map F.toFix yts))) <+>
-       F.toFix t
+instance PPrint DataConP where
+  pprint (DataConP vs ps yts t) 
+     = (parens $ hsep (punctuate comma (map pprint vs))) <+>
+       (parens $ hsep (punctuate comma (map pprint ps))) <+>
+       (parens $ hsep (punctuate comma (map pprint yts))) <+>
+       pprint t
 
 instance Show DataConP where
-  show = showFix -- showSDoc . ppr
+  show = showpp
 
 dataConTy m (TyVarTy v)            
   = M.lookupDefault (rVar v) (RTV v) m
@@ -77,7 +78,7 @@ dataConTy _ t
   | isPredTy t
   = ofPredTree $ classifyPredType t
 dataConTy m (TyConApp c ts)        
-  = rApp c (dataConTy m <$> ts) [] pdTrue
+  = rApp c (dataConTy m <$> ts) [] mempty
 dataConTy _ _
   = error "ofTypePAppTy"
 
@@ -110,7 +111,7 @@ unifyS t (RAllP p pt)
        if (uPVar p `S.member` s) then return $ RAllP p t' else return t'
 
 unifyS (RAllT (v@(RTV α)) t) (RAllT v' pt) 
-  = do t'    <- unifyS t $ subsTyVar_meet (v', (rVar α) :: RSort, RVar v pdTrue) pt 
+  = do t'    <- unifyS t $ subsTyVar_meet (v', (rVar α) :: RSort, RVar v mempty) pt 
        return $ RAllT v t'
 
 unifyS (RFun x rt1 rt2 _) (RFun x' pt1 pt2 _)
@@ -136,7 +137,7 @@ unifyS (RApp c ts rs r) (RApp _ pts ps p)
        return $ RApp c ts' rs' (bUnify r p)
   where fm       = S.fromList $ concatMap pvars (fp:fps) 
         fp : fps = p : (getR <$> ps)
-        rs'      = zipWithZero unifyRef (RMono [] top {- trueReft -}) pdTrue rs fps
+        rs'      = zipWithZero unifyRef (RMono [] top {- trueReft -}) mempty rs fps
         getR (RMono _ r) = r
         getR (RPoly _ _) = top 
 
@@ -257,7 +258,7 @@ substRCon msg (_, RPoly ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
         strSub r1 r2          = meetListWithPSubs πs ss r1 r2
         strSubR r1 r2         = meetListWithPSubsRef πs ss r1 r2
 
-substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showFix (su, t)
+substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showpp (su, t)
 
 substPredP su@(p, RPoly ss tt) (RPoly s t)       
   = RPoly ss' $ substPred "substPredP" su t
@@ -297,14 +298,14 @@ isPredInURef p (U _ (Pr ps)) = any (uPVar p ==) ps
 meetListWithPSubs πs ss r1 r2    = foldl' (meetListWithPSub ss r1) r2 πs
 meetListWithPSubsRef πs ss r1 r2 = foldl' ((meetListWithPSubRef ss) r1) r2 πs
 
-meetListWithPSub ::  (Reftable r, Fixpoint t) => [(Symbol, RSort)]-> r -> r -> PVar t -> r
+-- meetListWithPSub ::  (Reftable r, PPrint t) => [(Symbol, RSort)]-> r -> r -> PVar t -> r
 meetListWithPSub ss r1 r2 π
   | all (\(_, x, EVar y) -> x == y) (pargs π)
   = r2 `meet` r1
   | all (\(_, x, EVar y) -> x /= y) (pargs π)
   = r2 `meet` (subst su r1)
   | otherwise
-  = errorstar $ "PredType.meetListWithPSub partial application to " ++ showFix π
+  = errorstar $ "PredType.meetListWithPSub partial application to " ++ showpp π
   where su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
 
 meetListWithPSubRef ss (RPoly s1 r1) (RPoly s2 r2) π
@@ -313,7 +314,7 @@ meetListWithPSubRef ss (RPoly s1 r1) (RPoly s2 r2) π
   | all (\(_, x, EVar y) -> x /= y) (pargs π)
   = RPoly s2 $ r2 `meet` (subst su r1)
   | otherwise
-  = errorstar $ "PredType.meetListWithPSubRef partial application to " ++ showFix π
+  = errorstar $ "PredType.meetListWithPSubRef partial application to " ++ showpp π
   where su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> s1) (pargs π)]
 
 

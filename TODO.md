@@ -75,8 +75,6 @@ Incremental Checking
 5. REUSE pre-inferred types for other functions 
 
 
-
-
 Benchmarks
 ==========
 

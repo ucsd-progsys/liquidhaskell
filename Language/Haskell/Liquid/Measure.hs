@@ -1,3 +1,7 @@
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE FlexibleContexts       #-} 
+{-# LANGUAGE UndecidableInstances   #-}
+
 module Language.Haskell.Liquid.Measure (  
     Spec (..)
   , MSpec (..)
@@ -158,32 +162,32 @@ instance Bifunctor Spec    where
            }
 
 -- MOVE TO TYPES
-instance Fixpoint Body where
-  toFix (E e)   = toFix e  
-  toFix (P p)   = toFix p
-  toFix (R v p) = braces (toFix v <+> text "|" <+> toFix p)   
+instance PPrint Body where
+  pprint (E e)   = pprint e  
+  pprint (P p)   = pprint p
+  pprint (R v p) = braces (pprint v <+> text "|" <+> pprint p)   
 
-instance Fixpoint a => Fixpoint (BDataCon a) where
-  toFix (BDc c)  = toFix c
-  toFix (BTup n) = parens $ toFix n
-
--- MOVE TO TYPES
-instance Fixpoint a => Fixpoint (Def a) where
-  toFix (Def m c bs body) = toFix m <> text " " <> cbsd <> text " = " <> toFix body   
-    where cbsd = parens (toFix c <> hsep (toFix `fmap` bs))
+-- instance PPrint a => Fixpoint (PPrint a) where
+--   toFix (BDc c)  = toFix c
+--   toFix (BTup n) = parens $ toFix n
 
 -- MOVE TO TYPES
-instance (Fixpoint t, Fixpoint a) => Fixpoint (Measure t a) where
-  toFix (M n s eqs) =  toFix n <> text "::" <> toFix s
-                    $$ vcat (toFix `fmap` eqs)
+instance PPrint a => PPrint (Def a) where
+  pprint (Def m c bs body) = pprint m <> text " " <> cbsd <> text " = " <> pprint body   
+    where cbsd = parens (pprint c <> hsep (pprint `fmap` bs))
 
 -- MOVE TO TYPES
-instance (Fixpoint t, Fixpoint a) => Fixpoint (MSpec t a) where
-  toFix =  vcat . fmap toFix . fmap snd . M.toList . measMap
+instance (PPrint t, PPrint a) => PPrint (Measure t a) where
+  pprint (M n s eqs) =  pprint n <> text "::" <> pprint s
+                     $$ vcat (pprint `fmap` eqs)
 
 -- MOVE TO TYPES
-instance (Fixpoint t , Fixpoint a) => Show (Measure t a) where
-  show = showFix
+instance (PPrint t, PPrint a) => PPrint (MSpec t a) where
+  pprint =  vcat . fmap pprint . fmap snd . M.toList . measMap
+
+-- MOVE TO TYPES
+instance PPrint (Measure t a) => Show (Measure t a) where
+  show = showpp
 
 -- MOVE TO TYPES
 mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
@@ -212,7 +216,7 @@ refineWithCtorBody dc (Loc _ f) body t =
     Just (Reft (v, _)) ->
       strengthen t $ Reft (v, [RConc $ bodyPred (EApp f [eVar v]) body])
     Nothing -> 
-      errorstar $ "measure mismatch " ++ showFix f ++ " on con " ++ O.showPpr dc
+      errorstar $ "measure mismatch " ++ showpp f ++ " on con " ++ O.showPpr dc
 
 
 bodyPred ::  Expr -> Body -> Pred
@@ -324,7 +328,7 @@ expandRTApp tx env c args r
     αs        = rtTArgs rta 
     εs        = rtVArgs rta 
     rta       = env M.! c
-    msg       = showFix (RApp c args [] r) 
+    msg       = showpp (RApp c args [] r) 
     (ts, es_) = splitAt (length αs) args
     es        = map (exprArg msg) es_
     

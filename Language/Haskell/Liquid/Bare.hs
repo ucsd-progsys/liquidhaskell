@@ -160,7 +160,7 @@ meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
     ((_, π1s, _), (α2s, [], t2')) -> meet t1 (mkUnivs α2s π1s t2')
     ((α1s, [], t1'), (_, π2s, _)) -> meet (mkUnivs α1s π2s t1') t2
     _                             -> errorstar $ "meetPad: " ++ msg
-  where msg = "\nt1 = " ++ showFix t1 ++ "\nt2 = " ++ showFix t2
+  where msg = "\nt1 = " ++ showpp t1 ++ "\nt2 = " ++ showpp t2
  
 ------------------------------------------------------------------
 ---------- Error-Reader-IO For Bare Transformation ---------------
@@ -180,7 +180,7 @@ execBare act benv =
         Right x -> return x
 
 wrapErr msg f x
-  = f x `catchError` \e-> throwError $ "Bare Error " ++ "[" ++ msg ++ "]" ++ showFix x ++ "(" ++ e ++ ")"
+  = f x `catchError` \e-> throwError $ "Bare Error " ++ "[" ++ msg ++ "]" ++ showpp x ++ "(" ++ e ++ ")"
 
 ------------------------------------------------------------------
 ------------------- API: Bare Refinement Types -------------------
@@ -219,14 +219,14 @@ makeAssumeSpec cfg env vs xbs = execBare mkAspec env
           symbolStringRaw         = stripParens . symbolString
 
 
-locatedSymbolText z         = text (symbolString $ val z) <+> text "defined at:" <+> toFix (loc z)    
+locatedSymbolText z = text (symbolString $ val z) <+> text "defined at:" <+> pprint (loc z)    
 
 
 
 mkVarSpec                 :: (Var, LocSymbol, BareType) -> BareM (Var, Located SpecType)
 mkVarSpec (v, Loc l _, b) = liftM ((v, ) . (Loc l)) (wrapErr msg (mkSpecType msg) b)
   where 
-    msg                   = "mkVarSpec fails on " ++ showFix v ++ " :: "  ++ showFix b 
+    msg                   = "mkVarSpec fails on " ++ showpp v ++ " :: "  ++ showpp b 
 
 showTopLevelVars vs = 
   forM vs $ \v -> 
@@ -253,7 +253,7 @@ mkSpecType' msg πs
   = ofBareType' msg 
   . txParams subvUReft (uPVar <$> πs)
 
-makeSymbols :: (Reftable r1, Reftable r) 
+makeSymbols :: (PPrint r1, PPrint r, Reftable r1, Reftable r) 
             => [Var] 
             -> [LocSymbol] 
             -> [(a, Located (RType p c tv r))] 
@@ -270,12 +270,12 @@ makeSymbols vs xs' xts yts = xvs
 joinIds        ::  (Symbolic a) => [Var] -> [(a, t)] -> [(Var, a, t)]
 joinIds vs xts = catMaybes [(, x, t) <$> tx x | (x, t) <- xts]   
   where 
-    vm         = group [(dropModuleNames $ showFix v, v) | v <- vs]
+    vm         = group [(dropModuleNames $ showpp v, v) | v <- vs]
     tx x       = listToMaybe $ filter (symCompat x) $ M.lookupDefault [] (ss x) vm
     ss         = dropModuleNames . symbolString . symbol 
 
 symCompat :: (Symbolic a) => a -> Var -> Bool
-symCompat x v   = (symbolString $ symbol x) `comp` (showFix v)
+symCompat x v   = (symbolString $ symbol x) `comp` (showpp v)
   where 
     comp sx sv  = sx == sv || (takeModuleNames sx `L.isPrefixOf` takeModuleNames sv)
 
@@ -474,7 +474,7 @@ mkps_ _     _       _          _    _ = error "Bare : mkps_"
 
 ofBareType' msg = wrapErr "ofBareType" ofBareType 
 
-ofBareType :: Reftable r => RType String String String r -> BareM (RType Class RTyCon RTyVar r)
+ofBareType :: (PPrint r, Reftable r) => RType String String String r -> BareM (RType Class RTyCon RTyVar r)
 ofBareType (RVar a r) 
   = return $ RVar (stringRTyVar a) r
 ofBareType (RFun x t1 t2 _) 
@@ -619,7 +619,7 @@ ofBDataCon tc αs ps πs (c, xts)
  where (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
        rs       = [rVar α | RTV α <- αs] -- [RVar α pdTrue | α <- αs]
-       msg      = "ofBDataCon " ++ showFix c ++ " with πs = " ++ showFix πs
+       msg      = "ofBDataCon " ++ showpp c ++ " with πs = " ++ showpp πs
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: RefTypes -----------------------------
@@ -669,25 +669,25 @@ specError            = errorstar
 checkInv emb env t   = checkTy msg emb env (val t) 
   where msg          =   text "\n---"
                      $+$ text "Error in invariant specification"
-                     $+$ text "invariant " <+> toFix t
+                     $+$ text "invariant " <+> pprint t
 
 checkBind d emb env (v, Loc l t) = checkTy msg emb env t
   where 
     msg = text "Error in type specification for" <+> text d 
-          $+$ text "defined at: " <+> toFix l
-          $+$ toFix v <+> dcolon  <+> toFix t
+          $+$ text "defined at: " <+> pprint l
+          $+$ pprint v <+> dcolon  <+> pprint t
 
 checkTy msg emb env t    = (msg $+$) <$> checkRType emb env t
 
 checkDuplicate xts   = err <$> dups
-  where err (x,ts)   = vcat $ (text "Multiple Specifications for" <+> toFix x) : (toFix <$> ts)
+  where err (x,ts)   = vcat $ (text "Multiple Specifications for" <+> pprint x) : (pprint <$> ts)
         dups         = [ z | z@(x, t1:t2:_) <- M.toList $ group xts ]
 
 checkMismatch (x, t) = if ok then Nothing else Just err
   where ok           = tyCompat x t' --(toRSort t') == (ofType $ varType x) 
         err          = vcat [ text "Specified Liquid Type Does Not Match Haskell Type"
-                            , text "Haskell:" <+> toFix x <+> dcolon <+> toFix (varType x)
-                            , text "Liquid :" <+> toFix x <+> dcolon <+> toFix t           ]
+                            , text "Haskell:" <+> pprint x <+> dcolon <+> pprint (varType x)
+                            , text "Liquid :" <+> pprint x <+> dcolon <+> pprint t           ]
         t'           = val t
 
 tyCompat x t         = (toRSort t) == (ofType $ varType x)
@@ -716,7 +716,7 @@ ghcSpecEnv sp        = fromListSEnv binds
 -------------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------------
-checkRType :: (Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe Doc 
+checkRType :: (PPrint r, Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe Doc 
 -------------------------------------------------------------------------------------
 
 checkRType emb env t = efoldReft cb (rTypeSortedReft emb) f env Nothing t 
@@ -724,13 +724,13 @@ checkRType emb env t = efoldReft cb (rTypeSortedReft emb) f env Nothing t
     cb c ts          = classBinds (RCls c ts)
     f env me r err   = err <|> checkReft env emb me r
 
-checkReft                    :: (Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe Doc 
+checkReft                    :: (PPrint r, Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe Doc 
 
 checkReft env emb Nothing _  = Nothing -- RMono / Ref case, not sure how to check these yet.  
 checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env r 
   where 
     r                        = rTypeSortedReft emb t
-    dr                       = text "Sort Error in Refinement:" <+> toFix r 
+    dr                       = text "Sort Error in Refinement:" <+> pprint r 
 
 
 -- DONT DELETE the below till we've added pred-checking as well
@@ -741,7 +741,7 @@ checkSig env (x, t)
   = case filter (not . (`S.member` env)) (freeSymbols t) of
       [] -> True
       ys -> errorstar (msg ys) 
-    where msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showFix ys) (showFix x) (showFix t)
+    where msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showpp ys) (showpp x) (showpp t)
 
 
 -------------------------------------------------------------------------------
