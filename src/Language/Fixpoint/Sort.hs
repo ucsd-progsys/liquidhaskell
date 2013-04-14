@@ -69,7 +69,8 @@ checkExpr f (ELit _ t)     = return t
 -- | Helper for checking symbol occurrences
 
 checkSym f x               
-  = maybe (throwError $ errUnbound x) return (f x)
+  = maybe (throwError $ errUnbound x) return 
+  $ traceFix ("checkSym: x = " ++ showFix x) (f x)
 
 -- | Helper for checking if-then-else expressions
 

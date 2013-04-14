@@ -217,6 +217,7 @@ propFTyCon = TC (S propConName)
 
 -- isListTC   = (listFTyCon ==)
 isListTC (TC (S c)) = c == listConName
+isTupTC (TC (S c))  = c == tupConName
 
 stringFTycon :: String -> FTycon
 stringFTycon c 
@@ -250,7 +251,9 @@ toFix_sort FNum         = text "num"
 toFix_sort (FFunc n ts) = text "func" <> parens ((toFix n) <> (text ", ") <> (toFix ts))
 toFix_sort (FApp c [t]) 
   | isListTC c          = brackets $ toFix_sort t 
-toFix_sort (FApp c ts)  = toFix c <+> intersperse space (fp <$> ts)
+toFix_sort (FApp c ts)  
+  | isTupTC  c          = parens $ intersperse comma $ toFix_sort <$> ts 
+  | otherwise           = toFix c <+> intersperse space (fp <$> ts)
                           where fp s@(FApp _ (_:_)) = parens $ toFix_sort s 
                                 fp s                = toFix_sort s
 
