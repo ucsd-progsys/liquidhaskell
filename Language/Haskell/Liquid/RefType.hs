@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.RefType (
   , expandRApp, appRTyCon
   , typeSort, typeUniqueSymbol
   , strengthen
-  , mkArrow, mkUnivs, bkUniv, bkArrow 
+  , mkArrow, mkUnivs, bkUniv, bkArrow, safeBkArrow
   , generalize, normalizePds
   , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
@@ -540,6 +540,10 @@ bkUniv :: RType t t1 a t2 -> ([a], [PVar (RType t t1 a ())], RType t t1 a t2)
 bkUniv (RAllT α t)      = let (αs, πs, t') = bkUniv t in  (α:αs, πs, t') 
 bkUniv (RAllP π t)      = let (αs, πs, t') = bkUniv t in  (αs, π:πs, t') 
 bkUniv t                = ([], [], t)
+
+safeBkArrow (RAllT _ _) = errorstar "safeBkArrow on RAllT"
+safeBkArrow (RAllP _ _) = errorstar "safeBkArrow on RAllT"
+safeBkArrow t           = bkArrow t
 
 bkArrow (RFun x t t' _) = let (xs, ts, t'') = bkArrow t'  in (x:xs, t:ts, t'')
 bkArrow t               = ([], [], t)
