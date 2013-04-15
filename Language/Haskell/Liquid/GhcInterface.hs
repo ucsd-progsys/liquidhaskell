@@ -11,7 +11,6 @@ module Language.Haskell.Liquid.GhcInterface (
   ) where
 
 import GHC 
-import Outputable   (showPpr)
 import Text.PrettyPrint.HughesPJ
 import HscTypes
 import TidyPgm      (tidyProgram)
@@ -178,7 +177,7 @@ moduleSpec cfg vars target mg paths
        impSpec    <- getSpecs paths impNames [Spec, Hs, LHs] 
        let spec    = Ms.expandRTAliases $ tgtSpec `mappend` impSpec 
        let imps    = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
-       setContext [IIModule (mgi_module mg)]
+       setContext [IIModule $ moduleName $ mgi_module mg]
        env        <- getSession
        ghcSpec    <- liftIO $ makeGhcSpec cfg name vars env spec
        return      (ghcSpec, imps, Ms.includes tgtSpec)

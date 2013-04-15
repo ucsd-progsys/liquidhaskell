@@ -24,6 +24,7 @@ import StaticFlags
 import HscTypes
 import HsSyn
 import TcRnTypes
+import TcRnMonad ( finalSafeMode )
 import MkIface
 import Id
 import Name
@@ -125,7 +126,7 @@ deSugarWithLoc hsc_env
                               else return (binds, hpcInfo, emptyModBreaks)
 
                      initDs hsc_env mod rdr_env type_env $ do
-                       do { let ds_ev_binds = dsEvBinds ev_binds
+                       do { ds_ev_binds <- dsEvBinds ev_binds
                           ; core_prs <- dsTopLHsBinds binds_cvr
                           ; (spec_prs, spec_rules) <- dsImpSpecs imp_specs
                           ; (ds_fords, foreign_prs) <- dsForeigns fords
@@ -174,6 +175,7 @@ deSugarWithLoc hsc_env
 
         ; used_th <- readIORef tc_splice_used
         ; dep_files <- readIORef dependent_files
+        ; safe_mode <- finalSafeMode dflags tcg_env
 
         ; let mod_guts = ModGuts {
                 mg_module       = mod,
@@ -199,6 +201,7 @@ deSugarWithLoc hsc_env
                 mg_modBreaks    = modBreaks,
                 mg_vect_decls   = ds_vects,
                 mg_vect_info    = noVectInfo,
+                mg_safe_haskell = safe_mode,
                 mg_trust_pkg    = imp_trust_own_pkg imports,
                 mg_dependent_files = dep_files
               }
@@ -306,8 +309,8 @@ addExportFlagsAndRules target exports keep_alive rules prs
 	-- isExternalName separates the user-defined top-level names from those
 	-- introduced by the type checker.
     is_exported :: Name -> Bool
-    is_exported | target == HscInterpreted = isExternalName
-		| otherwise 		   = (`elemNameSet` exports)
+    is_exported | targetRetainsAllBindings target = isExternalName
+                | otherwise                       = (`elemNameSet` exports)
 \end{code}
 
 

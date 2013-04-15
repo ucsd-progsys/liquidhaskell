@@ -8,7 +8,7 @@ import Control.DeepSeq
 import Control.Monad (forM)
 
 
-import Outputable hiding (empty) 
+--import Outputable hiding (empty, )
 
 import Language.Fixpoint.Files
 import Language.Fixpoint.Names
@@ -18,7 +18,8 @@ import Language.Fixpoint.Types (Fixpoint(..), sinfo, colorResult, FixResult (..)
 
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.CmdLine
-import Language.Haskell.Liquid.GhcInterface 
+import Language.Haskell.Liquid.GhcInterface
+import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Constraint       
 import Language.Haskell.Liquid.TransformRec   
 import Language.Haskell.Liquid.Annotate (annotate)

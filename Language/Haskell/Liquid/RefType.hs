@@ -1,4 +1,4 @@
-{-# LANGUAGE OverlappingInstances, MultiParamTypeClasses, FlexibleContexts, ScopedTypeVariables, NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, RankNTypes, GADTs, PatternGuards #-}
+{-# LANGUAGE OverlappingInstances, MultiParamTypeClasses, FlexibleContexts, ScopedTypeVariables, NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, IncoherentInstances, TypeSynonymInstances, TupleSections, RankNTypes, GADTs, PatternGuards #-}
 
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
 -- room for refinements of various sorts.
@@ -36,7 +36,6 @@ module Language.Haskell.Liquid.RefType (
 
 import PrelInfo         (isNumericClass)
 import GHC
-import Outputable       (showSDocDump, showPpr)
 import qualified TyCon as TC
 import DataCon
 import TypeRep          hiding (maybeParen, pprArrowChain)  
@@ -65,7 +64,7 @@ import Language.Fixpoint.Types hiding (Predicate)
 import Language.Haskell.Liquid.Types hiding (DataConP (..))
 
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc (sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, mkTyConInfo)
+import Language.Haskell.Liquid.GhcMisc (sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, mkTyConInfo, showSDoc, showPpr)
 import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
 
@@ -610,7 +609,7 @@ instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) wher
 ----------------------------------------------------------------
 
 ppr_tyvar       = text . tvId
-ppr_tyvar_short = text . show
+ppr_tyvar_short = text . showPpr
 
 instance Fixpoint RTyVar where
   toFix (RTV α) 
