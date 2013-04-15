@@ -18,7 +18,7 @@ import           HscTypes
 import           Id                               (mkSysLocalM)
 import           Literal
 import           MkCore                           (mkCoreLets)
-import           Outputable
+import           Outputable                       (trace)
 import           Var                              (varType, setVarType)
 import           TypeRep
 import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTopTvSubst)
@@ -28,7 +28,7 @@ import           VarEnv                           (VarEnv, emptyVarEnv, extendVa
 import           Control.Monad
 import           Control.Applicative              ((<$>))
 import           Language.Fixpoint.Types (anfPrefix)
-import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..))
+import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..), showPpr)
 import           Language.Fixpoint.Misc     (fst3, errorstar)
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
@@ -66,7 +66,7 @@ normalizeTopBind γ (Rec xes)
 
 normalizeTyVars (NonRec x e) = NonRec (setVarType x t') e
   where t'       = subst msg as as' bt
-        msg      = "WARNING unable to renameVars on " ++ show x
+        msg      = "WARNING unable to renameVars on " ++ showPpr x
         as'      = fst $ collectTyBinders e
         (as, bt) = splitForAllTys (varType x)
 normalizeTyVars (Rec xes)    = Rec xes'

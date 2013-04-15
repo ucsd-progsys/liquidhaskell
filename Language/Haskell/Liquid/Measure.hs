@@ -28,7 +28,8 @@ import Control.Exception        (assert)
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types
-import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..)) 
+import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.RefType
 
 -- MOVE TO TYPES
@@ -204,7 +205,7 @@ refineWithCtorBody dc (Loc _ f) body t =
     Just (Reft (v, _)) ->
       strengthen t $ Reft (v, [RConc $ bodyPred (EApp f [eVar v]) body])
     Nothing -> 
-      errorstar $ "measure mismatch " ++ showFix f ++ " on con " ++ O.showPpr dc
+      errorstar $ "measure mismatch " ++ showFix f ++ " on con " ++ showPpr dc
 
 
 bodyPred ::  Expr -> Body -> Pred

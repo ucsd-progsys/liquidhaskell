@@ -13,7 +13,6 @@ module Language.Haskell.Liquid.Bare (
   ) where
 
 import GHC hiding               (lookupName, Located)	
-import Outputable (showPpr)
 import Text.PrettyPrint.HughesPJ    hiding (first)
 import Var
 import PrelNames
@@ -228,7 +227,7 @@ mkVarSpec (v, Loc l _, b) = liftM ((v, ) . (Loc l)) (wrapErr msg (mkSpecType msg
 showTopLevelVars vs = 
   forM vs $ \v -> 
     if isExportedId v 
-      then donePhase Loud ("Exported: " ++ show v)
+      then donePhase Loud ("Exported: " ++ showPpr v)
       else return ()
 
 ----------------------------------------------------------------------
