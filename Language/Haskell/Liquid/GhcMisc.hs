@@ -108,7 +108,7 @@ tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
 tickSrcSpan (ProfNote (AllCafsCC _ loc) _ _)
   = loc
 tickSrcSpan z
-  = errorstar $ "tickSrcSpan: unhandled tick" ++ showPpr z
+  = errorstar $ "tickSrcSpan: unhandled tick: " ++ showPpr z
 
 -----------------------------------------------------------------------
 --------------- Generic Helpers for Accessing GHC Innards -------------
