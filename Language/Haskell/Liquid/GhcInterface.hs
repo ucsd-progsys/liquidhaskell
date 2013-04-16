@@ -85,6 +85,8 @@ updateDynFlags df ps
   = df { importPaths  = ps ++ importPaths df  } 
        { libraryPaths = ps ++ libraryPaths df }
        { profAuto     = ProfAutoCalls         }
+       { ghcLink      = LinkInMemory          }
+       { hscTarget    = HscInterpreted        }
 
 printVars s vs 
   = do putStrLn s 
@@ -105,8 +107,8 @@ definedVars           = concatMap defs
 ------------------------------------------------------------------
 
 getGhcModGuts1 fn = do
-   liftIO $ deleteBinFiles fn 
-   target <- guessTarget (starName fn) Nothing
+   liftIO $ deleteBinFiles fn
+   target <- guessTarget fn Nothing
    addTarget target
    load LoadAllTargets
    modGraph <- depanal [] True
@@ -119,7 +121,7 @@ getGhcModGuts1 fn = do
 -- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
 getGhcModGutsSimpl1 fn = do
    liftIO $ deleteBinFiles fn 
-   target <- guessTarget (starName fn) Nothing
+   target <- guessTarget fn Nothing
    addTarget target
    load LoadAllTargets
    modGraph <- depanal [] True
