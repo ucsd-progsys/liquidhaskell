@@ -1,10 +1,16 @@
 module spec Data.Text.Fusion where
 
-measure slen :: S.Stream a -> Int
+measure slen :: Data.Text.Fusion.Internal.Stream a
+             -> Int
 
-stream        :: t:Text -> {v:S.Stream Char | (slen v) = (tlength t)}
-reverseStream :: t:Text -> {v:S.Stream Char | (slen v) = (tlength t)}
-unstream      :: s:S.Stream Char -> {v:Text | (tlength v) = (slen s)}
+stream        :: t:Data.Text.Internal.Text
+              -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = (tlength t)}
+reverseStream :: t:Data.Text.Internal.Text
+              -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = (tlength t)}
+unstream      :: s:Data.Text.Fusion.Internal.Stream Char
+              -> {v:Data.Text.Internal.Text | (tlength v) = (slen s)}
 
-length  :: s:S.Stream Char -> {v:Int | v = (slen s)}
-reverse :: s:S.Stream Char -> {v:Text | (tlength v) = (slen s)}
+length  :: s:Data.Text.Fusion.Internal.Stream Char
+        -> {v:Int | v = (slen s)}
+reverse :: s:Data.Text.Fusion.Internal.Stream Char
+        -> {v:Data.Text.Internal.Text | (tlength v) = (slen s)}

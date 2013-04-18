@@ -44,6 +44,12 @@ import Foreign.Storable (sizeOf)
 import qualified Data.Text.Internal as T
 
 
+--LIQUID
+import qualified Data.Text.Array
+import qualified Data.Text.Fusion.Internal
+import qualified Data.Text.Internal
+
+
 
 data Text = Empty
           | Chunk {-# UNPACK #-} !T.Text Text
