@@ -50,6 +50,7 @@ import Data.List (foldl')
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import qualified Language.Fixpoint.Types            as F
+import Language.Fixpoint.Sort (pruneUnsortedReft)
 
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars)  
 import Language.Haskell.Liquid.Bare
@@ -280,7 +281,7 @@ bsplitW γ t
   = [F.wfC (fenv γ) r' Nothing ci] 
   | otherwise
   = []
-  where r' = rTypeSortedReft (emb γ) t
+  where r' = rTypeSortedReft' γ t
         ci = (Ci (loc γ))
 
 mkSortedReft tce = F.RR . rTypeSort tce
@@ -391,8 +392,8 @@ bsplitC γ t1 t2
   | otherwise
   = []
   where γ'  = fenv γ
-        r1' = rTypeSortedReft (emb γ) t1
-        r2' = rTypeSortedReft (emb γ) t2
+        r1' = rTypeSortedReft' γ t1
+        r2' = rTypeSortedReft' γ t2
         ci  = Ci (loc γ)
         tag = getTag γ
 
@@ -504,9 +505,11 @@ extendEnvWithVV γ t
        let t  = normalize γ {-x-} idx t'  
        let γ' = γ { renv = insertREnv x t (renv γ) }  
        is    <- if isBase t 
-                  then liftM single $ addBind x (rTypeSortedReft (emb γ) t) 
+                  then liftM single $ addBind x $ rTypeSortedReft' γ' t 
                   else addClassBind t 
        return $ γ' { fenv = F.insertsIBindEnv is (fenv γ) }
+
+rTypeSortedReft' γ = pruneUnsortedReft (toSEnv γ) . rTypeSortedReft (emb γ)
 
 (+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
 (γ, msg) += (x, r)
@@ -925,7 +928,7 @@ cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -
 -------------------------------------------------------------------------------------
 
 cconsCase γ x t _ (DataAlt c, ys, ce) 
- = do let cbs          = safeZip "cconsCase" (x':ys') (xt:yts)
+ = do let cbs          = safeZip "cconsCase" (ys' ++ [x']) (yts ++ [xt])
       cγ              <- addBinders γ x' cbs
       cconsE cγ ce t
  where (x':ys')        = varSymbol <$> (x:ys)
@@ -1227,6 +1230,8 @@ memberREnv x (REnv env)   = M.member x env
 -- domREnv (REnv env)        = M.keys env
 -- emptyREnv                 = REnv M.empty
 
+toSEnv γ = F.sEnv $ M.map (rTypeSort (emb γ)) env
+   where REnv env = renv γ
 
 cgInfoFInfoBot cgi = cgInfoFInfo cgi{specQuals=[]}
 
