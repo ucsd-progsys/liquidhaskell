@@ -82,8 +82,8 @@ checkExpr f (ELit _ t)     = return t
 -- | Helper for checking symbol occurrences
 
 checkSym f x               
-  = maybe (throwError $ errUnbound x) return 
-  $ traceFix ("checkSym: x = " ++ showFix x) (f x)
+  = maybe (throwError $ errUnbound x) return (f x)
+--   $ traceFix ("checkSym: x = " ++ showFix x) (f x)
 
 -- | Helper for checking if-then-else expressions
 
@@ -141,10 +141,10 @@ checkOpTy f e t@(FObj l) t'@(FObj l')
 checkOpTy f e t t'
   = throwError $ errOp e t t'
 
-checkNumeric f l 
-  = do t <- checkSym f l
-       unless (t == FNum) (throwError $ errNonNumeric l)
-       return ()
+checkNumeric f l = return ()
+--   = do t <- checkSym f l
+--        unless (t == FNum) (throwError $ errNonNumeric l)
+--        return ()
 
 -------------------------------------------------------------------------
 -- | Checking Predicates ------------------------------------------------
