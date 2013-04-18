@@ -32,6 +32,9 @@ module Language.Fixpoint.Types (
   , qualifySymbol, stringSymbolRaw
   , suffixSymbol
 
+  -- * WiredIn Symbols
+  , wiredSortedSyms
+
   -- * Expressions and Predicates
   , Constant (..), Bop (..), Brel (..), Expr (..), Pred (..)
   , eVar
@@ -50,7 +53,7 @@ module Language.Fixpoint.Types (
   , removeLhsKvars
 
   -- * Environments
-  , SEnv, emptySEnv, fromListSEnv, mapSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
+  , SEnv, sEnv, emptySEnv, fromListSEnv, mapSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
   , FEnv, insertFEnv 
   , IBindEnv, BindId, insertsIBindEnv, deleteIBindEnv, emptyIBindEnv
   , BindEnv, insertBindEnv, emptyBindEnv
@@ -208,10 +211,19 @@ newtype FTycon = TC Symbol deriving (Eq, Ord, Show) -- Data, Typeable, Show)
 
 intFTyCon  = TC (S "int")
 boolFTyCon = TC (S "bool")
--- predFTyCon = TC (S "Pred")
+predFTyCon = TC (S "Pred")
 propFTyCon = TC (S propConName)
+boolSort   = FApp boolFTyCon []
 
+pappArity  = 2
 
+pappSym n  = S $ "papp" ++ show n
+
+pappSort n = FFunc (2 * n) $ [ptycon] ++ args ++ [boolSort]
+  where ptycon = FApp predFTyCon $ FVar <$> [0..n-1]
+        args   = FVar <$> [n..(2*n-1)]
+ 
+wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 
 -- listFTyCon = TC (S listConName)
 
@@ -491,12 +503,10 @@ pAnd          = simplify . PAnd
 pOr           = simplify . POr 
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3] 
 
-
 mkProp        = PBexp . EApp (S propConName) . (: [])
 
-
 pApp :: Symbol -> [Expr] -> Pred
-pApp p es= PBexp $ EApp (S ("papp" ++ show (length es))) (EVar p:es)
+pApp p es= PBexp $ EApp (pappSym $ length es) (EVar p:es)
 
 ppr_reft (Reft (v, ras)) d 
   | all isTautoRa ras
@@ -601,6 +611,8 @@ sortedReftValueVariable (RR _ (Reft (v,_))) = v
 ---------------------------------------------------------------
 ----------------- Environments  -------------------------------
 ---------------------------------------------------------------
+
+sEnv = SE
 
 fromListSEnv            ::  [(Symbol, a)] -> SEnv a
 fromListSEnv            = SE . M.fromList
