@@ -928,8 +928,9 @@ cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -
 -------------------------------------------------------------------------------------
 
 cconsCase γ x t _ (DataAlt c, ys, ce) 
- = do let cbs          = safeZip "cconsCase" (ys' ++ [x']) (yts ++ [xt])
-      cγ              <- addBinders γ x' cbs
+ = do let cbs          = safeZip "cconsCase" (x':ys') (xt0:yts)
+      cγ'              <- addBinders γ x' cbs
+      cγ               <- addBinders cγ' x' [(x', xt)]
       cconsE cγ ce t
  where (x':ys')        = varSymbol <$> (x:ys)
        xt0             = checkTyCon ("checkTycon cconsCase", x) $ γ ?= x'
