@@ -654,7 +654,7 @@ checkGhcSpec sp      =  applyNonNull sp specError errors
     env              =  ghcSpecEnv sp
     emb              =  tcEmbeds sp
     errors           =  mapMaybe (checkBind "variable"         emb env) (tySigs     sp)
-                     ++ mapMaybe (checkBind "data constructor" emb env) (ctor       sp)
+--                      ++ mapMaybe (checkBind "data constructor" emb env) (ctor       sp)
                      ++ mapMaybe (checkBind "measure"          emb env) (meas       sp)
                      ++ mapMaybe (checkInv  emb env)                    (invariants sp)
                      ++ mapMaybe checkMismatch                          (tySigs     sp)
