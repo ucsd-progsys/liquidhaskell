@@ -434,10 +434,15 @@ appRTyCon tyi rc@(RTyCon c _ _) ts = RTyCon c ps' (rTyConInfo rc')
         αs  = TC.tyConTyVars $ rTyCon rc'
 
 appRefts rc [] = RPoly [] . ofRSort . ptype <$> (rTyConPs rc)
-appRefts rc rs = safeZipWith ("appRefts" ++ showpp rc) toPoly rs (ptype <$> (rTyConPs rc))
+appRefts rc rs = safeZipWith ("appRefts" ++ showFix rc) toPoly rs (rTyConPs rc)
 
-toPoly (RPoly ss t) _ = RPoly ss t
-toPoly (RMono ss r) t = RPoly ss $ (ofRSort t) `strengthen` r  
+toPoly (RPoly ss t) rc 
+  | length (pargs rc) == length ss 
+  = RPoly ss t
+  | otherwise          
+  = RPoly ([(s, t) | (t, s, _) <- pargs rc]) t
+toPoly (RMono ss r) t 
+  = RPoly ss $ (ofRSort $ ptype t) `strengthen` r  
 
 generalize t = mkUnivs (freeTyVars t) [] t 
          
