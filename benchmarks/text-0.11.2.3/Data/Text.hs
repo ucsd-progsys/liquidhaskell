@@ -235,6 +235,9 @@ import Data.Int (Int64)
 import Prelude (Integer(..), Num(..), Real(..), Integral(..))
 import Data.Word --(Word16(..))
 import Data.Text.Axioms
+import qualified Data.Text.Array
+import qualified Data.Text.Internal
+import qualified Data.Text.Fusion.Internal
 import Language.Haskell.Liquid.Prelude
 
 

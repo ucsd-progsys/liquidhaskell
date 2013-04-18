@@ -27,5 +27,5 @@ axiom_numchars_split
                     + (numchars (tarr t) ((toff t) + i) ((tlen t) - i)))))}
 
 
-nc :: a:A.Array -> o:Int -> l:Int -> {v:Int | v = (numchars a o l)}
-tl :: t:Text -> {v:Int | v = (tlength t)}
+-- nc :: a:A.Array -> o:Int -> l:Int -> {v:Int | v = (numchars a o l)}
+-- tl :: t:Text -> {v:Int | v = (tlength t)}
