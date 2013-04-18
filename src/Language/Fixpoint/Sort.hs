@@ -6,6 +6,7 @@ module Language.Fixpoint.Sort  (
   -- * Checking Well-Formedness
     checkSortedReft
   , checkSortedReftFull
+  , pruneUnsortedReft
   ) where
 
 
@@ -17,7 +18,7 @@ import Text.Printf
 import Control.Monad.Error (catchError, throwError)
 import Control.Monad
 import Control.Applicative
-import Data.Maybe           (fromMaybe)
+import Data.Maybe           (fromMaybe, catMaybes)
 import qualified Data.HashMap.Strict as M
 
 -- | Types used throughout checker
@@ -46,6 +47,18 @@ checkSortedReftFull γ t@(RR _ (Reft (v, ras)))
     where 
       γ'  = mapSEnv sr_sort $ insertSEnv v t γ  
       f   = (`lookupSEnv` γ')
+
+pruneUnsortedReft :: SEnv Sort -> SortedReft -> SortedReft
+pruneUnsortedReft γ (RR s (Reft (v, ras)))
+  = RR s (Reft (v, catMaybes (go <$> ras))) 
+  where 
+    go r = case checkRefa f r of
+            Left war -> traceShow (wmsg war r) Nothing
+            Right _  -> Just r
+    γ'  = foldl (flip $ uncurry $ insertSEnv) γ $ (v, s):wiredSortedSyms
+    f   = (`lookupSEnv` γ') 
+
+    wmsg t r = "WARNING: prune unsorted reft:\n" ++ show r ++ "\n" ++ t
 
 checkRefa f (RConc p) = checkPred f p
 checkRefa f _         = return ()
