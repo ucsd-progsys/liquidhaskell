@@ -50,6 +50,7 @@ import Data.List (foldl')
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import qualified Language.Fixpoint.Types            as F
+import Language.Fixpoint.Sort (pruneUnsortedReft)
 
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars)  
 import Language.Haskell.Liquid.Bare
@@ -92,7 +93,9 @@ initEnv info penv
        let f2    = assm info          -- assumed refinements      (for imported vars)
        let f3    =  ctor' $ spec info -- constructor refinements  (for measures) 
        let bs    = (map (unifyts' tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
-       let γ0    = measEnv (spec info) penv (head bs) (cbs info)
+       lts      <- lits <$> get
+       let tcb   = mapSnd (rTypeSort (tcEmbeds $ spec info)) <$> concat bs
+       let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
        -- return    $ foldl' (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs] 
 
@@ -104,12 +107,12 @@ unifyts penv (x, t) = (x', unify pt t)
  where pt = F.lookupSEnv x' penv
        x' = varSymbol x
 
-measEnv sp penv xts cbs
+measEnv sp penv xts cbs lts
   = CGE { loc   = noSrcSpan
         , renv  = fromListREnv   $ second (uRType . val) <$> meas sp 
         , syenv = F.fromListSEnv $ freeSyms sp 
         , penv  = penv 
-        , fenv  = F.emptyIBindEnv -- F.fromListSEnv $ second (rTypeSortedReft tce) <$> meas sp 
+        , fenv  = initFEnv (lts ++ (second (rTypeSort tce . val) <$> meas sp))
         , recs  = S.empty 
         , invs  = mkRTyConInv    $ invariants sp
         , grtys = fromListREnv xts 
@@ -139,12 +142,23 @@ grtyTop info     = forM topVs $ \v -> (v,) <$> (trueTy $ varType v) -- val $ var
 -- | Helpers: Reading/Extending Environment Bindings -------------------
 ------------------------------------------------------------------------
 
+data FEnv = FE { fe_binds :: !F.IBindEnv            -- ^ Integer Keys for Fixpoitn Environment
+               , fe_env   :: !(F.SEnv F.Sort) -- ^ Fixpoint Environment
+               }
+
+insertFEnv (FE benv env) ((x, t), i)
+  = FE (F.insertsIBindEnv [i] benv) (F.insertSEnv x t env)
+
+insertsFEnv = L.foldl' insertFEnv
+
+initFEnv init = FE F.emptyIBindEnv $ F.fromListSEnv (F.wiredSortedSyms ++ init)
+
 data CGEnv 
   = CGE { loc    :: !SrcSpan           -- ^ Location in original source file
         , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
         , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
         , penv   :: !(F.SEnv PrType)   -- ^ PrTypes for top-level bindings (merge with renv) 
-        , fenv   :: !F.IBindEnv        -- ^ Integer Keys for F.Fixpoint Environment
+        , fenv   :: !FEnv              -- ^ Fixpoint Environment
         , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
         , invs   :: !RTyConInv         -- ^ Datatype invariants 
         , grtys  :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
@@ -153,11 +167,11 @@ data CGEnv
         , tgKey :: !(Maybe Tg.TagKey)  -- ^ Current top-level binder
         } -- deriving (Data, Typeable)
 
-instance F.Fixpoint CGEnv where
-  toFix = F.toFix . renv
+instance PPrint CGEnv where
+  pprint = pprint . renv
 
 instance Show CGEnv where
-  show = F.showFix
+  show = showpp
 
 getTag :: CGEnv -> F.Tag
 getTag γ = maybe Tg.defaultTag (`Tg.getTag` (tgEnv γ)) (tgKey γ)
@@ -210,17 +224,22 @@ data WfC      = WfC  !CGEnv !SpecType
 type FixSubC  = F.SubC Cinfo
 type FixWfC   = F.WfC Cinfo
 
-instance F.Fixpoint SubC where
-  toFix c = F.toFix (senv c)
-          $+$ ((text " |- ") <+> ( (F.toFix (lhs c)) 
+instance PPrint SubC where
+  pprint c = pprint (senv c)
+           $+$ ((text " |- ") <+> ( (pprint (lhs c)) 
                              $+$ text "<:" 
-                             $+$ (F.toFix (rhs c))))
+                             $+$ (pprint (rhs c))))
 
-instance F.Fixpoint WfC where
-  toFix (WfC w r) = F.toFix w <> text " |- " <> F.toFix r 
+instance PPrint WfC where
+  pprint (WfC w r) = pprint w <> text " |- " <> pprint r 
+
+instance PPrint Cinfo where
+  pprint (Ci src)  = pprDoc src
 
 instance F.Fixpoint Cinfo where
-  toFix (Ci src)  = pprDoc src
+  toFix = pprint
+
+
 
 ------------------------------------------------------------
 ------------------- Constraint Splitting -------------------
@@ -261,7 +280,7 @@ splitW (WfC γ t@(RApp _ ts rs _))
         return $ ws ++ ws' ++ ws''
 
 splitW (WfC _ t) 
-  = errorstar $ "splitW cannot handle: " ++ F.showFix t
+  = errorstar $ "splitW cannot handle: " ++ showpp t
 
 rsplitW _ (RMono _ _)  
   = errorstar "Constrains: rsplitW for RMono"
@@ -272,10 +291,10 @@ rsplitW γ (RPoly ss t0)
 bsplitW :: CGEnv -> SpecType -> [FixWfC]
 bsplitW γ t
   | F.isNonTrivialSortedReft r'
-  = [F.wfC (fenv γ) r' Nothing ci] 
+  = [F.wfC (fe_binds $ fenv γ) r' Nothing ci] 
   | otherwise
   = []
-  where r' = rTypeSortedReft (emb γ) t
+  where r' = rTypeSortedReft' γ t
         ci = (Ci (loc γ))
 
 mkSortedReft tce = F.RR . rTypeSort tce
@@ -332,7 +351,7 @@ splitC (SubC γ t1 (RAllP p t))
         su = (uPVar p, pVartoRConc p)
 
 splitC (SubC _ t1@(RAllP _ _) t2) 
-  = errorstar $ "Predicate in lhs of constrain:" ++ F.showFix t1 ++ "\n<:\n" ++ F.showFix t2
+  = errorstar $ "Predicate in lhs of constrain:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
 --   = splitC $ SubC γ t' t2
 --   where t' = fmap (replacePredsWithRefs su) t
 --        su = (uPVar p, pVartoRConc p)
@@ -365,7 +384,7 @@ splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
   = return []
 
 splitC c@(SubC _ t1 t2) 
-  = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ F.showFix t1 ++ "\n\n" ++ F.showFix t2
+  = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
 
 splitCIndexed γ t1s t2s indexes 
   = concatMapM splitC (zipWith (SubC γ) t1s' t2s')
@@ -385,9 +404,9 @@ bsplitC γ t1 t2
   = [F.subC γ' F.PTrue r1'  r2' Nothing tag ci]
   | otherwise
   = []
-  where γ'  = fenv γ
-        r1' = rTypeSortedReft (emb γ) t1
-        r2' = rTypeSortedReft (emb γ) t2
+  where γ'  = fe_binds $ fenv γ
+        r1' = rTypeSortedReft' γ t1
+        r2' = rTypeSortedReft' γ t2
         ci  = Ci (loc γ)
         tag = getTag γ
 
@@ -433,22 +452,22 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , lits       :: ![(F.Symbol, F.Sort)]
                      } -- deriving (Data, Typeable)
 
-instance F.Fixpoint CGInfo where 
-  toFix cgi =  {-# SCC "ppr_CGI" #-} ppr_CGInfo cgi
+instance PPrint CGInfo where 
+  pprint cgi =  {-# SCC "ppr_CGI" #-} ppr_CGInfo cgi
 
 ppr_CGInfo cgi 
   =  (text "*********** Haskell SubConstraints ***********")
-  $$ (F.toFix $ hsCs  cgi)
+  $$ (pprint $ hsCs  cgi)
   $$ (text "*********** Haskell WFConstraints ************")
-  $$ (F.toFix $ hsWfs cgi)
-  $$ (text "*********** F.Fixpoint SubConstraints **********")
-  $$ (F.toFix $ fixCs cgi)
-  $$ (text "*********** F.Fixpoint WFConstraints ************")
-  $$ (F.toFix $ fixWfs cgi)
-  $$ (text "*********** F.Fixpoint Kut Variables ************")
-  $$ (F.toFix $ kuts cgi)
+  $$ (pprint $ hsWfs cgi)
+  $$ (text "*********** Fixpoint SubConstraints **********")
+  $$ (F.toFix  $ fixCs cgi)
+  $$ (text "*********** Fixpoint WFConstraints ************")
+  $$ (F.toFix  $ fixWfs cgi)
+  $$ (text "*********** Fixpoint Kut Variables ************")
+  $$ (F.toFix  $ kuts cgi)
   $$ (text "*********** Literals in Source     ************")
-  $$ (F.toFix $ lits cgi)
+  $$ (pprint $ lits cgi)
 
 type CG = State CGInfo
 
@@ -499,9 +518,11 @@ extendEnvWithVV γ t
        let t  = normalize γ {-x-} idx t'  
        let γ' = γ { renv = insertREnv x t (renv γ) }  
        is    <- if isBase t 
-                  then liftM single $ addBind x (rTypeSortedReft (emb γ) t) 
+                  then liftM single $ addBind x $ rTypeSortedReft' γ' t 
                   else addClassBind t 
-       return $ γ' { fenv = F.insertsIBindEnv is (fenv γ) }
+       return $ γ' { fenv = insertsFEnv (fenv γ) is }
+
+rTypeSortedReft' γ = pruneUnsortedReft (fe_env $ fenv γ) . rTypeSortedReft (emb γ)
 
 (+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
 (γ, msg) += (x, r)
@@ -513,19 +534,19 @@ extendEnvWithVV γ t
   =  γ ++= (msg, x, r) 
   where err = errorstar $ msg ++ " Duplicate binding for " 
                               ++ F.symbolString x 
-                              ++ "\n New: " ++ F.showFix r
-                              ++ "\n Old: " ++ F.showFix (x `lookupREnv` (renv γ))
+                              ++ "\n New: " ++ showpp r
+                              ++ "\n Old: " ++ showpp (x `lookupREnv` (renv γ))
                         
 γ -= x =  γ {renv = deleteREnv x (renv γ)}
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
          where err = errorstar $ "EnvLookup: unknown " 
-                               ++ F.showFix x 
+                               ++ showpp x 
                                ++ " in renv " 
-                               ++ F.showFix (renv γ)
+                               ++ showpp (renv γ)
 
-normalize' γ x idx t = traceShow ("normalize " ++ F.showFix x ++ " idx = " ++ show idx ++ " t = " ++ F.showFix t) $ normalize γ idx t
+normalize' γ x idx t = traceShow ("normalize " ++ showpp x ++ " idx = " ++ show idx ++ " t = " ++ showpp t) $ normalize γ idx t
 
 normalize γ idx 
   = addRTyConInv (invs γ) 
@@ -544,16 +565,16 @@ shiftVV t@(RApp _ ts _ r) vv'
       { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t _ 
-  = t -- errorstar $ "shiftVV: cannot handle " ++ F.showFix t
+  = t -- errorstar $ "shiftVV: cannot handle " ++ showpp t
 
-addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
+addBind :: F.Symbol -> F.SortedReft -> CG ((F.Symbol, F.Sort), F.BindId)
 addBind x r 
   = do st          <- get
        let (i, bs') = F.insertBindEnv x r (binds st)
        put          $ st { binds = bs' }
-       return i -- traceShow ("addBind: " ++ F.showFix x) i
+       return ((x, F.sr_sort r), i) -- traceShow ("addBind: " ++ showpp x) i
 
-addClassBind :: SpecType -> CG [F.BindId]
+addClassBind :: SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
 addClassBind = mapM (uncurry addBind) . classBinds
 
 -- addClassBind (RCls c ts)
@@ -567,7 +588,7 @@ addClassBind = mapM (uncurry addBind) . classBinds
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) _msg 
-  = -- trace ("addC " ++ _msg++ F.showFix t1 ++ "\n <: \n" ++ F.showFix t2 ) $
+  = -- trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
      modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addW   :: WfC -> CG ()  
@@ -589,7 +610,7 @@ addIdA !x !t      = modify $ \s -> s { annotMap = upd $ annotMap s }
   where 
     loc           = getSrcSpan x
     upd m@(AI z)  = if boundRecVar loc m then m else addA loc (Just x) t m
-    -- loc        = traceShow ("addIdA: " ++ show x ++ " :: " ++ F.showFix t ++ " at ") $ getSrcSpan x
+    -- loc        = traceShow ("addIdA: " ++ show x ++ " :: " ++ showpp t ++ " at ") $ getSrcSpan x
 
 boundRecVar l (AI m) = not $ null [t | (_, RDf t) <- M.lookupDefault [] l m]
 
@@ -920,8 +941,9 @@ cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -
 -------------------------------------------------------------------------------------
 
 cconsCase γ x t _ (DataAlt c, ys, ce) 
- = do let cbs          = safeZip "cconsCase" (x':ys') (xt:yts)
-      cγ              <- addBinders γ x' cbs
+ = do let cbs          = safeZip "cconsCase" (x':ys') (xt0:yts)
+      cγ'              <- addBinders γ x' cbs
+      cγ               <- addBinders cγ' x' [(x', xt)]
       cconsE cγ ce t
  where (x':ys')        = varSymbol <$> (x:ys)
        xt0             = checkTyCon ("checkTycon cconsCase", x) $ γ ?= x'
@@ -977,7 +999,7 @@ checkFun x t                  = checkErr x t
 checkAll _ t@(RAllT _ _)      = t
 checkAll x t                  = checkErr x t
 
-checkErr (msg, e) t          = errorstar $ msg ++ showPpr e ++ "type: " ++ F.showFix t
+checkErr (msg, e) t          = errorstar $ msg ++ showPpr e ++ "type: " ++ showpp t
 
 varAnn γ x t 
   | x `S.member` recs γ
@@ -996,7 +1018,7 @@ getSrcSpan' x
 ---------- Helpers: Creating Fresh Refinement ------------------ ------
 -----------------------------------------------------------------------
 
-truePredRef :: (F.Reftable r) => PVar (RRType r) -> CG SpecType
+truePredRef :: (PPrint r, F.Reftable r) => PVar (RRType r) -> CG SpecType
 truePredRef (PV _ τ _)
   = trueTy (toType τ)
 
@@ -1036,6 +1058,9 @@ instance NFData CGEnv where
   rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 _ x9 x10) 
     = x1 `seq` rnf x2 `seq` seq x3 `seq` x4 `seq` rnf x5 `seq` 
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
+
+instance NFData FEnv where
+  rnf (FE x1 _) = rnf x1
 
 instance NFData SubC where
   rnf (SubC x1 x2 x3) 
@@ -1089,7 +1114,7 @@ forallExprReft _ e          = F.exprReft e
 forallExprReftLookup γ x = γ ?= x' 
   where x'               = fromMaybe err (varSymbol <$> F.lookupSEnv x γ')
         γ'               = syenv γ
-        err              = errorstar $ "exReftLookup: unknown " ++ F.showFix x ++ " in " ++ F.showFix  γ'
+        err              = errorstar $ "exReftLookup: unknown " ++ showpp x ++ " in " ++ F.showFix γ'
 -- withReft (RApp c ts rs _) r' = RApp c ts rs r' 
 -- withReft (RVar a _) r'       = RVar a      r' 
 -- withReft t _                 = t 
@@ -1204,9 +1229,10 @@ conjoinInvariant t _
 
 newtype REnv = REnv  (M.HashMap F.Symbol SpecType) -- deriving (Data, Typeable)
 
-instance F.Fixpoint REnv where
-  toFix (REnv m)     = vcat $ map pprxt $ M.toList m
-    where pprxt (x, t) = F.toFix x <> dcolon <> F.toFix t  
+instance PPrint REnv where
+  pprint (REnv m)  = vcat $ map pprxt $ M.toList m
+    where 
+      pprxt (x, t) = pprint x <> dcolon <> pprint t  
 
 instance NFData REnv where
   rnf (REnv _) = () -- rnf m
@@ -1220,7 +1246,6 @@ lookupREnv x (REnv env)   = M.lookup x env
 memberREnv x (REnv env)   = M.member x env
 -- domREnv (REnv env)        = M.keys env
 -- emptyREnv                 = REnv M.empty
-
 
 cgInfoFInfoBot cgi = cgInfoFInfo cgi{specQuals=[]}
 
