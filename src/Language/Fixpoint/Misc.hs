@@ -74,7 +74,6 @@ errorstar  = error . wrap (stars ++ "\n") (stars ++ "\n")
 
 errortext  = errorstar . render 
 
-
 assertstar _   True  x = x
 assertstar msg False x = errorstar msg 
 
@@ -349,4 +348,11 @@ dcolon             = colon <> colon
 intersperse d ds   = hsep $ punctuate d ds
 
 tshow              = text . show
+
+foldlMap           :: (a -> b -> (c, a)) -> a -> [b] -> ([c], a)
+foldlMap f b xs    = (reverse zs, res)
+  where 
+    (zs, res)      = L.foldl' ff ([], b) xs
+    ff (ys, acc) x = let (y, acc') = f acc x in (y:ys, acc')
+
 

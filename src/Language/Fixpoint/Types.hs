@@ -65,7 +65,7 @@ module Language.Fixpoint.Types (
   , notExprReft             -- singleton: v /= e
   , symbolReft              -- singleton: v == x
   , propReft                -- singleton: Prop(v) <=> p
-
+  , predReft                -- any pred : p
   , isFunctionSortedReft
   , isNonTrivialSortedReft
   , isTautoReft
@@ -569,6 +569,10 @@ notExprReft e          = Reft (vv_, [RConc $ PAtom Ne (eVar vv_)  (expr e)])
 propReft               ::  (Predicate a) => a -> Reft
 propReft p             = Reft (vv_, [RConc $ PIff     (eProp vv_) (prop p)]) 
 
+predReft               :: (Predicate a) => a -> Reft
+predReft p             = Reft (vv_, [RConc $ prop p])
+
+
 
 
 ---------------------------------------------------------------
@@ -625,7 +629,7 @@ insertsIBindEnv :: [BindId] -> IBindEnv -> IBindEnv
 insertsIBindEnv is (FB s) = FB (foldr S.insert s is)
 
 -- | Functions for Global Binder Environment
-insertBindEnv :: Symbol -> SortedReft -> BindEnv -> (Int, BindEnv)
+insertBindEnv :: Symbol -> SortedReft -> BindEnv -> (BindId, BindEnv)
 insertBindEnv x r (BE n m) = (n, BE (n + 1) (M.insert n (x, r) m))
 
 emptyBindEnv :: BindEnv
@@ -907,8 +911,6 @@ symbolReft    = exprReft . eVar
 
 vv_           = vv Nothing
 
-
-
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft) 
 
@@ -1012,9 +1014,9 @@ instance Hashable Symbol where
 instance Hashable FTycon where
   hashWithSalt i (TC s) = hashWithSalt i s
 
---------------------------------------------------------------------------------------
--------- Constraint Constructor Wrappers ---------------------------------------------
---------------------------------------------------------------------------------------
+---------------------------------------------------------------------------
+-------- Constraint Constructor Wrappers ----------------------------------
+---------------------------------------------------------------------------
 
 wfC  = WfC
 

@@ -3,17 +3,21 @@ module Language.Fixpoint.Interface (
     -- * Containing Constraints
     FInfo (..)
  
-    -- * Function to invoke solver
+    -- * Invoke Solver on Set of Constraints
   , solve
   , solveFile
 
     -- * Function to determine outcome
   , resultExit
-  
+ 
+    -- * Validity Query
+  , checkValid 
+
 ) where
 
 {- Interfacing with Fixpoint Binary -}
 
+import Data.Monoid
 import Data.Functor
 import Data.List
 import qualified Data.HashMap.Strict as M
@@ -26,6 +30,40 @@ import Language.Fixpoint.Misc
 import Language.Fixpoint.Parse            (rr)
 import Language.Fixpoint.Files
 import Text.PrettyPrint.HughesPJ
+
+---------------------------------------------------------------------------
+-- | One Shot validity query ----------------------------------------------
+---------------------------------------------------------------------------
+
+checkValid         :: a -> [(Symbol, Sort)] -> Pred -> IO (FixResult a) 
+checkValid n xts p = do (r, _) <- solve "temp.fq" [] $ validFInfo n xts p
+                        return (sinfo <$> r)  
+
+validFInfo         :: a -> [(Symbol, Sort)] -> Pred -> FInfo a
+validFInfo l xts p = FI constrm [] benv emptySEnv [] ksEmpty []
+  where 
+    constrm        = M.singleton 0 $ validSubc l ibenv p 
+    binds          = [(x, trueSortedReft t) | (x, t) <- xts]
+    ibenv          = insertsIBindEnv bids emptyIBindEnv
+    (bids, benv)   = foldlMap (\e (x,t) -> insertBindEnv x t e) emptyBindEnv binds
+
+validSubc         :: a -> IBindEnv -> Pred -> SubC a  
+validSubc l env p = subC env PTrue lhs rhs i t l
+  where 
+    lhs           = top
+    rhs           = RR mempty (predReft p)
+    i             = Just 0
+    t             = []
+
+result         :: a -> Bool -> FixResult a    
+result _ True  = Safe 
+result x False = Unsafe [x]
+
+
+---------------------------------------------------------------------------
+-- | Solve a system of horn-clause constraints ----------------------------
+---------------------------------------------------------------------------
+
 
 solve :: FilePath -> [FilePath] -> FInfo a -> IO (FixResult (SubC a), M.HashMap Symbol Pred)
 solve fn hqs fi
@@ -75,3 +113,6 @@ sanitizeFixpointOutput
 resultExit Safe        = ExitSuccess
 resultExit (Unsafe _)  = ExitFailure 1
 resultExit _           = ExitFailure 2
+
+
+
