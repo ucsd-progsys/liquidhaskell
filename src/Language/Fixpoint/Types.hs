@@ -612,8 +612,6 @@ sortedReftValueVariable (RR _ (Reft (v,_))) = v
 ----------------- Environments  -------------------------------
 ---------------------------------------------------------------
 
-sEnv = SE
-
 fromListSEnv            ::  [(Symbol, a)] -> SEnv a
 fromListSEnv            = SE . M.fromList
 
