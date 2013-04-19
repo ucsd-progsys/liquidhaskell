@@ -10,6 +10,8 @@
 module Language.Haskell.Liquid.GhcMisc where
 
 import           Debug.Trace
+
+import           Kind                         (superKind)
 import           CoreSyn
 import           CostCentre
 import           FamInstEnv                   (FamInst)
@@ -29,7 +31,7 @@ import           RdrName                      (GlobalRdrEnv)
 import           Type                         (liftedTypeKind)
 import           TypeRep                       
 import           Var
-import           TyCon                        (mkSuperKindTyCon)
+-- import           TyCon                        (mkSuperKindTyCon)
 import qualified TyCon                        as TC
 import qualified DataCon                      as DC
 import           FastString                   (uniq, unpackFS)
@@ -40,7 +42,9 @@ import qualified Data.HashSet                 as S
 import qualified Data.List                    as L    
 import           Control.Applicative          ((<$>))
 import           Control.Exception            (assert)
-import           Outputable                   (Outputable (..), text, showPpr, ppr, showSDoc, showSDocDump)
+import           Outputable                   (Outputable (..), text, ppr)
+import qualified Outputable                   as Out
+import           DynFlags
 import           Language.Haskell.Liquid.Types
 
 -- import qualified Pretty                       as P
@@ -104,7 +108,7 @@ tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
 tickSrcSpan (ProfNote (AllCafsCC _ loc) _ _)
   = loc
 tickSrcSpan z
-  = errorstar $ "tickSrcSpan: unhandled tick" ++ showPpr z
+  = errorstar $ "tickSrcSpan: unhandled tick: " ++ showPpr z
 
 -----------------------------------------------------------------------
 --------------- Generic Helpers for Accessing GHC Innards -------------
@@ -116,9 +120,10 @@ stringTyVar s = mkTyVar name liftedTypeKind
         occ  = mkTcOcc s
 
 stringTyCon :: Char -> Int -> String -> TyCon
-stringTyCon c n s = mkSuperKindTyCon name
-  where name = mkInternalName (mkUnique c n) occ noSrcSpan
-        occ  = mkTyVarOcc $ assert (validTyVar s) s
+stringTyCon c n s = TC.mkKindTyCon name superKind
+  where 
+    name          = mkInternalName (mkUnique c n) occ noSrcSpan
+    occ           = mkTyVarOcc $ assert (validTyVar s) s
 
 hasBaseTypeVar = isBaseType . varType
 
@@ -131,7 +136,7 @@ validTyVar :: String -> Bool
 validTyVar s@(c:_) = isLower c && all (not . isSpace) s 
 validTyVar _       = False
 
-tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} show α ++ show (varUnique α)
+tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} showPpr α ++ show (varUnique α)
 
 tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) x
 
@@ -171,7 +176,12 @@ instance Outputable a => Outputable (S.HashSet a) where
 
 toFixSDoc = PJ.text . PJ.render . toFix 
 sDocDoc   = PJ.text . showSDoc 
-pprDoc    = sDocDoc . ppr 
+pprDoc    = sDocDoc . ppr
+
+-- Overriding Outputable functions because they now require DynFlags!
+showPpr      = Out.showPpr tracingDynFlags
+showSDoc     = Out.showSDoc tracingDynFlags
+showSDocDump = Out.showSDocDump tracingDynFlags
 
 typeUniqueString = {- ("sort_" ++) . -} showSDocDump . ppr
 

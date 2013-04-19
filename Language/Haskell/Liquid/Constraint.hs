@@ -32,7 +32,6 @@ import Class            (Class, className)
 import Var
 import Id
 import Name             (getSrcSpan)
-import Outputable       (showPpr)
 import Text.PrettyPrint.HughesPJ
 
 import Control.Monad.State
@@ -59,7 +58,7 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc          (getSourcePos, pprDoc, tickSrcSpan, hasBaseTypeVar)
+import Language.Haskell.Liquid.GhcMisc          (getSourcePos, pprDoc, tickSrcSpan, hasBaseTypeVar, showPpr)
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Qualifier        
 import Control.DeepSeq

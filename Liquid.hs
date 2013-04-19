@@ -7,9 +7,6 @@ import System.Exit
 import Control.DeepSeq
 import Control.Monad (forM)
 
-
-import Outputable hiding (empty) 
-
 import Language.Fixpoint.Files
 import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
@@ -18,13 +15,14 @@ import Language.Fixpoint.Types (Fixpoint(..), sinfo, colorResult, FixResult (..)
 
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.CmdLine
-import Language.Haskell.Liquid.GhcInterface 
+import Language.Haskell.Liquid.GhcInterface
+import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Constraint       
 import Language.Haskell.Liquid.TransformRec   
 import Language.Haskell.Liquid.Annotate (annotate)
 
-main ::  IO b
-main    = liquid >>= (exitWith . resultExit)
+main :: IO b
+main = liquid >>= (exitWith . resultExit)
 
 liquid  = do cfg <- getOpts
              res <- forM (files cfg) $ \t ->

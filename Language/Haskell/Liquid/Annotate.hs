@@ -21,7 +21,6 @@ import GHC                      ( SrcSpan (..)
                                 , srcSpanEndLine)
 
 import Var                      (Var (..))                                
-import Outputable               (showPpr)
 import Text.PrettyPrint.HughesPJ
 import GHC.Exts                 (groupWith, sortWith)
 
@@ -50,7 +49,7 @@ import Language.Fixpoint.Files
 import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
 
-import Language.Haskell.Liquid.GhcMisc (pprDoc)
+import Language.Haskell.Liquid.GhcMisc (pprDoc, showPpr)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy

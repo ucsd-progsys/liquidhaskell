@@ -11,7 +11,6 @@ module Language.Haskell.Liquid.GhcInterface (
   ) where
 
 import GHC 
-import Outputable   (showPpr)
 import Text.PrettyPrint.HughesPJ
 import HscTypes
 import TidyPgm      (tidyProgram)
@@ -29,8 +28,7 @@ import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc)
 import qualified Control.Exception as Ex
 
 import GHC.Paths (libdir)
-import System.FilePath (dropExtension, takeFileName) 
-
+import System.FilePath (dropExtension, takeFileName, splitFileName, combine) 
 
 import DynFlags (ProfAuto(..))
 import Control.Monad (filterM)
@@ -61,57 +59,6 @@ import Language.Fixpoint.Files
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 
---- {{{
---- compileCore :: GhcMonad m => Bool -> FilePath -> m CoreModule
---- compileCore simplify fn = do
----    -- First, set the target to the desired filename
----    target <- guessTarget fn Nothing
----    addTarget target
----    _ <- load LoadAllTargets
----    -- Then find dependencies
----    modGraph <- depanal [] True
----    case find ((== fn) . msHsFilePath) modGraph of
----      Just modSummary -> do
----        -- Now we have the module name;
----        -- parse, typecheck and desugar the module
----        mod_guts <- coreModule `fmap`
----                       -- TODO: space leaky: call hsc* directly?
----                       (desugarModule =<< typecheckModule =<< parseModule modSummary)
----        liftM (gutsToCoreModule (mg_safe_haskell mod_guts)) $
----          if simplify
----           then do
----              -- If simplify is true: simplify (hscSimplify), then tidy (tidyProgram).
----              hsc_env <- getSession
----              simpl_guts <- liftIO $ hscSimplify hsc_env mod_guts
----              tidy_guts <- liftIO $ tidyProgram hsc_env simpl_guts
----              return $ Left tidy_guts
----           else
----              return $ Right mod_guts
---- 
----      Nothing -> panic "compileToCoreModule: target FilePath not found in\
----                            module dependency graph"
----   where -- two versions, based on whether we simplify (thus run tidyProgram,
----         -- which returns a (CgGuts, ModDetails) pair, or not (in which case
----         -- we just have a ModGuts.
----         gutsToCoreModule :: SafeHaskellMode
----                          -> Either (CgGuts, ModDetails) ModGuts
----                          -> CoreModule
----         gutsToCoreModule safe_mode (Left (cg, md)) = CoreModule {
----           cm_module = cg_module cg,
----           cm_types  = md_types md,
----           cm_binds  = cg_binds cg,
----           cm_safe   = safe_mode
----         }
----         gutsToCoreModule safe_mode (Right mg) = CoreModule {
----           cm_module  = mg_module mg,
----           cm_types   = typeEnvFromEntities (bindersOfBinds (mg_binds mg))
----                                            (mg_tcs mg)
----                                            (mg_fam_insts mg),
----           cm_binds   = mg_binds mg,
----           cm_safe    = safe_mode
----          }
---- }}}
-
 ------------------------------------------------------------------
 getGhcInfo :: Config -> FilePath -> IO GhcInfo
 ------------------------------------------------------------------
@@ -138,6 +85,8 @@ updateDynFlags df ps
   = df { importPaths  = ps ++ importPaths df  } 
        { libraryPaths = ps ++ libraryPaths df }
        { profAuto     = ProfAutoCalls         }
+       { ghcLink      = LinkInMemory          }
+       { hscTarget    = HscInterpreted        }
 
 printVars s vs 
   = do putStrLn s 
@@ -158,7 +107,7 @@ definedVars           = concatMap defs
 ------------------------------------------------------------------
 
 getGhcModGuts1 fn = do
-   liftIO $ deleteBinFiles fn 
+   liftIO $ deleteBinFiles fn
    target <- guessTarget fn Nothing
    addTarget target
    load LoadAllTargets
@@ -230,7 +179,7 @@ moduleSpec cfg vars target mg paths
        impSpec    <- getSpecs paths impNames [Spec, Hs, LHs] 
        let spec    = Ms.expandRTAliases $ tgtSpec `mappend` impSpec 
        let imps    = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
-       setContext [IIModule (mgi_module mg)]
+       setContext [IIModule $ moduleName $ mgi_module mg]
        env        <- getSession
        ghcSpec    <- liftIO $ makeGhcSpec cfg name vars env spec
        return      (ghcSpec, imps, Ms.includes tgtSpec)
@@ -244,6 +193,9 @@ allDepNames mg    = allNames'
 depNames       = map fst        . dep_mods      . mgi_deps
 dirImportNames = map moduleName . moduleEnvKeys . mgi_dir_imps  
 targetName     = dropExtension  . takeFileName 
+-- starName fn    = combine dir ('*':f) where (dir, f) = splitFileName fn
+starName       = ("*" ++)
+
 
 getSpecs paths names exts
   = do fs    <- sortNub <$> moduleImports exts paths names 

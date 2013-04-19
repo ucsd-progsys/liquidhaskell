@@ -385,7 +385,7 @@ applyTypeToArgs e op_ty (_ : args)
         Nothing          -> errorstar $ "MYapplyTypeToArgs" ++ panic_msg e op_ty
 
 panic_msg :: CoreExpr -> Type -> String 
-panic_msg e op_ty = O.showPpr e ++ " :: " ++ O.showPpr op_ty
+panic_msg e op_ty = showPpr e ++ " :: " ++ showPpr op_ty
 
 substParg :: Functor f => (Symbol, F.Expr) -> f Predicate -> f Predicate
 substParg (x, y) = fmap fp  -- RJ: UNIFY: BUG  mapTy fxy
