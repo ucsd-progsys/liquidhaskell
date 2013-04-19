@@ -21,6 +21,8 @@ import Control.Applicative
 import Data.Maybe           (fromMaybe, catMaybes)
 import qualified Data.HashMap.Strict as M
 
+import Debug.Trace          (trace)
+
 -- | Types used throughout checker
 
 type CheckM a = Either String a
@@ -53,12 +55,12 @@ pruneUnsortedReft γ (RR s (Reft (v, ras)))
   = RR s (Reft (v, catMaybes (go <$> ras))) 
   where 
     go r = case checkRefa f r of
-            Left war -> traceShow (wmsg war r) Nothing
+            Left war -> trace (wmsg war r) $ Nothing
             Right _  -> Just r
     γ'  = insertSEnv v s γ
     f   = (`lookupSEnv` γ') 
 
-    wmsg t r = "WARNING: prune unsorted reft:\n" ++ show r ++ "\n" ++ t
+    wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
 
 checkRefa f (RConc p) = checkPred f p
 checkRefa f _         = return ()
