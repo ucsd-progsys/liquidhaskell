@@ -217,6 +217,7 @@ propFTyCon = TC (S propConName)
 
 -- isListTC   = (listFTyCon ==)
 isListTC (TC (S c)) = c == listConName
+isTupTC (TC (S c))  = c == tupConName
 
 stringFTycon :: String -> FTycon
 stringFTycon c 
@@ -250,7 +251,9 @@ toFix_sort FNum         = text "num"
 toFix_sort (FFunc n ts) = text "func" <> parens ((toFix n) <> (text ", ") <> (toFix ts))
 toFix_sort (FApp c [t]) 
   | isListTC c          = brackets $ toFix_sort t 
-toFix_sort (FApp c ts)  = toFix c <+> intersperse space (fp <$> ts)
+toFix_sort (FApp c ts)  
+  | isTupTC  c          = parens $ intersperse comma $ toFix_sort <$> ts 
+  | otherwise           = toFix c <+> intersperse space (fp <$> ts)
                           where fp s@(FApp _ (_:_)) = parens $ toFix_sort s 
                                 fp s                = toFix_sort s
 
@@ -397,7 +400,6 @@ instance Fixpoint Integer where
 instance Fixpoint Constant where
   toFix (I i) = toFix i
 
-
 instance Fixpoint Brel where
   toFix Eq = text "="
   toFix Ne = text "!="
@@ -416,7 +418,6 @@ instance Fixpoint Bop where
 instance Fixpoint Expr where
   toFix (ECon c)       = toFix c 
   toFix (EVar s)       = toFix s
-  -- toFix (EDat s _)     = toFix s 
   toFix (ELit s _)     = toFix s
   toFix (EApp f es)    = (toFix f) <> (parens $ toFix es) 
   toFix (EBin o e1 e2) = parens $ toFix e1 <+> toFix o <+> toFix e2
@@ -1114,7 +1115,7 @@ toFixpoint x'    = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csD
 -- | A Class Predicates for Valid Refinements Types ---------------------
 -------------------------------------------------------------------------
 
-class (Monoid r, Subable r, Fixpoint r) => Reftable r where 
+class (Monoid r, Subable r) => Reftable r where 
   isTauto :: r -> Bool
   ppTy    :: r -> Doc -> Doc
   
@@ -1156,7 +1157,7 @@ instance Monoid SortedReft where
 
 instance Reftable SortedReft where
   isTauto  = isTauto . sr_reft
-  ppTy     = ppTy    . sr_reft
+  ppTy     = ppTy . sr_reft
   toReft   = sr_reft
   params _ = []
 
