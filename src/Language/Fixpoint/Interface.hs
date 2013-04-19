@@ -17,12 +17,15 @@ module Language.Fixpoint.Interface (
 
 {- Interfacing with Fixpoint Binary -}
 
+import Data.Hashable
 import Data.Monoid
 import Data.Functor
 import Data.List
 import qualified Data.HashMap.Strict as M
 import System.IO        (hPutStr, withFile, IOMode (..))
 import System.Exit
+import System.Directory (getTemporaryDirectory)
+import System.FilePath  ((</>))
 import Text.Printf
 
 import Language.Fixpoint.Types         hiding (kuts, lits)
@@ -35,9 +38,11 @@ import Text.PrettyPrint.HughesPJ
 -- | One Shot validity query ----------------------------------------------
 ---------------------------------------------------------------------------
 
-checkValid         :: a -> [(Symbol, Sort)] -> Pred -> IO (FixResult a) 
-checkValid n xts p = do (r, _) <- solve "temp.fq" [] $ validFInfo n xts p
-                        return (sinfo <$> r)  
+checkValid :: (Hashable a) => a -> [(Symbol, Sort)] -> Pred -> IO (FixResult a) 
+checkValid n xts p 
+  = do file   <- (</> show (hash n)) <$> getTemporaryDirectory
+       (r, _) <- solve file [] $ validFInfo n xts p
+       return (sinfo <$> r)  
 
 validFInfo         :: a -> [(Symbol, Sort)] -> Pred -> FInfo a
 validFInfo l xts p = FI constrm [] benv emptySEnv [] ksEmpty []

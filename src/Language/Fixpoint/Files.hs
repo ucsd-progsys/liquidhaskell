@@ -27,7 +27,6 @@ module Language.Fixpoint.Files (
 ) where
 
 import qualified Control.Exception            as Ex
--- import           Control.Monad.State
 import           Control.Monad -- .State
 import           Data.Functor                 ((<$>))
 import           Data.List                    hiding (find)
