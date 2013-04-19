@@ -55,7 +55,7 @@ pruneUnsortedReft γ (RR s (Reft (v, ras)))
     go r = case checkRefa f r of
             Left war -> traceShow (wmsg war r) Nothing
             Right _  -> Just r
-    γ'  = foldl (flip $ uncurry $ insertSEnv) γ $ (v, s):wiredSortedSyms
+    γ'  = insertSEnv v s γ
     f   = (`lookupSEnv` γ') 
 
     wmsg t r = "WARNING: prune unsorted reft:\n" ++ show r ++ "\n" ++ t
@@ -141,10 +141,10 @@ checkOpTy f e t@(FObj l) t'@(FObj l')
 checkOpTy f e t t'
   = throwError $ errOp e t t'
 
-checkNumeric f l = return ()
---   = do t <- checkSym f l
---        unless (t == FNum) (throwError $ errNonNumeric l)
---        return ()
+checkNumeric f l
+  = do t <- checkSym f l
+       unless (t == FNum) (throwError $ errNonNumeric l)
+       return ()
 
 -------------------------------------------------------------------------
 -- | Checking Predicates ------------------------------------------------
