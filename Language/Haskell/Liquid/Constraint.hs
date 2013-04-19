@@ -93,7 +93,9 @@ initEnv info penv
        let f2    = assm info          -- assumed refinements      (for imported vars)
        let f3    =  ctor' $ spec info -- constructor refinements  (for measures) 
        let bs    = (map (unifyts' tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
-       let γ0    = measEnv (spec info) penv (head bs) (cbs info)
+       lts      <- lits <$> get
+       let tcb   = mapSnd (rTypeSort (tcEmbeds $ spec info)) <$> concat bs
+       let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
        -- return    $ foldl' (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs] 
 
@@ -105,12 +107,12 @@ unifyts penv (x, t) = (x', unify pt t)
  where pt = F.lookupSEnv x' penv
        x' = varSymbol x
 
-measEnv sp penv xts cbs
+measEnv sp penv xts cbs lts
   = CGE { loc   = noSrcSpan
         , renv  = fromListREnv   $ second (uRType . val) <$> meas sp 
         , syenv = F.fromListSEnv $ freeSyms sp 
         , penv  = penv 
-        , fenv  = F.emptyIBindEnv -- F.fromListSEnv $ second (rTypeSortedReft tce) <$> meas sp 
+        , fenv  = initFEnv (lts ++ (second (rTypeSort tce . val) <$> meas sp))
         , recs  = S.empty 
         , invs  = mkRTyConInv    $ invariants sp
         , grtys = fromListREnv xts 
@@ -140,12 +142,23 @@ grtyTop info     = forM topVs $ \v -> (v,) <$> (trueTy $ varType v) -- val $ var
 -- | Helpers: Reading/Extending Environment Bindings -------------------
 ------------------------------------------------------------------------
 
+data FEnv = FE { fe_binds :: !F.IBindEnv            -- ^ Integer Keys for Fixpoitn Environment
+               , fe_env   :: !(F.SEnv F.Sort) -- ^ Fixpoint Environment
+               }
+
+insertFEnv (FE benv env) ((x, t), i)
+  = FE (F.insertsIBindEnv [i] benv) (F.insertSEnv x t env)
+
+insertsFEnv = L.foldl' insertFEnv
+
+initFEnv init = FE F.emptyIBindEnv $ F.fromListSEnv (F.wiredSortedSyms ++ init)
+
 data CGEnv 
   = CGE { loc    :: !SrcSpan           -- ^ Location in original source file
         , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
         , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
         , penv   :: !(F.SEnv PrType)   -- ^ PrTypes for top-level bindings (merge with renv) 
-        , fenv   :: !F.IBindEnv        -- ^ Integer Keys for F.Fixpoint Environment
+        , fenv   :: !FEnv              -- ^ Fixpoint Environment
         , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
         , invs   :: !RTyConInv         -- ^ Datatype invariants 
         , grtys  :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
@@ -278,7 +291,7 @@ rsplitW γ (RPoly ss t0)
 bsplitW :: CGEnv -> SpecType -> [FixWfC]
 bsplitW γ t
   | F.isNonTrivialSortedReft r'
-  = [F.wfC (fenv γ) r' Nothing ci] 
+  = [F.wfC (fe_binds $ fenv γ) r' Nothing ci] 
   | otherwise
   = []
   where r' = rTypeSortedReft' γ t
@@ -391,7 +404,7 @@ bsplitC γ t1 t2
   = [F.subC γ' F.PTrue r1'  r2' Nothing tag ci]
   | otherwise
   = []
-  where γ'  = fenv γ
+  where γ'  = fe_binds $ fenv γ
         r1' = rTypeSortedReft' γ t1
         r2' = rTypeSortedReft' γ t2
         ci  = Ci (loc γ)
@@ -507,9 +520,9 @@ extendEnvWithVV γ t
        is    <- if isBase t 
                   then liftM single $ addBind x $ rTypeSortedReft' γ' t 
                   else addClassBind t 
-       return $ γ' { fenv = F.insertsIBindEnv is (fenv γ) }
+       return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
-rTypeSortedReft' γ = pruneUnsortedReft (toSEnv γ) . rTypeSortedReft (emb γ)
+rTypeSortedReft' γ = pruneUnsortedReft (fe_env $ fenv γ) . rTypeSortedReft (emb γ)
 
 (+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
 (γ, msg) += (x, r)
@@ -554,14 +567,14 @@ shiftVV t@(RApp _ ts _ r) vv'
 shiftVV t _ 
   = t -- errorstar $ "shiftVV: cannot handle " ++ showpp t
 
-addBind :: F.Symbol -> F.SortedReft -> CG F.BindId
+addBind :: F.Symbol -> F.SortedReft -> CG ((F.Symbol, F.Sort), F.BindId)
 addBind x r 
   = do st          <- get
        let (i, bs') = F.insertBindEnv x r (binds st)
        put          $ st { binds = bs' }
-       return i -- traceShow ("addBind: " ++ showpp x) i
+       return ((x, F.sr_sort r), i) -- traceShow ("addBind: " ++ showpp x) i
 
-addClassBind :: SpecType -> CG [F.BindId]
+addClassBind :: SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
 addClassBind = mapM (uncurry addBind) . classBinds
 
 -- addClassBind (RCls c ts)
@@ -1046,6 +1059,9 @@ instance NFData CGEnv where
     = x1 `seq` rnf x2 `seq` seq x3 `seq` x4 `seq` rnf x5 `seq` 
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
+instance NFData FEnv where
+  rnf (FE x1 _) = rnf x1
+
 instance NFData SubC where
   rnf (SubC x1 x2 x3) 
     = rnf x1 `seq` rnf x2 `seq` rnf x3
@@ -1230,9 +1246,6 @@ lookupREnv x (REnv env)   = M.lookup x env
 memberREnv x (REnv env)   = M.member x env
 -- domREnv (REnv env)        = M.keys env
 -- emptyREnv                 = REnv M.empty
-
-toSEnv γ = F.sEnv $ M.map (rTypeSort (emb γ)) env
-   where REnv env = renv γ
 
 cgInfoFInfoBot cgi = cgInfoFInfo cgi{specQuals=[]}
 
