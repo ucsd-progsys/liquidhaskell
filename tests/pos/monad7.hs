@@ -3,12 +3,12 @@ module Foo where
 import Language.Haskell.Liquid.Prelude 
 
 {-@ type OList a = [a]<{\fld v -> (v >= fld)}> @-}
-{-@ gpp :: Ord a =>  Monad m => [a] -> m (OList a) @-}
-gpp :: Ord a =>  Monad m => [a] -> m [a]
+{-@ gpp :: (Ord a, Monad m) => [a] -> m (OList a) @-}
+gpp :: (Ord a, Monad m) => [a] -> m [a]
 gpp ls = return $ insertSort ls
 
-{-@ gpp' :: Ord a =>  Monad m => [a] -> m (OList a) @-}
-gpp' :: Ord a =>  Monad m => [a] -> m [a]
+{-@ gpp' :: (Ord a, Monad m) => [a] -> m (OList a) @-}
+gpp' :: (Ord a, Monad m) => [a] -> m [a]
 gpp' ls 
   = do ls' <- gpp ls
        return ls'

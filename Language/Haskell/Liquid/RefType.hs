@@ -1,4 +1,4 @@
-{-# LANGUAGE OverlappingInstances       #-}
+{-# LANGUAGE IncoherentInstances        #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
@@ -46,8 +46,7 @@ import Literal
 import GHC
 import DataCon
 import PrelInfo         (isNumericClass)
-import Outputable       (showSDocDump, showPpr)
-import qualified TyCon as TC
+import qualified TyCon  as TC
 import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Type             (splitFunTys, expandTypeSynonyms)
 import Type             (isPredTy, substTyWith, classifyPredType, PredTree(..), predTreePredType)
@@ -72,7 +71,7 @@ import Language.Fixpoint.Types hiding (Predicate)
 import Language.Haskell.Liquid.Types hiding (DataConP (..))
 
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc (sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, mkTyConInfo)
+import Language.Haskell.Liquid.GhcMisc (sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, mkTyConInfo, showSDoc, showPpr, showSDocDump)
 import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
 
@@ -450,7 +449,7 @@ freeTyVars (RAllP _ t)     = freeTyVars t
 freeTyVars (RAllT α t)     = freeTyVars t L.\\ [α]
 freeTyVars (RFun _ t t' _) = freeTyVars t `L.union` freeTyVars t' 
 freeTyVars (RApp _ ts _ _) = L.nub $ concatMap freeTyVars ts
-freeTyVars (RCls _ ts)     = L.nub $ concatMap freeTyVars ts 
+freeTyVars (RCls _ ts)     = []
 freeTyVars (RVar α _)      = [α] 
 freeTyVars (RAllE _ _ t)   = freeTyVars t
 freeTyVars (REx _ _ t)     = freeTyVars t

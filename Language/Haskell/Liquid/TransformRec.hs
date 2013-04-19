@@ -20,7 +20,6 @@ import           ErrUtils
 import           Id                  (idOccInfo, setIdInfo)
 import           IdInfo
 import           MkCore              (mkCoreLams)
-import           Outputable
 import           SrcLoc
 import           Type                (mkForAllTys)
 import           TypeRep

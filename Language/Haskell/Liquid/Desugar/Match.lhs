@@ -66,7 +66,7 @@ matchCheck ::  DsMatchContext
             -> DsM MatchResult  -- Desugared result!
 
 matchCheck ctx vars ty qs
-  = do { dflags <- getDOptsDs
+  = do { dflags <- getDynFlags
        ; matchCheck_really dflags ctx vars ty qs }
 
 matchCheck_really :: DynFlags
@@ -88,6 +88,7 @@ matchCheck_really dflags ctx@(DsMatchContext hs_ctx _) vars ty qs
     incomplete_flag :: HsMatchContext id -> Bool
     incomplete_flag (FunRhs {})   = wopt Opt_WarnIncompletePatterns dflags
     incomplete_flag CaseAlt       = wopt Opt_WarnIncompletePatterns dflags
+    incomplete_flag IfAlt         = False
 
     incomplete_flag LambdaExpr    = wopt Opt_WarnIncompleteUniPatterns dflags
     incomplete_flag PatBindRhs    = wopt Opt_WarnIncompleteUniPatterns dflags
@@ -358,7 +359,7 @@ matchCoercion (var:vars) ty (eqns@(eqn1:_))
 	; var' <- newUniqueId var (hsPatType pat)
 	; match_result <- match (var':vars) ty $
                           map (decomposeFirstPat getCoPat) eqns
-        ; let rhs' = dsHsWrapper co (Var var)
+        ; rhs' <- dsHsWrapper co (Var var)
 	; return (mkCoLetMatchResult (NonRec var' rhs') match_result) }
 matchCoercion _ _ _ = panic "matchCoercion"
 

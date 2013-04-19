@@ -202,7 +202,7 @@ instance PPrint RTyVar where
    | otherwise     = ppr_tyvar_short α
 
 ppr_tyvar       = text . tvId
-ppr_tyvar_short = tshow
+ppr_tyvar_short = text . showPpr
 
 instance (Reftable s, PPrint s, PPrint p, Reftable  p, PPrint t) => PPrint (Ref t s (RType a b c p)) where
   pprint (RMono ss s) = ppRefArgs (fst <$> ss) <+> pprint s
