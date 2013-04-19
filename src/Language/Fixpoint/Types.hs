@@ -53,7 +53,7 @@ module Language.Fixpoint.Types (
   , removeLhsKvars
 
   -- * Environments
-  , SEnv, sEnv, emptySEnv, fromListSEnv, mapSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
+  , SEnv, emptySEnv, fromListSEnv, mapSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
   , FEnv, insertFEnv 
   , IBindEnv, BindId, insertsIBindEnv, deleteIBindEnv, emptyIBindEnv
   , BindEnv, insertBindEnv, emptyBindEnv
