@@ -38,7 +38,7 @@ liquidOne cfg target =
   do _       <- getFixpointPath 
      info    <- getGhcInfo cfg target 
      donePhase Loud "getGhcInfo"
-     putStrLn $ showFix info 
+     putStrLn $ showpp info 
      putStrLn "*************** Original CoreBinds ***************************" 
      putStrLn $ showPpr (cbs info)
      let cbs' = transformRecExpr (cbs info)
@@ -69,7 +69,7 @@ solveCs nofalse target cgi info | nofalse
 solveCs nofalse target cgi info
   = solve target (hqFiles info) (cgInfoFInfo cgi)
 
-writeResult target = writeFile (extFileName Result target) . showFix
+writeResult target = writeFile (extFileName Result target) . showFix 
 resultSrcSpan      = fmap (tx . sinfo) 
   where tx (Ci x)  = x
 {-
