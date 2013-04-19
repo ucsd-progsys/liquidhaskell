@@ -371,33 +371,33 @@ instance NFData SrcSpan
 
 
 
-instance Fixpoint GhcSpec where
-  toFix spec =  (text "******* Target Variables ********************")
-             $$ (toFix $ tgtVars spec)
-             $$ (text "******* Type Signatures *********************")
-             $$ (toFix $ tySigs spec)
-             $$ (text "******* DataCon Specifications (Measure) ****")
-             $$ (toFix $ ctor spec)
-             $$ (text "******* Measure Specifications **************")
-             $$ (toFix $ meas spec)
+instance PPrint GhcSpec where
+  pprint spec =  (text "******* Target Variables ********************")
+              $$ (pprint $ tgtVars spec)
+              $$ (text "******* Type Signatures *********************")
+              $$ (pprint $ tySigs spec)
+              $$ (text "******* DataCon Specifications (Measure) ****")
+              $$ (pprint $ ctor spec)
+              $$ (text "******* Measure Specifications **************")
+              $$ (pprint $ meas spec)
 
-instance Fixpoint GhcInfo where 
-  toFix info =   (text "*************** Imports *********************")
-             $+$ (intersperse comma $ text <$> imports info)
-             $+$ (text "*************** Includes ********************")
-             $+$ (intersperse comma $ text <$> includes info)
-             $+$ (text "*************** Imported Variables **********")
-             $+$ (pprDoc $ impVars info)
-             $+$ (text "*************** Defined Variables ***********")
-             $+$ (pprDoc $ defVars info)
-             $+$ (text "*************** Specification ***************")
-             $+$ (toFix $ spec info)
-             $+$ (text "*************** Core Bindings ***************")
-             $+$ (pprDoc $ cbs info)
+instance PPrint GhcInfo where 
+  pprint info =   (text "*************** Imports *********************")
+              $+$ (intersperse comma $ text <$> imports info)
+              $+$ (text "*************** Includes ********************")
+              $+$ (intersperse comma $ text <$> includes info)
+              $+$ (text "*************** Imported Variables **********")
+              $+$ (pprDoc $ impVars info)
+              $+$ (text "*************** Defined Variables ***********")
+              $+$ (pprDoc $ defVars info)
+              $+$ (text "*************** Specification ***************")
+              $+$ (pprint $ spec info)
+              $+$ (text "*************** Core Bindings ***************")
+              $+$ (pprDoc $ cbs info)
 
 instance Show GhcInfo where
-  show = showFix
+  show = showpp 
 
-instance Fixpoint TargetVars where
-  toFix AllVars   = text "All Variables"
-  toFix (Only vs) = text "Only Variables: " <+> toFix vs 
+instance PPrint TargetVars where
+  pprint AllVars   = text "All Variables"
+  pprint (Only vs) = text "Only Variables: " <+> pprint vs 

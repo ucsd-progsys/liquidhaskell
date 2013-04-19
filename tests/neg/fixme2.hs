@@ -1,3 +1,5 @@
+{--! run liquid with nofalse  -}
+
 module Bad where
 
 import Language.Haskell.Liquid.Prelude
