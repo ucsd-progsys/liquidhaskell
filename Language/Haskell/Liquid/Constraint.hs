@@ -920,13 +920,13 @@ cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -
 -------------------------------------------------------------------------------------
 
 cconsCase γ x t _ (DataAlt c, ys, ce) 
- = do let cbs          = zip (x':ys') (xt:yts)
+ = do let cbs          = safeZip "cconsCase" (x':ys') (xt:yts)
       cγ              <- addBinders γ x' cbs
       cconsE cγ ce t
  where (x':ys')        = varSymbol <$> (x:ys)
        xt0             = checkTyCon ("checkTycon cconsCase", x) $ γ ?= x'
        tdc             = γ ?= (dataConSymbol c)
-       (rtd, yts, _  ) = unfoldR tdc (shiftVV xt0 x') ys'
+       (rtd, yts, _  ) = unfoldR c tdc (shiftVV xt0 x') ys
        r1              = dataConReft   c   ys' 
        r2              = dataConMsReft rtd ys'
        xt              = xt0 `strengthen` (uTop (r1 `F.meet` r2))
@@ -942,14 +942,25 @@ altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
   where notLiteralReft   = F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = error "Constraint : altReft"
 
-unfoldR td (RApp _ ts rs _) ys = (t3, yts, rt)
-  where (vs, ps, t0)    = bkUniv td
-        t1              = foldl' (flip subsTyVar_meet') t0 (zip vs ts)
-        t2              = replacePreds "unfoldR" t1 $ safeZip "unfoldR" (reverse ps) rs
-        (ys0, yts', rt) = bkArrow t2
-        (t3:yts)        = F.subst su <$> (t2:yts')
-        su              = F.mkSubst [(x, F.EVar y)| (x, y)<- zip ys0 ys]
-unfoldR _  _                _  = error "Constraint.hs : unfoldR"
+unfoldR dc td (RApp _ ts rs _) ys = (t3, tvys ++ yts, rt)
+  where 
+        tbody           = instantiatePvs (instantiateTys td ts) $ reverse rs
+        (ys0, yts', rt) = safeBkArrow $ instantiateTys tbody tvs'
+        (t3:yts)        = F.subst su <$> (rt:yts')
+        su              = F.mkSubst [(x, F.EVar y) | (x, y)<- zip ys0 ys']
+        (αs, ys')       = mapSnd (varSymbol <$>) $ L.partition isTyVar ys
+        tvs'            = rVar <$> αs
+        tvys            = ofType . varType <$> αs
+
+unfoldR _ _  _                _  = error "Constraint.hs : unfoldR"
+
+instantiateTys = foldl' go
+  where go (RAllT α tbody) t = subsTyVar_meet' (α, t) tbody
+        go _ _               = errorstar "Constraint.instanctiateTy" 
+
+instantiatePvs = foldl' go 
+  where go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
+        go _ _               = errorstar "Constraint.instanctiatePv" 
 
 instance Show CoreExpr where
   show = showPpr
