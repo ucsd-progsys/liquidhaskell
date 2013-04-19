@@ -31,7 +31,8 @@ import Control.Exception        (assert)
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types
-import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..)) 
+import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.RefType
 
 -- MOVE TO TYPES
@@ -208,7 +209,7 @@ defRefType (Def f dc xs body) = mkArrow as [] xts t'
     xts = safeZip msg xs $ ofType `fmap` dataConOrigArgTys dc
     t'  = refineWithCtorBody dc f body t 
     t   = ofType $ dataConOrigResTy dc
-    msg = "defRefType dc = " ++ show dc 
+    msg = "defRefType dc = " ++ showPpr dc 
 
 
 refineWithCtorBody dc (Loc _ f) body t = 
@@ -216,7 +217,7 @@ refineWithCtorBody dc (Loc _ f) body t =
     Just (Reft (v, _)) ->
       strengthen t $ Reft (v, [RConc $ bodyPred (EApp f [eVar v]) body])
     Nothing -> 
-      errorstar $ "measure mismatch " ++ showpp f ++ " on con " ++ O.showPpr dc
+      errorstar $ "measure mismatch " ++ showpp f ++ " on con " ++ showPpr dc
 
 
 bodyPred ::  Expr -> Body -> Pred
