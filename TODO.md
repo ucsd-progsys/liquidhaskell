@@ -15,6 +15,8 @@ TODO
 
 * deep-measures
 
+* have liquid-fixpoint sort checker RETURN ERROR (rather than errorstar-inside) so we can give nicer messages.
+
 * wtf is include/KMeansHelper.hs ? Fix module import issue
 
 * qualified names break spec imports -- tests/todo/qualifiedvector.hs 
@@ -33,30 +35,31 @@ TODO
 Deep Measures
 =============
 
-See tests/todo/PairMeasure.hs
-
 measures over nested type constructors
 
-    measure fst :: (a, b) -> a
-    fst (x, y)     =  x
-
-    measure snd :: (a, b) -> b
-    fst (x, y)     =  y
-
-    measure listKeys :: [(k, v)] -> (Set a) 
-    listKeys([])   = {v | (? Set_emp(v))}
-    listKeys(x:xs) = {v | v = (Set_cup (Set_sng (fst x)) (listKeys xs)) }
+tests/todo/deepmeas0.hs
 
     measure llElts :: [[a]] -> (Set a)
     llElts ([])    = {v | (? Set_emp(v)) }
     llElts (x:xs)  = {v | v = (Set_cup (listElts x) (llElts xs)) } 
 
+1. Parse nested measure e.g. keys :: [(a, b)] -> (Set a) 
+2. Write fancy measure sigs (as above)  <--------- HEREHEREHEREHEREHERE
 
-- Write fancy measure sigs (as above)
-- Conjoin all constructor definitions
-- Before adding binder to env, prune out malformed refinements 
--  eg for "fst x" where x :: Int
+    - This breaks the sort-checker nicely. how to fix ?
 
+    A. intersection of different types -- add the ones that SURVIVE ?
+            
+            (:) :: a      -> [a]      -> [a]
+                /\ (a, b) -> [(a, b)] -> [(a, b)]
+                /\ [a]    -> [[a]]    -> [[a]]
+
+    OR
+
+    B. Conjoin all constructor definitions (DONE)
+       - Suppress checker
+       - Before adding binder to env, prune out malformed refinements 
+       - eg for "listElts x" where `x :: Int` or `x :: a` or such.
 
 Incremental Checking
 ====================
@@ -66,14 +69,12 @@ Incremental Checking
 1. Command Line Arguments  
     - Specify WHICH binders to verify [DEFAULT = ALL]  
     - liquid tests/pos/goo.hs -check foo bar baz 
-    - Print out vars/hs-types <-------------------------- HEREHEREHEREHERE
+    - Print out vars/hs-types <---------------------- STOPSTOPSTOPSTOPSTOP 
 
 2. CONSGEN for subset 
 3. CONSGEN for subset using TRUE for all other functions
 4. SAVE out inferred-types for top-level binders
 5. REUSE pre-inferred types for other functions 
-
-
 
 
 Benchmarks
@@ -96,7 +97,7 @@ Basic Refinement Types
 ----------------------
 
 [DONE] RefTypes 101  (Basic Ints, abz, div-by-zero)
-[DONE] Dependent Refinements: (Data.Vector, recursion-sum, loop, dotproduct, range, map, fold)
+[DONE] Dep Refinements: (Data.Vector, recursion-sum, dotprod, range, map, fold)
 [DONE] Lists I       (append, reverse, map-length, filter)
 [DONE] Lists II      (take, transpose)
 [DONE] MapReduce

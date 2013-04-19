@@ -1,3 +1,7 @@
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE FlexibleContexts       #-} 
+{-# LANGUAGE UndecidableInstances   #-}
+
 module Language.Haskell.Liquid.Measure (  
     Spec (..)
   , MSpec (..)
@@ -18,7 +22,6 @@ import Text.PrettyPrint.HughesPJ hiding (first)
 import Text.Printf (printf)
 import DataCon
 import qualified Data.HashMap.Strict as M 
--- import Data.Data
 import Data.Monoid hiding ((<>))
 import Data.List (foldl1')
 import Data.Either (partitionEithers)
@@ -48,23 +51,23 @@ data Spec ty bndr  = Spec {
 
 
 -- MOVE TO TYPES
-data MSpec ty bndr = MSpec { 
-    ctorMap :: M.HashMap Symbol [Def bndr]
-  , measMap :: M.HashMap Symbol (Measure ty bndr) 
+data MSpec ty ctor = MSpec { 
+    ctorMap :: M.HashMap Symbol [Def ctor]
+  , measMap :: M.HashMap Symbol (Measure ty ctor) 
   }
 
 -- MOVE TO TYPES
-data Measure ty bndr = M { 
+data Measure ty ctor = M { 
     name :: LocSymbol
   , sort :: ty
-  , eqns :: [Def bndr]
+  , eqns :: [Def ctor]
   } 
 
 -- MOVE TO TYPES
-data Def bndr 
+data Def ctor 
   = Def { 
     measure :: LocSymbol
-  , ctor    :: bndr
+  , ctor    :: ctor 
   , binds   :: [Symbol]
   , body    :: Body
   } deriving (Show)
@@ -87,9 +90,10 @@ mkM name typ eqns
 
 mkMSpec ::  [Measure ty Symbol] -> MSpec ty Symbol
 mkMSpec ms = MSpec cm mm 
-  where cm  = groupMap ctor $ concatMap eqns ms'
-        mm  = M.fromList [(val $ name m, m) | m <- ms' ]
-        ms' = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
+  where 
+    cm     = groupMap ctor $ concatMap eqns ms'
+    mm     = M.fromList [(val $ name m, m) | m <- ms' ]
+    ms'    = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
 -- MOVE TO TYPES
 instance Monoid (Spec ty bndr) where
@@ -158,28 +162,32 @@ instance Bifunctor Spec    where
            }
 
 -- MOVE TO TYPES
-instance Fixpoint Body where
-  toFix (E e)   = toFix e  
-  toFix (P p)   = toFix p
-  toFix (R v p) = braces (toFix v <+> text "|" <+> toFix p)   
+instance PPrint Body where
+  pprint (E e)   = pprint e  
+  pprint (P p)   = pprint p
+  pprint (R v p) = braces (pprint v <+> text "|" <+> pprint p)   
+
+-- instance PPrint a => Fixpoint (PPrint a) where
+--   toFix (BDc c)  = toFix c
+--   toFix (BTup n) = parens $ toFix n
 
 -- MOVE TO TYPES
-instance Fixpoint a => Fixpoint (Def a) where
-  toFix (Def m c bs body) = toFix m <> text " " <> cbsd <> text " = " <> toFix body   
-    where cbsd = parens (toFix c <> hsep (toFix `fmap` bs))
+instance PPrint a => PPrint (Def a) where
+  pprint (Def m c bs body) = pprint m <> text " " <> cbsd <> text " = " <> pprint body   
+    where cbsd = parens (pprint c <> hsep (pprint `fmap` bs))
 
 -- MOVE TO TYPES
-instance (Fixpoint t, Fixpoint a) => Fixpoint (Measure t a) where
-  toFix (M n s eqs) =  toFix n <> text "::" <> toFix s
-                    $$ vcat (toFix `fmap` eqs)
+instance (PPrint t, PPrint a) => PPrint (Measure t a) where
+  pprint (M n s eqs) =  pprint n <> text "::" <> pprint s
+                     $$ vcat (pprint `fmap` eqs)
 
 -- MOVE TO TYPES
-instance (Fixpoint t, Fixpoint a) => Fixpoint (MSpec t a) where
-  toFix =  vcat . fmap toFix . fmap snd . M.toList . measMap
+instance (PPrint t, PPrint a) => PPrint (MSpec t a) where
+  pprint =  vcat . fmap pprint . fmap snd . M.toList . measMap
 
 -- MOVE TO TYPES
-instance (Fixpoint t , Fixpoint a) => Show (Measure t a) where
-  show = showFix
+instance PPrint (Measure t a) => Show (Measure t a) where
+  show = showpp
 
 -- MOVE TO TYPES
 mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
@@ -187,24 +195,28 @@ mapTy f (M n ty eqs) = M n (f ty) eqs
 
 dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(LocSymbol, RefType)])
 dataConTypes  s = (ctorTys, measTys)
-  where measTys = [(name m, sort m) | m <- M.elems $ measMap s]
-        ctorTys = concatMap mkDataConIdsTy [(defsVar ds, defsTy ds) | (_, ds) <- M.toList $ ctorMap s]
-        defsTy  = foldl1' meet . fmap defRefType 
-        defsVar = ctor . safeHead "defsVar" 
+  where 
+    measTys     = [(name m, sort m) | m <- M.elems $ measMap s]
+    ctorTys     = concatMap mkDataConIdsTy [(defsVar ds, defsTy ds) | (_, ds) <- M.toList $ ctorMap s]
+    defsTy      = foldl1' meet . fmap defRefType 
+    defsVar     = ctor . safeHead "defsVar" 
 
 defRefType :: Def DataCon -> RefType
 defRefType (Def f dc xs body) = mkArrow as [] xts t'
-  where as  = RTV <$> dataConUnivTyVars dc
-        xts = safeZip "defRefType" xs $ ofType `fmap` dataConOrigArgTys dc
-        t'  = refineWithCtorBody dc f body t 
-        t   = ofType $ dataConOrigResTy dc
+  where 
+    as  = RTV <$> dataConUnivTyVars dc
+    xts = safeZip msg xs $ ofType `fmap` dataConOrigArgTys dc
+    t'  = refineWithCtorBody dc f body t 
+    t   = ofType $ dataConOrigResTy dc
+    msg = "defRefType dc = " ++ show dc 
+
 
 refineWithCtorBody dc (Loc _ f) body t = 
   case stripRTypeBase t of 
     Just (Reft (v, _)) ->
       strengthen t $ Reft (v, [RConc $ bodyPred (EApp f [eVar v]) body])
     Nothing -> 
-      errorstar $ "measure mismatch " ++ showFix f ++ " on con " ++ O.showPpr dc
+      errorstar $ "measure mismatch " ++ showpp f ++ " on con " ++ O.showPpr dc
 
 
 bodyPred ::  Expr -> Body -> Pred
@@ -222,7 +234,7 @@ data RTEnv   = RTE { typeAliases :: M.HashMap String (RTAlias String BareType)
                    , predAliases :: M.HashMap String (RTAlias Symbol Pred)
                    }
 
-expandRTAliases :: Spec BareType Symbol -> Spec BareType Symbol
+expandRTAliases    :: Spec BareType Symbol -> Spec BareType Symbol
 expandRTAliases sp = sp { sigs       = [ (x, generalize $ expandRTAlias env t)  | (x, t) <- sigs sp       ] }
                         { dataDecls  = [ expandRTAliasDataDecl env dc           | dc     <- dataDecls sp  ] } 
                         { invariants = [ generalize <$> expandRTAlias env <$> t | t      <- invariants sp ] }
@@ -259,20 +271,23 @@ makeAliasMap exp xts = expBody <$> env0
 
 -- | Using the Alias Environment to Expand Definitions
 
-expandRTAlias       :: RTEnv -> BareType -> BareType
-expandRTAlias env   = expReft . expType 
-  where expReft = fmap (txPredReft expPred) 
-        expType = expandAlias  (\_ _ -> id) [] (typeAliases env)
-        expPred = expandPAlias (\_ _ -> id) [] (predAliases env)
+expandRTAlias     :: RTEnv -> BareType -> BareType
+expandRTAlias env = expReft . expType 
+  where 
+    expReft       = fmap (txPredReft expPred) 
+    expType       = expandAlias  (\_ _ -> id) [] (typeAliases env)
+    expPred       = expandPAlias (\_ _ -> id) [] (predAliases env)
 
-txPredReft f = fmap  (txPredReft f)
-  where txPredReft f (Reft (v, ras)) = Reft (v, txPredRefa f <$> ras)
-        txPredRefa f (RConc p)       = RConc (f p)
-        txPredRefa _ z               = z
+txPredReft f      = fmap  (txPredReft f)
+  where 
+    txPredReft f (Reft (v, ras)) = Reft (v, txPredRefa f <$> ras)
+    txPredRefa f (RConc p)       = RConc (f p)
+    txPredRefa _ z               = z
        
 
 expandRTAliasDataDecl env dc = dc {tycDCons = dcons' }  
-  where dcons' = map (mapSnd (map (mapSnd (expandRTAlias env)))) (tycDCons dc) 
+  where 
+    dcons' = map (mapSnd (map (mapSnd (expandRTAlias env)))) (tycDCons dc) 
 
 
 -- | Using the Alias Environment to Expand Definitions
@@ -291,7 +306,7 @@ expandAlias f s env = go s
     go s (RApp c ts rs r)
       | c `elem` s        = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
       | c `M.member` env  = assert (null rs) $ expandRTApp (f (c:s) env) env c (go s <$> ts) r
-      | otherwise         = RApp c (go s <$> ts) rs r 
+      | otherwise         = RApp c (go s <$> ts) (go' s <$> rs) r 
     go s (RAllT a t)      = RAllT a (go s t)
     go s (RAllP a t)      = RAllP a (go s t)
     go s (RFun x t t' r)  = RFun x (go s t) (go s t') r
@@ -299,19 +314,21 @@ expandAlias f s env = go s
     go s (RCls c ts)      = RCls c (go s <$> ts) 
     go _ t                = t
 
+    go' s z@(RMono _ _)   = z
+    go' s (RPoly ss t)    = RPoly ss (go s t)
 
 expandRTApp tx env c args r
   | length args == (length αs) + (length εs)
   = subst su  $ (`strengthen` r) $ subsTyVars_meet αts $ tx $ rtBody rta
   | otherwise
-  = errorstar $ "Malformed Type-Alias Application" ++ msg ++ show rta
+  = errortext $ (text "Malformed Type-Alias Application" $+$ text msg $+$ tshow rta)
   where 
     αts       = zipWith (\α t -> (α, toRSort t, t)) αs ts
     su        = mkSubst $ zip (stringSymbol <$> εs) es
     αs        = rtTArgs rta 
     εs        = rtVArgs rta 
     rta       = env M.! c
-    msg       = showFix (RApp c args [] r) 
+    msg       = showpp (RApp c args [] r) 
     (ts, es_) = splitAt (length αs) args
     es        = map (exprArg msg) es_
     
