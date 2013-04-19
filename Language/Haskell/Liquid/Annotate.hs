@@ -18,17 +18,20 @@ import GHC                      ( SrcSpan (..)
                                 , srcSpanStartCol
                                 , srcSpanEndCol
                                 , srcSpanStartLine
-                                , srcSpanEndLine) 
+                                , srcSpanEndLine)
 
 import Var                      (Var (..))                                
 import Text.PrettyPrint.HughesPJ
 import GHC.Exts                 (groupWith, sortWith)
 
 import Data.Char                (isSpace)
+import Data.Function            (on)
+import Data.List                (sortBy)
 
 import Control.Arrow            hiding ((<+>))
 import Control.Applicative      ((<$>))
 import Control.DeepSeq
+import Control.Monad            (when)
 -- import Data.Data                hiding (TyCon, tyConName)
 
 import System.FilePath          (takeFileName, dropFileName, (</>)) 
@@ -60,9 +63,17 @@ annotate :: FilePath -> FixResult SrcSpan -> FixSolution -> AnnInfo Annot -> IO 
 annotate fname result sol anna 
   = do annotDump fname (extFileName Html $ extFileName Cst fname) result annm
        annotDump fname (extFileName Html fname) result annm'
-    where 
-       annm  = closeAnnots anna
-       annm' = tidySpecType <$> applySolution sol annm
+       showBots annm'
+    where
+      annm  = closeAnnots anna
+      annm' = tidySpecType <$> applySolution sol annm
+
+showBots (AI m) = mapM_ showBot $ sortBy (compare `on` fst) $ M.toList m
+  where
+    showBot (src, (Just v, spec):_) =
+        when (isFalse (rTypeReft spec)) $
+             printf "WARNING: Found false in %s\n" (showPpr src)
+    showBot _ = return ()
 
 annotDump :: FilePath -> FilePath -> FixResult SrcSpan -> AnnInfo SpecType -> IO ()
 annotDump srcFile htmlFile result ann
@@ -276,8 +287,9 @@ data Annot        = Use SpecType
 instance Functor AnnInfo where
   fmap f (AI m) = AI (fmap (fmap (\(x, y) -> (x, f y))) m)
 
-instance Fixpoint a => Fixpoint (AnnInfo a) where
-  toFix (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m 
+instance PPrint a => PPrint (AnnInfo a) where
+  pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m 
+
 
 instance NFData a => NFData (AnnInfo a) where
   rnf (AI x) = () -- rnf x
@@ -288,17 +300,17 @@ instance NFData Annot where
   rnf (Use x) = () -- rnf x
   rnf (Loc x) = () -- rnf x
 
-instance Fixpoint Annot where
-  toFix (Use t) = text "Use" <+> toFix t
-  toFix (Def t) = text "Def" <+> toFix t
-  toFix (RDf t) = text "RDf" <+> toFix t
-  toFix (Loc l) = text "Loc" <+> pprDoc l
+instance PPrint Annot where
+  pprint (Use t) = text "Use" <+> pprint t
+  pprint (Def t) = text "Def" <+> pprint t
+  pprint (RDf t) = text "RDf" <+> pprint t
+  pprint (Loc l) = text "Loc" <+> pprDoc l
 
 pprAnnInfoBinds (l, xvs) 
   = vcat $ map (pprAnnInfoBind . (l,)) xvs
 
 pprAnnInfoBind (RealSrcSpan k, xv) 
-  = xd $$ pprDoc l $$ pprDoc c $$ toFix n $$ vd $$ text "\n\n\n"
+  = xd $$ pprDoc l $$ pprDoc c $$ pprint n $$ vd $$ text "\n\n\n"
     where l        = srcSpanStartLine k
           c        = srcSpanStartCol k
           (xd, vd) = pprXOT xv 
@@ -307,8 +319,8 @@ pprAnnInfoBind (RealSrcSpan k, xv)
 pprAnnInfoBind (_, _) 
   = empty
 
-pprXOT (x, v) = (xd, toFix v)
-  where xd = maybe (text "unknown") toFix x
+pprXOT (x, v) = (xd, pprint v)
+  where xd = maybe (text "unknown") pprint x
 
 applySolution :: FixSolution -> AnnInfo SpecType -> AnnInfo SpecType 
 applySolution = fmap . fmap . mapReft . map . appSolRefa 
