@@ -15,6 +15,7 @@ module Language.Fixpoint.Types (
   -- * Rendering
   , showFix
   , traceFix
+  , resultDoc 
 
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
@@ -706,6 +707,7 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
                    } -- deriving (Eq)
 
 data FixResult a = Crash [a] String | Safe | Unsafe ![a] | UnknownError
+                   deriving (Eq, Show)
 
 type FixSolution = M.HashMap Symbol Pred
 
@@ -733,6 +735,16 @@ instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
 
 ppr_sinfos :: (Ord a, Fixpoint a) => String -> [SubC a] -> [Doc]
 ppr_sinfos msg = map ((text msg <>) . toFix) . sort . fmap sinfo
+
+
+resultDoc :: (Ord a, Fixpoint a) => FixResult a -> Doc
+resultDoc Safe           = text "Safe"
+resultDoc UnknownError   = text "Unknown Error!"
+resultDoc (Crash xs msg) = vcat $ (text ("Crash!: " ++ msg)) : (((text "CRASH:" <+>) . toFix) <$> xs)
+resultDoc (Unsafe xs)    = vcat $ (text "Unsafe:")           : (((text "WARNING:" <+>) . toFix) <$> xs)
+
+
+
 
 
 colorResult (Safe)      = Happy 
