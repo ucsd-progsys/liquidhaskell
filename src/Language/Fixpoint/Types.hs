@@ -472,21 +472,44 @@ instance Fixpoint Pred where
   simplify (POr  [])     = PFalse
   simplify (PAnd [p])    = simplify p
   simplify (POr  [p])    = simplify p
+  
   simplify (PAnd ps)    
-    | any isContra ps    = PFalse
-    | otherwise          = PAnd $ map simplify ps
+    | any isContraPred ps = PFalse
+    | otherwise           = PAnd $ filter (not . isTautoPred) $ map simplify ps
+  
   simplify (POr  ps)    
     | any isTautoPred ps = PTrue
-    | otherwise          = POr  $ map simplify ps 
+    | otherwise          = POr  $ filter (not . isContraPred) $ map simplify ps 
+
   simplify p            
-    | isContra p         = PFalse
+    | isContraPred p     = PFalse
     | isTautoPred  p     = PTrue
     | otherwise          = p
 
-zero         = ECon (I 0)
-one          = ECon (I 1)
-isContra     = (`elem` [ PAtom Eq zero one, PAtom Eq one zero, PFalse])   
-isTautoPred  = (`elem` [ PTrue ])
+zero           = ECon (I 0)
+one            = ECon (I 1)
+
+isContraPred z = eqC z || (z `elem` contras)
+  where
+    contras    = [PFalse]   
+    
+    eqC (PAtom Eq (ECon x) (ECon y))
+               = x /= y
+    eqC (PAtom Ne x y)
+               = x == y
+    eqC _      = False
+
+isTautoPred z  = eqT z || (z `elem` tautos)
+  where 
+    tautos     = [PTrue]
+    
+    eqT (PAtom Eq x y) 
+               = x == y
+    eqT (PAtom Ne (ECon x) (ECon y))
+               = x /= y
+    eqT _      = False 
+
+
 
 isTautoReft (Reft (_, ras)) = all isTautoRa ras
 isTautoRa (RConc p)         = isTautoPred p

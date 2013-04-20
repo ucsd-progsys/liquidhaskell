@@ -219,7 +219,8 @@ predrP = do e1    <- expr2P
             return $ r e1 e2
 
 brelP ::  Parser (Expr -> Expr -> Pred)
-brelP =  (reservedOp "="  >> return (PAtom Eq))
+brelP =  (reservedOp "==" >> return (PAtom Eq))
+     <|> (reservedOp "="  >> return (PAtom Eq))
      <|> (reservedOp "!=" >> return (PAtom Ne))
      <|> (reservedOp "/=" >> return (PAtom Ne))
      <|> (reservedOp "<"  >> return (PAtom Lt))
