@@ -1142,6 +1142,10 @@ class (Monoid r, Subable r) => Reftable r where
   toReft  :: r -> Reft
   params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
 
+instance Monoid Pred where
+  mempty      = PTrue 
+  mappend p q = pAnd [p, q]
+
 instance Monoid Reft where
   mempty  = trueReft
   mappend = meetReft
