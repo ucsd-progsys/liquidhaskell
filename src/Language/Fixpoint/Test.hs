@@ -23,4 +23,7 @@ f2, f2' :: Test
 f2  = (4, Safe,       rr "(((x = y) && (x1 = x + 1) && (y1 = y + 1)) => (x1 = y1))")
 f2' = (5, Unsafe [5], rr "(((x < y) && (x1 = x + 1) && (y1 = y + 1)) => (x1 = y1))")
 
+
+f5 = ""
+
 env p = map (, FInt) (syms p)
