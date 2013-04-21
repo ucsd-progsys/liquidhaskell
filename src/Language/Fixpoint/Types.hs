@@ -948,6 +948,10 @@ catSubst (Su s1) (Su s2) = Su $ s1' ++ s2
   -- = Su $ s1' `M.union` s2
   --   where s1' = subst (Su s2) `M.map` s1
 
+instance Monoid Subst where
+  mempty  = emptySubst
+  mappend = catSubst 
+
 ------------------------------------------------------------
 ------------- Generally Useful Refinements -----------------
 ------------------------------------------------------------
