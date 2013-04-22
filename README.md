@@ -1,4 +1,4 @@
-Building and Running 
+Building and Running
 ====================
 
 Requirements
@@ -15,18 +15,18 @@ Due to the Z3 dependency, LiquidHaskell can **only be compiled on Linux** at the
 How To Clone, Build and Install
 -------------------------------
 
-To begin building, run the following commands in the root 
+To begin building, run the following commands in the root
 directory of the distribution:
 
 1. Create top-level project directory
-    
+
     mkdir /path/to/liquid
     cd /path/to/liquid
     hsenv
-    source .hsenv_liquid/activate/bin
+    source .hsenv/bin/activate
 
 2. Install liquid-fixpoint
-    
+
     git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
     cd liquid-fixpoint
     cabal install
@@ -76,7 +76,7 @@ How to Profile
 --------------
 
 1. Build with profiling on
-    
+
     `$ make pdeps && make prof`
 
 2. Run with profiling
