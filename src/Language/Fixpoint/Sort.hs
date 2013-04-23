@@ -219,7 +219,7 @@ errArgArity g its es = printf "Measure %s expects %d args but gets %d in %s"
 errIte e1 e2 t1 t2   = printf "Mismatched branches in Ite: then %s : %s, else %s : %s" 
                          (showFix e1) (showFix t1) (showFix e2) (showFix t2) 
 
-errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %t" 
+errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s" 
                          (showFix e) (showFix t') (showFix t)
 
 errUnbound x         = printf "Unbound Symbol %s" (showFix x)
