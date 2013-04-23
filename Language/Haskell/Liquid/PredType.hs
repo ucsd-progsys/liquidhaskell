@@ -6,6 +6,8 @@ module Language.Haskell.Liquid.PredType (
   , unify, replacePreds, exprType, predType
   , replacePredsWithRefs, pVartoRConc, toPredType
   , substParg
+  , pApp
+  , wiredSortedSyms
   ) where
 
 -- import PprCore          (pprCoreExpr)
@@ -322,13 +324,16 @@ meetListWithPSubRef ss (RPoly s1 r1) (RPoly s2 r2) π
 ---------- Interface: Modified CoreSyn.exprType due to predApp -------------
 ----------------------------------------------------------------------------
 
+predName :: String 
+predName = "Pred"
+
 predType :: Type 
-predType = TyVarTy $ stringTyVar "Pred"
+predType = TyVarTy $ stringTyVar predName
 
 rpredType :: Reftable r => [RRType r] -> RRType r
 rpredType ts
   = RApp tyc ts [] top
-  where tyc = RTyCon (stringTyCon 'x' 42 "Pred") [] defaultTyConInfo
+  where tyc = RTyCon (stringTyCon 'x' 42 predName) [] defaultTyConInfo
 
 ----------------------------------------------------------------------------
 exprType :: CoreExpr -> Type
@@ -391,4 +396,24 @@ substParg :: Functor f => (Symbol, F.Expr) -> f Predicate -> f Predicate
 substParg (x, y) = fmap fp  -- RJ: UNIFY: BUG  mapTy fxy
   where fxy s = if (s == EVar x) then y else s
         fp    = subvPredicate (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
+
+-------------------------------------------------------------------------------
+-----------------------------  Predicate Application --------------------------
+-------------------------------------------------------------------------------
+
+pappArity  = 2
+
+pappSym n  = S $ "papp" ++ show n
+
+pappSort n = FFunc (2 * n) $ [ptycon] ++ args ++ [bSort]
+  where ptycon = FApp predFTyCon $ FVar <$> [0..n-1]
+        args   = FVar <$> [n..(2*n-1)]
+        bSort  = FApp boolFTyCon []
+ 
+wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
+
+predFTyCon = stringFTycon predName
+
+pApp :: Symbol -> [F.Expr] -> Pred
+pApp p es= PBexp $ EApp (pappSym $ length es) (EVar p:es)
 
