@@ -150,7 +150,7 @@ insertFEnv (FE benv env) ((x, t), i)
 
 insertsFEnv = L.foldl' insertFEnv
 
-initFEnv init = FE F.emptyIBindEnv $ F.fromListSEnv (F.wiredSortedSyms ++ init)
+initFEnv init = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ init)
 
 data CGEnv 
   = CGE { loc    :: !SrcSpan           -- ^ Location in original source file
