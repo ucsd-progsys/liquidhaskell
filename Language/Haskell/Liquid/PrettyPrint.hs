@@ -11,6 +11,8 @@ module Language.Haskell.Liquid.PrettyPrint (
   ) where
 
 import GHC                              (Name)
+import TcType                           (tidyType)
+import VarEnv                           (emptyTidyEnv)
 import Language.Haskell.Liquid.GhcMisc
 import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Types hiding (Predicate)
@@ -30,7 +32,7 @@ instance PPrint Name where
   pprint = pprDoc 
 
 instance PPrint Type where
-  pprint = pprDoc
+  pprint = pprDoc . tidyType emptyTidyEnv
 
 instance Show Predicate where
   show = showpp
