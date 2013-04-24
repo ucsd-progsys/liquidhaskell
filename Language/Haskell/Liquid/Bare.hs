@@ -27,7 +27,7 @@ import TcRnDriver               (tcRnLookupRdrName, tcRnLookupName)
 import Data.Char                (isLower)
 import Text.Printf
 import Data.Maybe               (listToMaybe, fromMaybe, mapMaybe, catMaybes, isNothing)
-import Control.Monad.State      (get, modify, State, evalState)
+import Control.Monad.State      (put, get, modify, State, evalState, execState)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>), (<|>))
 import Control.Monad.Reader     hiding (forM)
@@ -50,7 +50,7 @@ import qualified Data.List           as L
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 import qualified Control.Exception   as Ex
-
+import TypeRep
 ------------------------------------------------------------------
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
@@ -123,16 +123,63 @@ isSimpleType t = null tvs && isNothing (splitFunTy_maybe tb)
 
 -- renameTyVars :: (Var, SpecType) -> (Var, SpecType)
 renameTyVars (x, Loc l t) = if length as == length as'
-                              then (x, Loc l $ mkUnivs as' [] t')
+                              then (x, Loc l $ mkUnivs (rTyVar <$> as') [] t')
                               else errorstar $ render err
   where 
     err                   = vcat [ text "Specified Liquid Type Does Not Match Haskell Type"
                                  , text "Haskell:" <+> pprint x <+> dcolon <+> pprint (varType x)
                                  , text "Liquid :" <+> pprint x <+> dcolon <+> pprint t           ]
     t'                    = subts su (mkUnivs [] ps bt)
-    su                    = zip as as'
-    as'                   = rTyVar <$> (fst $ splitForAllTys $ varType x)
+    su                    = [(y, rTyVar x) | (x, y) <- tyvsmap]
+    tyvsmap               = vmap $ execState (mapTyVars tt bt) initvmap 
+    initvmap              = initMapSt as' as (render err)
+    (as', tt)             = (splitForAllTys $ varType x)
     (as, ps, bt)          = bkUniv t
+
+data MapTyVarST = MTVST { τvars  :: S.HashSet Var
+                        , tvars  :: S.HashSet RTyVar
+                        , vmap   :: [(Var, RTyVar)] 
+                        , errmsg :: String
+                        }
+
+initMapSt α a  = MTVST (S.fromList α) (S.fromList a) []
+
+mapTyVars :: (PPrint r, Reftable r) => Type -> RRType r -> State MapTyVarST ()
+mapTyVars τ (RAllT a t)   
+  = do modify $ \s -> s{ tvars = S.delete a (tvars s) }
+       mapTyVars τ t 
+mapTyVars (ForAllTy α τ) t 
+  = do modify $ \s -> s{ τvars = S.delete α (τvars s) }
+       mapTyVars τ t 
+mapTyVars (FunTy τ τ') (RFun _ t t' _) 
+   = mapTyVars τ t  >> mapTyVars τ' t'
+mapTyVars (TyConApp _ τs) (RApp _ ts _ _) 
+   = zipWithM_ mapTyVars τs ts
+mapTyVars (TyVarTy α) (RVar a _)      
+   = modify $ \s -> mapTyRVar α a s
+mapTyVars τ (RAllP _ t)   
+  = mapTyVars τ t 
+mapTyVars τ (RCls _ ts)     
+  = return ()
+mapTyVars τ (RAllE _ _ t)   
+  = mapTyVars τ t 
+mapTyVars τ (REx _ _ t)
+  = mapTyVars τ t 
+mapTyVars τ (RExprArg _)
+  = return ()
+mapTyVars (AppTy τ τ') (RAppTy t t' _) 
+  = do  mapTyVars τ t 
+        mapTyVars τ' t' 
+mapTyVars τ t               
+  = errorstar ("Bare.hs cannot handle" ++ show t)
+
+mapTyRVar α a s@(MTVST αs as αas err)
+  | (α `S.member` αs) && (a `S.member` as)
+  = MTVST (S.delete α αs) (S.delete a as) ((α, a):αas) err
+  | (not (α `S.member` αs)) && (not (a `S.member` as))
+  = s
+  | otherwise
+  = errorstar err
 
 mkVarExpr v 
   | isDataConWorkId v && not (null tvs) && isNothing tfun
