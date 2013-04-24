@@ -1,19 +1,6 @@
-module Deptup0 where
+module Goo where
 
-import Language.Haskell.Liquid.Prelude
+{-@ cnt :: Int -> Int @-}
+cnt 0 = 0
+cnt i = 1 + cnt (i-1)
 
-{-@ data Pair a b <p :: x0:a -> x1:b -> Prop> = P (x :: a) (y :: b<p x>) @-} 
-
-data Pair a b = P a b
-
-mkP :: a -> a -> Pair a a 
-mkP x y = P x y
-
-incr x = x + 1
-
-baz x  = mkP x (incr x)
-
-chk (P x y) = liquidAssertB (x < y)
-
-prop = chk $ baz n
-  where n = choose 100
