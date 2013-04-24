@@ -1,6 +1,14 @@
 TODO
 ====
 
+
+Failed 14 tests: ../benchmarks/esop2013-submission/Base.hs, ../benchmarks/esop2013-submission/Base0.hs, ../web/demos/KMeans.hs, ../web/demos/TalkingAboutSets.hs, ../web/demos/refinements101reax.hs, pos/GhcListSort.hs, pos/GhcSort3.hs, pos/ListMSort.hs, pos/fixme0.hs, pos/funref.hs, pos/maybe.hs, pos/pair0.hs, pos/rangeAdt.hs, pos/transTAG.hs
+
+
+
+
+
+
 * [jhala]  benchmarks: Data.Bytestring
     ? Upgrade to GHC 7.6.1 (boxed tuple commenting out C issue)
     ? readsPrec
