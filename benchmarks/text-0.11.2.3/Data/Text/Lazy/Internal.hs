@@ -20,8 +20,8 @@
 module Data.Text.Lazy.Internal
     (
       Text(..)
-    -- , chunk
-    -- , empty
+    , chunk
+    , empty
     , foldrChunks
     , foldlChunks
     -- * Data type invariant and abstraction functions
@@ -48,13 +48,19 @@ import qualified Data.Text.Internal as T
 import qualified Data.Text.Array
 import qualified Data.Text.Fusion.Internal
 import qualified Data.Text.Internal
-
+import Language.Haskell.Liquid.Prelude
 
 
 data Text = Empty
           | Chunk {-# UNPACK #-} !T.Text Text
 --LIQUID            deriving (Typeable)
 
+{-@ type NonEmptyStrict = {v:Data.Text.Internal.Text | (tlength v) > 0} @-}
+
+{-@ data Data.Text.Lazy.Internal.Text
+      = Empty
+      | Chunk (t :: NonEmptyStrict) (cs :: Data.Text.Lazy.Internal.Text)
+  @-}
 
 -- $invariant
 --
@@ -63,22 +69,25 @@ data Text = Empty
 -- and the QC properties must check this.
 
 -- | Check the invariant strictly.
+{-@ strictInvariant :: Text -> Bool @-}
 strictInvariant :: Text -> Bool
 strictInvariant Empty = True
 strictInvariant x@(Chunk (T.Text _ _ len) cs)
     | len > 0   = strictInvariant cs
-    | otherwise = error $ "Data.Text.Lazy: invariant violation: "
+    | otherwise = liquidError $ "Data.Text.Lazy: invariant violation: "
                   ++ showStructure x
 
 -- | Check the invariant lazily.
+{-@ lazyInvariant :: Text -> Text @-}
 lazyInvariant :: Text -> Text
 lazyInvariant Empty = Empty
 lazyInvariant x@(Chunk c@(T.Text _ _ len) cs)
     | len > 0   = Chunk c (lazyInvariant cs)
-    | otherwise = error $ "Data.Text.Lazy: invariant violation: "
+    | otherwise = liquidError $ "Data.Text.Lazy: invariant violation: "
                   ++ showStructure x
 
 -- | Display the internal structure of a lazy 'Text'.
+{-@ showStructure :: Text -> String @-}
 showStructure :: Text -> String
 showStructure Empty           = "Empty"
 showStructure (Chunk t Empty) = "Chunk " ++ show t ++ " Empty"
@@ -128,6 +137,7 @@ smallChunkSize = 128 - chunkOverhead
 {-# INLINE smallChunkSize #-}
 
 -- | The memory management overhead. Currently this is tuned for GHC only.
+{-@ chunkOverhead :: Int @-}
 chunkOverhead :: Int
 chunkOverhead = sizeOf (undefined :: Int) `shiftL` 1
 {-# INLINE chunkOverhead #-}

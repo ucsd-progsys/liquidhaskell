@@ -226,6 +226,13 @@ import qualified GHC.Base as GHC
 #endif
 import GHC.Prim (Addr#)
 
+--LIQUID
+import Data.Int
+import qualified Data.Text.Array
+import qualified Data.Text.Fusion.Internal
+import qualified Data.Text.Internal
+import qualified Data.Text.Lazy.Internal
+
 -- $fusion
 --
 -- Most of the functions in this module are subject to /fusion/,
@@ -864,7 +871,8 @@ replicate n t
 -- | /O(n)/ 'replicateChar' @n@ @c@ is a 'Text' of length @n@ with @c@ the
 -- value of every element. Subject to fusion.
 replicateChar :: Int64 -> Char -> Text
-replicateChar n c = unstream (S.replicateCharI n (safe c))
+--LIQUID replicateChar n c = unstream (S.replicateCharI n (safe c))
+replicateChar n c = unstream (S.replicateCharI (fromIntegral n) (safe c))
 {-# INLINE replicateChar #-}
 
 {-# RULES
