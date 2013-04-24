@@ -67,7 +67,7 @@ getGhcInfo cfg target
   = runGhc (Just libdir) $ do
       df                 <- getSessionDynFlags
       setSessionDynFlags  $ updateDynFlags df (idirs cfg) 
-      -- peepGHCSimple target 
+      -- peepGHCSimple target
       modguts            <- getGhcModGuts1 target
       hscEnv             <- getSession
       -- modguts     <- liftIO $ hscSimplify hscEnv modguts
@@ -85,8 +85,8 @@ updateDynFlags df ps
   = df { importPaths  = ps ++ importPaths df  } 
        { libraryPaths = ps ++ libraryPaths df }
        { profAuto     = ProfAutoCalls         }
-       { ghcLink      = LinkInMemory          }
-       { hscTarget    = HscInterpreted        }
+       { ghcLink      = NoLink                }
+       { hscTarget    = HscNothing            }
 
 printVars s vs 
   = do putStrLn s 

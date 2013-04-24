@@ -107,9 +107,9 @@ deSugarWithLoc hsc_env
         ; let hpcInfo = emptyHpcInfo other_hpc_info
 	; (msgs, mb_res)
               <- case target of
-	           HscNothing ->
-                       return (emptyMessages,
-                               Just ([], nilOL, [], [], NoStubs, hpcInfo, emptyModBreaks))
+	           -- HscNothing ->
+               --         return (emptyMessages,
+               --                 Just ([], nilOL, [], [], NoStubs, hpcInfo, emptyModBreaks))
                    _        -> do
 
                      let want_ticks = opt_Hpc
