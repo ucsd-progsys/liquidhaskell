@@ -81,6 +81,10 @@ import GHC.ST (ST(..), runST)
 import GHC.Word (Word16(..))
 import Prelude hiding (length, read)
 
+--LIQUID
+import Data.Int
+import Data.Word
+
 -- | Immutable array type.
 data Array = Array {
       aBA :: ByteArray#

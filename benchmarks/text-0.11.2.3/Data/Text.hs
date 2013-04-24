@@ -139,8 +139,8 @@ module Data.Text
 
     -- ** Breaking into many substrings
     -- $split
---LIQUID    , splitOn
---LIQUID    , split
+    , splitOn
+    , split
     , chunksOf
 
     -- ** Breaking into lines and words
@@ -1433,20 +1433,20 @@ tails t | null t    = [empty]
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
---LIQUID splitOn :: Text -> Text -> [Text]
---LIQUID splitOn pat@(Text _ _ l) src@(Text arr off len)
---LIQUID     | l <= 0          = liquidError "splitOn"
---LIQUID     | isSingleton pat = split (== unsafeHead pat) src
---LIQUID     | otherwise       = go 0 (indices pat src)
---LIQUID   where
---LIQUID     go !s (x:xs) =  textP arr (s+off) (x-s) : go (x+l) xs
---LIQUID     go  s _      = [textP arr (s+off) (len-s)]
---LIQUID {-# INLINE [1] splitOn #-}
+splitOn :: Text -> Text -> [Text]
+splitOn pat@(Text _ _ l) src@(Text arr off len)
+    | l <= 0          = liquidError "splitOn"
+    | isSingleton pat = split (== unsafeHead pat) src
+    | otherwise       = go 0 (indices pat src)
+  where
+    go !s (x:xs) =  textP arr (s+off) (x-s) : go (x+l) xs
+    go  s _      = [textP arr (s+off) (len-s)]
+{-# INLINE [1] splitOn #-}
 
---LIQUID {-# RULES
---LIQUID "TEXT splitOn/singleton -> split/==" [~1] forall c t.
---LIQUID     splitOn (singleton c) t = split (==c) t
---LIQUID   #-}
+{-# RULES
+"TEXT splitOn/singleton -> split/==" [~1] forall c t.
+    splitOn (singleton c) t = split (==c) t
+  #-}
 
 -- | /O(n)/ Splits a 'Text' into components delimited by separators,
 -- where the predicate returns True for a separator element.  The
@@ -1455,13 +1455,13 @@ tails t | null t    = [empty]
 --
 -- > split (=='a') "aabbaca" == ["","","bb","c",""]
 -- > split (=='a') ""        == [""]
---LIQUID split :: (Char -> Bool) -> Text -> [Text]
---LIQUID split _ t@(Text _off _arr 0) = [t]
---LIQUID split p t = loop t
---LIQUID     where loop s | null s'   = [l]
---LIQUID                  | otherwise = l : loop (unsafeTail s')
---LIQUID               where (# l, s' #) = span_ (not . p) s
---LIQUID {-# INLINE split #-}
+split :: (Char -> Bool) -> Text -> [Text]
+split _ t@(Text _off _arr 0) = [t]
+split p t = loop t
+    where loop s | null s'   = [l]
+                 | otherwise = l : loop (unsafeTail s')
+              where (# l, s' #) = span_ (not . p) s
+{-# INLINE split #-}
 
 -- | /O(n)/ Splits a 'Text' into components of length @k@.  The last
 -- element may be shorter than the other chunks, depending on the
