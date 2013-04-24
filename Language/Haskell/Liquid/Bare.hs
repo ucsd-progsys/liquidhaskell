@@ -15,6 +15,7 @@ module Language.Haskell.Liquid.Bare (
 import GHC hiding               (lookupName, Located)	
 import Text.PrettyPrint.HughesPJ    hiding (first)
 import Var
+import Id                       (isConLikeId)
 import PrelNames
 import PrelInfo                 (wiredInThings)
 import Type                     (expandTypeSynonyms, splitFunTy_maybe)
@@ -38,7 +39,7 @@ import Data.Bifunctor
 import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Fixpoint.Types                  
-import Language.Fixpoint.Sort                   (checkSortedReft, checkSortedReftFull)
+import Language.Fixpoint.Sort                   (checkSortedReftFull)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType
@@ -700,19 +701,13 @@ tyCompat x t         = (toRSort t) == (ofType $ varType x)
 ghcSpecEnv sp        = fromListSEnv binds
   where 
     emb              = tcEmbeds sp
-    binds            = [(x,           rSort t) | (x, Loc _ t) <- meas sp] ++ 
-                       [(varSymbol v, rSort t) | (v, Loc _ t) <- ctor sp] ++
-                       [(x          , vSort v) | (x, v) <- freeSyms sp] 
+    binds            =  [(x,           rSort t) | (x, Loc _ t) <- meas sp] 
+                     ++ [(varSymbol v, rSort t) | (v, Loc _ t) <- ctor sp] 
+                     ++ [(x          , vSort v) | (x, v) <- freeSyms sp, isConLikeId v] 
     rSort            = rTypeSortedReft emb 
     vSort            = rSort . varRType 
     varRType         :: Var -> RRType ()
     varRType         = ofType . varType
-
---   let vm  = M.fromList [(showPpr v, v) | v <- vs] 
---       xs' = [s | (x, _) <- xbs, let s = symbolString (val x), not (M.member s vm)]
---   in case xs' of 
---     [] -> return () 
---     _  -> errorstar $ "Asserts for Unknown variables: "  ++ (intercalate ", " xs')  
 
 
 -------------------------------------------------------------------------------------
