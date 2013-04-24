@@ -121,8 +121,13 @@ isSimpleType t = null tvs && isNothing (splitFunTy_maybe tb)
 
 
 -- renameTyVars :: (Var, SpecType) -> (Var, SpecType)
-renameTyVars (x, Loc l t) = (x, Loc l $ mkUnivs as' [] t')
+renameTyVars (x, Loc l t) = if length as == length as'
+                              then (x, Loc l $ mkUnivs as' [] t')
+                              else errorstar $ render err
   where 
+    err                   = vcat [ text "Specified Liquid Type Does Not Match Haskell Type"
+                                 , text "Haskell:" <+> pprint x <+> dcolon <+> pprint (varType x)
+                                 , text "Liquid :" <+> pprint x <+> dcolon <+> pprint t           ]
     t'                    = subts su (mkUnivs [] ps bt)
     su                    = zip as as'
     as'                   = rTyVar <$> (fst $ splitForAllTys $ varType x)
