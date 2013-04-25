@@ -29,8 +29,11 @@ Library
                      directory, hscolour, text, deepseq, filemanip, 
                      bifunctors, ansi-terminal, cmdargs, syb, pretty, 
                      liquid-fixpoint
+   hs-source-dirs:  include, .
 
-   Exposed-Modules: Language.Haskell.Liquid.Bare,
+   Exposed-Modules: Language.Haskell.Liquid.Prelude,
+                    Language.Haskell.Liquid.List, 
+                    Language.Haskell.Liquid.Bare,
                     Language.Haskell.Liquid.Constraint, 
                     Language.Haskell.Liquid.Measure, 
                     Language.Haskell.Liquid.Parse, 
