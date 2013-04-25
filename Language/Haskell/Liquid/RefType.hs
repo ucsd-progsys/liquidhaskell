@@ -710,19 +710,19 @@ dataConSymbol ::  DataCon -> Symbol
 dataConSymbol = varSymbol . dataConWorkId
 
 -- TODO: turn this into a map lookup?
-dataConReft ::  DataCon -> [Symbol] -> Reft
-dataConReft c [] 
+dataConReft ::  Bool -> DataCon -> [Symbol] -> Reft
+dataConReft _ c [] 
   | c == trueDataCon
   = Reft (vv_, [RConc $ eProp vv_]) 
   | c == falseDataCon
   = Reft (vv_, [RConc $ PNot $ eProp vv_]) 
-dataConReft c [x] 
+dataConReft _ c [x] 
   | c == intDataCon 
   = Reft (vv_, [RConc (PAtom Eq (EVar vv_) (EVar x))]) 
-dataConReft c _ 
-  | not $ isBaseDataCon c
+dataConReft isLiteral c _ 
+  | (not isLiteral) || not (isBaseDataCon c)
   = top
-dataConReft c xs
+dataConReft _ c xs
   = Reft (vv_, [RConc (PAtom Eq (EVar vv_) dcValue)])
   where dcValue | null xs && null (dataConUnivTyVars c) 
                 = EVar $ dataConSymbol c
