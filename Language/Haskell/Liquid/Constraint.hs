@@ -203,7 +203,6 @@ isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConst
 -- isBase :: RType a -> Bool
 isBase (RVar _ _)       = True
 isBase (RApp _ ts _ _)  = all isBase ts
-isBase (RFun _ t1 t2 _) = isBase t1 && isBase t2
 isBase _                = False
 
 -----------------------------------------------------------------
@@ -942,15 +941,17 @@ cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -
 cconsCase γ x t _ (DataAlt c, ys, ce) 
  = do let cbs          = safeZip "cconsCase" (x':ys') (xt0:yts)
       cγ'              <- addBinders γ x' cbs
+      literals         <- lits <$> get 
+      let r1           = dataConReft (c' `elem` (fst <$> literals)) c ys' 
+      let xt           = xt0 `strengthen` (uTop (r1 `F.meet` r2))
       cγ               <- addBinders cγ' x' [(x', xt)]
       cconsE cγ ce t
  where (x':ys')        = varSymbol <$> (x:ys)
        xt0             = checkTyCon ("checkTycon cconsCase", x) $ γ ?= x'
-       tdc             = γ ?= (dataConSymbol c)
+       tdc             = γ ?= c'
        (rtd, yts, _  ) = unfoldR c tdc (shiftVV xt0 x') ys
-       r1              = dataConReft   c   ys' 
        r2              = dataConMsReft rtd ys'
-       xt              = xt0 `strengthen` (uTop (r1 `F.meet` r2))
+       c'              = dataConSymbol c
 
 cconsCase γ x t acs (a, _, ce) 
   = do let x'  = varSymbol x
