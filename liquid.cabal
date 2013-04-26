@@ -33,6 +33,7 @@ Library
 
    Exposed-Modules: Language.Haskell.Liquid.Prelude,
                     Language.Haskell.Liquid.List, 
+                    Language.Haskell.Liquid.PrettyPrint, 
                     Language.Haskell.Liquid.Bare,
                     Language.Haskell.Liquid.Constraint, 
                     Language.Haskell.Liquid.Measure, 
@@ -51,6 +52,18 @@ Library
                     Language.Haskell.Liquid.TransformRec, 
                     Language.Haskell.Liquid.Tidy, 
                     Language.Haskell.Liquid.Types
+
+  other-modules:    Language.Haskell.Liquid.Desugar.Desugar
+                    Language.Haskell.Liquid.Desugar.DsExpr,
+                    Language.Haskell.Liquid.Desugar.DsListComp,
+                    Language.Haskell.Liquid.Desugar.MatchCon,
+                    Language.Haskell.Liquid.Desugar.MatchLit,
+                    Language.Haskell.Liquid.Desugar.DsArrows,
+                    Language.Haskell.Liquid.Desugar.DsUtils,
+                    Language.Haskell.Liquid.Desugar.Match,
+                    Language.Haskell.Liquid.Desugar.DsBinds,
+                    Language.Haskell.Liquid.Desugar.DsGRHSs,
+                    Language.Haskell.Liquid.Desugar.HscMain
   --ghc-options: -O -W
   Extensions: 
 
