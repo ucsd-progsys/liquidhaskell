@@ -13,10 +13,26 @@ Build-Type:          Simple
 Cabal-version: >=1.2
 
 Executable liquid 
-  Build-Depends:     base, containers, hashable, unordered-containers, 
-                     filepath, parsec, mtl, ghc, ghc-paths, process, 
-                     directory, hscolour, text, deepseq, filemanip, 
-                     bifunctors, ansi-terminal, cmdargs, syb, pretty, 
+  Build-Depends:     base,
+                     ghc==7.6.*,
+                     ansi-terminal==0.6,
+                     bifunctors==3.2.0.1,
+                     cmdargs==0.10.2,
+                     containers==0.5.0.0,
+                     deepseq==1.3.0.1,
+                     directory==1.2.0.1,
+                     filemanip==0.3.6.2,
+                     filepath==1.3.0.1,
+                     ghc-paths==0.1.0.9,
+                     hashable==1.2.0.5,
+                     hscolour==1.20.3,
+                     mtl==2.1.2,
+                     parsec==3.1.3,
+                     pretty==1.1.1.0,
+                     process==1.1.0.2,
+                     syb==0.4.0,
+                     text==0.11.2.3,
+                     unordered-containers==0.2.3.0,
                      liquid-fixpoint
 
   Main-is:           Liquid.hs
@@ -24,10 +40,26 @@ Executable liquid
   Extensions: 
 
 Library
-   Build-Depends:    base, containers, hashable, unordered-containers, 
-                     filepath, parsec, mtl, ghc, ghc-paths, process, 
-                     directory, hscolour, text, deepseq, filemanip, 
-                     bifunctors, ansi-terminal, cmdargs, syb, pretty, 
+   Build-Depends:    base,
+                     ghc==7.6.*,
+                     ansi-terminal==0.6,
+                     bifunctors==3.2.0.1,
+                     cmdargs==0.10.2,
+                     containers==0.5.0.0,
+                     deepseq==1.3.0.1,
+                     directory==1.2.0.1,
+                     filemanip==0.3.6.2,
+                     filepath==1.3.0.1,
+                     ghc-paths==0.1.0.9,
+                     hashable==1.2.0.5,
+                     hscolour==1.20.3,
+                     mtl==2.1.2,
+                     parsec==3.1.3,
+                     pretty==1.1.1.0,
+                     process==1.1.0.2,
+                     syb==0.4.0,
+                     text==0.11.2.3,
+                     unordered-containers==0.2.3.0,
                      liquid-fixpoint
    hs-source-dirs:  include, .
 
