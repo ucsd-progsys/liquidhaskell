@@ -122,19 +122,19 @@ isSimpleType t = null tvs && isNothing (splitFunTy_maybe tb)
 
 
 -- renameTyVars :: (Var, SpecType) -> (Var, SpecType)
-renameTyVars (x, Loc l t) = if length as == length as'
-                              then (x, Loc l $ mkUnivs (rTyVar <$> as') [] t')
-                              else errorstar $ render err
+renameTyVars (x, Loc l t) 
+  | length as == length αs
+  = (x, Loc l $ mkUnivs (rTyVar <$> αs) [] t')
+  | otherwise
+  = errorstar errmsg
   where 
-    err                   = vcat [ text "Specified Liquid Type Does Not Match Haskell Type"
-                                 , text "Haskell:" <+> pprint x <+> dcolon <+> pprint (varType x)
-                                 , text "Liquid :" <+> pprint x <+> dcolon <+> pprint t           ]
-    t'                    = subts su (mkUnivs [] ps bt)
+    t'                    = subts su (mkUnivs [] ps tbody)
     su                    = [(y, rTyVar x) | (x, y) <- tyvsmap]
-    tyvsmap               = vmap $ execState (mapTyVars tt bt) initvmap 
-    initvmap              = initMapSt as' as (render err)
-    (as', tt)             = (splitForAllTys $ varType x)
-    (as, ps, bt)          = bkUniv t
+    tyvsmap               = vmap $ execState (mapTyVars τbody tbody) initvmap 
+    initvmap              = initMapSt αs as errmsg
+    (αs, τbody)           = splitForAllTys $ varType x
+    (as, ps, tbody)       = bkUniv t
+    errmsg                = render $ errTypeMismatch x t
 
 data MapTyVarST = MTVST { τvars  :: S.HashSet Var
                         , tvars  :: S.HashSet RTyVar
@@ -737,9 +737,7 @@ checkDuplicate xts   = err <$> dups
 
 checkMismatch (x, t) = if ok then Nothing else Just err
   where ok           = tyCompat x t' --(toRSort t') == (ofType $ varType x) 
-        err          = vcat [ text "Specified Liquid Type Does Not Match Haskell Type"
-                            , text "Haskell:" <+> pprint x <+> dcolon <+> pprint (varType x)
-                            , text "Liquid :" <+> pprint x <+> dcolon <+> pprint t           ]
+        err          = errTypeMismatch x t
         t'           = val t
 
 tyCompat x t         = (toRSort t) == (ofType $ varType x)
@@ -756,6 +754,12 @@ ghcSpecEnv sp        = fromListSEnv binds
     varRType         :: Var -> RRType ()
     varRType         = ofType . varType
 
+
+
+errTypeMismatch x t = vcat [ text "Specified Liquid Type Does Not Match Haskell Type"
+                           , text "Haskell:" <+> pprint x <+> dcolon <+> pprint (varType x)
+                           , text "Liquid :" <+> pprint x <+> dcolon <+> pprint t           
+                           ]
 
 -------------------------------------------------------------------------------------
 -- | This function checks if a type is malformed in a given environment -------------
