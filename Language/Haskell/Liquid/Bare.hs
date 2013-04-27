@@ -275,9 +275,9 @@ makeSymbols vs xs' xts yts = xvs
 joinIds        ::  (Symbolic a) => [Var] -> [(a, t)] -> [(Var, a, t)]
 joinIds vs xts = catMaybes [(, x, t) <$> tx x | (x, t) <- xts]   
   where 
-    vm         = group [(dropModuleNames $ showpp v, v) | v <- vs]
+    vm         = group [(showpp v, v) | v <- vs]
     tx x       = listToMaybe $ filter (symCompat x) $ M.lookupDefault [] (ss x) vm
-    ss         = dropModuleNames . symbolString . symbol 
+    ss         = symbolString . symbol
 
 symCompat :: (Symbolic a) => a -> Var -> Bool
 symCompat x v   = (symbolString $ symbol x) `comp` (showpp v)
