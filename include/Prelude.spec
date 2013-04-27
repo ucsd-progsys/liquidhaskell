@@ -3,12 +3,12 @@ module spec Prelude where
 import GHC.Base
 import GHC.List
 
-assume GHC.Base..               :: forall< p :: xx:b -> c -> Prop
-                                         , q :: yy:a -> b -> Prop>.
-                                      f:(x:b -> c<p x>) ->
-                                      g:(y:a -> b<q y>) ->
-                                      x:a ->
-                                      exists[z:b<q x>].c<p z>
+-- assume GHC.Base..               :: forall< p :: xx:b -> c -> Prop
+--                                          , q :: yy:a -> b -> Prop>.
+--                                       f:(x:b -> c<p x>) ->
+--                                       g:(y:a -> b<q y>) ->
+--                                       x:a ->
+--                                       exists[z:b<q x>].c<p z>
 assume GHC.Integer.smallInteger :: x:GHC.Prim.Int# -> {v:Integer | v = (x :: Integer)}
 assume GHC.Num.+                :: (Num a) => x:a -> y:a -> {v:a | v = x + y }
 assume GHC.Num.-                :: (Num a) => x:a -> y:a -> {v:a | v = x - y }
