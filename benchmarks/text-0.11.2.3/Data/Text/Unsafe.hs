@@ -37,6 +37,9 @@ import qualified Data.Text.Array as A
 -- | /O(1)/ A variant of 'head' for non-empty 'Text'. 'unsafeHead'
 -- omits the check for the empty case, so there is an obligation on
 -- the programmer to provide a proof that the 'Text' is non-empty.
+{-@ unsafeHead :: {v:Text | (tlength v) > 0}
+               -> Char
+  @-}
 unsafeHead :: Text -> Char
 unsafeHead (Text arr off _len)
     | m < 0xD800 || m > 0xDBFF = unsafeChr m
@@ -48,6 +51,9 @@ unsafeHead (Text arr off _len)
 -- | /O(1)/ A variant of 'tail' for non-empty 'Text'. 'unsafeHead'
 -- omits the check for the empty case, so there is an obligation on
 -- the programmer to provide a proof that the 'Text' is non-empty.
+{-@ unsafeTail :: t:{v:Text | (tlength v) > 0}
+               -> {v:Text | (tlength v) < (tlength t)}
+  @-}
 unsafeTail :: Text -> Text
 unsafeTail t@(Text arr off len) =
 #if defined(ASSERTS)
@@ -59,9 +65,20 @@ unsafeTail t@(Text arr off len) =
 
 data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
 
+{-@ measure iter_d :: Data.Text.Unsafe.Iter -> Int
+   iter_d (Data.Text.Unsafe.Iter c d) = d
+  @-}
+
 -- | /O(1)/ Iterate (unsafely) one step forwards through a UTF-16
 -- array, returning the current character and the delta to add to give
 -- the next offset to iterate at.
+{-@ assume iter :: t:Data.Text.Internal.Text -> i:{v:Int | (Btwn v 0 (tlen t))}
+                -> {v:Data.Text.Unsafe.Iter | ((BtwnEI ((iter_d v)+i) i (tlen t))
+                          && ((numchars (tarr t) (toff t) (i+(iter_d v)))
+                              = (1 + (numchars (tarr t) (toff t) i)))
+                          && ((numchars (tarr t) (toff t) (i+(iter_d v)))
+                              <= (tlength t)))}
+  @-}
 iter :: Text -> Int -> Iter
 iter (Text arr off _len) i
     | m < 0xD800 || m > 0xDBFF = Iter (unsafeChr m) 1
@@ -83,8 +100,20 @@ iter_ (Text arr off _len) i | m < 0xD800 || m > 0xDBFF = 1
 -- | /O(1)/ Iterate one step backwards through a UTF-16 array,
 -- returning the current character and the delta to add (i.e. a
 -- negative number) to give the next offset to iterate at.
-reverseIter :: Text -> Int -> (Char,Int)
-reverseIter (Text arr off _len) i
+{-@ assume reverseIter
+                :: t:Data.Text.Internal.Text
+                -> i:Int
+                -> l:{v:Int | (BtwnEI v 0 (tlen t))}
+                -> (Char,{v:Int | ((BtwnEI (l+v) 0 l)
+                          && ((numchars (tarr t) (toff t) (l+v))
+                              = ((numchars (tarr t) (toff t) l) - 1))
+                          && ((numchars (tarr t) (toff t) (l+v))
+                              >= 0))})
+  @-}
+--LIQUID reverseIter :: Text -> Int -> (Char,Int)
+--LIQUID reverseIter (Text arr off _len) i
+reverseIter :: Text -> Int -> Int -> (Char,Int)
+reverseIter (Text arr off _len) i l
     | m < 0xDC00 || m > 0xDFFF = (unsafeChr m, -1)
     | otherwise                = (chr2 n m,    -2)
   where m = A.unsafeIndex arr j

@@ -49,7 +49,7 @@ module Data.Text.Lazy
     , pack
     , unpack
     , singleton
---    , empty
+    , empty
     , fromChunks
     , toChunks
     , toStrict
@@ -215,7 +215,7 @@ import qualified Data.Text.Unsafe as T
 import qualified Data.Text.Lazy.Fusion as S
 import Data.Text.Fusion.Internal (PairS(..))
 import Data.Text.Lazy.Fusion (stream, unstream)
-import Data.Text.Lazy.Internal (Text(..), foldlChunks, foldrChunks)
+import Data.Text.Lazy.Internal (Text(..), chunk, empty, foldlChunks, foldrChunks)
 import Data.Text.Internal (firstf, safe, textP)
 import qualified Data.Text.Util as U
 import Data.Text.Lazy.Search (indices)
@@ -228,11 +228,13 @@ import GHC.Prim (Addr#)
 
 --LIQUID
 import Data.Int
+--import qualified Data.Text
 import qualified Data.Text.Array
 import qualified Data.Text.Fusion.Internal
 import qualified Data.Text.Internal
 import qualified Data.Text.Lazy.Internal
-
+import qualified Data.Text.Unsafe
+import Language.Haskell.Liquid.Prelude
 -- $fusion
 --
 -- Most of the functions in this module are subject to /fusion/,
@@ -306,6 +308,10 @@ instance Eq Text where
 instance Ord Text where
     compare = compareText
 
+{-@ compareText :: Data.Text.Lazy.Internal.Text
+                -> Data.Text.Lazy.Internal.Text
+                -> Ordering
+  @-}
 compareText :: Text -> Text -> Ordering
 compareText Empty Empty = EQ
 compareText Empty _     = LT
@@ -315,8 +321,8 @@ compareText (Chunk a0 as) (Chunk b0 bs) = outer a0 b0
   outer ta@(T.Text arrA offA lenA) tb@(T.Text arrB offB lenB) = go 0 0
    where
     go !i !j
-      | i >= lenA = compareText as (Chunk (T.Text arrB (offB+j) (lenB-j)) bs)
-      | j >= lenB = compareText (Chunk (T.Text arrA (offA+i) (lenA-i)) as) bs
+      | i >= lenA = compareText as (chunk (T.Text arrB (offB+j) (lenB-j)) bs)
+      | j >= lenB = compareText (chunk (T.Text arrA (offA+i) (lenA-i)) as) bs
       | a < b     = LT
       | a > b     = GT
       | otherwise = go (i+di) (j+dj)
@@ -330,7 +336,7 @@ instance Read Text where
     readsPrec p str = [(pack x,y) | (x,y) <- readsPrec p str]
 
 instance Monoid Text where
-    mempty  = Empty
+    mempty  = empty
     mappend = append
     mconcat = concat
 
@@ -394,7 +400,7 @@ singleton c = Chunk (T.singleton c) Empty
 
 -- | /O(c)/ Convert a list of strict 'T.Text's into a lazy 'Text'.
 fromChunks :: [T.Text] -> Text
-fromChunks cs = L.foldr Chunk Empty cs
+fromChunks cs = L.foldr chunk Empty cs
 
 -- | /O(n)/ Convert a lazy 'Text' into a list of strict 'T.Text's.
 toChunks :: Text -> [T.Text]
@@ -407,7 +413,7 @@ toStrict t = T.concat (toChunks t)
 
 -- | /O(c)/ Convert a strict 'T.Text' into a lazy 'Text'.
 fromStrict :: T.Text -> Text
-fromStrict t = Chunk t Empty
+fromStrict t = chunk t Empty
 {-# INLINE [1] fromStrict #-}
 
 -- -----------------------------------------------------------------------------
@@ -472,7 +478,7 @@ head t = S.head (stream t)
 -- | /O(1)/ Returns all characters after the head of a 'Text', which
 -- must be non-empty.  Subject to fusion.
 tail :: Text -> Text
-tail (Chunk t ts) = Chunk (T.tail t) ts
+tail (Chunk t ts) = chunk (T.tail t) ts
 tail Empty        = emptyError "tail"
 {-# INLINE [1] tail #-}
 
@@ -488,9 +494,13 @@ tail Empty        = emptyError "tail"
 init :: Text -> Text
 init (Chunk t0 ts0) = go t0 ts0
     where go t (Chunk t' ts) = Chunk t (go t' ts)
-          go t Empty         = Chunk (T.init t) Empty
+          go t Empty         = chunk (T.init t) Empty
 init Empty = emptyError "init"
 {-# INLINE [1] init #-}
+
+{-@ foo :: NonEmptyStrict -> Text -> Text @-}
+foo :: T.Text -> Text -> Text
+foo = P.undefined
 
 {-# RULES
 "LAZY TEXT init -> fused" [~1] forall t.
@@ -556,7 +566,8 @@ length = foldlChunks go 0
 -- of 'length', but can short circuit if the count of characters is
 -- greater than the number, and hence be more efficient.
 compareLength :: Text -> Int64 -> Ordering
-compareLength t n = S.compareLengthI (stream t) n
+--LIQUID compareLength t n = S.compareLengthI (stream t) n
+compareLength t n = S.compareLengthI (stream t) (fromIntegral n)
 {-# INLINE [1] compareLength #-}
 
 -- We don't apply those otherwise appealing length-to-compareLength
@@ -812,7 +823,7 @@ scanl f z t = unstream (S.scanl g z (stream t))
 -- > scanl1 f [x1, x2, ...] == [x1, x1 `f` x2, ...]
 scanl1 :: (Char -> Char -> Char) -> Text -> Text
 scanl1 f t0 = case uncons t0 of
-                Nothing -> Empty
+                Nothing -> empty
                 Just (t,ts) -> scanl f t ts
 {-# INLINE scanl1 #-}
 
@@ -827,7 +838,7 @@ scanr f v = reverse . scanl g v . reverse
 -- | /O(n)/ 'scanr1' is a variant of 'scanr' that has no starting
 -- value argument.  Performs replacement on invalid scalar values.
 scanr1 :: (Char -> Char -> Char) -> Text -> Text
-scanr1 f t | null t    = Empty
+scanr1 f t | null t    = empty
            | otherwise = scanr f (last t) (init t)
 
 -- | /O(n)/ Like a combination of 'map' and 'foldl''. Applies a
@@ -861,7 +872,7 @@ mapAccumR f = go
 -- @t@ repeated @n@ times.
 replicate :: Int64 -> Text -> Text
 replicate n t
-    | null t || n <= 0 = Empty
+    | null t || n <= 0 = empty
     | isSingleton t    = replicateChar n (head t)
     | otherwise        = concat (rep 0)
     where rep !i | i >= n    = []
@@ -954,7 +965,7 @@ dropWords i t0
   where drop' 0 ts           = ts
         drop' _ Empty        = Empty
         drop' n (Chunk (T.Text arr off len) ts)
-            | n < len'  = Chunk (textP arr (off+n') (len-n')) ts
+            | n < len'  = chunk (textP arr (off+n') (len-n')) ts
             | otherwise = drop' (n - len') ts
             where len'  = fromIntegral len
                   n'    = fromIntegral n
@@ -1048,8 +1059,8 @@ strip = dropAround isSpace
 -- the string. It is equivalent to @('take' n t, 'drop' n t)@.
 splitAt :: Int64 -> Text -> (Text, Text)
 splitAt = loop
-  where loop _ Empty      = (Empty, Empty)
-        loop n t | n <= 0 = (Empty, t)
+  where loop _ Empty      = (empty, empty)
+        loop n t | n <= 0 = (empty, t)
         loop n (Chunk t ts)
              | n < len   = let (t',t'') = T.splitAt (fromIntegral n) t
                            in (Chunk t' Empty, Chunk t'' ts)
@@ -1061,12 +1072,12 @@ splitAt = loop
 -- element is a prefix of @t@ whose chunks contain @n@ 'Word16'
 -- values, and whose second is the remainder of the string.
 splitAtWord :: Int64 -> Text -> PairS Text Text
-splitAtWord _ Empty = Empty :*: Empty
+splitAtWord _ Empty = empty :*: empty
 splitAtWord x (Chunk c@(T.Text arr off len) cs)
     | y >= len  = let h :*: t = splitAtWord (x-fromIntegral len) cs
                   in  Chunk c h :*: t
-    | otherwise = Chunk (textP arr off y) Empty :*:
-                  Chunk (textP arr (off+y) (len-y)) cs
+    | otherwise = chunk (textP arr off y) empty :*:
+                  chunk (textP arr (off+y) (len-y)) cs
     where y = fromIntegral x
 
 -- | /O(n+m)/ Find the first instance of @needle@ (which must be
@@ -1097,7 +1108,7 @@ breakOn :: Text -> Text -> (Text, Text)
 breakOn pat src
     | null pat  = emptyError "breakOn"
     | otherwise = case indices pat src of
-                    []    -> (src, Empty)
+                    []    -> (src, empty)
                     (x:_) -> let h :*: t = splitAtWord x src
                              in  (h, t)
 
@@ -1139,7 +1150,7 @@ breakOnAll :: Text              -- ^ @needle@ to search for
            -> [(Text, Text)]
 breakOnAll pat src
     | null pat  = emptyError "breakOnAll"
-    | otherwise = go 0 Empty src (indices pat src)
+    | otherwise = go 0 empty src (indices pat src)
   where
     go !n p s (x:xs) = let h :*: t = splitAtWord (x-n) s
                            h'      = append p h
@@ -1150,7 +1161,7 @@ breakOnAll pat src
 -- elements that fail the predicate @p@.
 break :: (Char -> Bool) -> Text -> (Text, Text)
 break p t0 = break' t0
-  where break' Empty          = (Empty, Empty)
+  where break' Empty          = (empty, empty)
         break' c@(Chunk t ts) =
           case T.findIndex p t of
             Nothing      -> let (ts', ts'') = break' ts
@@ -1186,7 +1197,7 @@ groupBy _  Empty        = []
 groupBy eq (Chunk t ts) = cons x ys : groupBy eq zs
                           where (ys,zs) = span (eq x) xs
                                 x  = T.unsafeHead t
-                                xs = Chunk (T.unsafeTail t) ts
+                                xs = chunk (T.unsafeTail t) ts
 
 -- | /O(n)/ Return all initial segments of the given 'Text',
 -- shortest first.
@@ -1402,9 +1413,9 @@ commonPrefixes a0 b0   = Just (go a0 b0 [])
     go t0@(Chunk x xs) t1@(Chunk y ys) ps
         = case T.commonPrefixes x y of
             Just (p,a,b)
-              | T.null a  -> go xs (Chunk b ys) (p:ps)
-              | T.null b  -> go (Chunk a xs) ys (p:ps)
-              | otherwise -> (fromChunks (L.reverse (p:ps)),Chunk a xs, Chunk b ys)
+              | T.null a  -> go xs (chunk b ys) (p:ps)
+              | T.null b  -> go (chunk a xs) ys (p:ps)
+              | otherwise -> (fromChunks (L.reverse (p:ps)),chunk a xs, chunk b ys)
             Nothing       -> (fromChunks (L.reverse ps),t0,t1)
     go t0 t1 ps = (fromChunks (L.reverse ps),t0,t1)
 
@@ -1498,7 +1509,7 @@ zipWith f t1 t2 = unstream (S.zipWith g (stream t1) (stream t2))
 {-# INLINE [0] zipWith #-}
 
 revChunks :: [T.Text] -> Text
-revChunks = L.foldl' (flip Chunk) Empty
+revChunks = L.foldl' (flip chunk) Empty
 
 emptyError :: String -> a
 emptyError fun = P.error ("Data.Text.Lazy." ++ fun ++ ": empty input")

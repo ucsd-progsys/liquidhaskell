@@ -10,6 +10,16 @@ reverseStream :: t:Data.Text.Internal.Text
 unstream      :: s:Data.Text.Fusion.Internal.Stream Char
               -> {v:Data.Text.Internal.Text | (tlength v) = (slen s)}
 
+findIndex :: (Char -> Bool)
+          -> s:Data.Text.Fusion.Internal.Stream Char
+          -> {v:Maybe {v0:Int | ((isJust v) => (Btwn v0 0 (slen s)))} | true}
+
+mapAccumL :: (a -> Char -> (a,Char))
+          -> a
+          -> s:Data.Text.Fusion.Internal.Stream Char
+          -> (a, {v:Text | (tlength v) = (slen s)})
+
+
 length  :: s:Data.Text.Fusion.Internal.Stream Char
         -> {v:Int | v = (slen s)}
 reverse :: s:Data.Text.Fusion.Internal.Stream Char

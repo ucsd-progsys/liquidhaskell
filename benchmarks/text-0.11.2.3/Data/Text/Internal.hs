@@ -45,13 +45,15 @@ import qualified Data.Text.Array as A
 import Data.Text.UnsafeChar (ord)
 import Data.Typeable (Typeable)
 
+--LIQUID
+import qualified Data.Text.Array
 
-{-@ measure alen :: A.Array -> Integer
-    alen (A.Array a l) = l
+{- measure alen :: Data.Text.Array.Array -> Integer
+    alen (Data.Text.Array.Array a l) = l
   @-}
 
-{-@ data Text = Text
-              (arr :: A.Array)
+{- data Data.Text.Internal.Text = Data.Text.Internal.Text
+              (arr :: Data.Text.Array.Array)
               (off :: {v: Integer | v >= 0 })
               (len :: {v: Integer | (v >= 0 && ((alen arr) = 0 || v = 0 || off < (alen arr)))})
   @-}
@@ -78,7 +80,7 @@ text arr off len =
 {-# INLINE text #-}
 
 -- | /O(1)/ The empty 'Text'.
-{-@ empty :: {v:Text | (tlen v) = 0} @-}
+{-@ empty :: {v:Data.Text.Internal.Text | (tlen v) = 0} @-}
 empty :: Text
 empty = Text A.empty 0 0
 {-# INLINE [1] empty #-}

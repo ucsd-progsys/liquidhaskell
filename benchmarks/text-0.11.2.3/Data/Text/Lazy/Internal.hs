@@ -97,7 +97,7 @@ showStructure (Chunk t ts)    =
 -- | Smart constructor for 'Chunk'. Guarantees the data type invariant.
 chunk :: T.Text -> Text -> Text
 {-# INLINE chunk #-}
-chunk t@(T.Text _ _ len) ts | len <= 0  = ts
+chunk t@(T.Text _ _ len) ts | len == 0 = ts
                             | otherwise = Chunk t ts
 
 -- | Smart constructor for 'Empty'.

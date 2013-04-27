@@ -7,6 +7,10 @@ snoc :: s:Data.Text.Fusion.Internal.Stream Char
      -> Char
      -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = (1 + (slen s))}
 
+compareLengthI :: s:Data.Text.Fusion.Internal.Stream Char
+               -> l:Int
+               -> {v:Ordering | ((v = GHC.Types.EQ) <=> ((slen s) = l))}
+
 isSingleton :: s:Data.Text.Fusion.Internal.Stream Char
             -> {v:Bool | ((Prop v) <=> ((slen s) = 1))}
 singleton   :: Char

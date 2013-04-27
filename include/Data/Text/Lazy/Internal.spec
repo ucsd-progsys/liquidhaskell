@@ -7,3 +7,8 @@ data Data.Text.Lazy.Internal.Text
     = Empty
     | Chunk (t :: NonEmptyStrict) (cs :: Data.Text.Lazy.Internal.Text)
 
+foldrChunks :: (NonEmptyStrict -> a -> a)
+            -> a
+            -> Data.Text.Lazy.Internal.Text
+            -> a
+
