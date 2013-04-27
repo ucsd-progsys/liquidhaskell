@@ -7,7 +7,7 @@ import Language.Haskell.Liquid.Prelude (liquidAssert)
 x ! y = x + y
 
 
-{-@ (!!) :: {v: Int | v > 0} -> {v: Int | v > 0} -> Int @-}
+{-@ Foo.!! :: {v: Int | v > 0} -> {v: Int | v > 0} -> Int @-}
 (!!)   :: Int -> Int -> Int 
 x !! y = liquidAssert (x /= 0) $ x + y 
 
