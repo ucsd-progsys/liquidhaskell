@@ -33,6 +33,7 @@ module Language.Fixpoint.Parse (
 
   -- * Parsing Function
   , doParse' 
+  , parseFromFile 
   ) where
 
 import Control.Applicative ((<*>), (<$>), (<*))
@@ -40,7 +41,7 @@ import Control.Monad
 import Text.Parsec
 import Text.Parsec.Expr
 import Text.Parsec.Language
-import Text.Parsec.String
+import Text.Parsec.String hiding (parseFromFile)
 import Text.Printf  (printf)
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
@@ -52,8 +53,8 @@ import Language.Fixpoint.Types
 --------------------------------------------------------------------
 
 languageDef =
-  emptyDef { Token.commentStart    = "/*"
-           , Token.commentEnd      = "*/"
+  emptyDef { Token.commentStart    = "/* "
+           , Token.commentEnd      = " */"
            , Token.commentLine     = "--"
            , Token.identStart      = satisfy (\_ -> False) 
            , Token.identLetter     = satisfy (\_ -> False)
@@ -340,6 +341,10 @@ doParse' parser f s
       Right (_, rem) -> errorstar $ printf "doParse has leftover when parsing: %s\nfrom file %s\n"
                                       rem f
   where p = whiteSpace >> parser
+
+
+parseFromFile :: Parser b -> SourceName -> IO b
+parseFromFile p f = doParse' p f <$> readFile f
 
 ----------------------------------------------------------------------------------------
 ------------------------ Bundling Parsers into a Typeclass -----------------------------
