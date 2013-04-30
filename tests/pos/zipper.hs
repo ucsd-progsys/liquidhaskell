@@ -87,6 +87,11 @@ differentiate (x:xs) = Just $ Stack x [] xs
 integrate :: Stack a -> [a]
 integrate (Stack x l r) = reverse l ++ x : r
 
+{-@ integrate' :: Maybe (UStack a) -> UList a @-}
+integrate' :: Maybe (Stack a) -> [a]
+integrate' = maybe [] integrate
+
+
 {-@ focusUp :: UStack a -> UStack a @-}
 focusUp :: Stack a -> Stack a
 focusUp (Stack t [] rs)     = Stack x xs [] where (x:xs) = reverse (t:rs)
