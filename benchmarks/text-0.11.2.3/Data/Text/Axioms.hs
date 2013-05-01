@@ -10,15 +10,12 @@ axiom_numchars_append a b t = True
 axiom_numchars_replicate :: Text -> Text -> Bool
 axiom_numchars_replicate t t' = True
 
-axiom_numchars_init :: Text -> Text -> Bool
-axiom_numchars_init t t' = True
-
 axiom_numchars_split :: Text -> Int -> Bool
 axiom_numchars_split t i = True
 
 
-nc :: A.Array -> Int -> Int -> Int
-nc a o l = l
+-- nc :: A.Array -> Int -> Int -> Int
+-- nc a o l = l
 
-tl :: Text -> Int
-tl (Text a o l) = l
+-- tl :: Text -> Int
+-- tl (Text a o l) = l

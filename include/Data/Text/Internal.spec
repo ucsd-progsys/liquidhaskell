@@ -27,8 +27,12 @@ invariant {v:Data.Text.Internal.Text | (tlength v) >= 0}
 measure tlength :: Data.Text.Internal.Text -> Int
 tlength (Data.Text.Internal.Text a o l) = numchars(a,o,l)
 
-textP :: Data.Text.Array.Array
-      -> Int
-      -> len:Int
-      -> {v:Data.Text.Internal.Text | ((tlen v) = len)}
+measure sum_tlengths :: [Data.Text.Internal.Text] -> Int
+sum_tlengths ([]) = 0
+sum_tlengths (t:ts) = (tlength t) + (sum_tlengths ts)
+
+textP :: a:Data.Text.Array.Array
+      -> o:Int
+      -> l:Int
+      -> {v:Data.Text.Internal.Text | (tlength v) = (numchars a o l)}
 empty :: {v:Data.Text.Internal.Text | (((tlen v) = 0) && ((tlength v) = 0))}

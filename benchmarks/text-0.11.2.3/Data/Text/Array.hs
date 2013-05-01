@@ -43,6 +43,8 @@ module Data.Text.Array
     , toList
     , unsafeFreeze
     , unsafeIndex
+    --LIQUID
+    , unsafeIndex'
     , new
     , unsafeWrite
     ) where
@@ -153,6 +155,10 @@ unsafeIndex :: Array -> Int -> Word16
 unsafeIndex Array{..} i@(I# i#) =
   CHECK_BOUNDS("unsafeIndex",aLen,i)
     case indexWord16Array# aBA i# of r# -> (W16# r#)
+
+--LIQUID
+unsafeIndex' :: Array -> Int -> Int -> Int -> Word16
+unsafeIndex' a o l i = unsafeIndex a i
 {-# INLINE unsafeIndex #-}
 
 -- | Unchecked write of a mutable array.  May return garbage or crash
