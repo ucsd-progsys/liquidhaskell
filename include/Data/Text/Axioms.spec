@@ -13,11 +13,6 @@ axiom_numchars_replicate
   -> {v:Bool | ((Prop v) <=> (((tlen t2) >= (tlen t1))
                               => ((tlength t2) >= (tlength t1))))}
 
-axiom_numchars_init
-  :: t1:Text -> t2:Text
-  -> {v:Bool | ((Prop v) <=> (((tlen t2) < (tlen t1))
-                              => ((tlength t2) < (tlength t1))))}
-
 axiom_numchars_split
   :: t:Text
   -> i:Int

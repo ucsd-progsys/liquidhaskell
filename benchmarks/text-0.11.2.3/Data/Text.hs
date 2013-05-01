@@ -585,12 +585,11 @@ tail t@(Text arr off len)
 init :: Text -> Text
 init t@(Text arr off len)
     | len <= 0                   = liquidError "init"
-    | n >= 0xDC00 && n <= 0xDFFF = let t' = textP arr off (len-2)
-                                   in liquidAssume (axiom_numchars_init t t') t'
-    | otherwise                  = let t' = textP arr off (len-1)
-                                   in liquidAssume (axiom_numchars_init t t') t'
+    | n >= 0xDC00 && n <= 0xDFFF = textP arr off (len-2)
+    | otherwise                  = textP arr off (len-1)
     where
-      n = A.unsafeIndex arr (off+len-1)
+      --LIQUID n = A.unsafeIndex' arr (off+len-1)
+      n = A.unsafeIndex' arr off len (off+len-1)
 {-# INLINE [1] init #-}
 
 {-# RULES
