@@ -559,7 +559,7 @@ last (Text arr off len)
 -- | /O(1)/ Returns all characters after the head of a 'Text', which
 -- must be non-empty.  Subject to fusion.
 {-@ tail :: t:{v:Data.Text.Internal.Text | (tlength v) > 0}
-         -> {v:Data.Text.Internal.Text | (tlength v) < (tlength t)}
+         -> {v:Data.Text.Internal.Text | ((tlength v) = ((tlength t) - 1))}
   @-}
 tail :: Text -> Text
 tail t@(Text arr off len)
@@ -580,7 +580,7 @@ tail t@(Text arr off len)
 -- | /O(1)/ Returns all but the last character of a 'Text', which must
 -- be non-empty.  Subject to fusion.
 {-@ init :: t:{v:Data.Text.Internal.Text | (tlength v) > 0}
-         -> {v:Data.Text.Internal.Text | ((tlength v) < (tlength t))}
+         -> {v:Data.Text.Internal.Text | ((tlength v) = ((tlength t) - 1))}
   @-}
 init :: Text -> Text
 init t@(Text arr off len)
@@ -1100,12 +1100,11 @@ unfoldrN n f s = unstream (S.unfoldrN n (firstf safe . f) s)
 -- 'Text' of length @n@, or the 'Text' itself if @n@ is greater than
 -- the length of the Text. Subject to fusion.
 {-@ take :: n:{v:Int | v >= 0}
-         -> t:Text
-         -> {v:Text | (Min (tlength v) (tlength t) n)}
+         -> t:Data.Text.Internal.Text
+         -> {v:Data.Text.Internal.Text | (Min (tlength v) (tlength t) n)}
   @-}
 take :: Int -> Text -> Text
-take = take'
-take' n t@(Text arr off len)
+take n t@(Text arr off len)
     | n <= 0    = empty
     | n >= len  = t
     | otherwise = Text arr off len'
@@ -1120,7 +1119,7 @@ take' n t@(Text arr off len)
               -> t:Data.Text.Internal.Text
               -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
               -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
-                            && (v <= n))}
+                               && (v <= n) && (v <= (tlength t)))}
               -> {v:Int | ((Min (numchars (tarr t) (toff t) v) (tlength t) n) && (v >= 0))}
   @-}
 loop_take :: Int -> Text -> Int -> Int -> Int
