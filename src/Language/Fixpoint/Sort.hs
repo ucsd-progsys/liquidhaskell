@@ -179,6 +179,8 @@ checkRel f r  e1 e2                = do t1 <- checkExpr f e1
                                         checkRelTy f (PAtom r e1 e2) r t1 t2
 
 checkRelTy :: (Fixpoint a) =>(Symbol -> Maybe Sort) -> a -> Brel -> Sort -> Sort -> CheckM ()
+checkRelTy f _ _ (FObj l) (FObj l') | l /= l' 
+  = (checkNumeric f l >> checkNumeric f l') `catchError` (\_ -> throwError $ errNonNumerics l l') 
 checkRelTy f _ _ FInt (FObj l)     = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l) 
 checkRelTy f _ _ (FObj l) FInt     = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l)
 checkRelTy _ e Eq t1 t2            = unless (t1 == t2 && t1 /= fProp) (throwError $ errRel e t1 t2)
@@ -229,6 +231,7 @@ errUnbound x         = printf "Unbound Symbol %s" (showFix x)
 errNonFunction t     = printf "Sort %s is not a function" (showFix t)
 
 errNonNumeric  l     = printf "FObj sort %s is not numeric" (showFix l)
+errNonNumerics l l'   = printf "FObj sort %s and %s are different and not numeric" (showFix l) (showFix l')
 
 errUnexpectedPred p  = printf "Sort Checking: Unexpected Predicate %s" (showFix p)
 
