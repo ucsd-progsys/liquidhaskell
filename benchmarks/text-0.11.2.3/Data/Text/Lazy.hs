@@ -228,6 +228,7 @@ import GHC.Prim (Addr#)
 
 --LIQUID
 import Data.Int
+import qualified Data.Word
 --import qualified Data.Text
 import qualified Data.Text.Array
 import qualified Data.Text.Fusion.Internal
@@ -235,6 +236,7 @@ import qualified Data.Text.Internal
 import qualified Data.Text.Lazy.Internal
 import qualified Data.Text.Unsafe
 import Language.Haskell.Liquid.Prelude
+
 -- $fusion
 --
 -- Most of the functions in this module are subject to /fusion/,
@@ -329,26 +331,26 @@ compareText (Chunk a0 as) (Chunk b0 bs) = outer a0 b0
       where T.Iter a di = T.iter ta i
             T.Iter b dj = T.iter tb j
 
-instance Show Text where
-    showsPrec p ps r = showsPrec p (unpack ps) r
-
-instance Read Text where
-    readsPrec p str = [(pack x,y) | (x,y) <- readsPrec p str]
-
-instance Monoid Text where
-    mempty  = empty
-    mappend = append
-    mconcat = concat
-
-instance IsString Text where
-    fromString = pack
-
-#if defined(HAVE_DEEPSEQ)
-instance NFData Text where
-    rnf Empty        = ()
-    rnf (Chunk _ ts) = rnf ts
-#endif
-
+--LIQUID instance Show Text where
+--LIQUID     showsPrec p ps r = showsPrec p (unpack ps) r
+--LIQUID 
+--LIQUID instance Read Text where
+--LIQUID     readsPrec p str = [(pack x,y) | (x,y) <- readsPrec p str]
+--LIQUID 
+--LIQUID instance Monoid Text where
+--LIQUID     mempty  = empty
+--LIQUID     mappend = append
+--LIQUID     mconcat = concat
+--LIQUID 
+--LIQUID instance IsString Text where
+--LIQUID     fromString = pack
+--LIQUID 
+--LIQUID #if defined(HAVE_DEEPSEQ)
+--LIQUID instance NFData Text where
+--LIQUID     rnf Empty        = ()
+--LIQUID     rnf (Chunk _ ts) = rnf ts
+--LIQUID #endif
+--LIQUID 
 --LIQUID instance Data Text where
 --LIQUID   gfoldl f z txt = z pack `f` (unpack txt)
 --LIQUID   toConstr _     = error "Data.Text.Lazy.Text.toConstr"
@@ -362,12 +364,19 @@ instance NFData Text where
 -- | /O(n)/ Convert a 'String' into a 'Text'.
 --
 -- Subject to fusion.  Performs replacement on invalid scalar values.
+{-@ pack :: s:String
+         -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (len s)}
+ @-}
 pack :: String -> Text
-pack = unstream . S.streamList . L.map safe
+--LIQUID pack = unstream . S.streamList . L.map safe
+pack s = unstream $ S.streamList $ L.map safe s
 {-# INLINE [1] pack #-}
 
 -- | /O(n)/ Convert a 'Text' into a 'String'.
 -- Subject to fusion.
+{-@ unpack :: t:Data.Text.Lazy.Internal.Text
+           -> {v:String | (len v) = (ltlength t)}
+ @-}
 unpack :: Text -> String
 unpack t = S.unstreamList (stream t)
 {-# INLINE [1] unpack #-}
@@ -387,6 +396,7 @@ unpackCString# addr# = unstream (S.streamCString# addr#)
 
 -- | /O(1)/ Convert a character into a Text.  Subject to fusion.
 -- Performs replacement on invalid scalar values.
+{-@ singleton :: Char -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = 1} @-}
 singleton :: Char -> Text
 singleton c = Chunk (T.singleton c) Empty
 {-# INLINE [1] singleton #-}
@@ -422,6 +432,9 @@ fromStrict t = chunk t Empty
 -- | /O(n)/ Adds a character to the front of a 'Text'.  This function
 -- is more costly than its 'List' counterpart because it requires
 -- copying a new array.  Subject to fusion.
+{-@ cons :: Char -> t:Data.Text.Lazy.Internal.Text
+         -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = (1 + (ltlength t)))}
+  @-}
 cons :: Char -> Text -> Text
 cons c t = Chunk (T.singleton c) t
 {-# INLINE [1] cons #-}
@@ -462,6 +475,10 @@ append xs ys = foldrChunks Chunk ys xs
 
 -- | /O(1)/ Returns the first character and rest of a 'Text', or
 -- 'Nothing' if empty. Subject to fusion.
+{-@ uncons :: t:Data.Text.Lazy.Internal.Text
+           -> {v:Maybe (Char,{v0:Data.Text.Lazy.Internal.Text | ((isJust v) =>
+                                 ((ltlength v0) = ((ltlength t) - 1)))}) | true}
+   @-}
 uncons :: Text -> Maybe (Char, Text)
 uncons Empty        = Nothing
 uncons (Chunk t ts) = Just (T.unsafeHead t, ts')
@@ -471,15 +488,22 @@ uncons (Chunk t ts) = Just (T.unsafeHead t, ts')
 
 -- | /O(1)/ Returns the first character of a 'Text', which must be
 -- non-empty.  Subject to fusion.
+{-@ head :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
+         -> Char
+  @-}
 head :: Text -> Char
 head t = S.head (stream t)
 {-# INLINE head #-}
 
 -- | /O(1)/ Returns all characters after the head of a 'Text', which
 -- must be non-empty.  Subject to fusion.
+{-@ tail :: t:{v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
+         -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = ((ltlength t) - 1))}
+  @-}
 tail :: Text -> Text
 tail (Chunk t ts) = chunk (T.tail t) ts
-tail Empty        = emptyError "tail"
+--LIQUID tail Empty        = emptyError "tail"
+tail Empty        = liquidError "tail"
 {-# INLINE [1] tail #-}
 
 {-# RULES
@@ -491,16 +515,24 @@ tail Empty        = emptyError "tail"
 
 -- | /O(1)/ Returns all but the last character of a 'Text', which must
 -- be non-empty.  Subject to fusion.
+{-@ init :: t:{v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
+         -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = ((ltlength t) - 1))}
+  @-}
 init :: Text -> Text
-init (Chunk t0 ts0) = go t0 ts0
-    where go t (Chunk t' ts) = Chunk t (go t' ts)
-          go t Empty         = chunk (T.init t) Empty
-init Empty = emptyError "init"
+--LIQUID init (Chunk t0 ts0) = go t0 ts0
+--LIQUID     where go t (Chunk t' ts) = Chunk t (go t' ts)
+--LIQUID           go t Empty         = chunk (T.init t) Empty
+--LIQUID init Empty = emptyError "init"
+init (Chunk t0 ts0) = init_go t0 ts0
+init Empty = liquidError "init"
 {-# INLINE [1] init #-}
 
-{-@ foo :: NonEmptyStrict -> Text -> Text @-}
-foo :: T.Text -> Text -> Text
-foo = P.undefined
+{-@ init_go :: t:NonEmptyStrict
+            -> ts:Data.Text.Lazy.Internal.Text
+            -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = ((tlength t) + (ltlength ts) - 1))}
+  @-}
+init_go t (Chunk t' ts) = Chunk t (init_go t' ts)
+init_go t Empty         = chunk (T.init t) Empty
 
 {-# RULES
 "LAZY TEXT init -> fused" [~1] forall t.
@@ -511,6 +543,9 @@ foo = P.undefined
 
 -- | /O(1)/ Tests whether a 'Text' is empty or not.  Subject to
 -- fusion.
+{-@ null :: t:Data.Text.Lazy.Internal.Text
+         -> {v:Bool | ((Prop v) <=> ((ltlength t) = 0))}
+  @-}
 null :: Text -> Bool
 null Empty = True
 null _     = False
@@ -525,14 +560,22 @@ null _     = False
 
 -- | /O(1)/ Tests whether a 'Text' contains exactly one character.
 -- Subject to fusion.
+{-@ isSingleton :: t:Data.Text.Lazy.Internal.Text
+                -> {v:Bool | ((Prop v) <=> ((ltlength t) = 1))}
+  @-}
 isSingleton :: Text -> Bool
-isSingleton = S.isSingleton . stream
+--LIQUID isSingleton = S.isSingleton . stream
+isSingleton t = S.isSingleton $ stream t
 {-# INLINE isSingleton #-}
 
 -- | /O(1)/ Returns the last character of a 'Text', which must be
 -- non-empty.  Subject to fusion.
+{-@ last :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
+         -> Char
+  @-}
 last :: Text -> Char
-last Empty        = emptyError "last"
+--LIQUID last Empty        = emptyError "last"
+last Empty        = liquidError "last"
 last (Chunk t ts) = go t ts
     where go _ (Chunk t' ts') = go t' ts'
           go t' Empty         = T.last t'
@@ -565,6 +608,10 @@ length = foldlChunks go 0
 -- This function gives the same answer as comparing against the result
 -- of 'length', but can short circuit if the count of characters is
 -- greater than the number, and hence be more efficient.
+{-@ compareLength :: t:Data.Text.Lazy.Internal.Text
+                  -> l:Int64
+                  -> {v:Ordering | ((v = GHC.Types.EQ) <=> ((ltlength t) = l))}
+  @-}
 compareLength :: Text -> Int64 -> Ordering
 --LIQUID compareLength t n = S.compareLengthI (stream t) n
 compareLength t n = S.compareLengthI (stream t) (fromIntegral n)
@@ -577,6 +624,10 @@ compareLength t n = S.compareLengthI (stream t) (fromIntegral n)
 -- | /O(n)/ 'map' @f@ @t@ is the 'Text' obtained by applying @f@ to
 -- each element of @t@.  Subject to fusion.  Performs replacement on
 -- invalid scalar values.
+{-@ map :: (Char -> Char)
+        -> t:Data.Text.LazyInternal.Text
+        -> {v:Data.Text.Lazy.Internal.Text | (ltlength t) = (ltlength v)}
+  @-}
 map :: (Char -> Char) -> Text -> Text
 map f t = unstream (S.map (safe . f) (stream t))
 {-# INLINE [1] map #-}
@@ -591,6 +642,10 @@ intercalate t = concat . (U.intersperse t)
 -- | /O(n)/ The 'intersperse' function takes a character and places it
 -- between the characters of a 'Text'.  Subject to fusion.  Performs
 -- replacement on invalid scalar values.
+{-@ intersperse :: Char
+                -> t:Data.Text.Lazy.Internal.Text
+                -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) > (ltlength t)}
+  @-}
 intersperse :: Char -> Text -> Text
 intersperse c t = unstream (S.intersperse (safe c) (stream t))
 {-# INLINE intersperse #-}
@@ -603,6 +658,11 @@ intersperse c t = unstream (S.intersperse (safe c) (stream t))
 --
 -- > justifyLeft 7 'x' "foo"    == "fooxxxx"
 -- > justifyLeft 3 'x' "foobar" == "foobar"
+{-@ justifyLeft :: i:Int64
+                -> Char
+                -> t:Data.Text.Lazy.Internal.Text
+                -> {v:Data.Text.Lazy.Internal.Text | (Max (ltlength v) i (ltlength t))}
+  @-}
 justifyLeft :: Int64 -> Char -> Text -> Text
 justifyLeft k c t
     | len >= k  = t
@@ -625,6 +685,11 @@ justifyLeft k c t
 --
 -- > justifyRight 7 'x' "bar"    == "xxxxbar"
 -- > justifyRight 3 'x' "foobar" == "foobar"
+{-@ justifyRight :: i:Int64
+                 -> Char
+                 -> t:Data.Text.Lazy.Internal.Text
+                 -> {v:Data.Text.Lazy.Internal.Text | (Max (ltlength v) i (ltlength t))}
+  @-}
 justifyRight :: Int64 -> Char -> Text -> Text
 justifyRight k c t
     | len >= k  = t
@@ -639,6 +704,11 @@ justifyRight k c t
 -- Examples:
 --
 -- > center 8 'x' "HS" = "xxxHSxxx"
+{-@ center :: i:Int64
+           -> Char
+           -> t:Data.Text.Lazy.Internal.Text
+           -> {v:Data.Text.Lazy.Internal.Text | (Max (ltlength v) i (ltlength t))}
+  @-}
 center :: Int64 -> Char -> Text -> Text
 center k c t
     | len >= k  = t
@@ -659,6 +729,9 @@ transpose ts = L.map (\ss -> Chunk (T.pack ss) Empty)
 -- TODO: make this fast
 
 -- | /O(n)/ 'reverse' @t@ returns the elements of @t@ in reverse order.
+{-@ reverse :: t:Data.Text.Lazy.Internal.Text
+            -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (ltlength t)}
+  @-}
 reverse :: Text -> Text
 reverse = rev Empty
   where rev a Empty        = a
@@ -701,6 +774,9 @@ replace s d = intercalate d . splitOn s
 -- bigram men now (U+0574 U+0576), while the micro sign (U+00B5) is
 -- case folded to the Greek small letter letter mu (U+03BC) instead of
 -- itself.
+{-@ toCaseFold :: t:Data.Text.Lazy.Internal.Text
+               -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (ltlength t)}
+  @-}
 toCaseFold :: Text -> Text
 toCaseFold t = unstream (S.toCaseFold (stream t))
 {-# INLINE [0] toCaseFold #-}
@@ -710,6 +786,9 @@ toCaseFold t = unstream (S.toCaseFold (stream t))
 -- For instance, the Latin capital letter I with dot above (U+0130)
 -- maps to the sequence Latin small letter i (U+0069) followed by
 -- combining dot above (U+0307).
+{-@ toLower :: t:Data.Text.Lazy.Internal.Text
+            -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (ltlength t)}
+  @-}
 toLower :: Text -> Text
 toLower t = unstream (S.toLower (stream t))
 {-# INLINE toLower #-}
@@ -718,6 +797,9 @@ toLower t = unstream (S.toLower (stream t))
 -- conversion.  The result string may be longer than the input string.
 -- For instance, the German eszett (U+00DF) maps to the two-letter
 -- sequence SS.
+{-@ toUpper :: t:Data.Text.Lazy.Internal.Text
+            -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (ltlength t)}
+  @-}
 toUpper :: Text -> Text
 toUpper t = unstream (S.toUpper (stream t))
 {-# INLINE toUpper #-}
@@ -738,11 +820,19 @@ foldl' f z t = S.foldl' f z (stream t)
 
 -- | /O(n)/ A variant of 'foldl' that has no starting value argument,
 -- and thus must be applied to a non-empty 'Text'.  Subject to fusion.
+{-@ foldl1 :: (Char -> Char -> Char)
+           -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
+           -> Char
+  @-}
 foldl1 :: (Char -> Char -> Char) -> Text -> Char
 foldl1 f t = S.foldl1 f (stream t)
 {-# INLINE foldl1 #-}
 
 -- | /O(n)/ A strict version of 'foldl1'.  Subject to fusion.
+{-@ foldl1' :: (Char -> Char -> Char)
+            -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
+            -> Char
+  @-}
 foldl1' :: (Char -> Char -> Char) -> Text -> Char
 foldl1' f t = S.foldl1' f (stream t)
 {-# INLINE foldl1' #-}
@@ -758,18 +848,39 @@ foldr f z t = S.foldr f z (stream t)
 -- | /O(n)/ A variant of 'foldr' that has no starting value argument,
 -- and thus must be applied to a non-empty 'Text'.  Subject to
 -- fusion.
+{-@ foldr1 :: (Char -> Char -> Char)
+           -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
+           -> Char
+  @-}
 foldr1 :: (Char -> Char -> Char) -> Text -> Char
 foldr1 f t = S.foldr1 f (stream t)
 {-# INLINE foldr1 #-}
 
 -- | /O(n)/ Concatenate a list of 'Text's.
+{-@ concat :: ts:[Data.Text.Lazy.Internal.Text]
+           -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (sum_ltlengths ts)}
+  @-}
 concat :: [Text] -> Text
-concat = to
-  where
-    go Empty        css = to css
-    go (Chunk c cs) css = Chunk c (go cs css)
-    to []               = Empty
-    to (cs:css)         = go cs css
+concat = concat_to
+--LIQUID concat = to
+--LIQUID   where
+--LIQUID     go Empty        css = to css
+--LIQUID     go (Chunk c cs) css = Chunk c (go cs css)
+--LIQUID     to []               = Empty
+--LIQUID     to (cs:css)         = go cs css
+
+{-@ concat_go :: t:Data.Text.Lazy.Internal.Text
+              -> ts:[Data.Text.Lazy.Internal.Text]
+              -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = ((sum_ltlengths ts) + (ltlength t)))}
+  @-}
+concat_go Empty        css = concat_to css
+concat_go (Chunk c cs) css = Chunk c (concat_go cs css)
+
+{-@ concat_to :: ts:[Data.Text.Lazy.Internal.Text]
+              -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (sum_ltlengths ts)}
+  @-}
+concat_to []               = Empty
+concat_to (cs:css)         = concat_go cs css
 {-# INLINE concat #-}
 
 -- | /O(n)/ Map a function over a 'Text' that results in a 'Text', and
@@ -915,15 +1026,30 @@ unfoldrN n f s = unstream (S.unfoldrN n (firstf safe . f) s)
 -- | /O(n)/ 'take' @n@, applied to a 'Text', returns the prefix of the
 -- 'Text' of length @n@, or the 'Text' itself if @n@ is greater than
 -- the length of the Text. Subject to fusion.
+{-@ take :: i:{v:Int64 | v >= 0}
+         -> t:Data.Text.Lazy.Internal.Text
+         -> {v:Data.Text.Lazy.Internal.Text | (Min (ltlength v) (ltlength t) i)}
+ @-}
 take :: Int64 -> Text -> Text
 take i _ | i <= 0 = Empty
 take i t0         = take' i t0
-  where take' 0 _            = Empty
-        take' _ Empty        = Empty
-        take' n (Chunk t ts)
-            | n < len   = Chunk (T.take (fromIntegral n) t) Empty
-            | otherwise = Chunk t (take' (n - len) ts)
-            where len = fromIntegral (T.length t)
+--LIQUID   where take' 0 _            = Empty
+--LIQUID         take' _ Empty        = Empty
+--LIQUID         take' n (Chunk t ts)
+--LIQUID             | n < len   = Chunk (T.take (fromIntegral n) t) Empty
+--LIQUID             | otherwise = Chunk t (take' (n - len) ts)
+--LIQUID             where len = fromIntegral (T.length t)
+{-@ take' :: i:{v:Int64 | v >= 0}
+          -> t:Data.Text.Lazy.Internal.Text
+          -> {v:Data.Text.Lazy.Internal.Text | (Min (ltlength v) (ltlength t) i)}
+ @-}
+take' :: Int64 -> Text -> Text
+take' 0 _            = Empty
+take' _ Empty        = Empty
+take' n (Chunk t ts)
+    | n < len   = Chunk (T.take (fromIntegral n) t) Empty
+    | otherwise = Chunk t (take' (n - len) ts)
+    where len = fromIntegral (T.length t)
 {-# INLINE [1] take #-}
 
 {-# RULES
@@ -936,16 +1062,35 @@ take i t0         = take' i t0
 -- | /O(n)/ 'drop' @n@, applied to a 'Text', returns the suffix of the
 -- 'Text' after the first @n@ characters, or the empty 'Text' if @n@
 -- is greater than the length of the 'Text'. Subject to fusion.
+{-@ drop :: i:{v:Int64 | v >= 0}
+         -> t:Data.Text.Lazy.Internal.Text
+         -> {v:Data.Text.Lazy.Internal.Text |
+                ((ltlength v) = (((ltlength t) <= i)
+                                 ? 0 : ((ltlength t) - i)))}
+  @-}
 drop :: Int64 -> Text -> Text
 drop i t0
     | i <= 0    = t0
     | otherwise = drop' i t0
-  where drop' 0 ts           = ts
-        drop' _ Empty        = Empty
-        drop' n (Chunk t ts)
-            | n < len   = Chunk (T.drop (fromIntegral n) t) ts
-            | otherwise = drop' (n - len) ts
-            where len   = fromIntegral (T.length t)
+--LIQUID   where drop' 0 ts           = ts
+--LIQUID         drop' _ Empty        = Empty
+--LIQUID         drop' n (Chunk t ts)
+--LIQUID             | n < len   = Chunk (T.drop (fromIntegral n) t) ts
+--LIQUID             | otherwise = drop' (n - len) ts
+--LIQUID             where len   = fromIntegral (T.length t)
+{-@ drop' :: i:{v:Int64 | v >= 0}
+          -> t:Data.Text.Lazy.Internal.Text
+          -> {v:Data.Text.Lazy.Internal.Text |
+                 ((ltlength v) = (((ltlength t) <= i)
+                                  ? 0 : ((ltlength t) - i)))}
+  @-}
+drop' :: Int64 -> Text -> Text
+drop' 0 ts           = ts
+drop' _ Empty        = Empty
+drop' n (Chunk t ts)
+    | n < len   = Chunk (T.drop (fromIntegral n) t) ts
+    | otherwise = drop' (n - len) ts
+    where len   = fromIntegral (T.length t)
 {-# INLINE [1] drop #-}
 
 {-# RULES
@@ -973,6 +1118,10 @@ dropWords i t0
 -- | /O(n)/ 'takeWhile', applied to a predicate @p@ and a 'Text',
 -- returns the longest prefix (possibly empty) of elements that
 -- satisfy @p@.  Subject to fusion.
+{-@ takeWhile :: (Char -> Bool)
+              -> t:Data.Text.Lazy.Internal.Text
+              -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}
+  @-}
 takeWhile :: (Char -> Bool) -> Text -> Text
 takeWhile p t0 = takeWhile' t0
   where takeWhile' Empty        = Empty
@@ -992,6 +1141,10 @@ takeWhile p t0 = takeWhile' t0
 
 -- | /O(n)/ 'dropWhile' @p@ @t@ returns the suffix remaining after
 -- 'takeWhile' @p@ @t@.  Subject to fusion.
+{-@ dropWhile :: (Char -> Bool)
+              -> t:Data.Text.Lazy.Internal.Text
+              -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}
+  @-}
 dropWhile :: (Char -> Bool) -> Text -> Text
 dropWhile p t0 = dropWhile' t0
   where dropWhile' Empty        = Empty
@@ -1013,6 +1166,10 @@ dropWhile p t0 = dropWhile' t0
 -- Examples:
 --
 -- > dropWhileEnd (=='.') "foo..." == "foo"
+{-@ dropWhileEnd :: (Char -> Bool)
+                 -> t:Data.Text.Lazy.Internal.Text
+                 -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}
+  @-}
 dropWhileEnd :: (Char -> Bool) -> Text -> Text
 dropWhileEnd p = go
   where go Empty = Empty
@@ -1028,13 +1185,21 @@ dropWhileEnd p = go
 -- | /O(n)/ 'dropAround' @p@ @t@ returns the substring remaining after
 -- dropping characters that fail the predicate @p@ from both the
 -- beginning and end of @t@.  Subject to fusion.
+{-@ dropAround :: (Char -> Bool)
+               -> t:Data.Text.Lazy.Internal.Text
+               -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}
+  @-}
 dropAround :: (Char -> Bool) -> Text -> Text
-dropAround p = dropWhile p . dropWhileEnd p
+--LIQUID dropAround p = dropWhile p . dropWhileEnd p
+dropAround p t = dropWhile p $ dropWhileEnd p t
 {-# INLINE [1] dropAround #-}
 
 -- | /O(n)/ Remove leading white space from a string.  Equivalent to:
 --
 -- > dropWhile isSpace
+{-@ stripStart :: t:Data.Text.Lazy.Internal.Text
+               -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}
+  @-}
 stripStart :: Text -> Text
 stripStart = dropWhile isSpace
 {-# INLINE [1] stripStart #-}
@@ -1042,6 +1207,9 @@ stripStart = dropWhile isSpace
 -- | /O(n)/ Remove trailing white space from a string.  Equivalent to:
 --
 -- > dropWhileEnd isSpace
+{-@ stripEnd :: t:Data.Text.Lazy.Internal.Text
+             -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}
+  @-}
 stripEnd :: Text -> Text
 stripEnd = dropWhileEnd isSpace
 {-# INLINE [1] stripEnd #-}
@@ -1050,6 +1218,9 @@ stripEnd = dropWhileEnd isSpace
 -- Equivalent to:
 --
 -- > dropAround isSpace
+{-@ strip :: t:Data.Text.Lazy.Internal.Text
+          -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}
+  @-}
 strip :: Text -> Text
 strip = dropAround isSpace
 {-# INLINE [1] strip #-}
@@ -1057,6 +1228,12 @@ strip = dropAround isSpace
 -- | /O(n)/ 'splitAt' @n t@ returns a pair whose first element is a
 -- prefix of @t@ of length @n@, and whose second is the remainder of
 -- the string. It is equivalent to @('take' n t, 'drop' n t)@.
+{-@ splitAt :: n:{v:Int64 | v >= 0}
+            -> t:Data.Text.Lazy.Internal.Text
+            -> (Data.Text.Lazy.Internal.Text, Data.Text.Lazy.Internal.Text)<{\x y ->
+                 (((ltlength x) <= n)
+                  && ((ltlength y) = ((ltlength t) - (ltlength x))))}>
+  @-}
 splitAt :: Int64 -> Text -> (Text, Text)
 splitAt = loop
   where loop _ Empty      = (empty, empty)
@@ -1282,6 +1459,10 @@ split p (Chunk t0 ts0) = comb [] (T.split p t0) ts0
 --
 -- > chunksOf 3 "foobarbaz"   == ["foo","bar","baz"]
 -- > chunksOf 4 "haskell.org" == ["hask","ell.","org"]
+{-@ chunksOf :: k:{v:Int64 | v >= 0}
+             -> t:Data.Text.Lazy.Internal.Text
+             -> {v:[{v0:Data.Text.Lazy.Internal.Text | (ltlength v0) <= k}] | true}
+  @-}
 chunksOf :: Int64 -> Text -> [Text]
 chunksOf k = go
   where

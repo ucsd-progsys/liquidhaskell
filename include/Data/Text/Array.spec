@@ -9,5 +9,3 @@ unsafeIndex' :: a:Data.Text.Array.Array
                                 = (1 + numchars(a, o, (i-o)-1)))
                              : (numchars(a, o, (i-o)+1)
                                 = (1 + numchars(a, o, i-o))))}
-
-embed Word16 as int

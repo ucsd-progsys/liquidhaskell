@@ -1326,7 +1326,7 @@ strip = dropAround isSpace
 {-@ splitAt :: n:{v:Int | v >= 0}
             -> t:Data.Text.Internal.Text
             -> (Data.Text.Internal.Text, Data.Text.Internal.Text)<{\x y ->
-                              (((tlength x) <= n)
+                              ((Min (tlength x) (tlength t) n)
                               && ((tlength y) = ((tlength t) - (tlength x))))}>
   @-}
 splitAt :: Int -> Text -> (Text, Text)
@@ -1348,8 +1348,8 @@ splitAt n t@(Text arr off len)
               -> n:{v:Int | ((v >= 0) && (v < (tlen t)))}
               -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
               -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
-                              && (v <= n))}
-              -> {v:Int | (((numchars (tarr t) (toff t) v) <= n)
+                              && (v <= n) && (v <= (tlength t)))}
+              -> {v:Int | ((Min (numchars (tarr t) (toff t) v) (tlength t) n)
                           && (BtwnII v 0 (tlen t)))}
   @-}
 loop_splitAt :: Text -> Int -> Int -> Int -> Int

@@ -62,6 +62,11 @@ data Text = Empty
       | Chunk (t :: NonEmptyStrict) (cs :: Data.Text.Lazy.Internal.Text)
   @-}
 
+{-@ measure ltlength :: Data.Text.Lazy.Internal.Text -> Integer
+    ltlength (Empty)      = 0
+    ltlength (Chunk t ts) = (tlength t) + (ltlength ts)
+  @-}
+
 -- $invariant
 --
 -- The data type invariant for lazy 'Text': Every 'Text' is either 'Empty' or
@@ -95,35 +100,59 @@ showStructure (Chunk t ts)    =
     "Chunk " ++ show t ++ " (" ++ showStructure ts ++ ")"
 
 -- | Smart constructor for 'Chunk'. Guarantees the data type invariant.
+{-@ chunk :: t:Data.Text.Internal.Text
+          -> ts:Data.Text.Lazy.Internal.Text
+          -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = ((tlength t) + (ltlength ts)))} @-}
 chunk :: T.Text -> Text -> Text
 {-# INLINE chunk #-}
 chunk t@(T.Text _ _ len) ts | len == 0 = ts
                             | otherwise = Chunk t ts
 
 -- | Smart constructor for 'Empty'.
+{-@ empty :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) = 0} @-}
 empty :: Text
 {-# INLINE [0] empty #-}
 empty = Empty
 
 -- | Consume the chunks of a lazy 'Text' with a natural right fold.
-{- foldrChunks :: forall <p :: Text -> a -> Prop>.
-                   (ts:Text -> t:T.Text -> a<p ts> -> a<p (Chunk t ts)>)
-                -> a<p Empty>
-                -> cs:Text
-                -> a<p cs>
-  -}
-foldrChunks :: (T.Text -> a -> a) -> a -> Text -> a
+{-@ foldrChunks :: forall <p :: Data.Text.Lazy.Internal.Text -> a -> Prop>.
+                   (ts:Data.Text.Lazy.Internal.Text
+                    -> t:Data.Text.Internal.Text
+                    -> a<p ts>
+                    -> a<p (Data.Text.Lazy.Internal.Chunk t ts)>)
+                -> a<p Data.Text.Lazy.Internal.Empty>
+                -> t:Data.Text.Lazy.Internal.Text
+                -> a<p t>
+  @-}
+foldrChunks :: (Text -> T.Text -> a -> a) -> a -> Text -> a
 foldrChunks f z = go
   where go Empty        = z
-        go (Chunk c cs) = f c (go cs)
+        go (Chunk c cs) = f cs c (go cs)
+--LIQUID foldrChunks :: (T.Text -> a -> a) -> a -> Text -> a
+--LIQUID foldrChunks f z = go
+--LIQUID   where go Empty        = z
+--LIQUID         go (Chunk c cs) = f c (go cs)
 {-# INLINE foldrChunks #-}
 
 -- | Consume the chunks of a lazy 'Text' with a strict, tail-recursive,
 -- accumulating left fold.
-foldlChunks :: (a -> T.Text -> a) -> a -> Text -> a
-foldlChunks f z = go z
-  where go !a Empty        = a
-        go !a (Chunk c cs) = go (f a c) cs
+{-@ foldlChunks :: forall <p :: Data.Text.Lazy.Internal.Text -> a -> Prop>.
+                   cs:Data.Text.Lazy.Internal.Text
+                -> (   a<p cs>
+                    -> c:Data.Text.Internal.Text
+                    -> a<p cs>)
+                -> a<p cs>
+                -> t:Data.Text.Lazy.Internal.Text
+                -> a<p cs>
+  @-}
+foldlChunks :: Text -> (a -> T.Text -> a) -> a -> Text -> a
+foldlChunks t f !a Empty        = a
+foldlChunks t f !a (Chunk c cs) = foldlChunks t f (f a c) cs
+
+--LIQUID foldlChunks :: (a -> T.Text -> a) -> a -> Text -> a
+--LIQUID foldlChunks f z = go z
+--LIQUID   where go !a Empty        = a
+--LIQUID         go !a (Chunk c cs) = go (f a c) cs
 {-# INLINE foldlChunks #-}
 
 -- | Currently set to 16 KiB, less the memory management overhead.
