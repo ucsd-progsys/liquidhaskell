@@ -101,6 +101,9 @@ foldr1 :: (Char -> Char -> Char)
        -> {v:Data.Text.Internal.Text | (tlength v) > 0}
        -> Char
 
+concat :: ts:[Data.Text.Internal.Text]
+       -> {v:Data.Text.Internal.Text | (tlength v) = (sum_tlengths ts)}
+
 mapAccumL :: (a -> Char -> (a,Char))
           -> a
           -> t:Data.Text.Internal.Text
@@ -156,7 +159,7 @@ strip :: t:Data.Text.Internal.Text
 splitAt :: n:{v:Int | v >= 0}
         -> t:Data.Text.Internal.Text
         -> (Data.Text.Internal.Text, Data.Text.Internal.Text)<{\x y ->
-              (((tlength x) <= n)
+              ((Min (tlength x) (tlength t) n)
                && ((tlength y) = ((tlength t) - (tlength x))))}>
 
 inits :: t:Data.Text.Internal.Text
