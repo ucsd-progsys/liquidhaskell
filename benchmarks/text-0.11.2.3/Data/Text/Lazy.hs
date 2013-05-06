@@ -981,17 +981,38 @@ mapAccumR f = go
 
 -- | /O(n*m)/ 'replicate' @n@ @t@ is a 'Text' consisting of the input
 -- @t@ repeated @n@ times.
+{-@ replicate :: n:{v:Int64 | v >= 0}
+              -> t:Data.Text.Lazy.Internal.Text
+              -> {v:Data.Text.Lazy.Internal.Text |
+                     ((n = 0) ? ((ltlength v) = 0)
+                              : ((ltlength v) >= (ltlength t)))}
+  @-}
 replicate :: Int64 -> Text -> Text
 replicate n t
     | null t || n <= 0 = empty
     | isSingleton t    = replicateChar n (head t)
-    | otherwise        = concat (rep 0)
-    where rep !i | i >= n    = []
-                 | otherwise = t : rep (i+1)
+    | otherwise        = concat (replicate_rep n t 0)
+--LIQUID     | otherwise        = concat (rep 0)
+--LIQUID     where rep !i | i >= n    = []
+--LIQUID                  | otherwise = t : rep (i+1)
+{-@ replicate_rep :: n:{v:Int64 | v > 0}
+                  -> t:Data.Text.Lazy.Internal.Text
+                  -> i:{v:Int64 | ((v >= 0) && (v <= n))}
+                  -> {v:[{v0:Data.Text.Lazy.Internal.Text | (ltlength v0) = (ltlength t)}] |
+                        ((((n - i) = 0) <=> (null v))
+                         && ((null v) || ((sum_ltlengths v) >= (ltlength t))))}
+  @-}
+replicate_rep :: Int64 -> Text -> Int64 -> [Text]
+replicate_rep n t !i | i >= n    = []
+                     | otherwise = t : replicate_rep n t (i+1)
 {-# INLINE replicate #-}
 
 -- | /O(n)/ 'replicateChar' @n@ @c@ is a 'Text' of length @n@ with @c@ the
 -- value of every element. Subject to fusion.
+{-@ replicateChar :: n:Int64
+                  -> Char
+                  -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = n}
+  @-}
 replicateChar :: Int64 -> Char -> Text
 --LIQUID replicateChar n c = unstream (S.replicateCharI n (safe c))
 replicateChar n c = unstream (S.replicateCharI (fromIntegral n) (safe c))

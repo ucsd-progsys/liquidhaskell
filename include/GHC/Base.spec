@@ -14,6 +14,11 @@ measure len :: forall a. [a] -> GHC.Types.Int
 len ([])     = 0
 len (y:ys)   = 1 + (len ys)
 
+measure null :: forall a. [a] -> Prop
+null ([])   = true
+null (x:xs) = false
+
+
 invariant {v: [a] | len(v) >= 0 } 
 assume map       :: (x:a -> b) -> xs:[a] -> {v: [b] | len(v) = len(xs)}
 
