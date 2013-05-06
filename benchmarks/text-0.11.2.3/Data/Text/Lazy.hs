@@ -369,7 +369,9 @@ compareText (Chunk a0 as) (Chunk b0 bs) = outer a0 b0
  @-}
 pack :: String -> Text
 --LIQUID pack = unstream . S.streamList . L.map safe
-pack s = unstream $ S.streamList $ L.map safe s
+--LIQUID FIXME: figure out why `S.streamList $ L.map safe s` is deemed unsafe
+pack s = let s' = L.map safe s
+         in unstream $ S.streamList s'
 {-# INLINE [1] pack #-}
 
 -- | /O(n)/ Convert a 'Text' into a 'String'.
