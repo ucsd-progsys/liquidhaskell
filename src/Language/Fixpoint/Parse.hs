@@ -24,9 +24,9 @@ module Language.Fixpoint.Parse (
   , integer     -- Integer
 
   -- * Parsing recursive entities
-  , exprP       -- ^ Expressions
-  , predP       -- ^ Refinement Predicates
-  , qualifierP  -- ^ Qualifiers
+  , exprP       -- Expressions
+  , predP       -- Refinement Predicates
+  , qualifierP  -- Qualifiers
 
   -- * Some Combinators
   , condIdP     -- condIdP  :: [Char] -> (String -> Bool) -> Parser String

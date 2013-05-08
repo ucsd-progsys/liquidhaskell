@@ -33,5 +33,3 @@ library
                    unordered-containers, filepath, parsec, process, 
                    directory, text, filemanip, mtl, ansi-terminal, 
                    bifunctors, ghc-prim, bytestring
-
-
