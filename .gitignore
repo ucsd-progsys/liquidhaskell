@@ -1,0 +1,6 @@
+*.cmi
+*.cmo
+*.cmx
+*.o
+/dist*
+
