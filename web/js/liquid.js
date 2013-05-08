@@ -19,6 +19,7 @@ var allDemos =
     "KMeans.hs"             : { "name" : "K-Means"          , "type" : "measure"}, 
     "TalkingAboutSets.hs"   : { "name" : "Talk About Sets"  , "type" : "measure"},
     "LambdaEval.hs"         : { "name" : "Lambda Eval"      , "type" : "measure"}, 
+    "treesum.hs"            : { "name" : "List-Tree Sum"    , "type" : "measure"},
     // "ListElts.hs"           : { "name" : "List Elements"    , "type" : "measure"}, 
 
     // Abstract Refinement Demos
