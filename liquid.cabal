@@ -1,7 +1,7 @@
 Name:                liquidtypes 
 Version:             0.1
 Copyright:           2010-13 Ranjit Jhala, University of California, San Diego.
-build-type:			 Simple
+build-type:          Simple
 Synopsis:            Liquid Types for Haskell 
 Description:         Liquid Types for Haskell.
 License:             GPL
@@ -10,92 +10,107 @@ Author:              Ranjit Jhala
 Maintainer:          Ranjit Jhala <jhala@cs.ucsd.edu>
 Category:            Language
 Build-Type:          Simple
-Cabal-version: >=1.2
+Cabal-version:       >=1.8
 
 Executable liquid 
-  Build-Depends:     base,
-                     ghc==7.6.*,
-                     ansi-terminal==0.6,
-                     bifunctors==3.2.0.1,
-                     cmdargs==0.10.2,
-                     containers==0.5.0.0,
-                     deepseq==1.3.0.1,
-                     directory==1.2.0.1,
-                     filemanip==0.3.6.2,
-                     filepath==1.3.0.1,
-                     ghc-paths==0.1.0.9,
-                     hashable==1.2.0.5,
-                     hscolour==1.20.3,
-                     mtl==2.1.2,
-                     parsec==3.1.3,
-                     pretty==1.1.1.0,
-                     process==1.1.0.2,
-                     syb==0.4.0,
-                     text==0.11.2.3,
-                     unordered-containers==0.2.3.0,
-                     liquid-fixpoint
+  Build-Depends: base
+               , ghc==7.6.*
+               , ansi-terminal==0.6.*
+               , bifunctors==3.2.0.*
+               , cmdargs==0.10.2.*
+               , containers==0.5.0.*
+               , deepseq==1.3.0.*
+               , directory==1.2.0.*
+               , filemanip==0.3.6.*
+               , filepath==1.3.0.*
+               , ghc-paths==0.1.0.*
+               , hscolour==1.20.3
+               , mtl==2.1.2.*
+               , parsec==3.1.3.*
+               , pretty==1.1.1.*
+               , process==1.1.0.*
+               , syb==0.4.0.*
+               , text==0.11.2.*
+               , vector==0.10.0.*
+               , liquid-fixpoint
 
-  Main-is:           Liquid.hs
+  if impl(ghc >= 7.6.3)
+    Build-Depends: hashable==1.2.0.*
+                 , unordered-containers==0.2.3.*
+  else
+    Build-Depends: hashable==1.2.0.5
+                 , unordered-containers==0.2.3.0
+
+
+  Main-is: Liquid.hs
   --ghc-options: -O -W
   Extensions: 
 
 Library
-   Build-Depends:    base,
-                     ghc==7.6.*,
-                     ansi-terminal==0.6,
-                     bifunctors==3.2.0.1,
-                     cmdargs==0.10.2,
-                     containers==0.5.0.0,
-                     deepseq==1.3.0.1,
-                     directory==1.2.0.1,
-                     filemanip==0.3.6.2,
-                     filepath==1.3.0.1,
-                     ghc-paths==0.1.0.9,
-                     hashable==1.2.0.5,
-                     hscolour==1.20.3,
-                     mtl==2.1.2,
-                     parsec==3.1.3,
-                     pretty==1.1.1.0,
-                     process==1.1.0.2,
-                     syb==0.4.0,
-                     text==0.11.2.3,
-                     unordered-containers==0.2.3.0,
-                     liquid-fixpoint
-   hs-source-dirs:  include, .
+  Build-Depends: base
+               , ghc==7.6.*
+               , ansi-terminal==0.6.*
+               , bifunctors==3.2.0.*
+               , cmdargs==0.10.2.*
+               , containers==0.5.0.*
+               , deepseq==1.3.0.*
+               , directory==1.2.0.*
+               , filemanip==0.3.6.*
+               , filepath==1.3.0.*
+               , ghc-paths==0.1.0.*
+               , hscolour==1.20.3
+               , mtl==2.1.2.*
+               , parsec==3.1.3.*
+               , pretty==1.1.1.*
+               , process==1.1.0.*
+               , syb==0.4.0.*
+               , text==0.11.2.*
+               , vector==0.10.0.*
+               , liquid-fixpoint
 
-   Exposed-Modules: Language.Haskell.Liquid.Prelude,
-                    Language.Haskell.Liquid.List, 
-                    Language.Haskell.Liquid.PrettyPrint, 
-                    Language.Haskell.Liquid.Bare,
-                    Language.Haskell.Liquid.Constraint, 
-                    Language.Haskell.Liquid.Measure, 
-                    Language.Haskell.Liquid.Parse, 
-                    Language.Haskell.Liquid.GhcInterface, 
-                    Language.Haskell.Liquid.RefType, 
-                    Language.Haskell.Liquid.PredType, 
-                    Language.Haskell.Liquid.Predicates, 
-                    Language.Haskell.Liquid.ACSS, 
-                    Language.Haskell.Liquid.ANFTransform, 
-                    Language.Haskell.Liquid.Annotate, 
-                    Language.Haskell.Liquid.CTags, 
-                    Language.Haskell.Liquid.CmdLine, 
-                    Language.Haskell.Liquid.GhcMisc, 
-                    Language.Haskell.Liquid.Qualifier, 
-                    Language.Haskell.Liquid.TransformRec, 
-                    Language.Haskell.Liquid.Tidy, 
-                    Language.Haskell.Liquid.Types
+  if impl(ghc >= 7.6.3)
+    Build-Depends: hashable==1.2.0.*
+                 , unordered-containers==0.2.3.*
+  else
+    Build-Depends: hashable==1.2.0.5
+                 , unordered-containers==0.2.3.0
 
-  other-modules:    Language.Haskell.Liquid.Desugar.Desugar
-                    Language.Haskell.Liquid.Desugar.DsExpr,
-                    Language.Haskell.Liquid.Desugar.DsListComp,
-                    Language.Haskell.Liquid.Desugar.MatchCon,
-                    Language.Haskell.Liquid.Desugar.MatchLit,
-                    Language.Haskell.Liquid.Desugar.DsArrows,
-                    Language.Haskell.Liquid.Desugar.DsUtils,
-                    Language.Haskell.Liquid.Desugar.Match,
-                    Language.Haskell.Liquid.Desugar.DsBinds,
-                    Language.Haskell.Liquid.Desugar.DsGRHSs,
-                    Language.Haskell.Liquid.Desugar.HscMain
+  hs-source-dirs:  include, .
+
+  Exposed-Modules: Language.Haskell.Liquid.Prelude,
+                   Language.Haskell.Liquid.List, 
+                   Language.Haskell.Liquid.PrettyPrint, 
+                   Language.Haskell.Liquid.Bare,
+                   Language.Haskell.Liquid.Constraint, 
+                   Language.Haskell.Liquid.Measure, 
+                   Language.Haskell.Liquid.Parse, 
+                   Language.Haskell.Liquid.GhcInterface, 
+                   Language.Haskell.Liquid.RefType, 
+                   Language.Haskell.Liquid.PredType, 
+                   Language.Haskell.Liquid.Predicates, 
+                   Language.Haskell.Liquid.ACSS, 
+                   Language.Haskell.Liquid.ANFTransform, 
+                   Language.Haskell.Liquid.Annotate, 
+                   Language.Haskell.Liquid.CTags, 
+                   Language.Haskell.Liquid.CmdLine, 
+                   Language.Haskell.Liquid.GhcMisc, 
+                   Language.Haskell.Liquid.Qualifier, 
+                   Language.Haskell.Liquid.TransformRec, 
+                   Language.Haskell.Liquid.Tidy, 
+                   Language.Haskell.Liquid.Types
+
+  other-modules:   Language.Haskell.Liquid.Desugar.Desugar
+                   Language.Haskell.Liquid.Desugar.DsExpr,
+                   Language.Haskell.Liquid.Desugar.DsListComp,
+                   Language.Haskell.Liquid.Desugar.MatchCon,
+                   Language.Haskell.Liquid.Desugar.MatchLit,
+                   Language.Haskell.Liquid.Desugar.DsArrows,
+                   Language.Haskell.Liquid.Desugar.DsUtils,
+                   Language.Haskell.Liquid.Desugar.Match,
+                   Language.Haskell.Liquid.Desugar.DsBinds,
+                   Language.Haskell.Liquid.Desugar.DsGRHSs,
+                   Language.Haskell.Liquid.Desugar.HscMain
   --ghc-options: -O -W
   Extensions: 
+
 
