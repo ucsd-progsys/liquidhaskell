@@ -11,11 +11,31 @@ build-type:          Custom
 cabal-version:       >=1.8
 
 Executable fixpoint
-  build-depends:   base, deepseq, pretty, containers, hashable, unordered-containers, 
-                   filepath, parsec, process, directory, text, filemanip, mtl,
-                   ansi-terminal, bifunctors, ghc-prim, bytestring, liquid-fixpoint
+  Main-is:       Fixpoint.hs
+  Build-Depends: base
+               , ghc==7.6.*
+               , ansi-terminal==0.6.*
+               , bifunctors==3.2.0.*
+               , bytestring==0.10.0.*
+               , containers==0.5.0.*
+               , deepseq==1.3.0.*
+               , directory==1.2.0.*
+               , filemanip==0.3.6.*
+               , filepath==1.3.0.*
+               , ghc-prim==0.3.0.*
+               , mtl==2.1.2.*
+               , parsec==3.1.3.*
+               , pretty==1.1.1.*
+               , process==1.1.0.*
+               , text==0.11.2.*
+               , liquid-fixpoint
 
-  Main-is:         Fixpoint.hs
+  if impl(ghc >= 7.6.3)
+    Build-Depends: hashable==1.2.0.*
+                 , unordered-containers==0.2.3.*
+  else
+    Build-Depends: hashable==1.2.0.5
+                 , unordered-containers==0.2.3.0
 
 
 library
@@ -29,9 +49,27 @@ library
                    Language.Fixpoint.PrettyPrint,
                    Language.Fixpoint.Misc
   
-  build-depends:   base, deepseq, pretty, containers, hashable, 
-                   unordered-containers, filepath, parsec, process, 
-                   directory, text, filemanip, mtl, ansi-terminal, 
-                   bifunctors, ghc-prim, bytestring
+  Build-Depends: base
+               , ghc==7.6.*
+               , ansi-terminal==0.6.*
+               , bifunctors==3.2.0.*
+               , bytestring==0.10.0.*
+               , containers==0.5.0.*
+               , deepseq==1.3.0.*
+               , directory==1.2.0.*
+               , filemanip==0.3.6.*
+               , filepath==1.3.0.*
+               , ghc-prim==0.3.0.*
+               , mtl==2.1.2.*
+               , parsec==3.1.3.*
+               , pretty==1.1.1.*
+               , process==1.1.0.*
+               , text==0.11.2.*
 
+  if impl(ghc >= 7.6.3)
+    Build-Depends: hashable==1.2.0.*
+                 , unordered-containers==0.2.3.*
+  else
+    Build-Depends: hashable==1.2.0.5
+                 , unordered-containers==0.2.3.0
 
