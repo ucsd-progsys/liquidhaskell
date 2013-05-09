@@ -702,7 +702,7 @@ varSymbol v
   | us `isSuffixOf` vs = stringSymbol vs  
   | otherwise          = stringSymbol $ vs ++ [symSepName] ++ us
   where us  = showPpr $ getDataConVarUnique v
-        vs  = pprShort v
+        vs  = showPpr v
 
 pprShort    =  dropModuleNames . showPpr 
 
