@@ -725,9 +725,17 @@ center k c t
 -- of its 'Text' argument.  Note that this function uses 'pack',
 -- 'unpack', and the list version of transpose, and is thus not very
 -- efficient.
+{-@ transpose :: [Data.Text.Lazy.Internal.Text]
+              -> [{v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}]
+  @-}
 transpose :: [Text] -> [Text]
-transpose ts = L.map (\ss -> Chunk (T.pack ss) Empty)
+transpose ts = L.map transpose_map --LIQUID (\ss -> Chunk (T.pack ss) Empty)
                      (L.transpose (L.map unpack ts))
+
+{-@ transpose_map :: s:{v:String | (len v) > 0}
+                  -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (len s)}
+  @-}
+transpose_map ss = Chunk (T.pack ss) Empty
 -- TODO: make this fast
 
 -- | /O(n)/ 'reverse' @t@ returns the elements of @t@ in reverse order.
@@ -958,6 +966,11 @@ scanr1 f t | null t    = empty
 -- function to each element of a 'Text', passing an accumulating
 -- parameter from left to right, and returns a final 'Text'.  Performs
 -- replacement on invalid scalar values.
+{-@ mapAccumL :: (a -> Char -> (a,Char))
+              -> a
+              -> t:Data.Text.Lazy.Internal.Text
+              -> (a, {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (ltlength t)})
+  @-}
 mapAccumL :: (a -> Char -> (a,Char)) -> a -> Text -> (a, Text)
 mapAccumL f = go
   where
@@ -972,6 +985,11 @@ mapAccumL f = go
 -- 'Text', passing an accumulating parameter from right to left, and
 -- returning a final value of this accumulator together with the new
 -- 'Text'.  Performs replacement on invalid scalar values.
+{-@ mapAccumR :: (a -> Char -> (a,Char))
+              -> a
+              -> t:Data.Text.Lazy.Internal.Text
+              -> (a, {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (ltlength t)})
+  @-}
 mapAccumR :: (a -> Char -> (a,Char)) -> a -> Text -> (a, Text)
 mapAccumR f = go
   where
@@ -1254,19 +1272,27 @@ strip = dropAround isSpace
 {-@ splitAt :: n:{v:Int64 | v >= 0}
             -> t:Data.Text.Lazy.Internal.Text
             -> (Data.Text.Lazy.Internal.Text, Data.Text.Lazy.Internal.Text)<{\x y ->
-                 (((ltlength x) <= n)
+                 ((Min (ltlength x) (ltlength t) n)
                   && ((ltlength y) = ((ltlength t) - (ltlength x))))}>
   @-}
 splitAt :: Int64 -> Text -> (Text, Text)
-splitAt = loop
-  where loop _ Empty      = (empty, empty)
-        loop n t | n <= 0 = (empty, t)
-        loop n (Chunk t ts)
-             | n < len   = let (t',t'') = T.splitAt (fromIntegral n) t
-                           in (Chunk t' Empty, Chunk t'' ts)
-             | otherwise = let (ts',ts'') = loop (n - len) ts
-                           in (Chunk t ts', ts'')
-             where len = fromIntegral (T.length t)
+--LIQUID splitAt = loop
+--LIQUID   where loop _ Empty      = (empty, empty)
+--LIQUID         loop n t | n <= 0 = (empty, t)
+--LIQUID         loop n (Chunk t ts)
+--LIQUID              | n < len   = let (t',t'') = T.splitAt (fromIntegral n) t
+--LIQUID                            in (Chunk t' Empty, Chunk t'' ts)
+--LIQUID              | otherwise = let (ts',ts'') = loop (n - len) ts
+--LIQUID                            in (Chunk t ts', ts'')
+--LIQUID              where len = fromIntegral (T.length t)
+splitAt _ Empty      = (empty, empty)
+splitAt n t | n <= 0 = (empty, t)
+splitAt n (Chunk t ts)
+    | n < len   = let (t',t'') = T.splitAt (fromIntegral n) t
+                  in (Chunk t' Empty, Chunk t'' ts)
+    | otherwise = let (ts',ts'') = splitAt (n - len) ts
+                  in (Chunk t ts', ts'')
+    where len = fromIntegral (T.length t)
 
 -- | /O(n)/ 'splitAtWord' @n t@ returns a strict pair whose first
 -- element is a prefix of @t@ whose chunks contain @n@ 'Word16'

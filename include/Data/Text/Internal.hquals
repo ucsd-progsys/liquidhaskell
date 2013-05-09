@@ -1,0 +1,8 @@
+qualif TIsEmp(v:Bool, ~A: Data.Text.Internal.Text) : (Prop(v) <=> tlength([~A]) [ > ;  = ] 0)
+qualif TextZ(v: Data.Text.Internal.Text)           : tlength([v]) [ = ; >= ; > ] 0
+qualif CmpTLen(v:Data.Text.Internal.Text, ~A:Data.Text.Internal.Text) : (tlength([v]) [ = ; >= ; > ; < ; <= ] tlength([~A]))
+qualif CmpTLenInt(v:int, ~A: Data.Text.Internal.Text)  : (v [ = ; >= ; > ; < ; <= ] tlength([~A]))
+qualif TLenCmp(v:Data.Text.Internal.Text, ~A: int)  : ~A [ = ; >= ; > ; < ; <= ] tlength([v])
+qualif TLenAcc(v:int, ~A:Data.Text.Internal.Text, ~B: int): v = tlength([~A]) + ~B
+qualif TLenDiff(v:Data.Text.Internal.Text, ~A:int): tlength([v]) = (~A [ + ; - ] 1)
+qualif TLenComb(v:Data.Text.Internal.Text, ~A:Data.Text.Internal.Text, ~B:Data.Text.Internal.Text): tlength([v]) = (tlength([~A]) [ + ; - ] tlength([~B]))

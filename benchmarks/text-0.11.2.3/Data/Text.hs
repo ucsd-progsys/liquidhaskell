@@ -239,7 +239,7 @@ import qualified Data.Text.Array
 import qualified Data.Text.Internal
 import qualified Data.Text.Fusion.Internal
 import Language.Haskell.Liquid.Prelude
-
+import qualified GHC.ST
 
 --LIQUID copied from Data.Text.Unsafe
 data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
@@ -588,7 +588,7 @@ init t@(Text arr off len)
     | n >= 0xDC00 && n <= 0xDFFF = textP arr off (len-2)
     | otherwise                  = textP arr off (len-1)
     where
-      --LIQUID n = A.unsafeIndex' arr (off+len-1)
+      --LIQUID n = A.unsafeIndex arr (off+len-1)
       n = A.unsafeIndex' arr off len (off+len-1)
 {-# INLINE [1] init #-}
 
@@ -1224,9 +1224,9 @@ dropWhile p t@(Text arr off len) = loop_dropWhile t p 0 0
 
 {-@ loop_dropWhile :: t:Data.Text.Internal.Text
                    -> p:(Char -> Bool)
-                   -> i:{v:Int | (BtwnII v 0 (tlen t))}
+                   -> i:{v:Int | (BtwnI v 0 (tlen t))}
                    -> cnt:{v:Int | ((v = (numchars (tarr t) (toff t) i))
-                                    && (BtwnII v 0 (tlength t)))}
+                                    && (BtwnI v 0 (tlength t)))}
                    -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
   @-}
 loop_dropWhile :: Text -> (Char -> Bool) -> Int -> Int -> Text
@@ -1265,7 +1265,7 @@ dropWhileEnd p t@(Text arr off len) = loop_dropWhileEnd t p (len-1) len (length 
       -> i:{v:Int | v <= (tlen t)}
       -> l:{v:Int | v <= (tlen t)}
       -> cnt:{v:Int | ((v = (numchars (tarr t) (toff t) l))
-                       && (BtwnII v 0 (tlength t)))}
+                       && (BtwnI v 0 (tlength t)))}
       -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
    @-}
 loop_dropWhileEnd :: Text -> (Char -> Bool) -> Int -> Int -> Int -> Text
@@ -1350,7 +1350,7 @@ splitAt n t@(Text arr off len)
               -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
                               && (v <= n) && (v <= (tlength t)))}
               -> {v:Int | ((Min (numchars (tarr t) (toff t) v) (tlength t) n)
-                          && (BtwnII v 0 (tlen t)))}
+                          && (BtwnI v 0 (tlen t)))}
   @-}
 loop_splitAt :: Text -> Int -> Int -> Int -> Int
 loop_splitAt t@(Text arr off len) n !i !cnt
