@@ -411,19 +411,31 @@ singleton c = Chunk (T.singleton c) Empty
   #-}
 
 -- | /O(c)/ Convert a list of strict 'T.Text's into a lazy 'Text'.
+{- fromChunks :: ts:[Data.Text.Internal.Text]
+               -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (sum_tlengths ts)}
+  @-}
 fromChunks :: [T.Text] -> Text
 fromChunks cs = L.foldr chunk Empty cs
 
 -- | /O(n)/ Convert a lazy 'Text' into a list of strict 'T.Text's.
+{-@ toChunks :: t:Data.Text.Lazy.Internal.Text
+             -> {v:[Data.Text.Internal.Text] | (sum_tlengths v) = (ltlength t)}
+  @-}
 toChunks :: Text -> [T.Text]
-toChunks cs = foldrChunks (:) [] cs
+toChunks cs = foldrChunks (\_ c cs -> c:cs) [] cs
 
 -- | /O(n)/ Convert a lazy 'Text' into a strict 'T.Text'.
+{-@ toStrict :: t:Data.Text.Lazy.Internal.Text
+             -> {v:Data.Text.Internal.Text | (tlength v) = (ltlength t)}
+  @-}
 toStrict :: Text -> T.Text
 toStrict t = T.concat (toChunks t)
 {-# INLINE [1] toStrict #-}
 
 -- | /O(c)/ Convert a strict 'T.Text' into a lazy 'Text'.
+{-@ fromStrict :: t:Data.Text.Internal.Text
+               -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (tlength t)}
+  @-}
 fromStrict :: T.Text -> Text
 fromStrict t = chunk t Empty
 {-# INLINE [1] fromStrict #-}
@@ -452,8 +464,12 @@ infixr 5 `cons`
 
 -- | /O(n)/ Adds a character to the end of a 'Text'.  This copies the
 -- entire array in the process, unless fused.  Subject to fusion.
+{-@ snoc :: t:Data.Text.Lazy.Internal.Text -> Char
+         -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = (1 + (ltlength t)))}
+  @-}
 snoc :: Text -> Char -> Text
-snoc t c = foldrChunks Chunk (singleton c) t
+--LIQUID snoc t c = foldrChunks Chunk (singleton c) t
+snoc t c = foldrChunks (\_ -> Chunk) (singleton c) t
 {-# INLINE [1] snoc #-}
 
 {-# RULES
@@ -464,8 +480,13 @@ snoc t c = foldrChunks Chunk (singleton c) t
  #-}
 
 -- | /O(n\/c)/ Appends one 'Text' to another.  Subject to fusion.
+{-@ append :: t1:Data.Text.Lazy.Internal.Text
+           -> t2:Data.Text.Lazy.Internal.Text
+           -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = ((ltlength t1) + (ltlength t2)))}
+  @-}
 append :: Text -> Text -> Text
-append xs ys = foldrChunks Chunk ys xs
+--LIQUID append xs ys = foldrChunks Chunk ys xs
+append xs ys = foldrChunks (\_ -> Chunk) ys xs
 {-# INLINE [1] append #-}
 
 {-# RULES
@@ -592,9 +613,20 @@ last (Chunk t ts) = go t ts
 
 -- | /O(n)/ Returns the number of characters in a 'Text'.
 -- Subject to fusion.
+{-@ length :: t:Data.Text.Lazy.Internal.Text
+           -> {v:Int64 | v = (ltlength t)}
+  @-}
 length :: Text -> Int64
-length = foldlChunks go 0
-    where go l t = l + fromIntegral (T.length t)
+--LIQUID length = foldlChunks go 0
+--LIQUID     where go ts t l = l + fromIntegral (T.length t)
+length t = foldrChunks length_fold 0 t
+{-@ length_fold :: Data.Text.Lazy.Internal.Text
+                -> t:NonEmptyStrict
+                -> l:Int64
+                -> {v:Int64 | v = ((tlength t) + l)}
+  @-}
+length_fold :: Text -> T.Text -> Int64 -> Int64
+length_fold _ t l = l + fromIntegral (T.length t)
 {-# INLINE [1] length #-}
 
 {-# RULES
@@ -1430,11 +1462,15 @@ groupBy eq (Chunk t ts) = cons x ys : groupBy eq zs
 inits :: Text -> [Text]
 inits = (Empty :) . inits'
   where inits' Empty        = []
-        inits' (Chunk t ts) = L.map (\t' -> Chunk t' Empty) (L.tail (T.inits t))
+        inits' (Chunk t ts) = L.map (\t' -> Chunk t' Empty) ts' --LIQUID (L.tail (T.inits t))
                            ++ L.map (Chunk t) (inits' ts)
+          where (t':ts') = T.inits t
 
 -- | /O(n)/ Return all final segments of the given 'Text', longest
 -- first.
+{-@ tails :: t:Data.Text.Lazy.Internal.Text
+          -> [{v0:Data.Text.Lazy.Internal.Text | (ltlength v0) <= (ltlength t)}]
+  @-}
 tails :: Text -> [Text]
 tails Empty         = Empty : []
 tails ts@(Chunk t ts')
@@ -1522,6 +1558,9 @@ chunksOf k = go
 
 -- | /O(n)/ Breaks a 'Text' up into a list of 'Text's at
 -- newline 'Char's. The resulting strings do not contain newlines.
+{-@ lines :: t:Data.Text.Lazy.Internal.Text
+          -> [{v0:Data.Text.Lazy.Internal.Text | (ltlength v0) <= (ltlength t)}]
+  @-}
 lines :: Text -> [Text]
 lines Empty = []
 lines t = let (l,t') = break ((==) '\n') t
