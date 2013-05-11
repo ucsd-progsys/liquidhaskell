@@ -10,8 +10,8 @@ qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
 qualif One(v:int)     : v = 1
 qualif True(v:bool)   : (? v) 
 qualif False(v:bool)  : ~ (? v) 
-qualif True1(v:Bool)   : Prop(v) 
-qualif False1(v:Bool)  : ~ Prop(v) 
+qualif True1(v:GHC.Types.Bool)   : Prop(v)
+qualif False1(v:GHC.Types.Bool)  : ~ Prop(v)
 
 
 qualif Papp(v:a,~P:Pred a) : papp1(~P, v)

@@ -25,14 +25,14 @@ chunk :: t:Data.Text.Internal.Text
 
 empty :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) = 0}
 
--- foldrChunks :: forall <p :: Data.Text.Lazy.Internal.Text -> a -> Prop>.
---                (   ts:Data.Text.Lazy.Internal.Text
---                 -> t:Data.Text.Internal.Text
---                 -> a<p ts>
---                 -> a<p (Data.Text.Lazy.Internal.Chunk t ts)>)
---             -> a<p Data.Text.Lazy.Internal.Empty>
---             -> t:Data.Text.Lazy.Internal.Text
---             -> a<p t>
+foldrChunks :: forall <p :: Data.Text.Lazy.Internal.Text -> a -> Prop>.
+               (   ts:Data.Text.Lazy.Internal.Text
+                -> t:NonEmptyStrict
+                -> a<p ts>
+                -> a<p (Data.Text.Lazy.Internal.Chunk t ts)>)
+            -> a<p Data.Text.Lazy.Internal.Empty>
+            -> t:Data.Text.Lazy.Internal.Text
+            -> a<p t>
 
 -- foldlChunks :: forall <p :: Data.Text.Lazy.Internal.Text -> a -> Prop>.
 --                cs:Data.Text.Lazy.Internal.Text

@@ -159,8 +159,8 @@ strip :: t:Data.Text.Internal.Text
 splitAt :: n:{v:Int | v >= 0}
         -> t:Data.Text.Internal.Text
         -> (Data.Text.Internal.Text, Data.Text.Internal.Text)<{\x y ->
-              ((Min (tlength x) (tlength t) n)
-               && ((tlength y) = ((tlength t) - (tlength x))))}>
+             ((Min (tlength x) (tlength t) n)
+              && ((tlength y) = ((tlength t) - (tlength x))))}>
 
 inits :: t:Data.Text.Internal.Text
       -> {v:[Data.Text.Internal.Text]<{\x y -> ((tlength x) < (tlength y))}>
