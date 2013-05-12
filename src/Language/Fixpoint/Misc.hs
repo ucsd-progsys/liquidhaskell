@@ -74,6 +74,9 @@ errorstar  = error . wrap (stars ++ "\n") (stars ++ "\n")
 
 errortext  = errorstar . render 
 
+putDocLn :: Doc -> IO ()
+putDocLn = putStrLn . render 
+
 assertstar _   True  x = x
 assertstar msg False x = errorstar msg 
 
