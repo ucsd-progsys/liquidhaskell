@@ -163,11 +163,11 @@ splitAt :: n:{v:Int | v >= 0}
               && ((tlength y) = ((tlength t) - (tlength x))))}>
 
 inits :: t:Data.Text.Internal.Text
-      -> {v:[Data.Text.Internal.Text]<{\x y -> ((tlength x) < (tlength y))}>
-           | (len v) = (1 + (tlength t))}
+      -> [{v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}]<{\x y ->
+          ((tlength x) < (tlength y))}>
 
 tails :: t:Data.Text.Internal.Text
-      -> [{v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}]
+      -> [{v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}]<{\x y -> (tlength x) > (tlength y)}>
 
 chunksOf :: k:{v:Int | v >= 0}
          -> t:Data.Text.Internal.Text
