@@ -1408,8 +1408,8 @@ group = groupBy (==)
 -- | /O(n)/ Return all initial segments of the given 'Text', shortest
 -- first.
 {-@ inits :: t:Data.Text.Internal.Text
-          -> {v:[{v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}]
-               | (len v) = (1 + (tlength t))}
+          -> [{v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}]<{\x y ->
+              ((tlength x) < (tlength y))}>
   @-}
 inits :: Text -> [Text]
 inits t@(Text arr off len) = loop_inits t 0 0
@@ -1417,22 +1417,28 @@ inits t@(Text arr off len) = loop_inits t 0 0
 --LIQUID                  | otherwise = Text arr off i : loop (i + iter_ t i)
 
 {-@ loop_inits :: t:Data.Text.Internal.Text
-               -> i:{v:Int | v >= 0}
-               -> cnt:{v:Int | (numchars (tarr t) (toff t) i) = v}
-               -> {v:[{v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}]
-                    | (len v) = (1 + (tlength t))}
+               -> i:{v:Int | (BtwnI v 0 (tlen t))}
+               -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
+                                && (BtwnI v 0 (tlength t)))}
+               -> [{v:Data.Text.Internal.Text | (BtwnI (tlength v) cnt (tlength t))}]<{\x y ->
+                   ((tlength x) < (tlength y))}>
   @-}
---LIQUID would like to say something like
---LIQUID [Text]<{\x y -> (((tlength x) < (tlength y)) && (cnt = (tlength x)))}>
 loop_inits :: Text -> Int -> Int -> [Text]
 loop_inits t@(Text arr off len) i cnt
     | i >= len = [t]
     | otherwise = Text arr off i : loop_inits t (i + iter_ t i) (cnt + 1)
 
+--LIQUID FIXME: interesting that pattern-matching as below makes loop_inits unsafe..
+--LIQUID let d = iter_ t i
+--LIQUID     t' = Text arr off i
+--LIQUID     t'':ts = loop_inits t (i + d) (cnt + 1)
+--LIQUID in t' : t'': ts
+
 -- | /O(n)/ Return all final segments of the given 'Text', longest
 -- first.
 {-@ tails :: t:Data.Text.Internal.Text
-          -> [{v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}]
+          -> [{v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}]<{\x y ->
+              (tlength x) > (tlength y)}>
   @-}
 tails :: Text -> [Text]
 tails t | null t    = [empty]
