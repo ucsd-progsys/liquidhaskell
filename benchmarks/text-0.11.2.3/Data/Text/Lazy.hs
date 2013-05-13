@@ -1469,7 +1469,8 @@ inits = (Empty :) . inits'
 -- | /O(n)/ Return all final segments of the given 'Text', longest
 -- first.
 {-@ tails :: t:Data.Text.Lazy.Internal.Text
-          -> [{v0:Data.Text.Lazy.Internal.Text | (ltlength v0) <= (ltlength t)}]
+          -> [{v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}]<{\hd tl ->
+              ((ltlength hd) > (ltlength tl))}>
   @-}
 tails :: Text -> [Text]
 tails Empty         = Empty : []
