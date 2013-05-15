@@ -51,11 +51,90 @@ module XMonad.StackSet (
         abort
     ) where
 
-import Prelude hiding (filter)
+import Prelude hiding (filter, reverse, (++), elem) -- LIQUID
 import Data.Maybe   (listToMaybe,isJust,fromMaybe)
 import qualified Data.List as L (deleteBy,find,splitAt,filter,nub)
 import Data.List ( (\\) )
 import qualified Data.Map  as M (Map,insert,delete,empty)
+import qualified Data.Set -- LIQUID
+
+-------------------------------------------------------------------------------
+----------------------------- Refinements on  Lists ---------------------------
+-------------------------------------------------------------------------------
+
+-- measures
+
+{-@
+  measure listDup :: [a] -> (Data.Set.Set a)
+  listDup([]) = {v | (? Set_emp (v))}
+  listDup(x:xs) = {v | v = ((Set_mem x (listElts xs))?(Set_cup (Set_sng x) (listDup xs)):(listDup xs)) }
+  @-}
+
+-- predicates 
+
+{-@ predicate EqElts X Y =
+       ((listElts X) = (listElts Y)) @-}
+
+{-@ predicate SubElts X Y =
+       (Set_sub (listElts X) (listElts Y)) @-}
+
+{-@ predicate UnionElts X Y Z =
+       ((listElts X) = (Set_cup (listElts Y) (listElts Z))) @-}
+
+{-@ predicate ListElt N LS =
+       (Set_mem N (listElts LS)) @-}
+
+{-@ predicate ListUnique LS =
+       (Set_emp (listDup LS)) @-}
+
+{-@ predicate ListUniqueDif LS X =
+       ((ListUnique LS) && (not (ListElt X LS))) @-}
+
+
+{-@ predicate ListDisjoint X Y =
+       (Set_emp (Set_cap (listElts X) (listElts Y))) @-}
+
+
+-- types
+
+{-@ type UList a = {v:[a] | (ListUnique v)} @-}
+
+{-@ type UListDif a N = {v:[a] | ((not (ListElt N v)) && (ListUnique v))} @-}
+
+
+
+-------------------------------------------------------------------------------
+----------------------------- Refinements on Stacks ---------------------------
+-------------------------------------------------------------------------------
+
+{-@
+data Stack a = Stack { focus :: a   
+                     , up    :: UListDif a focus
+                     , down  :: UListDif a focus }
+@-}
+
+{-@ type UStack a = {v:(Stack a) | (ListDisjoint (getUp v) (getDown v))}@-}
+
+{-@ measure getUp :: forall a. (Stack a) -> [a] 
+    getUp (Stack focus up down) = up
+  @-}
+
+{-@ measure getDown :: forall a. (Stack a) -> [a] 
+    getDown (Stack focus up down) = down
+  @-}
+
+{-@ measure getFocus :: forall a. (Stack a) -> a
+    getFocus (Stack focus up down) = focus
+  @-}
+
+{-@ predicate StackElt N S =
+       (((ListElt N (getUp S)) 
+       || (Set_mem N (Set_sng (getFocus S))) 
+       || (ListElt N (getDown S))))
+  @-}
+
+{-@ predicate StackSetVisibleElt N S = true @-}
+{-@ predicate StackSetHiddenElt N S = true @-}
 
 -- $intro
 --
@@ -136,19 +215,77 @@ data StackSet i l a sid sd =
              , visible  :: [Screen i l a sid sd]     -- ^ non-focused workspaces, visible in xinerama
              , hidden   :: [Workspace i l a]         -- ^ workspaces not visible anywhere
              , floating :: M.Map a RationalRect      -- ^ floating windows
-             } deriving (Show, Read, Eq)
+             } deriving (Show, Eq)
+-- LIQUID             } deriving (Show, Read, Eq)
+
+{-@ 
+data StackSet i l a sid sd =
+    StackSet { current  :: (Screen i l a sid sd)   
+             , visible  :: [Screen i l a sid sd]   
+             , hidden   :: [Workspace i l a]       
+             , floating :: M.Map a RationalRect    
+             }
+@-}
+
+{-@ measure getCurrentScreen :: (StackSet i l a sid sd) -> (Screen i l a sid sd)
+    getCurrentScreen(StackSet current v h f) = current @-}
+
+
+{-@ predicate StackSetCurrentElt N S = 
+      (ScreenElt N (getCurrentScreen S))
+  @-}
+
+{-@ current :: s:(StackSet i l a sid sd) 
+            -> {v:(Screen i l a sid sd) | v = (getCurrentScreen s)}
+  @-}
+
+{-@ stack :: w:(Workspace i l a) 
+          -> {v:(Maybe (UStack a)) | v = (getStackWorkspace w)}
+  @-}
+
+{-@ workspace :: s:(Screen i l a sid sd) 
+              -> {v:(Workspace i l a) | v = (getWorkspaceScreen s)}
+  @-}
+
 
 -- | Visible workspaces, and their Xinerama screens.
 data Screen i l a sid sd = Screen { workspace :: !(Workspace i l a)
                                   , screen :: !sid
                                   , screenDetail :: !sd }
-    deriving (Show, Read, Eq)
+    deriving (Show, Eq)
+-- LIQUID    deriving (Show, Read, Eq)
+
+{-@ 
+data Screen i l a sid sd = Screen { workspace :: (Workspace i l a)
+                                  , screen :: sid
+                                  , screenDetail :: sd }
+@-}
+
+{-@ measure getWorkspaceScreen :: (Screen i l a sid sd) -> (Workspace i l a)
+    getWorkspaceScreen(Screen w screen s) = w @-}
+
+
+{-@ predicate ScreenElt N S = 
+      (WorkspaceElt N (getWorkspaceScreen S))
+  @-}
+
 
 -- |
 -- A workspace is just a tag, a layout, and a stack.
 --
 data Workspace i l a = Workspace  { tag :: !i, layout :: l, stack :: Maybe (Stack a) }
-    deriving (Show, Read, Eq)
+    deriving (Show, Eq)
+--     deriving (Show, Read, Eq)
+
+{-@
+data Workspace i l a = Workspace  { tag :: i, layout :: l, stack :: Maybe (UStack a) }
+  @-}
+
+{-@ measure getStackWorkspace :: (Workspace i l a) -> (Maybe(Stack a))
+    getStackWorkspace(Workspace t l stack) = stack @-}
+
+{-@ predicate WorkspaceElt N W =
+  ((isJust (getStackWorkspace W)) && (StackElt N (fromJust (getStackWorkspace W)))) @-}
 
 -- | A structure for window geometries
 data RationalRect = RationalRect Rational Rational Rational Rational
@@ -175,12 +312,16 @@ data RationalRect = RationalRect Rational Rational Rational Rational
 data Stack a = Stack { focus  :: !a        -- focused thing in this set
                      , up     :: [a]       -- clowns to the left
                      , down   :: [a] }     -- jokers to the right
-    deriving (Show, Read, Eq)
+     deriving (Show, Eq)
+-- LIQUID      deriving (Show, Read, Eq)
 
 
 -- | this function indicates to catch that an error is expected
 abort :: String -> a
 abort x = error $ "xmonad: StackSet: " ++ x
+  where [] ++ ys     = ys              -- LIQUID
+        (x:xs) ++ ys = x: (xs ++ ys)   -- LIQUID
+
 
 -- ---------------------------------------------------------------------
 -- $construction
@@ -272,6 +413,7 @@ with dflt f = maybe dflt f . stack . workspace . current
 -- |
 -- Apply a function, and a default value for 'Nothing', to modify the current stack.
 --
+{-@ modify :: Maybe (UStack a) -> (UStack a -> Maybe (UStack a)) -> StackSet i l a s sd -> StackSet i l a s sd @-}
 modify :: Maybe (Stack a) -> (Stack a -> Maybe (Stack a)) -> StackSet i l a s sd -> StackSet i l a s sd
 modify d f s = s { current = (current s)
                         { workspace = (workspace (current s)) { stack = with d f s }}}
@@ -280,6 +422,7 @@ modify d f s = s { current = (current s)
 -- Apply a function to modify the current stack if it isn't empty, and we don't
 --  want to empty it.
 --
+{-@ modify' :: (UStack a -> UStack a) -> StackSet i l a s sd -> StackSet i l a s sd @-}
 modify' :: (Stack a -> Stack a) -> StackSet i l a s sd -> StackSet i l a s sd
 modify' f = modify Nothing (Just . f)
 
@@ -293,11 +436,13 @@ peek = with Nothing (return . focus)
 -- |
 -- /O(n)/. Flatten a 'Stack' into a list.
 --
+{-@ integrate :: UStack a -> UList a @-}
 integrate :: Stack a -> [a]
 integrate (Stack x l r) = reverse l ++ x : r
 
 -- |
 -- /O(n)/ Flatten a possibly empty stack into a list.
+{-@ integrate' :: Maybe (UStack a) -> UList a @-}
 integrate' :: Maybe (Stack a) -> [a]
 integrate' = maybe [] integrate
 
@@ -305,6 +450,7 @@ integrate' = maybe [] integrate
 -- /O(n)/. Turn a list into a possibly empty stack (i.e., a zipper):
 -- the first element of the list is current, and the rest of the list
 -- is down.
+{-@ differentiate :: UList a -> Maybe (UStack a) @-}
 differentiate :: [a] -> Maybe (Stack a)
 differentiate []     = Nothing
 differentiate (x:xs) = Just $ Stack x [] xs
@@ -313,10 +459,11 @@ differentiate (x:xs) = Just $ Stack x [] xs
 -- /O(n)/. 'filter p s' returns the elements of 's' such that 'p' evaluates to
 -- 'True'.  Order is preserved, and focus moves as described for 'delete'.
 --
+{-@ filter :: (a -> Bool) -> UStack a -> Maybe (UStack a) @-}
 filter :: (a -> Bool) -> Stack a -> Maybe (Stack a)
-filter p (Stack f ls rs) = case L.filter p (f:rs) of
-    f':rs' -> Just $ Stack f' (L.filter p ls) rs'    -- maybe move focus down
-    []     -> case L.filter p ls of                  -- filter back up
+filter p (Stack f ls rs) = case filterL p (f:rs) of
+    f':rs' -> Just $ Stack f' (filterL p ls) rs'    -- maybe move focus down
+    []     -> case filterL p ls of                  -- filter back up
                     f':ls' -> Just $ Stack f' ls' [] -- else up
                     []     -> Nothing
 
@@ -350,16 +497,19 @@ swapDown  = modify' (reverseStack . swapUp' . reverseStack)
 
 -- | Variants of 'focusUp' and 'focusDown' that work on a
 -- 'Stack' rather than an entire 'StackSet'.
+{-@ focusUp', focusDown' :: UStack a -> UStack a @-}
 focusUp', focusDown' :: Stack a -> Stack a
 focusUp' (Stack t (l:ls) rs) = Stack l ls (t:rs)
 focusUp' (Stack t []     rs) = Stack x xs [] where (x:xs) = reverse (t:rs)
 focusDown'                   = reverseStack . focusUp' . reverseStack
 
+{-@ swapUp' :: UStack a -> UStack a @-}
 swapUp' :: Stack a -> Stack a
 swapUp'  (Stack t (l:ls) rs) = Stack t ls (l:rs)
 swapUp'  (Stack t []     rs) = Stack t (reverse rs) []
 
 -- | reverse a stack: up becomes down and down becomes up.
+{-@ reverseStack :: UStack a -> UStack a @-}
 reverseStack :: Stack a -> Stack a
 reverseStack (Stack t ls rs) = Stack t rs ls
 
@@ -378,8 +528,12 @@ screens :: StackSet i l a s sd -> [Screen i l a s sd]
 screens s = current s : visible s
 
 -- | Get a list of all workspaces in the 'StackSet'.
+{-@ workspaces :: StackSet i l a s sd -> [Workspace i l a] @-}
 workspaces :: StackSet i l a s sd -> [Workspace i l a]
 workspaces s = workspace (current s) : map workspace (visible s) ++ hidden s
+  where [] ++ ys     = ys              -- LIQUID
+        (x:xs) ++ ys = x: (xs ++ ys)   -- LIQUID
+
 
 -- | Get a list of all windows in the 'StackSet' in no particular order
 allWindows :: Eq a => StackSet i l a s sd -> [a]
@@ -423,8 +577,23 @@ mapLayout f (StackSet v vs hs m) = StackSet (fScreen v) (map fScreen vs) (map fW
     fWorkspace (Workspace t l s) = Workspace t (f l) s
 
 -- | /O(n)/. Is a window in the 'StackSet'?
+{-@ member :: Eq a 
+           => x:a 
+           -> st:(StackSet i l a s sd) 
+           -> {v:Bool| ((~(Prop v)) => (~(StackSetCurrentElt x st)))}
+  @-}
 member :: Eq a => a -> StackSet i l a s sd -> Bool
-member a s = isJust (findTag a s)
+member a s -- LIQUID isJust (findTag a s)
+  = memberStack a (stack $ workspace $ current s) || isJust (findTag a s)
+
+{-@ memberStack :: Eq a
+                => x:a 
+                -> st:(Maybe (UStack a))
+                -> {v:Bool|((Prop v)<=>((isJust st) && (StackElt x (fromJust st))))}
+  @-}
+memberStack :: Eq a => a -> Maybe (Stack a) -> Bool
+memberStack x (Just (Stack f up down)) = x `elem` (f : up ++ down)
+memberStack _ Nothing                  = False
 
 -- | /O(1) on current window, O(n) in general/.
 -- Return 'Just' the workspace tag of the given window, or 'Nothing'
@@ -450,9 +619,24 @@ findTag a s = listToMaybe
 -- Semantics in Huet's paper is that insert doesn't move the cursor.
 -- However, we choose to insert above, and move the focus.
 --
+{-@ insertUp :: Eq a => a -> StackSet i l a s sd -> StackSet i l a s sd @-}
 insertUp :: Eq a => a -> StackSet i l a s sd -> StackSet i l a s sd
-insertUp a s = if member a s then s else insert
-  where insert = modify (Just $ Stack a [] []) (\(Stack t l r) -> Just $ Stack a l (t:r)) s
+insertUp a s = if member a s then s else insertUp_ a (Just $ Stack a [] []) s
+-- LIQUID insertUp a s = if member a s then s else insert
+-- LIQUID   where insert = modify (Just $ Stack a [] []) (Just $ Stack a [] []) (\(Stack t l r) -> Just $ Stack a l (t:r)) s
+
+{-@ insertUp_ :: x:a 
+              -> (Maybe (UStack a))  
+              -> {v:StackSet i l a s sd | (~ (StackSetCurrentElt x v))}
+              -> (StackSet i l a s sd) @-}
+insertUp_ :: a 
+          -> Maybe (Stack a) 
+          -> StackSet i l a s sd 
+          -> StackSet i l a s sd
+insertUp_ x _ (StackSet (Screen (Workspace i l (Just (Stack t ls rs))) a b ) v h c)
+ = (StackSet (Screen (Workspace i l (Just (Stack x ls (t:rs)))) a b) v h c)
+insertUp_ _ d (StackSet (Screen (Workspace i l Nothing) a b ) v h c)
+ = (StackSet (Screen (Workspace i l d) a b ) v h c)
 
 -- insertDown :: a -> StackSet i l a s sd -> StackSet i l a s sd
 -- insertDown a = modify (Stack a [] []) $ \(Stack t l r) -> Stack a (t:l) r
@@ -507,9 +691,17 @@ sink w s = s { floating = M.delete w (floating s) }
 -- The old master window is swapped in the tiling order with the focused window.
 -- Focus stays with the item moved.
 swapMaster :: StackSet i l a s sd -> StackSet i l a s sd
-swapMaster = modify' $ \c -> case c of
-    Stack _ [] _  -> c    -- already master.
+swapMaster = modify' swapMaster_ -- LIQUID $ \ccc -> case ccc of
+-- LIQUID     Stack _ [] _  -> ccc    -- already master.
+-- LIQUID     Stack t ls rs -> Stack t [] (xs ++ x : rs) where (x:xs) = reverse ls
+
+-- LIQUID TODO this should be set to original code if we use invariants
+{-@ swapMaster_ :: UStack a -> UStack a @-}
+swapMaster_ :: Stack a -> Stack a
+swapMaster_ =  \ccc -> case ccc of
+    Stack _ [] _  -> ccc    -- already master.
     Stack t ls rs -> Stack t [] (xs ++ x : rs) where (x:xs) = reverse ls
+
 
 -- natural! keep focus, move current to the top, move top to current.
 
@@ -524,11 +716,16 @@ shiftMaster = modify' $ \c -> case c of
 
 -- | /O(s)/. Set focus to the master window.
 focusMaster :: StackSet i l a s sd -> StackSet i l a s sd
-focusMaster = modify' $ \c -> case c of
+focusMaster = modify' focusMaster_ -- LIQUID $ \c -> case c of
+-- LIQUID     Stack _ [] _  -> c
+-- LIQUID     Stack t ls rs -> Stack x [] (xs ++ t : rs) where (x:xs) = reverse ls
+
+{-@ focusMaster_ :: UStack a -> UStack a @-}
+focusMaster_ :: Stack a -> Stack a
+focusMaster_ = \c -> case c of
     Stack _ [] _  -> c
     Stack t ls rs -> Stack x [] (xs ++ t : rs) where (x:xs) = reverse ls
 
---
 -- ---------------------------------------------------------------------
 -- $composite
 
@@ -556,3 +753,54 @@ shiftWin n w s = case findTag w s of
 onWorkspace :: (Eq i, Eq s) => i -> (StackSet i l a s sd -> StackSet i l a s sd)
             -> (StackSet i l a s sd -> StackSet i l a s sd)
 onWorkspace n f s = view (currentTag s) . f . view n $ s
+
+
+
+
+-------------------------------------------------------------------------------
+------------------------------- Functions on Lists ----------------------------
+-------------------------------------------------------------------------------
+
+
+infixr 5 ++
+{-@ (++) :: xs:(UList a)
+         -> ys:{v: UList a | (ListDisjoint v xs)}
+         -> {v: UList a | (UnionElts v xs ys)}
+  @-}
+(++) :: [a] -> [a] -> [a]
+[] ++ ys = ys
+(x:xs) ++ ys = x: (xs ++ ys)
+
+{-@ reverse :: xs:(UList a)
+            -> {v: UList a | (EqElts v xs)} 
+  @-}
+reverse :: [a] -> [a]
+reverse = go []
+  where go a []     = a
+        go a (x:xs) = go (x:a) xs 
+
+{-@ filterL :: (a -> Bool) -> xs:(UList a) -> {v:UList a | (SubElts v xs)} @-}
+filterL :: (a -> Bool) -> [a] -> [a]
+filterL p [] = []
+filterL p (x:xs) | p x       = x : filterL p xs
+                 | otherwise = filterL p xs
+
+{-@ elem :: Eq a 
+         => x:a 
+         -> xs:[a] 
+         -> {v:Bool|((Prop v)<=>(ListElt x xs))}
+  @-}
+elem :: Eq a => a -> [a] -> Bool
+elem x []     = False
+elem x (y:ys) | x == y    = True
+              | otherwise = elem x ys
+
+-- QUALIFIERS
+{-@ q :: x:a -> {v:[a] |(not (Set_mem x (listElts v)))} @-}
+q :: a -> [a]
+q = undefined
+
+{-@ q1 :: xs:[a] -> {v:a |(not (Set_mem v (listElts xs)))} @-}
+q1 :: [a] -> a
+q1 = undefined
+
