@@ -12,7 +12,7 @@ import Data.Set hiding (partition)
 member' :: Eq a => a -> [a] -> ([a], [a])
 member' x ls = partition (cmp x) ls 
 
-{- member :: Eq a 
+{-@ member :: Eq a 
            => x:a 
            -> xs:[a] 
            -> {v:Bool|((Prop v) <=> (ListElt x xs))}
