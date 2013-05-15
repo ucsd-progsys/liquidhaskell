@@ -575,9 +575,9 @@ bareTCApp _ r c rs ts | length ts == tyConArity c
     where t0 = rApp c ts rs top
           t  = rApp c ts rs r
           t' = (expandRTypeSynonyms t0) `strengthen` r
-bareTCApp _ _ c _ ts 
-  = errorstar $ printf "Bare: %s is applied to %d arguments instead of %d" 
-                  (showPpr c) (length ts) (tyConArity c) 
+-- otherwise create an error
+-- create the error later to get better message
+bareTCApp _ _ c rs ts = rApp c ts rs top
 
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
 
