@@ -1,13 +1,8 @@
-module ListSort where
+module Foo where
 
+data F a = F a
 
-data P a = P a Int
-
-{-@ data P a <p :: a -> Int -> Prop>
-     = P (i :: a) (v :: Int<p i>)
-  @-}
-{-@ type OP  = P <{\p v ->  p > v}> Int @-}
-
-foo :: P Int
-{-@ foo :: OP @-}
-foo = P 3 2
+-- give F two parameters instead of one
+{-@ foo :: a -> F a b @-} 
+foo :: a -> F a
+foo = undefined
