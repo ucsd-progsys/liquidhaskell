@@ -20,6 +20,7 @@ import PrelNames
 import PrelInfo                 (wiredInThings)
 import Type                     (expandTypeSynonyms, splitFunTy_maybe)
 import DataCon                  (dataConImplicitIds)
+import TyCon                    (tyConArity)
 import HscMain
 import TysWiredIn
 import BasicTypes               (TupleSort (..), Arity)
@@ -569,11 +570,14 @@ ofSyms (x, t)
   = liftM ((,) x) (ofBareType t)
 
 -- TODO: move back to RefType
-bareTCApp _ r c rs ts 
+bareTCApp _ r c rs ts | length ts == tyConArity c
   = if isTrivial t0 then t' else t
     where t0 = rApp c ts rs top
           t  = rApp c ts rs r
           t' = (expandRTypeSynonyms t0) `strengthen` r
+bareTCApp _ _ c _ ts 
+  = errorstar $ printf "Bare: %s is applied to %d arguments instead of %d" 
+                  (showPpr c) (length ts) (tyConArity c) 
 
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
 
