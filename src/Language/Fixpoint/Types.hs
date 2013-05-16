@@ -51,7 +51,13 @@ module Language.Fixpoint.Types (
   , removeLhsKvars
 
   -- * Environments
-  , SEnv, emptySEnv, fromListSEnv, mapSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
+  , SEnv
+  , emptySEnv, toListSEnv, fromListSEnv
+  , mapSEnv
+  , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
+  , intersectWithSEnv
+  , filterSEnv
+
   , FEnv, insertFEnv 
   , IBindEnv, BindId, insertsIBindEnv, deleteIBindEnv, emptyIBindEnv
   , BindEnv, insertBindEnv, emptyBindEnv
@@ -622,16 +628,18 @@ sortedReftValueVariable (RR _ (Reft (v,_))) = v
 ----------------- Environments  -------------------------------
 ---------------------------------------------------------------
 
+toListSEnv              ::  SEnv a -> [(Symbol, a)]
+toListSEnv (SE env)     = M.toList env
 fromListSEnv            ::  [(Symbol, a)] -> SEnv a
 fromListSEnv            = SE . M.fromList
-
 mapSEnv f (SE env)      = SE (fmap f env)
 deleteSEnv x (SE env)   = SE (M.delete x env)
 insertSEnv x y (SE env) = SE (M.insert x y env)
 lookupSEnv x (SE env)   = M.lookup x env
 emptySEnv               = SE M.empty
 memberSEnv x (SE env)   = M.member x env
-
+intersectWithSEnv f (SE m1) (SE m2) = SE (M.intersectionWith f m1 m2)
+filterSEnv f (SE m)     = SE (M.filter f m)
 
 -- | Functions for Indexed Bind Environment 
 
