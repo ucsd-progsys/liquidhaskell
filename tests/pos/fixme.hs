@@ -1,13 +1,7 @@
-module ListSort where
+module Foo where
 
+data F = F { foo :: Int}
 
-data P a = P a Int
+{-@ data F <p :: Int -> Prop> = F (i :: Int<p>)@-}
 
-{-@ data P a <p :: a -> Int -> Prop>
-     = P (i :: a) (v :: Int<p i>)
-  @-}
-{-@ type OP  = P <{\p v ->  p > v}> Int @-}
-
-foo :: P Int
-{-@ foo :: OP @-}
-foo = P 3 2
+{-@ foo  :: F -> {v:Int| v = 0} @-}
