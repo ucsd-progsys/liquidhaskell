@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Talking About Unique Sets"
+title: "Unique Zippers"
 date: 2013-05-10 16:12
 comments: true
 external-url:
