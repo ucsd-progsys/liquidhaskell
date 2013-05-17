@@ -17,6 +17,9 @@ iter_ :: t:Data.Text.Internal.Text
                    && ((numchars (tarr t) (toff t) (i+v))
                        <= (tlength t)))}
 
+lengthWord16 :: t:Data.Text.Internal.Text
+             -> {v:Int | v = (tlen t)}
+
 -- measure iter_d :: Data.Text.Unsafe.Iter -> Int
 -- iter_d (Data.Text.Unsafe.Iter c d) = d
 

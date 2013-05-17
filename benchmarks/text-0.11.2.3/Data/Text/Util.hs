@@ -18,6 +18,8 @@ module Data.Text.Util
 
 -- | A lazier version of Data.List.intersperse.  The other version
 -- causes space leaks!
+{-@ intersperse :: a -> as:[a] -> {v:[a] | (len v) >= (len as)}
+  @-}
 intersperse :: a -> [a] -> [a]
 intersperse _   []     = []
 intersperse sep (x:xs) = x : go xs

@@ -117,7 +117,7 @@ empty = Empty
 -- | Consume the chunks of a lazy 'Text' with a natural right fold.
 {-@ foldrChunks :: forall <p :: Data.Text.Lazy.Internal.Text -> a -> Prop>.
                    (ts:Data.Text.Lazy.Internal.Text
-                    -> t:Data.Text.Internal.Text
+                    -> t:NonEmptyStrict
                     -> a<p ts>
                     -> a<p (Data.Text.Lazy.Internal.Chunk t ts)>)
                 -> a<p Data.Text.Lazy.Internal.Empty>

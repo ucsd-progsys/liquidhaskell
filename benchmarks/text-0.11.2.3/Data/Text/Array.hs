@@ -28,7 +28,8 @@ module Data.Text.Array
     -- * Types
     --LIQUID added Array dataCon export
       Array(..)
-    , MArray(maBA)
+--LIQUID     , MArray(maBA)
+    , MArray(..)
 
     -- * Functions
     , copyM
@@ -86,6 +87,8 @@ import Prelude hiding (length, read)
 --LIQUID
 import Data.Int
 import Data.Word
+import qualified GHC.Prim
+import Language.Haskell.Liquid.Prelude
 
 -- | Immutable array type.
 data Array = Array {
@@ -95,6 +98,20 @@ data Array = Array {
 --LIQUID #endif
     }
 
+{-@ data Data.Text.Array.Array <p :: Int -> Prop>
+         = Data.Text.Array.Array
+            (aBA :: GHC.Prim.ByteArray#)
+            (aLen :: {v:Int<p> | v >= 0})
+  @-}
+
+{-@ measure alen :: Data.Text.Array.Array -> Int
+    alen (Data.Text.Array.Array aBA aLen) = aLen
+  @-}
+
+{-@ aLen :: a:Data.Text.Array.Array
+         -> {v:Int | v = (alen a)}
+  @-}
+
 -- | Mutable array type, for use in the ST monad.
 data MArray s = MArray {
       maBA :: MutableByteArray# s
@@ -102,6 +119,20 @@ data MArray s = MArray {
     , maLen :: {-# UNPACK #-} !Int -- length (in units of Word16, not bytes)
 --LIQUID #endif
     }
+
+{-@ data Data.Text.Array.MArray s <p :: Int -> Prop>
+         = Data.Text.Array.MArray
+            (maBA :: GHC.Prim.MutableByteArray# s)
+            (maLen :: {v:Int<p> | v >= 0})
+  @-}
+
+{-@ measure malen :: Data.Text.Array.MArray s -> Int
+    malen (Data.Text.Array.MArray maBA maLen) = maLen
+  @-}
+
+{-@ maLen :: ma:(Data.Text.Array.MArray s)
+          -> {v:Int | v = (malen ma)}
+  @-}
 
 --LIQUID #if defined(ASSERTS)
 -- | Operations supported by all arrays.
@@ -119,6 +150,9 @@ instance IArray (MArray s) where
 --LIQUID #endif
 
 -- | Create an uninitialized mutable array.
+{-@ new :: forall s. n:{v:Int | v >= 0}
+        -> ST s ({v:Data.Text.Array.MArray s | (malen v) = n})
+  @-}
 new :: forall s. Int -> ST s (MArray s)
 new n
   | n < 0 || n .&. highBit /= 0 = error $ "Data.Text.Array.new: size overflow"
@@ -134,6 +168,9 @@ new n
 {-# INLINE new #-}
 
 -- | Freeze a mutable array. Do not mutate the 'MArray' afterwards!
+{-@ unsafeFreeze :: ma:Data.Text.Array.MArray s
+                 -> ST s ({v:Data.Text.Array.Array | (alen v) = (malen ma)})
+  @-}
 unsafeFreeze :: MArray s -> ST s Array
 unsafeFreeze MArray{..} = ST $ \s# ->
                           (# s#, Array (unsafeCoerce# maBA)
@@ -151,18 +188,33 @@ bytesInArray n = n `shiftL` 1
 
 -- | Unchecked read of an immutable array.  May return garbage or
 -- crash on an out-of-bounds access.
+{-@ unsafeIndex :: a:Data.Text.Array.Array
+                -> i:{v:Int | (Btwn v 0 (alen a))}
+                -> Word16
+  @-}
 unsafeIndex :: Array -> Int -> Word16
 unsafeIndex Array{..} i@(I# i#) =
   CHECK_BOUNDS("unsafeIndex",aLen,i)
     case indexWord16Array# aBA i# of r# -> (W16# r#)
 
 --LIQUID
+{-@ unsafeIndex' :: a:Data.Text.Array.Array
+                 -> o:{v:Int | (Btwn v 0 (alen a))}
+                 -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
+                 -> i:{v:Int | (Btwn (v) (o) (o + l))}
+                 -> Word16
+  @-}
 unsafeIndex' :: Array -> Int -> Int -> Int -> Word16
 unsafeIndex' a o l i = unsafeIndex a i
 {-# INLINE unsafeIndex #-}
 
 -- | Unchecked write of a mutable array.  May return garbage or crash
 -- on an out-of-bounds access.
+{-@ unsafeWrite :: ma:Data.Text.Array.MArray s
+                -> i:{v:Int | (Btwn v 0 (malen ma))}
+                -> Word16
+                -> ST s ()
+  @-}
 unsafeWrite :: MArray s -> Int -> Word16 -> ST s ()
 unsafeWrite MArray{..} i@(I# i#) (W16# e#) = ST $ \s1# ->
   CHECK_BOUNDS("unsafeWrite",maLen,i)
@@ -171,12 +223,29 @@ unsafeWrite MArray{..} i@(I# i#) (W16# e#) = ST $ \s1# ->
 {-# INLINE unsafeWrite #-}
 
 -- | Convert an immutable array to a list.
+{-@ toList :: a:Data.Text.Array.Array
+           -> o:{v:Int | (Btwn v 0 (alen a))}
+           -> l:{v:Int | ((v >= 0) && ((v + o) < (alen a)))}
+           -> {v:[Word16] | (len v) = l}
+  @-}
 toList :: Array -> Int -> Int -> [Word16]
-toList ary off len = loop 0
-    where loop i | i < len   = unsafeIndex ary (off+i) : loop (i+1)
-                 | otherwise = []
+--LIQUID toList ary off len = loop 0
+--LIQUID     where loop i | i < len   = unsafeIndex ary (off+i) : loop (i+1)
+--LIQUID                  | otherwise = []
+toList ary off len = toList_loop ary off len 0
+
+{-@ toList_loop :: a:Data.Text.Array.Array
+                -> o:{v:Int | (Btwn v 0 (alen a))}
+                -> l:{v:Int | ((v >= 0) && ((v + o) < (alen a)))}
+                -> i:{v:Int | (BtwnI v 0 l)}
+                -> {v:[Word16] | (len v) = (l - i)}
+  @-}
+toList_loop ary off len i
+    | i < len   = unsafeIndex ary (off+i) : toList_loop ary off len (i+1)
+    | otherwise = []
 
 -- | An empty immutable array.
+{-@ empty :: {v:Data.Text.Array.Array | (alen v) = 0} @-}
 empty :: Array
 empty = runST (new 0 >>= unsafeFreeze)
 
@@ -194,6 +263,13 @@ run2 k = runST (do
                  return (arr,b))
 
 -- | Copy some elements of a mutable array.
+{-@ copyM :: ma1:Data.Text.Array.MArray s
+          -> o1:{v:Int | ((v >= 0) && (v < (malen ma1)))}
+          -> ma2:Data.Text.Array.MArray s
+          -> o2:{v:Int | ((v >= 0) && (v < (malen ma2)))}
+          -> cnt:{v:Int | ((v > 0) && ((v + o1) <= (malen ma1)) && ((v + o2) <= (malen ma2)))}
+          -> ST s ()
+  @-}
 copyM :: MArray s               -- ^ Destination
       -> Int                    -- ^ Destination offset
       -> MArray s               -- ^ Source
@@ -204,15 +280,25 @@ copyM dest didx src sidx count
     | count <= 0 = return ()
     | otherwise =
 --LIQUID #if defined(ASSERTS)
-    assert (sidx + count <= length src) .
-    assert (didx + count <= length dest) .
+--LIQUID     assert (sidx + count <= length src) .
+--LIQUID     assert (didx + count <= length dest) .
 --LIQUID #endif
+    liquidAssert (sidx + count <= maLen src) .
+    liquidAssert (didx + count <= maLen dest) .
+    liquidAssert (count > 0) .
     unsafeIOToST $ memcpyM (maBA dest) (fromIntegral didx)
                            (maBA src) (fromIntegral sidx)
                            (fromIntegral count)
 {-# INLINE copyM #-}
 
 -- | Copy some elements of an immutable array.
+{-@ copyI :: ma:Data.Text.Array.MArray s
+          -> mo:{v:Int | ((v >= 0) && (v < (malen ma)))}
+          -> a:Data.Text.Array.Array
+          -> o:{v:Int | ((v >= 0) && (v < (alen a)))}
+          -> top:{v:Int | ((v >= o) && (v < (malen ma)) && (v <= (alen a)))}
+          -> ST s ()
+  @-}
 copyI :: MArray s               -- ^ Destination
       -> Int                    -- ^ Destination offset
       -> Array                  -- ^ Source
@@ -230,6 +316,13 @@ copyI dest i0 src j0 top
 
 -- | Compare portions of two arrays for equality.  No bounds checking
 -- is performed.
+{-@ equal :: a1:Data.Text.Array.Array
+          -> o1:{v:Int | ((v >= 0) && (v < (alen a1)))}
+          -> a2:Data.Text.Array.Array
+          -> o2:{v:Int | ((v >= 0) && (v < (alen a2)))}
+          -> cnt:{v:Int | ((v >= 0) && ((v+o1) < (alen a1)) && ((v+o2) < (alen a2)))}
+          -> {v:Bool | ((Prop v) <=> (a1 = a2))}
+  @-}
 equal :: Array                  -- ^ First
       -> Int                    -- ^ Offset into first
       -> Array                  -- ^ Second
@@ -245,6 +338,13 @@ equal arrA offA arrB offB count = inlinePerformIO $ do
 foreign import ccall unsafe "_hs_text_memcpy" memcpyI
     :: MutableByteArray# s -> CSize -> ByteArray# -> CSize -> CSize -> IO ()
 
+{-@ memcmp :: a1:GHC.Prim.ByteArray#
+           -> CSize
+           -> a2:GHC.Prim.ByteArray#
+           -> CSize
+           -> CSize
+           -> IO {v:CInt | ((v = 0) <=> (a1 = a2))}
+  @-}
 foreign import ccall unsafe "_hs_text_memcmp" memcmp
     :: ByteArray# -> CSize -> ByteArray# -> CSize -> CSize -> IO CInt
 
