@@ -198,7 +198,7 @@ Refinement Type Aliases
 
 #### Predicate Aliases
 
-Sometimes, the propositions in the refinements can get rather long and
+Often, the propositions in the refinements can get rather long and
 verbose. You can write predicate aliases like so:
 
     {-@ predicate Lt X Y = X < Y        @-}
