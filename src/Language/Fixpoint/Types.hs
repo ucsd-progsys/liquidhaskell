@@ -85,6 +85,7 @@ module Language.Fixpoint.Types (
   , Subst, Subable (..)
   , emptySubst, mkSubst, catSubst
   , substExcept, substfExcept, subst1Except
+  , sortSubst
 
   -- * Visitors
   , reftKVars
@@ -264,6 +265,14 @@ toFix_sort (FApp c ts)
 
 instance Fixpoint FTycon where
   toFix (TC s)       = toFix s
+
+-------------------------------------------------------------------------------------------
+sortSubst                  :: (M.HashMap Symbol Sort) -> Sort -> Sort
+-------------------------------------------------------------------------------------------
+sortSubst θ t@(FObj x)   = fromMaybe t (M.lookup x θ) 
+sortSubst θ (FFunc n ts) = FFunc n (sortSubst θ <$> ts)
+sortSubst θ (FApp c ts)  = FApp c  (sortSubst θ <$> ts)
+sortSubst _  t           = t
 
 
 ---------------------------------------------------------------
@@ -1181,6 +1190,20 @@ meetReft r@(Reft (v, ras)) r'@(Reft (v', ras'))
   | v == v'          = Reft (v , ras  ++ ras')
   | v == dummySymbol = Reft (v', ras' ++ (ras `subst1`  (v , EVar v'))) 
   | otherwise        = Reft (v , ras  ++ (ras' `subst1` (v', EVar v )))
+
+instance Subable () where
+  syms _      = []
+  subst _ ()  = ()
+  substf _ () = ()
+  substa _ () = ()
+
+instance Reftable () where
+  isTauto _ = True
+  ppTy _  d = d
+  top       = ()
+  meet _ _  = ()
+  toReft _  = top
+  params _  = []
 
 instance Reftable Reft where
   isTauto  = isTautoReft
