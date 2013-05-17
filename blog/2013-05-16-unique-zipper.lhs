@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Talking About Unique Sets"
+title: "Unique Zipper"
 date: 2013-05-10 16:12
 comments: true
 external-url:
@@ -10,7 +10,7 @@ published: false
 demo: TalkingAboutUniqueSets.hs
 ---
 
-**The story so far:** [Previously][talking-about-sets] we saw
+**The story so far:** [Previously][about-sets] we saw
 how we can use LiquidHaskell to talk about set of values and specifically
 the set of values in a list.
 
@@ -43,15 +43,20 @@ With this measure we defined predicate aliases
 that describe relations between lists:
 
 \begin{code}
-{-@ predicate EqElts  X Y      = ((listElts X) = (listElts Y))                        @-}
+{-@ predicate EqElts  X Y      = 
+      ((listElts X) = (listElts Y))                        @-}
 
-{-@ predicate DisjointElts X Y = (Set_emp (Set_cap (listElts X) (listElts Y)))        @-}
+{-@ predicate DisjointElts X Y = 
+      (Set_emp (Set_cap (listElts X) (listElts Y)))        @-}
 
-{-@ predicate SubElts X Y      = (Set_sub (listElts X) (listElts Y))                  @-}
+{-@ predicate SubElts X Y      = 
+      (Set_sub (listElts X) (listElts Y))                  @-}
 
-{-@ predicate UnionElts X Y Z  = ((listElts X) = (Set_cup (listElts Y) (listElts Z))) @-}
+{-@ predicate UnionElts X Y Z  = 
+      ((listElts X) = (Set_cup (listElts Y) (listElts Z))) @-}
 
-{-@ predicate ListElt N X      = (Set_mem N (listElts X))                             @-}
+{-@ predicate ListElt N X      = 
+      (Set_mem N (listElts X))                             @-}
 \end{code}
 
 
@@ -125,7 +130,7 @@ infixr 5 ++
   @-}
 (++)         :: [a] -> [a] -> [a]
 [] ++ ys     = ys
-(x:xs) ++ ys = x: (xs ++ ys)
+(x:xs) ++ ys = x:(xs ++ ys)
 \end{code}
 
 Next, we can prove that if a unique list is reversed, 
@@ -146,7 +151,10 @@ Finally, filtering a unique list returns a list
 with a subset of values of the input list, that once again is unique! 
 
 \begin{code}
-{-@ filter :: (a -> Bool) -> xs:(UList a) -> {v:UList a | (SubElts v xs)} @-}
+{-@ filter :: (a -> Bool) 
+           -> xs:(UList a) 
+           -> {v:UList a | (SubElts v xs)} 
+  @-}
 filter      :: (a -> Bool) -> [a] -> [a]
 filter p [] = []
 filter p (x:xs) 
@@ -156,7 +164,7 @@ filter p (x:xs)
 
 Unique Zipper
 =============
-A [zipper][http://en.wikipedia.org/wiki/Zipper_(data_structure)] is an aggregate data stucture 
+A [zipper][wiki-zipper] is an aggregate data stucture 
 that is used to arbitrary traverse the structure and update its contents.
 We define a zipper as a data type that contains 
 an element (called `focus`) that we are currently using,
@@ -220,7 +228,9 @@ With these definitions, we create a type alias `UZipper` that states that
 the two list components are disjoint.
 
 \begin{code}
-{-@ type UZipper a = {v:Zipper a | (DisjointElts (getUp v) (getDown v))} @-}
+{-@ 
+type UZipper a = {v:Zipper a | (DisjointElts (getUp v) (getDown v))} 
+  @-}
 \end{code}
 
 Functions on Unique Zipper
@@ -274,7 +284,8 @@ More the focus up or down
 \begin{code}
 {-@ focusUp, focusDown :: UZipper a -> UZipper a @-}
 focusUp, focusDown :: Zipper a -> Zipper a
-focusUp (Zipper t [] rs)     = Zipper x xs [] where (x:xs) = reverse (t:rs)
+focusUp (Zipper t [] rs)     = Zipper x xs [] 
+  where (x:xs) = reverse (t:rs)
 focusUp (Zipper t (l:ls) rs) = Zipper l ls (t:rs)
 
 focusDown = reverseZipper . focusUp . reverseZipper
@@ -291,9 +302,9 @@ also preserves uniqueness.
 {-@ filterZipper :: (a -> Bool) -> UZipper a -> Maybe (UZipper a) @-}
 filterZipper :: (a -> Bool) -> Zipper a -> Maybe (Zipper a)
 filterZipper p (Zipper f ls rs) = case filter p (f:rs) of
-    f':rs' -> Just $ Zipper f' (filter p ls) rs'    -- maybe move focus down
-    []     -> case filter p ls of                  -- filter back up
-                    f':ls' -> Just $ Zipper f' ls' [] -- else up
+    f':rs' -> Just $ Zipper f' (filter p ls) rs'
+    []     -> case filter p ls of                  
+                    f':ls' -> Just $ Zipper f' ls' []
                     []     -> Nothing
 \end{code}
 
@@ -308,5 +319,6 @@ such as list uniqueness.
 - How we can use LuquidHaskell to prove that these properties are preserved through list operations.
 - How we can embed this properties in complicated data structures that use lists, such as a zipper.
 
-
-
+[wiki-zipper]: http://en.wikipedia.org/wiki/Zipper_(data_structure)
+[about-sets]:  blog/2013/03/26/talking-about-sets.lhs/
+[setspec]:     https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Set.spec
