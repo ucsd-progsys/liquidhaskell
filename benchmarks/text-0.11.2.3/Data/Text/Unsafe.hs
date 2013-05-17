@@ -34,6 +34,12 @@ import Data.Text.Unsafe.Base (inlineInterleaveST, inlinePerformIO)
 import Data.Text.UnsafeChar (unsafeChr)
 import qualified Data.Text.Array as A
 
+--LIQUID
+import qualified Data.Text.Array
+import Data.Text.Axioms
+import qualified Data.Word
+import Language.Haskell.Liquid.Prelude
+
 -- | /O(1)/ A variant of 'head' for non-empty 'Text'. 'unsafeHead'
 -- omits the check for the empty case, so there is an obligation on
 -- the programmer to provide a proof that the 'Text' is non-empty.
@@ -52,15 +58,18 @@ unsafeHead (Text arr off _len)
 -- omits the check for the empty case, so there is an obligation on
 -- the programmer to provide a proof that the 'Text' is non-empty.
 {-@ unsafeTail :: t:{v:Text | (tlength v) > 0}
-               -> {v:Text | (tlength v) < (tlength t)}
+               -> {v:Text | (tlength v) = ((tlength t) - 1)}
   @-}
 unsafeTail :: Text -> Text
-unsafeTail t@(Text arr off len) =
-#if defined(ASSERTS)
-    assert (d <= len) $
-#endif
-    Text arr (off+d) (len-d)
+unsafeTail = unsafeTail'
+unsafeTail' t@(Text arr off len) =
+--LIQUID #if defined(ASSERTS)
+--LIQUID     assert (d <= len) $
+--LIQUID #endif
+    liquidAssert (d <= len) $
+    Text arr (off+d) len'
   where d = iter_ t 0
+        len' = liquidAssume (axiom_numchars_split t d) (len-d)
 {-# INLINE unsafeTail #-}
 
 data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
@@ -91,10 +100,19 @@ iter (Text arr off _len) i
 
 -- | /O(1)/ Iterate one step through a UTF-16 array, returning the
 -- delta to add to give the next offset to iterate at.
+{-@ iter_ :: t:Data.Text.Internal.Text
+          -> i:{v:Int | (Btwn v 0 (tlen t))}
+          -> {v:Int | (((BtwnEI (v+i) i (tlen t)))
+                       && ((numchars (tarr t) (toff t) (i+v))
+                           = (1 + (numchars (tarr t) (toff t) i)))
+                       && ((numchars (tarr t) (toff t) (i+v))
+                           <= (tlength t)))}
+  @-}
 iter_ :: Text -> Int -> Int
 iter_ (Text arr off _len) i | m < 0xD800 || m > 0xDBFF = 1
                             | otherwise                = 2
-  where m = A.unsafeIndex arr (off+i)
+--LIQUID   where m = A.unsafeIndex arr (off+i)
+  where m = A.unsafeIndex' arr off _len (off+i)
 {-# INLINE iter_ #-}
 
 -- | /O(1)/ Iterate one step backwards through a UTF-16 array,
@@ -125,6 +143,9 @@ reverseIter (Text arr off _len) i l
 -- | /O(1)/ Return the length of a 'Text' in units of 'Word16'.  This
 -- is useful for sizing a target array appropriately before using
 -- 'unsafeCopyToPtr'.
+{-@ lengthWord16 :: t:Data.Text.Internal.Text
+                 -> {v:Int | v = (tlen t)}
+  @-}
 lengthWord16 :: Text -> Int
 lengthWord16 (Text _arr _off len) = len
 {-# INLINE lengthWord16 #-}

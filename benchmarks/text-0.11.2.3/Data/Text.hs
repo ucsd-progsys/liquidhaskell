@@ -69,7 +69,7 @@ module Data.Text
     , intersperse
     , transpose
     , reverse
---LIQUID    , replace
+    , replace
 
     -- ** Case conversion
     -- $case
@@ -130,8 +130,8 @@ module Data.Text
     , splitAt
     , breakOn
     , breakOnEnd
---LIQUID    , break
---LIQUID    , span
+    , break
+    , span
     , group
     , groupBy
     , inits
@@ -144,7 +144,7 @@ module Data.Text
     , chunksOf
 
     -- ** Breaking into lines and words
---LIQUID    , lines
+    , lines
     --, lines'
     , words
     , unlines
@@ -456,7 +456,7 @@ unpack t = S.unstreamList $ stream t
 
 -- | /O(1)/ Convert a character into a Text.  Subject to fusion.
 -- Performs replacement on invalid scalar values.
-{-@ Data.Text.singleton :: Char -> {v:Data.Text.Internal.Text | (tlength v) = 1} @-}
+{-@ singleton :: Char -> {v:Data.Text.Internal.Text | (tlength v) = 1} @-}
 singleton :: Char -> Text
 --LIQUID singleton = unstream . S.singleton . safe
 --LIQUID another weird issue here: `S.singleton $ safe c` does not get the
@@ -473,7 +473,10 @@ singleton c = let c' = safe c
 -- is more costly than its 'List' counterpart because it requires
 -- copying a new array.  Subject to fusion.  Performs replacement on
 -- invalid scalar values.
-{-@ cons :: Char -> t:Data.Text.Internal.Text -> {v:Data.Text.Internal.Text | (tlength v) = (1 + (tlength t))} @-}
+{-@ cons :: Char
+         -> t:Data.Text.Internal.Text
+         -> {v:Data.Text.Internal.Text | (tlength v) = (1 + (tlength t))}
+  @-}
 cons :: Char -> Text -> Text
 cons c t = unstream (S.cons (safe c) (stream t))
 {-# INLINE cons #-}
@@ -490,22 +493,31 @@ snoc t c = unstream (S.snoc (stream t) (safe c))
 
 -- | /O(n)/ Appends one 'Text' to the other by copying both of them
 -- into a new 'Text'.  Subject to fusion.
-{-@ append :: t1:Data.Text.Internal.Text -> t2:Data.Text.Internal.Text -> {v:Data.Text.Internal.Text | (tlength v) = ((tlength t1) + (tlength t2))} @-}
+{-@ append :: t1:Data.Text.Internal.Text
+           -> t2:Data.Text.Internal.Text
+           -> {v:Data.Text.Internal.Text | (tlength v) = ((tlength t1) + (tlength t2))}
+  @-}
 append :: Text -> Text -> Text
 append a@(Text arr1 off1 len1) b@(Text arr2 off2 len2)
     | len1 == 0 = b
     | len2 == 0 = a
-    | len > 0   = let t = Text (A.run x) 0 len
+    | len > 0   = let x = do arr <- A.new len
+                             let arr' = liquidAssume (Data.Text.Array.maLen arr == len) arr
+                             A.copyI arr' 0 arr1 off1 len1
+                             A.copyI arr' len1 arr2 off2 len
+                             return arr'
+                      arr = A.run x
+                      t = Text (liquidAssume (Data.Text.Array.aLen arr == len) arr) 0 len
                   --LIQUID FIXME: this axiom is fragile, would prefer to reason about `A.run x`
                   in liquidAssume (axiom_numchars_append a b t) t
     | otherwise = overflowError "append"
     where
       len = len1+len2
-      x = do
-        arr <- A.new len
-        A.copyI arr 0 arr1 off1 len1
-        A.copyI arr len1 arr2 off2 len
-        return arr
+      --LIQUID x = do
+      --LIQUID   arr <- A.new len
+      --LIQUID   A.copyI arr 0 arr1 off1 len1
+      --LIQUID   A.copyI arr len1 arr2 off2 len
+      --LIQUID   return arr
 {-# INLINE append #-}
 
 {-# RULES
@@ -601,7 +613,9 @@ init t@(Text arr off len)
 
 -- | /O(1)/ Tests whether a 'Text' is empty or not.  Subject to
 -- fusion.
-{-@ null :: t:Data.Text.Internal.Text -> {v:Bool | ((Prop v) <=> ((tlength t) = 0))} @-}
+{-@ null :: t:Data.Text.Internal.Text
+         -> {v:Bool | ((Prop v) <=> ((tlength t) = 0))}
+  @-}
 null :: Text -> Bool
 null (Text _arr _off len) =
 --LIQUID #if defined(ASSERTS)
@@ -619,7 +633,9 @@ null (Text _arr _off len) =
 
 -- | /O(1)/ Tests whether a 'Text' contains exactly one character.
 -- Subject to fusion.
-{-@ isSingleton :: t:Data.Text.Internal.Text -> {v:Bool | ((Prop v) <=> ((tlength t) = 1))} @-}
+{-@ isSingleton :: t:Data.Text.Internal.Text
+                -> {v:Bool | ((Prop v) <=> ((tlength t) = 1))}
+  @-}
 isSingleton :: Text -> Bool
 --LIQUID isSingleton = S.isSingleton . stream
 isSingleton t = S.isSingleton $ stream t
@@ -686,7 +702,10 @@ compareLength t n = S.compareLengthI (stream t) n
 -- | /O(n)/ 'map' @f@ @t@ is the 'Text' obtained by applying @f@ to
 -- each element of @t@.  Subject to fusion.  Performs replacement on
 -- invalid scalar values.
-{-@ map :: (Char -> Char) -> t:Data.Text.Internal.Text -> {v:Data.Text.Internal.Text | (tlength t) = (tlength v)} @-}
+{-@ map :: (Char -> Char)
+        -> t:Data.Text.Internal.Text
+        -> {v:Data.Text.Internal.Text | (tlength t) = (tlength v)}
+  @-}
 map :: (Char -> Char) -> Text -> Text
 map f t = unstream (S.map (safe . f) (stream t))
 {-# INLINE [1] map #-}
@@ -703,13 +722,18 @@ intercalate t = concat . (U.intersperse t)
 -- | /O(n)/ The 'intersperse' function takes a character and places it
 -- between the characters of a 'Text'.  Subject to fusion.  Performs
 -- replacement on invalid scalar values.
-{-@ intersperse :: Char -> t:Data.Text.Internal.Text -> {v:Data.Text.Internal.Text | (tlength v) > (tlength t)} @-}
+{-@ intersperse :: Char
+                -> t:Data.Text.Internal.Text
+                -> {v:Data.Text.Internal.Text | (tlength v) > (tlength t)}
+  @-}
 intersperse     :: Char -> Text -> Text
 intersperse c t = unstream (S.intersperse (safe c) (stream t))
 {-# INLINE intersperse #-}
 
 -- | /O(n)/ Reverse the characters of a string. Subject to fusion.
-{-@ reverse :: t:Data.Text.Internal.Text -> {v:Data.Text.Internal.Text | (tlength v) = (tlength t)} @-}
+{-@ reverse :: t:Data.Text.Internal.Text
+            -> {v:Data.Text.Internal.Text | (tlength v) = (tlength t)}
+  @-}
 reverse :: Text -> Text
 reverse t = S.reverse (stream t)
 {-# INLINE reverse #-}
@@ -718,12 +742,17 @@ reverse t = S.reverse (stream t)
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
---LIQUID replace :: Text                 -- ^ Text to search for
---LIQUID         -> Text                 -- ^ Replacement text
---LIQUID         -> Text                 -- ^ Input text
---LIQUID         -> Text
---LIQUID replace s d = intercalate d . splitOn s
---LIQUID {-# INLINE replace #-}
+{-@ replace :: {v:Data.Text.Internal.Text | (tlength v) > 0}
+            -> Data.Text.Internal.Text
+            -> Data.Text.Internal.Text
+            -> Data.Text.Internal.Text
+  @-}
+replace :: Text                 -- ^ Text to search for
+        -> Text                 -- ^ Replacement text
+        -> Text                 -- ^ Input text
+        -> Text
+replace s d = intercalate d . splitOn s
+{-# INLINE replace #-}
 
 -- ----------------------------------------------------------------------------
 -- ** Case conversions (folds)
@@ -761,7 +790,9 @@ reverse t = S.reverse (stream t)
 -- \"&#x576;\" (now, U+0576), while the Greek \"&#xb5;\" (micro sign,
 -- U+00B5) is case folded to \"&#x3bc;\" (small letter mu, U+03BC)
 -- instead of itself.
-{-@ toCaseFold :: t:Data.Text.Internal.Text -> {v:Data.Text.Internal.Text | (tlength v) >= (tlength t)} @-}
+{-@ toCaseFold :: t:Data.Text.Internal.Text
+               -> {v:Data.Text.Internal.Text | (tlength v) >= (tlength t)}
+  @-}
 toCaseFold :: Text -> Text
 toCaseFold t = unstream (S.toCaseFold (stream t))
 {-# INLINE [0] toCaseFold #-}
@@ -771,7 +802,9 @@ toCaseFold t = unstream (S.toCaseFold (stream t))
 -- For instance, \"&#x130;\" (Latin capital letter I with dot above,
 -- U+0130) maps to the sequence \"i\" (Latin small letter i, U+0069) followed
 -- by \" &#x307;\" (combining dot above, U+0307).
-{-@ toLower :: t:Data.Text.Internal.Text -> {v:Data.Text.Internal.Text | (tlength v) >= (tlength t)} @-}
+{-@ toLower :: t:Data.Text.Internal.Text
+            -> {v:Data.Text.Internal.Text | (tlength v) >= (tlength t)}
+  @-}
 toLower :: Text -> Text
 toLower t = unstream (S.toLower (stream t))
 {-# INLINE toLower #-}
@@ -780,7 +813,9 @@ toLower t = unstream (S.toLower (stream t))
 -- conversion.  The result string may be longer than the input string.
 -- For instance, the German \"&#xdf;\" (eszett, U+00DF) maps to the
 -- two-letter sequence \"SS\".
-{-@ toUpper :: t:Data.Text.Internal.Text -> {v:Data.Text.Internal.Text | (tlength v) >= (tlength t)} @-}
+{-@ toUpper :: t:Data.Text.Internal.Text
+            -> {v:Data.Text.Internal.Text | (tlength v) >= (tlength t)}
+  @-}
 toUpper :: Text -> Text
 toUpper t = unstream (S.toUpper (stream t))
 {-# INLINE toUpper #-}
@@ -880,13 +915,19 @@ foldl' f z t = S.foldl' f z (stream t)
 
 -- | /O(n)/ A variant of 'foldl' that has no starting value argument,
 -- and thus must be applied to a non-empty 'Text'.  Subject to fusion.
-{-@ foldl1 :: (Char -> Char -> Char) -> {v:Data.Text.Internal.Text | (tlength v) > 0} -> Char @-}
+{-@ foldl1 :: (Char -> Char -> Char)
+           -> {v:Data.Text.Internal.Text | (tlength v) > 0}
+           -> Char
+  @-}
 foldl1 :: (Char -> Char -> Char) -> Text -> Char
 foldl1 f t = S.foldl1 f (stream t)
 {-# INLINE foldl1 #-}
 
 -- | /O(n)/ A strict version of 'foldl1'.  Subject to fusion.
-{-@ foldl1' :: (Char -> Char -> Char) -> {v:Data.Text.Internal.Text | (tlength v) > 0} -> Char @-}
+{-@ foldl1' :: (Char -> Char -> Char)
+            -> {v:Data.Text.Internal.Text | (tlength v) > 0}
+            -> Char
+  @-}
 foldl1' :: (Char -> Char -> Char) -> Text -> Char
 foldl1' f t = S.foldl1' f (stream t)
 {-# INLINE foldl1' #-}
@@ -902,7 +943,10 @@ foldr f z t = S.foldr f z (stream t)
 -- | /O(n)/ A variant of 'foldr' that has no starting value argument,
 -- and thus must be applied to a non-empty 'Text'.  Subject to
 -- fusion.
-{-@ foldr1 :: (Char -> Char -> Char) -> {v:Data.Text.Internal.Text | (tlength v) > 0} -> Char @-}
+{-@ foldr1 :: (Char -> Char -> Char)
+           -> {v:Data.Text.Internal.Text | (tlength v) > 0}
+           -> Char
+  @-}
 foldr1 :: (Char -> Char -> Char) -> Text -> Char
 foldr1 f t = S.foldr1 f (stream t)
 {-# INLINE foldr1 #-}
@@ -1106,9 +1150,9 @@ take :: Int -> Text -> Text
 take n t@(Text arr off len)
     | n <= 0    = empty
     | n >= len  = t
-    | otherwise = Text arr off len'
+    | otherwise = loop_take n t 0 0 --LIQUID Text arr off len'
  where
-     len' = loop_take n t 0 0
+     --LIQUID len' = loop_take n t 0 0
      --LIQUID loop !i !cnt
      --LIQUID      | i >= len || cnt >= n = i
      --LIQUID      | otherwise            = loop (i+d) (cnt+1)
@@ -1119,15 +1163,14 @@ take n t@(Text arr off len)
               -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
               -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
                                && (v <= n) && (v <= (tlength t)))}
-              -> {v:Int | ((Min (numchars (tarr t) (toff t) v) (tlength t) n) && (v >= 0))}
+              -> {v:Data.Text.Internal.Text | (Min (tlength v) (tlength t) n)}
   @-}
-loop_take :: Int -> Text -> Int -> Int -> Int
+loop_take :: Int -> Text -> Int -> Int -> Text
 loop_take n t@(Text arr off len) !i !cnt
-     | i >= len || cnt >= n = i
+     | i >= len || cnt >= n = Text arr off i
      | otherwise            = let d = iter_ t i
                                   cnt' = cnt + 1
                               in loop_take n t (i+d) cnt'
-
 {-# INLINE [1] take #-}
 
 {-# RULES
@@ -1364,16 +1407,16 @@ loop_splitAt t@(Text arr off len) n !i !cnt
 -- a pair whose first element is the longest prefix (possibly empty)
 -- of @t@ of elements that satisfy @p@, and whose second is the
 -- remainder of the list.
---LIQUID span :: (Char -> Bool) -> Text -> (Text, Text)
---LIQUID span p t = case span_ p t of
---LIQUID              (# hd,tl #) -> (hd,tl)
---LIQUID {-# INLINE span #-}
+span :: (Char -> Bool) -> Text -> (Text, Text)
+span p t = case span_ p t of
+             (# hd,tl #) -> (hd,tl)
+{-# INLINE span #-}
 
 -- | /O(n)/ 'break' is like 'span', but the prefix returned is
 -- over elements that fail the predicate @p@.
---LIQUID break :: (Char -> Bool) -> Text -> (Text, Text)
---LIQUID break p = span (not . p)
---LIQUID {-# INLINE break #-}
+break :: (Char -> Bool) -> Text -> (Text, Text)
+break p = span (not . p)
+{-# INLINE break #-}
 
 -- | /O(n)/ Group characters in a string according to a predicate.
 --LIQUID FIXME: what to say?
@@ -1546,7 +1589,10 @@ partition p t = (filter p t, filter (not . p) t)
 -- | /O(n)/ 'filter', applied to a predicate and a 'Text',
 -- returns a 'Text' containing those characters that satisfy the
 -- predicate.
-{-@ filter :: (Char -> Bool) -> t:Data.Text.Internal.Text -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)} @-}
+{-@ filter :: (Char -> Bool)
+           -> t:Data.Text.Internal.Text
+           -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
+  @-}
 filter :: (Char -> Bool) -> Text -> Text
 filter p t = unstream (S.filter p (stream t))
 {-# INLINE filter #-}
@@ -1572,7 +1618,10 @@ filter p t = unstream (S.filter p (stream t))
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
-{-@ breakOn :: pat:{v:Data.Text.Internal.Text | (tlength v) > 0} -> src:Data.Text.Internal.Text -> (Data.Text.Internal.Text, Data.Text.Internal.Text) @-}
+{-@ breakOn :: pat:{v:Data.Text.Internal.Text | (tlength v) > 0}
+            -> src:Data.Text.Internal.Text
+            -> (Data.Text.Internal.Text, Data.Text.Internal.Text)
+  @-}
 breakOn :: Text -> Text -> (Text, Text)
 breakOn pat src@(Text arr off len)
     | null pat  = liquidError "breakOn"
@@ -1589,7 +1638,10 @@ breakOn pat src@(Text arr off len)
 -- remainder of @haystack@, following the match.
 --
 -- > breakOnEnd "::" "a::b::c" ==> ("a::b::", "c")
-{-@ breakOnEnd :: pat:{v:Data.Text.Internal.Text | (tlength v) > 0} -> src:Data.Text.Internal.Text -> (Data.Text.Internal.Text, Data.Text.Internal.Text) @-}
+{-@ breakOnEnd :: pat:{v:Data.Text.Internal.Text | (tlength v) > 0}
+               -> src:Data.Text.Internal.Text
+               -> (Data.Text.Internal.Text, Data.Text.Internal.Text)
+  @-}
 breakOnEnd :: Text -> Text -> (Text, Text)
 breakOnEnd pat src = (reverse b, reverse a)
     where (a,b) = breakOn (reverse pat) (reverse src)
@@ -1613,7 +1665,10 @@ breakOnEnd pat src = (reverse b, reverse a)
 -- towards /O(n*m)/.
 --
 -- The @needle@ parameter may not be empty.
-{-@ breakOnAll :: pat:{v:Data.Text.Internal.Text | (tlength v) > 0} -> src:Data.Text.Internal.Text -> [(Data.Text.Internal.Text, Data.Text.Internal.Text)] @-}
+{-@ breakOnAll :: pat:{v:Data.Text.Internal.Text | (tlength v) > 0}
+               -> src:Data.Text.Internal.Text
+               -> [(Data.Text.Internal.Text, Data.Text.Internal.Text)]
+  @-}
 breakOnAll :: Text              -- ^ @needle@ to search for
            -> Text              -- ^ @haystack@ in which to search
            -> [(Text, Text)]
@@ -1645,7 +1700,10 @@ breakOnAll pat src@(Text arr off slen)
 -- before and after that index, you would instead use @breakOnAll \"::\"@.
 
 -- | /O(n)/ 'Text' index (subscript) operator, starting from 0.
-{-@ index :: t:Data.Text.Internal.Text -> {v:Int | v < (tlength t)} -> Char @-}
+{-@ index :: t:Data.Text.Internal.Text
+          -> {v:Int | v < (tlength t)}
+          -> Char
+  @-}
 index :: Text -> Int -> Char
 index t n = S.index (stream t) n
 {-# INLINE index #-}
@@ -1667,7 +1725,10 @@ findIndex p t = S.findIndex p (stream t)
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
-{-@ count :: {v:Data.Text.Internal.Text | (tlength v) > 0} -> Data.Text.Internal.Text -> Int @-}
+{-@ count :: {v:Data.Text.Internal.Text | (tlength v) > 0}
+          -> Data.Text.Internal.Text
+          -> Int
+  @-}
 count :: Text -> Text -> Int
 count pat src
     | null pat        = emptyError "count"
@@ -1707,7 +1768,6 @@ zipWith f t1 t2 = unstream (S.zipWith g (stream t1) (stream t2))
 
 -- | /O(n)/ Breaks a 'Text' up into a list of words, delimited by 'Char's
 -- representing white space.
-{- words :: t:Data.Text.Internal.Text -> [{v:Data.Text.Internal.Text | (tlength v) < (tlength t)}] @-}
 words :: Text -> [Text]
 words t@(Text arr off len) = loop 0 0
   --LIQUID  where
@@ -1736,13 +1796,16 @@ words t@(Text arr off len) = loop 0 0
 
 -- | /O(n)/ Breaks a 'Text' up into a list of 'Text's at
 -- newline 'Char's. The resulting strings do not contain newlines.
---LIQUID lines :: Text -> [Text]
---LIQUID lines ps | null ps   = []
---LIQUID          | otherwise = h : if null t
---LIQUID                            then []
---LIQUID                            else lines (unsafeTail t)
---LIQUID     where (# h,t #) = span_ (/= '\n') ps
---LIQUID {-# INLINE lines #-}
+{-@ lines :: Data.Text.Internal.Text
+          -> [Data.Text.Internal.Text]
+  @-}
+lines :: Text -> [Text]
+lines ps | null ps   = []
+         | otherwise = h : if null t
+                           then []
+                           else lines (unsafeTail t)
+    where (# h,t #) = span_ (/= '\n') ps
+{-# INLINE lines #-}
 
 {-
 -- | /O(n)/ Portably breaks a 'Text' up into a list of 'Text's at line

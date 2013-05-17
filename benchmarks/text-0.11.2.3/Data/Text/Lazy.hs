@@ -185,6 +185,10 @@ module Data.Text.Lazy
 
     -- -* Ordered text
     -- , sort
+
+    --LIQUID
+    , equal
+    , compareText
     ) where
 
 import Prelude (Char, Bool(..), Maybe(..), String,
@@ -289,6 +293,10 @@ import Language.Haskell.Liquid.Prelude
 -- measure. For details, see Unicode Technical Report 36, &#xa7;3.5:
 -- <http://unicode.org/reports/tr36#Deletion_of_Noncharacters>)
 
+{-@ equal :: Data.Text.Lazy.Internal.Text
+          -> Data.Text.Lazy.Internal.Text
+          -> Bool
+  @-}
 equal :: Text -> Text -> Bool
 equal Empty Empty = True
 equal Empty _     = False
@@ -669,8 +677,13 @@ map f t = unstream (S.map (safe . f) (stream t))
 -- | /O(n)/ The 'intercalate' function takes a 'Text' and a list of
 -- 'Text's and concatenates the list after interspersing the first
 -- argument between each element of the list.
+{-@ intercalate :: Data.Text.Lazy.Internal.Text
+                -> ts:[Data.Text.Lazy.Internal.Text]
+                -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (sum_ltlengths ts)}
+  @-}
 intercalate :: Text -> [Text] -> Text
-intercalate t = concat . (U.intersperse t)
+--LIQUID intercalate t = concat . (U.intersperse t)
+intercalate t ts = concat $ U.intersperse t ts
 {-# INLINE intercalate #-}
 
 -- | /O(n)/ The 'intersperse' function takes a character and places it
@@ -783,6 +796,11 @@ reverse = rev Empty
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
+{-@ replace :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
+            -> Data.Text.Lazy.Internal.Text
+            -> Data.Text.Lazy.Internal.Text
+            -> Data.Text.Lazy.Internal.Text
+  @-}
 replace :: Text                 -- ^ Text to search for
         -> Text                 -- ^ Replacement text
         -> Text                 -- ^ Input text
@@ -1362,9 +1380,13 @@ splitAtWord x (Chunk c@(T.Text arr off len) cs)
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
+{-@ breakOn :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
+            -> Data.Text.Lazy.Internal.Text
+            -> (Data.Text.Lazy.Internal.Text, Data.Text.Lazy.Internal.Text)
+  @-}
 breakOn :: Text -> Text -> (Text, Text)
 breakOn pat src
-    | null pat  = emptyError "breakOn"
+    | null pat  = liquidError "breakOn"
     | otherwise = case indices pat src of
                     []    -> (src, empty)
                     (x:_) -> let h :*: t = splitAtWord x src
@@ -1377,6 +1399,10 @@ breakOn pat src
 -- remainder of @haystack@, following the match.
 --
 -- > breakOnEnd "::" "a::b::c" ==> ("a::b::", "c")
+{-@ breakOnEnd :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
+               -> Data.Text.Lazy.Internal.Text
+               -> (Data.Text.Lazy.Internal.Text, Data.Text.Lazy.Internal.Text)
+  @-}
 breakOnEnd :: Text -> Text -> (Text, Text)
 breakOnEnd pat src = let (a,b) = breakOn (reverse pat) (reverse src)
                    in  (reverse b, reverse a)
@@ -1403,11 +1429,15 @@ breakOnEnd pat src = let (a,b) = breakOn (reverse pat) (reverse src)
 -- towards /O(n*m)/.
 --
 -- The @needle@ parameter may not be empty.
+{-@ breakOnAll :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
+               -> Data.Text.Lazy.Internal.Text
+               -> [(Data.Text.Lazy.Internal.Text, Data.Text.Lazy.Internal.Text)]
+  @-}
 breakOnAll :: Text              -- ^ @needle@ to search for
            -> Text              -- ^ @haystack@ in which to search
            -> [(Text, Text)]
 breakOnAll pat src
-    | null pat  = emptyError "breakOnAll"
+    | null pat  = liquidError "breakOnAll"
     | otherwise = go 0 empty src (indices pat src)
   where
     go !n p s (x:xs) = let h :*: t = splitAtWord (x-n) s
@@ -1459,6 +1489,7 @@ groupBy eq (Chunk t ts) = cons x ys : groupBy eq zs
 
 -- | /O(n)/ Return all initial segments of the given 'Text',
 -- shortest first.
+--LIQUID FIXME: inline map and (++) to get needed types
 inits :: Text -> [Text]
 inits = (Empty :) . inits'
   where inits' Empty        = []
@@ -1504,11 +1535,15 @@ tails ts@(Chunk t ts')
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
+{-@ splitOn :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
+            -> Data.Text.Lazy.Internal.Text
+            -> [Data.Text.Lazy.Internal.Text]
+  @-}
 splitOn :: Text                 -- ^ Text to split on
         -> Text                 -- ^ Input text
         -> [Text]
 splitOn pat src
-    | null pat        = emptyError "splitOn"
+    | null pat        = liquidError "splitOn"
     | isSingleton pat = split (== head pat) src
     | otherwise       = go 0 (indices pat src) src
   where
@@ -1571,16 +1606,31 @@ lines t = let (l,t') = break ((==) '\n') t
 -- | /O(n)/ Breaks a 'Text' up into a list of words, delimited by 'Char's
 -- representing white space.
 words :: Text -> [Text]
-words = L.filter (not . null) . split isSpace
+--LIQUID words = L.filter (not . null) . split isSpace
+words t = L.filter (not . null) $ split isSpace t
 {-# INLINE words #-}
 
 -- | /O(n)/ Joins lines, after appending a terminating newline to
 -- each.
+{-@ unlines :: ts:[Data.Text.Lazy.Internal.Text]
+            -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (sum_ltlengths ts)}
+  @-}
 unlines :: [Text] -> Text
-unlines = concat . L.map (`snoc` '\n')
+--LIQUID unlines = concat . L.map (`snoc` '\n')
+unlines ts = concat $ unlines_map ts
+
+{-@ unlines_map :: ts:[Data.Text.Lazy.Internal.Text]
+                -> {v:[Data.Text.Lazy.Internal.Text] | (sum_ltlengths v) >= (sum_ltlengths ts)}
+  @-}
+unlines_map :: [Text] -> [Text]
+unlines_map [] = []
+unlines_map (t:ts) = t `snoc` '\n' : unlines_map ts
 {-# INLINE unlines #-}
 
 -- | /O(n)/ Joins words using single space characters.
+{-@ unwords :: ts:[Data.Text.Lazy.Internal.Text]
+            -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (sum_ltlengths ts)}
+  @-}
 unwords :: [Text] -> Text
 unwords = intercalate (singleton ' ')
 {-# INLINE unwords #-}
@@ -1592,11 +1642,19 @@ isPrefixOf Empty _  = True
 isPrefixOf _ Empty  = False
 isPrefixOf (Chunk x xs) (Chunk y ys)
     | lx == ly  = x == y  && isPrefixOf xs ys
-    | lx <  ly  = x == yh && isPrefixOf xs (Chunk yt ys)
-    | otherwise = xh == y && isPrefixOf (Chunk xt xs) ys
-  where (xh,xt) = T.splitAt ly x
-        (yh,yt) = T.splitAt lx y
-        lx = T.length x
+--LIQUID FIXME: pushing bindings inward to prove safety
+--LIQUID     | lx <  ly  = x == yh && isPrefixOf xs (Chunk yt ys)
+--LIQUID     | otherwise = xh == y && isPrefixOf (Chunk xt xs) ys
+--LIQUID   where (xh,xt) = T.splitAt ly x
+--LIQUID         (yh,yt) = T.splitAt lx y
+--LIQUID         lx = T.length x
+--LIQUID         ly = T.length y
+    | otherwise = let (xh,xt) = T.splitAt ly x
+                      (yh,yt) = T.splitAt lx y
+                  in if lx <  ly
+                     then x == yh && isPrefixOf xs (Chunk yt ys)
+                     else xh == y && isPrefixOf (Chunk xt xs) ys
+  where lx = T.length x
         ly = T.length y
 {-# INLINE [1] isPrefixOf #-}
 

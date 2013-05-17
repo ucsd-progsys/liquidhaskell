@@ -41,3 +41,8 @@ predicate Btwn V X Y   = ((X <= V) && (V < Y))
 predicate BtwnE V X Y  = ((X < V)  && (V < Y))
 predicate BtwnI V X Y  = ((X <= V) && (V <= Y))
 predicate BtwnEI V X Y = ((X < V)  && (V <= Y))
+
+measure sum :: [Int] -> Int
+sum ([]) = 0
+sum (n:ns) = n + (sum ns)
+
