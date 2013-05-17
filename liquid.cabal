@@ -14,32 +14,27 @@ Cabal-version:       >=1.8
 
 Executable liquid 
   Build-Depends: base
-               , ghc==7.6.*
-               , ansi-terminal==0.6.*
-               , bifunctors==3.2.0.*
-               , cmdargs==0.10.2.*
-               , containers==0.5.0.*
-               , deepseq==1.3.0.*
-               , directory==1.2.0.*
-               , filemanip==0.3.6.*
-               , filepath==1.3.0.*
-               , ghc-paths==0.1.0.*
-               , hscolour==1.20.3
-               , mtl==2.1.2.*
-               , parsec==3.1.3.*
-               , pretty==1.1.1.*
-               , process==1.1.0.*
-               , syb==0.4.0.*
-               , text==0.11.2.*
-               , vector==0.10.0.*
+               , ghc==7.6.3
+               , ansi-terminal
+               , bifunctors
+               , cmdargs
+               , containers
+               , deepseq
+               , directory
+               , filemanip
+               , filepath
+               , ghc-paths
+               , hscolour
+               , mtl
+               , parsec
+               , pretty
+               , process
+               , syb
+               , text
+               , vector
                , liquid-fixpoint
-
-  if impl(ghc >= 7.6.3)
-    Build-Depends: hashable==1.2.0.*
-                 , unordered-containers==0.2.3.*
-  else
-    Build-Depends: hashable==1.2.0.5
-                 , unordered-containers==0.2.3.0
+               , hashable==1.2.0.*
+               , unordered-containers==0.2.3.*
 
 
   Main-is: Liquid.hs
@@ -48,31 +43,54 @@ Executable liquid
 
 Library
   Build-Depends: base
-               , ghc==7.6.*
-               , ansi-terminal==0.6.*
-               , bifunctors==3.2.0.*
-               , cmdargs==0.10.2.*
-               , containers==0.5.0.*
-               , deepseq==1.3.0.*
-               , directory==1.2.0.*
-               , filemanip==0.3.6.*
-               , filepath==1.3.0.*
-               , ghc-paths==0.1.0.*
-               , hscolour==1.20.3
-               , mtl==2.1.2.*
-               , parsec==3.1.3.*
-               , pretty==1.1.1.*
-               , process==1.1.0.*
-               , syb==0.4.0.*
-               , text==0.11.2.*
-               , vector==0.10.0.*
+               , ghc==7.6.3
+               , ansi-terminal
+               , bifunctors
+               , cmdargs
+               , containers
+               , deepseq
+               , directory
+               , filemanip
+               , filepath
+               , ghc-paths
+               , hscolour
+               , mtl
+               , parsec
+               , pretty
+               , process
+               , syb
+               , text
+               , vector
                , liquid-fixpoint
+               , hashable==1.2.0.*
+               , unordered-containers==0.2.3.*
+  
+--  Build-Depends: base
+--               , ghc==7.6.*
+--               , ansi-terminal==0.6.*
+--               , bifunctors==3.2.0.*
+--               , cmdargs==0.10.2.*
+--               , containers==0.5.0.*
+--               , deepseq==1.3.0.*
+--               , directory==1.2.0.*
+--               , filemanip==0.3.6.*
+--               , filepath==1.3.0.*
+--               , ghc-paths==0.1.0.*
+--               , hscolour==1.20.3
+--               , mtl==2.1.2.*
+--               , parsec==3.1.3.*
+--               , pretty==1.1.1.*
+--               , process==1.1.0.*
+--               , syb==0.4.0.*
+--               , text==0.11.2.*
+--               , vector==0.10.0.*
+--               , liquid-fixpoint
 
-  if impl(ghc >= 7.6.3)
-    Build-Depends: hashable==1.2.0.*
-                 , unordered-containers==0.2.3.*
-  else
-    Build-Depends: hashable==1.2.0.5
+--   if impl(ghc >= 7.6.3)
+--     Build-Depends: hashable==1.2.0.*
+--                  , unordered-containers==0.2.3.*
+--   else
+--     Build-Depends: hashable==1.2.0.5
                  , unordered-containers==0.2.3.0
 
   hs-source-dirs:  include, .
