@@ -118,9 +118,8 @@ iter_ (Text arr off _len) i | m < 0xD800 || m > 0xDBFF = 1
 -- | /O(1)/ Iterate one step backwards through a UTF-16 array,
 -- returning the current character and the delta to add (i.e. a
 -- negative number) to give the next offset to iterate at.
-{-@ assume reverseIter
-                :: t:Data.Text.Internal.Text
-                -> i:Int
+{-@ reverseIter :: t:Data.Text.Internal.Text
+                -> i:{v:Int | (Btwn v 0 (tlen t))}
                 -> l:{v:Int | (BtwnEI v 0 (tlen t))}
                 -> (Char,{v:Int | ((BtwnEI (l+v) 0 l)
                           && ((numchars (tarr t) (toff t) (l+v))
@@ -151,11 +150,19 @@ lengthWord16 (Text _arr _off len) = len
 {-# INLINE lengthWord16 #-}
 
 -- | /O(1)/ Unchecked take of 'k' 'Word16's from the front of a 'Text'.
+{-@ takeWord16 :: k:Int
+               -> {v:Data.Text.Internal.Text | (BtwnI k 0 (tlen v))}
+               -> Data.Text.Internal.Text
+  @-}
 takeWord16 :: Int -> Text -> Text
 takeWord16 k (Text arr off _len) = Text arr off k
 {-# INLINE takeWord16 #-}
 
 -- | /O(1)/ Unchecked drop of 'k' 'Word16's from the front of a 'Text'.
+{-@ dropWord16 :: k:Int
+               -> {v:Data.Text.Internal.Text | (BtwnI k 0 (tlen v))}
+               -> Data.Text.Internal.Text
+  @-}
 dropWord16 :: Int -> Text -> Text
 dropWord16 k (Text arr off len) = Text arr (off+k) (len-k)
 {-# INLINE dropWord16 #-}
