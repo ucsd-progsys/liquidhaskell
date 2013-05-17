@@ -7,7 +7,7 @@ external-url:
 categories: basic measures sets zipper uniqueness
 author: Niki Vazou
 published: true
-demo: TalkingAboutUniqueSets.hs
+demo: UniqueZipper.hs
 ---
 
 **The story so far:** [Previously][about-sets] we saw
