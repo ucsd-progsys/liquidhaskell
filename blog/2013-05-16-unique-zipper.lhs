@@ -6,7 +6,7 @@ comments: true
 external-url:
 categories: basic measures sets zipper uniqueness
 author: Niki Vazou
-published: true 
+published: true
 demo: TalkingAboutUniqueSets.hs
 ---
 
@@ -92,9 +92,9 @@ list duplicates of `xs`, as computed recursively.
   measure listDup :: [a] -> (Set a)
   listDup([])   = {v | (? (Set_emp v))}
   listDup(x:xs) = {v | v = 
-     (if (Set_mem x (listElts xs))
-       then (Set_cup (Set_sng x) (listDup xs))
-       else (listDup xs))}
+      (if (Set_mem x (listElts xs))
+         then (Set_cup (Set_sng x) (listDup xs))
+         else (listDup xs)) }
   @-}
 \end{code}
 
