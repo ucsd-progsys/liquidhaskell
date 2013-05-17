@@ -271,7 +271,7 @@ tokeniseSpec'      = tokAlt . chopAltDBG -- [('{', ':'), ('|', '}')]
     tokAlt' _      = []
 
 chopAltDBG y = {- traceShow ("chopAlts: " ++ y) $ -} 
-  concatMap (chopAlts [("{", ":"), ("|", "}")])
+  filter (/= "") $ concatMap (chopAlts [("{", ":"), ("|", "}")])
   $ chopAlts [("<{", "}>"), ("{", "}")] y
 
 ---------------------------------------------------------------
