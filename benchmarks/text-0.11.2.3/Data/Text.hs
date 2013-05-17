@@ -1083,24 +1083,44 @@ mapAccumR f z0 t = second reverse $ S.mapAccumL g z0 $ reverseStream t
 -- @t@ repeated @n@ times.
 {-@ replicate :: n:{v:Int | v >= 0}
               -> t:Data.Text.Internal.Text
-              -> {v:Data.Text.Internal.Text | ((n = 0) ? ((tlength v) = 0) : ((tlength v) >= (tlength t)))} @-}
+              -> {v:Data.Text.Internal.Text |
+                    ((n = 0) ? ((tlength v) = 0)
+                             : ((tlength v) >= (tlength t)))}
+  @-}
 replicate :: Int -> Text -> Text
 replicate n t@(Text a o l)
     | n <= 0 || l <= 0      = empty
     | n == 1                = t
     | isSingleton t         = replicateChar n (unsafeHead t)
-    | otherwise             = let t' = Text (A.run x) 0 len
+    | otherwise             = let len = l * n
+                                  x = do arr <- A.new len
+                                         let arr' = liquidAssume (A.maLen arr == len) arr
+                                         replicate_loop arr' len t 0
+                                  arr = A.run x
+                                  t' = Text (liquidAssume (A.aLen arr == len) arr) 0 len
                               in liquidAssume (axiom_numchars_replicate t t') t'
-    --LIQUID | n <= maxBound `div` l = Text (A.run x) 0 len
-    --LIQUID | otherwise             = overflowError "replicate"
-  where
-    len = l * n
-    x = do
-      arr <- A.new len
-      let loop !d !i | i >= n    = return arr
-                     | otherwise = let m = d + l
-                                   in A.copyI arr d a o m >> loop m (i+1)
-      loop 0 0
+--LIQUID     | n <= maxBound `div` l = Text (A.run x) 0 len
+--LIQUID     | otherwise             = overflowError "replicate"
+--LIQUID   where
+--LIQUID     len = l * n
+--LIQUID     x = do
+--LIQUID       arr <- A.new len
+--LIQUID       let loop !d !i | i >= n    = return arr
+--LIQUID                      | otherwise = let m = d + l
+--LIQUID                                    in A.copyI arr d a o m >> loop m (i+1)
+--LIQUID       loop 0 0
+
+{-@ replicate_loop :: ma:Data.Text.Array.MArray s
+                   -> len:{v:Int | v = (malen ma)}
+                   -> t:{v:Data.Text.Internal.Text | (BtwnE (tlen v) 0 (malen ma))}
+                   -> d:{v:Int | (BtwnI v 0 (malen ma))}
+                   -> GHC.ST.ST s (Data.Text.Array.MArray s)
+  @-}
+replicate_loop :: A.MArray s -> Int -> Text -> Int -> GHC.ST.ST s (A.MArray s)
+replicate_loop arr len t@(Text a o l) !d
+    | d+l > len = return arr
+    | otherwise = let m = d + l
+                  in A.copyI arr d a o m >> replicate_loop arr len t m
 {-# INLINE [1] replicate #-}
 
 {-# RULES

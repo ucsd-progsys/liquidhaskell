@@ -251,11 +251,23 @@ empty = runST (new 0 >>= unsafeFreeze)
 
 -- | Run an action in the ST monad and return an immutable array of
 -- its result.
+
+{-
+run :: forall <p :: Int -> Prop>.
+       (forall s. ST s (Data.Text.Array.MArray s)<p>)
+     -> exists[z:Int<p>]. Data.Text.Array.Array<p>
+@-}
+{- run :: (forall s. ST s ma:(Data.Text.Array.MArray s))
+        -> {v:Data.Text.Array.Array | (alen v) = (len ma)}
+  @-}
 run :: (forall s. ST s (MArray s)) -> Array
 run k = runST (k >>= unsafeFreeze)
 
 -- | Run an action in the ST monad and return an immutable array of
 -- its result paired with whatever else the action returns.
+{- run2 :: (forall s. ST s (ma:Data.Text.Array.MArray s, a:a))
+         -> ({v:Data.Text.Array.Array | (alen v) = (malen ma)}, {v:a | v = a})
+  @-}
 run2 :: (forall s. ST s (MArray s, a)) -> (Array, a)
 run2 k = runST (do
                  (marr,b) <- k
