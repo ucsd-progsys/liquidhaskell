@@ -17,6 +17,8 @@ assume GHC.Real.div             :: (Integral a) => x:a -> y:a -> {v:a | v = (x /
 assume GHC.Real.mod             :: (Integral a) => x:a -> y:a -> {v:a | v = (x mod y) }
 assume GHC.Real./               :: (Fractional a) => x:a -> y:{v:a | v != 0} -> {v: a | v = (x / y) }
 assume GHC.Num.fromInteger      :: (Num a) => x:Integer -> {v:a | v = x }
+assume GHC.Real.toInteger       :: (Integral a) => x:a -> {v:Integer | v = x}
+assume GHC.Real.fromIntegral    :: (Integral a, Num b) => x:a -> {v:b|v=x}
 
 -- assume GHC.Real.fromIntegral    :: (Integral a, Num b) => x: a -> {v: b | ((x != 0) => (v != 0))}
 

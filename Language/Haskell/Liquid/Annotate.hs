@@ -270,7 +270,8 @@ tokeniseSpec'      = tokAlt . chopAltDBG -- [('{', ':'), ('|', '}')]
     tokAlt' (s:ss) = (refToken, s) : tokAlt ss
     tokAlt' _      = []
 
-chopAltDBG y = {- traceShow ("chopAlts: " ++ y) $ -} chopAlts [("<{", "}>"), ("{", ":"), ("|", "}")] y
+chopAltDBG y = {- traceShow ("chopAlts: " ++ y) $ -} 
+   concatMap (chopAlts [("{", ":"), ("|", "}")]) (chopAlts [("<{", "}>"), ("{", "}")] y)
 
 ---------------------------------------------------------------
 ---------------- Annotations and Solutions --------------------

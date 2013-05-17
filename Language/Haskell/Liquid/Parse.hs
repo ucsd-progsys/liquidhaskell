@@ -266,6 +266,7 @@ dummyRSort     = ROth "dummy"
 data Pspec ty ctor 
   = Meas    (Measure.Measure ty ctor) 
   | Assm    (LocSymbol, ty) 
+  | Assms   ([LocSymbol], ty)
   | Impt    Symbol
   | DDecl   DataDecl
   | Incl    FilePath
@@ -278,7 +279,8 @@ data Pspec ty ctor
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
   { Measure.measures   = [m | Meas   m <- xs]
-  , Measure.sigs       = [a | Assm   a <- xs]
+  , Measure.sigs       = [a | Assm   a <- xs] 
+                      ++ [(y, t) | Assms (ys, t) <- xs, y <- ys]
   , Measure.invariants = [t | Invt   t <- xs] 
   , Measure.imports    = [i | Impt   i <- xs]
   , Measure.dataDecls  = [d | DDecl  d <- xs]
@@ -314,12 +316,15 @@ specP
     <|> (reserved "predicate" >> liftM PAlias paliasP   )
     <|> (reserved "embed"     >> liftM Embed  embedP    )
     <|> (reserved "qualif"    >> liftM Qualif qualifierP)
-    <|> ({- DEFAULT -}           liftM Assm   tyBindP   )
+    <|> ({- DEFAULT -}           liftM Assms  tyBindsP  )
 
 filePathP :: Parser FilePath
 filePathP = angles $ many1 pathCharP
   where pathCharP = choice $ char <$> pathChars 
         pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
+
+tyBindsP    :: Parser ([LocSymbol], BareType)
+tyBindsP = xyP (sepBy (locParserP binderP) comma) dcolon genBareTypeP
 
 tyBindP    :: Parser (LocSymbol, BareType)
 tyBindP    = xyP (locParserP binderP) dcolon genBareTypeP
@@ -380,8 +385,8 @@ binderP :: Parser Symbol
 binderP =  try $ liftM stringSymbol (idP badc)
        <|> liftM pwr (parens (idP bad))
        where idP p  = many1 (satisfy (not . p))
-             badc c = (c == ':') ||  bad c
-             bad c  = isSpace c || c `elem` "()"
+             badc c = (c == ':') || (c == ',') || bad c
+             bad c  = isSpace c || c `elem` "(,)"
              pwr s  = stringSymbol $ "(" ++ s ++ ")" 
              
 grabs p = try (liftM2 (:) p (grabs p)) 

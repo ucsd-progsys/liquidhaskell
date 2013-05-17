@@ -22,6 +22,7 @@ import Pair             (pSnd)
 import FastString       (sLit)
 import qualified Outputable as O
 import Text.PrettyPrint.HughesPJ
+import DataCon
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -45,8 +46,14 @@ mkRTyCon tc (TyConP αs' ps cv conv) = RTyCon tc pvs' (mkTyConInfo tc cv conv)
   where τs   = [rVar α :: RSort |  α <- TC.tyConTyVars tc]
         pvs' = subts (zip αs' τs) <$> ps
 
-dataConPSpecType :: DataConP -> SpecType 
-dataConPSpecType (DataConP vs ps yts rt) = mkArrow vs ps (reverse yts) rt 
+dataConPSpecType :: DataCon -> DataConP -> SpecType 
+dataConPSpecType dc (DataConP vs ps yts rt) = mkArrow vs ps (reverse yts') rt'
+  where (xs, ts) = unzip yts
+        ys       = mkDSym <$> xs
+        su       = F.mkSubst $ [(x, F.EVar y) | (x, y) <- zip xs ys]
+        yts'     = zip ys (subst su <$> ts)
+        rt'      = subst su rt
+        mkDSym   = stringSymbol . (++ ('_':(showPpr dc))) . show
 --   where t1 = foldl' (\t2 (x, t1) -> rFun x t1 t2) rt yts 
 --         t2 = foldr RAllP t1 ps
 --         t3 = foldr RAllT t2 vs
