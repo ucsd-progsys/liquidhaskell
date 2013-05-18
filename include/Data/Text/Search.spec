@@ -4,5 +4,5 @@ module spec Data.Text.Search where
 indices :: pat:Data.Text.Internal.Text
         -> src:Data.Text.Internal.Text
         -> [{v:Int | (Btwn v 0 ((tlen src) - (tlen pat)))}]<{\ix iy ->
-                       (ix+(tlen src)) <= iy}>
+                       (ix+(tlen pat)) <= iy}>
 
