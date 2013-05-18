@@ -556,9 +556,10 @@ last :: Text -> Char
 last (Text arr off len)
     | len <= 0                 = liquidError "last"
     | n < 0xDC00 || n > 0xDFFF = unsafeChr n
-    | otherwise                = U16.chr2 n0 n
-    where n  = A.unsafeIndex arr (off+len-1)
-          n0 = A.unsafeIndex arr (off+len-2)
+    | otherwise                = let n0 = A.unsafeIndex arr (off+len-2)
+                                 in U16.chr2 n0 n
+    where n  = A.unsafeIndex' arr off len (off+len-1)
+          --LIQUID n0 = A.unsafeIndex arr (off+len-2)
 {-# INLINE [1] last #-}
 
 {-# RULES

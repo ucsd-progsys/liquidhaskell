@@ -6,12 +6,6 @@ data Data.Text.Internal.Text = Data.Text.Internal.Text
             (arr :: Data.Text.Array.Array)
             (off :: {v:Int | (BtwnI v 0 (alen arr))})
             (len :: {v:Int | ((v >= 0) && ((v + off) <= (alen arr)))})
-            -- (off :: {v:Int | (((alen arr) > 0) ? (Btwn v 0 (alen arr)) : (v = 0))})
-            -- (len :: {v:Int | (((alen arr) > 0) ? (BtwnI (v+off) off (alen arr)) : (v = 0))})
-
---             (off :: {v: Int | ((v >= 0) && (((alen arr) > 0) <=> (v < (alen arr))))})
---             (len :: {v: Int | ((v >= 0) && (((alen arr) > 0) <=> ((v+off) < (alen arr))))})
--- -- (len :: {v: Int | (v >= 0 && ((alen arr) = 0 || v = 0 || off < (alen arr)))})
 
 measure tarr :: Data.Text.Internal.Text -> Data.Text.Array.Array
 tarr (Data.Text.Internal.Text a o l) = a
@@ -38,7 +32,6 @@ invariant {v:Data.Text.Internal.Text | (((tlength v) > 0) <=> ((tlen v) > 0))}
 invariant {v:Data.Text.Internal.Text | (tlength v) >= 0}
 invariant {v:Data.Text.Internal.Text | (((tlength v) > 0) => ((alen (tarr v)) > 0))}
 
---invariant {v:[{v0:Data.Text.Internal.Text}] | (((tlen v0) > 0) => ((sum_tlens v) > 0))}
 
 measure tlength :: Data.Text.Internal.Text -> Int
 tlength (Data.Text.Internal.Text a o l) = numchars(a,o,l)
@@ -50,20 +43,12 @@ sum_tlengths (t:ts) = (tlength t) + (sum_tlengths ts)
 text :: a:{v:Data.Text.Array.Array | (alen v) > 0}
      -> o:{v: Int | (BtwnI v 0 (alen a))}
      -> l:{v: Int | ((v >= 0) && ((v+o) <= (alen a)))}
-     -> {v:Text | (((tarr v) = a) && ((toff v) = o) && ((tlen v) = l))}
--- text :: a:Data.Text.Array.Array
---      -> o:{v: Int | v >= 0}
---      -> l:{v: Int | v >= 0}
---      -> {v:Text | (((tarr v) = a) && ((toff v) = o) && ((tlen v) = l))}
+     -> {v:Text | (((tarr v) = a) && ((toff v) = o) && ((tlen v) = l) && ((tlength v) = (numchars a o l)))}
 
 empty :: {v:Data.Text.Internal.Text | (((tlen v) = 0) && ((tlength v) = 0))}
 
 textP :: a:{v:Data.Text.Array.Array | (alen v) >= 0}
       -> o:{v:Int | (BtwnI v 0 (alen a))}
       -> l:{v: Int | ((v >= 0) && ((v+o) <= (alen a)))}
-      -> {v:Data.Text.Internal.Text | (tlen v) = l}
--- textP :: a:Data.Text.Array.Array
---       -> o:{v:Int | v >= 0}
---       -> l:{v:Int | v >= 0}
---       -> {v:Data.Text.Internal.Text | (tlen v) = l}
+      -> {v:Data.Text.Internal.Text | (((tlen v) = l) && ((tlength v) = (numchars a o l)))}
 
