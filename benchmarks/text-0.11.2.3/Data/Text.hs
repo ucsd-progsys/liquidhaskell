@@ -1562,7 +1562,7 @@ splitOn pat@(Text _ _ l) src@(Text arr off len)
                -> t:Data.Text.Internal.Text
                -> s:{v:Int | ((v >= 0) && ((v+(toff t)) <= (alen (tarr t))) && (v <= (tlen t)))}
                -> xs:[{v:Int | (Btwn (v) (s) ((tlen t) - (tlen pat)))}]<{\ix iy ->
-                      ((ix+(tlen t)) <= iy)}>
+                      ((ix+(tlen pat)) <= iy)}>
                -> [Data.Text.Internal.Text]
   @-}
 splitOn_go :: Text -> Text -> Int -> [Int] -> [Text]
@@ -1724,8 +1724,9 @@ breakOnAll pat src@(Text arr off slen)
     | null pat  = liquidError "breakOnAll"
     | otherwise = L.map step (indices pat src)
   where
-    step       x = (chunk 0 x, chunk x (slen-x))
-    chunk !n !l  = textP arr (n+off) l
+--LIQUID     step       x = (chunk 0 x, chunk x (slen-x))
+--LIQUID     chunk !n !l  = textP arr (n+off) l
+    step       x = (textP arr off x, textP arr (x+off) (slen-x))
 {-# INLINE breakOnAll #-}
 
 -------------------------------------------------------------------------------

@@ -7,6 +7,10 @@ data Data.Text.Lazy.Internal.Text
     = Empty
     | Chunk (t :: NonEmptyStrict) (cs :: Data.Text.Lazy.Internal.Text)
 
+measure ltlen :: Data.Text.Lazy.Internal.Text -> Integer
+ltlen (Empty)      = 0
+ltlen (Chunk t ts) = (tlen t) + (ltlen ts)
+
 measure ltlength :: Data.Text.Lazy.Internal.Text -> Integer
 ltlength (Empty)      = 0
 ltlength (Chunk t ts) = (tlength t) + (ltlength ts)
@@ -33,13 +37,4 @@ foldrChunks :: forall <p :: Data.Text.Lazy.Internal.Text -> a -> Prop>.
             -> a<p Data.Text.Lazy.Internal.Empty>
             -> t:Data.Text.Lazy.Internal.Text
             -> a<p t>
-
--- foldlChunks :: forall <p :: Data.Text.Lazy.Internal.Text -> a -> Prop>.
---                cs:Data.Text.Lazy.Internal.Text
---             -> (   a<p cs>
---                 -> c:Data.Text.Internal.Text
---                 -> a<p cs>)
---             -> a<p cs>
---             -> t:Data.Text.Lazy.Internal.Text
---             -> a<p cs>
 

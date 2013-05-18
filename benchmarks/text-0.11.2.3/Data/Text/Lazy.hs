@@ -1359,6 +1359,10 @@ splitAt n (Chunk t ts)
 -- | /O(n)/ 'splitAtWord' @n t@ returns a strict pair whose first
 -- element is a prefix of @t@ whose chunks contain @n@ 'Word16'
 -- values, and whose second is the remainder of the string.
+{-@ splitAtWord :: {v:Int64 | v >= 0}
+                -> Data.Text.Lazy.Internal.Text
+                -> PairS Data.Text.Lazy.Internal.Text Data.Text.Lazy.Internal.Text
+  @-}
 splitAtWord :: Int64 -> Text -> PairS Text Text
 splitAtWord _ Empty = empty :*: empty
 splitAtWord x (Chunk c@(T.Text arr off len) cs)
@@ -1450,12 +1454,25 @@ breakOnAll :: Text              -- ^ @needle@ to search for
            -> [(Text, Text)]
 breakOnAll pat src
     | null pat  = liquidError "breakOnAll"
-    | otherwise = go 0 empty src (indices pat src)
-  where
-    go !n p s (x:xs) = let h :*: t = splitAtWord (x-n) s
-                           h'      = append p h
-                       in (h',t) : go x h' t xs
-    go _  _ _ _      = []
+    | otherwise = breakOnAll_go (splitOn_fold pat) 0 empty src (indices pat src)
+--LIQUID   where
+--LIQUID     go !n p s (x:xs) = let h :*: t = splitAtWord (x-n) s
+--LIQUID                            h'      = append p h
+--LIQUID                        in (h',t) : go x h' t xs
+--LIQUID     go _  _ _ _      = []
+
+{-@ breakOnAll_go :: l:{v:Int64 | v >= 0}
+                  -> n:{v:Int64 | v >= 0}
+                  -> p:Text
+                  -> s:Text
+                  -> is:[{v:Int64 | v >= n}]<{\ix iy -> (ix+l) <= iy}>
+                  -> [(Text, Text)]
+  @-}
+breakOnAll_go :: Int64 -> Int64 -> Text -> Text -> [Int64] -> [(Text, Text)]
+breakOnAll_go l !n p s (x:xs) = let h :*: t = splitAtWord (x-n) s
+                                    h'      = append p h
+                                in (h',t) : breakOnAll_go l x h' t xs
+breakOnAll_go _ _  _ _ _      = []
 
 -- | /O(n)/ 'break' is like 'span', but the prefix returned is over
 -- elements that fail the predicate @p@.
@@ -1557,12 +1574,31 @@ splitOn :: Text                 -- ^ Text to split on
 splitOn pat src
     | null pat        = liquidError "splitOn"
     | isSingleton pat = split (== head pat) src
-    | otherwise       = go 0 (indices pat src) src
+    | otherwise       = splitOn_go l 0 (indices pat src) src
   where
     go  _ []     cs = [cs]
     go !i (x:xs) cs = let h :*: t = splitAtWord (x-i) cs
                       in  h : go (x+l) xs (dropWords l t)
-    l = foldlChunks (\a (T.Text _ _ b) -> a + fromIntegral b) 0 pat
+    --LIQUID l = foldlChunks (\a (T.Text _ _ b) -> a + fromIntegral b) 0 pat
+    l = splitOn_fold pat
+
+{-@ splitOn_fold :: t:Data.Text.Internal.Lazy.Text
+                 -> {v:Int64 | ((v = (ltlen t)) && (v >= 0))}
+  @-}
+splitOn_fold :: Text -> Int64
+splitOn_fold Empty                     = 0
+splitOn_fold (Chunk (T.Text _ _ l) ts) = fromIntegral l + splitOn_fold ts
+
+{-@ splitOn_go :: l:{v:Int64 | v >= 0}
+               -> i:{v:Int64 | v >= 0}
+               -> is:[{v:Int64 | v >= i}]<{\ix iy -> (ix+l) <= iy}>
+               -> Text
+               -> [Text]
+  @-}
+splitOn_go :: Int64 -> Int64 -> [Int64] -> Text -> [Text]
+splitOn_go l  _ []     cs = [cs]
+splitOn_go l !i (x:xs) cs = let h :*: t = splitAtWord (x-i) cs
+                            in  h : splitOn_go l (x+l) xs (dropWords l t)
 {-# INLINE [1] splitOn #-}
 
 {-# RULES
