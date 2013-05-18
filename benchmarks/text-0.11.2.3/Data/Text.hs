@@ -1875,6 +1875,10 @@ unwords = intercalate (singleton ' ')
 
 -- | /O(n)/ The 'isPrefixOf' function takes two 'Text's and returns
 -- 'True' iff the first is a prefix of the second.  Subject to fusion.
+{-@ isPrefixOf :: t1:Data.Text.Internal.Text
+               -> t2:Data.Text.Internal.Text
+               -> {v:Bool | ((Prop v) => ((tlen t1) <= (tlen t2)))}
+  @-}
 isPrefixOf :: Text -> Text -> Bool
 isPrefixOf a@(Text _ _ alen) b@(Text _ _ blen) =
     alen <= blen && S.isPrefixOf (stream a) (stream b)
@@ -1887,6 +1891,10 @@ isPrefixOf a@(Text _ _ alen) b@(Text _ _ blen) =
 
 -- | /O(n)/ The 'isSuffixOf' function takes two 'Text's and returns
 -- 'True' iff the first is a suffix of the second.
+{-@ isSuffixOf :: t1:Data.Text.Internal.Text
+               -> t2:Data.Text.Internal.Text
+               -> {v:Bool | ((Prop v) => ((tlen t1) <= (tlen t2)))}
+  @-}
 isSuffixOf :: Text -> Text -> Bool
 isSuffixOf a@(Text _aarr _aoff alen) b@(Text barr boff blen) =
   --   d >= 0 && a == b'
