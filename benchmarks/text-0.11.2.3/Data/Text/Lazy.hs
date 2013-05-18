@@ -683,8 +683,20 @@ map f t = unstream (S.map (safe . f) (stream t))
   @-}
 intercalate :: Text -> [Text] -> Text
 --LIQUID intercalate t = concat . (U.intersperse t)
-intercalate t ts = concat $ U.intersperse t ts
+intercalate t ts = concat $ intersperseLT t ts
 {-# INLINE intercalate #-}
+
+--LIQUID specialized from Data.Text.Util.intersperse
+{-@ intersperseLT :: Data.Text.Lazy.Internal.Text
+                  -> ts:[Data.Text.Lazy.Internal.Text]
+                  -> {v:[Data.Text.Lazy.Internal.Text] | (sum_ltlengths v) >= (sum_ltlengths ts)}
+  @-}
+intersperseLT :: Text -> [Text] -> [Text]
+intersperseLT _   []     = []
+intersperseLT sep (x:xs) = x : go xs
+  where
+    go []     = []
+    go (y:ys) = sep : y: go ys
 
 -- | /O(n)/ The 'intersperse' function takes a character and places it
 -- between the characters of a 'Text'.  Subject to fusion.  Performs

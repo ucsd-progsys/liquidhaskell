@@ -713,11 +713,26 @@ map f t = unstream (S.map (safe . f) (stream t))
 -- | /O(n)/ The 'intercalate' function takes a 'Text' and a list of
 -- 'Text's and concatenates the list after interspersing the first
 -- argument between each element of the list.
---LIQUID FIXME: want to express something like `(tlen v) > sum (tlen ts)`
-{-@ intercalate :: Data.Text.Internal.Text -> [Data.Text.Internal.Text] -> Data.Text.Internal.Text @-}
+{-@ intercalate :: Data.Text.Internal.Text
+                -> ts:[Data.Text.Internal.Text]
+                -> {v:Data.Text.Internal.Text | (tlength v) >= (sum_tlengths ts)}
+  @-}
 intercalate :: Text -> [Text] -> Text
-intercalate t = concat . (U.intersperse t)
+--LIQUID intercalate t = concat . (U.intersperse t)
+intercalate t ts = concat $ intersperseT t ts
 {-# INLINE intercalate #-}
+
+--LIQUID specialized from Data.Text.Util.intersperse
+{-@ intersperseT :: Data.Text.Internal.Text
+                 -> ts:[Data.Text.Internal.Text]
+                 -> {v:[Data.Text.Internal.Text] | (sum_tlengths v) >= (sum_tlengths ts)}
+  @-}
+intersperseT :: Text -> [Text] -> [Text]
+intersperseT _   []     = []
+intersperseT sep (x:xs) = x : go xs
+  where
+    go []     = []
+    go (y:ys) = sep : y: go ys
 
 -- | /O(n)/ The 'intersperse' function takes a character and places it
 -- between the characters of a 'Text'.  Subject to fusion.  Performs
