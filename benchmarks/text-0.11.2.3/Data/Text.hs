@@ -1538,10 +1538,23 @@ splitOn :: Text -> Text -> [Text]
 splitOn pat@(Text _ _ l) src@(Text arr off len)
     | l <= 0          = liquidError "splitOn"
     | isSingleton pat = split (== unsafeHead pat) src
-    | otherwise       = go 0 (indices pat src)
-  where
-    go !s (x:xs) =  textP arr (s+off) (x-s) : go (x+l) xs
-    go  s _      = [textP arr (s+off) (len-s)]
+    | otherwise       = splitOn_go pat src 0 (indices pat src)
+--LIQUID   where
+--LIQUID     go !s (x:xs) =  textP arr (s+off) (x-s) : go (x+l) xs
+--LIQUID     go  s _      = [textP arr (s+off) (len-s)]
+
+{-@ splitOn_go :: pat:{v:Data.Text.Internal.Text | (tlength v) > 1}
+               -> t:Data.Text.Internal.Text
+               -> s:{v:Int | ((v >= 0) && ((v+(toff t)) <= (alen (tarr t))) && (v <= (tlen t)))}
+               -> xs:[{v:Int | (Btwn (v) (s) ((tlen t) - (tlen pat)))}]<{\ix iy ->
+                      ((ix+(tlen t)) <= iy)}>
+               -> [Data.Text.Internal.Text]
+  @-}
+splitOn_go :: Text -> Text -> Int -> [Int] -> [Text]
+splitOn_go pat@(Text _ _ l) t@(Text arr off len) !s (x:xs)
+    =  textP arr (s+off) (x-s) : splitOn_go pat t (x+l) xs
+splitOn_go _                  (Text arr off len)  s _
+    = [textP arr (s+off) (len-s)]
 {-# INLINE [1] splitOn #-}
 
 {-# RULES
