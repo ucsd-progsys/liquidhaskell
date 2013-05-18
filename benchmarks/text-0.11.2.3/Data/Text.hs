@@ -260,15 +260,14 @@ data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
 iter :: Text -> Int -> Iter
 iter = P.undefined
 
-{-@ assume reverseIter
-                :: t:Data.Text.Internal.Text
-                -> i:Int
+{-@ reverseIter :: t:Data.Text.Internal.Text
+                -> i:{v:Int | (Btwn v 0 (tlen t))}
                 -> l:{v:Int | (BtwnEI v 0 (tlen t))}
-                -> (Char,{v:Int | ((BtwnEI (l+v) 0 l)
+                -> (Char,{v:Int | ((Btwn (l+v) 0 l)
                           && ((numchars (tarr t) (toff t) (l+v))
                               = ((numchars (tarr t) (toff t) l) - 1))
                           && ((numchars (tarr t) (toff t) (l+v))
-                              >= 0))})
+                              >= -1))})
   @-}
 reverseIter :: Text -> Int -> Int -> (Char,Int)
 reverseIter = P.undefined
@@ -1331,27 +1330,31 @@ loop_dropWhile t@(Text arr off len) p !i cnt
 -- Examples:
 --
 -- > dropWhileEnd (=='.') "foo..." == "foo"
-{-@ dropWhileEnd :: (Char -> Bool) -> t:Data.Text.Internal.Text -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)} @-}
+{-@ dropWhileEnd :: (Char -> Bool)
+                 -> t:Data.Text.Internal.Text
+                 -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
+  @-}
 dropWhileEnd :: (Char -> Bool) -> Text -> Text
-dropWhileEnd p t@(Text arr off len) = loop_dropWhileEnd t p (len-1) len (length t)
+dropWhileEnd p t@(Text arr off len) = loop_dropWhileEnd t p len (len-1) (length t)
 --LIQUID  where loop !i !l | l <= 0    = empty
 --LIQUID                   | p c       = loop (i+d) (l+d)
 --LIQUID                   | otherwise = Text arr off l
 --LIQUID            where (c,d)        = reverseIter t i
+
 {-@ loop_dropWhileEnd
       :: t:Data.Text.Internal.Text
       -> (Char -> Bool)
-      -> i:{v:Int | v <= (tlen t)}
-      -> l:{v:Int | v <= (tlen t)}
+      -> l:{v:Int | (v <= (tlen t))}
+      -> i:{v:Int | ((v < (tlen t)) && (v = (l-1)))}
       -> cnt:{v:Int | ((v = (numchars (tarr t) (toff t) l))
-                       && (BtwnI v 0 (tlength t)))}
+                       && (BtwnI (v) (-1) (tlength t)))}
       -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
    @-}
 loop_dropWhileEnd :: Text -> (Char -> Bool) -> Int -> Int -> Int -> Text
-loop_dropWhileEnd t@(Text arr off len) p !i !l cnt
-    = if l <= 0 then empty
+loop_dropWhileEnd t@(Text arr off len) p !l !i cnt
+    = if l <= 0  then empty
       else let (c,d) = reverseIter t i l
-           in if p c then loop_dropWhileEnd t p (i+d) (l+d) (cnt-1)
+           in if p c then loop_dropWhileEnd t p (l+d) (i+d) (cnt-1)
               else Text arr off l
 {-# INLINE [1] dropWhileEnd #-}
 

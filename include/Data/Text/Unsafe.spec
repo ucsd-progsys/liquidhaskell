@@ -31,13 +31,14 @@ iter_ :: t:Data.Text.Internal.Text
                        <= (tlength t)))}
 
 -- reverseIter :: t:Data.Text.Internal.Text
---             -> i:Int
+--             -> i:{v:Int | (Btwn v 0 (tlen t))}
 --             -> l:{v:Int | (BtwnEI v 0 (tlen t))}
---             -> (Char,{v:Int | ((BtwnEI (l+v) 0 l)
+--             -> (Char,{v:Int | ((Btwn (l+v) 0 l)
 --                                && ((numchars (tarr t) (toff t) (l+v))
 --                                    = ((numchars (tarr t) (toff t) l) - 1))
 --                                && ((numchars (tarr t) (toff t) (l+v))
---                                    >= 0))})
+--                                    >= -1))})
+
 
 lengthWord16 :: t:Data.Text.Internal.Text
              -> {v:Int | v = (tlen t)}
