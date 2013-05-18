@@ -586,6 +586,9 @@ instance Predicate Symbol where
 instance Predicate Pred where
   prop = id 
 
+instance Predicate Bool where
+  prop True  = PTrue 
+  prop False = PFalse 
 
 eVar          ::  Symbolic a => a -> Expr 
 eVar          = EVar . symbol 
@@ -1224,10 +1227,25 @@ instance Monoid SortedReft where
   mappend t1 t2 = RR (mappend (sr_sort t1) (sr_sort t2)) (mappend (sr_reft t1) (sr_reft t2))
 
 instance Reftable SortedReft where
-  isTauto  = isTauto . sr_reft
-  ppTy     = ppTy . sr_reft
+  isTauto  = isTauto . toReft
+  ppTy     = ppTy . toReft
   toReft   = sr_reft
   params _ = []
+
+-- instance Expression a => Reftable a where
+--   isTauto _ = isTauto . toReft 
+--   ppTy      = ppTy . toReft
+--   toReft    = exprReft 
+--   params _  = []
+
+-- instance Predicate a => Reftable a where
+--   isTauto   = isTauto . toReft 
+--   ppTy      = ppTy . toReft
+--   toReft    = propReft 
+--   params _  = []
+
+
+
 
 class Falseable a where
   isFalse :: a -> Bool
