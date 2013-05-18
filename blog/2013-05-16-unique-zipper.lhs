@@ -35,7 +35,7 @@ A Quick Recap
 
 \begin{code} In the previous post we used a measure for the elements of a list, from [Data/Set.spec][setspec]
 measure listElts :: [a] -> (Set a)
-listElts ([])    = {v | (? Set_emp(v))}
+listElts ([])    = {v | (? (Set_emp v))}
 listElts (x:xs)  = {v | v = (Set_cup (Set_sng x) (listElts xs)) }
 \end{code}
 

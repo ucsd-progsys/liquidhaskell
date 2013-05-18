@@ -6,7 +6,7 @@ import Data.Set hiding (filter)
 -- | The Set of Values in a List 
 
 -- measure listElts :: [a] -> (Set a)
--- listElts ([])    = {v | (? Set_emp(v))}
+-- listElts ([])    = {v | (? (Set_emp v))}
 -- listElts (x:xs)  = {v | v = (Set_cup (Set_sng x) (listElts xs)) }
 
 {-@ predicate EqElts  X Y      = 
