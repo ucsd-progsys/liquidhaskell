@@ -204,3 +204,11 @@ findIndex :: (Char -> Bool)
 
 count :: {v:Data.Text.Internal.Text | (tlength v) > 0}
       -> Data.Text.Internal.Text -> Int
+
+isPrefixOf :: t1:Data.Text.Internal.Text
+           -> t2:Data.Text.Internal.Text
+           -> {v:Bool | ((Prop v) => ((tlen t1) <= (tlen t2)))}
+
+isSuffixOf :: t1:Data.Text.Internal.Text
+           -> t2:Data.Text.Internal.Text
+           -> {v:Bool | ((Prop v) => ((tlen t1) <= (tlen t2)))}
