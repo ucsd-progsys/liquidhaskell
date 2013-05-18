@@ -81,19 +81,20 @@ data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
 -- | /O(1)/ Iterate (unsafely) one step forwards through a UTF-16
 -- array, returning the current character and the delta to add to give
 -- the next offset to iterate at.
-{-@ assume iter :: t:Data.Text.Internal.Text -> i:{v:Int | (Btwn v 0 (tlen t))}
-                -> {v:Data.Text.Unsafe.Iter | ((BtwnEI ((iter_d v)+i) i (tlen t))
-                          && ((numchars (tarr t) (toff t) (i+(iter_d v)))
-                              = (1 + (numchars (tarr t) (toff t) i)))
-                          && ((numchars (tarr t) (toff t) (i+(iter_d v)))
-                              <= (tlength t)))}
+{-@ iter :: t:Data.Text.Internal.Text -> i:{v:Int | (Btwn v 0 (tlen t))}
+         -> {v:Data.Text.Unsafe.Iter | ((BtwnEI ((iter_d v)+i) i (tlen t))
+                && ((numchars (tarr t) (toff t) (i+(iter_d v)))
+                    = (1 + (numchars (tarr t) (toff t) i)))
+                && ((numchars (tarr t) (toff t) (i+(iter_d v)))
+                    <= (tlength t)))}
   @-}
 iter :: Text -> Int -> Iter
 iter (Text arr off _len) i
     | m < 0xD800 || m > 0xDBFF = Iter (unsafeChr m) 1
-    | otherwise                = Iter (chr2 m n) 2
-  where m = A.unsafeIndex arr j
-        n = A.unsafeIndex arr k
+    | otherwise                = let n = A.unsafeIndex arr (j+1)
+                                 in Iter (chr2 m n) 2
+  where m = A.unsafeIndex'' arr off _len j
+        --LIQUID n = A.unsafeIndex arr k
         j = off + i
         k = j + 1
 {-# INLINE iter #-}
@@ -112,7 +113,7 @@ iter_ :: Text -> Int -> Int
 iter_ (Text arr off _len) i | m < 0xD800 || m > 0xDBFF = 1
                             | otherwise                = 2
 --LIQUID   where m = A.unsafeIndex arr (off+i)
-  where m = A.unsafeIndex' arr off _len (off+i)
+  where m = A.unsafeIndex'' arr off _len (off+i)
 {-# INLINE iter_ #-}
 
 -- | /O(1)/ Iterate one step backwards through a UTF-16 array,
@@ -121,20 +122,21 @@ iter_ (Text arr off _len) i | m < 0xD800 || m > 0xDBFF = 1
 {-@ reverseIter :: t:Data.Text.Internal.Text
                 -> i:{v:Int | (Btwn v 0 (tlen t))}
                 -> l:{v:Int | (BtwnEI v 0 (tlen t))}
-                -> (Char,{v:Int | ((BtwnEI (l+v) 0 l)
+                -> (Char,{v:Int | ((Btwn (l+v) 0 l)
                           && ((numchars (tarr t) (toff t) (l+v))
                               = ((numchars (tarr t) (toff t) l) - 1))
                           && ((numchars (tarr t) (toff t) (l+v))
-                              >= 0))})
+                              >= -1))})
   @-}
 --LIQUID reverseIter :: Text -> Int -> (Char,Int)
 --LIQUID reverseIter (Text arr off _len) i
 reverseIter :: Text -> Int -> Int -> (Char,Int)
 reverseIter (Text arr off _len) i l
     | m < 0xDC00 || m > 0xDFFF = (unsafeChr m, -1)
-    | otherwise                = (chr2 n m,    -2)
-  where m = A.unsafeIndex arr j
-        n = A.unsafeIndex arr k
+    | otherwise                = let n = A.unsafeIndex arr (j-1)
+                                 in (chr2 n m,    -2)
+  where m = A.unsafeIndex' arr off _len j
+        --LIQUID n = A.unsafeIndex arr k
         j = off + i
         k = j - 1
 {-# INLINE reverseIter #-}
