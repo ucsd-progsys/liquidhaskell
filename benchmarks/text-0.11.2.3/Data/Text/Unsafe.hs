@@ -49,9 +49,10 @@ import Language.Haskell.Liquid.Prelude
 unsafeHead :: Text -> Char
 unsafeHead (Text arr off _len)
     | m < 0xD800 || m > 0xDBFF = unsafeChr m
-    | otherwise                = chr2 m n
-    where m = A.unsafeIndex arr off
-          n = A.unsafeIndex arr (off+1)
+    | otherwise                = let n = A.unsafeIndex arr (off+1)
+                                 in chr2 m n
+    where m = A.unsafeIndex'' arr off _len off
+          --LIQUID n = A.unsafeIndex arr (off+1)
 {-# INLINE unsafeHead #-}
 
 -- | /O(1)/ A variant of 'tail' for non-empty 'Text'. 'unsafeHead'
@@ -61,8 +62,7 @@ unsafeHead (Text arr off _len)
                -> {v:Text | (tlength v) = ((tlength t) - 1)}
   @-}
 unsafeTail :: Text -> Text
-unsafeTail = unsafeTail'
-unsafeTail' t@(Text arr off len) =
+unsafeTail t@(Text arr off len) =
 --LIQUID #if defined(ASSERTS)
 --LIQUID     assert (d <= len) $
 --LIQUID #endif

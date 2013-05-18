@@ -9,16 +9,7 @@ unsafeTail :: t:{v:Data.Text.Internal.Text | (tlength v) > 0}
            -> {v:Data.Text.Internal.Text | (tlength v) = ((tlength t) - 1)}
 
 
-iter_ :: t:Data.Text.Internal.Text
-      -> i:{v:Int | (Btwn v 0 (tlen t))}
-      -> {v:Int | (((BtwnEI (v+i) i (tlen t)))
-                   && ((numchars (tarr t) (toff t) (i+v))
-                       = (1 + (numchars (tarr t) (toff t) i)))
-                   && ((numchars (tarr t) (toff t) (i+v))
-                       <= (tlength t)))}
-
-lengthWord16 :: t:Data.Text.Internal.Text
-             -> {v:Int | v = (tlen t)}
+-- data Data.Text.Unsafe.Iter = Data.Text.Unsafe.Iter (c::Char) (i::Int)
 
 -- measure iter_d :: Data.Text.Unsafe.Iter -> Int
 -- iter_d (Data.Text.Unsafe.Iter c d) = d
@@ -31,6 +22,13 @@ lengthWord16 :: t:Data.Text.Internal.Text
 --                                     && ((numchars (tarr t) (toff t) (i+(iter_d v)))
 --                                         <= (tlength t)))}
 
+iter_ :: t:Data.Text.Internal.Text
+      -> i:{v:Int | (Btwn v 0 (tlen t))}
+      -> {v:Int | (((BtwnEI (v+i) i (tlen t)))
+                   && ((numchars (tarr t) (toff t) (i+v))
+                       = (1 + (numchars (tarr t) (toff t) i)))
+                   && ((numchars (tarr t) (toff t) (i+v))
+                       <= (tlength t)))}
 
 -- reverseIter :: t:Data.Text.Internal.Text
 --             -> i:Int
@@ -41,3 +39,13 @@ lengthWord16 :: t:Data.Text.Internal.Text
 --                                && ((numchars (tarr t) (toff t) (l+v))
 --                                    >= 0))})
 
+lengthWord16 :: t:Data.Text.Internal.Text
+             -> {v:Int | v = (tlen t)}
+
+takeWord16 :: k:Int
+           -> {v:Data.Text.Internal.Text | (BtwnI k 0 (tlen v))}
+           -> Data.Text.Internal.Text
+
+dropWord16 :: k:Int
+           -> {v:Data.Text.Internal.Text | (BtwnI k 0 (tlen v))}
+           -> Data.Text.Internal.Text
