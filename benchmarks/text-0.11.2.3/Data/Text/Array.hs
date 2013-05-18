@@ -44,10 +44,11 @@ module Data.Text.Array
     , toList
     , unsafeFreeze
     , unsafeIndex
-    --LIQUID
-    , unsafeIndex'
     , new
     , unsafeWrite
+    --LIQUID
+    , unsafeIndex'
+    , unsafeIndex''
     ) where
 
 #if defined(ASSERTS)
@@ -206,6 +207,15 @@ unsafeIndex Array{..} i@(I# i#) =
   @-}
 unsafeIndex' :: Array -> Int -> Int -> Int -> Word16
 unsafeIndex' a o l i = unsafeIndex a i
+
+{-@ unsafeIndex'' :: a:Data.Text.Array.Array
+                  -> o:{v:Int | (Btwn v 0 (alen a))}
+                  -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
+                  -> i:{v:Int | (Btwn (v) (o) (o + l))}
+                  -> Word16
+  @-}
+unsafeIndex'' :: Array -> Int -> Int -> Int -> Word16
+unsafeIndex'' a o l i = unsafeIndex a i
 {-# INLINE unsafeIndex #-}
 
 -- | Unchecked write of a mutable array.  May return garbage or crash
