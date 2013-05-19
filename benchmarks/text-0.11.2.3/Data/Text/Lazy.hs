@@ -241,6 +241,30 @@ import qualified Data.Text.Lazy.Internal
 import qualified Data.Text.Unsafe
 import Language.Haskell.Liquid.Prelude
 
+--LIQUID copied from Data.Text.Unsafe
+data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
+
+{-@ data Data.Text.Lazy.Iter = Data.Text.Lazy.Iter (c::Char) (i::Int) @-}
+
+{-@ measure iter_d :: Data.Text.Lazy.Iter -> Int
+    iter_d (Data.Text.Iter c d) = d
+  @-}
+
+{-@ assume iter :: t:Data.Text.Internal.Text -> i:{v:Int | (Btwn v 0 (tlen t))}
+                -> {v:Data.Text.Lazy.Iter | ((BtwnEI ((iter_d v)+i) i (tlen t))
+                          && ((numchars (tarr t) (toff t) (i+(iter_d v)))
+                              = (1 + (numchars (tarr t) (toff t) i)))
+                          && ((numchars (tarr t) (toff t) (i+(iter_d v)))
+                              <= (tlength t)))}
+  @-}
+iter :: T.Text -> Int -> Iter
+iter = P.undefined
+
+{-@ iter_d :: i:Data.Text.Lazy.Iter -> {v:Int | v = (iter_d i)} @-}
+iter_d (Iter c d) = d
+--LIQUID end of copied defs
+
+
 -- $fusion
 --
 -- Most of the functions in this module are subject to /fusion/,
@@ -326,18 +350,36 @@ compareText :: Text -> Text -> Ordering
 compareText Empty Empty = EQ
 compareText Empty _     = LT
 compareText _     Empty = GT
-compareText (Chunk a0 as) (Chunk b0 bs) = outer a0 b0
- where
-  outer ta@(T.Text arrA offA lenA) tb@(T.Text arrB offB lenB) = go 0 0
-   where
-    go !i !j
-      | i >= lenA = compareText as (chunk (T.Text arrB (offB+j) (lenB-j)) bs)
-      | j >= lenB = compareText (chunk (T.Text arrA (offA+i) (lenA-i)) as) bs
-      | a < b     = LT
-      | a > b     = GT
-      | otherwise = go (i+di) (j+dj)
-      where T.Iter a di = T.iter ta i
-            T.Iter b dj = T.iter tb j
+compareText a@(Chunk a0 as) b@(Chunk b0 bs) = compareText_go a0 b0 as bs 0 0 --LIQUID outer a0 b0
+--LIQUID  where
+--LIQUID   outer ta@(T.Text arrA offA lenA) tb@(T.Text arrB offB lenB) = go 0 0
+--LIQUID    where
+--LIQUID     go !i !j
+--LIQUID       | i >= lenA = compareText as (chunk (T.Text arrB (offB+j) (lenB-j)) bs)
+--LIQUID       | j >= lenB = compareText (chunk (T.Text arrA (offA+i) (lenA-i)) as) bs
+--LIQUID       | a < b     = LT
+--LIQUID       | a > b     = GT
+--LIQUID       | otherwise = go (i+di) (j+dj)
+--LIQUID       where T.Iter a di = T.iter ta i
+--LIQUID             T.Iter b dj = T.iter tb j
+
+{-@ compareText_go :: ta:{v:Data.Text.Internal.Text | (tlength v) > 0}
+                   -> tb:{v:Data.Text.Internal.Text | (tlength v) > 0}
+                   -> as:Data.Text.Lazy.Internal.Text
+                   -> bs:Data.Text.Lazy.Internal.Text
+                   -> i:{v:Int | (BtwnI v 0 (tlen ta))}
+                   -> j:{v:Int | (BtwnI v 0 (tlen tb))}
+                   -> Ordering
+  @-}
+compareText_go :: T.Text -> T.Text -> Text -> Text -> Int -> Int -> Ordering
+compareText_go ta@(T.Text arrA offA lenA) tb@(T.Text arrB offB lenB) as bs !i !j
+    | i >= lenA = compareText as (chunk (T.Text arrB (offB+j) (lenB-j)) bs)
+    | j >= lenB = compareText (chunk (T.Text arrA (offA+i) (lenA-i)) as) bs
+    | otherwise = let ia@(Iter a di) = iter ta i
+                      ib@(Iter b dj) = iter tb j
+                  in if a < b then LT
+                     else if a > b then GT
+                     else compareText_go ta tb as bs (i+di) (j+dj)
 
 --LIQUID instance Show Text where
 --LIQUID     showsPrec p ps r = showsPrec p (unpack ps) r

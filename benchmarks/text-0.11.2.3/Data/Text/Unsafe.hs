@@ -154,7 +154,7 @@ lengthWord16 (Text _arr _off len) = len
 -- | /O(1)/ Unchecked take of 'k' 'Word16's from the front of a 'Text'.
 {-@ takeWord16 :: k:Int
                -> {v:Data.Text.Internal.Text | (BtwnI k 0 (tlen v))}
-               -> Data.Text.Internal.Text
+               -> {v:Data.Text.Internal.Text | (tlen v) = k}
   @-}
 takeWord16 :: Int -> Text -> Text
 takeWord16 k (Text arr off _len) = Text arr off k
@@ -162,8 +162,8 @@ takeWord16 k (Text arr off _len) = Text arr off k
 
 -- | /O(1)/ Unchecked drop of 'k' 'Word16's from the front of a 'Text'.
 {-@ dropWord16 :: k:Int
-               -> {v:Data.Text.Internal.Text | (BtwnI k 0 (tlen v))}
-               -> Data.Text.Internal.Text
+               -> t:{v:Data.Text.Internal.Text | (BtwnI k 0 (tlen v))}
+               -> {v:Data.Text.Internal.Text | (tlen v) = ((tlen t) - k)}
   @-}
 dropWord16 :: Int -> Text -> Text
 dropWord16 k (Text arr off len) = Text arr (off+k) (len-k)

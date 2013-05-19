@@ -45,8 +45,8 @@ lengthWord16 :: t:Data.Text.Internal.Text
 
 takeWord16 :: k:Int
            -> {v:Data.Text.Internal.Text | (BtwnI k 0 (tlen v))}
-           -> Data.Text.Internal.Text
+           -> {v:Data.Text.Internal.Text | (tlen v) = k}
 
 dropWord16 :: k:Int
-           -> {v:Data.Text.Internal.Text | (BtwnI k 0 (tlen v))}
-           -> Data.Text.Internal.Text
+           -> t:{v:Data.Text.Internal.Text | (BtwnI k 0 (tlen v))}
+           -> {v:Data.Text.Internal.Text | (tlen v) = ((tlen t) - k)}
