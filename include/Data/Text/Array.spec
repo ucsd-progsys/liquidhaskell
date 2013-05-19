@@ -97,9 +97,9 @@ copyI :: ma:Data.Text.Array.MArray s
       -> top:{v:Int | ((v >= mo) && (v <= (malen ma)) && (((v-mo)+o) <= (alen a)))}
       -> (GHC.ST.ST s ())
 
-equal :: a1:Data.Text.Array.Array
-      -> o1:{v:Int | ((v >= 0) && (v < (alen a1)))}
-      -> a2:Data.Text.Array.Array
-      -> o2:{v:Int | ((v >= 0) && (v < (alen a2)))}
-      -> cnt:{v:Int | ((v >= 0) && ((v+o1) < (alen a1)) && ((v+o2) < (alen a2)))}
-      -> {v:Bool | ((Prop v) <=> (a1 = a2))}
+-- equal :: a1:Data.Text.Array.Array
+--       -> o1:{v:Int | ((v >= 0) && (v < (alen a1)))}
+--       -> a2:Data.Text.Array.Array
+--       -> o2:{v:Int | ((v >= 0) && (v < (alen a2)))}
+--       -> cnt:{v:Int | ((v >= 0) && ((v+o1) < (alen a1)) && ((v+o2) < (alen a2)))}
+--       -> {v:Bool | ((Prop v) <=> (a1 = a2))}

@@ -338,7 +338,7 @@ copyI dest i0 src j0 top
 
 -- | Compare portions of two arrays for equality.  No bounds checking
 -- is performed.
-{-@ equal :: a1:Data.Text.Array.Array
+{- equal :: a1:Data.Text.Array.Array
           -> o1:{v:Int | ((v >= 0) && (v < (alen a1)))}
           -> a2:Data.Text.Array.Array
           -> o2:{v:Int | ((v >= 0) && (v < (alen a2)))}
@@ -360,7 +360,7 @@ equal arrA offA arrB offB count = inlinePerformIO $ do
 foreign import ccall unsafe "_hs_text_memcpy" memcpyI
     :: MutableByteArray# s -> CSize -> ByteArray# -> CSize -> CSize -> IO ()
 
-{-@ memcmp :: a1:GHC.Prim.ByteArray#
+{- memcmp :: a1:GHC.Prim.ByteArray#
            -> CSize
            -> a2:GHC.Prim.ByteArray#
            -> CSize
