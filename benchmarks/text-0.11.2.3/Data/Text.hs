@@ -485,7 +485,9 @@ infixr 5 `cons`
 -- | /O(n)/ Adds a character to the end of a 'Text'.  This copies the
 -- entire array in the process, unless fused.  Subject to fusion.
 -- Performs replacement on invalid scalar values.
-{-@ snoc :: t:Data.Text.Internal.Text -> Char -> {v:Data.Text.Internal.Text | (tlength v) = (1 + (tlength t))} @-}
+{-@ snoc :: t:Data.Text.Internal.Text
+         -> Char
+         -> {v:Data.Text.Internal.Text | (tlength v) = (1 + (tlength t))} @-}
 snoc :: Text -> Char -> Text
 snoc t c = unstream (S.snoc (stream t) (safe c))
 {-# INLINE snoc #-}
@@ -1260,7 +1262,10 @@ loop_drop t@(Text arr off len) n !i !cnt
 -- | /O(n)/ 'takeWhile', applied to a predicate @p@ and a 'Text',
 -- returns the longest prefix (possibly empty) of elements that
 -- satisfy @p@.  Subject to fusion.
-{-@ takeWhile :: (Char -> Bool) -> t:Data.Text.Internal.Text -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)} @-}
+{-@ takeWhile :: (Char -> Bool)
+              -> t:Data.Text.Internal.Text
+              -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
+  @-}
 takeWhile :: (Char -> Bool) -> Text -> Text
 takeWhile p t@(Text arr off len) = loop_takeWhile t p 0 0
 --LIQUID  where loop !i | i >= len    = t
@@ -1292,7 +1297,10 @@ loop_takeWhile t@(Text arr off len) p !i cnt
 
 -- | /O(n)/ 'dropWhile' @p@ @t@ returns the suffix remaining after
 -- 'takeWhile' @p@ @t@. Subject to fusion.
-{-@ dropWhile :: (Char -> Bool) -> t:Data.Text.Internal.Text -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)} @-}
+{-@ dropWhile :: (Char -> Bool)
+              -> t:Data.Text.Internal.Text
+              -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
+  @-}
 dropWhile :: (Char -> Bool) -> Text -> Text
 dropWhile p t@(Text arr off len) = loop_dropWhile t p 0 0
 --LIQUID  where loop !i !l | l >= len  = empty
@@ -1380,7 +1388,9 @@ dropAround p t = dropWhile p $ dropWhileEnd p t
 -- | /O(n)/ Remove leading white space from a string.  Equivalent to:
 --
 -- > dropWhile isSpace
-{-@ stripStart :: t:Data.Text.Internal.Text -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)} @-}
+{-@ stripStart :: t:Data.Text.Internal.Text
+               -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
+  @-}
 stripStart :: Text -> Text
 stripStart = dropWhile isSpace
 {-# INLINE [1] stripStart #-}
@@ -1388,7 +1398,9 @@ stripStart = dropWhile isSpace
 -- | /O(n)/ Remove trailing white space from a string.  Equivalent to:
 --
 -- > dropWhileEnd isSpace
-{-@ stripEnd :: t:Data.Text.Internal.Text -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)} @-}
+{-@ stripEnd :: t:Data.Text.Internal.Text
+             -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
+  @-}
 stripEnd :: Text -> Text
 stripEnd = dropWhileEnd isSpace
 {-# INLINE [1] stripEnd #-}
@@ -1397,7 +1409,9 @@ stripEnd = dropWhileEnd isSpace
 -- Equivalent to:
 --
 -- > dropAround isSpace
-{-@ strip :: t:Data.Text.Internal.Text -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)} @-}
+{-@ strip :: t:Data.Text.Internal.Text
+          -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
+  @-}
 strip :: Text -> Text
 strip = dropAround isSpace
 {-# INLINE [1] strip #-}
@@ -1602,7 +1616,10 @@ split p t = loop t
 --
 -- > chunksOf 3 "foobarbaz"   == ["foo","bar","baz"]
 -- > chunksOf 4 "haskell.org" == ["hask","ell.","org"]
-{-@ chunksOf :: k:{v:Int | v >= 0} -> t:Data.Text.Internal.Text -> [{v:Data.Text.Internal.Text | (tlength v) <= k}] @-}
+{-@ chunksOf :: k:{v:Int | v >= 0}
+             -> t:Data.Text.Internal.Text
+             -> [{v:Data.Text.Internal.Text | (tlength v) <= k}]
+  @-}
 chunksOf :: Int -> Text -> [Text]
 chunksOf k = go
   where

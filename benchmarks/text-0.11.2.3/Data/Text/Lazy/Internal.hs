@@ -136,23 +136,10 @@ foldrChunks f z = go
 
 -- | Consume the chunks of a lazy 'Text' with a strict, tail-recursive,
 -- accumulating left fold.
-{-@ foldlChunks :: forall <p :: Data.Text.Lazy.Internal.Text -> a -> Prop>.
-                   cs:Data.Text.Lazy.Internal.Text
-                -> (   a<p cs>
-                    -> c:Data.Text.Internal.Text
-                    -> a<p cs>)
-                -> a<p cs>
-                -> t:Data.Text.Lazy.Internal.Text
-                -> a<p cs>
-  @-}
-foldlChunks :: Text -> (a -> T.Text -> a) -> a -> Text -> a
-foldlChunks t f !a Empty        = a
-foldlChunks t f !a (Chunk c cs) = foldlChunks t f (f a c) cs
-
---LIQUID foldlChunks :: (a -> T.Text -> a) -> a -> Text -> a
---LIQUID foldlChunks f z = go z
---LIQUID   where go !a Empty        = a
---LIQUID         go !a (Chunk c cs) = go (f a c) cs
+foldlChunks :: (a -> T.Text -> a) -> a -> Text -> a
+foldlChunks f z = go z
+  where go !a Empty        = a
+        go !a (Chunk c cs) = go (f a c) cs
 {-# INLINE foldlChunks #-}
 
 -- | Currently set to 16 KiB, less the memory management overhead.

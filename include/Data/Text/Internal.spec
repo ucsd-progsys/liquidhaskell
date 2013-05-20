@@ -3,7 +3,7 @@ module spec Data.Text.Internal where
 predicate InBounds V H = ((H > 0) ? (Btwn V 0 H) : (V = 0))
 
 data Data.Text.Internal.Text = Data.Text.Internal.Text
-            (arr :: Data.Text.Array.Array)
+            (arr :: {v:Data.Text.Array.Array | (alen v) >= 0})
             (off :: {v:Int | (BtwnI v 0 (alen arr))})
             (len :: {v:Int | ((v >= 0) && ((v + off) <= (alen arr)))})
 
@@ -40,15 +40,15 @@ measure sum_tlengths :: [Data.Text.Internal.Text] -> Int
 sum_tlengths ([]) = 0
 sum_tlengths (t:ts) = (tlength t) + (sum_tlengths ts)
 
-text :: a:{v:Data.Text.Array.Array | (alen v) > 0}
-     -> o:{v: Int | (BtwnI v 0 (alen a))}
-     -> l:{v: Int | ((v >= 0) && ((v+o) <= (alen a)))}
+text :: a:{v:Data.Text.Array.Array | (alen v) >= 0}
+     -> o:{v:Int | (BtwnI v 0 (alen a))}
+     -> l:{v:Int | ((v >= 0) && ((v+o) <= (alen a)))}
      -> {v:Text | (((tarr v) = a) && ((toff v) = o) && ((tlen v) = l) && ((tlength v) = (numchars a o l)))}
 
 empty :: {v:Data.Text.Internal.Text | (((tlen v) = 0) && ((tlength v) = 0))}
 
 textP :: a:{v:Data.Text.Array.Array | (alen v) >= 0}
       -> o:{v:Int | (BtwnI v 0 (alen a))}
-      -> l:{v: Int | ((v >= 0) && ((v+o) <= (alen a)))}
+      -> l:{v:Int | ((v >= 0) && ((v+o) <= (alen a)))}
       -> {v:Data.Text.Internal.Text | (((tlen v) = l) && ((tlength v) = (numchars a o l)))}
 

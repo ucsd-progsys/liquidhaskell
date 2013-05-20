@@ -27,9 +27,12 @@ maLen :: ma:(Data.Text.Array.MArray s)
 new :: forall s. n:{v:Int | v >= 0}
     -> (GHC.ST.ST s ({v:Data.Text.Array.MArray s | (malen v) = n}))
 
-unsafeFreeze :: forall <p :: Int -> Prop>.
-                Data.Text.Array.MArray s <p>
-             -> (GHC.ST.ST s (Data.Text.Array.Array<p>))
+unsafeFreeze :: ma:Data.Text.Array.MArray s
+             -> (ST s {v:Data.Text.Array.Array | (alen v) = (malen ma)})
+
+-- unsafeFreeze :: forall <p :: Int -> Prop>.
+--                 Data.Text.Array.MArray s <p>
+--              -> (GHC.ST.ST s (Data.Text.Array.Array<p>))
 
 unsafeIndex :: a:Data.Text.Array.Array
             -> i:{v:Int | (Btwn v 0 (alen a))}
@@ -73,8 +76,8 @@ unsafeWrite :: ma:(Data.Text.Array.MArray s)
             -> (GHC.ST.ST s ())
 
 toList :: a:{v:Data.Text.Array.Array | (alen v) >= 0}
-       -> o:{v:Int | (((alen a) > 0) ? (Btwn v 0 (alen a)) : (v = 0))}
-       -> l:{v:Int | (((alen a) > 0) ? (Btwn (v+o) o (alen a)) : (v = 0))}
+       -> o:{v:Int | (BtwnI v 0 (alen a))}
+       -> l:{v:Int | ((v >= 0) && ((v+o) <= (alen a)))}
        -> {v:[Data.Word.Word16] | (len v) = l}
 
 empty :: {v:Data.Text.Array.Array | (alen v) = 0}
