@@ -55,8 +55,8 @@ map :: (Char -> Char)
     -> {v:Data.Text.Internal.Text | (tlength t) = (tlength v)}
 
 intercalate :: Data.Text.Internal.Text
-            -> [Data.Text.Internal.Text]
-            -> Data.Text.Internal.Text
+            -> ts:[Data.Text.Internal.Text]
+            -> {v:Data.Text.Internal.Text | (tlength v) >= (sum_tlengths ts)}
 
 intersperse :: Char
             -> t:Data.Text.Internal.Text
@@ -64,6 +64,11 @@ intersperse :: Char
 
 reverse :: t:Data.Text.Internal.Text
         -> {v:Data.Text.Internal.Text | (tlength v) = (tlength t)}
+
+replace :: {v:Data.Text.Internal.Text | (tlength v) > 0}
+        -> Data.Text.Internal.Text
+        -> Data.Text.Internal.Text
+        -> Data.Text.Internal.Text
 
 toCaseFold :: t:Data.Text.Internal.Text
            -> {v:Data.Text.Internal.Text | (tlength v) >= (tlength t)}
@@ -169,6 +174,10 @@ inits :: t:Data.Text.Internal.Text
 tails :: t:Data.Text.Internal.Text
       -> [{v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}]<{\x y -> (tlength x) > (tlength y)}>
 
+splitOn :: {v:Data.Text.Internal.Text | (tlength v) > 0}
+        -> Data.Text.Internal.Text
+        -> [Data.Text.Internal.Text]
+
 chunksOf :: k:{v:Int | v >= 0}
          -> t:Data.Text.Internal.Text
          -> [{v:Data.Text.Internal.Text | (tlength v) <= k}]
@@ -203,7 +212,8 @@ findIndex :: (Char -> Bool)
           -> {v:Maybe {v0:Int | ((isJust v) => (Btwn v0 0 (tlength t)))} | true}
 
 count :: {v:Data.Text.Internal.Text | (tlength v) > 0}
-      -> Data.Text.Internal.Text -> Int
+      -> Data.Text.Internal.Text
+      -> Int
 
 isPrefixOf :: t1:Data.Text.Internal.Text
            -> t2:Data.Text.Internal.Text

@@ -52,13 +52,15 @@ import Language.Haskell.Liquid.Prelude
 
 {-@ data Data.Text.Internal.Text = Data.Text.Internal.Text
             (arr :: {v:Data.Text.Array.Array | (alen v) >= 0})
-            (off :: {v:Int | (((alen arr) > 0) ? (Btwn v 0 (alen arr)) : (v = 0))})
-            (len :: {v:Int | (((alen arr) > 0) ? (Btwn (v+off) off (alen arr)) : (v = 0))})
+            (off :: {v:Int | (BtwnI v 0 (alen arr))})
+            (len :: {v:Int | ((v >= 0) && ((v + off) <= (alen arr)))})
   @-}
 
-            -- (off :: {v: Int | ((v >= 0) && (((alen arr) > 0) <=> (v < (alen arr))))})
-            -- (len :: {v: Int | ((v >= 0) && (((alen arr) > 0) <=> ((v+off) < (alen arr))))})
+{-@ measure numchars :: Data.Text.Array.Array -> Int -> Int -> Int @-}
 
+{-@ measure tlength :: Data.Text.Internal.Text -> Int
+    tlength (Data.Text.Internal.Text a o l) = numchars(a,o,l)
+  @-}
 -- | A space efficient, packed, unboxed Unicode text type.
 data Text = Text
     {-# UNPACK #-} !A.Array          -- payload
@@ -79,21 +81,25 @@ data Text = Text
   @-}
 
 -- | Smart constructor.
-{-@ text :: a:{v:Data.Text.Array.Array | (alen v) > 0}
-         -> o:{v: Int | ((v >= 0) && (v < (alen a)))}
-         -> l:{v: Int | ((v >= 0) && ((v+o) < (alen a)))}
+{-@ text :: a:{v:Data.Text.Array.Array | (alen v) >= 0}
+         -> o:{v:Int | (BtwnI v 0 (alen a))}
+         -> l:{v:Int | ((v >= 0) && ((v+o) <= (alen a)))}
          -> {v:Text | (((tarr v) = a) && ((toff v) = o) && ((tlen v) = l))}
   @-}
 text :: A.Array -> Int -> Int -> Text
 text arr off len =
+--LIQUID pushing bindings inward to prove safety
 --LIQUID #if defined(ASSERTS)
-  let c    = A.unsafeIndex arr off
+--LIQUID  let c    = A.unsafeIndex arr off
 --LIQUID      alen = A.length arr
-      alen = A.aLen arr
+  let alen = A.aLen arr
   in liquidAssert (len >= 0) .
      liquidAssert (off >= 0) .
-     liquidAssert (alen == 0 || len == 0 || off < alen) .
-     assert (len == 0 || c < 0xDC00 || c > 0xDFFF) $
+     liquidAssert (alen == 0 || len == 0 || off < alen) $
+--LIQUID     assert (len == 0 || c < 0xDC00 || c > 0xDFFF) $
+     if len == 0 then Text arr off len else
+     let c = A.unsafeIndex arr off in
+     assert (c < 0xDC00 || c > 0xDFFF) $
 --LIQUID #endif
      Text arr off len
 {-# INLINE text #-}
@@ -107,8 +113,8 @@ empty = Text A.empty 0 0
 -- | Construct a 'Text' without invisibly pinning its byte array in
 -- memory if its length has dwindled to zero.
 {-@ textP :: a:{v:Data.Text.Array.Array | (alen v) >= 0}
-          -> o:{v:Int | (((alen a) > 0) ? (Btwn v 0 (alen a)) : (v = 0))}
-          -> l:{v:Int | (((alen a) > 0) ? (Btwn (v+o) o (alen a)) : (v = 0))}
+          -> o:{v:Int | (BtwnI v 0 (alen a))}
+          -> l:{v:Int | ((v >= 0) && ((v+o) <= (alen a)))}
           -> {v:Data.Text.Internal.Text | (tlen v) = l}
   @-}
 textP :: A.Array -> Int -> Int -> Text

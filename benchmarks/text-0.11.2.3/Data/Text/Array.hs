@@ -170,7 +170,7 @@ new n
 
 -- | Freeze a mutable array. Do not mutate the 'MArray' afterwards!
 {-@ unsafeFreeze :: ma:Data.Text.Array.MArray s
-                 -> ST s ({v:Data.Text.Array.Array | (alen v) = (malen ma)})
+                 -> (ST s {v:Data.Text.Array.Array | (alen v) = (malen ma)})
   @-}
 unsafeFreeze :: MArray s -> ST s Array
 unsafeFreeze MArray{..} = ST $ \s# ->
@@ -233,9 +233,9 @@ unsafeWrite MArray{..} i@(I# i#) (W16# e#) = ST $ \s1# ->
 {-# INLINE unsafeWrite #-}
 
 -- | Convert an immutable array to a list.
-{-@ toList :: a:Data.Text.Array.Array
-           -> o:{v:Int | (Btwn v 0 (alen a))}
-           -> l:{v:Int | ((v >= 0) && ((v + o) < (alen a)))}
+{-@ toList :: a:{v:Data.Text.Array.Array | (alen v) >= 0}
+           -> o:{v:Int | (BtwnI v 0 (alen a))}
+           -> l:{v:Int | ((v >= 0) && ((v + o) <= (alen a)))}
            -> {v:[Word16] | (len v) = l}
   @-}
 toList :: Array -> Int -> Int -> [Word16]
@@ -245,8 +245,8 @@ toList :: Array -> Int -> Int -> [Word16]
 toList ary off len = toList_loop ary off len 0
 
 {-@ toList_loop :: a:Data.Text.Array.Array
-                -> o:{v:Int | (Btwn v 0 (alen a))}
-                -> l:{v:Int | ((v >= 0) && ((v + o) < (alen a)))}
+                -> o:{v:Int | (BtwnI v 0 (alen a))}
+                -> l:{v:Int | ((v >= 0) && ((v + o) <= (alen a)))}
                 -> i:{v:Int | (BtwnI v 0 l)}
                 -> {v:[Word16] | (len v) = (l - i)}
   @-}
@@ -318,7 +318,7 @@ copyM dest didx src sidx count
           -> mo:{v:Int | ((v >= 0) && (v < (malen ma)))}
           -> a:Data.Text.Array.Array
           -> o:{v:Int | ((v >= 0) && (v < (alen a)))}
-          -> top:{v:Int | ((v >= o) && (v < (malen ma)) && (v <= (alen a)))}
+          -> top:{v:Int | ((v >= mo) && (v <= (malen ma)) && (((v-mo)+o) <= (alen a)))}
           -> ST s ()
   @-}
 copyI :: MArray s               -- ^ Destination
