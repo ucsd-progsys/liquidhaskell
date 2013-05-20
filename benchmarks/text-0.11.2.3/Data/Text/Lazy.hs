@@ -461,11 +461,13 @@ singleton c = Chunk (T.singleton c) Empty
   #-}
 
 -- | /O(c)/ Convert a list of strict 'T.Text's into a lazy 'Text'.
-{- fromChunks :: ts:[Data.Text.Internal.Text]
+{-@ fromChunks :: ts:[Data.Text.Internal.Text]
                -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (sum_tlengths ts)}
   @-}
 fromChunks :: [T.Text] -> Text
-fromChunks cs = L.foldr chunk Empty cs
+--LIQUID fromChunks cs = L.foldr chunk Empty cs
+fromChunks []     = Empty
+fromChunks (t:ts) = chunk t $ fromChunks ts
 
 -- | /O(n)/ Convert a lazy 'Text' into a list of strict 'T.Text's.
 {-@ toChunks :: t:Data.Text.Lazy.Internal.Text

@@ -47,8 +47,8 @@ module Data.Text.Array
     , new
     , unsafeWrite
     --LIQUID
-    , unsafeIndex'
-    , unsafeIndex''
+    , unsafeIndexF
+    , unsafeIndexB
     ) where
 
 #if defined(ASSERTS)
@@ -199,23 +199,23 @@ unsafeIndex Array{..} i@(I# i#) =
     case indexWord16Array# aBA i# of r# -> (W16# r#)
 
 --LIQUID
-{-@ unsafeIndex' :: a:Data.Text.Array.Array
+{-@ unsafeIndexF :: a:Data.Text.Array.Array
                  -> o:{v:Int | (Btwn v 0 (alen a))}
                  -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
                  -> i:{v:Int | (Btwn (v) (o) (o + l))}
                  -> Word16
   @-}
-unsafeIndex' :: Array -> Int -> Int -> Int -> Word16
-unsafeIndex' a o l i = unsafeIndex a i
+unsafeIndexF :: Array -> Int -> Int -> Int -> Word16
+unsafeIndexF a o l i = unsafeIndex a i
 
-{-@ unsafeIndex'' :: a:Data.Text.Array.Array
-                  -> o:{v:Int | (Btwn v 0 (alen a))}
-                  -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
-                  -> i:{v:Int | (Btwn (v) (o) (o + l))}
-                  -> Word16
+{-@ unsafeIndexB :: a:Data.Text.Array.Array
+                 -> o:{v:Int | (Btwn v 0 (alen a))}
+                 -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
+                 -> i:{v:Int | (Btwn (v) (o) (o + l))}
+                 -> Word16
   @-}
-unsafeIndex'' :: Array -> Int -> Int -> Int -> Word16
-unsafeIndex'' a o l i = unsafeIndex a i
+unsafeIndexB :: Array -> Int -> Int -> Int -> Word16
+unsafeIndexB a o l i = unsafeIndex a i
 {-# INLINE unsafeIndex #-}
 
 -- | Unchecked write of a mutable array.  May return garbage or crash

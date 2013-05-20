@@ -51,7 +51,7 @@ unsafeHead (Text arr off _len)
     | m < 0xD800 || m > 0xDBFF = unsafeChr m
     | otherwise                = let n = A.unsafeIndex arr (off+1)
                                  in chr2 m n
-    where m = A.unsafeIndex'' arr off _len off
+    where m = A.unsafeIndexF arr off _len off
           --LIQUID n = A.unsafeIndex arr (off+1)
 {-# INLINE unsafeHead #-}
 
@@ -81,7 +81,8 @@ data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
 -- | /O(1)/ Iterate (unsafely) one step forwards through a UTF-16
 -- array, returning the current character and the delta to add to give
 -- the next offset to iterate at.
-{-@ iter :: t:Data.Text.Internal.Text -> i:{v:Int | (Btwn v 0 (tlen t))}
+{-@ iter :: t:Data.Text.Internal.Text
+         -> i:{v:Int | (Btwn v 0 (tlen t))}
          -> {v:Data.Text.Unsafe.Iter | ((BtwnEI ((iter_d v)+i) i (tlen t))
                 && ((numchars (tarr t) (toff t) (i+(iter_d v)))
                     = (1 + (numchars (tarr t) (toff t) i)))
@@ -93,7 +94,7 @@ iter (Text arr off _len) i
     | m < 0xD800 || m > 0xDBFF = Iter (unsafeChr m) 1
     | otherwise                = let n = A.unsafeIndex arr (j+1)
                                  in Iter (chr2 m n) 2
-  where m = A.unsafeIndex'' arr off _len j
+  where m = A.unsafeIndexF arr off _len j
         --LIQUID n = A.unsafeIndex arr k
         j = off + i
         k = j + 1
@@ -113,7 +114,7 @@ iter_ :: Text -> Int -> Int
 iter_ (Text arr off _len) i | m < 0xD800 || m > 0xDBFF = 1
                             | otherwise                = 2
 --LIQUID   where m = A.unsafeIndex arr (off+i)
-  where m = A.unsafeIndex'' arr off _len (off+i)
+  where m = A.unsafeIndexF arr off _len (off+i)
 {-# INLINE iter_ #-}
 
 -- | /O(1)/ Iterate one step backwards through a UTF-16 array,
@@ -135,11 +136,26 @@ reverseIter (Text arr off _len) i l
     | m < 0xDC00 || m > 0xDFFF = (unsafeChr m, -1)
     | otherwise                = let n = A.unsafeIndex arr (j-1)
                                  in (chr2 n m,    -2)
-  where m = A.unsafeIndex' arr off _len j
+  where m = A.unsafeIndexB arr off _len j
         --LIQUID n = A.unsafeIndex arr k
         j = off + i
         k = j - 1
 {-# INLINE reverseIter #-}
+
+{-@ foo :: a:Data.Text.Array.Array
+              -> o:{v:Int | (Btwn v 0 (alen a))}
+              -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
+              -> i:{v:Int | (Btwn (v) (o) (o + l))}
+              -> {v:Data.Word.Word16 | (((v >= 55296) && (v <= 56319))
+                                        ? ((numchars(a, o, (i-o)+1)
+                                            = (1 + numchars(a, o, (i-o)-1)))
+                                           && (((i-o)-1) >= 0))
+                                        : (numchars(a, o, (i-o)+1)
+                                           = (1 + numchars(a, o, i-o))))}
+@-}
+foo :: A.Array -> Int -> Int -> Int -> Data.Word.Word16
+foo a o l i = undefined
+
 
 -- | /O(1)/ Return the length of a 'Text' in units of 'Word16'.  This
 -- is useful for sizing a target array appropriately before using
