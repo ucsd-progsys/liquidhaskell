@@ -45,20 +45,26 @@ unsafeIndexB :: a:Data.Text.Array.Array
              -> {v:Data.Word.Word16 | (((v >= 56320) && (v <= 57343))
                                        ? ((numchars(a, o, (i-o)+1)
                                            = (1 + numchars(a, o, (i-o)-1)))
+                                          && (numchars(a, o, (i-o-1)) >= 0)
                                           && (((i-o)-1) >= 0))
-                                       : (numchars(a, o, (i-o)+1)
-                                          = (1 + numchars(a, o, i-o))))}
+                                       : ((numchars(a, o, (i-o)+1)
+                                           = (1 + numchars(a, o, i-o)))
+                                          && (numchars(a, o, (i-o)) >= 0)))}
 
 unsafeIndexF :: a:Data.Text.Array.Array
              -> o:{v:Int | (Btwn v 0 (alen a))}
              -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
              -> i:{v:Int | (Btwn (v) (o) (o + l))}
              -> {v:Data.Word.Word16 | (((v >= 55296) && (v <= 56319))
-                                       ? ((numchars(a, o, (i-o)+1)
-                                           = (1 + numchars(a, o, (i-o)-1)))
+                                       ? ((numchars(a, o, (i-o)+2)
+                                           = (1 + numchars(a, o, i-o)))
+                                          && (numchars(a, o, (i-o)+2)
+                                              <= numchars(a, o, l))
                                           && (((i-o)+1) < l))
-                                       : (numchars(a, o, (i-o)+1)
-                                          = (1 + numchars(a, o, i-o))))}
+                                       : ((numchars(a, o, (i-o)+1)
+                                           = (1 + numchars(a, o, i-o)))
+                                          && (numchars(a, o, (i-o)+1)
+                                              <= numchars(a, o, l))))}
 
 unsafeWrite :: ma:(Data.Text.Array.MArray s)
             -> i:{v:Int | (Btwn v 0 (malen ma))}

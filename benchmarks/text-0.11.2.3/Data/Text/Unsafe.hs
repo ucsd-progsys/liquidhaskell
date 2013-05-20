@@ -97,7 +97,7 @@ iter (Text arr off _len) i
   where m = A.unsafeIndexF arr off _len j
         --LIQUID n = A.unsafeIndex arr k
         j = off + i
-        k = j + 1
+        --LIQUID k = j + 1
 {-# INLINE iter #-}
 
 -- | /O(1)/ Iterate one step through a UTF-16 array, returning the
@@ -122,39 +122,30 @@ iter_ (Text arr off _len) i | m < 0xD800 || m > 0xDBFF = 1
 -- negative number) to give the next offset to iterate at.
 {-@ reverseIter :: t:Data.Text.Internal.Text
                 -> i:{v:Int | (Btwn v 0 (tlen t))}
-                -> l:{v:Int | (BtwnEI v 0 (tlen t))}
+                -> l:{v:Int | ((BtwnEI v 0 (tlen t)) && (v = (i+1)))}
                 -> (Char,{v:Int | ((Btwn (l+v) 0 l)
                           && ((numchars (tarr t) (toff t) (l+v))
                               = ((numchars (tarr t) (toff t) l) - 1))
-                          && ((numchars (tarr t) (toff t) (l+v))
-                              >= -1))})
+                          && ((numchars (tarr t) (toff t) (l+v)) >= -1))})
   @-}
 --LIQUID reverseIter :: Text -> Int -> (Char,Int)
 --LIQUID reverseIter (Text arr off _len) i
 reverseIter :: Text -> Int -> Int -> (Char,Int)
 reverseIter (Text arr off _len) i l
-    | m < 0xDC00 || m > 0xDFFF = (unsafeChr m, -1)
-    | otherwise                = let n = A.unsafeIndex arr (j-1)
-                                 in (chr2 n m,    -2)
+    | m < 0xDC00 || m > 0xDFFF = let d = (neg 1)
+                                 in (unsafeChr m, d)
+    | otherwise                = let d = (neg 2)
+                                     n = A.unsafeIndex arr (j-1)
+                                 in (chr2 n m,    d)
   where m = A.unsafeIndexB arr off _len j
         --LIQUID n = A.unsafeIndex arr k
         j = off + i
-        k = j - 1
+        --LIQUID k = j - 1
 {-# INLINE reverseIter #-}
 
-{-@ foo :: a:Data.Text.Array.Array
-              -> o:{v:Int | (Btwn v 0 (alen a))}
-              -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
-              -> i:{v:Int | (Btwn (v) (o) (o + l))}
-              -> {v:Data.Word.Word16 | (((v >= 55296) && (v <= 56319))
-                                        ? ((numchars(a, o, (i-o)+1)
-                                            = (1 + numchars(a, o, (i-o)-1)))
-                                           && (((i-o)-1) >= 0))
-                                        : (numchars(a, o, (i-o)+1)
-                                           = (1 + numchars(a, o, i-o))))}
-@-}
-foo :: A.Array -> Int -> Int -> Int -> Data.Word.Word16
-foo a o l i = undefined
+{-@ neg :: n:Int -> {v:Int | v = (0-n)} @-}
+neg :: Int -> Int
+neg n = 0-n
 
 
 -- | /O(1)/ Return the length of a 'Text' in units of 'Word16'.  This
