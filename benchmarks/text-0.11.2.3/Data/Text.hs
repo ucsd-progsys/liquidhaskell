@@ -504,10 +504,9 @@ append a@(Text arr1 off1 len1) b@(Text arr2 off2 len2)
     | len1 == 0 = b
     | len2 == 0 = a
     | len > 0   = let x = do arr <- A.new len
-                             let arr' = liquidAssume (Data.Text.Array.maLen arr == len) arr
-                             A.copyI arr' 0 arr1 off1 len1
-                             A.copyI arr' len1 arr2 off2 len
-                             return arr'
+                             A.copyI arr 0 arr1 off1 len1
+                             A.copyI arr len1 arr2 off2 len
+                             return arr
                       arr = A.run x
                       t = Text (liquidAssume (Data.Text.Array.aLen arr == len) arr) 0 len
                   --LIQUID FIXME: this axiom is fragile, would prefer to reason about `A.run x`
@@ -1112,8 +1111,7 @@ replicate n t@(Text a o l)
     | isSingleton t         = replicateChar n (unsafeHead t)
     | otherwise             = let len = l * n
                                   x = do arr <- A.new len
-                                         let arr' = liquidAssume (A.maLen arr == len) arr
-                                         replicate_loop arr' len t 0
+                                         replicate_loop arr len t 0
                                   arr = A.run x
                                   t' = Text (liquidAssume (A.aLen arr == len) arr) 0 len
                               in liquidAssume (axiom_numchars_replicate t t') t'
