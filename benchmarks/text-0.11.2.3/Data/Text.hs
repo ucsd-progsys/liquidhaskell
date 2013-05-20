@@ -250,7 +250,8 @@ data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
     iter_d (Data.Text.Iter c d) = d
   @-}
 
-{-@ assume iter :: t:Data.Text.Internal.Text -> i:{v:Int | (Btwn v 0 (tlen t))}
+{-@ assume iter :: t:Data.Text.Internal.Text
+                -> i:{v:Int | (Btwn v 0 (tlen t))}
                 -> {v:Data.Text.Iter | ((BtwnEI ((iter_d v)+i) i (tlen t))
                           && ((numchars (tarr t) (toff t) (i+(iter_d v)))
                               = (1 + (numchars (tarr t) (toff t) i)))
@@ -559,7 +560,7 @@ last (Text arr off len)
     | n < 0xDC00 || n > 0xDFFF = unsafeChr n
     | otherwise                = let n0 = A.unsafeIndex arr (off+len-2)
                                  in U16.chr2 n0 n
-    where n  = A.unsafeIndex' arr off len (off+len-1)
+    where n  = A.unsafeIndexB arr off len (off+len-1)
           --LIQUID n0 = A.unsafeIndex arr (off+len-2)
 {-# INLINE [1] last #-}
 
@@ -603,7 +604,7 @@ init t@(Text arr off len)
     | otherwise                  = textP arr off (len-1)
     where
       --LIQUID n = A.unsafeIndex arr (off+len-1)
-      n = A.unsafeIndex' arr off len (off+len-1)
+      n = A.unsafeIndexB arr off len (off+len-1)
 {-# INLINE [1] init #-}
 
 {-# RULES
