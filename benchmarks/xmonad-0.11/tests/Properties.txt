@@ -20,10 +20,9 @@ OK- * no element should ever appear more than once in a StackSet
   OK - prop_shift_win_I
 
 --- HERE 
--- empty StackSets have no windows in them
-prop_empty (EmptyStackSet x) =
-        all (== Nothing) [ stack w | w <- workspace (current x)
-                                        : map workspace (visible x) ++ hidden x ]
+
+OK - empty StackSets have no windows in them
+prop_empty 
 
 -- empty StackSets always have focus on first workspace
 prop_empty_current (NonEmptyNubList ns) (NonEmptyNubList sds) l =

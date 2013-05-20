@@ -136,6 +136,38 @@ data Stack a = Stack { focus :: a
 {-@ predicate StackSetVisibleElt N S = true @-}
 {-@ predicate StackSetHiddenElt N S = true @-}
 
+
+-------------------------------------------------------------------------------
+-----------------------  Grap StackSet Elements -------------------------------
+-------------------------------------------------------------------------------
+
+{-@ measure stackSetElts :: (StackSet i l a sid sd) -> (Data.Set.Set a)
+    stackSetElts(StackSet current visible hidden f) = (Set_cup (Set_cup (screenElts current) (screensElts visible)) (workspacesElts hidden))
+   @-}
+
+{-@ measure screensElts :: [(Screen i l a sid sd)] -> (Data.Set.Set a)
+    screensElts([])   = {v|(? (Set_emp v))} 
+    screensElts(x:xs) = (Set_cup (screenElt x) (screensElts xs))
+  @-}
+
+{-@ measure screenElts :: (Screen i l a sid sd) -> (Data.Set.Set a)
+    screenElts(Screen w s sd) = (workspaceElts w) @-}
+
+{-@ measure workspacesElts :: [(Workspace i l a)] -> (Data.Set.Set a)
+    workspacesElts([])   = {v|(? (Set_emp v))} 
+    workspacesElts(x:xs) = (Set_cup (workspaceElts x) (workspacesElts xs))
+  @-}
+
+{-@ measure workspaceElts :: (Workspace i l a) -> (Data.Set.Set a)
+    workspaceElts(Workspace t l s) = {v| (if (isJust s) then (stackElts (fromJust s)) else (? (Set_emp v)))} @-}
+
+{-@ measure stackElts :: (StackSet i l a sid sd) -> (Data.Set.Set a)
+    stackElts(Stack f up down) = (Set_cup (Set_sng f) (Set_cup (listElts up) (listElts down))) @-}
+
+{-@ predicate EmptyStackSet X = (? (Set_emp (stackSetElts X)))@-}
+
+
+
 -- $intro
 --
 -- The 'StackSet' data type encodes a window manager abstraction. The
@@ -334,7 +366,12 @@ abort x = error $ "xmonad: StackSet: " ++ x
 --
 -- Xinerama: Virtual workspaces are assigned to physical screens, starting at 0.
 --
-{-@ new :: (Integral s) => l -> [i] -> [sd] -> StackSet i l a s sd @-}
+{-@ new :: (Integral s) 
+        => l 
+        -> [i] 
+        -> [sd] 
+        -> {v:(StackSet i l a s sd) | (EmptyStackSet v)} 
+  @-}
 new :: (Integral s) => l -> [i] -> [sd] -> StackSet i l a s sd
 new l wids m | not (null wids) && length m <= length wids && not (null m)
   = StackSet cur visi unseen M.empty
