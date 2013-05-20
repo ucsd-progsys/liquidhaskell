@@ -334,6 +334,7 @@ abort x = error $ "xmonad: StackSet: " ++ x
 --
 -- Xinerama: Virtual workspaces are assigned to physical screens, starting at 0.
 --
+{-@ new :: (Integral s) => l -> [i] -> [sd] -> StackSet i l a s sd @-}
 new :: (Integral s) => l -> [i] -> [sd] -> StackSet i l a s sd
 new l wids m | not (null wids) && length m <= length wids && not (null m)
   = StackSet cur visi unseen M.empty
@@ -350,6 +351,7 @@ new _ _ _ = abort "non-positive argument to StackSet.new"
 -- becomes the current screen. If it is in the visible list, it becomes
 -- current.
 
+{-@ view :: (Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd @-}
 view :: (Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd
 view i s
     | i == currentTag s = s  -- current
@@ -380,6 +382,7 @@ view i s
 -- screen, the workspaces of the current screen and the other screen are
 -- swapped.
 
+{-@ greedyView :: (Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd @-}
 greedyView :: (Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd
 greedyView w ws
      | any wTag (hidden ws) = view w ws
@@ -488,6 +491,7 @@ index = with [] integrate
 -- if we reach the end. Again the wrapping model should 'cycle' on
 -- the current stack.
 --
+{-@ focusUp, focusDown, swapUp, swapDown :: StackSet i l a s sd -> StackSet i l a s sd @-}
 focusUp, focusDown, swapUp, swapDown :: StackSet i l a s sd -> StackSet i l a s sd
 focusUp   = modify' focusUp'
 focusDown = modify' focusDown'
@@ -661,6 +665,7 @@ insertUp_ _ d (StackSet (Screen (Workspace i l Nothing) a b ) v h c)
 --
 --   * otherwise, delete doesn't affect the master.
 --
+{-@ delete :: (Ord a, Eq s) => a -> StackSet i l a s sd -> StackSet i l a s sd @-}
 delete :: (Ord a, Eq s) => a -> StackSet i l a s sd -> StackSet i l a s sd
 delete w = sink w . delete' w
 
@@ -690,6 +695,7 @@ sink w s = s { floating = M.delete w (floating s) }
 -- | /O(s)/. Set the master window to the focused window.
 -- The old master window is swapped in the tiling order with the focused window.
 -- Focus stays with the item moved.
+{-@ swapMaster :: StackSet i l a s sd -> StackSet i l a s sd @-}
 swapMaster :: StackSet i l a s sd -> StackSet i l a s sd
 swapMaster = modify' swapMaster_ -- LIQUID $ \ccc -> case ccc of
 -- LIQUID     Stack _ [] _  -> ccc    -- already master.
@@ -715,6 +721,7 @@ shiftMaster = modify' $ \c -> case c of
     Stack t ls rs -> Stack t [] (reverse ls ++ rs)
 
 -- | /O(s)/. Set focus to the master window.
+{-@ focusMaster :: StackSet i l a s sd -> StackSet i l a s sd @-}
 focusMaster :: StackSet i l a s sd -> StackSet i l a s sd
 focusMaster = modify' focusMaster_ -- LIQUID $ \c -> case c of
 -- LIQUID     Stack _ [] _  -> c
@@ -735,6 +742,7 @@ focusMaster_ = \c -> case c of
 -- The actual focused workspace doesn't change. If there is no
 -- element on the current stack, the original stackSet is returned.
 --
+{-@ shift :: (Ord a, Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd @-}
 shift :: (Ord a, Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd
 shift n s = maybe s (\w -> shiftWin n w s) (peek s)
 
@@ -744,6 +752,7 @@ shift n s = maybe s (\w -> shiftWin n w s) (peek s)
 -- focused element on that workspace.
 -- The actual focused workspace doesn't change. If the window is not
 -- found in the stackSet, the original stackSet is returned.
+{-@ shiftWin :: (Ord a, Eq a, Eq s, Eq i) => i -> a -> StackSet i l a s sd -> StackSet i l a s sd @-}
 shiftWin :: (Ord a, Eq a, Eq s, Eq i) => i -> a -> StackSet i l a s sd -> StackSet i l a s sd
 shiftWin n w s = case findTag w s of
                     Just from | n `tagMember` s && n /= from -> go from s
