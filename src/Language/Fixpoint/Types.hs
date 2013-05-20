@@ -1133,7 +1133,7 @@ data Qualifier = Q { q_name   :: String           -- ^ Name
                    , q_params :: [(Symbol, Sort)] -- ^ Parameters
                    , q_body   :: Pred             -- ^ Predicate
                    }
-               deriving (Eq, Ord)  
+               deriving (Eq, Ord, Show)  
 
 instance Fixpoint Qualifier where 
   toFix = pprQual
