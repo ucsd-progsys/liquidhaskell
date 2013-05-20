@@ -19,25 +19,20 @@ OK- * no element should ever appear more than once in a StackSet
   OK - prop_shift_I    
   OK - prop_shift_win_I
 
---- HERE 
 
 OK - empty StackSets have no windows in them
 prop_empty 
 
--- empty StackSets always have focus on first workspace
-prop_empty_current (NonEmptyNubList ns) (NonEmptyNubList sds) l =
-    -- TODO, this is ugly
-    length sds <= length ns ==>
-    tag (workspace $ current x) == head ns
-    where x = new l ns sds :: T
+OK - empty StackSets always have focus on first workspace
+prop_empty_current
 
--- no windows will be a member of an empty workspace
-prop_member_empty i (EmptyStackSet x)
-    = member i x == False
+BAD1 - no windows will be a member of an empty workspace
+prop_member_empty
 
 -- ---------------------------------------------------------------------
 -- viewing workspaces
 
+--- HERE 
 -- view sets the current workspace to 'n'
 prop_view_current (x :: T) (n :: NonNegative Int) = i `tagMember` x ==>
     tag (workspace $ current (view i x)) == i
@@ -1027,3 +1022,5 @@ gen `suchThatMaybe` p = sized (try 0 . max 1)
   try _ 0 = return Nothing
   try k n = do x <- resize (2*k+n) gen
                if p x then return (Just x) else try (k+1) (n-1)
+
+BAD1 : forall elements

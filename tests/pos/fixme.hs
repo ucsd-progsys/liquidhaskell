@@ -27,6 +27,12 @@ import qualified Data.Set -- LIQUID
 -- measures
 
 {-@
+  measure head :: [a] -> a
+  head([])   = {v | false}
+  head(x:xs) = {v | v = x} 
+  @-}
+
+{-@
   measure listDup :: [a] -> (Data.Set.Set a)
   listDup([]) = {v | (? Set_emp (v))}
   listDup(x:xs) = {v | v = ((Set_mem x (listElts xs))?(Set_cup (Set_sng x) (listDup xs)):(listDup xs)) }
@@ -192,7 +198,18 @@ data StackSet i l a sid sd =
 {-@ measure getCurrentScreen :: (StackSet i l a sid sd) -> (Screen i l a sid sd)
     getCurrentScreen(StackSet current v h f) = current @-}
 
--- NEW get StackSet Elements
+
+-- NEW current tag
+
+{-@ measure getTag :: (Workspace i l a) -> i
+    getTag(Workspace t l s) = t
+  @-}
+
+{-@ tag :: w:(Workspace i l a) -> {v:i|v = (getTag w)} @-}
+
+{-@ predicate IsCurrentTag X Y = (X = (getTag (getWorkspaceScreen (getCurrentScreen Y))) )@-}
+-- END current tag
+-- get StackSet Elements
 
 {-@ measure stackSetElts :: (StackSet i l a sid sd) -> (Data.Set.Set a)
     stackSetElts(StackSet current visible hidden f) = (Set_cup (Set_cup (screenElts current) (screensElts visible)) (workspacesElts hidden))
@@ -326,9 +343,9 @@ abort x = error $ "xmonad: StackSet: " ++ x
 --
 {-@ new :: (Integral s) 
         => l 
-        -> [i] 
+        -> is:[i] 
         -> [sd] 
-        -> {v:(StackSet i l a s sd) | (EmptyStackSet v)} 
+        -> {v:(StackSet i l a s sd) | ((EmptyStackSet v) && (IsCurrentTag (head is) v))} 
   @-}
 new :: (Integral s) => l -> [i] -> [sd] -> StackSet i l a s sd
 new l wids m | not (null wids) && length m <= length wids && not (null m)
