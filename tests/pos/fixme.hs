@@ -341,17 +341,32 @@ abort x = error $ "xmonad: StackSet: " ++ x
 --
 -- Xinerama: Virtual workspaces are assigned to physical screens, starting at 0.
 --
-{-@ new :: (Integral s) 
-        => l 
-        -> is:[i] 
-        -> [sd] 
-        -> {v:(StackSet i l a s sd) | ((EmptyStackSet v) && (IsCurrentTag (head is) v))} 
-  @-}
-new :: (Integral s) => l -> [i] -> [sd] -> StackSet i l a s sd
-new l wids m | not (null wids) && length m <= length wids && not (null m)
-  = StackSet cur visi unseen M.empty
-  where (seen,unseen) = L.splitAt (length m) $ map (\i -> Workspace i l Nothing) wids
-        (cur:visi)    = [ Screen i s sd |  (i, s, sd) <- zip3 seen [0..] m ]
-                -- now zip up visibles with their screen id
-new _ _ _ = abort "non-positive argument to StackSet.new"
+
+{- view :: (Eq s, Eq i) 
+         => t:i 
+         -> StackSet i l a s sd 
+         -> {v:StackSet i l a s sd|(IsCurrentTag t v)} @-}
+-- view :: (Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd
+-- view i s
+--     | i == currentTag s = s  -- current
+
+--     | Just x <- L.find ((i==).tag.workspace) (visible s)
+--     -- if it is visible, it is just raised
+--     = s { current = x, visible = current s : L.deleteBy (equating screen) x (visible s) }
+-- 
+--     | Just x <- L.find ((i==).tag)           (hidden  s) -- must be hidden then
+--     -- if it was hidden, it is raised on the xine screen currently used
+--     = s { current = (current s) { workspace = x }
+--         , hidden = workspace (current s) : L.deleteBy (equating tag) x (hidden s) }
+-- 
+--     | otherwise = s -- not a member of the stackset
+-- 
+--   where equating f = \x y -> f x == f y
+
+{-@ currentTag :: s: StackSet i l a s sd -> {v:i|(IsCurrentTag v s)} @-}
+currentTag :: StackSet i l a s sd -> i
+currentTag = tag . workspace . current
+-- does not like . , give (.) it the other type
+
+
 

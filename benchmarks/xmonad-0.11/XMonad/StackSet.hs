@@ -406,7 +406,10 @@ new _ _ _ = abort "non-positive argument to StackSet.new"
 -- becomes the current screen. If it is in the visible list, it becomes
 -- current.
 
-{-@ view :: (Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd @-}
+{-@ view :: (Eq s, Eq i) 
+         => t:i 
+         -> StackSet i l a s sd 
+         -> StackSet i l a s sd @-}
 view :: (Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd
 view i s
     | i == currentTag s = s  -- current
