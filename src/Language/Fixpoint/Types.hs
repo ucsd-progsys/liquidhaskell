@@ -51,7 +51,13 @@ module Language.Fixpoint.Types (
   , removeLhsKvars
 
   -- * Environments
-  , SEnv, emptySEnv, fromListSEnv, mapSEnv, insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
+  , SEnv
+  , emptySEnv, toListSEnv, fromListSEnv
+  , mapSEnv
+  , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
+  , intersectWithSEnv
+  , filterSEnv
+
   , FEnv, insertFEnv 
   , IBindEnv, BindId, insertsIBindEnv, deleteIBindEnv, emptyIBindEnv
   , BindEnv, insertBindEnv, emptyBindEnv
@@ -79,6 +85,7 @@ module Language.Fixpoint.Types (
   , Subst, Subable (..)
   , emptySubst, mkSubst, catSubst
   , substExcept, substfExcept, subst1Except
+  , sortSubst
 
   -- * Visitors
   , reftKVars
@@ -258,6 +265,14 @@ toFix_sort (FApp c ts)
 
 instance Fixpoint FTycon where
   toFix (TC s)       = toFix s
+
+-------------------------------------------------------------------------------------------
+sortSubst                  :: (M.HashMap Symbol Sort) -> Sort -> Sort
+-------------------------------------------------------------------------------------------
+sortSubst θ t@(FObj x)   = fromMaybe t (M.lookup x θ) 
+sortSubst θ (FFunc n ts) = FFunc n (sortSubst θ <$> ts)
+sortSubst θ (FApp c ts)  = FApp c  (sortSubst θ <$> ts)
+sortSubst _  t           = t
 
 
 ---------------------------------------------------------------
@@ -571,6 +586,9 @@ instance Predicate Symbol where
 instance Predicate Pred where
   prop = id 
 
+instance Predicate Bool where
+  prop True  = PTrue 
+  prop False = PFalse 
 
 eVar          ::  Symbolic a => a -> Expr 
 eVar          = EVar . symbol 
@@ -622,16 +640,18 @@ sortedReftValueVariable (RR _ (Reft (v,_))) = v
 ----------------- Environments  -------------------------------
 ---------------------------------------------------------------
 
+toListSEnv              ::  SEnv a -> [(Symbol, a)]
+toListSEnv (SE env)     = M.toList env
 fromListSEnv            ::  [(Symbol, a)] -> SEnv a
 fromListSEnv            = SE . M.fromList
-
 mapSEnv f (SE env)      = SE (fmap f env)
 deleteSEnv x (SE env)   = SE (M.delete x env)
 insertSEnv x y (SE env) = SE (M.insert x y env)
 lookupSEnv x (SE env)   = M.lookup x env
 emptySEnv               = SE M.empty
 memberSEnv x (SE env)   = M.member x env
-
+intersectWithSEnv f (SE m1) (SE m2) = SE (M.intersectionWith f m1 m2)
+filterSEnv f (SE m)     = SE (M.filter f m)
 
 -- | Functions for Indexed Bind Environment 
 
@@ -1113,7 +1133,7 @@ data Qualifier = Q { q_name   :: String           -- ^ Name
                    , q_params :: [(Symbol, Sort)] -- ^ Parameters
                    , q_body   :: Pred             -- ^ Predicate
                    }
-               deriving (Eq, Ord)  
+               deriving (Eq, Ord, Show)  
 
 instance Fixpoint Qualifier where 
   toFix = pprQual
@@ -1174,6 +1194,20 @@ meetReft r@(Reft (v, ras)) r'@(Reft (v', ras'))
   | v == dummySymbol = Reft (v', ras' ++ (ras `subst1`  (v , EVar v'))) 
   | otherwise        = Reft (v , ras  ++ (ras' `subst1` (v', EVar v )))
 
+instance Subable () where
+  syms _      = []
+  subst _ ()  = ()
+  substf _ () = ()
+  substa _ () = ()
+
+instance Reftable () where
+  isTauto _ = True
+  ppTy _  d = d
+  top       = ()
+  meet _ _  = ()
+  toReft _  = top
+  params _  = []
+
 instance Reftable Reft where
   isTauto  = isTautoReft
   ppTy     = ppr_reft
@@ -1193,10 +1227,25 @@ instance Monoid SortedReft where
   mappend t1 t2 = RR (mappend (sr_sort t1) (sr_sort t2)) (mappend (sr_reft t1) (sr_reft t2))
 
 instance Reftable SortedReft where
-  isTauto  = isTauto . sr_reft
-  ppTy     = ppTy . sr_reft
+  isTauto  = isTauto . toReft
+  ppTy     = ppTy . toReft
   toReft   = sr_reft
   params _ = []
+
+-- instance Expression a => Reftable a where
+--   isTauto _ = isTauto . toReft 
+--   ppTy      = ppTy . toReft
+--   toReft    = exprReft 
+--   params _  = []
+
+-- instance Predicate a => Reftable a where
+--   isTauto   = isTauto . toReft 
+--   ppTy      = ppTy . toReft
+--   toReft    = propReft 
+--   params _  = []
+
+
+
 
 class Falseable a where
   isFalse :: a -> Bool
