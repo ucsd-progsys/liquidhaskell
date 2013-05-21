@@ -195,11 +195,21 @@ data StackSet i l a sid sd =
              }
 @-}
 
+{-@ visible :: s:(StackSet i l a sid sd) -> {v:([Screen i l a sid sd]) | v = (getVisible s)}@-}
+
+{-@ hidden :: s:(StackSet i l a sid sd) -> {v:([Workspace i l a]) | v = (getHidden s)}@-}
+
 {-@ measure getCurrentScreen :: (StackSet i l a sid sd) -> (Screen i l a sid sd)
     getCurrentScreen(StackSet current v h f) = current @-}
 
 
 -- NEW current tag
+{-@ measure getVisible :: (StackSet i l a sid sd) -> [(Screen i l a sid sd)]
+    getVisible(StackSet current v h f) = v @-}
+
+{-@ measure getHidden :: (StackSet i l a sid sd) -> [(Workspace i l a)]
+    getHidden(StackSet current v h f) = h @-}
+
 
 {-@ measure getTag :: (Workspace i l a) -> i
     getTag(Workspace t l s) = t
@@ -342,31 +352,58 @@ abort x = error $ "xmonad: StackSet: " ++ x
 -- Xinerama: Virtual workspaces are assigned to physical screens, starting at 0.
 --
 
-{- view :: (Eq s, Eq i) 
+{-@ view :: (Eq s, Eq i) 
          => t:i 
          -> StackSet i l a s sd 
          -> {v:StackSet i l a s sd|(IsCurrentTag t v)} @-}
--- view :: (Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd
--- view i s
---     | i == currentTag s = s  -- current
+view :: (Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd
+view i s
+   | i == currentTag s = s  -- current
 
---     | Just x <- L.find ((i==).tag.workspace) (visible s)
---     -- if it is visible, it is just raised
---     = s { current = x, visible = current s : L.deleteBy (equating screen) x (visible s) }
--- 
---     | Just x <- L.find ((i==).tag)           (hidden  s) -- must be hidden then
---     -- if it was hidden, it is raised on the xine screen currently used
---     = s { current = (current s) { workspace = x }
---         , hidden = workspace (current s) : L.deleteBy (equating tag) x (hidden s) }
+   | Just x <- findTagInScreen i (visible s)
+-- if it is visible, it is just raised
+   = s { current = x, visible = current s : L.deleteBy (equating screen) x (visible s) }
+
+   | Just x <- findTagInWorkspace i (hidden  s) -- must be hidden then
+   -- if it was hidden, it is raised on the xine screen currently used
+   = StackSet (Screen x (screen (current s)) (screenDetail (current s)) ) (visible s) ( workspace (current s) : L.deleteBy (equating tag) x (hidden s)) (floating s)
+--    = s { current = (current s) { workspace = x }
+--        , hidden = workspace (current s) : L.deleteBy (equating tag) x (hidden s) }
 -- 
 --     | otherwise = s -- not a member of the stackset
 -- 
---   where equating f = \x y -> f x == f y
+  where equating f = \x y -> f x == f y
+
+{-@ findTagInScreen :: (Eq i) 
+         => t:i 
+         -> [Screen i l a sid sd] 
+         -> {v:(Maybe (Screen i l a sid sd)) | ((isJust v) => (t = (getTag (getWorkspaceScreen (fromJust v)))))}
+  @-}
+findTagInScreen :: (Eq i) => i -> [Screen i l a sid sd] -> Maybe (Screen i l a sid sd)
+findTagInScreen i []     = Nothing
+findTagInScreen i (x:xs) 
+  | i == (tag (workspace x)) = Just x
+  | otherwise                = findTagInScreen i xs
+
+{-@ findTagInWorkspace :: (Eq i) 
+         => t:i 
+         -> [Workspace i l a] 
+         -> {v:(Maybe (Workspace i l a)) | ((isJust v) => (t = (getTag (fromJust v))))}
+  @-}
+findTagInWorkspace :: (Eq i) => i -> [Workspace i l a] -> Maybe (Workspace i l a)
+findTagInWorkspace i []     = Nothing
+findTagInWorkspace i (x:xs) 
+  | i == (tag x) = Just x
+  | otherwise    = findTagInWorkspace i xs
+
+
+{- predicate IsCurrentTag X Y = (X = (getTag (getWorkspaceScreen (getCurrentScreen Y))) )@-}
 
 {-@ currentTag :: s: StackSet i l a s sd -> {v:i|(IsCurrentTag v s)} @-}
 currentTag :: StackSet i l a s sd -> i
 currentTag = tag . workspace . current
--- does not like . , give (.) it the other type
 
-
+{-@ q :: s:(StackSet i l a s sd) -> {v:(Workspace i l a) | v = (getWorkspaceScreen (getCurrentScreen s))} @-}
+q :: StackSet i l a s sd -> Workspace i l a 
+q = workspace . current
 
