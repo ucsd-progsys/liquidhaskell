@@ -972,20 +972,78 @@ foldr1 f t = S.foldr1 f (stream t)
 -- ** Special folds
 
 -- | /O(n)/ Concatenate a list of 'Text's.
---LIQUID FIXME: want to say `forall t in ts. (tlen v) > (tlen t)`
+{-@ concat :: ts:[Data.Text.Internal.Text]
+           -> {v:Data.Text.Internal.Text | (tlength v) = (sum_tlengths ts)}
+  @-}
 concat :: [Text] -> Text
 concat ts = case ts' of
               [] -> empty
               [t] -> t
-              _ -> Text (A.run go) 0 len
+     --LIQUID _ -> Text (A.run go) 0 len
+              _ -> let len = concat_sumP "concat" ts'
+                       go = do arr <- A.new len
+                               concat_step arr ts' 0 >> return arr
+                       a = A.run go
+                       t = Text (liquidAssume (A.aLen a == len) a) 0 len
+                   in liquidAssume (axiom_numchars_concat t ts len) t
   where
-    ts' = L.filter (not . null) ts
-    len = sumP "concat" $ L.map lengthWord16 ts'
-    go = do
-      arr <- A.new len
-      let step i (Text a o l) =
-            let !j = i + l in A.copyI arr i a o j >> return j
-      foldM step 0 ts' >> return arr
+    ts' = concat_filter ts
+    --LIQUID ts' = L.filter (not . null) ts
+    --LIQUID len = sumP "concat" $ L.map lengthWord16 ts'
+    --LIQUID go = do
+    --LIQUID   arr <- A.new len
+    --LIQUID   let step i (Text a o l) =
+    --LIQUID         let !j = i + l in A.copyI arr i a o j >> return j
+    --LIQUID   foldM step 0 ts' >> return arr
+
+{-@ concat_step :: ma:{v:Data.Text.Array.MArray s | (malen v) > 0}
+                -> ts:{v:[{v0:Data.Text.Internal.Text |
+                           (BtwnE (tlen v0) 0 (malen ma))}] |
+                       (BtwnI (sum_tlens v) 0 (malen ma))}
+                -> i:{v:Int | (v = ((malen ma) - (sum_tlens ts)))}
+                -> GHC.ST.ST s Int
+  @-}
+concat_step :: A.MArray s -> [Text] -> Int -> GHC.ST.ST s Int
+concat_step arr []                i = return i
+concat_step arr ((Text a o l):ts) i =
+    let !j = i + l in A.copyI arr i a o j >> concat_step arr ts j
+
+{-@ concat_filter :: ts:[Data.Text.Internal.Text]
+                  -> {v:[{v0:Data.Text.Internal.Text | (((tlength v0) > 0)
+                                                        && ((tlen v0) > 0))}] |
+                        (((sum_tlengths v) = (sum_tlengths ts))
+                         && ((sum_tlens v) = (sum_tlens ts)))}
+  @-}
+concat_filter :: [Text] -> [Text]
+concat_filter [] = []
+concat_filter (t@(Text arr off len):ts)
+    | null t = concat_filter ts
+    | otherwise = t : concat_filter ts
+
+{-@ concat_sumP :: String
+                -> ts:{v:[{v0:Text | (tlen v0) > 0}] | (len v) > 0}
+                -> {v:Int | ((v = (sum_tlens ts)) && (v > 0))}
+  @-}
+concat_sumP :: String -> [Text] -> Int
+--LIQUID sumP fun = go 0
+--LIQUID   where go !a (x:xs)
+--LIQUID             | ax >= 0   = go ax xs
+--LIQUID             | otherwise = overflowError fun
+--LIQUID           where ax = a + x
+--LIQUID         go a  _         = a
+concat_sumP fun (t:ts) = concat_sumP_go fun 0 (t:ts)
+
+{-@ concat_sumP_go :: String
+                   -> a:{v:Int | v >= 0}
+                   -> ts:{v:[{v0:Text | (tlen v0) > 0}] | (a + (sum_tlens v)) > 0}
+                   -> {v:Int | ((v = (a + (sum_tlens ts))) && (v > 0))}
+  @-}
+concat_sumP_go :: String -> Int -> [Text] -> Int
+concat_sumP_go fun !a (Text _ _ l : xs)
+    | ax >= 0   = concat_sumP_go fun ax xs
+    | otherwise = overflowError fun
+    where ax = a + l
+concat_sumP_go fun a  _         = a
 
 -- | /O(n)/ Map a function over a 'Text' that results in a 'Text', and
 -- concatenate the results.

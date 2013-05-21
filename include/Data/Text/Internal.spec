@@ -32,6 +32,12 @@ invariant {v:Data.Text.Internal.Text | (((tlength v) > 0) <=> ((tlen v) > 0))}
 invariant {v:Data.Text.Internal.Text | (tlength v) >= 0}
 invariant {v:Data.Text.Internal.Text | (((tlength v) > 0) => ((alen (tarr v)) > 0))}
 
+invariant {v:[Data.Text.Internal.Text] | (sum_tlens v) >= 0}
+invariant {v:[{v0:Data.Text.Internal.Text |
+               ((((len v) > 1) && ((tlen v0) > 0)) => ((tlen v0) < (sum_tlens v)))}] | true}
+invariant {v:[{v0:Data.Text.Internal.Text |
+               ((((tlen v0) > 0) && (((len v) > 0))) => ((sum_tlens v) > 0))}] | true}
+
 
 measure tlength :: Data.Text.Internal.Text -> Int
 tlength (Data.Text.Internal.Text a o l) = numchars(a,o,l)
