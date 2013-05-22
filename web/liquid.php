@@ -84,7 +84,9 @@ function getResultAndWarns($outfile){
 // Get inputs
 $data             = file_get_contents("php://input");
 $query            = json_decode($data);
-$packagedir       = "/home/rjhala/.ghc/x86_64-linux-7.4.1/package.conf.d/";
+// $packagedir       = "/home/rjhala/.ghc/x86_64-linux-7.4.1/package.conf.d/";
+$packagedir       = "/home/rjhala/research/liquid/.hsenv_liquid/ghc/lib/ghc-7.6.3/package.conf.d";
+
 $log              = "log";
 
 // echo 'HELLO TO HELL!\n';
