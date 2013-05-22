@@ -1636,7 +1636,7 @@ splitOn pat@(Text _ _ l) src@(Text arr off len)
 {-@ splitOn_go :: pat:{v:Data.Text.Internal.Text | (tlength v) > 1}
                -> t:Data.Text.Internal.Text
                -> s:{v:Int | ((v >= 0) && ((v+(toff t)) <= (alen (tarr t))) && (v <= (tlen t)))}
-               -> xs:[{v:Int | (Btwn (v) (s) ((tlen t) - (tlen pat)))}]<{\ix iy ->
+               -> xs:[{v:Int | (BtwnI (v) (s) ((tlen t) - (tlen pat)))}]<{\ix iy ->
                       ((ix+(tlen pat)) <= iy)}>
                -> [Data.Text.Internal.Text]
   @-}
