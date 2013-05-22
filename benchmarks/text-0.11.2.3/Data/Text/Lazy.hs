@@ -1562,13 +1562,79 @@ groupBy eq (Chunk t ts) = cons x ys : groupBy eq zs
 
 -- | /O(n)/ Return all initial segments of the given 'Text',
 -- shortest first.
---LIQUID FIXME: inline map and (++) to get needed types
+{-@ inits :: t:Data.Text.Lazy.Internal.Text
+          -> [{v:Data.Text.Lazy.Internal.Text |
+               (BtwnI (ltlength v) 0 (ltlength t))}]<{\hd tl ->
+              ((ltlength hd) < (ltlength tl))}>
+  @-}
 inits :: Text -> [Text]
-inits = (Empty :) . inits'
-  where inits' Empty        = []
-        inits' (Chunk t ts) = L.map (\t' -> Chunk t' Empty) ts' --LIQUID (L.tail (T.inits t))
-                           ++ L.map (Chunk t) (inits' ts)
-          where (t':ts') = T.inits t
+inits t = Empty : inits' t
+--LIQUID inits = (Empty :) . inits'
+--LIQUID   where inits' Empty        = []
+--LIQUID         inits' (Chunk t ts) = L.map (\t' -> Chunk t' Empty) (L.tail (T.inits t))
+--LIQUID                            ++ L.map (Chunk t) (inits' ts)
+
+{-@ inits' :: t:Data.Text.Lazy.Internal.Text
+          -> [{v:Data.Text.Lazy.Internal.Text |
+               (BtwnEI (ltlength v) 0 (ltlength t))}]<{\hd tl ->
+              ((ltlength hd) < (ltlength tl))}>
+  @-}
+inits' :: Text -> [Text]
+inits' Empty           = []
+inits' t0@(Chunk t ts) = let (t':ts') = T.inits t
+                             lts  = inits_map1 t t' ts'
+                             lts' = inits_map2 t0 t (inits' ts)
+                         in inits_app t lts t0 lts'
+
+{-@ inits_map1 :: t0:NonEmptyStrict
+        -> t:Data.Text.Internal.Text
+        -> ts:[{v:NonEmptyStrict | (BtwnEI (tlength v) (tlength t) (tlength t0))}]<{\tx ty -> ((tlength tx) < (tlength ty))}>
+        -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (tlength t) (tlength t0))}]<{\lx ly -> ((ltlength lx) < (ltlength ly))}>
+  @-}
+inits_map1 :: T.Text -> T.Text -> [T.Text] -> [Text]
+inits_map1 _  _ []     = []
+inits_map1 t0 _ (t:ts) = Chunk t Empty : inits_map1 t0 t ts
+
+{-@ inits_map2 :: t0:Data.Text.Lazy.Internal.Text
+        -> st:NonEmptyStrict
+        -> ts:[{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) 0 ((ltlength t0) - (tlength st)))}]<{\fx fy -> ((ltlength fx) < (ltlength fy))}>
+        -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (tlength st) (ltlength t0))}]<{\rx ry -> ((ltlength rx) < (ltlength ry))}>
+  @-}
+inits_map2 :: Text -> T.Text -> [Text] -> [Text]
+inits_map2 _  _  []     = []
+inits_map2 t0 st (t:ts) = inits_map2' t0 st t ts
+
+{-@ inits_map2' :: t0:Data.Text.Lazy.Internal.Text
+        -> st:NonEmptyStrict
+        -> t:Data.Text.Lazy.Internal.Text
+        -> ts:[{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (ltlength t) ((ltlength t0) - (tlength st)))}]<{\ax ay -> ((ltlength ax) < (ltlength ay))}>
+        -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) ((tlength st) + (ltlength t)) (ltlength t0))}]<{\bx by -> ((ltlength bx) < (ltlength by))}>
+  @-}
+inits_map2' :: Text -> T.Text -> Text -> [Text] -> [Text]
+inits_map2' _  _  _ []     = []
+inits_map2' t0 st _ (t:ts) = Chunk st t : inits_map2' t0 st t ts
+
+
+{-@ inits_app :: t:NonEmptyStrict
+        -> as:[{v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (tlength t)}]<{\cx cy -> ((ltlength cx) < (ltlength cy))}>
+        -> t0:{v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (tlength t)}
+        -> bs:[{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (tlength t) (ltlength t0))}]<{\dx dy -> ((ltlength dx) < (ltlength dy))}>
+        -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) 0 (ltlength t0))}]<{\ex ey -> ((ltlength ex) < (ltlength ey))}>
+  @-}
+inits_app :: T.Text -> [Text] -> Text -> [Text] -> [Text]
+inits_app _ []     _  b = b
+inits_app t (a:as) t0 b = inits_app' t a as t0 b
+
+{-@ inits_app' :: t:NonEmptyStrict
+        -> a:{v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (tlength t)}
+        -> as:[{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (ltlength a) (tlength t))}]<{\cx cy -> ((ltlength cx) < (ltlength cy))}>
+        -> t0:{v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (tlength t)}
+        -> bs:[{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (tlength t) (ltlength t0))}]<{\dx dy -> ((ltlength dx) < (ltlength dy))}>
+        -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (ltlength a) (ltlength t0))}]<{\ex ey -> ((ltlength ex) < (ltlength ey))}>
+  @-}
+inits_app' :: T.Text -> Text -> [Text] -> Text -> [Text] -> [Text]
+inits_app' _ _ []     _  b = b
+inits_app' t _ (a:as) t0 b = a : inits_app' t a as t0 b
 
 -- | /O(n)/ Return all final segments of the given 'Text', longest
 -- first.

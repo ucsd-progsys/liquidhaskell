@@ -167,9 +167,10 @@ splitAt :: n:{v:Int | v >= 0}
              ((Min (tlength x) (tlength t) n)
               && ((tlength y) = ((tlength t) - (tlength x))))}>
 
+-- FIXME: this `ix' business is a hack to get around our lack of uniqification in abstract refinment binders
 inits :: t:Data.Text.Internal.Text
-      -> [{v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}]<{\x y ->
-          ((tlength x) < (tlength y))}>
+      -> [{v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}]<{\ix iy ->
+          ((tlength ix) < (tlength iy))}>
 
 tails :: t:Data.Text.Internal.Text
       -> [{v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}]<{\x y -> (tlength x) > (tlength y)}>
