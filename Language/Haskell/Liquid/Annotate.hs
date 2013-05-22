@@ -248,8 +248,10 @@ tokBody s
   | isData s  = tokenise s
   | isType s  = tokenise s
   | isIncl s  = tokenise s
+  | isMeas s  = tokenise s
   | otherwise = tokeniseSpec s 
 
+isMeas = spacePrefix "measure"
 isData = spacePrefix "data"
 isType = spacePrefix "type"
 isIncl = spacePrefix "include"
@@ -270,7 +272,9 @@ tokeniseSpec'      = tokAlt . chopAltDBG -- [('{', ':'), ('|', '}')]
     tokAlt' (s:ss) = (refToken, s) : tokAlt ss
     tokAlt' _      = []
 
-chopAltDBG y = {- traceShow ("chopAlts: " ++ y) $ -} chopAlts [("<{", "}>"), ("{", ":"), ("|", "}")] y
+chopAltDBG y = {- traceShow ("chopAlts: " ++ y) $ -} 
+  filter (/= "") $ concatMap (chopAlts [("{", ":"), ("|", "}")])
+  $ chopAlts [("<{", "}>"), ("{", "}")] y
 
 ---------------------------------------------------------------
 ---------------- Annotations and Solutions --------------------

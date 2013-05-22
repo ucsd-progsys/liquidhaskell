@@ -555,14 +555,6 @@ rAppTy t t' = RAppTy t t' top
 
 
 --------------------------------------------
-instance Reftable () where
-  isTauto _ = True
-  ppTy _  d = d
-  top       = ()
-  meet _ _  = ()
-  toReft _  = top
-  params _  = []
-
 
 instance (PPrint r, Reftable r) => Reftable (UReft r) where
   isTauto            = isTauto_ureft 
@@ -581,12 +573,6 @@ ppr_reft r d         = braces (toFix v <+> colon <+> d <+> text "|" <+> pprint r
   where 
     r'@(Reft (v, _)) = toReft r
 
-
-instance Subable () where
-  syms _      = []
-  subst _ ()  = ()
-  substf _ () = ()
-  substa _ () = ()
 
 instance Subable r => Subable (UReft r) where
   syms (U r p)     = syms r ++ syms p 

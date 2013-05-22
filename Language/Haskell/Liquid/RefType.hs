@@ -856,10 +856,10 @@ typeSortForAll tce τ
         sas                 = (typeUniqueSymbol . TyVarTy) <$> as
         n                   = length as 
 
-sortSubst su t@(FObj x)   = fromMaybe t (M.lookup x su) 
-sortSubst su (FFunc n ts) = FFunc n (sortSubst su <$> ts)
-sortSubst su (FApp c ts)  = FApp c  (sortSubst su <$> ts)
-sortSubst _  t            = t
+-- sortSubst su t@(FObj x)   = fromMaybe t (M.lookup x su) 
+-- sortSubst su (FFunc n ts) = FFunc n (sortSubst su <$> ts)
+-- sortSubst su (FApp c ts)  = FApp c  (sortSubst su <$> ts)
+-- sortSubst _  t            = t
 
 tyConName c 
   | listTyCon == c    = listConName
