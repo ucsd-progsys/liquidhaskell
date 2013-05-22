@@ -38,6 +38,11 @@ import Data.Text.Internal (Text(..))
 import Data.Bits ((.|.), (.&.))
 import Data.Text.UnsafeShift (shiftL)
 
+--LIQUID
+import qualified Data.Text.Array
+import qualified Data.Word
+import Data.Word (Word16)
+
 data T = {-# UNPACK #-} !Word64 :* {-# UNPACK #-} !Int
 
 -- | /O(n+m)/ Find the offsets of all non-overlapping indices of
@@ -46,13 +51,19 @@ data T = {-# UNPACK #-} !Word64 :* {-# UNPACK #-} !Int
 --
 -- In (unlikely) bad cases, this algorithm's complexity degrades
 -- towards /O(n*m)/.
+{-@ indices :: pat:Data.Text.Internal.Text
+            -> src:Data.Text.Internal.Text
+            -> [{v:Int | (BtwnI v 0 ((tlen src) - (tlen pat)))}]<{\ix iy ->
+                (ix+(tlen pat)) <= iy}>
+  @-}
 indices :: Text                -- ^ Substring to search for (@needle@)
         -> Text                -- ^ Text to search in (@haystack@)
         -> [Int]
 indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
-    | nlen == 1              = scanOne (nindex 0)
+    --LIQUID switched first two guards, need to consider whether this is problematic..
     | nlen <= 0 || ldiff < 0 = []
-    | otherwise              = scan 0
+    | nlen == 1              = scanOne _needle _haystack hindex (nindex 0)
+    | otherwise              = undefined --scan 0
   where
     ldiff    = hlen - nlen
     nlast    = nlen - 1
@@ -82,8 +93,66 @@ indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
                     | otherwise     = 1
                 where nextInPattern = mask .&. swizzle (hindex' (i+nlen)) == 0
               !(mask :* skip)       = buildTable 0 0 (nlen-2)
-    scanOne c = loop 0
-        where loop !i | i >= hlen     = []
-                      | hindex i == c = i : loop (i+1)
-                      | otherwise     = loop (i+1)
+    -- scanOne c = loop 0
+    --     where loop !i | i >= hlen     = []
+    --                   | hindex i == c = i : loop (i+1)
+    --                   | otherwise     = loop (i+1)
 {- INLINE indices #-}
+
+
+-- scan !i
+--     | i > ldiff                  = []
+--     | c == z && candidateMatch 0 = i : scan (i + nlen)
+--     | otherwise                  = scan (i + delta)
+--     where c = hindex (i + nlast)
+--           candidateMatch !j
+--                 | j >= nlast               = True
+--                 | hindex (i+j) /= nindex j = False
+--                 | otherwise                = candidateMatch (j+1)
+--           delta | nextInPattern = nlen + 1
+--                 | c == z        = skip + 1
+--                 | otherwise     = 1
+--             where nextInPattern = mask .&. swizzle (hindex' (i+nlen)) == 0
+--           !(mask :* skip)       = buildTable 0 0 (nlen-2)
+
+{-@ scanOne :: pat:{v:Data.Text.Internal.Text | (tlen v) = 1}
+            -> src:{v:Data.Text.Internal.Text | (tlen v) >= (tlen pat)}
+            -> (Int -> Word16) -> Word16
+            -> [{v:Int | (Btwn v 0 (tlen src))}]<{\ix iy ->
+                (ix+(tlen pat)) <= iy}>
+  @-}
+scanOne :: Text -> Text -> (Int -> Word16) -> Word16 -> [Int]
+scanOne pat src hindex c = scanOne_loop pat src hindex c 0
+    -- where loop !i | i >= hlen     = []
+    --               | hindex i == c = i : loop (i+1)
+    --               | otherwise     = loop (i+1)
+
+{-@ scanOne_loop :: pat:{v:Data.Text.Internal.Text | (tlen v) = 1}
+                 -> src:{v:Data.Text.Internal.Text | (tlen v) >= (tlen pat)}
+                 -> (Int -> Word16) -> Word16
+                 -> i:{v:Int | (BtwnI v 0 (tlen src))}
+                 -> [{v:Int | (Btwn (v) (i) (tlen src))}]<{\ix iy ->
+                     (ix+(tlen pat)) <= iy}>
+  @-}
+scanOne_loop :: Text -> Text -> (Int -> Word16) -> Word16 -> Int -> [Int]
+scanOne_loop pat src@(Text _ _ hlen) hindex c !i
+    | i >= hlen     = []
+    | hindex i == c = i : scanOne_loop pat src hindex c (i+1)
+    | otherwise     = scanOne_loop pat src hindex c (i+1)
+
+
+{-@ index :: t:Data.Text.Internal.Text
+          -> k:{v:Int | (Btwn v 0 (tlen t))}
+          -> Word16
+  @-}
+index :: Text -> Int -> Word16
+index (Text arr off len) k = A.unsafeIndex arr (off+k)
+
+
+
+
+
+
+
+
+
