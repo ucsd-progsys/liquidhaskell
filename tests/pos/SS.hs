@@ -11,7 +11,7 @@
 -- Portability :  portable, Haskell 98
 --
 
-module XMonad.StackSet  where
+module XMonad.StackSet where
 
 import Prelude hiding (filter, reverse, (++), elem) -- LIQUID
 import Data.Maybe   (listToMaybe,isJust,fromMaybe)
@@ -104,6 +104,49 @@ data Stack a = Stack { focus :: a
 {-@ predicate StackSetVisibleElt N S = true @-}
 {-@ predicate StackSetHiddenElt N S = true @-}
 
+
+-------------------------------------------------------------------------------
+-----------------------  Grap StackSet Elements -------------------------------
+-------------------------------------------------------------------------------
+
+{-@ measure stackSetElts :: (StackSet i l a sid sd) -> (Data.Set.Set a)
+    stackSetElts(StackSet current visible hidden f) = (Set_cup (Set_cup (screenElts current) (screensElts visible)) (workspacesElts hidden))
+   @-}
+
+{-@ measure screensElts :: [(Screen i l a sid sd)] -> (Data.Set.Set a)
+    screensElts([])   = {v|(? (Set_emp v))} 
+    screensElts(x:xs) = (Set_cup (screenElt x) (screensElts xs))
+  @-}
+
+{-@ measure screenElts :: (Screen i l a sid sd) -> (Data.Set.Set a)
+    screenElts(Screen w s sd) = (workspaceElts w) @-}
+
+{-@ measure workspacesElts :: [(Workspace i l a)] -> (Data.Set.Set a)
+    workspacesElts([])   = {v|(? (Set_emp v))} 
+    workspacesElts(x:xs) = (Set_cup (workspaceElts x) (workspacesElts xs))
+  @-}
+
+{-@ measure workspaceElts :: (Workspace i l a) -> (Data.Set.Set a)
+    workspaceElts(Workspace t l s) = {v| (if (isJust s) then (stackElts (fromJust s)) else (? (Set_emp v)))} @-}
+
+{-@ measure stackElts :: (StackSet i l a sid sd) -> (Data.Set.Set a)
+    stackElts(Stack f up down) = (Set_cup (Set_sng f) (Set_cup (listElts up) (listElts down))) @-}
+
+{-@ predicate EmptyStackSet X = (? (Set_emp (stackSetElts X)))@-}
+
+
+-------------------------------------------------------------------------------
+-----------------------  Talking about Tags --- -------------------------------
+-------------------------------------------------------------------------------
+
+{-@ measure getTag :: (Workspace i l a) -> i
+    getTag(Workspace t l s) = t
+  @-}
+
+{-@ predicate IsCurrentTag X Y = 
+      (X = (getTag (getWorkspaceScreen (getCurrentScreen Y))))
+  @-}
+
 -- $intro
 --
 -- The 'StackSet' data type encodes a window manager abstraction. The
@@ -180,69 +223,41 @@ data Stack a = Stack { focus :: a
 
 data StackSet i l a sid sd =
     StackSet { current  :: !(Screen i l a sid sd)    -- ^ currently focused workspace
+             , visible  :: [Screen i l a sid sd]     -- ^ non-focused workspaces, visible in xinerama
              , hidden   :: [Workspace i l a]         -- ^ workspaces not visible anywhere
+             , floating :: M.Map a RationalRect      -- ^ floating windows
              } deriving (Show, Eq)
 -- LIQUID             } deriving (Show, Read, Eq)
 
 {-@ 
 data StackSet i l a sid sd =
     StackSet { current  :: (Screen i l a sid sd)   
+             , visible  :: [Screen i l a sid sd]   
              , hidden   :: [Workspace i l a]       
+             , floating :: M.Map a RationalRect    
              }
 @-}
 
-{- visible :: s:(StackSet i l a sid sd) -> {v:([Screen i l a sid sd]) | v = (getVisible s)}@-}
-
-{-@ hidden :: s:(StackSet i l a sid sd) -> {v:([Workspace i l a]) | v = (getHidden s)}@-}
+{- invariant {v:(StackSet i l a sid sd) | 
+     (((?(
+       Set_emp (Set_cap (screenElts (getCurrentScreen v)) 
+                        (screensElts (getVisible v))
+      ))) && (?(
+       Set_emp (Set_cap (screenElts (getCurrentScreen v)) 
+                        (workspacesElts (getHidden v))
+      )))) && (?(
+       Set_emp (Set_cap (workspacesElts (getHidden v)) 
+                        (screensElts (getVisible v))
+      ))))} @-}
 
 {-@ measure getCurrentScreen :: (StackSet i l a sid sd) -> (Screen i l a sid sd)
-    getCurrentScreen(StackSet current h) = current @-}
+    getCurrentScreen(StackSet current v h f) = current @-}
 
-
--- NEW current tag
-{-measure getVisible :: (StackSet i l a sid sd) -> [(Screen i l a sid sd)]
+{-@ measure getVisible :: (StackSet i l a sid sd) -> [(Screen i l a sid sd)]
     getVisible(StackSet current v h f) = v @-}
 
 {-@ measure getHidden :: (StackSet i l a sid sd) -> [(Workspace i l a)]
-    getHidden(StackSet current h) = h @-}
-
-
-{-@ measure getTag :: (Workspace i l a) -> i
-    getTag(Workspace t l s) = t
-  @-}
-
-{-@ tag :: w:(Workspace i l a) -> {v:i|v = (getTag w)} @-}
-
-{-@ predicate IsCurrentTag X Y = (X = (getTag (getWorkspaceScreen (getCurrentScreen Y))) )@-}
--- END current tag
--- get StackSet Elements
-
-{-@ measure stackSetElts :: (StackSet i l a sid sd) -> (Data.Set.Set a)
-    stackSetElts(StackSet current hidden) = (Set_cup (Set_cup (screenElts current) (screensElts visible)) (workspacesElts hidden))
-   @-}
-
-{-@ measure screensElts :: [(Screen i l a sid sd)] -> (Data.Set.Set a)
-    screensElts([])   = {v|(? (Set_emp v))} 
-    screensElts(x:xs) = (Set_cup (screenElt x) (screensElts xs))
-  @-}
-
-{-@ measure screenElts :: (Screen i l a sid sd) -> (Data.Set.Set a)
-    screenElts(Screen w) = (workspaceElts w) @-}
-
-{-@ measure workspacesElts :: [(Workspace i l a)] -> (Data.Set.Set a)
-    workspacesElts([])   = {v|(? (Set_emp v))} 
-    workspacesElts(x:xs) = (Set_cup (workspaceElts x) (workspacesElts xs))
-  @-}
-
-{-@ measure workspaceElts :: (Workspace i l a) -> (Data.Set.Set a)
-    workspaceElts(Workspace t l s) = {v| (if (isJust s) then (stackElts (fromJust s)) else (? (Set_emp v)))} @-}
-
-{-@ measure stackElts :: (StackSet i l a sid sd) -> (Data.Set.Set a)
-    stackElts(Stack f up down) = (Set_cup (Set_sng f) (Set_cup (listElts up) (listElts down))) @-}
-
-{-@ predicate EmptyStackSet X = (? (Set_emp (stackSetElts X)))@-}
-
--- END get StackSet Elements
+    getHidden(StackSet current v h f) = h @-}
 
 {-@ predicate StackSetCurrentElt N S = 
       (ScreenElt N (getCurrentScreen S))
@@ -260,22 +275,23 @@ data StackSet i l a sid sd =
               -> {v:(Workspace i l a) | v = (getWorkspaceScreen s)}
   @-}
 
+{-@ tag :: w:(Workspace i l a) -> {v:i|v = (getTag w)} @-}
 
 -- | Visible workspaces, and their Xinerama screens.
-data Screen i l a sid sd = Screen { workspace :: !(Workspace i l a)}
+data Screen i l a sid sd = Screen { workspace :: !(Workspace i l a)
+                                  , screen :: !sid
+                                  , screenDetail :: !sd }
     deriving (Show, Eq)
 -- LIQUID    deriving (Show, Read, Eq)
 
 {-@ 
-data Screen i l a sid sd = Screen { workspace :: (Workspace i l a)}
+data Screen i l a sid sd = Screen { workspace :: (Workspace i l a)
+                                  , screen :: sid
+                                  , screenDetail :: sd }
 @-}
 
-{-@ foo :: x:(Workspace i l a) -> {v:(Screen i l a sid sd)|(getWorkspaceScreen v) = x} @-}
-foo :: Workspace i l a -> Screen i l a sid sd 
-foo = undefined
-
 {-@ measure getWorkspaceScreen :: (Screen i l a sid sd) -> (Workspace i l a)
-    getWorkspaceScreen(Screen w) = w @-}
+    getWorkspaceScreen(Screen w screen s) = w @-}
 
 
 {-@ predicate ScreenElt N S = 
@@ -327,53 +343,39 @@ data Stack a = Stack { focus  :: !a        -- focused thing in this set
                      , down   :: [a] }     -- jokers to the right
      deriving (Show, Eq)
 -- LIQUID      deriving (Show, Read, Eq)
+{-@ predicate IsTagInStackSet T ST = 
+    ((( (T = (getTag (getWorkspaceScreen (getCurrentScreen ST))))
+     )) || ((
+      (Set_mem T (getTagScreens (getVisible ST)))
+    ) || (false)))
+  @-}
 
-
--- | this function indicates to catch that an error is expected
-abort :: String -> a
-abort x = error $ "xmonad: StackSet: " ++ x
-  where [] ++ ys     = ys              -- LIQUID
-        (x:xs) ++ ys = x: (xs ++ ys)   -- LIQUID
-
-
--- ---------------------------------------------------------------------
--- $construction
-
--- | /O(n)/. Create a new stackset, of empty stacks, with given tags,
--- with physical screens whose descriptions are given by 'm'. The
--- number of physical screens (@length 'm'@) should be less than or
--- equal to the number of workspace tags.  The first workspace in the
--- list will be current.
---
--- Xinerama: Virtual workspaces are assigned to physical screens, starting at 0.
---
-
+--       (Set_mem T (getTagScreens (getVisible ST)))
 {-@ view :: (Eq s, Eq i) 
          => t:i 
-         -> StackSet i l a s sd 
-         -> {v:StackSet i l a s sd|(IsCurrentTag t v)} @-}
+         -> st: {v:(StackSet i l a s sd) | true}
+         -> {v:StackSet i l a s sd|((IsTagInStackSet t st) => (IsCurrentTag t v))} @-}
 view :: (Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd
 view i s
---    | i == currentTag s = s  -- current
+    | i == currentTag s = s  -- current
 
---    | Just x <- findTagInScreen i (visible s)
--- if it is visible, it is just raised
---    = s { current = x, visible = current s : L.deleteBy (equating screen) x (visible s) }
+    | Just x <- findTagInScreen i (visible s)
+    -- if it is visible, it is just raised
+    = s { current = x, visible = current s : L.deleteBy (equating screen) x (visible s) }
 
-   | Just x <- findTagInWorkspace i (hidden  s) -- must be hidden then
-   -- if it was hidden, it is raised on the xine screen currently used
---   = StackSet (Screen x) (hidden s)
-  = s { current = (current s) { workspace = x }}
--- } --        , hidden = workspace (current s) : L.deleteBy (equating tag) x (hidden s) }
--- 
+--     | Just x <- findTagInWorkspace i (hidden  s) -- must be hidden then
+    -- if it was hidden, it is raised on the xine screen currently used
+--     = s { current = (current s) { workspace = x }
+--         , hidden = workspace (current s) : L.deleteBy (equating tag) x (hidden s) }
+
 --     | otherwise = s -- not a member of the stackset
--- 
+
   where equating f = \x y -> f x == f y
 
 {-@ findTagInScreen :: (Eq i) 
          => t:i 
-         -> [Screen i l a sid sd] 
-         -> {v:(Maybe (Screen i l a sid sd)) | ((isJust v) => (t = (getTag (getWorkspaceScreen (fromJust v)))))}
+         -> s:([Screen i l a sid sd])
+         -> {v:(Maybe (Screen i l a sid sd)) | ( ((isJust v) =>  (t = (getTag (getWorkspaceScreen (fromJust v))))))}
   @-}
 findTagInScreen :: (Eq i) => i -> [Screen i l a sid sd] -> Maybe (Screen i l a sid sd)
 findTagInScreen i []     = Nothing
@@ -392,14 +394,71 @@ findTagInWorkspace i (x:xs)
   | i == (tag x) = Just x
   | otherwise    = findTagInWorkspace i xs
 
+{-@ qview :: x:(Workspace i l a) -> {v:(Screen i l a sid sd)|(getWorkspaceScreen v) = x} @-}
+qview :: Workspace i l a -> Screen i l a sid sd 
+qview = undefined
 
-{- predicate IsCurrentTag X Y = (X = (getTag (getWorkspaceScreen (getCurrentScreen Y))) )@-}
+{-@ qview1 :: x:(Screen i l a sid sd) -> {v:(StackSet i l a sid sd)|(getCurrentScreen v) = x} @-}
+qview1 :: Screen i l a sid sd -> StackSet i l a sid sd 
+qview1 = undefined
+
+{-@ qview2 :: x:([Workspace i l a]) -> {v:(StackSet i l a sid sd)|(getHidden v) = x} @-}
+qview2 :: [Workspace i l a] -> StackSet i l a sid sd 
+qview2 = undefined
+
+{-@ qview3 :: x:([Screen i l a sid sd]) -> {v:(StackSet i l a sid sd)|(getVisible v) = x} @-}
+qview3 :: [Screen i l a sid sd] -> StackSet i l a sid sd 
+qview3 = undefined
+
+{-@ 
+qview4 :: x : (Screen i l a sid sd)
+       -> y : ([Screen i l a sid sd])
+       -> z : Workspace i l a
+       -> {v:(StackSet i l a sid sd)|(stackSetElts v) = 
+         (Set_cup (Set_cup (screenElts x) (screensElts y)) 
+                   (workspaceElts z))}
+@-}
+qview4 :: (Screen i l a sid sd)
+       -> [Screen i l a sid sd]
+       -> Workspace i l a
+       -> StackSet i l a sid sd
+qview4 = undefined
+
+    -- 'Catch'ing this might be hard. Relies on monotonically increasing
+    -- workspace tags defined in 'new'
+    --
+    -- and now tags are not monotonic, what happens here?
+
+-- |
+-- Set focus to the given workspace.  If that workspace does not exist
+-- in the stackset, the original workspace is returned.  If that workspace is
+-- 'hidden', then display that workspace on the current screen, and move the
+-- current workspace to 'hidden'.  If that workspace is 'visible' on another
+-- screen, the workspaces of the current screen and the other screen are
+-- swapped.
+
+{-@ measure getTagWorkspace :: (Workspace i l a) -> (Data.Set.Set i)
+    getTagWorkspace(Workspace t l s) = (Set_sng t)
+  @-}
+
+{-@ measure getTagScreen :: (Screen i l a sid sd) -> (Data.Set.Set i)
+    getTagScreen(Screen w s sd) = (getTagWorkspace w)
+  @-}
+
+{-@ measure getTagScreens :: ([(Screen i l a sid sd)]) -> (Data.Set.Set i)
+    getTagScreens([])   = {v | (?(Set_emp v))}
+    getTagScreens(x:xs) = (Set_cap (getTagScreen x) (getTagScreens xs))
+  @-}
+
 
 {-@ currentTag :: s: StackSet i l a s sd -> {v:i|(IsCurrentTag v s)} @-}
 currentTag :: StackSet i l a s sd -> i
 currentTag = tag . workspace . current
 
-{-@ q :: s:(StackSet i l a s sd) -> {v:(Workspace i l a) | v = (getWorkspaceScreen (getCurrentScreen s))} @-}
-q :: StackSet i l a s sd -> Workspace i l a 
-q = workspace . current
+-- LIQUID : qualifier missing for currentTag
+{-@ qcurrentTag :: s:(StackSet i l a s sd) 
+                -> {v:(Workspace i l a) | v = (getWorkspaceScreen (getCurrentScreen s))} @-}
+qcurrentTag :: StackSet i l a s sd -> Workspace i l a 
+qcurrentTag = workspace . current
+
 
