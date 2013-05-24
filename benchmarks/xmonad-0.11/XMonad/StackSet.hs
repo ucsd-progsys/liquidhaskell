@@ -65,6 +65,12 @@ import qualified Data.Set -- LIQUID
 -- measures
 
 {-@
+  measure head :: [a] -> a
+  head([])   = {v | false}
+  head(x:xs) = {v | v = x} 
+  @-}
+
+{-@
   measure listDup :: [a] -> (Data.Set.Set a)
   listDup([]) = {v | (? Set_emp (v))}
   listDup(x:xs) = {v | v = ((Set_mem x (listElts xs))?(Set_cup (Set_sng x) (listDup xs)):(listDup xs)) }
@@ -135,6 +141,49 @@ data Stack a = Stack { focus :: a
 
 {-@ predicate StackSetVisibleElt N S = true @-}
 {-@ predicate StackSetHiddenElt N S = true @-}
+
+
+-------------------------------------------------------------------------------
+-----------------------  Grap StackSet Elements -------------------------------
+-------------------------------------------------------------------------------
+
+{-@ measure stackSetElts :: (StackSet i l a sid sd) -> (Data.Set.Set a)
+    stackSetElts(StackSet current visible hidden f) = (Set_cup (Set_cup (screenElts current) (screensElts visible)) (workspacesElts hidden))
+   @-}
+
+{-@ measure screensElts :: [(Screen i l a sid sd)] -> (Data.Set.Set a)
+    screensElts([])   = {v|(? (Set_emp v))} 
+    screensElts(x:xs) = (Set_cup (screenElt x) (screensElts xs))
+  @-}
+
+{-@ measure screenElts :: (Screen i l a sid sd) -> (Data.Set.Set a)
+    screenElts(Screen w s sd) = (workspaceElts w) @-}
+
+{-@ measure workspacesElts :: [(Workspace i l a)] -> (Data.Set.Set a)
+    workspacesElts([])   = {v|(? (Set_emp v))} 
+    workspacesElts(x:xs) = (Set_cup (workspaceElts x) (workspacesElts xs))
+  @-}
+
+{-@ measure workspaceElts :: (Workspace i l a) -> (Data.Set.Set a)
+    workspaceElts(Workspace t l s) = {v| (if (isJust s) then (stackElts (fromJust s)) else (? (Set_emp v)))} @-}
+
+{-@ measure stackElts :: (StackSet i l a sid sd) -> (Data.Set.Set a)
+    stackElts(Stack f up down) = (Set_cup (Set_sng f) (Set_cup (listElts up) (listElts down))) @-}
+
+{-@ predicate EmptyStackSet X = (? (Set_emp (stackSetElts X)))@-}
+
+
+-------------------------------------------------------------------------------
+-----------------------  Talking about Tags --- -------------------------------
+-------------------------------------------------------------------------------
+
+{-@ measure getTag :: (Workspace i l a) -> i
+    getTag(Workspace t l s) = t
+  @-}
+
+{-@ predicate IsCurrentTag X Y = 
+      (X = (getTag (getWorkspaceScreen (getCurrentScreen Y))))
+  @-}
 
 -- $intro
 --
@@ -227,9 +276,26 @@ data StackSet i l a sid sd =
              }
 @-}
 
+{-@ invariant {v:(StackSet i l a sid sd) | 
+     (((?(
+       Set_emp (Set_cap (screenElts (getCurrentScreen v)) 
+                        (screensElts (getVisible v))
+      ))) && (?(
+       Set_emp (Set_cap (screenElts (getCurrentScreen v)) 
+                        (workspacesElts (getHidden v))
+      )))) && (?(
+       Set_emp (Set_cap (workspacesElts (getHidden v)) 
+                        (screensElts (getVisible v))
+      ))))} @-}
+
 {-@ measure getCurrentScreen :: (StackSet i l a sid sd) -> (Screen i l a sid sd)
     getCurrentScreen(StackSet current v h f) = current @-}
 
+{-@ measure getVisible :: (StackSet i l a sid sd) -> [(Screen i l a sid sd)]
+    getVisible(StackSet current v h f) = v @-}
+
+{-@ measure getHidden :: (StackSet i l a sid sd) -> [(Workspace i l a)]
+    getHidden(StackSet current v h f) = h @-}
 
 {-@ predicate StackSetCurrentElt N S = 
       (ScreenElt N (getCurrentScreen S))
@@ -247,6 +313,7 @@ data StackSet i l a sid sd =
               -> {v:(Workspace i l a) | v = (getWorkspaceScreen s)}
   @-}
 
+{-@ tag :: w:(Workspace i l a) -> {v:i|v = (getTag w)} @-}
 
 -- | Visible workspaces, and their Xinerama screens.
 data Screen i l a sid sd = Screen { workspace :: !(Workspace i l a)
@@ -334,6 +401,12 @@ abort x = error $ "xmonad: StackSet: " ++ x
 --
 -- Xinerama: Virtual workspaces are assigned to physical screens, starting at 0.
 --
+{-@ new :: (Integral s) 
+        => l 
+        -> is:[i] 
+        -> [sd] 
+        -> {v:(StackSet i l a s sd) | ((EmptyStackSet v) && (IsCurrentTag (head is) v))} 
+  @-}
 new :: (Integral s) => l -> [i] -> [sd] -> StackSet i l a s sd
 new l wids m | not (null wids) && length m <= length wids && not (null m)
   = StackSet cur visi unseen M.empty
@@ -350,6 +423,10 @@ new _ _ _ = abort "non-positive argument to StackSet.new"
 -- becomes the current screen. If it is in the visible list, it becomes
 -- current.
 
+{-@ view :: (Eq s, Eq i) 
+         => t:i 
+         -> StackSet i l a s sd 
+         -> StackSet i l a s sd @-}
 view :: (Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd
 view i s
     | i == currentTag s = s  -- current
@@ -380,6 +457,7 @@ view i s
 -- screen, the workspaces of the current screen and the other screen are
 -- swapped.
 
+{-@ greedyView :: (Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd @-}
 greedyView :: (Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd
 greedyView w ws
      | any wTag (hidden ws) = view w ws
@@ -488,6 +566,7 @@ index = with [] integrate
 -- if we reach the end. Again the wrapping model should 'cycle' on
 -- the current stack.
 --
+{-@ focusUp, focusDown, swapUp, swapDown :: StackSet i l a s sd -> StackSet i l a s sd @-}
 focusUp, focusDown, swapUp, swapDown :: StackSet i l a s sd -> StackSet i l a s sd
 focusUp   = modify' focusUp'
 focusDown = modify' focusDown'
@@ -540,8 +619,16 @@ allWindows :: Eq a => StackSet i l a s sd -> [a]
 allWindows = L.nub . concatMap (integrate' . stack) . workspaces
 
 -- | Get the tag of the currently focused workspace.
+{-@ currentTag :: s: StackSet i l a s sd 
+               -> {v:i|(IsCurrentTag v s)} @-}
 currentTag :: StackSet i l a s sd -> i
 currentTag = tag . workspace . current
+
+-- LIQUID : qualifier missing for currentTag
+{-@ qcurrentTag :: s:(StackSet i l a s sd) 
+                -> {v:(Workspace i l a) | v = (getWorkspaceScreen (getCurrentScreen s))} @-}
+qcurrentTag :: StackSet i l a s sd -> Workspace i l a 
+qcurrentTag = workspace . current
 
 -- | Is the given tag present in the 'StackSet'?
 tagMember :: Eq i => i -> StackSet i l a s sd -> Bool
@@ -661,6 +748,7 @@ insertUp_ _ d (StackSet (Screen (Workspace i l Nothing) a b ) v h c)
 --
 --   * otherwise, delete doesn't affect the master.
 --
+{-@ delete :: (Ord a, Eq s) => a -> StackSet i l a s sd -> StackSet i l a s sd @-}
 delete :: (Ord a, Eq s) => a -> StackSet i l a s sd -> StackSet i l a s sd
 delete w = sink w . delete' w
 
@@ -690,6 +778,7 @@ sink w s = s { floating = M.delete w (floating s) }
 -- | /O(s)/. Set the master window to the focused window.
 -- The old master window is swapped in the tiling order with the focused window.
 -- Focus stays with the item moved.
+{-@ swapMaster :: StackSet i l a s sd -> StackSet i l a s sd @-}
 swapMaster :: StackSet i l a s sd -> StackSet i l a s sd
 swapMaster = modify' swapMaster_ -- LIQUID $ \ccc -> case ccc of
 -- LIQUID     Stack _ [] _  -> ccc    -- already master.
@@ -715,6 +804,7 @@ shiftMaster = modify' $ \c -> case c of
     Stack t ls rs -> Stack t [] (reverse ls ++ rs)
 
 -- | /O(s)/. Set focus to the master window.
+{-@ focusMaster :: StackSet i l a s sd -> StackSet i l a s sd @-}
 focusMaster :: StackSet i l a s sd -> StackSet i l a s sd
 focusMaster = modify' focusMaster_ -- LIQUID $ \c -> case c of
 -- LIQUID     Stack _ [] _  -> c
@@ -735,6 +825,7 @@ focusMaster_ = \c -> case c of
 -- The actual focused workspace doesn't change. If there is no
 -- element on the current stack, the original stackSet is returned.
 --
+{-@ shift :: (Ord a, Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd @-}
 shift :: (Ord a, Eq s, Eq i) => i -> StackSet i l a s sd -> StackSet i l a s sd
 shift n s = maybe s (\w -> shiftWin n w s) (peek s)
 
@@ -744,6 +835,7 @@ shift n s = maybe s (\w -> shiftWin n w s) (peek s)
 -- focused element on that workspace.
 -- The actual focused workspace doesn't change. If the window is not
 -- found in the stackSet, the original stackSet is returned.
+{-@ shiftWin :: (Ord a, Eq a, Eq s, Eq i) => i -> a -> StackSet i l a s sd -> StackSet i l a s sd @-}
 shiftWin :: (Ord a, Eq a, Eq s, Eq i) => i -> a -> StackSet i l a s sd -> StackSet i l a s sd
 shiftWin n w s = case findTag w s of
                     Just from | n `tagMember` s && n /= from -> go from s
