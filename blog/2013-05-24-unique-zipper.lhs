@@ -179,7 +179,6 @@ values of the input list, that once again is unique!
            -> xs:(UList a) 
            -> {v:UList a | (SubElts v xs)} 
   @-}
-filter      :: (a -> Bool) -> [a] -> [a]
 filter p [] = []
 filter p (x:xs) 
   | p x       = x : filter p xs
@@ -292,7 +291,6 @@ indeed unique.
 
 \begin{code}
 {-@ differentiate :: UList a -> Maybe (UZipper a) @-}
-differentiate :: [a] -> Maybe (Zipper a)
 differentiate []     = Nothing
 differentiate (x:xs) = Just $ Zipper x [] xs
 \end{code}
@@ -304,7 +302,6 @@ And vice versa, all elements of a unique zipper yield a unique list.
 
 \begin{code}
 {-@ integrate :: UZipper a -> UList a @-}
-integrate :: Zipper a -> [a]
 integrate (Zipper x l r) = reverse l ++ x : r
 \end{code}
 
@@ -352,10 +349,6 @@ focusUp (Zipper t (l:ls) rs) = Zipper l ls (t:rs)
 
 {-@ focusDown :: UZipper a -> UZipper a @-}
 focusDown = reverseZipper . focusUp . reverseZipper
-
-{-@ q :: x:a ->  {v:[a] |(not (Set_mem x (listElts v)))} @-}
-q :: a -> [a]
-q _ = []
 \end{code}
 
 Filter
@@ -366,7 +359,6 @@ that filtering a zipper also preserves uniqueness.
 
 \begin{code}
 {-@ filterZipper :: (a -> Bool) -> UZipper a -> Maybe (UZipper a) @-}
--- filterZipper :: (a -> Bool) -> Zipper a -> Maybe (Zipper a)
 filterZipper p (Zipper f ls rs) 
   = case filter p (f:rs) of
       f':rs' -> Just $ Zipper f' (filter p ls) rs'
@@ -393,3 +385,12 @@ That's all for now! This post illustrated
 [wiki-zipper]: http://en.wikipedia.org/wiki/Zipper_(data_structure)
 [about-sets]:  blog/2013/03/26/talking-about-sets.lhs/
 [setspec]:     https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Set.spec
+
+\begin{code}
+-- TODO: Dummy function to provide qualifier hint.
+{-@ q :: x:a ->  {v:[a] |(not (Set_mem x (listElts v)))} @-}
+q :: a -> [a]
+q _ = []
+\end{code}
+
+
