@@ -28,9 +28,7 @@ invariant {v:Data.Text.Internal.Text | (numchars (tarr v) (toff v) (tlen v)) >= 
 invariant {v:Data.Text.Internal.Text | (numchars (tarr v) (toff v) (tlen v)) <= (tlen v)}
 
 invariant {v:Data.Text.Internal.Text | (((tlength v) = 0) <=> ((tlen v) = 0))}
-invariant {v:Data.Text.Internal.Text | (((tlength v) > 0) <=> ((tlen v) > 0))}
 invariant {v:Data.Text.Internal.Text | (tlength v) >= 0}
-invariant {v:Data.Text.Internal.Text | (((tlength v) > 0) => ((alen (tarr v)) > 0))}
 
 invariant {v:[Data.Text.Internal.Text] | (sum_tlens v) >= 0}
 invariant {v:[{v0:Data.Text.Internal.Text |
