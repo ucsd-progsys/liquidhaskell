@@ -4,7 +4,10 @@ module Language.Fixpoint.Parse (
   
   -- * Top Level Class for Parseable Values  
     Inputable (..)
- 
+  
+  -- * Top Level Class for Parseable Values  
+  , Parser
+
   -- * Lexer to add new tokens
   , lexer 
 
@@ -24,12 +27,15 @@ module Language.Fixpoint.Parse (
   , integer     -- Integer
 
   -- * Parsing recursive entities
-  , exprP       -- ^ Expressions
-  , predP       -- ^ Refinement Predicates
-  , qualifierP  -- ^ Qualifiers
+  , exprP       -- Expressions
+  , predP       -- Refinement Predicates
+  , qualifierP  -- Qualifiers
 
   -- * Some Combinators
   , condIdP     -- condIdP  :: [Char] -> (String -> Bool) -> Parser String
+
+  -- * Getting a Fresh Integer while parsing
+  , freshIntP
 
   -- * Parsing Function
   , doParse' 
@@ -41,7 +47,7 @@ import Control.Monad
 import Text.Parsec
 import Text.Parsec.Expr
 import Text.Parsec.Language
-import Text.Parsec.String hiding (parseFromFile)
+import Text.Parsec.String hiding (Parser, parseFromFile)
 import Text.Printf  (printf)
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
@@ -49,6 +55,8 @@ import qualified Data.HashMap.Strict as M
 import Data.Char (isLower, toUpper)
 import Language.Fixpoint.Misc hiding (dcolon)
 import Language.Fixpoint.Types
+
+type Parser = Parsec String Integer 
 
 --------------------------------------------------------------------
 
@@ -102,6 +110,7 @@ semi       = Token.semi       lexer
 colon      = Token.colon      lexer
 comma      = Token.comma      lexer
 whiteSpace = Token.whiteSpace lexer
+
 -- identifier = Token.identifier lexer
 
 
@@ -334,7 +343,7 @@ remainderP p
        return (res, str) 
 
 doParse' parser f s
-  = case parse (remainderP p) f s of
+  = case runParser (remainderP p) 0 f s of
       Left e         -> errorstar $ printf "parseError %s\n when parsing from %s\n" 
                                       (show e) f 
       Right (r, "")  -> r
@@ -345,6 +354,11 @@ doParse' parser f s
 
 parseFromFile :: Parser b -> SourceName -> IO b
 parseFromFile p f = doParse' p f <$> readFile f
+
+freshIntP :: Parser Integer
+freshIntP = do n <- stateUser <$> getParserState
+               updateState (+ 1)
+               return n
 
 ----------------------------------------------------------------------------------------
 ------------------------ Bundling Parsers into a Typeclass -----------------------------
