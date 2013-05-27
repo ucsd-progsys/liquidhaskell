@@ -43,7 +43,7 @@ liquidOne cfg target =
      donePhase Loud "transformRecExpr"
      putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
      putStrLn $ showpp cbs'
-     let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs'}
+     let cgi = {-# SCC "generateConstraints" #-} generateConstraints cfg $! info {cbs = cbs'}
      cgi `deepseq` donePhase Loud "generateConstraints"
      -- donePhase Loud "START: Write CGI (can be slow!)"
      -- {-# SCC "writeCGI" #-} writeCGI target cgi 
