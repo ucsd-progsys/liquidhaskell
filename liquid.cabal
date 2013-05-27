@@ -32,14 +32,16 @@ Executable liquid
                , syb==0.4.0.*
                , text==0.11.2.*
                , vector==0.10.0.*
+               , hashable<1.2
+               , unordered-containers
                , liquid-fixpoint
 
-  if impl(ghc >= 7.6.3)
-    Build-Depends: hashable==1.2.0.*
-                 , unordered-containers==0.2.3.*
-  else
-    Build-Depends: hashable==1.2.0.5
-                 , unordered-containers==0.2.3.0
+  -- if impl(ghc >= 7.6.3)
+  --   Build-Depends: hashable==1.2.0.*
+  --                , unordered-containers==0.2.3.*
+  -- else
+  --   Build-Depends: hashable==1.2.0.5
+  --                , unordered-containers==0.2.3.0
 
 
   Main-is: Liquid.hs
@@ -66,14 +68,16 @@ Library
                , syb==0.4.0.*
                , text==0.11.2.*
                , vector==0.10.0.*
+               , hashable<1.2
+               , unordered-containers
                , liquid-fixpoint
 
-  if impl(ghc >= 7.6.3)
-    Build-Depends: hashable==1.2.0.*
-                 , unordered-containers==0.2.3.*
-  else
-    Build-Depends: hashable==1.2.0.5
-                 , unordered-containers==0.2.3.0
+  -- if impl(ghc >= 7.6.3)
+  --   Build-Depends: hashable==1.2.0.*
+  --                , unordered-containers==0.2.3.*
+  -- else
+  --   Build-Depends: hashable==1.2.0.5
+  --                , unordered-containers==0.2.3.0
 
   hs-source-dirs:  include, .
 
