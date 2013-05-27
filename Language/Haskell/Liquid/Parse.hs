@@ -6,7 +6,6 @@ module Language.Haskell.Liquid.Parse (
 
 import Control.Monad
 import Text.Parsec
-import Text.Parsec.String
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
 
