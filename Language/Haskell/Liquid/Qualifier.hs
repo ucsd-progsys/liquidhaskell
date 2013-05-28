@@ -17,13 +17,14 @@ import qualified Data.HashSet as S
 import Data.Bifunctor           (second) 
 
 -----------------------------------------------------------------------------------
-specificationQualifiers :: GhcInfo -> [Qualifier] 
+specificationQualifiers :: Int -> GhcInfo -> [Qualifier]
 -----------------------------------------------------------------------------------
 
-specificationQualifiers info 
+specificationQualifiers k info
   = [ q | (x, t) <- tySigs $ spec info
         , x `S.member` (S.fromList $ defVars info)
-        , q <- refTypeQuals (tcEmbeds $ spec info) (val t) 
+        , q <- refTypeQuals (tcEmbeds $ spec info) (val t)
+        , length (q_params q) <= k + 1
     ]
 
 
