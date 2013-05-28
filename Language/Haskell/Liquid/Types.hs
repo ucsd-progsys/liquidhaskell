@@ -106,12 +106,14 @@ import Var
 -- | Command Line Config Options --------------------------------------------
 -----------------------------------------------------------------------------
 
+-- NOTE: adding strictness annotations breaks the help message
 data Config = Config { 
-    files :: [FilePath] -- ^ source files to check
-  , idirs :: [FilePath] -- ^ path to directory for including specs
-  , binds :: ![String]  -- ^ top-level binders to check (empty means check ALL) 
-  , noCheckUnknown :: Bool -- ^ whether to complain about specifications for unexported and unused values
-  , nofalse :: !Bool    -- ^ remove false predicates from the refinements
+    files          :: [FilePath] -- ^ source files to check
+  , idirs          :: [FilePath] -- ^ path to directory for including specs
+  , binds          :: [String]   -- ^ top-level binders to check (empty means check ALL)
+  , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
+  , nofalse        :: Bool       -- ^ remove false predicates from the refinements
+  , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   } deriving (Data, Typeable, Show, Eq)
 
 -----------------------------------------------------------------------------
@@ -555,14 +557,6 @@ rAppTy t t' = RAppTy t t' top
 
 
 --------------------------------------------
-instance Reftable () where
-  isTauto _ = True
-  ppTy _  d = d
-  top       = ()
-  meet _ _  = ()
-  toReft _  = top
-  params _  = []
-
 
 instance (PPrint r, Reftable r) => Reftable (UReft r) where
   isTauto            = isTauto_ureft 
@@ -581,12 +575,6 @@ ppr_reft r d         = braces (toFix v <+> colon <+> d <+> text "|" <+> pprint r
   where 
     r'@(Reft (v, _)) = toReft r
 
-
-instance Subable () where
-  syms _      = []
-  subst _ ()  = ()
-  substf _ () = ()
-  substa _ () = ()
 
 instance Subable r => Subable (UReft r) where
   syms (U r p)     = syms r ++ syms p 

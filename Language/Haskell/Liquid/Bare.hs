@@ -20,6 +20,7 @@ import PrelNames
 import PrelInfo                 (wiredInThings)
 import Type                     (expandTypeSynonyms, splitFunTy_maybe)
 import DataCon                  (dataConImplicitIds)
+import TyCon                    (tyConArity)
 import HscMain
 import TysWiredIn
 import BasicTypes               (TupleSort (..), Arity)
@@ -569,11 +570,14 @@ ofSyms (x, t)
   = liftM ((,) x) (ofBareType t)
 
 -- TODO: move back to RefType
-bareTCApp _ r c rs ts 
+bareTCApp _ r c rs ts | length ts == tyConArity c
   = if isTrivial t0 then t' else t
     where t0 = rApp c ts rs top
           t  = rApp c ts rs r
           t' = (expandRTypeSynonyms t0) `strengthen` r
+-- otherwise create an error
+-- create the error later to get better message
+bareTCApp _ _ c rs ts = rApp c ts rs top
 
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
 

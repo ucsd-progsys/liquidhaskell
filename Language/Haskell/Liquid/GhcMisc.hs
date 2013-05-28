@@ -41,6 +41,7 @@ import           Data.Hashable
 import qualified Data.HashSet                 as S    
 import qualified Data.List                    as L    
 import           Control.Applicative          ((<$>))
+import           Control.Arrow                (second)
 import           Control.Exception            (assert)
 import           Outputable                   (Outputable (..), text, ppr)
 import qualified Outputable                   as Out
@@ -141,6 +142,21 @@ tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} showPpr α ++ show (varUn
 tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) x
 
 pprShow = text . show
+
+
+tidyCBs = map unTick
+
+unTick (NonRec b e) = NonRec b (unTickExpr e)
+unTick (Rec bs)     = Rec $ map (second unTickExpr) bs
+
+unTickExpr (App e a)          = App (unTickExpr e) (unTickExpr a)
+unTickExpr (Lam b e)          = Lam b (unTickExpr e)
+unTickExpr (Let b e)          = Let (unTick b) (unTickExpr e)
+unTickExpr (Case e b t as)    = Case (unTickExpr e) b t (map unTickAlt as)
+    where unTickAlt (a, b, e) = (a, b, unTickExpr e)
+unTickExpr (Cast e c)         = Cast (unTickExpr e) c
+unTickExpr (Tick _ e)         = unTickExpr e
+unTickExpr x                  = x
 
 -----------------------------------------------------------------------
 ------------------ Generic Helpers for DataConstructors ---------------
