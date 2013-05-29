@@ -83,6 +83,7 @@ data Ext = Cgi    -- ^ Constraint Generation Information
          | Result -- ^ Final result: SAFE/UNSAFE
          | Cst    -- ^ I've totally forgotten!
          | Mkdn   -- ^ Markdown file (temporarily generated from .Lhs + annots) 
+         | Json   -- ^ JSON file containing result (annots + errors)
          | Pred   
          | PAss    
          | Dat    
@@ -102,6 +103,7 @@ extMap e = go e
     go Hs     = "hs"
     go LHs    = "lhs"
     go Mkdn   = "markdown"
+    go Json   = "json"
     go Spec   = "spec"
     go Hquals = "hquals" 
     go Result = "out"
