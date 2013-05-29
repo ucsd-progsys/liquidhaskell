@@ -28,6 +28,8 @@ config = Config {
  , noCheckUnknown = def &= explicit
                         &= name "no-check-unknown"
                         &= help "Don't complain about specifications for unexported and unused values "
+
+ , maxParams = 2 &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
  } &= verbosity
    &= program "liquid" 
    &= help    "Refinement Types for Haskell" 
