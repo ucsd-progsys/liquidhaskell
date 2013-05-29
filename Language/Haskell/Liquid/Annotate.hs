@@ -1,6 +1,10 @@
-{-# LANGUAGE DeriveDataTypeable, TupleSections #-}
--- MultiParamTypeClasses, NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, , ScopedTypeVariables 
 
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE NoMonomorphismRestriction  #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE FlexibleInstances          #-}
 
 -- | This module contains the code that uses the inferred types to generate
 -- htmlized source with mouseover annotations.
@@ -28,32 +32,43 @@ import Data.Char                (isSpace)
 import Data.Function            (on)
 import Data.List                (sortBy)
 
+import Data.Aeson               
 import Control.Arrow            hiding ((<+>))
 import Control.Applicative      ((<$>))
 import Control.DeepSeq
 import Control.Monad            (when)
--- import Data.Data                hiding (TyCon, tyConName)
 
 import System.FilePath          (takeFileName, dropFileName, (</>)) 
 import System.Directory         (findExecutable)
 import System.Directory         (copyFile) 
-
 import Text.Printf              (printf)
-import qualified Data.Text  as T
-import qualified Data.HashMap.Strict   as M
+
+import qualified Data.ByteString.Lazy   as B
+import qualified Data.Text              as T
+import qualified Data.HashMap.Strict    as M
 
 import qualified Language.Haskell.Liquid.ACSS as ACSS
-import Language.Haskell.HsColour.Classify
 
+-- import Language.Haskell.Liquid.JSON ()
+import Language.Haskell.HsColour.Classify
 import Language.Fixpoint.Files
 import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
-
 import Language.Haskell.Liquid.GhcMisc (pprDoc, showPpr)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Types hiding (Located(..))
+
+-- import           Data.Typeable
+-- import           Data.Data
+-- import           Data.Aeson
+import qualified Data.List           as L
+import qualified Data.Vector         as V
+
+-- import           Language.Fixpoint.Misc (inserts)
+import           Language.Haskell.Liquid.ACSS
+
 
 -------------------------------------------------------------------
 ------ Rendering HTMLized source with Inferred Types --------------
@@ -77,9 +92,11 @@ showBots (AI m) = mapM_ showBot $ sortBy (compare `on` fst) $ M.toList m
 
 annotDump :: FilePath -> FilePath -> FixResult SrcSpan -> AnnInfo SpecType -> IO ()
 annotDump srcFile htmlFile result ann
-  = do let annm    = mkAnnMap result ann
-       let annFile = extFileName Annot srcFile
-       writeFilesOrStrings   annFile [Left srcFile, Right (show annm)]
+  = do let annm     = mkAnnMap result ann
+       let annFile  = extFileName Annot srcFile
+       let jsonFile = extFileName Json  srcFile  
+       B.writeFile           jsonFile (encode annm) 
+       writeFilesOrStrings   annFile  [Left srcFile, Right (show annm)]
        annotHtmlDump         htmlFile srcFile annm 
        return ()
 
@@ -339,5 +356,87 @@ squishRas ras  = (squish [p | RConc p <- ras]) : []
 conjuncts (PAnd ps)          = concatMap conjuncts ps
 conjuncts p | isTautoPred p  = []
             | otherwise      = [p]
+
+------------------------------------------------------------------------
+-- | JSON: Annotation Data Types ---------------------------------------
+------------------------------------------------------------------------
+
+data Assoc k a = Asc (M.HashMap k a)
+type AnnTypes  = Assoc Int (Assoc Int Annot1)
+type AnnErrors = [(Loc, Loc)]
+data Annot1    = A1  { ident :: String
+                     , ann   :: String
+                     , row   :: Int
+                     , col   :: Int  
+                     }
+
+------------------------------------------------------------------------
+-- | JSON Instances ----------------------------------------------------
+------------------------------------------------------------------------
+
+instance ToJSON Annot1 where 
+  toJSON (A1 i a r c) = object [ "ident" .= i
+                                 , "ann"   .= a
+                                 , "row"   .= r
+                                 , "col"   .= c
+                                 ]
+
+
+instance ToJSON Loc where
+  toJSON (L (l, c)) = object [ ("line"     .= toJSON l)
+                             , ("column"   .= toJSON c) ]
+
+instance ToJSON AnnErrors where 
+  toJSON errs      = Array $ V.fromList $ fmap toJ errs
+    where 
+      toJ (l, l')  = object [ ("start" .= toJSON l), ("stop"  .= toJSON l') ]
+
+instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
+  toJSON (Asc kas) = object [ (tshow k) .= (toJSON a) | (k, a) <- M.toList kas ]
+    where
+      tshow        = T.pack . show 
+
+instance ToJSON AnnMap where 
+  toJSON a = object [ ("types"  .= (toJSON $ annTypes a))
+                    , ("errors" .= (toJSON $ errors   a))
+                    ]
+
+annTypes         :: AnnMap -> AnnTypes 
+annTypes a       = grp [(l, c, ann1 l c x s) | (L (l, c), (x, s)) <- M.toList $ types a]
+  where 
+    ann1 l c x s = A1 x s l c 
+    grp          = L.foldl' (\m (r,c,x) -> ins r c x m) (Asc M.empty)
+
+ins r c x (Asc m)  = Asc (M.insert r (Asc (M.insert c x rm)) m)
+  where 
+    Asc rm         = M.lookupDefault (Asc M.empty) r m
+
+--------------------------------------------------------------------------------
+-- | A Little Unit Test --------------------------------------------------------
+--------------------------------------------------------------------------------
+
+anns :: AnnTypes  
+anns = i [(5,   i [( 14, A1 { ident = "foo"
+                            , ann   = "int -> int"
+                            , row   = 5
+                            , col   = 14
+                            })
+                  ]
+          )
+         ,(9,   i [( 22, A1 { ident = "map" 
+                            , ann   = "(a -> b) -> [a] -> [b]"
+                            , row   = 9
+                            , col   = 22
+                            })
+                  ,( 28, A1 { ident = "xs"
+                            , ann   = "[b]" 
+                            , row   = 9 
+                            , col   = 28
+                            })
+                  ])
+         ]
+ 
+i = Asc . M.fromList
+
 
 
