@@ -13,7 +13,7 @@ cabal-version:       >=1.8
 Executable fixpoint
   Main-is:       Fixpoint.hs
   Build-Depends: base
-               , ghc
+               , ghc==7.6.3
                , ansi-terminal
                , bifunctors
                , bytestring

@@ -1,4 +1,5 @@
-include config.make
+# include config.make
+
 
 GHC=$(GHCHOME)/ghc
 GPG=$(GHCHOME)/ghc-pkg
