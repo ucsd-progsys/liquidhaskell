@@ -30,12 +30,15 @@ rebuild:
 	cd external/fixpoint/ && make clean && make && cd ../../
 	make
 
-site: all
+site: all web
 	cp dist_liquid/build/liquid/liquid $(SERVERHOME)/liquid
 	cp -rf external $(SERVERHOME)/
 	cp -rf include $(SERVERHOME)/
 	cp -rf syntax $(SERVERHOME)/
+
+web:
 	cp -rf web/* $(SERVERHOME)/
+
 
 siteperms:
 	sudo chgrp -R www-data $(SERVERHOME)
