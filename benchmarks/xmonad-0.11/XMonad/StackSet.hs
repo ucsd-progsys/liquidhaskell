@@ -276,9 +276,26 @@ data StackSet i l a sid sd =
              }
 @-}
 
+{-@ invariant {v:(StackSet i l a sid sd) | 
+     (((?(
+       Set_emp (Set_cap (screenElts (getCurrentScreen v)) 
+                        (screensElts (getVisible v))
+      ))) && (?(
+       Set_emp (Set_cap (screenElts (getCurrentScreen v)) 
+                        (workspacesElts (getHidden v))
+      )))) && (?(
+       Set_emp (Set_cap (workspacesElts (getHidden v)) 
+                        (screensElts (getVisible v))
+      ))))} @-}
+
 {-@ measure getCurrentScreen :: (StackSet i l a sid sd) -> (Screen i l a sid sd)
     getCurrentScreen(StackSet current v h f) = current @-}
 
+{-@ measure getVisible :: (StackSet i l a sid sd) -> [(Screen i l a sid sd)]
+    getVisible(StackSet current v h f) = v @-}
+
+{-@ measure getHidden :: (StackSet i l a sid sd) -> [(Workspace i l a)]
+    getHidden(StackSet current v h f) = h @-}
 
 {-@ predicate StackSetCurrentElt N S = 
       (ScreenElt N (getCurrentScreen S))
@@ -602,8 +619,16 @@ allWindows :: Eq a => StackSet i l a s sd -> [a]
 allWindows = L.nub . concatMap (integrate' . stack) . workspaces
 
 -- | Get the tag of the currently focused workspace.
+{-@ currentTag :: s: StackSet i l a s sd 
+               -> {v:i|(IsCurrentTag v s)} @-}
 currentTag :: StackSet i l a s sd -> i
 currentTag = tag . workspace . current
+
+-- LIQUID : qualifier missing for currentTag
+{-@ qcurrentTag :: s:(StackSet i l a s sd) 
+                -> {v:(Workspace i l a) | v = (getWorkspaceScreen (getCurrentScreen s))} @-}
+qcurrentTag :: StackSet i l a s sd -> Workspace i l a 
+qcurrentTag = workspace . current
 
 -- | Is the given tag present in the 'StackSet'?
 tagMember :: Eq i => i -> StackSet i l a s sd -> Bool

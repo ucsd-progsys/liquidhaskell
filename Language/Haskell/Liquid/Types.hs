@@ -106,12 +106,14 @@ import Var
 -- | Command Line Config Options --------------------------------------------
 -----------------------------------------------------------------------------
 
+-- NOTE: adding strictness annotations breaks the help message
 data Config = Config { 
-    files :: [FilePath] -- ^ source files to check
-  , idirs :: [FilePath] -- ^ path to directory for including specs
-  , binds :: ![String]  -- ^ top-level binders to check (empty means check ALL) 
-  , noCheckUnknown :: Bool -- ^ whether to complain about specifications for unexported and unused values
-  , nofalse :: !Bool    -- ^ remove false predicates from the refinements
+    files          :: [FilePath] -- ^ source files to check
+  , idirs          :: [FilePath] -- ^ path to directory for including specs
+  , binds          :: [String]   -- ^ top-level binders to check (empty means check ALL)
+  , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
+  , nofalse        :: Bool       -- ^ remove false predicates from the refinements
+  , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   } deriving (Data, Typeable, Show, Eq)
 
 -----------------------------------------------------------------------------
