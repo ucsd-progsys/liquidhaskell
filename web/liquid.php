@@ -100,6 +100,7 @@ $thq              = $ths . ".hquals";
 $thtml            = $ths . ".html"; 
 $tout             = $ths . ".out";  
 $terr             = $ths . ".err";
+$tjson            = $ths . ".json";
 
 // Write query to files
 writeFileRaw($thq, $query->qualifiers);
@@ -116,6 +117,7 @@ $res              = shell_exec($cmd);
 $out              = getResultAndWarns($tout) ;
 $out['crash']     = getCrash($log)           ;       
 $out['annotHtml'] = file_get_contents($thtml);
+$out['annots']    = json_decode(file_get_contents($tjson));
 
 // echo 'result = ' . $out['result'];
 // echo 'warns = '  . $out['warns'];

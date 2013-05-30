@@ -408,10 +408,13 @@ instance PPrint GhcInfo where
               $+$ (text "*************** Specification ***************")
               $+$ (pprint $ spec info)
               $+$ (text "*************** Core Bindings ***************")
-              $+$ (pprDoc $ cbs info)
+              $+$ (pprint $ cbs info)
 
 instance Show GhcInfo where
   show = showpp 
+
+instance PPrint [CoreBind] where
+  pprint = pprDoc . tidyCBs
 
 instance PPrint TargetVars where
   pprint AllVars   = text "All Variables"
