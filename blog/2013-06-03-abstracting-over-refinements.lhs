@@ -1,16 +1,17 @@
 ---
 layout: post
 title: "Abstracting Over Refinements"
-date: 2013-01-10 16:12
+date: 2013-06-03 16:12
 comments: true
 external-url:
-categories: abstract refinements
-author: Niki Vazou
-published: false
+author: Ranjit Jhala and Niki Vazou 
+published: true 
+categories: abstract-refinements
+demo: refinements101.hs
 ---
 
 We've seen all sorts of interesting invariants that can be expressed with
-refinement predicates. For example, whether a divisor is [non-zero][ref101], 
+refinement predicates. For example, whether a divisor is [non-zero][blog-dbz], 
 the [dimension][blog-len] of lists, ensuring the safety of 
 [vector indices][blog-vec] and reasoning about the [set][blog-set] of values
 in containers and verifying their [uniqueness][blog-zip].
@@ -19,9 +20,9 @@ that described whatever property was of interest.
 
 Today, (drumroll please), I want to unveil a brand new feature of
 LiquidHaskell, which allows us to *abstract* over specific properties or
-invariants, which surprisingly (to me at least!) *dramatically* increases
-the expressiveness of the system, whilst still allowing our friend the SMT
-solver to carry out verification and inference quite automatically!
+invariants, which *dramatically* increases the expressiveness of the 
+system, whilst still allowing our friend the SMT solver to carry out
+verification and inference automatically.
 
 <!-- more -->
 
@@ -46,15 +47,15 @@ maxInt x y = if x <= y then y else x
 \end{code}
 
 \begin{code} We could give `maxInt` many, quite different and incomparable refinement types like
-maxInt :: x:{v:Int | v >= 0} -> y:{v:Int | v >= 0} -> {v:Int | v >= 0}
+maxInt :: {v:Int | v >= 0} -> {v:Int | v >= 0} -> {v:Int | v >= 0}
 \end{code}
 
 \begin{code}or
-maxInt :: x:{v:Int | v < 10} -> y:{v:Int | v < 10} -> {v:Int | v < 10}
+maxInt :: {v:Int | v < 10} -> {v:Int | v < 10} -> {v:Int | v < 10}
 \end{code}
 
 \begin{code}or even 
-maxInt :: x:{v:Int | (prime v)} -> y:{v:Int | (prime v)} -> {v:Int | (prime v)}
+maxInt :: {v:Int | (prime v)} -> {v:Int | (prime v)} -> {v:Int | (prime v)}
 \end{code}
 
 All of the above are valid. 
@@ -103,7 +104,7 @@ less than `10`. As for the third type ... well, you get the idea.
 So alas, the choice of type *does* matter. 
 
 \begin{code} If we were clairvoyant, we would give `maxInt` a type like
-{-@ maxInt :: RGB -> RGB -> RGB @-}
+{- maxInt :: RGB -> RGB -> RGB -}
 \end{code}
 
 but of course, that has its own issues. ("What? I have to write a
@@ -128,7 +129,7 @@ or, if you prefer, parameterizing a type over its refinements.
 In particular, we type `maxInt` as
 
 \begin{code}
-{-@ maxInt :: forall <p :: Int -> Prop>. x:Int <p> -> y:Int <p> -> Int <p>@-}
+{-@ maxInt :: forall <p :: Int -> Prop>. Int<p> -> Int<p> -> Int<p>@-}
 \end{code}
 
 Here, the definition says explicitly: *for any property* `p` that is a
@@ -143,12 +144,11 @@ and our faithful SMT companion at that door, and instead roll up our
 sleeves for interactive proofs (not that there's anything wrong with that!) 
 
 Fortunately, that's not the case. We simply encode abstract refinements `p` 
-as _uninterpreted function symbols_ in the refinement logic. These are
-special symbols which which satisfy only the *congruence axiom*.
+as _uninterpreted function symbols_ in the refinement logic. 
 
-~~~
-forall X, Y. X = Y => p(X) = p(Y)
-~~~
+\begin{code} Uninterpreted functions are special symbols `p` which which satisfy only the *congruence axiom*.
+forall X, Y. if (X = Y) then  p(X) = p(Y)
+\end{code}
 
 Fortunately reasoning with such uninterpreted functions is quite decidable
 (thanks to Ackermann, yes, *that* Ackermann) and actually rather efficient.
@@ -207,10 +207,9 @@ To verify that `maxEvens1` returns an even number, LiquidHaskell
 Parametric Invariants and Type Classes
 --------------------------------------
 
-Ok, lets be honest, the above is clearly quite contrived. 
-After all, wouldn't you write a *polymorphic* `max` function?  
-And having done so, we'd just get all the above goodness from 
-old fashioned parametricity.
+Ok, lets be honest, the above is clearly quite contrived. After all,
+wouldn't you write a *polymorphic* `max` function? And having done so,
+we'd just get all the above goodness from old fashioned parametricity.
 
 \begin{code} That is to say, if we just wrote:
 max     :: forall a. a -> a -> a 
@@ -219,10 +218,9 @@ max x y = if x > y then x else y
 
 then we could happily *instantiate* the `a` with `{v:Int | v > 0}` or
 `{v:Int | (Even v)}` or whatever was needed at the call-site of `max`.
-
 (Sigh. Perhaps we are still pining for Hindley-Milner.)
 
-\begin{code} Well, if this was ML (or FSharp) perhaps we could but in Haskell, the above `max` would be 
+\begin{code} Well, if this was Ocaml (or FSharp) perhaps we could but in Haskell, the above `max` would be 
 (>)     :: (Ord a) => a -> a -> Bool
 max     :: (Ord a) => a -> a -> a
 maximum :: (Ord a) => [a] -> a
@@ -233,9 +231,7 @@ convinced no one was watching, just pretend that funny `(Ord a)` business
 was not there, and quietly just treat `maximum` as `[a] -> a` and summon
 parametricity.
 
-That would be most unwise. 
-
-We may get away with it with the harmless `Ord` but what of, say, `Num`. 
+That would be most unwise. We may get away with it with the harmless `Ord` but what of, say, `Num`. 
 
 \begin{code} Clearly a function 
 numCrunch :: (Num a) => [a] -> a
@@ -257,7 +253,7 @@ How could we possibly verify that
 maxEvens2 xs = maximumPoly xs''
   where 
      xs'     = [ x | x <- xs, isEven x]
-     xs''    = 0 :xs'
+     xs''    = 0 : xs'
 \end{code}
 
 where the helpers were in the usual `Ord` style?
@@ -276,16 +272,14 @@ First, via the same analysis as the monomorphic `Int` case, LiquidHaskell
 establishes that
 
 \begin{code}
-{-@ maxPoly :: forall <p :: a -> Prop>. (Ord a) 
-                 => x:a<p> -> y:a<p> -> a<p>          
+{-@ maxPoly :: forall <p :: a -> Prop>. (Ord a) => x:a<p> -> y:a<p> -> a<p>          
   @-}
 \end{code}
 
 and hence, that
 
 \begin{code}
-{-@ maximumPoly :: forall <p :: a -> Prop>. (Ord a) 
-                   => x:[a<p>] -> a<p>                  
+{-@ maximumPoly :: forall <p :: a -> Prop>. (Ord a) => x:[a<p>] -> a<p>                  
   @-}
 \end{code}
 
@@ -311,7 +305,7 @@ that
 We started with some really frivolous examples, but buckle your seatbelt 
 and hold on tight, because we're going to see some rather nifty things that
 this new technique makes possible, including induction, reasoning about
-memoizing functions, and, oddly, ordering and sorting data.
+memoizing functions, and even ordering and sorting data. Stay tuned.
 
 [blog-dbz]:     /blog/2013/01/01/refinement-types-101.lhs/ 
 [blog-len]:     /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/ 
