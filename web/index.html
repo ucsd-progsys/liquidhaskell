@@ -5,22 +5,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="">
     <meta name="author" content="">
+   
+    <style>
+      
+      .welleditor {
+        height: 400px;
+        padding: 19px;
+        margin-bottom: 20px;
+        background-color: #f5f5f5;
+        border: 1px solid #e3e3e3;
+        -webkit-border-radius: 4px;
+        -moz-border-radius: 4px;
+        border-radius: 4px;
+        -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05);
+        -moz-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05);
+        box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.05);
+      }
 
+      .typeToolTip {
+        z-index:25; 
+        background-color: #D8D8D8;
+        border-radius: 5px 5px;
+        
+        -moz-border-radius: 5px; 
+        -webkit-border-radius: 5px; 
+        
+        box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.1); 
+        -webkit-box-shadow: 5px 5px rgba(0, 0, 0, 0.1);
+        -moz-box-shadow: 5px 5px rgba(0, 0, 0, 0.1); 
+
+        font-family: 'Monaco', 
+                     'Menlo',
+                     'Ubuntu Mono', 
+                     'Consolas',
+                     'source-code-pro', 
+                     monospace;
+
+        font-size: 12px;
+                   
+        white-space: pre;
+        display:block;
+        position: fixed; 
+        left: 1em; top: 2em; 
+        z-index: 99;
+        margin-left: 5; 
+        background: #FFFFAA; 
+        border: 2px solid #FFAD33;
+        padding: 0.8em 1em;
+      }
+
+
+    </style>
+      
     <!-- Le styles -->
     <link href="css/bootstrap-readable.css" rel="stylesheet">
     <link href="css/bootstrap-responsive.css" rel="stylesheet">
     <link href="css/bootswatch.css" rel="stylesheet">
-    <!-- <link href="css/docs.css" rel="stylesheet"> -->
-
     <link href="syntax/liquid.css" type='text/css' rel="stylesheet">
-    <link href="css/codemirror.css" rel="stylesheet" >
-
+    <script src="js/jquery/jquery-1.7.1.min.js"></script>
     <script src="js/angular/angular.js"></script>
-    <script src="js/bootstrap.min.js"></script>
-
-    <script src="js/codemirror.js"></script>
-    <script src="js/haskell.js"></script>
-    
+    <script src="js/bootstrap/bootstrap.min.js"></script>
   </head>
 
 <body data-spy="scroll" data-target=".bs-docs-sidebar" ng-controller="LiquidDemoCtrl">
@@ -112,6 +156,7 @@
          </ul>
          
          <div class="tab-content">
+           
            <div class="tab-pane active" id="tabSrc">
              
              <div class="alert alert-error" ng-repeat="warn in warns">
@@ -124,49 +169,48 @@
                <strong>Crash!</strong> Uh oh, there was a crash. See the <a href="log">the log</a>.
              </div>
 
+             <div id="program-pane" class="welleditor" style="background:#fff">
 
-
-             <div id="program-pane" class="well" style="background:#fff">
-                 <button class="btn btn-info" type="button" ng-hide="isChecking" ng-click="verifySource()">Verify</button>
-
-                 <button class="btn" type="button" ng-show="isChecking"
+               <button class="btn btn-info" type="button" ng-show="isUnknown" 
+                 ng-click="verifySource()">Verify</button>
+               
+               <button class="btn" type="button" ng-show="isChecking"
                    ng-click="verifySource()">Verifying...</button>
+               
+               <button class="btn btn-success" type="button" ng-show="isSafe">Safe</button>
                  
-                 <!-- <div ng-show="isChecking">
-                    <span class="label label-info large"
-                      id="status-checking">Verifying...</span>
-                  </div> --> 
+               <button class="btn btn-danger" type="button"  ng-show="isUnsafe">Unsafe</button>
+                 
+               <button class="btn btn-warning" type="button" ng-show="isCrash">Crash!</button>
 
-                 <div style="float:right" ng-show="isUnknown">
+                 <div style="float:right">
                     <span class="label large" id="sourceName">{{msg}}</span>
                  </div> 
-                
-                 <div style="float:right" ng-show="isSafe">
-                    <span class="label label-success large" id="status-safe">Safe</span>
-                 </div> 
-
-                 <div style="float:right" ng-show="isUnsafe">
-                    <span class="label label-important large" id="status-unsafe">Unsafe</span>
-                 </div> 
-
-                 <div style="float:right" ng-show="isCrash">
-                    <span class="label label-warning large" id="status-crash">Crash!</span>
-                 </div> 
-
-
+                 
                  <br>
                  <br>
-                 <textarea class="field" id='program' name='program' rows='20' cols='80'>
-                  -- Wait for it ... 
-                 </textarea>
+                 
+                 <div id="program" style="height: 85%">
+                   -- Wait for it ...
+                 </div>
+
               </div>
            </div>
            
            <div class="tab-pane" id="tabQuals">
              <div id="qualifier-pane" class="well" style="background:#fff">
+               <!--
                <textarea class="field" id='qualifiers' name='qualifiers' rows='20' cols='80'>
                 // Wait for it ... 
                </textarea>
+               -->
+
+               <div id="qualifiers" style="height: 90%">
+                   // Wait for it ...
+               </div>
+
+
+
              </div>
            </div>
            
@@ -218,10 +262,18 @@
 
 <!-- JavaScript below! ============================================== -->
          
-<!-- Bootstrap JS: compiled and minified -->
-    <script src="js/jquery-1.7.1.min.js"></script>
-    <script src="js/bootstrap.js"></script>
-    <script src="js/liquid.js"></script>
+<!-- IMPORTANT?
+<script src="js/jquery/jquery-1.7.1.min.js"></script>
+<script src="js/bootstrap/bootstrap.js"></script>
+-->
+
+  <script src="js/ace/ace.js" type="text/javascript" charset="utf-8"></script> 
+  <script src="js/ace/theme-xcode.js" type="text/javascript" charset="utf-8"></script>
+  <script src="js/ace/mode-haskell.js" type="text/javascript" charset="utf-8"></script>
+  
+  <script src="js/tooltip.js"></script> 
+  <script src="js/annot.js"></script> 
+  <script src="js/liquid.js"></script>
     
   <!--Site Meter -->
   <script type="text/javascript" 

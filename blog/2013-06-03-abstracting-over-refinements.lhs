@@ -82,7 +82,7 @@ But of course it matters.
 Suppose we had a refined type describing valid RGB values:
 
 \begin{code}
-{-@ type RGB = {v: Int | 0 <= v && v < 256 } @-}
+{-@ type RGB = {v: Int | ((0 <= v) && (v < 256)) } @-}
 \end{code}
 
 Now, if I wrote a function that selected the larger, that is to say, the
@@ -191,7 +191,7 @@ isEven x = x `mod` 2 == 0
 where the predicate `Even` is defined as
 
 \begin{code}
-{-@ predicate Even X = ((X mod 2) == 0) @-}
+{-@ predicate Even X = ((X mod 2) = 0) @-}
 \end{code}
 
 To verify that `maxEvens1` returns an even number, LiquidHaskell 
