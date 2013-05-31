@@ -1,6 +1,6 @@
 module ListLengths where
 
-import Data.Hashable 
+import qualified Data.Hashable as H 
 import Prelude hiding (length, map, filter, head, tail, foldl1)
 import Language.Haskell.Liquid.Prelude (liquidError)
 import qualified Data.HashMap.Strict as M
@@ -109,7 +109,7 @@ safeSplit _      = liquidError "don't worry, be happy"
 
 -- | A Simple map-reduce library
 
-mapReduce       :: (Eq k, Hashable k) 
+mapReduce       :: (Eq k, H.Hashable k) 
                 => (a -> [(k, v)]) -- ^ key-mapper
                 -> (v -> v -> v)   -- ^ reduction operator
                 -> [a]             -- ^ inputs
@@ -128,7 +128,7 @@ keyMap f xs = concatMap f xs
 -- | `group` gathers the key-value pairs into a `Map` from keys to the 
 -- lists of values with that same key.
 
-group     :: (Eq k, Hashable k) 
+group     :: (Eq k, H.Hashable k) 
           => [(k, a)] -> M.HashMap k [a]
 
 group kvs = foldr (\(k, v) m -> inserts k v m) M.empty kvs
@@ -137,7 +137,7 @@ group kvs = foldr (\(k, v) m -> inserts k v m) M.empty kvs
 -- | `inserts` adds the new value `v` to the list of previously known 
 --  values `lookupDefault [] k m` for the key `k`.
 
-inserts   :: (Eq k, Hashable k) 
+inserts   :: (Eq k, H.Hashable k) 
           => k -> a -> M.HashMap k [a] -> M.HashMap k [a]
 
 inserts k v m = M.insert k (v : vs) m
