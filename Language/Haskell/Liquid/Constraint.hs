@@ -141,7 +141,7 @@ grtyTop info     = forM topVs $ \v -> (v,) <$> (trueTy $ varType v) -- val $ var
 -- | Helpers: Reading/Extending Environment Bindings -------------------
 ------------------------------------------------------------------------
 
-data FEnv = FE { fe_binds :: !F.IBindEnv            -- ^ Integer Keys for Fixpoitn Environment
+data FEnv = FE { fe_binds :: !F.IBindEnv      -- ^ Integer Keys for Fixpoint Environment
                , fe_env   :: !(F.SEnv F.Sort) -- ^ Fixpoint Environment
                }
 
@@ -370,9 +370,9 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        let RApp c  t1s r1s _ = t1'
        let RApp c' t2s r2s _ = t2'
        let tyInfo = rTyConInfo c
-       cscov  <- splitCIndexed  γ' t1s t2s $ covariantTyArgs tyInfo
+       cscov  <- splitCIndexed  γ' t1s t2s $ covariantTyArgs     tyInfo
        cscon  <- splitCIndexed  γ' t2s t1s $ contravariantTyArgs tyInfo
-       cscov' <- rsplitCIndexed γ' r1s r2s $ covariantPsArgs tyInfo
+       cscov' <- rsplitCIndexed γ' r1s r2s $ covariantPsArgs     tyInfo
        cscon' <- rsplitCIndexed γ' r2s r1s $ contravariantPsArgs tyInfo
        return $ cs ++ cscov ++ cscon ++ cscov' ++ cscon'
 
