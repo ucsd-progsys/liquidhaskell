@@ -217,9 +217,11 @@ and compelling example.
 
 - Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
+
 #### Type Aliases
 
-Similarly, it is often tedious to keep writing 
+
+Similarly, it is often quite tedious to keep writing 
 
     {v: Int | v > 0}
 

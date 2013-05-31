@@ -68,8 +68,8 @@ import Control.DeepSeq
 ------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
 
-generateConstraints :: GhcInfo -> CGInfo
-generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI info
+generateConstraints :: Config -> GhcInfo -> CGInfo
+generateConstraints cfg info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
   where act = consAct (info {cbs = fst pds}) (snd pds)
         pds = generatePredicates info
 
@@ -471,7 +471,7 @@ ppr_CGInfo cgi
 
 type CG = State CGInfo
 
-initCGI info = CGInfo {
+initCGI cfg info = CGInfo {
     hsCs       = [] 
   , hsWfs      = [] 
   , fixCs      = []
@@ -481,7 +481,8 @@ initCGI info = CGInfo {
   , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
   , tyConInfo  = tyi
-  , specQuals  = qualifiers spc ++ specificationQualifiers (info {spec = spec'})
+  , specQuals  =  qualifiers spc
+               ++ specificationQualifiers (maxParams cfg) (info {spec = spec'})
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
