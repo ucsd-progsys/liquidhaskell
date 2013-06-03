@@ -7,7 +7,7 @@ external-url:
 author: Ranjit Jhala and Niki Vazou 
 published: true 
 categories: abstract-refinements
-demo: refinements101.hs
+demo: absref101.hs
 ---
 
 We've seen all sorts of interesting invariants that can be expressed with
@@ -20,9 +20,9 @@ that described whatever property was of interest.
 
 Today, (drumroll please), I want to unveil a brand new feature of
 LiquidHaskell, which allows us to *abstract* over specific properties or
-invariants, which *dramatically* increases the expressiveness of the 
-system, whilst still allowing our friend the SMT solver to carry out
-verification and inference automatically.
+invariants, which significantly increases the expressiveness of the 
+system, whilst still allowing our friend the SMT solver to carry 
+out verification and inference automatically.
 
 <!-- more -->
 
@@ -36,7 +36,7 @@ import Language.Haskell.Liquid.Prelude (isEven)
 Pin The Specification On the Function 
 -------------------------------------
 
-Lets look at some tiny *mickey-mouse* examples to see why may want
+Lets look at some tiny *mickey-mouse* examples to see why we may want
 to abstract over refinements in the first place.
 
 Consider the following monomorphic `max` function on `Int` values:
@@ -55,7 +55,7 @@ maxInt :: {v:Int | v < 10} -> {v:Int | v < 10} -> {v:Int | v < 10}
 \end{code}
 
 \begin{code}or even 
-maxInt :: {v:Int | (prime v)} -> {v:Int | (prime v)} -> {v:Int | (prime v)}
+maxInt :: {v:Int | (Even v)} -> {v:Int | (Even v)} -> {v:Int | (Even v)}
 \end{code}
 
 All of the above are valid. 
@@ -67,18 +67,19 @@ At this point, you might be exasperated for one of two reasons.
 First, the type enthusiasts among you may cry out -- "What? Does this funny
 refinement type system not have **principal types**?"
 
-No. (Or to be precise, of course not!)
+No. Or, to be precise, of course not!
 
-That lovely feature is one of the many reasons why Hindley-Milner 
-is such a delightful sweet spot. Unfortunately, the moment one wants 
-fancier specifications one must (tearfully) kiss principal typing good bye.
+Principal typing is a lovely feature that is one of the many 
+reasons why Hindley-Milner is such a delightful sweet spot. 
+Unfortunately, the moment one wants fancier specifications 
+one must tearfully kiss principal typing good bye.
 
 Oh well.
 
 Second, you may very well say, "Yes yes, does it even matter? Just pick
 one and get on with it already!"
 
-But of course it matters. 
+Unfortunately, it matters quite a bit.
 
 Suppose we had a refined type describing valid RGB values:
 
@@ -142,17 +143,15 @@ At first glance, it may appear that these abstract `p` have taken us into
 the realm of higher-order logics, where we must leave decidable checking
 and our faithful SMT companion at that door, and instead roll up our 
 sleeves for interactive proofs (not that there's anything wrong with that!) 
-
 Fortunately, that's not the case. We simply encode abstract refinements `p` 
-as _uninterpreted function symbols_ in the refinement logic. 
+as *uninterpreted function symbols* in the refinement logic. 
 
-\begin{code} Uninterpreted functions are special symbols `p` which which satisfy only the *congruence axiom*.
+\begin{code} Uninterpreted functions are special symbols `p` which satisfy only the *congruence axiom*.
 forall X, Y. if (X = Y) then  p(X) = p(Y)
 \end{code}
 
-Fortunately reasoning with such uninterpreted functions is quite decidable
+Happily, reasoning with such uninterpreted functions is quite decidable
 (thanks to Ackermann, yes, *that* Ackermann) and actually rather efficient.
-
 Thus, via SMT, LiquidHaskell happily verifies that `maxInt` indeed behaves
 as advertised: the input types ensure that both `(p x)` and `(p y)` hold 
 and hence that the returned value in either branch of `maxInt` satisfies 
@@ -214,13 +213,16 @@ we'd just get all the above goodness from old fashioned parametricity.
 \begin{code} That is to say, if we just wrote:
 max     :: forall a. a -> a -> a 
 max x y = if x > y then x else y
+
+maximum :: forall a. [a] -> a
+maximum (x:xs) = foldr max x xs
 \end{code}
 
 then we could happily *instantiate* the `a` with `{v:Int | v > 0}` or
 `{v:Int | (Even v)}` or whatever was needed at the call-site of `max`.
-(Sigh. Perhaps we are still pining for Hindley-Milner.)
+Sigh. Perhaps we are still pining for Hindley-Milner.
 
-\begin{code} Well, if this was Ocaml (or FSharp) perhaps we could but in Haskell, the above `max` would be 
+\begin{code} Well, if this was an ML perhaps we could but in Haskell, the types would be 
 (>)     :: (Ord a) => a -> a -> Bool
 max     :: (Ord a) => a -> a -> a
 maximum :: (Ord a) => [a] -> a
@@ -266,21 +268,21 @@ maxPoly     :: (Ord a) => a -> a -> a
 maxPoly x y = if x <= y then y else x
 \end{code}
 
-The answer, of course, is using abstract refinements.
+The answer: abstract refinements.
 
 First, via the same analysis as the monomorphic `Int` case, LiquidHaskell
 establishes that
 
 \begin{code}
-{-@ maxPoly :: forall <p :: a -> Prop>. (Ord a) => x:a<p> -> y:a<p> -> a<p>          
-  @-}
+{-@ maxPoly :: forall <p :: a -> Prop>. 
+                 (Ord a) => x:a<p> -> y:a<p> -> a<p> @-}
 \end{code}
 
 and hence, that
 
 \begin{code}
-{-@ maximumPoly :: forall <p :: a -> Prop>. (Ord a) => x:[a<p>] -> a<p>                  
-  @-}
+{-@ maximumPoly :: forall <p :: a -> Prop>. 
+                     (Ord a) => x:[a<p>] -> a<p>     @-}
 \end{code}
 
 Second, at the call-site for `maximumPoly` in `maxEvens2` LiquidHaskell 
@@ -305,7 +307,7 @@ that
 We started with some really frivolous examples, but buckle your seatbelt 
 and hold on tight, because we're going to see some rather nifty things that
 this new technique makes possible, including induction, reasoning about
-memoizing functions, and even ordering and sorting data. Stay tuned.
+memoizing functions, and *ordering* and *sorting* data. Stay tuned.
 
 [blog-dbz]:     /blog/2013/01/01/refinement-types-101.lhs/ 
 [blog-len]:     /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/ 
