@@ -1,8 +1,16 @@
 qualif TIsEmp(v:Bool, ~A: Data.Text.Internal.Text) : (Prop(v) <=> tlength([~A]) [ > ;  = ] 0)
 qualif TextZ(v: Data.Text.Internal.Text)           : tlength([v]) [ = ; >= ; > ] 0
-qualif CmpTLen(v:Data.Text.Internal.Text, ~A:Data.Text.Internal.Text) : (tlength([v]) [ = ; >= ; > ; < ; <= ] tlength([~A]))
-qualif CmpTLenInt(v:int, ~A: Data.Text.Internal.Text)  : (v [ = ; >= ; > ; < ; <= ] tlength([~A]))
-qualif TLenCmp(v:Data.Text.Internal.Text, ~A: int)  : ~A [ = ; >= ; > ; < ; <= ] tlength([v])
-qualif TLenAcc(v:int, ~A:Data.Text.Internal.Text, ~B: int): v = tlength([~A]) + ~B
-qualif TLenDiff(v:Data.Text.Internal.Text, ~A:int): tlength([v]) = (~A [ + ; - ] 1)
-qualif TLenComb(v:Data.Text.Internal.Text, ~A:Data.Text.Internal.Text, ~B:Data.Text.Internal.Text): tlength([v]) = (tlength([~A]) [ + ; - ] tlength([~B]))
+
+qualif CmpTLength(v:Data.Text.Internal.Text, ~A:Data.Text.Internal.Text) : (tlength([v]) [ = ; >= ; > ; < ; <= ] tlength([~A]))
+qualif CmpTLengthInt(v:int, ~A: Data.Text.Internal.Text)  : (v [ = ; >= ; > ; < ; <= ] tlength([~A]))
+qualif TLengthCmp(v:Data.Text.Internal.Text, ~A: int)  : ~A [ = ; >= ; > ; < ; <= ] tlength([v])
+qualif TLengthAcc(v:int, ~A:Data.Text.Internal.Text, ~B: int): v = tlength([~A]) + ~B
+qualif TLengthDiff(v:Data.Text.Internal.Text, ~A:int): tlength([v]) = (~A [ + ; - ] 1)
+qualif TLengthComb(v:Data.Text.Internal.Text, ~A:Data.Text.Internal.Text, ~B:Data.Text.Internal.Text): tlength([v]) = (tlength([~A]) [ + ; - ] tlength([~B]))
+
+qualif CmpTLen(v:Data.Text.Internal.Text, ~A:Data.Text.Internal.Text) : (tlen([v]) [ = ; >= ; > ; < ; <= ] tlen([~A]))
+qualif CmpTLenInt(v:int, ~A: Data.Text.Internal.Text)  : (v [ = ; >= ; > ; < ; <= ] tlen([~A]))
+qualif TLenCmp(v:Data.Text.Internal.Text, ~A: int)  : ~A [ = ; >= ; > ; < ; <= ] tlen([v])
+qualif TLenAcc(v:int, ~A:Data.Text.Internal.Text, ~B: int): v = tlen([~A]) + ~B
+qualif TLenDiff(v:Data.Text.Internal.Text, ~A:int): tlen([v]) = (~A [ + ; - ] 1)
+qualif TLenComb(v:Data.Text.Internal.Text, ~A:Data.Text.Internal.Text, ~B:Data.Text.Internal.Text): tlen([v]) = (tlen([~A]) [ + ; - ] tlen([~B]))

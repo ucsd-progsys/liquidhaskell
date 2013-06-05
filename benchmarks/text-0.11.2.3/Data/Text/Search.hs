@@ -69,9 +69,27 @@ indices :: Text                -- ^ Substring to search for (@needle@)
 indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
     --LIQUID switched first two guards, need to consider whether this is problematic..
     | nlen <= 0 || ldiff < 0 = []
---    | nlen == 1              = scanOne _needle _haystack hindex (nindex 0)
-    | nlen == 1              = scanOne _needle _haystack (index _needle 0)
-    | otherwise              = scan _needle _haystack 0
+    | nlen == 1              = scanOne (index _needle 0)
+    | otherwise              =
+        --LIQUID pushing definitions in to prove safety!
+        let scan !i
+                | i > ldiff = []
+                | otherwise =
+                  let nlast = nlen - 1
+                      z     = index _needle nlast
+                      c = index _haystack (i + nlast)
+                      candidateMatch !j
+                          | j >= nlast               = True
+                          | index _haystack (i+j) /= index _needle j = False
+                          | otherwise                = candidateMatch (j+1)
+                      delta | nextInPattern = nlen + 1
+                            | c == z        = skip + 1
+                            | otherwise     = 1
+                            where nextInPattern = mask .&. swizzle (index' _haystack (i+nlen)) == 0
+                                  !(mask `T` skip)       = buildTable _needle 0 0 (nlen-2)
+                   in if c == z && candidateMatch 0 then i : scan (i + nlen)
+                      else                               scan (i + delta)
+        in scan 0
   where
     ldiff    = hlen - nlen
     -- nlast    = nlen - 1
@@ -101,10 +119,10 @@ indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
     --                 | otherwise     = 1
     --             where nextInPattern = mask .&. swizzle (hindex' (i+nlen)) == 0
     --           !(mask :* skip)       = buildTable 0 0 (nlen-2)
-    -- scanOne c = loop 0
-    --     where loop !i | i >= hlen     = []
-    --                   | hindex i == c = i : loop (i+1)
-    --                   | otherwise     = loop (i+1)
+    scanOne c = loop 0
+        where loop !i | i >= hlen     = []
+                      | index _haystack i == c = i : loop (i+1)
+                      | otherwise     = loop (i+1)
 {- INLINE indices #-}
 
 {-@ buildTable :: pat:{v:Data.Text.Internal.Text | (tlen v) > 1}
@@ -124,98 +142,6 @@ buildTable pat@(Text narr noff nlen) !i !msk !skp
           c                = index pat i
 
 swizzle k = 1 `shiftL` (fromIntegral k .&. 0x3f)
-
-{-@ delta :: pat:{v:Data.Text.Internal.Text | (tlen v) > 1}
-          -> src:{v:Data.Text.Internal.Text | (tlen v) >= (tlen pat)}
-          -> i:{v:Int | (BtwnI v 0 ((tlen src) - (tlen pat)))}
-          -> Word16
-          -> Word16
-          -> {v:Int | (BtwnI v 1 ((tlen pat) + 1))}
-  @-}
-delta :: Text -> Text -> Int -> Word16 -> Word16 -> Int
-delta pat@(Text narr noff nlen) src i c z
-    | nextInPattern = nlen + 1
-    | c == z        = skip + 1
-    | otherwise     = 1
-    where nextInPattern = mask .&. swizzle (index' src (i+nlen)) == 0
-          !(mask `T` skip)      = buildTable pat 0 0 (nlen-2)
-
-
-{-@ scan :: pat:{v:Data.Text.Internal.Text | (tlen v) > 1}
-         -> src:{v:Data.Text.Internal.Text | (tlen v) >= (tlen pat)}
-         -> i:{v:Int | v >= 0}
-         -> [{v:Int | (BtwnI (v) (i) ((tlen src) - (tlen pat)))}]<{\ix iy ->
-             (ix+(tlen pat)) <= iy}>
-  @-}
-scan :: Text -> Text -> Int -> [Int]
-scan pat@(Text narr noff nlen) src@(Text harr hoff hlen) !i
-    | i > ldiff = []
-    | otherwise = let nlast = nlen - 1
-                      z = index pat nlast
-                      c = index src (i + nlast)
-                      -- buildTable !i !msk !skp
-                      --     | i >= nlast           = (msk .|. swizzle z) :* skp
-                      --     | otherwise            = buildTable (i+1) (msk .|. swizzle c) skp'
-                      --     where c                = index pat i
-                      --           skp' | c == z    = nlen - i - 2
-                      --                | otherwise = skp
-                      candidateMatch !j
-                            | j >= nlast               = True
-                            | index src (i+j) /= index pat j = False
-                            | otherwise                = candidateMatch (j+1)
-                      -- delta | nextInPattern = nlen + 1
-                      --       | c == z        = skip + 1
-                      --       | otherwise     = 1
-                      --   where nextInPattern = mask .&. swizzle (index' src (i+nlen)) == 0
-                      -- !(mask `T` skip)      = buildTable pat 0 0 (nlen-2)
-                  in if c == z && candidateMatch 0
-                     then i : scan pat src (i + nlen)
-                     else scan pat src (i + delta pat src i c z)
-    where ldiff = hlen - nlen
-          -- nlast = nlen - 1
-          -- z = index pat nlast
-          -- c = index src (i + nlast)
-          -- buildTable !i !msk !skp
-          --     | i >= nlast           = (msk .|. swizzle z) :* skp
-          --     | otherwise            = buildTable (i+1) (msk .|. swizzle c) skp'
-          --     where c                = index pat i
-          --           skp' | c == z    = nlen - i - 2
-          --                | otherwise = skp
-          -- candidateMatch !j
-          --       | j >= nlast               = True
-          --       | index src (i+j) /= index pat j = False
-          --       | otherwise                = candidateMatch (j+1)
-          -- delta | nextInPattern = nlen + 1
-          --       | c == z        = skip + 1
-          --       | otherwise     = 1
-          --   where nextInPattern = mask .&. swizzle (index' src (i+nlen)) == 0
-          -- !(mask :* skip)       = buildTable 0 0 (nlen-2)
-
-{-@ scanOne :: pat:{v:Data.Text.Internal.Text | (tlen v) = 1}
-            -> src:{v:Data.Text.Internal.Text | (tlen v) >= (tlen pat)}
-            -> Word16
-            -> [{v:Int | (Btwn v 0 (tlen src))}]<{\ix iy ->
-                (ix+(tlen pat)) <= iy}>
-  @-}
-scanOne :: Text -> Text -> Word16 -> [Int]
-scanOne pat src c = scanOne_loop pat src c 0
-    -- where loop !i | i >= hlen     = []
-    --               | hindex i == c = i : loop (i+1)
-    --               | otherwise     = loop (i+1)
-
-{-@ scanOne_loop :: pat:{v:Data.Text.Internal.Text | (tlen v) = 1}
-                 -> src:{v:Data.Text.Internal.Text | (tlen v) >= (tlen pat)}
-                 -> Word16
-                 -> i:{v:Int | (BtwnI v 0 (tlen src))}
-                 -> [{v:Int | (Btwn (v) (i) (tlen src))}]<{\ix iy ->
-                     (ix+(tlen pat)) <= iy}>
-  @-}
-scanOne_loop :: Text -> Text -> Word16 -> Int -> [Int]
-scanOne_loop pat src@(Text _ _ hlen) c !i
-    | i >= hlen     = []
-    | index src i == c = i : scanOne_loop pat src c (i+1)
-    | otherwise     = scanOne_loop pat src c (i+1)
-
 
 {-@ index :: t:Data.Text.Internal.Text
           -> k:{v:Int | (Btwn v 0 (tlen t))}
