@@ -9,3 +9,5 @@ qualif LTLenComb(v:Data.Text.Lazy.Internal.Text, ~A:Data.Text.Lazy.Internal.Text
 
 qualif SumLTLengths(v:Data.Text.Lazy.Internal.Text, ts:List Data.Text.Lazy.Internal.Text) : (ltlength v) [ = ; < ; <= ] (sum_ltlengths ts)
 qualif SumLTLengthsDiff(v:Data.Text.Lazy.Internal.Text, ts:List Data.Text.Lazy.Internal.Text, t:Data.Text.Lazy.Internal.Text) : (ltlength v) = ((sum_ltlengths ts) [ + ; - ] (ltlength t))
+
+qualif LTLengthList(v:Data.Text.Lazy.Internal.Text, l:List a) : (ltlength v) = (len l)

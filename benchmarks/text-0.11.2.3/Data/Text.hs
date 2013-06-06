@@ -577,8 +577,7 @@ last (Text arr off len)
 tail :: Text -> Text
 tail t@(Text arr off len)
     | len <= 0   = liquidError "tail"
---LIQUID    | otherwise  = textP arr (off+d) len'
-    | otherwise  = Text arr (off+d) len'
+    | otherwise  = textP arr (off+d) len'
     where d = iter_ t 0
           len' = liquidAssume (axiom_numchars_split t d) (len-d)
 {-# INLINE [1] tail #-}
@@ -620,7 +619,7 @@ init t@(Text arr off len)
 null :: Text -> Bool
 null (Text _arr _off len) =
 --LIQUID #if defined(ASSERTS)
---LIQUID    assert (len >= 0) $
+    liquidAssert (len >= 0) $
 --LIQUID #endif
     len <= 0
 {-# INLINE [1] null #-}
@@ -909,7 +908,6 @@ center k c t
 -- of its 'Text' argument.  Note that this function uses 'pack',
 -- 'unpack', and the list version of transpose, and is thus not very
 -- efficient.
---LIQUID FIXME: can i say anything here?
 transpose :: [Text] -> [Text]
 transpose ts = P.map pack (L.transpose (P.map unpack ts))
 
@@ -1020,7 +1018,7 @@ concat_filter (t@(Text arr off len):ts)
     | otherwise = t : concat_filter ts
 
 {-@ concat_sumP :: String
-                -> ts:{v:[{v0:Text | (tlen v0) > 0}] | (len v) > 0}
+                -> ts:{v:[NonEmptyStrict] | (len v) > 0}
                 -> {v:Int | ((v = (sum_tlens ts)) && (v > 0))}
   @-}
 concat_sumP :: String -> [Text] -> Int
@@ -1034,10 +1032,13 @@ concat_sumP fun (t:ts) = concat_sumP_go fun 0 (t:ts)
 
 {-@ concat_sumP_go :: String
                    -> a:{v:Int | v >= 0}
-                   -> ts:{v:[{v0:Text | (tlen v0) > 0}] | (a + (sum_tlens v)) > 0}
+                   -> ts:{v:[NonEmptyStrict] | (a + (sum_tlens v)) > 0}
                    -> {v:Int | ((v = (a + (sum_tlens ts))) && (v > 0))}
   @-}
 concat_sumP_go :: String -> Int -> [Text] -> Int
+--LIQUID FIXME: we fail to infer the type of this function even with appropriate qualifiers..
+--LIQUID        probably related to the fact that `l` doesn't get a >0 refinement even though
+--LIQUID        we require the `Text`s to be non-empty
 concat_sumP_go fun !a (Text _ _ l : xs)
     | ax >= 0   = concat_sumP_go fun ax xs
     | otherwise = overflowError fun
@@ -1243,27 +1244,17 @@ take :: Int -> Text -> Text
 take n t@(Text arr off len)
     | n <= 0    = empty
     | n >= len  = t
-    | otherwise = loop_take n t 0 0 --LIQUID Text arr off len'
- where
+    | otherwise = loop 0 0 --LIQUID Text arr off len'
+  where
      --LIQUID len' = loop_take n t 0 0
      --LIQUID loop !i !cnt
      --LIQUID      | i >= len || cnt >= n = i
      --LIQUID      | otherwise            = loop (i+d) (cnt+1)
      --LIQUID      where d = iter_ t i
-
-{-@ loop_take :: n:{v:Int | v >= 0}
-              -> t:Data.Text.Internal.Text
-              -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
-              -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
-                               && (v <= n) && (v <= (tlength t)))}
-              -> {v:Data.Text.Internal.Text | (Min (tlength v) (tlength t) n)}
-  @-}
-loop_take :: Int -> Text -> Int -> Int -> Text
-loop_take n t@(Text arr off len) !i !cnt
-     | i >= len || cnt >= n = Text arr off i
-     | otherwise            = let d = iter_ t i
-                                  cnt' = cnt + 1
-                              in loop_take n t (i+d) cnt'
+     loop !i !cnt
+          | i >= len || cnt >= n = Text arr off i
+          | otherwise            = let d = iter_ t i
+                                   in loop (i+d) (cnt+1)
 {-# INLINE [1] take #-}
 
 {-# RULES
@@ -1285,27 +1276,16 @@ drop n t@(Text arr off len)
     --LIQUID rearrange checks to ease typechecking
     | n >= len  = empty
     | n <= 0    = t
-    | otherwise = loop_drop t n 0 0
-  --LIQUID where loop !i !cnt
-  --LIQUID           | i >= len || cnt >= n   = Text arr (off+i) (len-i)
-  --LIQUID           | otherwise              = let d = iter_ t i
-  --LIQUID                                      in loop (i+d) (cnt+1)
-  --LIQUID          where d = iter_ t i
-
-{-@ loop_drop :: t:Data.Text.Internal.Text
-              -> n:{v:Int | ((v >= 0) && (v < (tlen t)))}
-              -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
-              -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
-                            && (v <= n))}
-              -> {v:Data.Text.Internal.Text | ((tlength v) = (((tlength t) <= n) ? 0 : ((tlength t) - n)))}
-  @-}
-loop_drop :: Text -> Int -> Int -> Int -> Text
-loop_drop t@(Text arr off len) n !i !cnt
-    | i >= len || cnt >= n   = let len' = liquidAssume (axiom_numchars_split t i) (len-i)
-                                   t' = Text arr (off+i) len'
-                               in t'
-    | otherwise              = let d = iter_ t i
-                               in loop_drop t n (i+d) (cnt+1)
+    | otherwise = loop 0 0
+    -- where loop !i !cnt
+    --           | i >= len || cnt >= n   = Text arr (off+i) (len-i)
+    --           | otherwise              = loop (i+d) (cnt+1)
+    --           where d = iter_ t i
+    where loop !i !cnt
+              | i >= len || cnt >= n   = let len' = liquidAssume (axiom_numchars_split t i) (len-i)
+                                         in Text arr (off+i) len'
+              | otherwise              = let d = iter_ t i
+                                         in loop (i+d) (cnt+1)
 {-# INLINE [1] drop #-}
 
 {-# RULES
