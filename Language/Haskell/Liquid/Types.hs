@@ -499,6 +499,7 @@ data DataDecl   = D { tycName   :: String                           -- ^ Type  C
                     , tycTyVars :: [String]                         -- ^ Tyvar Parameters
                     , tycPVars  :: [PVar BSort]                     -- ^ PVar  Parameters
                     , tycDCons  :: [(String, [(String, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]   
+                    , tycSrcPos :: !SourcePos                       -- ^ Source Position
                     }
      --              deriving (Show) 
 

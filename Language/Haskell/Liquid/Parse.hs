@@ -153,12 +153,16 @@ bareFunP
        return $ bareArrow b t1 a t2 
 
 dummyBindP 
-  = stringSymbol <$> positionNameP -- (return dummyBind) -- (positionNameP)
+  = tempSymbol "db" <$> freshIntP
+
+  -- = stringSymbol <$> positionNameP 
+
+
+
 
 bbindP = lowerIdP <* dcolon 
 
 bindP  = liftM stringSymbol (lowerIdP <* colon)
-
 
 bareArrow b t1 ArrowFun t2
   = rFun b t1 t2
@@ -361,7 +365,7 @@ measureP
   = do (x, ty) <- tyBindP  
        whiteSpace
        eqns    <- grabs $ measureDefP $ (rawBodyP <|> tyBodyP ty)
-       return   $ Measure.mkM x ty eqns   
+       return   $ Measure.mkM x ty eqns 
 
 rawBodyP 
   = braces $ do
@@ -448,7 +452,8 @@ dataConP
        return (x, xts)
 
 dataDeclP
-  = do x   <- upperIdP
+  = do pos <- getPosition
+       x   <- upperIdP
        spaces
        ts  <- sepBy tyVarIdP spaces
        ps  <- predVarDefsP
@@ -457,7 +462,7 @@ dataDeclP
        whiteSpace
        -- spaces
        -- reservedOp "--"
-       return $ D x ts ps dcs
+       return $ D x ts ps dcs pos
 
 ---------------------------------------------------------------------
 ------------ Interacting with Fixpoint ------------------------------
