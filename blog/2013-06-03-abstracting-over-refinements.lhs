@@ -96,16 +96,16 @@ produced an RGB value!
 intenser c1 c2 = maxInt c1 c2
 \end{code}
 
-Well, guess what. The first one would tell us that the output was
-non-negative, losing the upper bound. The second one would cause
-LiquidHaskell to bellyache about `maxInt` being called with improper
-arguments -- muttering darkly that an RGB value is not necesarily 
-less than `10`. As for the third type ... well, you get the idea.
+Well, guess what. The first type (with `v >= 0`) one would tell us that 
+the output was non-negative, losing the upper bound. The second type (with
+`v < 10`) would cause LiquidHaskell to bellyache about `maxInt` being 
+called with improper arguments -- muttering darkly that an RGB value 
+is not necesarily less than `10`. As for the third type ... well, you get the idea.
 
 So alas, the choice of type *does* matter. 
 
 \begin{code} If we were clairvoyant, we would give `maxInt` a type like
-{- maxInt :: RGB -> RGB -> RGB -}
+maxInt :: RGB -> RGB -> RGB 
 \end{code}
 
 but of course, that has its own issues. ("What? I have to write a
@@ -161,7 +161,6 @@ By the same reasoning, we can define the `maximumInt` operator on lists:
 
 \begin{code}
 {-@ maximumInt :: forall <p :: Int -> Prop>. x:[Int <p>] -> Int <p>@-}
-maximumInt ::  [Int] -> Int 
 maximumInt (x:xs) = foldr maxInt x xs
 \end{code}
 
