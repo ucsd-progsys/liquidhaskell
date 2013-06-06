@@ -6,3 +6,6 @@ qualif LTLenCmp(v:Data.Text.Lazy.Internal.Text, ~A: int)  : ~A [ = ; >= ; > ; < 
 qualif LTLenAcc(v:int, ~A:Data.Text.Lazy.Internal.Text, ~B: int): v = ltlength([~A]) + ~B
 qualif LTLenDiff(v:Data.Text.Lazy.Internal.Text, ~A:int): ltlength([v]) = (~A [ + ; - ] 1)
 qualif LTLenComb(v:Data.Text.Lazy.Internal.Text, ~A:Data.Text.Lazy.Internal.Text, ~B:Data.Text.Lazy.Internal.Text): ltlength([v]) = (ltlength([~A]) [ + ; - ] ltlength([~B]))
+
+qualif SumLTLengths(v:Data.Text.Lazy.Internal.Text, ts:List Data.Text.Lazy.Internal.Text) : (ltlength v) [ = ; < ; <= ] (sum_ltlengths ts)
+qualif SumLTLengthsDiff(v:Data.Text.Lazy.Internal.Text, ts:List Data.Text.Lazy.Internal.Text, t:Data.Text.Lazy.Internal.Text) : (ltlength v) = ((sum_ltlengths ts) [ + ; - ] (ltlength t))
