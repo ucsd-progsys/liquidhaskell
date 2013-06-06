@@ -830,13 +830,8 @@ center k c t
               -> [{v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}]
   @-}
 transpose :: [Text] -> [Text]
-transpose ts = L.map transpose_map --LIQUID (\ss -> Chunk (T.pack ss) Empty)
+transpose ts = L.map (\ss -> Chunk (T.pack ss) Empty)
                      (L.transpose (L.map unpack ts))
-
-{-@ transpose_map :: s:{v:String | (len v) > 0}
-                  -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (len s)}
-  @-}
-transpose_map ss = Chunk (T.pack ss) Empty
 -- TODO: make this fast
 
 -- | /O(n)/ 'reverse' @t@ returns the elements of @t@ in reverse order.
