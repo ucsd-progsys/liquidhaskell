@@ -54,10 +54,11 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
 -- LIQUID #endif
 -- LIQUID              )
 
-{-@ data ByteString = Empty 
-                    | Chunk { h :: {v: S.ByteString | (bLength v) > 0} 
-                            , t :: ByteString 
-                            } 
+{-@ type NonEmptyStrict = {v : Data.ByteString.Internal.ByteString | 0 < (bLength v) } @-}
+
+{-@ data Data.ByteString.Lazy.Internal.ByteString 
+         = Empty 
+         | Chunk (b :: NonEmptyStrict) (cs :: Data.ByteString.Lazy.Internal.ByteString) 
   @-}
 
 ------------------------------------------------------------------------
@@ -72,7 +73,7 @@ liquidCanary x   = x - 1
 -- All functions must preserve this, and the QC properties must check this.
 --
 
-{-@ invt :: ByteString -> {v: Bool | (Prop v)}  @-}
+{-@ invt :: Data.ByteString.Lazy.Internal.ByteString -> {v: Bool | (Prop v)}  @-}
 invt :: ByteString -> Bool
 invt Empty                     = True 
 invt (Chunk (S.PS _ _ len) cs) = len > 0 && invt cs
