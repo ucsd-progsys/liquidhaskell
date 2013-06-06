@@ -23,15 +23,16 @@ var allDemos =
     "UniqueZipper.hs"       : { "name" : "Unique Zippers"   , "type" : "measure"},
     "LambdaEval.hs"         : { "name" : "Lambda Eval"      , "type" : "measure"}, 
     "treesum.hs"            : { "name" : "List-Tree Sum"    , "type" : "measure"},
-    // "ListLength.hs"     : { "name" : "List Lengths"     , "type" : "measure"},
-    // "MapReduce.hs"      : { "name" : "Map Reduce"       , "type" : "measure"}, 
-    // "ListElts.hs"           : { "name" : "List Elements"    , "type" : "measure"}, 
+    // "ListLength.hs"     : { "name" : "List Lengths"      , "type" : "measure"},
+    // "MapReduce.hs"      : { "name" : "Map Reduce"        , "type" : "measure"}, 
+    // "ListElts.hs"           : { "name" : "List Elements" , "type" : "measure"}, 
 
     // Abstract Refinement Demos
     "absref101.hs"      : { "name" : "Parametric Invariants", "type" : "absref" },  
-    "ListSort.hs"       : { "name" : "Sorting Lists"    , "type" : "absref" },
-    "Map.hs"            : { "name" : "BinSearch Tree"   , "type" : "absref" },
-    "Foldr.hs"          : { "name" : "Induction"        , "type" : "absref" }
+    "ListSort.hs"       : { "name" : "Sorting Lists"        , "type" : "absref" },
+    "Map.hs"            : { "name" : "BinSearch Tree"       , "type" : "absref" },
+    "Foldr.hs"          : { "name" : "Induction"            , "type" : "absref" },
+    "IMaps.hs"          : { "name" : "Indexed Maps"         , "type" : "absref" }
   };
 
 
