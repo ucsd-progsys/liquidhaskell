@@ -232,14 +232,11 @@ execBare act benv =
         Left s  -> errorstar $ "execBare: " ++ s
         Right x -> return x
 
-
 wrapErr msg f x = yesStack 
   where
     noStack     = f x
     yesStack    = noStack `catchError` \e -> throwError $ str e
-    str e       = printf "Bare Error [%s]: \nThrows Exception: %s\n" msg e
-     
-     -- str e   = "Bare Error " ++ "[" ++ msg ++ "]" ++ showpp x ++ "(" ++ e ++ ")"
+    str e       = printf "Bare Error %s: \nThrows Exception: %s\n" msg e
 
 ------------------------------------------------------------------
 ------------------- API: Bare Refinement Types -------------------
@@ -593,7 +590,7 @@ mkMeasureSort (Ms.MSpec cm mm)
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> 
       liftM (\s' -> m {Ms.sort = s'}) (ofBareType' (msg m) (Ms.sort m))
     where 
-      msg m = berrMeasure (loc $ Ms.name m) m -- (Ms.name m) (Ms.sort m) 
+      msg m = berrMeasure (loc $ Ms.name m) (Ms.name m) (Ms.sort m) 
 
 
 
@@ -703,7 +700,7 @@ checkGhcSpec sp      =  applyNonNull sp specError errors
     env              =  ghcSpecEnv sp
     emb              =  tcEmbeds sp
     errors           =  mapMaybe (checkBind "variable"         emb env) (tySigs     sp)
---                      ++ mapMaybe (checkBind "data constructor" emb env) (ctor       sp)
+                     ++ mapMaybe (checkBind "data constructor" emb env) (ctor       sp)
                      ++ mapMaybe (checkBind "measure"          emb env) (meas       sp)
                      ++ mapMaybe (checkInv  emb env)                    (invariants sp)
                      ++ mapMaybe checkMismatch                          (tySigs     sp)
@@ -886,5 +883,5 @@ berrVarSpec   l v b  = printf "[%s]\nCannot convert\n    %s :: %s"
                          (showpp l) (showpp v) (showpp b)
 berrInvariant l i    = printf "[%s]\nCannot convert invariant\n    %s" 
                          (showpp l) (showpp i)
-berrMeasure   l m    = printf "[%s] Cannot convert measure\n %s" 
-                         (showpp l) (showpp m)
+berrMeasure   l x t  = printf "[%s]\nCannot convert measure %s :: %s" 
+                         (showpp l) (showpp x) (showpp t)
