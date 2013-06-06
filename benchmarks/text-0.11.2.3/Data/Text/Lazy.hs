@@ -977,26 +977,12 @@ foldr1 f t = S.foldr1 f (stream t)
            -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (sum_ltlengths ts)}
   @-}
 concat :: [Text] -> Text
-concat = concat_to
---LIQUID concat = to
---LIQUID   where
---LIQUID     go Empty        css = to css
---LIQUID     go (Chunk c cs) css = Chunk c (go cs css)
---LIQUID     to []               = Empty
---LIQUID     to (cs:css)         = go cs css
-
-{-@ concat_go :: t:Data.Text.Lazy.Internal.Text
-              -> ts:[Data.Text.Lazy.Internal.Text]
-              -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = ((sum_ltlengths ts) + (ltlength t)))}
-  @-}
-concat_go Empty        css = concat_to css
-concat_go (Chunk c cs) css = Chunk c (concat_go cs css)
-
-{-@ concat_to :: ts:[Data.Text.Lazy.Internal.Text]
-              -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (sum_ltlengths ts)}
-  @-}
-concat_to []               = Empty
-concat_to (cs:css)         = concat_go cs css
+concat = to
+  where
+    go Empty        css = to css
+    go (Chunk c cs) css = Chunk c (go cs css)
+    to []               = Empty
+    to (cs:css)         = go cs css
 {-# INLINE concat #-}
 
 -- | /O(n)/ Map a function over a 'Text' that results in a 'Text', and
@@ -1498,25 +1484,12 @@ breakOnAll :: Text              -- ^ @needle@ to search for
            -> [(Text, Text)]
 breakOnAll pat src
     | null pat  = liquidError "breakOnAll"
-    | otherwise = breakOnAll_go (splitOn_fold pat) 0 empty src (indices pat src)
---LIQUID   where
---LIQUID     go !n p s (x:xs) = let h :*: t = splitAtWord (x-n) s
---LIQUID                            h'      = append p h
---LIQUID                        in (h',t) : go x h' t xs
---LIQUID     go _  _ _ _      = []
-
-{-@ breakOnAll_go :: l:{v:Int64 | v >= 0}
-                  -> n:{v:Int64 | v >= 0}
-                  -> p:Text
-                  -> s:Text
-                  -> is:[{v:Int64 | v >= n}]<{\ix iy -> (ix+l) <= iy}>
-                  -> [(Text, Text)]
-  @-}
-breakOnAll_go :: Int64 -> Int64 -> Text -> Text -> [Int64] -> [(Text, Text)]
-breakOnAll_go l !n p s (x:xs) = let h :*: t = splitAtWord (x-n) s
-                                    h'      = append p h
-                                in (h',t) : breakOnAll_go l x h' t xs
-breakOnAll_go _ _  _ _ _      = []
+    | otherwise = go (ltlen pat) 0 empty src (indices pat src)
+  where
+    go l !n p s (x:xs) = let h :*: t = splitAtWord (x-n) s
+                             h'      = append p h
+                         in (h',t) : go l x h' t xs
+    go l _  _ _ _      = []
 
 -- | /O(n)/ 'break' is like 'span', but the prefix returned is over
 -- elements that fail the predicate @p@.
@@ -1686,18 +1659,18 @@ splitOn pat src
     | isSingleton pat = split (== head pat) src
     | otherwise       = splitOn_go l 0 (indices pat src) src
   where
-    go  _ []     cs = [cs]
-    go !i (x:xs) cs = let h :*: t = splitAtWord (x-i) cs
-                      in  h : go (x+l) xs (dropWords l t)
+    -- go  _ []     cs = [cs]
+    -- go !i (x:xs) cs = let h :*: t = splitAtWord (x-i) cs
+    --                   in  h : go (x+l) xs (dropWords l t)
     --LIQUID l = foldlChunks (\a (T.Text _ _ b) -> a + fromIntegral b) 0 pat
-    l = splitOn_fold pat
+    l = ltlen pat
 
-{-@ splitOn_fold :: t:Data.Text.Internal.Lazy.Text
+{-@ ltlen :: t:Data.Text.Internal.Lazy.Text
                  -> {v:Int64 | ((v = (ltlen t)) && (v >= 0))}
   @-}
-splitOn_fold :: Text -> Int64
-splitOn_fold Empty                     = 0
-splitOn_fold (Chunk (T.Text _ _ l) ts) = fromIntegral l + splitOn_fold ts
+ltlen :: Text -> Int64
+ltlen Empty                     = 0
+ltlen (Chunk (T.Text _ _ l) ts) = fromIntegral l + ltlen ts
 
 {-@ splitOn_go :: l:{v:Int64 | v >= 0}
                -> i:{v:Int64 | v >= 0}

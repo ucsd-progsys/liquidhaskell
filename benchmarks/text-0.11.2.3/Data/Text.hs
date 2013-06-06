@@ -263,14 +263,13 @@ iter = P.undefined
 
 {-@ reverseIter :: t:Data.Text.Internal.Text
                 -> i:{v:Int | (Btwn v 0 (tlen t))}
-                -> l:{v:Int | (BtwnEI v 0 (tlen t))}
-                -> (Char,{v:Int | ((Btwn (l+v) 0 l)
-                          && ((numchars (tarr t) (toff t) (l+v))
-                              = ((numchars (tarr t) (toff t) l) - 1))
-                          && ((numchars (tarr t) (toff t) (l+v))
+                -> (Char,{v:Int | ((Btwn ((i+1)+v) 0 (i+1))
+                          && ((numchars (tarr t) (toff t) ((i+1)+v))
+                              = ((numchars (tarr t) (toff t) (i+1)) - 1))
+                          && ((numchars (tarr t) (toff t) ((i+1)+v))
                               >= -1))})
   @-}
-reverseIter :: Text -> Int -> Int -> (Char,Int)
+reverseIter :: Text -> Int -> (Char,Int)
 reverseIter = P.undefined
 
 {-@ iter_d :: i:Data.Text.Unsafe.Iter -> {v:Int | v = (iter_d i)} @-}
@@ -1418,7 +1417,7 @@ dropWhileEnd p t@(Text arr off len) = loop_dropWhileEnd t p len (len-1) (length 
 loop_dropWhileEnd :: Text -> (Char -> Bool) -> Int -> Int -> Int -> Text
 loop_dropWhileEnd t@(Text arr off len) p !l !i cnt
     = if l <= 0  then empty
-      else let (c,d) = reverseIter t i l
+      else let (c,d) = reverseIter t i
            in if p c then loop_dropWhileEnd t p (l+d) (i+d) (cnt-1)
               else Text arr off l
 {-# INLINE [1] dropWhileEnd #-}

@@ -122,16 +122,15 @@ iter_ (Text arr off _len) i | m < 0xD800 || m > 0xDBFF = 1
 -- negative number) to give the next offset to iterate at.
 {-@ reverseIter :: t:Data.Text.Internal.Text
                 -> i:{v:Int | (Btwn v 0 (tlen t))}
-                -> l:{v:Int | ((BtwnEI v 0 (tlen t)) && (v = (i+1)))}
-                -> (Char,{v:Int | ((Btwn (l+v) 0 l)
-                          && ((numchars (tarr t) (toff t) (l+v))
-                              = ((numchars (tarr t) (toff t) l) - 1))
-                          && ((numchars (tarr t) (toff t) (l+v)) >= -1))})
+                -> (Char,{v:Int | ((Btwn ((i+1)+v) 0 (i+1))
+                          && ((numchars (tarr t) (toff t) ((i+1)+v))
+                              = ((numchars (tarr t) (toff t) (i+1)) - 1))
+                          && ((numchars (tarr t) (toff t) ((i+1)+v)) >= -1))})
   @-}
 --LIQUID reverseIter :: Text -> Int -> (Char,Int)
 --LIQUID reverseIter (Text arr off _len) i
-reverseIter :: Text -> Int -> Int -> (Char,Int)
-reverseIter (Text arr off _len) i l
+reverseIter :: Text -> Int -> (Char,Int)
+reverseIter (Text arr off _len) i
     | m < 0xDC00 || m > 0xDFFF = let d = (neg 1)
                                  in (unsafeChr m, d)
     | otherwise                = let d = (neg 2)

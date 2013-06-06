@@ -33,6 +33,10 @@ import GHC.Exts (Char(..), Int(..), chr#, ord#, word2Int#)
 import GHC.Word (Word8(..), Word16(..), Word32(..))
 import qualified Data.Text.Array as A
 
+--LIQUID
+import qualified Data.Text.Array
+import Language.Haskell.Liquid.Prelude
+
 ord :: Char -> Int
 ord (C# c#) = I# (ord# c#)
 {-# INLINE ord #-}
@@ -51,18 +55,23 @@ unsafeChr32 (W32# w#) = C# (chr# (word2Int# w#))
 
 -- | Write a character into the array at the given offset.  Returns
 -- the number of 'Word16's written.
+{-@ unsafeWrite :: ma:Data.Text.Array.MArray s
+                -> {v:Int | (Btwn v 0 ((malen ma) - 1))}
+                -> Char
+                -> GHC.ST.ST s Int
+  @-}
 unsafeWrite :: A.MArray s -> Int -> Char -> ST s Int
 unsafeWrite marr i c
     | n < 0x10000 = do
-#if defined(ASSERTS)
-        assert (i >= 0) . assert (i < A.length marr) $ return ()
-#endif
+-- #if defined(ASSERTS)
+        liquidAssert (i >= 0) . liquidAssert (i < A.maLen marr) $ return ()
+-- #endif
         A.unsafeWrite marr i (fromIntegral n)
         return 1
     | otherwise = do
-#if defined(ASSERTS)
-        assert (i >= 0) . assert (i < A.length marr - 1) $ return ()
-#endif
+-- #if defined(ASSERTS)
+        liquidAssert (i >= 0) . liquidAssert (i < A.maLen marr - 1) $ return ()
+-- #endif
         A.unsafeWrite marr i lo
         A.unsafeWrite marr (i+1) hi
         return 2
