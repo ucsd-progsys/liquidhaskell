@@ -31,12 +31,12 @@ TODO
     - remove `toType` and  generalize `typeSort` to work for all RefTypables
 
 
-Module Import <---------------------------------- HEREHEREHEREHEREHERE
+Module Import 
 =============
 
 See tests/pos/Mod2.hs [Which imports a measure from Mod1.hs]
 
-    liquid Mod2.hs
+    liquid Mod2.hs <---------------------------------- HEREHEREHEREHEREHERE
 
 * what is gross error message?
 
