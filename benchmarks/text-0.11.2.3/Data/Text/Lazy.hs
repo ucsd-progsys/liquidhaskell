@@ -1556,7 +1556,7 @@ inits' t0@(Chunk t ts) = let (t':ts') = T.inits t
 
 {-@ inits_map1 :: t0:NonEmptyStrict
         -> t:Data.Text.Internal.Text
-        -> ts:[{v:NonEmptyStrict | (BtwnEI (tlength v) (tlength t) (tlength t0))}]<{\tx ty -> ((tlength tx) < (tlength ty))}>
+        -> ts:[{v:Data.Text.Internal.Text | (BtwnEI (tlength v) (tlength t) (tlength t0))}]<{\tx ty -> ((tlength tx) < (tlength ty))}>
         -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (tlength t) (tlength t0))}]<{\lx ly -> ((ltlength lx) < (ltlength ly))}>
   @-}
 inits_map1 :: T.Text -> T.Text -> [T.Text] -> [Text]

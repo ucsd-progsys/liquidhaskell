@@ -20,7 +20,7 @@ measure sum_tlens :: [Data.Text.Internal.Text] -> Int
 sum_tlens ([]) = 0
 sum_tlens (t:ts) = (tlen t) + (sum_tlens ts)
 
-type NonEmptyStrict = {v:Data.Text.Internal.Text | (((tlength v) > 0) && ((tlen v) > 0))}
+type NonEmptyStrict = {v:Data.Text.Internal.Text | (tlen v) > 0}
 
 measure numchars :: Data.Text.Array.Array -> Int -> Int -> Int
 
@@ -29,6 +29,7 @@ invariant {v:Data.Text.Internal.Text | (numchars (tarr v) (toff v) (tlen v)) >= 
 invariant {v:Data.Text.Internal.Text | (numchars (tarr v) (toff v) (tlen v)) <= (tlen v)}
 
 invariant {v:Data.Text.Internal.Text | (((tlength v) = 0) <=> ((tlen v) = 0))}
+invariant {v:Data.Text.Internal.Text | (((tlength v) > 0) <=> ((tlen v) > 0))}
 invariant {v:Data.Text.Internal.Text | (tlength v) >= 0}
 
 invariant {v:[Data.Text.Internal.Text] | (sum_tlens v) >= 0}

@@ -1303,25 +1303,16 @@ drop n t@(Text arr off len)
               -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
   @-}
 takeWhile :: (Char -> Bool) -> Text -> Text
-takeWhile p t@(Text arr off len) = loop_takeWhile t p 0 0
+takeWhile p t@(Text arr off len) = loop 0 0
 --LIQUID  where loop !i | i >= len    = t
 --LIQUID                | p c         = loop (i+d)
 --LIQUID                | otherwise   = textP arr off i
 --LIQUID            where Iter c d    = iter t i
-
-{-@ loop_takeWhile :: t:Data.Text.Internal.Text
-                   -> p:(Char -> Bool)
-                   -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
-                   -> cnt:{v:Int | ((v = (numchars (tarr t) (toff t) i)) && (v <= (tlength t)))}
-                   -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
-  @-}
-loop_takeWhile :: Text -> (Char -> Bool) -> Int -> Int -> Text
-loop_takeWhile t@(Text arr off len) p !i cnt
-    = if i >= len then t
-      else let it@(Iter c _) = iter t i
-               d = iter_d it
-           in if p c then loop_takeWhile t p (i+d) (cnt+1)
-              else        Text arr off i
+  where loop !i cnt = if i >= len then t
+                      else let it@(Iter c _) = iter t i
+                               d = iter_d it
+                           in if p c then loop (i+d) (cnt+1)
+                              else        Text arr off i
 {-# INLINE [1] takeWhile #-}
 
 {-# RULES
@@ -1457,39 +1448,28 @@ strip = dropAround isSpace
 -- the string. It is equivalent to @('take' n t, 'drop' n t)@.
 {-@ splitAt :: n:{v:Int | v >= 0}
             -> t:Data.Text.Internal.Text
-            -> (Data.Text.Internal.Text, Data.Text.Internal.Text)<{\x y ->
-                              ((Min (tlength x) (tlength t) n)
-                              && ((tlength y) = ((tlength t) - (tlength x))))}>
+            -> ( {v:Data.Text.Internal.Text | (Min (tlength v) (tlength t) n)}
+               , Data.Text.Internal.Text)<{\x y ->
+                              ((tlength y) = ((tlength t) - (tlength x)))}>
   @-}
 splitAt :: Int -> Text -> (Text, Text)
 splitAt n t@(Text arr off len)
     | n <= 0    = (empty, t)
     | n >= len  = (t, empty)
-    | otherwise = let k = loop_splitAt t n 0 0
-                      len' = liquidAssume (axiom_numchars_split t k) (len-k)
-                  in ( Text arr off k
-                     , Text arr (off+k) len')
+    | otherwise = loop 0 0
 --LIQUID    | otherwise = (Text arr off k, Text arr (off+k) (len-k))
 --LIQUID  where k = loop_splitAt t n 0 0
 --LIQUID        loop !i !cnt
 --LIQUID            | i >= len || cnt >= n = i
 --LIQUID            | otherwise            = loop (i+d) (cnt+1)
 --LIQUID            where d                = iter_ t i
-
-{-@ loop_splitAt :: t:Data.Text.Internal.Text
-              -> n:{v:Int | ((v >= 0) && (v < (tlen t)))}
-              -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
-              -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
-                              && (v <= n) && (v <= (tlength t)))}
-              -> {v:Int | ((Min (numchars (tarr t) (toff t) v) (tlength t) n)
-                          && (BtwnI v 0 (tlen t)))}
-  @-}
-loop_splitAt :: Text -> Int -> Int -> Int -> Int
-loop_splitAt t@(Text arr off len) n !i !cnt
-     | i >= len || cnt >= n = i
-     | otherwise            = let d = iter_ t i
-                                  cnt' = cnt + 1
-                              in loop_splitAt t n (i+d) cnt'
+    where loop !i !cnt
+              | i >= len || cnt >= n = let len' = liquidAssume (axiom_numchars_split t i) (len-i)
+                                       in ( Text arr off i
+                                          , Text arr (off+i) len')
+              | otherwise            = let d = iter_ t i
+                                           cnt' = cnt + 1
+                                       in loop (i+d) cnt'
 {-# INLINE splitAt #-}
 
 -- | /O(n)/ 'span', applied to a predicate @p@ and text @t@, returns
