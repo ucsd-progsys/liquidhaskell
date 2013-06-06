@@ -180,6 +180,9 @@ module Data.Text
 
     -- -* Ordered text
     -- , sort
+
+    --LIQUID
+    , Iter(..)
     ) where
 
 import Prelude (Char, Bool(..), Int, Maybe(..), String,
@@ -238,6 +241,7 @@ import Data.Text.Axioms
 import qualified Data.Text.Array
 import qualified Data.Text.Internal
 import qualified Data.Text.Fusion.Internal
+import qualified Data.Text.Search
 import Language.Haskell.Liquid.Prelude
 import qualified GHC.ST
 
@@ -246,7 +250,7 @@ data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
 
 {-@ data Data.Text.Iter = Data.Text.Iter (c::Char) (i::Int) @-}
 
-{-@ measure iter_d :: Data.Text.Iter -> Int
+{- measure iter_d :: Data.Text.Iter -> Int
     iter_d (Data.Text.Iter c d) = d
   @-}
 
@@ -1520,8 +1524,8 @@ group = groupBy (==)
 -- | /O(n)/ Return all initial segments of the given 'Text', shortest
 -- first.
 {-@ inits :: t:Data.Text.Internal.Text
-          -> [{v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}]<{\x y ->
-              ((tlength x) < (tlength y))}>
+          -> [{v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}]<{\x1 y1 ->
+              ((tlength x1) < (tlength y1))}>
   @-}
 inits :: Text -> [Text]
 inits t@(Text arr off len) = loop_inits t 0 0

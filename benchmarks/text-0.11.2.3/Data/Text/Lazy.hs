@@ -233,11 +233,12 @@ import GHC.Prim (Addr#)
 --LIQUID
 import Data.Int
 import qualified Data.Word
---import qualified Data.Text
+import qualified Data.Text
 import qualified Data.Text.Array
 import qualified Data.Text.Fusion.Internal
 import qualified Data.Text.Internal
 import qualified Data.Text.Lazy.Internal
+import qualified Data.Text.Search
 import qualified Data.Text.Unsafe
 import Language.Haskell.Liquid.Prelude
 
@@ -246,21 +247,21 @@ data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
 
 {-@ data Data.Text.Lazy.Iter = Data.Text.Lazy.Iter (c::Char) (i::Int) @-}
 
-{-@ measure iter_d :: Data.Text.Lazy.Iter -> Int
-    iter_d (Data.Text.Iter c d) = d
+{-@ measure iter_dL :: Data.Text.Lazy.Iter -> Int
+    iter_dL (Data.Text.Lazy.Iter c d) = d
   @-}
 
 {-@ assume iter :: t:Data.Text.Internal.Text -> i:{v:Int | (Btwn v 0 (tlen t))}
-                -> {v:Data.Text.Lazy.Iter | ((BtwnEI ((iter_d v)+i) i (tlen t))
-                          && ((numchars (tarr t) (toff t) (i+(iter_d v)))
+                -> {v:Data.Text.Lazy.Iter | ((BtwnEI ((iter_dL v)+i) i (tlen t))
+                          && ((numchars (tarr t) (toff t) (i+(iter_dL v)))
                               = (1 + (numchars (tarr t) (toff t) i)))
-                          && ((numchars (tarr t) (toff t) (i+(iter_d v)))
+                          && ((numchars (tarr t) (toff t) (i+(iter_dL v)))
                               <= (tlength t)))}
   @-}
 iter :: T.Text -> Int -> Iter
 iter = P.undefined
 
-{-@ iter_d :: i:Data.Text.Lazy.Iter -> {v:Int | v = (iter_d i)} @-}
+{-@ iter_d :: i:Data.Text.Lazy.Iter -> {v:Int | v = (iter_dL i)} @-}
 iter_d (Iter c d) = d
 --LIQUID end of copied defs
 
@@ -1556,7 +1557,7 @@ inits' t0@(Chunk t ts) = let (t':ts') = T.inits t
 
 {-@ inits_map1 :: t0:NonEmptyStrict
         -> t:Data.Text.Internal.Text
-        -> ts:[{v:Data.Text.Internal.Text | (BtwnEI (tlength v) (tlength t) (tlength t0))}]<{\tx ty -> ((tlength tx) < (tlength ty))}>
+        -> ts:[{v:Data.Text.Internal.Text | (BtwnEI (tlength v) (tlength t) (tlength t0))}]<{\xx xy -> ((tlength xx) < (tlength xy))}>
         -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (tlength t) (tlength t0))}]<{\lx ly -> ((ltlength lx) < (ltlength ly))}>
   @-}
 inits_map1 :: T.Text -> T.Text -> [T.Text] -> [Text]

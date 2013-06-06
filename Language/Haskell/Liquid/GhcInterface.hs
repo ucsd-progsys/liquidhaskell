@@ -241,22 +241,16 @@ moduleImports :: GhcMonad m => [Ext] -> [FilePath] -> [String] -> m [(String, Fi
 moduleImports exts paths names
   = do modGraph <- getModuleGraph
        liftM concat $ forM names $ \name -> do
-         -- liftIO $ print name
-         -- let paths' = maybe paths (:paths) (getPackagePath modGraph name)
-         -- liftIO $ print paths'
          map (name,) . catMaybes <$> mapM (moduleFile paths name) exts
-         --return $ maybe imps (:imps) (getPackagePath modGraph name)
-  -- = liftIO . liftM concat . mapM (moduleFiles paths exts)
 
 moduleFile :: GhcMonad m => [FilePath] -> String -> Ext -> m (Maybe FilePath)
 moduleFile paths name ext
-  -- | ext `elem` [Hs, LHs]
-  -- = do mg <- getModuleGraph
-  --      return $ do ms <- find ((==name) . moduleNameString . ms_mod_name) mg
-  --                  normalise <$> ml_hs_file (ms_location ms)
+  | ext `elem` [Hs, LHs]
+  = do mg <- getModuleGraph
+       return $ do ms <- find ((==name) . moduleNameString . ms_mod_name) mg
+                   normalise <$> ml_hs_file (ms_location ms)
   | otherwise
   = do liftIO $ getFileInDirs (extModuleName name ext) paths
---       return [(name, file) | Just file <- files]
 
 
 --moduleImports ext paths names 

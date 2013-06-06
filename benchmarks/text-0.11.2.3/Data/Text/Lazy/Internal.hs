@@ -45,9 +45,12 @@ import qualified Data.Text.Internal as T
 
 
 --LIQUID
+import qualified Data.Text
 import qualified Data.Text.Array
 import qualified Data.Text.Fusion.Internal
 import qualified Data.Text.Internal
+import qualified Data.Text.Search
+import qualified Data.Text.Unsafe
 import Language.Haskell.Liquid.Prelude
 
 
@@ -60,10 +63,25 @@ data Text = Empty
       | Chunk (t :: NonEmptyStrict) (cs :: Data.Text.Lazy.Internal.Text)
   @-}
 
+{-@ measure ltlen :: Data.Text.Lazy.Internal.Text -> Integer
+    ltlen (Empty)      = 0
+    ltlen (Chunk t ts) = (tlen t) + (ltlen ts)
+  @-}
+
 {-@ measure ltlength :: Data.Text.Lazy.Internal.Text -> Integer
     ltlength (Empty)      = 0
     ltlength (Chunk t ts) = (tlength t) + (ltlength ts)
   @-}
+
+{-@ measure sum_ltlengths :: [Data.Text.Lazy.Internal.Text] -> Integer
+    sum_ltlengths ([]) = 0
+    sum_ltlengths (t:ts) = (ltlength t) + (sum_ltlengths ts)
+  @-}
+
+{-@ invariant {v:Data.Text.Lazy.Internal.Text | (ltlen v) >= 0} @-}
+{-@ invariant {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= 0} @-}
+{-@ invariant {v:[Data.Text.Lazy.Internal.Text] | (sum_ltlengths v) >= 0} @-}
+{-@ invariant {v:[{v0:Data.Text.Lazy.Internal.Text | (sum_ltlengths v) >= (ltlength v0)}] | true} @-}
 
 -- $invariant
 --
@@ -134,6 +152,11 @@ foldrChunks f z = go
 
 -- | Consume the chunks of a lazy 'Text' with a strict, tail-recursive,
 -- accumulating left fold.
+{-@ foldlChunks :: (a -> NonEmptyStrict -> a)
+                -> a
+                -> Data.Text.Lazy.Internal.Text
+                -> a
+  @-}
 foldlChunks :: (a -> T.Text -> a) -> a -> Text -> a
 foldlChunks f z = go z
   where go !a Empty        = a

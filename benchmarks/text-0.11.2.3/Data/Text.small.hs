@@ -51,7 +51,7 @@ import Prelude (Char, Bool(..), Int, Maybe(..), String,
 -- import Data.Data (mkNorepType)
 -- #endif
 -- import Control.Monad (foldM)
-import qualified Data.Text.Array as A (Array)
+import qualified Data.Text.Array as A
 -- import qualified Data.List as L
 -- import Data.Monoid (Monoid(..))
 -- import Data.String (IsString(..))
@@ -83,52 +83,20 @@ import Data.Text.Unsafe (iter_)
 import Prelude (Integer(..), Num(..), Real(..), Integral(..))
 --import Data.Word --(Word16(..))
 --import Data.Text.Axioms
+import qualified Data.Text.Array
+import qualified Data.Text.Unsafe
+import qualified Data.Word
 import Language.Haskell.Liquid.Prelude
 
-{-@ drop :: n:{v:Int | v >= 0}
-         -> t:Text
-         -> {v:Text | ((tlength v) = ((((tlength t) - n) <= 0) ? 0 : ((tlength t) - n)))}
+{-@ init :: t:{v:Data.Text.Internal.Text | (tlength v) > 0}
+         -> {v:Data.Text.Internal.Text | ((tlength v) = ((tlength t) - 1))}
   @-}
-         -- -> {v:Text | ((((tlen t) > n)  <=> ((tlen v) = ((tlen t) - n)))
-         --            && (((tlen t) <= n) <=> ((tlen v) = 0)))}
---LIQUID          -> {v:Text | (tlen v) <= ((tlen t) - n)}
-drop :: Int -> Text -> Text
-drop = drop'
-drop' n t@(Text arr off len)
-    | n <= 0    = t
-    | n >= len  = empty
-    | otherwise = loop_drop n t 0 0
-  -- where loop !i !cnt
-  --           | i >= len || cnt >= n   = P.id $ Text arr (off+i) (P.id (len-i))
-  --           | i <  len && cnt <  n   = let d = iter_ t i
-  --                                      in loop (i+d) (cnt+1)
---LIQUID            where d = iter_ t i
-{-@ loop_drop :: n:{v:Int | v >= 0}
-              -> t:Text
-              -> i:{v:Int | ((v >= 0) && (v <= (tlen t)))}
-              -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
-                            && (v <= n))}
-              -> {v:Text | ((tlength v) = ((((tlength t) - n) <= 0) ? 0 : ((tlength t) - n)))}
-  @-}
-loop_drop :: Int -> Text -> Int -> Int -> Text
-loop_drop n t@(Text arr off len) !i !cnt
-    | i >= len               = liquidAssert (nc arr off (len-i) <= n)
-                               $ Text arr (off+i) (P.id (len-i))
-    | cnt == n               = liquidAssert ((tl t) >= 0)
-                               $ Text arr (off+i) (P.id (len-i))
-    | i <  len && cnt <  n   = let d = iter_ t i
-                               in loop_drop n t (i+d) (cnt+1)
-
-{-@ nc :: a:A.Array -> o:Int -> l:Int -> {v:Int | v = (numchars a o l)} @-}
-nc :: A.Array -> Int -> Int -> Int
-nc = P.undefined
-
-{-@ tl :: t:Text -> {v:Int | v = (tlength t)} @-}
-tl :: Text -> Int
-tl = P.undefined
-
--- emptyError :: String -> a
--- emptyError fun = liquidError $ "Data.Text." ++ fun ++ ": empty input"
-
--- overflowError :: String -> a
--- overflowError fun = P.error $ "Data.Text." ++ fun ++ ": size overflow"
+init :: Text -> Text
+init t@(Text arr off len)
+    | len <= 0                   = liquidError "init"
+    | n >= 0xDC00 && n <= 0xDFFF = textP arr off (len-2)
+    | otherwise                  = textP arr off (len-1)
+    where
+      --LIQUID n = A.unsafeIndex arr (off+len-1)
+      n = A.unsafeIndexB arr off len (off+len-1)
+{-# INLINE [1] init #-}

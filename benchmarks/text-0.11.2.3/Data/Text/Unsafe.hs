@@ -43,7 +43,7 @@ import Language.Haskell.Liquid.Prelude
 -- | /O(1)/ A variant of 'head' for non-empty 'Text'. 'unsafeHead'
 -- omits the check for the empty case, so there is an obligation on
 -- the programmer to provide a proof that the 'Text' is non-empty.
-{-@ unsafeHead :: {v:Text | (tlength v) > 0}
+{-@ unsafeHead :: {v:Data.Text.Internal.Text | (tlength v) > 0}
                -> Char
   @-}
 unsafeHead :: Text -> Char
@@ -58,8 +58,8 @@ unsafeHead (Text arr off _len)
 -- | /O(1)/ A variant of 'tail' for non-empty 'Text'. 'unsafeHead'
 -- omits the check for the empty case, so there is an obligation on
 -- the programmer to provide a proof that the 'Text' is non-empty.
-{-@ unsafeTail :: t:{v:Text | (tlength v) > 0}
-               -> {v:Text | (tlength v) = ((tlength t) - 1)}
+{-@ unsafeTail :: t:{v:Data.Text.Internal.Text | (tlength v) > 0}
+               -> {v:Data.Text.Internal.Text | (tlength v) = ((tlength t) - 1)}
   @-}
 unsafeTail :: Text -> Text
 unsafeTail t@(Text arr off len) =
@@ -82,7 +82,7 @@ data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
 -- array, returning the current character and the delta to add to give
 -- the next offset to iterate at.
 {-@ iter :: t:Data.Text.Internal.Text
-         -> i:{v:Int | (Btwn v 0 (tlen t))}
+         -> i:{v:Nat | v < (tlen t)}
          -> {v:Data.Text.Unsafe.Iter | ((BtwnEI ((iter_d v)+i) i (tlen t))
                 && ((numchars (tarr t) (toff t) (i+(iter_d v)))
                     = (1 + (numchars (tarr t) (toff t) i)))
@@ -103,7 +103,7 @@ iter (Text arr off _len) i
 -- | /O(1)/ Iterate one step through a UTF-16 array, returning the
 -- delta to add to give the next offset to iterate at.
 {-@ iter_ :: t:Data.Text.Internal.Text
-          -> i:{v:Int | (Btwn v 0 (tlen t))}
+          -> i:{v:Nat | v < (tlen t)}
           -> {v:Int | (((BtwnEI (v+i) i (tlen t)))
                        && ((numchars (tarr t) (toff t) (i+v))
                            = (1 + (numchars (tarr t) (toff t) i)))

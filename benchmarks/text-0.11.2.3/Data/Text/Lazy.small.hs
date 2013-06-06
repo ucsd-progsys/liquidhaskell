@@ -83,9 +83,151 @@ import qualified Data.Text.Array
 import qualified Data.Text.Fusion.Internal
 import qualified Data.Text.Internal
 import qualified Data.Text.Lazy.Internal
+import qualified Data.Text.Search
 import qualified Data.Text.Unsafe
 import qualified GHC.Real
 import Language.Haskell.Liquid.Prelude
+
+--LIQUID copied from Data.Text.Unsafe
+data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
+
+{-@ data Data.Text.Lazy.Iter = Data.Text.Lazy.Iter (c::Char) (i::Int) @-}
+
+{-@ measure iter_dL :: Data.Text.Lazy.Iter -> Int
+    iter_dL (Data.Text.Lazy.Iter c d) = d
+  @-}
+
+{-@ assume iter :: t:Data.Text.Internal.Text -> i:{v:Int | (Btwn v 0 (tlen t))}
+                -> {v:Data.Text.Lazy.Iter | ((BtwnEI ((iter_dL v)+i) i (tlen t))
+                          && ((numchars (tarr t) (toff t) (i+(iter_dL v)))
+                              = (1 + (numchars (tarr t) (toff t) i)))
+                          && ((numchars (tarr t) (toff t) (i+(iter_dL v)))
+                              <= (tlength t)))}
+  @-}
+iter :: T.Text -> Int -> Iter
+iter = P.undefined
+
+{-@ iter_d :: i:Data.Text.Lazy.Iter -> {v:Int | v = (iter_dL i)} @-}
+iter_d (Iter c d) = d
+--LIQUID end of copied defs
+
+
+-- $fusion
+--
+-- Most of the functions in this module are subject to /fusion/,
+-- meaning that a pipeline of such functions will usually allocate at
+-- most one 'Text' value.
+--
+-- As an example, consider the following pipeline:
+--
+-- > import Data.Text.Lazy as T
+-- > import Data.Text.Lazy.Encoding as E
+-- > import Data.ByteString.Lazy (ByteString)
+-- >
+-- > countChars :: ByteString -> Int
+-- > countChars = T.length . T.toUpper . E.decodeUtf8
+--
+-- From the type signatures involved, this looks like it should
+-- allocate one 'ByteString' value, and two 'Text' values. However,
+-- when a module is compiled with optimisation enabled under GHC, the
+-- two intermediate 'Text' values will be optimised away, and the
+-- function will be compiled down to a single loop over the source
+-- 'ByteString'.
+--
+-- Functions that can be fused by the compiler are documented with the
+-- phrase \"Subject to fusion\".
+
+-- $replacement
+--
+-- A 'Text' value is a sequence of Unicode scalar values, as defined
+-- in &#xa7;3.9, definition D76 of the Unicode 5.2 standard:
+-- <http://www.unicode.org/versions/Unicode5.2.0/ch03.pdf#page=35>. As
+-- such, a 'Text' cannot contain values in the range U+D800 to U+DFFF
+-- inclusive. Haskell implementations admit all Unicode code points
+-- (&#xa7;3.4, definition D10) as 'Char' values, including code points
+-- from this invalid range.  This means that there are some 'Char'
+-- values that are not valid Unicode scalar values, and the functions
+-- in this module must handle those cases.
+--
+-- Within this module, many functions construct a 'Text' from one or
+-- more 'Char' values. Those functions will substitute 'Char' values
+-- that are not valid Unicode scalar values with the replacement
+-- character \"&#xfffd;\" (U+FFFD).  Functions that perform this
+-- inspection and replacement are documented with the phrase
+-- \"Performs replacement on invalid scalar values\".
+--
+-- (One reason for this policy of replacement is that internally, a
+-- 'Text' value is represented as packed UTF-16 data. Values in the
+-- range U+D800 through U+DFFF are used by UTF-16 to denote surrogate
+-- code points, and so cannot be represented. The functions replace
+-- invalid scalar values, instead of dropping them, as a security
+-- measure. For details, see Unicode Technical Report 36, &#xa7;3.5:
+-- <http://unicode.org/reports/tr36#Deletion_of_Noncharacters>)
+
+{-@ equal :: Data.Text.Lazy.Internal.Text
+          -> Data.Text.Lazy.Internal.Text
+          -> Bool
+  @-}
+equal :: Text -> Text -> Bool
+equal Empty Empty = True
+equal Empty _     = False
+equal _ Empty     = False
+equal (Chunk a as) (Chunk b bs) =
+    case compare lenA lenB of
+      LT -> a == (T.takeWord16 lenA b) &&
+            as `equal` Chunk (T.dropWord16 lenA b) bs
+      EQ -> a == b && as `equal` bs
+      GT -> T.takeWord16 lenB a == b &&
+            Chunk (T.dropWord16 lenB a) as `equal` bs
+  where lenA = T.lengthWord16 a
+        lenB = T.lengthWord16 b
+
+instance Eq Text where
+    (==) = equal
+    {-# INLINE (==) #-}
+
+instance Ord Text where
+    compare = compareText
+
+{-@ compareText :: Data.Text.Lazy.Internal.Text
+                -> Data.Text.Lazy.Internal.Text
+                -> Ordering
+  @-}
+compareText :: Text -> Text -> Ordering
+compareText Empty Empty = EQ
+compareText Empty _     = LT
+compareText _     Empty = GT
+compareText a@(Chunk a0 as) b@(Chunk b0 bs) = compareText_go a0 b0 as bs 0 0 --LIQUID outer a0 b0
+--LIQUID  where
+--LIQUID   outer ta@(T.Text arrA offA lenA) tb@(T.Text arrB offB lenB) = go 0 0
+--LIQUID    where
+--LIQUID     go !i !j
+--LIQUID       | i >= lenA = compareText as (chunk (T.Text arrB (offB+j) (lenB-j)) bs)
+--LIQUID       | j >= lenB = compareText (chunk (T.Text arrA (offA+i) (lenA-i)) as) bs
+--LIQUID       | a < b     = LT
+--LIQUID       | a > b     = GT
+--LIQUID       | otherwise = go (i+di) (j+dj)
+--LIQUID       where T.Iter a di = T.iter ta i
+--LIQUID             T.Iter b dj = T.iter tb j
+
+{-@ compareText_go :: ta:{v:Data.Text.Internal.Text | (tlength v) > 0}
+                   -> tb:{v:Data.Text.Internal.Text | (tlength v) > 0}
+                   -> as:Data.Text.Lazy.Internal.Text
+                   -> bs:Data.Text.Lazy.Internal.Text
+                   -> i:{v:Int | (BtwnI v 0 (tlen ta))}
+                   -> j:{v:Int | (BtwnI v 0 (tlen tb))}
+                   -> Ordering
+  @-}
+compareText_go :: T.Text -> T.Text -> Text -> Text -> Int -> Int -> Ordering
+compareText_go ta@(T.Text arrA offA lenA) tb@(T.Text arrB offB lenB) as bs !i !j
+    | i >= lenA = compareText as (chunk (T.Text arrB (offB+j) (lenB-j)) bs)
+    | j >= lenB = compareText (chunk (T.Text arrA (offA+i) (lenA-i)) as) bs
+    | otherwise = let ia@(Iter a di) = iter ta i
+                      ib@(Iter b dj) = iter tb j
+                  in if a < b then LT
+                     else if a > b then GT
+                     else compareText_go ta tb as bs (i+di) (j+dj)
+
 
 {-@ null :: t:Data.Text.Lazy.Internal.Text
          -> {v:Bool | ((Prop v) <=> ((ltlength t) = 0))}
@@ -117,92 +259,81 @@ head :: Text -> Char
 head t = P.undefined
 {-# INLINE head #-}
 
--- | /O(n)/ Concatenate a list of 'Text's.
-{-@ concat :: ts:[Data.Text.Lazy.Internal.Text]
-           -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (sum_ltlengths ts)}
+{-@ inits :: t:Data.Text.Lazy.Internal.Text
+          -> [{v:Data.Text.Lazy.Internal.Text |
+               (BtwnI (ltlength v) 0 (ltlength t))}]<{\hd tl ->
+              ((ltlength hd) < (ltlength tl))}>
   @-}
-concat :: [Text] -> Text
-concat = concat_to
-  where
-    go Empty        css = to css
-    go (Chunk c cs) css = Chunk c (go cs css)
-    to []               = Empty
-    to (cs:css)         = go cs css
---LIQUID concat = to
---LIQUID   where
---LIQUID     go Empty        css = to css
---LIQUID     go (Chunk c cs) css = Chunk c (go cs css)
---LIQUID     to []               = Empty
---LIQUID     to (cs:css)         = go cs css
+inits :: Text -> [Text]
+inits t = Empty : inits' t
+--LIQUID inits = (Empty :) . inits'
+--LIQUID   where inits' Empty        = []
+--LIQUID         inits' (Chunk t ts) = L.map (\t' -> Chunk t' Empty) (L.tail (T.inits t))
+--LIQUID                            ++ L.map (Chunk t) (inits' ts)
 
-{-@ concat_go :: t:Data.Text.Lazy.Internal.Text
-              -> ts:[Data.Text.Lazy.Internal.Text]
-              -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = ((sum_ltlengths ts) + (ltlength t)))}
+{-@ inits' :: t:Data.Text.Lazy.Internal.Text
+          -> [{v:Data.Text.Lazy.Internal.Text |
+               (BtwnEI (ltlength v) 0 (ltlength t))}]<{\hd tl ->
+              ((ltlength hd) < (ltlength tl))}>
   @-}
-concat_go Empty        css = concat_to css
-concat_go (Chunk c cs) css = Chunk c (concat_go cs css)
+inits' :: Text -> [Text]
+inits' Empty           = []
+inits' t0@(Chunk t ts) = let (t':ts') = T.inits t
+                             lts  = inits_map1 t t' ts'
+                             lts' = inits_map2 t0 t (inits' ts)
+                         in inits_app t lts t0 lts'
 
-{-@ concat_to :: ts:[Data.Text.Lazy.Internal.Text]
-              -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (sum_ltlengths ts)}
+{-@ inits_map1 :: t0:NonEmptyStrict
+        -> t:Data.Text.Internal.Text
+        -> ts:[{v:Data.Text.Internal.Text | (BtwnEI (tlength v) (tlength t) (tlength t0))}]<{\xx xy -> ((tlength xx) < (tlength xy))}>
+        -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (tlength t) (tlength t0))}]<{\lx ly -> ((ltlength lx) < (ltlength ly))}>
   @-}
-concat_to []               = Empty
-concat_to (cs:css)         = concat_go cs css
-{-# INLINE concat #-}
+inits_map1 :: T.Text -> T.Text -> [T.Text] -> [Text]
+inits_map1 _  _ []     = []
+inits_map1 t0 _ (t:ts) = Chunk t Empty : inits_map1 t0 t ts
 
-
--- | /O(n*m)/ 'replicate' @n@ @t@ is a 'Text' consisting of the input
--- @t@ repeated @n@ times.
-{-@ replicate :: n:{v:Int64 | v >= 0}
-              -> t:Data.Text.Lazy.Internal.Text
-              -> {v:Data.Text.Lazy.Internal.Text |
-                     ((n = 0) ? ((ltlength v) = 0)
-                              : ((ltlength v) >= (ltlength t)))}
+{-@ inits_map2 :: t0:Data.Text.Lazy.Internal.Text
+        -> st:NonEmptyStrict
+        -> ts:[{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) 0 ((ltlength t0) - (tlength st)))}]<{\fx fy -> ((ltlength fx) < (ltlength fy))}>
+        -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (tlength st) (ltlength t0))}]<{\rx ry -> ((ltlength rx) < (ltlength ry))}>
   @-}
-replicate :: Int64 -> Text -> Text
-replicate n t
-    | null t || n <= 0 = empty
-    | isSingleton t    = replicateChar n (head t)
-    | otherwise        = let t' = concat (replicate_rep n t 0)
-                         in liquidAssert (length t' >= length t) t'
+inits_map2 :: Text -> T.Text -> [Text] -> [Text]
+inits_map2 _  _  []     = []
+inits_map2 t0 st (t:ts) = inits_map2' t0 st t ts
 
---LIQUID     | otherwise        = concat (rep 0)
---LIQUID     where rep !i | i >= n    = []
---LIQUID                  | otherwise = t : rep (i+1)
-{-@ replicate_rep :: n:{v:Int64 | v > 0}
-                  -> t:Data.Text.Lazy.Internal.Text
-                  -> i:{v:Int64 | ((v >= 0) && (v <= n))}
-                  -> {v:[{v0:Data.Text.Lazy.Internal.Text | (ltlength v0) = (ltlength t)}] |
-                        ((len v) = (n - i) && (((len v) > 0) <=> ((sum_ltlengths v) >= (ltlength t))))}
+{-@ inits_map2' :: t0:Data.Text.Lazy.Internal.Text
+        -> st:NonEmptyStrict
+        -> t:Data.Text.Lazy.Internal.Text
+        -> ts:[{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (ltlength t) ((ltlength t0) - (tlength st)))}]<{\ax ay -> ((ltlength ax) < (ltlength ay))}>
+        -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) ((tlength st) + (ltlength t)) (ltlength t0))}]<{\bx by -> ((ltlength bx) < (ltlength by))}>
   @-}
-replicate_rep :: Int64 -> Text -> Int64 -> [Text]
-replicate_rep n t !i | i >= n    = []
-                     | otherwise = let ts = replicate_rep n t (i+1)
-                                       t' = t:ts
-                                   in liquidAssert (stl t' >= length t) t'
+inits_map2' :: Text -> T.Text -> Text -> [Text] -> [Text]
+inits_map2' _  _  _ []     = []
+inits_map2' t0 st _ (t:ts) = Chunk st t : inits_map2' t0 st t ts
 
-{-@ stl :: ts:[Data.Text.Lazy.Internal.Text] -> {v:Int64 | v = (sum_ltlengths ts)} @-}
-stl :: [Text] -> Int64
-stl ts =  1
-{-# INLINE replicate #-}
 
--- | /O(n)/ 'replicateChar' @n@ @c@ is a 'Text' of length @n@ with @c@ the
--- value of every element. Subject to fusion.
-{-@ replicateChar :: n:Int64
-                  -> Char
-                  -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = n}
+{-@ inits_app :: t:NonEmptyStrict
+        -> as:[{v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (tlength t)}]<{\cx cy -> ((ltlength cx) < (ltlength cy))}>
+        -> t0:{v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (tlength t)}
+        -> bs:[{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (tlength t) (ltlength t0))}]<{\dx dy -> ((ltlength dx) < (ltlength dy))}>
+        -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) 0 (ltlength t0))}]<{\ex ey -> ((ltlength ex) < (ltlength ey))}>
   @-}
-replicateChar :: Int64 -> Char -> Text
---LIQUID replicateChar n c = unstream (S.replicateCharI n (safe c))
-replicateChar n c = unstream (S.replicateCharI (fromIntegral n) (safe c))
-{-# INLINE replicateChar #-}
+inits_app :: T.Text -> [Text] -> Text -> [Text] -> [Text]
+inits_app _ []     _  b = b
+inits_app t (a:as) t0 b = inits_app' t a as t0 b
 
-{-# RULES
-"LAZY TEXT replicate/singleton -> replicateChar" [~1] forall n c.
-    replicate n (singleton c) = replicateChar n c
-  #-}
+{-@ inits_app' :: t:NonEmptyStrict
+        -> a:{v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (tlength t)}
+        -> as:[{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (ltlength a) (tlength t))}]<{\cx cy -> ((ltlength cx) < (ltlength cy))}>
+        -> t0:{v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (tlength t)}
+        -> bs:[{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (tlength t) (ltlength t0))}]<{\dx dy -> ((ltlength dx) < (ltlength dy))}>
+        -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (ltlength a) (ltlength t0))}]<{\ex ey -> ((ltlength ex) < (ltlength ey))}>
+  @-}
+inits_app' :: T.Text -> Text -> [Text] -> Text -> [Text] -> [Text]
+inits_app' _ _ []     _  b = b
+inits_app' t _ (a:as) t0 b = a : inits_app' t a as t0 b
 
-
-{-@ length :: t:Data.Text.Lazy.Internal.Text
+{- length :: t:Data.Text.Lazy.Internal.Text
            -> {v:Int64 | v = (ltlength t)}
   @-}
 length :: Text -> Int64

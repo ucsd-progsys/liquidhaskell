@@ -29,9 +29,12 @@ import Data.Bits ((.|.), (.&.))
 import Data.Text.UnsafeShift (shiftL)
 
 --LIQUID
+import qualified Data.Text
 import qualified Data.Text.Array
 import qualified Data.Text.Fusion.Internal
 import qualified Data.Text.Internal
+import qualified Data.Text.Search
+import qualified Data.Text.Unsafe
 import Data.Text.Lazy.Internal (foldrChunks)
 import qualified Data.Word
 import Data.Int (Int32)
