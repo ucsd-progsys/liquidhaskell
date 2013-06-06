@@ -51,22 +51,10 @@ import qualified Data.Word
 import Language.Haskell.Liquid.Prelude
 
 {-@ data Data.Text.Internal.Text = Data.Text.Internal.Text
-            (arr :: {v:Data.Text.Array.Array | (alen v) >= 0})
-            (off :: {v:Int | (BtwnI v 0 (alen arr))})
-            (len :: {v:Int | ((v >= 0) && ((v + off) <= (alen arr)))})
+            (arr :: Data.Text.Array.Array)
+            (off :: {v:Nat | v <= (alen arr)})
+            (len :: {v:Nat | (v + off) <= (alen arr)})
   @-}
-
-{-@ measure numchars :: Data.Text.Array.Array -> Int -> Int -> Int @-}
-
-{-@ measure tlength :: Data.Text.Internal.Text -> Int
-    tlength (Data.Text.Internal.Text a o l) = numchars(a,o,l)
-  @-}
--- | A space efficient, packed, unboxed Unicode text type.
-data Text = Text
-    {-# UNPACK #-} !A.Array          -- payload
-    {-# UNPACK #-} !Int              -- offset
-    {-# UNPACK #-} !Int              -- length
---LIQUID    deriving (Typeable)
 
 {-@ measure tarr :: Data.Text.Internal.Text -> Data.Text.Array.Array
     tarr (Data.Text.Internal.Text a o l) = a
@@ -80,11 +68,48 @@ data Text = Text
     tlen (Data.Text.Internal.Text a o l) = l
   @-}
 
+{-@ type NonEmptyStrict = {v:Data.Text.Internal.Text | (tlen v) > 0} @-}
+
+{-@ measure sum_tlens :: [Data.Text.Internal.Text] -> Int
+    sum_tlens ([]) = 0
+    sum_tlens (t:ts) = (tlen t) + (sum_tlens ts)
+  @-}
+
+{-@ measure tlength :: Data.Text.Internal.Text -> Int
+    tlength (Data.Text.Internal.Text a o l) = numchars(a,o,l)
+  @-}
+
+{-@ measure sum_tlengths :: [Data.Text.Internal.Text] -> Int
+    sum_tlengths ([]) = 0
+    sum_tlengths (t:ts) = (tlength t) + (sum_tlengths ts)
+  @-}
+
+{-@ invariant {v:Data.Text.Internal.Text | (numchars (tarr v) (toff v) 0) = 0} @-}
+{-@ invariant {v:Data.Text.Internal.Text | (numchars (tarr v) (toff v) (tlen v)) >= 0} @-}
+{-@ invariant {v:Data.Text.Internal.Text | (numchars (tarr v) (toff v) (tlen v)) <= (tlen v)} @-}
+
+{-@ invariant {v:Data.Text.Internal.Text | (((tlength v) = 0) <=> ((tlen v) = 0))} @-}
+{-@ invariant {v:Data.Text.Internal.Text | (tlength v) >= 0} @-}
+{-@ invariant {v:Data.Text.Internal.Text | (tlength v) = (numchars (tarr v) (toff v) (tlen v))} @-}
+
+{-@ invariant {v:[Data.Text.Internal.Text] | (sum_tlens v) >= 0} @-}
+{-@ invariant {v:[{v0:Data.Text.Internal.Text |
+                  ((((len v) > 1) && ((tlen v0) > 0)) => ((tlen v0) < (sum_tlens v)))}] | true} @-}
+{-@ invariant {v:[{v0:Data.Text.Internal.Text |
+               ((((tlen v0) > 0) && (((len v) > 0))) => ((sum_tlens v) > 0))}] | true} @-}
+
+-- | A space efficient, packed, unboxed Unicode text type.
+data Text = Text
+    {-# UNPACK #-} !A.Array          -- payload
+    {-# UNPACK #-} !Int              -- offset
+    {-# UNPACK #-} !Int              -- length
+--LIQUID    deriving (Typeable)
+
 -- | Smart constructor.
-{-@ text :: a:{v:Data.Text.Array.Array | (alen v) >= 0}
-         -> o:{v:Int | (BtwnI v 0 (alen a))}
-         -> l:{v:Int | ((v >= 0) && ((v+o) <= (alen a)))}
-         -> {v:Text | (((tarr v) = a) && ((toff v) = o) && ((tlen v) = l))}
+{-@ text :: a:Data.Text.Array.Array
+         -> o:{v:Nat | v <= (alen a)}
+         -> l:{v:Nat | (v+o) <= (alen a)}
+         -> {v:Text | (((tarr v) = a) && ((toff v) = o) && ((tlen v) = l) && ((tlength v) = (numchars a o l)))}
   @-}
 text :: A.Array -> Int -> Int -> Text
 text arr off len =
@@ -97,11 +122,12 @@ text arr off len =
      liquidAssert (off >= 0) .
      liquidAssert (alen == 0 || len == 0 || off < alen) $
 --LIQUID     assert (len == 0 || c < 0xDC00 || c > 0xDFFF) $
-     if len == 0 then Text arr off len else
-     let c = A.unsafeIndex arr off in
-     assert (c < 0xDC00 || c > 0xDFFF) $
+     let t = if len == 0 then Text arr off len else
+                let c = A.unsafeIndex arr off in
+                assert (c < 0xDC00 || c > 0xDFFF) $
 --LIQUID #endif
-     Text arr off len
+                Text arr off len
+     in liquidAssume (tlEqNumchars t arr off len) t
 {-# INLINE text #-}
 
 -- | /O(1)/ The empty 'Text'.
@@ -112,10 +138,10 @@ empty = Text A.empty 0 0
 
 -- | Construct a 'Text' without invisibly pinning its byte array in
 -- memory if its length has dwindled to zero.
-{-@ textP :: a:{v:Data.Text.Array.Array | (alen v) >= 0}
-          -> o:{v:Int | (BtwnI v 0 (alen a))}
-          -> l:{v:Int | ((v >= 0) && ((v+o) <= (alen a)))}
-          -> {v:Data.Text.Internal.Text | (tlen v) = l}
+{-@ textP :: a:Data.Text.Array.Array
+          -> o:{v:Nat | v <= (alen a)}
+          -> l:{v:Nat | (v+o) <= (alen a)}
+          -> {v:Data.Text.Internal.Text | (((tlen v) = l) && ((tlength v) = (numchars a o l)))}
   @-}
 textP :: A.Array -> Int -> Int -> Text
 textP arr off len | len == 0  = empty
@@ -145,3 +171,22 @@ safe c
 firstf :: (a -> c) -> Maybe (a,b) -> Maybe (c,b)
 firstf f (Just (a, b)) = Just (f a, b)
 firstf _  Nothing      = Nothing
+
+
+--LIQUID
+{-@ tlEqNumchars :: t:Data.Text.Internal.Text
+                 -> a:Data.Text.Array.Array
+                 -> o:Int
+                 -> l:Int
+                 -> {v:Bool | ((Prop v) <=> ((tlength t) = (numchars a o l)))}
+  @-}
+tlEqNumchars :: Text -> A.Array -> Int -> Int -> Bool
+tlEqNumchars = undefined
+
+{-@ nc :: a:A.Array -> o:Int -> l:Int -> {v:Int | v = (numchars a o l)} @-}
+nc :: A.Array -> Int -> Int -> Int
+nc = undefined
+
+{-@ tl :: t:Text -> {v:Int | v = (tlength t)} @-}
+tl :: Text -> Int
+tl = undefined

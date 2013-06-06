@@ -30,6 +30,8 @@
 module Data.Text.Search
     (
       indices
+    --LIQUID
+    , T(..)
     ) where
 
 import qualified Data.Text.Array as A
@@ -46,8 +48,8 @@ import Language.Haskell.Liquid.Prelude
 
 data T = {-# UNPACK #-} !Word64 `T` {-# UNPACK #-} !Int
 
-{-@ measure tskip :: T -> Int
-    tskip (T mask skip) = skip
+{-@ measure tskip :: Data.Text.Search.T -> Int
+    tskip (Data.Text.Search.T mask skip) = skip
   @-}
 
 --LIQUID FIXME: clean this up so it's readable!!
@@ -60,7 +62,7 @@ data T = {-# UNPACK #-} !Word64 `T` {-# UNPACK #-} !Int
 -- towards /O(n*m)/.
 {-@ indices :: pat:Data.Text.Internal.Text
             -> src:Data.Text.Internal.Text
-            -> [{v:Int | (BtwnI v 0 ((tlen src) - (tlen pat)))}]<{\ix iy ->
+            -> [{v:Nat | v <= ((tlen src) - (tlen pat))}]<{\ix iy ->
                 (ix+(tlen pat)) <= iy}>
   @-}
 indices :: Text                -- ^ Substring to search for (@needle@)
@@ -126,10 +128,10 @@ indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
 {- INLINE indices #-}
 
 {-@ buildTable :: pat:{v:Data.Text.Internal.Text | (tlen v) > 1}
-               -> i:{v:Int | (Btwn v 0 (tlen pat))}
+               -> i:{v:Nat | v < (tlen pat)}
                -> Word64
-               -> skp:{v:Int | (Btwn v 0 (tlen pat))}
-               -> {v:T | (Btwn (tskip v) 0 (tlen pat))}
+               -> skp:{v:Nat | v < (tlen pat)}
+               -> {v:Data.Text.Search.T | (Btwn (tskip v) 0 (tlen pat))}
   @-}
 buildTable :: Text -> Int -> Word64 -> Int -> T
 buildTable pat@(Text narr noff nlen) !i !msk !skp
@@ -144,14 +146,14 @@ buildTable pat@(Text narr noff nlen) !i !msk !skp
 swizzle k = 1 `shiftL` (fromIntegral k .&. 0x3f)
 
 {-@ index :: t:Data.Text.Internal.Text
-          -> k:{v:Int | (Btwn v 0 (tlen t))}
+          -> k:{v:Nat | v < (tlen t)}
           -> Word16
   @-}
 index :: Text -> Int -> Word16
 index (Text arr off len) k = A.unsafeIndex arr (off+k)
 
 {-@ index' :: t:Data.Text.Internal.Text
-           -> k:{v:Int | (BtwnI v 0 (tlen t))}
+           -> k:{v:Nat | v <= (tlen t)}
            -> Word16
   @-}
 index' (Text arr off len) k
