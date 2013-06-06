@@ -14,6 +14,8 @@
 --
 module Data.ByteString.Lazy.Internal (
 
+        liquidCanary, 
+
         -- * The lazy @ByteString@ type and representation
         ByteString(..),     -- instances: Eq, Ord, Show, Read, Data, Typeable
         chunk,
@@ -45,21 +47,37 @@ import Data.Generics            (Data(..), Typeable(..))
 -- Instances of Eq, Ord, Read, Show, Data, Typeable
 --
 data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
-    deriving (Show, Read
-#if defined(__GLASGOW_HASKELL__)
-                        ,Data, Typeable
-#endif
-             )
+    deriving (Show)
+-- LIQUID     deriving (Show, Read
+-- LIQUID #if defined(__GLASGOW_HASKELL__)
+-- LIQUID                         ,Data, Typeable
+-- LIQUID #endif
+-- LIQUID              )
+
+{-@ data ByteString = Empty 
+                    | Chunk { h :: {v: S.ByteString | (bLength v) > 0} 
+                            , t :: ByteString 
+                            } 
+  @-}
 
 ------------------------------------------------------------------------
+
+{-@ liquidCanary :: x:Int -> {v: Int | v > x} @-}
+liquidCanary     :: Int -> Int
+liquidCanary x   = x - 1
+
 
 -- | The data type invariant:
 -- Every ByteString is either 'Empty' or consists of non-null 'S.ByteString's.
 -- All functions must preserve this, and the QC properties must check this.
 --
-invariant :: ByteString -> Bool
-invariant Empty                     = True
-invariant (Chunk (S.PS _ _ len) cs) = len > 0 && invariant cs
+
+{-@ invt :: ByteString -> {v: Bool | (Prop v)}  @-}
+invt :: ByteString -> Bool
+invt Empty                     = True 
+invt (Chunk (S.PS _ _ len) cs) = len > 0 && invt cs
+
+invariant = invt
 
 -- | In a form that checks the invariant lazily.
 checkInvariant :: ByteString -> ByteString
