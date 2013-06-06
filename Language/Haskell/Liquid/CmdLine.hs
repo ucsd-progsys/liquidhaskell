@@ -43,7 +43,7 @@ config = Config {
 getOpts :: IO Config 
 getOpts = do md <- cmdArgs config 
              putStrLn $ banner md
-             mkOpts md -- (idirs md) (files md)
+             mkOpts md
 
 banner args =  "LiquidHaskell © Copyright 2009-13 Regents of the University of California.\n" 
             ++ "All Rights Reserved.\n"
@@ -55,3 +55,5 @@ mkOpts md
        idirs' <- if null (idirs md) then single <$> getIncludePath else return (idirs md) 
        return  $ md { files = files' } { idirs = map dropFileName files' ++ idirs' }
                                         -- tests fail if you flip order of idirs'
+
+
