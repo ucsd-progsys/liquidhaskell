@@ -35,6 +35,12 @@ module Data.ByteString.Lazy.Internal (
 
 import qualified Data.ByteString.Internal as S
 
+-- LIQUID
+import Language.Haskell.Liquid.Prelude  (liquidError)
+import qualified Data.ByteString.Internal
+import Foreign.ForeignPtr       (ForeignPtr)
+import Data.Word                (Word8)
+
 import Foreign.Storable (sizeOf)
 
 #if defined(__GLASGOW_HASKELL__)
@@ -73,6 +79,7 @@ liquidCanary x   = x - 1
 -- All functions must preserve this, and the QC properties must check this.
 --
 
+-- LIQUID: rename `invariant` to `invt` to avoid name clash! 
 {-@ invt :: Data.ByteString.Lazy.Internal.ByteString -> {v: Bool | (Prop v)}  @-}
 invt :: ByteString -> Bool
 invt Empty                     = True 
@@ -81,18 +88,19 @@ invt (Chunk (S.PS _ _ len) cs) = len > 0 && invt cs
 invariant = invt
 
 -- | In a form that checks the invariant lazily.
+{-@ checkInvariant :: Data.ByteString.Lazy.Internal.ByteString -> Data.ByteString.Lazy.Internal.ByteString  @-}
 checkInvariant :: ByteString -> ByteString
 checkInvariant Empty = Empty
 checkInvariant (Chunk c@(S.PS _ _ len) cs)
     | len > 0   = Chunk c (checkInvariant cs)
-    | otherwise = error $ "Data.ByteString.Lazy: invariant violation:"
+    | otherwise = liquidError $ "Data.ByteString.Lazy: invariant violation:"
                ++ show (Chunk c cs)
 
 ------------------------------------------------------------------------
 
 -- | Smart constructor for 'Chunk'. Guarantees the data type invariant.
 chunk :: S.ByteString -> ByteString -> ByteString
-chunk c@(S.PS _ _ len) cs | len == 0  = cs
+chunk c@(S.PS _ _ len) cs -- | len == 0  = cs
                           | otherwise = Chunk c cs
 {-# INLINE chunk #-}
 

@@ -171,25 +171,27 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 -- LiquidHaskell Specifications -----------------------------------------
 -------------------------------------------------------------------------
 
-{-@ measure bLength     :: ByteString -> Int 
-    bLength (PS p o l)  = l 
+{-@ measure bLength     :: Data.ByteString.Internal.ByteString -> Int 
+    bLength (Data.ByteString.Internal.PS p o l)  = l 
   @-}
 
-{-@ measure bOffset     :: ByteString -> Int 
-    bOffset (PS p o l)  = o 
+{-@ measure bOffset     :: Data.ByteString.Internal.ByteString -> Int 
+    bOffset (Data.ByteString.Internal.PS p o l)  = o 
   @-} 
     
-{-@ measure bPayload   :: ByteString -> (ForeignPtr Word8) 
-    bPayload (PS p o l) = p 
+{-@ measure bPayload   :: Data.ByteString.Internal.ByteString -> (ForeignPtr Word8) 
+    bPayload (Data.ByteString.Internal.PS p o l) = p 
   @-} 
 
 {-@ predicate BSValid Payload Offset Length = ((fplen Payload) = Offset + Length) @-}
 {-@ predicate PValid P N                    = ((0 <= N) && (N <= (plen P)))       @-}
 
-{-@ data ByteString  = PS { payload :: (ForeignPtr Word8) 
-                          , offset  :: {v: Nat | (v <= (fplen payload))     }  
-                          , length  :: {v: Nat | (BSValid payload offset v) } 
-                          }
+{-@ data Data.ByteString.Internal.ByteString  
+      = Data.ByteString.Internal.PS 
+          { payload :: (ForeignPtr Word8) 
+          , offset  :: {v: Nat | (v <= (fplen payload))     }  
+          , length  :: {v: Nat | (BSValid payload offset v) } 
+          }
 
   @-}
 
