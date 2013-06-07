@@ -658,7 +658,7 @@ mapM_pvar f (PV x t txys)
        return $ PV x t' txys'
 
 ofBDataCon msg tc αs ps πs (c, xts)
-  = do c'      <- lookupGhcDataCon c
+  = do c'      <- wrapErr msg lookupGhcDataCon c
        ts'     <- mapM (mkSpecType' msg ps) ts
        let t0   = rApp tc rs (RMono [] . pdVarReft <$> πs) top 
        return   $ (c', DataConP αs πs (reverse (zip xs' ts')) t0) 
