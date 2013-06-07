@@ -30,12 +30,18 @@ TODO
 * Move stuff into Types.hs
     - remove `toType` and  generalize `typeSort` to work for all RefTypables
 
-
-ByteString
+Bytestring
 ==========
 
-    Data.ByteString.Internal.Lazy
-
+   700 Data/ByteString/Fusion.hs
+   509 Data/ByteString/Internal.hs          [OK]
+   297 Data/ByteString/Unsafe.hs
+  1322 Data/ByteString/Lazy.hs              [**]
+   148 Data/ByteString/Lazy/Internal.hs     [OK]
+   822 Data/ByteString/Lazy/Char8.hs
+  1012 Data/ByteString/Char8.hs
+  1928 Data/ByteString.hs
+  6738 total
 
 
 Liquid-Fixpoint
@@ -43,8 +49,8 @@ Liquid-Fixpoint
 
 Z3 agnostic solver? sigh.
 
-Imports 
-=======
+Module Import (see branch imports) 
+==================================
 
 See tests/pos/Mod2.hs [Which imports a measure from Mod1.hs]
 
@@ -56,7 +62,6 @@ See tests/pos/Mod2.hs [Which imports a measure from Mod1.hs]
 0. NO MONOLITHIC "bare".
  
    >   When converting a SPEC, do so in its own context.
-
 
 1. When Parsing IMPORTED module, FULL QUALIFY all names 
 

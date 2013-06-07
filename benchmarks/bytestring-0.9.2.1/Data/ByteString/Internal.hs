@@ -44,8 +44,8 @@ module Data.ByteString.Internal (
         nullForeignPtr,         -- :: ForeignPtr Word8
 
         -- * Standard C Functions
-        -- LIQUID c_strlen,               -- :: CString -> IO CInt
-        -- LIQUID c_free_finalizer,       -- :: FunPtr (Ptr Word8 -> IO ())
+        c_strlen,               -- :: CString -> IO CInt
+        c_free_finalizer,       -- :: FunPtr (Ptr Word8 -> IO ())
 
         memchr,                 -- :: Ptr Word8 -> Word8 -> CSize -> IO Ptr Word8
         -- LIQUID memcmp,                 -- :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
@@ -171,25 +171,27 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 -- LiquidHaskell Specifications -----------------------------------------
 -------------------------------------------------------------------------
 
-{-@ measure bLength     :: ByteString -> Int 
-    bLength (PS p o l)  = l 
+{-@ measure bLength     :: Data.ByteString.Internal.ByteString -> Int 
+    bLength (Data.ByteString.Internal.PS p o l)  = l 
   @-}
 
-{-@ measure bOffset     :: ByteString -> Int 
-    bOffset (PS p o l)  = o 
+{-@ measure bOffset     :: Data.ByteString.Internal.ByteString -> Int 
+    bOffset (Data.ByteString.Internal.PS p o l)  = o 
   @-} 
     
-{-@ measure bPayload   :: ByteString -> (ForeignPtr Word8) 
-    bPayload (PS p o l) = p 
+{-@ measure bPayload   :: Data.ByteString.Internal.ByteString -> (ForeignPtr Word8) 
+    bPayload (Data.ByteString.Internal.PS p o l) = p 
   @-} 
 
 {-@ predicate BSValid Payload Offset Length = ((fplen Payload) = Offset + Length) @-}
 {-@ predicate PValid P N                    = ((0 <= N) && (N <= (plen P)))       @-}
 
-{-@ data ByteString  = PS { payload :: (ForeignPtr Word8) 
-                          , offset  :: {v: Nat | (v <= (fplen payload))     }  
-                          , length  :: {v: Nat | (BSValid payload offset v) } 
-                          }
+{-@ data Data.ByteString.Internal.ByteString  
+      = Data.ByteString.Internal.PS 
+          { payload :: (ForeignPtr Word8) 
+          , offset  :: {v: Nat | (v <= (fplen payload))     }  
+          , length  :: {v: Nat | (BSValid payload offset v) } 
+          }
 
   @-}
 
@@ -431,11 +433,19 @@ inlinePerformIO = unsafePerformIO
 -- LIQUID foreign import ccall unsafe "string.h strlen" c_strlen
 -- LIQUID     :: CString -> IO CSize
 -- LIQUID 
+c_strlen :: CString -> IO CSize
+c_strlen = undefined
+
 -- LIQUID foreign import ccall unsafe "static stdlib.h &free" c_free_finalizer
 -- LIQUID     :: FunPtr (Ptr Word8 -> IO ())
 -- LIQUID 
+c_free_finalizer :: FunPtr (Ptr Word8 -> IO ())
+c_free_finalizer = undefined
+
 -- LIQUID foreign import ccall unsafe "string.h memchr" c_memchr
 -- LIQUID     :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
+-- LIQUID 
+c_memchr :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
 c_memchr = undefined
 
 

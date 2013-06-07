@@ -17,14 +17,15 @@ PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDat
 
 CABAL=cabal
 CABALI=$(CABAL) install --ghc-options=$(OPTS)
-
-
 CABALP=$(CABAL) install --ghc-options=$(OPTS) -p
 
 DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour ansi-terminal hashable unordered-containers
 
 all:
 	$(CABAL) install --ghc-options=$(OPTS) 
+
+prof:
+	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS)
 
 rebuild:
 	cd external/fixpoint/ && make clean && make && cd ../../
@@ -53,9 +54,6 @@ igoto:
 goto:
 	$(CABAL) build --ghc-options=$(OPTS) 
 	cp dist/build/liquid/liquid ~/.cabal/bin/
-
-prof:
-	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS)
 
 
 clean:
