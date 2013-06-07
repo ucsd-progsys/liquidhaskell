@@ -100,7 +100,7 @@ checkInvariant (Chunk c@(S.PS _ _ len) cs)
 
 -- | Smart constructor for 'Chunk'. Guarantees the data type invariant.
 chunk :: S.ByteString -> ByteString -> ByteString
-chunk c@(S.PS _ _ len) cs -- | len == 0  = cs
+chunk c@(S.PS _ _ len) cs | len == 0  = cs
                           | otherwise = Chunk c cs
 {-# INLINE chunk #-}
 
