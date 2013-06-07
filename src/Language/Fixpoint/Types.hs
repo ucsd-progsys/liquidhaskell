@@ -137,9 +137,9 @@ traceFix s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showFix x) $ x
 
 type TCEmb a    = M.HashMap a FTycon  
 
-instance (Eq a, Hashable a) => Monoid (TCEmb a) where
-  mappend m1 m2 = M.fromList (M.toList m1 ++ M.toList m2)
-  mempty        = M.empty
+-- instance (Eq a, Hashable a) => Monoid (TCEmb a) where
+--   mappend m1 m2 = M.fromList (M.toList m1 ++ M.toList m2)
+--   mempty        = M.empty
 
 exprSymbols :: Expr -> [Symbol]
 exprSymbols = go
