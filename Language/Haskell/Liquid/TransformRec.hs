@@ -26,6 +26,7 @@ import           TypeRep
 import           Unique              hiding (deriveUnique)
 import           Var
 import           Language.Haskell.Liquid.GhcMisc
+import           Data.List           (foldl')
 
 transformRecExpr :: CoreProgram -> CoreProgram
 transformRecExpr cbs
@@ -129,14 +130,20 @@ trans_ vs ids [] (Let (Rec xes) e)
       let mkE tvs ids0 e' = mkCoreLams (tvs ++ ids0) (sub (mkSu tvs ids0) e')
       let es' = zipWith3 mkE ftvs fxids es
       let xes' = zip fxs es'
-      return $ Let (Rec (xes' ++ rs)) (sub se e)
+      return $ mkRecBinds rs (Rec xes') (sub se e)
  where (xs, es) = unzip xes
+
+
 
 trans_ vs ids bs (Let (Rec xes) e)
  = liftM mkLet $ trans_ vs ids [] (Let (Rec (zip xs es')) e)
  where (xs, es) = unzip xes
        es'      = map (\e0 -> foldr Let e0 bs) es
        mkLet e' = foldr Let e' bs
+
+mkRecBinds :: [(b, Expr b)] -> Bind b -> Expr b -> Expr b
+mkRecBinds xes rs e = Let rs (foldl' f e xes)
+  where f e (x, xe) = Let (NonRec x xe) e  
 
 mkSubs ids tvs ids0 xxs'
   = M.fromList $ s1 ++ s2
