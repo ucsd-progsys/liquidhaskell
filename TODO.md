@@ -31,6 +31,18 @@ TODO
     - remove `toType` and  generalize `typeSort` to work for all RefTypables
 
 
+ByteString
+==========
+
+    Data.ByteString.Internal.Lazy
+
+
+
+Liquid-Fixpoint
+===============
+
+Z3 agnostic solver? sigh.
+
 Imports 
 =======
 
@@ -39,6 +51,12 @@ See tests/pos/Mod2.hs [Which imports a measure from Mod1.hs]
     [STOP] Get tests to run WITHOUT after deleting *redundant*
 
     import qualified Mod1
+
+
+0. NO MONOLITHIC "bare".
+ 
+   >   When converting a SPEC, do so in its own context.
+
 
 1. When Parsing IMPORTED module, FULL QUALIFY all names 
 
