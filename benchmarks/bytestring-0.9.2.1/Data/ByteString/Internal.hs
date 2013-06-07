@@ -433,6 +433,7 @@ inlinePerformIO = unsafePerformIO
 -- LIQUID foreign import ccall unsafe "string.h strlen" c_strlen
 -- LIQUID     :: CString -> IO CSize
 -- LIQUID 
+{-@ c_strlen ::  s:CString -> IO {v: CSize | v = (plen s)} @-}
 c_strlen :: CString -> IO CSize
 c_strlen = undefined
 
@@ -445,6 +446,7 @@ c_free_finalizer = undefined
 -- LIQUID foreign import ccall unsafe "string.h memchr" c_memchr
 -- LIQUID     :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
 -- LIQUID 
+{-@ c_memchr :: p:(Ptr Word8) -> CInt -> {v:CSize| (PValid p v)} -> IO (Ptr Word8) @-}
 c_memchr :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
 c_memchr = undefined
 

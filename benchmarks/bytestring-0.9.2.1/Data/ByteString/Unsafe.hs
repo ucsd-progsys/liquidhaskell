@@ -14,6 +14,9 @@
 --
 module Data.ByteString.Unsafe (
 
+        -- LIQUID
+        liquidCanary1,
+
         -- * Unchecked access
         unsafeHead,             -- :: ByteString -> Word8
         unsafeTail,             -- :: ByteString -> ByteString
@@ -47,6 +50,15 @@ import Foreign.Ptr              (Ptr, plusPtr, castPtr)
 
 import Foreign.Storable         (Storable(..))
 import Foreign.C.String         (CString, CStringLen)
+
+-- LIQUID
+import Language.Haskell.Liquid.Prelude  (liquidError)
+import qualified Data.ByteString.Internal
+import Foreign.ForeignPtr       (ForeignPtr)
+import Data.Word                (Word8)
+import Foreign.C.Types          (CInt(..), CSize(..), CULong(..))
+import Foreign
+
 
 #ifndef __NHC__
 import Control.Exception        (assert)
@@ -83,6 +95,11 @@ assertS s False = error ("assertion failed at "++s)
 #define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
 #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
+{-@ liquidCanary1 :: x:Int -> {v: Int | v > x} @-}
+liquidCanary1     :: Int -> Int
+liquidCanary1 x   = x - 1
+
+
 -- ---------------------------------------------------------------------
 --
 -- Extensions to the basic interface
@@ -91,6 +108,7 @@ assertS s False = error ("assertion failed at "++s)
 -- | A variety of 'head' for non-empty ByteStrings. 'unsafeHead' omits the
 -- check for the empty case, so there is an obligation on the programmer
 -- to provide a proof that the ByteString is non-empty.
+{-@ unsafeHead :: {v:Data.ByteString.Internal.ByteString | (bLength v) > 0} -> Word8 @-}
 unsafeHead :: ByteString -> Word8
 unsafeHead (PS x s l) = assert (l > 0) $
     inlinePerformIO $ withForeignPtr x $ \p -> peekByteOff p s
