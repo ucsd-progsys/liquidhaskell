@@ -35,6 +35,10 @@ module Data.ByteString.Lazy.Internal (
 
 import qualified Data.ByteString.Internal as S
 
+-- LIQUID
+import qualified Data.ByteString.Internal
+import Foreign.ForeignPtr
+
 import Foreign.Storable (sizeOf)
 
 #if defined(__GLASGOW_HASKELL__)
