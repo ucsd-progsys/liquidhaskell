@@ -6,6 +6,7 @@ data Goo = G Int
     myg (Mod1.G n) = n
   @-}
  
-{-@ inc :: x:Mod1.Goo -> {v: Mod1.Goo | (myg v) > (myg x)} @-}
+{-@ inc :: x:Goo -> {v: Goo | (myg v) > (myg x)} @-}
 inc (G x) = G (x + 1)
+
 
