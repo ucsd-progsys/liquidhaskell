@@ -47,6 +47,13 @@ import Foreign.Ptr (Ptr, castPtr, plusPtr)
 import Foreign.ForeignPtr (ForeignPtr, mallocForeignPtrArray, withForeignPtr)
 import Foreign.Storable (peek, poke)
 
+--LIQUID
+import qualified Data.Text.Array
+import qualified Data.Text.Unsafe
+import qualified Data.Word
+import qualified GHC.ST
+import Language.Haskell.Liquid.Prelude
+
 -- $interop
 --
 -- The 'Text' type is implemented using arrays that are not guaranteed
@@ -61,8 +68,17 @@ import Foreign.Storable (peek, poke)
 -- the functions in the 'Data.Text.Encoding' module.
 
 -- | A type representing a number of UTF-16 code units.
-newtype I16 = I16 Int
-    deriving (Bounded, Enum, Eq, Integral, Num, Ord, Read, Real, Show)
+--LIQUID newtype I16 = I16 Int
+--LIQUID     deriving (Bounded, Enum, Eq, Integral, Num, Ord, --LIQUID Read,
+--LIQUID               Real, Show)
+
+--LIQUID FIXME: we don't seem to handle `newtype`s properly, the underlying `Int`
+--LIQUID        is still typed as an `I16` in our refinements...
+data I16 = I16 Int
+    deriving (Eq, Ord)
+
+{-@ data I16 = I16 (i::Nat) @-}
+{-@ embed Data.Text.Foreign.I16 as int @-}
 
 -- | /O(n)/ Create a new 'Text' from a 'Ptr' 'Word16' by copying the
 -- contents of the array.
@@ -71,10 +87,10 @@ fromPtr :: Ptr Word16           -- ^ source array
         -> IO Text
 fromPtr _   (I16 0)   = return empty
 fromPtr ptr (I16 len) =
-#if defined(ASSERTS)
-    assert (len > 0) $
-#endif
-    return $! Text arr 0 len
+--LIQUID #if defined(ASSERTS)
+    liquidAssert (len > 0) $
+--LIQUID #endif
+    return $! Text (liquidAssume (A.aLen arr == len) arr) 0 len
   where
     arr = A.run (A.new len >>= copy)
     copy marr = loop ptr 0
@@ -100,12 +116,19 @@ fromPtr ptr (I16 len) =
 takeWord16 :: I16 -> Text -> Text
 takeWord16 (I16 n) t@(Text arr off len)
     | n <= 0               = empty
-    | n >= len || m >= len = t
-    | otherwise            = Text arr off m
-  where
-    m | w < 0xDB00 || w > 0xD8FF = n
-      | otherwise                = n+1
-    w = A.unsafeIndex arr (off+n-1)
+--LIQUID     | n >= len || m >= len = t
+--LIQUID     | otherwise            = Text arr off m
+    | n >= len = t
+    | otherwise = let w = A.unsafeIndex arr (off+n-1)
+                      m | w < 0xDB00 || w > 0xD8FF = n
+                        | otherwise                = n+1
+
+                  in if m >= len then t
+                     else Text arr off m
+--LIQUID   where
+--LIQUID     w = A.unsafeIndex arr (off+n-1)
+--LIQUID     m | w < 0xDB00 || (liquidAssert False w) > 0xD8FF = n
+--LIQUID       | otherwise                = n+1
 
 -- | /O(1)/ Return the suffix of the 'Text', with @n@ 'Word16' units
 -- dropped from its beginning.
@@ -116,12 +139,18 @@ takeWord16 (I16 n) t@(Text arr off len)
 dropWord16 :: I16 -> Text -> Text
 dropWord16 (I16 n) t@(Text arr off len)
     | n <= 0               = t
-    | n >= len || m >= len = empty
-    | otherwise            = Text arr (off+m) (len-m)
-  where
-    m | w < 0xD800 || w > 0xDBFF = n
-      | otherwise                = n+1
-    w = A.unsafeIndex arr (off+n-1)
+--LIQUID     | n >= len || m >= len = empty
+--LIQUID     | otherwise            = Text arr (off+m) (len-m)
+    | n >= len = empty
+    | otherwise = let m | w < 0xD800 || w > 0xDBFF = n
+                        | otherwise                = n+1
+                      w = A.unsafeIndex arr (off+n-1)
+                  in if m >= len then empty
+                     else Text arr (off+m) (len-m)
+--LIQUID   where
+--LIQUID     m | w < 0xD800 || w > 0xDBFF = n
+--LIQUID       | otherwise                = n+1
+--LIQUID     w = A.unsafeIndex arr (off+n-1)
 
 -- | /O(n)/ Copy a 'Text' to an array.  The array is assumed to be big
 -- enough to hold the contents of the entire 'Text'.
@@ -140,7 +169,8 @@ useAsPtr :: Text -> (Ptr Word16 -> I16 -> IO a) -> IO a
 useAsPtr t@(Text _arr _off len) action =
     allocaBytes (len * 2) $ \buf -> do
       unsafeCopyToPtr t buf
-      action (castPtr buf) (fromIntegral len)
+--LIQUID      action (castPtr buf) (fromIntegral len)
+      action (castPtr buf) (I16 $ fromIntegral len)
 
 -- | /O(n)/ Make a mutable copy of a 'Text'.
 asForeignPtr :: Text -> IO (ForeignPtr Word16, I16)
