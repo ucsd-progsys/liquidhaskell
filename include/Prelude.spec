@@ -14,7 +14,8 @@ assume GHC.Num.+                :: (Num a) => x:a -> y:a -> {v:a | v = x + y }
 assume GHC.Num.-                :: (Num a) => x:a -> y:a -> {v:a | v = x - y }
 assume GHC.Num.*                :: (Num a) => x:a -> y:a -> {v:a | ((((x >= 0) && (y >= 0)) => ((v >= x) && (v >= y))) && (((x > 1) && (y > 1)) => ((v > x) && (v > y)))) }
 assume GHC.Real.div             :: (Integral a) => x:a -> y:a -> {v:a | v = (x / y) }
-assume GHC.Real.mod             :: (Integral a) => x:a -> y:a -> {v:a | v = (x mod y) }
+-- fixpoint can't handle (x mod y), only (x mod c) so we need to be more clever here
+-- assume GHC.Real.mod             :: (Integral a) => x:a -> y:a -> {v:a | v = (x mod y) }
 assume GHC.Real./               :: (Fractional a) => x:a -> y:{v:a | v != 0} -> {v: a | v = (x / y) }
 
 assume GHC.Num.fromInteger      :: (Num a) => x:Integer -> {v:a | v = x }
