@@ -99,7 +99,8 @@ assertS s False = error ("assertion failed at "++s)
 liquidCanary1     :: Int -> Int
 liquidCanary1 x   = x - 1
 
-
+{-@ assume Foreign.ForeignPtr.withForeignPtr :: fp:(ForeignPtr a) -> ({v:(Ptr a) | (plen v) = (fplen fp)} -> IO b) -> IO b 
+  @-}
 -- ---------------------------------------------------------------------
 --
 -- Extensions to the basic interface

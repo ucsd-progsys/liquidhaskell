@@ -184,7 +184,6 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
   @-} 
 
 {-@ predicate BSValid Payload Offset Length = ((fplen Payload) = Offset + Length) @-}
-{-@ predicate PValid P N                    = ((0 <= N) && (N <= (plen P)))       @-}
 
 {-@ data Data.ByteString.Internal.ByteString  
       = Data.ByteString.Internal.PS 
@@ -201,11 +200,6 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ qualif EqPLen(v: Ptr a, x: ForeignPtr a): (plen v) = (fplen x) @-}
 {-@ qualif PValid(v: Int, p: Ptr a): v <= (plen p)                 @-}
 {-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p)                   @-}
-
-
-{-@ assume Foreign.Storable.poke        :: (Storable a) => {v: (Ptr a) | 0 <= (plen v)} -> a -> (IO ()) @-}
-{-@ assume Foreign.Storable.peek        :: (Storable a) => {v: (Ptr a) | 0 <= (plen v)} -> (IO a) @-}
-{-@ assume Foreign.Storable.peekByteOff :: (Storable a) => forall b. p:(Ptr b) -> {v: Int | (PValid p v) } -> (IO a) @-}
 
 -------------------------------------------------------------------------
 
