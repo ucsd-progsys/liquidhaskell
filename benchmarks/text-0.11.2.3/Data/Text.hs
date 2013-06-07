@@ -250,16 +250,16 @@ data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
 
 {-@ data Data.Text.Iter = Data.Text.Iter (c::Char) (i::Int) @-}
 
-{- measure iter_d :: Data.Text.Iter -> Int
-    iter_d (Data.Text.Iter c d) = d
+{-@ measure iter_dT :: Data.Text.Iter -> Int
+    iter_dT (Data.Text.Iter c d) = d
   @-}
 
 {-@ assume iter :: t:Data.Text.Internal.Text
                 -> i:{v:Int | (Btwn v 0 (tlen t))}
-                -> {v:Data.Text.Iter | ((BtwnEI ((iter_d v)+i) i (tlen t))
-                          && ((numchars (tarr t) (toff t) (i+(iter_d v)))
+                -> {v:Data.Text.Iter | ((BtwnEI ((iter_dT v)+i) i (tlen t))
+                          && ((numchars (tarr t) (toff t) (i+(iter_dT v)))
                               = (1 + (numchars (tarr t) (toff t) i)))
-                          && ((numchars (tarr t) (toff t) (i+(iter_d v)))
+                          && ((numchars (tarr t) (toff t) (i+(iter_dT v)))
                               <= (tlength t)))}
   @-}
 iter :: Text -> Int -> Iter
@@ -276,7 +276,7 @@ iter = P.undefined
 reverseIter :: Text -> Int -> (Char,Int)
 reverseIter = P.undefined
 
-{-@ iter_d :: i:Data.Text.Unsafe.Iter -> {v:Int | v = (iter_d i)} @-}
+{-@ iter_d :: i:Data.Text.Iter -> {v:Int | v = (iter_dT i)} @-}
 iter_d (Iter c d) = d
 --LIQUID end of copied defs
 
