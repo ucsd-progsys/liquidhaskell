@@ -133,7 +133,7 @@ renameTyVars (x, Loc l t)
     su                    = [(y, rTyVar x) | (x, y) <- tyvsmap]
     tyvsmap               = vmap $ execState (mapTyVars τbody tbody) initvmap 
     initvmap              = initMapSt αs as errmsg
-    (αs, τbody)           = splitForAllTys $ varType x
+    (αs, τbody)           = splitForAllTys $ expandTypeSynonyms $ varType x
     (as, ps, tbody)       = bkUniv t
     errmsg                = render $ errTypeMismatch x t
 
