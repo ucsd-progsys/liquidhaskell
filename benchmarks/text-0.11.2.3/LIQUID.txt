@@ -41,3 +41,13 @@ into a `Word16` but return one that requires 2. LiquidHaskell
 complains that the call to `unsafeWrite` may index out-of-bounds, but
 if we change `j` to depend on the Char returned by `f`, the complain
 goes away, as does the non-determinism.
+
+The non-determinism seems to come about as follows:
+- mapAccumL calls `outer arr top z s i` (top == len arr) (i < top)
+- suppose `i == top - 1`, meaning it is the last valid index into
+  `arr`, but `f z x` returns a Char `c` that requires two slots.
+- outer calls `unsafeWrite arr i c` indexing one step out-of-bounds,
+  and then recursively calls `loop z' s' (i+d)` (i+d == top+1)
+- outer allocates a new array, copies `top` bytes into the new array,
+  but then recurs with `i' == i+d == top+1`, which leaves the array
+  with a single junk byte. hence the nondeterminism
