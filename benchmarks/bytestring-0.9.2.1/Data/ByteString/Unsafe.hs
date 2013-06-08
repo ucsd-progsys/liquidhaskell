@@ -110,11 +110,12 @@ liquidCanary1 x   = x - 1
   @-}
 {-@ assume GHC.Ptr.castPtr :: p:(PtrV a) -> {v: (PtrV b) | (plen v) = (plen p)} 
   @-}
-
 {-@ assume Foreign.ForeignPtr.newForeignPtr :: FinalizerPtr a -> p:(PtrV a) -> IO ({v: ForeignPtr a | (fplen v) = (plen p)}) 
   @-}
-{-@ type PtrLen a = (Ptr a, Nat)<{\p v -> (v = (plen p))}> @-}
-
+{-@ type CStringLen    = ((Ptr Foreign.C.Types.CChar), Nat)<{\p v -> (v <= (plen p))}> 
+  @-}
+{-@ type CStringLenN N = ((Ptr Foreign.C.Types.CChar), {v:Nat | v = N})<{\p v -> (v <= (plen p))}>
+  @-}
 -- ---------------------------------------------------------------------
 --
 -- Extensions to the basic interface
@@ -281,11 +282,12 @@ unsafePackCString cstr = do
 -- modified, this change will be reflected in the resulting @ByteString@,
 -- breaking referential transparency.
 
-{-@ unsafePackCStringLen :: (PtrLen Foreign.C.Types.CChar) -> IO ByteString @-}
+-- LIQUID: tighten spec to use @len@ as size of output ByteString
+{-@ unsafePackCStringLen :: CStringLen -> IO ByteString @-}
 unsafePackCStringLen :: CStringLen -> IO ByteString
 unsafePackCStringLen (ptr,len) = do
-    fp <- newForeignPtr_ (castPtr ptr)
-    return $! PS fp 0 ({- fromIntegral -} len)
+  fp <- newForeignPtr_ (castPtr ptr)
+  return $! PS fp 0 ({- fromIntegral -} len)
 
 -- | /O(n)/ Build a @ByteString@ from a malloced @CString@. This value will
 -- have a @free(3)@ finalizer associated to it.
@@ -300,7 +302,7 @@ unsafePackCStringLen (ptr,len) = do
 {-@ unsafePackMallocCString :: cstr:{v: CString | 0 <= (plen v)} -> IO {v: ByteString | (bLength v) = (plen cstr)} @-}
 unsafePackMallocCString :: CString -> IO ByteString
 unsafePackMallocCString cstr = do
-    fp <- newForeignPtr c_free_finalizer (castPtr cstr)
+    fp  <- undefined -- LIQUID newForeignPtr c_free_finalizer (castPtr cstr)
     len <- c_strlen cstr
     return $! PS fp 0 ({- LIQUID fromIntegral -} cSizeInt len)
 
@@ -327,8 +329,10 @@ unsafePackMallocCString cstr = do
 -- to guarantee that the @ByteString@ is indeed null terminated. If in
 -- doubt, use @useAsCString@.
 --
+{-@ unsafeUseAsCString :: p:ByteString -> ({v: (PtrV Foreign.C.Types.CChar) | (bLength p) <= (plen v) } -> IO a) -> IO a @-}
 unsafeUseAsCString :: ByteString -> (CString -> IO a) -> IO a
 unsafeUseAsCString (PS ps s _) ac = withForeignPtr ps $ \p -> ac (castPtr p `plusPtr` s)
+
 
 -- | /O(1) construction/ Use a @ByteString@ with a function requiring a
 -- @CStringLen@.
@@ -345,5 +349,8 @@ unsafeUseAsCString (PS ps s _) ac = withForeignPtr ps $ \p -> ac (castPtr p `plu
 -- will break referential transparency. To avoid this, use
 -- @useAsCStringLen@, which makes a copy of the original @ByteString@.
 --
+
+
+{-@ unsafeUseAsCStringLen :: b:ByteString -> ((CStringLenN (bLength b)) -> IO a) -> IO a @-}
 unsafeUseAsCStringLen :: ByteString -> (CStringLen -> IO a) -> IO a
 unsafeUseAsCStringLen (PS ps s l) f = withForeignPtr ps $ \p -> f (castPtr p `plusPtr` s,l)
