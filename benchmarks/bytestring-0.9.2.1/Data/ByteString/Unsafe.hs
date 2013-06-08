@@ -102,14 +102,8 @@ assertS s False = error ("assertion failed at "++s)
 liquidCanary1     :: Int -> Int
 liquidCanary1 x   = x - 1
 
-{-@ assume Foreign.ForeignPtr.withForeignPtr :: fp:(ForeignPtr a) -> ({v:(Ptr a) | (plen v) = (fplen fp)} -> IO b) -> IO b 
-  @-}
-{-@ assume GHC.ForeignPtr.newForeignPtr_ :: p:(Ptr a) -> IO {v: (ForeignPtr a) | (((fplen v) >= 0) && ((fplen v) = (plen p)))} 
-  @-}
-{-@ assume Foreign.Concurrent.newForeignPtr :: p:(PtrV a) -> IO () -> IO {v:(ForeignPtr a) | (fplen v) = (plen p)} 
-  @-}
-{-@ assume GHC.Ptr.castPtr :: p:(PtrV a) -> {v: (PtrV b) | (plen v) = (plen p)} 
-  @-}
+
+
 {-@ assume Foreign.ForeignPtr.newForeignPtr :: FinalizerPtr a -> p:(PtrV a) -> IO ({v: ForeignPtr a | (fplen v) = (plen p)}) 
   @-}
 {-@ type CStringLen    = ((Ptr Foreign.C.Types.CChar), Nat)<{\p v -> (v <= (plen p))}> 
