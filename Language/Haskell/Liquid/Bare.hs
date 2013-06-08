@@ -172,7 +172,7 @@ mapTyVars (AppTy τ τ') (RAppTy t t' _)
   = do  mapTyVars τ t 
         mapTyVars τ' t' 
 mapTyVars τ t               
-  = errorstar ("Bare.hs cannot handle" ++ show t)
+  = errorstar ("Bare.mapTyVars: cannot handle" ++ show t)
 
 mapTyRVar α a s@(MTVST αs as αas err)
   | (α `S.member` αs) && (a `S.member` as)

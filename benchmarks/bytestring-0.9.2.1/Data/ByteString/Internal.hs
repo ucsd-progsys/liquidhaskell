@@ -183,7 +183,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
     bPayload (Data.ByteString.Internal.PS p o l) = p 
   @-} 
 
-{-@ predicate BSValid Payload Offset Length = ((fplen Payload) = Offset + Length) @-}
+{-@ predicate BSValid Payload Offset Length = (Offset + Length <= (fplen Payload)) @-}
 
 {-@ data Data.ByteString.Internal.ByteString  
       = Data.ByteString.Internal.PS 
@@ -196,10 +196,14 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 {-@ type ByteStringN N = {v: ByteString | (bLength v) = N} @-}
 
+{-@ qualif EqFPLen(v: a, x: ForeignPtr b): v = (fplen x)           @-}
+{-@ qualif EqPLen(v: a, x: Ptr b): v = (plen x)                    @-}
 {-@ qualif EqPLen(v: ForeignPtr a, x: Ptr a): (fplen v) = (plen x) @-}
 {-@ qualif EqPLen(v: Ptr a, x: ForeignPtr a): (plen v) = (fplen x) @-}
 {-@ qualif PValid(v: Int, p: Ptr a): v <= (plen p)                 @-}
 {-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p)                   @-}
+{-@ qualif FPLenPos(v: ForeignPtr a): 0 <= (fplen v)               @-}
+{-@ qualif PLenPos(v: Ptr a): 0 <= (plen v)                        @-}
 
 -------------------------------------------------------------------------
 
@@ -427,7 +431,7 @@ inlinePerformIO = unsafePerformIO
 -- LIQUID foreign import ccall unsafe "string.h strlen" c_strlen
 -- LIQUID     :: CString -> IO CSize
 -- LIQUID 
-{-@ c_strlen ::  s:CString -> IO {v: CSize | v = (plen s)} @-}
+{-@ c_strlen ::  s:CString -> IO {v: CSize | ((0 <= v) && (v = (plen s)))} @-}
 c_strlen :: CString -> IO CSize
 c_strlen = undefined
 

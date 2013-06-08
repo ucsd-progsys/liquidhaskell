@@ -52,7 +52,7 @@ import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
 
 import Language.Haskell.Liquid.Parse 
-import Language.Fixpoint.Parse          hiding (comma)
+import Language.Fixpoint.Parse          hiding (brackets, comma)
 import Language.Fixpoint.Names
 import Language.Fixpoint.Files
 
@@ -375,7 +375,7 @@ instance PPrint GhcSpec where
   pprint spec =  (text "******* Target Variables ********************")
               $$ (pprint $ tgtVars spec)
               $$ (text "******* Type Signatures *********************")
-              $$ (pprint $ tySigs spec)
+              $$ (pprintLongList $ tySigs spec)
               $$ (text "******* DataCon Specifications (Measure) ****")
               $$ (pprint $ ctor spec)
               $$ (text "******* Measure Specifications **************")
@@ -404,3 +404,7 @@ instance PPrint [CoreBind] where
 instance PPrint TargetVars where
   pprint AllVars   = text "All Variables"
   pprint (Only vs) = text "Only Variables: " <+> pprint vs 
+
+
+
+pprintLongList = brackets . vcat . map pprint
