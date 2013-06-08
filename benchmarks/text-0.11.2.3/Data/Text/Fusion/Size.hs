@@ -35,6 +35,9 @@ data Size = Exact {-# UNPACK #-} !Int -- ^ Exact size.
           | Unknown                   -- ^ Unknown size.
             deriving (Eq, Show)
 
+{-@ embed Data.Text.Fusion.Size.Size as int @-}
+{-@ invariant {v:Data.Text.Fusion.Size.Size | v >= 0} @-}
+
 exactly :: Size -> Maybe Int
 exactly (Exact n) = Just n
 exactly _         = Nothing
@@ -119,6 +122,10 @@ smaller   Unknown   Unknown   = Unknown
 {-# INLINE smaller #-}
 
 -- | Maximum of two size hints.
+{-@ larger :: s1:Data.Text.Fusion.Size.Size
+           -> s2:Data.Text.Fusion.Size.Size
+           -> {v:Data.Text.Fusion.Size.Size | (Max v s1 s2)}
+  @-}
 larger :: Size -> Size -> Size
 larger   (Exact m)   (Exact n)             = Exact (m `max` n)
 larger a@(Exact m) b@(Max   n) | m >= n    = a
@@ -130,12 +137,17 @@ larger _             _                     = Unknown
 {-# INLINE larger #-}
 
 -- | Compute the maximum size from a size hint, if possible.
+--LIQUID FIXME: this type is not quite right
+{-@ upperBound :: k:Nat -> s:Data.Text.Fusion.Size.Size
+               -> {v:Nat | (Max v k s)}
+  @-}
 upperBound :: Int -> Size -> Int
 upperBound _ (Exact n) = n
 upperBound _ (Max   n) = n
 upperBound k _         = k
 {-# INLINE upperBound #-}
 
+{-@ isEmpty :: s:Size -> {v:Bool | ((Prop v) <=> (s = 0))} @-}
 isEmpty :: Size -> Bool
 isEmpty (Exact n) = n <= 0
 isEmpty (Max   n) = n <= 0

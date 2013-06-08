@@ -109,7 +109,8 @@ data Text = Text
 {-@ text :: a:Data.Text.Array.Array
          -> o:{v:Nat | v <= (alen a)}
          -> l:{v:Nat | (v+o) <= (alen a)}
-         -> {v:Text | (((tarr v) = a) && ((toff v) = o) && ((tlen v) = l) && ((tlength v) = (numchars a o l)))}
+         -> {v:Text | (((tarr v) = a) && ((toff v) = o) && ((tlen v) = l)
+                       && ((tlength v) = (numchars a o l)))}
   @-}
 text :: A.Array -> Int -> Int -> Text
 text arr off len =

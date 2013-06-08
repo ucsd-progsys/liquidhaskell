@@ -48,7 +48,9 @@ import qualified Data.Text.Internal as T
 import qualified Data.Text
 import qualified Data.Text.Array
 import qualified Data.Text.Fusion.Internal
+import qualified Data.Text.Fusion.Size
 import qualified Data.Text.Internal
+import qualified Data.Text.Private
 import qualified Data.Text.Search
 import qualified Data.Text.Unsafe
 import Language.Haskell.Liquid.Prelude
