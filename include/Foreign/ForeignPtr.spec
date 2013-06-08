@@ -18,4 +18,6 @@ Foreign.ForeignPtr.withForeignPtr :: fp:(ForeignPtr a) -> ((PtrN a (fplen fp)) -
 GHC.ForeignPtr.newForeignPtr_     :: p:(Ptr a) -> (IO (ForeignPtrN a (plen p)))
 Foreign.Concurrent.newForeignPtr  :: p:(PtrV a) -> IO () -> (IO (ForeignPtrN a (plen p)))
 
+Foreign.ForeignPtr.newForeignPtr :: FinalizerPtr a -> p:(PtrV a) -> (IO (ForeignPtrN a (plen p)))
+
 

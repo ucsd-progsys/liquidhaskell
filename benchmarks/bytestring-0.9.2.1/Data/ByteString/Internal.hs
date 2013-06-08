@@ -185,6 +185,8 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 {-@ predicate BSValid Payload Offset Length = (Offset + Length <= (fplen Payload)) @-}
 
+{-@ predicate OkIndex B I = ((0 <= I) && (I < (bLength B))) @-}
+
 {-@ data Data.ByteString.Internal.ByteString  
       = Data.ByteString.Internal.PS 
           { payload :: (ForeignPtr Word8) 

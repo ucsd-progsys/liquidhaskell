@@ -96,20 +96,11 @@ assertS s False = error ("assertion failed at "++s)
 #define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
 #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
-{-@ predicate OkIndex B I = ((0 <= I) && (I < (bLength B))) @-}
 
 {-@ liquidCanary1 :: x:Int -> {v: Int | v > x} @-}
 liquidCanary1     :: Int -> Int
 liquidCanary1 x   = x - 1
 
-
-
-{-@ assume Foreign.ForeignPtr.newForeignPtr :: FinalizerPtr a -> p:(PtrV a) -> IO ({v: ForeignPtr a | (fplen v) = (plen p)}) 
-  @-}
-{-@ type CStringLen    = ((Ptr Foreign.C.Types.CChar), Nat)<{\p v -> (v <= (plen p))}> 
-  @-}
-{-@ type CStringLenN N = ((Ptr Foreign.C.Types.CChar), {v:Nat | v = N})<{\p v -> (v <= (plen p))}>
-  @-}
 -- ---------------------------------------------------------------------
 --
 -- Extensions to the basic interface

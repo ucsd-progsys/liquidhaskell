@@ -5,4 +5,3 @@ module spec Foreign.C.Types where
 
 embed CSize as int
 
-
