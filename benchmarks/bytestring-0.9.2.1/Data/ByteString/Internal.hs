@@ -44,8 +44,8 @@ module Data.ByteString.Internal (
         nullForeignPtr,         -- :: ForeignPtr Word8
 
         -- * Standard C Functions
-        -- LIQUID c_strlen,               -- :: CString -> IO CInt
-        -- LIQUID c_free_finalizer,       -- :: FunPtr (Ptr Word8 -> IO ())
+        c_strlen,               -- :: CString -> IO CInt
+        c_free_finalizer,       -- :: FunPtr (Ptr Word8 -> IO ())
 
         memchr,                 -- :: Ptr Word8 -> Word8 -> CSize -> IO Ptr Word8
         -- LIQUID memcmp,                 -- :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
@@ -183,8 +183,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
     bPayload (Data.ByteString.Internal.PS p o l) = p 
   @-} 
 
-{-@ predicate BSValid Payload Offset Length = ((fplen Payload) = Offset + Length) @-}
-{-@ predicate PValid P N                    = ((0 <= N) && (N <= (plen P)))       @-}
+{-@ predicate BSValid Payload Offset Length = (Offset + Length <= (fplen Payload)) @-}
 
 {-@ data Data.ByteString.Internal.ByteString  
       = Data.ByteString.Internal.PS 
@@ -197,15 +196,14 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 {-@ type ByteStringN N = {v: ByteString | (bLength v) = N} @-}
 
+{-@ qualif EqFPLen(v: a, x: ForeignPtr b): v = (fplen x)           @-}
+{-@ qualif EqPLen(v: a, x: Ptr b): v = (plen x)                    @-}
 {-@ qualif EqPLen(v: ForeignPtr a, x: Ptr a): (fplen v) = (plen x) @-}
 {-@ qualif EqPLen(v: Ptr a, x: ForeignPtr a): (plen v) = (fplen x) @-}
 {-@ qualif PValid(v: Int, p: Ptr a): v <= (plen p)                 @-}
 {-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p)                   @-}
-
-
-{-@ assume Foreign.Storable.poke        :: (Storable a) => {v: (Ptr a) | 0 <= (plen v)} -> a -> (IO ()) @-}
-{-@ assume Foreign.Storable.peek        :: (Storable a) => {v: (Ptr a) | 0 <= (plen v)} -> (IO a) @-}
-{-@ assume Foreign.Storable.peekByteOff :: (Storable a) => forall b. p:(Ptr b) -> {v: Int | (PValid p v) } -> (IO a) @-}
+{-@ qualif FPLenPos(v: ForeignPtr a): 0 <= (fplen v)               @-}
+{-@ qualif PLenPos(v: Ptr a): 0 <= (plen v)                        @-}
 
 -------------------------------------------------------------------------
 
@@ -433,11 +431,21 @@ inlinePerformIO = unsafePerformIO
 -- LIQUID foreign import ccall unsafe "string.h strlen" c_strlen
 -- LIQUID     :: CString -> IO CSize
 -- LIQUID 
+{-@ c_strlen ::  s:CString -> IO {v: CSize | ((0 <= v) && (v = (plen s)))} @-}
+c_strlen :: CString -> IO CSize
+c_strlen = undefined
+
 -- LIQUID foreign import ccall unsafe "static stdlib.h &free" c_free_finalizer
 -- LIQUID     :: FunPtr (Ptr Word8 -> IO ())
 -- LIQUID 
+c_free_finalizer :: FunPtr (Ptr Word8 -> IO ())
+c_free_finalizer = undefined
+
 -- LIQUID foreign import ccall unsafe "string.h memchr" c_memchr
 -- LIQUID     :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
+-- LIQUID 
+{-@ c_memchr :: p:(Ptr Word8) -> CInt -> {v:CSize| (PValid p v)} -> IO (Ptr Word8) @-}
+c_memchr :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
 c_memchr = undefined
 
 

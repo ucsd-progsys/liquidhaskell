@@ -1,6 +1,10 @@
+{-# OPTIONS_GHC -cpp -fglasgow-exts #-}
+
 module Language.Haskell.Liquid.Prelude where
 
 import Foreign.C.Types          (CSize(..))
+import Foreign.Ptr
+import GHC.Base
 
 -------------------------------------------------------------------
 --------------------------- Arithmetic ----------------------------
@@ -111,7 +115,18 @@ isOdd x = x `mod` 2 == 1
 
 -----------------------------------------------------------------------------------------------
 
-{-@ assume intCSize :: x:Int -> {v: CSize | v = x } @-}
 {-# NOINLINE intCSize #-}
+{-@ assume intCSize :: x:Int -> {v: CSize | v = x } @-}
 intCSize :: Int -> CSize
 intCSize = fromIntegral 
+
+{-# NOINLINE cSizeInt #-}
+{-@ assume cSizeInt :: x:CSize -> {v: Int | v = x } @-}
+cSizeInt :: CSize -> Int
+cSizeInt = fromIntegral 
+
+
+{-@ assume mkPtr :: x:GHC.Prim.Addr# -> {v: (Ptr b) | ((plen v) = (addrLen x) && ((plen v) >= 0)) } @-} 
+mkPtr   :: GHC.Base.Addr# -> Ptr b
+mkPtr x = undefined -- Ptr x 
+
