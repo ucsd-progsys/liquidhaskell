@@ -133,7 +133,7 @@ renameTyVars (x, Loc l t)
     su                    = [(y, rTyVar x) | (x, y) <- tyvsmap]
     tyvsmap               = vmap $ execState (mapTyVars τbody tbody) initvmap 
     initvmap              = initMapSt αs as errmsg
-    (αs, τbody)           = splitForAllTys $ varType x
+    (αs, τbody)           = splitForAllTys $ expandTypeSynonyms $ varType x
     (as, ps, tbody)       = bkUniv t
     errmsg                = render $ errTypeMismatch x t
 
@@ -172,7 +172,8 @@ mapTyVars (AppTy τ τ') (RAppTy t t' _)
   = do  mapTyVars τ t 
         mapTyVars τ' t' 
 mapTyVars τ t               
-  = errorstar ("Bare.mapTyVars: cannot handle" ++ show t)
+  = do err <- errmsg <$> get
+       errorstar $ "Bare.mapTyVars : " ++ err
 
 mapTyRVar α a s@(MTVST αs as αas err)
   | (α `S.member` αs) && (a `S.member` as)
