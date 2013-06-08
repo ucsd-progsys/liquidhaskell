@@ -13,6 +13,8 @@ module Data.Text.Private
     (
       runText
     , span_
+      --LIQUID
+    , Iter(..)
     ) where
 
 import Control.Monad.ST (ST, runST)
@@ -60,9 +62,11 @@ span_ p t@(Text arr off len) = (# hd,tl #)
                 | otherwise = i
 {-# INLINE span_ #-}
 
-{-@ runText :: (forall s. (ma:A.MArray s -> {v:Int | v = (malen ma)} -> ST s Text)
-                       -> ST s Text)
-            -> Text
+{-@ runText :: (forall s. (ma:Data.Text.Array.MArray s
+                           -> {v:Nat | v <= (malen ma)}
+                           -> GHC.ST.ST s Text)
+                       -> GHC.ST.ST s Text)
+            -> Data.Text.Internal.Text
   @-}
 runText :: (forall s. (A.MArray s -> Int -> ST s Text) -> ST s Text) -> Text
 runText act = runST (act $ \ !marr !len -> do

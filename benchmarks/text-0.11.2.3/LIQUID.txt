@@ -1,0 +1,43 @@
+Data.Text: 56 annotated, 32 unannotated (most don't have an obvious
+spec that we can express)
+
+Data.Text.Lazy: 62 annotated, 35 unannotated (most don't have an obvious
+spec that we can express)
+
+
+Verified modules:
+- Data.Text
+- Data.Text.Array (need better assumes for unsafeIndex[FB])
+- Data.Text.Foreign
+- Data.Text.Internal (need to fix tlength assumes)
+- Data.Text.Fusion
+- Data.Text.Lazy
+- Data.Text.Lazy.Internal
+- Data.Text.Lazy.Search
+- Data.Text.Private
+- Data.Text.Search
+- Data.Text.Unsafe (need to figure out the stupid Iter nonsense)
+- Data.Text.UnsafeChar (still need ord)
+
+Other interesting modules:
+- Data.Text.Encoding (can't desugar at the moment..)
+- Data.Text.Fusion.Size (proof burden from Data.Text.Fusion)
+- Data.Text.Lazy.Builder
+- Data.Text.Lazy.Fusion
+
+
+Possible bug in Data.Text.Fusion.mapAccumL:
+
+    > let f a c = (a, chr 65536)
+    > mapAccumL f 0 (stream (pack "aaaaa"))
+
+I believe this ought to return `(0,"\65536\65536\65536\65536\65536")`
+but instead it returns `(0,"\65536\65536\x\65536\65536")` where `\x`
+is a non-deterministic value. At the very least this breaks
+referential transparency.
+
+The issue comes due to the fact that `f` may be given a Char that fits
+into a `Word16` but return one that requires 2. LiquidHaskell
+complains that the call to `unsafeWrite` may index out-of-bounds, but
+if we change `j` to depend on the Char returned by `f`, the complain
+goes away, as does the non-determinism.

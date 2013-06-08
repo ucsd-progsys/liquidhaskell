@@ -1,7 +1,9 @@
 qualif ArrIsEmp(v:Bool, ~A:Data.Text.Array.Array): (Prop(v) <=> alen([~A]) [ > ; = ] 0)
 qualif ArrZ(v:Data.Text.Array.Array): alen([v]) [ = ; >= ; > ] 0
 qualif CmpArr(v:Data.Text.Array.Array, ~A:int): (~A [ = ; >= ; > ; < ; <= ] alen([v]))
+qualif CmpArrI(v:int, ~A:Data.Text.Array.Array): (v [ = ; >= ; > ; < ; <= ] alen([~A]))
 
 qualif MArrIsEmp(v:Bool, ~A:Data.Text.Array.MArray): (Prop(v) <=> malen([~A]) [ > ; = ] 0)
 qualif MArrZ(v:Data.Text.Array.MArray): malen([v]) [ = ; >= ; > ] 0
 qualif CmpMArr(v:Data.Text.Array.MArray, ~A:int): (~A [ = ; >= ; > ; < ; <= ] malen([v]))
+qualif CmpMArrI(v:int, ~A:Data.Text.Array.MArray): (~v [ = ; >= ; > ; < ; <= ] malen([~A]))

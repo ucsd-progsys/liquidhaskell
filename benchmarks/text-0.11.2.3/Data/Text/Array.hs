@@ -110,8 +110,10 @@ data Array = Array {
   @-}
 
 {-@ aLen :: a:Data.Text.Array.Array
-         -> {v:Int | v = (alen a)}
+         -> {v:Nat | v = (alen a)}
   @-}
+
+{-@ invariant {v:Data.Text.Array.Array | (alen v) >= 0} @-}
 
 {-@ measure numchars :: Data.Text.Array.Array -> Int -> Int -> Int @-}
 
@@ -134,8 +136,10 @@ data MArray s = MArray {
   @-}
 
 {-@ maLen :: ma:(Data.Text.Array.MArray s)
-          -> {v:Int | v = (malen ma)}
+          -> {v:Nat | v = (malen ma)}
   @-}
+
+{-@ invariant {v:Data.Text.Array.MArray | (malen v) >= 0} @-}
 
 --LIQUID #if defined(ASSERTS)
 -- | Operations supported by all arrays.
@@ -202,7 +206,7 @@ unsafeIndex Array{..} i@(I# i#) =
 
 --LIQUID
 {-@ unsafeIndexF :: a:Data.Text.Array.Array
-             -> o:{v:Int | (Btwn v 0 (alen a))}
+             -> o:{v:Int | (BtwnI v 0 (alen a))}
              -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
              -> i:{v:Int | (Btwn (v) (o) (o + l))}
              -> {v:Data.Word.Word16 | (((v >= 55296) && (v <= 56319))
@@ -220,7 +224,7 @@ unsafeIndexF :: Array -> Int -> Int -> Int -> Word16
 unsafeIndexF a o l i = undefined --unsafeIndex a i
 
 {-@ unsafeIndexB :: a:Data.Text.Array.Array
-             -> o:{v:Int | (Btwn v 0 (alen a))}
+             -> o:{v:Int | (BtwnI v 0 (alen a))}
              -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
              -> i:{v:Int | (Btwn (v) (o) (o + l))}
              -> {v:Data.Word.Word16 | (((v >= 56320) && (v <= 57343))
@@ -304,9 +308,9 @@ run2 k = runST (do
 
 -- | Copy some elements of a mutable array.
 {-@ copyM :: ma1:Data.Text.Array.MArray s
-          -> o1:{v:Nat | v < (malen ma1)}
+          -> o1:{v:Nat | v <= (malen ma1)}
           -> ma2:Data.Text.Array.MArray s
-          -> o2:{v:Nat | v < (malen ma2)}
+          -> o2:{v:Nat | v <= (malen ma2)}
           -> cnt:{v:Nat | (((v + o1) <= (malen ma1)) &&
                            ((v + o2) <= (malen ma2)))}
           -> GHC.ST.ST s ()
@@ -333,9 +337,9 @@ copyM dest didx src sidx count
 
 -- | Copy some elements of an immutable array.
 {-@ copyI :: ma:Data.Text.Array.MArray s
-          -> mo:{v:Nat | v < (malen ma)}
+          -> mo:{v:Nat | v <= (malen ma)}
           -> a:Data.Text.Array.Array
-          -> o:{v:Nat | v < (alen a)}
+          -> o:{v:Nat | v <= (alen a)}
           -> top:{v:Int | ((v >= mo)
                            && (v <= (malen ma))
                            && (((v-mo)+o) <= (alen a)))}
