@@ -44,18 +44,24 @@ Bytestring
   6738 total
 
 
+Liquid-Fixpoint
+===============
+
+Z3 agnostic solver? sigh.
+
 Module Import (see branch imports) 
 ==================================
 
 See tests/pos/Mod2.hs [Which imports a measure from Mod1.hs]
 
-    liquid Mod2.hs <---------------------------------- HEREHEREHEREHEREHERE
+    [STOP] Get tests to run WITHOUT after deleting *redundant*
 
-* what is gross error message?
+    import qualified Mod1
 
-    liquid -i . Mod2.hs
 
-* where is the bloody name? Fully qualified?
+0. NO MONOLITHIC "bare".
+ 
+   >   When converting a SPEC, do so in its own context.
 
 1. When Parsing IMPORTED module, FULL QUALIFY all names 
 

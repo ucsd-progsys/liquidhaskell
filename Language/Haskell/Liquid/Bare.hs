@@ -172,7 +172,7 @@ mapTyVars (AppTy τ τ') (RAppTy t t' _)
   = do  mapTyVars τ t 
         mapTyVars τ' t' 
 mapTyVars τ t               
-  = errorstar ("Bare.hs cannot handle" ++ show t)
+  = errorstar ("Bare.mapTyVars: cannot handle" ++ show t)
 
 mapTyRVar α a s@(MTVST αs as αas err)
   | (α `S.member` αs) && (a `S.member` as)
@@ -730,12 +730,14 @@ checkDuplicate xts   = err <$> dups
         dups         = [ z | z@(x, t1:t2:_) <- M.toList $ group xts ]
 
 checkMismatch (x, t) = if ok then Nothing else Just err
-  where ok           = tyCompat x t' --(toRSort t') == (ofType $ varType x) 
+  where ok           = tyCompat x t'
         err          = errTypeMismatch x t
         t'           = val t
 
-tyCompat x t         = (toRSort t) == (ofType $ varType x)
-
+tyCompat x t         = {- traceShow msg -} (lhs == rhs)
+  where lhs :: RSort = toRSort t
+        rhs :: RSort = ofType $ varType x
+        msg          = printf "tyCompat: l = %s r = %s" (showpp lhs) (showpp rhs)
 
 ghcSpecEnv sp        = fromListSEnv binds
   where 
