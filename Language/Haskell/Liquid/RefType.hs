@@ -20,11 +20,14 @@ module Language.Haskell.Liquid.RefType (
   -- * Functions for lifting Reft-values to Spec-values
     uTop, uReft, uRType, uRType', uRTypeGen, uPVar
  
+  -- * Functions for decreasing arguments
+  , cmpReft, isDecreasing
+
   -- * Functions for manipulating `Predicate`s
   , pdVar
   -- , pdAnd, pdTrue, pvars
   , findPVar
-  , freeTyVars, tyClasses
+  , freeTyVars, tyClasses, tyConName
 
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp 
@@ -53,7 +56,7 @@ import Type             (isPredTy, substTyWith, classifyPredType, PredTree(..), 
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon)
 
 import Data.Monoid      hiding ((<>))
-import Data.Maybe               (fromMaybe)
+import Data.Maybe               (fromMaybe, isJust)
 import Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S 
@@ -308,7 +311,7 @@ normalizePds t = addPds ps t'
   where (t', ps) = nlzP [] t
 
 rPred p t = RAllP p t
-rApp c    = RApp (RTyCon c [] (mkTyConInfo c [] [])) 
+rApp c    = RApp (RTyCon c [] (mkTyConInfo c [] [] Nothing)) 
 
 
 addPds ps (RAllT v t) = RAllT v $ addPds ps t
@@ -420,17 +423,24 @@ strengthen (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `meet` r')
 strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `meet` r')
 strengthen t _                  = t 
 
-expandRApp tyi (RApp rc ts rs r)
+expandRApp tce tyi (RApp rc ts rs r)
   = RApp rc' ts (appRefts rc' rs) r
-    where rc' = appRTyCon tyi rc ts
+    where rc' = appRTyCon tce tyi rc ts
 
-expandRApp _ t
+expandRApp _ _ t
   = t
 
-appRTyCon tyi rc@(RTyCon c _ _) ts = RTyCon c ps' (rTyConInfo rc')
+appRTyCon tce tyi rc@(RTyCon c _ _) ts = RTyCon c ps' (rTyConInfo rc'')
   where ps' = map (subts (zip (RTV <$> αs) (toRSort <$> ts))) (rTyConPs rc')
         rc' = M.lookupDefault rc c tyi
         αs  = TC.tyConTyVars $ rTyCon rc'
+        rc'' = if isNumeric tce rc' then addNumSizeFun rc' else rc'
+isNumeric tce c 
+  =  (fromMaybe (stringFTycon $ tyConName (rTyCon c)))
+       (M.lookup (rTyCon c) tce) == intFTyCon
+
+addNumSizeFun c 
+  = c {rTyConInfo=(rTyConInfo c){sizeFunction = Just EVar}}
 
 appRefts rc [] = RPoly [] . ofRSort . ptype <$> (rTyConPs rc)
 appRefts rc rs = safeZipWith ("appRefts" ++ showFix rc) toPoly rs (rTyConPs rc)
@@ -899,4 +909,17 @@ classBinds (RCls c ts)
 classBinds _         = [] 
 
 rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
+
+cmpReft (Just f) x
+  = uReft (vv, [RConc $ PAtom Lt (f vv) (f x)])
+   where vv      = S "vvRec"
+cmpReft _ _
+  = errorstar "RefType: cmpReft"
+            
+isDecreasing (RApp c _ _ _) 
+  = isJust (sizeFunction (rTyConInfo c)) 
+isDecreasing _ 
+  = False
+
+
 
