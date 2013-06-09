@@ -348,8 +348,8 @@ loopFilter f arr = loopWrapper (doFilterLoop f NoAcc) arr
   @-} 
 
 {-@ type ILoop acc =  s:(PtrV Word8) 
-                   -> d:{v: (PtrV Word8) | (plen s) <= (plen v)}
-                   -> n:{v: Nat | v <= (plen s)}
+                   -> d:(PtrV Word8)
+                   -> n:{v: Nat | ((v <= (plen d)) && (v <= (plen s))) }
                    -> IO (Triple acc n)
   @-}
  
@@ -364,8 +364,8 @@ type ILoop acc =
 {-@ type TripleS a N = PairS <{\z v -> v <= (N - (psnd z))}> (PairS <{\x y -> true}> a Nat) Nat
   @-} 
 {-@ type ImperativeLoop acc =  s:(PtrV Word8) 
-                            -> d:{v: (PtrV Word8) | (plen s) <= (plen v)}
-                            -> n:{v: Nat | v <= (plen s)}
+                            -> d:(PtrV Word8)
+                            -> n:{v: Nat | ((v <= (plen d)) && (v <= (plen s))) }
                             -> IO (TripleS acc n)
   @-}
 type ImperativeLoop acc =
