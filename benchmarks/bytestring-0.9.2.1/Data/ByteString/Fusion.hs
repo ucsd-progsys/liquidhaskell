@@ -466,7 +466,7 @@ sequenceLoops :: ImperativeLoop acc1
               -> ImperativeLoop acc2
               -> ImperativeLoop (PairS acc1 acc2)
 sequenceLoops loop1 loop2 src dest len0 = do
-    -- LIQUID: same match issue as in loopWrapper 
+    -- LIQUIDPAIRS same match issue as in loopWrapper 
   (acc1 :*: off1 :*: len1) <- loop1 src dest len0
   (acc2 :*: off2 :*: len2) <-
     let src'  = dest `plusPtr` off1

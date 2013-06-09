@@ -36,13 +36,16 @@ Bytestring
    148 Data/ByteString/Lazy/Internal.hs     [OK]
    297 Data/ByteString/Unsafe.hs            [OK]
    509 Data/ByteString/Internal.hs          [OK]
-   700 Data/ByteString/Fusion.hs            [**]
+   700 Data/ByteString/Fusion.hs            [OK?] see LIQUIDPAIRS issue
    822 Data/ByteString/Lazy/Char8.hs
   1012 Data/ByteString/Char8.hs
   1322 Data/ByteString/Lazy.hs              
   1928 Data/ByteString.hs
 
   6738 total
+
+HEREHERE
+WARNING: Data/ByteString/Fusion.hs:472:32-35 
 
 
 Liquid-Fixpoint
