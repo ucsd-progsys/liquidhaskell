@@ -59,6 +59,7 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
 import Language.Haskell.Liquid.Predicates
 import Language.Haskell.Liquid.GhcMisc          (getSourcePos, pprDoc, tickSrcSpan, hasBaseTypeVar, showPpr)
+import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Qualifier        
 import Control.DeepSeq
@@ -75,7 +76,7 @@ generateConstraints cfg info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg
 
 consAct info penv
   = do γ   <- initEnv info penv
-       foldM consCB γ (cbs info)
+       foldM (consCB terminationAnalysis) γ (cbs info)
        hcs <- hsCs  <$> get 
        hws <- hsWfs <$> get
        fcs <- concat <$> mapM splitC hcs 
@@ -91,16 +92,17 @@ initEnv info penv
        let f1    = defaults           -- default TOP reftype      (for all vars) 
        let f2    = assm info          -- assumed refinements      (for imported vars)
        let f3    =  ctor' $ spec info -- constructor refinements  (for measures) 
-       let bs    = (map (unifyts' tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
+       let bs    = (map (unifyts' tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
        lts      <- lits <$> get
-       let tcb   = mapSnd (rTypeSort (tcEmbeds $ spec info)) <$> concat bs
+       let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
        -- return    $ foldl' (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs] 
+  where tce = tcEmbeds $ spec info 
 
 ctor' = map (mapSnd val) . ctor 
 
-unifyts' tyi penv = (second (addTyConInfo tyi)) . (unifyts penv)
+unifyts' tce tyi penv = (second (addTyConInfo tce tyi)) . (unifyts penv)
 
 unifyts penv (x, t) = (x', unify pt t)
  where pt = F.lookupSEnv x' penv
@@ -118,6 +120,7 @@ measEnv sp penv xts cbs lts
         , emb   = tce 
         , tgEnv = Tg.makeTagEnv cbs
         , tgKey = Nothing
+        , trec  = Nothing
         } 
     where tce = tcEmbeds sp
 
@@ -164,6 +167,7 @@ data CGEnv
         , emb    :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
         , tgEnv :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
         , tgKey :: !(Maybe Tg.TagKey)  -- ^ Current top-level binder
+        , trec  :: !(Maybe (F.Symbol, SpecType)) -- ^ Type of recursive function with decreasing constraints
         } -- deriving (Data, Typeable)
 
 instance PPrint CGEnv where
@@ -185,6 +189,10 @@ setLoc :: CGEnv -> SrcSpan -> CGEnv
 
 withRecs :: CGEnv -> [Var] -> CGEnv 
 withRecs γ xs  = γ { recs = foldl' (flip S.insert) (recs γ) xs }
+
+withTRec γ (x, rTy) = γ' {trec = Just (x', rTy)}
+  where x' = varSymbol x
+        γ' = γ `withRecs` [x]
 
 setBind :: CGEnv -> Tg.TagKey -> CGEnv  
 setBind γ k 
@@ -447,6 +455,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , annotMap   :: !(AnnInfo Annot) 
                      , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) 
                      , specQuals  :: ![F.Qualifier]
+                     , specDecr   :: ![(F.Symbol, Int)]
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
                      , lits       :: ![(F.Symbol, F.Sort)]
@@ -486,11 +495,12 @@ initCGI cfg info = CGInfo {
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
+  , specDecr   = decr spc
   } 
   where 
     tce        = tcEmbeds spc 
     spc        = spec info
-    spec'      = spc {tySigs = [ (x, addTyConInfo tyi <$> t) | (x, t) <- tySigs spc] }
+    spec'      = spc {tySigs = [ (x, addTyConInfo tce tyi <$> t) | (x, t) <- tySigs spc] }
     tyi        = makeTyConInfo (tconsP spc)
     globs      = F.fromListSEnv . map mkSort $ meas spc
     mkSort     = mapSnd (rTypeSortedReft tce . val)
@@ -664,7 +674,8 @@ trueTy  :: Type -> CG SpecType
 trueTy t 
   = do t   <- true $ ofType t
        tyi <- liftM tyConInfo get
-       return $ addTyConInfo tyi (uRType t)
+       tce  <- tyConEmbed <$> get
+       return $ addTyConInfo tce tyi (uRType t)
 
 class Freshable a where
   fresh   :: CG a
@@ -730,7 +741,8 @@ refreshRefType (RFun b t t' _)
   = liftM2 (rFun b) (refresh t) (refresh t')
 refreshRefType (RApp rc ts _ r)  
   = do tyi                 <- tyConInfo <$> get
-       let RApp rc' _ rs _  = expandRApp tyi (RApp rc ts [] r)
+       tce                 <- tyConEmbed <$> get
+       let RApp rc' _ rs _  = expandRApp tce tyi (RApp rc ts [] r)
        let rπs              = safeZip "refreshRef" rs (rTyConPs rc')
        liftM3 (RApp rc') (mapM refresh ts) (mapM refreshRef rπs) (refresh r)
 refreshRefType (RVar a r)  
@@ -753,17 +765,57 @@ freshSym s                = liftM (, fst3 s) fresh
 --   | otherwise
 --   = False
 
-addTyConInfo = mapBot . expandRApp
+addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
+
+
+-------------------------------------------------------------------------------
+recType γ (x, e, t) 
+  = do hint <- checkHint' . L.lookup (varSymbol x) . specDecr <$> get
+       let index  = fromMaybe dindex hint
+       let ts'    = dropFst3 <$> mapN index mkDecrType vxts
+       return $ mkArrow αs πs ts' tbd
+  where (αs, πs, t0)  = bkUniv t
+        (xs, ts, tbd) = bkArrow t0
+        vs            = fst $ collectValBinders $ snd $ collectTyBinders e
+        vxts          = safeZip3 ("recType on " ++ showPpr x) vs xs ts
+        errmsg        = "Cannot prove termination on" ++ showPpr x
+        checkHint'    = checkHint x ts isDecreasing
+        dindex        = safeFromJust errmsg $ L.findIndex isDecreasing ts
+
+mkDecrType (v, x, (t@(RApp c _ _ _))) = (v,x,) $  t `strengthen` tr
+  where tr = cmpReft (sizeFunction $ rTyConInfo c) (varSymbol v)
+
+checkHint _ _ _ Nothing = Nothing
+checkHint x ts f (Just n) 
+  | f (ts L.!! n') = Just n'
+  | otherwise = errorstar $ "Invalid Hint " ++ show n ++ 
+                            " for " ++ showPpr x
+  where n' = n-1 
 
 -------------------------------------------------------------------
 -------------------- Generation: Corebind -------------------------
 -------------------------------------------------------------------
 
 -------------------------------------------------------------------
-consCB :: CGEnv -> CoreBind -> CG CGEnv 
+consCB :: Bool -> CGEnv -> CoreBind -> CG CGEnv 
 -------------------------------------------------------------------
+consCB _ γ (Rec []) 
+  = return γ 
 
-consCB γ (Rec xes) 
+consCB tflag γ (Rec [(x,e)]) | tflag
+  = do (x, e, Just t) <- liftM (x, e,) (varTemplate γ (x, Just e))
+       rTy            <- recType γ (x, e, t)
+       γ'             <- extender (γ `withTRec` (x, rTy)) (x, Just t)
+       consBind True γ' (x, e, Just t)
+       return γ'
+    where x' = varSymbol x
+
+consCB tflag _ (Rec xs) | tflag
+  = errorstar $ "Termination Analysis not supported for mutual recursion"
+
+              ++ "in definitions of " ++ showPpr (fst <$>xs)
+
+consCB _ γ (Rec xes) 
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        let xts = [(x, to) | (x, _, to) <- xets, not (isGrty x)]
        γ'     <- foldM extender (γ `withRecs` (fst <$> xts)) xts
@@ -771,9 +823,9 @@ consCB γ (Rec xes)
        return γ' 
     where isGrty x = (varSymbol x) `memberREnv` (grtys γ)
 
-consCB γ (NonRec x e)
+consCB _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
-       to' <- consBind False γ (x, e, to)
+       to' <- (consBind False) γ (x, e, to)
        extender γ (x, to')
 
 consBind isRec γ (x, e, Just spect) 
@@ -818,16 +870,19 @@ unifyVar γ x rt = unify (getPrType γ (varSymbol x)) rt
 -------------------- Generation: Expression -----------------------
 -------------------------------------------------------------------
 
+-- TODO add a flag
+terminationAnalysis = True
+
 ----------------------- Type Checking -----------------------------
 cconsE :: CGEnv -> Expr Var -> SpecType -> CG () 
 -------------------------------------------------------------------
 
 cconsE γ (Let b e) t    
-  = do γ'  <- consCB γ b
+  = do γ'  <- consCB terminationAnalysis γ b
        cconsE γ' e t 
 
 cconsE γ (Case e x _ cases) t 
-  = do γ'  <- consCB γ $ NonRec x e
+  = do γ'  <- consCB False γ (NonRec x e)
        forM_ cases $ cconsCase γ' x t nonDefAlts 
     where nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
 
@@ -1042,9 +1097,15 @@ argExpr γ (Lit c)     = Just $ snd $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
 argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
 
-varRefType γ x =  t 
+
+varRefType γ x
+  | Just (y, ty) <- trec γ 
+  = if x' == y then (traceShow "RefTy = " ty) `strengthen` xr else t
+  | otherwise
+  = t
   where t  = (γ ?= (varSymbol x)) `strengthen` xr
         xr = uTop $ F.symbolReft $ varSymbol x
+        x' = varSymbol x
 
 -- TODO: should only expose/use subt. Not subsTyVar_meet
 subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
@@ -1056,7 +1117,7 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 instance NFData Cinfo 
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 _ x9 x10) 
+  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 _ x9 x10 _) 
     = x1 `seq` rnf x2 `seq` seq x3 `seq` x4 `seq` rnf x5 `seq` 
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
