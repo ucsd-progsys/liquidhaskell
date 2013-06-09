@@ -419,9 +419,9 @@ measurePatP
  <|> try (parens consPatP)
  <|>     (parens nilPatP)
 
-tupPatP  = mkTupPat  <$> (parens      $  sepBy locLowerIdP comma)
-conPatP  = (,)       <$> (upperIdP)  <*> sepBy locLowerIdP whiteSpace 
-consPatP = mkConsPat <$> locLowerIdP <*> colon <*> locLowerIdP
+tupPatP  = mkTupPat  <$> (parens       $  sepBy locLowerIdP comma)
+conPatP  = (,)       <$> dataConNameP <*> sepBy locLowerIdP whiteSpace 
+consPatP = mkConsPat <$> locLowerIdP  <*> colon <*> locLowerIdP
 nilPatP  = mkNilPat  <$> brackets whiteSpace 
 
 mkTupPat zs     = (tupDataCon (length zs), zs)
@@ -446,10 +446,20 @@ predTypeDDP
   = liftM2 (,) bbindP bareTypeP
 
 dataConP
-  = do x   <- upperIdP
+  = do x   <- dataConNameP 
        spaces
        xts <- dataConFieldsP
        return (x, xts)
+
+-- dataConNameP = symbolString <$> binderP -- upperIdP
+dataConNameP 
+  =  try upperIdP 
+ <|> pwr <$> parens (idP bad)
+  where 
+     idP p  = many1 (satisfy (not . p))
+     bad c  = isSpace c || c `elem` "(,)"
+     pwr s  = "(" ++ s ++ ")" 
+ 
 
 dataDeclP
   = do pos <- getPosition
