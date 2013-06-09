@@ -378,6 +378,7 @@ type ImperativeLoop acc =
 {-@ loopWrapper :: ImperativeLoop acc -> ByteString -> PairS acc ByteString @-}
 loopWrapper :: ImperativeLoop acc -> ByteString -> PairS acc ByteString
 loopWrapper body = undefined 
+-- LIQUIDPAIRS same match issue as in loopWrapper 
 -- loopWrapper body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
 --     withForeignPtr srcFPtr $ \srcPtr -> do
 --     (ps, acc) <- createAndTrim' srcLen $ \destPtr -> do
