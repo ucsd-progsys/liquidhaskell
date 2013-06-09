@@ -13,11 +13,11 @@ data L [llen] a = N | C (x::a) (xs::(L a))
   @-}
 
 
-{-@map :: (a -> b) -> [a] -> [b]@-}
+{-@ map :: (a -> b) -> [a] -> [b]@-}
 map f []     = []
-map f (x:xs) = f x : map f xs
+map f (x:xs) = f x : map f (x:xs)
  
-bar = map id [1, 2]
+-- bar = map id []
 
 {-@ Decrease go 2 @-}
 rev xs = go [] xs
@@ -27,8 +27,3 @@ rev xs = go [] xs
 
 mapL f N = N
 mapL f (C x xs) = C (f x) (mapL f xs)
-
-
-foldl f z [] = z
-foldl f z (x:xs) = x `f` foldl f z xs
-

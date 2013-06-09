@@ -770,7 +770,7 @@ addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------------
 recType γ (x, e, t) 
-  = do hint <- checkHint' . L.lookup (varSymbol x) . specDecr <$> get
+  = do hint <- checkHint' . L.lookup (F.S $ showPpr x) . specDecr <$> get
        let index  = fromMaybe dindex hint
        let ts'    = dropFst3 <$> mapN index mkDecrType vxts
        return $ mkArrow αs πs ts' tbd
@@ -787,10 +787,10 @@ mkDecrType (v, x, (t@(RApp c _ _ _))) = (v,x,) $  t `strengthen` tr
 
 checkHint _ _ _ Nothing = Nothing
 checkHint x ts f (Just n) 
-  | f (ts L.!! n') = Just n'
-  | otherwise = errorstar $ "Invalid Hint " ++ show n ++ 
-                            " for " ++ showPpr x
-  where n' = n-1 
+  | n < 0 || n >= length ts = errorstar err
+  | f (ts L.!! n) = Just n
+  | otherwise = errorstar err
+  where err = "Invalid Hint " ++ show (n+1) ++ " for " ++ showPpr x
 
 -------------------------------------------------------------------
 -------------------- Generation: Corebind -------------------------
