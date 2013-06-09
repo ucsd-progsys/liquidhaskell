@@ -224,3 +224,17 @@ realSrcSpanSourcePos s = newPos file line col
 
 getSourcePos           = srcSpanSourcePos . getSrcSpan 
 
+
+collectArguments e = vs' ++ vs
+  where (vs', e') = collectValBinders $ snd $ collectTyBinders e
+        vs        = fst $ collectValBinders $ ignoreClassDefinitions e'
+
+ignoreClassDefinitions e@(Let (NonRec x xe) e') 
+  | isDictionary x
+  = ignoreClassDefinitions e'
+  | otherwise
+  = e
+ignoreClassDefinitions e 
+  = e
+
+isDictionary x = L.isPrefixOf "$d" (showPpr x)

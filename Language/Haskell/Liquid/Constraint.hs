@@ -59,7 +59,7 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc          (getSourcePos, pprDoc, tickSrcSpan, hasBaseTypeVar, showPpr)
+import Language.Haskell.Liquid.GhcMisc          (collectArguments, getSourcePos, pprDoc, tickSrcSpan, hasBaseTypeVar, showPpr)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Qualifier        
@@ -777,14 +777,15 @@ recType γ (x, e, t)
        return $ mkArrow αs πs ts' tbd
   where (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
-        vs            = fst $ collectValBinders $ snd $ collectTyBinders e
-        vxts          = safeZip3 ("recType on " ++ showPpr x) vs xs ts
-        errmsg        = "Cannot prove termination on" ++ showPpr x
+        vs            = collectArguments e
+        vxts          = safeZip3 ("recType on " ++ showPpr x ++ "With "++ showPpr vs) vs xs ts
+        errmsg        = "Cannot prove termination on " ++ showPpr x
         checkHint'    = checkHint x ts isDecreasing
         dindex        = safeFromJust errmsg $ L.findIndex isDecreasing ts
 -- TODO get the appropriate symbols for hints, 
 -- allow parsing not-tolevel symbols
         xSymbol       = F.S $ dropModuleNames $ showPpr x
+
 
 mkDecrType (v, x, (t@(RApp c _ _ _))) = (v,x,) $  t `strengthen` tr
   where tr = cmpReft (sizeFunction $ rTyConInfo c) (varSymbol v)
