@@ -24,6 +24,8 @@ module Data.ByteString.Fusion (
     -- | This replaces 'loopU' with 'loopUp'
     -- and adds several further special cases of loops.
     loopUp, loopDown, loopNoAcc, loopMap, loopFilter,
+    -- LIQUID
+    loopWrapperLIQUID, sequenceLoopsLIQUID,
     loopWrapper, sequenceLoops,
     doUpLoop, doDownLoop, doNoAccLoop, doMapLoop, doFilterLoop,
 
@@ -49,7 +51,7 @@ import Data.Word                (Word8)
 import System.IO.Unsafe         (unsafePerformIO)
 
 -- LIQUID
-import Language.Haskell.Liquid.Prelude  (liquidAssert) -- mkPtr, cSizeInt, liquidError)
+import Language.Haskell.Liquid.Prelude  (liquidAssume, liquidAssert) -- mkPtr, cSizeInt, liquidError)
 import qualified Data.ByteString.Lazy.Internal
 import qualified Foreign  
 
@@ -61,11 +63,15 @@ import qualified Foreign
 -- import qualified Foreign.C.Types
 
 
+{-@ qualif PlusOnePos(v: Int): 0 <= (v + 1)               @-}
 {-@ qualif LePlusOne(v: Int, x: Int): v <= (x + 1)        @-}
 {-@ qualif LeDiff(v: a, x: a, y:a): v <= (x - y)          @-}
 {-@ qualif PlenEq(v: Ptr a, x: Int): x <= (plen v)        @-}
 {-@ qualif BlenEq(v: Int, x:ByteString): v = (bLength x)  @-}
+{-@ qualif PSnd(v: a, x:b): v = (psnd x)                  @-}
+{- qualif PSnd(v: b, x:PairS a b): v = (psnd x)           @-}
 
+{-@ data PairS a b <p :: x0:a -> b -> Prop> = (:*:) (x::a) (y::b) @-}
 
 -- -----------------------------------------------------------------------------
 --
@@ -273,7 +279,7 @@ loopL f = loop
   where loop s L.Empty     = (s :*: L.Empty)
         loop s (L.Chunk x xs)
           | l == 0    = (s'' :*: ys)
-          | otherwise = liquidAssert (l /= 0) $ (s'' :*: L.Chunk y ys)
+          | otherwise = (s'' :*: L.Chunk y ys)
           where (s'  :*: y@(PS _ _ l))  = loopU f s x -- avoid circular dep on S.null
                 (s'' :*: ys)            = loop s' xs
 
@@ -330,26 +336,64 @@ loopFilter f arr = loopWrapper (doFilterLoop f NoAcc) arr
 -- the length that was filled in. The loop may also accumulate some
 -- value as it loops over the source array.
 
-{-@ type ImperativeLoop acc =  src:(PtrV Word8) 
-                            -> dst:(PtrV Word8)
-                            -> len:{v: Nat | v <= (plen src)}
-                            -> IO (PairS (PairS acc (BNat len)) (BNat len))
-  @-}
 
+{-@ measure pfst :: (PairS a b) -> a 
+    pfst ((:*:) x y) = x 
+  @-} 
+{-@ measure psnd :: (PairS a b) -> b 
+    psnd ((:*:) x y) = y 
+  @-} 
+
+{-@ type Triple a N = (a, Nat, Nat)<{\x v -> true}, {\y x v -> (v <= (N - y))}>
+  @-} 
+
+{-@ type ILoop acc =  s:(PtrV Word8) 
+                   -> d:{v: (PtrV Word8) | (plen s) <= (plen v)}
+                   -> n:{v: Nat | v <= (plen s)}
+                   -> IO (Triple acc n)
+  @-}
+ 
+type ILoop acc =
+    Ptr Word8          -- pointer to the start of the source byte array
+ -> Ptr Word8          -- pointer to ther start of the destination byte array
+ -> Int                -- length of the source byte array
+ -> IO (acc, Int, Int) -- result and offset, length of dest that was filled
+-- LIQUID
+
+
+{-@ type TripleS a N = PairS <{\z v -> v <= (N - (psnd z))}> (PairS <{\x y -> true}> a Nat) Nat
+  @-} 
+{-@ type ImperativeLoop acc =  s:(PtrV Word8) 
+                            -> d:{v: (PtrV Word8) | (plen s) <= (plen v)}
+                            -> n:{v: Nat | v <= (plen s)}
+                            -> IO (TripleS acc n)
+  @-}
 type ImperativeLoop acc =
     Ptr Word8          -- pointer to the start of the source byte array
  -> Ptr Word8          -- pointer to ther start of the destination byte array
  -> Int                -- length of the source byte array
  -> IO (PairS (PairS acc Int) Int) -- result and offset, length of dest that was filled
 -- LIQUID
+
 {-@ loopWrapper :: ImperativeLoop acc -> ByteString -> PairS acc ByteString @-}
 loopWrapper :: ImperativeLoop acc -> ByteString -> PairS acc ByteString
-loopWrapper body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
+loopWrapper body = undefined 
+-- loopWrapper body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
+--     withForeignPtr srcFPtr $ \srcPtr -> do
+--     (ps, acc) <- createAndTrim' srcLen $ \destPtr -> do
+--         (acc :*: destOffset :*: destLen) <- body (srcPtr `plusPtr` srcOffset) destPtr srcLen
+--         let destLen' = liquidAssert (destLen <= (srcLen - destOffset)) destLen
+--         return $ (destOffset, destLen', acc)
+--     return (acc :*: ps)
+
+{-@ loopWrapperLIQUID :: ILoop acc -> ByteString -> PairS acc ByteString @-}
+loopWrapperLIQUID :: ILoop acc -> ByteString -> PairS acc ByteString
+loopWrapperLIQUID body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
     withForeignPtr srcFPtr $ \srcPtr -> do
     (ps, acc) <- createAndTrim' srcLen $ \destPtr -> do
-        (acc :*: destOffset :*: destLen) <-
-          body (srcPtr `plusPtr` srcOffset) destPtr srcLen
-        return (destOffset, destLen, acc)
+        (acc, destOffset, destLen) <- body (srcPtr `plusPtr` srcOffset) destPtr srcLen
+        let destLen' = liquidAssert (destLen <= (srcLen - destOffset)) destLen
+        return $ (destOffset, destLen', acc)
     return (acc :*: ps)
 
 -- LIQUID
@@ -369,14 +413,14 @@ doUpLoop f acc0 src dest len = loop 0 0 acc0
 doDownLoop :: AccEFL acc -> acc -> ImperativeLoop acc
 doDownLoop f acc0 src dest len = loop (len-1) (len-1) acc0
   where STRICT3(loop)
-        loop src_off dest_off acc
-            | src_off < 0 = return (acc :*: dest_off + 1 :*: len - (dest_off + 1))
+        loop src_offDOWN dest_offDOWN acc
+            | src_offDOWN < 0 = return (acc :*: dest_offDOWN + 1 :*: len - (dest_offDOWN + 1))
             | otherwise   = do
-                x <- peekByteOff src src_off
+                x <- peekByteOff src src_offDOWN
                 case f acc x of
-                  (acc' :*: NothingS) -> loop (src_off-1) dest_off acc'
-                  (acc' :*: JustS x') -> pokeByteOff dest dest_off x'
-                                      >> loop (src_off-1) (dest_off-1) acc'
+                  (acc' :*: NothingS) -> loop (src_offDOWN - 1) dest_offDOWN acc'
+                  (acc' :*: JustS x') -> pokeByteOff dest dest_offDOWN x'
+                                      >> loop (src_offDOWN - 1) (dest_offDOWN - 1) acc'
 
 -- LIQUID
 doNoAccLoop :: NoAccEFL -> noAcc -> ImperativeLoop noAcc
@@ -422,6 +466,7 @@ sequenceLoops :: ImperativeLoop acc1
               -> ImperativeLoop acc2
               -> ImperativeLoop (PairS acc1 acc2)
 sequenceLoops loop1 loop2 src dest len0 = do
+    -- LIQUID: same match issue as in loopWrapper 
   (acc1 :*: off1 :*: len1) <- loop1 src dest len0
   (acc2 :*: off2 :*: len2) <-
     let src'  = dest `plusPtr` off1
@@ -430,6 +475,24 @@ sequenceLoops loop1 loop2 src dest len0 = do
                      -- mutating the dest array in-place!
      in loop2 src' dest' len1
   return ((acc1  :*: acc2) :*: off1 + off2 :*: len2)
+
+-- LIQUID
+-- run two loops in sequence,
+-- think of it as: loop1 >> loop2
+
+{-@ sequenceLoopsLIQUID :: ILoop acc1 -> ILoop acc2 -> ILoop (PairS acc1 acc2) @-}
+sequenceLoopsLIQUID :: ILoop acc1 -> ILoop acc2 -> ILoop (PairS acc1 acc2)
+sequenceLoopsLIQUID loop1 loop2 src dest len0 = do
+  (acc1, off1, len1) <- loop1 src dest len0
+  (acc2, off2, len2) <-
+    let src'  = dest `plusPtr` off1
+        dest' = src' -- note that we are using dest == src
+                     -- for the second loop as we are
+                     -- mutating the dest array in-place!
+     in loop2 src' dest' len1
+  return ((acc1  :*: acc2), off1 + off2, len2)
+
+
 
   -- TODO: prove that this is associative! (I think it is)
   -- since we can't be sure how the RULES will combine loops.
