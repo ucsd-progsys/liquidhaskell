@@ -777,7 +777,7 @@ recType γ (x, e, t)
        return $ mkArrow αs πs ts' tbd
   where (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
-        vs            = collectArguments e
+        vs            = collectArguments (length ts) e
         vxts          = safeZip3 ("recType on " ++ showPpr x ++ "With "++ showPpr vs) vs xs ts
         errmsg        = "Cannot prove termination on " ++ showPpr x
         checkHint'    = checkHint x ts isDecreasing
