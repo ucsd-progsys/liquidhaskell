@@ -71,7 +71,7 @@ makeGhcSpec' cfg name vars env spec
        sigs'           <- makeAssumeSpec  cfg benv vars     $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec
-       let sigs         = [(x, (txRefSort benv . txExpToBind) <$> t) | (x, t) <- sigs'] 
+       let sigs         = [(x, (txRefSort embs benv . txExpToBind) <$> t) | (x, t) <- sigs'] 
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs datacons
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms ] -- first val <$> ms 
        let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms' 
@@ -86,16 +86,17 @@ makeGhcSpec' cfg name vars env spec
                              , freeSyms   = syms' 
                              , tcEmbeds   = embs 
                              , qualifiers = Ms.qualifiers spec 
+                             , decr       = Ms.decr spec 
                              , tgtVars    = AllVars -- makeTargetVars vars (binds cfg)
                              }
 
 
-txRefSort benv = mapBot (addSymSort (tcEnv benv))
+txRefSort embs benv = mapBot (addSymSort embs (tcEnv benv))
 
-addSymSort tcenv (RApp rc@(RTyCon c _ _) ts rs r) 
+addSymSort embs tcenv (RApp rc@(RTyCon c _ _) ts rs r) 
   = RApp rc ts (addSymSortRef <$> zip ps rs) r
-  where ps = rTyConPs $ appRTyCon tcenv rc ts
-addSymSort _ t 
+  where ps = rTyConPs $ appRTyCon embs tcenv rc ts
+addSymSort _ _ t 
   = t
 
 addSymSortRef (p, RPoly s (RVar v r)) | isDummy v
@@ -441,7 +442,7 @@ wiredTyDataCons = (concat tcs, concat dcs)
     l           = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity]
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [0] [])]
+listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [0] [] (Just fsize))]
                    , [(nilDataCon , DataConP [(RTV tyv)] [p] [] lt)
                    , (consDataCon, DataConP [(RTV tyv)] [p]  cargs  lt)])
     where c      = listTyCon
@@ -456,10 +457,10 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [0] [])]
           xt     = rVar tyv
           xst    = rApp c [RVar (RTV tyv) px] [RMono [] $ pdVarReft p] top  
           cargs  = [(xs, xst), (x, xt)]
- 
+          fsize  = \x -> EApp (S "len") [EVar x] 
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [0..(n-2)] [])]
+tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [0..(n-2)] [] Nothing)]
                     , [(dc, DataConP (RTV <$> tyvs) ps  cargs  lt)])
   where c             = tupleTyCon BoxedTuple n
         dc            = tupleCon BoxedTuple n 
@@ -610,7 +611,7 @@ makeConTypes :: HscEnv -> String -> [DataDecl] -> IO ([(TyCon, TyConP)], [[(Data
 makeConTypes env name dcs = unzip <$> execBare (mapM ofBDataDecl dcs) (BE name M.empty env)
 
 ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
-ofBDataDecl dd@(D tc as ps cts pos)
+ofBDataDecl (D tc as ps cts sfun)
   = do πs    <- mapM ofBPVar ps
        tc'   <- lookupGhcTyCon tc 
        cts'  <- mapM (ofBDataCon (berrDataDecl pos tc πs) tc' αs ps πs) cts
@@ -619,9 +620,9 @@ ofBDataDecl dd@(D tc as ps cts pos)
        let varInfo = concatMap (getPsSig initmap True) tys
        let cov     = [i | (i, b)<- varInfo, b, i >=0]
        let contr   = [i | (i, b)<- varInfo, not b, i >=0]
-       return ((tc', TyConP αs πs cov contr), cts')
-    where 
-       αs   = fmap (RTV . stringTyVar) as
+       return ((tc', TyConP αs πs cov contr sfun), cts')
+    where αs   = fmap (RTV . stringTyVar) as
+          -- cpts = fmap (second (fmap (second (mapReft ur_pred)))) cts
 
 getPsSig m pos (RAllT _ t) 
   = getPsSig m pos t

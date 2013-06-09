@@ -12,7 +12,7 @@ module Language.Haskell.Liquid.GhcMisc where
 import           Debug.Trace
 
 import           Kind                         (superKind)
-import           CoreSyn
+import           CoreSyn                      hiding (Expr)
 import           CostCentre
 import           FamInstEnv                   (FamInst)
 import           GHC                          hiding (L)
@@ -51,9 +51,9 @@ import           Language.Haskell.Liquid.Types
 -- import qualified Pretty                       as P
 import qualified Text.PrettyPrint.HughesPJ    as PJ
 
-defaultTyConInfo = TyConInfo [] [] [] []
+defaultTyConInfo = TyConInfo [] [] [] [] Nothing
 
-mkTyConInfo :: TyCon -> [Int] -> [Int]-> TyConInfo
+mkTyConInfo :: TyCon -> [Int] -> [Int] -> (Maybe (Symbol -> Expr)) -> TyConInfo
 mkTyConInfo c
   = TyConInfo [i | (i, b) <- varsigns, b, i /= dindex]
               [i | (i, b) <- varsigns, not b, i /= dindex]

@@ -278,6 +278,7 @@ data Pspec ty ctor
   | PAlias  (RTAlias Symbol Pred)
   | Embed   (String, FTycon)
   | Qualif  Qualifier
+  | Decr    (Symbol, Int)
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
@@ -292,6 +293,7 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.paliases   = [p | PAlias p <- xs]
   , Measure.embeds     = M.fromList [e | Embed e <- xs]
   , Measure.qualifiers = [q | Qualif q <- xs]
+  , Measure.decr       = [d | Decr d   <- xs]
   }
 
 type BareSpec = (Measure.Spec BareType Symbol)
@@ -319,7 +321,11 @@ specP
     <|> (reserved "predicate" >> liftM PAlias paliasP   )
     <|> (reserved "embed"     >> liftM Embed  embedP    )
     <|> (reserved "qualif"    >> liftM Qualif qualifierP)
+    <|> (reserved "Decrease"  >> liftM Decr   decreaseP )
     <|> ({- DEFAULT -}           liftM Assms  tyBindsP  )
+
+decreaseP :: Parser (Symbol, Int)
+decreaseP = liftM2 (\x y -> (x,fromInteger (y-1))) binderP (spaces >> integer)
 
 filePathP :: Parser FilePath
 filePathP = angles $ many1 pathCharP
@@ -460,10 +466,11 @@ dataConNameP
      bad c  = isSpace c || c `elem` "(,)"
      pwr s  = "(" ++ s ++ ")" 
  
-
 dataDeclP
   = do pos <- getPosition
        x   <- upperIdP
+       spaces
+       fsize <- dataSizeP
        spaces
        ts  <- sepBy tyVarIdP spaces
        ps  <- predVarDefsP
@@ -472,7 +479,7 @@ dataDeclP
        whiteSpace
        -- spaces
        -- reservedOp "--"
-       return $ D x ts ps dcs pos
+       return $ D x ts ps dcs fsize
 
 ---------------------------------------------------------------------
 ------------ Interacting with Fixpoint ------------------------------
