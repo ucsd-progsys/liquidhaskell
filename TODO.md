@@ -33,19 +33,28 @@ TODO
 Bytestring
 ==========
 
+Ordered by dependency.
+
    148 Data/ByteString/Lazy/Internal.hs     [OK]
    297 Data/ByteString/Unsafe.hs            [OK]
    509 Data/ByteString/Internal.hs          [OK]
-   700 Data/ByteString/Fusion.hs            [OK?] see LIQUIDPAIRS issue
+   700 Data/ByteString/Fusion.hs            [OK] ?LIQUIDPAIRS 
+  1928 Data/ByteString.hs                   [**]
+  1322 Data/ByteString/Lazy.hs               
    822 Data/ByteString/Lazy/Char8.hs
   1012 Data/ByteString/Char8.hs
-  1322 Data/ByteString/Lazy.hs              
-  1928 Data/ByteString.hs
 
   6738 total
 
-HEREHERE
-WARNING: Data/ByteString/Fusion.hs:472:32-35 
+Issues
+------
+
+1. LIQUIDPAIRS: also affects soundness (i.e. the doLoopUp etc are not
+   really being checked right now because the refinements are dropped.)
+
+    WARNING: Data/ByteString/Fusion.hs:472:32-35 
+
+2. 
 
 
 Liquid-Fixpoint
