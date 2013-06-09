@@ -778,7 +778,7 @@ recType γ (x, e, t)
   where (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
         vs            = collectArguments (length ts) e
-        vxts          = safeZip3 ("recType on " ++ showPpr x ++ "With "++ showPpr vs) vs xs ts
+        vxts          = safeZip3 ("recType on " ++ showPpr x ++ " With "++ showPpr vs) vs xs ts
         errmsg        = "Cannot prove termination on " ++ showPpr x
         checkHint'    = checkHint x ts isDecreasing
         dindex        = safeFromJust errmsg $ L.findIndex isDecreasing ts
