@@ -49,6 +49,7 @@ import Data.List (foldl')
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import qualified Language.Fixpoint.Types            as F
+import Language.Fixpoint.Names (dropModuleNames)
 import Language.Fixpoint.Sort (pruneUnsortedReft)
 
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars)  
@@ -770,7 +771,7 @@ addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------------
 recType γ (x, e, t) 
-  = do hint <- checkHint' . L.lookup (F.S $ showPpr x) . specDecr <$> get
+  = do hint      <- checkHint' . L.lookup xSymbol . specDecr <$> get
        let index  = fromMaybe dindex hint
        let ts'    = dropFst3 <$> mapN index mkDecrType vxts
        return $ mkArrow αs πs ts' tbd
@@ -781,6 +782,9 @@ recType γ (x, e, t)
         errmsg        = "Cannot prove termination on" ++ showPpr x
         checkHint'    = checkHint x ts isDecreasing
         dindex        = safeFromJust errmsg $ L.findIndex isDecreasing ts
+-- TODO get the appropriate symbols for hints, 
+-- allow parsing not-tolevel symbols
+        xSymbol       = F.S $ dropModuleNames $ showPpr x
 
 mkDecrType (v, x, (t@(RApp c _ _ _))) = (v,x,) $  t `strengthen` tr
   where tr = cmpReft (sizeFunction $ rTyConInfo c) (varSymbol v)
