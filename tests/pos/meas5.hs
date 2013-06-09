@@ -12,6 +12,7 @@ mylen (_:xs)   = 1 + mylen xs
 mymap f []     = []
 mymap f (x:xs) = (f x) : (mymap f xs)
 
+{-@ Decrease go 2 @-}
 myreverse = go []
   where go acc (x:xs) = go (x:acc) xs
         go acc []     = acc
