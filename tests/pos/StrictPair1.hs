@@ -1,6 +1,6 @@
 -- From Data.ByteString.Fusion
 
--- Compare with tests/neg/StrictPair0.hs
+-- Compare with tests/pos/StrictPair1.hs
 
 module SPair (
     PairS(..)
