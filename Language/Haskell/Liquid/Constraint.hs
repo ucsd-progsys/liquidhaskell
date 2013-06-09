@@ -1100,7 +1100,7 @@ argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
 
 varRefType γ x
   | Just (y, ty) <- trec γ 
-  = if x' == y then (traceShow "RefTy = " ty) `strengthen` xr else t
+  = if x' == y then ty `strengthen` xr else t
   | otherwise
   = t
   where t  = (γ ?= (varSymbol x)) `strengthen` xr
