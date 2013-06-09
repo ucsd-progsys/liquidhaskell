@@ -10,7 +10,7 @@ safeZip3 err [] [] []
 safeZip3 err (x:xs) (y:ys) (z:zs) 
   = (x, y, z) : (safeZip3 err xs ys zs)
 safeZip3 err _ _ _
-  = errorstar "safeZip3: " err 
+  = errorstar $ "safeZip3: " ++ err 
 
 dropFst3 (_, x, y) = (x, y)
 
