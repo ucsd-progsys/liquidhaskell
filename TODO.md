@@ -49,12 +49,9 @@ Ordered by dependency.
 Issues
 ------
 
-1. LIQUIDPAIRS: also affects soundness (i.e. the doLoopUp etc are not
-   really being checked right now because the refinements are dropped.)
+Data.ByteString HEREHERE
 
-    WARNING: Data/ByteString/Fusion.hs:472:32-35 
-
-2. 
+> "Duplicate Measure Definition" Gee thanks. Which!
 
 
 Liquid-Fixpoint
@@ -154,7 +151,7 @@ Measures
 Abstract Refinements
 --------------------
 
-[DONE]  (esop) ParaPoly/Ty  <--------------- HEREHEREHERE
+[DONE]  (esop) ParaPoly/Ty  <--------------- STOP 
 10. (esop) Pats Vec
 11. Niki DataBase
 12. Induction-Loop
