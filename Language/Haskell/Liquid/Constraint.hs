@@ -76,8 +76,9 @@ generateConstraints cfg info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg
         pds = generatePredicates info
 
 consAct info penv
-  = do γ   <- initEnv info penv
-       foldM (consCB terminationAnalysis) γ (cbs info)
+  = do γ     <- initEnv info penv
+       tflag <- tcheck <$> get
+       foldM (consCB tflag) γ (cbs info)
        hcs <- hsCs  <$> get 
        hws <- hsWfs <$> get
        fcs <- concat <$> mapM splitC hcs 
@@ -257,14 +258,14 @@ instance F.Fixpoint Cinfo where
 splitW ::  WfC -> CG [FixWfC]
 
 splitW (WfC γ t@(RFun x t1 t2 _)) 
-  =  do let ws = bsplitW γ t
+  =  do ws   <- bsplitW γ t
         ws'  <- splitW (WfC γ t1) 
         γ'   <- (γ, "splitW") += (x, t1)
         ws'' <- splitW (WfC γ' t2)
         return $ ws ++ ws' ++ ws''
 
 splitW (WfC γ t@(RAppTy t1 t2 _)) 
-  =  do let ws = bsplitW γ t
+  =  do ws   <- bsplitW γ t
         ws'  <- splitW (WfC γ t1) 
         ws'' <- splitW (WfC γ t2)
         return $ ws ++ ws' ++ ws''
@@ -276,13 +277,13 @@ splitW (WfC γ (RAllP _ r))
   = splitW (WfC γ r)
 
 splitW (WfC γ t@(RVar _ _))
-  = return $ bsplitW γ t 
+  = bsplitW γ t 
 
 splitW (WfC _ (RCls _ _))
   = return []
 
 splitW (WfC γ t@(RApp _ ts rs _))
-  =  do let ws = bsplitW γ t 
+  =  do ws    <- bsplitW γ t 
         γ'    <- γ `extendEnvWithVV` t 
         ws'   <- concat <$> mapM splitW (map (WfC γ') ts)
         ws''  <- concat <$> mapM (rsplitW γ) rs
@@ -297,13 +298,15 @@ rsplitW γ (RPoly ss t0)
   = do γ' <- foldM (++=) γ [("rsplitC", x, ofRSort s) | (x, s) <- ss]
        splitW $ WfC γ' t0
 
-bsplitW :: CGEnv -> SpecType -> [FixWfC]
-bsplitW γ t
+bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
+bsplitW γ t = pruneRefs <$> get >>= return . bsplitW' γ t
+
+bsplitW' γ t pflag
   | F.isNonTrivialSortedReft r'
   = [F.wfC (fe_binds $ fenv γ) r' Nothing ci] 
   | otherwise
   = []
-  where r' = rTypeSortedReft' γ t
+  where r' = rTypeSortedReft' pflag γ t
         ci = (Ci (loc γ))
 
 mkSortedReft tce = F.RR . rTypeSort tce
@@ -341,7 +344,7 @@ splitC (SubC γ t1 (RAllE x tx t2))
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
-  =  do let cs   =  bsplitC γ t1 t2 
+  =  do cs       <- bsplitC γ t1 t2 
         cs'      <- splitC  (SubC γ r2 r1) 
         γ'       <- (γ, "splitC") += (x2, r2) 
         let r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
@@ -349,7 +352,7 @@ splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _))
         return    $ cs ++ cs' ++ cs''
 
 splitC (SubC γ t1@(RAppTy r1 r1' _) t2@(RAppTy r2 r2' _)) 
-  =  do let cs = bsplitC γ t1 t2 
+  =  do cs    <- bsplitC γ t1 t2 
         cs'   <- splitC  (SubC γ r1 r2) 
         cs''  <- splitC  (SubC γ r1' r2') 
         return $ cs ++ cs' ++ cs''
@@ -374,7 +377,7 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
 
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
-       let cs    = bsplitC γ t1' t2'
+       cs    <- bsplitC γ t1' t2'
        γ'    <- γ `extendEnvWithVV` t1' 
        let RApp c  t1s r1s _ = t1'
        let RApp c' t2s r2s _ = t2'
@@ -387,7 +390,7 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
-  = return $ bsplitC γ t1 t2
+  = bsplitC γ t1 t2
 
 splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
   = return []
@@ -406,7 +409,9 @@ rsplitCIndexed γ t1s t2s indexes
         t2s' = (L.!!) t2s <$> indexes
 
 
-bsplitC γ t1 t2
+bsplitC γ t1 t2 = pruneRefs <$> get >>= return . bsplitC' γ t1 t2
+
+bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
   = [F.subC γ' F.PTrue (r1' {F.sr_reft = F.top}) r2' Nothing tag ci]
   | F.isNonTrivialSortedReft r2'
@@ -414,8 +419,8 @@ bsplitC γ t1 t2
   | otherwise
   = []
   where γ'  = fe_binds $ fenv γ
-        r1' = rTypeSortedReft' γ t1
-        r2' = rTypeSortedReft' γ t2
+        r1' = rTypeSortedReft' pflag γ t1
+        r2' = rTypeSortedReft' pflag γ t2
         ci  = Ci (loc γ)
         tag = getTag γ
 
@@ -460,6 +465,8 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
                      , lits       :: ![(F.Symbol, F.Sort)]
+                     , tcheck     :: !Bool
+                     , pruneRefs  :: !Bool
                      } -- deriving (Data, Typeable)
 
 instance PPrint CGInfo where 
@@ -497,6 +504,8 @@ initCGI cfg info = CGInfo {
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
   , specDecr   = decr spc
+  , tcheck     = not $ noTermination cfg
+  , pruneRefs  = not $ noPrune cfg
   } 
   where 
     tce        = tcEmbeds spc 
@@ -529,12 +538,18 @@ extendEnvWithVV γ t
   = do idx   <- fresh
        let t  = normalize γ {-x-} idx t'  
        let γ' = γ { renv = insertREnv x t (renv γ) }  
+       pflag <- pruneRefs <$> get
        is    <- if isBase t 
-                  then liftM single $ addBind x $ rTypeSortedReft' γ' t 
+                  then liftM single $ addBind x $ rTypeSortedReft' pflag γ' t 
                   else addClassBind t 
        return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
-rTypeSortedReft' γ = pruneUnsortedReft (fe_env $ fenv γ) . rTypeSortedReft (emb γ)
+rTypeSortedReft' pflag γ 
+  | pflag
+  = pruneUnsortedReft (fe_env $ fenv γ) . f
+  | otherwise
+  = f 
+  where f = rTypeSortedReft (emb γ)
 
 (+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
 (γ, msg) += (x, r)
@@ -877,15 +892,13 @@ unifyVar γ x rt = unify (getPrType γ (varSymbol x)) rt
 -------------------- Generation: Expression -----------------------
 -------------------------------------------------------------------
 
--- TODO add a flag
-terminationAnalysis = True
-
 ----------------------- Type Checking -----------------------------
 cconsE :: CGEnv -> Expr Var -> SpecType -> CG () 
 -------------------------------------------------------------------
 
 cconsE γ (Let b e) t    
-  = do γ'  <- consCB terminationAnalysis γ b
+  = do tflag <- tcheck <$> get
+       γ'  <- consCB tflag γ b
        cconsE γ' e t 
 
 cconsE γ (Case e x _ cases) t 
