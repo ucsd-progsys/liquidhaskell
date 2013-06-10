@@ -4,7 +4,7 @@
 
 qualif IsEmp(v:Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
 qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
-qualif SameLen(v:[a], ~A:[b]) : len([v]) = len([~A]) 
+qualif CmpLen(v:[a], ~A:[b])  : len([v]) [= ; >=; >; <=; <] len([~A]) 
 qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
 qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
 qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
