@@ -325,8 +325,8 @@ specP
     <|> ({- DEFAULT -}           liftM Assms  tyBindsP  )
 
 decreaseP :: Parser (Symbol, Int)
-decreaseP = liftM2 (\x y -> (x,fromInteger (y-1))) binderP (spaces >> integer)
-
+decreaseP = mapSnd f <$> liftM2 (,) binderP (spaces >> integer)
+  where f x = fromInteger x - 1
 filePathP :: Parser FilePath
 filePathP = angles $ many1 pathCharP
   where pathCharP = choice $ char <$> pathChars 

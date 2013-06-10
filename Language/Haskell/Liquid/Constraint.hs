@@ -771,23 +771,25 @@ addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------------
 recType γ (x, e, t) 
-  = do hint      <- checkHint' . L.lookup xSymbol . specDecr <$> get
-       let index  = fromMaybe dindex hint
-       let ts'    = dropFst3 <$> mapN index mkDecrType vxts
-       return $ mkArrow αs πs ts' tbd
+  = do hint        <- checkHint' . L.lookup xSymbol . specDecr <$> get
+       let index    = fromMaybe dindex hint
+       let (dx, dt) = safeIndex errmsg  index xts
+       let v        = safeIndex errmsg' index vs
+       let xts'     = replaceN index (mkDecrType (v, dx, dt)) xts
+       return $ mkArrow αs πs xts' tbd
   where (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
         vs            = collectArguments (length ts) e
-        vxts          = safeZip3 ("recType on " ++ showPpr x ++ " With "++ showPpr vs) vs xs ts
+        xts           = zip xs ts
+        errmsg'       = "recType on " ++ showPpr x ++ " with "++ showPpr vs
         errmsg        = "Cannot prove termination on " ++ showPpr x
         checkHint'    = checkHint x ts isDecreasing
         dindex        = safeFromJust errmsg $ L.findIndex isDecreasing ts
 -- TODO get the appropriate symbols for hints, 
 -- allow parsing not-tolevel symbols
         xSymbol       = F.S $ dropModuleNames $ showPpr x
-
-
-mkDecrType (v, x, (t@(RApp c _ _ _))) = (v,x,) $  t `strengthen` tr
+        
+mkDecrType (v, x, (t@(RApp c _ _ _))) = (x,) $  t `strengthen` tr
   where tr = cmpReft (sizeFunction $ rTyConInfo c) (varSymbol v)
 
 checkHint _ _ _ Nothing = Nothing
