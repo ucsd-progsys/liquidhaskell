@@ -11,6 +11,21 @@ data Expr
   | Var Bndr  
   | App Expr Expr
 
+{-@
+data Expr [elen] 
+  = Lam (x::Bndr) (e::Expr)
+  | Var (x::Bndr)  
+  | App (e1::Expr) (e2::Expr)
+@-}
+
+{-@ measure elen :: Expr -> Int
+    elen(Var x)     = 0
+    elen(Lam x e)   = 1 + (elen e) 
+    elen(App e1 e2) = 1 + (elen e1) + (elen e2) 
+  @-}
+
+{-@ invariant {v:Expr | (elen v) >= 0} @-}
+
 {-@  measure isValue :: Expr -> Prop
      isValue (Lam x e)    = true 
      isValue (Var x)      = false
@@ -28,7 +43,9 @@ data Expr
 evalVar :: Bndr -> [(Bndr, Expr)] -> Expr 
 evalVar = error "HIDEME"
 
-{-@ eval :: sto:Store -> e:Expr -> (Store, Value) @-}
+{-@ Decrease eval 2 @-}
+
+{-@ eval :: sto:Store -> e:Expr -> (Store, {v:Value| (elen v) <= (elen e)}) @-}
 
 eval sto (Var x)  
   = (sto, evalVar x sto)

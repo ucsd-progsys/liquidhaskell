@@ -4,6 +4,12 @@ import Control.Applicative
 import Language.Haskell.Liquid.Prelude
 
 data LL a = N | C { head :: a, tail :: (LL a) }
+{-@ data LL [llen] a = N | C { head :: a, tail :: (LL a) } @-}
+
+{-@ measure llen :: (LL a) -> Int
+    llen(N)      = 0
+    llen(C x xs) = 1 + (llen xs) 
+  @-}
 
 --instance Functor LL where
 --  fmap f N                = N
