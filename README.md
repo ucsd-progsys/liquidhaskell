@@ -140,6 +140,48 @@ To ignore false predicates use the nofalse option
 
 See <a url="tests/neg/lazy.lhs">tests/neg/lazy.lhs</a>
 
+Prune Unsorted Predicates
+-----------------------
+
+By default unsorted predicates are pruned.
+To disable this behaviour use no-prune-unsorted flag.
+ 
+    liquid --no-prune-unsorted test.hs
+
+Termination Check
+-----------------
+
+A termination check is termformed to all recursive functions used.
+Use no-termination-check option to disable the check
+ 
+    liquid --no-termination-check test.hs
+
+In recursive functions the first algebraic or integer argument should be decreasing.
+The default decreasing measure for lists is length and Integers its value.
+The user can specify the decreasing measure in data definitions:
+
+{-@ data L [llen] a = Nil | Cons (x::a) (xs:: L a) @-}
+
+Defines that `llen` is the decreasing measure (to be defined by the user).
+
+
+The user can specify that another argument is decreasing.
+
+{-@ Decreasing foo 3 @-}
+foo f ack N           = ack
+foo f ack (Cons x xs) = foo f (f x ack) xs 
+
+By default the second argument will be checked to be decreasing in `foo`.
+But the hint 
+`{-@ Decreasing foo 3 @-}`
+specifies, that the third one should be checked.
+
+
+
+Limitations:
+- An error is created when mutual recursive functions are to checked.
+  Many times deriving instances create such functions.
+
 Writing Specifications
 ======================
 
