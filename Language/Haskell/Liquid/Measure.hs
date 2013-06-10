@@ -89,12 +89,25 @@ mkM name typ eqns
   | otherwise
   = errorstar $ "invalid measure definition for " ++ (show name)
 
-mkMSpec ::  [Measure ty Symbol] -> MSpec ty Symbol
+-- mkMSpec ::  [Measure ty Symbol] -> MSpec ty Symbol
 mkMSpec ms = MSpec cm mm 
   where 
     cm     = groupMap ctor $ concatMap eqns ms'
     mm     = M.fromList [(val $ name m, m) | m <- ms' ]
-    ms'    = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
+    ms'    = checkDuplicateMeasure ms
+    -- ms'    = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
+
+checkDuplicateMeasure ms 
+  = case M.toList dups of 
+      []         -> ms
+      mms        -> errorstar $ concatMap err mms 
+    where 
+      gms        = group [(name m , m) | m <- ms]
+      dups       = M.filter ((1 <) . length) gms
+      err (m,ms) = printf "\nDuplicate Measure Definitions for %s\n%s" (showpp m) (showpp $ map (loc . name) ms)
+
+
+
 
 -- MOVE TO TYPES
 instance Monoid (Spec ty bndr) where
