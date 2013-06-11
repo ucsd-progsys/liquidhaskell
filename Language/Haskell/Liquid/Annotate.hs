@@ -60,9 +60,6 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Types hiding (Located(..))
 
--- import           Data.Typeable
--- import           Data.Data
--- import           Data.Aeson
 import qualified Data.List           as L
 import qualified Data.Vector         as V
 
@@ -200,7 +197,7 @@ mkAnnMapTyp (AI m)
   $ map (head . sortWith (srcSpanEndCol . fst)) 
   $ groupWith (lineCol . fst) 
   $ [ (l, x) | (RealSrcSpan l, (x:_)) <- M.toList m, oneLine l]  
-  where bindString = mapPair {- (showSDocForUser neverQualify) -} render . pprXOT 
+  where bindString = mapPair render . pprXOT 
 
 srcSpanStartLoc l 
   = ACSS.L (srcSpanStartLine l, srcSpanStartCol l)
@@ -348,14 +345,9 @@ applySolution = fmap . fmap . mapReft . map . appSolRefa
   where appSolRefa _ ra@(RConc _) = ra 
         -- appSolRefa _ p@(RPvar _)  = p  
         appSolRefa s (RKvar k su) = RConc $ subst su $ M.lookupDefault PTop k s  
-        mapReft f (U (Reft (x, zs)) p) = U (Reft (x, squishRas $ f zs)) p
+        mapReft f (U (Reft (x, zs)) p) = U (Reft (x, squishRefas $ f zs)) p
 
-squishRas ras  = (squish [p | RConc p <- ras]) : []
-  where squish = RConc . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts   
 
-conjuncts (PAnd ps)          = concatMap conjuncts ps
-conjuncts p | isTautoPred p  = []
-            | otherwise      = [p]
 
 ------------------------------------------------------------------------
 -- | JSON: Annotation Data Types ---------------------------------------
@@ -376,10 +368,10 @@ data Annot1    = A1  { ident :: String
 
 instance ToJSON Annot1 where 
   toJSON (A1 i a r c) = object [ "ident" .= i
-                                 , "ann"   .= a
-                                 , "row"   .= r
-                                 , "col"   .= c
-                                 ]
+                               , "ann"   .= a
+                               , "row"   .= r
+                               , "col"   .= c
+                               ]
 
 
 instance ToJSON Loc where
@@ -402,10 +394,11 @@ instance ToJSON AnnMap where
                     ]
 
 annTypes         :: AnnMap -> AnnTypes 
-annTypes a       = grp [(l, c, ann1 l c x s) | (L (l, c), (x, s)) <- M.toList $ types a]
+annTypes a       = grp [(l, c, ann1 l c x s) | (l, c, x, s) <- binders]
   where 
     ann1 l c x s = A1 x s l c 
     grp          = L.foldl' (\m (r,c,x) -> ins r c x m) (Asc M.empty)
+    binders      = [(l, c, x, s) | (L (l, c), (x, s)) <- M.toList $ types a]
 
 ins r c x (Asc m)  = Asc (M.insert r (Asc (M.insert c x rm)) m)
   where 
