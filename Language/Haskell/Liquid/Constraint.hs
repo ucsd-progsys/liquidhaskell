@@ -59,7 +59,7 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
 import Language.Haskell.Liquid.Predicates
-import Language.Haskell.Liquid.GhcMisc          (collectArguments, getSourcePos, pprDoc, tickSrcSpan, hasBaseTypeVar, showPpr)
+import Language.Haskell.Liquid.GhcMisc          (isInternal, collectArguments, getSourcePos, pprDoc, tickSrcSpan, hasBaseTypeVar, showPpr)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Qualifier        
@@ -78,7 +78,7 @@ generateConstraints cfg info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg
 consAct info penv
   = do γ     <- initEnv info penv
        tflag <- tcheck <$> get
-       foldM (consCB tflag) γ (cbs info)
+       foldM consCBTop γ (cbs info)
        hcs <- hsCs  <$> get 
        hws <- hsWfs <$> get
        fcs <- concat <$> mapM splitC hcs 
@@ -462,6 +462,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) 
                      , specQuals  :: ![F.Qualifier]
                      , specDecr   :: ![(F.Symbol, Int)]
+                     , specStrict :: !(S.HashSet Var)
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
                      , lits       :: ![(F.Symbol, F.Sort)]
@@ -504,6 +505,7 @@ initCGI cfg info = CGInfo {
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
   , specDecr   = decr spc
+  , specStrict = strict spc
   , tcheck     = not $ noTermination cfg
   , pruneRefs  = not $ noPrune cfg
   } 
@@ -818,6 +820,24 @@ checkHint x ts f (Just n)
 -------------------- Generation: Corebind -------------------------
 -------------------------------------------------------------------
 
+consCBLet γ cb
+  = do tflag <- tcheck <$> get
+       consCB tflag γ cb
+
+consCBTop γ cb
+  = do oldtcheck <- tcheck <$> get
+       strict    <- specStrict <$> get
+       let tflag  = oldtcheck && (tcond cb strict)
+       modify $ \s -> s{tcheck = tflag}
+       γ' <- consCB tflag γ cb
+       modify $ \s -> s{tcheck = oldtcheck}
+       return γ'
+
+tcond cb strict
+  = not $ any (\x -> S.member x strict || isInternal x) (binds cb)
+  where binds (NonRec x _) = [x]
+        binds (Rec xes)    = fst $ unzip xes
+
 -------------------------------------------------------------------
 consCB :: Bool -> CGEnv -> CoreBind -> CG CGEnv 
 -------------------------------------------------------------------
@@ -897,8 +917,7 @@ cconsE :: CGEnv -> Expr Var -> SpecType -> CG ()
 -------------------------------------------------------------------
 
 cconsE γ (Let b e) t    
-  = do tflag <- tcheck <$> get
-       γ'  <- consCB tflag γ b
+  = do γ'  <- consCBLet γ b
        cconsE γ' e t 
 
 cconsE γ (Case e x _ cases) t 

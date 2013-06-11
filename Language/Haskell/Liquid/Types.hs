@@ -92,6 +92,7 @@ import Data.Generics                (Data)
 import Data.Monoid                  hiding ((<>))
 import qualified Data.Foldable as F
 import Data.Hashable
+import qualified Data.HashSet as S
 import Data.Maybe                   (fromMaybe)
 import Data.Traversable             hiding (mapM)
 import Data.List                    (nub)
@@ -251,6 +252,7 @@ data GhcSpec = SP {
                                                  -- e.g tests/pos/qualTest.hs
   , tgtVars  :: !TargetVars                      -- ^ Top-level Binders To Verify (empty means ALL binders)
   , decr     :: ![(Symbol, Int)]
+  , strict   :: !(S.HashSet Var)
   }
   
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]

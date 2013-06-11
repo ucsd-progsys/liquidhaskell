@@ -8,6 +8,7 @@ import Control.Monad
 import Text.Parsec
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet        as S
 
 import Control.Applicative ((<$>), (<*), (<*>))
 import Data.Char (toLower, isLower, isSpace, isAlpha)
@@ -279,6 +280,7 @@ data Pspec ty ctor
   | Embed   (String, FTycon)
   | Qualif  Qualifier
   | Decr    (Symbol, Int)
+  | Strict  Symbol
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
@@ -294,6 +296,7 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.embeds     = M.fromList [e | Embed e <- xs]
   , Measure.qualifiers = [q | Qualif q <- xs]
   , Measure.decr       = [d | Decr d   <- xs]
+  , Measure.strict     = S.fromList [s | Strict s <- xs]
   }
 
 type BareSpec = (Measure.Spec BareType Symbol)
@@ -322,7 +325,11 @@ specP
     <|> (reserved "embed"     >> liftM Embed  embedP    )
     <|> (reserved "qualif"    >> liftM Qualif qualifierP)
     <|> (reserved "Decrease"  >> liftM Decr   decreaseP )
+    <|> (reserved "Strict"    >> liftM Strict strictP   )
     <|> ({- DEFAULT -}           liftM Assms  tyBindsP  )
+
+strictP :: Parser Symbol
+strictP = binderP
 
 decreaseP :: Parser (Symbol, Int)
 decreaseP = mapSnd f <$> liftM2 (,) binderP (spaces >> integer)

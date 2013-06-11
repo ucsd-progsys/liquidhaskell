@@ -236,3 +236,4 @@ ignoreLetBinds e
   = e
 
 isDictionary x = L.isPrefixOf "$d" (showPpr x)
+isInternal   x = L.isPrefixOf "$" (showPpr x)

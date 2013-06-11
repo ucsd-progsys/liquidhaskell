@@ -33,6 +33,8 @@ check (B _)        = TBool
 check (Plus e1 e2) = TInt
 check (Equal _ _)  = TBool
 
+{-@ Strict eval @-}
+
 {-@ eval           :: e:ValidExpr  -> {v:ValidExpr | ((isValue v) && (((eType e) = (eType v))))} @-}
 eval e@(I _)       = e
 eval e@(B _)       = e
