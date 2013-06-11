@@ -472,7 +472,12 @@ dataConNameP
      idP p  = many1 (satisfy (not . p))
      bad c  = isSpace c || c `elem` "(,)"
      pwr s  = "(" ++ s ++ ")" 
- 
+
+dataSizeP 
+  = (brackets $ (Just . mkFun) <$> lowerIdP)
+  <|> return Nothing
+  where mkFun s = \x -> EApp (stringSymbol s) [EVar x] 
+
 dataDeclP
   = do pos <- getPosition
        x   <- upperIdP
@@ -486,7 +491,7 @@ dataDeclP
        whiteSpace
        -- spaces
        -- reservedOp "--"
-       return $ D x ts ps dcs fsize
+       return $ D x ts ps dcs pos fsize
 
 ---------------------------------------------------------------------
 ------------ Interacting with Fixpoint ------------------------------
