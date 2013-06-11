@@ -3,7 +3,7 @@ module Map where
 import Language.Haskell.Liquid.Prelude
 
 {-@ 
-  data Map k a <l :: root:k -> k -> Prop, r :: root:k -> k -> Prop>
+  data Map [mlen] k a <l :: root:k -> k -> Prop, r :: root:k -> k -> Prop>
       = Tip 
       | Bin (sz    :: Size) 
             (key   :: k) 
@@ -11,6 +11,13 @@ import Language.Haskell.Liquid.Prelude
             (left  :: Map <l, r> (k <l key>) a) 
             (right :: Map <l, r> (k <r key>) a) 
   @-}
+
+{-@ measure mlen :: (Map k a) -> Int 
+    mlen(Tip) = 0
+    mlen(Bin s k v l r) = 1 + (mlen l) + (mlen r)
+  @-}
+
+{-@ invariant {v:Map k a | (mlen v) >= 0}@-}
 
 {-@ type OMap k a = Map <{\root v -> v < root }, {\root v -> v > root}> k a @-}
 

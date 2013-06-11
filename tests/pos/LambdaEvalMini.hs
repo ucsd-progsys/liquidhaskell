@@ -13,8 +13,20 @@ data Expr
   = Lam Bndr Expr
   | Var Bndr  
   | App Expr Expr
+{-@
+data Expr [elen] 
+  = Lam (x::Bndr) (e::Expr)
+  | Var (x::Bndr)  
+  | App (e1::Expr) (e2::Expr)
+@-}
 
+{-@ measure elen :: Expr -> Int
+    elen(Var x)     = 0
+    elen(Lam x e)   = 1 + (elen e) 
+    elen(App e1 e2) = 1 + (elen e1) + (elen e2) 
+  @-}
 
+{-@ invariant {v:Expr | (elen v) >= 0} @-}
 
 {-@  measure isValue :: Expr -> Prop
      isValue (Lam x e)    = true 
@@ -40,6 +52,7 @@ evalVar x []
 -- A "value" is simply: {v: Expr | (? (isValue v)) } *)
 {- assert eval :: [(Bndr, {v: Expr | (? (isValue([v])))})] -> Expr -> {v: Expr | (? (isValue([v])))} -}
 
+{-@ Decrease eval 2 @-}
 {-@ eval :: [(Bndr, Value)] -> Expr -> ([(Bndr, Value)], Value) @-}
 
 eval sto (Var x)  

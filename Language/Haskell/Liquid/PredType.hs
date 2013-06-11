@@ -42,7 +42,7 @@ import Control.Monad.State
 makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
-mkRTyCon tc (TyConP αs' ps cv conv) = RTyCon tc pvs' (mkTyConInfo tc cv conv)
+mkRTyCon tc (TyConP αs' ps cv conv size) = RTyCon tc pvs' (mkTyConInfo tc cv conv size)
   where τs   = [rVar α :: RSort |  α <- TC.tyConTyVars tc]
         pvs' = subts (zip αs' τs) <$> ps
 
@@ -60,7 +60,7 @@ dataConPSpecType dc (DataConP vs ps yts rt) = mkArrow vs ps (reverse yts') rt'
 
 
 instance PPrint TyConP where
-  pprint (TyConP vs ps _ _) 
+  pprint (TyConP vs ps _ _ _) 
     = (parens $ hsep (punctuate comma (map pprint vs))) <+>
       (parens $ hsep (punctuate comma (map pprint ps)))
 

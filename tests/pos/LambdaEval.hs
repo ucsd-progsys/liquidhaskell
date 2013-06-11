@@ -21,6 +21,31 @@ data Expr
   | Fst Expr
   | Snd Expr
 
+{-@ 
+data Expr [elen]
+  = Lam (x::Bndr) (e::Expr)
+  | Var (x::Bndr)  
+  | App (e1::Expr) (e2::Expr)
+  | Const (i::Int)
+  | Plus (e1::Expr) (e2::Expr)
+  | Pair (e1::Expr) (e2::Expr)
+  | Fst (e::Expr)
+  | Snd (e::Expr)
+@-}
+
+{-@ measure elen :: (Expr) -> Int
+    elen(Lam x e)    = 1 + (elen e)
+    elen(Var x)      = 0
+    elen(App e1 e2)  = 1 + (elen e1) + (elen e2)
+    elen(Const i)    = 1
+    elen(Plus e1 e2) = 1 + (elen e1) + (elen e2)
+    elen(Pair e1 e2) = 1 + (elen e1) + (elen e2)
+    elen(Fst e)      = 1 + (elen e)
+    elen(Snd e)      = 1 + (elen e)
+@-}
+
+{-@ invariant {v:Expr | (elen v) >= 0} @-}
+
 {-@
 measure isValue      :: Expr -> Prop
 isValue (Const i)    = true 
@@ -39,6 +64,7 @@ isValue (Pair e1 e2) = ((? (isValue(e1))) && (? (isValue(e2))))
 -------------------------- The Evaluator ----------------------------
 ---------------------------------------------------------------------
 
+{-@ Decrease evalVar 2 @-}
 evalVar :: Bndr -> [(Bndr, Expr)] -> Expr
 evalVar x ((y,v):sto) 
   | x == y
@@ -50,6 +76,7 @@ evalVar x []
   = error "unbound variable"
 
 
+{-@ Decrease eval 2 @-}
 {-@ eval :: [(Bndr, Value)] -> Expr -> ([(Bndr, Value)], Value) @-}
 eval sto (Const i) 
   = (sto, Const i)

@@ -92,6 +92,7 @@ import Data.Generics                (Data)
 import Data.Monoid                  hiding ((<>))
 import qualified Data.Foldable as F
 import Data.Hashable
+import qualified Data.HashSet as S
 import Data.Maybe                   (fromMaybe)
 import Data.Traversable             hiding (mapM)
 import Data.List                    (nub)
@@ -113,6 +114,8 @@ data Config = Config {
   , binds          :: [String]   -- ^ top-level binders to check (empty means check ALL)
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , nofalse        :: Bool       -- ^ remove false predicates from the refinements
+  , termination    :: Bool       -- ^ enable termination check
+  , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   } deriving (Data, Typeable, Show, Eq)
 
@@ -248,13 +251,15 @@ data GhcSpec = SP {
   , qualifiers :: ![Qualifier]                   -- ^ Qualifiers in Source/Spec files
                                                  -- e.g tests/pos/qualTest.hs
   , tgtVars  :: !TargetVars                      -- ^ Top-level Binders To Verify (empty means ALL binders)
-  
+  , decr     :: ![(Symbol, Int)]
+  , strict   :: !(S.HashSet Var)
   }
   
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![(PVar RSort)]
                      , covPs        :: ![Int] -- indexes of covariant predicate arguments
                      , contravPs    :: ![Int] -- indexes of contravariant predicate arguments
+                     , sizeFun      :: !(Maybe (Symbol -> Expr))
                      }
 
 data DataConP = DataConP { freeTyVars :: ![RTyVar]
@@ -376,6 +381,7 @@ data TyConInfo = TyConInfo
   , contravariantTyArgs :: ![Int] -- indexes of contravariant type arguments
   , covariantPsArgs     :: ![Int] -- indexes of covariant predicate arguments
   , contravariantPsArgs :: ![Int] -- indexes of contravariant predicate arguments
+  , sizeFunction        :: !(Maybe (Symbol -> Expr))
   }
 
 
@@ -502,6 +508,7 @@ data DataDecl   = D { tycName   :: String                           -- ^ Type  C
                     , tycPVars  :: [PVar BSort]                     -- ^ PVar  Parameters
                     , tycDCons  :: [(String, [(String, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]   
                     , tycSrcPos :: !SourcePos                       -- ^ Source Position
+                    , tycSFun   :: (Maybe (Symbol -> Expr))         -- ^ Measure that should decrease in recursive calls
                     }
      --              deriving (Show) 
 
