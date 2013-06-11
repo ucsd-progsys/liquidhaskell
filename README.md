@@ -152,9 +152,9 @@ Termination Check
 -----------------
 
 A termination check is termformed to all recursive functions used.
-Use no-termination-check option to disable the check
+Use termination-check option to enable the check
  
-    liquid --no-termination-check test.hs
+    liquid --termination-check test.hs
 
 In recursive functions the first algebraic or integer argument should be decreasing.
 The default decreasing measure for lists is length and Integers its value.
@@ -176,7 +176,7 @@ But the hint
 `{-@ Decreasing foo 3 @-}`
 specifies, that the third one should be checked.
 
-
+Use `{-@ Strict foo @-}` to disable check of the function `foo`.
 
 Limitations:
 - An error is created when mutual recursive functions are to checked.
