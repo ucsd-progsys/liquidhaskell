@@ -45,7 +45,7 @@ evalVar = error "HIDEME"
 
 {-@ Decrease eval 2 @-}
 
-{-@ eval :: sto:Store -> e:Expr -> (Store, {v:Value| (elen v) <= (elen e)}) @-}
+{-@ eval :: sto:Store -> e:Expr -> (Store, Value) @-}
 
 eval sto (Var x)  
   = (sto, evalVar x sto)
