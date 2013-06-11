@@ -201,13 +201,14 @@ subsFreeSymbols xvs = tx
 -- meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
 meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts 
   where 
-    dcm                  = dataConSpec dcs 
+    dcm                  = M.fromList $ dataConSpec dcs 
     upd dcm (x, t)       = M.insert x (maybe t (meetPad t) (M.lookup x dcm)) dcm
     strengthen (x,t)     = (x, maybe t (meetPad t) (M.lookup x dcm))
 
 
 -- dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
-dataConSpec dcs = M.fromList $ concatMap mkDataConIdsTy [(dc, dataConPSpecType dc t) | (dc, t) <- dcs]
+dataConSpec :: [(DataCon, DataConP)]-> [(Var, (RType Class RTyCon RTyVar RReft))]
+dataConSpec dcs = concatMap mkDataConIdsTy [(dc, dataConPSpecType dc t) | (dc, t) <- dcs]
 
 meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
   case (bkUniv t1, bkUniv t2) of
@@ -701,11 +702,13 @@ checkGhcSpec sp      =  applyNonNull sp specError errors
     env              =  ghcSpecEnv sp
     emb              =  tcEmbeds sp
     errors           =  mapMaybe (checkBind "variable"         emb env) (tySigs     sp)
-                     ++ mapMaybe (checkBind "data constructor" emb env) (ctor       sp)
+                     ++ mapMaybe (checkBind "data constructor" emb env) (dcons      sp)
                      ++ mapMaybe (checkBind "measure"          emb env) (meas       sp)
                      ++ mapMaybe (checkInv  emb env)                    (invariants sp)
                      ++ mapMaybe checkMismatch                          (tySigs     sp)
                      ++ checkDuplicate                                  (tySigs     sp)
+    dcons spec       = mapSnd (Loc dummyPos) <$> dataConSpec (dconsP spec) 
+
 
 specError            = errorstar 
                      . render 
