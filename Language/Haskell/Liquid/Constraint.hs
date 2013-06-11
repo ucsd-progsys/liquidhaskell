@@ -506,7 +506,7 @@ initCGI cfg info = CGInfo {
   , lits       = coreBindLits tce info 
   , specDecr   = decr spc
   , specStrict = strict spc
-  , tcheck     = not $ noTermination cfg
+  , tcheck     = termination cfg
   , pruneRefs  = not $ noPrune cfg
   } 
   where 
