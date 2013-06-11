@@ -1,3 +1,4 @@
+{--! run liquid with termination-check -}
 module TestRec where
 
 import Prelude hiding (map, foldl)
