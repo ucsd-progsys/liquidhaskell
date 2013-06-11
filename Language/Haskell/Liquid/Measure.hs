@@ -22,6 +22,7 @@ import Text.PrettyPrint.HughesPJ hiding (first)
 import Text.Printf (printf)
 import DataCon
 import qualified Data.HashMap.Strict as M 
+import qualified Data.HashSet        as S 
 import Data.Monoid hiding ((<>))
 import Data.List (foldl1')
 import Data.Either (partitionEithers)
@@ -49,6 +50,7 @@ data Spec ty bndr  = Spec {
   , embeds     :: !(TCEmb String)               -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
   , decr       :: ![(Symbol, Int)]              -- ^ Information on decreasing arguments
+  , strict     :: !(S.HashSet Symbol)           -- ^ Ignore Termination Check in these Functions
   } 
 
 
@@ -112,7 +114,7 @@ checkDuplicateMeasure ms
 
 -- MOVE TO TYPES
 instance Monoid (Spec ty bndr) where
-  mappend (Spec xs ys invs zs ds is as ps es qs drs) (Spec xs' ys' invs' zs' ds' is' as' ps' es' qs' drs')
+  mappend (Spec xs ys invs zs ds is as ps es qs drs ss) (Spec xs' ys' invs' zs' ds' is' as' ps' es' qs' drs' ss')
            = Spec (xs ++ xs') 
                   (ys ++ ys') 
                   (invs ++ invs') 
@@ -124,7 +126,8 @@ instance Monoid (Spec ty bndr) where
                   (M.union es es')
                   (qs ++ qs')
                   (drs ++ drs')
-  mempty   = Spec [] [] [] [] [] [] [] [] M.empty [] []
+                  (S.union ss ss')
+  mempty   = Spec [] [] [] [] [] [] [] [] M.empty [] [] S.empty
 
 -- MOVE TO TYPES
 instance Functor Def where
@@ -152,7 +155,7 @@ instance Bifunctor MSpec   where
 
 -- MOVE TO TYPES
 instance Bifunctor Spec    where
-  first f (Spec ms ss is x0 x1 x2 x3 x4 x5 x6 x7) 
+  first f (Spec ms ss is x0 x1 x2 x3 x4 x5 x6 x7 x8) 
     = Spec { measures   = first  f <$> ms
            , sigs       = second f <$> ss
            , invariants = fmap   f <$> is
@@ -164,8 +167,9 @@ instance Bifunctor Spec    where
            , embeds     = x5
            , qualifiers = x6
            , decr       = x7
+           , strict     = x8
            }
-  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6 x7 x8) 
+  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6 x7 x8 x9) 
     = Spec { measures   = fmap (second f) ms
            , sigs       = x0 
            , invariants = x1
@@ -177,6 +181,7 @@ instance Bifunctor Spec    where
            , embeds     = x6
            , qualifiers = x7
            , decr       = x8
+           , strict     = x9
            }
 
 -- MOVE TO TYPES

@@ -71,6 +71,7 @@ makeGhcSpec' cfg name vars env spec
        sigs'           <- makeAssumeSpec  cfg benv vars     $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec
+       let stricts      = makeStricts     vars              $ Ms.strict     spec
        let sigs         = [(x, (txRefSort embs benv . txExpToBind) <$> t) | (x, t) <- sigs'] 
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs datacons
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms ] -- first val <$> ms 
@@ -87,6 +88,7 @@ makeGhcSpec' cfg name vars env spec
                              , tcEmbeds   = embs 
                              , qualifiers = Ms.qualifiers spec 
                              , decr       = Ms.decr spec 
+                             , strict     = stricts
                              , tgtVars    = AllVars -- makeTargetVars vars (binds cfg)
                              }
 
@@ -300,6 +302,11 @@ showTopLevelVars vs =
 makeTyConEmbeds  :: BareEnv -> TCEmb String -> IO (TCEmb TyCon) 
 makeTyConEmbeds benv z = execBare (M.fromList <$> mapM tx (M.toList z)) benv
   where tx (c, y) = (, y) <$> lookupGhcTyCon c
+
+makeStricts :: [Var] -> S.HashSet Symbol -> S.HashSet Var
+makeStricts vs s = S.fromList $ fst3 <$> joinIds vs xxs
+  where xs  = S.toList s
+        xxs = zip xs xs
 
 makeInvariants :: BareEnv -> [Located BareType] -> IO [Located SpecType]
 makeInvariants benv ts = execBare (mapM mkI ts) benv
