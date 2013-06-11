@@ -79,7 +79,8 @@ module Language.Fixpoint.Types (
   , isSingletonReft
   , isEVar
   , isFalse
-  , flattenRefas, shiftVV
+  , flattenRefas, squishRefas
+  , shiftVV
 
   -- * Substitutions 
   , Subst, Subable (..)
@@ -973,12 +974,21 @@ trueReft = Reft (vv_, [])
 trueRefa = RConc PTrue
 
 flattenRefas ::  [Refa] -> [Refa]
-flattenRefas = concatMap flatRa
-  where flatRa (RConc p) = RConc <$> flatP p
-        flatRa ra        = [ra]
-        flatP  (PAnd ps) = concatMap flatP ps
-        flatP  p         = [p]
+flattenRefas         = concatMap flatRa
+  where 
+    flatRa (RConc p) = RConc <$> flatP p
+    flatRa ra        = [ra]
+    flatP  (PAnd ps) = concatMap flatP ps
+    flatP  p         = [p]
 
+squishRefas     ::  [Refa] -> [Refa]
+squishRefas ras = (squish [p | RConc p <- ras]) : []
+  where 
+    squish      = RConc . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts   
+    
+conjuncts (PAnd ps)          = concatMap conjuncts ps
+conjuncts p | isTautoPred p  = []
+            | otherwise      = [p]
 ----------------------------------------------------------------
 ---------------------- Strictness ------------------------------
 ----------------------------------------------------------------
