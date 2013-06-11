@@ -440,7 +440,8 @@ isNumeric tce c
        (M.lookup (rTyCon c) tce) == intFTyCon
 
 addNumSizeFun c 
-  = c {rTyConInfo=(rTyConInfo c){sizeFunction = Just EVar}}
+  = c {rTyConInfo=(rTyConInfo c){sizeFunction = Nothing {-Just EVar-}}}
+-- Turn this out, as numeric values can decrease forever
 
 appRefts rc [] = RPoly [] . ofRSort . ptype <$> (rTyConPs rc)
 appRefts rc rs = safeZipWith ("appRefts" ++ showFix rc) toPoly rs (rTyConPs rc)
