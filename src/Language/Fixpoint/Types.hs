@@ -507,6 +507,10 @@ isTautoPred z  = eqT z || (z `elem` tautos)
   where 
     tautos     = [PTrue]
     
+    eqT (PAtom Le x y) 
+               = x == y
+    eqT (PAtom Ge x y) 
+               = x == y
     eqT (PAtom Eq x y) 
                = x == y
     eqT (PAtom Ne (ECon x) (ECon y))
