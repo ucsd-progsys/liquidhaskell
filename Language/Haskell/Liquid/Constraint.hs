@@ -77,7 +77,6 @@ generateConstraints cfg info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg
 
 consAct info penv
   = do γ     <- initEnv info penv
-       tflag <- tcheck <$> get
        foldM consCBTop γ (cbs info)
        hcs <- hsCs  <$> get 
        hws <- hsWfs <$> get
@@ -867,7 +866,7 @@ consCB _ γ (Rec xes)
 
 consCB _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
-       to' <- (consBind False) γ (x, e, to)
+       to' <- consBind False γ (x, e, to)
        extender γ (x, to')
 
 consBind isRec γ (x, e, Just spect) 
@@ -921,7 +920,7 @@ cconsE γ (Let b e) t
        cconsE γ' e t 
 
 cconsE γ (Case e x _ cases) t 
-  = do γ'  <- consCB False γ (NonRec x e)
+  = do γ'  <- consCB False γ $ NonRec x e
        forM_ cases $ cconsCase γ' x t nonDefAlts 
     where nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
 
