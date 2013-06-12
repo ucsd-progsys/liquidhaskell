@@ -79,7 +79,8 @@ module Language.Fixpoint.Types (
   , isSingletonReft
   , isEVar
   , isFalse
-  , flattenRefas, shiftVV
+  , flattenRefas, squishRefas
+  , shiftVV
 
   -- * Substitutions 
   , Subst, Subable (..)
@@ -135,8 +136,11 @@ showFix =  render . toFix
 traceFix     ::  (Fixpoint a) => String -> a -> a
 traceFix s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showFix x) $ x
 
-
 type TCEmb a    = M.HashMap a FTycon  
+
+-- instance (Eq a, Hashable a) => Monoid (TCEmb a) where
+--   mappend m1 m2 = M.fromList (M.toList m1 ++ M.toList m2)
+--   mempty        = M.empty
 
 exprSymbols :: Expr -> [Symbol]
 exprSymbols = go
@@ -503,6 +507,10 @@ isTautoPred z  = eqT z || (z `elem` tautos)
   where 
     tautos     = [PTrue]
     
+    eqT (PAtom Le x y) 
+               = x == y
+    eqT (PAtom Ge x y) 
+               = x == y
     eqT (PAtom Eq x y) 
                = x == y
     eqT (PAtom Ne (ECon x) (ECon y))
@@ -970,12 +978,21 @@ trueReft = Reft (vv_, [])
 trueRefa = RConc PTrue
 
 flattenRefas ::  [Refa] -> [Refa]
-flattenRefas = concatMap flatRa
-  where flatRa (RConc p) = RConc <$> flatP p
-        flatRa ra        = [ra]
-        flatP  (PAnd ps) = concatMap flatP ps
-        flatP  p         = [p]
+flattenRefas         = concatMap flatRa
+  where 
+    flatRa (RConc p) = RConc <$> flatP p
+    flatRa ra        = [ra]
+    flatP  (PAnd ps) = concatMap flatP ps
+    flatP  p         = [p]
 
+squishRefas     ::  [Refa] -> [Refa]
+squishRefas ras = (squish [p | RConc p <- ras]) : []
+  where 
+    squish      = RConc . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts   
+    
+conjuncts (PAnd ps)          = concatMap conjuncts ps
+conjuncts p | isTautoPred p  = []
+            | otherwise      = [p]
 ----------------------------------------------------------------
 ---------------------- Strictness ------------------------------
 ----------------------------------------------------------------
