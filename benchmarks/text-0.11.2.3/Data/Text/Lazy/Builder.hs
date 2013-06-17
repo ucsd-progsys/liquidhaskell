@@ -58,6 +58,18 @@ import qualified Data.Text as S
 import qualified Data.Text.Array as A
 import qualified Data.Text.Lazy as L
 
+--LIQUID
+import qualified Data.Text
+import qualified Data.Text.Array
+import qualified Data.Text.Fusion.Internal
+import qualified Data.Text.Fusion.Size
+import qualified Data.Text.Lazy
+import qualified Data.Text.Lazy.Internal
+import qualified Data.Text.Private
+import qualified Data.Text.Search
+import qualified Data.Text.Unsafe
+import qualified Data.Word
+
 ------------------------------------------------------------------------
 
 -- | A @Builder@ is an efficient way to build lazy @Text@ values.
@@ -69,7 +81,8 @@ import qualified Data.Text.Lazy as L
 -- piece by piece.  As each buffer is filled, it is \'popped\' off, to
 -- become a new chunk of the resulting lazy @Text@.  All this is
 -- hidden from the user of the @Builder@.
-newtype Builder = Builder {
+--LIQUID FIXME: this was a newtype, but crashed with a `Non-all TyApp` error
+data Builder = Builder {
      -- Invariant (from Data.Text.Lazy):
      --      The lists include no null Texts.
      runBuilder :: forall s. (Buffer s -> ST s [S.Text])
@@ -77,26 +90,49 @@ newtype Builder = Builder {
                 -> ST s [S.Text]
    }
 
-instance Monoid Builder where
-   mempty  = empty
-   {-# INLINE mempty #-}
-   mappend = append
-   {-# INLINE mappend #-}
-   mconcat = foldr mappend mempty
-   {-# INLINE mconcat #-}
+{- data Data.Text.Lazy.Builder.Builder = Data.Text.Lazy.Builder.Builder {
+        runBuilder :: forall s. (Data.Text.Lazy.Builder.Buffer s
+                                 -> ST s [NonEmptyStrict])
+                   -> Data.Text.Lazy.Builder.Buffer s
+                   -> ST s [NonEmptyStrict]
+   }
+  @-}
 
-instance String.IsString Builder where
-    fromString = fromString
-    {-# INLINE fromString #-}
+{-@ data Data.Text.Lazy.Builder.Builder <p :: Data.Text.Lazy.Builder.Buffer s -> Prop>
+      = Data.Text.Lazy.Builder.Builder {
+        runBuilder :: forall s. (Data.Text.Lazy.Builder.Buffer s <p>
+                                 -> ST s [Data.Text.Internal.Text])
+                   -> Data.Text.Lazy.Builder.Buffer s <p>
+                   -> ST s [Data.Text.Internal.Text]
+   }
+  @-}
+
+{- runBuilder :: forall s. (Data.Text.Lazy.Builder.Buffer s
+                             -> ST s [NonEmptyStrict])
+               -> Data.Text.Lazy.Builder.Buffer s
+               -> ST s [NonEmptyStrict]
+  @-}
+
+--LIQUID instance Monoid Builder where
+--LIQUID    mempty  = empty
+--LIQUID    {-# INLINE mempty #-}
+--LIQUID    mappend = append
+--LIQUID    {-# INLINE mappend #-}
+--LIQUID    mconcat = foldr mappend mempty
+--LIQUID    {-# INLINE mconcat #-}
+
+--LIQUID instance String.IsString Builder where
+--LIQUID     fromString = fromString
+--LIQUID     {-# INLINE fromString #-}
 
 instance Show Builder where
     show = show . toLazyText
 
-instance Eq Builder where
-    a == b = toLazyText a == toLazyText b
-
-instance Ord Builder where
-    a <= b = toLazyText a <= toLazyText b
+--LIQUID instance Eq Builder where
+--LIQUID     a == b = toLazyText a == toLazyText b
+--LIQUID 
+--LIQUID instance Ord Builder where
+--LIQUID     a <= b = toLazyText a <= toLazyText b
 
 ------------------------------------------------------------------------
 
@@ -113,7 +149,7 @@ empty = Builder (\ k buf -> k buf)
 --  * @'toLazyText' ('singleton' c) = 'L.singleton' c@
 --
 singleton :: Char -> Builder
-singleton c = writeAtMost 2 $ \ marr o ->
+singleton c = writeAtMost 2 $ \ marr o _ ->
     if n < 0x10000
     then A.unsafeWrite marr o (fromIntegral n) >> return 1
     else do
@@ -151,7 +187,7 @@ copyLimit = 128
 fromText :: S.Text -> Builder
 fromText t@(Text arr off l)
     | S.null t       = empty
-    | l <= copyLimit = writeN l $ \marr o -> A.copyI marr o arr off (l+o)
+    | l <= copyLimit = writeN l $ \marr o _ -> A.copyI marr o arr off (l+o)
     | otherwise      = flush `append` mapBuilder (t :)
 {-# INLINE [1] fromText #-}
 
@@ -159,6 +195,7 @@ fromText t@(Text arr off l)
 "fromText/pack" forall s .
         fromText (S.pack s) = fromString s
  #-}
+
 
 -- | /O(1)./ A Builder taking a @String@, satisfying
 --
@@ -198,6 +235,28 @@ data Buffer s = Buffer {-# UNPACK #-} !(A.MArray s)
                        {-# UNPACK #-} !Int  -- used units
                        {-# UNPACK #-} !Int  -- length left
 
+{-@ data Data.Text.Lazy.Builder.Buffer s = Data.Text.Lazy.Builder.Buffer
+        (marr :: Data.Text.Array.MArray s)
+        (off  :: {v:Nat | v <= (malen marr)})
+        (used :: {v:Nat | (off+v) <= (malen marr)})
+        (left :: {v:Nat | v = ((malen marr) - off - used)})
+  @-}
+
+{-@ measure bufUsed :: Data.Text.Lazy.Builder.Buffer s -> Int
+    bufUsed (Data.Text.Lazy.Builder.Buffer m o u l) = u
+  @-}
+
+{-@ measure bufLeft :: Data.Text.Lazy.Builder.Buffer s -> Int
+    bufLeft (Data.Text.Lazy.Builder.Buffer m o u l) = l
+  @-}
+
+{-@ qualif BufLeft (v:int, a:Data.Text.Array.MArray s, o:int, u:int)
+                  : v = (malen(a) - o  - u)
+  @-}
+{-@ qualif BufUsed (v:int, a:Data.Text.Array.MArray s, o:int, b:Data.Text.Lazy.Builder.Buffer s)
+                  : (o + (bufUsed b) + v) <= (malen a)
+  @-}
+
 ------------------------------------------------------------------------
 
 -- | /O(n)./ Extract a lazy @Text@ from a @Builder@ with a default
@@ -231,6 +290,19 @@ flush = Builder $ \ k buf@(Buffer p o u l) ->
 ------------------------------------------------------------------------
 
 -- | Sequence an ST operation on the buffer
+{- withBuffer :: forall < p :: Data.Text.Lazy.Builder.Buffer s -> Prop
+                         , q :: Data.Text.Lazy.Builder.Buffer s -> Prop>.
+                  (forall s. Data.Text.Lazy.Builder.Buffer s <p>
+                   -> GHC.ST.ST s (Data.Text.Lazy.Builder.Buffer s <q>))
+               -> exists[b:Data.Text.Lazy.Builder.Buffer s <p>].
+                  Data.Text.Lazy.Builder.Builder <q>
+  @-}
+{- withBuffer :: forall < p :: Data.Text.Lazy.Builder.Buffer s -> Prop >.
+                  (forall s. Data.Text.Lazy.Builder.Buffer s
+                   -> GHC.ST.ST s (Data.Text.Lazy.Builder.Buffer s <p>))
+               -> exists[b:Data.Text.Lazy.Builder.Buffer s <p>].
+                  Data.Text.Lazy.Builder.Builder <p b>
+  @-}
 withBuffer :: (forall s. Buffer s -> ST s (Buffer s)) -> Builder
 withBuffer f = Builder $ \k buf -> f buf >>= k
 {-# INLINE withBuffer #-}
@@ -248,6 +320,8 @@ mapBuilder f = Builder (fmap f .)
 ------------------------------------------------------------------------
 
 -- | Ensure that there are at least @n@ many elements available.
+{- ensureFree :: n:Nat -> Data.Text.Lazy.Builder.Builder<{\buf -> (bufLeft buf) >= n}>
+  @-}
 ensureFree :: Int -> Builder
 ensureFree !n = withSize $ \ l ->
     if n <= l
@@ -255,22 +329,63 @@ ensureFree !n = withSize $ \ l ->
     else flush `append'` withBuffer (const (newBuffer (max n smallChunkSize)))
 {-# INLINE [0] ensureFree #-}
 
-writeAtMost :: Int -> (forall s. A.MArray s -> Int -> ST s Int) -> Builder
-writeAtMost n f = ensureFree n `append'` withBuffer (writeBuffer f)
+{- writeAtMost :: n:Nat
+                -> (forall s. ma:Data.Text.Array.MArray s
+                    -> i:{v:Nat | (v+n) <= (malen ma)}
+                    -> b:Data.Text.Lazy.Builder.Buffer s
+                    -> GHC.ST.ST s {v:Nat | (i+(bufUsed b)+v) <= (malen ma)})
+                -> Data.Text.Lazy.Builder.Builder
+  @-}
+{-@ writeAtMost :: n:Nat
+                -> (forall s. ma:Data.Text.Array.MArray s
+                    -> i:{v:Nat | (v+n) <= (malen ma)}
+                    -> b:Data.Text.Lazy.Builder.Buffer s
+                    -> GHC.ST.ST s {v:Nat | true})
+                -> Data.Text.Lazy.Builder.Builder
+  @-}
+writeAtMost :: Int -> (forall s. A.MArray s -> Int -> Buffer s -> ST s Int) -> Builder
+--LIQUID writeAtMost n f = ensureFree n `append'` withBuffer (writeBuffer f)
+--writeAtMost n f = ensureFree n `append'` withBuffer (\b -> writeBuffer b f)
+writeAtMost n f = Builder $ \ k buf@(Buffer a o u l) ->
+                  if n <= l
+                  then writeBuffer buf f >>= k
+                  else newBuffer (max n smallChunkSize) >>= \buf' ->
+                       writeBuffer buf' f >>= k
 {-# INLINE [0] writeAtMost #-}
 
 -- | Ensure that @n@ many elements are available, and then use @f@ to
 -- write some elements into the memory.
-writeN :: Int -> (forall s. A.MArray s -> Int -> ST s ()) -> Builder
-writeN n f = writeAtMost n (\ p o -> f p o >> return n)
+{-@ writeN :: n:Nat
+           -> (forall s. ma:Data.Text.Array.MArray s
+               -> i:{v:Nat | (v+n) <= (malen ma)}
+               -> b:Data.Text.Lazy.Builder.Buffer s
+               -> GHC.ST.ST s ())
+           -> Data.Text.Lazy.Builder.Builder
+  @-}
+writeN :: Int -> (forall s. A.MArray s -> Int -> Buffer s -> ST s ()) -> Builder
+writeN n f = writeAtMost n (\ p o b -> f p o b >> return n)
 {-# INLINE writeN #-}
 
-writeBuffer :: (A.MArray s -> Int -> ST s Int) -> Buffer s -> ST s (Buffer s)
-writeBuffer f (Buffer p o u l) = do
-    n <- f p (o+u)
+--LIQUID writeBuffer :: (A.MArray s -> Int -> ST s Int) -> Buffer s -> ST s (Buffer s)
+--LIQUID writeBuffer f (Buffer p o u l) = do
+--LIQUID     n <- f p (o+u)
+--LIQUID     return $! Buffer p o (u+n) (l-n)
+{-@ writeBuffer :: Data.Text.Lazy.Builder.Buffer s
+                -> (ma:Data.Text.Array.MArray s
+                    -> i:{v:Nat | v <= (malen ma)}
+                    -> b:Data.Text.Lazy.Builder.Buffer s
+                    -> GHC.ST.ST s {v:Nat | ((i+(bufUsed b)+v) <= (malen ma))})
+                -> GHC.ST.ST s (Data.Text.Lazy.Builder.Buffer s)
+  @-}
+writeBuffer :: Buffer s -> (A.MArray s -> Int -> Buffer s -> ST s Int) -> ST s (Buffer s)
+writeBuffer b@(Buffer p o u l) f = do
+    n <- f p (o+u) b
     return $! Buffer p o (u+n) (l-n)
 {-# INLINE writeBuffer #-}
 
+{-@ newBuffer :: size:Nat
+              -> GHC.ST.ST s {v:(Data.Text.Lazy.Builder.Buffer s) | size = (bufLeft v)}
+  @-}
 newBuffer :: Int -> ST s (Buffer s)
 newBuffer size = do
     arr <- A.new size
@@ -285,9 +400,10 @@ newBuffer size = do
 -- This is not needed with GHC 7+.
 append' :: Builder -> Builder -> Builder
 append' (Builder f) (Builder g) = Builder (f . g)
+--append' (Builder f) (Builder g) = Builder (\k -> f (g k))
 {-# INLINE append' #-}
 
-{-# RULES
+{- RULES
 
 "append/writeAtMost" forall a b (f::forall s. A.MArray s -> Int -> ST s Int)
                            (g::forall s. A.MArray s -> Int -> ST s Int) ws.
