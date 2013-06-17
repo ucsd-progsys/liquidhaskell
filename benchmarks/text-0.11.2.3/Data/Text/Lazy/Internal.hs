@@ -61,18 +61,19 @@ data Text = Empty
 --LIQUID            deriving (Typeable)
 
 {-@ data Data.Text.Lazy.Internal.Text
-      = Empty
-      | Chunk (t :: NonEmptyStrict) (cs :: Data.Text.Lazy.Internal.Text)
+      = Data.Text.Lazy.Internal.Empty
+      | Data.Text.Lazy.Internal.Chunk (t :: NonEmptyStrict)
+                                      (cs :: Data.Text.Lazy.Internal.Text)
   @-}
 
 {-@ measure ltlen :: Data.Text.Lazy.Internal.Text -> Integer
-    ltlen (Empty)      = 0
-    ltlen (Chunk t ts) = (tlen t) + (ltlen ts)
+    ltlen (Data.Text.Lazy.Internal.Empty)      = 0
+    ltlen (Data.Text.Lazy.Internal.Chunk t ts) = (tlen t) + (ltlen ts)
   @-}
 
 {-@ measure ltlength :: Data.Text.Lazy.Internal.Text -> Integer
-    ltlength (Empty)      = 0
-    ltlength (Chunk t ts) = (tlength t) + (ltlength ts)
+    ltlength (Data.Text.Lazy.Internal.Empty)      = 0
+    ltlength (Data.Text.Lazy.Internal.Chunk t ts) = (tlength t) + (ltlength ts)
   @-}
 
 {-@ measure sum_ltlengths :: [Data.Text.Lazy.Internal.Text] -> Integer
@@ -166,17 +167,19 @@ foldlChunks f z = go z
 {-# INLINE foldlChunks #-}
 
 -- | Currently set to 16 KiB, less the memory management overhead.
+{-@ defaultChunkSize :: Nat @-}
 defaultChunkSize :: Int
 defaultChunkSize = 16384 - chunkOverhead
 {-# INLINE defaultChunkSize #-}
 
 -- | Currently set to 128 bytes, less the memory management overhead.
+{-@ smallChunkSize :: Nat @-}
 smallChunkSize :: Int
 smallChunkSize = 128 - chunkOverhead
 {-# INLINE smallChunkSize #-}
 
 -- | The memory management overhead. Currently this is tuned for GHC only.
-{-@ chunkOverhead :: Int @-}
+{-@ chunkOverhead :: Nat @-}
 chunkOverhead :: Int
 chunkOverhead = sizeOf (undefined :: Int) `shiftL` 1
 {-# INLINE chunkOverhead #-}

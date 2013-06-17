@@ -10,6 +10,7 @@ Verified modules:
 - Data.Text.Array (need better assumes for unsafeIndex[FB])
 - Data.Text.Foreign
 - Data.Text.Internal (need to fix tlength assumes)
+- Data.Text.Foreign
 - Data.Text.Fusion
 - Data.Text.Lazy
 - Data.Text.Lazy.Internal
@@ -23,8 +24,25 @@ Other interesting modules:
 - Data.Text.Encoding (can't desugar at the moment..)
 - Data.Text.Fusion.Size (proof burden from Data.Text.Fusion)
 - Data.Text.Lazy.Builder
+- Data.Text.Lazy.Encoding
 - Data.Text.Lazy.Fusion
 
+Definitely not interesting:
+- Data.Text.Encoding.* (deals with encodings and bytestrings)
+- Data.Text.Encoding.Fusion.Common
+- Data.Text.Fusion.CaseMapping
+- Data.Text.Fusion.Common
+- Data.Text.Fusion.Internal
+- Data.Text.IO
+- Data.Text.IO.Internal
+- Data.Text.Lazy.Builder.**
+- Data.Text.Lazy.Encoding.Fusion
+- Data.Text.Lazy.IO
+- Data.Text.Lazy.Read
+- Data.Text.Read
+- Data.Text.Unsafe.Base
+- Data.Text.UnsafeShift
+- Data.Text.Util (actually inlined this into Text and Text.Lazy)
 
 Possible bug in Data.Text.Fusion.mapAccumL:
 

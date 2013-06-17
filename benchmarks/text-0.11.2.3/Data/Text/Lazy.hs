@@ -189,6 +189,9 @@ module Data.Text.Lazy
     --LIQUID
     , equal
     , compareText
+
+    --LIQUID
+    , Iter(..)
     ) where
 
 import Prelude (Char, Bool(..), Maybe(..), String,
@@ -384,9 +387,9 @@ compareText_go ta@(T.Text arrA offA lenA) tb@(T.Text arrB offB lenB) as bs !i !j
                      else if a > b then GT
                      else compareText_go ta tb as bs (i+di) (j+dj)
 
---LIQUID instance Show Text where
---LIQUID     showsPrec p ps r = showsPrec p (unpack ps) r
---LIQUID 
+instance Show Text where
+    showsPrec p ps r = showsPrec p (unpack ps) r
+
 --LIQUID instance Read Text where
 --LIQUID     readsPrec p str = [(pack x,y) | (x,y) <- readsPrec p str]
 --LIQUID 
