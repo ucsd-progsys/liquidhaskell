@@ -10,7 +10,7 @@ Verified modules:
 - Data.Text.Array (need better assumes for unsafeIndex[FB])
 - Data.Text.Foreign
 - Data.Text.Fusion
-- Data.Text.Internal (need to fix tlength assumes)
+- Data.Text.Internal
 - Data.Text.Lazy
 - Data.Text.Lazy.Builder
 - Data.Text.Lazy.Internal
@@ -19,7 +19,7 @@ Verified modules:
 - Data.Text.Private
 - Data.Text.Search
 - Data.Text.Unsafe (need to figure out the stupid Iter nonsense)
-- Data.Text.UnsafeChar (still need ord)
+- Data.Text.UnsafeChar
 
 Other interesting modules:
 - Data.Text.Encoding (can't desugar at the moment..)
