@@ -203,42 +203,81 @@ unsafeIndex :: Array -> Int -> Word16
 unsafeIndex Array{..} i@(I# i#) =
   CHECK_BOUNDS("unsafeIndex",aLen,i)
     case indexWord16Array# aBA i# of r# -> (W16# r#)
+{-# INLINE unsafeIndex #-}
 
 --LIQUID
 {-@ unsafeIndexF :: a:Data.Text.Array.Array
-             -> o:{v:Int | (BtwnI v 0 (alen a))}
-             -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
-             -> i:{v:Int | (Btwn (v) (o) (o + l))}
-             -> {v:Data.Word.Word16 | (((v >= 55296) && (v <= 56319))
-                                       ? ((numchars(a, o, (i-o)+2)
-                                           = (1 + numchars(a, o, i-o)))
-                                          && (numchars(a, o, (i-o)+2)
-                                              <= numchars(a, o, l))
-                                          && (((i-o)+1) < l))
-                                       : ((numchars(a, o, (i-o)+1)
-                                           = (1 + numchars(a, o, i-o)))
-                                          && (numchars(a, o, (i-o)+1)
-                                              <= numchars(a, o, l))))}
+                 -> o:{v:Int | (BtwnI v 0 (alen a))}
+                 -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
+                 -> i:{v:Int | (Btwn (v) (o) (o + l))}
+                 -> {v:Data.Word.Word16 | (((v >= 55296) && (v <= 56319))
+                                           ? ((numchars(a, o, (i-o)+2)
+                                               = (1 + numchars(a, o, i-o)))
+                                              && (numchars(a, o, (i-o)+2)
+                                                  <= numchars(a, o, l))
+                                              && (((i-o)+1) < l))
+                                           : ((numchars(a, o, (i-o)+1)
+                                               = (1 + numchars(a, o, i-o)))
+                                              && (numchars(a, o, (i-o)+1)
+                                                  <= numchars(a, o, l))))}
   @-}
 unsafeIndexF :: Array -> Int -> Int -> Int -> Word16
-unsafeIndexF a o l i = undefined --unsafeIndex a i
+unsafeIndexF a o l i = let x = unsafeIndex a i
+                       in liquidAssume (unsafeIndexFQ x a o l i) x
+
+{-@ unsafeIndexFQ :: x:Data.Word.Word16
+                  -> a:Data.Text.Array.Array
+                  -> o:Int
+                  -> l:Int
+                  -> i:Int
+                  -> {v:Bool | ((Prop v) <=>
+                                (((x >= 55296) && (x <= 56319))
+                                 ? ((numchars(a, o, (i-o)+2)
+                                     = (1 + numchars(a, o, i-o)))
+                                    && (numchars(a, o, (i-o)+2)
+                                        <= numchars(a, o, l))
+                                    && (((i-o)+1) < l))
+                                 : ((numchars(a, o, (i-o)+1)
+                                     = (1 + numchars(a, o, i-o)))
+                                    && (numchars(a, o, (i-o)+1)
+                                        <= numchars(a, o, l)))))}
+  @-}
+unsafeIndexFQ :: Word16 -> Array -> Int -> Int -> Int -> Bool
+unsafeIndexFQ = undefined
 
 {-@ unsafeIndexB :: a:Data.Text.Array.Array
-             -> o:{v:Int | (BtwnI v 0 (alen a))}
-             -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
-             -> i:{v:Int | (Btwn (v) (o) (o + l))}
-             -> {v:Data.Word.Word16 | (((v >= 56320) && (v <= 57343))
-                                       ? ((numchars(a, o, (i-o)+1)
-                                           = (1 + numchars(a, o, (i-o)-1)))
-                                          && (numchars(a, o, (i-o-1)) >= 0)
-                                          && (((i-o)-1) >= 0))
-                                       : ((numchars(a, o, (i-o)+1)
-                                           = (1 + numchars(a, o, i-o)))
-                                          && (numchars(a, o, (i-o)) >= 0)))}
+                 -> o:{v:Int | (BtwnI v 0 (alen a))}
+                 -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
+                 -> i:{v:Int | (Btwn (v) (o) (o + l))}
+                 -> {v:Data.Word.Word16 | (((v >= 56320) && (v <= 57343))
+                                           ? ((numchars(a, o, (i-o)+1)
+                                               = (1 + numchars(a, o, (i-o)-1)))
+                                              && (numchars(a, o, (i-o-1)) >= 0)
+                                              && (((i-o)-1) >= 0))
+                                           : ((numchars(a, o, (i-o)+1)
+                                               = (1 + numchars(a, o, i-o)))
+                                              && (numchars(a, o, (i-o)) >= 0)))}
   @-}
 unsafeIndexB :: Array -> Int -> Int -> Int -> Word16
-unsafeIndexB a o l i = undefined --unsafeIndex a i
-{-# INLINE unsafeIndex #-}
+unsafeIndexB a o l i = let x = unsafeIndex a i
+                       in liquidAssume (unsafeIndexBQ x a o i) x
+
+{-@ unsafeIndexBQ :: x:Data.Word.Word16
+                  -> a:Data.Text.Array.Array
+                  -> o:Int
+                  -> i:Int
+                  -> {v:Bool | ((Prop v) <=>
+                                (((x >= 56320) && (x <= 57343))
+                                 ? ((numchars(a, o, (i-o)+1)
+                                     = (1 + numchars(a, o, (i-o)-1)))
+                                    && (numchars(a, o, (i-o-1)) >= 0)
+                                    && (((i-o)-1) >= 0))
+                                 : ((numchars(a, o, (i-o)+1)
+                                     = (1 + numchars(a, o, i-o)))
+                                    && (numchars(a, o, (i-o)) >= 0))))}
+  @-}
+unsafeIndexBQ :: Word16 -> Array -> Int -> Int -> Bool
+unsafeIndexBQ = undefined
 
 -- | Unchecked write of a mutable array.  May return garbage or crash
 -- on an out-of-bounds access.

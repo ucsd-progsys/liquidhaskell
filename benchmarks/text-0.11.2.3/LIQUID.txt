@@ -7,9 +7,10 @@ spec that we can express)
 
 Verified modules:
 - Data.Text
-- Data.Text.Array (need better assumes for unsafeIndex[FB])
+- Data.Text.Array
 - Data.Text.Foreign
 - Data.Text.Fusion
+- Data.Text.Fusion.Size
 - Data.Text.Internal
 - Data.Text.Lazy
 - Data.Text.Lazy.Builder
@@ -23,7 +24,6 @@ Verified modules:
 
 Other interesting modules:
 - Data.Text.Encoding (can't desugar at the moment..)
-- Data.Text.Fusion.Size (proof burden from Data.Text.Fusion)
 - Data.Text.Lazy.Encoding
 
 Definitely not interesting:

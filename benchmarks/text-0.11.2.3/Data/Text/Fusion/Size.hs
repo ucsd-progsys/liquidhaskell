@@ -15,7 +15,7 @@
 
 module Data.Text.Fusion.Size
     (
-      Size
+      Size(..)
     , exactly
     , exactSize
     , maxSize
@@ -35,14 +35,28 @@ data Size = Exact {-# UNPACK #-} !Int -- ^ Exact size.
           | Unknown                   -- ^ Unknown size.
             deriving (Eq, Show)
 
-{-@ embed Data.Text.Fusion.Size.Size as int @-}
-{-@ invariant {v:Data.Text.Fusion.Size.Size | v >= 0} @-}
+{-@ measure getSize :: Data.Text.Fusion.Size.Size -> Int
+    getSize (Data.Text.Fusion.Size.Exact n) = n
+    getSize (Data.Text.Fusion.Size.Max   n) = n
+  @-}
+{-@ measure isUnknown :: Data.Text.Fusion.Size.Size -> Prop
+    isUnknown (Data.Text.Fusion.Size.Exact n) = false
+    isUnknown (Data.Text.Fusion.Size.Max   n) = false
+    isUnknown (Data.Text.Fusion.Size.Unknown) = true
+  @-}
+{-@ qualif IsUnknown(v:Data.Text.Fusion.Size.Size) : (isUnknown v) @-}
+{-@ qualif IsKnown(v:Data.Text.Fusion.Size.Size) : not (isUnknown v) @-}
+
+{-@ invariant {v:Data.Text.Fusion.Size.Size | (getSize v) >= 0} @-}
 
 exactly :: Size -> Maybe Int
 exactly (Exact n) = Just n
 exactly _         = Nothing
 {-# INLINE exactly #-}
 
+{-@ exactSize :: n:Nat
+              -> {v:Data.Text.Fusion.Size.Size |
+                   (((getSize v) = n) && (not (isUnknown v)))} @-}
 exactSize :: Int -> Size
 exactSize n =
 #if defined(ASSERTS)
@@ -51,6 +65,9 @@ exactSize n =
     Exact n
 {-# INLINE exactSize #-}
 
+{-@ maxSize :: n:Nat
+            -> {v:Data.Text.Fusion.Size.Size |
+                 (((getSize v) = n) && (not (isUnknown v)))} @-}
 maxSize :: Int -> Size
 maxSize n =
 #if defined(ASSERTS)
@@ -59,6 +76,7 @@ maxSize n =
     Max n
 {-# INLINE maxSize #-}
 
+{-@ unknownSize :: {v:Data.Text.Fusion.Size.Size | (isUnknown v)} @-}
 unknownSize :: Size
 unknownSize = Unknown
 {-# INLINE unknownSize #-}
@@ -124,8 +142,11 @@ smaller   Unknown   Unknown   = Unknown
 -- | Maximum of two size hints.
 {-@ larger :: s1:Data.Text.Fusion.Size.Size
            -> s2:Data.Text.Fusion.Size.Size
-           -> {v:Data.Text.Fusion.Size.Size | (Max v s1 s2)}
+           -> {v:Data.Text.Fusion.Size.Size |
+                 ((not ((isUnknown s1) || (isUnknown s2))) =>
+                  (Max (getSize v) (getSize s1) (getSize s2)))}
   @-}
+
 larger :: Size -> Size -> Size
 larger   (Exact m)   (Exact n)             = Exact (m `max` n)
 larger a@(Exact m) b@(Max   n) | m >= n    = a
@@ -137,9 +158,8 @@ larger _             _                     = Unknown
 {-# INLINE larger #-}
 
 -- | Compute the maximum size from a size hint, if possible.
---LIQUID FIXME: this type is not quite right
 {-@ upperBound :: k:Nat -> s:Data.Text.Fusion.Size.Size
-               -> {v:Nat | (Max v k s)}
+               -> {v:Nat | v = ((isUnknown s) ? k : (getSize s))}
   @-}
 upperBound :: Int -> Size -> Int
 upperBound _ (Exact n) = n
@@ -147,12 +167,15 @@ upperBound _ (Max   n) = n
 upperBound k _         = k
 {-# INLINE upperBound #-}
 
-{-@ isEmpty :: s:Data.Text.Fusion.Size.Size -> {v:Bool | ((Prop v) <=> (s = 0))} @-}
+{-@ isEmpty :: s:Data.Text.Fusion.Size.Size
+            -> {v:Bool | ((Prop v) <=> ((not (isUnknown s) && ((getSize s) = 0))))}
+  @-}
 isEmpty :: Size -> Bool
 isEmpty (Exact n) = n <= 0
 isEmpty (Max   n) = n <= 0
 isEmpty _         = False
 {-# INLINE isEmpty #-}
 
+{-@ overflowError :: Int @-}
 overflowError :: Int
 overflowError = error "Data.Text.Fusion.Size: size overflow"
