@@ -50,7 +50,8 @@ import Language.Haskell.Liquid.Prelude
 
 {-@ ord :: c:Char -> {v:Int | v = (ord c)} @-}
 ord :: Char -> Int
-ord (C# c#) = I# (ord# c#)
+ord c@(C# c#) = let i = I# (ord# c#)
+                in liquidAssume (i == ord c) i
 {-# INLINE ord #-}
 
 unsafeChr :: Word16 -> Char
@@ -67,11 +68,6 @@ unsafeChr32 (W32# w#) = C# (chr# (word2Int# w#))
 
 -- | Write a character into the array at the given offset.  Returns
 -- the number of 'Word16's written.
-{- unsafeWrite :: ma:Data.Text.Array.MArray s
-                -> {v:Int | (Btwn v 0 (malen ma))}
-                -> Char
-                -> GHC.ST.ST s Int
-  @-}
 {-@ unsafeWrite :: ma:Data.Text.Array.MArray s
                 -> i:Nat
                 -> x:{v:Char | (  ((One v) => (Room ma i 1))

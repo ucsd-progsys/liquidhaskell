@@ -179,7 +179,7 @@ smallChunkSize = 128 - chunkOverhead
 {-# INLINE smallChunkSize #-}
 
 -- | The memory management overhead. Currently this is tuned for GHC only.
-{-@ chunkOverhead :: Nat @-}
+{-@ chunkOverhead :: {v:Nat | v = 16} @-}
 chunkOverhead :: Int
 chunkOverhead = sizeOf (undefined :: Int) `shiftL` 1
 {-# INLINE chunkOverhead #-}

@@ -20,6 +20,8 @@ module Data.Text.Lazy.Fusion
     , unfoldrN
     , index
     , countChar
+    --LIQUID
+    , UC(..)
     ) where
 
 import Prelude hiding (length)
