@@ -149,7 +149,7 @@ empty = Builder (\ k buf -> k buf)
 --  * @'toLazyText' ('singleton' c) = 'L.singleton' c@
 --
 singleton :: Char -> Builder
-singleton c = writeAtMost 2 $ \ marr o _ ->
+singleton c = writeAtMost 2 $ \ marr o ->
     if n < 0x10000
     then A.unsafeWrite marr o (fromIntegral n) >> return 1
     else do
@@ -187,7 +187,7 @@ copyLimit = 128
 fromText :: S.Text -> Builder
 fromText t@(Text arr off l)
     | S.null t       = empty
-    | l <= copyLimit = writeN l $ \marr o _ -> A.copyI marr o arr off (l+o)
+    | l <= copyLimit = writeN l $ \marr o -> A.copyI marr o arr off (l+o)
     | otherwise      = flush `append` mapBuilder (t :)
 {-# INLINE [1] fromText #-}
 
@@ -329,6 +329,10 @@ ensureFree !n = withSize $ \ l ->
     else flush `append'` withBuffer (const (newBuffer (max n smallChunkSize)))
 {-# INLINE [0] ensureFree #-}
 
+{-@ qualif ThoughtIHadThis(v:Int, n:Int, a:Data.Text.Array.MArray s)
+           : (v + n) <= (malen a)
+  @-}
+
 {- writeAtMost :: n:Nat
                 -> (forall s. ma:Data.Text.Array.MArray s
                     -> i:{v:Nat | (v+n) <= (malen ma)}
@@ -339,18 +343,17 @@ ensureFree !n = withSize $ \ l ->
 {-@ writeAtMost :: n:Nat
                 -> (forall s. ma:Data.Text.Array.MArray s
                     -> i:{v:Nat | (v+n) <= (malen ma)}
-                    -> b:Data.Text.Lazy.Builder.Buffer s
-                    -> GHC.ST.ST s {v:Nat | true})
+                    -> GHC.ST.ST s {v:Nat | v <= n})
                 -> Data.Text.Lazy.Builder.Builder
   @-}
-writeAtMost :: Int -> (forall s. A.MArray s -> Int -> Buffer s -> ST s Int) -> Builder
+writeAtMost :: Int -> (forall s. A.MArray s -> Int -> ST s Int) -> Builder
 --LIQUID writeAtMost n f = ensureFree n `append'` withBuffer (writeBuffer f)
 --writeAtMost n f = ensureFree n `append'` withBuffer (\b -> writeBuffer b f)
 writeAtMost n f = Builder $ \ k buf@(Buffer a o u l) ->
                   if n <= l
-                  then writeBuffer buf f >>= k
+                  then writeBuffer buf n f >>= k
                   else newBuffer (max n smallChunkSize) >>= \buf' ->
-                       writeBuffer buf' f >>= k
+                       writeBuffer buf' n f >>= k
 {-# INLINE [0] writeAtMost #-}
 
 -- | Ensure that @n@ many elements are available, and then use @f@ to
@@ -358,28 +361,27 @@ writeAtMost n f = Builder $ \ k buf@(Buffer a o u l) ->
 {-@ writeN :: n:Nat
            -> (forall s. ma:Data.Text.Array.MArray s
                -> i:{v:Nat | (v+n) <= (malen ma)}
-               -> b:Data.Text.Lazy.Builder.Buffer s
                -> GHC.ST.ST s ())
            -> Data.Text.Lazy.Builder.Builder
   @-}
-writeN :: Int -> (forall s. A.MArray s -> Int -> Buffer s -> ST s ()) -> Builder
-writeN n f = writeAtMost n (\ p o b -> f p o b >> return n)
+writeN :: Int -> (forall s. A.MArray s -> Int -> ST s ()) -> Builder
+writeN n f = writeAtMost n (\ p o -> f p o >> return n)
 {-# INLINE writeN #-}
 
 --LIQUID writeBuffer :: (A.MArray s -> Int -> ST s Int) -> Buffer s -> ST s (Buffer s)
 --LIQUID writeBuffer f (Buffer p o u l) = do
 --LIQUID     n <- f p (o+u)
 --LIQUID     return $! Buffer p o (u+n) (l-n)
-{-@ writeBuffer :: Data.Text.Lazy.Builder.Buffer s
+{-@ writeBuffer :: b:Data.Text.Lazy.Builder.Buffer s
+                -> n:{v:Nat | v <= (bufLeft b)}
                 -> (ma:Data.Text.Array.MArray s
-                    -> i:{v:Nat | v <= (malen ma)}
-                    -> b:Data.Text.Lazy.Builder.Buffer s
-                    -> GHC.ST.ST s {v:Nat | ((i+(bufUsed b)+v) <= (malen ma))})
+                    -> i:{v:Nat | (v+n) <= (malen ma)}
+                    -> GHC.ST.ST s {v:Nat | v <= n})
                 -> GHC.ST.ST s (Data.Text.Lazy.Builder.Buffer s)
   @-}
-writeBuffer :: Buffer s -> (A.MArray s -> Int -> Buffer s -> ST s Int) -> ST s (Buffer s)
-writeBuffer b@(Buffer p o u l) f = do
-    n <- f p (o+u) b
+writeBuffer :: Buffer s -> Int -> (A.MArray s -> Int -> ST s Int) -> ST s (Buffer s)
+writeBuffer b@(Buffer p o u l) n f = do
+    n <- f p (o+u)
     return $! Buffer p o (u+n) (l-n)
 {-# INLINE writeBuffer #-}
 
