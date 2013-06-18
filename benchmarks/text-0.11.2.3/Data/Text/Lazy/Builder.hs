@@ -90,29 +90,6 @@ data Builder = Builder {
                 -> ST s [S.Text]
    }
 
-{- data Data.Text.Lazy.Builder.Builder = Data.Text.Lazy.Builder.Builder {
-        runBuilder :: forall s. (Data.Text.Lazy.Builder.Buffer s
-                                 -> ST s [NonEmptyStrict])
-                   -> Data.Text.Lazy.Builder.Buffer s
-                   -> ST s [NonEmptyStrict]
-   }
-  @-}
-
-{-@ data Data.Text.Lazy.Builder.Builder <p :: Data.Text.Lazy.Builder.Buffer s -> Prop>
-      = Data.Text.Lazy.Builder.Builder {
-        runBuilder :: forall s. (Data.Text.Lazy.Builder.Buffer s <p>
-                                 -> ST s [Data.Text.Internal.Text])
-                   -> Data.Text.Lazy.Builder.Buffer s <p>
-                   -> ST s [Data.Text.Internal.Text]
-   }
-  @-}
-
-{- runBuilder :: forall s. (Data.Text.Lazy.Builder.Buffer s
-                             -> ST s [NonEmptyStrict])
-               -> Data.Text.Lazy.Builder.Buffer s
-               -> ST s [NonEmptyStrict]
-  @-}
-
 --LIQUID instance Monoid Builder where
 --LIQUID    mempty  = empty
 --LIQUID    {-# INLINE mempty #-}
@@ -242,7 +219,7 @@ data Buffer s = Buffer {-# UNPACK #-} !(A.MArray s)
         (left :: {v:Nat | v = ((malen marr) - off - used)})
   @-}
 
-{-@ measure bufUsed :: Data.Text.Lazy.Builder.Buffer s -> Int
+{- measure bufUsed :: Data.Text.Lazy.Builder.Buffer s -> Int
     bufUsed (Data.Text.Lazy.Builder.Buffer m o u l) = u
   @-}
 
@@ -253,7 +230,7 @@ data Buffer s = Buffer {-# UNPACK #-} !(A.MArray s)
 {-@ qualif BufLeft (v:int, a:Data.Text.Array.MArray s, o:int, u:int)
                   : v = (malen(a) - o  - u)
   @-}
-{-@ qualif BufUsed (v:int, a:Data.Text.Array.MArray s, o:int, b:Data.Text.Lazy.Builder.Buffer s)
+{- qualif BufUsed (v:int, a:Data.Text.Array.MArray s, o:int, b:Data.Text.Lazy.Builder.Buffer s)
                   : (o + (bufUsed b) + v) <= (malen a)
   @-}
 
@@ -290,19 +267,6 @@ flush = Builder $ \ k buf@(Buffer p o u l) ->
 ------------------------------------------------------------------------
 
 -- | Sequence an ST operation on the buffer
-{- withBuffer :: forall < p :: Data.Text.Lazy.Builder.Buffer s -> Prop
-                         , q :: Data.Text.Lazy.Builder.Buffer s -> Prop>.
-                  (forall s. Data.Text.Lazy.Builder.Buffer s <p>
-                   -> GHC.ST.ST s (Data.Text.Lazy.Builder.Buffer s <q>))
-               -> exists[b:Data.Text.Lazy.Builder.Buffer s <p>].
-                  Data.Text.Lazy.Builder.Builder <q>
-  @-}
-{- withBuffer :: forall < p :: Data.Text.Lazy.Builder.Buffer s -> Prop >.
-                  (forall s. Data.Text.Lazy.Builder.Buffer s
-                   -> GHC.ST.ST s (Data.Text.Lazy.Builder.Buffer s <p>))
-               -> exists[b:Data.Text.Lazy.Builder.Buffer s <p>].
-                  Data.Text.Lazy.Builder.Builder <p b>
-  @-}
 withBuffer :: (forall s. Buffer s -> ST s (Buffer s)) -> Builder
 withBuffer f = Builder $ \k buf -> f buf >>= k
 {-# INLINE withBuffer #-}
@@ -320,8 +284,6 @@ mapBuilder f = Builder (fmap f .)
 ------------------------------------------------------------------------
 
 -- | Ensure that there are at least @n@ many elements available.
-{- ensureFree :: n:Nat -> Data.Text.Lazy.Builder.Builder<{\buf -> (bufLeft buf) >= n}>
-  @-}
 ensureFree :: Int -> Builder
 ensureFree !n = withSize $ \ l ->
     if n <= l
@@ -329,17 +291,6 @@ ensureFree !n = withSize $ \ l ->
     else flush `append'` withBuffer (const (newBuffer (max n smallChunkSize)))
 {-# INLINE [0] ensureFree #-}
 
-{-@ qualif ThoughtIHadThis(v:Int, n:Int, a:Data.Text.Array.MArray s)
-           : (v + n) <= (malen a)
-  @-}
-
-{- writeAtMost :: n:Nat
-                -> (forall s. ma:Data.Text.Array.MArray s
-                    -> i:{v:Nat | (v+n) <= (malen ma)}
-                    -> b:Data.Text.Lazy.Builder.Buffer s
-                    -> GHC.ST.ST s {v:Nat | (i+(bufUsed b)+v) <= (malen ma)})
-                -> Data.Text.Lazy.Builder.Builder
-  @-}
 {-@ writeAtMost :: n:Nat
                 -> (forall s. ma:Data.Text.Array.MArray s
                     -> i:{v:Nat | (v+n) <= (malen ma)}
@@ -348,12 +299,18 @@ ensureFree !n = withSize $ \ l ->
   @-}
 writeAtMost :: Int -> (forall s. A.MArray s -> Int -> ST s Int) -> Builder
 --LIQUID writeAtMost n f = ensureFree n `append'` withBuffer (writeBuffer f)
---writeAtMost n f = ensureFree n `append'` withBuffer (\b -> writeBuffer b f)
-writeAtMost n f = Builder $ \ k buf@(Buffer a o u l) ->
+writeAtMost n f = Builder $ \ k buf@(Buffer p o u l) ->
                   if n <= l
                   then writeBuffer buf n f >>= k
-                  else newBuffer (max n smallChunkSize) >>= \buf' ->
-                       writeBuffer buf' n f >>= k
+                  else let write = newBuffer (max n smallChunkSize) >>= \buf' ->
+                                   writeBuffer buf' n f >>= k
+                       in if u == 0
+                          then write
+                          else do arr <- A.unsafeFreeze p
+                                  let !b = Buffer p (o+u) 0 l
+                                      !t = Text arr o u
+                                  ts <- inlineInterleaveST write
+                                  return $! t : ts
 {-# INLINE [0] writeAtMost #-}
 
 -- | Ensure that @n@ many elements are available, and then use @f@ to
@@ -402,7 +359,6 @@ newBuffer size = do
 -- This is not needed with GHC 7+.
 append' :: Builder -> Builder -> Builder
 append' (Builder f) (Builder g) = Builder (f . g)
---append' (Builder f) (Builder g) = Builder (\k -> f (g k))
 {-# INLINE append' #-}
 
 {- RULES
