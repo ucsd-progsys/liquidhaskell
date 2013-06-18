@@ -145,7 +145,7 @@ empty = Text A.empty 0 0
           -> {v:Data.Text.Internal.Text | (((tlen v) = l) && ((tlength v) = (numchars a o l)))}
   @-}
 textP :: A.Array -> Int -> Int -> Text
-textP arr off len | len == 0  = empty
+textP arr off len | len == 0  = liquidAssume (numcharsZ arr off len) empty
                   | otherwise = text arr off len
 {-# INLINE textP #-}
 
@@ -184,10 +184,12 @@ firstf _  Nothing      = Nothing
 tlEqNumchars :: Text -> A.Array -> Int -> Int -> Bool
 tlEqNumchars = undefined
 
-{-@ nc :: a:A.Array -> o:Int -> l:Int -> {v:Int | v = (numchars a o l)} @-}
-nc :: A.Array -> Int -> Int -> Int
-nc = undefined
+{-@ qualif TlEqNumchars(v:Data.Text.Internal.Text, a:Data.Text.Array.Array, o:Int, l:Int)
+        : (tlength v) = (numchars a o l)
+  @-}
 
-{-@ tl :: t:Text -> {v:Int | v = (tlength t)} @-}
-tl :: Text -> Int
-tl = undefined
+{-@ numcharsZ :: a:A.Array -> o:Int -> l:Int
+              -> {v:Bool | ((Prop v) <=> ((numchars a o l) = 0))}
+  @-}
+numcharsZ :: A.Array -> Int -> Int -> Bool
+numcharsZ = undefined
