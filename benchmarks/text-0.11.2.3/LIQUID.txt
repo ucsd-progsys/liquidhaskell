@@ -13,6 +13,7 @@ Verified modules:
 - Data.Text.Foreign
 - Data.Text.Fusion
 - Data.Text.Lazy
+- Data.Text.Lazy.Builder
 - Data.Text.Lazy.Internal
 - Data.Text.Lazy.Search
 - Data.Text.Private
@@ -23,7 +24,6 @@ Verified modules:
 Other interesting modules:
 - Data.Text.Encoding (can't desugar at the moment..)
 - Data.Text.Fusion.Size (proof burden from Data.Text.Fusion)
-- Data.Text.Lazy.Builder
 - Data.Text.Lazy.Encoding
 - Data.Text.Lazy.Fusion
 
