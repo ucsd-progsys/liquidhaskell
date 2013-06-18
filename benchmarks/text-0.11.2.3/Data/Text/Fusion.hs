@@ -202,11 +202,14 @@ length = S.lengthI
 reverse :: Stream Char -> Text
 reverse (Stream next s len0)
     | isEmpty len0 = I.empty
-    | otherwise    = let len0' = upperBound 4 (larger len0 4)
+    | otherwise    = let len0' = upper 4 len0 --LIQUID upperBound 4 (larger len0 4)
                          (arr, (off', len')) = A.run2 (A.new len0' >>= reverse_loop next s (len0'-1) len0')
                      in I.textP arr (liquidAssume (off' <= A.aLen arr) off')
                                     (liquidAssume (off' + len' <= A.aLen arr) len')
-  -- where
+  where
+    upper k (Exact n) = max k n
+    upper k (Max   n) = max k n
+    upper k _         = k
     -- len0' = upperBound 4 (larger len0 4)
     -- (arr, (off', len')) = A.run2 (A.new len0' >>= reverse_loop s (len0'-1) len0')
     -- loop !s0 !i !len marr =
@@ -234,6 +237,8 @@ reverse (Stream next s len0)
     --                       A.unsafeWrite mar (j-1) lo
     --                       A.unsafeWrite mar j hi
     --                       loop t (j-2) l mar
+{-# INLINE [0] reverse #-}
+
 {-@ reverse_loop :: (a -> Step a Char) -> a
                  -> i:{v:Int | v >= -1}
                  -> len:{v:Int | ((v >= 4) && (v > i))}
@@ -257,17 +262,7 @@ reverse_loop next !s0 !i !len marr =
         where n = ord x
               least | n < 0x10000 = 0
                     | otherwise   = 1
-              -- m = n - 0x10000
-              -- lo = fromIntegral $ (m `shiftR` 10) + 0xD800
-              -- hi = fromIntegral $ (m .&. 0x3FF) + 0xDC00
-              -- write t j l mar
-              --     | n < 0x10000 = do
-              --         A.unsafeWrite mar j (fromIntegral n)
-              --         reverse_loop next t (j-1) l mar
-              --     | otherwise = do
-              --         A.unsafeWrite mar (j-1) lo
-              --         A.unsafeWrite mar j hi
-              --         reverse_loop next t (j-2) l mar
+
 {-@ reverse_write :: a
                   -> j:Nat
                   -> l:{v:Int | ((v >= 4) && (v > j))}
@@ -292,7 +287,6 @@ reverse_write t j l mar x next
           m = n - 0x10000
           lo = fromIntegral $ (m `shiftR` 10) + 0xD800
           hi = fromIntegral $ (m .&. 0x3FF) + 0xDC00
-{-# INLINE [0] reverse #-}
 
 -- | /O(n)/ Perform the equivalent of 'scanr' over a list, only with
 -- the input and result reversed.
@@ -366,11 +360,11 @@ mapAccumL f z0 (Stream next0 s0 len) =
     --                     | otherwise       = i + 1
 {-@ mapAccumL_outer :: (a -> Char -> (a,Char))
                     -> (b -> Step b Char)
-                    -> ma:{v:A.MArray s | (malen v) > 0}
+                    -> ma:A.MArray s
                     -> top:{v:Int | v = (malen ma)}
                     -> a
                     -> b
-                    -> i:{v:Nat | v < top}
+                    -> i:{v:Nat | v <= top}
                     -> GHC.ST.ST s (A.MArray s, (a, Nat))<{\a p -> (snd p) <= (malen a)}>
   @-}
 mapAccumL_outer :: (a -> Char -> (a,Char))
