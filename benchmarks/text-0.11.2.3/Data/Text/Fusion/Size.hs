@@ -147,7 +147,7 @@ upperBound _ (Max   n) = n
 upperBound k _         = k
 {-# INLINE upperBound #-}
 
-{-@ isEmpty :: s:Size -> {v:Bool | ((Prop v) <=> (s = 0))} @-}
+{-@ isEmpty :: s:Data.Text.Fusion.Size.Size -> {v:Bool | ((Prop v) <=> (s = 0))} @-}
 isEmpty :: Size -> Bool
 isEmpty (Exact n) = n <= 0
 isEmpty (Max   n) = n <= 0

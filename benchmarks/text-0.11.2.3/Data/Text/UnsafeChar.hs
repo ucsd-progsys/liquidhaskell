@@ -76,7 +76,7 @@ unsafeChr32 (W32# w#) = C# (chr# (word2Int# w#))
                 -> i:Nat
                 -> x:{v:Char | (  ((One v) => (Room ma i 1))
                                && ((Two v) => (Room ma i 2)))}
-                -> GHC.ST.ST s {v:Nat | (((i+v) <= (malen ma)) && (v <= 2))}
+                -> GHC.ST.ST s {v:Nat | (((i+v) <= (malen ma)) && (BtwnI v 1 2))}
   @-}
 unsafeWrite :: A.MArray s -> Int -> Char -> ST s Int
 unsafeWrite marr i c

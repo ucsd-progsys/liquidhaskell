@@ -34,6 +34,21 @@ import Data.Text.UnsafeShift (shiftL)
 import Data.Text.Unsafe (Iter(..), iter)
 import Data.Int (Int64)
 
+--LIQUID
+import Data.Int (Int32)
+import qualified Data.Text
+import qualified Data.Text.Array
+import qualified Data.Text.Fusion.Internal
+import qualified Data.Text.Fusion.Size
+import qualified Data.Text.Internal
+import qualified Data.Text.Lazy.Internal
+import qualified Data.Text.Private
+import qualified Data.Text.Search
+import qualified Data.Text.Unsafe
+import qualified Data.Word
+import qualified GHC.ST
+import Language.Haskell.Liquid.Prelude
+
 default(Int64)
 
 -- | /O(n)/ Convert a 'Text' into a 'Stream Char'.
@@ -43,11 +58,22 @@ stream text = Stream next (text :*: 0) unknownSize
     next (Empty :*: _) = Done
     next (txt@(Chunk t@(I.Text _ _ len) ts) :*: i)
         | i >= len  = next (ts :*: 0)
-        | otherwise = Yield c (txt :*: i+d)
-        where Iter c d = iter t i
+        | otherwise = let Iter c d = iter t i
+                      in Yield c (txt :*: i+d)
+        --LIQUID push binding inward for safety
+        --LIQUID where Iter c d = iter t i
 {-# INLINE [0] stream #-}
 
 data UC s = UC s {-# UNPACK #-} !Int
+
+{-@ data Data.Text.Lazy.Fusion.UC s = Data.Text.Lazy.Fusion.UC
+        (s :: s)
+        (i :: {v:Int | v > 0})
+  @-}
+
+{-@ measure ucInt :: Data.Text.Lazy.Fusion.UC s -> Int
+    ucInt (Data.Text.Lazy.Fusion.UC s i) = i
+  @-}
 
 -- | /O(n)/ Convert a 'Stream Char' into a 'Text', using the given
 -- chunk size.
@@ -60,7 +86,8 @@ unstreamChunks chunkSize (Stream next s0 len0)
               case next s of
                 Done       -> Empty
                 Skip s'    -> outer s'
-                Yield x s' -> I.Text arr 0 len `Chunk` outer s''
+                              --LIQUID the `liquidAssume` is just propagating the type of `i` below in `inner`
+                Yield x s' -> I.Text arr 0 (liquidAssume (len <= A.aLen arr) len) `Chunk` outer s''
                   where (arr, UC s'' len) = A.run2 fill
                         fill = do a <- A.new unknownLength
                                   unsafeWrite a 0 x >>= inner a unknownLength s'
@@ -68,7 +95,7 @@ unstreamChunks chunkSize (Stream next s0 len0)
     inner marr len s !i
         | i + 1 >= chunkSize = return (marr, UC s i)
         | i + 1 >= len       = {-# SCC "unstreamChunks/resize" #-} do
-            let newLen = min (len `shiftL` 1) chunkSize
+            let newLen = min (len * 2) chunkSize --LIQUID min (len `shiftL` 1) chunkSize
             marr' <- A.new newLen
             A.copyM marr' 0 marr 0 len
             inner marr' newLen s i
