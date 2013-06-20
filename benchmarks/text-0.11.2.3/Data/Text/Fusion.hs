@@ -51,9 +51,7 @@ import Prelude (Bool(..), Char, Maybe(..), Monad(..), Int,
                 fromIntegral, otherwise)
 import Data.Bits ((.&.))
 import Data.Text.Internal (Text(..))
-import Data.Text.Private (runText
-                         --LIQUID
-                         , Iter(..))
+import Data.Text.Private (runText)
 import Data.Text.UnsafeChar (ord, unsafeChr, unsafeWrite)
 import Data.Text.UnsafeShift (shiftL, shiftR)
 import qualified Data.Text.Array as A
@@ -65,6 +63,7 @@ import qualified Data.Text.Encoding.Utf16 as U16
 
 --LIQUID
 import qualified Data.Text.Array
+import qualified Data.Text.Unsafe
 import qualified Data.Text.Private
 import qualified Data.Word
 import qualified GHC.ST
@@ -79,22 +78,14 @@ default(Int)
 {-@ qualif LTEPlus(v:int, a:int, b:int) : (v + a) <= b @-}
 
 --LIQUID FIXME: why aren't these qualifiers instantiated when the same quals are mined from foo and bar??
-{- qualif OrdC(v:int, x:GHC.Types.Char) : (((One x) => (v = 0)) && ((Two x) => (v = 1))) @-}
-{- qualif OrdInt(v:int, i:int, x:GHC.Types.Char) : (((One x) => (v = i)) && ((Two x) => (v = (i + 1)))) @-}
-
-{-@ foo :: x:Char
-        -> i:Nat
-        -> {v:Nat | (((One x) => (v = i)) && ((Two x) => (v = (i + 1))))}
+{-@ qualif OrdC(v:int, x:GHC.Types.Char)
+        : ((((ord x) <  65536) => (v = 0))
+        && (((ord x) >= 65536) => (v = 1)))
   @-}
-foo :: Char -> Int -> Int
-foo x i | ord x < 0x10000 = i
-        | otherwise       = i + 1
-{-@ bar :: x:Char
-        -> {v:Nat | (((One x) => (v = 0)) && ((Two x) => (v = 1)))}
+{-@ qualif OrdInt(v:int, i:int, x:GHC.Types.Char)
+        : ((((ord x) <  65536) => (v = i))
+        && (((ord x) >= 65536) => (v = (i + 1))))
   @-}
-bar :: Char -> Int
-bar x | ord x < 0x10000 = 0
-      | otherwise       = 1
 
 
 -- | /O(n)/ Convert a 'Text' into a 'Stream Char'.

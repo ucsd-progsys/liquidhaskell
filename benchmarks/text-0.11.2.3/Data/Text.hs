@@ -214,8 +214,8 @@ import Data.Text.Fusion (stream, reverseStream, unstream)
 import Data.Text.Private (span_)
 import Data.Text.Internal (Text(..), empty, firstf, safe, text, textP)
 import qualified Prelude as P
-import Data.Text.Unsafe (--LIQUID Iter(..), iter,
-                         iter_, lengthWord16, --LIQUID reverseIter,
+import Data.Text.Unsafe (Iter(..), iter,
+                         iter_, lengthWord16, reverseIter,
                          unsafeHead, unsafeTail)
 import Data.Text.UnsafeChar (unsafeChr)
 import qualified Data.Text.Util as U
@@ -246,40 +246,6 @@ import qualified Data.Text.Search
 import Language.Haskell.Liquid.Prelude
 import qualified GHC.ST
 
---LIQUID copied from Data.Text.Unsafe
-data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
-
-{-@ data Data.Text.Iter = Data.Text.Iter (c::Char) (i::Int) @-}
-
-{- measure iter_dT :: Data.Text.Iter -> Int
-    iter_dT (Data.Text.Iter c d) = d
-  @-}
-
-{-@ assume iter :: t:Data.Text.Internal.Text
-                -> i:{v:Int | (Btwn v 0 (tlen t))}
-                -> {v:Data.Text.Iter | ((BtwnEI ((iter_d v)+i) i (tlen t))
-                          && ((numchars (tarr t) (toff t) (i+(iter_d v)))
-                              = (1 + (numchars (tarr t) (toff t) i)))
-                          && ((numchars (tarr t) (toff t) (i+(iter_d v)))
-                              <= (tlength t)))}
-  @-}
-iter :: Text -> Int -> Iter
-iter = P.undefined
-
-{-@ reverseIter :: t:Data.Text.Internal.Text
-                -> i:{v:Int | (Btwn v 0 (tlen t))}
-                -> (Char,{v:Int | ((Btwn ((i+1)+v) 0 (i+1))
-                          && ((numchars (tarr t) (toff t) ((i+1)+v))
-                              = ((numchars (tarr t) (toff t) (i+1)) - 1))
-                          && ((numchars (tarr t) (toff t) ((i+1)+v))
-                              >= -1))})
-  @-}
-reverseIter :: Text -> Int -> (Char,Int)
-reverseIter = P.undefined
-
-{-@ iter_d :: i:Data.Text.Unsafe.Iter -> {v:Int | v = (iter_d i)} @-}
-iter_d (Iter c d) = d
---LIQUID end of copied defs
 
 -- $strict
 --
@@ -1314,8 +1280,7 @@ takeWhile p t@(Text arr off len) = loop 0 0
 --LIQUID                | otherwise   = textP arr off i
 --LIQUID            where Iter c d    = iter t i
   where loop !i cnt = if i >= len then t
-                      else let it@(Iter c _) = iter t i
-                               d = iter_d it
+                      else let it@(Iter c d) = iter t i
                            in if p c then loop (i+d) (cnt+1)
                               else        Text arr off i
 {-# INLINE [1] takeWhile #-}
@@ -1350,8 +1315,7 @@ dropWhile p t@(Text arr off len) = loop_dropWhile t p 0 0
 loop_dropWhile :: Text -> (Char -> Bool) -> Int -> Int -> Text
 loop_dropWhile t@(Text arr off len) p !i cnt
     = if i >= len then empty
-      else let it@(Iter c _) = iter t i
-               d = iter_d it
+      else let it@(Iter c d) = iter t i
            in if p c      then loop_dropWhile t p (i+d) (cnt+1)
               else let len' = liquidAssume (axiom_numchars_split t i) (len-i)
                    in Text arr (off+i) len'

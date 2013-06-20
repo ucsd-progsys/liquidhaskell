@@ -11,7 +11,7 @@ Verified modules:
 - Data.Text.Foreign
 - Data.Text.Fusion
 - Data.Text.Fusion.Size
-- Data.Text.Internal
+- Data.Text.Internal (would like to kill / not export the TlEqNumchars qualifier)
 - Data.Text.Lazy
 - Data.Text.Lazy.Builder
 - Data.Text.Lazy.Internal
@@ -19,8 +19,18 @@ Verified modules:
 - Data.Text.Lazy.Search
 - Data.Text.Private
 - Data.Text.Search
-- Data.Text.Unsafe (need to figure out the stupid Iter nonsense)
+- Data.Text.Unsafe
 - Data.Text.UnsafeChar
+
+FIXME: there's a strange issue where desugaring a guard results in a
+       GHC.Prim.realWorld# value being passed around (but seemingly
+       ignored). this value is refined to false and is subsequently
+       laden with every refinement imaginable, which can make the
+       "saving result" stage of fixpoint last hours.. it does not,
+       however, seem to affect soundness, as i have consistently been
+       able to convert guards to ifs, thereby removing the
+       `realWorld#`s and falses with no effect on the safety
+       judgment.
 
 Other interesting modules:
 - Data.Text.Encoding (can't desugar at the moment..)
