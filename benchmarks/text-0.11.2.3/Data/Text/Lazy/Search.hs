@@ -151,9 +151,13 @@ advance_scan needle@(Chunk n ns) src ts0 x@(T.Text _ _ l) xs !i !g =
            c = index x xs (i + nlast)
            nextInPattern = mask .&. swizzle (index x xs (i+nlen)) == 0
            candidateMatch !j
-               | j >= nlast               = True
-               | index x xs (i+j) /= index n ns j = False
-               | otherwise                = candidateMatch (j+1)
+               = if j >= nlast                            then True
+                 else if index x xs (i+j) /= index n ns j then False
+                 else candidateMatch (j+1)
+           --LIQUID candidateMatch !j
+           --LIQUID     | j >= nlast               = True
+           --LIQUID     | index x xs (i+j) /= index n ns j = False
+           --LIQUID     | otherwise                = candidateMatch (j+1)
        in if c == z && candidateMatch 0
           then g : advance_scan needle src ts0 x xs (i+nlen) (g+nlen)
           else  advance_scan needle src ts0 x xs (i+d) (g+d)
@@ -222,12 +226,14 @@ buildTable z nlen ts0 t@(T.Text xarr xoff xlen) xs !i !(g::Int64) !msk !skp =
     if i >= xlast then case xs of
                          Empty      -> (msk .|. swizzle z) :*: skp
                          Chunk y ys -> let msk'             = msk .|. swizzle c
-                                           skp' | c == z    = nlen - g - 2
-                                                | otherwise = skp
+                                           skp' = if c == z then nlen - g - 2 else skp
+                                           --LIQUID skp' | c == z    = nlen - g - 2
+                                           --LIQUID      | otherwise = skp
                                        in buildTable z nlen (Chunk t ts0) y ys 0 g msk' skp'
     else let msk'             = msk .|. swizzle c
-             skp' | c == z    = nlen - g - 2
-                  | otherwise = skp
+             skp' = if c == z then nlen - g - 2 else skp
+             --LIQUID skp' | c == z    = nlen - g - 2
+             --LIQUID      | otherwise = skp
          in buildTable z nlen ts0 t xs (i+1) (g+1) msk' skp'
   where c = A.unsafeIndex xarr (xoff+i)
         xlast = xlen - 1

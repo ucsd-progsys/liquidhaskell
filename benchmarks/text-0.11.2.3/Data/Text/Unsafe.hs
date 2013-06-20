@@ -78,6 +78,15 @@ data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
    iter_d (Data.Text.Unsafe.Iter c d) = d
   @-}
 
+{-@ qualif IterD(v:Int, i:Data.Text.Unsafe.Iter) : v = (iter_d i) @-}
+{-@ qualif ReverseIter(v:Int, i:Int, t:Data.Text.Internal.Text)
+        : ((((i+1)+v) >= 0) && (((i+1)+v) < (i+1))
+           && ((numchars (tarr t) (toff t) ((i+1)+v))
+               = ((numchars (tarr t) (toff t) (i+1)) - 1))
+           && ((numchars (tarr t) (toff t) ((i+1)+v)) >= -1))
+  @-}
+
+
 -- | /O(1)/ Iterate (unsafely) one step forwards through a UTF-16
 -- array, returning the current character and the delta to add to give
 -- the next offset to iterate at.

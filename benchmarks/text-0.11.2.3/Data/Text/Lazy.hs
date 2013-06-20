@@ -189,9 +189,6 @@ module Data.Text.Lazy
     --LIQUID
     , equal
     , compareText
-
-    --LIQUID
-    , Iter(..)
     ) where
 
 import Prelude (Char, Bool(..), Maybe(..), String,
@@ -247,29 +244,6 @@ import qualified Data.Text.Private
 import qualified Data.Text.Search
 import qualified Data.Text.Unsafe
 import Language.Haskell.Liquid.Prelude
-
---LIQUID copied from Data.Text.Unsafe
-data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
-
-{-@ data Data.Text.Lazy.Iter = Data.Text.Lazy.Iter (c::Char) (i::Int) @-}
-
-{-@ measure iter_dL :: Data.Text.Lazy.Iter -> Int
-    iter_dL (Data.Text.Lazy.Iter c d) = d
-  @-}
-
-{-@ assume iter :: t:Data.Text.Internal.Text -> i:{v:Int | (Btwn v 0 (tlen t))}
-                -> {v:Data.Text.Lazy.Iter | ((BtwnEI ((iter_dL v)+i) i (tlen t))
-                          && ((numchars (tarr t) (toff t) (i+(iter_dL v)))
-                              = (1 + (numchars (tarr t) (toff t) i)))
-                          && ((numchars (tarr t) (toff t) (i+(iter_dL v)))
-                              <= (tlength t)))}
-  @-}
-iter :: T.Text -> Int -> Iter
-iter = P.undefined
-
-{-@ iter_d :: i:Data.Text.Lazy.Iter -> {v:Int | v = (iter_dL i)} @-}
-iter_d (Iter c d) = d
---LIQUID end of copied defs
 
 
 -- $fusion
@@ -382,8 +356,8 @@ compareText_go :: T.Text -> T.Text -> Text -> Text -> Int -> Int -> Ordering
 compareText_go ta@(T.Text arrA offA lenA) tb@(T.Text arrB offB lenB) as bs !i !j
     | i >= lenA = compareText as (chunk (T.Text arrB (offB+j) (lenB-j)) bs)
     | j >= lenB = compareText (chunk (T.Text arrA (offA+i) (lenA-i)) as) bs
-    | otherwise = let ia@(Iter a di) = iter ta i
-                      ib@(Iter b dj) = iter tb j
+    | otherwise = let ia@(T.Iter a di) = T.iter ta i
+                      ib@(T.Iter b dj) = T.iter tb j
                   in if a < b then LT
                      else if a > b then GT
                      else compareText_go ta tb as bs (i+di) (j+dj)

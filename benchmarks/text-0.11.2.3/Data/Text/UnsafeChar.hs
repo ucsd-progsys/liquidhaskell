@@ -42,10 +42,10 @@ import Language.Haskell.Liquid.Prelude
 {-@ predicate Two C = ((ord C) >= 65536) @-}
 
 --LIQUID these don't seem to be helpful, but they cause a bunch of sortcheck warnings..
-{- qualif OneC(v:GHC.Types.Char) : (One v) @-}
-{- qualif TwoC(v:GHC.Types.Char) : (Two v) @-}
+{-@ qualif OneC(v:GHC.Types.Char) : ((ord v) <  65536) @-}
+{-@ qualif TwoC(v:GHC.Types.Char) : ((ord v) >= 65536) @-}
 
-{-@ predicate Room MA I N = (BtwnI I 0 ((malen MA) - N)) @-}
+{-@ predicate Room      MA I N = (BtwnI I 0 ((malen MA) - N)) @-}
 {-@ predicate RoomFront MA I N = (BtwnI I N (malen MA)) @-}
 
 {-@ ord :: c:Char -> {v:Int | v = (ord c)} @-}
