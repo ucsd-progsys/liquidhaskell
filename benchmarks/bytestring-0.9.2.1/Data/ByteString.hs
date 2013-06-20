@@ -278,6 +278,26 @@ assertS _ True  = id
 assertS s False = error ("assertion failed at "++s)
 #endif
 
+-- LIQUID
+import GHC.IO.Buffer
+import Language.Haskell.Liquid.Prelude (intCSize) 
+import qualified Data.ByteString.Lazy.Internal 
+
+{-@ memcpy_ptr_baoff :: p:(Ptr a) 
+                     -> RawBuffer b 
+                     -> Int 
+                     -> {v:CSize | (OkPLen v p)} -> IO (Ptr ())
+  @-}
+memcpy_ptr_baoff :: Ptr a -> RawBuffer b -> Int -> CSize -> IO (Ptr ())
+memcpy_ptr_baoff = error "LIQUIDCOMPAT"
+
+readCharFromBuffer :: RawBuffer b -> Int -> IO (Char, Int)
+readCharFromBuffer x y = error "LIQUIDCOMPAT"
+
+wantReadableHandleLIQUID :: String -> Handle -> (Handle__ -> IO a) -> IO a
+wantReadableHandleLIQUID x y f = error "LIQUIDCOMPAT"
+
+
 -- -----------------------------------------------------------------------------
 --
 -- Useful macros, until we have bang patterns
@@ -1658,19 +1678,19 @@ hGetLine :: Handle -> IO ByteString
 #if !defined(__GLASGOW_HASKELL__)
 hGetLine h = System.IO.hGetLine h >>= return . pack . P.map c2w
 #else
-hGetLine h = wantReadableHandle "Data.ByteString.hGetLine" h $ \ handle_ -> do
+hGetLine h = wantReadableHandleLIQUID "Data.ByteString.hGetLine" h $ \ handle_ -> do
     case haBufferMode handle_ of
        NoBuffering -> error "no buffering"
        _other      -> hGetLineBuffered handle_
 
  where
     hGetLineBuffered handle_ = do
-        let ref = haBuffer handle_
+        let ref = haCharBuffer handle_
         buf <- readIORef ref
         hGetLineBufferedLoop handle_ ref buf 0 []
 
     hGetLineBufferedLoop handle_ ref
-            buf@Buffer{ bufRPtr=r, bufWPtr=w, bufBuf=raw } len xss =
+            buf@Buffer{ bufL=r, bufR=w, bufRaw=raw } len xss =
         len `seq` do
         off <- findEOL r w raw
         let new_len = len + off - r
@@ -1680,20 +1700,20 @@ hGetLine h = wantReadableHandle "Data.ByteString.hGetLine" h $ \ handle_ -> do
       -- otherwise off == w and the buffer is now empty.
         if off /= w
             then do if (w == off + 1)
-                            then writeIORef ref buf{ bufRPtr=0, bufWPtr=0 }
-                            else writeIORef ref buf{ bufRPtr = off + 1 }
+                            then writeIORef ref buf{ bufL=0, bufR=0 }
+                            else writeIORef ref buf{ bufL = off + 1 }
                     mkBigPS new_len (xs:xss)
             else do
-                 maybe_buf <- maybeFillReadBuffer (haFD handle_) True (haIsStream handle_)
-                                    buf{ bufWPtr=0, bufRPtr=0 }
+                 maybe_buf <- maybeFillReadBuffer ({- LIQUID COMPAT: haFD -} handle_) True ({- LIQUID COMPAT: haIsStream -} handle_)
+                                    buf{ bufR=0, bufL=0 }
                  case maybe_buf of
                     -- Nothing indicates we caught an EOF, and we may have a
                     -- partial line to return.
                     Nothing -> do
-                         writeIORef ref buf{ bufRPtr=0, bufWPtr=0 }
+                         writeIORef ref buf{ bufL=0, bufR=0 }
                          if new_len > 0
                             then mkBigPS new_len (xs:xss)
-                            else ioe_EOF
+                            else error "LIQUIDCOMPAT" -- ioe_EOF
                     Just new_buf ->
                          hGetLineBufferedLoop handle_ ref new_buf new_len (xs:xss)
 
@@ -1706,18 +1726,22 @@ hGetLine h = wantReadableHandle "Data.ByteString.hGetLine" h $ \ handle_ -> do
                 then return r -- NB. not r': don't include the '\n'
                 else findEOL r' w raw
 
-    maybeFillReadBuffer fd is_line is_stream buf = catch
-        (do buf' <- fillReadBuffer fd is_line is_stream buf
-            return (Just buf'))
-        (\e -> if isEOFError e then return Nothing else ioError e)
+    -- LIQUID COMPAT
+    maybeFillReadBuffer fd is_line is_stream buf = return Nothing
+    -- maybeFillReadBuffer fd is_line is_stream buf = catch
+    --     (do buf' <- fillReadBuffer fd is_line is_stream buf
+    --         return (Just buf'))
+    --     (\e -> if isEOFError e then return Nothing else ioError e)
 
 -- TODO, rewrite to use normal memcpy
-mkPS :: RawBuffer -> Int -> Int -> IO ByteString
+mkPS :: RawBuffer Char -> Int -> Int -> IO ByteString
 mkPS buf start end =
     let len = end - start
     in create len $ \p -> do
-        memcpy_ptr_baoff p buf (fromIntegral start) (fromIntegral len)
+        memcpy_ptr_baoff p buf (fromIntegral start) ({- LIQUID fromIntegral-} intCSize len)
         return ()
+
+
 
 mkBigPS :: Int -> [ByteString] -> IO ByteString
 mkBigPS _ [ps] = return ps

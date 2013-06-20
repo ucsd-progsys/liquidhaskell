@@ -14,6 +14,9 @@
 --
 module Data.ByteString.Unsafe (
 
+        -- LIQUID
+        liquidCanary1,
+
         -- * Unchecked access
         unsafeHead,             -- :: ByteString -> Word8
         unsafeTail,             -- :: ByteString -> ByteString
@@ -47,6 +50,16 @@ import Foreign.Ptr              (Ptr, plusPtr, castPtr)
 
 import Foreign.Storable         (Storable(..))
 import Foreign.C.String         (CString, CStringLen)
+
+-- LIQUID
+import Language.Haskell.Liquid.Prelude  (mkPtr, cSizeInt, liquidError)
+import qualified Data.ByteString.Internal
+import Foreign.ForeignPtr       (ForeignPtr)
+import Data.Word                (Word8)
+import Foreign.C.Types          (CInt(..), CSize(..), CULong(..))
+import Foreign
+import GHC.Base
+import qualified Foreign.C.Types
 
 #ifndef __NHC__
 import Control.Exception        (assert)
@@ -83,6 +96,11 @@ assertS s False = error ("assertion failed at "++s)
 #define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
 #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
+
+{-@ liquidCanary1 :: x:Int -> {v: Int | v > x} @-}
+liquidCanary1     :: Int -> Int
+liquidCanary1 x   = x - 1
+
 -- ---------------------------------------------------------------------
 --
 -- Extensions to the basic interface
@@ -91,6 +109,7 @@ assertS s False = error ("assertion failed at "++s)
 -- | A variety of 'head' for non-empty ByteStrings. 'unsafeHead' omits the
 -- check for the empty case, so there is an obligation on the programmer
 -- to provide a proof that the ByteString is non-empty.
+{-@ unsafeHead :: {v:Data.ByteString.Internal.ByteString | (bLength v) > 0} -> Word8 @-}
 unsafeHead :: ByteString -> Word8
 unsafeHead (PS x s l) = assert (l > 0) $
     inlinePerformIO $ withForeignPtr x $ \p -> peekByteOff p s
@@ -99,6 +118,7 @@ unsafeHead (PS x s l) = assert (l > 0) $
 -- | A variety of 'tail' for non-empty ByteStrings. 'unsafeTail' omits the
 -- check for the empty case. As with 'unsafeHead', the programmer must
 -- provide a separate proof that the ByteString is non-empty.
+{-@ unsafeTail :: {v:Data.ByteString.Internal.ByteString | (bLength v) > 0} -> Data.ByteString.Internal.ByteString @-}
 unsafeTail :: ByteString -> ByteString
 unsafeTail (PS ps s l) = assert (l > 0) $ PS ps (s+1) (l-1)
 {-# INLINE unsafeTail #-}
@@ -107,6 +127,11 @@ unsafeTail (PS ps s l) = assert (l > 0) $ PS ps (s+1) (l-1)
 -- This omits the bounds check, which means there is an accompanying
 -- obligation on the programmer to ensure the bounds are checked in some
 -- other way.
+
+{-@ unsafeIndex :: b:Data.ByteString.Internal.ByteString 
+                -> {v: GHC.Types.Int | (OkIndex b v)}
+                -> Data.Word.Word8 
+  @-}
 unsafeIndex :: ByteString -> Int -> Word8
 unsafeIndex (PS x s l) i = assert (i >= 0 && i < l) $
     inlinePerformIO $ withForeignPtr x $ \p -> peekByteOff p (s+i)
@@ -114,6 +139,7 @@ unsafeIndex (PS x s l) i = assert (i >= 0 && i < l) $
 
 -- | A variety of 'take' which omits the checks on @n@ so there is an
 -- obligation on the programmer to provide a proof that @0 <= n <= 'length' xs@.
+{-@ unsafeTake, unsafeDrop :: n:Int -> {v: Data.ByteString.Internal.ByteString | (OkIndex v n)} -> Data.ByteString.Internal.ByteString @-}
 unsafeTake :: Int -> ByteString -> ByteString
 unsafeTake n (PS x s l) = assert (0 <= n && n <= l) $ PS x s n
 {-# INLINE unsafeTake #-}
@@ -144,14 +170,17 @@ unsafeDrop n (PS x s l) = assert (0 <= n && n <= l) $ PS x (s+n) (l-n)
 -- original Addr# this modification will be reflected in the resulting
 -- @ByteString@, breaking referential transparency.
 --
+{-@ unsafePackAddress :: a:GHC.Prim.Addr# -> IO {v:Data.ByteString.Internal.ByteString | (bLength v) = (addrLen a)}  @-}
 unsafePackAddress :: Addr# -> IO ByteString
 unsafePackAddress addr# = do
     p <- newForeignPtr_ cstr
     l <- c_strlen cstr
-    return $ PS p 0 (fromIntegral l)
+    return $ PS p 0 ({- LIQUID fromIntegral -} cSizeInt l)
   where
-    cstr = Ptr addr#
+    cstr = {- LIQUID Ptr -} mkPtr addr#
 {-# INLINE unsafePackAddress #-}
+
+
 
 -- | /O(1)/ 'unsafePackAddressLen' provides constant-time construction of
 -- 'ByteStrings' which is ideal for string literals. It packs a
@@ -170,9 +199,10 @@ unsafePackAddress addr# = do
 --
 -- If in doubt, don't use these functions.
 --
+{-@ unsafePackAddressLen :: len:Nat -> {v:GHC.Prim.Addr# | len <= (addrLen v)} -> IO {v: ByteString | ((bLength v) = len)} @-}
 unsafePackAddressLen :: Int -> Addr# -> IO ByteString
 unsafePackAddressLen len addr# = do
-    p <- newForeignPtr_ (Ptr addr#)
+    p <- newForeignPtr_ ({- LIQUID Ptr -} mkPtr addr#)
     return $ PS p 0 len
 {-# INLINE unsafePackAddressLen #-}
 
@@ -185,10 +215,14 @@ unsafePackAddressLen len addr# = do
 -- first argument. Any changes to the original buffer will be reflected
 -- in the resulting @ByteString@.
 --
+
+{-@ unsafePackCStringFinalizer :: p:(PtrV Word8) -> {v:Nat | v <= (plen p)} -> IO () -> IO ByteString  @-}
 unsafePackCStringFinalizer :: Ptr Word8 -> Int -> IO () -> IO ByteString
 unsafePackCStringFinalizer p l f = do
     fp <- FC.newForeignPtr p f
     return $ PS fp 0 l
+
+
 
 -- | Explicitly run the finaliser associated with a 'ByteString'.
 -- References to this value after finalisation may generate invalid memory
@@ -216,11 +250,13 @@ unsafeFinalize (PS p _ _) = FC.finalizeForeignPtr p
 -- change will be reflected in the resulting @ByteString@, breaking
 -- referential transparency.
 --
+
+{-@ unsafePackCString :: cstr:{v: CString | 0 <= (plen v)} -> IO {v: ByteString | (bLength v) = (plen cstr)} @-}
 unsafePackCString :: CString -> IO ByteString
 unsafePackCString cstr = do
     fp <- newForeignPtr_ (castPtr cstr)
     l <- c_strlen cstr
-    return $! PS fp 0 (fromIntegral l)
+    return $! PS fp 0 ({- LIQUID fromIntegral -} cSizeInt l)
 
 -- | /O(1)/ Build a @ByteString@ from a @CStringLen@. This value will
 -- have /no/ finalizer associated with it, and will not be garbage
@@ -230,11 +266,13 @@ unsafePackCString cstr = do
 -- This funtion is /unsafe/. If the original @CStringLen@ is later
 -- modified, this change will be reflected in the resulting @ByteString@,
 -- breaking referential transparency.
---
+
+-- LIQUID: tighten spec to use @len@ as size of output ByteString
+{-@ unsafePackCStringLen :: CStringLen -> IO ByteString @-}
 unsafePackCStringLen :: CStringLen -> IO ByteString
 unsafePackCStringLen (ptr,len) = do
-    fp <- newForeignPtr_ (castPtr ptr)
-    return $! PS fp 0 (fromIntegral len)
+  fp <- newForeignPtr_ (castPtr ptr)
+  return $! PS fp 0 ({- fromIntegral -} len)
 
 -- | /O(n)/ Build a @ByteString@ from a malloced @CString@. This value will
 -- have a @free(3)@ finalizer associated to it.
@@ -246,11 +284,12 @@ unsafePackCStringLen (ptr,len) = do
 -- This function is also unsafe if you call its finalizer twice,
 -- which will result in a /double free/ error.
 --
+{-@ unsafePackMallocCString :: cstr:{v: CString | 0 <= (plen v)} -> IO {v: ByteString | (bLength v) = (plen cstr)} @-}
 unsafePackMallocCString :: CString -> IO ByteString
 unsafePackMallocCString cstr = do
-    fp <- newForeignPtr c_free_finalizer (castPtr cstr)
+    fp  <- undefined -- LIQUID newForeignPtr c_free_finalizer (castPtr cstr)
     len <- c_strlen cstr
-    return $! PS fp 0 (fromIntegral len)
+    return $! PS fp 0 ({- LIQUID fromIntegral -} cSizeInt len)
 
 -- ---------------------------------------------------------------------
 
@@ -275,8 +314,10 @@ unsafePackMallocCString cstr = do
 -- to guarantee that the @ByteString@ is indeed null terminated. If in
 -- doubt, use @useAsCString@.
 --
+{-@ unsafeUseAsCString :: p:ByteString -> ({v: (PtrV Foreign.C.Types.CChar) | (bLength p) <= (plen v) } -> IO a) -> IO a @-}
 unsafeUseAsCString :: ByteString -> (CString -> IO a) -> IO a
 unsafeUseAsCString (PS ps s _) ac = withForeignPtr ps $ \p -> ac (castPtr p `plusPtr` s)
+
 
 -- | /O(1) construction/ Use a @ByteString@ with a function requiring a
 -- @CStringLen@.
@@ -293,5 +334,8 @@ unsafeUseAsCString (PS ps s _) ac = withForeignPtr ps $ \p -> ac (castPtr p `plu
 -- will break referential transparency. To avoid this, use
 -- @useAsCStringLen@, which makes a copy of the original @ByteString@.
 --
+
+
+{-@ unsafeUseAsCStringLen :: b:ByteString -> ((CStringLenN (bLength b)) -> IO a) -> IO a @-}
 unsafeUseAsCStringLen :: ByteString -> (CStringLen -> IO a) -> IO a
 unsafeUseAsCStringLen (PS ps s l) f = withForeignPtr ps $ \p -> f (castPtr p `plusPtr` s,l)

@@ -133,7 +133,7 @@ renameTyVars (x, Loc l t)
     su                    = [(y, rTyVar x) | (x, y) <- tyvsmap]
     tyvsmap               = vmap $ execState (mapTyVars τbody tbody) initvmap 
     initvmap              = initMapSt αs as errmsg
-    (αs, τbody)           = splitForAllTys $ varType x
+    (αs, τbody)           = splitForAllTys $ expandTypeSynonyms $ varType x
     (as, ps, tbody)       = bkUniv t
     errmsg                = render $ errTypeMismatch x t
 
@@ -172,7 +172,8 @@ mapTyVars (AppTy τ τ') (RAppTy t t' _)
   = do  mapTyVars τ t 
         mapTyVars τ' t' 
 mapTyVars τ t               
-  = errorstar ("Bare.hs cannot handle" ++ show t)
+  = do err <- errmsg <$> get
+       errorstar $ "Bare.mapTyVars : " ++ err
 
 mapTyRVar α a s@(MTVST αs as αas err)
   | (α `S.member` αs) && (a `S.member` as)
@@ -200,13 +201,14 @@ subsFreeSymbols xvs = tx
 -- meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
 meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts 
   where 
-    dcm                  = dataConSpec dcs 
+    dcm                  = M.fromList $ dataConSpec dcs 
     upd dcm (x, t)       = M.insert x (maybe t (meetPad t) (M.lookup x dcm)) dcm
     strengthen (x,t)     = (x, maybe t (meetPad t) (M.lookup x dcm))
 
 
 -- dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
-dataConSpec dcs = M.fromList $ concatMap mkDataConIdsTy [(dc, dataConPSpecType dc t) | (dc, t) <- dcs]
+dataConSpec :: [(DataCon, DataConP)]-> [(Var, (RType Class RTyCon RTyVar RReft))]
+dataConSpec dcs = concatMap mkDataConIdsTy [(dc, dataConPSpecType dc t) | (dc, t) <- dcs]
 
 meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
   case (bkUniv t1, bkUniv t2) of
@@ -232,8 +234,11 @@ execBare act benv =
         Left s  -> errorstar $ "execBare: " ++ s
         Right x -> return x
 
-wrapErr msg f x
-  = f x `catchError` \e-> throwError $ "Bare Error " ++ "[" ++ msg ++ "]" ++ showpp x ++ "(" ++ e ++ ")"
+wrapErr msg f x = yesStack 
+  where
+    noStack     = f x
+    yesStack    = noStack `catchError` \e -> throwError $ str e
+    str e       = printf "Bare Error %s: \nThrows Exception: %s\n" msg e
 
 ------------------------------------------------------------------
 ------------------- API: Bare Refinement Types -------------------
@@ -244,10 +249,11 @@ makeMeasureSpec :: BareEnv
                 -> IO ([(Var, SpecType)], [(LocSymbol, RefType)])
 
 makeMeasureSpec env m = execBare mkSpec env 
-  where mkSpec = wrapErr "mkMeasureSort" mkMeasureSort m' 
-                 >>= mkMeasureDCon 
-                 >>= return . mapFst (mapSnd uRType <$>) . Ms.dataConTypes 
-        m'     = first (mapReft ur_reft) m
+  where 
+    mkSpec            = wrapErr "mkMeasureSort" mkMeasureSort m' 
+                          >>= mkMeasureDCon 
+                          >>= return . mapFst (mapSnd uRType <$>) . Ms.dataConTypes 
+    m'                = first (mapReft ur_reft) m
 
 makeTargetVars :: [Var] -> [String] -> TargetVars
 makeTargetVars = undefined 
@@ -255,21 +261,21 @@ makeTargetVars = undefined
 makeAssumeSpec :: Config -> BareEnv -> [Var] -> [(LocSymbol, BareType)] -> IO [(Var, Located SpecType)]
 makeAssumeSpec cfg env vs xbs = execBare mkAspec env
   where 
-    vbs                   = joinIds vs xbs 
-    mkAspec               = do when (not $ noCheckUnknown cfg)
-                                 $ checkDefAsserts env vbs xbs
-                               forM vbs mkVarSpec
+    vbs                       = joinIds vs xbs 
+    mkAspec                   = do when (not $ noCheckUnknown cfg)
+                                     $ checkDefAsserts env vbs xbs
+                                   forM vbs mkVarSpec
 
-    checkDefAsserts env vbs xbs = applyNonNull (return ()) grumble  undefSigs
-        where
-          undefSigs               = [x | (x, _) <- assertSigs, not (x `S.member` definedSigs)]
-          assertSigs              = filter isTarget xbs
-          definedSigs             = S.fromList $ snd3 <$> vbs
-          errorMsg                = (text "Specification for unknown variable:" <+>) . locatedSymbolText
-          grumble                 = throwError . render . vcat . fmap errorMsg
-          moduleName              = modName env
-          isTarget                = L.isPrefixOf moduleName . symbolStringRaw . val . fst
-          symbolStringRaw         = stripParens . symbolString
+checkDefAsserts env vbs xbs   = applyNonNull (return ()) grumble  undefSigs
+  where
+    undefSigs                 = [x | (x, _) <- assertSigs, not (x `S.member` definedSigs)]
+    assertSigs                = filter isTarget xbs
+    definedSigs               = S.fromList $ snd3 <$> vbs
+    errorMsg                  = (text "Specification for unknown variable:" <+>) . locatedSymbolText
+    grumble                   = throwError . render . vcat . fmap errorMsg
+    moduleName                = modName env
+    isTarget                  = L.isPrefixOf moduleName . symbolStringRaw . val . fst
+    symbolStringRaw           = stripParens . symbolString
 
 
 locatedSymbolText z = text (symbolString $ val z) <+> text "defined at:" <+> pprint (loc z)    
@@ -277,9 +283,11 @@ locatedSymbolText z = text (symbolString $ val z) <+> text "defined at:" <+> ppr
 
 
 mkVarSpec                 :: (Var, LocSymbol, BareType) -> BareM (Var, Located SpecType)
-mkVarSpec (v, Loc l _, b) = liftM ((v, ) . (Loc l)) (wrapErr msg (mkSpecType msg) b)
+mkVarSpec (v, Loc l _, b) = ((v, ) . (Loc l)) <$> mkSpecType msg b
   where 
-    msg                   = "mkVarSpec fails on " ++ showpp v ++ " :: "  ++ showpp b 
+    msg                   = berrVarSpec l v b
+
+
 
 showTopLevelVars vs = 
   forM vs $ \v -> 
@@ -295,16 +303,13 @@ makeTyConEmbeds benv z = execBare (M.fromList <$> mapM tx (M.toList z)) benv
 
 makeInvariants :: BareEnv -> [Located BareType] -> IO [Located SpecType]
 makeInvariants benv ts = execBare (mapM mkI ts) benv
-  where mkI (Loc l t)  = liftM (Loc l) (mkSpecType "invariant" t) 
+  where 
+    mkI (Loc l t)      = liftM (Loc l) $ mkSpecType (berrInvariant l t) t 
 
-
-mkSpecType msg t = mkSpecType' msg πs t
-  where πs   = (snd3 $ bkUniv t)
+mkSpecType msg t = mkSpecType' msg (snd3 $ bkUniv t)  t
 
 mkSpecType' :: String -> [PVar BSort] -> BareType -> BareM SpecType
-mkSpecType' msg πs 
-  = ofBareType' msg 
-  . txParams subvUReft (uPVar <$> πs)
+mkSpecType' msg πs = ofBareType' msg . txParams subvUReft (uPVar <$> πs)
 
 makeSymbols :: (PPrint r1, PPrint r, Reftable r1, Reftable r) 
             => [Var] 
@@ -357,13 +362,6 @@ instance GhcLookup Name where
   candidates x   = [x]
   pp             = showPpr 
 
--- existsGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM Bool 
--- existsGhcThing name f x 
---   = do z <- lookupGhcThing' name f x
---        case z of 
---          Just _ -> return True
---          _      -> return False
-
 lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
 lookupGhcThing name f x 
   = do zs <- catMaybes <$> mapM (lookupGhcThing' name f) (candidates x)
@@ -395,13 +393,16 @@ stringLookupEnv env s
            Just (n:_) -> return (Just n)
            _          -> return Nothing
 
-lookupGhcTyCon ::  GhcLookup a => a -> BareM TyCon
-lookupGhcTyCon s = (lookupGhcThing "TyCon" ftc s) `catchError` tryPropTyCon
-  where ftc (ATyCon x)   = Just x
-        ftc (ADataCon x) = Just $ dataConTyCon x
-        ftc _            = Nothing
-        tryPropTyCon e   | pp s == propConName = return propTyCon 
-                         | otherwise           = throwError e
+lookupGhcTyCon       ::  GhcLookup a => a -> BareM TyCon
+lookupGhcTyCon s     = (lookupGhcThing "TyCon" ftc s) `catchError` (tryPropTyCon s)
+  where 
+    ftc (ATyCon x)   = Just x
+    ftc (ADataCon x) = Just $ dataConTyCon x
+    ftc _            = Nothing
+
+tryPropTyCon s e   
+  | pp s == propConName = return propTyCon 
+  | otherwise           = throwError e
 
 lookupGhcClass       = lookupGhcThing "Class" ftc 
   where 
@@ -420,20 +421,6 @@ lookupGhcDataCon'    = lookupGhcThing "DataCon" fdc
   where 
     fdc (ADataCon x) = Just x
     fdc _            = Nothing
-
--- lookupGhcId = lookupGhcThing "Id" thingId
-
--- existsGhcId = existsGhcThing "Id" thingId
--- existsGhcId s = 
---   do z <- or <$> mapM (existsGhcThing "Id" thingId) (candidates s)
---      if z 
---        then return True 
---        else return (warnShow ("existsGhcId " ++ s) $ False)
-
-
--- thingId (AnId x)     = Just x
--- thingId (ADataCon x) = Just $ dataConWorkId x
--- thingId _            = Nothing
 
 wiredIn :: M.HashMap String Name
 wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns 
@@ -510,7 +497,6 @@ mkps_ _     _       _          _    _ = error "Bare : mkps_"
 ----------------- Transforming Raw Strings using GHC Env ---------------
 ------------------------------------------------------------------------
 
-
 -- makeRTyConPs :: Reftable r => String -> M.HashMap TyCon RTyCon -> [RPVar] -> RRType r -> RRType r
 -- makeRTyConPs msg tyi πs t@(RApp c ts rs r) 
 --   | null $ rTyConPs c
@@ -525,9 +511,11 @@ mkps_ _     _       _          _    _ = error "Bare : mkps_"
 -- 
 -- makeRTyConPs _ _ _ t = t
 
-ofBareType' msg = wrapErr "ofBareType" ofBareType 
 
-ofBareType :: (PPrint r, Reftable r) => RType String String String r -> BareM (RType Class RTyCon RTyVar r)
+ofBareType' :: (PPrint r, Reftable r) => String -> BRType r -> BareM (RRType r)
+ofBareType' msg = wrapErr msg ofBareType
+
+ofBareType :: (PPrint r, Reftable r) => BRType r -> BareM (RRType r)
 ofBareType (RVar a r) 
   = return $ RVar (stringRTyVar a) r
 ofBareType (RFun x t1 t2 _) 
@@ -602,7 +590,11 @@ measureCtors = sortNub . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.c
 -- mkMeasureSort :: (PVarable pv, Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
 mkMeasureSort (Ms.MSpec cm mm) 
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> 
-      liftM (\s' -> m {Ms.sort = s'}) (ofBareType' "mkMeasureSort" (Ms.sort m))
+      liftM (\s' -> m {Ms.sort = s'}) (ofBareType' (msg m) (Ms.sort m))
+    where 
+      msg m = berrMeasure (loc $ Ms.name m) (Ms.name m) (Ms.sort m) 
+
+
 
 -----------------------------------------------------------------------
 ----------------------- Prop TyCon Definition -------------------------
@@ -619,18 +611,18 @@ makeConTypes :: HscEnv -> String -> [DataDecl] -> IO ([(TyCon, TyConP)], [[(Data
 makeConTypes env name dcs = unzip <$> execBare (mapM ofBDataDecl dcs) (BE name M.empty env)
 
 ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
-ofBDataDecl (D tc as ps cts)
+ofBDataDecl dd@(D tc as ps cts pos)
   = do πs    <- mapM ofBPVar ps
        tc'   <- lookupGhcTyCon tc 
-       cts'  <- mapM (ofBDataCon tc' αs ps πs) cts     -- cpts
+       cts'  <- mapM (ofBDataCon (berrDataDecl pos tc πs) tc' αs ps πs) cts
        let tys     = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
        let initmap = zip (uPVar <$> πs) [0..]
        let varInfo = concatMap (getPsSig initmap True) tys
        let cov     = [i | (i, b)<- varInfo, b, i >=0]
        let contr   = [i | (i, b)<- varInfo, not b, i >=0]
        return ((tc', TyConP αs πs cov contr), cts')
-    where αs   = fmap (RTV . stringTyVar) as
-          -- cpts = fmap (second (fmap (second (mapReft ur_pred)))) cts
+    where 
+       αs   = fmap (RTV . stringTyVar) as
 
 getPsSig m pos (RAllT _ t) 
   = getPsSig m pos t
@@ -667,15 +659,15 @@ mapM_pvar f (PV x t txys)
        txys' <- mapM (\(t, x, y) -> liftM (, x, y) (f t)) txys 
        return $ PV x t' txys'
 
-ofBDataCon tc αs ps πs (c, xts)
- = do c'    <- lookupGhcDataCon c
-      ts'   <- mapM (mkSpecType' msg ps) ts
-      let t0 = rApp tc rs (RMono [] . pdVarReft <$> πs) top 
-      return $ (c', DataConP αs πs (reverse (zip xs' ts')) t0) 
- where (xs, ts) = unzip xts
+ofBDataCon msg tc αs ps πs (c, xts)
+  = do c'      <- wrapErr msg lookupGhcDataCon c
+       ts'     <- mapM (mkSpecType' msg ps) ts
+       let t0   = rApp tc rs (RMono [] . pdVarReft <$> πs) top 
+       return   $ (c', DataConP αs πs (reverse (zip xs' ts')) t0) 
+    where 
+       (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
        rs       = [rVar α | RTV α <- αs] -- [RVar α pdTrue | α <- αs]
-       msg      = "ofBDataCon " ++ showpp c ++ " with πs = " ++ showpp πs
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: RefTypes -----------------------------
@@ -710,11 +702,13 @@ checkGhcSpec sp      =  applyNonNull sp specError errors
     env              =  ghcSpecEnv sp
     emb              =  tcEmbeds sp
     errors           =  mapMaybe (checkBind "variable"         emb env) (tySigs     sp)
---                      ++ mapMaybe (checkBind "data constructor" emb env) (ctor       sp)
+                     ++ mapMaybe (checkBind "data constructor" emb env) (dcons      sp)
                      ++ mapMaybe (checkBind "measure"          emb env) (meas       sp)
                      ++ mapMaybe (checkInv  emb env)                    (invariants sp)
                      ++ mapMaybe checkMismatch                          (tySigs     sp)
                      ++ checkDuplicate                                  (tySigs     sp)
+    dcons spec       = mapSnd (Loc dummyPos) <$> dataConSpec (dconsP spec) 
+
 
 specError            = errorstar 
                      . render 
@@ -740,12 +734,14 @@ checkDuplicate xts   = err <$> dups
         dups         = [ z | z@(x, t1:t2:_) <- M.toList $ group xts ]
 
 checkMismatch (x, t) = if ok then Nothing else Just err
-  where ok           = tyCompat x t' --(toRSort t') == (ofType $ varType x) 
+  where ok           = tyCompat x t'
         err          = errTypeMismatch x t
         t'           = val t
 
-tyCompat x t         = (toRSort t) == (ofType $ varType x)
-
+tyCompat x t         = {- traceShow msg -} (lhs == rhs)
+  where lhs :: RSort = toRSort t
+        rhs :: RSort = ofType $ varType x
+        msg          = printf "tyCompat: l = %s r = %s" (showpp lhs) (showpp rhs)
 
 ghcSpecEnv sp        = fromListSEnv binds
   where 
@@ -882,3 +878,16 @@ freshSymbol
        modify $ \s -> s{fresh = n+1}
        return $ S $ "ex#" ++ show n
 
+
+-------------------------------------------------------------------------------------
+-- | Tasteful Error Messages --------------------------------------------------------
+-------------------------------------------------------------------------------------
+
+berrDataDecl  l c πs = printf "[%s]\nCannot convert data type %s with πs = %s" 
+                         (showpp l) (showpp c) (showpp πs)
+berrVarSpec   l v b  = printf "[%s]\nCannot convert\n    %s :: %s" 
+                         (showpp l) (showpp v) (showpp b)
+berrInvariant l i    = printf "[%s]\nCannot convert invariant\n    %s" 
+                         (showpp l) (showpp i)
+berrMeasure   l x t  = printf "[%s]\nCannot convert measure %s :: %s" 
+                         (showpp l) (showpp x) (showpp t)
