@@ -129,8 +129,8 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
          => Monoid (Ref (RType p c tv ()) r (RType p c tv (UReft r))) where
   mempty                              = RMono [] mempty
   mappend (RMono s1 r1) (RMono s2 r2) = RMono (s1 ++ s2) $ r1 `meet` r2
-  mappend (RMono s1 r) (RPoly s2 t)   = RPoly (s1 ++ s2) $ t `strengthen` (U r top)
-  mappend (RPoly s1 t) (RMono s2 r)   = RPoly (s1 ++ s2) $ t `strengthen` (U r top)
+  mappend (RMono s1 r) (RPoly s2 t)   = RPoly (s1 ++ s2) $ t  `strengthen` (U r top)
+  mappend (RPoly s1 t) (RMono s2 r)   = RPoly (s1 ++ s2) $ t  `strengthen` (U r top)
   mappend (RPoly s1 t1) (RPoly s2 t2) = RPoly (s1 ++ s2) $ t1 `strengthenRefType` t2
 
 instance ( Monoid r, Reftable r

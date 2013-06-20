@@ -135,6 +135,8 @@ instance PPrint a => PPrint (Maybe a) where
 instance PPrint a => PPrint [a] where
   pprint = brackets . intersperse comma . map pprint
 
+
+
 instance (PPrint a, PPrint b) => PPrint (a,b) where
   pprint (x, y)  = (pprint x) <+> text ":" <+> (pprint y)
 
@@ -499,6 +501,7 @@ data DataDecl   = D { tycName   :: String                           -- ^ Type  C
                     , tycTyVars :: [String]                         -- ^ Tyvar Parameters
                     , tycPVars  :: [PVar BSort]                     -- ^ PVar  Parameters
                     , tycDCons  :: [(String, [(String, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]   
+                    , tycSrcPos :: !SourcePos                       -- ^ Source Position
                     }
      --              deriving (Show) 
 

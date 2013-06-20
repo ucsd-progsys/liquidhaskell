@@ -4,6 +4,5 @@ module spec Foreign.C.Types where
 -- invariant {v: CSize | (cSizeInt v) >= 0}
 
 embed CInt as int
-embed CSize as int
-
-
+embed CSize  as int
+embed CULong as int

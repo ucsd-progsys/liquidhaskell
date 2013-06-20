@@ -153,12 +153,16 @@ bareFunP
        return $ bareArrow b t1 a t2 
 
 dummyBindP 
-  = stringSymbol <$> positionNameP -- (return dummyBind) -- (positionNameP)
+  = tempSymbol "db" <$> freshIntP
+
+  -- = stringSymbol <$> positionNameP 
+
+
+
 
 bbindP = lowerIdP <* dcolon 
 
 bindP  = liftM stringSymbol (lowerIdP <* colon)
-
 
 bareArrow b t1 ArrowFun t2
   = rFun b t1 t2
@@ -361,7 +365,7 @@ measureP
   = do (x, ty) <- tyBindP  
        whiteSpace
        eqns    <- grabs $ measureDefP $ (rawBodyP <|> tyBodyP ty)
-       return   $ Measure.mkM x ty eqns   
+       return   $ Measure.mkM x ty eqns 
 
 rawBodyP 
   = braces $ do
@@ -415,9 +419,9 @@ measurePatP
  <|> try (parens consPatP)
  <|>     (parens nilPatP)
 
-tupPatP  = mkTupPat  <$> (parens      $  sepBy locLowerIdP comma)
-conPatP  = (,)       <$> (upperIdP)  <*> sepBy locLowerIdP whiteSpace 
-consPatP = mkConsPat <$> locLowerIdP <*> colon <*> locLowerIdP
+tupPatP  = mkTupPat  <$> (parens       $  sepBy locLowerIdP comma)
+conPatP  = (,)       <$> dataConNameP <*> sepBy locLowerIdP whiteSpace 
+consPatP = mkConsPat <$> locLowerIdP  <*> colon <*> locLowerIdP
 nilPatP  = mkNilPat  <$> brackets whiteSpace 
 
 mkTupPat zs     = (tupDataCon (length zs), zs)
@@ -442,13 +446,24 @@ predTypeDDP
   = liftM2 (,) bbindP bareTypeP
 
 dataConP
-  = do x   <- upperIdP
+  = do x   <- dataConNameP 
        spaces
        xts <- dataConFieldsP
        return (x, xts)
 
+-- dataConNameP = symbolString <$> binderP -- upperIdP
+dataConNameP 
+  =  try upperIdP 
+ <|> pwr <$> parens (idP bad)
+  where 
+     idP p  = many1 (satisfy (not . p))
+     bad c  = isSpace c || c `elem` "(,)"
+     pwr s  = "(" ++ s ++ ")" 
+ 
+
 dataDeclP
-  = do x   <- upperIdP
+  = do pos <- getPosition
+       x   <- upperIdP
        spaces
        ts  <- sepBy tyVarIdP spaces
        ps  <- predVarDefsP
@@ -457,7 +472,7 @@ dataDeclP
        whiteSpace
        -- spaces
        -- reservedOp "--"
-       return $ D x ts ps dcs
+       return $ D x ts ps dcs pos
 
 ---------------------------------------------------------------------
 ------------ Interacting with Fixpoint ------------------------------

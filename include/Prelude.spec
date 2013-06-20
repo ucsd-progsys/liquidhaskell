@@ -34,8 +34,9 @@ fromJust (Just x) = x
 embed GHC.Integer.Type.Integer  as int
 
 type GeInt N = {v: GHC.Types.Int | v >= N }
-
-type Nat     = {v: GHC.Types.Int | (v >= 0)}
+type LeInt N = {v: GHC.Types.Int | v <= N }
+type Nat     = {v: GHC.Types.Int | v >= 0 }
+type BNat N  = {v: Nat           | v <= N }    
 
 predicate Max V X Y = ((X > Y) ? (V = X) : (V = Y))
 predicate Min V X Y = ((X < Y) ? (V = X) : (V = Y))
