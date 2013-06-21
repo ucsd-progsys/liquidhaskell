@@ -8,14 +8,15 @@ spec that we can express)
 Verified modules:
 - Data.Text
 - Data.Text.Array
-- Data.Text.Foreign
+- Data.Text.Foreign (now complaining about Ptr refinements from bytestring..)
 - Data.Text.Fusion
 - Data.Text.Fusion.Size
-- Data.Text.Internal (would like to kill / not export the TlEqNumchars qualifier)
+- Data.Text.Internal
 - Data.Text.Lazy
 - Data.Text.Lazy.Builder
-- Data.Text.Lazy.Internal
+- Data.Text.Lazy.Encoding
 - Data.Text.Lazy.Fusion
+- Data.Text.Lazy.Internal
 - Data.Text.Lazy.Search
 - Data.Text.Private
 - Data.Text.Search
@@ -34,7 +35,6 @@ FIXME: there's a strange issue where desugaring a guard results in a
 
 Other interesting modules:
 - Data.Text.Encoding (can't desugar at the moment..)
-- Data.Text.Lazy.Encoding
 
 Definitely not interesting:
 - Data.Text.Encoding.* (deals with encodings and bytestrings)

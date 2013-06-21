@@ -88,6 +88,7 @@ import Prelude hiding (length, read)
 --LIQUID
 import Data.Int
 import qualified Data.Word
+import Foreign.C.Types
 import qualified GHC.Prim
 import Language.Haskell.Liquid.Prelude
 

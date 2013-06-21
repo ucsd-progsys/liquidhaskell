@@ -74,6 +74,22 @@ import qualified Data.Text.Encoding.Fusion as E
 import qualified Data.Text.Encoding.Utf16 as U16
 import qualified Data.Text.Fusion as F
 
+--LIQUID
+import Data.Int
+import qualified Data.Word
+import qualified Data.Text
+import qualified Data.Text.Array
+import qualified Data.Text.Fusion.Internal
+import qualified Data.Text.Fusion.Size
+import qualified Data.Text.Internal
+import qualified Data.Text.Private
+import qualified Data.Text.Search
+import qualified Data.Text.Unsafe
+import Foreign.C.Types (CInt)
+import Foreign.ForeignPtr (ForeignPtr)
+import qualified GHC.ST
+import Language.Haskell.Liquid.Prelude
+
 -- $strict
 --
 -- All of the single-parameter functions for decoding bytestrings
@@ -150,51 +166,55 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
   let size0 = max len 4
   mallocByteString size0 >>= start size0 off 0
  where
+  --LIQUID added explicit type to prevent weird desugaring bug
+  start :: Int -> Int -> Int -> ForeignPtr Word8 -> IO ByteString
   start size n0 m0 fp = withForeignPtr fp $ loop n0 m0
    where
     loop n1 m1 ptr = go n1 m1
      where
       offLen = off + len
-      go !n !m
-        | n == offLen = return (PS fp 0 m)
-        | otherwise = do
+      go !n !m =
+        if n == offLen then return (PS fp 0 m)
+        else do
             let poke8 k v = poke (ptr `plusPtr` k) (fromIntegral v :: Word8)
-                ensure k act
-                  | size-m >= k = act
-                  | otherwise = {-# SCC "resizeUtf8/ensure" #-} do
+                ensure k act =
+                  if size-m >= k then act
+                  else {-# SCC "resizeUtf8/ensure" #-} do
                       let newSize = size `shiftL` 1
                       fp' <- mallocByteString newSize
                       withForeignPtr fp' $ \ptr' ->
                         memcpy ptr' ptr (fromIntegral m)
                       start newSize n m fp'
-                {-# INLINE ensure #-}
+                --LIQUID don't inline
+                {- INLINE ensure #-}
             case A.unsafeIndex arr n of
-             w| w <= 0x7F  -> ensure 1 $ do
+             w ->
+              if w <= 0x7F  then ensure 1 $ do
                   poke (ptr `plusPtr` m) (fromIntegral w :: Word8)
                   -- A single ASCII octet is likely to start a run of
                   -- them.  We see better performance when we
                   -- special-case this assumption.
                   let end = ptr `plusPtr` size
-                      ascii !t !u
-                        | t == offLen || u == end || v >= 0x80 =
+                      ascii !t !u =
+                        if t == offLen || u == end || v >= 0x80 then
                             go t (u `minusPtr` ptr)
-                        | otherwise = do
+                        else do
                             poke u (fromIntegral v :: Word8)
                             ascii (t+1) (u `plusPtr` 1)
                         where v = A.unsafeIndex arr t
                   ascii (n+1) (ptr `plusPtr` (m+1))
-              | w <= 0x7FF -> ensure 2 $ do
+              else if w <= 0x7FF then ensure 2 $ do
                   poke8 m     $ (w `shiftR` 6) + 0xC0
                   poke8 (m+1) $ (w .&. 0x3f) + 0x80
                   go (n+1) (m+2)
-              | 0xD800 <= w && w <= 0xDBFF -> ensure 4 $ do
+              else if 0xD800 <= w && w <= 0xDBFF then ensure 4 $ do
                   let c = ord $ U16.chr2 w (A.unsafeIndex arr (n+1))
                   poke8 m     $ (c `shiftR` 18) + 0xF0
                   poke8 (m+1) $ ((c `shiftR` 12) .&. 0x3F) + 0x80
                   poke8 (m+2) $ ((c `shiftR` 6) .&. 0x3F) + 0x80
                   poke8 (m+3) $ (c .&. 0x3F) + 0x80
                   go (n+2) (m+4)
-              | otherwise -> ensure 3 $ do
+              else ensure 3 $ do
                   poke8 m     $ (w `shiftR` 12) + 0xE0
                   poke8 (m+1) $ ((w `shiftR` 6) .&. 0x3F) + 0x80
                   poke8 (m+2) $ (w .&. 0x3F) + 0x80
