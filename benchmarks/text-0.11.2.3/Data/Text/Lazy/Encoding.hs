@@ -58,6 +58,21 @@ import qualified Data.Text.Encoding as TE
 import qualified Data.Text.Lazy.Encoding.Fusion as E
 import qualified Data.Text.Lazy.Fusion as F
 
+--LIQUID
+import Data.Int
+import qualified Data.Word
+import qualified Data.Text
+import qualified Data.Text.Array
+import qualified Data.Text.Fusion.Internal
+import qualified Data.Text.Fusion.Size
+import qualified Data.Text.Internal
+import qualified Data.Text.Lazy.Fusion
+import qualified Data.Text.Lazy.Internal
+import qualified Data.Text.Private
+import qualified Data.Text.Search
+import qualified Data.Text.Unsafe
+import Language.Haskell.Liquid.Prelude
+
 -- $strict
 --
 -- All of the single-parameter functions for decoding bytestrings
@@ -149,6 +164,7 @@ decodeUtf8' bs = unsafePerformIO $ do
     rnf (Chunk _ ts) = rnf ts
 {-# INLINE decodeUtf8' #-}
 
+{-@ encodeUtf8 :: Text -> B.ByteString @-}
 encodeUtf8 :: Text -> B.ByteString
 encodeUtf8 (Chunk c cs) = B.Chunk (TE.encodeUtf8 c) (encodeUtf8 cs)
 encodeUtf8 Empty        = B.Empty
@@ -183,12 +199,12 @@ decodeUtf16BE = decodeUtf16BEWith strictDecode
 
 -- | Encode text using little endian UTF-16 encoding.
 encodeUtf16LE :: Text -> B.ByteString
-encodeUtf16LE txt = B.fromChunks (foldrChunks ((:) . TE.encodeUtf16LE) [] txt)
+encodeUtf16LE txt = B.fromChunks (foldrChunks (const $ (:) . TE.encodeUtf16LE) [] txt)
 {-# INLINE encodeUtf16LE #-}
 
 -- | Encode text using big endian UTF-16 encoding.
 encodeUtf16BE :: Text -> B.ByteString
-encodeUtf16BE txt = B.fromChunks (foldrChunks ((:) . TE.encodeUtf16BE) [] txt)
+encodeUtf16BE txt = B.fromChunks (foldrChunks (const $ (:) . TE.encodeUtf16BE) [] txt)
 {-# INLINE encodeUtf16BE #-}
 
 -- | Decode text from little endian UTF-32 encoding.
@@ -221,10 +237,10 @@ decodeUtf32BE = decodeUtf32BEWith strictDecode
 
 -- | Encode text using little endian UTF-32 encoding.
 encodeUtf32LE :: Text -> B.ByteString
-encodeUtf32LE txt = B.fromChunks (foldrChunks ((:) . TE.encodeUtf32LE) [] txt)
+encodeUtf32LE txt = B.fromChunks (foldrChunks (const $ (:) . TE.encodeUtf32LE) [] txt)
 {-# INLINE encodeUtf32LE #-}
 
 -- | Encode text using big endian UTF-32 encoding.
 encodeUtf32BE :: Text -> B.ByteString
-encodeUtf32BE txt = B.fromChunks (foldrChunks ((:) . TE.encodeUtf32BE) [] txt)
+encodeUtf32BE txt = B.fromChunks (foldrChunks (const $ (:) . TE.encodeUtf32BE) [] txt)
 {-# INLINE encodeUtf32BE #-}

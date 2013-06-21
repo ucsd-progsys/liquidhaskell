@@ -184,10 +184,6 @@ firstf _  Nothing      = Nothing
 tlEqNumchars :: Text -> A.Array -> Int -> Int -> Bool
 tlEqNumchars = undefined
 
-{-@ qualif TlEqNumchars(v:Data.Text.Internal.Text, a:Data.Text.Array.Array, o:Int, l:Int)
-        : (tlength v) = (numchars a o l)
-  @-}
-
 {-@ numcharsZ :: a:A.Array -> o:Int -> l:Int
               -> {v:Bool | ((Prop v) <=> ((numchars a o l) = 0))}
   @-}

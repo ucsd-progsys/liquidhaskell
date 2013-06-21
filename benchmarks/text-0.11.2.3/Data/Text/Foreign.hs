@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns, CPP, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE PackageImports #-}
 -- |
 -- Module      : Data.Text.Foreign
 -- Copyright   : (c) 2009, 2010 Bryan O'Sullivan
@@ -51,8 +52,19 @@ import Foreign.Storable (peek, poke)
 import qualified Data.Text.Array
 import qualified Data.Text.Unsafe
 import qualified Data.Word
+import qualified "base" Foreign
+import qualified Foreign.Storable
 import qualified GHC.ST
 import Language.Haskell.Liquid.Prelude
+
+{-@ qualif EqFPLen(v: a, x: GHC.ForeignPtr.ForeignPtr b): v = (fplen x)           @-}
+{-@ qualif EqPLen(v: a, x: GHC.Ptr.Ptr b): v = (plen x)                    @-}
+{-@ qualif EqPLen(v: GHC.ForeignPtr.ForeignPtr a, x: GHC.Ptr.Ptr a): (fplen v) = (plen x) @-}
+{-@ qualif EqPLen(v: GHC.Ptr.Ptr a, x: GHC.ForeignPtr.ForeignPtr a): (plen v) = (fplen x) @-}
+{-@ qualif PValid(v: Int, p: GHC.Ptr.Ptr a): v <= (plen p)                 @-}
+{-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p)                   @-}
+{-@ qualif FPLenPos(v: GHC.ForeignPtr.ForeignPtr a): 0 <= (fplen v)               @-}
+{-@ qualif PLenPos(v: GHC.Ptr.Ptr a): 0 <= (plen v)                        @-}
 
 -- $interop
 --
@@ -154,6 +166,10 @@ dropWord16 (I16 n) t@(Text arr off len)
 
 -- | /O(n)/ Copy a 'Text' to an array.  The array is assumed to be big
 -- enough to hold the contents of the entire 'Text'.
+{-@ unsafeCopyToPtr :: t:Data.Text.Internal.Text
+                    -> {v:(GHC.Ptr.Ptr Data.Word.Word16) | (plen v) >= ((tlen t)*2)}
+                    -> IO ()
+  @-}
 unsafeCopyToPtr :: Text -> Ptr Word16 -> IO ()
 unsafeCopyToPtr (Text arr off len) ptr = loop ptr off
   where
