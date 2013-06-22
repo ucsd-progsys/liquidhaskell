@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts #-}
+{-# LANGUAGE PackageImports #-}
 -- |
 -- Module      : Data.ByteString.Unsafe
 -- License     : BSD-style
@@ -57,7 +58,7 @@ import qualified Data.ByteString.Internal
 import Foreign.ForeignPtr       (ForeignPtr)
 import Data.Word                (Word8)
 import Foreign.C.Types          (CInt(..), CSize(..), CULong(..))
-import Foreign
+import "base" Foreign
 import GHC.Base
 import qualified Foreign.C.Types
 

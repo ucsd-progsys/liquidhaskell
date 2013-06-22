@@ -60,11 +60,11 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
 -- LIQUID #endif
 -- LIQUID              )
 
-{-@ type NonEmptyStrict = {v : Data.ByteString.Internal.ByteString | 0 < (bLength v) } @-}
+{-@ type NonEmptyStrictB = {v : Data.ByteString.Internal.ByteString | 0 < (bLength v) } @-}
 
 {-@ data Data.ByteString.Lazy.Internal.ByteString 
          = Data.ByteString.Lazy.Internal.Empty 
-         | Data.ByteString.Lazy.Internal.Chunk (b :: NonEmptyStrict) (cs :: Data.ByteString.Lazy.Internal.ByteString) 
+         | Data.ByteString.Lazy.Internal.Chunk (b :: NonEmptyStrictB) (cs :: Data.ByteString.Lazy.Internal.ByteString)
   @-}
 
 ------------------------------------------------------------------------

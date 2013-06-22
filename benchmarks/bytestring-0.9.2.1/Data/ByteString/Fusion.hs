@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
+{-# LANGUAGE PackageImports #-}
 -- |
 -- Module      : Data.ByteString.Fusion
 -- License     : BSD-style
@@ -53,22 +54,23 @@ import System.IO.Unsafe         (unsafePerformIO)
 -- LIQUID
 import Language.Haskell.Liquid.Prelude  (liquidAssume, liquidAssert) 
 import qualified Data.ByteString.Lazy.Internal
-import qualified Foreign  
+import qualified Data.Word
+import qualified "base" Foreign
 
-{-@ qualif PlusOnePos(v: Int): 0 <= (v + 1)               @-}
-{-@ qualif LePlusOne(v: Int, x: Int): v <= (x + 1)        @-}
-{-@ qualif LeDiff(v: a, x: a, y:a): v <= (x - y)          @-}
-{-@ qualif PlenEq(v: Ptr a, x: Int): x <= (plen v)        @-}
-{-@ qualif BlenEq(v: Int, x:ByteString): v = (bLength x)  @-}
-{-@ qualif PSnd(v: a, x:b): v = (psnd x)                  @-}
+{-@ qualif PlusOnePos(v: Int): 0 <= (v + 1)                @-}
+{-@ qualif LePlusOne(v: Int, x: Int): v <= (x + 1)         @-}
+{-@ qualif LeDiff(v: a, x: a, y:a): v <= (x - y)           @-}
+{-@ qualif PlenEq(v: GHC.Ptr.Ptr a, x: Int): x <= (plen v) @-}
+{-@ qualif BlenEq(v: Int, x:ByteString): v = (bLength x)   @-}
+{-@ qualif PSnd(v: a, x:b): v = (psnd x)                   @-}
 
-{-@ data PairS a b <p :: x0:a -> b -> Prop> = (:*:) (x::a) (y::b<p x>)  @-}
+{-@ data Data.ByteString.Fusion.PairS a b <p :: x0:a -> b -> Prop> = (:*:) (x::a) (y::b<p x>)  @-}
 
-{-@ measure pfst :: (PairS a b) -> a 
+{-@ measure pfst :: (Data.ByteString.Fusion.PairS a b) -> a
     pfst ((:*:) x y) = x 
   @-} 
 
-{-@ measure psnd :: (PairS a b) -> b 
+{-@ measure psnd :: (Data.ByteString.Fusion.PairS a b) -> b
     psnd ((:*:) x y) = y 
   @-} 
 
@@ -421,7 +423,7 @@ doFilterLoop f noAcc src dest len = loop 0 0
 -- run two loops in sequence,
 -- think of it as: loop1 >> loop2
 
-{-@ sequenceLoops :: ImperativeLoop acc1 -> ImperativeLoop acc2 -> ImperativeLoop (PairS acc1 acc2) @-}
+{-@ sequenceLoops :: ImperativeLoop acc1 -> ImperativeLoop acc2 -> ImperativeLoop (Data.ByteString.Fusion.PairS acc1 acc2) @-}
 sequenceLoops :: ImperativeLoop acc1
               -> ImperativeLoop acc2
               -> ImperativeLoop (PairS acc1 acc2)

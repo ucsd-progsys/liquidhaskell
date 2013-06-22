@@ -8,7 +8,7 @@ spec that we can express)
 Verified modules:
 - Data.Text
 - Data.Text.Array
-- Data.Text.Foreign (now complaining about Ptr refinements from bytestring..)
+- Data.Text.Foreign
 - Data.Text.Fusion
 - Data.Text.Fusion.Size
 - Data.Text.Internal
