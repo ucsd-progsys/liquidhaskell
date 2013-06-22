@@ -14,7 +14,6 @@ Verified modules:
 - Data.Text.Internal
 - Data.Text.Lazy
 - Data.Text.Lazy.Builder
-- Data.Text.Lazy.Encoding
 - Data.Text.Lazy.Fusion
 - Data.Text.Lazy.Internal
 - Data.Text.Lazy.Search
@@ -34,7 +33,8 @@ FIXME: there's a strange issue where desugaring a guard results in a
        judgment.
 
 Other interesting modules:
-- Data.Text.Encoding (can't desugar at the moment..)
+- Data.Text.Encoding (need to fix type for c_decode_utf8 and prove ptr safety)
+- Data.Text.Lazy.Encoding
 
 Definitely not interesting:
 - Data.Text.Encoding.* (deals with encodings and bytestrings)

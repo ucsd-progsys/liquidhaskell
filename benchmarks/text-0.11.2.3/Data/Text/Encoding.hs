@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns, CPP, ForeignFunctionInterface, MagicHash,
     UnliftedFFITypes #-}
+{-# LANGUAGE PackageImports, RankNTypes #-}
 -- |
 -- Module      : Data.Text.Encoding
 -- Copyright   : (c) 2009, 2010, 2011 Bryan O'Sullivan,
@@ -45,6 +46,8 @@ module Data.Text.Encoding
     , encodeUtf16BE
     , encodeUtf32LE
     , encodeUtf32BE
+    --LIQUID
+    , OnDecodeError
     ) where
 
 import Control.Exception (evaluate, try)
@@ -56,7 +59,8 @@ import Control.Monad.ST (unsafeIOToST, unsafeSTToIO)
 import Data.Bits ((.&.))
 import Data.ByteString as B
 import Data.ByteString.Internal as B
-import Data.Text.Encoding.Error (OnDecodeError, UnicodeException, strictDecode)
+--LIQUID import Data.Text.Encoding.Error (OnDecodeError, UnicodeException, strictDecode)
+import Data.Text.Encoding.Error (UnicodeException)
 import Data.Text.Internal (Text(..))
 import Data.Text.Private (runText)
 import Data.Text.UnsafeChar (ord, unsafeWrite)
@@ -75,20 +79,58 @@ import qualified Data.Text.Encoding.Utf16 as U16
 import qualified Data.Text.Fusion as F
 
 --LIQUID
+import Control.Exception (throw)
+import Data.ByteString.Fusion (PairS(..))
+import qualified Data.ByteString.Fusion
+import qualified Data.ByteString.Lazy.Internal
 import Data.Int
-import qualified Data.Word
 import qualified Data.Text
 import qualified Data.Text.Array
+import qualified Data.Text.Encoding.Error as E
 import qualified Data.Text.Fusion.Internal
 import qualified Data.Text.Fusion.Size
 import qualified Data.Text.Internal
 import qualified Data.Text.Private
 import qualified Data.Text.Search
 import qualified Data.Text.Unsafe
-import Foreign.C.Types (CInt)
+import qualified Data.Word
+import qualified "base" Foreign
+import Foreign.C.Types
 import Foreign.ForeignPtr (ForeignPtr)
+import Foreign.Storable
 import qualified GHC.ST
 import Language.Haskell.Liquid.Prelude
+
+{-@ qualif PValid(v:GHC.Ptr.Ptr Int, a:Data.Text.Array.MArray s):
+        (((deref v) >= 0) && ((deref v) < (malen a)))
+  @-}
+{-@ qualif PLenComp(v:a, p:b) : (plen v) >= (plen p) @-}
+
+{-@ Foreign.Marshal.Utils.with :: (Foreign.Storable.Storable a)
+                               => a:a
+                               -> ({v:PtrV a | (deref v) = a} -> IO b)
+                               -> IO b
+  @-}
+
+{-@ qualif PLenGT(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr a): ((v != p) <=> ((plen v) > 0)) @-}
+
+{-@ plen :: p:GHC.Ptr.Ptr a -> {v:Nat | v = (plen p)} @-}
+plen :: Ptr a -> Int
+plen = undefined
+
+--LIQUID specialize the generic error handler to talk about the array
+{-@ type OnDecodeError = forall s.
+                         String
+                      -> Maybe Data.Word.Word8
+                      -> a:Data.Text.Array.MArray s
+                      -> i:Nat
+                      -> Maybe {v:Char | (Room a i v)}
+  @-}
+type OnDecodeError = forall s. String -> Maybe Word8 -> A.MArray s -> Int -> Maybe Char
+
+{-@ strictDecode :: OnDecodeError @-}
+strictDecode :: OnDecodeError
+strictDecode desc c _ _ = throw (E.DecodeError desc c)
 
 -- $strict
 --
@@ -112,29 +154,37 @@ decodeASCII = decodeUtf8
 {-# DEPRECATED decodeASCII "Use decodeUtf8 instead" #-}
 
 -- | Decode a 'ByteString' containing UTF-8 encoded text.
+{-@ decodeUtf8With :: OnDecodeError
+                   -> Data.ByteString.Internal.ByteString
+                   -> Data.Text.Internal.Text
+  @-}
 decodeUtf8With :: OnDecodeError -> ByteString -> Text
 decodeUtf8With onErr (PS fp off len) = runText $ \done -> do
   let go dest = withForeignPtr fp $ \ptr ->
         with (0::CSize) $ \destOffPtr -> do
           let end = ptr `plusPtr` (off + len)
               loop curPtr = do
-                curPtr' <- c_decode_utf8 (A.maBA dest) destOffPtr curPtr end
+                curPtr' <- c_decode_utf8 dest {-LIQUID (A.maBA dest)-} destOffPtr curPtr end
                 if curPtr' == end
                   then do
                     n <- peek destOffPtr
                     unsafeSTToIO (done dest (fromIntegral n))
                   else do
-                    x <- peek curPtr'
-                    case onErr desc (Just x) of
+                    --LIQUID FIXME: this assume should be replaced by
+                    --a better type for c_decode_utf8, but i can't get
+                    --the qualifiers to stick right now..
+                    x <- peek $ liquidAssume (plen curPtr' > 0) curPtr'
+                    destOff <- peek destOffPtr
+                    case onErr desc (Just x) dest (fromIntegral destOff) of
                       Nothing -> loop $ curPtr' `plusPtr` 1
                       Just c -> do
-                        destOff <- peek destOffPtr
+                        --LIQUID destOff <- peek destOffPtr
                         w <- unsafeSTToIO $
                              unsafeWrite dest (fromIntegral destOff) c
                         poke destOffPtr (destOff + fromIntegral w)
                         loop $ curPtr' `plusPtr` 1
           loop (ptr `plusPtr` off)
-  (unsafeIOToST . go) =<< A.new len
+  (unsafeIOToST . go) =<< A.new (liquidAssume (len >= 0) len)
  where
   desc = "Data.Text.Encoding.decodeUtf8: Invalid UTF-8 stream"
 {- INLINE[0] decodeUtf8With #-}
@@ -149,7 +199,7 @@ decodeUtf8With onErr (PS fp off len) = runText $ \done -> do
 decodeUtf8 :: ByteString -> Text
 decodeUtf8 = decodeUtf8With strictDecode
 {-# INLINE[0] decodeUtf8 #-}
-{-# RULES "STREAM stream/decodeUtf8 fusion" [1]
+{- RULES "STREAM stream/decodeUtf8 fusion" [1]
     forall bs. F.stream (decodeUtf8 bs) = E.streamUtf8 strictDecode bs #-}
 
 -- | Decode a 'ByteString' containing UTF-8 encoded text..
@@ -161,6 +211,10 @@ decodeUtf8' = unsafePerformIO . try . evaluate . decodeUtf8With strictDecode
 {-# INLINE decodeUtf8' #-}
 
 -- | Encode text using UTF-8 encoding.
+{-@ encodeUtf8 :: t:Data.Text.Internal.Text
+               -> {v:Data.ByteString.Internal.ByteString |
+                   (bLength v) = (tlen t) + (tlen t)}
+  @-}
 encodeUtf8 :: Text -> ByteString
 encodeUtf8 (Text arr off len) = unsafePerformIO $ do
   let size0 = max len 4
@@ -174,20 +228,20 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
      where
       offLen = off + len
       go !n !m =
-        if n == offLen then return (PS fp 0 m)
+        if n >= offLen {-LIQUID FIXME: n == offLen-} then return (PS fp 0 m)
         else do
             let poke8 k v = poke (ptr `plusPtr` k) (fromIntegral v :: Word8)
                 ensure k act =
                   if size-m >= k then act
                   else {-# SCC "resizeUtf8/ensure" #-} do
-                      let newSize = size `shiftL` 1
+                      let newSize = size + size --LIQUID `shiftL` 1
                       fp' <- mallocByteString newSize
                       withForeignPtr fp' $ \ptr' ->
                         memcpy ptr' ptr (fromIntegral m)
                       start newSize n m fp'
                 --LIQUID don't inline
                 {- INLINE ensure #-}
-            case A.unsafeIndex arr n of
+            case A.unsafeIndexF arr off len n {-LIQUID A.unsafeIndex arr n-} of
              w ->
               if w <= 0x7F  then ensure 1 $ do
                   poke (ptr `plusPtr` m) (fromIntegral w :: Word8)
@@ -196,12 +250,14 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
                   -- special-case this assumption.
                   let end = ptr `plusPtr` size
                       ascii !t !u =
-                        if t == offLen || u == end || v >= 0x80 then
+                        if t == offLen || u == end {-LIQUID || v >= 0x80-} then
                             go t (u `minusPtr` ptr)
                         else do
+                            let v = A.unsafeIndex arr t
+                            if v >= 0x80 then go t (u `minusPtr` ptr) else do
                             poke u (fromIntegral v :: Word8)
                             ascii (t+1) (u `plusPtr` 1)
-                        where v = A.unsafeIndex arr t
+                        --LIQUID where v = A.unsafeIndex arr t
                   ascii (n+1) (ptr `plusPtr` (m+1))
               else if w <= 0x7FF then ensure 2 $ do
                   poke8 m     $ (w `shiftR` 6) + 0xC0
@@ -221,7 +277,7 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
                   go (n+1) (m+3)
 
 -- | Decode text from little endian UTF-16 encoding.
-decodeUtf16LEWith :: OnDecodeError -> ByteString -> Text
+decodeUtf16LEWith :: E.OnDecodeError -> ByteString -> Text
 decodeUtf16LEWith onErr bs = F.unstream (E.streamUtf16LE onErr bs)
 {-# INLINE decodeUtf16LEWith #-}
 
@@ -231,11 +287,11 @@ decodeUtf16LEWith onErr bs = F.unstream (E.streamUtf16LE onErr bs)
 -- exception will be thrown.  For more control over the handling of
 -- invalid data, use 'decodeUtf16LEWith'.
 decodeUtf16LE :: ByteString -> Text
-decodeUtf16LE = decodeUtf16LEWith strictDecode
+decodeUtf16LE = decodeUtf16LEWith E.strictDecode
 {-# INLINE decodeUtf16LE #-}
 
 -- | Decode text from big endian UTF-16 encoding.
-decodeUtf16BEWith :: OnDecodeError -> ByteString -> Text
+decodeUtf16BEWith :: E.OnDecodeError -> ByteString -> Text
 decodeUtf16BEWith onErr bs = F.unstream (E.streamUtf16BE onErr bs)
 {-# INLINE decodeUtf16BEWith #-}
 
@@ -245,7 +301,7 @@ decodeUtf16BEWith onErr bs = F.unstream (E.streamUtf16BE onErr bs)
 -- exception will be thrown.  For more control over the handling of
 -- invalid data, use 'decodeUtf16BEWith'.
 decodeUtf16BE :: ByteString -> Text
-decodeUtf16BE = decodeUtf16BEWith strictDecode
+decodeUtf16BE = decodeUtf16BEWith E.strictDecode
 {-# INLINE decodeUtf16BE #-}
 
 -- | Encode text using little endian UTF-16 encoding.
@@ -259,7 +315,7 @@ encodeUtf16BE txt = E.unstream (E.restreamUtf16BE (F.stream txt))
 {-# INLINE encodeUtf16BE #-}
 
 -- | Decode text from little endian UTF-32 encoding.
-decodeUtf32LEWith :: OnDecodeError -> ByteString -> Text
+decodeUtf32LEWith :: E.OnDecodeError -> ByteString -> Text
 decodeUtf32LEWith onErr bs = F.unstream (E.streamUtf32LE onErr bs)
 {-# INLINE decodeUtf32LEWith #-}
 
@@ -269,11 +325,11 @@ decodeUtf32LEWith onErr bs = F.unstream (E.streamUtf32LE onErr bs)
 -- exception will be thrown.  For more control over the handling of
 -- invalid data, use 'decodeUtf32LEWith'.
 decodeUtf32LE :: ByteString -> Text
-decodeUtf32LE = decodeUtf32LEWith strictDecode
+decodeUtf32LE = decodeUtf32LEWith E.strictDecode
 {-# INLINE decodeUtf32LE #-}
 
 -- | Decode text from big endian UTF-32 encoding.
-decodeUtf32BEWith :: OnDecodeError -> ByteString -> Text
+decodeUtf32BEWith :: E.OnDecodeError -> ByteString -> Text
 decodeUtf32BEWith onErr bs = F.unstream (E.streamUtf32BE onErr bs)
 {-# INLINE decodeUtf32BEWith #-}
 
@@ -283,7 +339,7 @@ decodeUtf32BEWith onErr bs = F.unstream (E.streamUtf32BE onErr bs)
 -- exception will be thrown.  For more control over the handling of
 -- invalid data, use 'decodeUtf32BEWith'.
 decodeUtf32BE :: ByteString -> Text
-decodeUtf32BE = decodeUtf32BEWith strictDecode
+decodeUtf32BE = decodeUtf32BEWith E.strictDecode
 {-# INLINE decodeUtf32BE #-}
 
 -- | Encode text using little endian UTF-32 encoding.
@@ -296,6 +352,16 @@ encodeUtf32BE :: Text -> ByteString
 encodeUtf32BE txt = E.unstream (E.restreamUtf32BE (F.stream txt))
 {-# INLINE encodeUtf32BE #-}
 
-foreign import ccall unsafe "_hs_text_decode_utf8" c_decode_utf8
-    :: MutableByteArray# s -> Ptr CSize
-    -> Ptr Word8 -> Ptr Word8 -> IO (Ptr Word8)
+--LIQUID foreign import ccall unsafe "_hs_text_decode_utf8" c_decode_utf8
+--LIQUID     :: MutableByteArray# s -> Ptr CSize
+--LIQUID     -> Ptr Word8 -> Ptr Word8 -> IO (Ptr Word8)
+{-@ c_decode_utf8 :: a:Data.Text.Array.MArray s
+                  -> d:{v:PtrV Foreign.C.Types.CSize | (BtwnI (deref v) 0 (malen a))}
+                  -> c:PtrV Data.Word.Word8
+                  -> end:PtrV Data.Word.Word8
+                  -> IO {v:(PtrV Data.Word.Word8) |
+                         ((v != end) <=> (plen v) > 0)}
+  @-}
+c_decode_utf8 :: A.MArray s -> Ptr CSize
+              -> Ptr Word8 -> Ptr Word8 -> IO (Ptr Word8)
+c_decode_utf8 = undefined
