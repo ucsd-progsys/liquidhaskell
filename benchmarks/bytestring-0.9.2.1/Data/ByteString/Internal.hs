@@ -126,6 +126,11 @@ import Hugs.ForeignPtr          (newForeignPtr_)
 import Foreign.ForeignPtr       (newForeignPtr_)
 #endif
 
+--LIQUID
+import qualified GHC.List
+import qualified Foreign.ForeignPtr
+import qualified Data.Word
+
 -- CFILES stuff is Hugs only
 {-# CFILES cbits/fpstring.c #-}
 
@@ -179,7 +184,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
     bOffset (Data.ByteString.Internal.PS p o l)  = o 
   @-} 
     
-{-@ measure bPayload   :: Data.ByteString.Internal.ByteString -> (ForeignPtr Word8) 
+{-@ measure bPayload   :: Data.ByteString.Internal.ByteString -> (GHC.ForeignPtr.ForeignPtr Data.Word.Word8)
     bPayload (Data.ByteString.Internal.PS p o l) = p 
   @-} 
 
@@ -191,7 +196,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 {-@ data Data.ByteString.Internal.ByteString  
       = Data.ByteString.Internal.PS 
-          { payload :: (ForeignPtr Word8) 
+          { payload :: (GHC.ForeignPtr.ForeignPtr Word8)
           , offset  :: {v: Nat | (v <= (fplen payload))     }  
           , length  :: {v: Nat | (BSValid payload offset v) } 
           }
@@ -200,14 +205,14 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 {-@ type ByteStringN N = {v: ByteString | (bLength v) = N} @-}
 
-{-@ qualif EqFPLen(v: a, x: ForeignPtr b): v = (fplen x)           @-}
-{-@ qualif EqPLen(v: a, x: Ptr b): v = (plen x)                    @-}
-{-@ qualif EqPLen(v: ForeignPtr a, x: Ptr a): (fplen v) = (plen x) @-}
-{-@ qualif EqPLen(v: Ptr a, x: ForeignPtr a): (plen v) = (fplen x) @-}
-{-@ qualif PValid(v: Int, p: Ptr a): v <= (plen p)                 @-}
-{-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p)                   @-}
-{-@ qualif FPLenPos(v: ForeignPtr a): 0 <= (fplen v)               @-}
-{-@ qualif PLenPos(v: Ptr a): 0 <= (plen v)                        @-}
+{-@ qualif EqFPLen(v: a, x: GHC.ForeignPtr.ForeignPtr b): v = (fplen x) @-}
+{-@ qualif EqPLen(v: a, x: GHC.Ptr.Ptr b): v = (plen x) @-}
+{-@ qualif EqPLen(v: GHC.ForeignPtr.ForeignPtr a, x: GHC.Ptr.Ptr a): (fplen v) = (plen x) @-}
+{-@ qualif EqPLen(v: GHC.Ptr.Ptr a, x: GHC.ForeignPtr.ForeignPtr a): (plen v) = (fplen x) @-}
+{-@ qualif PValid(v: Int, p: GHC.Ptr.Ptr a): v <= (plen p) @-}
+{-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p) @-}
+{-@ qualif FPLenPos(v: GHC.ForeignPtr.ForeignPtr a): 0 <= (fplen v) @-}
+{-@ qualif PLenPos(v: GHC.Ptr.Ptr a): 0 <= (plen v) @-}
 
 -------------------------------------------------------------------------
 

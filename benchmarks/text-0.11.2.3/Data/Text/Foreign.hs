@@ -57,14 +57,6 @@ import qualified Foreign.Storable
 import qualified GHC.ST
 import Language.Haskell.Liquid.Prelude
 
-{-@ qualif EqFPLen(v: a, x: GHC.ForeignPtr.ForeignPtr b): v = (fplen x)           @-}
-{-@ qualif EqPLen(v: a, x: GHC.Ptr.Ptr b): v = (plen x)                    @-}
-{-@ qualif EqPLen(v: GHC.ForeignPtr.ForeignPtr a, x: GHC.Ptr.Ptr a): (fplen v) = (plen x) @-}
-{-@ qualif EqPLen(v: GHC.Ptr.Ptr a, x: GHC.ForeignPtr.ForeignPtr a): (plen v) = (fplen x) @-}
-{-@ qualif PValid(v: Int, p: GHC.Ptr.Ptr a): v <= (plen p)                 @-}
-{-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p)                   @-}
-{-@ qualif FPLenPos(v: GHC.ForeignPtr.ForeignPtr a): 0 <= (fplen v)               @-}
-{-@ qualif PLenPos(v: GHC.Ptr.Ptr a): 0 <= (plen v)                        @-}
 
 -- $interop
 --
@@ -89,11 +81,24 @@ import Language.Haskell.Liquid.Prelude
 data I16 = I16 Int
     deriving (Eq, Ord)
 
-{-@ data I16 = I16 (i::Nat) @-}
-{-@ embed Data.Text.Foreign.I16 as int @-}
+{-@ data Data.Text.Foreign.I16 = Data.Text.Foreign.I16 (i::Nat) @-}
+{-@ measure getI16 :: Data.Text.Foreign.I16 -> Int
+    getI16 (Data.Text.Foreign.I16 n) = n
+  @-}
+
+{-@ qualif PtrFree(v:Int, p:GHC.Ptr.Ptr a, l:Int): ((l+l)-(v+v)) <= (plen p) @-}
+
+--LIQUID specializing the type for Word16
+{-@ Foreign.ForeignPtr.Imp.mallocForeignPtrArray :: (Foreign.Storable.Storable a) => n:Nat -> IO {v:(ForeignPtr a) | (fplen v) = (n + n)} @-}
+{-@ qualif FPLenNN(v:GHC.ForeignPtr.ForeignPtr a, n:Int): (fplen v) = (n + n) @-}
+
 
 -- | /O(n)/ Create a new 'Text' from a 'Ptr' 'Word16' by copying the
 -- contents of the array.
+{-@ fromPtr :: p:(PtrV Data.Word.Word16)
+            -> l:{v:Data.Text.Foreign.I16 | ((getI16 v)+(getI16 v)) = (plen p)}
+            -> IO Data.Text.Internal.Text
+  @-}
 fromPtr :: Ptr Word16           -- ^ source array
         -> I16                  -- ^ length of source array (in 'Word16' units)
         -> IO Text
@@ -167,7 +172,7 @@ dropWord16 (I16 n) t@(Text arr off len)
 -- | /O(n)/ Copy a 'Text' to an array.  The array is assumed to be big
 -- enough to hold the contents of the entire 'Text'.
 {-@ unsafeCopyToPtr :: t:Data.Text.Internal.Text
-                    -> {v:(GHC.Ptr.Ptr Data.Word.Word16) | (plen v) >= ((tlen t)*2)}
+                    -> {v:(PtrV Data.Word.Word16) | (plen v) >= ((tlen t)+(tlen t))}
                     -> IO ()
   @-}
 unsafeCopyToPtr :: Text -> Ptr Word16 -> IO ()
@@ -179,18 +184,33 @@ unsafeCopyToPtr (Text arr off len) ptr = loop ptr off
       poke p (A.unsafeIndex arr i)
       loop (p `plusPtr` 2) (i + 1)
 
+
 -- | /O(n)/ Perform an action on a temporary, mutable copy of a
 -- 'Text'.  The copy is freed as soon as the action returns.
+{-@ useAsPtr :: Text -> (PtrV Word16 -> I16 -> IO a) -> IO a @-}
 useAsPtr :: Text -> (Ptr Word16 -> I16 -> IO a) -> IO a
 useAsPtr t@(Text _arr _off len) action =
-    allocaBytes (len * 2) $ \buf -> do
+    allocaBytes (len + len) {-LIQUID (len * 2)-} $ \buf -> do
       unsafeCopyToPtr t buf
 --LIQUID      action (castPtr buf) (fromIntegral len)
       action (castPtr buf) (I16 $ fromIntegral len)
 
+
 -- | /O(n)/ Make a mutable copy of a 'Text'.
+{-@ asForeignPtr :: Text -> IO (ForeignPtr Word16, I16) @-}
 asForeignPtr :: Text -> IO (ForeignPtr Word16, I16)
 asForeignPtr t@(Text _arr _off len) = do
   fp <- mallocForeignPtrArray len
   withForeignPtr fp $ unsafeCopyToPtr t
   return (fp, I16 len)
+
+
+
+
+
+
+
+
+
+
+
