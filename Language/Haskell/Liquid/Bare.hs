@@ -33,6 +33,7 @@ import Data.Traversable         (forM)
 import Control.Applicative      ((<$>), (<|>))
 import Control.Monad.Reader     hiding (forM)
 import Control.Monad.Error      hiding (forM)
+import Control.Monad.Writer     hiding (forM)
 -- import Data.Data                hiding (TyCon, tyConName)
 import Data.Bifunctor
 
@@ -221,7 +222,9 @@ meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
 ---------- Error-Reader-IO For Bare Transformation ---------------
 ------------------------------------------------------------------
 
-type BareM a = ErrorT String (ReaderT BareEnv IO) a
+type BareM a = WriterT [Warn] (ErrorT String (ReaderT BareEnv IO)) a
+
+type Warn    = String
 
 data BareEnv = BE { modName :: !String 
                   , tcEnv   :: !(M.HashMap TyCon RTyCon)
@@ -229,10 +232,11 @@ data BareEnv = BE { modName :: !String
 
 execBare :: BareM a -> BareEnv -> IO a
 execBare act benv = 
-   do z <- runReaderT (runErrorT act) benv
+   do z <- runReaderT (runErrorT (runWriterT act)) benv
       case z of
-        Left s  -> errorstar $ "execBare: " ++ s
-        Right x -> return x
+        Left s        -> errorstar $ "execBare:\n " ++ s
+        Right (x, ws) -> do forM_ ws $ putStrLn . ("WARNING: " ++) 
+                            return x
 
 wrapErr msg f x = yesStack 
   where
@@ -266,19 +270,24 @@ makeAssumeSpec cfg env vs xbs = execBare mkAspec env
                                      $ checkDefAsserts env vbs xbs
                                    forM vbs mkVarSpec
 
+checkDefAsserts :: BareEnv -> [(Var, LocSymbol, BareType)] -> [(LocSymbol, BareType)] -> BareM ()
 checkDefAsserts env vbs xbs   = applyNonNull (return ()) grumble  undefSigs
   where
     undefSigs                 = [x | (x, _) <- assertSigs, not (x `S.member` definedSigs)]
     assertSigs                = filter isTarget xbs
     definedSigs               = S.fromList $ snd3 <$> vbs
-    errorMsg                  = (text "Specification for unknown variable:" <+>) . locatedSymbolText
-    grumble                   = throwError . render . vcat . fmap errorMsg
+    grumble xs                = mapM_ (warn . berrUnknownVar) xs -- [berrUnknownVar (loc x) (val x) | x <- xs] 
     moduleName                = modName env
     isTarget                  = L.isPrefixOf moduleName . symbolStringRaw . val . fst
     symbolStringRaw           = stripParens . symbolString
 
+    -- grumble                   = {- throwError -} warn . render . vcat . fmap errorMsg
+    -- errorMsg                  = (text "Specification for unknown variable:" <+>) . locatedSymbolText
+ 
 
-locatedSymbolText z = text (symbolString $ val z) <+> text "defined at:" <+> pprint (loc z)    
+warn x = tell [x]
+
+
 
 
 
@@ -297,9 +306,16 @@ showTopLevelVars vs =
 
 ----------------------------------------------------------------------
 
-makeTyConEmbeds  :: BareEnv -> TCEmb String -> IO (TCEmb TyCon) 
+makeTyConEmbeds  :: BareEnv -> TCEmb (Located String) -> IO (TCEmb TyCon) 
 makeTyConEmbeds benv z = execBare (M.fromList <$> mapM tx (M.toList z)) benv
-  where tx (c, y) = (, y) <$> lookupGhcTyCon c
+  where 
+    tx (c, y) = (, y) <$> lookupGhcTyCon' c --  wrapErr () (lookupGhcTyCon (val c))
+     
+
+lookupGhcTyCon' c = wrapErr msg lookupGhcTyCon (val c)
+  where 
+    msg :: String = berrUnknownTyCon c
+
 
 makeInvariants :: BareEnv -> [Located BareType] -> IO [Located SpecType]
 makeInvariants benv ts = execBare (mapM mkI ts) benv
@@ -382,7 +398,7 @@ stringLookup env k
   | k `M.member` wiredIn
   = return $ M.lookup k wiredIn
   | last k == '#'
-  = return Nothing -- errorstar $ "Unknown Primitive Thing: " ++ k
+  = return Nothing
   | otherwise
   = stringLookupEnv env k
 
@@ -787,11 +803,12 @@ checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env r
 -- checkReft env emb (Just t) _ = checkSortedReft env xs (rTypeSortedReft emb t) 
 --    where xs                  = fromMaybe [] $ params <$> stripRTypeBase t 
 
-checkSig env (x, t) 
-  = case filter (not . (`S.member` env)) (freeSymbols t) of
-      [] -> True
-      ys -> errorstar (msg ys) 
-    where msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showpp ys) (showpp x) (showpp t)
+-- checkSig env (x, t) 
+--   = case filter (not . (`S.member` env)) (freeSymbols t) of
+--       [] -> True
+--       ys -> errorstar (msg ys) 
+--     where 
+--       msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showpp ys) (showpp x) (showpp t)
 
 
 -------------------------------------------------------------------------------
@@ -891,3 +908,23 @@ berrInvariant l i    = printf "[%s]\nCannot convert invariant\n    %s"
                          (showpp l) (showpp i)
 berrMeasure   l x t  = printf "[%s]\nCannot convert measure %s :: %s" 
                          (showpp l) (showpp x) (showpp t)
+
+-- berrUnknownVar x     = printf "[%s]\nSpecification for unknown Variable : %s"  
+--                          (showpp $ loc x) (showpp $ val x)
+-- 
+-- berrUnknownTyCon x   = printf "[%s]\nSpecification for unknown TyCon   : %s"  
+--                          (showpp $ loc x) (showpp $ val x)
+berrUnknownTyCon     = berrUnknown "TyCon"
+berrUnknownVar       = berrUnknown "Variable"
+
+berrUnknown :: (PPrint a) => String -> Located a -> String 
+berrUnknown thing x  = printf "[%s]\nSpecification for unknown %s : %s"  
+                         thing (showpp $ loc x) (showpp $ val x)
+
+
+
+
+
+
+-- berrUnknownTyCon z   = printf "Specification for unknown variable: %s defined at: %s" 
+--                          (showpp $ symbolString $ val z) (showpp $ loc z)

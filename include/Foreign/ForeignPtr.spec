@@ -14,6 +14,14 @@ module spec Foreign.ForeignPtr where
 --                                   -> ({v:(Ptr a) | (plen v) = (fplen fp)} -> IO b) 
 --                                   -> IO b 
 
+
+measure fplen :: ForeignPtr a -> GHC.Types.Int
+
+type ForeignPtrV a   = {v: (ForeignPtr  a) | 0 <= (fplen v)}
+
+type ForeignPtrN a N = {v: (ForeignPtrV a) | (fplen v) = N }
+
+
 Foreign.ForeignPtr.withForeignPtr :: fp:(ForeignPtr a) -> ((PtrN a (fplen fp)) -> IO b) -> (IO b)
 GHC.ForeignPtr.newForeignPtr_     :: p:(Ptr a) -> (IO (ForeignPtrN a (plen p)))
 Foreign.Concurrent.newForeignPtr  :: p:(PtrV a) -> IO () -> (IO (ForeignPtrN a (plen p)))
