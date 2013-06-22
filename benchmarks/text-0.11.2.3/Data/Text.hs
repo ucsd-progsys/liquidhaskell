@@ -181,8 +181,6 @@ module Data.Text
     -- -* Ordered text
     -- , sort
 
-    --LIQUID
-    , Iter(..)
     ) where
 
 import Prelude (Char, Bool(..), Int, Maybe(..), String,

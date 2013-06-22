@@ -77,7 +77,6 @@ default(Int)
 {-@ qualif LTPlus(v:int, a:int, b:int) : v < (a + b) @-}
 {-@ qualif LTEPlus(v:int, a:int, b:int) : (v + a) <= b @-}
 
---LIQUID FIXME: why aren't these qualifiers instantiated when the same quals are mined from foo and bar??
 {-@ qualif OrdC(v:int, x:GHC.Types.Char)
         : ((((ord x) <  65536) => (v = 0))
         && (((ord x) >= 65536) => (v = 1)))

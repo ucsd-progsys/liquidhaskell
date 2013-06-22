@@ -41,12 +41,14 @@ import Language.Haskell.Liquid.Prelude
 {-@ predicate One C = ((ord C) <  65536) @-}
 {-@ predicate Two C = ((ord C) >= 65536) @-}
 
---LIQUID these don't seem to be helpful, but they cause a bunch of sortcheck warnings..
 {-@ qualif OneC(v:GHC.Types.Char) : ((ord v) <  65536) @-}
 {-@ qualif TwoC(v:GHC.Types.Char) : ((ord v) >= 65536) @-}
 
-{-@ predicate Room      MA I N = (BtwnI I 0 ((malen MA) - N)) @-}
-{-@ predicate RoomFront MA I N = (BtwnI I N (malen MA)) @-}
+{-@ predicate Room MA I C = (((One C) => (MAValidN MA I 1))
+                          && ((Two C) => (MAValidN MA I 2))) @-}
+{-@ predicate MAValidN  MA I N = (BtwnI I 0 ((malen MA) - N)) @-}
+
+{- predicate RoomFront MA I N = (BtwnI I N (malen MA)) @-}
 
 {-@ ord :: c:Char -> {v:Int | v = (ord c)} @-}
 ord :: Char -> Int
@@ -70,8 +72,7 @@ unsafeChr32 (W32# w#) = C# (chr# (word2Int# w#))
 -- the number of 'Word16's written.
 {-@ unsafeWrite :: ma:Data.Text.Array.MArray s
                 -> i:Nat
-                -> x:{v:Char | (  ((One v) => (Room ma i 1))
-                               && ((Two v) => (Room ma i 2)))}
+                -> x:{v:Char | (Room ma i v)}
                 -> GHC.ST.ST s {v:Nat | (((i+v) <= (malen ma)) && (BtwnI v 1 2))}
   @-}
 unsafeWrite :: A.MArray s -> Int -> Char -> ST s Int

@@ -59,8 +59,13 @@ import qualified Data.Text.Lazy.Encoding.Fusion as E
 import qualified Data.Text.Lazy.Fusion as F
 
 --LIQUID
+import Data.ByteString.Fusion (PairS(..))
+import qualified Data.ByteString.Fusion
+import qualified Data.ByteString.Internal
+import qualified Data.ByteString.Lazy.Internal
 import Data.Int
 import qualified Data.Word
+import Data.Word (Word8)
 import qualified Data.Text
 import qualified Data.Text.Array
 import qualified Data.Text.Fusion.Internal
@@ -71,6 +76,9 @@ import qualified Data.Text.Lazy.Internal
 import qualified Data.Text.Private
 import qualified Data.Text.Search
 import qualified Data.Text.Unsafe
+import qualified Foreign.Ptr
+import qualified GHC.ForeignPtr
+import qualified GHC.Ptr
 import Language.Haskell.Liquid.Prelude
 
 -- $strict
@@ -98,7 +106,8 @@ decodeASCII = decodeUtf8
 decodeUtf8With :: OnDecodeError -> B.ByteString -> Text
 decodeUtf8With onErr bs0 = fast bs0
   where
-    decode = TE.decodeUtf8With onErr
+    --LIQUID decode = TE.decodeUtf8With onErr
+    decode = TE.decodeUtf8With (\ desc c _ _ -> onErr desc c)
     fast (B.Chunk p ps) | isComplete p = chunk (decode p) (fast ps)
                         | otherwise    = chunk (decode h) (slow t ps)
       where (h,t) = S.splitAt pivot p
