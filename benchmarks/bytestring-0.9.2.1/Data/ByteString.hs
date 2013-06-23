@@ -97,11 +97,11 @@ module Data.ByteString (
         mapAccumL,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
         mapAccumR,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
         mapIndexed,             -- :: (Int -> Word8 -> Word8) -> ByteString -> ByteString
--- LIQUID
--- LIQUID        -- ** Generating and unfolding ByteStrings
--- LIQUID        replicate,              -- :: Int -> Word8 -> ByteString
--- LIQUID        unfoldr,                -- :: (a -> Maybe (Word8, a)) -> a -> ByteString
--- LIQUID        unfoldrN,               -- :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
+
+        -- ** Generating and unfolding ByteStrings
+        replicate,              -- :: Int -> Word8 -> ByteString
+        unfoldr,                -- :: (a -> Maybe (Word8, a)) -> a -> ByteString
+        unfoldrN,               -- :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
 -- LIQUID
 -- LIQUID        -- * Substrings
 -- LIQUID
@@ -305,9 +305,12 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 {-@ qualif Zog(v:a, p:a)         : (plen p) <= (plen v)          @-}
 {-@ qualif Zog(v:a)              : 0 <= (plen v)                 @-}
 
+-- for concat
 {-@ qualif BLens(v:a)            : 0 <= (bLengths v)             @-}
 {-@ qualif BLenLE(v:Ptr a, bs:b) : (bLengths bs) <= (plen v)     @-}
 
+-- for unfoldrN 
+{-@ qualif PtrDiff(v:Int, i:Int, p:Ptr a): (i - v) <= (plen p) @-}
 
 {-@ type ByteStringNE   = {v:ByteString | (bLength v) > 0} @-}
 {-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)} @-}
@@ -984,59 +987,63 @@ scanr1 f ps
 -- > replicate w c = unfoldr w (\u -> Just (u,u)) c
 --
 -- This implemenation uses @memset(3)@
+{- LIQUID this is SIMPLER ... : replicate :: n:Nat -> Word8 -> (ByteStringN n) @-}
+{-@ replicate :: n:Nat -> Word8 -> {v:ByteString | (bLength v) = (if n > 0 then n else 0)} @-}
 replicate :: Int -> Word8 -> ByteString
 replicate w c
     | w <= 0    = empty
     | otherwise = unsafeCreate w $ \ptr ->
                       memset ptr c (fromIntegral w) >> return ()
 
--- LIQUID -- -- | /O(n)/, where /n/ is the length of the result.  The 'unfoldr' 
--- LIQUID -- -- function is analogous to the List \'unfoldr\'.  'unfoldr' builds a 
--- LIQUID -- -- ByteString from a seed value.  The function takes the element and 
--- LIQUID -- -- returns 'Nothing' if it is done producing the ByteString or returns 
--- LIQUID -- -- 'Just' @(a,b)@, in which case, @a@ is the next byte in the string, 
--- LIQUID -- -- and @b@ is the seed value for further production.
--- LIQUID -- --
--- LIQUID -- -- Examples:
--- LIQUID -- --
--- LIQUID -- -- >    unfoldr (\x -> if x <= 5 then Just (x, x + 1) else Nothing) 0
--- LIQUID -- -- > == pack [0, 1, 2, 3, 4, 5]
--- LIQUID -- --
--- LIQUID -- unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
--- LIQUID -- unfoldr f = concat . unfoldChunk 32 64
--- LIQUID --   where unfoldChunk n n' x =
--- LIQUID --           case unfoldrN n f x of
--- LIQUID --             (s, Nothing) -> s : []
--- LIQUID --             (s, Just x') -> s : unfoldChunk n' (n+n') x'
--- LIQUID -- {-# INLINE unfoldr #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ Like 'unfoldr', 'unfoldrN' builds a ByteString from a seed
--- LIQUID -- -- value.  However, the length of the result is limited by the first
--- LIQUID -- -- argument to 'unfoldrN'.  This function is more efficient than 'unfoldr'
--- LIQUID -- -- when the maximum length of the result is known.
--- LIQUID -- --
--- LIQUID -- -- The following equation relates 'unfoldrN' and 'unfoldr':
--- LIQUID -- --
--- LIQUID -- -- > unfoldrN n f s == take n (unfoldr f s)
--- LIQUID -- --
--- LIQUID -- unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
--- LIQUID -- unfoldrN i f x0
--- LIQUID --     | i < 0     = (empty, Just x0)
--- LIQUID --     | otherwise = unsafePerformIO $ createAndTrim' i $ \p -> go p x0 0
--- LIQUID --   where STRICT3(go)
--- LIQUID --         go p x n =
--- LIQUID --           case f x of
--- LIQUID --             Nothing      -> return (0, n, Nothing)
--- LIQUID --             Just (w,x')
--- LIQUID --              | n == i    -> return (0, n, Just x)
--- LIQUID --              | otherwise -> do poke p w
--- LIQUID --                                go (p `plusPtr` 1) x' (n+1)
--- LIQUID -- {-# INLINE unfoldrN #-}
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Substrings
--- LIQUID -- 
--- LIQUID -- -- | /O(1)/ 'take' @n@, applied to a ByteString @xs@, returns the prefix
+-- | /O(n)/, where /n/ is the length of the result.  The 'unfoldr' 
+-- function is analogous to the List \'unfoldr\'.  'unfoldr' builds a 
+-- ByteString from a seed value.  The function takes the element and 
+-- returns 'Nothing' if it is done producing the ByteString or returns 
+-- 'Just' @(a,b)@, in which case, @a@ is the next byte in the string, 
+-- and @b@ is the seed value for further production.
+--
+-- Examples:
+--
+-- >    unfoldr (\x -> if x <= 5 then Just (x, x + 1) else Nothing) 0
+-- > == pack [0, 1, 2, 3, 4, 5]
+
+{-@ unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString @-}
+unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
+unfoldr f = concat . unfoldChunk 32 64
+  where unfoldChunk n n' x =
+          case unfoldrN n f x of
+            (s, Nothing) -> s : []
+            (s, Just x') -> s : unfoldChunk n' (n+n') x'
+{-# INLINE unfoldr #-}
+
+-- | /O(n)/ Like 'unfoldr', 'unfoldrN' builds a ByteString from a seed
+-- value.  However, the length of the result is limited by the first
+-- argument to 'unfoldrN'.  This function is more efficient than 'unfoldr'
+-- when the maximum length of the result is known.
+--
+-- The following equation relates 'unfoldrN' and 'unfoldr':
+--
+-- > unfoldrN n f s == take n (unfoldr f s)
+--
+{-@ unfoldrN :: i:Nat -> (a -> Maybe (Word8, a)) -> a -> ({v:ByteString | (bLength v) <= i}, Maybe a) @-}
+unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
+unfoldrN i f x0
+    | i < 0     = (empty, Just x0)
+    | otherwise = unsafePerformIO $ createAndTrim' i $ \p -> go p x0 0
+  where STRICT3(go)
+        go p x n =
+          case f x of
+            Nothing      -> return (0 :: Int {- LIQUID -}, n, Nothing)
+            Just (w,x')
+             | n == i    -> return (0, n, Just x)
+             | otherwise -> do poke p w
+                               go (p `plusPtr` 1) x' (n+1)
+{-# INLINE unfoldrN #-}
+
+-- ---------------------------------------------------------------------
+-- Substrings
+
+-- | /O(1)/ 'take' @n@, applied to a ByteString @xs@, returns the prefix
 -- LIQUID -- -- of @xs@ of length @n@, or @xs@ itself if @n > 'length' xs@.
 -- LIQUID -- take :: Int -> ByteString -> ByteString
 -- LIQUID -- take n ps@(PS x s l)
