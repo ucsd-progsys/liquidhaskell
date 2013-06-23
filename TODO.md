@@ -46,6 +46,16 @@ Ordered by dependency.
 
   6738 total
 
+Bytestring.hs
+
+    {-@ scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteString | (bLength v) = 1 + (bLength b)}  @-}
+
+requires fancier type for `loopUp` / `loopU` using trick in `tests/pos/cont.hs`
+
+
+
+
+
 Issues
 ------
 

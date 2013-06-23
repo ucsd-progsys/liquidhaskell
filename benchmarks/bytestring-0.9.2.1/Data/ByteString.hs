@@ -928,7 +928,9 @@ mapIndexed f = loopArr . loopUp (mapIndexEFL f) 0
 --
 -- > last (scanl f z xs) == foldl f z xs.
 
-{-@ scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteString | (bLength v) = 1 + (bLength b)}  @-}
+-- LIQUID TODO
+{-@ scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString  @-}
+{- scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteString | (bLength v) = 1 + (bLength b)}  @-}
 scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
 #if !defined(LOOPU_FUSION)
 scanl f z ps = loopArr . loopUp (scanEFL f) z $ (ps `snoc` 0)
@@ -945,6 +947,10 @@ scanl f z ps = loopArr . loopU (scanEFL f) z $ (ps `snoc` 0)
 -- This function will fuse.
 --
 -- > scanl1 f [x1, x2, ...] == [x1, x1 `f` x2, ...]
+{- scanl1 :: (Word8 -> Word8 -> Word8) -> b:ByteStringNE -> {v:ByteStringNE | (bLength v) = 1 + (bLength b)} -}
+
+-- LIQUID TODO
+{-@ scanl1 :: (Word8 -> Word8 -> Word8) -> ByteStringNE -> ByteString @-}
 scanl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
 scanl1 f ps
     | null ps   = empty
@@ -952,11 +958,17 @@ scanl1 f ps
 {-# INLINE scanl1 #-}
 
 -- | scanr is the right-to-left dual of scanl.
+-- LIQUID TODO
+{-@ scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString @-}
+{- scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteStringNE | (bLength v) = 1 + (bLength b)}  @-}
 scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
 scanr f z ps = loopArr . loopDown (scanEFL (flip f)) z $ (0 `cons` ps) -- extra space
 {-# INLINE scanr #-}
 
 -- | 'scanr1' is a variant of 'scanr' that has no starting value argument.
+-- LIQUID TODO
+{-@ scanr1 :: (Word8 -> Word8 -> Word8) -> ByteStringNE -> ByteString @-}
+{- scanr1 :: (Word8 -> Word8 -> Word8) -> b:ByteStringNE -> {v:ByteStringNE | (bLength v) = 1 + (bLength b)}  @-}
 scanr1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
 scanr1 f ps
     | null ps   = empty
