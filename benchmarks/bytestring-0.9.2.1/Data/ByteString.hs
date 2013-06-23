@@ -51,7 +51,7 @@ module Data.ByteString (
         -- * Basic interface
         cons,                   -- :: Word8 -> ByteString -> ByteString
         snoc,                   -- :: ByteString -> Word8 -> ByteString
--- LIQUID        append,                 -- :: ByteString -> ByteString -> ByteString
+        append,                 -- :: ByteString -> ByteString -> ByteString
         head,                   -- :: ByteString -> Word8
         uncons,                 -- :: ByteString -> Maybe (Word8, ByteString)
         last,                   -- :: ByteString -> Word8
@@ -69,18 +69,18 @@ module Data.ByteString (
 
         -- * Reducing 'ByteString's (folds)
         foldl,                  -- :: (a -> Word8 -> a) -> a -> ByteString -> a
--- LIQUID        foldl',                 -- :: (a -> Word8 -> a) -> a -> ByteString -> a
--- LIQUID        foldl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
--- LIQUID        foldl1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
--- LIQUID
--- LIQUID        foldr,                  -- :: (Word8 -> a -> a) -> a -> ByteString -> a
--- LIQUID        foldr',                 -- :: (Word8 -> a -> a) -> a -> ByteString -> a
--- LIQUID        foldr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
--- LIQUID        foldr1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
--- LIQUID
--- LIQUID        -- ** Special folds
--- LIQUID        concat,                 -- :: [ByteString] -> ByteString
--- LIQUID        concatMap,              -- :: (Word8 -> ByteString) -> ByteString -> ByteString
+        foldl',                 -- :: (a -> Word8 -> a) -> a -> ByteString -> a
+        foldl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+        foldl1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+
+        foldr,                  -- :: (Word8 -> a -> a) -> a -> ByteString -> a
+        foldr',                 -- :: (Word8 -> a -> a) -> a -> ByteString -> a
+        foldr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+        foldr1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+
+        -- ** Special folds
+        concat,                 -- :: [ByteString] -> ByteString
+        concatMap,              -- :: (Word8 -> ByteString) -> ByteString -> ByteString
 -- LIQUID        any,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
 -- LIQUID        all,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
 -- LIQUID        maximum,                -- :: ByteString -> Word8
@@ -280,7 +280,7 @@ assertS s False = error ("assertion failed at "++s)
 
 -- LIQUID
 import GHC.IO.Buffer
-import Language.Haskell.Liquid.Prelude (intCSize) 
+import Language.Haskell.Liquid.Prelude (liquidAssert, intCSize) 
 import qualified Data.ByteString.Lazy.Internal 
 import qualified Data.ByteString.Fusion
 import qualified Data.ByteString.Internal
@@ -305,8 +305,25 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 {-@ qualif Zog(v:a, p:a)         : (plen p) <= (plen v)          @-}
 {-@ qualif Zog(v:a)              : 0 <= (plen v)                 @-}
 
+{-@ qualif BLens(v:a)            : 0 <= (bLengths v)             @-}
+{-@ qualif BLenLE(v:Ptr a, bs:b) : (bLengths bs) <= (plen v)     @-}
+
+
 {-@ type ByteStringNE   = {v:ByteString | (bLength v) > 0} @-}
 {-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)} @-}
+
+{-@ measure bLengths  :: [Data.ByteString.Internal.ByteString] -> Int 
+    bLengths ([])   = 0
+    bLengths (x:xs) = (bLength x) + (bLengths xs)
+  @-}
+
+{-@ lengths :: bs:[ByteString] -> {v:Nat | v = (bLengths bs)} @-}
+lengths :: [ByteString] -> Int
+lengths []     = 0
+lengths (b:bs) = length b + lengths bs
+
+
+
 -- -----------------------------------------------------------------------------
 --
 -- Useful macros, until we have bang patterns
@@ -536,7 +553,7 @@ null (PS _ _ l) = assert (l >= 0) $ l <= 0
 
 -- ---------------------------------------------------------------------
 -- | /O(1)/ 'length' returns the length of a ByteString as an 'Int'.
-{-@ length :: b:ByteString -> {v:Int | v = (bLength b)} @-}
+{-@ length :: b:ByteString -> {v:Nat | v = (bLength b)} @-}
 length :: ByteString -> Int
 length (PS _ _ l) = assert (l >= 0) $ l
 {-# INLINE length #-}
@@ -610,12 +627,15 @@ init ps@(PS p s l)
     | otherwise = PS p s (l-1)
 {-# INLINE init #-}
 
--- LIQUID -- -- | /O(n)/ Append two ByteStrings
--- LIQUID -- append :: ByteString -> ByteString -> ByteString
--- LIQUID -- append xs ys | null xs   = ys
--- LIQUID --              | null ys   = xs
--- LIQUID --              | otherwise = concat [xs,ys]
--- LIQUID -- {-# INLINE append #-}
+-- | /O(n)/ Append two ByteStrings
+{-@ append :: b1:ByteString -> b2:ByteString 
+           -> {v:ByteString | (bLength v) = (bLength b1) + (bLength b2)} 
+  @-}
+append :: ByteString -> ByteString -> ByteString
+append xs ys | null xs   = ys
+             | null ys   = xs
+             | otherwise = concat [xs,ys]
+{-# INLINE append #-}
 
 -- ---------------------------------------------------------------------
 -- Transformations
@@ -710,77 +730,103 @@ foldr k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
     where
         STRICT3(go)
         go z p q | p == q    = return z
-                 | otherwise = do c  <- peek p
-                                  go (c `k` z) (p `plusPtr` (-1)) q -- tail recursive
+                 | otherwise = do let p' = liquid_thm_ptr_cmp' p q 
+                                  c  <- peek p'
+                                  let n  = 0 - 1  
+                                  go (c `k` z) (p' `plusPtr` n) q -- tail recursive
+        -- LIQUID go z p q | p == q    = return z
+        -- LIQUID          | otherwise = do c  <- peek p
+        -- LIQUID                           go (c `k` z) (p `plusPtr` (-1)) q -- tail recursive
 {-# INLINE foldr #-}
 
--- LIQUID -- -- | 'foldr\'' is like 'foldr', but strict in the accumulator.
--- LIQUID -- foldr' :: (Word8 -> a -> a) -> a -> ByteString -> a
--- LIQUID -- foldr' k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
--- LIQUID --         go v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1))
--- LIQUID --     where
--- LIQUID --         STRICT3(go)
--- LIQUID --         go z p q | p == q    = return z
--- LIQUID --                  | otherwise = do c  <- peek p
--- LIQUID --                                   go (c `k` z) (p `plusPtr` (-1)) q -- tail recursive
--- LIQUID -- {-# INLINE foldr' #-}
--- LIQUID -- 
--- LIQUID -- -- | 'foldl1' is a variant of 'foldl' that has no starting value
--- LIQUID -- -- argument, and thus must be applied to non-empty 'ByteStrings'.
--- LIQUID -- -- This function is subject to array fusion. 
--- LIQUID -- -- An exception will be thrown in the case of an empty ByteString.
--- LIQUID -- foldl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
--- LIQUID -- foldl1 f ps
--- LIQUID --     | null ps   = errorEmptyList "foldl1"
--- LIQUID --     | otherwise = foldl f (unsafeHead ps) (unsafeTail ps)
--- LIQUID -- {-# INLINE foldl1 #-}
--- LIQUID -- 
--- LIQUID -- -- | 'foldl1\'' is like 'foldl1', but strict in the accumulator.
--- LIQUID -- -- An exception will be thrown in the case of an empty ByteString.
--- LIQUID -- foldl1' :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
--- LIQUID -- foldl1' f ps
--- LIQUID --     | null ps   = errorEmptyList "foldl1'"
--- LIQUID --     | otherwise = foldl' f (unsafeHead ps) (unsafeTail ps)
--- LIQUID -- {-# INLINE foldl1' #-}
--- LIQUID -- 
--- LIQUID -- -- | 'foldr1' is a variant of 'foldr' that has no starting value argument,
--- LIQUID -- -- and thus must be applied to non-empty 'ByteString's
--- LIQUID -- -- An exception will be thrown in the case of an empty ByteString.
--- LIQUID -- foldr1 :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
--- LIQUID -- foldr1 f ps
--- LIQUID --     | null ps        = errorEmptyList "foldr1"
--- LIQUID --     | otherwise      = foldr f (last ps) (init ps)
--- LIQUID -- {-# INLINE foldr1 #-}
--- LIQUID -- 
--- LIQUID -- -- | 'foldr1\'' is a variant of 'foldr1', but is strict in the
--- LIQUID -- -- accumulator.
--- LIQUID -- foldr1' :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
--- LIQUID -- foldr1' f ps
--- LIQUID --     | null ps        = errorEmptyList "foldr1"
--- LIQUID --     | otherwise      = foldr' f (last ps) (init ps)
--- LIQUID -- {-# INLINE foldr1' #-}
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Special folds
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ Concatenate a list of ByteStrings.
--- LIQUID -- concat :: [ByteString] -> ByteString
--- LIQUID -- concat []     = empty
--- LIQUID -- concat [ps]   = ps
--- LIQUID -- concat xs     = unsafeCreate len $ \ptr -> go xs ptr
--- LIQUID --   where len = P.sum . P.map length $ xs
--- LIQUID --         STRICT2(go)
--- LIQUID --         go []            _   = return ()
--- LIQUID --         go (PS p s l:ps) ptr = do
--- LIQUID --                 withForeignPtr p $ \fp -> memcpy ptr (fp `plusPtr` s) (fromIntegral l)
--- LIQUID --                 go ps (ptr `plusPtr` l)
--- LIQUID -- 
--- LIQUID -- -- | Map a function over a 'ByteString' and concatenate the results
--- LIQUID -- concatMap :: (Word8 -> ByteString) -> ByteString -> ByteString
--- LIQUID -- concatMap f = concat . foldr ((:) . f) []
--- LIQUID -- 
--- LIQUID -- -- foldr (append . f) empty
--- LIQUID -- 
+{-@ liquid_thm_ptr_cmp' :: p:PtrV a 
+                        -> q:{v:(PtrV a) | ((plen v) >= (plen p) && v != p && (pbase v) = (pbase p))} 
+                        -> {v: (PtrV a)  | ((v = p) && ((plen v) > 0) && ((plen q) > (plen p))) } 
+  @-}
+liquid_thm_ptr_cmp' :: Ptr a -> Ptr a -> Ptr a
+liquid_thm_ptr_cmp' p q = undefined 
+
+-- | 'foldr\'' is like 'foldr', but strict in the accumulator.
+foldr' :: (Word8 -> a -> a) -> a -> ByteString -> a
+foldr' k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
+        go v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1))
+    where
+        STRICT3(go)
+        go z p q | p == q    = return z
+                 | otherwise = do let p' = liquid_thm_ptr_cmp' p q 
+                                  c  <- peek p'
+                                  let n  = 0 - 1  
+                                  go (c `k` z) (p' `plusPtr` n) q -- tail recursive
+        -- LIQUID go z p q | p == q    = return z
+        -- LIQUID          | otherwise = do c  <- peek p
+        -- LIQUID                           go (c `k` z) (p `plusPtr` (-1)) q -- tail recursive
+{-# INLINE foldr' #-}
+
+-- | 'foldl1' is a variant of 'foldl' that has no starting value
+-- argument, and thus must be applied to non-empty 'ByteStrings'.
+-- This function is subject to array fusion. 
+-- An exception will be thrown in the case of an empty ByteString.
+{-@ foldl1 :: (Word8 -> Word8 -> Word8) -> ByteStringNE -> Word8 @-}
+foldl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+foldl1 f ps
+    | null ps   = errorEmptyList "foldl1"
+    | otherwise = foldl f (unsafeHead ps) (unsafeTail ps)
+{-# INLINE foldl1 #-}
+
+-- | 'foldl1\'' is like 'foldl1', but strict in the accumulator.
+-- An exception will be thrown in the case of an empty ByteString.
+{-@ foldl1' :: (Word8 -> Word8 -> Word8) -> ByteStringNE -> Word8 @-}
+foldl1' :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+foldl1' f ps
+    | null ps   = errorEmptyList "foldl1'"
+    | otherwise = foldl' f (unsafeHead ps) (unsafeTail ps)
+{-# INLINE foldl1' #-}
+
+-- | 'foldr1' is a variant of 'foldr' that has no starting value argument,
+-- and thus must be applied to non-empty 'ByteString's
+-- An exception will be thrown in the case of an empty ByteString.
+
+{-@ foldr1 :: (Word8 -> Word8 -> Word8) -> ByteStringNE -> Word8 @-}
+foldr1 :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+foldr1 f ps
+    | null ps        = errorEmptyList "foldr1"
+    | otherwise      = foldr f (last ps) (init ps)
+{-# INLINE foldr1 #-}
+
+-- | 'foldr1\'' is a variant of 'foldr1', but is strict in the
+-- accumulator.
+{-@ foldr1' :: (Word8 -> Word8 -> Word8) -> ByteStringNE -> Word8 @-}
+foldr1' :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
+foldr1' f ps
+    | null ps        = errorEmptyList "foldr1"
+    | otherwise      = foldr' f (last ps) (init ps)
+{-# INLINE foldr1' #-}
+
+-- ---------------------------------------------------------------------
+-- Special folds
+
+-- | /O(n)/ Concatenate a list of ByteStrings.
+{-@ concat :: bs:[ByteString] -> {v:ByteString | (bLength v) = (bLengths bs)} @-}
+concat :: [ByteString] -> ByteString
+concat []     = empty
+concat [ps]   = ps
+concat xs     = unsafeCreate len $ \ptr -> go xs ptr
+  where len = {- LIQUID P.sum . P.map length $ -} lengths xs
+        STRICT2(go)
+        go []            _   = return ()
+        go (PS p s l:ps) ptr = do
+                -- LIQUID: could instead use  (also works)
+                -- LIQUID {- invariant {v: [ByteString] | 0 <= (bLengths v)} -}
+                let p'  = liquidAssert (lengths ps >= 0) p
+                withForeignPtr p' $ \fp -> memcpy ptr (fp `plusPtr` s) (fromIntegral l)
+                go ps (ptr `plusPtr` l)
+
+-- | Map a function over a 'ByteString' and concatenate the results
+concatMap :: (Word8 -> ByteString) -> ByteString -> ByteString
+concatMap f = concat . foldr ((:) . f) []
+
+-- foldr (append . f) empty
+
 -- LIQUID -- -- | /O(n)/ Applied to a predicate and a ByteString, 'any' determines if
 -- LIQUID -- -- any element of the 'ByteString' satisfies the predicate.
 -- LIQUID -- any :: (Word8 -> Bool) -> ByteString -> Bool

@@ -59,6 +59,36 @@ Liquid-Fixpoint
 
 Z3 agnostic solver? sigh.
 
+Embed
+=====
+
+see 
+
+    tests/pos/ptr.hs
+    tests/pos/ptr2.hs
+
+run with 
+
+    liquid -i include/ -i benchmarks/bytestring-0.9.2.1/ tests/pos/ptr2.hs 
+
+GET THIS TO WORK WITHOUT THE "base" measure and realated theorem,
+but with raw pointer arithmetic. I.e. give plusPtr the right signature:
+  (v = base + off)
+Can do so now, by:
+
+  embed Ptr as int 
+
+but the problem is that then it throws off all qualifier definitions like
+ 
+  qualif EqPLen(v: ForeignPtr a, x: Ptr a): (fplen v) = (plen x)
+  qualif EqPLen(v: Ptr a, x: ForeignPtr a): (plen v) = (fplen x) 
+
+because there is no such thing as Ptr a by the time we get to Fixpoint. yuck.
+Meaning we have to rewrite the above to the rather lame:
+
+  qualif EqPLenPOLY2(v: a, x: b): (plen v) = (fplen x)           
+
+
 Module Import (see branch imports) 
 ==================================
 
