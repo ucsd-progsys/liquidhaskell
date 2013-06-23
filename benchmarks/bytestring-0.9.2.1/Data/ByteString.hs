@@ -1044,31 +1044,37 @@ unfoldrN i f x0
 -- Substrings
 
 -- | /O(1)/ 'take' @n@, applied to a ByteString @xs@, returns the prefix
--- LIQUID -- -- of @xs@ of length @n@, or @xs@ itself if @n > 'length' xs@.
--- LIQUID -- take :: Int -> ByteString -> ByteString
--- LIQUID -- take n ps@(PS x s l)
--- LIQUID --     | n <= 0    = empty
--- LIQUID --     | n >= l    = ps
--- LIQUID --     | otherwise = PS x s n
--- LIQUID -- {-# INLINE take #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(1)/ 'drop' @n xs@ returns the suffix of @xs@ after the first @n@
--- LIQUID -- -- elements, or @[]@ if @n > 'length' xs@.
--- LIQUID -- drop  :: Int -> ByteString -> ByteString
--- LIQUID -- drop n ps@(PS x s l)
--- LIQUID --     | n <= 0    = ps
--- LIQUID --     | n >= l    = empty
--- LIQUID --     | otherwise = PS x (s+n) (l-n)
--- LIQUID -- {-# INLINE drop #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(1)/ 'splitAt' @n xs@ is equivalent to @('take' n xs, 'drop' n xs)@.
--- LIQUID -- splitAt :: Int -> ByteString -> (ByteString, ByteString)
--- LIQUID -- splitAt n ps@(PS x s l)
--- LIQUID --     | n <= 0    = (empty, ps)
--- LIQUID --     | n >= l    = (ps, empty)
--- LIQUID --     | otherwise = (PS x s n, PS x (s+n) (l-n))
--- LIQUID -- {-# INLINE splitAt #-}
--- LIQUID -- 
+-- of @xs@ of length @n@, or @xs@ itself if @n > 'length' xs@.
+
+{-@ take :: n:Nat -> b:ByteString -> {v:ByteString | (bLength v) = (if (n <= (bLength b)) then n else (bLength b))} @-}
+take :: Int -> ByteString -> ByteString
+take n ps@(PS x s l)
+    | n <= 0    = empty
+    | n >= l    = ps
+    | otherwise = PS x s n
+{-# INLINE take #-}
+
+-- | /O(1)/ 'drop' @n xs@ returns the suffix of @xs@ after the first @n@
+-- elements, or @[]@ if @n > 'length' xs@.
+
+{-@ drop :: n:Nat -> b:ByteString -> {v:ByteString | (bLength v) =  (if (n <= (bLength b)) then (bLength b) - n else 0)} @-}
+drop  :: Int -> ByteString -> ByteString
+drop n ps@(PS x s l)
+    | n <= 0    = ps
+    | n >= l    = empty
+    | otherwise = PS x (s+n) (l-n)
+{-# INLINE drop #-}
+
+-- | /O(1)/ 'splitAt' @n xs@ is equivalent to @('take' n xs, 'drop' n xs)@.
+
+{-@ splitAt :: Int -> b:ByteString -> (ByteString, ByteString)<{\x1 x2 -> (bLength x1) + (bLength x2) = (bLength b)}> @-}
+splitAt :: Int -> ByteString -> (ByteString, ByteString)
+splitAt n ps@(PS x s l)
+    | n <= 0    = (empty, ps)
+    | n >= l    = (ps, empty)
+    | otherwise = (PS x s n, PS x (s+n) (l-n))
+{-# INLINE splitAt #-}
+
 -- LIQUID -- -- | 'takeWhile', applied to a predicate @p@ and a ByteString @xs@,
 -- LIQUID -- -- returns the longest prefix (possibly empty) of @xs@ of elements that
 -- LIQUID -- -- satisfy @p@.
