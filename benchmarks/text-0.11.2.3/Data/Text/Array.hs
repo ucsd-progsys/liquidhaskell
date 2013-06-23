@@ -114,6 +114,9 @@ data Array = Array {
          -> {v:Nat | v = (alen a)}
   @-}
 
+{-@ qualif ALen(v:Int, a:Data.Text.Array.Array): v = alen(a) @-}
+{-@ qualif ALen(v:Data.Text.Array.Array, i:Int): i = alen(v) @-}
+
 {-@ invariant {v:Data.Text.Array.Array | (alen v) >= 0} @-}
 
 {-@ measure numchars :: Data.Text.Array.Array -> Int -> Int -> Int @-}
@@ -140,7 +143,14 @@ data MArray s = MArray {
           -> {v:Nat | v = (malen ma)}
   @-}
 
+{-@ qualif MALen(v:Int, a:Data.Text.Array.MArray s): v = malen(a) @-}
+{-@ qualif MALen(v:Data.Text.Array.MArray s, i:Int): i = malen(v) @-}
+
 {-@ invariant {v:Data.Text.Array.MArray | (malen v) >= 0} @-}
+
+{-@ qualif FreezeMArr(v:Data.Text.Array.Array, ma:Data.Text.Array.MArray s):
+        alen(v) = malen(ma)
+  @-}
 
 --LIQUID #if defined(ASSERTS)
 -- | Operations supported by all arrays.

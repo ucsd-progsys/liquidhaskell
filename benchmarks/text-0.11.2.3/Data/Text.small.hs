@@ -37,66 +37,103 @@ import Prelude (Char, Bool(..), Int, Maybe(..), String,
                 Read(..), Show(..),
                 (&&), (||), (+), (-), (.), ($), ($!), (>>), (*),
                 div, maxBound, not, return, otherwise)
--- #if defined(HAVE_DEEPSEQ)
--- import Control.DeepSeq (NFData)
--- #endif
--- #if defined(ASSERTS)
--- import Control.Exception (assert)
--- #endif
--- import Data.Char (isSpace)
--- import Data.Data (Data(gfoldl, toConstr, gunfold, dataTypeOf))
--- #if __GLASGOW_HASKELL__ >= 612
--- import Data.Data (mkNoRepType)
--- #else
--- import Data.Data (mkNorepType)
--- #endif
--- import Control.Monad (foldM)
+#if defined(HAVE_DEEPSEQ)
+import Control.DeepSeq (NFData)
+#endif
+#if defined(ASSERTS)
+import Control.Exception (assert)
+#endif
+import Data.Char (isSpace)
+import Data.Data (Data(gfoldl, toConstr, gunfold, dataTypeOf))
+#if __GLASGOW_HASKELL__ >= 612
+import Data.Data (mkNoRepType)
+#else
+import Data.Data (mkNorepType)
+#endif
+import Control.Monad (foldM)
 import qualified Data.Text.Array as A
--- import qualified Data.List as L
--- import Data.Monoid (Monoid(..))
--- import Data.String (IsString(..))
--- import qualified Data.Text.Fusion as S
--- import qualified Data.Text.Fusion.Common as S
--- import Data.Text.Fusion (stream, reverseStream, unstream)
--- import Data.Text.Private (span_)
+import qualified Data.List as L
+import Data.Monoid (Monoid(..))
+import Data.String (IsString(..))
+import qualified Data.Text.Fusion as S
+import qualified Data.Text.Fusion.Common as S
+import Data.Text.Fusion (stream, reverseStream, unstream)
+import Data.Text.Private (span_)
 import Data.Text.Internal (Text(..), empty, firstf, safe, text, textP)
 import qualified Prelude as P
-import Data.Text.Unsafe (iter_)
--- import Data.Text.UnsafeChar (unsafeChr)
--- import qualified Data.Text.Util as U
--- import qualified Data.Text.Encoding.Utf16 as U16
--- import Data.Text.Search (indices)
--- #if defined(__HADDOCK__)
--- import Data.ByteString (ByteString)
--- import qualified Data.Text.Lazy as L
--- import Data.Int (Int64)
--- #endif
--- #if __GLASGOW_HASKELL__ >= 702
--- import qualified GHC.CString as GHC
--- #else
--- import qualified GHC.Base as GHC
--- #endif
--- import GHC.Prim (Addr#)
+import Data.Text.Unsafe (Iter(..), iter,
+                         iter_, lengthWord16, reverseIter,
+                         unsafeHead, unsafeTail)
+import Data.Text.UnsafeChar (unsafeChr)
+import qualified Data.Text.Util as U
+import qualified Data.Text.Encoding.Utf16 as U16
+import Data.Text.Search (indices)
+#if defined(__HADDOCK__)
+import Data.ByteString (ByteString)
+import qualified Data.Text.Lazy as L
+import Data.Int (Int64)
+#endif
+--LIQUID #if __GLASGOW_HASKELL__ >= 702
+--LIQUID import qualified GHC.CString as GHC
+--LIQUID #else
+--LIQUID import qualified GHC.Base as GHC
+--LIQUID #endif
+--LIQUID import GHC.Prim (Addr#)
 
 
 --LIQUID
 import Prelude (Integer(..), Num(..), Real(..), Integral(..))
---import Data.Word --(Word16(..))
---import Data.Text.Axioms
+import Data.Word --(Word16(..))
+import Data.Text.Axioms
 import qualified Data.Text.Array
-import qualified Data.Text.Unsafe
-import qualified Data.Word
+import qualified Data.Text.Internal
+import qualified Data.Text.Fusion.Internal
+import qualified Data.Text.Fusion.Size
+import qualified Data.Text.Search
 import Language.Haskell.Liquid.Prelude
+import qualified GHC.ST
 
-{-@ init :: t:{v:Data.Text.Internal.Text | (tlength v) > 0}
-         -> {v:Data.Text.Internal.Text | ((tlength v) = ((tlength t) - 1))}
+{-@ splitAt :: n:{v:Int | v >= 0}
+            -> t:Data.Text.Internal.Text
+            -> ( {v:Data.Text.Internal.Text | (Min (tlength v) (tlength t) n)}
+               , Data.Text.Internal.Text)<{\x y ->
+                              ((tlength y) = ((tlength t) - (tlength x)))}>
   @-}
-init :: Text -> Text
-init t@(Text arr off len)
-    | len <= 0                   = liquidError "init"
-    | n >= 0xDC00 && n <= 0xDFFF = textP arr off (len-2)
-    | otherwise                  = textP arr off (len-1)
-    where
-      --LIQUID n = A.unsafeIndex arr (off+len-1)
-      n = A.unsafeIndexB arr off len (off+len-1)
-{-# INLINE [1] init #-}
+splitAt :: Int -> Text -> (Text, Text)
+splitAt n t@(Text arr off len)
+    | n <= 0    = (empty, t)
+    | n >= len  = (t, empty)
+    | otherwise = loop 0 0
+--LIQUID    | otherwise = (Text arr off k, Text arr (off+k) (len-k))
+--LIQUID  where k = loop_splitAt t n 0 0
+--LIQUID        loop !i !cnt
+--LIQUID            | i >= len || cnt >= n = i
+--LIQUID            | otherwise            = loop (i+d) (cnt+1)
+--LIQUID            where d                = iter_ t i
+    where loop !i !cnt
+              | i >= len || cnt >= n = let len' = liquidAssume (axiom_numchars_split t i) (len-i)
+                                       in ( Text arr off i
+                                          , Text arr (off+i) len')
+              | otherwise            = let d = iter_ t i
+                                           cnt' = cnt + 1
+                                       in loop (i+d) cnt'
+{-# INLINE splitAt #-}
+
+{-@ tails :: t:Data.Text.Internal.Text
+          -> [{v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}]<{\x y ->
+              (tlength x) > (tlength y)}>
+  @-}
+tails :: Text -> [Text]
+tails t | null t    = [empty]
+        | otherwise = t : tails (unsafeTail t)
+
+{-@ null :: t:Data.Text.Internal.Text
+         -> {v:Bool | ((Prop v) <=> ((tlength t) = 0))}
+  @-}
+null :: Text -> Bool
+null (Text _arr _off len) =
+--LIQUID #if defined(ASSERTS)
+    liquidAssert (len >= 0) $
+--LIQUID #endif
+    len <= 0
+{-# INLINE [1] null #-}

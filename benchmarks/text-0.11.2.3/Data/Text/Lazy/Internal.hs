@@ -81,6 +81,12 @@ data Text = Empty
     sum_ltlengths (t:ts) = (ltlength t) + (sum_ltlengths ts)
   @-}
 
+{-@ qualif SumLTLengthsAcc(v:Data.Text.Lazy.Internal.Text,
+                           ts:List Data.Text.Lazy.Internal.Text,
+                           t:Data.Text.Lazy.Internal.Text):
+        ltlength(v) = sum_ltlengths(ts) + ltlength(t)
+  @-}
+
 {-@ invariant {v:Data.Text.Lazy.Internal.Text | (ltlen v) >= 0} @-}
 {-@ invariant {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= 0} @-}
 {-@ invariant {v:[Data.Text.Lazy.Internal.Text] | (sum_ltlengths v) >= 0} @-}
