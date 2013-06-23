@@ -88,15 +88,15 @@ module Data.ByteString (
 
         -- * Building ByteStrings
         -- ** Scans
--- LIQUID        scanl,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
--- LIQUID        scanl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
--- LIQUID        scanr,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
--- LIQUID        scanr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
--- LIQUID
--- LIQUID        -- ** Accumulating maps
--- LIQUID        mapAccumL,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
--- LIQUID        mapAccumR,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
--- LIQUID        mapIndexed,             -- :: (Int -> Word8 -> Word8) -> ByteString -> ByteString
+        scanl,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
+        scanl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
+        scanr,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
+        scanr1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
+
+        -- ** Accumulating maps
+        mapAccumL,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
+        mapAccumR,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
+        mapIndexed,             -- :: (Int -> Word8 -> Word8) -> ByteString -> ByteString
 -- LIQUID
 -- LIQUID        -- ** Generating and unfolding ByteStrings
 -- LIQUID        replicate,              -- :: Int -> Word8 -> ByteString
@@ -885,78 +885,85 @@ minimum xs@(PS x s l)
 {-# INLINE minimum #-}
 
 ------------------------------------------------------------------------
--- LIQUID -- 
--- LIQUID -- -- | The 'mapAccumL' function behaves like a combination of 'map' and
--- LIQUID -- -- 'foldl'; it applies a function to each element of a ByteString,
--- LIQUID -- -- passing an accumulating parameter from left to right, and returning a
--- LIQUID -- -- final value of this accumulator together with the new list.
--- LIQUID -- mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
--- LIQUID -- #if !defined(LOOPU_FUSION)
--- LIQUID -- mapAccumL f z = unSP . loopUp (mapAccumEFL f) z
--- LIQUID -- #else
--- LIQUID -- mapAccumL f z = unSP . loopU (mapAccumEFL f) z
--- LIQUID -- #endif
--- LIQUID -- {-# INLINE mapAccumL #-}
--- LIQUID -- 
--- LIQUID -- -- | The 'mapAccumR' function behaves like a combination of 'map' and
--- LIQUID -- -- 'foldr'; it applies a function to each element of a ByteString,
--- LIQUID -- -- passing an accumulating parameter from right to left, and returning a
--- LIQUID -- -- final value of this accumulator together with the new ByteString.
--- LIQUID -- mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
--- LIQUID -- mapAccumR f z = unSP . loopDown (mapAccumEFL f) z
--- LIQUID -- {-# INLINE mapAccumR #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ map Word8 functions, provided with the index at each position
--- LIQUID -- mapIndexed :: (Int -> Word8 -> Word8) -> ByteString -> ByteString
--- LIQUID -- mapIndexed f = loopArr . loopUp (mapIndexEFL f) 0
--- LIQUID -- {-# INLINE mapIndexed #-}
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Building ByteStrings
--- LIQUID -- 
--- LIQUID -- -- | 'scanl' is similar to 'foldl', but returns a list of successive
--- LIQUID -- -- reduced values from the left. This function will fuse.
--- LIQUID -- --
--- LIQUID -- -- > scanl f z [x1, x2, ...] == [z, z `f` x1, (z `f` x1) `f` x2, ...]
--- LIQUID -- --
--- LIQUID -- -- Note that
--- LIQUID -- --
--- LIQUID -- -- > last (scanl f z xs) == foldl f z xs.
--- LIQUID -- scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
--- LIQUID -- #if !defined(LOOPU_FUSION)
--- LIQUID -- scanl f z ps = loopArr . loopUp (scanEFL f) z $ (ps `snoc` 0)
--- LIQUID -- #else
--- LIQUID -- scanl f z ps = loopArr . loopU (scanEFL f) z $ (ps `snoc` 0)
--- LIQUID -- #endif
--- LIQUID -- 
--- LIQUID --     -- n.b. haskell's List scan returns a list one bigger than the
--- LIQUID --     -- input, so we need to snoc here to get some extra space, however,
--- LIQUID --     -- it breaks map/up fusion (i.e. scanl . map no longer fuses)
--- LIQUID -- {-# INLINE scanl #-}
--- LIQUID -- 
--- LIQUID -- -- | 'scanl1' is a variant of 'scanl' that has no starting value argument.
--- LIQUID -- -- This function will fuse.
--- LIQUID -- --
--- LIQUID -- -- > scanl1 f [x1, x2, ...] == [x1, x1 `f` x2, ...]
--- LIQUID -- scanl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
--- LIQUID -- scanl1 f ps
--- LIQUID --     | null ps   = empty
--- LIQUID --     | otherwise = scanl f (unsafeHead ps) (unsafeTail ps)
--- LIQUID -- {-# INLINE scanl1 #-}
--- LIQUID -- 
--- LIQUID -- -- | scanr is the right-to-left dual of scanl.
--- LIQUID -- scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
--- LIQUID -- scanr f z ps = loopArr . loopDown (scanEFL (flip f)) z $ (0 `cons` ps) -- extra space
--- LIQUID -- {-# INLINE scanr #-}
--- LIQUID -- 
--- LIQUID -- -- | 'scanr1' is a variant of 'scanr' that has no starting value argument.
--- LIQUID -- scanr1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
--- LIQUID -- scanr1 f ps
--- LIQUID --     | null ps   = empty
--- LIQUID --     | otherwise = scanr f (last ps) (init ps) -- todo, unsafe versions
--- LIQUID -- {-# INLINE scanr1 #-}
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
+
+-- | The 'mapAccumL' function behaves like a combination of 'map' and
+-- 'foldl'; it applies a function to each element of a ByteString,
+-- passing an accumulating parameter from left to right, and returning a
+-- final value of this accumulator together with the new list.
+
+{-@ mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString) @-}
+mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
+#if !defined(LOOPU_FUSION)
+mapAccumL f z = unSP . loopUp (mapAccumEFL f) z
+#else
+mapAccumL f z = unSP . loopU (mapAccumEFL f) z
+#endif
+{-# INLINE mapAccumL #-}
+
+-- | The 'mapAccumR' function behaves like a combination of 'map' and
+-- 'foldr'; it applies a function to each element of a ByteString,
+-- passing an accumulating parameter from right to left, and returning a
+-- final value of this accumulator together with the new ByteString.
+
+{-@ mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString) @-}
+mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
+mapAccumR f z = unSP . loopDown (mapAccumEFL f) z
+{-# INLINE mapAccumR #-}
+
+-- | /O(n)/ map Word8 functions, provided with the index at each position
+{-@ mapIndexed :: (Int -> Word8 -> Word8) -> ByteString -> ByteString @-}
+mapIndexed :: (Int -> Word8 -> Word8) -> ByteString -> ByteString
+mapIndexed f = loopArr . loopUp (mapIndexEFL f) 0
+{-# INLINE mapIndexed #-}
+
+-- ---------------------------------------------------------------------
+-- Building ByteStrings
+
+-- | 'scanl' is similar to 'foldl', but returns a list of successive
+-- reduced values from the left. This function will fuse.
+--
+-- > scanl f z [x1, x2, ...] == [z, z `f` x1, (z `f` x1) `f` x2, ...]
+--
+-- Note that
+--
+-- > last (scanl f z xs) == foldl f z xs.
+
+{-@ scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteString | (bLength v) = 1 + (bLength b)}  @-}
+scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
+#if !defined(LOOPU_FUSION)
+scanl f z ps = loopArr . loopUp (scanEFL f) z $ (ps `snoc` 0)
+#else
+scanl f z ps = loopArr . loopU (scanEFL f) z $ (ps `snoc` 0)
+#endif
+
+    -- n.b. haskell's List scan returns a list one bigger than the
+    -- input, so we need to snoc here to get some extra space, however,
+    -- it breaks map/up fusion (i.e. scanl . map no longer fuses)
+{-# INLINE scanl #-}
+
+-- | 'scanl1' is a variant of 'scanl' that has no starting value argument.
+-- This function will fuse.
+--
+-- > scanl1 f [x1, x2, ...] == [x1, x1 `f` x2, ...]
+scanl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
+scanl1 f ps
+    | null ps   = empty
+    | otherwise = scanl f (unsafeHead ps) (unsafeTail ps)
+{-# INLINE scanl1 #-}
+
+-- | scanr is the right-to-left dual of scanl.
+scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
+scanr f z ps = loopArr . loopDown (scanEFL (flip f)) z $ (0 `cons` ps) -- extra space
+{-# INLINE scanr #-}
+
+-- | 'scanr1' is a variant of 'scanr' that has no starting value argument.
+scanr1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
+scanr1 f ps
+    | null ps   = empty
+    | otherwise = scanr f (last ps) (init ps) -- todo, unsafe versions
+{-# INLINE scanr1 #-}
+
+-- ---------------------------------------------------------------------
 -- LIQUID -- -- Unfolds and replicates
 -- LIQUID -- 
 -- LIQUID -- -- | /O(n)/ 'replicate' @n x@ is a ByteString of length @n@ with @x@
