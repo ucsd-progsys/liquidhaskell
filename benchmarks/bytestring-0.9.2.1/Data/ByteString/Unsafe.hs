@@ -139,7 +139,9 @@ unsafeIndex (PS x s l) i = assert (i >= 0 && i < l) $
 
 -- | A variety of 'take' which omits the checks on @n@ so there is an
 -- obligation on the programmer to provide a proof that @0 <= n <= 'length' xs@.
-{-@ unsafeTake, unsafeDrop :: n:Int -> {v: Data.ByteString.Internal.ByteString | (OkIndex v n)} -> Data.ByteString.Internal.ByteString @-}
+{-@ unsafeTake, unsafeDrop :: n:Int 
+                           -> b:{v: Data.ByteString.Internal.ByteString | (OkIndex v n)} 
+                           -> {v:Data.ByteString.Internal.ByteString | (bLength v) <= (bLength b)} @-}
 unsafeTake :: Int -> ByteString -> ByteString
 unsafeTake n (PS x s l) = assert (0 <= n && n <= l) $ PS x s n
 {-# INLINE unsafeTake #-}

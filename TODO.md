@@ -40,6 +40,7 @@ Ordered by dependency.
    509 Data/ByteString/Internal.hs          [OK]
    700 Data/ByteString/Fusion.hs            [OK]
   1928 Data/ByteString.hs                   [**]
+  
   1322 Data/ByteString/Lazy.hs               
    822 Data/ByteString/Lazy/Char8.hs
   1012 Data/ByteString/Char8.hs
