@@ -81,13 +81,13 @@ module Data.ByteString (
         -- ** Special folds
         concat,                 -- :: [ByteString] -> ByteString
         concatMap,              -- :: (Word8 -> ByteString) -> ByteString -> ByteString
--- LIQUID        any,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
--- LIQUID        all,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
--- LIQUID        maximum,                -- :: ByteString -> Word8
--- LIQUID        minimum,                -- :: ByteString -> Word8
--- LIQUID
--- LIQUID        -- * Building ByteStrings
--- LIQUID        -- ** Scans
+        any,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
+        all,                    -- :: (Word8 -> Bool) -> ByteString -> Bool
+        maximum,                -- :: ByteString -> Word8
+        minimum,                -- :: ByteString -> Word8
+
+        -- * Building ByteStrings
+        -- ** Scans
 -- LIQUID        scanl,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
 -- LIQUID        scanl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
 -- LIQUID        scanr,                  -- :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
@@ -827,60 +827,64 @@ concatMap f = concat . foldr ((:) . f) []
 
 -- foldr (append . f) empty
 
--- LIQUID -- -- | /O(n)/ Applied to a predicate and a ByteString, 'any' determines if
--- LIQUID -- -- any element of the 'ByteString' satisfies the predicate.
--- LIQUID -- any :: (Word8 -> Bool) -> ByteString -> Bool
--- LIQUID -- any _ (PS _ _ 0) = False
--- LIQUID -- any f (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
--- LIQUID --         go (ptr `plusPtr` s) (ptr `plusPtr` (s+l))
--- LIQUID --     where
--- LIQUID --         STRICT2(go)
--- LIQUID --         go p q | p == q    = return False
--- LIQUID --                | otherwise = do c <- peek p
--- LIQUID --                                 if f c then return True
--- LIQUID --                                        else go (p `plusPtr` 1) q
--- LIQUID -- {-# INLINE any #-}
--- LIQUID -- 
--- LIQUID -- -- todo fuse
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ Applied to a predicate and a 'ByteString', 'all' determines
--- LIQUID -- -- if all elements of the 'ByteString' satisfy the predicate.
--- LIQUID -- all :: (Word8 -> Bool) -> ByteString -> Bool
--- LIQUID -- all _ (PS _ _ 0) = True
--- LIQUID -- all f (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
--- LIQUID --         go (ptr `plusPtr` s) (ptr `plusPtr` (s+l))
--- LIQUID --     where
--- LIQUID --         STRICT2(go)
--- LIQUID --         go p q | p == q     = return True  -- end of list
--- LIQUID --                | otherwise  = do c <- peek p
--- LIQUID --                                  if f c
--- LIQUID --                                     then go (p `plusPtr` 1) q
--- LIQUID --                                     else return False
--- LIQUID -- {-# INLINE all #-}
--- LIQUID -- 
--- LIQUID -- ------------------------------------------------------------------------
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'maximum' returns the maximum value from a 'ByteString'
--- LIQUID -- -- This function will fuse.
--- LIQUID -- -- An exception will be thrown in the case of an empty ByteString.
--- LIQUID -- maximum :: ByteString -> Word8
--- LIQUID -- maximum xs@(PS x s l)
--- LIQUID --     | null xs   = errorEmptyList "maximum"
--- LIQUID --     | otherwise = inlinePerformIO $ withForeignPtr x $ \p ->
--- LIQUID --                       c_maximum (p `plusPtr` s) (fromIntegral l)
--- LIQUID -- {-# INLINE maximum #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'minimum' returns the minimum value from a 'ByteString'
--- LIQUID -- -- This function will fuse.
--- LIQUID -- -- An exception will be thrown in the case of an empty ByteString.
--- LIQUID -- minimum :: ByteString -> Word8
--- LIQUID -- minimum xs@(PS x s l)
--- LIQUID --     | null xs   = errorEmptyList "minimum"
--- LIQUID --     | otherwise = inlinePerformIO $ withForeignPtr x $ \p ->
--- LIQUID --                       c_minimum (p `plusPtr` s) (fromIntegral l)
--- LIQUID -- {-# INLINE minimum #-}
--- LIQUID -- 
--- LIQUID -- ------------------------------------------------------------------------
+-- | /O(n)/ Applied to a predicate and a ByteString, 'any' determines if
+-- any element of the 'ByteString' satisfies the predicate.
+any :: (Word8 -> Bool) -> ByteString -> Bool
+any _ (PS _ _ 0) = False
+any f (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
+        go (ptr `plusPtr` s) (ptr `plusPtr` (s+l))
+    where
+        STRICT2(go)
+        go p q | p == q    = return False
+               | otherwise = do let p' = liquid_thm_ptr_cmp p q     -- LIQUID
+                                c <- peek p'
+                                if f c then return True
+                                       else go (p' `plusPtr` 1) q
+{-# INLINE any #-}
+
+-- todo fuse
+
+-- | /O(n)/ Applied to a predicate and a 'ByteString', 'all' determines
+-- if all elements of the 'ByteString' satisfy the predicate.
+all :: (Word8 -> Bool) -> ByteString -> Bool
+all _ (PS _ _ 0) = True
+all f (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
+        go (ptr `plusPtr` s) (ptr `plusPtr` (s+l))
+    where
+        STRICT2(go)
+        go p q | p == q     = return True  -- end of list
+               | otherwise  = do let p' = liquid_thm_ptr_cmp p q     -- LIQUID
+                                 c <- peek p'
+                                 if f c
+                                    then go (p' `plusPtr` 1) q
+                                    else return False
+{-# INLINE all #-}
+
+------------------------------------------------------------------------
+
+-- | /O(n)/ 'maximum' returns the maximum value from a 'ByteString'
+-- This function will fuse.
+-- An exception will be thrown in the case of an empty ByteString.
+{-@ maximum :: ByteStringNE -> Word8 @-}
+maximum :: ByteString -> Word8
+maximum xs@(PS x s l)
+    | null xs   = errorEmptyList "maximum"
+    | otherwise = inlinePerformIO $ withForeignPtr x $ \p ->
+                      c_maximum (p `plusPtr` s) (fromIntegral l)
+{-# INLINE maximum #-}
+
+-- | /O(n)/ 'minimum' returns the minimum value from a 'ByteString'
+-- This function will fuse.
+-- An exception will be thrown in the case of an empty ByteString.
+{-@ minimum :: ByteStringNE -> Word8 @-}
+minimum :: ByteString -> Word8
+minimum xs@(PS x s l)
+    | null xs   = errorEmptyList "minimum"
+    | otherwise = inlinePerformIO $ withForeignPtr x $ \p ->
+                      c_minimum (p `plusPtr` s) (fromIntegral l)
+{-# INLINE minimum #-}
+
+------------------------------------------------------------------------
 -- LIQUID -- 
 -- LIQUID -- -- | The 'mapAccumL' function behaves like a combination of 'map' and
 -- LIQUID -- -- 'foldl'; it applies a function to each element of a ByteString,
