@@ -976,20 +976,20 @@ scanr1 f ps
 {-# INLINE scanr1 #-}
 
 -- ---------------------------------------------------------------------
--- LIQUID -- -- Unfolds and replicates
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'replicate' @n x@ is a ByteString of length @n@ with @x@
--- LIQUID -- -- the value of every element. The following holds:
--- LIQUID -- --
--- LIQUID -- -- > replicate w c = unfoldr w (\u -> Just (u,u)) c
--- LIQUID -- --
--- LIQUID -- -- This implemenation uses @memset(3)@
--- LIQUID -- replicate :: Int -> Word8 -> ByteString
--- LIQUID -- replicate w c
--- LIQUID --     | w <= 0    = empty
--- LIQUID --     | otherwise = unsafeCreate w $ \ptr ->
--- LIQUID --                       memset ptr c (fromIntegral w) >> return ()
--- LIQUID -- 
+-- Unfolds and replicates
+
+-- | /O(n)/ 'replicate' @n x@ is a ByteString of length @n@ with @x@
+-- the value of every element. The following holds:
+--
+-- > replicate w c = unfoldr w (\u -> Just (u,u)) c
+--
+-- This implemenation uses @memset(3)@
+replicate :: Int -> Word8 -> ByteString
+replicate w c
+    | w <= 0    = empty
+    | otherwise = unsafeCreate w $ \ptr ->
+                      memset ptr c (fromIntegral w) >> return ()
+
 -- LIQUID -- -- | /O(n)/, where /n/ is the length of the result.  The 'unfoldr' 
 -- LIQUID -- -- function is analogous to the List \'unfoldr\'.  'unfoldr' builds a 
 -- LIQUID -- -- ByteString from a seed value.  The function takes the element and 
