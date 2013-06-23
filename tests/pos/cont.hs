@@ -1,5 +1,6 @@
 module Cont where
 
+{-@ cont :: forall <p :: Int -> Prop>. (() -> Int<p>) -> Int<p> @-}
 cont :: (() -> Int) -> Int
 cont f = f () 
 
