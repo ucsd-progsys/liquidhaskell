@@ -209,6 +209,11 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ qualif FPLenPos(v: ForeignPtr a): 0 <= (fplen v)               @-}
 {-@ qualif PLenPos(v: Ptr a): 0 <= (plen v)                        @-}
 
+{- qualif EqPLenPOLY2(v: a, x: b): (plen v) = (fplen x)           -}
+{- qualif EqPLenPOLY(v: a, x: b)    : v = (plen x)  -}
+{- qualif EqPLenPOLY1(v:  a, x: b): (fplen v) = (plen x)          -}
+
+
 -------------------------------------------------------------------------
 
 instance Show ByteString where

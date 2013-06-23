@@ -60,15 +60,15 @@ module Data.ByteString (
         null,                   -- :: ByteString -> Bool
         length,                 -- :: ByteString -> Int
 
--- LIQUID        -- * Transforming ByteStrings
--- LIQUID        map,                    -- :: (Word8 -> Word8) -> ByteString -> ByteString
--- LIQUID        reverse,                -- :: ByteString -> ByteString
--- LIQUID        intersperse,            -- :: Word8 -> ByteString -> ByteString
+        -- * Transforming ByteStrings
+        map,                    -- :: (Word8 -> Word8) -> ByteString -> ByteString
+        reverse,                -- :: ByteString -> ByteString
+        intersperse,            -- :: Word8 -> ByteString -> ByteString
 -- LIQUID        intercalate,            -- :: ByteString -> [ByteString] -> ByteString
--- LIQUID        transpose,              -- :: [ByteString] -> [ByteString]
--- LIQUID
--- LIQUID        -- * Reducing 'ByteString's (folds)
--- LIQUID        foldl,                  -- :: (a -> Word8 -> a) -> a -> ByteString -> a
+        transpose,              -- :: [ByteString] -> [ByteString]
+
+        -- * Reducing 'ByteString's (folds)
+        foldl,                  -- :: (a -> Word8 -> a) -> a -> ByteString -> a
 -- LIQUID        foldl',                 -- :: (a -> Word8 -> a) -> a -> ByteString -> a
 -- LIQUID        foldl1,                 -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
 -- LIQUID        foldl1',                -- :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
@@ -302,8 +302,11 @@ wantReadableHandleLIQUID :: String -> Handle -> (Handle__ -> IO a) -> IO a
 wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUIDCOMPAT"
 
 {-@ qualif Gimme(v:a, n:b, acc:a): (len v) = (n + 1 + (len acc)) @-}
+{-@ qualif Zog(v:a, p:a)         : (plen p) <= (plen v)          @-}
+{-@ qualif Zog(v:a)              : 0 <= (plen v)                 @-}
 
-{-@ type ByteStringNE = {v:ByteString | (bLength v) > 0} @-}
+{-@ type ByteStringNE   = {v:ByteString | (bLength v) > 0} @-}
+{-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)} @-}
 -- -----------------------------------------------------------------------------
 --
 -- Useful macros, until we have bang patterns
@@ -613,73 +616,98 @@ init ps@(PS p s l)
 -- LIQUID --              | null ys   = xs
 -- LIQUID --              | otherwise = concat [xs,ys]
 -- LIQUID -- {-# INLINE append #-}
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Transformations
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'map' @f xs@ is the ByteString obtained by applying @f@ to each
--- LIQUID -- -- element of @xs@. This function is subject to array fusion.
--- LIQUID -- map :: (Word8 -> Word8) -> ByteString -> ByteString
--- LIQUID -- map f (PS fp s len) = inlinePerformIO $ withForeignPtr fp $ \a ->
--- LIQUID --     create len $ map_ 0 (a `plusPtr` s)
--- LIQUID --   where
--- LIQUID --     map_ :: Int -> Ptr Word8 -> Ptr Word8 -> IO ()
--- LIQUID --     STRICT3(map_)
--- LIQUID --     map_ n p1 p2
--- LIQUID --        | n >= len = return ()
--- LIQUID --        | otherwise = do
--- LIQUID --             x <- peekByteOff p1 n
--- LIQUID --             pokeByteOff p2 n (f x)
--- LIQUID --             map_ (n+1) p1 p2
--- LIQUID -- {-# INLINE map #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'reverse' @xs@ efficiently returns the elements of @xs@ in reverse order.
--- LIQUID -- reverse :: ByteString -> ByteString
--- LIQUID -- reverse (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
--- LIQUID --         c_reverse p (f `plusPtr` s) (fromIntegral l)
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ The 'intersperse' function takes a 'Word8' and a
--- LIQUID -- -- 'ByteString' and \`intersperses\' that byte between the elements of
--- LIQUID -- -- the 'ByteString'.  It is analogous to the intersperse function on
--- LIQUID -- -- Lists.
--- LIQUID -- intersperse :: Word8 -> ByteString -> ByteString
--- LIQUID -- intersperse c ps@(PS x s l)
--- LIQUID --     | length ps < 2  = ps
--- LIQUID --     | otherwise      = unsafeCreate (2*l-1) $ \p -> withForeignPtr x $ \f ->
--- LIQUID --         c_intersperse p (f `plusPtr` s) (fromIntegral l) c
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- intersperse c = pack . List.intersperse c . unpack
--- LIQUID -- -}
--- LIQUID -- 
--- LIQUID -- -- | The 'transpose' function transposes the rows and columns of its
--- LIQUID -- -- 'ByteString' argument.
--- LIQUID -- transpose :: [ByteString] -> [ByteString]
--- LIQUID -- transpose ps = P.map pack (List.transpose (P.map unpack ps))
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Reducing 'ByteString's
--- LIQUID -- 
--- LIQUID -- -- | 'foldl', applied to a binary operator, a starting value (typically
--- LIQUID -- -- the left-identity of the operator), and a ByteString, reduces the
--- LIQUID -- -- ByteString using the binary operator, from left to right.
--- LIQUID -- -- This function is subject to array fusion.
--- LIQUID -- foldl :: (a -> Word8 -> a) -> a -> ByteString -> a
--- LIQUID -- foldl f v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
--- LIQUID --         lgo v (ptr `plusPtr` s) (ptr `plusPtr` (s+l))
--- LIQUID --     where
--- LIQUID --         STRICT3(lgo)
--- LIQUID --         lgo z p q | p == q    = return z
--- LIQUID --                   | otherwise = do c <- peek p
--- LIQUID --                                    lgo (f z c) (p `plusPtr` 1) q
--- LIQUID -- {-# INLINE foldl #-}
--- LIQUID -- 
--- LIQUID -- -- | 'foldl\'' is like 'foldl', but strict in the accumulator.
--- LIQUID -- -- Though actually foldl is also strict in the accumulator.
--- LIQUID -- foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a
--- LIQUID -- foldl' = foldl
--- LIQUID -- {-# INLINE foldl' #-}
--- LIQUID -- 
+
+-- ---------------------------------------------------------------------
+-- Transformations
+
+-- | /O(n)/ 'map' @f xs@ is the ByteString obtained by applying @f@ to each
+-- element of @xs@. This function is subject to array fusion.
+{-@ map :: (Word8 -> Word8) -> b:ByteString -> (ByteStringSZ b) @-}
+map :: (Word8 -> Word8) -> ByteString -> ByteString
+map f (PS fp s len) = inlinePerformIO $ withForeignPtr fp $ \a ->
+    create len $ map_ 0 (a `plusPtr` s)
+  where
+    map_ :: Int -> Ptr Word8 -> Ptr Word8 -> IO ()
+    STRICT3(map_)
+    map_ n p1 p2
+       | n >= len = return ()
+       | otherwise = do
+            x <- peekByteOff p1 n
+            pokeByteOff p2 n (f x)
+            map_ (n+1) p1 p2
+{-# INLINE map #-}
+
+-- | /O(n)/ 'reverse' @xs@ efficiently returns the elements of @xs@ in reverse order.
+
+{-@ reverse :: b:ByteString -> (ByteStringSZ b) @-}
+reverse :: ByteString -> ByteString
+reverse (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
+        c_reverse p (f `plusPtr` s) (fromIntegral l)
+
+-- | /O(n)/ The 'intersperse' function takes a 'Word8' and a
+-- 'ByteString' and \`intersperses\' that byte between the elements of
+-- the 'ByteString'.  It is analogous to the intersperse function on
+-- Lists.
+{-@ intersperse :: Word8 -> b:ByteString -> {v:ByteString | (((bLength b) >= 2) => ((bLength v) = (2 * (bLength b)) - 1)) } @-}
+intersperse :: Word8 -> ByteString -> ByteString
+intersperse c ps@(PS x s l)
+    | length ps < 2  = ps
+    | otherwise      = unsafeCreate ({- 2*l -} (l + l) - 1) $ \p -> withForeignPtr x $ \f ->
+        c_intersperse p (f `plusPtr` s) (fromIntegral l) c
+
+{-
+intersperse c = pack . List.intersperse c . unpack
+-}
+
+-- | The 'transpose' function transposes the rows and columns of its
+-- 'ByteString' argument.
+transpose :: [ByteString] -> [ByteString]
+transpose ps = P.map pack (List.transpose (P.map unpack ps))
+
+-- ---------------------------------------------------------------------
+-- Reducing 'ByteString's
+
+-- | 'foldl', applied to a binary operator, a starting value (typically
+-- the left-identity of the operator), and a ByteString, reduces the
+-- ByteString using the binary operator, from left to right.
+-- This function is subject to array fusion.
+
+{-@ foldl :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
+foldl :: (a -> Word8 -> a) -> a -> ByteString -> a
+foldl :: (a -> Word8 -> a) -> a -> ByteString -> a
+foldl f v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
+        lgo v (ptr `plusPtr` s) (ptr `plusPtr` (s+l))
+    where
+        STRICT3(lgo)
+        lgo z p q | p == q    = return z
+                  | otherwise = do let p' = liquid_thm_ptr_cmp p q 
+                                   c <- peek p'
+                                   lgo (f z c) (p' `plusPtr` 1) q
+-- LIQUID foldl f v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
+-- LIQUID         lgo v (ptr `plusPtr` s) (ptr `plusPtr` (s+l))
+-- LIQUID     where
+-- LIQUID         STRICT3(lgo)
+-- LIQUID         lgo z p q | p == q    = return z
+-- LIQUID                   | otherwise = do c <- peek p
+-- LIQUID                                    lgo (f z c) (p `plusPtr` 1) q
+{-# INLINE foldl #-}
+
+-- LIQUID: This will go away when we properly embed Ptr a as int -- only in
+-- fixpoint to avoid the Sort mismatch hassles. 
+{-@ liquid_thm_ptr_cmp :: p:PtrV a 
+                       -> q:{v:(PtrV a) | ((plen v) <= (plen p) && v != p && (pbase v) = (pbase p))} 
+                       -> {v: (PtrV a)  | ((v = p) && ((plen q) < (plen p))) } 
+  @-}
+liquid_thm_ptr_cmp :: Ptr a -> Ptr a -> Ptr a
+liquid_thm_ptr_cmp p q = p 
+
+
+-- | 'foldl\'' is like 'foldl', but strict in the accumulator.
+-- Though actually foldl is also strict in the accumulator.
+foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a
+foldl' = foldl
+{-# INLINE foldl' #-}
+
 -- LIQUID -- -- | 'foldr', applied to a binary operator, a starting value
 -- LIQUID -- -- (typically the right-identity of the operator), and a ByteString,
 -- LIQUID -- -- reduces the ByteString using the binary operator, from right to left.
