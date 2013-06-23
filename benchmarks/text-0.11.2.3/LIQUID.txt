@@ -32,6 +32,9 @@ FIXME: there's a strange issue where desugaring a guard results in a
        `realWorld#`s and falses with no effect on the safety
        judgment.
 
+FIXME: another weird issue in Text.small.hs.fq.bk. a duplicate
+       qualifier is mined and seems to cause a constraint to be unsat.
+
 Other interesting modules:
 - Data.Text.Encoding (need to fix type for c_decode_utf8 and prove ptr safety)
 - Data.Text.Lazy.Encoding
