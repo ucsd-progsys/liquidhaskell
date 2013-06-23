@@ -674,7 +674,6 @@ transpose ps = P.map pack (List.transpose (P.map unpack ps))
 
 {-@ foldl :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
 foldl :: (a -> Word8 -> a) -> a -> ByteString -> a
-foldl :: (a -> Word8 -> a) -> a -> ByteString -> a
 foldl f v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
         lgo v (ptr `plusPtr` s) (ptr `plusPtr` (s+l))
     where
@@ -683,13 +682,6 @@ foldl f v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
                   | otherwise = do let p' = liquid_thm_ptr_cmp p q 
                                    c <- peek p'
                                    lgo (f z c) (p' `plusPtr` 1) q
--- LIQUID foldl f v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
--- LIQUID         lgo v (ptr `plusPtr` s) (ptr `plusPtr` (s+l))
--- LIQUID     where
--- LIQUID         STRICT3(lgo)
--- LIQUID         lgo z p q | p == q    = return z
--- LIQUID                   | otherwise = do c <- peek p
--- LIQUID                                    lgo (f z c) (p `plusPtr` 1) q
 {-# INLINE foldl #-}
 
 -- LIQUID: This will go away when we properly embed Ptr a as int -- only in
@@ -699,28 +691,29 @@ foldl f v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
                        -> {v: (PtrV a)  | ((v = p) && ((plen q) < (plen p))) } 
   @-}
 liquid_thm_ptr_cmp :: Ptr a -> Ptr a -> Ptr a
-liquid_thm_ptr_cmp p q = p 
+liquid_thm_ptr_cmp p q = undefined -- p -- LIQUID : make this undefined to suppress WARNING
 
 
 -- | 'foldl\'' is like 'foldl', but strict in the accumulator.
 -- Though actually foldl is also strict in the accumulator.
+{-@ foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
 foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a
 foldl' = foldl
 {-# INLINE foldl' #-}
 
--- LIQUID -- -- | 'foldr', applied to a binary operator, a starting value
--- LIQUID -- -- (typically the right-identity of the operator), and a ByteString,
--- LIQUID -- -- reduces the ByteString using the binary operator, from right to left.
--- LIQUID -- foldr :: (Word8 -> a -> a) -> a -> ByteString -> a
--- LIQUID -- foldr k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
--- LIQUID --         go v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1))
--- LIQUID --     where
--- LIQUID --         STRICT3(go)
--- LIQUID --         go z p q | p == q    = return z
--- LIQUID --                  | otherwise = do c  <- peek p
--- LIQUID --                                   go (c `k` z) (p `plusPtr` (-1)) q -- tail recursive
--- LIQUID -- {-# INLINE foldr #-}
--- LIQUID -- 
+-- | 'foldr', applied to a binary operator, a starting value
+-- (typically the right-identity of the operator), and a ByteString,
+-- reduces the ByteString using the binary operator, from right to left.
+foldr :: (Word8 -> a -> a) -> a -> ByteString -> a
+foldr k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
+        go v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1))
+    where
+        STRICT3(go)
+        go z p q | p == q    = return z
+                 | otherwise = do c  <- peek p
+                                  go (c `k` z) (p `plusPtr` (-1)) q -- tail recursive
+{-# INLINE foldr #-}
+
 -- LIQUID -- -- | 'foldr\'' is like 'foldr', but strict in the accumulator.
 -- LIQUID -- foldr' :: (Word8 -> a -> a) -> a -> ByteString -> a
 -- LIQUID -- foldr' k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
