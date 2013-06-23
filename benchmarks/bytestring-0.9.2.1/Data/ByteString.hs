@@ -102,13 +102,13 @@ module Data.ByteString (
         replicate,              -- :: Int -> Word8 -> ByteString
         unfoldr,                -- :: (a -> Maybe (Word8, a)) -> a -> ByteString
         unfoldrN,               -- :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
--- LIQUID
--- LIQUID        -- * Substrings
--- LIQUID
--- LIQUID        -- ** Breaking strings
--- LIQUID        take,                   -- :: Int -> ByteString -> ByteString
--- LIQUID        drop,                   -- :: Int -> ByteString -> ByteString
--- LIQUID        splitAt,                -- :: Int -> ByteString -> (ByteString, ByteString)
+
+        -- * Substrings
+
+        -- ** Breaking strings
+        take,                   -- :: Int -> ByteString -> ByteString
+        drop,                   -- :: Int -> ByteString -> ByteString
+        splitAt,                -- :: Int -> ByteString -> (ByteString, ByteString)
 -- LIQUID        takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
 -- LIQUID        dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
 -- LIQUID        span,                   -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
