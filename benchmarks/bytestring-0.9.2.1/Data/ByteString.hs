@@ -1120,67 +1120,67 @@ breakByte c p = case elemIndex c p of
     Just n  -> (unsafeTake n p, unsafeDrop n p)
 {-# INLINE breakByte #-}
 
--- LIQUID -- -- | 'breakEnd' behaves like 'break' but from the end of the 'ByteString'
--- LIQUID -- -- 
--- LIQUID -- -- breakEnd p == spanEnd (not.p)
--- LIQUID -- breakEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID -- breakEnd  p ps = splitAt (findFromEndUntil p ps) ps
--- LIQUID -- 
--- LIQUID -- -- | 'span' @p xs@ breaks the ByteString into two segments. It is
--- LIQUID -- -- equivalent to @('takeWhile' p xs, 'dropWhile' p xs)@
--- LIQUID -- span :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID -- span p ps = break (not . p) ps
--- LIQUID -- #if __GLASGOW_HASKELL__
--- LIQUID -- {-# INLINE [1] span #-}
--- LIQUID -- #endif
--- LIQUID -- 
--- LIQUID -- -- | 'spanByte' breaks its ByteString argument at the first
--- LIQUID -- -- occurence of a byte other than its argument. It is more efficient
--- LIQUID -- -- than 'span (==)'
--- LIQUID -- --
--- LIQUID -- -- > span  (=='c') "abcd" == spanByte 'c' "abcd"
--- LIQUID -- --
--- LIQUID -- spanByte :: Word8 -> ByteString -> (ByteString, ByteString)
--- LIQUID -- spanByte c ps@(PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
--- LIQUID --     go (p `plusPtr` s) 0
--- LIQUID --   where
--- LIQUID --     STRICT2(go)
--- LIQUID --     go p i | i >= l    = return (ps, empty)
--- LIQUID --            | otherwise = do c' <- peekByteOff p i
--- LIQUID --                             if c /= c'
--- LIQUID --                                 then return (unsafeTake i ps, unsafeDrop i ps)
--- LIQUID --                                 else go p (i+1)
--- LIQUID -- {-# INLINE spanByte #-}
--- LIQUID -- 
--- LIQUID -- {-# RULES
--- LIQUID -- "FPS specialise span (x==)" forall x.
--- LIQUID --     span ((==) x) = spanByte x
--- LIQUID -- "FPS specialise span (==x)" forall x.
--- LIQUID --     span (==x) = spanByte x
--- LIQUID --   #-}
--- LIQUID -- 
--- LIQUID -- -- | 'spanEnd' behaves like 'span' but from the end of the 'ByteString'.
--- LIQUID -- -- We have
--- LIQUID -- --
--- LIQUID -- -- > spanEnd (not.isSpace) "x y z" == ("x y ","z")
--- LIQUID -- --
--- LIQUID -- -- and
--- LIQUID -- --
--- LIQUID -- -- > spanEnd (not . isSpace) ps
--- LIQUID -- -- >    == 
--- LIQUID -- -- > let (x,y) = span (not.isSpace) (reverse ps) in (reverse y, reverse x) 
--- LIQUID -- --
--- LIQUID -- spanEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID -- spanEnd  p ps = splitAt (findFromEndUntil (not.p) ps) ps
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ Splits a 'ByteString' into components delimited by
--- LIQUID -- -- separators, where the predicate returns True for a separator element.
--- LIQUID -- -- The resulting components do not contain the separators.  Two adjacent
--- LIQUID -- -- separators result in an empty component in the output.  eg.
--- LIQUID -- --
--- LIQUID -- -- > splitWith (=='a') "aabbaca" == ["","","bb","c",""]
--- LIQUID -- -- > splitWith (=='a') []        == []
--- LIQUID -- --
+-- | 'breakEnd' behaves like 'break' but from the end of the 'ByteString'
+-- 
+-- breakEnd p == spanEnd (not.p)
+breakEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+breakEnd  p ps = splitAt (findFromEndUntil p ps) ps
+
+-- | 'span' @p xs@ breaks the ByteString into two segments. It is
+-- equivalent to @('takeWhile' p xs, 'dropWhile' p xs)@
+span :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+span p ps = break (not . p) ps
+#if __GLASGOW_HASKELL__
+{-# INLINE [1] span #-}
+#endif
+
+-- | 'spanByte' breaks its ByteString argument at the first
+-- occurence of a byte other than its argument. It is more efficient
+-- than 'span (==)'
+--
+-- > span  (=='c') "abcd" == spanByte 'c' "abcd"
+--
+spanByte :: Word8 -> ByteString -> (ByteString, ByteString)
+spanByte c ps@(PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
+    go (p `plusPtr` s) 0
+  where
+    STRICT2(go)
+    go p i | i >= l    = return (ps, empty)
+           | otherwise = do c' <- peekByteOff p i
+                            if c /= c'
+                                then return (unsafeTake i ps, unsafeDrop i ps)
+                                else go p (i+1)
+{-# INLINE spanByte #-}
+
+{-# RULES
+"FPS specialise span (x==)" forall x.
+    span ((==) x) = spanByte x
+"FPS specialise span (==x)" forall x.
+    span (==x) = spanByte x
+  #-}
+
+-- | 'spanEnd' behaves like 'span' but from the end of the 'ByteString'.
+-- We have
+--
+-- > spanEnd (not.isSpace) "x y z" == ("x y ","z")
+--
+-- and
+--
+-- > spanEnd (not . isSpace) ps
+-- >    == 
+-- > let (x,y) = span (not.isSpace) (reverse ps) in (reverse y, reverse x) 
+--
+spanEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+spanEnd  p ps = splitAt (findFromEndUntil (not.p) ps) ps
+
+-- | /O(n)/ Splits a 'ByteString' into components delimited by
+-- separators, where the predicate returns True for a separator element.
+-- The resulting components do not contain the separators.  Two adjacent
+-- separators result in an empty component in the output.  eg.
+--
+-- > splitWith (=='a') "aabbaca" == ["","","bb","c",""]
+-- > splitWith (=='a') []        == []
+--
 -- LIQUID -- splitWith :: (Word8 -> Bool) -> ByteString -> [ByteString]
 -- LIQUID -- 
 -- LIQUID -- #if defined(__GLASGOW_HASKELL__)
@@ -2113,12 +2113,12 @@ moduleError :: String -> String -> a
 moduleError fun msg = error ("Data.ByteString." ++ fun ++ ':':' ':msg)
 {-# NOINLINE moduleError #-}
 
--- LIQUID -- -- Find from the end of the string using predicate
--- LIQUID -- findFromEndUntil :: (Word8 -> Bool) -> ByteString -> Int
--- LIQUID -- STRICT2(findFromEndUntil)
--- LIQUID -- findFromEndUntil f ps@(PS x s l) =
--- LIQUID --     if null ps then 0
--- LIQUID --     else if f (last ps) then l
--- LIQUID --          else findFromEndUntil f (PS x s (l-1))
+-- Find from the end of the string using predicate
+findFromEndUntil :: (Word8 -> Bool) -> ByteString -> Int
+STRICT2(findFromEndUntil)
+findFromEndUntil f ps@(PS x s l) =
+    if null ps then 0
+    else if f (last ps) then l
+         else findFromEndUntil f (PS x s (l-1))
 
 
