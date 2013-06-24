@@ -92,6 +92,11 @@ import Foreign.C.Types
 import qualified GHC.Prim
 import Language.Haskell.Liquid.Prelude
 
+{-@ predicate Btwn V X Y   = ((X <= V) && (V < Y)) @-}
+{-@ predicate BtwnE V X Y  = ((X < V)  && (V < Y)) @-}
+{-@ predicate BtwnI V X Y  = ((X <= V) && (V <= Y)) @-}
+{-@ predicate BtwnEI V X Y = ((X < V)  && (V <= Y)) @-}
+
 -- | Immutable array type.
 data Array = Array {
       aBA :: ByteArray#
