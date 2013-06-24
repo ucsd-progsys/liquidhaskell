@@ -247,11 +247,14 @@ moduleFile :: GhcMonad m => [FilePath] -> String -> Ext -> m (Maybe FilePath)
 moduleFile paths name ext
   | ext `elem` [Hs, LHs]
   = do mg <- getModuleGraph
-       return $ do ms <- find ((==name) . moduleNameString . ms_mod_name) mg
-                   normalise <$> ml_hs_file (ms_location ms)
+       case find ((==name) . moduleNameString . ms_mod_name) mg of
+         Nothing -> liftIO $ getFileInDirs (extModuleName name ext) paths
+         Just ms -> return $ normalise <$> ml_hs_file (ms_location ms)
   | otherwise
   = do liftIO $ getFileInDirs (extModuleName name ext) paths
 
+isJust Nothing = False
+isJust (Just a) = True
 
 --moduleImports ext paths names 
 --  = liftIO $ liftM catMaybes $ forM extNames (namePath paths)
