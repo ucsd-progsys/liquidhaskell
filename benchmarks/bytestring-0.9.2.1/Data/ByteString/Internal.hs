@@ -185,6 +185,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 {-@ predicate BSValid Payload Offset Length = (Offset + Length <= (fplen Payload)) @-}
 
+
 {- predicate OkIndex B I = ((0 <= I) && (I <= (bLength B))) -}
 
 {-@ predicate OkPLen N P  = (N <= (plen P))                 @-}
@@ -207,13 +208,16 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 {-@ qualif EqFPLen(v: a, x: ForeignPtr b): v = (fplen x)           @-}
 {-@ qualif EqPLen(v: a, x: Ptr b): v = (plen x)                    @-}
-{-@ qualif EqPLen(v: ForeignPtr a, x: Ptr a): (fplen v) = (plen x) @-}
-{-@ qualif EqPLen(v: Ptr a, x: ForeignPtr a): (plen v) = (fplen x) @-}
+{-@ qualif EqPLen(v: ForeignPtr a, x: Ptr b): (fplen v) = (plen x) @-}
+{-@ qualif EqPLen(v: Ptr a, x: ForeignPtr b): (plen v) = (fplen x) @-}
 {-@ qualif PValid(v: Int, p: Ptr a): v <= (plen p)                 @-}
 {-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p)                   @-}
 {-@ qualif FPLenPos(v: ForeignPtr a): 0 <= (fplen v)               @-}
 {-@ qualif PLenPos(v: Ptr a): 0 <= (plen v)                        @-}
 {-@ qualif SplitWith(v:a, l:Int): ((bLengths v) + (len v) - 1) = l @-}
+{-@ qualif BSValidFP(p:a, o:Int, l:Int): (o + l) <= (fplen p)     @-}
+{-@ qualif BSValidP(p:a, o:Int, l:Int) : (o + l) <= (plen p)       @-}
+
 
 {- qualif EqPLenPOLY2(v: a, x: b): (plen v) = (fplen x)           -}
 {- qualif EqPLenPOLY(v: a, x: b)    : v = (plen x)  -}

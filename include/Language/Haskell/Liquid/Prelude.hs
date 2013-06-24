@@ -4,6 +4,7 @@ module Language.Haskell.Liquid.Prelude where
 
 import Foreign.C.Types          (CSize(..))
 import Foreign.Ptr
+import Foreign.ForeignPtr
 import GHC.Base
 
 -------------------------------------------------------------------
@@ -135,3 +136,13 @@ mkPtr x = undefined -- Ptr x
 isNullPtr :: Ptr a -> Bool
 isNullPtr p = (p == nullPtr)
 {-# INLINE isNullPtr #-}
+
+{-@ fpLen :: p:(ForeignPtr a) -> {v:Int | v = (fplen p) } @-}
+fpLen :: ForeignPtr a -> Int
+fpLen p = undefined
+
+{-@ pLen :: p:(Ptr a) -> {v:Int | v = (plen p) } @-}
+pLen :: Ptr a -> Int
+pLen p = undefined
+
+
