@@ -46,7 +46,7 @@ data Spec ty bndr  = Spec {
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
   , aliases    :: ![RTAlias String BareType]    -- ^ RefType aliases
   , paliases   :: ![RTAlias Symbol Pred]        -- ^ Refinement/Predicate aliases
-  , embeds     :: !(TCEmb String)               -- ^ GHC-Tycon-to-fixpoint Tycon map
+  , embeds     :: !(TCEmb (Located String))     -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
   } 
 

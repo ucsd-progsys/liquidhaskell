@@ -276,7 +276,7 @@ data Pspec ty ctor
   | Invt    (Located ty)
   | Alias   (RTAlias String BareType)
   | PAlias  (RTAlias Symbol Pred)
-  | Embed   (String, FTycon)
+  | Embed   (Located String, FTycon)
   | Qualif  Qualifier
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
@@ -341,7 +341,7 @@ genBareTypeP
   = bareTypeP -- liftM generalize bareTypeP 
 
 embedP 
-  = xyP upperIdP (reserved "as") fTyConP
+  = xyP (locParserP upperIdP) (reserved "as") fTyConP
 
 
 aliasP  = rtAliasP id           bareTypeP

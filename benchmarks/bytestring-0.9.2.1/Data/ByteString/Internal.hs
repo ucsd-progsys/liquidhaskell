@@ -214,6 +214,11 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ qualif FPLenPos(v: GHC.ForeignPtr.ForeignPtr a): 0 <= (fplen v) @-}
 {-@ qualif PLenPos(v: GHC.Ptr.Ptr a): 0 <= (plen v) @-}
 
+{- qualif EqPLenPOLY2(v: a, x: b): (plen v) = (fplen x)           -}
+{- qualif EqPLenPOLY(v: a, x: b)    : v = (plen x)  -}
+{- qualif EqPLenPOLY1(v:  a, x: b): (fplen v) = (plen x)          -}
+
+
 -------------------------------------------------------------------------
 
 instance Show ByteString where
@@ -253,7 +258,7 @@ packWith k str = unsafeCreate (length str) $ \p -> go p str
 ------------------------------------------------------------------------
 
 -- | The 0 pointer. Used to indicate the empty Bytestring.
-{-@ nullForeignPtr :: ForeignPtr Word8 @-}
+{-@ nullForeignPtr :: {v: ForeignPtr Word8 | (fplen v) = 0} @-}
 nullForeignPtr :: ForeignPtr Word8
 #ifdef __GLASGOW_HASKELL__
 nullForeignPtr = undefined -- LIQUID: ForeignPtr nullAddr# undefined --TODO: should ForeignPtrContents be strict?
@@ -507,32 +512,32 @@ memset p w s = c_memset p (fromIntegral w) s
 -- LIQUID foreign import ccall unsafe "static fpstring.h fps_reverse" c_reverse
 -- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CULong -> IO ()
 
-{-@ c_reverse :: dst:(PtrV Word8) -> src:(PtrV Word8) -> {v:CULong | ((OkPLen v src) && (OkPLen v dst)) } -> IO () @-}
+{-@ c_reverse :: dst:(PtrV Word8) -> src:(PtrV Word8) -> {v:Foreign.C.Types.CULong | ((OkPLen v src) && (OkPLen v dst)) } -> IO () @-}
 c_reverse :: Ptr Word8 -> Ptr Word8 -> CULong -> IO ()
 c_reverse = error "LIQUIDFOREIGN"
 
 -- LIQUID foreign import ccall unsafe "static fpstring.h fps_intersperse" c_intersperse
 -- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CULong -> Word8 -> IO ()
-{-@ c_intersperse :: dst:(Ptr Word8) -> src:(Ptr Word8) -> {v: CULong | ((OkPLen v src) && ((v+v-1) <= (plen dst)))} -> Word8 -> IO () @-}
+{-@ c_intersperse :: dst:(Ptr Word8) -> src:(Ptr Word8) -> {v: Foreign.C.Types.CULong | ((OkPLen v src) && ((v+v-1) <= (plen dst)))} -> Word8 -> IO () @-}
 c_intersperse :: Ptr Word8 -> Ptr Word8 -> CULong -> Word8 -> IO ()
 c_intersperse = error "LIQUIDFOREIGN"
 
 
 -- LIQUID foreign import ccall unsafe "static fpstring.h fps_maximum" c_maximum
 -- LIQUID     :: Ptr Word8 -> CULong -> IO Word8
-{-@ c_maximum :: p:(Ptr Word8) -> {v:CULong | (OkPLen v p)} -> IO Word8 @-}
+{-@ c_maximum :: p:(Ptr Word8) -> {v:Foreign.C.Types.CULong | (OkPLen v p)} -> IO Word8 @-}
 c_maximum :: Ptr Word8 -> CULong -> IO Word8
 c_maximum = error "LIQUIDFOREIGN"
 
 -- LIQUID foreign import ccall unsafe "static fpstring.h fps_minimum" c_minimum
 -- LIQUID     :: Ptr Word8 -> CULong -> IO Word8
-{-@ c_minimum :: p:(Ptr Word8) -> {v:CULong | (OkPLen v p)} -> IO Word8 @-}
+{-@ c_minimum :: p:(Ptr Word8) -> {v:Foreign.C.Types.CULong | (OkPLen v p)} -> IO Word8 @-}
 c_minimum :: Ptr Word8 -> CULong -> IO Word8
 c_minimum = error "LIQUIDFOREIGN"
 
 -- LIQUID foreign import ccall unsafe "static fpstring.h fps_count" c_count
 -- LIQUID     :: Ptr Word8 -> CULong -> Word8 -> IO CULong
-{-@ c_count :: p:(Ptr Word8) -> {v:CULong | (OkPLen v p)} -> Word8 -> IO CULong @-}
+{-@ c_count :: p:(Ptr Word8) -> {v:Foreign.C.Types.CULong | (OkPLen v p)} -> Word8 -> IO Foreign.C.Types.CULong @-}
 c_count :: Ptr Word8 -> CULong -> Word8 -> IO CULong
 c_count = error "LIQUIDFOREIGN"
 

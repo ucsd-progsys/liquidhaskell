@@ -1,5 +1,6 @@
 module spec Foreign.Ptr where
 
+measure pbase :: GHC.Ptr.Ptr a -> GHC.Types.Int
 measure plen  :: GHC.Ptr.Ptr a -> GHC.Types.Int
 measure deref :: GHC.Ptr.Ptr a -> a
 
@@ -10,7 +11,7 @@ GHC.Ptr.castPtr :: p:(PtrV a) -> (PtrN b (plen p))
 
 GHC.Ptr.plusPtr :: base:(GHC.Ptr.Ptr a)
                 -> off:{v:Int | v <= (plen base) } 
-                -> {v:(GHC.Ptr.Ptr b) | (plen v) = (plen base) - off }
+                -> {v:(GHC.Ptr.Ptr b) | (((pbase v) = (pbase base)) && ((plen v) = (plen base) - off))}
 
 GHC.Ptr.minusPtr :: p:(GHC.Ptr.Ptr a)
                  -> q:(GHC.Ptr.Ptr b)
