@@ -112,10 +112,10 @@ module Data.ByteString (
         takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
         dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
 
--- LIQUID        span,                   -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID        spanEnd,                -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID        break,                  -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID        breakEnd,               -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+        span,                   -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+        spanEnd,                -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+        break,                  -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+        breakEnd,               -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 -- LIQUID        group,                  -- :: ByteString -> [ByteString]
 -- LIQUID        groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
 -- LIQUID        inits,                  -- :: ByteString -> [ByteString]
@@ -148,7 +148,7 @@ module Data.ByteString (
 -- LIQUID
 -- LIQUID        -- * Indexing ByteStrings
 -- LIQUID        index,                  -- :: ByteString -> Int -> Word8
--- LIQUID        elemIndex,              -- :: Word8 -> ByteString -> Maybe Int
+                 elemIndex,              -- :: Word8 -> ByteString -> Maybe Int
 -- LIQUID        elemIndices,            -- :: Word8 -> ByteString -> [Int]
 -- LIQUID        elemIndexEnd,           -- :: Word8 -> ByteString -> Maybe Int
 -- LIQUID        findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int
@@ -1066,7 +1066,7 @@ drop n ps@(PS x s l)
 
 -- | /O(1)/ 'splitAt' @n xs@ is equivalent to @('take' n xs, 'drop' n xs)@.
 
-{-@ splitAt :: Int -> b:ByteString -> (ByteString, ByteString)<{\x1 x2 -> (bLength x1) + (bLength x2) = (bLength b)}> @-}
+{-@ splitAt :: Int -> b:ByteString -> (ByteStringPair b) @-}
 splitAt :: Int -> ByteString -> (ByteString, ByteString)
 splitAt n ps@(PS x s l)
     | n <= 0    = (empty, ps)
@@ -1123,11 +1123,14 @@ breakByte c p = case elemIndex c p of
 -- | 'breakEnd' behaves like 'break' but from the end of the 'ByteString'
 -- 
 -- breakEnd p == spanEnd (not.p)
+
+{-@ breakEnd :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
 breakEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 breakEnd  p ps = splitAt (findFromEndUntil p ps) ps
 
 -- | 'span' @p xs@ breaks the ByteString into two segments. It is
 -- equivalent to @('takeWhile' p xs, 'dropWhile' p xs)@
+{-@ span :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
 span :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 span p ps = break (not . p) ps
 #if __GLASGOW_HASKELL__
@@ -1140,6 +1143,7 @@ span p ps = break (not . p) ps
 --
 -- > span  (=='c') "abcd" == spanByte 'c' "abcd"
 --
+{-@ spanByte :: Word8 -> b:ByteString -> (ByteStringPair b) @-}
 spanByte :: Word8 -> ByteString -> (ByteString, ByteString)
 spanByte c ps@(PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
     go (p `plusPtr` s) 0
@@ -1170,6 +1174,7 @@ spanByte c ps@(PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
 -- >    == 
 -- > let (x,y) = span (not.isSpace) (reverse ps) in (reverse y, reverse x) 
 --
+{-@ spanEnd :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
 spanEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 spanEnd  p ps = splitAt (findFromEndUntil (not.p) ps) ps
 
@@ -2114,6 +2119,7 @@ moduleError fun msg = error ("Data.ByteString." ++ fun ++ ':':' ':msg)
 {-# NOINLINE moduleError #-}
 
 -- Find from the end of the string using predicate
+{-@ findFromEndUntil :: (Word8 -> Bool) -> b:ByteString -> {v:Nat | v <= (bLength b)} @-}
 findFromEndUntil :: (Word8 -> Bool) -> ByteString -> Int
 STRICT2(findFromEndUntil)
 findFromEndUntil f ps@(PS x s l) =
