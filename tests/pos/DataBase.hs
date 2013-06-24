@@ -9,7 +9,7 @@ get i (R a) = a i
 set :: String -> Value -> DBRec -> DBRec
 set i x (R a) = R $ \k -> if k == i then x else a k
 
-{-@ empty :: Rec {v:String|0=1} {v : Value | v = BOT} @-}
+{-@ empty :: Rec {v:String|0=1} {v : DataBase.Value | v = DataBase.BOT} @-}
 empty :: Rec String Value
 empty = R $ const BOT
 
