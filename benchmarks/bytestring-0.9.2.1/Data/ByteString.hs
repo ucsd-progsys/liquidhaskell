@@ -281,7 +281,7 @@ assertS s False = error ("assertion failed at "++s)
 
 -- LIQUID
 import GHC.IO.Buffer
-import Language.Haskell.Liquid.Prelude (liquidAssert, intCSize) 
+import Language.Haskell.Liquid.Prelude (isNullPtr, liquidAssert, intCSize) 
 import qualified Data.ByteString.Lazy.Internal 
 import qualified Data.ByteString.Fusion
 import qualified Data.ByteString.Internal
@@ -1092,8 +1092,6 @@ dropWhile f ps = unsafeDrop (findIndexOrEnd (not . f) ps) ps
 -- instead of findIndexOrEnd, we could use memchr here.
 
 -- | 'break' @p@ is equivalent to @'span' ('not' . p)@.
-{- break :: (Word8 -> Bool) -> b:ByteString -> (ByteString, ByteString)<{\x1 x2 -> (bLength x1) + (bLength x2) = (bLength b)}> @-}
-
 {-@ break :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
 break :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 break p ps = case findIndexOrEnd p ps of n -> (unsafeTake n ps, unsafeDrop n ps)
@@ -1367,8 +1365,15 @@ elemIndex :: Word8 -> ByteString -> Maybe Int
 elemIndex c (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
     let p' = p `plusPtr` s
     q <- memchr p' c (fromIntegral l)
-    return $! if q == nullPtr then Nothing else Just $! q `minusPtr` p'
+    return $! if isNullPtr q {- LIQUID: q == nullPtr -} then Nothing else Just $! q `minusPtr` p'
 {-# INLINE elemIndex #-}
+
+-- LIQUID HACK: this is to get all the quals from memchr. 
+-- Quals needed because IO monad forces liquid-abstraction. 
+-- Solution, scrape quals from predicate defs (e.g. SuffixPtr)
+{-@ memchrDUMMYFORQUALS :: p:(Ptr Word8) -> n:Int -> (IO {v:(Ptr Word8) | (SuffixPtr v n p)})  @-}
+memchrDUMMYFORQUALS :: Ptr Word8 -> Int -> IO (Ptr Word8)
+memchrDUMMYFORQUALS = undefined 
 
 -- LIQUID -- -- | /O(n)/ The 'elemIndexEnd' function returns the last index of the
 -- LIQUID -- -- element in the given 'ByteString' which is equal to the query

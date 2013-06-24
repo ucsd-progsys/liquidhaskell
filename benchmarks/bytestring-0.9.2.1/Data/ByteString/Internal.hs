@@ -457,16 +457,17 @@ c_free_finalizer = undefined
 -- LIQUID     :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
 
 
-{-@ predicate SuffixPtr V P = ((NNLen V) && (NNBase V P) && (NNSuff V P))  @-}
-{-@ predicate NNLen V       = (isNullPtr V) => (0 <= (plen V))             @-}
-{-@ predicate NNBase V P    = (isNullPtr V) => ((pbase V) = (pbase P))     @-}
-{-@ predicate NNSuff V P    = (isNullPtr V) => ((plen V) <= (plen  P))     @-}
+{-@ predicate SuffixPtr V N P = ((isNullPtr V) || ((NNLen V N P) && (NNBase V P)))    @-}
+{-@ predicate NNLen V N P     = ((((plen P) - N) < (plen V)) && (plen V) <= (plen P)) @-}
+{-@ predicate NNBase V P      = ((pbase V) = (pbase P))                               @-}
 
-{-@ c_memchr :: p:(Ptr Word8) -> CInt -> {v:CSize| (PValid p v)} -> (IO {v:Ptr Word8 | (SuffixPtr v p)}) @-}
+
+{-@ c_memchr :: p:(Ptr Word8) -> CInt -> n:{v:CSize| (0 <= v && v <= (plen p))} -> (IO {v:(Ptr Word8) | (SuffixPtr v n p)}) @-}
 c_memchr :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
 c_memchr = error "LIQUIDFOREIGN" 
 
-{-@ memchr :: p:(Ptr Word8) -> Word8 -> {v:CSize| (PValid p v)} -> (IO {v:Ptr Word8 | (SuffixPtr v p)})  @-}
+
+{-@ memchr :: p:(Ptr Word8) -> Word8 -> n:{v:CSize| (0 <= v && v <= (plen p))} -> (IO {v:(Ptr Word8) | (SuffixPtr v n p)}) @-}
 memchr :: Ptr Word8 -> Word8 -> CSize -> IO (Ptr Word8)
 memchr p w s = c_memchr p (fromIntegral w) s
 
