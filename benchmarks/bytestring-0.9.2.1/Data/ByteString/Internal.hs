@@ -198,10 +198,12 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
   @-}
 
-{-@ type ByteStringN N = {v: ByteString | (bLength v) = N}            @-}
-{-@ type ByteStringNE   = {v:ByteString | (bLength v) > 0}            @-}
-{-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)}  @-}
-{-@ type ByteStringLE B = {v:ByteString | (bLength v) <= (bLength B)} @-}
+{-@ invariant {v:Data.ByteString.Internal.ByteString | 0 <= (bLength v)} @-}
+
+{-@ type ByteStringN N = {v: ByteString | (bLength v) = N}               @-}
+{-@ type ByteStringNE   = {v:ByteString | (bLength v) > 0}               @-}
+{-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)}     @-}
+{-@ type ByteStringLE B = {v:ByteString | (bLength v) <= (bLength B)}    @-}
 
 {-@ qualif EqFPLen(v: a, x: ForeignPtr b): v = (fplen x)           @-}
 {-@ qualif EqPLen(v: a, x: Ptr b): v = (plen x)                    @-}
@@ -211,6 +213,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p)                   @-}
 {-@ qualif FPLenPos(v: ForeignPtr a): 0 <= (fplen v)               @-}
 {-@ qualif PLenPos(v: Ptr a): 0 <= (plen v)                        @-}
+{-@ qualif SplitWith(v:a, l:Int): ((bLengths v) + (len v) - 1) = l @-}
 
 {- qualif EqPLenPOLY2(v: a, x: b): (plen v) = (fplen x)           -}
 {- qualif EqPLenPOLY(v: a, x: b)    : v = (plen x)  -}

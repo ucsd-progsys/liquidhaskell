@@ -118,7 +118,8 @@ unsafeHead (PS x s l) = assert (l > 0) $
 -- | A variety of 'tail' for non-empty ByteStrings. 'unsafeTail' omits the
 -- check for the empty case. As with 'unsafeHead', the programmer must
 -- provide a separate proof that the ByteString is non-empty.
-{-@ unsafeTail :: {v:Data.ByteString.Internal.ByteString | (bLength v) > 0} -> Data.ByteString.Internal.ByteString @-}
+{-@ unsafeTail :: b:{v:Data.ByteString.Internal.ByteString | (bLength v) > 0} 
+               -> {v:Data.ByteString.Internal.ByteString | (bLength v) = (bLength b) - 1} @-}
 unsafeTail :: ByteString -> ByteString
 unsafeTail (PS ps s l) = assert (l > 0) $ PS ps (s+1) (l-1)
 {-# INLINE unsafeTail #-}
