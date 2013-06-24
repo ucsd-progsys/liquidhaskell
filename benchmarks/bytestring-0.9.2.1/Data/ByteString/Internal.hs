@@ -185,7 +185,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 {-@ predicate BSValid Payload Offset Length = (Offset + Length <= (fplen Payload)) @-}
 
-{-@ predicate OkIndex B I = ((0 <= I) && (I < (bLength B))) @-}
+{- predicate OkIndex B I = ((0 <= I) && (I <= (bLength B))) -}
 
 {-@ predicate OkPLen N P  = (N <= (plen P))                 @-}
 
@@ -198,7 +198,10 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
   @-}
 
-{-@ type ByteStringN N = {v: ByteString | (bLength v) = N} @-}
+{-@ type ByteStringN N = {v: ByteString | (bLength v) = N}            @-}
+{-@ type ByteStringNE   = {v:ByteString | (bLength v) > 0}            @-}
+{-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)}  @-}
+{-@ type ByteStringLE B = {v:ByteString | (bLength v) <= (bLength B)} @-}
 
 {-@ qualif EqFPLen(v: a, x: ForeignPtr b): v = (fplen x)           @-}
 {-@ qualif EqPLen(v: a, x: Ptr b): v = (plen x)                    @-}
@@ -452,13 +455,18 @@ c_free_finalizer = undefined
 
 -- LIQUID foreign import ccall unsafe "string.h memchr" c_memchr
 -- LIQUID     :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
--- LIQUID 
-{-@ c_memchr :: p:(Ptr Word8) -> CInt -> {v:CSize| (PValid p v)} -> IO (Ptr Word8) @-}
+
+
+{-@ predicate SuffixPtr V P = ((NNLen V) && (NNBase V P) && (NNSuff V P))  @-}
+{-@ predicate NNLen V       = (isNullPtr V) => (0 <= (plen V))             @-}
+{-@ predicate NNBase V P    = (isNullPtr V) => ((pbase V) = (pbase P))     @-}
+{-@ predicate NNSuff V P    = (isNullPtr V) => ((plen V) <= (plen  P))     @-}
+
+{-@ c_memchr :: p:(Ptr Word8) -> CInt -> {v:CSize| (PValid p v)} -> (IO {v:Ptr Word8 | (SuffixPtr v p)}) @-}
 c_memchr :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
 c_memchr = error "LIQUIDFOREIGN" 
 
-
-{-@ memchr :: p:(Ptr Word8) -> Word8 -> {v:CSize| (PValid p v)} -> IO (Ptr Word8) @-}
+{-@ memchr :: p:(Ptr Word8) -> Word8 -> {v:CSize| (PValid p v)} -> (IO {v:Ptr Word8 | (SuffixPtr v p)})  @-}
 memchr :: Ptr Word8 -> Word8 -> CSize -> IO (Ptr Word8)
 memchr p w s = c_memchr p (fromIntegral w) s
 

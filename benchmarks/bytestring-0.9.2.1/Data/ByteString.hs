@@ -109,8 +109,9 @@ module Data.ByteString (
         take,                   -- :: Int -> ByteString -> ByteString
         drop,                   -- :: Int -> ByteString -> ByteString
         splitAt,                -- :: Int -> ByteString -> (ByteString, ByteString)
--- LIQUID        takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
--- LIQUID        dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
+        takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
+        dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
+
 -- LIQUID        span,                   -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 -- LIQUID        spanEnd,                -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 -- LIQUID        break,                  -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
@@ -312,8 +313,6 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 -- for unfoldrN 
 {-@ qualif PtrDiff(v:Int, i:Int, p:Ptr a): (i - v) <= (plen p) @-}
 
-{-@ type ByteStringNE   = {v:ByteString | (bLength v) > 0} @-}
-{-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)} @-}
 
 {-@ measure bLengths  :: [Data.ByteString.Internal.ByteString] -> Int 
     bLengths ([])   = 0
@@ -325,8 +324,8 @@ lengths :: [ByteString] -> Int
 lengths []     = 0
 lengths (b:bs) = length b + lengths bs
 
-
-
+{-@ type ByteStringPair B = (ByteString, ByteString)<{\x1 x2 -> (bLength x1) + (bLength x2) = (bLength B)}>
+  @-}
 -- -----------------------------------------------------------------------------
 --
 -- Useful macros, until we have bang patterns
@@ -1075,46 +1074,54 @@ splitAt n ps@(PS x s l)
     | otherwise = (PS x s n, PS x (s+n) (l-n))
 {-# INLINE splitAt #-}
 
--- LIQUID -- -- | 'takeWhile', applied to a predicate @p@ and a ByteString @xs@,
--- LIQUID -- -- returns the longest prefix (possibly empty) of @xs@ of elements that
--- LIQUID -- -- satisfy @p@.
--- LIQUID -- takeWhile :: (Word8 -> Bool) -> ByteString -> ByteString
--- LIQUID -- takeWhile f ps = unsafeTake (findIndexOrEnd (not . f) ps) ps
--- LIQUID -- {-# INLINE takeWhile #-}
--- LIQUID -- 
--- LIQUID -- -- | 'dropWhile' @p xs@ returns the suffix remaining after 'takeWhile' @p xs@.
--- LIQUID -- dropWhile :: (Word8 -> Bool) -> ByteString -> ByteString
--- LIQUID -- dropWhile f ps = unsafeDrop (findIndexOrEnd (not . f) ps) ps
--- LIQUID -- {-# INLINE dropWhile #-}
--- LIQUID -- 
--- LIQUID -- -- instead of findIndexOrEnd, we could use memchr here.
--- LIQUID -- 
--- LIQUID -- -- | 'break' @p@ is equivalent to @'span' ('not' . p)@.
--- LIQUID -- break :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID -- break p ps = case findIndexOrEnd p ps of n -> (unsafeTake n ps, unsafeDrop n ps)
--- LIQUID -- #if __GLASGOW_HASKELL__ 
--- LIQUID -- {-# INLINE [1] break #-}
--- LIQUID -- 
--- LIQUID -- {-# RULES
--- LIQUID -- "FPS specialise break (x==)" forall x.
--- LIQUID --     break ((==) x) = breakByte x
--- LIQUID -- "FPS specialise break (==x)" forall x.
--- LIQUID --     break (==x) = breakByte x
--- LIQUID --   #-}
--- LIQUID -- #endif
--- LIQUID -- 
--- LIQUID -- -- | 'breakByte' breaks its ByteString argument at the first occurence
--- LIQUID -- -- of the specified byte. It is more efficient than 'break' as it is
--- LIQUID -- -- implemented with @memchr(3)@. I.e.
--- LIQUID -- -- 
--- LIQUID -- -- > break (=='c') "abcd" == breakByte 'c' "abcd"
--- LIQUID -- --
--- LIQUID -- breakByte :: Word8 -> ByteString -> (ByteString, ByteString)
--- LIQUID -- breakByte c p = case elemIndex c p of
--- LIQUID --     Nothing -> (p,empty)
--- LIQUID --     Just n  -> (unsafeTake n p, unsafeDrop n p)
--- LIQUID -- {-# INLINE breakByte #-}
--- LIQUID -- 
+-- | 'takeWhile', applied to a predicate @p@ and a ByteString @xs@,
+-- returns the longest prefix (possibly empty) of @xs@ of elements that
+-- satisfy @p@.
+
+{-@ takeWhile :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
+takeWhile :: (Word8 -> Bool) -> ByteString -> ByteString
+takeWhile f ps = unsafeTake (findIndexOrEnd (not . f) ps) ps
+{-# INLINE takeWhile #-}
+
+-- | 'dropWhile' @p xs@ returns the suffix remaining after 'takeWhile' @p xs@.
+{-@ dropWhile :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
+dropWhile :: (Word8 -> Bool) -> ByteString -> ByteString
+dropWhile f ps = unsafeDrop (findIndexOrEnd (not . f) ps) ps
+{-# INLINE dropWhile #-}
+
+-- instead of findIndexOrEnd, we could use memchr here.
+
+-- | 'break' @p@ is equivalent to @'span' ('not' . p)@.
+{- break :: (Word8 -> Bool) -> b:ByteString -> (ByteString, ByteString)<{\x1 x2 -> (bLength x1) + (bLength x2) = (bLength b)}> @-}
+
+{-@ break :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
+break :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+break p ps = case findIndexOrEnd p ps of n -> (unsafeTake n ps, unsafeDrop n ps)
+#if __GLASGOW_HASKELL__ 
+{-# INLINE [1] break #-}
+
+{-# RULES
+"FPS specialise break (x==)" forall x.
+    break ((==) x) = breakByte x
+"FPS specialise break (==x)" forall x.
+    break (==x) = breakByte x
+  #-}
+#endif
+
+-- | 'breakByte' breaks its ByteString argument at the first occurence
+-- of the specified byte. It is more efficient than 'break' as it is
+-- implemented with @memchr(3)@. I.e.
+-- 
+-- > break (=='c') "abcd" == breakByte 'c' "abcd"
+--
+
+{-@ breakByte :: Word8 -> b:ByteString -> (ByteStringPair b) @-}
+breakByte :: Word8 -> ByteString -> (ByteString, ByteString)
+breakByte c p = case elemIndex c p of
+    Nothing -> (p,empty)
+    Just n  -> (unsafeTake n p, unsafeDrop n p)
+{-# INLINE breakByte #-}
+
 -- LIQUID -- -- | 'breakEnd' behaves like 'break' but from the end of the 'ByteString'
 -- LIQUID -- -- 
 -- LIQUID -- -- breakEnd p == spanEnd (not.p)
@@ -1349,17 +1356,20 @@ splitAt n ps@(PS x s l)
 -- LIQUID --     | otherwise      = ps `unsafeIndex` n
 -- LIQUID -- {-# INLINE index #-}
 -- LIQUID -- 
--- LIQUID -- -- | /O(n)/ The 'elemIndex' function returns the index of the first
--- LIQUID -- -- element in the given 'ByteString' which is equal to the query
--- LIQUID -- -- element, or 'Nothing' if there is no such element. 
--- LIQUID -- -- This implementation uses memchr(3).
--- LIQUID -- elemIndex :: Word8 -> ByteString -> Maybe Int
--- LIQUID -- elemIndex c (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
--- LIQUID --     let p' = p `plusPtr` s
--- LIQUID --     q <- memchr p' c (fromIntegral l)
--- LIQUID --     return $! if q == nullPtr then Nothing else Just $! q `minusPtr` p'
--- LIQUID -- {-# INLINE elemIndex #-}
--- LIQUID -- 
+
+-- | /O(n)/ The 'elemIndex' function returns the index of the first
+-- element in the given 'ByteString' which is equal to the query
+-- element, or 'Nothing' if there is no such element. 
+-- This implementation uses memchr(3).
+
+{-@ elemIndex :: Word8 -> b:ByteString -> Maybe {v:Nat | v < (bLength b)} @-}
+elemIndex :: Word8 -> ByteString -> Maybe Int
+elemIndex c (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
+    let p' = p `plusPtr` s
+    q <- memchr p' c (fromIntegral l)
+    return $! if q == nullPtr then Nothing else Just $! q `minusPtr` p'
+{-# INLINE elemIndex #-}
+
 -- LIQUID -- -- | /O(n)/ The 'elemIndexEnd' function returns the last index of the
 -- LIQUID -- -- element in the given 'ByteString' which is equal to the query
 -- LIQUID -- -- element, or 'Nothing' if there is no such element. The following
@@ -2070,16 +2080,17 @@ splitAt n ps@(PS x s l)
 
 -- | 'findIndexOrEnd' is a variant of findIndex, that returns the length
 -- of the string if no element is found, rather than Nothing.
--- LIQUID -- findIndexOrEnd :: (Word8 -> Bool) -> ByteString -> Int
--- LIQUID -- findIndexOrEnd k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusPtr` s) 0
--- LIQUID --   where
--- LIQUID --     STRICT2(go)
--- LIQUID --     go ptr n | n >= l    = return l
--- LIQUID --              | otherwise = do w <- peek ptr
--- LIQUID --                               if k w
--- LIQUID --                                 then return n
--- LIQUID --                                 else go (ptr `plusPtr` 1) (n+1)
--- LIQUID -- {-# INLINE findIndexOrEnd #-}
+{-@ findIndexOrEnd :: (Word8 -> Bool) -> b:ByteString -> {v:Nat | v <= (bLength b) } @-}
+findIndexOrEnd :: (Word8 -> Bool) -> ByteString -> Int
+findIndexOrEnd k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusPtr` s) 0
+  where
+    STRICT2(go)
+    go ptr n | n >= l    = return l
+             | otherwise = do w <- peek ptr
+                              if k w
+                                then return n
+                                else go (ptr `plusPtr` 1) (n+1)
+{-# INLINE findIndexOrEnd #-}
 
 -- | Perform an operation with a temporary ByteString
 withPtr :: ForeignPtr a -> (Ptr a -> IO b) -> b
