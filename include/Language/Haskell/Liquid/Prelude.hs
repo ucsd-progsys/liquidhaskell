@@ -131,11 +131,7 @@ mkPtr   :: GHC.Base.Addr# -> Ptr b
 mkPtr x = undefined -- Ptr x 
 
 
--- {- liquid_thm_ptr_cmp :: p:PtrV a 
---                        -> q:{v:(PtrV a) | ((plen v) <= (plen p) && v != p && (pbase v) = (pbase p))} 
---                        -> {v: (PtrV a)  | ((v = p) && ((plen q) < (plen p))) } 
---   @-}
--- liquid_thm_ptr_cmp :: Ptr a -> Ptr a -> Ptr a
--- liquid_thm_ptr_cmp p q = p -- undefined
-
-
+{-@ isNullPtr :: p:(Ptr a) -> {v:Bool | ((Prop v) <=> (isNullPtr p)) } @-}
+isNullPtr :: Ptr a -> Bool
+isNullPtr p = (p == nullPtr)
+{-# INLINE isNullPtr #-}
