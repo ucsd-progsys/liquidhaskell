@@ -36,7 +36,7 @@ safeLookup x i
 
 -- | **Predicate Aliases**
 
-{-  predicate Btwn I Lo Hi = (Lo <= I && I < Hi)  -}
+{-@ predicate Btwn I Lo Hi = (Lo <= I && I < Hi) @-}
 {-@ predicate InBounds I A = (Btwn I 0 (vlen A)) @-}
 
 -- | Now, we can simplify the type for the unsafe lookup function to

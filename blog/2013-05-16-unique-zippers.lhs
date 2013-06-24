@@ -119,9 +119,9 @@ their values form disjoint sets, then the output list is also unique.
 
 \begin{code}
 infixr 5 ++
-{-@ (++) :: xs:(UList a)
-         -> ys:{v: UList a | (DisjointElts v xs)}
-         -> {v: UList a | (UnionElts v xs ys)}
+{-@ UniqueZipper.++ :: xs:(UList a)
+                    -> ys:{v: UList a | (DisjointElts v xs)}
+                    -> {v: UList a | (UnionElts v xs ys)}
   @-}
 (++)         :: [a] -> [a] -> [a]
 [] ++ ys     = ys

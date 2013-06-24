@@ -35,8 +35,4 @@ type BNat N  = {v: Nat           | v <= N }
 predicate Max V X Y = ((X > Y) ? (V = X) : (V = Y))
 predicate Min V X Y = ((X < Y) ? (V = X) : (V = Y))
 
-predicate Btwn V X Y   = ((X <= V) && (V < Y))
-predicate BtwnE V X Y  = ((X < V)  && (V < Y))
-predicate BtwnI V X Y  = ((X <= V) && (V <= Y))
-predicate BtwnEI V X Y = ((X < V)  && (V <= Y))
 
