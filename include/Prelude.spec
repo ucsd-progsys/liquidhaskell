@@ -2,6 +2,7 @@ module spec Prelude where
 
 import GHC.Base
 import GHC.List
+import Data.Maybe
 
 -- assume GHC.Base..               :: forall< p :: xx:b -> c -> Prop
 --                                          , q :: yy:a -> b -> Prop>.
@@ -23,13 +24,6 @@ assume GHC.Real.toInteger       :: (Integral a) => x:a -> {v:Integer | v = x}
 assume GHC.Real.fromIntegral    :: (Integral a, Num b) => x:a -> {v:b|v=x}
 
 
-
-measure isJust :: forall a. Maybe a -> Prop
-isJust (Just x)  = true
-isJust (Nothing) = false
-
-measure fromJust :: forall a. Maybe a -> a
-fromJust (Just x) = x
 
 embed GHC.Integer.Type.Integer  as int
 
