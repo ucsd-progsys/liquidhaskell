@@ -39,7 +39,7 @@ import qualified Data.ByteString.Internal as S
 import Language.Haskell.Liquid.Prelude  (liquidError)
 import qualified Data.ByteString.Internal
 import Foreign.ForeignPtr       (ForeignPtr)
-import Data.Word                (Word8)
+import Data.Word                (Word, Word8, Word16, Word32, Word64)
 
 import Foreign.Storable (sizeOf)
 
