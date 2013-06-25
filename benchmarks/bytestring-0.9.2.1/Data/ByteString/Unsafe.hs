@@ -110,7 +110,7 @@ liquidCanary1 x   = x - 1
 -- | A variety of 'head' for non-empty ByteStrings. 'unsafeHead' omits the
 -- check for the empty case, so there is an obligation on the programmer
 -- to provide a proof that the ByteString is non-empty.
-{-@ unsafeHead :: {v:Data.ByteString.Internal.ByteString | (bLength v) > 0} -> Word8 @-}
+{-@ unsafeHead :: ByteStringNE -> Word8 @-}
 unsafeHead :: ByteString -> Word8
 unsafeHead (PS x s l) = assert (l > 0) $
     inlinePerformIO $ withForeignPtr x $ \p -> peekByteOff p s
@@ -119,7 +119,7 @@ unsafeHead (PS x s l) = assert (l > 0) $
 -- | A variety of 'tail' for non-empty ByteStrings. 'unsafeTail' omits the
 -- check for the empty case. As with 'unsafeHead', the programmer must
 -- provide a separate proof that the ByteString is non-empty.
-{-@ unsafeTail :: {v:Data.ByteString.Internal.ByteString | (bLength v) > 0} -> Data.ByteString.Internal.ByteString @-}
+{-@ unsafeTail :: b:ByteStringNE -> {v:ByteString | (bLength v) = ((bLength b) - 1)} @-}
 unsafeTail :: ByteString -> ByteString
 unsafeTail (PS ps s l) = assert (l > 0) $ PS ps (s+1) (l-1)
 {-# INLINE unsafeTail #-}
@@ -129,7 +129,7 @@ unsafeTail (PS ps s l) = assert (l > 0) $ PS ps (s+1) (l-1)
 -- obligation on the programmer to ensure the bounds are checked in some
 -- other way.
 
-{-@ unsafeIndex :: b:Data.ByteString.Internal.ByteString 
+{-@ unsafeIndex :: b:ByteStringNE
                 -> {v: GHC.Types.Int | (OkIndex b v)}
                 -> Data.Word.Word8 
   @-}
@@ -140,7 +140,7 @@ unsafeIndex (PS x s l) i = assert (i >= 0 && i < l) $
 
 -- | A variety of 'take' which omits the checks on @n@ so there is an
 -- obligation on the programmer to provide a proof that @0 <= n <= 'length' xs@.
-{-@ unsafeTake, unsafeDrop :: n:Int -> {v: Data.ByteString.Internal.ByteString | (OkIndex v n)} -> Data.ByteString.Internal.ByteString @-}
+{-@ unsafeTake, unsafeDrop :: n:Int -> {v: ByteString | (OkIndex v n)} -> ByteString @-}
 unsafeTake :: Int -> ByteString -> ByteString
 unsafeTake n (PS x s l) = assert (0 <= n && n <= l) $ PS x s n
 {-# INLINE unsafeTake #-}
@@ -171,7 +171,7 @@ unsafeDrop n (PS x s l) = assert (0 <= n && n <= l) $ PS x (s+n) (l-n)
 -- original Addr# this modification will be reflected in the resulting
 -- @ByteString@, breaking referential transparency.
 --
-{-@ unsafePackAddress :: a:GHC.Prim.Addr# -> IO {v:Data.ByteString.Internal.ByteString | (bLength v) = (addrLen a)}  @-}
+{-@ unsafePackAddress :: a:GHC.Prim.Addr# -> IO {v:ByteString | (bLength v) = (addrLen a)}  @-}
 unsafePackAddress :: Addr# -> IO ByteString
 unsafePackAddress addr# = do
     p <- newForeignPtr_ cstr
