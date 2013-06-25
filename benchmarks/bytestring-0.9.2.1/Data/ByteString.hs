@@ -116,10 +116,10 @@ module Data.ByteString (
         spanEnd,                -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
         break,                  -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
         breakEnd,               -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID        group,                  -- :: ByteString -> [ByteString]
--- LIQUID        groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
--- LIQUID        inits,                  -- :: ByteString -> [ByteString]
--- LIQUID        tails,                  -- :: ByteString -> [ByteString]
+        group,                  -- :: ByteString -> [ByteString]
+        groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
+        inits,                  -- :: ByteString -> [ByteString]
+        tails,                  -- :: ByteString -> [ByteString]
 
         -- ** Breaking into many substrings
         split,                  -- :: Word8 -> ByteString -> [ByteString]
@@ -147,8 +147,8 @@ module Data.ByteString (
 -- LIQUID        partition,              -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 -- LIQUID
 -- LIQUID        -- * Indexing ByteStrings
--- LIQUID        index,                  -- :: ByteString -> Int -> Word8
-                 elemIndex,              -- :: Word8 -> ByteString -> Maybe Int
+        index,                  -- :: ByteString -> Int -> Word8
+        elemIndex,              -- :: Word8 -> ByteString -> Maybe Int
 -- LIQUID        elemIndices,            -- :: Word8 -> ByteString -> [Int]
 -- LIQUID        elemIndexEnd,           -- :: Word8 -> ByteString -> Maybe Int
 -- LIQUID        findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int
@@ -1280,7 +1280,7 @@ split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
     let ptr = p `plusPtr` s
     return (splitLoop x ptr w l s 0)
 
--- THIS WORKS FINE IN ISOLATION BUT SOMEHOW BREAKS ON LARGE FILE. 
+-- LIQUID TODO: THIS ORIGINAL CODE WORKS FINE IN ISOLATION BUT SOMEHOW BREAKS ON LARGE FILE. 
 -- TOO SICK AND TIRED TO INVESTIGATE WTF is going on...
 --         STRICT1(loop)
 --         loop n =
@@ -1372,20 +1372,25 @@ tokens f = P.filter (not.null) . splitWith f
 -- It is a special case of 'groupBy', which allows the programmer to
 -- supply their own equality test. It is about 40% faster than 
 -- /groupBy (==)/
+{-@ group :: b:ByteString -> {v: [ByteString] | (bLengths v) = (bLength b)} @-}
 group :: ByteString -> [ByteString]
 group xs
     | null xs   = []
-    | otherwise = ys : group zs
-    where
-        (ys, zs) = spanByte (unsafeHead xs) xs
+    | otherwise = let (ys, zs) = spanByte (unsafeHead xs) xs in 
+                  ys : group zs
+    -- LIQUID LAZY: where
+    -- LIQUID LAZY:     (ys, zs) = spanByte (unsafeHead xs) xs
+
 
 -- | The 'groupBy' function is the non-overloaded version of 'group'.
+{-@ groupBy :: (Word8 -> Word8 -> Bool) -> b:ByteString -> {v:[ByteString] | (bLengths v) = (bLength b)} @-}
 groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
 groupBy k xs
     | null xs   = []
-    | otherwise = unsafeTake n xs : groupBy k (unsafeDrop n xs)
-    where
-        n = 1 + findIndexOrEnd (not . k (unsafeHead xs)) (unsafeTail xs)
+    | otherwise = let n = 1 + findIndexOrEnd (not . k (unsafeHead xs)) (unsafeTail xs) in
+                  unsafeTake n xs : groupBy k (unsafeDrop n xs)
+    -- LIQUID LAZY: where
+    -- LIQUID LAZY:     n = 1 + findIndexOrEnd (not . k (unsafeHead xs)) (unsafeTail xs)
 
 -- | /O(n)/ The 'intercalate' function takes a 'ByteString' and a list of
 -- 'ByteString's and concatenates the list after interspersing the first
@@ -1420,17 +1425,18 @@ intercalateWithByte c f@(PS ffp s l) g@(PS fgp t m) = unsafeCreate len $ \ptr ->
 {-# INLINE intercalateWithByte #-}
 
 -- ---------------------------------------------------------------------
--- LIQUID -- -- Indexing ByteStrings
--- LIQUID -- 
--- LIQUID -- -- | /O(1)/ 'ByteString' index (subscript) operator, starting from 0.
--- LIQUID -- index :: ByteString -> Int -> Word8
--- LIQUID -- index ps n
--- LIQUID --     | n < 0          = moduleError "index" ("negative index: " ++ show n)
--- LIQUID --     | n >= length ps = moduleError "index" ("index too large: " ++ show n
--- LIQUID --                                          ++ ", length = " ++ show (length ps))
--- LIQUID --     | otherwise      = ps `unsafeIndex` n
--- LIQUID -- {-# INLINE index #-}
--- LIQUID -- 
+-- Indexing ByteStrings
+
+-- | /O(1)/ 'ByteString' index (subscript) operator, starting from 0.
+{-@ index :: b:ByteString -> {v:Nat | v < (bLength b)} -> Word8 @-}
+index :: ByteString -> Int -> Word8
+index ps n
+    | n < 0          = moduleError "index" ("negative index: " ++ show n)
+    | n >= length ps = moduleError "index" ("index too large: " ++ show n
+                                         ++ ", length = " ++ show (length ps))
+    | otherwise      = ps `unsafeIndex` n
+{-# INLINE index #-}
+
 
 -- | /O(n)/ The 'elemIndex' function returns the index of the first
 -- element in the given 'ByteString' which is equal to the query
@@ -1446,6 +1452,7 @@ elemIndex c (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
 {-# INLINE elemIndex #-}
 
 
+-- HEREHEREHERE
 
 
 -- LIQUID -- -- | /O(n)/ The 'elemIndexEnd' function returns the last index of the
@@ -1777,21 +1784,29 @@ elemIndex c (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
 -- LIQUID -- unzip :: [(Word8,Word8)] -> (ByteString,ByteString)
 -- LIQUID -- unzip ls = (pack (P.map fst ls), pack (P.map snd ls))
 -- LIQUID -- {-# INLINE unzip #-}
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Special lists
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ Return all initial segments of the given 'ByteString', shortest first.
--- LIQUID -- inits :: ByteString -> [ByteString]
--- LIQUID -- inits (PS x s l) = [PS x s n | n <- [0..l]]
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ Return all final segments of the given 'ByteString', longest first.
--- LIQUID -- tails :: ByteString -> [ByteString]
--- LIQUID -- tails p | null p    = [empty]
--- LIQUID --         | otherwise = p : tails (unsafeTail p)
--- LIQUID -- 
--- LIQUID -- -- less efficent spacewise: tails (PS x s l) = [PS x (s+n) (l-n) | n <- [0..l]]
--- LIQUID -- 
+ 
+-- ---------------------------------------------------------------------
+-- Special lists
+
+-- | /O(n)/ Return all initial segments of the given 'ByteString', shortest first.
+{-@ inits :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
+inits :: ByteString -> [ByteString]
+inits (PS x s l) = [PS x s n | n <- rng l {- LIQUID COMPREHENSIONS [0..l] -}]
+
+{-@ rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
+rng :: Int -> [Int]
+rng 0 = [0]
+rng n = n : rng (n-1) 
+
+
+-- | /O(n)/ Return all final segments of the given 'ByteString', longest first.
+{-@ tails :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
+tails :: ByteString -> [ByteString]
+tails p | null p    = [empty]
+        | otherwise = p : tails (unsafeTail p)
+
+-- less efficent spacewise: tails (PS x s l) = [PS x (s+n) (l-n) | n <- [0..l]]
+
 -- LIQUID TARGET -- 
 -- LIQUID -- -- ---------------------------------------------------------------------
 -- LIQUID -- -- ** Ordered 'ByteString's
