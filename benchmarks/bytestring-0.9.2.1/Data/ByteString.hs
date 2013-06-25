@@ -313,7 +313,10 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 -- for unfoldrN 
 {-@ qualif PtrDiff(v:Int, i:Int, p:Ptr a): (i - v) <= (plen p) @-}
 
-
+-- for split: though latter is generally useful
+{-@ qualif SplitLoop(v:a, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
+{-@ qualif BSValidOff(v:Int,l:Int,p:a): v + l <= (fplen p) @-}
+ 
 {-@ measure bLengths  :: [Data.ByteString.Internal.ByteString] -> Int 
     bLengths ([])   = 0
     bLengths (x:xs) = (bLength x) + (bLengths xs)

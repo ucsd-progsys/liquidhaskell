@@ -206,6 +206,11 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)}     @-}
 {-@ type ByteStringLE B = {v:ByteString | (bLength v) <= (bLength B)}    @-}
 
+{-@ predicate SuffixPtr V N P = ((isNullPtr V) || ((NNLen V N P) && (NNBase V P)))    @-}
+{-@ predicate NNLen V N P     = ((((plen P) - N) < (plen V)) && (plen V) <= (plen P)) @-}
+{-@ predicate NNBase V P      = ((pbase V) = (pbase P))                               @-}
+
+
 {-@ qualif EqFPLen(v: a, x: ForeignPtr b): v = (fplen x)           @-}
 {-@ qualif EqPLen(v: a, x: Ptr b): v = (plen x)                    @-}
 {-@ qualif EqPLen(v: ForeignPtr a, x: Ptr b): (fplen v) = (plen x) @-}
@@ -218,10 +223,11 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ qualif BSValidFP(p:a, o:Int, l:Int): (o + l) <= (fplen p)     @-}
 {-@ qualif BSValidP(p:a, o:Int, l:Int) : (o + l) <= (plen p)       @-}
 
-
-{- qualif EqPLenPOLY2(v: a, x: b): (plen v) = (fplen x)           -}
-{- qualif EqPLenPOLY(v: a, x: b)    : v = (plen x)  -}
-{- qualif EqPLenPOLY1(v:  a, x: b): (fplen v) = (plen x)          -}
+{- qualif PtrCMP(v:Ptr a, p:Ptr b): (plen v) <= (plen p)                           @-}
+{- qualif PtrCMP(v:Ptr a, p:Ptr b): (plen v) >= (plen p)                           @-}
+{- qualif SuffixBase(v:a, p:b): ((isNullPtr v) || (pbase v) = (pbase p))           @-}
+{- qualif SuffixLenUB(v:a, p:b): ((isNullPtr v) || (plen v) <= (plen p))           @-}
+{- qualif SuffixLenLB(v:a, p:b, n:c): ((isNullPtr v) || (plen p) - n  <= (plen v)) @-}
 
 
 -------------------------------------------------------------------------
@@ -463,10 +469,6 @@ c_free_finalizer = undefined
 -- LIQUID foreign import ccall unsafe "string.h memchr" c_memchr
 -- LIQUID     :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
 
-
-{-@ predicate SuffixPtr V N P = ((isNullPtr V) || ((NNLen V N P) && (NNBase V P)))    @-}
-{-@ predicate NNLen V N P     = ((((plen P) - N) < (plen V)) && (plen V) <= (plen P)) @-}
-{-@ predicate NNBase V P      = ((pbase V) = (pbase P))                               @-}
 
 
 {-@ c_memchr :: p:(Ptr Word8) -> CInt -> n:{v:CSize| (0 <= v && v <= (plen p))} -> (IO {v:(Ptr Word8) | (SuffixPtr v n p)}) @-}
