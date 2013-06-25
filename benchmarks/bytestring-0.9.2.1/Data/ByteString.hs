@@ -128,25 +128,25 @@ module Data.ByteString (
         -- * Predicates
         isPrefixOf,             -- :: ByteString -> ByteString -> Bool
         isSuffixOf,             -- :: ByteString -> ByteString -> Bool
--- LIQUID        isInfixOf,              -- :: ByteString -> ByteString -> Bool
--- LIQUID        isSubstringOf,          -- :: ByteString -> ByteString -> Bool
--- LIQUID
--- LIQUID        -- ** Search for arbitrary substrings
--- LIQUID        findSubstring,          -- :: ByteString -> ByteString -> Maybe Int
--- LIQUID        findSubstrings,         -- :: ByteString -> ByteString -> [Int]
--- LIQUID
--- LIQUID        -- * Searching ByteStrings
--- LIQUID
--- LIQUID        -- ** Searching by equality
+        isInfixOf,              -- :: ByteString -> ByteString -> Bool
+        isSubstringOf,          -- :: ByteString -> ByteString -> Bool
+
+        -- ** Search for arbitrary substrings
+        findSubstring,          -- :: ByteString -> ByteString -> Maybe Int
+        findSubstrings,         -- :: ByteString -> ByteString -> [Int]
+
+        -- * Searching ByteStrings
+
+        -- ** Searching by equality
         elem,                   -- :: Word8 -> ByteString -> Bool
         notElem,                -- :: Word8 -> ByteString -> Bool
--- LIQUID
--- LIQUID        -- ** Searching with a predicate
--- LIQUID        find,                   -- :: (Word8 -> Bool) -> ByteString -> Maybe Word8
+
+        -- ** Searching with a predicate
+        find,                   -- :: (Word8 -> Bool) -> ByteString -> Maybe Word8
         filter,                 -- :: (Word8 -> Bool) -> ByteString -> ByteString
--- LIQUID        partition,              -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID
--- LIQUID        -- * Indexing ByteStrings
+        partition,              -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+
+        -- * Indexing ByteStrings
         index,                  -- :: ByteString -> Int -> Word8
         elemIndex,              -- :: Word8 -> ByteString -> Maybe Int
         elemIndices,            -- :: Word8 -> ByteString -> [Int]
@@ -154,7 +154,7 @@ module Data.ByteString (
         findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int
         findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int]
         count,                  -- :: Word8 -> ByteString -> Int
--- LIQUID
+
 -- LIQUID        -- * Zipping and unzipping ByteStrings
 -- LIQUID        zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
 -- LIQUID        zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
@@ -1661,54 +1661,93 @@ isSuffixOf (PS x1 s1 l1) (PS x2 s2 l2)
             i <- memcmp (p1 `plusPtr` s1) (p2 `plusPtr` s2 `plusPtr` (l2 - l1)) (fromIntegral l1)
             return $! i == 0
 
--- LIQUID -- -- | Alias of 'isSubstringOf'
--- LIQUID -- isInfixOf :: ByteString -> ByteString -> Bool
--- LIQUID -- isInfixOf = isSubstringOf
--- LIQUID -- 
--- LIQUID -- -- | Check whether one string is a substring of another. @isSubstringOf
--- LIQUID -- -- p s@ is equivalent to @not (null (findSubstrings p s))@.
--- LIQUID -- isSubstringOf :: ByteString -- ^ String to search for.
--- LIQUID --               -> ByteString -- ^ String to search in.
--- LIQUID --               -> Bool
--- LIQUID -- isSubstringOf p s = not $ P.null $ findSubstrings p s
--- LIQUID -- 
--- LIQUID -- {-# DEPRECATED findSubstring "Do not use. The ByteString searching api is about to be replaced." #-}
--- LIQUID -- -- | Get the first index of a substring in another string,
--- LIQUID -- --   or 'Nothing' if the string is not found.
--- LIQUID -- --   @findSubstring p s@ is equivalent to @listToMaybe (findSubstrings p s)@.
--- LIQUID -- findSubstring :: ByteString -- ^ String to search for.
--- LIQUID --               -> ByteString -- ^ String to seach in.
--- LIQUID --               -> Maybe Int
--- LIQUID -- findSubstring = (listToMaybe .) . findSubstrings
--- LIQUID -- 
--- LIQUID -- {-# DEPRECATED findSubstrings "Do not use. The ByteString searching api is about to be replaced." #-}
--- LIQUID -- -- | Find the indexes of all (possibly overlapping) occurances of a
--- LIQUID -- -- substring in a string.  This function uses the Knuth-Morris-Pratt
--- LIQUID -- -- string matching algorithm.
--- LIQUID -- findSubstrings :: ByteString -- ^ String to search for.
--- LIQUID --                -> ByteString -- ^ String to seach in.
--- LIQUID --                -> [Int]
--- LIQUID -- 
--- LIQUID -- findSubstrings pat@(PS _ _ m) str@(PS _ _ n) = search 0 0
--- LIQUID --   where
--- LIQUID --       patc x = pat `unsafeIndex` x
--- LIQUID --       strc x = str `unsafeIndex` x
--- LIQUID -- 
--- LIQUID --       -- maybe we should make kmpNext a UArray before using it in search?
--- LIQUID --       kmpNext = listArray (0,m) (-1:kmpNextL pat (-1))
--- LIQUID --       kmpNextL p _ | null p = []
--- LIQUID --       kmpNextL p j = let j' = next (unsafeHead p) j + 1
--- LIQUID --                          ps = unsafeTail p
--- LIQUID --                          x = if not (null ps) && unsafeHead ps == patc j'
--- LIQUID --                                 then kmpNext Array.! j' else j'
--- LIQUID --                         in x:kmpNextL ps j'
--- LIQUID --       search i j = match ++ rest -- i: position in string, j: position in pattern
--- LIQUID --         where match = if j == m then [(i - j)] else []
--- LIQUID --               rest = if i == n then [] else search (i+1) (next (strc i) j + 1)
--- LIQUID --       next c j | j >= 0 && (j == m || c /= patc j) = next c (kmpNext Array.! j)
--- LIQUID --                | otherwise = j
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
+-- | Alias of 'isSubstringOf'
+isInfixOf :: ByteString -> ByteString -> Bool
+isInfixOf = isSubstringOf
+
+-- | Check whether one string is a substring of another. @isSubstringOf
+-- p s@ is equivalent to @not (null (findSubstrings p s))@.
+isSubstringOf :: ByteString -- ^ String to search for.
+              -> ByteString -- ^ String to search in.
+              -> Bool
+isSubstringOf p s = not $ P.null $ findSubstrings p s
+
+{-# DEPRECATED findSubstring "Do not use. The ByteString searching api is about to be replaced." #-}
+-- | Get the first index of a substring in another string,
+--   or 'Nothing' if the string is not found.
+--   @findSubstring p s@ is equivalent to @listToMaybe (findSubstrings p s)@.
+{-@ findSubstring :: pat:ByteString -> str:ByteString -> (Maybe {v:Nat | v <= (bLength str)}) @-}
+findSubstring :: ByteString -- ^ String to search for.
+              -> ByteString -- ^ String to seach in.
+              -> Maybe Int
+-- LIQUID ETA: findSubstring = (listToMaybe .) . findSubstrings
+findSubstring pat str = listToMaybe $ findSubstrings pat str
+
+
+{-# DEPRECATED findSubstrings "Do not use. The ByteString searching api is about to be replaced." #-}
+-- | Find the indexes of all (possibly overlapping) occurances of a
+-- substring in a string.  This function uses the Knuth-Morris-Pratt
+-- string matching algorithm.
+
+{-@ qualif FindIndices(v:ByteString, p:ByteString, n:Int) : (bLength v) = (bLength p) - n  @-}
+
+{-@ findSubstrings :: pat:ByteString -> str:ByteString -> [{v:Nat | v <= (bLength str)}] @-}
+
+findSubstrings :: ByteString -- ^ String to search for.
+               -> ByteString -- ^ String to seach in.
+               -> [Int]
+
+-- LIQUID LATEST 
+findSubstrings pat str
+    | null pat         = rng (length str - 1) -- LIQUID COMPREHENSIONS [0 .. (length str - 1)]
+    | otherwise        = search 0 str
+  where
+    STRICT2(search)
+    search (n :: Int) s
+        | null s             = []
+        | pat `isPrefixOf` s = n : search (n+1) (unsafeTail s)
+        | otherwise          =     search (n+1) (unsafeTail s)
+
+
+{- 
+findSubstrings pat@(PS _ _ m) str@(PS _ _ n) = search 0 0
+  where
+      patc x = pat `unsafeIndex` x
+      strc x = str `unsafeIndex` x
+
+      -- maybe we should make kmpNext a UArray before using it in search?
+      kmpNext = listArray (0,m) (-1:kmpNextL pat (-1))
+      kmpNextL p _ | null p = []
+      kmpNextL p j = let j' = next (unsafeHead p) j + 1
+                         ps = unsafeTail p
+                         x = if not (null ps) && unsafeHead ps == patc j'
+                                then kmpNext Array.! j' else j'
+                        in x:kmpNextL ps j'
+      search i j = match ++ rest -- i: position in string, j: position in pattern
+        where match = if j == m then [(i - j)] else []
+              rest = if i == n then [] else search (i+1) (next (strc i) j + 1)
+      next c j | j >= 0 && (j == m || c /= patc j) = next c (kmpNext Array.! j)
+               | otherwise = j
+-}
+
+-- LIQUID: added to latest API
+{-@ breakSubstring :: ByteString -> b:ByteString -> (ByteStringPair b) @-}
+
+breakSubstring :: ByteString -- ^ String to search for
+               -> ByteString -- ^ String to search in
+               -> (ByteString,ByteString) -- ^ Head and tail of string broken at substring
+
+breakSubstring pat src = search 0 src
+  where
+    STRICT2(search)
+    search n s
+        | null s             = (src, empty)      -- not found
+        | pat `isPrefixOf` s = (take n src,s)
+        | otherwise          = search (n+1) (unsafeTail s)
+
+
+
+-- ---------------------------------------------------------------------
 -- LIQUID -- -- Zipping
 -- LIQUID -- 
 -- LIQUID -- -- | /O(n)/ 'zip' takes two ByteStrings and returns a list of
@@ -1793,54 +1832,54 @@ tails p | null p    = [empty]
 
 -- less efficent spacewise: tails (PS x s l) = [PS x (s+n) (l-n) | n <- [0..l]]
 
--- LIQUID TARGET -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- ** Ordered 'ByteString's
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ Sort a ByteString efficiently, using counting sort.
--- LIQUID -- sort :: ByteString -> ByteString
--- LIQUID -- sort (PS input s l) = unsafeCreate l $ \p -> allocaArray 256 $ \arr -> do
--- LIQUID -- 
--- LIQUID --     memset (castPtr arr) 0 (256 * fromIntegral (sizeOf (undefined :: CSize)))
--- LIQUID --     withForeignPtr input (\x -> countOccurrences arr (x `plusPtr` s) l)
--- LIQUID -- 
--- LIQUID --     let STRICT2(go)
--- LIQUID --         go 256 _   = return ()
--- LIQUID --         go i   ptr = do n <- peekElemOff arr i
--- LIQUID --                         when (n /= 0) $ memset ptr (fromIntegral i) n >> return ()
--- LIQUID --                         go (i + 1) (ptr `plusPtr` (fromIntegral n))
--- LIQUID --     go 0 p
--- LIQUID --   where
--- LIQUID --     -- | Count the number of occurrences of each byte.
--- LIQUID --     -- Used by 'sort'
--- LIQUID --     --
--- LIQUID --     countOccurrences :: Ptr CSize -> Ptr Word8 -> Int -> IO ()
--- LIQUID --     STRICT3(countOccurrences)
--- LIQUID --     countOccurrences counts str len = go 0
--- LIQUID --      where
--- LIQUID --         STRICT1(go)
--- LIQUID --         go i | i == len    = return ()
--- LIQUID --              | otherwise = do k <- fromIntegral `fmap` peekElemOff str i
--- LIQUID --                               x <- peekElemOff counts k
--- LIQUID --                               pokeElemOff counts k (x + 1)
--- LIQUID --                               go (i + 1)
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- sort :: ByteString -> ByteString
--- LIQUID -- sort (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f -> do
--- LIQUID --         memcpy p (f `plusPtr` s) l
--- LIQUID --         c_qsort p l -- inplace
--- LIQUID -- -}
--- LIQUID -- 
--- LIQUID -- -- The 'sortBy' function is the non-overloaded version of 'sort'.
--- LIQUID -- --
--- LIQUID -- -- Try some linear sorts: radix, counting
--- LIQUID -- -- Or mergesort.
--- LIQUID -- --
--- LIQUID -- -- sortBy :: (Word8 -> Word8 -> Ordering) -> ByteString -> ByteString
--- LIQUID -- -- sortBy f ps = undefined
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------
+-- ** Ordered 'ByteString's
+
+-- | /O(n)/ Sort a ByteString efficiently, using counting sort.
+sort :: ByteString -> ByteString
+sort (PS input s l) = unsafeCreate l $ \p -> allocaArray 256 $ \arr -> do
+
+    memset (castPtr arr) 0 (256 * fromIntegral (sizeOf (undefined :: CSize)))
+    withForeignPtr input (\x -> countOccurrences arr (x `plusPtr` s) l)
+
+    let STRICT2(go)
+        go 256 _   = return ()
+        go i   ptr = do n <- peekElemOff arr i
+                        when (n /= 0) $ memset ptr (fromIntegral i) n >> return ()
+                        go (i + 1) (ptr `plusPtr` (fromIntegral n))
+    go 0 p
+  where
+    -- | Count the number of occurrences of each byte.
+    -- Used by 'sort'
+    --
+    countOccurrences :: Ptr CSize -> Ptr Word8 -> Int -> IO ()
+    STRICT3(countOccurrences)
+    countOccurrences counts str len = go 0
+     where
+        STRICT1(go)
+        go i | i == len    = return ()
+             | otherwise = do k <- fromIntegral `fmap` peekElemOff str i
+                              x <- peekElemOff counts k
+                              pokeElemOff counts k (x + 1)
+                              go (i + 1)
+
+{-
+sort :: ByteString -> ByteString
+sort (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f -> do
+        memcpy p (f `plusPtr` s) l
+        c_qsort p l -- inplace
+-}
+
+-- The 'sortBy' function is the non-overloaded version of 'sort'.
+--
+-- Try some linear sorts: radix, counting
+-- Or mergesort.
+--
+-- sortBy :: (Word8 -> Word8 -> Ordering) -> ByteString -> ByteString
+-- sortBy f ps = undefined
+
+-- ---------------------------------------------------------------------
 -- LIQUID -- -- Low level constructors
 -- LIQUID -- 
 -- LIQUID -- -- | /O(n) construction/ Use a @ByteString@ with a function requiring a
