@@ -239,24 +239,192 @@ spanEnd = undefined
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 
+{-@ split :: Word8 -> b:ByteStringNE -> (ByteStringSplit b)  @-}
+split :: Word8 -> ByteString -> [ByteString]
+split _ (PS _ _ 0) = []
+split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
+    let ptr = p `plusPtr` s
+
+        STRICT1(loop)
+        loop n =
+            -- LIQUID: else lose `plen` info due to subsequent @ Word8 application
+            let ptrn = (ptr `plusPtr` n) :: Ptr Word8 
+                q = inlinePerformIO $ memchr ptrn {- (ptr `plusPtr` n) -}
+                                           w (fromIntegral (l-n))
+            in if isNullPtr q {- LIQUID q == nullPtr -}
+                then [PS x (s+n) (l-n)]
+                else let i = q `minusPtr` ptr in PS x (s+n) (i-n) : loop (i+1)
+
+    return (loop 0)
+{-# INLINE split #-}
+
+{-@ splitO :: Word8 -> b:ByteStringNE -> (ByteStringSplit b)  @-}
+splitO :: Word8 -> ByteString -> [ByteString]
+splitO _ (PS _ _ 0) = []
+splitO w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
+    let ptr = p `plusPtr` s
+    return (splitLoop x ptr w l s 0)
+
+-- LIQUID TODO: THIS ORIGINAL CODE WORKS FINE IN ISOLATION BUT SOMEHOW BREAKS ON LARGE FILE. 
+-- TOO SICK AND TIRED TO INVESTIGATE WTF is going on...
+--         STRICT1(loop)
+--         loop n =
+--             -- LIQUID: else lose `plen` info due to subsequent @ Word8 application
+--             let ptrn = (ptr `plusPtr` n) :: Ptr Word8 
+--                 q = inlinePerformIO $ memchr ptrn {- (ptr `plusPtr` n) -}
+--                                            w (fromIntegral (l-n))
+--             in if isNullPtr q {- LIQUID q == nullPtr -}
+--                 then [PS x (s+n) (l-n)]
+--                 else let i = q `minusPtr` ptr in PS x (s+n) (i-n) : loop (i+1)
+-- 
+--     return (loop 0)
+
+
+{-@ splitLoop :: fp:(ForeignPtr Word8) 
+          -> p:(Ptr Word8) 
+          -> Word8 
+          -> l:{v:Nat | v <= (plen p)} 
+          -> s:{v:Nat | v + l <= (fplen fp)}
+          -> n:{v:Nat | v <= l} 
+          -> {v:[ByteString] | (bLengths v) + (len v) - 1 = l - n} 
+  @-}
+splitLoop :: ForeignPtr Word8 -> Ptr Word8 -> Word8 -> Int -> Int -> Int -> [ByteString]
+splitLoop xanadu ptrGOBBLE w l s n = 
+  let ptrn = ((ptrGOBBLE `plusPtr` n) :: Ptr Word8) 
+           -- NEEDED: else lose `plen` information without cast
+           -- thanks to subsequent @ Word8 application
+      q    = inlinePerformIO $ memchr ptrn w (fromIntegral (l-n))
+  in if isNullPtr q {- LIQUID q == nullPtr -}
+       then [PS xanadu (s+n) (l-n)]
+       else let i' = q `minusPtr` ptrGOBBLE
+                i  = liquidAssert (n <= i' && i' < l) i'
+            in PS xanadu (s+n) (i-n) : splitLoop xanadu ptrGOBBLE w l s (i+1)
+
+{-@ splitWith :: (Word8 -> Bool) -> b:ByteStringNE -> (ByteStringSplit b) @-}
+splitWith :: (Word8 -> Bool) -> ByteString -> [ByteString]
+
+splitWith _pred (PS _  _   0) = []
+splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp
+  where pred# c# = pred_ (W8# c#)
+
+        STRICT4(splitWith0)
+        splitWith0 pred' off' len' fp' = withPtr fp $ \p ->
+            splitLoop pred' p 0 off' len' fp'
+
+        splitLoop :: (Word# -> Bool)
+                  -> Ptr Word8
+                  -> Int -> Int -> Int
+                  -> ForeignPtr Word8
+                  -> IO [ByteString]
+
+        splitLoop pred' p idx' off' len' fp'
+            | pred' `seq` p `seq` idx' `seq` off' `seq` len' `seq` fp' `seq` False = undefined
+            | idx' >= len'  = return [PS fp' off' idx']
+            | otherwise = do
+                w <- peekElemOff p (off'+idx')
+                if pred' (case w of W8# w# -> w#)
+                   then return (PS fp' off' idx' :
+                              splitWith0 pred' (off'+idx'+1) (len'-idx'-1) fp')
+                   else splitLoop pred' p (idx'+1) off' len' fp'
+{-# INLINE splitWith #-}
 
 
 
+{-@ group :: b:ByteString -> {v: [ByteString] | (bLengths v) = (bLength b)} @-}
+group :: ByteString -> [ByteString]
+group xs
+    | null xs   = []
+    | otherwise = let (ys, zs) = spanByte (unsafeHead xs) xs in 
+                  ys : group zs
+    -- LIQUID LAZY: where
+    -- LIQUID LAZY:     (ys, zs) = spanByte (unsafeHead xs) xs
+
+{-@ groupBy :: (Word8 -> Word8 -> Bool) -> b:ByteString -> {v:[ByteString] | (bLengths v) = (bLength b)} @-}
+groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
+groupBy k xs
+    | null xs   = []
+    | otherwise = let n = 1 + findIndexOrEnd (not . k (unsafeHead xs)) (unsafeTail xs) in
+                  unsafeTake n xs : groupBy k (unsafeDrop n xs)
+    -- LIQUID LAZY: where
+    -- LIQUID LAZY:     n = 1 + findIndexOrEnd (not . k (unsafeHead xs)) (unsafeTail xs)
+
+{-@ inits :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
+inits :: ByteString -> [ByteString]
+inits (PS x s l) = [PS x s n | n <- rng l {- LIQUID COMPREHENSIONS [0..l] -}]
+
+{-@ rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
+rng :: Int -> [Int]
+rng 0 = [0]
+rng n = n : rng (n-1) 
+
+{-@ tails :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
+tails :: ByteString -> [ByteString]
+tails p | null p    = [empty]
+        | otherwise = p : tails (unsafeTail p)
 
 
+{-@ index :: b:ByteString -> {v:Nat | v < (bLength b)} -> Word8 @-}
+index :: ByteString -> Int -> Word8
+index ps n
+    | n < 0          = moduleError "index" ("negative index: " ++ show n)
+    | n >= length ps = moduleError "index" ("index too large: " ++ show n
+                                         ++ ", length = " ++ show (length ps))
+    | otherwise      = ps `unsafeIndex` n
 
 
+{-@ elemIndexEnd :: Word8 -> b:ByteString -> Maybe {v:Nat | v < (bLength b) } @-}
+elemIndexEnd :: Word8 -> ByteString -> Maybe Int
+elemIndexEnd ch (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
+    go (p `plusPtr` s) (l-1)
+  where
+    STRICT2(go)
+    go p i | i < 0     = return Nothing
+           | otherwise = do ch' <- peekByteOff p i
+                            if ch == ch'
+                                then return $ Just i
+                                else go p (i-1)
 
 
+{-@ elemIndices :: Word8 -> b:ByteString -> [{v:Nat | v < (bLength b) }] @-}
+elemIndices :: Word8 -> ByteString -> [Int]
+elemIndices w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
+    let ptr = p `plusPtr` s
 
+        STRICT1(loop)
+        loop n = let pn = ((ptr `plusPtr` n) :: Ptr Word8)
+                     q  = inlinePerformIO $ memchr pn
+                                                 w (fromIntegral (l - n))
+                 in if isNullPtr q {- == nullPtr -}
+                        then []
+                        else let i = q `minusPtr` ptr
+                             in i : loop (i+1)
+    return $! loop 0
 
+{-@ count :: Word8 -> b:ByteString -> {v:Nat | v <= (bLength b) } @-}
+count :: Word8 -> ByteString -> Int
+count w (PS x s m) = inlinePerformIO $ withForeignPtr x $ \p ->
+    fmap fromIntegral $ c_count (p `plusPtr` s) (fromIntegral m) w
 
+{-@ findIndex :: (Word8 -> Bool) -> b:ByteString -> (Maybe {v:Nat | v < (bLength b)}) @-}
+findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
+findIndex k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusPtr` s) 0
+  where
+    STRICT2(go)
+    go ptr n | n >= l    = return Nothing
+             | otherwise = do w <- peek ptr
+                              if k w
+                                then return (Just n)
+                                else go (ptr `plusPtr` 1) (n+1)
 
+{-@ qualif FindIndices(v:ByteString, p:ByteString, n:Int) : (bLength v) = (bLength p) - n 
+  @-}
 
-
-
-
-
-
-
-
+{-@ findIndices :: (Word8 -> Bool) -> b:ByteString -> [{v:Nat | v < (bLength b)}] @-}
+findIndices :: (Word8 -> Bool) -> ByteString -> [Int]
+findIndices p ps = loop 0 ps
+   where
+     STRICT2(loop)
+     loop (n :: Int) qs 
+        | null qs           = []
+        | p (unsafeHead qs) = n : loop (n+1) (unsafeTail qs)
+        | otherwise         =     loop (n+1) (unsafeTail qs)

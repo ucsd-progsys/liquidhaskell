@@ -233,16 +233,17 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ qualif FPLenPos(v: ForeignPtr a): 0 <= (fplen v)               @-}
 {-@ qualif PLenPos(v: Ptr a): 0 <= (plen v)                        @-}
 
-
+-- for ByteString.concat
 {-@ qualif BLens(v:List ByteString)            : 0 <= (bLengths v)         @-}
 {-@ qualif BLenLE(v:Ptr a, bs:List ByteString) : (bLengths bs) <= (plen v) @-}
 
--- for splitWith
+-- for ByteString.splitWith
 {-@ qualif SplitWith(v:List ByteString, l:Int): ((bLengths v) + (len v) - 1) = l @-}
 
+-- for ByteString.unfoldrN
 {-@ qualif PtrDiff(v:Int, i:Int, p:Ptr a): (i - v) <= (plen p) @-}
 
--- for split
+-- for ByteString.split
 {-@ qualif BSValidOff(v:Int,l:Int,p:ForeignPtr a): v + l <= (fplen p) @-}
 {-@ qualif SplitLoop(v:List ByteString, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
 {- qualif SplitWith(v:a, l:Int): ((bLengths v) + (len v) - 1) = l @-}
@@ -575,7 +576,10 @@ c_minimum = error "LIQUIDFOREIGN"
 
 -- LIQUID foreign import ccall unsafe "static fpstring.h fps_count" c_count
 -- LIQUID     :: Ptr Word8 -> CULong -> Word8 -> IO CULong
-{-@ c_count :: p:(Ptr Word8) -> {v:Foreign.C.Types.CULong | (OkPLen v p)} -> Word8 -> IO Foreign.C.Types.CULong @-}
+{-@ c_count :: p:(Ptr Word8) 
+            -> n:{v:Foreign.C.Types.CULong | (OkPLen v p)} 
+            -> Word8 
+            -> (IO {v:Foreign.C.Types.CULong | ((0 <= v) && (v <= n)) }) @-}
 c_count :: Ptr Word8 -> CULong -> Word8 -> IO CULong
 c_count = error "LIQUIDFOREIGN"
 
