@@ -201,6 +201,19 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 {-@ invariant {v:Data.ByteString.Internal.ByteString | 0 <= (bLength v)} @-}
 
+{-@ type ByteStringSplit B = {v:[ByteString] | ((bLengths v) + (len v) - 1) = (bLength B) } 
+  @-}
+
+{-@ type ByteStringPair B = (ByteString, ByteString)<{\x1 x2 -> (bLength x1) + (bLength x2) = (bLength B)}>
+  @-}
+
+
+{-@ measure bLengths  :: [Data.ByteString.Internal.ByteString] -> Int 
+    bLengths ([])   = 0
+    bLengths (x:xs) = (bLength x) + (bLengths xs)
+  @-}
+
+
 {-@ type ByteStringN N = {v: ByteString | (bLength v) = N}               @-}
 {-@ type ByteStringNE   = {v:ByteString | (bLength v) > 0}               @-}
 {-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)}     @-}
@@ -223,7 +236,6 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {- qualif SplitWith(v:a, l:Int): ((bLengths v) + (len v) - 1) = l @-}
 {- qualif BSValidFP(p:a, o:Int, l:Int): (o + l) <= (fplen p)     @-}
 {- qualif BSValidP(p:a, o:Int, l:Int) : (o + l) <= (plen p)       @-}
-
 {- qualif PtrCMP(v:Ptr a, p:Ptr b): (plen v) <= (plen p)                           @-}
 {- qualif PtrCMP(v:Ptr a, p:Ptr b): (plen v) >= (plen p)                           @-}
 {- qualif SuffixBase(v:a, p:b): ((isNullPtr v) || (pbase v) = (pbase p))           @-}
