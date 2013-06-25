@@ -105,12 +105,15 @@ readCharFromBuffer x y = error "LIQUIDCOMPAT"
 wantReadableHandleLIQUID :: String -> Handle -> (Handle__ -> IO a) -> IO a
 wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUIDCOMPAT"
 
-{-@ qualif BLens(v:a)            : 0 <= (bLengths v)         @-}
-{-@ qualif BLenLE(v:Ptr a, bs:b) : (bLengths bs) <= (plen v) @-}
+{-@ qualif BLens(v:List ByteString)            : 0 <= (bLengths v)         @-}
+{-@ qualif BLenLE(v:Ptr a, bs:List ByteString) : (bLengths bs) <= (plen v) @-}
+
+-- for splitWith
+{-@ qualif SplitWith(v:List ByteString, l:Int): ((bLengths v) + (len v) - 1) = l @-}
+
+-- for split
 {-@ qualif BSValidOff(v:Int,l:Int,p:ForeignPtr a): v + l <= (fplen p) @-}
-{-@ qualif SplitLoop(v:List ByteString, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
-
-
+{- qualif SplitLoop(v:List ByteString, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
 
 -- -----------------------------------------------------------------------------
 --
@@ -125,17 +128,7 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 
 -- -----------------------------------------------------------------------------
 
-{-@ type ByteStringPair B = (ByteString, ByteString)<{\x1 x2 -> (bLength x1) + (bLength x2) = (bLength B)}>
-  @-}
-
 {-@ qualif PtrDiff(v:Int, i:Int, p:Ptr a): (i - v) <= (plen p) @-}
-
-
-{-@ measure bLengths  :: [Data.ByteString.Internal.ByteString] -> Int 
-    bLengths ([])   = 0
-    bLengths (x:xs) = (bLength x) + (bLengths xs)
-  @-}
-
 
 -- -----------------------------------------------------------------------------
 
@@ -278,40 +271,8 @@ spanEnd = undefined
 ------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------
 
-{-@ intercalateWithByte :: Word8 -> f:ByteString -> g:ByteString -> {v:ByteString | (bLength v) = (bLength f) + (bLength g) + 1} @-}
-intercalateWithByte :: Word8 -> ByteString -> ByteString -> ByteString
-intercalateWithByte c f@(PS ffp s l) g@(PS fgp t m) = unsafeCreate len $ \ptr ->
-    withForeignPtr ffp $ \fp ->
-    withForeignPtr fgp $ \gp -> do
-        memcpy ptr (fp `plusPtr` s) (fromIntegral l)
-        poke (ptr `plusPtr` l) c
-        memcpy (ptr `plusPtr` (l + 1)) (gp `plusPtr` t) (fromIntegral m)
-    where
-      len = length f + length g + 1
-{-# INLINE intercalateWithByte #-}
-
-
-{-@ type ByteStringSplit B = {v:[ByteString] | ((bLengths v) + (len v) - 1) = (bLength B) } @-}
-
-{-@ invariant {v:Data.ByteString.Internal.ByteString | 0 <= (bLength v)} @-}
 
 {-@ splitWith :: (Word8 -> Bool) -> b:ByteStringNE -> (ByteStringSplit b) @-}
-splitWith :: (Word8 -> Bool) -> ByteString -> [ByteString]
--- splitWith _ (PS _ _ 0) = [] -- for cleaner interface: [empty]
--- splitWith p ps = loop p ps
---     where
---         STRICT2(loop)
---         loop q qs = if null rest then [chunk]
---                                  else chunk : loop q (unsafeTail rest)
---             where (chunk,rest) = break q qs
-
--- LIQUID HACK QUALIFIER SILLINESS
-{- dummyForQuals2 :: p:(ForeignPtr Word8) -> o:{v:Nat | v <= (fplen p)} -> {v:Nat | (BSValid p o v)} -> ByteString 
-  -}
-dummyForQuals2 :: ForeignPtr Word8 -> Int -> Int -> ByteString
-dummyForQuals2 = undefined
-
-
 splitWith _pred (PS _  _   0) = [empty]
 splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp
   where pred# c# = pred_ (W8# c#)
@@ -336,18 +297,20 @@ splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp
                               splitWith0 pred' (off'+idx'+1) (len'-idx'-1) fp')
                    else splitLoop pred' p (idx'+1) off' len' fp'
 
+---------------------------------------------------------------------------------------------------
+--- MAY AS WELL KEEP THeSE AROUND!
+---------------------------------------------------------------------------------------------------
+
+{-@ splitO :: Word8 -> b:ByteStringNE -> (ByteStringSplit b)  @-}
+splitO _ (PS _ _ 0) = []
+splitO w (PS xanadu s l) = inlinePerformIO $ withForeignPtr xanadu $ \pz -> do
+    let p   = liquidAssert (fpLen xanadu == pLen pz) pz
+    let ptrGOBBLE_ = p `plusPtr` s
+    let ptrGOBBLE  = liquidAssert (l <= pLen ptrGOBBLE_) ptrGOBBLE_ 
+    return (splitLoop xanadu ptrGOBBLE w l s 0)
 
 
-{-@ split :: Word8 -> b:ByteStringNE -> (ByteStringSplit b)  @-}
--- split _ (PS _ _ 0) = []
--- split w (PS xanadu s l) = inlinePerformIO $ withForeignPtr xanadu $ \pz -> do
---     let p   = liquidAssert (fpLen xanadu == pLen pz) pz
---     let ptrGOBBLE_ = p `plusPtr` s
---     let ptrGOBBLE  = liquidAssert (l <= pLen ptrGOBBLE_) ptrGOBBLE_ 
---     return (splitLoop xanadu ptrGOBBLE w l s 0)
-
-
-{- splitLoop :: fp:(ForeignPtr Word8) 
+{-@ splitLoop :: fp:(ForeignPtr Word8) 
           -> p:(Ptr Word8) 
           -> Word8 
           -> l:{v:Nat | v <= (plen p)} 
@@ -368,13 +331,27 @@ splitLoop xanadu ptrGOBBLE w l s n =
             in PS xanadu (s+n) (i-n) : splitLoop xanadu ptrGOBBLE w l s (i+1)
 
  
+---------------------------------------------------------------------------------------------------
 
 
+{-@ split :: Word8 -> b:ByteStringNE -> (ByteStringSplit b)  @-}
+split :: Word8 -> ByteString -> [ByteString]
+split _ (PS _ _ 0) = []
+split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
+    let ptr = p `plusPtr` s
 
+        STRICT1(loop)
+        loop n =
+            -- LIQUID: else lose `plen` info due to subsequent @ Word8 application
+            let ptrn = (ptr `plusPtr` n) :: Ptr Word8 
+                q = inlinePerformIO $ memchr ptrn {- (ptr `plusPtr` n) -}
+                                           w (fromIntegral (l-n))
+            in if isNullPtr q {- LIQUID q == nullPtr -}
+                then [PS x (s+n) (l-n)]
+                else let i = q `minusPtr` ptr in PS x (s+n) (i-n) : loop (i+1)
 
-
-
-
+    return (loop 0)
+{-# INLINE split #-}
 
 
 
