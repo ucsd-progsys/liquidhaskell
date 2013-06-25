@@ -255,16 +255,14 @@ replicate  = undefined
 {-@ findIndex :: (Word8 -> Bool) -> b:ByteString -> (Maybe {v:Nat | v < (bLength b)}) @-}
 findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
 findIndex = undefined
+
+{-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
+filter :: (Word8 -> Bool) -> ByteString -> ByteString
+filter = undefined
+
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
-
-
-
-
-
-
-
 
