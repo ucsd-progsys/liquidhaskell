@@ -40,11 +40,22 @@ Ordered by dependency.
    509 Data/ByteString/Internal.hs          [OK]
    700 Data/ByteString/Fusion.hs            [OK]
   1928 Data/ByteString.hs                   [**]
+  
   1322 Data/ByteString/Lazy.hs               
    822 Data/ByteString/Lazy/Char8.hs
   1012 Data/ByteString/Char8.hs
 
   6738 total
+
+Bytestring.hs
+
+    {-@ scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteString | (bLength v) = 1 + (bLength b)}  @-}
+
+requires fancier type for `loopUp` / `loopU` using trick in `tests/pos/cont.hs`
+
+
+
+
 
 Issues
 ------

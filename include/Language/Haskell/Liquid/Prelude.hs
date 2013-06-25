@@ -4,6 +4,7 @@ module Language.Haskell.Liquid.Prelude where
 
 import Foreign.C.Types          (CSize(..))
 import Foreign.Ptr
+import Foreign.ForeignPtr
 import GHC.Base
 
 -------------------------------------------------------------------
@@ -131,11 +132,17 @@ mkPtr   :: GHC.Base.Addr# -> Ptr b
 mkPtr x = undefined -- Ptr x 
 
 
--- {- liquid_thm_ptr_cmp :: p:PtrV a 
---                        -> q:{v:(PtrV a) | ((plen v) <= (plen p) && v != p && (pbase v) = (pbase p))} 
---                        -> {v: (PtrV a)  | ((v = p) && ((plen q) < (plen p))) } 
---   @-}
--- liquid_thm_ptr_cmp :: Ptr a -> Ptr a -> Ptr a
--- liquid_thm_ptr_cmp p q = p -- undefined
+{-@ isNullPtr :: p:(Ptr a) -> {v:Bool | ((Prop v) <=> (isNullPtr p)) } @-}
+isNullPtr :: Ptr a -> Bool
+isNullPtr p = (p == nullPtr)
+{-# INLINE isNullPtr #-}
+
+{-@ fpLen :: p:(ForeignPtr a) -> {v:Int | v = (fplen p) } @-}
+fpLen :: ForeignPtr a -> Int
+fpLen p = undefined
+
+{-@ pLen :: p:(Ptr a) -> {v:Int | v = (plen p) } @-}
+pLen :: Ptr a -> Int
+pLen p = undefined
 
 

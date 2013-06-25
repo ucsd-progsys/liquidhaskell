@@ -532,8 +532,8 @@ append xs ys = foldrChunks (\_ -> Chunk) ys xs
 -- | /O(1)/ Returns the first character and rest of a 'Text', or
 -- 'Nothing' if empty. Subject to fusion.
 {-@ uncons :: t:Data.Text.Lazy.Internal.Text
-           -> {v:Maybe (Char,{v0:Data.Text.Lazy.Internal.Text | ((isJust v) =>
-                                 ((ltlength v0) = ((ltlength t) - 1)))}) | true}
+           -> Maybe (Char,{v0:Data.Text.Lazy.Internal.Text |
+                                 (ltlength v0) = ((ltlength t) - 1)})
    @-}
 uncons :: Text -> Maybe (Char, Text)
 uncons Empty        = Nothing
@@ -655,8 +655,8 @@ length :: Text -> Int64
 length t = foldrChunks length_fold 0 t
 {-@ length_fold :: Data.Text.Lazy.Internal.Text
                 -> t:NonEmptyStrict
-                -> l:Int64
-                -> {v:Int64 | v = ((tlength t) + l)}
+                -> l:Nat64
+                -> {v:Nat64 | v = ((tlength t) + l)}
   @-}
 length_fold :: Text -> T.Text -> Int64 -> Int64
 length_fold _ t l = l + fromIntegral (T.length t)
@@ -676,8 +676,8 @@ length_fold _ t l = l + fromIntegral (T.length t)
 -- of 'length', but can short circuit if the count of characters is
 -- greater than the number, and hence be more efficient.
 {-@ compareLength :: t:Data.Text.Lazy.Internal.Text
-                  -> l:Int64
-                  -> {v:Ordering | ((v = GHC.Types.EQ) <=> ((ltlength t) = l))}
+                  -> n:Nat64
+                  -> {v:Ordering | ((v = GHC.Types.EQ) <=> ((ltlength t) = n))}
   @-}
 compareLength :: Text -> Int64 -> Ordering
 --LIQUID compareLength t n = S.compareLengthI (stream t) n
@@ -742,7 +742,7 @@ intersperse c t = unstream (S.intersperse (safe c) (stream t))
 --
 -- > justifyLeft 7 'x' "foo"    == "fooxxxx"
 -- > justifyLeft 3 'x' "foobar" == "foobar"
-{-@ justifyLeft :: i:Int64
+{-@ justifyLeft :: i:Nat64
                 -> Char
                 -> t:Data.Text.Lazy.Internal.Text
                 -> {v:Data.Text.Lazy.Internal.Text | (Max (ltlength v) i (ltlength t))}
@@ -769,7 +769,7 @@ justifyLeft k c t
 --
 -- > justifyRight 7 'x' "bar"    == "xxxxbar"
 -- > justifyRight 3 'x' "foobar" == "foobar"
-{-@ justifyRight :: i:Int64
+{-@ justifyRight :: i:Nat64
                  -> Char
                  -> t:Data.Text.Lazy.Internal.Text
                  -> {v:Data.Text.Lazy.Internal.Text | (Max (ltlength v) i (ltlength t))}
@@ -788,7 +788,7 @@ justifyRight k c t
 -- Examples:
 --
 -- > center 8 'x' "HS" = "xxxHSxxx"
-{-@ center :: i:Int64
+{-@ center :: i:Nat64
            -> Char
            -> t:Data.Text.Lazy.Internal.Text
            -> {v:Data.Text.Lazy.Internal.Text | (Max (ltlength v) i (ltlength t))}
@@ -796,11 +796,14 @@ justifyRight k c t
 center :: Int64 -> Char -> Text -> Text
 center k c t
     | len >= k  = t
-    | otherwise = replicateChar l c `append` t `append` replicateChar r c
+    | otherwise = let d   = k - len
+                      r   = d `div` 2
+                      l   = d - r
+                  in replicateChar l c `append` t `append` replicateChar r c
   where len = length t
-        d   = k - len
-        r   = d `div` 2
-        l   = d - r
+        --LIQUID d   = k - len
+        --LIQUID r   = d `div` 2
+        --LIQUID l   = d - r
 {-# INLINE center #-}
 
 -- | /O(n)/ The 'transpose' function transposes the rows and columns
@@ -1069,7 +1072,7 @@ mapAccumR f = go
 
 -- | /O(n*m)/ 'replicate' @n@ @t@ is a 'Text' consisting of the input
 -- @t@ repeated @n@ times.
-{-@ replicate :: n:{v:Int64 | v >= 0}
+{-@ replicate :: n:Nat64
               -> t:Data.Text.Lazy.Internal.Text
               -> {v:Data.Text.Lazy.Internal.Text |
                      ((n = 0) ? ((ltlength v) = 0)
@@ -1097,7 +1100,7 @@ replicate_rep n t !i | i >= n    = []
 
 -- | /O(n)/ 'replicateChar' @n@ @c@ is a 'Text' of length @n@ with @c@ the
 -- value of every element. Subject to fusion.
-{-@ replicateChar :: n:Int64
+{-@ replicateChar :: n:Nat64
                   -> Char
                   -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = n}
   @-}
@@ -1135,7 +1138,7 @@ unfoldrN n f s = unstream (S.unfoldrN n (firstf safe . f) s)
 -- | /O(n)/ 'take' @n@, applied to a 'Text', returns the prefix of the
 -- 'Text' of length @n@, or the 'Text' itself if @n@ is greater than
 -- the length of the Text. Subject to fusion.
-{-@ take :: i:{v:Int64 | v >= 0}
+{-@ take :: i:Nat64
          -> t:Data.Text.Lazy.Internal.Text
          -> {v:Data.Text.Lazy.Internal.Text | (Min (ltlength v) (ltlength t) i)}
  @-}
@@ -1161,7 +1164,7 @@ take i t0         = take' i t0
 -- | /O(n)/ 'drop' @n@, applied to a 'Text', returns the suffix of the
 -- 'Text' after the first @n@ characters, or the empty 'Text' if @n@
 -- is greater than the length of the 'Text'. Subject to fusion.
-{-@ drop :: i:{v:Int64 | v >= 0}
+{-@ drop :: i:Nat64
          -> t:Data.Text.Lazy.Internal.Text
          -> {v:Data.Text.Lazy.Internal.Text |
                 ((ltlength v) = (((ltlength t) <= i)
@@ -1315,7 +1318,7 @@ strip = dropAround isSpace
 -- | /O(n)/ 'splitAt' @n t@ returns a pair whose first element is a
 -- prefix of @t@ of length @n@, and whose second is the remainder of
 -- the string. It is equivalent to @('take' n t, 'drop' n t)@.
-{-@ splitAt :: n:{v:Int64 | v >= 0}
+{-@ splitAt :: n:Nat64
             -> t:Data.Text.Lazy.Internal.Text
             -> (Data.Text.Lazy.Internal.Text, Data.Text.Lazy.Internal.Text)<{\x y ->
                  ((Min (ltlength x) (ltlength t) n)
@@ -1344,7 +1347,7 @@ splitAt = loop
 -- | /O(n)/ 'splitAtWord' @n t@ returns a strict pair whose first
 -- element is a prefix of @t@ whose chunks contain @n@ 'Word16'
 -- values, and whose second is the remainder of the string.
-{-@ splitAtWord :: {v:Int64 | v >= 0}
+{-@ splitAtWord :: Nat64
                 -> Data.Text.Lazy.Internal.Text
                 -> PairS Data.Text.Lazy.Internal.Text Data.Text.Lazy.Internal.Text
   @-}
@@ -1621,15 +1624,15 @@ splitOn pat src
     l = ltlen pat
 
 {-@ ltlen :: t:Data.Text.Internal.Lazy.Text
-                 -> {v:Int64 | ((v = (ltlen t)) && (v >= 0))}
+                 -> {v:Nat64 | v = (ltlen t)}
   @-}
 ltlen :: Text -> Int64
 ltlen Empty                     = 0
 ltlen (Chunk (T.Text _ _ l) ts) = fromIntegral l + ltlen ts
 
-{-@ splitOn_go :: l:{v:Int64 | v >= 0}
-               -> i:{v:Int64 | v >= 0}
-               -> is:[{v:Int64 | v >= i}]<{\ix iy -> (ix+l) <= iy}>
+{-@ splitOn_go :: l:Nat64
+               -> i:Nat64
+               -> is:[{v:Nat64 | v >= i}]<{\ix iy -> (ix+l) <= iy}>
                -> Text
                -> [Text]
   @-}
@@ -1666,9 +1669,9 @@ split p (Chunk t0 ts0) = comb [] (T.split p t0) ts0
 --
 -- > chunksOf 3 "foobarbaz"   == ["foo","bar","baz"]
 -- > chunksOf 4 "haskell.org" == ["hask","ell.","org"]
-{-@ chunksOf :: k:{v:Int64 | v >= 0}
+{-@ chunksOf :: k:Nat64
              -> t:Data.Text.Lazy.Internal.Text
-             -> {v:[{v0:Data.Text.Lazy.Internal.Text | (ltlength v0) <= k}] | true}
+             -> [{v0:Data.Text.Lazy.Internal.Text | (ltlength v0) <= k}]
   @-}
 chunksOf :: Int64 -> Text -> [Text]
 chunksOf k = go
@@ -1693,7 +1696,7 @@ lines t = let (l,t') = break ((==) '\n') t
 -- representing white space.
 words :: Text -> [Text]
 --LIQUID words = L.filter (not . null) . split isSpace
-words t = L.filter (not . null) $ split isSpace t
+words = L.filter (not . null) . split isSpace
 {-# INLINE words #-}
 
 -- | /O(n)/ Joins lines, after appending a terminating newline to

@@ -64,7 +64,7 @@ module Data.ByteString (
         map,                    -- :: (Word8 -> Word8) -> ByteString -> ByteString
         reverse,                -- :: ByteString -> ByteString
         intersperse,            -- :: Word8 -> ByteString -> ByteString
--- LIQUID        intercalate,            -- :: ByteString -> [ByteString] -> ByteString
+        intercalate,            -- :: ByteString -> [ByteString] -> ByteString
         transpose,              -- :: [ByteString] -> [ByteString]
 
         -- * Reducing 'ByteString's (folds)
@@ -97,34 +97,35 @@ module Data.ByteString (
         mapAccumL,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
         mapAccumR,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
         mapIndexed,             -- :: (Int -> Word8 -> Word8) -> ByteString -> ByteString
--- LIQUID
--- LIQUID        -- ** Generating and unfolding ByteStrings
--- LIQUID        replicate,              -- :: Int -> Word8 -> ByteString
--- LIQUID        unfoldr,                -- :: (a -> Maybe (Word8, a)) -> a -> ByteString
--- LIQUID        unfoldrN,               -- :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
--- LIQUID
--- LIQUID        -- * Substrings
--- LIQUID
--- LIQUID        -- ** Breaking strings
+
+        -- ** Generating and unfolding ByteStrings
+        replicate,              -- :: Int -> Word8 -> ByteString
+        unfoldr,                -- :: (a -> Maybe (Word8, a)) -> a -> ByteString
+        unfoldrN,               -- :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
+
+        -- * Substrings
+
+        -- ** Breaking strings
         take,                   -- :: Int -> ByteString -> ByteString
         drop,                   -- :: Int -> ByteString -> ByteString
         splitAt,                -- :: Int -> ByteString -> (ByteString, ByteString)
--- LIQUID        takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
--- LIQUID        dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
--- LIQUID        span,                   -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID        spanEnd,                -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID        break,                  -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID        breakEnd,               -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID        group,                  -- :: ByteString -> [ByteString]
--- LIQUID        groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
--- LIQUID        inits,                  -- :: ByteString -> [ByteString]
--- LIQUID        tails,                  -- :: ByteString -> [ByteString]
--- LIQUID
--- LIQUID        -- ** Breaking into many substrings
--- LIQUID        split,                  -- :: Word8 -> ByteString -> [ByteString]
--- LIQUID        splitWith,              -- :: (Word8 -> Bool) -> ByteString -> [ByteString]
--- LIQUID
--- LIQUID        -- * Predicates
+        takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
+        dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
+
+        span,                   -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+        spanEnd,                -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+        break,                  -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+        breakEnd,               -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+        group,                  -- :: ByteString -> [ByteString]
+        groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
+        -- inits,                  -- :: ByteString -> [ByteString]
+        -- tails,                  -- :: ByteString -> [ByteString]
+
+        -- ** Breaking into many substrings
+        split,                  -- :: Word8 -> ByteString -> [ByteString]
+        splitWith,              -- :: (Word8 -> Bool) -> ByteString -> [ByteString]
+
+        -- * Predicates
 -- LIQUID        isPrefixOf,             -- :: ByteString -> ByteString -> Bool
 -- LIQUID        isSuffixOf,             -- :: ByteString -> ByteString -> Bool
 -- LIQUID        isInfixOf,              -- :: ByteString -> ByteString -> Bool
@@ -137,22 +138,22 @@ module Data.ByteString (
 -- LIQUID        -- * Searching ByteStrings
 -- LIQUID
 -- LIQUID        -- ** Searching by equality
--- LIQUID        elem,                   -- :: Word8 -> ByteString -> Bool
--- LIQUID        notElem,                -- :: Word8 -> ByteString -> Bool
+        elem,                   -- :: Word8 -> ByteString -> Bool
+        notElem,                -- :: Word8 -> ByteString -> Bool
 -- LIQUID
 -- LIQUID        -- ** Searching with a predicate
 -- LIQUID        find,                   -- :: (Word8 -> Bool) -> ByteString -> Maybe Word8
--- LIQUID        filter,                 -- :: (Word8 -> Bool) -> ByteString -> ByteString
+        filter,                 -- :: (Word8 -> Bool) -> ByteString -> ByteString
 -- LIQUID        partition,              -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 -- LIQUID
 -- LIQUID        -- * Indexing ByteStrings
--- LIQUID        index,                  -- :: ByteString -> Int -> Word8
--- LIQUID        elemIndex,              -- :: Word8 -> ByteString -> Maybe Int
--- LIQUID        elemIndices,            -- :: Word8 -> ByteString -> [Int]
--- LIQUID        elemIndexEnd,           -- :: Word8 -> ByteString -> Maybe Int
--- LIQUID        findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int
--- LIQUID        findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int]
--- LIQUID        count,                  -- :: Word8 -> ByteString -> Int
+        index,                  -- :: ByteString -> Int -> Word8
+        elemIndex,              -- :: Word8 -> ByteString -> Maybe Int
+        elemIndices,            -- :: Word8 -> ByteString -> [Int]
+        elemIndexEnd,           -- :: Word8 -> ByteString -> Maybe Int
+        findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int
+        findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int]
+        count,                  -- :: Word8 -> ByteString -> Int
 -- LIQUID
 -- LIQUID        -- * Zipping and unzipping ByteStrings
 -- LIQUID        zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
@@ -280,7 +281,7 @@ assertS s False = error ("assertion failed at "++s)
 
 -- LIQUID
 import GHC.IO.Buffer
-import Language.Haskell.Liquid.Prelude (liquidAssert, intCSize) 
+import Language.Haskell.Liquid.Prelude hiding (eq) 
 import qualified Data.ByteString.Lazy.Internal 
 import qualified Data.ByteString.Fusion
 import qualified Data.ByteString.Internal
@@ -305,21 +306,25 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 {-@ qualif Zog(v:a, p:a)         : (plen p) <= (plen v)          @-}
 {-@ qualif Zog(v:a)              : 0 <= (plen v)                 @-}
 
-{-@ qualif BLens(v:a)            : 0 <= (bLengths v)             @-}
-{-@ qualif BLenLE(v:GHC.Ptr.Ptr a, bs:b) : (bLengths bs) <= (plen v)     @-}
-
-
-{-@ measure bLengths  :: [Data.ByteString.Internal.ByteString] -> Int 
-    bLengths ([])   = 0
-    bLengths (x:xs) = (bLength x) + (bLengths xs)
-  @-}
+-- for unfoldrN 
+{-@ qualif PtrDiffUnfoldrN(v:Int, i:Int, p:Ptr a): (i - v) <= (plen p) @-}
 
 {-@ lengths :: bs:[ByteString] -> {v:Nat | v = (bLengths bs)} @-}
 lengths :: [ByteString] -> Int
 lengths []     = 0
 lengths (b:bs) = length b + lengths bs
 
+-- LIQUID HACK: this is to get all the quals from memchr. 
+-- Quals needed because IO monad forces liquid-abstraction. 
+-- Solution, scrape quals from predicate defs (e.g. SuffixPtr)
+{-@ dummyForQuals1_elemIndex :: p:(Ptr Word8) -> n:Int -> (IO {v:(Ptr Word8) | (SuffixPtr v n p)})  @-}
+dummyForQuals1_elemIndex :: Ptr Word8 -> Int -> IO (Ptr Word8)
+dummyForQuals1_elemIndex = undefined 
 
+{-@ dummyForQuals2_splitWith :: p:(ForeignPtr Word8) -> o:{v:Nat | v <= (fplen p)} -> {v:Nat | (BSValid p o v)} -> ByteString 
+  @-}
+dummyForQuals2_splitWith :: ForeignPtr Word8 -> Int -> Int -> ByteString
+dummyForQuals2_splitWith = undefined
 
 -- -----------------------------------------------------------------------------
 --
@@ -665,11 +670,7 @@ reverse (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
 -- 'ByteString' and \`intersperses\' that byte between the elements of
 -- the 'ByteString'.  It is analogous to the intersperse function on
 -- Lists.
-{-@ intersperse :: Word8 -> b:ByteString
-                -> {v:ByteString |
-                     (((bLength b) >= 2) ? ((bLength v) = (2 * (bLength b)) - 1)
-                                         : ((bLength v) = (bLength b))) }
-  @-}
+{-@ intersperse :: Word8 -> b:ByteString -> {v:ByteString | (((bLength b) >= 2) => ((bLength v) = (2 * (bLength b)) - 1)) } @-}
 intersperse :: Word8 -> ByteString -> ByteString
 intersperse c ps@(PS x s l)
     | length ps < 2  = ps
@@ -684,6 +685,12 @@ intersperse c = pack . List.intersperse c . unpack
 -- 'ByteString' argument.
 transpose :: [ByteString] -> [ByteString]
 transpose ps = P.map pack (List.transpose (P.map unpack ps))
+
+-- LIQUID TODO
+-- transpose :: bs:[ByteString] -> {v:[ByteString] | (bLengths v) = (bLengths bs)}
+-- transpose :: xs:[[a]] -> {v:[[a]] | (lens v) = (lens xs)}
+-- transpose ps = [pack p | p <- List.transpose [unpack p | p <- ps] ]
+
 
 -- ---------------------------------------------------------------------
 -- Reducing 'ByteString's
@@ -892,7 +899,7 @@ minimum xs@(PS x s l)
 -- passing an accumulating parameter from left to right, and returning a
 -- final value of this accumulator together with the new list.
 
-{-@ mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> b:ByteString -> (acc, ByteStringSZ b) @-}
+{-@ mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString) @-}
 mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
 #if !defined(LOOPU_FUSION)
 mapAccumL f z = unSP . loopUp (mapAccumEFL f) z
@@ -906,7 +913,7 @@ mapAccumL f z = unSP . loopU (mapAccumEFL f) z
 -- passing an accumulating parameter from right to left, and returning a
 -- final value of this accumulator together with the new ByteString.
 
-{-@ mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> b:ByteString -> (acc, ByteStringSZ b) @-}
+{-@ mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString) @-}
 mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
 mapAccumR f z = unSP . loopDown (mapAccumEFL f) z
 {-# INLINE mapAccumR #-}
@@ -929,9 +936,9 @@ mapIndexed f = loopArr . loopUp (mapIndexEFL f) 0
 --
 -- > last (scanl f z xs) == foldl f z xs.
 
-{-@ scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString
-          -> {v:ByteString | (bLength v) = 1 + (bLength b)}
-  @-}
+-- LIQUID TODO
+{-@ scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString  @-}
+{- scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteString | (bLength v) = 1 + (bLength b)}  @-}
 scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
 #if !defined(LOOPU_FUSION)
 scanl f z ps = loopArr . loopUp (scanEFL f) z $ (ps `snoc` 0)
@@ -948,6 +955,10 @@ scanl f z ps = loopArr . loopU (scanEFL f) z $ (ps `snoc` 0)
 -- This function will fuse.
 --
 -- > scanl1 f [x1, x2, ...] == [x1, x1 `f` x2, ...]
+{- scanl1 :: (Word8 -> Word8 -> Word8) -> b:ByteStringNE -> {v:ByteStringNE | (bLength v) = 1 + (bLength b)} -}
+
+-- LIQUID TODO
+{-@ scanl1 :: (Word8 -> Word8 -> Word8) -> ByteStringNE -> ByteString @-}
 scanl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
 scanl1 f ps
     | null ps   = empty
@@ -955,11 +966,17 @@ scanl1 f ps
 {-# INLINE scanl1 #-}
 
 -- | scanr is the right-to-left dual of scanl.
+-- LIQUID TODO
+{-@ scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString @-}
+{- scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteStringNE | (bLength v) = 1 + (bLength b)}  @-}
 scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
 scanr f z ps = loopArr . loopDown (scanEFL (flip f)) z $ (0 `cons` ps) -- extra space
 {-# INLINE scanr #-}
 
 -- | 'scanr1' is a variant of 'scanr' that has no starting value argument.
+-- LIQUID TODO
+{-@ scanr1 :: (Word8 -> Word8 -> Word8) -> ByteStringNE -> ByteString @-}
+{- scanr1 :: (Word8 -> Word8 -> Word8) -> b:ByteStringNE -> {v:ByteStringNE | (bLength v) = 1 + (bLength b)}  @-}
 scanr1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
 scanr1 f ps
     | null ps   = empty
@@ -967,72 +984,74 @@ scanr1 f ps
 {-# INLINE scanr1 #-}
 
 -- ---------------------------------------------------------------------
--- LIQUID -- -- Unfolds and replicates
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'replicate' @n x@ is a ByteString of length @n@ with @x@
--- LIQUID -- -- the value of every element. The following holds:
--- LIQUID -- --
--- LIQUID -- -- > replicate w c = unfoldr w (\u -> Just (u,u)) c
--- LIQUID -- --
--- LIQUID -- -- This implemenation uses @memset(3)@
--- LIQUID -- replicate :: Int -> Word8 -> ByteString
--- LIQUID -- replicate w c
--- LIQUID --     | w <= 0    = empty
--- LIQUID --     | otherwise = unsafeCreate w $ \ptr ->
--- LIQUID --                       memset ptr c (fromIntegral w) >> return ()
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/, where /n/ is the length of the result.  The 'unfoldr' 
--- LIQUID -- -- function is analogous to the List \'unfoldr\'.  'unfoldr' builds a 
--- LIQUID -- -- ByteString from a seed value.  The function takes the element and 
--- LIQUID -- -- returns 'Nothing' if it is done producing the ByteString or returns 
--- LIQUID -- -- 'Just' @(a,b)@, in which case, @a@ is the next byte in the string, 
--- LIQUID -- -- and @b@ is the seed value for further production.
--- LIQUID -- --
--- LIQUID -- -- Examples:
--- LIQUID -- --
--- LIQUID -- -- >    unfoldr (\x -> if x <= 5 then Just (x, x + 1) else Nothing) 0
--- LIQUID -- -- > == pack [0, 1, 2, 3, 4, 5]
--- LIQUID -- --
--- LIQUID -- unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
--- LIQUID -- unfoldr f = concat . unfoldChunk 32 64
--- LIQUID --   where unfoldChunk n n' x =
--- LIQUID --           case unfoldrN n f x of
--- LIQUID --             (s, Nothing) -> s : []
--- LIQUID --             (s, Just x') -> s : unfoldChunk n' (n+n') x'
--- LIQUID -- {-# INLINE unfoldr #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ Like 'unfoldr', 'unfoldrN' builds a ByteString from a seed
--- LIQUID -- -- value.  However, the length of the result is limited by the first
--- LIQUID -- -- argument to 'unfoldrN'.  This function is more efficient than 'unfoldr'
--- LIQUID -- -- when the maximum length of the result is known.
--- LIQUID -- --
--- LIQUID -- -- The following equation relates 'unfoldrN' and 'unfoldr':
--- LIQUID -- --
--- LIQUID -- -- > unfoldrN n f s == take n (unfoldr f s)
--- LIQUID -- --
--- LIQUID -- unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
--- LIQUID -- unfoldrN i f x0
--- LIQUID --     | i < 0     = (empty, Just x0)
--- LIQUID --     | otherwise = unsafePerformIO $ createAndTrim' i $ \p -> go p x0 0
--- LIQUID --   where STRICT3(go)
--- LIQUID --         go p x n =
--- LIQUID --           case f x of
--- LIQUID --             Nothing      -> return (0, n, Nothing)
--- LIQUID --             Just (w,x')
--- LIQUID --              | n == i    -> return (0, n, Just x)
--- LIQUID --              | otherwise -> do poke p w
--- LIQUID --                                go (p `plusPtr` 1) x' (n+1)
--- LIQUID -- {-# INLINE unfoldrN #-}
+-- Unfolds and replicates
+
+-- | /O(n)/ 'replicate' @n x@ is a ByteString of length @n@ with @x@
+-- the value of every element. The following holds:
+--
+-- > replicate w c = unfoldr w (\u -> Just (u,u)) c
+--
+-- This implemenation uses @memset(3)@
+{- LIQUID this is SIMPLER ... : replicate :: n:Nat -> Word8 -> (ByteStringN n) @-}
+{-@ replicate :: n:Nat -> Word8 -> {v:ByteString | (bLength v) = (if n > 0 then n else 0)} @-}
+replicate :: Int -> Word8 -> ByteString
+replicate w c
+    | w <= 0    = empty
+    | otherwise = unsafeCreate w $ \ptr ->
+                      memset ptr c (fromIntegral w) >> return ()
+
+-- | /O(n)/, where /n/ is the length of the result.  The 'unfoldr' 
+-- function is analogous to the List \'unfoldr\'.  'unfoldr' builds a 
+-- ByteString from a seed value.  The function takes the element and 
+-- returns 'Nothing' if it is done producing the ByteString or returns 
+-- 'Just' @(a,b)@, in which case, @a@ is the next byte in the string, 
+-- and @b@ is the seed value for further production.
+--
+-- Examples:
+--
+-- >    unfoldr (\x -> if x <= 5 then Just (x, x + 1) else Nothing) 0
+-- > == pack [0, 1, 2, 3, 4, 5]
+
+{-@ unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString @-}
+unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
+unfoldr f = concat . unfoldChunk 32 64
+  where unfoldChunk n n' x =
+          case unfoldrN n f x of
+            (s, Nothing) -> s : []
+            (s, Just x') -> s : unfoldChunk n' (n+n') x'
+{-# INLINE unfoldr #-}
+
+-- | /O(n)/ Like 'unfoldr', 'unfoldrN' builds a ByteString from a seed
+-- value.  However, the length of the result is limited by the first
+-- argument to 'unfoldrN'.  This function is more efficient than 'unfoldr'
+-- when the maximum length of the result is known.
+--
+-- The following equation relates 'unfoldrN' and 'unfoldr':
+--
+-- > unfoldrN n f s == take n (unfoldr f s)
+--
+{-@ unfoldrN :: i:Nat -> (a -> Maybe (Word8, a)) -> a -> ({v:ByteString | (bLength v) <= i}, Maybe a) @-}
+unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
+unfoldrN i f x0
+    | i < 0     = (empty, Just x0)
+    | otherwise = unsafePerformIO $ createAndTrim' i $ \p -> go p x0 0
+  where STRICT3(go)
+        go p x n =
+          case f x of
+            Nothing      -> return (0 :: Int {- LIQUID -}, n, Nothing)
+            Just (w,x')
+             | n == i    -> return (0, n, Just x)
+             | otherwise -> do poke p w
+                               go (p `plusPtr` 1) x' (n+1)
+{-# INLINE unfoldrN #-}
 
 -- ---------------------------------------------------------------------
 -- Substrings
 
 -- | /O(1)/ 'take' @n@, applied to a ByteString @xs@, returns the prefix
 -- of @xs@ of length @n@, or @xs@ itself if @n > 'length' xs@.
-{-@ take :: n:Nat
-         -> b:ByteString
-         -> {v:ByteString | (Min (bLength v) (bLength b) n)}
- @-}
+
+{-@ take :: n:Nat -> b:ByteString -> {v:ByteString | (bLength v) = (if (n <= (bLength b)) then n else (bLength b))} @-}
 take :: Int -> ByteString -> ByteString
 take n ps@(PS x s l)
     | n <= 0    = empty
@@ -1042,11 +1061,8 @@ take n ps@(PS x s l)
 
 -- | /O(1)/ 'drop' @n xs@ returns the suffix of @xs@ after the first @n@
 -- elements, or @[]@ if @n > 'length' xs@.
-{-@ drop :: n:Nat
-         -> b:ByteString
-         -> {v:ByteString | ((bLength v) = (((bLength b) <= n)
-                                         ? 0 : ((bLength b) - n)))}
-  @-}
+
+{-@ drop :: n:Nat -> b:ByteString -> {v:ByteString | (bLength v) =  (if (n <= (bLength b)) then (bLength b) - n else 0)} @-}
 drop  :: Int -> ByteString -> ByteString
 drop n ps@(PS x s l)
     | n <= 0    = ps
@@ -1055,11 +1071,8 @@ drop n ps@(PS x s l)
 {-# INLINE drop #-}
 
 -- | /O(1)/ 'splitAt' @n xs@ is equivalent to @('take' n xs, 'drop' n xs)@.
-{-@ splitAt :: n:Nat
-            -> b:ByteString
-            -> ( {v:ByteString | (Min (bLength v) (bLength b) n)}
-               , ByteString)<{\x y -> ((bLength y) = ((bLength b) - (bLength x)))}>
-  @-}
+
+{-@ splitAt :: Int -> b:ByteString -> (ByteStringPair b) @-}
 splitAt :: Int -> ByteString -> (ByteString, ByteString)
 splitAt n ps@(PS x s l)
     | n <= 0    = (empty, ps)
@@ -1067,469 +1080,542 @@ splitAt n ps@(PS x s l)
     | otherwise = (PS x s n, PS x (s+n) (l-n))
 {-# INLINE splitAt #-}
 
--- LIQUID -- -- | 'takeWhile', applied to a predicate @p@ and a ByteString @xs@,
--- LIQUID -- -- returns the longest prefix (possibly empty) of @xs@ of elements that
--- LIQUID -- -- satisfy @p@.
--- LIQUID -- takeWhile :: (Word8 -> Bool) -> ByteString -> ByteString
--- LIQUID -- takeWhile f ps = unsafeTake (findIndexOrEnd (not . f) ps) ps
--- LIQUID -- {-# INLINE takeWhile #-}
--- LIQUID -- 
--- LIQUID -- -- | 'dropWhile' @p xs@ returns the suffix remaining after 'takeWhile' @p xs@.
--- LIQUID -- dropWhile :: (Word8 -> Bool) -> ByteString -> ByteString
--- LIQUID -- dropWhile f ps = unsafeDrop (findIndexOrEnd (not . f) ps) ps
--- LIQUID -- {-# INLINE dropWhile #-}
--- LIQUID -- 
--- LIQUID -- -- instead of findIndexOrEnd, we could use memchr here.
--- LIQUID -- 
--- LIQUID -- -- | 'break' @p@ is equivalent to @'span' ('not' . p)@.
--- LIQUID -- break :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID -- break p ps = case findIndexOrEnd p ps of n -> (unsafeTake n ps, unsafeDrop n ps)
--- LIQUID -- #if __GLASGOW_HASKELL__ 
--- LIQUID -- {-# INLINE [1] break #-}
--- LIQUID -- 
--- LIQUID -- {-# RULES
--- LIQUID -- "FPS specialise break (x==)" forall x.
--- LIQUID --     break ((==) x) = breakByte x
--- LIQUID -- "FPS specialise break (==x)" forall x.
--- LIQUID --     break (==x) = breakByte x
--- LIQUID --   #-}
--- LIQUID -- #endif
--- LIQUID -- 
--- LIQUID -- -- | 'breakByte' breaks its ByteString argument at the first occurence
--- LIQUID -- -- of the specified byte. It is more efficient than 'break' as it is
--- LIQUID -- -- implemented with @memchr(3)@. I.e.
--- LIQUID -- -- 
--- LIQUID -- -- > break (=='c') "abcd" == breakByte 'c' "abcd"
--- LIQUID -- --
--- LIQUID -- breakByte :: Word8 -> ByteString -> (ByteString, ByteString)
--- LIQUID -- breakByte c p = case elemIndex c p of
--- LIQUID --     Nothing -> (p,empty)
--- LIQUID --     Just n  -> (unsafeTake n p, unsafeDrop n p)
--- LIQUID -- {-# INLINE breakByte #-}
--- LIQUID -- 
--- LIQUID -- -- | 'breakEnd' behaves like 'break' but from the end of the 'ByteString'
--- LIQUID -- -- 
--- LIQUID -- -- breakEnd p == spanEnd (not.p)
--- LIQUID -- breakEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID -- breakEnd  p ps = splitAt (findFromEndUntil p ps) ps
--- LIQUID -- 
--- LIQUID -- -- | 'span' @p xs@ breaks the ByteString into two segments. It is
--- LIQUID -- -- equivalent to @('takeWhile' p xs, 'dropWhile' p xs)@
--- LIQUID -- span :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID -- span p ps = break (not . p) ps
--- LIQUID -- #if __GLASGOW_HASKELL__
--- LIQUID -- {-# INLINE [1] span #-}
--- LIQUID -- #endif
--- LIQUID -- 
--- LIQUID -- -- | 'spanByte' breaks its ByteString argument at the first
--- LIQUID -- -- occurence of a byte other than its argument. It is more efficient
--- LIQUID -- -- than 'span (==)'
--- LIQUID -- --
--- LIQUID -- -- > span  (=='c') "abcd" == spanByte 'c' "abcd"
--- LIQUID -- --
--- LIQUID -- spanByte :: Word8 -> ByteString -> (ByteString, ByteString)
--- LIQUID -- spanByte c ps@(PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
--- LIQUID --     go (p `plusPtr` s) 0
--- LIQUID --   where
--- LIQUID --     STRICT2(go)
--- LIQUID --     go p i | i >= l    = return (ps, empty)
--- LIQUID --            | otherwise = do c' <- peekByteOff p i
--- LIQUID --                             if c /= c'
--- LIQUID --                                 then return (unsafeTake i ps, unsafeDrop i ps)
--- LIQUID --                                 else go p (i+1)
--- LIQUID -- {-# INLINE spanByte #-}
--- LIQUID -- 
--- LIQUID -- {-# RULES
--- LIQUID -- "FPS specialise span (x==)" forall x.
--- LIQUID --     span ((==) x) = spanByte x
--- LIQUID -- "FPS specialise span (==x)" forall x.
--- LIQUID --     span (==x) = spanByte x
--- LIQUID --   #-}
--- LIQUID -- 
--- LIQUID -- -- | 'spanEnd' behaves like 'span' but from the end of the 'ByteString'.
--- LIQUID -- -- We have
--- LIQUID -- --
--- LIQUID -- -- > spanEnd (not.isSpace) "x y z" == ("x y ","z")
--- LIQUID -- --
--- LIQUID -- -- and
--- LIQUID -- --
--- LIQUID -- -- > spanEnd (not . isSpace) ps
--- LIQUID -- -- >    == 
--- LIQUID -- -- > let (x,y) = span (not.isSpace) (reverse ps) in (reverse y, reverse x) 
--- LIQUID -- --
--- LIQUID -- spanEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID -- spanEnd  p ps = splitAt (findFromEndUntil (not.p) ps) ps
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ Splits a 'ByteString' into components delimited by
--- LIQUID -- -- separators, where the predicate returns True for a separator element.
--- LIQUID -- -- The resulting components do not contain the separators.  Two adjacent
--- LIQUID -- -- separators result in an empty component in the output.  eg.
--- LIQUID -- --
--- LIQUID -- -- > splitWith (=='a') "aabbaca" == ["","","bb","c",""]
--- LIQUID -- -- > splitWith (=='a') []        == []
--- LIQUID -- --
--- LIQUID -- splitWith :: (Word8 -> Bool) -> ByteString -> [ByteString]
--- LIQUID -- 
--- LIQUID -- #if defined(__GLASGOW_HASKELL__)
--- LIQUID -- splitWith _pred (PS _  _   0) = []
--- LIQUID -- splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp
--- LIQUID --   where pred# c# = pred_ (W8# c#)
--- LIQUID -- 
--- LIQUID --         STRICT4(splitWith0)
--- LIQUID --         splitWith0 pred' off' len' fp' = withPtr fp $ \p ->
--- LIQUID --             splitLoop pred' p 0 off' len' fp'
--- LIQUID -- 
--- LIQUID --         splitLoop :: (Word# -> Bool)
--- LIQUID --                   -> Ptr Word8
--- LIQUID --                   -> Int -> Int -> Int
--- LIQUID --                   -> ForeignPtr Word8
--- LIQUID --                   -> IO [ByteString]
--- LIQUID -- 
--- LIQUID --         splitLoop pred' p idx' off' len' fp'
--- LIQUID --             | pred' `seq` p `seq` idx' `seq` off' `seq` len' `seq` fp' `seq` False = undefined
--- LIQUID --             | idx' >= len'  = return [PS fp' off' idx']
--- LIQUID --             | otherwise = do
--- LIQUID --                 w <- peekElemOff p (off'+idx')
--- LIQUID --                 if pred' (case w of W8# w# -> w#)
--- LIQUID --                    then return (PS fp' off' idx' :
--- LIQUID --                               splitWith0 pred' (off'+idx'+1) (len'-idx'-1) fp')
--- LIQUID --                    else splitLoop pred' p (idx'+1) off' len' fp'
--- LIQUID -- {-# INLINE splitWith #-}
--- LIQUID -- 
--- LIQUID -- #else
--- LIQUID -- splitWith _ (PS _ _ 0) = []
--- LIQUID -- splitWith p ps = loop p ps
--- LIQUID --     where
--- LIQUID --         STRICT2(loop)
--- LIQUID --         loop q qs = if null rest then [chunk]
--- LIQUID --                                  else chunk : loop q (unsafeTail rest)
--- LIQUID --             where (chunk,rest) = break q qs
--- LIQUID -- #endif
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ Break a 'ByteString' into pieces separated by the byte
--- LIQUID -- -- argument, consuming the delimiter. I.e.
--- LIQUID -- --
--- LIQUID -- -- > split '\n' "a\nb\nd\ne" == ["a","b","d","e"]
--- LIQUID -- -- > split 'a'  "aXaXaXa"    == ["","X","X","X",""]
--- LIQUID -- -- > split 'x'  "x"          == ["",""]
--- LIQUID -- -- 
--- LIQUID -- -- and
--- LIQUID -- --
--- LIQUID -- -- > intercalate [c] . split c == id
--- LIQUID -- -- > split == splitWith . (==)
--- LIQUID -- -- 
--- LIQUID -- -- As for all splitting functions in this library, this function does
--- LIQUID -- -- not copy the substrings, it just constructs new 'ByteStrings' that
--- LIQUID -- -- are slices of the original.
--- LIQUID -- --
--- LIQUID -- split :: Word8 -> ByteString -> [ByteString]
--- LIQUID -- split _ (PS _ _ 0) = []
--- LIQUID -- split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
--- LIQUID --     let ptr = p `plusPtr` s
--- LIQUID -- 
--- LIQUID --         STRICT1(loop)
--- LIQUID --         loop n =
--- LIQUID --             let q = inlinePerformIO $ memchr (ptr `plusPtr` n)
--- LIQUID --                                            w (fromIntegral (l-n))
--- LIQUID --             in if q == nullPtr
--- LIQUID --                 then [PS x (s+n) (l-n)]
--- LIQUID --                 else let i = q `minusPtr` ptr in PS x (s+n) (i-n) : loop (i+1)
--- LIQUID -- 
--- LIQUID --     return (loop 0)
--- LIQUID -- {-# INLINE split #-}
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- -- slower. but stays inside Haskell.
--- LIQUID -- split _ (PS _  _   0) = []
--- LIQUID -- split (W8# w#) (PS fp off len) = splitWith' off len fp
--- LIQUID --     where
--- LIQUID --         splitWith' off' len' fp' = withPtr fp $ \p ->
--- LIQUID --             splitLoop p 0 off' len' fp'
--- LIQUID -- 
--- LIQUID --         splitLoop :: Ptr Word8
--- LIQUID --                   -> Int -> Int -> Int
--- LIQUID --                   -> ForeignPtr Word8
--- LIQUID --                   -> IO [ByteString]
--- LIQUID -- 
--- LIQUID --         STRICT5(splitLoop)
--- LIQUID --         splitLoop p idx' off' len' fp'
--- LIQUID --             | p `seq` idx' `seq` off' `seq` len' `seq` fp' `seq` False = undefined
--- LIQUID --             | idx' >= len'  = return [PS fp' off' idx']
--- LIQUID --             | otherwise = do
--- LIQUID --                 (W8# x#) <- peekElemOff p (off'+idx')
--- LIQUID --                 if word2Int# w# ==# word2Int# x#
--- LIQUID --                    then return (PS fp' off' idx' :
--- LIQUID --                               splitWith' (off'+idx'+1) (len'-idx'-1) fp')
--- LIQUID --                    else splitLoop p (idx'+1) off' len' fp'
--- LIQUID -- -}
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- -- | Like 'splitWith', except that sequences of adjacent separators are
--- LIQUID -- -- treated as a single separator. eg.
--- LIQUID -- -- 
--- LIQUID -- -- > tokens (=='a') "aabbaca" == ["bb","c"]
--- LIQUID -- --
--- LIQUID -- tokens :: (Word8 -> Bool) -> ByteString -> [ByteString]
--- LIQUID -- tokens f = P.filter (not.null) . splitWith f
--- LIQUID -- {-# INLINE tokens #-}
--- LIQUID -- -}
--- LIQUID -- 
--- LIQUID -- -- | The 'group' function takes a ByteString and returns a list of
--- LIQUID -- -- ByteStrings such that the concatenation of the result is equal to the
--- LIQUID -- -- argument.  Moreover, each sublist in the result contains only equal
--- LIQUID -- -- elements.  For example,
--- LIQUID -- --
--- LIQUID -- -- > group "Mississippi" = ["M","i","ss","i","ss","i","pp","i"]
--- LIQUID -- --
--- LIQUID -- -- It is a special case of 'groupBy', which allows the programmer to
--- LIQUID -- -- supply their own equality test. It is about 40% faster than 
--- LIQUID -- -- /groupBy (==)/
--- LIQUID -- group :: ByteString -> [ByteString]
--- LIQUID -- group xs
--- LIQUID --     | null xs   = []
--- LIQUID --     | otherwise = ys : group zs
--- LIQUID --     where
--- LIQUID --         (ys, zs) = spanByte (unsafeHead xs) xs
--- LIQUID -- 
--- LIQUID -- -- | The 'groupBy' function is the non-overloaded version of 'group'.
--- LIQUID -- groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
--- LIQUID -- groupBy k xs
--- LIQUID --     | null xs   = []
--- LIQUID --     | otherwise = unsafeTake n xs : groupBy k (unsafeDrop n xs)
--- LIQUID --     where
--- LIQUID --         n = 1 + findIndexOrEnd (not . k (unsafeHead xs)) (unsafeTail xs)
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ The 'intercalate' function takes a 'ByteString' and a list of
--- LIQUID -- -- 'ByteString's and concatenates the list after interspersing the first
--- LIQUID -- -- argument between each element of the list.
--- LIQUID -- intercalate :: ByteString -> [ByteString] -> ByteString
--- LIQUID -- intercalate s = concat . (List.intersperse s)
--- LIQUID -- {-# INLINE [1] intercalate #-}
--- LIQUID -- 
--- LIQUID -- join :: ByteString -> [ByteString] -> ByteString
--- LIQUID -- join = intercalate
--- LIQUID -- {-# DEPRECATED join "use intercalate" #-}
--- LIQUID -- 
--- LIQUID -- {-# RULES
--- LIQUID -- "FPS specialise intercalate c -> intercalateByte" forall c s1 s2 .
--- LIQUID --     intercalate (singleton c) (s1 : s2 : []) = intercalateWithByte c s1 s2
--- LIQUID --   #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ intercalateWithByte. An efficient way to join to two ByteStrings
--- LIQUID -- -- with a char. Around 4 times faster than the generalised join.
--- LIQUID -- --
--- LIQUID -- intercalateWithByte :: Word8 -> ByteString -> ByteString -> ByteString
--- LIQUID -- intercalateWithByte c f@(PS ffp s l) g@(PS fgp t m) = unsafeCreate len $ \ptr ->
--- LIQUID --     withForeignPtr ffp $ \fp ->
--- LIQUID --     withForeignPtr fgp $ \gp -> do
--- LIQUID --         memcpy ptr (fp `plusPtr` s) (fromIntegral l)
--- LIQUID --         poke (ptr `plusPtr` l) c
--- LIQUID --         memcpy (ptr `plusPtr` (l + 1)) (gp `plusPtr` t) (fromIntegral m)
--- LIQUID --     where
--- LIQUID --       len = length f + length g + 1
--- LIQUID -- {-# INLINE intercalateWithByte #-}
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Indexing ByteStrings
--- LIQUID -- 
--- LIQUID -- -- | /O(1)/ 'ByteString' index (subscript) operator, starting from 0.
--- LIQUID -- index :: ByteString -> Int -> Word8
--- LIQUID -- index ps n
--- LIQUID --     | n < 0          = moduleError "index" ("negative index: " ++ show n)
--- LIQUID --     | n >= length ps = moduleError "index" ("index too large: " ++ show n
--- LIQUID --                                          ++ ", length = " ++ show (length ps))
--- LIQUID --     | otherwise      = ps `unsafeIndex` n
--- LIQUID -- {-# INLINE index #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ The 'elemIndex' function returns the index of the first
--- LIQUID -- -- element in the given 'ByteString' which is equal to the query
--- LIQUID -- -- element, or 'Nothing' if there is no such element. 
--- LIQUID -- -- This implementation uses memchr(3).
--- LIQUID -- elemIndex :: Word8 -> ByteString -> Maybe Int
--- LIQUID -- elemIndex c (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
--- LIQUID --     let p' = p `plusPtr` s
--- LIQUID --     q <- memchr p' c (fromIntegral l)
--- LIQUID --     return $! if q == nullPtr then Nothing else Just $! q `minusPtr` p'
--- LIQUID -- {-# INLINE elemIndex #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ The 'elemIndexEnd' function returns the last index of the
--- LIQUID -- -- element in the given 'ByteString' which is equal to the query
--- LIQUID -- -- element, or 'Nothing' if there is no such element. The following
--- LIQUID -- -- holds:
--- LIQUID -- --
--- LIQUID -- -- > elemIndexEnd c xs == 
--- LIQUID -- -- > (-) (length xs - 1) `fmap` elemIndex c (reverse xs)
--- LIQUID -- --
--- LIQUID -- elemIndexEnd :: Word8 -> ByteString -> Maybe Int
--- LIQUID -- elemIndexEnd ch (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
--- LIQUID --     go (p `plusPtr` s) (l-1)
--- LIQUID --   where
--- LIQUID --     STRICT2(go)
--- LIQUID --     go p i | i < 0     = return Nothing
--- LIQUID --            | otherwise = do ch' <- peekByteOff p i
--- LIQUID --                             if ch == ch'
--- LIQUID --                                 then return $ Just i
--- LIQUID --                                 else go p (i-1)
--- LIQUID -- {-# INLINE elemIndexEnd #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ The 'elemIndices' function extends 'elemIndex', by returning
--- LIQUID -- -- the indices of all elements equal to the query element, in ascending order.
--- LIQUID -- -- This implementation uses memchr(3).
--- LIQUID -- elemIndices :: Word8 -> ByteString -> [Int]
--- LIQUID -- elemIndices w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
--- LIQUID --     let ptr = p `plusPtr` s
--- LIQUID -- 
--- LIQUID --         STRICT1(loop)
--- LIQUID --         loop n = let q = inlinePerformIO $ memchr (ptr `plusPtr` n)
--- LIQUID --                                                 w (fromIntegral (l - n))
--- LIQUID --                  in if q == nullPtr
--- LIQUID --                         then []
--- LIQUID --                         else let i = q `minusPtr` ptr
--- LIQUID --                              in i : loop (i+1)
--- LIQUID --     return $! loop 0
--- LIQUID -- {-# INLINE elemIndices #-}
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- -- much slower
--- LIQUID -- elemIndices :: Word8 -> ByteString -> [Int]
--- LIQUID -- elemIndices c ps = loop 0 ps
--- LIQUID --    where STRICT2(loop)
--- LIQUID --          loop _ ps' | null ps'            = []
--- LIQUID --          loop n ps' | c == unsafeHead ps' = n : loop (n+1) (unsafeTail ps')
--- LIQUID --                     | otherwise           = loop (n+1) (unsafeTail ps')
--- LIQUID -- -}
--- LIQUID -- 
--- LIQUID -- -- | count returns the number of times its argument appears in the ByteString
--- LIQUID -- --
--- LIQUID -- -- > count = length . elemIndices
--- LIQUID -- --
--- LIQUID -- -- But more efficiently than using length on the intermediate list.
--- LIQUID -- count :: Word8 -> ByteString -> Int
--- LIQUID -- count w (PS x s m) = inlinePerformIO $ withForeignPtr x $ \p ->
--- LIQUID --     fmap fromIntegral $ c_count (p `plusPtr` s) (fromIntegral m) w
--- LIQUID -- {-# INLINE count #-}
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- --
--- LIQUID -- -- around 30% slower
--- LIQUID -- --
--- LIQUID -- count w (PS x s m) = inlinePerformIO $ withForeignPtr x $ \p ->
--- LIQUID --      go (p `plusPtr` s) (fromIntegral m) 0
--- LIQUID --     where
--- LIQUID --         go :: Ptr Word8 -> CSize -> Int -> IO Int
--- LIQUID --         STRICT3(go)
--- LIQUID --         go p l i = do
--- LIQUID --             q <- memchr p w l
--- LIQUID --             if q == nullPtr
--- LIQUID --                 then return i
--- LIQUID --                 else do let k = fromIntegral $ q `minusPtr` p
--- LIQUID --                         go (q `plusPtr` 1) (l-k-1) (i+1)
--- LIQUID -- -}
--- LIQUID -- 
--- LIQUID -- -- | The 'findIndex' function takes a predicate and a 'ByteString' and
--- LIQUID -- -- returns the index of the first element in the ByteString
--- LIQUID -- -- satisfying the predicate.
--- LIQUID -- findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
--- LIQUID -- findIndex k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusPtr` s) 0
--- LIQUID --   where
--- LIQUID --     STRICT2(go)
--- LIQUID --     go ptr n | n >= l    = return Nothing
--- LIQUID --              | otherwise = do w <- peek ptr
--- LIQUID --                               if k w
--- LIQUID --                                 then return (Just n)
--- LIQUID --                                 else go (ptr `plusPtr` 1) (n+1)
--- LIQUID -- {-# INLINE findIndex #-}
--- LIQUID -- 
--- LIQUID -- -- | The 'findIndices' function extends 'findIndex', by returning the
--- LIQUID -- -- indices of all elements satisfying the predicate, in ascending order.
--- LIQUID -- findIndices :: (Word8 -> Bool) -> ByteString -> [Int]
--- LIQUID -- findIndices p ps = loop 0 ps
--- LIQUID --    where
--- LIQUID --      STRICT2(loop)
--- LIQUID --      loop n qs | null qs           = []
--- LIQUID --                | p (unsafeHead qs) = n : loop (n+1) (unsafeTail qs)
--- LIQUID --                | otherwise         =     loop (n+1) (unsafeTail qs)
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Searching ByteStrings
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'elem' is the 'ByteString' membership predicate.
--- LIQUID -- elem :: Word8 -> ByteString -> Bool
--- LIQUID -- elem c ps = case elemIndex c ps of Nothing -> False ; _ -> True
--- LIQUID -- {-# INLINE elem #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'notElem' is the inverse of 'elem'
--- LIQUID -- notElem :: Word8 -> ByteString -> Bool
--- LIQUID -- notElem c ps = not (elem c ps)
--- LIQUID -- {-# INLINE notElem #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'filter', applied to a predicate and a ByteString,
--- LIQUID -- -- returns a ByteString containing those characters that satisfy the
--- LIQUID -- -- predicate. This function is subject to array fusion.
--- LIQUID -- filter :: (Word8 -> Bool) -> ByteString -> ByteString
--- LIQUID -- filter k ps@(PS x s l)
--- LIQUID --     | null ps   = ps
--- LIQUID --     | otherwise = unsafePerformIO $ createAndTrim l $ \p -> withForeignPtr x $ \f -> do
--- LIQUID --         t <- go (f `plusPtr` s) p (f `plusPtr` (s + l))
--- LIQUID --         return $! t `minusPtr` p -- actual length
--- LIQUID --     where
--- LIQUID --         STRICT3(go)
--- LIQUID --         go f t end | f == end  = return t
--- LIQUID --                    | otherwise = do
--- LIQUID --                         w <- peek f
--- LIQUID --                         if k w
--- LIQUID --                             then poke t w >> go (f `plusPtr` 1) (t `plusPtr` 1) end
--- LIQUID --                             else             go (f `plusPtr` 1) t               end
--- LIQUID -- #if __GLASGOW_HASKELL__
--- LIQUID -- {-# INLINE [1] filter #-}
--- LIQUID -- #endif
--- LIQUID -- 
--- LIQUID -- --
--- LIQUID -- -- | /O(n)/ A first order equivalent of /filter . (==)/, for the common
--- LIQUID -- -- case of filtering a single byte. It is more efficient to use
--- LIQUID -- -- /filterByte/ in this case.
--- LIQUID -- --
--- LIQUID -- -- > filterByte == filter . (==)
--- LIQUID -- --
--- LIQUID -- -- filterByte is around 10x faster, and uses much less space, than its
--- LIQUID -- -- filter equivalent
--- LIQUID -- --
--- LIQUID -- filterByte :: Word8 -> ByteString -> ByteString
--- LIQUID -- filterByte w ps = replicate (count w ps) w
--- LIQUID -- {-# INLINE filterByte #-}
--- LIQUID -- 
--- LIQUID -- {-# RULES
--- LIQUID --   "FPS specialise filter (== x)" forall x.
--- LIQUID --       filter ((==) x) = filterByte x
--- LIQUID --   #-}
--- LIQUID -- 
--- LIQUID -- {-# RULES
--- LIQUID --   "FPS specialise filter (== x)" forall x.
--- LIQUID --      filter (== x) = filterByte x
--- LIQUID --   #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ The 'find' function takes a predicate and a ByteString,
--- LIQUID -- -- and returns the first element in matching the predicate, or 'Nothing'
--- LIQUID -- -- if there is no such element.
--- LIQUID -- --
--- LIQUID -- -- > find f p = case findIndex f p of Just n -> Just (p ! n) ; _ -> Nothing
--- LIQUID -- --
--- LIQUID -- find :: (Word8 -> Bool) -> ByteString -> Maybe Word8
--- LIQUID -- find f p = case findIndex f p of
--- LIQUID --                     Just n -> Just (p `unsafeIndex` n)
--- LIQUID --                     _      -> Nothing
--- LIQUID -- {-# INLINE find #-}
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- --
--- LIQUID -- -- fuseable, but we don't want to walk the whole array.
--- LIQUID -- -- 
--- LIQUID -- find k = foldl findEFL Nothing
--- LIQUID --     where findEFL a@(Just _) _ = a
--- LIQUID --           findEFL _          c | k c       = Just c
--- LIQUID --                                | otherwise = Nothing
--- LIQUID -- -}
--- LIQUID -- 
+-- | 'takeWhile', applied to a predicate @p@ and a ByteString @xs@,
+-- returns the longest prefix (possibly empty) of @xs@ of elements that
+-- satisfy @p@.
+
+{-@ takeWhile :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
+takeWhile :: (Word8 -> Bool) -> ByteString -> ByteString
+takeWhile f ps = unsafeTake (findIndexOrEnd (not . f) ps) ps
+{-# INLINE takeWhile #-}
+
+-- | 'dropWhile' @p xs@ returns the suffix remaining after 'takeWhile' @p xs@.
+{-@ dropWhile :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
+dropWhile :: (Word8 -> Bool) -> ByteString -> ByteString
+dropWhile f ps = unsafeDrop (findIndexOrEnd (not . f) ps) ps
+{-# INLINE dropWhile #-}
+
+-- instead of findIndexOrEnd, we could use memchr here.
+
+-- | 'break' @p@ is equivalent to @'span' ('not' . p)@.
+{-@ break :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
+break :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+break p ps = case findIndexOrEnd p ps of n -> (unsafeTake n ps, unsafeDrop n ps)
+#if __GLASGOW_HASKELL__ 
+{-# INLINE [1] break #-}
+
+{-# RULES
+"FPS specialise break (x==)" forall x.
+    break ((==) x) = breakByte x
+"FPS specialise break (==x)" forall x.
+    break (==x) = breakByte x
+  #-}
+#endif
+
+-- | 'breakByte' breaks its ByteString argument at the first occurence
+-- of the specified byte. It is more efficient than 'break' as it is
+-- implemented with @memchr(3)@. I.e.
+-- 
+-- > break (=='c') "abcd" == breakByte 'c' "abcd"
+--
+
+{-@ breakByte :: Word8 -> b:ByteString -> (ByteStringPair b) @-}
+breakByte :: Word8 -> ByteString -> (ByteString, ByteString)
+breakByte c p = case elemIndex c p of
+    Nothing -> (p,empty)
+    Just n  -> (unsafeTake n p, unsafeDrop n p)
+{-# INLINE breakByte #-}
+
+-- | 'breakEnd' behaves like 'break' but from the end of the 'ByteString'
+-- 
+-- breakEnd p == spanEnd (not.p)
+
+{-@ breakEnd :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
+breakEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+breakEnd  p ps = splitAt (findFromEndUntil p ps) ps
+
+-- | 'span' @p xs@ breaks the ByteString into two segments. It is
+-- equivalent to @('takeWhile' p xs, 'dropWhile' p xs)@
+{-@ span :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
+span :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+span p ps = break (not . p) ps
+#if __GLASGOW_HASKELL__
+{-# INLINE [1] span #-}
+#endif
+
+-- | 'spanByte' breaks its ByteString argument at the first
+-- occurence of a byte other than its argument. It is more efficient
+-- than 'span (==)'
+--
+-- > span  (=='c') "abcd" == spanByte 'c' "abcd"
+--
+{-@ spanByte :: Word8 -> b:ByteString -> (ByteStringPair b) @-}
+spanByte :: Word8 -> ByteString -> (ByteString, ByteString)
+spanByte c ps@(PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
+    go (p `plusPtr` s) 0
+  where
+    STRICT2(go)
+    go p i | i >= l    = return (ps, empty)
+           | otherwise = do c' <- peekByteOff p i
+                            if c /= c'
+                                then return (unsafeTake i ps, unsafeDrop i ps)
+                                else go p (i+1)
+{-# INLINE spanByte #-}
+
+{-# RULES
+"FPS specialise span (x==)" forall x.
+    span ((==) x) = spanByte x
+"FPS specialise span (==x)" forall x.
+    span (==x) = spanByte x
+  #-}
+
+-- | 'spanEnd' behaves like 'span' but from the end of the 'ByteString'.
+-- We have
+--
+-- > spanEnd (not.isSpace) "x y z" == ("x y ","z")
+--
+-- and
+--
+-- > spanEnd (not . isSpace) ps
+-- >    == 
+-- > let (x,y) = span (not.isSpace) (reverse ps) in (reverse y, reverse x) 
+--
+{-@ spanEnd :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
+spanEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+spanEnd  p ps = splitAt (findFromEndUntil (not.p) ps) ps
+
+-- | /O(n)/ Splits a 'ByteString' into components delimited by
+-- separators, where the predicate returns True for a separator element.
+-- The resulting components do not contain the separators.  Two adjacent
+-- separators result in an empty component in the output.  eg.
+--
+-- > splitWith (=='a') "aabbaca" == ["","","bb","c",""]
+-- > splitWith (=='a') []        == []
+--
+-- LIQUID: instead of NE, return [empty] in 0 case, or complicate spec.
+{-@ splitWith :: (Word8 -> Bool) -> b:ByteStringNE -> (ByteStringSplit b) @-}
+splitWith :: (Word8 -> Bool) -> ByteString -> [ByteString]
+
+#if defined(__GLASGOW_HASKELL__)
+splitWith _pred (PS _  _   0) = []
+splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp
+  where pred# c# = pred_ (W8# c#)
+
+        STRICT4(splitWith0)
+        splitWith0 pred' off' len' fp' = withPtr fp $ \p ->
+            splitLoop pred' p 0 off' len' fp'
+
+        splitLoop :: (Word# -> Bool)
+                  -> Ptr Word8
+                  -> Int -> Int -> Int
+                  -> ForeignPtr Word8
+                  -> IO [ByteString]
+
+        splitLoop pred' p idx' off' len' fp'
+            | pred' `seq` p `seq` idx' `seq` off' `seq` len' `seq` fp' `seq` False = undefined
+            | idx' >= len'  = return [PS fp' off' idx']
+            | otherwise = do
+                w <- peekElemOff p (off'+idx')
+                if pred' (case w of W8# w# -> w#)
+                   then return (PS fp' off' idx' :
+                              splitWith0 pred' (off'+idx'+1) (len'-idx'-1) fp')
+                   else splitLoop pred' p (idx'+1) off' len' fp'
+{-# INLINE splitWith #-}
+
+#else
+splitWith _ (PS _ _ 0) = []
+splitWith p ps = loop p ps
+    where
+        STRICT2(loop)
+        loop q qs = if null rest then [chunk]
+                                 else chunk : loop q (unsafeTail rest)
+            where (chunk,rest) = break q qs
+#endif
+
+-- | /O(n)/ Break a 'ByteString' into pieces separated by the byte
+-- argument, consuming the delimiter. I.e.
+--
+-- > split '\n' "a\nb\nd\ne" == ["a","b","d","e"]
+-- > split 'a'  "aXaXaXa"    == ["","X","X","X",""]
+-- > split 'x'  "x"          == ["",""]
+-- 
+-- and
+--
+-- > intercalate [c] . split c == id
+-- > split == splitWith . (==)
+-- 
+-- As for all splitting functions in this library, this function does
+-- not copy the substrings, it just constructs new 'ByteStrings' that
+-- are slices of the original.
+--
+{-@ split :: Word8 -> b:ByteStringNE -> (ByteStringSplit b)  @-}
+split :: Word8 -> ByteString -> [ByteString]
+split _ (PS _ _ 0) = []
+split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
+    let ptr = p `plusPtr` s
+    return (splitLoop x ptr w l s 0)
+
+-- LIQUID TODO: THIS ORIGINAL CODE WORKS FINE IN ISOLATION BUT SOMEHOW BREAKS ON LARGE FILE. 
+-- TOO SICK AND TIRED TO INVESTIGATE WTF is going on...
+--         STRICT1(loop)
+--         loop n =
+--             -- LIQUID: else lose `plen` info due to subsequent @ Word8 application
+--             let ptrn = (ptr `plusPtr` n) :: Ptr Word8 
+--                 q = inlinePerformIO $ memchr ptrn {- (ptr `plusPtr` n) -}
+--                                            w (fromIntegral (l-n))
+--             in if isNullPtr q {- LIQUID q == nullPtr -}
+--                 then [PS x (s+n) (l-n)]
+--                 else let i = q `minusPtr` ptr in PS x (s+n) (i-n) : loop (i+1)
+-- 
+--     return (loop 0)
+{-# INLINE split #-}
+
+-- A longer split out version of the above with explicit type
+-- annotations...
+{-@ splitO :: Word8 -> b:ByteStringNE -> (ByteStringSplit b)  @-}
+splitO _ (PS _ _ 0) = []
+splitO w (PS xanadu s l) = inlinePerformIO $ withForeignPtr xanadu $ \pz -> do
+    let p   = liquidAssert (fpLen xanadu == pLen pz) pz
+    let ptrGOBBLE_ = p `plusPtr` s
+    let ptrGOBBLE  = liquidAssert (l <= pLen ptrGOBBLE_) ptrGOBBLE_ 
+    return (splitLoop xanadu ptrGOBBLE w l s 0)
+
+{-@ splitLoop :: fp:(ForeignPtr Word8) 
+          -> p:(Ptr Word8) 
+          -> Word8 
+          -> l:{v:Nat | v <= (plen p)} 
+          -> s:{v:Nat | v + l <= (fplen fp)}
+          -> n:{v:Nat | v <= l} 
+          -> {v:[ByteString] | (bLengths v) + (len v) - 1 = l - n} 
+  @-}
+splitLoop :: ForeignPtr Word8 -> Ptr Word8 -> Word8 -> Int -> Int -> Int -> [ByteString]
+splitLoop xanadu ptrGOBBLE w l s n = 
+  let ptrn = ((ptrGOBBLE `plusPtr` n) :: Ptr Word8) 
+           -- NEEDED: else lose `plen` information without cast
+           -- thanks to subsequent @ Word8 application
+      q    = inlinePerformIO $ memchr ptrn w (fromIntegral (l-n))
+  in if isNullPtr q {- LIQUID q == nullPtr -}
+       then [PS xanadu (s+n) (l-n)]
+       else let i' = q `minusPtr` ptrGOBBLE
+                i  = liquidAssert (n <= i' && i' < l) i'
+            in PS xanadu (s+n) (i-n) : splitLoop xanadu ptrGOBBLE w l s (i+1)
+
+
+{-
+-- slower. but stays inside Haskell.
+split _ (PS _  _   0) = []
+split (W8# w#) (PS fp off len) = splitWith' off len fp
+    where
+        splitWith' off' len' fp' = withPtr fp $ \p ->
+            splitLoop p 0 off' len' fp'
+
+        splitLoop :: Ptr Word8
+                  -> Int -> Int -> Int
+                  -> ForeignPtr Word8
+                  -> IO [ByteString]
+
+        STRICT5(splitLoop)
+        splitLoop p idx' off' len' fp'
+            | p `seq` idx' `seq` off' `seq` len' `seq` fp' `seq` False = undefined
+            | idx' >= len'  = return [PS fp' off' idx']
+            | otherwise = do
+                (W8# x#) <- peekElemOff p (off'+idx')
+                if word2Int# w# ==# word2Int# x#
+                   then return (PS fp' off' idx' :
+                              splitWith' (off'+idx'+1) (len'-idx'-1) fp')
+                   else splitLoop p (idx'+1) off' len' fp'
+-}
+
+{-
+-- | Like 'splitWith', except that sequences of adjacent separators are
+-- treated as a single separator. eg.
+-- 
+-- > tokens (=='a') "aabbaca" == ["bb","c"]
+--
+tokens :: (Word8 -> Bool) -> ByteString -> [ByteString]
+tokens f = P.filter (not.null) . splitWith f
+{-# INLINE tokens #-}
+-}
+
+-- | The 'group' function takes a ByteString and returns a list of
+-- ByteStrings such that the concatenation of the result is equal to the
+-- argument.  Moreover, each sublist in the result contains only equal
+-- elements.  For example,
+--
+-- > group "Mississippi" = ["M","i","ss","i","ss","i","pp","i"]
+--
+-- It is a special case of 'groupBy', which allows the programmer to
+-- supply their own equality test. It is about 40% faster than 
+-- /groupBy (==)/
+{-@ group :: b:ByteString -> {v: [ByteString] | (bLengths v) = (bLength b)} @-}
+group :: ByteString -> [ByteString]
+group xs
+    | null xs   = []
+    | otherwise = let (ys, zs) = spanByte (unsafeHead xs) xs in 
+                  ys : group zs
+    -- LIQUID LAZY: where
+    -- LIQUID LAZY:     (ys, zs) = spanByte (unsafeHead xs) xs
+
+
+-- | The 'groupBy' function is the non-overloaded version of 'group'.
+{-@ groupBy :: (Word8 -> Word8 -> Bool) -> b:ByteString -> {v:[ByteString] | (bLengths v) = (bLength b)} @-}
+groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
+groupBy k xs
+    | null xs   = []
+    | otherwise = let n = 1 + findIndexOrEnd (not . k (unsafeHead xs)) (unsafeTail xs) in
+                  unsafeTake n xs : groupBy k (unsafeDrop n xs)
+    -- LIQUID LAZY: where
+    -- LIQUID LAZY:     n = 1 + findIndexOrEnd (not . k (unsafeHead xs)) (unsafeTail xs)
+
+-- | /O(n)/ The 'intercalate' function takes a 'ByteString' and a list of
+-- 'ByteString's and concatenates the list after interspersing the first
+-- argument between each element of the list.
+intercalate :: ByteString -> [ByteString] -> ByteString
+intercalate s = concat . (List.intersperse s)
+{-# INLINE [1] intercalate #-}
+
+join :: ByteString -> [ByteString] -> ByteString
+join = intercalate
+{-# DEPRECATED join "use intercalate" #-}
+
+{-# RULES
+"FPS specialise intercalate c -> intercalateByte" forall c s1 s2 .
+    intercalate (singleton c) (s1 : s2 : []) = intercalateWithByte c s1 s2
+  #-}
+
+-- | /O(n)/ intercalateWithByte. An efficient way to join to two ByteStrings
+-- with a char. Around 4 times faster than the generalised join.
+--
+
+{-@ intercalateWithByte :: Word8 -> f:ByteString -> g:ByteString -> {v:ByteString | (bLength v) = (bLength f) + (bLength g) + 1} @-}
+intercalateWithByte :: Word8 -> ByteString -> ByteString -> ByteString
+intercalateWithByte c f@(PS ffp s l) g@(PS fgp t m) = unsafeCreate len $ \ptr ->
+    withForeignPtr ffp $ \fp ->
+    withForeignPtr fgp $ \gp -> do
+        memcpy ptr (fp `plusPtr` s) (fromIntegral l)
+        poke (ptr `plusPtr` l) c
+        memcpy (ptr `plusPtr` (l + 1)) (gp `plusPtr` t) (fromIntegral m)
+    where
+      len = length f + length g + 1
+{-# INLINE intercalateWithByte #-}
+
+-- ---------------------------------------------------------------------
+-- Indexing ByteStrings
+
+-- | /O(1)/ 'ByteString' index (subscript) operator, starting from 0.
+{-@ index :: b:ByteString -> {v:Nat | v < (bLength b)} -> Word8 @-}
+index :: ByteString -> Int -> Word8
+index ps n
+    | n < 0          = moduleError "index" ("negative index: " ++ show n)
+    | n >= length ps = moduleError "index" ("index too large: " ++ show n
+                                         ++ ", length = " ++ show (length ps))
+    | otherwise      = ps `unsafeIndex` n
+{-# INLINE index #-}
+
+
+-- | /O(n)/ The 'elemIndex' function returns the index of the first
+-- element in the given 'ByteString' which is equal to the query
+-- element, or 'Nothing' if there is no such element. 
+-- This implementation uses memchr(3).
+
+{-@ elemIndex :: Word8 -> b:ByteString -> Maybe {v:Nat | v < (bLength b)} @-}
+elemIndex :: Word8 -> ByteString -> Maybe Int
+elemIndex c (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
+    let p' = p `plusPtr` s
+    q <- memchr p' c (fromIntegral l)
+    return $! if isNullPtr q {- LIQUID: q == nullPtr -} then Nothing else Just $! q `minusPtr` p'
+{-# INLINE elemIndex #-}
+
+-- | /O(n)/ The 'elemIndexEnd' function returns the last index of the
+-- element in the given 'ByteString' which is equal to the query
+-- element, or 'Nothing' if there is no such element. The following
+-- holds:
+--
+-- > elemIndexEnd c xs == 
+-- > (-) (length xs - 1) `fmap` elemIndex c (reverse xs)
+--
+{-@ elemIndexEnd :: Word8 -> b:ByteString -> Maybe {v:Nat | v < (bLength b) } @-}
+elemIndexEnd :: Word8 -> ByteString -> Maybe Int
+elemIndexEnd ch (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
+    go (p `plusPtr` s) (l-1)
+  where
+    STRICT2(go)
+    go p i | i < 0     = return Nothing
+           | otherwise = do ch' <- peekByteOff p i
+                            if ch == ch'
+                                then return $ Just i
+                                else go p (i-1)
+{-# INLINE elemIndexEnd #-}
+
+-- | /O(n)/ The 'elemIndices' function extends 'elemIndex', by returning
+-- the indices of all elements equal to the query element, in ascending order.
+-- This implementation uses memchr(3).
+{-@ elemIndices :: Word8 -> b:ByteString -> [{v:Nat | v < (bLength b) }] @-}
+elemIndices :: Word8 -> ByteString -> [Int]
+elemIndices w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
+    let ptr = p `plusPtr` s
+
+        STRICT1(loop)
+        loop n = let pn = ((ptr `plusPtr` n) :: Ptr Word8)  -- LIQUID CAST
+                     q  = inlinePerformIO $ memchr pn
+                                                 w (fromIntegral (l - n))
+                 in if isNullPtr q {- == nullPtr -}         -- LIQUID NULLPTR
+                        then []
+                        else let i = q `minusPtr` ptr
+                             in i : loop (i+1)
+    return $! loop 0
+{-# INLINE elemIndices #-}
+
+{-
+-- much slower
+elemIndices :: Word8 -> ByteString -> [Int]
+elemIndices c ps = loop 0 ps
+   where STRICT2(loop)
+         loop _ ps' | null ps'            = []
+         loop n ps' | c == unsafeHead ps' = n : loop (n+1) (unsafeTail ps')
+                    | otherwise           = loop (n+1) (unsafeTail ps')
+-}
+
+-- | count returns the number of times its argument appears in the ByteString
+--
+-- > count = length . elemIndices
+--
+-- But more efficiently than using length on the intermediate list.
+{-@ count :: Word8 -> b:ByteString -> {v:Nat | v <= (bLength b) } @-}
+count :: Word8 -> ByteString -> Int
+count w (PS x s m) = inlinePerformIO $ withForeignPtr x $ \p ->
+    fmap fromIntegral $ c_count (p `plusPtr` s) (fromIntegral m) w
+{-# INLINE count #-}
+
+{-
+--
+-- around 30% slower
+--
+count w (PS x s m) = inlinePerformIO $ withForeignPtr x $ \p ->
+     go (p `plusPtr` s) (fromIntegral m) 0
+    where
+        go :: Ptr Word8 -> CSize -> Int -> IO Int
+        STRICT3(go)
+        go p l i = do
+            q <- memchr p w l
+            if q == nullPtr
+                then return i
+                else do let k = fromIntegral $ q `minusPtr` p
+                        go (q `plusPtr` 1) (l-k-1) (i+1)
+-}
+
+-- | The 'findIndex' function takes a predicate and a 'ByteString' and
+-- returns the index of the first element in the ByteString
+-- satisfying the predicate.
+{-@ findIndex :: (Word8 -> Bool) -> b:ByteString -> (Maybe {v:Nat | v < (bLength b)}) @-}
+findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
+findIndex k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusPtr` s) 0
+  where
+    STRICT2(go)
+    go ptr n | n >= l    = return Nothing
+             | otherwise = do w <- peek ptr
+                              if k w
+                                then return (Just n)
+                                else go (ptr `plusPtr` 1) (n+1)
+{-# INLINE findIndex #-}
+
+-- | The 'findIndices' function extends 'findIndex', by returning the
+-- indices of all elements satisfying the predicate, in ascending order.
+{-@ findIndices :: (Word8 -> Bool) -> b:ByteString -> [{v:Nat | v < (bLength b)}] @-}
+findIndices :: (Word8 -> Bool) -> ByteString -> [Int]
+findIndices p ps = loop 0 ps
+   where
+     STRICT2(loop)
+     loop (n :: Int) qs             -- LIQUID CAST 
+        | null qs           = []
+        | p (unsafeHead qs) = n : loop (n+1) (unsafeTail qs)
+        | otherwise         =     loop (n+1) (unsafeTail qs)
+
+-- ---------------------------------------------------------------------
+-- Searching ByteStrings
+
+-- | /O(n)/ 'elem' is the 'ByteString' membership predicate.
+elem :: Word8 -> ByteString -> Bool
+elem c ps = case elemIndex c ps of Nothing -> False ; _ -> True
+{-# INLINE elem #-}
+
+-- | /O(n)/ 'notElem' is the inverse of 'elem'
+notElem :: Word8 -> ByteString -> Bool
+notElem c ps = not (elem c ps)
+{-# INLINE notElem #-}
+
+-- | /O(n)/ 'filter', applied to a predicate and a ByteString,
+-- returns a ByteString containing those characters that satisfy the
+-- predicate. This function is subject to array fusion.
+{-@ qualif FilterLoop(v:Ptr a, f:Ptr a, t:Ptr a): (plen t) >= (plen f) - (plen v) @-}
+{-@ filter :: (Word8 -> Bool) -> b:ByteString -> {v:ByteString | (bLength v) <= (bLength b)} @-}
+filter :: (Word8 -> Bool) -> ByteString -> ByteString
+filter k ps@(PS x s l)
+    | null ps   = ps
+    | otherwise = unsafePerformIO $ createAndTrim l $ \p -> withForeignPtr x $ \f -> do
+        t <- go (f `plusPtr` s) p (f `plusPtr` (s + l))
+        return $! t `minusPtr` p -- actual length
+    where
+      STRICT3(go)
+      go f' t end | f' == end = return t
+                  | otherwise = do
+                        let f = liquid_thm_ptr_cmp f' end -- LIQUID THEOREM
+                        w <- peek f
+                        if k w
+                          then poke t w >> go (f `plusPtr` 1) (t `plusPtr` 1) end
+                          else             go (f `plusPtr` 1) t               end
+#if __GLASGOW_HASKELL__
+{-# INLINE [1] filter #-}
+#endif
+
+
+-- | /O(n)/ A first order equivalent of /filter . (==)/, for the common
+-- case of filtering a single byte. It is more efficient to use
+-- /filterByte/ in this case.
+--
+-- > filterByte == filter . (==)
+--
+-- filterByte is around 10x faster, and uses much less space, than its
+-- filter equivalent
+--
+{-@ filterByte :: Word8 -> b:ByteString -> {v:ByteString | (bLength v) <= (bLength b)} @-}
+filterByte :: Word8 -> ByteString -> ByteString
+filterByte w ps = replicate (count w ps) w
+{-# INLINE filterByte #-}
+
+{-# RULES
+  "FPS specialise filter (== x)" forall x.
+      filter ((==) x) = filterByte x
+  #-}
+
+{-# RULES
+  "FPS specialise filter (== x)" forall x.
+     filter (== x) = filterByte x
+  #-}
+
+-- | /O(n)/ The 'find' function takes a predicate and a ByteString,
+-- and returns the first element in matching the predicate, or 'Nothing'
+-- if there is no such element.
+--
+-- > find f p = case findIndex f p of Just n -> Just (p ! n) ; _ -> Nothing
+--
+find :: (Word8 -> Bool) -> ByteString -> Maybe Word8
+find f p = case findIndex f p of
+                    Just n -> Just (p `unsafeIndex` n)
+                    _      -> Nothing
+{-# INLINE find #-}
+
+{-
+--
+-- fuseable, but we don't want to walk the whole array.
+-- 
+find k = foldl findEFL Nothing
+    where findEFL a@(Just _) _ = a
+          findEFL _          c | k c       = Just c
+                               | otherwise = Nothing
+-}
+
+-- HEREHEREHERE
 -- LIQUID -- -- | /O(n)/ The 'partition' function takes a predicate a ByteString and returns
 -- LIQUID -- -- the pair of ByteStrings with elements which do and do not satisfy the
 -- LIQUID -- -- predicate, respectively; i.e.,
@@ -1681,21 +1767,30 @@ splitAt n ps@(PS x s l)
 -- LIQUID -- unzip :: [(Word8,Word8)] -> (ByteString,ByteString)
 -- LIQUID -- unzip ls = (pack (P.map fst ls), pack (P.map snd ls))
 -- LIQUID -- {-# INLINE unzip #-}
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Special lists
--- LIQUID -- 
+ 
+-- ---------------------------------------------------------------------
+-- Special lists
+
 -- LIQUID -- -- | /O(n)/ Return all initial segments of the given 'ByteString', shortest first.
+-- LIQUID -- {- inits :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
 -- LIQUID -- inits :: ByteString -> [ByteString]
--- LIQUID -- inits (PS x s l) = [PS x s n | n <- [0..l]]
+-- LIQUID -- inits (PS x s l) = [PS x s n | n <- rng l {- LIQUID COMPREHENSIONS [0..l] -}]
+-- LIQUID -- 
+-- LIQUID -- {- rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
+-- LIQUID -- rng :: Int -> [Int]
+-- LIQUID -- rng 0 = [0]
+-- LIQUID -- rng n = n : rng (n-1) 
+-- LIQUID -- 
 -- LIQUID -- 
 -- LIQUID -- -- | /O(n)/ Return all final segments of the given 'ByteString', longest first.
+-- LIQUID -- {- tails :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
 -- LIQUID -- tails :: ByteString -> [ByteString]
 -- LIQUID -- tails p | null p    = [empty]
 -- LIQUID --         | otherwise = p : tails (unsafeTail p)
--- LIQUID -- 
--- LIQUID -- -- less efficent spacewise: tails (PS x s l) = [PS x (s+n) (l-n) | n <- [0..l]]
--- LIQUID -- 
+
+-- less efficent spacewise: tails (PS x s l) = [PS x (s+n) (l-n) | n <- [0..l]]
+
+-- LIQUID TARGET -- 
 -- LIQUID -- -- ---------------------------------------------------------------------
 -- LIQUID -- -- ** Ordered 'ByteString's
 -- LIQUID -- 
@@ -2062,16 +2157,17 @@ splitAt n ps@(PS x s l)
 
 -- | 'findIndexOrEnd' is a variant of findIndex, that returns the length
 -- of the string if no element is found, rather than Nothing.
--- LIQUID -- findIndexOrEnd :: (Word8 -> Bool) -> ByteString -> Int
--- LIQUID -- findIndexOrEnd k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusPtr` s) 0
--- LIQUID --   where
--- LIQUID --     STRICT2(go)
--- LIQUID --     go ptr n | n >= l    = return l
--- LIQUID --              | otherwise = do w <- peek ptr
--- LIQUID --                               if k w
--- LIQUID --                                 then return n
--- LIQUID --                                 else go (ptr `plusPtr` 1) (n+1)
--- LIQUID -- {-# INLINE findIndexOrEnd #-}
+{-@ findIndexOrEnd :: (Word8 -> Bool) -> b:ByteString -> {v:Nat | v <= (bLength b) } @-}
+findIndexOrEnd :: (Word8 -> Bool) -> ByteString -> Int
+findIndexOrEnd k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusPtr` s) 0
+  where
+    STRICT2(go)
+    go ptr n | n >= l    = return l
+             | otherwise = do w <- peek ptr
+                              if k w
+                                then return n
+                                else go (ptr `plusPtr` 1) (n+1)
+{-# INLINE findIndexOrEnd #-}
 
 -- | Perform an operation with a temporary ByteString
 withPtr :: ForeignPtr a -> (Ptr a -> IO b) -> b
@@ -2085,17 +2181,17 @@ errorEmptyList :: String -> a
 errorEmptyList fun = moduleError fun "empty ByteString"
 {-# NOINLINE errorEmptyList #-}
 
-{-@ moduleError :: String -> String -> a @-}
 moduleError :: String -> String -> a
 moduleError fun msg = error ("Data.ByteString." ++ fun ++ ':':' ':msg)
 {-# NOINLINE moduleError #-}
 
--- LIQUID -- -- Find from the end of the string using predicate
--- LIQUID -- findFromEndUntil :: (Word8 -> Bool) -> ByteString -> Int
--- LIQUID -- STRICT2(findFromEndUntil)
--- LIQUID -- findFromEndUntil f ps@(PS x s l) =
--- LIQUID --     if null ps then 0
--- LIQUID --     else if f (last ps) then l
--- LIQUID --          else findFromEndUntil f (PS x s (l-1))
+-- Find from the end of the string using predicate
+{-@ findFromEndUntil :: (Word8 -> Bool) -> b:ByteString -> {v:Nat | v <= (bLength b)} @-}
+findFromEndUntil :: (Word8 -> Bool) -> ByteString -> Int
+STRICT2(findFromEndUntil)
+findFromEndUntil f ps@(PS x s l) =
+    if null ps then 0
+    else if f (last ps) then l
+         else findFromEndUntil f (PS x s (l-1))
 
 
