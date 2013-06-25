@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE BangPatterns, MagicHash, CPP #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- |
 -- Module      : Data.Text.Lazy
 -- Copyright   : (c) 2009, 2010, 2012 Bryan O'Sullivan
@@ -652,14 +653,8 @@ last (Chunk t ts) = go t ts
 length :: Text -> Int64
 --LIQUID length = foldlChunks go 0
 --LIQUID     where go ts t l = l + fromIntegral (T.length t)
-length t = foldrChunks length_fold 0 t
-{-@ length_fold :: Data.Text.Lazy.Internal.Text
-                -> t:NonEmptyStrict
-                -> l:Nat64
-                -> {v:Nat64 | v = ((tlength t) + l)}
-  @-}
-length_fold :: Text -> T.Text -> Int64 -> Int64
-length_fold _ t l = l + fromIntegral (T.length t)
+length = foldrChunks go 0
+    where go ts t (l::Int64) = l + fromIntegral (T.length t)
 {-# INLINE [1] length #-}
 
 {-# RULES
