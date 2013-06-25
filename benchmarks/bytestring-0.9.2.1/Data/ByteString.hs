@@ -106,8 +106,8 @@ module Data.ByteString (
 -- LIQUID        -- * Substrings
 -- LIQUID
 -- LIQUID        -- ** Breaking strings
--- LIQUID        take,                   -- :: Int -> ByteString -> ByteString
--- LIQUID        drop,                   -- :: Int -> ByteString -> ByteString
+        take,                   -- :: Int -> ByteString -> ByteString
+        drop,                   -- :: Int -> ByteString -> ByteString
 -- LIQUID        splitAt,                -- :: Int -> ByteString -> (ByteString, ByteString)
 -- LIQUID        takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
 -- LIQUID        dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
@@ -306,11 +306,8 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 {-@ qualif Zog(v:a)              : 0 <= (plen v)                 @-}
 
 {-@ qualif BLens(v:a)            : 0 <= (bLengths v)             @-}
-{-@ qualif BLenLE(v:Ptr a, bs:b) : (bLengths bs) <= (plen v)     @-}
+{-@ qualif BLenLE(v:GHC.Ptr.Ptr a, bs:b) : (bLengths bs) <= (plen v)     @-}
 
-
-{-@ type ByteStringNE   = {v:ByteString | (bLength v) > 0} @-}
-{-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)} @-}
 
 {-@ measure bLengths  :: [Data.ByteString.Internal.ByteString] -> Int 
     bLengths ([])   = 0
@@ -668,7 +665,11 @@ reverse (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
 -- 'ByteString' and \`intersperses\' that byte between the elements of
 -- the 'ByteString'.  It is analogous to the intersperse function on
 -- Lists.
-{-@ intersperse :: Word8 -> b:ByteString -> {v:ByteString | (((bLength b) >= 2) => ((bLength v) = (2 * (bLength b)) - 1)) } @-}
+{-@ intersperse :: Word8 -> b:ByteString
+                -> {v:ByteString |
+                     (((bLength b) >= 2) ? ((bLength v) = (2 * (bLength b)) - 1)
+                                         : ((bLength v) = (bLength b))) }
+  @-}
 intersperse :: Word8 -> ByteString -> ByteString
 intersperse c ps@(PS x s l)
     | length ps < 2  = ps
@@ -891,7 +892,7 @@ minimum xs@(PS x s l)
 -- passing an accumulating parameter from left to right, and returning a
 -- final value of this accumulator together with the new list.
 
-{-@ mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString) @-}
+{-@ mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> b:ByteString -> (acc, ByteStringSZ b) @-}
 mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
 #if !defined(LOOPU_FUSION)
 mapAccumL f z = unSP . loopUp (mapAccumEFL f) z
@@ -905,7 +906,7 @@ mapAccumL f z = unSP . loopU (mapAccumEFL f) z
 -- passing an accumulating parameter from right to left, and returning a
 -- final value of this accumulator together with the new ByteString.
 
-{-@ mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString) @-}
+{-@ mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> b:ByteString -> (acc, ByteStringSZ b) @-}
 mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
 mapAccumR f z = unSP . loopDown (mapAccumEFL f) z
 {-# INLINE mapAccumR #-}
@@ -928,7 +929,9 @@ mapIndexed f = loopArr . loopUp (mapIndexEFL f) 0
 --
 -- > last (scanl f z xs) == foldl f z xs.
 
-{-@ scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteString | (bLength v) = 1 + (bLength b)}  @-}
+{-@ scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString
+          -> {v:ByteString | (bLength v) = 1 + (bLength b)}
+  @-}
 scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
 #if !defined(LOOPU_FUSION)
 scanl f z ps = loopArr . loopUp (scanEFL f) z $ (ps `snoc` 0)
@@ -1020,27 +1023,36 @@ scanr1 f ps
 -- LIQUID --              | otherwise -> do poke p w
 -- LIQUID --                                go (p `plusPtr` 1) x' (n+1)
 -- LIQUID -- {-# INLINE unfoldrN #-}
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Substrings
--- LIQUID -- 
--- LIQUID -- -- | /O(1)/ 'take' @n@, applied to a ByteString @xs@, returns the prefix
--- LIQUID -- -- of @xs@ of length @n@, or @xs@ itself if @n > 'length' xs@.
--- LIQUID -- take :: Int -> ByteString -> ByteString
--- LIQUID -- take n ps@(PS x s l)
--- LIQUID --     | n <= 0    = empty
--- LIQUID --     | n >= l    = ps
--- LIQUID --     | otherwise = PS x s n
--- LIQUID -- {-# INLINE take #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(1)/ 'drop' @n xs@ returns the suffix of @xs@ after the first @n@
--- LIQUID -- -- elements, or @[]@ if @n > 'length' xs@.
--- LIQUID -- drop  :: Int -> ByteString -> ByteString
--- LIQUID -- drop n ps@(PS x s l)
--- LIQUID --     | n <= 0    = ps
--- LIQUID --     | n >= l    = empty
--- LIQUID --     | otherwise = PS x (s+n) (l-n)
--- LIQUID -- {-# INLINE drop #-}
+
+-- ---------------------------------------------------------------------
+-- Substrings
+
+-- | /O(1)/ 'take' @n@, applied to a ByteString @xs@, returns the prefix
+-- of @xs@ of length @n@, or @xs@ itself if @n > 'length' xs@.
+{-@ take :: n:Nat
+         -> b:ByteString
+         -> {v:ByteString | (Min (bLength v) (bLength b) n)}
+ @-}
+take :: Int -> ByteString -> ByteString
+take n ps@(PS x s l)
+    | n <= 0    = empty
+    | n >= l    = ps
+    | otherwise = PS x s n
+{-# INLINE take #-}
+
+-- | /O(1)/ 'drop' @n xs@ returns the suffix of @xs@ after the first @n@
+-- elements, or @[]@ if @n > 'length' xs@.
+{-@ drop :: n:Nat
+         -> b:ByteString
+         -> {v:ByteString | ((bLength v) = (((bLength b) <= n)
+                                         ? 0 : ((bLength b) - n)))}
+  @-}
+drop  :: Int -> ByteString -> ByteString
+drop n ps@(PS x s l)
+    | n <= 0    = ps
+    | n >= l    = empty
+    | otherwise = PS x (s+n) (l-n)
+{-# INLINE drop #-}
 -- LIQUID -- 
 -- LIQUID -- -- | /O(1)/ 'splitAt' @n xs@ is equivalent to @('take' n xs, 'drop' n xs)@.
 -- LIQUID -- splitAt :: Int -> ByteString -> (ByteString, ByteString)
@@ -2068,6 +2080,7 @@ errorEmptyList :: String -> a
 errorEmptyList fun = moduleError fun "empty ByteString"
 {-# NOINLINE errorEmptyList #-}
 
+{-@ moduleError :: String -> String -> a @-}
 moduleError :: String -> String -> a
 moduleError fun msg = error ("Data.ByteString." ++ fun ++ ':':' ':msg)
 {-# NOINLINE moduleError #-}

@@ -203,7 +203,32 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
   @-}
 
-{-@ type ByteStringN N = {v: ByteString | (bLength v) = N} @-}
+--LIQUID hack until we have proper name-resolution
+{-@ type ByteString = {v:Data.ByteString.Internal.ByteString | true} @-}
+{-@ type ByteStringN N  = {v: ByteString | (bLength v) = N} @-}
+{-@ type ByteStringNE   = {v:ByteString | (bLength v) > 0} @-}
+{-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)} @-}
+
+{-@ invariant {v:ByteString | (bLength v) >= 0} @-}
+
+{-@ qualif ByteStringN(v:Data.ByteString.Internal.ByteString, n:Int): (bLength v) = n @-}
+{-@ qualif ByteStringNE(v:Data.ByteString.Internal.ByteString): (bLength v) > 0 @-}
+{-@ qualif ByteStringSZ(v:Data.ByteString.Internal.ByteString,
+                        b:Data.ByteString.Internal.ByteString):
+        (bLength v) = (bLength b)
+  @-}
+
+{-@ qualif BLenAcc(v:int,
+                   b1:Data.ByteString.Internal.ByteString,
+                   b2:Data.ByteString.Internal.ByteString):
+       v = (bLength b1) + (bLength b2)
+  @-}
+{-@ qualif BLenAcc(v:int,
+                   b:Data.ByteString.Internal.ByteString,
+                   n:int):
+       v = (bLength b) + n
+  @-}
+
 
 {-@ qualif EqFPLen(v: a, x: GHC.ForeignPtr.ForeignPtr b): v = (fplen x) @-}
 {-@ qualif EqPLen(v: a, x: GHC.Ptr.Ptr b): v = (plen x) @-}

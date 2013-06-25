@@ -40,6 +40,7 @@ import Language.Haskell.Liquid.Prelude  (liquidError)
 import qualified Data.ByteString.Internal
 import Foreign.ForeignPtr       (ForeignPtr)
 import Data.Word                (Word, Word8, Word16, Word32, Word64)
+import Foreign.Ptr              (Ptr)
 
 import Foreign.Storable (sizeOf)
 
@@ -60,11 +61,59 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
 -- LIQUID #endif
 -- LIQUID              )
 
-{-@ type NonEmptyStrictB = {v : Data.ByteString.Internal.ByteString | 0 < (bLength v) } @-}
-
-{-@ data Data.ByteString.Lazy.Internal.ByteString 
+{-@ data Data.ByteString.Lazy.Internal.ByteString
          = Data.ByteString.Lazy.Internal.Empty 
-         | Data.ByteString.Lazy.Internal.Chunk (b :: NonEmptyStrictB) (cs :: Data.ByteString.Lazy.Internal.ByteString)
+         | Data.ByteString.Lazy.Internal.Chunk
+                (b  :: ByteStringNE)
+                (cs :: Data.ByteString.Lazy.Internal.ByteString)
+  @-}
+
+{-@ measure lbLength :: Data.ByteString.Lazy.Internal.ByteString -> Int
+    lbLength (Data.ByteString.Lazy.Internal.Empty) = 0
+    lbLength (Data.ByteString.Lazy.Internal.Chunk b bs) = (bLength b) + (lbLength bs)
+  @-}
+
+{-@ measure lbLengths  :: [Data.ByteString.Lazy.Internal.ByteString] -> Int
+    lbLengths ([])   = 0
+    lbLengths (x:xs) = (lbLength x) + (lbLengths xs)
+  @-}
+
+{-@ qualif LBLensAcc(v:Data.ByteString.Lazy.Internal.ByteString,
+                     bs:List Data.ByteString.Lazy.Internal.ByteString,
+                     b:Data.ByteString.Lazy.Internal.ByteString):
+        lbLength(v) = lbLengths(bs) + lbLength(b)
+  @-}
+
+{-@ invariant {v:LByteString   | (lbLength v)  >= 0} @-}
+{-@ invariant {v:[LByteString] | (lbLengths v) >= 0} @-}
+
+
+{-@ type LByteString     = {v:Data.ByteString.Lazy.Internal.ByteString | true} @-}
+{-@ type LByteStringN N  = {v:LByteString | (lbLength v) = N} @-}
+{-@ type LByteStringNE   = {v:LByteString | (lbLength v) > 0} @-}
+{-@ type LByteStringSZ B = {v:LByteString | (lbLength v) = (lbLength B)} @-}
+
+{-@ qualif LByteStringN(v:Data.ByteString.Lazy.Internal.ByteString, n:int): (lbLength v) = n @-}
+{-@ qualif LByteStringNE(v:Data.ByteString.Lazy.Internal.ByteString): (lbLength v) > 0 @-}
+{-@ qualif LByteStringSZ(v:Data.ByteString.Lazy.Internal.ByteString,
+                         b:Data.ByteString.Lazy.Internal.ByteString):
+        (lbLength v) = (lbLength b)
+  @-}
+
+{-@ qualif LBLenAcc(v:int,
+                    b1:Data.ByteString.Lazy.Internal.ByteString,
+                    b2:Data.ByteString.Lazy.Internal.ByteString):
+       v = (lbLength b1) + (lbLength b2)
+  @-}
+{-@ qualif LBLenAcc(v:int,
+                    b:Data.ByteString.Lazy.Internal.ByteString,
+                    n:int):
+       v = (lbLength b) + n
+  @-}
+{-@ qualif Chunk(v:Data.ByteString.Lazy.Internal.ByteString,
+                 sb:Data.ByteString.Internal.ByteString,
+                 lb:Data.ByteString.Lazy.Internal.ByteString):
+       (lbLength v) = (bLength sb) + (lbLength lb)
   @-}
 
 ------------------------------------------------------------------------
@@ -105,14 +154,29 @@ chunk c@(S.PS _ _ len) cs | len == 0  = cs
 {-# INLINE chunk #-}
 
 -- | Consume the chunks of a lazy ByteString with a natural right fold.
-foldrChunks :: (S.ByteString -> a -> a) -> a -> ByteString -> a
+{-@ foldrChunks :: forall <p :: Data.ByteString.Lazy.Internal.ByteString -> a -> Prop>.
+                   (bs:LByteString
+                    -> b:ByteStringNE
+                    -> a<p bs>
+                    -> a<p (Data.ByteString.Lazy.Internal.Chunk b bs)>)
+                -> a<p Data.ByteString.Lazy.Internal.Empty>
+                -> b:LByteString
+                -> a<p b>
+  @-}
+--LIQUID added parameter to `f` for abstract refinement
+foldrChunks :: (ByteString -> S.ByteString -> a -> a) -> a -> ByteString -> a
 foldrChunks f z = go
   where go Empty        = z
-        go (Chunk c cs) = f c (go cs)
+        go (Chunk c cs) = f cs c (go cs)
 {-# INLINE foldrChunks #-}
 
 -- | Consume the chunks of a lazy ByteString with a strict, tail-recursive,
 -- accumulating left fold.
+{-@ foldlChunks :: (a -> ByteStringNE -> a)
+                -> a
+                -> LByteString
+                -> a
+  @-}
 foldlChunks :: (a -> S.ByteString -> a) -> a -> ByteString -> a
 foldlChunks f z = go z
   where go a _ | a `seq` False = undefined
@@ -134,15 +198,18 @@ foldlChunks f z = go z
 -- and need to share the cache with other programs.
 
 -- | Currently set to 32k, less the memory management overhead
+{-@ defaultChunkSize :: Nat @-}
 defaultChunkSize :: Int
-defaultChunkSize = 32 * k - chunkOverhead
+defaultChunkSize = {-LIUQID 32 * k -} 32768 - chunkOverhead
    where k = 1024
 
 -- | Currently set to 4k, less the memory management overhead
+{-@ smallChunkSize :: Nat @-}
 smallChunkSize :: Int
-smallChunkSize = 4 * k - chunkOverhead
+smallChunkSize = {-LIQUID 4 * k -} 4096 - chunkOverhead
    where k = 1024
 
 -- | The memory management overhead. Currently this is tuned for GHC only.
+{-@ chunkOverhead :: {v:Nat | v = 16} @-}
 chunkOverhead :: Int
 chunkOverhead = 2 * sizeOf (undefined :: Int)

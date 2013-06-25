@@ -1142,23 +1142,13 @@ unfoldrN n f s = unstream (S.unfoldrN n (firstf safe . f) s)
 take :: Int64 -> Text -> Text
 take i _ | i <= 0 = Empty
 take i t0         = take' i t0
---LIQUID   where take' 0 _            = Empty
---LIQUID         take' _ Empty        = Empty
---LIQUID         take' n (Chunk t ts)
---LIQUID             | n < len   = Chunk (T.take (fromIntegral n) t) Empty
---LIQUID             | otherwise = Chunk t (take' (n - len) ts)
---LIQUID             where len = fromIntegral (T.length t)
-{-@ take' :: i:{v:Int64 | v >= 0}
-          -> t:Data.Text.Lazy.Internal.Text
-          -> {v:Data.Text.Lazy.Internal.Text | (Min (ltlength v) (ltlength t) i)}
- @-}
-take' :: Int64 -> Text -> Text
-take' 0 _            = Empty
-take' _ Empty        = Empty
-take' n (Chunk t ts)
-    | n < len   = Chunk (T.take (fromIntegral n) t) Empty
-    | otherwise = Chunk t (take' (n - len) ts)
-    where len = fromIntegral (T.length t)
+  where take' :: Int64 -> Text -> Text
+        take' 0 _            = Empty
+        take' _ Empty        = Empty
+        take' n (Chunk t ts)
+            | n < len   = Chunk (T.take (fromIntegral n) t) Empty
+            | otherwise = Chunk t (take' (n - len) ts)
+            where len = fromIntegral (T.length t)
 {-# INLINE [1] take #-}
 
 {-# RULES
@@ -1181,25 +1171,13 @@ drop :: Int64 -> Text -> Text
 drop i t0
     | i <= 0    = t0
     | otherwise = drop' i t0
---LIQUID   where drop' 0 ts           = ts
---LIQUID         drop' _ Empty        = Empty
---LIQUID         drop' n (Chunk t ts)
---LIQUID             | n < len   = Chunk (T.drop (fromIntegral n) t) ts
---LIQUID             | otherwise = drop' (n - len) ts
---LIQUID             where len   = fromIntegral (T.length t)
-{-@ drop' :: i:{v:Int64 | v >= 0}
-          -> t:Data.Text.Lazy.Internal.Text
-          -> {v:Data.Text.Lazy.Internal.Text |
-                 ((ltlength v) = (((ltlength t) <= i)
-                                  ? 0 : ((ltlength t) - i)))}
-  @-}
-drop' :: Int64 -> Text -> Text
-drop' 0 ts           = ts
-drop' _ Empty        = Empty
-drop' n (Chunk t ts)
-    | n < len   = Chunk (T.drop (fromIntegral n) t) ts
-    | otherwise = drop' (n - len) ts
-    where len   = fromIntegral (T.length t)
+  where drop' :: Int64 -> Text -> Text
+        drop' 0 ts           = ts
+        drop' _ Empty        = Empty
+        drop' n (Chunk t ts)
+            | n < len   = Chunk (T.drop (fromIntegral n) t) ts
+            | otherwise = drop' (n - len) ts
+            where len   = fromIntegral (T.length t)
 {-# INLINE [1] drop #-}
 
 {-# RULES

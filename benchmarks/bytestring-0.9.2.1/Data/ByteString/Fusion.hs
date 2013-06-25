@@ -61,7 +61,7 @@ import qualified "base" Foreign
 {-@ qualif LePlusOne(v: Int, x: Int): v <= (x + 1)         @-}
 {-@ qualif LeDiff(v: a, x: a, y:a): v <= (x - y)           @-}
 {-@ qualif PlenEq(v: GHC.Ptr.Ptr a, x: Int): x <= (plen v) @-}
-{-@ qualif BlenEq(v: Int, x:ByteString): v = (bLength x)   @-}
+{-@ qualif BlenEq(v: Int, x:Data.ByteString.Internal.ByteString): v = (bLength x)   @-}
 {-@ qualif PSnd(v: a, x:b): v = (psnd x)                   @-}
 
 {-@ data Data.ByteString.Fusion.PairS a b <p :: x0:a -> b -> Prop> = (:*:) (x::a) (y::b<p x>)  @-}

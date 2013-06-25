@@ -8,7 +8,7 @@ spec that we can express)
 Verified modules:
 - Data.Text
 - Data.Text.Array
-- Data.Text.Foreign
+- Data.Text.Foreign (WTF duplicate measure definition?!)
 - Data.Text.Fusion
 - Data.Text.Fusion.Size
 - Data.Text.Internal
