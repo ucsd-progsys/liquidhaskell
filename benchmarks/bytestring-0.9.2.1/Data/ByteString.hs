@@ -118,16 +118,16 @@ module Data.ByteString (
         breakEnd,               -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
         group,                  -- :: ByteString -> [ByteString]
         groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
-        -- inits,                  -- :: ByteString -> [ByteString]
-        -- tails,                  -- :: ByteString -> [ByteString]
+        inits,                  -- :: ByteString -> [ByteString]
+        tails,                  -- :: ByteString -> [ByteString]
 
         -- ** Breaking into many substrings
         split,                  -- :: Word8 -> ByteString -> [ByteString]
         splitWith,              -- :: (Word8 -> Bool) -> ByteString -> [ByteString]
 
         -- * Predicates
--- LIQUID        isPrefixOf,             -- :: ByteString -> ByteString -> Bool
--- LIQUID        isSuffixOf,             -- :: ByteString -> ByteString -> Bool
+        isPrefixOf,             -- :: ByteString -> ByteString -> Bool
+        isSuffixOf,             -- :: ByteString -> ByteString -> Bool
 -- LIQUID        isInfixOf,              -- :: ByteString -> ByteString -> Bool
 -- LIQUID        isSubstringOf,          -- :: ByteString -> ByteString -> Bool
 -- LIQUID
@@ -1774,22 +1774,22 @@ isSuffixOf (PS x1 s1 l1) (PS x2 s2 l2)
 -- ---------------------------------------------------------------------
 -- Special lists
 
--- LIQUID -- -- | /O(n)/ Return all initial segments of the given 'ByteString', shortest first.
--- LIQUID -- {- inits :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
--- LIQUID -- inits :: ByteString -> [ByteString]
--- LIQUID -- inits (PS x s l) = [PS x s n | n <- rng l {- LIQUID COMPREHENSIONS [0..l] -}]
--- LIQUID -- 
--- LIQUID -- {- rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
--- LIQUID -- rng :: Int -> [Int]
--- LIQUID -- rng 0 = [0]
--- LIQUID -- rng n = n : rng (n-1) 
--- LIQUID -- 
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ Return all final segments of the given 'ByteString', longest first.
--- LIQUID -- {- tails :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
--- LIQUID -- tails :: ByteString -> [ByteString]
--- LIQUID -- tails p | null p    = [empty]
--- LIQUID --         | otherwise = p : tails (unsafeTail p)
+-- | /O(n)/ Return all initial segments of the given 'ByteString', shortest first.
+{- inits :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
+inits :: ByteString -> [ByteString]
+inits (PS x s l) = [PS x s n | n <- rng l {- LIQUID COMPREHENSIONS [0..l] -}]
+
+{- rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
+rng :: Int -> [Int]
+rng 0 = [0]
+rng n = n : rng (n-1) 
+
+
+-- | /O(n)/ Return all final segments of the given 'ByteString', longest first.
+{- tails :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
+tails :: ByteString -> [ByteString]
+tails p | null p    = [empty]
+        | otherwise = p : tails (unsafeTail p)
 
 -- less efficent spacewise: tails (PS x s l) = [PS x (s+n) (l-n) | n <- [0..l]]
 
