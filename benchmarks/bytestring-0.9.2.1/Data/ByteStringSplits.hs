@@ -247,6 +247,12 @@ spanEnd = undefined
 replicate :: Int -> Word8 -> ByteString
 replicate  = undefined
 
+
+{-@ take :: n:Nat -> b:ByteString -> {v:ByteString | (bLength v) = (if (n <= (bLength b)) then n else (bLength b))} @-}
+take :: Int -> ByteString -> ByteString
+take = undefined
+
+
 -----------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
@@ -366,7 +372,7 @@ groupBy k xs
 inits :: ByteString -> [ByteString]
 inits (PS x s l) = [PS x s n | n <- rng l {- LIQUID COMPREHENSIONS [0..l] -}]
 
-{-@ rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
+{-@ rng :: n:Int -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
 rng :: Int -> [Int]
 rng 0 = [0]
 rng n = n : rng (n-1) 
@@ -430,8 +436,8 @@ findIndex k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusP
                                 then return (Just n)
                                 else go (ptr `plusPtr` 1) (n+1)
 
-{-@ qualif FindIndices(v:ByteString, p:ByteString, n:Int) : (bLength v) = (bLength p) - n 
-  @-}
+-- also findSubstrings
+{-@ qualif FindIndices(v:ByteString, p:ByteString, n:Int) : (bLength v) = (bLength p) - n  @-}
 
 {-@ findIndices :: (Word8 -> Bool) -> b:ByteString -> [{v:Nat | v < (bLength b)}] @-}
 findIndices :: (Word8 -> Bool) -> ByteString -> [Int]
@@ -523,4 +529,57 @@ isSuffixOf (PS x1 s1 l1) (PS x2 s2 l2)
         withForeignPtr x2 $ \p2 -> do
             i <- memcmp (p1 `plusPtr` s1) (p2 `plusPtr` s2 `plusPtr` (l2 - l1)) (fromIntegral l1)
             return $! i == 0
+
+
+-- | Check whether one string is a substring of another. @isSubstringOf
+-- p s@ is equivalent to @not (null (findSubstrings p s))@.
+isSubstringOf :: ByteString -- ^ String to search for.
+              -> ByteString -- ^ String to search in.
+              -> Bool
+isSubstringOf p s = not $ P.null $ findSubstrings p s
+
+{-# DEPRECATED findSubstring "Do not use. The ByteString searching api is about to be replaced." #-}
+-- | Get the first index of a substring in another string,
+--   or 'Nothing' if the string is not found.
+--   @findSubstring p s@ is equivalent to @listToMaybe (findSubstrings p s)@.
+
+{-@ findSubstring :: pat:ByteString -> str:ByteString -> (Maybe {v:Nat | v <= (bLength str)}) @-}
+findSubstring :: ByteString -- ^ String to search for.
+              -> ByteString -- ^ String to seach in.
+              -> Maybe Int
+-- LIQUID ETA findSubstring = (listToMaybe .) . findSubstrings
+findSubstring pat str = listToMaybe $ findSubstrings pat str
+
+{-@ qualif FindIndices(v:ByteString, p:ByteString, n:Int) : (bLength v) = (bLength p) - n  @-}
+
+{-@ findSubstrings :: pat:ByteString -> str:ByteString -> [{v:Nat | v <= (bLength str)}] @-}
+findSubstrings :: ByteString -- ^ String to search for.
+               -> ByteString -- ^ String to seach in.
+               -> [Int]
+
+-- LIQUID LATEST 
+findSubstrings pat str
+    | null pat         = rng (length str - 1) -- LIQUID COMPREHENSIONS [0 .. (length str - 1)]
+    | otherwise        = search 0 str
+  where
+    STRICT2(search)
+    search (n :: Int) s
+        | null s             = []
+        | pat `isPrefixOf` s = n : search (n+1) (unsafeTail s)
+        | otherwise          =     search (n+1) (unsafeTail s)
+
+
+{-@ breakSubstring :: ByteString -> b:ByteString -> (ByteStringPair b) @-}
+
+breakSubstring :: ByteString -- ^ String to search for
+               -> ByteString -- ^ String to search in
+               -> (ByteString,ByteString) -- ^ Head and tail of string broken at substring
+
+breakSubstring pat src = search 0 src
+  where
+    STRICT2(search)
+    search n s
+        | null s             = (src, empty)      -- not found
+        | pat `isPrefixOf` s = (take n src,s)
+        | otherwise          = search (n+1) (unsafeTail s)
 

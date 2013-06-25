@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 
-module Data.ByteStringHelper where
+module Data.ByteStringHelper  where
 
 import qualified Prelude as P
 import Prelude hiding           (reverse,head,tail,last,init,null
@@ -260,9 +260,72 @@ findIndex = undefined
 filter :: (Word8 -> Bool) -> ByteString -> ByteString
 filter = undefined
 
+{-@ isPrefixOf :: ByteString -> ByteString -> Bool @-}
+isPrefixOf :: ByteString -> ByteString -> Bool 
+isPrefixOf = undefined
+
+{-@ take :: n:Nat -> b:ByteString -> {v:ByteString | (bLength v) = (if (n <= (bLength b)) then n else (bLength b))} @-}
+take :: Int -> ByteString -> ByteString
+take = undefined
+
+{-@ rng :: n:Int -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
+rng :: Int -> [Int]
+rng = undefined
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
+
+
+-- | /O(n)/ Sort a ByteString efficiently, using counting sort.
+
+{-@ sort :: b:ByteString -> (ByteStringSZ b) @-}
+sort :: ByteString -> ByteString
+sort (PS input s l) = unsafeCreate l $ \p -> allocaArray 256 $ \arr -> do
+
+    memset (castPtr arr) 0 (256 * fromIntegral (sizeOf (undefined :: CSize)))
+    withForeignPtr input (\x -> countOccurrences arr (x `plusPtr` s) l)
+
+    let STRICT2(go)
+        go 256 _   = return ()
+        go i   ptr = do n <- peekElemOff arr i
+                        when (n /= 0) $ memset ptr (fromIntegral i) n >> return ()
+                        go (i + 1) (ptr `plusPtr` (fromIntegral n))
+    go 0 p
+--  where
+    -- | Count the number of occurrences of each byte.
+    -- Used by 'sort'
+    --
+
+countOccurrences :: Ptr CSize -> Ptr Word8 -> Int -> IO ()
+-- STRICT3(countOccurrences)
+countOccurrences counts str len = go 0
+ where
+    STRICT1(go)
+    go i | i == len    = return ()
+         | otherwise = do k <- fromIntegral `fmap` peekElemOff str i
+                          x <- peekElemOff counts k
+                          pokeElemOff counts k (x + 1)
+                          go (i + 1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
