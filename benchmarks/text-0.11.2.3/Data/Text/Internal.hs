@@ -93,6 +93,10 @@ import Language.Haskell.Liquid.Prelude
         tlength(v) = (tlength(t) > n ? n : tlength(t))
   @-}
 
+{-@ qualif TLengthAcc(v:int, t:Data.Text.Internal.Text, l:int):
+        v = ((tlength t) + l)
+  @-}
+
 {-@ qualif TLengthDiff(v:Data.Text.Internal.Text,
                        t1:Data.Text.Internal.Text,
                        t2:Data.Text.Internal.Text):
