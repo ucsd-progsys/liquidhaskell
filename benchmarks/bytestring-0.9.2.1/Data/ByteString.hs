@@ -1548,7 +1548,7 @@ notElem c ps = not (elem c ps)
 -- returns a ByteString containing those characters that satisfy the
 -- predicate. This function is subject to array fusion.
 {-@ qualif FilterLoop(v:Ptr a, f:Ptr a, t:Ptr a): (plen t) >= (plen f) - (plen v) @-}
-{-@ filter :: (Word8 -> Bool) -> b:ByteString -> {v:ByteString | (bLength v) <= (bLength b)} @-}
+{-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
 filter :: (Word8 -> Bool) -> ByteString -> ByteString
 filter k ps@(PS x s l)
     | null ps   = ps
@@ -1615,49 +1615,52 @@ find k = foldl findEFL Nothing
                                | otherwise = Nothing
 -}
 
--- HEREHEREHERE
--- LIQUID -- -- | /O(n)/ The 'partition' function takes a predicate a ByteString and returns
--- LIQUID -- -- the pair of ByteStrings with elements which do and do not satisfy the
--- LIQUID -- -- predicate, respectively; i.e.,
--- LIQUID -- --
--- LIQUID -- -- > partition p bs == (filter p xs, filter (not . p) xs)
--- LIQUID -- --
--- LIQUID -- partition :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID -- partition p bs = (filter p bs, filter (not . p) bs)
--- LIQUID -- --TODO: use a better implementation
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Searching for substrings
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ The 'isPrefixOf' function takes two ByteStrings and returns 'True'
--- LIQUID -- -- iff the first is a prefix of the second.
--- LIQUID -- isPrefixOf :: ByteString -> ByteString -> Bool
--- LIQUID -- isPrefixOf (PS x1 s1 l1) (PS x2 s2 l2)
--- LIQUID --     | l1 == 0   = True
--- LIQUID --     | l2 < l1   = False
--- LIQUID --     | otherwise = inlinePerformIO $ withForeignPtr x1 $ \p1 ->
--- LIQUID --         withForeignPtr x2 $ \p2 -> do
--- LIQUID --             i <- memcmp (p1 `plusPtr` s1) (p2 `plusPtr` s2) (fromIntegral l1)
--- LIQUID --             return $! i == 0
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ The 'isSuffixOf' function takes two ByteStrings and returns 'True'
--- LIQUID -- -- iff the first is a suffix of the second.
--- LIQUID -- -- 
--- LIQUID -- -- The following holds:
--- LIQUID -- --
--- LIQUID -- -- > isSuffixOf x y == reverse x `isPrefixOf` reverse y
--- LIQUID -- --
--- LIQUID -- -- However, the real implemenation uses memcmp to compare the end of the
--- LIQUID -- -- string only, with no reverse required..
--- LIQUID -- isSuffixOf :: ByteString -> ByteString -> Bool
--- LIQUID -- isSuffixOf (PS x1 s1 l1) (PS x2 s2 l2)
--- LIQUID --     | l1 == 0   = True
--- LIQUID --     | l2 < l1   = False
--- LIQUID --     | otherwise = inlinePerformIO $ withForeignPtr x1 $ \p1 ->
--- LIQUID --         withForeignPtr x2 $ \p2 -> do
--- LIQUID --             i <- memcmp (p1 `plusPtr` s1) (p2 `plusPtr` s2 `plusPtr` (l2 - l1)) (fromIntegral l1)
--- LIQUID --             return $! i == 0
--- LIQUID -- 
+-- | /O(n)/ The 'partition' function takes a predicate a ByteString and returns
+-- the pair of ByteStrings with elements which do and do not satisfy the
+-- predicate, respectively; i.e.,
+--
+-- > partition p bs == (filter p xs, filter (not . p) xs)
+--
+-- LIQUID FAIL: partition :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b)
+{-@ partition :: (Word8 -> Bool) -> b:ByteString -> ((ByteStringLE b), (ByteStringLE b)) @-}
+partition :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+partition p bs = (filter p bs, filter (not . p) bs)
+--TODO: use a better implementation
+
+-- ---------------------------------------------------------------------
+-- Searching for substrings
+
+-- | /O(n)/ The 'isPrefixOf' function takes two ByteStrings and returns 'True'
+-- iff the first is a prefix of the second.
+{-@ isPrefixOf :: ByteString -> ByteString -> Bool @-}
+isPrefixOf :: ByteString -> ByteString -> Bool
+isPrefixOf (PS x1 s1 l1) (PS x2 s2 l2)
+    | l1 == 0   = True
+    | l2 < l1   = False
+    | otherwise = inlinePerformIO $ withForeignPtr x1 $ \p1 ->
+        withForeignPtr x2 $ \p2 -> do
+            i <- memcmp (p1 `plusPtr` s1) (p2 `plusPtr` s2) (fromIntegral l1)
+            return $! i == 0
+
+-- | /O(n)/ The 'isSuffixOf' function takes two ByteStrings and returns 'True'
+-- iff the first is a suffix of the second.
+-- 
+-- The following holds:
+--
+-- > isSuffixOf x y == reverse x `isPrefixOf` reverse y
+--
+-- However, the real implemenation uses memcmp to compare the end of the
+-- string only, with no reverse required..
+{-@ isSuffixOf :: ByteString -> ByteString -> Bool @-}
+isSuffixOf :: ByteString -> ByteString -> Bool
+isSuffixOf (PS x1 s1 l1) (PS x2 s2 l2)
+    | l1 == 0   = True
+    | l2 < l1   = False
+    | otherwise = inlinePerformIO $ withForeignPtr x1 $ \p1 ->
+        withForeignPtr x2 $ \p2 -> do
+            i <- memcmp (p1 `plusPtr` s1) (p2 `plusPtr` s2 `plusPtr` (l2 - l1)) (fromIntegral l1)
+            return $! i == 0
+
 -- LIQUID -- -- | Alias of 'isSubstringOf'
 -- LIQUID -- isInfixOf :: ByteString -> ByteString -> Bool
 -- LIQUID -- isInfixOf = isSubstringOf

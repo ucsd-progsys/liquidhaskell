@@ -105,7 +105,7 @@ import qualified Foreign.C.Types
   @-}
 liquid_thm_ptr_cmp :: Ptr a -> Ptr a -> Ptr a
 liquid_thm_ptr_cmp p q = undefined -- p -- LIQUID : make this undefined to suppress WARNING
--
+
 -- -----------------------------------------------------------------------------
 -- -----------------------------------------------------------------------------
 
@@ -453,7 +453,7 @@ notElem c ps = not (elem c ps)
 
 
 {-@ qualif FilterLoop(v:Ptr a, f:Ptr a, t:Ptr a): (plen t) >= (plen f) - (plen v) @-}
-{-@ filter :: (Word8 -> Bool) -> b:ByteString -> {v:ByteString | (bLength v) <= (bLength b)} @-}
+{-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
 filter :: (Word8 -> Bool) -> ByteString -> ByteString
 filter k ps@(PS x s l)
     | null ps   = ps
@@ -496,3 +496,31 @@ find :: (Word8 -> Bool) -> ByteString -> Maybe Word8
 find f p = case findIndex f p of
                     Just n -> Just (p `unsafeIndex` n)
                     _      -> Nothing
+
+
+{-@ partition :: (Word8 -> Bool) -> b:ByteString -> ((ByteStringLE b), (ByteStringLE b)) @-}
+partition :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+partition p bs = (filter p bs, filter (not . p) bs)
+
+
+{-@ isPrefixOf :: ByteString -> ByteString -> Bool @-}
+isPrefixOf :: ByteString -> ByteString -> Bool 
+isPrefixOf (PS x1 s1 l1) (PS x2 s2 l2)
+    | l1 == 0   = True
+    | l2 < l1   = False
+    | otherwise = inlinePerformIO $ withForeignPtr x1 $ \p1 ->
+        withForeignPtr x2 $ \p2 -> do
+            i <- memcmp (p1 `plusPtr` s1) (p2 `plusPtr` s2) (fromIntegral l1)
+            return $! i == 0
+
+
+{-@ isSuffixOf :: ByteString -> ByteString -> Bool @-}
+isSuffixOf :: ByteString -> ByteString -> Bool
+isSuffixOf (PS x1 s1 l1) (PS x2 s2 l2)
+    | l1 == 0   = True
+    | l2 < l1   = False
+    | otherwise = inlinePerformIO $ withForeignPtr x1 $ \p1 ->
+        withForeignPtr x2 $ \p2 -> do
+            i <- memcmp (p1 `plusPtr` s1) (p2 `plusPtr` s2 `plusPtr` (l2 - l1)) (fromIntegral l1)
+            return $! i == 0
+
