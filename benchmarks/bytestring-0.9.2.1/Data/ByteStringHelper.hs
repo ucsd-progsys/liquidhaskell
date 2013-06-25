@@ -246,68 +246,6 @@ spanEnd = undefined
 ------------------------------------------------------------------------------------
 
 
-{-@ splitWith :: (Word8 -> Bool) -> b:ByteStringNE -> (ByteStringSplit b) @-}
-splitWith _pred (PS _  _   0) = [empty]
-splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp
-  where pred# c# = pred_ (W8# c#)
-
-        STRICT4(splitWith0)
-        splitWith0 pred' off' len' fp' = withPtr fp $ \p ->
-            splitLoop pred' p 0 off' len' fp'
-
-        splitLoop :: (Word# -> Bool)
-                  -> Ptr Word8
-                  -> Int -> Int -> Int
-                  -> ForeignPtr Word8
-                  -> IO [ByteString]
-
-        splitLoop pred' p idx' off' len' fp'
-            | pred' `seq` p `seq` idx' `seq` off' `seq` len' `seq` fp' `seq` False = undefined
-            | idx' >= len'  = return [PS fp' off' idx']
-            | otherwise = do
-                w <- peekElemOff p (off'+idx')
-                if pred' (case w of W8# w# -> w#)
-                   then return (PS fp' off' idx' :
-                              splitWith0 pred' (off'+idx'+1) (len'-idx'-1) fp')
-                   else splitLoop pred' p (idx'+1) off' len' fp'
-
----------------------------------------------------------------------------------------------------
---- MAY AS WELL KEEP THeSE AROUND!
----------------------------------------------------------------------------------------------------
-
-{-@ splitO :: Word8 -> b:ByteStringNE -> (ByteStringSplit b)  @-}
-splitO _ (PS _ _ 0) = []
-splitO w (PS xanadu s l) = inlinePerformIO $ withForeignPtr xanadu $ \pz -> do
-    let p   = liquidAssert (fpLen xanadu == pLen pz) pz
-    let ptrGOBBLE_ = p `plusPtr` s
-    let ptrGOBBLE  = liquidAssert (l <= pLen ptrGOBBLE_) ptrGOBBLE_ 
-    return (splitLoop xanadu ptrGOBBLE w l s 0)
-
-
-{-@ splitLoop :: fp:(ForeignPtr Word8) 
-          -> p:(Ptr Word8) 
-          -> Word8 
-          -> l:{v:Nat | v <= (plen p)} 
-          -> s:{v:Nat | v + l <= (fplen fp)}
-          -> n:{v:Nat | v <= l} 
-          -> {v:[ByteString] | (bLengths v) + (len v) - 1 = l - n} 
-  @-}
-splitLoop :: ForeignPtr Word8 -> Ptr Word8 -> Word8 -> Int -> Int -> Int -> [ByteString]
-splitLoop xanadu ptrGOBBLE w l s n = 
-  let ptrn = ((ptrGOBBLE `plusPtr` n) :: Ptr Word8) 
-           -- NEEDED: else lose `plen` information without cast
-           -- thanks to subsequent @ Word8 application
-      q    = inlinePerformIO $ memchr ptrn w (fromIntegral (l-n))
-  in if isNullPtr q {- LIQUID q == nullPtr -}
-       then [PS xanadu (s+n) (l-n)]
-       else let i' = q `minusPtr` ptrGOBBLE
-                i  = liquidAssert (n <= i' && i' < l) i'
-            in PS xanadu (s+n) (i-n) : splitLoop xanadu ptrGOBBLE w l s (i+1)
-
- 
----------------------------------------------------------------------------------------------------
-
-
 {-@ split :: Word8 -> b:ByteStringNE -> (ByteStringSplit b)  @-}
 split :: Word8 -> ByteString -> [ByteString]
 split _ (PS _ _ 0) = []
@@ -341,40 +279,19 @@ split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
 ---------------------------------------------------------------
 ---------------------------------------------------------------
 
--- | The 'group' function takes a ByteString and returns a list of
--- ByteStrings such that the concatenation of the result is equal to the
--- argument.  Moreover, each sublist in the result contains only equal
--- elements.  For example,
---
--- > group "Mississippi" = ["M","i","ss","i","ss","i","pp","i"]
---
--- It is a special case of 'groupBy', which allows the programmer to
--- supply their own equality test. It is about 40% faster than 
--- /groupBy (==)/
-group :: ByteString -> [ByteString]
-group xs
-    | null xs   = []
-    | otherwise = ys : group zs
-    where
-        (ys, zs) = spanByte (unsafeHead xs) xs
+{-@ inits :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
+inits :: ByteString -> [ByteString]
+inits (PS x s l) = [PS x s n | n <- rng l {- LIQUID COMPREHENSIONS [0..l] -}]
 
--- | The 'groupBy' function is the non-overloaded version of 'group'.
-groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
-groupBy k xs
-    | null xs   = []
-    | otherwise = unsafeTake n xs : groupBy k (unsafeDrop n xs)
-    where
-        n = 1 + findIndexOrEnd (not . k (unsafeHead xs)) (unsafeTail xs)
+{-@ rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
+rng :: Int -> [Int]
+rng 0 = [0]
+rng n = n : rng (n-1) 
 
-
-
-
-
-
-
-
-
-
+{-@ tails :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
+tails :: ByteString -> [ByteString]
+tails p | null p    = [empty]
+        | otherwise = p : tails (unsafeTail p)
 
 
 
