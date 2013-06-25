@@ -281,7 +281,7 @@ assertS s False = error ("assertion failed at "++s)
 
 -- LIQUID
 import GHC.IO.Buffer
-import Language.Haskell.Liquid.Prelude (isNullPtr, liquidAssert, intCSize) 
+import Language.Haskell.Liquid.Prelude hiding (eq) 
 import qualified Data.ByteString.Lazy.Internal 
 import qualified Data.ByteString.Fusion
 import qualified Data.ByteString.Internal
@@ -306,29 +306,27 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 {-@ qualif Zog(v:a, p:a)         : (plen p) <= (plen v)          @-}
 {-@ qualif Zog(v:a)              : 0 <= (plen v)                 @-}
 
--- for concat
-{- qualif BLens(v:a)            : 0 <= (bLengths v)             @-}
-{- qualif BLenLE(v:Ptr a, bs:List ByteString) : (bLengths bs) <= (plen v)     @-}
-{-@ qualif BLens(v:List ByteString)            : 0 <= (bLengths v)         @-}
-{-@ qualif BLenLE(v:Ptr a, bs:List ByteString) : (bLengths bs) <= (plen v) @-}
-
 -- for unfoldrN 
 {-@ qualif PtrDiffUnfoldrN(v:Int, i:Int, p:Ptr a): (i - v) <= (plen p) @-}
 
+-- for concat
+{- qualif BLens(v:a)            : 0 <= (bLengths v)             @-}
+{- qualif BLenLE(v:Ptr a, bs:List ByteString) : (bLengths bs) <= (plen v)     @-}
+{- qualif BLens(v:List ByteString)            : 0 <= (bLengths v)         @-}
+{- qualif BLenLE(v:Ptr a, bs:List ByteString) : (bLengths bs) <= (plen v) @-}
+
 -- for splitWith
-{-@ qualif SplitWith(v:List ByteString, l:Int): ((bLengths v) + (len v) - 1) = l @-}
+{- qualif SplitWith(v:List ByteString, l:Int): ((bLengths v) + (len v) - 1) = l @-}
 
 -- for split
-{-@ qualif BSValidOff(v:Int,l:Int,p:ForeignPtr a): v + l <= (fplen p) @-}
-{-@ qualif SplitLoop(v:List ByteString, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
-
+{- qualif BSValidOff(v:Int,l:Int,p:ForeignPtr a): v + l <= (fplen p) @-}
+{- qualif SplitLoop(v:List ByteString, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
 
 -- for splitWith
 
 {- qualif SplitWith(v:List ByteString, l:Int): ((bLengths v) + (len v) - 1) = l @-}
 {- qualif BSValidFP(p:a, o:Int, l:Int): (o + l) <= (fplen p)     @-}
 {- qualif BSValidP(p:a, o:Int, l:Int) : (o + l) <= (plen p)       @-}
-
 
 -- for split: though latter is generally useful
 {- qualif SplitLoop(v:a, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
@@ -1280,19 +1278,53 @@ split :: Word8 -> ByteString -> [ByteString]
 split _ (PS _ _ 0) = []
 split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
     let ptr = p `plusPtr` s
+    return (splitLoop x ptr w l s 0)
 
-        STRICT1(loop)
-        loop n =
-            -- LIQUID: else lose `plen` info due to subsequent @ Word8 application
-            let ptrn = (ptr `plusPtr` n) :: Ptr Word8 
-                q = inlinePerformIO $ memchr ptrn {- (ptr `plusPtr` n) -}
-                                           w (fromIntegral (l-n))
-            in if isNullPtr q {- LIQUID q == nullPtr -}
-                then [PS x (s+n) (l-n)]
-                else let i = q `minusPtr` ptr in PS x (s+n) (i-n) : loop (i+1)
-
-    return (loop 0)
+-- THIS WORKS FINE IN ISOLATION BUT SOMEHOW BREAKS ON LARGE FILE. 
+-- TOO SICK AND TIRED TO INVESTIGATE WTF is going on...
+--         STRICT1(loop)
+--         loop n =
+--             -- LIQUID: else lose `plen` info due to subsequent @ Word8 application
+--             let ptrn = (ptr `plusPtr` n) :: Ptr Word8 
+--                 q = inlinePerformIO $ memchr ptrn {- (ptr `plusPtr` n) -}
+--                                            w (fromIntegral (l-n))
+--             in if isNullPtr q {- LIQUID q == nullPtr -}
+--                 then [PS x (s+n) (l-n)]
+--                 else let i = q `minusPtr` ptr in PS x (s+n) (i-n) : loop (i+1)
+-- 
+--     return (loop 0)
 {-# INLINE split #-}
+
+-- A longer split out version of the above with explicit type
+-- annotations...
+{-@ splitO :: Word8 -> b:ByteStringNE -> (ByteStringSplit b)  @-}
+splitO _ (PS _ _ 0) = []
+splitO w (PS xanadu s l) = inlinePerformIO $ withForeignPtr xanadu $ \pz -> do
+    let p   = liquidAssert (fpLen xanadu == pLen pz) pz
+    let ptrGOBBLE_ = p `plusPtr` s
+    let ptrGOBBLE  = liquidAssert (l <= pLen ptrGOBBLE_) ptrGOBBLE_ 
+    return (splitLoop xanadu ptrGOBBLE w l s 0)
+
+{-@ splitLoop :: fp:(ForeignPtr Word8) 
+          -> p:(Ptr Word8) 
+          -> Word8 
+          -> l:{v:Nat | v <= (plen p)} 
+          -> s:{v:Nat | v + l <= (fplen fp)}
+          -> n:{v:Nat | v <= l} 
+          -> {v:[ByteString] | (bLengths v) + (len v) - 1 = l - n} 
+  @-}
+splitLoop :: ForeignPtr Word8 -> Ptr Word8 -> Word8 -> Int -> Int -> Int -> [ByteString]
+splitLoop xanadu ptrGOBBLE w l s n = 
+  let ptrn = ((ptrGOBBLE `plusPtr` n) :: Ptr Word8) 
+           -- NEEDED: else lose `plen` information without cast
+           -- thanks to subsequent @ Word8 application
+      q    = inlinePerformIO $ memchr ptrn w (fromIntegral (l-n))
+  in if isNullPtr q {- LIQUID q == nullPtr -}
+       then [PS xanadu (s+n) (l-n)]
+       else let i' = q `minusPtr` ptrGOBBLE
+                i  = liquidAssert (n <= i' && i' < l) i'
+            in PS xanadu (s+n) (i-n) : splitLoop xanadu ptrGOBBLE w l s (i+1)
+
 
 {-
 -- slower. but stays inside Haskell.
@@ -1330,30 +1362,30 @@ tokens f = P.filter (not.null) . splitWith f
 {-# INLINE tokens #-}
 -}
 
--- LIQUID -- -- | The 'group' function takes a ByteString and returns a list of
--- LIQUID -- -- ByteStrings such that the concatenation of the result is equal to the
--- LIQUID -- -- argument.  Moreover, each sublist in the result contains only equal
--- LIQUID -- -- elements.  For example,
--- LIQUID -- --
--- LIQUID -- -- > group "Mississippi" = ["M","i","ss","i","ss","i","pp","i"]
--- LIQUID -- --
--- LIQUID -- -- It is a special case of 'groupBy', which allows the programmer to
--- LIQUID -- -- supply their own equality test. It is about 40% faster than 
--- LIQUID -- -- /groupBy (==)/
--- LIQUID -- group :: ByteString -> [ByteString]
--- LIQUID -- group xs
--- LIQUID --     | null xs   = []
--- LIQUID --     | otherwise = ys : group zs
--- LIQUID --     where
--- LIQUID --         (ys, zs) = spanByte (unsafeHead xs) xs
--- LIQUID -- 
--- LIQUID -- -- | The 'groupBy' function is the non-overloaded version of 'group'.
--- LIQUID -- groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
--- LIQUID -- groupBy k xs
--- LIQUID --     | null xs   = []
--- LIQUID --     | otherwise = unsafeTake n xs : groupBy k (unsafeDrop n xs)
--- LIQUID --     where
--- LIQUID --         n = 1 + findIndexOrEnd (not . k (unsafeHead xs)) (unsafeTail xs)
+-- | The 'group' function takes a ByteString and returns a list of
+-- ByteStrings such that the concatenation of the result is equal to the
+-- argument.  Moreover, each sublist in the result contains only equal
+-- elements.  For example,
+--
+-- > group "Mississippi" = ["M","i","ss","i","ss","i","pp","i"]
+--
+-- It is a special case of 'groupBy', which allows the programmer to
+-- supply their own equality test. It is about 40% faster than 
+-- /groupBy (==)/
+group :: ByteString -> [ByteString]
+group xs
+    | null xs   = []
+    | otherwise = ys : group zs
+    where
+        (ys, zs) = spanByte (unsafeHead xs) xs
+
+-- | The 'groupBy' function is the non-overloaded version of 'group'.
+groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
+groupBy k xs
+    | null xs   = []
+    | otherwise = unsafeTake n xs : groupBy k (unsafeDrop n xs)
+    where
+        n = 1 + findIndexOrEnd (not . k (unsafeHead xs)) (unsafeTail xs)
 
 -- | /O(n)/ The 'intercalate' function takes a 'ByteString' and a list of
 -- 'ByteString's and concatenates the list after interspersing the first

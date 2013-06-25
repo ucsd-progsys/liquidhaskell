@@ -1,11 +1,6 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 
-module Data.ByteStringHelper (
-        ByteString,            -- abstract, instances: Eq, Ord, Show, Read, Data, Typeable, Monoid
-        foldl                  -- :: (a -> Word8 -> a) -> a -> ByteString -> a
-  ) where
-
-import Language.Haskell.Liquid.Prelude
+module Data.ByteStringHelper where
 
 import qualified Prelude as P
 import Prelude hiding           (reverse,head,tail,last,init,null
@@ -84,36 +79,12 @@ assertS s False = error ("assertion failed at "++s)
 
 -- LIQUID
 import GHC.IO.Buffer
-import Language.Haskell.Liquid.Prelude (intCSize) 
+import Language.Haskell.Liquid.Prelude -- (isNullPtr, liquidAssert, intCSize) 
 import qualified Data.ByteString.Lazy.Internal 
 import qualified Data.ByteString.Fusion
 import qualified Data.ByteString.Internal
 import qualified Data.ByteString.Unsafe
 import qualified Foreign.C.Types
-
-{-@ memcpy_ptr_baoff :: p:(Ptr a) 
-                     -> RawBuffer b 
-                     -> Int 
-                     -> {v:CSize | (OkPLen v p)} -> IO (Ptr ())
-  @-}
-memcpy_ptr_baoff :: Ptr a -> RawBuffer b -> Int -> CSize -> IO (Ptr ())
-memcpy_ptr_baoff = error "LIQUIDCOMPAT"
-
-readCharFromBuffer :: RawBuffer b -> Int -> IO (Char, Int)
-readCharFromBuffer x y = error "LIQUIDCOMPAT"
-
-wantReadableHandleLIQUID :: String -> Handle -> (Handle__ -> IO a) -> IO a
-wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUIDCOMPAT"
-
-{-@ qualif BLens(v:List ByteString)            : 0 <= (bLengths v)         @-}
-{-@ qualif BLenLE(v:Ptr a, bs:List ByteString) : (bLengths bs) <= (plen v) @-}
-
--- for splitWith
-{-@ qualif SplitWith(v:List ByteString, l:Int): ((bLengths v) + (len v) - 1) = l @-}
-
--- for split
-{-@ qualif BSValidOff(v:Int,l:Int,p:ForeignPtr a): v + l <= (fplen p) @-}
-{- qualif SplitLoop(v:List ByteString, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
 
 -- -----------------------------------------------------------------------------
 --
@@ -127,9 +98,12 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
 -- -----------------------------------------------------------------------------
+-- for splitWith
+{-@ qualif SplitWith(v:List ByteString, l:Int): ((bLengths v) + (len v) - 1) = l @-}
 
-{-@ qualif PtrDiff(v:Int, i:Int, p:Ptr a): (i - v) <= (plen p) @-}
-
+-- for split
+{-@ qualif BSValidOff(v:Int,l:Int,p:ForeignPtr a): v + l <= (fplen p) @-}
+{-@ qualif SplitLoop(v:List ByteString, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
 -- -----------------------------------------------------------------------------
 
 -- | Perform an operation with a temporary ByteString
@@ -353,11 +327,44 @@ split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
     return (loop 0)
 {-# INLINE split #-}
 
+---------------------------------------------------------------
+---------------------------------------------------------------
+---------------------------------------------------------------
+---------------------------------------------------------------
+---------------------------------------------------------------
+------------------- HEREHEREHEREHEREHERE ----------------------
+------------------- HEREHEREHEREHEREHERE ----------------------
+------------------- HEREHEREHEREHEREHERE ----------------------
+---------------------------------------------------------------
+---------------------------------------------------------------
+---------------------------------------------------------------
+---------------------------------------------------------------
+---------------------------------------------------------------
 
+-- | The 'group' function takes a ByteString and returns a list of
+-- ByteStrings such that the concatenation of the result is equal to the
+-- argument.  Moreover, each sublist in the result contains only equal
+-- elements.  For example,
+--
+-- > group "Mississippi" = ["M","i","ss","i","ss","i","pp","i"]
+--
+-- It is a special case of 'groupBy', which allows the programmer to
+-- supply their own equality test. It is about 40% faster than 
+-- /groupBy (==)/
+group :: ByteString -> [ByteString]
+group xs
+    | null xs   = []
+    | otherwise = ys : group zs
+    where
+        (ys, zs) = spanByte (unsafeHead xs) xs
 
-
-
-
+-- | The 'groupBy' function is the non-overloaded version of 'group'.
+groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
+groupBy k xs
+    | null xs   = []
+    | otherwise = unsafeTake n xs : groupBy k (unsafeDrop n xs)
+    where
+        n = 1 + findIndexOrEnd (not . k (unsafeHead xs)) (unsafeTail xs)
 
 
 
