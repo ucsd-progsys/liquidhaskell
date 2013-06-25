@@ -126,11 +126,6 @@ import Hugs.ForeignPtr          (newForeignPtr_)
 import Foreign.ForeignPtr       (newForeignPtr_)
 #endif
 
---LIQUID
-import qualified GHC.List
-import qualified Foreign.ForeignPtr
-import qualified Data.Word
-
 -- CFILES stuff is Hugs only
 {-# CFILES cbits/fpstring.c #-}
 
@@ -184,64 +179,81 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
     bOffset (Data.ByteString.Internal.PS p o l)  = o 
   @-} 
     
-{-@ measure bPayload   :: Data.ByteString.Internal.ByteString -> (GHC.ForeignPtr.ForeignPtr Data.Word.Word8)
+{-@ measure bPayload   :: Data.ByteString.Internal.ByteString -> (ForeignPtr Word8) 
     bPayload (Data.ByteString.Internal.PS p o l) = p 
   @-} 
 
 {-@ predicate BSValid Payload Offset Length = (Offset + Length <= (fplen Payload)) @-}
 
-{-@ predicate OkIndex B I = ((0 <= I) && (I < (bLength B))) @-}
+
+{- predicate OkIndex B I = ((0 <= I) && (I <= (bLength B))) -}
 
 {-@ predicate OkPLen N P  = (N <= (plen P))                 @-}
 
 {-@ data Data.ByteString.Internal.ByteString  
       = Data.ByteString.Internal.PS 
-          { payload :: (GHC.ForeignPtr.ForeignPtr Word8)
+          { payload :: (ForeignPtr Word8) 
           , offset  :: {v: Nat | (v <= (fplen payload))     }  
           , length  :: {v: Nat | (BSValid payload offset v) } 
           }
 
   @-}
 
---LIQUID hack until we have proper name-resolution
-{-@ type ByteString = {v:Data.ByteString.Internal.ByteString | true} @-}
-{-@ type ByteStringN N  = {v: ByteString | (bLength v) = N} @-}
-{-@ type ByteStringNE   = {v:ByteString | (bLength v) > 0} @-}
-{-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)} @-}
+{-@ invariant {v:Data.ByteString.Internal.ByteString | 0 <= (bLength v)} @-}
 
-{-@ invariant {v:ByteString | (bLength v) >= 0} @-}
-
-{-@ qualif ByteStringN(v:Data.ByteString.Internal.ByteString, n:Int): (bLength v) = n @-}
-{-@ qualif ByteStringNE(v:Data.ByteString.Internal.ByteString): (bLength v) > 0 @-}
-{-@ qualif ByteStringSZ(v:Data.ByteString.Internal.ByteString,
-                        b:Data.ByteString.Internal.ByteString):
-        (bLength v) = (bLength b)
+{-@ type ByteStringSplit B = {v:[ByteString] | ((bLengths v) + (len v) - 1) = (bLength B) } 
   @-}
 
-{-@ qualif BLenAcc(v:int,
-                   b1:Data.ByteString.Internal.ByteString,
-                   b2:Data.ByteString.Internal.ByteString):
-       v = (bLength b1) + (bLength b2)
-  @-}
-{-@ qualif BLenAcc(v:int,
-                   b:Data.ByteString.Internal.ByteString,
-                   n:int):
-       v = (bLength b) + n
+{-@ type ByteStringPair B = (ByteString, ByteString)<{\x1 x2 -> (bLength x1) + (bLength x2) = (bLength B)}>
   @-}
 
 
-{-@ qualif EqFPLen(v: a, x: GHC.ForeignPtr.ForeignPtr b): v = (fplen x) @-}
-{-@ qualif EqPLen(v: a, x: GHC.Ptr.Ptr b): v = (plen x) @-}
-{-@ qualif EqPLen(v: GHC.ForeignPtr.ForeignPtr a, x: GHC.Ptr.Ptr a): (fplen v) = (plen x) @-}
-{-@ qualif EqPLen(v: GHC.Ptr.Ptr a, x: GHC.ForeignPtr.ForeignPtr a): (plen v) = (fplen x) @-}
-{-@ qualif PValid(v: Int, p: GHC.Ptr.Ptr a): v <= (plen p) @-}
-{-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p) @-}
-{-@ qualif FPLenPos(v: GHC.ForeignPtr.ForeignPtr a): 0 <= (fplen v) @-}
-{-@ qualif PLenPos(v: GHC.Ptr.Ptr a): 0 <= (plen v) @-}
+{-@ measure bLengths  :: [Data.ByteString.Internal.ByteString] -> Int 
+    bLengths ([])   = 0
+    bLengths (x:xs) = (bLength x) + (bLengths xs)
+  @-}
 
-{- qualif EqPLenPOLY2(v: a, x: b): (plen v) = (fplen x)           -}
-{- qualif EqPLenPOLY(v: a, x: b)    : v = (plen x)  -}
-{- qualif EqPLenPOLY1(v:  a, x: b): (fplen v) = (plen x)          -}
+
+{-@ type ByteStringN N = {v: ByteString | (bLength v) = N}               @-}
+{-@ type ByteStringNE   = {v:ByteString | (bLength v) > 0}               @-}
+{-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)}     @-}
+{-@ type ByteStringLE B = {v:ByteString | (bLength v) <= (bLength B)}    @-}
+
+{-@ predicate SuffixPtr V N P = ((isNullPtr V) || ((NNLen V N P) && (NNBase V P)))    @-}
+{-@ predicate NNLen V N P     = ((((plen P) - N) < (plen V)) && (plen V) <= (plen P)) @-}
+{-@ predicate NNBase V P      = ((pbase V) = (pbase P))                               @-}
+
+
+{-@ qualif EqFPLen(v: a, x: ForeignPtr b): v = (fplen x)           @-}
+{-@ qualif EqPLen(v: a, x: Ptr b): v = (plen x)                    @-}
+{-@ qualif EqPLen(v: ForeignPtr a, x: Ptr b): (fplen v) = (plen x) @-}
+{-@ qualif EqPLen(v: Ptr a, x: ForeignPtr b): (plen v) = (fplen x) @-}
+{-@ qualif PValid(v: Int, p: Ptr a): v <= (plen p)                 @-}
+{-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p)                   @-}
+{-@ qualif FPLenPos(v: ForeignPtr a): 0 <= (fplen v)               @-}
+{-@ qualif PLenPos(v: Ptr a): 0 <= (plen v)                        @-}
+
+-- for ByteString.concat
+{-@ qualif BLens(v:List ByteString)            : 0 <= (bLengths v)         @-}
+{-@ qualif BLenLE(v:Ptr a, bs:List ByteString) : (bLengths bs) <= (plen v) @-}
+
+-- for ByteString.splitWith
+{-@ qualif SplitWith(v:List ByteString, l:Int): ((bLengths v) + (len v) - 1) = l @-}
+
+-- for ByteString.unfoldrN
+{-@ qualif PtrDiff(v:Int, i:Int, p:Ptr a): (i - v) <= (plen p) @-}
+
+-- for ByteString.split
+{-@ qualif BSValidOff(v:Int,l:Int,p:ForeignPtr a): v + l <= (fplen p) @-}
+{-@ qualif SplitLoop(v:List ByteString, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
+{- qualif SplitWith(v:a, l:Int): ((bLengths v) + (len v) - 1) = l @-}
+{- qualif BSValidFP(p:a, o:Int, l:Int): (o + l) <= (fplen p)     @-}
+{- qualif BSValidP(p:a, o:Int, l:Int) : (o + l) <= (plen p)       @-}
+{- qualif PtrCMP(v:Ptr a, p:Ptr b): (plen v) <= (plen p)                           @-}
+{- qualif PtrCMP(v:Ptr a, p:Ptr b): (plen v) >= (plen p)                           @-}
+{- qualif SuffixBase(v:a, p:b): ((isNullPtr v) || (pbase v) = (pbase p))           @-}
+{- qualif SuffixLenUB(v:a, p:b): ((isNullPtr v) || (plen v) <= (plen p))           @-}
+{- qualif SuffixLenLB(v:a, p:b, n:c): ((isNullPtr v) || (plen p) - n  <= (plen v)) @-}
 
 
 -------------------------------------------------------------------------
@@ -482,13 +494,15 @@ c_free_finalizer = undefined
 
 -- LIQUID foreign import ccall unsafe "string.h memchr" c_memchr
 -- LIQUID     :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
--- LIQUID 
-{-@ c_memchr :: p:(Ptr Word8) -> CInt -> {v:CSize| (PValid p v)} -> IO (Ptr Word8) @-}
+
+
+
+{-@ c_memchr :: p:(Ptr Word8) -> CInt -> n:{v:CSize| (0 <= v && v <= (plen p))} -> (IO {v:(Ptr Word8) | (SuffixPtr v n p)}) @-}
 c_memchr :: Ptr Word8 -> CInt -> CSize -> IO (Ptr Word8)
 c_memchr = error "LIQUIDFOREIGN" 
 
 
-{-@ memchr :: p:(Ptr Word8) -> Word8 -> {v:CSize| (PValid p v)} -> IO (Ptr Word8) @-}
+{-@ memchr :: p:(Ptr Word8) -> Word8 -> n:{v:CSize| (0 <= v && v <= (plen p))} -> (IO {v:(Ptr Word8) | (SuffixPtr v n p)}) @-}
 memchr :: Ptr Word8 -> Word8 -> CSize -> IO (Ptr Word8)
 memchr p w s = c_memchr p (fromIntegral w) s
 
@@ -562,7 +576,10 @@ c_minimum = error "LIQUIDFOREIGN"
 
 -- LIQUID foreign import ccall unsafe "static fpstring.h fps_count" c_count
 -- LIQUID     :: Ptr Word8 -> CULong -> Word8 -> IO CULong
-{-@ c_count :: p:(Ptr Word8) -> {v:Foreign.C.Types.CULong | (OkPLen v p)} -> Word8 -> IO Foreign.C.Types.CULong @-}
+{-@ c_count :: p:(Ptr Word8) 
+            -> n:{v:Foreign.C.Types.CULong | (OkPLen v p)} 
+            -> Word8 
+            -> (IO {v:Foreign.C.Types.CULong | ((0 <= v) && (v <= n)) }) @-}
 c_count :: Ptr Word8 -> CULong -> Word8 -> IO CULong
 c_count = error "LIQUIDFOREIGN"
 
