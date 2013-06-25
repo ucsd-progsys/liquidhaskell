@@ -138,12 +138,12 @@ module Data.ByteString (
 -- LIQUID        -- * Searching ByteStrings
 -- LIQUID
 -- LIQUID        -- ** Searching by equality
--- LIQUID        elem,                   -- :: Word8 -> ByteString -> Bool
--- LIQUID        notElem,                -- :: Word8 -> ByteString -> Bool
+        elem,                   -- :: Word8 -> ByteString -> Bool
+        notElem,                -- :: Word8 -> ByteString -> Bool
 -- LIQUID
 -- LIQUID        -- ** Searching with a predicate
 -- LIQUID        find,                   -- :: (Word8 -> Bool) -> ByteString -> Maybe Word8
--- LIQUID        filter,                 -- :: (Word8 -> Bool) -> ByteString -> ByteString
+        filter,                 -- :: (Word8 -> Bool) -> ByteString -> ByteString
 -- LIQUID        partition,              -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 -- LIQUID
 -- LIQUID        -- * Indexing ByteStrings
@@ -1521,94 +1521,101 @@ findIndex k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusP
 
 -- | The 'findIndices' function extends 'findIndex', by returning the
 -- indices of all elements satisfying the predicate, in ascending order.
+{-@ findIndices :: (Word8 -> Bool) -> b:ByteString -> [{v:Nat | v < (bLength b)}] @-}
 findIndices :: (Word8 -> Bool) -> ByteString -> [Int]
 findIndices p ps = loop 0 ps
    where
      STRICT2(loop)
-     loop n qs | null qs           = []
-               | p (unsafeHead qs) = n : loop (n+1) (unsafeTail qs)
-               | otherwise         =     loop (n+1) (unsafeTail qs)
+     loop (n :: Int) qs             -- LIQUID CAST 
+        | null qs           = []
+        | p (unsafeHead qs) = n : loop (n+1) (unsafeTail qs)
+        | otherwise         =     loop (n+1) (unsafeTail qs)
 
 -- ---------------------------------------------------------------------
--- LIQUID -- -- Searching ByteStrings
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'elem' is the 'ByteString' membership predicate.
--- LIQUID -- elem :: Word8 -> ByteString -> Bool
--- LIQUID -- elem c ps = case elemIndex c ps of Nothing -> False ; _ -> True
--- LIQUID -- {-# INLINE elem #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'notElem' is the inverse of 'elem'
--- LIQUID -- notElem :: Word8 -> ByteString -> Bool
--- LIQUID -- notElem c ps = not (elem c ps)
--- LIQUID -- {-# INLINE notElem #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'filter', applied to a predicate and a ByteString,
--- LIQUID -- -- returns a ByteString containing those characters that satisfy the
--- LIQUID -- -- predicate. This function is subject to array fusion.
--- LIQUID -- filter :: (Word8 -> Bool) -> ByteString -> ByteString
--- LIQUID -- filter k ps@(PS x s l)
--- LIQUID --     | null ps   = ps
--- LIQUID --     | otherwise = unsafePerformIO $ createAndTrim l $ \p -> withForeignPtr x $ \f -> do
--- LIQUID --         t <- go (f `plusPtr` s) p (f `plusPtr` (s + l))
--- LIQUID --         return $! t `minusPtr` p -- actual length
--- LIQUID --     where
--- LIQUID --         STRICT3(go)
--- LIQUID --         go f t end | f == end  = return t
--- LIQUID --                    | otherwise = do
--- LIQUID --                         w <- peek f
--- LIQUID --                         if k w
--- LIQUID --                             then poke t w >> go (f `plusPtr` 1) (t `plusPtr` 1) end
--- LIQUID --                             else             go (f `plusPtr` 1) t               end
--- LIQUID -- #if __GLASGOW_HASKELL__
--- LIQUID -- {-# INLINE [1] filter #-}
--- LIQUID -- #endif
--- LIQUID -- 
--- LIQUID -- --
--- LIQUID -- -- | /O(n)/ A first order equivalent of /filter . (==)/, for the common
--- LIQUID -- -- case of filtering a single byte. It is more efficient to use
--- LIQUID -- -- /filterByte/ in this case.
--- LIQUID -- --
--- LIQUID -- -- > filterByte == filter . (==)
--- LIQUID -- --
--- LIQUID -- -- filterByte is around 10x faster, and uses much less space, than its
--- LIQUID -- -- filter equivalent
--- LIQUID -- --
--- LIQUID -- filterByte :: Word8 -> ByteString -> ByteString
--- LIQUID -- filterByte w ps = replicate (count w ps) w
--- LIQUID -- {-# INLINE filterByte #-}
--- LIQUID -- 
--- LIQUID -- {-# RULES
--- LIQUID --   "FPS specialise filter (== x)" forall x.
--- LIQUID --       filter ((==) x) = filterByte x
--- LIQUID --   #-}
--- LIQUID -- 
--- LIQUID -- {-# RULES
--- LIQUID --   "FPS specialise filter (== x)" forall x.
--- LIQUID --      filter (== x) = filterByte x
--- LIQUID --   #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ The 'find' function takes a predicate and a ByteString,
--- LIQUID -- -- and returns the first element in matching the predicate, or 'Nothing'
--- LIQUID -- -- if there is no such element.
--- LIQUID -- --
--- LIQUID -- -- > find f p = case findIndex f p of Just n -> Just (p ! n) ; _ -> Nothing
--- LIQUID -- --
--- LIQUID -- find :: (Word8 -> Bool) -> ByteString -> Maybe Word8
--- LIQUID -- find f p = case findIndex f p of
--- LIQUID --                     Just n -> Just (p `unsafeIndex` n)
--- LIQUID --                     _      -> Nothing
--- LIQUID -- {-# INLINE find #-}
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- --
--- LIQUID -- -- fuseable, but we don't want to walk the whole array.
--- LIQUID -- -- 
--- LIQUID -- find k = foldl findEFL Nothing
--- LIQUID --     where findEFL a@(Just _) _ = a
--- LIQUID --           findEFL _          c | k c       = Just c
--- LIQUID --                                | otherwise = Nothing
--- LIQUID -- -}
--- LIQUID -- 
+-- Searching ByteStrings
+
+-- | /O(n)/ 'elem' is the 'ByteString' membership predicate.
+elem :: Word8 -> ByteString -> Bool
+elem c ps = case elemIndex c ps of Nothing -> False ; _ -> True
+{-# INLINE elem #-}
+
+-- | /O(n)/ 'notElem' is the inverse of 'elem'
+notElem :: Word8 -> ByteString -> Bool
+notElem c ps = not (elem c ps)
+{-# INLINE notElem #-}
+
+-- | /O(n)/ 'filter', applied to a predicate and a ByteString,
+-- returns a ByteString containing those characters that satisfy the
+-- predicate. This function is subject to array fusion.
+{-@ qualif FilterLoop(v:Ptr a, f:Ptr a, t:Ptr a): (plen t) >= (plen f) - (plen v) @-}
+{-@ filter :: (Word8 -> Bool) -> b:ByteString -> {v:ByteString | (bLength v) <= (bLength b)} @-}
+filter :: (Word8 -> Bool) -> ByteString -> ByteString
+filter k ps@(PS x s l)
+    | null ps   = ps
+    | otherwise = unsafePerformIO $ createAndTrim l $ \p -> withForeignPtr x $ \f -> do
+        t <- go (f `plusPtr` s) p (f `plusPtr` (s + l))
+        return $! t `minusPtr` p -- actual length
+    where
+      STRICT3(go)
+      go f' t end | f' == end = return t
+                  | otherwise = do
+                        let f = liquid_thm_ptr_cmp f' end -- LIQUID THEOREM
+                        w <- peek f
+                        if k w
+                          then poke t w >> go (f `plusPtr` 1) (t `plusPtr` 1) end
+                          else             go (f `plusPtr` 1) t               end
+#if __GLASGOW_HASKELL__
+{-# INLINE [1] filter #-}
+#endif
+
+
+-- | /O(n)/ A first order equivalent of /filter . (==)/, for the common
+-- case of filtering a single byte. It is more efficient to use
+-- /filterByte/ in this case.
+--
+-- > filterByte == filter . (==)
+--
+-- filterByte is around 10x faster, and uses much less space, than its
+-- filter equivalent
+--
+{-@ filterByte :: Word8 -> b:ByteString -> {v:ByteString | (bLength v) <= (bLength b)} @-}
+filterByte :: Word8 -> ByteString -> ByteString
+filterByte w ps = replicate (count w ps) w
+{-# INLINE filterByte #-}
+
+{-# RULES
+  "FPS specialise filter (== x)" forall x.
+      filter ((==) x) = filterByte x
+  #-}
+
+{-# RULES
+  "FPS specialise filter (== x)" forall x.
+     filter (== x) = filterByte x
+  #-}
+
+-- | /O(n)/ The 'find' function takes a predicate and a ByteString,
+-- and returns the first element in matching the predicate, or 'Nothing'
+-- if there is no such element.
+--
+-- > find f p = case findIndex f p of Just n -> Just (p ! n) ; _ -> Nothing
+--
+find :: (Word8 -> Bool) -> ByteString -> Maybe Word8
+find f p = case findIndex f p of
+                    Just n -> Just (p `unsafeIndex` n)
+                    _      -> Nothing
+{-# INLINE find #-}
+
+{-
+--
+-- fuseable, but we don't want to walk the whole array.
+-- 
+find k = foldl findEFL Nothing
+    where findEFL a@(Just _) _ = a
+          findEFL _          c | k c       = Just c
+                               | otherwise = Nothing
+-}
+
+-- HEREHEREHERE
 -- LIQUID -- -- | /O(n)/ The 'partition' function takes a predicate a ByteString and returns
 -- LIQUID -- -- the pair of ByteStrings with elements which do and do not satisfy the
 -- LIQUID -- -- predicate, respectively; i.e.,
