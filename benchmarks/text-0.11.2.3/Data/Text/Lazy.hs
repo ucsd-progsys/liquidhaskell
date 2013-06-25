@@ -1322,23 +1322,24 @@ strip = dropAround isSpace
                   && ((ltlength y) = ((ltlength t) - (ltlength x))))}>
   @-}
 splitAt :: Int64 -> Text -> (Text, Text)
---LIQUID splitAt = loop
---LIQUID   where loop _ Empty      = (empty, empty)
---LIQUID         loop n t | n <= 0 = (empty, t)
---LIQUID         loop n (Chunk t ts)
---LIQUID              | n < len   = let (t',t'') = T.splitAt (fromIntegral n) t
---LIQUID                            in (Chunk t' Empty, Chunk t'' ts)
---LIQUID              | otherwise = let (ts',ts'') = loop (n - len) ts
---LIQUID                            in (Chunk t ts', ts'')
---LIQUID              where len = fromIntegral (T.length t)
-splitAt _ Empty      = (empty, empty)
-splitAt n t | n <= 0 = (empty, t)
-splitAt n (Chunk t ts)
-    | n < len   = let (t',t'') = T.splitAt (fromIntegral n) t
-                  in (Chunk t' Empty, Chunk t'' ts)
-    | otherwise = let (ts',ts'') = splitAt (n - len) ts
-                  in (Chunk t ts', ts'')
-    where len = fromIntegral (T.length t)
+splitAt = loop
+  where loop :: Int64 -> Text -> (Text, Text)
+        loop _ Empty      = (empty, empty)
+        loop n t | n <= 0 = (empty, t)
+        loop n (Chunk t ts)
+             | n < len   = let (t',t'') = T.splitAt (fromIntegral n) t
+                           in (Chunk t' Empty, Chunk t'' ts)
+             | otherwise = let (ts',ts'') = loop (n - len) ts
+                           in (Chunk t ts', ts'')
+             where len = fromIntegral (T.length t)
+-- splitAt _ Empty      = (empty, empty)
+-- splitAt n t | n <= 0 = (empty, t)
+-- splitAt n (Chunk t ts)
+--     | n < len   = let (t',t'') = T.splitAt (fromIntegral n) t
+--                   in (Chunk t' Empty, Chunk t'' ts)
+--     | otherwise = let (ts',ts'') = splitAt (n - len) ts
+--                   in (Chunk t ts', ts'')
+--     where len = fromIntegral (T.length t)
 
 -- | /O(n)/ 'splitAtWord' @n t@ returns a strict pair whose first
 -- element is a prefix of @t@ whose chunks contain @n@ 'Word16'

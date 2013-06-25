@@ -87,6 +87,7 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
 {-@ invariant {v:LByteString   | (lbLength v)  >= 0} @-}
 {-@ invariant {v:[LByteString] | (lbLengths v) >= 0} @-}
 
+{-@ predicate LBValid B N = ((N >= 0) && (N < (lbLength B))) @-}
 
 {-@ type LByteString     = {v:Data.ByteString.Lazy.Internal.ByteString | true} @-}
 {-@ type LByteStringN N  = {v:LByteString | (lbLength v) = N} @-}
