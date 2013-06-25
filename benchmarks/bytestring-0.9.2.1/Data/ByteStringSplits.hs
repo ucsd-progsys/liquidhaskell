@@ -97,6 +97,15 @@ import qualified Foreign.C.Types
 #define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
 #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
+-- LIQUID: This will go away when we properly embed Ptr a as int -- only in
+-- fixpoint to avoid the Sort mismatch hassles. 
+{-@ liquid_thm_ptr_cmp :: p:PtrV a 
+                       -> q:{v:(PtrV a) | ((plen v) <= (plen p) && v != p && (pbase v) = (pbase p))} 
+                       -> {v: (PtrV a)  | ((v = p) && ((plen q) < (plen p))) } 
+  @-}
+liquid_thm_ptr_cmp :: Ptr a -> Ptr a -> Ptr a
+liquid_thm_ptr_cmp p q = undefined -- p -- LIQUID : make this undefined to suppress WARNING
+-
 -- -----------------------------------------------------------------------------
 -- -----------------------------------------------------------------------------
 
@@ -233,7 +242,12 @@ spanByte = undefined
 spanEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 spanEnd = undefined
 
-------------------------------------------------------------------------
+
+{-@ replicate :: n:Nat -> Word8 -> {v:ByteString | (bLength v) = (if n > 0 then n else 0)} @-}
+replicate :: Int -> Word8 -> ByteString
+replicate  = undefined
+
+-----------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
@@ -428,3 +442,57 @@ findIndices p ps = loop 0 ps
         | null qs           = []
         | p (unsafeHead qs) = n : loop (n+1) (unsafeTail qs)
         | otherwise         =     loop (n+1) (unsafeTail qs)
+
+elem :: Word8 -> ByteString -> Bool
+elem c ps = case elemIndex c ps of Nothing -> False ; _ -> True
+{-# INLINE elem #-}
+
+notElem :: Word8 -> ByteString -> Bool
+notElem c ps = not (elem c ps)
+{-# INLINE notElem #-}
+
+
+{-@ qualif FilterLoop(v:Ptr a, f:Ptr a, t:Ptr a): (plen t) >= (plen f) - (plen v) @-}
+{-@ filter :: (Word8 -> Bool) -> b:ByteString -> {v:ByteString | (bLength v) <= (bLength b)} @-}
+filter :: (Word8 -> Bool) -> ByteString -> ByteString
+filter k ps@(PS x s l)
+    | null ps   = ps
+    | otherwise = unsafePerformIO $ createAndTrim l $ \p -> withForeignPtr x $ \f -> do
+        t <- go (f `plusPtr` s) p (f `plusPtr` (s + l))
+        return $! t `minusPtr` p -- actual length
+    where
+      STRICT3(go)
+      go f' t end | f' == end = return t
+                  | otherwise = do
+                        let f = liquid_thm_ptr_cmp f' end
+                        w <- peek f
+                        if k w
+                          then poke t w >> go (f `plusPtr` 1) (t `plusPtr` 1) end
+                          else             go (f `plusPtr` 1) t               end
+
+
+{- goFilterLoop :: (Word8 -> Bool) 
+       -> f:(PtrV Word8) 
+       -> t:(PtrV Word8)
+       -> e:{v:(PtrV Word8) | ((pbase v) = (pbase f) && (plen v) <= (plen f) && (plen t) >= (plen f) - (plen v)) } 
+       -> (IO {v: (PtrV Word8) | ((pbase v) = (pbase t) && (plen v) <= (plen t))}) @-}
+-- goFilterLoop :: (Word8 -> Bool) -> (Ptr Word8) -> (Ptr Word8) -> Ptr Word8 -> IO (Ptr Word8)
+-- goFilterLoop k f' t end 
+--   | f' == end = return t
+--   | otherwise = do
+--                   let f = liquid_thm_ptr_cmp f' end
+--                   w <- peek f
+--                   if k w
+--                     then poke t w >> goFilterLoop k (f `plusPtr` 1) (t `plusPtr` 1) end
+--                     else             goFilterLoop k (f `plusPtr` 1) t               end
+
+
+{-@ filterByte :: Word8 -> b:ByteString -> {v:ByteString | (bLength v) <= (bLength b)} @-}
+filterByte :: Word8 -> ByteString -> ByteString
+filterByte w ps = replicate (count w ps) w
+
+
+find :: (Word8 -> Bool) -> ByteString -> Maybe Word8
+find f p = case findIndex f p of
+                    Just n -> Just (p `unsafeIndex` n)
+                    _      -> Nothing

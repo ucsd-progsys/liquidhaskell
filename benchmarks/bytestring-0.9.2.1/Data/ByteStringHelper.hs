@@ -98,6 +98,17 @@ import qualified Foreign.C.Types
 #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
 -- -----------------------------------------------------------------------------
+-- LIQUID: This will go away when we properly embed Ptr a as int -- only in
+-- fixpoint to avoid the Sort mismatch hassles. 
+{-@ liquid_thm_ptr_cmp :: p:PtrV a 
+                       -> q:{v:(PtrV a) | ((plen v) <= (plen p) && v != p && (pbase v) = (pbase p))} 
+                       -> {v: (PtrV a)  | ((v = p) && ((plen q) < (plen p))) } 
+  @-}
+liquid_thm_ptr_cmp :: Ptr a -> Ptr a -> Ptr a
+liquid_thm_ptr_cmp p q = undefined -- p -- LIQUID : make this undefined to suppress WARNING
+
+
+
 -- -----------------------------------------------------------------------------
 
 -- | Perform an operation with a temporary ByteString
@@ -233,25 +244,22 @@ spanByte = undefined
 spanEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 spanEnd = undefined
 
+{-@ count :: Word8 -> b:ByteString -> {v:Nat | v <= (bLength b) } @-}
+count :: Word8 -> ByteString -> Int
+count = undefined
+
+{-@ replicate :: n:Nat -> Word8 -> {v:ByteString | (bLength v) = (if n > 0 then n else 0)} @-}
+replicate :: Int -> Word8 -> ByteString
+replicate  = undefined
+
+{-@ findIndex :: (Word8 -> Bool) -> b:ByteString -> (Maybe {v:Nat | v < (bLength b)}) @-}
+findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
+findIndex = undefined
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
