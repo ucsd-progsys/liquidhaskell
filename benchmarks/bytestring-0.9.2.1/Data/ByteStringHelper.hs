@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 
-
-module Data.ByteString (
+module Data.ByteStringHelper (
         ByteString,            -- abstract, instances: Eq, Ord, Show, Read, Data, Typeable, Monoid
         foldl                  -- :: (a -> Word8 -> a) -> a -> ByteString -> a
   ) where
