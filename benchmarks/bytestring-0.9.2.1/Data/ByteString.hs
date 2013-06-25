@@ -108,7 +108,7 @@ module Data.ByteString (
 -- LIQUID        -- ** Breaking strings
         take,                   -- :: Int -> ByteString -> ByteString
         drop,                   -- :: Int -> ByteString -> ByteString
--- LIQUID        splitAt,                -- :: Int -> ByteString -> (ByteString, ByteString)
+        splitAt,                -- :: Int -> ByteString -> (ByteString, ByteString)
 -- LIQUID        takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
 -- LIQUID        dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
 -- LIQUID        span,                   -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
@@ -1053,15 +1053,20 @@ drop n ps@(PS x s l)
     | n >= l    = empty
     | otherwise = PS x (s+n) (l-n)
 {-# INLINE drop #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(1)/ 'splitAt' @n xs@ is equivalent to @('take' n xs, 'drop' n xs)@.
--- LIQUID -- splitAt :: Int -> ByteString -> (ByteString, ByteString)
--- LIQUID -- splitAt n ps@(PS x s l)
--- LIQUID --     | n <= 0    = (empty, ps)
--- LIQUID --     | n >= l    = (ps, empty)
--- LIQUID --     | otherwise = (PS x s n, PS x (s+n) (l-n))
--- LIQUID -- {-# INLINE splitAt #-}
--- LIQUID -- 
+
+-- | /O(1)/ 'splitAt' @n xs@ is equivalent to @('take' n xs, 'drop' n xs)@.
+{-@ splitAt :: n:Nat
+            -> b:ByteString
+            -> ( {v:ByteString | (Min (bLength v) (bLength b) n)}
+               , ByteString)<{\x y -> ((bLength y) = ((bLength b) - (bLength x)))}>
+  @-}
+splitAt :: Int -> ByteString -> (ByteString, ByteString)
+splitAt n ps@(PS x s l)
+    | n <= 0    = (empty, ps)
+    | n >= l    = (ps, empty)
+    | otherwise = (PS x s n, PS x (s+n) (l-n))
+{-# INLINE splitAt #-}
+
 -- LIQUID -- -- | 'takeWhile', applied to a predicate @p@ and a ByteString @xs@,
 -- LIQUID -- -- returns the longest prefix (possibly empty) of @xs@ of elements that
 -- LIQUID -- -- satisfy @p@.
