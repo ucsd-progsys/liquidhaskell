@@ -118,8 +118,8 @@ module Data.ByteString (
         breakEnd,               -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
         group,                  -- :: ByteString -> [ByteString]
         groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
-        inits,                  -- :: ByteString -> [ByteString]
-        tails,                  -- :: ByteString -> [ByteString]
+        -- inits,                  -- :: ByteString -> [ByteString]
+        -- tails,                  -- :: ByteString -> [ByteString]
 
         -- ** Breaking into many substrings
         split,                  -- :: Word8 -> ByteString -> [ByteString]
@@ -149,11 +149,11 @@ module Data.ByteString (
 -- LIQUID        -- * Indexing ByteStrings
         index,                  -- :: ByteString -> Int -> Word8
         elemIndex,              -- :: Word8 -> ByteString -> Maybe Int
--- LIQUID        elemIndices,            -- :: Word8 -> ByteString -> [Int]
--- LIQUID        elemIndexEnd,           -- :: Word8 -> ByteString -> Maybe Int
--- LIQUID        findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int
--- LIQUID        findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int]
--- LIQUID        count,                  -- :: Word8 -> ByteString -> Int
+        elemIndices,            -- :: Word8 -> ByteString -> [Int]
+        elemIndexEnd,           -- :: Word8 -> ByteString -> Maybe Int
+        findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int
+        findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int]
+        count,                  -- :: Word8 -> ByteString -> Int
 -- LIQUID
 -- LIQUID        -- * Zipping and unzipping ByteStrings
 -- LIQUID        zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
@@ -308,31 +308,6 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 
 -- for unfoldrN 
 {-@ qualif PtrDiffUnfoldrN(v:Int, i:Int, p:Ptr a): (i - v) <= (plen p) @-}
-
--- for concat
-{- qualif BLens(v:a)            : 0 <= (bLengths v)             @-}
-{- qualif BLenLE(v:Ptr a, bs:List ByteString) : (bLengths bs) <= (plen v)     @-}
-{- qualif BLens(v:List ByteString)            : 0 <= (bLengths v)         @-}
-{- qualif BLenLE(v:Ptr a, bs:List ByteString) : (bLengths bs) <= (plen v) @-}
-
--- for splitWith
-{- qualif SplitWith(v:List ByteString, l:Int): ((bLengths v) + (len v) - 1) = l @-}
-
--- for split
-{- qualif BSValidOff(v:Int,l:Int,p:ForeignPtr a): v + l <= (fplen p) @-}
-{- qualif SplitLoop(v:List ByteString, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
-
--- for splitWith
-
-{- qualif SplitWith(v:List ByteString, l:Int): ((bLengths v) + (len v) - 1) = l @-}
-{- qualif BSValidFP(p:a, o:Int, l:Int): (o + l) <= (fplen p)     @-}
-{- qualif BSValidP(p:a, o:Int, l:Int) : (o + l) <= (plen p)       @-}
-
--- for split: though latter is generally useful
-{- qualif SplitLoop(v:a, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
-{- qualif BSValidOff(v:Int,l:Int,p:a): v + l <= (fplen p) @-}
-{- qualif SplitLoop(v:List ByteString, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
- 
 
 {-@ lengths :: bs:[ByteString] -> {v:Nat | v = (bLengths bs)} @-}
 lengths :: [ByteString] -> Int
@@ -1451,109 +1426,110 @@ elemIndex c (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
     return $! if isNullPtr q {- LIQUID: q == nullPtr -} then Nothing else Just $! q `minusPtr` p'
 {-# INLINE elemIndex #-}
 
+-- | /O(n)/ The 'elemIndexEnd' function returns the last index of the
+-- element in the given 'ByteString' which is equal to the query
+-- element, or 'Nothing' if there is no such element. The following
+-- holds:
+--
+-- > elemIndexEnd c xs == 
+-- > (-) (length xs - 1) `fmap` elemIndex c (reverse xs)
+--
+{-@ elemIndexEnd :: Word8 -> b:ByteString -> Maybe {v:Nat | v < (bLength b) } @-}
+elemIndexEnd :: Word8 -> ByteString -> Maybe Int
+elemIndexEnd ch (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
+    go (p `plusPtr` s) (l-1)
+  where
+    STRICT2(go)
+    go p i | i < 0     = return Nothing
+           | otherwise = do ch' <- peekByteOff p i
+                            if ch == ch'
+                                then return $ Just i
+                                else go p (i-1)
+{-# INLINE elemIndexEnd #-}
 
--- HEREHEREHERE
+-- | /O(n)/ The 'elemIndices' function extends 'elemIndex', by returning
+-- the indices of all elements equal to the query element, in ascending order.
+-- This implementation uses memchr(3).
+{-@ elemIndices :: Word8 -> b:ByteString -> [{v:Nat | v < (bLength b) }] @-}
+elemIndices :: Word8 -> ByteString -> [Int]
+elemIndices w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
+    let ptr = p `plusPtr` s
 
+        STRICT1(loop)
+        loop n = let pn = ((ptr `plusPtr` n) :: Ptr Word8)  -- LIQUID CAST
+                     q  = inlinePerformIO $ memchr pn
+                                                 w (fromIntegral (l - n))
+                 in if isNullPtr q {- == nullPtr -}         -- LIQUID NULLPTR
+                        then []
+                        else let i = q `minusPtr` ptr
+                             in i : loop (i+1)
+    return $! loop 0
+{-# INLINE elemIndices #-}
 
--- LIQUID -- -- | /O(n)/ The 'elemIndexEnd' function returns the last index of the
--- LIQUID -- -- element in the given 'ByteString' which is equal to the query
--- LIQUID -- -- element, or 'Nothing' if there is no such element. The following
--- LIQUID -- -- holds:
--- LIQUID -- --
--- LIQUID -- -- > elemIndexEnd c xs == 
--- LIQUID -- -- > (-) (length xs - 1) `fmap` elemIndex c (reverse xs)
--- LIQUID -- --
--- LIQUID -- elemIndexEnd :: Word8 -> ByteString -> Maybe Int
--- LIQUID -- elemIndexEnd ch (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
--- LIQUID --     go (p `plusPtr` s) (l-1)
--- LIQUID --   where
--- LIQUID --     STRICT2(go)
--- LIQUID --     go p i | i < 0     = return Nothing
--- LIQUID --            | otherwise = do ch' <- peekByteOff p i
--- LIQUID --                             if ch == ch'
--- LIQUID --                                 then return $ Just i
--- LIQUID --                                 else go p (i-1)
--- LIQUID -- {-# INLINE elemIndexEnd #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ The 'elemIndices' function extends 'elemIndex', by returning
--- LIQUID -- -- the indices of all elements equal to the query element, in ascending order.
--- LIQUID -- -- This implementation uses memchr(3).
--- LIQUID -- elemIndices :: Word8 -> ByteString -> [Int]
--- LIQUID -- elemIndices w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
--- LIQUID --     let ptr = p `plusPtr` s
--- LIQUID -- 
--- LIQUID --         STRICT1(loop)
--- LIQUID --         loop n = let q = inlinePerformIO $ memchr (ptr `plusPtr` n)
--- LIQUID --                                                 w (fromIntegral (l - n))
--- LIQUID --                  in if q == nullPtr
--- LIQUID --                         then []
--- LIQUID --                         else let i = q `minusPtr` ptr
--- LIQUID --                              in i : loop (i+1)
--- LIQUID --     return $! loop 0
--- LIQUID -- {-# INLINE elemIndices #-}
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- -- much slower
--- LIQUID -- elemIndices :: Word8 -> ByteString -> [Int]
--- LIQUID -- elemIndices c ps = loop 0 ps
--- LIQUID --    where STRICT2(loop)
--- LIQUID --          loop _ ps' | null ps'            = []
--- LIQUID --          loop n ps' | c == unsafeHead ps' = n : loop (n+1) (unsafeTail ps')
--- LIQUID --                     | otherwise           = loop (n+1) (unsafeTail ps')
--- LIQUID -- -}
--- LIQUID -- 
--- LIQUID -- -- | count returns the number of times its argument appears in the ByteString
--- LIQUID -- --
--- LIQUID -- -- > count = length . elemIndices
--- LIQUID -- --
--- LIQUID -- -- But more efficiently than using length on the intermediate list.
--- LIQUID -- count :: Word8 -> ByteString -> Int
--- LIQUID -- count w (PS x s m) = inlinePerformIO $ withForeignPtr x $ \p ->
--- LIQUID --     fmap fromIntegral $ c_count (p `plusPtr` s) (fromIntegral m) w
--- LIQUID -- {-# INLINE count #-}
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- --
--- LIQUID -- -- around 30% slower
--- LIQUID -- --
--- LIQUID -- count w (PS x s m) = inlinePerformIO $ withForeignPtr x $ \p ->
--- LIQUID --      go (p `plusPtr` s) (fromIntegral m) 0
--- LIQUID --     where
--- LIQUID --         go :: Ptr Word8 -> CSize -> Int -> IO Int
--- LIQUID --         STRICT3(go)
--- LIQUID --         go p l i = do
--- LIQUID --             q <- memchr p w l
--- LIQUID --             if q == nullPtr
--- LIQUID --                 then return i
--- LIQUID --                 else do let k = fromIntegral $ q `minusPtr` p
--- LIQUID --                         go (q `plusPtr` 1) (l-k-1) (i+1)
--- LIQUID -- -}
--- LIQUID -- 
--- LIQUID -- -- | The 'findIndex' function takes a predicate and a 'ByteString' and
--- LIQUID -- -- returns the index of the first element in the ByteString
--- LIQUID -- -- satisfying the predicate.
--- LIQUID -- findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
--- LIQUID -- findIndex k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusPtr` s) 0
--- LIQUID --   where
--- LIQUID --     STRICT2(go)
--- LIQUID --     go ptr n | n >= l    = return Nothing
--- LIQUID --              | otherwise = do w <- peek ptr
--- LIQUID --                               if k w
--- LIQUID --                                 then return (Just n)
--- LIQUID --                                 else go (ptr `plusPtr` 1) (n+1)
--- LIQUID -- {-# INLINE findIndex #-}
--- LIQUID -- 
--- LIQUID -- -- | The 'findIndices' function extends 'findIndex', by returning the
--- LIQUID -- -- indices of all elements satisfying the predicate, in ascending order.
--- LIQUID -- findIndices :: (Word8 -> Bool) -> ByteString -> [Int]
--- LIQUID -- findIndices p ps = loop 0 ps
--- LIQUID --    where
--- LIQUID --      STRICT2(loop)
--- LIQUID --      loop n qs | null qs           = []
--- LIQUID --                | p (unsafeHead qs) = n : loop (n+1) (unsafeTail qs)
--- LIQUID --                | otherwise         =     loop (n+1) (unsafeTail qs)
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
+{-
+-- much slower
+elemIndices :: Word8 -> ByteString -> [Int]
+elemIndices c ps = loop 0 ps
+   where STRICT2(loop)
+         loop _ ps' | null ps'            = []
+         loop n ps' | c == unsafeHead ps' = n : loop (n+1) (unsafeTail ps')
+                    | otherwise           = loop (n+1) (unsafeTail ps')
+-}
+
+-- | count returns the number of times its argument appears in the ByteString
+--
+-- > count = length . elemIndices
+--
+-- But more efficiently than using length on the intermediate list.
+{-@ count :: Word8 -> b:ByteString -> {v:Nat | v <= (bLength b) } @-}
+count :: Word8 -> ByteString -> Int
+count w (PS x s m) = inlinePerformIO $ withForeignPtr x $ \p ->
+    fmap fromIntegral $ c_count (p `plusPtr` s) (fromIntegral m) w
+{-# INLINE count #-}
+
+{-
+--
+-- around 30% slower
+--
+count w (PS x s m) = inlinePerformIO $ withForeignPtr x $ \p ->
+     go (p `plusPtr` s) (fromIntegral m) 0
+    where
+        go :: Ptr Word8 -> CSize -> Int -> IO Int
+        STRICT3(go)
+        go p l i = do
+            q <- memchr p w l
+            if q == nullPtr
+                then return i
+                else do let k = fromIntegral $ q `minusPtr` p
+                        go (q `plusPtr` 1) (l-k-1) (i+1)
+-}
+
+-- | The 'findIndex' function takes a predicate and a 'ByteString' and
+-- returns the index of the first element in the ByteString
+-- satisfying the predicate.
+{-@ findIndex :: (Word8 -> Bool) -> b:ByteString -> (Maybe {v:Nat | v < (bLength b)}) @-}
+findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
+findIndex k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusPtr` s) 0
+  where
+    STRICT2(go)
+    go ptr n | n >= l    = return Nothing
+             | otherwise = do w <- peek ptr
+                              if k w
+                                then return (Just n)
+                                else go (ptr `plusPtr` 1) (n+1)
+{-# INLINE findIndex #-}
+
+-- | The 'findIndices' function extends 'findIndex', by returning the
+-- indices of all elements satisfying the predicate, in ascending order.
+findIndices :: (Word8 -> Bool) -> ByteString -> [Int]
+findIndices p ps = loop 0 ps
+   where
+     STRICT2(loop)
+     loop n qs | null qs           = []
+               | p (unsafeHead qs) = n : loop (n+1) (unsafeTail qs)
+               | otherwise         =     loop (n+1) (unsafeTail qs)
+
+-- ---------------------------------------------------------------------
 -- LIQUID -- -- Searching ByteStrings
 -- LIQUID -- 
 -- LIQUID -- -- | /O(n)/ 'elem' is the 'ByteString' membership predicate.
@@ -1788,22 +1764,22 @@ elemIndex c (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
 -- ---------------------------------------------------------------------
 -- Special lists
 
--- | /O(n)/ Return all initial segments of the given 'ByteString', shortest first.
-{-@ inits :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
-inits :: ByteString -> [ByteString]
-inits (PS x s l) = [PS x s n | n <- rng l {- LIQUID COMPREHENSIONS [0..l] -}]
-
-{-@ rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
-rng :: Int -> [Int]
-rng 0 = [0]
-rng n = n : rng (n-1) 
-
-
--- | /O(n)/ Return all final segments of the given 'ByteString', longest first.
-{-@ tails :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
-tails :: ByteString -> [ByteString]
-tails p | null p    = [empty]
-        | otherwise = p : tails (unsafeTail p)
+-- LIQUID -- -- | /O(n)/ Return all initial segments of the given 'ByteString', shortest first.
+-- LIQUID -- {- inits :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
+-- LIQUID -- inits :: ByteString -> [ByteString]
+-- LIQUID -- inits (PS x s l) = [PS x s n | n <- rng l {- LIQUID COMPREHENSIONS [0..l] -}]
+-- LIQUID -- 
+-- LIQUID -- {- rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
+-- LIQUID -- rng :: Int -> [Int]
+-- LIQUID -- rng 0 = [0]
+-- LIQUID -- rng n = n : rng (n-1) 
+-- LIQUID -- 
+-- LIQUID -- 
+-- LIQUID -- -- | /O(n)/ Return all final segments of the given 'ByteString', longest first.
+-- LIQUID -- {- tails :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
+-- LIQUID -- tails :: ByteString -> [ByteString]
+-- LIQUID -- tails p | null p    = [empty]
+-- LIQUID --         | otherwise = p : tails (unsafeTail p)
 
 -- less efficent spacewise: tails (PS x s l) = [PS x (s+n) (l-n) | n <- [0..l]]
 
