@@ -120,12 +120,12 @@ module Data.ByteString (
 -- LIQUID        groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
 -- LIQUID        inits,                  -- :: ByteString -> [ByteString]
 -- LIQUID        tails,                  -- :: ByteString -> [ByteString]
--- LIQUID
--- LIQUID        -- ** Breaking into many substrings
--- LIQUID        split,                  -- :: Word8 -> ByteString -> [ByteString]
--- LIQUID        splitWith,              -- :: (Word8 -> Bool) -> ByteString -> [ByteString]
--- LIQUID
--- LIQUID        -- * Predicates
+
+        -- ** Breaking into many substrings
+        split,                  -- :: Word8 -> ByteString -> [ByteString]
+        splitWith,              -- :: (Word8 -> Bool) -> ByteString -> [ByteString]
+
+        -- * Predicates
 -- LIQUID        isPrefixOf,             -- :: ByteString -> ByteString -> Bool
 -- LIQUID        isSuffixOf,             -- :: ByteString -> ByteString -> Bool
 -- LIQUID        isInfixOf,              -- :: ByteString -> ByteString -> Bool
@@ -313,9 +313,17 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 -- for unfoldrN 
 {-@ qualif PtrDiff(v:Int, i:Int, p:Ptr a): (i - v) <= (plen p) @-}
 
+-- for splitWith
+{- qualif SplitWith(v:List ByteString, l:Int): ((bLengths v) + (len v) - 1) = l @-}
+{- qualif BSValidFP(p:a, o:Int, l:Int): (o + l) <= (fplen p)     @-}
+{- qualif BSValidP(p:a, o:Int, l:Int) : (o + l) <= (plen p)       @-}
+
+
 -- for split: though latter is generally useful
-{-@ qualif SplitLoop(v:a, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
-{-@ qualif BSValidOff(v:Int,l:Int,p:a): v + l <= (fplen p) @-}
+{- qualif SplitLoop(v:a, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
+{- qualif BSValidOff(v:Int,l:Int,p:a): v + l <= (fplen p) @-}
+{- qualif SplitLoop(v:List ByteString, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
+
  
 {-@ measure bLengths  :: [Data.ByteString.Internal.ByteString] -> Int 
     bLengths ([])   = 0
@@ -330,6 +338,9 @@ lengths (b:bs) = length b + lengths bs
 {-@ type ByteStringPair B = (ByteString, ByteString)<{\x1 x2 -> (bLength x1) + (bLength x2) = (bLength B)}>
   @-}
 
+{-@ type ByteStringSplit B = {v:[ByteString] | ((bLengths v) + (len v) - 1) = (bLength B) } @-}
+
+{-@ invariant {v:Data.ByteString.Internal.ByteString | 0 <= (bLength v)} @-}
 -- LIQUID HACK: this is to get all the quals from memchr. 
 -- Quals needed because IO monad forces liquid-abstraction. 
 -- Solution, scrape quals from predicate defs (e.g. SuffixPtr)
@@ -1264,6 +1275,7 @@ splitWith p ps = loop p ps
 -- not copy the substrings, it just constructs new 'ByteStrings' that
 -- are slices of the original.
 --
+{-@ split :: Word8 -> b:ByteStringNE -> (ByteStringSplit b)  @-}
 split :: Word8 -> ByteString -> [ByteString]
 split _ (PS _ _ 0) = []
 split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
@@ -1271,51 +1283,53 @@ split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
 
         STRICT1(loop)
         loop n =
-            let q = inlinePerformIO $ memchr (ptr `plusPtr` n)
+            -- LIQUID: else lose `plen` info due to subsequent @ Word8 application
+            let ptrn = (ptr `plusPtr` n) :: Ptr Word8 
+                q = inlinePerformIO $ memchr ptrn {- (ptr `plusPtr` n) -}
                                            w (fromIntegral (l-n))
-            in if q == nullPtr
+            in if isNullPtr q {- LIQUID q == nullPtr -}
                 then [PS x (s+n) (l-n)]
                 else let i = q `minusPtr` ptr in PS x (s+n) (i-n) : loop (i+1)
 
     return (loop 0)
 {-# INLINE split #-}
 
--- LIQUID -- {-
--- LIQUID -- -- slower. but stays inside Haskell.
--- LIQUID -- split _ (PS _  _   0) = []
--- LIQUID -- split (W8# w#) (PS fp off len) = splitWith' off len fp
--- LIQUID --     where
--- LIQUID --         splitWith' off' len' fp' = withPtr fp $ \p ->
--- LIQUID --             splitLoop p 0 off' len' fp'
--- LIQUID -- 
--- LIQUID --         splitLoop :: Ptr Word8
--- LIQUID --                   -> Int -> Int -> Int
--- LIQUID --                   -> ForeignPtr Word8
--- LIQUID --                   -> IO [ByteString]
--- LIQUID -- 
--- LIQUID --         STRICT5(splitLoop)
--- LIQUID --         splitLoop p idx' off' len' fp'
--- LIQUID --             | p `seq` idx' `seq` off' `seq` len' `seq` fp' `seq` False = undefined
--- LIQUID --             | idx' >= len'  = return [PS fp' off' idx']
--- LIQUID --             | otherwise = do
--- LIQUID --                 (W8# x#) <- peekElemOff p (off'+idx')
--- LIQUID --                 if word2Int# w# ==# word2Int# x#
--- LIQUID --                    then return (PS fp' off' idx' :
--- LIQUID --                               splitWith' (off'+idx'+1) (len'-idx'-1) fp')
--- LIQUID --                    else splitLoop p (idx'+1) off' len' fp'
--- LIQUID -- -}
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- -- | Like 'splitWith', except that sequences of adjacent separators are
--- LIQUID -- -- treated as a single separator. eg.
--- LIQUID -- -- 
--- LIQUID -- -- > tokens (=='a') "aabbaca" == ["bb","c"]
--- LIQUID -- --
--- LIQUID -- tokens :: (Word8 -> Bool) -> ByteString -> [ByteString]
--- LIQUID -- tokens f = P.filter (not.null) . splitWith f
--- LIQUID -- {-# INLINE tokens #-}
--- LIQUID -- -}
--- LIQUID -- 
+{-
+-- slower. but stays inside Haskell.
+split _ (PS _  _   0) = []
+split (W8# w#) (PS fp off len) = splitWith' off len fp
+    where
+        splitWith' off' len' fp' = withPtr fp $ \p ->
+            splitLoop p 0 off' len' fp'
+
+        splitLoop :: Ptr Word8
+                  -> Int -> Int -> Int
+                  -> ForeignPtr Word8
+                  -> IO [ByteString]
+
+        STRICT5(splitLoop)
+        splitLoop p idx' off' len' fp'
+            | p `seq` idx' `seq` off' `seq` len' `seq` fp' `seq` False = undefined
+            | idx' >= len'  = return [PS fp' off' idx']
+            | otherwise = do
+                (W8# x#) <- peekElemOff p (off'+idx')
+                if word2Int# w# ==# word2Int# x#
+                   then return (PS fp' off' idx' :
+                              splitWith' (off'+idx'+1) (len'-idx'-1) fp')
+                   else splitLoop p (idx'+1) off' len' fp'
+-}
+
+{-
+-- | Like 'splitWith', except that sequences of adjacent separators are
+-- treated as a single separator. eg.
+-- 
+-- > tokens (=='a') "aabbaca" == ["bb","c"]
+--
+tokens :: (Word8 -> Bool) -> ByteString -> [ByteString]
+tokens f = P.filter (not.null) . splitWith f
+{-# INLINE tokens #-}
+-}
+
 -- LIQUID -- -- | The 'group' function takes a ByteString and returns a list of
 -- LIQUID -- -- ByteStrings such that the concatenation of the result is equal to the
 -- LIQUID -- -- argument.  Moreover, each sublist in the result contains only equal
@@ -1358,20 +1372,22 @@ join = intercalate
   #-}
 
 -- | /O(n)/ intercalateWithByte. An efficient way to join to two ByteStrings
--- LIQUID -- -- with a char. Around 4 times faster than the generalised join.
--- LIQUID -- --
--- LIQUID -- intercalateWithByte :: Word8 -> ByteString -> ByteString -> ByteString
--- LIQUID -- intercalateWithByte c f@(PS ffp s l) g@(PS fgp t m) = unsafeCreate len $ \ptr ->
--- LIQUID --     withForeignPtr ffp $ \fp ->
--- LIQUID --     withForeignPtr fgp $ \gp -> do
--- LIQUID --         memcpy ptr (fp `plusPtr` s) (fromIntegral l)
--- LIQUID --         poke (ptr `plusPtr` l) c
--- LIQUID --         memcpy (ptr `plusPtr` (l + 1)) (gp `plusPtr` t) (fromIntegral m)
--- LIQUID --     where
--- LIQUID --       len = length f + length g + 1
--- LIQUID -- {-# INLINE intercalateWithByte #-}
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
+-- with a char. Around 4 times faster than the generalised join.
+--
+
+{-@ intercalateWithByte :: Word8 -> f:ByteString -> g:ByteString -> {v:ByteString | (bLength v) = (bLength f) + (bLength g) + 1} @-}
+intercalateWithByte :: Word8 -> ByteString -> ByteString -> ByteString
+intercalateWithByte c f@(PS ffp s l) g@(PS fgp t m) = unsafeCreate len $ \ptr ->
+    withForeignPtr ffp $ \fp ->
+    withForeignPtr fgp $ \gp -> do
+        memcpy ptr (fp `plusPtr` s) (fromIntegral l)
+        poke (ptr `plusPtr` l) c
+        memcpy (ptr `plusPtr` (l + 1)) (gp `plusPtr` t) (fromIntegral m)
+    where
+      len = length f + length g + 1
+{-# INLINE intercalateWithByte #-}
+
+-- ---------------------------------------------------------------------
 -- LIQUID -- -- Indexing ByteStrings
 -- LIQUID -- 
 -- LIQUID -- -- | /O(1)/ 'ByteString' index (subscript) operator, starting from 0.

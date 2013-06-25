@@ -219,9 +219,10 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p)                   @-}
 {-@ qualif FPLenPos(v: ForeignPtr a): 0 <= (fplen v)               @-}
 {-@ qualif PLenPos(v: Ptr a): 0 <= (plen v)                        @-}
-{-@ qualif SplitWith(v:a, l:Int): ((bLengths v) + (len v) - 1) = l @-}
-{-@ qualif BSValidFP(p:a, o:Int, l:Int): (o + l) <= (fplen p)     @-}
-{-@ qualif BSValidP(p:a, o:Int, l:Int) : (o + l) <= (plen p)       @-}
+
+{- qualif SplitWith(v:a, l:Int): ((bLengths v) + (len v) - 1) = l @-}
+{- qualif BSValidFP(p:a, o:Int, l:Int): (o + l) <= (fplen p)     @-}
+{- qualif BSValidP(p:a, o:Int, l:Int) : (o + l) <= (plen p)       @-}
 
 {- qualif PtrCMP(v:Ptr a, p:Ptr b): (plen v) <= (plen p)                           @-}
 {- qualif PtrCMP(v:Ptr a, p:Ptr b): (plen v) >= (plen p)                           @-}
