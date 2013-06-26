@@ -226,10 +226,6 @@ breakByte = undefined
 findIndexOrEnd :: (Word8 -> Bool) -> ByteString -> Int
 findIndexOrEnd = undefined
 
-{-@ elemIndex :: Word8 -> b:ByteString -> Maybe {v:Nat | v < (bLength b)} @-}
-elemIndex :: Word8 -> ByteString -> Maybe Int
-elemIndex = undefined
-
 -- LIQUID HACK: this is to get all the quals from memchr. Quals needed because IO monad forces liquid-abstraction. Solution, scrape quals from predicate defs (e.g. SuffixPtr)
 {-@ memchrDUMMYFORQUALS :: p:(Ptr a) -> n:Int -> (IO {v:(Ptr b) | (SuffixPtr v n p)})  @-}
 memchrDUMMYFORQUALS :: Ptr a -> Int -> IO (Ptr b)
@@ -408,6 +404,14 @@ tails :: ByteString -> [ByteString]
 tails p | null p    = [empty]
         | otherwise = p : tails (unsafeTail p)
 
+{-@ elemIndex :: Word8 -> b:ByteString -> Maybe {v:Nat | v < (bLength b)} @-}
+elemIndex :: Word8 -> ByteString -> Maybe Int
+elemIndex c (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
+    let p' = p `plusPtr` s
+    q <- memchr p' c (fromIntegral l)
+    return $! if isNullPtr q {- LIQUID: q == nullPtr -} then Nothing else Just $! q `minusPtr` p'
+{-# INLINE elemIndex #-}
+
 
 {-@ index :: b:ByteString -> {v:Nat | v < (bLength b)} -> Word8 @-}
 index :: ByteString -> Int -> Word8
@@ -555,6 +559,10 @@ isSuffixOf (PS x1 s1 l1) (PS x2 s2 l2)
         withForeignPtr x2 $ \p2 -> do
             i <- memcmp (p1 `plusPtr` s1) (p2 `plusPtr` s2 `plusPtr` (l2 - l1)) (fromIntegral l1)
             return $! i == 0
+
+-- | Alias of 'isSubstringOf'
+isInfixOf :: ByteString -> ByteString -> Bool
+isInfixOf = isSubstringOf
 
 
 -- | Check whether one string is a substring of another. @isSubstringOf
@@ -832,4 +840,33 @@ hGetContents h = do
 
 
 
+-- | getContents. Equivalent to hGetContents stdin
+getContents :: IO ByteString
+getContents = hGetContents stdin
+
+-- | The interact function takes a function of type @ByteString -> ByteString@
+-- as its argument. The entire input from the standard input device is passed
+-- to this function as its argument, and the resulting string is output on the
+-- standard output device. It's great for writing one line programs!
+interact :: (ByteString -> ByteString) -> IO ()
+interact transformer = putStr . transformer =<< getContents
+
+-- | Read an entire file strictly into a 'ByteString'.  This is far more
+-- efficient than reading the characters into a 'String' and then using
+-- 'pack'.  It also may be more efficient than opening the file and
+-- reading it using hGet. Files are read using 'binary mode' on Windows,
+-- for 'text mode' use the Char8 version of this function.
+readFile :: FilePath -> IO ByteString
+readFile f = bracket (openBinaryFile f ReadMode) hClose
+    (\h -> hFileSize h >>= hGet h . fromIntegral)
+
+-- | Write a 'ByteString' to a file.
+writeFile :: FilePath -> ByteString -> IO ()
+writeFile f txt = bracket (openBinaryFile f WriteMode) hClose
+    (\h -> hPut h txt)
+
+-- | Append a 'ByteString' to a file.
+appendFile :: FilePath -> ByteString -> IO ()
+appendFile f txt = bracket (openBinaryFile f AppendMode) hClose
+    (\h -> hPut h txt)
 
