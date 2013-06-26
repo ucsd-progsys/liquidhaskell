@@ -14,6 +14,8 @@
 --
 module Data.ByteString.Lazy.Internal (
 
+        liquidCanary, 
+
         -- * The lazy @ByteString@ type and representation
         ByteString(..),     -- instances: Eq, Ord, Show, Read, Data, Typeable
         chunk,
@@ -33,6 +35,12 @@ module Data.ByteString.Lazy.Internal (
 
 import qualified Data.ByteString.Internal as S
 
+-- LIQUID
+import Language.Haskell.Liquid.Prelude  (liquidError)
+import qualified Data.ByteString.Internal
+import Foreign.ForeignPtr       (ForeignPtr)
+import Data.Word                (Word8)
+
 import Foreign.Storable (sizeOf)
 
 #if defined(__GLASGOW_HASKELL__)
@@ -45,28 +53,47 @@ import Data.Generics            (Data(..), Typeable(..))
 -- Instances of Eq, Ord, Read, Show, Data, Typeable
 --
 data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
-    deriving (Show, Read
-#if defined(__GLASGOW_HASKELL__)
-                        ,Data, Typeable
-#endif
-             )
+    deriving (Show)
+-- LIQUID     deriving (Show, Read
+-- LIQUID #if defined(__GLASGOW_HASKELL__)
+-- LIQUID                         ,Data, Typeable
+-- LIQUID #endif
+-- LIQUID              )
+
+{-@ type NonEmptyStrict = {v : Data.ByteString.Internal.ByteString | 0 < (bLength v) } @-}
+
+{-@ data Data.ByteString.Lazy.Internal.ByteString 
+         = Data.ByteString.Lazy.Internal.Empty 
+         | Data.ByteString.Lazy.Internal.Chunk (b :: NonEmptyStrict) (cs :: Data.ByteString.Lazy.Internal.ByteString) 
+  @-}
 
 ------------------------------------------------------------------------
+
+{-@ liquidCanary :: x:Int -> {v: Int | v > x} @-}
+liquidCanary     :: Int -> Int
+liquidCanary x   = x - 1
+
 
 -- | The data type invariant:
 -- Every ByteString is either 'Empty' or consists of non-null 'S.ByteString's.
 -- All functions must preserve this, and the QC properties must check this.
 --
-invariant :: ByteString -> Bool
-invariant Empty                     = True
-invariant (Chunk (S.PS _ _ len) cs) = len > 0 && invariant cs
+
+-- LIQUID: rename `invariant` to `invt` to avoid name clash! 
+{-@ invt :: Data.ByteString.Lazy.Internal.ByteString -> {v: Bool | (Prop v)}  @-}
+invt :: ByteString -> Bool
+invt Empty                     = True 
+invt (Chunk (S.PS _ _ len) cs) = len > 0 && invt cs
+
+invariant = invt
 
 -- | In a form that checks the invariant lazily.
+{-@ checkInvariant :: Data.ByteString.Lazy.Internal.ByteString -> Data.ByteString.Lazy.Internal.ByteString  @-}
 checkInvariant :: ByteString -> ByteString
 checkInvariant Empty = Empty
 checkInvariant (Chunk c@(S.PS _ _ len) cs)
     | len > 0   = Chunk c (checkInvariant cs)
-    | otherwise = error $ "Data.ByteString.Lazy: invariant violation:"
+    | otherwise = liquidError $ "Data.ByteString.Lazy: invariant violation:"
                ++ show (Chunk c cs)
 
 ------------------------------------------------------------------------

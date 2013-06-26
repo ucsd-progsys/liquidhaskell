@@ -15,6 +15,8 @@
 -- #hide
 module Data.ByteString.Fusion (
 
+    liquidCanaryFusion,
+
     -- * Fusion utilities
     loopU, loopL, fuseEFL,
     NoAcc(NoAcc), loopArr, loopAcc, loopSndAcc, unSP,
@@ -47,6 +49,33 @@ import Foreign.Storable         (Storable(..))
 
 import Data.Word                (Word8)
 import System.IO.Unsafe         (unsafePerformIO)
+
+-- LIQUID
+import Language.Haskell.Liquid.Prelude  (liquidAssume, liquidAssert) 
+import qualified Data.ByteString.Lazy.Internal
+import qualified Foreign  
+
+{-@ qualif PlusOnePos(v: Int): 0 <= (v + 1)               @-}
+{-@ qualif LePlusOne(v: Int, x: Int): v <= (x + 1)        @-}
+{-@ qualif LeDiff(v: a, x: a, y:a): v <= (x - y)          @-}
+{-@ qualif PlenEq(v: Ptr a, x: Int): x <= (plen v)        @-}
+{-@ qualif BlenEq(v: Int, x:ByteString): v = (bLength x)  @-}
+{-@ qualif PSnd(v: a, x:b): v = (psnd x)                  @-}
+
+{-@ data PairS a b <p :: x0:a -> b -> Prop> = (:*:) (x::a) (y::b<p x>)  @-}
+
+{-@ measure pfst :: (PairS a b) -> a 
+    pfst ((:*:) x y) = x 
+  @-} 
+
+{-@ measure psnd :: (PairS a b) -> b 
+    psnd ((:*:) x y) = y 
+  @-} 
+
+{-@ liquidCanaryFusion :: x:Int -> {v: Int | v > x} @-}
+liquidCanaryFusion     :: Int -> Int
+liquidCanaryFusion x   = x - 1
+
 
 -- -----------------------------------------------------------------------------
 --
@@ -200,6 +229,7 @@ unSP (acc :*: arr) = (acc, arr)
 -- Loop combinator and fusion rules for flat arrays
 -- |Iteration over over ByteStrings
 
+
 -- | Iteration over over ByteStrings
 loopU :: AccEFL acc                 -- ^ mapping & folding, once per elem
       -> acc                        -- ^ initial acc value
@@ -208,8 +238,8 @@ loopU :: AccEFL acc                 -- ^ mapping & folding, once per elem
 
 loopU f start (PS z s i) = unsafePerformIO $ withForeignPtr z $ \a -> do
     (ps, acc) <- createAndTrim' i $ \p -> do
-      (acc' :*: i') <- go (a `plusPtr` s) p start
-      return (0, i', acc')
+      (accKERMAN' :*: i') <- go (a `plusPtr` s) p start
+      return (0 :: Int, i', accKERMAN')
     return (acc :*: ps)
 
   where
@@ -239,7 +269,6 @@ loopU f start (PS z s i) = unsafePerformIO $ withForeignPtr z $ \a -> do
 
   #-}
 
---
 -- Functional list/array fusion for lazy ByteStrings.
 --
 loopL :: AccEFL acc          -- ^ mapping & folding, once per elem
@@ -251,8 +280,8 @@ loopL f = loop
         loop s (L.Chunk x xs)
           | l == 0    = (s'' :*: ys)
           | otherwise = (s'' :*: L.Chunk y ys)
-          where (s'  :*: y@(PS _ _ l)) = loopU f s x -- avoid circular dep on S.null
-                (s'' :*: ys)           = loop s' xs
+          where (s'  :*: y@(PS _ _ l))  = loopU f s x -- avoid circular dep on S.null
+                (s'' :*: ys)            = loop s' xs
 
 #if defined(__GLASGOW_HASKELL__)
 {-# INLINE [1] loopL #-}
@@ -306,27 +335,35 @@ loopFilter f arr = loopWrapper (doFilterLoop f NoAcc) arr
 -- array if the loop is behaving as a filter, this is why we return
 -- the length that was filled in. The loop may also accumulate some
 -- value as it loops over the source array.
---
+
+
+{-@ type TripleS a N = PairS <{\z v -> v <= (N - (psnd z))}> (PairS <{\x y -> true}> a Nat) Nat @-} 
+
+{-@ type ImperativeLoop acc =  s:(PtrV Word8) 
+                            -> d:(PtrV Word8)
+                            -> n:{v: Nat | ((v <= (plen d)) && (v <= (plen s))) }
+                            -> IO (TripleS acc n)
+  @-}
 type ImperativeLoop acc =
     Ptr Word8          -- pointer to the start of the source byte array
  -> Ptr Word8          -- pointer to ther start of the destination byte array
  -> Int                -- length of the source byte array
  -> IO (PairS (PairS acc Int) Int) -- result and offset, length of dest that was filled
 
+{-@ loopWrapper :: ImperativeLoop acc -> ByteString -> PairS acc ByteString @-}
 loopWrapper :: ImperativeLoop acc -> ByteString -> PairS acc ByteString
 loopWrapper body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
     withForeignPtr srcFPtr $ \srcPtr -> do
     (ps, acc) <- createAndTrim' srcLen $ \destPtr -> do
-        (acc :*: destOffset :*: destLen) <-
-          body (srcPtr `plusPtr` srcOffset) destPtr srcLen
-        return (destOffset, destLen, acc)
+        (acc :*: destOffset :*: destLen) <- body (srcPtr `plusPtr` srcOffset) destPtr srcLen
+        return $ (destOffset, destLen, acc)
     return (acc :*: ps)
 
 doUpLoop :: AccEFL acc -> acc -> ImperativeLoop acc
 doUpLoop f acc0 src dest len = loop 0 0 acc0
   where STRICT3(loop)
         loop src_off dest_off acc
-            | src_off >= len = return (acc :*: 0 :*: dest_off)
+            | src_off >= len = return (acc :*: (0 :: Int) {- LIQUID CAST -} :*: dest_off)
             | otherwise      = do
                 x <- peekByteOff src src_off
                 case f acc x of
@@ -337,20 +374,20 @@ doUpLoop f acc0 src dest len = loop 0 0 acc0
 doDownLoop :: AccEFL acc -> acc -> ImperativeLoop acc
 doDownLoop f acc0 src dest len = loop (len-1) (len-1) acc0
   where STRICT3(loop)
-        loop src_off dest_off acc
-            | src_off < 0 = return (acc :*: dest_off + 1 :*: len - (dest_off + 1))
+        loop src_offDOWN dest_offDOWN acc
+            | src_offDOWN < 0 = return (acc :*: dest_offDOWN + 1 :*: len - (dest_offDOWN + 1))
             | otherwise   = do
-                x <- peekByteOff src src_off
+                x <- peekByteOff src src_offDOWN
                 case f acc x of
-                  (acc' :*: NothingS) -> loop (src_off-1) dest_off acc'
-                  (acc' :*: JustS x') -> pokeByteOff dest dest_off x'
-                                      >> loop (src_off-1) (dest_off-1) acc'
+                  (acc' :*: NothingS) -> loop (src_offDOWN - 1) dest_offDOWN acc'
+                  (acc' :*: JustS x') -> pokeByteOff dest dest_offDOWN x'
+                                      >> loop (src_offDOWN - 1) (dest_offDOWN - 1) acc'
 
 doNoAccLoop :: NoAccEFL -> noAcc -> ImperativeLoop noAcc
 doNoAccLoop f noAcc src dest len = loop 0 0
   where STRICT2(loop)
         loop src_off dest_off
-            | src_off >= len = return (noAcc :*: 0 :*: dest_off)
+            | src_off >= len = return (noAcc :*: (0 :: Int) {- LIQUID CAST -} :*: dest_off)
             | otherwise      = do
                 x <- peekByteOff src src_off
                 case f x of
@@ -362,7 +399,7 @@ doMapLoop :: MapEFL -> noAcc -> ImperativeLoop noAcc
 doMapLoop f noAcc src dest len = loop 0
   where STRICT1(loop)
         loop n
-            | n >= len = return (noAcc :*: 0 :*: len)
+            | n >= len = return (noAcc :*: (0 :: Int) {- LIQUID CAST -} :*: len)
             | otherwise      = do
                 x <- peekByteOff src n
                 pokeByteOff dest n (f x)
@@ -372,7 +409,7 @@ doFilterLoop :: FilterEFL -> noAcc -> ImperativeLoop noAcc
 doFilterLoop f noAcc src dest len = loop 0 0
   where STRICT2(loop)
         loop src_off dest_off
-            | src_off >= len = return (noAcc :*: 0 :*: dest_off)
+            | src_off >= len = return (noAcc :*: (0 :: Int) {- LIQUID CAST -} :*: dest_off)
             | otherwise      = do
                 x <- peekByteOff src src_off
                 if f x
@@ -380,8 +417,11 @@ doFilterLoop f noAcc src dest len = loop 0 0
                     >> loop (src_off+1) (dest_off+1)
                   else loop (src_off+1) dest_off
 
+-- LIQUID
 -- run two loops in sequence,
 -- think of it as: loop1 >> loop2
+
+{-@ sequenceLoops :: ImperativeLoop acc1 -> ImperativeLoop acc2 -> ImperativeLoop (PairS acc1 acc2) @-}
 sequenceLoops :: ImperativeLoop acc1
               -> ImperativeLoop acc2
               -> ImperativeLoop (PairS acc1 acc2)
@@ -394,7 +434,6 @@ sequenceLoops loop1 loop2 src dest len0 = do
                      -- mutating the dest array in-place!
      in loop2 src' dest' len1
   return ((acc1  :*: acc2) :*: off1 + off2 :*: len2)
-
   -- TODO: prove that this is associative! (I think it is)
   -- since we can't be sure how the RULES will combine loops.
 
