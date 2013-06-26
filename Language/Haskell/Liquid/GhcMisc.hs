@@ -54,11 +54,11 @@ import qualified Text.PrettyPrint.HughesPJ    as PJ
 defaultTyConInfo = TyConInfo [] [] [] []
 
 mkTyConInfo :: TyCon -> [Int] -> [Int]-> TyConInfo
-mkTyConInfo c
-  = TyConInfo [i | (i, b) <- varsigns, b, i /= dindex]
-              [i | (i, b) <- varsigns, not b, i /= dindex]
-  where varsigns  = L.nub $ concatMap goDCon $ TC.tyConDataCons c
-        initmap   = zip (showPpr <$> tyvars) [0..]
+mkTyConInfo c = TyConInfo pos neg
+  where pos       = neutral ++ [i | (i, b) <- varsigns, b, i /= dindex]
+        neg       = neutral ++ [i | (i, b) <- varsigns, not b, i /= dindex]
+        varsigns  = L.nub $ concatMap goDCon $ TC.tyConDataCons c
+        initmap   = zip (showPpr <$> tyvars) [0..n]
         mkmap vs  = zip (showPpr <$> vs) (repeat (dindex)) ++ initmap
         goDCon dc = concatMap (go (mkmap (DC.dataConExTyVars dc)) True)
                               (DC.dataConOrigArgTys dc)
@@ -70,8 +70,10 @@ mkTyConInfo c
 
         varLookup v m = fromMaybe (errmsg v) $ L.lookup v m
         tyvars        = TC.tyConTyVars c
+        n             = (TC.tyConArity c) - 1
         errmsg v      = error $ "GhcMisc.getTyConInfo: var not found" ++ showPpr v
         dindex        = -1
+        neutral       = [0..n] L.\\ (fst <$> varsigns)
 
 -----------------------------------------------------------------------
 --------------- Datatype For Holding GHC ModGuts ----------------------
