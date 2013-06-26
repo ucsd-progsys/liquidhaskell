@@ -318,7 +318,7 @@ lengths (b:bs) = length b + lengths bs
 -- Quals needed because IO monad forces liquid-abstraction. 
 -- Solution, scrape quals from predicate defs (e.g. SuffixPtr)
 {-@ dummyForQuals1_elemIndex :: p:(Ptr a) -> n:Int -> (IO {v:(Ptr b) | (SuffixPtr v n p)})  @-}
-dummyForQuals1_elemIndex :: Ptr Word8 -> Int -> IO (Ptr Word8)
+dummyForQuals1_elemIndex :: Ptr a -> Int -> IO (Ptr b)
 dummyForQuals1_elemIndex = undefined 
 
 {-@ dummyForQuals2_splitWith :: p:(ForeignPtr Word8) -> o:{v:Nat | v <= (fplen p)} -> {v:Nat | (BSValid p o v)} -> ByteString 
