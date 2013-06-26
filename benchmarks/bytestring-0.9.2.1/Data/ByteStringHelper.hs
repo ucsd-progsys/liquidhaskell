@@ -107,6 +107,20 @@ import qualified Foreign.C.Types
 liquid_thm_ptr_cmp :: Ptr a -> Ptr a -> Ptr a
 liquid_thm_ptr_cmp p q = undefined -- p -- LIQUID : make this undefined to suppress WARNING
 
+{-@ memcpy_ptr_baoff :: p:(Ptr a) 
+                     -> RawBuffer b 
+                     -> Int 
+                     -> {v:CSize | (OkPLen v p)} -> IO (Ptr ())
+  @-}
+memcpy_ptr_baoff :: Ptr a -> RawBuffer b -> Int -> CSize -> IO (Ptr ())
+memcpy_ptr_baoff = error "LIQUIDCOMPAT"
+
+readCharFromBuffer :: RawBuffer b -> Int -> IO (Char, Int)
+readCharFromBuffer x y = error "LIQUIDCOMPAT"
+
+wantReadableHandleLIQUID :: String -> Handle -> (Handle__ -> IO a) -> IO a
+wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUIDCOMPAT"
+
 
 
 -- -----------------------------------------------------------------------------
@@ -272,6 +286,14 @@ take = undefined
 rng :: Int -> [Int]
 rng = undefined
 
+{-@ pack :: cs:[Word8] -> {v:ByteString | (bLength v) = (len cs)} @-}
+pack :: [Word8] -> ByteString
+pack = undefined
+
+
+{-@ singleton :: Word8 -> {v:ByteString | (bLength v) = 1} @-}
+singleton :: Word8 -> ByteString
+singleton = undefined
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
@@ -279,30 +301,14 @@ rng = undefined
 ------------------------------------------------------------------------
 
 
-{-@ copy :: b:ByteString -> (ByteStringSZ b) @-}
-copy :: ByteString -> ByteString
-copy (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
-    memcpy p (f `plusPtr` s) (fromIntegral l)
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+-- | Append a 'ByteString' to a file.
+appendFile :: FilePath -> ByteString -> IO ()
+appendFile f txt = bracket (openBinaryFile f AppendMode) hClose
+    (\h -> hPut h txt)
 
 
 

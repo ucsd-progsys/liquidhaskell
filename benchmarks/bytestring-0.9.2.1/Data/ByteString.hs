@@ -155,10 +155,10 @@ module Data.ByteString (
         findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int]
         count,                  -- :: Word8 -> ByteString -> Int
 
--- LIQUID        -- * Zipping and unzipping ByteStrings
--- LIQUID        zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
--- LIQUID        zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
--- LIQUID        unzip,                  -- :: [(Word8,Word8)] -> (ByteString,ByteString)
+        -- * Zipping and unzipping ByteStrings
+        zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
+        zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
+        unzip,                  -- :: [(Word8,Word8)] -> (ByteString,ByteString)
 
         -- * Ordered ByteStrings
 -- LIQUID FAIL   sort,                   -- :: ByteString -> ByteString
@@ -178,10 +178,10 @@ module Data.ByteString (
         -- * I\/O with 'ByteString's
 
         -- ** Standard input and output
--- LIQUID        getLine,                -- :: IO ByteString
--- LIQUID        getContents,            -- :: IO ByteString
--- LIQUID        putStr,                 -- :: ByteString -> IO ()
--- LIQUID        putStrLn,               -- :: ByteString -> IO ()
+        getLine,                -- :: IO ByteString
+        getContents,            -- :: IO ByteString
+        putStr,                 -- :: ByteString -> IO ()
+        putStrLn,               -- :: ByteString -> IO ()
 -- LIQUID        interact,               -- :: (ByteString -> ByteString) -> IO ()
 -- LIQUID
 -- LIQUID        -- ** Files
@@ -1748,67 +1748,75 @@ breakSubstring pat src = search 0 src
 
 
 -- ---------------------------------------------------------------------
--- LIQUID -- -- Zipping
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'zip' takes two ByteStrings and returns a list of
--- LIQUID -- -- corresponding pairs of bytes. If one input ByteString is short,
--- LIQUID -- -- excess elements of the longer ByteString are discarded. This is
--- LIQUID -- -- equivalent to a pair of 'unpack' operations.
--- LIQUID -- zip :: ByteString -> ByteString -> [(Word8,Word8)]
--- LIQUID -- zip ps qs
--- LIQUID --     | null ps || null qs = []
--- LIQUID --     | otherwise = (unsafeHead ps, unsafeHead qs) : zip (unsafeTail ps) (unsafeTail qs)
--- LIQUID -- 
--- LIQUID -- -- | 'zipWith' generalises 'zip' by zipping with the function given as
--- LIQUID -- -- the first argument, instead of a tupling function.  For example,
--- LIQUID -- -- @'zipWith' (+)@ is applied to two ByteStrings to produce the list of
--- LIQUID -- -- corresponding sums. 
--- LIQUID -- zipWith :: (Word8 -> Word8 -> a) -> ByteString -> ByteString -> [a]
--- LIQUID -- zipWith f ps qs
--- LIQUID --     | null ps || null qs = []
--- LIQUID --     | otherwise = f (unsafeHead ps) (unsafeHead qs) : zipWith f (unsafeTail ps) (unsafeTail qs)
--- LIQUID -- #if defined(__GLASGOW_HASKELL__)
--- LIQUID -- {-# INLINE [1] zipWith #-}
--- LIQUID -- #endif
--- LIQUID -- 
--- LIQUID -- --
--- LIQUID -- -- | A specialised version of zipWith for the common case of a
--- LIQUID -- -- simultaneous map over two bytestrings, to build a 3rd. Rewrite rules
--- LIQUID -- -- are used to automatically covert zipWith into zipWith' when a pack is
--- LIQUID -- -- performed on the result of zipWith, but we also export it for
--- LIQUID -- -- convenience.
--- LIQUID -- --
--- LIQUID -- zipWith' :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString -> ByteString
--- LIQUID -- zipWith' f (PS fp s l) (PS fq t m) = inlinePerformIO $
--- LIQUID --     withForeignPtr fp $ \a ->
--- LIQUID --     withForeignPtr fq $ \b ->
--- LIQUID --     create len $ zipWith_ 0 (a `plusPtr` s) (b `plusPtr` t)
--- LIQUID --   where
--- LIQUID --     zipWith_ :: Int -> Ptr Word8 -> Ptr Word8 -> Ptr Word8 -> IO ()
--- LIQUID --     STRICT4(zipWith_)
--- LIQUID --     zipWith_ n p1 p2 r
--- LIQUID --        | n >= len = return ()
--- LIQUID --        | otherwise = do
--- LIQUID --             x <- peekByteOff p1 n
--- LIQUID --             y <- peekByteOff p2 n
--- LIQUID --             pokeByteOff r n (f x y)
--- LIQUID --             zipWith_ (n+1) p1 p2 r
--- LIQUID -- 
--- LIQUID --     len = min l m
--- LIQUID -- {-# INLINE zipWith' #-}
--- LIQUID -- 
--- LIQUID -- {-# RULES
--- LIQUID -- 
--- LIQUID -- "FPS specialise zipWith" forall (f :: Word8 -> Word8 -> Word8) p q .
--- LIQUID --     zipWith f p q = unpack (zipWith' f p q)
--- LIQUID -- 
--- LIQUID --   #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'unzip' transforms a list of pairs of bytes into a pair of
--- LIQUID -- -- ByteStrings. Note that this performs two 'pack' operations.
--- LIQUID -- unzip :: [(Word8,Word8)] -> (ByteString,ByteString)
--- LIQUID -- unzip ls = (pack (P.map fst ls), pack (P.map snd ls))
--- LIQUID -- {-# INLINE unzip #-}
+-- Zipping
+
+-- | /O(n)/ 'zip' takes two ByteStrings and returns a list of
+-- corresponding pairs of bytes. If one input ByteString is short,
+-- excess elements of the longer ByteString are discarded. This is
+-- equivalent to a pair of 'unpack' operations.
+
+{-@ predicate ZipLen V X Y  = (len V) = (if (bLength X) <= (bLength Y) then (bLength X) else (bLength Y)) @-}
+{-@ zip :: x:ByteString -> y:ByteString -> {v:[(Word8, Word8)] | (ZipLen v x y) } @-}
+zip :: ByteString -> ByteString -> [(Word8,Word8)]
+zip ps qs
+    | null ps || null qs = []
+    | otherwise = (unsafeHead ps, unsafeHead qs) : zip (unsafeTail ps) (unsafeTail qs)
+
+-- | 'zipWith' generalises 'zip' by zipping with the function given as
+-- the first argument, instead of a tupling function.  For example,
+-- @'zipWith' (+)@ is applied to two ByteStrings to produce the list of
+-- corresponding sums. 
+{-@ zipWith :: (Word8 -> Word8 -> a) -> x:ByteString -> y:ByteString -> {v:[a] | (ZipLen v x y)} @-}
+zipWith :: (Word8 -> Word8 -> a) -> ByteString -> ByteString -> [a]
+zipWith f ps qs
+    | null ps || null qs = []
+    | otherwise = f (unsafeHead ps) (unsafeHead qs) : zipWith f (unsafeTail ps) (unsafeTail qs)
+#if defined(__GLASGOW_HASKELL__)
+{-# INLINE [1] zipWith #-}
+#endif
+
+
+-- | A specialised version of zipWith for the common case of a
+-- simultaneous map over two bytestrings, to build a 3rd. Rewrite rules
+-- are used to automatically covert zipWith into zipWith' when a pack is
+-- performed on the result of zipWith, but we also export it for
+-- convenience.
+
+-- LIQUID NICE-INFERENCE-EXAMPLE! 
+{-@ predicate ZipLenB V X Y = (bLength V) = (if (bLength X) <= (bLength Y) then (bLength X) else (bLength Y)) @-}
+{-@ zipWith' :: (Word8 -> Word8 -> Word8) -> x:ByteString -> y:ByteString -> {v:ByteString | (ZipLenB v x y)} @-}
+zipWith' :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString -> ByteString
+zipWith' f (PS fp s l) (PS fq t m) = inlinePerformIO $
+    withForeignPtr fp $ \a ->
+    withForeignPtr fq $ \b ->
+    create len $ zipWith_ 0 (a `plusPtr` s) (b `plusPtr` t)
+  where
+    zipWith_ :: Int -> Ptr Word8 -> Ptr Word8 -> Ptr Word8 -> IO ()
+    STRICT4(zipWith_)
+    zipWith_ n p1 p2 r
+       | n >= len = return ()
+       | otherwise = do
+            x <- peekByteOff p1 n
+            y <- peekByteOff p2 n
+            pokeByteOff r n (f x y)
+            zipWith_ (n+1) p1 p2 r
+
+    len = min l m
+{-# INLINE zipWith' #-}
+
+{-# RULES
+
+"FPS specialise zipWith" forall (f :: Word8 -> Word8 -> Word8) p q .
+    zipWith f p q = unpack (zipWith' f p q)
+
+  #-}
+
+-- | /O(n)/ 'unzip' transforms a list of pairs of bytes into a pair of
+-- ByteStrings. Note that this performs two 'pack' operations.
+{-@ unzip :: z:[(Word8,Word8)] -> ({v:ByteString | (bLength v) = (len z)}, {v:ByteString | (bLength v) = (len z) }) @-}
+unzip :: [(Word8,Word8)] -> (ByteString,ByteString)
+unzip ls = (pack (P.map fst ls), pack (P.map snd ls))
+{-# INLINE unzip #-}
  
 -- ---------------------------------------------------------------------
 -- Special lists
@@ -1839,7 +1847,7 @@ tails p | null p    = [empty]
 -- | /O(n)/ Sort a ByteString efficiently, using counting sort.
 -- LIQUID FAIL: requires invariant that SUM of cells in intermediate array
 -- equals total len of outer array. WHOA. Due to Ptr issue, this gets
--- "proved" safe. Oh boy...
+-- "proved" safe. Oh boy. Still, can prove that output size = input size.
 
 sortCanary :: Int -> Int
 sortCanary x = liquidAssert (0 == 1) x
@@ -1944,217 +1952,227 @@ copy (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
     memcpy p (f `plusPtr` s) (fromIntegral l)
 
 -- ---------------------------------------------------------------------
--- LIQUID -- -- line IO
--- LIQUID -- 
--- LIQUID -- -- | Read a line from stdin.
--- LIQUID -- getLine :: IO ByteString
--- LIQUID -- getLine = hGetLine stdin
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- -- | Lazily construct a list of lines of ByteStrings. This will be much
--- LIQUID -- -- better on memory consumption than using 'hGetContents >>= lines'
--- LIQUID -- -- If you're considering this, a better choice might be to use
--- LIQUID -- -- Data.ByteString.Lazy
--- LIQUID -- hGetLines :: Handle -> IO [ByteString]
--- LIQUID -- hGetLines h = go
--- LIQUID --     where
--- LIQUID --         go = unsafeInterleaveIO $ do
--- LIQUID --                 e <- hIsEOF h
--- LIQUID --                 if e
--- LIQUID --                   then return []
--- LIQUID --                   else do
--- LIQUID --                 x  <- hGetLine h
--- LIQUID --                 xs <- go
--- LIQUID --                 return (x:xs)
--- LIQUID -- -}
--- LIQUID -- 
--- LIQUID -- -- | Read a line from a handle
--- LIQUID -- 
--- LIQUID -- hGetLine :: Handle -> IO ByteString
--- LIQUID -- #if !defined(__GLASGOW_HASKELL__)
--- LIQUID -- hGetLine h = System.IO.hGetLine h >>= return . pack . P.map c2w
--- LIQUID -- #else
--- LIQUID -- hGetLine h = wantReadableHandleLIQUID "Data.ByteString.hGetLine" h $ \ handle_ -> do
--- LIQUID --     case haBufferMode handle_ of
--- LIQUID --        NoBuffering -> error "no buffering"
--- LIQUID --        _other      -> hGetLineBuffered handle_
--- LIQUID -- 
--- LIQUID --  where
--- LIQUID --     hGetLineBuffered handle_ = do
--- LIQUID --         let ref = haCharBuffer handle_
--- LIQUID --         buf <- readIORef ref
--- LIQUID --         hGetLineBufferedLoop handle_ ref buf 0 []
--- LIQUID -- 
--- LIQUID --     hGetLineBufferedLoop handle_ ref
--- LIQUID --             buf@Buffer{ bufL=r, bufR=w, bufRaw=raw } len xss =
--- LIQUID --         len `seq` do
--- LIQUID --         off <- findEOL r w raw
--- LIQUID --         let new_len = len + off - r
--- LIQUID --         xs <- mkPS raw r off
--- LIQUID -- 
--- LIQUID --       -- if eol == True, then off is the offset of the '\n'
--- LIQUID --       -- otherwise off == w and the buffer is now empty.
--- LIQUID --         if off /= w
--- LIQUID --             then do if (w == off + 1)
--- LIQUID --                             then writeIORef ref buf{ bufL=0, bufR=0 }
--- LIQUID --                             else writeIORef ref buf{ bufL = off + 1 }
--- LIQUID --                     mkBigPS new_len (xs:xss)
--- LIQUID --             else do
--- LIQUID --                  maybe_buf <- maybeFillReadBuffer ({- LIQUID COMPAT: haFD -} handle_) True ({- LIQUID COMPAT: haIsStream -} handle_)
--- LIQUID --                                     buf{ bufR=0, bufL=0 }
--- LIQUID --                  case maybe_buf of
--- LIQUID --                     -- Nothing indicates we caught an EOF, and we may have a
--- LIQUID --                     -- partial line to return.
--- LIQUID --                     Nothing -> do
--- LIQUID --                          writeIORef ref buf{ bufL=0, bufR=0 }
--- LIQUID --                          if new_len > 0
--- LIQUID --                             then mkBigPS new_len (xs:xss)
--- LIQUID --                             else error "LIQUIDCOMPAT" -- ioe_EOF
--- LIQUID --                     Just new_buf ->
--- LIQUID --                          hGetLineBufferedLoop handle_ ref new_buf new_len (xs:xss)
--- LIQUID -- 
--- LIQUID --     -- find the end-of-line character, if there is one
--- LIQUID --     findEOL r w raw
--- LIQUID --         | r == w = return w
--- LIQUID --         | otherwise =  do
--- LIQUID --             (c,r') <- readCharFromBuffer raw r
--- LIQUID --             if c == '\n'
--- LIQUID --                 then return r -- NB. not r': don't include the '\n'
--- LIQUID --                 else findEOL r' w raw
--- LIQUID -- 
--- LIQUID --     -- LIQUID COMPAT
--- LIQUID --     maybeFillReadBuffer fd is_line is_stream buf = return Nothing
--- LIQUID --     -- maybeFillReadBuffer fd is_line is_stream buf = catch
--- LIQUID --     --     (do buf' <- fillReadBuffer fd is_line is_stream buf
--- LIQUID --     --         return (Just buf'))
--- LIQUID --     --     (\e -> if isEOFError e then return Nothing else ioError e)
--- LIQUID -- 
--- LIQUID -- -- TODO, rewrite to use normal memcpy
--- LIQUID -- mkPS :: RawBuffer Char -> Int -> Int -> IO ByteString
--- LIQUID -- mkPS buf start end =
--- LIQUID --     let len = end - start
--- LIQUID --     in create len $ \p -> do
--- LIQUID --         memcpy_ptr_baoff p buf (fromIntegral start) ({- LIQUID fromIntegral-} intCSize len)
--- LIQUID --         return ()
--- LIQUID -- 
--- LIQUID -- 
--- LIQUID -- 
--- LIQUID -- mkBigPS :: Int -> [ByteString] -> IO ByteString
--- LIQUID -- mkBigPS _ [ps] = return ps
--- LIQUID -- mkBigPS _ pss = return $! concat (P.reverse pss)
--- LIQUID -- 
--- LIQUID -- #endif
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Block IO
--- LIQUID -- 
--- LIQUID -- -- | Outputs a 'ByteString' to the specified 'Handle'.
--- LIQUID -- hPut :: Handle -> ByteString -> IO ()
--- LIQUID -- hPut _ (PS _  _ 0) = return ()
--- LIQUID -- hPut h (PS ps s l) = withForeignPtr ps $ \p-> hPutBuf h (p `plusPtr` s) l
--- LIQUID -- 
--- LIQUID -- -- | A synonym for @hPut@, for compatibility 
--- LIQUID -- hPutStr :: Handle -> ByteString -> IO ()
--- LIQUID -- hPutStr = hPut
--- LIQUID -- 
--- LIQUID -- -- | Write a ByteString to a handle, appending a newline byte
--- LIQUID -- hPutStrLn :: Handle -> ByteString -> IO ()
--- LIQUID -- hPutStrLn h ps
--- LIQUID --     | length ps < 1024 = hPut h (ps `snoc` 0x0a)
--- LIQUID --     | otherwise        = hPut h ps >> hPut h (singleton (0x0a)) -- don't copy
--- LIQUID -- 
--- LIQUID -- -- | Write a ByteString to stdout
--- LIQUID -- putStr :: ByteString -> IO ()
--- LIQUID -- putStr = hPut stdout
--- LIQUID -- 
--- LIQUID -- -- | Write a ByteString to stdout, appending a newline byte
--- LIQUID -- putStrLn :: ByteString -> IO ()
--- LIQUID -- putStrLn = hPutStrLn stdout
--- LIQUID -- 
--- LIQUID -- -- | Read a 'ByteString' directly from the specified 'Handle'.  This
--- LIQUID -- -- is far more efficient than reading the characters into a 'String'
--- LIQUID -- -- and then using 'pack'.
--- LIQUID -- hGet :: Handle -> Int -> IO ByteString
--- LIQUID -- hGet _ 0 = return empty
--- LIQUID -- hGet h i = createAndTrim i $ \p -> hGetBuf h p i
--- LIQUID -- 
--- LIQUID -- -- | hGetNonBlocking is identical to 'hGet', except that it will never block
--- LIQUID -- -- waiting for data to become available, instead it returns only whatever data
--- LIQUID -- -- is available.
--- LIQUID -- hGetNonBlocking :: Handle -> Int -> IO ByteString
--- LIQUID -- #if defined(__GLASGOW_HASKELL__)
--- LIQUID -- hGetNonBlocking _ 0 = return empty
--- LIQUID -- hGetNonBlocking h i = createAndTrim i $ \p -> hGetBufNonBlocking h p i
--- LIQUID -- #else
--- LIQUID -- hGetNonBlocking = hGet
--- LIQUID -- #endif
--- LIQUID -- 
--- LIQUID -- -- | Read entire handle contents into a 'ByteString'.
--- LIQUID -- -- This function reads chunks at a time, doubling the chunksize on each
--- LIQUID -- -- read. The final buffer is then realloced to the appropriate size. For
--- LIQUID -- -- files > half of available memory, this may lead to memory exhaustion.
--- LIQUID -- -- Consider using 'readFile' in this case.
--- LIQUID -- --
--- LIQUID -- -- As with 'hGet', the string representation in the file is assumed to
--- LIQUID -- -- be ISO-8859-1.
--- LIQUID -- --
--- LIQUID -- hGetContents :: Handle -> IO ByteString
--- LIQUID -- hGetContents h = do
--- LIQUID --     let start_size = 1024
--- LIQUID --     p <- mallocBytes start_size
--- LIQUID --     i <- hGetBuf h p start_size
--- LIQUID --     if i < start_size
--- LIQUID --         then do p' <- reallocBytes p i
--- LIQUID --                 fp <- newForeignPtr finalizerFree p'
--- LIQUID --                 return $! PS fp 0 i
--- LIQUID --         else f p start_size
--- LIQUID --     where
--- LIQUID --         f p s = do
--- LIQUID --             let s' = 2 * s
--- LIQUID --             p' <- reallocBytes p s'
--- LIQUID --             i  <- hGetBuf h (p' `plusPtr` s) s
--- LIQUID --             if i < s
--- LIQUID --                 then do let i' = s + i
--- LIQUID --                         p'' <- reallocBytes p' i'
--- LIQUID --                         fp  <- newForeignPtr finalizerFree p''
--- LIQUID --                         return $! PS fp 0 i'
--- LIQUID --                 else f p' s'
--- LIQUID -- 
--- LIQUID -- -- | getContents. Equivalent to hGetContents stdin
--- LIQUID -- getContents :: IO ByteString
--- LIQUID -- getContents = hGetContents stdin
--- LIQUID -- 
--- LIQUID -- -- | The interact function takes a function of type @ByteString -> ByteString@
--- LIQUID -- -- as its argument. The entire input from the standard input device is passed
--- LIQUID -- -- to this function as its argument, and the resulting string is output on the
--- LIQUID -- -- standard output device. It's great for writing one line programs!
--- LIQUID -- interact :: (ByteString -> ByteString) -> IO ()
--- LIQUID -- interact transformer = putStr . transformer =<< getContents
--- LIQUID -- 
--- LIQUID -- -- | Read an entire file strictly into a 'ByteString'.  This is far more
--- LIQUID -- -- efficient than reading the characters into a 'String' and then using
--- LIQUID -- -- 'pack'.  It also may be more efficient than opening the file and
--- LIQUID -- -- reading it using hGet. Files are read using 'binary mode' on Windows,
--- LIQUID -- -- for 'text mode' use the Char8 version of this function.
--- LIQUID -- readFile :: FilePath -> IO ByteString
--- LIQUID -- readFile f = bracket (openBinaryFile f ReadMode) hClose
--- LIQUID --     (\h -> hFileSize h >>= hGet h . fromIntegral)
--- LIQUID -- 
--- LIQUID -- -- | Write a 'ByteString' to a file.
--- LIQUID -- writeFile :: FilePath -> ByteString -> IO ()
--- LIQUID -- writeFile f txt = bracket (openBinaryFile f WriteMode) hClose
--- LIQUID --     (\h -> hPut h txt)
--- LIQUID -- 
--- LIQUID -- -- | Append a 'ByteString' to a file.
--- LIQUID -- appendFile :: FilePath -> ByteString -> IO ()
--- LIQUID -- appendFile f txt = bracket (openBinaryFile f AppendMode) hClose
--- LIQUID --     (\h -> hPut h txt)
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- --
--- LIQUID -- -- Disable until we can move it into a portable .hsc file
--- LIQUID -- --
--- LIQUID -- 
+-- line IO
+
+-- | Read a line from stdin.
+getLine :: IO ByteString
+getLine = hGetLine stdin
+
+{-
+-- | Lazily construct a list of lines of ByteStrings. This will be much
+-- better on memory consumption than using 'hGetContents >>= lines'
+-- If you're considering this, a better choice might be to use
+-- Data.ByteString.Lazy
+hGetLines :: Handle -> IO [ByteString]
+hGetLines h = go
+    where
+        go = unsafeInterleaveIO $ do
+                e <- hIsEOF h
+                if e
+                  then return []
+                  else do
+                x  <- hGetLine h
+                xs <- go
+                return (x:xs)
+-}
+
+-- | Read a line from a handle
+
+hGetLine :: Handle -> IO ByteString
+#if !defined(__GLASGOW_HASKELL__)
+hGetLine h = System.IO.hGetLine h >>= return . pack . P.map c2w
+#else
+hGetLine h = wantReadableHandleLIQUID "Data.ByteString.hGetLine" h $ \ handle_ -> do
+    case haBufferMode handle_ of
+       NoBuffering -> error "no buffering"
+       _other      -> hGetLineBuffered handle_
+
+ where
+    hGetLineBuffered handle_ = do
+        let ref = haCharBuffer handle_
+        buf <- readIORef ref
+        hGetLineBufferedLoop handle_ ref buf 0 []
+
+    hGetLineBufferedLoop handle_ ref
+            buf@Buffer{ bufL=r, bufR=w, bufRaw=raw } len xss =
+        len `seq` do
+        off <- findEOL r w raw
+        let new_len = len + off - r
+        xs <- mkPS raw r off
+
+      -- if eol == True, then off is the offset of the '\n'
+      -- otherwise off == w and the buffer is now empty.
+        if off /= w
+            then do if (w == off + 1)
+                            then writeIORef ref buf{ bufL=0, bufR=0 }
+                            else writeIORef ref buf{ bufL = off + 1 }
+                    mkBigPS new_len (xs:xss)
+            else do
+                 maybe_buf <- maybeFillReadBuffer ({- LIQUID COMPAT: haFD -} handle_) True ({- LIQUID COMPAT: haIsStream -} handle_)
+                                    buf{ bufR=0, bufL=0 }
+                 case maybe_buf of
+                    -- Nothing indicates we caught an EOF, and we may have a
+                    -- partial line to return.
+                    Nothing -> do
+                         writeIORef ref buf{ bufL=0, bufR=0 }
+                         if new_len > 0
+                            then mkBigPS new_len (xs:xss)
+                            else error "LIQUIDCOMPAT" -- ioe_EOF
+                    Just new_buf ->
+                         hGetLineBufferedLoop handle_ ref new_buf new_len (xs:xss)
+
+    -- find the end-of-line character, if there is one
+    findEOL r w raw
+        | r == w = return w
+        | otherwise =  do
+            (c,r') <- readCharFromBuffer raw r
+            if c == '\n'
+                then return r -- NB. not r': don't include the '\n'
+                else findEOL r' w raw
+
+    -- LIQUID COMPAT
+    maybeFillReadBuffer fd is_line is_stream buf = return Nothing
+    -- maybeFillReadBuffer fd is_line is_stream buf = catch
+    --     (do buf' <- fillReadBuffer fd is_line is_stream buf
+    --         return (Just buf'))
+    --     (\e -> if isEOFError e then return Nothing else ioError e)
+
+-- TODO, rewrite to use normal memcpy
+mkPS :: RawBuffer Char -> Int -> Int -> IO ByteString
+mkPS buf start end =
+    let len = end - start
+    in create len $ \p -> do
+        memcpy_ptr_baoff p buf (fromIntegral start) ({- LIQUID fromIntegral-} intCSize len)
+        return ()
+
+
+
+mkBigPS :: Int -> [ByteString] -> IO ByteString
+mkBigPS _ [ps] = return ps
+mkBigPS _ pss = return $! concat (P.reverse pss)
+
+#endif
+
+-- ---------------------------------------------------------------------
+-- Block IO
+
+-- | Outputs a 'ByteString' to the specified 'Handle'.
+hPut :: Handle -> ByteString -> IO ()
+hPut _ (PS _  _ 0) = return ()
+hPut h (PS ps s l) = withForeignPtr ps $ \p-> hPutBuf h (p `plusPtr` s) l
+
+-- | A synonym for @hPut@, for compatibility 
+hPutStr :: Handle -> ByteString -> IO ()
+hPutStr = hPut
+
+-- | Write a ByteString to a handle, appending a newline byte
+hPutStrLn :: Handle -> ByteString -> IO ()
+hPutStrLn h ps
+    | length ps < 1024 = hPut h (ps `snoc` 0x0a)
+    | otherwise        = hPut h ps >> hPut h (singleton (0x0a)) -- don't copy
+
+-- | Write a ByteString to stdout
+putStr :: ByteString -> IO ()
+putStr = hPut stdout
+
+-- | Write a ByteString to stdout, appending a newline byte
+putStrLn :: ByteString -> IO ()
+putStrLn = hPutStrLn stdout
+
+-- | Read a 'ByteString' directly from the specified 'Handle'.  This
+-- is far more efficient than reading the characters into a 'String'
+-- and then using 'pack'.
+{-@ assume GHC.IO.Handle.Text.hGetBuf :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
+{-@ hGet :: Handle -> n:Nat -> IO {v:ByteString | (bLength v) <= n} @-}
+hGet :: Handle -> Int -> IO ByteString
+hGet _ 0 = return empty
+hGet h i = createAndTrim i $ \p -> hGetBuf h p i
+
+-- | hGetNonBlocking is identical to 'hGet', except that it will never block
+-- waiting for data to become available, instead it returns only whatever data
+-- is available.
+
+
+{-@ assume GHC.IO.Handle.Text.hGetBufNonBlocking :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
+{-@ hGetNonBlocking :: Handle -> n:Nat -> IO {v:ByteString | (bLength v) <= n} @-}
+
+
+hGetNonBlocking :: Handle -> Int -> IO ByteString
+#if defined(__GLASGOW_HASKELL__)
+hGetNonBlocking _ 0 = return empty
+hGetNonBlocking h i = createAndTrim i $ \p -> hGetBufNonBlocking h p i
+#else
+hGetNonBlocking = hGet
+#endif
+
+-- | Read entire handle contents into a 'ByteString'.
+-- This function reads chunks at a time, doubling the chunksize on each
+-- read. The final buffer is then realloced to the appropriate size. For
+-- files > half of available memory, this may lead to memory exhaustion.
+-- Consider using 'readFile' in this case.
+--
+-- As with 'hGet', the string representation in the file is assumed to
+-- be ISO-8859-1.
+
+{-@ assume Foreign.Marshal.Alloc.reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
+{- assume GHC.IO.Handle.Text.hGetBuf :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
+hGetContents :: Handle -> IO ByteString
+hGetContents h = do
+    let start_size = 1024
+    p <- mallocBytes start_size
+    i <- hGetBuf h p start_size
+    if i < start_size
+        then do p' <- reallocBytes p i
+                fp <- newForeignPtr finalizerFree p'
+                return $! PS fp 0 i
+        else f p start_size
+    where
+        f p s = do
+            let s' = s + s -- 2 * s -- LIQUID MULTIPLY
+            p' <- reallocBytes p s'
+            i  <- hGetBuf h (p' `plusPtr` s) s
+            if i < s
+                then do let i' = s + i
+                        p'' <- reallocBytes p' i'
+                        fp  <- newForeignPtr finalizerFree p''
+                        return $! PS fp 0 i'
+                else f p' s'
+
+-- | getContents. Equivalent to hGetContents stdin
+getContents :: IO ByteString
+getContents = hGetContents stdin
+
+-- | The interact function takes a function of type @ByteString -> ByteString@
+-- as its argument. The entire input from the standard input device is passed
+-- to this function as its argument, and the resulting string is output on the
+-- standard output device. It's great for writing one line programs!
+interact :: (ByteString -> ByteString) -> IO ()
+interact transformer = putStr . transformer =<< getContents
+
+-- | Read an entire file strictly into a 'ByteString'.  This is far more
+-- efficient than reading the characters into a 'String' and then using
+-- 'pack'.  It also may be more efficient than opening the file and
+-- reading it using hGet. Files are read using 'binary mode' on Windows,
+-- for 'text mode' use the Char8 version of this function.
+readFile :: FilePath -> IO ByteString
+readFile f = bracket (openBinaryFile f ReadMode) hClose
+    (\h -> hFileSize h >>= hGet h . fromIntegral)
+
+-- | Write a 'ByteString' to a file.
+writeFile :: FilePath -> ByteString -> IO ()
+writeFile f txt = bracket (openBinaryFile f WriteMode) hClose
+    (\h -> hPut h txt)
+
+-- | Append a 'ByteString' to a file.
+appendFile :: FilePath -> ByteString -> IO ()
+appendFile f txt = bracket (openBinaryFile f AppendMode) hClose
+    (\h -> hPut h txt)
+
+{-
+--
+-- Disable until we can move it into a portable .hsc file
+--
+
 -- LIQUID -- -- | Like readFile, this reads an entire file directly into a
 -- LIQUID -- -- 'ByteString', but it is even more efficient.  It involves directly
 -- LIQUID -- -- mapping the file to memory.  This has the advantage that the contents
