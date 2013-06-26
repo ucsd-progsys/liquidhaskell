@@ -47,6 +47,7 @@ import Data.Word
 -- for ByteString.concat
 {-@ qualif BLens(v:List Data.ByteString.Internal.ByteString)            : 0 <= (bLengths v)         @-}
 {-@ qualif BLenLE(v:Ptr a, bs:List Data.ByteString.Internal.ByteString) : (bLengths bs) <= (plen v) @-}
+{-@ qualif BLenLE(v:Data.ByteString.Internal.ByteString, n:int): (bLength v) <= n @-}
 
 -- for ByteString.splitWith
 {-@ qualif SplitWith(v:List Data.ByteString.Internal.ByteString, l:Int): ((bLengths v) + (len v) - 1) = l @-}
@@ -69,6 +70,11 @@ import Data.Word
 {-@ qualif PtrDiffUnfoldrN(v:int, i:int, p:GHC.Ptr.Ptr a): (i - v) <= (plen p) @-}
 {-@ qualif FilterLoop(v:GHC.Ptr.Ptr a, f:GHC.Ptr.Ptr a, t:GHC.Ptr.Ptr a): (plen t) >= (plen f) - (plen v) @-}
 
+{-@ qualif BLengthsAcc(v:List Data.ByteString.Internal.ByteString,
+                       c:Data.ByteString.Internal.ByteString,
+                       cs:List Data.ByteString.Internal.ByteString):
+        (bLengths v) = (bLength c) + (bLengths cs)
+  @-}
 
 --LIQUID from ByteString
 {-@ mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> b:ByteString -> (acc, ByteStringSZ b) @-}
@@ -94,3 +100,11 @@ groupBy = undefined
   @-}
 intersperse :: Word8 -> ByteString -> ByteString
 intersperse = undefined
+
+{- inits :: b:ByteString -> [{v1:ByteString | (bLength v1) <= (bLength b)}]<{\ix iy -> (bLength ix) < (bLength iy)}> @-}
+inits :: ByteString -> [ByteString]
+inits = undefined
+
+{-@ unfoldrN :: i:Nat -> (a -> Maybe (Word8, a)) -> a -> ({v:ByteString | (bLength v) <= i}, Maybe a)<{\b m -> ((isJust m) => ((bLength b) > 0))}> @-}
+unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
+unfoldrN = undefined
