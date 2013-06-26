@@ -79,3 +79,18 @@ mapAccumL = undefined
 mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
 mapAccumR = undefined
 
+{-@ group :: b:ByteString -> {v: [ByteStringNE] | (bLengths v) = (bLength b)} @-}
+group :: ByteString -> [ByteString]
+group = undefined
+
+{-@ groupBy :: (Word8 -> Word8 -> Bool) -> b:ByteString -> {v:[ByteStringNE] | (bLengths v) = (bLength b)} @-}
+groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
+groupBy = undefined
+
+{-@ intersperse :: Word8 -> b:ByteString
+                -> {v:ByteString |
+                     (((bLength b) > 0) ? ((bLength v) = (2 * (bLength b)) - 1)
+                                          : ((bLength v) = 0)) }
+  @-}
+intersperse :: Word8 -> ByteString -> ByteString
+intersperse = undefined

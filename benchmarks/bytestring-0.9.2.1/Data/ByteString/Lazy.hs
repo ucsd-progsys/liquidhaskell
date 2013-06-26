@@ -103,37 +103,37 @@ module Data.ByteString.Lazy (
         mapAccumR,              -- :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
         mapIndexed,             -- :: (Int64 -> Word8 -> Word8) -> ByteString -> ByteString
 
---LIQUID        -- ** Infinite ByteStrings
---LIQUID        repeat,                 -- :: Word8 -> ByteString
---LIQUID        replicate,              -- :: Int64 -> Word8 -> ByteString
---LIQUID        cycle,                  -- :: ByteString -> ByteString
---LIQUID        iterate,                -- :: (Word8 -> Word8) -> Word8 -> ByteString
---LIQUID
---LIQUID        -- ** Unfolding ByteStrings
---LIQUID        unfoldr,                -- :: (a -> Maybe (Word8, a)) -> a -> ByteString
---LIQUID
-       -- * Substrings
+        -- ** Infinite ByteStrings
+        repeat,                 -- :: Word8 -> ByteString
+        replicate,              -- :: Int64 -> Word8 -> ByteString
+        cycle,                  -- :: ByteString -> ByteString
+        iterate,                -- :: (Word8 -> Word8) -> Word8 -> ByteString
 
-       -- ** Breaking strings
-       take,                   -- :: Int64 -> ByteString -> ByteString
-       drop,                   -- :: Int64 -> ByteString -> ByteString
-       splitAt,                -- :: Int64 -> ByteString -> (ByteString, ByteString)
-       takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
-       dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
-       span,                   -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-       break,                  -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
---LIQUID        group,                  -- :: ByteString -> [ByteString]
---LIQUID        groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
+        -- ** Unfolding ByteStrings
+        unfoldr,                -- :: (a -> Maybe (Word8, a)) -> a -> ByteString
+
+        -- * Substrings
+
+        -- ** Breaking strings
+        take,                   -- :: Int64 -> ByteString -> ByteString
+        drop,                   -- :: Int64 -> ByteString -> ByteString
+        splitAt,                -- :: Int64 -> ByteString -> (ByteString, ByteString)
+        takeWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
+        dropWhile,              -- :: (Word8 -> Bool) -> ByteString -> ByteString
+        span,                   -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+        break,                  -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+        group,                  -- :: ByteString -> [ByteString]
+        groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
 --LIQUID        inits,                  -- :: ByteString -> [ByteString]
 --LIQUID        tails,                  -- :: ByteString -> [ByteString]
 
-       -- ** Breaking into many substrings
---LIQUID        split,                  -- :: Word8 -> ByteString -> [ByteString]
---LIQUID        splitWith,              -- :: (Word8 -> Bool) -> ByteString -> [ByteString]
+        -- ** Breaking into many substrings
+        split,                  -- :: Word8 -> ByteString -> [ByteString]
+        splitWith,              -- :: (Word8 -> Bool) -> ByteString -> [ByteString]
 
-       -- * Predicates
-       isPrefixOf,             -- :: ByteString -> ByteString -> Bool
-       isSuffixOf,             -- :: ByteString -> ByteString -> Bool
+        -- * Predicates
+        isPrefixOf,             -- :: ByteString -> ByteString -> Bool
+        isSuffixOf,             -- :: ByteString -> ByteString -> Bool
 --LIQUID--        isInfixOf,              -- :: ByteString -> ByteString -> Bool
 --LIQUID
 --LIQUID        -- ** Search for arbitrary substrings
@@ -329,6 +329,7 @@ fromChunks :: [S.ByteString] -> ByteString
 fromChunks cs = L.foldr chunk Empty cs
 
 -- | /O(n)/ Convert a lazy 'ByteString' into a list of strict 'ByteString'
+{-@ toChunks :: b:LByteString -> {v:[ByteString] | (bLengths v) = (lbLength b)} @-}
 toChunks :: ByteString -> [S.ByteString]
 --LIQUID toChunks cs = foldrChunks (:) [] cs
 toChunks cs = foldrChunks (const (:)) [] cs
@@ -493,14 +494,14 @@ reverse cs0 = rev Empty cs0
 -- It is analogous to the intersperse function on Lists.
 {-@ intersperse :: Word8 -> b:LByteString
                 -> {v:LByteString |
-                     (((lbLength b) >= 2) ? ((lbLength v) = (2 * (lbLength b)) - 1)
-                                          : ((lbLength v) = (lbLength b))) }
+                     (((lbLength b) > 0) ? ((lbLength v) = (2 * (lbLength b)) - 1)
+                                         : ((lbLength v) = 0)) }
   @-}
 intersperse :: Word8 -> ByteString -> ByteString
 intersperse _ Empty        = Empty
-intersperse w (Chunk c cs) = Chunk (S.intersperse w c)
+intersperse w (Chunk c cs) = Chunk (SA.intersperse w c)
                                    --LIQUID (foldrChunks (Chunk . intersperse') Empty cs)
-                                   (foldrChunks (const $ Chunk . intersperse') Empty cs)
+                                   (foldrChunks (\_ c cs -> Chunk (intersperse' c) cs) Empty cs)
   where intersperse' :: S.ByteString -> S.ByteString
         intersperse' (S.PS fp o l) =
           S.unsafeCreate {-LIQUID (2*l)-} (l+l) $ \p' -> withForeignPtr fp $ \p -> do
@@ -671,7 +672,7 @@ mapIndexed f = F.loopArr . F.loopL (F.mapIndexEFL f) 0
 -- Note that
 --
 -- > last (scanl f z xs) == foldl f z xs.
-{-@ scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> b:LByteString
+{-LIQUID scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> b:LByteString
           -> {v:LByteString | (lbLength v) = 1 + (lbLength b)}
   @-}
 scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
@@ -681,27 +682,38 @@ scanl f z ps = F.loopArr . F.loopL (F.scanEFL f) z $ (ps `snoc` 0)
 -- ---------------------------------------------------------------------
 -- Unfolds and replicates
 
---LIQUID -- | @'iterate' f x@ returns an infinite ByteString of repeated applications
---LIQUID -- of @f@ to @x@:
---LIQUID --
---LIQUID -- > iterate f x == [x, f x, f (f x), ...]
---LIQUID --
---LIQUID iterate :: (Word8 -> Word8) -> Word8 -> ByteString
---LIQUID iterate f = unfoldr (\x -> case f x of x' -> x' `seq` Just (x', x'))
---LIQUID 
---LIQUID -- | @'repeat' x@ is an infinite ByteString, with @x@ the value of every
---LIQUID -- element.
---LIQUID --
---LIQUID repeat :: Word8 -> ByteString
---LIQUID repeat w = cs where cs = Chunk (S.replicate smallChunkSize w) cs
---LIQUID 
---LIQUID -- | /O(n)/ @'replicate' n x@ is a ByteString of length @n@ with @x@
---LIQUID -- the value of every element.
---LIQUID --
---LIQUID replicate :: Int64 -> Word8 -> ByteString
---LIQUID replicate n w
---LIQUID     | n <= 0             = Empty
---LIQUID     | n < fromIntegral smallChunkSize = Chunk (S.replicate (fromIntegral n) w) Empty
+-- | @'iterate' f x@ returns an infinite ByteString of repeated applications
+-- of @f@ to @x@:
+--
+-- > iterate f x == [x, f x, f (f x), ...]
+--
+{-@ iterate :: (Word8 -> Word8) -> Word8 -> LByteString @-}
+iterate :: (Word8 -> Word8) -> Word8 -> ByteString
+iterate f = unfoldr (\x -> case f x of x' -> x' `seq` Just (x', x'))
+
+-- | @'repeat' x@ is an infinite ByteString, with @x@ the value of every
+-- element.
+--
+{-@ repeat :: Word8 -> LByteString @-}
+repeat :: Word8 -> ByteString
+repeat w = cs where cs = Chunk (S.replicate smallChunkSize w) cs
+
+-- | /O(n)/ @'replicate' n x@ is a ByteString of length @n@ with @x@
+-- the value of every element.
+--
+{-@ replicate :: n:Nat64 -> Word8 -> {v:LByteString | (lbLength v) = (if n > 0 then n else 0)} @-}
+replicate :: Int64 -> Word8 -> ByteString
+replicate n w
+    | n <= 0             = Empty
+    | n < fromIntegral smallChunkSize = Chunk (S.replicate (fromIntegral n) w) Empty
+    | otherwise =
+        let c      = S.replicate smallChunkSize w
+            cs     = nChunks q
+            (q, r) = quotRem n (fromIntegral smallChunkSize)
+            nChunks 0 = Empty
+            nChunks m = Chunk c (nChunks (m-1))
+        in if r == 0 then cs -- preserve invariant
+           else Chunk (S.unsafeTake (fromIntegral r) c) cs
 --LIQUID     | r == 0             = cs -- preserve invariant
 --LIQUID     | otherwise          = Chunk (S.unsafeTake (fromIntegral r) c) cs
 --LIQUID  where
@@ -710,28 +722,30 @@ scanl f z ps = F.loopArr . F.loopL (F.scanEFL f) z $ (ps `snoc` 0)
 --LIQUID     (q, r) = quotRem n (fromIntegral smallChunkSize)
 --LIQUID     nChunks 0 = Empty
 --LIQUID     nChunks m = Chunk c (nChunks (m-1))
---LIQUID 
---LIQUID -- | 'cycle' ties a finite ByteString into a circular one, or equivalently,
---LIQUID -- the infinite repetition of the original ByteString.
---LIQUID --
---LIQUID cycle :: ByteString -> ByteString
---LIQUID cycle Empty = errorEmptyList "cycle"
+
+-- | 'cycle' ties a finite ByteString into a circular one, or equivalently,
+-- the infinite repetition of the original ByteString.
+--
+{-@ cycle :: LByteString -> LByteString @-}
+cycle :: ByteString -> ByteString
+cycle Empty = errorEmptyList "cycle"
 --LIQUID cycle cs    = cs' where cs' = foldrChunks Chunk cs' cs
---LIQUID 
---LIQUID -- | /O(n)/ The 'unfoldr' function is analogous to the List \'unfoldr\'.
---LIQUID -- 'unfoldr' builds a ByteString from a seed value.  The function takes
---LIQUID -- the element and returns 'Nothing' if it is done producing the
---LIQUID -- ByteString or returns 'Just' @(a,b)@, in which case, @a@ is a
---LIQUID -- prepending to the ByteString and @b@ is used as the next element in a
---LIQUID -- recursive call.
---LIQUID unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
---LIQUID unfoldr f s0 = unfoldChunk 32 s0
---LIQUID   where unfoldChunk n s =
---LIQUID           case S.unfoldrN n f s of
---LIQUID             (c, Nothing)
---LIQUID               | S.null c  -> Empty
---LIQUID               | otherwise -> Chunk c Empty
---LIQUID             (c, Just s')  -> Chunk c (unfoldChunk (n*2) s')
+cycle cs    = cs' where cs' = foldrChunks (const Chunk) cs' cs
+
+-- | /O(n)/ The 'unfoldr' function is analogous to the List \'unfoldr\'.
+-- 'unfoldr' builds a ByteString from a seed value.  The function takes
+-- the element and returns 'Nothing' if it is done producing the
+-- ByteString or returns 'Just' @(a,b)@, in which case, @a@ is a
+-- prepending to the ByteString and @b@ is used as the next element in a
+-- recursive call.
+unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
+unfoldr f s0 = unfoldChunk 32 s0
+  where unfoldChunk n s =
+          case S.unfoldrN n f s of
+            (c, Nothing)
+              | S.null c  -> Empty
+              | otherwise -> Chunk c Empty
+            (c, Just s')  -> Chunk c (unfoldChunk (n*2) s')
 
 -- ---------------------------------------------------------------------
 -- Substrings
@@ -796,6 +810,7 @@ splitAt i cs0 = splitAt' i cs0
 -- | 'takeWhile', applied to a predicate @p@ and a ByteString @xs@,
 -- returns the longest prefix (possibly empty) of @xs@ of elements that
 -- satisfy @p@.
+{-@ takeWhile :: (Word8 -> Bool) -> b:LByteString -> (LByteStringLE b) @-}
 takeWhile :: (Word8 -> Bool) -> ByteString -> ByteString
 takeWhile f cs0 = takeWhile' cs0
   where takeWhile' Empty        = Empty
@@ -806,6 +821,7 @@ takeWhile f cs0 = takeWhile' cs0
               | otherwise      -> Chunk c (takeWhile' cs)
 
 -- | 'dropWhile' @p xs@ returns the suffix remaining after 'takeWhile' @p xs@.
+{-@ dropWhile :: (Word8 -> Bool) -> b:LByteString -> (LByteStringLE b) @-}
 dropWhile :: (Word8 -> Bool) -> ByteString -> ByteString
 dropWhile f cs0 = dropWhile' cs0
   where dropWhile' Empty        = Empty
@@ -815,6 +831,7 @@ dropWhile f cs0 = dropWhile' cs0
               | otherwise      -> dropWhile' cs
 
 -- | 'break' @p@ is equivalent to @'span' ('not' . p)@.
+{-@ break :: (Word8 -> Bool) -> b:LByteString -> (LByteStringPair b) @-}
 break :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 break f cs0 = break' cs0
   where break' Empty        = (Empty, Empty)
@@ -868,6 +885,7 @@ spanByte c (LPS ps) = case (spanByte' ps) of (a,b) -> (LPS a, LPS b)
 
 -- | 'span' @p xs@ breaks the ByteString into two segments. It is
 -- equivalent to @('takeWhile' p xs, 'dropWhile' p xs)@
+{-@ span :: (Word8 -> Bool) -> b:LByteString -> (LByteStringPair b) @-}
 span :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 span p = break (not . p)
 
@@ -879,16 +897,17 @@ span p = break (not . p)
 -- > splitWith (=='a') "aabbaca" == ["","","bb","c",""]
 -- > splitWith (=='a') []        == []
 --
---LIQUID splitWith :: (Word8 -> Bool) -> ByteString -> [ByteString]
---LIQUID splitWith _ Empty          = []
---LIQUID splitWith p (Chunk c0 cs0) = comb [] (S.splitWith p c0) cs0
---LIQUID 
---LIQUID   where comb :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
---LIQUID         comb acc (s:[]) Empty        = revChunks (s:acc) : []
---LIQUID         comb acc (s:[]) (Chunk c cs) = comb (s:acc) (S.splitWith p c) cs
---LIQUID         comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
---LIQUID 
---LIQUID {-# INLINE splitWith #-}
+{-@ splitWith :: (Word8 -> Bool) -> b:LByteStringNE -> (LByteStringSplit b) @-}
+splitWith :: (Word8 -> Bool) -> ByteString -> [ByteString]
+splitWith _ Empty          = []
+splitWith p (Chunk c0 cs0) = comb [] (S.splitWith p c0) cs0
+
+  where comb :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
+        comb acc (s:[]) Empty        = revChunks (s:acc) : []
+        comb acc (s:[]) (Chunk c cs) = comb (s:acc) (S.splitWith p c) cs
+        comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
+
+{-# INLINE splitWith #-}
 
 -- | /O(n)/ Break a 'ByteString' into pieces separated by the byte
 -- argument, consuming the delimiter. I.e.
@@ -906,15 +925,16 @@ span p = break (not . p)
 -- not copy the substrings, it just constructs new 'ByteStrings' that
 -- are slices of the original.
 --
---LIQUID split :: Word8 -> ByteString -> [ByteString]
---LIQUID split _ Empty     = []
---LIQUID split w (Chunk c0 cs0) = comb [] (S.split w c0) cs0
---LIQUID 
---LIQUID   where comb :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
---LIQUID         comb acc (s:[]) Empty        = revChunks (s:acc) : []
---LIQUID         comb acc (s:[]) (Chunk c cs) = comb (s:acc) (S.split w c) cs
---LIQUID         comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
---LIQUID {-# INLINE split #-}
+{-@ split :: Word8 -> b:LByteStringNE -> (LByteStringSplit b) @-}
+split :: Word8 -> ByteString -> [ByteString]
+split _ Empty     = []
+split w (Chunk c0 cs0) = comb [] (S.split w c0) cs0
+
+  where comb :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
+        comb acc (s:[]) Empty        = revChunks (s:acc) : []
+        comb acc (s:[]) (Chunk c cs) = comb (s:acc) (S.split w c) cs
+        comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
+{-# INLINE split #-}
 
 {-
 -- | Like 'splitWith', except that sequences of adjacent separators are
@@ -935,17 +955,18 @@ tokens f = L.filter (not.null) . splitWith f
 --
 -- It is a special case of 'groupBy', which allows the programmer to
 -- supply their own equality test.
---LIQUID group :: ByteString -> [ByteString]
---LIQUID group Empty          = []
---LIQUID group (Chunk c0 cs0) = group' [] (S.group c0) cs0
---LIQUID   where 
---LIQUID     group' :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
---LIQUID     group' acc@(s':_) ss@(s:_) cs
---LIQUID       | S.unsafeHead s'
---LIQUID      /= S.unsafeHead s             = revNonEmptyChunks    acc  : group' [] ss cs
---LIQUID     group' acc (s:[]) Empty        = revNonEmptyChunks (s:acc) : []
---LIQUID     group' acc (s:[]) (Chunk c cs) = group' (s:acc) (S.group c) cs
---LIQUID     group' acc (s:ss) cs           = revNonEmptyChunks (s:acc) : group' [] ss cs
+{-@ group :: b:LByteString -> {v: [LByteString] | (lbLengths v) = (lbLength b)} @-}
+group :: ByteString -> [ByteString]
+group Empty          = []
+group (Chunk c0 cs0) = group' [] (SA.group c0) cs0
+  where 
+    group' :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
+    group' acc@(s':_) ss@(s:_) cs
+      | S.unsafeHead s'
+     /= S.unsafeHead s             = revNonEmptyChunks    acc  : group' [] ss cs
+    group' acc (s:[]) Empty        = revNonEmptyChunks (s:acc) : []
+    group' acc (s:[]) (Chunk c cs) = group' (s:acc) (SA.group c) cs
+    group' acc (s:ss) cs           = revNonEmptyChunks (s:acc) : group' [] ss cs
 
 {-
 TODO: check if something like this might be faster
@@ -960,18 +981,19 @@ group xs
 
 -- | The 'groupBy' function is the non-overloaded version of 'group'.
 --
---LIQUID groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
---LIQUID groupBy _ Empty          = []
---LIQUID groupBy k (Chunk c0 cs0) = groupBy' [] 0 (S.groupBy k c0) cs0
---LIQUID   where
---LIQUID     groupBy' :: [S.ByteString] -> Word8 -> [S.ByteString] -> ByteString -> [ByteString]
---LIQUID     groupBy' acc@(_:_) c ss@(s:_) cs
---LIQUID       | not (c `k` S.unsafeHead s)     = revNonEmptyChunks acc : groupBy' [] 0 ss cs
---LIQUID     groupBy' acc _ (s:[]) Empty        = revNonEmptyChunks (s : acc) : []
---LIQUID     groupBy' acc w (s:[]) (Chunk c cs) = groupBy' (s:acc) w' (S.groupBy k c) cs
---LIQUID                                            where w' | L.null acc = S.unsafeHead s
---LIQUID                                                     | otherwise  = w
---LIQUID     groupBy' acc _ (s:ss) cs           = revNonEmptyChunks (s : acc) : groupBy' [] 0 ss cs
+{-@ groupBy :: (Word8 -> Word8 -> Bool) -> b:LByteString -> {v:[LByteString] | (lbLengths v) = (lbLength b)} @-}
+groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
+groupBy _ Empty          = []
+groupBy k (Chunk c0 cs0) = groupBy' [] 0 (SA.groupBy k c0) cs0
+  where
+    groupBy' :: [S.ByteString] -> Word8 -> [S.ByteString] -> ByteString -> [ByteString]
+    groupBy' acc@(_:_) c ss@(s:_) cs
+      | not (c `k` S.unsafeHead s)     = revNonEmptyChunks acc : groupBy' [] 0 ss cs
+    groupBy' acc _ (s:[]) Empty        = revNonEmptyChunks (s : acc) : []
+    groupBy' acc w (s:[]) (Chunk c cs) = groupBy' (s:acc) w' (SA.groupBy k c) cs
+                                           where w' | L.null acc = S.unsafeHead s
+                                                    | otherwise  = w
+    groupBy' acc _ (s:ss) cs           = revNonEmptyChunks (s : acc) : groupBy' [] 0 ss cs
 
 {-
 TODO: check if something like this might be faster
@@ -1008,73 +1030,80 @@ index cs0 i         = index' cs0 i
               index' cs (n - fromIntegral (S.length c))
           | otherwise       = S.unsafeIndex c (fromIntegral n)
 
---LIQUID -- | /O(n)/ The 'elemIndex' function returns the index of the first
---LIQUID -- element in the given 'ByteString' which is equal to the query
---LIQUID -- element, or 'Nothing' if there is no such element. 
---LIQUID -- This implementation uses memchr(3).
---LIQUID elemIndex :: Word8 -> ByteString -> Maybe Int64
---LIQUID elemIndex w cs0 = elemIndex' 0 cs0
---LIQUID   where elemIndex' _ Empty        = Nothing
---LIQUID         elemIndex' n (Chunk c cs) =
---LIQUID           case S.elemIndex w c of
---LIQUID             Nothing -> elemIndex' (n + fromIntegral (S.length c)) cs
---LIQUID             Just i  -> Just (n + fromIntegral i)
---LIQUID 
---LIQUID {-
---LIQUID -- | /O(n)/ The 'elemIndexEnd' function returns the last index of the
---LIQUID -- element in the given 'ByteString' which is equal to the query
---LIQUID -- element, or 'Nothing' if there is no such element. The following
---LIQUID -- holds:
---LIQUID --
---LIQUID -- > elemIndexEnd c xs == 
---LIQUID -- > (-) (length xs - 1) `fmap` elemIndex c (reverse xs)
---LIQUID --
---LIQUID elemIndexEnd :: Word8 -> ByteString -> Maybe Int
---LIQUID elemIndexEnd ch (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
---LIQUID     go (p `plusPtr` s) (l-1)
---LIQUID   where
---LIQUID     STRICT2(go)
---LIQUID     go p i | i < 0     = return Nothing
---LIQUID            | otherwise = do ch' <- peekByteOff p i
---LIQUID                             if ch == ch'
---LIQUID                                 then return $ Just i
---LIQUID                                 else go p (i-1)
---LIQUID -}
---LIQUID -- | /O(n)/ The 'elemIndices' function extends 'elemIndex', by returning
---LIQUID -- the indices of all elements equal to the query element, in ascending order.
---LIQUID -- This implementation uses memchr(3).
---LIQUID elemIndices :: Word8 -> ByteString -> [Int64]
---LIQUID elemIndices w cs0 = elemIndices' 0 cs0
---LIQUID   where elemIndices' _ Empty        = []
---LIQUID         elemIndices' n (Chunk c cs) = L.map ((+n).fromIntegral) (S.elemIndices w c)
---LIQUID                              ++ elemIndices' (n + fromIntegral (S.length c)) cs
---LIQUID 
---LIQUID -- | count returns the number of times its argument appears in the ByteString
---LIQUID --
---LIQUID -- > count = length . elemIndices
---LIQUID --
---LIQUID -- But more efficiently than using length on the intermediate list.
---LIQUID count :: Word8 -> ByteString -> Int64
+-- | /O(n)/ The 'elemIndex' function returns the index of the first
+-- element in the given 'ByteString' which is equal to the query
+-- element, or 'Nothing' if there is no such element. 
+-- This implementation uses memchr(3).
+{-@ elemIndex :: Word8 -> b:LByteString -> Maybe {v:Nat64 | v < (lbLength b)} @-}
+elemIndex :: Word8 -> ByteString -> Maybe Int64
+elemIndex w cs0 = elemIndex' 0 cs0
+  where elemIndex' _          Empty        = Nothing
+        elemIndex' (n::Int64) (Chunk c cs) = --LIQUID CAST
+          case S.elemIndex w c of
+            Nothing -> elemIndex' (n + fromIntegral (S.length c)) cs
+            Just i  -> Just (n + fromIntegral i)
+
+{-
+-- | /O(n)/ The 'elemIndexEnd' function returns the last index of the
+-- element in the given 'ByteString' which is equal to the query
+-- element, or 'Nothing' if there is no such element. The following
+-- holds:
+--
+-- > elemIndexEnd c xs == 
+-- > (-) (length xs - 1) `fmap` elemIndex c (reverse xs)
+--
+elemIndexEnd :: Word8 -> ByteString -> Maybe Int
+elemIndexEnd ch (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
+    go (p `plusPtr` s) (l-1)
+  where
+    STRICT2(go)
+    go p i | i < 0     = return Nothing
+           | otherwise = do ch' <- peekByteOff p i
+                            if ch == ch'
+                                then return $ Just i
+                                else go p (i-1)
+-}
+
+-- | /O(n)/ The 'elemIndices' function extends 'elemIndex', by returning
+-- the indices of all elements equal to the query element, in ascending order.
+-- This implementation uses memchr(3).
+{-@ elemIndices :: Word8 -> b:LByteString -> [{v:Nat64 | v < (lbLength b) }] @-}
+elemIndices :: Word8 -> ByteString -> [Int64]
+elemIndices w cs0 = elemIndices' 0 cs0
+  where elemIndices' _          Empty        = []
+        elemIndices' (n::Int64) (Chunk c cs) = --LIQUID CAST
+            L.map ((+n).fromIntegral) (S.elemIndices w c)
+            ++ elemIndices' (n + fromIntegral (S.length c)) cs
+
+-- | count returns the number of times its argument appears in the ByteString
+--
+-- > count = length . elemIndices
+--
+-- But more efficiently than using length on the intermediate list.
+{-@ count :: Word8 -> b:LByteString -> {v:Nat64 | v <= (lbLength b) } @-}
+count :: Word8 -> ByteString -> Int64
 --LIQUID count w cs = foldlChunks (\n c -> n + fromIntegral (S.count w c)) 0 cs
---LIQUID 
---LIQUID -- | The 'findIndex' function takes a predicate and a 'ByteString' and
---LIQUID -- returns the index of the first element in the ByteString
---LIQUID -- satisfying the predicate.
---LIQUID findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int64
---LIQUID findIndex k cs0 = findIndex' 0 cs0
---LIQUID   where findIndex' _ Empty        = Nothing
---LIQUID         findIndex' n (Chunk c cs) =
---LIQUID           case S.findIndex k c of
---LIQUID             Nothing -> findIndex' (n + fromIntegral (S.length c)) cs
---LIQUID             Just i  -> Just (n + fromIntegral i)
---LIQUID {-# INLINE findIndex #-}
---LIQUID 
---LIQUID -- | /O(n)/ The 'find' function takes a predicate and a ByteString,
---LIQUID -- and returns the first element in matching the predicate, or 'Nothing'
---LIQUID -- if there is no such element.
---LIQUID --
---LIQUID -- > find f p = case findIndex f p of Just n -> Just (p ! n) ; _ -> Nothing
---LIQUID --
+count w cs = foldrChunks (\_ c n -> n + fromIntegral (S.count w c)) 0 cs
+
+-- | The 'findIndex' function takes a predicate and a 'ByteString' and
+-- returns the index of the first element in the ByteString
+-- satisfying the predicate.
+{-@ findIndex :: (Word8 -> Bool) -> b:LByteString -> (Maybe {v:Nat64 | v < (lbLength b)}) @-}
+findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int64
+findIndex k cs0 = findIndex' 0 cs0
+  where findIndex' _          Empty        = Nothing
+        findIndex' (n::Int64) (Chunk c cs) = --LIQUID CAST
+          case S.findIndex k c of
+            Nothing -> findIndex' (n + fromIntegral (S.length c)) cs
+            Just i  -> Just (n + fromIntegral i)
+{-# INLINE findIndex #-}
+
+-- | /O(n)/ The 'find' function takes a predicate and a ByteString,
+-- and returns the first element in matching the predicate, or 'Nothing'
+-- if there is no such element.
+--
+-- > find f p = case findIndex f p of Just n -> Just (p ! n) ; _ -> Nothing
+--
 --LIQUID find :: (Word8 -> Bool) -> ByteString -> Maybe Word8
 --LIQUID find f cs0 = find' cs0
 --LIQUID   where find' Empty        = Nothing
@@ -1082,15 +1111,17 @@ index cs0 i         = index' cs0 i
 --LIQUID             Nothing -> find' cs
 --LIQUID             Just w  -> Just w
 --LIQUID {-# INLINE find #-}
---LIQUID 
---LIQUID -- | The 'findIndices' function extends 'findIndex', by returning the
---LIQUID -- indices of all elements satisfying the predicate, in ascending order.
---LIQUID findIndices :: (Word8 -> Bool) -> ByteString -> [Int64]
---LIQUID findIndices k cs0 = findIndices' 0 cs0
---LIQUID   where findIndices' _ Empty        = []
---LIQUID         findIndices' n (Chunk c cs) = L.map ((+n).fromIntegral) (S.findIndices k c)
---LIQUID                              ++ findIndices' (n + fromIntegral (S.length c)) cs
---LIQUID 
+
+-- | The 'findIndices' function extends 'findIndex', by returning the
+-- indices of all elements satisfying the predicate, in ascending order.
+{-@ findIndices :: (Word8 -> Bool) -> b:LByteString -> [{v:Nat64 | v < (lbLength b)}] @-}
+findIndices :: (Word8 -> Bool) -> ByteString -> [Int64]
+findIndices k cs0 = findIndices' 0 cs0
+  where findIndices' _          Empty        = []
+        findIndices' (n::Int64) (Chunk c cs) = --LIQUID CAST
+            L.map ((+n).fromIntegral) (S.findIndices k c)
+            ++ findIndices' (n + fromIntegral (S.length c)) cs
+
 --LIQUID -- ---------------------------------------------------------------------
 --LIQUID -- Searching ByteStrings
 --LIQUID 
@@ -1395,11 +1426,12 @@ moduleError fun msg = error ("Data.ByteString.Lazy." ++ fun ++ ':':' ':msg)
 
 
 -- reverse a list of non-empty chunks into a lazy ByteString
-{-@ revNonEmptyChunks :: [ByteStringNE] -> LByteString @-}
+{-@ revNonEmptyChunks :: bs:[ByteStringNE] -> {v:LByteString | (lbLength v) = (bLengths bs)} @-}
 revNonEmptyChunks :: [S.ByteString] -> ByteString
 revNonEmptyChunks cs = L.foldl' (flip Chunk) Empty cs
 
 -- reverse a list of possibly-empty chunks into a lazy ByteString
+{-@ revChunks :: bs:[ByteString] -> {v:LByteString | (lbLength v) = (bLengths bs)} @-}
 revChunks :: [S.ByteString] -> ByteString
 revChunks cs = L.foldl' (flip chunk) Empty cs
 
@@ -1417,3 +1449,7 @@ findIndexOrEnd k (S.PS x s l) = S.inlinePerformIO $ withForeignPtr x $ \f -> go 
                                 then return n
                                 else go (ptr `plusPtr` 1) (n+1)
 {-# INLINE findIndexOrEnd #-}
+
+{-@ liquidCanary :: x:Int -> {v: Int | v > x} @-}
+liquidCanary     :: Int -> Int
+liquidCanary x   = x - 1
