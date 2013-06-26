@@ -317,7 +317,7 @@ lengths (b:bs) = length b + lengths bs
 -- LIQUID HACK: this is to get all the quals from memchr. 
 -- Quals needed because IO monad forces liquid-abstraction. 
 -- Solution, scrape quals from predicate defs (e.g. SuffixPtr)
-{-@ dummyForQuals1_elemIndex :: p:(Ptr Word8) -> n:Int -> (IO {v:(Ptr Word8) | (SuffixPtr v n p)})  @-}
+{-@ dummyForQuals1_elemIndex :: p:(Ptr a) -> n:Int -> (IO {v:(Ptr b) | (SuffixPtr v n p)})  @-}
 dummyForQuals1_elemIndex :: Ptr Word8 -> Int -> IO (Ptr Word8)
 dummyForQuals1_elemIndex = undefined 
 
@@ -2160,6 +2160,7 @@ interact transformer = putStr . transformer =<< getContents
 -- 'pack'.  It also may be more efficient than opening the file and
 -- reading it using hGet. Files are read using 'binary mode' on Windows,
 -- for 'text mode' use the Char8 version of this function.
+{-@ assume GHC.IO.Handle.hFileSize :: Handle -> (IO {v:Integer | v >= 0}) @-}
 readFile :: FilePath -> IO ByteString
 readFile f = bracket (openBinaryFile f ReadMode) hClose
     (\h -> hFileSize h >>= hGet h . fromIntegral)
