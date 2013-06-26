@@ -1253,21 +1253,20 @@ split :: Word8 -> ByteString -> [ByteString]
 split _ (PS _ _ 0) = []
 split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
     let ptr = p `plusPtr` s
-    return (splitLoop x ptr w l s 0)
-
+-- LIQUID TEMP    return (splitLoop x ptr w l s 0)
 -- LIQUID TODO: THIS ORIGINAL CODE WORKS FINE IN ISOLATION BUT SOMEHOW BREAKS ON LARGE FILE. 
 -- TOO SICK AND TIRED TO INVESTIGATE WTF is going on...
---         STRICT1(loop)
---         loop n =
---             -- LIQUID: else lose `plen` info due to subsequent @ Word8 application
---             let ptrn = (ptr `plusPtr` n) :: Ptr Word8 
---                 q = inlinePerformIO $ memchr ptrn {- (ptr `plusPtr` n) -}
---                                            w (fromIntegral (l-n))
---             in if isNullPtr q {- LIQUID q == nullPtr -}
---                 then [PS x (s+n) (l-n)]
---                 else let i = q `minusPtr` ptr in PS x (s+n) (i-n) : loop (i+1)
--- 
---     return (loop 0)
+        STRICT1(loop)
+        loop n =
+            -- LIQUID: else lose `plen` info due to subsequent @ Word8 application
+            let ptrn = (ptr `plusPtr` n) :: Ptr Word8 
+                q = inlinePerformIO $ memchr ptrn {- (ptr `plusPtr` n) -}
+                                           w (fromIntegral (l-n))
+            in if isNullPtr q {- LIQUID q == nullPtr -}
+                then [PS x (s+n) (l-n)]
+                else let i = q `minusPtr` ptr in PS x (s+n) (i-n) : loop (i+1)
+
+    return (loop 0)
 {-# INLINE split #-}
 
 -- A longer split out version of the above with explicit type
