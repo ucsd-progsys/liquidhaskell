@@ -158,6 +158,23 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
         (lbLength v) = (lbLength b) * 2
  @-}
 
+{-@ qualif RevChunksAcc(v:Data.ByteString.Lazy.Internal.ByteString,
+                        acc:Data.ByteString.Lazy.Internal.ByteString,
+                        cs:List Data.ByteString.Internal.ByteString):
+        (lbLength v) = (lbLength acc) + (bLengths cs)
+  @-}
+
+{-@ qualif LBSumLens(v:Data.ByteString.Lazy.Internal.ByteString,
+                     z:Data.ByteString.Lazy.Internal.ByteString,
+                     cs:List List a):
+        (lbLength v) = (lbLength z) + (sumLens cs)
+  @-}
+{-@ qualif LBCountAcc(v:int,
+                     c:Data.ByteString.Internal.ByteString,
+                     cs:Data.ByteString.Lazy.Internal.ByteString):
+       v <= (bLength c) + (lbLength cs)
+  @-}
+
 ------------------------------------------------------------------------
 
 {-@ liquidCanary :: x:Int -> {v: Int | v > x} @-}
@@ -190,6 +207,9 @@ checkInvariant (Chunk c@(S.PS _ _ len) cs)
 ------------------------------------------------------------------------
 
 -- | Smart constructor for 'Chunk'. Guarantees the data type invariant.
+{-@ chunk :: b:ByteString -> bs:LByteString
+          -> {v:LByteString | (lbLength v) = ((bLength b) + (lbLength bs))}
+  @-}
 chunk :: S.ByteString -> ByteString -> ByteString
 chunk c@(S.PS _ _ len) cs | len == 0  = cs
                           | otherwise = Chunk c cs

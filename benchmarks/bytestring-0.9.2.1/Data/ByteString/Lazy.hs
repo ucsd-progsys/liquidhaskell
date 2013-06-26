@@ -124,8 +124,8 @@ module Data.ByteString.Lazy (
         break,                  -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
         group,                  -- :: ByteString -> [ByteString]
         groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
---LIQUID        inits,                  -- :: ByteString -> [ByteString]
---LIQUID        tails,                  -- :: ByteString -> [ByteString]
+        inits,                  -- :: ByteString -> [ByteString]
+        tails,                  -- :: ByteString -> [ByteString]
 
         -- ** Breaking into many substrings
         split,                  -- :: Word8 -> ByteString -> [ByteString]
@@ -134,71 +134,71 @@ module Data.ByteString.Lazy (
         -- * Predicates
         isPrefixOf,             -- :: ByteString -> ByteString -> Bool
         isSuffixOf,             -- :: ByteString -> ByteString -> Bool
---LIQUID--        isInfixOf,              -- :: ByteString -> ByteString -> Bool
---LIQUID
---LIQUID        -- ** Search for arbitrary substrings
---LIQUID--        isSubstringOf,          -- :: ByteString -> ByteString -> Bool
---LIQUID--        findSubstring,          -- :: ByteString -> ByteString -> Maybe Int
---LIQUID--        findSubstrings,         -- :: ByteString -> ByteString -> [Int]
---LIQUID
---LIQUID        -- * Searching ByteStrings
---LIQUID
---LIQUID        -- ** Searching by equality
---LIQUID        elem,                   -- :: Word8 -> ByteString -> Bool
---LIQUID        notElem,                -- :: Word8 -> ByteString -> Bool
---LIQUID
---LIQUID        -- ** Searching with a predicate
---LIQUID        find,                   -- :: (Word8 -> Bool) -> ByteString -> Maybe Word8
---LIQUID        filter,                 -- :: (Word8 -> Bool) -> ByteString -> ByteString
---LIQUID        partition,              -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
---LIQUID
---LIQUID        -- * Indexing ByteStrings
---LIQUID        index,                  -- :: ByteString -> Int64 -> Word8
---LIQUID        elemIndex,              -- :: Word8 -> ByteString -> Maybe Int64
---LIQUID        elemIndices,            -- :: Word8 -> ByteString -> [Int64]
---LIQUID        findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int64
---LIQUID        findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int64]
---LIQUID        count,                  -- :: Word8 -> ByteString -> Int64
---LIQUID
---LIQUID        -- * Zipping and unzipping ByteStrings
---LIQUID        zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
---LIQUID        zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
---LIQUID        unzip,                  -- :: [(Word8,Word8)] -> (ByteString,ByteString)
---LIQUID
---LIQUID        -- * Ordered ByteStrings
---LIQUID--        sort,                   -- :: ByteString -> ByteString
---LIQUID
---LIQUID        -- * Low level conversions
---LIQUID        -- ** Copying ByteStrings
---LIQUID        copy,                   -- :: ByteString -> ByteString
---LIQUID--        defrag,                -- :: ByteString -> ByteString
---LIQUID
---LIQUID        -- * I\/O with 'ByteString's
---LIQUID
---LIQUID        -- ** Standard input and output
---LIQUID        getContents,            -- :: IO ByteString
---LIQUID        putStr,                 -- :: ByteString -> IO ()
---LIQUID        putStrLn,               -- :: ByteString -> IO ()
---LIQUID        interact,               -- :: (ByteString -> ByteString) -> IO ()
---LIQUID
---LIQUID        -- ** Files
---LIQUID        readFile,               -- :: FilePath -> IO ByteString
---LIQUID        writeFile,              -- :: FilePath -> ByteString -> IO ()
---LIQUID        appendFile,             -- :: FilePath -> ByteString -> IO ()
---LIQUID
---LIQUID        -- ** I\/O with Handles
---LIQUID        hGetContents,           -- :: Handle -> IO ByteString
---LIQUID        hGet,                   -- :: Handle -> Int -> IO ByteString
---LIQUID        hGetNonBlocking,        -- :: Handle -> Int -> IO ByteString
---LIQUID        hPut,                   -- :: Handle -> ByteString -> IO ()
---LIQUID        hPutStr,                -- :: Handle -> ByteString -> IO ()
---LIQUID
---LIQUID--      hGetN,                  -- :: Int -> Handle -> Int -> IO ByteString
---LIQUID--      hGetContentsN,          -- :: Int -> Handle -> IO ByteString
---LIQUID--      hGetNonBlockingN,       -- :: Int -> Handle -> IO ByteString
---LIQUID
---LIQUID        -- undocumented deprecated things:
---LIQUID        join                    -- :: ByteString -> [ByteString] -> ByteString
+--        isInfixOf,              -- :: ByteString -> ByteString -> Bool
+
+        -- ** Search for arbitrary substrings
+--        isSubstringOf,          -- :: ByteString -> ByteString -> Bool
+--        findSubstring,          -- :: ByteString -> ByteString -> Maybe Int
+--        findSubstrings,         -- :: ByteString -> ByteString -> [Int]
+
+        -- * Searching ByteStrings
+
+        -- ** Searching by equality
+        elem,                   -- :: Word8 -> ByteString -> Bool
+        notElem,                -- :: Word8 -> ByteString -> Bool
+
+        -- ** Searching with a predicate
+        find,                   -- :: (Word8 -> Bool) -> ByteString -> Maybe Word8
+        filter,                 -- :: (Word8 -> Bool) -> ByteString -> ByteString
+        partition,              -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+
+        -- * Indexing ByteStrings
+        index,                  -- :: ByteString -> Int64 -> Word8
+        elemIndex,              -- :: Word8 -> ByteString -> Maybe Int64
+        elemIndices,            -- :: Word8 -> ByteString -> [Int64]
+        findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int64
+        findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int64]
+        count,                  -- :: Word8 -> ByteString -> Int64
+
+        -- * Zipping and unzipping ByteStrings
+        zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
+        zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
+        unzip,                  -- :: [(Word8,Word8)] -> (ByteString,ByteString)
+
+        -- * Ordered ByteStrings
+--        sort,                   -- :: ByteString -> ByteString
+
+        -- * Low level conversions
+        -- ** Copying ByteStrings
+        copy,                   -- :: ByteString -> ByteString
+--        defrag,                -- :: ByteString -> ByteString
+
+        -- * I\/O with 'ByteString's
+
+        -- ** Standard input and output
+        getContents,            -- :: IO ByteString
+        putStr,                 -- :: ByteString -> IO ()
+        putStrLn,               -- :: ByteString -> IO ()
+        interact,               -- :: (ByteString -> ByteString) -> IO ()
+
+        -- ** Files
+        readFile,               -- :: FilePath -> IO ByteString
+        writeFile,              -- :: FilePath -> ByteString -> IO ()
+        appendFile,             -- :: FilePath -> ByteString -> IO ()
+
+        -- ** I\/O with Handles
+        hGetContents,           -- :: Handle -> IO ByteString
+        hGet,                   -- :: Handle -> Int -> IO ByteString
+        hGetNonBlocking,        -- :: Handle -> Int -> IO ByteString
+        hPut,                   -- :: Handle -> ByteString -> IO ()
+        hPutStr,                -- :: Handle -> ByteString -> IO ()
+
+--      hGetN,                  -- :: Int -> Handle -> Int -> IO ByteString
+--      hGetContentsN,          -- :: Int -> Handle -> IO ByteString
+--      hGetNonBlockingN,       -- :: Int -> Handle -> IO ByteString
+
+        -- undocumented deprecated things:
+        join                    -- :: ByteString -> [ByteString] -> ByteString
 
   ) where
 
@@ -240,6 +240,7 @@ import Data.Int
 import Data.Word                (Word, Word8, Word16, Word32, Word64)
 import qualified Data.ByteString.Internal
 import Foreign.ForeignPtr       (ForeignPtr)
+import qualified Foreign.C.String
 import qualified Foreign.C.Types
 import qualified Data.ByteString.Lazy.Aux as SA
 
@@ -311,9 +312,13 @@ singleton w = Chunk (S.singleton w) Empty
 {-# INLINE singleton #-}
 
 -- | /O(n)/ Convert a '[Word8]' into a 'ByteString'. 
+{-@ pack :: cs:[Word8] -> {v:LByteString | (lbLength v) = (len cs)} @-}
 pack :: [Word8] -> ByteString
-pack ws = L.foldr (Chunk . S.pack) Empty (chunks defaultChunkSize ws)
+--LIQUID INLINE pack ws = L.foldr (Chunk . S.pack) Empty (chunks defaultChunkSize ws)
+pack ws = go Empty (chunks defaultChunkSize ws)
   where
+    go z []     = z
+    go z (c:cs) = Chunk (S.pack c) (go z cs)
     chunks :: Int -> [a] -> [[a]]
     chunks _    [] = []
     chunks size xs = case L.splitAt size xs of
@@ -546,20 +551,28 @@ foldr k z cs = foldrChunks (const $ flip (S.foldr k)) z cs
 -- | 'foldl1' is a variant of 'foldl' that has no starting value
 -- argument, and thus must be applied to non-empty 'ByteStrings'.
 -- This function is subject to array fusion.
+
+--LIQUID FIXME: S.unsafeTail breaks the lazy invariant, but since the
+--bytestring is immediately consumed by foldl it may actually be safe
+
 {-@ foldl1 :: (Word8 -> Word8 -> Word8) -> LByteStringNE -> Word8 @-}
 foldl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
 foldl1 _ Empty        = errorEmptyList "foldl1"
-                        --LIQUID FIXME: S.unsafeTail breaks the lazy
-                        --invariant, but since the bytestring is
-                        --immediately consumed by foldl it may
-                        --actually be safe
-foldl1 f (Chunk c cs) = foldl f (S.unsafeHead c) (Chunk (S.unsafeTail c) cs)
+--LIQUID foldl1 f (Chunk c cs) = foldl f (S.unsafeHead c) (Chunk (S.unsafeTail c) cs)
+foldl1 f (Chunk c cs) = foldl f (S.unsafeHead c)
+                                (case S.unsafeTail c of
+                                   c' | S.null c' -> cs
+                                      | otherwise -> Chunk c cs)
 
 -- | 'foldl1\'' is like 'foldl1', but strict in the accumulator.
 {-@ foldl1' :: (Word8 -> Word8 -> Word8) -> LByteStringNE -> Word8 @-}
 foldl1' :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
 foldl1' _ Empty        = errorEmptyList "foldl1'"
-foldl1' f (Chunk c cs) = foldl' f (S.unsafeHead c) (Chunk (S.unsafeTail c) cs)
+--LIQUID foldl1' f (Chunk c cs) = foldl' f (S.unsafeHead c) (Chunk (S.unsafeTail c) cs)
+foldl1' f (Chunk c cs) = foldl' f (S.unsafeHead c)
+                                 (case S.unsafeTail c of
+                                    c' | S.null c' -> cs
+                                       | otherwise -> Chunk c cs)
 
 -- | 'foldr1' is a variant of 'foldr' that has no starting value argument,
 -- and thus must be applied to non-empty 'ByteString's
@@ -741,7 +754,7 @@ cycle cs    = cs' where cs' = foldrChunks (const Chunk) cs' cs
 unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
 unfoldr f s0 = unfoldChunk 32 s0
   where unfoldChunk n s =
-          case S.unfoldrN n f s of
+          case SA.unfoldrN n f s of
             (c, Nothing)
               | S.null c  -> Empty
               | otherwise -> Chunk c Empty
@@ -1104,13 +1117,13 @@ findIndex k cs0 = findIndex' 0 cs0
 --
 -- > find f p = case findIndex f p of Just n -> Just (p ! n) ; _ -> Nothing
 --
---LIQUID find :: (Word8 -> Bool) -> ByteString -> Maybe Word8
---LIQUID find f cs0 = find' cs0
---LIQUID   where find' Empty        = Nothing
---LIQUID         find' (Chunk c cs) = case S.find f c of
---LIQUID             Nothing -> find' cs
---LIQUID             Just w  -> Just w
---LIQUID {-# INLINE find #-}
+find :: (Word8 -> Bool) -> ByteString -> Maybe Word8
+find f cs0 = find' cs0
+  where find' Empty        = Nothing
+        find' (Chunk c cs) = case S.find f c of
+            Nothing -> find' cs
+            Just w  -> Just w
+{-# INLINE find #-}
 
 -- | The 'findIndices' function extends 'findIndex', by returning the
 -- indices of all elements satisfying the predicate, in ascending order.
@@ -1122,73 +1135,76 @@ findIndices k cs0 = findIndices' 0 cs0
             L.map ((+n).fromIntegral) (S.findIndices k c)
             ++ findIndices' (n + fromIntegral (S.length c)) cs
 
---LIQUID -- ---------------------------------------------------------------------
---LIQUID -- Searching ByteStrings
---LIQUID 
---LIQUID -- | /O(n)/ 'elem' is the 'ByteString' membership predicate.
---LIQUID elem :: Word8 -> ByteString -> Bool
---LIQUID elem w cs = case elemIndex w cs of Nothing -> False ; _ -> True
---LIQUID 
---LIQUID -- | /O(n)/ 'notElem' is the inverse of 'elem'
---LIQUID notElem :: Word8 -> ByteString -> Bool
---LIQUID notElem w cs = not (elem w cs)
---LIQUID 
---LIQUID -- | /O(n)/ 'filter', applied to a predicate and a ByteString,
---LIQUID -- returns a ByteString containing those characters that satisfy the
---LIQUID -- predicate.
---LIQUID filter :: (Word8 -> Bool) -> ByteString -> ByteString
---LIQUID filter p s = go s
---LIQUID     where
---LIQUID         go Empty        = Empty
---LIQUID         go (Chunk x xs) = chunk (S.filter p x) (go xs)
---LIQUID #if __GLASGOW_HASKELL__
---LIQUID {-# INLINE [1] filter #-}
---LIQUID #endif
---LIQUID 
---LIQUID -- | /O(n)/ and /O(n\/c) space/ A first order equivalent of /filter .
---LIQUID -- (==)/, for the common case of filtering a single byte. It is more
---LIQUID -- efficient to use /filterByte/ in this case.
---LIQUID --
---LIQUID -- > filterByte == filter . (==)
---LIQUID --
---LIQUID -- filterByte is around 10x faster, and uses much less space, than its
---LIQUID -- filter equivalent
---LIQUID filterByte :: Word8 -> ByteString -> ByteString
---LIQUID filterByte w ps = replicate (count w ps) w
---LIQUID {-# INLINE filterByte #-}
---LIQUID 
---LIQUID {-# RULES
---LIQUID   "FPS specialise filter (== x)" forall x.
---LIQUID       filter ((==) x) = filterByte x
---LIQUID   #-}
---LIQUID 
---LIQUID {-# RULES
---LIQUID   "FPS specialise filter (== x)" forall x.
---LIQUID      filter (== x) = filterByte x
---LIQUID   #-}
---LIQUID 
---LIQUID {-
---LIQUID -- | /O(n)/ A first order equivalent of /filter . (\/=)/, for the common
---LIQUID -- case of filtering a single byte out of a list. It is more efficient
---LIQUID -- to use /filterNotByte/ in this case.
---LIQUID --
---LIQUID -- > filterNotByte == filter . (/=)
---LIQUID --
---LIQUID -- filterNotByte is around 2x faster than its filter equivalent.
---LIQUID filterNotByte :: Word8 -> ByteString -> ByteString
---LIQUID filterNotByte w (LPS xs) = LPS (filterMap (P.filterNotByte w) xs)
---LIQUID -}
---LIQUID 
---LIQUID -- | /O(n)/ The 'partition' function takes a predicate a ByteString and returns
---LIQUID -- the pair of ByteStrings with elements which do and do not satisfy the
---LIQUID -- predicate, respectively; i.e.,
---LIQUID --
---LIQUID -- > partition p bs == (filter p xs, filter (not . p) xs)
---LIQUID --
---LIQUID partition :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
---LIQUID partition f p = (filter f p, filter (not . f) p)
---LIQUID --TODO: use a better implementation
---LIQUID 
+-- ---------------------------------------------------------------------
+-- Searching ByteStrings
+
+-- | /O(n)/ 'elem' is the 'ByteString' membership predicate.
+elem :: Word8 -> ByteString -> Bool
+elem w cs = case elemIndex w cs of Nothing -> False ; _ -> True
+
+-- | /O(n)/ 'notElem' is the inverse of 'elem'
+notElem :: Word8 -> ByteString -> Bool
+notElem w cs = not (elem w cs)
+
+-- | /O(n)/ 'filter', applied to a predicate and a ByteString,
+-- returns a ByteString containing those characters that satisfy the
+-- predicate.
+{-@ filter :: (Word8 -> Bool) -> b:LByteString -> (LByteStringLE b) @-}
+filter :: (Word8 -> Bool) -> ByteString -> ByteString
+filter p s = go s
+    where
+        go Empty        = Empty
+        go (Chunk x xs) = chunk (S.filter p x) (go xs)
+#if __GLASGOW_HASKELL__
+{-# INLINE [1] filter #-}
+#endif
+
+-- | /O(n)/ and /O(n\/c) space/ A first order equivalent of /filter .
+-- (==)/, for the common case of filtering a single byte. It is more
+-- efficient to use /filterByte/ in this case.
+--
+-- > filterByte == filter . (==)
+--
+-- filterByte is around 10x faster, and uses much less space, than its
+-- filter equivalent
+{-@ filterByte :: Word8 -> b:LByteString -> (LByteStringLE b) @-}
+filterByte :: Word8 -> ByteString -> ByteString
+filterByte w ps = replicate (count w ps) w
+{-# INLINE filterByte #-}
+
+{-# RULES
+  "FPS specialise filter (== x)" forall x.
+      filter ((==) x) = filterByte x
+  #-}
+
+{-# RULES
+  "FPS specialise filter (== x)" forall x.
+     filter (== x) = filterByte x
+  #-}
+
+{-
+-- | /O(n)/ A first order equivalent of /filter . (\/=)/, for the common
+-- case of filtering a single byte out of a list. It is more efficient
+-- to use /filterNotByte/ in this case.
+--
+-- > filterNotByte == filter . (/=)
+--
+-- filterNotByte is around 2x faster than its filter equivalent.
+filterNotByte :: Word8 -> ByteString -> ByteString
+filterNotByte w (LPS xs) = LPS (filterMap (P.filterNotByte w) xs)
+-}
+
+-- | /O(n)/ The 'partition' function takes a predicate a ByteString and returns
+-- the pair of ByteStrings with elements which do and do not satisfy the
+-- predicate, respectively; i.e.,
+--
+-- > partition p bs == (filter p xs, filter (not . p) xs)
+--
+{-@ partition :: (Word8 -> Bool) -> b:LByteString -> ((LByteStringLE b), (LByteStringLE b)) @-}
+partition :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+partition f p = (filter f p, filter (not . f) p)
+--TODO: use a better implementation
+
 -- ---------------------------------------------------------------------
 -- Searching for substrings
 
@@ -1222,195 +1238,210 @@ isSuffixOf :: ByteString -> ByteString -> Bool
 isSuffixOf x y = reverse x `isPrefixOf` reverse y
 --TODO: a better implementation
 
---LIQUID -- ---------------------------------------------------------------------
---LIQUID -- Zipping
---LIQUID 
---LIQUID -- | /O(n)/ 'zip' takes two ByteStrings and returns a list of
---LIQUID -- corresponding pairs of bytes. If one input ByteString is short,
---LIQUID -- excess elements of the longer ByteString are discarded. This is
---LIQUID -- equivalent to a pair of 'unpack' operations.
---LIQUID zip :: ByteString -> ByteString -> [(Word8,Word8)]
---LIQUID zip = zipWith (,)
---LIQUID 
---LIQUID -- | 'zipWith' generalises 'zip' by zipping with the function given as
---LIQUID -- the first argument, instead of a tupling function.  For example,
---LIQUID -- @'zipWith' (+)@ is applied to two ByteStrings to produce the list of
---LIQUID -- corresponding sums.
---LIQUID zipWith :: (Word8 -> Word8 -> a) -> ByteString -> ByteString -> [a]
---LIQUID zipWith _ Empty     _  = []
---LIQUID zipWith _ _      Empty = []
---LIQUID zipWith f (Chunk a as) (Chunk b bs) = go a as b bs
---LIQUID   where
---LIQUID     go x xs y ys = f (S.unsafeHead x) (S.unsafeHead y)
---LIQUID                  : to (S.unsafeTail x) xs (S.unsafeTail y) ys
---LIQUID 
---LIQUID     to x Empty         _ _             | S.null x       = []
---LIQUID     to _ _             y Empty         | S.null y       = []
---LIQUID     to x xs            y ys            | not (S.null x)
---LIQUID                                       && not (S.null y) = go x  xs y  ys
---LIQUID     to x xs            _ (Chunk y' ys) | not (S.null x) = go x  xs y' ys
---LIQUID     to _ (Chunk x' xs) y ys            | not (S.null y) = go x' xs y  ys
---LIQUID     to _ (Chunk x' xs) _ (Chunk y' ys)                  = go x' xs y' ys
---LIQUID 
---LIQUID -- | /O(n)/ 'unzip' transforms a list of pairs of bytes into a pair of
---LIQUID -- ByteStrings. Note that this performs two 'pack' operations.
---LIQUID unzip :: [(Word8,Word8)] -> (ByteString,ByteString)
---LIQUID unzip ls = (pack (L.map fst ls), pack (L.map snd ls))
---LIQUID {-# INLINE unzip #-}
---LIQUID 
---LIQUID -- ---------------------------------------------------------------------
---LIQUID -- Special lists
---LIQUID 
---LIQUID -- | /O(n)/ Return all initial segments of the given 'ByteString', shortest first.
---LIQUID inits :: ByteString -> [ByteString]
---LIQUID inits = (Empty :) . inits'
---LIQUID   where inits' Empty        = []
---LIQUID         inits' (Chunk c cs) = L.map (\c' -> Chunk c' Empty) (L.tail (S.inits c))
---LIQUID                            ++ L.map (Chunk c) (inits' cs)
---LIQUID 
---LIQUID -- | /O(n)/ Return all final segments of the given 'ByteString', longest first.
---LIQUID tails :: ByteString -> [ByteString]
---LIQUID tails Empty         = Empty : []
---LIQUID tails cs@(Chunk c cs')
---LIQUID   | S.length c == 1 = cs : tails cs'
---LIQUID   | otherwise       = cs : tails (Chunk (S.unsafeTail c) cs')
---LIQUID 
---LIQUID -- ---------------------------------------------------------------------
---LIQUID -- Low level constructors
---LIQUID 
---LIQUID -- | /O(n)/ Make a copy of the 'ByteString' with its own storage.
---LIQUID --   This is mainly useful to allow the rest of the data pointed
---LIQUID --   to by the 'ByteString' to be garbage collected, for example
---LIQUID --   if a large string has been read in, and only a small part of it
---LIQUID --   is needed in the rest of the program.
---LIQUID copy :: ByteString -> ByteString
+-- ---------------------------------------------------------------------
+-- Zipping
+
+-- | /O(n)/ 'zip' takes two ByteStrings and returns a list of
+-- corresponding pairs of bytes. If one input ByteString is short,
+-- excess elements of the longer ByteString are discarded. This is
+-- equivalent to a pair of 'unpack' operations.
+{-@ predicate LZipLen V X Y  = (len V) = (if (lbLength X) <= (lbLength Y) then (lbLength X) else (lbLength Y)) @-}
+{-@ zip :: x:LByteString -> y:LByteString -> {v:[(Word8, Word8)] | (LZipLen v x y) } @-}
+zip :: ByteString -> ByteString -> [(Word8,Word8)]
+zip = zipWith (,)
+
+-- | 'zipWith' generalises 'zip' by zipping with the function given as
+-- the first argument, instead of a tupling function.  For example,
+-- @'zipWith' (+)@ is applied to two ByteStrings to produce the list of
+-- corresponding sums.
+--LIQUID FIXME: we don't handle the guards in `to` well, need to rewrite
+{- zipWith :: (Word8 -> Word8 -> a) -> x:LByteString -> y:LByteString -> {v:[a] | (LZipLen v x y)} @-}
+zipWith :: (Word8 -> Word8 -> a) -> ByteString -> ByteString -> [a]
+zipWith _ Empty     _  = []
+zipWith _ _      Empty = []
+zipWith f (Chunk a as) (Chunk b bs) = go a as b bs
+  where
+    go x xs y ys = f (S.unsafeHead x) (S.unsafeHead y)
+                 : to (S.unsafeTail x) xs (S.unsafeTail y) ys
+
+    to x Empty         _ _             | S.null x       = []
+    to _ _             y Empty         | S.null y       = []
+    to x xs            y ys            | not (S.null x)
+                                      && not (S.null y) = go x  xs y  ys
+    to x xs            _ (Chunk y' ys) | not (S.null x) = go x  xs y' ys
+    to _ (Chunk x' xs) y ys            | not (S.null y) = go x' xs y  ys
+    to _ (Chunk x' xs) _ (Chunk y' ys)                  = go x' xs y' ys
+
+-- | /O(n)/ 'unzip' transforms a list of pairs of bytes into a pair of
+-- ByteStrings. Note that this performs two 'pack' operations.
+{-@ unzip :: z:[(Word8,Word8)] -> ({v:LByteString | (lbLength v) = (len z)}, {v:LByteString | (lbLength v) = (len z) }) @-}
+unzip :: [(Word8,Word8)] -> (ByteString,ByteString)
+unzip ls = (pack (L.map fst ls), pack (L.map snd ls))
+{-# INLINE unzip #-}
+
+-- ---------------------------------------------------------------------
+-- Special lists
+
+-- | /O(n)/ Return all initial segments of the given 'ByteString', shortest first.
+{-@ inits :: LByteString -> [LByteString] @-}
+inits :: ByteString -> [ByteString]
+inits = (Empty :) . inits'
+  where inits' Empty        = []
+        inits' (Chunk c cs) = L.map (\c' -> Chunk c' Empty) (L.tail (S.inits c))
+                           ++ L.map (Chunk c) (inits' cs)
+
+-- | /O(n)/ Return all final segments of the given 'ByteString', longest first.
+{-@ tails :: LByteString -> [LByteString] @-}
+tails :: ByteString -> [ByteString]
+tails Empty         = Empty : []
+tails cs@(Chunk c cs')
+  | S.length c == 1 = cs : tails cs'
+  | otherwise       = cs : tails (Chunk (S.unsafeTail c) cs')
+
+-- ---------------------------------------------------------------------
+-- Low level constructors
+
+-- | /O(n)/ Make a copy of the 'ByteString' with its own storage.
+--   This is mainly useful to allow the rest of the data pointed
+--   to by the 'ByteString' to be garbage collected, for example
+--   if a large string has been read in, and only a small part of it
+--   is needed in the rest of the program.
+{-@ copy :: b:LByteString -> LByteStringSZ b @-}
+copy :: ByteString -> ByteString
 --LIQUID copy cs = foldrChunks (Chunk . S.copy) Empty cs
---LIQUID --TODO, we could coalese small blocks here
---LIQUID --FIXME: probably not strict enough, if we're doing this to avoid retaining
---LIQUID -- the parent blocks then we'd better copy strictly.
---LIQUID 
---LIQUID -- ---------------------------------------------------------------------
---LIQUID 
---LIQUID -- TODO defrag func that concatenates block together that are below a threshold
---LIQUID -- defrag :: ByteString -> ByteString
---LIQUID 
---LIQUID -- ---------------------------------------------------------------------
---LIQUID -- Lazy ByteString IO
---LIQUID 
---LIQUID -- | Read entire handle contents /lazily/ into a 'ByteString'. Chunks
---LIQUID -- are read on demand, in at most @k@-sized chunks. It does not block
---LIQUID -- waiting for a whole @k@-sized chunk, so if less than @k@ bytes are
---LIQUID -- available then they will be returned immediately as a smaller chunk.
---LIQUID hGetContentsN :: Int -> Handle -> IO ByteString
---LIQUID hGetContentsN k h = lazyRead
---LIQUID   where
---LIQUID     lazyRead = unsafeInterleaveIO loop
---LIQUID 
---LIQUID     loop = do
---LIQUID         c <- S.hGetNonBlocking h k
---LIQUID         --TODO: I think this should distinguish EOF from no data available
---LIQUID         -- the underlying POSIX call makes this distincion, returning either
---LIQUID         -- 0 or EAGAIN
---LIQUID         if S.null c
---LIQUID           then do eof <- hIsEOF h
---LIQUID                   if eof then return Empty
---LIQUID                          else hWaitForInput h (-1)
---LIQUID                            >> loop
---LIQUID           else do cs <- lazyRead
---LIQUID                   return (Chunk c cs)
---LIQUID 
---LIQUID -- | Read @n@ bytes into a 'ByteString', directly from the
---LIQUID -- specified 'Handle', in chunks of size @k@.
---LIQUID hGetN :: Int -> Handle -> Int -> IO ByteString
---LIQUID hGetN _ _ 0 = return empty
---LIQUID hGetN k h n = readChunks n
---LIQUID   where
---LIQUID     STRICT1(readChunks)
---LIQUID     readChunks i = do
---LIQUID         c <- S.hGet h (min k i)
---LIQUID         case S.length c of
---LIQUID             0 -> return Empty
---LIQUID             m -> do cs <- readChunks (i - m)
---LIQUID                     return (Chunk c cs)
---LIQUID 
---LIQUID -- | hGetNonBlockingN is similar to 'hGetContentsN', except that it will never block
---LIQUID -- waiting for data to become available, instead it returns only whatever data
---LIQUID -- is available. Chunks are read on demand, in @k@-sized chunks.
---LIQUID hGetNonBlockingN :: Int -> Handle -> Int -> IO ByteString
---LIQUID #if defined(__GLASGOW_HASKELL__)
---LIQUID hGetNonBlockingN _ _ 0 = return empty
---LIQUID hGetNonBlockingN k h n = readChunks n
---LIQUID   where
---LIQUID     STRICT1(readChunks)
---LIQUID     readChunks i = do
---LIQUID         c <- S.hGetNonBlocking h (min k i)
---LIQUID         case S.length c of
---LIQUID             0 -> return Empty
---LIQUID             m -> do cs <- readChunks (i - m)
---LIQUID                     return (Chunk c cs)
---LIQUID #else
---LIQUID hGetNonBlockingN = hGetN
---LIQUID #endif
---LIQUID 
---LIQUID -- | Read entire handle contents /lazily/ into a 'ByteString'. Chunks
---LIQUID -- are read on demand, using the default chunk size.
---LIQUID hGetContents :: Handle -> IO ByteString
---LIQUID hGetContents = hGetContentsN defaultChunkSize
---LIQUID 
---LIQUID -- | Read @n@ bytes into a 'ByteString', directly from the specified 'Handle'.
---LIQUID hGet :: Handle -> Int -> IO ByteString
---LIQUID hGet = hGetN defaultChunkSize
---LIQUID 
---LIQUID -- | hGetNonBlocking is similar to 'hGet', except that it will never block
---LIQUID -- waiting for data to become available, instead it returns only whatever data
---LIQUID -- is available.
---LIQUID #if defined(__GLASGOW_HASKELL__)
---LIQUID hGetNonBlocking :: Handle -> Int -> IO ByteString
---LIQUID hGetNonBlocking = hGetNonBlockingN defaultChunkSize
---LIQUID #else
---LIQUID hGetNonBlocking = hGet
---LIQUID #endif
---LIQUID 
---LIQUID -- | Read an entire file /lazily/ into a 'ByteString'.
---LIQUID readFile :: FilePath -> IO ByteString
---LIQUID readFile f = openBinaryFile f ReadMode >>= hGetContents
---LIQUID 
---LIQUID -- | Write a 'ByteString' to a file.
---LIQUID writeFile :: FilePath -> ByteString -> IO ()
---LIQUID writeFile f txt = bracket (openBinaryFile f WriteMode) hClose
---LIQUID     (\hdl -> hPut hdl txt)
---LIQUID 
---LIQUID -- | Append a 'ByteString' to a file.
---LIQUID appendFile :: FilePath -> ByteString -> IO ()
---LIQUID appendFile f txt = bracket (openBinaryFile f AppendMode) hClose
---LIQUID     (\hdl -> hPut hdl txt)
---LIQUID 
---LIQUID -- | getContents. Equivalent to hGetContents stdin. Will read /lazily/
---LIQUID getContents :: IO ByteString
---LIQUID getContents = hGetContents stdin
---LIQUID 
---LIQUID -- | Outputs a 'ByteString' to the specified 'Handle'.
---LIQUID hPut :: Handle -> ByteString -> IO ()
+copy cs = foldrChunks (\_ c cs -> Chunk (S.copy c) cs) Empty cs
+--TODO, we could coalese small blocks here
+--FIXME: probably not strict enough, if we're doing this to avoid retaining
+-- the parent blocks then we'd better copy strictly.
+
+-- ---------------------------------------------------------------------
+
+-- TODO defrag func that concatenates block together that are below a threshold
+-- defrag :: ByteString -> ByteString
+
+-- ---------------------------------------------------------------------
+-- Lazy ByteString IO
+
+-- | Read entire handle contents /lazily/ into a 'ByteString'. Chunks
+-- are read on demand, in at most @k@-sized chunks. It does not block
+-- waiting for a whole @k@-sized chunk, so if less than @k@ bytes are
+-- available then they will be returned immediately as a smaller chunk.
+{-@ hGetContentsN :: Nat -> Handle -> IO LByteString @-}
+hGetContentsN :: Int -> Handle -> IO ByteString
+hGetContentsN k h = lazyRead
+  where
+    lazyRead = unsafeInterleaveIO loop
+
+    loop = do
+        c <- S.hGetNonBlocking h k
+        --TODO: I think this should distinguish EOF from no data available
+        -- the underlying POSIX call makes this distincion, returning either
+        -- 0 or EAGAIN
+        if S.null c
+          then do eof <- hIsEOF h
+                  if eof then return Empty
+                         else hWaitForInput h (-1)
+                           >> loop
+          else do cs <- lazyRead
+                  return (Chunk c cs)
+
+-- | Read @n@ bytes into a 'ByteString', directly from the
+-- specified 'Handle', in chunks of size @k@.
+{-@ hGetN :: Nat -> Handle -> n:Nat -> IO {v:LByteString | (lbLength v) <= n} @-}
+hGetN :: Int -> Handle -> Int -> IO ByteString
+hGetN _ _ 0 = return empty
+hGetN k h n = readChunks n
+  where
+    STRICT1(readChunks)
+    readChunks i = do
+        c <- S.hGet h (min k i)
+        case S.length c of
+            0 -> return Empty
+            m -> do cs <- readChunks (i - m)
+                    return (Chunk c cs)
+
+-- | hGetNonBlockingN is similar to 'hGetContentsN', except that it will never block
+-- waiting for data to become available, instead it returns only whatever data
+-- is available. Chunks are read on demand, in @k@-sized chunks.
+{-@ hGetNonBlockingN :: Nat -> Handle -> n:Nat -> IO {v:LByteString | (lbLength v) <= n} @-}
+hGetNonBlockingN :: Int -> Handle -> Int -> IO ByteString
+#if defined(__GLASGOW_HASKELL__)
+hGetNonBlockingN _ _ 0 = return empty
+hGetNonBlockingN k h n = readChunks n
+  where
+    STRICT1(readChunks)
+    readChunks i = do
+        c <- S.hGetNonBlocking h (min k i)
+        case S.length c of
+            0 -> return Empty
+            m -> do cs <- readChunks (i - m)
+                    return (Chunk c cs)
+#else
+hGetNonBlockingN = hGetN
+#endif
+
+-- | Read entire handle contents /lazily/ into a 'ByteString'. Chunks
+-- are read on demand, using the default chunk size.
+hGetContents :: Handle -> IO ByteString
+hGetContents = hGetContentsN defaultChunkSize
+
+-- | Read @n@ bytes into a 'ByteString', directly from the specified 'Handle'.
+{-@ hGet :: Handle -> Nat -> IO LByteString @-}
+hGet :: Handle -> Int -> IO ByteString
+hGet = hGetN defaultChunkSize
+
+-- | hGetNonBlocking is similar to 'hGet', except that it will never block
+-- waiting for data to become available, instead it returns only whatever data
+-- is available.
+#if defined(__GLASGOW_HASKELL__)
+{-@ hGetNonBlocking :: Handle -> Nat -> IO LByteString @-}
+hGetNonBlocking :: Handle -> Int -> IO ByteString
+hGetNonBlocking = hGetNonBlockingN defaultChunkSize
+#else
+hGetNonBlocking = hGet
+#endif
+
+-- | Read an entire file /lazily/ into a 'ByteString'.
+readFile :: FilePath -> IO ByteString
+readFile f = openBinaryFile f ReadMode >>= hGetContents
+
+-- | Write a 'ByteString' to a file.
+writeFile :: FilePath -> ByteString -> IO ()
+writeFile f txt = bracket (openBinaryFile f WriteMode) hClose
+    (\hdl -> hPut hdl txt)
+
+-- | Append a 'ByteString' to a file.
+appendFile :: FilePath -> ByteString -> IO ()
+appendFile f txt = bracket (openBinaryFile f AppendMode) hClose
+    (\hdl -> hPut hdl txt)
+
+-- | getContents. Equivalent to hGetContents stdin. Will read /lazily/
+getContents :: IO ByteString
+getContents = hGetContents stdin
+
+-- | Outputs a 'ByteString' to the specified 'Handle'.
+hPut :: Handle -> ByteString -> IO ()
 --LIQUID hPut h cs = foldrChunks (\c rest -> S.hPut h c >> rest) (return ()) cs
---LIQUID 
---LIQUID -- | A synonym for @hPut@, for compatibility
---LIQUID hPutStr :: Handle -> ByteString -> IO ()
---LIQUID hPutStr = hPut
---LIQUID 
---LIQUID -- | Write a ByteString to stdout
---LIQUID putStr :: ByteString -> IO ()
---LIQUID putStr = hPut stdout
---LIQUID 
---LIQUID -- | Write a ByteString to stdout, appending a newline byte
---LIQUID putStrLn :: ByteString -> IO ()
---LIQUID putStrLn ps = hPut stdout ps >> hPut stdout (singleton 0x0a)
---LIQUID 
---LIQUID -- | The interact function takes a function of type @ByteString -> ByteString@
---LIQUID -- as its argument. The entire input from the standard input device is passed
---LIQUID -- to this function as its argument, and the resulting string is output on the
---LIQUID -- standard output device. It's great for writing one line programs!
---LIQUID interact :: (ByteString -> ByteString) -> IO ()
---LIQUID interact transformer = putStr . transformer =<< getContents
+hPut h cs = foldrChunks (\_ c rest -> S.hPut h c >> rest) (return ()) cs
+
+-- | A synonym for @hPut@, for compatibility
+hPutStr :: Handle -> ByteString -> IO ()
+hPutStr = hPut
+
+-- | Write a ByteString to stdout
+putStr :: ByteString -> IO ()
+putStr = hPut stdout
+
+-- | Write a ByteString to stdout, appending a newline byte
+putStrLn :: ByteString -> IO ()
+putStrLn ps = hPut stdout ps >> hPut stdout (singleton 0x0a)
+
+-- | The interact function takes a function of type @ByteString -> ByteString@
+-- as its argument. The entire input from the standard input device is passed
+-- to this function as its argument, and the resulting string is output on the
+-- standard output device. It's great for writing one line programs!
+interact :: (ByteString -> ByteString) -> IO ()
+interact transformer = putStr . transformer =<< getContents
 
 -- ---------------------------------------------------------------------
 -- Internal utilities
@@ -1428,12 +1459,18 @@ moduleError fun msg = error ("Data.ByteString.Lazy." ++ fun ++ ':':' ':msg)
 -- reverse a list of non-empty chunks into a lazy ByteString
 {-@ revNonEmptyChunks :: bs:[ByteStringNE] -> {v:LByteString | (lbLength v) = (bLengths bs)} @-}
 revNonEmptyChunks :: [S.ByteString] -> ByteString
-revNonEmptyChunks cs = L.foldl' (flip Chunk) Empty cs
+--LIQUID INLINE revNonEmptyChunks cs = L.foldl' (flip Chunk) Empty cs
+revNonEmptyChunks cs = go Empty cs
+    where go acc []     = acc
+          go acc (c:cs) = go (Chunk c acc) cs
 
 -- reverse a list of possibly-empty chunks into a lazy ByteString
 {-@ revChunks :: bs:[ByteString] -> {v:LByteString | (lbLength v) = (bLengths bs)} @-}
 revChunks :: [S.ByteString] -> ByteString
-revChunks cs = L.foldl' (flip chunk) Empty cs
+--LIQUID INLINE revChunks cs = L.foldl' (flip chunk) Empty cs
+revChunks cs = go Empty cs
+    where go acc []     = acc
+          go acc (c:cs) = go (chunk c acc) cs
 
 {-@ qualif Blah(v:int, l:int, p:GHC.Ptr.Ptr a): (v + (plen p)) >= l @-}
 
