@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 
-module Data.ByteStringHelper where
+module Data.ByteStringHelper  where
 
 import qualified Prelude as P
 import Prelude hiding           (reverse,head,tail,last,init,null
@@ -106,6 +106,20 @@ import qualified Foreign.C.Types
   @-}
 liquid_thm_ptr_cmp :: Ptr a -> Ptr a -> Ptr a
 liquid_thm_ptr_cmp p q = undefined -- p -- LIQUID : make this undefined to suppress WARNING
+
+{-@ memcpy_ptr_baoff :: p:(Ptr a) 
+                     -> RawBuffer b 
+                     -> Int 
+                     -> {v:CSize | (OkPLen v p)} -> IO (Ptr ())
+  @-}
+memcpy_ptr_baoff :: Ptr a -> RawBuffer b -> Int -> CSize -> IO (Ptr ())
+memcpy_ptr_baoff = error "LIQUIDCOMPAT"
+
+readCharFromBuffer :: RawBuffer b -> Int -> IO (Char, Int)
+readCharFromBuffer x y = error "LIQUIDCOMPAT"
+
+wantReadableHandleLIQUID :: String -> Handle -> (Handle__ -> IO a) -> IO a
+wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUIDCOMPAT"
 
 
 
@@ -255,6 +269,35 @@ replicate  = undefined
 {-@ findIndex :: (Word8 -> Bool) -> b:ByteString -> (Maybe {v:Nat | v < (bLength b)}) @-}
 findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
 findIndex = undefined
+
+{-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
+filter :: (Word8 -> Bool) -> ByteString -> ByteString
+filter = undefined
+
+{-@ isPrefixOf :: ByteString -> ByteString -> Bool @-}
+isPrefixOf :: ByteString -> ByteString -> Bool 
+isPrefixOf = undefined
+
+{-@ take :: n:Nat -> b:ByteString -> {v:ByteString | (bLength v) = (if (n <= (bLength b)) then n else (bLength b))} @-}
+take :: Int -> ByteString -> ByteString
+take = undefined
+
+{-@ rng :: n:Int -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
+rng :: Int -> [Int]
+rng = undefined
+
+{-@ pack :: cs:[Word8] -> {v:ByteString | (bLength v) = (len cs)} @-}
+pack :: [Word8] -> ByteString
+pack = undefined
+
+
+{-@ singleton :: Word8 -> {v:ByteString | (bLength v) = 1} @-}
+singleton :: Word8 -> ByteString
+singleton = undefined
+
+
+hPut :: Handle -> ByteString -> IO ()
+hPut = undefined
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
@@ -264,6 +307,12 @@ findIndex = undefined
 
 
 
+
+
+-- | Append a 'ByteString' to a file.
+appendFile :: FilePath -> ByteString -> IO ()
+appendFile f txt = bracket (openBinaryFile f AppendMode) hClose
+    (\h -> hPut h txt)
 
 
 

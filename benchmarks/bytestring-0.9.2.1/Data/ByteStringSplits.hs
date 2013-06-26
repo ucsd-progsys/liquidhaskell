@@ -105,7 +105,24 @@ import qualified Foreign.C.Types
   @-}
 liquid_thm_ptr_cmp :: Ptr a -> Ptr a -> Ptr a
 liquid_thm_ptr_cmp p q = undefined -- p -- LIQUID : make this undefined to suppress WARNING
--
+
+{-@ memcpy_ptr_baoff :: p:(Ptr a) 
+                     -> RawBuffer b 
+                     -> Int 
+                     -> {v:CSize | (OkPLen v p)} -> IO (Ptr ())
+  @-}
+memcpy_ptr_baoff :: Ptr a -> RawBuffer b -> Int -> CSize -> IO (Ptr ())
+memcpy_ptr_baoff = error "LIQUIDCOMPAT"
+
+readCharFromBuffer :: RawBuffer b -> Int -> IO (Char, Int)
+readCharFromBuffer x y = error "LIQUIDCOMPAT"
+
+wantReadableHandleLIQUID :: String -> Handle -> (Handle__ -> IO a) -> IO a
+wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUIDCOMPAT"
+
+
+
+
 -- -----------------------------------------------------------------------------
 -- -----------------------------------------------------------------------------
 
@@ -247,6 +264,21 @@ spanEnd = undefined
 replicate :: Int -> Word8 -> ByteString
 replicate  = undefined
 
+
+{-@ take :: n:Nat -> b:ByteString -> {v:ByteString | (bLength v) = (if (n <= (bLength b)) then n else (bLength b))} @-}
+take :: Int -> ByteString -> ByteString
+take = undefined
+
+
+{-@ pack :: cs:[Word8] -> {v:ByteString | (bLength v) = (len cs)} @-}
+pack :: [Word8] -> ByteString
+pack = undefined
+
+
+
+{-@ singleton :: Word8 -> {v:ByteString | (bLength v) = 1} @-}
+singleton :: Word8 -> ByteString
+singleton = undefined
 -----------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
@@ -366,7 +398,7 @@ groupBy k xs
 inits :: ByteString -> [ByteString]
 inits (PS x s l) = [PS x s n | n <- rng l {- LIQUID COMPREHENSIONS [0..l] -}]
 
-{-@ rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
+{-@ rng :: n:Int -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
 rng :: Int -> [Int]
 rng 0 = [0]
 rng n = n : rng (n-1) 
@@ -430,8 +462,8 @@ findIndex k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusP
                                 then return (Just n)
                                 else go (ptr `plusPtr` 1) (n+1)
 
-{-@ qualif FindIndices(v:ByteString, p:ByteString, n:Int) : (bLength v) = (bLength p) - n 
-  @-}
+-- also findSubstrings
+{-@ qualif FindIndices(v:ByteString, p:ByteString, n:Int) : (bLength v) = (bLength p) - n  @-}
 
 {-@ findIndices :: (Word8 -> Bool) -> b:ByteString -> [{v:Nat | v < (bLength b)}] @-}
 findIndices :: (Word8 -> Bool) -> ByteString -> [Int]
@@ -453,7 +485,7 @@ notElem c ps = not (elem c ps)
 
 
 {-@ qualif FilterLoop(v:Ptr a, f:Ptr a, t:Ptr a): (plen t) >= (plen f) - (plen v) @-}
-{-@ filter :: (Word8 -> Bool) -> b:ByteString -> {v:ByteString | (bLength v) <= (bLength b)} @-}
+{-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
 filter :: (Word8 -> Bool) -> ByteString -> ByteString
 filter k ps@(PS x s l)
     | null ps   = ps
@@ -496,3 +528,308 @@ find :: (Word8 -> Bool) -> ByteString -> Maybe Word8
 find f p = case findIndex f p of
                     Just n -> Just (p `unsafeIndex` n)
                     _      -> Nothing
+
+
+{-@ partition :: (Word8 -> Bool) -> b:ByteString -> ((ByteStringLE b), (ByteStringLE b)) @-}
+partition :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+partition p bs = (filter p bs, filter (not . p) bs)
+
+
+{-@ isPrefixOf :: ByteString -> ByteString -> Bool @-}
+isPrefixOf :: ByteString -> ByteString -> Bool 
+isPrefixOf (PS x1 s1 l1) (PS x2 s2 l2)
+    | l1 == 0   = True
+    | l2 < l1   = False
+    | otherwise = inlinePerformIO $ withForeignPtr x1 $ \p1 ->
+        withForeignPtr x2 $ \p2 -> do
+            i <- memcmp (p1 `plusPtr` s1) (p2 `plusPtr` s2) (fromIntegral l1)
+            return $! i == 0
+
+
+{-@ isSuffixOf :: ByteString -> ByteString -> Bool @-}
+isSuffixOf :: ByteString -> ByteString -> Bool
+isSuffixOf (PS x1 s1 l1) (PS x2 s2 l2)
+    | l1 == 0   = True
+    | l2 < l1   = False
+    | otherwise = inlinePerformIO $ withForeignPtr x1 $ \p1 ->
+        withForeignPtr x2 $ \p2 -> do
+            i <- memcmp (p1 `plusPtr` s1) (p2 `plusPtr` s2 `plusPtr` (l2 - l1)) (fromIntegral l1)
+            return $! i == 0
+
+
+-- | Check whether one string is a substring of another. @isSubstringOf
+-- p s@ is equivalent to @not (null (findSubstrings p s))@.
+isSubstringOf :: ByteString -- ^ String to search for.
+              -> ByteString -- ^ String to search in.
+              -> Bool
+isSubstringOf p s = not $ P.null $ findSubstrings p s
+
+{-# DEPRECATED findSubstring "Do not use. The ByteString searching api is about to be replaced." #-}
+-- | Get the first index of a substring in another string,
+--   or 'Nothing' if the string is not found.
+--   @findSubstring p s@ is equivalent to @listToMaybe (findSubstrings p s)@.
+
+{-@ findSubstring :: pat:ByteString -> str:ByteString -> (Maybe {v:Nat | v <= (bLength str)}) @-}
+findSubstring :: ByteString -- ^ String to search for.
+              -> ByteString -- ^ String to seach in.
+              -> Maybe Int
+-- LIQUID ETA findSubstring = (listToMaybe .) . findSubstrings
+findSubstring pat str = listToMaybe $ findSubstrings pat str
+
+{-@ qualif FindIndices(v:ByteString, p:ByteString, n:Int) : (bLength v) = (bLength p) - n  @-}
+
+{-@ findSubstrings :: pat:ByteString -> str:ByteString -> [{v:Nat | v <= (bLength str)}] @-}
+findSubstrings :: ByteString -- ^ String to search for.
+               -> ByteString -- ^ String to seach in.
+               -> [Int]
+
+-- LIQUID LATEST 
+findSubstrings pat str
+    | null pat         = rng (length str - 1) -- LIQUID COMPREHENSIONS [0 .. (length str - 1)]
+    | otherwise        = search 0 str
+  where
+    STRICT2(search)
+    search (n :: Int) s
+        | null s             = []
+        | pat `isPrefixOf` s = n : search (n+1) (unsafeTail s)
+        | otherwise          =     search (n+1) (unsafeTail s)
+
+
+{-@ breakSubstring :: ByteString -> b:ByteString -> (ByteStringPair b) @-}
+
+breakSubstring :: ByteString -- ^ String to search for
+               -> ByteString -- ^ String to search in
+               -> (ByteString,ByteString) -- ^ Head and tail of string broken at substring
+
+breakSubstring pat src = search 0 src
+  where
+    STRICT2(search)
+    search n s
+        | null s             = (src, empty)      -- not found
+        | pat `isPrefixOf` s = (take n src,s)
+        | otherwise          = search (n+1) (unsafeTail s)
+
+
+{-@ assume Foreign.Marshal.Alloc.allocaBytes :: n:Int -> ((PtrN a n) -> IO b) -> IO b  @-}
+{-@ useAsCString :: p:ByteString -> ({v:CString | (bLength p) + 1 = (plen v)} -> IO a) -> IO a @-}
+useAsCString :: ByteString -> (CString -> IO a) -> IO a
+useAsCString (PS fp o l) action = do
+ allocaBytes (l+1) $ \buf ->
+   withForeignPtr fp $ \p -> do
+     memcpy buf (p `plusPtr` o) (fromIntegral l)
+     pokeByteOff buf l (0::Word8)
+     action (castPtr buf)
+
+{-@ useAsCStringLen :: b:ByteString -> ({v:CStringLen | (cStringLen v) = (bLength b)} -> IO a) -> IO a @-}
+useAsCStringLen :: ByteString -> (CStringLen -> IO a) -> IO a
+useAsCStringLen p@(PS _ _ l) f = useAsCString p $ \cstr -> f (cstr, l)
+
+{-@ packCString :: c:CString -> IO {v:ByteString | (bLength v) = (plen c)} @-}
+packCString :: CString -> IO ByteString
+packCString cstr = do
+    len <- c_strlen cstr
+    packCStringLen (cstr, fromIntegral len)
+
+
+{-@ packCStringLen :: c:CStringLen -> (IO {v:ByteString | (bLength v) = (cStringLen c)}) @-}
+packCStringLen :: CStringLen -> IO ByteString
+packCStringLen (cstr, len) = create len $ \p ->
+    memcpy p (castPtr cstr) (fromIntegral len)
+
+
+{-@ copy :: b:ByteString -> (ByteStringSZ b) @-}
+copy :: ByteString -> ByteString
+copy (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
+    memcpy p (f `plusPtr` s) (fromIntegral l)
+
+
+{-@ predicate ZipLen V X Y = (len V) = (if (bLength X) <= (bLength Y) then (bLength X) else (bLength Y)) @-}
+{-@ zip :: x:ByteString -> y:ByteString -> {v:[(Word8, Word8)] | (ZipLen v x y) } @-}
+zip :: ByteString -> ByteString -> [(Word8,Word8)]
+zip ps qs
+    | null ps || null qs = []
+    | otherwise = (unsafeHead ps, unsafeHead qs) : zip (unsafeTail ps) (unsafeTail qs)
+
+{-@ zipWith :: (Word8 -> Word8 -> a) -> x:ByteString -> y:ByteString -> {v:[a] | (ZipLen v x y)} @-}
+zipWith :: (Word8 -> Word8 -> a) -> ByteString -> ByteString -> [a]
+zipWith f ps qs
+    | null ps || null qs = []
+    | otherwise = f (unsafeHead ps) (unsafeHead qs) : zipWith f (unsafeTail ps) (unsafeTail qs)
+
+
+{-@ unzip :: z:[(Word8,Word8)] -> ({v:ByteString | (bLength v) = (len z)}, {v:ByteString | (bLength v) = (len z) }) @-}
+unzip :: [(Word8,Word8)] -> (ByteString,ByteString)
+unzip ls = (pack (P.map fst ls), pack (P.map snd ls))
+
+-- LIQUID NICE-INFERENCE-EXAMPLE! 
+{-@ predicate ZipLenB V X Y = (bLength V) = (if (bLength X) <= (bLength Y) then (bLength X) else (bLength Y)) @-}
+{-@ zipWith' :: (Word8 -> Word8 -> Word8) -> x:ByteString -> y:ByteString -> {v:ByteString | (ZipLenB v x y)} @-}
+zipWith' :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString -> ByteString
+zipWith' f (PS fp s l) (PS fq t m) = inlinePerformIO $
+    withForeignPtr fp $ \a ->
+    withForeignPtr fq $ \b ->
+    create len $ zipWith_ 0 (a `plusPtr` s) (b `plusPtr` t)
+  where
+    zipWith_ :: Int -> Ptr Word8 -> Ptr Word8 -> Ptr Word8 -> IO ()
+    STRICT4(zipWith_)
+    zipWith_ n p1 p2 r
+       | n >= len = return ()
+       | otherwise = do
+            x <- peekByteOff p1 n
+            y <- peekByteOff p2 n
+            pokeByteOff r n (f x y)
+            zipWith_ (n+1) p1 p2 r
+
+    len = min l m
+
+
+
+----- IO : trivial
+
+
+getLine :: IO ByteString
+getLine = hGetLine stdin
+
+
+hGetLine h = wantReadableHandleLIQUID "Data.ByteString.hGetLine" h $ \ handle_ -> do
+    case haBufferMode handle_ of
+       NoBuffering -> error "no buffering"
+       _other      -> hGetLineBuffered handle_
+
+ where
+    hGetLineBuffered handle_ = do
+        let ref = haCharBuffer handle_
+        buf <- readIORef ref
+        hGetLineBufferedLoop handle_ ref buf 0 []
+
+    hGetLineBufferedLoop handle_ ref
+            buf@Buffer{ bufL=r, bufR=w, bufRaw=raw } len xss =
+        len `seq` do
+        off <- findEOL r w raw
+        let new_len = len + off - r
+        xs <- mkPS raw r off
+
+      -- if eol == True, then off is the offset of the '\n'
+      -- otherwise off == w and the buffer is now empty.
+        if off /= w
+            then do if (w == off + 1)
+                            then writeIORef ref buf{ bufL=0, bufR=0 }
+                            else writeIORef ref buf{ bufL = off + 1 }
+                    mkBigPS new_len (xs:xss)
+            else do
+                 maybe_buf <- maybeFillReadBuffer ({- LIQUID COMPAT: haFD -} handle_) True ({- LIQUID COMPAT: haIsStream -} handle_)
+                                    buf{ bufR=0, bufL=0 }
+                 case maybe_buf of
+                    -- Nothing indicates we caught an EOF, and we may have a
+                    -- partial line to return.
+                    Nothing -> do
+                         writeIORef ref buf{ bufL=0, bufR=0 }
+                         if new_len > 0
+                            then mkBigPS new_len (xs:xss)
+                            else error "LIQUIDCOMPAT" -- ioe_EOF
+                    Just new_buf ->
+                         hGetLineBufferedLoop handle_ ref new_buf new_len (xs:xss)
+
+    -- find the end-of-line character, if there is one
+    findEOL r w raw
+        | r == w = return w
+        | otherwise =  do
+            (c,r') <- readCharFromBuffer raw r
+            if c == '\n'
+                then return r -- NB. not r': don't include the '\n'
+                else findEOL r' w raw
+
+    -- LIQUID COMPAT
+    maybeFillReadBuffer fd is_line is_stream buf = return Nothing
+    -- maybeFillReadBuffer fd is_line is_stream buf = catch
+    --     (do buf' <- fillReadBuffer fd is_line is_stream buf
+    --         return (Just buf'))
+    --     (\e -> if isEOFError e then return Nothing else ioError e)
+
+-- TODO, rewrite to use normal memcpy
+mkPS :: RawBuffer Char -> Int -> Int -> IO ByteString
+mkPS buf start end =
+    let len = end - start
+    in create len $ \p -> do
+        memcpy_ptr_baoff p buf (fromIntegral start) ({- LIQUID fromIntegral-} intCSize len)
+        return ()
+
+
+
+mkBigPS :: Int -> [ByteString] -> IO ByteString
+mkBigPS _ [ps] = return ps
+mkBigPS _ pss = return $! concat (P.reverse pss)
+
+
+
+-- | Outputs a 'ByteString' to the specified 'Handle'.
+hPut :: Handle -> ByteString -> IO ()
+hPut _ (PS _  _ 0) = return ()
+hPut h (PS ps s l) = withForeignPtr ps $ \p-> hPutBuf h (p `plusPtr` s) l
+
+-- | A synonym for @hPut@, for compatibility 
+hPutStr :: Handle -> ByteString -> IO ()
+hPutStr = hPut
+
+-- | Write a ByteString to a handle, appending a newline byte
+hPutStrLn :: Handle -> ByteString -> IO ()
+hPutStrLn h ps
+    | length ps < 1024 = hPut h (ps `snoc` 0x0a)
+    | otherwise        = hPut h ps >> hPut h (singleton (0x0a)) -- don't copy
+
+-- | Write a ByteString to stdout
+putStr :: ByteString -> IO ()
+putStr = hPut stdout
+
+-- | Write a ByteString to stdout, appending a newline byte
+putStrLn :: ByteString -> IO ()
+putStrLn = hPutStrLn stdout
+
+-- | Read a 'ByteString' directly from the specified 'Handle'.  This
+-- is far more efficient than reading the characters into a 'String'
+-- and then using 'pack'.
+
+{-@ assume GHC.IO.Handle.Text.hGetBuf :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
+{-@ hGet :: Handle -> n:Nat -> IO {v:ByteString | (bLength v) <= n} @-}
+hGet :: Handle -> Int -> IO ByteString
+hGet _ 0 = return empty
+hGet h i = createAndTrim i $ \p -> hGetBuf h p i
+
+{-@ assume GHC.IO.Handle.Text.hGetBufNonBlocking :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
+{-@ hGetNonBlocking :: Handle -> n:Nat -> IO {v:ByteString | (bLength v) <= n} @-}
+
+hGetNonBlocking :: Handle -> Int -> IO ByteString
+#if defined(__GLASGOW_HASKELL__)
+hGetNonBlocking _ 0 = return empty
+hGetNonBlocking h i = createAndTrim i $ \p -> hGetBufNonBlocking h p i
+#else
+hGetNonBlocking = hGet
+#endif
+
+{-@ assume Foreign.Marshal.Alloc.reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
+{- assume GHC.IO.Handle.Text.hGetBuf :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
+hGetContents :: Handle -> IO ByteString
+hGetContents h = do
+    let start_size = 1024
+    p <- mallocBytes start_size
+    i <- hGetBuf h p start_size
+    if i < start_size
+        then do p' <- reallocBytes p i
+                fp <- newForeignPtr finalizerFree p'
+                return $! PS fp 0 i
+        else f p start_size
+    where
+        f p s = do
+            let s' = s + s -- 2 * s -- LIQUID MULTIPLY
+            p' <- reallocBytes p s'
+            i  <- hGetBuf h (p' `plusPtr` s) s
+            if i < s
+                then do let i' = s + i
+                        p'' <- reallocBytes p' i'
+                        fp  <- newForeignPtr finalizerFree p''
+                        return $! PS fp 0 i'
+                else f p' s'
+
+
+
+
