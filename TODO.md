@@ -53,7 +53,83 @@ Bytestring.hs
 
 requires fancier type for `loopUp` / `loopU` using trick in `tests/pos/cont.hs`
 
+elemIndices
 
+    WARNING: Data/ByteString.hs:1461:1-11   
+    WARNING: Data/ByteString.hs:1465:43     
+    WARNING: Data/ByteString.hs:1467:53-72 
+
+sortCanary
+
+    WARNING: Data/ByteString.hs:1859:30-35  
+
+readFile
+
+    WARNING: Data/ByteString.hs:2165:28-33  
+
+TOTAL                         1023.440 s
+  save                           0.344 s
+  solve                         380.728 s
+    Solve.unsatcs                  6.956 s
+      Z3.pop                         0.092 s
+      unsat                          0.220 s
+        Z3.check                       0.216 s
+      Z3.ass_cst                     0.420 s
+      Z3.push                        0.848 s
+      z3Pred                         3.668 s
+        z3Var memo                     0.512 s
+      fixdiv                         0.044 s
+    Solve.dump                     0.076 s
+    Solve.acsolve                 372.619 s
+      refine                        360.567 s
+        refine                        360.563 s
+          cx_update                      0.004 s
+          check tp                      343.325 s
+            Z3.pop                        11.397 s
+            unsat                         291.010 s
+              Z3.check                      289.698 s
+            Z3.ass_cst                    16.005 s
+            Z3.push                        5.512 s
+            z3Pred                        13.657 s
+              z3Var memo                     3.040 s
+            fixdiv                         0.344 s
+          lhs_contra                     0.008 s
+          preds_of_lhs                  11.261 s
+          rhs_cands                      5.784 s
+    Cindex.winit                   0.020 s
+    Prepass.profile                0.716 s
+  Validate                      98.606 s
+    valid rhs                     18.089 s
+      validate_vars                  1.676 s
+      preds_of_reft                 15.197 s
+    validate_vars                  7.728 s
+  cx_update                      0.356 s
+  Z3.check                       0.000 s
+  Z3 assert axiom                0.000 s
+  z3Var memo                     0.000 s
+  Constant EnvWF                 0.244 s
+  Simplify                       0.000 s
+    add ids  1                     0.000 s
+  Constant Env                   0.256 s
+  Ref Index                      0.000 s
+  create                         0.000 s
+  making_graph                   0.652 s
+  parse                          3.812 s
+  Annots: make qleqs             0.112 s
+    Z3.pop                         0.004 s
+    unsat                          0.060 s
+      Z3.check                       0.060 s
+    Z3.ass_cst                     0.012 s
+    Z3.push                        0.012 s
+    z3Pred                         0.008 s
+      z3Var memo                     0.000 s
+    fixdiv                         0.000 s
+    Z3.check                       0.000 s
+    Z3 assert axiom                0.000 s
+    z3Var memo                     0.000 s
+  Qual Inst                     538.330 s
+
+UNSAT
 
 
 
