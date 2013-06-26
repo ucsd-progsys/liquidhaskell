@@ -42,6 +42,7 @@ import Data.ByteString.Lazy.Aux
 import Foreign.ForeignPtr       (ForeignPtr)
 import Data.Word                (Word, Word8, Word16, Word32, Word64)
 import Foreign.Ptr              (Ptr)
+import qualified Foreign.C.String
 
 import Foreign.Storable (sizeOf)
 

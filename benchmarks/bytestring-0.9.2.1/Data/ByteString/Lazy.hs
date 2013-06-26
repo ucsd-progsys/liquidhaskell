@@ -325,13 +325,20 @@ pack ws = go Empty (chunks defaultChunkSize ws)
                       (xs', xs'') -> xs' : chunks size xs''
 
 -- | /O(n)/ Converts a 'ByteString' to a '[Word8]'.
+{-@ unpack :: b:LByteString -> {v:[Word8] | (len v) = (lbLength b)} @-}
 unpack :: ByteString -> [Word8]
-unpack cs = L.concatMap S.unpack (toChunks cs)
+--LIQUID INLINE unpack cs = L.concatMap S.unpack (toChunks cs)
+unpack cs = L.concat $ mapINLINE $ toChunks cs
+    where mapINLINE [] = []
+          mapINLINE (c:cs) = S.unpack c : mapINLINE cs
 --TODO: we can do better here by integrating the concat with the unpack
 
 -- | /O(c)/ Convert a list of strict 'ByteString' into a lazy 'ByteString'
+{-@ fromChunks :: bs:[ByteString] -> {v:LByteString | (lbLength v) = (bLengths bs)} @-}
 fromChunks :: [S.ByteString] -> ByteString
-fromChunks cs = L.foldr chunk Empty cs
+--LIQUID INLINE fromChunks cs = L.foldr chunk Empty cs
+fromChunks []     = Empty
+fromChunks (c:cs) = chunk c (fromChunks cs)
 
 -- | /O(n)/ Convert a lazy 'ByteString' into a list of strict 'ByteString'
 {-@ toChunks :: b:LByteString -> {v:[ByteString] | (bLengths v) = (lbLength b)} @-}
@@ -714,7 +721,8 @@ repeat w = cs where cs = Chunk (S.replicate smallChunkSize w) cs
 -- | /O(n)/ @'replicate' n x@ is a ByteString of length @n@ with @x@
 -- the value of every element.
 --
-{-@ replicate :: n:Nat64 -> Word8 -> {v:LByteString | (lbLength v) = (if n > 0 then n else 0)} @-}
+--LIQUID FIXME: can we somehow sneak multiplication into `nChunks`?
+{- replicate :: n:Nat64 -> Word8 -> {v:LByteString | (lbLength v) = (if n > 0 then n else 0)} @-}
 replicate :: Int64 -> Word8 -> ByteString
 replicate n w
     | n <= 0             = Empty
@@ -1167,7 +1175,8 @@ filter p s = go s
 --
 -- filterByte is around 10x faster, and uses much less space, than its
 -- filter equivalent
-{-@ filterByte :: Word8 -> b:LByteString -> (LByteStringLE b) @-}
+--LIQUID FIXME: needs the spec for replicate
+{- filterByte :: Word8 -> b:LByteString -> (LByteStringLE b) @-}
 filterByte :: Word8 -> ByteString -> ByteString
 filterByte w ps = replicate (count w ps) w
 {-# INLINE filterByte #-}
@@ -1210,6 +1219,7 @@ partition f p = (filter f p, filter (not . f) p)
 
 -- | /O(n)/ The 'isPrefixOf' function takes two ByteStrings and returns 'True'
 -- iff the first is a prefix of the second.
+{-@ isPrefixOf :: LByteString -> LByteString -> Bool @-}
 isPrefixOf :: ByteString -> ByteString -> Bool
 isPrefixOf Empty _  = True
 isPrefixOf _ Empty  = False
@@ -1220,11 +1230,13 @@ isPrefixOf (Chunk x xs) (Chunk y ys)
 --LIQUID     | otherwise                = xh == y && isPrefixOf (Chunk xt xs) ys
 --LIQUID   where (xh,xt) = S.splitAt (S.length y) x
 --LIQUID         (yh,yt) = S.splitAt (S.length x) y
-    | otherwise = let (xh,xt) = S.splitAt (S.length y) x
-                      (yh,yt) = S.splitAt (S.length x) y
-                  in if S.length x <  S.length y
-                     then x == yh && isPrefixOf xs (Chunk yt ys)
-                     else  xh == y && isPrefixOf (Chunk xt xs) ys
+    | otherwise = if S.length x <  S.length y
+                  then let (xh,xt) = SA.splitAt (S.length y) x
+                           (yh,yt) = SA.splitAt (S.length x) y
+                       in x == yh && isPrefixOf xs (Chunk yt ys)
+                  else let (xh,xt) = SA.splitAt (S.length y) x
+                           (yh,yt) = SA.splitAt (S.length x) y
+                       in xh == y && isPrefixOf (Chunk xt xs) ys
 
 
 -- | /O(n)/ The 'isSuffixOf' function takes two ByteStrings and returns 'True'
@@ -1246,7 +1258,7 @@ isSuffixOf x y = reverse x `isPrefixOf` reverse y
 -- excess elements of the longer ByteString are discarded. This is
 -- equivalent to a pair of 'unpack' operations.
 {-@ predicate LZipLen V X Y  = (len V) = (if (lbLength X) <= (lbLength Y) then (lbLength X) else (lbLength Y)) @-}
-{-@ zip :: x:LByteString -> y:LByteString -> {v:[(Word8, Word8)] | (LZipLen v x y) } @-}
+{- zip :: x:LByteString -> y:LByteString -> {v:[(Word8, Word8)] | (LZipLen v x y) } @-}
 zip :: ByteString -> ByteString -> [(Word8,Word8)]
 zip = zipWith (,)
 
@@ -1287,7 +1299,8 @@ unzip ls = (pack (L.map fst ls), pack (L.map snd ls))
 inits :: ByteString -> [ByteString]
 inits = (Empty :) . inits'
   where inits' Empty        = []
-        inits' (Chunk c cs) = L.map (\c' -> Chunk c' Empty) (L.tail (S.inits c))
+        inits' (Chunk c cs) = let (c':cs') = SA.inits c in
+                              L.map (\c' -> Chunk c' Empty) cs' --LIQUID INLINE (L.tail (S.inits c))
                            ++ L.map (Chunk c) (inits' cs)
 
 -- | /O(n)/ Return all final segments of the given 'ByteString', longest first.
