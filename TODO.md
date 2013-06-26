@@ -1,6 +1,7 @@
 TODO
 ====
 
+
 * Qualified Import Issue: wtf is include/KMeansHelper.hs ? Fix module import issue
 
 * [jhala]  benchmarks: Data.Bytestring
@@ -39,7 +40,7 @@ Ordered by dependency.
    297 Data/ByteString/Unsafe.hs            [OK]
    509 Data/ByteString/Internal.hs          [OK]
    700 Data/ByteString/Fusion.hs            [OK]
-  1928 Data/ByteString.hs                   [**]
+  1928 Data/ByteString.hs                   [OK]
   
   1322 Data/ByteString/Lazy.hs               
    822 Data/ByteString/Lazy/Char8.hs
