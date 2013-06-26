@@ -118,35 +118,35 @@ module Data.ByteString (
         breakEnd,               -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
         group,                  -- :: ByteString -> [ByteString]
         groupBy,                -- :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
-        -- inits,                  -- :: ByteString -> [ByteString]
-        -- tails,                  -- :: ByteString -> [ByteString]
+        inits,                  -- :: ByteString -> [ByteString]
+        tails,                  -- :: ByteString -> [ByteString]
 
         -- ** Breaking into many substrings
         split,                  -- :: Word8 -> ByteString -> [ByteString]
         splitWith,              -- :: (Word8 -> Bool) -> ByteString -> [ByteString]
 
         -- * Predicates
--- LIQUID        isPrefixOf,             -- :: ByteString -> ByteString -> Bool
--- LIQUID        isSuffixOf,             -- :: ByteString -> ByteString -> Bool
--- LIQUID        isInfixOf,              -- :: ByteString -> ByteString -> Bool
--- LIQUID        isSubstringOf,          -- :: ByteString -> ByteString -> Bool
--- LIQUID
--- LIQUID        -- ** Search for arbitrary substrings
--- LIQUID        findSubstring,          -- :: ByteString -> ByteString -> Maybe Int
--- LIQUID        findSubstrings,         -- :: ByteString -> ByteString -> [Int]
--- LIQUID
--- LIQUID        -- * Searching ByteStrings
--- LIQUID
--- LIQUID        -- ** Searching by equality
+        isPrefixOf,             -- :: ByteString -> ByteString -> Bool
+        isSuffixOf,             -- :: ByteString -> ByteString -> Bool
+        isInfixOf,              -- :: ByteString -> ByteString -> Bool
+        isSubstringOf,          -- :: ByteString -> ByteString -> Bool
+
+        -- ** Search for arbitrary substrings
+        findSubstring,          -- :: ByteString -> ByteString -> Maybe Int
+        findSubstrings,         -- :: ByteString -> ByteString -> [Int]
+
+        -- * Searching ByteStrings
+
+        -- ** Searching by equality
         elem,                   -- :: Word8 -> ByteString -> Bool
         notElem,                -- :: Word8 -> ByteString -> Bool
--- LIQUID
--- LIQUID        -- ** Searching with a predicate
--- LIQUID        find,                   -- :: (Word8 -> Bool) -> ByteString -> Maybe Word8
+
+        -- ** Searching with a predicate
+        find,                   -- :: (Word8 -> Bool) -> ByteString -> Maybe Word8
         filter,                 -- :: (Word8 -> Bool) -> ByteString -> ByteString
--- LIQUID        partition,              -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID
--- LIQUID        -- * Indexing ByteStrings
+        partition,              -- :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+
+        -- * Indexing ByteStrings
         index,                  -- :: ByteString -> Int -> Word8
         elemIndex,              -- :: Word8 -> ByteString -> Maybe Int
         elemIndices,            -- :: Word8 -> ByteString -> [Int]
@@ -154,53 +154,53 @@ module Data.ByteString (
         findIndex,              -- :: (Word8 -> Bool) -> ByteString -> Maybe Int
         findIndices,            -- :: (Word8 -> Bool) -> ByteString -> [Int]
         count,                  -- :: Word8 -> ByteString -> Int
--- LIQUID
--- LIQUID        -- * Zipping and unzipping ByteStrings
--- LIQUID        zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
--- LIQUID        zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
--- LIQUID        unzip,                  -- :: [(Word8,Word8)] -> (ByteString,ByteString)
--- LIQUID
--- LIQUID        -- * Ordered ByteStrings
--- LIQUID        sort,                   -- :: ByteString -> ByteString
--- LIQUID
--- LIQUID        -- * Low level conversions
--- LIQUID        -- ** Copying ByteStrings
--- LIQUID        copy,                   -- :: ByteString -> ByteString
--- LIQUID
--- LIQUID        -- ** Packing 'CString's and pointers
--- LIQUID        packCString,            -- :: CString -> IO ByteString
--- LIQUID        packCStringLen,         -- :: CStringLen -> IO ByteString
--- LIQUID
--- LIQUID        -- ** Using ByteStrings as 'CString's
--- LIQUID        useAsCString,           -- :: ByteString -> (CString    -> IO a) -> IO a
--- LIQUID        useAsCStringLen,        -- :: ByteString -> (CStringLen -> IO a) -> IO a
--- LIQUID
--- LIQUID        -- * I\/O with 'ByteString's
--- LIQUID
--- LIQUID        -- ** Standard input and output
--- LIQUID        getLine,                -- :: IO ByteString
--- LIQUID        getContents,            -- :: IO ByteString
--- LIQUID        putStr,                 -- :: ByteString -> IO ()
--- LIQUID        putStrLn,               -- :: ByteString -> IO ()
--- LIQUID        interact,               -- :: (ByteString -> ByteString) -> IO ()
--- LIQUID
--- LIQUID        -- ** Files
--- LIQUID        readFile,               -- :: FilePath -> IO ByteString
--- LIQUID        writeFile,              -- :: FilePath -> ByteString -> IO ()
--- LIQUID        appendFile,             -- :: FilePath -> ByteString -> IO ()
--- LIQUID--      mmapFile,               -- :: FilePath -> IO ByteString
--- LIQUID
--- LIQUID        -- ** I\/O with Handles
--- LIQUID        hGetLine,               -- :: Handle -> IO ByteString
--- LIQUID        hGetContents,           -- :: Handle -> IO ByteString
--- LIQUID        hGet,                   -- :: Handle -> Int -> IO ByteString
--- LIQUID        hGetNonBlocking,        -- :: Handle -> Int -> IO ByteString
--- LIQUID        hPut,                   -- :: Handle -> ByteString -> IO ()
--- LIQUID        hPutStr,                -- :: Handle -> ByteString -> IO ()
--- LIQUID        hPutStrLn,              -- :: Handle -> ByteString -> IO ()
--- LIQUID
--- LIQUID        -- undocumented deprecated things:
--- LIQUID        join                    -- :: ByteString -> [ByteString] -> ByteString
+
+        -- * Zipping and unzipping ByteStrings
+        zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
+        zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
+        unzip,                  -- :: [(Word8,Word8)] -> (ByteString,ByteString)
+
+        -- * Ordered ByteStrings
+-- LIQUID FAIL   sort,                   -- :: ByteString -> ByteString
+
+        -- * Low level conversions
+        -- ** Copying ByteStrings
+        copy,                   -- :: ByteString -> ByteString
+
+        -- ** Packing 'CString's and pointers
+        packCString,            -- :: CString -> IO ByteString
+        packCStringLen,         -- :: CStringLen -> IO ByteString
+
+        -- ** Using ByteStrings as 'CString's
+        useAsCString,           -- :: ByteString -> (CString    -> IO a) -> IO a
+        useAsCStringLen,        -- :: ByteString -> (CStringLen -> IO a) -> IO a
+
+        -- * I\/O with 'ByteString's
+
+        -- ** Standard input and output
+        getLine,                -- :: IO ByteString
+        getContents,            -- :: IO ByteString
+        putStr,                 -- :: ByteString -> IO ()
+        putStrLn,               -- :: ByteString -> IO ()
+        interact,               -- :: (ByteString -> ByteString) -> IO ()
+
+        -- ** Files
+        readFile,               -- :: FilePath -> IO ByteString
+        writeFile,              -- :: FilePath -> ByteString -> IO ()
+        appendFile,             -- :: FilePath -> ByteString -> IO ()
+--      mmapFile,               -- :: FilePath -> IO ByteString
+
+        -- ** I\/O with Handles
+        hGetLine,               -- :: Handle -> IO ByteString
+        hGetContents,           -- :: Handle -> IO ByteString
+        hGet,                   -- :: Handle -> Int -> IO ByteString
+        hGetNonBlocking,        -- :: Handle -> Int -> IO ByteString
+        hPut,                   -- :: Handle -> ByteString -> IO ()
+        hPutStr,                -- :: Handle -> ByteString -> IO ()
+        hPutStrLn,              -- :: Handle -> ByteString -> IO ()
+
+        -- undocumented deprecated things:
+        join                    -- :: ByteString -> [ByteString] -> ByteString
 
   ) where
 
@@ -1370,6 +1370,12 @@ groupBy k xs
 -- | /O(n)/ The 'intercalate' function takes a 'ByteString' and a list of
 -- 'ByteString's and concatenates the list after interspersing the first
 -- argument between each element of the list.
+-- LIQUID FAIL: NonLinear Invariant. 
+-- LIQUID {- intercalate :: b:ByteString 
+-- LIQUID                -> bs:[ByteString] 
+-- LIQUID                -> {v:ByteString | (bLength v) = (bLengths bs) + ((len bs) - 1) * (bLength b)} -}
+-- LIQUID: If we INLINE intersperse then can show simpler
+-- LIQUID {- intersperse :: ByteString -> bs:[ByteString] -> {v:ByteString | (bLengths bs) <= (bLength v)}
 intercalate :: ByteString -> [ByteString] -> ByteString
 intercalate s = concat . (List.intersperse s)
 {-# INLINE [1] intercalate #-}
@@ -1548,7 +1554,7 @@ notElem c ps = not (elem c ps)
 -- returns a ByteString containing those characters that satisfy the
 -- predicate. This function is subject to array fusion.
 {-@ qualif FilterLoop(v:Ptr a, f:Ptr a, t:Ptr a): (plen t) >= (plen f) - (plen v) @-}
-{-@ filter :: (Word8 -> Bool) -> b:ByteString -> {v:ByteString | (bLength v) <= (bLength b)} @-}
+{-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
 filter :: (Word8 -> Bool) -> ByteString -> ByteString
 filter k ps@(PS x s l)
     | null ps   = ps
@@ -1615,543 +1621,617 @@ find k = foldl findEFL Nothing
                                | otherwise = Nothing
 -}
 
--- HEREHEREHERE
--- LIQUID -- -- | /O(n)/ The 'partition' function takes a predicate a ByteString and returns
--- LIQUID -- -- the pair of ByteStrings with elements which do and do not satisfy the
--- LIQUID -- -- predicate, respectively; i.e.,
--- LIQUID -- --
--- LIQUID -- -- > partition p bs == (filter p xs, filter (not . p) xs)
--- LIQUID -- --
--- LIQUID -- partition :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
--- LIQUID -- partition p bs = (filter p bs, filter (not . p) bs)
--- LIQUID -- --TODO: use a better implementation
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Searching for substrings
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ The 'isPrefixOf' function takes two ByteStrings and returns 'True'
--- LIQUID -- -- iff the first is a prefix of the second.
--- LIQUID -- isPrefixOf :: ByteString -> ByteString -> Bool
--- LIQUID -- isPrefixOf (PS x1 s1 l1) (PS x2 s2 l2)
--- LIQUID --     | l1 == 0   = True
--- LIQUID --     | l2 < l1   = False
--- LIQUID --     | otherwise = inlinePerformIO $ withForeignPtr x1 $ \p1 ->
--- LIQUID --         withForeignPtr x2 $ \p2 -> do
--- LIQUID --             i <- memcmp (p1 `plusPtr` s1) (p2 `plusPtr` s2) (fromIntegral l1)
--- LIQUID --             return $! i == 0
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ The 'isSuffixOf' function takes two ByteStrings and returns 'True'
--- LIQUID -- -- iff the first is a suffix of the second.
--- LIQUID -- -- 
--- LIQUID -- -- The following holds:
--- LIQUID -- --
--- LIQUID -- -- > isSuffixOf x y == reverse x `isPrefixOf` reverse y
--- LIQUID -- --
--- LIQUID -- -- However, the real implemenation uses memcmp to compare the end of the
--- LIQUID -- -- string only, with no reverse required..
--- LIQUID -- isSuffixOf :: ByteString -> ByteString -> Bool
--- LIQUID -- isSuffixOf (PS x1 s1 l1) (PS x2 s2 l2)
--- LIQUID --     | l1 == 0   = True
--- LIQUID --     | l2 < l1   = False
--- LIQUID --     | otherwise = inlinePerformIO $ withForeignPtr x1 $ \p1 ->
--- LIQUID --         withForeignPtr x2 $ \p2 -> do
--- LIQUID --             i <- memcmp (p1 `plusPtr` s1) (p2 `plusPtr` s2 `plusPtr` (l2 - l1)) (fromIntegral l1)
--- LIQUID --             return $! i == 0
--- LIQUID -- 
--- LIQUID -- -- | Alias of 'isSubstringOf'
--- LIQUID -- isInfixOf :: ByteString -> ByteString -> Bool
--- LIQUID -- isInfixOf = isSubstringOf
--- LIQUID -- 
--- LIQUID -- -- | Check whether one string is a substring of another. @isSubstringOf
--- LIQUID -- -- p s@ is equivalent to @not (null (findSubstrings p s))@.
--- LIQUID -- isSubstringOf :: ByteString -- ^ String to search for.
--- LIQUID --               -> ByteString -- ^ String to search in.
--- LIQUID --               -> Bool
--- LIQUID -- isSubstringOf p s = not $ P.null $ findSubstrings p s
--- LIQUID -- 
--- LIQUID -- {-# DEPRECATED findSubstring "Do not use. The ByteString searching api is about to be replaced." #-}
--- LIQUID -- -- | Get the first index of a substring in another string,
--- LIQUID -- --   or 'Nothing' if the string is not found.
--- LIQUID -- --   @findSubstring p s@ is equivalent to @listToMaybe (findSubstrings p s)@.
--- LIQUID -- findSubstring :: ByteString -- ^ String to search for.
--- LIQUID --               -> ByteString -- ^ String to seach in.
--- LIQUID --               -> Maybe Int
--- LIQUID -- findSubstring = (listToMaybe .) . findSubstrings
--- LIQUID -- 
--- LIQUID -- {-# DEPRECATED findSubstrings "Do not use. The ByteString searching api is about to be replaced." #-}
--- LIQUID -- -- | Find the indexes of all (possibly overlapping) occurances of a
--- LIQUID -- -- substring in a string.  This function uses the Knuth-Morris-Pratt
--- LIQUID -- -- string matching algorithm.
--- LIQUID -- findSubstrings :: ByteString -- ^ String to search for.
--- LIQUID --                -> ByteString -- ^ String to seach in.
--- LIQUID --                -> [Int]
--- LIQUID -- 
--- LIQUID -- findSubstrings pat@(PS _ _ m) str@(PS _ _ n) = search 0 0
--- LIQUID --   where
--- LIQUID --       patc x = pat `unsafeIndex` x
--- LIQUID --       strc x = str `unsafeIndex` x
--- LIQUID -- 
--- LIQUID --       -- maybe we should make kmpNext a UArray before using it in search?
--- LIQUID --       kmpNext = listArray (0,m) (-1:kmpNextL pat (-1))
--- LIQUID --       kmpNextL p _ | null p = []
--- LIQUID --       kmpNextL p j = let j' = next (unsafeHead p) j + 1
--- LIQUID --                          ps = unsafeTail p
--- LIQUID --                          x = if not (null ps) && unsafeHead ps == patc j'
--- LIQUID --                                 then kmpNext Array.! j' else j'
--- LIQUID --                         in x:kmpNextL ps j'
--- LIQUID --       search i j = match ++ rest -- i: position in string, j: position in pattern
--- LIQUID --         where match = if j == m then [(i - j)] else []
--- LIQUID --               rest = if i == n then [] else search (i+1) (next (strc i) j + 1)
--- LIQUID --       next c j | j >= 0 && (j == m || c /= patc j) = next c (kmpNext Array.! j)
--- LIQUID --                | otherwise = j
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Zipping
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'zip' takes two ByteStrings and returns a list of
--- LIQUID -- -- corresponding pairs of bytes. If one input ByteString is short,
--- LIQUID -- -- excess elements of the longer ByteString are discarded. This is
--- LIQUID -- -- equivalent to a pair of 'unpack' operations.
--- LIQUID -- zip :: ByteString -> ByteString -> [(Word8,Word8)]
--- LIQUID -- zip ps qs
--- LIQUID --     | null ps || null qs = []
--- LIQUID --     | otherwise = (unsafeHead ps, unsafeHead qs) : zip (unsafeTail ps) (unsafeTail qs)
--- LIQUID -- 
--- LIQUID -- -- | 'zipWith' generalises 'zip' by zipping with the function given as
--- LIQUID -- -- the first argument, instead of a tupling function.  For example,
--- LIQUID -- -- @'zipWith' (+)@ is applied to two ByteStrings to produce the list of
--- LIQUID -- -- corresponding sums. 
--- LIQUID -- zipWith :: (Word8 -> Word8 -> a) -> ByteString -> ByteString -> [a]
--- LIQUID -- zipWith f ps qs
--- LIQUID --     | null ps || null qs = []
--- LIQUID --     | otherwise = f (unsafeHead ps) (unsafeHead qs) : zipWith f (unsafeTail ps) (unsafeTail qs)
--- LIQUID -- #if defined(__GLASGOW_HASKELL__)
--- LIQUID -- {-# INLINE [1] zipWith #-}
--- LIQUID -- #endif
--- LIQUID -- 
--- LIQUID -- --
--- LIQUID -- -- | A specialised version of zipWith for the common case of a
--- LIQUID -- -- simultaneous map over two bytestrings, to build a 3rd. Rewrite rules
--- LIQUID -- -- are used to automatically covert zipWith into zipWith' when a pack is
--- LIQUID -- -- performed on the result of zipWith, but we also export it for
--- LIQUID -- -- convenience.
--- LIQUID -- --
--- LIQUID -- zipWith' :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString -> ByteString
--- LIQUID -- zipWith' f (PS fp s l) (PS fq t m) = inlinePerformIO $
--- LIQUID --     withForeignPtr fp $ \a ->
--- LIQUID --     withForeignPtr fq $ \b ->
--- LIQUID --     create len $ zipWith_ 0 (a `plusPtr` s) (b `plusPtr` t)
--- LIQUID --   where
--- LIQUID --     zipWith_ :: Int -> Ptr Word8 -> Ptr Word8 -> Ptr Word8 -> IO ()
--- LIQUID --     STRICT4(zipWith_)
--- LIQUID --     zipWith_ n p1 p2 r
--- LIQUID --        | n >= len = return ()
--- LIQUID --        | otherwise = do
--- LIQUID --             x <- peekByteOff p1 n
--- LIQUID --             y <- peekByteOff p2 n
--- LIQUID --             pokeByteOff r n (f x y)
--- LIQUID --             zipWith_ (n+1) p1 p2 r
--- LIQUID -- 
--- LIQUID --     len = min l m
--- LIQUID -- {-# INLINE zipWith' #-}
--- LIQUID -- 
--- LIQUID -- {-# RULES
--- LIQUID -- 
--- LIQUID -- "FPS specialise zipWith" forall (f :: Word8 -> Word8 -> Word8) p q .
--- LIQUID --     zipWith f p q = unpack (zipWith' f p q)
--- LIQUID -- 
--- LIQUID --   #-}
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ 'unzip' transforms a list of pairs of bytes into a pair of
--- LIQUID -- -- ByteStrings. Note that this performs two 'pack' operations.
--- LIQUID -- unzip :: [(Word8,Word8)] -> (ByteString,ByteString)
--- LIQUID -- unzip ls = (pack (P.map fst ls), pack (P.map snd ls))
--- LIQUID -- {-# INLINE unzip #-}
+-- | /O(n)/ The 'partition' function takes a predicate a ByteString and returns
+-- the pair of ByteStrings with elements which do and do not satisfy the
+-- predicate, respectively; i.e.,
+--
+-- > partition p bs == (filter p xs, filter (not . p) xs)
+--
+-- LIQUID FAIL: partition :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b)
+{-@ partition :: (Word8 -> Bool) -> b:ByteString -> ((ByteStringLE b), (ByteStringLE b)) @-}
+partition :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
+partition p bs = (filter p bs, filter (not . p) bs)
+--TODO: use a better implementation
+
+-- ---------------------------------------------------------------------
+-- Searching for substrings
+
+-- | /O(n)/ The 'isPrefixOf' function takes two ByteStrings and returns 'True'
+-- iff the first is a prefix of the second.
+{-@ isPrefixOf :: ByteString -> ByteString -> Bool @-}
+isPrefixOf :: ByteString -> ByteString -> Bool
+isPrefixOf (PS x1 s1 l1) (PS x2 s2 l2)
+    | l1 == 0   = True
+    | l2 < l1   = False
+    | otherwise = inlinePerformIO $ withForeignPtr x1 $ \p1 ->
+        withForeignPtr x2 $ \p2 -> do
+            i <- memcmp (p1 `plusPtr` s1) (p2 `plusPtr` s2) (fromIntegral l1)
+            return $! i == 0
+
+-- | /O(n)/ The 'isSuffixOf' function takes two ByteStrings and returns 'True'
+-- iff the first is a suffix of the second.
+-- 
+-- The following holds:
+--
+-- > isSuffixOf x y == reverse x `isPrefixOf` reverse y
+--
+-- However, the real implemenation uses memcmp to compare the end of the
+-- string only, with no reverse required..
+{-@ isSuffixOf :: ByteString -> ByteString -> Bool @-}
+isSuffixOf :: ByteString -> ByteString -> Bool
+isSuffixOf (PS x1 s1 l1) (PS x2 s2 l2)
+    | l1 == 0   = True
+    | l2 < l1   = False
+    | otherwise = inlinePerformIO $ withForeignPtr x1 $ \p1 ->
+        withForeignPtr x2 $ \p2 -> do
+            i <- memcmp (p1 `plusPtr` s1) (p2 `plusPtr` s2 `plusPtr` (l2 - l1)) (fromIntegral l1)
+            return $! i == 0
+
+-- | Alias of 'isSubstringOf'
+isInfixOf :: ByteString -> ByteString -> Bool
+isInfixOf = isSubstringOf
+
+-- | Check whether one string is a substring of another. @isSubstringOf
+-- p s@ is equivalent to @not (null (findSubstrings p s))@.
+isSubstringOf :: ByteString -- ^ String to search for.
+              -> ByteString -- ^ String to search in.
+              -> Bool
+isSubstringOf p s = not $ P.null $ findSubstrings p s
+
+{-# DEPRECATED findSubstring "Do not use. The ByteString searching api is about to be replaced." #-}
+-- | Get the first index of a substring in another string,
+--   or 'Nothing' if the string is not found.
+--   @findSubstring p s@ is equivalent to @listToMaybe (findSubstrings p s)@.
+{-@ findSubstring :: pat:ByteString -> str:ByteString -> (Maybe {v:Nat | v <= (bLength str)}) @-}
+findSubstring :: ByteString -- ^ String to search for.
+              -> ByteString -- ^ String to seach in.
+              -> Maybe Int
+-- LIQUID ETA: findSubstring = (listToMaybe .) . findSubstrings
+findSubstring pat str = listToMaybe $ findSubstrings pat str
+
+
+{-# DEPRECATED findSubstrings "Do not use. The ByteString searching api is about to be replaced." #-}
+-- | Find the indexes of all (possibly overlapping) occurances of a
+-- substring in a string.  This function uses the Knuth-Morris-Pratt
+-- string matching algorithm.
+
+{-@ qualif FindIndices(v:ByteString, p:ByteString, n:Int) : (bLength v) = (bLength p) - n  @-}
+
+{-@ findSubstrings :: pat:ByteString -> str:ByteString -> [{v:Nat | v <= (bLength str)}] @-}
+
+findSubstrings :: ByteString -- ^ String to search for.
+               -> ByteString -- ^ String to seach in.
+               -> [Int]
+
+-- LIQUID LATEST 
+findSubstrings pat str
+    | null pat         = rng (length str - 1) -- LIQUID COMPREHENSIONS [0 .. (length str - 1)]
+    | otherwise        = search 0 str
+  where
+    STRICT2(search)
+    search (n :: Int) s
+        | null s             = []
+        | pat `isPrefixOf` s = n : search (n+1) (unsafeTail s)
+        | otherwise          =     search (n+1) (unsafeTail s)
+
+
+{- 
+findSubstrings pat@(PS _ _ m) str@(PS _ _ n) = search 0 0
+  where
+      patc x = pat `unsafeIndex` x
+      strc x = str `unsafeIndex` x
+
+      -- maybe we should make kmpNext a UArray before using it in search?
+      kmpNext = listArray (0,m) (-1:kmpNextL pat (-1))
+      kmpNextL p _ | null p = []
+      kmpNextL p j = let j' = next (unsafeHead p) j + 1
+                         ps = unsafeTail p
+                         x = if not (null ps) && unsafeHead ps == patc j'
+                                then kmpNext Array.! j' else j'
+                        in x:kmpNextL ps j'
+      search i j = match ++ rest -- i: position in string, j: position in pattern
+        where match = if j == m then [(i - j)] else []
+              rest = if i == n then [] else search (i+1) (next (strc i) j + 1)
+      next c j | j >= 0 && (j == m || c /= patc j) = next c (kmpNext Array.! j)
+               | otherwise = j
+-}
+
+-- LIQUID: added to latest API
+{-@ breakSubstring :: ByteString -> b:ByteString -> (ByteStringPair b) @-}
+
+breakSubstring :: ByteString -- ^ String to search for
+               -> ByteString -- ^ String to search in
+               -> (ByteString,ByteString) -- ^ Head and tail of string broken at substring
+
+breakSubstring pat src = search 0 src
+  where
+    STRICT2(search)
+    search n s
+        | null s             = (src, empty)      -- not found
+        | pat `isPrefixOf` s = (take n src,s)
+        | otherwise          = search (n+1) (unsafeTail s)
+
+
+
+-- ---------------------------------------------------------------------
+-- Zipping
+
+-- | /O(n)/ 'zip' takes two ByteStrings and returns a list of
+-- corresponding pairs of bytes. If one input ByteString is short,
+-- excess elements of the longer ByteString are discarded. This is
+-- equivalent to a pair of 'unpack' operations.
+
+{-@ predicate ZipLen V X Y  = (len V) = (if (bLength X) <= (bLength Y) then (bLength X) else (bLength Y)) @-}
+{-@ zip :: x:ByteString -> y:ByteString -> {v:[(Word8, Word8)] | (ZipLen v x y) } @-}
+zip :: ByteString -> ByteString -> [(Word8,Word8)]
+zip ps qs
+    | null ps || null qs = []
+    | otherwise = (unsafeHead ps, unsafeHead qs) : zip (unsafeTail ps) (unsafeTail qs)
+
+-- | 'zipWith' generalises 'zip' by zipping with the function given as
+-- the first argument, instead of a tupling function.  For example,
+-- @'zipWith' (+)@ is applied to two ByteStrings to produce the list of
+-- corresponding sums. 
+{-@ zipWith :: (Word8 -> Word8 -> a) -> x:ByteString -> y:ByteString -> {v:[a] | (ZipLen v x y)} @-}
+zipWith :: (Word8 -> Word8 -> a) -> ByteString -> ByteString -> [a]
+zipWith f ps qs
+    | null ps || null qs = []
+    | otherwise = f (unsafeHead ps) (unsafeHead qs) : zipWith f (unsafeTail ps) (unsafeTail qs)
+#if defined(__GLASGOW_HASKELL__)
+{-# INLINE [1] zipWith #-}
+#endif
+
+
+-- | A specialised version of zipWith for the common case of a
+-- simultaneous map over two bytestrings, to build a 3rd. Rewrite rules
+-- are used to automatically covert zipWith into zipWith' when a pack is
+-- performed on the result of zipWith, but we also export it for
+-- convenience.
+
+-- LIQUID NICE-INFERENCE-EXAMPLE! 
+{-@ predicate ZipLenB V X Y = (bLength V) = (if (bLength X) <= (bLength Y) then (bLength X) else (bLength Y)) @-}
+{-@ zipWith' :: (Word8 -> Word8 -> Word8) -> x:ByteString -> y:ByteString -> {v:ByteString | (ZipLenB v x y)} @-}
+zipWith' :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString -> ByteString
+zipWith' f (PS fp s l) (PS fq t m) = inlinePerformIO $
+    withForeignPtr fp $ \a ->
+    withForeignPtr fq $ \b ->
+    create len $ zipWith_ 0 (a `plusPtr` s) (b `plusPtr` t)
+  where
+    zipWith_ :: Int -> Ptr Word8 -> Ptr Word8 -> Ptr Word8 -> IO ()
+    STRICT4(zipWith_)
+    zipWith_ n p1 p2 r
+       | n >= len = return ()
+       | otherwise = do
+            x <- peekByteOff p1 n
+            y <- peekByteOff p2 n
+            pokeByteOff r n (f x y)
+            zipWith_ (n+1) p1 p2 r
+
+    len = min l m
+{-# INLINE zipWith' #-}
+
+{-# RULES
+
+"FPS specialise zipWith" forall (f :: Word8 -> Word8 -> Word8) p q .
+    zipWith f p q = unpack (zipWith' f p q)
+
+  #-}
+
+-- | /O(n)/ 'unzip' transforms a list of pairs of bytes into a pair of
+-- ByteStrings. Note that this performs two 'pack' operations.
+{-@ unzip :: z:[(Word8,Word8)] -> ({v:ByteString | (bLength v) = (len z)}, {v:ByteString | (bLength v) = (len z) }) @-}
+unzip :: [(Word8,Word8)] -> (ByteString,ByteString)
+unzip ls = (pack (P.map fst ls), pack (P.map snd ls))
+{-# INLINE unzip #-}
  
 -- ---------------------------------------------------------------------
 -- Special lists
 
--- LIQUID -- -- | /O(n)/ Return all initial segments of the given 'ByteString', shortest first.
--- LIQUID -- {- inits :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
--- LIQUID -- inits :: ByteString -> [ByteString]
--- LIQUID -- inits (PS x s l) = [PS x s n | n <- rng l {- LIQUID COMPREHENSIONS [0..l] -}]
--- LIQUID -- 
--- LIQUID -- {- rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
--- LIQUID -- rng :: Int -> [Int]
--- LIQUID -- rng 0 = [0]
--- LIQUID -- rng n = n : rng (n-1) 
--- LIQUID -- 
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ Return all final segments of the given 'ByteString', longest first.
--- LIQUID -- {- tails :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
--- LIQUID -- tails :: ByteString -> [ByteString]
--- LIQUID -- tails p | null p    = [empty]
--- LIQUID --         | otherwise = p : tails (unsafeTail p)
+-- | /O(n)/ Return all initial segments of the given 'ByteString', shortest first.
+{- inits :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
+inits :: ByteString -> [ByteString]
+inits (PS x s l) = [PS x s n | n <- rng l {- LIQUID COMPREHENSIONS [0..l] -}]
+
+{- rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
+rng :: Int -> [Int]
+rng 0 = [0]
+rng n = n : rng (n-1) 
+
+
+-- | /O(n)/ Return all final segments of the given 'ByteString', longest first.
+{- tails :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
+tails :: ByteString -> [ByteString]
+tails p | null p    = [empty]
+        | otherwise = p : tails (unsafeTail p)
 
 -- less efficent spacewise: tails (PS x s l) = [PS x (s+n) (l-n) | n <- [0..l]]
 
--- LIQUID TARGET -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- ** Ordered 'ByteString's
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ Sort a ByteString efficiently, using counting sort.
--- LIQUID -- sort :: ByteString -> ByteString
--- LIQUID -- sort (PS input s l) = unsafeCreate l $ \p -> allocaArray 256 $ \arr -> do
--- LIQUID -- 
--- LIQUID --     memset (castPtr arr) 0 (256 * fromIntegral (sizeOf (undefined :: CSize)))
--- LIQUID --     withForeignPtr input (\x -> countOccurrences arr (x `plusPtr` s) l)
--- LIQUID -- 
--- LIQUID --     let STRICT2(go)
--- LIQUID --         go 256 _   = return ()
--- LIQUID --         go i   ptr = do n <- peekElemOff arr i
--- LIQUID --                         when (n /= 0) $ memset ptr (fromIntegral i) n >> return ()
--- LIQUID --                         go (i + 1) (ptr `plusPtr` (fromIntegral n))
--- LIQUID --     go 0 p
--- LIQUID --   where
--- LIQUID --     -- | Count the number of occurrences of each byte.
--- LIQUID --     -- Used by 'sort'
--- LIQUID --     --
--- LIQUID --     countOccurrences :: Ptr CSize -> Ptr Word8 -> Int -> IO ()
--- LIQUID --     STRICT3(countOccurrences)
--- LIQUID --     countOccurrences counts str len = go 0
--- LIQUID --      where
--- LIQUID --         STRICT1(go)
--- LIQUID --         go i | i == len    = return ()
--- LIQUID --              | otherwise = do k <- fromIntegral `fmap` peekElemOff str i
--- LIQUID --                               x <- peekElemOff counts k
--- LIQUID --                               pokeElemOff counts k (x + 1)
--- LIQUID --                               go (i + 1)
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- sort :: ByteString -> ByteString
--- LIQUID -- sort (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f -> do
--- LIQUID --         memcpy p (f `plusPtr` s) l
--- LIQUID --         c_qsort p l -- inplace
--- LIQUID -- -}
--- LIQUID -- 
--- LIQUID -- -- The 'sortBy' function is the non-overloaded version of 'sort'.
--- LIQUID -- --
--- LIQUID -- -- Try some linear sorts: radix, counting
--- LIQUID -- -- Or mergesort.
--- LIQUID -- --
--- LIQUID -- -- sortBy :: (Word8 -> Word8 -> Ordering) -> ByteString -> ByteString
--- LIQUID -- -- sortBy f ps = undefined
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Low level constructors
--- LIQUID -- 
--- LIQUID -- -- | /O(n) construction/ Use a @ByteString@ with a function requiring a
--- LIQUID -- -- null-terminated @CString@.  The @CString@ will be freed
--- LIQUID -- -- automatically. This is a memcpy(3).
--- LIQUID -- useAsCString :: ByteString -> (CString -> IO a) -> IO a
--- LIQUID -- useAsCString (PS fp o l) action = do
--- LIQUID --  allocaBytes (l+1) $ \buf ->
--- LIQUID --    withForeignPtr fp $ \p -> do
--- LIQUID --      memcpy buf (p `plusPtr` o) (fromIntegral l)
--- LIQUID --      pokeByteOff buf l (0::Word8)
--- LIQUID --      action (castPtr buf)
--- LIQUID -- 
--- LIQUID -- -- | /O(n) construction/ Use a @ByteString@ with a function requiring a @CStringLen@.
--- LIQUID -- -- As for @useAsCString@ this function makes a copy of the original @ByteString@.
--- LIQUID -- useAsCStringLen :: ByteString -> (CStringLen -> IO a) -> IO a
--- LIQUID -- useAsCStringLen p@(PS _ _ l) f = useAsCString p $ \cstr -> f (cstr,l)
--- LIQUID -- 
--- LIQUID -- ------------------------------------------------------------------------
--- LIQUID -- 
--- LIQUID -- -- | /O(n)./ Construct a new @ByteString@ from a @CString@. The
--- LIQUID -- -- resulting @ByteString@ is an immutable copy of the original
--- LIQUID -- -- @CString@, and is managed on the Haskell heap. The original
--- LIQUID -- -- @CString@ must be null terminated.
--- LIQUID -- packCString :: CString -> IO ByteString
--- LIQUID -- packCString cstr = do
--- LIQUID --     len <- c_strlen cstr
--- LIQUID --     packCStringLen (cstr, fromIntegral len)
--- LIQUID -- 
--- LIQUID -- -- | /O(n)./ Construct a new @ByteString@ from a @CStringLen@. The
--- LIQUID -- -- resulting @ByteString@ is an immutable copy of the original @CStringLen@.
--- LIQUID -- -- The @ByteString@ is a normal Haskell value and will be managed on the
--- LIQUID -- -- Haskell heap.
--- LIQUID -- packCStringLen :: CStringLen -> IO ByteString
--- LIQUID -- packCStringLen (cstr, len) = create len $ \p ->
--- LIQUID --     memcpy p (castPtr cstr) (fromIntegral len)
--- LIQUID -- 
--- LIQUID -- ------------------------------------------------------------------------
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ Make a copy of the 'ByteString' with its own storage. 
--- LIQUID -- -- This is mainly useful to allow the rest of the data pointed
--- LIQUID -- -- to by the 'ByteString' to be garbage collected, for example
--- LIQUID -- -- if a large string has been read in, and only a small part of it 
--- LIQUID -- -- is needed in the rest of the program.
--- LIQUID -- -- 
--- LIQUID -- copy :: ByteString -> ByteString
--- LIQUID -- copy (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
--- LIQUID --     memcpy p (f `plusPtr` s) (fromIntegral l)
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- line IO
--- LIQUID -- 
--- LIQUID -- -- | Read a line from stdin.
--- LIQUID -- getLine :: IO ByteString
--- LIQUID -- getLine = hGetLine stdin
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- -- | Lazily construct a list of lines of ByteStrings. This will be much
--- LIQUID -- -- better on memory consumption than using 'hGetContents >>= lines'
--- LIQUID -- -- If you're considering this, a better choice might be to use
--- LIQUID -- -- Data.ByteString.Lazy
--- LIQUID -- hGetLines :: Handle -> IO [ByteString]
--- LIQUID -- hGetLines h = go
--- LIQUID --     where
--- LIQUID --         go = unsafeInterleaveIO $ do
--- LIQUID --                 e <- hIsEOF h
--- LIQUID --                 if e
--- LIQUID --                   then return []
--- LIQUID --                   else do
--- LIQUID --                 x  <- hGetLine h
--- LIQUID --                 xs <- go
--- LIQUID --                 return (x:xs)
--- LIQUID -- -}
--- LIQUID -- 
--- LIQUID -- -- | Read a line from a handle
--- LIQUID -- 
--- LIQUID -- hGetLine :: Handle -> IO ByteString
--- LIQUID -- #if !defined(__GLASGOW_HASKELL__)
--- LIQUID -- hGetLine h = System.IO.hGetLine h >>= return . pack . P.map c2w
--- LIQUID -- #else
--- LIQUID -- hGetLine h = wantReadableHandleLIQUID "Data.ByteString.hGetLine" h $ \ handle_ -> do
--- LIQUID --     case haBufferMode handle_ of
--- LIQUID --        NoBuffering -> error "no buffering"
--- LIQUID --        _other      -> hGetLineBuffered handle_
--- LIQUID -- 
--- LIQUID --  where
--- LIQUID --     hGetLineBuffered handle_ = do
--- LIQUID --         let ref = haCharBuffer handle_
--- LIQUID --         buf <- readIORef ref
--- LIQUID --         hGetLineBufferedLoop handle_ ref buf 0 []
--- LIQUID -- 
--- LIQUID --     hGetLineBufferedLoop handle_ ref
--- LIQUID --             buf@Buffer{ bufL=r, bufR=w, bufRaw=raw } len xss =
--- LIQUID --         len `seq` do
--- LIQUID --         off <- findEOL r w raw
--- LIQUID --         let new_len = len + off - r
--- LIQUID --         xs <- mkPS raw r off
--- LIQUID -- 
--- LIQUID --       -- if eol == True, then off is the offset of the '\n'
--- LIQUID --       -- otherwise off == w and the buffer is now empty.
--- LIQUID --         if off /= w
--- LIQUID --             then do if (w == off + 1)
--- LIQUID --                             then writeIORef ref buf{ bufL=0, bufR=0 }
--- LIQUID --                             else writeIORef ref buf{ bufL = off + 1 }
--- LIQUID --                     mkBigPS new_len (xs:xss)
--- LIQUID --             else do
--- LIQUID --                  maybe_buf <- maybeFillReadBuffer ({- LIQUID COMPAT: haFD -} handle_) True ({- LIQUID COMPAT: haIsStream -} handle_)
--- LIQUID --                                     buf{ bufR=0, bufL=0 }
--- LIQUID --                  case maybe_buf of
--- LIQUID --                     -- Nothing indicates we caught an EOF, and we may have a
--- LIQUID --                     -- partial line to return.
--- LIQUID --                     Nothing -> do
--- LIQUID --                          writeIORef ref buf{ bufL=0, bufR=0 }
--- LIQUID --                          if new_len > 0
--- LIQUID --                             then mkBigPS new_len (xs:xss)
--- LIQUID --                             else error "LIQUIDCOMPAT" -- ioe_EOF
--- LIQUID --                     Just new_buf ->
--- LIQUID --                          hGetLineBufferedLoop handle_ ref new_buf new_len (xs:xss)
--- LIQUID -- 
--- LIQUID --     -- find the end-of-line character, if there is one
--- LIQUID --     findEOL r w raw
--- LIQUID --         | r == w = return w
--- LIQUID --         | otherwise =  do
--- LIQUID --             (c,r') <- readCharFromBuffer raw r
--- LIQUID --             if c == '\n'
--- LIQUID --                 then return r -- NB. not r': don't include the '\n'
--- LIQUID --                 else findEOL r' w raw
--- LIQUID -- 
--- LIQUID --     -- LIQUID COMPAT
--- LIQUID --     maybeFillReadBuffer fd is_line is_stream buf = return Nothing
--- LIQUID --     -- maybeFillReadBuffer fd is_line is_stream buf = catch
--- LIQUID --     --     (do buf' <- fillReadBuffer fd is_line is_stream buf
--- LIQUID --     --         return (Just buf'))
--- LIQUID --     --     (\e -> if isEOFError e then return Nothing else ioError e)
--- LIQUID -- 
--- LIQUID -- -- TODO, rewrite to use normal memcpy
--- LIQUID -- mkPS :: RawBuffer Char -> Int -> Int -> IO ByteString
--- LIQUID -- mkPS buf start end =
--- LIQUID --     let len = end - start
--- LIQUID --     in create len $ \p -> do
--- LIQUID --         memcpy_ptr_baoff p buf (fromIntegral start) ({- LIQUID fromIntegral-} intCSize len)
--- LIQUID --         return ()
--- LIQUID -- 
--- LIQUID -- 
--- LIQUID -- 
--- LIQUID -- mkBigPS :: Int -> [ByteString] -> IO ByteString
--- LIQUID -- mkBigPS _ [ps] = return ps
--- LIQUID -- mkBigPS _ pss = return $! concat (P.reverse pss)
--- LIQUID -- 
--- LIQUID -- #endif
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
--- LIQUID -- -- Block IO
--- LIQUID -- 
--- LIQUID -- -- | Outputs a 'ByteString' to the specified 'Handle'.
--- LIQUID -- hPut :: Handle -> ByteString -> IO ()
--- LIQUID -- hPut _ (PS _  _ 0) = return ()
--- LIQUID -- hPut h (PS ps s l) = withForeignPtr ps $ \p-> hPutBuf h (p `plusPtr` s) l
--- LIQUID -- 
--- LIQUID -- -- | A synonym for @hPut@, for compatibility 
--- LIQUID -- hPutStr :: Handle -> ByteString -> IO ()
--- LIQUID -- hPutStr = hPut
--- LIQUID -- 
--- LIQUID -- -- | Write a ByteString to a handle, appending a newline byte
--- LIQUID -- hPutStrLn :: Handle -> ByteString -> IO ()
--- LIQUID -- hPutStrLn h ps
--- LIQUID --     | length ps < 1024 = hPut h (ps `snoc` 0x0a)
--- LIQUID --     | otherwise        = hPut h ps >> hPut h (singleton (0x0a)) -- don't copy
--- LIQUID -- 
--- LIQUID -- -- | Write a ByteString to stdout
--- LIQUID -- putStr :: ByteString -> IO ()
--- LIQUID -- putStr = hPut stdout
--- LIQUID -- 
--- LIQUID -- -- | Write a ByteString to stdout, appending a newline byte
--- LIQUID -- putStrLn :: ByteString -> IO ()
--- LIQUID -- putStrLn = hPutStrLn stdout
--- LIQUID -- 
--- LIQUID -- -- | Read a 'ByteString' directly from the specified 'Handle'.  This
--- LIQUID -- -- is far more efficient than reading the characters into a 'String'
--- LIQUID -- -- and then using 'pack'.
--- LIQUID -- hGet :: Handle -> Int -> IO ByteString
--- LIQUID -- hGet _ 0 = return empty
--- LIQUID -- hGet h i = createAndTrim i $ \p -> hGetBuf h p i
--- LIQUID -- 
--- LIQUID -- -- | hGetNonBlocking is identical to 'hGet', except that it will never block
--- LIQUID -- -- waiting for data to become available, instead it returns only whatever data
--- LIQUID -- -- is available.
--- LIQUID -- hGetNonBlocking :: Handle -> Int -> IO ByteString
--- LIQUID -- #if defined(__GLASGOW_HASKELL__)
--- LIQUID -- hGetNonBlocking _ 0 = return empty
--- LIQUID -- hGetNonBlocking h i = createAndTrim i $ \p -> hGetBufNonBlocking h p i
--- LIQUID -- #else
--- LIQUID -- hGetNonBlocking = hGet
--- LIQUID -- #endif
--- LIQUID -- 
--- LIQUID -- -- | Read entire handle contents into a 'ByteString'.
--- LIQUID -- -- This function reads chunks at a time, doubling the chunksize on each
--- LIQUID -- -- read. The final buffer is then realloced to the appropriate size. For
--- LIQUID -- -- files > half of available memory, this may lead to memory exhaustion.
--- LIQUID -- -- Consider using 'readFile' in this case.
--- LIQUID -- --
--- LIQUID -- -- As with 'hGet', the string representation in the file is assumed to
--- LIQUID -- -- be ISO-8859-1.
--- LIQUID -- --
--- LIQUID -- hGetContents :: Handle -> IO ByteString
--- LIQUID -- hGetContents h = do
--- LIQUID --     let start_size = 1024
--- LIQUID --     p <- mallocBytes start_size
--- LIQUID --     i <- hGetBuf h p start_size
--- LIQUID --     if i < start_size
--- LIQUID --         then do p' <- reallocBytes p i
--- LIQUID --                 fp <- newForeignPtr finalizerFree p'
--- LIQUID --                 return $! PS fp 0 i
--- LIQUID --         else f p start_size
--- LIQUID --     where
--- LIQUID --         f p s = do
--- LIQUID --             let s' = 2 * s
--- LIQUID --             p' <- reallocBytes p s'
--- LIQUID --             i  <- hGetBuf h (p' `plusPtr` s) s
--- LIQUID --             if i < s
--- LIQUID --                 then do let i' = s + i
--- LIQUID --                         p'' <- reallocBytes p' i'
--- LIQUID --                         fp  <- newForeignPtr finalizerFree p''
--- LIQUID --                         return $! PS fp 0 i'
--- LIQUID --                 else f p' s'
--- LIQUID -- 
--- LIQUID -- -- | getContents. Equivalent to hGetContents stdin
--- LIQUID -- getContents :: IO ByteString
--- LIQUID -- getContents = hGetContents stdin
--- LIQUID -- 
--- LIQUID -- -- | The interact function takes a function of type @ByteString -> ByteString@
--- LIQUID -- -- as its argument. The entire input from the standard input device is passed
--- LIQUID -- -- to this function as its argument, and the resulting string is output on the
--- LIQUID -- -- standard output device. It's great for writing one line programs!
--- LIQUID -- interact :: (ByteString -> ByteString) -> IO ()
--- LIQUID -- interact transformer = putStr . transformer =<< getContents
--- LIQUID -- 
--- LIQUID -- -- | Read an entire file strictly into a 'ByteString'.  This is far more
--- LIQUID -- -- efficient than reading the characters into a 'String' and then using
--- LIQUID -- -- 'pack'.  It also may be more efficient than opening the file and
--- LIQUID -- -- reading it using hGet. Files are read using 'binary mode' on Windows,
--- LIQUID -- -- for 'text mode' use the Char8 version of this function.
--- LIQUID -- readFile :: FilePath -> IO ByteString
--- LIQUID -- readFile f = bracket (openBinaryFile f ReadMode) hClose
--- LIQUID --     (\h -> hFileSize h >>= hGet h . fromIntegral)
--- LIQUID -- 
--- LIQUID -- -- | Write a 'ByteString' to a file.
--- LIQUID -- writeFile :: FilePath -> ByteString -> IO ()
--- LIQUID -- writeFile f txt = bracket (openBinaryFile f WriteMode) hClose
--- LIQUID --     (\h -> hPut h txt)
--- LIQUID -- 
--- LIQUID -- -- | Append a 'ByteString' to a file.
--- LIQUID -- appendFile :: FilePath -> ByteString -> IO ()
--- LIQUID -- appendFile f txt = bracket (openBinaryFile f AppendMode) hClose
--- LIQUID --     (\h -> hPut h txt)
--- LIQUID -- 
--- LIQUID -- {-
--- LIQUID -- --
--- LIQUID -- -- Disable until we can move it into a portable .hsc file
--- LIQUID -- --
--- LIQUID -- 
--- LIQUID -- -- | Like readFile, this reads an entire file directly into a
--- LIQUID -- -- 'ByteString', but it is even more efficient.  It involves directly
--- LIQUID -- -- mapping the file to memory.  This has the advantage that the contents
--- LIQUID -- -- of the file never need to be copied.  Also, under memory pressure the
--- LIQUID -- -- page may simply be discarded, while in the case of readFile it would
--- LIQUID -- -- need to be written to swap.  If you read many small files, mmapFile
--- LIQUID -- -- will be less memory-efficient than readFile, since each mmapFile
--- LIQUID -- -- takes up a separate page of memory.  Also, you can run into bus
--- LIQUID -- -- errors if the file is modified.  As with 'readFile', the string
--- LIQUID -- -- representation in the file is assumed to be ISO-8859-1.
--- LIQUID -- --
--- LIQUID -- -- On systems without mmap, this is the same as a readFile.
--- LIQUID -- --
--- LIQUID -- mmapFile :: FilePath -> IO ByteString
--- LIQUID -- mmapFile f = mmap f >>= \(fp,l) -> return $! PS fp 0 l
--- LIQUID -- 
--- LIQUID -- mmap :: FilePath -> IO (ForeignPtr Word8, Int)
--- LIQUID -- mmap f = do
--- LIQUID --     h <- openBinaryFile f ReadMode
--- LIQUID --     l <- fromIntegral `fmap` hFileSize h
--- LIQUID --     -- Don't bother mmaping small files because each mmapped file takes up
--- LIQUID --     -- at least one full VM block.
--- LIQUID --     if l < mmap_limit
--- LIQUID --        then do thefp <- mallocByteString l
--- LIQUID --                withForeignPtr thefp $ \p-> hGetBuf h p l
--- LIQUID --                hClose h
--- LIQUID --                return (thefp, l)
--- LIQUID --        else do
--- LIQUID --                -- unix only :(
--- LIQUID --                fd <- fromIntegral `fmap` handleToFd h
--- LIQUID --                p  <- my_mmap l fd
--- LIQUID --                fp <- if p == nullPtr
--- LIQUID --                      then do thefp <- mallocByteString l
--- LIQUID --                              withForeignPtr thefp $ \p' -> hGetBuf h p' l
--- LIQUID --                              return thefp
--- LIQUID --                      else do
--- LIQUID --                           -- The munmap leads to crashes on OpenBSD.
--- LIQUID --                           -- maybe there's a use after unmap in there somewhere?
--- LIQUID --                           -- Bulat suggests adding the hClose to the
--- LIQUID --                           -- finalizer, excellent idea.
--- LIQUID -- #if !defined(__OpenBSD__)
--- LIQUID --                              let unmap = c_munmap p l >> return ()
--- LIQUID -- #else
--- LIQUID --                              let unmap = return ()
--- LIQUID -- #endif
--- LIQUID --                              fp <- newForeignPtr p unmap
--- LIQUID --                              return fp
--- LIQUID --                c_close fd
--- LIQUID --                hClose h
--- LIQUID --                return (fp, l)
--- LIQUID --     where mmap_limit = 16*1024
--- LIQUID -- -}
--- LIQUID -- 
+
+-- ---------------------------------------------------------------------
+-- ** Ordered 'ByteString's
+
+-- | /O(n)/ Sort a ByteString efficiently, using counting sort.
+-- LIQUID FAIL: requires invariant that SUM of cells in intermediate array
+-- equals total len of outer array. WHOA. Due to Ptr issue, this gets
+-- "proved" safe. Oh boy. Still, can prove that output size = input size.
+
+sortCanary :: Int -> Int
+sortCanary x = liquidAssert (0 == 1) x
+
+sort :: ByteString -> ByteString
+sort (PS input s l) = unsafeCreate l $ \p -> allocaArray 256 $ \arr -> do
+
+    memset (castPtr arr) 0 (256 * fromIntegral (sizeOf (undefined :: CSize)))
+    withForeignPtr input (\x -> countOccurrences arr (x `plusPtr` s) l)
+
+    let STRICT2(go)
+        go 256 _   = return ()
+        go i   ptr = do n <- peekElemOff arr i
+                        when (n /= 0) $ memset ptr (fromIntegral i) n >> return ()
+                        go (i + 1) (ptr `plusPtr` (fromIntegral n))
+    go 0 p
+  where
+    -- | Count the number of occurrences of each byte.
+    -- Used by 'sort'
+    --
+    countOccurrences :: Ptr CSize -> Ptr Word8 -> Int -> IO ()
+    STRICT3(countOccurrences)
+    countOccurrences counts str len = go 0
+     where
+        STRICT1(go)
+        go i | i == len    = return ()
+             | otherwise = do k <- fromIntegral `fmap` peekElemOff str i
+                              x <- peekElemOff counts k
+                              pokeElemOff counts k (x + 1)
+                              go (i + 1)
+
+{-
+sort :: ByteString -> ByteString
+sort (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f -> do
+        memcpy p (f `plusPtr` s) l
+        c_qsort p l -- inplace
+-}
+
+-- The 'sortBy' function is the non-overloaded version of 'sort'.
+--
+-- Try some linear sorts: radix, counting
+-- Or mergesort.
+--
+-- sortBy :: (Word8 -> Word8 -> Ordering) -> ByteString -> ByteString
+-- sortBy f ps = undefined
+
+-- ---------------------------------------------------------------------
+-- Low level constructors
+
+-- | /O(n) construction/ Use a @ByteString@ with a function requiring a
+-- null-terminated @CString@.  The @CString@ will be freed
+-- automatically. This is a memcpy(3).
+{-@ assume Foreign.Marshal.Alloc.allocaBytes :: n:Int -> ((PtrN a n) -> IO b) -> IO b  @-}
+{-@ useAsCString :: p:ByteString -> ({v:CString | (bLength p) + 1 = (plen v)} -> IO a) -> IO a @-}
+useAsCString :: ByteString -> (CString -> IO a) -> IO a
+useAsCString (PS fp o l) action = do
+ allocaBytes (l+1) $ \buf ->
+   withForeignPtr fp $ \p -> do
+     memcpy buf (p `plusPtr` o) (fromIntegral l)
+     pokeByteOff buf l (0::Word8)
+     action (castPtr buf)
+
+-- | /O(n) construction/ Use a @ByteString@ with a function requiring a @CStringLen@.
+-- As for @useAsCString@ this function makes a copy of the original @ByteString@.
+{-@ useAsCStringLen :: b:ByteString -> ({v:CStringLen | (cStringLen v) = (bLength b)} -> IO a) -> IO a @-}
+useAsCStringLen :: ByteString -> (CStringLen -> IO a) -> IO a
+useAsCStringLen p@(PS _ _ l) f = useAsCString p $ \cstr -> f (cstr,l)
+
+------------------------------------------------------------------------
+
+-- | /O(n)./ Construct a new @ByteString@ from a @CString@. The
+-- resulting @ByteString@ is an immutable copy of the original
+-- @CString@, and is managed on the Haskell heap. The original
+-- @CString@ must be null terminated.
+
+{-@ packCString :: c:CString -> IO {v:ByteString | (bLength v) = (plen c)} @-}
+packCString :: CString -> IO ByteString
+packCString cstr = do
+    len <- c_strlen cstr
+    packCStringLen (cstr, fromIntegral len)
+
+-- | /O(n)./ Construct a new @ByteString@ from a @CStringLen@. The
+-- resulting @ByteString@ is an immutable copy of the original @CStringLen@.
+-- The @ByteString@ is a normal Haskell value and will be managed on the
+-- Haskell heap.
+{-@ packCStringLen :: c:CStringLen -> (IO {v:ByteString | (bLength v) = (cStringLen c)}) @-}
+packCStringLen :: CStringLen -> IO ByteString
+packCStringLen (cstr, len) = create len $ \p ->
+    memcpy p (castPtr cstr) (fromIntegral len)
+
+------------------------------------------------------------------------
+
+-- | /O(n)/ Make a copy of the 'ByteString' with its own storage. 
+-- This is mainly useful to allow the rest of the data pointed
+-- to by the 'ByteString' to be garbage collected, for example
+-- if a large string has been read in, and only a small part of it 
+-- is needed in the rest of the program.
+-- 
+{-@ copy :: b:ByteString -> (ByteStringSZ b) @-}
+copy :: ByteString -> ByteString
+copy (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
+    memcpy p (f `plusPtr` s) (fromIntegral l)
+
+-- ---------------------------------------------------------------------
+-- line IO
+
+-- | Read a line from stdin.
+getLine :: IO ByteString
+getLine = hGetLine stdin
+
+{-
+-- | Lazily construct a list of lines of ByteStrings. This will be much
+-- better on memory consumption than using 'hGetContents >>= lines'
+-- If you're considering this, a better choice might be to use
+-- Data.ByteString.Lazy
+hGetLines :: Handle -> IO [ByteString]
+hGetLines h = go
+    where
+        go = unsafeInterleaveIO $ do
+                e <- hIsEOF h
+                if e
+                  then return []
+                  else do
+                x  <- hGetLine h
+                xs <- go
+                return (x:xs)
+-}
+
+-- | Read a line from a handle
+
+hGetLine :: Handle -> IO ByteString
+#if !defined(__GLASGOW_HASKELL__)
+hGetLine h = System.IO.hGetLine h >>= return . pack . P.map c2w
+#else
+hGetLine h = wantReadableHandleLIQUID "Data.ByteString.hGetLine" h $ \ handle_ -> do
+    case haBufferMode handle_ of
+       NoBuffering -> error "no buffering"
+       _other      -> hGetLineBuffered handle_
+
+ where
+    hGetLineBuffered handle_ = do
+        let ref = haCharBuffer handle_
+        buf <- readIORef ref
+        hGetLineBufferedLoop handle_ ref buf 0 []
+
+    hGetLineBufferedLoop handle_ ref
+            buf@Buffer{ bufL=r, bufR=w, bufRaw=raw } len xss =
+        len `seq` do
+        off <- findEOL r w raw
+        let new_len = len + off - r
+        xs <- mkPS raw r off
+
+      -- if eol == True, then off is the offset of the '\n'
+      -- otherwise off == w and the buffer is now empty.
+        if off /= w
+            then do if (w == off + 1)
+                            then writeIORef ref buf{ bufL=0, bufR=0 }
+                            else writeIORef ref buf{ bufL = off + 1 }
+                    mkBigPS new_len (xs:xss)
+            else do
+                 maybe_buf <- maybeFillReadBuffer ({- LIQUID COMPAT: haFD -} handle_) True ({- LIQUID COMPAT: haIsStream -} handle_)
+                                    buf{ bufR=0, bufL=0 }
+                 case maybe_buf of
+                    -- Nothing indicates we caught an EOF, and we may have a
+                    -- partial line to return.
+                    Nothing -> do
+                         writeIORef ref buf{ bufL=0, bufR=0 }
+                         if new_len > 0
+                            then mkBigPS new_len (xs:xss)
+                            else error "LIQUIDCOMPAT" -- ioe_EOF
+                    Just new_buf ->
+                         hGetLineBufferedLoop handle_ ref new_buf new_len (xs:xss)
+
+    -- find the end-of-line character, if there is one
+    findEOL r w raw
+        | r == w = return w
+        | otherwise =  do
+            (c,r') <- readCharFromBuffer raw r
+            if c == '\n'
+                then return r -- NB. not r': don't include the '\n'
+                else findEOL r' w raw
+
+    -- LIQUID COMPAT
+    maybeFillReadBuffer fd is_line is_stream buf = return Nothing
+    -- maybeFillReadBuffer fd is_line is_stream buf = catch
+    --     (do buf' <- fillReadBuffer fd is_line is_stream buf
+    --         return (Just buf'))
+    --     (\e -> if isEOFError e then return Nothing else ioError e)
+
+-- TODO, rewrite to use normal memcpy
+mkPS :: RawBuffer Char -> Int -> Int -> IO ByteString
+mkPS buf start end =
+    let len = end - start
+    in create len $ \p -> do
+        memcpy_ptr_baoff p buf (fromIntegral start) ({- LIQUID fromIntegral-} intCSize len)
+        return ()
+
+
+
+mkBigPS :: Int -> [ByteString] -> IO ByteString
+mkBigPS _ [ps] = return ps
+mkBigPS _ pss = return $! concat (P.reverse pss)
+
+#endif
+
+-- ---------------------------------------------------------------------
+-- Block IO
+
+-- | Outputs a 'ByteString' to the specified 'Handle'.
+hPut :: Handle -> ByteString -> IO ()
+hPut _ (PS _  _ 0) = return ()
+hPut h (PS ps s l) = withForeignPtr ps $ \p-> hPutBuf h (p `plusPtr` s) l
+
+-- | A synonym for @hPut@, for compatibility 
+hPutStr :: Handle -> ByteString -> IO ()
+hPutStr = hPut
+
+-- | Write a ByteString to a handle, appending a newline byte
+hPutStrLn :: Handle -> ByteString -> IO ()
+hPutStrLn h ps
+    | length ps < 1024 = hPut h (ps `snoc` 0x0a)
+    | otherwise        = hPut h ps >> hPut h (singleton (0x0a)) -- don't copy
+
+-- | Write a ByteString to stdout
+putStr :: ByteString -> IO ()
+putStr = hPut stdout
+
+-- | Write a ByteString to stdout, appending a newline byte
+putStrLn :: ByteString -> IO ()
+putStrLn = hPutStrLn stdout
+
+-- | Read a 'ByteString' directly from the specified 'Handle'.  This
+-- is far more efficient than reading the characters into a 'String'
+-- and then using 'pack'.
+{-@ assume GHC.IO.Handle.Text.hGetBuf :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
+{-@ hGet :: Handle -> n:Nat -> IO {v:ByteString | (bLength v) <= n} @-}
+hGet :: Handle -> Int -> IO ByteString
+hGet _ 0 = return empty
+hGet h i = createAndTrim i $ \p -> hGetBuf h p i
+
+-- | hGetNonBlocking is identical to 'hGet', except that it will never block
+-- waiting for data to become available, instead it returns only whatever data
+-- is available.
+
+
+{-@ assume GHC.IO.Handle.Text.hGetBufNonBlocking :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
+{-@ hGetNonBlocking :: Handle -> n:Nat -> IO {v:ByteString | (bLength v) <= n} @-}
+
+
+hGetNonBlocking :: Handle -> Int -> IO ByteString
+#if defined(__GLASGOW_HASKELL__)
+hGetNonBlocking _ 0 = return empty
+hGetNonBlocking h i = createAndTrim i $ \p -> hGetBufNonBlocking h p i
+#else
+hGetNonBlocking = hGet
+#endif
+
+-- | Read entire handle contents into a 'ByteString'.
+-- This function reads chunks at a time, doubling the chunksize on each
+-- read. The final buffer is then realloced to the appropriate size. For
+-- files > half of available memory, this may lead to memory exhaustion.
+-- Consider using 'readFile' in this case.
+--
+-- As with 'hGet', the string representation in the file is assumed to
+-- be ISO-8859-1.
+
+{-@ assume Foreign.Marshal.Alloc.reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
+{- assume GHC.IO.Handle.Text.hGetBuf :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
+hGetContents :: Handle -> IO ByteString
+hGetContents h = do
+    let start_size = 1024
+    p <- mallocBytes start_size
+    i <- hGetBuf h p start_size
+    if i < start_size
+        then do p' <- reallocBytes p i
+                fp <- newForeignPtr finalizerFree p'
+                return $! PS fp 0 i
+        else f p start_size
+    where
+        f p s = do
+            let s' = s + s -- 2 * s -- LIQUID MULTIPLY
+            p' <- reallocBytes p s'
+            i  <- hGetBuf h (p' `plusPtr` s) s
+            if i < s
+                then do let i' = s + i
+                        p'' <- reallocBytes p' i'
+                        fp  <- newForeignPtr finalizerFree p''
+                        return $! PS fp 0 i'
+                else f p' s'
+
+-- | getContents. Equivalent to hGetContents stdin
+getContents :: IO ByteString
+getContents = hGetContents stdin
+
+-- | The interact function takes a function of type @ByteString -> ByteString@
+-- as its argument. The entire input from the standard input device is passed
+-- to this function as its argument, and the resulting string is output on the
+-- standard output device. It's great for writing one line programs!
+interact :: (ByteString -> ByteString) -> IO ()
+interact transformer = putStr . transformer =<< getContents
+
+-- | Read an entire file strictly into a 'ByteString'.  This is far more
+-- efficient than reading the characters into a 'String' and then using
+-- 'pack'.  It also may be more efficient than opening the file and
+-- reading it using hGet. Files are read using 'binary mode' on Windows,
+-- for 'text mode' use the Char8 version of this function.
+readFile :: FilePath -> IO ByteString
+readFile f = bracket (openBinaryFile f ReadMode) hClose
+    (\h -> hFileSize h >>= hGet h . fromIntegral)
+
+-- | Write a 'ByteString' to a file.
+writeFile :: FilePath -> ByteString -> IO ()
+writeFile f txt = bracket (openBinaryFile f WriteMode) hClose
+    (\h -> hPut h txt)
+
+-- | Append a 'ByteString' to a file.
+appendFile :: FilePath -> ByteString -> IO ()
+appendFile f txt = bracket (openBinaryFile f AppendMode) hClose
+    (\h -> hPut h txt)
+
+{-
+--
+-- Disable until we can move it into a portable .hsc file
+--
+
+-- | Like readFile, this reads an entire file directly into a
+-- 'ByteString', but it is even more efficient.  It involves directly
+-- mapping the file to memory.  This has the advantage that the contents
+-- of the file never need to be copied.  Also, under memory pressure the
+-- page may simply be discarded, while in the case of readFile it would
+-- need to be written to swap.  If you read many small files, mmapFile
+-- will be less memory-efficient than readFile, since each mmapFile
+-- takes up a separate page of memory.  Also, you can run into bus
+-- errors if the file is modified.  As with 'readFile', the string
+-- representation in the file is assumed to be ISO-8859-1.
+--
+-- On systems without mmap, this is the same as a readFile.
+--
+mmapFile :: FilePath -> IO ByteString
+mmapFile f = mmap f >>= \(fp,l) -> return $! PS fp 0 l
+
+mmap :: FilePath -> IO (ForeignPtr Word8, Int)
+mmap f = do
+    h <- openBinaryFile f ReadMode
+    l <- fromIntegral `fmap` hFileSize h
+    -- Don't bother mmaping small files because each mmapped file takes up
+    -- at least one full VM block.
+    if l < mmap_limit
+       then do thefp <- mallocByteString l
+               withForeignPtr thefp $ \p-> hGetBuf h p l
+               hClose h
+               return (thefp, l)
+       else do
+               -- unix only :(
+               fd <- fromIntegral `fmap` handleToFd h
+               p  <- my_mmap l fd
+               fp <- if p == nullPtr
+                     then do thefp <- mallocByteString l
+                             withForeignPtr thefp $ \p' -> hGetBuf h p' l
+                             return thefp
+                     else do
+                          -- The munmap leads to crashes on OpenBSD.
+                          -- maybe there's a use after unmap in there somewhere?
+                          -- Bulat suggests adding the hClose to the
+                          -- finalizer, excellent idea.
+#if !defined(__OpenBSD__)
+                             let unmap = c_munmap p l >> return ()
+#else
+                             let unmap = return ()
+#endif
+                             fp <- newForeignPtr p unmap
+                             return fp
+               c_close fd
+               hClose h
+               return (fp, l)
+    where mmap_limit = 16*1024
+-}
+
 -- ---------------------------------------------------------------------
 -- Internal utilities
 

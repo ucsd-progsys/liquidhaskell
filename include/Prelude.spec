@@ -38,4 +38,6 @@ type BNat N  = {v: Nat           | v <= N }
 predicate Max V X Y = ((X > Y) ? (V = X) : (V = Y))
 predicate Min V X Y = ((X < Y) ? (V = X) : (V = Y))
 
+Foreign.Marshal.Array.allocaArray :: Foreign.Storable.Storable a => n:Int -> ((PtrN a n) -> IO b) -> IO b
+-- Foreign.Marshal.Alloc.allocaBytes :: n:Int -> ((PtrN a n) -> IO b) -> IO b 
 

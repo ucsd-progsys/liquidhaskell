@@ -170,6 +170,9 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 -------------------------------------------------------------------------
 -- LiquidHaskell Specifications -----------------------------------------
 -------------------------------------------------------------------------
+{-@ measure cStringLen :: Foreign.C.String.CStringLen -> Int 
+    cStringLen (c, n) = n
+  @-}
 
 {-@ measure bLength     :: Data.ByteString.Internal.ByteString -> Int 
     bLength (Data.ByteString.Internal.PS p o l)  = l 
@@ -508,6 +511,8 @@ memchr p w s = c_memchr p (fromIntegral w) s
 
 -- LIQUID foreign import ccall unsafe "string.h memcmp" memcmp
 -- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
+
+{-@ memcmp :: p:(Ptr Word8) -> q:(Ptr Word8) -> {v:Foreign.C.Types.CSize | (v <= (plen p) && v <= (plen q)) } -> IO Foreign.C.Types.CInt @-}
 memcmp :: Ptr Word8 -> Ptr Word8 -> CSize -> IO CInt
 memcmp = error "LIQUIDFOREIGN" 
 
