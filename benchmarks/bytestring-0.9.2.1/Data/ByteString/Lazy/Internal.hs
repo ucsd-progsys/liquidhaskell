@@ -88,12 +88,19 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
 {-@ invariant {v:LByteString   | (lbLength v)  >= 0} @-}
 {-@ invariant {v:[LByteString] | (lbLengths v) >= 0} @-}
 
+{-@ type LByteStringSplit B = {v:[LByteString] | ((lbLengths v) + (len v) - 1) = (lbLength B) }
+  @-}
+
+{-@ type LByteStringPair B = (LByteString, LByteString)<{\x1 x2 -> (lbLength x1) + (lbLength x2) = (lbLength B)}>
+  @-}
+
 {-@ predicate LBValid B N = ((N >= 0) && (N < (lbLength B))) @-}
 
 {-@ type LByteString     = {v:Data.ByteString.Lazy.Internal.ByteString | true} @-}
 {-@ type LByteStringN N  = {v:LByteString | (lbLength v) = N} @-}
 {-@ type LByteStringNE   = {v:LByteString | (lbLength v) > 0} @-}
 {-@ type LByteStringSZ B = {v:LByteString | (lbLength v) = (lbLength B)} @-}
+{-@ type LByteStringLE B = {v:LByteString | (lbLength v) <= (lbLength B)} @-}
 
 {-@ qualif LByteStringN(v:Data.ByteString.Lazy.Internal.ByteString, n:int): (lbLength v) = n @-}
 {-@ qualif LByteStringNE(v:Data.ByteString.Lazy.Internal.ByteString): (lbLength v) > 0 @-}
@@ -107,16 +114,49 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
                     b2:Data.ByteString.Lazy.Internal.ByteString):
        v = (lbLength b1) + (lbLength b2)
   @-}
+
 {-@ qualif LBLenAcc(v:int,
                     b:Data.ByteString.Lazy.Internal.ByteString,
                     n:int):
        v = (lbLength b) + n
   @-}
+
 {-@ qualif Chunk(v:Data.ByteString.Lazy.Internal.ByteString,
                  sb:Data.ByteString.Internal.ByteString,
                  lb:Data.ByteString.Lazy.Internal.ByteString):
        (lbLength v) = (bLength sb) + (lbLength lb)
   @-}
+
+--LIQUID for the myriad `comb` inner functions
+{-@ qualif LBComb(v:List Data.ByteString.Lazy.Internal.ByteString,
+                  acc:List Data.ByteString.Internal.ByteString,
+                  ss:List Data.ByteString.Internal.ByteString,
+                  cs:Data.ByteString.Lazy.Internal.ByteString):
+        ((lbLengths v) + (len v) - 1) = ((bLengths acc) + ((bLengths ss) + (len ss) - 1) + (lbLength cs))
+  @-}
+
+{-@ qualif LBGroup(v:List Data.ByteString.Lazy.Internal.ByteString,
+                   acc:List Data.ByteString.Internal.ByteString,
+                   ss:List Data.ByteString.Internal.ByteString,
+                   cs:Data.ByteString.Lazy.Internal.ByteString):
+        (lbLengths v) = ((bLengths acc) + (bLengths ss) + (lbLength cs))
+  @-}
+
+{-@ qualif LBLenIntersperse(v:Data.ByteString.Lazy.Internal.ByteString,
+                            sb:Data.ByteString.Internal.ByteString,
+                            lb:Data.ByteString.Lazy.Internal.ByteString):
+        (lbLength v) = ((bLength sb) * 2) + (lbLength lb)
+ @-}
+
+{-@ qualif BLenDouble(v:Data.ByteString.Internal.ByteString,
+                      b:Data.ByteString.Internal.ByteString):
+        (bLength v) = (bLength b) * 2
+ @-}
+
+{-@ qualif LBLenDouble(v:Data.ByteString.Lazy.Internal.ByteString,
+                       b:Data.ByteString.Lazy.Internal.ByteString):
+        (lbLength v) = (lbLength b) * 2
+ @-}
 
 ------------------------------------------------------------------------
 
@@ -200,13 +240,13 @@ foldlChunks f z = go z
 -- and need to share the cache with other programs.
 
 -- | Currently set to 32k, less the memory management overhead
-{-@ defaultChunkSize :: Nat @-}
+{-@ defaultChunkSize :: {v:Nat | v = 32752} @-}
 defaultChunkSize :: Int
 defaultChunkSize = {-LIUQID 32 * k -} 32768 - chunkOverhead
    where k = 1024
 
 -- | Currently set to 4k, less the memory management overhead
-{-@ smallChunkSize :: Nat @-}
+{-@ smallChunkSize :: {v:Nat | v = 4080} @-}
 smallChunkSize :: Int
 smallChunkSize = {-LIQUID 4 * k -} 4096 - chunkOverhead
    where k = 1024
