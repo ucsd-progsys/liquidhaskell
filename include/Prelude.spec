@@ -2,6 +2,7 @@ module spec Prelude where
 
 import GHC.Base
 import GHC.List
+import Data.Maybe
 
 assume GHC.Base..               :: forall< p :: xx:b -> c -> Prop
                                          , q :: yy:a -> b -> Prop>.
@@ -24,16 +25,17 @@ assume GHC.Real.fromIntegral    :: (Integral a, Num b) => x:a -> {v:b|v=x}
 
 
 
-measure isJust :: forall a. Maybe a -> Prop
-isJust (Just x)  = true
-isJust (Nothing) = false
-
-measure fromJust :: forall a. Maybe a -> a 
-fromJust (Just x) = x 
+-- measure isJust :: forall a. Maybe a -> Prop
+-- isJust (Just x)  = true
+-- isJust (Nothing) = false
+-- 
+-- measure fromJust :: forall a. Maybe a -> a 
+-- fromJust (Just x) = x 
 
 embed Integer  as int
 
 type GeInt N = {v: GHC.Types.Int | v >= N }
-
-type Nat     = {v: GHC.Types.Int | (v >= 0)}
+type LeInt N = {v: GHC.Types.Int | v <= N }
+type Nat     = {v: GHC.Types.Int | v >= 0 }
+type BNat N  = {v: Nat           | v <= N }    
 

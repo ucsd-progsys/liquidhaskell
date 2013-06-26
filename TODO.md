@@ -1,16 +1,9 @@
 TODO
 ====
 
-
-Failed 14 tests: ../benchmarks/esop2013-submission/Base.hs, ../benchmarks/esop2013-submission/Base0.hs, ../web/demos/KMeans.hs, ../web/demos/TalkingAboutSets.hs, ../web/demos/refinements101reax.hs, pos/GhcListSort.hs, pos/GhcSort3.hs, pos/ListMSort.hs, pos/fixme0.hs, pos/funref.hs, pos/maybe.hs, pos/pair0.hs, pos/rangeAdt.hs, pos/transTAG.hs
-
-
-
-
-
+* Qualified Import Issue: wtf is include/KMeansHelper.hs ? Fix module import issue
 
 * [jhala]  benchmarks: Data.Bytestring
-    ? Upgrade to GHC 7.6.1 (boxed tuple commenting out C issue)
     ? readsPrec
     ? big constants issue : _word64 34534523452134213524525 due to (deriving Typeable)
 
@@ -21,11 +14,8 @@ Failed 14 tests: ../benchmarks/esop2013-submission/Base.hs, ../benchmarks/esop20
     - reload
     - check all but specified function
 
-* deep-measures
-
 * have liquid-fixpoint sort checker RETURN ERROR (rather than errorstar-inside) so we can give nicer messages.
 
-* wtf is include/KMeansHelper.hs ? Fix module import issue
 
 * qualified names break spec imports -- tests/todo/qualifiedvector.hs 
 
@@ -40,34 +30,105 @@ Failed 14 tests: ../benchmarks/esop2013-submission/Base.hs, ../benchmarks/esop20
 * Move stuff into Types.hs
     - remove `toType` and  generalize `typeSort` to work for all RefTypables
 
-Deep Measures
-=============
+Bytestring
+==========
 
-measures over nested type constructors
+Ordered by dependency.
 
-tests/todo/deepmeas0.hs
+   148 Data/ByteString/Lazy/Internal.hs     [OK]
+   297 Data/ByteString/Unsafe.hs            [OK]
+   509 Data/ByteString/Internal.hs          [OK]
+   700 Data/ByteString/Fusion.hs            [OK]
+  1928 Data/ByteString.hs                   [**]
+  1322 Data/ByteString/Lazy.hs               
+   822 Data/ByteString/Lazy/Char8.hs
+  1012 Data/ByteString/Char8.hs
 
-    measure llElts :: [[a]] -> (Set a)
-    llElts ([])    = {v | (? Set_emp(v)) }
-    llElts (x:xs)  = {v | v = (Set_cup (listElts x) (llElts xs)) } 
+  6738 total
 
-1. Parse nested measure e.g. keys :: [(a, b)] -> (Set a) 
-2. Write fancy measure sigs (as above)  <--------- HEREHEREHEREHEREHERE
+Issues
+------
 
-    - This breaks the sort-checker nicely. how to fix ?
+Data.ByteString HEREHERE
 
-    A. intersection of different types -- add the ones that SURVIVE ?
-            
-            (:) :: a      -> [a]      -> [a]
-                /\ (a, b) -> [(a, b)] -> [(a, b)]
-                /\ [a]    -> [[a]]    -> [[a]]
+> "Duplicate Measure Definition" Gee thanks. Which!
 
-    OR
 
-    B. Conjoin all constructor definitions (DONE)
-       - Suppress checker
-       - Before adding binder to env, prune out malformed refinements 
-       - eg for "listElts x" where `x :: Int` or `x :: a` or such.
+Liquid-Fixpoint
+===============
+
+Z3 agnostic solver? sigh.
+
+Embed
+=====
+
+see 
+
+    tests/pos/ptr.hs
+    tests/pos/ptr2.hs
+
+run with 
+
+    liquid -i include/ -i benchmarks/bytestring-0.9.2.1/ tests/pos/ptr2.hs 
+
+GET THIS TO WORK WITHOUT THE "base" measure and realated theorem,
+but with raw pointer arithmetic. I.e. give plusPtr the right signature:
+  (v = base + off)
+Can do so now, by:
+
+  embed Ptr as int 
+
+but the problem is that then it throws off all qualifier definitions like
+ 
+  qualif EqPLen(v: ForeignPtr a, x: Ptr a): (fplen v) = (plen x)
+  qualif EqPLen(v: Ptr a, x: ForeignPtr a): (plen v) = (fplen x) 
+
+because there is no such thing as Ptr a by the time we get to Fixpoint. yuck.
+Meaning we have to rewrite the above to the rather lame:
+
+  qualif EqPLenPOLY2(v: a, x: b): (plen v) = (fplen x)           
+
+
+Module Import (see branch imports) 
+==================================
+
+See tests/pos/Mod2.hs [Which imports a measure from Mod1.hs]
+
+    [STOP] Get tests to run WITHOUT after deleting *redundant*
+
+    import qualified Mod1
+
+
+0. NO MONOLITHIC "bare".
+ 
+   >   When converting a SPEC, do so in its own context.
+
+1. When Parsing IMPORTED module, FULL QUALIFY all names 
+
+    a. write specs WITHOUT QUALIFICATION
+    b. Remember MODULE name when parsing spec
+    c. reJigger so DataCon/TyCon/Id get slapped with the module name (if not qualified)
+
+2. When Parsing TARGET module, REMEMBER all qualifications 
+
+        [Foo.Bar.Baz as F, ...]
+
+3. When GHC-Lookup-ing, use above table:
+
+    name of DataCon/TyCon/Id in file
+
+        x
+
+    name after FULL expansion (1)
+
+        Foo.Bar.Baz.x
+
+    name after qualification
+        
+        F.x
+
+    use F.x when doing GHC-lookup.
+
 
 Incremental Checking
 ====================
@@ -114,13 +175,13 @@ Basic Refinement Types
 Measures
 --------
 
-4. Lists I-Sets  ("" but with Sets as the measure)
-8. LambdaEval	<------------------------ HEREHERE
+[DONE] Lists I-Sets  ("" but with Sets as the measure)
+?. LambdaEval	
 
 Abstract Refinements
 --------------------
 
-9.  (esop) ParaPoly/Ty
+[DONE]  (esop) ParaPoly/Ty  <--------------- STOP 
 10. (esop) Pats Vec
 11. Niki DataBase
 12. Induction-Loop

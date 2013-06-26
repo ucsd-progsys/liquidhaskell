@@ -135,6 +135,8 @@ instance PPrint a => PPrint (Maybe a) where
 instance PPrint a => PPrint [a] where
   pprint = brackets . intersperse comma . map pprint
 
+
+
 instance (PPrint a, PPrint b) => PPrint (a,b) where
   pprint (x, y)  = (pprint x) <+> text ":" <+> (pprint y)
 
@@ -499,6 +501,7 @@ data DataDecl   = D { tycName   :: String                           -- ^ Type  C
                     , tycTyVars :: [String]                         -- ^ Tyvar Parameters
                     , tycPVars  :: [PVar BSort]                     -- ^ PVar  Parameters
                     , tycDCons  :: [(String, [(String, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]   
+                    , tycSrcPos :: !SourcePos                       -- ^ Source Position
                     }
      --              deriving (Show) 
 
@@ -733,6 +736,8 @@ mapBot f (RFun x t t' r)   = RFun x (mapBot f t) (mapBot f t') r
 mapBot f (RAppTy t t' r)   = RAppTy (mapBot f t) (mapBot f t') r
 mapBot f (RApp c ts rs r)  = f $ RApp c (mapBot f <$> ts) (mapBotRef f <$> rs) r
 mapBot f (RCls c ts)       = RCls c (mapBot f <$> ts)
+mapBot f (REx b t1 t2)     = REx b  (mapBot f t1) (mapBot f t2)
+mapBot f (RAllE b t1 t2)   = RAllE b  (mapBot f t1) (mapBot f t2)
 mapBot f t'                = f t' 
 mapBotRef _ (RMono s r)    = RMono s $ r
 mapBotRef f (RPoly s t)    = RPoly s $ mapBot f t
