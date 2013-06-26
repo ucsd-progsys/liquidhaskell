@@ -182,25 +182,25 @@ module Data.ByteString (
         getContents,            -- :: IO ByteString
         putStr,                 -- :: ByteString -> IO ()
         putStrLn,               -- :: ByteString -> IO ()
--- LIQUID        interact,               -- :: (ByteString -> ByteString) -> IO ()
--- LIQUID
--- LIQUID        -- ** Files
--- LIQUID        readFile,               -- :: FilePath -> IO ByteString
--- LIQUID        writeFile,              -- :: FilePath -> ByteString -> IO ()
--- LIQUID        appendFile,             -- :: FilePath -> ByteString -> IO ()
--- LIQUID--      mmapFile,               -- :: FilePath -> IO ByteString
--- LIQUID
--- LIQUID        -- ** I\/O with Handles
--- LIQUID        hGetLine,               -- :: Handle -> IO ByteString
--- LIQUID        hGetContents,           -- :: Handle -> IO ByteString
--- LIQUID        hGet,                   -- :: Handle -> Int -> IO ByteString
--- LIQUID        hGetNonBlocking,        -- :: Handle -> Int -> IO ByteString
--- LIQUID        hPut,                   -- :: Handle -> ByteString -> IO ()
--- LIQUID        hPutStr,                -- :: Handle -> ByteString -> IO ()
--- LIQUID        hPutStrLn,              -- :: Handle -> ByteString -> IO ()
--- LIQUID
--- LIQUID        -- undocumented deprecated things:
--- LIQUID        join                    -- :: ByteString -> [ByteString] -> ByteString
+        interact,               -- :: (ByteString -> ByteString) -> IO ()
+
+        -- ** Files
+        readFile,               -- :: FilePath -> IO ByteString
+        writeFile,              -- :: FilePath -> ByteString -> IO ()
+        appendFile,             -- :: FilePath -> ByteString -> IO ()
+--      mmapFile,               -- :: FilePath -> IO ByteString
+
+        -- ** I\/O with Handles
+        hGetLine,               -- :: Handle -> IO ByteString
+        hGetContents,           -- :: Handle -> IO ByteString
+        hGet,                   -- :: Handle -> Int -> IO ByteString
+        hGetNonBlocking,        -- :: Handle -> Int -> IO ByteString
+        hPut,                   -- :: Handle -> ByteString -> IO ()
+        hPutStr,                -- :: Handle -> ByteString -> IO ()
+        hPutStrLn,              -- :: Handle -> ByteString -> IO ()
+
+        -- undocumented deprecated things:
+        join                    -- :: ByteString -> [ByteString] -> ByteString
 
   ) where
 
@@ -1370,6 +1370,12 @@ groupBy k xs
 -- | /O(n)/ The 'intercalate' function takes a 'ByteString' and a list of
 -- 'ByteString's and concatenates the list after interspersing the first
 -- argument between each element of the list.
+-- LIQUID FAIL: NonLinear Invariant. 
+-- LIQUID {- intercalate :: b:ByteString 
+-- LIQUID                -> bs:[ByteString] 
+-- LIQUID                -> {v:ByteString | (bLength v) = (bLengths bs) + ((len bs) - 1) * (bLength b)} -}
+-- LIQUID: If we INLINE intersperse then can show simpler
+-- LIQUID {- intersperse :: ByteString -> bs:[ByteString] -> {v:ByteString | (bLengths bs) <= (bLength v)}
 intercalate :: ByteString -> [ByteString] -> ByteString
 intercalate s = concat . (List.intersperse s)
 {-# INLINE [1] intercalate #-}
@@ -2173,59 +2179,59 @@ appendFile f txt = bracket (openBinaryFile f AppendMode) hClose
 -- Disable until we can move it into a portable .hsc file
 --
 
--- LIQUID -- -- | Like readFile, this reads an entire file directly into a
--- LIQUID -- -- 'ByteString', but it is even more efficient.  It involves directly
--- LIQUID -- -- mapping the file to memory.  This has the advantage that the contents
--- LIQUID -- -- of the file never need to be copied.  Also, under memory pressure the
--- LIQUID -- -- page may simply be discarded, while in the case of readFile it would
--- LIQUID -- -- need to be written to swap.  If you read many small files, mmapFile
--- LIQUID -- -- will be less memory-efficient than readFile, since each mmapFile
--- LIQUID -- -- takes up a separate page of memory.  Also, you can run into bus
--- LIQUID -- -- errors if the file is modified.  As with 'readFile', the string
--- LIQUID -- -- representation in the file is assumed to be ISO-8859-1.
--- LIQUID -- --
--- LIQUID -- -- On systems without mmap, this is the same as a readFile.
--- LIQUID -- --
--- LIQUID -- mmapFile :: FilePath -> IO ByteString
--- LIQUID -- mmapFile f = mmap f >>= \(fp,l) -> return $! PS fp 0 l
--- LIQUID -- 
--- LIQUID -- mmap :: FilePath -> IO (ForeignPtr Word8, Int)
--- LIQUID -- mmap f = do
--- LIQUID --     h <- openBinaryFile f ReadMode
--- LIQUID --     l <- fromIntegral `fmap` hFileSize h
--- LIQUID --     -- Don't bother mmaping small files because each mmapped file takes up
--- LIQUID --     -- at least one full VM block.
--- LIQUID --     if l < mmap_limit
--- LIQUID --        then do thefp <- mallocByteString l
--- LIQUID --                withForeignPtr thefp $ \p-> hGetBuf h p l
--- LIQUID --                hClose h
--- LIQUID --                return (thefp, l)
--- LIQUID --        else do
--- LIQUID --                -- unix only :(
--- LIQUID --                fd <- fromIntegral `fmap` handleToFd h
--- LIQUID --                p  <- my_mmap l fd
--- LIQUID --                fp <- if p == nullPtr
--- LIQUID --                      then do thefp <- mallocByteString l
--- LIQUID --                              withForeignPtr thefp $ \p' -> hGetBuf h p' l
--- LIQUID --                              return thefp
--- LIQUID --                      else do
--- LIQUID --                           -- The munmap leads to crashes on OpenBSD.
--- LIQUID --                           -- maybe there's a use after unmap in there somewhere?
--- LIQUID --                           -- Bulat suggests adding the hClose to the
--- LIQUID --                           -- finalizer, excellent idea.
--- LIQUID -- #if !defined(__OpenBSD__)
--- LIQUID --                              let unmap = c_munmap p l >> return ()
--- LIQUID -- #else
--- LIQUID --                              let unmap = return ()
--- LIQUID -- #endif
--- LIQUID --                              fp <- newForeignPtr p unmap
--- LIQUID --                              return fp
--- LIQUID --                c_close fd
--- LIQUID --                hClose h
--- LIQUID --                return (fp, l)
--- LIQUID --     where mmap_limit = 16*1024
--- LIQUID -- -}
--- LIQUID -- 
+-- | Like readFile, this reads an entire file directly into a
+-- 'ByteString', but it is even more efficient.  It involves directly
+-- mapping the file to memory.  This has the advantage that the contents
+-- of the file never need to be copied.  Also, under memory pressure the
+-- page may simply be discarded, while in the case of readFile it would
+-- need to be written to swap.  If you read many small files, mmapFile
+-- will be less memory-efficient than readFile, since each mmapFile
+-- takes up a separate page of memory.  Also, you can run into bus
+-- errors if the file is modified.  As with 'readFile', the string
+-- representation in the file is assumed to be ISO-8859-1.
+--
+-- On systems without mmap, this is the same as a readFile.
+--
+mmapFile :: FilePath -> IO ByteString
+mmapFile f = mmap f >>= \(fp,l) -> return $! PS fp 0 l
+
+mmap :: FilePath -> IO (ForeignPtr Word8, Int)
+mmap f = do
+    h <- openBinaryFile f ReadMode
+    l <- fromIntegral `fmap` hFileSize h
+    -- Don't bother mmaping small files because each mmapped file takes up
+    -- at least one full VM block.
+    if l < mmap_limit
+       then do thefp <- mallocByteString l
+               withForeignPtr thefp $ \p-> hGetBuf h p l
+               hClose h
+               return (thefp, l)
+       else do
+               -- unix only :(
+               fd <- fromIntegral `fmap` handleToFd h
+               p  <- my_mmap l fd
+               fp <- if p == nullPtr
+                     then do thefp <- mallocByteString l
+                             withForeignPtr thefp $ \p' -> hGetBuf h p' l
+                             return thefp
+                     else do
+                          -- The munmap leads to crashes on OpenBSD.
+                          -- maybe there's a use after unmap in there somewhere?
+                          -- Bulat suggests adding the hClose to the
+                          -- finalizer, excellent idea.
+#if !defined(__OpenBSD__)
+                             let unmap = c_munmap p l >> return ()
+#else
+                             let unmap = return ()
+#endif
+                             fp <- newForeignPtr p unmap
+                             return fp
+               c_close fd
+               hClose h
+               return (fp, l)
+    where mmap_limit = 16*1024
+-}
+
 -- ---------------------------------------------------------------------
 -- Internal utilities
 

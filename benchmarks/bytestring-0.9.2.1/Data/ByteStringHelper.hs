@@ -294,6 +294,10 @@ pack = undefined
 {-@ singleton :: Word8 -> {v:ByteString | (bLength v) = 1} @-}
 singleton :: Word8 -> ByteString
 singleton = undefined
+
+
+hPut :: Handle -> ByteString -> IO ()
+hPut = undefined
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
