@@ -76,6 +76,10 @@ import Data.Word
         (bLengths v) = (bLength c) + (bLengths cs)
   @-}
 
+{-@ qualif BLengthsSum(v:List List a, bs:List Data.ByteString.Internal.ByteString):
+       (sumLens v) = (bLengths bs)
+  @-}
+
 --LIQUID from ByteString
 {-@ mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> b:ByteString -> (acc, ByteStringSZ b) @-}
 mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
@@ -101,10 +105,19 @@ groupBy = undefined
 intersperse :: Word8 -> ByteString -> ByteString
 intersperse = undefined
 
-{- inits :: b:ByteString -> [{v1:ByteString | (bLength v1) <= (bLength b)}]<{\ix iy -> (bLength ix) < (bLength iy)}> @-}
+{-@ inits :: b:ByteString -> [{v1:ByteString | (bLength v1) <= (bLength b)}]<{\ix iy -> (bLength ix) < (bLength iy)}> @-}
 inits :: ByteString -> [ByteString]
 inits = undefined
 
 {-@ unfoldrN :: i:Nat -> (a -> Maybe (Word8, a)) -> a -> ({v:ByteString | (bLength v) <= i}, Maybe a)<{\b m -> ((isJust m) => ((bLength b) > 0))}> @-}
 unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
 unfoldrN = undefined
+
+{-@ splitAt :: n:Nat
+            -> b:ByteString
+            -> (ByteString, ByteString)<{\x y ->
+                 ((Min (bLength x) (bLength b) n)
+                  && ((bLength y) = ((bLength b) - (bLength x))))}>
+  @-}
+splitAt :: Int -> ByteString -> (ByteString, ByteString)
+splitAt = undefined

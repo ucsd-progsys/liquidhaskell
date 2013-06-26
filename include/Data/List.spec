@@ -8,6 +8,8 @@ assume transpose :: [[a]] -> [{v:[a] | (len v) > 0}]
 
 assume GHC.List.splitAt :: n:Nat -> x:[a] -> ({v:[a] | (Min (len v) (len x) n)},[a])<{\x1 x2 -> (len x2) = (len x) - (len x1)}>
 
+assume GHC.List.concat :: x:[[a]] -> {v:[a] | (len v) = (sumLens x)}
+
 measure sumLens :: [[a]] -> Int
 sumLens ([])   = 0
 sumLens (c:cs) = (len c) + (sumLens cs)
