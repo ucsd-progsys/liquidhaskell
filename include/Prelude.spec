@@ -39,3 +39,6 @@ type LeInt N = {v: GHC.Types.Int | v <= N }
 type Nat     = {v: GHC.Types.Int | v >= 0 }
 type BNat N  = {v: Nat           | v <= N }    
 
+Foreign.Marshal.Array.allocaArray :: Foreign.Storable.Storable a => n:Int -> ((PtrN a n) -> IO b) -> IO b
+-- Foreign.Marshal.Alloc.allocaBytes :: n:Int -> ((PtrN a n) -> IO b) -> IO b 
+
