@@ -583,3 +583,35 @@ breakSubstring pat src = search 0 src
         | pat `isPrefixOf` s = (take n src,s)
         | otherwise          = search (n+1) (unsafeTail s)
 
+
+{-@ assume Foreign.Marshal.Alloc.allocaBytes :: n:Int -> ((PtrN a n) -> IO b) -> IO b  @-}
+{-@ useAsCString :: p:ByteString -> ({v:CString | (bLength p) + 1 = (plen v)} -> IO a) -> IO a @-}
+useAsCString :: ByteString -> (CString -> IO a) -> IO a
+useAsCString (PS fp o l) action = do
+ allocaBytes (l+1) $ \buf ->
+   withForeignPtr fp $ \p -> do
+     memcpy buf (p `plusPtr` o) (fromIntegral l)
+     pokeByteOff buf l (0::Word8)
+     action (castPtr buf)
+
+{-@ useAsCStringLen :: b:ByteString -> ({v:CStringLen | (cStringLen v) = (bLength b)} -> IO a) -> IO a @-}
+useAsCStringLen :: ByteString -> (CStringLen -> IO a) -> IO a
+useAsCStringLen p@(PS _ _ l) f = useAsCString p $ \cstr -> f (cstr, l)
+
+{-@ packCString :: c:CString -> IO {v:ByteString | (bLength v) = (plen c)} @-}
+packCString :: CString -> IO ByteString
+packCString cstr = do
+    len <- c_strlen cstr
+    packCStringLen (cstr, fromIntegral len)
+
+
+{-@ packCStringLen :: c:CStringLen -> (IO {v:ByteString | (bLength v) = (cStringLen c)}) @-}
+packCStringLen :: CStringLen -> IO ByteString
+packCStringLen (cstr, len) = create len $ \p ->
+    memcpy p (castPtr cstr) (fromIntegral len)
+
+
+{-@ copy :: b:ByteString -> (ByteStringSZ b) @-}
+copy :: ByteString -> ByteString
+copy (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
+    memcpy p (f `plusPtr` s) (fromIntegral l)

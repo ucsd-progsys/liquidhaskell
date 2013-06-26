@@ -159,25 +159,25 @@ module Data.ByteString (
 -- LIQUID        zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
 -- LIQUID        zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
 -- LIQUID        unzip,                  -- :: [(Word8,Word8)] -> (ByteString,ByteString)
--- LIQUID
--- LIQUID        -- * Ordered ByteStrings
--- LIQUID        sort,                   -- :: ByteString -> ByteString
--- LIQUID
--- LIQUID        -- * Low level conversions
--- LIQUID        -- ** Copying ByteStrings
--- LIQUID        copy,                   -- :: ByteString -> ByteString
--- LIQUID
--- LIQUID        -- ** Packing 'CString's and pointers
--- LIQUID        packCString,            -- :: CString -> IO ByteString
--- LIQUID        packCStringLen,         -- :: CStringLen -> IO ByteString
--- LIQUID
--- LIQUID        -- ** Using ByteStrings as 'CString's
--- LIQUID        useAsCString,           -- :: ByteString -> (CString    -> IO a) -> IO a
--- LIQUID        useAsCStringLen,        -- :: ByteString -> (CStringLen -> IO a) -> IO a
--- LIQUID
--- LIQUID        -- * I\/O with 'ByteString's
--- LIQUID
--- LIQUID        -- ** Standard input and output
+
+        -- * Ordered ByteStrings
+-- LIQUID FAIL   sort,                   -- :: ByteString -> ByteString
+
+        -- * Low level conversions
+        -- ** Copying ByteStrings
+        copy,                   -- :: ByteString -> ByteString
+
+        -- ** Packing 'CString's and pointers
+        packCString,            -- :: CString -> IO ByteString
+        packCStringLen,         -- :: CStringLen -> IO ByteString
+
+        -- ** Using ByteStrings as 'CString's
+        useAsCString,           -- :: ByteString -> (CString    -> IO a) -> IO a
+        useAsCStringLen,        -- :: ByteString -> (CStringLen -> IO a) -> IO a
+
+        -- * I\/O with 'ByteString's
+
+        -- ** Standard input and output
 -- LIQUID        getLine,                -- :: IO ByteString
 -- LIQUID        getContents,            -- :: IO ByteString
 -- LIQUID        putStr,                 -- :: ByteString -> IO ()
@@ -1837,6 +1837,13 @@ tails p | null p    = [empty]
 -- ** Ordered 'ByteString's
 
 -- | /O(n)/ Sort a ByteString efficiently, using counting sort.
+-- LIQUID FAIL: requires invariant that SUM of cells in intermediate array
+-- equals total len of outer array. WHOA. Due to Ptr issue, this gets
+-- "proved" safe. Oh boy...
+
+sortCanary :: Int -> Int
+sortCanary x = liquidAssert (0 == 1) x
+
 sort :: ByteString -> ByteString
 sort (PS input s l) = unsafeCreate l $ \p -> allocaArray 256 $ \arr -> do
 
@@ -1880,56 +1887,63 @@ sort (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f -> do
 -- sortBy f ps = undefined
 
 -- ---------------------------------------------------------------------
--- LIQUID -- -- Low level constructors
--- LIQUID -- 
--- LIQUID -- -- | /O(n) construction/ Use a @ByteString@ with a function requiring a
--- LIQUID -- -- null-terminated @CString@.  The @CString@ will be freed
--- LIQUID -- -- automatically. This is a memcpy(3).
--- LIQUID -- useAsCString :: ByteString -> (CString -> IO a) -> IO a
--- LIQUID -- useAsCString (PS fp o l) action = do
--- LIQUID --  allocaBytes (l+1) $ \buf ->
--- LIQUID --    withForeignPtr fp $ \p -> do
--- LIQUID --      memcpy buf (p `plusPtr` o) (fromIntegral l)
--- LIQUID --      pokeByteOff buf l (0::Word8)
--- LIQUID --      action (castPtr buf)
--- LIQUID -- 
--- LIQUID -- -- | /O(n) construction/ Use a @ByteString@ with a function requiring a @CStringLen@.
--- LIQUID -- -- As for @useAsCString@ this function makes a copy of the original @ByteString@.
--- LIQUID -- useAsCStringLen :: ByteString -> (CStringLen -> IO a) -> IO a
--- LIQUID -- useAsCStringLen p@(PS _ _ l) f = useAsCString p $ \cstr -> f (cstr,l)
--- LIQUID -- 
--- LIQUID -- ------------------------------------------------------------------------
--- LIQUID -- 
--- LIQUID -- -- | /O(n)./ Construct a new @ByteString@ from a @CString@. The
--- LIQUID -- -- resulting @ByteString@ is an immutable copy of the original
--- LIQUID -- -- @CString@, and is managed on the Haskell heap. The original
--- LIQUID -- -- @CString@ must be null terminated.
--- LIQUID -- packCString :: CString -> IO ByteString
--- LIQUID -- packCString cstr = do
--- LIQUID --     len <- c_strlen cstr
--- LIQUID --     packCStringLen (cstr, fromIntegral len)
--- LIQUID -- 
--- LIQUID -- -- | /O(n)./ Construct a new @ByteString@ from a @CStringLen@. The
--- LIQUID -- -- resulting @ByteString@ is an immutable copy of the original @CStringLen@.
--- LIQUID -- -- The @ByteString@ is a normal Haskell value and will be managed on the
--- LIQUID -- -- Haskell heap.
--- LIQUID -- packCStringLen :: CStringLen -> IO ByteString
--- LIQUID -- packCStringLen (cstr, len) = create len $ \p ->
--- LIQUID --     memcpy p (castPtr cstr) (fromIntegral len)
--- LIQUID -- 
--- LIQUID -- ------------------------------------------------------------------------
--- LIQUID -- 
--- LIQUID -- -- | /O(n)/ Make a copy of the 'ByteString' with its own storage. 
--- LIQUID -- -- This is mainly useful to allow the rest of the data pointed
--- LIQUID -- -- to by the 'ByteString' to be garbage collected, for example
--- LIQUID -- -- if a large string has been read in, and only a small part of it 
--- LIQUID -- -- is needed in the rest of the program.
--- LIQUID -- -- 
--- LIQUID -- copy :: ByteString -> ByteString
--- LIQUID -- copy (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
--- LIQUID --     memcpy p (f `plusPtr` s) (fromIntegral l)
--- LIQUID -- 
--- LIQUID -- -- ---------------------------------------------------------------------
+-- Low level constructors
+
+-- | /O(n) construction/ Use a @ByteString@ with a function requiring a
+-- null-terminated @CString@.  The @CString@ will be freed
+-- automatically. This is a memcpy(3).
+{-@ assume Foreign.Marshal.Alloc.allocaBytes :: n:Int -> ((PtrN a n) -> IO b) -> IO b  @-}
+{-@ useAsCString :: p:ByteString -> ({v:CString | (bLength p) + 1 = (plen v)} -> IO a) -> IO a @-}
+useAsCString :: ByteString -> (CString -> IO a) -> IO a
+useAsCString (PS fp o l) action = do
+ allocaBytes (l+1) $ \buf ->
+   withForeignPtr fp $ \p -> do
+     memcpy buf (p `plusPtr` o) (fromIntegral l)
+     pokeByteOff buf l (0::Word8)
+     action (castPtr buf)
+
+-- | /O(n) construction/ Use a @ByteString@ with a function requiring a @CStringLen@.
+-- As for @useAsCString@ this function makes a copy of the original @ByteString@.
+{-@ useAsCStringLen :: b:ByteString -> ({v:CStringLen | (cStringLen v) = (bLength b)} -> IO a) -> IO a @-}
+useAsCStringLen :: ByteString -> (CStringLen -> IO a) -> IO a
+useAsCStringLen p@(PS _ _ l) f = useAsCString p $ \cstr -> f (cstr,l)
+
+------------------------------------------------------------------------
+
+-- | /O(n)./ Construct a new @ByteString@ from a @CString@. The
+-- resulting @ByteString@ is an immutable copy of the original
+-- @CString@, and is managed on the Haskell heap. The original
+-- @CString@ must be null terminated.
+
+{-@ packCString :: c:CString -> IO {v:ByteString | (bLength v) = (plen c)} @-}
+packCString :: CString -> IO ByteString
+packCString cstr = do
+    len <- c_strlen cstr
+    packCStringLen (cstr, fromIntegral len)
+
+-- | /O(n)./ Construct a new @ByteString@ from a @CStringLen@. The
+-- resulting @ByteString@ is an immutable copy of the original @CStringLen@.
+-- The @ByteString@ is a normal Haskell value and will be managed on the
+-- Haskell heap.
+{-@ packCStringLen :: c:CStringLen -> (IO {v:ByteString | (bLength v) = (cStringLen c)}) @-}
+packCStringLen :: CStringLen -> IO ByteString
+packCStringLen (cstr, len) = create len $ \p ->
+    memcpy p (castPtr cstr) (fromIntegral len)
+
+------------------------------------------------------------------------
+
+-- | /O(n)/ Make a copy of the 'ByteString' with its own storage. 
+-- This is mainly useful to allow the rest of the data pointed
+-- to by the 'ByteString' to be garbage collected, for example
+-- if a large string has been read in, and only a small part of it 
+-- is needed in the rest of the program.
+-- 
+{-@ copy :: b:ByteString -> (ByteStringSZ b) @-}
+copy :: ByteString -> ByteString
+copy (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
+    memcpy p (f `plusPtr` s) (fromIntegral l)
+
+-- ---------------------------------------------------------------------
 -- LIQUID -- -- line IO
 -- LIQUID -- 
 -- LIQUID -- -- | Read a line from stdin.
