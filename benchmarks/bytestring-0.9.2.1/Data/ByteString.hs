@@ -317,8 +317,8 @@ lengths (b:bs) = length b + lengths bs
 -- LIQUID HACK: this is to get all the quals from memchr. 
 -- Quals needed because IO monad forces liquid-abstraction. 
 -- Solution, scrape quals from predicate defs (e.g. SuffixPtr)
-{-@ dummyForQuals1_elemIndex :: p:(Ptr Word8) -> n:Int -> (IO {v:(Ptr Word8) | (SuffixPtr v n p)})  @-}
-dummyForQuals1_elemIndex :: Ptr Word8 -> Int -> IO (Ptr Word8)
+{-@ dummyForQuals1_elemIndex :: p:(Ptr a) -> n:Int -> (IO {v:(Ptr b) | (SuffixPtr v n p)})  @-}
+dummyForQuals1_elemIndex :: Ptr a -> Int -> IO (Ptr b)
 dummyForQuals1_elemIndex = undefined 
 
 {-@ dummyForQuals2_splitWith :: p:(ForeignPtr Word8) -> o:{v:Nat | v <= (fplen p)} -> {v:Nat | (BSValid p o v)} -> ByteString 
@@ -1253,21 +1253,20 @@ split :: Word8 -> ByteString -> [ByteString]
 split _ (PS _ _ 0) = []
 split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
     let ptr = p `plusPtr` s
-    return (splitLoop x ptr w l s 0)
-
+-- LIQUID TEMP    return (splitLoop x ptr w l s 0)
 -- LIQUID TODO: THIS ORIGINAL CODE WORKS FINE IN ISOLATION BUT SOMEHOW BREAKS ON LARGE FILE. 
 -- TOO SICK AND TIRED TO INVESTIGATE WTF is going on...
---         STRICT1(loop)
---         loop n =
---             -- LIQUID: else lose `plen` info due to subsequent @ Word8 application
---             let ptrn = (ptr `plusPtr` n) :: Ptr Word8 
---                 q = inlinePerformIO $ memchr ptrn {- (ptr `plusPtr` n) -}
---                                            w (fromIntegral (l-n))
---             in if isNullPtr q {- LIQUID q == nullPtr -}
---                 then [PS x (s+n) (l-n)]
---                 else let i = q `minusPtr` ptr in PS x (s+n) (i-n) : loop (i+1)
--- 
---     return (loop 0)
+        STRICT1(loop)
+        loop n =
+            -- LIQUID: else lose `plen` info due to subsequent @ Word8 application
+            let ptrn = (ptr `plusPtr` n) :: Ptr Word8 
+                q = inlinePerformIO $ memchr ptrn {- (ptr `plusPtr` n) -}
+                                           w (fromIntegral (l-n))
+            in if isNullPtr q {- LIQUID q == nullPtr -}
+                then [PS x (s+n) (l-n)]
+                else let i = q `minusPtr` ptr in PS x (s+n) (i-n) : loop (i+1)
+
+    return (loop 0)
 {-# INLINE split #-}
 
 -- A longer split out version of the above with explicit type
@@ -2160,6 +2159,7 @@ interact transformer = putStr . transformer =<< getContents
 -- 'pack'.  It also may be more efficient than opening the file and
 -- reading it using hGet. Files are read using 'binary mode' on Windows,
 -- for 'text mode' use the Char8 version of this function.
+{-@ assume GHC.IO.Handle.hFileSize :: Handle -> (IO {v:Integer | v >= 0}) @-}
 readFile :: FilePath -> IO ByteString
 readFile f = bracket (openBinaryFile f ReadMode) hClose
     (\h -> hFileSize h >>= hGet h . fromIntegral)

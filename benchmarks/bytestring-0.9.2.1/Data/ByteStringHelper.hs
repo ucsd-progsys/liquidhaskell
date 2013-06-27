@@ -298,6 +298,11 @@ singleton = undefined
 
 hPut :: Handle -> ByteString -> IO ()
 hPut = undefined
+
+{-@ hGet :: Handle -> n:Nat -> IO {v:ByteString | (bLength v) <= n} @-}
+hGet :: Handle -> Int -> IO ByteString
+hGet = undefined
+
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
@@ -305,6 +310,10 @@ hPut = undefined
 ------------------------------------------------------------------------
 
 
+{-@ assume GHC.IO.Handle.hFileSize :: Handle -> (IO {v:Integer | v >= 0}) @-}
+readFile :: FilePath -> IO ByteString
+readFile f = bracket (openBinaryFile f ReadMode) hClose
+    (\h -> hFileSize h >>= hGet h . fromIntegral)
 
 
 
