@@ -1,3 +1,4 @@
+{--! run liquid with maxparams=3 -}
 {-# OPTIONS_GHC -cpp -fglasgow-exts #-}
 -- |
 -- Module      : Data.ByteString.Lazy.Internal
@@ -177,7 +178,7 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
 
 ------------------------------------------------------------------------
 
-{-@ liquidCanary :: x:Int -> {v: Int | v > x} @-}
+{- liquidCanary :: x:Int -> {v: Int | v > x} @-}
 liquidCanary     :: Int -> Int
 liquidCanary x   = x - 1
 

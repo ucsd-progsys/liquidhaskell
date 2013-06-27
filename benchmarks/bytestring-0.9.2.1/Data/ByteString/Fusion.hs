@@ -73,7 +73,7 @@ import qualified Foreign.C.String
     psnd ((:*:) x y) = y 
   @-} 
 
-{-@ liquidCanaryFusion :: x:Int -> {v: Int | v > x} @-}
+{- liquidCanaryFusion :: x:Int -> {v: Int | v > x} @-}
 liquidCanaryFusion     :: Int -> Int
 liquidCanaryFusion x   = x - 1
 

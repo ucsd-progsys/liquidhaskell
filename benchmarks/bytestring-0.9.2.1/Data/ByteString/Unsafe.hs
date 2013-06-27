@@ -96,7 +96,7 @@ assertS s False = error ("assertion failed at "++s)
 #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
 
-{-@ liquidCanary1 :: x:Int -> {v: Int | v > x} @-}
+{- liquidCanary1 :: x:Int -> {v: Int | v > x} @-}
 liquidCanary1     :: Int -> Int
 liquidCanary1 x   = x - 1
 

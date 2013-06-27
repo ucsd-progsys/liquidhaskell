@@ -1,3 +1,4 @@
+{--! run liquid with maxparams=3 -}
 {-# LANGUAGE CPP, DeriveDataTypeable #-}
 
 -- |
