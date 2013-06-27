@@ -1,6 +1,6 @@
 module Loop where
 import Prelude hiding ((!!), length)
-import SimpleRefinements
+import SimpleRefinements hiding (loop)
 
 -- | Higher Order Specifications
 
