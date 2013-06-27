@@ -307,7 +307,7 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 {-@ qualif Zog(v:a)              : 0 <= (plen v)                 @-}
 
 -- for unfoldrN 
-{-@ qualif PtrDiffUnfoldrN(v:Int, i:Int, p:Ptr a): (i - v) <= (plen p) @-}
+{-@ qualif PtrDiffUnfoldrN(v:int, i:int, p:GHC.Ptr.Ptr a): (i - v) <= (plen p) @-}
 
 {-@ lengths :: bs:[ByteString] -> {v:Nat | v = (bLengths bs)} @-}
 lengths :: [ByteString] -> Int
@@ -1552,7 +1552,8 @@ notElem c ps = not (elem c ps)
 -- | /O(n)/ 'filter', applied to a predicate and a ByteString,
 -- returns a ByteString containing those characters that satisfy the
 -- predicate. This function is subject to array fusion.
-{-@ qualif FilterLoop(v:Ptr a, f:Ptr a, t:Ptr a): (plen t) >= (plen f) - (plen v) @-}
+{-@ qualif FilterLoop(v:GHC.Ptr.Ptr a, f:GHC.Ptr.Ptr a, t:GHC.Ptr.Ptr a):
+        (plen t) >= (plen f) - (plen v) @-}
 {-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
 filter :: (Word8 -> Bool) -> ByteString -> ByteString
 filter k ps@(PS x s l)
@@ -1694,7 +1695,10 @@ findSubstring pat str = listToMaybe $ findSubstrings pat str
 -- substring in a string.  This function uses the Knuth-Morris-Pratt
 -- string matching algorithm.
 
-{-@ qualif FindIndices(v:ByteString, p:ByteString, n:Int) : (bLength v) = (bLength p) - n  @-}
+{-@ qualif FindIndices(v:Data.ByteString.Internal.ByteString,
+                       p:Data.ByteString.Internal.ByteString,
+                       n:int):
+        (bLength v) = (bLength p) - n  @-}
 
 {-@ findSubstrings :: pat:ByteString -> str:ByteString -> [{v:Nat | v <= (bLength str)}] @-}
 
@@ -1905,7 +1909,6 @@ sort (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f -> do
 -- | /O(n) construction/ Use a @ByteString@ with a function requiring a
 -- null-terminated @CString@.  The @CString@ will be freed
 -- automatically. This is a memcpy(3).
-{-@ assume Foreign.Marshal.Alloc.allocaBytes :: n:Int -> ((PtrN a n) -> IO b) -> IO b  @-}
 {-@ useAsCString :: p:ByteString -> ({v:CString | (bLength p) + 1 = (plen v)} -> IO a) -> IO a @-}
 useAsCString :: ByteString -> (CString -> IO a) -> IO a
 useAsCString (PS fp o l) action = do

@@ -17,7 +17,7 @@ module Data.Text.Foreign
     (
     -- * Interoperability with native code
     -- $interop
-      I16
+      I16(..)
     -- * Safe conversion functions
     , fromPtr
     , useAsPtr

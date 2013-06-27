@@ -87,6 +87,7 @@ import Data.Int
 import qualified Data.Text
 import qualified Data.Text.Array
 import qualified Data.Text.Encoding.Error as E
+import qualified Data.Text.Foreign
 import qualified Data.Text.Fusion.Internal
 import qualified Data.Text.Fusion.Size
 import qualified Data.Text.Internal

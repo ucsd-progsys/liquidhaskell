@@ -27,6 +27,7 @@ GHC.ForeignPtr.newForeignPtr_     :: p:(GHC.Ptr.Ptr a) -> (IO (ForeignPtrN a (pl
 Foreign.Concurrent.newForeignPtr  :: p:(PtrV a) -> IO () -> (IO (ForeignPtrN a (plen p)))
 
 Foreign.ForeignPtr.newForeignPtr :: FinalizerPtr a -> p:(PtrV a) -> (IO (ForeignPtrN a (plen p)))
+Foreign.ForeignPtr.Imp.newForeignPtr :: FinalizerPtr a -> p:(PtrV a) -> (IO (ForeignPtrN a (plen p)))
 
 -- this uses `sizeOf (undefined :: a)`, so the ForeignPtr does not necessarily have length `n`
 -- Foreign.ForeignPtr.Imp.mallocForeignPtrArray :: (Foreign.Storable.Storable a) => n:Nat -> IO (ForeignPtrN a n)
