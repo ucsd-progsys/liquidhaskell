@@ -103,6 +103,7 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
 {-@ type LByteStringSZ B = {v:LByteString | (lbLength v) = (lbLength B)} @-}
 {-@ type LByteStringLE B = {v:LByteString | (lbLength v) <= (lbLength B)} @-}
 
+{-@ qualif ByteStringNE(v:Data.ByteString.Internal.ByteString): (bLength v) > 0 @-}
 {-@ qualif LByteStringN(v:Data.ByteString.Lazy.Internal.ByteString, n:int): (lbLength v) = n @-}
 {-@ qualif LByteStringNE(v:Data.ByteString.Lazy.Internal.ByteString): (lbLength v) > 0 @-}
 {-@ qualif LByteStringSZ(v:Data.ByteString.Lazy.Internal.ByteString,

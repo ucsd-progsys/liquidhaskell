@@ -162,7 +162,7 @@ module Data.ByteString.Char8 (
         unzip,                  -- :: [(Char,Char)] -> (ByteString,ByteString)
 
         -- * Ordered ByteStrings
-        sort,                   -- :: ByteString -> ByteString
+--LIQUID        sort,                   -- :: ByteString -> ByteString
 
         -- * Reading from ByteStrings
         readInt,                -- :: ByteString -> Maybe (Int, ByteString)
@@ -230,7 +230,7 @@ import qualified Data.ByteString.Unsafe as B
 import Data.ByteString (empty,null,length,tail,init,append
                        ,inits,tails,reverse,transpose
                        ,concat,take,drop,splitAt,intercalate
-                       ,sort,isPrefixOf,isSuffixOf,isInfixOf,isSubstringOf
+                       ,{-LIQUID sort,-}isPrefixOf,isSuffixOf,isInfixOf,isSubstringOf
                        ,findSubstring,findSubstrings,copy,group
 
                        ,getLine, getContents, putStr, putStrLn, interact
@@ -270,6 +270,15 @@ import GHC.ST                   (ST(..))
 #define STRICT2(f) f a b | a `seq` b `seq` False = undefined
 #define STRICT3(f) f a b c | a `seq` b `seq` c `seq` False = undefined
 #define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
+
+
+--LIQUID
+import Data.ByteString.Fusion (PairS(..))
+import qualified Data.ByteString.Lazy.Internal
+import qualified Foreign.C.String
+import System.IO (Handle)
+import Foreign.ForeignPtr
+import Foreign.Ptr
 
 ------------------------------------------------------------------------
 
@@ -335,11 +344,13 @@ uncons bs = case B.uncons bs of
 {-# INLINE uncons #-}
 
 -- | /O(1)/ Extract the first element of a ByteString, which must be non-empty.
+{-@ head :: ByteStringNE -> Char @-}
 head :: ByteString -> Char
 head = w2c . B.head
 {-# INLINE head #-}
 
 -- | /O(1)/ Extract the last element of a packed string, which must be non-empty.
+{-@ last :: ByteStringNE -> Char @-}
 last :: ByteString -> Char
 last = w2c . B.last
 {-# INLINE last #-}
@@ -386,22 +397,26 @@ foldr' f = B.foldr' (\c a -> f (w2c c) a)
 
 -- | 'foldl1' is a variant of 'foldl' that has no starting value
 -- argument, and thus must be applied to non-empty 'ByteStrings'.
+{-@ foldl1 :: (Char -> Char -> Char) -> ByteStringNE -> Char @-}
 foldl1 :: (Char -> Char -> Char) -> ByteString -> Char
 foldl1 f ps = w2c (B.foldl1 (\x y -> c2w (f (w2c x) (w2c y))) ps)
 {-# INLINE foldl1 #-}
 
 -- | A strict version of 'foldl1'
+{-@ foldl1' :: (Char -> Char -> Char) -> ByteStringNE -> Char @-}
 foldl1' :: (Char -> Char -> Char) -> ByteString -> Char
 foldl1' f ps = w2c (B.foldl1' (\x y -> c2w (f (w2c x) (w2c y))) ps)
 {-# INLINE foldl1' #-}
 
 -- | 'foldr1' is a variant of 'foldr' that has no starting value argument,
 -- and thus must be applied to non-empty 'ByteString's
+{-@ foldr1 :: (Char -> Char -> Char) -> ByteStringNE -> Char @-}
 foldr1 :: (Char -> Char -> Char) -> ByteString -> Char
 foldr1 f ps = w2c (B.foldr1 (\x y -> c2w (f (w2c x) (w2c y))) ps)
 {-# INLINE foldr1 #-}
 
 -- | A strict variant of foldr1
+{-@ foldr1' :: (Char -> Char -> Char) -> ByteStringNE -> Char @-}
 foldr1' :: (Char -> Char -> Char) -> ByteString -> Char
 foldr1' f ps = w2c (B.foldr1' (\x y -> c2w (f (w2c x) (w2c y))) ps)
 {-# INLINE foldr1' #-}
@@ -424,11 +439,13 @@ all f = B.all (f . w2c)
 {-# INLINE all #-}
 
 -- | 'maximum' returns the maximum value from a 'ByteString'
+{-@ maximum :: ByteStringNE -> Char @-}
 maximum :: ByteString -> Char
 maximum = w2c . B.maximum
 {-# INLINE maximum #-}
 
 -- | 'minimum' returns the minimum value from a 'ByteString'
+{-@ minimum :: ByteStringNE -> Char @-}
 minimum :: ByteString -> Char
 minimum = w2c . B.minimum
 {-# INLINE minimum #-}
@@ -466,6 +483,7 @@ scanl f z = B.scanl (\a b -> c2w (f (w2c a) (w2c b))) (c2w z)
 -- | 'scanl1' is a variant of 'scanl' that has no starting value argument:
 --
 -- > scanl1 f [x1, x2, ...] == [x1, x1 `f` x2, ...]
+{-@ scanl1 :: (Char -> Char -> Char) -> ByteStringNE -> ByteString @-}
 scanl1 :: (Char -> Char -> Char) -> ByteString -> ByteString
 scanl1 f = B.scanl1 (\a b -> c2w (f (w2c a) (w2c b)))
 
@@ -474,6 +492,7 @@ scanr :: (Char -> Char -> Char) -> Char -> ByteString -> ByteString
 scanr f z = B.scanr (\a b -> c2w (f (w2c a) (w2c b))) (c2w z)
 
 -- | 'scanr1' is a variant of 'scanr' that has no starting value argument.
+{-@ scanr1 :: (Char -> Char -> Char) -> ByteStringNE -> ByteString @-}
 scanr1 :: (Char -> Char -> Char) -> ByteString -> ByteString
 scanr1 f = B.scanr1 (\a b -> c2w (f (w2c a) (w2c b)))
 
@@ -509,6 +528,7 @@ unfoldr f x0 = B.unfoldr (fmap k . f) x0
 -- The following equation relates 'unfoldrN' and 'unfoldr':
 --
 -- > unfoldrN n f s == take n (unfoldr f s)
+{-@ unfoldrN :: i:Nat -> (a -> Maybe (Char, a)) -> a -> ({v:ByteString | (bLength v) <= i}, Maybe a) @-}
 unfoldrN :: Int -> (a -> Maybe (Char, a)) -> a -> (ByteString, Maybe a)
 unfoldrN n f w = B.unfoldrN n ((k `fmap`) . f) w
     where k (i,j) = (c2w i, j)
@@ -601,6 +621,7 @@ spanChar = B.spanByte . c2w
 -- not copy the substrings, it just constructs new 'ByteStrings' that
 -- are slices of the original.
 --
+{-@ split :: Char -> b:ByteStringNE -> (ByteStringSplit b)  @-}
 split :: Char -> ByteString -> [ByteString]
 split = B.split . c2w
 {-# INLINE split #-}
@@ -612,6 +633,7 @@ split = B.split . c2w
 --
 -- > splitWith (=='a') "aabbaca" == ["","","bb","c",""]
 --
+{-@ splitWith :: (Char -> Bool) -> b:ByteStringNE -> (ByteStringSplit b) @-}
 splitWith :: (Char -> Bool) -> ByteString -> [ByteString]
 splitWith f = B.splitWith (f . w2c)
 {-# INLINE splitWith #-}
@@ -633,8 +655,10 @@ groupBy :: (Char -> Char -> Bool) -> ByteString -> [ByteString]
 groupBy k = B.groupBy (\a b -> k (w2c a) (w2c b))
 
 -- | /O(1)/ 'ByteString' index (subscript) operator, starting from 0.
+{-@ index :: b:ByteString -> {v:Nat | v < (bLength b)} -> Char @-}
 index :: ByteString -> Int -> Char
-index = (w2c .) . B.index
+--LIQUID index = (w2c .) . B.index
+index b i = w2c $ B.index b i
 {-# INLINE index #-}
 
 -- | /O(n)/ The 'elemIndex' function returns the index of the first
@@ -766,6 +790,7 @@ filterNotChar c = B.filterNotByte (c2w c)
 -- excess elements of the longer ByteString are discarded. This is
 -- equivalent to a pair of 'unpack' operations, and so space
 -- usage may be large for multi-megabyte ByteStrings
+{-@ zip :: ByteString -> ByteString -> [(Char,Char)] @-}
 zip :: ByteString -> ByteString -> [(Char,Char)]
 zip ps qs
     | B.null ps || B.null qs = []
@@ -788,6 +813,7 @@ unzip ls = (pack (P.map fst ls), pack (P.map snd ls))
 -- the check for the empty case, which is good for performance, but
 -- there is an obligation on the programmer to provide a proof that the
 -- ByteString is non-empty.
+{-@ unsafeHead :: ByteStringNE -> Char @-}
 unsafeHead :: ByteString -> Char
 unsafeHead  = w2c . B.unsafeHead
 {-# INLINE unsafeHead #-}
@@ -820,7 +846,7 @@ STRICT3(firstspace)
 firstspace ptr n m
     | n >= m    = return n
     | otherwise = do w <- peekByteOff ptr n
-                     if (not . isSpaceWord8) w then firstspace ptr (n+1) m else return n
+                     if (not $ isSpaceWord8 w) then firstspace ptr (n+1) m else return n
 
 {-# RULES
     "FPS specialise dropWhile isSpace -> dropSpace"
@@ -871,6 +897,7 @@ lastnonspace ptr n
 -- | 'lines' breaks a ByteString up into a list of ByteStrings at
 -- newline Chars. The resulting strings do not contain newlines.
 --
+{-@ lines :: ByteString -> [ByteString] @-}
 lines :: ByteString -> [ByteString]
 lines ps
     | null ps = []
@@ -907,6 +934,8 @@ unlines ss = (concat $ List.intersperse nl ss) `append` nl -- half as much space
 
 -- | 'words' breaks a ByteString up into a list of words, which
 -- were delimited by Chars representing white space.
+--LIQUID FIXME: splitWith requires non-empty bytestrings for now..
+{-@ words :: ByteStringNE -> [ByteString] @-}
 words :: ByteString -> [ByteString]
 words = P.filter (not . B.null) . B.splitWith isSpaceWord8
 {-# INLINE words #-}
