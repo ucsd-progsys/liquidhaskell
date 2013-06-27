@@ -32,8 +32,16 @@ var allDemos =
     "ListSort.hs"       : { "name" : "Sorting Lists"        , "type" : "absref" },
     "Map.hs"            : { "name" : "BinSearch Tree"       , "type" : "absref" },
     "Foldr.hs"          : { "name" : "Induction"            , "type" : "absref" },
-    "IMaps.hs"          : { "name" : "Indexed Maps"         , "type" : "absref" }
+    "IMaps.hs"          : { "name" : "Indexed Maps"         , "type" : "absref" },
+
+    // HOPA Tutorial Demos
+    "SimpleRefinements.hs" : { "name" : "Simple Refinements", "type" : "tutorial" },  
+    "Loop.hs"              : { "name" : "HO Loop"           , "type" : "tutorial" },
+    "Composition.hs"       : { "name" : "Composition"       , "type" : "tutorial" },
+    "Array.hs"             : { "name" : "Finite Maps"       , "type" : "tutorial" }
   };
+
+
 
 
 function getDemo(name){
@@ -175,9 +183,10 @@ var globData = null;
 function LiquidDemoCtrl($scope, $http, $location) {
 
   // Populate list of demos
-  $scope.basicDemos   = getDemos("basic")  ;  
-  $scope.measureDemos = getDemos("measure");
-  $scope.abstRefDemos = getDemos("absref") ;
+  $scope.basicDemos    = getDemos("basic")  ;  
+  $scope.measureDemos  = getDemos("measure");
+  $scope.abstRefDemos  = getDemos("absref") ;
+  $scope.tutorialDemos = getDemos("tutorial") ;
 
   // Load a particular demo
   $scope.loadSource   = function(demo){
