@@ -536,7 +536,7 @@ memcpy :: Ptr Word8 -> Ptr Word8 -> CSize -> IO ()
 memcpy p q s = undefined -- c_memcpy p q s >> return ()
 
 
-{-@ liquidCanary :: x:Int -> {v: Int | v > x} @-}
+{- liquidCanary :: x:Int -> {v: Int | v > x} @-}
 liquidCanary     :: Int -> Int
 liquidCanary x   = x - 1
 

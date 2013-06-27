@@ -1,3 +1,4 @@
+{--! run liquid with maxparams=3 -}
 {-# LANGUAGE BangPatterns, DeriveDataTypeable #-}
 -- |
 -- Module      : Data.Text.Lazy.Internal

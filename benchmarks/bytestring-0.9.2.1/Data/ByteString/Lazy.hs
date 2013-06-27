@@ -1500,6 +1500,6 @@ findIndexOrEnd k (S.PS x s l) = S.inlinePerformIO $ withForeignPtr x $ \f -> go 
                                 else go (ptr `plusPtr` 1) (n+1)
 {-# INLINE findIndexOrEnd #-}
 
-{-@ liquidCanary :: x:Int -> {v: Int | v > x} @-}
+{- liquidCanary :: x:Int -> {v: Int | v > x} @-}
 liquidCanary     :: Int -> Int
 liquidCanary x   = x - 1

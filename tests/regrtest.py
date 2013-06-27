@@ -31,19 +31,19 @@ argcomment = "--! run with "
 liquidcomment = "{--! run liquid with "
 endcomment = "-}"
 
-def logged_sys_call(args, out=None, err=None):
+def logged_sys_call(args, out=None, err=None, dir=None):
   print "exec: " + " ".join(args)
-  return subprocess.call(args, stdout=out, stderr=err)
+  return subprocess.call(args, stdout=out, stderr=err, cwd=dir)
  
-def solve_quals(file,bare,time,quiet,flags,lflags):
+def solve_quals(dir,file,bare,time,quiet,flags,lflags):
   if quiet: out = null
   else: out = None
   if time: time = ["time"]
   else: time = []
   if lflags: lflags = ["--" + " --".join(lflags)]
   hygiene_flags = [] # [("--liquidcprefix=%s" % (file)), "-o", "/dev/null"]
-  out = open(file + ".log", "w")
-  rv  = logged_sys_call(time + solve + flags + lflags + hygiene_flags + [file], out)
+  out = open(os.path.join(dir,file) + ".log", "w")
+  rv  = logged_sys_call(time + solve + flags + lflags + hygiene_flags + [file], out, dir=dir)
   out.close()
   return rv
 
@@ -77,14 +77,15 @@ class Config (rtest.TestConfig):
     rtest.TestConfig.__init__ (self, testdirs, logfile, threadcount)
     self.dargs = dargs
 
-  def run_test (self, file):
+  def run_test (self, dir, file):
+    path = os.path.join(dir,file)
     os.environ['LCCFLAGS'] = self.dargs
     if file.endswith(".hs"):
-      fargs = getfileargs(file)
-      lflags = getliquidargs(file)
-      return solve_quals(file, True, False, True, fargs, lflags)
+      fargs = getfileargs(path)
+      lflags = getliquidargs(path)
+      return solve_quals(dir, file, True, False, True, fargs, lflags)
     elif file.endswith(".sh"):
-      return run_script(file, True)
+      return run_script(path, True)
 
   def is_test (self, file):
     return file.endswith(".hs")
@@ -92,11 +93,51 @@ class Config (rtest.TestConfig):
 #####################################################################################
 
 #DEFAULT
-testdirs  = [ ("pos", 0)
-            , ("neg", 1)
-            , ("../benchmarks/esop2013-submission", 0) 
-            , ("../web/demos", 0)
-            , ("../blog", 0)
+# ByteString.hs is split into two smaller files for faster checking..
+bytestringIgnored = { "Data/ByteString.hs"
+                    , "Data/ByteString/Char8.hs"
+                    , "Data/ByteString/Lazy/Aux.hs"
+                    , "Data/ByteString/Lazy/Char8.hs"
+                    , "Data/ByteString/Lazy.small.hs"
+                    }
+
+textIgnored = { "Data/Text/Axioms.hs"
+              , "Data/Text/Encoding/Error.hs"
+              , "Data/Text/Encoding/Fusion.hs"
+              , "Data/Text/Encoding/Fusion/Common.hs"
+              , "Data/Text/Encoding/Utf16.hs"
+              , "Data/Text/Encoding/Utf32.hs"
+              , "Data/Text/Encoding/Utf8.hs"
+              , "Data/Text/Fusion/CaseMapping.hs"
+              , "Data/Text/Fusion/Common.hs"
+              , "Data/Text/Fusion/Internal.hs"
+              , "Data/Text/IO.hs"
+              , "Data/Text/IO/Internal.hs"
+              , "Data/Text/Lazy/Builder/Functions.hs"
+              , "Data/Text/Lazy/Builder/Int.hs"
+              , "Data/Text/Lazy/Builder/Int/Digits.hs"
+              , "Data/Text/Lazy/Builder/Internal.hs"
+              , "Data/Text/Lazy/Builder/RealFloat.hs"
+              , "Data/Text/Lazy/Builder/RealFloat/Functions.hs"
+              , "Data/Text/Lazy/Encoding/Fusion.hs"
+              , "Data/Text/Lazy/IO.hs"
+              , "Data/Text/Lazy/Read.hs"
+              , "Data/Text/Read.hs"
+              , "Data/Text/Unsafe/Base.hs"
+              , "Data/Text/UnsafeShift.hs"
+              , "Data/Text/Util.hs"
+
+              , "Data/Text.small.hs"
+              , "Data/Text/Lazy.small.hs"
+              }
+
+testdirs  = [ ("pos", {}, 0)
+            , ("neg", {}, 1)
+            , ("../benchmarks/esop2013-submission", {}, 0)
+            , ("../benchmarks/bytestring-0.9.2.1", bytestringIgnored, 0)
+            , ("../benchmarks/text-0.11.2.3", textIgnored, 0)
+            , ("../web/demos", {}, 0)
+            , ("../blog", {}, 0)
             ]
 
 parser = optparse.OptionParser()
@@ -107,6 +148,6 @@ options, args = parser.parse_args()
 
 
 
-[os.system(("cd %s; cleanup; cd ../" % d)) for (d,_) in testdirs]  
+[os.system(("cd %s; cleanup; cd ../" % d)) for (d,_,_) in testdirs]
 runner = rtest.TestRunner (Config (options.opts, testdirs, logfile, options.threadcount))
 runner.run ()

@@ -1013,8 +1013,8 @@ intercalateWithByte c f@(PS ffp s l) g@(PS fgp t m) = unsafeCreate len $ \ptr ->
 -- equals total len of outer array. WHOA. Due to Ptr issue, this gets
 -- "proved" safe. Oh boy. Still, can prove that output size = input size.
 
-sortCanary :: Int -> Int
-sortCanary x = liquidAssert (0 == 1) x
+--LIQUID sortCanary :: Int -> Int
+--LIQUID sortCanary x = liquidAssert (0 == 1) x
 
 sort :: ByteString -> ByteString
 sort (PS input s l) = unsafeCreate l $ \p -> allocaArray 256 $ \arr -> do
