@@ -55,9 +55,8 @@ import Foreign.C.String         (CString, CStringLen)
 import Language.Haskell.Liquid.Prelude  (mkPtr, cSizeInt, liquidError)
 import qualified Data.ByteString.Internal
 import Foreign.ForeignPtr       (ForeignPtr)
-import Data.Word                (Word8)
+import Data.Word
 import Foreign.C.Types          (CInt(..), CSize(..), CULong(..))
-import Foreign
 import GHC.Base
 import qualified Foreign.C.Types
 

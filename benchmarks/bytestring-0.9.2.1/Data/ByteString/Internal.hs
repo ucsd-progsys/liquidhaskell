@@ -74,6 +74,8 @@ import Foreign.Storable         (Storable(..))
 import Foreign.C.Types          (CInt(..), CSize(..), CULong(..))
 import Foreign.C.String         (CString)
 
+import qualified Data.Word
+import qualified Foreign.C.String
 import Language.Haskell.Liquid.Prelude (intCSize, liquidAssert)
 
 #ifndef __NHC__
@@ -202,6 +204,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
   @-}
 
+{-@ type ByteString = {v: Data.ByteString.Internal.ByteString | true} @-}
 {-@ invariant {v:Data.ByteString.Internal.ByteString | 0 <= (bLength v)} @-}
 
 {-@ type ByteStringSplit B = {v:[ByteString] | ((bLengths v) + (len v) - 1) = (bLength B) } 
@@ -227,28 +230,33 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ predicate NNBase V P      = ((pbase V) = (pbase P))                               @-}
 
 
-{-@ qualif EqFPLen(v: a, x: ForeignPtr b): v = (fplen x)           @-}
-{-@ qualif EqPLen(v: a, x: Ptr b): v = (plen x)                    @-}
-{-@ qualif EqPLen(v: ForeignPtr a, x: Ptr b): (fplen v) = (plen x) @-}
-{-@ qualif EqPLen(v: Ptr a, x: ForeignPtr b): (plen v) = (fplen x) @-}
-{-@ qualif PValid(v: Int, p: Ptr a): v <= (plen p)                 @-}
-{-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p)                   @-}
-{-@ qualif FPLenPos(v: ForeignPtr a): 0 <= (fplen v)               @-}
-{-@ qualif PLenPos(v: Ptr a): 0 <= (plen v)                        @-}
+{-@ qualif EqFPLen(v: a, x: GHC.ForeignPtr.ForeignPtr b): v = (fplen x)                   @-}
+{-@ qualif EqPLen(v: a, x: GHC.Ptr.Ptr b): v = (plen x)                                   @-}
+{-@ qualif EqPLen(v: GHC.ForeignPtr.ForeignPtr a, x: GHC.Ptr.Ptr b): (fplen v) = (plen x) @-}
+{-@ qualif EqPLen(v: GHC.Ptr.Ptr a, x: GHC.ForeignPtr.ForeignPtr b): (plen v) = (fplen x) @-}
+{-@ qualif PValid(v: int, p: GHC.Ptr.Ptr a): v <= (plen p)                                @-}
+{-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p)                                          @-}
+{-@ qualif FPLenPos(v: GHC.ForeignPtr.ForeignPtr a): 0 <= (fplen v)                       @-}
+{-@ qualif PLenPos(v: GHC.Ptr.Ptr a): 0 <= (plen v)                                       @-}
+{-@ qualif LTPLen(v: int, p:GHC.Ptr.Ptr a): v < (plen p)                                  @-}
+
 
 -- for ByteString.concat
-{-@ qualif BLens(v:List ByteString)            : 0 <= (bLengths v)         @-}
-{-@ qualif BLenLE(v:Ptr a, bs:List ByteString) : (bLengths bs) <= (plen v) @-}
+{-@ qualif BLens(v:List Data.ByteString.Internal.ByteString) : 0 <= (bLengths v)          @-}
+{-@ qualif BLenLE(v:GHC.Ptr.Ptr a, bs:List Data.ByteString.Internal.ByteString):
+        (bLengths bs) <= (plen v) @-}
 
 -- for ByteString.splitWith
-{-@ qualif SplitWith(v:List ByteString, l:Int): ((bLengths v) + (len v) - 1) = l @-}
+{-@ qualif SplitWith(v:List Data.ByteString.Internal.ByteString, l:int):
+        ((bLengths v) + (len v) - 1) = l @-}
 
 -- for ByteString.unfoldrN
-{-@ qualif PtrDiff(v:Int, i:Int, p:Ptr a): (i - v) <= (plen p) @-}
+{-@ qualif PtrDiff(v:int, i:int, p:GHC.Ptr.Ptr a): (i - v) <= (plen p) @-}
 
 -- for ByteString.split
-{-@ qualif BSValidOff(v:Int,l:Int,p:ForeignPtr a): v + l <= (fplen p) @-}
-{-@ qualif SplitLoop(v:List ByteString, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
+{-@ qualif BSValidOff(v:int,l:int,p:GHC.ForeignPtr.ForeignPtr a): v + l <= (fplen p) @-}
+{-@ qualif SplitLoop(v:List Data.ByteString.Internal.ByteString, l:int, n:int):
+        (bLengths v) + (len v) - 1 = l - n @-}
 {- qualif SplitWith(v:a, l:Int): ((bLengths v) + (len v) - 1) = l @-}
 {- qualif BSValidFP(p:a, o:Int, l:Int): (o + l) <= (fplen p)     @-}
 {- qualif BSValidP(p:a, o:Int, l:Int) : (o + l) <= (plen p)       @-}

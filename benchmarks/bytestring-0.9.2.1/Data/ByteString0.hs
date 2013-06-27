@@ -107,9 +107,10 @@ wantReadableHandleLIQUID :: String -> Handle -> (Handle__ -> IO a) -> IO a
 wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUIDCOMPAT"
 
 {-@ qualif BLens(v:a)            : 0 <= (bLengths v)         @-}
-{-@ qualif BLenLE(v:Ptr a, bs:b) : (bLengths bs) <= (plen v) @-}
-{-@ qualif BSValidOff(v:Int,l:Int,p:ForeignPtr a): v + l <= (fplen p) @-}
-{-@ qualif SplitLoop(v:List ByteString, l:Int, n:Int): (bLengths v) + (len v) - 1 = l - n @-}
+{-@ qualif BLenLE(v:GHC.Ptr.Ptr a, bs:b) : (bLengths bs) <= (plen v) @-}
+{-@ qualif BSValidOff(v:int,l:int,p:GHC.ForeignPtr.ForeignPtr a): v + l <= (fplen p) @-}
+{-@ qualif SplitLoop(v:List Data.ByteString.Internal.ByteString, l:int, n:int):
+        (bLengths v) + (len v) - 1 = l - n @-}
 
 
 
@@ -126,16 +127,9 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 
 -- -----------------------------------------------------------------------------
 
-{-@ type ByteStringPair B = (ByteString, ByteString)<{\x1 x2 -> (bLength x1) + (bLength x2) = (bLength B)}>
-  @-}
-
-{-@ qualif PtrDiff(v:Int, i:Int, p:Ptr a): (i - v) <= (plen p) @-}
+{-@ qualif PtrDiff(v:int, i:int, p:GHC.Ptr.Ptr a): (i - v) <= (plen p) @-}
 
 
-{-@ measure bLengths  :: [Data.ByteString.Internal.ByteString] -> Int 
-    bLengths ([])   = 0
-    bLengths (x:xs) = (bLength x) + (bLengths xs)
-  @-}
 
 
 -- -----------------------------------------------------------------------------
@@ -291,8 +285,6 @@ intercalateWithByte c f@(PS ffp s l) g@(PS fgp t m) = unsafeCreate len $ \ptr ->
       len = length f + length g + 1
 {-# INLINE intercalateWithByte #-}
 
-
-{-@ type ByteStringSplit B = {v:[ByteString] | ((bLengths v) + (len v) - 1) = (bLength B) } @-}
 
 {-@ invariant {v:Data.ByteString.Internal.ByteString | 0 <= (bLength v)} @-}
 

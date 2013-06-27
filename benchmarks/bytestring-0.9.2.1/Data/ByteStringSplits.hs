@@ -467,7 +467,10 @@ findIndex k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusP
                                 else go (ptr `plusPtr` 1) (n+1)
 
 -- also findSubstrings
-{-@ qualif FindIndices(v:ByteString, p:ByteString, n:Int) : (bLength v) = (bLength p) - n  @-}
+{-@ qualif FindIndices(v:Data.ByteString.Internal.ByteString,
+                       p:Data.ByteString.Internal.ByteString,
+                       n:Int):
+        (bLength v) = (bLength p) - n  @-}
 
 {-@ findIndices :: (Word8 -> Bool) -> b:ByteString -> [{v:Nat | v < (bLength b)}] @-}
 findIndices :: (Word8 -> Bool) -> ByteString -> [Int]
@@ -488,7 +491,8 @@ notElem c ps = not (elem c ps)
 {-# INLINE notElem #-}
 
 
-{-@ qualif FilterLoop(v:Ptr a, f:Ptr a, t:Ptr a): (plen t) >= (plen f) - (plen v) @-}
+{-@ qualif FilterLoop(v:GHC.Ptr.Ptr a, f:GHC.Ptr.Ptr a, t:GHC.Ptr.Ptr a):
+        (plen t) >= (plen f) - (plen v) @-}
 {-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
 filter :: (Word8 -> Bool) -> ByteString -> ByteString
 filter k ps@(PS x s l)
@@ -584,7 +588,10 @@ findSubstring :: ByteString -- ^ String to search for.
 -- LIQUID ETA findSubstring = (listToMaybe .) . findSubstrings
 findSubstring pat str = listToMaybe $ findSubstrings pat str
 
-{-@ qualif FindIndices(v:ByteString, p:ByteString, n:Int) : (bLength v) = (bLength p) - n  @-}
+{-@ qualif FindIndices(v:Data.ByteString.Internal.ByteString,
+                       p:Data.ByteString.Internal.ByteString,
+                       n:Int):
+        (bLength v) = (bLength p) - n  @-}
 
 {-@ findSubstrings :: pat:ByteString -> str:ByteString -> [{v:Nat | v <= (bLength str)}] @-}
 findSubstrings :: ByteString -- ^ String to search for.
@@ -618,7 +625,6 @@ breakSubstring pat src = search 0 src
         | otherwise          = search (n+1) (unsafeTail s)
 
 
-{-@ assume Foreign.Marshal.Alloc.allocaBytes :: n:Int -> ((PtrN a n) -> IO b) -> IO b  @-}
 {-@ useAsCString :: p:ByteString -> ({v:CString | (bLength p) + 1 = (plen v)} -> IO a) -> IO a @-}
 useAsCString :: ByteString -> (CString -> IO a) -> IO a
 useAsCString (PS fp o l) action = do
