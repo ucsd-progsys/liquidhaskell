@@ -362,14 +362,16 @@ data RTyCon = RTyCon
 -- indexes start from 0 and type or predicate arguments can be both
 -- covariant and contravaariant
 -- eg, for the below Foo dataType
--- data Foo a b c <p :: b -> Prop, q :: Int -> Prop, r :: a -> Prop>
+-- data Foo a b c d <p :: b -> Prop, q :: Int -> Prop, r :: a -> Prop>
 --   = F (a<r> -> b<p>) | Q (c -> a) | G (Int<q> -> a<r>)
 -- there will be 
---  covariantTyArgs     = [0, 1], for type arguments a and b
---  contravariantTyArgs = [0, 2], for type arguments a and c
+--  covariantTyArgs     = [0, 1, 3], for type arguments a, b and d
+--  contravariantTyArgs = [0, 2, 3], for type arguments a, c and d
 --  covariantPsArgs     = [0, 2], for predicate arguments p and r
 --  contravariantPsArgs = [1, 2], for predicate arguments q and r
-
+--  
+--  Note, d does not appear in the data definition, we enforce BOTH
+--  con - contra variance
 
 data TyConInfo = TyConInfo
   { covariantTyArgs     :: ![Int] -- indexes of covariant type arguments
