@@ -52,7 +52,6 @@ import Foreign.Storable (peek, poke)
 import qualified Data.Text.Array
 import qualified Data.Text.Unsafe
 import qualified Data.Word
-import qualified "base" Foreign
 import qualified Foreign.Storable
 import qualified GHC.ST
 import Language.Haskell.Liquid.Prelude

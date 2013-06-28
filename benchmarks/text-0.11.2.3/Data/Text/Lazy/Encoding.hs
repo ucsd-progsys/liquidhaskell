@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE Rank2Types #-}
 -- |
 -- Module      : Data.Text.Lazy.Encoding
 -- Copyright   : (c) 2009, 2010 Bryan O'Sullivan
@@ -68,6 +69,7 @@ import qualified Data.Word
 import Data.Word (Word8)
 import qualified Data.Text
 import qualified Data.Text.Array
+import qualified Data.Text.Foreign
 import qualified Data.Text.Fusion.Internal
 import qualified Data.Text.Fusion.Size
 import qualified Data.Text.Internal
@@ -76,9 +78,9 @@ import qualified Data.Text.Lazy.Internal
 import qualified Data.Text.Private
 import qualified Data.Text.Search
 import qualified Data.Text.Unsafe
-import qualified Foreign.Ptr
-import qualified GHC.ForeignPtr
-import qualified GHC.Ptr
+import qualified Foreign.C.String
+import Foreign.Ptr
+import Foreign.ForeignPtr
 import Language.Haskell.Liquid.Prelude
 
 -- $strict
@@ -102,12 +104,22 @@ decodeASCII :: B.ByteString -> Text
 decodeASCII = decodeUtf8
 {-# DEPRECATED decodeASCII "Use decodeUtf8 instead" #-}
 
+
+--LIQUID FIXME: this is used below in the `slow` case where the
+--resulting char is inserted into a new Text with `singleton` so there
+--is no Array to pass..
+{-@ onErrLIQUID :: OnDecodeError -> String -> Maybe Word8 -> Maybe Char @-}
+onErrLIQUID :: TE.OnDecodeError -> String -> Maybe Word8 -> Maybe Char
+onErrLIQUID onErr desc c = onErr desc c undefined undefined
+
 -- | Decode a 'ByteString' containing UTF-8 encoded text.
-decodeUtf8With :: OnDecodeError -> B.ByteString -> Text
+{-@ decodeUtf8With :: OnDecodeError -> LByteString -> Text @-}
+decodeUtf8With :: TE.OnDecodeError -> B.ByteString -> Text
 decodeUtf8With onErr bs0 = fast bs0
   where
-    --LIQUID decode = TE.decodeUtf8With onErr
-    decode = TE.decodeUtf8With (\ desc c _ _ -> onErr desc c)
+    decode = TE.decodeUtf8With onErr
+    --LIQUID
+    --decode = TE.decodeUtf8With undefined --(\ desc c _ _ -> onErr desc c)
     fast (B.Chunk p ps) | isComplete p = chunk (decode p) (fast ps)
                         | otherwise    = chunk (decode h) (slow t ps)
       where (h,t) = S.splitAt pivot p
@@ -115,7 +127,8 @@ decodeUtf8With onErr bs0 = fast bs0
                   | at 2      = len-2
                   | otherwise = len-3
             len  = S.length p
-            at n = len >= n && S.unsafeIndex p (len-n) .&. 0xc0 == 0xc0
+            --LIQUID at n = len >= n && S.unsafeIndex p (len-n) .&. 0xc0 == 0xc0
+            at n = if len >= n then S.unsafeIndex p (len-n) .&. 0xc0 == 0xc0 else False
     fast B.Empty = empty
     slow i bs = {-# SCC "decodeUtf8With'/slow" #-}
                 case B.uncons bs of
@@ -124,18 +137,21 @@ decodeUtf8With onErr bs0 = fast bs0
                     where i' = S.snoc i w
                   Nothing -> case S.uncons i of
                                Just (j,i') ->
-                                 case onErr desc (Just j) of
+                                 case onErrLIQUID onErr desc (Just j) of
                                    Nothing -> slow i' bs
                                    Just c  -> Chunk (T.singleton c) (slow i' bs)
                                Nothing ->
-                                 case onErr desc Nothing of
+                                 case onErrLIQUID onErr desc Nothing of
                                    Nothing -> empty
                                    Just c  -> Chunk (T.singleton c) empty
     isComplete bs = {-# SCC "decodeUtf8With'/isComplete" #-}
                     ix 1 .&. 0x80 == 0 ||
-                    (len >= 2 && ix 2 .&. 0xe0 == 0xc0) ||
-                    (len >= 3 && ix 3 .&. 0xf0 == 0xe0) ||
-                    (len >= 4 && ix 4 .&. 0xf8 == 0xf0)
+                    --LIQUID (len >= 2 && ix 2 .&. 0xe0 == 0xc0) ||
+                    --LIQUID (len >= 3 && ix 3 .&. 0xf0 == 0xe0) ||
+                    --LIQUID (len >= 4 && ix 4 .&. 0xf8 == 0xf0)
+                    (if len >= 2 then ix 2 .&. 0xe0 == 0xc0 else False) ||
+                    (if len >= 3 then ix 3 .&. 0xf0 == 0xe0 else False) ||
+                    (if len >= 4 then ix 4 .&. 0xf8 == 0xf0 else False)
       where len = S.length bs
             ix n = S.unsafeIndex bs (len-n)
     desc = "Data.Text.Lazy.Encoding.decodeUtf8With: Invalid UTF-8 stream"
@@ -149,7 +165,7 @@ decodeUtf8With onErr bs0 = fast bs0
 -- the handling of invalid data, use 'decodeUtf8'' or
 -- 'decodeUtf8With'.
 decodeUtf8 :: B.ByteString -> Text
-decodeUtf8 = decodeUtf8With strictDecode
+decodeUtf8 = decodeUtf8With TE.strictDecode
 {-# INLINE[0] decodeUtf8 #-}
 
 -- This rule seems to cause performance loss.

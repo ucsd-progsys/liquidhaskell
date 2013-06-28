@@ -1,3 +1,4 @@
+{--! run liquid with idirs=../bytestring-0.9.2.1/ idirs=../../include/ -}
 {-# LANGUAGE BangPatterns, CPP, ForeignFunctionInterface, MagicHash,
     UnliftedFFITypes #-}
 {-# LANGUAGE PackageImports, RankNTypes #-}
@@ -48,6 +49,7 @@ module Data.Text.Encoding
     , encodeUtf32BE
     --LIQUID
     , OnDecodeError
+    , strictDecode
     ) where
 
 import Control.Exception (evaluate, try)
@@ -95,25 +97,34 @@ import qualified Data.Text.Private
 import qualified Data.Text.Search
 import qualified Data.Text.Unsafe
 import qualified Data.Word
-import qualified "base" Foreign
+import Foreign.C.String
 import Foreign.C.Types
 import Foreign.ForeignPtr (ForeignPtr)
 import Foreign.Storable
 import qualified GHC.ST
 import Language.Haskell.Liquid.Prelude
 
-{-@ qualif PValid(v:GHC.Ptr.Ptr Int, a:Data.Text.Array.MArray s):
+{-@ qualif PValid(v:GHC.Ptr.Ptr int, a:Data.Text.Array.MArray s):
         (((deref v) >= 0) && ((deref v) < (malen a)))
   @-}
 {-@ qualif PLenComp(v:a, p:b) : (plen v) >= (plen p) @-}
 
-{-@ Foreign.Marshal.Utils.with :: (Foreign.Storable.Storable a)
+{- Foreign.Marshal.Utils.with :: (Foreign.Storable.Storable a)
                                => a:a
                                -> ({v:PtrV a | (deref v) = a} -> IO b)
                                -> IO b
   @-}
+--LIQUID FIXME: this is a hacky, specialized type
+{-@ withLIQUID :: z:CSize
+               -> a:Data.Text.Array.MArray s
+               -> ({v:PtrV CSize | (Btwn (deref v) z (malen a))} -> IO b)
+               -> IO b
+  @-}
+withLIQUID :: CSize -> A.MArray s -> (Ptr CSize -> IO b) -> IO b
+withLIQUID = undefined
 
-{-@ qualif PLenGT(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr a): ((v != p) <=> ((plen v) > 0)) @-}
+{-@ qualif PLenGT(v:a, p:b): ((v != p) <=> ((plen v) > 0)) @-}
+{-@ qualif EqFPlen(v:GHC.ForeignPtr.ForeignPtr a, n:int): (fplen v) = n @-}
 
 {-@ plen :: p:GHC.Ptr.Ptr a -> {v:Nat | v = (plen p)} @-}
 plen :: Ptr a -> Int
@@ -155,14 +166,11 @@ decodeASCII = decodeUtf8
 {-# DEPRECATED decodeASCII "Use decodeUtf8 instead" #-}
 
 -- | Decode a 'ByteString' containing UTF-8 encoded text.
-{-@ decodeUtf8With :: OnDecodeError
-                   -> Data.ByteString.Internal.ByteString
-                   -> Data.Text.Internal.Text
-  @-}
+{-@ decodeUtf8With :: OnDecodeError -> ByteString -> Data.Text.Internal.Text @-}
 decodeUtf8With :: OnDecodeError -> ByteString -> Text
 decodeUtf8With onErr (PS fp off len) = runText $ \done -> do
   let go dest = withForeignPtr fp $ \ptr ->
-        with (0::CSize) $ \destOffPtr -> do
+        withLIQUID (0::CSize) dest $ \destOffPtr -> do
           let end = ptr `plusPtr` (off + len)
               loop curPtr = do
                 curPtr' <- c_decode_utf8 dest {-LIQUID (A.maBA dest)-} destOffPtr curPtr end
@@ -174,18 +182,19 @@ decodeUtf8With onErr (PS fp off len) = runText $ \done -> do
                     --LIQUID FIXME: this assume should be replaced by
                     --a better type for c_decode_utf8, but i can't get
                     --the qualifiers to stick right now..
-                    x <- peek $ liquidAssume (plen curPtr' > 0) curPtr'
+                    let curPtr'' = liquidAssume (plen curPtr' > 0) curPtr'
+                    x <- peek curPtr''
                     destOff <- peek destOffPtr
                     case onErr desc (Just x) dest (fromIntegral destOff) of
-                      Nothing -> loop $ curPtr' `plusPtr` 1
+                      Nothing -> loop $ curPtr'' `plusPtr` 1
                       Just c -> do
                         --LIQUID destOff <- peek destOffPtr
                         w <- unsafeSTToIO $
                              unsafeWrite dest (fromIntegral destOff) c
                         poke destOffPtr (destOff + fromIntegral w)
-                        loop $ curPtr' `plusPtr` 1
+                        loop $ curPtr'' `plusPtr` 1
           loop (ptr `plusPtr` off)
-  (unsafeIOToST . go) =<< A.new (liquidAssume (len >= 0) len)
+  (unsafeIOToST . go) =<< A.new len
  where
   desc = "Data.Text.Encoding.decodeUtf8: Invalid UTF-8 stream"
 {- INLINE[0] decodeUtf8With #-}
