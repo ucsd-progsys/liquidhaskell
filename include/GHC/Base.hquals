@@ -2,7 +2,7 @@
 //qualif Null(v: [a])           : (~ (? (nonnull([v]))))
 //qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
 
-qualif IsEmp(v:Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+qualif IsEmp(v:GHC.Types.Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
 qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
 qualif SameLen(v:[a], ~A:[b]) : len([v]) = len([~A]) 
 qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 

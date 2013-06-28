@@ -36,8 +36,8 @@ safeLookup x i
 
 -- | **Predicate Aliases**
 
-{-@ predicate Btwn Lo I Hi = (Lo <= I && I < Hi) @-}
-{-@ predicate InBounds I A = (Btwn 0 I (vlen A)) @-}
+{-@ predicate Btwn I Lo Hi = (Lo <= I && I < Hi) @-}
+{-@ predicate InBounds I A = (Btwn I 0 (vlen A)) @-}
 
 -- | Now, we can simplify the type for the unsafe lookup function to
 
@@ -107,7 +107,7 @@ dotProduct x y = loop 0 (length x) 0 (\i -> (+ (x ! i) * (y ! i)))
 
 -- | Refinement type alias for **Sparse Vectors**
 
-{-@ type SparseVector a N = [({v: Int | (Btwn 0 v N)}, a)] @-}
+{-@ type SparseVector a N = [({v: Int | (Btwn v 0 N)}, a)] @-}
 
 -- | A sparse product function
 

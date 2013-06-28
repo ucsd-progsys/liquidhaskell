@@ -206,7 +206,12 @@ elemIndex = undefined
 memchrDUMMYFORQUALS :: Ptr a -> Int -> IO (Ptr b)
 memchrDUMMYFORQUALS = undefined 
 
-{-@ splitAt :: Int -> b:ByteString -> (ByteStringPair b) @-}
+{-@ splitAt :: n:Int
+            -> b:ByteString
+            -> ({v:ByteString | (Min (bLength v) (bLength b)
+                                     (if (n >= 0) then n else 0))}
+               , ByteString)<{\x y -> (bLength y) = ((bLength b) - (bLength x))}>
+  @-}
 splitAt :: Int -> ByteString -> (ByteString, ByteString)
 splitAt = undefined
 

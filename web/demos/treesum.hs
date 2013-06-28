@@ -29,7 +29,7 @@ toList             :: Tree Int -> [Int]
 toList (Leaf x)    = [x]
 toList (Node l r)  = (toList l) ++ (toList r)
 
-{-@ (++)           :: xs:[Int] -> ys:[Int] -> {v: [Int] | (lSum v) = (lSum xs) + (lSum ys)} @-}
+{-@ Blank.++           :: xs:[Int] -> ys:[Int] -> {v: [Int] | (lSum v) = (lSum xs) + (lSum ys)} @-}
 (++)               :: [Int] -> [Int] -> [Int]
 []     ++ ys       = ys
 (x:xs) ++ ys       = x : (xs ++ ys)

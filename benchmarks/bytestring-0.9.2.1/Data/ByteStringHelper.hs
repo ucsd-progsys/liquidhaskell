@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 
-module Data.ByteStringHelper where
+module Data.ByteStringHelper  where
 
 import qualified Prelude as P
 import Prelude hiding           (reverse,head,tail,last,init,null
@@ -98,6 +98,31 @@ import qualified Foreign.C.Types
 #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
 -- -----------------------------------------------------------------------------
+-- LIQUID: This will go away when we properly embed Ptr a as int -- only in
+-- fixpoint to avoid the Sort mismatch hassles. 
+{-@ liquid_thm_ptr_cmp :: p:PtrV a 
+                       -> q:{v:(PtrV a) | ((plen v) <= (plen p) && v != p && (pbase v) = (pbase p))} 
+                       -> {v: (PtrV a)  | ((v = p) && ((plen q) < (plen p))) } 
+  @-}
+liquid_thm_ptr_cmp :: Ptr a -> Ptr a -> Ptr a
+liquid_thm_ptr_cmp p q = undefined -- p -- LIQUID : make this undefined to suppress WARNING
+
+{-@ memcpy_ptr_baoff :: p:(Ptr a) 
+                     -> RawBuffer b 
+                     -> Int 
+                     -> {v:CSize | (OkPLen v p)} -> IO (Ptr ())
+  @-}
+memcpy_ptr_baoff :: Ptr a -> RawBuffer b -> Int -> CSize -> IO (Ptr ())
+memcpy_ptr_baoff = error "LIQUIDCOMPAT"
+
+readCharFromBuffer :: RawBuffer b -> Int -> IO (Char, Int)
+readCharFromBuffer x y = error "LIQUIDCOMPAT"
+
+wantReadableHandleLIQUID :: String -> Handle -> (Handle__ -> IO a) -> IO a
+wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUIDCOMPAT"
+
+
+
 -- -----------------------------------------------------------------------------
 
 -- | Perform an operation with a temporary ByteString
@@ -209,7 +234,12 @@ elemIndex = undefined
 memchrDUMMYFORQUALS :: Ptr a -> Int -> IO (Ptr b)
 memchrDUMMYFORQUALS = undefined 
 
-{-@ splitAt :: Int -> b:ByteString -> (ByteStringPair b) @-}
+{-@ splitAt :: n:Int
+            -> b:ByteString
+            -> ({v:ByteString | (Min (bLength v) (bLength b)
+                                     (if (n >= 0) then n else 0))}
+               , ByteString)<{\x y -> (bLength y) = ((bLength b) - (bLength x))}>
+  @-}
 splitAt :: Int -> ByteString -> (ByteString, ByteString)
 splitAt = undefined
 
@@ -233,6 +263,51 @@ spanByte = undefined
 spanEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 spanEnd = undefined
 
+{-@ count :: Word8 -> b:ByteString -> {v:Nat | v <= (bLength b) } @-}
+count :: Word8 -> ByteString -> Int
+count = undefined
+
+{-@ replicate :: n:Nat -> Word8 -> {v:ByteString | (bLength v) = (if n > 0 then n else 0)} @-}
+replicate :: Int -> Word8 -> ByteString
+replicate  = undefined
+
+{-@ findIndex :: (Word8 -> Bool) -> b:ByteString -> (Maybe {v:Nat | v < (bLength b)}) @-}
+findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
+findIndex = undefined
+
+{-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
+filter :: (Word8 -> Bool) -> ByteString -> ByteString
+filter = undefined
+
+{-@ isPrefixOf :: ByteString -> ByteString -> Bool @-}
+isPrefixOf :: ByteString -> ByteString -> Bool 
+isPrefixOf = undefined
+
+{-@ take :: n:Nat -> b:ByteString -> {v:ByteString | (bLength v) = (if (n <= (bLength b)) then n else (bLength b))} @-}
+take :: Int -> ByteString -> ByteString
+take = undefined
+
+{-@ rng :: n:Int -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
+rng :: Int -> [Int]
+rng = undefined
+
+{-@ pack :: cs:[Word8] -> {v:ByteString | (bLength v) = (len cs)} @-}
+pack :: [Word8] -> ByteString
+pack = undefined
+
+
+{-@ singleton :: Word8 -> {v:ByteString | (bLength v) = 1} @-}
+singleton :: Word8 -> ByteString
+singleton = undefined
+
+
+hPut :: Handle -> ByteString -> IO ()
+hPut = undefined
+
+{-@ hGet :: Handle -> n:Nat -> IO {v:ByteString | (bLength v) <= n} @-}
+hGet :: Handle -> Int -> IO ByteString
+hGet = undefined
+
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
@@ -240,22 +315,18 @@ spanEnd = undefined
 ------------------------------------------------------------------------
 
 
+{-@ assume GHC.IO.Handle.hFileSize :: Handle -> (IO {v:Integer | v >= 0}) @-}
+readFile :: FilePath -> IO ByteString
+readFile f = bracket (openBinaryFile f ReadMode) hClose
+    (\h -> hFileSize h >>= hGet h . fromIntegral)
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+-- | Append a 'ByteString' to a file.
+appendFile :: FilePath -> ByteString -> IO ()
+appendFile f txt = bracket (openBinaryFile f AppendMode) hClose
+    (\h -> hPut h txt)
 
 
 
