@@ -118,8 +118,6 @@ decodeUtf8With :: TE.OnDecodeError -> B.ByteString -> Text
 decodeUtf8With onErr bs0 = fast bs0
   where
     decode = TE.decodeUtf8With onErr
-    --LIQUID
-    --decode = TE.decodeUtf8With undefined --(\ desc c _ _ -> onErr desc c)
     fast (B.Chunk p ps) | isComplete p = chunk (decode p) (fast ps)
                         | otherwise    = chunk (decode h) (slow t ps)
       where (h,t) = S.splitAt pivot p

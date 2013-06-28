@@ -878,11 +878,11 @@ drop n ps@(PS x s l)
 
 -- | /O(1)/ 'splitAt' @n xs@ is equivalent to @('take' n xs, 'drop' n xs)@.
 
-{-@ splitAt :: n:Nat
+{-@ splitAt :: n:Int
             -> b:ByteString
-            -> (ByteString, ByteString)<{\x y ->
-                 ((Min (bLength x) (bLength b) n)
-                  && ((bLength y) = ((bLength b) - (bLength x))))}>
+            -> ({v:ByteString | (Min (bLength v) (bLength b)
+                                     (if (n >= 0) then n else 0))}
+               , ByteString)<{\x y -> (bLength y) = ((bLength b) - (bLength x))}>
   @-}
 splitAt :: Int -> ByteString -> (ByteString, ByteString)
 splitAt n ps@(PS x s l)
