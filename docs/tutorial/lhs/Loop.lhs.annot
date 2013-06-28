@@ -1,0 +1,826 @@
+% Higher Order Specifications
+
+
+Higher Order Specifications
+---------------------------
+
+\begin{code}
+module Loop where
+import Prelude hiding ((!!), length)
+import SimpleRefinements
+\end{code}
+
+
+Higher Order Specifications
+---------------------------
+
+Consider a `loop` function: <br>
+
+\begin{code}
+loop :: Int -> Int -> a -> (Int -> a -> a) -> a
+loop lo hi base f        = go lo base
+  where 
+    go i acc | i < hi    = go (i+1) (f i acc)
+             | otherwise = acc
+\end{code}
+
+<br>
+
+LiquidHaskell **infers**
+
+- `f` called with `lo <= i < hi`
+
+
+Higher Order Specifications
+---------------------------
+
+Lets use `(!!)` to write a function that sums an `Int` list
+
+\begin{code}
+{-@ listSum :: L Int -> Int @-}
+listSum     :: L Int -> Int
+listSum xs  = loop 0 n 0 body 
+  where 
+    body    = \i acc -> acc + (xs !! i)
+    n       = length xs
+\end{code}
+
+By **function subtyping** LiquidHaskell **infers**
+
+- `body` called with `0 <= i < llen xs` 
+- hence, indexing safe.
+
+Let's change the `0` to `1` and see what happens!
+
+Higher Order Specifications
+---------------------------
+
+We can give this function a better type:
+
+\begin{code}
+{-@ listNatSum :: L Nat -> Nat @-}
+listNatSum     :: L Int -> Int
+listNatSum xs  = loop 0 n 0 body 
+  where 
+    body       = \i acc -> acc + (xs !! i)
+    n          = length xs
+\end{code}
+
+To verify this type, note: `(+) :: Nat -> Nat -> Nat` 
+
+LiquidHaskell **instantiates** `a` in `loop` with `Nat` 
+
+- `loop :: Int -> Int -> Nat -> (Int -> Nat -> Nat) -> Nat`
+
+Yielding the output.
+
+Higher Order Specifications
+---------------------------
+
+By the same analysis, LiquidHaskell verifies that <br>
+
+\begin{code}
+{-@ listEvenSum :: L Even -> Even @-}
+listEvenSum     :: L Int -> Int
+listEvenSum xs  = loop 0 n 0 body 
+  where body   = \i acc -> acc + (xs !! i)
+        n      = length xs
+\end{code}
+
+Here, the system deduces that `(+)` has type
+
+- `x:Int-> y:Int -> {v:Int| v=x+y} <: Even -> Even -> Even`
+
+Hence, verification proceeds by *instantiating* `a` with `Even`
+
+- `loop :: Int -> Int -> Even -> (Int -> Even -> Even) -> Even`
+
+
+
+Another Example
+---------------
+
+Consider a simpler example:<br>
+
+\begin{code}
+{-@ add :: n:Nat -> m:Nat -> {v:Int| v = m + n} @-}
+add     :: Int -> Int -> Int
+add n m = loop 0 m n (\_ i -> i + 1)
+\end{code}
+
+Cannot use parametric polymorphism as before! 
+
+- Cannot instantiate `a` with `{v:Int|v = n + m}` ... 
+- ... as this only holds after **last iteration** of loop!
+
+Require Higher Order Invariants
+
+- On values computed in **intermediate** iterations...
+- ... i.e. invariants that **depend on the iteration index**.
+
+
+
+acc
+44
+25
+1
+{VV : (GHC.Types.Int) | (VV == acc)}
+
+
+unknown
+42
+15
+6
+lo:{VV : (GHC.Types.Int) | (VV == 0) && ((VV mod 2) == 0) && (VV >= 0)}
+-> hi:(GHC.Types.Int)
+-> (GHC.Types.Int)
+-> ({VV : (GHC.Types.Int) | (VV >= 0) && (VV >= lo) && (VV < hi)}
+    -> (GHC.Types.Int) -> (GHC.Types.Int))
+-> (GHC.Types.Int)
+
+
+body
+85
+30
+3
+{VV : (GHC.Types.Int) | (VV >= 0) && (VV < n)}
+-> {VV : (GHC.Types.Int) | ((VV mod 2) == 0)}
+-> {VV : (GHC.Types.Int) | ((VV mod 2) == 0)}
+
+
+i
+23
+8
+1
+{VV : (GHC.Types.Int) | (VV >= 0) && (VV >= lo) && (VV >= lo)}
+
+
+xs
+45
+22
+1
+{VV : (SimpleRefinements.L (GHC.Types.Int)) | (VV == xs)}
+
+
+i
+23
+40
+1
+{VV : (GHC.Types.Int) | (VV == i) && (VV >= 0) && (VV >= lo) && (VV >= lo)}
+
+
+xs
+87
+25
+1
+{VV : (SimpleRefinements.L {VV : (GHC.Types.Int) | ((VV mod 2) == 0)}) | (VV == xs)}
+
+
+n
+87
+9
+1
+{VV : (GHC.Types.Int) | (VV == (llen xs))}
+
+
+Loop.listNatSum
+63
+1
+2
+(SimpleRefinements.L {VV : (GHC.Types.Int) | (VV >= 0)})
+-> {VV : (GHC.Types.Int) | (VV >= 0)}
+
+
+lo
+21
+31
+1
+{VV : (GHC.Types.Int) | (VV == 0) && (VV == lo) && ((VV mod 2) == 0) && (VV >= 0)}
+
+
+unknown
+108
+11
+7
+lo:{VV : (GHC.Types.Int) | (VV == 0) && ((VV mod 2) == 0) && (VV >= 0)}
+-> hi:(GHC.Types.Int)
+-> {VV : (GHC.Types.Int) | (VV >= 0) && (VV >= n)}
+-> ({VV : (GHC.Types.Int) | (VV >= 0) && (VV >= lo) && (VV < hi)}
+    -> {VV : (GHC.Types.Int) | (VV >= 0) && (VV >= n)}
+    -> {VV : (GHC.Types.Int) | (VV >= 0) && (VV >= n)})
+-> {VV : (GHC.Types.Int) | (VV >= 0) && (VV >= n)}
+
+
+n
+66
+5
+1
+{VV : (GHC.Types.Int) | (VV == (llen xs))}
+
+
+lq_anf__d1gx
+85
+28
+1
+{VV : (GHC.Types.Int) | (VV == (0  :  int))}
+
+
+unknown
+63
+18
+7
+lo:{VV : (GHC.Types.Int) | (VV == 0) && ((VV mod 2) == 0) && (VV >= 0)}
+-> hi:(GHC.Types.Int)
+-> {VV : (GHC.Types.Int) | (VV >= 0)}
+-> ({VV : (GHC.Types.Int) | (VV >= 0) && (VV >= lo) && (VV < hi)}
+    -> {VV : (GHC.Types.Int) | (VV >= 0)}
+    -> {VV : (GHC.Types.Int) | (VV >= 0)})
+-> {VV : (GHC.Types.Int) | (VV >= 0)}
+
+
+acc
+23
+10
+1
+a
+
+
+unknown
+21
+28
+2
+{VV : (GHC.Types.Int) | (VV == 0) && (VV == lo) && (VV == (lo + lo)) && ((VV mod 2) == 0) && (VV >= 0)}
+-> {VV : a | (VV == base)} -> a
+
+
+acc
+23
+42
+1
+{VV : a | (VV == acc)}
+
+
+base
+21
+12
+1
+a
+
+
+i
+86
+41
+1
+{VV : (GHC.Types.Int) | (VV == i) && (VV >= 0) && (VV < n)}
+
+
+body
+86
+9
+3
+{VV : (GHC.Types.Int) | (VV >= 0) && (VV < n)}
+-> {VV : (GHC.Types.Int) | ((VV mod 2) == 0)}
+-> {VV : (GHC.Types.Int) | ((VV mod 2) == 0)}
+
+
+i
+108
+26
+1
+{VV : (GHC.Types.Int) | (VV >= 0) && (VV >= n)}
+
+
+xs
+85
+13
+1
+(SimpleRefinements.L {VV : (GHC.Types.Int) | ((VV mod 2) == 0)})
+
+
+n
+45
+5
+1
+{VV : (GHC.Types.Int) | (VV == (llen xs))}
+
+
+i
+65
+41
+1
+{VV : (GHC.Types.Int) | (VV == i) && (VV >= 0) && (VV < n)}
+
+
+unknown
+44
+29
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+n
+85
+26
+1
+{VV : (GHC.Types.Int) | (VV == n) && (VV == (llen xs))}
+
+
+go
+23
+28
+9
+forall a.
+lo:{VV : (GHC.Types.Int) | (VV == 0) && (VV == lo) && (VV == (lo + lo)) && ((VV mod 2) == 0) && (VV >= 0)}
+-> hi:{VV : (GHC.Types.Int) | (VV == hi) && (VV == (hi + lo)) && (VV == (hi + lo)) && (VV == (lo + hi)) && (VV == (lo + hi))}
+-> {VV : a | (VV == base)}
+-> ({VV : (GHC.Types.Int) | (VV >= 0) && (VV >= lo) && (VV >= lo) && (VV < hi) && (VV < hi)}
+    -> a -> a)
+-> {VV : (GHC.Types.Int) | (VV >= 0) && (VV >= lo) && (VV >= lo)}
+-> a
+-> a
+
+
+unknown
+66
+18
+2
+xs:(SimpleRefinements.L {VV : (GHC.Types.Int) | (VV >= 0)})
+-> {VV : (GHC.Types.Int) | (VV == (llen xs))}
+
+
+body
+42
+26
+2
+{VV : (GHC.Types.Int) | (VV >= 0) && (VV < n)}
+-> (GHC.Types.Int) -> (GHC.Types.Int)
+
+
+i
+108
+31
+1
+{VV : (GHC.Types.Int) | (VV == i) && (VV >= 0) && (VV >= n)}
+
+
+xs
+42
+9
+1
+(SimpleRefinements.L (GHC.Types.Int))
+
+
+lq_anf__d1gw
+85
+24
+1
+{VV : (GHC.Types.Int) | (VV == (0  :  int))}
+
+
+acc
+65
+28
+1
+{VV : (GHC.Types.Int) | (VV == acc) && (VV >= 0)}
+
+
+lq_anf__d1gt
+63
+23
+1
+{VV : (GHC.Types.Int) | (VV == (0  :  int))}
+
+
+lq_anf__d1gr
+42
+24
+1
+{VV : (GHC.Types.Int) | (VV == (0  :  int))}
+
+
+hi
+21
+9
+1
+(GHC.Types.Int)
+
+
+acc
+86
+28
+1
+{VV : (GHC.Types.Int) | (VV == acc) && ((VV mod 2) == 0)}
+
+
+Loop.add
+108
+1
+3
+n:{VV : (GHC.Types.Int) | (VV >= 0)}
+-> m:{VV : (GHC.Types.Int) | (VV >= 0)}
+-> {VV : (GHC.Types.Int) | (VV == (m + n))}
+
+
+unknown
+108
+33
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+i
+23
+16
+1
+{VV : (GHC.Types.Int) | (VV == i) && (VV >= 0) && (VV >= lo) && (VV >= lo)}
+
+
+i
+23
+32
+1
+{VV : (GHC.Types.Int) | (VV == i) && (VV >= 0) && (VV >= lo) && (VV >= lo)}
+
+
+lo
+21
+6
+1
+{VV : (GHC.Types.Int) | (VV == 0) && ((VV mod 2) == 0) && (VV >= 0)}
+
+
+xs
+86
+35
+1
+{VV : (SimpleRefinements.L {VV : (GHC.Types.Int) | ((VV mod 2) == 0)}) | (VV == xs)}
+
+
+i
+86
+19
+1
+{VV : (GHC.Types.Int) | (VV >= 0) && (VV < n)}
+
+
+unknown
+24
+28
+1
+{VV : a | (VV == acc)}
+
+
+lq_anf__d1gy
+108
+16
+1
+{VV : (GHC.Types.Int) | (VV == (0  :  int))}
+
+
+i
+44
+16
+1
+{VV : (GHC.Types.Int) | (VV >= 0) && (VV < n)}
+
+
+xs
+44
+32
+1
+{VV : (SimpleRefinements.L (GHC.Types.Int)) | (VV == xs)}
+
+
+n
+63
+25
+1
+{VV : (GHC.Types.Int) | (VV == n) && (VV == (llen xs))}
+
+
+n
+42
+22
+1
+{VV : (GHC.Types.Int) | (VV == n) && (VV == (llen xs))}
+
+
+unknown
+23
+33
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+unknown
+45
+15
+2
+xs:(SimpleRefinements.L (GHC.Types.Int))
+-> {VV : (GHC.Types.Int) | (VV == (llen xs))}
+
+
+xs
+65
+35
+1
+{VV : (SimpleRefinements.L {VV : (GHC.Types.Int) | (VV >= 0)}) | (VV == xs)}
+
+
+i
+65
+19
+1
+{VV : (GHC.Types.Int) | (VV >= 0) && (VV < n)}
+
+
+lq_anf__d1gz
+108
+35
+1
+{VV : (GHC.Types.Int) | (VV == (1  :  int))}
+
+
+unknown
+87
+18
+2
+xs:(SimpleRefinements.L {VV : (GHC.Types.Int) | ((VV mod 2) == 0)})
+-> {VV : (GHC.Types.Int) | (VV == (llen xs))}
+
+
+unknown
+44
+35
+2
+(SimpleRefinements.L (GHC.Types.Int))
+-> {VV : (GHC.Types.Int) | (VV >= 0)} -> (GHC.Types.Int)
+
+
+unknown
+23
+18
+3
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int)
+-> {VV : (GHC.Types.Bool) | (((Prop VV)) <=> (x < y))}
+
+
+lq_anf__d1gm
+23
+34
+1
+{VV : (GHC.Types.Int) | (VV == (1  :  int))}
+
+
+unknown
+65
+32
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+m
+108
+18
+1
+{VV : (GHC.Types.Int) | (VV == m) && (VV >= 0)}
+
+
+acc
+44
+18
+1
+(GHC.Types.Int)
+
+
+lq_anf__d1gu
+63
+27
+1
+{VV : (GHC.Types.Int) | (VV == (0  :  int))}
+
+
+lq_anf__d1gq
+42
+20
+1
+{VV : (GHC.Types.Int) | (VV == (0  :  int))}
+
+
+unknown
+86
+32
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+n
+108
+5
+1
+{VV : (GHC.Types.Int) | (VV >= 0)}
+
+
+body
+44
+5
+2
+{VV : (GHC.Types.Int) | (VV >= 0) && (VV < n)}
+-> (GHC.Types.Int) -> (GHC.Types.Int)
+
+
+xs
+63
+12
+1
+(SimpleRefinements.L {VV : (GHC.Types.Int) | (VV >= 0)})
+
+
+hi
+23
+20
+1
+{VV : (GHC.Types.Int) | (VV == hi) && (VV == hi) && (VV == (hi + lo)) && (VV == (hi + lo)) && (VV == (lo + hi)) && (VV == (lo + hi))}
+
+
+base
+21
+34
+1
+{VV : a | (VV == base)}
+
+
+unknown
+65
+38
+3
+(SimpleRefinements.L {VV : (GHC.Types.Int) | (VV >= 0)})
+-> {VV : (GHC.Types.Int) | (VV >= 0)}
+-> {VV : (GHC.Types.Int) | (VV >= 0)}
+
+
+n
+108
+20
+1
+{VV : (GHC.Types.Int) | (VV == n) && (VV >= 0)}
+
+
+unknown
+85
+19
+7
+lo:{VV : (GHC.Types.Int) | (VV == 0) && ((VV mod 2) == 0) && (VV >= 0)}
+-> hi:(GHC.Types.Int)
+-> {VV : (GHC.Types.Int) | ((VV mod 2) == 0)}
+-> ({VV : (GHC.Types.Int) | (VV >= 0) && (VV >= lo) && (VV < hi)}
+    -> {VV : (GHC.Types.Int) | ((VV mod 2) == 0)}
+    -> {VV : (GHC.Types.Int) | ((VV mod 2) == 0)})
+-> {VV : (GHC.Types.Int) | ((VV mod 2) == 0)}
+
+
+body
+63
+29
+3
+{VV : (GHC.Types.Int) | (VV >= 0) && (VV < n)}
+-> acc:{VV : (GHC.Types.Int) | (VV >= 0)}
+-> {VV : (GHC.Types.Int) | (VV >= 0) && (VV >= acc)}
+
+
+go
+23
+5
+9
+forall a.
+lo:{VV : (GHC.Types.Int) | (VV == 0) && (VV == lo) && (VV == (lo + lo)) && ((VV mod 2) == 0) && (VV >= 0)}
+-> hi:{VV : (GHC.Types.Int) | (VV == hi) && (VV == (hi + lo)) && (VV == (hi + lo)) && (VV == (lo + hi)) && (VV == (lo + hi))}
+-> {VV : a | (VV == base)}
+-> ({VV : (GHC.Types.Int) | (VV >= 0) && (VV >= lo) && (VV >= lo) && (VV < hi) && (VV < hi)}
+    -> a -> a)
+-> {VV : (GHC.Types.Int) | (VV >= 0) && (VV >= lo) && (VV >= lo)}
+-> a
+-> a
+
+
+unknown
+86
+38
+3
+(SimpleRefinements.L {VV : (GHC.Types.Int) | ((VV mod 2) == 0)})
+-> {VV : (GHC.Types.Int) | (VV >= 0)}
+-> {VV : (GHC.Types.Int) | ((VV mod 2) == 0)}
+
+
+m
+108
+7
+1
+{VV : (GHC.Types.Int) | (VV >= 0)}
+
+
+lq_anf__d1gA
+108
+23
+3
+{VV : (GHC.Types.Int) | (VV >= 0) && (VV < m)}
+-> i:{VV : (GHC.Types.Int) | (VV >= 0) && (VV >= n)}
+-> {VV : (GHC.Types.Int) | (VV > 0) && (VV > i) && (VV > n) && (VV >= 0)}
+
+
+Loop.listSum
+42
+1
+1
+(SimpleRefinements.L (GHC.Types.Int)) -> (GHC.Types.Int)
+
+
+xs
+66
+25
+1
+{VV : (SimpleRefinements.L {VV : (GHC.Types.Int) | (VV >= 0)}) | (VV == xs)}
+
+
+unknown
+23
+38
+2
+{VV : (GHC.Types.Int) | (VV >= 0) && (VV >= lo) && (VV >= lo) && (VV < hi) && (VV < hi)}
+-> a -> a
+
+
+acc
+86
+21
+1
+{VV : (GHC.Types.Int) | ((VV mod 2) == 0)}
+
+
+i
+44
+38
+1
+{VV : (GHC.Types.Int) | (VV == i) && (VV >= 0) && (VV < n)}
+
+
+Loop.listEvenSum
+85
+1
+2
+(SimpleRefinements.L {VV : (GHC.Types.Int) | ((VV mod 2) == 0)})
+-> {VV : (GHC.Types.Int) | ((VV mod 2) == 0)}
+
+
+f
+21
+17
+2
+{VV : (GHC.Types.Int) | (VV >= 0) && (VV >= lo) && (VV < hi)}
+-> a -> a
+
+
+Loop.loop
+21
+1
+7
+forall a.
+lo:{VV : (GHC.Types.Int) | (VV == 0) && ((VV mod 2) == 0) && (VV >= 0)}
+-> hi:(GHC.Types.Int)
+-> a
+-> ({VV : (GHC.Types.Int) | (VV >= 0) && (VV >= lo) && (VV < hi)}
+    -> a -> a)
+-> a
+
+
+acc
+65
+21
+1
+{VV : (GHC.Types.Int) | (VV >= 0)}
+
+
+body
+65
+5
+3
+{VV : (GHC.Types.Int) | (VV >= 0) && (VV < n)}
+-> acc:{VV : (GHC.Types.Int) | (VV >= 0)}
+-> {VV : (GHC.Types.Int) | (VV >= 0) && (VV >= acc)}
+
+
+ 
+108
+11
+0
+108
+37
+
+
+

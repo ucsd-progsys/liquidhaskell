@@ -1,0 +1,93 @@
+<h1 id="function-composition">Function Composition</h1>
+<h2 id="function-composition-1">Function Composition</h2>
+<pre><span class=hs-linenum>11: </span><span class='hs-keyword'>module</span> <span class='hs-conid'>Composition</span> <span class='hs-keyword'>where</span>
+</pre>
+
+<h2 id="a-plus-function">A Plus Function</h2>
+<p>Consider a simple <code>plus</code> function</p>
+<pre><span class=hs-linenum>20: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>plus</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>y</span><span class='hs-conop'>:</span><span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Int</span> <span class='hs-keyword'>| v = x + y}</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>21: </span><span class='hs-definition'>plus</span>     <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>22: </span><a class=annot href="#"><span class=annottext>x:(GHC.Types.Int)
+-&gt; y:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x + y))}</span><span class='hs-definition'>plus</span></a> <a class=annot href="#"><span class=annottext>(GHC.Types.Int)</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>(GHC.Types.Int)</span><span class='hs-varid'>y</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == x)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>x:(GHC.Types.Int)
+-&gt; y:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x + y))}</span><span class='hs-varop'>+</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == y)}</span><span class='hs-varid'>y</span></a>
+</pre>
+
+<h2 id="a-simple-addition">A Simple Addition</h2>
+<p>Consider a simple use of <code>plus</code> a function that adds <code>3</code> to its input:</p>
+<pre><span class=hs-linenum>31: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>plus3'</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Int</span> <span class='hs-keyword'>| v = x + 3}</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>32: </span><span class='hs-definition'>plus3'</span>     <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>33: </span><a class=annot href="#"><span class=annottext>x:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x + 3))}</span><span class='hs-definition'>plus3'</span></a> <a class=annot href="#"><span class=annottext>(GHC.Types.Int)</span><span class='hs-varid'>x</span></a>   <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == x)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>x:(GHC.Types.Int)
+-&gt; y:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x + y))}</span><span class='hs-varop'>+</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (3  :  int))}</span><span class='hs-num'>3</span></a>
+</pre>
+
+<ul>
+<li><p>The refinement type captures its behaviour...</p></li>
+<li><p>... and LiquidHaskell easily verifies this type.</p></li>
+</ul>
+<h2 id="a-composed-variant">A Composed Variant</h2>
+<p>Instead, suppose we defined the previous function by composition</p>
+<p>We first add <code>2</code> to the argument and then add <code>1</code> to the intermediate result...</p>
+<pre><span class=hs-linenum>48: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>plus3''</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Int</span> <span class='hs-keyword'>| v = x + 3}</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>49: </span><span class='hs-definition'>plus3''</span>     <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>50: </span><a class=annot href="#"><span class=annottext>x:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x + 3))}</span><span class='hs-definition'>plus3''</span></a>     <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>x:(GHC.Types.Int)
+-&gt; y:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x + y))}</span><span class='hs-varid'>plus</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>forall &lt;q :: (GHC.Types.Int)-&gt; (GHC.Types.Int)-&gt; Bool, p :: (GHC.Types.Int)-&gt; (GHC.Types.Int)-&gt; Bool&gt;.
+(x:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int)&lt;p x&gt; | true})
+-&gt; (y:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int)&lt;q y&gt; | true})
+-&gt; x:(GHC.Types.Int)
+-&gt; exists [z:{VV : (GHC.Types.Int)&lt;q x&gt; | true}].{VV : (GHC.Types.Int)&lt;p z&gt; | true}</span><span class='hs-varop'>.</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>x:(GHC.Types.Int)
+-&gt; y:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x + y))}</span><span class='hs-varid'>plus</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (2  :  int))}</span><span class='hs-num'>2</span></a><span class='hs-layout'>)</span>
+</pre>
+
+<p>but verification <strong>fails</strong> as we need a way to <strong>compose</strong> the refinements!</p>
+<p><strong>Problem</strong> What is a suitable description of the compose operator</p>
+_
+<pre><span class=hs-linenum>58: </span><span class='hs-layout'>(</span><span class='hs-varop'>.</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-varid'>b</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>c</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>b</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>c</span><span class='hs-layout'>)</span>
+</pre>
+
+<p>that lets us <strong>relate</strong> <code>a</code> and <code>c</code> via <code>b</code> ?</p>
+<h2 id="composing-refinements-abstractly">Composing Refinements, Abstractly</h2>
+<ul>
+<li><p>We can analyze the <em>composition</em> operator</p></li>
+<li><p>With a very <em>descriptive</em> abstract refinement type!</p></li>
+</ul>
+<pre><span class=hs-linenum>73: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>c</span> <span class='hs-keyglyph'>::</span> <span class='hs-keyword'>forall</span> <span class='hs-varop'>&lt;</span> <span class='hs-varid'>p</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>b</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>c</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Prop</span>
+<span class=hs-linenum>74: </span>                <span class='hs-layout'>,</span> <span class='hs-varid'>q</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>b</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Prop</span><span class='hs-varop'>&gt;.</span>
+<span class=hs-linenum>75: </span>         <span class='hs-varid'>f</span><span class='hs-conop'>:</span><span class='hs-layout'>(</span><span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-varid'>b</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>c</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span> <span class='hs-varid'>x</span><span class='hs-varop'>&gt;</span><span class='hs-layout'>)</span> 
+<span class=hs-linenum>76: </span>      <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>g</span><span class='hs-conop'>:</span><span class='hs-layout'>(</span><span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>b</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>q</span> <span class='hs-varid'>x</span><span class='hs-varop'>&gt;</span><span class='hs-layout'>)</span> 
+<span class=hs-linenum>77: </span>      <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>y</span><span class='hs-conop'>:</span><span class='hs-varid'>a</span> 
+<span class=hs-linenum>78: </span>      <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>exists</span><span class='hs-keyglyph'>[</span><span class='hs-varid'>z</span><span class='hs-conop'>:</span><span class='hs-varid'>b</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>q</span> <span class='hs-varid'>y</span><span class='hs-varop'>&gt;</span><span class='hs-keyglyph'>]</span><span class='hs-varop'>.</span><span class='hs-varid'>c</span><span class='hs-varop'>&lt;</span><span class='hs-varid'>p</span> <span class='hs-varid'>z</span><span class='hs-varop'>&gt;</span>
+<span class=hs-linenum>79: </span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>80: </span><span class='hs-definition'>c</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-varid'>b</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>c</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>b</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>c</span>
+<span class=hs-linenum>81: </span><a class=annot href="#"><span class=annottext>forall a b c &lt;p :: a-&gt; b-&gt; Bool, q :: c-&gt; a-&gt; Bool&gt;.
+(x:a -&gt; {VV : b&lt;p x&gt; | true})
+-&gt; (x:c -&gt; {VV : a&lt;q x&gt; | true})
+-&gt; y:c
+-&gt; exists [z:{VV : a&lt;q y&gt; | true}].{VV : b&lt;p z&gt; | true}</span><span class='hs-definition'>c</span></a> <a class=annot href="#"><span class=annottext>x:a -&gt; {VV : b | ((papp2 p VV x))}</span><span class='hs-varid'>f</span></a> <a class=annot href="#"><span class=annottext>x:a -&gt; {VV : b | ((papp2 q VV x))}</span><span class='hs-varid'>g</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>x</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>x:a -&gt; {VV : b | ((papp2 p VV x))}</span><span class='hs-varid'>f</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>x:a -&gt; {VV : b | ((papp2 q VV x))}</span><span class='hs-varid'>g</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a><span class='hs-layout'>)</span>
+</pre>
+
+<h2 id="using-composition">Using Composition</h2>
+<p>We can verify the desired <code>plus3</code> function:</p>
+<pre><span class=hs-linenum>90: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>plus3</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>x</span><span class='hs-conop'>:</span><span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Int</span> <span class='hs-keyword'>| v = x + 3}</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>91: </span><span class='hs-definition'>plus3</span>     <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>92: </span><a class=annot href="#"><span class=annottext>x:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x + 3))}</span><span class='hs-definition'>plus3</span></a>     <span class='hs-keyglyph'>=</span> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>x:(GHC.Types.Int)
+-&gt; y:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x + y))}</span><span class='hs-varop'>+</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>forall &lt;q :: (GHC.Types.Int)-&gt; (GHC.Types.Int)-&gt; Bool, p :: (GHC.Types.Int)-&gt; (GHC.Types.Int)-&gt; Bool&gt;.
+(x:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int)&lt;p x&gt; | true})
+-&gt; (x:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int)&lt;q x&gt; | true})
+-&gt; y:(GHC.Types.Int)
+-&gt; exists [z:{VV : (GHC.Types.Int)&lt;q y&gt; | true}].{VV : (GHC.Types.Int)&lt;p z&gt; | true}</span><span class='hs-varop'>`c`</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>x:(GHC.Types.Int)
+-&gt; y:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x + y))}</span><span class='hs-varop'>+</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == (2  :  int))}</span><span class='hs-num'>2</span></a><span class='hs-layout'>)</span>
+</pre>
+
+<p>LiquidHaskell verifies the above, by <strong>instantiating</strong></p>
+<ul>
+<li><code>q</code> with <code>v = x + 1</code></li>
+<li><code>p</code> with <code>v = y + 2</code></li>
+</ul>
+<p>which lets it infer that the output of <code>plus3</code> has type:</p>
+<ul>
+<li><code>exists [z:{v=y+1}]. {v = z + 2}</code></li>
+</ul>
+<p>which is a subtype of <code>{v:Int | v = 3}</code></p>
+<head>
+<link type='text/css' rel='stylesheet' href='liquid.css' />
+</head>

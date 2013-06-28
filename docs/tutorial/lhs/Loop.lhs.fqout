@@ -1,0 +1,162 @@
+UNSAT [1] 
+ 
+ 
+ 
+solution: k_104 := [] 
+
+solution: k_110 := [((0 = 1), Bot1(VV#109))] 
+
+solution: k_112 := [((VV#111 = realWorld##0f), Cmp2(VV#111, realWorld##0f))] 
+
+solution: k_120 := [] 
+
+solution: k_122 := [] 
+
+solution: k_127 := [] 
+
+solution: k_130 := [((VV#129 >= 0), CmpZ4(VV#129));((VV#129 < n#a1fg), Cmp(VV#129, n#a1fg));((VV#129 >= 0), Auto0(VV#129))] 
+
+solution: k_133 := [] 
+
+solution: k_136 := [] 
+
+solution: k_138 := [] 
+
+solution: k_144 := [] 
+
+solution: k_147 := [((VV#146 >= 0), Auto0(VV#146));((VV#146 >= 0), CmpZ4(VV#146))] 
+
+solution: k_150 := [((VV#149 >= 0), CmpZ4(VV#149));((VV#149 < n#a1fl), Cmp(VV#149, n#a1fl));((VV#149 >= 0), Auto0(VV#149))] 
+
+solution: k_153 := [((VV#152 >= 0), CmpZ4(VV#152));((VV#152 >= 0), Auto0(VV#152))] 
+
+solution: k_156 := [((VV#155 >= 0), Auto0(VV#155));((VV#155 >= acc#a1fn), Cmp3(VV#155, acc#a1fn));((VV#155 >= 0), CmpZ4(VV#155))] 
+
+solution: k_158 := [((VV#157 >= 0), Auto0(VV#157));((VV#157 >= 0), CmpZ4(VV#157))] 
+
+solution: k_164 := [((VV#163 >= lq_anf__d1gt), Cmp3(VV#163, lq_anf__d1gt));((VV#163 >= lq_anf__d1gu), Cmp3(VV#163, lq_anf__d1gu));((VV#163 >= 0), Auto0(VV#163));((VV#163 >= 0), CmpZ4(VV#163))] 
+
+solution: k_167 := [(((VV#166 mod 2) = 0), Auto1(VV#166))] 
+
+solution: k_170 := [((VV#169 >= 0), CmpZ4(VV#169));((VV#169 < n#a1fq), Cmp(VV#169, n#a1fq));((VV#169 >= 0), Auto0(VV#169))] 
+
+solution: k_173 := [(((VV#172 mod 2) = 0), Auto1(VV#172))] 
+
+solution: k_176 := [(((VV#175 mod 2) = 0), Auto1(VV#175))] 
+
+solution: k_178 := [(((VV#177 mod 2) = 0), Auto1(VV#177))] 
+
+solution: k_184 := [(((VV#183 mod 2) = 0), Auto1(VV#183))] 
+
+solution: k_189 := [((VV#188 >= 0), Auto0(VV#188));((VV#188 < m#a1fu), Cmp(VV#188, m#a1fu));((VV#188 >= lq_anf__d1gy), Cmp3(VV#188, lq_anf__d1gy));((VV#188 >= 0), CmpZ4(VV#188))] 
+
+solution: k_192 := [((VV#191 >= 0), CmpZ4(VV#191));((VV#191 >= n#a1ft), Cmp3(VV#191, n#a1ft));((VV#191 >= lq_anf__d1gy), Cmp3(VV#191, lq_anf__d1gy));((VV#191 >= 0), Auto0(VV#191))] 
+
+solution: k_195 := [((VV#194 >= 0), Auto0(VV#194));((VV#194 > i#a1fv), Cmp0(VV#194, i#a1fv));((VV#194 > lq_anf__d1gy), Cmp0(VV#194, lq_anf__d1gy));((VV#194 > n#a1ft), Cmp0(VV#194, n#a1ft));((VV#194 > 0), CmpZ1(VV#194))] 
+
+solution: k_199 := [((VV#198 >= lq_anf__d1gy), Cmp3(VV#198, lq_anf__d1gy));((VV#198 >= n#a1ft), Cmp3(VV#198, n#a1ft));((VV#198 >= 0), Auto0(VV#198));((VV#198 >= 0), CmpZ4(VV#198))] 
+
+solution: k_48 := [((VV#47 = 0), CmpZ0(VV#47));(((VV#47 mod 2) = 0), Auto1(VV#47));((VV#47 >= 0), Auto0(VV#47))] 
+
+solution: k_51 := [] 
+
+solution: k_54 := [] 
+
+solution: k_58 := [((VV#57 >= 0), CmpZ4(VV#57));((VV#57 >= lo#a1f7), Cmp3(VV#57, lo#a1f7));((VV#57 < hi#a1f8), Cmp(VV#57, hi#a1f8));((VV#57 >= 0), Auto0(VV#57))] 
+
+solution: k_61 := [] 
+
+solution: k_63 := [] 
+
+solution: k_66 := [] 
+
+solution: k_68 := [((VV#67 = (lo#a1f7 + lo#a1f7)), Auto(VV#67, lo#a1f7, lo#a1f7));((VV#67 = 0), CmpZ0(VV#67));((VV#67 = lo#a1f7), Cmp2(VV#67, lo#a1f7));(((VV#67 mod 2) = 0), Auto1(VV#67));((VV#67 >= 0), Auto0(VV#67))] 
+
+solution: k_70 := [((VV#69 = (lo#a1f7 + hi#a1f8)), Auto(VV#69, lo#a1f7, hi#a1f8));((VV#69 = (lo#X0 + hi#a1f8)), Auto(VV#69, lo#X0, hi#a1f8));((VV#69 = (hi#a1f8 + lo#X0)), Auto(VV#69, hi#a1f8, lo#X0));((VV#69 = (hi#a1f8 + lo#a1f7)), Auto(VV#69, hi#a1f8, lo#a1f7));((VV#69 = hi#a1f8), Cmp2(VV#69, hi#a1f8))] 
+
+solution: k_72 := [((VV#71 = base#a1f9), Cmp2(VV#71, base#a1f9))] 
+
+solution: k_75 := [((VV#74 >= 0), Auto0(VV#74));((VV#74 >= lo#X0), Cmp3(VV#74, lo#X0));((VV#74 >= lo#a1f7), Cmp3(VV#74, lo#a1f7));((VV#74 >= 0), CmpZ4(VV#74));((VV#74 < hi#X1), Cmp(VV#74, hi#X1));((VV#74 < hi#a1f8), Cmp(VV#74, hi#a1f8))] 
+
+solution: k_78 := [] 
+
+solution: k_80 := [] 
+
+solution: k_82 := [((VV#81 >= 0), Auto0(VV#81));((VV#81 >= lo#X0), Cmp3(VV#81, lo#X0));((VV#81 >= lo#a1f7), Cmp3(VV#81, lo#a1f7));((VV#81 >= 0), CmpZ4(VV#81))] 
+
+solution: k_84 := [] 
+
+solution: k_86 := [] 
+
+solution: k_89 := [((VV#88 = (lo#a1f7 + lo#a1f7)), Auto(VV#88, lo#a1f7, lo#a1f7));((VV#88 = 0), CmpZ0(VV#88));((VV#88 = lo#a1f7), Cmp2(VV#88, lo#a1f7));(((VV#88 mod 2) = 0), Auto1(VV#88));((VV#88 >= 0), Auto0(VV#88))] 
+
+solution: k_92 := [((VV#91 = base#a1f9), Cmp2(VV#91, base#a1f9))] 
+
+solution: k_94 := [] 
+
+//QUALIFIERS 
+
+qualif True1(v:@(0)):Prop(v)
+
+qualif True(v:bool):(Bexp v)
+
+qualif SameLen(v:List @(0), ~A:List @(1)):(len([v]) = len([~A]))
+
+qualif Papp2(v:@(0), ~X:@(1), ~P:Pred @(0) @(1)):papp2(~P, v, ~X)
+
+qualif Papp(v:@(0), ~P:Pred @(0)):papp1(~P, v)
+qualif One(v:int):(v = 1)
+
+qualif ListZ1(v:List @(0)):(len([v]) >= 0)
+
+qualif ListZ0(v:List @(0)):(len([v]) = 0)
+
+qualif ListZ(v:List @(0)):(len([v]) > 0)
+
+qualif LenEq(v:List @(0), ~A:int):(~A = len([v]))
+
+qualif LenDiff0(v:List @(0), ~A:int):(len([v]) = (~A + 1))
+
+qualif LenDiff(v:List @(0), ~A:int):(len([v]) = (~A - 1))
+
+qualif LenAcc(v:int, ~A:List @(0), ~B:int):(v = (len([~A]) + ~B))
+
+qualif IsEmp0(v:@(0), ~A:List @(1)):(Prop(v) <=> (len([~A]) = 0))
+
+qualif IsEmp(v:@(0), ~A:List @(1)):(Prop(v) <=> (len([~A]) > 0))
+
+qualif False1(v:@(0)):(~ (Prop(v)))
+qualif False(v:bool):(~ ((Bexp v)))
+
+qualif EqLen(v:int, ~A:List @(0)):(v = len([~A]))
+
+qualif CmpZ4(v:@(0)):(v >= 0)
+qualif CmpZ3(v:@(0)):(v < 0)
+
+qualif CmpZ2(v:@(0)):(v != 0)
+qualif CmpZ1(v:@(0)):(v > 0)
+
+qualif CmpZ0(v:@(0)):(v = 0)
+qualif CmpZ(v:@(0)):(v <= 0)
+
+qualif Cmp4(v:@(0), ~A:@(0)):(v != ~A)
+
+qualif Cmp3(v:@(0), ~A:@(0)):(v >= ~A)
+qualif Cmp2(v:@(0), ~A:@(0)):(v = ~A)
+
+qualif Cmp1(v:@(0), ~A:@(0)):(v <= ~A)
+qualif Cmp0(v:@(0), ~A:@(0)):(v > ~A)
+
+qualif Cmp(v:@(0), ~A:@(0)):(v < ~A)
+qualif Bot2(v:obj):(0 = 1)
+
+qualif Bot1(v:@(0)):(0 = 1)
+qualif Bot0(v:bool):(0 = 1)
+
+qualif Bot(v:int):(0 = 1)
+qualif Auto1(VV:int):((VV mod 2) = 0)
+
+qualif Auto0(VV:int):(VV >= 0)
+
+qualif Auto(VV:int, ~A0:int, ~A1:int):(VV = (~A0 + ~A1)) 
+

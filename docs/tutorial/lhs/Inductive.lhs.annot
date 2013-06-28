@@ -1,0 +1,723 @@
+% Inductive Refinements
+
+Inductive Refinements
+=====================
+
+\begin{code}
+module Loop where
+import Prelude hiding ((!!), foldr, length, (++))
+import SimpleRefinements
+\end{code}
+
+
+`loop` Revisited
+----------------
+
+Recall the **higher-order** `loop` function <br>
+
+\begin{code}
+loop :: Int -> Int -> a -> (Int -> a -> a) -> a
+loop lo hi base f        = go lo base
+  where 
+    go i acc | i < hi    = go (i+1) (f i acc)
+             | otherwise = acc
+\end{code}
+
+We used `loop` to write <br>
+
+\begin{code} 
+{-@ add :: n:Nat -> m:Nat -> {v:Int| v = m + n} @-}
+add :: Int -> Int -> Int
+add n m = loop 0 m n (\_ i -> i + 1)
+\end{code}
+
+**Problem:** Verification requires an **index dependent loop invariant** `p` 
+
+- Which relates index `i` with accumulator `acc`: formally `(p acc i)`
+
+Loop Invariants and Induction
+-----------------------------
+
+To verify output satisfies relation at `hi` we prove that if
+
+- **base case** initial accumulator `base` satisfies invariant at `lo`
+    - `(p base lo)`
+
+- **induction step** `f` **preserves** the invariant at `i`
+    - **if** `(p acc i)` <b>then</b> `(p (f (i + 1) acc) (i+1))`
+
+- **then** "by induction" result satisfies invariant at `hi`
+    - `(p (loop lo hi base f) hi)`
+
+
+Encoding Induction With Abstract Refinements
+--------------------------------------------
+
+We capture induction with an **abstract refinement type** for `loop` <br>
+
+\begin{code}
+{-@ loop :: forall a <p :: Int -> a -> Prop>.
+             lo:Int 
+          -> hi:{v:Int|lo <= v}
+          -> base:a<p lo> 
+          -> f:(i:Int -> a<p i> -> a<p (i+1)>) 
+          -> a<p hi>
+  @-}
+\end{code}
+
+<br>
+
+\begin{code} `p` is the index dependent invariant!
+p     :: Int -> a -> Prop>                  -- ind  hyp 
+base  :: a<p lo>                            -- base case 
+f     :: (i:Int -> a<p i> -> a <p (i+1)>)   -- ind. step
+out   :: a<p hi>                            -- output holds at hi         
+\end{code}
+
+
+Encoding Induction With Abstract Refinements
+--------------------------------------------
+
+\begin{code} Lets revisit 
+add n m = loop 0 m n (\_ z -> z + 1)
+\end{code}
+
+<br> The invariant is: `p` instantiated with `\i acc -> acc = i + n`
+
+**base case:**  `(p 0 n)` holds as `n = 0 + n`
+
+**ind. step**  `\_ z -> z + 1` preserves invariant
+
+- `acc =  i + n` *implies* `acc + 1 = (i + 1) + n`
+
+**output** hence, `loop 0 m n (\_ z -> z + 1) = m + n`
+
+Which lets us verify that
+
+\begin{code}.
+add :: n:Nat -> m:Nat -> {v:Int| v = m + n}
+\end{code}
+
+Structural Induction With Abstract Refinements
+----------------------------------------------
+
+Same idea applies for induction over *structures*
+
+We define a `foldr` function that resembles loop.
+
+\begin{code}
+{-@ foldr :: forall a b <p :: L a -> b -> Prop>. 
+                (xs:L a -> x:a -> b <p xs> -> b <p (C x xs)>) 
+              -> b <p N> 
+              -> ys: L a
+              -> b <p ys>
+  @-}
+foldr :: (L a -> a -> b -> b) -> b -> L a -> b
+foldr op b N        = b
+foldr op b (C x xs) = op xs x (foldr op b xs)
+\end{code}
+
+<br>
+
+- **base case** `b` is related to nil `N`
+- **ind. step** `f` extends relation over cons `C`
+- **output** relation holds over entire list `ys`
+
+
+
+Structural Induction With Abstract Refinements
+----------------------------------------------
+
+We can now verify <br>
+
+\begin{code}
+{-@ size :: xs:L a -> {v: Int | v = (llen xs)} @-}
+size :: L a -> Int
+size = foldr (\_ _ n -> n + 1) 0
+\end{code}
+
+<br>
+
+Here, the relation 
+
+- `(p xs acc)` 
+
+is **automatically instantiated** with
+
+- `acc = (llen xs)`
+
+Structural Induction With Abstract Refinements
+----------------------------------------------
+
+Similarly we can now verify <br>
+
+\begin{code}
+{-@ ++ :: xs:L a -> ys:L a -> {v:L a | (llen v) = (llen xs) + (llen ys)} @-} 
+xs ++ ys = foldr (\_ z zs -> C z zs) ys xs 
+\end{code}
+
+<br>
+
+Here, the relation 
+
+- `(p xs acc)` 
+
+is **automatically instantiated** with
+
+- `(llen acc) = (llen acc) + (llen ys)`
+
+
+
+
+xs
+156
+41
+1
+{VV : (SimpleRefinements.L a) | (VV == xs)}
+
+
+lq_anf__d1fW
+31
+16
+1
+{VV : (GHC.Types.Int) | (VV == (0  :  int))}
+
+
+f
+20
+17
+3
+i:(GHC.Types.Int)
+-> {VV : a | ((papp2 p VV i))}
+-> forall [ex:{VV : (GHC.Types.Int) | (VV == (i + 1))}].{VV : a | ((papp2 p VV ex))}
+
+
+Loop.loop
+20
+1
+8
+forall a <p :: (GHC.Types.Int)-> a-> Bool>.
+lo:(GHC.Types.Int)
+-> hi:{VV : (GHC.Types.Int) | (lo <= VV)}
+-> {VV : a<p lo> | true}
+-> (i:(GHC.Types.Int)
+    -> {VV : a<p i> | true}
+    -> forall [ex:{VV : (GHC.Types.Int) | (VV == (i + 1))}].{VV : a<p ex> | true})
+-> {VV : a<p hi> | true}
+
+
+Loop.foldr
+116
+1
+8
+forall a b <p :: (SimpleRefinements.L a)-> b-> Bool>.
+(xs:(SimpleRefinements.L a)
+ -> x:a
+ -> {VV : b<p xs> | true}
+ -> forall [ex:{VV : (SimpleRefinements.L a) | (VV == (C x xs))}].{VV : b<p ex> | true})
+-> forall [ex:{VV : (SimpleRefinements.L a) | (VV == (N))}].{VV : b<p ex> | true}
+-> ys:(SimpleRefinements.L a)
+-> {VV : b<p ys> | true}
+
+
+acc
+22
+42
+1
+{VV : a | ((papp2 p VV i)) && (VV == acc)}
+
+
+Loop.add
+31
+1
+3
+n:{VV : (GHC.Types.Int) | (VV >= 0)}
+-> m:{VV : (GHC.Types.Int) | (VV >= 0)}
+-> {VV : (GHC.Types.Int) | (VV == (m + n))}
+
+
+zs
+156
+24
+1
+(SimpleRefinements.L a)
+
+
+acc
+22
+10
+1
+{VV : a | ((papp2 p VV i))}
+
+
+unknown
+31
+33
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+n
+136
+20
+1
+{VV : (GHC.Types.Int) | (VV >= 0)}
+
+
+m
+31
+18
+1
+{VV : (GHC.Types.Int) | (VV == m) && (VV >= 0)}
+
+
+i
+22
+40
+1
+{VV : (GHC.Types.Int) | (VV == i) && (VV >= lo) && (VV >= lo) && (VV <= hi) && (VV <= hi) && (lo <= VV) && (lo <= VV)}
+
+
+i
+22
+8
+1
+{VV : (GHC.Types.Int) | (VV >= lo) && (VV >= lo) && (VV <= hi) && (VV <= hi) && (lo <= VV) && (lo <= VV)}
+
+
+lq_anf__d1fX
+31
+35
+1
+{VV : (GHC.Types.Int) | (VV == (1  :  int))}
+
+
+base
+20
+34
+1
+{VV : a | ((papp2 p VV lo)) && (VV == base)}
+
+
+x
+117
+29
+1
+{VV : a | (VV == x)}
+
+
+n
+31
+20
+1
+{VV : (GHC.Types.Int) | (VV == n) && (VV >= 0)}
+
+
+unknown
+23
+28
+1
+{VV : a | ((papp2 p VV i)) && (VV == acc)}
+
+
+Loop.size
+136
+1
+3
+forall a.
+xs:(SimpleRefinements.L a)
+-> {VV : (GHC.Types.Int) | (VV == (llen xs))}
+
+
+xs
+117
+26
+1
+{VV : (SimpleRefinements.L a) | (VV == xs)}
+
+
+n
+31
+5
+1
+{VV : (GHC.Types.Int) | (VV >= 0)}
+
+
+unknown
+156
+12
+8
+forall <p :: (SimpleRefinements.L a)-> (SimpleRefinements.L a)-> Bool>.
+(xs:(SimpleRefinements.L a)
+ -> x:a
+ -> {VV : (SimpleRefinements.L a)<p xs> | true}
+ -> forall [ex:{VV : (SimpleRefinements.L a) | (VV == (C x xs))}].{VV : (SimpleRefinements.L a)<p ex> | true})
+-> forall [ex:{VV : (SimpleRefinements.L a) | (VV == (N))}].{VV : (SimpleRefinements.L a)<p ex> | true}
+-> ys:(SimpleRefinements.L a)
+-> {VV : (SimpleRefinements.L a)<p ys> | true}
+
+
+lq_anf__d1g1
+136
+32
+1
+{VV : (GHC.Types.Int) | (VV == (0  :  int))}
+
+
+xs
+117
+43
+1
+{VV : (SimpleRefinements.L a) | (VV == xs)}
+
+
+b
+116
+23
+1
+forall [ex:{VV : (SimpleRefinements.L a) | (VV == (N))}].{VV : a | ((papp2 p VV ex))}
+
+
+op
+116
+7
+4
+xs:(SimpleRefinements.L a)
+-> x:a
+-> {VV : b | ((papp2 p VV xs))}
+-> forall [ex:{VV : (SimpleRefinements.L a) | (VV == (C x xs))}].{VV : b | ((papp2 p VV ex))}
+
+
+m
+31
+7
+1
+{VV : (GHC.Types.Int) | (VV >= 0)}
+
+
+lq_anf__d1fY
+31
+23
+3
+x1:(GHC.Types.Int)
+-> i:{VV : (GHC.Types.Int) | (VV == (x1 + n)) && (VV == (n + x1)) && (VV >= 0) && (VV >= x1) && (VV >= n) && (x1 <= VV) && (n <= VV)}
+-> {VV : (GHC.Types.Int) | (VV == (i + 1)) && (VV > 0) && (VV > x1) && (VV > i) && (VV > n) && (VV >= 0) && (x1 <= VV) && (n <= VV)}
+
+
+unknown
+156
+30
+3
+a
+-> xs:(SimpleRefinements.L a)
+-> {VV : (SimpleRefinements.L a) | ((llen VV) == (1 + (llen xs)))}
+
+
+go
+22
+28
+10
+forall a.
+lo:{VV : (GHC.Types.Int) | (VV == lo) && (VV <= hi)}
+-> hi:{VV : (GHC.Types.Int) | (VV == hi) && (VV >= lo) && (VV >= lo) && (lo <= VV) && (lo <= VV)}
+-> {VV : a | ((papp2 p VV lo)) && ((papp2 p VV lo)) && (VV == base)}
+-> (x1:{VV : (GHC.Types.Int) | (VV >= lo) && (VV >= lo) && (VV < hi) && (VV < hi) && (lo <= VV) && (lo <= VV)}
+    -> {VV : a | ((papp2 p VV x1))}
+    -> {VV : a | ((papp2 p VV (x1 + 1)))})
+-> i:{VV : (GHC.Types.Int) | (VV >= lo) && (VV >= lo) && (VV <= hi) && (VV <= hi) && (lo <= VV) && (lo <= VV)}
+-> {VV : a | ((papp2 p VV i))}
+-> {VV : a | ((papp2 p VV hi)) && ((papp2 p VV hi))}
+
+
+lo
+20
+6
+1
+(GHC.Types.Int)
+
+
+b
+117
+41
+1
+forall [ex:{VV : (SimpleRefinements.L a) | (VV == (N))}].{VV : a | ((papp2 p VV ex))}
+
+
+xs
+156
+1
+1
+(SimpleRefinements.L a)
+
+
+hi
+20
+9
+1
+{VV : (GHC.Types.Int) | (lo <= VV)}
+
+
+lq_anf__d1fZ
+136
+29
+1
+{VV : (GHC.Types.Int) | (VV == (1  :  int))}
+
+
+op
+117
+38
+4
+xs:(SimpleRefinements.L a)
+-> x:a
+-> {VV : b | ((papp2 p VV xs))}
+-> forall [ex:{VV : (SimpleRefinements.L a) | (VV == (C x xs))}].{VV : b | ((papp2 p VV ex))}
+
+
+lq_anf__d1fT
+22
+34
+1
+{VV : (GHC.Types.Int) | (VV == (1  :  int))}
+
+
+z
+156
+32
+1
+{VV : a | (VV == z)}
+
+
+unknown
+22
+18
+3
+x:{VV : (GHC.Types.Int) | (VV >= i) && (VV >= lo) && (VV >= lo) && (VV <= hi) && (VV <= hi) && (i <= VV) && (lo <= VV) && (lo <= VV)}
+-> y:{VV : (GHC.Types.Int) | (VV >= i) && (VV >= lo) && (VV >= lo) && (VV <= hi) && (VV <= hi) && (i <= VV) && (lo <= VV) && (lo <= VV)}
+-> {VV : (GHC.Types.Bool) | (((Prop VV)) <=> (x < y))}
+
+
+unknown
+117
+23
+4
+xs:(SimpleRefinements.L a)
+-> x:a
+-> {VV : b | ((papp2 p VV xs))}
+-> forall [ex:{VV : (SimpleRefinements.L a) | (VV == (C x xs))}].{VV : b | ((papp2 p VV ex))}
+
+
+unknown
+22
+33
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+i
+31
+26
+1
+{VV : (GHC.Types.Int) | (VV >= 0) && (VV >= n) && (n <= VV)}
+
+
+lq_anf__d1fQ
+156
+19
+4
+x1:(SimpleRefinements.L a)
+-> a
+-> zs:{VV : (SimpleRefinements.L a) | ((llen VV) == ((llen x1) + (llen ys))) && ((llen VV) == ((llen ys) + (llen x1)))}
+-> {VV : (SimpleRefinements.L a) | ((llen VV) == (1 + (llen zs)))}
+
+
+lq_anf__d1g0
+136
+15
+4
+x1:(SimpleRefinements.L a)
+-> a
+-> n:{VV : (GHC.Types.Int) | (VV == (llen x1)) && (VV >= 0)}
+-> {VV : (GHC.Types.Int) | (VV == (n + 1)) && (VV > 0) && (VV > n) && (VV >= 0)}
+
+
+i
+22
+32
+1
+{VV : (GHC.Types.Int) | (VV == i) && (VV >= lo) && (VV >= lo) && (VV <= hi) && (VV <= hi) && (lo <= VV) && (lo <= VV)}
+
+
+unknown
+31
+11
+8
+forall <p :: (GHC.Types.Int)-> (GHC.Types.Int)-> Bool>.
+lo:(GHC.Types.Int)
+-> hi:{VV : (GHC.Types.Int) | (lo <= VV)}
+-> {VV : (GHC.Types.Int)<p lo> | (VV >= 0) && (VV >= n) && (n <= VV)}
+-> (i:(GHC.Types.Int)
+    -> {VV : (GHC.Types.Int)<p i> | (VV >= 0) && (VV >= n) && (n <= VV)}
+    -> forall [ex:{VV : (GHC.Types.Int) | (VV == (i + 1))}].{VV : (GHC.Types.Int)<p ex> | (VV >= 0) && (VV >= n) && (n <= VV)})
+-> {VV : (GHC.Types.Int)<p hi> | (VV >= 0) && (VV >= n) && (n <= VV)}
+
+
+zs
+156
+34
+1
+{VV : (SimpleRefinements.L a) | (VV == zs)}
+
+
+i
+22
+16
+1
+{VV : (GHC.Types.Int) | (VV == i) && (VV >= lo) && (VV >= lo) && (VV <= hi) && (VV <= hi) && (lo <= VV) && (lo <= VV)}
+
+
+b
+116
+10
+1
+forall [ex:{VV : (SimpleRefinements.L a) | (VV == (N))}].{VV : a | ((papp2 p VV ex))}
+
+
+n
+136
+25
+1
+{VV : (GHC.Types.Int) | (VV == n) && (VV >= 0)}
+
+
+unknown
+22
+38
+3
+x1:{VV : (GHC.Types.Int) | (VV >= lo) && (VV >= lo) && (VV < hi) && (VV < hi) && (lo <= VV) && (lo <= VV)}
+-> {VV : a | ((papp2 p VV x1))}
+-> {VV : a | ((papp2 p VV (x1 + 1)))}
+
+
+Loop.++
+156
+4
+4
+forall a.
+xs:(SimpleRefinements.L a)
+-> ys:(SimpleRefinements.L a)
+-> {VV : (SimpleRefinements.L a) | ((llen VV) == ((llen xs) + (llen ys)))}
+
+
+unknown
+20
+28
+3
+x1:{VV : (GHC.Types.Int) | (VV == lo) && (VV <= hi)}
+-> {VV : a | ((papp2 p VV lo)) && ((papp2 p VV x1)) && (VV == base)}
+-> {VV : a | ((papp2 p VV hi))}
+
+
+base
+20
+12
+1
+{VV : a | ((papp2 p VV lo))}
+
+
+unknown
+136
+8
+8
+forall <p :: (SimpleRefinements.L a)-> (GHC.Types.Int)-> Bool>.
+(xs:(SimpleRefinements.L a)
+ -> x:a
+ -> {VV : (GHC.Types.Int)<p xs> | (VV >= 0)}
+ -> forall [ex:{VV : (SimpleRefinements.L a) | (VV == (C x xs))}].{VV : (GHC.Types.Int)<p ex> | (VV >= 0)})
+-> forall [ex:{VV : (SimpleRefinements.L a) | (VV == (N))}].{VV : (GHC.Types.Int)<p ex> | (VV >= 0)}
+-> ys:(SimpleRefinements.L a)
+-> {VV : (GHC.Types.Int)<p ys> | (VV >= 0)}
+
+
+go
+22
+5
+10
+forall a.
+lo:{VV : (GHC.Types.Int) | (VV == lo) && (VV <= hi)}
+-> hi:{VV : (GHC.Types.Int) | (VV == hi) && (VV >= lo) && (VV >= lo) && (lo <= VV) && (lo <= VV)}
+-> {VV : a | ((papp2 p VV lo)) && ((papp2 p VV lo)) && (VV == base)}
+-> (x1:{VV : (GHC.Types.Int) | (VV >= lo) && (VV >= lo) && (VV < hi) && (VV < hi) && (lo <= VV) && (lo <= VV)}
+    -> {VV : a | ((papp2 p VV x1))}
+    -> {VV : a | ((papp2 p VV (x1 + 1)))})
+-> i:{VV : (GHC.Types.Int) | (VV >= lo) && (VV >= lo) && (VV <= hi) && (VV <= hi) && (lo <= VV) && (lo <= VV)}
+-> {VV : a | ((papp2 p VV i))}
+-> {VV : a | ((papp2 p VV hi)) && ((papp2 p VV hi))}
+
+
+ys
+156
+7
+1
+(SimpleRefinements.L a)
+
+
+lo
+20
+31
+1
+{VV : (GHC.Types.Int) | (VV == lo)}
+
+
+unknown
+136
+27
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+unknown
+117
+32
+8
+forall <p :: (SimpleRefinements.L a)-> b-> Bool>.
+(xs:(SimpleRefinements.L a)
+ -> x:a
+ -> {VV : b<p xs> | true}
+ -> forall [ex:{VV : (SimpleRefinements.L a) | (VV == (C x xs))}].{VV : b<p ex> | true})
+-> forall [ex:{VV : (SimpleRefinements.L a) | (VV == (N))}].{VV : b<p ex> | true}
+-> ys:(SimpleRefinements.L a)
+-> {VV : b<p ys> | true}
+
+
+ys
+156
+38
+1
+{VV : (SimpleRefinements.L a) | (VV == ys)}
+
+
+i
+31
+31
+1
+{VV : (GHC.Types.Int) | (VV == i) && (VV >= 0) && (VV >= n) && (n <= VV)}
+
+
+z
+156
+22
+1
+a
+
+
+hi
+22
+20
+1
+{VV : (GHC.Types.Int) | (VV == hi) && (VV == hi) && (VV >= lo) && (VV >= lo) && (lo <= VV) && (lo <= VV)}
+
+

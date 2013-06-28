@@ -14,9 +14,9 @@ import System.Console.CmdArgs
 ---------------------------------------------------------------------------------
 
 config = Config { 
-   files = def &= typ "TARGET" 
-               &= args 
-               &= typFile 
+   files   = def &= typ "TARGET" 
+                 &= args 
+                 &= typFile 
  
  , idirs   = def &= typDir 
                  &= help "Paths to Spec Include Directory " 
@@ -25,9 +25,10 @@ config = Config {
 
  , nofalse = def &= help "Remove false predicates from the refinements"
  
- , noCheckUnknown = def &= explicit
-                        &= name "no-check-unknown"
-                        &= help "Don't complain about specifications for unexported and unused values "
+ , noCheckUnknown 
+           = def &= explicit
+                 &= name "no-check-unknown"
+                 &= help "Don't complain about specifications for unexported and unused values "
 
  , maxParams = 2 &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
  } &= verbosity

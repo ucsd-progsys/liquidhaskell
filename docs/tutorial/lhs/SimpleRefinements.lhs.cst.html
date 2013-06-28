@@ -1,0 +1,171 @@
+<h2 id="simple-refinement-types">Simple Refinement Types</h2>
+<pre><span class=hs-linenum>7: </span><span class='hs-keyword'>module</span> <span class='hs-conid'>SimpleRefinements</span> <span class='hs-keyword'>where</span>
+<span class=hs-linenum>8: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Prelude</span> <span class='hs-varid'>hiding</span> <span class='hs-layout'>(</span><span class='hs-layout'>(</span><span class='hs-varop'>!!</span><span class='hs-layout'>)</span><span class='hs-layout'>,</span> <span class='hs-varid'>length</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>9: </span><span class='hs-keyword'>import</span> <span class='hs-conid'>Language</span><span class='hs-varop'>.</span><span class='hs-conid'>Haskell</span><span class='hs-varop'>.</span><span class='hs-conid'>Liquid</span><span class='hs-varop'>.</span><span class='hs-conid'>Prelude</span>
+</pre>
+
+
+<h2 id="simple-refinement-types-1">Simple Refinement Types</h2>
+<p>This type describes <code>Int</code> values that equal <code>0</code>.</p>
+<pre><span class=hs-linenum>20: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>zero</span> <span class='hs-keyglyph'>::</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Int</span> <span class='hs-keyword'>| v = 0}</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>21: </span><span class='hs-definition'>zero</span>     <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>22: </span><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV == 0)}</span><span class='hs-definition'>zero</span></a>     <span class='hs-keyglyph'>=</span>  <a class=annot href="#"><span class=annottext>x:(GHC.Prim.Int#) -&gt; {VV : (GHC.Types.Int) | (VV == (x  :  int))}</span><span class='hs-num'>0</span></a>
+</pre>
+
+<h2 id="refinements-are-logical-formulas">Refinements are <em>logical formulas</em></h2>
+<p>If</p>
+<ul>
+<li><p>refinement of <code>T1</code> <strong>implies</strong> refinement of <code>T2</code></p></li>
+<li><p><code>p1</code> <strong>implies</strong> <code>p2</code></p></li>
+</ul>
+<p>Then</p>
+<ul>
+<li><p><code>T1</code> is a <strong>subtype</strong> of <code>T2</code></p></li>
+<li><p><code>{v:t | p1} &lt;: {v:t | p2}</code></p></li>
+</ul>
+<h2 id="refinements-are-logical-formulas-1">Refinements are <em>logical formulas</em></h2>
+<p>For example, since</p>
+<ul>
+<li><code>v = 0</code> <em>implies</em> <code>v &gt;= 0</code></li>
+</ul>
+<p>Therefore</p>
+<ul>
+<li><code>{v:Int | v = 0} &lt;: {v:Int | v &gt;= 0}</code></li>
+</ul>
+<h2 id="refinements-are-logical-formulas-2">Refinements are <em>logical formulas</em></h2>
+So we can have a type for natural numbers:
+<pre><span class=hs-linenum>56: </span>
+<span class=hs-linenum>57: </span><span class='hs-keyword'>type</span> <span class='hs-conid'>Nat</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span><span class='hs-conid'>Int</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>v</span> <span class='hs-varop'>&gt;=</span> <span class='hs-num'>0</span><span class='hs-layout'>}</span>
+</pre>
+
+<p><br></p>
+<p>And we can type <code>0</code> as <code>Nat</code>:</p>
+<p><br></p>
+<pre><span class=hs-linenum>67: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>zero'</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Nat</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>68: </span><span class='hs-definition'>zero'</span>     <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>69: </span><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV &gt;= 0)}</span><span class='hs-definition'>zero'</span></a>     <span class='hs-keyglyph'>=</span>  <a class=annot href="#"><span class=annottext>x:(GHC.Prim.Int#) -&gt; {VV : (GHC.Types.Int) | (VV == (x  :  int))}</span><span class='hs-num'>0</span></a>
+</pre>
+
+<h2 id="refinements-are-logical-formulas-3">Refinements are <em>logical formulas</em></h2>
+<p>Similarly, since</p>
+<ul>
+<li><code>v = 0 =&gt; v mod 2 = 0</code></li>
+</ul>
+<p>Therefore</p>
+<ul>
+<li><code>{v:Int | v = 0} &lt;: {v:Int | v mod 2 = 0}</code></li>
+</ul>
+<p>Thus, via SMT based subtyping LiquidHaskell verifies:</p>
+<pre><span class=hs-linenum>86: </span><span class='hs-keyword'>{-@</span> <span class='hs-keyword'>type</span> <span class='hs-conid'>Even</span> <span class='hs-keyglyph'>=</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span><span class='hs-conid'>Int</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>v</span> <span class='hs-varid'>mod</span> <span class='hs-num'>2</span> <span class='hs-keyglyph'>=</span> <span class='hs-num'>0</span><span class='hs-layout'>}</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>87: </span>
+<span class=hs-linenum>88: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>zero''</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Even</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>89: </span><span class='hs-definition'>zero''</span>     <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>90: </span><a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | ((VV mod 2) == 0)}</span><span class='hs-definition'>zero''</span></a>     <span class='hs-keyglyph'>=</span>  <a class=annot href="#"><span class=annottext>x:(GHC.Prim.Int#) -&gt; {VV : (GHC.Types.Int) | (VV == (x  :  int))}</span><span class='hs-num'>0</span></a>
+</pre>
+
+
+<h2 id="lists">Lists</h2>
+<p>Refinements can live <em>inside</em> type constructors:</p>
+<pre><span class=hs-linenum>100: </span><span class='hs-keyword'>infixr</span> <span class='hs-varop'>`C`</span>
+<span class=hs-linenum>101: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>N</span> <span class='hs-keyglyph'>|</span> <span class='hs-conid'>C</span> <span class='hs-varid'>a</span> <span class='hs-layout'>(</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span>
+</pre>
+
+<h2 id="lists-universal-invariants">Lists: Universal Invariants</h2>
+<p>Constructors enable <em>universally quantified</em> invariants.</p>
+<p>For example, <em>every element</em> in a list is non-negative:</p>
+<pre><span class=hs-linenum>112: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>natList</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>L</span> <span class='hs-conid'>Nat</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>113: </span><span class='hs-definition'>natList</span>     <span class='hs-keyglyph'>::</span> <span class='hs-conid'>L</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>114: </span><a class=annot href="#"><span class=annottext>(SimpleRefinements.L {VV : (GHC.Types.Int) | (VV &gt;= 0)})</span><span class='hs-definition'>natList</span></a>     <span class='hs-keyglyph'>=</span>  <a class=annot href="#"><span class=annottext>{VV#68 : (GHC.Types.Int) | (VV#68 == (0  :  int)) &amp;&amp; (VV#68 == lq_anf__d1eI)}</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>x:{VV#80 : (GHC.Types.Int) | k_81}
+-&gt; xs:(SimpleRefinements.L {VV#80 : (GHC.Types.Int) | k_81})
+-&gt; {VV : (SimpleRefinements.L {VV#80 : (GHC.Types.Int) | k_81}) | ((llen VV) == (1 + (llen xs)))}</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>{VV#69 : (GHC.Types.Int) | (VV#69 == (1  :  int)) &amp;&amp; (VV#69 == lq_anf__d1eJ)}</span><span class='hs-num'>1</span></a> <a class=annot href="#"><span class=annottext>x:{VV#77 : (GHC.Types.Int) | k_78}
+-&gt; xs:(SimpleRefinements.L {VV#77 : (GHC.Types.Int) | k_78})
+-&gt; {VV : (SimpleRefinements.L {VV#77 : (GHC.Types.Int) | k_78}) | ((llen VV) == (1 + (llen xs)))}</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>{VV#70 : (GHC.Types.Int) | (VV#70 == (3  :  int)) &amp;&amp; (VV#70 == lq_anf__d1eK)}</span><span class='hs-num'>3</span></a> <a class=annot href="#"><span class=annottext>x:{VV#74 : (GHC.Types.Int) | k_75}
+-&gt; xs:(SimpleRefinements.L {VV#74 : (GHC.Types.Int) | k_75})
+-&gt; {VV : (SimpleRefinements.L {VV#74 : (GHC.Types.Int) | k_75}) | ((llen VV) == (1 + (llen xs)))}</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>{VV#73 : (SimpleRefinements.L {VV#71 : (GHC.Types.Int) | k_72[VV:=VV#73]}) | ((llen VV#73) == 0) &amp;&amp; (VV#73 == lq_anf__d1eL)}</span><span class='hs-conid'>N</span></a>
+</pre>
+
+<p>or, <em>every element</em> in a list is even:</p>
+<pre><span class=hs-linenum>120: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>evenList</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>L</span> <span class='hs-conid'>Even</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>121: </span><span class='hs-definition'>evenList</span>     <span class='hs-keyglyph'>::</span> <span class='hs-conid'>L</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>122: </span><a class=annot href="#"><span class=annottext>(SimpleRefinements.L {VV : (GHC.Types.Int) | ((VV mod 2) == 0)})</span><span class='hs-definition'>evenList</span></a>     <span class='hs-keyglyph'>=</span>  <a class=annot href="#"><span class=annottext>{VV#54 : (GHC.Types.Int) | (VV#54 == (0  :  int)) &amp;&amp; (VV#54 == lq_anf__d1eC)}</span><span class='hs-num'>0</span></a> <a class=annot href="#"><span class=annottext>x:{VV#66 : (GHC.Types.Int) | k_67}
+-&gt; xs:(SimpleRefinements.L {VV#66 : (GHC.Types.Int) | k_67})
+-&gt; {VV : (SimpleRefinements.L {VV#66 : (GHC.Types.Int) | k_67}) | ((llen VV) == (1 + (llen xs)))}</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>{VV#55 : (GHC.Types.Int) | (VV#55 == (2  :  int)) &amp;&amp; (VV#55 == lq_anf__d1eD)}</span><span class='hs-num'>2</span></a> <a class=annot href="#"><span class=annottext>x:{VV#63 : (GHC.Types.Int) | k_64}
+-&gt; xs:(SimpleRefinements.L {VV#63 : (GHC.Types.Int) | k_64})
+-&gt; {VV : (SimpleRefinements.L {VV#63 : (GHC.Types.Int) | k_64}) | ((llen VV) == (1 + (llen xs)))}</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>{VV#56 : (GHC.Types.Int) | (VV#56 == (8  :  int)) &amp;&amp; (VV#56 == lq_anf__d1eE)}</span><span class='hs-num'>8</span></a> <a class=annot href="#"><span class=annottext>x:{VV#60 : (GHC.Types.Int) | k_61}
+-&gt; xs:(SimpleRefinements.L {VV#60 : (GHC.Types.Int) | k_61})
+-&gt; {VV : (SimpleRefinements.L {VV#60 : (GHC.Types.Int) | k_61}) | ((llen VV) == (1 + (llen xs)))}</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>{VV#59 : (SimpleRefinements.L {VV#57 : (GHC.Types.Int) | k_58[VV:=VV#59]}) | ((llen VV#59) == 0) &amp;&amp; (VV#59 == lq_anf__d1eF)}</span><span class='hs-conid'>N</span></a>
+</pre>
+
+
+<h2 id="refinement-function-types">Refinement Function Types</h2>
+<p>Consider a <code>safeDiv</code> operator: <br></p>
+<pre><span class=hs-linenum>132: </span><span class='hs-definition'>safeDiv</span>    <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>133: </span><a class=annot href="#"><span class=annottext>lq_tmp_db0:(GHC.Types.Int)
+-&gt; lq_tmp_db1:{VV : (GHC.Types.Int) | (VV /= 0)} -&gt; (GHC.Types.Int)</span><span class='hs-definition'>safeDiv</span></a> <a class=annot href="#"><span class=annottext>(GHC.Types.Int)</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>{VV : (GHC.Types.Int) | (VV /= 0)}</span><span class='hs-varid'>y</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV#131 : (GHC.Types.Int) | (VV#131 == x#a1dT)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>x:(GHC.Types.Int)
+-&gt; y:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x / y))}</span><span class='hs-varop'>`div`</span></a> <a class=annot href="#"><span class=annottext>{VV#132 : (GHC.Types.Int) | (VV#132 /= 0) &amp;&amp; (VV#132 == y#a1dU)}</span><span class='hs-varid'>y</span></a>
+</pre>
+
+<p>We can use refinements to specify a <strong>precondition</strong>: divisor is <strong>non-zero</strong> <br></p>
+<pre><span class=hs-linenum>139: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>safeDiv</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Int</span> <span class='hs-keyword'>| v != 0}</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p><br></p>
+<p>Demo</p>
+<h2 id="dependent-function-types">Dependent Function Types</h2>
+Consider a list indexing function:
+<pre><span class=hs-linenum>150: </span><span class='hs-layout'>(</span><span class='hs-varop'>!!</span><span class='hs-layout'>)</span>         <span class='hs-keyglyph'>::</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span>
+<span class=hs-linenum>151: </span><span class='hs-layout'>(</span><span class='hs-conid'>C</span> <span class='hs-varid'>x</span> <span class='hs-keyword'>_</span><span class='hs-layout'>)</span> <span class='hs-varop'>!!</span> <span class='hs-num'>0</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>x</span>
+<span class=hs-linenum>152: </span><span class='hs-layout'>(</span><span class='hs-conid'>C</span> <span class='hs-keyword'>_</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span><span class='hs-varop'>!!</span> <span class='hs-varid'>n</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>xs</span><span class='hs-varop'>!!</span><span class='hs-layout'>(</span><span class='hs-varid'>n</span><span class='hs-comment'>-</span><span class='hs-num'>1</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>153: </span><span class='hs-keyword'>_</span>       <span class='hs-varop'>!!</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>liquidError</span> <span class='hs-str'>"This should not happen!"</span>
+</pre>
+
+<p><br></p>
+<p>We desire <strong>precondition</strong> that index <code>i</code> be between <code>0</code> and <strong>list length</strong></p>
+<h2 id="measuring-a-lists-length-in-logic">Measuring A List's length in logic</h2>
+<p>We define a <strong>measure</strong> for the length of a <code>List</code> <br></p>
+<pre><span class=hs-linenum>166: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>measure</span> <span class='hs-varid'>llen</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>(</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>167: </span>    <span class='hs-varid'>llen</span><span class='hs-layout'>(</span><span class='hs-conid'>N</span><span class='hs-layout'>)</span>      <span class='hs-keyglyph'>=</span> <span class='hs-num'>0</span>
+<span class=hs-linenum>168: </span>    <span class='hs-varid'>llen</span><span class='hs-layout'>(</span><span class='hs-conid'>C</span> <span class='hs-varid'>x</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-num'>1</span> <span class='hs-varop'>+</span> <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span>
+<span class=hs-linenum>169: </span>  <span class='hs-keyword'>@-}</span>
+</pre>
+
+<p><br></p>
+The measure strengthens the type of data constructors
+<pre><span class=hs-linenum>175: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>where</span> 
+<span class=hs-linenum>176: </span>  <span class='hs-conid'>N</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span> <span class='hs-conop'>:</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>|</span> <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-num'>0</span><span class='hs-layout'>}</span>
+<span class=hs-linenum>177: </span>  <span class='hs-conid'>C</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>xs</span><span class='hs-conop'>:</span><span class='hs-layout'>(</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span><span class='hs-layout'>(</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>|</span><span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>v</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-num'>1</span> <span class='hs-varop'>+</span> <span class='hs-layout'>(</span><span class='hs-varid'>llen</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span><span class='hs-layout'>}</span>
+</pre>
+
+<h2 id="measuring-a-lists-length-in-logic-1">Measuring A List's length in logic</h2>
+<p>Now we can verify</p>
+<p><br></p>
+<pre><span class=hs-linenum>188: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>length</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>xs</span><span class='hs-conop'>:</span><span class='hs-layout'>(</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Int</span> <span class='hs-keyword'>| v = (llen xs)}</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>189: </span><span class='hs-definition'>length</span>     <span class='hs-keyglyph'>::</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>190: </span><a class=annot href="#"><span class=annottext>forall a.
+xs:(SimpleRefinements.L a)
+-&gt; {VV : (GHC.Types.Int) | (VV == (llen xs))}</span><span class='hs-definition'>length</span></a> <span class='hs-conid'>N</span>        <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>x:(GHC.Prim.Int#) -&gt; {VV : (GHC.Types.Int) | (VV == (x  :  int))}</span><span class='hs-num'>0</span></a>
+<span class=hs-linenum>191: </span><span class='hs-definition'>length</span> <span class='hs-layout'>(</span><span class='hs-conid'>C</span> <span class='hs-keyword'>_</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV#90 : (GHC.Types.Int) | (VV#90 == (1  :  int)) &amp;&amp; (VV#90 == lq_anf__d1eP)}</span><span class='hs-num'>1</span></a> <a class=annot href="#"><span class=annottext>x:(GHC.Types.Int)
+-&gt; y:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x + y))}</span><span class='hs-varop'>+</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>xs:(SimpleRefinements.L {VV#91 : a | k_92})
+-&gt; {VV : (GHC.Types.Int) | (VV == (llen xs))}</span><span class='hs-varid'>length</span></a> <a class=annot href="#"><span class=annottext>{VV#88 : (SimpleRefinements.L a) | (VV#88 == xs#a1dV)}</span><span class='hs-varid'>xs</span></a><span class='hs-layout'>)</span>
+</pre>
+
+<h2 id="measuring-a-lists-length-in-logic-2">Measuring A List's length in logic</h2>
+<p>And we can type <code>(!!)</code> as</p>
+<p><br></p>
+<pre><span class=hs-linenum>202: </span><span class='hs-keyword'>{-@</span> <span class='hs-layout'>(</span><span class='hs-varop'>!!</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>::</span> <span class='hs-varid'>ls</span><span class='hs-conop'>:</span><span class='hs-layout'>(</span><span class='hs-conid'>L</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>{v:</span><span class='hs-conid'>Nat</span> <span class='hs-keyword'>| true}</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>@-}</span>
+<span class=hs-linenum>203: </span><span class='hs-layout'>(</span><span class='hs-varop'>!!</span><span class='hs-layout'>)</span>         <span class='hs-keyglyph'>::</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span>
+<span class=hs-linenum>204: </span><span class='hs-layout'>(</span><span class='hs-conid'>C</span> <span class='hs-varid'>x</span> <span class='hs-keyword'>_</span><span class='hs-layout'>)</span> <a class=annot href="#"><span class=annottext>forall a.
+ls:(SimpleRefinements.L a)
+-&gt; lq_tmp_db3:{VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; true} -&gt; a</span><span class='hs-varop'>!!</span></a> <span class='hs-num'>0</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x#a1dW)}</span><span class='hs-varid'>x</span></a>
+<span class=hs-linenum>205: </span><span class='hs-layout'>(</span><span class='hs-conid'>C</span> <span class='hs-keyword'>_</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span><span class='hs-varop'>!!</span> <span class='hs-varid'>n</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV#111 : (SimpleRefinements.L a) | (VV#111 == ds_d1eq)}</span><span class='hs-varid'>xs</span></a><a class=annot href="#"><span class=annottext>ls:(SimpleRefinements.L {VV#128 : a | k_129})
+-&gt; lq_tmp_db3:{VV : (GHC.Types.Int) | (VV &gt;= 0) &amp;&amp; true}
+-&gt; {VV#128 : a | k_129}</span><span class='hs-varop'>!!</span></a><span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV#95 : (GHC.Types.Int) | (VV#95 &gt;= 0) &amp;&amp; true &amp;&amp; (VV#95 == ds_d1ep)}</span><span class='hs-varid'>n</span></a><a class=annot href="#"><span class=annottext>x:(GHC.Types.Int)
+-&gt; y:(GHC.Types.Int) -&gt; {VV : (GHC.Types.Int) | (VV == (x - y))}</span><span class='hs-comment'>-</span></a><a class=annot href="#"><span class=annottext>{VV#126 : (GHC.Types.Int) | (VV#126 == (1  :  int)) &amp;&amp; (VV#126 == lq_anf__d1eV)}</span><span class='hs-num'>1</span></a><span class='hs-layout'>)</span>
+<span class=hs-linenum>206: </span><span class='hs-keyword'>_</span>       <span class='hs-varop'>!!</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>lq_tmp_db3:{VV : [(GHC.Types.Char)] | (0 == 1)}
+-&gt; {VV#107 : a | k_108}</span><span class='hs-varid'>liquidError</span></a> <span class=hs-error><a class=annot href="#"><span class=annottext>{VV#106 : [(GHC.Types.Char)] | ((len VV#106) &gt;= 0) &amp;&amp; (VV#106 == lq_anf__d1eS)}</span><span class='hs-str'>"This should not happen!"</span></a></span>
+</pre>
+
+<p>Demo: lets see what happens if we <strong>remove</strong> the precondition</p>
+<head>
+<link type='text/css' rel='stylesheet' href='liquid.css' />
+</head>
