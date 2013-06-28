@@ -240,6 +240,8 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ qualif PLenPos(v: GHC.Ptr.Ptr a): 0 <= (plen v)                                       @-}
 {-@ qualif LTPLen(v: int, p:GHC.Ptr.Ptr a): v < (plen p)                                  @-}
 
+-- for ByteString.inits
+{-@ qualif BLenGt(v:Data.ByteString.Internal.ByteString, n:int): (bLength v) > n @-}
 
 -- for ByteString.concat
 {-@ qualif BLens(v:List Data.ByteString.Internal.ByteString) : 0 <= (bLengths v)          @-}

@@ -1355,14 +1355,18 @@ tokens f = P.filter (not.null) . splitWith f
 -- It is a special case of 'groupBy', which allows the programmer to
 -- supply their own equality test. It is about 40% faster than 
 -- /groupBy (==)/
-{-@ group :: b:ByteString -> {v: [ByteString] | (bLengths v) = (bLength b)} @-}
+{-@ group :: b:ByteString -> {v: [ByteStringNE] | (bLengths v) = (bLength b)} @-}
 group :: ByteString -> [ByteString]
 group xs
     | null xs   = []
-    | otherwise = let (ys, zs) = spanByte (unsafeHead xs) xs in 
-                  ys : group zs
-    -- LIQUID LAZY: where
-    -- LIQUID LAZY:     (ys, zs) = spanByte (unsafeHead xs) xs
+    | otherwise = let y = unsafeHead xs
+                      (ys, zs) = spanByte (unsafeHead xs) (unsafeTail xs)
+                  in (y `cons` ys) : group zs
+    -- LIQUID FIXME: a better spec for spanByte would say that if x
+    -- occurs at the head of xs, then `spanByte x xs` will return a
+    -- non-empty bytestring
+    -- LIQUID where
+    -- LIQUID     (ys, zs) = spanByte (unsafeHead xs) xs
 
 
 -- | The 'groupBy' function is the non-overloaded version of 'group'.
@@ -1840,9 +1844,14 @@ unzip ls = (pack (P.map fst ls), pack (P.map snd ls))
 -- Special lists
 
 -- | /O(n)/ Return all initial segments of the given 'ByteString', shortest first.
-{- inits :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
+{-@ inits :: b:ByteString -> [{v1:ByteString | (bLength v1) <= (bLength b)}]<{\ix iy -> (bLength ix) < (bLength iy)}> @-}
 inits :: ByteString -> [ByteString]
-inits (PS x s l) = [PS x s n | n <- rng l {- LIQUID COMPREHENSIONS [0..l] -}]
+--LIQUID INLINE inits (PS x s l) = [PS x s n | n <- [0..l]]
+inits (PS x s l) = PS x s 0 : go 0 (rng 1 l)
+    where go _  []     = []
+          go n0 (n:ns) = PS x s n : go n ns
+          rng a b | a > b     = []
+                  | otherwise = a : rng (a+1) b
 
 {- rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
 rng :: Int -> [Int]

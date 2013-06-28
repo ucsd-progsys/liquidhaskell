@@ -103,7 +103,36 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
 {-@ type LByteStringSZ B = {v:LByteString | (lbLength v) = (lbLength B)} @-}
 {-@ type LByteStringLE B = {v:LByteString | (lbLength v) <= (lbLength B)} @-}
 
+-- ByteString qualifiers
 {-@ qualif ByteStringNE(v:Data.ByteString.Internal.ByteString): (bLength v) > 0 @-}
+{-@ qualif BLengthsAcc(v:List Data.ByteString.Internal.ByteString,
+                       c:Data.ByteString.Internal.ByteString,
+                       cs:List Data.ByteString.Internal.ByteString):
+        (bLengths v) = (bLength c) + (bLengths cs)
+  @-}
+
+{-@ qualif BLengthsSum(v:List List a, bs:List Data.ByteString.Internal.ByteString):
+       (sumLens v) = (bLengths bs)
+  @-}
+
+{-@ qualif BLenLE(v:Data.ByteString.Internal.ByteString, n:int): (bLength v) <= n @-}
+{-@ qualif BLenEq(v:Data.ByteString.Internal.ByteString,
+                  b:Data.ByteString.Internal.ByteString):
+       (bLength v) = (bLength b)
+  @-}
+
+{-@ qualif BLenAcc(v:int,
+                   b1:Data.ByteString.Internal.ByteString,
+                   b2:Data.ByteString.Internal.ByteString):
+       v = (bLength b1) + (bLength b2)
+  @-}
+{-@ qualif BLenAcc(v:int,
+                   b:Data.ByteString.Internal.ByteString,
+                   n:int):
+       v = (bLength b) + n
+  @-}
+
+-- lazy ByteString qualifiers
 {-@ qualif LByteStringN(v:Data.ByteString.Lazy.Internal.ByteString, n:int): (lbLength v) = n @-}
 {-@ qualif LByteStringNE(v:Data.ByteString.Lazy.Internal.ByteString): (lbLength v) > 0 @-}
 {-@ qualif LByteStringSZ(v:Data.ByteString.Lazy.Internal.ByteString,
