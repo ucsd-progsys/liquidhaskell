@@ -9,12 +9,12 @@ type PtrV a   = {v: (Ptr a)         | 0 <= (plen v) }
 
 GHC.Ptr.castPtr :: p:(PtrV a) -> (PtrN b (plen p))
 
-GHC.Ptr.plusPtr :: base:(Ptr a)
+GHC.Ptr.plusPtr :: base:(PtrV a)
                 -> off:{v:Int | v <= (plen base) } 
-                -> {v:(Ptr b) | (((pbase v) = (pbase base)) && ((plen v) = (plen base) - off))}
+                -> {v:(PtrV b) | (((pbase v) = (pbase base)) && ((plen v) = (plen base) - off))}
 
-GHC.Ptr.minusPtr :: q:(Ptr a)
-                 -> p:{v:(Ptr b) | (pbase v) = (pbase q)}
-                 -> {v:Int | v = (plen p) - (plen q)}
+GHC.Ptr.minusPtr :: q:(PtrV a)
+                 -> p:{v:(PtrV b) | (((pbase v) = (pbase q)) && ((plen v) >= (plen q)))}
+                 -> {v:Nat | v = (plen p) - (plen q)}
 
 measure deref     :: GHC.Ptr.Ptr a -> a
