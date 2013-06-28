@@ -1,26 +1,13 @@
--- ---
--- layout: post
--- title: "Binary Search Trees"
--- date: 2013-02-15 16:12
--- comments: true
--- external-url:
--- categories: abstract-refinements
--- author: Niki Vazou
--- published: false
--- ---
-
--- In this example, we show how we can use multi-parameter abstract refinements
--- to encode ordering invarants on tree structures.
-
-
 module Map where
 
+-- | In this example, we show how we can use multi-parameter abstract refinements
+-- to encode ordering invarants on binary search trees.
 
--- Take for example the following refined type used to encode functional maps (from Data.Map):
+-- The following code ins from Data.Map
 
 
 {-@
-  data Map k a <l :: root:k -> k -> Prop, r :: root:k -> k -> Prop>
+  data Map k a <l :: k -> k -> Prop, r :: k -> k -> Prop>
       = Tip
       | Bin (sz    :: Size)
             (key   :: k)
@@ -47,10 +34,11 @@ type Size    = Int
 
 -- then `BST k v`, `MinHeap k v` and `MaxHeap k v` denote exactly binary-search-ordered, min-heap-ordered, and max-heap-ordered trees (with keys and values of types `k` and `v`).
 
--- We can use the above types to automatically verify ordering properties of complex libraries.
+-- We can use the above types to automatically verify that the following functions preserve BST.
 
--- For example, we cab use `BST` to prove that `Data.Map`'s `insert` and `delete` functions return a binary search tree:
-
+{-@ empty :: BST k a @-}
+empty     :: Map k a
+empty     = Tip
 
 {-@ insert :: Ord k => k:k -> a:a -> t:BST k a -> BST k a @-}
 insert :: Ord k => k -> a -> Map k a -> Map k a
@@ -74,10 +62,7 @@ delete k t
                GT -> balance kx x l (delete k r)
                EQ -> glue kx l r
 
-
-
 -- Below are the functions used by `insert` and `delete`:
-
 
 singleton :: k -> a -> Map k a
 singleton k x
