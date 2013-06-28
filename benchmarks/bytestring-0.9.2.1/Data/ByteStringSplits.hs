@@ -377,14 +377,18 @@ splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp
 
 
 
-{-@ group :: b:ByteString -> {v: [ByteString] | (bLengths v) = (bLength b)} @-}
+{-@ group :: b:ByteString -> {v: [ByteStringNE] | (bLengths v) = (bLength b)} @-}
 group :: ByteString -> [ByteString]
 group xs
     | null xs   = []
-    | otherwise = let (ys, zs) = spanByte (unsafeHead xs) xs in 
-                  ys : group zs
-    -- LIQUID LAZY: where
-    -- LIQUID LAZY:     (ys, zs) = spanByte (unsafeHead xs) xs
+    | otherwise = let y = unsafeHead xs
+                      (ys, zs) = spanByte (unsafeHead xs) (unsafeTail xs)
+                  in (y `cons` ys) : group zs
+    -- LIQUID FIXME: a better spec for spanByte would say that if x
+    -- occurs at the head of xs, then `spanByte x xs` will return a
+    -- non-empty bytestring
+    -- LIQUID where
+    -- LIQUID     (ys, zs) = spanByte (unsafeHead xs) xs
 
 {-@ groupBy :: (Word8 -> Word8 -> Bool) -> b:ByteString -> {v:[ByteStringNE] | (bLengths v) = (bLength b)} @-}
 groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
@@ -395,9 +399,14 @@ groupBy k xs
     -- LIQUID LAZY: where
     -- LIQUID LAZY:     n = 1 + findIndexOrEnd (not . k (unsafeHead xs)) (unsafeTail xs)
 
-{-@ inits :: b:ByteString -> {v:[{v1:ByteString | (bLength v1) <= (bLength b)}] | (len v) = 1 + (bLength b)} @-}
+{-@ inits :: b:ByteString -> [{v1:ByteString | (bLength v1) <= (bLength b)}]<{\ix iy -> (bLength ix) < (bLength iy)}> @-}
 inits :: ByteString -> [ByteString]
-inits (PS x s l) = [PS x s n | n <- rng l {- LIQUID COMPREHENSIONS [0..l] -}]
+--LIQUID INLINE inits (PS x s l) = [PS x s n | n <- [0..l]]
+inits (PS x s l) = PS x s 0 : go 0 (rng 1 l)
+    where go _  []     = []
+          go n0 (n:ns) = PS x s n : go n ns
+          rng a b | a > b     = []
+                  | otherwise = a : rng (a+1) b
 
 {-@ rng :: n:Int -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
 rng :: Int -> [Int]

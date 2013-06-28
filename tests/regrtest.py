@@ -95,6 +95,7 @@ class Config (rtest.TestConfig):
 #DEFAULT
 # ByteString.hs is split into two smaller files for faster checking..
 bytestringIgnored = { "Data/ByteString.hs"
+                    , "Data/ByteString.small.hs"
                     , "Data/ByteString/Lazy/Aux.hs"
                     , "Data/ByteString/Lazy.small.hs"
                     }

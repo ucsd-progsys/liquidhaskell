@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
+{-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans -fno-warn-incomplete-patterns #-}
 
 -- #prune
 
@@ -42,7 +42,12 @@
 -- Lazy variant by Duncan Coutts and Don Stewart.
 --
 
-module Data.ByteString.Lazy where
+module Data.ByteString.Lazy (
+        -- * Zipping and unzipping ByteStrings
+        zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
+        zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
+
+  ) where
 
 import qualified Prelude
 import Prelude hiding
@@ -50,9 +55,7 @@ import Prelude hiding
     ,concat,any,take,drop,splitAt,takeWhile,dropWhile,span,break,elem,filter,maximum
     ,minimum,all,concatMap,foldl1,foldr1,scanl, scanl1, scanr, scanr1
     ,repeat, cycle, interact, iterate,readFile,writeFile,appendFile,replicate
-    ,getContents,getLine,putStr,putStrLn ,zip,zipWith,unzip,notElem
-    --LIQUID
-    ,quotRem)
+    ,getContents,getLine,putStr,putStrLn ,zip,zipWith,unzip,notElem)
 
 import qualified Data.List              as L  -- L for list/lazy
 import qualified Data.ByteString        as S  -- S for strict (hmm...)
@@ -86,7 +89,6 @@ import qualified Data.ByteString.Internal
 import Foreign.ForeignPtr       (ForeignPtr)
 import qualified Foreign.C.String
 import qualified Foreign.C.Types
-import Language.Haskell.Liquid.Prelude
 import qualified Data.ByteString.Lazy.Aux as SA
 
 -- -----------------------------------------------------------------------------
@@ -100,66 +102,47 @@ import qualified Data.ByteString.Lazy.Aux as SA
 #define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
 #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
-{-@ measure mul :: Int64 -> Int64 -> Int64  @-}
-{-@ invariant {v:ByteString | (mul (bLength v) 0) = 0} @-}
-{-@ axiom_mul :: b:LByteString -> c:ByteString -> cs:LByteString -> n:Nat64
-              -> {v:Bool | ((Prop v) <=> ((((lbLength cs) = (mul (bLength c) (n-1)))
-                                           && ((lbLength b) = ((bLength c) + (lbLength cs))))
-                                          => ((lbLength b)  = (mul (bLength c) n))))}
+-- -----------------------------------------------------------------------------
+
+
+{-@ predicate LZipLen V X Y  = (len V) = (if (lbLength X) <= (lbLength Y) then (lbLength X) else (lbLength Y)) @-}
+{-@ zip :: x:LByteString -> y:LByteStringSZ x -> {v:[(Word8, Word8)] | (LZipLen v x y) } @-}
+zip :: ByteString -> ByteString -> [(Word8,Word8)]
+zip = zipWith (,)
+
+-- | 'zipWith' generalises 'zip' by zipping with the function given as
+-- the first argument, instead of a tupling function.  For example,
+-- @'zipWith' (+)@ is applied to two ByteStrings to produce the list of
+-- corresponding sums.
+{-@ zipWith :: (Word8 -> Word8 -> a) -> x:LByteString -> y:LByteStringSZ x -> {v:[a] | (LZipLen v x y)} @-}
+zipWith :: (Word8 -> Word8 -> a) -> ByteString -> ByteString -> [a]
+zipWith _ Empty     _  = []
+zipWith _ _      Empty = []
+zipWith f (Chunk a as) (Chunk b bs) = go a as b bs
+  where
+    go x xs y ys = f (S.unsafeHead x) (S.unsafeHead y)
+                 : to (S.unsafeTail x) xs (S.unsafeTail y) ys
+
+    to x Empty         _ _             | S.null x       = []
+    to _ _             y Empty         | S.null y       = []
+    to x xs            y ys            | not (S.null x)
+                                      && not (S.null y) = go x  xs y  ys
+    to x xs            _ (Chunk y' ys) | not (S.null x) = go x  xs y' ys
+    --LIQUID to _ (Chunk x' xs) y ys            | not (S.null y) = go x' xs y  ys
+    --LIQUID to _ (Chunk x' xs) _ (Chunk y' ys)                  = go x' xs y' ys
+    --LIQUID FIXME: these guards "should" be implied by the above checks
+    to x (Chunk x' xs) y ys            | not (S.null y)
+                                      && S.null x       = go x' xs y  ys
+    to x (Chunk x' xs) y (Chunk y' ys) | S.null x
+                                      && S.null y       = go x' xs y' ys
+
+
+{-@ qualif LBZip(v:List a,
+                 x:Data.ByteString.Internal.ByteString,
+                 xs:Data.ByteString.Lazy.Internal.ByteString,
+                 y:Data.ByteString.Internal.ByteString,
+                 ys:Data.ByteString.Lazy.Internal.ByteString):
+    (len v) = (if (((bLength x) + (lbLength xs)) <= ((bLength y) + (lbLength ys)))
+                   then ((bLength x) + (lbLength xs))
+                   else ((bLength y) + (lbLength ys)))
   @-}
-axiom_mul :: ByteString -> S.ByteString -> ByteString -> Int64 -> Bool
-axiom_mul = undefined
-
-{-@ qualif LBLenMul(v:Data.ByteString.Lazy.Internal.ByteString,
-                    b:Data.ByteString.Internal.ByteString, n:int):
-        (lbLength v) = (mul (bLength b) (n-1))
-  @-}
-
-{-@ quotRem :: x:Int64 -> y:Int64 -> ({v:Int64 | ((v = (x / y)) && (((x>=0) && (y>=0)) => (v>=0)) && (((x>=0) && (y>=1)) => (v<=x)))}
-                                                                 ,{v:Int64 | ((v >= 0) && (v < y))})<{\q r -> x = (r + (mul y q))}>
-  @-}
-quotRem :: Int64 -> Int64 -> (Int64,Int64)
-quotRem = undefined
-
-{- replicate :: n:Nat64 -> Word8 -> {v:LByteString | (lbLength v) = (if n > 0 then n else 0)} @-}
-{-@ replicate :: n:Nat64 -> Word8 -> {v:LByteString | (lbLength v) = n} @-}
-replicate :: Int64 -> Word8 -> ByteString
-replicate n w
-    | n <= 0             = Empty
-    | n < fromIntegral smallChunkSize = Chunk (S.replicate (fromIntegral n) w) Empty
-    | otherwise =
-        let c      = S.replicate smallChunkSize w
-            cs     = nChunks q c
-            (q, r) = quotRem n (fromIntegral smallChunkSize)
-            -- nChunks (0::Int64) = Empty --LIQUID CAST
-            -- nChunks m          = Chunk c (nChunks (m-1))
-        in if r == 0 then cs -- preserve invariant
-           else undefined --Chunk (S.unsafeTake (fromIntegral r) c) cs
---LIQUID     | r == 0             = cs -- preserve invariant
---LIQUID     | otherwise          = Chunk (S.unsafeTake (fromIntegral r) c) cs
---LIQUID  where
---LIQUID     c      = S.replicate smallChunkSize w
---LIQUID     cs     = nChunks q
---LIQUID     (q, r) = quotRem n (fromIntegral smallChunkSize)
---LIQUID     nChunks 0 = Empty
---LIQUID     nChunks m = Chunk c (nChunks (m-1))
-
-{-@ nChunks :: n:Nat64 -> b:ByteStringNE -> {v:LByteString | (lbLength v) = (mul (bLength b) n)} @-}
-nChunks :: Int64 -> S.ByteString -> ByteString
-nChunks 0 c = Empty
-nChunks m c = let cs = (nChunks (m-1) c)
-                  b = Chunk c cs
-              in liquidAssume (axiom_mul b c cs m) cs
-
-{-@ empty :: {v:LByteString | (lbLength v) = 0} @-}
-empty :: ByteString
-empty = Empty
-
-
-
-
-
-
-
-
-

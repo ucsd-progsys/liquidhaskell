@@ -979,14 +979,14 @@ tokens f = L.filter (not.null) . splitWith f
 {-@ group :: b:LByteString -> {v: [LByteString] | (lbLengths v) = (lbLength b)} @-}
 group :: ByteString -> [ByteString]
 group Empty          = []
-group (Chunk c0 cs0) = group' [] (SA.group c0) cs0
+group (Chunk c0 cs0) = group' [] (S.group c0) cs0
   where 
     group' :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
     group' acc@(s':_) ss@(s:_) cs
       | S.unsafeHead s'
      /= S.unsafeHead s             = revNonEmptyChunks    acc  : group' [] ss cs
     group' acc (s:[]) Empty        = revNonEmptyChunks (s:acc) : []
-    group' acc (s:[]) (Chunk c cs) = group' (s:acc) (SA.group c) cs
+    group' acc (s:[]) (Chunk c cs) = group' (s:acc) (S.group c) cs
     group' acc (s:ss) cs           = revNonEmptyChunks (s:acc) : group' [] ss cs
 
 {-
@@ -1257,7 +1257,7 @@ isSuffixOf x y = reverse x `isPrefixOf` reverse y
 -- corresponding pairs of bytes. If one input ByteString is short,
 -- excess elements of the longer ByteString are discarded. This is
 -- equivalent to a pair of 'unpack' operations.
-{-@ predicate LZipLen V X Y  = (len V) = (if (lbLength X) <= (lbLength Y) then (lbLength X) else (lbLength Y)) @-}
+{- predicate LZipLen V X Y  = (len V) = (if (lbLength X) <= (lbLength Y) then (lbLength X) else (lbLength Y)) @-}
 {- zip :: x:LByteString -> y:LByteString -> {v:[(Word8, Word8)] | (LZipLen v x y) } @-}
 zip :: ByteString -> ByteString -> [(Word8,Word8)]
 zip = zipWith (,)
@@ -1266,7 +1266,6 @@ zip = zipWith (,)
 -- the first argument, instead of a tupling function.  For example,
 -- @'zipWith' (+)@ is applied to two ByteStrings to produce the list of
 -- corresponding sums.
---LIQUID FIXME: we don't handle the guards in `to` well, need to rewrite
 {- zipWith :: (Word8 -> Word8 -> a) -> x:LByteString -> y:LByteString -> {v:[a] | (LZipLen v x y)} @-}
 zipWith :: (Word8 -> Word8 -> a) -> ByteString -> ByteString -> [a]
 zipWith _ Empty     _  = []
@@ -1299,7 +1298,7 @@ unzip ls = (pack (L.map fst ls), pack (L.map snd ls))
 inits :: ByteString -> [ByteString]
 inits = (Empty :) . inits'
   where inits' Empty        = []
-        inits' (Chunk c cs) = let (c':cs') = SA.inits c in
+        inits' (Chunk c cs) = let (c':cs') = S.inits c in
                               L.map (\c' -> Chunk c' Empty) cs' --LIQUID INLINE (L.tail (S.inits c))
                            ++ L.map (Chunk c) (inits' cs)
 
