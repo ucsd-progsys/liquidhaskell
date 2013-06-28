@@ -97,6 +97,9 @@ import qualified Foreign.C.Types
 #define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
 #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
+
+{-@ include <ByteString.hs.hquals> @-}
+
 -- -----------------------------------------------------------------------------
 -- LIQUID: This will go away when we properly embed Ptr a as int -- only in
 -- fixpoint to avoid the Sort mismatch hassles. 
