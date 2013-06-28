@@ -36,7 +36,7 @@ safeDiv x y = x `div` y
 
 n = 4 `safeDiv` 2 
 
-{-@ (!!) :: ls:(L a) -> {v:Nat | v < (llen ls)} -> a @-}
+{-@ SimpleRefinements.!! :: ls:(L a) -> {v:Nat | v < (llen ls)} -> a @-}
 (!!)       :: L a -> Int -> a
 (C x _) !!0 = x
 (C _ xs)!!n = xs!!(n-1)
