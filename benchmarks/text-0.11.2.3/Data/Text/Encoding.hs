@@ -108,6 +108,17 @@ import Language.Haskell.Liquid.Prelude
         (((deref v) >= 0) && ((deref v) < (malen a)))
   @-}
 {-@ qualif PLenComp(v:a, p:b) : (plen v) >= (plen p) @-}
+{-@ qualif PLenComp(v:a, p:b) : (plen p) >= (plen v) @-}
+{-@ qualif PBaseEq(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr b): (pbase v) = (pbase p) @-}
+
+{-@ eqPtr :: p:PtrV a
+          -> q:{v:PtrV a | (((pbase v) = (pbase p)) && ((plen v) <= (plen p)))}
+          -> {v:Bool | ((Prop v) <=> ((plen p) = 0))}
+  @-}
+eqPtr :: Ptr a -> Ptr a -> Bool
+eqPtr = undefined
+
+{-@ type PtrGE N = {v:GHC.Ptr.Ptr Word8 | (plen v) >= N} @-}
 
 {- Foreign.Marshal.Utils.with :: (Foreign.Storable.Storable a)
                                => a:a
@@ -184,6 +195,7 @@ decodeUtf8With onErr (PS fp off len) = runText $ \done -> do
                     --the qualifiers to stick right now..
                     let curPtr'' = liquidAssume (plen curPtr' > 0) curPtr'
                     x <- peek curPtr''
+                    --LIQUID SCOPE
                     destOff <- peek destOffPtr
                     case onErr desc (Just x) dest (fromIntegral destOff) of
                       Nothing -> loop $ curPtr'' `plusPtr` 1
@@ -221,46 +233,43 @@ decodeUtf8' = unsafePerformIO . try . evaluate . decodeUtf8With strictDecode
 {-# INLINE decodeUtf8' #-}
 
 -- | Encode text using UTF-8 encoding.
-{-@ encodeUtf8 :: t:Data.Text.Internal.Text
-               -> {v:Data.ByteString.Internal.ByteString |
-                   (bLength v) = (tlen t) + (tlen t)}
-  @-}
 encodeUtf8 :: Text -> ByteString
 encodeUtf8 (Text arr off len) = unsafePerformIO $ do
   let size0 = max len 4
   mallocByteString size0 >>= start size0 off 0
  where
+  offLen = off + len
   --LIQUID added explicit type to prevent weird desugaring bug
   start :: Int -> Int -> Int -> ForeignPtr Word8 -> IO ByteString
   start size n0 m0 fp = withForeignPtr fp $ loop n0 m0
    where
     loop n1 m1 ptr = go n1 m1
      where
-      offLen = off + len
+      --LIQUID SCOPE offLen = off + len
       go !n !m =
-        if n >= offLen {-LIQUID FIXME: n == offLen-} then return (PS fp 0 m)
-        else do
-            let poke8 k v = poke (ptr `plusPtr` k) (fromIntegral v :: Word8)
-                ensure k act =
-                  if size-m >= k then act
-                  else {-# SCC "resizeUtf8/ensure" #-} do
-                      let newSize = size + size --LIQUID `shiftL` 1
-                      fp' <- mallocByteString newSize
-                      withForeignPtr fp' $ \ptr' ->
-                        memcpy ptr' ptr (fromIntegral m)
-                      start newSize n m fp'
-                --LIQUID don't inline
+        if n == offLen then return (PS fp 0 m)
+        else --LIQUID do
+            --LIQUID let poke8 k v = poke (ptr `plusPtr` k) (fromIntegral v :: Word8)
+            --LIQUID     ensure k act =
+            --LIQUID       if size-m >= k then act
+            --LIQUID       else {-# SCC "resizeUtf8/ensure" #-} do
+            --LIQUID           let newSize = size *2 --LIQUID `shiftL` 1
+            --LIQUID           fp' <- mallocByteString newSize
+            --LIQUID           withForeignPtr fp' $ \ptr' ->
+            --LIQUID             memcpy ptr' ptr (fromIntegral m)
+            --LIQUID           start newSize n m fp'
+            --LIQUID don't inline
                 {- INLINE ensure #-}
-            case A.unsafeIndexF arr off len n {-LIQUID A.unsafeIndex arr n-} of
+            case A.unsafeIndexF arr off len n of
              w ->
-              if w <= 0x7F  then ensure 1 $ do
+              if w <= 0x7F  then ensure arr ptr offLen size n m 1 1 start $ \ptr -> do
                   poke (ptr `plusPtr` m) (fromIntegral w :: Word8)
                   -- A single ASCII octet is likely to start a run of
                   -- them.  We see better performance when we
                   -- special-case this assumption.
                   let end = ptr `plusPtr` size
                       ascii !t !u =
-                        if t == offLen || u == end {-LIQUID || v >= 0x80-} then
+                        if t == offLen || eqPtr u end {-LIQUID SPECIALIZE u == end || v >= 0x80-} then
                             go t (u `minusPtr` ptr)
                         else do
                             let v = A.unsafeIndex arr t
@@ -269,22 +278,56 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
                             ascii (t+1) (u `plusPtr` 1)
                         --LIQUID where v = A.unsafeIndex arr t
                   ascii (n+1) (ptr `plusPtr` (m+1))
-              else if w <= 0x7FF then ensure 2 $ do
-                  poke8 m     $ (w `shiftR` 6) + 0xC0
-                  poke8 (m+1) $ (w .&. 0x3f) + 0x80
+              else if w <= 0x7FF then ensure arr ptr offLen size n m 1 2 start $ \ptr -> do
+                  poke8 m     ptr $ (w `shiftR` 6) + 0xC0
+                  poke8 (m+1) ptr $ (w .&. 0x3f) + 0x80
                   go (n+1) (m+2)
-              else if 0xD800 <= w && w <= 0xDBFF then ensure 4 $ do
+              else if 0xD800 <= w && w <= 0xDBFF then ensure arr ptr offLen size n m 2 4 start $ \ptr -> do
                   let c = ord $ U16.chr2 w (A.unsafeIndex arr (n+1))
-                  poke8 m     $ (c `shiftR` 18) + 0xF0
-                  poke8 (m+1) $ ((c `shiftR` 12) .&. 0x3F) + 0x80
-                  poke8 (m+2) $ ((c `shiftR` 6) .&. 0x3F) + 0x80
-                  poke8 (m+3) $ (c .&. 0x3F) + 0x80
+                  poke8 m      ptr $ (c `shiftR` 18) + 0xF0
+                  poke8 (m+1)  ptr $ ((c `shiftR` 12) .&. 0x3F) + 0x80
+                  poke8 (m+2)  ptr $ ((c `shiftR` 6) .&. 0x3F) + 0x80
+                  poke8 (m+3)  ptr $ (c .&. 0x3F) + 0x80
                   go (n+2) (m+4)
-              else ensure 3 $ do
-                  poke8 m     $ (w `shiftR` 12) + 0xE0
-                  poke8 (m+1) $ ((w `shiftR` 6) .&. 0x3F) + 0x80
-                  poke8 (m+2) $ (w .&. 0x3F) + 0x80
+              else ensure arr ptr offLen size n m 1 3 start $ \ptr -> do
+                  poke8 m     ptr $ (w `shiftR` 12) + 0xE0
+                  poke8 (m+1) ptr $ ((w `shiftR` 6) .&. 0x3F) + 0x80
+                  poke8 (m+2) ptr $ (w .&. 0x3F) + 0x80
                   go (n+1) (m+3)
+
+{-@ poke8 :: Integral a => k:Nat -> PtrGE k -> a -> IO () @-}
+poke8 :: Integral a => Int -> Ptr Word8 -> a -> IO ()
+poke8 k ptr v = poke (ptr `plusPtr` k) (fromIntegral v :: Word8)
+
+{-@ ensure :: arr:Data.Text.Array.Array
+           -> ptr:PtrV Word8
+           -> offLen:{v:Nat | v <= (alen arr)}
+           -> size:{v:Nat | v = (plen ptr)}
+           -> n:{v:Nat | v <= (alen arr)}
+           -> m:{v:Nat | v <= size}
+           -> j:{v:Nat | (v+n) <= offLen}
+           -> k:Nat
+           -> (s: {v:Nat | v >= size}
+               -> {v:Nat | ((v = n) && (v <= (alen arr)))}
+               -> {v:Nat | v = m}
+               -> {v:ForeignPtrN Word8 s | m <= (fplen v)}
+               -> IO ByteString)
+           -> ({v:PtrV Word8 | ((v=ptr) && ((m+k) <= (plen v)) && ((m+k) <= size) && ((n+j) <= offLen))}
+               -> IO ByteString)
+           -> IO ByteString
+  @-}
+ensure :: A.Array -> Ptr Word8 -> Int -> Int -> Int -> Int -> Int -> Int
+       -> (Int -> Int -> Int -> ForeignPtr Word8 -> IO ByteString)
+       -> (Ptr Word8 -> IO ByteString)
+       -> IO ByteString
+ensure arr ptr offLen size n m j k start act =
+    if size-m >= k then act ptr
+    else {-# SCC "resizeUtf8/ensure" #-} do
+      let newSize = size + size --LIQUID `shiftL` 1
+      fp' <- mallocByteString newSize
+      withForeignPtr fp' $ \ptr' ->
+          memcpy ptr' ptr (fromIntegral m)
+      start newSize n m fp'
 
 -- | Decode text from little endian UTF-16 encoding.
 decodeUtf16LEWith :: E.OnDecodeError -> ByteString -> Text
@@ -365,12 +408,19 @@ encodeUtf32BE txt = E.unstream (E.restreamUtf32BE (F.stream txt))
 --LIQUID foreign import ccall unsafe "_hs_text_decode_utf8" c_decode_utf8
 --LIQUID     :: MutableByteArray# s -> Ptr CSize
 --LIQUID     -> Ptr Word8 -> Ptr Word8 -> IO (Ptr Word8)
+{- c_decode_utf8 :: a:Data.Text.Array.MArray s
+                  -> d:{v:PtrV Foreign.C.Types.CSize | (BtwnI (deref v) 0 (malen a))}
+                  -> c:PtrV Data.Word.Word8
+                  -> end:{v:PtrV Data.Word.Word8 | (((plen c) >= (plen v))
+                                                  && ((pbase c) = (pbase v)))}
+                  -> IO {v:(PtrV Data.Word.Word8) | (((plen v) >= (plen end))
+                                                  && ((pbase v) = (pbase end)))}
+  @-}
 {-@ c_decode_utf8 :: a:Data.Text.Array.MArray s
                   -> d:{v:PtrV Foreign.C.Types.CSize | (BtwnI (deref v) 0 (malen a))}
                   -> c:PtrV Data.Word.Word8
                   -> end:PtrV Data.Word.Word8
-                  -> IO {v:(PtrV Data.Word.Word8) |
-                         ((v != end) <=> (plen v) > 0)}
+                  -> IO {v:(PtrV Data.Word.Word8) | (plen v) >= (plen end)}
   @-}
 c_decode_utf8 :: A.MArray s -> Ptr CSize
               -> Ptr Word8 -> Ptr Word8 -> IO (Ptr Word8)
