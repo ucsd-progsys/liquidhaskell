@@ -145,4 +145,6 @@ fpLen p = undefined
 pLen :: Ptr a -> Int
 pLen p = undefined
 
-
+{-@ deref :: p:Ptr a -> {v:a | v = (deref p)} @-}
+deref :: Ptr a -> a
+deref = undefined

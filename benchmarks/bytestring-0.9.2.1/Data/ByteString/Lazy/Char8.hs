@@ -224,6 +224,17 @@ import IO                   (bracket)
 #define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
 #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
+--LIQUID
+import Data.ByteString.Fusion (PairS(..))
+import qualified Data.ByteString.Internal
+import qualified Data.ByteString.Lazy.Internal
+import Data.Int
+import Data.Word
+import qualified Foreign.C.String
+import Foreign.ForeignPtr
+import Foreign.Ptr
+import System.IO (Handle)
+
 ------------------------------------------------------------------------
 
 -- | /O(1)/ Convert a 'Char' into a 'ByteString'
@@ -282,6 +293,7 @@ uncons bs = case L.uncons bs of
 {-# INLINE uncons #-}
 
 -- | /O(1)/ Extract the last element of a packed string, which must be non-empty.
+{-@ last :: LByteStringNE -> Char @-}
 last :: ByteString -> Char
 last = w2c . L.last
 {-# INLINE last #-}
@@ -323,16 +335,19 @@ foldr f = L.foldr (\c a -> f (w2c c) a)
 
 -- | 'foldl1' is a variant of 'foldl' that has no starting value
 -- argument, and thus must be applied to non-empty 'ByteStrings'.
+{-@ foldl1 :: (Char -> Char -> Char) -> LByteStringNE -> Char @-}
 foldl1 :: (Char -> Char -> Char) -> ByteString -> Char
 foldl1 f ps = w2c (L.foldl1 (\x y -> c2w (f (w2c x) (w2c y))) ps)
 {-# INLINE foldl1 #-}
 
 -- | 'foldl1\'' is like 'foldl1', but strict in the accumulator.
+{-@ foldl1' :: (Char -> Char -> Char) -> LByteStringNE -> Char @-}
 foldl1' :: (Char -> Char -> Char) -> ByteString -> Char
 foldl1' f ps = w2c (L.foldl1' (\x y -> c2w (f (w2c x) (w2c y))) ps)
 
 -- | 'foldr1' is a variant of 'foldr' that has no starting value argument,
 -- and thus must be applied to non-empty 'ByteString's
+{-@ foldr1 :: (Char -> Char -> Char) -> LByteStringNE -> Char @-}
 foldr1 :: (Char -> Char -> Char) -> ByteString -> Char
 foldr1 f ps = w2c (L.foldr1 (\x y -> c2w (f (w2c x) (w2c y))) ps)
 {-# INLINE foldr1 #-}
@@ -355,11 +370,13 @@ all f = L.all (f . w2c)
 {-# INLINE all #-}
 
 -- | 'maximum' returns the maximum value from a 'ByteString'
+{-@ maximum :: LByteStringNE -> Char @-}
 maximum :: ByteString -> Char
 maximum = w2c . L.maximum
 {-# INLINE maximum #-}
 
 -- | 'minimum' returns the minimum value from a 'ByteString'
+{-@ minimum :: LByteStringNE -> Char @-}
 minimum :: ByteString -> Char
 minimum = w2c . L.minimum
 {-# INLINE minimum #-}
@@ -490,6 +507,7 @@ spanChar = L.spanByte . c2w
 -- not copy the substrings, it just constructs new 'ByteStrings' that
 -- are slices of the original.
 --
+{-@ split :: Char -> b:LByteStringNE -> (LByteStringSplit b) @-}
 split :: Char -> ByteString -> [ByteString]
 split = L.split . c2w
 {-# INLINE split #-}
@@ -501,6 +519,7 @@ split = L.split . c2w
 --
 -- > splitWith (=='a') "aabbaca" == ["","","bb","c",""]
 --
+{-@ splitWith :: (Char -> Bool) -> b:LByteStringNE -> (LByteStringSplit b) @-}
 splitWith :: (Char -> Bool) -> ByteString -> [ByteString]
 splitWith f = L.splitWith (f . w2c)
 {-# INLINE splitWith #-}
@@ -510,8 +529,10 @@ groupBy :: (Char -> Char -> Bool) -> ByteString -> [ByteString]
 groupBy k = L.groupBy (\a b -> k (w2c a) (w2c b))
 
 -- | /O(1)/ 'ByteString' index (subscript) operator, starting from 0.
+{-@ index :: b:LByteString -> n:{v:Nat64 | (LBValid b v)} -> Char @-}
 index :: ByteString -> Int64 -> Char
-index = (w2c .) . L.index
+--LIQUID index = (w2c .) . L.index
+index b i = w2c $ L.index b i
 {-# INLINE index #-}
 
 -- | /O(n)/ The 'elemIndex' function returns the index of the first
@@ -628,6 +649,7 @@ filterNotChar c = L.filterNotByte (c2w c)
 -- excess elements of the longer ByteString are discarded. This is
 -- equivalent to a pair of 'unpack' operations, and so space
 -- usage may be large for multi-megabyte ByteStrings
+{-@ zip :: LByteString -> LByteString -> [(Char,Char)] @-}
 zip :: ByteString -> ByteString -> [(Char,Char)]
 zip ps qs
     | L.null ps || L.null qs = []
@@ -703,6 +725,8 @@ unlines ss = (concat $ List.intersperse nl ss) `append` nl -- half as much space
 --
 -- > tokens isSpace = words
 --
+--LIQUID FIXME: splitWith requires non-empty bytestring for now..
+{-@ words :: LByteStringNE -> [LByteString] @-}
 words :: ByteString -> [ByteString]
 words = List.filter (not . L.null) . L.splitWith isSpaceWord8
 {-# INLINE words #-}

@@ -43,7 +43,7 @@ import Data.Set hiding (filter)
 -- | Functions on Unique Lists
 
 infixr 5 ++
-{-@ (++) :: xs:(UList a)
+{-@ UniqueZipper.++ :: xs:(UList a)
          -> ys:{v: UList a | (DisjointElts v xs)}
          -> {v: UList a | (UnionElts v xs ys)}
   @-}
@@ -58,7 +58,7 @@ reverse :: [a] -> [a]
 reverse = go []
   where
     go a []     = a
-    go a (x:xs) = go (x:a) xs 
+    go a (x:xs) = go (x:a) xs
 
 {-@ filter :: (a -> Bool) 
            -> xs:(UList a) 
@@ -80,21 +80,21 @@ data Zipper a = Zipper { focus :: a       -- focused element in this set
 {-@ 
 data Zipper a = Zipper { focus :: a
                        , up    :: UListDif a focus
-                       , down  :: UListDif a focus}
+                       , down  :: UListDif a focus }
   @-}
 
 {-@ type UListDif a N = {v:(UList a) | (not (ListElt N v))} @-}
 
-{-@ measure getUp :: forall a. (Zipper a) -> [a] 
+{-@ measure getUp :: forall a. (Zipper a) -> [a]
     getUp (Zipper focus up down) = up
   @-}
 
-{-@ measure getDown :: forall a. (Zipper a) -> [a] 
+{-@ measure getDown :: forall a. (Zipper a) -> [a]
     getDown (Zipper focus up down) = down
   @-}
 
 {-@ 
-type UZipper a = {v:Zipper a | (DisjointElts (getUp v) (getDown v))} 
+type UZipper a = {v:Zipper a | (DisjointElts (getUp v) (getDown v))}
   @-}
 
 -- | Functions on Unique Zipper

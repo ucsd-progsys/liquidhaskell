@@ -55,9 +55,8 @@ import Foreign.C.String         (CString, CStringLen)
 import Language.Haskell.Liquid.Prelude  (mkPtr, cSizeInt, liquidError)
 import qualified Data.ByteString.Internal
 import Foreign.ForeignPtr       (ForeignPtr)
-import Data.Word                (Word8)
+import Data.Word
 import Foreign.C.Types          (CInt(..), CSize(..), CULong(..))
-import Foreign
 import GHC.Base
 import qualified Foreign.C.Types
 
@@ -97,7 +96,7 @@ assertS s False = error ("assertion failed at "++s)
 #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
 
-{-@ liquidCanary1 :: x:Int -> {v: Int | v > x} @-}
+{- liquidCanary1 :: x:Int -> {v: Int | v > x} @-}
 liquidCanary1     :: Int -> Int
 liquidCanary1 x   = x - 1
 

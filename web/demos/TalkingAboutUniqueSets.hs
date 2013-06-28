@@ -125,7 +125,7 @@ filter p (Stack f ls rs) = case filterL p (f:rs) of
 
 
 infixr 5 ++
-{-@ (++) :: xs:(UList a)
+{-@ TalkingAboutUniqueSets.++ :: xs:(UList a)
          -> ys:{v: UList a | (ListDisjoint v xs)}
          -> {v: UList a | (UnionElts v xs ys)}
   @-}
