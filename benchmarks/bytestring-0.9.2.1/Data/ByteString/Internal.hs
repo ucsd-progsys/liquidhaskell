@@ -32,7 +32,7 @@ module Data.ByteString.Internal (
         create,                 -- :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
         createAndTrim,          -- :: Int -> (Ptr Word8 -> IO Int) -> IO  ByteString
         createAndTrim',         -- :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (ByteString, a)
-        createAndTrim'',        -- :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (Int, ByteString, a)
+        createAndTrimEQ,        -- :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (Int, ByteString, a)
         unsafeCreate,           -- :: Int -> (Ptr Word8 -> IO ()) ->  ByteString
         mallocByteString,       -- :: Int -> IO (ForeignPtr a)
 
@@ -373,7 +373,6 @@ createAndTrim l f = do
                    -> ((PtrN Word8 l) -> IO ((Nat, Nat, a)<{\o v -> (v <= l - o)}, {\o l v -> true}>)) 
                    -> IO ({v:ByteString | (bLength v) <= l}, a) 
   @-}
- 
 createAndTrim' :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (ByteString, a)
 createAndTrim' l f = do
     fp <- mallocByteString l
@@ -384,6 +383,24 @@ createAndTrim' l f = do
             else do ps <- create l' $ \p' ->
                             memcpy p' (p `plusPtr` off) ({- LIQUID fromIntegral -} intCSize l')
                     return $! (ps, res)
+
+
+{-@ createAndTrimEQ :: l:Nat 
+                   -> ((PtrN Word8 l) -> IO ((Nat, {v:Nat | v=l}, a)<{\o v -> (v <= l - o)}, {\o l v -> true}>)) 
+                   -> IO ({v:ByteString | (bLength v) = l}, a) 
+  @-}
+createAndTrimEQ :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (ByteString, a)
+createAndTrimEQ l f = do
+    fp <- mallocByteString l
+    withForeignPtr fp $ \p -> do
+        (off, l', res) <- f p
+        if assert (l' <= l) $ l' >= l
+            then return $! (PS fp 0 l, res)
+            else do ps <- create l' $ \p' ->
+                            memcpy p' (p `plusPtr` off) ({- LIQUID fromIntegral -} intCSize l')
+                    return $! (ps, res)
+
+
 
 -- LIQUID CONSTRUCTIVE VERSION (Till we support pred-applications properly,
 -- cf. tests/pos/cont2.hs

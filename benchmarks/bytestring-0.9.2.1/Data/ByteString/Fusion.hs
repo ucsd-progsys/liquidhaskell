@@ -26,7 +26,7 @@ module Data.ByteString.Fusion (
     -- | This replaces 'loopU' with 'loopUp'
     -- and adds several further special cases of loops.
     loopUp, loopDown, loopNoAcc, loopMap, loopFilter,
-    loopWrapper, sequenceLoops,
+    loopWrapper, loopWrapperLE, sequenceLoops,
     doUpLoop, doDownLoop, doNoAccLoop, doMapLoop, doFilterLoop,
 
     -- | These are the special fusion cases for combining each loop form perfectly. 
@@ -238,7 +238,7 @@ loopU :: AccEFL acc                 -- ^ mapping & folding, once per elem
       -> (PairS acc ByteString)
 
 loopU f start (PS z s i) = unsafePerformIO $ withForeignPtr z $ \a -> do
-    (ps, acc) <- createAndTrim' i $ \p -> do
+    (ps, acc) <- createAndTrimEQ i $ \p -> do
       (accKERMAN' :*: i') <- go (a `plusPtr` s) p start
       return (0 :: Int, i', accKERMAN')
     return (acc :*: ps)
@@ -328,7 +328,7 @@ loopMap f arr = loopWrapper (doMapLoop f NoAcc) arr
 {-# INLINE loopMap #-}
 
 loopFilter :: FilterEFL -> ByteString -> PairS NoAcc ByteString
-loopFilter f arr = loopWrapper (doFilterLoop f NoAcc) arr
+loopFilter f arr = loopWrapperLE (doFilterLoop f NoAcc) arr
 {-# INLINE loopFilter #-}
 
 -- The type of imperitive loops that fill in a destination array by
@@ -338,27 +338,49 @@ loopFilter f arr = loopWrapper (doFilterLoop f NoAcc) arr
 -- value as it loops over the source array.
 
 
-{-@ type TripleS a N = PairS <{\z v -> v <= (N - (psnd z))}> (PairS <{\x y -> true}> a Nat) Nat @-} 
+{-@ type TripleSLE a N = PairS <{\z v -> v <= (N - (psnd z))}> (PairS <{\x y -> true}> a Nat) Nat @-} 
+{-@ type TripleS   a N = PairS <{\z v -> v  = (N - (psnd z))}> (PairS <{\x y -> true}> a Nat) Nat @-} 
 
-{-@ type ImperativeLoop acc =  s:(PtrV Word8) 
+
+{-@ type ImperativeLoopLE acc =  s:(PtrV Word8) 
                             -> d:(PtrV Word8)
                             -> n:{v: Nat | ((v <= (plen d)) && (v <= (plen s))) }
                             -> IO (TripleS acc n)
   @-}
+
+{-@ type ImperativeLoop   acc =  s:(PtrV Word8) 
+                              -> d:(PtrV Word8)
+                              -> n:{v: Nat | ((v <= (plen d)) && (v <= (plen s))) }
+                              -> IO (TripleSEQ acc n)
+  @-}
+
+
 type ImperativeLoop acc =
     Ptr Word8          -- pointer to the start of the source byte array
  -> Ptr Word8          -- pointer to ther start of the destination byte array
  -> Int                -- length of the source byte array
  -> IO (PairS (PairS acc Int) Int) -- result and offset, length of dest that was filled
 
-{-@ loopWrapper :: ImperativeLoop acc -> ByteString -> PairS acc ByteString @-}
-loopWrapper :: ImperativeLoop acc -> ByteString -> PairS acc ByteString
-loopWrapper body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
+{-@ loopWrapperLE :: ImperativeLoopLE acc -> b:ByteString -> PairS acc (ByteStringLE b) @-}
+loopWrapperLE :: ImperativeLoop acc -> ByteString -> PairS acc ByteString
+loopWrapperLE body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
     withForeignPtr srcFPtr $ \srcPtr -> do
     (ps, acc) <- createAndTrim' srcLen $ \destPtr -> do
         (acc :*: destOffset :*: destLen) <- body (srcPtr `plusPtr` srcOffset) destPtr srcLen
         return $ (destOffset, destLen, acc)
     return (acc :*: ps)
+
+{-@ loopWrapper :: ImperativeLoop acc -> b:ByteString -> PairS acc (ByteStringSZ b) @-}
+loopWrapper :: ImperativeLoop acc -> ByteString -> PairS acc ByteString
+loopWrapper body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
+    withForeignPtr srcFPtr $ \srcPtr -> do
+    (ps, acc) <- createAndTrimEQ srcLen $ \destPtr -> do
+        (acc :*: destOffset :*: destLen) <- body (srcPtr `plusPtr` srcOffset) destPtr srcLen
+        return $ (destOffset, destLen, acc)
+    return (acc :*: ps)
+
+
+
 
 doUpLoop :: AccEFL acc -> acc -> ImperativeLoop acc
 doUpLoop f acc0 src dest len = loop 0 0 acc0
