@@ -670,7 +670,11 @@ reverse (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
 -- 'ByteString' and \`intersperses\' that byte between the elements of
 -- the 'ByteString'.  It is analogous to the intersperse function on
 -- Lists.
-{-@ intersperse :: Word8 -> b:ByteString -> {v:ByteString | (((bLength b) >= 2) => ((bLength v) = (2 * (bLength b)) - 1)) } @-}
+{-@ intersperse :: Word8 -> b:ByteString
+                -> {v:ByteString |
+                     (((bLength b) > 0) ? ((bLength v) = (2 * (bLength b)) - 1)
+                                          : ((bLength v) = 0)) }
+  @-}
 intersperse :: Word8 -> ByteString -> ByteString
 intersperse c ps@(PS x s l)
     | length ps < 2  = ps
@@ -1072,7 +1076,12 @@ drop n ps@(PS x s l)
 
 -- | /O(1)/ 'splitAt' @n xs@ is equivalent to @('take' n xs, 'drop' n xs)@.
 
-{-@ splitAt :: Int -> b:ByteString -> (ByteStringPair b) @-}
+{-@ splitAt :: n:Nat
+            -> b:ByteString
+            -> (ByteString, ByteString)<{\x y ->
+                 ((Min (bLength x) (bLength b) n)
+                  && ((bLength y) = ((bLength b) - (bLength x))))}>
+  @-}
 splitAt :: Int -> ByteString -> (ByteString, ByteString)
 splitAt n ps@(PS x s l)
     | n <= 0    = (empty, ps)
@@ -1357,7 +1366,7 @@ group xs
 
 
 -- | The 'groupBy' function is the non-overloaded version of 'group'.
-{-@ groupBy :: (Word8 -> Word8 -> Bool) -> b:ByteString -> {v:[ByteString] | (bLengths v) = (bLength b)} @-}
+{-@ groupBy :: (Word8 -> Word8 -> Bool) -> b:ByteString -> {v:[ByteStringNE] | (bLengths v) = (bLength b)} @-}
 groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
 groupBy k xs
     | null xs   = []

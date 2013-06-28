@@ -231,7 +231,12 @@ findIndexOrEnd = undefined
 memchrDUMMYFORQUALS :: Ptr a -> Int -> IO (Ptr b)
 memchrDUMMYFORQUALS = undefined 
 
-{-@ splitAt :: Int -> b:ByteString -> (ByteStringPair b) @-}
+{-@ splitAt :: n:Nat
+            -> b:ByteString
+            -> (ByteString, ByteString)<{\x y ->
+                 ((Min (bLength x) (bLength b) n)
+                  && ((bLength y) = ((bLength b) - (bLength x))))}>
+  @-}
 splitAt :: Int -> ByteString -> (ByteString, ByteString)
 splitAt = undefined
 
@@ -381,7 +386,7 @@ group xs
     -- LIQUID LAZY: where
     -- LIQUID LAZY:     (ys, zs) = spanByte (unsafeHead xs) xs
 
-{-@ groupBy :: (Word8 -> Word8 -> Bool) -> b:ByteString -> {v:[ByteString] | (bLengths v) = (bLength b)} @-}
+{-@ groupBy :: (Word8 -> Word8 -> Bool) -> b:ByteString -> {v:[ByteStringNE] | (bLengths v) = (bLength b)} @-}
 groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
 groupBy k xs
     | null xs   = []

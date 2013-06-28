@@ -43,18 +43,6 @@ mapAccumR = undefined
 group :: ByteString -> [ByteString]
 group = undefined
 
-{-@ groupBy :: (Word8 -> Word8 -> Bool) -> b:ByteString -> {v:[ByteStringNE] | (bLengths v) = (bLength b)} @-}
-groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
-groupBy = undefined
-
-{-@ intersperse :: Word8 -> b:ByteString
-                -> {v:ByteString |
-                     (((bLength b) > 0) ? ((bLength v) = (2 * (bLength b)) - 1)
-                                          : ((bLength v) = 0)) }
-  @-}
-intersperse :: Word8 -> ByteString -> ByteString
-intersperse = undefined
-
 {-@ inits :: b:ByteString -> [{v1:ByteString | (bLength v1) <= (bLength b)}]<{\ix iy -> (bLength ix) < (bLength iy)}> @-}
 inits :: ByteString -> [ByteString]
 inits = undefined
@@ -62,12 +50,3 @@ inits = undefined
 {-@ unfoldrN :: i:Nat -> (a -> Maybe (Word8, a)) -> a -> ({v:ByteString | (bLength v) <= i}, Maybe a)<{\b m -> ((isJust m) => ((bLength b) > 0))}> @-}
 unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
 unfoldrN = undefined
-
-{-@ splitAt :: n:Nat
-            -> b:ByteString
-            -> (ByteString, ByteString)<{\x y ->
-                 ((Min (bLength x) (bLength b) n)
-                  && ((bLength y) = ((bLength b) - (bLength x))))}>
-  @-}
-splitAt :: Int -> ByteString -> (ByteString, ByteString)
-splitAt = undefined
