@@ -1,3 +1,4 @@
+{--! run liquid with idirs=../bytestring-0.9.2.1/ idirs=../../include/ -}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE Rank2Types #-}
 -- |
