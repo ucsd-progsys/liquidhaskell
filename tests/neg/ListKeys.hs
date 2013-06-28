@@ -1,11 +1,7 @@
 module Foo where
 import Data.Set (Set(..)) 
 
-{-@ measure fst :: (a, b) -> a 
-    fst (x, y) = x
-  @-}
-
-{-@ measure listKeys :: [(k, v)] -> (Set k) 
+{-@ measure listKeys :: [(k, v)] -> (Set k)
     listKeys([])   = {v | (? Set_emp(v))}
     listKeys(x:xs) = {v | v = (Set_cup (Set_sng (fst x)) (listKeys xs)) }
   @-}

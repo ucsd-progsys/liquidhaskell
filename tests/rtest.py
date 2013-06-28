@@ -27,7 +27,7 @@ class LogWriter (threading.Thread):
 class TestConfig:
     def __init__ (self, testdirs, logfile = None, threadcount = 1):
         self.testdirs    = testdirs
-        self.valid_exits = [x for d, x in self.testdirs]
+        self.valid_exits = [x for d, i, x in self.testdirs]
         if logfile != None:
             self.logq   = Queue.Queue ()
             self.logger = LogWriter (logfile, self.logq)
@@ -58,9 +58,10 @@ class TestRunner:
     def __init__ (self, config):
         self.config = config
 
-    def run_test (self, (file, expected_statuses)):
+    def run_test (self, (dir, file, expected_statuses)):
+        path    = os.path.join(dir, file)
         start   = time.time ()
-        status  = self.config.run_test (file)
+        status  = self.config.run_test (dir, file)
         runtime = time.time () - start
         print "%f seconds" % (runtime)
 
@@ -69,10 +70,10 @@ class TestRunner:
 	else:
 	  ok = (status == expected_statuses)
         if ok:
-            print "\033[1;32mSUCCESS!\033[1;0m (%s)\n" % (file)
+            print "\033[1;32mSUCCESS!\033[1;0m (%s)\n" % (path)
         else:
-            print "\033[1;31mFAILURE :(\033[1;0m (%s) \n" % (file)
-        self.config.log_test(file, runtime, ok)
+            print "\033[1;31mFAILURE :(\033[1;0m (%s) \n" % (path)
+        self.config.log_test(path, runtime, ok)
         
         return (file, ok, status not in self.config.valid_exits)
 
@@ -93,8 +94,21 @@ class TestRunner:
 
         return (failcount != 0)
 
-    def directory_tests (self, dir, expected_status):
-        return it.chain(*[[(os.path.join (dir, file), expected_status) for file in files if self.config.is_test (file)] for dir, dirs, files in os.walk(dir)])
+    def directory_tests (self, dir, ignored, expected_status):
+        paths = [(dir, os.path.relpath(os.path.join(d, f), dir))
+                 for d,_,files in os.walk(dir)
+                 for f in files]
+        return it.chain([(dir, file, expected_status)
+                         for dir, file in paths
+                         if self.config.is_test (file) and file not in ignored])
+
+        # return it.chain(*[[(dir, os.path.relpath(os.path.join (dir_, file),dir),
+        #                     expected_status)
+        #                    for file in files
+        #                    if self.config.is_test (file) and file not in ignored]
+        #                   for dir_, _, files in os.walk(dir)])
 
     def run (self):
-        return self.run_tests (it.chain (*[self.directory_tests (dir, expected_status) for dir, expected_status in self.config.testdirs]))
+        return self.run_tests (it.chain (*[self.directory_tests (dir, ignored, expected_status)
+                                           for dir, ignored, expected_status
+                                           in self.config.testdirs]))

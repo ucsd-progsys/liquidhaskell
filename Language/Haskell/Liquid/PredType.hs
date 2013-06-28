@@ -157,7 +157,10 @@ unifyS (REx x tx t) (REx x' tx' t') | x == x'
   = liftM2 (REx x) (unifyS tx tx') (unifyS t t')
 
 unifyS t (REx x' tx' t')
-  = liftM (REx x' (fmap (\p -> U top p) tx')) (unifyS t t')
+  = liftM (REx x' (U top <$> tx')) (unifyS t t')
+
+unifyS t@(RVar v a) (RAllE x' tx' t')
+  = liftM (RAllE x' (U top <$> tx')) (unifyS t t')
 
 unifyS t1 t2                
   = error ("unifyS" ++ show t1 ++ " with " ++ show t2)

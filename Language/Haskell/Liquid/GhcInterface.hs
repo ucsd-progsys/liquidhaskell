@@ -28,7 +28,8 @@ import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc)
 import qualified Control.Exception as Ex
 
 import GHC.Paths (libdir)
-import System.FilePath (dropExtension, takeFileName, splitFileName, combine) 
+import System.FilePath (dropExtension, takeFileName, splitFileName, combine,
+                        dropFileName, normalise)
 
 import DynFlags (ProfAuto(..))
 import Control.Monad (filterM)
@@ -236,13 +237,24 @@ specParser name file str
 --mnamePath paths ext name = fmap (name,) <$> getFileInDirs file paths
 --                           where file = name `extModuleName` ext
 
-moduleImports exts paths 
-  = liftIO . liftM concat . mapM (moduleFiles paths exts) 
+moduleImports :: GhcMonad m => [Ext] -> [FilePath] -> [String] -> m [(String, FilePath)]
+moduleImports exts paths names
+  = do modGraph <- getModuleGraph
+       liftM concat $ forM names $ \name -> do
+         map (name,) . catMaybes <$> mapM (moduleFile paths name) exts
 
-moduleFiles paths exts name 
-  = do files <- mapM (`getFileInDirs` paths) (extModuleName name <$> exts)
-       return [(name, file) | Just file <- files]
+moduleFile :: GhcMonad m => [FilePath] -> String -> Ext -> m (Maybe FilePath)
+moduleFile paths name ext
+  | ext `elem` [Hs, LHs]
+  = do mg <- getModuleGraph
+       case find ((==name) . moduleNameString . ms_mod_name) mg of
+         Nothing -> liftIO $ getFileInDirs (extModuleName name ext) paths
+         Just ms -> return $ normalise <$> ml_hs_file (ms_location ms)
+  | otherwise
+  = do liftIO $ getFileInDirs (extModuleName name ext) paths
 
+isJust Nothing = False
+isJust (Just a) = True
 
 --moduleImports ext paths names 
 --  = liftIO $ liftM catMaybes $ forM extNames (namePath paths)
