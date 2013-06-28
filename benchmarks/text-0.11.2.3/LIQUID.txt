@@ -14,6 +14,7 @@ Verified modules:
 - Data.Text.Internal
 - Data.Text.Lazy
 - Data.Text.Lazy.Builder
+- Data.Text.Lazy.Encoding
 - Data.Text.Lazy.Fusion
 - Data.Text.Lazy.Internal
 - Data.Text.Lazy.Search
@@ -21,6 +22,7 @@ Verified modules:
 - Data.Text.Search
 - Data.Text.Unsafe
 - Data.Text.UnsafeChar
+
 
 FIXME: there's a strange issue where desugaring a guard results in a
        GHC.Prim.realWorld# value being passed around (but seemingly
@@ -36,8 +38,7 @@ FIXME: another weird issue in Text.small.hs.fq.bk. a duplicate
        qualifier is mined and seems to cause a constraint to be unsat.
 
 Other interesting modules:
-- Data.Text.Encoding (need to fix type for c_decode_utf8 and prove ptr safety)
-- Data.Text.Lazy.Encoding
+- Data.Text.Encoding (need to fix type for c_decode_utf8 and prove encodeUtf8With)
 
 Definitely not interesting:
 - Data.Text.Encoding.* (deals with encodings and bytestrings)
