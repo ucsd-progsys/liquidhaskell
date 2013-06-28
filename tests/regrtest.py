@@ -127,6 +127,7 @@ textIgnored = { "Data/Text/Axioms.hs"
 
               , "Data/Text.small.hs"
               , "Data/Text/Lazy.small.hs"
+              , "Data/Text/Encoding.small.hs"
               }
 
 testdirs  = [ ("pos", {}, 0)

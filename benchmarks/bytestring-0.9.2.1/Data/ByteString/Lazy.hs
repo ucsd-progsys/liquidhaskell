@@ -511,7 +511,7 @@ reverse cs0 = rev Empty cs0
   @-}
 intersperse :: Word8 -> ByteString -> ByteString
 intersperse _ Empty        = Empty
-intersperse w (Chunk c cs) = Chunk (SA.intersperse w c)
+intersperse w (Chunk c cs) = Chunk (S.intersperse w c)
                                    --LIQUID (foldrChunks (Chunk . intersperse') Empty cs)
                                    (foldrChunks (\_ c cs -> Chunk (intersperse' c) cs) Empty cs)
   where intersperse' :: S.ByteString -> S.ByteString
@@ -1005,13 +1005,13 @@ group xs
 {-@ groupBy :: (Word8 -> Word8 -> Bool) -> b:LByteString -> {v:[LByteString] | (lbLengths v) = (lbLength b)} @-}
 groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
 groupBy _ Empty          = []
-groupBy k (Chunk c0 cs0) = groupBy' [] 0 (SA.groupBy k c0) cs0
+groupBy k (Chunk c0 cs0) = groupBy' [] 0 (S.groupBy k c0) cs0
   where
     groupBy' :: [S.ByteString] -> Word8 -> [S.ByteString] -> ByteString -> [ByteString]
     groupBy' acc@(_:_) c ss@(s:_) cs
       | not (c `k` S.unsafeHead s)     = revNonEmptyChunks acc : groupBy' [] 0 ss cs
     groupBy' acc _ (s:[]) Empty        = revNonEmptyChunks (s : acc) : []
-    groupBy' acc w (s:[]) (Chunk c cs) = groupBy' (s:acc) w' (SA.groupBy k c) cs
+    groupBy' acc w (s:[]) (Chunk c cs) = groupBy' (s:acc) w' (S.groupBy k c) cs
                                            where w' | L.null acc = S.unsafeHead s
                                                     | otherwise  = w
     groupBy' acc _ (s:ss) cs           = revNonEmptyChunks (s : acc) : groupBy' [] 0 ss cs
@@ -1231,11 +1231,11 @@ isPrefixOf (Chunk x xs) (Chunk y ys)
 --LIQUID   where (xh,xt) = S.splitAt (S.length y) x
 --LIQUID         (yh,yt) = S.splitAt (S.length x) y
     | otherwise = if S.length x <  S.length y
-                  then let (xh,xt) = SA.splitAt (S.length y) x
-                           (yh,yt) = SA.splitAt (S.length x) y
+                  then let (xh,xt) = S.splitAt (S.length y) x
+                           (yh,yt) = S.splitAt (S.length x) y
                        in x == yh && isPrefixOf xs (Chunk yt ys)
-                  else let (xh,xt) = SA.splitAt (S.length y) x
-                           (yh,yt) = SA.splitAt (S.length x) y
+                  else let (xh,xt) = S.splitAt (S.length y) x
+                           (yh,yt) = S.splitAt (S.length x) y
                        in xh == y && isPrefixOf (Chunk xt xs) ys
 
 
