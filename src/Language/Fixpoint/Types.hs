@@ -231,7 +231,7 @@ isTupTC (TC (S c))  = c == tupConName
 stringFTycon :: String -> FTycon
 stringFTycon c 
   | c == listConName = TC . S $ listConName
-  | otherwise        = TC . stringSymbol $ dropModuleNames c
+  | otherwise        = TC $ stringSymbol c
 
 
 ----------------------------------------------------------------------
