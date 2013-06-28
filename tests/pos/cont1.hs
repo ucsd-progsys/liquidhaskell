@@ -9,6 +9,7 @@ module Foo where
 conts :: a -> (() -> Int) -> [a] 
 conts x f = clone (f ()) x 
 
+
 {-@ clone :: n:Int -> a -> {v:[a] | (len v) = n} @-}
 clone :: Int -> a -> [a]
 clone = undefined
