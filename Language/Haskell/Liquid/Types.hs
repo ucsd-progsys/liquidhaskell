@@ -362,14 +362,16 @@ data RTyCon = RTyCon
 -- indexes start from 0 and type or predicate arguments can be both
 -- covariant and contravaariant
 -- eg, for the below Foo dataType
--- data Foo a b c <p :: b -> Prop, q :: Int -> Prop, r :: a -> Prop>
+-- data Foo a b c d <p :: b -> Prop, q :: Int -> Prop, r :: a -> Prop>
 --   = F (a<r> -> b<p>) | Q (c -> a) | G (Int<q> -> a<r>)
 -- there will be 
---  covariantTyArgs     = [0, 1], for type arguments a and b
---  contravariantTyArgs = [0, 2], for type arguments a and c
+--  covariantTyArgs     = [0, 1, 3], for type arguments a, b and d
+--  contravariantTyArgs = [0, 2, 3], for type arguments a, c and d
 --  covariantPsArgs     = [0, 2], for predicate arguments p and r
 --  contravariantPsArgs = [1, 2], for predicate arguments q and r
-
+--  
+--  Note, d does not appear in the data definition, we enforce BOTH
+--  con - contra variance
 
 data TyConInfo = TyConInfo
   { covariantTyArgs     :: ![Int] -- indexes of covariant type arguments
@@ -736,6 +738,8 @@ mapBot f (RFun x t t' r)   = RFun x (mapBot f t) (mapBot f t') r
 mapBot f (RAppTy t t' r)   = RAppTy (mapBot f t) (mapBot f t') r
 mapBot f (RApp c ts rs r)  = f $ RApp c (mapBot f <$> ts) (mapBotRef f <$> rs) r
 mapBot f (RCls c ts)       = RCls c (mapBot f <$> ts)
+mapBot f (REx b t1 t2)     = REx b  (mapBot f t1) (mapBot f t2)
+mapBot f (RAllE b t1 t2)   = RAllE b  (mapBot f t1) (mapBot f t2)
 mapBot f t'                = f t' 
 mapBotRef _ (RMono s r)    = RMono s $ r
 mapBotRef f (RPoly s t)    = RPoly s $ mapBot f t
