@@ -29,3 +29,6 @@ copy:
 clean:
 	cd lhs/ && ../cleanup && cd ../
 	cd html/ && rm -rf * && cd ../
+
+upload: 
+	scp -r tutorial/html/* rjhala@goto.ucsd.edu:~/public_html/liquid/haskell/tutorial/
