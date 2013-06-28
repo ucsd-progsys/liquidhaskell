@@ -239,36 +239,6 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ qualif FPLenPos(v: GHC.ForeignPtr.ForeignPtr a): 0 <= (fplen v)                       @-}
 {-@ qualif PLenPos(v: GHC.Ptr.Ptr a): 0 <= (plen v)                                       @-}
 {-@ qualif LTPLen(v: int, p:GHC.Ptr.Ptr a): v < (plen p)                                  @-}
-
--- for ByteString.inits
-{-@ qualif BLenGt(v:Data.ByteString.Internal.ByteString, n:int): (bLength v) > n @-}
-
--- for ByteString.concat
-{-@ qualif BLens(v:List Data.ByteString.Internal.ByteString) : 0 <= (bLengths v)          @-}
-{-@ qualif BLenLE(v:GHC.Ptr.Ptr a, bs:List Data.ByteString.Internal.ByteString):
-        (bLengths bs) <= (plen v) @-}
-
--- for ByteString.splitWith
-{-@ qualif SplitWith(v:List Data.ByteString.Internal.ByteString, l:int):
-        ((bLengths v) + (len v) - 1) = l @-}
-
--- for ByteString.unfoldrN
-{-@ qualif PtrDiff(v:int, i:int, p:GHC.Ptr.Ptr a): (i - v) <= (plen p) @-}
-
--- for ByteString.split
-{-@ qualif BSValidOff(v:int,l:int,p:GHC.ForeignPtr.ForeignPtr a): v + l <= (fplen p) @-}
-{-@ qualif SplitLoop(v:List Data.ByteString.Internal.ByteString, l:int, n:int):
-        (bLengths v) + (len v) - 1 = l - n @-}
-{- qualif SplitWith(v:a, l:Int): ((bLengths v) + (len v) - 1) = l @-}
-{- qualif BSValidFP(p:a, o:Int, l:Int): (o + l) <= (fplen p)     @-}
-{- qualif BSValidP(p:a, o:Int, l:Int) : (o + l) <= (plen p)       @-}
-{- qualif PtrCMP(v:Ptr a, p:Ptr b): (plen v) <= (plen p)                           @-}
-{- qualif PtrCMP(v:Ptr a, p:Ptr b): (plen v) >= (plen p)                           @-}
-{- qualif SuffixBase(v:a, p:b): ((isNullPtr v) || (pbase v) = (pbase p))           @-}
-{- qualif SuffixLenUB(v:a, p:b): ((isNullPtr v) || (plen v) <= (plen p))           @-}
-{- qualif SuffixLenLB(v:a, p:b, n:c): ((isNullPtr v) || (plen p) - n  <= (plen v)) @-}
-
-
 -------------------------------------------------------------------------
 
 instance Show ByteString where

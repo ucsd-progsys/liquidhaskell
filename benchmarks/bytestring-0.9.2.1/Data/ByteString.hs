@@ -288,6 +288,8 @@ import qualified Data.ByteString.Internal
 import qualified Data.ByteString.Unsafe
 import qualified Foreign.C.Types
 
+{-@ include <ByteString.hs.hquals> @-}
+
 {-@ memcpy_ptr_baoff :: p:(Ptr a) 
                      -> RawBuffer b 
                      -> Int 
