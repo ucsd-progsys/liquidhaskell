@@ -225,6 +225,7 @@ a.annot:hover span.annottext{
   -webkit-box-shadow: 5px 5px rgba(0, 0, 0, 0.1);
   -moz-box-shadow: 5px 5px rgba(0, 0, 0, 0.1); 
 
+  font-size: 60%;
   white-space:pre;
   display:block;
   position: absolute; 
