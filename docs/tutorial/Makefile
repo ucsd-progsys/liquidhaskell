@@ -31,4 +31,4 @@ clean:
 	cd html/ && rm -rf * && cd ../
 
 upload: 
-	scp -r tutorial/html/* rjhala@goto.ucsd.edu:~/public_html/liquid/haskell/tutorial/
+	scp -r html/* rjhala@goto.ucsd.edu:~/public_html/liquid/haskell/tutorial/

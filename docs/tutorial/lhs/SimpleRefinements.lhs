@@ -199,11 +199,13 @@ And we can type `(!!)` as
 <br>
 
 \begin{code}
-{-@ (!!) :: ls:(L a) -> {v:Nat | true} -> a @-}
+{-@ (!!) :: ls:(L a) -> {v:Nat | v < (llen ls)} -> a @-}
 (!!)         :: L a -> Int -> a
 (C x _) !! 0 = x
 (C _ xs)!! n = xs!!(n-1)
 _       !! _ = liquidError "This should not happen!"
 \end{code}
 
-Demo: lets see what happens if we **remove** the precondition
+<br>
+
+Demo: lets see what happens if we **change** the precondition
