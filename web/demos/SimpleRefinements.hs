@@ -36,14 +36,11 @@ safeDiv x y = x `div` y
 
 n = 4 `safeDiv` 2 
 
-{-@ (!!) :: ls:(L a)
-         -> {v:Int | ((v >= 0) && (v < (llen ls)))} 
-         -> a
-  @-}
+{-@ (!!) :: ls:(L a) -> {v:Nat | v < (llen ls)} -> a @-}
 (!!)       :: L a -> Int -> a
 (C x _) !!0 = x
 (C _ xs)!!n = xs!!(n-1)
-_       !!_ = error "This should not happen!"
+_       !!_ = liquidError "This should not happen!"
 
 {-@ measure llen :: (L a) -> Int
     llen(N)      = 0
