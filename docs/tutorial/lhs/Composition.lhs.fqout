@@ -1,0 +1,96 @@
+SAT 
+ 
+ 
+ 
+solution: k_52 := [] 
+
+solution: k_54 := [] 
+
+solution: k_56 := [] 
+
+solution: k_58 := [((VV#57 > lq_tmp_x59), Cmp4(VV#57, lq_tmp_x59));((VV#57 = (lq_tmp_x59 + lq_anf__dgi)), Auto(VV#57, lq_tmp_x59, lq_anf__dgi));((VV#57 = (lq_anf__dgi + lq_tmp_x59)), Auto(VV#57, lq_anf__dgi, lq_tmp_x59))] 
+
+solution: k_62 := [((VV#61 > lq_tmp_x63), Cmp4(VV#61, lq_tmp_x63));((VV#61 = (lq_tmp_x63 + lq_anf__dgg)), Auto(VV#61, lq_tmp_x63, lq_anf__dgg));((VV#61 = (lq_anf__dgg + lq_tmp_x63)), Auto(VV#61, lq_anf__dgg, lq_tmp_x63))] 
+
+solution: k_67 := [] 
+
+solution: k_72 := [] 
+
+solution: k_76 := [] 
+
+solution: k_78 := [] 
+
+solution: k_80 := [] 
+
+solution: k_82 := [((VV#81 > lq_tmp_x83), Cmp4(VV#81, lq_tmp_x83));((VV#81 = (ds_dgd + lq_tmp_x83)), Auto(VV#81, ds_dgd, lq_tmp_x83));((VV#81 = (lq_tmp_x83 + ds_dgd)), Auto(VV#81, lq_tmp_x83, ds_dgd))] 
+
+solution: k_86 := [((VV#85 > lq_tmp_x87), Cmp4(VV#85, lq_tmp_x87));((VV#85 = (ds_dgb + lq_tmp_x87)), Auto(VV#85, ds_dgb, lq_tmp_x87));((VV#85 = (lq_tmp_x87 + ds_dgb)), Auto(VV#85, lq_tmp_x87, ds_dgb))] 
+
+//QUALIFIERS 
+
+qualif True1(v:@(0)):Prop(v)
+
+qualif True(v:bool):(Bexp v)
+
+qualif SameLen(v:List @(0), ~A:List @(1)):(len([v]) = len([~A]))
+
+qualif Papp2(v:@(0), ~X:@(1), ~P:Pred @(0) @(1)):papp2(~P, v, ~X)
+
+qualif Papp(v:@(0), ~P:Pred @(0)):papp1(~P, v)
+qualif One(v:int):(v = 1)
+
+qualif ListZ1(v:List @(0)):(len([v]) > 0)
+
+qualif ListZ0(v:List @(0)):(len([v]) >= 0)
+
+qualif ListZ(v:List @(0)):(len([v]) = 0)
+
+qualif LenEq(v:List @(0), ~A:int):(~A = len([v]))
+
+qualif LenDiff0(v:List @(0), ~A:int):(len([v]) = (~A - 1))
+
+qualif LenDiff(v:List @(0), ~A:int):(len([v]) = (~A + 1))
+
+qualif LenAcc(v:int, ~A:List @(0), ~B:int):(v = (len([~A]) + ~B))
+
+qualif IsEmp0(v:@(0), ~A:List @(1)):(Prop(v) <=> (len([~A]) = 0))
+
+qualif IsEmp(v:@(0), ~A:List @(1)):(Prop(v) <=> (len([~A]) > 0))
+
+qualif False1(v:@(0)):(~ (Prop(v)))
+qualif False(v:bool):(~ ((Bexp v)))
+
+qualif EqLen(v:int, ~A:List @(0)):(v = len([~A]))
+
+qualif CmpZ4(v:@(0)):(v <= 0)
+qualif CmpZ3(v:@(0)):(v >= 0)
+
+qualif CmpZ2(v:@(0)):(v < 0)
+qualif CmpZ1(v:@(0)):(v != 0)
+
+qualif CmpZ0(v:@(0)):(v > 0)
+qualif CmpZ(v:@(0)):(v = 0)
+
+qualif Cmp4(v:@(0), ~A:@(0)):(v > ~A)
+qualif Cmp3(v:@(0), ~A:@(0)):(v < ~A)
+
+qualif Cmp2(v:@(0), ~A:@(0)):(v != ~A)
+
+qualif Cmp1(v:@(0), ~A:@(0)):(v >= ~A)
+qualif Cmp0(v:@(0), ~A:@(0)):(v = ~A)
+
+qualif Cmp(v:@(0), ~A:@(0)):(v <= ~A)
+qualif Bot2(v:obj):(0 = 1)
+
+qualif Bot1(v:@(0)):(0 = 1)
+qualif Bot0(v:bool):(0 = 1)
+
+qualif Bot(v:int):(0 = 1)
+qualif Auto2(VV:int, ~A0:int):(VV = (~A0 + 3))
+
+qualif Auto1(vv:@(0), ~A0:@(0)):(vv = ~A0)
+
+qualif Auto0(v:@(1), ~P:Pred @(1) @(0), ~A0:@(0)):papp2(~P, v, ~A0)
+
+qualif Auto(VV:int, ~A0:int, ~A1:int):(VV = (~A0 + ~A1)) 
+

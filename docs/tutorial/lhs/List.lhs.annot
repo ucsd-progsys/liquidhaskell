@@ -1,0 +1,2768 @@
+\begin{code}
+module List where
+\end{code}
+
+Recursive Invariants
+====================
+
+Remember the definition of List
+\begin{code}
+infixr `C`
+data L a = N | C a (L a)
+\end{code}
+
+We can parameterize the definition with an abstract refinement `p`
+that relates the head of the list with all the elements of the tail:
+
+\begin{code}
+{-@ data L a <p :: a -> a -> Prop>
+      = N 
+      | C (h :: a) (tl :: (L <p> a<p h>))
+  @-}
+\end{code}
+
+\begin{code} Consider a list with three elements:
+h1 `C` h2 `C` h3 `C` N :: L <p> a 
+\end{code}
+
+\begin{code} If we unfold the list once we get:
+h1              :: a
+h2 `C` h3 `C` N :: L <p> a<p h1> 
+\end{code}
+
+\begin{code} With a second unfold we get:
+h1       :: a
+h2       :: a<p h1>  
+h3 `C` N :: L <p> a<p h1 && p h2> 
+\end{code}
+
+\begin{code} Finally, with one more unfold we get:
+h1 :: a
+h2 :: a<p h1>  
+h3 :: a<p h1 && p h2>  
+N  :: L <p> a<p h1 && p h2 && p h3> 
+\end{code}
+So `p` hold between *every pair* of elements in the list. 
+
+
+Consinder instantiating the abstract refinement with a concrete one
+stating that the value is less than the head, expressing increasing lists:
+
+\begin{code}
+{-@ type SL a = L <{\hd v -> v >= hd}> a @-}
+\end{code}
+
+We can verify that a random increasing list actually enjoys this type.
+\begin{code}
+{-@ slist :: SL Int @-}
+slist :: L Int
+slist = 1 `C` 6 `C` 12 `C` N
+\end{code}
+
+
+InsertSort
+----------
+More interestingly, we can verify that various *recursive* sorting algorithms return sorted lists.
+\begin{code}
+{-@ insert' :: (Ord a) => a -> SL a -> SL a @-}
+insert'     :: (Ord a) => a -> L a -> L a
+insert' y N                      = y `C` N                           
+insert' y (x `C` xs) | y <= x    = y `C` x `C` xs
+                     | otherwise = x `C` insert' y xs
+
+
+{-@ insertSort' :: (Ord a) => [a] -> SL a @-}
+insertSort'     :: (Ord a) => [a] -> L a
+insertSort'     = foldr insert' N
+\end{code}
+
+
+On Haskell Lists
+----------------
+
+[Demo](http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=ListSort.hs)
+
+\begin{code}We have hacked the Haskell List definition to abstract over a refinement:
+data [a] <p :: a -> a -> Prop>
+  = [] 
+  | (:) (h :: a) (tl :: ([a<p h>]<p>))
+  @-}
+\end{code}
+
+So, we can define `insertSort` on *real* lists
+
+\begin{code}
+{-@ type OList a = [a]<{\fld v -> (v >= fld)}> @-}
+\end{code}
+
+InsertSort
+----------
+\begin{code}
+{-@ insertSort :: (Ord a) => xs:[a] -> OList a @-}
+insertSort xs  = foldr insert [] xs
+
+insert y []                   = [y]
+insert y (x : xs) | y <= x    = y : x : xs 
+                  | otherwise = x : insert y xs
+\end{code}
+
+MergeSort
+---------
+\begin{code}
+{-@ mergeSort :: (Ord a) => [a] -> OList a @-}
+mergeSort     :: Ord a => [a] -> [a]
+mergeSort []  = []
+mergeSort [x] = [x]
+mergeSort xs  = merge (mergeSort xs1) (mergeSort xs2) where (xs1, xs2) = split xs
+
+split :: [a]    -> ([a], [a])
+split (x:(y:zs)) = (x:xs, y:ys) where (xs, ys) = split zs
+split xs         = (xs, [])
+
+merge :: Ord a => [a] -> [a] -> [a]
+merge xs [] = xs
+merge [] ys = ys
+merge (x:xs) (y:ys) | x <= y    = x:(merge xs (y:ys))
+                    | otherwise = y:(merge (x:xs) ys)
+\end{code}
+
+QuickSort
+---------
+\begin{code}
+{-@ quickSort    :: (Ord a) => [a] -> OList a @-}
+quickSort []     = []
+quickSort (x:xs) = append x lts gts 
+  where lts = quickSort [y | y <- xs, y < x]
+        gts = quickSort [z | z <- xs, z >= x]
+
+append k []     ys  = k : ys
+append k (x:xs) ys  = x : append k xs ys
+\end{code}
+
+
+Maps
+====
+[Demo](http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=Map.hs)
+
+As another application of recursive refinements, 
+consinder a Map from keys of type `k` to values of type `a` 
+implemented as a binary tree:
+
+\begin{code}
+data Map k a = Tip
+             | Bin Size k a (Map k a) (Map k a)
+
+type Size    = Int
+\end{code}
+
+We abstract from the structure two refinements `l` and `r`
+to describe the values of the left and right subtree with respect to the
+current key:
+
+\begin{code}
+{-@
+  data Map k a <l :: root:k -> k -> Prop, r :: root:k -> k -> Prop>
+      = Tip
+      | Bin (sz    :: Size)
+            (key   :: k)
+            (value :: a)
+            (left  :: Map <l, r> (k <l key>) a)
+            (right :: Map <l, r> (k <r key>) a)
+  @-}
+\end{code}
+
+Thus, if we instantiate the refinements with the following predicates
+
+\begin{code}
+{-@ type BST k a     = Map <{\r v -> v < r }, {\r v -> v > r }> k a @-}
+{-@ type MinHeap k a = Map <{\r v -> r <= v}, {\r v -> r <= v}> k a @-}
+{-@ type MaxHeap k a = Map <{\r v -> r >= v}, {\r v -> r >= v}> k a @-}
+\end{code}
+
+then `BST k v`, `MinHeap k v` and `MaxHeap k v` denote exactly binary-search-ordered, min-heap-ordered, and max-heap-ordered trees (with keys and values of types `k` and `v`).
+
+We can use the above types to automatically verify that the following functions preserve BST.
+
+Empty
+-----
+\begin{code}
+{-@ empty :: BST k a @-}
+empty     :: Map k a
+empty     = Tip
+\end{code}
+
+Insert
+------
+\begin{code}
+{-@ insertBST :: Ord k => k:k -> a:a -> t:BST k a -> BST k a @-}
+insertBST     :: Ord k => k -> a -> Map k a -> Map k a
+insertBST kx x t
+  = case t of
+     Tip -> singleton kx x
+     Bin sz ky y l r
+         -> case compare kx ky of
+              LT -> balance ky y (insertBST kx x l) r
+              GT -> balance ky y l (insertBST kx x r)
+              EQ -> Bin sz kx x l r
+\end{code}
+
+Delete 
+------
+
+\begin{code}
+{-@ delete :: (Ord k) => k:k -> t:BST k a -> BST k a @-}
+delete :: Ord k => k -> Map k a -> Map k a
+delete k t
+  = case t of
+      Tip -> Tip
+      Bin _ kx x l r
+          -> case compare k kx of
+               LT -> balance kx x (delete k l) r
+               GT -> balance kx x l (delete k r)
+               EQ -> glue kx l r
+\end{code}
+
+Below are the functions used by `insert` and `delete`:
+\begin{code}
+singleton :: k -> a -> Map k a
+singleton k x
+  = Bin 1 k x Tip Tip
+
+
+glue :: k -> Map k a -> Map k a -> Map k a
+glue k Tip r = r
+glue k l Tip = l
+glue k l r
+  | size l > size r = let (km1, vm, lm) = deleteFindMax l in balance km1 vm lm r
+  | otherwise       = let (km2, vm, rm) = deleteFindMin r in balance km2 vm l rm
+
+deleteFindMax t
+  = case t of
+      Bin _ k x l Tip -> (k, x, l)
+      Bin _ k x l r -> let (km3, vm, rm) = deleteFindMax r in
+                       (km3, vm, (balance k x l rm))
+      Tip           -> (error ms, error ms, Tip)
+  where ms = "Map.deleteFindMax : can not return the maximal element of an empty Map"
+
+deleteFindMin t
+  = case t of
+      Bin _ k x Tip r -> (k, x, r)
+      Bin _ k x l r -> let (km4, vm, lm) = deleteFindMin l in
+                       (km4, vm, (balance k x lm r))
+      Tip             -> (error ms, error ms, Tip)
+  where ms = "Map.deleteFindMin : can not return the maximal element of an empty Map"
+
+
+balance :: k -> a -> Map k a -> Map k a -> Map k a
+balance k x l r = undefined
+
+bin :: k -> a -> Map k a -> Map k a -> Map k a
+bin k x l r
+  = Bin (size l + size r + 1) k x l r
+
+size :: Map k a -> Int
+size t
+  = case t of
+      Tip            -> 0
+      Bin sz _ _ _ _ -> sz
+\end{code}
+
+
+r
+206
+35
+1
+{VV : (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV > ky)} b) | (VV == r)}
+
+
+List.singleton
+228
+1
+4
+forall a b.
+k:a
+-> x:b
+-> (List.Map <\_ VV -> false, \_ VV -> false> {VV : a | (VV == k)} {VV : b | (VV == x)})
+
+
+ds_dAW
+120
+21
+1
+{VV : [a] | ((len VV) >= 0)}
+
+
+unknown
+221
+38
+3
+{VV : a | (VV > kx)}
+-> (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV > kx)} b)
+-> (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV > kx)} b)
+
+
+unknown
+245
+14
+1
+[(GHC.Types.Char)]
+
+
+List.merge
+125
+38
+5
+forall a.
+(GHC.Classes.Ord a) =>
+{VV : [a]<\x3 VV -> (VV >= x3)> | ((len VV) >= 0)}
+-> {VV : [a]<\x2 VV -> (VV >= x2)> | ((len VV) >= 0)}
+-> {VV : [a]<\x1 VV -> (VV >= x1)> | ((len VV) >= 0)}
+
+
+List.merge
+116
+17
+5
+forall a.
+(GHC.Classes.Ord a) =>
+{VV : [a]<\x3 VV -> (VV >= x3)> | ((len VV) >= 0)}
+-> {VV : [a]<\x2 VV -> (VV >= x2)> | ((len VV) >= 0)}
+-> {VV : [a]<\x1 VV -> (VV >= x1)> | ((len VV) >= 0)}
+
+
+unknown
+221
+22
+5
+k:a
+-> b
+-> (List.Map <\x3 VV -> (VV < x3), \x4 VV -> (VV > x4)> {VV : a | (VV < k)} b)
+-> (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k)} b)
+-> {VV : (List.Map <\_ VV -> false, \_ VV -> false> {VV : a | false} {VV : b | false}) | false}
+
+
+zs
+119
+56
+1
+{VV : [a] | (VV == zs) && ((len VV) >= 0)}
+
+
+List.bin
+260
+1
+2
+forall a b.
+a -> b -> (List.Map a b) -> (List.Map a b) -> (List.Map a b)
+
+
+ys
+126
+51
+1
+{VV : [{VV : a | (VV >= y)}]<\x1 VV -> (VV >= x1)> | (VV == ys) && ((len VV) >= 0)}
+
+
+xs
+119
+40
+1
+{VV : [a] | (VV == xs) && ((len VV) == (len xs)) && ((len VV) >= 0)}
+
+
+y
+126
+35
+1
+{VV : a | (VV == y)}
+
+
+km2
+237
+70
+1
+{VV : a | (VV == km2) && (VV == km2) && (VV > k)}
+
+
+ds_dA9
+236
+57
+1
+(List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV < k)} b)
+
+
+lq_anf__dDH
+76
+25
+3
+a
+-> (List.L <\hd VV -> (VV >= hd)> a)
+-> (List.L <\hd VV -> (VV >= hd)> a)
+
+
+GHC.Tuple.(,,)
+241
+26
+5
+forall a b c <p3 :: b-> a-> c-> Bool, p2 :: a-> b-> Bool>.
+x1_(,,):a
+-> x2_(,,):{VV : b<p2 x1_(,,)> | true}
+-> {VV : c<p3 x2_(,,) x1_(,,)> | true}
+-> (a, b, c)<p2, p3>
+
+
+lq_anf__dDM
+59
+28
+1
+(List.L <\_ VV -> false> {VV : (GHC.Types.Int) | false})
+
+
+x
+134
+27
+1
+{VV : a | (VV == x)}
+
+
+k
+215
+8
+1
+a
+
+
+unknown
+70
+26
+1
+x:a -> y:a -> {VV : (GHC.Types.Bool) | (((Prop VV)) <=> (x <= y))}
+
+
+xs
+106
+46
+1
+{VV : [{VV : a | (VV >= x)}]<\x1 VV -> (VV >= x1)> | (VV == xs) && ((len VV) >= 0)}
+
+
+ds_dB9
+116
+80
+1
+{VV : [a] | ((len VV) >= 0)}
+
+
+x
+257
+11
+1
+a
+
+
+x
+70
+42
+1
+{VV : a | (VV == x)}
+
+
+GHC.Tuple.(,)
+120
+20
+2
+forall a b <p2 :: a-> b-> Bool>.
+x1_(,):a -> {VV : b<p2 x1_(,)> | true} -> (a, b)<p2>
+
+
+rm
+242
+38
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k) && (VV < km3) && (VV < km3)} b) | (VV == rm)}
+
+
+lts
+135
+9
+1
+{VV : [{VV : a | (VV < x)}]<\x1 VV -> (VV >= x1)> | ((len VV) >= 0)}
+
+
+x
+125
+23
+1
+{VV : a | (VV == x)}
+
+
+lq_anf__dCX
+135
+25
+1
+{VV : [{VV : a | (VV < x)}]<\_ VV -> (VV < x)> | ((len VV) >= 0)}
+
+
+unknown
+135
+41
+1
+x:a -> y:a -> {VV : (GHC.Types.Bool) | (((Prop VV)) <=> (x < y))}
+
+
+lq_anf__dCz
+229
+15
+1
+(List.Map <\_ VV -> false, \_ VV -> false> {VV : a | false} {VV : b | false})
+
+
+kx
+219
+29
+1
+{VV : a | (VV == kx)}
+
+
+ky
+203
+29
+1
+{VV : a | (VV == ky)}
+
+
+k
+241
+27
+1
+{VV : a | (VV == k)}
+
+
+x
+251
+45
+1
+{VV : a | (VV == x)}
+
+
+deleteFindMax
+239
+1
+3
+forall a b.
+(List.Map <\x4 VV -> (VV < x4), \x5 VV -> (VV > x5)> a b)
+-> (a, b, (List.Map <\x2 VV -> (VV < x2), \x3 VV -> (VV > x3)> a b))<\_ VV -> True, \_ x1 VV -> True>
+
+
+unknown
+105
+35
+4
+forall <p :: a-> a-> Bool>.
+y:{VV : a | (VV >= y)}
+-> ys:[{VV : a<p y> | (VV >= y)}]<p>
+-> {VV : [{VV : a | (VV >= y)}]<p> | ((len VV) == (1 + (len ys)))}
+
+
+List.empty
+191
+1
+1
+forall a b. (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> a b)
+
+
+l
+261
+15
+1
+{VV : (List.Map a b) | (VV == l)}
+
+
+k
+261
+31
+1
+{VV : a | (VV == k)}
+
+
+l
+206
+33
+1
+{VV : (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV < ky)} b) | (VV == l)}
+
+
+xs2
+116
+67
+1
+{VV : [a] | (VV == xs2) && ((len VV) == (len xs2)) && ((len VV) >= 0)}
+
+
+unknown
+252
+27
+1
+[(GHC.Types.Char)] -> {VV : a | false}
+
+
+ds_dAE
+135
+26
+1
+a
+
+
+r
+233
+16
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k)} b) | (VV == r)}
+
+
+unknown
+125
+36
+4
+forall <p :: a-> a-> Bool>.
+y:{VV : a | (VV >= x)}
+-> ys:[{VV : a<p y> | (VV >= x)}]<p>
+-> {VV : [{VV : a | (VV >= x)}]<p> | ((len VV) == (1 + (len ys)))}
+
+
+km4
+250
+29
+1
+{VV : a | (VV == km4) && (VV < k)}
+
+
+ms
+252
+43
+1
+{VV : [(GHC.Types.Char)] | (VV == ms) && ((len VV) >= 0)}
+
+
+ds_dAI
+136
+39
+1
+a
+
+
+r
+205
+52
+1
+{VV : (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV > ky)} b) | (VV == r)}
+
+
+unknown
+71
+42
+3
+{VV : a | (VV >= x)}
+-> (List.L <\hd VV -> (VV >= hd)> {VV : a | (VV >= x)})
+-> (List.L <\hd VV -> (VV >= hd)> {VV : a | (VV >= x)})
+
+
+unknown
+236
+43
+2
+(List.Map <\x4 VV -> (VV < x4), \x5 VV -> (VV > x5)> {VV : a | (VV < k)} b)
+-> ({VV : a | (VV < k)}, b, (List.Map <\x2 VV -> (VV < x2), \x3 VV -> (VV > x3)> {VV : a | (VV < k)} b))<\_ VV -> True, \_ x1 VV -> True>
+
+
+t
+215
+10
+1
+(List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> a b)
+
+
+unknown
+244
+35
+1
+[(GHC.Types.Char)] -> {VV : a | false}
+
+
+k
+220
+43
+1
+{VV : a | (VV == k)}
+
+
+lq_anf__dDS
+261
+28
+1
+{VV : (GHC.Types.Int) | (VV == (1  :  int))}
+
+
+vm
+251
+30
+1
+{VV : a | (VV == vm) && (VV == vm)}
+
+
+y
+70
+24
+1
+{VV : a | (VV == y)}
+
+
+kx
+199
+11
+1
+a
+
+
+y
+106
+44
+1
+{VV : a | (VV == y)}
+
+
+r
+249
+33
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k)} b) | (VV == r)}
+
+
+k
+257
+9
+1
+a
+
+
+t
+264
+6
+1
+(List.Map a b)
+
+
+List.glue
+233
+1
+5
+forall a b.
+k:a
+-> (List.Map <\x5 VV -> (VV < x5), \x6 VV -> (VV > x6)> {VV : a | (VV < k)} b)
+-> (List.Map <\x3 VV -> (VV < x3), \x4 VV -> (VV > x4)> {VV : a | (VV > k)} b)
+-> (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV /= k)} b)
+
+
+GHC.Tuple.(,,)
+252
+26
+5
+forall a b c <p3 :: b-> a-> c-> Bool, p2 :: a-> b-> Bool>.
+x1_(,,):a
+-> x2_(,,):{VV : b<p2 x1_(,,)> | true}
+-> {VV : c<p3 x2_(,,) x1_(,,)> | true}
+-> (a, b, c)<p2, p3>
+
+
+xs2
+116
+50
+1
+{VV : [a] | (VV == xs2) && (VV == xs2) && ((len VV) == (len xs2)) && ((len VV) >= 0)}
+
+
+xs1
+116
+34
+1
+{VV : [a] | (VV == xs1) && (VV == xs1) && ((len VV) == (len xs1)) && ((len VV) >= 0)}
+
+
+deleteFindMin
+250
+44
+3
+forall a b.
+(List.Map <\x4 VV -> (VV < x4), \x5 VV -> (VV > x5)> a b)
+-> (a, b, (List.Map <\x2 VV -> (VV < x2), \x3 VV -> (VV > x3)> a b))<\_ VV -> True, \_ x1 VV -> True>
+
+
+xs
+123
+15
+1
+{VV : [a]<\x1 VV -> (VV >= x1)> | (VV == xs) && ((len VV) >= 0)}
+
+
+lq_anf__dDz
+102
+24
+3
+a
+-> {VV : [a]<\x2 VV -> (VV >= x2)> | ((len VV) >= 0)}
+-> {VV : [a]<\x1 VV -> (VV >= x1)> | ((len VV) > 0)}
+
+
+x
+135
+43
+1
+{VV : a | (VV == x)}
+
+
+x
+229
+13
+1
+{VV : a | (VV == x)}
+
+
+unknown
+205
+21
+5
+k:a
+-> b
+-> (List.Map <\x3 VV -> (VV < x3), \x4 VV -> (VV > x4)> {VV : a | (VV < k)} b)
+-> (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k)} b)
+-> {VV : (List.Map <\_ VV -> false, \_ VV -> false> {VV : a | false} {VV : b | false}) | false}
+
+
+ds_dA9
+236
+10
+1
+(List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV < k)} b)
+
+
+y
+119
+27
+1
+{VV : a | (VV == y)}
+
+
+lq_anf__dDK
+59
+15
+1
+{VV : (GHC.Types.Int) | (VV == (6  :  int))}
+
+
+unknown
+205
+37
+4
+{VV : a | (VV > ky)}
+-> b
+-> (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV > ky)} b)
+-> (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV > ky)} b)
+
+
+vm
+236
+74
+1
+{VV : a | (VV == vm) && (VV == vm)}
+
+
+lm
+251
+47
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > km4) && (VV > km4) && (VV < k)} b) | (VV == lm) && (VV == lm)}
+
+
+rm
+237
+37
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k) && (VV > km2) && (VV > km2)} b) | (VV == rm)}
+
+
+y
+105
+33
+1
+{VV : a | (VV == y)}
+
+
+r
+222
+32
+1
+{VV : (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV > kx)} b) | (VV == r)}
+
+
+kx
+204
+45
+1
+{VV : a | (VV == kx)}
+
+
+ky
+204
+29
+1
+{VV : a | (VV == ky)}
+
+
+List.size
+264
+1
+1
+forall a b. (List.Map a b) -> (GHC.Types.Int)
+
+
+k
+233
+6
+1
+a
+
+
+insert
+104
+1
+5
+forall a.
+(GHC.Classes.Ord a) =>
+a
+-> {VV : [a]<\x2 VV -> (VV >= x2)> | ((len VV) >= 0)}
+-> {VV : [a]<\x1 VV -> (VV >= x1)> | ((len VV) > 0)}
+
+
+lq_anf__dDA
+102
+31
+1
+{VV : [{VV : a | false}]<\_ VV -> false> | ((len VV) == 0) && ((len VV) >= 0)}
+
+
+ys
+125
+50
+1
+{VV : [{VV : a | (VV >= y)}]<\x1 VV -> (VV >= x1)> | (VV == ys) && ((len VV) >= 0)}
+
+
+lq_anf__dDu
+104
+33
+1
+{VV : [{VV : a | false}]<\_ VV -> false> | ((len VV) == 0) && ((len VV) >= 0)}
+
+
+lq_anf__dDC
+69
+42
+1
+(List.L <\_ VV -> false> {VV : a | false})
+
+
+k
+260
+5
+1
+a
+
+
+ys
+138
+27
+1
+{VV : [{VV : a | (VV >= k)}]<\x1 VV -> (VV >= x1)> | (VV == ys) && ((len VV) >= 0)}
+
+
+ys
+119
+44
+1
+{VV : [a] | (VV == ys) && ((len VV) == (len ys)) && ((len VV) >= 0)}
+
+
+x
+205
+50
+1
+{VV : a | (VV == x)}
+
+
+unknown
+119
+28
+4
+forall <p :: a-> a-> Bool>.
+y:a
+-> ys:[{VV : a<p y> | true}]<p>
+-> {VV : [a]<p> | ((len VV) == (1 + (len ys)))}
+
+
+l
+205
+34
+1
+{VV : (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV < ky)} b) | (VV == l)}
+
+
+x
+241
+30
+1
+{VV : a | (VV == x)}
+
+
+unknown
+59
+24
+4
+forall <p :: (GHC.Types.Int)-> (GHC.Types.Int)-> Bool>.
+h_List.C:{VV : (GHC.Types.Int) | (VV > 0)}
+-> (List.L <p> {VV : (GHC.Types.Int)<p h_List.C> | (VV > 0)})
+-> (List.L <p> {VV : (GHC.Types.Int) | (VV > 0)})
+
+
+lm
+236
+77
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV < k) && (VV < km1) && (VV < km1)} b) | (VV == lm) && (VV == lm)}
+
+
+l
+220
+45
+1
+{VV : (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV < kx)} b) | (VV == l)}
+
+
+unknown
+261
+10
+1
+(List.Map a b) -> (GHC.Types.Int)
+
+
+unknown
+261
+26
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+GHC.Tuple.(,,)
+251
+24
+5
+forall a b c <p3 :: b-> a-> c-> Bool, p2 :: a-> b-> Bool>.
+x1_(,,):a
+-> x2_(,,):{VV : b<p2 x1_(,,)> | true}
+-> {VV : c<p3 x2_(,,) x1_(,,)> | true}
+-> (a, b, c)<p2, p3>
+
+
+lq_anf__dDq
+115
+17
+1
+{VV : [{VV : a | false}]<\_ VV -> false> | ((len VV) == 0) && ((len VV) >= 0)}
+
+
+r
+257
+15
+1
+(List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k)} b)
+
+
+vm
+242
+34
+1
+{VV : a | (VV == vm)}
+
+
+l
+221
+35
+1
+{VV : (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV < kx)} b) | (VV == l)}
+
+
+ds_dzu
+250
+58
+1
+(List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV < k)} b)
+
+
+x
+125
+35
+1
+{VV : a | (VV == x)}
+
+
+sz
+267
+25
+1
+{VV : (GHC.Types.Int) | (VV == sz)}
+
+
+k
+229
+11
+1
+{VV : a | (VV == k)}
+
+
+unknown
+236
+12
+3
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int)
+-> {VV : (GHC.Types.Bool) | (((Prop VV)) <=> (x > y))}
+
+
+km1
+236
+28
+1
+{VV : a | (VV == km1) && (VV < k)}
+
+
+List.merge
+126
+38
+5
+forall a.
+(GHC.Classes.Ord a) =>
+{VV : [a]<\x3 VV -> (VV >= x3)> | ((len VV) >= 0)}
+-> {VV : [a]<\x2 VV -> (VV >= x2)> | ((len VV) >= 0)}
+-> {VV : [a]<\x1 VV -> (VV >= x1)> | ((len VV) >= 0)}
+
+
+ys
+119
+29
+1
+{VV : [a] | (VV == ys) && (VV == ys) && ((len VV) == (len ys)) && ((len VV) >= 0)}
+
+
+lq_anf__dDJ
+59
+9
+1
+{VV : (GHC.Types.Int) | (VV == (1  :  int))}
+
+
+rm
+243
+49
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k) && (VV < km3) && (VV < km3)} b) | (VV == rm) && (VV == rm)}
+
+
+unknown
+222
+22
+4
+k:a
+-> (List.Map <\x5 VV -> (VV < x5), \x6 VV -> (VV > x6)> {VV : a | (VV < k)} b)
+-> (List.Map <\x3 VV -> (VV < x3), \x4 VV -> (VV > x4)> {VV : a | (VV > k)} b)
+-> (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV /= k)} b)
+
+
+unknown
+105
+23
+1
+x:a -> y:a -> {VV : (GHC.Types.Bool) | (((Prop VV)) <=> (x <= y))}
+
+
+unknown
+105
+39
+4
+forall <p :: a-> a-> Bool>.
+y:{VV : a | (VV >= x) && (VV >= y)}
+-> ys:[{VV : a<p y> | (VV >= x) && (VV >= y)}]<p>
+-> {VV : [{VV : a | (VV >= x) && (VV >= y)}]<p> | ((len VV) == (1 + (len ys)))}
+
+
+unknown
+139
+25
+4
+forall <p :: a-> a-> Bool>.
+y:{VV : a | (VV >= x)}
+-> ys:[{VV : a<p y> | (VV >= x)}]<p>
+-> {VV : [{VV : a | (VV >= x)}]<p> | ((len VV) == (1 + (len ys)))}
+
+
+kx
+201
+23
+1
+{VV : a | (VV == kx)}
+
+
+km4
+251
+25
+1
+{VV : a | (VV == km4) && (VV == km4) && (VV < k)}
+
+
+x
+70
+29
+1
+{VV : a | (VV == x)}
+
+
+x
+199
+14
+1
+a
+
+
+unknown
+206
+21
+7
+forall <r :: a-> a-> Bool, l :: a-> a-> Bool>.
+(GHC.Types.Int)
+-> key_List.Bin:a
+-> b
+-> (List.Map <l, r> {VV : a<l key_List.Bin> | true} b)
+-> (List.Map <l, r> {VV : a<r key_List.Bin> | true} b)
+-> (List.Map <l, r> a b)
+
+
+x
+115
+18
+1
+{VV : a | (VV == x)}
+
+
+GHC.Types.I#
+266
+25
+1
+x:(GHC.Prim.Int#) -> {VV : (GHC.Types.Int) | (VV == (x  :  int))}
+
+
+y
+125
+48
+1
+{VV : a | (VV == y)}
+
+
+lq_anf__dBB
+252
+47
+1
+(List.Map <\_ VV -> false, \_ VV -> false> {VV : a | false} {VV : b | false})
+
+
+unknown
+114
+17
+2
+forall <p :: a-> a-> Bool>.
+{VV : [{VV : a | false}]<p> | ((len VV) == 0)}
+
+
+x
+260
+7
+1
+a
+
+
+unknown
+138
+25
+4
+forall <p :: a-> a-> Bool>.
+y:{VV : a | (VV >= k)}
+-> ys:[{VV : a<p y> | (VV >= k)}]<p>
+-> {VV : [{VV : a | (VV >= k)}]<p> | ((len VV) == (1 + (len ys)))}
+
+
+List.mergeSort
+114
+1
+1
+forall a. (GHC.Classes.Ord a) => [a] -> [a]<\fld VV -> (VV >= fld)>
+
+
+xs
+136
+35
+1
+{VV : [a] | (VV == xs) && ((len VV) >= 0)}
+
+
+kx
+203
+26
+1
+{VV : a | (VV == kx)}
+
+
+y
+205
+32
+1
+{VV : a | (VV == y)}
+
+
+lts
+134
+29
+1
+{VV : [{VV : a | (VV < x)}]<\x1 VV -> (VV >= x1)> | (VV == lts) && ((len VV) >= 0)}
+
+
+ds_dAL
+124
+15
+1
+{VV : [a]<\x1 VV -> (VV >= x1)> | ((len VV) >= 0)}
+
+
+r
+261
+24
+1
+{VV : (List.Map a b) | (VV == r)}
+
+
+l
+257
+13
+1
+(List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV < k)} b)
+
+
+unknown
+70
+44
+4
+forall <p :: a-> a-> Bool>.
+h_List.C:{VV : a | (VV >= x) && (VV >= y)}
+-> (List.L <p> {VV : a<p h_List.C> | (VV >= x) && (VV >= y)})
+-> (List.L <p> {VV : a | (VV >= x) && (VV >= y)})
+
+
+t
+247
+15
+1
+(List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> a b)
+
+
+unknown
+240
+10
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> a b) | (VV == t)}
+
+
+quickSort
+135
+15
+3
+forall a.
+(GHC.Classes.Ord a) =>
+[a] -> {VV : [a]<\x1 VV -> (VV >= x1)> | ((len VV) >= 0)}
+
+
+x
+221
+33
+1
+{VV : a | (VV == x)}
+
+
+ms
+245
+9
+1
+[(GHC.Types.Char)]
+
+
+unknown
+125
+49
+4
+forall <p :: a-> a-> Bool>.
+y:{VV : a | (VV >= x) && (VV >= y)}
+-> ys:[{VV : a<p y> | (VV >= x) && (VV >= y)}]<p>
+-> {VV : [{VV : a | (VV >= x) && (VV >= y)}]<p> | ((len VV) == (1 + (len ys)))}
+
+
+y
+104
+34
+1
+{VV : a | (VV == y)}
+
+
+xs
+102
+12
+1
+[a]
+
+
+lq_anf__dCy
+229
+9
+1
+{VV : (GHC.Types.Int) | (VV == (1  :  int))}
+
+
+k
+138
+8
+1
+a
+
+
+unknown
+236
+14
+1
+(List.Map {VV : a | (VV > k)} b) -> (GHC.Types.Int)
+
+
+k
+219
+27
+1
+{VV : a | (VV == k)}
+
+
+unknown
+126
+36
+4
+forall <p :: a-> a-> Bool>.
+y:{VV : a | (VV >= y)}
+-> ys:[{VV : a<p y> | (VV >= y)}]<p>
+-> {VV : [{VV : a | (VV >= y)}]<p> | ((len VV) == (1 + (len ys)))}
+
+
+y
+69
+9
+1
+a
+
+
+unknown
+243
+35
+5
+k:{VV : a | (VV < km3) && (VV < km3)}
+-> b
+-> (List.Map <\x3 VV -> (VV < x3), \x4 VV -> (VV > x4)> {VV : a | (VV < k) && (VV < km3) && (VV < km3)} b)
+-> (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k) && (VV < km3) && (VV < km3)} b)
+-> {VV : (List.Map <\_ VV -> false, \_ VV -> false> {VV : a | false} {VV : b | false}) | false}
+
+
+unknown
+59
+11
+4
+forall <p :: (GHC.Types.Int)-> (GHC.Types.Int)-> Bool>.
+h_List.C:{VV : (GHC.Types.Int) | (VV > 0)}
+-> (List.L <p> {VV : (GHC.Types.Int)<p h_List.C> | (VV > 0)})
+-> (List.L <p> {VV : (GHC.Types.Int) | (VV > 0)})
+
+
+unknown
+236
+62
+5
+k:{VV : a | (VV /= k)}
+-> b
+-> (List.Map <\x3 VV -> (VV < x3), \x4 VV -> (VV > x4)> {VV : a | (VV /= k) && (VV < k)} b)
+-> (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV /= k) && (VV > k)} b)
+-> {VV : (List.Map <\_ VV -> false, \_ VV -> false> {VV : a | false} {VV : b | false}) | false}
+
+
+k
+251
+43
+1
+{VV : a | (VV == k)}
+
+
+y
+105
+21
+1
+{VV : a | (VV == y)}
+
+
+vm
+237
+33
+1
+{VV : a | (VV == vm)}
+
+
+x
+105
+37
+1
+{VV : a | (VV == x)}
+
+
+kx
+220
+30
+1
+{VV : a | (VV == kx)}
+
+
+append
+139
+27
+5
+forall a.
+k:a
+-> {VV : [{VV : a | (VV < k)}]<\x3 VV -> (VV >= x3)> | ((len VV) >= 0)}
+-> {VV : [{VV : a | (VV >= k)}]<\x2 VV -> (VV >= x2)> | ((len VV) >= 0)}
+-> {VV : [a]<\x1 VV -> (VV >= x1)> | ((len VV) > 0)}
+
+
+GHC.Tuple.(,,)
+249
+26
+5
+forall a b c <p3 :: b-> a-> c-> Bool, p2 :: a-> b-> Bool>.
+x1_(,,):a
+-> x2_(,,):{VV : b<p2 x1_(,,)> | true}
+-> {VV : c<p3 x2_(,,) x1_(,,)> | true}
+-> (a, b, c)<p2, p3>
+
+
+t
+199
+16
+1
+(List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> a b)
+
+
+kx
+221
+30
+1
+{VV : a | (VV == kx)}
+
+
+ms
+252
+33
+1
+{VV : [(GHC.Types.Char)] | (VV == ms) && ((len VV) >= 0)}
+
+
+unknown
+69
+38
+4
+forall <p :: a-> a-> Bool>.
+h_List.C:{VV : a | (VV == y)}
+-> (List.L <p> {VV : a<p h_List.C> | (VV == y)})
+-> (List.L <p> {VV : a | (VV == y)})
+
+
+lq_anf__dDI
+76
+33
+1
+(List.L <\_ VV -> false> {VV : a | false})
+
+
+l
+260
+9
+1
+(List.Map a b)
+
+
+k
+138
+23
+1
+{VV : a | (VV == k)}
+
+
+vm
+236
+33
+1
+{VV : a | (VV == vm)}
+
+
+unknown
+265
+10
+1
+{VV : (List.Map a b) | (VV == t)}
+
+
+List.insertSort'
+76
+1
+3
+forall a.
+(GHC.Classes.Ord a) =>
+[a] -> (List.L <\hd VV -> (VV >= hd)> a)
+
+
+unknown
+237
+62
+5
+k:{VV : a | (VV /= k)}
+-> b
+-> (List.Map <\x3 VV -> (VV < x3), \x4 VV -> (VV > x4)> {VV : a | (VV /= k) && (VV < k)} b)
+-> (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV /= k) && (VV > k)} b)
+-> {VV : (List.Map <\_ VV -> false, \_ VV -> false> {VV : a | false} {VV : b | false}) | false}
+
+
+kx
+222
+27
+1
+{VV : a | (VV == kx)}
+
+
+unknown
+253
+14
+1
+[(GHC.Types.Char)]
+
+
+x
+105
+26
+1
+{VV : a | (VV == x)}
+
+
+ms
+244
+41
+1
+{VV : [(GHC.Types.Char)] | (VV == ms) && ((len VV) >= 0)}
+
+
+x
+220
+33
+1
+{VV : a | (VV == x)}
+
+
+xs
+139
+36
+1
+{VV : [{VV : a | (VV >= x) && (VV < k)}]<\x1 VV -> (VV >= x1)> | (VV == xs) && ((len VV) >= 0)}
+
+
+unknown
+244
+25
+1
+[(GHC.Types.Char)] -> {VV : a | false}
+
+
+x
+201
+26
+1
+{VV : a | (VV == x)}
+
+
+k
+249
+27
+1
+{VV : a | (VV == k)}
+
+
+y
+204
+32
+1
+{VV : a | (VV == y)}
+
+
+List.insertBST
+199
+1
+6
+forall a b.
+(GHC.Classes.Ord a) =>
+a
+-> b
+-> (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> a b)
+-> (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> a b)
+
+
+x
+204
+48
+1
+{VV : a | (VV == x)}
+
+
+unknown
+257
+19
+1
+{VV : (List.Map <\_ VV -> false, \_ VV -> false> {VV : a | false} {VV : b | false}) | false}
+
+
+deleteFindMin
+247
+1
+3
+forall a b.
+(List.Map <\x4 VV -> (VV < x4), \x5 VV -> (VV > x5)> a b)
+-> (a, b, (List.Map <\x2 VV -> (VV < x2), \x3 VV -> (VV > x3)> a b))<\_ VV -> True, \_ x1 VV -> True>
+
+
+r
+221
+47
+1
+{VV : (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV > kx)} b) | (VV == r)}
+
+
+xs
+102
+34
+1
+{VV : [a] | (VV == xs) && ((len VV) >= 0)}
+
+
+unknown
+116
+40
+1
+[a] -> [a]<\fld VV -> (VV >= fld)>
+
+
+lm
+250
+38
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > km4) && (VV > km4) && (VV < k)} b) | (VV == lm)}
+
+
+unknown
+102
+18
+6
+(a
+ -> {VV : [a]<\x4 VV -> (VV >= x4)> | ((len VV) >= 0)}
+ -> {VV : [a]<\x4 VV -> (VV >= x4)> | ((len VV) >= 0)})
+-> {VV : [a]<\x4 VV -> (VV >= x4)> | ((len VV) >= 0)}
+-> [a]
+-> {VV : [a]<\x4 VV -> (VV >= x4)> | ((len VV) >= 0)}
+
+
+unknown
+116
+24
+1
+[a] -> [a]<\fld VV -> (VV >= fld)>
+
+
+x
+136
+44
+1
+{VV : a | (VV == x)}
+
+
+x
+243
+45
+1
+{VV : a | (VV == x)}
+
+
+kx
+205
+47
+1
+{VV : a | (VV == kx)}
+
+
+rm
+237
+79
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k) && (VV > km2) && (VV > km2)} b) | (VV == rm) && (VV == rm)}
+
+
+List.split
+119
+1
+3
+forall a.
+{VV : [a] | ((len VV) >= 0)}
+-> ({VV : [a] | ((len VV) >= 0)}, {VV : [a] | ((len VV) >= 0)})<\_ VV -> ((len VV) >= 0)>
+
+
+lq_anf__dDL
+59
+21
+1
+{VV : (GHC.Types.Int) | (VV == (12  :  int))}
+
+
+r
+220
+48
+1
+{VV : (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV > kx)} b) | (VV == r)}
+
+
+List.delete
+215
+1
+5
+forall a b.
+(GHC.Classes.Ord a) =>
+a
+-> (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> a b)
+-> (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> a b)
+
+
+r
+236
+80
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k)} b) | (VV == r)}
+
+
+GHC.Tuple.(,,)
+244
+24
+5
+forall a b c <p3 :: b-> a-> c-> Bool, p2 :: a-> b-> Bool>.
+x1_(,,):a
+-> x2_(,,):{VV : b<p2 x1_(,,)> | true}
+-> {VV : c<p3 x2_(,,) x1_(,,)> | true}
+-> (a, b, c)<p2, p3>
+
+
+unknown
+204
+35
+4
+{VV : a | (VV < ky)}
+-> b
+-> (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV < ky)} b)
+-> (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV < ky)} b)
+
+
+km3
+242
+29
+1
+{VV : a | (VV == km3) && (VV > k)}
+
+
+insert
+106
+37
+5
+forall a.
+(GHC.Classes.Ord a) =>
+a
+-> {VV : [a]<\x2 VV -> (VV >= x2)> | ((len VV) >= 0)}
+-> {VV : [a]<\x1 VV -> (VV >= x1)> | ((len VV) > 0)}
+
+
+sz
+206
+25
+1
+{VV : (GHC.Types.Int) | (VV == sz)}
+
+
+k
+228
+11
+1
+a
+
+
+y
+125
+28
+1
+{VV : a | (VV == y)}
+
+
+xs
+125
+44
+1
+{VV : [{VV : a | (VV >= x)}]<\x1 VV -> (VV >= x1)> | (VV == xs) && ((len VV) >= 0)}
+
+
+List.insertSort
+102
+1
+1
+forall a. (GHC.Classes.Ord a) => [a] -> [a]<\fld VV -> (VV >= fld)>
+
+
+unknown
+133
+20
+2
+forall <p :: a-> a-> Bool>.
+{VV : [{VV : a | false}]<p> | ((len VV) == 0)}
+
+
+y
+69
+36
+1
+{VV : a | (VV == y)}
+
+
+List.split
+119
+50
+3
+forall a.
+{VV : [a] | ((len VV) >= 0)}
+-> ({VV : [a] | ((len VV) >= 0)}, {VV : [a] | ((len VV) >= 0)})<\_ VV -> ((len VV) >= 0)>
+
+
+r
+260
+11
+1
+(List.Map a b)
+
+
+r
+236
+19
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k)} b) | (VV == r)}
+
+
+vm
+243
+30
+1
+{VV : a | (VV == vm) && (VV == vm)}
+
+
+y
+71
+50
+1
+{VV : a | (VV == y)}
+
+
+quickSort
+136
+15
+3
+forall a.
+(GHC.Classes.Ord a) =>
+[a] -> {VV : [a]<\x1 VV -> (VV >= x1)> | ((len VV) >= 0)}
+
+
+unknown
+76
+19
+6
+(a
+ -> (List.L <\x4 VV -> (VV >= x4)> a)
+ -> (List.L <\x4 VV -> (VV >= x4)> a))
+-> (List.L <\x4 VV -> (VV >= x4)> a)
+-> [a]
+-> (List.L <\x4 VV -> (VV >= x4)> a)
+
+
+km2
+237
+28
+1
+{VV : a | (VV == km2) && (VV > k)}
+
+
+gts
+134
+33
+1
+{VV : [{VV : a | (VV >= x)}]<\x1 VV -> (VV >= x1)> | (VV == gts) && ((len VV) >= 0)}
+
+
+l
+204
+50
+1
+{VV : (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV < ky)} b) | (VV == l)}
+
+
+xs
+70
+48
+1
+{VV : (List.L <\hd VV -> (VV >= hd)> {VV : a | (VV >= x)}) | (VV == xs)}
+
+
+List.balance
+257
+1
+6
+forall a b.
+k:a
+-> b
+-> (List.Map <\x3 VV -> (VV < x3), \x4 VV -> (VV > x4)> {VV : a | (VV < k)} b)
+-> (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k)} b)
+-> {VV : (List.Map <\_ VV -> false, \_ VV -> false> {VV : a | false} {VV : b | false}) | false}
+
+
+deleteFindMax
+242
+44
+3
+forall a b.
+(List.Map <\x4 VV -> (VV < x4), \x5 VV -> (VV > x5)> a b)
+-> (a, b, (List.Map <\x2 VV -> (VV < x2), \x3 VV -> (VV > x3)> a b))<\_ VV -> True, \_ x1 VV -> True>
+
+
+List.split
+116
+74
+3
+forall a.
+{VV : [a] | ((len VV) >= 0)}
+-> ({VV : [a] | ((len VV) >= 0)}, {VV : [a] | ((len VV) >= 0)})<\_ VV -> ((len VV) >= 0)>
+
+
+k
+221
+45
+1
+{VV : a | (VV == k)}
+
+
+xs
+123
+7
+1
+{VV : [a]<\x1 VV -> (VV >= x1)> | ((len VV) >= 0)}
+
+
+xs
+135
+35
+1
+{VV : [a] | (VV == xs) && ((len VV) >= 0)}
+
+
+unknown
+229
+5
+7
+forall <r :: a-> a-> Bool, l :: a-> a-> Bool>.
+(GHC.Types.Int)
+-> key_List.Bin:{VV : a | (VV == k)}
+-> {VV : b | (VV == x)}
+-> (List.Map <l, r> {VV : a<l key_List.Bin> | (VV == k)} {VV : b | (VV == x)})
+-> (List.Map <l, r> {VV : a<r key_List.Bin> | (VV == k)} {VV : b | (VV == x)})
+-> (List.Map <l, r> {VV : a | (VV == k)} {VV : b | (VV == x)})
+
+
+ky
+205
+29
+1
+{VV : a | (VV == ky)}
+
+
+l
+241
+33
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV < k)} b) | (VV == l)}
+
+
+l
+243
+47
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV < k)} b) | (VV == l)}
+
+
+ds_dA9
+237
+77
+1
+(List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV < k)} b)
+
+
+r
+261
+37
+1
+{VV : (List.Map a b) | (VV == r)}
+
+
+ys
+139
+39
+1
+{VV : [{VV : a | (VV >= k)}]<\x1 VV -> (VV >= x1)> | (VV == ys) && ((len VV) >= 0)}
+
+
+xs
+105
+41
+1
+{VV : [{VV : a | (VV >= x)}]<\x1 VV -> (VV >= x1)> | (VV == xs) && ((len VV) >= 0)}
+
+
+unknown
+261
+5
+7
+forall <r :: a-> a-> Bool, l :: a-> a-> Bool>.
+(GHC.Types.Int)
+-> key_List.Bin:a
+-> b
+-> (List.Map <l, r> {VV : a<l key_List.Bin> | true} b)
+-> (List.Map <l, r> {VV : a<r key_List.Bin> | true} b)
+-> (List.Map <l, r> a b)
+
+
+x
+139
+23
+1
+{VV : a | (VV == x) && (VV < k)}
+
+
+x
+249
+30
+1
+{VV : a | (VV == x)}
+
+
+unknown
+106
+35
+4
+forall <p :: a-> a-> Bool>.
+y:{VV : a | (VV >= x)}
+-> ys:[{VV : a<p y> | (VV >= x)}]<p>
+-> {VV : [{VV : a | (VV >= x)}]<p> | ((len VV) == (1 + (len ys)))}
+
+
+x
+206
+31
+1
+{VV : a | (VV == x)}
+
+
+r
+204
+53
+1
+{VV : (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV > ky)} b) | (VV == r)}
+
+
+x
+228
+13
+1
+a
+
+
+unknown
+204
+21
+5
+k:a
+-> b
+-> (List.Map <\x3 VV -> (VV < x3), \x4 VV -> (VV > x4)> {VV : a | (VV < k)} b)
+-> (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k)} b)
+-> {VV : (List.Map <\_ VV -> false, \_ VV -> false> {VV : a | false} {VV : b | false}) | false}
+
+
+lq_anf__dD9
+120
+25
+1
+{VV : [{VV : a | false}]<\_ VV -> false> | ((len VV) == 0) && ((len VV) >= 0)}
+
+
+unknown
+252
+37
+1
+[(GHC.Types.Char)] -> {VV : a | false}
+
+
+unknown
+236
+5
+1
+(List.Map {VV : a | (VV < k)} b) -> (GHC.Types.Int)
+
+
+unknown
+136
+41
+1
+x:a -> y:a -> {VV : (GHC.Types.Bool) | (((Prop VV)) <=> (x >= y))}
+
+
+GHC.Tuple.(,,)
+243
+24
+5
+forall a b c <p3 :: b-> a-> c-> Bool, p2 :: a-> b-> Bool>.
+x1_(,,):a
+-> x2_(,,):{VV : b<p2 x1_(,,)> | true}
+-> {VV : c<p3 x2_(,,) x1_(,,)> | true}
+-> (a, b, c)<p2, p3>
+
+
+xs
+126
+47
+1
+{VV : [{VV : a | (VV >= x)}]<\x1 VV -> (VV >= x1)> | (VV == xs) && ((len VV) >= 0)}
+
+
+x
+71
+36
+1
+{VV : a | (VV == x)}
+
+
+lq_anf__dCS
+136
+25
+1
+{VV : [{VV : a | (VV >= x)}]<\_ VV -> (VV >= x)> | ((len VV) >= 0)}
+
+
+lm
+236
+37
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV < k) && (VV < km1) && (VV < km1)} b) | (VV == lm)}
+
+
+GHC.Tuple.(,)
+119
+20
+2
+forall a b <p2 :: a-> b-> Bool>.
+x1_(,):a -> {VV : b<p2 x1_(,)> | true} -> (a, b)<p2>
+
+
+xs
+71
+52
+1
+{VV : (List.L <\hd VV -> (VV >= hd)> {VV : a | (VV >= x)}) | (VV == xs)}
+
+
+vm
+237
+74
+1
+{VV : a | (VV == vm) && (VV == vm)}
+
+
+gts
+136
+9
+1
+{VV : [{VV : a | (VV >= x)}]<\x1 VV -> (VV >= x1)> | ((len VV) >= 0)}
+
+
+unknown
+217
+14
+2
+forall <r :: a-> a-> Bool, l :: a-> a-> Bool>.
+(List.Map <l, r> {VV : a | false} {VV : b | false})
+
+
+lq_anf__dBS
+244
+45
+1
+(List.Map <\_ VV -> false, \_ VV -> false> {VV : a | false} {VV : b | false})
+
+
+ds_dzL
+242
+58
+1
+(List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k)} b)
+
+
+unknown
+70
+38
+4
+forall <p :: a-> a-> Bool>.
+h_List.C:{VV : a | (VV >= y)}
+-> (List.L <p> {VV : a<p h_List.C> | (VV >= y)})
+-> (List.L <p> {VV : a | (VV >= y)})
+
+
+y
+104
+8
+1
+a
+
+
+vm
+250
+34
+1
+{VV : a | (VV == vm)}
+
+
+List.merge
+123
+1
+5
+forall a.
+(GHC.Classes.Ord a) =>
+{VV : [a]<\x3 VV -> (VV >= x3)> | ((len VV) >= 0)}
+-> {VV : [a]<\x2 VV -> (VV >= x2)> | ((len VV) >= 0)}
+-> {VV : [a]<\x1 VV -> (VV >= x1)> | ((len VV) >= 0)}
+
+
+lq_anf__dCA
+229
+19
+1
+(List.Map <\_ VV -> false, \_ VV -> false> {VV : a | false} {VV : b | false})
+
+
+km3
+243
+25
+1
+{VV : a | (VV == km3) && (VV == km3) && (VV > k)}
+
+
+unknown
+126
+46
+4
+forall <p :: a-> a-> Bool>.
+y:{VV : a | (VV > y) && (VV >= x)}
+-> ys:[{VV : a<p y> | (VV > y) && (VV >= x)}]<p>
+-> {VV : [{VV : a | (VV > y) && (VV >= x)}]<p> | ((len VV) == (1 + (len ys)))}
+
+
+x
+119
+21
+1
+{VV : a | (VV == x)}
+
+
+List.slist
+59
+1
+1
+(List.L <\hd VV -> (VV >= hd)> (GHC.Types.Int))
+
+
+unknown
+59
+17
+4
+forall <p :: (GHC.Types.Int)-> (GHC.Types.Int)-> Bool>.
+h_List.C:{VV : (GHC.Types.Int) | (VV > 0)}
+-> (List.L <p> {VV : (GHC.Types.Int)<p h_List.C> | (VV > 0)})
+-> (List.L <p> {VV : (GHC.Types.Int) | (VV > 0)})
+
+
+l
+222
+30
+1
+{VV : (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV < kx)} b) | (VV == l)}
+
+
+l
+261
+35
+1
+{VV : (List.Map a b) | (VV == l)}
+
+
+unknown
+237
+43
+2
+(List.Map <\x4 VV -> (VV < x4), \x5 VV -> (VV > x5)> {VV : a | (VV > k)} b)
+-> ({VV : a | (VV > k)}, b, (List.Map <\x2 VV -> (VV < x2), \x3 VV -> (VV > x3)> {VV : a | (VV > k)} b))<\_ VV -> True, \_ x1 VV -> True>
+
+
+unknown
+220
+36
+3
+{VV : a | (VV < kx)}
+-> (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV < kx)} b)
+-> (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> {VV : a | (VV < kx)} b)
+
+
+unknown
+191
+13
+2
+forall <r :: a-> a-> Bool, l :: a-> a-> Bool>.
+(List.Map <l, r> {VV : a | false} {VV : b | false})
+
+
+unknown
+261
+19
+1
+(List.Map a b) -> (GHC.Types.Int)
+
+
+x
+106
+33
+1
+{VV : a | (VV == x)}
+
+
+r
+233
+12
+1
+(List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k)} b)
+
+
+append
+138
+1
+5
+forall a.
+k:a
+-> {VV : [{VV : a | (VV < k)}]<\x3 VV -> (VV >= x3)> | ((len VV) >= 0)}
+-> {VV : [{VV : a | (VV >= k)}]<\x2 VV -> (VV >= x2)> | ((len VV) >= 0)}
+-> {VV : [a]<\x1 VV -> (VV >= x1)> | ((len VV) > 0)}
+
+
+ys
+138
+17
+1
+{VV : [{VV : a | (VV >= k)}]<\x1 VV -> (VV >= x1)> | ((len VV) >= 0)}
+
+
+x
+126
+45
+1
+{VV : a | (VV == x)}
+
+
+unknown
+71
+38
+4
+forall <p :: a-> a-> Bool>.
+h_List.C:{VV : a | (VV >= x)}
+-> (List.L <p> {VV : a<p h_List.C> | (VV >= x)})
+-> (List.L <p> {VV : a | (VV >= x)})
+
+
+unknown
+203
+18
+3
+x:a
+-> y:a
+-> {VV : (GHC.Types.Ordering) | ((VV == EQ) <=> (x == y)) && ((VV == GT) <=> (x > y)) && ((VV == LT) <=> (x < y))}
+
+
+unknown
+119
+22
+4
+forall <p :: a-> a-> Bool>.
+y:a
+-> ys:[{VV : a<p y> | true}]<p>
+-> {VV : [a]<p> | ((len VV) == (1 + (len ys)))}
+
+
+r
+251
+50
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k)} b) | (VV == r)}
+
+
+k
+139
+34
+1
+{VV : a | (VV == k)}
+
+
+ms
+244
+31
+1
+{VV : [(GHC.Types.Char)] | (VV == ms) && ((len VV) >= 0)}
+
+
+kx
+206
+28
+1
+{VV : a | (VV == kx)}
+
+
+y
+70
+36
+1
+{VV : a | (VV == y)}
+
+
+unknown
+216
+10
+1
+{VV : (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> a b) | (VV == t)}
+
+
+xs1
+116
+62
+1
+{VV : [a] | (VV == xs1) && ((len VV) == (len xs1)) && ((len VV) >= 0)}
+
+
+unknown
+125
+25
+1
+x:a -> y:a -> {VV : (GHC.Types.Bool) | (((Prop VV)) <=> (x <= y))}
+
+
+ds_dAE
+135
+39
+1
+a
+
+
+quickSort
+133
+1
+3
+forall a.
+(GHC.Classes.Ord a) =>
+[a] -> {VV : [a]<\x1 VV -> (VV >= x1)> | ((len VV) >= 0)}
+
+
+unknown
+200
+10
+1
+{VV : (List.Map <\r VV -> (VV < r), \r VV -> (VV > r)> a b) | (VV == t)}
+
+
+unknown
+219
+19
+3
+x:a
+-> y:a
+-> {VV : (GHC.Types.Ordering) | ((VV == EQ) <=> (x == y)) && ((VV == GT) <=> (x > y)) && ((VV == LT) <=> (x < y))}
+
+
+unknown
+248
+10
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> a b) | (VV == t)}
+
+
+ds_dAI
+136
+26
+1
+a
+
+
+List.insert'
+69
+1
+5
+forall a.
+(GHC.Classes.Ord a) =>
+a
+-> (List.L <\hd VV -> (VV >= hd)> a)
+-> (List.L <\hd VV -> (VV >= hd)> a)
+
+
+xs
+119
+23
+1
+{VV : [a] | (VV == xs) && (VV == xs) && ((len VV) == (len xs)) && ((len VV) >= 0)}
+
+
+k
+243
+43
+1
+{VV : a | (VV == k)}
+
+
+ds_dA9
+234
+16
+1
+(List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV < k)} b)
+
+
+r
+237
+57
+1
+{VV : (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k)} b) | (VV == r)}
+
+
+km1
+236
+70
+1
+{VV : a | (VV == km1) && (VV == km1) && (VV < k)}
+
+
+unknown
+134
+20
+4
+x1:a
+-> {VV : [{VV : a | (VV < x1)}]<\x3 VV -> (VV >= x3)> | ((len VV) >= 0)}
+-> {VV : [{VV : a | (VV >= x1)}]<\x2 VV -> (VV >= x2)> | ((len VV) >= 0)}
+-> {VV : [a]<\x1 VV -> (VV >= x1)> | ((len VV) > 0)}
+
+
+ms
+253
+9
+1
+[(GHC.Types.Char)]
+
+
+x
+261
+33
+1
+{VV : a | (VV == x)}
+
+
+unknown
+251
+35
+5
+k:{VV : a | (VV > km4) && (VV > km4)}
+-> b
+-> (List.Map <\x3 VV -> (VV < x3), \x4 VV -> (VV > x4)> {VV : a | (VV > km4) && (VV > km4) && (VV < k)} b)
+-> (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k) && (VV > km4) && (VV > km4)} b)
+-> {VV : (List.Map <\_ VV -> false, \_ VV -> false> {VV : a | false} {VV : b | false}) | false}
+
+
+t
+239
+15
+1
+(List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> a b)
+
+
+unknown
+201
+13
+3
+k:{VV : a | (VV == kx)}
+-> x:{VV : b | (VV == x)}
+-> (List.Map <\_ VV -> false, \_ VV -> false> {VV : a | (VV == k) && (VV == kx)} {VV : b | (VV == x) && (VV == x)})
+
+
+unknown
+220
+22
+5
+k:a
+-> b
+-> (List.Map <\x3 VV -> (VV < x3), \x4 VV -> (VV > x4)> {VV : a | (VV < k)} b)
+-> (List.Map <\x1 VV -> (VV < x1), \x2 VV -> (VV > x2)> {VV : a | (VV > k)} b)
+-> {VV : (List.Map <\_ VV -> false, \_ VV -> false> {VV : a | false} {VV : b | false}) | false}
+
+
+unknown
+261
+17
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+

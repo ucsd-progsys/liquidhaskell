@@ -1,0 +1,336 @@
+% Function Composition
+
+Function Composition
+====================
+
+
+Function Composition
+--------------------
+
+\begin{code}
+module Composition where
+\end{code}
+
+A Plus Function
+---------------
+
+Consider a simple `plus` function 
+
+\begin{code}
+{-@ plus :: x:Int -> y:Int -> {v:Int | v = x + y} @-}
+plus     :: Int -> Int -> Int
+plus x y = x + y
+\end{code}
+
+A Simple Addition 
+-----------------
+
+Consider a simple use of `plus` a function that adds `3` to its input:
+
+\begin{code}
+{-@ plus3' :: x:Int -> {v:Int | v = x + 3} @-}
+plus3'     :: Int -> Int
+plus3' x   = x + 3
+\end{code}
+
+- The refinement type captures its behaviour...
+
+- ... and LiquidHaskell easily verifies this type.
+
+A Composed Variant
+------------------
+
+Instead, suppose we defined the previous function by composition 
+
+We first add `2` to the argument and then add `1` to the intermediate result...
+
+\begin{code}
+{-@ plus3'' :: x:Int -> {v:Int | v = x + 3} @-}
+plus3''     :: Int -> Int
+plus3''     = (plus 1) . (plus 2)
+\end{code}
+
+but verification **fails** as we need a way to **compose** the refinements!
+
+**Problem** What is a suitable description of the compose operator
+
+\begin{code} _ 
+(.) :: (b -> c) -> (a -> b) -> (a -> c)
+\end{code}
+
+that lets us **relate** `a` and `c` via `b` ?
+
+
+
+Composing Refinements, Abstractly
+---------------------------------
+
+- We can analyze the *composition* operator
+
+- With a very *descriptive* abstract refinement type!
+
+\begin{code}
+{-@ c :: forall < p :: b -> c -> Prop
+                , q :: a -> b -> Prop>.
+         f:(x:b -> c<p x>) 
+      -> g:(x:a -> b<q x>) 
+      -> y:a 
+      -> exists[z:b<q y>].c<p z>
+ @-}
+c :: (b -> c) -> (a -> b) -> a -> c
+c f g x = f (g x)
+\end{code}
+
+Using Composition
+-----------------
+
+We can verify the desired `plus3` function:
+
+\begin{code}
+{-@ plus3 :: x:Int -> {v:Int | v = x + 3} @-}
+plus3     :: Int -> Int
+plus3     = (+ 1) `c` (+ 2)
+\end{code}
+
+LiquidHaskell verifies the above, by **instantiating**
+
+- `q` with `v = x + 1`
+- `p` with `v = y + 2`
+
+which lets it infer that the output of `plus3` has type:
+
+- `exists [z:{v=y+1}]. {v = z + 2}`
+
+which is a subtype of `{v:Int | v = 3}`
+
+
+
+unknown
+92
+24
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+unknown
+81
+11
+1
+x:a -> {VV : b | ((papp2 p VV x))}
+
+
+x
+33
+8
+1
+(GHC.Types.Int)
+
+
+lq_anf__dgg
+50
+21
+1
+{VV : (GHC.Types.Int) | (VV == (1  :  int))}
+
+
+y
+22
+8
+1
+(GHC.Types.Int)
+
+
+unknown
+92
+26
+1
+{VV : (GHC.Types.Int) | (VV == (2  :  int))}
+
+
+x
+33
+14
+1
+{VV : (GHC.Types.Int) | (VV == x)}
+
+
+unknown
+81
+14
+1
+x:a -> {VV : b | ((papp2 q VV x))}
+
+
+unknown
+22
+14
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+Composition.plus3''
+50
+1
+1
+x:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + 3))}
+
+
+x
+22
+12
+1
+{VV : (GHC.Types.Int) | (VV == x)}
+
+
+unknown
+92
+14
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+unknown
+50
+16
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+lq_anf__dgi
+50
+32
+1
+{VV : (GHC.Types.Int) | (VV == (2  :  int))}
+
+
+Composition.plus3
+92
+1
+1
+x:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + 3))}
+
+
+lq_anf__dgf
+33
+18
+1
+{VV : (GHC.Types.Int) | (VV == (3  :  int))}
+
+
+unknown
+92
+16
+1
+{VV : (GHC.Types.Int) | (VV == (1  :  int))}
+
+
+f
+81
+3
+1
+x:a -> {VV : b | ((papp2 p VV x))}
+
+
+Composition.plus
+22
+1
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+unknown
+92
+19
+5
+forall <q :: (GHC.Types.Int)-> (GHC.Types.Int)-> Bool, p :: (GHC.Types.Int)-> (GHC.Types.Int)-> Bool>.
+(x:(GHC.Types.Int) -> {VV : (GHC.Types.Int)<p x> | true})
+-> (x:(GHC.Types.Int) -> {VV : (GHC.Types.Int)<q x> | true})
+-> y:(GHC.Types.Int)
+-> exists [z:{VV : (GHC.Types.Int)<q y> | true}].{VV : (GHC.Types.Int)<p z> | true}
+
+
+unknown
+33
+16
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+x
+81
+16
+1
+{VV : a | (VV == x)}
+
+
+y
+22
+16
+1
+{VV : (GHC.Types.Int) | (VV == y)}
+
+
+Composition.plus3'
+33
+1
+1
+x:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + 3))}
+
+
+Composition.c
+81
+1
+5
+forall a b c <p :: a-> b-> Bool, q :: c-> a-> Bool>.
+(x:a -> {VV : b<p x> | true})
+-> (x:c -> {VV : a<q x> | true})
+-> y:c
+-> exists [z:{VV : a<q y> | true}].{VV : b<p z> | true}
+
+
+unknown
+50
+27
+2
+x:(GHC.Types.Int)
+-> y:(GHC.Types.Int) -> {VV : (GHC.Types.Int) | (VV == (x + y))}
+
+
+x
+22
+6
+1
+(GHC.Types.Int)
+
+
+x
+81
+7
+1
+a
+
+
+g
+81
+5
+1
+x:a -> {VV : b | ((papp2 q VV x))}
+
+
+unknown
+50
+24
+5
+forall <q :: (GHC.Types.Int)-> (GHC.Types.Int)-> Bool, p :: (GHC.Types.Int)-> (GHC.Types.Int)-> Bool>.
+(x:(GHC.Types.Int) -> {VV : (GHC.Types.Int)<p x> | true})
+-> (y:(GHC.Types.Int) -> {VV : (GHC.Types.Int)<q y> | true})
+-> x:(GHC.Types.Int)
+-> exists [z:{VV : (GHC.Types.Int)<q x> | true}].{VV : (GHC.Types.Int)<p z> | true}
+
+

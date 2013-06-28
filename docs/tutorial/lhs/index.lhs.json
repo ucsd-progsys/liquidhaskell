@@ -1,0 +1,1 @@
+{"types":{"25":{"8":{"col":8,"ident":"unknown","row":25,"ann":"[(GHC.Types.Char)] -\u003e (GHC.Types.IO ())"},"1":{"col":1,"ident":"Main.main","row":25,"ann":"{VV : (GHC.Types.IO ()) | (VV == main)}"},"17":{"col":17,"ident":"lq_anf__dil","row":25,"ann":"{VV : [(GHC.Types.Char)] | ((len VV) \u003e= 0)}"}}},"errors":[]}
