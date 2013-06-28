@@ -32,6 +32,7 @@ module Data.ByteString.Internal (
         create,                 -- :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
         createAndTrim,          -- :: Int -> (Ptr Word8 -> IO Int) -> IO  ByteString
         createAndTrim',         -- :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (ByteString, a)
+        createAndTrim'',        -- :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (Int, ByteString, a)
         unsafeCreate,           -- :: Int -> (Ptr Word8 -> IO ()) ->  ByteString
         mallocByteString,       -- :: Int -> IO (ForeignPtr a)
 
@@ -383,6 +384,30 @@ createAndTrim' l f = do
             else do ps <- create l' $ \p' ->
                             memcpy p' (p `plusPtr` off) ({- LIQUID fromIntegral -} intCSize l')
                     return $! (ps, res)
+
+-- LIQUID CONSTRUCTIVE VERSION (Till we support pred-applications properly,
+-- cf. tests/pos/cont2.hs
+
+{-@ createAndTrim'' :: forall <p :: Int -> Prop>. 
+                      l:Nat<p> 
+                   -> ((PtrN Word8 l) -> IO ((Nat, Nat<p>, a)<{\o v -> (v <= l - o)}, {\o l v -> true}>)) 
+                   -> IO ({v:Nat<p> | v <= l}, ByteString, a)<{\sz v -> (bLength v) = sz},{\o l v -> true}> 
+  @-}
+ 
+createAndTrim'' :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (Int, ByteString, a)
+createAndTrim'' l f = do
+    fp <- mallocByteString l
+    withForeignPtr fp $ \p -> do
+        (off, l', res) <- f p
+        if assert (l' <= l) $ l' >= l
+            then return $! (l, PS fp 0 l, res)
+            else do ps <- create l' $ \p' ->
+                            memcpy p' (p `plusPtr` off) ({- LIQUID fromIntegral -} intCSize l')
+                    return $! (l', ps, res)
+
+
+
+
 
 -- | Wrapper of 'mallocForeignPtrBytes' with faster implementation for GHC
 --
