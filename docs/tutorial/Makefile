@@ -1,3 +1,8 @@
+####################################################################
+SERVERHOME=rjhala@goto.ucsd.edu:~/public_html/liquid/haskell/tutorial/
+####################################################################
+
+
 PANDOC=pandoc --columns=80  -s --mathjax --slide-level=2
 SLIDY=$(PANDOC) -t slidy
 DZSLIDES=$(PANDOC) --highlight-style tango --css=slides.css -w dzslides
@@ -5,8 +10,8 @@ HANDOUT=$(PANDOC) --highlight-style tango --css=text.css -w html5
 WEBTEX=$(PANDOC) -s --webtex -i -t slidy
 BEAMER=pandoc -t beamer
 LIQUID=liquid
-
 objects := $(patsubst %.lhs,%.lhs.slides.html,$(wildcard lhs/*.lhs))
+
 
 ####################################################################
 
@@ -31,4 +36,4 @@ clean:
 	cd html/ && rm -rf * && cd ../
 
 upload: 
-	scp -r html/* rjhala@goto.ucsd.edu:~/public_html/liquid/haskell/tutorial/
+	scp -r html/* $(SERVERHOME)
