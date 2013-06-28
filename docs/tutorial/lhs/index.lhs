@@ -13,13 +13,34 @@
 Outline
 =======
 
-1. [Simple Refinements](SimpleRefinements.lhs.html)    
-2. [Higher Order Refinements](Loop.lhs.html)                        
-3. [Abstract Refinements](AbstractRefinements.lhs.html)                        
-4. [Inductive Refinements](Inductive.lhs.html)                        
-5. [Composing Refinements](Composition.lhs.html)                        
-6. [Recursive Refinements](List.lhs.html)                        
-7. [Indexed Refinements](Array.lhs.html)          
+1. Simple Refinements 
+    - [html](SimpleRefinements.lhs.html)    
+    - [slides](SimpleRefinements.lhs.slides.html)
+
+2. Higher Order Refinements
+    - [html](Loop.lhs.html)                        
+    - [slides](Loop.lhs.slides.html)                        
+
+3. Abstract Refinements
+    - [html](Abs.lhs.html)                        
+    - [slides](AbstractRefinements.lhs.slides.html)                        
+
+4. Inductive Refinements
+    - [html](Inductive.lhs.html)                        
+    - [slides](Inductive.lhs.slides.html)                        
+
+5. Composing Refinements
+    - [html](Composition.lhs.html)                        
+    - [slides](Composition.lhs.slides.html)                        
+
+6. Recursive Refinements
+    - [html](List.lhs.html)                        
+    - [slides](List.lhs.slides.html)                        
+
+7. Indexed Refinements
+    - [html](Array.lhs.html)                        
+    - [slides](Array.lhs.slides.html)                        
+
 
 \begin{code}
 main = putStrLn "Liquid Haskell Tutorial"
