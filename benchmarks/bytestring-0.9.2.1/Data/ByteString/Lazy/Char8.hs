@@ -225,7 +225,7 @@ import IO                   (bracket)
 #define STRICT5(f) f a b c d e | a `seq` b `seq` c `seq` d `seq` e `seq` False = undefined
 
 --LIQUID
-import Data.ByteString.Fusion (PairS(..))
+import Data.ByteString.Fusion (PairS(..), MaybeS(..))
 import qualified Data.ByteString.Internal
 import qualified Data.ByteString.Lazy.Internal
 import Data.Int
