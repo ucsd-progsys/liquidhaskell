@@ -384,7 +384,7 @@ createAndTrim' l f = do
                             memcpy p' (p `plusPtr` off) ({- LIQUID fromIntegral -} intCSize l')
                     return $! (ps, res)
 
-
+-- LIQUID DUPLICATECODE
 {-@ createAndTrimEQ :: l:Nat 
                    -> ((PtrN Word8 l) -> IO ((Nat, {v:Nat | v=l}, a)<{\o v -> (v <= l - o)}, {\o l v -> true}>)) 
                    -> IO ({v:ByteString | (bLength v) = l}, a) 
