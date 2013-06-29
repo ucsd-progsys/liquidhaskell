@@ -317,20 +317,33 @@ hGet = undefined
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 
-
-{-@ assume GHC.IO.Handle.hFileSize :: Handle -> (IO {v:Integer | v >= 0}) @-}
-readFile :: FilePath -> IO ByteString
-readFile f = bracket (openBinaryFile f ReadMode) hClose
-    (\h -> hFileSize h >>= hGet h . fromIntegral)
-
-
-
-
--- | Append a 'ByteString' to a file.
-appendFile :: FilePath -> ByteString -> IO ()
-appendFile f txt = bracket (openBinaryFile f AppendMode) hClose
-    (\h -> hPut h txt)
+{-@ scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteString | (bLength v) = 1 + (bLength b)}  @-}
+scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
+#if !defined(LOOPU_FUSION)
+scanl f z ps = loopArr . loopUp (scanEFL f) z $ (ps `snoc` 0)
+#else
+scanl f z ps = loopArr . loopU (scanEFL f) z $ (ps `snoc` 0)
+#endif
 
 
+{-@ scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteStringNE | (bLength v) = 1 + (bLength b)}  @-}
+scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
+scanr f z ps = loopArr . loopDown (scanEFL (flip f)) z $ (0 `cons` ps) -- extra space
+
+-- | 'scanr1' is a variant of 'scanr' that has no starting value argument.
+-- LIQUID TODO
+{-@ scanr1 :: (Word8 -> Word8 -> Word8) -> b:ByteStringNE -> (ByteStringSZ b) @-}
+scanr1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
+scanr1 f ps
+    | null ps   = empty
+    | otherwise = scanr f (last ps) (init ps) -- todo, unsafe versions
+{-# INLINE scanr1 #-}
+
+{-@ scanl1 :: (Word8 -> Word8 -> Word8) -> b:ByteStringNE -> (ByteStringSZ b) @-}
+scanl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
+scanl1 f ps
+    | null ps   = empty
+    | otherwise = scanl f (unsafeHead ps) (unsafeTail ps)
+{-# INLINE scanl1 #-}
 
 

@@ -189,6 +189,8 @@ foldEFL' f = \a e -> let a' = f a e in a' `seq` (a' :*: NothingS)
 
 -- | Element function expressing a prefix reduction only
 --
+
+{-@ scanEFL :: (Word8 -> Word8 -> Word8) -> AccEFLJ Word8 @-}
 scanEFL :: (Word8 -> Word8 -> Word8) -> AccEFL Word8
 scanEFL f = \a e -> (f a e :*: JustS a)
 #if defined(__GLASGOW_HASKELL__)
