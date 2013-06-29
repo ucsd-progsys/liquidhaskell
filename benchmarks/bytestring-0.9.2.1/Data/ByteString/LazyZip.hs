@@ -82,7 +82,7 @@ import Foreign.Ptr
 import Foreign.Storable
 
 --LIQUID
-import Data.ByteString.Fusion   (PairS(..))
+import Data.ByteString.Fusion (PairS(..), MaybeS(..))
 import Data.Int
 import Data.Word                (Word, Word8, Word16, Word32, Word64)
 import qualified Data.ByteString.Internal
