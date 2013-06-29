@@ -199,6 +199,7 @@ scanEFL f = \a e -> (f a e :*: JustS a)
 
 -- | Element function implementing a map and fold
 --
+{-@ mapAccumEFL :: (acc -> Word8 -> (acc, Word8)) -> AccEFLJ acc @-}
 mapAccumEFL :: (acc -> Word8 -> (acc, Word8)) -> AccEFL acc
 mapAccumEFL f = \a e -> case f a e of (a', e') -> (a' :*: JustS e')
 #if defined(__GLASGOW_HASKELL__)
@@ -207,6 +208,7 @@ mapAccumEFL f = \a e -> case f a e of (a', e') -> (a' :*: JustS e')
 
 -- | Element function implementing a map with index
 --
+{-@ mapIndexEFL :: (Int -> Word8 -> Word8) -> AccEFLJ Int @-}
 mapIndexEFL :: (Int -> Word8 -> Word8) -> AccEFL Int
 mapIndexEFL f = \i e -> let i' = i+1 in i' `seq` (i' :*: JustS (f i e))
 #if defined(__GLASGOW_HASKELL__)
@@ -215,12 +217,14 @@ mapIndexEFL f = \i e -> let i' = i+1 in i' `seq` (i' :*: JustS (f i e))
 
 -- | Projection functions that are fusion friendly (as in, we determine when
 -- they are inlined)
+{-@ loopArr :: p:(PairS acc arr) -> {v:arr | v = (psnd p)} @-}
 loopArr :: (PairS acc arr) -> arr
 loopArr (_ :*: arr) = arr
 #if defined(__GLASGOW_HASKELL__)
 {-# INLINE [1] loopArr #-}
 #endif
 
+{-@ loopAcc :: p:(PairS acc arr) -> {v:acc | v = (pfst p)} @-}
 loopAcc :: (PairS acc arr) -> acc
 loopAcc (acc :*: _) = acc
 #if defined(__GLASGOW_HASKELL__)
@@ -233,6 +237,7 @@ loopSndAcc ((_ :*: acc) :*: arr) = (acc :*: arr)
 {-# INLINE [1] loopSndAcc #-}
 #endif
 
+{-@ unSP :: p:(PairS acc arr) -> ({v:acc | v = (pfst p)}, {v:arr | v = (psnd p)}) @-}
 unSP :: (PairS acc arr) -> (acc, arr)
 unSP (acc :*: arr) = (acc, arr)
 #if defined(__GLASGOW_HASKELL__)

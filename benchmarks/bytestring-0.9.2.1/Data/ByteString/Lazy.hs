@@ -235,14 +235,13 @@ import Foreign.Ptr
 import Foreign.Storable
 
 --LIQUID
-import Data.ByteString.Fusion   (PairS(..))
+import Data.ByteString.Fusion   (PairS(..), MaybeS(..))
 import Data.Int
 import Data.Word                (Word, Word8, Word16, Word32, Word64)
 import qualified Data.ByteString.Internal
 import Foreign.ForeignPtr       (ForeignPtr)
 import qualified Foreign.C.String
 import qualified Foreign.C.Types
-import qualified Data.ByteString.Lazy.Aux as SA
 
 -- -----------------------------------------------------------------------------
 --
@@ -660,7 +659,7 @@ mapAccumL f s0 cs0 = go s0 cs0
   where
     go s Empty        = (s, Empty)
     go s (Chunk c cs) = (s'', Chunk c' cs')
-        where (s',  c')  = SA.mapAccumL f s c
+        where (s',  c')  = S.mapAccumL f s c
               (s'', cs') = go s' cs
 
 -- | The 'mapAccumR' function behaves like a combination of 'map' and
@@ -673,7 +672,7 @@ mapAccumR f s0 cs0 = go s0 cs0
   where
     go s Empty        = (s, Empty)
     go s (Chunk c cs) = (s'', Chunk c' cs')
-        where (s'', c') = SA.mapAccumR f s' c
+        where (s'', c') = S.mapAccumR f s' c
               (s', cs') = go s cs
 
 -- | /O(n)/ map Word8 functions, provided with the index at each position
@@ -762,7 +761,7 @@ cycle cs    = cs' where cs' = foldrChunks (const Chunk) cs' cs
 unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
 unfoldr f s0 = unfoldChunk 32 s0
   where unfoldChunk n s =
-          case SA.unfoldrN n f s of
+          case S.unfoldrN n f s of
             (c, Nothing)
               | S.null c  -> Empty
               | otherwise -> Chunk c Empty

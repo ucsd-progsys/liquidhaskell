@@ -33,6 +33,7 @@ module Data.ByteString.Internal (
         createAndTrim,          -- :: Int -> (Ptr Word8 -> IO Int) -> IO  ByteString
         createAndTrim',         -- :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (ByteString, a)
         createAndTrimEQ,        -- :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (Int, ByteString, a)
+        createAndTrimMEQ,        -- :: Int -> (Ptr Word8 -> IO (Int, Int, Maybe a)) -> IO (Int, ByteString, Maybe a)
         unsafeCreate,           -- :: Int -> (Ptr Word8 -> IO ()) ->  ByteString
         mallocByteString,       -- :: Int -> IO (ForeignPtr a)
 
@@ -233,6 +234,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 {-@ qualif EqFPLen(v: a, x: GHC.ForeignPtr.ForeignPtr b): v = (fplen x)                   @-}
 {-@ qualif EqPLen(v: a, x: GHC.Ptr.Ptr b): v = (plen x)                                   @-}
+{-@ qualif EqPLen(v:GHC.Ptr.Ptr a, l:int): (plen v) = l                                   @-}
 {-@ qualif EqPLen(v: GHC.ForeignPtr.ForeignPtr a, x: GHC.Ptr.Ptr b): (fplen v) = (plen x) @-}
 {-@ qualif EqPLen(v: GHC.Ptr.Ptr a, x: GHC.ForeignPtr.ForeignPtr b): (plen v) = (fplen x) @-}
 {-@ qualif PValid(v: int, p: GHC.Ptr.Ptr a): v <= (plen p)                                @-}
@@ -399,6 +401,35 @@ createAndTrimEQ l f = do
             else do ps <- create l' $ \p' ->
                             memcpy p' (p `plusPtr` off) ({- LIQUID fromIntegral -} intCSize l')
                     return $! (ps, res)
+
+{-@ createAndTrimMEQ :: l:Nat
+                     -> ((PtrN Word8 l)
+                         -> IO ({v:(Nat, {v0:Nat | v0<=l}, Maybe a) |
+                                 (((tsnd v) <= (l-(tfst v)))
+                                  && ((isJust (ttrd v)) => ((tsnd v)=l)))}))
+                     -> IO ({v:ByteString | (bLength v) <= l}, Maybe a)<{\b m ->
+                                ((isJust m) => ((bLength b) = l))}>
+  @-}
+createAndTrimMEQ :: Int -> (Ptr Word8 -> IO (Int, Int, Maybe a)) -> IO (ByteString, Maybe a)
+createAndTrimMEQ l f = do
+    fp <- mallocByteString l
+    withForeignPtr fp $ \p -> do
+        (off, l', res) <- f p
+        if assert (l' <= l) $ l' >= l
+            then return $! (PS fp 0 l, res)
+            else do ps <- create l' $ \p' ->
+                            memcpy p' (p `plusPtr` off) ({- LIQUID fromIntegral -} intCSize l')
+                    return $! (ps, res)
+
+{-@ measure tfst :: (a,b,c) -> a
+    tfst (a,b,c) = a
+  @-}
+{-@ measure tsnd :: (a,b,c) -> b
+    tsnd (a,b,c) = b
+  @-}
+{-@ measure ttrd :: (a,b,c) -> c
+    ttrd (a,b,c) = c
+  @-}
 
 
 
