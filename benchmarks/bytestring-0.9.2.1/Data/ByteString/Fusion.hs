@@ -73,6 +73,18 @@ import qualified Foreign.C.String
     psnd ((:*:) x y) = y 
   @-} 
 
+{-@ measure isJustS    :: (MaybeS a) -> Prop
+    isJustS (JustS x)  = true
+    isJustS (NothingS) = false
+  @-}
+
+{-@ qualif PlusOne(v:a, x:a): v = x + 1 @-} 
+
+{-@ type MaybeSJ a   = {v: MaybeS a | (isJustS v)}                 @-} 
+
+{-@ type AccEFLJ acc = acc -> Word8 -> (PairS acc (MaybeSJ Word8)) @-}
+{-@ type NoAccEFLJ   =        Word8 ->             (MaybeSJ Word8) @-}
+
 {- liquidCanaryFusion :: x:Int -> {v: Int | v > x} @-}
 liquidCanaryFusion     :: Int -> Int
 liquidCanaryFusion x   = x - 1
@@ -237,10 +249,12 @@ loopU :: AccEFL acc                 -- ^ mapping & folding, once per elem
       -> ByteString                 -- ^ input ByteString
       -> (PairS acc ByteString)
 
+{-@ loopU :: AccEFLJ acc -> acc -> b:ByteString -> (PairS acc (ByteStringSZ b)) @-}
+
 loopU f start (PS z s i) = unsafePerformIO $ withForeignPtr z $ \a -> do
     (ps, acc) <- createAndTrimEQ i $ \p -> do
-      (accKERMAN' :*: i') <- go (a `plusPtr` s) p start
-      return (0 :: Int, i', accKERMAN')
+      (acc' :*: i') <- go (a `plusPtr` s) p start
+      return (0 :: Int, i', acc')
     return (acc :*: ps)
 
   where
@@ -272,6 +286,7 @@ loopU f start (PS z s i) = unsafePerformIO $ withForeignPtr z $ \a -> do
 
 -- Functional list/array fusion for lazy ByteStrings.
 --
+{-@ loopL :: (AccEFLJ acc) -> acc -> b:LByteString -> (PairS acc (LByteStringSZ b)) @-}
 loopL :: AccEFL acc          -- ^ mapping & folding, once per elem
       -> acc                 -- ^ initial acc value
       -> L.ByteString        -- ^ input ByteString
@@ -311,22 +326,27 @@ really work reliably.
 
 -}
 
+{-@ loopUp :: AccEFLJ acc -> acc -> b:ByteString -> (PairS acc (ByteStringSZ b)) @-}
 loopUp :: AccEFL acc -> acc -> ByteString -> PairS acc ByteString
 loopUp f a arr = loopWrapper (doUpLoop f a) arr
 {-# INLINE loopUp #-}
 
+{-@ loopDown :: AccEFLJ acc -> acc -> b:ByteString -> (PairS acc (ByteStringSZ b)) @-}
 loopDown :: AccEFL acc -> acc -> ByteString -> PairS acc ByteString
 loopDown f a arr = loopWrapper (doDownLoop f a) arr
 {-# INLINE loopDown #-}
 
+{-@ loopNoAcc :: NoAccEFLJ -> b:ByteString -> (PairS NoAcc (ByteStringSZ b)) @-}
 loopNoAcc :: NoAccEFL -> ByteString -> PairS NoAcc ByteString
 loopNoAcc f arr = loopWrapper (doNoAccLoop f NoAcc) arr
 {-# INLINE loopNoAcc #-}
 
+{-@ loopMap :: MapEFL -> b:ByteString -> (PairS NoAcc (ByteStringSZ b)) @-}
 loopMap :: MapEFL -> ByteString -> PairS NoAcc ByteString
 loopMap f arr = loopWrapper (doMapLoop f NoAcc) arr
 {-# INLINE loopMap #-}
 
+{-@ loopFilter :: FilterEFL -> b:ByteString -> (PairS NoAcc (ByteStringLE b)) @-}
 loopFilter :: FilterEFL -> ByteString -> PairS NoAcc ByteString
 loopFilter f arr = loopWrapperLE (doFilterLoop f NoAcc) arr
 {-# INLINE loopFilter #-}
@@ -337,21 +357,20 @@ loopFilter f arr = loopWrapperLE (doFilterLoop f NoAcc) arr
 -- the length that was filled in. The loop may also accumulate some
 -- value as it loops over the source array.
 
-
-{-@ type TripleSLE a N = PairS <{\z v -> v <= (N - (psnd z))}> (PairS <{\x y -> true}> a Nat) Nat @-} 
-{-@ type TripleS   a N = PairS <{\z v -> v  = (N - (psnd z))}> (PairS <{\x y -> true}> a Nat) Nat @-} 
+{-@ type TripleSLE a N = PairS <{\z v -> v <= (N - (psnd z))}> (PairS <{\x y -> true}> a Nat) {v:Nat | v <= N} @-} 
+{-@ type TripleS   a N = PairS <{\z v -> v <= (N - (psnd z))}> (PairS <{\x y -> true}> a Nat) {v:Nat | v  = N} @-} 
 
 
 {-@ type ImperativeLoopLE acc =  s:(PtrV Word8) 
                             -> d:(PtrV Word8)
                             -> n:{v: Nat | ((v <= (plen d)) && (v <= (plen s))) }
-                            -> IO (TripleS acc n)
+                            -> IO (TripleSLE acc n)
   @-}
 
 {-@ type ImperativeLoop   acc =  s:(PtrV Word8) 
                               -> d:(PtrV Word8)
                               -> n:{v: Nat | ((v <= (plen d)) && (v <= (plen s))) }
-                              -> IO (TripleSEQ acc n)
+                              -> IO (TripleS acc n)
   @-}
 
 
@@ -370,13 +389,14 @@ loopWrapperLE body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
         return $ (destOffset, destLen, acc)
     return (acc :*: ps)
 
+-- LIQUID DUPLICATECODE
 {-@ loopWrapper :: ImperativeLoop acc -> b:ByteString -> PairS acc (ByteStringSZ b) @-}
 loopWrapper :: ImperativeLoop acc -> ByteString -> PairS acc ByteString
 loopWrapper body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
     withForeignPtr srcFPtr $ \srcPtr -> do
     (ps, acc) <- createAndTrimEQ srcLen $ \destPtr -> do
         (acc :*: destOffset :*: destLen) <- body (srcPtr `plusPtr` srcOffset) destPtr srcLen
-        return $ (destOffset, destLen, acc)
+        return $ (destOffset, id destLen, acc)
     return (acc :*: ps)
 
 
