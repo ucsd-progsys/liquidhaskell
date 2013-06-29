@@ -707,12 +707,12 @@ minimum xs@(PS x s l)
 -- passing an accumulating parameter from left to right, and returning a
 -- final value of this accumulator together with the new list.
 
-{-@ mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString) @-}
+{-@ mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> b:ByteString -> (acc, ByteStringSZ b) @-}
 mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
 #if !defined(LOOPU_FUSION)
-mapAccumL f z = unSP . loopUp (mapAccumEFL f) z
+mapAccumL f z b = unSP $ loopUp (mapAccumEFL f) z b
 #else
-mapAccumL f z = unSP . loopU (mapAccumEFL f) z
+mapAccumL f z b = unSP $ loopU (mapAccumEFL f) z b
 #endif
 {-# INLINE mapAccumL #-}
 
@@ -721,15 +721,15 @@ mapAccumL f z = unSP . loopU (mapAccumEFL f) z
 -- passing an accumulating parameter from right to left, and returning a
 -- final value of this accumulator together with the new ByteString.
 
-{-@ mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString) @-}
+{-@ mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> b:ByteString -> (acc, ByteStringSZ b) @-}
 mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
-mapAccumR f z = unSP . loopDown (mapAccumEFL f) z
+mapAccumR f z b = unSP $ loopDown (mapAccumEFL f) z b
 {-# INLINE mapAccumR #-}
 
 -- | /O(n)/ map Word8 functions, provided with the index at each position
-{-@ mapIndexed :: (Int -> Word8 -> Word8) -> ByteString -> ByteString @-}
+{-@ mapIndexed :: (Int -> Word8 -> Word8) -> b:ByteString -> ByteStringSZ b @-}
 mapIndexed :: (Int -> Word8 -> Word8) -> ByteString -> ByteString
-mapIndexed f = loopArr . loopUp (mapIndexEFL f) 0
+mapIndexed f b = loopArr $ loopUp (mapIndexEFL f) 0 b
 {-# INLINE mapIndexed #-}
 
 -- ---------------------------------------------------------------------
@@ -838,11 +838,11 @@ unfoldr f = concat . unfoldChunk 32 64
 --
 -- > unfoldrN n f s == take n (unfoldr f s)
 --
-{-@ unfoldrN :: i:Nat -> (a -> Maybe (Word8, a)) -> a -> ({v:ByteString | (bLength v) <= i}, Maybe a) @-}
+{-@ unfoldrN :: i:Nat -> (a -> Maybe (Word8, a)) -> a -> ({v:ByteString | (bLength v) <= i}, Maybe a)<{\b m -> ((isJust m) => ((bLength b) = i))}> @-}
 unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
 unfoldrN i f x0
     | i < 0     = (empty, Just x0)
-    | otherwise = unsafePerformIO $ createAndTrim' i $ \p -> go p x0 0
+    | otherwise = unsafePerformIO $ createAndTrimMEQ i $ \p -> go p x0 0
   where STRICT3(go)
         go p x n =
           case f x of
@@ -852,6 +852,11 @@ unfoldrN i f x0
              | otherwise -> do poke p w
                                go (p `plusPtr` 1) x' (n+1)
 {-# INLINE unfoldrN #-}
+
+{-@ unfoldqual :: l:Nat -> {v:(Nat, Nat, Maybe a) | (((tsnd v) <= (l-(tfst v)))
+                                  && ((isJust (ttrd v)) => ((tsnd v)=l)))}  @-}
+unfoldqual :: Int -> (Int, Int, Maybe a)
+unfoldqual = undefined
 
 -- ---------------------------------------------------------------------
 -- Substrings

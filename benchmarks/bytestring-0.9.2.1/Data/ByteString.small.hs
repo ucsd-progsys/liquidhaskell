@@ -50,7 +50,7 @@ import Prelude hiding           (reverse,head,tail,last,init,null
                                 ,getContents,getLine,putStr,putStrLn,interact
                                 ,zip,zipWith,unzip,notElem)
 
-import Data.ByteString.Internal hiding (createAndTrim')
+import Data.ByteString.Internal
 import Data.ByteString.Unsafe
 import Data.ByteString.Fusion
 
@@ -189,11 +189,13 @@ singleton c = unsafeCreate 1 $ \p -> poke p c
 
 {-@ qualif PtrDiffUnfoldrN(v:int, i:int, p:GHC.Ptr.Ptr a): (i - v) <= (plen p) @-}
 
-{-@ unfoldrN :: i:Nat -> (a -> Maybe (Word8, a)) -> a -> ({v:ByteString | (bLength v) <= i}, Maybe a)<{\b m -> (((isJust m) && (i>0)) => ((bLength b) > 0))}> @-}
+{-@ qualif PLenEq(v:GHC.Ptr.Ptr a, l:int): (plen v) = l @-}
+
+{-@ unfoldrN :: i:Nat -> (a -> Maybe (Word8, a)) -> a -> ({v:ByteString | (bLength v) <= i}, Maybe a)<{\b m -> ((isJust m) => ((bLength b) = i))}> @-}
 unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
 unfoldrN i f x0
     | i < 0     = (empty, Just x0)
-    | otherwise = unsafePerformIO $ createAndTrim' i $ \p -> go p x0 0
+    | otherwise = unsafePerformIO $ createAndTrimMEQ i $ \p -> go p x0 0
   where STRICT3(go)
         go p x n =
           case f x of
@@ -215,7 +217,7 @@ unfoldrN i f x0
   @-}
 
 {-@ go :: i:Nat -> (a -> Maybe (Word8, a)) -> p:PtrV Word8 -> a -> n:{v:Nat | ((v <= i) && ((i - v) <= (plen p)))}
-       -> IO {v0:(Nat,{v:Nat | v>=n}, Maybe a) | (((isJust (ttrd v0)) && (i>0)) => ((tsnd v0)>0))} @-}
+       -> IO {v0:(Nat,{v:Nat | v>=n}, Maybe a) | ((((isJust (ttrd v0))) => ((tsnd v0)=i)) && ((tsnd v0) <= (i - (tfst v0))))} @-}
 go :: Int -> (a -> Maybe (Word8, a)) -> Ptr Word8 -> a -> Int -> IO (Int, Int, Maybe a)
 go i f p x n =
     case f x of
@@ -225,24 +227,13 @@ go i f p x n =
           | otherwise -> do poke p w
                             go i f (p `plusPtr` 1) x' (n+1)
 
-{-@ qualif Blah(v:Data.Maybe.Maybe a, l:int, i:int): (((isJust v) && (i>0)) => (l>0)) @-}
-{-@ qualif Blah(v:Data.Maybe.Maybe a, b:Data.ByteString.Internal.ByteString, i:int): (((isJust v) && (i>0)) => ((bLength b)>0)) @-}
+{- qualif Blah(v:Data.Maybe.Maybe a, l:int, i:int): (((isJust v) && (i>0)) => (l>0)) @-}
+{-@ qualif Blah(v:Data.Maybe.Maybe a, l:int, i:int): ((isJust v) => (l=i)) @-}
+{- qualif Blah(v:Data.Maybe.Maybe a, b:Data.ByteString.Internal.ByteString, i:int): (((isJust v) && (i>0)) => ((bLength b)>0)) @-}
+{-@ qualif Blah(v:Data.Maybe.Maybe a, b:Data.ByteString.Internal.ByteString, i:int): ((isJust v) => ((bLength b)=i)) @-}
+{-@ qualif Blah(v:Pair a b, i:int): ((isJust (snd v)) => ((bLength (fst v))=i)) @-}
+{-@ qualif Blah(v:Pair a b, i:int): ((isJust (snd v)) => ((fst v)=i)) @-}
 
-{-@ createAndTrim' :: forall <p :: Int -> Prop>.
-                      l:Nat
-                   -> ((PtrN Word8 l) -> IO ((Nat, Nat<p>, a)<{\o v -> (v <= l - o)}, {\o l v -> true}>))
-                   -> exists[l0:Int<p>].IO ({v:ByteString | (((bLength v) <= l) && (bLength v) = l0)}, a)
-  @-}
-createAndTrim' :: Int -> (Ptr Word8 -> IO (Int, Int, a)) -> IO (ByteString, a)
-createAndTrim' l f = do
-    fp <- mallocByteString l
-    withForeignPtr fp $ \p -> do
-        (off, l', res) <- f p
-        if assert (l' <= l) $ l' >= l
-            then return $! (PS fp 0 l, res)
-            else do ps <- create l' $ \p' ->
-                            memcpy p' (p `plusPtr` off) ({- LIQUID fromIntegral -} intCSize l')
-                    return $! (ps, res)
 
 {-@ null :: b:ByteString -> {v:Bool | ((Prop v) <=> ((bLength b) = 0))} @-}
 null :: ByteString -> Bool
