@@ -1,12 +1,12 @@
 % Inductive Refinements
 
 Inductive Refinements
-=====================
+---------------------
 
 \begin{code}
 module Loop where
 import Prelude hiding ((!!), foldr, length, (++))
-import SimpleRefinements
+import SimpleRefinements 
 \end{code}
 
 
@@ -17,10 +17,9 @@ Recall the **higher-order** `loop` function <br>
 
 \begin{code}
 loop :: Int -> Int -> a -> (Int -> a -> a) -> a
-loop lo hi base f        = go lo base
-  where 
-    go i acc | i < hi    = go (i+1) (f i acc)
-             | otherwise = acc
+loop lo hi base f            = go lo base
+  where go i acc | i < hi    = go (i+1) (f i acc)
+                 | otherwise = acc
 \end{code}
 
 We used `loop` to write <br>
@@ -37,14 +36,20 @@ add n m = loop 0 m n (\_ i -> i + 1)
 
 Loop Invariants and Induction
 -----------------------------
+\begin{code} Recall the **higher-order** `loop` function
+loop :: Int -> Int -> a -> (Int -> a -> a) -> a
+loop lo hi base f            = go lo base
+  where go i acc | i < hi    = go (i+1) (f i acc)
+                 | otherwise = acc
+\end{code}
 
-To verify output satisfies relation at `hi` we prove that if
+To verify output satisfies relation at `hi` we prove that **if**
 
 - **base case** initial accumulator `base` satisfies invariant at `lo`
     - `(p base lo)`
 
 - **induction step** `f` **preserves** the invariant at `i`
-    - **if** `(p acc i)` <b>then</b> `(p (f (i + 1) acc) (i+1))`
+    - **if** `(p acc i)` <b>then</b> `(p (f i acc) (i+1))`
 
 - **then** "by induction" result satisfies invariant at `hi`
     - `(p (loop lo hi base f) hi)`
@@ -104,17 +109,18 @@ Structural Induction With Abstract Refinements
 Same idea applies for induction over *structures*
 
 We define a `foldr` function that resembles loop.
-
+\begin{code}
+\end{code}
 \begin{code}
 {-@ foldr :: forall a b <p :: L a -> b -> Prop>. 
-                (xs:L a -> x:a -> b <p xs> -> b <p (C x xs)>) 
-              -> b <p N> 
+                (xs:L a -> x:a -> b <p xs> -> b <p (SimpleRefinements.C x xs)>) 
+              -> b <p SimpleRefinements.N> 
               -> ys: L a
               -> b <p ys>
   @-}
 foldr :: (L a -> a -> b -> b) -> b -> L a -> b
-foldr op b N        = b
-foldr op b (C x xs) = op xs x (foldr op b xs)
+foldr f b N        = b
+foldr f b (C x xs) = f xs x (foldr f b xs)
 \end{code}
 
 <br>
@@ -164,6 +170,6 @@ Here, the relation
 
 is **automatically instantiated** with
 
-- `(llen acc) = (llen acc) + (llen ys)`
+- `(llen acc) = (llen xs) + (llen ys)`
 
 

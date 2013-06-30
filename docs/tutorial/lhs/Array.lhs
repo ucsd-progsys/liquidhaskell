@@ -1,3 +1,8 @@
+%Indexed-Dependent Refinements
+
+Indexed-Dependent Refinements
+-----------------------------
+
 \begin{code}
 module LiquidArray where
 
@@ -5,86 +10,153 @@ import Language.Haskell.Liquid.Prelude (liquidAssume)
 \end{code}
 
 Indexed-Dependent Refinements
-=============================
+-----------------------------
 
-We illustrate how to use abstract refinements to talk about 
-indexed-dependent invariants.
-
-We use a Vector of `a`s implemented as a function from `Int` to `a`s
+We define a Vector of `a`s 
+implemented as a function from `Int` to `a`s <br>
+<br>
 
 \begin{code}
 data Vec a = V (Int -> a)
 \end{code}
 
-We abstract over the `dom` that describes the domain
-and `rng` that describes the value with respect to its index.
+Abstract Over the Domain and Range
+----------------------------------
+
+We parameterize the definition with two abstract refinements:
+<br>
+<br>
 
 \begin{code}
-{-@
-data Vec a <dom :: Int -> Prop, rng :: Int -> a -> Prop>
-     = V {a :: i:Int<dom> -> a <rng i>}
+{-@ data Vec a <dom :: Int -> Prop, rng :: Int -> a -> Prop>
+      = V {a :: i:Int<dom> -> a <rng i>}
   @-}
 \end{code}
 
-With this we can describe interesting vectors:
 
-A vector of `Int` defined on values less than `100`
-containing values equal to their index:
+- `dom`: describes the *domain* 
+
+- `rng`: describes each value with respect to its index
+
+Describing Vectors
+------------------
+
+\begin{code}By instantiating these two predicates, we describe Vector's *domain* and *range*
+{-@ data Vec a <dom :: Int -> Prop, rng :: Int -> a -> Prop>
+      = V {a :: i:Int<dom> -> a <rng i>}
+  @-}
+\end{code}
+<br>
+
+A vector of `Int` *defined on* values less than `42`
+*containing values* equal to their index:
+<br>
+<br>
+
 \begin{code}
 {-@ type IdVec = 
-     Vec <{\v -> (v < 100)}, {\j v -> (v = j)}> Int
+      Vec <{\v -> (v < 42)}, {\j v -> (v = j)}> Int
   @-}
 \end{code}
 
-A vector defined on the range `[0..n)` with its last element equal to `0`:
+Describing Vectors
+------------------
+\begin{code}By instantiating these two predicates, we describe Vector's *domain* and *range*
+{-@ data Vec a <dom :: Int -> Prop, rng :: Int -> a -> Prop>
+      = V {a :: i:Int<dom> -> a <rng i>}
+  @-}
+\end{code}
+<br>
+
+A vector *defined on* the range `[0..n)` with its *last element* equal to `0`:
+<br>
+<br>
+
 \begin{code}
 {-@ type ZeroTerm N = 
      Vec <{\v -> (0 <= v && v < N)}, {\j v -> (j = N - 1 => v = 0)}> Int
   @-}
 \end{code}
 
-Or a vector defined on integers whose value at index `i` is either 
-`0` or the `i`th fibonacci:
+Describing Vectors
+------------------
+\begin{code}By instantiating these two predicates, we describe Vector's *domain* and *range*
+{-@ data Vec a <dom :: Int -> Prop, rng :: Int -> a -> Prop>
+      = V {a :: i:Int<dom> -> a <rng i>}
+  @-}
+\end{code}
+<br>
+
+
+A vector *defined on* integers whose *value at index `j`* is either 
+`0` or the `j`th fibonacci:
+<br>
+<br>
+
 \begin{code}
-{-@ measure fib :: Int -> Int @-}
-{-@ type FibV = 
-     Vec <{\v -> 0=0}, {\j v -> ((v != 0) => (v = fib(j)))}> Int @-}
+{-@ type FibV =  
+     Vec <{\v -> 0=0}, {\j v -> ((v != 0) => (v = (fib j)))}> Int 
+  @-}
 \end{code}
 
 
 Operations on Vectors
 ---------------------
 
-As a next step we give appropriate types to vector operations:
+[Demo](http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=IMaps.hs)
+
+We give appropriate types to vector operations (empty, set, get...)
+
+- This means *abstracting* over the domain and range
 
 
-`empty` returns a Vector whose domain is always false:
+Empty
+-----
+
+`empty` returns a Vector whose domain is always false
+<br>
+<br>
+
 \begin{code}
-{-@ empty :: forall <p :: Int -> a -> Prop>. Vec <{\v -> 0=1}, p> a @-}
+{-@ empty :: forall <p :: Int -> a -> Prop>. Vec < {v:Int | 0=1}, p> a @-}
 empty     :: Vec  a
 empty     = V $ \_ -> (error "Empty array!")
 \end{code}
 
-If we `get` the `i`th element of an array, 
-the result should satisfy the range at `i`:
+Typing Get
+----------
+
+If `i` satisfies the domain then
+if we `get` the `i`th element of an array, 
+the result should satisfy the range at `i`
+<br>
+<br>
+
 \begin{code} 
 {-@ get :: forall a <r :: Int -> a -> Prop, d :: Int -> Prop>.
-             i: Int<d> ->
-             a: Vec<d, r> a ->
-             a<r i> @-}
+           i: Int<d>
+        -> a: Vec<d, r> a
+        -> a<r i> @-}
 get :: Int -> Vec a -> a
 get i (V f) = f i
 \end{code}
 
-Finally, if we `set` the `i`th element of a Vector to a value
+Typing Set
+----------
+
+If `i` satisfies the domain then
+if we `set` the `i`th element of a Vector to a value
 that satisfies range at `i`, 
-then Vector's domain will be extended with `i`:
+then Vector's domain will be extended with `i`
+<br>
+<br>
+
 \begin{code}
 {-@ set :: forall a <r :: Int -> a -> Prop, d :: Int -> Prop>.
-      i: Int<d> ->
-      x: a<r i> ->
-      a: Vec <{v:Int<d> | v != i}, r> a -> 
-      Vec <d, r> a @-}
+           i: Int<d>
+        -> x: a<r i>
+        -> a: Vec < {v:Int<d> | v != i}, r> a
+        -> Vec <d, r> a @-}
 set :: Int -> a -> Vec a -> Vec a
 set i v (V f) = V $ \k -> if k == i then v else f k
 \end{code}
@@ -92,19 +164,45 @@ set i v (V f) = V $ \k -> if k == i then v else f k
 Using Vectors
 -------------
 
-In the following example, we use the previous Vector operations
-to efficiently compute the `i`th fibonacci number:
+\begin{code}Remember the fibonacci memoization Vector:
+type FibV = 
+     Vec <{\v -> 0=0}, {\j v -> ((v != 0) => (v = (fib j)))}> Int
+\end{code}
+<br>
+
+Where `fib` is an *uninterprented function* 
+\begin{code}
+{-@ measure fib :: Int -> Int @-}
+\end{code}
+<br>
+
+We used `fib` to define the `axiom_fib`
 
 \begin{code}
-{-@ assume axiom_fib :: i:Int -> {v: Bool | (Prop(v) <=> (fib(i) = ((i <= 1) ? 1 : ((fib(i-1)) + (fib(i-2)))))) } @-}
+{-@ predicate Fib I = 
+  (fib i) = ((i <= 1)?1:((fib (i-1)) + fib (i-2)))
+  @-}
+
+{-@ assume axiom_fib :: i:Int -> {v: Bool | ((Prop v) <=> (Fib i))} @-}
 axiom_fib :: Int -> Bool
 axiom_fib i = undefined
+\end{code}
 
+
+Fast Fibonacci
+--------------
+Now we can efficiently compute the `i`th fibonacci number
+
+\begin{code}
 {-@ fastFib :: x:Int -> {v:Int | v = fib(x)} @-}
 fastFib     :: Int -> Int
 fastFib n   = snd $ fibMemo (V (\_ -> 0)) n
+\end{code}
 
+Fibonacci Memo
+--------------
 
+\begin{code}
 {-@ fibMemo :: FibV -> i:Int -> (FibV, {v: Int | v = fib(i)}) @-}
 fibMemo :: Vec Int -> Int -> (Vec Int, Int)
 fibMemo t i 

@@ -34,6 +34,7 @@ copy:
 clean:
 	cd lhs/ && ../cleanup && cd ../
 	cd html/ && rm -rf * && cd ../
+	cp index.html html/
 
 upload: 
 	scp -r html/* $(SERVERHOME)
