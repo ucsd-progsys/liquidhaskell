@@ -1,10 +1,6 @@
 % Recursive Invariants
 
 Recursive Invariants
-====================
-
-
-Recursive Invariants
 --------------------
 
 \begin{code}
@@ -160,9 +156,6 @@ insert' y (x `C` xs) | y <= x    = y `C` x `C` xs
 
 **Hover** the mouse over `insert'` to see what type was inferred for it.
 
-- You can, of course, specify the type if you prefer.
-
-
 Analyzing Plain Lists
 ---------------------
 
@@ -177,7 +170,6 @@ We can easily modify GHC's List definition to abstract over a refinement:
 data [a] <p :: a -> a -> Prop>
   = [] 
   | (:) (h :: a) (tl :: ([a<p h>]<p>))
-  @-}
 \end{code}
 
 <br>
@@ -307,7 +299,6 @@ diffList = [2, 3, 1, 0]
 Binary Trees 
 ------------
 
-[Demo](http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=Map.hs)
 
 - Consider a `Map` from keys of type `k` to values of type `a` 
 
@@ -325,13 +316,13 @@ Binary Trees
 
 We abstract from the structure two refinements `l` and `r` 
 
-- `l` relates root `key` with **left**-subtree values
+- `l` relates root `key` with **left**-subtree keys
 
-- `r` relates root `key` with **right**-subtree values
+- `r` relates root `key` with **right**-subtree keys
 
 \begin{code}
 {-@
-  data Map k a <l :: root:k -> k -> Prop, r :: root:k -> k -> Prop>
+  data Map k a <l :: k -> k -> Prop, r :: k -> k -> Prop>
       = Tip
       | Bin (sz    :: Size)
             (key   :: k)
@@ -367,6 +358,15 @@ Binary Search Ordering
 We can use the `BST` type to automatically verify that tricky functions
 ensure and preserve binary-search ordering.
 
+[Demo](http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=Map.hs)
+
+\begin{code}So, we can have
+empty :: BST k a
+
+insert :: Ord k => k:k -> a:a -> t:BST k a -> BST k a
+
+delete :: (Ord k) => k:k -> t:BST k a -> BST k a
+\end{code}
 
 Binary Search Ordering: Empty
 -----------------------------
