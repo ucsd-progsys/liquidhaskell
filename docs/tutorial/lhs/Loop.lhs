@@ -28,7 +28,7 @@ loop lo hi base f        = go lo base
 
 LiquidHaskell **infers**
 
-- `f` called with `lo <= i < hi`
+- if `lo <= hi` then `f` called with `lo <= i < hi`
 
 
 Higher Order Specifications
@@ -50,7 +50,8 @@ By **function subtyping** LiquidHaskell **infers**
 - `body` called with `0 <= i < llen xs` 
 - hence, indexing safe.
 
-Let's change the `0` to `1` and see what happens!
+[Demo](http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=SimpleRefinements.hs):
+Let's change the `0` to `-1` and see what happens!
 
 Higher Order Specifications
 ---------------------------

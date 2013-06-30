@@ -21,7 +21,6 @@ maxInt x y = if x <= y then y else x
 <br>
 
 \begin{code} We can give `maxInt` many (incomparable) refinement types:
-
 maxInt :: Nat -> Nat -> Nat
 
 maxInt :: Even -> Even -> Even
@@ -47,19 +46,21 @@ This holds, **regardless of what that property was!**
 
 - Or,  **parameterize** a type over its refinements.
 
-Parametric Invariants 
+Parametric Invariants
 --------------------- 
 
-We type `maxInt` as <br> 
-
 \begin{code}
-{-@ maxInt :: forall <p :: Int -> Prop>. 
-                Int<p> -> Int<p> -> Int<p> @-}
+{-@ maxInt :: forall <p :: Int -> Prop>. Int<p> -> Int<p> -> Int<p> @-}
 maxInt     :: Int -> Int -> Int 
 maxInt x y = if x <= y then y else x 
 \end{code}
 
-<br>
+
+
+Where
+
+- `Int<p>` is just an abbreviation for `{v:Int | (p v)}`
+
 
 This type states explicitly:
 
@@ -69,16 +70,16 @@ This type states explicitly:
 
 - `maxInt` returns an **output** that satisfies `p`. 
 
+
 Parametric Invariants via Abstract Refinements
-----------------------------------------------
+---------------------------------------------- 
 
-We call `p` an an **abstract refinement** <br>
-
-\begin{code} ... 
+\begin{code} We type `maxInt` as
 maxInt :: forall <p :: Int -> Prop>. Int<p> -> Int<p> -> Int<p> 
 \end{code}
 
-<br>
+We call `p` an an **abstract refinement** <br>
+
 
 In the refinement logic,
 
@@ -86,9 +87,6 @@ In the refinement logic,
 
 - which (only) satisfy the *congruence axiom*: forall x, y. x = y => (p x) = (p y)
 
-Thus, intuitively 
-
-- `Int<p>` is just an abbreviation for `{v:Int | (p v)}`
 
 
 Using Abstract Refinements
