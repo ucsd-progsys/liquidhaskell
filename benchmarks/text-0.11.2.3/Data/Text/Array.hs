@@ -97,6 +97,8 @@ import Language.Haskell.Liquid.Prelude
 {-@ predicate BtwnI V X Y  = ((X <= V) && (V <= Y)) @-}
 {-@ predicate BtwnEI V X Y = ((X < V)  && (V <= Y)) @-}
 
+{-@ qualif LenDiff(v:List a, i:int, l:int): (len v) = (l - i) @-}
+
 -- | Immutable array type.
 data Array = Array {
       aBA :: ByteArray#
@@ -316,20 +318,9 @@ unsafeWrite MArray{..} i@(I# i#) (W16# e#) = ST $ \s1# ->
            -> {v:[Data.Word.Word16] | (len v) = l}
   @-}
 toList :: Array -> Int -> Int -> [Word16]
---LIQUID toList ary off len = loop 0
---LIQUID     where loop i | i < len   = unsafeIndex ary (off+i) : loop (i+1)
---LIQUID                  | otherwise = []
-toList ary off len = toList_loop ary off len 0
-
-{-@ toList_loop :: a:Data.Text.Array.Array
-                -> o:{v:Nat | v <= (alen a)}
-                -> l:{v:Nat | (v + o) <= (alen a)}
-                -> i:{v:Nat | v <= l}
-                -> {v:[Data.Word.Word16] | (len v) = (l - i)}
-  @-}
-toList_loop ary off len i
-    | i < len   = unsafeIndex ary (off+i) : toList_loop ary off len (i+1)
-    | otherwise = []
+toList ary off len = loop 0
+    where loop i | i < len   = unsafeIndex ary (off+i) : loop (i+1)
+                 | otherwise = []
 
 -- | An empty immutable array.
 {-@ empty :: {v:Data.Text.Array.Array | (alen v) = 0} @-}
@@ -417,6 +408,7 @@ copyI dest i0 src j0 top
 
 -- | Compare portions of two arrays for equality.  No bounds checking
 -- is performed.
+--LIQUID TODO: this is not correct because we're just comparing sub-arrays
 {- equal :: a1:Data.Text.Array.Array
           -> o1:{v:Int | ((v >= 0) && (v < (alen a1)))}
           -> a2:Data.Text.Array.Array
