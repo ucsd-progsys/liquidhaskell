@@ -1,10 +1,6 @@
 % Function Composition
 
 Function Composition
-====================
-
-
-Function Composition
 --------------------
 
 \begin{code}
@@ -94,12 +90,12 @@ plus3     = (+ 1) `c` (+ 2)
 
 LiquidHaskell verifies the above, by **instantiating**
 
-- `q` with `v = x + 1`
-- `p` with `v = y + 2`
+- `p` with `v = x + 1`
+- `q` with `v = x + 2`
 
 which lets it infer that the output of `plus3` has type:
 
-- `exists [z:{v=y+1}]. {v = z + 2}`
+- `exists [z:{v=y+2}]. {v = z + 1}`
 
 which is a subtype of `{v:Int | v = 3}`
 
