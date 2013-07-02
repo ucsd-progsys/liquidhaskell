@@ -467,6 +467,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , lits       :: ![(F.Symbol, F.Sort)]
                      , tcheck     :: !Bool
                      , pruneRefs  :: !Bool
+                     , logWarn    :: ![String]
                      } -- deriving (Data, Typeable)
 
 instance PPrint CGInfo where 
@@ -507,6 +508,7 @@ initCGI cfg info = CGInfo {
   , specStrict = strict spc
   , tcheck     = termination cfg
   , pruneRefs  = not $ noPrune cfg
+  , logWarn    = []
   } 
   where 
     tce        = tcEmbeds spc 
@@ -621,6 +623,9 @@ addC !c@(SubC _ t1 t2) _msg
 
 addW   :: WfC -> CG ()  
 addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
+
+addWarning   :: String -> CG ()  
+addWarning w = modify $ \s -> s { logWarn = w : (logWarn s) }
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive definitions.
 
@@ -787,24 +792,47 @@ addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------------
 recType γ (x, e, t) 
-  = do hint        <- checkHint' . L.lookup xSymbol . specDecr <$> get
-       let index    = fromMaybe dindex hint
-       let (dx, dt) = safeIndex errmsg  index xts
-       let v        = safeIndex errmsg' index vs
-       let xts'     = replaceN index (mkDecrType (v, dx, dt)) xts
-       return $ mkArrow αs πs xts' tbd
+  = do hint          <- checkHint' . L.lookup xSymbol . specDecr <$> get
+       maybeRecType x dindex hint t vs
   where (αs, πs, t0)  = bkUniv t
-        (xs, ts, tbd) = bkArrow t0
+        ts            = snd3 $ bkArrow $ thd3 $ bkUniv t
         vs            = collectArguments (length ts) e
-        xts           = zip xs ts
-        errmsg'       = "recType on " ++ showPpr x ++ " with "++ showPpr vs
-        errmsg        = "Cannot prove termination on " ++ showPpr x
         checkHint'    = checkHint x ts isDecreasing
-        dindex        = safeFromJust errmsg $ L.findIndex isDecreasing ts
 -- TODO get the appropriate symbols for hints, 
 -- allow parsing not-tolevel symbols
         xSymbol       = F.S $ dropModuleNames $ showPpr x
+        dindex        = L.findIndex isDecreasing ts
         
+maybeRecType x Nothing hint t _
+  = addWarning msg >> return t
+  where msg = "Cannot prove termination on " ++ showPpr x
+
+maybeRecType x (Just i) hint t vs
+  = do dxt         <- safeLogIndex msg  index xts
+       v           <- safeLogIndex msg' index vs
+       return $ maybeRecType' t v dxt index       
+  where index = fromMaybe i hint
+        msg'  = "recType on " ++ showPpr x ++ " with "++ showPpr vs
+        msg   = "Cannot prove termination on " ++ showPpr x
+        (αs, πs, t0)  = bkUniv t
+        (xs, ts, tbd) = bkArrow t0
+        xts           = zip xs ts
+
+maybeRecType' t (Just v) (Just (dx, dt)) index
+  = mkArrow αs πs xts' tbd
+  where xts' = replaceN index (mkDecrType (v, dx, dt)) $ zip xs ts
+        (αs, πs, t0)  = bkUniv t
+        (xs, ts, tbd) = bkArrow t0
+maybeRecType' t _ _ _ 
+  = t
+
+safeLogIndex err n ls 
+  | n >= length ls
+  = addWarning err >> return Nothing
+  | otherwise 
+  = return $ Just $ ls !! n
+
+
 mkDecrType (v, x, (t@(RApp c _ _ _))) = (x,) $  t `strengthen` tr
   where tr = cmpReft (sizeFunction $ rTyConInfo c) (varSymbol v)
 
@@ -851,8 +879,9 @@ consCB tflag γ (Rec [(x,e)]) | tflag
        return γ'{trec=Nothing}
     where x' = varSymbol x
 
-consCB tflag _ (Rec xs) | tflag
-  = errorstar $ "Termination Analysis not supported for mutual recursion"
+consCB tflag γ xes@(Rec xs) | tflag
+  = addWarning wmsg >> consCB False γ xes
+  where wmsg = "Termination Analysis not supported for mutual recursion"
 
               ++ "in definitions of " ++ showPpr (fst <$>xs)
 

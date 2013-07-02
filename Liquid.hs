@@ -49,13 +49,19 @@ liquidOne cfg target =
      -- {-# SCC "writeCGI" #-} writeCGI target cgi 
      -- donePhase Loud "FINISH: Write CGI"
      (r, sol) <- solveCs (nofalse cfg) target cgi info
-     donePhase Loud "solve"
+     donePhase Loud "solve" 
      {-# SCC "annotate" #-} annotate target (resultSrcSpan r) sol $ annotMap cgi
      donePhase Loud "annotate"
      donePhase (colorResult r) (showFix r) 
      writeResult target r
-     -- putStrLn $ "*************** DONE: " ++ showPpr r ++ " ********************"
+     putTerminationResult $ logWarn cgi
      return r
+
+putTerminationResult [] 
+  = return ()
+putTerminationResult ss 
+  = do colorPhaseLn Angry "Termination Warnings:" "" 
+       putStrLn $ unlines ss
 
 solveCs nofalse target cgi info | nofalse
   = do  hqBot <- getHqBotPath
