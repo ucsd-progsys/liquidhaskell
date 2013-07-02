@@ -28,6 +28,8 @@ type Size     = Int
     mlen(Bin s k v l r) = 1 + (mlen l) + (mlen r)
   @-}
 
+{-@ invariant {v:Map k a | (mlen v) >= 0} @-}
+
 {-@ type OMap k a = Map <{\root v -> v < root}, {\root v -> v > root}> k a @-}
 
 {-@ measure isJustS :: forall a. MaybeS a -> Prop
@@ -91,6 +93,7 @@ bin k x l r
 
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
+{-@ insertMax, insertMin :: k -> a -> Map k a -> Map k a @-}
 insertMax, insertMin :: k -> a -> Map k a -> Map k a
 insertMax kx x t
   = case t of
