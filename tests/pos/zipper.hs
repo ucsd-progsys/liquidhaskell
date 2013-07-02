@@ -145,6 +145,7 @@ reverse = rev []
         -> xs:{v: UList a | (ListDisjoint ack v)}
         -> {v:UList a |(UnionElts v xs ack)} 
   @-}
+{-@ Decrease rev 2 @-}
 rev :: [a] -> [a] -> [a]
 rev a []     = a
 rev a (x:xs) = rev (x:a) xs 

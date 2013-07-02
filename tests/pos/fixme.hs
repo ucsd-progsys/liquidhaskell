@@ -1,7 +1,11 @@
 module Fixme where
 
-data F a = F a
-{-@ data F a = F (x::{v:a | v = y }) @-}
+import Language.Haskell.Liquid.Prelude
+
+bar :: Int -> Int
+-- bar 0 = 0
+bar n = bar (n-1)
 
 
-
+foo = bar n
+  where n = choose 0

@@ -15,6 +15,7 @@ myapp (x:xs) ys = x : myapp xs ys
 myrev :: [a] -> [a]
 myrev = goRev [] 
 
+{-@ Decrease goRev 2 @-}
 {-@ goRev :: xs:[a] -> ys:[a] -> {v:[a] | listElts(v) = Set_cup(listElts(xs), listElts(ys))} @-}
 goRev :: [a] -> [a] -> [a]
 goRev acc []     = acc
