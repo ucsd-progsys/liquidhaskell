@@ -8,6 +8,7 @@ import Control.Monad
 import Text.Parsec
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet        as S
 
 import Control.Applicative ((<$>), (<*), (<*>))
 import Data.Char (toLower, isLower, isSpace, isAlpha)
@@ -278,6 +279,8 @@ data Pspec ty ctor
   | PAlias  (RTAlias Symbol Pred)
   | Embed   (Located String, FTycon)
   | Qualif  Qualifier
+  | Decr    (Symbol, Int)
+  | Strict  Symbol
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
@@ -292,6 +295,8 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.paliases   = [p | PAlias p <- xs]
   , Measure.embeds     = M.fromList [e | Embed e <- xs]
   , Measure.qualifiers = [q | Qualif q <- xs]
+  , Measure.decr       = [d | Decr d   <- xs]
+  , Measure.strict     = S.fromList [s | Strict s <- xs]
   }
 
 type BareSpec = (Measure.Spec BareType Symbol)
@@ -319,8 +324,16 @@ specP
     <|> (reserved "predicate" >> liftM PAlias paliasP   )
     <|> (reserved "embed"     >> liftM Embed  embedP    )
     <|> (reserved "qualif"    >> liftM Qualif qualifierP)
+    <|> (reserved "Decrease"  >> liftM Decr   decreaseP )
+    <|> (reserved "Strict"    >> liftM Strict strictP   )
     <|> ({- DEFAULT -}           liftM Assms  tyBindsP  )
 
+strictP :: Parser Symbol
+strictP = binderP
+
+decreaseP :: Parser (Symbol, Int)
+decreaseP = mapSnd f <$> liftM2 (,) binderP (spaces >> integer)
+  where f x = fromInteger x - 1
 filePathP :: Parser FilePath
 filePathP = angles $ many1 pathCharP
   where pathCharP = choice $ char <$> pathChars 
@@ -459,11 +472,17 @@ dataConNameP
      idP p  = many1 (satisfy (not . p))
      bad c  = isSpace c || c `elem` "(,)"
      pwr s  = "(" ++ s ++ ")" 
- 
+
+dataSizeP 
+  = (brackets $ (Just . mkFun) <$> lowerIdP)
+  <|> return Nothing
+  where mkFun s = \x -> EApp (stringSymbol s) [EVar x] 
 
 dataDeclP
   = do pos <- getPosition
        x   <- upperIdP
+       spaces
+       fsize <- dataSizeP
        spaces
        ts  <- sepBy tyVarIdP spaces
        ps  <- predVarDefsP
@@ -472,7 +491,7 @@ dataDeclP
        whiteSpace
        -- spaces
        -- reservedOp "--"
-       return $ D x ts ps dcs pos
+       return $ D x ts ps dcs pos fsize
 
 ---------------------------------------------------------------------
 ------------ Interacting with Fixpoint ------------------------------

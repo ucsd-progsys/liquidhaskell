@@ -2,16 +2,21 @@ module SList where
 
 infixr `C`
 
-data L a = N | C a (L a)
+data L a = N
+         | C a (L a)
 
 {-@
-data L a <p :: a -> a -> Prop>
+data L [llen] a <p :: a -> a -> Prop>
   = N 
   | C (h :: a) (tl :: (L <p> a<p h>))
 @-}
 
 {-@ type SL a = L <{\hd v -> v >= hd}> a @-}
 
+{-@ measure llen :: (L a) -> Int
+    llen(N)      = 0
+    llen(C x xs) = 1 + (llen xs)
+  @-}
 
 {-@ slist :: SL Int @-}
 slist :: L Int

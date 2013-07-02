@@ -14,7 +14,7 @@ type Size     = Int
 
 {-@ include <Base.hquals> @-}
 
-{-@ data Map k a <l :: root:k -> k -> Prop, r :: root:k -> k -> Prop>
+{-@ data Map [mlen] k a <l :: root:k -> k -> Prop, r :: root:k -> k -> Prop>
          = Bin (sz    :: Size) 
                (key   :: k) 
                (value :: a) 
@@ -23,6 +23,10 @@ type Size     = Int
          | Tip 
   @-}
 
+{-@ measure mlen :: (Map k a) -> Int
+    mlen(Tip) = 0
+    mlen(Bin s k v l r) = 1 + (mlen l) + (mlen r)
+  @-}
 
 {-@ type OMap k a = Map <{\root v -> v < root}, {\root v -> v > root}> k a @-}
 

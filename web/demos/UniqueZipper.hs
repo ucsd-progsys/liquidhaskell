@@ -54,6 +54,7 @@ infixr 5 ++
 {-@ reverse :: xs:(UList a)
             -> {v: UList a | (EqElts v xs)} 
   @-}
+{-@ Decrease go 2 @-}
 reverse :: [a] -> [a]
 reverse = go []
   where
