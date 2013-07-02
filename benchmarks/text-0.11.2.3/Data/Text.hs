@@ -395,7 +395,6 @@ compareText ta@(Text _arrA _offA lenA) tb@(Text _arrB _offB lenB)
 {-@ pack :: s:String -> {v:Data.Text.Internal.Text | (len s) = (tlength v)} @-}
 pack :: String -> Text
 --LIQUID pack = unstream . S.streamList . L.map safe
---LIQUID for some reason (.) is losing some of the refinements
 pack str = let l = L.map safe str
                s = S.streamList l
                t = unstream s

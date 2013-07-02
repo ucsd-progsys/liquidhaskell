@@ -126,6 +126,8 @@ null (_:_)              =  False
 length                  :: [a] -> Int
 length l                =  len l 0#
   where
+    --LIQUID len takes `l` as a constant 1st param in core
+    {-@ Decrease len 2 @-}
     len :: [a] -> Int# -> Int
     len []     a# = I# a#
     len (_:xs) a# = len xs (a# +# 1#)
@@ -178,6 +180,8 @@ filterFB c p x r | p x       = x `c` r
 foldl        :: (a -> b -> a) -> a -> [b] -> a
 foldl f z0 xs0 = lgo z0 xs0
              where
+                --LIQUID lgo takes `f` as the first param, once compiled to core
+                {-@ Decrease lgo 3 @-}
                 lgo z []     =  z
                 lgo z (x:xs) = lgo (f z x) xs
 
@@ -241,9 +245,11 @@ scanr1 f (x:xs@(_:_))   =  f x q : qs
 --
 -- > iterate f x == [x, f x, f (f x), ...]
 
+{-@ Strict GHC.List.iterate @-}
 iterate :: (a -> a) -> a -> [a]
 iterate f x =  x : iterate f (f x)
 
+{-@ Strict GHC.List.iterateFB @-}
 iterateFB :: (a -> b -> b) -> (a -> a) -> a -> b
 iterateFB c f x = x `c` iterateFB c f (f x)
 
@@ -610,7 +616,7 @@ concat = foldr (++) []
 -- It is an instance of the more general 'Data.List.genericIndex',
 -- which takes an index of any integral type.
 
-{-@ assert (!!)         :: xs:[a] -> {v: Int | ((0 <= v) && (v < len(xs)))} -> a @-}
+{-@ assert GHC.List.!!         :: xs:[a] -> {v: Int | ((0 <= v) && (v < len(xs)))} -> a @-}
 (!!)                    :: [a] -> Int -> a
 #ifdef USE_REPORT_PRELUDE
 xs     !! n | n < 0 =  liquidError {- error -} "Prelude.!!: negative index"

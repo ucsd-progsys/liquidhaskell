@@ -339,7 +339,7 @@ type Size     = Int
     mlen(Bin s k v l r) = 1 + (mlen l) + (mlen r)
   @-}
 
-
+{-@ invariant {v:Map k a | (mlen v) >= 0} @-}
 
 {-@ type OMap k a = Map <{\root v -> v < root}, {\root v -> v > root}> k a @-}
 
@@ -1050,6 +1050,7 @@ lookupIndex = go 0
 
 
 {-@ elemAt :: GHC.Types.Int -> OMap k a -> (k, a) @-}
+{-@ Decrease elemAt 2 @-}
 elemAt :: Int -> Map k a -> (k,a)
 STRICT_1_OF_2(elemAt)
 elemAt _ Tip = error "Map.elemAt: index out of range"
@@ -1074,6 +1075,7 @@ elemAt i (Bin _ kx x l r)
 -- > updateAt (\_ _  -> Nothing)  (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
 {-@ updateAt :: (k -> a -> Maybe a) -> GHC.Types.Int -> OMap k a -> OMap k a @-}
+{-@ Decrease updateAt 3 @-}
 updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
 updateAt f i t = i `seq`
   case t of
@@ -1096,6 +1098,7 @@ updateAt f i t = i `seq`
 -- > deleteAt (-1) (fromList [(5,"a"), (3,"b")])  Error: index out of range
 
 {-@ deleteAt :: GHC.Types.Int -> OMap k a -> OMap k a @-}
+{-@ Decrease deleteAt 2 @-}
 deleteAt :: Int -> Map k a -> Map k a
 deleteAt i t = i `seq`
   case t of
@@ -1373,7 +1376,7 @@ difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
                           -> {v: OMap k a | (RootBetween lo hi v) }                       
                           -> OMap {v: k | (KeyBetween lo hi v) } b 
                           -> OMap {v: k | (KeyBetween lo hi v) } a @-}
-
+{-@ Decrease hedgeDiff 4 @-}
 hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
 hedgeDiff _  _   Tip _                  = Tip
 hedgeDiff blo bhi (Bin _ kx x l r) Tip  = join kx x (filterGt blo l) (filterLt bhi r)
@@ -2520,6 +2523,7 @@ splitLookup k t = k `seq`
 --------------------------------------------------------------------}
 
 {-@ join :: k:k -> a -> OMap {v:k | v < k} a -> OMap {v:k| v > k} a -> OMap k a @-}
+{-@ Decrease join 4 @-}
 join :: k -> a -> Map k a -> Map k a -> Map k a
 join kx x Tip r  = insertMin kx x r
 join kx x l Tip  = insertMax kx x l
@@ -2883,6 +2887,7 @@ showsTree showelem wide lbars rbars t
              showWide wide lbars .
              showsTree showelem wide (withEmpty lbars) (withBar lbars) l
 
+{-@ Decrease showsTreeHang 4 @-}
 showsTreeHang :: (k -> a -> String) -> Bool -> [String] -> Map k a -> ShowS
 showsTreeHang showelem wide bars t
   = case t of
