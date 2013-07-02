@@ -440,8 +440,7 @@ isNumeric tce c
        (M.lookup (rTyCon c) tce) == intFTyCon
 
 addNumSizeFun c 
-  = c {rTyConInfo=(rTyConInfo c){sizeFunction = Nothing {-Just EVar-}}}
--- Turn this out, as numeric values can decrease forever
+  = c {rTyConInfo=(rTyConInfo c){sizeFunction = Just EVar}}
 
 appRefts rc [] = RPoly [] . ofRSort . ptype <$> (rTyConPs rc)
 appRefts rc rs = safeZipWith ("appRefts" ++ showFix rc) toPoly rs (rTyConPs rc)
@@ -912,7 +911,8 @@ classBinds _         = []
 rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
 
 cmpReft (Just f) x
-  = uReft (vv, [RConc $ PAtom Lt (f vv) (f x)])
+  = uReft (vv, [ RConc $ PAtom Lt (f vv) (f x)
+               , RConc $ PAtom Ge (f vv) (ECon (I 0))]) -- size vv >= 0
    where vv      = S "vvRec"
 cmpReft _ _
   = errorstar "RefType: cmpReft"
