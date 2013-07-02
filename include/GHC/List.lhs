@@ -464,6 +464,11 @@ splitAt (I# n#) ls
 -- 
 -- 'span' @p xs@ is equivalent to @('takeWhile' p xs, 'dropWhile' p xs)@
 -- Liquid: TODO
+{-@
+span    :: (a -> Bool) 
+        -> xs:[a] 
+        -> ({v:[a]|((len v)<=(len xs))}, {v:[a]|((len v)<=(len xs))})
+@-}
 span                    :: (a -> Bool) -> [a] -> ([a], [a])
 span _ xs@[]            =  (xs, xs)
 span p xs@(x:xs')

@@ -6,7 +6,12 @@ data Foo a = F a a a
 
 data LL a = N | C a (LL a)
 
+{-@ data LL [llen] a = N | C (x::a) (xs::(LL a)) @-}
 
+{-@ measure llen :: (LL a) -> Int 
+    llen(N)      = 0
+    llen(C x xs) = 1 + (llen xs)
+  @-}
 
 lmap f N = N
 lmap f (C x xs) = C (f x) (lmap f xs)

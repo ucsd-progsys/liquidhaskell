@@ -4,13 +4,21 @@ import Language.Haskell.Liquid.Prelude
 
 
 {-@
-data Bst k v <l :: root:k -> x1:k -> Prop, r :: root:k -> x1:k -> Prop>
+data Bst [blen] k v <l :: root:k -> x1:k -> Prop, r :: root:k -> x1:k -> Prop>
   = Empty
   | Bind (key   :: k) 
          (value :: v) 
          (left  :: Bst <l, r> (k <l key>) v) 
          (right :: Bst <l, r> (k <r key>) v)
   @-}
+
+{-@ measure blen :: (Bst k v) -> Int
+    blen(Empty)        = 0
+    blen(Bind k v l r) = 1 + (blen l) + (blen r)
+  @-}
+
+{-@ invariant {v:Bst k v | (blen v) >= 0} @-}
+
 data Bst k v = Empty | Bind k v (Bst k v) (Bst k v)
 
 {-@ type OBST k a = Bst <{\root v -> v < root }, {\root v ->  v > root}> k a @-}

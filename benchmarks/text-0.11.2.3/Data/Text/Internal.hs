@@ -75,7 +75,7 @@ import Language.Haskell.Liquid.Prelude
 {-@ qualif NonEmptyText(v:Data.Text.Internal.Text): tlength(v) > 0 @-}
 
 {-@ measure sum_tlens :: [Data.Text.Internal.Text] -> Int
-    sum_tlens ([]) = 0
+    sum_tlens ([])   = 0
     sum_tlens (t:ts) = (tlen t) + (sum_tlens ts)
   @-}
 

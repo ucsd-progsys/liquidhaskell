@@ -24,6 +24,12 @@ config = Config {
  , binds   = def &= help "Top-level binders to verify (DEFAULT = all)" 
 
  , nofalse = def &= help "Remove false predicates from the refinements"
+
+ , noPrune = def &= help "Disable prunning unsorted Predicates"
+                 &= name "no-prune-unsorted"
+
+ , termination = def &= help "Enable Termination Check"
+                     &= name "termination-check"
  
  , noCheckUnknown 
            = def &= explicit

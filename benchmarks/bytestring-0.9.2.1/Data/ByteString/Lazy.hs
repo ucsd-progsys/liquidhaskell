@@ -1252,6 +1252,10 @@ isSuffixOf x y = reverse x `isPrefixOf` reverse y
 -- ---------------------------------------------------------------------
 -- Zipping
 
+--LIQUID TODO: zip and zipWith are in LazyZip.hs because they need a
+--qualifier that takes 4 parameters and this module is slow enough to
+--verify as is.
+
 -- | /O(n)/ 'zip' takes two ByteStrings and returns a list of
 -- corresponding pairs of bytes. If one input ByteString is short,
 -- excess elements of the longer ByteString are discarded. This is

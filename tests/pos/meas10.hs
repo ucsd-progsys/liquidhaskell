@@ -17,6 +17,7 @@ goo acc []     = acc
 goo acc (y:ys) = error "foo" -- goRev (y:acc) ys
 
 -- WORKS WITH EXPLICIT ANNOTATION
+{-@ Decrease goRev 2 @-}
 {- goRev :: xs:[a] -> ys:[a] -> {v:[a] | listElts(v) = Set_cup(listElts(xs), listElts(ys))} @-}
 goRev :: [a] -> [a] -> [a]
 goRev acc []     = acc
