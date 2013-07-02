@@ -61,7 +61,7 @@ import qualified Data.Text.Lazy.Encoding.Fusion as E
 import qualified Data.Text.Lazy.Fusion as F
 
 --LIQUID
-import Data.ByteString.Fusion (PairS(..))
+import Data.ByteString.Fusion (PairS(..), MaybeS(..))
 import qualified Data.ByteString.Fusion
 import qualified Data.ByteString.Internal
 import qualified Data.ByteString.Lazy.Internal
@@ -188,7 +188,6 @@ decodeUtf8' bs = unsafePerformIO $ do
     rnf (Chunk _ ts) = rnf ts
 {-# INLINE decodeUtf8' #-}
 
-{-@ encodeUtf8 :: Text -> B.ByteString @-}
 encodeUtf8 :: Text -> B.ByteString
 encodeUtf8 (Chunk c cs) = B.Chunk (TE.encodeUtf8 c) (encodeUtf8 cs)
 encodeUtf8 Empty        = B.Empty
