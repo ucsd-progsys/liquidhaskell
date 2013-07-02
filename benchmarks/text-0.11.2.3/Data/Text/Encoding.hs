@@ -82,7 +82,7 @@ import qualified Data.Text.Fusion as F
 
 --LIQUID
 import Control.Exception (throw)
-import Data.ByteString.Fusion (PairS(..))
+import Data.ByteString.Fusion (PairS(..), MaybeS(..))
 import qualified Data.ByteString.Fusion
 import qualified Data.ByteString.Lazy.Internal
 import Data.Int
