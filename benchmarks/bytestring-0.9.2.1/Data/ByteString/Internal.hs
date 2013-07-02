@@ -424,9 +424,11 @@ createAndTrimMEQ l f = do
 {-@ measure tfst :: (a,b,c) -> a
     tfst (a,b,c) = a
   @-}
+
 {-@ measure tsnd :: (a,b,c) -> b
     tsnd (a,b,c) = b
   @-}
+
 {-@ measure ttrd :: (a,b,c) -> c
     ttrd (a,b,c) = c
   @-}

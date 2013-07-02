@@ -151,36 +151,50 @@ To disable this behaviour use no-prune-unsorted flag.
 Termination Check
 -----------------
 
-A termination check is termformed to all recursive functions used.
-Use termination-check option to enable the check
+A termination check is performed on all recursive functions.
+
+Use the `termination-check` option to enable the check
  
     liquid --termination-check test.hs
 
-In recursive functions the first algebraic or integer argument should be decreasing.
+In recursive functions the *first* algebraic or integer argument should be decreasing.
+
 The default decreasing measure for lists is length and Integers its value.
+
 The user can specify the decreasing measure in data definitions:
 
 {-@ data L [llen] a = Nil | Cons (x::a) (xs:: L a) @-}
 
 Defines that `llen` is the decreasing measure (to be defined by the user).
 
+For example, in the function `foldl`
 
-The user can specify that another argument is decreasing.
+    foldl k acc N           = acc
+    foldl k acc (Cons x xs) = foldl k (x `k` acc) xs 
 
-{-@ Decreasing foo 3 @-}
-foo f ack N           = ack
-foo f ack (Cons x xs) = foo f (f x ack) xs 
+by default the *second* argument (the first non-function argument) will be 
+checked to be decreasing. However, the explicit hint 
 
-By default the second argument will be checked to be decreasing in `foo`.
-But the hint 
-`{-@ Decreasing foo 3 @-}`
-specifies, that the third one should be checked.
+    {-@ Decreasing foo 3 @-}
 
-Use `{-@ Strict foo @-}` to disable check of the function `foo`.
+tells LiquidHaskell to instead use the *third* argument. 
 
-Limitations:
-- An error is created when mutual recursive functions are to checked.
-  Many times deriving instances create such functions.
+To *disable* termination checking for `foo` that is, to *assume* that it 
+is terminating (possibly for some complicated reason currently beyond the 
+scope of LiquidHaskell) you can write
+
+    {-@ Strict foo @-} 
+    
+
+**Limitations**
+
+- Currently the termination checker *does not* handle *mutually recursive* 
+  functions, and instead it loudly crashes when given such functions.
+
+- `deriving instances` often create such functions so lookout!
+
+We intend to address these ASAP.
+
 
 Writing Specifications
 ======================
@@ -439,8 +453,12 @@ verification attempts.
   `hscolour`.
 
 - **Markdown + Literate Haskell** You can also feed in literate haskell files
-  where the comments are in [Pandoc markdown](http://johnmacfarlane.net/pandoc/demo/example9/pandocs-markdown.html). In this case, the tool will run `pandoc` to generate the HTML from the comments.
+  where the comments are in [Pandoc markdown](http://johnmacfarlane.net/pandoc/demo/example9/pandocs-markdown.html). 
+  In this case, the tool will run `pandoc` to generate the HTML from the comments.
   Of course, this requires that you have `pandoc` installed as a binary on
   your system. If not, `hscolour` is used to render the HTML.
+
+  It is also possible to generate *slide shows* from the above.
+  See the [tutorial directory](docs/tutorial) for an example.
 
 
