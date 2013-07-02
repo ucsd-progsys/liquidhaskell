@@ -2,6 +2,12 @@ module ListSort where
 
 import Language.Haskell.Liquid.Prelude
 
+{-@ predicate Pr X Y = (((len Y) > 1) => ((len Y) < (len X))) @-}
+
+{-@ split :: xs:[a] 
+          -> ({v:[a] | (Pr xs v)}, {v:[a]|(Pr xs v)})
+                 <{\x y -> ((len x) + (len y) = (len xs))}> 
+  @-}
 
 split :: [a] -> ([a], [a])
 split (x:(y:zs)) = (x:xs, y:ys) where (xs, ys) = split zs
@@ -22,13 +28,4 @@ mergesort [] = []
 mergesort [x] = [x]
 mergesort xs = merge (mergesort xs1) (mergesort xs2) where (xs1, xs2) = split xs
 
-chk [] = liquidAssertB True
-chk (x1:xs) = case xs of 
-               []     -> liquidAssertB True
-               x2:xs2 -> liquidAssertB (x1 <= x2) && chk xs
-																	
-rlist = map choose [1 .. 10]
 
-bar = mergesort rlist
-
-prop0 = chk bar

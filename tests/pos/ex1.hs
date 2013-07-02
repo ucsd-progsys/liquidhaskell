@@ -9,6 +9,8 @@ module Ex where
 
 data Vec a = Nil | Cons a (Vec a)
 
+{-@ data Vec [llen] a = Nil | Cons (x::a) (xs::(Vec a)) @-}
+
 -- | We can encode the notion of length as an inductive measure @llen@ 
 
 {-@ measure llen     :: forall a. Vec a -> Int 

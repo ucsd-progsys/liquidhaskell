@@ -3,6 +3,12 @@ module Range where
 import Language.Haskell.Liquid.Prelude
 
 data L a = Nil | Con a (L a)
+{-@ data L [llen] a = Nil | Con (x::a) (xs::(L a)) @-}
+
+{-@ measure llen :: (L a) -> Int
+    llen(Nil)      = 0
+    llen(Con x xs) = 1 + (llen xs)
+  @-}
 
 range :: Int -> Int -> L Int
 range i j  

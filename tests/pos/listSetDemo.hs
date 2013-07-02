@@ -32,6 +32,7 @@ myid (x:xs) = x : myid xs
 -- Note that the reverse uses the tail-recursive helper @go@. 
 -- Mouse over and see what type is inferred for it!
 
+{-@ Decrease go 2 @-}
 {-@ myrev :: xs:[a] -> {v:[a]| (elts v) = (elts xs)} @-}
 myrev = go [] 
   where 
