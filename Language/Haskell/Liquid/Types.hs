@@ -35,7 +35,7 @@ module Language.Haskell.Liquid.Types (
   , BDataCon (..)
 
   -- * Constructors and Destructors
-  , mkArrow, bkArrow, safeBkArrow 
+  , mkArrow, bkArrowDeep, bkArrow, safeBkArrow 
   , mkUnivs, bkUniv, bkClass
   , rFun, rAppTy
 
@@ -546,6 +546,11 @@ instance Hashable a => Hashable (BDataCon a) where
 mkArrow αs πs xts = mkUnivs αs πs . mkArrs xts 
   where 
     mkArrs xts t  = foldr (uncurry rFun) t xts 
+
+bkArrowDeep (RAllT _ t)     = bkArrow t
+bkArrowDeep (RAllP _ t)     = bkArrow t
+bkArrowDeep (RFun x t t' _) = let (xs, ts, t'') = bkArrowDeep t'  in (x:xs, t:ts, t'')
+bkArrowDeep t               = ([], [], t)
 
 bkArrow (RFun x t t' _) = let (xs, ts, t'') = bkArrow t'  in (x:xs, t:ts, t'')
 bkArrow t               = ([], [], t)
