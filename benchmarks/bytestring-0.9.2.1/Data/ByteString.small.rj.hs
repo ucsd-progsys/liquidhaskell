@@ -357,6 +357,8 @@ unfoldrN i f x0
                                   && ((isJust (ttrd v)) => ((tsnd v)=l)))}  @-}
 unfoldqual :: Int -> (Int, Int, Maybe a)
 unfoldqual = undefined
+
+
 {-@ unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString @-}
 unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
 unfoldr f = concat . unfoldChunk f 32 64
