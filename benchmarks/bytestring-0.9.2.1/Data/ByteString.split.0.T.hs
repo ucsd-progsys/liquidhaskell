@@ -642,14 +642,14 @@ concatMap f = concat . foldr ((:) . f) []
 any :: (Word8 -> Bool) -> ByteString -> Bool
 any _ (PS _ _ 0) = False
 any f (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
-        go (ptr `plusPtr` s) (ptr `plusPtr` (s+l))
+        go (ptr `plusPtr` s) (ptr `plusPtr` (s+l)) (ptrLen (ptr `plusPtr` s)) 
     where
-        STRICT2(go)
-        go p q | p == q    = return False
-               | otherwise = do let p' = liquid_thm_ptr_cmp p q     -- LIQUID
-                                c <- peek p'
-                                if f c then return True
-                                       else go (p' `plusPtr` 1) q
+        STRICT3(go)
+        go p q (d::Int) | p == q    = return False
+                        | otherwise = do let p' = liquid_thm_ptr_cmp p q     -- LIQUID
+                                         c <- peek p'
+                                         if f c then return True
+                                                else go (p' `plusPtr` 1) q (d-1)
 {-# INLINE any #-}
 
 -- todo fuse
@@ -659,14 +659,15 @@ any f (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
 all :: (Word8 -> Bool) -> ByteString -> Bool
 all _ (PS _ _ 0) = True
 all f (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
-        go (ptr `plusPtr` s) (ptr `plusPtr` (s+l))
+        go (ptr `plusPtr` s) (ptr `plusPtr` (s+l)) (ptrLen (ptr `plusPtr` s))
     where
-        STRICT2(go)
-        go p q | p == q     = return True  -- end of list
+        STRICT3(go)
+        go p q (d::Int) 
+               | p == q     = return True  -- end of list
                | otherwise  = do let p' = liquid_thm_ptr_cmp p q     -- LIQUID
                                  c <- peek p'
                                  if f c
-                                    then go (p' `plusPtr` 1) q
+                                    then go (p' `plusPtr` 1) q (d-1)
                                     else return False
 {-# INLINE all #-}
 
@@ -1094,5 +1095,4 @@ findFromEndUntil f ps@(PS x s l) =
     if null ps then 0
     else if f (last ps) then l
          else findFromEndUntil f (PS x s (l-1))
-
 

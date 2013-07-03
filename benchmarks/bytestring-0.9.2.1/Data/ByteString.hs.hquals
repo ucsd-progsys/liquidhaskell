@@ -22,6 +22,7 @@ qualif SplitWith(v:List Data.ByteString.Internal.ByteString, l:int):
 qualif PtrDiff(v:int, i:int, p:GHC.Ptr.Ptr a): 
   (i - v) <= (plen p)
 
+
 // for ByteString.split
 qualif BSValidOff(v:int,l:int,p:GHC.ForeignPtr.ForeignPtr a): 
   v + l <= (fplen p) 
