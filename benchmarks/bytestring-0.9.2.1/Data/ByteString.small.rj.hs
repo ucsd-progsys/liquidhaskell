@@ -80,7 +80,7 @@ assertS s False = error ("assertion failed at "++s)
 -- LIQUID
 import GHC.IO.Buffer
 import Language.Haskell.Liquid.Prelude -- (isNullPtr, liquidAssert, intCSize) 
-import qualified Data.ByteString.Lazy.Internal 
+-- import qualified Data.ByteString.Lazy.Internal 
 import qualified Data.ByteString.Fusion
 import qualified Data.ByteString.Internal
 import qualified Data.ByteString.Unsafe
@@ -109,6 +109,14 @@ import qualified Foreign.C.Types
   @-}
 liquid_thm_ptr_cmp :: Ptr a -> Ptr a -> Ptr a
 liquid_thm_ptr_cmp p q = undefined -- p -- LIQUID : make this undefined to suppress WARNING
+
+{-@ liquid_thm_ptr_cmp' :: p:PtrV a 
+                        -> q:{v:(PtrV a) | ((plen v) >= (plen p) && v != p && (pbase v) = (pbase p))} 
+                        -> {v: (PtrV a)  | ((v = p) && ((plen v) > 0) && ((plen q) > (plen p))) } 
+  @-}
+liquid_thm_ptr_cmp' :: Ptr a -> Ptr a -> Ptr a
+liquid_thm_ptr_cmp' p q = undefined 
+
 
 {-@ memcpy_ptr_baoff :: p:(Ptr a) 
                      -> RawBuffer b 
@@ -159,13 +167,13 @@ foldl1' = undefined
 null :: ByteString -> Bool
 null = undefined 
 
-{-@ foldl :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
-foldl :: (a -> Word8 -> a) -> a -> ByteString -> a
-foldl = undefined
+{- foldl :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
+-- foldl :: (a -> Word8 -> a) -> a -> ByteString -> a
+-- foldl = undefined
 
-{-@ foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
-foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a
-foldl' = undefined
+{- foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
+-- foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a
+-- foldl' = undefined
 
 {-@ empty :: {v:ByteString | (bLength v) = 0} @-} 
 empty :: ByteString
@@ -246,9 +254,9 @@ memchrDUMMYFORQUALS = undefined
 splitAt :: Int -> ByteString -> (ByteString, ByteString)
 splitAt = undefined
 
-{-@ findFromEndUntil :: (Word8 -> Bool) -> b:ByteString -> {v:Nat | v <= (bLength b) } @-}
-findFromEndUntil :: (Word8 -> Bool) -> ByteString -> Int
-findFromEndUntil = undefined
+{- findFromEndUntil :: (Word8 -> Bool) -> b:ByteString -> {v:Nat | v <= (bLength b) } @-}
+-- findFromEndUntil :: (Word8 -> Bool) -> ByteString -> Int
+-- findFromEndUntil = undefined
 
 {-@ breakEnd :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
 breakEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
@@ -318,6 +326,8 @@ pack = undefined
 unpackFoldr :: ByteString -> (Word8 -> a -> a) -> a -> a
 unpackFoldr = undefined
 
+-- LIQUID: This will go away when we properly embed Ptr a as int -- only in
+-- fixpoint to avoid the Sort mismatch hassles. 
 
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
@@ -325,46 +335,89 @@ unpackFoldr = undefined
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 
-unpack ps  = unpackFoldrINLINED ps
 
-unpackFoldrINLINED :: ByteString -> [Word8]
-unpackFoldrINLINED (PS fp off len) = withPtr fp $ \p -> do
-    let loop _ q n    _   | q `seq` n `seq` False = undefined -- n.b.
-        loop _ _ (-1) acc = return acc
-        loop (d::Int) q n    acc = do
-           a <- peekByteOff q n
-           loop (d-1) q (n-1) (a : acc)
-    loop len (p `plusPtr` off) (len-1) [] 
+any :: (Word8 -> Bool) -> ByteString -> Bool
+any _ (PS _ _ 0) = False
+any f (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
+        go (ptr `plusPtr` s) (ptr `plusPtr` (s+l)) l
+    where
+        STRICT3(go)
+        go p q (d::Int) | p == q    = return False
+                        | otherwise = do let p' = liquid_thm_ptr_cmp p q     -- LIQUID
+                                         c <- peek p'
+                                         if f c then return True
+                                                else do let p'' = p' `plusPtr` 1 
+                                                        go p'' q (q `minusPtr` p'')
+{-# INLINE any #-}
 
-
-{-@ unfoldrN :: i:Nat -> (a -> Maybe (Word8, a)) -> a -> ({v:ByteString | (bLength v) <= i}, Maybe a)<{\b m -> ((isJust m) => ((bLength b) = i))}> @-}
-unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
-unfoldrN i f x0
-    | i < 0     = (empty, Just x0)
-    | otherwise = unsafePerformIO $ createAndTrimMEQ i $ \p -> go_unfoldrN i p x0 0
-  where STRICT4(go)
-        go_unfoldrN (d::Int) p x n =
-          case f x of
-            Nothing      -> return (0 :: Int {- LIQUID -}, n, Nothing)
-            Just (w,x')
-             | n == i    -> return (0, n, Just x)
-             | otherwise -> do poke p w
-                               go_unfoldrN (d-1) (p `plusPtr` 1) x' (n+1)
-{-# INLINE unfoldrN #-}
-
-
-{-@ unfoldqual :: l:Nat -> {v:(Nat, Nat, Maybe a) | (((tsnd v) <= (l-(tfst v)))
-                                  && ((isJust (ttrd v)) => ((tsnd v)=l)))}  @-}
-unfoldqual :: Int -> (Int, Int, Maybe a)
-unfoldqual = undefined
+all :: (Word8 -> Bool) -> ByteString -> Bool
+all _ (PS _ _ 0) = True
+all f (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
+        go (ptr `plusPtr` s) (ptr `plusPtr` (s+l))
+    where
+        STRICT2(go)
+        go p q | p == q     = return True  -- end of list
+               | otherwise  = do let p' = liquid_thm_ptr_cmp p q     -- LIQUID
+                                 c <- peek p'
+                                 if f c
+                                    then go (p' `plusPtr` 1) q
+                                    else return False
+{-# INLINE all #-}
 
 
-{-@ unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString @-}
-unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
-unfoldr f = concat . unfoldChunk f 32 64
-  
-{-@ Strict unfoldChunk @-}
-unfoldChunk f n n' x =
-  case unfoldrN n f x of
-    (s, Nothing) -> s : []
-    (s, Just x') -> s : unfoldChunk f n' (n+n') x'
+{-@ findFromEndUntil :: (Word8 -> Bool) -> b:ByteString -> {v:Nat | v <= (bLength b)} @-}
+findFromEndUntil :: (Word8 -> Bool) -> ByteString -> Int
+STRICT2(findFromEndUntil)
+findFromEndUntil f ps@(PS x s l) =
+    if null ps then 0
+    else if f (last ps) then l
+         else findFromEndUntil f (PS x s (l-1))
+
+
+{-@ foldl :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
+foldl :: (a -> Word8 -> a) -> a -> ByteString -> a
+foldl f v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
+        lgo v (ptr `plusPtr` s) (ptr `plusPtr` (s+l))
+    where
+        STRICT3(lgo)
+        lgo z p q | p == q    = return z
+                  | otherwise = do let p' = liquid_thm_ptr_cmp p q 
+                                   c <- peek p'
+                                   lgo (f z c) (p' `plusPtr` 1) q
+{-# INLINE foldl #-}
+
+
+foldr :: (Word8 -> a -> a) -> a -> ByteString -> a
+foldr k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
+        go v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1))
+    where
+        STRICT3(go)
+        go z p q | p == q    = return z
+                 | otherwise = do let p' = liquid_thm_ptr_cmp' p q 
+                                  c  <- peek p'
+                                  let n  = 0 - 1  
+                                  go (c `k` z) (p' `plusPtr` n) q -- tail recursive
+        -- LIQUID go z p q | p == q    = return z
+        -- LIQUID          | otherwise = do c  <- peek p
+        -- LIQUID                           go (c `k` z) (p `plusPtr` (-1)) q -- tail recursive
+{-# INLINE foldr #-}
+
+
+
+
+foldr' :: (Word8 -> a -> a) -> a -> ByteString -> a
+foldr' k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
+        go v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1))
+    where
+        STRICT3(go)
+        go z p q | p == q    = return z
+                 | otherwise = do let p' = liquid_thm_ptr_cmp' p q 
+                                  c  <- peek p'
+                                  let n  = 0 - 1  
+                                  go (c `k` z) (p' `plusPtr` n) q -- tail recursive
+        -- LIQUID go z p q | p == q    = return z
+        -- LIQUID          | otherwise = do c  <- peek p
+        -- LIQUID                           go (c `k` z) (p `plusPtr` (-1)) q -- tail recursive
+{-# INLINE foldr' #-}
+
+
