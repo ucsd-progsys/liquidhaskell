@@ -528,4 +528,571 @@ Constrains : split[C|W], unifyS :add c1 == c2 in Class & ConApp
 unifyS do I really need to keep track of preds?
 
 	eg neg concat1 -> CB REC trueTy
+    17,  8.813, num refines=1600>
+                        <    18, 15.013, num refines=1700>
+                        <    19, 19.189, num refines=1800>
+                        <    20, 14.845, num refines=1900>
+                        <    21, 10.025, num refines=2000>
+                        <    22, 13.773, num refines=2100>
+                        <    23, 23.021, num refines=2200>
+                        <    24, 10.041, num refines=2300>
+                        <    25,  8.213, num refines=2400>
+                        <    26,  9.045, num refines=2500>
+                        <    27, 12.585, num refines=2600>
+                        <    28,  8.949, num refines=2700>
+                        <    29,  7.012, num refines=2800>
+                        <    30,  9.369, num refines=2900>
+                        <    31,  2.512, num refines=3000>
+                        <    32,  9.589, num refines=3100>
+                        <    33, 15.001, num refines=3200>
+                        <    34, 22.013, num refines=3300>
+                        <    35, 18.129, Finished>
+                         
+ 
+ 
+# Vars: (Total=2068, False=307) Quals: (Total=13642, Avg=6.596712, Max=185, Min=1)
+#Iteration Profile = (si=0 tp=1801 unsatLHS=641 emptyRHS=267) 
+#Queries: umatch=281900, match=12941, ask=641913, valid=11250
+TP stats: sets=1929, pushes=644502, pops=644502, unsats=11381, queries=642661, count=2661, unsatLHS=0 
+ 
+Fixpoint: Testing Solution 
+Unsatisfied Constraints:
+ constraint:
+ env  [ x0#a3sk:{VV#1970 : a_ts | [k_1971]}
+      ; x#a3st:{VV#1992 : a_ts | [k_1993]}
+      ; w#a3sv:{VV#1958 : int | [k_1959[x:=ds_d3JK][lq_tmp_x1955:=x#a3st][b:=fix#x#39##35#a3sw][a:=w#a3sv][VV#1967:=lq_anf__d3Ni][VV#1965:=lq_anf__d3Nm]]}
+      ; ttrd:{VV : func(3, [fix##40##41# @(0) @(1) @(2) ; @(2)]) | []}
+      ; tsnd:{VV : func(3, [fix##40##41# @(0) @(1) @(2) ; @(1)]) | []}
+      ; tfst:{VV : func(3, [fix##40##41# @(0) @(1) @(2) ; @(0)]) | []}
+      ; sumLens:{VV : func(1, [List (List @(0)) ; int]) | []}
+      ; snd:{VV : func(2, [fix##40##41# @(0) @(1) ; @(1)]) | []}
+      ; psnd:{VV : func(2, [Data.ByteString.Fusion.PairS @(0) @(1) ; @(1)]) | []}
+      ; plen:{VV : func(1, [GHC.Ptr.Ptr @(0) ; int]) | []}
+      ; pfst:{VV : func(2, [Data.ByteString.Fusion.PairS @(0) @(1) ; @(0)]) | []}
+      ; pbase:{VV : func(1, [GHC.Ptr.Ptr @(0) ; int]) | []}
+      ; papp2:{VV : func(4, [Pred @(0) @(1) ; @(2) ; @(3) ; bool]) | []}
+      ; papp1:{VV : func(2, [Pred @(0) ; @(1) ; bool]) | []}
+      ; p#a3ss:{VV#1990 : GHC.Ptr.Ptr int | [k_1991]}
+      ; null:{VV : func(1, [List @(0) ; bool]) | []}
+      ; n#a3su:{VV#1994 : int | [k_1995]}
+      ; lq_anf__d3Nv:{VV#2120 : int | [(VV#2120 = (n#a3su + lq_anf__d3Nu))]}
+      ; lq_anf__d3Nu:{VV#2119 : int | [(VV#2119 = (1 : int))]}
+      ; lq_anf__d3Nt:{VV#2118 : GHC.Ptr.Ptr int | [(0 <= plen([VV#2118]))
+                                                  ; && [ (pbase([VV#2118]) = pbase([p#a3ss]))
+                                                       ; (plen([VV#2118]) = (plen([p#a3ss]) - lq_anf__d3Ns))]]}
+      ; lq_anf__d3Ns:{VV#2113 : int | [(VV#2113 = (1 : int))]}
+      ; lq_anf__d3Nr:{VV#2112 : int | [(VV#2112 = (ds_d3JQ - lq_anf__d3Nq))]}
+      ; lq_anf__d3Nq:{VV#2111 : int | [(VV#2111 = (1 : int))]}
+      ; lq_anf__d3Np:{VV#2110 : GHC.Types.IO fix##40##41# | []}
+      ; lq_anf__d3No:{VV#2080 : GHC.Types.Bool | [(Prop(VV#2080) <=> (n#a3su = i#a3si))
+                                                 ; (VV#2080 = lq_anf__d3Nn)
+                                                 ; (~ (Prop(VV#2080)))
+                                                 ; (~ (Prop(VV#2080)))]}
+      ; lq_anf__d3Nn:{VV#2080 : GHC.Types.Bool | [(Prop(VV#2080) <=> (n#a3su = i#a3si))]}
+      ; lq_anf__d3Nm:{VV#1965 : fix##40##41# int a_ts | [k_1966[x:=ds_d3JK][lq_tmp_x1955:=x#a3st][VV#1967:=lq_anf__d3Ni]
+                                                        ; (VV#1965 = ds_d3JK)
+                                                        ; (VV#1965 = fix#GHC.Tuple.#40##44##41##35#74([w#a3sv; fix#x#39##35#a3sw]))
+                                                        ; (snd([VV#1965]) = fix#x#39##35#a3sw)
+                                                        ; (fst([VV#1965]) = w#a3sv)]}
+      ; lq_anf__d3Ni:{VV#1967 : Data.Maybe.Maybe (fix##40##41# int a_ts) | 
+                     [k_1968[lq_tmp_x1955:=x#a3st]; (VV#1967 = lq_anf__d3Nh)
+                     ; (VV#1967 = Data.Maybe.Just#r1a([ds_d3JK]))
+                     ; (fromJust([VV#1967]) = ds_d3JK)
+                     ; (isJust(VV#1967) <=> true)]}
+      ; lq_anf__d3Nh:{VV#1967 : Data.Maybe.Maybe (fix##40##41# int a_ts) | 
+                     [k_1968[lq_tmp_x1955:=x#a3st]]}
+      ; len:{VV : func(1, [List @(0) ; int]) | []}
+      ; lbLengths:{VV : func(0, [List Data.ByteString.Lazy.Internal.ByteString ; int]) | []}
+      ; lbLength:{VV : func(0, [Data.ByteString.Lazy.Internal.ByteString ; int]) | []}
+      ; isNullPtr:{VV : func(1, [GHC.Ptr.Ptr @(0) ; bool]) | []}
+      ; isJustS:{VV : func(1, [Data.ByteString.Fusion.MaybeS @(0) ; bool]) | []}
+      ; isJust:{VV : func(1, [Data.Maybe.Maybe @(0) ; bool]) | []}
+      ; i#a3si:{VV#1952 : int | [k_1953]}
+      ; go_unfoldrN#a3C6:{VV : func(0, [int ; GHC.Ptr.Ptr int ; a_ts ; int ; GHC.Types.IO (fix##40##41# int int (Data.Maybe.Maybe a_ts))]) | []}
+      ; fst:{VV : func(2, [fix##40##41# @(0) @(1) ; @(0)]) | []}
+      ; fromJust:{VV : func(1, [Data.Maybe.Maybe @(0) ; @(0)]) | []}
+      ; fplen:{VV : func(1, [GHC.ForeignPtr.ForeignPtr @(0) ; int]) | []}
+      ; fix#x#39##35#a3sw:{VV#1960 : a_ts | [k_1961[x:=ds_d3JK][lq_tmp_x1955:=x#a3st][b:=fix#x#39##35#a3sw][a:=w#a3sv][VV#1967:=lq_anf__d3Ni][VV#1965:=lq_anf__d3Nm]
+                                            ; k_1964[x:=ds_d3JK][lq_tmp_x1962:=w#a3sv][lq_tmp_x1955:=x#a3st][b:=fix#x#39##35#a3sw][a:=w#a3sv][VV#1967:=lq_anf__d3Ni][VV#1963:=VV#1960]]}
+      ; fix#GHC.Types.#91##93##35#6m:{VV : func(1, [List @(0)]) | []}
+      ; fix#GHC.Types.#58##35#64:{VV : func(1, [@(0) ; List @(0) ; List @(0)]) | []}
+      ; fix#GHC.Tuple.#40##44##44##41##35#76:{VV : func(3, [@(0) ; @(1) ; @(2) ; fix##40##41# @(0) @(1) @(2)]) | []}
+      ; fix#GHC.Tuple.#40##44##41##35#74:{VV : func(2, [@(0) ; @(1) ; fix##40##41# @(0) @(1)]) | []}
+      ; fix#GHC.Tuple.#40##41##35#70:{VV : fix##40##41# | []}
+      ; fix#GHC.Prim.#43##35##35#98:{VV : func(0, [int ; int ; int]) | []}
+      ; fix#GHC.Prim.#40##35##44##35##41##35#84:{VV : func(2, [@(0) ; @(1) ; fix##40##41# @(0) @(1)]) | []}
+      ; fix#GHC.Classes.D#58#Ord#35#rZT:{VV : func(1, [GHC.Classes.Eq @(0) ; func(0, [@(0) ; @(0) ; GHC.Types.Ordering]) ; func(0, [@(0) ; @(0) ; GHC.Types.Bool]) ; func(0, [@(0) ; @(0) ; GHC.Types.Bool]) ; func(0, [@(0) ; @(0) ; GHC.Types.Bool]) ; func(0, [@(0) ; @(0) ; GHC.Types.Bool]) ; func(0, [@(0) ; @(0) ; @(0)]) ; func(0, [@(0) ; @(0) ; @(0)]) ; GHC.Classes.Ord @(0)]) | []}
+      ; fix#GHC.Classes.D#58#Eq#35#r11x:{VV : func(1, [func(0, [@(0) ; @(0) ; GHC.Types.Bool]) ; func(0, [@(0) ; @(0) ; GHC.Types.Bool]) ; GHC.Classes.Eq @(0)]) | []}
+      ; fix#GHC.Classes.#38##38##35#r1e:{VV : func(0, [GHC.Types.Bool ; GHC.Types.Bool ; GHC.Types.Bool]) | []}
+      ; fix#Data.ByteString.foldr1#39##35#r2WQ:{VV : func(0, [func(0, [int ; int ; int]) ; Data.ByteString.Internal.ByteString ; int]) | []}
+      ; fix#Data.ByteString.foldl1#39##35#r2WO:{VV : func(0, [func(0, [int ; int ; int]) ; Data.ByteString.Internal.ByteString ; int]) | []}
+      ; fix#Data.ByteString.Lazy.Internal.#36#WChunk#35#r28N:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Lazy.Internal.ByteString ; Data.ByteString.Lazy.Internal.ByteString]) | []}
+      ; fix#Data.ByteString.Internal.#36#WPS#35#r1Pa:{VV : func(0, [GHC.ForeignPtr.ForeignPtr int ; int ; int ; Data.ByteString.Internal.ByteString]) | []}
+      ; fix##36##36##39##58##39#:{VV : GHC.Prim.Char# | []}
+      ; fix##36##36##39##32##39#:{VV : GHC.Prim.Char# | []}
+      ; fix##36##36##34#tail#34#:{VV : int | []}
+      ; fix##36##36##34#minimum#34#:{VV : int | []}
+      ; fix##36##36##34#maximum#34#:{VV : int | []}
+      ; fix##36##36##34#last#34#:{VV : int | []}
+      ; fix##36##36##34#init#34#:{VV : int | []}
+      ; fix##36##36##34#head#34#:{VV : int | []}
+      ; fix##36##36##34#foldr1#34#:{VV : int | []}
+      ; fix##36##36##34#foldl1#39##34#:{VV : int | []}
+      ; fix##36##36##34#foldl1#34#:{VV : int | []}
+      ; fix##36##36##34#empty#32#ByteString#34#:{VV : int | []}
+      ; fix##36##36##34#LIQUIDCOMPAT#34#:{VV : int | []}
+      ; fix##36##36##34#Data.ByteString.#34#:{VV : int | []}
+      ; fix##36##36##34#Data#47#ByteString.split.0.T.hs#58#358#58#21#45#26#34#:
+        {VV : int | []}
+      ; fix##36##36##34#Data#47#ByteString.split.0.T.hs#58#351#58#19#45#24#34#:
+        {VV : int | []}
+      ; f#a3sj:{VV : func(0, [a_ts ; Data.Maybe.Maybe (fix##40##41# int a_ts)]) | []}
+      ; eta_B3:{VV#1949 : int | [(VV#1949 >= 0)]}
+      ; eta_B2:{VV : func(0, [a_ts ; Data.Maybe.Maybe (fix##40##41# int a_ts)]) | []}
+      ; eta_B1:{VV : a_ts | []}
+      ; ds_d3JQ:{VV#1986 : int | [k_1987]}
+      ; ds_d3JN:{VV#2086 : GHC.Prim.State# GHC.Prim.RealWorld | [k_2087]}
+      ; ds_d3JK:{VV#1965 : fix##40##41# int a_ts | [k_1966[x:=ds_d3JK][lq_tmp_x1955:=x#a3st][VV#1967:=lq_anf__d3Ni]]}
+      ; deref:{VV : func(1, [GHC.Ptr.Ptr @(0) ; @(0)]) | []}
+      ; cmp:{VV : func(0, [GHC.Types.Ordering ; GHC.Types.Ordering]) | []}
+      ; cStringLen:{VV : func(0, [fix##40##41# (GHC.Ptr.Ptr Foreign.C.Types.CChar) int ; int]) | []}
+      ; bPayload:{VV : func(0, [Data.ByteString.Internal.ByteString ; GHC.ForeignPtr.ForeignPtr int]) | []}
+      ; bOffset:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; bLengths:{VV : func(0, [List Data.ByteString.Internal.ByteString ; int]) | []}
+      ; bLength:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; addrLen:{VV : func(0, [int ; int]) | []}
+      ; Set_sub:{VV : func(1, [Set_Set @(0) ; Set_Set @(0) ; bool]) | []}
+      ; Set_sng:{VV : func(1, [@(0) ; Set_Set @(0)]) | []}
+      ; Set_mem:{VV : func(1, [@(0) ; Set_Set @(0) ; bool]) | []}
+      ; Set_emp:{VV : func(1, [Set_Set @(0) ; bool]) | []}
+      ; Set_dif:{VV : func(1, [Set_Set @(0) ; Set_Set @(0) ; Set_Set @(0)]) | []}
+      ; Set_cup:{VV : func(1, [Set_Set @(0) ; Set_Set @(0) ; Set_Set @(0)]) | []}
+      ; Set_cap:{VV : func(1, [Set_Set @(0) ; Set_Set @(0) ; Set_Set @(0)]) | []}
+      ; Prop:{VV : func(0, [GHC.Types.Bool ; bool]) | []}
+      ; GHC.Word.W8##r1dO:{VV : func(0, [GHC.Prim.Word# ; int]) | []}
+      ; GHC.Types.True#6u:{VV : GHC.Types.Bool | []}
+      ; GHC.Types.LT#6S:{VV : GHC.Types.Ordering | []}
+      ; GHC.Types.I##6c:{VV : func(0, [int ; int]) | []}
+      ; GHC.Types.GT#6W:{VV : GHC.Types.Ordering | []}
+      ; GHC.Types.False#68:{VV : GHC.Types.Bool | []}
+      ; GHC.Types.EQ#6U:{VV : GHC.Types.Ordering | []}
+      ; GHC.Types.C##62:{VV : func(0, [GHC.Prim.Char# ; GHC.Types.Char]) | []}
+      ; GHC.Ptr.Ptr#rO5:{VV : func(1, [int ; GHC.Ptr.Ptr @(0)]) | []}
+      ; GHC.Prim.realWorld##0f:{VV#356 : GHC.Prim.State# GHC.Prim.RealWorld | []}
+      ; GHC.Classes.not#r1d:{VV : func(0, [GHC.Types.Bool ; GHC.Types.Bool]) | []}
+      ; GHC.CString.unpackCString##0k:{VV : func(0, [int ; List GHC.Types.Char]) | []}
+      ; Data.Maybe.Nothing#r19:{VV : func(1, [Data.Maybe.Maybe @(0)]) | []}
+      ; Data.Maybe.Just#r1a:{VV : func(1, [@(0) ; Data.Maybe.Maybe @(0)]) | []}
+      ; Data.ByteString.unpackList#r2Ws:{VV : func(0, [Data.ByteString.Internal.ByteString ; List int]) | []}
+      ; Data.ByteString.unpack#r2Wp:{VV : func(0, [Data.ByteString.Internal.ByteString ; List int]) | []}
+      ; Data.ByteString.uncons#r2Wz:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.Maybe.Maybe (fix##40##41# int Data.ByteString.Internal.ByteString)]) | []}
+      ; Data.ByteString.transpose#r2WG:{VV : func(0, [List Data.ByteString.Internal.ByteString ; List Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.takeWhile#r2Xb:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.take#r2X8:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.tail#r2Wy:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.splitAt#r2Xa:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; fix##40##41# Data.ByteString.Internal.ByteString Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.spanEnd#r2Xi:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; fix##40##41# Data.ByteString.Internal.ByteString Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.spanByte#r2Xh:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; fix##40##41# Data.ByteString.Internal.ByteString Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.span#r2Xg:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; fix##40##41# Data.ByteString.Internal.ByteString Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.sort#r2Xk:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.snoc#r2Ww:{VV : func(0, [Data.ByteString.Internal.ByteString ; int ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.singleton#r2Wn:{VV : func(0, [int ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.scanr1#r2X3:{VV : func(0, [func(0, [int ; int ; int]) ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.scanr#r2X2:{VV : func(0, [func(0, [int ; int ; int]) ; int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.scanl1#r2X1:{VV : func(0, [func(0, [int ; int ; int]) ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.scanl#r2X0:{VV : func(0, [func(0, [int ; int ; int]) ; int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.reverse#r2WE:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.replicate#r2X4:{VV : func(0, [int ; int ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.pack#r2Wo:{VV : func(0, [List int ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.null#r2Wt:{VV : func(0, [Data.ByteString.Internal.ByteString ; GHC.Types.Bool]) | []}
+      ; Data.ByteString.minimum#r2WW:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.maximum#r2WV:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.mapIndexed#r2WZ:{VV : func(0, [func(0, [int ; int ; int]) ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.map#r2WD:{VV : func(0, [func(0, [int ; int]) ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.lengths#r2Wg:{VV : func(0, [List Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.length#r2Wu:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.last#r2WA:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.intersperse#r2WF:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.intercalateWithByte#r2Xj:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.init#r2WB:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.head#r2Wx:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.foldr1#r2WP:{VV : func(0, [func(0, [int ; int ; int]) ; Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.foldl1#r2WN:{VV : func(0, [func(0, [int ; int ; int]) ; Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.findIndexOrEnd#r2Xl:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.findFromEndUntil#r2Xp:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.eq#r2Wk:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString ; GHC.Types.Bool]) | []}
+      ; Data.ByteString.empty#r2Wm:{VV#290 : Data.ByteString.Internal.ByteString | 
+                                   [true; (bLength([VV#290]) = 0)
+                                   ; (0 <= bLength([VV#290]))]}
+      ; Data.ByteString.elemIndex#r2Wj:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.Maybe.Maybe int]) | []}
+      ; Data.ByteString.dummyForQuals2_splitWith#r2Wi:{VV : func(0, [GHC.ForeignPtr.ForeignPtr int ; int ; int ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.dummyForQuals1_elemIndex#r2Wh:{VV : func(0, [GHC.Ptr.Ptr int ; int ; GHC.Types.IO (GHC.Ptr.Ptr int)]) | []}
+      ; Data.ByteString.dropWhile#r2Xc:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.drop#r2X9:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.cons#r2Wv:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.concatMap#r2WS:{VV : func(0, [func(0, [int ; Data.ByteString.Internal.ByteString]) ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.concat#r2WR:{VV : func(0, [List Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.breakEnd#r2Xf:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; fix##40##41# Data.ByteString.Internal.ByteString Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.breakByte#r2Xe:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; fix##40##41# Data.ByteString.Internal.ByteString Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.break#r2Xd:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; fix##40##41# Data.ByteString.Internal.ByteString Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.append#r2WC:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.any#r2WT:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; GHC.Types.Bool]) | []}
+      ; Data.ByteString.all#r2WU:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; GHC.Types.Bool]) | []}
+      ; Data.ByteString.Unsafe.unsafeTake#r1ZE:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.Unsafe.unsafeTail#r1ZC:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.Unsafe.unsafeHead#r1ZB:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.Unsafe.unsafeDrop#r1ZF:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.Lazy.Internal.Empty#r289:{VV#545 : Data.ByteString.Lazy.Internal.ByteString | 
+                                                 [(lbLength([VV#545]) = 0)
+                                                 ; true
+                                                 ; (lbLength([VV#545]) >= 0)]}
+      ; Data.ByteString.Lazy.Internal.Chunk#r288:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Lazy.Internal.ByteString ; Data.ByteString.Lazy.Internal.ByteString]) | []}
+      ; Data.ByteString.Internal.unsafeCreate#r1Ju:{VV : func(0, [int ; func(0, [GHC.Ptr.Ptr int ; GHC.Types.IO fix##40##41#]) ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.Internal.nullForeignPtr#r1Jr:{VV#485 : GHC.ForeignPtr.ForeignPtr int | 
+                                                     [(fplen([VV#485]) = 0)]}
+      ; Data.ByteString.Internal.memset#r1JP:{VV : func(0, [GHC.Ptr.Ptr int ; int ; int ; GHC.Types.IO (GHC.Ptr.Ptr int)]) | []}
+      ; Data.ByteString.Internal.memcpy#r1JM:{VV : func(0, [GHC.Ptr.Ptr int ; GHC.Ptr.Ptr int ; int ; GHC.Types.IO fix##40##41#]) | []}
+      ; Data.ByteString.Internal.memcmp#r1JL:{VV : func(0, [GHC.Ptr.Ptr int ; GHC.Ptr.Ptr int ; int ; GHC.Types.IO int]) | []}
+      ; Data.ByteString.Internal.create#r1Jv:{VV : func(0, [int ; func(0, [GHC.Ptr.Ptr int ; GHC.Types.IO fix##40##41#]) ; GHC.Types.IO Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.Internal.c_reverse#r1JQ:{VV : func(0, [GHC.Ptr.Ptr int ; GHC.Ptr.Ptr int ; int ; GHC.Types.IO fix##40##41#]) | []}
+      ; Data.ByteString.Internal.c_minimum#r1JT:{VV : func(0, [GHC.Ptr.Ptr int ; int ; GHC.Types.IO int]) | []}
+      ; Data.ByteString.Internal.c_maximum#r1JS:{VV : func(0, [GHC.Ptr.Ptr int ; int ; GHC.Types.IO int]) | []}
+      ; Data.ByteString.Internal.c_intersperse#r1JR:{VV : func(0, [GHC.Ptr.Ptr int ; GHC.Ptr.Ptr int ; int ; int ; GHC.Types.IO fix##40##41#]) | []}
+      ; Data.ByteString.Internal.PS#r1FG:{VV : func(0, [GHC.ForeignPtr.ForeignPtr int ; int ; int ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.Fusion.scanEFL#r2ap:{VV : func(0, [func(0, [int ; int ; int]) ; int ; int ; Data.ByteString.Fusion.PairS int (Data.ByteString.Fusion.MaybeS int)]) | []}
+      ; Data.ByteString.Fusion.mapIndexEFL#r2ar:{VV : func(0, [func(0, [int ; int ; int]) ; int ; int ; Data.ByteString.Fusion.PairS int (Data.ByteString.Fusion.MaybeS int)]) | []}
+      ; Data.ByteString.Fusion.liquidCanaryFusion#r2aj:{VV : func(0, [int ; int]) | []}] 
+ grd true 
+ lhs {VV#F2169 : int | [(VV#F2169 = (n#a3su + lq_anf__d3Nu))
+                       ; (VV#F2169 = lq_anf__d3Nv)]} 
+ rhs {VV#F2169 : int | [k_1995[x#a3st:=fix#x#39##35#a3sw][p#a3ss:=lq_anf__d3Nt][ds_d3JQ:=lq_anf__d3Nr][VV#F:=VV#F2169][VV#1994:=VV#F2169][VV#12295:=VV#F2169]
+                       ; (VV#F2169 < n#a3su); (VV#F2169 >= 0)]} 
+ id 2169 tag [55] // 
+
+
+constraint:
+ env  [ x#a3se:{VV#3958 : a_tv | [k_3959]}
+      ; unfoldChunk#a3Ed:{VV : func(0, [int ; int ; a_tv ; List Data.ByteString.Internal.ByteString]) | []}
+      ; ttrd:{VV : func(3, [fix##40##41# @(0) @(1) @(2) ; @(2)]) | []}
+      ; tsnd:{VV : func(3, [fix##40##41# @(0) @(1) @(2) ; @(1)]) | []}
+      ; tfst:{VV : func(3, [fix##40##41# @(0) @(1) @(2) ; @(0)]) | []}
+      ; sumLens:{VV : func(1, [List (List @(0)) ; int]) | []}
+      ; snd:{VV : func(2, [fix##40##41# @(0) @(1) ; @(1)]) | []}
+      ; s#a3sf:{VV#3976 : Data.ByteString.Internal.ByteString | [true
+                                                                ; (bLength([VV#3976]) <= n#a3sc)
+                                                                ; (0 <= bLength([VV#3976]))]}
+      ; psnd:{VV : func(2, [Data.ByteString.Fusion.PairS @(0) @(1) ; @(1)]) | []}
+      ; plen:{VV : func(1, [GHC.Ptr.Ptr @(0) ; int]) | []}
+      ; pfst:{VV : func(2, [Data.ByteString.Fusion.PairS @(0) @(1) ; @(0)]) | []}
+      ; pbase:{VV : func(1, [GHC.Ptr.Ptr @(0) ; int]) | []}
+      ; papp2:{VV : func(4, [Pred @(0) @(1) ; @(2) ; @(3) ; bool]) | []}
+      ; papp1:{VV : func(2, [Pred @(0) ; @(1) ; bool]) | []}
+      ; null:{VV : func(1, [List @(0) ; bool]) | []}
+      ; n#a3sc:{VV#3954 : int | [k_3955]}
+      ; lq_anf__d3QS:{VV#3998 : int | [(VV#3998 = (n#a3sc + fix#n#39##35#a3sd))]}
+      ; lq_anf__d3QQ:{VV#3977 : Data.Maybe.Maybe a_tv | [(isJust(VV#3977) => (bLength([s#a3sf]) = n#a3sc))
+                                                        ; (VV#3977 = ds_d3KR)
+                                                        ; (VV#3977 = Data.Maybe.Just#r1a([fix#x#39##35#a3sh]))
+                                                        ; (fromJust([VV#3977]) = fix#x#39##35#a3sh)
+                                                        ; (isJust(VV#3977) <=> true)]}
+      ; lq_anf__d3QP:{VV#3973 : fix##40##41# Data.ByteString.Internal.ByteString (Data.Maybe.Maybe a_tv) | 
+                     [(VV#3973 = lq_anf__d3QO)
+                     ; (VV#3973 = fix#GHC.Tuple.#40##44##41##35#74([s#a3sf; ds_d3KR]))
+                     ; (snd([VV#3973]) = ds_d3KR); (fst([VV#3973]) = s#a3sf)]}
+      ; lq_anf__d3QO:{VV#3973 : fix##40##41# Data.ByteString.Internal.ByteString (Data.Maybe.Maybe a_tv) | []}
+      ; len:{VV : func(1, [List @(0) ; int]) | []}
+      ; lbLengths:{VV : func(0, [List Data.ByteString.Lazy.Internal.ByteString ; int]) | []}
+      ; lbLength:{VV : func(0, [Data.ByteString.Lazy.Internal.ByteString ; int]) | []}
+      ; isNullPtr:{VV : func(1, [GHC.Ptr.Ptr @(0) ; bool]) | []}
+      ; isJustS:{VV : func(1, [Data.ByteString.Fusion.MaybeS @(0) ; bool]) | []}
+      ; isJust:{VV : func(1, [Data.Maybe.Maybe @(0) ; bool]) | []}
+      ; fst:{VV : func(2, [fix##40##41# @(0) @(1) ; @(0)]) | []}
+      ; fromJust:{VV : func(1, [Data.Maybe.Maybe @(0) ; @(0)]) | []}
+      ; fplen:{VV : func(1, [GHC.ForeignPtr.ForeignPtr @(0) ; int]) | []}
+      ; fix#x#39##35#a3sh:{VV#3971 : a_tv | [k_3972[x:=fix#x#39##35#a3sh][lq_tmp_db78:=x#a3se][lq_tmp_db76:=f#a3sa][i:=n#a3sc][b:=ds_d3KR][a:=s#a3sf][VV#3977:=lq_anf__d3QQ][VV#3973:=lq_anf__d3QP][VV:=lq_anf__d3QQ]]}
+      ; fix#n#39##35#a3sd:{VV#3956 : int | [k_3957]}
+      ; fix#GHC.Types.#91##93##35#6m:{VV : func(1, [List @(0)]) | []}
+      ; fix#GHC.Types.#58##35#64:{VV : func(1, [@(0) ; List @(0) ; List @(0)]) | []}
+      ; fix#GHC.Tuple.#40##44##44##41##35#76:{VV : func(3, [@(0) ; @(1) ; @(2) ; fix##40##41# @(0) @(1) @(2)]) | []}
+      ; fix#GHC.Tuple.#40##44##41##35#74:{VV : func(2, [@(0) ; @(1) ; fix##40##41# @(0) @(1)]) | []}
+      ; fix#GHC.Tuple.#40##41##35#70:{VV : fix##40##41# | []}
+      ; fix#GHC.Prim.#43##35##35#98:{VV : func(0, [int ; int ; int]) | []}
+      ; fix#GHC.Prim.#40##35##44##35##41##35#84:{VV : func(2, [@(0) ; @(1) ; fix##40##41# @(0) @(1)]) | []}
+      ; fix#GHC.Classes.D#58#Ord#35#rZT:{VV : func(1, [GHC.Classes.Eq @(0) ; func(0, [@(0) ; @(0) ; GHC.Types.Ordering]) ; func(0, [@(0) ; @(0) ; GHC.Types.Bool]) ; func(0, [@(0) ; @(0) ; GHC.Types.Bool]) ; func(0, [@(0) ; @(0) ; GHC.Types.Bool]) ; func(0, [@(0) ; @(0) ; GHC.Types.Bool]) ; func(0, [@(0) ; @(0) ; @(0)]) ; func(0, [@(0) ; @(0) ; @(0)]) ; GHC.Classes.Ord @(0)]) | []}
+      ; fix#GHC.Classes.D#58#Eq#35#r11x:{VV : func(1, [func(0, [@(0) ; @(0) ; GHC.Types.Bool]) ; func(0, [@(0) ; @(0) ; GHC.Types.Bool]) ; GHC.Classes.Eq @(0)]) | []}
+      ; fix#GHC.Classes.#38##38##35#r1e:{VV : func(0, [GHC.Types.Bool ; GHC.Types.Bool ; GHC.Types.Bool]) | []}
+      ; fix#Data.ByteString.foldr1#39##35#r2WQ:{VV : func(0, [func(0, [int ; int ; int]) ; Data.ByteString.Internal.ByteString ; int]) | []}
+      ; fix#Data.ByteString.foldl1#39##35#r2WO:{VV : func(0, [func(0, [int ; int ; int]) ; Data.ByteString.Internal.ByteString ; int]) | []}
+      ; fix#Data.ByteString.Lazy.Internal.#36#WChunk#35#r28N:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Lazy.Internal.ByteString ; Data.ByteString.Lazy.Internal.ByteString]) | []}
+      ; fix#Data.ByteString.Internal.#36#WPS#35#r1Pa:{VV : func(0, [GHC.ForeignPtr.ForeignPtr int ; int ; int ; Data.ByteString.Internal.ByteString]) | []}
+      ; fix##36##36##39##58##39#:{VV : GHC.Prim.Char# | []}
+      ; fix##36##36##39##32##39#:{VV : GHC.Prim.Char# | []}
+      ; fix##36##36##34#tail#34#:{VV : int | []}
+      ; fix##36##36##34#minimum#34#:{VV : int | []}
+      ; fix##36##36##34#maximum#34#:{VV : int | []}
+      ; fix##36##36##34#last#34#:{VV : int | []}
+      ; fix##36##36##34#init#34#:{VV : int | []}
+      ; fix##36##36##34#head#34#:{VV : int | []}
+      ; fix##36##36##34#foldr1#34#:{VV : int | []}
+      ; fix##36##36##34#foldl1#39##34#:{VV : int | []}
+      ; fix##36##36##34#foldl1#34#:{VV : int | []}
+      ; fix##36##36##34#empty#32#ByteString#34#:{VV : int | []}
+      ; fix##36##36##34#LIQUIDCOMPAT#34#:{VV : int | []}
+      ; fix##36##36##34#Data.ByteString.#34#:{VV : int | []}
+      ; fix##36##36##34#Data#47#ByteString.split.0.T.hs#58#358#58#21#45#26#34#:
+        {VV : int | []}
+      ; fix##36##36##34#Data#47#ByteString.split.0.T.hs#58#351#58#19#45#24#34#:
+        {VV : int | []}
+      ; f#a3sa:{VV : func(0, [a_tv ; Data.Maybe.Maybe (fix##40##41# int a_tv)]) | []}
+      ; eta_B1:{VV : func(0, [a_tv ; Data.Maybe.Maybe (fix##40##41# int a_tv)]) | []}
+      ; ds_d3KR:{VV#3977 : Data.Maybe.Maybe a_tv | [(isJust(VV#3977) => (bLength([s#a3sf]) = n#a3sc))]}
+      ; deref:{VV : func(1, [GHC.Ptr.Ptr @(0) ; @(0)]) | []}
+      ; cmp:{VV : func(0, [GHC.Types.Ordering ; GHC.Types.Ordering]) | []}
+      ; cStringLen:{VV : func(0, [fix##40##41# (GHC.Ptr.Ptr Foreign.C.Types.CChar) int ; int]) | []}
+      ; bPayload:{VV : func(0, [Data.ByteString.Internal.ByteString ; GHC.ForeignPtr.ForeignPtr int]) | []}
+      ; bOffset:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; bLengths:{VV : func(0, [List Data.ByteString.Internal.ByteString ; int]) | []}
+      ; bLength:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; addrLen:{VV : func(0, [int ; int]) | []}
+      ; Set_sub:{VV : func(1, [Set_Set @(0) ; Set_Set @(0) ; bool]) | []}
+      ; Set_sng:{VV : func(1, [@(0) ; Set_Set @(0)]) | []}
+      ; Set_mem:{VV : func(1, [@(0) ; Set_Set @(0) ; bool]) | []}
+      ; Set_emp:{VV : func(1, [Set_Set @(0) ; bool]) | []}
+      ; Set_dif:{VV : func(1, [Set_Set @(0) ; Set_Set @(0) ; Set_Set @(0)]) | []}
+      ; Set_cup:{VV : func(1, [Set_Set @(0) ; Set_Set @(0) ; Set_Set @(0)]) | []}
+      ; Set_cap:{VV : func(1, [Set_Set @(0) ; Set_Set @(0) ; Set_Set @(0)]) | []}
+      ; Prop:{VV : func(0, [GHC.Types.Bool ; bool]) | []}
+      ; GHC.Word.W8##r1dO:{VV : func(0, [GHC.Prim.Word# ; int]) | []}
+      ; GHC.Types.True#6u:{VV : GHC.Types.Bool | []}
+      ; GHC.Types.LT#6S:{VV : GHC.Types.Ordering | []}
+      ; GHC.Types.I##6c:{VV : func(0, [int ; int]) | []}
+      ; GHC.Types.GT#6W:{VV : GHC.Types.Ordering | []}
+      ; GHC.Types.False#68:{VV : GHC.Types.Bool | []}
+      ; GHC.Types.EQ#6U:{VV : GHC.Types.Ordering | []}
+      ; GHC.Types.C##62:{VV : func(0, [GHC.Prim.Char# ; GHC.Types.Char]) | []}
+      ; GHC.Ptr.Ptr#rO5:{VV : func(1, [int ; GHC.Ptr.Ptr @(0)]) | []}
+      ; GHC.Prim.realWorld##0f:{VV#356 : GHC.Prim.State# GHC.Prim.RealWorld | []}
+      ; GHC.Classes.not#r1d:{VV : func(0, [GHC.Types.Bool ; GHC.Types.Bool]) | []}
+      ; GHC.CString.unpackCString##0k:{VV : func(0, [int ; List GHC.Types.Char]) | []}
+      ; Data.Maybe.Nothing#r19:{VV : func(1, [Data.Maybe.Maybe @(0)]) | []}
+      ; Data.Maybe.Just#r1a:{VV : func(1, [@(0) ; Data.Maybe.Maybe @(0)]) | []}
+      ; Data.ByteString.unpackList#r2Ws:{VV : func(0, [Data.ByteString.Internal.ByteString ; List int]) | []}
+      ; Data.ByteString.unpackFoldrINLINED#r2Wq:{VV : func(0, [Data.ByteString.Internal.ByteString ; List int]) | []}
+      ; Data.ByteString.unpack#r2Wp:{VV : func(0, [Data.ByteString.Internal.ByteString ; List int]) | []}
+      ; Data.ByteString.uncons#r2Wz:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.Maybe.Maybe (fix##40##41# int Data.ByteString.Internal.ByteString)]) | []}
+      ; Data.ByteString.transpose#r2WG:{VV : func(0, [List Data.ByteString.Internal.ByteString ; List Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.takeWhile#r2Xb:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.take#r2X8:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.tail#r2Wy:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.splitAt#r2Xa:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; fix##40##41# Data.ByteString.Internal.ByteString Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.spanEnd#r2Xi:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; fix##40##41# Data.ByteString.Internal.ByteString Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.spanByte#r2Xh:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; fix##40##41# Data.ByteString.Internal.ByteString Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.span#r2Xg:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; fix##40##41# Data.ByteString.Internal.ByteString Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.sort#r2Xk:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.snoc#r2Ww:{VV : func(0, [Data.ByteString.Internal.ByteString ; int ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.singleton#r2Wn:{VV : func(0, [int ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.scanr1#r2X3:{VV : func(0, [func(0, [int ; int ; int]) ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.scanr#r2X2:{VV : func(0, [func(0, [int ; int ; int]) ; int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.scanl1#r2X1:{VV : func(0, [func(0, [int ; int ; int]) ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.scanl#r2X0:{VV : func(0, [func(0, [int ; int ; int]) ; int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.reverse#r2WE:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.replicate#r2X4:{VV : func(0, [int ; int ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.pack#r2Wo:{VV : func(0, [List int ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.null#r2Wt:{VV : func(0, [Data.ByteString.Internal.ByteString ; GHC.Types.Bool]) | []}
+      ; Data.ByteString.minimum#r2WW:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.maximum#r2WV:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.mapIndexed#r2WZ:{VV : func(0, [func(0, [int ; int ; int]) ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.map#r2WD:{VV : func(0, [func(0, [int ; int]) ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.lengths#r2Wg:{VV : func(0, [List Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.length#r2Wu:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.last#r2WA:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.intersperse#r2WF:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.intercalateWithByte#r2Xj:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.init#r2WB:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.head#r2Wx:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.foldr1#r2WP:{VV : func(0, [func(0, [int ; int ; int]) ; Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.foldl1#r2WN:{VV : func(0, [func(0, [int ; int ; int]) ; Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.findIndexOrEnd#r2Xl:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.findFromEndUntil#r2Xp:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.eq#r2Wk:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString ; GHC.Types.Bool]) | []}
+      ; Data.ByteString.empty#r2Wm:{VV#290 : Data.ByteString.Internal.ByteString | 
+                                   [true; (bLength([VV#290]) = 0)
+                                   ; (0 <= bLength([VV#290]))]}
+      ; Data.ByteString.elemIndex#r2Wj:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.Maybe.Maybe int]) | []}
+      ; Data.ByteString.dummyForQuals2_splitWith#r2Wi:{VV : func(0, [GHC.ForeignPtr.ForeignPtr int ; int ; int ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.dummyForQuals1_elemIndex#r2Wh:{VV : func(0, [GHC.Ptr.Ptr int ; int ; GHC.Types.IO (GHC.Ptr.Ptr int)]) | []}
+      ; Data.ByteString.dropWhile#r2Xc:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.drop#r2X9:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.cons#r2Wv:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.concatMap#r2WS:{VV : func(0, [func(0, [int ; Data.ByteString.Internal.ByteString]) ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.concat#r2WR:{VV : func(0, [List Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.breakEnd#r2Xf:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; fix##40##41# Data.ByteString.Internal.ByteString Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.breakByte#r2Xe:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; fix##40##41# Data.ByteString.Internal.ByteString Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.break#r2Xd:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; fix##40##41# Data.ByteString.Internal.ByteString Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.append#r2WC:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.any#r2WT:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; GHC.Types.Bool]) | []}
+      ; Data.ByteString.all#r2WU:{VV : func(0, [func(0, [int ; GHC.Types.Bool]) ; Data.ByteString.Internal.ByteString ; GHC.Types.Bool]) | []}
+      ; Data.ByteString.Unsafe.unsafeTake#r1ZE:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.Unsafe.unsafeTail#r1ZC:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.Unsafe.unsafeHead#r1ZB:{VV : func(0, [Data.ByteString.Internal.ByteString ; int]) | []}
+      ; Data.ByteString.Unsafe.unsafeDrop#r1ZF:{VV : func(0, [int ; Data.ByteString.Internal.ByteString ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.Lazy.Internal.Empty#r289:{VV#545 : Data.ByteString.Lazy.Internal.ByteString | 
+                                                 [(lbLength([VV#545]) = 0)
+                                                 ; true
+                                                 ; (lbLength([VV#545]) >= 0)]}
+      ; Data.ByteString.Lazy.Internal.Chunk#r288:{VV : func(0, [Data.ByteString.Internal.ByteString ; Data.ByteString.Lazy.Internal.ByteString ; Data.ByteString.Lazy.Internal.ByteString]) | []}
+      ; Data.ByteString.Internal.unsafeCreate#r1Ju:{VV : func(0, [int ; func(0, [GHC.Ptr.Ptr int ; GHC.Types.IO fix##40##41#]) ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.Internal.nullForeignPtr#r1Jr:{VV#485 : GHC.ForeignPtr.ForeignPtr int | 
+                                                     [(fplen([VV#485]) = 0)]}
+      ; Data.ByteString.Internal.memset#r1JP:{VV : func(0, [GHC.Ptr.Ptr int ; int ; int ; GHC.Types.IO (GHC.Ptr.Ptr int)]) | []}
+      ; Data.ByteString.Internal.memcpy#r1JM:{VV : func(0, [GHC.Ptr.Ptr int ; GHC.Ptr.Ptr int ; int ; GHC.Types.IO fix##40##41#]) | []}
+      ; Data.ByteString.Internal.memcmp#r1JL:{VV : func(0, [GHC.Ptr.Ptr int ; GHC.Ptr.Ptr int ; int ; GHC.Types.IO int]) | []}
+      ; Data.ByteString.Internal.create#r1Jv:{VV : func(0, [int ; func(0, [GHC.Ptr.Ptr int ; GHC.Types.IO fix##40##41#]) ; GHC.Types.IO Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.Internal.c_reverse#r1JQ:{VV : func(0, [GHC.Ptr.Ptr int ; GHC.Ptr.Ptr int ; int ; GHC.Types.IO fix##40##41#]) | []}
+      ; Data.ByteString.Internal.c_minimum#r1JT:{VV : func(0, [GHC.Ptr.Ptr int ; int ; GHC.Types.IO int]) | []}
+      ; Data.ByteString.Internal.c_maximum#r1JS:{VV : func(0, [GHC.Ptr.Ptr int ; int ; GHC.Types.IO int]) | []}
+      ; Data.ByteString.Internal.c_intersperse#r1JR:{VV : func(0, [GHC.Ptr.Ptr int ; GHC.Ptr.Ptr int ; int ; int ; GHC.Types.IO fix##40##41#]) | []}
+      ; Data.ByteString.Internal.PS#r1FG:{VV : func(0, [GHC.ForeignPtr.ForeignPtr int ; int ; int ; Data.ByteString.Internal.ByteString]) | []}
+      ; Data.ByteString.Fusion.scanEFL#r2ap:{VV : func(0, [func(0, [int ; int ; int]) ; int ; int ; Data.ByteString.Fusion.PairS int (Data.ByteString.Fusion.MaybeS int)]) | []}
+      ; Data.ByteString.Fusion.mapIndexEFL#r2ar:{VV : func(0, [func(0, [int ; int ; int]) ; int ; int ; Data.ByteString.Fusion.PairS int (Data.ByteString.Fusion.MaybeS int)]) | []}
+      ; Data.ByteString.Fusion.liquidCanaryFusion#r2aj:{VV : func(0, [int ; int]) | []}] 
+ grd true 
+ lhs {VV#F1290 : int | [k_3957[VV#F:=VV#F1290][VV#3956:=VV#F1290][VV#10134:=VV#F1290]
+                       ; (VV#F1290 = fix#n#39##35#a3sd)]} 
+ rhs {VV#F1290 : int | [k_3955[VV#F:=VV#F1290][VV#3954:=VV#F1290][VV#10134:=VV#F1290]
+                       ; (VV#F1290 < n#a3sc); (VV#F1290 >= 0)]} 
+ id 1290 tag [72] // 
+Fixpoint: Saving Result 
+Fixpoint: Saving Result DONE 
+Fixpoint Solver Time 
+TOTAL                         796.614 s
+  save                           0.680 s
+  solve                         428.419 s
+    Solve.unsatcs                  9.005 s
+      Z3.pop                         0.148 s
+      unsat                          0.516 s
+        Z3.check                       0.516 s
+      Z3.ass_cst                     0.532 s
+      Z3.push                        1.144 s
+      z3Pred                         4.292 s
+        z3Var memo                     0.700 s
+      fixdiv                         0.072 s
+    Solve.dump                     0.108 s
+    Solve.acsolve                 418.434 s
+      refine                        415.482 s
+        refine                        415.474 s
+          cx_update                      0.000 s
+          check tp                      402.845 s
+            Z3.pop                        17.525 s
+            unsat                         353.318 s
+              Z3.check                      352.290 s
+            Z3.ass_cst                    12.557 s
+            Z3.push                        5.260 s
+            z3Pred                         9.417 s
+              z3Var memo                     2.176 s
+            fixdiv                         0.272 s
+          lhs_contra                     0.020 s
+          preds_of_lhs                   7.769 s
+          rhs_cands                      4.704 s
+    Cindex.winit                   0.008 s
+    Prepass.profile                0.332 s
+  Validate                      58.392 s
+    valid rhs                      5.720 s
+      validate_vars                  1.392 s
+      preds_of_reft                  3.448 s
+    validate_vars                  4.844 s
+  cx_update                      0.196 s
+  Z3.check                       0.000 s
+  Z3 assert axiom                0.000 s
+  z3Var memo                     0.000 s
+  Constant EnvWF                 0.152 s
+  Simplify                       0.004 s
+    add ids  1                     0.004 s
+  Constant Env                   0.180 s
+  Ref Index                      0.000 s
+  create                         0.000 s
+  making_graph                   0.404 s
+  parse                          1.984 s
+  Annots: make qleqs             0.112 s
+    Z3.pop                         0.008 s
+    unsat                          0.064 s
+      Z3.check                       0.064 s
+    Z3.ass_cst                     0.012 s
+    Z3.push                        0.008 s
+    z3Pred                         0.008 s
+      z3Var memo                     0.004 s
+    fixdiv                         0.004 s
+    Z3.check                       0.000 s
+    Z3 assert axiom                0.000 s
+    z3Var memo                     0.000 s
+  Qual Inst                     306.091 s
+
+UNSAT
+
+****************************** DONE:  fixpoint *****************************
+
+****************************** DONE:  solve *****************************
+WARNING: Found false in Data/ByteString.split.0.T.hs:1033:57-65
+WARNING: Found false in Data/ByteString.split.0.T.hs:1034:28
+WARNING: Found false in Data/ByteString.split.0.T.hs:1034:55
+WARNING: Found false in Data/ByteString.split.0.T.hs:1036:12
+WARNING: Found false in Data/ByteString.split.0.T.hs:1036:14
+WARNING: Found false in Data/ByteString.split.0.T.hs:1036:18
+WARNING: Found false in Data/ByteString.split.0.T.hs:1036:26
+WARNING: Found false in Data/ByteString.split.0.T.hs:1036:26-38
+WARNING: Found false in Data/ByteString.split.0.T.hs:1038:25
+WARNING: Found false in Data/ByteString.split.0.T.hs:1038:46
+WARNING: Found false in Data/ByteString.split.0.T.hs:1039:25-82
+WARNING: Found false in Data/ByteString.split.0.T.hs:1039:31
+WARNING: Found false in Data/ByteString.split.0.T.hs:1039:48-50
+WARNING: Found false in Data/ByteString.split.0.T.hs:1039:66
+WARNING: Found false in Data/ByteString.split.0.T.hs:1039:69
+WARNING: Found false in Data/ByteString.split.0.T.hs:1040:25-67
+WARNING: Found false in Data/ByteString.split.0.T.hs:1040:29
+WARNING: Found false in Data/ByteString.split.0.T.hs:1040:37-39
+WARNING: Found false in Data/ByteString.split.0.T.hs:1040:65
+WARNING: Found false in Data/ByteString.split.0.T.hs:1047:22
+WARNING: Found false in Data/ByteString.split.0.T.hs:1047:24
+WARNING: Found false in Data/ByteString.split.0.T.hs:1047:26
+WARNING: Found false in Data/ByteString.split.0.T.hs:1047:30
+WARNING: Found false in Data/ByteString.split.0.T.hs:1047:38
+WARNING: Found false in Data/ByteString.split.0.T.hs:1047:38-58
+WARNING: Found false in Data/ByteString.split.0.T.hs:1047:46
+WARNING: Found false in Data/ByteString.split.0.T.hs:1047:46-58
+WARNING: Found false in Data/ByteString.split.0.T.hs:1050:12
+WARNING: Found false in Data/ByteString.split.0.T.hs:1050:16
+WARNING: Found false in Data/ByteString.split.0.T.hs:1051:16
+WARNING: Found false in Data/ByteString.split.0.T.hs:1051:21-23
+WARNING: Found false in Data/ByteString.split.0.T.hs:1052:31
+WARNING: Found false in Data/ByteString.split.0.T.hs:1052:68-70
+WARNING: Found false in Data/ByteString.split.0.T.hs:1052:72
+WARNING: Found false in Data/ByteString.split.0.T.hs:1053:31
+WARNING: Found false in Data/ByteString.split.0.T.hs:1053:48-53
+WARNING: Found false in Data/ByteString.split.0.T.hs:1053:55
+WARNING: Found false in Data/ByteString.split.0.T.hs:1054:43-48
+WARNING: Found false in Data/ByteString.split.0.T.hs:1054:50
+WARNING: Found false in Data/ByteString.split.0.T.hs:1054:53
+WARNING: Found false in Data/ByteString.split.0.T.hs:1055:31-40
+WARNING: Found false in Data/ByteString.split.0.T.hs:1055:35
+WARNING: Found false in Data/ByteString.split.0.T.hs:1083:16-18
+WARNING: Found false in Data/ByteString.split.0.T.hs:1083:34-36
+WARNING: Found false in Data/ByteString.split.0.T.hs:1087:13-15
+WARNING: Found false in Data/ByteString.split.0.T.hs:1087:52-54
+
+****************************** DONE:  annotate *****************************
+
+****************************** DONE:  Unsafe: *****************************
+
+****************************** WARNING: Data/ByteString.split.0.T.hs:823:45-46 *****************************
+
+****************************** WARNING: Data/ByteString.split.0.T.hs:848:70-72 *****************************
+
+****************************** Termination Warnings: *****************************
+Data/ByteString.split.0.T.hs:564:9-10: No decreasing parameter
+Data/ByteString.split.0.T.hs:541:9-10: No decreasing parameter
+Data/ByteString.split.0.T.hs:510:9-11: No decreasing parameter
+Data/ByteString.split.0.T.hs:1093:1-16: No decreasing parameter
+Data/ByteString.split.0.T.hs:664:9-10: No decreasing parameter
+Data/ByteString.split.0.T.hs:647:9-10: No decreasing parameter
+
 
