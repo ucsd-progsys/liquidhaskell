@@ -63,7 +63,7 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
 -- LIQUID #endif
 -- LIQUID              )
 
-{-@ data Data.ByteString.Lazy.Internal.ByteString
+{-@ data Data.ByteString.Lazy.Internal.ByteString [lbLength]
          = Data.ByteString.Lazy.Internal.Empty 
          | Data.ByteString.Lazy.Internal.Chunk
                 (b  :: ByteStringNE)
@@ -71,7 +71,7 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
   @-}
 
 {-@ measure lbLength :: Data.ByteString.Lazy.Internal.ByteString -> Int
-    lbLength (Data.ByteString.Lazy.Internal.Empty) = 0
+    lbLength (Data.ByteString.Lazy.Internal.Empty)      = 0
     lbLength (Data.ByteString.Lazy.Internal.Chunk b bs) = (bLength b) + (lbLength bs)
   @-}
 

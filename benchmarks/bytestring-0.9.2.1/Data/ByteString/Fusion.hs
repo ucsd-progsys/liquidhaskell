@@ -265,10 +265,10 @@ loopU f start (PS z s i) = unsafePerformIO $ withForeignPtr z $ \a -> do
     return (acc :*: ps)
 
   where
-    go p ma = trans 0 0
+    go p ma = trans i 0 0
         where
-            STRICT3(trans)
-            trans a_off ma_off acc
+            STRICT4(trans)
+            trans (d :: Int) a_off ma_off acc
                 | a_off >= i = return (acc :*: ma_off)
                 | otherwise  = do
                     x <- peekByteOff p a_off
@@ -277,7 +277,10 @@ loopU f start (PS z s i) = unsafePerformIO $ withForeignPtr z $ \a -> do
                         NothingS -> return ma_off
                         JustS e  -> do pokeByteOff ma ma_off e
                                        return $ ma_off + 1
-                    trans (a_off+1) ma_off' acc'
+                    trans (d-1) (a_off+1) ma_off' acc'
+
+-- a_off = i - d
+{-@ qualif Decr(v:Int, x: Int, y:Int): v = x - y @-} 
 
 #if defined(__GLASGOW_HASKELL__)
 {-# INLINE [1] loopU #-}
@@ -410,9 +413,9 @@ loopWrapper body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
 
 
 doUpLoop :: AccEFL acc -> acc -> ImperativeLoop acc
-doUpLoop f acc0 src dest len = loop 0 0 acc0
-  where STRICT3(loop)
-        loop src_off dest_off acc
+doUpLoop f acc0 src dest len = loop len 0 0 acc0
+  where STRICT4(loop)
+        loop (d::Int) src_off dest_off acc
             | src_off >= len = return (acc :*: (0 :: Int) {- LIQUID CAST -} :*: dest_off)
             | otherwise      = do
                 x <- peekByteOff src src_off
