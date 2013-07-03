@@ -501,18 +501,19 @@ transpose ps = P.map pack (List.transpose (P.map unpack ps))
 -- the left-identity of the operator), and a ByteString, reduces the
 -- ByteString using the binary operator, from left to right.
 -- This function is subject to array fusion.
-
 {-@ foldl :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
 foldl :: (a -> Word8 -> a) -> a -> ByteString -> a
 foldl f v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
-        lgo v (ptr `plusPtr` s) (ptr `plusPtr` (s+l))
+        go v (ptr `plusPtr` s) (ptr `plusPtr` (s+l)) (ptrLen (ptr `plusPtr` s))
     where
-        STRICT3(lgo)
-        lgo z p q | p == q    = return z
+        STRICT4(go)
+        go z p q (d::Int)
+                  | p == q    = return z
                   | otherwise = do let p' = liquid_thm_ptr_cmp p q 
                                    c <- peek p'
-                                   lgo (f z c) (p' `plusPtr` 1) q
+                                   go (f z c) (p' `plusPtr` 1) q (d-1)
 {-# INLINE foldl #-}
+
 
 -- LIQUID: This will go away when we properly embed Ptr a as int -- only in
 -- fixpoint to avoid the Sort mismatch hassles. 
@@ -534,20 +535,26 @@ foldl' = foldl
 -- | 'foldr', applied to a binary operator, a starting value
 -- (typically the right-identity of the operator), and a ByteString,
 -- reduces the ByteString using the binary operator, from right to left.
+
+-- foldr TERMINATION
+{-@ qualif PtrDiff(v:int, p:GHC.Ptr.Ptr a, q:GHC.Ptr.Ptr a): v >= (plen p) - (plen q) @-}
+
 foldr :: (Word8 -> a -> a) -> a -> ByteString -> a
 foldr k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
-        go v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1))
+        go v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1)) l
     where
-        STRICT3(go)
-        go z p q | p == q    = return z
+        STRICT4(go)
+        go z p q (d::Int)
+                 | p == q    = return z
                  | otherwise = do let p' = liquid_thm_ptr_cmp' p q 
                                   c  <- peek p'
                                   let n  = 0 - 1  
-                                  go (c `k` z) (p' `plusPtr` n) q -- tail recursive
+                                  go (c `k` z) (p' `plusPtr` n) q (d-1) -- tail recursive
         -- LIQUID go z p q | p == q    = return z
         -- LIQUID          | otherwise = do c  <- peek p
         -- LIQUID                           go (c `k` z) (p `plusPtr` (-1)) q -- tail recursive
 {-# INLINE foldr #-}
+
 
 {-@ liquid_thm_ptr_cmp' :: p:PtrV a 
                         -> q:{v:(PtrV a) | ((plen v) >= (plen p) && v != p && (pbase v) = (pbase p))} 
