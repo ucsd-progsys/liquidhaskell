@@ -1,4 +1,10 @@
 
+// for unfoldrN 
+qualif PLenNat(v:GHC.Ptr.Ptr a)              : 0 <= (plen v)
+
+// for UnpackFoldrINLINED
+qualif UnpackFoldrINLINED(v:a, n:b, acc:a): (len v) = (n + 1 + (len acc))
+
 // for ByteString.inits
 qualif BLenGt(v:Data.ByteString.Internal.ByteString, n:int): (bLength v) > n
 

@@ -100,16 +100,26 @@ Text
    139 ./Data/Text.small.hs
  12668 total
 
-****************************** WARNING: Data/ByteString/Fusion.hs:280:28-34 *****************************
-****************************** WARNING: Data/ByteString/Fusion.hs:422:48-56 *****************************
-****************************** WARNING: Data/ByteString/Fusion.hs:434:48-62 *****************************
-****************************** WARNING: Data/ByteString/Fusion.hs:446:37-45 *****************************
-****************************** WARNING: Data/ByteString/Fusion.hs:456:23-25 *****************************
-****************************** WARNING: Data/ByteString/Fusion.hs:467:30-38 *****************************
-****************************** WARNING: Data/ByteString/Fusion.hs:468:30-38 *****************************
 
+****************************** WARNING: Data/ByteString.split.0.hs:267:51 *****************************
+****************************** WARNING: Data/ByteString.split.0.hs:317:20-22 *****************************
+****************************** WARNING: Data/ByteString.split.0.hs:331:20-22 *****************************
+****************************** WARNING: Data/ByteString.split.0.hs:342:20-22 *****************************
+****************************** WARNING: Data/ByteString.split.0.hs:463:19-21 *****************************
+****************************** WARNING: Data/ByteString.split.0.hs:829:45-46 *****************************
+****************************** WARNING: Data/ByteString.split.0.hs:853:55-57 *****************************
+****************************** WARNING: Data/ByteString.split.0.hs:980:44-46 *****************************
+****************************** WARNING: Data/ByteString.split.0.hs:1076:60-62 *****************************
 
+CANNOT PROVE TERMINATION EVER!
 
+{-@ unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString @-}
+unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
+unfoldr f = concat . unfoldChunk 32 64
+  where unfoldChunk n n' x =
+          case unfoldrN n f x of
+            (s, Nothing) -> s : []
+            (s, Just x') -> s : unfoldChunk n' (n+n') x'
 
 Liquid-Fixpoint
 ===============
