@@ -797,7 +797,7 @@ recType γ (x, e, t)
   = do hint          <- checkHint' . L.lookup xSymbol . specDecr <$> get
        maybeRecType x dindex hint t vs
   where (αs, πs, t0)  = bkUniv t
-        ts            = snd3 $ bkArrow $ thd3 $ bkUniv t
+        ts            = snd3 $ bkArrowDeep $ thd3 $ bkUniv t
         vs            = collectArguments (length ts) e
         checkHint'    = checkHint x ts isDecreasing
 -- TODO get the appropriate symbols for hints, 
@@ -817,14 +817,14 @@ maybeRecType x (Just i) hint t vs
         msg'  = "recType on " ++ showPpr x ++ " with "++ showPpr vs
         msg   = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x)
         (αs, πs, t0)  = bkUniv t
-        (xs, ts, tbd) = bkArrow t0
+        (xs, ts, tbd) = bkArrowDeep t0
         xts           = zip xs ts
 
 maybeRecType' t (Just v) (Just (dx, dt)) index
   = mkArrow αs πs xts' tbd
   where xts' = replaceN index (mkDecrType (v, dx, dt)) $ zip xs ts
         (αs, πs, t0)  = bkUniv t
-        (xs, ts, tbd) = bkArrow t0
+        (xs, ts, tbd) = bkArrowDeep t0
 maybeRecType' t _ _ _ 
   = t
 
@@ -843,7 +843,8 @@ checkHint x ts f (Just n)
   | n < 0 || n >= length ts = errorstar err
   | f (ts L.!! n) = Just n
   | otherwise = errorstar err
-  where err = "Invalid Hint " ++ show (n+1) ++ " for " ++ showPpr x
+  where err = printf "%s: Invalid Hint %d for %s" (showPpr (getSrcSpan x)) (n+1) (showPpr x)
+
 
 -------------------------------------------------------------------
 -------------------- Generation: Corebind -------------------------
