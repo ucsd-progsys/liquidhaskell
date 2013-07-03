@@ -817,7 +817,8 @@ replicate w c
 {-@ unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString @-}
 unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
 unfoldr f = concat . unfoldChunk 32 64
-  where unfoldChunk n n' x =
+  where {-@ Strict unfoldChunk @-}
+        unfoldChunk n n' x =
           case unfoldrN n f x of
             (s, Nothing) -> s : []
             (s, Just x') -> s : unfoldChunk n' (n+n') x'
