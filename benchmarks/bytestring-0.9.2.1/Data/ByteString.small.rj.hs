@@ -333,47 +333,7 @@ unpackFoldr = undefined
                        n:Int):
         (bLength v) = (bLength p) - n  @-}
 
--- LIQUID NICE-INFERENCE-EXAMPLE! But screws up everyone else's type. Yuck. 
-{-@ predicate ZipLenB V X Y = (bLength V) = (if (bLength X) <= (bLength Y) then (bLength X) else (bLength Y)) @-}
-{-@ zipWith' :: (Word8 -> Word8 -> Word8) -> x:ByteString -> y:ByteString -> {v:ByteString | (ZipLenB v x y)} @-}
-zipWith' :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString -> ByteString
-zipWith' f (PS fp s l) (PS fq t m) = inlinePerformIO $
-    withForeignPtr fp $ \a ->
-    withForeignPtr fq $ \b ->
-    create len $ zipWith_ len 0 (a `plusPtr` s) (b `plusPtr` t)
-  where
-    zipWith_ :: Int -> Int -> Ptr Word8 -> Ptr Word8 -> Ptr Word8 -> IO ()
-    STRICT5(zipWith_)
-    zipWith_ (d::Int) n p1 p2 r -- LIQUID TERMINATION
-       | n >= len = return ()
-       | otherwise = do
-            x <- peekByteOff p1 n
-            y <- peekByteOff p2 n
-            pokeByteOff r n (f x y)
-            zipWith_ (d-1) (n+1) p1 p2 r
-
-    len = min l m
 
 
-
-{-@ qualif FilterLoop(v:GHC.Ptr.Ptr a, f:GHC.Ptr.Ptr a, t:GHC.Ptr.Ptr a):
-        (plen t) >= (plen f) - (plen v) @-}
-{-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
-filter :: (Word8 -> Bool) -> ByteString -> ByteString
-filter k ps@(PS x s l)
-    | null ps   = ps
-    | otherwise = unsafePerformIO $ createAndTrim l $ \p -> withForeignPtr x $ \f -> do
-        t <- go l (f `plusPtr` s) p (f `plusPtr` (s + l))
-        return $! t `minusPtr` p -- actual length
-    where
-      STRICT4(go)
-      go (d::Int) f' t end 
-                  | f' == end = return t
-                  | otherwise = do
-                        let f = liquid_thm_ptr_cmp f' end
-                        w <- peek f
-                        if k w
-                          then poke t w >> go (d-1) (f `plusPtr` 1) (t `plusPtr` 1) end
-                          else             go (d-1) (f `plusPtr` 1) t               end
 
 
