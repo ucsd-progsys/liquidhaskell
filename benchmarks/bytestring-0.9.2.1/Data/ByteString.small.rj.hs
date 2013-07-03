@@ -340,7 +340,7 @@ foldr' :: (Word8 -> a -> a) -> a -> ByteString -> a
 foldr' k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
         go v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1)) l
     where
-        STRICT3(go)
+        STRICT4(go)
         go z p q (d::Int)
                  | p == q    = return z
                  | otherwise = do let p' = liquid_thm_ptr_cmp' p q 
