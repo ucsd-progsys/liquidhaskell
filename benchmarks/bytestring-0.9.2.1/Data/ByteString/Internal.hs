@@ -197,7 +197,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 {-@ predicate OkPLen N P  = (N <= (plen P))                 @-}
 
-{-@ data Data.ByteString.Internal.ByteString  
+{-@ data Data.ByteString.Internal.ByteString [bLength] 
       = Data.ByteString.Internal.PS 
           { payload :: (ForeignPtr Word8) 
           , offset  :: {v: Nat | (v <= (fplen payload))     }  
