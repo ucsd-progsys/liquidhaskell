@@ -413,9 +413,9 @@ loopWrapper body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
 
 
 doUpLoop :: AccEFL acc -> acc -> ImperativeLoop acc
-doUpLoop f acc0 src dest len = loop len 0 0 acc0
-  where STRICT4(loop)
-        loop (d::Int) src_off dest_off acc
+doUpLoop f acc0 src dest len = loop 0 0 acc0
+  where STRICT3(loop)
+        loop src_off dest_off acc
             | src_off >= len = return (acc :*: (0 :: Int) {- LIQUID CAST -} :*: dest_off)
             | otherwise      = do
                 x <- peekByteOff src src_off
