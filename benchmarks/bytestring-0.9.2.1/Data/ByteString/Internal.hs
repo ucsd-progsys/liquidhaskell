@@ -23,6 +23,7 @@
 module Data.ByteString.Internal (
 
         liquidCanary,   -- LIQUID
+        ptrLen,         -- LIQUID GHOST for getting a pointer's length
         packWith,       -- LIQUID, because we hid the Read instance... FIX.
 
         -- * The @ByteString@ type and representation
@@ -242,6 +243,12 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ qualif FPLenPos(v: GHC.ForeignPtr.ForeignPtr a): 0 <= (fplen v)                       @-}
 {-@ qualif PLenPos(v: GHC.Ptr.Ptr a): 0 <= (plen v)                                       @-}
 {-@ qualif LTPLen(v: int, p:GHC.Ptr.Ptr a): v < (plen p)                                  @-}
+
+{-@ ptrLen :: p:(PtrV a) -> {v:Nat | v = (plen p)} @-}  
+ptrLen :: Ptr a -> Int
+ptrLen = undefined
+
+
 -------------------------------------------------------------------------
 
 instance Show ByteString where
