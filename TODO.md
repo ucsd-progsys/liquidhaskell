@@ -37,9 +37,9 @@ Bytestring
 Ordered by dependency.
 
    148 Data/ByteString/Lazy/Internal.hs     [OK]
-   297 Data/ByteString/Unsafe.hs            [OK]
-   509 Data/ByteString/Internal.hs          [OK]
-   700 Data/ByteString/Fusion.hs            [OK]
+   297 Data/ByteString/Unsafe.hs            [OK+T]
+   509 Data/ByteString/Internal.hs          [OK+T]
+   700 Data/ByteString/Fusion{T}.hs         [OK]
   1928 Data/ByteString.hs                   [OK]
   
   1322 Data/ByteString/Lazy.hs               
@@ -47,6 +47,10 @@ Ordered by dependency.
   1012 Data/ByteString/Char8.hs
 
   6738 total
+
+
+
+
 
 Text
 ====
@@ -95,6 +99,17 @@ Text
   2038 ./Data/Text.hs
    139 ./Data/Text.small.hs
  12668 total
+
+****************************** WARNING: Data/ByteString/Fusion.hs:280:28-34 *****************************
+****************************** WARNING: Data/ByteString/Fusion.hs:422:48-56 *****************************
+****************************** WARNING: Data/ByteString/Fusion.hs:434:48-62 *****************************
+****************************** WARNING: Data/ByteString/Fusion.hs:446:37-45 *****************************
+****************************** WARNING: Data/ByteString/Fusion.hs:456:23-25 *****************************
+****************************** WARNING: Data/ByteString/Fusion.hs:467:30-38 *****************************
+****************************** WARNING: Data/ByteString/Fusion.hs:468:30-38 *****************************
+
+
+
 
 Liquid-Fixpoint
 ===============
