@@ -817,8 +817,7 @@ replicate w c
 {-@ unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString @-}
 unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
 unfoldr f = concat . unfoldChunk 32 64
-  where {-@ Strict unfoldChunk @-}
-        unfoldChunk n n' x =
+  where unfoldChunk n n' x =
           case unfoldrN n f x of
             (s, Nothing) -> s : []
             (s, Just x') -> s : unfoldChunk n' (n+n') x'
@@ -839,7 +838,6 @@ unfoldrN i f x0
     | i < 0     = (empty, Just x0)
     | otherwise = unsafePerformIO $ createAndTrimMEQ i $ \p -> go_unfoldrN i p x0 0
   where STRICT4(go)
-        {-@ Decrease go_unfoldrN 4 @-}
         go_unfoldrN (d::Int) p x n =
           case f x of
             Nothing      -> return (0 :: Int {- LIQUID -}, n, Nothing)
