@@ -80,7 +80,7 @@ assertS s False = error ("assertion failed at "++s)
 -- LIQUID
 import GHC.IO.Buffer
 import Language.Haskell.Liquid.Prelude hiding (eq) 
-import qualified Data.ByteString.Lazy.Internal 
+-- import qualified Data.ByteString.Lazy.Internal 
 import qualified Data.ByteString.Fusion
 import qualified Data.ByteString.Internal
 import qualified Data.ByteString.Unsafe
