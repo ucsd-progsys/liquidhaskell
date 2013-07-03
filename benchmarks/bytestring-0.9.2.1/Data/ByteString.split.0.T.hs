@@ -536,7 +536,7 @@ foldl' = foldl
 -- (typically the right-identity of the operator), and a ByteString,
 -- reduces the ByteString using the binary operator, from right to left.
 
--- foldr TERMINATION
+-- foldr/foldr' TERMINATION
 {-@ qualif PtrDiff(v:int, p:GHC.Ptr.Ptr a, q:GHC.Ptr.Ptr a): v >= (plen p) - (plen q) @-}
 
 foldr :: (Word8 -> a -> a) -> a -> ByteString -> a
@@ -566,14 +566,15 @@ liquid_thm_ptr_cmp' p q = undefined
 -- | 'foldr\'' is like 'foldr', but strict in the accumulator.
 foldr' :: (Word8 -> a -> a) -> a -> ByteString -> a
 foldr' k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
-        go v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1))
+        go v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1)) l
     where
-        STRICT3(go)
-        go z p q | p == q    = return z
+        STRICT4(go)
+        go z p q (d::Int)
+                 | p == q    = return z
                  | otherwise = do let p' = liquid_thm_ptr_cmp' p q 
                                   c  <- peek p'
                                   let n  = 0 - 1  
-                                  go (c `k` z) (p' `plusPtr` n) q -- tail recursive
+                                  go (c `k` z) (p' `plusPtr` n) q (d-1) -- tail recursive
         -- LIQUID go z p q | p == q    = return z
         -- LIQUID          | otherwise = do c  <- peek p
         -- LIQUID                           go (c `k` z) (p `plusPtr` (-1)) q -- tail recursive
@@ -825,7 +826,8 @@ replicate w c
 {-@ unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString @-}
 unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
 unfoldr f = concat . unfoldChunk 32 64
-  where unfoldChunk n n' x =
+  where {-@ Strict unfoldChunk @-}
+        unfoldChunk n n' x =
           case unfoldrN n f x of
             (s, Nothing) -> s : []
             (s, Just x') -> s : unfoldChunk n' (n+n') x'
