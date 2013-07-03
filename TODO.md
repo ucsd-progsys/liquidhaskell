@@ -102,20 +102,21 @@ Text
 
 HEREHEREHEREHEREHEREHERE
 
-****************************** WARNING: Data/ByteString.split.1.T.hs:305:75-77 *****************************
-****************************** WARNING: Data/ByteString.split.1.T.hs:350:67 *****************************
-****************************** WARNING: Data/ByteString.split.1.T.hs:409:40 *****************************
-****************************** WARNING: Data/ByteString.split.1.T.hs:416:18-20 *****************************
-****************************** WARNING: Data/ByteString.split.1.T.hs:451:44-46 *****************************
-****************************** WARNING: Data/ByteString.split.1.T.hs:466:43-45 *****************************
-****************************** WARNING: Data/ByteString.split.1.T.hs:483:60-62 *****************************
-****************************** WARNING: Data/ByteString.split.1.T.hs:498:41-43 *****************************
-****************************** WARNING: Data/ByteString.split.1.T.hs:499:41-43 *****************************
-****************************** WARNING: Data/ByteString.split.1.T.hs:625:44-46 *****************************
-****************************** WARNING: Data/ByteString.split.1.T.hs:626:44-46 *****************************
-****************************** WARNING: Data/ByteString.split.1.T.hs:641:40-42 *****************************
-****************************** WARNING: Data/ByteString.split.1.T.hs:711:23-25 *****************************
-****************************** WARNING: Data/ByteString.split.1.T.hs:861:27-28 *****************************
+WARNING: Data/ByteString.split.1.T.hs:305:75-77
+WARNING: Data/ByteString.split.1.T.hs:350:67
+WARNING: Data/ByteString.split.1.T.hs:409:40
+WARNING: Data/ByteString.split.1.T.hs:416:18-20
+WARNING: Data/ByteString.split.1.T.hs:451:44-46
+WARNING: Data/ByteString.split.1.T.hs:466:43-45
+WARNING: Data/ByteString.split.1.T.hs:483:60-62
+WARNING: Data/ByteString.split.1.T.hs:498:41-43
+WARNING: Data/ByteString.split.1.T.hs:499:41-43
+WARNING: Data/ByteString.split.1.T.hs:625:44-46
+WARNING: Data/ByteString.split.1.T.hs:626:44-46
+WARNING: Data/ByteString.split.1.T.hs:641:40-42
+WARNING: Data/ByteString.split.1.T.hs:711:23-25
+WARNING: Data/ByteString.split.1.T.hs:861:27-28
+
 ****************************** Termination Warnings: *****************************
 Data/ByteString.split.1.T.hs:520:7-8: No decreasing parameter
 Termination Analysis not supported for mutual recursionin definitions of [splitLoop, splitWith0]

@@ -282,13 +282,13 @@ count = undefined
 replicate :: Int -> Word8 -> ByteString
 replicate  = undefined
 
-{-@ findIndex :: (Word8 -> Bool) -> b:ByteString -> (Maybe {v:Nat | v < (bLength b)}) @-}
-findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
-findIndex = undefined
+{- findIndex :: (Word8 -> Bool) -> b:ByteString -> (Maybe {v:Nat | v < (bLength b)}) @-}
+-- findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
+-- findIndex = undefined
 
-{-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
-filter :: (Word8 -> Bool) -> ByteString -> ByteString
-filter = undefined
+{- filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
+-- filter :: (Word8 -> Bool) -> ByteString -> ByteString
+-- filter = undefined
 
 {-@ isPrefixOf :: ByteString -> ByteString -> Bool @-}
 isPrefixOf :: ByteString -> ByteString -> Bool 
@@ -298,9 +298,9 @@ isPrefixOf = undefined
 take :: Int -> ByteString -> ByteString
 take = undefined
 
-{-@ rng :: n:Int -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
-rng :: Int -> [Int]
-rng = undefined
+{- rng :: n:Int -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
+-- rng :: Int -> [Int]
+-- rng = undefined
 
 
 {-@ singleton :: Word8 -> {v:ByteString | (bLength v) = 1} @-}
@@ -332,24 +332,148 @@ unpackFoldr = undefined
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
--- foldr/foldr' TERMINATION
-{-@ qualif PtrDiff(v:int, p:GHC.Ptr.Ptr a, q:GHC.Ptr.Ptr a): v >= (plen p) - (plen q) @-}
 
 
-foldr' :: (Word8 -> a -> a) -> a -> ByteString -> a
-foldr' k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
-        go v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1)) l
-    where
-        STRICT4(go)
-        go z p q (d::Int)
-                 | p == q    = return z
-                 | otherwise = do let p' = liquid_thm_ptr_cmp' p q 
-                                  c  <- peek p'
-                                  let n  = 0 - 1  
-                                  go (c `k` z) (p' `plusPtr` n) q (d-1) -- tail recursive
-        -- LIQUID go z p q | p == q    = return z
-        -- LIQUID          | otherwise = do c  <- peek p
-        -- LIQUID                           go (c `k` z) (p `plusPtr` (-1)) q -- tail recursive
-{-# INLINE foldr' #-}
+
+
+{-@ inits :: b:ByteString -> [{v1:ByteString | (bLength v1) <= (bLength b)}]<{\ix iy -> (bLength ix) < (bLength iy)}> @-}
+inits :: ByteString -> [ByteString]
+--LIQUID INLINE inits (PS x s l) = [PS x s n | n <- [0..l]]
+inits (PS x s l) = PS x s 0 : go (rng 1 l) 0
+    where 
+      go []     _  = []
+      go (n:ns) n0 = PS x s n : go ns n
+      rng a b | a > b     = []
+              | otherwise = a : rng (a+1) b
+
+-- LIQUID HIDE -- {- rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
+-- LIQUID HIDE -- rng :: Int -> [Int]
+-- LIQUID HIDE -- rng 0 = [0]
+-- LIQUID HIDE -- rng n = n : rng (n-1) 
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- {- elemIndexEnd :: Word8 -> b:ByteString -> Maybe {v:Nat | v < (bLength b) } @-}
+-- LIQUID HIDE -- elemIndexEnd :: Word8 -> ByteString -> Maybe Int
+-- LIQUID HIDE -- elemIndexEnd ch (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
+-- LIQUID HIDE --     go (p `plusPtr` s) (l-1)
+-- LIQUID HIDE --   where
+-- LIQUID HIDE --     STRICT2(go)
+-- LIQUID HIDE --     go p i | i < 0     = return Nothing
+-- LIQUID HIDE --            | otherwise = do ch' <- peekByteOff p i
+-- LIQUID HIDE --                             if ch == ch'
+-- LIQUID HIDE --                                 then return $ Just i
+-- LIQUID HIDE --                                 else go p (i-1)
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- {- elemIndices :: Word8 -> b:ByteString -> [{v:Nat | v < (bLength b) }] @-}
+-- LIQUID HIDE -- elemIndices :: Word8 -> ByteString -> [Int]
+-- LIQUID HIDE -- elemIndices w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
+-- LIQUID HIDE --     let ptr = p `plusPtr` s
+-- LIQUID HIDE -- 
+-- LIQUID HIDE --         STRICT1(loop)
+-- LIQUID HIDE --         loop n = let pn = ((ptr `plusPtr` n) :: Ptr Word8)
+-- LIQUID HIDE --                      q  = inlinePerformIO $ memchr pn
+-- LIQUID HIDE --                                                  w (fromIntegral (l - n))
+-- LIQUID HIDE --                  in if isNullPtr q {- == nullPtr -}
+-- LIQUID HIDE --                         then []
+-- LIQUID HIDE --                         else let i = q `minusPtr` ptr
+-- LIQUID HIDE --                              in i : loop (i+1)
+-- LIQUID HIDE --     return $! loop 0
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- {- findIndex :: (Word8 -> Bool) -> b:ByteString -> (Maybe {v:Nat | v < (bLength b)}) @-}
+-- LIQUID HIDE -- findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
+-- LIQUID HIDE -- findIndex k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusPtr` s) 0
+-- LIQUID HIDE --   where
+-- LIQUID HIDE --     STRICT2(go)
+-- LIQUID HIDE --     go ptr n | n >= l    = return Nothing
+-- LIQUID HIDE --              | otherwise = do w <- peek ptr
+-- LIQUID HIDE --                               if k w
+-- LIQUID HIDE --                                 then return (Just n)
+-- LIQUID HIDE --                                 else go (ptr `plusPtr` 1) (n+1)
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- {- findIndices :: (Word8 -> Bool) -> b:ByteString -> [{v:Nat | v < (bLength b)}] @-}
+-- LIQUID HIDE -- findIndices :: (Word8 -> Bool) -> ByteString -> [Int]
+-- LIQUID HIDE -- findIndices p ps = loop 0 ps
+-- LIQUID HIDE --    where
+-- LIQUID HIDE --      STRICT2(loop)
+-- LIQUID HIDE --      loop (n :: Int) qs 
+-- LIQUID HIDE --         | null qs           = []
+-- LIQUID HIDE --         | p (unsafeHead qs) = n : loop (n+1) (unsafeTail qs)
+-- LIQUID HIDE --         | otherwise         =     loop (n+1) (unsafeTail qs)
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- {- findSubstrings :: pat:ByteString -> str:ByteString -> [{v:Nat | v <= (bLength str)}] @-}
+-- LIQUID HIDE -- findSubstrings :: ByteString -- ^ String to search for.
+-- LIQUID HIDE --                -> ByteString -- ^ String to seach in.
+-- LIQUID HIDE --                -> [Int]
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- -- LIQUID LATEST 
+-- LIQUID HIDE -- findSubstrings pat str
+-- LIQUID HIDE --     | null pat         = rng (length str - 1) -- LIQUID COMPREHENSIONS [0 .. (length str - 1)]
+-- LIQUID HIDE --     | otherwise        = search 0 str
+-- LIQUID HIDE --   where
+-- LIQUID HIDE --     STRICT2(search)
+-- LIQUID HIDE --     search (n :: Int) s
+-- LIQUID HIDE --         | null s             = []
+-- LIQUID HIDE --         | pat `isPrefixOf` s = n : search (n+1) (unsafeTail s)
+-- LIQUID HIDE --         | otherwise          =     search (n+1) (unsafeTail s)
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- {- breakSubstring :: ByteString -> b:ByteString -> (ByteStringPair b) @-}
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- breakSubstring :: ByteString -- ^ String to search for
+-- LIQUID HIDE --                -> ByteString -- ^ String to search in
+-- LIQUID HIDE --                -> (ByteString,ByteString) -- ^ Head and tail of string broken at substring
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- breakSubstring pat src = search 0 src
+-- LIQUID HIDE --   where
+-- LIQUID HIDE --     STRICT2(search)
+-- LIQUID HIDE --     search n s
+-- LIQUID HIDE --         | null s             = (src, empty)      -- not found
+-- LIQUID HIDE --         | pat `isPrefixOf` s = (take n src,s)
+-- LIQUID HIDE --         | otherwise          = search (n+1) (unsafeTail s)
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- -- LIQUID NICE-INFERENCE-EXAMPLE! 
+-- LIQUID HIDE -- {- predicate ZipLenB V X Y = (bLength V) = (if (bLength X) <= (bLength Y) then (bLength X) else (bLength Y)) @-}
+-- LIQUID HIDE -- {- zipWith' :: (Word8 -> Word8 -> Word8) -> x:ByteString -> y:ByteString -> {v:ByteString | (ZipLenB v x y)} @-}
+-- LIQUID HIDE -- zipWith' :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString -> ByteString
+-- LIQUID HIDE -- zipWith' f (PS fp s l) (PS fq t m) = inlinePerformIO $
+-- LIQUID HIDE --     withForeignPtr fp $ \a ->
+-- LIQUID HIDE --     withForeignPtr fq $ \b ->
+-- LIQUID HIDE --     create len $ zipWith_ 0 (a `plusPtr` s) (b `plusPtr` t)
+-- LIQUID HIDE --   where
+-- LIQUID HIDE --     zipWith_ :: Int -> Ptr Word8 -> Ptr Word8 -> Ptr Word8 -> IO ()
+-- LIQUID HIDE --     STRICT4(zipWith_)
+-- LIQUID HIDE --     zipWith_ n p1 p2 r
+-- LIQUID HIDE --        | n >= len = return ()
+-- LIQUID HIDE --        | otherwise = do
+-- LIQUID HIDE --             x <- peekByteOff p1 n
+-- LIQUID HIDE --             y <- peekByteOff p2 n
+-- LIQUID HIDE --             pokeByteOff r n (f x y)
+-- LIQUID HIDE --             zipWith_ (n+1) p1 p2 r
+-- LIQUID HIDE -- 
+-- LIQUID HIDE --     len = min l m
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- 
+-- LIQUID HIDE -- {- qualif FilterLoop(v:GHC.Ptr.Ptr a, f:GHC.Ptr.Ptr a, t:GHC.Ptr.Ptr a):
+-- LIQUID HIDE --         (plen t) >= (plen f) - (plen v) @-}
+-- LIQUID HIDE -- {- filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
+-- LIQUID HIDE -- filter :: (Word8 -> Bool) -> ByteString -> ByteString
+-- LIQUID HIDE -- filter k ps@(PS x s l)
+-- LIQUID HIDE --     | null ps   = ps
+-- LIQUID HIDE --     | otherwise = unsafePerformIO $ createAndTrim l $ \p -> withForeignPtr x $ \f -> do
+-- LIQUID HIDE --         t <- go (f `plusPtr` s) p (f `plusPtr` (s + l))
+-- LIQUID HIDE --         return $! t `minusPtr` p -- actual length
+-- LIQUID HIDE --     where
+-- LIQUID HIDE --       STRICT3(go)
+-- LIQUID HIDE --       go f' t end | f' == end = return t
+-- LIQUID HIDE --                   | otherwise = do
+-- LIQUID HIDE --                         let f = liquid_thm_ptr_cmp f' end
+-- LIQUID HIDE --                         w <- peek f
+-- LIQUID HIDE --                         if k w
+-- LIQUID HIDE --                           then poke t w >> go (f `plusPtr` 1) (t `plusPtr` 1) end
+-- LIQUID HIDE --                           else             go (f `plusPtr` 1) t               end
 
 
