@@ -110,6 +110,14 @@ import qualified Foreign.C.Types
 liquid_thm_ptr_cmp :: Ptr a -> Ptr a -> Ptr a
 liquid_thm_ptr_cmp p q = undefined -- p -- LIQUID : make this undefined to suppress WARNING
 
+{-@ liquid_thm_ptr_cmp' :: p:PtrV a 
+                        -> q:{v:(PtrV a) | ((plen v) >= (plen p) && v != p && (pbase v) = (pbase p))} 
+                        -> {v: (PtrV a)  | ((v = p) && ((plen v) > 0) && ((plen q) > (plen p))) } 
+  @-}
+liquid_thm_ptr_cmp' :: Ptr a -> Ptr a -> Ptr a
+liquid_thm_ptr_cmp' p q = undefined 
+
+
 {-@ memcpy_ptr_baoff :: p:(Ptr a) 
                      -> RawBuffer b 
                      -> Int 
@@ -159,13 +167,13 @@ foldl1' = undefined
 null :: ByteString -> Bool
 null = undefined 
 
-{-@ foldl :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
-foldl :: (a -> Word8 -> a) -> a -> ByteString -> a
-foldl = undefined
+{- foldl :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
+-- foldl :: (a -> Word8 -> a) -> a -> ByteString -> a
+-- foldl = undefined
 
-{-@ foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
-foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a
-foldl' = undefined
+{- foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
+-- foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a
+-- foldl' = undefined
 
 {-@ empty :: {v:ByteString | (bLength v) = 0} @-} 
 empty :: ByteString
@@ -294,10 +302,6 @@ take = undefined
 rng :: Int -> [Int]
 rng = undefined
 
-{-@ pack :: cs:[Word8] -> {v:ByteString | (bLength v) = (len cs)} @-}
-pack :: [Word8] -> ByteString
-pack = undefined
-
 
 {-@ singleton :: Word8 -> {v:ByteString | (bLength v) = 1} @-}
 singleton :: Word8 -> ByteString
@@ -311,39 +315,41 @@ hPut = undefined
 hGet :: Handle -> Int -> IO ByteString
 hGet = undefined
 
+{-@ pack :: cs:[Word8] -> {v:ByteString | (bLength v) = (len cs)} @-}
+pack :: [Word8] -> ByteString
+pack = undefined
+
+{-@ unpack :: b:ByteString -> {v:[Word8] | (len v) = (bLength b)} @-}
+-- unpack :: ByteString -> [Word8]
+-- unpack = undefined
+
+unpackFoldr :: ByteString -> (Word8 -> a -> a) -> a -> a
+unpackFoldr = undefined
+
+
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
-
-{-@ scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteString | (bLength v) = 1 + (bLength b)}  @-}
-scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
-#if !defined(LOOPU_FUSION)
-scanl f z ps = loopArr . loopUp (scanEFL f) z $ (ps `snoc` 0)
-#else
-scanl f z ps = loopArr . loopU (scanEFL f) z $ (ps `snoc` 0)
-#endif
+-- foldr/foldr' TERMINATION
+{-@ qualif PtrDiff(v:int, p:GHC.Ptr.Ptr a, q:GHC.Ptr.Ptr a): v >= (plen p) - (plen q) @-}
 
 
-{-@ scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteStringNE | (bLength v) = 1 + (bLength b)}  @-}
-scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
-scanr f z ps = loopArr . loopDown (scanEFL (flip f)) z $ (0 `cons` ps) -- extra space
-
--- | 'scanr1' is a variant of 'scanr' that has no starting value argument.
--- LIQUID TODO
-{-@ scanr1 :: (Word8 -> Word8 -> Word8) -> b:ByteStringNE -> (ByteStringSZ b) @-}
-scanr1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
-scanr1 f ps
-    | null ps   = empty
-    | otherwise = scanr f (last ps) (init ps) -- todo, unsafe versions
-{-# INLINE scanr1 #-}
-
-{-@ scanl1 :: (Word8 -> Word8 -> Word8) -> b:ByteStringNE -> (ByteStringSZ b) @-}
-scanl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
-scanl1 f ps
-    | null ps   = empty
-    | otherwise = scanl f (unsafeHead ps) (unsafeTail ps)
-{-# INLINE scanl1 #-}
+foldr' :: (Word8 -> a -> a) -> a -> ByteString -> a
+foldr' k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
+        go v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1)) l
+    where
+        STRICT4(go)
+        go z p q (d::Int)
+                 | p == q    = return z
+                 | otherwise = do let p' = liquid_thm_ptr_cmp' p q 
+                                  c  <- peek p'
+                                  let n  = 0 - 1  
+                                  go (c `k` z) (p' `plusPtr` n) q (d-1) -- tail recursive
+        -- LIQUID go z p q | p == q    = return z
+        -- LIQUID          | otherwise = do c  <- peek p
+        -- LIQUID                           go (c `k` z) (p `plusPtr` (-1)) q -- tail recursive
+{-# INLINE foldr' #-}
 
 

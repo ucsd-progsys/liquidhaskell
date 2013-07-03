@@ -1,5 +1,4 @@
 {-# LANGUAGE ScopedTypeVariables #-}
--- ! --termination
 
 module Term0 where 
 
@@ -26,5 +25,9 @@ sumUp n  = go n 0 0
 
 {-@ qualif Diff(v:Int, x:Int, y:Int): v = x - y @-} 
 
+{-@ nonTerm :: Nat -> Nat @-}
+nonTerm :: Int -> Int
+nonTerm n = nonTerm (n+1)
 
+{-@ Strict nonTerm @-}
 

@@ -80,12 +80,6 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
     lbLengths (x:xs) = (lbLength x) + (lbLengths xs)
   @-}
 
-{-@ qualif LBLensAcc(v:Data.ByteString.Lazy.Internal.ByteString,
-                     bs:List Data.ByteString.Lazy.Internal.ByteString,
-                     b:Data.ByteString.Lazy.Internal.ByteString):
-        lbLength(v) = lbLengths(bs) + lbLength(b)
-  @-}
-
 {-@ invariant {v:LByteString   | (lbLength v)  >= 0} @-}
 {-@ invariant {v:[LByteString] | (lbLengths v) >= 0} @-}
 
@@ -104,6 +98,12 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
 {-@ type LByteStringLE B = {v:LByteString | (lbLength v) <= (lbLength B)} @-}
 
 -- ByteString qualifiers
+{-@ qualif LBLensAcc(v:Data.ByteString.Lazy.Internal.ByteString,
+                     bs:List Data.ByteString.Lazy.Internal.ByteString,
+                     b:Data.ByteString.Lazy.Internal.ByteString):
+        lbLength(v) = lbLengths(bs) + lbLength(b)
+  @-}
+
 {-@ qualif ByteStringNE(v:Data.ByteString.Internal.ByteString): (bLength v) > 0 @-}
 {-@ qualif BLengthsAcc(v:List Data.ByteString.Internal.ByteString,
                        c:Data.ByteString.Internal.ByteString,
