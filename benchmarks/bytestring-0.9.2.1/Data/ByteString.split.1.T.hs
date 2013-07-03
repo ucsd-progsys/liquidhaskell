@@ -294,60 +294,19 @@ split _ (PS _ _ 0) = []
 split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
     let ptr = p `plusPtr` s
 
-        STRICT1(loop)
-        loop n =
+        STRICT2(loop)
+        loop (d::Int) n =
             -- LIQUID: else lose `plen` info due to subsequent @ Word8 application
             let ptrn = (ptr `plusPtr` n) :: Ptr Word8 
                 q = inlinePerformIO $ memchr ptrn {- (ptr `plusPtr` n) -}
                                            w (fromIntegral (l-n))
             in if isNullPtr q {- LIQUID q == nullPtr -}
                 then [PS x (s+n) (l-n)]
-                else let i = q `minusPtr` ptr in PS x (s+n) (i-n) : loop (i+1)
+                else let i = q `minusPtr` ptr in PS x (s+n) (i-n) : loop (l - (i+1)) (i+1)
 
-    return (loop 0)
+    return (loop l 0)
 {-# INLINE split #-}
 
-{-@ splitO :: Word8 -> b:ByteStringNE -> (ByteStringSplit b)  @-}
-splitO :: Word8 -> ByteString -> [ByteString]
-splitO _ (PS _ _ 0) = []
-splitO w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
-    let ptr = p `plusPtr` s
-    return (splitLoop x ptr w l s 0)
-
--- LIQUID TODO: THIS ORIGINAL CODE WORKS FINE IN ISOLATION BUT SOMEHOW BREAKS ON LARGE FILE. 
--- TOO SICK AND TIRED TO INVESTIGATE WTF is going on...
---         STRICT1(loop)
---         loop n =
---             -- LIQUID: else lose `plen` info due to subsequent @ Word8 application
---             let ptrn = (ptr `plusPtr` n) :: Ptr Word8 
---                 q = inlinePerformIO $ memchr ptrn {- (ptr `plusPtr` n) -}
---                                            w (fromIntegral (l-n))
---             in if isNullPtr q {- LIQUID q == nullPtr -}
---                 then [PS x (s+n) (l-n)]
---                 else let i = q `minusPtr` ptr in PS x (s+n) (i-n) : loop (i+1)
--- 
---     return (loop 0)
-
-
-{-@ splitLoop :: fp:(ForeignPtr Word8) 
-          -> p:(Ptr Word8) 
-          -> Word8 
-          -> l:{v:Nat | v <= (plen p)} 
-          -> s:{v:Nat | v + l <= (fplen fp)}
-          -> n:{v:Nat | v <= l} 
-          -> {v:[ByteString] | (bLengths v) + (len v) - 1 = l - n} 
-  @-}
-splitLoop :: ForeignPtr Word8 -> Ptr Word8 -> Word8 -> Int -> Int -> Int -> [ByteString]
-splitLoop xanadu ptrGOBBLE w l s n = 
-  let ptrn = ((ptrGOBBLE `plusPtr` n) :: Ptr Word8) 
-           -- NEEDED: else lose `plen` information without cast
-           -- thanks to subsequent @ Word8 application
-      q    = inlinePerformIO $ memchr ptrn w (fromIntegral (l-n))
-  in if isNullPtr q {- LIQUID q == nullPtr -}
-       then [PS xanadu (s+n) (l-n)]
-       else let i' = q `minusPtr` ptrGOBBLE
-                i  = liquidAssert (n <= i' && i' < l) i'
-            in PS xanadu (s+n) (i-n) : splitLoop xanadu ptrGOBBLE w l s (i+1)
 
 {-@ splitWith :: (Word8 -> Bool) -> b:ByteStringNE -> (ByteStringSplit b) @-}
 splitWith :: (Word8 -> Bool) -> ByteString -> [ByteString]
@@ -355,7 +314,7 @@ splitWith :: (Word8 -> Bool) -> ByteString -> [ByteString]
 splitWith _pred (PS _  _   0) = []
 splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp
   where pred# c# = pred_ (W8# c#)
-
+        -- LIQUID MUTUAL-RECURSION-TERMINATION
         STRICT4(splitWith0)
         splitWith0 pred' off' len' fp' = withPtr fp $ \p ->
             splitLoop pred' p 0 off' len' fp'
@@ -410,7 +369,7 @@ inits (PS x s l) = PS x s 0 : go 0 (rng 1 l)
           rng a b | a > b     = []
                   | otherwise = a : rng (a+1) b
 
-{-@ rng :: n:Int -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
+{-@ rng :: n:Nat -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
 rng :: Int -> [Int]
 rng 0 = [0]
 rng n = n : rng (n-1) 
@@ -849,6 +808,7 @@ hGetContents h = do
                 return $! PS fp 0 i
         else f p start_size
     where
+        -- LIQUID POTENTIALLY NON-TERMINATING!
         f p s = do
             let s' = s + s -- 2 * s -- LIQUID MULTIPLY
             p' <- reallocBytes p s'
