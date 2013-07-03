@@ -294,10 +294,6 @@ take = undefined
 rng :: Int -> [Int]
 rng = undefined
 
-{-@ pack :: cs:[Word8] -> {v:ByteString | (bLength v) = (len cs)} @-}
-pack :: [Word8] -> ByteString
-pack = undefined
-
 
 {-@ singleton :: Word8 -> {v:ByteString | (bLength v) = 1} @-}
 singleton :: Word8 -> ByteString
@@ -311,39 +307,32 @@ hPut = undefined
 hGet :: Handle -> Int -> IO ByteString
 hGet = undefined
 
+{-@ pack :: cs:[Word8] -> {v:ByteString | (bLength v) = (len cs)} @-}
+pack :: [Word8] -> ByteString
+pack = undefined
+
+{-@ unpack :: b:ByteString -> {v:[Word8] | (len v) = (bLength b)} @-}
+unpack :: ByteString -> [Word8]
+unpack = undefined
+
+unpackFoldr :: ByteString -> (Word8 -> a -> a) -> a -> a
+unpackFoldr = undefined
+
+
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 
-{-@ scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteString | (bLength v) = 1 + (bLength b)}  @-}
-scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
-#if !defined(LOOPU_FUSION)
-scanl f z ps = loopArr . loopUp (scanEFL f) z $ (ps `snoc` 0)
-#else
-scanl f z ps = loopArr . loopU (scanEFL f) z $ (ps `snoc` 0)
-#endif
 
-
-{-@ scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteStringNE | (bLength v) = 1 + (bLength b)}  @-}
-scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
-scanr f z ps = loopArr . loopDown (scanEFL (flip f)) z $ (0 `cons` ps) -- extra space
-
--- | 'scanr1' is a variant of 'scanr' that has no starting value argument.
--- LIQUID TODO
-{-@ scanr1 :: (Word8 -> Word8 -> Word8) -> b:ByteStringNE -> (ByteStringSZ b) @-}
-scanr1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
-scanr1 f ps
-    | null ps   = empty
-    | otherwise = scanr f (last ps) (init ps) -- todo, unsafe versions
-{-# INLINE scanr1 #-}
-
-{-@ scanl1 :: (Word8 -> Word8 -> Word8) -> b:ByteStringNE -> (ByteStringSZ b) @-}
-scanl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
-scanl1 f ps
-    | null ps   = empty
-    | otherwise = scanl f (unsafeHead ps) (unsafeTail ps)
-{-# INLINE scanl1 #-}
-
-
+{-@ findIndexOrEnd :: (Word8 -> Bool) -> b:ByteString -> {v:Nat | v <= (bLength b) } @-}
+findIndexOrEnd :: (Word8 -> Bool) -> ByteString -> Int
+findIndexOrEnd k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go l (f `plusPtr` s) 0
+  where
+    STRICT3(go)
+    go (d::Int) ptr n | n >= l    = return l
+                      | otherwise = do w <- peek ptr
+                                       if k w
+                                         then return n
+                                         else go (d-1) (ptr `plusPtr` 1) (n+1)
