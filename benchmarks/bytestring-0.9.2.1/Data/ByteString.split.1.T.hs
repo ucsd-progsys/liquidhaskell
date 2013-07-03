@@ -479,6 +479,8 @@ notElem :: Word8 -> ByteString -> Bool
 notElem c ps = not (elem c ps)
 {-# INLINE notElem #-}
 
+{-@ qualif FilterDecr(v:GHC.Ptr.Ptr a, f:GHC.Ptr.Ptr a, d:Int):
+        (plen v) >= (plen f) - d @-}
 
 {-@ qualif FilterLoop(v:GHC.Ptr.Ptr a, f:GHC.Ptr.Ptr a, t:GHC.Ptr.Ptr a):
         (plen t) >= (plen f) - (plen v) @-}
@@ -487,33 +489,19 @@ filter :: (Word8 -> Bool) -> ByteString -> ByteString
 filter k ps@(PS x s l)
     | null ps   = ps
     | otherwise = unsafePerformIO $ createAndTrim l $ \p -> withForeignPtr x $ \f -> do
-        t <- go (f `plusPtr` s) p (f `plusPtr` (s + l))
+        t <- go l (f `plusPtr` s) p (f `plusPtr` (s + l))
         return $! t `minusPtr` p -- actual length
     where
-      STRICT3(go)
-      go f' t end | f' == end = return t
+      STRICT4(go)
+      go (d::Int) f' t end  -- LIQUID TERMINATION 
+                  | f' == end = return t
                   | otherwise = do
                         let f = liquid_thm_ptr_cmp f' end
                         w <- peek f
                         if k w
-                          then poke t w >> go (f `plusPtr` 1) (t `plusPtr` 1) end
-                          else             go (f `plusPtr` 1) t               end
+                          then poke t w >> go (d-1) (f `plusPtr` 1) (t `plusPtr` 1) end
+                          else             go (d-1) (f `plusPtr` 1) t               end
 
-
-{- goFilterLoop :: (Word8 -> Bool) 
-       -> f:(PtrV Word8) 
-       -> t:(PtrV Word8)
-       -> e:{v:(PtrV Word8) | ((pbase v) = (pbase f) && (plen v) <= (plen f) && (plen t) >= (plen f) - (plen v)) } 
-       -> (IO {v: (PtrV Word8) | ((pbase v) = (pbase t) && (plen v) <= (plen t))}) @-}
--- goFilterLoop :: (Word8 -> Bool) -> (Ptr Word8) -> (Ptr Word8) -> Ptr Word8 -> IO (Ptr Word8)
--- goFilterLoop k f' t end 
---   | f' == end = return t
---   | otherwise = do
---                   let f = liquid_thm_ptr_cmp f' end
---                   w <- peek f
---                   if k w
---                     then poke t w >> goFilterLoop k (f `plusPtr` 1) (t `plusPtr` 1) end
---                     else             goFilterLoop k (f `plusPtr` 1) t               end
 
 
 {-@ filterByte :: Word8 -> b:ByteString -> {v:ByteString | (bLength v) <= (bLength b)} @-}
@@ -661,27 +649,26 @@ zipWith f ps qs
 unzip :: [(Word8,Word8)] -> (ByteString,ByteString)
 unzip ls = (pack (P.map fst ls), pack (P.map snd ls))
 
--- LIQUID NICE-INFERENCE-EXAMPLE! 
+-- LIQUID NICE-INFERENCE-EXAMPLE! But screws up everyone else's type. Yuck. 
 {-@ predicate ZipLenB V X Y = (bLength V) = (if (bLength X) <= (bLength Y) then (bLength X) else (bLength Y)) @-}
 {-@ zipWith' :: (Word8 -> Word8 -> Word8) -> x:ByteString -> y:ByteString -> {v:ByteString | (ZipLenB v x y)} @-}
 zipWith' :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString -> ByteString
 zipWith' f (PS fp s l) (PS fq t m) = inlinePerformIO $
     withForeignPtr fp $ \a ->
     withForeignPtr fq $ \b ->
-    create len $ zipWith_ 0 (a `plusPtr` s) (b `plusPtr` t)
+    create len $ zipWith_ len 0 (a `plusPtr` s) (b `plusPtr` t)
   where
-    zipWith_ :: Int -> Ptr Word8 -> Ptr Word8 -> Ptr Word8 -> IO ()
-    STRICT4(zipWith_)
-    zipWith_ n p1 p2 r
+    zipWith_ :: Int -> Int -> Ptr Word8 -> Ptr Word8 -> Ptr Word8 -> IO ()
+    STRICT5(zipWith_)
+    zipWith_ (d::Int) n p1 p2 r -- LIQUID TERMINATION
        | n >= len = return ()
        | otherwise = do
             x <- peekByteOff p1 n
             y <- peekByteOff p2 n
             pokeByteOff r n (f x y)
-            zipWith_ (n+1) p1 p2 r
+            zipWith_ (d-1) (n+1) p1 p2 r
 
     len = min l m
-
 
 
 ----- IO : trivial
@@ -817,10 +804,11 @@ hGetContents h = do
         then do p' <- reallocBytes p i
                 fp <- newForeignPtr finalizerFree p'
                 return $! PS fp 0 i
-        else f p start_size
+        else go_hGetContents p start_size
     where
         -- LIQUID POTENTIALLY NON-TERMINATING!
-        f p s = do
+        {-@ Strict go_hGetContents @-}
+        go_hGetContents p s = do
             let s' = s + s -- 2 * s -- LIQUID MULTIPLY
             p' <- reallocBytes p s'
             i  <- hGetBuf h (p' `plusPtr` s) s
@@ -829,7 +817,7 @@ hGetContents h = do
                         p'' <- reallocBytes p' i'
                         fp  <- newForeignPtr finalizerFree p''
                         return $! PS fp 0 i'
-                else f p' s'
+                else go_hGetContents p' s'
 
 
 
