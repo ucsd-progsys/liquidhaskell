@@ -47,6 +47,8 @@ import qualified Data.List           as L
 import Data.Bifunctor
 import Data.List (foldl')
 
+import Text.Printf
+
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import qualified Language.Fixpoint.Types            as F
 import Language.Fixpoint.Names (dropModuleNames)
@@ -805,7 +807,7 @@ recType γ (x, e, t)
         
 maybeRecType x Nothing hint t _
   = addWarning msg >> return t
-  where msg = "Cannot prove termination on " ++ showPpr x
+  where msg = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x)
 
 maybeRecType x (Just i) hint t vs
   = do dxt         <- safeLogIndex msg  index xts
@@ -813,7 +815,7 @@ maybeRecType x (Just i) hint t vs
        return $ maybeRecType' t v dxt index       
   where index = fromMaybe i hint
         msg'  = "recType on " ++ showPpr x ++ " with "++ showPpr vs
-        msg   = "Cannot prove termination on " ++ showPpr x
+        msg   = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x)
         (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
         xts           = zip xs ts

@@ -339,7 +339,15 @@ type Size     = Int
     mlen(Bin s k v l r) = 1 + (mlen l) + (mlen r)
   @-}
 
+{-@ type SumMLen A B = {v:Nat | v = (mlen A) + (mlen B)} @-}
+
 {-@ invariant {v:Map k a | (mlen v) >= 0} @-}
+
+
+{-@ mlen :: m:Map k a -> {v:Nat | v = (mlen m)} @-}
+mlen :: Map k a -> Int
+mlen Tip = 0
+mlen (Bin s k v l r) = 1 + mlen l + mlen r
 
 {-@ type OMap k a = Map <{\root v -> v < root}, {\root v -> v > root}> k a @-}
 
@@ -1376,7 +1384,7 @@ difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
                           -> {v: OMap k a | (RootBetween lo hi v) }                       
                           -> OMap {v: k | (KeyBetween lo hi v) } b 
                           -> OMap {v: k | (KeyBetween lo hi v) } a @-}
-{-@ Decrease hedgeDiff 4 @-}
+{-@ Decrease hedgeDiff 5 @-}
 hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
 hedgeDiff _  _   Tip _                  = Tip
 hedgeDiff blo bhi (Bin _ kx x l r) Tip  = join kx x (filterGt blo l) (filterLt bhi r)
@@ -2523,13 +2531,23 @@ splitLookup k t = k `seq`
 --------------------------------------------------------------------}
 
 {-@ join :: k:k -> a -> OMap {v:k | v < k} a -> OMap {v:k| v > k} a -> OMap k a @-}
-{-@ Decrease join 4 @-}
+{-@ Strict Data.Map.Base.join @-}
 join :: k -> a -> Map k a -> Map k a -> Map k a
 join kx x Tip r  = insertMin kx x r
 join kx x l Tip  = insertMax kx x l
 join kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
   | delta*sizeL < sizeR  = balanceL kz z (join kx x l lz) rz
   | delta*sizeR < sizeL  = balanceR ky y ly (join kx x ry r)
+  | otherwise            = bin kx x l r
+
+{-@ joinT :: k:k -> a -> a:OMap {v:k | v < k} a -> b:OMap {v:k| v > k} a -> SumMLen a b -> OMap k a @-}
+{-@ Decrease joinT 5 @-}
+joinT :: k -> a -> Map k a -> Map k a -> Int -> Map k a
+joinT kx x Tip r _ = insertMin kx x r
+joinT kx x l Tip _ = insertMax kx x l
+joinT kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz) d
+  | delta*sizeL < sizeR  = balanceL kz z (joinT kx x l lz (d-(mlen rz)-1)) rz
+  | delta*sizeR < sizeL  = balanceR ky y ly (joinT kx x ry r (d-(mlen ly)-1))
   | otherwise            = bin kx x l r
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
@@ -2550,12 +2568,23 @@ insertMin kx x t
   [merge l r]: merges two trees.
 --------------------------------------------------------------------}
 {-@ merge :: kcut:k -> OMap {v:k | v < kcut} a -> OMap {v:k| v > kcut} a -> OMap k a @-}
+{-@ Strict Data.Map.Base.merge @-}
 merge :: k -> Map k a -> Map k a -> Map k a
 merge _   Tip r   = r
 merge _   l Tip   = l
 merge kcut l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
   | delta*sizeL < sizeR = balanceL ky y (merge kcut l ly) ry
   | delta*sizeR < sizeL = balanceR kx x lx (merge kcut rx r)
+  | otherwise           = glue kcut l r
+
+{-@ mergeT :: kcut:k -> a:OMap {v:k | v < kcut} a -> b:OMap {v:k| v > kcut} a -> SumMLen a b -> OMap k a @-}
+{-@ Decrease mergeT 4 @-}
+mergeT :: k -> Map k a -> Map k a -> Int -> Map k a
+mergeT _   Tip r _   = r
+mergeT _   l Tip _   = l
+mergeT kcut l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry) d
+  | delta*sizeL < sizeR = balanceL ky y (mergeT kcut l ly (d-(mlen ry)-1)) ry
+  | delta*sizeR < sizeL = balanceR kx x lx (mergeT kcut rx r (d-(mlen lx)-1))
   | otherwise           = glue kcut l r
 
 {--------------------------------------------------------------------
