@@ -1040,13 +1040,18 @@ span p = break (not . p)
 --
 {-@ splitWith :: (Word8 -> Bool) -> b:LByteStringNE -> (LByteStringSplit b) @-}
 splitWith :: (Word8 -> Bool) -> ByteString -> [ByteString]
-splitWith _ Empty          = []
-splitWith p (Chunk c0 cs0) = comb [] (S.splitWith p c0) cs0
-
-  where comb :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
-        comb acc (s:[]) Empty        = revChunks (s:acc) : []
-        comb acc (s:[]) (Chunk c cs) = comb (s:acc) (S.splitWith p c) cs
-        comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
+splitWith _ Empty     = []
+--LIQUID PARAM splitWith w (Chunk c0 cs0) = comb [] (S.splitWith w c0) cs0
+--LIQUID PARAM   where comb :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
+--LIQUID PARAM         comb acc (s:[]) Empty        = revChunks (s:acc) : []
+--LIQUID PARAM         comb acc (s:[]) (Chunk c cs) = comb (s:acc) (S.splitWith w c) cs
+--LIQUID PARAM         comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
+splitWith w (Chunk c0 cs0) = comb [] cs0 (S.splitWith w c0)
+        {- Decrease comb 2 3 @-}
+  where comb :: [S.ByteString] -> ByteString -> [S.ByteString] -> [ByteString]
+        comb acc Empty        (s:[]) = revChunks (s:acc) : []
+        comb acc (Chunk c cs) (s:[]) = comb (s:acc) cs (S.splitWith w c)
+        comb acc cs           (s:ss) = revChunks (s:acc) : comb [] cs ss
 
 {-# INLINE splitWith #-}
 
@@ -1069,12 +1074,17 @@ splitWith p (Chunk c0 cs0) = comb [] (S.splitWith p c0) cs0
 {-@ split :: Word8 -> b:LByteStringNE -> (LByteStringSplit b) @-}
 split :: Word8 -> ByteString -> [ByteString]
 split _ Empty     = []
-split w (Chunk c0 cs0) = comb [] (S.split w c0) cs0
-
-  where comb :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
-        comb acc (s:[]) Empty        = revChunks (s:acc) : []
-        comb acc (s:[]) (Chunk c cs) = comb (s:acc) (S.split w c) cs
-        comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
+--LIQUID PARAM split w (Chunk c0 cs0) = comb [] (S.split w c0) cs0
+--LIQUID PARAM   where comb :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
+--LIQUID PARAM         comb acc (s:[]) Empty        = revChunks (s:acc) : []
+--LIQUID PARAM         comb acc (s:[]) (Chunk c cs) = comb (s:acc) (S.split w c) cs
+--LIQUID PARAM         comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
+split w (Chunk c0 cs0) = comb [] cs0 (S.split w c0)
+        {- Decrease comb 2 3 @-}
+  where comb :: [S.ByteString] -> ByteString -> [S.ByteString] -> [ByteString]
+        comb acc Empty        (s:[]) = revChunks (s:acc) : []
+        comb acc (Chunk c cs) (s:[]) = comb (s:acc) cs (S.split w c)
+        comb acc cs           (s:ss) = revChunks (s:acc) : comb [] cs ss
 {-# INLINE split #-}
 
 {-
@@ -1099,15 +1109,25 @@ tokens f = L.filter (not.null) . splitWith f
 {-@ group :: b:LByteString -> {v: [LByteString] | (lbLengths v) = (lbLength b)} @-}
 group :: ByteString -> [ByteString]
 group Empty          = []
-group (Chunk c0 cs0) = group' [] (S.group c0) cs0
-  where 
-    group' :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
-    group' acc@(s':_) ss@(s:_) cs
+--LIQUID PARAM group (Chunk c0 cs0) = group' [] (S.group c0) cs0
+--LIQUID PARAM   where 
+--LIQUID PARAM     group' :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
+--LIQUID PARAM     group' acc@(s':_) ss@(s:_) cs
+--LIQUID PARAM       | S.unsafeHead s'
+--LIQUID PARAM      /= S.unsafeHead s             = revNonEmptyChunks    acc  : group' [] ss cs
+--LIQUID PARAM     group' acc (s:[]) Empty        = revNonEmptyChunks (s:acc) : []
+--LIQUID PARAM     group' acc (s:[]) (Chunk c cs) = group' (s:acc) (S.group c) cs
+--LIQUID PARAM     group' acc (s:ss) cs           = revNonEmptyChunks (s:acc) : group' [] ss cs
+group (Chunk c0 cs0) = group_go cs0 (S.group c0) []
+  where
+    {- Decrease group_go 1 2 3 @-}
+    group_go :: ByteString -> [S.ByteString] -> [S.ByteString] -> [ByteString]
+    group_go cs ss@(s:_) acc@(s':_)
       | S.unsafeHead s'
-     /= S.unsafeHead s             = revNonEmptyChunks    acc  : group' [] ss cs
-    group' acc (s:[]) Empty        = revNonEmptyChunks (s:acc) : []
-    group' acc (s:[]) (Chunk c cs) = group' (s:acc) (S.group c) cs
-    group' acc (s:ss) cs           = revNonEmptyChunks (s:acc) : group' [] ss cs
+     /= S.unsafeHead s               = revNonEmptyChunks    acc  : group_go cs ss []
+    group_go Empty        (s:[]) acc = revNonEmptyChunks (s:acc) : []
+    group_go (Chunk c cs) (s:[]) acc = group_go cs (S.group c) (s:acc)
+    group_go cs           (s:ss) acc = revNonEmptyChunks (s:acc) : group_go cs ss []
 
 {-
 TODO: check if something like this might be faster
@@ -1125,16 +1145,26 @@ group xs
 {-@ groupBy :: (Word8 -> Word8 -> Bool) -> b:LByteString -> {v:[LByteString] | (lbLengths v) = (lbLength b)} @-}
 groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
 groupBy _ Empty          = []
-groupBy k (Chunk c0 cs0) = groupBy' [] 0 (S.groupBy k c0) cs0
+--LIQUID PARAM groupBy k (Chunk c0 cs0) = groupBy' [] 0 (S.groupBy k c0) cs0
+--LIQUID PARAM   where
+--LIQUID PARAM     groupBy' :: [S.ByteString] -> Word8 -> [S.ByteString] -> ByteString -> [ByteString]
+--LIQUID PARAM     groupBy' acc@(_:_) c ss@(s:_) cs
+--LIQUID PARAM       | not (c `k` S.unsafeHead s)     = revNonEmptyChunks acc : groupBy' [] 0 ss cs
+--LIQUID PARAM     groupBy' acc _ (s:[]) Empty        = revNonEmptyChunks (s : acc) : []
+--LIQUID PARAM     groupBy' acc w (s:[]) (Chunk c cs) = groupBy' (s:acc) w' (S.groupBy k c) cs
+--LIQUID PARAM                                            where w' | L.null acc = S.unsafeHead s
+--LIQUID PARAM                                                     | otherwise  = w
+--LIQUID PARAM     groupBy' acc _ (s:ss) cs           = revNonEmptyChunks (s : acc) : groupBy' [] 0 ss cs
+groupBy k (Chunk c0 cs0) = groupBy_go cs0 (S.groupBy k c0) []
   where
-    groupBy' :: [S.ByteString] -> Word8 -> [S.ByteString] -> ByteString -> [ByteString]
-    groupBy' acc@(_:_) c ss@(s:_) cs
-      | not (c `k` S.unsafeHead s)     = revNonEmptyChunks acc : groupBy' [] 0 ss cs
-    groupBy' acc _ (s:[]) Empty        = revNonEmptyChunks (s : acc) : []
-    groupBy' acc w (s:[]) (Chunk c cs) = groupBy' (s:acc) w' (S.groupBy k c) cs
-                                           where w' | L.null acc = S.unsafeHead s
-                                                    | otherwise  = w
-    groupBy' acc _ (s:ss) cs           = revNonEmptyChunks (s : acc) : groupBy' [] 0 ss cs
+    {- Decrease groupBy_go 1 2 3 @-}
+    groupBy_go :: ByteString -> [S.ByteString] -> [S.ByteString] -> [ByteString]
+    groupBy_go cs ss@(s:_) acc@(s':_)
+      | S.unsafeHead s'
+     /= S.unsafeHead s               = revNonEmptyChunks    acc  : groupBy_go cs ss []
+    groupBy_go Empty        (s:[]) acc = revNonEmptyChunks (s:acc) : []
+    groupBy_go (Chunk c cs) (s:[]) acc = groupBy_go cs (S.groupBy k c) (s:acc)
+    groupBy_go cs           (s:ss) acc = revNonEmptyChunks (s:acc) : groupBy_go cs ss []
 
 {-
 TODO: check if something like this might be faster
