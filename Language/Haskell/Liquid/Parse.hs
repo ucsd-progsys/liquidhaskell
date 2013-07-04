@@ -279,7 +279,7 @@ data Pspec ty ctor
   | PAlias  (RTAlias Symbol Pred)
   | Embed   (Located String, FTycon)
   | Qualif  Qualifier
-  | Decr    (Symbol, Int)
+  | Decr    (Symbol, [Int])
   | Strict  Symbol
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
@@ -331,9 +331,9 @@ specP
 strictP :: Parser Symbol
 strictP = binderP
 
-decreaseP :: Parser (Symbol, Int)
-decreaseP = mapSnd f <$> liftM2 (,) binderP (spaces >> integer)
-  where f x = fromInteger x - 1
+decreaseP :: Parser (Symbol, [Int])
+decreaseP = mapSnd f <$> liftM2 (,) binderP (spaces >> (many integer))
+  where f = ((\n -> fromInteger n - 1) <$>)
 filePathP :: Parser FilePath
 filePathP = angles $ many1 pathCharP
   where pathCharP = choice $ char <$> pathChars 
