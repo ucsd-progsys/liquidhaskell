@@ -109,7 +109,7 @@ liquidCanary x   = x - 1
 -- All functions must preserve this, and the QC properties must check this.
 --
 
--- LIQUID: rename `invariant` to `invt` to avoid name clash! 
+-- LIQUID RENAME: rename `invariant` to `invt` to avoid name clash!
 {-@ invt :: Data.ByteString.Lazy.Internal.ByteString -> {v: Bool | (Prop v)}  @-}
 invt :: ByteString -> Bool
 invt Empty                     = True 
@@ -147,7 +147,7 @@ chunk c@(S.PS _ _ len) cs | len == 0  = cs
                 -> b:LByteString
                 -> a<p b>
   @-}
---LIQUID added parameter to `f` for abstract refinement
+--LIQUID GHOST added parameter to `f` for abstract refinement
 foldrChunks :: (ByteString -> S.ByteString -> a -> a) -> a -> ByteString -> a
 foldrChunks f z = go
   where go Empty        = z
@@ -184,13 +184,13 @@ foldlChunks f z = go z
 -- | Currently set to 32k, less the memory management overhead
 {-@ defaultChunkSize :: {v:Nat | v = 32752} @-}
 defaultChunkSize :: Int
-defaultChunkSize = {-LIUQID 32 * k -} 32768 - chunkOverhead
+defaultChunkSize = {-LIUQID MULTIPLY 32 * k -} 32768 - chunkOverhead
    where k = 1024
 
 -- | Currently set to 4k, less the memory management overhead
 {-@ smallChunkSize :: {v:Nat | v = 4080} @-}
 smallChunkSize :: Int
-smallChunkSize = {-LIQUID 4 * k -} 4096 - chunkOverhead
+smallChunkSize = {-LIQUID MULTIPLY 4 * k -} 4096 - chunkOverhead
    where k = 1024
 
 -- | The memory management overhead. Currently this is tuned for GHC only.

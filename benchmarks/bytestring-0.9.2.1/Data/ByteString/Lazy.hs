@@ -454,7 +454,7 @@ fromChunks (c:cs) = chunk c (fromChunks cs)
 -- | /O(n)/ Convert a lazy 'ByteString' into a list of strict 'ByteString'
 {-@ toChunks :: b:LByteString -> {v:[ByteString] | (bLengths v) = (lbLength b)} @-}
 toChunks :: ByteString -> [S.ByteString]
---LIQUID toChunks cs = foldrChunks (:) [] cs
+--LIQUID GHOST toChunks cs = foldrChunks (:) [] cs
 toChunks cs = foldrChunks (const (:)) [] cs
 
 ------------------------------------------------------------------------
@@ -487,7 +487,7 @@ null _     = False
 -- | /O(n\/c)/ 'length' returns the length of a ByteString as an 'Int64'
 {-@ length :: b:LByteString -> {v:Int64 | v = (lbLength b)} @-}
 length :: ByteString -> Int64
---LIQUID length cs = foldlChunks (\n c -> n + fromIntegral (S.length c)) 0 cs
+--LIQUID GHOST length cs = foldlChunks (\n c -> n + fromIntegral (S.length c)) 0 cs
 length cs = foldrChunks (\_ c n -> n + fromIntegral (S.length c)) 0 cs
 {-# INLINE length #-}
 
@@ -521,7 +521,7 @@ cons' w cs                             = Chunk (S.singleton w) cs
 -- | /O(n\/c)/ Append a byte to the end of a 'ByteString'
 {-@ snoc :: b:LByteString -> Word8 -> {v:LByteString | (lbLength v) = ((lbLength b) + 1)} @-}
 snoc :: ByteString -> Word8 -> ByteString
---LIQUID snoc cs w = foldrChunks Chunk (singleton w) cs
+--LIQUID GHOST snoc cs w = foldrChunks Chunk (singleton w) cs
 snoc cs w = foldrChunks (const Chunk) (singleton w) cs
 {-# INLINE snoc #-}
 
@@ -584,7 +584,7 @@ init (Chunk c0 cs0) = go c0 cs0
            -> {v:LByteString | (lbLength v) = (lbLength b1) + (lbLength b2)}
   @-}
 append :: ByteString -> ByteString -> ByteString
---LIQUID append xs ys = foldrChunks Chunk ys xs
+--LIQUID GHOST append xs ys = foldrChunks Chunk ys xs
 append xs ys = foldrChunks (const Chunk) ys xs
 {-# INLINE append #-}
 
@@ -625,11 +625,11 @@ reverse cs0 = rev Empty cs0
 intersperse :: Word8 -> ByteString -> ByteString
 intersperse _ Empty        = Empty
 intersperse w (Chunk c cs) = Chunk (S.intersperse w c)
-                                   --LIQUID (foldrChunks (Chunk . intersperse') Empty cs)
+                                   --LIQUID GHOST (foldrChunks (Chunk . intersperse') Empty cs)
                                    (foldrChunks (\_ c cs -> Chunk (intersperse' c) cs) Empty cs)
   where intersperse' :: S.ByteString -> S.ByteString
         intersperse' (S.PS fp o l) =
-          S.unsafeCreate {-LIQUID (2*l)-} (l+l) $ \p' -> withForeignPtr fp $ \p -> do
+          S.unsafeCreate {-LIQUID MULTIPLY (2*l)-} (l+l) $ \p' -> withForeignPtr fp $ \p -> do
             poke p' w
             S.c_intersperse (p' `plusPtr` 1) (p `plusPtr` o) (fromIntegral l) w
 
@@ -664,7 +664,7 @@ foldl' f z = go z
 -- (typically the right-identity of the operator), and a ByteString,
 -- reduces the ByteString using the binary operator, from right to left.
 foldr :: (Word8 -> a -> a) -> a -> ByteString -> a
---LIQUID foldr k z cs = foldrChunks (flip (S.foldr k)) z cs
+--LIQUID GHOST foldr k z cs = foldrChunks (flip (S.foldr k)) z cs
 foldr k z cs = foldrChunks (const $ flip (S.foldr k)) z cs
 {-# INLINE foldr #-}
 
@@ -678,7 +678,7 @@ foldr k z cs = foldrChunks (const $ flip (S.foldr k)) z cs
 {-@ foldl1 :: (Word8 -> Word8 -> Word8) -> LByteStringNE -> Word8 @-}
 foldl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
 foldl1 _ Empty        = errorEmptyList "foldl1"
---LIQUID foldl1 f (Chunk c cs) = foldl f (S.unsafeHead c) (Chunk (S.unsafeTail c) cs)
+--LIQUID SAFETY foldl1 f (Chunk c cs) = foldl f (S.unsafeHead c) (Chunk (S.unsafeTail c) cs)
 foldl1 f (Chunk c cs) = foldl f (S.unsafeHead c)
                                 (case S.unsafeTail c of
                                    c' | S.null c' -> cs
@@ -688,7 +688,7 @@ foldl1 f (Chunk c cs) = foldl f (S.unsafeHead c)
 {-@ foldl1' :: (Word8 -> Word8 -> Word8) -> LByteStringNE -> Word8 @-}
 foldl1' :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
 foldl1' _ Empty        = errorEmptyList "foldl1'"
---LIQUID foldl1' f (Chunk c cs) = foldl' f (S.unsafeHead c) (Chunk (S.unsafeTail c) cs)
+--LIQUID SAFETY foldl1' f (Chunk c cs) = foldl' f (S.unsafeHead c) (Chunk (S.unsafeTail c) cs)
 foldl1' f (Chunk c cs) = foldl' f (S.unsafeHead c)
                                  (case S.unsafeTail c of
                                     c' | S.null c' -> cs
@@ -734,7 +734,7 @@ concatMap f (Chunk c0 cs0) = to c0 cs0
 -- | /O(n)/ Applied to a predicate and a ByteString, 'any' determines if
 -- any element of the 'ByteString' satisfies the predicate.
 any :: (Word8 -> Bool) -> ByteString -> Bool
---LIQUID any f cs = foldrChunks (\c rest -> S.any f c || rest) False cs
+--LIQUID GHOST any f cs = foldrChunks (\c rest -> S.any f c || rest) False cs
 any f cs = foldrChunks (\_ c rest -> S.any f c || rest) False cs
 {-# INLINE any #-}
 -- todo fuse
@@ -742,7 +742,7 @@ any f cs = foldrChunks (\_ c rest -> S.any f c || rest) False cs
 -- | /O(n)/ Applied to a predicate and a 'ByteString', 'all' determines
 -- if all elements of the 'ByteString' satisfy the predicate.
 all :: (Word8 -> Bool) -> ByteString -> Bool
---LIQUID all f cs = foldrChunks (\c rest -> S.all f c && rest) True cs
+--LIQUID GHOST all f cs = foldrChunks (\c rest -> S.all f c && rest) True cs
 all f cs = foldrChunks (\_ c rest -> S.all f c && rest) True cs
 {-# INLINE all #-}
 -- todo fuse
@@ -853,14 +853,14 @@ replicate n w
             nChunks m = Chunk c (nChunks (m-1))
         in if r == 0 then cs -- preserve invariant
            else Chunk (S.unsafeTake (fromIntegral r) c) cs
---LIQUID     | r == 0             = cs -- preserve invariant
---LIQUID     | otherwise          = Chunk (S.unsafeTake (fromIntegral r) c) cs
---LIQUID  where
---LIQUID     c      = S.replicate smallChunkSize w
---LIQUID     cs     = nChunks q
---LIQUID     (q, r) = quotRem n (fromIntegral smallChunkSize)
---LIQUID     nChunks 0 = Empty
---LIQUID     nChunks m = Chunk c (nChunks (m-1))
+--LIQUID LAZY     | r == 0             = cs -- preserve invariant
+--LIQUID LAZY     | otherwise          = Chunk (S.unsafeTake (fromIntegral r) c) cs
+--LIQUID LAZY  where
+--LIQUID LAZY     c      = S.replicate smallChunkSize w
+--LIQUID LAZY     cs     = nChunks q
+--LIQUID LAZY     (q, r) = quotRem n (fromIntegral smallChunkSize)
+--LIQUID LAZY     nChunks 0 = Empty
+--LIQUID LAZY     nChunks m = Chunk c (nChunks (m-1))
 
 -- | 'cycle' ties a finite ByteString into a circular one, or equivalently,
 -- the infinite repetition of the original ByteString.
@@ -869,7 +869,7 @@ replicate n w
 {-@ Strict Data.ByteString.Lazy.cycle @-}
 cycle :: ByteString -> ByteString
 cycle Empty = errorEmptyList "cycle"
---LIQUID cycle cs    = cs' where cs' = foldrChunks Chunk cs' cs
+--LIQUID GHOST cycle cs    = cs' where cs' = foldrChunks Chunk cs' cs
 cycle cs    = cs' where cs' = foldrChunks (const Chunk) cs' cs
 
 -- | /O(n)/ The 'unfoldr' function is analogous to the List \'unfoldr\'.
@@ -900,8 +900,8 @@ unfoldr f s0 = unfoldChunk 32 s0
 take :: Int64 -> ByteString -> ByteString
 take i _ | i <= 0 = Empty
 take i cs0         = take' i cs0
-  where --LIQUID FIXME: (Num a) isn't embedded as int so this loses some
-        --LIQUID        refinements without the explicit type
+  where --LIQUID CAST FIXME: (Num a) isn't embedded as int so this loses some
+        --LIQUID             refinements without the explicit type
         take' :: Int64 -> ByteString -> ByteString
         take' 0 _            = Empty
         take' _ Empty        = Empty
@@ -1227,7 +1227,7 @@ elemIndices w cs0 = elemIndices_go 0 cs0
 -- But more efficiently than using length on the intermediate list.
 {-@ count :: Word8 -> b:LByteString -> {v:Nat64 | v <= (lbLength b) } @-}
 count :: Word8 -> ByteString -> Int64
---LIQUID count w cs = foldlChunks (\n c -> n + fromIntegral (S.count w c)) 0 cs
+--LIQUID GHOST count w cs = foldlChunks (\n c -> n + fromIntegral (S.count w c)) 0 cs
 count w cs = foldrChunks (\_ c n -> n + fromIntegral (S.count w c)) 0 cs
 
 -- | The 'findIndex' function takes a predicate and a 'ByteString' and
@@ -1304,7 +1304,7 @@ filter p s = filter_go s
 --
 -- filterByte is around 10x faster, and uses much less space, than its
 -- filter equivalent
---LIQUID FIXME: needs the spec for replicate
+--LIQUID TODO: needs the spec for replicate
 {- filterByte :: Word8 -> b:LByteString -> (LByteStringLE b) @-}
 filterByte :: Word8 -> ByteString -> ByteString
 filterByte w ps = replicate (count w ps) w
@@ -1354,11 +1354,11 @@ isPrefixOf Empty _  = True
 isPrefixOf _ Empty  = False
 isPrefixOf (Chunk x xs) (Chunk y ys)
     | S.length x == S.length y = x == y  && isPrefixOf xs ys
---LIQUID pushing bindings inward for safety
---LIQUID     | S.length x <  S.length y = x == yh && isPrefixOf xs (Chunk yt ys)
---LIQUID     | otherwise                = xh == y && isPrefixOf (Chunk xt xs) ys
---LIQUID   where (xh,xt) = S.splitAt (S.length y) x
---LIQUID         (yh,yt) = S.splitAt (S.length x) y
+--LIQUID LAZY pushing bindings inward for safety
+--LIQUID LAZY     | S.length x <  S.length y = x == yh && isPrefixOf xs (Chunk yt ys)
+--LIQUID LAZY     | otherwise                = xh == y && isPrefixOf (Chunk xt xs) ys
+--LIQUID LAZY   where (xh,xt) = S.splitAt (S.length y) x
+--LIQUID LAZY         (yh,yt) = S.splitAt (S.length x) y
     | otherwise = if S.length x <  S.length y
                   then let (xh,xt) = S.splitAt (S.length y) x
                            (yh,yt) = S.splitAt (S.length x) y
@@ -1453,7 +1453,7 @@ tails cs@(Chunk c cs')
 --   is needed in the rest of the program.
 {-@ copy :: b:LByteString -> LByteStringSZ b @-}
 copy :: ByteString -> ByteString
---LIQUID copy cs = foldrChunks (Chunk . S.copy) Empty cs
+--LIQUID GHOST copy cs = foldrChunks (Chunk . S.copy) Empty cs
 copy cs = foldrChunks (\_ c cs -> Chunk (S.copy c) cs) Empty cs
 --TODO, we could coalese small blocks here
 --FIXME: probably not strict enough, if we're doing this to avoid retaining
@@ -1566,7 +1566,7 @@ getContents = hGetContents stdin
 
 -- | Outputs a 'ByteString' to the specified 'Handle'.
 hPut :: Handle -> ByteString -> IO ()
---LIQUID hPut h cs = foldrChunks (\c rest -> S.hPut h c >> rest) (return ()) cs
+--LIQUID GHOST hPut h cs = foldrChunks (\c rest -> S.hPut h c >> rest) (return ()) cs
 hPut h cs = foldrChunks (\_ c rest -> S.hPut h c >> rest) (return ()) cs
 
 -- | A synonym for @hPut@, for compatibility
