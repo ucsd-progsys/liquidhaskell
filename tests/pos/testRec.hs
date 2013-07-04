@@ -24,6 +24,7 @@ rev xs = go [] xs
   where go ack  []    = ack
         go ack (x:xs) = go (x:ack) xs
 
+{-@ invariant {v:(L a) | ((llen v) >= 0)}@-}
 
 mapL f N = N
 mapL f (C x xs) = C (f x) (mapL f xs)

@@ -394,7 +394,7 @@ compareText ta@(Text _arrA _offA lenA) tb@(Text _arrB _offB lenB)
 -- fusion.  Performs replacement on invalid scalar values.
 {-@ pack :: s:String -> {v:Data.Text.Internal.Text | (len s) = (tlength v)} @-}
 pack :: String -> Text
---LIQUID pack = unstream . S.streamList . L.map safe
+--LIQUID COMPOSE pack = unstream . S.streamList . L.map safe
 pack str = let l = L.map safe str
                s = S.streamList l
                t = unstream s
@@ -404,7 +404,7 @@ pack str = let l = L.map safe str
 -- | /O(n)/ Convert a Text into a String.  Subject to fusion.
 {-@ unpack :: t:Data.Text.Internal.Text -> {v:String | (tlength t) = (len v)} @-}
 unpack :: Text -> String
---LIQUID unpack = S.unstreamList . stream
+--LIQUID COMPOSE unpack = S.unstreamList . stream
 unpack t = S.unstreamList $ stream t
 {-# INLINE [1] unpack #-}
 
@@ -425,7 +425,7 @@ unpack t = S.unstreamList $ stream t
 -- Performs replacement on invalid scalar values.
 {-@ singleton :: Char -> {v:Data.Text.Internal.Text | (tlength v) = 1} @-}
 singleton :: Char -> Text
---LIQUID singleton = unstream . S.singleton . safe
+--LIQUID COMPOSE singleton = unstream . S.singleton . safe
 --LIQUID another weird issue here: `S.singleton $ safe c` does not get the
 --LIQUID (slen = 1) refinement, but the following code does...
 singleton c = let c' = safe c
@@ -476,16 +476,16 @@ append a@(Text arr1 off1 len1) b@(Text arr2 off2 len2)
                              return arr
                       arr = A.run x
                       t = Text (liquidAssume (Data.Text.Array.aLen arr == len) arr) 0 len
-                  --LIQUID FIXME: this axiom is fragile, would prefer to reason about `A.run x`
+                  --LIQUID ASSUME FIXME: this axiom is fragile, would prefer to reason about `A.run x`
                   in liquidAssume (axiom_numchars_append a b t) t
     | otherwise = overflowError "append"
     where
       len = len1+len2
-      --LIQUID x = do
-      --LIQUID   arr <- A.new len
-      --LIQUID   A.copyI arr 0 arr1 off1 len1
-      --LIQUID   A.copyI arr len1 arr2 off2 len
-      --LIQUID   return arr
+      --LIQUID LAZY x = do
+      --LIQUID LAZY   arr <- A.new len
+      --LIQUID LAZY   A.copyI arr 0 arr1 off1 len1
+      --LIQUID LAZY   A.copyI arr len1 arr2 off2 len
+      --LIQUID LAZY   return arr
 {-# INLINE append #-}
 
 {-# RULES
@@ -510,7 +510,7 @@ uncons t@(Text arr off len)
     | len <= 0  = Nothing
     | otherwise = let Iter c d = iter t 0
                   in Just (c, textP arr (off+d) (len-d))
---LIQUID    where Iter c d = iter t 0
+--LIQUID LAZY    where Iter c d = iter t 0
 {-# INLINE [1] uncons #-}
 
 -- | Lifted from Control.Arrow and specialized.
@@ -527,7 +527,7 @@ last (Text arr off len)
     | otherwise                = let n0 = A.unsafeIndex arr (off+len-2)
                                  in U16.chr2 n0 n
     where n  = A.unsafeIndexB arr off len (off+len-1)
-          --LIQUID n0 = A.unsafeIndex arr (off+len-2)
+          --LIQUID LAZY n0 = A.unsafeIndex arr (off+len-2)
 {-# INLINE [1] last #-}
 
 {-# RULES
@@ -568,7 +568,7 @@ init t@(Text arr off len)
     | n >= 0xDC00 && n <= 0xDFFF = textP arr off (len-2)
     | otherwise                  = textP arr off (len-1)
     where
-      --LIQUID n = A.unsafeIndex arr (off+len-1)
+      --LIQUID GHOST n = A.unsafeIndex arr (off+len-1)
       n = A.unsafeIndexB arr off len (off+len-1)
 {-# INLINE [1] init #-}
 
@@ -605,7 +605,7 @@ null (Text _arr _off len) =
                 -> {v:Bool | ((Prop v) <=> ((tlength t) = 1))}
   @-}
 isSingleton :: Text -> Bool
---LIQUID isSingleton = S.isSingleton . stream
+--LIQUID COMPOSE isSingleton = S.isSingleton . stream
 isSingleton t = S.isSingleton $ stream t
 {-# INLINE isSingleton #-}
 
@@ -686,7 +686,7 @@ map f t = unstream (S.map (safe . f) (stream t))
                 -> {v:Data.Text.Internal.Text | (tlength v) >= (sum_tlengths ts)}
   @-}
 intercalate :: Text -> [Text] -> Text
---LIQUID intercalate t = concat . (U.intersperse t)
+--LIQUID INLINE intercalate t = concat . (U.intersperse t)
 intercalate t ts = concat $ intersperseT t ts
 {-# INLINE intercalate #-}
 
@@ -944,7 +944,7 @@ concat :: [Text] -> Text
 concat ts = case ts' of
               [] -> empty
               [t] -> t
-     --LIQUID _ -> Text (A.run go) 0 len
+     --LIQUID INLINE _ -> Text (A.run go) 0 len
               _ -> let len = concat_sumP "concat" ts'
                        go = do arr <- A.new len
                                concat_step arr ts' 0 >> return arr
@@ -953,13 +953,13 @@ concat ts = case ts' of
                    in liquidAssume (axiom_numchars_concat t ts len) t
   where
     ts' = concat_filter ts
-    --LIQUID ts' = L.filter (not . null) ts
-    --LIQUID len = sumP "concat" $ L.map lengthWord16 ts'
-    --LIQUID go = do
-    --LIQUID   arr <- A.new len
-    --LIQUID   let step i (Text a o l) =
-    --LIQUID         let !j = i + l in A.copyI arr i a o j >> return j
-    --LIQUID   foldM step 0 ts' >> return arr
+    --LIQUID INLINE ts' = L.filter (not . null) ts
+    --LIQUID INLINE len = sumP "concat" $ L.map lengthWord16 ts'
+    --LIQUID INLINE go = do
+    --LIQUID INLINE   arr <- A.new len
+    --LIQUID INLINE   let step i (Text a o l) =
+    --LIQUID INLINE         let !j = i + l in A.copyI arr i a o j >> return j
+    --LIQUID INLINE   foldM step 0 ts' >> return arr
 
 {-@ concat_step :: ma:{v:Data.Text.Array.MArray s | (malen v) > 0}
                 -> ts:{v:[{v0:Data.Text.Internal.Text |
@@ -990,12 +990,12 @@ concat_filter (t@(Text arr off len):ts)
                 -> {v:Int | ((v = (sum_tlens ts)) && (v > 0))}
   @-}
 concat_sumP :: String -> [Text] -> Int
---LIQUID sumP fun = go 0
---LIQUID   where go !a (x:xs)
---LIQUID             | ax >= 0   = go ax xs
---LIQUID             | otherwise = overflowError fun
---LIQUID           where ax = a + x
---LIQUID         go a  _         = a
+--LIQUID RAISE sumP fun = go 0
+--LIQUID RAISE   where go !a (x:xs)
+--LIQUID RAISE             | ax >= 0   = go ax xs
+--LIQUID RAISE             | otherwise = overflowError fun
+--LIQUID RAISE           where ax = a + x
+--LIQUID RAISE         go a  _         = a
 concat_sumP fun (t:ts) = concat_sumP_go fun 0 (t:ts)
 
 {-@ concat_sumP_go :: String
@@ -1097,7 +1097,7 @@ scanr1 f t | null t    = empty
               -> (a, {v:Data.Text.Internal.Text | (tlength v) = (tlength t)})
   @-}
 mapAccumL :: (a -> Char -> (a,Char)) -> a -> Text -> (a, Text)
---LIQUID mapAccumL f z0 = S.mapAccumL g z0 . stream
+--LIQUID COMPOSE mapAccumL f z0 = S.mapAccumL g z0 . stream
 mapAccumL f z0 t = S.mapAccumL g z0 $ stream t
     where g a b = second safe (f a b)
 {-# INLINE mapAccumL #-}
@@ -1114,7 +1114,7 @@ mapAccumL f z0 t = S.mapAccumL g z0 $ stream t
               -> (a, {v:Data.Text.Internal.Text | (tlength v) = (tlength t)})
   @-}
 mapAccumR :: (a -> Char -> (a,Char)) -> a -> Text -> (a, Text)
---LIQUID mapAccumR f z0 = second reverse . S.mapAccumL g z0 . reverseStream
+--LIQUID COMPOSE mapAccumR f z0 = second reverse . S.mapAccumL g z0 . reverseStream
 mapAccumR f z0 t = second reverse $ S.mapAccumL g z0 $ reverseStream t
     where g a b = second safe (f a b)
 {-# INLINE mapAccumR #-}
@@ -1141,16 +1141,16 @@ replicate n t@(Text a o l)
                                   arr = A.run x
                                   t' = Text (liquidAssume (A.aLen arr == len) arr) 0 len
                               in liquidAssume (axiom_numchars_replicate t t') t'
---LIQUID     | n <= maxBound `div` l = Text (A.run x) 0 len
---LIQUID     | otherwise             = overflowError "replicate"
---LIQUID   where
---LIQUID     len = l * n
---LIQUID     x = do
---LIQUID       arr <- A.new len
---LIQUID       let loop !d !i | i >= n    = return arr
---LIQUID                      | otherwise = let m = d + l
---LIQUID                                    in A.copyI arr d a o m >> loop m (i+1)
---LIQUID       loop 0 0
+--LIQUID RAISE     | n <= maxBound `div` l = Text (A.run x) 0 len
+--LIQUID RAISE     | otherwise             = overflowError "replicate"
+--LIQUID RAISE   where
+--LIQUID RAISE     len = l * n
+--LIQUID RAISE     x = do
+--LIQUID RAISE       arr <- A.new len
+--LIQUID RAISE       let loop !d !i | i >= n    = return arr
+--LIQUID RAISE                      | otherwise = let m = d + l
+--LIQUID RAISE                                    in A.copyI arr d a o m >> loop m (i+1)
+--LIQUID RAISE       loop 0 0
 
 {-@ replicate_loop :: ma:Data.Text.Array.MArray s
                    -> len:{v:Int | v = (malen ma)}

@@ -49,7 +49,7 @@ data Spec ty bndr  = Spec {
   , paliases   :: ![RTAlias Symbol Pred]        -- ^ Refinement/Predicate aliases
   , embeds     :: !(TCEmb (Located String))     -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
-  , decr       :: ![(Symbol, Int)]              -- ^ Information on decreasing arguments
+  , decr       :: ![(Symbol, [Int])]            -- ^ Information on decreasing arguments
   , strict     :: !(S.HashSet Symbol)           -- ^ Ignore Termination Check in these Functions
   } 
 
