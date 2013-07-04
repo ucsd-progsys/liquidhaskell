@@ -797,7 +797,7 @@ recType γ (x, e, t)
   = do hint          <- checkHint' . L.lookup xSymbol . specDecr <$> get
        maybeRecType x dindex hint t vs
   where (αs, πs, t0)  = bkUniv t
-        ts            = snd3 $ bkArrowDeep $ thd3 $ bkUniv t
+        ts            = snd3 $ bkArrow $ thd3 $ bkUniv t
         vs            = collectArguments (length ts) e
         checkHint'    = checkHint x ts isDecreasing
 -- TODO get the appropriate symbols for hints, 
@@ -817,7 +817,7 @@ maybeRecType x (Just i) hint t vs
         msg'  = "recType on " ++ showPpr x ++ " with "++ showPpr vs
         msg   = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x)
         (αs, πs, t0)  = bkUniv t
-        (xs, ts, tbd) = bkArrowDeep t0
+        (xs, ts, tbd) = bkArrow t0
         xts           = zip xs ts
 
 -- Just one hint, better keep that it works!
@@ -825,7 +825,7 @@ maybeRecType' t ([Just v]) ([Just (dx, dt)]) [index]
   = mkArrow αs πs xts' tbd
   where xts' = replaceN index (mkDecrType (v, dx, dt)) $ zip xs ts
         (αs, πs, t0)  = bkUniv t
-        (xs, ts, tbd) = bkArrowDeep t0
+        (xs, ts, tbd) = bkArrow t0
 maybeRecType' t [Nothing] [Nothing] _ 
   = t
 -- Here is lex order
@@ -834,7 +834,7 @@ maybeRecType' t vs' dxs' is
   where vs  = catMaybes vs'
         dxs = catMaybes dxs'
         (αs, πs, t0)  = bkUniv $ F.subst su t
-        (xs, ts, tbd) = bkArrowDeep t0
+        (xs, ts, tbd) = bkArrow t0
         xts' = replaceN (last is) (mkDecrLexType (zip vs dxs'')) $ zip xs'' (F.subst su <$> ts)
         su = F.mkSubst $ [(F.S s, F.EVar $ F.S (s ++ "r")) | (F.S s) <- fst <$> dxs]
         dxs'' = [(F.S (s ++ "r"), t) | (F.S s, t) <- dxs]
