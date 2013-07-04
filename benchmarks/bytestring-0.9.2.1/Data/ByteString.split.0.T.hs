@@ -824,10 +824,10 @@ replicate w c
 -- > == pack [0, 1, 2, 3, 4, 5]
 
 {-@ unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString @-}
+{-@ Strict Data.ByteString.unfoldr @-}
 unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
 unfoldr f = concat . unfoldChunk 32 64
-  where {-@ Strict Data.ByteString.unfoldChunk @-}
-        unfoldChunk n n' x =
+  where unfoldChunk n n' x =
           case unfoldrN n f x of
             (s, Nothing) -> s : []
             (s, Just x') -> s : unfoldChunk n' (n+n') x'
