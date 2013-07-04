@@ -874,8 +874,12 @@ cmpLexRef vxs (v, x, g)
 mkDecrType (v, x, (t@(RApp c _ _ _))) = (x,) $  t `strengthen` tr
   where tr = cmpReft (sizeFunction $ rTyConInfo c) (varSymbol v)
 
-checkHint _ _ _ Nothing = Nothing
-checkHint x ts f (Just ns) = Just $ catMaybes (checkHint1 x ts f <$> ns)
+checkHint _ _ _ Nothing 
+  = Nothing
+checkHint x ts f (Just ns) | L.sort ns /= ns
+  = errorstar $ (showPpr (getSrcSpan x)) ++ ": The hints should be increasing"
+checkHint x ts f (Just ns) 
+  = Just $ catMaybes (checkHint1 x ts f <$> ns)
 
 checkHint1 x ts f n
   | n < 0 || n >= length ts = errorstar err
