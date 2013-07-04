@@ -838,7 +838,7 @@ maybeRecType' t vs' dxs' is
         xts' = replaceN (last is) (mkDecrLexType (zip vs dxs'')) $ zip xs'' (F.subst su <$> ts)
         su = F.mkSubst $ [(F.S s, F.EVar $ F.S (s ++ "r")) | (F.S s) <- fst <$> dxs]
         dxs'' = [(F.S (s ++ "r"), t) | (F.S s, t) <- dxs]
-        xs'' = [(F.S (s ++ "r")) | (F.S s, t) <- dxs]
+        xs'' = [(F.S (s ++ "r")) | F.S s <- xs]
 
 safeLogIndex err ls n
   | n >= length ls
