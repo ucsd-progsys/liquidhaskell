@@ -701,6 +701,13 @@ trueTy t
        tce  <- tyConEmbed <$> get
        return $ addTyConInfo tce tyi (uRType t)
 
+refreshTyVars t 
+  = do xs' <- mapM (\_ -> fresh) xs
+       let su = F.mkSubst $ zip xs (F.EVar <$> xs')
+       return $ mkArrow αs πs (zip xs' (F.subst su <$> ts)) (F.subst su tbd)
+  where (αs, πs, t0)  = bkUniv t
+        (xs, ts, tbd) = bkArrow t0
+ 
 class Freshable a where
   fresh   :: CG a
   true    :: a -> CG a
@@ -830,15 +837,12 @@ maybeRecType' t [Nothing] [Nothing] _
   = t
 -- Here is lex order
 maybeRecType' t vs' dxs' is
-  = mkArrow αs πs xts' (F.subst su tbd)
+  = mkArrow αs πs xts' tbd
   where vs  = catMaybes vs'
         dxs = catMaybes dxs'
-        (αs, πs, t0)  = bkUniv $ F.subst su t
+        (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
-        xts' = replaceN (last is) (mkDecrLexType (zip vs dxs'')) $ zip xs'' (F.subst su <$> ts)
-        su = F.mkSubst $ [(F.S s, F.EVar $ F.S (s ++ "r")) | (F.S s) <- fst <$> dxs]
-        dxs'' = [(F.S (s ++ "r"), t) | (F.S s, t) <- dxs]
-        xs'' = [(F.S (s ++ "r")) | F.S s <- xs]
+        xts' = replaceN (last is) (mkDecrLexType (zip vs dxs)) $ zip xs ts
 
 safeLogIndex err ls n
   | n >= length ls
@@ -862,9 +866,6 @@ mkDLexType xvs acc ( (v, (x, t@(RApp c _ _ _))): vxts)
   where r = cmpLexRef xvs  (v', x, f)
         v' = varSymbol v
         Just f = sizeFunction $ rTyConInfo c
-
-
-
 
 cmpLexRef vxs (v, x, g)
   = F.PAnd $ (F.PAtom F.Lt (g x) (g v))
@@ -913,13 +914,15 @@ tcond cb strict
 -------------------------------------------------------------------
 consCB :: Bool -> CGEnv -> CoreBind -> CG CGEnv 
 -------------------------------------------------------------------
+
 consCB _ γ (Rec []) 
   = return γ 
 
 consCB tflag γ (Rec [(x,e)]) | tflag
-  = do (x, e, Just t) <- liftM (x, e,) (varTemplate γ (x, Just e))
-       rTy            <- recType γ (x, e, t)
-       γ'             <- extender (γ `withTRec` (x, rTy)) (x, Just t)
+  = do (x, e, Just t') <- liftM (x, e,) (varTemplate γ (x, Just e))
+       t               <- refreshTyVars t'
+       rTy             <- recType γ (x, e, t)
+       γ'              <- extender (γ `withTRec` (x, rTy)) (x, Just t)
        consBind True γ' (x, e, Just t)
        return γ'{trec=Nothing}
     where x' = varSymbol x
