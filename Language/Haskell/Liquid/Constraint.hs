@@ -830,14 +830,15 @@ maybeRecType' t [Nothing] [Nothing] _
   = t
 -- Here is lex order
 maybeRecType' t vs' dxs' is
-  = mkArrow αs πs xts' tbd
+  = mkArrow αs πs xts' (F.subst su tbd)
   where vs  = catMaybes vs'
         dxs = catMaybes dxs'
         (αs, πs, t0)  = bkUniv $ F.subst su t
         (xs, ts, tbd) = bkArrowDeep t0
-        xts' = replaceN (last is) (mkDecrLexType (zip vs dxs'')) $ zip xs ts
+        xts' = replaceN (last is) (mkDecrLexType (zip vs dxs'')) $ zip xs'' (F.subst su <$> ts)
         su = F.mkSubst $ [(F.S s, F.EVar $ F.S (s ++ "r")) | (F.S s) <- fst <$> dxs]
         dxs'' = [(F.S (s ++ "r"), t) | (F.S s, t) <- dxs]
+        xs'' = [(F.S (s ++ "r")) | (F.S s, t) <- dxs]
 
 safeLogIndex err ls n
   | n >= length ls
