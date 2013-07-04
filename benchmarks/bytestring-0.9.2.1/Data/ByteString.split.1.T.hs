@@ -795,6 +795,7 @@ hGetNonBlocking = hGet
 
 {-@ assume Foreign.Marshal.Alloc.reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
 {- assume GHC.IO.Handle.Text.hGetBuf :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
+{-@ Strict Data.ByteStringHelper.hGetContents @-}
 hGetContents :: Handle -> IO ByteString
 hGetContents h = do
     let start_size = 1024
@@ -807,7 +808,6 @@ hGetContents h = do
         else go_hGetContents p start_size
     where
         -- LIQUID POTENTIALLY NON-TERMINATING!
-        {-@ Strict go_hGetContents @-}
         go_hGetContents p s = do
             let s' = s + s -- 2 * s -- LIQUID MULTIPLY
             p' <- reallocBytes p s'
