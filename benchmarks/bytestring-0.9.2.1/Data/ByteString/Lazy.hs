@@ -1047,7 +1047,7 @@ splitWith _ Empty     = []
 --LIQUID PARAM         comb acc (s:[]) (Chunk c cs) = comb (s:acc) (S.splitWith w c) cs
 --LIQUID PARAM         comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
 splitWith w (Chunk c0 cs0) = comb [] cs0 (S.splitWith w c0)
-        {- Decrease comb 2 3 @-}
+        {-@ Decrease comb 2 3 @-}
   where comb :: [S.ByteString] -> ByteString -> [S.ByteString] -> [ByteString]
         comb acc Empty        (s:[]) = revChunks (s:acc) : []
         comb acc (Chunk c cs) (s:[]) = comb (s:acc) cs (S.splitWith w c)
@@ -1080,7 +1080,6 @@ split _ Empty     = []
 --LIQUID PARAM         comb acc (s:[]) (Chunk c cs) = comb (s:acc) (S.split w c) cs
 --LIQUID PARAM         comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
 split w (Chunk c0 cs0) = comb [] cs0 (S.split w c0)
-        {- Decrease comb 2 3 @-}
   where comb :: [S.ByteString] -> ByteString -> [S.ByteString] -> [ByteString]
         comb acc Empty        (s:[]) = revChunks (s:acc) : []
         comb acc (Chunk c cs) (s:[]) = comb (s:acc) cs (S.split w c)
@@ -1120,7 +1119,7 @@ group Empty          = []
 --LIQUID PARAM     group' acc (s:ss) cs           = revNonEmptyChunks (s:acc) : group' [] ss cs
 group (Chunk c0 cs0) = group_go cs0 (S.group c0) []
   where
-    {- Decrease group_go 1 2 3 @-}
+    {-@ Decrease group_go 1 2 3 @-}
     group_go :: ByteString -> [S.ByteString] -> [S.ByteString] -> [ByteString]
     group_go cs ss@(s:_) acc@(s':_)
       | S.unsafeHead s'
@@ -1157,7 +1156,7 @@ groupBy _ Empty          = []
 --LIQUID PARAM     groupBy' acc _ (s:ss) cs           = revNonEmptyChunks (s : acc) : groupBy' [] 0 ss cs
 groupBy k (Chunk c0 cs0) = groupBy_go cs0 (S.groupBy k c0) []
   where
-    {- Decrease groupBy_go 1 2 3 @-}
+    {-@ Decrease groupBy_go 1 2 3 @-}
     groupBy_go :: ByteString -> [S.ByteString] -> [S.ByteString] -> [ByteString]
     groupBy_go cs ss@(s:_) acc@(s':_)
       | S.unsafeHead s'
