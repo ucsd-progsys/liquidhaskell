@@ -280,6 +280,8 @@ import System.IO (Handle)
 import Foreign.ForeignPtr
 import Foreign.Ptr
 
+import Language.Haskell.Liquid.Prelude
+
 ------------------------------------------------------------------------
 
 -- | /O(1)/ Convert a 'Char' into a 'ByteString'
@@ -300,11 +302,12 @@ pack str = B.unsafeCreate (P.length str) $ \p -> go p str
 
 #else /* hack away */
 
-pack str = B.unsafeCreate (P.length str) $ \(Ptr p) -> stToIO (go p str)
+pack str = B.unsafeCreate (P.length str) $ \(Ptr p) -> stToIO (pack_go p str)
   where
-    go :: Addr# -> [Char] -> ST a ()
-    go _ []        = return ()
-    go p (C# c:cs) = writeByte p (int2Word# (ord# c)) >> go (p `plusAddr#` 1#) cs
+    {-@ Decrease pack_go 2 @-}
+    pack_go :: Addr# -> [Char] -> ST a ()
+    pack_go _ []        = return ()
+    pack_go p (C# c:cs) = writeByte p (int2Word# (ord# c)) >> pack_go (p `plusAddr#` 1#) cs
 
     writeByte p c = ST $ \s# ->
         case writeWord8OffAddr# p 0# c s# of s2# -> (# s2#, () #)
@@ -843,10 +846,15 @@ breakSpace (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
 
 firstspace :: Ptr Word8 -> Int -> Int -> IO Int
 STRICT3(firstspace)
-firstspace ptr n m
-    | n >= m    = return n
-    | otherwise = do w <- peekByteOff ptr n
-                     if (not $ isSpaceWord8 w) then firstspace ptr (n+1) m else return n
+--LIQUID GHOST firstspace ptr n m
+--LIQUID GHOST     | n >= m    = return n
+--LIQUID GHOST     | otherwise = do w <- peekByteOff ptr n
+--LIQUID GHOST                      if (not $ isSpaceWord8 w) then firstspace ptr (n+1) m else return n
+firstspace ptr n m = go m ptr n m
+  where go (d :: Int) ptr n m
+            | n >= m    = return n
+            | otherwise = do w <- peekByteOff ptr n
+                             if (not $ isSpaceWord8 w) then go (d-1) ptr (n+1) m else return n
 
 {-# RULES
     "FPS specialise dropWhile isSpace -> dropSpace"
@@ -867,10 +875,15 @@ dropSpace (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
 
 firstnonspace :: Ptr Word8 -> Int -> Int -> IO Int
 STRICT3(firstnonspace)
-firstnonspace ptr n m
-    | n >= m    = return n
-    | otherwise = do w <- peekElemOff ptr n
-                     if isSpaceWord8 w then firstnonspace ptr (n+1) m else return n
+--LIQUID GHOST firstnonspace ptr n m
+--LIQUID GHOST     | n >= m    = return n
+--LIQUID GHOST     | otherwise = do w <- peekElemOff ptr n
+--LIQUID GHOST                      if isSpaceWord8 w then firstnonspace ptr (n+1) m else return n
+firstnonspace ptr n m = go m ptr n m
+  where go (d :: Int) ptr n m
+            | n >= m    = return n
+            | otherwise = do w <- peekElemOff ptr n
+                             if isSpaceWord8 w then go (d-1) ptr (n+1) m else return n
 
 {-
 -- | 'dropSpaceEnd' efficiently returns the 'ByteString' argument with
@@ -961,6 +974,7 @@ readInt as
             _   -> loop False 0 0 as
 
     where loop :: Bool -> Int -> Int -> ByteString -> Maybe (Int, ByteString)
+          {-@ Decrease loop 4 @-}
           STRICT4(loop)
           loop neg i n ps
               | null ps   = end neg i n ps
@@ -1015,11 +1029,30 @@ readInteger as
           combine d acc ns ps =
               ((10^d * combine1 1000000000 ns + toInteger acc), ps)
 
-          combine1 _ [n] = n
-          combine1 b ns  = combine1 (b*b) $ combine2 b ns
+          --LIQUID combine1 _ [n] = n
+          --LIQUID combine1 b ns  = combine1 (b*b) $ combine2 b ns
+          --LIQUID 
+          --LIQUID combine2 b (n:m:ns) = let t = m*b + n in t `seq` (t : combine2 b ns)
+          --LIQUID combine2 _ ns       = ns
 
-          combine2 b (n:m:ns) = let t = m*b + n in t `seq` (t : combine2 b ns)
-          combine2 _ ns       = ns
+{-@ combine1 :: Integer -> x:{v:[Integer] | (len v) > 0}
+             -> Integer
+  @-}
+{-@ Decrease combine1 2 @-}
+combine1 :: Integer -> [Integer] -> Integer
+combine1 _ []  = error "impossible"
+combine1 _ [n] = n
+combine1 b ns  = combine1 (b*b) $ combine2 b ns
+
+{-@ combine2 :: Integer -> x:[Integer]
+             -> {v:[Integer] | (((len x) > 1)
+                             ? (((len v) <  (len x)) && ((len v) > 0))
+                             : ((len v) <= (len x)))}
+  @-}
+{-@ Decrease combine2 2 @-}
+combine2 :: Integer -> [Integer] -> [Integer]
+combine2 b (n:m:ns) = let t = m*b + n in t `seq` (t : combine2 b ns)
+combine2 _ ns       = ns
 
 -- | Read an entire file strictly into a 'ByteString'.  This is far more
 -- efficient than reading the characters into a 'String' and then using

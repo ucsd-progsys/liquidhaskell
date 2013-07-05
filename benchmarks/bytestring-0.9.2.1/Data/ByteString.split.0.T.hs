@@ -80,7 +80,7 @@ assertS s False = error ("assertion failed at "++s)
 -- LIQUID
 import GHC.IO.Buffer
 import Language.Haskell.Liquid.Prelude hiding (eq) 
--- import qualified Data.ByteString.Lazy.Internal 
+import qualified Data.ByteString.Lazy.Internal
 import qualified Data.ByteString.Fusion
 import qualified Data.ByteString.Internal
 import qualified Data.ByteString.Unsafe
@@ -824,10 +824,10 @@ replicate w c
 -- > == pack [0, 1, 2, 3, 4, 5]
 
 {-@ unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString @-}
+{-@ Strict Data.ByteString.unfoldr @-}
 unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
 unfoldr f = concat . unfoldChunk 32 64
-  where {-@ Strict unfoldChunk @-}
-        unfoldChunk n n' x =
+  where unfoldChunk n n' x =
           case unfoldrN n f x of
             (s, Nothing) -> s : []
             (s, Just x') -> s : unfoldChunk n' (n+n') x'
