@@ -1009,7 +1009,7 @@ unfoldr f b  =
    Nothing        -> []
 
 -- -----------------------------------------------------------------------------
-
+{-@ Decrease lgo 5 @-}
 -- | A strict version of 'foldl'.
 foldl'           :: (a -> b -> a) -> a -> [b] -> a
 #ifdef __GLASGOW_HASKELL__
