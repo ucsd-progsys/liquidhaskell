@@ -282,13 +282,13 @@ count = undefined
 replicate :: Int -> Word8 -> ByteString
 replicate  = undefined
 
-{-@ findIndex :: (Word8 -> Bool) -> b:ByteString -> (Maybe {v:Nat | v < (bLength b)}) @-}
-findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
-findIndex = undefined
+{- findIndex :: (Word8 -> Bool) -> b:ByteString -> (Maybe {v:Nat | v < (bLength b)}) @-}
+-- findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
+-- findIndex = undefined
 
-{-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
-filter :: (Word8 -> Bool) -> ByteString -> ByteString
-filter = undefined
+{- filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
+-- filter :: (Word8 -> Bool) -> ByteString -> ByteString
+-- filter = undefined
 
 {-@ isPrefixOf :: ByteString -> ByteString -> Bool @-}
 isPrefixOf :: ByteString -> ByteString -> Bool 
@@ -297,11 +297,6 @@ isPrefixOf = undefined
 {-@ take :: n:Nat -> b:ByteString -> {v:ByteString | (bLength v) = (if (n <= (bLength b)) then n else (bLength b))} @-}
 take :: Int -> ByteString -> ByteString
 take = undefined
-
-{-@ rng :: n:Int -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
-rng :: Int -> [Int]
-rng = undefined
-
 
 {-@ singleton :: Word8 -> {v:ByteString | (bLength v) = 1} @-}
 singleton :: Word8 -> ByteString
@@ -332,24 +327,13 @@ unpackFoldr = undefined
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
--- foldr/foldr' TERMINATION
-{-@ qualif PtrDiff(v:int, p:GHC.Ptr.Ptr a, q:GHC.Ptr.Ptr a): v >= (plen p) - (plen q) @-}
+
+{-@ qualif FindIndices(v:Data.ByteString.Internal.ByteString,
+                       p:Data.ByteString.Internal.ByteString,
+                       n:Int):
+        (bLength v) = (bLength p) - n  @-}
 
 
-foldr' :: (Word8 -> a -> a) -> a -> ByteString -> a
-foldr' k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
-        go v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1)) l
-    where
-        STRICT4(go)
-        go z p q (d::Int)
-                 | p == q    = return z
-                 | otherwise = do let p' = liquid_thm_ptr_cmp' p q 
-                                  c  <- peek p'
-                                  let n  = 0 - 1  
-                                  go (c `k` z) (p' `plusPtr` n) q (d-1) -- tail recursive
-        -- LIQUID go z p q | p == q    = return z
-        -- LIQUID          | otherwise = do c  <- peek p
-        -- LIQUID                           go (c `k` z) (p `plusPtr` (-1)) q -- tail recursive
-{-# INLINE foldr' #-}
+
 
 
