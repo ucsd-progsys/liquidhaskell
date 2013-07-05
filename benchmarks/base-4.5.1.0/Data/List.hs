@@ -1,3 +1,5 @@
+{--! run liquid with termination -}
+
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE CPP, NoImplicitPrelude, MagicHash #-}
 
@@ -341,12 +343,13 @@ nubBy                   :: (a -> a -> Bool) -> [a] -> [a]
 nubBy eq []             =  []
 nubBy eq (x:xs)         =  x : nubBy eq (filter (\ y -> not (eq x y)) xs)
 #else
-nubBy eq l              = nubBy' l []
+nubBy eq l              = nubBy0 l []
   where
-    nubBy' [] _         = []
-    nubBy' (y:ys) xs
-       | elem_by eq y xs = nubBy' ys xs
-       | otherwise       = y : nubBy' ys (y:xs)
+    {-@ Decrease nubBy0 3 @-}
+    nubBy0 [] _         = []
+    nubBy0 (y:ys) xs
+       | elem_by eq y xs = nubBy0 ys xs
+       | otherwise       = y : nubBy0 ys (y:xs)
 
 -- Not exported:
 -- Note that we keep the call to `eq` with arguments in the
@@ -530,6 +533,7 @@ insertBy cmp x ys@(y:ys')
 -- which must be non-empty, finite, and of an ordered type.
 -- It is a special case of 'Data.List.maximumBy', which allows the
 -- programmer to supply their own comparison function.
+{-@ maximum             :: (Ord a) => {v:[a]|(len v) > 0} -> a @-}
 maximum                 :: (Ord a) => [a] -> a
 maximum []              =  errorEmptyList "maximum"
 maximum xs              =  foldl1 max xs
@@ -542,6 +546,7 @@ maximum xs              =  foldl1 max xs
 -- We can't make the overloaded version of maximum strict without
 -- changing its semantics (max might not be strict), but we can for
 -- the version specialised to 'Int'.
+{-@ strictMaximum       :: (Ord a) => {v:[a]|(len v) > 0} -> a @-}
 strictMaximum           :: (Ord a) => [a] -> a
 strictMaximum []        =  errorEmptyList "maximum"
 strictMaximum xs        =  foldl1' max xs
@@ -550,6 +555,7 @@ strictMaximum xs        =  foldl1' max xs
 -- which must be non-empty, finite, and of an ordered type.
 -- It is a special case of 'Data.List.minimumBy', which allows the
 -- programmer to supply their own comparison function.
+{-@ minimum             :: (Ord a) => {v:[a]|(len v) > 0} -> a @-}
 minimum                 :: (Ord a) => [a] -> a
 minimum []              =  errorEmptyList "minimum"
 minimum xs              =  foldl1 min xs
@@ -559,6 +565,7 @@ minimum xs              =  foldl1 min xs
   "minimumInteger" minimum = (strictMinimum :: [Integer] -> Integer)
  #-}
 
+{-@ strictMinimum       :: (Ord a) => {v:[a]| (len v) > 0 } -> a @-}
 strictMinimum           :: (Ord a) => [a] -> a
 strictMinimum []        =  errorEmptyList "minimum"
 strictMinimum xs        =  foldl1' min xs
@@ -832,7 +839,8 @@ and possibly to bear similarities to a 1982 paper by Richard O'Keefe:
 Benchmarks show it to be often 2x the speed of the previous implementation.
 Fixes ticket http://hackage.haskell.org/trac/ghc/ticket/2143
 -}
-
+-- LIQUID TERMINATION : mutual recursion
+{-@ Strict Data.List.sortBy @-}
 sort = sortBy compare
 sortBy cmp = mergeAll . sequences
   where
@@ -991,6 +999,9 @@ rqpart cmp x (y:ys) rle rgt r =
 -- > unfoldr (\b -> if b == 0 then Nothing else Just (b, b-1)) 10
 -- >  [10,9,8,7,6,5,4,3,2,1]
 --
+-- LIQUID TERMINATION : 
+-- this function can not termination, eg f x = Just (b, b+1) 
+{-@ Strict Data.List.unfoldr @-} 
 unfoldr      :: (b -> Maybe (a, b)) -> b -> [a]
 unfoldr f b  =
   case f b of
