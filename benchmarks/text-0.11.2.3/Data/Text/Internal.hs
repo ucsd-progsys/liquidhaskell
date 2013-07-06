@@ -51,7 +51,7 @@ import qualified Data.Text.Array
 import qualified Data.Word
 import Language.Haskell.Liquid.Prelude
 
-{-@ data Data.Text.Internal.Text = Data.Text.Internal.Text
+{-@ data Data.Text.Internal.Text [tlen] = Data.Text.Internal.Text
             (arr :: Data.Text.Array.Array)
             (off :: {v:Nat | v <= (alen arr)})
             (len :: {v:Nat | (v + off) <= (alen arr)})
@@ -69,10 +69,14 @@ import Language.Haskell.Liquid.Prelude
     tlen (Data.Text.Internal.Text a o l) = l
   @-}
 
+{-@ type Text = {v:Data.Text.Internal.Text | true } @-}
+{-@ type TextNE = {v:Data.Text.Internal.Text | (tlen v) > 0} @-}
+{-@ type TextLE T = {v:Data.Text.Internal.Text | (tlen v) <= (tlen T)} @-}
+{-@ type TextLT T = {v:Data.Text.Internal.Text | (tlen v) <  (tlen T)} @-}
 {-@ type NonEmptyStrict = {v:Data.Text.Internal.Text | (tlen v) > 0} @-}
 
-{-@ qualif NonEmptyText(v:Data.Text.Internal.Text): tlen(v) > 0 @-}
-{-@ qualif NonEmptyText(v:Data.Text.Internal.Text): tlength(v) > 0 @-}
+{-@ qualif TextNE(v:Data.Text.Internal.Text): tlen(v) > 0 @-}
+{-@ qualif TextNE(v:Data.Text.Internal.Text): tlength(v) > 0 @-}
 
 {-@ measure sum_tlens :: [Data.Text.Internal.Text] -> Int
     sum_tlens ([])   = 0
@@ -89,6 +93,9 @@ import Language.Haskell.Liquid.Prelude
 {-@ qualif TLengthLe(v:Data.Text.Internal.Text, t:Data.Text.Internal.Text):
         tlength(v) <= tlength(t)
   @-}
+{-@ qualif TLenLe(v:Data.Text.Internal.Text, t:Data.Text.Internal.Text):
+        (tlen v) <= (tlen t)
+  @-}
 
 {-@ qualif MinTLength(v:Data.Text.Internal.Text, n:Int, t:Data.Text.Internal.Text):
         tlength(v) = (tlength(t) > n ? n : tlength(t))
@@ -103,6 +110,11 @@ import Language.Haskell.Liquid.Prelude
                        t2:Data.Text.Internal.Text):
         tlength(v) = tlength(t1) - tlength(t2)
   @-}
+{-@ qualif TLenDiff(v:Data.Text.Internal.Text,
+                    t1:Data.Text.Internal.Text,
+                    t2:Data.Text.Internal.Text):
+        tlen(v) = tlen(t1) - tlen(t2)
+  @-}
 
 {-@ measure sum_tlengths :: [Data.Text.Internal.Text] -> Int
     sum_tlengths ([]) = 0
@@ -115,6 +127,7 @@ import Language.Haskell.Liquid.Prelude
 
 {-@ invariant {v:Data.Text.Internal.Text | (((tlength v) = 0) <=> ((tlen v) = 0))} @-}
 {-@ invariant {v:Data.Text.Internal.Text | (tlength v) >= 0} @-}
+{-@ invariant {v:Data.Text.Internal.Text | (tlen v) >= 0} @-}
 {-@ invariant {v:Data.Text.Internal.Text | (tlength v) = (numchars (tarr v) (toff v) (tlen v))} @-}
 
 {-@ invariant {v:[Data.Text.Internal.Text] | (sum_tlens v) >= 0} @-}

@@ -61,7 +61,7 @@ data Text = Empty
           | Chunk {-# UNPACK #-} !T.Text Text
 --LIQUID            deriving (Typeable)
 
-{-@ data Data.Text.Lazy.Internal.Text
+{-@ data Data.Text.Lazy.Internal.Text [ltlen]
       = Data.Text.Lazy.Internal.Empty
       | Data.Text.Lazy.Internal.Chunk (t :: NonEmptyStrict)
                                       (cs :: Data.Text.Lazy.Internal.Text)
@@ -92,6 +92,13 @@ data Text = Empty
 {-@ invariant {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= 0} @-}
 {-@ invariant {v:[Data.Text.Lazy.Internal.Text] | (sum_ltlengths v) >= 0} @-}
 {-@ invariant {v:[{v0:Data.Text.Lazy.Internal.Text | (sum_ltlengths v) >= (ltlength v0)}] | true} @-}
+
+{-@ type LText = {v:Data.Text.Lazy.Internal.Text | true } @-}
+{-@ type LTextLE T = {v:LText | (ltlen v) <= (ltlen T)} @-}
+{-@ qualif LTLenLe(v:Data.Text.Lazy.Internal.Text, t:Data.Text.Lazy.Internal.Text):
+        (ltlen v) <= (ltlen t)
+  @-}
+
 
 -- $invariant
 --
