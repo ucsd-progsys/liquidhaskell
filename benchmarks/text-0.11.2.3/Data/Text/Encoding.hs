@@ -2,6 +2,7 @@
 {-# LANGUAGE BangPatterns, CPP, ForeignFunctionInterface, MagicHash,
     UnliftedFFITypes #-}
 {-# LANGUAGE PackageImports, RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- |
 -- Module      : Data.Text.Encoding
 -- Copyright   : (c) 2009, 2010, 2011 Bryan O'Sullivan,
@@ -183,7 +184,7 @@ decodeUtf8With onErr (PS fp off len) = runText $ \done -> do
   let go dest = withForeignPtr fp $ \ptr ->
         withLIQUID (0::CSize) dest $ \destOffPtr -> do
           let end = ptr `plusPtr` (off + len)
-              loop curPtr = do
+              loop (d :: Int) curPtr = do
                 curPtr' <- c_decode_utf8 dest {-LIQUID (A.maBA dest)-} destOffPtr curPtr end
                 if curPtr' == end
                   then do
@@ -198,14 +199,14 @@ decodeUtf8With onErr (PS fp off len) = runText $ \done -> do
                     --LIQUID SCOPE
                     destOff <- peek destOffPtr
                     case onErr desc (Just x) dest (fromIntegral destOff) of
-                      Nothing -> loop $ curPtr'' `plusPtr` 1
+                      Nothing -> loop (d-1) $ curPtr'' `plusPtr` 1
                       Just c -> do
                         --LIQUID destOff <- peek destOffPtr
                         w <- unsafeSTToIO $
                              unsafeWrite dest (fromIntegral destOff) c
                         poke destOffPtr (destOff + fromIntegral w)
-                        loop $ curPtr'' `plusPtr` 1
-          loop (ptr `plusPtr` off)
+                        loop (d-1) $ curPtr'' `plusPtr` 1
+          loop (off+len) (ptr `plusPtr` off)
   (unsafeIOToST . go) =<< A.new len
  where
   desc = "Data.Text.Encoding.decodeUtf8: Invalid UTF-8 stream"
@@ -243,10 +244,10 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
   start :: Int -> Int -> Int -> ForeignPtr Word8 -> IO ByteString
   start size n0 m0 fp = withForeignPtr fp $ loop n0 m0
    where
-    loop n1 m1 ptr = go n1 m1
+    loop n1 m1 ptr = go offLen n1 m1
      where
       --LIQUID SCOPE offLen = off + len
-      go !n !m =
+      go (d :: Int) !n !m =
         if n == offLen then return (PS fp 0 m)
         else --LIQUID do
             --LIQUID let poke8 k v = poke (ptr `plusPtr` k) (fromIntegral v :: Word8)
@@ -268,32 +269,32 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
                   -- them.  We see better performance when we
                   -- special-case this assumption.
                   let end = ptr `plusPtr` size
-                      ascii !t !u =
+                      ascii (d' :: Int) !t !u =
                         if t == offLen || eqPtr u end {-LIQUID SPECIALIZE u == end || v >= 0x80-} then
-                            go t (u `minusPtr` ptr)
+                            go (d-1) t (u `minusPtr` ptr)
                         else do
                             let v = A.unsafeIndex arr t
-                            if v >= 0x80 then go t (u `minusPtr` ptr) else do
+                            if v >= 0x80 then go (d-1) t (u `minusPtr` ptr) else do
                             poke u (fromIntegral v :: Word8)
-                            ascii (t+1) (u `plusPtr` 1)
+                            ascii (d'-1) (t+1) (u `plusPtr` 1)
                         --LIQUID where v = A.unsafeIndex arr t
-                  ascii (n+1) (ptr `plusPtr` (m+1))
+                  ascii offLen (n+1) (ptr `plusPtr` (m+1))
               else if w <= 0x7FF then ensure arr ptr offLen size n m 1 2 start $ \ptr -> do
                   poke8 m     ptr $ (w `shiftR` 6) + 0xC0
                   poke8 (m+1) ptr $ (w .&. 0x3f) + 0x80
-                  go (n+1) (m+2)
+                  go (d-1) (n+1) (m+2)
               else if 0xD800 <= w && w <= 0xDBFF then ensure arr ptr offLen size n m 2 4 start $ \ptr -> do
                   let c = ord $ U16.chr2 w (A.unsafeIndex arr (n+1))
                   poke8 m      ptr $ (c `shiftR` 18) + 0xF0
                   poke8 (m+1)  ptr $ ((c `shiftR` 12) .&. 0x3F) + 0x80
                   poke8 (m+2)  ptr $ ((c `shiftR` 6) .&. 0x3F) + 0x80
                   poke8 (m+3)  ptr $ (c .&. 0x3F) + 0x80
-                  go (n+2) (m+4)
+                  go (d-1) (n+2) (m+4)
               else ensure arr ptr offLen size n m 1 3 start $ \ptr -> do
                   poke8 m     ptr $ (w `shiftR` 12) + 0xE0
                   poke8 (m+1) ptr $ ((w `shiftR` 6) .&. 0x3F) + 0x80
                   poke8 (m+2) ptr $ (w .&. 0x3F) + 0x80
-                  go (n+1) (m+3)
+                  go (d-1) (n+1) (m+3)
 
 {-@ poke8 :: Integral a => k:Nat -> PtrGE k -> a -> IO () @-}
 poke8 :: Integral a => Int -> Ptr Word8 -> a -> IO ()

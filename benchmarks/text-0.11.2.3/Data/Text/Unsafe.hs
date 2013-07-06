@@ -59,7 +59,8 @@ unsafeHead (Text arr off _len)
 -- omits the check for the empty case, so there is an obligation on
 -- the programmer to provide a proof that the 'Text' is non-empty.
 {-@ unsafeTail :: t:{v:Data.Text.Internal.Text | (tlength v) > 0}
-               -> {v:Data.Text.Internal.Text | (tlength v) = ((tlength t) - 1)}
+               -> {v:Data.Text.Internal.Text | (((tlength v) = ((tlength t) - 1))
+                                             && ((tlen v) < (tlen t)))}
   @-}
 unsafeTail :: Text -> Text
 unsafeTail t@(Text arr off len) =

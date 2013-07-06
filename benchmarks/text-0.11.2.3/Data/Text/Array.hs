@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns, CPP, ForeignFunctionInterface, MagicHash, Rank2Types,
     RecordWildCards, UnboxedTuples, UnliftedFFITypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 -- |
 -- Module      : Data.Text.Array
@@ -98,6 +99,7 @@ import Language.Haskell.Liquid.Prelude
 {-@ predicate BtwnEI V X Y = ((X < V)  && (V <= Y)) @-}
 
 {-@ qualif LenDiff(v:List a, i:int, l:int): (len v) = (l - i) @-}
+{-@ qualif Diff(v:int, d:int, l:int): v = l - d @-}
 
 -- | Immutable array type.
 data Array = Array {
@@ -318,9 +320,10 @@ unsafeWrite MArray{..} i@(I# i#) (W16# e#) = ST $ \s1# ->
            -> {v:[Data.Word.Word16] | (len v) = l}
   @-}
 toList :: Array -> Int -> Int -> [Word16]
-toList ary off len = loop 0
-    where loop i | i < len   = unsafeIndex ary (off+i) : loop (i+1)
-                 | otherwise = []
+toList ary off len = loop len 0
+    where loop (d :: Int) i
+              | i < len   = unsafeIndex ary (off+i) : loop (d-1) (i+1)
+              | otherwise = []
 
 -- | An empty immutable array.
 {-@ empty :: {v:Data.Text.Array.Array | (alen v) = 0} @-}

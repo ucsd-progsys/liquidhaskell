@@ -81,17 +81,18 @@ indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
                   let nlast = nlen - 1
                       z     = index _needle nlast
                       c = index _haystack (i + nlast)
-                      candidateMatch !j
+                      candidateMatch (d :: Int) !j
                           = if j >= nlast               then True
                             else if index _haystack (i+j) /= index _needle j then False
-                            else candidateMatch (j+1)
+                            else candidateMatch (d-1) (j+1)
                       delta = if nextInPattern then nlen + 1
                               else if c == z   then skip + 1
                               else 1
                             where nextInPattern = mask .&. swizzle (index' _haystack (i+nlen)) == 0
-                                  !(mask `T` skip)       = buildTable _needle 0 0 (nlen-2)
-                   in if c == z && candidateMatch 0 then i : scan (i + nlen)
-                      else                               scan (i + delta)
+                                  !(mask `T` skip)       = buildTable (nlen-1) _needle 0 0 (nlen-2)
+                   in if c == z && candidateMatch nlast 0
+                      then i : scan (i + nlen)
+                      else scan (i + delta)
         in scan 0
   where
     ldiff    = hlen - nlen
@@ -122,24 +123,25 @@ indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
     --                 | otherwise     = 1
     --             where nextInPattern = mask .&. swizzle (hindex' (i+nlen)) == 0
     --           !(mask :* skip)       = buildTable 0 0 (nlen-2)
-    scanOne c = loop 0
-        where loop !i = if i >= hlen     then []
-                        else if index _haystack i == c then i : loop (i+1)
-                        else loop (i+1)
+    scanOne c = loop hlen 0
+        where loop (d :: Int) !i = if i >= hlen     then []
+                                   else if index _haystack i == c then i : loop (d-1) (i+1)
+                                   else loop (d-1) (i+1)
 {- INLINE indices #-}
 
-{-@ buildTable :: pat:{v:Data.Text.Internal.Text | (tlen v) > 1}
-               -> i:{v:Nat | v < (tlen pat)}
+{-@ buildTable :: d:Nat
+               -> pat:{v:Data.Text.Internal.Text | (tlen v) > 1}
+               -> i:{v:Nat | ((v < (tlen pat)) && (v = (tlen pat) - 1 - d))}
                -> Word64
                -> skp:{v:Nat | v < (tlen pat)}
                -> {v:Data.Text.Search.T | (Btwn (tskip v) 0 (tlen pat))}
   @-}
-buildTable :: Text -> Int -> Word64 -> Int -> T
-buildTable pat@(Text narr noff nlen) !i !msk !skp
+buildTable :: Int -> Text -> Int -> Word64 -> Int -> T
+buildTable d pat@(Text narr noff nlen) !i !msk !skp
     = if i >= nlast          then (msk .|. swizzle z) `T` skp
       else                   let skp' = if c == z    then nlen - i - 2
                                         else skp
-                             in buildTable pat (i+1) (msk .|. swizzle c) skp'
+                             in buildTable (d-1) pat (i+1) (msk .|. swizzle c) skp'
     where nlast            = nlen - 1
           z                = index pat nlast
           c                = index pat i

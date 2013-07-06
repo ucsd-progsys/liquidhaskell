@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns, Rank2Types, UnboxedTuples #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
 -- Module      : Data.Text.Private
@@ -23,18 +24,19 @@ import qualified Data.Text.Array as A
 --LIQUID
 import qualified Data.Text.Array
 
-
-span_ :: (Char -> Bool) -> Text -> (# Text, Text #)
-span_ p t@(Text arr off len) = (# hd,tl #)
+--LIQUID FIXME: the original type used unboxed tuples, (# Text, Text #)
+{-@ span_ :: (Char -> Bool) -> t:Data.Text.Internal.Text -> ( TextLE t, TextLE t ) @-}
+span_ :: (Char -> Bool) -> Text -> ( Text, Text )
+span_ p t@(Text arr off len) = ( hd,tl )
   where hd = textP arr off k
         tl = textP arr (off+k) (len-k)
-        !k = loop 0
+        !k = loop len 0
 --LIQUID         loop !i | i < len && p c = loop (i+d)
 --LIQUID                 | otherwise      = i
 --LIQUID             where Iter c d       = iter t i
-        loop !i | i < len = let Iter c d = iter t i
-                            in if p c then loop (i+d) else i
-                | otherwise = i
+        loop (d :: Int) !i | i < len = let Iter c d' = iter t i
+                                       in if p c then loop (d-d') (i+d') else i
+                           | otherwise = i
 {-# INLINE span_ #-}
 
 {-@ runText :: (forall s. (ma:Data.Text.Array.MArray s

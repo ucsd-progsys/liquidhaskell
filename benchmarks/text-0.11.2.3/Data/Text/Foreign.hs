@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns, CPP, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE PackageImports #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- |
 -- Module      : Data.Text.Foreign
 -- Copyright   : (c) 2009, 2010 Bryan O'Sullivan
@@ -109,12 +110,12 @@ fromPtr ptr (I16 len) =
     return $! Text (liquidAssume (A.aLen arr == len) arr) 0 len
   where
     arr = A.run (A.new len >>= copy)
-    copy marr = loop ptr 0
+    copy marr = loop len ptr 0
       where
-        loop !p !i | i == len = return marr
-                   | otherwise = do
+        loop (d :: Int) !p !i | i == len = return marr
+                              | otherwise = do
           A.unsafeWrite marr i =<< unsafeIOToST (peek p)
-          loop (p `plusPtr` 2) (i + 1)
+          loop (d-1) (p `plusPtr` 2) (i + 1)
 
 -- $lowlevel
 --
@@ -175,13 +176,13 @@ dropWord16 (I16 n) t@(Text arr off len)
                     -> IO ()
   @-}
 unsafeCopyToPtr :: Text -> Ptr Word16 -> IO ()
-unsafeCopyToPtr (Text arr off len) ptr = loop ptr off
+unsafeCopyToPtr (Text arr off len) ptr = loop len ptr off
   where
     end = off + len
-    loop !p !i | i == end  = return ()
-               | otherwise = do
+    loop (d :: Int) !p !i | i == end  = return ()
+                          | otherwise = do
       poke p (A.unsafeIndex arr i)
-      loop (p `plusPtr` 2) (i + 1)
+      loop (d-1) (p `plusPtr` 2) (i + 1)
 
 
 -- | /O(n)/ Perform an action on a temporary, mutable copy of a

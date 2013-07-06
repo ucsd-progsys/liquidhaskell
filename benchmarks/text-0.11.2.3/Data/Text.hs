@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types, UnboxedTuples #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
 -- Module      : Data.Text
@@ -371,9 +372,9 @@ instance NFData Text
 compareText :: Text -> Text -> Ordering
 compareText ta@(Text _arrA _offA lenA) tb@(Text _arrB _offB lenB)
     | lenA == 0 && lenB == 0 = EQ
-    | otherwise              = go 0 0
+    | otherwise              = go lenA 0 0
   where
-    go !i !j
+    go (d :: Int) !i !j
       --   | i >= lenA || j >= lenB = compare lenA lenB
       --   | a < b                  = LT
       --   | a > b                  = GT
@@ -385,7 +386,7 @@ compareText ta@(Text _arrA _offA lenA) tb@(Text _arrB _offB lenB)
                    Iter b dj = iter tb j
                in if a < b then LT
                   else if a > b then GT
-                  else go (i+di) (j+dj)
+                  else go (d-di) (i+di) (j+dj)
 
 -- -----------------------------------------------------------------------------
 -- * Conversion to/from 'Text'
@@ -539,8 +540,8 @@ last (Text arr off len)
 
 -- | /O(1)/ Returns all characters after the head of a 'Text', which
 -- must be non-empty.  Subject to fusion.
-{-@ tail :: t:{v:Data.Text.Internal.Text | (tlength v) > 0}
-         -> {v:Data.Text.Internal.Text | ((tlength v) = ((tlength t) - 1))}
+{-@ tail :: t:TextNE
+         -> {v:TextLT t | (tlength v) = ((tlength t) - 1)}
   @-}
 tail :: Text -> Text
 tail t@(Text arr off len)
@@ -582,7 +583,7 @@ init t@(Text arr off len)
 -- | /O(1)/ Tests whether a 'Text' is empty or not.  Subject to
 -- fusion.
 {-@ null :: t:Data.Text.Internal.Text
-         -> {v:Bool | ((Prop v) <=> ((tlength t) = 0))}
+         -> {v:Bool | ((Prop v) <=> (((tlength t) = 0) && ((tlen t) = 0)))}
   @-}
 null :: Text -> Bool
 null (Text _arr _off len) =
@@ -1003,6 +1004,7 @@ concat_sumP fun (t:ts) = concat_sumP_go fun 0 (t:ts)
                    -> ts:{v:[NonEmptyStrict] | (a + (sum_tlens v)) > 0}
                    -> {v:Int | ((v = (a + (sum_tlens ts))) && (v > 0))}
   @-}
+{-@ Decrease concat_sumP_go 3 @-}
 concat_sumP_go :: String -> Int -> [Text] -> Int
 --LIQUID FIXME: we fail to infer the type of this function even with appropriate qualifiers..
 --LIQUID        probably related to the fact that `l` doesn't get a >0 refinement even though
@@ -1135,35 +1137,55 @@ replicate n t@(Text a o l)
     | n <= 0 || l <= 0      = empty
     | n == 1                = t
     | isSingleton t         = replicateChar n (unsafeHead t)
-    | otherwise             = let len = l * n
+    | otherwise             = let len = mul l n --LIQUID SPECIALIZE l * n
                                   x = do arr <- A.new len
-                                         replicate_loop arr len t 0
+                                         let loop (d :: Int) !d' !i
+                                                 | i >= n    = return arr
+                                                 | otherwise = let m = liquidAssume (axiom_mul i n l len d') (d' + l)
+                                                               in A.copyI arr d' a o m >> loop (d-1) m (i+1)
+                                         loop n 0 0
                                   arr = A.run x
                                   t' = Text (liquidAssume (A.aLen arr == len) arr) 0 len
                               in liquidAssume (axiom_numchars_replicate t t') t'
---LIQUID RAISE     | n <= maxBound `div` l = Text (A.run x) 0 len
---LIQUID RAISE     | otherwise             = overflowError "replicate"
---LIQUID RAISE   where
---LIQUID RAISE     len = l * n
---LIQUID RAISE     x = do
---LIQUID RAISE       arr <- A.new len
---LIQUID RAISE       let loop !d !i | i >= n    = return arr
---LIQUID RAISE                      | otherwise = let m = d + l
---LIQUID RAISE                                    in A.copyI arr d a o m >> loop m (i+1)
---LIQUID RAISE       loop 0 0
-
-{-@ replicate_loop :: ma:Data.Text.Array.MArray s
-                   -> len:{v:Int | v = (malen ma)}
-                   -> t:{v:Data.Text.Internal.Text | (BtwnE (tlen v) 0 (malen ma))}
-                   -> d:{v:Int | (BtwnI v 0 (malen ma))}
-                   -> GHC.ST.ST s (Data.Text.Array.MArray s)
-  @-}
-replicate_loop :: A.MArray s -> Int -> Text -> Int -> GHC.ST.ST s (A.MArray s)
-replicate_loop arr len t@(Text a o l) !d
-    | d+l > len = return arr
-    | otherwise = let m = d + l
-                  in A.copyI arr d a o m >> replicate_loop arr len t m
+--LIQUID LAZY     | n <= maxBound `div` l = Text (A.run x) 0 len
+--LIQUID LAZY     | otherwise             = overflowError "replicate"
+--LIQUID LAZY   where
+--LIQUID LAZY     len = l * n
+--LIQUID LAZY     x = do
+--LIQUID LAZY       arr <- A.new len
+--LIQUID LAZY       let loop !d !i | i >= n    = return arr
+--LIQUID LAZY                      | otherwise = let m = d + l
+--LIQUID LAZY                                    in A.copyI arr d a o m >> loop m (i+1)
+--LIQUID LAZY       loop 0 0
 {-# INLINE [1] replicate #-}
+
+{-@ measure mul :: Int -> Int -> Int @-}
+{- qualif Mul(v:int, x:int, y:int): v = (mul x y) @-}
+{-@ invariant {v:Int | (mul v 0) = 0} @-}
+
+{-@ mul :: x:Nat -> y:Nat -> {v:Nat | ((((x > 1) && (y > 1)) => ((v > x) && (v > y))) && (v = (mul x y)))} @-}
+mul :: Int -> Int -> Int
+mul = P.undefined
+
+{-@ axiom_mul :: i:Nat -> n:Nat -> l:Nat -> len0:Nat -> d0:Nat
+    -> {v:Bool | (Prop(v) <=> (((i<n) && (len0 = (mul l n)) && (d0 = (mul l i)))
+                               => (((d0 + l) <= len0) && ((d0+l) = (mul (l) (i+1))))))}
+  @-}
+axiom_mul :: Int -> Int -> Int -> Int -> Int -> Bool
+axiom_mul = P.undefined
+
+{-@ replicate_quals :: d:Nat
+                    -> n:Nat
+                    -> ma:Data.Text.Array.MArray s
+                    -> t:{v:Data.Text.Internal.Text | (BtwnE (tlen v) 0 (malen ma))}
+                    -> len0:{v:Nat | ((v = (malen ma)) && (v = (mul (tlen t) n)))}
+                    -> d0:{v:Nat | (BtwnI v 0 (malen ma))}
+                    -> {v:Nat | d0 = (mul (tlen t) v)}
+                    -> GHC.ST.ST s (Data.Text.Array.MArray s)
+  @-}
+replicate_quals :: Int -> Int -> A.MArray s -> Text -> Int -> Int -> Int
+               -> GHC.ST.ST s (A.MArray s)
+replicate_quals = P.undefined
 
 {-# RULES
 "TEXT replicate/singleton -> replicateChar" [~1] forall n c.
@@ -1212,17 +1234,17 @@ take :: Int -> Text -> Text
 take n t@(Text arr off len)
     | n <= 0    = empty
     | n >= len  = t
-    | otherwise = loop 0 0 --LIQUID Text arr off len'
+    | otherwise = loop len 0 0 --LIQUID Text arr off len'
   where
      --LIQUID len' = loop_take n t 0 0
      --LIQUID loop !i !cnt
      --LIQUID      | i >= len || cnt >= n = i
      --LIQUID      | otherwise            = loop (i+d) (cnt+1)
      --LIQUID      where d = iter_ t i
-     loop !i !cnt
+     loop (d :: Int) !i !cnt
           | i >= len || cnt >= n = Text arr off i
-          | otherwise            = let d = iter_ t i
-                                   in loop (i+d) (cnt+1)
+          | otherwise            = let d' = iter_ t i
+                                   in loop (d-d') (i+d') (cnt+1)
 {-# INLINE [1] take #-}
 
 {-# RULES
@@ -1244,16 +1266,16 @@ drop n t@(Text arr off len)
     --LIQUID rearrange checks to ease typechecking
     | n >= len  = empty
     | n <= 0    = t
-    | otherwise = loop 0 0
+    | otherwise = loop len 0 0
     -- where loop !i !cnt
     --           | i >= len || cnt >= n   = Text arr (off+i) (len-i)
     --           | otherwise              = loop (i+d) (cnt+1)
     --           where d = iter_ t i
-    where loop !i !cnt
+    where loop (d :: Int) !i !cnt
               | i >= len || cnt >= n   = let len' = liquidAssume (axiom_numchars_split t i) (len-i)
                                          in Text arr (off+i) len'
-              | otherwise              = let d = iter_ t i
-                                         in loop (i+d) (cnt+1)
+              | otherwise              = let d' = iter_ t i
+                                         in loop (d-d') (i+d') (cnt+1)
 {-# INLINE [1] drop #-}
 
 {-# RULES
@@ -1271,14 +1293,15 @@ drop n t@(Text arr off len)
               -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
   @-}
 takeWhile :: (Char -> Bool) -> Text -> Text
-takeWhile p t@(Text arr off len) = loop 0 0
+takeWhile p t@(Text arr off len) = loop len 0 0
 --LIQUID  where loop !i | i >= len    = t
 --LIQUID                | p c         = loop (i+d)
 --LIQUID                | otherwise   = textP arr off i
 --LIQUID            where Iter c d    = iter t i
-  where loop !i cnt = if i >= len then t
-                      else let it@(Iter c d) = iter t i
-                           in if p c then loop (i+d) (cnt+1)
+  where loop (d :: Int) !i cnt =
+                      if i >= len then t
+                      else let it@(Iter c d') = iter t i
+                           in if p c then loop (d-d') (i+d') (cnt+1)
                               else        Text arr off i
 {-# INLINE [1] takeWhile #-}
 
@@ -1296,24 +1319,25 @@ takeWhile p t@(Text arr off len) = loop 0 0
               -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
   @-}
 dropWhile :: (Char -> Bool) -> Text -> Text
-dropWhile p t@(Text arr off len) = loop_dropWhile t p 0 0
+dropWhile p t@(Text arr off len) = loop_dropWhile len t p 0 0
 --LIQUID  where loop !i !l | l >= len  = empty
 --LIQUID                   | p c       = loop (i+d) (l+d)
 --LIQUID                   | otherwise = Text arr (off+i) (len-l)
 --LIQUID            where Iter c d     = iter t i
 
-{-@ loop_dropWhile :: t:Data.Text.Internal.Text
+{-@ loop_dropWhile :: d:Nat
+                   -> t:Data.Text.Internal.Text
                    -> p:(Char -> Bool)
-                   -> i:{v:Int | (BtwnI v 0 (tlen t))}
+                   -> i:{v:Int | ((BtwnI v 0 (tlen t)) && (v = (tlen t) - d))}
                    -> cnt:{v:Int | ((v = (numchars (tarr t) (toff t) i))
                                     && (BtwnI v 0 (tlength t)))}
                    -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
   @-}
-loop_dropWhile :: Text -> (Char -> Bool) -> Int -> Int -> Text
-loop_dropWhile t@(Text arr off len) p !i cnt
+loop_dropWhile :: Int -> Text -> (Char -> Bool) -> Int -> Int -> Text
+loop_dropWhile (d :: Int) t@(Text arr off len) p !i cnt
     = if i >= len then empty
-      else let it@(Iter c d) = iter t i
-           in if p c      then loop_dropWhile t p (i+d) (cnt+1)
+      else let it@(Iter c d') = iter t i
+           in if p c      then loop_dropWhile (d-d') t p (i+d') (cnt+1)
               else let len' = liquidAssume (axiom_numchars_split t i) (len-i)
                    in Text arr (off+i) len'
 {-# INLINE [1] dropWhile #-}
@@ -1351,6 +1375,7 @@ dropWhileEnd p t@(Text arr off len) = loop_dropWhileEnd t p len (len-1) (length 
                        && (BtwnI (v) (-1) (tlength t)))}
       -> {v:Data.Text.Internal.Text | (tlength v) <= (tlength t)}
    @-}
+{-@ Decrease loop_dropWhileEnd 3 @-}
 loop_dropWhileEnd :: Text -> (Char -> Bool) -> Int -> Int -> Int -> Text
 loop_dropWhileEnd t@(Text arr off len) p !l !i cnt
     = if l <= 0  then empty
@@ -1415,27 +1440,28 @@ strip = dropAround isSpace
 {-@ splitAt :: n:{v:Int | v >= 0}
             -> t:Data.Text.Internal.Text
             -> ( {v:Data.Text.Internal.Text | (Min (tlength v) (tlength t) n)}
-               , Data.Text.Internal.Text)<{\x y ->
-                              ((tlength y) = ((tlength t) - (tlength x)))}>
+               , Data.Text.Internal.Text)
+               <{\x y -> (((tlength y) = ((tlength t) - (tlength x)))
+                      && ((tlen y) = ((tlen t) - (tlen x))))}>
   @-}
 splitAt :: Int -> Text -> (Text, Text)
 splitAt n t@(Text arr off len)
     | n <= 0    = (empty, t)
     | n >= len  = (t, empty)
-    | otherwise = loop 0 0
+    | otherwise = loop len 0 0
 --LIQUID    | otherwise = (Text arr off k, Text arr (off+k) (len-k))
 --LIQUID  where k = loop_splitAt t n 0 0
 --LIQUID        loop !i !cnt
 --LIQUID            | i >= len || cnt >= n = i
 --LIQUID            | otherwise            = loop (i+d) (cnt+1)
 --LIQUID            where d                = iter_ t i
-    where loop !i !cnt
+    where loop (d :: Int) !i !cnt
               | i >= len || cnt >= n = let len' = liquidAssume (axiom_numchars_split t i) (len-i)
                                        in ( Text arr off i
                                           , Text arr (off+i) len')
-              | otherwise            = let d = iter_ t i
+              | otherwise            = let d' = iter_ t i
                                            cnt' = cnt + 1
-                                       in loop (i+d) cnt'
+                                       in loop (d-d') (i+d') cnt'
 {-# INLINE splitAt #-}
 
 -- | /O(n)/ 'span', applied to a predicate @p@ and text @t@, returns
@@ -1444,7 +1470,7 @@ splitAt n t@(Text arr off len)
 -- remainder of the list.
 span :: (Char -> Bool) -> Text -> (Text, Text)
 span p t = case span_ p t of
-             (# hd,tl #) -> (hd,tl)
+             ( hd,tl ) -> (hd,tl)
 {-# INLINE span #-}
 
 -- | /O(n)/ 'break' is like 'span', but the prefix returned is
@@ -1470,14 +1496,15 @@ groupBy p = loop
 -- character may be found.  This is /not/ the same as the logical
 -- index returned by e.g. 'findIndex'.
 findAIndexOrEnd :: (Char -> Bool) -> Text -> Int
-findAIndexOrEnd q t@(Text _arr _off len) = go 0
+findAIndexOrEnd q t@(Text _arr _off len) = go len 0
     --LIQUID where go !i | i >= len || q c       = i
     --LIQUID             | otherwise             = go (i+d)
     --LIQUID             where Iter c d          = iter t i
-    where go !i = if i >= len then i
-                  else let Iter c d = iter t i
+    where go (d :: Int) !i =
+                  if i >= len then i
+                  else let Iter c d' = iter t i
                        in if q c then i
-                          else go (i+d)
+                          else go (d-d') (i+d')
 
 -- | /O(n)/ Group characters in a string by equality.
 group :: Text -> [Text]
@@ -1490,21 +1517,23 @@ group = groupBy (==)
               ((tlength x1) < (tlength y1))}>
   @-}
 inits :: Text -> [Text]
-inits t@(Text arr off len) = loop_inits t 0 0
+inits t@(Text arr off len) = loop_inits len t 0 0
 --LIQUID     where loop i | i >= len = [t]
 --LIQUID                  | otherwise = Text arr off i : loop (i + iter_ t i)
 
-{-@ loop_inits :: t:Data.Text.Internal.Text
-               -> i:{v:Int | (BtwnI v 0 (tlen t))}
+{-@ loop_inits :: d:Nat
+               -> t:Data.Text.Internal.Text
+               -> i:{v:Int | ((BtwnI v 0 (tlen t)) && (v = (tlen t) - d))}
                -> cnt:{v:Int | (((numchars (tarr t) (toff t) i) = v)
                                 && (BtwnI v 0 (tlength t)))}
                -> [{v:Data.Text.Internal.Text | (BtwnI (tlength v) cnt (tlength t))}]<{\x y ->
                    ((tlength x) < (tlength y))}>
   @-}
-loop_inits :: Text -> Int -> Int -> [Text]
-loop_inits t@(Text arr off len) i cnt
+loop_inits :: Int -> Text -> Int -> Int -> [Text]
+loop_inits (d :: Int) t@(Text arr off len) i cnt
     | i >= len = [t]
-    | otherwise = Text arr off i : loop_inits t (i + iter_ t i) (cnt + 1)
+    | otherwise = Text arr off i : let d' = iter_ t i
+                                   in loop_inits (d-d') t (i+d') (cnt + 1)
 
 --LIQUID FIXME: interesting that pattern-matching as below makes loop_inits unsafe..
 --LIQUID let d = iter_ t i
@@ -1565,6 +1594,7 @@ splitOn pat@(Text _ _ l) src@(Text arr off len)
                       ((ix+(tlen pat)) <= iy)}>
                -> [Data.Text.Internal.Text]
   @-}
+{-@ Decrease splitOn_go 4 @-}
 splitOn_go :: Text -> Text -> Int -> [Int] -> [Text]
 splitOn_go pat@(Text _ _ l) t@(Text arr off len) !s (x:xs)
     =  textP arr (s+off) (x-s) : splitOn_go pat t (x+l) xs
@@ -1589,7 +1619,7 @@ split _ t@(Text _off _arr 0) = [t]
 split p t = loop t
     where loop s | null s'   = [l]
                  | otherwise = l : loop (unsafeTail s')
-              where (# l, s' #) = span_ (not . p) s
+              where ( l, s' ) = span_ (not . p) s
 {-# INLINE split #-}
 
 -- | /O(n)/ Splits a 'Text' into components of length @k@.  The last
@@ -1821,7 +1851,7 @@ zipWith f t1 t2 = unstream (S.zipWith g (stream t1) (stream t2))
 -- | /O(n)/ Breaks a 'Text' up into a list of words, delimited by 'Char's
 -- representing white space.
 words :: Text -> [Text]
-words t@(Text arr off len) = loop 0 0
+words t@(Text arr off len) = loop len 0 0
   --LIQUID  where
   --LIQUID    loop !start !n
   --LIQUID        | n >= len = if start == n
@@ -1834,16 +1864,16 @@ words t@(Text arr off len) = loop 0 0
   --LIQUID        | otherwise = loop start (n+d)
   --LIQUID        where Iter c d = iter t n
   where
-    loop !start !n =
+    loop (d :: Int) !start !n =
         if n >= len then if start == n
                          then []
                          else [Text arr (start+off) (n-start)]
-        else let Iter c d = iter t n
+        else let Iter c d' = iter t n
              in if isSpace c then
                     if start == n
-                    then loop (start+1) (start+1)
-                    else Text arr (start+off) (n-start) : loop (n+d) (n+d)
-                else loop start (n+d)
+                    then loop (d-1) (start+1) (start+1)
+                    else Text arr (start+off) (n-start) : loop (d-d') (n+d') (n+d')
+                else loop (d-d') start (n+d')
 {-# INLINE words #-}
 
 -- | /O(n)/ Breaks a 'Text' up into a list of 'Text's at
@@ -1856,7 +1886,7 @@ lines ps | null ps   = []
          | otherwise = h : if null t
                            then []
                            else lines (unsafeTail t)
-    where (# h,t #) = span_ (/= '\n') ps
+    where ( h,t ) = span_ (/= '\n') ps
 {-# INLINE lines #-}
 
 {-
@@ -1984,12 +2014,13 @@ stripPrefix p@(Text _arr _off plen) t@(Text arr off len)
 -- > commonPrefixes "veeble" "fetzer"  == Nothing
 -- > commonPrefixes "" "baz"           == Nothing
 commonPrefixes :: Text -> Text -> Maybe (Text,Text,Text)
-commonPrefixes t0@(Text arr0 off0 len0) t1@(Text arr1 off1 len1) = go 0 0
+commonPrefixes t0@(Text arr0 off0 len0) t1@(Text arr1 off1 len1) = go len0 0 0
   where
-    go !i !j | i < len0 && j < len1 = -- && a == b = go (i+d0) (j+d1)
+    go (d :: Int) !i !j
+             | i < len0 && j < len1 = -- && a == b = go (i+d0) (j+d1)
                     let Iter a d0 = iter t0 i
                         Iter b d1 = iter t1 j
-                    in if a == b then go (i+d0) (j+d1)
+                    in if a == b then go (d-d0) (i+d0) (j+d1)
                        else Nothing
              | i > 0     = Just (Text arr0 off0 i,
                                  textP arr0 (off0+i) (len0-i),

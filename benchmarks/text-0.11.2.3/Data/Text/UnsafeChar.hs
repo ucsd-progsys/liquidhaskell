@@ -51,6 +51,7 @@ import Language.Haskell.Liquid.Prelude
 {- predicate RoomFront MA I N = (BtwnI I N (malen MA)) @-}
 
 {-@ ord :: c:Char -> {v:Int | v = (ord c)} @-}
+{-@ Strict Data.Text.UnsafeChar.ord @-}
 ord :: Char -> Int
 ord c@(C# c#) = let i = I# (ord# c#)
                 in liquidAssume (i == ord c) i
