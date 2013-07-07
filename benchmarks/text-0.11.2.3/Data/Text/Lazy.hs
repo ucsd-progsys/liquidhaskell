@@ -246,6 +246,12 @@ import qualified Data.Text.Search
 import qualified Data.Text.Unsafe
 import Language.Haskell.Liquid.Prelude
 
+{-@ qualif LTLenDiff(v:Data.Text.Lazy.Internal.Text,
+                     t:Data.Text.Lazy.Internal.Text,
+                     x:Data.Text.Lazy.Internal.Text):
+        (ltlen v) = ((ltlen t) - (ltlen x))
+  @-}
+
 
 -- $fusion
 --
@@ -332,36 +338,23 @@ compareText :: Text -> Text -> Ordering
 compareText Empty Empty = EQ
 compareText Empty _     = LT
 compareText _     Empty = GT
-compareText a@(Chunk a0 as) b@(Chunk b0 bs) = compareText_go a0 b0 as bs 0 0 --LIQUID outer a0 b0
---LIQUID  where
---LIQUID   outer ta@(T.Text arrA offA lenA) tb@(T.Text arrB offB lenB) = go 0 0
---LIQUID    where
---LIQUID     go !i !j
---LIQUID       | i >= lenA = compareText as (chunk (T.Text arrB (offB+j) (lenB-j)) bs)
---LIQUID       | j >= lenB = compareText (chunk (T.Text arrA (offA+i) (lenA-i)) as) bs
---LIQUID       | a < b     = LT
---LIQUID       | a > b     = GT
---LIQUID       | otherwise = go (i+di) (j+dj)
---LIQUID       where T.Iter a di = T.iter ta i
---LIQUID             T.Iter b dj = T.iter tb j
-
-{-@ compareText_go :: ta:{v:Data.Text.Internal.Text | (tlength v) > 0}
-                   -> tb:{v:Data.Text.Internal.Text | (tlength v) > 0}
-                   -> as:Data.Text.Lazy.Internal.Text
-                   -> bs:Data.Text.Lazy.Internal.Text
-                   -> i:{v:Int | (BtwnI v 0 (tlen ta))}
-                   -> j:{v:Int | (BtwnI v 0 (tlen tb))}
-                   -> Ordering
-  @-}
-compareText_go :: T.Text -> T.Text -> Text -> Text -> Int -> Int -> Ordering
-compareText_go ta@(T.Text arrA offA lenA) tb@(T.Text arrB offB lenB) as bs !i !j
-    | i >= lenA = compareText as (chunk (T.Text arrB (offB+j) (lenB-j)) bs)
-    | j >= lenB = compareText (chunk (T.Text arrA (offA+i) (lenA-i)) as) bs
-    | otherwise = let ia@(T.Iter a di) = T.iter ta i
-                      ib@(T.Iter b dj) = T.iter tb j
-                  in if a < b then LT
-                     else if a > b then GT
-                     else compareText_go ta tb as bs (i+di) (j+dj)
+compareText a@(Chunk a0 as) b@(Chunk b0 bs) = outer a0 b0
+  where
+   outer ta@(T.Text arrA offA lenA) tb@(T.Text arrB offB lenB) = go lenA 0 0
+    where
+     go (d :: Int) !i !j
+       | i >= lenA = compareText as (chunk (T.Text arrB (offB+j) (lenB-j)) bs)
+       | j >= lenB = compareText (chunk (T.Text arrA (offA+i) (lenA-i)) as) bs
+--LIQUID LAZY       | a < b     = LT
+--LIQUID LAZY       | a > b     = GT
+--LIQUID LAZY       | otherwise = go (i+di) (j+dj)
+--LIQUID LAZY       where T.Iter a di = T.iter ta i
+--LIQUID LAZY             T.Iter b dj = T.iter tb j
+       | otherwise = let ia@(T.Iter a di) = T.iter ta i
+                         ib@(T.Iter b dj) = T.iter tb j
+                     in if a < b then LT
+                        else if a > b then GT
+                        else go (d-di) (i+di) (j+dj)
 
 instance Show Text where
     showsPrec p ps r = showsPrec p (unpack ps) r
@@ -1194,12 +1187,6 @@ drop i t0
 -- | /O(n)/ 'dropWords' @n@ returns the suffix with @n@ 'Word16'
 -- values dropped, or the empty 'Text' if @n@ is greater than the
 -- number of 'Word16' values present.
-{-@ dropWords :: i:Nat64
-         -> t:Data.Text.Lazy.Internal.Text
-         -> {v:Data.Text.Lazy.Internal.Text |
-                ((ltlen v) = (((ltlen t) <= i)
-                              ? 0 : ((ltlen t) - i)))}
-  @-}
 dropWords :: Int64 -> Text -> Text
 dropWords i t0
     | i <= 0    = t0
@@ -1463,7 +1450,6 @@ breakOnAll pat src
 
 -- | /O(n)/ 'break' is like 'span', but the prefix returned is over
 -- elements that fail the predicate @p@.
-{-@ break :: (Char -> Bool) -> t:LText -> (LTextLE t, LTextLE t) @-}
 break :: (Char -> Bool) -> Text -> (Text, Text)
 break p t0 = break' t0
   where break' Empty          = (empty, empty)
@@ -1479,7 +1465,6 @@ break p t0 = break' t0
 -- a pair whose first element is the longest prefix (possibly empty)
 -- of @t@ of elements that satisfy @p@, and whose second is the
 -- remainder of the list.
-{-@ span :: (Char -> Bool) -> t:LText -> (LTextLE t, LTextLE t) @-}
 span :: (Char -> Bool) -> Text -> (Text, Text)
 span p = break (not . p)
 {-# INLINE span #-}
