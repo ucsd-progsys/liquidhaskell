@@ -2013,6 +2013,7 @@ stripPrefix p@(Text _arr _off plen) t@(Text arr off len)
 -- > commonPrefixes "foobar" "fooquux" == Just ("foo","bar","quux")
 -- > commonPrefixes "veeble" "fetzer"  == Nothing
 -- > commonPrefixes "" "baz"           == Nothing
+{-@ commonPrefixes :: t0:Text -> t1:Text -> Maybe (Text,TextLE t0,TextLE t1) @-}
 commonPrefixes :: Text -> Text -> Maybe (Text,Text,Text)
 commonPrefixes t0@(Text arr0 off0 len0) t1@(Text arr1 off1 len1) = go len0 0 0
   where
