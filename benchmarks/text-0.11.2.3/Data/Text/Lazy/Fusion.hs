@@ -26,7 +26,7 @@ module Data.Text.Lazy.Fusion
 
 import Prelude hiding (length)
 import qualified Data.Text.Fusion.Common as S
-import Data.Text.Fusion.Internal
+import Data.Text.Fusion.Internal hiding (PairS(..))
 import Data.Text.Fusion.Size (isEmpty, unknownSize)
 import Data.Text.Lazy.Internal
 import qualified Data.Text.Internal as I
@@ -52,6 +52,16 @@ import qualified GHC.ST
 import Language.Haskell.Liquid.Prelude
 
 default(Int64)
+
+--LIQUID SPECIALIZE
+{-@ data PairS [plen] b = (:*:) (t::LText) (b::b) @-}
+
+data PairS b = Text :*: b
+infixl 2 :*:
+
+{-@ measure plen :: PairS b -> Int
+    plen ((:*:) t b) = (ltlen t)
+  @-}
 
 -- | /O(n)/ Convert a 'Text' into a 'Stream Char'.
 stream :: Text -> Stream Char
@@ -79,6 +89,7 @@ data UC s = UC s {-# UNPACK #-} !Int
 
 -- | /O(n)/ Convert a 'Stream Char' into a 'Text', using the given
 -- chunk size.
+{-@ Strict Data.Text.Lazy.Fusion.unstreamChunks @-}
 unstreamChunks :: Int -> Stream Char -> Text
 unstreamChunks chunkSize (Stream next s0 len0)
   | isEmpty len0 = Empty
