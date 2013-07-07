@@ -179,20 +179,23 @@ fromText t@(Text arr off l)
 --
 --  * @'toLazyText' ('fromString' s) = 'L.fromChunks' [S.pack s]@
 --
+--LIQUID FIXME: this really should terminate, must prove `u>0` in the 1st recursive call
+{-@ Strict Data.Text.Lazy.Builder.fromString @-}
 fromString :: String -> Builder
 fromString str = Builder $ \k (Buffer p0 o0 u0 l0) ->
-    let loop !marr !o !u !l [] = k (Buffer marr o u l)
-        loop marr o u l s@(c:cs)
+        {- Decrease loop 1 4 @-}
+    let loop [] !marr !o !u !l = k (Buffer marr o u l)
+        loop s@(c:cs) marr o u l
             | l <= 1 = do
                 arr <- A.unsafeFreeze marr
                 let !t = Text arr o u
                 marr' <- A.new chunkSize
-                ts <- inlineInterleaveST (loop marr' 0 0 chunkSize s)
+                ts <- inlineInterleaveST (loop s marr' 0 0 chunkSize)
                 return $ t : ts
             | otherwise = do
                 n <- unsafeWrite marr (o+u) c
-                loop marr o (u+n) (l-n) cs
-    in loop p0 o0 u0 l0 str
+                loop cs marr o (u+n) (l-n)
+    in loop str p0 o0 u0 l0
   where
     chunkSize = smallChunkSize
 {-# INLINE fromString #-}
@@ -214,11 +217,13 @@ data Buffer s = Buffer {-# UNPACK #-} !(A.MArray s)
                        {-# UNPACK #-} !Int  -- length left
 
 {-@ data Data.Text.Lazy.Builder.Buffer s = Data.Text.Lazy.Builder.Buffer
-        (marr :: Data.Text.Array.MArray s)
+        (marr :: {v:Data.Text.Array.MArray s | (malen v) > 0})
         (off  :: {v:Nat | v <= (malen marr)})
         (used :: {v:Nat | (off+v) <= (malen marr)})
         (left :: {v:Nat | v = ((malen marr) - off - used)})
   @-}
+
+{-@ qualif MArrayNE(v:Data.Text.Array.MArray s): (malen v) > 0 @-}
 
 {- measure bufUsed :: Data.Text.Lazy.Builder.Buffer s -> Int
     bufUsed (Data.Text.Lazy.Builder.Buffer m o u l) = u
@@ -343,7 +348,7 @@ writeBuffer b@(Buffer p o u l) n f = do
     return $! Buffer p o (u+n) (l-n)
 {-# INLINE writeBuffer #-}
 
-{-@ newBuffer :: size:Nat
+{-@ newBuffer :: size:{v:Nat | v > 0}
               -> GHC.ST.ST s {v:(Data.Text.Lazy.Builder.Buffer s) | size = (bufLeft v)}
   @-}
 newBuffer :: Int -> ST s (Buffer s)

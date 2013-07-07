@@ -90,6 +90,7 @@ data Text = Empty
 
 {-@ invariant {v:Data.Text.Lazy.Internal.Text | (ltlen v) >= 0} @-}
 {-@ invariant {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= 0} @-}
+{-@ invariant {v:Data.Text.Lazy.Internal.Text | (((ltlength v) = 0) <=> ((ltlen v) = 0))} @-}
 {-@ invariant {v:[Data.Text.Lazy.Internal.Text] | (sum_ltlengths v) >= 0} @-}
 {-@ invariant {v:[{v0:Data.Text.Lazy.Internal.Text | (sum_ltlengths v) >= (ltlength v0)}] | true} @-}
 
@@ -107,7 +108,7 @@ data Text = Empty
 -- and the QC properties must check this.
 
 -- | Check the invariant strictly.
-{-@ strictInvariant :: Text -> Bool @-}
+{-@ strictInvariant :: LText -> Bool @-}
 strictInvariant :: Text -> Bool
 strictInvariant Empty = True
 strictInvariant x@(Chunk (T.Text _ _ len) cs)
@@ -116,7 +117,7 @@ strictInvariant x@(Chunk (T.Text _ _ len) cs)
                   ++ showStructure x
 
 -- | Check the invariant lazily.
-{-@ lazyInvariant :: Text -> Text @-}
+{-@ lazyInvariant :: LText -> LText @-}
 lazyInvariant :: Text -> Text
 lazyInvariant Empty = Empty
 lazyInvariant x@(Chunk c@(T.Text _ _ len) cs)
@@ -125,7 +126,7 @@ lazyInvariant x@(Chunk c@(T.Text _ _ len) cs)
                   ++ showStructure x
 
 -- | Display the internal structure of a lazy 'Text'.
-{-@ showStructure :: Text -> String @-}
+{-@ showStructure :: LText -> String @-}
 showStructure :: Text -> String
 showStructure Empty           = "Empty"
 showStructure (Chunk t Empty) = "Chunk " ++ show t ++ " Empty"
@@ -133,9 +134,11 @@ showStructure (Chunk t ts)    =
     "Chunk " ++ show t ++ " (" ++ showStructure ts ++ ")"
 
 -- | Smart constructor for 'Chunk'. Guarantees the data type invariant.
-{-@ chunk :: t:Data.Text.Internal.Text
-          -> ts:Data.Text.Lazy.Internal.Text
-          -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = ((tlength t) + (ltlength ts)))} @-}
+{-@ chunk :: t:Text
+          -> ts:LText
+          -> {v:LText |
+               (((ltlength v) = ((tlength t) + (ltlength ts)))
+               && ((ltlen v) = ((tlen t) + (ltlen ts))))} @-}
 chunk :: T.Text -> Text -> Text
 {-# INLINE chunk #-}
 chunk t@(T.Text _ _ len) ts | len == 0 = ts
@@ -181,13 +184,13 @@ foldlChunks f z = go z
 {-# INLINE foldlChunks #-}
 
 -- | Currently set to 16 KiB, less the memory management overhead.
-{-@ defaultChunkSize :: Nat @-}
+{-@ defaultChunkSize :: {v:Nat | v = 16368} @-}
 defaultChunkSize :: Int
 defaultChunkSize = 16384 - chunkOverhead
 {-# INLINE defaultChunkSize #-}
 
 -- | Currently set to 128 bytes, less the memory management overhead.
-{-@ smallChunkSize :: Nat @-}
+{-@ smallChunkSize :: {v:Nat | v = 112} @-}
 smallChunkSize :: Int
 smallChunkSize = 128 - chunkOverhead
 {-# INLINE smallChunkSize #-}
