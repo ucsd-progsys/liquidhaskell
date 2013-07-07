@@ -67,6 +67,7 @@ import qualified Data.Text.Unsafe
 import qualified Data.Text.Private
 import qualified Data.Word
 import qualified GHC.ST
+import GHC.ST
 import qualified GHC.Types
 import Prelude (Integer, Integral)
 import Language.Haskell.Liquid.Prelude
@@ -91,9 +92,13 @@ default(Int)
   @-}
 
 {-@ qualif MALenLE(v:int, a:Data.Text.Array.MArray s): v <= (malen a) @-}
+{-@ qualif ALenLE(v:int, a:Data.Text.Array.Array): v <= (alen a) @-}
 
 {-@ qualif Foo(v:a, a:Data.Text.Array.MArray s):
-        (((fst v) <= (malen a)) && (((fst v) + (snd v)) <= (malen a)))
+        (snd v) <= (malen a)
+  @-}
+{-@ qualif Foo(v:a, a:Data.Text.Array.Array):
+        (snd v) <= (alen a)
   @-}
 
 {-@ qualif Foo(v:int): v >= -1 @-}
@@ -268,10 +273,12 @@ countChar = S.countCharI
 {-@ Strict Data.Text.Fusion.mapAccumL @-}
 mapAccumL :: (a -> Char -> (a,Char)) -> a -> Stream Char -> (a, Text)
 mapAccumL f z0 (Stream next0 s0 len) =
-    (nz,I.textP na 0 (liquidAssume (nl <= A.aLen na) nl))
+    (nz,I.textP na 0 nl)
   where
-    -- (na,(nz,nl)) = A.run2 (A.new mlen >>= \arr -> mapAccumL_outer f next0 arr mlen z0 s0 0)
-    (na,(nz,nl)) = A.run2 (A.new mlen >>= \arr -> outer arr mlen z0 s0 0)
+    --LIQUID INLINE (na,(nz,nl)) = A.run2 (A.new mlen >>= \arr -> outer arr mlen z0 s0 0)
+    (na,(nz,nl)) = runST $ do (marr,x) <- (A.new mlen >>= \arr -> outer arr mlen z0 s0 0)
+                              arr <- A.unsafeFreeze marr
+                              return (arr,x)
       where mlen = upperBound 4 len
     outer arr top = loop
       where
