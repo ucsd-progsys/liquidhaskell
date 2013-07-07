@@ -75,6 +75,7 @@ import qualified Data.Text.Fusion.Internal
 import qualified Data.Text.Fusion.Size
 import qualified Data.Text.Internal
 import qualified Data.Text.Lazy.Fusion
+import Data.Text.Lazy.Fusion (TPairS(..))
 import qualified Data.Text.Lazy.Internal
 import qualified Data.Text.Private
 import qualified Data.Text.Search
@@ -114,7 +115,7 @@ onErrLIQUID :: TE.OnDecodeError -> String -> Maybe Word8 -> Maybe Char
 onErrLIQUID onErr desc c = onErr desc c undefined undefined
 
 -- | Decode a 'ByteString' containing UTF-8 encoded text.
-{-@ decodeUtf8With :: OnDecodeError -> LByteString -> Text @-}
+{-@ decodeUtf8With :: OnDecodeError -> LByteString -> LText @-}
 decodeUtf8With :: TE.OnDecodeError -> B.ByteString -> Text
 decodeUtf8With onErr bs0 = fast bs0
   where

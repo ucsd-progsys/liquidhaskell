@@ -22,6 +22,7 @@ module Data.Text.Lazy.Fusion
     , countChar
     --LIQUID
     , UC(..)
+    , TPairS(..)
     ) where
 
 import Prelude hiding (length)
@@ -54,24 +55,24 @@ import Language.Haskell.Liquid.Prelude
 default(Int64)
 
 --LIQUID SPECIALIZE
-{-@ data PairS [plen] b = (:*:) (t::LText) (b::b) @-}
+{-@ data Data.Text.Lazy.Fusion.TPairS [pslen] b = (:*) (t::LText) (b::b) @-}
 
-data PairS b = Text :*: b
-infixl 2 :*:
+data TPairS b = Text :* b
+infixl 2 :*
 
-{-@ measure plen :: PairS b -> Int
-    plen ((:*:) t b) = (ltlen t)
+{-@ measure pslen :: Data.Text.Lazy.Fusion.TPairS b -> Int
+    pslen ((:*) t b) = (ltlen t)
   @-}
 
 -- | /O(n)/ Convert a 'Text' into a 'Stream Char'.
 stream :: Text -> Stream Char
-stream text = Stream next (text :*: 0) unknownSize
+stream text = Stream next (text :* 0) unknownSize
   where
-    next (Empty :*: _) = Done
-    next (txt@(Chunk t@(I.Text _ _ len) ts) :*: i)
-        | i >= len  = next (ts :*: 0)
+    next (Empty :* _) = Done
+    next (txt@(Chunk t@(I.Text _ _ len) ts) :* i)
+        | i >= len  = next (ts :* 0)
         | otherwise = let Iter c d = iter t i
-                      in Yield c (txt :*: i+d)
+                      in Yield c (txt :* i+d)
         --LIQUID push binding inward for safety
         --LIQUID where Iter c d = iter t i
 {-# INLINE [0] stream #-}
