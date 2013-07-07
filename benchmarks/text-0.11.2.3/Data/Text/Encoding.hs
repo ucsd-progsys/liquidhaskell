@@ -199,14 +199,14 @@ decodeUtf8With onErr (PS fp off len) = runText $ \done -> do
                     --LIQUID SCOPE
                     destOff <- peek destOffPtr
                     case onErr desc (Just x) dest (fromIntegral destOff) of
-                      Nothing -> loop (d-1) $ curPtr'' `plusPtr` 1
+                      Nothing -> loop (plen $ curPtr'' `plusPtr` 1) $ curPtr'' `plusPtr` 1
                       Just c -> do
                         --LIQUID destOff <- peek destOffPtr
                         w <- unsafeSTToIO $
                              unsafeWrite dest (fromIntegral destOff) c
                         poke destOffPtr (destOff + fromIntegral w)
-                        loop (d-1) $ curPtr'' `plusPtr` 1
-          loop (off+len) (ptr `plusPtr` off)
+                        loop (plen $ curPtr'' `plusPtr` 1) $ curPtr'' `plusPtr` 1
+          loop (plen $ ptr `plusPtr` off) (ptr `plusPtr` off)
   (unsafeIOToST . go) =<< A.new len
  where
   desc = "Data.Text.Encoding.decodeUtf8: Invalid UTF-8 stream"
@@ -244,7 +244,7 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
   start :: Int -> Int -> Int -> ForeignPtr Word8 -> IO ByteString
   start size n0 m0 fp = withForeignPtr fp $ loop n0 m0
    where
-    loop n1 m1 ptr = go offLen n1 m1
+    loop n1 m1 ptr = go (offLen-n1) n1 m1
      where
       --LIQUID SCOPE offLen = off + len
       go (d :: Int) !n !m =
@@ -271,14 +271,14 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
                   let end = ptr `plusPtr` size
                       ascii (d' :: Int) !t !u =
                         if t == offLen || eqPtr u end {-LIQUID SPECIALIZE u == end || v >= 0x80-} then
-                            go (d-1) t (u `minusPtr` ptr)
+                            go d' t (u `minusPtr` ptr)
                         else do
                             let v = A.unsafeIndex arr t
-                            if v >= 0x80 then go (d-1) t (u `minusPtr` ptr) else do
+                            if v >= 0x80 then go d' t (u `minusPtr` ptr) else do
                             poke u (fromIntegral v :: Word8)
                             ascii (d'-1) (t+1) (u `plusPtr` 1)
                         --LIQUID where v = A.unsafeIndex arr t
-                  ascii offLen (n+1) (ptr `plusPtr` (m+1))
+                  ascii (d-1) (n+1) (ptr `plusPtr` (m+1))
               else if w <= 0x7FF then ensure arr ptr offLen size n m 1 2 start $ \ptr -> do
                   poke8 m     ptr $ (w `shiftR` 6) + 0xC0
                   poke8 (m+1) ptr $ (w .&. 0x3f) + 0x80
@@ -289,7 +289,7 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
                   poke8 (m+1)  ptr $ ((c `shiftR` 12) .&. 0x3F) + 0x80
                   poke8 (m+2)  ptr $ ((c `shiftR` 6) .&. 0x3F) + 0x80
                   poke8 (m+3)  ptr $ (c .&. 0x3F) + 0x80
-                  go (d-1) (n+2) (m+4)
+                  go (d-2) (n+2) (m+4)
               else ensure arr ptr offLen size n m 1 3 start $ \ptr -> do
                   poke8 m     ptr $ (w `shiftR` 12) + 0xE0
                   poke8 (m+1) ptr $ ((w `shiftR` 6) .&. 0x3F) + 0x80
@@ -421,7 +421,7 @@ encodeUtf32BE txt = E.unstream (E.restreamUtf32BE (F.stream txt))
                   -> d:{v:PtrV Foreign.C.Types.CSize | (BtwnI (deref v) 0 (malen a))}
                   -> c:PtrV Data.Word.Word8
                   -> end:PtrV Data.Word.Word8
-                  -> IO {v:(PtrV Data.Word.Word8) | (plen v) >= (plen end)}
+                  -> IO {v:(PtrV Data.Word.Word8) | (BtwnI (plen v) (plen end) (plen c))}
   @-}
 c_decode_utf8 :: A.MArray s -> Ptr CSize
               -> Ptr Word8 -> Ptr Word8 -> IO (Ptr Word8)
