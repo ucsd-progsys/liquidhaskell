@@ -150,21 +150,21 @@ advance_scan needle@(Chunk n ns) src ts0 x@(T.Text _ _ l) xs !i !g =
   else let d = delta nlen skip c z nextInPattern
            c = index x xs (i + nlast)
            nextInPattern = mask .&. swizzle (index x xs (i+nlen)) == 0
-           candidateMatch !j
+           candidateMatch (d :: Int64) !j
                = if j >= nlast                            then True
                  else if index x xs (i+j) /= index n ns j then False
-                 else candidateMatch (j+1)
+                 else candidateMatch (d-1) (j+1)
            --LIQUID candidateMatch !j
            --LIQUID     | j >= nlast               = True
            --LIQUID     | index x xs (i+j) /= index n ns j = False
            --LIQUID     | otherwise                = candidateMatch (j+1)
-       in if c == z && candidateMatch 0
+       in if c == z && candidateMatch nlast 0
           then g : advance_scan needle src ts0 x xs (i+nlen) (g+nlen)
           else  advance_scan needle src ts0 x xs (i+d) (g+d)
  where
    nlen  = wordLength needle
    nlast = nlen - 1
-   (mask :: Word64) :*: skip = buildTable z nlen Empty n ns 0 0 0 (nlen-2)
+   (mask :: Word64) :*: skip = buildTable z nlen Empty n ns 0 0 0 (nlen-2) nlen
    z = foldlChunks fin 0 needle
          where fin _ (T.Text farr foff flen) = A.unsafeIndex farr (foff+flen-1)
    m = fromIntegral l
@@ -186,6 +186,7 @@ lackingHay q t ts = lackingHay_go q 0 t ts
                -> ts:Data.Text.Lazy.Internal.Text
                -> {v:Bool | ((Prop v) <=> (q > (p + (tlen t) + (ltlen ts))))}
   @-}
+{-@ Decrease lackingHay_go 4 @-}
 lackingHay_go :: Int64 -> Int64 -> T.Text -> Text -> Bool
 lackingHay_go q p (T.Text _ _ l) Empty = q > (p + fromIntegral l)
 lackingHay_go q p (T.Text _ _ l) (Chunk r rs) = let p' = p + fromIntegral l
@@ -218,23 +219,25 @@ swizzle w = 1 `shiftL` (fromIntegral w .&. 0x3f)
                -> g:{v:Int64 | (BtwnI v 0 ((ltlen ts0) + i))}
                -> Word64
                -> {v:Int64 | (Btwn (v) (0) nlen)}
+               -> d:{v:Nat64 | nlen = (i + v)}
                -> PairS Word64 {v:Int64 | (Btwn (v) (0) nlen)}
   @-}
-buildTable :: Word16 -> Int64 -> Text -> T.Text -> Text -> Int -> Int64 -> Word64 -> Int64
+{-@ Decrease buildTable 5 10 @-}
+buildTable :: Word16 -> Int64 -> Text -> T.Text -> Text -> Int -> Int64 -> Word64 -> Int64 -> Int64
            -> PairS Word64 Int64
-buildTable z nlen ts0 t@(T.Text xarr xoff xlen) xs !i !(g::Int64) !msk !skp =
+buildTable z nlen ts0 t@(T.Text xarr xoff xlen) xs !i !(g::Int64) !msk !skp (d :: Int64) =
     if i >= xlast then case xs of
                          Empty      -> (msk .|. swizzle z) :*: skp
                          Chunk y ys -> let msk'             = msk .|. swizzle c
                                            skp' = if c == z then nlen - g - 2 else skp
                                            --LIQUID skp' | c == z    = nlen - g - 2
                                            --LIQUID      | otherwise = skp
-                                       in buildTable z nlen (Chunk t ts0) y ys 0 g msk' skp'
+                                       in buildTable z nlen (Chunk t ts0) y ys 0 g msk' skp' nlen
     else let msk'             = msk .|. swizzle c
              skp' = if c == z then nlen - g - 2 else skp
              --LIQUID skp' | c == z    = nlen - g - 2
              --LIQUID      | otherwise = skp
-         in buildTable z nlen ts0 t xs (i+1) (g+1) msk' skp'
+         in buildTable z nlen ts0 t xs (i+1) (g+1) msk' skp' (d-1)
   where c = A.unsafeIndex xarr (xoff+i)
         xlast = xlen - 1
 
@@ -247,6 +250,7 @@ buildTable z nlen ts0 t@(T.Text xarr xoff xlen) xs !i !(g::Int64) !msk !skp =
           -> i:{v:Int64 | (BtwnI v 0 ((tlen t) + (ltlen ts)))}
           -> Word16
   @-}
+{-@ Decrease index 2 @-}
 index :: T.Text -> Text -> Int64 -> Word16
 index (T.Text arr off len) xs !i =
     if j < len then A.unsafeIndex arr (off+j)
