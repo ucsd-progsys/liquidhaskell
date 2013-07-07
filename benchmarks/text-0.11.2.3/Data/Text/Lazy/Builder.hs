@@ -65,6 +65,7 @@ import qualified Data.Text.Fusion.Internal
 import qualified Data.Text.Fusion.Size
 import qualified Data.Text.Lazy
 import qualified Data.Text.Lazy.Fusion
+import Data.Text.Lazy.Fusion (TPairS(..))
 import qualified Data.Text.Lazy.Internal
 import qualified Data.Text.Private
 import qualified Data.Text.Search
