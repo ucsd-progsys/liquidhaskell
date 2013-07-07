@@ -141,6 +141,10 @@ reverseStream (Text arr off len) = Stream next (off+len-1) (maxSize len)
 {-# INLINE [0] reverseStream #-}
 
 -- | /O(n)/ Convert a 'Stream Char' into a 'Text'.
+--LIQUID FIXME: we should be able to prove these streaming functions terminating
+--              but that requires giving a refined Stream type, which requires
+--              handling existential types.
+{-@ Strict Data.Text.Fusion.unstream @-}
 unstream :: Stream Char -> Text
 unstream (Stream next0 s0 len) = runText $ \done -> do
   let mlen = upperBound 4 len
@@ -174,6 +178,7 @@ length = S.lengthI
 {-# INLINE[0] length #-}
 
 -- | /O(n)/ Reverse the characters of a string.
+{-@ Strict Data.Text.Fusion.reverse @-}
 reverse :: Stream Char -> Text
 reverse (Stream next s len0)
     | isEmpty len0 = I.empty
@@ -260,6 +265,7 @@ countChar = S.countCharI
 -- | /O(n)/ Like a combination of 'map' and 'foldl''. Applies a
 -- function to each element of a 'Text', passing an accumulating
 -- parameter from left to right, and returns a final 'Text'.
+{-@ Strict Data.Text.Fusion.mapAccumL @-}
 mapAccumL :: (a -> Char -> (a,Char)) -> a -> Stream Char -> (a, Text)
 mapAccumL f z0 (Stream next0 s0 len) =
     (nz,I.textP na 0 (liquidAssume (nl <= A.aLen na) nl))
