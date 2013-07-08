@@ -108,13 +108,13 @@ import Language.Haskell.Liquid.Prelude
 {-@ qualif PValid(v:GHC.Ptr.Ptr int, a:Data.Text.Array.MArray s):
         (((deref v) >= 0) && ((deref v) < (malen a)))
   @-}
-{-@ qualif PLenComp(v:a, p:b) : (plen v) >= (plen p) @-}
-{-@ qualif PLenComp(v:a, p:b) : (plen p) >= (plen v) @-}
+{-@ qualif PLenCmp(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr b): (plen v) >= (plen p) @-}
+{-@ qualif PLenCmp(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr b): (plen p) >= (plen v) @-}
 {-@ qualif PBaseEq(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr b): (pbase v) = (pbase p) @-}
 
 {-@ eqPtr :: p:PtrV a
           -> q:{v:PtrV a | (((pbase v) = (pbase p)) && ((plen v) <= (plen p)))}
-          -> {v:Bool | ((Prop v) <=> ((plen p) = 0))}
+          -> {v:Bool | ((Prop v) <=> ((plen p) = (plen q)))}
   @-}
 eqPtr :: Ptr a -> Ptr a -> Bool
 eqPtr = undefined
@@ -135,7 +135,6 @@ eqPtr = undefined
 withLIQUID :: CSize -> A.MArray s -> (Ptr CSize -> IO b) -> IO b
 withLIQUID = undefined
 
-{-@ qualif PLenGT(v:a, p:b): ((v != p) <=> ((plen v) > 0)) @-}
 {-@ qualif EqFPlen(v:GHC.ForeignPtr.ForeignPtr a, n:int): (fplen v) = n @-}
 
 {-@ plen :: p:GHC.Ptr.Ptr a -> {v:Nat | v = (plen p)} @-}
@@ -183,10 +182,10 @@ decodeUtf8With :: OnDecodeError -> ByteString -> Text
 decodeUtf8With onErr (PS fp off len) = runText $ \done -> do
   let go dest = withForeignPtr fp $ \ptr ->
         withLIQUID (0::CSize) dest $ \destOffPtr -> do
-          let end = ptr `plusPtr` (off + len)
+          let end = ptr `plusPtr` (off + len) :: Ptr Word8
               loop (d :: Int) curPtr = do
                 curPtr' <- c_decode_utf8 dest {-LIQUID (A.maBA dest)-} destOffPtr curPtr end
-                if curPtr' == end
+                if eqPtr curPtr' end --LQIUID SPECIALIZE curPtr' == end
                   then do
                     n <- peek destOffPtr
                     unsafeSTToIO (done dest (fromIntegral n))
@@ -194,18 +193,17 @@ decodeUtf8With onErr (PS fp off len) = runText $ \done -> do
                     --LIQUID FIXME: this assume should be replaced by
                     --a better type for c_decode_utf8, but i can't get
                     --the qualifiers to stick right now..
-                    let curPtr'' = liquidAssume (plen curPtr' > 0) curPtr'
-                    x <- peek curPtr''
+                    x <- peek curPtr'
                     --LIQUID SCOPE
                     destOff <- peek destOffPtr
                     case onErr desc (Just x) dest (fromIntegral destOff) of
-                      Nothing -> loop (plen $ curPtr'' `plusPtr` 1) $ curPtr'' `plusPtr` 1
+                      Nothing -> loop (plen $ curPtr' `plusPtr` 1) $ curPtr' `plusPtr` 1
                       Just c -> do
                         --LIQUID destOff <- peek destOffPtr
                         w <- unsafeSTToIO $
                              unsafeWrite dest (fromIntegral destOff) c
                         poke destOffPtr (destOff + fromIntegral w)
-                        loop (plen $ curPtr'' `plusPtr` 1) $ curPtr'' `plusPtr` 1
+                        loop (plen $ curPtr' `plusPtr` 1) $ curPtr' `plusPtr` 1
           loop (plen $ ptr `plusPtr` off) (ptr `plusPtr` off)
   (unsafeIOToST . go) =<< A.new len
  where
@@ -268,7 +266,7 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
                   -- A single ASCII octet is likely to start a run of
                   -- them.  We see better performance when we
                   -- special-case this assumption.
-                  let end = ptr `plusPtr` size
+                  let end = ptr `plusPtr` size :: Ptr Word8
                       ascii (d' :: Int) !t !u =
                         if t == offLen || eqPtr u end {-LIQUID SPECIALIZE u == end || v >= 0x80-} then
                             go d' t (u `minusPtr` ptr)
@@ -409,19 +407,13 @@ encodeUtf32BE txt = E.unstream (E.restreamUtf32BE (F.stream txt))
 --LIQUID foreign import ccall unsafe "_hs_text_decode_utf8" c_decode_utf8
 --LIQUID     :: MutableByteArray# s -> Ptr CSize
 --LIQUID     -> Ptr Word8 -> Ptr Word8 -> IO (Ptr Word8)
-{- c_decode_utf8 :: a:Data.Text.Array.MArray s
-                  -> d:{v:PtrV Foreign.C.Types.CSize | (BtwnI (deref v) 0 (malen a))}
-                  -> c:PtrV Data.Word.Word8
-                  -> end:{v:PtrV Data.Word.Word8 | (((plen c) >= (plen v))
-                                                  && ((pbase c) = (pbase v)))}
-                  -> IO {v:(PtrV Data.Word.Word8) | (((plen v) >= (plen end))
-                                                  && ((pbase v) = (pbase end)))}
-  @-}
 {-@ c_decode_utf8 :: a:Data.Text.Array.MArray s
                   -> d:{v:PtrV Foreign.C.Types.CSize | (BtwnI (deref v) 0 (malen a))}
                   -> c:PtrV Data.Word.Word8
-                  -> end:PtrV Data.Word.Word8
-                  -> IO {v:(PtrV Data.Word.Word8) | (BtwnI (plen v) (plen end) (plen c))}
+                  -> end:{v:PtrV Data.Word.Word8 | (((plen v) <= (plen c))
+                                                 && ((pbase v) = (pbase c)))}
+                  -> IO {v:(PtrV Data.Word.Word8) | ((BtwnI (plen v) (plen end) (plen c))
+                                                  && ((pbase v) = (pbase end)))}
   @-}
 c_decode_utf8 :: A.MArray s -> Ptr CSize
               -> Ptr Word8 -> Ptr Word8 -> IO (Ptr Word8)
