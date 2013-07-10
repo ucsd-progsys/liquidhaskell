@@ -88,7 +88,7 @@ import qualified Data.ByteString.Fusion
 import qualified Data.ByteString.Lazy.Internal
 import Data.Int
 import qualified Data.Text
-import qualified Data.Text.Array
+import Data.Text.Array (Array(..), MArray(..))
 import qualified Data.Text.Encoding.Error as E
 import qualified Data.Text.Foreign
 import qualified Data.Text.Fusion.Internal
@@ -97,12 +97,12 @@ import qualified Data.Text.Internal
 import qualified Data.Text.Private
 import qualified Data.Text.Search
 import qualified Data.Text.Unsafe
-import qualified Data.Word
+import Data.Word
 import Foreign.C.String
 import Foreign.C.Types
 import Foreign.ForeignPtr (ForeignPtr)
 import Foreign.Storable
-import qualified GHC.ST
+import GHC.ST
 import Language.Haskell.Liquid.Prelude
 
 {-@ qualif PValid(v:GHC.Ptr.Ptr int, a:Data.Text.Array.MArray s):

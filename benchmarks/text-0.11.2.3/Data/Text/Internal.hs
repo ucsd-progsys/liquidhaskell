@@ -47,14 +47,14 @@ import Data.Text.UnsafeChar (ord)
 import Data.Typeable (Typeable)
 
 --LIQUID
-import qualified Data.Text.Array
-import qualified Data.Word
+import Data.Text.Array (Array(..), MArray(..))
+import Data.Word
 import Language.Haskell.Liquid.Prelude
 
 {-@ data Data.Text.Internal.Text [tlen] = Data.Text.Internal.Text
-            (arr :: Data.Text.Array.Array)
-            (off :: {v:Nat | v <= (alen arr)})
-            (len :: {v:Nat | (v + off) <= (alen arr)})
+            (arr :: Array)
+            (off :: AValidO arr)
+            (len :: (AValidL off arr))
   @-}
 
 {-@ measure tarr :: Data.Text.Internal.Text -> Data.Text.Array.Array
@@ -69,11 +69,16 @@ import Language.Haskell.Liquid.Prelude
     tlen (Data.Text.Internal.Text a o l) = l
   @-}
 
-{-@ type Text = {v:Data.Text.Internal.Text | true } @-}
-{-@ type TextNE = {v:Data.Text.Internal.Text | (tlen v) > 0} @-}
+{-@ type Text     = {v:Data.Text.Internal.Text | true } @-}
+{-@ type TextN  N = {v:Data.Text.Internal.Text | (tlen v) = N} @-}
+{-@ type TextNC N = {v:Data.Text.Internal.Text | (tlength v) = N} @-}
+{-@ type TextNE   = {v:Data.Text.Internal.Text | (tlen v) > 0} @-}
 {-@ type TextLE T = {v:Data.Text.Internal.Text | (tlen v) <= (tlen T)} @-}
 {-@ type TextLT T = {v:Data.Text.Internal.Text | (tlen v) <  (tlen T)} @-}
-{-@ type NonEmptyStrict = {v:Data.Text.Internal.Text | (tlen v) > 0} @-}
+
+{-@ type TValidI  T   = {v:Nat | v <  (tlen T)} @-}
+{-@ type TValidIN T N = {v:Nat | v <= ((tlen T) - N)} @-}
+{-@ type TValidIC T   = {v:Nat | v <  (tlength T)} @-}
 
 {-@ qualif TextNE(v:Data.Text.Internal.Text): tlen(v) > 0 @-}
 {-@ qualif TextNE(v:Data.Text.Internal.Text): tlength(v) > 0 @-}
@@ -86,6 +91,9 @@ import Language.Haskell.Liquid.Prelude
 {-@ measure tlength :: Data.Text.Internal.Text -> Int
     tlength (Data.Text.Internal.Text a o l) = numchars(a,o,l)
   @-}
+
+{-@ type IncrTList a = [a]<{\x y -> (tlength x) < (tlength y)}> @-}
+{-@ type DecrTList a = [a]<{\x y -> (tlength x) > (tlength y)}> @-}
 
 {-@ qualif TLengthEq(v:Data.Text.Internal.Text, t:Data.Text.Internal.Text):
         tlength(v) = tlength(t)
@@ -121,20 +129,20 @@ import Language.Haskell.Liquid.Prelude
     sum_tlengths (t:ts) = (tlength t) + (sum_tlengths ts)
   @-}
 
-{-@ invariant {v:Data.Text.Internal.Text | (numchars (tarr v) (toff v) 0) = 0} @-}
-{-@ invariant {v:Data.Text.Internal.Text | (numchars (tarr v) (toff v) (tlen v)) >= 0} @-}
-{-@ invariant {v:Data.Text.Internal.Text | (numchars (tarr v) (toff v) (tlen v)) <= (tlen v)} @-}
+{-@ invariant {v:Text | (numchars (tarr v) (toff v) 0) = 0} @-}
+{-@ invariant {v:Text | (numchars (tarr v) (toff v) (tlen v)) >= 0} @-}
+{-@ invariant {v:Text | (numchars (tarr v) (toff v) (tlen v)) <= (tlen v)} @-}
 
-{-@ invariant {v:Data.Text.Internal.Text | (((tlength v) = 0) <=> ((tlen v) = 0))} @-}
-{-@ invariant {v:Data.Text.Internal.Text | (tlength v) >= 0} @-}
-{-@ invariant {v:Data.Text.Internal.Text | (tlen v) >= 0} @-}
-{-@ invariant {v:Data.Text.Internal.Text | (tlength v) = (numchars (tarr v) (toff v) (tlen v))} @-}
+{-@ invariant {v:Text | (((tlength v) = 0) <=> ((tlen v) = 0))} @-}
+{-@ invariant {v:Text | (tlength v) >= 0} @-}
+{-@ invariant {v:Text | (tlen v) >= 0} @-}
+{-@ invariant {v:Text | (tlength v) = (numchars (tarr v) (toff v) (tlen v))} @-}
 
 {-@ invariant {v:[Data.Text.Internal.Text] | (sum_tlens v) >= 0} @-}
-{-@ invariant {v:[{v0:Data.Text.Internal.Text |
-                  ((((len v) > 1) && ((tlen v0) > 0)) => ((tlen v0) < (sum_tlens v)))}] | true} @-}
-{-@ invariant {v:[{v0:Data.Text.Internal.Text |
-               ((((tlen v0) > 0) && (((len v) > 0))) => ((sum_tlens v) > 0))}] | true} @-}
+{-@ invariant {v:[{v0:Data.Text.Internal.Text | ((((len v) > 1) && ((tlen v0) > 0))
+                                             => ((tlen v0) < (sum_tlens v)))}] | true} @-}
+{-@ invariant {v:[{v0:Data.Text.Internal.Text | ((((tlen v0) > 0) && (((len v) > 0)))
+                                             => ((sum_tlens v) > 0))}] | true} @-}
 
 -- | A space efficient, packed, unboxed Unicode text type.
 data Text = Text
@@ -144,9 +152,7 @@ data Text = Text
 --LIQUID    deriving (Typeable)
 
 -- | Smart constructor.
-{-@ text :: a:Data.Text.Array.Array
-         -> o:{v:Nat | v <= (alen a)}
-         -> l:{v:Nat | (v+o) <= (alen a)}
+{-@ text :: a:Array -> o:AValidO a -> l:AValidL o a
          -> {v:Text | (((tarr v) = a) && ((toff v) = o) && ((tlen v) = l)
                        && ((tlength v) = (numchars a o l)))}
   @-}
@@ -170,17 +176,15 @@ text arr off len =
 {-# INLINE text #-}
 
 -- | /O(1)/ The empty 'Text'.
-{-@ empty :: {v:Data.Text.Internal.Text | (tlen v) = 0} @-}
+{-@ empty :: {v:Text | (tlen v) = 0} @-}
 empty :: Text
 empty = Text A.empty 0 0
 {-# INLINE [1] empty #-}
 
 -- | Construct a 'Text' without invisibly pinning its byte array in
 -- memory if its length has dwindled to zero.
-{-@ textP :: a:Data.Text.Array.Array
-          -> o:{v:Nat | v <= (alen a)}
-          -> l:{v:Nat | (v+o) <= (alen a)}
-          -> {v:Data.Text.Internal.Text | (((tlen v) = l) && ((tlength v) = (numchars a o l)))}
+{-@ textP :: a:Array -> o:AValidO a -> l:AValidL o a
+          -> {v:Text | (((tlen v) = l) && ((tlength v) = (numchars a o l)))}
   @-}
 textP :: A.Array -> Int -> Int -> Text
 textP arr off len | len == 0  = liquidAssume (numcharsZ arr off len) empty
@@ -213,16 +217,13 @@ firstf _  Nothing      = Nothing
 
 
 --LIQUID
-{-@ tlEqNumchars :: t:Data.Text.Internal.Text
-                 -> a:Data.Text.Array.Array
-                 -> o:Int
-                 -> l:Int
+{-@ tlEqNumchars :: t:Text -> a:Array -> o:Int -> l:Int
                  -> {v:Bool | ((Prop v) <=> ((tlength t) = (numchars a o l)))}
   @-}
 tlEqNumchars :: Text -> A.Array -> Int -> Int -> Bool
 tlEqNumchars = undefined
 
-{-@ numcharsZ :: a:A.Array -> o:Int -> l:Int
+{-@ numcharsZ :: a:Array -> o:Int -> l:Int
               -> {v:Bool | ((Prop v) <=> ((numchars a o l) = 0))}
   @-}
 numcharsZ :: A.Array -> Int -> Int -> Bool

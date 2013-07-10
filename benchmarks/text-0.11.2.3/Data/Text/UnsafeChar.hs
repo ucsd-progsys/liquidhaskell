@@ -34,7 +34,7 @@ import GHC.Word (Word8(..), Word16(..), Word32(..))
 import qualified Data.Text.Array as A
 
 --LIQUID
-import qualified Data.Text.Array
+import Data.Text.Array (Array(..), MArray(..))
 import Language.Haskell.Liquid.Prelude
 
 {-@ measure ord :: Char -> Int @-}
@@ -44,9 +44,9 @@ import Language.Haskell.Liquid.Prelude
 {-@ qualif OneC(v:GHC.Types.Char) : ((ord v) <  65536) @-}
 {-@ qualif TwoC(v:GHC.Types.Char) : ((ord v) >= 65536) @-}
 
-{-@ predicate Room MA I C = (((One C) => (MAValidN MA I 1))
-                          && ((Two C) => (MAValidN MA I 2))) @-}
-{-@ predicate MAValidN  MA I N = (BtwnI I 0 ((malen MA) - N)) @-}
+{-@ predicate Room MA I C = (((One C) => (MAValidIN MA I 1))
+                          && ((Two C) => (MAValidIN MA I 2))) @-}
+{-@ predicate MAValidIN  MA I N = (BtwnI I 0 ((malen MA) - N)) @-}
 
 {- predicate RoomFront MA I N = (BtwnI I N (malen MA)) @-}
 
@@ -71,10 +71,8 @@ unsafeChr32 (W32# w#) = C# (chr# (word2Int# w#))
 
 -- | Write a character into the array at the given offset.  Returns
 -- the number of 'Word16's written.
-{-@ unsafeWrite :: ma:Data.Text.Array.MArray s
-                -> i:Nat
-                -> x:{v:Char | (Room ma i v)}
-                -> GHC.ST.ST s {v:Nat | (((i+v) <= (malen ma)) && (BtwnI v 1 2))}
+{-@ unsafeWrite :: ma:MArray s -> i:Nat -> {v:Char | (Room ma i v)}
+                -> ST s {v:(MAValidL i ma) | (BtwnI v 1 2)}
   @-}
 unsafeWrite :: A.MArray s -> Int -> Char -> ST s Int
 unsafeWrite marr i c

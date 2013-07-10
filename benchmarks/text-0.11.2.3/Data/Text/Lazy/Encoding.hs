@@ -66,10 +66,9 @@ import qualified Data.ByteString.Fusion
 import qualified Data.ByteString.Internal
 import qualified Data.ByteString.Lazy.Internal
 import Data.Int
-import qualified Data.Word
-import Data.Word (Word8)
+import Data.Word
 import qualified Data.Text
-import qualified Data.Text.Array
+import Data.Text.Array (Array(..), MArray(..))
 import qualified Data.Text.Foreign
 import qualified Data.Text.Fusion.Internal
 import qualified Data.Text.Fusion.Size
