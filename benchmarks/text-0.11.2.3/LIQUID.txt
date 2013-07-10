@@ -6,22 +6,23 @@ spec that we can express)
 
 
 Verified modules:
-- Data.Text
-- Data.Text.Array
-- Data.Text.Foreign (WTF duplicate measure definition?!)
-- Data.Text.Fusion
-- Data.Text.Fusion.Size
-- Data.Text.Internal
-- Data.Text.Lazy
-- Data.Text.Lazy.Builder
-- Data.Text.Lazy.Encoding
-- Data.Text.Lazy.Fusion
-- Data.Text.Lazy.Internal
-- Data.Text.Lazy.Search
-- Data.Text.Private
-- Data.Text.Search
-- Data.Text.Unsafe
-- Data.Text.UnsafeChar
+- [ ] Data.Text
+- [x] Data.Text.Array
+- [x] Data.Text.Encoding
+- [x] Data.Text.Foreign
+- [x] Data.Text.Fusion
+- [x] Data.Text.Fusion.Size
+- [x] Data.Text.Internal
+- [x] Data.Text.Lazy
+- [x] Data.Text.Lazy.Builder
+- [x] Data.Text.Lazy.Encoding
+- [x] Data.Text.Lazy.Fusion
+- [x] Data.Text.Lazy.Internal
+- [x] Data.Text.Lazy.Search
+- [x] Data.Text.Private
+- [x] Data.Text.Search
+- [x] Data.Text.Unsafe
+- [x] Data.Text.UnsafeChar
 
 
 FIXME: there's a strange issue where desugaring a guard results in a
@@ -38,7 +39,6 @@ FIXME: another weird issue in Text.small.hs.fq.bk. a duplicate
        qualifier is mined and seems to cause a constraint to be unsat.
 
 Other interesting modules:
-- Data.Text.Encoding (need to fix type for c_decode_utf8 and prove encodeUtf8With)
 
 Definitely not interesting:
 - Data.Text.Encoding.* (deals with encodings and bytestrings)

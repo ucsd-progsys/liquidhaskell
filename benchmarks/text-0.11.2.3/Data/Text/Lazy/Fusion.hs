@@ -40,16 +40,16 @@ import Data.Int (Int64)
 --LIQUID
 import Data.Int (Int32)
 import qualified Data.Text
-import qualified Data.Text.Array
+import Data.Text.Array (Array(..), MArray(..))
 import qualified Data.Text.Fusion.Internal
-import qualified Data.Text.Fusion.Size
+import Data.Text.Fusion.Size
 import qualified Data.Text.Internal
 import qualified Data.Text.Lazy.Internal
 import qualified Data.Text.Private
 import qualified Data.Text.Search
 import qualified Data.Text.Unsafe
 import qualified Data.Word
-import qualified GHC.ST
+import GHC.ST
 import Language.Haskell.Liquid.Prelude
 
 default(Int64)

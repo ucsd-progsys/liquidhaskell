@@ -22,10 +22,10 @@ import Data.Text.Unsafe (Iter(..), iter)
 import qualified Data.Text.Array as A
 
 --LIQUID
-import qualified Data.Text.Array
+import Data.Text.Array (Array(..), MArray(..))
 
 --LIQUID FIXME: the original type used unboxed tuples, (# Text, Text #)
-{-@ span_ :: (Char -> Bool) -> t:Data.Text.Internal.Text -> ( TextLE t, TextLE t ) @-}
+{-@ span_ :: (Char -> Bool) -> t:Text -> ( TextLE t, TextLE t ) @-}
 span_ :: (Char -> Bool) -> Text -> ( Text, Text )
 span_ p t@(Text arr off len) = ( hd,tl )
   where hd = textP arr off k
@@ -39,12 +39,7 @@ span_ p t@(Text arr off len) = ( hd,tl )
                            | otherwise = i
 {-# INLINE span_ #-}
 
-{-@ runText :: (forall s. (ma:Data.Text.Array.MArray s
-                           -> {v:Nat | v <= (malen ma)}
-                           -> GHC.ST.ST s Text)
-                       -> GHC.ST.ST s Text)
-            -> Data.Text.Internal.Text
-  @-}
+{-@ runText :: (forall s. (m:MArray s -> MAValidO m -> ST s Text) -> ST s Text) -> Text @-}
 runText :: (forall s. (A.MArray s -> Int -> ST s Text) -> ST s Text) -> Text
 runText act = runST (act $ \ !marr !len -> do
                              arr <- A.unsafeFreeze marr

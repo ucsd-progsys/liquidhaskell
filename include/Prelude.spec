@@ -38,3 +38,4 @@ type BNat N  = {v: Nat           | v <= N }
 predicate Max V X Y = ((X > Y) ? (V = X) : (V = Y))
 predicate Min V X Y = ((X < Y) ? (V = X) : (V = Y))
 
+type IncrListD a D = [a]<{\x y -> (x+D) <= y}>

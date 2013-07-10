@@ -35,17 +35,15 @@ import Data.Text.UnsafeChar (unsafeChr)
 import qualified Data.Text.Array as A
 
 --LIQUID
-import qualified Data.Text.Array
+import Data.Text.Array (Array(..), MArray(..))
 import Data.Text.Axioms
-import qualified Data.Word
+import Data.Word
 import Language.Haskell.Liquid.Prelude
 
 -- | /O(1)/ A variant of 'head' for non-empty 'Text'. 'unsafeHead'
 -- omits the check for the empty case, so there is an obligation on
 -- the programmer to provide a proof that the 'Text' is non-empty.
-{-@ unsafeHead :: {v:Data.Text.Internal.Text | (tlength v) > 0}
-               -> Char
-  @-}
+{-@ unsafeHead :: TextNE -> Char @-}
 unsafeHead :: Text -> Char
 unsafeHead (Text arr off _len)
     | m < 0xD800 || m > 0xDBFF = unsafeChr m
@@ -58,10 +56,7 @@ unsafeHead (Text arr off _len)
 -- | /O(1)/ A variant of 'tail' for non-empty 'Text'. 'unsafeHead'
 -- omits the check for the empty case, so there is an obligation on
 -- the programmer to provide a proof that the 'Text' is non-empty.
-{-@ unsafeTail :: t:{v:Data.Text.Internal.Text | (tlength v) > 0}
-               -> {v:Data.Text.Internal.Text | (((tlength v) = ((tlength t) - 1))
-                                             && ((tlen v) < (tlen t)))}
-  @-}
+{-@ unsafeTail :: t:TextNE -> {v:TextLT t | (tlength v) = ((tlength t) - 1)} @-}
 unsafeTail :: Text -> Text
 unsafeTail t@(Text arr off len) =
 --LIQUID #if defined(ASSERTS)
@@ -76,7 +71,7 @@ unsafeTail t@(Text arr off len) =
 data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
 
 {-@ measure iter_d :: Data.Text.Unsafe.Iter -> Int
-   iter_d (Data.Text.Unsafe.Iter c d) = d
+    iter_d (Data.Text.Unsafe.Iter c d) = d
   @-}
 
 {-@ qualif IterD(v:Int, i:Data.Text.Unsafe.Iter) : v = (iter_d i) @-}
@@ -160,27 +155,20 @@ neg n = 0-n
 -- | /O(1)/ Return the length of a 'Text' in units of 'Word16'.  This
 -- is useful for sizing a target array appropriately before using
 -- 'unsafeCopyToPtr'.
-{-@ lengthWord16 :: t:Data.Text.Internal.Text
-                 -> {v:Int | v = (tlen t)}
-  @-}
+{-@ lengthWord16 :: t:Text -> {v:Int | v = (tlen t)} @-}
 lengthWord16 :: Text -> Int
 lengthWord16 (Text _arr _off len) = len
 {-# INLINE lengthWord16 #-}
 
 -- | /O(1)/ Unchecked take of 'k' 'Word16's from the front of a 'Text'.
-{-@ takeWord16 :: k:Int
-               -> {v:Data.Text.Internal.Text | (BtwnI k 0 (tlen v))}
-               -> {v:Data.Text.Internal.Text | (tlen v) = k}
-  @-}
+{-@ takeWord16 :: k:Nat -> {v:Text | (k <= (tlen v))} -> {v:Text | (tlen v) = k} @-}
 takeWord16 :: Int -> Text -> Text
 takeWord16 k (Text arr off _len) = Text arr off k
 {-# INLINE takeWord16 #-}
 
 -- | /O(1)/ Unchecked drop of 'k' 'Word16's from the front of a 'Text'.
-{-@ dropWord16 :: k:Int
-               -> t:{v:Data.Text.Internal.Text | (BtwnI k 0 (tlen v))}
-               -> {v:Data.Text.Internal.Text | (tlen v) = ((tlen t) - k)}
-  @-}
+{-@ dropWord16 :: k:Nat -> t:{v:Text | (k <= (tlen v))}
+               -> {v:Text | (tlen v) = ((tlen t) - k)} @-}
 dropWord16 :: Int -> Text -> Text
 dropWord16 k (Text arr off len) = Text arr (off+k) (len-k)
 {-# INLINE dropWord16 #-}

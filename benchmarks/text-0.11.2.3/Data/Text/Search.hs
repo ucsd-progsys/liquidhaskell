@@ -41,8 +41,7 @@ import Data.Bits ((.|.), (.&.))
 import Data.Text.UnsafeShift (shiftL)
 
 --LIQUID
-import qualified Data.Text.Array
-import qualified Data.Word
+import Data.Text.Array (Array(..), MArray(..))
 import Data.Word
 import Language.Haskell.Liquid.Prelude
 
@@ -53,18 +52,14 @@ data T = {-# UNPACK #-} !Word64 `T` {-# UNPACK #-} !Int
     tskip (Data.Text.Search.T mask skip) = skip
   @-}
 
---LIQUID FIXME: clean this up so it's readable!!
-
 -- | /O(n+m)/ Find the offsets of all non-overlapping indices of
 -- @needle@ within @haystack@.  The offsets returned represent
 -- locations in the low-level array.
 --
 -- In (unlikely) bad cases, this algorithm's complexity degrades
 -- towards /O(n*m)/.
-{-@ indices :: pat:Data.Text.Internal.Text
-            -> src:Data.Text.Internal.Text
-            -> [{v:Nat | v <= ((tlen src) - (tlen pat))}]<{\ix iy ->
-                (ix+(tlen pat)) <= iy}>
+{-@ indices :: needle:Text -> haystack:Text
+            -> [(TValidIN haystack (tlen needle))]<{\ix iy -> (ix+(tlen needle)) <= iy}>
   @-}
 indices :: Text                -- ^ Substring to search for (@needle@)
         -> Text                -- ^ Text to search in (@haystack@)
@@ -130,7 +125,7 @@ indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
 {- INLINE indices #-}
 
 {-@ buildTable :: d:Nat
-               -> pat:{v:Data.Text.Internal.Text | (tlen v) > 1}
+               -> pat:{v:Text | (tlen v) > 1}
                -> i:{v:Nat | ((v < (tlen pat)) && (v = (tlen pat) - 1 - d))}
                -> Word64
                -> skp:{v:Nat | v < (tlen pat)}
@@ -148,17 +143,11 @@ buildTable d pat@(Text narr noff nlen) !i !msk !skp
 
 swizzle k = 1 `shiftL` (fromIntegral k .&. 0x3f)
 
-{-@ index :: t:Data.Text.Internal.Text
-          -> k:{v:Nat | v < (tlen t)}
-          -> Word16
-  @-}
+{-@ index :: t:Text -> k:TValidI t -> Word16 @-}
 index :: Text -> Int -> Word16
 index (Text arr off len) k = A.unsafeIndex arr (off+k)
 
-{-@ index' :: t:Data.Text.Internal.Text
-           -> k:{v:Nat | v <= (tlen t)}
-           -> Word16
-  @-}
+{-@ index' :: t:Text -> k:{v:Nat | v <= (tlen t)} -> Word16 @-}
 index' (Text arr off len) k
     = if k == len then 0
       else A.unsafeIndex arr (off+k)
