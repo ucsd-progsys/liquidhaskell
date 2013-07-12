@@ -10,9 +10,9 @@ fname = sys.argv[1]
 str = (open(fname, 'r')).read()
 
 #measures =   [(str[a.start():(3+string.find(str,"@-}", a.start()))]) for a in list(re.finditer('{-@ measure', str)) ]
-other =   [(str[a.start():(3+string.find(str,"@-}", a.start()))]) for a in list(re.finditer('{-@ (type|measure|data|include|predicate)', str)) ]
+other =   [(str[a.start():(3+string.find(str,"@-}", a.start()))]) for a in list(re.finditer('{-@ (type|measure|data|include|predicate|Decrease|Strict)', str)) ]
 qualifs =   [(str[a.start():(3+string.find(str,"@-}", a.start()))]) for a in list(re.finditer('{-@ qualif', str)) ]
-tyspecs  =   [(str[a.start():(3+string.find(str,"@-}", a.start()))]) for a in list(re.finditer('{-@ (?!(type|measure|data|include|predicate|qualif))', str)) ]
+tyspecs  =   [(str[a.start():(3+string.find(str,"@-}", a.start()))]) for a in list(re.finditer('{-@ (?!(type|measure|data|include|predicate|qualif|Decrease|Strict))', str)) ]
 
 #print measures
 #print tyspecs
