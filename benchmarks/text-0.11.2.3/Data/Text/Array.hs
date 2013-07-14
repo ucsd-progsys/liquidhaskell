@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns, CPP, ForeignFunctionInterface, MagicHash, Rank2Types,
     RecordWildCards, UnboxedTuples, UnliftedFFITypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 -- |
 -- Module      : Data.Text.Array
@@ -98,6 +99,7 @@ import Language.Haskell.Liquid.Prelude
 {-@ predicate BtwnEI V X Y = ((X < V)  && (V <= Y)) @-}
 
 {-@ qualif LenDiff(v:List a, i:int, l:int): (len v) = (l - i) @-}
+{-@ qualif Diff(v:int, d:int, l:int): v = l - d @-}
 
 -- | Immutable array type.
 data Array = Array {
@@ -107,19 +109,23 @@ data Array = Array {
 --LIQUID #endif
     }
 
-{-@ data Data.Text.Array.Array <p :: Int -> Prop>
+{-@ data Data.Text.Array.Array
          = Data.Text.Array.Array
             (aBA :: GHC.Prim.ByteArray#)
-            (aLen :: Nat<p>)
+            (aLen :: Nat)
   @-}
 
 {-@ measure alen :: Data.Text.Array.Array -> Int
     alen (Data.Text.Array.Array aBA aLen) = aLen
   @-}
 
-{-@ aLen :: a:Data.Text.Array.Array
-         -> {v:Nat | v = (alen a)}
-  @-}
+{-@ aLen :: a:Array -> {v:Nat | v = (alen a)} @-}
+
+{-@ type ArrayN N = {v:Array | (alen v) = N} @-}
+
+{-@ type AValidI A   = {v:Nat | v     <  (alen A)} @-}
+{-@ type AValidO A   = {v:Nat | v     <= (alen A)} @-}
+{-@ type AValidL O A = {v:Nat | (v+O) <= (alen A)} @-}
 
 {-@ qualif ALen(v:Int, a:Data.Text.Array.Array): v = alen(a) @-}
 {-@ qualif ALen(v:Data.Text.Array.Array, i:Int): i = alen(v) @-}
@@ -136,19 +142,22 @@ data MArray s = MArray {
 --LIQUID #endif
     }
 
-{-@ data Data.Text.Array.MArray s <p :: Int -> Prop>
-         = Data.Text.Array.MArray
+{-@ data Data.Text.Array.MArray s = Data.Text.Array.MArray
             (maBA :: GHC.Prim.MutableByteArray# s)
-            (maLen :: Nat<p>)
+            (maLen :: Nat)
   @-}
 
 {-@ measure malen :: Data.Text.Array.MArray s -> Int
     malen (Data.Text.Array.MArray maBA maLen) = maLen
   @-}
 
-{-@ maLen :: ma:(Data.Text.Array.MArray s)
-          -> {v:Nat | v = (malen ma)}
-  @-}
+{-@ maLen :: ma:(MArray s) -> {v:Nat | v = (malen ma)} @-}
+
+{-@ type MArrayN s N = {v:MArray s | (malen v) = N} @-}
+
+{-@ type MAValidI A   = {v:Nat | v     <  (malen A)} @-}
+{-@ type MAValidO A   = {v:Nat | v     <= (malen A)} @-}
+{-@ type MAValidL O A = {v:Nat | (v+O) <= (malen A)} @-}
 
 {-@ qualif MALen(v:Int, a:Data.Text.Array.MArray s): v = malen(a) @-}
 {-@ qualif MALen(v:Data.Text.Array.MArray s, i:Int): i = malen(v) @-}
@@ -175,9 +184,7 @@ instance IArray (MArray s) where
 --LIQUID #endif
 
 -- | Create an uninitialized mutable array.
-{-@ new :: forall s. n:Nat
-        -> GHC.ST.ST s ({v:Data.Text.Array.MArray s | (malen v) = n})
-  @-}
+{-@ new :: forall s. n:Nat -> ST s (MArrayN s n) @-}
 new :: forall s. Int -> ST s (MArray s)
 new n
   | n < 0 || n .&. highBit /= 0 = error $ "Data.Text.Array.new: size overflow"
@@ -193,9 +200,7 @@ new n
 {-# INLINE new #-}
 
 -- | Freeze a mutable array. Do not mutate the 'MArray' afterwards!
-{-@ unsafeFreeze :: ma:Data.Text.Array.MArray s
-                 -> (ST s {v:Data.Text.Array.Array | (alen v) = (malen ma)})
-  @-}
+{-@ unsafeFreeze :: ma:MArray s -> (ST s (ArrayN (malen ma))) @-}
 unsafeFreeze :: MArray s -> ST s Array
 unsafeFreeze MArray{..} = ST $ \s# ->
                           (# s#, Array (unsafeCoerce# maBA)
@@ -213,10 +218,7 @@ bytesInArray n = n `shiftL` 1
 
 -- | Unchecked read of an immutable array.  May return garbage or
 -- crash on an out-of-bounds access.
-{-@ unsafeIndex :: a:Data.Text.Array.Array
-                -> i:{v:Nat | v < (alen a)}
-                -> Data.Word.Word16
-  @-}
+{-@ unsafeIndex :: a:Array -> AValidI a -> Word16 @-}
 unsafeIndex :: Array -> Int -> Word16
 unsafeIndex Array{..} i@(I# i#) =
   CHECK_BOUNDS("unsafeIndex",aLen,i)
@@ -224,48 +226,30 @@ unsafeIndex Array{..} i@(I# i#) =
 {-# INLINE unsafeIndex #-}
 
 --LIQUID
-{-@ unsafeIndexF :: a:Data.Text.Array.Array
-                 -> o:{v:Int | (BtwnI v 0 (alen a))}
-                 -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
+{-@ predicate SpanChar D A O L I = (((numchars (A) (O) ((I-O)+D)) = (1 + (numchars (A) (O) (I-O))))
+                                 && ((numchars (A) (O) ((I-O)+D)) <= (numchars A O L))
+                                 && (((I-O)+D) <= L))
+  @-}
+
+{-@ unsafeIndexF :: a:Array -> o:AValidO a -> l:AValidL o a
                  -> i:{v:Int | (Btwn (v) (o) (o + l))}
-                 -> {v:Data.Word.Word16 | (((v >= 55296) && (v <= 56319))
-                                           ? ((numchars(a, o, (i-o)+2)
-                                               = (1 + numchars(a, o, i-o)))
-                                              && (numchars(a, o, (i-o)+2)
-                                                  <= numchars(a, o, l))
-                                              && (((i-o)+1) < l))
-                                           : ((numchars(a, o, (i-o)+1)
-                                               = (1 + numchars(a, o, i-o)))
-                                              && (numchars(a, o, (i-o)+1)
-                                                  <= numchars(a, o, l))))}
+                 -> {v:Word16 | (if (BtwnI v 55296 56319)
+                                 then (SpanChar 2 a o l i)
+                                 else (SpanChar 1 a o l i))}
   @-}
 unsafeIndexF :: Array -> Int -> Int -> Int -> Word16
 unsafeIndexF a o l i = let x = unsafeIndex a i
                        in liquidAssume (unsafeIndexFQ x a o l i) x
 
-{-@ unsafeIndexFQ :: x:Data.Word.Word16
-                  -> a:Data.Text.Array.Array
-                  -> o:Int
-                  -> l:Int
-                  -> i:Int
-                  -> {v:Bool | ((Prop v) <=>
-                                (((x >= 55296) && (x <= 56319))
-                                 ? ((numchars(a, o, (i-o)+2)
-                                     = (1 + numchars(a, o, i-o)))
-                                    && (numchars(a, o, (i-o)+2)
-                                        <= numchars(a, o, l))
-                                    && (((i-o)+1) < l))
-                                 : ((numchars(a, o, (i-o)+1)
-                                     = (1 + numchars(a, o, i-o)))
-                                    && (numchars(a, o, (i-o)+1)
-                                        <= numchars(a, o, l)))))}
+{-@ unsafeIndexFQ :: x:Word16 -> a:Array -> o:Int -> l:Int -> i:Int
+                  -> {v:Bool | ((Prop v) <=> (if (BtwnI x 55296 56319)
+                                              then (SpanChar 2 a o l i)
+                                              else (SpanChar 1 a o l i)))}
   @-}
 unsafeIndexFQ :: Word16 -> Array -> Int -> Int -> Int -> Bool
 unsafeIndexFQ = undefined
 
-{-@ unsafeIndexB :: a:Data.Text.Array.Array
-                 -> o:{v:Int | (BtwnI v 0 (alen a))}
-                 -> l:{v:Int | ((v >= 0) && ((o+v) <= (alen a)))}
+{-@ unsafeIndexB :: a:Array -> o:AValidO a -> l:AValidL o a
                  -> i:{v:Int | (Btwn (v) (o) (o + l))}
                  -> {v:Data.Word.Word16 | (((v >= 56320) && (v <= 57343))
                                            ? ((numchars(a, o, (i-o)+1)
@@ -280,10 +264,7 @@ unsafeIndexB :: Array -> Int -> Int -> Int -> Word16
 unsafeIndexB a o l i = let x = unsafeIndex a i
                        in liquidAssume (unsafeIndexBQ x a o i) x
 
-{-@ unsafeIndexBQ :: x:Data.Word.Word16
-                  -> a:Data.Text.Array.Array
-                  -> o:Int
-                  -> i:Int
+{-@ unsafeIndexBQ :: x:Word16 -> a:Array -> o:Int -> i:Int
                   -> {v:Bool | ((Prop v) <=>
                                 (((x >= 56320) && (x <= 57343))
                                  ? ((numchars(a, o, (i-o)+1)
@@ -299,11 +280,7 @@ unsafeIndexBQ = undefined
 
 -- | Unchecked write of a mutable array.  May return garbage or crash
 -- on an out-of-bounds access.
-{-@ unsafeWrite :: ma:Data.Text.Array.MArray s
-                -> i:{v:Nat | v < (malen ma)}
-                -> Data.Word.Word16
-                -> GHC.ST.ST s ()
-  @-}
+{-@ unsafeWrite :: ma:MArray s -> MAValidI ma -> Word16 -> ST s () @-}
 unsafeWrite :: MArray s -> Int -> Word16 -> ST s ()
 unsafeWrite MArray{..} i@(I# i#) (W16# e#) = ST $ \s1# ->
   CHECK_BOUNDS("unsafeWrite",maLen,i)
@@ -312,18 +289,15 @@ unsafeWrite MArray{..} i@(I# i#) (W16# e#) = ST $ \s1# ->
 {-# INLINE unsafeWrite #-}
 
 -- | Convert an immutable array to a list.
-{-@ toList :: a:Data.Text.Array.Array
-           -> o:{v:Nat | v <= (alen a)}
-           -> l:{v:Nat | (v + o) <= (alen a)}
-           -> {v:[Data.Word.Word16] | (len v) = l}
-  @-}
+{-@ toList :: a:Array -> o:AValidO a -> l:AValidL o a -> {v:[Word16] | (len v) = l} @-}
 toList :: Array -> Int -> Int -> [Word16]
-toList ary off len = loop 0
-    where loop i | i < len   = unsafeIndex ary (off+i) : loop (i+1)
-                 | otherwise = []
+toList ary off len = loop len 0
+    where loop (d :: Int) i
+              | i < len   = unsafeIndex ary (off+i) : loop (d-1) (i+1)
+              | otherwise = []
 
 -- | An empty immutable array.
-{-@ empty :: {v:Data.Text.Array.Array | (alen v) = 0} @-}
+{-@ empty :: {v:Array | (alen v) = 0}  @-}
 empty :: Array
 empty = runST (new 0 >>= unsafeFreeze)
 
@@ -353,13 +327,11 @@ run2 k = runST (do
                  return (arr,b))
 
 -- | Copy some elements of a mutable array.
-{-@ copyM :: ma1:Data.Text.Array.MArray s
-          -> o1:{v:Nat | v <= (malen ma1)}
-          -> ma2:Data.Text.Array.MArray s
-          -> o2:{v:Nat | v <= (malen ma2)}
-          -> cnt:{v:Nat | (((v + o1) <= (malen ma1)) &&
-                           ((v + o2) <= (malen ma2)))}
-          -> GHC.ST.ST s ()
+{-@ copyM :: dest:MArray s -> didx:MAValidO dest
+          -> src:MArray s  -> sidx:MAValidO src
+          -> {v:Nat | (((v + didx) <= (malen dest))
+                    && ((v + sidx) <= (malen src)))}
+          -> ST s ()
   @-}
 copyM :: MArray s               -- ^ Destination
       -> Int                    -- ^ Destination offset
@@ -382,13 +354,9 @@ copyM dest didx src sidx count
 {-# INLINE copyM #-}
 
 -- | Copy some elements of an immutable array.
-{-@ copyI :: ma:Data.Text.Array.MArray s
-          -> mo:{v:Nat | v <= (malen ma)}
-          -> a:Data.Text.Array.Array
-          -> o:{v:Nat | v <= (alen a)}
-          -> top:{v:Int | ((v >= mo)
-                           && (v <= (malen ma))
-                           && (((v-mo)+o) <= (alen a)))}
+{-@ copyI :: dest:MArray s -> i0:MAValidO dest
+          -> src:Array     -> j0:AValidO src
+          -> top:{v:MAValidO dest | ((v-i0)+j0) <= (alen src)}
           -> GHC.ST.ST s ()
   @-}
 copyI :: MArray s               -- ^ Destination

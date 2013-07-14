@@ -233,18 +233,25 @@ import GHC.Prim (Addr#)
 
 --LIQUID
 import Data.Int
-import qualified Data.Word
+import Data.Word
 import qualified Data.Text
-import qualified Data.Text.Array
+import Data.Text.Array (Array(..), MArray(..))
 import qualified Data.Text.Fusion.Internal
-import qualified Data.Text.Fusion.Size
+import Data.Text.Fusion.Size
 import qualified Data.Text.Internal
 import qualified Data.Text.Lazy.Fusion
+import Data.Text.Lazy.Fusion (TPairS(..))
 import qualified Data.Text.Lazy.Internal
 import qualified Data.Text.Private
 import qualified Data.Text.Search
 import qualified Data.Text.Unsafe
 import Language.Haskell.Liquid.Prelude
+
+{-@ qualif LTLenDiff(v:Data.Text.Lazy.Internal.Text,
+                     t:Data.Text.Lazy.Internal.Text,
+                     x:Data.Text.Lazy.Internal.Text):
+        (ltlen v) = ((ltlen t) - (ltlen x))
+  @-}
 
 
 -- $fusion
@@ -299,10 +306,7 @@ import Language.Haskell.Liquid.Prelude
 -- measure. For details, see Unicode Technical Report 36, &#xa7;3.5:
 -- <http://unicode.org/reports/tr36#Deletion_of_Noncharacters>)
 
-{-@ equal :: Data.Text.Lazy.Internal.Text
-          -> Data.Text.Lazy.Internal.Text
-          -> Bool
-  @-}
+{-@ equal :: LText -> LText -> Bool @-}
 equal :: Text -> Text -> Bool
 equal Empty Empty = True
 equal Empty _     = False
@@ -324,44 +328,28 @@ instance Eq Text where
 instance Ord Text where
     compare = compareText
 
-{-@ compareText :: Data.Text.Lazy.Internal.Text
-                -> Data.Text.Lazy.Internal.Text
-                -> Ordering
-  @-}
+{-@ compareText :: LText -> LText -> Ordering @-}
 compareText :: Text -> Text -> Ordering
 compareText Empty Empty = EQ
 compareText Empty _     = LT
 compareText _     Empty = GT
-compareText a@(Chunk a0 as) b@(Chunk b0 bs) = compareText_go a0 b0 as bs 0 0 --LIQUID outer a0 b0
---LIQUID  where
---LIQUID   outer ta@(T.Text arrA offA lenA) tb@(T.Text arrB offB lenB) = go 0 0
---LIQUID    where
---LIQUID     go !i !j
---LIQUID       | i >= lenA = compareText as (chunk (T.Text arrB (offB+j) (lenB-j)) bs)
---LIQUID       | j >= lenB = compareText (chunk (T.Text arrA (offA+i) (lenA-i)) as) bs
---LIQUID       | a < b     = LT
---LIQUID       | a > b     = GT
---LIQUID       | otherwise = go (i+di) (j+dj)
---LIQUID       where T.Iter a di = T.iter ta i
---LIQUID             T.Iter b dj = T.iter tb j
-
-{-@ compareText_go :: ta:{v:Data.Text.Internal.Text | (tlength v) > 0}
-                   -> tb:{v:Data.Text.Internal.Text | (tlength v) > 0}
-                   -> as:Data.Text.Lazy.Internal.Text
-                   -> bs:Data.Text.Lazy.Internal.Text
-                   -> i:{v:Int | (BtwnI v 0 (tlen ta))}
-                   -> j:{v:Int | (BtwnI v 0 (tlen tb))}
-                   -> Ordering
-  @-}
-compareText_go :: T.Text -> T.Text -> Text -> Text -> Int -> Int -> Ordering
-compareText_go ta@(T.Text arrA offA lenA) tb@(T.Text arrB offB lenB) as bs !i !j
-    | i >= lenA = compareText as (chunk (T.Text arrB (offB+j) (lenB-j)) bs)
-    | j >= lenB = compareText (chunk (T.Text arrA (offA+i) (lenA-i)) as) bs
-    | otherwise = let ia@(T.Iter a di) = T.iter ta i
-                      ib@(T.Iter b dj) = T.iter tb j
-                  in if a < b then LT
-                     else if a > b then GT
-                     else compareText_go ta tb as bs (i+di) (j+dj)
+compareText a@(Chunk a0 as) b@(Chunk b0 bs) = outer a0 b0
+  where
+   outer ta@(T.Text arrA offA lenA) tb@(T.Text arrB offB lenB) = go lenA 0 0
+    where
+     go (d :: Int) !i !j
+       | i >= lenA = compareText as (chunk (T.Text arrB (offB+j) (lenB-j)) bs)
+       | j >= lenB = compareText (chunk (T.Text arrA (offA+i) (lenA-i)) as) bs
+--LIQUID LAZY       | a < b     = LT
+--LIQUID LAZY       | a > b     = GT
+--LIQUID LAZY       | otherwise = go (i+di) (j+dj)
+--LIQUID LAZY       where T.Iter a di = T.iter ta i
+--LIQUID LAZY             T.Iter b dj = T.iter tb j
+       | otherwise = let ia@(T.Iter a di) = T.iter ta i
+                         ib@(T.Iter b dj) = T.iter tb j
+                     in if a < b then LT
+                        else if a > b then GT
+                        else go (d-di) (i+di) (j+dj)
 
 instance Show Text where
     showsPrec p ps r = showsPrec p (unpack ps) r
@@ -396,9 +384,7 @@ instance Show Text where
 -- | /O(n)/ Convert a 'String' into a 'Text'.
 --
 -- Subject to fusion.  Performs replacement on invalid scalar values.
-{-@ pack :: s:String
-         -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (len s)}
- @-}
+{-@ pack :: s:String -> {v:LText | (ltlength v) = (len s)} @-}
 pack :: String -> Text
 --LIQUID pack = unstream . S.streamList . L.map safe
 --LIQUID FIXME: figure out why `S.streamList $ L.map safe s` is deemed unsafe
@@ -408,9 +394,7 @@ pack s = let s' = L.map safe s
 
 -- | /O(n)/ Convert a 'Text' into a 'String'.
 -- Subject to fusion.
-{-@ unpack :: t:Data.Text.Lazy.Internal.Text
-           -> {v:String | (len v) = (ltlength t)}
- @-}
+{-@ unpack :: t:LText -> {v:String | (len v) = (ltlength t)} @-}
 unpack :: Text -> String
 unpack t = S.unstreamList (stream t)
 {-# INLINE [1] unpack #-}
@@ -430,7 +414,7 @@ unpackCString# addr# = unstream (S.streamCString# addr#)
 
 -- | /O(1)/ Convert a character into a Text.  Subject to fusion.
 -- Performs replacement on invalid scalar values.
-{-@ singleton :: Char -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = 1} @-}
+{-@ singleton :: Char -> {v:LText | (ltlength v) = 1} @-}
 singleton :: Char -> Text
 singleton c = Chunk (T.singleton c) Empty
 {-# INLINE [1] singleton #-}
@@ -443,33 +427,25 @@ singleton c = Chunk (T.singleton c) Empty
   #-}
 
 -- | /O(c)/ Convert a list of strict 'T.Text's into a lazy 'Text'.
-{-@ fromChunks :: ts:[Data.Text.Internal.Text]
-               -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (sum_tlengths ts)}
-  @-}
+{-@ fromChunks :: ts:[Text] -> {v:LText | (ltlength v) = (sum_tlengths ts)} @-}
 fromChunks :: [T.Text] -> Text
 --LIQUID fromChunks cs = L.foldr chunk Empty cs
 fromChunks []     = Empty
 fromChunks (t:ts) = chunk t $ fromChunks ts
 
 -- | /O(n)/ Convert a lazy 'Text' into a list of strict 'T.Text's.
-{-@ toChunks :: t:Data.Text.Lazy.Internal.Text
-             -> {v:[Data.Text.Internal.Text] | (sum_tlengths v) = (ltlength t)}
-  @-}
+{-@ toChunks :: t:LText -> {v:[Text] | (sum_tlengths v) = (ltlength t)} @-}
 toChunks :: Text -> [T.Text]
 toChunks cs = foldrChunks (\_ c cs -> c:cs) [] cs
 
 -- | /O(n)/ Convert a lazy 'Text' into a strict 'T.Text'.
-{-@ toStrict :: t:Data.Text.Lazy.Internal.Text
-             -> {v:Data.Text.Internal.Text | (tlength v) = (ltlength t)}
-  @-}
+{-@ toStrict :: t:LText -> {v:Text | (tlength v) = (ltlength t)} @-}
 toStrict :: Text -> T.Text
 toStrict t = T.concat (toChunks t)
 {-# INLINE [1] toStrict #-}
 
 -- | /O(c)/ Convert a strict 'T.Text' into a lazy 'Text'.
-{-@ fromStrict :: t:Data.Text.Internal.Text
-               -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (tlength t)}
-  @-}
+{-@ fromStrict :: t:Text -> {v:LText | (ltlength v) = (tlength t)} @-}
 fromStrict :: T.Text -> Text
 fromStrict t = chunk t Empty
 {-# INLINE [1] fromStrict #-}
@@ -480,9 +456,7 @@ fromStrict t = chunk t Empty
 -- | /O(n)/ Adds a character to the front of a 'Text'.  This function
 -- is more costly than its 'List' counterpart because it requires
 -- copying a new array.  Subject to fusion.
-{-@ cons :: Char -> t:Data.Text.Lazy.Internal.Text
-         -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = (1 + (ltlength t)))}
-  @-}
+{-@ cons :: Char -> t:LText -> {v:LText | ((ltlength v) = (1 + (ltlength t)))} @-}
 cons :: Char -> Text -> Text
 cons c t = Chunk (T.singleton c) t
 {-# INLINE [1] cons #-}
@@ -498,9 +472,7 @@ infixr 5 `cons`
 
 -- | /O(n)/ Adds a character to the end of a 'Text'.  This copies the
 -- entire array in the process, unless fused.  Subject to fusion.
-{-@ snoc :: t:Data.Text.Lazy.Internal.Text -> Char
-         -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = (1 + (ltlength t)))}
-  @-}
+{-@ snoc :: t:LText -> Char -> {v:LText | ((ltlength v) = (1 + (ltlength t)))} @-}
 snoc :: Text -> Char -> Text
 --LIQUID snoc t c = foldrChunks Chunk (singleton c) t
 snoc t c = foldrChunks (\_ -> Chunk) (singleton c) t
@@ -514,9 +486,8 @@ snoc t c = foldrChunks (\_ -> Chunk) (singleton c) t
  #-}
 
 -- | /O(n\/c)/ Appends one 'Text' to another.  Subject to fusion.
-{-@ append :: t1:Data.Text.Lazy.Internal.Text
-           -> t2:Data.Text.Lazy.Internal.Text
-           -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = ((ltlength t1) + (ltlength t2)))}
+{-@ append :: t1:LText -> t2:LText
+           -> {v:LText | ((ltlength v) = ((ltlength t1) + (ltlength t2)))}
   @-}
 append :: Text -> Text -> Text
 --LIQUID append xs ys = foldrChunks Chunk ys xs
@@ -532,10 +503,9 @@ append xs ys = foldrChunks (\_ -> Chunk) ys xs
 
 -- | /O(1)/ Returns the first character and rest of a 'Text', or
 -- 'Nothing' if empty. Subject to fusion.
-{-@ uncons :: t:Data.Text.Lazy.Internal.Text
-           -> Maybe (Char,{v0:Data.Text.Lazy.Internal.Text |
-                                 (ltlength v0) = ((ltlength t) - 1)})
-   @-}
+{-@ uncons :: t:LText
+           -> Maybe (Char,{v:LText | (ltlength v) = ((ltlength t) - 1)})
+  @-}
 uncons :: Text -> Maybe (Char, Text)
 uncons Empty        = Nothing
 uncons (Chunk t ts) = Just (T.unsafeHead t, ts')
@@ -545,18 +515,14 @@ uncons (Chunk t ts) = Just (T.unsafeHead t, ts')
 
 -- | /O(1)/ Returns the first character of a 'Text', which must be
 -- non-empty.  Subject to fusion.
-{-@ head :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
-         -> Char
-  @-}
+{-@ head :: LTextNE -> Char @-}
 head :: Text -> Char
 head t = S.head (stream t)
 {-# INLINE head #-}
 
 -- | /O(1)/ Returns all characters after the head of a 'Text', which
 -- must be non-empty.  Subject to fusion.
-{-@ tail :: t:{v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
-         -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = ((ltlength t) - 1))}
-  @-}
+{-@ tail :: t:LTextNE -> {v:LTextLT t | (ltlength v) = ((ltlength t) - 1)} @-}
 tail :: Text -> Text
 tail (Chunk t ts) = chunk (T.tail t) ts
 --LIQUID tail Empty        = emptyError "tail"
@@ -572,9 +538,7 @@ tail Empty        = liquidError "tail"
 
 -- | /O(1)/ Returns all but the last character of a 'Text', which must
 -- be non-empty.  Subject to fusion.
-{-@ init :: t:{v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
-         -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = ((ltlength t) - 1))}
-  @-}
+{-@ init :: t:LTextNE -> {v:LText | ((ltlength v) = ((ltlength t) - 1))} @-}
 init :: Text -> Text
 --LIQUID init (Chunk t0 ts0) = go t0 ts0
 --LIQUID     where go t (Chunk t' ts) = Chunk t (go t' ts)
@@ -584,10 +548,10 @@ init (Chunk t0 ts0) = init_go t0 ts0
 init Empty = liquidError "init"
 {-# INLINE [1] init #-}
 
-{-@ init_go :: t:NonEmptyStrict
-            -> ts:Data.Text.Lazy.Internal.Text
-            -> {v:Data.Text.Lazy.Internal.Text | ((ltlength v) = ((tlength t) + (ltlength ts) - 1))}
+{-@ init_go :: t:TextNE -> ts:LText
+            -> {v:LText | ((ltlength v) = ((tlength t) + (ltlength ts) - 1))}
   @-}
+{-@ Decrease init_go 2 @-}
 init_go t (Chunk t' ts) = Chunk t (init_go t' ts)
 init_go t Empty         = chunk (T.init t) Empty
 
@@ -600,8 +564,8 @@ init_go t Empty         = chunk (T.init t) Empty
 
 -- | /O(1)/ Tests whether a 'Text' is empty or not.  Subject to
 -- fusion.
-{-@ null :: t:Data.Text.Lazy.Internal.Text
-         -> {v:Bool | ((Prop v) <=> ((ltlength t) = 0))}
+{-@ null :: t:LText
+         -> {v:Bool | ((Prop v) <=> (((ltlength t) = 0) && ((ltlen t) == 0)))}
   @-}
 null :: Text -> Bool
 null Empty = True
@@ -617,9 +581,7 @@ null _     = False
 
 -- | /O(1)/ Tests whether a 'Text' contains exactly one character.
 -- Subject to fusion.
-{-@ isSingleton :: t:Data.Text.Lazy.Internal.Text
-                -> {v:Bool | ((Prop v) <=> ((ltlength t) = 1))}
-  @-}
+{-@ isSingleton :: t:LText -> {v:Bool | ((Prop v) <=> ((ltlength t) = 1))} @-}
 isSingleton :: Text -> Bool
 --LIQUID isSingleton = S.isSingleton . stream
 isSingleton t = S.isSingleton $ stream t
@@ -627,15 +589,14 @@ isSingleton t = S.isSingleton $ stream t
 
 -- | /O(1)/ Returns the last character of a 'Text', which must be
 -- non-empty.  Subject to fusion.
-{-@ last :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
-         -> Char
-  @-}
+{-@ last :: LTextNE -> Char @-}
 last :: Text -> Char
 --LIQUID last Empty        = emptyError "last"
 last Empty        = liquidError "last"
-last (Chunk t ts) = go t ts
-    where go _ (Chunk t' ts') = go t' ts'
-          go t' Empty         = T.last t'
+last (Chunk t ts) = last_go t ts
+          {-@ Decrease last_go 2 @-}
+    where last_go _ (Chunk t' ts') = last_go t' ts'
+          last_go t' Empty         = T.last t'
 {-# INLINE [1] last #-}
 
 {-# RULES
@@ -647,9 +608,7 @@ last (Chunk t ts) = go t ts
 
 -- | /O(n)/ Returns the number of characters in a 'Text'.
 -- Subject to fusion.
-{-@ length :: t:Data.Text.Lazy.Internal.Text
-           -> {v:Int64 | v = (ltlength t)}
-  @-}
+{-@ length :: t:LText -> {v:Nat64 | v = (ltlength t)} @-}
 length :: Text -> Int64
 --LIQUID length = foldlChunks go 0
 --LIQUID     where go ts t l = l + fromIntegral (T.length t)
@@ -670,8 +629,7 @@ length = foldrChunks go 0
 -- This function gives the same answer as comparing against the result
 -- of 'length', but can short circuit if the count of characters is
 -- greater than the number, and hence be more efficient.
-{-@ compareLength :: t:Data.Text.Lazy.Internal.Text
-                  -> n:Nat64
+{-@ compareLength :: t:LText -> n:Nat64
                   -> {v:Ordering | ((v = GHC.Types.EQ) <=> ((ltlength t) = n))}
   @-}
 compareLength :: Text -> Int64 -> Ordering
@@ -686,10 +644,7 @@ compareLength t n = S.compareLengthI (stream t) (fromIntegral n)
 -- | /O(n)/ 'map' @f@ @t@ is the 'Text' obtained by applying @f@ to
 -- each element of @t@.  Subject to fusion.  Performs replacement on
 -- invalid scalar values.
-{-@ map :: (Char -> Char)
-        -> t:Data.Text.LazyInternal.Text
-        -> {v:Data.Text.Lazy.Internal.Text | (ltlength t) = (ltlength v)}
-  @-}
+{-@ map :: (Char -> Char) -> t:LText -> {v:LText | (ltlength t) = (ltlength v)} @-}
 map :: (Char -> Char) -> Text -> Text
 map f t = unstream (S.map (safe . f) (stream t))
 {-# INLINE [1] map #-}
@@ -697,9 +652,8 @@ map f t = unstream (S.map (safe . f) (stream t))
 -- | /O(n)/ The 'intercalate' function takes a 'Text' and a list of
 -- 'Text's and concatenates the list after interspersing the first
 -- argument between each element of the list.
-{-@ intercalate :: Data.Text.Lazy.Internal.Text
-                -> ts:[Data.Text.Lazy.Internal.Text]
-                -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (sum_ltlengths ts)}
+{-@ intercalate :: LText -> ts:[LText]
+                -> {v:LText | (ltlength v) >= (sum_ltlengths ts)}
   @-}
 intercalate :: Text -> [Text] -> Text
 --LIQUID intercalate t = concat . (U.intersperse t)
@@ -707,9 +661,8 @@ intercalate t ts = concat $ intersperseLT t ts
 {-# INLINE intercalate #-}
 
 --LIQUID specialized from Data.Text.Util.intersperse
-{-@ intersperseLT :: Data.Text.Lazy.Internal.Text
-                  -> ts:[Data.Text.Lazy.Internal.Text]
-                  -> {v:[Data.Text.Lazy.Internal.Text] | (sum_ltlengths v) >= (sum_ltlengths ts)}
+{-@ intersperseLT :: LText -> ts:[LText]
+                  -> {v:[LText] | (sum_ltlengths v) >= (sum_ltlengths ts)}
   @-}
 intersperseLT :: Text -> [Text] -> [Text]
 intersperseLT _   []     = []
@@ -721,9 +674,8 @@ intersperseLT sep (x:xs) = x : go xs
 -- | /O(n)/ The 'intersperse' function takes a character and places it
 -- between the characters of a 'Text'.  Subject to fusion.  Performs
 -- replacement on invalid scalar values.
-{-@ intersperse :: Char
-                -> t:Data.Text.Lazy.Internal.Text
-                -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) > (ltlength t)}
+{-@ intersperse :: Char -> t:LText
+                -> {v:LText | (ltlength v) > (ltlength t)}
   @-}
 intersperse :: Char -> Text -> Text
 intersperse c t = unstream (S.intersperse (safe c) (stream t))
@@ -737,10 +689,8 @@ intersperse c t = unstream (S.intersperse (safe c) (stream t))
 --
 -- > justifyLeft 7 'x' "foo"    == "fooxxxx"
 -- > justifyLeft 3 'x' "foobar" == "foobar"
-{-@ justifyLeft :: i:Nat64
-                -> Char
-                -> t:Data.Text.Lazy.Internal.Text
-                -> {v:Data.Text.Lazy.Internal.Text | (Max (ltlength v) i (ltlength t))}
+{-@ justifyLeft :: i:Nat64 -> Char -> t:LText
+                -> {v:LText | (Max (ltlength v) i (ltlength t))}
   @-}
 justifyLeft :: Int64 -> Char -> Text -> Text
 justifyLeft k c t
@@ -764,10 +714,8 @@ justifyLeft k c t
 --
 -- > justifyRight 7 'x' "bar"    == "xxxxbar"
 -- > justifyRight 3 'x' "foobar" == "foobar"
-{-@ justifyRight :: i:Nat64
-                 -> Char
-                 -> t:Data.Text.Lazy.Internal.Text
-                 -> {v:Data.Text.Lazy.Internal.Text | (Max (ltlength v) i (ltlength t))}
+{-@ justifyRight :: i:Nat64 -> Char -> t:LText
+                 -> {v:LText | (Max (ltlength v) i (ltlength t))}
   @-}
 justifyRight :: Int64 -> Char -> Text -> Text
 justifyRight k c t
@@ -783,10 +731,8 @@ justifyRight k c t
 -- Examples:
 --
 -- > center 8 'x' "HS" = "xxxHSxxx"
-{-@ center :: i:Nat64
-           -> Char
-           -> t:Data.Text.Lazy.Internal.Text
-           -> {v:Data.Text.Lazy.Internal.Text | (Max (ltlength v) i (ltlength t))}
+{-@ center :: i:Nat64 -> Char -> t:LText
+           -> {v:LText | (Max (ltlength v) i (ltlength t))}
   @-}
 center :: Int64 -> Char -> Text -> Text
 center k c t
@@ -805,20 +751,17 @@ center k c t
 -- of its 'Text' argument.  Note that this function uses 'pack',
 -- 'unpack', and the list version of transpose, and is thus not very
 -- efficient.
-{-@ transpose :: [Data.Text.Lazy.Internal.Text]
-              -> [{v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}]
-  @-}
+{-@ transpose :: [LText] -> [LTextNE] @-}
 transpose :: [Text] -> [Text]
 transpose ts = L.map (\ss -> Chunk (T.pack ss) Empty)
                      (L.transpose (L.map unpack ts))
 -- TODO: make this fast
 
 -- | /O(n)/ 'reverse' @t@ returns the elements of @t@ in reverse order.
-{-@ reverse :: t:Data.Text.Lazy.Internal.Text
-            -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (ltlength t)}
-  @-}
+{-@ reverse :: t:LText -> {v:LText | (ltlength v) = (ltlength t)} @-}
 reverse :: Text -> Text
 reverse = rev Empty
+        {-@ Decrease rev 2 @-}
   where rev a Empty        = a
         rev a (Chunk t ts) = rev (Chunk (T.reverse t) a) ts
 
@@ -826,11 +769,7 @@ reverse = rev Empty
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
-{-@ replace :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
-            -> Data.Text.Lazy.Internal.Text
-            -> Data.Text.Lazy.Internal.Text
-            -> Data.Text.Lazy.Internal.Text
-  @-}
+{-@ replace :: LTextNE -> LText -> LText -> LText @-}
 replace :: Text                 -- ^ Text to search for
         -> Text                 -- ^ Replacement text
         -> Text                 -- ^ Input text
@@ -864,9 +803,7 @@ replace s d = intercalate d . splitOn s
 -- bigram men now (U+0574 U+0576), while the micro sign (U+00B5) is
 -- case folded to the Greek small letter letter mu (U+03BC) instead of
 -- itself.
-{-@ toCaseFold :: t:Data.Text.Lazy.Internal.Text
-               -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (ltlength t)}
-  @-}
+{-@ toCaseFold :: t:LText -> {v:LText | (ltlength v) >= (ltlength t)} @-}
 toCaseFold :: Text -> Text
 toCaseFold t = unstream (S.toCaseFold (stream t))
 {-# INLINE [0] toCaseFold #-}
@@ -876,9 +813,7 @@ toCaseFold t = unstream (S.toCaseFold (stream t))
 -- For instance, the Latin capital letter I with dot above (U+0130)
 -- maps to the sequence Latin small letter i (U+0069) followed by
 -- combining dot above (U+0307).
-{-@ toLower :: t:Data.Text.Lazy.Internal.Text
-            -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (ltlength t)}
-  @-}
+{-@ toLower :: t:LText -> {v:LText | (ltlength v) >= (ltlength t)} @-}
 toLower :: Text -> Text
 toLower t = unstream (S.toLower (stream t))
 {-# INLINE toLower #-}
@@ -887,9 +822,7 @@ toLower t = unstream (S.toLower (stream t))
 -- conversion.  The result string may be longer than the input string.
 -- For instance, the German eszett (U+00DF) maps to the two-letter
 -- sequence SS.
-{-@ toUpper :: t:Data.Text.Lazy.Internal.Text
-            -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (ltlength t)}
-  @-}
+{-@ toUpper :: t:LText -> {v:LText | (ltlength v) >= (ltlength t)} @-}
 toUpper :: Text -> Text
 toUpper t = unstream (S.toUpper (stream t))
 {-# INLINE toUpper #-}
@@ -910,19 +843,13 @@ foldl' f z t = S.foldl' f z (stream t)
 
 -- | /O(n)/ A variant of 'foldl' that has no starting value argument,
 -- and thus must be applied to a non-empty 'Text'.  Subject to fusion.
-{-@ foldl1 :: (Char -> Char -> Char)
-           -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
-           -> Char
-  @-}
+{-@ foldl1 :: (Char -> Char -> Char) -> LTextNE -> Char @-}
 foldl1 :: (Char -> Char -> Char) -> Text -> Char
 foldl1 f t = S.foldl1 f (stream t)
 {-# INLINE foldl1 #-}
 
 -- | /O(n)/ A strict version of 'foldl1'.  Subject to fusion.
-{-@ foldl1' :: (Char -> Char -> Char)
-            -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
-            -> Char
-  @-}
+{-@ foldl1' :: (Char -> Char -> Char) -> LTextNE -> Char @-}
 foldl1' :: (Char -> Char -> Char) -> Text -> Char
 foldl1' f t = S.foldl1' f (stream t)
 {-# INLINE foldl1' #-}
@@ -938,18 +865,13 @@ foldr f z t = S.foldr f z (stream t)
 -- | /O(n)/ A variant of 'foldr' that has no starting value argument,
 -- and thus must be applied to a non-empty 'Text'.  Subject to
 -- fusion.
-{-@ foldr1 :: (Char -> Char -> Char)
-           -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
-           -> Char
-  @-}
+{-@ foldr1 :: (Char -> Char -> Char) -> LTextNE -> Char @-}
 foldr1 :: (Char -> Char -> Char) -> Text -> Char
 foldr1 f t = S.foldr1 f (stream t)
 {-# INLINE foldr1 #-}
 
 -- | /O(n)/ Concatenate a list of 'Text's.
-{-@ concat :: ts:[Data.Text.Lazy.Internal.Text]
-           -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (sum_ltlengths ts)}
-  @-}
+{-@ concat :: ts:[LText] -> {v:LText | (ltlength v) = (sum_ltlengths ts)} @-}
 concat :: [Text] -> Text
 concat = to
   where
@@ -1032,11 +954,7 @@ scanr1 f t | null t    = empty
 -- function to each element of a 'Text', passing an accumulating
 -- parameter from left to right, and returns a final 'Text'.  Performs
 -- replacement on invalid scalar values.
-{-@ mapAccumL :: (a -> Char -> (a,Char))
-              -> a
-              -> t:Data.Text.Lazy.Internal.Text
-              -> (a, {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (ltlength t)})
-  @-}
+{-@ mapAccumL :: (a -> Char -> (a,Char)) -> a -> t:LText -> (a, LTextNC (ltlength t)) @-}
 mapAccumL :: (a -> Char -> (a,Char)) -> a -> Text -> (a, Text)
 mapAccumL f = go
   where
@@ -1051,11 +969,7 @@ mapAccumL f = go
 -- 'Text', passing an accumulating parameter from right to left, and
 -- returning a final value of this accumulator together with the new
 -- 'Text'.  Performs replacement on invalid scalar values.
-{-@ mapAccumR :: (a -> Char -> (a,Char))
-              -> a
-              -> t:Data.Text.Lazy.Internal.Text
-              -> (a, {v:Data.Text.Lazy.Internal.Text | (ltlength v) = (ltlength t)})
-  @-}
+{-@ mapAccumR :: (a -> Char -> (a,Char)) -> a -> t:LText -> (a, LTextNC (ltlength t)) @-}
 mapAccumR :: (a -> Char -> (a,Char)) -> a -> Text -> (a, Text)
 mapAccumR f = go
   where
@@ -1067,38 +981,33 @@ mapAccumR f = go
 
 -- | /O(n*m)/ 'replicate' @n@ @t@ is a 'Text' consisting of the input
 -- @t@ repeated @n@ times.
-{-@ replicate :: n:Nat64
-              -> t:Data.Text.Lazy.Internal.Text
-              -> {v:Data.Text.Lazy.Internal.Text |
-                     ((n = 0) ? ((ltlength v) = 0)
-                              : ((ltlength v) >= (ltlength t)))}
+{-@ replicate :: n:Nat64 -> t:LText
+              -> {v:LText | ((n = 0) ? ((ltlength v) = 0)
+                                     : ((ltlength v) >= (ltlength t)))}
   @-}
 replicate :: Int64 -> Text -> Text
 replicate n t
     | null t || n <= 0 = empty
     | isSingleton t    = replicateChar n (head t)
-    | otherwise        = concat (replicate_rep n t 0)
+    | otherwise        = concat (replicate_rep n n t 0)
 --LIQUID     | otherwise        = concat (rep 0)
 --LIQUID     where rep !i | i >= n    = []
 --LIQUID                  | otherwise = t : rep (i+1)
-{-@ replicate_rep :: n:{v:Int64 | v > 0}
-                  -> t:Data.Text.Lazy.Internal.Text
-                  -> i:{v:Int64 | ((v >= 0) && (v <= n))}
-                  -> {v:[{v0:Data.Text.Lazy.Internal.Text | (ltlength v0) = (ltlength t)}] |
+{-@ replicate_rep :: d:Nat64 -> n:{v:Int64 | v > 0} -> t:LText
+                  -> i:{v:Int64 | ((v >= 0) && (v <= n) && (v = n - d))}
+                  -> {v:[{v0:LText | (ltlength v0) = (ltlength t)}] |
                         ((((n - i) = 0) <=> (null v))
                          && ((null v) || ((sum_ltlengths v) >= (ltlength t))))}
   @-}
-replicate_rep :: Int64 -> Text -> Int64 -> [Text]
-replicate_rep n t !i | i >= n    = []
-                     | otherwise = t : replicate_rep n t (i+1)
+replicate_rep :: Int64 -> Int64 -> Text -> Int64 -> [Text]
+replicate_rep (d :: Int64) n t !i
+                     | i >= n    = []
+                     | otherwise = t : replicate_rep (d-1) n t (i+1)
 {-# INLINE replicate #-}
 
 -- | /O(n)/ 'replicateChar' @n@ @c@ is a 'Text' of length @n@ with @c@ the
 -- value of every element. Subject to fusion.
-{-@ replicateChar :: n:Nat64
-                  -> Char
-                  -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) = n}
-  @-}
+{-@ replicateChar :: n:Nat64 -> Char -> LTextNC n @-}
 replicateChar :: Int64 -> Char -> Text
 --LIQUID replicateChar n c = unstream (S.replicateCharI n (safe c))
 replicateChar n c = unstream (S.replicateCharI (fromIntegral n) (safe c))
@@ -1133,10 +1042,7 @@ unfoldrN n f s = unstream (S.unfoldrN n (firstf safe . f) s)
 -- | /O(n)/ 'take' @n@, applied to a 'Text', returns the prefix of the
 -- 'Text' of length @n@, or the 'Text' itself if @n@ is greater than
 -- the length of the Text. Subject to fusion.
-{-@ take :: i:Nat64
-         -> t:Data.Text.Lazy.Internal.Text
-         -> {v:Data.Text.Lazy.Internal.Text | (Min (ltlength v) (ltlength t) i)}
- @-}
+{-@ take :: i:Nat64 -> t:LText -> {v:LText | (Min (ltlength v) (ltlength t) i)} @-}
 take :: Int64 -> Text -> Text
 take i _ | i <= 0 = Empty
 take i t0         = take' i t0
@@ -1159,11 +1065,9 @@ take i t0         = take' i t0
 -- | /O(n)/ 'drop' @n@, applied to a 'Text', returns the suffix of the
 -- 'Text' after the first @n@ characters, or the empty 'Text' if @n@
 -- is greater than the length of the 'Text'. Subject to fusion.
-{-@ drop :: i:Nat64
-         -> t:Data.Text.Lazy.Internal.Text
-         -> {v:Data.Text.Lazy.Internal.Text |
-                ((ltlength v) = (((ltlength t) <= i)
-                                 ? 0 : ((ltlength t) - i)))}
+{-@ drop :: i:Nat64 -> t:LText
+         -> {v:LText | (ltlength v) = (if ((ltlength t) <= i)
+                                       then 0 else ((ltlength t) - i))}
   @-}
 drop :: Int64 -> Text -> Text
 drop i t0
@@ -1203,10 +1107,7 @@ dropWords i t0
 -- | /O(n)/ 'takeWhile', applied to a predicate @p@ and a 'Text',
 -- returns the longest prefix (possibly empty) of elements that
 -- satisfy @p@.  Subject to fusion.
-{-@ takeWhile :: (Char -> Bool)
-              -> t:Data.Text.Lazy.Internal.Text
-              -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}
-  @-}
+{-@ takeWhile :: (Char -> Bool) -> t:LText -> {v:LText | (ltlength v) <= (ltlength t)} @-}
 takeWhile :: (Char -> Bool) -> Text -> Text
 takeWhile p t0 = takeWhile' t0
   where takeWhile' Empty        = Empty
@@ -1226,10 +1127,7 @@ takeWhile p t0 = takeWhile' t0
 
 -- | /O(n)/ 'dropWhile' @p@ @t@ returns the suffix remaining after
 -- 'takeWhile' @p@ @t@.  Subject to fusion.
-{-@ dropWhile :: (Char -> Bool)
-              -> t:Data.Text.Lazy.Internal.Text
-              -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}
-  @-}
+{-@ dropWhile :: (Char -> Bool) -> t:LText -> {v:LText | (ltlength v) <= (ltlength t)} @-}
 dropWhile :: (Char -> Bool) -> Text -> Text
 dropWhile p t0 = dropWhile' t0
   where dropWhile' Empty        = Empty
@@ -1251,10 +1149,7 @@ dropWhile p t0 = dropWhile' t0
 -- Examples:
 --
 -- > dropWhileEnd (=='.') "foo..." == "foo"
-{-@ dropWhileEnd :: (Char -> Bool)
-                 -> t:Data.Text.Lazy.Internal.Text
-                 -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}
-  @-}
+{-@ dropWhileEnd :: (Char -> Bool) -> t:LText -> {v:LText | (ltlength v) <= (ltlength t)} @-}
 dropWhileEnd :: (Char -> Bool) -> Text -> Text
 dropWhileEnd p = go
   where go Empty = Empty
@@ -1270,10 +1165,7 @@ dropWhileEnd p = go
 -- | /O(n)/ 'dropAround' @p@ @t@ returns the substring remaining after
 -- dropping characters that fail the predicate @p@ from both the
 -- beginning and end of @t@.  Subject to fusion.
-{-@ dropAround :: (Char -> Bool)
-               -> t:Data.Text.Lazy.Internal.Text
-               -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}
-  @-}
+{-@ dropAround :: (Char -> Bool) -> t:LText -> {v:LText | (ltlength v) <= (ltlength t)} @-}
 dropAround :: (Char -> Bool) -> Text -> Text
 --LIQUID dropAround p = dropWhile p . dropWhileEnd p
 dropAround p t = dropWhile p $ dropWhileEnd p t
@@ -1282,9 +1174,7 @@ dropAround p t = dropWhile p $ dropWhileEnd p t
 -- | /O(n)/ Remove leading white space from a string.  Equivalent to:
 --
 -- > dropWhile isSpace
-{-@ stripStart :: t:Data.Text.Lazy.Internal.Text
-               -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}
-  @-}
+{-@ stripStart :: t:LText -> {v:LText | (ltlength v) <= (ltlength t)} @-}
 stripStart :: Text -> Text
 stripStart = dropWhile isSpace
 {-# INLINE [1] stripStart #-}
@@ -1292,9 +1182,7 @@ stripStart = dropWhile isSpace
 -- | /O(n)/ Remove trailing white space from a string.  Equivalent to:
 --
 -- > dropWhileEnd isSpace
-{-@ stripEnd :: t:Data.Text.Lazy.Internal.Text
-             -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}
-  @-}
+{-@ stripEnd :: t:LText -> {v:LText | (ltlength v) <= (ltlength t)} @-}
 stripEnd :: Text -> Text
 stripEnd = dropWhileEnd isSpace
 {-# INLINE [1] stripEnd #-}
@@ -1303,9 +1191,7 @@ stripEnd = dropWhileEnd isSpace
 -- Equivalent to:
 --
 -- > dropAround isSpace
-{-@ strip :: t:Data.Text.Lazy.Internal.Text
-          -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}
-  @-}
+{-@ strip :: t:LText -> {v:LText | (ltlength v) <= (ltlength t)} @-}
 strip :: Text -> Text
 strip = dropAround isSpace
 {-# INLINE [1] strip #-}
@@ -1313,11 +1199,10 @@ strip = dropAround isSpace
 -- | /O(n)/ 'splitAt' @n t@ returns a pair whose first element is a
 -- prefix of @t@ of length @n@, and whose second is the remainder of
 -- the string. It is equivalent to @('take' n t, 'drop' n t)@.
-{-@ splitAt :: n:Nat64
-            -> t:Data.Text.Lazy.Internal.Text
-            -> (Data.Text.Lazy.Internal.Text, Data.Text.Lazy.Internal.Text)<{\x y ->
+{-@ splitAt :: n:Nat64 -> t:LText -> (LText, LText)<{\x y ->
                  ((Min (ltlength x) (ltlength t) n)
-                  && ((ltlength y) = ((ltlength t) - (ltlength x))))}>
+                  && ((ltlength y) = ((ltlength t) - (ltlength x)))
+                  && ((ltlen y) = ((ltlen t) - (ltlen x))))}>
   @-}
 splitAt :: Int64 -> Text -> (Text, Text)
 splitAt = loop
@@ -1342,9 +1227,10 @@ splitAt = loop
 -- | /O(n)/ 'splitAtWord' @n t@ returns a strict pair whose first
 -- element is a prefix of @t@ whose chunks contain @n@ 'Word16'
 -- values, and whose second is the remainder of the string.
-{-@ splitAtWord :: Nat64
-                -> Data.Text.Lazy.Internal.Text
-                -> PairS Data.Text.Lazy.Internal.Text Data.Text.Lazy.Internal.Text
+{-@ splitAtWord :: n:Nat64 -> t:LText -> (PairS LText LText)<{\x y ->
+                 ((Min (ltlength x) (ltlength t) n)
+                  && ((ltlength y) = ((ltlength t) - (ltlength x)))
+                  && ((ltlen y) = ((ltlen t) - (ltlen x))))}>
   @-}
 splitAtWord :: Int64 -> Text -> PairS Text Text
 splitAtWord _ Empty = empty :*: empty
@@ -1379,10 +1265,7 @@ splitAtWord x (Chunk c@(T.Text arr off len) cs)
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
-{-@ breakOn :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
-            -> Data.Text.Lazy.Internal.Text
-            -> (Data.Text.Lazy.Internal.Text, Data.Text.Lazy.Internal.Text)
-  @-}
+{-@ breakOn :: LTextNE -> LText -> (LText, LText) @-}
 breakOn :: Text -> Text -> (Text, Text)
 breakOn pat src
     | null pat  = liquidError "breakOn"
@@ -1398,10 +1281,7 @@ breakOn pat src
 -- remainder of @haystack@, following the match.
 --
 -- > breakOnEnd "::" "a::b::c" ==> ("a::b::", "c")
-{-@ breakOnEnd :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
-               -> Data.Text.Lazy.Internal.Text
-               -> (Data.Text.Lazy.Internal.Text, Data.Text.Lazy.Internal.Text)
-  @-}
+{-@ breakOnEnd :: LTextNE -> LText -> (LText, LText) @-}
 breakOnEnd :: Text -> Text -> (Text, Text)
 breakOnEnd pat src = let (a,b) = breakOn (reverse pat) (reverse src)
                    in  (reverse b, reverse a)
@@ -1428,21 +1308,19 @@ breakOnEnd pat src = let (a,b) = breakOn (reverse pat) (reverse src)
 -- towards /O(n*m)/.
 --
 -- The @needle@ parameter may not be empty.
-{-@ breakOnAll :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
-               -> Data.Text.Lazy.Internal.Text
-               -> [(Data.Text.Lazy.Internal.Text, Data.Text.Lazy.Internal.Text)]
-  @-}
+{-@ breakOnAll :: LTextNE -> LText -> [(LText, LText)] @-}
 breakOnAll :: Text              -- ^ @needle@ to search for
            -> Text              -- ^ @haystack@ in which to search
            -> [(Text, Text)]
 breakOnAll pat src
     | null pat  = liquidError "breakOnAll"
-    | otherwise = go (ltlen pat) 0 empty src (indices pat src)
+    | otherwise = breakOnAll_go (ltlen pat) 0 empty src (indices pat src)
   where
-    go l !n p s (x:xs) = let h :*: t = splitAtWord (x-n) s
-                             h'      = append p h
-                         in (h',t) : go l x h' t xs
-    go l _  _ _ _      = []
+    {-@ Decrease breakOnAll_go 5 @-}
+    breakOnAll_go l !n p s (x:xs) = let h :*: t = splitAtWord (x-n) s
+                                        h'      = append p h
+                                    in (h',t) : breakOnAll_go l x h' t xs
+    breakOnAll_go l _  _ _ _      = []
 
 -- | /O(n)/ 'break' is like 'span', but the prefix returned is over
 -- elements that fail the predicate @p@.
@@ -1488,9 +1366,8 @@ groupBy eq (Chunk t ts) = cons x ys : groupBy eq zs
 
 -- | /O(n)/ Return all initial segments of the given 'Text',
 -- shortest first.
-{-@ inits :: t:Data.Text.Lazy.Internal.Text
-          -> [{v:Data.Text.Lazy.Internal.Text |
-               (BtwnI (ltlength v) 0 (ltlength t))}]<{\hd tl ->
+{-@ inits :: t:LText
+          -> [{v:LText | (ltlength v) <= (ltlength t)}]<{\hd tl ->
               ((ltlength hd) < (ltlength tl))}>
   @-}
 inits :: Text -> [Text]
@@ -1500,10 +1377,9 @@ inits t = Empty : inits' t
 --LIQUID         inits' (Chunk t ts) = L.map (\t' -> Chunk t' Empty) (L.tail (T.inits t))
 --LIQUID                            ++ L.map (Chunk t) (inits' ts)
 
-{-@ inits' :: t:Data.Text.Lazy.Internal.Text
-          -> [{v:Data.Text.Lazy.Internal.Text |
-               (BtwnEI (ltlength v) 0 (ltlength t))}]<{\hd tl ->
-              ((ltlength hd) < (ltlength tl))}>
+{-@ inits' :: t:LText
+          -> [{v:LText | (BtwnI (ltlength v) 1 (ltlength t))}]<{\hd1 tl1 ->
+              ((ltlength hd1) < (ltlength tl1))}>
   @-}
 inits' :: Text -> [Text]
 inits' Empty           = []
@@ -1512,60 +1388,62 @@ inits' t0@(Chunk t ts) = let (t':ts') = T.inits t
                              lts' = inits_map2 t0 t (inits' ts)
                          in inits_app t lts t0 lts'
 
-{-@ inits_map1 :: t0:NonEmptyStrict
-        -> t:Data.Text.Internal.Text
-        -> ts:[{v:Data.Text.Internal.Text | (BtwnEI (tlength v) (tlength t) (tlength t0))}]<{\xx xy -> ((tlength xx) < (tlength xy))}>
-        -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (tlength t) (tlength t0))}]<{\lx ly -> ((ltlength lx) < (ltlength ly))}>
+{-@ inits_map1 :: t0:TextNE -> t:Text
+        -> ts:[{v:Text | (BtwnEI (tlength v) (tlength t) (tlength t0))}]<{\xx xy -> ((tlength xx) < (tlength xy))}>
+        -> [{v:LText | (BtwnEI (ltlength v) (tlength t) (tlength t0))}]<{\lx ly -> ((ltlength lx) < (ltlength ly))}>
   @-}
+{-@ Decrease inits_map1 3 @-}
 inits_map1 :: T.Text -> T.Text -> [T.Text] -> [Text]
 inits_map1 _  _ []     = []
 inits_map1 t0 _ (t:ts) = Chunk t Empty : inits_map1 t0 t ts
 
-{-@ inits_map2 :: t0:Data.Text.Lazy.Internal.Text
-        -> st:NonEmptyStrict
-        -> ts:[{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) 0 ((ltlength t0) - (tlength st)))}]<{\fx fy -> ((ltlength fx) < (ltlength fy))}>
-        -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (tlength st) (ltlength t0))}]<{\rx ry -> ((ltlength rx) < (ltlength ry))}>
+{-@ inits_map2 :: t0:LText
+        -> st:TextNE
+        -> ts:[{v:LText | (BtwnI (ltlength v) 1 ((ltlength t0) - (tlength st)))}]<{\fx fy -> ((ltlength fx) < (ltlength fy))}>
+        -> [{v:LText | (BtwnEI (ltlength v) (tlength st) (ltlength t0))}]<{\rx ry -> ((ltlength rx) < (ltlength ry))}>
   @-}
+{-@ Decrease inits_map2 3 @-}
 inits_map2 :: Text -> T.Text -> [Text] -> [Text]
 inits_map2 _  _  []     = []
-inits_map2 t0 st (t:ts) = inits_map2' t0 st t ts
+inits_map2 t0 st (t:ts) = inits_map2_ t0 st t ts
 
-{-@ inits_map2' :: t0:Data.Text.Lazy.Internal.Text
-        -> st:NonEmptyStrict
-        -> t:Data.Text.Lazy.Internal.Text
-        -> ts:[{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (ltlength t) ((ltlength t0) - (tlength st)))}]<{\ax ay -> ((ltlength ax) < (ltlength ay))}>
-        -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) ((tlength st) + (ltlength t)) (ltlength t0))}]<{\bx by -> ((ltlength bx) < (ltlength by))}>
+{-@ inits_map2_ :: t0:LText
+        -> st:TextNE
+        -> t:LText
+        -> ts:[{v:LText | (BtwnEI (ltlength v) (ltlength t) ((ltlength t0) - (tlength st)))}]<{\ax ay -> ((ltlength ax) < (ltlength ay))}>
+        -> [{v:LText | (BtwnEI (ltlength v) ((tlength st) + (ltlength t)) (ltlength t0))}]<{\bx by -> ((ltlength bx) < (ltlength by))}>
   @-}
-inits_map2' :: Text -> T.Text -> Text -> [Text] -> [Text]
-inits_map2' _  _  _ []     = []
-inits_map2' t0 st _ (t:ts) = Chunk st t : inits_map2' t0 st t ts
+{-@ Decrease inits_map2_ 4 @-}
+inits_map2_ :: Text -> T.Text -> Text -> [Text] -> [Text]
+inits_map2_ _  _  _ []     = []
+inits_map2_ t0 st _ (t:ts) = Chunk st t : inits_map2_ t0 st t ts
 
 
-{-@ inits_app :: t:NonEmptyStrict
-        -> as:[{v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (tlength t)}]<{\cx cy -> ((ltlength cx) < (ltlength cy))}>
-        -> t0:{v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (tlength t)}
-        -> bs:[{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (tlength t) (ltlength t0))}]<{\dx dy -> ((ltlength dx) < (ltlength dy))}>
-        -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) 0 (ltlength t0))}]<{\ex ey -> ((ltlength ex) < (ltlength ey))}>
+{-@ inits_app :: t:TextNE
+        -> as:[{v:LText | (ltlength v) <= (tlength t)}]<{\cx cy -> ((ltlength cx) < (ltlength cy))}>
+        -> t0:{v:LText | (ltlength v) >= (tlength t)}
+        -> bs:[{v:LText | (BtwnEI (ltlength v) (tlength t) (ltlength t0))}]<{\dx dy -> ((ltlength dx) < (ltlength dy))}>
+        -> [{v:LText | (BtwnEI (ltlength v) 0 (ltlength t0))}]<{\ex ey -> ((ltlength ex) < (ltlength ey))}>
   @-}
 inits_app :: T.Text -> [Text] -> Text -> [Text] -> [Text]
 inits_app _ []     _  b = b
-inits_app t (a:as) t0 b = inits_app' t a as t0 b
+inits_app t (a:as) t0 b = inits_app_ t a as t0 b
 
-{-@ inits_app' :: t:NonEmptyStrict
-        -> a:{v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (tlength t)}
-        -> as:[{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (ltlength a) (tlength t))}]<{\cx cy -> ((ltlength cx) < (ltlength cy))}>
-        -> t0:{v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (tlength t)}
-        -> bs:[{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (tlength t) (ltlength t0))}]<{\dx dy -> ((ltlength dx) < (ltlength dy))}>
-        -> [{v:Data.Text.Lazy.Internal.Text | (BtwnEI (ltlength v) (ltlength a) (ltlength t0))}]<{\ex ey -> ((ltlength ex) < (ltlength ey))}>
+{-@ inits_app_ :: t:TextNE
+        -> a:{v:LText | (ltlength v) <= (tlength t)}
+        -> as:[{v:LText | (BtwnEI (ltlength v) (ltlength a) (tlength t))}]<{\cx cy -> ((ltlength cx) < (ltlength cy))}>
+        -> t0:{v:LText | (ltlength v) >= (tlength t)}
+        -> bs:[{v:LText | (BtwnEI (ltlength v) (tlength t) (ltlength t0))}]<{\dx dy -> ((ltlength dx) < (ltlength dy))}>
+        -> [{v:LText | (BtwnEI (ltlength v) (ltlength a) (ltlength t0))}]<{\ex ey -> ((ltlength ex) < (ltlength ey))}>
   @-}
-inits_app' :: T.Text -> Text -> [Text] -> Text -> [Text] -> [Text]
-inits_app' _ _ []     _  b = b
-inits_app' t _ (a:as) t0 b = a : inits_app' t a as t0 b
+{-@ Decrease inits_app_ 3 @-}
+inits_app_ :: T.Text -> Text -> [Text] -> Text -> [Text] -> [Text]
+inits_app_ _ _ []     _  b = b
+inits_app_ t _ (a:as) t0 b = a : inits_app_ t a as t0 b
 
 -- | /O(n)/ Return all final segments of the given 'Text', longest
 -- first.
-{-@ tails :: t:Data.Text.Lazy.Internal.Text
-          -> [{v:Data.Text.Lazy.Internal.Text | (ltlength v) <= (ltlength t)}]<{\hd tl ->
+{-@ tails :: t:LText -> [{v:LText | (ltlength v) <= (ltlength t)}]<{\hd tl ->
               ((ltlength hd) > (ltlength tl))}>
   @-}
 tails :: Text -> [Text]
@@ -1600,10 +1478,7 @@ tails ts@(Chunk t ts')
 --
 -- In (unlikely) bad cases, this function's time complexity degrades
 -- towards /O(n*m)/.
-{-@ splitOn :: {v:Data.Text.Lazy.Internal.Text | (ltlength v) > 0}
-            -> Data.Text.Lazy.Internal.Text
-            -> [Data.Text.Lazy.Internal.Text]
-  @-}
+{-@ splitOn :: LTextNE -> LText -> [LText] @-}
 splitOn :: Text                 -- ^ Text to split on
         -> Text                 -- ^ Input text
         -> [Text]
@@ -1615,22 +1490,20 @@ splitOn pat src
     -- go  _ []     cs = [cs]
     -- go !i (x:xs) cs = let h :*: t = splitAtWord (x-i) cs
     --                   in  h : go (x+l) xs (dropWords l t)
-    --LIQUID l = foldlChunks (\a (T.Text _ _ b) -> a + fromIntegral b) 0 pat
+    --LIQUID INLINE l = foldlChunks (\a (T.Text _ _ b) -> a + fromIntegral b) 0 pat
     l = ltlen pat
 
-{-@ ltlen :: t:Data.Text.Internal.Lazy.Text
-                 -> {v:Nat64 | v = (ltlen t)}
-  @-}
+{-@ ltlen :: t:LText -> {v:Nat64 | v = (ltlen t)} @-}
 ltlen :: Text -> Int64
 ltlen Empty                     = 0
 ltlen (Chunk (T.Text _ _ l) ts) = fromIntegral l + ltlen ts
 
-{-@ splitOn_go :: l:Nat64
-               -> i:Nat64
-               -> is:[{v:Nat64 | v >= i}]<{\ix iy -> (ix+l) <= iy}>
-               -> Text
-               -> [Text]
+{-@ splitOn_go :: l:Nat64 -> i:Nat64
+               -> is:[{v:Nat64 | v >= i}]<{\ix1 iy1 -> (ix1+l) <= iy1}>
+               -> LText
+               -> [LText]
   @-}
+{-@ Decrease splitOn_go 3 @-}
 splitOn_go :: Int64 -> Int64 -> [Int64] -> Text -> [Text]
 splitOn_go l  _ []     cs = [cs]
 splitOn_go l !i (x:xs) cs = let h :*: t = splitAtWord (x-i) cs
@@ -1651,11 +1524,12 @@ splitOn_go l !i (x:xs) cs = let h :*: t = splitAtWord (x-i) cs
 -- > split (=='a') []        == [""]
 split :: (Char -> Bool) -> Text -> [Text]
 split _ Empty = [Empty]
-split p (Chunk t0 ts0) = comb [] (T.split p t0) ts0
-  where comb acc (s:[]) Empty        = revChunks (s:acc) : []
-        comb acc (s:[]) (Chunk t ts) = comb (s:acc) (T.split p t) ts
-        comb acc (s:ss) ts           = revChunks (s:acc) : comb [] ss ts
-        comb _   []     _            = impossibleError "split"
+split p (Chunk t0 ts0) = comb [] ts0 (T.split p t0)
+        {-@ Decrease comb 2 3 @-}
+  where comb acc Empty        (s:[]) = revChunks (s:acc) : []
+        comb acc (Chunk t ts) (s:[]) = comb (s:acc) ts (T.split p t)
+        comb acc ts           (s:ss) = revChunks (s:acc) : comb [] ts ss
+        comb _   _            []     = impossibleError "split"
 {-# INLINE split #-}
 
 -- | /O(n)/ Splits a 'Text' into components of length @k@.  The last
@@ -1664,10 +1538,7 @@ split p (Chunk t0 ts0) = comb [] (T.split p t0) ts0
 --
 -- > chunksOf 3 "foobarbaz"   == ["foo","bar","baz"]
 -- > chunksOf 4 "haskell.org" == ["hask","ell.","org"]
-{-@ chunksOf :: k:Nat64
-             -> t:Data.Text.Lazy.Internal.Text
-             -> [{v0:Data.Text.Lazy.Internal.Text | (ltlength v0) <= k}]
-  @-}
+{-@ chunksOf :: k:Nat64 -> t:LText -> [{v:LText | (ltlength v) <= k}] @-}
 chunksOf :: Int64 -> Text -> [Text]
 chunksOf k = go
   where
@@ -1678,9 +1549,7 @@ chunksOf k = go
 
 -- | /O(n)/ Breaks a 'Text' up into a list of 'Text's at
 -- newline 'Char's. The resulting strings do not contain newlines.
-{-@ lines :: t:Data.Text.Lazy.Internal.Text
-          -> [{v0:Data.Text.Lazy.Internal.Text | (ltlength v0) <= (ltlength t)}]
-  @-}
+{-@ lines :: t:LText -> [{v:LText | (ltlength v) <= (ltlength t)}] @-}
 lines :: Text -> [Text]
 lines Empty = []
 lines t = let (l,t') = break ((==) '\n') t
@@ -1690,37 +1559,31 @@ lines t = let (l,t') = break ((==) '\n') t
 -- | /O(n)/ Breaks a 'Text' up into a list of words, delimited by 'Char's
 -- representing white space.
 words :: Text -> [Text]
---LIQUID words = L.filter (not . null) . split isSpace
 words = L.filter (not . null) . split isSpace
 {-# INLINE words #-}
 
 -- | /O(n)/ Joins lines, after appending a terminating newline to
 -- each.
-{-@ unlines :: ts:[Data.Text.Lazy.Internal.Text]
-            -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (sum_ltlengths ts)}
-  @-}
+{-@ unlines :: ts:[LText] -> {v:LText | (ltlength v) >= (sum_ltlengths ts)} @-}
 unlines :: [Text] -> Text
 --LIQUID unlines = concat . L.map (`snoc` '\n')
 unlines ts = concat $ unlines_map ts
 
-{-@ unlines_map :: ts:[Data.Text.Lazy.Internal.Text]
-                -> {v:[Data.Text.Lazy.Internal.Text] | (sum_ltlengths v) >= (sum_ltlengths ts)}
-  @-}
+{-@ unlines_map :: ts:[LText] -> {v:[LText] | (sum_ltlengths v) >= (sum_ltlengths ts)} @-}
 unlines_map :: [Text] -> [Text]
 unlines_map [] = []
 unlines_map (t:ts) = t `snoc` '\n' : unlines_map ts
 {-# INLINE unlines #-}
 
 -- | /O(n)/ Joins words using single space characters.
-{-@ unwords :: ts:[Data.Text.Lazy.Internal.Text]
-            -> {v:Data.Text.Lazy.Internal.Text | (ltlength v) >= (sum_ltlengths ts)}
-  @-}
+{-@ unwords :: ts:[LText] -> {v:LText | (ltlength v) >= (sum_ltlengths ts)} @-}
 unwords :: [Text] -> Text
 unwords = intercalate (singleton ' ')
 {-# INLINE unwords #-}
 
 -- | /O(n)/ The 'isPrefixOf' function takes two 'Text's and returns
 -- 'True' iff the first is a prefix of the second.  Subject to fusion.
+{-@ Decrease isPrefixOf 1 2 @-}
 isPrefixOf :: Text -> Text -> Bool
 isPrefixOf Empty _  = True
 isPrefixOf _ Empty  = False
@@ -1820,16 +1683,17 @@ stripPrefix p t
 commonPrefixes :: Text -> Text -> Maybe (Text,Text,Text)
 commonPrefixes Empty _ = Nothing
 commonPrefixes _ Empty = Nothing
-commonPrefixes a0 b0   = Just (go a0 b0 [])
+commonPrefixes a0 b0   = Just (cgo a0 b0 [])
   where
-    go t0@(Chunk x xs) t1@(Chunk y ys) ps
+    {-@ Decrease cgo 1 2 @-}
+    cgo t0@(Chunk x xs) t1@(Chunk y ys) ps
         = case T.commonPrefixes x y of
             Just (p,a,b)
-              | T.null a  -> go xs (chunk b ys) (p:ps)
-              | T.null b  -> go (chunk a xs) ys (p:ps)
+              | T.null a  -> cgo xs (chunk b ys) (p:ps)
+              | T.null b  -> cgo (chunk a xs) ys (p:ps)
               | otherwise -> (fromChunks (L.reverse (p:ps)),chunk a xs, chunk b ys)
             Nothing       -> (fromChunks (L.reverse ps),t0,t1)
-    go t0 t1 ps = (fromChunks (L.reverse ps),t0,t1)
+    cgo t0 t1 ps = (fromChunks (L.reverse ps),t0,t1)
 
 -- | /O(n)/ Return the prefix of the second string if its suffix
 -- matches the entire first string.

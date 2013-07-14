@@ -110,6 +110,14 @@ import qualified Foreign.C.Types
 liquid_thm_ptr_cmp :: Ptr a -> Ptr a -> Ptr a
 liquid_thm_ptr_cmp p q = undefined -- p -- LIQUID : make this undefined to suppress WARNING
 
+{-@ liquid_thm_ptr_cmp' :: p:PtrV a 
+                        -> q:{v:(PtrV a) | ((plen v) >= (plen p) && v != p && (pbase v) = (pbase p))} 
+                        -> {v: (PtrV a)  | ((v = p) && ((plen v) > 0) && ((plen q) > (plen p))) } 
+  @-}
+liquid_thm_ptr_cmp' :: Ptr a -> Ptr a -> Ptr a
+liquid_thm_ptr_cmp' p q = undefined 
+
+
 {-@ memcpy_ptr_baoff :: p:(Ptr a) 
                      -> RawBuffer b 
                      -> Int 
@@ -159,13 +167,13 @@ foldl1' = undefined
 null :: ByteString -> Bool
 null = undefined 
 
-{-@ foldl :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
-foldl :: (a -> Word8 -> a) -> a -> ByteString -> a
-foldl = undefined
+{- foldl :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
+-- foldl :: (a -> Word8 -> a) -> a -> ByteString -> a
+-- foldl = undefined
 
-{-@ foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
-foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a
-foldl' = undefined
+{- foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
+-- foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a
+-- foldl' = undefined
 
 {-@ empty :: {v:ByteString | (bLength v) = 0} @-} 
 empty :: ByteString
@@ -274,13 +282,13 @@ count = undefined
 replicate :: Int -> Word8 -> ByteString
 replicate  = undefined
 
-{-@ findIndex :: (Word8 -> Bool) -> b:ByteString -> (Maybe {v:Nat | v < (bLength b)}) @-}
-findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
-findIndex = undefined
+{- findIndex :: (Word8 -> Bool) -> b:ByteString -> (Maybe {v:Nat | v < (bLength b)}) @-}
+-- findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int
+-- findIndex = undefined
 
-{-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
-filter :: (Word8 -> Bool) -> ByteString -> ByteString
-filter = undefined
+{- filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
+-- filter :: (Word8 -> Bool) -> ByteString -> ByteString
+-- filter = undefined
 
 {-@ isPrefixOf :: ByteString -> ByteString -> Bool @-}
 isPrefixOf :: ByteString -> ByteString -> Bool 
@@ -289,15 +297,6 @@ isPrefixOf = undefined
 {-@ take :: n:Nat -> b:ByteString -> {v:ByteString | (bLength v) = (if (n <= (bLength b)) then n else (bLength b))} @-}
 take :: Int -> ByteString -> ByteString
 take = undefined
-
-{-@ rng :: n:Int -> {v:[{v1:Nat | v1 <= n }] | (len v) = n + 1} @-}
-rng :: Int -> [Int]
-rng = undefined
-
-{-@ pack :: cs:[Word8] -> {v:ByteString | (bLength v) = (len cs)} @-}
-pack :: [Word8] -> ByteString
-pack = undefined
-
 
 {-@ singleton :: Word8 -> {v:ByteString | (bLength v) = 1} @-}
 singleton :: Word8 -> ByteString
@@ -311,39 +310,30 @@ hPut = undefined
 hGet :: Handle -> Int -> IO ByteString
 hGet = undefined
 
+{-@ pack :: cs:[Word8] -> {v:ByteString | (bLength v) = (len cs)} @-}
+pack :: [Word8] -> ByteString
+pack = undefined
+
+{-@ unpack :: b:ByteString -> {v:[Word8] | (len v) = (bLength b)} @-}
+-- unpack :: ByteString -> [Word8]
+-- unpack = undefined
+
+unpackFoldr :: ByteString -> (Word8 -> a -> a) -> a -> a
+unpackFoldr = undefined
+
+
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
 
-{-@ scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteString | (bLength v) = 1 + (bLength b)}  @-}
-scanl :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
-#if !defined(LOOPU_FUSION)
-scanl f z ps = loopArr . loopUp (scanEFL f) z $ (ps `snoc` 0)
-#else
-scanl f z ps = loopArr . loopU (scanEFL f) z $ (ps `snoc` 0)
-#endif
+{-@ qualif FindIndices(v:Data.ByteString.Internal.ByteString,
+                       p:Data.ByteString.Internal.ByteString,
+                       n:Int):
+        (bLength v) = (bLength p) - n  @-}
 
 
-{-@ scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> b:ByteString -> {v:ByteStringNE | (bLength v) = 1 + (bLength b)}  @-}
-scanr :: (Word8 -> Word8 -> Word8) -> Word8 -> ByteString -> ByteString
-scanr f z ps = loopArr . loopDown (scanEFL (flip f)) z $ (0 `cons` ps) -- extra space
 
--- | 'scanr1' is a variant of 'scanr' that has no starting value argument.
--- LIQUID TODO
-{-@ scanr1 :: (Word8 -> Word8 -> Word8) -> b:ByteStringNE -> (ByteStringSZ b) @-}
-scanr1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
-scanr1 f ps
-    | null ps   = empty
-    | otherwise = scanr f (last ps) (init ps) -- todo, unsafe versions
-{-# INLINE scanr1 #-}
-
-{-@ scanl1 :: (Word8 -> Word8 -> Word8) -> b:ByteStringNE -> (ByteStringSZ b) @-}
-scanl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString
-scanl1 f ps
-    | null ps   = empty
-    | otherwise = scanl f (unsafeHead ps) (unsafeTail ps)
-{-# INLINE scanl1 #-}
 
 

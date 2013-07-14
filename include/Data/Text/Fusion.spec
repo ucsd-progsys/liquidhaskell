@@ -12,7 +12,7 @@ unstream      :: s:Data.Text.Fusion.Internal.Stream Char
 
 findIndex :: (Char -> Bool)
           -> s:Data.Text.Fusion.Internal.Stream Char
-          -> {v:Maybe {v0:Int | ((isJust v) => (Btwn v0 0 (slen s)))} | true}
+          -> (Maybe {v:Nat | v < (slen s)})
 
 mapAccumL :: (a -> Char -> (a,Char))
           -> a

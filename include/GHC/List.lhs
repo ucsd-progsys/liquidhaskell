@@ -126,9 +126,8 @@ null (_:_)              =  False
 length                  :: [a] -> Int
 length l                =  len l 0#
   where
-    --LIQUID len takes `l` as a constant 1st param in core
-    {-@ Decrease len 2 @-}
-    len :: [a] -> Int# -> Int
+    --LIQUID FIXME: leaving the type signature causes this to compile to very strange core
+    --LIQUID len :: [a] -> Int# -> Int
     len []     a# = I# a#
     len (_:xs) a# = len xs (a# +# 1#)
 
@@ -178,12 +177,13 @@ filterFB c p x r | p x       = x `c` r
 -- and hence the classic space leak on foldl (+) 0 xs
 
 foldl        :: (a -> b -> a) -> a -> [b] -> a
-foldl f z0 xs0 = lgo z0 xs0
+foldl f z0 xs0 = foldl_go z0 xs0
              where
-                --LIQUID lgo takes `f` as the first param, once compiled to core
-                {-@ Decrease lgo 3 @-}
-                lgo z []     =  z
-                lgo z (x:xs) = lgo (f z x) xs
+                --LIQUID RENAME: conflict with Bytestring.hs ...
+                --LIQUID FIXME: lgo takes 5 parameters once compiled to core
+                {-@ Decrease foldl_go 5 @-}
+                foldl_go z []     =  z
+                foldl_go z (x:xs) = foldl_go (f z x) xs
 
 -- | 'scanl' is similar to 'foldl', but returns a list of successive
 -- reduced values from the left:
@@ -261,12 +261,14 @@ iterateFB c f x = x `c` iterateFB c f (f x)
 
 
 -- | 'repeat' @x@ is an infinite list, with @x@ the value of every element.
+{-@ Strict GHC.List.repeat @-}
 repeat :: a -> [a]
 {-# INLINE [0] repeat #-}
 -- The pragma just gives the rules more chance to fire
 repeat x = xs where xs = x : xs
 
 {-# INLINE [0] repeatFB #-}     -- ditto
+{-@ Strict GHC.List.repeatFB @-}
 repeatFB :: (a -> b -> b) -> a -> b
 repeatFB c x = xs where xs = x `c` xs
 
@@ -290,6 +292,7 @@ replicate n x           =  take n (repeat x)
 -- on infinite lists.
 
 {-@ assert cycle        :: {v: [a] | len(v) > 0 } -> [a] @-}
+{-@ Strict GHC.List.cycle @-}
 cycle                   :: [a] -> [a]
 cycle []                = liquidError {- error -} "Prelude.cycle: empty list"
 cycle xs                = xs' where xs' = xs ++ xs'

@@ -339,7 +339,15 @@ type Size     = Int
     mlen(Bin s k v l r) = 1 + (mlen l) + (mlen r)
   @-}
 
+{-@ type SumMLen A B = {v:Nat | v = (mlen A) + (mlen B)} @-}
+
 {-@ invariant {v:Map k a | (mlen v) >= 0} @-}
+
+
+{-@ mlen :: m:Map k a -> {v:Nat | v = (mlen m)} @-}
+mlen :: Map k a -> Int
+mlen Tip = 0
+mlen (Bin s k v l r) = 1 + mlen l + mlen r
 
 {-@ type OMap k a = Map <{\root v -> v < root}, {\root v -> v > root}> k a @-}
 
@@ -679,17 +687,29 @@ singleton k x = Bin 1 k x Tip Tip
 -- See Note: Type of local 'go' function
 {-@ insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
 insert :: Ord k => k -> a -> Map k a -> Map k a
-insert = go
-  where
-    go :: Ord k => k -> a -> Map k a -> Map k a
-    STRICT_1_OF_3(go)
-    go kx x Tip = singleton kx x
-    go kx x (Bin sz ky y l r) =
-        case compare kx ky of
-                  -- Bin ky y (go kx x l) r 
-            LT -> balanceL ky y (go kx x l) r
-            GT -> balanceR ky y l (go kx x r)
-            EQ -> Bin sz kx x l r
+insert = insert_go
+--LIQUID insert = go
+--LIQUID   where
+--LIQUID     go :: Ord k => k -> a -> Map k a -> Map k a
+--LIQUID     STRICT_1_OF_3(go)
+--LIQUID     go kx x Tip = singleton kx x
+--LIQUID     go kx x (Bin sz ky y l r) =
+--LIQUID         case compare kx ky of
+--LIQUID                   -- Bin ky y (go kx x l) r 
+--LIQUID             LT -> balanceL ky y (go kx x l) r
+--LIQUID             GT -> balanceR ky y l (go kx x r)
+--LIQUID             EQ -> Bin sz kx x l r
+
+{-@ insert_go :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
+insert_go :: Ord k => k -> a -> Map k a -> Map k a
+STRICT_1_OF_3(insert_go)
+insert_go kx x Tip = singleton kx x
+insert_go kx x (Bin sz ky y l r) =
+    case compare kx ky of
+              -- Bin ky y (insert_go kx x l) r 
+        LT -> balanceL ky y (insert_go kx x l) r
+        GT -> balanceR ky y l (insert_go kx x r)
+        EQ -> Bin sz kx x l r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insert #-}
 #else
@@ -701,16 +721,26 @@ insert = go
 
 -- See Note: Type of local 'go' function
 insertR :: Ord k => k -> a -> Map k a -> Map k a
-insertR = go
-  where
-    go :: Ord k => k -> a -> Map k a -> Map k a
-    STRICT_1_OF_3(go)
-    go kx x Tip = singleton kx x
-    go kx x t@(Bin _ ky y l r) =
-        case compare kx ky of
-            LT -> balanceL ky y (go kx x l) r
-            GT -> balanceR ky y l (go kx x r)
-            EQ -> t
+insertR = insertR_go
+--LIQUID insertR = go
+--LIQUID   where
+--LIQUID     go :: Ord k => k -> a -> Map k a -> Map k a
+--LIQUID     STRICT_1_OF_3(go)
+--LIQUID     go kx x Tip = singleton kx x
+--LIQUID     go kx x t@(Bin _ ky y l r) =
+--LIQUID         case compare kx ky of
+--LIQUID             LT -> balanceL ky y (go kx x l) r
+--LIQUID             GT -> balanceR ky y l (go kx x r)
+--LIQUID             EQ -> t
+
+insertR_go :: Ord k => k -> a -> Map k a -> Map k a
+STRICT_1_OF_3(insertR_go)
+insertR_go kx x Tip = singleton kx x
+insertR_go kx x t@(Bin _ ky y l r) =
+    case compare kx ky of
+        LT -> balanceL ky y (insertR_go kx x l) r
+        GT -> balanceR ky y l (insertR_go kx x r)
+        EQ -> t
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insertR #-}
 #else
@@ -752,16 +782,27 @@ insertWith f = insertWithKey (\_ x' y' -> f x' y')
 
 {-@ insertWithKey :: (Ord k) => (k -> a -> a -> a) -> k -> a -> OMap k a -> OMap k a @-}
 insertWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
-insertWithKey = go
-  where
-    go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
-    STRICT_2_OF_4(go)
-    go _ kx x Tip = singleton kx x
-    go f kx x (Bin sy ky y l r) =
-        case compare kx ky of
-            LT -> balanceL ky y (go f kx x l) r
-            GT -> balanceR ky y l (go f kx x r)
-            EQ -> Bin sy kx (f kx x y) l r
+insertWithKey = insertWithKey_go
+--LIQUID insertWithKey = go
+--LIQUID   where
+--LIQUID     go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
+--LIQUID     STRICT_2_OF_4(go)
+--LIQUID     go _ kx x Tip = singleton kx x
+--LIQUID     go f kx x (Bin sy ky y l r) =
+--LIQUID         case compare kx ky of
+--LIQUID             LT -> balanceL ky y (go f kx x l) r
+--LIQUID             GT -> balanceR ky y l (go f kx x r)
+--LIQUID             EQ -> Bin sy kx (f kx x y) l r
+
+{-@ insertWithKey_go :: (Ord k) => (k -> a -> a -> a) -> k -> a -> OMap k a -> OMap k a @-}
+insertWithKey_go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
+STRICT_2_OF_4(insertWithKey_go)
+insertWithKey_go _ kx x Tip = singleton kx x
+insertWithKey_go f kx x (Bin sy ky y l r) =
+    case compare kx ky of
+        LT -> balanceL ky y (insertWithKey_go f kx x l) r
+        GT -> balanceR ky y l (insertWithKey_go f kx x r)
+        EQ -> Bin sy kx (f kx x y) l r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insertWithKey #-}
 #else
@@ -788,18 +829,31 @@ insertWithKey = go
 
 {-@ insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> OMap k a -> (Maybe a, OMap k a) @-}
 insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> (Maybe a, Map k a)
-insertLookupWithKey = go
-  where
-    go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> (Maybe a, Map k a)
-    STRICT_2_OF_4(go)
-    go _ kx x Tip = (Nothing, singleton kx x)
-    go f kx x (Bin sy ky y l r) =
-        case compare kx ky of
-            LT -> let (found, l') = go f kx x l
-                  in (found, balanceL ky y l' r)
-            GT -> let (found, r') = go f kx x r
-                  in (found, balanceR ky y l r')
-            EQ -> (Just y, Bin sy kx (f kx x y) l r)
+insertLookupWithKey = insertLookupWithKey_go
+--LIQUID insertLookupWithKey = go
+--LIQUID   where
+--LIQUID     go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> (Maybe a, Map k a)
+--LIQUID     STRICT_2_OF_4(go)
+--LIQUID     go _ kx x Tip = (Nothing, singleton kx x)
+--LIQUID     go f kx x (Bin sy ky y l r) =
+--LIQUID         case compare kx ky of
+--LIQUID             LT -> let (found, l') = go f kx x l
+--LIQUID                   in (found, balanceL ky y l' r)
+--LIQUID             GT -> let (found, r') = go f kx x r
+--LIQUID                   in (found, balanceR ky y l r')
+--LIQUID             EQ -> (Just y, Bin sy kx (f kx x y) l r)
+
+{-@ insertLookupWithKey_go :: Ord k => (k -> a -> a -> a) -> k -> a -> OMap k a -> (Maybe a, OMap k a) @-}
+insertLookupWithKey_go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> (Maybe a, Map k a)
+STRICT_2_OF_4(insertLookupWithKey_go)
+insertLookupWithKey_go _ kx x Tip = (Nothing, singleton kx x)
+insertLookupWithKey_go f kx x (Bin sy ky y l r) =
+    case compare kx ky of
+        LT -> let (found, l') = insertLookupWithKey_go f kx x l
+              in (found, balanceL ky y l' r)
+        GT -> let (found, r') = insertLookupWithKey_go f kx x r
+              in (found, balanceR ky y l r')
+        EQ -> (Just y, Bin sy kx (f kx x y) l r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insertLookupWithKey #-}
 #else
@@ -819,16 +873,27 @@ insertLookupWithKey = go
 -- See Note: Type of local 'go' function
 {-@ delete :: (Ord k) => k -> OMap k a -> OMap k a @-}
 delete :: Ord k => k -> Map k a -> Map k a
-delete = go
-  where
-    go :: Ord k => k -> Map k a -> Map k a
-    STRICT_1_OF_2(go)
-    go _ Tip = Tip
-    go k (Bin _ kx x l r) =
-        case compare k kx of
-            LT -> balanceR kx x (go k l) r
-            GT -> balanceL kx x l (go k r)
-            EQ -> glue kx l r
+delete = delete_go
+--LIQUID delete = go
+--LIQUID   where
+--LIQUID     go :: Ord k => k -> Map k a -> Map k a
+--LIQUID     STRICT_1_OF_2(go)
+--LIQUID     go _ Tip = Tip
+--LIQUID     go k (Bin _ kx x l r) =
+--LIQUID         case compare k kx of
+--LIQUID             LT -> balanceR kx x (go k l) r
+--LIQUID             GT -> balanceL kx x l (go k r)
+--LIQUID             EQ -> glue kx l r
+
+{-@ delete_go :: (Ord k) => k -> OMap k a -> OMap k a @-}
+delete_go :: Ord k => k -> Map k a -> Map k a
+STRICT_1_OF_2(delete_go)
+delete_go _ Tip = Tip
+delete_go k (Bin _ kx x l r) =
+    case compare k kx of
+        LT -> balanceR kx x (delete_go k l) r
+        GT -> balanceL kx x l (delete_go k r)
+        EQ -> glue kx l r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE delete #-}
 #else
@@ -901,18 +966,31 @@ update f = updateWithKey (\_ x -> f x)
 
 {-@ updateWithKey :: (Ord k) => (k -> a -> Maybe a) -> k -> OMap k a -> OMap k a @-}
 updateWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
-updateWithKey = go
-  where
-    go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
-    STRICT_2_OF_3(go)
-    go _ _ Tip = Tip
-    go f k(Bin sx kx x l r) =
-        case compare k kx of
-           LT -> balanceR kx x (go f k l) r
-           GT -> balanceL kx x l (go f k r)
-           EQ -> case f kx x of
-                   Just x' -> Bin sx kx x' l r
-                   Nothing -> glue kx l r
+updateWithKey = updateWithKey_go
+--LIQUID updateWithKey = go
+--LIQUID   where
+--LIQUID     go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
+--LIQUID     STRICT_2_OF_3(go)
+--LIQUID     go _ _ Tip = Tip
+--LIQUID     go f k(Bin sx kx x l r) =
+--LIQUID         case compare k kx of
+--LIQUID            LT -> balanceR kx x (go f k l) r
+--LIQUID            GT -> balanceL kx x l (go f k r)
+--LIQUID            EQ -> case f kx x of
+--LIQUID                    Just x' -> Bin sx kx x' l r
+--LIQUID                    Nothing -> glue kx l r
+{-@ updateWithKey_go :: (Ord k) => (k -> a -> Maybe a) -> k -> OMap k a -> OMap k a @-}
+updateWithKey_go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
+STRICT_2_OF_3(updateWithKey_go)
+updateWithKey_go _ _ Tip = Tip
+updateWithKey_go f k(Bin sx kx x l r) =
+    case compare k kx of
+       LT -> balanceR kx x (updateWithKey_go f k l) r
+       GT -> balanceL kx x l (updateWithKey_go f k r)
+       EQ -> case f kx x of
+               Just x' -> Bin sx kx x' l r
+               Nothing -> glue kx l r
+
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateWithKey #-}
 #else
@@ -932,18 +1010,32 @@ updateWithKey = go
 
 {-@ updateLookupWithKey :: (Ord k) => (k -> a -> Maybe a) -> k -> OMap k a -> (Maybe a, OMap k a) @-}
 updateLookupWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
-updateLookupWithKey = go
- where
-   go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
-   STRICT_2_OF_3(go)
-   go _ _ Tip = (Nothing,Tip)
-   go f k (Bin sx kx x l r) =
-          case compare k kx of
-               LT -> let (found,l') = go f k l in (found,balanceR kx x l' r)
-               GT -> let (found,r') = go f k r in (found,balanceL kx x l r')
-               EQ -> case f kx x of
-                       Just x' -> (Just x',Bin sx kx x' l r)
-                       Nothing -> (Just x,glue kx l r)
+updateLookupWithKey = updateLookupWithKey_go
+--LIQUID updateLookupWithKey = go
+--LIQUID  where
+--LIQUID    go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
+--LIQUID    STRICT_2_OF_3(go)
+--LIQUID    go _ _ Tip = (Nothing,Tip)
+--LIQUID    go f k (Bin sx kx x l r) =
+--LIQUID           case compare k kx of
+--LIQUID                LT -> let (found,l') = go f k l in (found,balanceR kx x l' r)
+--LIQUID                GT -> let (found,r') = go f k r in (found,balanceL kx x l r')
+--LIQUID                EQ -> case f kx x of
+--LIQUID                        Just x' -> (Just x',Bin sx kx x' l r)
+--LIQUID                        Nothing -> (Just x,glue kx l r)
+
+{-@ updateLookupWithKey_go :: (Ord k) => (k -> a -> Maybe a) -> k -> OMap k a -> (Maybe a, OMap k a) @-}
+updateLookupWithKey_go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
+STRICT_2_OF_3(updateLookupWithKey_go)
+updateLookupWithKey_go _ _ Tip = (Nothing,Tip)
+updateLookupWithKey_go f k (Bin sx kx x l r) =
+       case compare k kx of
+            LT -> let (found,l') = updateLookupWithKey_go f k l in (found,balanceR kx x l' r)
+            GT -> let (found,r') = updateLookupWithKey_go f k r in (found,balanceL kx x l r')
+            EQ -> case f kx x of
+                    Just x' -> (Just x',Bin sx kx x' l r)
+                    Nothing -> (Just x,glue kx l r)
+
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateLookupWithKey #-}
 #else
@@ -966,20 +1058,35 @@ updateLookupWithKey = go
 
 {-@ alter :: (Ord k) => (Maybe a -> Maybe a) -> k -> OMap k a -> OMap k a @-}
 alter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
-alter = go
-  where
-    go :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
-    STRICT_2_OF_3(go)
-    go f k Tip = case f Nothing of
-               Nothing -> Tip
-               Just x  -> singleton k x
+alter = alter_go
+--LIQUID alter = go
+--LIQUID  where
+--LIQUID    go :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
+--LIQUID    STRICT_2_OF_3(go)
+--LIQUID    go f k Tip = case f Nothing of
+--LIQUID               Nothing -> Tip
+--LIQUID               Just x  -> singleton k x
+--LIQUID
+--LIQUID    go f k (Bin sx kx x l r) = case compare k kx of
+--LIQUID               LT -> balance kx x (go f k l) r
+--LIQUID               GT -> balance kx x l (go f k r)
+--LIQUID               EQ -> case f (Just x) of
+--LIQUID                       Just x' -> Bin sx kx x' l r
+--LIQUID                       Nothing -> glue kx l r
 
-    go f k (Bin sx kx x l r) = case compare k kx of
-               LT -> balance kx x (go f k l) r
-               GT -> balance kx x l (go f k r)
-               EQ -> case f (Just x) of
-                       Just x' -> Bin sx kx x' l r
-                       Nothing -> glue kx l r
+alter_go :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
+STRICT_2_OF_3(alter_go)
+alter_go f k Tip = case f Nothing of
+           Nothing -> Tip
+           Just x  -> singleton k x
+
+alter_go f k (Bin sx kx x l r) = case compare k kx of
+           LT -> balance kx x (alter_go f k l) r
+           GT -> balance kx x l (alter_go f k r)
+           EQ -> case f (Just x) of
+                   Just x' -> Bin sx kx x' l r
+                   Nothing -> glue kx l r
+
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE alter #-}
 #else
@@ -1002,16 +1109,28 @@ alter = go
 
 {-@ findIndex :: (Ord k) => k -> OMap k a -> GHC.Types.Int @-}
 findIndex :: Ord k => k -> Map k a -> Int
-findIndex = go 0
-  where
-    go :: Ord k => Int -> k -> Map k a -> Int
-    STRICT_1_OF_3(go)
-    STRICT_2_OF_3(go)
-    go _   _ Tip  = error "Map.findIndex: element is not in the map"
-    go idx k (Bin _ kx _ l r) = case compare k kx of
-      LT -> go idx k l
-      GT -> go (idx + size l + 1) k r
-      EQ -> idx + size l
+findIndex = findIndex_go 0
+--LIQUID findIndex = go 0
+--LIQUID   where
+--LIQUID     go :: Ord k => Int -> k -> Map k a -> Int
+--LIQUID     STRICT_1_OF_3(go)
+--LIQUID     STRICT_2_OF_3(go)
+--LIQUID     go _   _ Tip  = error "Map.findIndex: element is not in the map"
+--LIQUID     go idx k (Bin _ kx _ l r) = case compare k kx of
+--LIQUID       LT -> go idx k l
+--LIQUID       GT -> go (idx + size l + 1) k r
+--LIQUID       EQ -> idx + size l
+
+{-@ findIndex_go :: (Ord k) => Int -> k -> OMap k a -> GHC.Types.Int @-}
+{-@ Decrease findIndex_go 4 @-}
+findIndex_go :: Ord k => Int -> k -> Map k a -> Int
+STRICT_1_OF_3(findIndex_go)
+STRICT_2_OF_3(findIndex_go)
+findIndex_go _   _ Tip  = error "Map.findIndex: element is not in the map"
+findIndex_go idx k (Bin _ kx _ l r) = case compare k kx of
+  LT -> findIndex_go idx k l
+  GT -> findIndex_go (idx + size l + 1) k r
+  EQ -> idx + size l
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE findIndex #-}
 #endif
@@ -1027,16 +1146,28 @@ findIndex = go 0
 -- See Note: Type of local 'go' function
 {-@ lookupIndex :: (Ord k) => k -> OMap k a -> Maybe GHC.Types.Int @-}
 lookupIndex :: Ord k => k -> Map k a -> Maybe Int
-lookupIndex = go 0
-  where
-    go :: Ord k => Int -> k -> Map k a -> Maybe Int
-    STRICT_1_OF_3(go)
-    STRICT_2_OF_3(go)
-    go _   _ Tip  = Nothing
-    go idx k (Bin _ kx _ l r) = case compare k kx of
-      LT -> go idx k l
-      GT -> go (idx + size l + 1) k r
-      EQ -> Just $! idx + size l
+lookupIndex = lookupIndex_go 0
+--LIQUID lookupIndex = go 0
+--LIQUID   where
+--LIQUID     go :: Ord k => Int -> k -> Map k a -> Maybe Int
+--LIQUID     STRICT_1_OF_3(go)
+--LIQUID     STRICT_2_OF_3(go)
+--LIQUID     go _   _ Tip  = Nothing
+--LIQUID     go idx k (Bin _ kx _ l r) = case compare k kx of
+--LIQUID       LT -> go idx k l
+--LIQUID       GT -> go (idx + size l + 1) k r
+--LIQUID       EQ -> Just $! idx + size l
+
+{-@ lookupIndex_go :: (Ord k) => Int -> k -> OMap k a -> Maybe GHC.Types.Int @-}
+{-@ Decrease lookupIndex_go 4 @-}
+lookupIndex_go :: Ord k => Int -> k -> Map k a -> Maybe Int
+STRICT_1_OF_3(lookupIndex_go)
+STRICT_2_OF_3(lookupIndex_go)
+lookupIndex_go _   _ Tip  = Nothing
+lookupIndex_go idx k (Bin _ kx _ l r) = case compare k kx of
+  LT -> lookupIndex_go idx k l
+  GT -> lookupIndex_go (idx + size l + 1) k r
+  EQ -> Just $! idx + size l
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupIndex #-}
 #endif
@@ -1376,7 +1507,7 @@ difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
                           -> {v: OMap k a | (RootBetween lo hi v) }                       
                           -> OMap {v: k | (KeyBetween lo hi v) } b 
                           -> OMap {v: k | (KeyBetween lo hi v) } a @-}
-{-@ Decrease hedgeDiff 4 @-}
+{-@ Decrease hedgeDiff 5 @-}
 hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
 hedgeDiff _  _   Tip _                  = Tip
 hedgeDiff blo bhi (Bin _ kx x l r) Tip  = join kx x (filterGt blo l) (filterLt bhi r)
@@ -2523,13 +2654,23 @@ splitLookup k t = k `seq`
 --------------------------------------------------------------------}
 
 {-@ join :: k:k -> a -> OMap {v:k | v < k} a -> OMap {v:k| v > k} a -> OMap k a @-}
-{-@ Decrease join 4 @-}
+{-@ Strict Data.Map.Base.join @-}
 join :: k -> a -> Map k a -> Map k a -> Map k a
 join kx x Tip r  = insertMin kx x r
 join kx x l Tip  = insertMax kx x l
 join kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
   | delta*sizeL < sizeR  = balanceL kz z (join kx x l lz) rz
   | delta*sizeR < sizeL  = balanceR ky y ly (join kx x ry r)
+  | otherwise            = bin kx x l r
+
+{-@ joinT :: k:k -> a -> a:OMap {v:k | v < k} a -> b:OMap {v:k| v > k} a -> SumMLen a b -> OMap k a @-}
+{-@ Decrease joinT 5 @-}
+joinT :: k -> a -> Map k a -> Map k a -> Int -> Map k a
+joinT kx x Tip r _ = insertMin kx x r
+joinT kx x l Tip _ = insertMax kx x l
+joinT kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz) d
+  | delta*sizeL < sizeR  = balanceL kz z (joinT kx x l lz (d-(mlen rz)-1)) rz
+  | delta*sizeR < sizeL  = balanceR ky y ly (joinT kx x ry r (d-(mlen ly)-1))
   | otherwise            = bin kx x l r
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
@@ -2550,12 +2691,23 @@ insertMin kx x t
   [merge l r]: merges two trees.
 --------------------------------------------------------------------}
 {-@ merge :: kcut:k -> OMap {v:k | v < kcut} a -> OMap {v:k| v > kcut} a -> OMap k a @-}
+{-@ Strict Data.Map.Base.merge @-}
 merge :: k -> Map k a -> Map k a -> Map k a
 merge _   Tip r   = r
 merge _   l Tip   = l
 merge kcut l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
   | delta*sizeL < sizeR = balanceL ky y (merge kcut l ly) ry
   | delta*sizeR < sizeL = balanceR kx x lx (merge kcut rx r)
+  | otherwise           = glue kcut l r
+
+{-@ mergeT :: kcut:k -> a:OMap {v:k | v < kcut} a -> b:OMap {v:k| v > kcut} a -> SumMLen a b -> OMap k a @-}
+{-@ Decrease mergeT 4 @-}
+mergeT :: k -> Map k a -> Map k a -> Int -> Map k a
+mergeT _   Tip r _   = r
+mergeT _   l Tip _   = l
+mergeT kcut l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry) d
+  | delta*sizeL < sizeR = balanceL ky y (mergeT kcut l ly (d-(mlen ry)-1)) ry
+  | delta*sizeR < sizeL = balanceR kx x lx (mergeT kcut rx r (d-(mlen lx)-1))
   | otherwise           = glue kcut l r
 
 {--------------------------------------------------------------------

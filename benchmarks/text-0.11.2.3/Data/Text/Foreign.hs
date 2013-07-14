@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns, CPP, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE PackageImports #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- |
 -- Module      : Data.Text.Foreign
 -- Copyright   : (c) 2009, 2010 Bryan O'Sullivan
@@ -49,11 +50,11 @@ import Foreign.ForeignPtr (ForeignPtr, mallocForeignPtrArray, withForeignPtr)
 import Foreign.Storable (peek, poke)
 
 --LIQUID
-import qualified Data.Text.Array
+import Data.Text.Array (Array(..), MArray(..))
 import qualified Data.Text.Unsafe
 import qualified Data.Word
 import qualified Foreign.Storable
-import qualified GHC.ST
+import GHC.ST (ST)
 import Language.Haskell.Liquid.Prelude
 
 
@@ -94,10 +95,7 @@ data I16 = I16 Int
 
 -- | /O(n)/ Create a new 'Text' from a 'Ptr' 'Word16' by copying the
 -- contents of the array.
-{-@ fromPtr :: p:(PtrV Data.Word.Word16)
-            -> l:{v:Data.Text.Foreign.I16 | ((getI16 v)+(getI16 v)) = (plen p)}
-            -> IO Data.Text.Internal.Text
-  @-}
+{-@ fromPtr :: p:(PtrV Word16) -> l:{v:I16 | ((getI16 v)*2) = (plen p)} -> IO Text @-}
 fromPtr :: Ptr Word16           -- ^ source array
         -> I16                  -- ^ length of source array (in 'Word16' units)
         -> IO Text
@@ -109,12 +107,12 @@ fromPtr ptr (I16 len) =
     return $! Text (liquidAssume (A.aLen arr == len) arr) 0 len
   where
     arr = A.run (A.new len >>= copy)
-    copy marr = loop ptr 0
+    copy marr = loop len ptr 0
       where
-        loop !p !i | i == len = return marr
-                   | otherwise = do
+        loop (d :: Int) !p !i | i == len = return marr
+                              | otherwise = do
           A.unsafeWrite marr i =<< unsafeIOToST (peek p)
-          loop (p `plusPtr` 2) (i + 1)
+          loop (d-1) (p `plusPtr` 2) (i + 1)
 
 -- $lowlevel
 --
@@ -170,18 +168,17 @@ dropWord16 (I16 n) t@(Text arr off len)
 
 -- | /O(n)/ Copy a 'Text' to an array.  The array is assumed to be big
 -- enough to hold the contents of the entire 'Text'.
-{-@ unsafeCopyToPtr :: t:Data.Text.Internal.Text
-                    -> {v:(PtrV Data.Word.Word16) | (plen v) >= ((tlen t)+(tlen t))}
+{-@ unsafeCopyToPtr :: t:Text -> {v:PtrV Word16 | (plen v) >= ((tlen t)*2)}
                     -> IO ()
   @-}
 unsafeCopyToPtr :: Text -> Ptr Word16 -> IO ()
-unsafeCopyToPtr (Text arr off len) ptr = loop ptr off
+unsafeCopyToPtr (Text arr off len) ptr = loop len ptr off
   where
     end = off + len
-    loop !p !i | i == end  = return ()
-               | otherwise = do
+    loop (d :: Int) !p !i | i == end  = return ()
+                          | otherwise = do
       poke p (A.unsafeIndex arr i)
-      loop (p `plusPtr` 2) (i + 1)
+      loop (d-1) (p `plusPtr` 2) (i + 1)
 
 
 -- | /O(n)/ Perform an action on a temporary, mutable copy of a
