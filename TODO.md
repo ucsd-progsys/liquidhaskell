@@ -17,19 +17,12 @@ TODO
 
 * have liquid-fixpoint sort checker RETURN ERROR (rather than errorstar-inside) so we can give nicer messages.
 
-
 * qualified names break spec imports -- tests/todo/qualifiedvector.hs 
 
-* DEFAULT "true" spec for all exported top-level functions (tests/neg/truespec.hs)
-  -> may break a LOT of regressions
-
-* [seidel] benchmarks: Data.Text
 * benchmarks: stackset-core
 * benchmarks: Data.List (foldr)
 * benchmarks: Data.List (foldr) 
 * benchmarks: mcbrides stack machine
-* Move stuff into Types.hs
-    - remove `toType` and  generalize `typeSort` to work for all RefTypables
 
 Bytestring
 ==========
@@ -47,10 +40,6 @@ Ordered by dependency.
   1012 Data/ByteString/Char8.hs
 
   6738 total
-
-
-
-
 
 Text
 ====
@@ -154,7 +143,6 @@ See tests/pos/Mod2.hs [Which imports a measure from Mod1.hs]
     [STOP] Get tests to run WITHOUT after deleting *redundant*
 
     import qualified Mod1
-
 
 0. NO MONOLITHIC "bare".
  
@@ -279,12 +267,6 @@ Paper: Liquid Types in the Real World)
         > key-dependence
         > balance (NO)
         
-->   	Data.Bytestring (& Client?)
-
-->   	Data.Text (client of bytestring?)
-        http://hackage.haskell.org/packages/archive/text/0.11.2.2/doc/html/Data-Text-Lazy-Internal.html
-        (See "main invariant")
-
 ->   	Xmonad real properties
 
 ->   	Data.Vector
@@ -302,7 +284,6 @@ Other Benchmarks
 ->   FingerTrees (containers / Data.Seq)
 ->   Union-Find (PLDI09 port if necessary?)
 ->   BDD        (PLDI09 port if necessary?)
-->   Bodik's hairy sparse matrix benchmark?
 
 
 [NO] Data.Set (Map redux)
@@ -318,7 +299,6 @@ Paper #2
 
 -> Haskell + DB / Yesod / Snap
 -> NDM/catch benchmarks (with refinements)
-
 
 Known Bugs 
 ==========
