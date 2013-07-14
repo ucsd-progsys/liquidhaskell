@@ -1,4 +1,10 @@
 
+// for unfoldrN 
+qualif PLenNat(v:GHC.Ptr.Ptr a)              : 0 <= (plen v)
+
+// for UnpackFoldrINLINED
+qualif UnpackFoldrINLINED(v:List a, n:int, acc:List a): (len v) = (n + 1 + (len acc))
+
 // for ByteString.inits
 qualif BLenGt(v:Data.ByteString.Internal.ByteString, n:int): (bLength v) > n
 
@@ -15,6 +21,7 @@ qualif SplitWith(v:List Data.ByteString.Internal.ByteString, l:int):
 // for ByteString.unfoldrN
 qualif PtrDiff(v:int, i:int, p:GHC.Ptr.Ptr a): 
   (i - v) <= (plen p)
+
 
 // for ByteString.split
 qualif BSValidOff(v:int,l:int,p:GHC.ForeignPtr.ForeignPtr a): 

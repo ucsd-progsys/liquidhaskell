@@ -744,22 +744,24 @@ readInt :: ByteString -> Maybe (Int, ByteString)
 readInt Empty        = Nothing
 readInt (Chunk x xs) =
         case w2c (B.unsafeHead x) of
-            '-' -> loop True  0 0 (B.unsafeTail x) xs
-            '+' -> loop False 0 0 (B.unsafeTail x) xs
-            _   -> loop False 0 0 x xs
+            '-' -> loop True  0 0 xs (B.unsafeTail x)
+            '+' -> loop False 0 0 xs (B.unsafeTail x)
+            _   -> loop False 0 0 xs x
 
-    where loop :: Bool -> Int -> Int -> B.ByteString -> ByteString -> Maybe (Int, ByteString)
+    where loop :: Bool -> Int -> Int -> ByteString -> B.ByteString -> Maybe (Int, ByteString)
+          --LIQUID swap params 4 and 5
+          {-@ Decrease loop 4 5 @-}
           STRICT5(loop)
-          loop neg i n c cs
+          loop neg i n cs c
               | B.null c = case cs of
                              Empty          -> end  neg i n c  cs
-                             (Chunk c' cs') -> loop neg i n c' cs'
+                             (Chunk c' cs') -> loop neg i n cs' c'
               | otherwise =
                   case B.unsafeHead c of
                     w | w >= 0x30
                      && w <= 0x39 -> loop neg (i+1)
                                           (n * 10 + (fromIntegral w - 0x30))
-                                          (B.unsafeTail c) cs
+                                          cs (B.unsafeTail c)
                       | otherwise -> end neg i n c cs
 
           end _   0 _ _  _   = Nothing
@@ -788,39 +790,59 @@ readInteger (Chunk c0 cs0) =
 
           first' c cs = case B.unsafeHead c of
               w | w >= 0x30 && w <= 0x39 -> Just $
-                  loop 1 (fromIntegral w - 0x30) [] (B.unsafeTail c) cs
+                  loop 1 (fromIntegral w - 0x30) [] cs (B.unsafeTail c)
                 | otherwise              -> Nothing
 
+          --LIQUID swap params 4 and 5
           loop :: Int -> Int -> [Integer]
-               -> B.ByteString -> ByteString -> (Integer, ByteString)
+               -> ByteString -> B.ByteString -> (Integer, ByteString)
           STRICT5(loop)
-          loop d acc ns c cs
+          loop d acc ns cs c
               | B.null c = case cs of
                              Empty          -> combine d acc ns c cs
-                             (Chunk c' cs') -> loop d acc ns c' cs'
+                             (Chunk c' cs') -> loop d acc ns cs' c'
               | otherwise =
                   case B.unsafeHead c of
                    w | w >= 0x30 && w <= 0x39 ->
                        if d < 9 then loop (d+1)
                                           (10*acc + (fromIntegral w - 0x30))
-                                          ns (B.unsafeTail c) cs
+                                          ns cs (B.unsafeTail c)
                                 else loop 1 (fromIntegral w - 0x30)
                                           (fromIntegral acc : ns)
-                                          (B.unsafeTail c) cs
+                                          cs (B.unsafeTail c)
                      | otherwise -> combine d acc ns c cs
 
           combine _ acc [] c cs = end (fromIntegral acc) c cs
           combine d acc ns c cs =
               end (10^d * combine1 1000000000 ns + fromIntegral acc) c cs
 
-          combine1 _ [n] = n
-          combine1 b ns  = combine1 (b*b) $ combine2 b ns
-
-          combine2 b (n:m:ns) = let t = n+m*b in t `seq` (t : combine2 b ns)
-          combine2 _ ns       = ns
+          --LIQUID combine1 _ [n] = n
+          --LIQUID combine1 b ns  = combine1 (b*b) $ combine2 b ns
+          --LIQUID 
+          --LIQUID combine2 b (n:m:ns) = let t = n+m*b in t `seq` (t : combine2 b ns)
+          --LIQUID combine2 _ ns       = ns
 
           end n c cs = let c' = chunk c cs
                         in c' `seq` (n, c')
+
+{-@ combine1 :: Integer -> x:{v:[Integer] | (len v) > 0}
+             -> Integer
+  @-}
+{-@ Decrease combine1 2 @-}
+combine1 :: Integer -> [Integer] -> Integer
+combine1 _ []  = error "impossible"
+combine1 _ [n] = n
+combine1 b ns  = combine1 (b*b) $ combine2 b ns
+
+{-@ combine2 :: Integer -> x:[Integer]
+             -> {v:[Integer] | (((len x) > 1)
+                             ? (((len v) <  (len x)) && ((len v) > 0))
+                             : ((len v) <= (len x)))}
+  @-}
+{-@ Decrease combine2 2 @-}
+combine2 :: Integer -> [Integer] -> [Integer]
+combine2 b (n:m:ns) = let t = m*b + n in t `seq` (t : combine2 b ns)
+combine2 _ ns       = ns
 
 -- | Read an entire file /lazily/ into a 'ByteString'. Use 'text mode'
 -- on Windows to interpret newlines

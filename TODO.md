@@ -32,8 +32,8 @@ Ordered by dependency.
    148 Data/ByteString/Lazy/Internal.hs     [OK]
    297 Data/ByteString/Unsafe.hs            [OK+T]
    509 Data/ByteString/Internal.hs          [OK+T]
-   700 Data/ByteString/Fusion{T}.hs         [OK]
-  1928 Data/ByteString.hs                   [OK]
+   700 Data/ByteString/Fusion.hs            [OK+T]
+  1928 Data/ByteString.hs                   [OK+0.5T]
   
   1322 Data/ByteString/Lazy.hs               
    822 Data/ByteString/Lazy/Char8.hs
@@ -89,16 +89,54 @@ Text
    139 ./Data/Text.small.hs
  12668 total
 
-****************************** WARNING: Data/ByteString/Fusion.hs:280:28-34 *****************************
-****************************** WARNING: Data/ByteString/Fusion.hs:422:48-56 *****************************
-****************************** WARNING: Data/ByteString/Fusion.hs:434:48-62 *****************************
-****************************** WARNING: Data/ByteString/Fusion.hs:446:37-45 *****************************
-****************************** WARNING: Data/ByteString/Fusion.hs:456:23-25 *****************************
-****************************** WARNING: Data/ByteString/Fusion.hs:467:30-38 *****************************
-****************************** WARNING: Data/ByteString/Fusion.hs:468:30-38 *****************************
+HEREHEREHEREHEREHEREHERE
 
+split.1.T.hs:305:75-77
+split.1.T.hs:350:67
+split.1.T.hs:409:40
+split.1.T.hs:416:18-20
+split.1.T.hs:451:44-46
+split.1.T.hs:466:43-45
+split.1.T.hs:483:60-62
+split.1.T.hs:498:41-43
+split.1.T.hs:499:41-43
+split.1.T.hs:625:44-46
+split.1.T.hs:626:44-46
+split.1.T.hs:641:40-42
+split.1.T.hs:711:23-25
+split.1.T.hs:861:27-28
 
+****************************** Termination Warnings: *****************************
+Data/ByteString.split.1.T.hs:520:7-8: No decreasing parameter
+Termination Analysis not supported for mutual recursionin definitions of [splitLoop, splitWith0]
+Data/ByteString.split.1.T.hs:410:11-13: No decreasing parameter
 
+Termination
+
+1. GHC.List
+
+2. Data.Map
+    Nice Examples?
+
+3. Splay
+    
+    Nice UNION example?
+
+4. ByteString
+     297 Data/ByteString/Unsafe.hs            [OK+T]
+     509 Data/ByteString/Internal.hs          [OK+T]
+     700 Data/ByteString/Fusion.hs            [OK+T]
+    1928 Data/ByteString.hs                   [OK+0.5T]
+
+CANNOT PROVE TERMINATION EVER!
+
+{-@ unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString @-}
+unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
+unfoldr f = concat . unfoldChunk 32 64
+  where unfoldChunk n n' x =
+          case unfoldrN n f x of
+            (s, Nothing) -> s : []
+            (s, Just x') -> s : unfoldChunk n' (n+n') x'
 
 Liquid-Fixpoint
 ===============
@@ -481,21 +519,4 @@ McBride's Stack Machine youtube mcbride icfp 2012 monday keynote agda-curious
     run                          :: is:[Instr] -> {v:[Val] | len(v) >= needs(is)} -> [Val]
     run (Add:is)      (x1:x2:vs) = run is (x1 + x2 : vs)
     run (Push v : is) vs         = run is (v : vs)
-
-
-change .html fix (cat fix# leave name)
-
-fix transformations 	*  see list insert for rec
-											*  move transformations to initial statgw st anormalized
-
-deptup???
-transpose???
-
-------------------------------------------------------
-
-Constrains : split[C|W], unifyS :add c1 == c2 in Class & ConApp
-
-unifyS do I really need to keep track of preds?
-
-	eg neg concat1 -> CB REC trueTy
 

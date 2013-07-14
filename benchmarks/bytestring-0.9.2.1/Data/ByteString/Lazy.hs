@@ -243,6 +243,116 @@ import Foreign.ForeignPtr       (ForeignPtr)
 import qualified Foreign.C.String
 import qualified Foreign.C.Types
 
+-- ByteString qualifiers
+{-@ qualif LBLensAcc(v:Data.ByteString.Lazy.Internal.ByteString,
+                     bs:List Data.ByteString.Lazy.Internal.ByteString,
+                     b:Data.ByteString.Lazy.Internal.ByteString):
+        lbLength(v) = lbLengths(bs) + lbLength(b)
+  @-}
+
+{-@ qualif ByteStringNE(v:Data.ByteString.Internal.ByteString): (bLength v) > 0 @-}
+{-@ qualif BLengthsAcc(v:List Data.ByteString.Internal.ByteString,
+                       c:Data.ByteString.Internal.ByteString,
+                       cs:List Data.ByteString.Internal.ByteString):
+        (bLengths v) = (bLength c) + (bLengths cs)
+  @-}
+
+{-@ qualif BLengthsSum(v:List List a, bs:List Data.ByteString.Internal.ByteString):
+       (sumLens v) = (bLengths bs)
+  @-}
+
+{-@ qualif BLenLE(v:Data.ByteString.Internal.ByteString, n:int): (bLength v) <= n @-}
+{-@ qualif BLenEq(v:Data.ByteString.Internal.ByteString,
+                  b:Data.ByteString.Internal.ByteString):
+       (bLength v) = (bLength b)
+  @-}
+
+{-@ qualif BLenAcc(v:int,
+                   b1:Data.ByteString.Internal.ByteString,
+                   b2:Data.ByteString.Internal.ByteString):
+       v = (bLength b1) + (bLength b2)
+  @-}
+{-@ qualif BLenAcc(v:int,
+                   b:Data.ByteString.Internal.ByteString,
+                   n:int):
+       v = (bLength b) + n
+  @-}
+
+-- lazy ByteString qualifiers
+{-@ qualif LByteStringN(v:Data.ByteString.Lazy.Internal.ByteString, n:int): (lbLength v) = n @-}
+{-@ qualif LByteStringNE(v:Data.ByteString.Lazy.Internal.ByteString): (lbLength v) > 0 @-}
+{-@ qualif LByteStringSZ(v:Data.ByteString.Lazy.Internal.ByteString,
+                         b:Data.ByteString.Lazy.Internal.ByteString):
+        (lbLength v) = (lbLength b)
+  @-}
+
+{-@ qualif LBLenAcc(v:int,
+                    b1:Data.ByteString.Lazy.Internal.ByteString,
+                    b2:Data.ByteString.Lazy.Internal.ByteString):
+       v = (lbLength b1) + (lbLength b2)
+  @-}
+
+{-@ qualif LBLenAcc(v:int,
+                    b:Data.ByteString.Lazy.Internal.ByteString,
+                    n:int):
+       v = (lbLength b) + n
+  @-}
+
+{-@ qualif Chunk(v:Data.ByteString.Lazy.Internal.ByteString,
+                 sb:Data.ByteString.Internal.ByteString,
+                 lb:Data.ByteString.Lazy.Internal.ByteString):
+       (lbLength v) = (bLength sb) + (lbLength lb)
+  @-}
+
+--LIQUID for the myriad `comb` inner functions
+{-@ qualif LBComb(v:List Data.ByteString.Lazy.Internal.ByteString,
+                  acc:List Data.ByteString.Internal.ByteString,
+                  ss:List Data.ByteString.Internal.ByteString,
+                  cs:Data.ByteString.Lazy.Internal.ByteString):
+        ((lbLengths v) + (len v) - 1) = ((bLengths acc) + ((bLengths ss) + (len ss) - 1) + (lbLength cs))
+  @-}
+
+{-@ qualif LBGroup(v:List Data.ByteString.Lazy.Internal.ByteString,
+                   acc:List Data.ByteString.Internal.ByteString,
+                   ss:List Data.ByteString.Internal.ByteString,
+                   cs:Data.ByteString.Lazy.Internal.ByteString):
+        (lbLengths v) = ((bLengths acc) + (bLengths ss) + (lbLength cs))
+  @-}
+
+{-@ qualif LBLenIntersperse(v:Data.ByteString.Lazy.Internal.ByteString,
+                            sb:Data.ByteString.Internal.ByteString,
+                            lb:Data.ByteString.Lazy.Internal.ByteString):
+        (lbLength v) = ((bLength sb) * 2) + (lbLength lb)
+ @-}
+
+{-@ qualif BLenDouble(v:Data.ByteString.Internal.ByteString,
+                      b:Data.ByteString.Internal.ByteString):
+        (bLength v) = (bLength b) * 2
+ @-}
+
+{-@ qualif LBLenDouble(v:Data.ByteString.Lazy.Internal.ByteString,
+                       b:Data.ByteString.Lazy.Internal.ByteString):
+        (lbLength v) = (lbLength b) * 2
+ @-}
+
+{-@ qualif RevChunksAcc(v:Data.ByteString.Lazy.Internal.ByteString,
+                        acc:Data.ByteString.Lazy.Internal.ByteString,
+                        cs:List Data.ByteString.Internal.ByteString):
+        (lbLength v) = (lbLength acc) + (bLengths cs)
+  @-}
+
+{-@ qualif LBSumLens(v:Data.ByteString.Lazy.Internal.ByteString,
+                     z:Data.ByteString.Lazy.Internal.ByteString,
+                     cs:List List a):
+        (lbLength v) = (lbLength z) + (sumLens cs)
+  @-}
+{-@ qualif LBCountAcc(v:int,
+                     c:Data.ByteString.Internal.ByteString,
+                     cs:Data.ByteString.Lazy.Internal.ByteString):
+       v <= (bLength c) + (lbLength cs)
+  @-}
+
+
 -- -----------------------------------------------------------------------------
 --
 -- Useful macros, until we have bang patterns
@@ -316,8 +426,10 @@ pack :: [Word8] -> ByteString
 --LIQUID INLINE pack ws = L.foldr (Chunk . S.pack) Empty (chunks defaultChunkSize ws)
 pack ws = go Empty (chunks defaultChunkSize ws)
   where
+    {-@ Decrease go 2 @-}
     go z []     = z
     go z (c:cs) = Chunk (S.pack c) (go z cs)
+    {-@ Decrease chunks 2 @-}
     chunks :: Int -> [a] -> [[a]]
     chunks _    [] = []
     chunks size xs = case L.splitAt size xs of
@@ -342,7 +454,7 @@ fromChunks (c:cs) = chunk c (fromChunks cs)
 -- | /O(n)/ Convert a lazy 'ByteString' into a list of strict 'ByteString'
 {-@ toChunks :: b:LByteString -> {v:[ByteString] | (bLengths v) = (lbLength b)} @-}
 toChunks :: ByteString -> [S.ByteString]
---LIQUID toChunks cs = foldrChunks (:) [] cs
+--LIQUID GHOST toChunks cs = foldrChunks (:) [] cs
 toChunks cs = foldrChunks (const (:)) [] cs
 
 ------------------------------------------------------------------------
@@ -375,7 +487,7 @@ null _     = False
 -- | /O(n\/c)/ 'length' returns the length of a ByteString as an 'Int64'
 {-@ length :: b:LByteString -> {v:Int64 | v = (lbLength b)} @-}
 length :: ByteString -> Int64
---LIQUID length cs = foldlChunks (\n c -> n + fromIntegral (S.length c)) 0 cs
+--LIQUID GHOST length cs = foldlChunks (\n c -> n + fromIntegral (S.length c)) 0 cs
 length cs = foldrChunks (\_ c n -> n + fromIntegral (S.length c)) 0 cs
 {-# INLINE length #-}
 
@@ -409,7 +521,7 @@ cons' w cs                             = Chunk (S.singleton w) cs
 -- | /O(n\/c)/ Append a byte to the end of a 'ByteString'
 {-@ snoc :: b:LByteString -> Word8 -> {v:LByteString | (lbLength v) = ((lbLength b) + 1)} @-}
 snoc :: ByteString -> Word8 -> ByteString
---LIQUID snoc cs w = foldrChunks Chunk (singleton w) cs
+--LIQUID GHOST snoc cs w = foldrChunks Chunk (singleton w) cs
 snoc cs w = foldrChunks (const Chunk) (singleton w) cs
 {-# INLINE snoc #-}
 
@@ -472,7 +584,7 @@ init (Chunk c0 cs0) = go c0 cs0
            -> {v:LByteString | (lbLength v) = (lbLength b1) + (lbLength b2)}
   @-}
 append :: ByteString -> ByteString -> ByteString
---LIQUID append xs ys = foldrChunks Chunk ys xs
+--LIQUID GHOST append xs ys = foldrChunks Chunk ys xs
 append xs ys = foldrChunks (const Chunk) ys xs
 {-# INLINE append #-}
 
@@ -483,19 +595,21 @@ append xs ys = foldrChunks (const Chunk) ys xs
 -- element of @xs@.
 {-@ map :: (Word8 -> Word8) -> b:LByteString -> (LByteStringSZ b) @-}
 map :: (Word8 -> Word8) -> ByteString -> ByteString
-map f s = go s
+map f s = map_go s
     where
-        go Empty        = Empty
-        go (Chunk x xs) = Chunk y ys
+        --LIQUID RENAME
+        map_go Empty        = Empty
+        map_go (Chunk x xs) = Chunk y ys
             where
                 y  = S.map f x
-                ys = go xs
+                ys = map_go xs
 {-# INLINE map #-}
 
 -- | /O(n)/ 'reverse' @xs@ returns the elements of @xs@ in reverse order.
 {-@ reverse :: b:LByteString -> (LByteStringSZ b) @-}
 reverse :: ByteString -> ByteString
 reverse cs0 = rev Empty cs0
+        {-@ Decrease rev 2 @-}
   where rev a Empty        = a
         rev a (Chunk c cs) = rev (Chunk (S.reverse c) a) cs
 {-# INLINE reverse #-}
@@ -511,11 +625,11 @@ reverse cs0 = rev Empty cs0
 intersperse :: Word8 -> ByteString -> ByteString
 intersperse _ Empty        = Empty
 intersperse w (Chunk c cs) = Chunk (S.intersperse w c)
-                                   --LIQUID (foldrChunks (Chunk . intersperse') Empty cs)
+                                   --LIQUID GHOST (foldrChunks (Chunk . intersperse') Empty cs)
                                    (foldrChunks (\_ c cs -> Chunk (intersperse' c) cs) Empty cs)
   where intersperse' :: S.ByteString -> S.ByteString
         intersperse' (S.PS fp o l) =
-          S.unsafeCreate {-LIQUID (2*l)-} (l+l) $ \p' -> withForeignPtr fp $ \p -> do
+          S.unsafeCreate {-LIQUID MULTIPLY (2*l)-} (l+l) $ \p' -> withForeignPtr fp $ \p -> do
             poke p' w
             S.c_intersperse (p' `plusPtr` 1) (p `plusPtr` o) (fromIntegral l) w
 
@@ -550,7 +664,7 @@ foldl' f z = go z
 -- (typically the right-identity of the operator), and a ByteString,
 -- reduces the ByteString using the binary operator, from right to left.
 foldr :: (Word8 -> a -> a) -> a -> ByteString -> a
---LIQUID foldr k z cs = foldrChunks (flip (S.foldr k)) z cs
+--LIQUID GHOST foldr k z cs = foldrChunks (flip (S.foldr k)) z cs
 foldr k z cs = foldrChunks (const $ flip (S.foldr k)) z cs
 {-# INLINE foldr #-}
 
@@ -564,7 +678,7 @@ foldr k z cs = foldrChunks (const $ flip (S.foldr k)) z cs
 {-@ foldl1 :: (Word8 -> Word8 -> Word8) -> LByteStringNE -> Word8 @-}
 foldl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
 foldl1 _ Empty        = errorEmptyList "foldl1"
---LIQUID foldl1 f (Chunk c cs) = foldl f (S.unsafeHead c) (Chunk (S.unsafeTail c) cs)
+--LIQUID SAFETY foldl1 f (Chunk c cs) = foldl f (S.unsafeHead c) (Chunk (S.unsafeTail c) cs)
 foldl1 f (Chunk c cs) = foldl f (S.unsafeHead c)
                                 (case S.unsafeTail c of
                                    c' | S.null c' -> cs
@@ -574,7 +688,7 @@ foldl1 f (Chunk c cs) = foldl f (S.unsafeHead c)
 {-@ foldl1' :: (Word8 -> Word8 -> Word8) -> LByteStringNE -> Word8 @-}
 foldl1' :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
 foldl1' _ Empty        = errorEmptyList "foldl1'"
---LIQUID foldl1' f (Chunk c cs) = foldl' f (S.unsafeHead c) (Chunk (S.unsafeTail c) cs)
+--LIQUID SAFETY foldl1' f (Chunk c cs) = foldl' f (S.unsafeHead c) (Chunk (S.unsafeTail c) cs)
 foldl1' f (Chunk c cs) = foldl' f (S.unsafeHead c)
                                  (case S.unsafeTail c of
                                     c' | S.null c' -> cs
@@ -620,7 +734,7 @@ concatMap f (Chunk c0 cs0) = to c0 cs0
 -- | /O(n)/ Applied to a predicate and a ByteString, 'any' determines if
 -- any element of the 'ByteString' satisfies the predicate.
 any :: (Word8 -> Bool) -> ByteString -> Bool
---LIQUID any f cs = foldrChunks (\c rest -> S.any f c || rest) False cs
+--LIQUID GHOST any f cs = foldrChunks (\c rest -> S.any f c || rest) False cs
 any f cs = foldrChunks (\_ c rest -> S.any f c || rest) False cs
 {-# INLINE any #-}
 -- todo fuse
@@ -628,7 +742,7 @@ any f cs = foldrChunks (\_ c rest -> S.any f c || rest) False cs
 -- | /O(n)/ Applied to a predicate and a 'ByteString', 'all' determines
 -- if all elements of the 'ByteString' satisfy the predicate.
 all :: (Word8 -> Bool) -> ByteString -> Bool
---LIQUID all f cs = foldrChunks (\c rest -> S.all f c && rest) True cs
+--LIQUID GHOST all f cs = foldrChunks (\c rest -> S.all f c && rest) True cs
 all f cs = foldrChunks (\_ c rest -> S.all f c && rest) True cs
 {-# INLINE all #-}
 -- todo fuse
@@ -655,12 +769,14 @@ minimum (Chunk c cs) = foldlChunks (\n c' -> n `min` S.minimum c')
 -- final value of this accumulator together with the new ByteString.
 {-@ mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> b:LByteString -> (acc, LByteStringSZ b) @-}
 mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
-mapAccumL f s0 cs0 = go s0 cs0
+mapAccumL f s0 cs0 = mapAccum_go s0 cs0
   where
-    go s Empty        = (s, Empty)
-    go s (Chunk c cs) = (s'', Chunk c' cs')
+    --LIQUID RENAME
+    {-@ Decrease mapAccum_go 5 @-}
+    mapAccum_go s Empty        = (s, Empty)
+    mapAccum_go s (Chunk c cs) = (s'', Chunk c' cs')
         where (s',  c')  = S.mapAccumL f s c
-              (s'', cs') = go s' cs
+              (s'', cs') = mapAccum_go s' cs
 
 -- | The 'mapAccumR' function behaves like a combination of 'map' and
 -- 'foldr'; it applies a function to each element of a ByteString,
@@ -668,12 +784,13 @@ mapAccumL f s0 cs0 = go s0 cs0
 -- final value of this accumulator together with the new ByteString.
 {-@ mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> b:LByteString -> (acc, LByteStringSZ b) @-}
 mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
-mapAccumR f s0 cs0 = go s0 cs0
+mapAccumR f s0 cs0 = mapAccum_go s0 cs0
   where
-    go s Empty        = (s, Empty)
-    go s (Chunk c cs) = (s'', Chunk c' cs')
+    --LIQUID RENAME
+    mapAccum_go s Empty        = (s, Empty)
+    mapAccum_go s (Chunk c cs) = (s'', Chunk c' cs')
         where (s'', c') = S.mapAccumR f s' c
-              (s', cs') = go s cs
+              (s', cs') = mapAccum_go s cs
 
 -- | /O(n)/ map Word8 functions, provided with the index at each position
 {-@ mapIndexed :: (Int -> Word8 -> Word8) -> LByteString -> LByteString @-}
@@ -707,6 +824,7 @@ scanl f z ps = F.loopArr . F.loopL (F.scanEFL f) z $ (ps `snoc` 0)
 -- > iterate f x == [x, f x, f (f x), ...]
 --
 {-@ iterate :: (Word8 -> Word8) -> Word8 -> LByteString @-}
+{-@ Strict Data.ByteString.Lazy.iterate @-}
 iterate :: (Word8 -> Word8) -> Word8 -> ByteString
 iterate f = unfoldr (\x -> case f x of x' -> x' `seq` Just (x', x'))
 
@@ -714,6 +832,7 @@ iterate f = unfoldr (\x -> case f x of x' -> x' `seq` Just (x', x'))
 -- element.
 --
 {-@ repeat :: Word8 -> LByteString @-}
+{-@ Strict Data.ByteString.Lazy.repeat @-}
 repeat :: Word8 -> ByteString
 repeat w = cs where cs = Chunk (S.replicate smallChunkSize w) cs
 
@@ -734,22 +853,23 @@ replicate n w
             nChunks m = Chunk c (nChunks (m-1))
         in if r == 0 then cs -- preserve invariant
            else Chunk (S.unsafeTake (fromIntegral r) c) cs
---LIQUID     | r == 0             = cs -- preserve invariant
---LIQUID     | otherwise          = Chunk (S.unsafeTake (fromIntegral r) c) cs
---LIQUID  where
---LIQUID     c      = S.replicate smallChunkSize w
---LIQUID     cs     = nChunks q
---LIQUID     (q, r) = quotRem n (fromIntegral smallChunkSize)
---LIQUID     nChunks 0 = Empty
---LIQUID     nChunks m = Chunk c (nChunks (m-1))
+--LIQUID LAZY     | r == 0             = cs -- preserve invariant
+--LIQUID LAZY     | otherwise          = Chunk (S.unsafeTake (fromIntegral r) c) cs
+--LIQUID LAZY  where
+--LIQUID LAZY     c      = S.replicate smallChunkSize w
+--LIQUID LAZY     cs     = nChunks q
+--LIQUID LAZY     (q, r) = quotRem n (fromIntegral smallChunkSize)
+--LIQUID LAZY     nChunks 0 = Empty
+--LIQUID LAZY     nChunks m = Chunk c (nChunks (m-1))
 
 -- | 'cycle' ties a finite ByteString into a circular one, or equivalently,
 -- the infinite repetition of the original ByteString.
 --
 {-@ cycle :: LByteString -> LByteString @-}
+{-@ Strict Data.ByteString.Lazy.cycle @-}
 cycle :: ByteString -> ByteString
 cycle Empty = errorEmptyList "cycle"
---LIQUID cycle cs    = cs' where cs' = foldrChunks Chunk cs' cs
+--LIQUID GHOST cycle cs    = cs' where cs' = foldrChunks Chunk cs' cs
 cycle cs    = cs' where cs' = foldrChunks (const Chunk) cs' cs
 
 -- | /O(n)/ The 'unfoldr' function is analogous to the List \'unfoldr\'.
@@ -758,6 +878,7 @@ cycle cs    = cs' where cs' = foldrChunks (const Chunk) cs' cs
 -- ByteString or returns 'Just' @(a,b)@, in which case, @a@ is a
 -- prepending to the ByteString and @b@ is used as the next element in a
 -- recursive call.
+{-@ Strict Data.ByteString.Lazy.unfoldr @-}
 unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
 unfoldr f s0 = unfoldChunk 32 s0
   where unfoldChunk n s =
@@ -779,8 +900,8 @@ unfoldr f s0 = unfoldChunk 32 s0
 take :: Int64 -> ByteString -> ByteString
 take i _ | i <= 0 = Empty
 take i cs0         = take' i cs0
-  where --LIQUID FIXME: (Num a) isn't embedded as int so this loses some
-        --LIQUID        refinements without the explicit type
+  where --LIQUID CAST FIXME: (Num a) isn't embedded as int so this loses some
+        --LIQUID             refinements without the explicit type
         take' :: Int64 -> ByteString -> ByteString
         take' 0 _            = Empty
         take' _ Empty        = Empty
@@ -919,13 +1040,18 @@ span p = break (not . p)
 --
 {-@ splitWith :: (Word8 -> Bool) -> b:LByteStringNE -> (LByteStringSplit b) @-}
 splitWith :: (Word8 -> Bool) -> ByteString -> [ByteString]
-splitWith _ Empty          = []
-splitWith p (Chunk c0 cs0) = comb [] (S.splitWith p c0) cs0
-
-  where comb :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
-        comb acc (s:[]) Empty        = revChunks (s:acc) : []
-        comb acc (s:[]) (Chunk c cs) = comb (s:acc) (S.splitWith p c) cs
-        comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
+splitWith _ Empty     = []
+--LIQUID PARAM splitWith w (Chunk c0 cs0) = comb [] (S.splitWith w c0) cs0
+--LIQUID PARAM   where comb :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
+--LIQUID PARAM         comb acc (s:[]) Empty        = revChunks (s:acc) : []
+--LIQUID PARAM         comb acc (s:[]) (Chunk c cs) = comb (s:acc) (S.splitWith w c) cs
+--LIQUID PARAM         comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
+splitWith w (Chunk c0 cs0) = comb [] cs0 (S.splitWith w c0)
+        {-@ Decrease comb 2 3 @-}
+  where comb :: [S.ByteString] -> ByteString -> [S.ByteString] -> [ByteString]
+        comb acc Empty        (s:[]) = revChunks (s:acc) : []
+        comb acc (Chunk c cs) (s:[]) = comb (s:acc) cs (S.splitWith w c)
+        comb acc cs           (s:ss) = revChunks (s:acc) : comb [] cs ss
 
 {-# INLINE splitWith #-}
 
@@ -948,12 +1074,16 @@ splitWith p (Chunk c0 cs0) = comb [] (S.splitWith p c0) cs0
 {-@ split :: Word8 -> b:LByteStringNE -> (LByteStringSplit b) @-}
 split :: Word8 -> ByteString -> [ByteString]
 split _ Empty     = []
-split w (Chunk c0 cs0) = comb [] (S.split w c0) cs0
-
-  where comb :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
-        comb acc (s:[]) Empty        = revChunks (s:acc) : []
-        comb acc (s:[]) (Chunk c cs) = comb (s:acc) (S.split w c) cs
-        comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
+--LIQUID PARAM split w (Chunk c0 cs0) = comb [] (S.split w c0) cs0
+--LIQUID PARAM   where comb :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
+--LIQUID PARAM         comb acc (s:[]) Empty        = revChunks (s:acc) : []
+--LIQUID PARAM         comb acc (s:[]) (Chunk c cs) = comb (s:acc) (S.split w c) cs
+--LIQUID PARAM         comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
+split w (Chunk c0 cs0) = comb [] cs0 (S.split w c0)
+  where comb :: [S.ByteString] -> ByteString -> [S.ByteString] -> [ByteString]
+        comb acc Empty        (s:[]) = revChunks (s:acc) : []
+        comb acc (Chunk c cs) (s:[]) = comb (s:acc) cs (S.split w c)
+        comb acc cs           (s:ss) = revChunks (s:acc) : comb [] cs ss
 {-# INLINE split #-}
 
 {-
@@ -978,15 +1108,25 @@ tokens f = L.filter (not.null) . splitWith f
 {-@ group :: b:LByteString -> {v: [LByteString] | (lbLengths v) = (lbLength b)} @-}
 group :: ByteString -> [ByteString]
 group Empty          = []
-group (Chunk c0 cs0) = group' [] (S.group c0) cs0
-  where 
-    group' :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
-    group' acc@(s':_) ss@(s:_) cs
+--LIQUID PARAM group (Chunk c0 cs0) = group' [] (S.group c0) cs0
+--LIQUID PARAM   where 
+--LIQUID PARAM     group' :: [S.ByteString] -> [S.ByteString] -> ByteString -> [ByteString]
+--LIQUID PARAM     group' acc@(s':_) ss@(s:_) cs
+--LIQUID PARAM       | S.unsafeHead s'
+--LIQUID PARAM      /= S.unsafeHead s             = revNonEmptyChunks    acc  : group' [] ss cs
+--LIQUID PARAM     group' acc (s:[]) Empty        = revNonEmptyChunks (s:acc) : []
+--LIQUID PARAM     group' acc (s:[]) (Chunk c cs) = group' (s:acc) (S.group c) cs
+--LIQUID PARAM     group' acc (s:ss) cs           = revNonEmptyChunks (s:acc) : group' [] ss cs
+group (Chunk c0 cs0) = group_go cs0 (S.group c0) []
+  where
+    {-@ Decrease group_go 1 2 3 @-}
+    group_go :: ByteString -> [S.ByteString] -> [S.ByteString] -> [ByteString]
+    group_go cs ss@(s:_) acc@(s':_)
       | S.unsafeHead s'
-     /= S.unsafeHead s             = revNonEmptyChunks    acc  : group' [] ss cs
-    group' acc (s:[]) Empty        = revNonEmptyChunks (s:acc) : []
-    group' acc (s:[]) (Chunk c cs) = group' (s:acc) (S.group c) cs
-    group' acc (s:ss) cs           = revNonEmptyChunks (s:acc) : group' [] ss cs
+     /= S.unsafeHead s               = revNonEmptyChunks    acc  : group_go cs ss []
+    group_go Empty        (s:[]) acc = revNonEmptyChunks (s:acc) : []
+    group_go (Chunk c cs) (s:[]) acc = group_go cs (S.group c) (s:acc)
+    group_go cs           (s:ss) acc = revNonEmptyChunks (s:acc) : group_go cs ss []
 
 {-
 TODO: check if something like this might be faster
@@ -1004,16 +1144,26 @@ group xs
 {-@ groupBy :: (Word8 -> Word8 -> Bool) -> b:LByteString -> {v:[LByteString] | (lbLengths v) = (lbLength b)} @-}
 groupBy :: (Word8 -> Word8 -> Bool) -> ByteString -> [ByteString]
 groupBy _ Empty          = []
-groupBy k (Chunk c0 cs0) = groupBy' [] 0 (S.groupBy k c0) cs0
+--LIQUID PARAM groupBy k (Chunk c0 cs0) = groupBy' [] 0 (S.groupBy k c0) cs0
+--LIQUID PARAM   where
+--LIQUID PARAM     groupBy' :: [S.ByteString] -> Word8 -> [S.ByteString] -> ByteString -> [ByteString]
+--LIQUID PARAM     groupBy' acc@(_:_) c ss@(s:_) cs
+--LIQUID PARAM       | not (c `k` S.unsafeHead s)     = revNonEmptyChunks acc : groupBy' [] 0 ss cs
+--LIQUID PARAM     groupBy' acc _ (s:[]) Empty        = revNonEmptyChunks (s : acc) : []
+--LIQUID PARAM     groupBy' acc w (s:[]) (Chunk c cs) = groupBy' (s:acc) w' (S.groupBy k c) cs
+--LIQUID PARAM                                            where w' | L.null acc = S.unsafeHead s
+--LIQUID PARAM                                                     | otherwise  = w
+--LIQUID PARAM     groupBy' acc _ (s:ss) cs           = revNonEmptyChunks (s : acc) : groupBy' [] 0 ss cs
+groupBy k (Chunk c0 cs0) = groupBy_go cs0 (S.groupBy k c0) []
   where
-    groupBy' :: [S.ByteString] -> Word8 -> [S.ByteString] -> ByteString -> [ByteString]
-    groupBy' acc@(_:_) c ss@(s:_) cs
-      | not (c `k` S.unsafeHead s)     = revNonEmptyChunks acc : groupBy' [] 0 ss cs
-    groupBy' acc _ (s:[]) Empty        = revNonEmptyChunks (s : acc) : []
-    groupBy' acc w (s:[]) (Chunk c cs) = groupBy' (s:acc) w' (S.groupBy k c) cs
-                                           where w' | L.null acc = S.unsafeHead s
-                                                    | otherwise  = w
-    groupBy' acc _ (s:ss) cs           = revNonEmptyChunks (s : acc) : groupBy' [] 0 ss cs
+    {-@ Decrease groupBy_go 1 2 3 @-}
+    groupBy_go :: ByteString -> [S.ByteString] -> [S.ByteString] -> [ByteString]
+    groupBy_go cs ss@(s:_) acc@(s':_)
+      | S.unsafeHead s'
+     /= S.unsafeHead s               = revNonEmptyChunks    acc  : groupBy_go cs ss []
+    groupBy_go Empty        (s:[]) acc = revNonEmptyChunks (s:acc) : []
+    groupBy_go (Chunk c cs) (s:[]) acc = groupBy_go cs (S.groupBy k c) (s:acc)
+    groupBy_go cs           (s:ss) acc = revNonEmptyChunks (s:acc) : groupBy_go cs ss []
 
 {-
 TODO: check if something like this might be faster
@@ -1056,11 +1206,13 @@ index cs0 i         = index' cs0 i
 -- This implementation uses memchr(3).
 {-@ elemIndex :: Word8 -> b:LByteString -> Maybe {v:Nat64 | v < (lbLength b)} @-}
 elemIndex :: Word8 -> ByteString -> Maybe Int64
-elemIndex w cs0 = elemIndex' 0 cs0
-  where elemIndex' _          Empty        = Nothing
-        elemIndex' (n::Int64) (Chunk c cs) = --LIQUID CAST
+elemIndex w cs0 = elemIndex_go 0 cs0
+        --LIQUID RENAME
+        {-@ Decrease elemIndex_go 2 @-}
+  where elemIndex_go _          Empty        = Nothing
+        elemIndex_go (n::Int64) (Chunk c cs) = --LIQUID CAST
           case S.elemIndex w c of
-            Nothing -> elemIndex' (n + fromIntegral (S.length c)) cs
+            Nothing -> elemIndex_go (n + fromIntegral (S.length c)) cs
             Just i  -> Just (n + fromIntegral i)
 
 {-
@@ -1089,11 +1241,13 @@ elemIndexEnd ch (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
 -- This implementation uses memchr(3).
 {-@ elemIndices :: Word8 -> b:LByteString -> [{v:Nat64 | v < (lbLength b) }] @-}
 elemIndices :: Word8 -> ByteString -> [Int64]
-elemIndices w cs0 = elemIndices' 0 cs0
-  where elemIndices' _          Empty        = []
-        elemIndices' (n::Int64) (Chunk c cs) = --LIQUID CAST
+elemIndices w cs0 = elemIndices_go 0 cs0
+        --LIQUID RENAME
+        {-@ Decrease elemIndices_go 2 @-}
+  where elemIndices_go _          Empty        = []
+        elemIndices_go (n::Int64) (Chunk c cs) = --LIQUID CAST
             L.map ((+n).fromIntegral) (S.elemIndices w c)
-            ++ elemIndices' (n + fromIntegral (S.length c)) cs
+            ++ elemIndices_go (n + fromIntegral (S.length c)) cs
 
 -- | count returns the number of times its argument appears in the ByteString
 --
@@ -1102,7 +1256,7 @@ elemIndices w cs0 = elemIndices' 0 cs0
 -- But more efficiently than using length on the intermediate list.
 {-@ count :: Word8 -> b:LByteString -> {v:Nat64 | v <= (lbLength b) } @-}
 count :: Word8 -> ByteString -> Int64
---LIQUID count w cs = foldlChunks (\n c -> n + fromIntegral (S.count w c)) 0 cs
+--LIQUID GHOST count w cs = foldlChunks (\n c -> n + fromIntegral (S.count w c)) 0 cs
 count w cs = foldrChunks (\_ c n -> n + fromIntegral (S.count w c)) 0 cs
 
 -- | The 'findIndex' function takes a predicate and a 'ByteString' and
@@ -1110,11 +1264,13 @@ count w cs = foldrChunks (\_ c n -> n + fromIntegral (S.count w c)) 0 cs
 -- satisfying the predicate.
 {-@ findIndex :: (Word8 -> Bool) -> b:LByteString -> (Maybe {v:Nat64 | v < (lbLength b)}) @-}
 findIndex :: (Word8 -> Bool) -> ByteString -> Maybe Int64
-findIndex k cs0 = findIndex' 0 cs0
-  where findIndex' _          Empty        = Nothing
-        findIndex' (n::Int64) (Chunk c cs) = --LIQUID CAST
+findIndex k cs0 = findIndex_go 0 cs0
+        --LIQUID RENAME
+        {-@ Decrease findIndex_go 2 @-}
+  where findIndex_go _          Empty        = Nothing
+        findIndex_go (n::Int64) (Chunk c cs) = --LIQUID CAST
           case S.findIndex k c of
-            Nothing -> findIndex' (n + fromIntegral (S.length c)) cs
+            Nothing -> findIndex_go (n + fromIntegral (S.length c)) cs
             Just i  -> Just (n + fromIntegral i)
 {-# INLINE findIndex #-}
 
@@ -1136,11 +1292,13 @@ find f cs0 = find' cs0
 -- indices of all elements satisfying the predicate, in ascending order.
 {-@ findIndices :: (Word8 -> Bool) -> b:LByteString -> [{v:Nat64 | v < (lbLength b)}] @-}
 findIndices :: (Word8 -> Bool) -> ByteString -> [Int64]
-findIndices k cs0 = findIndices' 0 cs0
-  where findIndices' _          Empty        = []
-        findIndices' (n::Int64) (Chunk c cs) = --LIQUID CAST
+findIndices k cs0 = findIndices_go 0 cs0
+        --LIQUID RENAME
+        {-@ Decrease findIndices_go 2 @-}
+  where findIndices_go _          Empty        = []
+        findIndices_go (n::Int64) (Chunk c cs) = --LIQUID CAST
             L.map ((+n).fromIntegral) (S.findIndices k c)
-            ++ findIndices' (n + fromIntegral (S.length c)) cs
+            ++ findIndices_go (n + fromIntegral (S.length c)) cs
 
 -- ---------------------------------------------------------------------
 -- Searching ByteStrings
@@ -1158,10 +1316,11 @@ notElem w cs = not (elem w cs)
 -- predicate.
 {-@ filter :: (Word8 -> Bool) -> b:LByteString -> (LByteStringLE b) @-}
 filter :: (Word8 -> Bool) -> ByteString -> ByteString
-filter p s = go s
+filter p s = filter_go s
     where
-        go Empty        = Empty
-        go (Chunk x xs) = chunk (S.filter p x) (go xs)
+        --LIQUID RENAME
+        filter_go Empty        = Empty
+        filter_go (Chunk x xs) = chunk (S.filter p x) (filter_go xs)
 #if __GLASGOW_HASKELL__
 {-# INLINE [1] filter #-}
 #endif
@@ -1174,7 +1333,7 @@ filter p s = go s
 --
 -- filterByte is around 10x faster, and uses much less space, than its
 -- filter equivalent
---LIQUID FIXME: needs the spec for replicate
+--LIQUID TODO: needs the spec for replicate
 {- filterByte :: Word8 -> b:LByteString -> (LByteStringLE b) @-}
 filterByte :: Word8 -> ByteString -> ByteString
 filterByte w ps = replicate (count w ps) w
@@ -1224,11 +1383,11 @@ isPrefixOf Empty _  = True
 isPrefixOf _ Empty  = False
 isPrefixOf (Chunk x xs) (Chunk y ys)
     | S.length x == S.length y = x == y  && isPrefixOf xs ys
---LIQUID pushing bindings inward for safety
---LIQUID     | S.length x <  S.length y = x == yh && isPrefixOf xs (Chunk yt ys)
---LIQUID     | otherwise                = xh == y && isPrefixOf (Chunk xt xs) ys
---LIQUID   where (xh,xt) = S.splitAt (S.length y) x
---LIQUID         (yh,yt) = S.splitAt (S.length x) y
+--LIQUID LAZY pushing bindings inward for safety
+--LIQUID LAZY     | S.length x <  S.length y = x == yh && isPrefixOf xs (Chunk yt ys)
+--LIQUID LAZY     | otherwise                = xh == y && isPrefixOf (Chunk xt xs) ys
+--LIQUID LAZY   where (xh,xt) = S.splitAt (S.length y) x
+--LIQUID LAZY         (yh,yt) = S.splitAt (S.length x) y
     | otherwise = if S.length x <  S.length y
                   then let (xh,xt) = S.splitAt (S.length y) x
                            (yh,yt) = S.splitAt (S.length x) y
@@ -1323,7 +1482,7 @@ tails cs@(Chunk c cs')
 --   is needed in the rest of the program.
 {-@ copy :: b:LByteString -> LByteStringSZ b @-}
 copy :: ByteString -> ByteString
---LIQUID copy cs = foldrChunks (Chunk . S.copy) Empty cs
+--LIQUID GHOST copy cs = foldrChunks (Chunk . S.copy) Empty cs
 copy cs = foldrChunks (\_ c cs -> Chunk (S.copy c) cs) Empty cs
 --TODO, we could coalese small blocks here
 --FIXME: probably not strict enough, if we're doing this to avoid retaining
@@ -1436,7 +1595,7 @@ getContents = hGetContents stdin
 
 -- | Outputs a 'ByteString' to the specified 'Handle'.
 hPut :: Handle -> ByteString -> IO ()
---LIQUID hPut h cs = foldrChunks (\c rest -> S.hPut h c >> rest) (return ()) cs
+--LIQUID GHOST hPut h cs = foldrChunks (\c rest -> S.hPut h c >> rest) (return ()) cs
 hPut h cs = foldrChunks (\_ c rest -> S.hPut h c >> rest) (return ()) cs
 
 -- | A synonym for @hPut@, for compatibility
@@ -1492,14 +1651,17 @@ revChunks cs = go Empty cs
 -- | 'findIndexOrEnd' is a variant of findIndex, that returns the length
 -- of the string if no element is found, rather than Nothing.
 findIndexOrEnd :: (Word8 -> Bool) -> S.ByteString -> Int
-findIndexOrEnd k (S.PS x s l) = S.inlinePerformIO $ withForeignPtr x $ \f -> go (f `plusPtr` s) 0
+findIndexOrEnd k (S.PS x s l) = S.inlinePerformIO $ withForeignPtr x $ \f -> findIndexOrEnd_go l (f `plusPtr` s) 0
   where
-    STRICT2(go)
-    go ptr n | n >= l    = return l
-             | otherwise = do w <- peek ptr
-                              if k w
-                                then return n
-                                else go (ptr `plusPtr` 1) (n+1)
+    --LIQUID GHOST
+    --LIQUID RENAME
+    STRICT3(findIndexOrEnd_go)
+    findIndexOrEnd_go (d::Int) ptr n
+        | n >= l    = return l
+        | otherwise = do w <- peek ptr
+                         if k w
+                         then return n
+                         else findIndexOrEnd_go (d-1) (ptr `plusPtr` 1) (n+1)
 {-# INLINE findIndexOrEnd #-}
 
 {- liquidCanary :: x:Int -> {v: Int | v > x} @-}

@@ -47,16 +47,32 @@ import Language.Haskell.Liquid.Prelude
 ----------------------------------------------------------------
 
 -- LIQUID left depends on value, so their order had to be changed
-{-@ data Splay a <l :: root:a -> a -> Prop, r :: root:a -> a -> Prop>
+{-@ data Splay [slen] a <l :: root:a -> a -> Prop, r :: root:a -> a -> Prop>
          = Node (value :: a) 
                 (left  :: Splay <l, r> (a <l value>)) 
                 (right :: Splay <l, r> (a <r value>)) 
          | Leaf 
 @-}
 
+{-@ measure slen :: (Splay a) -> Int
+    slen(Leaf) = 0
+    slen(Node v l r) = 1 + (slen l) + (slen r)
+  @-}
+
+{-@ slen :: s:Splay s -> {v:Nat | v = (slen s)} @-}
+slen :: Splay a -> Int
+slen (Leaf)       = 0
+slen (Node v l r) = 1 + (slen l) + (slen r)
+
+{-@ type SumSLen A B = {v:Nat | v = (slen A) + (slen B)} @-}
+
+{-@ invariant {v:Splay a | (slen v) >= 0} @-}
+
 data Splay a = Leaf | Node a (Splay a) (Splay a) deriving Show
 
 {-@ type OSplay a = Splay <{\root v -> v < root}, {\root v -> v > root}> a @-}
+
+{-@ type OSplayLE a S = {v:OSplay a | (slen v) <= (slen S)}  @-}
 
 {-@ type MinSPair   a = (a, OSplay a) <\fld -> {v : Splay {v:a|v>fld} | 0=0}> @-}
 {-@ type MinEqSPair a = (a, OSplay a) <\fld -> {v : Splay {v:a|v>=fld}| 0=0}> @-}
@@ -80,9 +96,9 @@ _               === _               = False
     Since this is a set implementation, members must be unique.
 -}
 
-{-@ split :: Ord a => x:a -> OSplay a
-             -> (OSplay {v:a | v<x}, Bool, OSplay {v:a | v>x}) 
-@-}
+{-@ split :: Ord a => x:a -> s:OSplay a
+          -> (OSplayLE {v:a | v<x} s, Bool, OSplayLE {v:a | v>x} s)
+  @-}
 
 split :: Ord a => a -> Splay a -> (Splay a, Bool, Splay a)
 split _ Leaf = (Leaf,False,Leaf)
@@ -292,11 +308,22 @@ True
 -}
 
 {-@ union :: Ord a => OSplay a -> OSplay a -> OSplay a@-}
+{-@ Strict Data.Set.Splay.union @-}
 union :: Ord a => Splay a -> Splay a -> Splay a
 union Leaf t = t
 union (Node x a b) t = Node x (union ta a) (union tb b)
   where
     (ta,_,tb) = split x t
+
+{-@ unionT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
+{-@ Decrease unionT 4 @-}
+unionT :: Ord a => Splay a -> Splay a -> Int -> Splay a
+unionT Leaf         t _ = t
+unionT (Node x a b) t _ = Node x (unionT ta a (slen ta + slen a))
+                                 (unionT tb b (slen tb + slen b))
+  where
+    (ta,_,tb) = split x t
+
 
 {-| Creating a intersection set from sets.
 
@@ -305,12 +332,24 @@ True
 -}
 
 {-@ intersection :: Ord a => OSplay a -> OSplay a -> OSplay a @-}
+{-@ Strict Data.Set.Splay.intersection @-}
 intersection :: Ord a => Splay a -> Splay a -> Splay a
 intersection Leaf _          = Leaf
 intersection _ Leaf          = Leaf
 intersection t1 (Node x l r) = case split x t1 of
     (l', True,  r') -> Node x (intersection l' l) (intersection r' r)
     (l', False, r') -> union (intersection l' l) (intersection r' r)
+
+{-@ intersectionT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
+{-@ Decrease intersectionT 4 @-}
+intersectionT :: Ord a => Splay a -> Splay a -> Int -> Splay a
+intersectionT Leaf _          _ = Leaf
+intersectionT _ Leaf          _ = Leaf
+intersectionT t1 (Node x l r) _ = case split x t1 of
+    (l', True,  r') -> Node x (intersectionT l' l (slen l' + slen l))
+                              (intersectionT r' r (slen r' + slen r))
+    (l', False, r') -> union (intersectionT l' l (slen l' + slen l))
+                             (intersectionT r' r (slen r' + slen r))
 
 {-| Creating a difference set from sets.
 
@@ -319,10 +358,21 @@ True
 -}
 
 {-@ difference :: Ord a => OSplay a -> OSplay a -> OSplay a @-}
+{-@ Strict Data.Set.Splay.difference @-}
 difference :: Ord a => Splay a -> Splay a -> Splay a
 difference Leaf _          = Leaf
 difference t1 Leaf         = t1
 difference t1 (Node x l r) = union (difference l' l) (difference r' r)
+  where
+    (l',_,r') = split x t1
+
+{-@ differenceT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
+{-@ Decrease differenceT 4 @-}
+differenceT :: Ord a => Splay a -> Splay a -> Int -> Splay a
+differenceT Leaf _          _ = Leaf
+differenceT t1 Leaf         _ = t1
+differenceT t1 (Node x l r) _ = union (differenceT l' l (slen l' + slen l))
+                                      (differenceT r' r (slen r' + slen r))
   where
     (l',_,r') = split x t1
 
@@ -344,13 +394,16 @@ isOrdered t = ordered $ toList t
 
 
 showSet :: Show a => Splay a -> String
-showSet = showSet' ""
+showSet = showSet_go ""
 
-showSet' :: Show a => String -> Splay a -> String
-showSet' _ Leaf = "\n"
-showSet' pref (Node x l r) = show x ++ "\n"
-                        ++ pref ++ "+ " ++ showSet' pref' l
-                        ++ pref ++ "+ " ++ showSet' pref' r
+--LIQUID FIXME: renamed from `showSet'`, must fix parser!
+
+{-@ Decrease showSet_go 3 @-}
+showSet_go :: Show a => String -> Splay a -> String
+showSet_go _ Leaf = "\n"
+showSet_go pref (Node x l r) = show x ++ "\n"
+                        ++ pref ++ "+ " ++ showSet_go pref' l
+                        ++ pref ++ "+ " ++ showSet_go pref' r
   where
     pref' = "  " ++ pref
 

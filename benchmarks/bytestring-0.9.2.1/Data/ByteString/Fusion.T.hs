@@ -413,62 +413,62 @@ loopWrapper body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
 
 
 doUpLoop :: AccEFL acc -> acc -> ImperativeLoop acc
-doUpLoop f acc0 src dest len = loop 0 0 acc0
-  where STRICT3(loop)
-        loop src_off dest_off acc
+doUpLoop f acc0 src dest len = loop len 0 0 acc0
+  where STRICT4(loop)
+        loop (d :: Int) src_off dest_off acc
             | src_off >= len = return (acc :*: (0 :: Int) {- LIQUID CAST -} :*: dest_off)
             | otherwise      = do
                 x <- peekByteOff src src_off
                 case f acc x of
-                  (acc' :*: NothingS) -> loop (src_off+1) dest_off acc'
+                  (acc' :*: NothingS) -> loop (d-1) (src_off+1) dest_off acc'
                   (acc' :*: JustS x') -> pokeByteOff dest dest_off x'
-                                      >> loop (src_off+1) (dest_off+1) acc'
+                                      >> loop (d-1) (src_off+1) (dest_off+1) acc'
 
 doDownLoop :: AccEFL acc -> acc -> ImperativeLoop acc
-doDownLoop f acc0 src dest len = loop (len-1) (len-1) acc0
-  where STRICT3(loop)
-        loop src_offDOWN dest_offDOWN acc
+doDownLoop f acc0 src dest len = loop len (len-1) (len-1) acc0
+  where STRICT4(loop)
+        loop (d :: Int) src_offDOWN dest_offDOWN acc
             | src_offDOWN < 0 = return (acc :*: dest_offDOWN + 1 :*: len - (dest_offDOWN + 1))
             | otherwise   = do
                 x <- peekByteOff src src_offDOWN
                 case f acc x of
-                  (acc' :*: NothingS) -> loop (src_offDOWN - 1) dest_offDOWN acc'
+                  (acc' :*: NothingS) -> loop (d-1) (src_offDOWN - 1) dest_offDOWN acc'
                   (acc' :*: JustS x') -> pokeByteOff dest dest_offDOWN x'
-                                      >> loop (src_offDOWN - 1) (dest_offDOWN - 1) acc'
+                                      >> loop (d-1) (src_offDOWN - 1) (dest_offDOWN - 1) acc'
 
 doNoAccLoop :: NoAccEFL -> noAcc -> ImperativeLoop noAcc
-doNoAccLoop f noAcc src dest len = loop 0 0
-  where STRICT2(loop)
-        loop src_off dest_off
+doNoAccLoop f noAcc src dest len = loop len 0 0
+  where STRICT3(loop)
+        loop (d :: Int) src_off dest_off
             | src_off >= len = return (noAcc :*: (0 :: Int) {- LIQUID CAST -} :*: dest_off)
             | otherwise      = do
                 x <- peekByteOff src src_off
                 case f x of
-                  NothingS -> loop (src_off+1) dest_off
+                  NothingS -> loop (d-1) (src_off+1) dest_off
                   JustS x' -> pokeByteOff dest dest_off x'
-                           >> loop (src_off+1) (dest_off+1)
+                           >> loop (d-1) (src_off+1) (dest_off+1)
 
 doMapLoop :: MapEFL -> noAcc -> ImperativeLoop noAcc
-doMapLoop f noAcc src dest len = loop 0
-  where STRICT1(loop)
-        loop n
+doMapLoop f noAcc src dest len = loop len 0
+  where STRICT2(loop)
+        loop (d :: Int) n
             | n >= len = return (noAcc :*: (0 :: Int) {- LIQUID CAST -} :*: len)
             | otherwise      = do
                 x <- peekByteOff src n
                 pokeByteOff dest n (f x)
-                loop (n+1) -- offset always the same, only pass 1 arg
+                loop (d-1) (n+1) -- offset always the same, only pass 1 arg
 
 doFilterLoop :: FilterEFL -> noAcc -> ImperativeLoop noAcc
-doFilterLoop f noAcc src dest len = loop 0 0
-  where STRICT2(loop)
-        loop src_off dest_off
+doFilterLoop f noAcc src dest len = loop len 0 0
+  where STRICT3(loop)
+        loop (d :: Int) src_off dest_off
             | src_off >= len = return (noAcc :*: (0 :: Int) {- LIQUID CAST -} :*: dest_off)
             | otherwise      = do
                 x <- peekByteOff src src_off
                 if f x
                   then pokeByteOff dest dest_off x
-                    >> loop (src_off+1) (dest_off+1)
-                  else loop (src_off+1) dest_off
+                    >> loop (d-1) (src_off+1) (dest_off+1)
+                  else loop (d-1) (src_off+1) dest_off
 
 -- LIQUID
 -- run two loops in sequence,

@@ -23,6 +23,7 @@
 module Data.ByteString.Internal (
 
         liquidCanary,   -- LIQUID
+        ptrLen,         -- LIQUID GHOST for getting a pointer's length
         packWith,       -- LIQUID, because we hid the Read instance... FIX.
 
         -- * The @ByteString@ type and representation
@@ -197,7 +198,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 {-@ predicate OkPLen N P  = (N <= (plen P))                 @-}
 
-{-@ data Data.ByteString.Internal.ByteString  
+{-@ data Data.ByteString.Internal.ByteString [bLength] 
       = Data.ByteString.Internal.PS 
           { payload :: (ForeignPtr Word8) 
           , offset  :: {v: Nat | (v <= (fplen payload))     }  
@@ -209,7 +210,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ type ByteString = {v: Data.ByteString.Internal.ByteString | true} @-}
 {-@ invariant {v:Data.ByteString.Internal.ByteString | 0 <= (bLength v)} @-}
 
-{-@ type ByteStringSplit B = {v:[ByteString] | ((bLengths v) + (len v) - 1) = (bLength B) } 
+{-@ type ByteStringSplit B = {v:[ByteString] | ((bLengths v) + (len v) - 1) = (bLength B) }
   @-}
 
 {-@ type ByteStringPair B = (ByteString, ByteString)<{\x1 x2 -> (bLength x1) + (bLength x2) = (bLength B)}>
@@ -242,6 +243,12 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 {-@ qualif FPLenPos(v: GHC.ForeignPtr.ForeignPtr a): 0 <= (fplen v)                       @-}
 {-@ qualif PLenPos(v: GHC.Ptr.Ptr a): 0 <= (plen v)                                       @-}
 {-@ qualif LTPLen(v: int, p:GHC.Ptr.Ptr a): v < (plen p)                                  @-}
+
+{-@ ptrLen :: p:(PtrV a) -> {v:Nat | v = (plen p)} @-}  
+ptrLen :: Ptr a -> Int
+ptrLen = undefined
+
+
 -------------------------------------------------------------------------
 
 instance Show ByteString where
@@ -613,26 +620,26 @@ memset p w s = c_memset p (fromIntegral w) s
 
 {-@ c_reverse :: dst:(PtrV Word8) -> src:(PtrV Word8) -> {v:Foreign.C.Types.CULong | ((OkPLen v src) && (OkPLen v dst)) } -> IO () @-}
 c_reverse :: Ptr Word8 -> Ptr Word8 -> CULong -> IO ()
-c_reverse = error "LIQUIDFOREIGN"
+c_reverse = error "LIQUID FOREIGN"
 
 -- LIQUID foreign import ccall unsafe "static fpstring.h fps_intersperse" c_intersperse
 -- LIQUID     :: Ptr Word8 -> Ptr Word8 -> CULong -> Word8 -> IO ()
 {-@ c_intersperse :: dst:(Ptr Word8) -> src:(Ptr Word8) -> {v: Foreign.C.Types.CULong | ((OkPLen v src) && ((v+v-1) <= (plen dst)))} -> Word8 -> IO () @-}
 c_intersperse :: Ptr Word8 -> Ptr Word8 -> CULong -> Word8 -> IO ()
-c_intersperse = error "LIQUIDFOREIGN"
+c_intersperse = error "LIQUID FOREIGN"
 
 
 -- LIQUID foreign import ccall unsafe "static fpstring.h fps_maximum" c_maximum
 -- LIQUID     :: Ptr Word8 -> CULong -> IO Word8
 {-@ c_maximum :: p:(Ptr Word8) -> {v:Foreign.C.Types.CULong | (OkPLen v p)} -> IO Word8 @-}
 c_maximum :: Ptr Word8 -> CULong -> IO Word8
-c_maximum = error "LIQUIDFOREIGN"
+c_maximum = error "LIQUID FOREIGN"
 
 -- LIQUID foreign import ccall unsafe "static fpstring.h fps_minimum" c_minimum
 -- LIQUID     :: Ptr Word8 -> CULong -> IO Word8
 {-@ c_minimum :: p:(Ptr Word8) -> {v:Foreign.C.Types.CULong | (OkPLen v p)} -> IO Word8 @-}
 c_minimum :: Ptr Word8 -> CULong -> IO Word8
-c_minimum = error "LIQUIDFOREIGN"
+c_minimum = error "LIQUID FOREIGN"
 
 -- LIQUID foreign import ccall unsafe "static fpstring.h fps_count" c_count
 -- LIQUID     :: Ptr Word8 -> CULong -> Word8 -> IO CULong
@@ -641,7 +648,7 @@ c_minimum = error "LIQUIDFOREIGN"
             -> Word8 
             -> (IO {v:Foreign.C.Types.CULong | ((0 <= v) && (v <= n)) }) @-}
 c_count :: Ptr Word8 -> CULong -> Word8 -> IO CULong
-c_count = error "LIQUIDFOREIGN"
+c_count = error "LIQUID FOREIGN"
 
 
 -- ---------------------------------------------------------------------

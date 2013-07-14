@@ -62,11 +62,12 @@ import qualified Data.Text.Internal as I
 import qualified Data.Text.Encoding.Utf16 as U16
 
 --LIQUID
-import qualified Data.Text.Array
+import Data.Text.Array (Array(..), MArray(..))
 import qualified Data.Text.Unsafe
 import qualified Data.Text.Private
-import qualified Data.Word
+import Data.Word
 import qualified GHC.ST
+import GHC.ST
 import qualified GHC.Types
 import Prelude (Integer, Integral)
 import Language.Haskell.Liquid.Prelude
@@ -91,9 +92,13 @@ default(Int)
   @-}
 
 {-@ qualif MALenLE(v:int, a:Data.Text.Array.MArray s): v <= (malen a) @-}
+{-@ qualif ALenLE(v:int, a:Data.Text.Array.Array): v <= (alen a) @-}
 
 {-@ qualif Foo(v:a, a:Data.Text.Array.MArray s):
-        (((fst v) <= (malen a)) && (((fst v) + (snd v)) <= (malen a)))
+        (snd v) <= (malen a)
+  @-}
+{-@ qualif Foo(v:a, a:Data.Text.Array.Array):
+        (snd v) <= (alen a)
   @-}
 
 {-@ qualif Foo(v:int): v >= -1 @-}
@@ -141,6 +146,10 @@ reverseStream (Text arr off len) = Stream next (off+len-1) (maxSize len)
 {-# INLINE [0] reverseStream #-}
 
 -- | /O(n)/ Convert a 'Stream Char' into a 'Text'.
+--LIQUID FIXME: we should be able to prove these streaming functions terminating
+--              but that requires giving a refined Stream type, which requires
+--              handling existential types.
+{-@ Strict Data.Text.Fusion.unstream @-}
 unstream :: Stream Char -> Text
 unstream (Stream next0 s0 len) = runText $ \done -> do
   let mlen = upperBound 4 len
@@ -174,6 +183,7 @@ length = S.lengthI
 {-# INLINE[0] length #-}
 
 -- | /O(n)/ Reverse the characters of a string.
+{-@ Strict Data.Text.Fusion.reverse @-}
 reverse :: Stream Char -> Text
 reverse (Stream next s len0)
     | isEmpty len0 = I.empty
@@ -260,12 +270,15 @@ countChar = S.countCharI
 -- | /O(n)/ Like a combination of 'map' and 'foldl''. Applies a
 -- function to each element of a 'Text', passing an accumulating
 -- parameter from left to right, and returns a final 'Text'.
+{-@ Strict Data.Text.Fusion.mapAccumL @-}
 mapAccumL :: (a -> Char -> (a,Char)) -> a -> Stream Char -> (a, Text)
 mapAccumL f z0 (Stream next0 s0 len) =
-    (nz,I.textP na 0 (liquidAssume (nl <= A.aLen na) nl))
+    (nz,I.textP na 0 nl)
   where
-    -- (na,(nz,nl)) = A.run2 (A.new mlen >>= \arr -> mapAccumL_outer f next0 arr mlen z0 s0 0)
-    (na,(nz,nl)) = A.run2 (A.new mlen >>= \arr -> outer arr mlen z0 s0 0)
+    --LIQUID INLINE (na,(nz,nl)) = A.run2 (A.new mlen >>= \arr -> outer arr mlen z0 s0 0)
+    (na,(nz,nl)) = runST $ do (marr,x) <- (A.new mlen >>= \arr -> outer arr mlen z0 s0 0)
+                              arr <- A.unsafeFreeze marr
+                              return (arr,x)
       where mlen = upperBound 4 len
     outer arr top = loop
       where

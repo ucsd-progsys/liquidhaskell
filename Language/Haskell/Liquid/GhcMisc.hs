@@ -228,9 +228,15 @@ getSourcePos           = srcSpanSourcePos . getSrcSpan
 
 
 collectArguments n e = if length xs > n then take n xs else xs
-  where (vs', e') = collectValBinders $ snd $ collectTyBinders e
+  where (vs', e') = collectValBinders' $ snd $ collectTyBinders e
         vs        = fst $ collectValBinders $ ignoreLetBinds e'
         xs        = vs' ++ vs
+
+collectValBinders' expr = go [] expr
+  where
+    go tvs (Lam b e) | isTyVar b = go tvs     e
+    go tvs (Lam b e) | isId    b = go (b:tvs) e
+    go tvs e                     = (reverse tvs, e)
 
 ignoreLetBinds e@(Let (NonRec x xe) e') 
   = ignoreLetBinds e'

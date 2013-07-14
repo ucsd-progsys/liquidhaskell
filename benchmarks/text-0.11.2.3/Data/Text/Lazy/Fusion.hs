@@ -22,11 +22,12 @@ module Data.Text.Lazy.Fusion
     , countChar
     --LIQUID
     , UC(..)
+    , TPairS(..)
     ) where
 
 import Prelude hiding (length)
 import qualified Data.Text.Fusion.Common as S
-import Data.Text.Fusion.Internal
+import Data.Text.Fusion.Internal hiding (PairS(..))
 import Data.Text.Fusion.Size (isEmpty, unknownSize)
 import Data.Text.Lazy.Internal
 import qualified Data.Text.Internal as I
@@ -39,29 +40,39 @@ import Data.Int (Int64)
 --LIQUID
 import Data.Int (Int32)
 import qualified Data.Text
-import qualified Data.Text.Array
+import Data.Text.Array (Array(..), MArray(..))
 import qualified Data.Text.Fusion.Internal
-import qualified Data.Text.Fusion.Size
+import Data.Text.Fusion.Size
 import qualified Data.Text.Internal
 import qualified Data.Text.Lazy.Internal
 import qualified Data.Text.Private
 import qualified Data.Text.Search
 import qualified Data.Text.Unsafe
 import qualified Data.Word
-import qualified GHC.ST
+import GHC.ST
 import Language.Haskell.Liquid.Prelude
 
 default(Int64)
 
+--LIQUID SPECIALIZE
+{-@ data Data.Text.Lazy.Fusion.TPairS [pslen] b = (:*) (t::LText) (b::b) @-}
+
+data TPairS b = Text :* b
+infixl 2 :*
+
+{-@ measure pslen :: Data.Text.Lazy.Fusion.TPairS b -> Int
+    pslen ((:*) t b) = (ltlen t)
+  @-}
+
 -- | /O(n)/ Convert a 'Text' into a 'Stream Char'.
 stream :: Text -> Stream Char
-stream text = Stream next (text :*: 0) unknownSize
+stream text = Stream next (text :* 0) unknownSize
   where
-    next (Empty :*: _) = Done
-    next (txt@(Chunk t@(I.Text _ _ len) ts) :*: i)
-        | i >= len  = next (ts :*: 0)
+    next (Empty :* _) = Done
+    next (txt@(Chunk t@(I.Text _ _ len) ts) :* i)
+        | i >= len  = next (ts :* 0)
         | otherwise = let Iter c d = iter t i
-                      in Yield c (txt :*: i+d)
+                      in Yield c (txt :* i+d)
         --LIQUID push binding inward for safety
         --LIQUID where Iter c d = iter t i
 {-# INLINE [0] stream #-}
@@ -79,6 +90,7 @@ data UC s = UC s {-# UNPACK #-} !Int
 
 -- | /O(n)/ Convert a 'Stream Char' into a 'Text', using the given
 -- chunk size.
+{-@ Strict Data.Text.Lazy.Fusion.unstreamChunks @-}
 unstreamChunks :: Int -> Stream Char -> Text
 unstreamChunks chunkSize (Stream next s0 len0)
   | isEmpty len0 = Empty
