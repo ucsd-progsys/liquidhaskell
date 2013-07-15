@@ -111,6 +111,8 @@ import Data.List            (sort)
 import Data.Hashable        
 
 import Data.Maybe           (fromMaybe)
+import Data.Generics        (Data) 
+import Data.Typeable        (Typeable)     
 import Text.Printf          (printf)
 import Control.DeepSeq
 import Control.Arrow        ((***))
@@ -216,7 +218,7 @@ toFix_constant (c, so)
 ------------------------ Type Constructors ---------------------------
 ----------------------------------------------------------------------
 
-newtype FTycon = TC Symbol deriving (Eq, Ord, Show) -- Data, Typeable, Show)
+newtype FTycon = TC Symbol deriving (Eq, Ord, Data, Typeable, Show)
 
 intFTyCon  = TC (S "int")
 boolFTyCon = TC (S "bool")
@@ -244,7 +246,7 @@ data Sort = FInt
           | FVar  !Int           -- ^ fixpoint type variable
           | FFunc !Int ![Sort]   -- ^ type-var arity, in-ts ++ [out-t]
           | FApp FTycon [Sort]   -- ^ constructed type 
-	      deriving (Eq, Ord, Show, Generic) --  Data, Typeable 
+	      deriving (Eq, Ord, Show, Generic, Data, Typeable) 
 
 instance Hashable Sort
 
@@ -289,7 +291,7 @@ symChars
   ++ ['0' .. '9'] 
   ++ ['_', '%', '.', '#']
 
-data Symbol = S !String deriving (Eq, Ord) -- , Data, Typeable)
+data Symbol = S !String deriving (Eq, Ord, Data, Typeable)
 
 instance Fixpoint Symbol where
   toFix (S x) = text x
@@ -392,13 +394,13 @@ intKvar             = intSymbol "k_"
 ---------------------------------------------------------------
 
 data Constant = I !Integer 
-              deriving (Eq, Ord, Show) 
+              deriving (Eq, Ord, Show, Data, Typeable) 
 
 data Brel = Eq | Ne | Gt | Ge | Lt | Le 
-            deriving (Eq, Ord, Show) 
+            deriving (Eq, Ord, Show, Data, Typeable) 
 
 data Bop  = Plus | Minus | Times | Div | Mod    
-            deriving (Eq, Ord, Show) 
+            deriving (Eq, Ord, Show, Data, Typeable) 
 	      -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
 data Expr = ECon !Constant 
@@ -409,7 +411,7 @@ data Expr = ECon !Constant
           | EIte !Pred !Expr !Expr
           | ECst !Expr !Sort
           | EBot
-          deriving (Eq, Ord, Show)
+          deriving (Eq, Ord, Show, Data, Typeable)
 
 instance Fixpoint Integer where
   toFix = integer 
@@ -457,7 +459,7 @@ data Pred = PTrue
           | PAtom !Brel !Expr !Expr
           | PAll  ![(Symbol, Sort)] !Pred
           | PTop
-          deriving (Eq, Ord, Show) -- show Data, Typeable, Show)
+          deriving (Eq, Ord, Data, Typeable, Show)
 
 instance Fixpoint Pred where
   toFix PTop             = text "???"
@@ -624,10 +626,10 @@ predReft p             = Reft (vv_, [RConc $ prop p])
 data Refa 
   = RConc !Pred 
   | RKvar !Symbol !Subst
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Typeable)
 
 
-newtype Reft = Reft (Symbol, [Refa]) deriving (Eq)
+newtype Reft = Reft (Symbol, [Refa]) deriving (Eq, Data, Typeable)
 
 instance Show Reft where
   show (Reft x) = render $ toFix x 
@@ -728,7 +730,7 @@ type BindId        = Int
 type FEnv          = SEnv SortedReft 
 
 newtype IBindEnv   = FB (S.HashSet BindId)
-newtype SEnv a     = SE (M.HashMap Symbol a) deriving (Eq)
+newtype SEnv a     = SE (M.HashMap Symbol a) deriving (Eq, Data, Typeable)
 data BindEnv       = BE { be_size :: Int
                         , be_binds :: M.HashMap BindId (Symbol, SortedReft) 
                         }
@@ -948,7 +950,7 @@ instance Subable SortedReft where
 
 
 -- newtype Subst  = Su (M.HashMap Symbol Expr) deriving (Eq)
-newtype Subst = Su [(Symbol, Expr)] deriving (Eq)
+newtype Subst = Su [(Symbol, Expr)] deriving (Eq, Data, Typeable)
 
 mkSubst                  = Su -- . M.fromList
 appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
@@ -1150,7 +1152,7 @@ data Qualifier = Q { q_name   :: String           -- ^ Name
                    , q_params :: [(Symbol, Sort)] -- ^ Parameters
                    , q_body   :: Pred             -- ^ Predicate
                    }
-               deriving (Eq, Ord, Show)  
+               deriving (Eq, Ord, Show, Data, Typeable)  
 
 instance Fixpoint Qualifier where 
   toFix = pprQual
