@@ -1,4 +1,11 @@
-{-# LANGUAGE ScopedTypeVariables, NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, DeriveDataTypeable, BangPatterns #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TypeSynonymInstances      #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE BangPatterns              #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints, and 
 -- the code for syntax-directed constraint generation. 
@@ -53,6 +60,8 @@ import qualified Language.Haskell.Liquid.CTags      as Tg
 import qualified Language.Fixpoint.Types            as F
 import Language.Fixpoint.Names (dropModuleNames)
 import Language.Fixpoint.Sort (pruneUnsortedReft)
+
+import Language.Haskell.Liquid.Fresh
 
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars)  
 import Language.Haskell.Liquid.Bare
@@ -707,97 +716,18 @@ refreshTyVars t
        return $ mkArrow αs πs (zip xs' (F.subst su <$> ts)) (F.subst su tbd)
   where (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
- 
-class Freshable a where
-  fresh   :: CG a
-  true    :: a -> CG a
-  true    = return . id
-  refresh :: a -> CG a
-  refresh = return . id
 
-instance Freshable Integer where
+instance Freshable CG Integer where
   fresh = do s <- get
              let n = freshIndex s
              put $ s { freshIndex = n + 1 }
              return n
 
-instance Freshable F.Symbol where
-  fresh = liftM (F.tempSymbol "x") fresh
-
-instance Freshable (F.Refa) where
-  fresh = liftM (`F.RKvar` F.emptySubst) freshK
-    where freshK = liftM F.intKvar fresh
-
-instance Freshable [F.Refa] where
-  fresh = liftM single fresh
-
-instance Freshable (F.Reft) where
-  fresh                  = errorstar "fresh Reft"
-  true    (F.Reft (v,_)) = return $ F.Reft (v, []) 
-  refresh (F.Reft (_,_)) = liftM2 (curry F.Reft) freshVV fresh
-    where freshVV        = liftM (F.vv . Just) fresh
-
-instance Freshable RReft where
-  fresh             = errorstar "fresh RReft"
-  true (U r _)      = liftM uTop (true r)  
-  refresh (U r _)   = liftM uTop (refresh r) 
-
-instance Freshable RefType where
-  fresh   = errorstar "fresh RefType"
-  refresh = refreshRefType
-  true    = trueRefType 
-
-trueRefType (RAllT α t)       
-  = liftM (RAllT α) (true t)
-trueRefType (RAllP π t)       
-  = liftM (RAllP π) (true t)
-trueRefType (RFun _ t t' _)    
-  = liftM3 rFun fresh (true t) (true t')
-trueRefType (RApp c ts _ _)  
-  = liftM (\ts -> RApp c ts truerefs F.top) (mapM true ts)
-		where truerefs = (RPoly []  . ofRSort . ptype) <$> (rTyConPs c)
-trueRefType (RAppTy t t' _)    
-  = liftM2 rAppTy (true t) (true t')
-trueRefType t                
-  = return t
-
-refreshRefType (RAllT α t)       
-  = liftM (RAllT α) (refresh t)
-refreshRefType (RAllP π t)       
-  = liftM (RAllP π) (refresh t)
-refreshRefType (RFun b t t' _)
-  | b == F.dummySymbol -- b == (RB F.dummySymbol)
-  = liftM3 rFun fresh (refresh t) (refresh t')
-  | otherwise
-  = liftM2 (rFun b) (refresh t) (refresh t')
-refreshRefType (RApp rc ts _ r)  
-  = do tyi                 <- tyConInfo <$> get
-       tce                 <- tyConEmbed <$> get
-       let RApp rc' _ rs _  = expandRApp tce tyi (RApp rc ts [] r)
-       let rπs              = safeZip "refreshRef" rs (rTyConPs rc')
-       liftM3 (RApp rc') (mapM refresh ts) (mapM refreshRef rπs) (refresh r)
-refreshRefType (RVar a r)  
-  = liftM (RVar a) (refresh r)
-refreshRefType (RAppTy t t' _)  
-  = liftM2 rAppTy (refresh t) (refresh t')
-refreshRefType t                
-  = return t
-
-refreshRef (RPoly s t, π) = liftM2 RPoly (mapM freshSym (pargs π)) (refreshRefType t)
-refreshRef (RMono _ _, _) = errorstar "refreshRef: unexpected"
-
-freshSym s                = liftM (, fst3 s) fresh
-
--- isBaseTyCon c
---   | c == intTyCon 
---   = True
---   | c == boolTyCon
---   = True
---   | otherwise
---   = False
-
+instance TCInfo CG where
+  getTyConInfo  = tyConInfo  <$> get
+  getTyConEmbed = tyConEmbed <$> get
+  	
 addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
-
 
 -------------------------------------------------------------------------------
 recType γ (x, e, t) 
