@@ -93,6 +93,7 @@ Library
                    Language.Haskell.Liquid.TransformRec, 
                    Language.Haskell.Liquid.Tidy, 
                    Language.Haskell.Liquid.Types
+                   Language.Haskell.Liquid.Fresh
 
   other-modules:   Language.Haskell.Liquid.Desugar.Desugar
                    Language.Haskell.Liquid.Desugar.DsExpr,
