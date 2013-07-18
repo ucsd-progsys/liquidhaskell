@@ -69,7 +69,15 @@ To use threads to speed up the tests
 
     $ make THREADS=30 test
 
-or your favorite number of threads, depending on cores etc.
+Or your favorite number of threads, depending on cores etc.
+
+You can directly extend and run the tests by modifying 
+
+    tests/regrtest.py
+
+For example, to run the tests with a particular SMT solver
+
+    ./regrtest.py -t 30 -o "--smtsolver=z3"
 
 
 How to Profile 
