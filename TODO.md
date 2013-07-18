@@ -28,7 +28,19 @@ TODO
 Liquid-Fixpoint SMTLIB2
 =======================
 
-Failed 23 tests: 
+[z3-mem] Failed 10 tests: 
+ ../benchmarks/esop2013-submission/Base0.hs,
+ ../web/demos/Composition.hs,
+ ../web/demos/Loop.hs,
+ ../web/demos/TalkingAboutSets.hs,
+ ../web/demos/refinements101reax.hs,
+ pos/SS.hs,
+ pos/cont.hs,
+ pos/ptr.hs,
+ pos/ptr2.hs,
+ pos/ptr3.hs 
+
+[zs-smtlib] Failed 23 tests: 
   ../benchmarks/esop2013-submission/Base0.hs,
   ../web/demos/Composition.hs,
   ../web/demos/Loop.hs,
@@ -37,8 +49,8 @@ SETS-RELATED
 
   ../web/demos/ListElts.hs,
   ../web/demos/TalkingAboutSets.hs,
-  ../web/demos/UniqueZipper.hs,
   ../web/demos/refinements101reax.hs,
+  ../web/demos/UniqueZipper.hs,
   pos/ListConcat.hs,
   pos/ListElem.hs,
   pos/SS.hs,
