@@ -40,43 +40,32 @@ How To Build and Install
     cabal install
 
 
-TpGen
-=====
+Using SMTLIB-based SMT Solvers
+------------------------------
+
+You can use one of several SMTLIB2 compliant solvers, by:
+
+    liquid --smtsolver=z3 path/to/file.hs
+
+Currently, we support
+    
+    * z3
 
 1. command line option to fixpoint.native
     
-    a. -smtlib = ref (SMTLIB option)
-    b. tpNull 
-    
-    fixpoint.native -smt z3    foo.fq
-    fixpoint.native -smt yices foo.fq
-    fixpoint.native -smt cvc4  foo.fq
+    fixpoint.native -smtsolver z3      foo.fq
+    fixpoint.native -smtsolver cvc4    foo.fq
+    fixpoint.native -smtsolver mathsat foo.fq
 
-    (default: smtZ3)
+2. liquid-fixpoint check if solver exists
 
-
-2. liquid-fixpoint cmdArgs
-
-    fixpoint -smt z3
-    fixpoint -smt yices 
-    fixpoint -smt cvc4
-
-3. liquid-fixpoint check if solver exists
-
-4. liquid cmdArgs
-    
-    liquid -smt z3 etc.
-
-5. Install yices
+3. Install cvc4 
     - run benchmarks
 
-6. Install cvc4 
+4. Install mathsat5
     - run benchmarks
 
-7. Install mathsat5
-    - run benchmarks
-
-8. Add set axioms
+5. Add set axioms
     - redo 5,6,7
 
 9. MERGE
