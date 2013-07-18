@@ -29,10 +29,13 @@ Liquid-Fixpoint SMTLIB2
 =======================
 
 Failed 23 tests: 
- ../benchmarks/esop2013-submission/Base0.hs,
+  ../benchmarks/esop2013-submission/Base0.hs,
   ../web/demos/Composition.hs,
-  ../web/demos/ListElts.hs,
   ../web/demos/Loop.hs,
+ 
+SETS-RELATED
+
+  ../web/demos/ListElts.hs,
   ../web/demos/TalkingAboutSets.hs,
   ../web/demos/UniqueZipper.hs,
   ../web/demos/refinements101reax.hs,
