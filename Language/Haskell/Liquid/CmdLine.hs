@@ -28,6 +28,9 @@ config = Config {
  , noPrune = def &= help "Disable prunning unsorted Predicates"
                  &= name "no-prune-unsorted"
 
+ , smtsolver = def &= help "Name of SMT-Solver" 
+                   &= opt ""
+
  , termination = def &= help "Enable Termination Check"
                      &= name "termination-check"
  
