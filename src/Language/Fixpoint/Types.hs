@@ -102,6 +102,7 @@ module Language.Fixpoint.Types (
 
   -- * SMT Solvers
   , SMTSolver (..)
+  , smtSolver 
   ) where
 
 import GHC.Generics         (Generic)
@@ -144,6 +145,10 @@ instance Show SMTSolver where
   show CVC4    = "cvc4"
   show MathSat = "mathsat"
 
+smtSolver "z3"      = Z3
+smtSolver "cvc4"    = CVC4
+smtSolver "mathsat" = MathSat
+smtSolver other     = error $ "ERROR: unsupported SMT Solver = " ++ other
 
 ------------------------------------------------------------------------
 
