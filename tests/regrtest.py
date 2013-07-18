@@ -82,7 +82,7 @@ class Config (rtest.TestConfig):
     if self.is_test(file):
       fargs = getfileargs(path)
       lflags = getliquidargs(path)
-      return solve_quals(dir, file, True, False, True, [self.dargs] + fargs, lflags)
+      return solve_quals(dir, file, True, False, True, fargs, lflags)
     elif file.endswith(".sh"):
       return run_script(path, True)
 
