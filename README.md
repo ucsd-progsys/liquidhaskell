@@ -38,3 +38,76 @@ How To Build and Install
 ------------------------
 
     cabal install
+
+
+TpGen
+=====
+
+1. command line option to fixpoint.native
+    
+    a. -smtlib = ref (SMTLIB option)
+    b. tpNull 
+    
+    fixpoint.native -smt z3    foo.fq
+    fixpoint.native -smt yices foo.fq
+    fixpoint.native -smt cvc4  foo.fq
+
+    (default: smtZ3)
+
+
+2. liquid-fixpoint cmdArgs
+
+    fixpoint -smt z3
+    fixpoint -smt yices 
+    fixpoint -smt cvc4
+
+3. liquid-fixpoint check if solver exists
+
+4. liquid cmdArgs
+    
+    liquid -smt z3 etc.
+
+5. Install yices
+    - run benchmarks
+
+6. Install cvc4 
+    - run benchmarks
+
+7. Install mathsat5
+    - run benchmarks
+
+8. Add set axioms
+    - redo 5,6,7
+
+9. MERGE
+
+10. Find clean platform-independent BUILD.
+
+    DELETE z3bind (easy build on macOS) 
+   
+
+
+
+Failed 18 tests:
+ 
+  Broken:
+    , SS.hs, cont.hs, ptr.hs, ptr2.hs, ptr3.hs
+   
+  Sets:
+    , deepmeas0.hs
+    , ListConcat.hs
+    , ListElem.hs
+    , listSet.hs
+    , listSetDemo.hs
+    , stacks0.hs
+    , zipper.hs
+    , zipper0.hs
+    , meas9.hs
+    , meas10.hs
+    , meas11.hs
+ 
+
+
+
+
+

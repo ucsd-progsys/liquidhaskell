@@ -99,6 +99,9 @@ module Language.Fixpoint.Types (
 
   -- * Qualifiers
   , Qualifier (..)
+
+  -- * SMT Solvers
+  , SMTSolver (..)
   ) where
 
 import GHC.Generics         (Generic)
@@ -129,6 +132,20 @@ class Fixpoint a where
   simplify :: a -> a 
   simplify =  id
 
+
+------------------------------------------------------------------------
+-- SMT SOLVERS ---------------------------------------------------------
+------------------------------------------------------------------------
+
+data SMTSolver = Z3 | CVC4 | MathSat 
+
+instance Show SMTSolver where 
+  show Z3      = "z3"
+  show CVC4    = "cvc4"
+  show MathSat = "mathsat"
+
+
+------------------------------------------------------------------------
 
 showFix :: (Fixpoint a) => a -> String
 showFix =  render . toFix
