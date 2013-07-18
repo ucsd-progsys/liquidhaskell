@@ -23,13 +23,13 @@ import time, subprocess, optparse, sys, socket, os
 sys.path.append("../")
 import rtest as rtest
 
-solve      = "liquid ".split()
-null       = open("/dev/null", "w")
-now	   = (time.asctime(time.localtime(time.time()))).replace(" ","_")
-logfile    = "../tests/logs/regrtest_results_%s_%s" % (socket.gethostname (), now)
-argcomment = "--! run with "
+solve         = "liquid ".split()
+null          = open("/dev/null", "w")
+now	          = (time.asctime(time.localtime(time.time()))).replace(" ","_")
+logfile       = "../tests/logs/regrtest_results_%s_%s" % (socket.gethostname (), now)
+argcomment    = "--! run with "
 liquidcomment = "{--! run liquid with "
-endcomment = "-}"
+endcomment    = "-}"
 
 def logged_sys_call(args, out=None, err=None, dir=None):
   print "exec: " + " ".join(args)
@@ -41,7 +41,7 @@ def solve_quals(dir,file,bare,time,quiet,flags,lflags):
   if time: time = ["time"]
   else: time = []
   if lflags: lflags = ["--" + " --".join(lflags)]
-  hygiene_flags = [] # [("--liquidcprefix=%s" % (file)), "-o", "/dev/null"]
+  hygiene_flags = [] 
   out = open(os.path.join(dir,file) + ".log", "w")
   rv  = logged_sys_call(time + solve + flags + lflags + hygiene_flags + [file], out, dir=dir)
   out.close()
@@ -79,16 +79,15 @@ class Config (rtest.TestConfig):
 
   def run_test (self, dir, file):
     path = os.path.join(dir,file)
-    os.environ['LCCFLAGS'] = self.dargs
-    if file.endswith(".hs"):
+    if self.is_test(file):
       fargs = getfileargs(path)
       lflags = getliquidargs(path)
-      return solve_quals(dir, file, True, False, True, fargs, lflags)
+      return solve_quals(dir, file, True, False, True, [self.dargs] + fargs, lflags)
     elif file.endswith(".sh"):
       return run_script(path, True)
 
   def is_test (self, file):
-    return file.endswith(".hs")
+    return file.endswith(".hs") # or file.endswith(".lhs")
 
 #####################################################################################
 
@@ -133,11 +132,10 @@ textIgnored = { "Data/Text/Axioms.hs"
 
 testdirs  = [ ("pos", {}, 0)
             , ("neg", {}, 1)
-#            , ("../benchmarks/esop2013-submission", {}, 0)
-#            , ("../benchmarks/bytestring-0.9.2.1", bytestringIgnored, 0)
-#            , ("../benchmarks/text-0.11.2.3", textIgnored, 0)
-#            , ("../web/demos", {}, 0)
-#            , ("../blog", {}, 0)
+            , ("../web/demos", {}, 0)
+            , ("../benchmarks/esop2013-submission", {}, 0)
+#           , ("../benchmarks/bytestring-0.9.2.1", bytestringIgnored, 0)
+#           , ("../benchmarks/text-0.11.2.3", textIgnored, 0)
             ]
 
 parser = optparse.OptionParser()
@@ -146,6 +144,8 @@ parser.add_option("-o", "--opts", dest="opts", default="", type=str, help="addit
 parser.disable_interspersed_args()
 options, args = parser.parse_args()
 
+print "options =", options
+print "args =", args
 
 
 [os.system(("cd %s; cleanup; cd ../" % d)) for (d,_,_) in testdirs]
