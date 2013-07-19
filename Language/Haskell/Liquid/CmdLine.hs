@@ -28,8 +28,8 @@ config = Config {
  , noPrune = def &= help "Disable prunning unsorted Predicates"
                  &= name "no-prune-unsorted"
 
- , termination = def &= help "Enable Termination Check"
-                     &= name "termination-check"
+ , notermination = def &= help "Disable Termination Check"
+                       &= name "no-termination-check"
  
  , noCheckUnknown 
            = def &= explicit
