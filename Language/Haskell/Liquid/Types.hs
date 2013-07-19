@@ -252,7 +252,7 @@ data GhcSpec = SP {
                                                  -- e.g tests/pos/qualTest.hs
   , tgtVars  :: !TargetVars                      -- ^ Top-level Binders To Verify (empty means ALL binders)
   , decr     :: ![(Var, [Int])]
-  , strict   :: !(S.HashSet Var)
+  , lazy     :: !(S.HashSet Var)
   }
   
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]

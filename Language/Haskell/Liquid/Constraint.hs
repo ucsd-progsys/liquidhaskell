@@ -472,7 +472,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) 
                      , specQuals  :: ![F.Qualifier]
                      , specDecr   :: ![(Var, [Int])]
-                     , specStrict :: !(S.HashSet Var)
+                     , specLazy   :: !(S.HashSet Var)
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
                      , lits       :: ![(F.Symbol, F.Sort)]
@@ -516,7 +516,7 @@ initCGI cfg info = CGInfo {
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
   , specDecr   = decr spc
-  , specStrict = strict spc
+  , specLazy   = lazy spc
   , tcheck     = termination cfg
   , pruneRefs  = not $ noPrune cfg
   , logWarn    = []
@@ -806,7 +806,7 @@ consCBLet γ cb
 
 consCBTop γ cb
   = do oldtcheck <- tcheck <$> get
-       strict    <- specStrict <$> get
+       strict    <- specLazy <$> get
        let tflag  = oldtcheck && (tcond cb strict)
        modify $ \s -> s{tcheck = tflag}
        γ' <- consCB tflag γ cb

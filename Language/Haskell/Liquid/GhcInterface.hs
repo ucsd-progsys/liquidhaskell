@@ -179,7 +179,7 @@ moduleSpec cfg vars defVars target mg paths
   = do liftIO       $ putStrLn ("paths = " ++ show paths) 
        tgtSpec     <- liftIO $ parseSpec (name, target) 
        impSpec     <- getSpecs paths impNames [Spec, Hs, LHs]
-       let impSpec' = impSpec{Ms.decr=[], Ms.strict=S.empty}
+       let impSpec' = impSpec{Ms.decr=[], Ms.lazy=S.empty}
        let spec     = Ms.expandRTAliases $ tgtSpec `mappend` impSpec'
        let imps     = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
        setContext  [IIModule $ moduleName $ mgi_module mg]

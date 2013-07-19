@@ -280,7 +280,7 @@ data Pspec ty ctor
   | Embed   (Located String, FTycon)
   | Qualif  Qualifier
   | Decr    (LocSymbol, [Int])
-  | Strict  Symbol
+  | Lazy    Symbol
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
@@ -296,7 +296,7 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.embeds     = M.fromList [e | Embed e <- xs]
   , Measure.qualifiers = [q | Qualif q <- xs]
   , Measure.decr       = [d | Decr d   <- xs]
-  , Measure.strict     = S.fromList [s | Strict s <- xs]
+  , Measure.lazy       = S.fromList [s | Lazy s <- xs]
   }
 
 type BareSpec = (Measure.Spec BareType Symbol)
@@ -325,11 +325,12 @@ specP
     <|> (reserved "embed"     >> liftM Embed  embedP    )
     <|> (reserved "qualif"    >> liftM Qualif qualifierP)
     <|> (reserved "Decrease"  >> liftM Decr   decreaseP )
-    <|> (reserved "Strict"    >> liftM Strict strictP   )
+    <|> (reserved "Strict"    >> liftM Lazy   lazyP     )
+    <|> (reserved "Lazy"      >> liftM Lazy   lazyP     )
     <|> ({- DEFAULT -}           liftM Assms  tyBindsP  )
 
-strictP :: Parser Symbol
-strictP = binderP
+lazyP :: Parser Symbol
+lazyP = binderP
 
 decreaseP :: Parser (LocSymbol, [Int])
 decreaseP = mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> (many integer))

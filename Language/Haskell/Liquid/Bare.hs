@@ -72,7 +72,7 @@ makeGhcSpec' cfg name vars defVars env spec
        sigs'           <- makeAssumeSpec  cfg benv vars     $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec
-       let stricts      = makeStricts     vars              $ Ms.strict     spec
+       let lazies       = makeLazies      vars              $ Ms.lazy       spec
        let sigs         = [(x, (txRefSort embs benv . txExpToBind) <$> t) | (x, t) <- sigs'] 
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs datacons
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms ] -- first val <$> ms 
@@ -90,7 +90,7 @@ makeGhcSpec' cfg name vars defVars env spec
                              , tcEmbeds   = embs 
                              , qualifiers = Ms.qualifiers spec 
                              , decr       = decr'
-                             , strict     = stricts
+                             , lazy       = lazies
                              , tgtVars    = AllVars -- makeTargetVars vars (binds cfg)
                              }
 makeHints :: [Var] -> [(LocSymbol, [Int])] -> [(Var, [Int])]
@@ -335,8 +335,8 @@ lookupGhcTyCon' c = wrapErr msg lookupGhcTyCon (val c)
     msg :: String = berrUnknownTyCon c
 
 
-makeStricts :: [Var] -> S.HashSet Symbol -> S.HashSet Var
-makeStricts vs s = S.fromList $ fst3 <$> joinIds vs xxs
+makeLazies :: [Var] -> S.HashSet Symbol -> S.HashSet Var
+makeLazies vs s = S.fromList $ fst3 <$> joinIds vs xxs
   where xs  = S.toList s
         xxs = zip xs xs
 
