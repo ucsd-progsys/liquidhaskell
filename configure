@@ -17,10 +17,10 @@ else
   Z3HOME=
 fi
 
-cat - > config.make <<EOF
-ROOTHOME=$ROOTHOME
-GHCHOME=$GHCHOME
-EXTHOME=$ROOTHOME/external
+cat - > external/fixpoint/config.make <<EOF
+### ROOTHOME=$ROOTHOME
+### GHCHOME=$GHCHOME
+### EXTHOME=$ROOTHOME/external
 OCAMLGRAPHHOME=$ROOTHOME/external/ocamlgraph
 OCAMLLIB=$OCAMLLIB
 Z3HOME=$Z3HOME
