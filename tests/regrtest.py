@@ -80,8 +80,10 @@ class Config (rtest.TestConfig):
   def run_test (self, dir, file):
     path = os.path.join(dir,file)
     if self.is_test(file):
-      fargs = getfileargs(path)
       lflags = getliquidargs(path)
+      fargs  = getfileargs(path)
+      if (self.dargs != ""): 
+        fargs = [self.dargs] + fargs  
       return solve_quals(dir, file, True, False, True, fargs, lflags)
     elif file.endswith(".sh"):
       return run_script(path, True)
