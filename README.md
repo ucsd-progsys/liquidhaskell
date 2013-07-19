@@ -45,58 +45,13 @@ Using SMTLIB-based SMT Solvers
 
 You can use one of several SMTLIB2 compliant solvers, by:
 
-    liquid --smtsolver=z3 path/to/file.hs
+    fixpoint --smtsolver=z3 path/to/file.hs
 
 Currently, we support
     
     * z3
 
 1. command line option to fixpoint.native
-    
-    fixpoint.native -smtsolver z3      foo.fq
-    fixpoint.native -smtsolver cvc4    foo.fq
-    fixpoint.native -smtsolver mathsat foo.fq
-
-2. liquid-fixpoint check if solver exists
-
-3. Install cvc4 
-    - run benchmarks
-
-4. Install mathsat5
-    - run benchmarks
-
-5. Add set axioms
-    - redo 5,6,7
-
-9. MERGE
-
-10. Find clean platform-independent BUILD.
-
-    DELETE z3bind (easy build on macOS) 
-   
-
-
-
-Failed 18 tests:
- 
-  Broken:
-    , SS.hs, cont.hs, ptr.hs, ptr2.hs, ptr3.hs
-   
-  Sets:
-    , deepmeas0.hs
-    , ListConcat.hs
-    , ListElem.hs
-    , listSet.hs
-    , listSetDemo.hs
-    , stacks0.hs
-    , zipper.hs
-    , zipper0.hs
-    , meas9.hs
-    , meas10.hs
-    , meas11.hs
- 
-
-
-
-
+2. merge 
+3. Find clean platform-independent BUILD.
 
