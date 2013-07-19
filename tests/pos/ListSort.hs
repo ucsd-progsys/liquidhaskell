@@ -27,20 +27,29 @@ insert y (x : xs) | y <= x    = y : x : xs
 mergeSort :: Ord a => [a] -> [a]
 mergeSort []  = []
 mergeSort [x] = [x]
-mergeSort xs  = merge (mergeSort xs1) (mergeSort xs2) where (xs1, xs2) = split xs
+mergeSort xs  = merge d (mergeSort xs1) (mergeSort xs2) 
+  where (xs1, xs2) = split xs
+        d          = length xs
+
+{-@ predicate Pr X Y = (((len Y) > 1) => ((len Y) < (len X))) @-}
+
+{-@ split :: xs:[a] 
+          -> ({v:[a] | (Pr xs v)}, {v:[a]|(Pr xs v)})
+                 <{\x y -> ((len x) + (len y) = (len xs))}> 
+  @-}
 
 split :: [a] -> ([a], [a])
 split (x:(y:zs)) = (x:xs, y:ys) where (xs, ys) = split zs
 split xs         = (xs, [])
 
-merge :: Ord a => [a] -> [a] -> [a]
-merge xs [] = xs
-merge [] ys = ys
-merge (x:xs) (y:ys)
+merge :: Ord a => Int -> [a] -> [a] -> [a]
+merge _ xs [] = xs
+merge _ [] ys = ys
+merge d (x:xs) (y:ys)
   | x <= y
-  = x:(merge xs (y:ys))
+  = x:(merge (d-1) xs (y:ys))
   | otherwise 
-  = y:(merge (x:xs) ys)
+  = y:(merge (d-1) (x:xs) ys)
 
 ------------------------------------------------------------------------------
 -- Quick Sort ----------------------------------------------------------------
