@@ -103,11 +103,17 @@ makeHints vs       = concatMap go
                      Nothing  -> errorstar $ msg s
         msg s      = printf "%s: Hint for Undefined Var %s" 
                          (show (loc s)) (show (val s))
-        
-varsAfter s = map snd . takeEqLoc . dropLeLoc
+       
+varsAfter s lvs 
+  | eqList (fst <$> lvs)
+  = snd <$> lvs
+  | otherwise
+  = map snd $ takeEqLoc $ dropLeLoc lvs
   where takeEqLoc xs@((l, _):_) = L.takeWhile ((l==) . fst) xs
         takeEqLoc []            = []
         dropLeLoc               = L.dropWhile ((loc s >) . fst)
+        eqList []               = True
+        eqList (x:xs)           = all (==x) xs
 
 txRefSort embs benv = mapBot (addSymSort embs (tcEnv benv))
 
