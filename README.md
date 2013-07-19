@@ -12,6 +12,7 @@ itself is written in Ocaml. The Haskell Library contains
 Requirements
 ------------
 
+
 The package include the Ocaml fixpoint code, as well as the z3 binaries
 
 In addition to the .cabal dependencies, to build you must have
@@ -38,7 +39,6 @@ How To Build and Install
 ------------------------
 
     cabal install
-
 
 Using SMTLIB-based SMT Solvers
 ------------------------------
