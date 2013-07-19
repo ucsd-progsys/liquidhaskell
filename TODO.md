@@ -28,6 +28,8 @@ TODO
 Liquid-Fixpoint SMTLIB2
 =======================
 
+z3-mem fails SAME tests as z3-smtlib
+
 [z3-mem] Failed 10 tests: 
  ../benchmarks/esop2013-submission/Base0.hs,
  ../web/demos/Composition.hs,
