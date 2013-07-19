@@ -251,7 +251,7 @@ data GhcSpec = SP {
   , qualifiers :: ![Qualifier]                   -- ^ Qualifiers in Source/Spec files
                                                  -- e.g tests/pos/qualTest.hs
   , tgtVars  :: !TargetVars                      -- ^ Top-level Binders To Verify (empty means ALL binders)
-  , decr     :: ![(Symbol, [Int])]
+  , decr     :: ![(Var, [Int])]
   , strict   :: !(S.HashSet Var)
   }
   
