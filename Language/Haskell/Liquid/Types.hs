@@ -114,7 +114,7 @@ data Config = Config {
   , binds          :: [String]   -- ^ top-level binders to check (empty means check ALL)
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , nofalse        :: Bool       -- ^ remove false predicates from the refinements
-  , termination    :: Bool       -- ^ enable termination check
+  , notermination  :: Bool       -- ^ disable termination check
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   } deriving (Data, Typeable, Show, Eq)
@@ -251,8 +251,8 @@ data GhcSpec = SP {
   , qualifiers :: ![Qualifier]                   -- ^ Qualifiers in Source/Spec files
                                                  -- e.g tests/pos/qualTest.hs
   , tgtVars  :: !TargetVars                      -- ^ Top-level Binders To Verify (empty means ALL binders)
-  , decr     :: ![(Symbol, [Int])]
-  , strict   :: !(S.HashSet Var)
+  , decr     :: ![(Var, [Int])]
+  , lazy     :: !(S.HashSet Var)
   }
   
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]

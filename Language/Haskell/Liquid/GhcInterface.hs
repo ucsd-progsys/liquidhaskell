@@ -76,7 +76,8 @@ getGhcInfo cfg target
       let impVs           = importVars  coreBinds 
       let defVs           = definedVars coreBinds 
       let useVs           = readVars    coreBinds
-      (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) target modguts (idirs cfg) 
+      let letVs           = letVars     coreBinds
+      (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs target modguts (idirs cfg) 
       liftIO              $ putStrLn $ "Module Imports: " ++ show imps 
       hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs 
       return              $ GI hscEnv coreBinds impVs defVs useVs hqualFiles imps incs spec 
@@ -174,16 +175,17 @@ moduleHquals mg paths target imps incs
 -- | Extracting Specifications (Measures + Assumptions) ------------------------
 --------------------------------------------------------------------------------
  
-moduleSpec cfg vars target mg paths
-  = do liftIO      $ putStrLn ("paths = " ++ show paths) 
-       tgtSpec    <- liftIO $ parseSpec (name, target) 
-       impSpec    <- getSpecs paths impNames [Spec, Hs, LHs] 
-       let spec    = Ms.expandRTAliases $ tgtSpec `mappend` impSpec 
-       let imps    = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
-       setContext [IIModule $ moduleName $ mgi_module mg]
-       env        <- getSession
-       ghcSpec    <- liftIO $ makeGhcSpec cfg name vars env spec
-       return      (ghcSpec, imps, Ms.includes tgtSpec)
+moduleSpec cfg vars defVars target mg paths
+  = do liftIO       $ putStrLn ("paths = " ++ show paths) 
+       tgtSpec     <- liftIO $ parseSpec (name, target) 
+       impSpec     <- getSpecs paths impNames [Spec, Hs, LHs]
+       let impSpec' = impSpec{Ms.decr=[], Ms.lazy=S.empty}
+       let spec     = Ms.expandRTAliases $ tgtSpec `mappend` impSpec'
+       let imps     = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
+       setContext  [IIModule $ moduleName $ mgi_module mg]
+       env         <- getSession
+       ghcSpec     <- liftIO $ makeGhcSpec cfg name vars defVars env spec
+       return       (ghcSpec, imps, Ms.includes tgtSpec)
     where impNames = allDepNames  mg
           name     = mgi_namestring mg
 
@@ -290,6 +292,7 @@ reqFile ext s
 class CBVisitable a where
   freeVars :: S.HashSet Var -> a -> [Var]
   readVars :: a -> [Var] 
+  letVars  :: a -> [Var] 
   literals :: a -> [Literal]
 
 instance CBVisitable [CoreBind] where
@@ -297,8 +300,9 @@ instance CBVisitable [CoreBind] where
     where xs = concatMap (freeVars env) cbs 
           ys = concatMap bindings cbs
   
-  readVars cbs = concatMap readVars cbs  
-  literals cbs = concatMap literals cbs
+  readVars = concatMap readVars
+  letVars  = concatMap letVars 
+  literals = concatMap literals
 
 instance CBVisitable CoreBind where
   freeVars env (NonRec x e) = freeVars (extendEnv env [x]) e 
@@ -309,12 +313,17 @@ instance CBVisitable CoreBind where
   readVars (NonRec _ e)      = readVars e
   readVars (Rec xes)         = concatMap readVars $ map snd xes
 
+  letVars (NonRec x e)      = x:letVars e
+  letVars (Rec xes)         = xs ++ concatMap letVars es
+    where (xs, es) = unzip xes
+
   literals (NonRec _ e)      = literals e
   literals (Rec xes)         = concatMap literals $ map snd xes
 
 instance CBVisitable (Expr Var) where
   freeVars = exprFreeVars
   readVars = exprReadVars
+  letVars  = exprLetVars
   literals = exprLiterals
 
 exprFreeVars = go 
@@ -339,6 +348,17 @@ exprReadVars = go
     go (Case e _ _ cs)     = (go e) ++ (concatMap readVars cs) 
     go _                   = []
 
+exprLetVars = go
+  where
+    go (Var x)             = []
+    go (App e a)           = concatMap go [e, a] 
+    go (Lam _ e)           = go e
+    go (Let b e)           = letVars b ++ go e 
+    go (Tick _ e)          = go e
+    go (Cast e _)          = go e
+    go (Case e _ _ cs)     = go e ++ concatMap letVars cs
+    go _                   = []
+
 exprLiterals = go
   where
     go (Lit l)             = [l]
@@ -354,6 +374,7 @@ exprLiterals = go
 instance CBVisitable (Alt Var) where
   freeVars env (a, xs, e) = freeVars env a ++ freeVars (extendEnv env xs) e
   readVars (_,_, e)       = readVars e
+  letVars  (_,_, e)       = letVars  e
   literals (c,_, e)       = literals c ++ literals e
 
 
@@ -361,6 +382,7 @@ instance CBVisitable AltCon where
   freeVars _ (DataAlt dc) = dataConImplicitIds dc
   freeVars _ _            = []
   readVars _              = []
+  letVars  _              = []
   literals (LitAlt l)     = [l]
   literals _              = []
 

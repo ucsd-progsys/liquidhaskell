@@ -471,8 +471,8 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , annotMap   :: !(AnnInfo Annot) 
                      , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) 
                      , specQuals  :: ![F.Qualifier]
-                     , specDecr   :: ![(F.Symbol, [Int])]
-                     , specStrict :: !(S.HashSet Var)
+                     , specDecr   :: ![(Var, [Int])]
+                     , specLazy   :: !(S.HashSet Var)
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
                      , lits       :: ![(F.Symbol, F.Sort)]
@@ -516,8 +516,8 @@ initCGI cfg info = CGInfo {
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
   , specDecr   = decr spc
-  , specStrict = strict spc
-  , tcheck     = termination cfg
+  , specLazy   = lazy spc
+  , tcheck     = not $ notermination cfg
   , pruneRefs  = not $ noPrune cfg
   , logWarn    = []
   } 
@@ -730,49 +730,48 @@ instance TCInfo CG where
 addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------------
-recType γ (x, e, t) 
-  = do hint          <- checkHint' . L.lookup xSymbol . specDecr <$> get
-       maybeRecType x dindex hint t vs
-  where (αs, πs, t0)  = bkUniv t
-        ts            = snd3 $ bkArrow $ thd3 $ bkUniv t
-        vs            = collectArguments (length ts) e
+----------------------- TEMINATION TYPE ---------------------------------------
+-------------------------------------------------------------------------------
+
+recType γ xet@(x, _, t) 
+  = do hint          <- checkHint' . L.lookup x . specDecr <$> get
+       maybeRecType xet dindex hint
+  where ts            = snd3 $ bkArrow $ thd3 $ bkUniv t
         checkHint'    = checkHint x ts isDecreasing
--- TODO get the appropriate symbols for hints, 
--- allow parsing not-tolevel symbols
-        xSymbol       = F.S $ dropModuleNames $ showPpr x
         dindex        = L.findIndex isDecreasing ts
-        
-maybeRecType x Nothing hint t _
+       
+maybeRecType (x, _, t) Nothing _
   = addWarning msg >> return t
   where msg = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x)
 
-maybeRecType x (Just i) hint t vs
-  = do dxt         <- mapM (safeLogIndex msg  xts) index
-       v           <- mapM (safeLogIndex msg' vs)  index
-       return $ maybeRecType' t v dxt index       
+maybeRecType (x, e, t) (Just i) hint
+  = do dxt    <- mapM (safeLogIndex msg  xts) index
+       v      <- mapM (safeLogIndex msg' vs)  index
+       return $ makeRecType t v dxt index       
   where index = fromMaybe [i] hint
-        msg'  = "recType on " ++ showPpr x ++ " with "++ showPpr vs
-        msg   = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x)
-        (αs, πs, t0)  = bkUniv t
-        (xs, ts, tbd) = bkArrow t0
-        xts           = zip xs ts
+        loc   = showPpr (getSrcSpan x)
+        xts'  = bkArrow $ thd3 $ bkUniv t
+        xts   = zip (fst3 xts') (snd3 xts')
+        vs    = collectArguments (length xts) e
+        msg'  = printf "%s: No decreasing argument on %s with %s" 
+        msg   = printf "%s: No decreasing parameter" loc
+                  loc (showPpr x) (showPpr vs)
 
--- Just one hint, better keep that it works!
-maybeRecType' t ([Just v]) ([Just (dx, dt)]) [index]
-  = mkArrow αs πs xts' tbd
-  where xts' = replaceN index (mkDecrType (v, dx, dt)) $ zip xs ts
-        (αs, πs, t0)  = bkUniv t
-        (xs, ts, tbd) = bkArrow t0
-maybeRecType' t [Nothing] [Nothing] _ 
+makeRecType t [Nothing] [Nothing] _ 
   = t
--- Here is lex order
-maybeRecType' t vs' dxs' is
+
+makeRecType t vs' dxs' is
   = mkArrow αs πs xts' tbd
-  where vs  = catMaybes vs'
-        dxs = catMaybes dxs'
+  where xts'          = replaceN (last is) (makeDecrType vdxs) xts
+        vdxs          = zip vs dxs
+        xts           = zip xs ts
+        vs            = catMaybes vs'
+        dxs           = catMaybes dxs'
         (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
-        xts' = replaceN (last is) (mkDecrLexType (zip vs dxs)) $ zip xs ts
+
+makeRecType t _ _ _ 
+  = errorstar "Constraint.makeRecType"
 
 safeLogIndex err ls n
   | n >= length ls
@@ -780,44 +779,22 @@ safeLogIndex err ls n
   | otherwise 
   = return $ Just $ ls !! n
 
-
-mkDecrLexType = mkDLexType [] []
-
-mkDLexType xvs acc [(v, (x, t@(RApp c _ _ _)))] 
-  = traceShow "LEX REF" $ (x, ) $ t `strengthen` tr
-  where tr = uReft (vv, [F.RConc $ F.POr (r:acc)])
-        r  = cmpLexRef xvs (v', vv, f)
-        v' = varSymbol v
-        Just f = sizeFunction $ rTyConInfo c
-        vv = F.S "vvRec"
-
-mkDLexType xvs acc ( (v, (x, t@(RApp c _ _ _))): vxts)
-  = mkDLexType ((v', x, f):xvs) (r:acc) vxts
-  where r = cmpLexRef xvs  (v', x, f)
-        v' = varSymbol v
-        Just f = sizeFunction $ rTyConInfo c
-
-cmpLexRef vxs (v, x, g)
-  = F.PAnd $ (F.PAtom F.Lt (g x) (g v))
-         :[F.PAtom F.Eq (f y) (f z) | (y, z, f) <- vxs] 
-
-
-mkDecrType (v, x, (t@(RApp c _ _ _))) = (x,) $  t `strengthen` tr
-  where tr = cmpReft (sizeFunction $ rTyConInfo c) (varSymbol v)
-
 checkHint _ _ _ Nothing 
   = Nothing
+
 checkHint x ts f (Just ns) | L.sort ns /= ns
-  = errorstar $ (showPpr (getSrcSpan x)) ++ ": The hints should be increasing"
+  = errorstar $ printf "%s: The hints should be increasing" loc
+  where loc = showPpr $ getSrcSpan x
+
 checkHint x ts f (Just ns) 
-  = Just $ catMaybes (checkHint1 x ts f <$> ns)
+  = Just $ catMaybes (checkValidHint x ts f <$> ns)
 
-checkHint1 x ts f n
+checkValidHint x ts f n
   | n < 0 || n >= length ts = errorstar err
-  | f (ts L.!! n) = Just n
-  | otherwise = errorstar err
-  where err = printf "%s: Invalid Hint %d for %s" (showPpr (getSrcSpan x)) (n+1) (showPpr x)
-
+  | f (ts L.!! n)           = Just n
+  | otherwise               = errorstar err
+  where err = printf "%s: Invalid Hint %d for %s" loc (n+1) (showPpr x)
+        loc = showPpr $ getSrcSpan x
 
 -------------------------------------------------------------------
 -------------------- Generation: Corebind -------------------------
@@ -829,7 +806,7 @@ consCBLet γ cb
 
 consCBTop γ cb
   = do oldtcheck <- tcheck <$> get
-       strict    <- specStrict <$> get
+       strict    <- specLazy <$> get
        let tflag  = oldtcheck && (tcond cb strict)
        modify $ \s -> s{tcheck = tflag}
        γ' <- consCB tflag γ cb
@@ -863,6 +840,8 @@ consCB tflag γ xes@(Rec xs) | tflag
 
               ++ "in definitions of " ++ showPpr (fst <$>xs)
 
+-- TODO : no termination check:
+-- check that the result type is trivial!
 consCB _ γ (Rec xes) 
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        let xts = [(x, to) | (x, _, to) <- xets, not (isGrty x)]

@@ -5,8 +5,11 @@ import Data.Vector hiding (map, concat, zipWith, filter, foldr, foldl, (++))
 
 
 for :: Int -> Int -> a -> (Int -> a -> a) -> a
-for lo hi acc f 
-  | lo < hi   = for (lo + 1) hi (f lo acc) f
+for lo hi  = for' (hi-lo) lo hi
+
+for' :: Int -> Int -> Int -> a -> (Int -> a -> a) -> a
+for' d lo hi acc f 
+  | lo < hi   = for' (d-1) (lo + 1) hi (f lo acc) f
   | otherwise = acc 
 
 dotProd       :: Vector Int -> Vector Int -> Int

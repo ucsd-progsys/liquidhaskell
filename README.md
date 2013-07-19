@@ -153,9 +153,9 @@ Termination Check
 
 A termination check is performed on all recursive functions.
 
-Use the `termination-check` option to enable the check
+Use the `no-termination` option to disable the check
  
-    liquid --termination-check test.hs
+    liquid --no-termination test.hs
 
 In recursive functions the *first* algebraic or integer argument should be decreasing.
 
@@ -183,7 +183,7 @@ To *disable* termination checking for `foo` that is, to *assume* that it
 is terminating (possibly for some complicated reason currently beyond the 
 scope of LiquidHaskell) you can write
 
-    {-@ Strict foo @-} 
+    {-@ Lazy foo @-} 
     
 
 **Limitations**
