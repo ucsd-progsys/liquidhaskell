@@ -471,7 +471,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , annotMap   :: !(AnnInfo Annot) 
                      , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) 
                      , specQuals  :: ![F.Qualifier]
-                     , specDecr   :: ![(F.Symbol, [Int])]
+                     , specDecr   :: ![(Var, [Int])]
                      , specStrict :: !(S.HashSet Var)
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
@@ -731,7 +731,7 @@ addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------------
 recType γ (x, e, t) 
-  = do hint          <- checkHint' . L.lookup xSymbol . specDecr <$> get
+  = do hint          <- checkHint' . L.lookup x . specDecr <$> get
        maybeRecType x dindex hint t vs
   where (αs, πs, t0)  = bkUniv t
         ts            = snd3 $ bkArrow $ thd3 $ bkUniv t
@@ -739,7 +739,6 @@ recType γ (x, e, t)
         checkHint'    = checkHint x ts isDecreasing
 -- TODO get the appropriate symbols for hints, 
 -- allow parsing not-tolevel symbols
-        xSymbol       = F.S $ dropModuleNames $ showPpr x
         dindex        = L.findIndex isDecreasing ts
         
 maybeRecType x Nothing hint t _

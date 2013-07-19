@@ -57,12 +57,12 @@ import TypeRep
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
 
-makeGhcSpec, makeGhcSpec' :: Config -> String -> [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
-makeGhcSpec cfg name vars env spec 
-  = checkGhcSpec <$> makeGhcSpec' cfg name vars env spec 
+makeGhcSpec, makeGhcSpec' :: Config -> String -> [Var] -> [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
+makeGhcSpec cfg name vars defVars env spec 
+  = checkGhcSpec <$> makeGhcSpec' cfg name vars defVars env spec 
 
 
-makeGhcSpec' cfg name vars env spec 
+makeGhcSpec' cfg name vars defVars env spec 
   = do (tcs, dcs)      <- makeConTypes    env  name         $ Ms.dataDecls  spec 
        let (tcs', dcs') = wiredTyDataCons 
        let tycons       = tcs ++ tcs'    
@@ -79,6 +79,7 @@ makeGhcSpec' cfg name vars env spec
        let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms' 
        let tx           = subsFreeSymbols syms
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
+       let decr'        = makeHints defVars (Ms.decr spec)
        return           $ SP { tySigs     = renameTyVars <$> tx sigs
                              , ctor       = tx cs'
                              , meas       = tx (ms' ++ varMeasures vars) 
@@ -88,11 +89,25 @@ makeGhcSpec' cfg name vars env spec
                              , freeSyms   = syms' 
                              , tcEmbeds   = embs 
                              , qualifiers = Ms.qualifiers spec 
-                             , decr       = Ms.decr spec 
+                             , decr       = decr'
                              , strict     = stricts
                              , tgtVars    = AllVars -- makeTargetVars vars (binds cfg)
                              }
-
+makeHints :: [Var] -> [(LocSymbol, [Int])] -> [(Var, [Int])]
+makeHints vs       = concatMap go
+  where lvs        = M.map L.sort $ group [(varSymbol v, locVar v) | v <- vs]
+        varSymbol  = S . dropModuleNames . showPpr
+        locVar v   = (getSourcePos v, v)
+        go (s, ns) = case M.lookup (val s) lvs of 
+                     Just lvs -> (, ns) <$> varsAfter s lvs
+                     Nothing  -> errorstar $ msg s
+        msg s      = printf "%s: Hint for Undefined Var %s" 
+                         (show (loc s)) (show (val s))
+        
+varsAfter s = map snd . takeEqLoc . dropLeLoc
+  where takeEqLoc xs@((l, _):_) = L.takeWhile ((l==) . fst) xs
+        takeEqLoc []            = []
+        dropLeLoc               = L.dropWhile ((loc s >) . fst)
 
 txRefSort embs benv = mapBot (addSymSort embs (tcEnv benv))
 
