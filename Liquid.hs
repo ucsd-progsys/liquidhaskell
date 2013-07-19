@@ -11,7 +11,7 @@ import Language.Fixpoint.Files
 import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Interface      
-import Language.Fixpoint.Types (Fixpoint(..), sinfo, colorResult, FixResult (..),showFix, isFalse)
+import Language.Fixpoint.Types (smtSolver, Fixpoint(..), sinfo, colorResult, FixResult (..),showFix, isFalse)
 
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.CmdLine
@@ -48,7 +48,7 @@ liquidOne cfg target =
      -- donePhase Loud "START: Write CGI (can be slow!)"
      -- {-# SCC "writeCGI" #-} writeCGI target cgi 
      -- donePhase Loud "FINISH: Write CGI"
-     (r, sol) <- solveCs (nofalse cfg) target cgi info
+     (r, sol) <- solveCs cfg target cgi info
      donePhase Loud "solve" 
      {-# SCC "annotate" #-} annotate target (resultSrcSpan r) sol $ annotMap cgi
      donePhase Loud "annotate"
@@ -57,38 +57,35 @@ liquidOne cfg target =
      putTerminationResult $ logWarn cgi
      return r
 
+
+
 putTerminationResult [] 
   = return ()
 putTerminationResult ss 
   = do colorPhaseLn Angry "Termination Warnings:" "" 
        putStrLn $ unlines ss
 
-solveCs nofalse target cgi info | nofalse
+solveCs cfg target cgi info 
+  | nofalse cfg
   = do  hqBot <- getHqBotPath
-        (_, solBot) <- solve target [hqBot] (cgInfoFInfoBot cgi)
+        (_, solBot) <- solve smt target [hqBot] (cgInfoFInfoBot cgi)
         let falseKvars = M.keys (M.filterWithKey (const isFalse) solBot)
         putStrLn $ "False KVars" ++ show falseKvars
-        solve target (hqFiles info) (cgInfoFInfoKvars cgi falseKvars)
+        solve smt target (hqFiles info) (cgInfoFInfoKvars cgi falseKvars)
+  
+  | otherwise
+  = solve smt target (hqFiles info) (cgInfoFInfo cgi)
+  where 
+    smt = Just $ smtsolver cfg
 
-solveCs nofalse target cgi info
-  = solve target (hqFiles info) (cgInfoFInfo cgi)
+-- getSolver cfg 
+--   = case smtsolver cfg of
+--       "" -> Nothing
+--       x  -> Just $ smtSolver x
 
 writeResult target = writeFile (extFileName Result target) . showFix 
 resultSrcSpan      = fmap (tx . sinfo) 
   where tx (Ci x)  = x
-{-
-dummyDeepseq cgi 
-  = {-# SCC "DummyWrite" #-} ( (hsCs cgi, hsWfs cgi)  `deepseq` putStrLn "DeepSeq-ed cgi")
-
-dummyWrite target cgi
-  = {-# SCC "DummyWrite" #-} (writeFile (cgiName target) ({-# SCC "PPKVARSSHOW" #-} showPpr ({-# SCC "PPKVARS" #-} kvars (hsCs cgi, hsWfs cgi) )))
-
-dummyWrite' target cgi
-  = {-# SCC "DummyWrite2" #-} (writeFile (extFileName Cgi target) ({-# SCC "PPKVARSSHOW'" #-} showPpr ({-# SCC "PPKVARS'" #-} kvars' (hsCs cgi, hsWfs cgi))))
-
-initGhci = parseStaticFlags []
--}
-
 
 writeCGI target cgi
   = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi target) str
