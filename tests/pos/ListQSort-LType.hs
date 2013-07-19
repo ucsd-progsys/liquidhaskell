@@ -16,7 +16,7 @@ data List [llen] a <p :: x0:a -> x1:a -> Prop>
 {-@ invariant {v:List a | (llen v) >= 0} @-}
 
 {-@ qualif ZLLen(v:List a) : (llen(v) >= 0)@-}
-{-@ qualif CmpLLen(v:List a, A:List b) : (llen(v) <= llen(A))@-}
+{-@ qualif CmpLLen(v:List a, A:List b) : ((llen v) <= (llen A))@-}
 
 data List a = Nil | Cons a (List a)
 
@@ -26,6 +26,10 @@ append k (Cons x xs) ys = Cons x (append k xs ys)
 takeL x Nil         = Nil
 takeL x (Cons y ys) = if (y<x) then Cons y (takeL x ys) else takeL x ys
 
+{-@ takeGE :: Ord a 
+           => x:a 
+           -> xs:List a 
+           -> {v: (List {v:a | v >= x}) | ((llen v) <= (llen xs))}  @-}
 takeGE x Nil         = Nil
 takeGE x (Cons y ys) = if (y>=x) then Cons y (takeGE x ys) else takeGE x ys
 

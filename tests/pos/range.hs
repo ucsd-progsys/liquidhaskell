@@ -3,8 +3,11 @@ module Range where
 import Language.Haskell.Liquid.Prelude
 
 range :: Int -> Int -> [Int]
-range i j  
-  | i < j     = i : (range (i + 1) j)
+range i j = range' (j - i) i j
+
+range' :: Int -> Int -> Int -> [Int]
+range' d i j  
+  | i < j     = i : (range' (d-1) (i + 1) j)
   | otherwise = []  
 
 

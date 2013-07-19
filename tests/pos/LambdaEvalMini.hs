@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module LambdaEvalMini where
 
 import Language.Haskell.Liquid.Prelude        
