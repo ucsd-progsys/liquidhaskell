@@ -7,10 +7,12 @@ Requirements
 LiquidHaskell requires (in addition to the Hackage dependencies)
 
 - a recent OCaml compiler
+
+If you *optionally* want to link against Z3 (**only on Linux**)
+
 - the GNU multiprecision library
 - the CamlIDL library
 
-Due to the Z3 dependency, LiquidHaskell can **only be compiled on Linux** at the moment.
 
 How To Clone, Build and Install
 -------------------------------
@@ -25,24 +27,23 @@ directory of the distribution:
     hsenv
     source .hsenv/bin/activate
 
-2. Install liquid-fixpoint
+2. Install a suitable `z3` binary from
+
+    http://z3.codeplex.com/
+
+3. Install liquid-fixpoint
 
     git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
     cd liquid-fixpoint
     cabal install
     cd ../
 
-3. Install liquidhaskell
+4. Install liquidhaskell
 
     git clone git@github.com:ucsd-progsys/liquidhaskell.git
     cd liquidhaskell
     cabal install
     cd ../
-
-4. Add to your environment
-
-    LIQUIDHS=/path/to/liquid/liquidhaskell
-    export LIQUIDHS
 
 To **rebuild** after this step, run
 
