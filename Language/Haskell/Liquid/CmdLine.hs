@@ -6,6 +6,7 @@ import Control.Applicative                      ((<$>))
 import System.FilePath                          (dropFileName)
 import Language.Fixpoint.Misc                   (single, sortNub) 
 import Language.Fixpoint.Files                  (getHsTargets, getIncludePath)
+import Language.Fixpoint.Types                  (SMTSolver (..))
 import Language.Haskell.Liquid.Types
 import System.Console.CmdArgs                  
 
@@ -29,7 +30,7 @@ config = Config {
                  &= name "no-prune-unsorted"
 
  , smtsolver = def &= help "Name of SMT-Solver" 
-                   &= opt ""
+                   &= opt Z3 
 
  , termination = def &= help "Enable Termination Check"
                      &= name "termination-check"
@@ -66,4 +67,5 @@ mkOpts md
        return  $ md { files = files' } { idirs = map dropFileName files' ++ idirs' }
                                         -- tests fail if you flip order of idirs'
 
-
+instance Default SMTSolver where
+  def = Z3
