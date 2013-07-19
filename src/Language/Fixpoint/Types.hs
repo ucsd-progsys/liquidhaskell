@@ -103,6 +103,7 @@ module Language.Fixpoint.Types (
   -- * SMT Solvers
   , SMTSolver (..)
   , smtSolver 
+  , defaultSolver
   ) where
 
 import GHC.Generics         (Generic)
@@ -138,17 +139,23 @@ class Fixpoint a where
 -- SMT SOLVERS ---------------------------------------------------------
 ------------------------------------------------------------------------
 
-data SMTSolver = Z3 | CVC4 | MathSat 
+data SMTSolver = Z3 | CVC4 | MathSat | Z3MEM
 
 instance Show SMTSolver where 
   show Z3      = "z3"
   show CVC4    = "cvc4"
   show MathSat = "mathsat"
+  show Z3MEM   = "z3mem"
 
 smtSolver "z3"      = Z3
 smtSolver "cvc4"    = CVC4
 smtSolver "mathsat" = MathSat
+smtSolver "z3mem"   = Z3MEM 
 smtSolver other     = error $ "ERROR: unsupported SMT Solver = " ++ other
+
+defaultSolver       :: Maybe SMTSolver -> SMTSolver
+defaultSolver       = fromMaybe Z3 
+
 
 ------------------------------------------------------------------------
 

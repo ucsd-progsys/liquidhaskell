@@ -18,15 +18,10 @@ else
 fi
 
 cat - > external/fixpoint/config.make <<EOF
-### ROOTHOME=$ROOTHOME
-### GHCHOME=$GHCHOME
-### EXTHOME=$ROOTHOME/external
 OCAMLGRAPHHOME=$ROOTHOME/external/ocamlgraph
 OCAMLLIB=$OCAMLLIB
 Z3HOME=$Z3HOME
 EOF
-
-
 
 cat - > build.sh <<EOF
 #!`which bash`

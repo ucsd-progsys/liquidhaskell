@@ -69,24 +69,21 @@ result x False = Unsafe [x]
 -- | Solve a system of horn-clause constraints ----------------------------
 ---------------------------------------------------------------------------
 
-
 solve :: Maybe SMTSolver -> FilePath -> [FilePath] -> FInfo a -> IO (FixResult (SubC a), M.HashMap Symbol Pred)
 solve smt fn hqs fi
   =   {-# SCC "Solve" #-}  execFq smt fn hqs fi
   >>= {-# SCC "exitFq" #-} exitFq fn (cm fi) 
- 
       
 execFq smt fn hqs fi
   = do copyFiles hqs fq
        appendFile fq qstr 
        withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPutStr h (render d))
-       solveFile smt fq fo
+       solveFile (defaultSolver smt) fq fo
     where 
        fq   = extFileName Fq  fn
        fo   = extFileName Out fn
        d    = {-# SCC "FixPointify" #-} toFixpoint fi 
        qstr = render ((vcat $ toFix <$> (quals fi)) $$ text "\n")
-
 
 solveFile smt fq fo 
   = do fp <- getFixpointPath
@@ -99,7 +96,7 @@ fixCommand smt fp z3 fin fout
   = printf "LD_LIBRARY_PATH=%s %s %s -notruekvars -refinesort -noslice -nosimple -strictsortcheck -sortedquals -out %s %s" 
            z3 fp ss fout fin
     where 
-      ss = maybe "" (("-smtsolver " ++) . show) smt
+      ss = "-smtsolver " ++ show smt
 
 exitFq _ _ (ExitFailure n) | (n /= 1) 
   = return (Crash [] "Unknown Error", M.empty)
