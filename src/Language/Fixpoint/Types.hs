@@ -109,6 +109,8 @@ module Language.Fixpoint.Types (
 import GHC.Generics         (Generic)
 import Debug.Trace          (trace)
 
+import Data.Typeable        (Typeable)
+import Data.Generics        (Data)
 import Data.Monoid hiding   ((<>))
 import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
@@ -139,18 +141,19 @@ class Fixpoint a where
 -- SMT SOLVERS ---------------------------------------------------------
 ------------------------------------------------------------------------
 
-data SMTSolver = Z3 | CVC4 | MathSat | Z3MEM
+data SMTSolver = Z3 | Cvc4 | Mathsat | Z3mem
+                 deriving (Eq,Data,Typeable)
 
 instance Show SMTSolver where 
   show Z3      = "z3"
-  show CVC4    = "cvc4"
-  show MathSat = "mathsat"
-  show Z3MEM   = "z3mem"
+  show Cvc4    = "cvc4"
+  show Mathsat = "mathsat"
+  show Z3mem   = "z3mem"
 
 smtSolver "z3"      = Z3
-smtSolver "cvc4"    = CVC4
-smtSolver "mathsat" = MathSat
-smtSolver "z3mem"   = Z3MEM 
+smtSolver "cvc4"    = Cvc4
+smtSolver "mathsat" = Mathsat
+smtSolver "z3mem"   = Z3mem
 smtSolver other     = error $ "ERROR: unsupported SMT Solver = " ++ other
 
 defaultSolver       :: Maybe SMTSolver -> SMTSolver
