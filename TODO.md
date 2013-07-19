@@ -24,124 +24,54 @@ TODO
 * benchmarks: Data.List (foldr) 
 * benchmarks: mcbrides stack machine
 
-Bytestring
-==========
 
-Ordered by dependency.
+Liquid-Fixpoint SMTLIB2
+=======================
 
-   148 Data/ByteString/Lazy/Internal.hs     [OK]
-   297 Data/ByteString/Unsafe.hs            [OK+T]
-   509 Data/ByteString/Internal.hs          [OK+T]
-   700 Data/ByteString/Fusion.hs            [OK+T]
-  1928 Data/ByteString.hs                   [OK+0.5T]
-  
-  1322 Data/ByteString/Lazy.hs               
-   822 Data/ByteString/Lazy/Char8.hs
-  1012 Data/ByteString/Char8.hs
+z3-mem fails SAME tests as z3-smtlib
 
-  6738 total
+[z3-mem] Failed 10 tests: 
+ ../benchmarks/esop2013-submission/Base0.hs,
+ ../web/demos/Composition.hs,
+ ../web/demos/Loop.hs,
+ ../web/demos/TalkingAboutSets.hs,
+ ../web/demos/refinements101reax.hs,
+ pos/SS.hs,
+ pos/cont.hs,
+ pos/ptr.hs,
+ pos/ptr2.hs,
+ pos/ptr3.hs 
 
-Text
-====
+[zs-smtlib] Failed 23 tests: 
+  ../benchmarks/esop2013-submission/Base0.hs,
+  ../web/demos/Composition.hs,
+  ../web/demos/Loop.hs,
+ 
+SETS-RELATED
 
-   387 ./Data/Text/Fusion.hs
-   427 ./Data/Text/Encoding.hs
-   225 ./Data/Text/Read.hs
-   124 ./Data/Text/Fusion/Internal.hs
-   181 ./Data/Text/Fusion/Size.hs
-   908 ./Data/Text/Fusion/Common.hs
-   456 ./Data/Text/Fusion/CaseMapping.hs
-   334 ./Data/Text/IO.hs
-   216 ./Data/Text/Internal.hs
-    42 ./Data/Text/Axioms.hs
-   205 ./Data/Text/Encoding/Fusion.hs
-    23 ./Data/Text/Encoding/Utf32.hs
-   147 ./Data/Text/Encoding/Fusion/Common.hs
-    42 ./Data/Text/Encoding/Utf16.hs
-   161 ./Data/Text/Encoding/Utf8.hs
-   116 ./Data/Text/Encoding/Error.hs
-   185 ./Data/Text/Unsafe.hs
-   116 ./Data/Text/UnsafeChar.hs
-   454 ./Data/Text/Array.hs
-    69 ./Data/Text/UnsafeShift.hs
-   215 ./Data/Text/Foreign.hs
-    29 ./Data/Text/Util.hs
-   375 ./Data/Text/Encoding.small.hs
-   116 ./Data/Text/Lazy.small.hs
-   170 ./Data/Text/Search.hs
-   166 ./Data/Text/IO/Internal.hs
-  1930 ./Data/Text/Lazy.hs
-   144 ./Data/Text/Lazy/Fusion.hs
-   270 ./Data/Text/Lazy/Encoding.hs
-   215 ./Data/Text/Lazy/Read.hs
-   207 ./Data/Text/Lazy/IO.hs
-   192 ./Data/Text/Lazy/Internal.hs
-   321 ./Data/Text/Lazy/Encoding/Fusion.hs
-   239 ./Data/Text/Lazy/Builder/RealFloat.hs
-   190 ./Data/Text/Lazy/Builder/Int.hs
-    25 ./Data/Text/Lazy/Builder/RealFloat/Functions.hs
-    35 ./Data/Text/Lazy/Builder/Functions.hs
-   342 ./Data/Text/Lazy/Search.hs
-   387 ./Data/Text/Lazy/Builder.hs
-    50 ./Data/Text/Private.hs
-    55 ./Data/Text/Unsafe/Base.hs
-  2038 ./Data/Text.hs
-   139 ./Data/Text.small.hs
- 12668 total
+  ../web/demos/ListElts.hs,
+  ../web/demos/TalkingAboutSets.hs,
+  ../web/demos/refinements101reax.hs,
+  ../web/demos/UniqueZipper.hs,
+  pos/ListConcat.hs,
+  pos/ListElem.hs,
+  pos/SS.hs,
+  pos/cont.hs,
+  pos/deepmeas0.hs,
+  pos/listSet.hs,
+  pos/listSetDemo.hs,
+  pos/meas10.hs,
+  pos/meas11.hs,
+  pos/meas9.hs,
+  pos/ptr.hs,
+  pos/ptr2.hs,
+  pos/ptr3.hs,
+  pos/stacks0.hs,
+  pos/zipper.hs,
+  pos/zipper0.hs 
+ 
 
-HEREHEREHEREHEREHEREHERE
 
-split.1.T.hs:305:75-77
-split.1.T.hs:350:67
-split.1.T.hs:409:40
-split.1.T.hs:416:18-20
-split.1.T.hs:451:44-46
-split.1.T.hs:466:43-45
-split.1.T.hs:483:60-62
-split.1.T.hs:498:41-43
-split.1.T.hs:499:41-43
-split.1.T.hs:625:44-46
-split.1.T.hs:626:44-46
-split.1.T.hs:641:40-42
-split.1.T.hs:711:23-25
-split.1.T.hs:861:27-28
-
-****************************** Termination Warnings: *****************************
-Data/ByteString.split.1.T.hs:520:7-8: No decreasing parameter
-Termination Analysis not supported for mutual recursionin definitions of [splitLoop, splitWith0]
-Data/ByteString.split.1.T.hs:410:11-13: No decreasing parameter
-
-Termination
-
-1. GHC.List
-
-2. Data.Map
-    Nice Examples?
-
-3. Splay
-    
-    Nice UNION example?
-
-4. ByteString
-     297 Data/ByteString/Unsafe.hs            [OK+T]
-     509 Data/ByteString/Internal.hs          [OK+T]
-     700 Data/ByteString/Fusion.hs            [OK+T]
-    1928 Data/ByteString.hs                   [OK+0.5T]
-
-CANNOT PROVE TERMINATION EVER!
-
-{-@ unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString @-}
-unfoldr :: (a -> Maybe (Word8, a)) -> a -> ByteString
-unfoldr f = concat . unfoldChunk 32 64
-  where unfoldChunk n n' x =
-          case unfoldrN n f x of
-            (s, Nothing) -> s : []
-            (s, Just x') -> s : unfoldChunk n' (n+n') x'
-
-Liquid-Fixpoint
-===============
-
-Z3 agnostic solver? sigh.
 
 Embed
 =====
