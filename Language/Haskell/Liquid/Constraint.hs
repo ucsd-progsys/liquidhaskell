@@ -517,7 +517,7 @@ initCGI cfg info = CGInfo {
   , lits       = coreBindLits tce info 
   , specDecr   = decr spc
   , specLazy   = lazy spc
-  , tcheck     = termination cfg
+  , tcheck     = not $ notermination cfg
   , pruneRefs  = not $ noPrune cfg
   , logWarn    = []
   } 
@@ -840,6 +840,8 @@ consCB tflag γ xes@(Rec xs) | tflag
 
               ++ "in definitions of " ++ showPpr (fst <$>xs)
 
+-- TODO : no termination check:
+-- check that the result type is trivial!
 consCB _ γ (Rec xes) 
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        let xts = [(x, to) | (x, _, to) <- xets, not (isGrty x)]
