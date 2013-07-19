@@ -76,12 +76,12 @@ solveCs cfg target cgi info
   | otherwise
   = solve smt target (hqFiles info) (cgInfoFInfo cgi)
   where 
-    smt = getSolver cfg
+    smt = Just $ smtsolver cfg
 
-getSolver cfg 
-  = case smtsolver cfg of
-      "" -> Nothing
-      x  -> Just $ smtSolver x
+-- getSolver cfg 
+--   = case smtsolver cfg of
+--       "" -> Nothing
+--       x  -> Just $ smtSolver x
 
 writeResult target = writeFile (extFileName Result target) . showFix 
 resultSrcSpan      = fmap (tx . sinfo) 
