@@ -24,7 +24,7 @@ In addition to the .cabal dependencies you require
 
 One of:
 
-- [Z3 Binary](http://z3.codeplex.com/releases)
+- [Z3 Binary](http://z3.codeplex.com/)
 
 
 How To Build and Install
