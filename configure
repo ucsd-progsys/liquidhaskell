@@ -8,6 +8,7 @@ Z3MEM=false     # default
 ROOTHOME=`pwd`
 GHCBIN=`which ghc`
 GHCHOME=`dirname $GHCBIN`
+OCAMLLIB=`ocamlc -v | tail -1 | cut -d : -f 2 | tr -d " "`
 
 if $Z3MEM = 'true'
 then
@@ -21,11 +22,10 @@ ROOTHOME=$ROOTHOME
 GHCHOME=$GHCHOME
 EXTHOME=$ROOTHOME/external
 OCAMLGRAPHHOME=$ROOTHOME/external/ocamlgraph
+OCAMLLIB=$OCAMLLIB
 Z3HOME=$Z3HOME
-#### Z3HOME=$ROOTHOME/external/z3
 EOF
 
-OCAMLLIB=`ocamlc -v | tail -1 | cut -d : -f 2 | tr -d " "`
 
 
 cat - > build.sh <<EOF
