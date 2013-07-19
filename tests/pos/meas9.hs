@@ -13,11 +13,8 @@ myapp (x:xs) ys = x : myapp xs ys
 
 {-@ myrev :: xs:[a] -> {v:[a]| listElts(v) = listElts(xs)} @-}
 myrev :: [a] -> [a]
-myrev = goRev [] 
-
-{-@ Decrease goRev 2 @-}
-{-@ goRev :: xs:[a] -> ys:[a] -> {v:[a] | listElts(v) = Set_cup(listElts(xs), listElts(ys))} @-}
-goRev :: [a] -> [a] -> [a]
-goRev acc []     = acc
-goRev acc (y:ys) = goRev (y:acc) ys
+myrev = go [] 
+        {-@ Decrease go 2 @-}
+  where go acc []     = acc
+        go acc (y:ys) = go (y:acc) ys
 

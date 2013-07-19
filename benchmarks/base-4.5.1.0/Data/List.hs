@@ -343,13 +343,13 @@ nubBy                   :: (a -> a -> Bool) -> [a] -> [a]
 nubBy eq []             =  []
 nubBy eq (x:xs)         =  x : nubBy eq (filter (\ y -> not (eq x y)) xs)
 #else
-nubBy eq l              = nubBy0 l []
+nubBy eq l              = nubBy' l []
   where
-    {-@ Decrease nubBy0 3 @-}
-    nubBy0 [] _         = []
-    nubBy0 (y:ys) xs
-       | elem_by eq y xs = nubBy0 ys xs
-       | otherwise       = y : nubBy0 ys (y:xs)
+    {-@ Decrease nubBy' 3 @-}
+    nubBy' [] _          = []
+    nubBy' (y:ys) xs
+       | elem_by eq y xs = nubBy' ys xs
+       | otherwise       = y : nubBy' ys (y:xs)
 
 -- Not exported:
 -- Note that we keep the call to `eq` with arguments in the

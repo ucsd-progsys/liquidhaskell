@@ -96,7 +96,7 @@ makeGhcSpec' cfg name vars defVars env spec
 makeHints :: [Var] -> [(LocSymbol, [Int])] -> [(Var, [Int])]
 makeHints vs       = concatMap go
   where lvs        = M.map L.sort $ group [(varSymbol v, locVar v) | v <- vs]
-        varSymbol  = S . dropModuleNames . showPpr
+        varSymbol  = stringSymbol . dropModuleNames . showPpr
         locVar v   = (getSourcePos v, v)
         go (s, ns) = case M.lookup (val s) lvs of 
                      Just lvs -> (, ns) <$> varsAfter s lvs
