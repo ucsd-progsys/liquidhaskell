@@ -51,7 +51,4 @@ Currently, we support
     
     * z3
 
-1. command line option to fixpoint.native
-2. merge 
-3. Find clean platform-independent BUILD.
 

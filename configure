@@ -1,51 +1,54 @@
 #!/bin/bash
 
+########################################################################
+Z3MEM=false     # default
+#Z3MEM=true    # use this if you want to link against Z3
+########################################################################
+
 ROOTHOME=`pwd`
 GHCBIN=`which ghc`
 GHCHOME=`dirname $GHCBIN`
 
-### cat - > install.sh<<EOF
-### LIQUIDFIXPOINT=$ROOTHOME
-### PATH=\$LIQUIDFIXPOINT:\$PATH
-### LD_LIBRARY_PATH=\$LIQUIDFIXPOINT/external/z3/lib:\$LD_LIBRARY_PATH
-### export LIQUIDFIXPOINT PATH LD_LIBRARY_PATH
-### EOF
+if $Z3MEM = 'true'
+then
+  Z3HOME=$ROOTHOME/external/z3
+else
+  Z3HOME=
+fi
 
 cat - > config.make <<EOF
 ROOTHOME=$ROOTHOME
 GHCHOME=$GHCHOME
 EXTHOME=$ROOTHOME/external
 OCAMLGRAPHHOME=$ROOTHOME/external/ocamlgraph
-Z3HOME=$ROOTHOME/external/z3
+Z3HOME=$Z3HOME
+#### Z3HOME=$ROOTHOME/external/z3
 EOF
 
 OCAMLLIB=`ocamlc -v | tail -1 | cut -d : -f 2 | tr -d " "`
+
 
 cat - > build.sh <<EOF
 #!`which bash`
 
 set -e
 
-if [[ \`uname -m\` = 'x86_64' ]]
+if [[ '`echo $Z3MEM`' = 'true' ]]
 then
-  echo Found 64-bit kernel. Moving z3 into place.
-  cp external/z3/lib/libz3-so-64b external/z3/lib/libz3.so
-  cp external/z3/lib/libz3-a-64b external/z3/lib/libz3.a
-else
-  echo Assuming 32-bit kernel. Moving z3 into place.
-  cp external/z3/lib/libz3-so-32b external/z3/lib/libz3.so
-  cp external/z3/lib/libz3-a-32b external/z3/lib/libz3.a
+  if [[ \`uname -m\` = 'x86_64' ]]
+  then
+    echo Found 64-bit kernel. Moving z3 into place.
+    cp external/z3/lib/libz3-so-64b external/z3/lib/libz3.so
+    cp external/z3/lib/libz3-a-64b external/z3/lib/libz3.a
+  else
+    echo Assuming 32-bit kernel. Moving z3 into place.
+    cp external/z3/lib/libz3-so-32b external/z3/lib/libz3.so
+    cp external/z3/lib/libz3-a-32b external/z3/lib/libz3.a
+  fi
+  cd external/z3/ocaml; ./build-lib.sh; cd ../../../
 fi
 
-########################## Exit if in an incompatible build environment
-if [[ \`uname\` != 'Linux' ]]
-then
-  echo Error: Found a non-linux environment.
-  exit 1
-fi
-##########################
 cd external/ocamlgraph/; ./configure; make; cd ../../
-cd external/z3/ocaml; ./build-lib.sh; cd ../../../
 cd external/fixpoint; make; cd ../../
 EOF
 
