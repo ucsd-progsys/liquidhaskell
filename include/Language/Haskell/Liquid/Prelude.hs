@@ -1,4 +1,7 @@
-{-# OPTIONS_GHC -cpp -fglasgow-exts #-}
+{-# LANGUAGE MagicHash #-}
+
+{- OPTIONS_GHC -cpp #-}
+{- OPTIONS_GHC -cpp -fglasgow-exts -}
 
 module Language.Haskell.Liquid.Prelude where
 
