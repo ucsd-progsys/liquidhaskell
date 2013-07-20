@@ -1,8 +1,9 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections #-}
 
-module Language.Haskell.Liquid.Parse (
-  hsSpecificationP
-) where
+module Language.Haskell.Liquid.Parse
+  ( hsSpecificationP
+  , BareSpec
+  ) where
 
 import Control.Monad
 import Text.Parsec

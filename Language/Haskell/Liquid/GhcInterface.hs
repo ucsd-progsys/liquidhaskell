@@ -32,7 +32,7 @@ import System.FilePath (dropExtension, takeFileName, splitFileName, combine,
                         dropFileName, normalise)
 
 import DynFlags (ProfAuto(..))
-import Control.Monad (filterM)
+import Control.Monad (filterM, zipWithM, when)
 import Control.DeepSeq
 import Control.Applicative  hiding (empty)
 import Control.Monad (forM, liftM)
@@ -51,6 +51,7 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.Resolution (canonicalizeSpec, ModLoc(..), qualImportDecl, addContext)
 
 import Language.Haskell.Liquid.Parse 
 import Language.Fixpoint.Parse          hiding (brackets, comma)
@@ -176,13 +177,21 @@ moduleHquals mg paths target imps incs
  
 moduleSpec cfg vars target mg paths
   = do liftIO      $ putStrLn ("paths = " ++ show paths) 
-       tgtSpec    <- liftIO $ parseSpec (name, target) 
-       impSpec    <- getSpecs paths impNames [Spec, Hs, LHs] 
-       let spec    = Ms.expandRTAliases $ tgtSpec `mappend` impSpec 
-       let imps    = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
-       setContext [IIModule $ moduleName $ mgi_module mg]
        env        <- getSession
-       ghcSpec    <- liftIO $ makeGhcSpec cfg name vars env spec
+       tgtSpec    <- liftIO $ parseSpec env (name, target)
+       (files,impSpec)    <- getSpecs env paths impNames [Spec, Hs, LHs]
+       let spec    = Ms.expandRTAliases $ tgtSpec `mappend` impSpec
+       let imps    = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
+       forM files $ \(n,f) -> when (not $ isExtFile Spec f) $ do
+           guessTarget n Nothing >>= addTarget
+       load LoadAllTargets
+       forM files $ \(n,f) -> when (not $ isExtFile Spec f) $ do
+           addContext (IIDecl (qualImportDecl (mkModuleName n)))
+       addContext (IIModule $ moduleName $ mgi_module mg)
+       env'        <- getSession
+       getNamesInScope >>= liftIO . putStrLn . showPpr
+       getContext >>= liftIO . putStrLn . showPpr
+       ghcSpec    <- liftIO $ makeGhcSpec cfg name vars env' spec
        return      (ghcSpec, imps, Ms.includes tgtSpec)
     where impNames = allDepNames  mg
           name     = mgi_namestring mg
@@ -198,25 +207,29 @@ targetName     = dropExtension  . takeFileName
 starName       = ("*" ++)
 
 
-getSpecs paths names exts
+getSpecs env paths names exts
   = do fs    <- sortNub <$> moduleImports exts paths names 
        liftIO $ putStrLn ("getSpecs: " ++ show fs)
-       transParseSpecs exts paths S.empty mempty fs
+       transParseSpecs env exts paths S.empty mempty fs
 
-transParseSpecs _ _ _ spec []       
-  = return spec
-transParseSpecs exts paths seenFiles spec newFiles 
-  = do newSpec   <- liftIO $ liftM mconcat $ mapM parseSpec newFiles 
+transParseSpecs _ _ _ seenFiles spec []
+  = return (S.toList seenFiles, spec)
+transParseSpecs env exts paths seenFiles spec newFiles
+  = do newSpec   <- liftIO $ liftM mconcat $ mapM (parseSpec env) newFiles
        impFiles  <- moduleImports exts paths [symbolString x | x <- Ms.imports newSpec]
        let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
        let spec'      = spec `mappend` newSpec
        let newFiles'  = [f | f <- impFiles, not (f `S.member` seenFiles')]
-       transParseSpecs exts paths seenFiles' spec' newFiles'
+       transParseSpecs env exts paths seenFiles' spec' newFiles'
  
-parseSpec (name, file) 
-  = Ex.catch (parseSpec' name file) $ \(e :: Ex.IOException) ->
-      ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ file ++ " for module " ++ name 
-
+parseSpec env (name, file)
+  = do spec <- Ex.catch (parseSpec' name file) $ \(e :: Ex.IOException) ->
+                  ioError $ userError $ "Hit exception: " ++ (show e)
+                                     ++ " while parsing Spec file: " ++ file
+                                     ++ " for module " ++ name
+       if isExtFile Hs file || isExtFile LHs file
+         then canonicalizeSpec Lcl env (mkModuleName name) spec
+         else canonicalizeSpec Pkg env (mkModuleName name) spec
 
 parseSpec' name file 
   = do putStrLn $ "parseSpec: " ++ file ++ " for module " ++ name  

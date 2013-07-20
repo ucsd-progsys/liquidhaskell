@@ -5,7 +5,7 @@
 module Language.Haskell.Liquid.Measure (  
     Spec (..)
   , MSpec (..)
-  , Measure (name, sort)
+  , Measure (name, sort, eqns)
   , Def (..)
   , Body (..)
   , mkM, mkMSpec

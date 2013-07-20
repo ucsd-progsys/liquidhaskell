@@ -4,7 +4,7 @@ embed GHC.Prim.Int#  as int
 embed GHC.Prim.Addr# as int
 
 
-measure addrLen :: GHC.Prim.Addr# -> Int
+-- measure addrLen :: GHC.Prim.Addr# -> Int
 
 
 
