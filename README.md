@@ -86,23 +86,23 @@ How to Profile
 
 1. Build with profiling on
 
-    `$ make pdeps && make prof`
+    $ make pdeps && make prof
 
 2. Run with profiling
 
-    `$ time liquid range.hs +RTS -hc -p`
+    $ time liquid range.hs +RTS -hc -p
 
-    `$ time liquid range.hs +RTS -hy -p`
+    $ time liquid range.hs +RTS -hy -p
 
    Followed by this which shows the stats file 
-
-    `$ more liquid.prof`
+    
+    $ more liquid.prof
 
    or by this to see the graph
 
-    `$ hp2ps -e8in -c liquid.hp`
+    $ hp2ps -e8in -c liquid.hp
 
-    `$ gv liquid.ps`
+    $ gv liquid.ps
 
    etc.
 
@@ -111,11 +111,11 @@ How to Get Stack Traces On Exceptions
 
 1. Build with profiling on
 
-    `$ make pdeps && make prof`
+    $ make pdeps && make prof
 
 2. Run with backtraces
 
-    `$ liquid +RTS -xc -RTS foo.hs`
+    $ liquid +RTS -xc -RTS foo.hs
 
 How to deploy Web Demo
 ----------------------
@@ -139,6 +139,10 @@ How to deploy Web Demo
     make siteperms 
 
 The last step requires sudo access which is tedious and should be fixed.
+
+Command Line Options
+====================
+
 
 Ignore False Predicates
 -----------------------
@@ -203,7 +207,6 @@ scope of LiquidHaskell) you can write
 - `deriving instances` often create such functions so lookout!
 
 We intend to address these ASAP.
-
 
 Writing Specifications
 ======================
