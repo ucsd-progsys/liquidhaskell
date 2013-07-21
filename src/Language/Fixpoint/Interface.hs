@@ -40,7 +40,9 @@ import System.Console.CmdArgs.Default
 -- | One Shot validity query ----------------------------------------------
 ---------------------------------------------------------------------------
 
+---------------------------------------------------------------------------
 checkValid :: (Hashable a) => a -> [(Symbol, Sort)] -> Pred -> IO (FixResult a) 
+---------------------------------------------------------------------------
 checkValid n xts p 
   = do file   <- (</> show (hash n)) <$> getTemporaryDirectory
        (r, _) <- solve def file [] $ validFInfo n xts p
@@ -71,22 +73,27 @@ result x False = Unsafe [x]
 -- | Solve a system of horn-clause constraints ----------------------------
 ---------------------------------------------------------------------------
 
-solve :: Config -> FilePath -> [FilePath] -> FInfo a -> IO (FixResult (SubC a), M.HashMap Symbol Pred)
-solve smt fn hqs fi
-  =   {-# SCC "Solve" #-}  execFq smt fn hqs fi
+---------------------------------------------------------------------------
+solve :: Config -> FilePath -> [FilePath] -> FInfo a 
+      -> IO (FixResult (SubC a), M.HashMap Symbol Pred)
+---------------------------------------------------------------------------
+solve cfg fn hqs fi
+  =   {-# SCC "Solve" #-}  execFq cfg fn hqs fi
   >>= {-# SCC "exitFq" #-} exitFq fn (cm fi) 
       
-execFq smt fn hqs fi
+execFq cfg fn hqs fi
   = do copyFiles hqs fq
        appendFile fq qstr 
        withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPutStr h (render d))
-       solveFile $ config fq 
+       solveFile $ cfg {inFile = fq } 
     where 
        fq   = extFileName Fq  fn
        d    = {-# SCC "FixPointify" #-} toFixpoint fi 
        qstr = render ((vcat $ toFix <$> (quals fi)) $$ text "\n")
 
+---------------------------------------------------------------------------
 solveFile :: Config -> IO ExitCode 
+---------------------------------------------------------------------------
 solveFile cfg
   = do fp <- getFixpointPath
        z3 <- getZ3LibPath
