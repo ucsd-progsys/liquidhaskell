@@ -80,24 +80,22 @@ execFq smt fn hqs fi
   = do copyFiles hqs fq
        appendFile fq qstr 
        withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPutStr h (render d))
-       solveFile $ def { inFile = fq } { outFile = fo }
+       solveFile $ config fq 
     where 
        fq   = extFileName Fq  fn
-       fo   = extFileName Out fn
        d    = {-# SCC "FixPointify" #-} toFixpoint fi 
        qstr = render ((vcat $ toFix <$> (quals fi)) $$ text "\n")
 
 solveFile :: Config -> IO ExitCode 
-solveFile cfg -- fq fo 
+solveFile cfg
   = do fp <- getFixpointPath
        z3 <- getZ3LibPath
-       ec <- {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ fixCommand cfg fp z3 -- fq fo  
+       ec <- {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ fixCommand cfg fp z3
        return ec
  
--- execCmd fn = printf "fixpoint.native -notruekvars -refinesort -strictsortcheck -out %s %s" fo fq 
-fixCommand cfg fp z3 -- fin fout 
-  = printf "LD_LIBRARY_PATH=%s %s %s -notruekvars -refinesort -noslice -nosimple -strictsortcheck -sortedquals" 
-           z3 fp (show cfg) -- fout fin
+fixCommand cfg fp z3
+  = printf "LD_LIBRARY_PATH=%s %s -notruekvars -refinesort -noslice -nosimple -strictsortcheck -sortedquals %s" 
+           z3 fp (command cfg)
 
 exitFq _ _ (ExitFailure n) | (n /= 1) 
   = return (Crash [] "Unknown Error", M.empty)

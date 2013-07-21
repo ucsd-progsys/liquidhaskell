@@ -2,16 +2,18 @@
 import Language.Fixpoint.Interface (solveFile)
 import System.Environment          (getArgs)
 import System.Console.GetOpt
-import Language.Fixpoint.Config
+import Language.Fixpoint.Config hiding (config)
 import Data.Maybe                  (fromMaybe, listToMaybe)
 import System.Console.CmdArgs                  
 
 
-main = getOpts >>= solveFile
+main = do cfg <- getOpts 
+          putStrLn $ "Options: " ++ show cfg
+          solveFile cfg
 
 config = Config { 
-    inFile   = def &= typ "TARGET"  &= args &= typFile 
-  , outFile  = def &= help "Output file" &= opt "out" 
+    inFile   = def &= typ "TARGET"       &= args    &= typFile 
+  , outFile  = def &= help "Output file"  
   , solver   = def &= help "Name of SMT Solver" 
   , genSorts = def &= help "Generalize qualifier sorts"
 }  &= verbosity
