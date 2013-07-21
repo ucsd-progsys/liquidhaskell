@@ -70,15 +70,15 @@ putTerminationResult ss
 solveCs cfg target cgi info 
   | nofalse cfg
   = do  hqBot <- getHqBotPath
-        (_, solBot) <- solve smt target [hqBot] (cgInfoFInfoBot cgi)
+        (_, solBot) <- solve fx target [hqBot] (cgInfoFInfoBot cgi)
         let falseKvars = M.keys (M.filterWithKey (const isFalse) solBot)
         putStrLn $ "False KVars" ++ show falseKvars
-        solve smt target (hqFiles info) (cgInfoFInfoKvars cgi falseKvars)
+        solve fx target (hqFiles info) (cgInfoFInfoKvars cgi falseKvars)
   
   | otherwise
-  = solve smt target (hqFiles info) (cgInfoFInfo cgi)
+  = solve fx target (hqFiles info) (cgInfoFInfo cgi)
   where 
-    smt = def { solver = smtsolver cfg } { genSorts = genQualSorts cfg }
+    fx = def { solver = smtsolver cfg } { genSorts = genQualSorts cfg }
 
 
 writeResult target = writeFile (extFileName Result target) . showFix 
