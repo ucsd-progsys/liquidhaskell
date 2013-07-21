@@ -12,10 +12,10 @@ main = do cfg <- getOpts
           solveFile cfg
 
 config = Config { 
-    inFile   = def &= typ "TARGET"       &= args    &= typFile 
-  , outFile  = def &= help "Output file"  
-  , solver   = def &= help "Name of SMT Solver" 
-  , genSorts = def &= help "Generalize qualifier sorts"
+    inFile   = def   &= typ "TARGET"       &= args    &= typFile 
+  , outFile  = "out" &= help "Output file"  
+  , solver   = def   &= help "Name of SMT Solver" 
+  , genSorts = def   &= help "Generalize qualifier sorts"
 }  &= verbosity
    &= program "fixpoint" 
    &= help    "Predicate Abstraction Based Horn-Clause Solver" 
