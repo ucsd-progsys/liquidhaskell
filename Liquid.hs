@@ -7,11 +7,13 @@ import System.Exit
 import Control.DeepSeq
 import Control.Monad (forM)
 
+import System.Console.CmdArgs.Default
+import Language.Fixpoint.Config (Config (..)) 
 import Language.Fixpoint.Files
 import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Interface      
-import Language.Fixpoint.Types (smtSolver, Fixpoint(..), sinfo, colorResult, FixResult (..),showFix, isFalse)
+import Language.Fixpoint.Types (Fixpoint(..), sinfo, colorResult, FixResult (..),showFix, isFalse)
 
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.CmdLine
@@ -76,12 +78,8 @@ solveCs cfg target cgi info
   | otherwise
   = solve smt target (hqFiles info) (cgInfoFInfo cgi)
   where 
-    smt = Just $ smtsolver cfg
+    smt = def { solver = smtsolver cfg } { genSorts = genQualSorts cfg }
 
--- getSolver cfg 
---   = case smtsolver cfg of
---       "" -> Nothing
---       x  -> Just $ smtSolver x
 
 writeResult target = writeFile (extFileName Result target) . showFix 
 resultSrcSpan      = fmap (tx . sinfo) 

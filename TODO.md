@@ -4,6 +4,14 @@ TODO
 * performance
   - use specified types instead of templates
   - qualifier blowup in Bytestring.hs 
+  - fixpoint generalizes:
+    
+    qualif Auto(VV : Data.ByteString.Internal.ByteString, ~A0 : [Data.ByteString.Internal.ByteString]): (bLength([VV]) = bLengths([~A0]))
+
+into
+    
+    qualif Auto20(VV:@(0), ~A0:List @(0)):(bLength([VV]) = bLengths([~A0]))
+
 
 * Qualified Import Issue: wtf is include/KMeansHelper.hs ? Fix module import issue
 
