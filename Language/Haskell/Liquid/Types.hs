@@ -98,6 +98,7 @@ import Data.Traversable             hiding (mapM)
 import Data.List                    (nub)
 import Text.Parsec.Pos              (SourcePos, newPos) 
 import Text.PrettyPrint.HughesPJ    
+import Language.Fixpoint.Config hiding (Config) 
 import Language.Fixpoint.Types hiding (Predicate) 
 import Language.Fixpoint.Misc
 
@@ -117,6 +118,8 @@ data Config = Config {
   , notermination  :: Bool       -- ^ disable termination check
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
+  , smtsolver      :: SMTSolver  -- ^ name of smtsolver to use [default: z3-API]  
+  , genQualSorts   :: GenQualifierSort 
   } deriving (Data, Typeable, Show, Eq)
 
 -----------------------------------------------------------------------------
