@@ -7,11 +7,13 @@ import System.Exit
 import Control.DeepSeq
 import Control.Monad (forM)
 
+import System.Console.CmdArgs.Default
+import Language.Fixpoint.Config (Config (..)) 
 import Language.Fixpoint.Files
 import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Interface      
-import Language.Fixpoint.Types (smtSolver, Fixpoint(..), sinfo, colorResult, FixResult (..),showFix, isFalse)
+import Language.Fixpoint.Types (Fixpoint(..), sinfo, colorResult, FixResult (..),showFix, isFalse)
 
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.CmdLine
@@ -68,20 +70,16 @@ putTerminationResult ss
 solveCs cfg target cgi info 
   | nofalse cfg
   = do  hqBot <- getHqBotPath
-        (_, solBot) <- solve smt target [hqBot] (cgInfoFInfoBot cgi)
+        (_, solBot) <- solve fx target [hqBot] (cgInfoFInfoBot cgi)
         let falseKvars = M.keys (M.filterWithKey (const isFalse) solBot)
         putStrLn $ "False KVars" ++ show falseKvars
-        solve smt target (hqFiles info) (cgInfoFInfoKvars cgi falseKvars)
+        solve fx target (hqFiles info) (cgInfoFInfoKvars cgi falseKvars)
   
   | otherwise
-  = solve smt target (hqFiles info) (cgInfoFInfo cgi)
+  = solve fx target (hqFiles info) (cgInfoFInfo cgi)
   where 
-    smt = Just $ smtsolver cfg
+    fx = def { solver = smtsolver cfg } { genSorts = genQualSorts cfg }
 
--- getSolver cfg 
---   = case smtsolver cfg of
---       "" -> Nothing
---       x  -> Just $ smtSolver x
 
 writeResult target = writeFile (extFileName Result target) . showFix 
 resultSrcSpan      = fmap (tx . sinfo) 
