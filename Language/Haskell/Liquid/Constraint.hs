@@ -97,7 +97,8 @@ consAct info penv
 
 initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
 initEnv info penv
-  = do defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
+  = do let tce   = tcEmbeds $ spec info
+       defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- tyConInfo <$> get 
        let f0    = grty info          -- asserted refinements     (for defined vars)
        f0'      <- grtyTop info       -- default TOP reftype      (for exported vars without spec) 
@@ -109,8 +110,8 @@ initEnv info penv
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
-       -- return    $ foldl' (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs] 
-  where tce = tcEmbeds $ spec info 
+  
+  -- where tce = tcEmbeds $ spec info 
 
 ctor' = map (mapSnd val) . ctor 
 
@@ -505,7 +506,7 @@ initCGI cfg info = CGInfo {
   , hsWfs      = [] 
   , fixCs      = []
   , fixWfs     = [] 
-  , globals    = globs  -- F.fromListSEnv . map (mapSnd (rTypeSortedReft (tcEmbeds spc))) $ meas spc
+  , globals    = globs
   , freshIndex = 0
   , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
@@ -534,10 +535,10 @@ coreBindLits tce info
   = sortNub $ [ (x, so) | (_, F.ELit x so) <- lconsts]
            ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons]
   where lconsts      = literalConst tce <$> literals (cbs info)
-        dcons        = filter isLit $ impVars info
+        dcons        = filter isDCon $ impVars info
         dconToSort   = typeSort tce . expandTypeSynonyms . varType 
         dconToSym    = dataConSymbol . idDataCon
-        isLit id     = isDataConWorkId id && not (hasBaseTypeVar id)
+        isDCon x     = isDataConWorkId x && not (hasBaseTypeVar x)
 
 extendEnvWithVV γ t 
   | F.isNontrivialVV vv
@@ -1354,7 +1355,7 @@ memberREnv x (REnv env)   = M.member x env
 -- domREnv (REnv env)        = M.keys env
 -- emptyREnv                 = REnv M.empty
 
-cgInfoFInfoBot cgi = cgInfoFInfo cgi{specQuals=[]}
+cgInfoFInfoBot cgi = cgInfoFInfo cgi { specQuals = [] }
 
 cgInfoFInfoKvars cgi kvars = cgInfoFInfo cgi{fixCs = fixCs' ++ trueCs}
   where fixCs' = concatMap (updateCs kvars) (fixCs cgi) 
