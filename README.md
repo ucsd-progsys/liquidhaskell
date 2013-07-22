@@ -7,10 +7,12 @@ Requirements
 LiquidHaskell requires (in addition to the Hackage dependencies)
 
 - a recent OCaml compiler
+
+If you *optionally* want to link against Z3 (**only on Linux**)
+
 - the GNU multiprecision library
 - the CamlIDL library
 
-Due to the Z3 dependency, LiquidHaskell can **only be compiled on Linux** at the moment.
 
 How To Clone, Build and Install
 -------------------------------
@@ -25,24 +27,23 @@ directory of the distribution:
     hsenv
     source .hsenv/bin/activate
 
-2. Install liquid-fixpoint
+2. Install a suitable `z3` binary from
+
+    http://z3.codeplex.com/
+
+3. Install liquid-fixpoint
 
     git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
     cd liquid-fixpoint
     cabal install
     cd ../
 
-3. Install liquidhaskell
+4. Install liquidhaskell
 
     git clone git@github.com:ucsd-progsys/liquidhaskell.git
     cd liquidhaskell
     cabal install
     cd ../
-
-4. Add to your environment
-
-    LIQUIDHS=/path/to/liquid/liquidhaskell
-    export LIQUIDHS
 
 To **rebuild** after this step, run
 
@@ -69,7 +70,15 @@ To use threads to speed up the tests
 
     $ make THREADS=30 test
 
-or your favorite number of threads, depending on cores etc.
+Or your favorite number of threads, depending on cores etc.
+
+You can directly extend and run the tests by modifying 
+
+    tests/regrtest.py
+
+For example, to run the tests with a particular SMT solver
+
+    ./regrtest.py -t 30 -o "--smtsolver=z3"
 
 
 How to Profile 
@@ -77,23 +86,23 @@ How to Profile
 
 1. Build with profiling on
 
-    `$ make pdeps && make prof`
+    $ make pdeps && make prof
 
 2. Run with profiling
 
-    `$ time liquid range.hs +RTS -hc -p`
+    $ time liquid range.hs +RTS -hc -p
 
-    `$ time liquid range.hs +RTS -hy -p`
+    $ time liquid range.hs +RTS -hy -p
 
    Followed by this which shows the stats file 
-
-    `$ more liquid.prof`
+    
+    $ more liquid.prof
 
    or by this to see the graph
 
-    `$ hp2ps -e8in -c liquid.hp`
+    $ hp2ps -e8in -c liquid.hp
 
-    `$ gv liquid.ps`
+    $ gv liquid.ps
 
    etc.
 
@@ -102,11 +111,11 @@ How to Get Stack Traces On Exceptions
 
 1. Build with profiling on
 
-    `$ make pdeps && make prof`
+    $ make pdeps && make prof
 
 2. Run with backtraces
 
-    `$ liquid +RTS -xc -RTS foo.hs`
+    $ liquid +RTS -xc -RTS foo.hs
 
 How to deploy Web Demo
 ----------------------
@@ -130,6 +139,10 @@ How to deploy Web Demo
     make siteperms 
 
 The last step requires sudo access which is tedious and should be fixed.
+
+Command Line Options
+====================
+
 
 Ignore False Predicates
 -----------------------
@@ -194,7 +207,6 @@ scope of LiquidHaskell) you can write
 - `deriving instances` often create such functions so lookout!
 
 We intend to address these ASAP.
-
 
 Writing Specifications
 ======================
