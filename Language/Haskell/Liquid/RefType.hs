@@ -799,7 +799,13 @@ makeRTypeBase _              _
 literalFRefType tce l 
   = makeRTypeBase (literalType l) (literalFReft tce l) 
 
-literalFReft tce           = exprReft . snd . literalConst tce 
+literalFReft tce = maybe top exprReft . snd . literalConst tce
+
+ -- exprReft . snd . literalConst tce 
+
+-- | `literalConst` returns `Nothing` for unhandled lits because
+--    otherwise string-literals show up as global int-constants 
+--    which blow up qualifier instantiation. 
 
 literalConst tce l         = (sort, mkLit l)
   where 
@@ -810,8 +816,8 @@ literalConst tce l         = (sort, mkLit l)
     mkLit (MachWord   n)   = mkI n
     mkLit (MachWord64 n)   = mkI n
     mkLit (LitInteger n _) = mkI n
-    mkLit _                = ELit sym sort
-    mkI                    = ECon . I
+    mkLit _                = Nothing -- ELit sym sort
+    mkI                    = Just . ECon . I  
 
 ---------------------------------------------------------------
 ---------------- Annotations and Solutions --------------------
