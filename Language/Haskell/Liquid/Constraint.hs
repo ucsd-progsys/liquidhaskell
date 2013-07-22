@@ -532,13 +532,14 @@ initCGI cfg info = CGInfo {
                                
 
 coreBindLits tce info
-  = sortNub $ [ (x, so) | (_, F.ELit x so) <- lconsts]
-           ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons]
-  where lconsts      = literalConst tce <$> literals (cbs info)
-        dcons        = filter isDCon $ impVars info
-        dconToSort   = typeSort tce . expandTypeSynonyms . varType 
-        dconToSym    = dataConSymbol . idDataCon
-        isDCon x     = isDataConWorkId x && not (hasBaseTypeVar x)
+  = sortNub      $ [ (x, so) | (_, Just (F.ELit x so)) <- lconsts]
+                ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons]
+  where 
+    lconsts      = literalConst tce <$> literals (cbs info)
+    dcons        = filter isDCon $ impVars info
+    dconToSort   = typeSort tce . expandTypeSynonyms . varType 
+    dconToSym    = dataConSymbol . idDataCon
+    isDCon x     = isDataConWorkId x && not (hasBaseTypeVar x)
 
 extendEnvWithVV γ t 
   | F.isNontrivialVV vv
@@ -996,10 +997,9 @@ consE γ e'@(App e a)
        _                   <- updateLocA πs (exprLoc e) te' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller", e') te' 
        cconsE γ a tx 
-       return $ maybe err (F.subst1 t . (x,)) (argExpr γ a)
-    where err = errorstar $ "consE: App crashes on" ++ showPpr a 
+       return $ maybe (checkUnbound γ e' x t) (F.subst1 t . (x,)) (argExpr γ a)
+--    where err = errorstar $ "consE: App crashes on" ++ showPpr a 
 
- 
 
 consE γ (Lam α e) | isTyVar α 
   = liftM (RAllT (rTyVar α)) (consE γ e) 
@@ -1038,6 +1038,10 @@ cconsFreshE γ e
        cconsE γ e t
        return t
 
+checkUnbound γ e x t 
+  | x `notElem` (F.syms t) = t
+  | otherwise              = errorstar $ "consE: cannot handle App " ++ showPpr e ++ " at " ++ showPpr (loc γ)
+
 -------------------------------------------------------------------------------------
 cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -> CG ()
 -------------------------------------------------------------------------------------
@@ -1063,7 +1067,7 @@ cconsCase γ x t acs (a, _, ce)
 
 altReft γ _ (LitAlt l)   = literalFReft (emb γ) l
 altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
-  where notLiteralReft   = F.notExprReft . snd . literalConst (emb γ)
+  where notLiteralReft   = maybe F.top F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = error "Constraint : altReft"
 
 unfoldR dc td (RApp _ ts rs _) ys = (t3, tvys ++ yts, rt)
@@ -1139,7 +1143,7 @@ freshPredRef γ e (PV n τ as)
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 argExpr _ (Var vy)    = Just $ F.EVar $ varSymbol vy
-argExpr γ (Lit c)     = Just $ snd $ literalConst (emb γ) c
+argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
 argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
 
