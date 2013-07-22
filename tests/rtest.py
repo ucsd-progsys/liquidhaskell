@@ -66,16 +66,16 @@ class TestRunner:
         print "%f seconds" % (runtime)
 
         if hasattr (expected_statuses, '__iter__'):
-	  ok = (status in expected_statuses)
-	else:
-	  ok = (status == expected_statuses)
+          ok = (status in expected_statuses) 
+        else:
+          ok = (status == expected_statuses)
         if ok:
             print "\033[1;32mSUCCESS!\033[1;0m (%s)\n" % (path)
         else:
             print "\033[1;31mFAILURE :(\033[1;0m (%s) \n" % (path)
         self.config.log_test(path, runtime, ok)
         
-        return (file, ok, status not in self.config.valid_exits)
+        return (dir + "/" + file, ok, status not in self.config.valid_exits)
 
     def run_tests (self, tests):
         results   = pmap.map (self.config.threadcount, self.run_test, tests)
@@ -86,11 +86,11 @@ class TestRunner:
             print "\n\033[1;32mPassed all tests! :D\033[1;0m"
         else:
             failnames  = [fail[0] for fail in failed]
-            print "\n\033[1;31mFailed %d tests:\033[1;0m %s" % (failcount, ", ".join(failnames))
+            print "\n\033[1;31mFailed %d tests:\033[1;0m \n %s \n" % (failcount, ",\n  ".join(failnames))
 
             exceptions = [fail[0] for fail in failed if fail[1]]
             if exceptions != []:
-                print "\n\033[1;31mExceptions thrown on %d tests:\033[1;0m %s" % (len(exceptions), ", ".join(exceptions))
+                print "\n\033[1;31mExceptions thrown on %d tests:\033[1;0m \n  %s \n" % (len(exceptions), ",\n  ".join(exceptions))
 
         return (failcount != 0)
 
