@@ -788,9 +788,6 @@ toType t@(ROth _)
 ----------------------- Typing Literals -----------------------
 ---------------------------------------------------------------
 
-literalFRefType tce l 
-  = makeRTypeBase (literalType l) (literalFReft tce l) 
-
 -- makeRTypeBase :: Type -> Reft -> RefType 
 makeRTypeBase (TyVarTy α)    x       
   = RVar (rTyVar α) x 
@@ -799,18 +796,28 @@ makeRTypeBase (TyConApp c _) x
 makeRTypeBase _              _
   = error "RefType : makeRTypeBase"
 
-literalFReft tce               = exprReft . snd . literalConst tce 
+literalFRefType tce l 
+  = makeRTypeBase (literalType l) (literalFReft tce l) 
 
-literalConst tce l             = (sort, mkLit l)
-  where sort                   = typeSort tce $ literalType l 
-        sym                    = stringSymbol $ "$$" ++ showPpr l
-        mkLit (MachInt    n)   = mkI n
-        mkLit (MachInt64  n)   = mkI n
-        mkLit (MachWord   n)   = mkI n
-        mkLit (MachWord64 n)   = mkI n
-        mkLit (LitInteger n _) = mkI n
-        mkLit _                = ELit sym sort
-        mkI                    = ECon . I
+literalFReft tce = maybe top exprReft . snd . literalConst tce
+
+ -- exprReft . snd . literalConst tce 
+
+-- | `literalConst` returns `Nothing` for unhandled lits because
+--    otherwise string-literals show up as global int-constants 
+--    which blow up qualifier instantiation. 
+
+literalConst tce l         = (sort, mkLit l)
+  where 
+    sort                   = typeSort tce $ literalType l 
+    sym                    = stringSymbol $ "$$" ++ showPpr l
+    mkLit (MachInt    n)   = mkI n
+    mkLit (MachInt64  n)   = mkI n
+    mkLit (MachWord   n)   = mkI n
+    mkLit (MachWord64 n)   = mkI n
+    mkLit (LitInteger n _) = mkI n
+    mkLit _                = Nothing -- ELit sym sort
+    mkI                    = Just . ECon . I  
 
 ---------------------------------------------------------------
 ---------------- Annotations and Solutions --------------------
