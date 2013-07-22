@@ -1,4 +1,8 @@
-{-# LANGUAGE NoMonomorphismRestriction, DeriveGeneric, DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE UndecidableInstances      #-}
 
 -- | This module contains the data types, operations and serialization functions 
 -- for representing Fixpoint's implication (i.e. subtyping) and well-formedness 
@@ -100,11 +104,7 @@ module Language.Fixpoint.Types (
   -- * Qualifiers
   , Qualifier (..)
 
-  -- * SMT Solvers
-  , SMTSolver (..)
-  , smtSolver 
-  , defaultSolver
-  ) where
+ ) where
 
 import GHC.Generics         (Generic)
 import Debug.Trace          (trace)
@@ -135,29 +135,6 @@ class Fixpoint a where
 
   simplify :: a -> a 
   simplify =  id
-
-
-------------------------------------------------------------------------
--- SMT SOLVERS ---------------------------------------------------------
-------------------------------------------------------------------------
-
-data SMTSolver = Z3 | Cvc4 | Mathsat | Z3mem
-                 deriving (Eq,Data,Typeable)
-
-instance Show SMTSolver where 
-  show Z3      = "z3"
-  show Cvc4    = "cvc4"
-  show Mathsat = "mathsat"
-  show Z3mem   = "z3mem"
-
-smtSolver "z3"      = Z3
-smtSolver "cvc4"    = Cvc4
-smtSolver "mathsat" = Mathsat
-smtSolver "z3mem"   = Z3mem
-smtSolver other     = error $ "ERROR: unsupported SMT Solver = " ++ other
-
-defaultSolver       :: Maybe SMTSolver -> SMTSolver
-defaultSolver       = fromMaybe Z3 
 
 
 ------------------------------------------------------------------------

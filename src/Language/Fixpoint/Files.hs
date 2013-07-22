@@ -13,6 +13,7 @@ module Language.Fixpoint.Files (
     Ext (..)
   , extFileName
   , extModuleName
+  , withExt
   , isExtFile
  
   -- * Hardwired paths 
@@ -53,8 +54,6 @@ getFixpointPath = fromMaybe msg <$> findExecutable "fixpoint.native"
   where msg     = errorstar "Cannot find fixpoint binary [fixpoint.native]"
 
 getHqBotPath = liftM (`combine` "Bot.hquals") getIncludePath
--- getZ3LibPath    = do p <- dropFileName <$> getFixpointPath 
---                      return $ joinPath [p, "external", "z3", "lib"] 
 
 getZ3LibPath    = dropFileName <$> getFixpointPath 
 
@@ -108,6 +107,9 @@ extMap e = go e
     go Hquals = "hquals" 
     go Result = "out"
     go _      = errorstar $ "extMap: Unknown extension" ++ show e
+
+withExt         :: FilePath -> Ext -> FilePath 
+withExt f ext   =  replaceExtension f (extMap ext)
 
 extFileName     :: Ext -> FilePath -> FilePath
 extFileName ext = (`addExtension` (extMap ext))

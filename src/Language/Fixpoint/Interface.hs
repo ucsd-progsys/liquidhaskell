@@ -28,20 +28,24 @@ import System.Directory (getTemporaryDirectory)
 import System.FilePath  ((</>))
 import Text.Printf
 
+import Language.Fixpoint.Config
 import Language.Fixpoint.Types         hiding (kuts, lits)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Parse            (rr)
 import Language.Fixpoint.Files
 import Text.PrettyPrint.HughesPJ
+import System.Console.CmdArgs.Default
 
 ---------------------------------------------------------------------------
 -- | One Shot validity query ----------------------------------------------
 ---------------------------------------------------------------------------
 
+---------------------------------------------------------------------------
 checkValid :: (Hashable a) => a -> [(Symbol, Sort)] -> Pred -> IO (FixResult a) 
+---------------------------------------------------------------------------
 checkValid n xts p 
   = do file   <- (</> show (hash n)) <$> getTemporaryDirectory
-       (r, _) <- solve Nothing file [] $ validFInfo n xts p
+       (r, _) <- solve def file [] $ validFInfo n xts p
        return (sinfo <$> r)  
 
 validFInfo         :: a -> [(Symbol, Sort)] -> Pred -> FInfo a
@@ -69,34 +73,36 @@ result x False = Unsafe [x]
 -- | Solve a system of horn-clause constraints ----------------------------
 ---------------------------------------------------------------------------
 
-solve :: Maybe SMTSolver -> FilePath -> [FilePath] -> FInfo a -> IO (FixResult (SubC a), M.HashMap Symbol Pred)
-solve smt fn hqs fi
-  =   {-# SCC "Solve" #-}  execFq smt fn hqs fi
+---------------------------------------------------------------------------
+solve :: Config -> FilePath -> [FilePath] -> FInfo a 
+      -> IO (FixResult (SubC a), M.HashMap Symbol Pred)
+---------------------------------------------------------------------------
+solve cfg fn hqs fi
+  =   {-# SCC "Solve" #-}  execFq cfg fn hqs fi
   >>= {-# SCC "exitFq" #-} exitFq fn (cm fi) 
       
-execFq smt fn hqs fi
+execFq cfg fn hqs fi
   = do copyFiles hqs fq
        appendFile fq qstr 
        withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPutStr h (render d))
-       solveFile (defaultSolver smt) fq fo
+       solveFile $ cfg `withTarget` fq
     where 
-       fq   = extFileName Fq  fn
-       fo   = extFileName Out fn
+       fq   = extFileName Fq fn
        d    = {-# SCC "FixPointify" #-} toFixpoint fi 
        qstr = render ((vcat $ toFix <$> (quals fi)) $$ text "\n")
 
-solveFile smt fq fo 
+---------------------------------------------------------------------------
+solveFile :: Config -> IO ExitCode 
+---------------------------------------------------------------------------
+solveFile cfg
   = do fp <- getFixpointPath
        z3 <- getZ3LibPath
-       ec <- {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ fixCommand smt fp z3 fq fo  
+       ec <- {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ fixCommand cfg fp z3
        return ec
  
--- execCmd fn = printf "fixpoint.native -notruekvars -refinesort -strictsortcheck -out %s %s" fo fq 
-fixCommand smt fp z3 fin fout 
-  = printf "LD_LIBRARY_PATH=%s %s %s -notruekvars -refinesort -noslice -nosimple -strictsortcheck -sortedquals -out %s %s" 
-           z3 fp ss fout fin
-    where 
-      ss = "-smtsolver " ++ show smt
+fixCommand cfg fp z3
+  = printf "LD_LIBRARY_PATH=%s %s -notruekvars -refinesort -noslice -nosimple -strictsortcheck -sortedquals %s" 
+           z3 fp (command cfg)
 
 exitFq _ _ (ExitFailure n) | (n /= 1) 
   = return (Crash [] "Unknown Error", M.empty)

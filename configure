@@ -1,8 +1,8 @@
 #!/bin/bash
 
 ########################################################################
-Z3MEM=false    # default
-#Z3MEM=true    # use this if you want to link against Z3
+#Z3MEM=false    # default
+Z3MEM=true    # use this if you want to link against Z3
 ########################################################################
 
 ROOTHOME=`pwd`
