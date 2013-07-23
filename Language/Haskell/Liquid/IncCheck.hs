@@ -30,7 +30,7 @@ slice :: FilePath -> [CoreBind] -> IO [CoreBind]
 slice target cbs
   = do let saved = extFileName Saved target
        ex  <- doesFileExist saved 
-       if ex then do is    <- lineDiff target saved
+       if ex then do is    <- tracePpr "INCCHECK: changed lines" <$> lineDiff target saved
                      let xs = diffVars is   (coreDefs cbs) 
                      let ys = dependentVars (coreDeps cbs) (S.fromList xs)
                      return $ filterBinds cbs ys
@@ -81,7 +81,7 @@ type Deps = M.HashMap Var (S.HashSet Var)
 -------------------------------------------------------------------------
 dependentVars :: Deps -> S.HashSet Var -> S.HashSet Var
 -------------------------------------------------------------------------
-dependentVars d xs = go S.empty xs
+dependentVars d xs = tracePpr "INCCHECK: tx changed vars" $ go S.empty (tracePpr "INCCHECK: seed changed vars" xs)
   where 
     pre            = S.unions . fmap deps . S.toList
     deps x         = M.lookupDefault S.empty x d
@@ -130,6 +130,6 @@ lineDiff src dst
 diffLines _ []              = []
 diffLines n (Both ls _ : d) = diffLines n' d                         where n' = n + length ls
 diffLines n (First ls : d)  = [n .. (n' - 1)] ++ diffLines n' d      where n' = n + length ls
-diffLines n (Second ls : d) = diffLines n d 
+diffLines n (Second _ : d)  = diffLines n d 
 
 getLines = fmap lines . readFile
