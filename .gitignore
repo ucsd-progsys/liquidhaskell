@@ -37,3 +37,4 @@ a.out
 js/
 css/
 
+*.smt2
