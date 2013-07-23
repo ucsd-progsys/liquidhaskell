@@ -7,14 +7,19 @@ module Language.Haskell.Liquid.IncCheck (slice, save) where
 
 import            Control.Applicative          ((<$>))
 import            Data.Algorithm.Diff
-import            Name                         (getSrcSpan)
-import            SrcLoc                       (srcSpanFile, srcSpanStartLine, srcSpanStartCol)
-import            CoreSyn                      (bindersOf)
+import            CoreSyn                      
+-- import            Outputable 
+import            Var 
 import qualified  Data.HashSet                 as S    
 import qualified  Data.HashMap.Strict          as M    
 import qualified  Data.List                    as L
-import            Language.Fixpoint.Files
+import            Data.Function                (on)
 import            System.Directory             (copyFile)
+
+import            Language.Fixpoint.Files
+import            Language.Haskell.Liquid.GhcInterface
+import            Language.Haskell.Liquid.GhcMisc
+import           Text.Parsec.Pos              (sourceLine) 
 
 -- | `slice` returns a subset of the @[CoreBind]@ of the input `target` 
 --    file which correspond to top-level binders whose code has changed 
@@ -29,7 +34,7 @@ slice target cbs
        return $ filterBinds cbs ys
 
 -------------------------------------------------------------------------
-filterBinds        :: [CoreBind] -> S.Set Var -> [CoreBind]
+filterBinds        :: [CoreBind] -> S.HashSet Var -> [CoreBind]
 -------------------------------------------------------------------------
 filterBinds cbs ys = filter f cbs
   where 
@@ -37,26 +42,32 @@ filterBinds cbs ys = filter f cbs
     f (Rec xes)    = any (`S.member` ys) $ fst <$> xes 
 
 -------------------------------------------------------------------------
-coreDefs :: [CoreBind] -> [Def]
+coreDefs     :: [CoreBind] -> [Def]
 -------------------------------------------------------------------------
-coreDefs = mkDefs lxs 
+coreDefs cbs = mkDefs lxs 
   where 
-    lxs  = L.sortBy (compare `on` fst) [(line x, x) | x <- xs ]
-    xs   = concatMap bindersOf cbs
-    line = srcSpanStartLine . getSrcSpan 
+    lxs      = L.sortBy (compare `on` fst) [(line x, x) | x <- xs ]
+    xs       = concatMap bindersOf cbs
+    line     = sourceLine . getSourcePos 
 
 mkDefs []          = []
 mkDefs ((l,x):lxs) = case lxs of
                        []       -> [D l Nothing x]
                        (l',_):_ -> (D l (Just l') x) : mkDefs lxs
 
-data Def  = D { start :: Int, end :: Maybe Int, binder :: Var } 
-            deriving (Eq, Ord, Show)
-               
+data Def  = D { start  :: Int
+              , end    :: Maybe Int
+              , binder :: Var 
+              } 
+            deriving (Eq, Ord)
+              
+instance Show Def where 
+  show (D i j x) = "var " ++ showPpr x ++ " start: " ++ show i ++ " end: " ++ show j
+
 -------------------------------------------------------------------------
 coreDeps  :: [CoreBind] -> Deps
 -------------------------------------------------------------------------
-coreDeps  = M.fromList . map bindDep 
+coreDeps  = M.fromList . concatMap bindDep 
 
 bindDep b = [(x, ys) | x <- bindersOf b]
   where 
@@ -65,11 +76,11 @@ bindDep b = [(x, ys) | x <- bindersOf b]
 type Deps = M.HashMap Var (S.HashSet Var)
 
 -------------------------------------------------------------------------
-dependentVars :: Deps -> S.Set Var -> S.Set Var
+dependentVars :: Deps -> S.HashSet Var -> S.HashSet Var
 -------------------------------------------------------------------------
 dependentVars d xs = go S.empty xs
   where 
-    pre            = unions . fmap deps . S.elems
+    pre            = S.unions . fmap deps . S.toList
     deps x         = M.lookupDefault S.empty x d
     go seen new 
       | S.null new = seen
@@ -80,15 +91,17 @@ dependentVars d xs = go S.empty xs
 -------------------------------------------------------------------------
 diffVars :: [Int] -> [Def] -> [Var]
 -------------------------------------------------------------------------
-diffVars lines defs  = go (sort lines) (sort defs)
+diffVars lines defs  = go (L.sort lines) (L.sort defs)
   where 
     go _      []     = []
     go []     _      = []
     go (i:is) (d:ds) 
-      | i < start d  = go is (d:ds)
-      | i > end d    = go (i:is) ds
+      | i `lt` d     = go is (d:ds)
+      | i `gt` d     = go (i:is) ds
       | otherwise    = binder d : go is ds 
 
+lt i d               = i < start d
+gt i d               = maybe False (i >) (end d)
 -------------------------------------------------------------------------
 -- Diff Interface -------------------------------------------------------
 -------------------------------------------------------------------------
@@ -98,7 +111,7 @@ diffVars lines defs  = go (sort lines) (sort defs)
 -------------------------------------------------------------------------
 save :: FilePath -> IO ()
 -------------------------------------------------------------------------
-save target = copyFile target (target `extFileName` Saved)
+save target = copyFile target (extFileName Saved target)
 
 
 -- | `changedLines target` compares the contents of `target` with 
@@ -106,7 +119,7 @@ save target = copyFile target (target `extFileName` Saved)
 -------------------------------------------------------------------------
 changedLines :: FilePath -> IO [Int]
 -------------------------------------------------------------------------
-changedLines target = lineDiff target $ target `extFileName` Saved
+changedLines target = lineDiff target $ extFileName Saved target 
 
 -------------------------------------------------------------------------
 lineDiff :: FilePath -> FilePath -> IO [Int]

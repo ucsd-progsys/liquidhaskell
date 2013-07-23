@@ -5,21 +5,21 @@ import qualified Control.Exception as Ex
 import Data.Monoid      (mconcat)
 import System.Exit 
 import Control.DeepSeq
-import Control.Monad (forM)
+import Control.Monad (forM, when)
 
 import System.Console.CmdArgs.Default
 import Language.Fixpoint.Config (Config (..)) 
 import Language.Fixpoint.Files
-import Language.Fixpoint.Names
+-- import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Interface      
-import Language.Fixpoint.Types (Fixpoint(..), sinfo, colorResult, FixResult (..),showFix, isFalse)
+import Language.Fixpoint.Types (sinfo, colorResult, FixResult (..),showFix, isFalse)
 
 import qualified Language.Haskell.Liquid.IncCheck as IC
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.CmdLine
 import Language.Haskell.Liquid.GhcInterface
-import Language.Haskell.Liquid.GhcMisc
+-- import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Constraint       
 import Language.Haskell.Liquid.TransformRec   
 import Language.Haskell.Liquid.Annotate (annotate)
@@ -54,7 +54,7 @@ liquidOne cfg target =
      -- {-# SCC "writeCGI" #-} writeCGI target cgi 
      -- donePhase Loud "FINISH: Write CGI"
      (r, sol) <- solveCs cfg target cgi info
-     _        <- when (incCheck cfg) IC.save target 
+     _        <- when (incCheck cfg) $ IC.save target 
      donePhase Loud "solve" 
      {-# SCC "annotate" #-} annotate target (resultSrcSpan r) sol $ annotMap cgi
      donePhase Loud "annotate"
@@ -82,7 +82,7 @@ solveCs cfg target cgi info
   | otherwise
   = solve fx target (hqFiles info) (cgInfoFInfo cgi)
   where 
-    fx = def { solver = smtsolver cfg } { genSorts = genQualSorts cfg }
+    fx = def { solver = smtsolver cfg }
 
 
 writeResult target = writeFile (extFileName Result target) . showFix 
