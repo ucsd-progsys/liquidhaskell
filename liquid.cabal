@@ -85,6 +85,7 @@ Library
                    Language.Haskell.Liquid.PredType, 
                    Language.Haskell.Liquid.Predicates, 
                    Language.Haskell.Liquid.ACSS, 
+                   Language.Haskell.Liquid.DiffCheck, 
                    Language.Haskell.Liquid.ANFTransform, 
                    Language.Haskell.Liquid.Annotate, 
                    Language.Haskell.Liquid.CTags, 

@@ -3,7 +3,7 @@
 --   modified since it was last checked (as determined by a diff against
 --   a saved version of the file. 
 
-module Language.Haskell.Liquid.IncCheck (slice, save) where
+module Language.Haskell.Liquid.DiffCheck (slice, save) where
 
 import            Control.Applicative          ((<$>))
 import            Data.Algorithm.Diff
@@ -22,6 +22,7 @@ import            Language.Fixpoint.Files
 import            Language.Haskell.Liquid.GhcInterface
 import            Language.Haskell.Liquid.GhcMisc
 import            Text.Parsec.Pos              (sourceLine) 
+import            Control.Monad(forM)
 
 
 -------------------------------------------------------------------------
@@ -35,7 +36,7 @@ data Def  = D { start  :: Int
             deriving (Eq, Ord)
               
 instance Show Def where 
-  show (D i j x) = "var " ++ showPpr x ++ " start: " ++ show i ++ " end: " ++ show j
+  show (D i j x) = showPpr x ++ " start: " ++ show i ++ " end: " ++ show j
 
 
 
@@ -52,7 +53,9 @@ slice target cbs
                      let dfs  = coreDefs cbs
                      forM dfs $ putStrLn . ("INCCHECK: Def " ++) . show 
                      let xs   = diffVars is dfs   
+                     putStrLn $ "INCCHECK: Changed Top-Binders" ++ showPpr xs
                      let ys   = dependentVars (coreDeps cbs) (S.fromList xs)
+                     putStrLn $ "INCCHECK: Dependent Top-Binders" ++ showPpr ys
                      return   $ filterBinds cbs ys
              else return cbs 
 
@@ -71,25 +74,27 @@ coreDefs cbs = L.sort [D l l' x | b <- cbs, let (l, l') = coreDef b, x <- binder
 coreDef b    = -- tracePpr ("INCCHECK: coreDef " ++ showPpr (bindersOf b)) $ 
                lineSpan $ catSpans b $ bindSpans b 
  
-catSpans b [] = error $ "INCCHECK: catSpans: no spans found for " ++ showPpr b
-catSpans b xs = foldr1 combineSrcSpans xs
+lineSpan (RealSrcSpan sp) = (srcSpanStartLine sp, srcSpanEndLine sp)
+lineSpan _                = error "INCCHECK: lineSpan unexpected dummy span in lineSpan"
+
+catSpans b []             = error $ "INCCHECK: catSpans: no spans found for " ++ showPpr b
+catSpans b xs             = foldr1 combineSrcSpans xs
 
 bindSpans (NonRec x e)    = getSrcSpan x : exprSpans e
 bindSpans (Rec    xes)    = map getSrcSpan xs ++ concatMap exprSpans es
   where 
     (xs, es)              = unzip xes
-
-lineSpan (RealSrcSpan sp) = (srcSpanStartLine sp, srcSpanEndLine sp)
-lineSpan _                = error "INCCHECK: lineSpan unexpected dummy span in lineSpan"
-
 exprSpans (Tick t _)      = [tickSrcSpan t]
 exprSpans (Var x)         = [getSrcSpan x]
 exprSpans (Lam x e)       = getSrcSpan x : exprSpans e 
 exprSpans (App e a)       = exprSpans e ++ exprSpans a 
 exprSpans (Let b e)       = bindSpans b ++ exprSpans e
 exprSpans (Cast e _)      = exprSpans e
+exprSpans (Case e x _ cs) = getSrcSpan x : exprSpans e ++ concatMap altSpans cs 
 exprSpans e               = [] 
--- exprSpan (Case e x _ cs) = (go env e) ++ (concatMap (freeVars (extendEnv env [x])) cs) 
+
+altSpans (_, xs, e)       = map getSrcSpan xs ++ exprSpans e
+
 
 -- coreDefs cbs = mkDefs lxs 
 --   where
@@ -142,7 +147,7 @@ diffVars lines defs  = -- tracePpr ("INCCHECK: diffVars lines = " ++ show lines 
     go (i:is) (d:ds) 
       | i < start d  = go is (d:ds)
       | i > end d    = go (i:is) ds
-      | otherwise    = binder d : go is ds 
+      | otherwise    = binder d : go (i:is) ds 
 
 -------------------------------------------------------------------------
 -- Diff Interface -------------------------------------------------------
