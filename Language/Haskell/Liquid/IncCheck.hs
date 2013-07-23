@@ -73,7 +73,14 @@ dependentVars d xs = go S.empty xs
 -------------------------------------------------------------------------
 diffVars :: [Int] -> [Def] -> [Var]
 -------------------------------------------------------------------------
-diffVars lines defs = error "TODO"
+diffVars lines defs  = go (sort lines) (sort defs)
+  where 
+    go _      []     = []
+    go []     _      = []
+    go (i:is) (d:ds) 
+      | i < start d  = go is (d:ds)
+      | i > end d    = go (i:is) ds
+      | otherwise    = binder d : go is ds 
 
 -------------------------------------------------------------------------
 -- Diff Interface -------------------------------------------------------
