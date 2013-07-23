@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module LiquidArray where
 
 import Language.Haskell.Liquid.Prelude (liquidAssume)
