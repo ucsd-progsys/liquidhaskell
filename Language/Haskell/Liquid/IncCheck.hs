@@ -1,7 +1,49 @@
-module Language.Haskell.Liquid.IncCheck (lineDiff) where
+-- | This module contains the code for Incremental checking, which finds the 
+--   part of a target file (the subset of the @[CoreBind]@ that have been 
+--   modified since it was last checked (as determined by a diff against
+--   a saved version of the file. 
+
+module Language.Haskell.Liquid.IncCheck (slice) where
 
 import Control.Applicative ((<$>))
 import Data.Algorithm.Diff
+
+slice :: FilePath -> [CoreBind] -> IO [CoreBind] 
+slice target cbs
+  = do is    <- changedLines target
+       xs    <- diffVars is defs
+       ys    <- dependentVars deps xs
+       return $ filterBinds cbs ys
+    where 
+       deps   = coreDeps cbs
+       defs   = coreDefs cbs
+
+filterBinds :: [CoreBind] -> [Var] -> [CoreBind]
+filterBinds = error "TODO"
+
+coreDefs :: [CoreBind] -> [Def]
+coreDefs = error "TODO"
+
+coreDeps :: [CoreBind] -> Deps
+coreDeps = error "TODO"
+
+dependtVars :: Deps -> [Var] -> [Var]
+dependentVars d xs = error "TODO: return (closed) list of binders on which xs depend"
+
+data Def  = D { start :: Int, end :: Int, binder :: Var }
+            deriving (Eq, Ord, Show)
+
+type Deps = M.HashMap Var [Var]
+
+diffVars :: [Int] -> [Def] -> [Var]
+diffVars lines defs = error "TODO"
+
+-------------------------------------------------------------------------
+-- Diff Interface -------------------------------------------------------
+-------------------------------------------------------------------------
+
+changedLines :: FilePath -> IO [Int]
+changedLines = error "TODO"
 
 lineDiff :: String -> String -> IO [Int]
 lineDiff f1 f2 

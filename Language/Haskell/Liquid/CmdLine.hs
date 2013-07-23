@@ -15,32 +15,41 @@ import System.Console.CmdArgs
 ---------------------------------------------------------------------------------
 
 config = Config { 
-   files   = def &= typ "TARGET" 
-                 &= args 
-                 &= typFile 
+   files    
+    = def &= typ "TARGET" 
+          &= args 
+          &= typFile 
  
- , idirs   = def &= typDir 
-                 &= help "Paths to Spec Include Directory " 
+ , idirs 
+    = def &= typDir 
+          &= help "Paths to Spec Include Directory " 
    
- , binds   = def &= help "Top-level binders to verify (DEFAULT = all)" 
+ , incCheck 
+    = false 
+          &= help "Incremental Checking: only check changed binders" 
 
- , nofalse = def &= help "Remove false predicates from the refinements"
+ , nofalse
+    = def &= help "Remove false predicates from the refinements"
 
- , noPrune = def &= help "Disable prunning unsorted Predicates"
-                 &= name "no-prune-unsorted"
+ , noPrune 
+    = def &= help "Disable prunning unsorted Predicates"
+          &= name "no-prune-unsorted"
 
- , notermination = def &= help "Disable Termination Check"
-                       &= name "no-termination-check"
- , smtsolver = def &= help "Name of SMT-Solver" 
+ , notermination 
+    = def &= help "Disable Termination Check"
+          &= name "no-termination-check"
+
+ , smtsolver 
+    = def &= help "Name of SMT-Solver" 
 
  , noCheckUnknown 
-           = def &= explicit
-                 &= name "no-check-unknown"
-                 &= help "Don't complain about specifications for unexported and unused values "
+    = def &= explicit
+          &= name "no-check-unknown"
+          &= help "Don't complain about specifications for unexported and unused values "
 
- , maxParams = 2 &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
+ , maxParams 
+    = 2   &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
  
- , genQualSorts = def &= help "Generalize Qualifier Sorts" 
  } &= verbosity
    &= program "liquid" 
    &= help    "Refinement Types for Haskell" 

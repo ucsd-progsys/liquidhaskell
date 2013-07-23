@@ -5,9 +5,6 @@
 {-# LANGUAGE FlexibleContexts       #-} 
 {-# LANGUAGE OverlappingInstances   #-}
 
--- , MultiParamTypeClasses, FlexibleContexts, ScopedTypeVariables, NoMonomorphismRestriction, , UndecidableInstances, , TupleSections, RankNTypes, GADTs -}
-
-
 -- | This module (should) contain all the global type definitions and basic
 -- instances. Need to gradually pull things into here, especially from @RefType@
 
@@ -112,14 +109,13 @@ import Var
 data Config = Config { 
     files          :: [FilePath] -- ^ source files to check
   , idirs          :: [FilePath] -- ^ path to directory for including specs
-  , binds          :: [String]   -- ^ top-level binders to check (empty means check ALL)
+  , incCheck       :: Bool       -- ^ check subset of modified binders (and transitive dependencies) 
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , nofalse        :: Bool       -- ^ remove false predicates from the refinements
   , notermination  :: Bool       -- ^ disable termination check
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   , smtsolver      :: SMTSolver  -- ^ name of smtsolver to use [default: z3-API]  
-  , genQualSorts   :: GenQualifierSort 
   } deriving (Data, Typeable, Show, Eq)
 
 -----------------------------------------------------------------------------
