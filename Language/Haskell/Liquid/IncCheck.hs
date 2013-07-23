@@ -19,7 +19,7 @@ import            System.Directory             (copyFile)
 import            Language.Fixpoint.Files
 import            Language.Haskell.Liquid.GhcInterface
 import            Language.Haskell.Liquid.GhcMisc
-import           Text.Parsec.Pos              (sourceLine) 
+import            Text.Parsec.Pos              (sourceLine) 
 
 -- | `slice` returns a subset of the @[CoreBind]@ of the input `target` 
 --    file which correspond to top-level binders whose code has changed 
