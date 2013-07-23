@@ -188,17 +188,13 @@ moduleSpec cfg vars target mg paths
            addContext (IIDecl (qualImportDecl (mkModuleName n)))
        addContext (IIModule $ moduleName $ mgi_module mg)
        env <- getSession
-       -- impSpecs   <- liftIO $ forM impSpecs $ \((n,f),spec) ->
-       --     if isExtFile Spec f
-       --       then return $ Ms.expandRTAliases spec
-       --       else resolveSpec env (mkModuleName n) $ Ms.expandRTAliases spec
-       -- let spec    = mconcat $ (Ms.expandRTAliases tgtSpec):impSpecs
-       tgtSpec    <- liftIO $ resolveSpec env (mkModuleName name) tgtSpec
-       impSpecs   <- liftIO $ forM impSpecs $ \((n,f),spec) ->
+       let specs   = ((name,target),tgtSpec):impSpecs
+       let rtenv   = Ms.makeRTEnv (concatMap (Ms.aliases  . snd) specs)
+                                  (concatMap (Ms.paliases . snd) specs)
+       spec <- fmap mconcat $ liftIO $ forM specs $ \((n,f),spec) ->
            if isExtFile Spec f
-             then return spec
-             else resolveSpec env (mkModuleName n) spec
-       let spec    = Ms.expandRTAliases $ mconcat $ tgtSpec:impSpecs
+             then return $ Ms.expandRTAliases rtenv spec
+             else resolveSpec env (mkModuleName n) $ Ms.expandRTAliases rtenv spec
        let imps    = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
        ghcSpec    <- liftIO $ makeGhcSpec cfg name vars env spec
        return      (ghcSpec, imps, Ms.includes tgtSpec)

@@ -13,6 +13,7 @@ module Language.Haskell.Liquid.Measure (
   , mapTy
   , dataConTypes
   , expandRTAliases
+  , makeRTEnv
   ) where
 
 import GHC hiding (Located)
@@ -257,13 +258,14 @@ data RTEnv   = RTE { typeAliases :: M.HashMap String (RTAlias String BareType)
                    , predAliases :: M.HashMap String (RTAlias Symbol Pred)
                    }
 
-expandRTAliases    :: Spec BareType Symbol -> Spec BareType Symbol
-expandRTAliases sp = sp { sigs       = [ (x, generalize $ expandRTAlias env t)  | (x, t) <- sigs sp       ] }
-                        { dataDecls  = [ expandRTAliasDataDecl env dc           | dc     <- dataDecls sp  ] } 
-                        { invariants = [ generalize <$> expandRTAlias env <$> t | t      <- invariants sp ] }
-                        { measures   = [ expandRTAliasMeasure env m             | m      <- measures sp   ] } 
-  where env        = makeRTEnv (aliases sp) (paliases sp)
-        
+expandRTAliases    :: RTEnv -> Spec BareType Symbol -> Spec BareType Symbol
+expandRTAliases env sp
+  = sp { sigs       = [ (x, generalize $ expandRTAlias env t)  | (x, t) <- sigs sp       ] 
+       , dataDecls  = [ expandRTAliasDataDecl env dc           | dc     <- dataDecls sp  ] 
+       , invariants = [ generalize <$> expandRTAlias env <$> t | t      <- invariants sp ] 
+       , measures   = [ expandRTAliasMeasure env m             | m      <- measures sp   ]
+       }
+
         
 expandRTAliasMeasure env m     = m { sort = generalize (sort m) } 
                                    { eqns = expandRTAliasDef env <$> (eqns m) }

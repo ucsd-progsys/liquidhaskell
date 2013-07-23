@@ -175,11 +175,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 -------------------------------------------------------------------------
 -- LiquidHaskell Specifications -----------------------------------------
 -------------------------------------------------------------------------
-{-@ measure cStringLen :: Foreign.C.String.CStringLen -> Int 
-    cStringLen (c, n) = n
-  @-}
-
-{-@ measure bLength     :: Data.ByteString.Internal.ByteString -> Int 
+{-@ measure bLength     :: Data.ByteString.Internal.ByteString -> Int
     bLength (Data.ByteString.Internal.PS p o l)  = l 
   @-}
 
