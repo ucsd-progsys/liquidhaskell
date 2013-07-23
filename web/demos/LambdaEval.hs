@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module LambdaEval where
 
 import Data.List        (lookup)

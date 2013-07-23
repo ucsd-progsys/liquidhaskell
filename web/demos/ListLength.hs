@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module Meas where
 
 import Language.Haskell.Liquid.Prelude

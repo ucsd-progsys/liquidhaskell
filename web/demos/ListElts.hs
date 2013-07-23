@@ -1,3 +1,4 @@
+{--! run liquid with no-termination -}
 
 -- ---
 -- layout: post

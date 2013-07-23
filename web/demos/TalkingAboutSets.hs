@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module TalkingAboutSets where
 
 

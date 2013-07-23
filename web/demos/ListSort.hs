@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module ListSort (insertSort, mergeSort, quickSort) where
 
 -- Verification of sorting algorithms

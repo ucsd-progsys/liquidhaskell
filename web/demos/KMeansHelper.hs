@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module KMeansHelper where
 
 import Prelude hiding (zipWith)
