@@ -25,7 +25,7 @@ config = Config {
           &= help "Paths to Spec Include Directory " 
    
  , incCheck 
-    = false 
+    = False 
           &= help "Incremental Checking: only check changed binders" 
 
  , nofalse
