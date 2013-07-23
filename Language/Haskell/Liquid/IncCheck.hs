@@ -8,6 +8,8 @@ module Language.Haskell.Liquid.IncCheck (slice, save) where
 import            Control.Applicative          ((<$>))
 import            Data.Algorithm.Diff
 import            CoreSyn                      
+import            Name
+import            SrcLoc  
 -- import            Outputable 
 import            Var 
 import qualified  Data.HashSet                 as S    
@@ -21,6 +23,22 @@ import            Language.Haskell.Liquid.GhcInterface
 import            Language.Haskell.Liquid.GhcMisc
 import            Text.Parsec.Pos              (sourceLine) 
 
+
+-------------------------------------------------------------------------
+-- Data Types -----------------------------------------------------------
+-------------------------------------------------------------------------
+
+data Def  = D { start  :: Int
+              , end    :: Int
+              , binder :: Var 
+              } 
+            deriving (Eq, Ord)
+              
+instance Show Def where 
+  show (D i j x) = "var " ++ showPpr x ++ " start: " ++ show i ++ " end: " ++ show j
+
+
+
 -- | `slice` returns a subset of the @[CoreBind]@ of the input `target` 
 --    file which correspond to top-level binders whose code has changed 
 --    and their transitive dependencies.
@@ -30,10 +48,12 @@ slice :: FilePath -> [CoreBind] -> IO [CoreBind]
 slice target cbs
   = do let saved = extFileName Saved target
        ex  <- doesFileExist saved 
-       if ex then do is    <- tracePpr "INCCHECK: changed lines" <$> lineDiff target saved
-                     let xs = diffVars is   (coreDefs cbs) 
-                     let ys = dependentVars (coreDeps cbs) (S.fromList xs)
-                     return $ filterBinds cbs ys
+       if ex then do is      <- {- tracePpr "INCCHECK: changed lines" <$> -} lineDiff target saved
+                     let dfs  = coreDefs cbs
+                     forM dfs $ putStrLn . ("INCCHECK: Def " ++) . show 
+                     let xs   = diffVars is dfs   
+                     let ys   = dependentVars (coreDeps cbs) (S.fromList xs)
+                     return   $ filterBinds cbs ys
              else return cbs 
 
 -------------------------------------------------------------------------
@@ -47,25 +67,44 @@ filterBinds cbs ys = filter f cbs
 -------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
 -------------------------------------------------------------------------
-coreDefs cbs = mkDefs lxs 
+coreDefs cbs = L.sort [D l l' x | b <- cbs, let (l, l') = coreDef b, x <- bindersOf b]
+coreDef b    = -- tracePpr ("INCCHECK: coreDef " ++ showPpr (bindersOf b)) $ 
+               lineSpan $ catSpans b $ bindSpans b 
+ 
+catSpans b [] = error $ "INCCHECK: catSpans: no spans found for " ++ showPpr b
+catSpans b xs = foldr1 combineSrcSpans xs
+
+bindSpans (NonRec x e)    = getSrcSpan x : exprSpans e
+bindSpans (Rec    xes)    = map getSrcSpan xs ++ concatMap exprSpans es
   where 
-    lxs      = L.sortBy (compare `on` fst) [(line x, x) | x <- xs ]
-    xs       = concatMap bindersOf cbs
-    line     = sourceLine . getSourcePos 
+    (xs, es)              = unzip xes
 
-mkDefs []          = []
-mkDefs ((l,x):lxs) = case lxs of
-                       []       -> [D l Nothing x]
-                       (l',_):_ -> (D l (Just l') x) : mkDefs lxs
+lineSpan (RealSrcSpan sp) = (srcSpanStartLine sp, srcSpanEndLine sp)
+lineSpan _                = error "INCCHECK: lineSpan unexpected dummy span in lineSpan"
 
-data Def  = D { start  :: Int
-              , end    :: Maybe Int
-              , binder :: Var 
-              } 
-            deriving (Eq, Ord)
-              
-instance Show Def where 
-  show (D i j x) = "var " ++ showPpr x ++ " start: " ++ show i ++ " end: " ++ show j
+exprSpans (Tick t _)      = [tickSrcSpan t]
+exprSpans (Var x)         = [getSrcSpan x]
+exprSpans (Lam x e)       = getSrcSpan x : exprSpans e 
+exprSpans (App e a)       = exprSpans e ++ exprSpans a 
+exprSpans (Let b e)       = bindSpans b ++ exprSpans e
+exprSpans (Cast e _)      = exprSpans e
+exprSpans e               = [] 
+-- exprSpan (Case e x _ cs) = (go env e) ++ (concatMap (freeVars (extendEnv env [x])) cs) 
+
+-- coreDefs cbs = mkDefs lxs 
+--   where
+--     lxs      = coreDefs' cbs
+--     -- lxs      = L.sortBy (compare `on` fst) [(line x, x) | x <- xs ]
+--     -- xs       = concatMap bindersOf cbs
+--     -- line     = sourceLine . getSourcePos 
+-- 
+-- mkDefs []          = []
+-- mkDefs ((l,x):lxs) = case lxs of
+--                        []       -> [D l Nothing x]
+--                        (l',_):_ -> (D l (Just l') x) : mkDefs lxs
+-- 
+-- coreDefs' cbs = L.sort [(l, x) | b <- cbs, let (l, l') = coreDef b, x <- bindersOf b]
+
 
 -------------------------------------------------------------------------
 coreDeps  :: [CoreBind] -> Deps
@@ -81,7 +120,8 @@ type Deps = M.HashMap Var (S.HashSet Var)
 -------------------------------------------------------------------------
 dependentVars :: Deps -> S.HashSet Var -> S.HashSet Var
 -------------------------------------------------------------------------
-dependentVars d xs = tracePpr "INCCHECK: tx changed vars" $ go S.empty (tracePpr "INCCHECK: seed changed vars" xs)
+dependentVars d xs = {- tracePpr "INCCHECK: tx changed vars" $ -} 
+                     go S.empty $ {- tracePpr "INCCHECK: seed changed vars" -} xs
   where 
     pre            = S.unions . fmap deps . S.toList
     deps x         = M.lookupDefault S.empty x d
@@ -94,17 +134,16 @@ dependentVars d xs = tracePpr "INCCHECK: tx changed vars" $ go S.empty (tracePpr
 -------------------------------------------------------------------------
 diffVars :: [Int] -> [Def] -> [Var]
 -------------------------------------------------------------------------
-diffVars lines defs  = go (L.sort lines) (L.sort defs)
+diffVars lines defs  = -- tracePpr ("INCCHECK: diffVars lines = " ++ show lines ++ " defs= " ++ show defs) $ 
+                       go (L.sort lines) (L.sort defs)
   where 
     go _      []     = []
     go []     _      = []
     go (i:is) (d:ds) 
-      | i `lt` d     = go is (d:ds)
-      | i `gt` d     = go (i:is) ds
+      | i < start d  = go is (d:ds)
+      | i > end d    = go (i:is) ds
       | otherwise    = binder d : go is ds 
 
-lt i d               = i < start d
-gt i d               = maybe False (i >) (end d)
 -------------------------------------------------------------------------
 -- Diff Interface -------------------------------------------------------
 -------------------------------------------------------------------------
