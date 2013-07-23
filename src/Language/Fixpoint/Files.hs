@@ -23,7 +23,8 @@ module Language.Fixpoint.Files (
   , getHsTargets
   , getFileInDirs
   , findFileInDirs
-  , copyFiles, deleteBinFiles
+  , copyFiles
+  , deleteBinFiles
   
 ) where
 
@@ -80,9 +81,10 @@ data Ext = Cgi    -- ^ Constraint Generation Information
          | Spec   -- ^ Spec file (e.g. include/Prelude.spec) 
          | Hquals -- ^ Qualifiers file (e.g. include/Prelude.hquals)
          | Result -- ^ Final result: SAFE/UNSAFE
-         | Cst    -- ^ I've totally forgotten!
+         | Cst    -- ^ HTML file with templates?
          | Mkdn   -- ^ Markdown file (temporarily generated from .Lhs + annots) 
          | Json   -- ^ JSON file containing result (annots + errors)
+         | Saved  -- ^ Previous version of source (for incremental checking)
          | Pred   
          | PAss    
          | Dat    
@@ -106,7 +108,8 @@ extMap e = go e
     go Spec   = "spec"
     go Hquals = "hquals" 
     go Result = "out"
-    go _      = errorstar $ "extMap: Unknown extension" ++ show e
+    go Saved  = "bak"
+    go _      = errorstar $ "extMap: Unknown extension " ++ show e
 
 withExt         :: FilePath -> Ext -> FilePath 
 withExt f ext   =  replaceExtension f (extMap ext)
