@@ -13,11 +13,15 @@ import            CoreSyn                      (bindersOf)
 import qualified  Data.HashSet                 as S    
 import qualified  Data.HashMap.Strict          as M    
 import qualified  Data.List                    as L
+import            Language.Fixpoint.Files
+import            System.Directory             (copyFile)
 
-save :: FilePath -> IO ()
-save = error "TODO"
-
+-- | `slice` returns a subset of the @[CoreBind]@ of the input `target` 
+--    file which correspond to top-level binders whose code has changed 
+--    and their transitive dependencies.
+-------------------------------------------------------------------------
 slice :: FilePath -> [CoreBind] -> IO [CoreBind] 
+-------------------------------------------------------------------------
 slice target cbs
   = do is    <- changedLines target
        let xs = diffVars is   (coreDefs cbs) 
@@ -89,13 +93,27 @@ diffVars lines defs  = go (sort lines) (sort defs)
 -- Diff Interface -------------------------------------------------------
 -------------------------------------------------------------------------
 
-changedLines :: FilePath -> IO [Int]
-changedLines = error "TODO"
+-- | `save` creates an .saved version of the `target` file, which will be 
+--    used to find what has changed the /next time/ `target` is checked.
+-------------------------------------------------------------------------
+save :: FilePath -> IO ()
+-------------------------------------------------------------------------
+save target = copyFile target (target `extFileName` Saved)
 
-lineDiff :: String -> String -> IO [Int]
-lineDiff f1 f2 
-  = do s1 <- getLines f1
-       s2 <- getLines f2
+
+-- | `changedLines target` compares the contents of `target` with 
+--   its `save` version to determine which lines are different.
+-------------------------------------------------------------------------
+changedLines :: FilePath -> IO [Int]
+-------------------------------------------------------------------------
+changedLines target = lineDiff target $ target `extFileName` Saved
+
+-------------------------------------------------------------------------
+lineDiff :: FilePath -> FilePath -> IO [Int]
+-------------------------------------------------------------------------
+lineDiff src dst 
+  = do s1 <- getLines src 
+       s2 <- getLines dst
        return $ diffLines 1 $ getGroupedDiff s1 s2
 
 diffLines _ []              = []

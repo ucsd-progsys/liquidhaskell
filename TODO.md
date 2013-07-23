@@ -26,19 +26,11 @@ TODO
 Incremental Checking
 --------------------
 
-    checkBinds :: Config -> [CoreBind] -> IO [CoreBind] 
+    Language.Haskell.Liquid.IncCheck
 
-
-[see branch "inccheck" look for the field "binds" in CmdLine.hs]
-
-1. Command Line Arguments  
-    - Specify WHICH binders to verify [DEFAULT = ALL]  
-    - liquid tests/pos/goo.hs -check foo bar baz 
-    - Print out vars/hs-types *STOPSTOPSTOPSTOPSTOP*
-2. CONSGEN for subset 
-3. CONSGEN for subset using TRUE for all other functions
-4. SAVE out inferred-types for top-level binders
-5. REUSE pre-inferred types for other functions 
++ finish implementation of missing code
++ In `Liquid.hs` add code to SAVE the old file
++ 
 
 
 Liquid-Fixpoint SMTLIB2
