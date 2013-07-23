@@ -3,7 +3,7 @@
 --   modified since it was last checked (as determined by a diff against
 --   a saved version of the file. 
 
-module Language.Haskell.Liquid.IncCheck (slice) where
+module Language.Haskell.Liquid.IncCheck (slice, save) where
 
 import            Control.Applicative          ((<$>))
 import            Data.Algorithm.Diff
@@ -13,6 +13,9 @@ import            CoreSyn                      (bindersOf)
 import qualified  Data.HashSet                 as S    
 import qualified  Data.HashMap.Strict          as M    
 import qualified  Data.List                    as L
+
+save :: FilePath -> IO ()
+save = error "TODO"
 
 slice :: FilePath -> [CoreBind] -> IO [CoreBind] 
 slice target cbs
