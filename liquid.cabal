@@ -21,7 +21,7 @@ Executable liquid
                , containers
                , deepseq
                , directory
-               , diff
+               , Diff
                , filemanip
                , filepath
                , ghc-paths
@@ -53,7 +53,7 @@ Library
                , containers
                , deepseq
                , directory
-               , diff
+               , Diff
                , filemanip
                , filepath
                , ghc-paths
