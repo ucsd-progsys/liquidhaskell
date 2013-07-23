@@ -1,11 +1,13 @@
+{-# LANGUAGE TupleSections #-}
 module Language.Haskell.Liquid.Resolution where
 
-import Data.Bifunctor
 import Control.Applicative
+import Control.Arrow
 import Data.Maybe
+import qualified Data.HashMap.Strict as S
 import Text.Printf
 
-import GHC hiding (lookupName)
+import GHC hiding (lookupName, Located)
 import CoreMonad
 import DynFlags
 import DynamicLoading
@@ -32,54 +34,94 @@ import Language.Fixpoint.Types
 
 data ModLoc = Lcl | Pkg deriving Eq
 
-canonicalizeSpec :: ModLoc -> HscEnv -> ModuleName -> BareSpec -> IO BareSpec
-canonicalizeSpec ml env mn spec
-  = do measures <- mapM (canonicalizeMeas ml env mn) (Ms.measures spec)
-       putStrLn $ showpp measures
-       return $ spec { measures = measures }
+resolveSpec :: HscEnv -> ModuleName -> BareSpec -> IO BareSpec
+resolveSpec env mn spec
+  = do measures   <- mapM (resolveMeas env mn) (Ms.measures spec)
+       sigs       <- mapM (resolveSig env mn)  (Ms.sigs spec)
+       invariants <- mapM (resolveInv env mn)  (Ms.invariants spec)
+       dataDecls  <- mapM (resolveData env mn) (Ms.dataDecls spec)
+       embeds     <- resolveEmbed env mn       (Ms.embeds spec)
+       qualifiers <- mapM (resolveQual env mn) (Ms.qualifiers spec)
+       return $ spec { Ms.measures   = measures
+                     , Ms.sigs       = sigs
+                     , Ms.invariants = invariants
+                     , Ms.dataDecls  = dataDecls
+                     , Ms.embeds     = embeds
+                     , Ms.qualifiers = qualifiers
+                     }
 
-canonicalizeMeas :: ModLoc -> HscEnv -> ModuleName -> Ms.Measure BareType Symbol -> IO (Ms.Measure BareType Symbol)
-canonicalizeMeas ml env mn meas
-  = do -- mkM (name meas) <$> (canonicalizeType ml env mn $ sort meas) <*> return (eqns meas)
-       sort' <- canonicalizeType ml env mn (sort meas)
+resolveMeas :: HscEnv -> ModuleName -> Ms.Measure BareType Symbol -> IO (Ms.Measure BareType Symbol)
+resolveMeas env mn meas
+  = do -- mkM (name meas) <$> (resolveType ml env mn $ sort meas) <*> return (eqns meas)
+       sort' <- resolveType env mn (sort meas)
        eqns' <- mapM resolveCTor $ eqns meas
-       putStrLn $ showpp sort'
        return $ mkM (name meas) sort' eqns'
-  where resolveCTor def = do ctor <- lookupName ml env mn (symbolString $ Ms.ctor def)
+  where resolveCTor def = do ctor <- lookupName env mn (symbolString $ Ms.ctor def)
                              return $ def { Ms.ctor = symbol ctor }
 
-canonicalizeType :: ModLoc -> HscEnv -> ModuleName -> BRType a -> IO (BRType a)
-canonicalizeType _ e m t@(RVar _ _)   = return t
-canonicalizeType l e m (RFun s i o r) = RFun <$> return s
-                                             <*> canonicalizeType l e m i
-                                             <*> canonicalizeType l e m o
-                                             <*> return r
-canonicalizeType l e m (RAllT tv t)   = RAllT tv <$> canonicalizeType l e m t
-canonicalizeType l e m t@(RAllP _ _)  = return t
-canonicalizeType l e m t@(RApp tc as ps r) = RApp <$> lookupName l e m tc
-                                                  <*> mapM (canonicalizeType l e m) as
-                                                  <*> return ps
-                                                  <*> return r
-canonicalizeType l e m t@(RCls c as)   = return t
-canonicalizeType l e m t@(REx   _ _ _)   = return t
-canonicalizeType l e m t@(RExprArg _)   = return t
-canonicalizeType l e m t@(RAppTy _ _ _)   = return t
-canonicalizeType l e m t@(ROth _)   = return t
+resolveSig env m (l, ty) = (l,) <$> resolveType env m ty
 
-lookupName :: ModLoc -> HscEnv -> ModuleName -> String -> IO String
-lookupName ml env mod name = do
+resolveInv env m (Loc x ty) = Loc x <$> resolveType env m ty
+
+resolveData env m (D n tvs pvs dcs sp d)
+  = D <$> lookupName env m n <*> return tvs <*> return pvs <*> mapM resolveDC dcs
+      <*> return sp <*> return d
+  where
+    resolveDC (dc, args) = (,) <$> lookupName env m dc <*> mapM (resolveSig env m) args
+
+resolveEmbed env m emb = S.fromList <$> mapM resolveKey (S.toList emb)
+  where
+    resolveKey (Loc x k, v) = (,v) . Loc x <$> lookupName env m k
+
+resolveQual env m (Q n ps b) = Q n <$> mapM (secondM (resolveSort env m)) ps <*> return b
+
+resolveSort env m FInt         = return FInt
+resolveSort env m FNum         = return FNum
+resolveSort env m (FObj (S s)) = FObj . S <$> lookupName env m s
+resolveSort env m (FVar i)     = return $ FVar i
+resolveSort env m (FFunc i ss) = FFunc i <$> mapM (resolveSort env m) ss
+resolveSort env m (FApp tc ss) = FApp <$> (stringFTycon <$> lookupName env m (fTyconString tc))
+                                      <*> mapM (resolveSort env m) ss
+
+firstM  f (a,b) = (,b) <$> f a
+secondM f (a,b) = (a,) <$> f b
+
+resolveType :: HscEnv -> ModuleName -> BRType a -> IO (BRType a)
+resolveType e m t@(RVar _ _)   = return t
+resolveType e m (RFun s i o r) = RFun <$> return s
+                                      <*> resolveType e m i
+                                      <*> resolveType e m o
+                                      <*> return r
+resolveType e m (RAllT tv t)   = RAllT tv <$> resolveType e m t
+resolveType e m t@(RAllP _ _)  = return t
+resolveType e m t@(RApp tc as ps r) = RApp <$> lookupName e m tc
+                                           <*> mapM (resolveType e m) as
+                                           <*> return ps
+                                           <*> return r
+resolveType e m t@(RCls c as)  = RCls <$> lookupName e m c
+                                      <*> mapM (resolveType e m) as
+resolveType e m t@(REx b a ty)  = REx b <$> resolveType e m a
+                                        <*> resolveType e m ty
+resolveType e m t@(RExprArg _) = return t
+resolveType e m t@(RAppTy a r rt) = RAppTy <$> resolveType e m a
+                                           <*> resolveType e m r
+                                           <*> return rt
+resolveType e m t@(ROth _)   = return t
+
+lookupName :: HscEnv -> ModuleName -> String -> IO String
+lookupName env mod name = do
     rdr <- unLoc <$> hscParseIdentifier env name
-    mbName <- lookupRdrName ml env mod rdr
+    mbName <- lookupRdrName env mod rdr
     case mbName of
       Nothing -> tryAlt rdr
       Just n  -> return $ showpp n
   where tryAlt rdr | rdrNameSpace rdr == dataName =
                        let rdr' = setRdrNameSpace rdr tcName
-                       in maybe (propOrErr rdr') showpp <$> (lookupRdrName ml env mod rdr')
+                       in maybe (propOrErr rdr') showpp <$> (lookupRdrName env mod rdr')
                    | otherwise = return $ propOrErr rdr
         propOrErr rdr | rdrNameString rdr `elem` ["Prop","()","(,)","[]",":"] = rdrNameString rdr
 --                      | isExact rdr = rdrNameString rdr
-                      | otherwise = err rdr
+                      | otherwise = rdrNameString rdr
         err rdr = error $ moduleNameString mod
                        ++ ":" ++ name
                        ++ ":" ++ showNS (rdrNameSpace rdr)
@@ -99,8 +141,9 @@ showNS ns | ns == tcName = "TcClsName"
 mtrace :: Outputable a => a -> IO ()
 mtrace = putStrLn . showPpr tracingDynFlags
 
-lookupRdrName :: ModLoc -> HscEnv -> ModuleName -> RdrName -> IO (Maybe Name)
-lookupRdrName ml hsc_env mod_name rdr_name = do
+-- slightly modified version of DynamicLoading.lookupRdrNameInModule
+lookupRdrName :: HscEnv -> ModuleName -> RdrName -> IO (Maybe Name)
+lookupRdrName hsc_env mod_name rdr_name = do
     -- First find the package the module resides in by searching exposed packages and home modules
     found_module <- findImportedModule hsc_env mod_name Nothing
     case found_module of
@@ -119,7 +162,6 @@ lookupRdrName ml hsc_env mod_name rdr_name = do
                         env = case mi_globals iface of
                                 Nothing -> mkGlobalRdrEnv (gresFromAvails provenance (mi_exports iface))
                                 Just e -> e
---                        Just env' = mi_globals iface
                     case lookupGRE_RdrName rdr_name env of
                         [gre] -> return (Just (gre_name gre))
                         []    -> return Nothing

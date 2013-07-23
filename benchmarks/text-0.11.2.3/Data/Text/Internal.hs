@@ -69,7 +69,6 @@ import Language.Haskell.Liquid.Prelude
     tlen (Data.Text.Internal.Text a o l) = l
   @-}
 
-{-@ type Text     = {v:Data.Text.Internal.Text | true } @-}
 {-@ type TextN  N = {v:Data.Text.Internal.Text | (tlen v) = N} @-}
 {-@ type TextNC N = {v:Data.Text.Internal.Text | (tlength v) = N} @-}
 {-@ type TextNE   = {v:Data.Text.Internal.Text | (tlen v) > 0} @-}

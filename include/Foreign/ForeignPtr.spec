@@ -6,8 +6,8 @@ module spec Foreign.ForeignPtr where
 -- type ForeignPtrN a N = {v: (ForeignPtrV a) | (fplen v) = N }
 -- type ForeignPtrV a   = {v: (ForeignPtr  a) | 0 <= (fplen v)}
 
-Foreign.ForeignPtr.Imp.withForeignPtr :: fp:(ForeignPtr a)
-                                      -> ({v:(Foreign.Ptr.Ptr a) | (plen v) = (fplen fp)} -> IO b) 
+Foreign.ForeignPtr.Imp.withForeignPtr :: fp:(GHC.ForeignPtr.ForeignPtr a)
+                                      -> ({v:(GHC.Ptr.Ptr a) | (plen v) = (fplen fp)} -> IO b) 
                                       -> IO b
 
 -- Foreign.ForeignPtr.withForeignPtr :: fp:(ForeignPtr a) 
@@ -17,7 +17,7 @@ Foreign.ForeignPtr.Imp.withForeignPtr :: fp:(ForeignPtr a)
 
 measure fplen :: GHC.ForeignPtr.ForeignPtr a -> GHC.Types.Int
 
-type ForeignPtrV a   = {v: (ForeignPtr  a) | 0 <= (fplen v)}
+type ForeignPtrV a   = {v: (GHC.ForeignPtr.ForeignPtr  a) | 0 <= (fplen v)}
 
 type ForeignPtrN a N = {v: (ForeignPtrV a) | (fplen v) = N }
 
