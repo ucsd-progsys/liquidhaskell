@@ -132,15 +132,18 @@ textIgnored = { "Data/Text/Axioms.hs"
               , "Data/Text/Encoding.small.hs"
               }
 
-testdirs  = [ ("pos", {}, 0)
-            , ("neg", {}, 1)
-            , ("../web/demos", {}, 0)
-            , ("../benchmarks/esop2013-submission", {}, 0)
-#           , ("../benchmarks/bytestring-0.9.2.1", bytestringIgnored, 0)
-#           , ("../benchmarks/text-0.11.2.3", textIgnored, 0)
-            ]
+regtestdirs  = [ ("pos", {}, 0)
+               , ("neg", {}, 1)
+               ]
+benchtestdirs = [ ("../web/demos", {}, 0)
+                , ("../benchmarks/esop2013-submission", {}, 0)
+                , ("../benchmarks/bytestring-0.9.2.1", bytestringIgnored, 0)
+                , ("../benchmarks/text-0.11.2.3", textIgnored, 0)
+                ]
+alltests=False
 
 parser = optparse.OptionParser()
+parser.add_option("-a", "--all", dest="alltests", default=False,help="run all tests")
 parser.add_option("-t", "--threads", dest="threadcount", default=1, type=int, help="spawn n threads")
 parser.add_option("-o", "--opts", dest="opts", default="", type=str, help="additional arguments to liquid")
 parser.disable_interspersed_args()
@@ -149,7 +152,13 @@ options, args = parser.parse_args()
 print "options =", options
 print "args =", args
 
+def testdirs():
+  if alltests: 
+    return regtestdirs + benchtestdirs
+  else:
+    return regtestdirs
 
+testdirs = testdirs()
 [os.system(("cd %s; cleanup; cd ../" % d)) for (d,_,_) in testdirs]
 runner = rtest.TestRunner (Config (options.opts, testdirs, logfile, options.threadcount))
 runner.run ()

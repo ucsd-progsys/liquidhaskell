@@ -80,7 +80,9 @@ For example, to run the tests with a particular SMT solver
 
     ./regrtest.py -t 30 -o "--smtsolver=z3"
 
-
+To run the regression test *and* the benchmarks run
+  
+     $ make all-test
 How to Profile 
 --------------
 
