@@ -14,6 +14,7 @@ Executable fixpoint
   Main-is:       Fixpoint.hs
   Build-Depends: base
                , ghc==7.6.3
+               , array
                , syb
                , cmdargs
                , ansi-terminal
@@ -48,6 +49,7 @@ Library
   
   Build-Depends: base
                , ghc
+               , array
                , syb
                , cmdargs
                , ansi-terminal
