@@ -109,7 +109,7 @@ import Var
 data Config = Config { 
     files          :: [FilePath] -- ^ source files to check
   , idirs          :: [FilePath] -- ^ path to directory for including specs
-  , incCheck       :: Bool       -- ^ check subset of modified binders (and transitive dependencies) 
+  , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check 
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , nofalse        :: Bool       -- ^ remove false predicates from the refinements
   , notermination  :: Bool       -- ^ disable termination check

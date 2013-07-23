@@ -15,7 +15,7 @@ import Language.Fixpoint.Misc
 import Language.Fixpoint.Interface      
 import Language.Fixpoint.Types (sinfo, colorResult, FixResult (..),showFix, isFalse)
 
-import qualified Language.Haskell.Liquid.IncCheck as IC
+import qualified Language.Haskell.Liquid.DiffCheck as DC
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.CmdLine
 import Language.Haskell.Liquid.GhcInterface
@@ -47,14 +47,14 @@ liquidOne cfg target =
      putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
      putStrLn $ showpp cbs'
      putStrLn "*************** Slicing Out Unchanged CoreBinds *****************" 
-     cbs''   <- if (incCheck cfg) then IC.slice target cbs' else return cbs'
+     cbs''   <- if (diffcheck cfg) then DC.slice target cbs' else return cbs'
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints cfg $! info {cbs = cbs''}
      cgi `deepseq` donePhase Loud "generateConstraints"
      -- donePhase Loud "START: Write CGI (can be slow!)"
      -- {-# SCC "writeCGI" #-} writeCGI target cgi 
      -- donePhase Loud "FINISH: Write CGI"
      (r, sol) <- solveCs cfg target cgi info
-     _        <- when (incCheck cfg) $ IC.save target 
+     _        <- when (diffcheck cfg) $ DC.save target 
      donePhase Loud "solve" 
      {-# SCC "annotate" #-} annotate target (resultSrcSpan r) sol $ annotMap cgi
      donePhase Loud "annotate"

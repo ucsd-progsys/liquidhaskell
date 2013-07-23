@@ -24,7 +24,7 @@ config = Config {
     = def &= typDir 
           &= help "Paths to Spec Include Directory " 
    
- , incCheck 
+ , diffcheck 
     = False 
           &= help "Incremental Checking: only check changed binders" 
 
