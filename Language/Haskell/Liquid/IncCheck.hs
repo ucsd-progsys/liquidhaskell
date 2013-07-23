@@ -14,7 +14,7 @@ import qualified  Data.HashSet                 as S
 import qualified  Data.HashMap.Strict          as M    
 import qualified  Data.List                    as L
 import            Data.Function                (on)
-import            System.Directory             (copyFile)
+import            System.Directory             (copyFile, doesFileExist)
 
 import            Language.Fixpoint.Files
 import            Language.Haskell.Liquid.GhcInterface
@@ -28,10 +28,13 @@ import            Text.Parsec.Pos              (sourceLine)
 slice :: FilePath -> [CoreBind] -> IO [CoreBind] 
 -------------------------------------------------------------------------
 slice target cbs
-  = do is    <- changedLines target
-       let xs = diffVars is   (coreDefs cbs) 
-       let ys = dependentVars (coreDeps cbs) (S.fromList xs)
-       return $ filterBinds cbs ys
+  = do let saved = extFileName Saved target
+       ex  <- doesFileExist saved 
+       if ex then do is    <- lineDiff target saved
+                     let xs = diffVars is   (coreDefs cbs) 
+                     let ys = dependentVars (coreDeps cbs) (S.fromList xs)
+                     return $ filterBinds cbs ys
+             else return cbs 
 
 -------------------------------------------------------------------------
 filterBinds        :: [CoreBind] -> S.HashSet Var -> [CoreBind]
@@ -111,16 +114,11 @@ gt i d               = maybe False (i >) (end d)
 -------------------------------------------------------------------------
 save :: FilePath -> IO ()
 -------------------------------------------------------------------------
-save target = copyFile target (extFileName Saved target)
+save target = copyFile target $ extFileName Saved target
 
 
--- | `changedLines target` compares the contents of `target` with 
---   its `save` version to determine which lines are different.
--------------------------------------------------------------------------
-changedLines :: FilePath -> IO [Int]
--------------------------------------------------------------------------
-changedLines target = lineDiff target $ extFileName Saved target 
-
+-- | `lineDiff src dst` compares the contents of `src` with `dst` 
+--   and returns the lines of `src` that are different. 
 -------------------------------------------------------------------------
 lineDiff :: FilePath -> FilePath -> IO [Int]
 -------------------------------------------------------------------------
