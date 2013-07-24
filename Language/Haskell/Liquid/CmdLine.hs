@@ -50,6 +50,10 @@ config = Config {
  , maxParams 
     = 2   &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
  
+ -- , verbose  
+ --    = def &= help "Generate Verbose Output"
+ --          &= name "verbose-output"
+
  } &= verbosity
    &= program "liquid" 
    &= help    "Refinement Types for Haskell" 

@@ -116,6 +116,7 @@ data Config = Config {
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   , smtsolver      :: SMTSolver  -- ^ name of smtsolver to use [default: z3-API]  
+  -- , verbose        :: Bool       -- ^ verbose output
   } deriving (Data, Typeable, Show, Eq)
 
 -----------------------------------------------------------------------------

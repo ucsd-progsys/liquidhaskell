@@ -167,9 +167,11 @@ save target = copyFile target $ extFileName Saved target
 lineDiff :: FilePath -> FilePath -> IO [Int]
 -------------------------------------------------------------------------
 lineDiff src dst 
-  = do s1 <- getLines src 
-       s2 <- getLines dst
-       return $ diffLines 1 $ getGroupedDiff s1 s2
+  = do s1      <- getLines src 
+       s2      <- getLines dst
+       let ns   = diffLines 1 $ getGroupedDiff s1 s2
+       putStrLn $ "INCCHECK: diff lines = " ++ show ns
+       return ns
 
 diffLines _ []              = []
 diffLines n (Both ls _ : d) = diffLines n' d                         where n' = n + length ls

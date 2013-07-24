@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module Test0 where
 
 {-@ plus :: x:Int -> y:Int -> {v:Int | v = x + y} @-}
@@ -29,6 +31,6 @@ ping, pong :: Int -> Int
 ping 0 = 1
 ping n = 1 `plus` pong (n-1)
 
-pong 0 = 12 
+pong 0 = 1 
 pong n = 1 `plus` ping (n-1)
 
