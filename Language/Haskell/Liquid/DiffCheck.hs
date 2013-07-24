@@ -71,11 +71,24 @@ filterBinds cbs ys = filter f cbs
 coreDefs     :: [CoreBind] -> [Def]
 -------------------------------------------------------------------------
 coreDefs cbs = L.sort [D l l' x | b <- cbs, let (l, l') = coreDef b, x <- bindersOf b]
-coreDef b    = -- tracePpr ("INCCHECK: coreDef " ++ showPpr (bindersOf b)) $ 
-               lineSpan $ catSpans b $ bindSpans b 
- 
-lineSpan (RealSrcSpan sp) = (srcSpanStartLine sp, srcSpanEndLine sp)
-lineSpan _                = error "INCCHECK: lineSpan unexpected dummy span in lineSpan"
+coreDef b    = meetSpans b eSp vSp 
+  where 
+    eSp      = lineSpan b $ catSpans b $ bindSpans b 
+    vSp      = lineSpan b $ catSpans b $ getSrcSpan <$> bindersOf b
+
+meetSpans b Nothing       _       
+  = error $ "INCCHECK: cannot find span for top-level binders: " ++ showPpr (bindersOf b)
+meetSpans b (Just (l,l')) Nothing 
+  = (l, l')
+meetSpans b (Just (l,l')) (Just (m,_)) 
+  = (max l m, l')
+
+-- coreDef b    = lineSpan $ catSpans b $ map getSrcSpan 
+--                         $ tracePpr ("INCCHECK: letvars " ++ showPpr (bindersOf b)) 
+--                         $ letVars b 
+
+lineSpan _ (RealSrcSpan sp) = Just (srcSpanStartLine sp, srcSpanEndLine sp)
+lineSpan b _                = Nothing -- error $ "INCCHECK: lineSpan unexpected dummy span in lineSpan" ++ showPpr (bindersOf b)
 
 catSpans b []             = error $ "INCCHECK: catSpans: no spans found for " ++ showPpr b
 catSpans b xs             = foldr1 combineSrcSpans xs
