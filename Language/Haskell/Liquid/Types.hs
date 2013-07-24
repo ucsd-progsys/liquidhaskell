@@ -432,7 +432,7 @@ data RType p c tv r
 
   | RAllE { 
       rt_bind   :: !Symbol
-    , rt_allarg  :: !(RType p c tv r) 
+    , rt_allarg :: !(RType p c tv r)
     , rt_ty     :: !(RType p c tv r) 
     }
 

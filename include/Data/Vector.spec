@@ -2,7 +2,7 @@ module spec Data.Vector where
 
 import GHC.Base
 
-measure vlen    :: forall a. (Vector a) -> Int 
+measure vlen    :: forall a. (Vector a) -> Int
 
 invariant       {v: Vector a | (vlen v) >= 0 } 
 
