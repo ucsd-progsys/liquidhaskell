@@ -28,6 +28,9 @@ config = Config {
     = False 
           &= help "Incremental Checking: only check changed binders" 
 
+ , binders
+    = def &= help "Check a specific set of binders"
+
  , nofalse
     = def &= help "Remove false predicates from the refinements"
 

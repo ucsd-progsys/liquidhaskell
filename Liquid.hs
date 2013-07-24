@@ -1,11 +1,20 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns, TupleSections #-}
 
 import qualified Data.HashMap.Strict as M
 import qualified Control.Exception as Ex
+import Data.Maybe       (catMaybes)
 import Data.Monoid      (mconcat)
 import System.Exit 
+import Control.Applicative ((<$>))
 import Control.DeepSeq
 import Control.Monad (forM, when)
+
+import CoreSyn
+import FastString
+import GHC
+import HscMain
+import RdrName
+import Var
 
 import System.Console.CmdArgs.Verbosity (isLoud)
 import System.Console.CmdArgs.Default
@@ -13,7 +22,8 @@ import Language.Fixpoint.Config (Config (..))
 import Language.Fixpoint.Files
 -- import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Interface      
+import Language.Fixpoint.Names (dropModuleNames)
+import Language.Fixpoint.Interface
 import Language.Fixpoint.Types (sinfo, colorResult, FixResult (..),showFix, isFalse)
 
 import qualified Language.Haskell.Liquid.DiffCheck as DC
@@ -49,7 +59,7 @@ liquidOne cfg target =
                     putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
                     putStrLn $ showpp cbs'
                     putStrLn "*************** Slicing Out Unchanged CoreBinds *****************" 
-     cbs''   <- if (diffcheck cfg) then DC.slice target cbs' else return cbs'
+     (pruned, cbs'') <- prune cbs' info
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints cfg $! info {cbs = cbs''}
      cgi `deepseq` donePhase Loud "generateConstraints"
      -- when loud $ do donePhase Loud "START: Write CGI (can be slow!)"
@@ -63,13 +73,27 @@ liquidOne cfg target =
      donePhase (colorResult r) (showFix r) 
      writeResult target r
      putTerminationResult $ logWarn cgi
+     when pruned $ putCheckedVars cbs''
      return r
+  where
+    prune cbs info
+      | not (null vs) = return (True, DC.thin cbs vs)
+      | diffcheck cfg = (True,) <$> DC.slice target cbs
+      | otherwise     = return (False, cbs)
+      where vs = tgtVars $ spec info
 
 putTerminationResult [] 
   = return ()
 putTerminationResult ss 
   = do colorPhaseLn Angry "Termination Warnings:" "" 
        putStrLn $ unlines ss
+
+putCheckedVars cbs
+  = do colorPhaseLn Loud "Checked Binders:" ""
+       mapM_ (putStrLn . dropModuleNames . showpp) $ concatMap names cbs
+  where
+    names (NonRec v _ ) = [varName v]
+    names (Rec bs)      = map (varName . fst) bs
 
 solveCs cfg target cgi info 
   | nofalse cfg

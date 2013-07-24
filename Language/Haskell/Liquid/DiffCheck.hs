@@ -3,7 +3,7 @@
 --   modified since it was last checked (as determined by a diff against
 --   a saved version of the file. 
 
-module Language.Haskell.Liquid.DiffCheck (slice, save) where
+module Language.Haskell.Liquid.DiffCheck (slice, save, thin) where
 
 import            Control.Applicative          ((<$>))
 import            Data.Algorithm.Diff
@@ -58,6 +58,15 @@ slice target cbs
                      putStrLn $ "INCCHECK: Dependent Top-Binders" ++ showPpr ys
                      return   $ filterBinds cbs ys
              else return cbs 
+
+-- | `thin` returns a subset of the @[CoreBind]@ given which correspond
+--   to those binders that depend on any of the @Var@s provided.
+-------------------------------------------------------------------------
+thin :: [CoreBind] -> [Var] -> [CoreBind]
+-------------------------------------------------------------------------
+thin cbs xs = filterBinds cbs ys
+  where
+    ys = dependentVars (coreDeps cbs) $ S.fromList xs
 
 -------------------------------------------------------------------------
 filterBinds        :: [CoreBind] -> S.HashSet Var -> [CoreBind]
