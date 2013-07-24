@@ -310,12 +310,13 @@ instance CBVisitable CoreBind where
                               where (xs,es) = unzip xes 
                                     env'    = extendEnv env xs 
 
-  readVars (NonRec _ e)      = readVars e
-  readVars (Rec xes)         = concatMap readVars $ map snd xes
+  readVars (NonRec _ e)     = readVars e
+  readVars (Rec xes)        = concatMap readVars $ map snd xes
 
-  letVars (NonRec x e)      = x:letVars e
+  letVars (NonRec x e)      = x : letVars e
   letVars (Rec xes)         = xs ++ concatMap letVars es
-    where (xs, es) = unzip xes
+    where 
+      (xs, es)              = unzip xes
 
   literals (NonRec _ e)      = literals e
   literals (Rec xes)         = concatMap literals $ map snd xes
@@ -352,11 +353,11 @@ exprLetVars = go
   where
     go (Var x)             = []
     go (App e a)           = concatMap go [e, a] 
-    go (Lam _ e)           = go e
+    go (Lam x e)           = x : go e
     go (Let b e)           = letVars b ++ go e 
     go (Tick _ e)          = go e
     go (Cast e _)          = go e
-    go (Case e _ _ cs)     = go e ++ concatMap letVars cs
+    go (Case e x _ cs)     = x : go e ++ concatMap letVars cs
     go _                   = []
 
 exprLiterals = go
@@ -374,7 +375,7 @@ exprLiterals = go
 instance CBVisitable (Alt Var) where
   freeVars env (a, xs, e) = freeVars env a ++ freeVars (extendEnv env xs) e
   readVars (_,_, e)       = readVars e
-  letVars  (_,_, e)       = letVars  e
+  letVars  (_,xs,e)       = xs ++ letVars e
   literals (c,_, e)       = literals c ++ literals e
 
 
