@@ -53,10 +53,7 @@ slice target cbs
                      let dfs  = coreDefs cbs
                      forM dfs $ putStrLn . ("INCCHECK: Def " ++) . show 
                      let xs   = diffVars is dfs   
-                     putStrLn $ "INCCHECK: Changed Top-Binders" ++ showPpr xs
-                     let ys   = dependentVars (coreDeps cbs) (S.fromList xs)
-                     putStrLn $ "INCCHECK: Dependent Top-Binders" ++ showPpr ys
-                     return   $ filterBinds cbs ys
+                     return   $ thin cbs xs
              else return cbs 
 
 -- | `thin` returns a subset of the @[CoreBind]@ given which correspond

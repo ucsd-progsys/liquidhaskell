@@ -72,7 +72,7 @@ makeGhcSpec' cfg name vars defVars env spec
        sigs'           <- makeAssumeSpec  cfg benv vars     $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec
-       tgtVars         <- makeTargetVars  env name defVars  $ binders cfg
+       targetVars      <- makeTargetVars  env name defVars  $ binders cfg
        let lazies       = makeLazies      vars              $ Ms.lazy       spec
        let sigs         = [(x, (txRefSort embs benv . txExpToBind) <$> t) | (x, t) <- sigs'] 
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs datacons
@@ -92,7 +92,7 @@ makeGhcSpec' cfg name vars defVars env spec
                              , qualifiers = Ms.qualifiers spec 
                              , decr       = decr'
                              , lazy       = lazies
-                             , tgtVars    = tgtVars
+                             , tgtVars    = targetVars
                              }
 makeHints :: [Var] -> [(LocSymbol, [Int])] -> [(Var, [Int])]
 makeHints vs       = concatMap go
