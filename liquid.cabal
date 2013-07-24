@@ -72,7 +72,7 @@ Library
   hs-source-dirs:  include, .
 
   Exposed-Modules: Language.Haskell.Liquid.Prelude,
-                   Language.Haskell.Liquid.List, 
+                   Language.Haskell.Liquid.List,
                    Language.Haskell.Liquid.PrettyPrint, 
                    Language.Haskell.Liquid.Bare,
                    Language.Haskell.Liquid.Constraint, 

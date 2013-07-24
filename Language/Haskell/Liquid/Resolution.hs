@@ -3,12 +3,13 @@ module Language.Haskell.Liquid.Resolution where
 
 import Control.Applicative
 import Control.Arrow
+import Control.Monad.Reader
+import Data.Char
 import Data.Maybe
-import qualified Data.HashMap.Strict as S
+import qualified Data.HashMap.Strict as M
 import Text.Printf
 
 import GHC hiding (lookupName, Located)
-import CoreMonad
 import DynFlags
 import DynamicLoading
 import FastString
@@ -25,107 +26,151 @@ import RnNames          ( gresFromAvails )
 import Outputable
 import OccName
 
-import Language.Haskell.Liquid.Measure
+import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Fixpoint.Types
 
-data ModLoc = Lcl | Pkg deriving Eq
+
+type ResolveM = ReaderT (HscEnv,ModuleName) IO
+
+runResolveM :: HscEnv -> ModuleName -> ResolveM a -> IO a
+runResolveM e m x = runReaderT x (e,m)
 
 resolveSpec :: HscEnv -> ModuleName -> BareSpec -> IO BareSpec
-resolveSpec env mn spec
-  = do measures   <- mapM (resolveMeas env mn) (Ms.measures spec)
-       sigs       <- mapM (resolveSig env mn)  (Ms.sigs spec)
-       invariants <- mapM (resolveInv env mn)  (Ms.invariants spec)
-       dataDecls  <- mapM (resolveData env mn) (Ms.dataDecls spec)
-       embeds     <- resolveEmbed env mn       (Ms.embeds spec)
-       qualifiers <- mapM (resolveQual env mn) (Ms.qualifiers spec)
-       return $ spec { Ms.measures   = measures
-                     , Ms.sigs       = sigs
-                     , Ms.invariants = invariants
-                     , Ms.dataDecls  = dataDecls
-                     , Ms.embeds     = embeds
-                     , Ms.qualifiers = qualifiers
-                     }
+resolveSpec e m spec = runResolveM e m $ do
+  measures   <- mapM resolveMeas (Ms.measures spec)
+  sigs       <- mapM resolveSig  (Ms.sigs spec)
+  invariants <- mapM resolveInv  (Ms.invariants spec)
+  dataDecls  <- mapM resolveData (Ms.dataDecls spec)
+  embeds     <- resolveEmbed     (Ms.embeds spec)
+  qualifiers <- mapM resolveQual (Ms.qualifiers spec)
+  return $ spec { Ms.measures   = measures
+                , Ms.sigs       = sigs
+                , Ms.invariants = invariants
+                , Ms.dataDecls  = dataDecls
+                , Ms.embeds     = embeds
+                , Ms.qualifiers = qualifiers
+                }
 
-resolveMeas :: HscEnv -> ModuleName -> Ms.Measure BareType Symbol -> IO (Ms.Measure BareType Symbol)
-resolveMeas env mn meas
-  = do -- mkM (name meas) <$> (resolveType ml env mn $ sort meas) <*> return (eqns meas)
-       sort' <- resolveType env mn (sort meas)
-       eqns' <- mapM resolveCTor $ eqns meas
-       return $ mkM (name meas) sort' eqns'
-  where resolveCTor def = do ctor <- lookupName env mn (symbolString $ Ms.ctor def)
-                             return $ def { Ms.ctor = symbol ctor }
+resolveMeas meas
+  = Ms.mkM (Ms.name meas) <$> resolveType (Ms.sort meas)
+                          <*> mapM resolveCTor (Ms.eqns meas)
+  where
+    resolveCTor def = do ctor <- lookupName (symbolString $ Ms.ctor def)
+                         return $ def { Ms.ctor = symbol ctor }
 
-resolveSig env m (l, ty) = (l,) <$> resolveType env m ty
+resolveSig (l, ty) = (l,) <$> resolveType ty
 
-resolveInv env m (Loc x ty) = Loc x <$> resolveType env m ty
+resolveInv (Loc x ty) = Loc x <$> resolveType ty
 
-resolveData env m (D n tvs pvs dcs sp d)
-  = D <$> lookupName env m n <*> return tvs <*> return pvs <*> mapM resolveDC dcs
+resolveData (D n tvs pvs dcs sp d)
+  = D <$> lookupName n <*> return tvs <*> return pvs <*> mapM resolveDC dcs
       <*> return sp <*> return d
   where
-    resolveDC (dc, args) = (,) <$> lookupName env m dc <*> mapM (resolveSig env m) args
+    resolveDC (dc, args) = (,) <$> lookupName dc <*> mapM resolveSig args
 
-resolveEmbed env m emb = S.fromList <$> mapM resolveKey (S.toList emb)
+resolveEmbed emb = M.fromList <$> mapM resolveKey (M.toList emb)
   where
-    resolveKey (Loc x k, v) = (,v) . Loc x <$> lookupName env m k
+    resolveKey (Loc x k, v) = (,v) . Loc x <$> lookupName k
 
-resolveQual env m (Q n ps b) = Q n <$> mapM (secondM (resolveSort env m)) ps <*> return b
+resolveQual (Q n ps b) = Q n <$> mapM (secondM resolveSort) ps <*> return b
 
-resolveSort env m FInt         = return FInt
-resolveSort env m FNum         = return FNum
-resolveSort env m (FObj (S s)) = FObj . S <$> lookupName env m s
-resolveSort env m (FVar i)     = return $ FVar i
-resolveSort env m (FFunc i ss) = FFunc i <$> mapM (resolveSort env m) ss
-resolveSort env m (FApp tc ss) = FApp <$> (stringFTycon <$> lookupName env m (fTyconString tc))
-                                      <*> mapM (resolveSort env m) ss
+resolveSort FInt         = return FInt
+resolveSort FNum         = return FNum
+resolveSort s@(FObj _)   = return s --FObj . S <$> lookupName env m s
+resolveSort s@(FVar _)   = return s
+resolveSort (FFunc i ss) = FFunc i <$> mapM resolveSort ss
+resolveSort (FApp tc ss) = FApp <$> (stringFTycon <$> lookupName (fTyconString tc))
+                                <*> mapM resolveSort ss
 
 firstM  f (a,b) = (,b) <$> f a
 secondM f (a,b) = (a,) <$> f b
 
-resolveType :: HscEnv -> ModuleName -> BRType a -> IO (BRType a)
-resolveType e m t@(RVar _ _)   = return t
-resolveType e m (RFun s i o r) = RFun <$> return s
-                                      <*> resolveType e m i
-                                      <*> resolveType e m o
-                                      <*> return r
-resolveType e m (RAllT tv t)   = RAllT tv <$> resolveType e m t
-resolveType e m t@(RAllP _ _)  = return t
-resolveType e m t@(RApp tc as ps r) = RApp <$> lookupName e m tc
-                                           <*> mapM (resolveType e m) as
-                                           <*> return ps
-                                           <*> return r
-resolveType e m t@(RCls c as)  = RCls <$> lookupName e m c
-                                      <*> mapM (resolveType e m) as
-resolveType e m t@(REx b a ty)  = REx b <$> resolveType e m a
-                                        <*> resolveType e m ty
-resolveType e m t@(RExprArg _) = return t
-resolveType e m t@(RAppTy a r rt) = RAppTy <$> resolveType e m a
-                                           <*> resolveType e m r
-                                           <*> return rt
-resolveType e m t@(ROth _)   = return t
 
-lookupName :: HscEnv -> ModuleName -> String -> IO String
-lookupName env mod name = do
-    rdr <- unLoc <$> hscParseIdentifier env name
-    mbName <- lookupRdrName env mod rdr
-    case mbName of
-      Nothing -> tryAlt rdr
-      Just n  -> return $ showpp n
-  where tryAlt rdr | rdrNameSpace rdr == dataName =
+resolveType t@(RVar _ _)   = return t
+resolveType (RFun s i o r) = RFun <$> return s
+                                  <*> resolveType i
+                                  <*> resolveType o
+                                  <*> resolveUReft r
+resolveType (RAllT tv t)   = RAllT tv <$> resolveType t
+resolveType t@(RAllP _ _)  = return t
+resolveType t@(RApp tc as ps r) = RApp <$> lookupName tc
+                                       <*> mapM resolveType as
+                                       <*> return ps
+                                       <*> resolveUReft r
+resolveType t@(RCls c as)  = RCls <$> lookupName c
+                                  <*> mapM resolveType as
+resolveType t@(REx b a ty) = REx b <$> resolveType a
+                                   <*> resolveType ty
+resolveType (RExprArg e)   = RExprArg <$> resolveExpr e
+resolveType t@(RAppTy a r rt) = RAppTy <$> resolveType a
+                                       <*> resolveType r
+                                       <*> resolveUReft rt
+resolveType t@(ROth _)   = return t
+
+
+resolveUReft (U r p) = U <$> resolveReft r <*> return p
+  where
+    resolveReft (Reft (s, ras)) = Reft . (s,) <$> mapM resolveRefa ras
+
+    resolveRefa (RConc p) = RConc <$> resolvePred p
+    resolveRefa kv        = return kv
+
+
+resolvePred (PAnd ps)       = PAnd <$> mapM resolvePred ps
+resolvePred (POr  ps)       = POr  <$> mapM resolvePred ps
+resolvePred (PNot p)        = PNot <$> resolvePred p
+resolvePred (PImp p q)      = PImp <$> resolvePred p <*> resolvePred q
+resolvePred (PIff p q)      = PIff <$> resolvePred p <*> resolvePred q
+resolvePred (PBexp b)       = PBexp <$> resolveExpr b
+resolvePred (PAtom r e1 e2) = PAtom r <$> resolveExpr e1 <*> resolveExpr e2
+resolvePred (PAll vs p)     = PAll <$> mapM (secondM resolveSort) vs
+                                   <*> resolvePred p
+resolvePred p               = return p
+
+
+resolveExpr v@(EVar (S s))
+    | isCon s   = EVar . S <$> lookupName s
+    | otherwise = return v
+resolveExpr v@(EApp (S s) es)
+    | isCon s   = EApp . S <$> lookupName s <*> es'
+    | otherwise = EApp (S s) <$> es'
+    where es'   = mapM resolveExpr es
+resolveExpr (EBin o e1 e2)
+    = EBin o <$> resolveExpr e1 <*> resolveExpr e2
+resolveExpr (EIte p e1 e2)
+    = EIte <$> resolvePred p <*> resolveExpr e1 <*> resolveExpr e2
+resolveExpr (ECst x s) = ECst <$> resolveExpr x <*> resolveSort s
+resolveExpr x          = return x
+
+
+isCon (c:cs) = isUpper c
+isCon []     = False
+
+
+lookupName :: String -> ResolveM String
+lookupName name = ask >>= liftIO . go
+  where
+    go (env,mod) = do rdr <- unLoc <$> hscParseIdentifier env name
+                      if isExact rdr
+                        then return $ rdrNameString rdr
+                        else maybe (tryAlt rdr) (return.showpp) =<< lookupRdrName env mod rdr
+      where
+        tryAlt rdr | rdrNameSpace rdr == dataName =
                        let rdr' = setRdrNameSpace rdr tcName
-                       in maybe (propOrErr rdr') showpp <$> (lookupRdrName env mod rdr')
+                       in maybe (propOrErr rdr') showpp <$> lookupRdrName env mod rdr'
                    | otherwise = return $ propOrErr rdr
-        propOrErr rdr | rdrNameString rdr `elem` ["Prop","()","(,)","[]",":"] = rdrNameString rdr
---                      | isExact rdr = rdrNameString rdr
-                      | otherwise = rdrNameString rdr
+        propOrErr rdr | n == "Prop" = "Prop"
+                      -- | n `M.member` wiredIn = showpp $ wiredIn M.! n
+                      | isQual rdr = n
+                      | otherwise = err rdr
+                      where n = rdrNameString rdr
         err rdr = error $ moduleNameString mod
                        ++ ":" ++ name
                        ++ ":" ++ showNS (rdrNameSpace rdr)
-                       ++ ":" ++ show (isQual rdr)
         rdrNameString = occNameString . rdrNameOcc
 
 
@@ -152,9 +197,6 @@ lookupRdrName hsc_env mod_name rdr_name = do
             (_, mb_iface) <- getModuleInterface hsc_env mod
             case mb_iface of
                 Just iface -> do
-                    -- mtrace $ mi_module iface
-                    -- mtrace $ mi_decls iface
-                    -- mtrace $ mi_exports iface
                     -- Try and find the required name in the exports
                     let decl_spec = ImpDeclSpec { is_mod = mod_name, is_as = mod_name
                                                 , is_qual = False, is_dloc = noSrcSpan }

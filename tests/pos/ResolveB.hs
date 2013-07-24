@@ -5,3 +5,5 @@ module ResolveB where
   @-}
 
 data Foo = Foo Int
+
+data Bar = A | B | C

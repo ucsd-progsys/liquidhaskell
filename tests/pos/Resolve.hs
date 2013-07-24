@@ -1,5 +1,8 @@
 module Resolve where
 
 import qualified ResolveA as RA
+import qualified ResolveB as RB
 
-x = 1
+
+{-@ x :: {v:RB.Bar | v = RB.B} @-}
+x = RB.B
