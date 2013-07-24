@@ -7,6 +7,7 @@ import System.Exit
 import Control.DeepSeq
 import Control.Monad (forM, when)
 
+import System.Console.CmdArgs.Verbosity (isLoud)
 import System.Console.CmdArgs.Default
 import Language.Fixpoint.Config (Config (..)) 
 import Language.Fixpoint.Files
@@ -36,23 +37,24 @@ liquid  = do cfg <- getOpts
              return $ mconcat res
 
 liquidOne cfg target = 
-  do _       <- getFixpointPath 
-     info    <- getGhcInfo cfg target 
-     donePhase Loud "getGhcInfo"
-     putStrLn $ showpp info 
-     putStrLn "*************** Original CoreBinds ***************************" 
-     putStrLn $ showpp (cbs info)
+  do loud     <- isLoud 
+     _        <- getFixpointPath 
+     info     <- getGhcInfo cfg target 
+     when loud $ do donePhase Loud "getGhcInfo"
+                    putStrLn $ showpp info 
+                    putStrLn "*************** Original CoreBinds ***************************" 
+                    putStrLn $ showpp (cbs info)
      let cbs' = transformRecExpr (cbs info)
-     donePhase Loud "transformRecExpr"
-     putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
-     putStrLn $ showpp cbs'
-     putStrLn "*************** Slicing Out Unchanged CoreBinds *****************" 
+     when loud $ do donePhase Loud "transformRecExpr"
+                    putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
+                    putStrLn $ showpp cbs'
+                    putStrLn "*************** Slicing Out Unchanged CoreBinds *****************" 
      cbs''   <- if (diffcheck cfg) then DC.slice target cbs' else return cbs'
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints cfg $! info {cbs = cbs''}
      cgi `deepseq` donePhase Loud "generateConstraints"
-     -- donePhase Loud "START: Write CGI (can be slow!)"
-     -- {-# SCC "writeCGI" #-} writeCGI target cgi 
-     -- donePhase Loud "FINISH: Write CGI"
+     -- when loud $ do donePhase Loud "START: Write CGI (can be slow!)"
+     --                {-# SCC "writeCGI" #-} writeCGI target cgi 
+     --                donePhase Loud "FINISH: Write CGI"
      (r, sol) <- solveCs cfg target cgi info
      _        <- when (diffcheck cfg) $ DC.save target 
      donePhase Loud "solve" 
@@ -62,8 +64,6 @@ liquidOne cfg target =
      writeResult target r
      putTerminationResult $ logWarn cgi
      return r
-
-
 
 putTerminationResult [] 
   = return ()
