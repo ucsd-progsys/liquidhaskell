@@ -55,12 +55,13 @@ module Language.Fixpoint.Types (
   , removeLhsKvars
 
   -- * Environments
-  , SEnv
+  , SEnv, SESearch(..)
   , emptySEnv, toListSEnv, fromListSEnv
   , mapSEnv
   , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
   , intersectWithSEnv
   , filterSEnv
+  , lookupSEnvWithDistance
 
   , FEnv, insertFEnv 
   , IBindEnv, BindId, insertsIBindEnv, deleteIBindEnv, emptyIBindEnv
@@ -127,7 +128,7 @@ import Text.PrettyPrint.HughesPJ
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
-
+import Data.Array            hiding (indices)
 import Language.Fixpoint.Names
 
 class Fixpoint a where
@@ -672,6 +673,17 @@ emptySEnv               = SE M.empty
 memberSEnv x (SE env)   = M.member x env
 intersectWithSEnv f (SE m1) (SE m2) = SE (M.intersectionWith f m1 m2)
 filterSEnv f (SE m)     = SE (M.filter f m)
+lookupSEnvWithDistance x (SE env)
+  = case M.lookup x env of 
+     Just x  -> Found x
+     Nothing -> Alts $ stringSymbol <$> alts 
+  where alts    = takeMin $ (zip (editDistance x' <$> ss) ss)
+        ss      = symbolString <$> fst <$> M.toList env
+        x'      = symbolString x
+        takeMin = \xs ->  [x | (d, x) <- xs, d == getMin xs] 
+        getMin  = minimum . (fst <$>) 
+
+data SESearch a = Found a | Alts [Symbol]
 
 -- | Functions for Indexed Bind Environment 
 
@@ -1290,3 +1302,24 @@ instance Falseable Refa where
 instance Falseable Reft where
   isFalse (Reft(_, rs)) = or [isFalse p | RConc p <- rs]
 
+------------------------------------------------------------------------
+-- | Edit Distance -----------------------------------------------------
+------------------------------------------------------------------------
+
+
+
+editDistance :: Eq a => [a] -> [a] -> Int
+editDistance xs ys = table ! (m,n)
+    where
+    (m,n) = (length xs, length ys)
+    x     = array (1,m) (zip [1..] xs)
+    y     = array (1,n) (zip [1..] ys)
+ 
+    table :: Array (Int,Int) Int
+    table = array bnds [(ij, dist ij) | ij <- range bnds]
+    bnds  = ((0,0),(m,n))
+ 
+    dist (0,j) = j
+    dist (i,0) = i
+    dist (i,j) = minimum [table ! (i-1,j) + 1, table ! (i,j-1) + 1,
+        if x ! i == y ! j then table ! (i-1,j-1) else 1 + table ! (i-1,j-1)]
