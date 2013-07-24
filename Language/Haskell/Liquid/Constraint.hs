@@ -922,8 +922,7 @@ cconsE γ (Lam x e) (RFun y ty t _)
        addIdA x (Def ty) 
 
 cconsE γ (Tick tt e) t   
-  = cconsE (γ `setLoc` tt') e t
-    where tt' = {- traceShow ("tickSrcSpan: e = " ++ F.showFix e) $ -} tickSrcSpan tt
+  = cconsE (γ `setLoc` tickSrcSpan tt) e t
 
 cconsE γ (Cast e _) t     
   = cconsE γ e t 
