@@ -268,8 +268,14 @@ Now if you go and tweak the definition of `spanEnd` on line 1192 and re-run:
     user	0m6.008s
     sys	0m0.696s
 
+The diff is only performed against *code*, i.e. if you only change
+specifications, qualifiers, measures, etc. `liquid -d` will not perform
+any checks. In this case, you may specify individual definitions to
+verify:
 
+    $ liquid -b bar -b baz foo.hs
 
+This will verify `bar` and `baz`, as well as any functions they use.
 
 Writing Specifications
 ======================
