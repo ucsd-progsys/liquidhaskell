@@ -110,6 +110,7 @@ data Config = Config {
     files          :: [FilePath] -- ^ source files to check
   , idirs          :: [FilePath] -- ^ path to directory for including specs
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check 
+  , binders        :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , nofalse        :: Bool       -- ^ remove false predicates from the refinements
   , notermination  :: Bool       -- ^ disable termination check
@@ -250,7 +251,7 @@ data GhcSpec = SP {
                                                  -- e.g. "embed Set as Set_set" from include/Data/Set.spec
   , qualifiers :: ![Qualifier]                   -- ^ Qualifiers in Source/Spec files
                                                  -- e.g tests/pos/qualTest.hs
-  , tgtVars  :: !TargetVars                      -- ^ Top-level Binders To Verify (empty means ALL binders)
+  , tgtVars  :: ![Var]                      -- ^ Top-level Binders To Verify (empty means ALL binders)
   , decr     :: ![(Var, [Int])]
   , lazy     :: !(S.HashSet Var)
   }
