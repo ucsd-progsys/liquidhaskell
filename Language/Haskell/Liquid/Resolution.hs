@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections, TypeSynonymInstances, FlexibleInstances #-}
 module Language.Haskell.Liquid.Resolution where
 
 import Control.Applicative
@@ -23,15 +23,16 @@ import ErrUtils
 import Exception
 import Panic            ( GhcException(..), throwGhcException )
 import RnNames          ( gresFromAvails )
-import Outputable
+import Outputable hiding (showPpr)
 import OccName
 
 import Language.Haskell.Liquid.Bare
+import Language.Haskell.Liquid.GhcMisc (showPpr)
+import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types
-import qualified Language.Haskell.Liquid.Measure as Ms
 
-import Language.Fixpoint.Types
+import Language.Fixpoint.Types hiding (SESearch(..))
 
 
 type ResolveM = ReaderT (HscEnv,ModuleName) IO
@@ -56,15 +57,15 @@ resolveSpec e m spec = runResolveM e m $ do
                 }
 
 resolveMeas meas
-  = Ms.mkM (Ms.name meas) <$> resolveType (Ms.sort meas)
+  = Ms.mkM (Ms.name meas) <$> resolve (Ms.sort meas)
                           <*> mapM resolveCTor (Ms.eqns meas)
   where
     resolveCTor def = do ctor <- lookupName (symbolString $ Ms.ctor def)
                          return $ def { Ms.ctor = symbol ctor }
 
-resolveSig (l, ty) = (l,) <$> resolveType ty
+resolveSig (l, ty) = (l,) <$> resolve ty
 
-resolveInv (Loc x ty) = Loc x <$> resolveType ty
+resolveInv (Loc x ty) = Loc x <$> resolve ty
 
 resolveData (D n tvs pvs dcs sp d)
   = D <$> lookupName n <*> return tvs <*> return pvs <*> mapM resolveDC dcs
@@ -76,49 +77,60 @@ resolveEmbed emb = M.fromList <$> mapM resolveKey (M.toList emb)
   where
     resolveKey (Loc x k, v) = (,v) . Loc x <$> lookupName k
 
-resolveQual (Q n ps b) = Q n <$> mapM (secondM resolveSort) ps <*> return b
+resolveQual (Q n ps b) = Q n <$> mapM (secondM resolve) ps <*> return b
 
-resolveSort FInt         = return FInt
-resolveSort FNum         = return FNum
-resolveSort s@(FObj _)   = return s --FObj . S <$> lookupName env m s
-resolveSort s@(FVar _)   = return s
-resolveSort (FFunc i ss) = FFunc i <$> mapM resolveSort ss
-resolveSort (FApp tc ss) = FApp <$> (stringFTycon <$> lookupName (fTyconString tc))
-                                <*> mapM resolveSort ss
+class Resolvable a where
+  resolve :: a -> ResolveM a
+
+instance Resolvable Sort where
+  resolve FInt         = return FInt
+  resolve FNum         = return FNum
+  resolve s@(FObj _)   = return s --FObj . S <$> lookupName env m s
+  resolve s@(FVar _)   = return s
+  resolve (FFunc i ss) = FFunc i <$> mapM resolve ss
+  resolve (FApp tc ss) = FApp <$> (stringFTycon <$> lookupName (fTyconString tc))
+                              <*> mapM resolve ss
 
 firstM  f (a,b) = (,b) <$> f a
 secondM f (a,b) = (a,) <$> f b
+thirdM  f (a,b,c) = (a,b,) <$> f c
+
+instance (Resolvable a) => Resolvable (BRType a) where
+  resolve (RVar v t)     = RVar v <$> resolve t
+  resolve (RFun s i o r) = RFun s <$> resolve i
+                                  <*> resolve o
+                                  <*> resolve r
+  resolve (RAllT tv t) = RAllT tv <$> resolve t
+  resolve (RAllP p t)  = RAllP <$> resolve p <*> resolve t
+  resolve (RApp tc as ps r) = RApp <$> lookupName tc
+                                   <*> mapM resolve as
+                                   <*> mapM resolve ps
+                                   <*> resolve r
+  resolve (RCls c as)     = RCls <$> lookupName c
+                                 <*> mapM resolve as
+  resolve (RAllE b a ty)  = REx b <$> resolve a
+                                  <*> resolve ty
+  resolve (REx b a ty)    = REx b <$> resolve a
+                                  <*> resolve ty
+  resolve (RExprArg e)    = RExprArg <$> resolveExpr e
+  resolve (RAppTy a r rt) = RAppTy <$> resolve a
+                                   <*> resolve r
+                                   <*> resolve rt
+  resolve t@(ROth _)      = return t
 
 
-resolveType t@(RVar _ _)   = return t
-resolveType (RFun s i o r) = RFun <$> return s
-                                  <*> resolveType i
-                                  <*> resolveType o
-                                  <*> resolveUReft r
-resolveType (RAllT tv t)   = RAllT tv <$> resolveType t
-resolveType t@(RAllP _ _)  = return t
-resolveType t@(RApp tc as ps r) = RApp <$> lookupName tc
-                                       <*> mapM resolveType as
-                                       <*> return ps
-                                       <*> resolveUReft r
-resolveType t@(RCls c as)  = RCls <$> lookupName c
-                                  <*> mapM resolveType as
-resolveType t@(REx b a ty) = REx b <$> resolveType a
-                                   <*> resolveType ty
-resolveType (RExprArg e)   = RExprArg <$> resolveExpr e
-resolveType t@(RAppTy a r rt) = RAppTy <$> resolveType a
-                                       <*> resolveType r
-                                       <*> resolveUReft rt
-resolveType t@(ROth _)   = return t
+instance (Resolvable t, Resolvable s, Resolvable m) => Resolvable (Ref t s m) where
+  resolve (RMono vs r) = RMono <$> mapM (secondM resolve) vs <*> resolve r
+  resolve (RPoly vs t) = RPoly <$> mapM (secondM resolve) vs <*> resolve t
 
 
-resolveUReft (U r p) = U <$> resolveReft r <*> return p
-  where
-    resolveReft (Reft (s, ras)) = Reft . (s,) <$> mapM resolveRefa ras
+instance Resolvable (UReft Reft) where
+  resolve (U r p) = U <$> resolveReft r <*> resolvePredicate p
+    where
+      resolveReft (Reft (s, ras)) = Reft . (s,) <$> mapM resolveRefa ras
 
-    resolveRefa (RConc p) = RConc <$> resolvePred p
-    resolveRefa kv        = return kv
-
+      resolveRefa (RConc p) = RConc <$> resolvePred p
+      resolveRefa kv        = return kv
 
 resolvePred (PAnd ps)       = PAnd <$> mapM resolvePred ps
 resolvePred (POr  ps)       = POr  <$> mapM resolvePred ps
@@ -127,9 +139,16 @@ resolvePred (PImp p q)      = PImp <$> resolvePred p <*> resolvePred q
 resolvePred (PIff p q)      = PIff <$> resolvePred p <*> resolvePred q
 resolvePred (PBexp b)       = PBexp <$> resolveExpr b
 resolvePred (PAtom r e1 e2) = PAtom r <$> resolveExpr e1 <*> resolveExpr e2
-resolvePred (PAll vs p)     = PAll <$> mapM (secondM resolveSort) vs
+resolvePred (PAll vs p)     = PAll <$> mapM (secondM resolve) vs
                                    <*> resolvePred p
 resolvePred p               = return p
+
+
+resolvePredicate (Pr pvs) = Pr <$> mapM resolve pvs
+  where
+
+instance (Resolvable t) => Resolvable (PVar t) where
+  resolve (PV n t as) = PV n t <$> mapM (thirdM resolveExpr) as
 
 
 resolveExpr v@(EVar (S s))
@@ -143,13 +162,18 @@ resolveExpr (EBin o e1 e2)
     = EBin o <$> resolveExpr e1 <*> resolveExpr e2
 resolveExpr (EIte p e1 e2)
     = EIte <$> resolvePred p <*> resolveExpr e1 <*> resolveExpr e2
-resolveExpr (ECst x s) = ECst <$> resolveExpr x <*> resolveSort s
+resolveExpr (ECst x s) = ECst <$> resolveExpr x <*> resolve s
 resolveExpr x          = return x
 
 
 isCon (c:cs) = isUpper c
 isCon []     = False
 
+instance Resolvable () where
+  resolve () = return ()
+
+instance Resolvable String where
+  resolve = lookupName
 
 lookupName :: String -> ResolveM String
 lookupName name = ask >>= liftIO . go
@@ -161,12 +185,13 @@ lookupName name = ask >>= liftIO . go
       where
         tryAlt rdr | rdrNameSpace rdr == dataName =
                        let rdr' = setRdrNameSpace rdr tcName
-                       in maybe (propOrErr rdr') showpp <$> lookupRdrName env mod rdr'
+                       in maybe (showPpr rdr') showpp <$> lookupRdrName env mod rdr'
                    | otherwise = return $ propOrErr rdr
         propOrErr rdr | n == "Prop" = "Prop"
+                      | n == "VV"   = "VV"
                       -- | n `M.member` wiredIn = showpp $ wiredIn M.! n
                       | isQual rdr = n
-                      | otherwise = err rdr
+                      | otherwise = n
                       where n = rdrNameString rdr
         err rdr = error $ moduleNameString mod
                        ++ ":" ++ name
@@ -184,7 +209,7 @@ showNS ns | ns == tcName = "TcClsName"
           | otherwise = "VarName"
 
 mtrace :: Outputable a => a -> IO ()
-mtrace = putStrLn . showPpr tracingDynFlags
+mtrace = putStrLn . showPpr
 
 -- slightly modified version of DynamicLoading.lookupRdrNameInModule
 lookupRdrName :: HscEnv -> ModuleName -> RdrName -> IO (Maybe Name)
