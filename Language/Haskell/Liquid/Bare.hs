@@ -297,10 +297,13 @@ makeTargetVars env name vs ss = do
 makeAssumeSpec :: Config -> BareEnv -> [Var] -> [(LocSymbol, BareType)] -> IO [(Var, Located SpecType)]
 makeAssumeSpec cfg env vs xbs = execBare mkAspec env
   where 
-    vbs                       = joinIds vs xbs 
-    mkAspec                   = do when (not $ noCheckUnknown cfg)
+    vbs                       = joinIds vs xbs
+    mkAspec                   = do --vbs <- catMaybes <$> mapM lookup xbs
+                                   when (not $ noCheckUnknown cfg)
                                      $ checkDefAsserts env vbs xbs
                                    forM vbs mkVarSpec
+    -- lookup (l@(Loc x s), t) = fmap (,l,t) <$> ((Just <$> lookupGhcVar (symbolString s))
+    --                                            `catchError` (const $ return Nothing))
 
 checkDefAsserts :: BareEnv -> [(Var, LocSymbol, BareType)] -> [(LocSymbol, BareType)] -> BareM ()
 checkDefAsserts env vbs xbs   = applyNonNull (return ()) grumble  undefSigs
