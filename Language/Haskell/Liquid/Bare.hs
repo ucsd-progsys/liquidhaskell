@@ -94,6 +94,7 @@ makeGhcSpec' cfg name vars defVars env spec
                              , lazy       = lazies
                              , tgtVars    = targetVars
                              }
+
 makeHints :: [Var] -> [(LocSymbol, [Int])] -> [(Var, [Int])]
 makeHints vs       = concatMap go
   where lvs        = M.map L.sort $ group [(varSymbol v, locVar v) | v <- vs]
@@ -444,6 +445,12 @@ stringLookupEnv env s
          case lookupres of
            Just (n:_) -> return (Just n)
            _          -> return Nothing
+
+lookupGhcVar :: GhcLookup a => a -> BareM Var
+lookupGhcVar = lookupGhcThing "Var" fv
+  where
+    fv (AnId x) = Just x
+    fv _        = Nothing
 
 lookupGhcTyCon       ::  GhcLookup a => a -> BareM TyCon
 lookupGhcTyCon s     = (lookupGhcThing "TyCon" ftc s) `catchError` (tryPropTyCon s)

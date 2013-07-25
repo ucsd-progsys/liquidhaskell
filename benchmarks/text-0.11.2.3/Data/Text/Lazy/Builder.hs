@@ -299,10 +299,10 @@ ensureFree !n = withSize $ \ l ->
 {-# INLINE [0] ensureFree #-}
 
 {-@ writeAtMost :: n:Nat
-                -> (forall s. ma:Data.Text.Array.MArray s
+                -> (forall s. ma:MArray s
                     -> i:{v:Nat | (v+n) <= (malen ma)}
-                    -> GHC.ST.ST s {v:Nat | v <= n})
-                -> Data.Text.Lazy.Builder.Builder
+                    -> ST s {v:Nat | v <= n})
+                -> Builder
   @-}
 writeAtMost :: Int -> (forall s. A.MArray s -> Int -> ST s Int) -> Builder
 --LIQUID writeAtMost n f = ensureFree n `append'` withBuffer (writeBuffer f)
@@ -323,10 +323,10 @@ writeAtMost n f = Builder $ \ k buf@(Buffer p o u l) ->
 -- | Ensure that @n@ many elements are available, and then use @f@ to
 -- write some elements into the memory.
 {-@ writeN :: n:Nat
-           -> (forall s. ma:Data.Text.Array.MArray s
+           -> (forall s. ma:MArray s
                -> i:{v:Nat | (v+n) <= (malen ma)}
-               -> GHC.ST.ST s ())
-           -> Data.Text.Lazy.Builder.Builder
+               -> ST s ())
+           -> Builder
   @-}
 writeN :: Int -> (forall s. A.MArray s -> Int -> ST s ()) -> Builder
 writeN n f = writeAtMost n (\ p o -> f p o >> return n)
@@ -336,12 +336,12 @@ writeN n f = writeAtMost n (\ p o -> f p o >> return n)
 --LIQUID writeBuffer f (Buffer p o u l) = do
 --LIQUID     n <- f p (o+u)
 --LIQUID     return $! Buffer p o (u+n) (l-n)
-{-@ writeBuffer :: b:Data.Text.Lazy.Builder.Buffer s
+{-@ writeBuffer :: b:Buffer s
                 -> n:{v:Nat | v <= (bufLeft b)}
-                -> (ma:Data.Text.Array.MArray s
+                -> (ma:MArray s
                     -> i:{v:Nat | (v+n) <= (malen ma)}
-                    -> GHC.ST.ST s {v:Nat | v <= n})
-                -> GHC.ST.ST s (Data.Text.Lazy.Builder.Buffer s)
+                    -> ST s {v:Nat | v <= n})
+                -> ST s (Buffer s)
   @-}
 writeBuffer :: Buffer s -> Int -> (A.MArray s -> Int -> ST s Int) -> ST s (Buffer s)
 writeBuffer b@(Buffer p o u l) n f = do
@@ -350,7 +350,7 @@ writeBuffer b@(Buffer p o u l) n f = do
 {-# INLINE writeBuffer #-}
 
 {-@ newBuffer :: size:{v:Nat | v > 0}
-              -> GHC.ST.ST s {v:(Data.Text.Lazy.Builder.Buffer s) | size = (bufLeft v)}
+              -> ST s {v:(Buffer s) | size = (bufLeft v)}
   @-}
 newBuffer :: Int -> ST s (Buffer s)
 newBuffer size = do

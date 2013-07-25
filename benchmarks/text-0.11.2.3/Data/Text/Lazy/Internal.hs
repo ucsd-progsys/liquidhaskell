@@ -65,24 +65,22 @@ data Text = Empty
                       | Chunk (t :: TextNE) (cs :: Text)
   @-}
 
-{-@ measure ltlen :: Data.Text.Lazy.Internal.Text -> Integer
-    ltlen (Data.Text.Lazy.Internal.Empty)      = 0
-    ltlen (Data.Text.Lazy.Internal.Chunk t ts) = (tlen t) + (ltlen ts)
+{-@ measure ltlen :: Text -> Integer
+    ltlen (Empty)      = 0
+    ltlen (Chunk t ts) = (tlen t) + (ltlen ts)
   @-}
 
-{-@ measure ltlength :: Data.Text.Lazy.Internal.Text -> Integer
-    ltlength (Data.Text.Lazy.Internal.Empty)      = 0
-    ltlength (Data.Text.Lazy.Internal.Chunk t ts) = (tlength t) + (ltlength ts)
+{-@ measure ltlength :: Text -> Integer
+    ltlength (Empty)      = 0
+    ltlength (Chunk t ts) = (tlength t) + (ltlength ts)
   @-}
 
-{-@ measure sum_ltlengths :: [Data.Text.Lazy.Internal.Text] -> Integer
+{-@ measure sum_ltlengths :: [Text] -> Integer
     sum_ltlengths ([]) = 0
     sum_ltlengths (t:ts) = (ltlength t) + (sum_ltlengths ts)
   @-}
 
-{-@ qualif SumLTLengthsAcc(v:Data.Text.Lazy.Internal.Text,
-                           ts:List Data.Text.Lazy.Internal.Text,
-                           t:Data.Text.Lazy.Internal.Text):
+{-@ qualif SumLTLengthsAcc(v:Text, ts:List Text, t:Text):
         ltlength(v) = sum_ltlengths(ts) + ltlength(t)
   @-}
 
@@ -150,9 +148,9 @@ empty :: Text
 empty = Empty
 
 -- | Consume the chunks of a lazy 'Text' with a natural right fold.
-{-@ foldrChunks :: forall <p :: Data.Text.Lazy.Internal.Text -> a -> Prop>.
-                   (ts:Text -> t:TextNE -> a<p ts> -> a<p (Data.Text.Lazy.Internal.Chunk t ts)>)
-                -> a<p Data.Text.Lazy.Internal.Empty>
+{-@ foldrChunks :: forall <p :: Text -> a -> Prop>.
+                   (ts:Text -> t:TextNE -> a<p ts> -> a<p (Chunk t ts)>)
+                -> a<p Empty>
                 -> t:Text
                 -> a<p t>
   @-}
