@@ -73,14 +73,17 @@ transBd (Rec xes)    = liftM Rec $ mapM (mapSndM (mapBdM transBd)) xes
 
 transExpr :: CoreExpr -> TE CoreExpr
 transExpr e
-  | (isRec e') && (not (null tvs)) 
+  | (isNonPolyRec e') && (not (null tvs)) 
   = trans tvs ids bs e'
   | otherwise
   = return e
   where (tvs, ids, e'')       = collectTyAndValBinders e
         (bs, e')              = collectNonRecLets e''
-        isRec (Let (Rec _) _) = True
-        isRec _               = False
+
+isNonPolyRec (Let (Rec xes) _) = any nonPoly (snd <$> xes)
+isNonPolyRec _                 = False
+
+nonPoly = null . fst . collectTyBinders
 
 collectNonRecLets = go []
   where go bs (Let b@(NonRec _ _) e') = go (b:bs) e'
@@ -88,54 +91,44 @@ collectNonRecLets = go []
 
 appTysAndIds tvs ids x = mkApps (mkTyApps (Var x) (map TyVarTy tvs)) (map Var ids)
 
-trans vs ids bs e 
-  = liftM mkLet (trans_ vs liveIds bs e)
-  where liveIds  = mkAlive <$> ids
-        mkLet es = foldr Lam es (vs ++ liveIds)
+trans vs ids bs (Let (Rec xes) e)
+  = liftM (mkLam . mkLet) (makeTrans vs liveIds e')
+  where liveIds = mkAlive <$> ids
+        mkLet e = foldr Let e bs
+        mkLam e = foldr Lam e $ vs ++ liveIds
+        e'      = Let (Rec xes') e
+        xes'    = (second mkLet) <$> xes
 
-trans_ vs ids [] (Let (Rec xes) e)
- = do fids <- mapM (mkFreshIds vs ids) xs
-      let (ftvs, fxids, fxs) = unzip3 fids
-      (se, rs) <- mkFreshBdrs vs ids xs fxs
-      let mkSu tvs ids0   = mkSubs ids tvs ids0 (zip xs fxs)
-      let mkE tvs ids0 e' = mkCoreLams (tvs ++ ids0) (sub (mkSu tvs ids0) e')
-      let es' = zipWith3 mkE ftvs fxids es
-      let xes' = zip fxs es'
-      return $ mkRecBinds rs (Rec xes') (sub se e)
- where (xs, es) = unzip xes
-
-trans_ vs ids bs (Let (Rec xes) e)
- = liftM mkLet $ trans_ vs ids [] (Let (Rec (zip xs es')) e)
- where (xs, es) = unzip xes
-       es'      = map (\e0 -> foldr Let e0 bs) es
-       mkLet e' = foldr Let e' bs
+makeTrans vs ids (Let (Rec xes) e)
+ = do fids    <- mapM (mkFreshIds vs ids) xs
+      let (ids', ys) = unzip fids
+      let yes  = appTysAndIds vs ids <$> ys
+      ys'     <- mapM fresh xs
+      let su   = M.fromList $ zip xs (Var <$> ys')
+      let rs   = zip ys' yes
+      let es'  = zipWith (mkE ys) ids' es
+      let xes' = zip ys es'
+      return   $ mkRecBinds rs (Rec xes') (sub su e)
+ where 
+   (xs, es)       = unzip xes
+   mkSu ys ids'   = mkSubs ids vs ids' (zip xs ys)
+   mkE ys ids' e' = mkCoreLams (vs ++ ids') (sub (mkSu ys ids') e')
 
 mkRecBinds :: [(b, Expr b)] -> Bind b -> Expr b -> Expr b
 mkRecBinds xes rs e = Let rs (foldl' f e xes)
   where f e (x, xe) = Let (NonRec x xe) e  
 
-mkSubs ids tvs ids0 xxs'
-  = M.fromList $ s1 ++ s2
-  where s1 = map (mkSub ids tvs ids0) xxs'
-        s2 = zip ids (map Var ids0)
-
-mkSub _ tvs ids0 (x, x') = (x, appTysAndIds tvs ids0 x')
-
-mkFreshBdrs tvs ids xs xs'
-  = do xs0'     <- mapM fresh xs
-       let xxs  = zip xs (map Var xs0')
-       let s    = M.fromList xxs
-       let ls   = zipWith (\x0' x' -> (x0', appTysAndIds tvs ids x')) xs0' xs'
-       return (s, ls)
+mkSubs ids tvs xs ys = M.fromList $ s1 ++ s2
+  where s1 = (second (appTysAndIds tvs xs)) <$> ys
+        s2 = zip ids (Var <$> xs)
 
 mkFreshIds tvs ids x
-  = do ids'     <- mapM fresh ids
-       let tvs' =  tvs
-       let t    = mkForAllTys tvs' $ mkType (reverse ids') $ varType x
-       let x'   = setVarType x t
-       return (tvs', ids', x')
-
-mkType ids ty = foldl (\t x -> FunTy (varType x) t) ty ids
+  = do ids'  <- mapM fresh ids
+       let t  = mkForAllTys tvs $ mkType (reverse ids') $ varType x
+       let x' = setVarType x t
+       return (ids', x')
+  where 
+    mkType ids ty = foldl (\t x -> FunTy (varType x) t) ty ids
 
 class Freshable a where
   fresh :: a -> TE a
