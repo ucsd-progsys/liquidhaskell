@@ -180,12 +180,12 @@ moduleHquals mg paths target imps incs
 moduleSpec cfg vars defVars target mg paths
   = do liftIO      $ putStrLn ("paths = " ++ show paths) 
        tgtSpec    <- liftIO $ parseSpec (name, target)
+       impNames   <- allDepNames <$> getModuleGraph
        impSpecs   <- getSpecs paths impNames [Spec, Hs, LHs]
        forM impSpecs $ \((n,f),_) -> when (not $ isExtFile Spec f) $
            guessTarget n Nothing >>= addTarget
        load LoadAllTargets
-       forM impSpecs $ \((n,_),_) ->
-           addContext $ IIDecl $ qualImportDecl $ mkModuleName n
+       addImports impSpecs
        addContext $ IIModule $ moduleName $ mgi_module mg
        env <- getSession
        let specs   = ((name,target),tgtSpec):impSpecs
@@ -198,12 +198,18 @@ moduleSpec cfg vars defVars target mg paths
        let imps    = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
        ghcSpec    <- liftIO $ makeGhcSpec cfg name vars defVars env spec
        return      (ghcSpec, imps, Ms.includes tgtSpec)
-    where impNames = allDepNames  mg
-          name     = mgi_namestring mg
+    where
+      name     = mgi_namestring mg
+      addImports is = do
+        mg <- getModuleGraph
+        let ns = nub $ (allDepNames mg) ++ map (fst.fst) is
+        mapM (addContext . IIDecl . qualImportDecl . mkModuleName) ns
 
-allDepNames mg    = allNames'
-  where allNames' = sortNub impNames
-        impNames  = moduleNameString <$> (depNames mg ++ dirImportNames mg) 
+
+
+allDepNames = concatMap (map declNameString . ms_textual_imps)
+
+declNameString = moduleNameString . unLoc . ideclName . unLoc
 
 depNames       = map fst        . dep_mods      . mgi_deps
 dirImportNames = map moduleName . moduleEnvKeys . mgi_dir_imps  

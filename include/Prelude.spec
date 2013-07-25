@@ -2,6 +2,8 @@ module spec Prelude where
 
 import GHC.Base
 import GHC.List
+import GHC.Num
+
 import Data.Maybe
 
 -- assume GHC.Base..               :: forall< p :: xx:b -> c -> Prop
@@ -10,7 +12,7 @@ import Data.Maybe
 --                                       g:(y:a -> b<q y>) ->
 --                                       x:a ->
 --                                       exists[z:b<q x>].c<p z>
-assume GHC.Integer.smallInteger :: x:GHC.Prim.Int# -> {v:GHC.Integer.Type.Integer | v = (x :: GHC.Integer.Type.Integer)}
+assume GHC.Integer.smallInteger :: x:GHC.Prim.Int# -> {v:Integer | v = (x :: Integer)}
 assume GHC.Num.+                :: (Num a) => x:a -> y:a -> {v:a | v = x + y }
 assume GHC.Num.-                :: (Num a) => x:a -> y:a -> {v:a | v = x - y }
 assume GHC.Num.*                :: (Num a) => x:a -> y:a -> {v:a | ((((x >= 0) && (y >= 0)) => ((v >= x) && (v >= y))) && (((x > 1) && (y > 1)) => ((v > x) && (v > y)))) }
@@ -22,7 +24,6 @@ assume GHC.Real.quotRem         :: (Integral a) => x:a -> y:a -> ({v:a | ((v = (
 -- assume GHC.Real.mod             :: (Integral a) => x:a -> y:a -> {v:a | v = (x mod y) }
 assume GHC.Real./               :: (Fractional a) => x:a -> y:{v:a | v != 0} -> {v: a | v = (x / y) }
 
-assume GHC.Num.fromInteger      :: (Num a) => x:Integer -> {v:a | v = x }
 assume GHC.Real.toInteger       :: (Integral a) => x:a -> {v:Integer | v = x}
 assume GHC.Real.fromIntegral    :: (Integral a, Num b) => x:a -> {v:b|v=x}
 
