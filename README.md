@@ -1,8 +1,8 @@
-Building and Running
-====================
+README
+======
 
 Requirements
--------------
+------------
 
 LiquidHaskell requires (in addition to the Hackage dependencies)
 
@@ -78,11 +78,13 @@ You can directly extend and run the tests by modifying
 
 For example, to run the tests with a particular SMT solver
 
-    ./regrtest.py -t 30 -o "--smtsolver=z3"
+    ./regrtest.py -t 30 -o "--smtsolver=mathsat"
+    ./regrtest.py -t 30 -o "--smtsolver=cvc4"
 
 To run the regression test *and* the benchmarks run
   
      $ make all-test
+
 How to Profile 
 --------------
 
@@ -142,12 +144,12 @@ How to deploy Web Demo
 
 The last step requires sudo access which is tedious and should be fixed.
 
+
 Command Line Options
-====================
+--------------------
 
 
-Ignore False Predicates
------------------------
+**Ignore False Predicates**
 
 To ignore false predicates use the nofalse option
  
@@ -155,18 +157,17 @@ To ignore false predicates use the nofalse option
 
 See <a url="tests/neg/lazy.lhs">tests/neg/lazy.lhs</a>
 
-Prune Unsorted Predicates
------------------------
+**Prune Unsorted Predicates**
 
 By default unsorted predicates are pruned.
 To disable this behaviour use no-prune-unsorted flag.
  
     liquid --no-prune-unsorted test.hs
 
-Termination Check
+**Termination Check**
 -----------------
 
-A termination check is performed on all recursive functions.
+By **default** a termination check is performed on all recursive functions.
 
 Use the `no-termination` option to disable the check
  
@@ -209,6 +210,72 @@ scope of LiquidHaskell) you can write
 - `deriving instances` often create such functions so lookout!
 
 We intend to address these ASAP.
+
+Specifying Different SMT Solvers
+--------------------------------
+
+By default, LiquidHaskell uses the SMTLIB2 interface for Z3.
+
+To run a different solver (via SMTLIB2 bindings) do:
+
+    $ liquid --smtsolver=NAME foo.hs
+
+Currently, LiquidHaskell supports
+
++ [CVC4](http://cvc4.cs.nyu.edu/) 
++ [MathSat](http://mathsat.fbk.eu/download.html )
+
+To use these solvers, you must install the corresponding binaries
+from the above web-pages into your PATH.
+
+You can also build and link against the Z3 API (faster but requires more
+dependencies). If you do so, you can use that interface with:
+
+    $ liquid --smtsolver=z3mem foo.hs
+
+Incremental Checking
+--------------------
+
+LiquidHaskell supports *incremental* checking where each run only checks
+the part of the program that has been modified since the previous run.
+
+    $ liquid -d foo.hs
+
+1. Each run of `liquid` saves the file to a `.bak` file and
+
+2. Each subsequent run 
+    + does a `diff` to see what has changed w.r.t. the `.bak` file
+    + only generates constraints for the `[CoreBind]` corresponding to the 
+       changed top-level binders and their transitive dependencies.
+
+**Note:** Subsequent runs will report **Safe** if there are no errors in the
+changed portions but there *are* errors in the unchanged portion. Thus, you
+should finally run *without* the `-d` option before concluding a module is Safe!
+
+The time savings are quite significant. For example:
+
+    $ time liquid --notermination -i . -i ../../include/ Data/ByteString.hs > log 2>&1
+
+    real	7m3.179s
+    user	4m18.628s
+    sys	    0m21.549s
+
+Now if you go and tweak the definition of `spanEnd` on line 1192 and re-run:
+
+    $ time liquid -d --notermination -i . -i ../../include/ Data/ByteString.hs > log 2>&1
+
+    real	0m11.584s
+    user	0m6.008s
+    sys	0m0.696s
+
+The diff is only performed against *code*, i.e. if you only change
+specifications, qualifiers, measures, etc. `liquid -d` will not perform
+any checks. In this case, you may specify individual definitions to
+verify:
+
+    $ liquid -b bar -b baz foo.hs
+
+This will verify `bar` and `baz`, as well as any functions they use.
 
 Writing Specifications
 ======================

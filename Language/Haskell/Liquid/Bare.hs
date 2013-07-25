@@ -72,6 +72,7 @@ makeGhcSpec' cfg name vars defVars env spec
        sigs'           <- makeAssumeSpec  cfg benv vars     $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec
+       targetVars      <- makeTargetVars  env name defVars  $ binders cfg
        let lazies       = makeLazies      vars              $ Ms.lazy       spec
        let sigs         = [(x, (txRefSort embs benv . txExpToBind) <$> t) | (x, t) <- sigs'] 
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs datacons
@@ -91,7 +92,7 @@ makeGhcSpec' cfg name vars defVars env spec
                              , qualifiers = Ms.qualifiers spec 
                              , decr       = decr'
                              , lazy       = lazies
-                             , tgtVars    = AllVars -- makeTargetVars vars (binds cfg)
+                             , tgtVars    = targetVars
                              }
 makeHints :: [Var] -> [(LocSymbol, [Int])] -> [(Var, [Int])]
 makeHints vs       = concatMap go
@@ -283,8 +284,14 @@ makeMeasureSpec env m = execBare mkSpec env
                           >>= return . mapFst (mapSnd uRType <$>) . Ms.dataConTypes 
     m'                = first (mapReft ur_reft) m
 
-makeTargetVars :: [Var] -> [String] -> TargetVars
-makeTargetVars = undefined 
+
+makeTargetVars :: HscEnv -> String -> [Var] -> [String] -> IO [Var]
+makeTargetVars env name vs ss = do
+  ns <- catMaybes <$> mapM (lookupName env) (map prefix ss)
+  return $ filter ((`elem` ns) . varName) vs
+ where
+  prefix s = name ++ "." ++ s
+
 
 makeAssumeSpec :: Config -> BareEnv -> [Var] -> [(LocSymbol, BareType)] -> IO [(Var, Located SpecType)]
 makeAssumeSpec cfg env vs xbs = execBare mkAspec env
