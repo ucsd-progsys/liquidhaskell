@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module Toy where
 
 import Language.Haskell.Liquid.Prelude (isEven)

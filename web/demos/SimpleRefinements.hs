@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module SimpleRefinements where
 import Prelude hiding ((!!), length)
 import Language.Haskell.Liquid.Prelude

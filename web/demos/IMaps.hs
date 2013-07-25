@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 -- ---
 -- layout: post
 -- title: "Index-Dependent Maps"

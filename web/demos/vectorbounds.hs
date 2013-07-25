@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module VectorBounds (
     safeLookup
   , unsafeLookup, unsafeLookup'

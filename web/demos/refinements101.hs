@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module Intro where
 
 import Language.Haskell.Liquid.Prelude  (liquidAssert)

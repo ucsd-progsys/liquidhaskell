@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module Composition where
 
 -- | Function Composition

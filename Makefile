@@ -89,6 +89,9 @@ deps:
 pdeps:
 	$(CABALP) $(DEPS)
 
+all-test:
+	cd tests && ./regrtest.py -a -t $(THREADS) && cd ../
+
 test:
 	cd tests && ./regrtest.py -t $(THREADS) && cd ../
 

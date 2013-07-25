@@ -1189,7 +1189,7 @@ spanByte c ps@(PS x s l) = inlinePerformIO $ withForeignPtr x $ \p ->
 --
 {-@ spanEnd :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
 spanEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-spanEnd  p ps = splitAt (findFromEndUntil (not.p) ps) ps
+spanEnd  p ps = splitAt (findFromEndUntil (not . p)    ps) ps
 
 -- | /O(n)/ Splits a 'ByteString' into components delimited by
 -- separators, where the predicate returns True for a separator element.

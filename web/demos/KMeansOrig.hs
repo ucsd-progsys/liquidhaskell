@@ -1,3 +1,4 @@
+{--! run liquid with no-termination -}
 {- |
 Module      :  Data.KMeans
 Copyright   :  (c) Keegan Carruthers-Smith, 2009

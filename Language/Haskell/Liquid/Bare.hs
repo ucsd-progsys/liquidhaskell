@@ -57,12 +57,12 @@ import TypeRep
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
 
-makeGhcSpec, makeGhcSpec' :: Config -> String -> [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
-makeGhcSpec cfg name vars env spec 
-  = checkGhcSpec <$> makeGhcSpec' cfg name vars env spec 
+makeGhcSpec, makeGhcSpec' :: Config -> String -> [Var] -> [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
+makeGhcSpec cfg name vars defVars env spec 
+  = checkGhcSpec <$> makeGhcSpec' cfg name vars defVars env spec 
 
 
-makeGhcSpec' cfg name vars env spec 
+makeGhcSpec' cfg name vars defVars env spec 
   = do (tcs, dcs)      <- makeConTypes    env  name         $ Ms.dataDecls  spec 
        let (tcs', dcs') = wiredTyDataCons 
        let tycons       = tcs ++ tcs'    
@@ -72,13 +72,15 @@ makeGhcSpec' cfg name vars env spec
        sigs'           <- makeAssumeSpec  cfg benv vars     $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec
-       let stricts      = makeStricts     vars              $ Ms.strict     spec
+       targetVars      <- makeTargetVars  env name defVars  $ binders cfg
+       let lazies       = makeLazies      vars              $ Ms.lazy       spec
        let sigs         = [(x, (txRefSort embs benv . txExpToBind) <$> t) | (x, t) <- sigs'] 
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs datacons
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms ] -- first val <$> ms 
        let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms' 
        let tx           = subsFreeSymbols syms
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
+       let decr'        = makeHints defVars (Ms.decr spec)
        return           $ SP { tySigs     = renameTyVars <$> tx sigs
                              , ctor       = tx cs'
                              , meas       = tx (ms' ++ varMeasures vars) 
@@ -88,11 +90,31 @@ makeGhcSpec' cfg name vars env spec
                              , freeSyms   = syms' 
                              , tcEmbeds   = embs 
                              , qualifiers = Ms.qualifiers spec 
-                             , decr       = Ms.decr spec 
-                             , strict     = stricts
-                             , tgtVars    = AllVars -- makeTargetVars vars (binds cfg)
+                             , decr       = decr'
+                             , lazy       = lazies
+                             , tgtVars    = targetVars
                              }
-
+makeHints :: [Var] -> [(LocSymbol, [Int])] -> [(Var, [Int])]
+makeHints vs       = concatMap go
+  where lvs        = M.map L.sort $ group [(varSymbol v, locVar v) | v <- vs]
+        varSymbol  = stringSymbol . dropModuleNames . showPpr
+        locVar v   = (getSourcePos v, v)
+        go (s, ns) = case M.lookup (val s) lvs of 
+                     Just lvs -> (, ns) <$> varsAfter s lvs
+                     Nothing  -> errorstar $ msg s
+        msg s      = printf "%s: Hint for Undefined Var %s" 
+                         (show (loc s)) (show (val s))
+       
+varsAfter s lvs 
+  | eqList (fst <$> lvs)
+  = snd <$> lvs
+  | otherwise
+  = map snd $ takeEqLoc $ dropLeLoc lvs
+  where takeEqLoc xs@((l, _):_) = L.takeWhile ((l==) . fst) xs
+        takeEqLoc []            = []
+        dropLeLoc               = L.dropWhile ((loc s >) . fst)
+        eqList []               = True
+        eqList (x:xs)           = all (==x) xs
 
 txRefSort embs benv = mapBot (addSymSort embs (tcEnv benv))
 
@@ -262,8 +284,14 @@ makeMeasureSpec env m = execBare mkSpec env
                           >>= return . mapFst (mapSnd uRType <$>) . Ms.dataConTypes 
     m'                = first (mapReft ur_reft) m
 
-makeTargetVars :: [Var] -> [String] -> TargetVars
-makeTargetVars = undefined 
+
+makeTargetVars :: HscEnv -> String -> [Var] -> [String] -> IO [Var]
+makeTargetVars env name vs ss = do
+  ns <- catMaybes <$> mapM (lookupName env) (map prefix ss)
+  return $ filter ((`elem` ns) . varName) vs
+ where
+  prefix s = name ++ "." ++ s
+
 
 makeAssumeSpec :: Config -> BareEnv -> [Var] -> [(LocSymbol, BareType)] -> IO [(Var, Located SpecType)]
 makeAssumeSpec cfg env vs xbs = execBare mkAspec env
@@ -320,8 +348,8 @@ lookupGhcTyCon' c = wrapErr msg lookupGhcTyCon (val c)
     msg :: String = berrUnknownTyCon c
 
 
-makeStricts :: [Var] -> S.HashSet Symbol -> S.HashSet Var
-makeStricts vs s = S.fromList $ fst3 <$> joinIds vs xxs
+makeLazies :: [Var] -> S.HashSet Symbol -> S.HashSet Var
+makeLazies vs s = S.fromList $ fst3 <$> joinIds vs xxs
   where xs  = S.toList s
         xxs = zip xs xs
 

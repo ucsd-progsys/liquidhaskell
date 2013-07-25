@@ -1,56 +1,41 @@
 TODO
 ====
 
-* performance
-
-* Qualified Import Issue: wtf is include/KMeansHelper.hs ? Fix module import issue
-
-* [jhala]  benchmarks: Data.Bytestring
-    ? readsPrec
-    ? big constants issue : _word64 34534523452134213524525 due to (deriving Typeable)
-
-* error messages: expected XXX got YYY?
-
 * incremental checking (see below) 
     - save top-level types to file (.spec)
     - reload
     - check all but specified function
 
-* have liquid-fixpoint sort checker RETURN ERROR (rather than errorstar-inside) so we can give nicer messages.
+* Qualified Imports
+  - wtf is include/KMeansHelper.hs ? Fix module import issue
+  - break spec imports -- tests/todo/qualifiedvector.hs 
 
-* qualified names break spec imports -- tests/todo/qualifiedvector.hs 
+* benchmarks: Data.Bytestring
+    ? readsPrec
+    ? big constants issue : _word64 34534523452134213524525 due to (deriving Typeable)
 
-* benchmarks: stackset-core
+* error messages
+  + expected XXX got YYY?
+  + liquid-fixpoint sort checker return ERROR (not than errorstar-inside) for nicer messages.
 
-* benchmarks: Data.List (foldr)
+* benchmarks
+  + stackset-core
+  + Data.List (foldr)
+  + mcbrides stack machined?
 
-* benchmarks: Data.List (foldr) 
+Incremental Checking
+--------------------
 
-* benchmarks: mcbrides stack machined?
+    Language.Haskell.Liquid.IncCheck
 
-Performance 
------------
-
-- use specified types instead of templates
-
-- qualifier blowup in Bytestring.hs 
-
-- fixpoint generalizes:
-
-    qualif Auto(VV : Data.ByteString.Internal.ByteString, ~A0 : [Data.ByteString.Internal.ByteString]): (bLength([VV]) = bLengths([~A0]))
-
-into
-    
-    qualif Auto20(VV:@(0), ~A0:List @(0)):(bLength([VV]) = bLengths([~A0]))
-
-Extra time in : refine_sort and PP.validate
++ finish implementation of missing code
++ In `Liquid.hs` add code to SAVE the old file
++ 
 
 
 Liquid-Fixpoint SMTLIB2
-=======================
+-----------------------
 
-
-  
 SETS-RELATED
 
   ../web/demos/ListElts.hs,
@@ -67,14 +52,9 @@ SETS-RELATED
   pos/meas10.hs,
   pos/meas11.hs,
   pos/meas9.hs,
-  pos/ptr.hs,
-  pos/ptr2.hs,
-  pos/ptr3.hs,
   pos/stacks0.hs,
   pos/zipper.hs,
   pos/zipper0.hs 
- 
-
 
 MATHSAT [no support for mod?]
 
@@ -87,43 +67,6 @@ FAILURE :( (../web/demos/Array.hs)
 
 1383.221166 seconds
 FAILURE :( (../benchmarks/esop2013-submission/Base.hs) 
-
-Failed 33 tests: 
- ../benchmarks/esop2013-submission/Array.hs,
-  ../benchmarks/esop2013-submission/Base.hs,
-  ../benchmarks/esop2013-submission/Splay.hs,
-  ../benchmarks/esop2013-submission/Toy.hs,
-  ../web/demos/Array.hs,
-  ../web/demos/Composition.hs,
-  ../web/demos/ListElts.hs,
-  ../web/demos/Loop.hs,
-  ../web/demos/SimpleRefinements.hs,
-  ../web/demos/TalkingAboutSets.hs,
-  ../web/demos/UniqueZipper.hs,
-  ../web/demos/absref101.hs,
-  ../web/demos/refinements101.hs,
-  ../web/demos/refinements101reax.hs,
-  
-  ../benchmarks/esop2013-submission/Base0.hs,
-  pos/ListConcat.hs,
-  pos/ListElem.hs,
-  pos/SS.hs,
-  pos/cont.hs,
-  pos/deepmeas0.hs,
-  pos/initarray.hs,
-  pos/listSet.hs,
-  pos/listSetDemo.hs,
-  pos/meas10.hs,
-  pos/meas11.hs,
-  pos/meas9.hs,
-  pos/modTest.hs,
-  pos/ptr.hs,
-  pos/ptr2.hs,
-  pos/ptr3.hs,
-  pos/stacks0.hs,
-  pos/zipper.hs,
-  pos/zipper0.hs 
-
 
 Exceptions thrown on 11 tests: 
   ../benchmarks/esop2013-submission/Array.hs,
@@ -141,7 +84,7 @@ Exceptions thrown on 11 tests:
 
 
 Embed
-=====
+-----
 
 see 
 
@@ -170,8 +113,8 @@ Meaning we have to rewrite the above to the rather lame:
   qualif EqPLenPOLY2(v: a, x: b): (plen v) = (fplen x)           
 
 
-Module Import (see branch imports) 
-==================================
+Module Import (branch: imports) 
+-------------------------------
 
 See tests/pos/Mod2.hs [Which imports a measure from Mod1.hs]
 
@@ -208,22 +151,6 @@ See tests/pos/Mod2.hs [Which imports a measure from Mod1.hs]
         F.x
 
     use F.x when doing GHC-lookup.
-
-
-Incremental Checking
-====================
-
-[see branch "inccheck" look for the field "binds" in CmdLine.hs]
-
-1. Command Line Arguments  
-    - Specify WHICH binders to verify [DEFAULT = ALL]  
-    - liquid tests/pos/goo.hs -check foo bar baz 
-    - Print out vars/hs-types <---------------------- STOPSTOPSTOPSTOPSTOP 
-
-2. CONSGEN for subset 
-3. CONSGEN for subset using TRUE for all other functions
-4. SAVE out inferred-types for top-level binders
-5. REUSE pre-inferred types for other functions 
 
 
 Benchmarks

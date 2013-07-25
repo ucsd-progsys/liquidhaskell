@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module ListSort (insertSort, insertSort', mergeSort, quickSort) where
 
 {-@ type OList a = [a]<{\fld v -> (v >= fld)}> @-}
