@@ -29,5 +29,5 @@ sumUp n  = go n 0 0
 nonTerm :: Int -> Int
 nonTerm n = nonTerm (n+1)
 
-{-@ Strict nonTerm @-}
+{-@ Lazy Term0.nonTerm @-}
 

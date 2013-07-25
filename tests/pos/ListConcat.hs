@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module Foo where
 import Data.Set (Set(..)) 
 import Prelude hiding (concat)

@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.RefType (
     uTop, uReft, uRType, uRType', uRTypeGen, uPVar
  
   -- * Functions for decreasing arguments
-  , cmpReft, isDecreasing
+  , isDecreasing, makeDecrType
 
   -- * Functions for manipulating `Predicate`s
   , pdVar
@@ -917,17 +917,31 @@ classBinds _         = []
 
 rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
 
-cmpReft (Just f) x
-  = uReft (vv, [ RConc $ PAtom Lt (f vv) (f x)
-               , RConc $ PAtom Ge (f vv) (ECon (I 0))]) -- size vv >= 0
-   where vv      = S "vvRec"
-cmpReft _ _
-  = errorstar "RefType: cmpReft"
-            
+-----------------------------------------------------------------------------------------
+--------------------------- Termination Predicates --------------------------------------
+-----------------------------------------------------------------------------------------
+
 isDecreasing (RApp c _ _ _) 
   = isJust (sizeFunction (rTyConInfo c)) 
 isDecreasing _ 
   = False
 
+makeDecrType = mkDType [] []
 
+mkDType xvs acc [(v, (x, t@(RApp c _ _ _)))] 
+  = (x, ) $ t `strengthen` tr
+  where tr     = uTop $ Reft (vv, [RConc $ pOr (r:acc)])
+        r      = cmpLexRef xvs (v', vv, f)
+        v'     = varSymbol v
+        Just f = sizeFunction $ rTyConInfo c
+        vv     = stringSymbol "vvRec"
 
+mkDType xvs acc ((v, (x, t@(RApp c _ _ _))):vxts)
+  = mkDType ((v', x, f):xvs) (r:acc) vxts
+  where r      = cmpLexRef xvs  (v', x, f)
+        v'     = varSymbol v
+        Just f = sizeFunction $ rTyConInfo c
+
+cmpLexRef vxs (v, x, g)
+  = pAnd $ (PAtom Lt (g x) (g v))
+         :[PAtom Eq (f y) (f z) | (y, z, f) <- vxs] 

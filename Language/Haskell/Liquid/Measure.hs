@@ -50,8 +50,8 @@ data Spec ty bndr  = Spec {
   , paliases   :: ![RTAlias Symbol Pred]        -- ^ Refinement/Predicate aliases
   , embeds     :: !(TCEmb (Located String))     -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
-  , decr       :: ![(Symbol, [Int])]            -- ^ Information on decreasing arguments
-  , strict     :: !(S.HashSet Symbol)           -- ^ Ignore Termination Check in these Functions
+  , decr       :: ![(LocSymbol, [Int])]         -- ^ Information on decreasing arguments
+  , lazy       :: !(S.HashSet Symbol)           -- ^ Ignore Termination Check in these Functions
   } 
 
 
@@ -168,7 +168,7 @@ instance Bifunctor Spec    where
            , embeds     = x5
            , qualifiers = x6
            , decr       = x7
-           , strict     = x8
+           , lazy       = x8
            }
   second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6 x7 x8 x9) 
     = Spec { measures   = fmap (second f) ms
@@ -182,7 +182,7 @@ instance Bifunctor Spec    where
            , embeds     = x6
            , qualifiers = x7
            , decr       = x8
-           , strict     = x9
+           , lazy       = x9
            }
 
 -- MOVE TO TYPES

@@ -11,8 +11,11 @@ data L a = Nil | Con a (L a)
   @-}
 
 range :: Int -> Int -> L Int
-range i j  
-  | i < j  = i `Con` (range (i + 1) j)
+range i j = range' (j-i) i j
+
+range' :: Int -> Int -> Int -> L Int
+range' d i j
+  | i < j  = i `Con` (range' (d-1) (i + 1) j)
   | otherwise = Nil  
 
 mapL f Nil        = Nil

@@ -1,5 +1,3 @@
-{--! run liquid with termination -}
-
 module Ackermann where
 
 {-@ ack :: Nat -> Nat -> Nat @-}

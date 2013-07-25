@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module ListSort where
 
 import Language.Haskell.Liquid.Prelude -- (liquidAssertB, choose)

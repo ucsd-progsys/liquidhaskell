@@ -32,10 +32,10 @@ import System.FilePath (dropExtension, takeFileName, splitFileName, combine,
                         dropFileName, normalise)
 
 import DynFlags
-import Control.Monad (filterM, zipWithM, when)
+import Control.Arrow (second)
+import Control.Monad (filterM, zipWithM, when, forM, liftM)
 import Control.DeepSeq
 import Control.Applicative  hiding (empty)
-import Control.Monad (forM, liftM)
 import Data.Monoid hiding ((<>))
 import Data.List (intercalate, foldl', find, (\\), nub)
 import Data.Maybe (catMaybes)
@@ -51,7 +51,7 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
-import Language.Haskell.Liquid.Resolution (resolveSpec, ModLoc(..), qualImportDecl, addContext)
+import Language.Haskell.Liquid.Resolution (resolveSpec, qualImportDecl, addContext)
 
 import Language.Haskell.Liquid.Parse 
 import Language.Fixpoint.Parse          hiding (brackets, comma)
@@ -77,7 +77,8 @@ getGhcInfo cfg target
       let impVs           = importVars  coreBinds 
       let defVs           = definedVars coreBinds 
       let useVs           = readVars    coreBinds
-      (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) target modguts (idirs cfg) 
+      let letVs           = letVars     coreBinds
+      (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs target modguts (idirs cfg)
       liftIO              $ putStrLn $ "Module Imports: " ++ show imps 
       hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs 
       return              $ GI hscEnv coreBinds impVs defVs useVs hqualFiles imps incs spec 
@@ -176,7 +177,7 @@ moduleHquals mg paths target imps incs
 -- | Extracting Specifications (Measures + Assumptions) ------------------------
 --------------------------------------------------------------------------------
  
-moduleSpec cfg vars target mg paths
+moduleSpec cfg vars defVars target mg paths
   = do liftIO      $ putStrLn ("paths = " ++ show paths) 
        tgtSpec    <- liftIO $ parseSpec (name, target)
        impSpecs   <- getSpecs paths impNames [Spec, Hs, LHs]
@@ -195,7 +196,7 @@ moduleSpec cfg vars target mg paths
              then return $ Ms.expandRTAliases rtenv spec
              else resolveSpec env (mkModuleName n) $ Ms.expandRTAliases rtenv spec
        let imps    = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
-       ghcSpec    <- liftIO $ makeGhcSpec cfg name vars env spec
+       ghcSpec    <- liftIO $ makeGhcSpec cfg name vars defVars env spec
        return      (ghcSpec, imps, Ms.includes tgtSpec)
     where impNames = allDepNames  mg
           name     = mgi_namestring mg
@@ -222,11 +223,12 @@ transParseSpecs exts paths seenFiles specs newFiles
   = do newSpecs  <- liftIO $ zip newFiles <$> mapM parseSpec newFiles
        impFiles  <- moduleImports exts paths $ specsImports newSpecs
        let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
-       let specs'     = specs ++ newSpecs
+       let specs'     = specs ++ map (second noTerm) newSpecs
        let newFiles'  = [f | f <- impFiles, not (f `S.member` seenFiles')]
        transParseSpecs exts paths seenFiles' specs' newFiles'
   where
     specsImports ss = nub $ concatMap (map symbolString . Ms.imports . snd) ss
+    noTerm spec = spec { Ms.decr=mempty, Ms.lazy=mempty }
  
 parseSpec (name, file)
   = Ex.catch (parseSpec' name file) $ \(e :: Ex.IOException) ->
@@ -306,6 +308,7 @@ reqFile ext s
 class CBVisitable a where
   freeVars :: S.HashSet Var -> a -> [Var]
   readVars :: a -> [Var] 
+  letVars  :: a -> [Var] 
   literals :: a -> [Literal]
 
 instance CBVisitable [CoreBind] where
@@ -313,8 +316,9 @@ instance CBVisitable [CoreBind] where
     where xs = concatMap (freeVars env) cbs 
           ys = concatMap bindings cbs
   
-  readVars cbs = concatMap readVars cbs  
-  literals cbs = concatMap literals cbs
+  readVars = concatMap readVars
+  letVars  = concatMap letVars 
+  literals = concatMap literals
 
 instance CBVisitable CoreBind where
   freeVars env (NonRec x e) = freeVars (extendEnv env [x]) e 
@@ -322,8 +326,13 @@ instance CBVisitable CoreBind where
                               where (xs,es) = unzip xes 
                                     env'    = extendEnv env xs 
 
-  readVars (NonRec _ e)      = readVars e
-  readVars (Rec xes)         = concatMap readVars $ map snd xes
+  readVars (NonRec _ e)     = readVars e
+  readVars (Rec xes)        = concatMap readVars $ map snd xes
+
+  letVars (NonRec x e)      = x : letVars e
+  letVars (Rec xes)         = xs ++ concatMap letVars es
+    where 
+      (xs, es)              = unzip xes
 
   literals (NonRec _ e)      = literals e
   literals (Rec xes)         = concatMap literals $ map snd xes
@@ -331,6 +340,7 @@ instance CBVisitable CoreBind where
 instance CBVisitable (Expr Var) where
   freeVars = exprFreeVars
   readVars = exprReadVars
+  letVars  = exprLetVars
   literals = exprLiterals
 
 exprFreeVars = go 
@@ -355,6 +365,17 @@ exprReadVars = go
     go (Case e _ _ cs)     = (go e) ++ (concatMap readVars cs) 
     go _                   = []
 
+exprLetVars = go
+  where
+    go (Var x)             = []
+    go (App e a)           = concatMap go [e, a] 
+    go (Lam x e)           = x : go e
+    go (Let b e)           = letVars b ++ go e 
+    go (Tick _ e)          = go e
+    go (Cast e _)          = go e
+    go (Case e x _ cs)     = x : go e ++ concatMap letVars cs
+    go _                   = []
+
 exprLiterals = go
   where
     go (Lit l)             = [l]
@@ -370,6 +391,7 @@ exprLiterals = go
 instance CBVisitable (Alt Var) where
   freeVars env (a, xs, e) = freeVars env a ++ freeVars (extendEnv env xs) e
   readVars (_,_, e)       = readVars e
+  letVars  (_,xs,e)       = xs ++ letVars e
   literals (c,_, e)       = literals c ++ literals e
 
 
@@ -377,6 +399,7 @@ instance CBVisitable AltCon where
   freeVars _ (DataAlt dc) = dataConImplicitIds dc
   freeVars _ _            = []
   readVars _              = []
+  letVars  _              = []
   literals (LitAlt l)     = [l]
   literals _              = []
 

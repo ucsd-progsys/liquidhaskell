@@ -1,12 +1,15 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Fixme where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
 
+{-@ Decrease go 5 @-}
 loop :: Int -> Int -> a -> (Int -> a -> a) -> a 
-loop lo hi base f = go base lo
+loop lo hi base f = go (hi-lo) base lo
   where
-    go acc i     
-      | i /= hi   = go (f i acc) (i + 1)
+    go (d::Int) acc i     
+      | i /= hi   = go (d-1) (f i acc) (i + 1)
       | otherwise = acc
 
 poo = loop 0 10 0 (+)
