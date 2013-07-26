@@ -1,10 +1,10 @@
+{--! run liquid with no-termination -}
+
 module Eval (eval) where
 
 import Language.Haskell.Liquid.Prelude (liquidError)
 import Prelude hiding (lookup)
 import Data.Set (Set (..))
-
-{-@ embed Set as Set_Set @-}
 
 type Val  = Int
 
@@ -26,6 +26,8 @@ lookup x ((y,v):env)
   | otherwise          = lookup x env
 lookup x []            = liquidError "Unbound Variable"
 
+{-@ Decrease lookup 2 @-}
+
 ------------------------------------------------------------------
 {-@ eval :: g:Env -> (ClosedExpr g) -> Val @-}
 ------------------------------------------------------------------
@@ -35,6 +37,8 @@ eval env (Plus e1 e2)  = eval env e1 + eval env e2
 eval env (Let x e1 e2) = eval env' e2 
   where 
     env'               = (x, eval env e1) : env
+
+{-@ Decrease eval 2 @-}
 
 {-@ type EnvWith X    = {v:Env  | (Set_mem X (vars v))}        @-}
 {-@ type ClosedExpr G = {v:Expr | (Set_sub (free v) (vars G))} @-}
@@ -49,4 +53,11 @@ eval env (Let x e1 e2) = eval env' e2
     free (Var x)       = {v | v = (Set_sng x)} 
     free (Plus e1 e2)  = {v | v = (Set_cup (free e1) (free e2))}
     free (Let x e1 e2) = {v | v = (Set_cup (free e1) (Set_dif (free e2) (Set_sng x)))}
+  @-}
+
+{-@ measure esize       :: Expr -> Int 
+    esize (Var x)       = 1
+    esize (Const i)     = 1
+    esize (Plus e1 e2)  = (esize e1) + (esize e2)
+    esize (Let x e1 e2) = (esize e1) + (esize e2)
   @-}
