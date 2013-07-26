@@ -69,7 +69,7 @@ makeGhcSpec' cfg name vars defVars env spec
        let datacons     = concat dcs ++ dcs'    
        let benv         = BE name (makeTyConInfo tycons) env
        (cs, ms)        <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
-       sigs'           <- makeAssumeSpec  cfg benv vars     $ Ms.sigs       spec
+       sigs'           <- makeAssumeSpec  cfg benv defVars  $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec
        targetVars      <- makeTargetVars  env name defVars  $ binders cfg
@@ -304,10 +304,16 @@ makeTargetVars env name vs ss = do
 makeAssumeSpec :: Config -> BareEnv -> [Var] -> [(LocSymbol, BareType)] -> IO [(Var, Located SpecType)]
 makeAssumeSpec cfg env vs xbs = execBare mkAspec env
   where
-    mkAspec                   = do vbs <- lookupIds xbs
+    mkAspec                   = do vbs <- map joinVar <$> lookupIds xbs
                                    when (not $ noCheckUnknown cfg)
                                      $ checkDefAsserts env vbs xbs
                                    forM vbs mkVarSpec
+    -- the Vars we lookup in GHC don't always have the same tyvars as the Vars
+    -- we're given, so return the original var when possible.
+    -- see tests/pos/ResolvePred.hs for an example
+    joinVar (v,s,t) = case L.find ((== varName v) . varName) vs of
+                        Just v' -> (v',s,t)
+                        Nothing -> (v,s,t)
 
 lookupIds xs = catMaybes <$> mapM lookup xs
   where
