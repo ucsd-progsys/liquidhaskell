@@ -28,17 +28,20 @@ import           Var
 import           Language.Haskell.Liquid.GhcMisc
 import           Language.Haskell.Liquid.Misc (mapSndM)
 
-import           Data.List                (foldl')
+import           Data.List                (foldl', isInfixOf)
 import           Control.Applicative      ((<$>))
 
 transformRecExpr :: CoreProgram -> CoreProgram
 transformRecExpr cbs
-  | isEmptyBag e
+  | isEmptyBag $ filterBag isTypeError e
   =  {-trace "new cbs"-} pg 
   | otherwise 
   = error (showPpr pg ++ "Type-check" ++ showSDoc (pprMessageBag e))
   where pg     = scopeTr $ evalState (transPg cbs) initEnv
         (_, e) = lintCoreBindings pg
+
+isTypeError s | isInfixOf "Non term variable" (showSDoc s) = False
+isTypeError _ = True
 
 scopeTr = outerScTr . innerScTr
 
