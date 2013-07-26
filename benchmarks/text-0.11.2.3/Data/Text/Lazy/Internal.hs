@@ -46,14 +46,6 @@ import qualified Data.Text.Internal as T
 
 
 --LIQUID
-import qualified Data.Text
-import Data.Text.Array (Array(..), MArray(..))
-import qualified Data.Text.Fusion.Internal
-import qualified Data.Text.Fusion.Size
-import qualified Data.Text.Internal
-import qualified Data.Text.Private
-import qualified Data.Text.Search
-import qualified Data.Text.Unsafe
 import Language.Haskell.Liquid.Prelude
 
 

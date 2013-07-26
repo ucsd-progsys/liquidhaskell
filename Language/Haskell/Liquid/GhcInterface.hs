@@ -182,9 +182,9 @@ moduleSpec cfg vars defVars target mg paths
        tgtSpec    <- liftIO $ parseSpec (name, target)
        impNames   <- allDepNames <$> getModuleGraph
        impSpecs   <- getSpecs paths impNames [Spec, Hs, LHs]
-       forM impSpecs $ \((n,f),_) -> when (not $ isExtFile Spec f) $
+       forM impSpecs $ \((n,f),_) -> when (not $ isExtFile Spec f) $ do
            guessTarget n Nothing >>= addTarget
-       load LoadAllTargets
+           load (LoadUpTo $ mkModuleName n) >> return ()
        addImports impSpecs
        addContext $ IIModule $ moduleName $ mgi_module mg
        env <- getSession
