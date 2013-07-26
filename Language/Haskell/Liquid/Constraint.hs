@@ -924,8 +924,9 @@ cconsE γ (Lam x e) (RFun y ty t _)
 cconsE γ (Tick tt e) t   
   = cconsE (γ `setLoc` tickSrcSpan tt) e t
 
-cconsE γ (Cast e _) t     
-  = cconsE γ e t 
+cconsE γ e@(Cast _ _) t     
+  = do t' <- trueTy $ exprType e
+       addC (SubC γ t' t) ("cconsE Cast" ++ showPpr e) 
 
 cconsE γ e (RAllP p t)
   = cconsE γ e t'
@@ -1004,11 +1005,14 @@ consE γ (Tick tt e)
     where l = {- traceShow ("tickSrcSpan: e = " ++ showPpr e) $ -} tickSrcSpan tt
 
 
-consE γ (Cast e _)      
-  = consE γ e 
+consE γ e@(Cast _ _)      
+  = trueTy $ exprType e 
+
+consE γ e@(Coercion _)
+   = trueTy $ exprType e
 
 consE _ e	    
-  = errorstar $ "consE cannot handle " ++ showPpr e
+  = errorstar $ "consE cannot handle " ++ showPpr e 
 
 cconsFreshE γ e
   = do t   <- freshTy e $ exprType e
