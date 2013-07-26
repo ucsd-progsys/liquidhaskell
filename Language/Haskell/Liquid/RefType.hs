@@ -683,9 +683,12 @@ ofType_ (FunTy τ τ')
   = rFun dummySymbol (ofType_ τ) (ofType_ τ') 
 ofType_ (ForAllTy α τ)  
   = RAllT (rTyVar α) $ ofType_ τ  
+-- ofType_ τ
+--   | isPredTy τ
+--   = ofPredTree (classifyPredType τ)  
 ofType_ τ
-  | isPredTy τ
-  = ofPredTree (classifyPredType τ)  
+  | Just t <- ofPredTree (classifyPredType τ)
+  = t
 ofType_ (TyConApp c τs)
   | TC.isSynTyCon c
   = ofType_ $ substTyWith αs τs τ
@@ -698,9 +701,9 @@ ofType_ (AppTy t1 t2)
 --   = errorstar ("ofType cannot handle: " ++ showPpr τ)
 
 ofPredTree (ClassPred c τs)
-  = RCls c (ofType_ <$> τs)
+  = Just $ RCls c (ofType_ <$> τs)
 ofPredTree _
-  = errorstar "ofPredTree"
+  = Nothing
 
 ----------------------------------------------------------------
 ------------------- Converting to Fixpoint ---------------------

@@ -84,8 +84,8 @@ dataConTy m (FunTy t1 t2)
 dataConTy m (ForAllTy α t)          
   = RAllT (rTyVar α) (dataConTy m t)
 dataConTy _ t
-  | isPredTy t
-  = ofPredTree $ classifyPredType t
+  | Just t' <- ofPredTree (classifyPredType t)
+  = t'
 dataConTy m (TyConApp c ts)        
   = rApp c (dataConTy m <$> ts) [] mempty
 dataConTy _ _
