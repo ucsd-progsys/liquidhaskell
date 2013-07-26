@@ -1,13 +1,14 @@
 module Eval (eval) where
 
 import Language.Haskell.Liquid.Prelude (liquidError)
+import Prelude hiding (lookup)
 import Data.Set (Set (..))
 
 {-@ embed Set as Set_Set @-}
 
 type Val  = Int
 
-type Bndr = Int
+type Bndr = String 
 
 data Expr = Const Int
           | Var   Bndr
@@ -17,20 +18,23 @@ data Expr = Const Int
 type Env  = [(Bndr, Val)]
 
 ------------------------------------------------------------------
-{-@ bob :: x:Bndr -> {v:Env | (Set_mem x (vars v))} -> Val @-}
-bob :: Bndr -> Env -> Val
+{-@ lookup :: x:Bndr -> {v:Env | (Set_mem x (vars v))} -> Val @-}
+lookup :: Bndr -> Env -> Val
 ---------------------  -------------------------------------------
-bob x ((y,v):env)   
+lookup x ((y,v):env)   
   | x == y             = v
-  | otherwise          = bob x env
-bob x []            = liquidError "Unbound Variable"
+  | otherwise          = lookup x env
+lookup x []            = liquidError "Unbound Variable"
 
-----------------------------------------------------------------
-{-@ eval :: [(Bndr, Val)] -> Expr -> Val @-}
-eval :: [(Bndr, Val)] -> Expr -> Val
-----------------------------------------------------------------
+------------------------------------------------------------------
+{-@ eval :: env:Env 
+         -> {v:Expr | (Set_sub (free v) (vars env))} 
+         -> Val 
+  @-}
+-- eval :: Env -> Expr -> Val
+------------------------------------------------------------------
 eval env (Const i)     = i
-eval env (Var x)       = bob x env 
+eval env (Var x)       = lookup x env 
 eval env (Plus e1 e2)  = eval env e1 + eval env e2 
 eval env (Let x e1 e2) = eval env' e2 
   where 
@@ -41,3 +45,9 @@ eval env (Let x e1 e2) = eval env' e2
     vars (b:env) = {v | v = (Set_cup (Set_sng (fst b)) (vars env))}
   @-}
 
+{-@ measure free       :: Expr -> (Set Bndr) 
+    free (Const i)     = {v | (? (Set_emp v))}
+    free (Var x)       = {v | v = (Set_sng x)} 
+    free (Plus e1 e2)  = {v | v = (Set_cup (free e1) (free e2))}
+    free (Let x e1 e2) = {v | (Set_cup (free e1) (Set_dif (free e2) (Set_sng x)))}
+  @-}
