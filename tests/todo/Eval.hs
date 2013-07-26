@@ -18,7 +18,7 @@ data Expr = Const Int
 type Env  = [(Bndr, Val)]
 
 ------------------------------------------------------------------
-{-@ lookup :: x:Bndr -> (EnvWith x) -> Val @-}
+{-@ lookup :: x:Bndr -> {v:Env | (Set_mem x (vars v))} -> Val @-}
 lookup :: Bndr -> Env -> Val
 ---------------------  -------------------------------------------
 lookup x ((y,v):env)   
@@ -27,7 +27,7 @@ lookup x ((y,v):env)
 lookup x []            = liquidError "Unbound Variable"
 
 ------------------------------------------------------------------
-{-@ eval :: g:Env -> (ClosedExpr g) -> Val @-}
+{-@ eval :: g:Env -> (CExpr g) -> Val @-}
 ------------------------------------------------------------------
 eval env (Const i)     = i
 eval env (Var x)       = lookup x env 
@@ -36,17 +36,28 @@ eval env (Let x e1 e2) = eval env' e2
   where 
     env'               = (x, eval env e1) : env
 
-{-@ type EnvWith X    = {v:Env  | (Set_mem X (vars v))}        @-}
-{-@ type ClosedExpr G = {v:Expr | (Set_sub (free v) (vars G))} @-}
+{-@ type CExpr G = {v:Expr | (Set_sub (free v) (vars G))} @-}
 
-{-@ measure vars       :: Env -> (Set Bndr)
-    vars ([])          = {v | (? (Set_emp v)) }
-    vars (b:env)       = {v | v = (Set_cup (Set_sng (fst b)) (vars env))}
+{-@ measure vars :: Env -> (Set Bndr)
+    vars ([])    = {v | (? (Set_emp v)) }
+    vars (b:env) = {v | v = (Set_cup (Set_sng (fst b)) (vars env))}
   @-}
 
 {-@ measure free       :: Expr -> (Set Bndr) 
-    free (Const i)     = {v | (Set_emp v)}
+    free (Const i)     = {v | (? (Set_emp v))}
     free (Var x)       = {v | v = (Set_sng x)} 
     free (Plus e1 e2)  = {v | v = (Set_cup (free e1) (free e2))}
-    free (Let x e1 e2) = {v | v = (Set_cup (free e1) (Set_dif (free e2) (Set_sng x)))}
+    free (Let x e1 e2) = {v | (Set_cup (free e1) (Set_dif (free e2) (Set_sng x)))}
   @-}
+
+-- If you change the last line of the above to:
+--    free (Let x e1 e2) = {v | (Set_cup (free e1) (Set_dif (free e2) (Set_sng x)))}
+-- then the program is safe. Otherwise the measure is malformed, and oddness
+-- ensues, but liquidhaskell does not crash, it silently drops the measure.
+-- [hsenv]rjhala@ubuntu:~/research/liquid/liquidhaskell (master)$ liquid --notermination tests/todo/Eval.hs > log
+-- WARNING: prune unsorted reft:
+-- (? Set_cup([free([e1#a1eW]);
+--             Set_dif([free([e2#a1eX]); Set_sng([x#a1eV])])]))
+-- BExp Set_cup([free([e1#a1eW]);
+--          Set_dif([free([e2#a1eX]); Set_sng([x#a1eV])])]) with non-propositional type Set_Set ([GHC.Types.Char])
+
