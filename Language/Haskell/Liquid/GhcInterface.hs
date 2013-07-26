@@ -37,7 +37,7 @@ import Control.DeepSeq
 import Control.Applicative  hiding (empty)
 import Control.Monad (forM, liftM)
 import Data.Monoid hiding ((<>))
-import Data.List (intercalate, foldl', find, (\\))
+import Data.List (intercalate, foldl', find, (\\), delete)
 import Data.Maybe (catMaybes)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
@@ -311,7 +311,8 @@ instance CBVisitable CoreBind where
                                     env'    = extendEnv env xs 
 
   readVars (NonRec _ e)     = readVars e
-  readVars (Rec xes)        = concatMap readVars $ map snd xes
+  readVars (Rec xes)        = concat [x `delete` nubReadVars e |(x, e) <- xes]
+    where nubReadVars = sortNub . readVars
 
   letVars (NonRec x e)      = x : letVars e
   letVars (Rec xes)         = xs ++ concatMap letVars es
