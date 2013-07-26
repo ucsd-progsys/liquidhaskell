@@ -10,6 +10,13 @@ type Val  = Int
 
 type Bndr = String 
 
+{-@ data Expr [esize]
+      = Const (x::Int)
+      | Var   (x::Bndr)
+      | Plus  (x1::Expr) (x2::Expr)
+      | Let   (x::Bndr) (e1::Expr) (e2::Expr)
+  @-}
+
 data Expr = Const Int
           | Var   Bndr
           | Plus  Expr Expr
@@ -37,6 +44,8 @@ eval env (Plus e1 e2)  = eval env e1 + eval env e2
 eval env (Let x e1 e2) = eval env' e2 
   where 
     env'               = (x, eval env e1) : env
+
+{-@ invariant {v:Expr | (esize v) > 0}@-}
 
 {-@ Decrease eval 2 @-}
 
