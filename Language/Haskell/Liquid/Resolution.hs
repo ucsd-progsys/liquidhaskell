@@ -77,7 +77,7 @@ resolveEmbed emb = M.fromList <$> mapM resolveKey (M.toList emb)
   where
     resolveKey (Loc x k, v) = (,v) . Loc x <$> lookupName k
 
-resolveQual (Q n ps b) = Q n <$> mapM (secondM resolve) ps <*> return b
+resolveQual (Q n ps b) = Q n <$> mapM (secondM resolve) ps <*> resolvePred b
 
 class Resolvable a where
   resolve :: a -> ResolveM a
@@ -165,6 +165,17 @@ resolveExpr (EIte p e1 e2)
 resolveExpr (ECst x s) = ECst <$> resolveExpr x <*> resolve s
 resolveExpr x          = return x
 
+-- lookupDcId s = ask >>= lookup
+--   where
+--     lookup (env,mod,Qual) = do
+--       rdr      <- unLoc <$> (liftIO $ hscParseIdentifier env s)
+--       Just n   <- liftIO $ lookupRdrName env mod rdr
+--       Just res <- liftIO $ hscTcRcLookupName env n
+--       return $ case res of
+--         AnId x -> showpp x
+--         ADataCon x -> showpp $ dataConWrapId x
+--         x -> error $ "lookupDcId: " ++ s ++ " -> " ++ showPpr x
+--     lookup (env,mod,Other) = lookupName s
 
 isCon (c:cs) = isUpper c
 isCon []     = False
@@ -178,25 +189,26 @@ instance Resolvable String where
 lookupName :: String -> ResolveM String
 lookupName name = ask >>= liftIO . go
   where
-    go (env,mod) = do rdr <- unLoc <$> hscParseIdentifier env name
-                      if isExact rdr
-                        then return $ rdrNameString rdr
-                        else maybe (tryAlt rdr) (return.showpp) =<< lookupRdrName env mod rdr
-      where
-        tryAlt rdr | rdrNameSpace rdr == dataName =
-                       let rdr' = setRdrNameSpace rdr tcName
-                       in maybe (showPpr rdr') showpp <$> lookupRdrName env mod rdr'
-                   | otherwise = return $ propOrErr rdr
-        propOrErr rdr | n == "Prop" = "Prop"
-                      | n == "VV"   = "VV"
-                      -- | n `M.member` wiredIn = showpp $ wiredIn M.! n
-                      | isQual rdr = n
-                      | otherwise = n
-                      where n = rdrNameString rdr
-        err rdr = error $ moduleNameString mod
-                       ++ ":" ++ name
-                       ++ ":" ++ showNS (rdrNameSpace rdr)
-        rdrNameString = occNameString . rdrNameOcc
+    go (env,mod) = do
+      rdr <- unLoc <$> hscParseIdentifier env name
+      if isExact rdr
+        then return $ rdrNameString rdr
+        else maybe (tryAlt rdr) (return.showpp) =<< lookupRdrName env mod rdr
+     where
+       tryAlt rdr | rdrNameSpace rdr == dataName =
+                      let rdr' = setRdrNameSpace rdr tcName
+                      in maybe (showPpr rdr') showpp <$> lookupRdrName env mod rdr'
+                  | otherwise = return $ propOrErr rdr
+       propOrErr rdr | n == "Prop" = "Prop"
+                     | n == "VV"   = "VV"
+                     -- | n `M.member` wiredIn = showpp $ wiredIn M.! n
+                     -- | isQual rdr = n
+                     | otherwise = err rdr
+                     where n = rdrNameString rdr
+       err rdr = error $ moduleNameString mod
+                      ++ ":" ++ name
+                      ++ ":" ++ showNS (rdrNameSpace rdr)
+       rdrNameString = occNameString . rdrNameOcc
 
 
 addContext m = getContext >>= setContext . (m:)

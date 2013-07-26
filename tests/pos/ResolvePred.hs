@@ -12,3 +12,7 @@ myFold f z = go
   where
     go N       = z
     go (C a as) = f as a (go as)
+
+{-@ qualif PappL(v:a, p:Pred a L , a:int, as:L ):
+        papp2(p, v, C(a, as))
+  @-}
