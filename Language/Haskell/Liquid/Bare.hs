@@ -73,7 +73,7 @@ makeGhcSpec' cfg name vars defVars env spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec
        targetVars      <- makeTargetVars  env name defVars  $ binders cfg
-       let lazies       = makeLazies      vars              $ Ms.lazy       spec
+       lazies          <- makeLazies      benv              $ Ms.lazy       spec
        let sigs         = [(x, (txRefSort embs benv . txExpToBind) <$> t) | (x, t) <- sigs'] 
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs datacons
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms ] -- first val <$> ms 
@@ -305,6 +305,12 @@ makeAssumeSpec cfg env vs xbs = execBare mkAspec env
     -- lookup (l@(Loc x s), t) = fmap (,l,t) <$> ((Just <$> lookupGhcVar (symbolString s))
     --                                            `catchError` (const $ return Nothing))
 
+lookupIds xs = catMaybes <$> mapM lookup xs
+  where
+    lookup (s, t) = fmap (,s,t) <$> ((Just <$> lookupGhcVar (ss s))
+                                     `catchError` (const $ return Nothing))
+    ss = symbolString . symbol
+
 checkDefAsserts :: BareEnv -> [(Var, LocSymbol, BareType)] -> [(LocSymbol, BareType)] -> BareM ()
 checkDefAsserts env vbs xbs   = applyNonNull (return ()) grumble  undefSigs
   where
@@ -352,8 +358,8 @@ lookupGhcTyCon' c = wrapErr msg lookupGhcTyCon (val c)
     msg :: String = berrUnknownTyCon c
 
 
-makeLazies :: [Var] -> S.HashSet Symbol -> S.HashSet Var
-makeLazies vs s = S.fromList $ fst3 <$> joinIds vs xxs
+makeLazies :: BareEnv -> S.HashSet Symbol -> IO (S.HashSet Var)
+makeLazies benv s = execBare (S.fromList <$> (fmap fst3 <$> lookupIds xxs)) benv
   where xs  = S.toList s
         xxs = zip xs xs
 
