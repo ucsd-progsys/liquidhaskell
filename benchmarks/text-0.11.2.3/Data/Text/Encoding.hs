@@ -242,8 +242,6 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
   mallocByteString size0 >>= start size0 off 0
  where
   offLen = off + len
-  --LIQUID added explicit type to prevent weird desugaring bug
-  start :: Int -> Int -> Int -> ForeignPtr Word8 -> IO ByteString
   start size n0 m0 fp = withForeignPtr fp $ loop n0 m0
    where
     loop n1 m1 ptr = go (offLen-n1) n1 m1
@@ -262,8 +260,7 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
                       withForeignPtr fp' $ \ptr' ->
                         memcpy ptr' ptr (fromIntegral m)
                       start newSize n m fp'
-            --LIQUID don't inline
-                {- INLINE ensure #-}
+                {-# INLINE ensure #-}
             case A.unsafeIndexF arr off len n of
              w ->
               if w <= 0x7F  then ensure 1 $ \ptr -> do

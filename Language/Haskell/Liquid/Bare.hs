@@ -12,14 +12,14 @@ module Language.Haskell.Liquid.Bare (
   -- , varSpecType
   ) where
 
-import GHC hiding               (lookupName, Located)	
+import GHC hiding               (lookupName, Located)
 import Text.PrettyPrint.HughesPJ    hiding (first)
 import Var
 import Id                       (isConLikeId)
 import PrelNames
 import PrelInfo                 (wiredInThings)
 import Type                     (expandTypeSynonyms, splitFunTy_maybe)
-import DataCon                  (dataConImplicitIds)
+import DataCon                  (dataConImplicitIds, dataConWorkId)
 import TyCon                    (tyConArity)
 import HscMain
 import TysWiredIn
@@ -77,19 +77,19 @@ makeGhcSpec' cfg name vars defVars env spec
        let sigs         = [(x, (txRefSort embs benv . txExpToBind) <$> t) | (x, t) <- sigs'] 
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs datacons
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms ] -- first val <$> ms 
-       let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms' 
+       syms            <- makeSymbols benv (map fst ms) (sigs ++ cs') ms'
        let tx           = subsFreeSymbols syms
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
        let decr'        = makeHints defVars (Ms.decr spec)
        return           $ SP { tySigs     = renameTyVars <$> tx sigs
                              , ctor       = tx cs'
-                             , meas       = tx (ms' ++ varMeasures vars) 
+                             , meas       = tx (ms' ++ varMeasures vars)
                              , invariants = invs 
                              , dconsP     = datacons
                              , tconsP     = tycons 
-                             , freeSyms   = syms' 
+                             , freeSyms   = syms'
                              , tcEmbeds   = embs 
-                             , qualifiers = Ms.qualifiers spec 
+                             , qualifiers = Ms.qualifiers spec
                              , decr       = decr'
                              , lazy       = lazies
                              , tgtVars    = targetVars
@@ -296,14 +296,11 @@ makeTargetVars env name vs ss = do
 
 makeAssumeSpec :: Config -> BareEnv -> [Var] -> [(LocSymbol, BareType)] -> IO [(Var, Located SpecType)]
 makeAssumeSpec cfg env vs xbs = execBare mkAspec env
-  where 
-    vbs                       = joinIds vs xbs
-    mkAspec                   = do --vbs <- catMaybes <$> mapM lookup xbs
+  where
+    mkAspec                   = do vbs <- lookupIds xbs
                                    when (not $ noCheckUnknown cfg)
                                      $ checkDefAsserts env vbs xbs
                                    forM vbs mkVarSpec
-    -- lookup (l@(Loc x s), t) = fmap (,l,t) <$> ((Just <$> lookupGhcVar (symbolString s))
-    --                                            `catchError` (const $ return Nothing))
 
 lookupIds xs = catMaybes <$> mapM lookup xs
   where
@@ -374,18 +371,19 @@ mkSpecType' :: String -> [PVar BSort] -> BareType -> BareM SpecType
 mkSpecType' msg πs = ofBareType' msg . txParams subvUReft (uPVar <$> πs)
 
 makeSymbols :: (PPrint r1, PPrint r, Reftable r1, Reftable r) 
-            => [Var] 
+            => BareEnv
             -> [LocSymbol] 
             -> [(a, Located (RType p c tv r))] 
             -> [(a1, Located (RType p1 c1 tv1 r1))] 
-            -> [(Symbol, Var)]
-makeSymbols vs xs' xts yts = xvs 
+            -> IO [(Symbol, Var)]
+makeSymbols benv xs' xts yts = execBare mkxvs benv
   where
-    xs'' = val <$> xs' 
-    zs   = (concatMap freeSymbols ((snd <$> xts))) `sortDiff` xs''
-    zs'  = (concatMap freeSymbols ((snd <$> yts))) `sortDiff` xs''
-    xs   = sortNub $ zs ++ zs'
-    xvs  = sortNub [(x, v) | (v, _, x) <- joinIds vs (zip xs xs)]
+    xs''  = val <$> xs'
+    zs    = (concatMap freeSymbols ((snd <$> xts))) `sortDiff` xs''
+    zs'   = (concatMap freeSymbols ((snd <$> yts))) `sortDiff` xs''
+    xs    = sortNub $ zs ++ zs'
+    mkxvs = do xvs <- lookupIds (zip xs xs)
+               return $ sortNub [(x, v) | (v, _, x) <- xvs]
 
 joinIds        ::  (Symbolic a) => [Var] -> [(a, t)] -> [(Var, a, t)]
 joinIds vs xts = catMaybes [(, x, t) <$> tx x | (x, t) <- xts]   
@@ -458,8 +456,9 @@ stringLookupEnv env s
 lookupGhcVar :: GhcLookup a => a -> BareM Var
 lookupGhcVar = lookupGhcThing "Var" fv
   where
-    fv (AnId x) = Just x
-    fv _        = Nothing
+    fv (AnId x)     = Just x
+    fv (ADataCon x) = Just $ dataConWorkId x
+    fv _            = Nothing
 
 lookupGhcTyCon       ::  GhcLookup a => a -> BareM TyCon
 lookupGhcTyCon s     = (lookupGhcThing "TyCon" ftc s) `catchError` (tryPropTyCon s)
@@ -816,7 +815,7 @@ ghcSpecEnv sp        = fromListSEnv binds
     emb              = tcEmbeds sp
     binds            =  [(x,           rSort t) | (x, Loc _ t) <- meas sp] 
                      ++ [(varSymbol v, rSort t) | (v, Loc _ t) <- ctor sp] 
-                     ++ [(x          , vSort v) | (x, v) <- freeSyms sp, isConLikeId v] 
+                     ++ [(x          , vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
     rSort            = rTypeSortedReft emb 
     vSort            = rSort . varRType 
     varRType         :: Var -> RRType ()

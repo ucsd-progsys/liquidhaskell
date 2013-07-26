@@ -610,7 +610,7 @@ length t = S.length (stream t)
 -- of 'length', but can short circuit if the count of characters is
 -- greater than the number, and hence be more efficient.
 {-@ compareLength :: t:Text -> l:Int
-                  -> {v:Ordering | ((v = GHC.Types.EQ) <=> ((tlength t) = l))}
+                  -> {v:Ordering | ((v = EQ) <=> ((tlength t) = l))}
   @-}
 compareLength :: Text -> Int -> Ordering
 compareLength t n = S.compareLengthI (stream t) n
