@@ -79,6 +79,7 @@ makeGhcSpec' cfg name vars defVars env spec
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms ] -- first val <$> ms 
        syms            <- makeSymbols benv (map fst ms) (sigs ++ cs') ms'
        let tx           = subsFreeSymbols syms
+       let txq          = subsFreeSymbolsQual syms
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
        let decr'        = makeHints defVars (Ms.decr spec)
        return           $ SP { tySigs     = renameTyVars <$> tx sigs
@@ -89,7 +90,7 @@ makeGhcSpec' cfg name vars defVars env spec
                              , tconsP     = tycons 
                              , freeSyms   = syms'
                              , tcEmbeds   = embs 
-                             , qualifiers = Ms.qualifiers spec
+                             , qualifiers = txq $ Ms.qualifiers spec
                              , decr       = decr'
                              , lazy       = lazies
                              , tgtVars    = targetVars
@@ -224,6 +225,12 @@ subsFreeSymbols xvs = tx
   where 
     su              = mkSubst [ (x, mkVarExpr v) | (x, v) <- xvs]
     tx              = fmap $ mapSnd $ subst su 
+
+subsFreeSymbolsQual xvs = tx
+  where
+    su              = mkSubst [ (x, mkVarExpr v) | (x, v) <- xvs]
+    tx              = fmap $ mapBody $ subst su
+    mapBody f (Q n p b) = Q n p (f b)
 
 -- meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
 meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts 
@@ -414,7 +421,7 @@ class GhcLookup a where
 
 instance GhcLookup String where
   lookupName     = stringLookup
-  candidates x   = [x, dropModuleNames x] 
+  candidates x   = [x]
   pp         x   = x
 
 instance GhcLookup Name where
