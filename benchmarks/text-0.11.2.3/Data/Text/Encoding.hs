@@ -112,13 +112,6 @@ import Language.Haskell.Liquid.Prelude
 {-@ qualif PLenCmp(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr b): (plen p) >= (plen v) @-}
 {-@ qualif PBaseEq(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr b): (pbase v) = (pbase p) @-}
 
-{-@ eqPtr :: p:PtrV a
-          -> q:{v:PtrV a | (((pbase v) = (pbase p)) && ((plen v) <= (plen p)))}
-          -> {v:Bool | ((Prop v) <=> ((plen p) = (plen q)))}
-  @-}
-eqPtr :: Ptr a -> Ptr a -> Bool
-eqPtr = undefined
-
 {-@ type PtrGE N = {v:GHC.Ptr.Ptr Word8 | (plen v) >= N} @-}
 
 {- Foreign.Marshal.Utils.with :: (Foreign.Storable.Storable a)
@@ -236,6 +229,7 @@ decodeUtf8' = unsafePerformIO . try . evaluate . decodeUtf8With strictDecode
 {-# INLINE decodeUtf8' #-}
 
 -- | Encode text using UTF-8 encoding.
+{-@ encodeUtf8 :: t:Text -> {v:ByteString | (((tlen t) > 0) <=> ((bLength v) > 0))} @-}
 encodeUtf8 :: Text -> ByteString
 encodeUtf8 (Text arr off len) = unsafePerformIO $ do
   let size0 = max len 4
@@ -243,7 +237,7 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
  where
   offLen = off + len
   --LIQUID added explicit type to prevent weird desugaring bug
-  start :: Int -> Int -> Int -> ForeignPtr Word8 -> IO ByteString
+--  start :: Int -> Int -> Int -> ForeignPtr Word8 -> IO ByteString
   start size n0 m0 fp = withForeignPtr fp $ loop n0 m0
    where
     loop n1 m1 ptr = go (offLen-n1) n1 m1
@@ -263,7 +257,7 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
                         memcpy ptr' ptr (fromIntegral m)
                       start newSize n m fp'
             --LIQUID don't inline
-                {- INLINE ensure #-}
+                {-# INLINE ensure #-}
             case A.unsafeIndexF arr off len n of
              w ->
               if w <= 0x7F  then ensure 1 $ \ptr -> do

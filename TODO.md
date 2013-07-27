@@ -33,55 +33,6 @@ Incremental Checking
 + 
 
 
-Liquid-Fixpoint SMTLIB2
------------------------
-
-SETS-RELATED
-
-  ../web/demos/ListElts.hs,
-  ../web/demos/TalkingAboutSets.hs,
-  ../web/demos/refinements101reax.hs,
-  ../web/demos/UniqueZipper.hs,
-  pos/ListConcat.hs,
-  pos/ListElem.hs,
-  pos/SS.hs,
-  pos/cont.hs,
-  pos/deepmeas0.hs,
-  pos/listSet.hs,
-  pos/listSetDemo.hs,
-  pos/meas10.hs,
-  pos/meas11.hs,
-  pos/meas9.hs,
-  pos/stacks0.hs,
-  pos/zipper.hs,
-  pos/zipper0.hs 
-
-MATHSAT [no support for mod?]
-
-Terminated
-1364.656211 seconds
-FAILURE :( (../benchmarks/esop2013-submission/Splay.hs) 
-
-1381.994545 seconds
-FAILURE :( (../web/demos/Array.hs) 
-
-1383.221166 seconds
-FAILURE :( (../benchmarks/esop2013-submission/Base.hs) 
-
-Exceptions thrown on 11 tests: 
-  ../benchmarks/esop2013-submission/Array.hs,
-  ../benchmarks/esop2013-submission/Base.hs,
-  ../benchmarks/esop2013-submission/Splay.hs,
-  ../benchmarks/esop2013-submission/Toy.hs,
-  ../web/demos/Array.hs,
-  ../web/demos/Loop.hs,
-  ../web/demos/SimpleRefinements.hs,
-  ../web/demos/absref101.hs,
-  ../web/demos/refinements101.hs,
-  pos/initarray.hs,
-  pos/modTest.hs 
-
-
 
 Embed
 -----
@@ -151,6 +102,7 @@ See tests/pos/Mod2.hs [Which imports a measure from Mod1.hs]
         F.x
 
     use F.x when doing GHC-lookup.
+
 
 
 Benchmarks
