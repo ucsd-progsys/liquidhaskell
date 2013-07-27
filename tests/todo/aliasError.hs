@@ -4,6 +4,6 @@ module Foo where
 
 {-@ predicate Rng Lo V Hi = (Lo <= V && V < Hi) @-}
 
-{-@ bog :: {v:Int | (Rng 0 v 10)} @-}
+{-@ bog :: {v:Int | (Rng 0 10)} @-}
 bog :: Int
 bog = 5
