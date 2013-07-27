@@ -29,7 +29,7 @@ lookup [] _            = liquidError "Unbound Variable"
 
 ------------------------------------------------------------------
 {-@ Lazy eval @-}
-{-@ eval :: g:Env -> (ClosedExpr g) -> Val @-}
+{-@ eval :: env:Env -> (ClosedExpr env) -> Val @-}
 ------------------------------------------------------------------
 
 eval env (Const i)     
@@ -79,9 +79,9 @@ eval env (App e1 e2)
 -- The set of binders in an environment --------------------------
 ------------------------------------------------------------------
 
-{-@ measure vars       :: Env -> (Set Bndr)
-    vars ([])          = {v | (? (Set_emp v)) }
-    vars (b:env)       = {v | v = (Set_cup (Set_sng (fst b)) (vars env))}
+{-@ measure vars :: Env -> (Set Bndr)
+    vars ([])    = {v | (Set_emp v) }
+    vars (b:env) = {v | v = (Set_cup (Set_sng (fst b)) (vars env))}
   @-}
 
 ------------------------------------------------------------------
