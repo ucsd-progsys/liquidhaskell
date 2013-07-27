@@ -1,4 +1,4 @@
-{--! run liquid with idirs=../bytestring-0.9.2.1/ idirs=../../include/ -}
+{--! run liquid with no-termination m4 idirs=../bytestring-0.9.2.1/ idirs=../../include/ -}
 {-# LANGUAGE BangPatterns, CPP, ForeignFunctionInterface, MagicHash,
     UnliftedFFITypes #-}
 {-# LANGUAGE PackageImports, RankNTypes #-}
