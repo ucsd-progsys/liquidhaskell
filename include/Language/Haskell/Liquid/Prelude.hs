@@ -151,3 +151,10 @@ pLen p = undefined
 {-@ deref :: p:Ptr a -> {v:a | v = (deref p)} @-}
 deref :: Ptr a -> a
 deref = undefined
+
+{-@ eqPtr :: p:PtrV a
+          -> q:{v:PtrV a | (((pbase v) = (pbase p)) && ((plen v) <= (plen p)))}
+          -> {v:Bool | ((Prop v) <=> ((plen p) = (plen q)))}
+  @-}
+eqPtr :: Ptr a -> Ptr a -> Bool
+eqPtr = undefined

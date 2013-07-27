@@ -112,13 +112,6 @@ import Language.Haskell.Liquid.Prelude
 {-@ qualif PLenCmp(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr b): (plen p) >= (plen v) @-}
 {-@ qualif PBaseEq(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr b): (pbase v) = (pbase p) @-}
 
-{-@ eqPtr :: p:PtrV a
-          -> q:{v:PtrV a | (((pbase v) = (pbase p)) && ((plen v) <= (plen p)))}
-          -> {v:Bool | ((Prop v) <=> ((plen p) = (plen q)))}
-  @-}
-eqPtr :: Ptr a -> Ptr a -> Bool
-eqPtr = undefined
-
 {-@ type PtrGE N = {v:GHC.Ptr.Ptr Word8 | (plen v) >= N} @-}
 
 {- Foreign.Marshal.Utils.with :: (Foreign.Storable.Storable a)
