@@ -973,10 +973,11 @@ consE γ e'@(App e a)
   = do ([], πs, te)        <- bkUniv <$> consE γ e
        zs                  <- mapM (\π -> liftM ((π,)) $ freshPredRef γ e' π) πs
        te'                 <- return (replacePreds "consE" te zs) {- =>> addKuts -}
-       _                   <- updateLocA πs (exprLoc e) te' 
-       let (RFun x tx t _) = checkFun ("Non-fun App with caller", e') te' 
-       cconsE γ a tx 
-       return $ maybe (checkUnbound γ e' x t) (F.subst1 t . (x,)) (argExpr γ a)
+       (γ', te'')          <- dropExists γ te'
+       updateLocA πs (exprLoc e) te'' 
+       let (RFun x tx t _) = checkFun ("Non-fun App with caller", e') te'' 
+       cconsE γ' a tx 
+       return $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
 --    where err = errorstar $ "consE: App crashes on" ++ showPpr a 
 
 
@@ -1024,6 +1025,8 @@ checkUnbound γ e x t
   | x `notElem` (F.syms t) = t
   | otherwise              = errorstar $ "consE: cannot handle App " ++ showPpr e ++ " at " ++ showPpr (loc γ)
 
+dropExists γ (REx x tx t) = liftM (, t) $ (γ, "dropExists") += (x, tx)
+dropExists γ t            = return (γ, t)
 -------------------------------------------------------------------------------------
 cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -> CG ()
 -------------------------------------------------------------------------------------
