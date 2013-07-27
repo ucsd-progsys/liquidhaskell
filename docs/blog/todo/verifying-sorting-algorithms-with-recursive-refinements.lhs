@@ -9,67 +9,40 @@ author: Niki Vazou and Ranjit Jhala
 published: false
 ---
 
-Abstractly Refined Lists
-------------------------
+Well hello again! Much has happened since we've last met, 
+that we're very excited about, and which promise to get 
+to in the fullness of time.
 
-+ EXAMPLE: Types 
-  > INCRLIST
-  > DECRLIST
-  > UNIQLIST
-
-Using Refined Lists
--------------------
-
-+ EXAMPLE: CODE 
-  > REVERSE
-  > FILTER
-
-Insertion Sort
---------------
-
-+ EXAMPLE 
-  > INSERT-SORT
-
-Merge Sort
-----------
-
-+ EXAMPLE 
-  > MERGE-SORT
-
-Quick Sort
-----------
-
-+ EXAMPLE 
-  > QUICK-SORT
-
-
-Well hello again! Much has happened that we're very excited about, and 
-which we will get to in the fullness of time. For now, lets continue 
-where we [left off][blog-absref] with the saga of *abstract refinements*. 
-
-\begin{code} In a nutshell, this new mechanism allows us to write and check types like:
-maxInt :: forall <p :: Int -> Prop>. Int<p> -> Int<p> -> Int<p>
-\end{code}
-
-which states that the output of `maxInt` preserves *whatever* invariants 
-held for its two inputs as long as both those inputs *also* satisfied those
-invariants. Today, we'll see that this rather innocent looking mechanism 
-actually packs quite a punch, by showing how it can *specify* and *verify*
-**ordering** properties in recursive data structures.
+Today, lets continue with our exploration of abstract 
+refinements. We'll see that this rather innocent looking 
+mechanism packs quite a punch, by showing how it can 
+encode various **ordering** properties of recursive 
+data structures.
 
 <!-- more -->
 
 \begin{code}
 module ListSort (insertSort, mergeSort, quickSort) where
+
+-- Haskell Type Definitions
+plusOnes                         :: [(Int, Int)]
+insertSort, mergeSort, quickSort :: (Ord a) => [a] -> [a]
 \end{code}
 
-Abstracting Refinements by Abstracting Types
---------------------------------------------
+\begin{code} Recall that *abstract refinements* are a mechanism that let us write and check types of the form
+maxInt :: forall <p :: Int -> Prop>. Int<p> -> Int<p> -> Int<p>
+\end{code}
+
+which states that the output of `maxInt` preserves 
+*whatever* invariants held for its two inputs as 
+long as both those inputs *also* satisfied those 
+invariants. 
 
 First, lets see how we can (and why we may want to) 
 abstractly refine data types. 
 
-**Polymorphic Association Lists**
+Polymorphic Association Lists
+-----------------------------
 
 Suppose, we require a type for association lists. 
 Lets define one that is polymorphic over keys `k` 
@@ -130,7 +103,8 @@ where `Btwn` is just an alias
 {-@ predicate Btwn Lo V Hi = (Lo <= V && V <= Hi) @-}
 \end{code}
 
-**Monomorphic Association Lists**
+Monomorphic Association Lists
+-----------------------------
 
 Now, suppose that for one reason or another, how about, 
 say, ``performance", we want to specialize our association 
@@ -183,8 +157,7 @@ an abstract refinement, this time applied to a `data`
 definition:
 
 \begin{code}
-{-@ data Assoc v <p :: Int -> Prop> 
-      = KVP [(Int<p>, v)] @-} 
+{-@ data Assoc v <p :: Int -> Prop> = KVP [(Int<p>, v)] @-} 
 \end{code}
 
 The definition refines the type for `Assoc` to introduce
@@ -197,7 +170,7 @@ Now, we can *have* our `Int` keys and *refine* them too!
 For example, we can write:
 
 \begin{code}
-{-@ digits    :: Assoc String <{\v -> (Btwn 0 v 9)}> @-}
+{-@ digits :: Assoc String <{\v -> (Btwn 0 v 9)}> @-}
 \end{code}
 
 to track the invariant for the `digits` map, and write
@@ -238,25 +211,27 @@ first element is longest prefix (possibly empty)
 and second element is the remainder of the list."
 
 We could formalize the notion of the *second-element-being-the-remainder* 
-using sizes. 
-That is, we'd like to specify that the length of the second element
-equals the length of `xs` less the length of the first element.  
-That is, we need a way to allow the refinement of the second element
-to *depend on* the value in the first refinement.
+using sizes. That is, we'd like to specify that the length of the second 
+element equals the length of `xs` minus the length of the first element.  
+That is, we need a way to allow the refinement of the second element to 
+*depend on* the value in the first refinement.
 Again, we could define a special kind of tuple-of-lists-type that 
-has the above property baked in, but you know my feelings on that.
+has the above property *baked in*, but thats just not how we roll.
 
-\begin{code} Instead, we use abstract refinements to give us dependent tuples
+\begin{code} Instead, lets use abstract refinements to give us **dependent tuples**
 data (a,b)<p :: a -> b -> Prop> = (x:a, b<p x>) 
 \end{code}
 
-Here, the abstract refinement takes two parameters, an `a` and a `b`.
-In the body of the tuple, the first element is named `x` and we specify
-that the second element satisfies the refinement `p x`, i.e. a partial
-application of `p` with the first element. In other words, the second 
-element is some value `v` of type `{v:b | (p x v)}`.
+Here, the abstract refinement takes two parameters, 
+an `a` and a `b`. In the body of the tuple, the 
+first element is named `x` and we specify that 
+the second element satisfies the refinement `p x`, 
+i.e. a partial application of `p` with the first element. 
+In other words, the second element is a value of type
+`{v:b | (p x v)}`.
 
-Now, we can instantiate the `p` in different ways. For example the whimsical
+As before, we can instantiate the `p` in *different* ways. 
+For example the whimsical
 
 \begin{code}
 {-@ plusOnes :: [(Int, Int)<\x v -> v = x + 1}>] @-}
@@ -276,48 +251,133 @@ using the predicate alias
 \end{code}
 
 
+Abstractly Refined Lists
+------------------------
 
+Right, we've been going on for a bit. Time to set things *in order*.
 
-\begin{code}
--- Haskell Type Definitions
-plusOnes :: [(Int, Int)]
-\end{code}
+To recap: we've already seen one way to abstract refine lists: 
+to recover a *generic* means of refining a *monomorphic* list 
+(e.g. the list of `Int` keys.) However, in that case we were 
+talking about *individual* keys.
+Next, we build upon the dependent-tuples technique we just 
+saw to use abstract refinements to relate *different* 
+elements inside containers.
 
-------------------------------
+In particular, we can use them to specify that *every pair* 
+of elements inside the list is related according to some 
+abstract relation `p`. By *instantiating* `p` appropriately,
+we will be able to recover various forms of (dis) order. 
 
-
-Let see how we can use **abstract refinements* to verify that
-the result of a list sorting function is actually a sorted list.
-
-First, lets describe a sorted list:
-
-\begin{code}The list type is refined with an abstract refinement, yielding the refined type:
-data [a] <p :: elt:a -> a -> Bool> where
+\begin{code} Consider the refined definition of good old Haskell lists:
+data [a] <p :: a -> a -> Prop> where
   | []  :: [a] <p>
   | (:) :: h:a -> [a<p h>]<p> -> [a]<p>
 \end{code}
 
-The definition states that a value of type `[a]<p>` is either empty (`[]`)
-or constructed from a pair of a head `h::a` and a tail of a list of a values 
-each of which satisfies the refinement (`p h`). 
-Furthermore, the abstract refinement `p` holds recursively within the
-tail, ensuring that the relationship `p` holds between all pairs of list elements.
+Whoa! Thats a bit of a mouthful. Lets break it down.
 
+* The type is parameterized with a refinement `p :: a -> a -> Prop` 
+  Think of `p` as a *binary relation* over the `a` values comprising
+  the list.
 
-\begin{code}A sorted list is defined by instantiating the abstract refinement `p` with 
-\elt v -> v >= elt
+* The empty list `[]` is a `[]<p>`. Clearly, the empty list has no
+  elements whatsoever and so every pair is trivially, or rather, 
+  vacuously related by `p`.
+
+* The cons constructor `(:)` takes a head `h` of type `a` and a tail
+  of `a<p h>` values, each of which is *related to* `h` **and** which 
+  (recursively) are pairwise related `[...]<p>` and returns a list where 
+  *all* elements are pairwise related `[a]<p>`.
+
+Pairwise Related
+----------------
+
+Note that we're being a bit sloppy when we say *pairwise* related.
+
+\begin{code} What we really mean is that if a list
+[x1,...,xn] :: [a]<p>
 \end{code}
 
-So, we define the type-synonym `SList a`
+then for each `1 <= i < j <= n` we have `(p x1 xn)`.
+
+\begin{code} To see why, consider the list
+[x1, x2, x3, ...] :: [a]<p>
+\end{code}
+
+\begin{code} This list unfolds into a head and tail 
+x1                :: a
+[x2, x3,...]      :: [a<p x1>]<p>
+\end{code}
+
+\begin{code} The above tail unfolds into
+x2                :: a<p x1>
+[x3, ...]         :: [a<p x1 && p x2>]<p>
+\end{code}
+
+\begin{code} And finally into 
+x3                :: a<p x1 && p x2>
+[...]             :: [a<p x1 && p x2 && p x3>]<p>
+\end{code}
+
+That is, each element `xj` satisfies the refinement 
+`(p xi xj)` for each `i < j`.
+
+Using Abstractly Refined Lists
+------------------------------
+
+Urgh. *Math* is hard(tm)! Lets see how we can *program* with 
+these funny recursively refined lists.
+
+For starters, we can define a few helpful type aliases.
 
 \begin{code}
-{-@ type SList a = [a]<\elt -> {v: a | (v >= elt)}> @-}
+type IncrList a = [a]<\xi xj -> xi <= xj>
+type DecrList a = [a]<\xi xj -> xi >= xj>
+type UniqList a = [a]<\xi xj -> x1 /= xj>
 \end{code}
 
-We aim to verify that the result of each sorting function is of type `SList a`
+As you might expect, an `IncrList` is a list of values in *increasing* order:
 
-Insert Sort
------------
+\begin{code}
+{-@ whatGosUp :: (Num a) => (IncrList Int) @-}
+whatGosUp = [1,2,3]
+\end{code}
+
+Similarly, a `DecrList` contains its values in *decreasing* order:
+
+\begin{code}
+{-@ mustGoDown :: (Num a) => (DecrList a) @-}
+mustGoDown = [3,2,1]
+\end{code}
+
+My personal favorite though, is a `UniqList` which has *no duplicates*:
+
+\begin{code}
+{-@ noDuplicates :: (Num a) => (UniqList a) @-}
+mustGoDown = [1,3,2]
+\end{code}
+
+Sorting Lists
+-------------
+
+Its all very well to *specify* lists with various kinds of invariants. 
+The question is, how easy is it to *establish* these invariants?
+
+Lets find out, by turning inevitably to that staple of all forms of
+formal verification: your usual textbook sorting procedures.
+
+
+**Insertion Sort**
+
+First up: insertion sort.
+
+\begin{code}
+{-@ insertSort :: (Ord a) => xs:[a] -> (IncrList a) @-}
+insertSort []         = []
+insertSort (x:xs)     = insert x (insertSort xs) 
+\end{code}
+
 
 Lets write a function `insert` that inserts an element into the correct position of a sorted list:
 
@@ -333,12 +393,6 @@ it returns a sorted list.
 To write `insertSort`, 
 we can recursively apply this `insert` to the elements of the list:
 
-\begin{code}
-{-@ insertSort :: (Ord a) => xs:[a] -> SList a @-}
-insertSort            :: (Ord a) => [a] -> [a]
-insertSort []         = []
-insertSort (x:xs)     = insert x (insertSort xs) 
-\end{code}
 
 And the system can prove that the result of `insertSort` is a sorted list.
 
