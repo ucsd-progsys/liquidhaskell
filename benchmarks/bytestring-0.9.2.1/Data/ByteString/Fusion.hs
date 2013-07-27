@@ -1,3 +1,4 @@
+{--! run liquid with no-termination -}
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 -- |
 -- Module      : Data.ByteString.Fusion
