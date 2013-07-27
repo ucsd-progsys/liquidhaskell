@@ -367,126 +367,240 @@ The question is, how easy is it to *establish* these invariants?
 Lets find out, by turning inevitably to that staple of all forms of
 formal verification: your usual textbook sorting procedures.
 
-
 **Insertion Sort**
 
-First up: insertion sort.
+First up: insertion sort. Well, no surprises here:
 
 \begin{code}
-{-@ insertSort :: (Ord a) => xs:[a] -> (IncrList a) @-}
-insertSort []         = []
-insertSort (x:xs)     = insert x (insertSort xs) 
+{-@ insertSort    :: (Ord a) => xs:[a] -> (IncrList a) @-}
+insertSort []     = []
+insertSort (x:xs) = insert x (insertSort xs) 
 \end{code}
 
-
-Lets write a function `insert` that inserts an element into the correct position of a sorted list:
+The hard work is done by `insert` which places an 
+element into the correct position of a sorted list
 
 \begin{code}
-insert y []                   = [y]
-insert y (x : xs) | y <= x    = y : x : xs 
-                  | otherwise = x : insert y xs
+insert y []     = [y]
+insert y (x:xs) 
+  | y <= x      = y : x : xs 
+  | otherwise   = x : insert y xs
 \end{code}
 
-Its type states that if you give `insert` an element and a sorted list,
-it returns a sorted list.
- 
-To write `insertSort`, 
-we can recursively apply this `insert` to the elements of the list:
-
-
-And the system can prove that the result of `insertSort` is a sorted list.
-
-Merge Sort
-----------
-
-We first write a `merge` function:
+LiquidHaskell infers that if you give `insert` an element 
+and a sorted list, it returns a sorted list.
 
 \begin{code}
-merge :: Ord a => [a] -> [a] -> [a]
-merge xs [] = xs
-merge [] ys = ys
-merge (x:xs) (y:ys)
-  | x <= y
-  = x:(merge xs (y:ys))
-  | otherwise 
-  = y:(merge (x:xs) ys)
+{-@ insert :: (Ord a) => a -> IncrList a -> IncrList a @-}
 \end{code}
 
-The system can prove that if both arguments of `merge` are sorted lists, 
-then its result is also a sorted list.
+If you prefer the more Haskelly way of writing insertion sort, 
+i.e. with a `foldr`, that works too. Can you figure out why?
 
-Next, we write a `split` function that splits any list in two sublists:
 \begin{code}
-split :: [a] -> ([a], [a])
-split (x:(y:zs)) = (x:xs, y:ys) where (xs, ys) = split zs
-split xs         = (xs, [])
+{-@ insertSort' :: (Ord a) => [a] -> IncrList a @-}
+insertSort' xs  = foldr insert [] xs
+\end{code}
+
+**Merge Sort**
+
+Well, you know the song goes. First, we write a function 
+that **splits** the input into two parts:
+
+\begin{code}
+split          :: [a] -> ([a], [a])
+split (x:y:zs) = (x:xs, y:ys) 
+  where 
+    (xs, ys)   = split zs
+split xs       = (xs, [])
+\end{code}
+
+Then we need a function that **merges** two (sorted) lists
+
+\begin{code}
+merge xs []         = xs
+merge [] ys         = ys
+merge (x:xs) (y:ys) 
+  | x <= y          = x : merge xs (y:ys)
+  | otherwise       = y : merge (x:xs) ys
+\end{code}
+
+LiquidHaskell deduces that if both inputs are 
+ordered, then so is the output.
+
+\begin{code}
+{-@ merge :: IncrList a -> IncrList a -> IncrList a @-}
 \end{code}
 
 Finally, using the above functions we write `mergeSort`:
 
 \begin{code}
-{-@ mergeSort :: (Ord a) => xs:[a] -> SList a @-}
+{-@ mergeSort :: (Ord a) => [a] -> IncrList a @-}
 mergeSort :: Ord a => [a] -> [a]
 mergeSort []  = []
 mergeSort [x] = [x]
-mergeSort xs  = merge (mergeSort xs1) (mergeSort xs2) where (xs1, xs2) = split xs
+mergeSort xs  = merge (mergeSort ys) (mergeSort zs) 
+  where 
+    (ys, zs)  = split xs
 \end{code}
 
-The system can prove that the result of `mergeSort` is a sorted list.
-For the first two cases empty lists or lists with one element can easily proved
-to be sorted. For the last case, if we assume that `mergeSort`'s result is a 
-sorted list, then `merge` is applied to two sorted lists, thus its result will
-be also a sorted list.
+Lets see how LiquidHaskell proves the output type. 
 
-Quick Sort
-----------
++ For the first two cases are trivial: for an empty 
+  or singleton list, we can vacuously instantiate 
+  the abstract refinement with *any* concrete 
+  refinement.
 
-\begin{code}We would like to define `quickSort` as follows:
++ For the last case, we can inductively assume 
+ `mergeSort ys` and `mergeSort zs` are sorted 
+  lists, after which the type inferred for 
+  `merge` kicks in, allowing LiquidHaskell to conclude
+  that the output is also sorted.
+
+**Quick Sort**
+
+The previous two were remarkable because they were, well, quite *unremarkable*. 
+Pretty much the standard textbook implementations work *as is*. 
+Unlike the [classical][omega-sort] [developments][hasochism] 
+using indexed types we don't have to define any auxiliary 
+types for increasing lists, or lists whose value is in a 
+particular range, or any specialized `cons` operators and 
+so on.
+
+With *quick sort* we need to do a tiny bit of work.
+
+We would like to define `quickSort` as follows:
+
+\begin{code} 
+quickSort'        :: (Ord a) => [a] -> IncrList a
 quickSort' []     = []
-quickSort' (x:xs) = append' lts gts 
+quickSort' (x:xs) = lts ++ (x : gts) 
   where 
     lts           = quickSort' [y | y <- xs, y < x]
     gts           = quickSort' [z | z <- xs, z >= x]
-
-append' []     ys  = ys
-append' (x:xs) ys  = x : append' xs ys
 \end{code}
 
+But as you can see, LiquidHaskell *does not approve*.
+What could possibly be the trouble?
 
-In order for `quicksort` to return a sorted list,
-append should return a sorted list.
-Thus, we would like to be able to express the fact that `append`
-is called with two sorted lists and each element of the first list 
-is less than each element of the second.
-To do so, we provide `append` one more argument or a "ghost" variable, say `k`, of type `a`
-and give it the type
+The problem lies with *append*. What type do we give `++`? 
 
-\begin{code}
-{-@ append :: k:a -> l:SList {v:a | v<k} -> ge:SList {v:a | v>=k} -> SList a @-}
+\begin{code} We require something like
+(++) :: IncrList a -> IncrList a -> IncrList a
 \end{code}
 
-So, `append` is defined as:
-
-\begin{code}
-append :: a -> [a] -> [a] -> [a]
-append k []     ys  = ys
-append k (x:xs) ys  = x : append k xs ys
+\begin{code} but of course, this is bogus, as 
+[1,2,4] ++ [3,5,6]
 \end{code}
 
-And finally we can define `quicksort`:
+is decidedly not an `IncrList`!
+
+Instead, at this particular site, there is an extra 
+nugget of information: there is a *pivot* element 
+`x` such that every element in the first argument 
+is less than `x` and every element in the second 
+argument is greater than `x`. 
+
+There is no way we can give the usual append `++` 
+a type that reflects the above as there is no pivot 
+`x` to refer to. Thus, with a heavy heart, we must
+write a specialized pivot-append that uses this fact:
 
 \begin{code}
-{-@ quickSort :: (Ord a) => [a] -> SList a @-}
+pivApp piv []     ys  = piv : ys
+pivApp piv (x:xs) ys  = x   : pivApp piv xs ys
+\end{code}
+
+Now, LiquidHaskell infers that 
+
+\begin{code}
+{-@ pivApp :: (Ord a) => piv:a 
+                      -> IncrList {v:a | v <  piv} 
+                      -> IncrList {v:a | v >= piv} 
+                      -> IncrList a                @-}
+\end{code}
+
+And we can use `pivApp` to define `quickSort' simply as:
+
+\begin{code}
+{-@ quickSort    :: (Ord a) => [a] -> IncrList a @-}
 quickSort []     = []
-quickSort (x:xs) = append x lts gts 
-  where lts = quickSort [y | y <- xs, y < x]
-        gts = quickSort [z | z <- xs, z >= x]
+quickSort (x:xs) = pivApp x lts gts 
+  where 
+    lts          = quickSort [y | y <- xs, y < x ]
+    gts          = quickSort [z | z <- xs, z >= x]
 \end{code}
+
+Really Sorting Lists
+--------------------
+
+Indulge us for a moment, while we climb once again upon 
+our *reuse soapbox*. The really convenient thing about our
+abstract-refinement encoding is that the underlying datatype
+is plain Haskell lists. 
+
+This yields two very concrete benefits. 
+First, as mentioned before, we can manipulate sorted lists
+with the very same functions we'd use for regular lists.
+Second, by decoupling (or rather, parameterizing)
+the relation/property/invariant from the actual 
+data structure we can plug in different predicates 
+sometimes in the *same* program.
+
+To see why this is useful, lets look at a *real* 
+sorting algorithm: the one used inside GHC's 
+`Data.List` [module][ghc-list].
+
+\begin{code}
+sort :: (Ord a) => [a] -> [a]
+sort = mergeAll . sequences
+  where
+    sequences (a:b:xs)
+      | a `compare` b == GT = descending b [a]  xs
+      | otherwise           = ascending  b (a:) xs
+    sequences [x] = [[x]]
+    sequences []  = [[]]
+
+    descending a as (b:bs)
+      | a `compare` b == GT = descending b (a:as) bs
+    descending a as bs      = (a:as): sequences bs
+
+    ascending a as (b:bs)
+      | a `compare` b /= GT = ascending b (\ys -> as (a:ys)) bs
+    ascending a as bs       = as [a]: sequences bs
+
+    mergeAll [x] = x
+    mergeAll xs  = mergeAll (mergePairs xs)
+
+    mergePairs (a:b:xs) = merge1 a b: mergePairs xs
+    mergePairs [x]      = [x]
+    mergePairs []       = []
+
+
+merge1 (a:as') (b:bs')
+  | a `compare` b == GT = b:merge1 (a:as')  bs'
+  | otherwise           = a:merge1 as' (b:bs')
+merge1 [] bs            = bs
+merge1 as []            = as
+\end{code}
+
+The interesting thing about the procedure is that it generates
+some intermediate lists that are increasing *and* others that 
+are decreasing, and then somehow miraculously whips this 
+whirlygig into a single increasing list.
+
+Yet, to check this rather tricky algorithm with 
+LiquidHaskell we need merely write:
+
+\begin{code}
+{-@ sort :: (Ord a) => [a] -> IncrList a  @-}
+\end{code}
+
 
 
 [blog-absref]:     /blog/2013/06/3/abstracting-over-refinements.lhs/
 [blog-absref-vec]: http://goto.ucsd.edu/~rjhala/liquid/abstract_refinement_types.pdf
-
-[ghc-list]:        http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/GHC-List.html#break
-
+[ghc-list]:        http://www.haskell.org/ghc/docs/latest/html/libraries/base/src/Data-List.html#sort
+[omega-sort]:      http://web.cecs.pdx.edu/~sheard/Code/InsertMergeSort.html
+[hasochism]:       https://personal.cis.strath.ac.uk/conor.mcbride/pub/hasochism.pdf
 
