@@ -23,7 +23,7 @@ module Language.Fixpoint.Types (
 
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
-  , intFTyCon, boolFTyCon, propFTyCon, stringFTycon
+  , intFTyCon, boolFTyCon, propFTyCon, stringFTycon, fTyconString
 
   -- * Symbols
   , Symbol(..)
@@ -228,6 +228,7 @@ toFix_constant (c, so)
 
 newtype FTycon = TC Symbol deriving (Eq, Ord, Show) -- Data, Typeable, Show)
 
+
 intFTyCon  = TC (S "int")
 boolFTyCon = TC (S "bool")
 propFTyCon = TC (S propConName)
@@ -237,6 +238,8 @@ propFTyCon = TC (S propConName)
 -- isListTC   = (listFTyCon ==)
 isListTC (TC (S c)) = c == listConName
 isTupTC (TC (S c))  = c == tupConName
+
+fTyconString (TC (S s)) = s
 
 stringFTycon :: String -> FTycon
 stringFTycon c 
