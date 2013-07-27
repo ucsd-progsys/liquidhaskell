@@ -33,7 +33,7 @@ endcomment    = "-}"
 
 def logged_sys_call(args, out=None, err=None, dir=None):
   print "exec: " + " ".join(args)
-  return subprocess.call(args, stdout=out, stderr=err, cwd=dir)
+  return subprocess.call(" ".join(args), stdout=out, stderr=err, cwd=dir, shell=True)
  
 def solve_quals(dir,file,bare,time,quiet,flags,lflags):
   if quiet: out = null
@@ -96,9 +96,6 @@ class Config (rtest.TestConfig):
 #DEFAULT
 # ByteString.hs is split into two smaller files for faster checking..
 bytestringIgnored = { "Data/ByteString.hs"
-                    , "Data/ByteString.small.hs"
-                    , "Data/ByteString/Lazy/Aux.hs"
-                    , "Data/ByteString/Lazy.small.hs"
                     }
 
 textIgnored = { "Data/Text/Axioms.hs"
@@ -126,10 +123,6 @@ textIgnored = { "Data/Text/Axioms.hs"
               , "Data/Text/Unsafe/Base.hs"
               , "Data/Text/UnsafeShift.hs"
               , "Data/Text/Util.hs"
-
-              , "Data/Text.small.hs"
-              , "Data/Text/Lazy.small.hs"
-              , "Data/Text/Encoding.small.hs"
               }
 
 regtestdirs  = [ ("pos", {}, 0)
@@ -142,7 +135,7 @@ benchtestdirs = [ ("../web/demos", {}, 0)
                 ]
 
 parser = optparse.OptionParser()
-parser.add_option("-a", "--all", default=False, dest="alltests", help="run all tests")
+parser.add_option("-a", "--all", action="store_true", dest="alltests", help="run all tests")
 parser.add_option("-t", "--threads", dest="threadcount", default=1, type=int, help="spawn n threads")
 parser.add_option("-o", "--opts", dest="opts", default="", type=str, help="additional arguments to liquid")
 parser.disable_interspersed_args()
