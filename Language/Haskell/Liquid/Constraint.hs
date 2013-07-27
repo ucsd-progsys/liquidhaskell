@@ -833,7 +833,7 @@ consCB tflag γ (Rec [(x,e)]) | tflag
        rTy             <- recType γ (x, e, t)
        γ'              <- extender (γ `withTRec` (x, rTy)) (x, Just t)
        consBind True γ' (x, e, Just t)
-       return γ'{trec=Nothing}
+       return γ'{trec=trec γ}
     where x' = varSymbol x
 
 consCB tflag γ xes@(Rec xs) | tflag
