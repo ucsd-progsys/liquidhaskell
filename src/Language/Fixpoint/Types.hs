@@ -325,8 +325,11 @@ stringSymbolRaw = S
 
 stringSymbol :: String -> Symbol
 stringSymbol s
+  | isFixKey  s = encodeSym s 
   | isFixSym' s = S s 
-  | otherwise   = S $ fixSymPrefix ++ concatMap encodeChar s
+  | otherwise   = encodeSym s -- S $ fixSymPrefix ++ concatMap encodeChar s
+
+encodeSym s     = S $ fixSymPrefix ++ concatMap encodeChar s
 
 symbolString :: Symbol -> String
 symbolString (S str) 
@@ -352,6 +355,9 @@ suffixSymbol s suf = stringSymbol (symbolString s ++ suf)
 
 isFixSym' (c:chs)  = isAlpha c && all (`elem` (symSep:okSymChars)) chs
 isFixSym' _        = False
+
+isFixKey x = S.member x keywords
+keywords   = S.fromList ["env", "id", "tag", "qualif", "constant", "cut", "bind", "constraint", "grd", "lhs", "rhs"]
 
 encodeChar c 
   | c `elem` okSymChars 
