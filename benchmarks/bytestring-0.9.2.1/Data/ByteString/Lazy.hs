@@ -1,3 +1,5 @@
+{--! run liquid with no-termination-}
+
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans -fno-warn-incomplete-patterns #-}
 
 -- #prune

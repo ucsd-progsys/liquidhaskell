@@ -1,0 +1,15 @@
+Failed 13 tests: 
+ ../benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs,
+  ../benchmarks/bytestring-0.9.2.1/Data/ByteString/LazyZip.hs,
+  ../benchmarks/text-0.11.2.3/Data/Text/Encoding.hs,
+  ../benchmarks/text-0.11.2.3/Data/Text/Lazy/Encoding.hs,
+  ../web/demos/Composition.hs,
+  ../web/demos/Inductive.hs,
+  ../web/demos/Loop.hs,
+  ../web/demos/TalkingAboutSets.hs,
+  ../web/demos/refinements101reax.hs,
+  pos/cont.hs,
+  pos/ptr.hs,
+  pos/ptr2.hs,
+  pos/ptr3.hs 
+
