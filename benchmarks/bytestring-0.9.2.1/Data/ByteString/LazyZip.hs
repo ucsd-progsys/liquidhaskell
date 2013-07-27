@@ -1,3 +1,4 @@
+{--! run liquid with maxparams=4 -}
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans -fno-warn-incomplete-patterns #-}
 
 -- #prune
@@ -89,7 +90,6 @@ import qualified Data.ByteString.Internal
 import Foreign.ForeignPtr       (ForeignPtr)
 import qualified Foreign.C.String
 import qualified Foreign.C.Types
-import qualified Data.ByteString.Lazy.Aux as SA
 
 -- -----------------------------------------------------------------------------
 --
@@ -118,24 +118,57 @@ zip = zipWith (,)
 zipWith :: (Word8 -> Word8 -> a) -> ByteString -> ByteString -> [a]
 zipWith _ Empty     _  = []
 zipWith _ _      Empty = []
-zipWith f (Chunk a as) (Chunk b bs) = go a as b bs
-  where
-    go x xs y ys = f (S.unsafeHead x) (S.unsafeHead y)
-                 : to (S.unsafeTail x) xs (S.unsafeTail y) ys
+zipWith f (Chunk a as) (Chunk b bs) = go f a as b bs
+  -- where
+  --   go x xs y ys = f (S.unsafeHead x) (S.unsafeHead y)
+  --                : to (S.unsafeTail x) xs (S.unsafeTail y) ys
 
-    to x Empty         _ _             | S.null x       = []
-    to _ _             y Empty         | S.null y       = []
-    to x xs            y ys            | not (S.null x)
-                                      && not (S.null y) = go x  xs y  ys
-    to x xs            _ (Chunk y' ys) | not (S.null x) = go x  xs y' ys
-    --LIQUID to _ (Chunk x' xs) y ys            | not (S.null y) = go x' xs y  ys
-    --LIQUID to _ (Chunk x' xs) _ (Chunk y' ys)                  = go x' xs y' ys
-    --LIQUID FIXME: these guards "should" be implied by the above checks
-    to x (Chunk x' xs) y ys            | not (S.null y)
-                                      && S.null x       = go x' xs y  ys
-    to x (Chunk x' xs) y (Chunk y' ys) | S.null x
-                                      && S.null y       = go x' xs y' ys
+  --   to x Empty         _ _             | S.null x       = []
+  --   to _ _             y Empty         | S.null y       = []
+  --   -- to x xs            y ys            | not (S.null x)
+  --   --                                   && not (S.null y) = go x  xs y  ys
+  --   to x xs            _ (Chunk y' ys) | not (S.null x) = go x  xs y' ys
+  --   --LIQUID to _ (Chunk x' xs) y ys            | not (S.null y) = go x' xs y  ys
+  --   --LIQUID to _ (Chunk x' xs) _ (Chunk y' ys)                  = go x' xs y' ys
+  --   --LIQUID FIXME: these guards "should" be implied by the above checks
+  --   to x (Chunk x' xs) y ys            | not (S.null y)
+  --                                     && S.null x       = go x' xs y  ys
+  --   to x (Chunk x' xs) y (Chunk y' ys) | S.null x
+  --                                     && S.null y       = go x' xs y' ys
 
+{-@ go :: (Word8 -> Word8 -> a)
+       -> x:ByteStringNE -> xs:LByteString
+       -> y:ByteStringNE -> ys:LByteString
+       -> {v:[a] | (len v)
+                 = (if (((bLength x) + (lbLength xs)) <= ((bLength y) + (lbLength ys)))
+                   then ((bLength x) + (lbLength xs))
+                   else ((bLength y) + (lbLength ys)))}
+   @-}
+go f x xs y ys = f (S.unsafeHead x) (S.unsafeHead y)
+               : to f (S.unsafeTail x) xs (S.unsafeTail y) ys
+
+{-@ to :: (Word8 -> Word8 -> a)
+       -> x:ByteString -> xs:LByteString
+       -> y:ByteString -> ys:LByteString
+       -> {v:[a] | (len v)
+                 = (if (((bLength x) + (lbLength xs)) <= ((bLength y) + (lbLength ys)))
+                   then ((bLength x) + (lbLength xs))
+                   else ((bLength y) + (lbLength ys)))}
+   @-}
+to f x Empty         _ _             | S.null x       = []
+to f _ _             y Empty         | S.null y       = []
+to f x xs            y ys            | not (S.null x)
+                                    && not (S.null y) = go f x  xs y  ys
+to f x xs            _ (Chunk y' ys) | not (S.null x) = go f x  xs y' ys
+--LIQUID to _ (Chunk x' xs) y ys            | not (S.null y) = go x' xs y  ys
+--LIQUID to _ (Chunk x' xs) _ (Chunk y' ys)                  = go x' xs y' ys
+--LIQUID FIXME: these guards "should" be implied by the above checks
+to f x (Chunk x' xs) y ys            | not (S.null y)
+                                    && S.null x       = go f x' xs y  ys
+to f x (Chunk x' xs) y (Chunk y' ys) | S.null x
+                                    && S.null y       = go f x' xs y' ys
+
+{-@ qualif ByteStringNE(v:Data.ByteString.Internal.Bytestring): (bLength v) > 0 @-}
 
 {-@ qualif LBZip(v:List a,
                  x:Data.ByteString.Internal.ByteString,
