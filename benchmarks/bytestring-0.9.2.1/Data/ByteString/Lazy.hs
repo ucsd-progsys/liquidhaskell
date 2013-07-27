@@ -1,5 +1,3 @@
-{--! run liquid with no-termination-}
-
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans -fno-warn-incomplete-patterns #-}
 
 -- #prune
@@ -854,8 +852,9 @@ replicate n w
         let c      = S.replicate smallChunkSize w
             cs     = nChunks q
             (q, r) = quotRem n (fromIntegral smallChunkSize)
-            nChunks 0 = Empty
-            nChunks m = Chunk c (nChunks (m-1))
+            --LIQUID CAST
+            nChunks (0 :: Int64) = Empty
+            nChunks m            = Chunk c (nChunks (m-1))
         in if r == 0 then cs -- preserve invariant
            else Chunk (S.unsafeTake (fromIntegral r) c) cs
 --LIQUID LAZY     | r == 0             = cs -- preserve invariant
