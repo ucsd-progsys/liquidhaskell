@@ -124,16 +124,14 @@ properties by appropriately **instantiating** the type
 of `k` with refined versions
 
 \begin{code}
-{-@ digitsP :: AssocP {v:Nat | v <= 9} String @-}
+{-@ digitsP :: AssocP {v:Int | (0 <= v && v <= 9} String @-}
 \end{code}
 
 and 
 
 \begin{code}
-{-@ sparseVecP :: AssocP {v:Nat | v <= 9} Double @-}
+{-@ sparseVecP :: AssocP {v:Int | (0 <= v && v <= 1000)} Double @-}
 \end{code}
-
-Where `Nat` is simply an alias for `{v:Int | 0 <= v}`.
 
 **Monomorphic Association Lists**
 
@@ -151,16 +149,16 @@ in the implementation but thats a tale for another day.)
 Now, we have our two tables
 
 \begin{code}
-digitString :: Assoc String
-digitString = KV [ (1, "one")
-                 , (2, "two")
-                 , (3, "three") ]
+digits    :: Assoc String
+digits    = KV [ (1, "one")
+               , (2, "two")
+               , (3, "three") ]
 
-sparseVec   :: Assoc Double
-sparseVec   = KV [ (12 ,  34.1 )
-                 , (92 , 902.83)
-                 , (451,   2.95)
-                 , (877,   3.1 )]
+sparseVec :: Assoc Double
+sparseVec = KV [ (12 ,  34.1 )
+               , (92 , 902.83)
+               , (451,   2.95)
+               , (877,   3.1 )]
 \end{code}
 
 but since we didn't make the key type generic, it seems 
@@ -174,10 +172,11 @@ We *could* define *two separate* types of association
 lists that capture different invariants, but frankly, 
 thats rather unfortunate, as we'd then have to 
 duplicate the code the manipulates the structures. 
-Of course, we'd like to have (type) systems help me
-keep an eye on different invariants, but we'd *really* 
-rather not have to duplicate code to achieve that end.
-Thats the kind of thing that drives a person to JavaScript ;-).
+Of course, we'd like to have (type) systems help 
+keep an eye on different invariants, but we'd 
+*really* rather not have to duplicate code to 
+achieve that end. Thats the sort of thing that
+drives a person to JavaScript ;-).
 
 Fortunately, all is not lost. 
 
@@ -191,6 +190,26 @@ definition:
       = KVP [(Int<p>, v)] @-} 
 \end{code}
 
+The definition refines the type for `Assoc` to introduce
+an abstract refinement `p` which is, informally speaking,
+a property of `Int`. The definition states that each `Int`
+in the association list in fact satisfies `p` as, `Int<p>`
+is an abbreviation for `{v:Int| (p v)}`.
+
+Now, we can *have* our `Int` keys and *refine* them too!
+For example, we can write:
+
+\begin{code}
+{-@ digits :: Assoc String <{\v -> (0 <= v && v <= 9)}> @-}
+
+{-@ sparseVec :: Assoc Double <{\v -> (0 <= v && v <= 1000)}> @-}
+\end{code}
+
+and 
+
+\begin{code}
+{-@ sparseVecP :: AssocP {v:Nat | v <= 9} Double @-}
+\end{code}
 
 The **keys** used in the two tables have rather different properties: one is a
 number between `0` and `9` and the other is between `0` and `999`. 
