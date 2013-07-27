@@ -96,8 +96,6 @@ class Config (rtest.TestConfig):
 #DEFAULT
 # ByteString.hs is split into two smaller files for faster checking..
 bytestringIgnored = { "Data/ByteString.hs"
-                    , "Data/ByteString.small.hs"
-                    , "Data/ByteString/Lazy.small.hs"
                     }
 
 textIgnored = { "Data/Text/Axioms.hs"
@@ -125,10 +123,6 @@ textIgnored = { "Data/Text/Axioms.hs"
               , "Data/Text/Unsafe/Base.hs"
               , "Data/Text/UnsafeShift.hs"
               , "Data/Text/Util.hs"
-
-              , "Data/Text.small.hs"
-              , "Data/Text/Lazy.small.hs"
-              , "Data/Text/Encoding.small.hs"
               }
 
 regtestdirs  = [ ("pos", {}, 0)

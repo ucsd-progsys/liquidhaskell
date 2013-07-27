@@ -1,3 +1,4 @@
+{--! run liquid with idirs=../../benchmarks/bytestring-0.9.2.1 idirs=../../include no-termination -}
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 
 -- GET THIS TO WORK WITHOUT THE "base" measure and realated theorem,
@@ -102,7 +103,7 @@ assertS s False = error ("assertion failed at "++s)
 
 -- LIQUID
 import GHC.IO.Buffer
-import Language.Haskell.Liquid.Prelude (intCSize) 
+import Language.Haskell.Liquid.Prelude (intCSize)
 import qualified Data.ByteString.Lazy.Internal 
 import qualified Data.ByteString.Fusion
 import qualified Data.ByteString.Internal
@@ -127,8 +128,8 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 {-@ qualif Zog(v:a, p:a)         : (plen p) <= (plen v)          @-}
 {-@ qualif Zog(v:a)              : 0 <= (plen v)                 @-}
 
-{-@ type ByteStringNE   = {v:ByteString | (bLength v) > 0} @-}
-{-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)} @-}
+{- type ByteStringNE   = {v:ByteString | (bLength v) > 0} @-}
+{- type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)} @-}
 -- -----------------------------------------------------------------------------
 --
 -- Useful macros, until we have bang patterns
@@ -148,13 +149,12 @@ foldl f v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
         lgo v (ptr `plusPtr` s) (ptr `plusPtr` (s+l))
     where
         STRICT3(lgo)
-        lgo z p q | p == q    = return z
-                  | otherwise = do let p' = p --  liquid_thm_ptr_cmp p q 
-                                   c <- peek p'
-                                   lgo (f z c) (p' `plusPtr` 1) q
+        lgo z p q | eqPtr p q    = return z
+                  | otherwise = do c <- peek p
+                                   lgo (f z c) (p `plusPtr` 1) q
 {-# INLINE foldl #-}
 
-{-@ liquid_thm_ptr_cmp :: p:PtrV a 
+{- liquid_thm_ptr_cmp :: p:PtrV a
                        -> q:{v:(PtrV a) | ((plen v) <= (plen p) && v != p && (pbase v) = (pbase p))} 
                        -> {v: (PtrV a)  | ((v = p) && ((plen q) < (plen p))) } 
   @-}
