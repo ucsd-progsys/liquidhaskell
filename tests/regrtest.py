@@ -136,7 +136,7 @@ regtestdirs  = [ ("pos", {}, 0)
                , ("neg", {}, 1)
                ]
 benchtestdirs = [ ("../web/demos", {}, 0)
-                , ("../benchmarks/esop2013-submission", {}, 0)
+                , ("../benchmarks/esop2013-submission", {"Base0.hs"}, 0)
                 , ("../benchmarks/bytestring-0.9.2.1", bytestringIgnored, 0)
                 , ("../benchmarks/text-0.11.2.3", textIgnored, 0)
                 ]

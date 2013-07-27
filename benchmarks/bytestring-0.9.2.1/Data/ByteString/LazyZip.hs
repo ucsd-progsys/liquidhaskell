@@ -1,3 +1,5 @@
+{--! no-termination -}
+
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans -fno-warn-incomplete-patterns #-}
 
 -- #prune
@@ -89,7 +91,7 @@ import qualified Data.ByteString.Internal
 import Foreign.ForeignPtr       (ForeignPtr)
 import qualified Foreign.C.String
 import qualified Foreign.C.Types
-import qualified Data.ByteString.Lazy.Aux as SA
+-- import qualified Data.ByteString.Lazy.Aux as SA
 
 -- -----------------------------------------------------------------------------
 --
