@@ -112,7 +112,7 @@ break p xs@(x:xs')
 
 -- As before, we can instantiate the `p` in *different* ways.
 
-{-@ plusOnes :: [(Int, Int)<{\x v -> v = x + 1}>] @-}
+{-@ plusOnes :: [(Int, Int)<{\x1 x2 -> x2 = x1 + 1}>] @-}
 plusOnes = [(0,1), (5,6), (999,1000)]
 
 
