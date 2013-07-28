@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 {-# OPTIONS_GHC -cpp -fno-warn-orphans #-}
 
 -- #prune

@@ -33,15 +33,15 @@ endcomment    = "-}"
 
 def logged_sys_call(args, out=None, err=None, dir=None):
   print "exec: " + " ".join(args)
-  return subprocess.call(" ".join(args), stdout=out, stderr=err, cwd=dir, shell=True)
+  return subprocess.call(args, stdout=out, stderr=err, cwd=dir)
  
 def solve_quals(dir,file,bare,time,quiet,flags,lflags):
   if quiet: out = null
   else: out = None
   if time: time = ["time"]
   else: time = []
-  if lflags: lflags = ["--" + " --".join(lflags)]
-  hygiene_flags = [] 
+  if lflags: lflags = ["--" + f for f in lflags]
+  hygiene_flags = []
   out = open(os.path.join(dir,file) + ".log", "w")
   rv  = logged_sys_call(time + solve + flags + lflags + hygiene_flags + [file], out, dir=dir)
   out.close()
@@ -129,7 +129,7 @@ regtestdirs  = [ ("pos", {}, 0)
                , ("neg", {}, 1)
                ]
 benchtestdirs = [ ("../web/demos", {}, 0)
-                , ("../benchmarks/esop2013-submission", {}, 0)
+                , ("../benchmarks/esop2013-submission", {"Base0.hs"}, 0)
                 , ("../benchmarks/bytestring-0.9.2.1", bytestringIgnored, 0)
                 , ("../benchmarks/text-0.11.2.3", textIgnored, 0)
                 ]
