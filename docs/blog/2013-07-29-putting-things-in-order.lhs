@@ -6,7 +6,7 @@ comments: true
 external-url:
 categories: abstract-refinements
 author: Niki Vazou and Ranjit Jhala
-published: false
+published: true 
 demo: PuttingThingsInOrder.hs
 ---
 

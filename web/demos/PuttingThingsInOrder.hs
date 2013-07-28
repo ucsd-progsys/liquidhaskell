@@ -1,5 +1,7 @@
 {--! run liquid with no-termination -}
 
+{-# LANGUAGE NoMonomorphismRestriction #-}
+
 module PuttingThingsInOrder where
 
 import Prelude hiding (break)
@@ -7,7 +9,7 @@ import Prelude hiding (break)
 -- Haskell Type Definitions
 plusOnes                         :: [(Int, Int)]
 insertSort, mergeSort, quickSort :: (Ord a) => [a] -> [a]
-
+whatGosUp, mustGoDown, noDuplicates :: [Integer]
 
 -- Polymorphic Association Lists
 
@@ -268,5 +270,4 @@ merge1 (a:as') (b:bs')
   | otherwise           = a:merge1 as' (b:bs')
 merge1 [] bs            = bs
 merge1 as []            = as
-
 
