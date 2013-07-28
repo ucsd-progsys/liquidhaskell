@@ -109,9 +109,9 @@ where `Btwn` is just an alias
 Monomorphic Association Lists
 -----------------------------
 
-Now, suppose that for one reason or another, how about, 
-say, ``performance", we want to specialize our association 
-list so that the keys are of type `Int`. 
+Now, suppose that for one reason or another, we want to 
+specialize our association list so that the keys are of 
+type `Int`. 
 
 \begin{code}
 data Assoc v = KV [(Int, v)]
@@ -208,11 +208,10 @@ break p xs@(x:xs')
                            in (x:ys,zs)
 \end{code}
 
-From the comments in [GHC.List][ghc-list], 
-`break p xs` ``returns a tuple where the 
-first element is longest prefix (possibly empty)
-`xs` of elements that *do not satisfy* `p` 
-and second element is the remainder of the list."
+From the comments in [GHC.List][ghc-list], `break p xs`: 
+"returns a tuple where the first element is longest prefix (possibly empty)
+`xs` of elements that do not satisfy `p` and second element is the 
+remainder of the list."
 
 We could formalize the notion of the *second-element-being-the-remainder* 
 using sizes. That is, we'd like to specify that the length of the second 
@@ -238,7 +237,7 @@ As before, we can instantiate the `p` in *different* ways.
 For example the whimsical
 
 \begin{code}
-{-@ plusOnes :: [(Int, Int)<{\x v -> v = x + 1}>] @-}
+{-@ plusOnes :: [(Int, Int)<{\x1 x2 -> x2 = x1 + 1}>] @-}
 plusOnes = [(0,1), (5,6), (999,1000)]
 \end{code}
 
@@ -261,7 +260,7 @@ Abstractly Refined Lists
 
 Right, we've been going on for a bit. Time to put things *in order*.
 
-To recap: we've already seen one way to abstract refine lists: 
+To recap: we've already seen one way to abstractly refine lists: 
 to recover a *generic* means of refining a *monomorphic* list 
 (e.g. the list of `Int` keys.) However, in that case we were 
 talking about *individual* keys.
@@ -454,7 +453,7 @@ mergeSort xs  = merge (mergeSort ys) (mergeSort zs)
 
 Lets see how LiquidHaskell proves the output type. 
 
-+ For the first two cases are trivial: for an empty 
++ The first two cases are trivial: for an empty 
   or singleton list, we can vacuously instantiate 
   the abstract refinement with *any* concrete 
   refinement.
@@ -477,9 +476,8 @@ so on.
 
 With *quick sort* we need to do a tiny bit of work.
 
-We would like to define `quickSort` as follows:
 
-\begin{code} 
+\begin{code} We would like to define `quickSort` as
 {-@ quickSort'    :: (Ord a) => [a] -> IncrList a @-}
 quickSort' []     = []
 quickSort' (x:xs) = lts ++ (x : gts) 
@@ -488,12 +486,12 @@ quickSort' (x:xs) = lts ++ (x : gts)
     gts           = quickSort' [z | z <- xs, z >= x]
 \end{code}
 
-But as you can see, LiquidHaskell *does not approve*.
-What could possibly be the trouble?
+But, if you try it out, you'll see that LiquidHaskell 
+*does not approve*. What could possibly be the trouble?
 
 The problem lies with *append*. What type do we give `++`? 
 
-\begin{code} We require something like
+\begin{code} We might try something like
 (++) :: IncrList a -> IncrList a -> IncrList a
 \end{code}
 
@@ -503,11 +501,11 @@ The problem lies with *append*. What type do we give `++`?
 
 is decidedly not an `IncrList`!
 
-Instead, at this particular site, there is an extra 
-nugget of information: there is a *pivot* element 
-`x` such that every element in the first argument 
-is less than `x` and every element in the second 
-argument is greater than `x`. 
+Instead, at this particular use of `++`, there is
+an extra nugget of information: there is a *pivot*
+element `x` such that every element in the first 
+argument is less than `x` and every element in 
+the second argument is greater than `x`. 
 
 There is no way we can give the usual append `++` 
 a type that reflects the above as there is no pivot 
@@ -582,7 +580,6 @@ sort = mergeAll . sequences
     mergePairs (a:b:xs) = merge1 a b: mergePairs xs
     mergePairs [x]      = [x]
     mergePairs []       = []
-
 
 merge1 (a:as') (b:bs')
   | a `compare` b == GT = b:merge1 (a:as')  bs'
