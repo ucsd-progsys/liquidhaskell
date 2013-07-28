@@ -331,8 +331,9 @@ That is, each element `xj` satisfies the refinement
 Using Abstractly Refined Lists
 ------------------------------
 
-Urgh. *Math* is hard(tm)! Lets see how we can *program* with 
-these funny recursively refined lists.
+Urgh. *Math is hard!*  
+
+Lets see how we can *program* with these funnily refined lists.
 
 For starters, we can define a few helpful type aliases.
 
