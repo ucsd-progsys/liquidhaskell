@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Setting Things In Order"
+title: "Putting Things In Order"
 date: 2013-07-29 16:12
 comments: true
 external-url:
@@ -22,7 +22,7 @@ recursive data structures.
 <!-- more -->
 
 \begin{code}
-module SettingListsInOrder where
+module PuttingThingsInOrder where
 
 import Prelude hiding (break)
 
@@ -258,7 +258,7 @@ using the predicate alias
 Abstractly Refined Lists
 ------------------------
 
-Right, we've been going on for a bit. Time to set things *in order*.
+Right, we've been going on for a bit. Time to put things *in order*.
 
 To recap: we've already seen one way to abstract refine lists: 
 to recover a *generic* means of refining a *monomorphic* list 
