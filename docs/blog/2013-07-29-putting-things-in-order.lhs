@@ -7,6 +7,7 @@ external-url:
 categories: abstract-refinements
 author: Niki Vazou and Ranjit Jhala
 published: false
+demo: PuttingThingsInOrder.hs
 ---
 
 Hello again! Since we last met, much has happened that
