@@ -9,20 +9,22 @@ author: Niki Vazou and Ranjit Jhala
 published: false
 ---
 
-Well hello again! Much has happened since we've last met, 
-that we're very excited about, and which promise to get 
+Hello again! Since we last met, much has happened that
+we're rather excited about, and which we promise to get
 to in the fullness of time.
 
-Today, lets continue with our exploration of abstract 
-refinements. We'll see that this rather innocent looking 
-mechanism packs quite a punch, by showing how it can 
-encode various **ordering** properties of recursive 
-data structures.
+Today, however, lets continue with our exploration of
+abstract refinements. We'll see that this rather innocent 
+looking mechanism packs quite a punch, by showing how 
+it can encode various **ordering** properties of 
+recursive data structures.
 
 <!-- more -->
 
 \begin{code}
-module ListSort (insertSort, mergeSort, quickSort) where
+module SettingListsInOrder where
+
+import Prelude hiding (break)
 
 -- Haskell Type Definitions
 plusOnes                         :: [(Int, Int)]
@@ -69,10 +71,10 @@ the contents of an array of size `1000`.
 
 \begin{code}
 sparseVecP :: AssocP Int Double
-sparseVecP = [(12 ,  34.1 )
-            , (92 , 902.83)
-            , (451,   2.95)
-            , (877,   3.1 )]
+sparseVecP = KVP [ (12 ,  34.1 )
+                 , (92 , 902.83)
+                 , (451,   2.95)
+                 , (877,   3.1 )]
 \end{code}
 
 The **keys** used in the two tables have rather 
@@ -157,7 +159,8 @@ an abstract refinement, this time applied to a `data`
 definition:
 
 \begin{code}
-{-@ data Assoc v <p :: Int -> Prop> = KVP [(Int<p>, v)] @-} 
+{-@ data Assoc v <p :: Int -> Prop> 
+      = KV (z :: [(Int<p>, v)]) @-} 
 \end{code}
 
 The definition refines the type for `Assoc` to introduce
@@ -170,7 +173,7 @@ Now, we can *have* our `Int` keys and *refine* them too!
 For example, we can write:
 
 \begin{code}
-{-@ digits :: Assoc String <{\v -> (Btwn 0 v 9)}> @-}
+{-@ digits :: Assoc (String) <{\v -> (Btwn 0 v 9)}> @-}
 \end{code}
 
 to track the invariant for the `digits` map, and write
@@ -196,7 +199,7 @@ interesting things start to happen if we use multiple parameters.
 Consider the function `break` from the Prelude. 
 
 \begin{code}
-break                   :: (a -> Bool) -> [a] -> [a]
+break                   :: (a -> Bool) -> [a] -> ([a], [a])
 break _ xs@[]           =  (xs, xs)
 break p xs@(x:xs')
            | p x        =  ([], xs)
@@ -234,14 +237,15 @@ As before, we can instantiate the `p` in *different* ways.
 For example the whimsical
 
 \begin{code}
-{-@ plusOnes :: [(Int, Int)<\x v -> v = x + 1}>] @-}
+{-@ plusOnes :: [(Int, Int)<{\x v -> v = x + 1}>] @-}
 plusOnes = [(0,1), (5,6), (999,1000)]
 \end{code}
 
 and returning to the *remainder* property for  `break` 
 
 \begin{code}
-{-@ break :: (a -> Bool) -> x:[a] -> ([a], [a])<\y z -> (Break x y z)}>] @-}
+{-@ break :: (a -> Bool) -> x:[a] 
+          -> ([a], [a])<{\y z -> (Break x y z)}> @-}
 \end{code}
 
 using the predicate alias
@@ -332,30 +336,30 @@ these funny recursively refined lists.
 For starters, we can define a few helpful type aliases.
 
 \begin{code}
-type IncrList a = [a]<\xi xj -> xi <= xj>
-type DecrList a = [a]<\xi xj -> xi >= xj>
-type UniqList a = [a]<\xi xj -> x1 /= xj>
+{-@ type IncrList a = [a]<{\xi xj -> xi <= xj}> @-}      
+{-@ type DecrList a = [a]<{\xi xj -> xi >= xj}> @-}
+{-@ type UniqList a = [a]<{\xi xj -> xi /= xj}> @-}
 \end{code}
 
 As you might expect, an `IncrList` is a list of values in *increasing* order:
 
 \begin{code}
-{-@ whatGosUp :: (Num a) => (IncrList Int) @-}
+{-@ whatGosUp :: IncrList Integer @-}
 whatGosUp = [1,2,3]
 \end{code}
 
 Similarly, a `DecrList` contains its values in *decreasing* order:
 
 \begin{code}
-{-@ mustGoDown :: (Num a) => (DecrList a) @-}
+{-@ mustGoDown :: DecrList Integer @-}
 mustGoDown = [3,2,1]
 \end{code}
 
 My personal favorite though, is a `UniqList` which has *no duplicates*:
 
 \begin{code}
-{-@ noDuplicates :: (Num a) => (UniqList a) @-}
-mustGoDown = [1,3,2]
+{-@ noDuplicates :: UniqList Integer @-}
+noDuplicates = [1,3,2]
 \end{code}
 
 Sorting Lists
@@ -429,14 +433,16 @@ LiquidHaskell deduces that if both inputs are
 ordered, then so is the output.
 
 \begin{code}
-{-@ merge :: IncrList a -> IncrList a -> IncrList a @-}
+{-@ merge :: (Ord a) => IncrList a 
+                     -> IncrList a 
+                     -> IncrList a 
+  @-}
 \end{code}
 
 Finally, using the above functions we write `mergeSort`:
 
 \begin{code}
 {-@ mergeSort :: (Ord a) => [a] -> IncrList a @-}
-mergeSort :: Ord a => [a] -> [a]
 mergeSort []  = []
 mergeSort [x] = [x]
 mergeSort xs  = merge (mergeSort ys) (mergeSort zs) 
@@ -472,7 +478,7 @@ With *quick sort* we need to do a tiny bit of work.
 We would like to define `quickSort` as follows:
 
 \begin{code} 
-quickSort'        :: (Ord a) => [a] -> IncrList a
+{-@ quickSort'    :: (Ord a) => [a] -> IncrList a @-}
 quickSort' []     = []
 quickSort' (x:xs) = lts ++ (x : gts) 
   where 
@@ -514,10 +520,11 @@ pivApp piv (x:xs) ys  = x   : pivApp piv xs ys
 Now, LiquidHaskell infers that 
 
 \begin{code}
-{-@ pivApp :: (Ord a) => piv:a 
-                      -> IncrList {v:a | v <  piv} 
-                      -> IncrList {v:a | v >= piv} 
-                      -> IncrList a                @-}
+{-@ pivApp :: piv:a 
+           -> IncrList {v:a | v <  piv} 
+           -> IncrList {v:a | v >= piv} 
+           -> IncrList a 
+  @-}
 \end{code}
 
 And we can use `pivApp` to define `quickSort' simply as:
@@ -534,20 +541,18 @@ quickSort (x:xs) = pivApp x lts gts
 Really Sorting Lists
 --------------------
 
-Indulge us for a moment, while we climb once again upon 
-our *reuse soapbox*. The really convenient thing about our
-abstract-refinement encoding is that the underlying datatype
-is plain Haskell lists. 
-
+The convenient thing about our encoding is that the 
+underlying datatype is plain Haskell lists. 
 This yields two very concrete benefits. 
-First, as mentioned before, we can manipulate sorted lists
-with the very same functions we'd use for regular lists.
+First, as mentioned before, we can manipulate 
+sorted lists with the same functions we'd use 
+for regular lists.
 Second, by decoupling (or rather, parameterizing)
-the relation/property/invariant from the actual 
-data structure we can plug in different predicates 
+the relation or property or invariant from the actual 
+data structure we can plug in different invariants, 
 sometimes in the *same* program.
 
-To see why this is useful, lets look at a *real* 
+To see why this is useful, lets look at a *real-world* 
 sorting algorithm: the one used inside GHC's 
 `Data.List` [module][ghc-list].
 
@@ -584,10 +589,11 @@ merge1 [] bs            = bs
 merge1 as []            = as
 \end{code}
 
-The interesting thing about the procedure is that it generates
-some intermediate lists that are increasing *and* others that 
-are decreasing, and then somehow miraculously whips this 
-whirlygig into a single increasing list.
+The interesting thing about the procedure is that it 
+generates some intermediate lists that are increasing 
+*and* others that are decreasing, and then somehow
+miraculously whips this whirlygig into a single 
+increasing list.
 
 Yet, to check this rather tricky algorithm with 
 LiquidHaskell we need merely write:
