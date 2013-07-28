@@ -1,6 +1,6 @@
 module DepTup0 where
 
-{-@ type PlusOne = (Int, Int)<{\x v -> v = x + 1}> @-}
+{-@ type PlusOne = (Int, Int)<{\x v -> v > x}> @-}
 
 {-@ plusOne :: PlusOne @-}
 plusOne :: (Int, Int)
