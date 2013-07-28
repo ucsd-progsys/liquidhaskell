@@ -303,7 +303,7 @@ Note that we're being a bit sloppy when we say *pairwise* related.
 [x1,...,xn] :: [a]<p>
 \end{code}
 
-then for each `1 <= i < j <= n` we have `(p x1 xn)`.
+then for each `1 <= i < j <= n` we have `(p xi xj)`.
 
 \begin{code} To see why, consider the list
 [x1, x2, x3, ...] :: [a]<p>
@@ -577,15 +577,9 @@ sort = mergeAll . sequences
     mergeAll [x] = x
     mergeAll xs  = mergeAll (mergePairs xs)
 
-    mergePairs (a:b:xs) = merge1 a b: mergePairs xs
+    mergePairs (a:b:xs) = merge a b: mergePairs xs
     mergePairs [x]      = [x]
     mergePairs []       = []
-
-merge1 (a:as') (b:bs')
-  | a `compare` b == GT = b:merge1 (a:as')  bs'
-  | otherwise           = a:merge1 as' (b:bs')
-merge1 [] bs            = bs
-merge1 as []            = as
 \end{code}
 
 The interesting thing about the procedure is that it 
