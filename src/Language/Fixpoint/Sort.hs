@@ -26,7 +26,7 @@ import Debug.Trace          (trace)
 -- | Types used throughout checker
 
 type CheckM a = Either String a
-type Env      = Symbol -> Maybe Sort
+type Env      = Symbol -> SESearch Sort
 fProp         = FApp boolFTyCon [] 
 -- fProp         = FApp propFTyCon [] 
 
@@ -47,8 +47,8 @@ checkSortedReftFull γ t@(RR _ (Reft (v, ras)))
       Left err -> Just (text err)
       Right _  -> Nothing
     where 
-      γ'  = mapSEnv sr_sort $ insertSEnv v t γ  
-      f   = (`lookupSEnv` γ')
+      γ' = mapSEnv sr_sort $ insertSEnv v t γ  
+      f  = (`lookupSEnvWithDistance` γ')
 
 pruneUnsortedReft :: SEnv Sort -> SortedReft -> SortedReft
 pruneUnsortedReft γ (RR s (Reft (v, ras)))
@@ -57,8 +57,8 @@ pruneUnsortedReft γ (RR s (Reft (v, ras)))
     go r = case checkRefa f r of
             Left war -> trace (wmsg war r) $ Nothing
             Right _  -> Just r
-    γ'  = insertSEnv v s γ
-    f   = (`lookupSEnv` γ') 
+    γ' = insertSEnv v s γ
+    f  = (`lookupSEnvWithDistance` γ')
 
     wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
 
@@ -84,7 +84,9 @@ checkExpr f (ELit _ t)     = return t
 -- | Helper for checking symbol occurrences
 
 checkSym f x               
-  = maybe (throwError $ errUnbound x) return (f x)
+  = case f x of 
+     Found s -> return s
+     Alts xs -> throwError $ errUnboundAlts x xs
 --   $ traceFix ("checkSym: x = " ++ showFix x) (f x)
 
 -- | Helper for checking if-then-else expressions
@@ -178,7 +180,7 @@ checkRel f r  e1 e2                = do t1 <- checkExpr f e1
                                         t2 <- checkExpr f e2
                                         checkRelTy f (PAtom r e1 e2) r t1 t2
 
-checkRelTy :: (Fixpoint a) =>(Symbol -> Maybe Sort) -> a -> Brel -> Sort -> Sort -> CheckM ()
+checkRelTy :: (Fixpoint a) => Env -> a -> Brel -> Sort -> Sort -> CheckM ()
 checkRelTy f _ _ (FObj l) (FObj l') | l /= l' 
   = (checkNumeric f l >> checkNumeric f l') `catchError` (\_ -> throwError $ errNonNumerics l l') 
 checkRelTy f _ _ FInt (FObj l)     = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l) 
@@ -227,6 +229,9 @@ errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s
                          (showFix e) (showFix t') (showFix t)
 
 errUnbound x         = printf "Unbound Symbol %s" (showFix x)
+errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s" 
+                        (showFix x) 
+                        (foldr1 (\w s -> w ++ ", " ++ s) (showFix <$> xs))
 
 errNonFunction t     = printf "Sort %s is not a function" (showFix t)
 

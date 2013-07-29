@@ -3,23 +3,20 @@ import Distribution.Simple.LocalBuildInfo
 import System.Process
 import System.Exit
 
--- main = defaultMain
-
-main = defaultMainWithHooks fixpointHooks
-
-fixpointHooks  = {- autoconfUserHooks -} simpleUserHooks { postInst = buildAndCopyFixpoint } 
+main         = defaultMainWithHooks fixHooks 
+  where 
+    fixHooks = simpleUserHooks { postInst = buildAndCopyFixpoint } 
    
 buildAndCopyFixpoint _ _ pkg lbi 
-  = do putStrLn $ "Post Install: " ++ show binDir -- , libDir)
+  = do putStrLn $ "Post Install: " ++ show binDir
        executeShellCommand "./configure"
        executeShellCommand "./build.sh"
        executeShellCommand $ "chmod a+x external/fixpoint/fixpoint.native "
        executeShellCommand $ "cp external/fixpoint/fixpoint.native " ++ binDir
-       executeShellCommand $ "cp external/z3/lib/libz3.* " ++ binDir
+       executeShellCommand $ "cp external/z3/lib/libz3.* "           ++ binDir
   where 
     allDirs     = absoluteInstallDirs pkg lbi NoCopyDest
     binDir      = bindir allDirs ++ "/"
-    -- libDir      = libdir allDirs
 
 executeShellCommand cmd   = putStrLn ("EXEC: " ++ cmd) >> system cmd >>= check
   where 

@@ -14,6 +14,9 @@ Executable fixpoint
   Main-is:       Fixpoint.hs
   Build-Depends: base
                , ghc==7.6.3
+               , array
+               , syb
+               , cmdargs
                , ansi-terminal
                , bifunctors
                , bytestring
@@ -33,36 +36,11 @@ Executable fixpoint
                , unordered-containers
                , liquid-fixpoint
 
---  Build-Depends: base
---               , ghc==7.6.*
---               , ansi-terminal==0.6.*
---               , bifunctors==3.2.0.*
---               , bytestring==0.10.0.*
---               , containers==0.5.0.*
---               , deepseq==1.3.0.*
---               , directory==1.2.0.*
---               , filemanip==0.3.6.*
---               , filepath==1.3.0.*
---               , ghc-prim==0.3.0.*
---               , mtl==2.1.2.*
---               , parsec==3.1.3.*
---               , pretty==1.1.1.*
---               , process==1.1.0.*
---               , text==0.11.2.*
---               , liquid-fixpoint
---
---   if impl(ghc >= 7.6.3)
---     Build-Depends: hashable==1.2.0.*
---                  , unordered-containers==0.2.3.*
---   else
---     Build-Depends: hashable==1.2.0.5
---                  , unordered-containers==0.2.3.0
-
-
 Library
   hs-source-dirs:  src
   Exposed-Modules: Language.Fixpoint.Names,
                    Language.Fixpoint.Files,
+                   Language.Fixpoint.Config,
                    Language.Fixpoint.Types,
                    Language.Fixpoint.Sort,
                    Language.Fixpoint.Interface, 
@@ -72,6 +50,9 @@ Library
   
   Build-Depends: base
                , ghc
+               , array
+               , syb
+               , cmdargs
                , ansi-terminal
                , bifunctors
                , bytestring
@@ -89,29 +70,4 @@ Library
                , text
                , hashable<1.2
                , unordered-containers
-
- 
---  Build-Depends: base
---               , ghc==7.6.*
---               , ansi-terminal==0.6.*
---               , bifunctors==3.2.0.*
---               , bytestring==0.10.0.*
---               , containers==0.5.0.*
---               , deepseq==1.3.0.*
---               , directory==1.2.0.*
---               , filemanip==0.3.6.*
---               , filepath==1.3.0.*
---               , ghc-prim==0.3.0.*
---               , mtl==2.1.2.*
---               , parsec==3.1.3.*
---               , pretty==1.1.1.*
---               , process==1.1.0.*
---               , text==0.11.2.*
---
---  if impl(ghc >= 7.6.3)
---    Build-Depends: hashable==1.2.0.*
---                 , unordered-containers==0.2.3.*
---  else
---    Build-Depends: hashable==1.2.0.5
---                 , unordered-containers==0.2.3.0
 

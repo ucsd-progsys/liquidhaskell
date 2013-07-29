@@ -1,4 +1,8 @@
-{-# LANGUAGE NoMonomorphismRestriction, DeriveGeneric, DeriveDataTypeable, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE UndecidableInstances      #-}
 
 -- | This module contains the data types, operations and serialization functions 
 -- for representing Fixpoint's implication (i.e. subtyping) and well-formedness 
@@ -19,7 +23,7 @@ module Language.Fixpoint.Types (
 
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
-  , intFTyCon, boolFTyCon, propFTyCon, stringFTycon
+  , intFTyCon, boolFTyCon, propFTyCon, stringFTycon, fTyconString
 
   -- * Symbols
   , Symbol(..)
@@ -51,12 +55,13 @@ module Language.Fixpoint.Types (
   , removeLhsKvars
 
   -- * Environments
-  , SEnv
+  , SEnv, SESearch(..)
   , emptySEnv, toListSEnv, fromListSEnv
   , mapSEnv
   , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
   , intersectWithSEnv
   , filterSEnv
+  , lookupSEnvWithDistance
 
   , FEnv, insertFEnv 
   , IBindEnv, BindId, insertsIBindEnv, deleteIBindEnv, emptyIBindEnv
@@ -99,11 +104,14 @@ module Language.Fixpoint.Types (
 
   -- * Qualifiers
   , Qualifier (..)
-  ) where
+
+ ) where
 
 import GHC.Generics         (Generic)
 import Debug.Trace          (trace)
 
+import Data.Typeable        (Typeable)
+import Data.Generics        (Data)
 import Data.Monoid hiding   ((<>))
 import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
@@ -122,7 +130,7 @@ import Text.PrettyPrint.HughesPJ
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
-
+import Data.Array            hiding (indices)
 import Language.Fixpoint.Names
 
 class Fixpoint a where
@@ -131,6 +139,8 @@ class Fixpoint a where
   simplify :: a -> a 
   simplify =  id
 
+
+------------------------------------------------------------------------
 
 showFix :: (Fixpoint a) => a -> String
 showFix =  render . toFix
@@ -220,6 +230,7 @@ toFix_constant (c, so)
 
 newtype FTycon = TC Symbol deriving (Eq, Ord, Data, Typeable, Show)
 
+
 intFTyCon  = TC (S "int")
 boolFTyCon = TC (S "bool")
 propFTyCon = TC (S propConName)
@@ -229,6 +240,8 @@ propFTyCon = TC (S propConName)
 -- isListTC   = (listFTyCon ==)
 isListTC (TC (S c)) = c == listConName
 isTupTC (TC (S c))  = c == tupConName
+
+fTyconString (TC (S s)) = s
 
 stringFTycon :: String -> FTycon
 stringFTycon c 
@@ -317,8 +330,11 @@ stringSymbolRaw = S
 
 stringSymbol :: String -> Symbol
 stringSymbol s
+  | isFixKey  s = encodeSym s 
   | isFixSym' s = S s 
-  | otherwise   = S $ fixSymPrefix ++ concatMap encodeChar s
+  | otherwise   = encodeSym s -- S $ fixSymPrefix ++ concatMap encodeChar s
+
+encodeSym s     = S $ fixSymPrefix ++ concatMap encodeChar s
 
 symbolString :: Symbol -> String
 symbolString (S str) 
@@ -344,6 +360,9 @@ suffixSymbol s suf = stringSymbol (symbolString s ++ suf)
 
 isFixSym' (c:chs)  = isAlpha c && all (`elem` (symSep:okSymChars)) chs
 isFixSym' _        = False
+
+isFixKey x = S.member x keywords
+keywords   = S.fromList ["env", "id", "tag", "qualif", "constant", "cut", "bind", "constraint", "grd", "lhs", "rhs"]
 
 encodeChar c 
   | c `elem` okSymChars 
@@ -662,6 +681,17 @@ emptySEnv               = SE M.empty
 memberSEnv x (SE env)   = M.member x env
 intersectWithSEnv f (SE m1) (SE m2) = SE (M.intersectionWith f m1 m2)
 filterSEnv f (SE m)     = SE (M.filter f m)
+lookupSEnvWithDistance x (SE env)
+  = case M.lookup x env of 
+     Just x  -> Found x
+     Nothing -> Alts $ stringSymbol <$> alts 
+  where alts    = takeMin $ (zip (editDistance x' <$> ss) ss)
+        ss      = symbolString <$> fst <$> M.toList env
+        x'      = symbolString x
+        takeMin = \xs ->  [x | (d, x) <- xs, d == getMin xs] 
+        getMin  = minimum . (fst <$>) 
+
+data SESearch a = Found a | Alts [Symbol]
 
 -- | Functions for Indexed Bind Environment 
 
@@ -1280,3 +1310,24 @@ instance Falseable Refa where
 instance Falseable Reft where
   isFalse (Reft(_, rs)) = or [isFalse p | RConc p <- rs]
 
+------------------------------------------------------------------------
+-- | Edit Distance -----------------------------------------------------
+------------------------------------------------------------------------
+
+
+
+editDistance :: Eq a => [a] -> [a] -> Int
+editDistance xs ys = table ! (m,n)
+    where
+    (m,n) = (length xs, length ys)
+    x     = array (1,m) (zip [1..] xs)
+    y     = array (1,n) (zip [1..] ys)
+ 
+    table :: Array (Int,Int) Int
+    table = array bnds [(ij, dist ij) | ij <- range bnds]
+    bnds  = ((0,0),(m,n))
+ 
+    dist (0,j) = j
+    dist (i,0) = i
+    dist (i,j) = minimum [table ! (i-1,j) + 1, table ! (i,j-1) + 1,
+        if x ! i == y ! j then table ! (i-1,j-1) else 1 + table ! (i-1,j-1)]

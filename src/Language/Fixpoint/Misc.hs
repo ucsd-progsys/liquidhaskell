@@ -287,7 +287,7 @@ bchopAlts :: [(B.ByteString, B.ByteString)] -> B.ByteString -> [B.ByteString]
 bchopAlts seps  = go 
   where 
     go  s                 = maybe [s] (go' s) (firstElems seps s)
-    go' s (i,c',(s0, s1)) = if (B.length s2 == B.length s1) then [s1] else (s0 : s2' : go s3')
+    go' s (i,c',(s0, s1)) = if (B.length s2 == B.length s1) then [B.concat [s0,s1]] else (s0 : s2' : go s3')
                             where (s2, s3) = B.breakSubstring c' s1
                                   s2'      = B.append s2 c'
                                   s3'      = B.drop (B.length c') s3 
