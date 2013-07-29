@@ -16,6 +16,8 @@ import Data.Char (toLower, isLower, isSpace, isAlpha)
 import Data.List (partition)
 import Data.Monoid (mempty)
 
+import GHC (mkModuleName, ModuleName)
+
 import Language.Fixpoint.Types
 
 import Language.Haskell.Liquid.Types
@@ -284,7 +286,8 @@ data Pspec ty ctor
   | Lazy    Symbol
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
-mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
+mkSpec name xs         = (name,)
+                       $ Measure.qualifySpec name $ Measure.Spec
   { Measure.measures   = [m | Meas   m <- xs]
   , Measure.sigs       = [a | Assm   a <- xs] 
                       ++ [(y, t) | Assms (ys, t) <- xs, y <- ys]
@@ -302,7 +305,7 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
 
 type BareSpec = (Measure.Spec BareType Symbol)
 
-specificationP :: Parser BareSpec 
+specificationP :: Parser (String, BareSpec)
 specificationP 
   = do reserved "module"
        reserved "spec"
@@ -538,11 +541,22 @@ instance Inputable BareType where
 instance Inputable (Measure.Measure BareType Symbol) where
   rr' = doParse' measureP
 
-instance Inputable BareSpec where
+instance Inputable (String,BareSpec) where
   rr' = doParse' specificationP
 
-hsSpecificationP name 
-  = doParse' $ liftM (mkSpec name) $ specWraps specP
+hsSpecificationP 
+  = doParse' $ do
+      skipMany (commentP >> spaces)
+      S name <- try (reserved "module" >> symbolP) <|> return (S "Main")
+      liftM (mkSpec name) $ specWraps specP
+
+commentP =  simpleComment (string "{-") (string "-}")
+        <|> simpleComment (string "--") newlineP
+        <|> simpleComment (string "\\") newlineP
+
+simpleComment open close = open >> manyTill anyChar (try close)
+
+newlineP = string "\n" <|> string "\r" <|> string "\r\n"
 
 {-
 ---------------------------------------------------------------

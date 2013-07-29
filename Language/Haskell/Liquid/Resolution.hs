@@ -1,5 +1,6 @@
 {-# LANGUAGE TupleSections, TypeSynonymInstances, FlexibleInstances #-}
-module Language.Haskell.Liquid.Resolution where
+module Language.Haskell.Liquid.Resolution
+  (lookupRdrName, qualImportDecl, resolveSpec, addContext) where
 
 import Control.Applicative
 import Control.Arrow
@@ -26,7 +27,7 @@ import RnNames          ( gresFromAvails )
 import Outputable hiding (showPpr)
 import OccName
 
-import Language.Haskell.Liquid.Bare
+--import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc (showPpr)
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Parse
