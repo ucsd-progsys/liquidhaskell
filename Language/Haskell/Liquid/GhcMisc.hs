@@ -175,17 +175,10 @@ instance Hashable Loc where
   hashWithSalt i (L z) = hashWithSalt i z 
 
 --instance (Uniquable a) => Hashable a where
-instance Hashable Var where
-  hashWithSalt = uniqueHash 
-
-instance Hashable TyCon where
-  hashWithSalt = uniqueHash 
 
 instance Hashable SrcSpan where
   hashWithSalt i (UnhelpfulSpan s) = hashWithSalt i (uniq s) 
   hashWithSalt i (RealSrcSpan s)   = hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
-
-uniqueHash i = hashWithSalt i . getKey . getUnique
 
 instance Outputable a => Outputable (S.HashSet a) where
   ppr = ppr . S.toList 

@@ -77,9 +77,10 @@ import TyCon
 import DataCon
 import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Var
+import Unique
 import Literal
 import Text.Printf
-import GHC                          (Class, HscEnv)
+import GHC                          (Class, HscEnv, ModuleName, Name)
 
 import Control.Monad  (liftM, liftM2, liftM3)
 import Control.DeepSeq
@@ -89,10 +90,12 @@ import Data.Generics                (Data)
 import Data.Monoid                  hiding ((<>))
 import qualified Data.Foldable as F
 import Data.Hashable
+import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
+import Data.Function                (on)
 import Data.Maybe                   (fromMaybe)
 import Data.Traversable             hiding (mapM)
-import Data.List                    (nub)
+import Data.List                    (nub, union, unionBy)
 import Text.Parsec.Pos              (SourcePos, newPos) 
 import Text.PrettyPrint.HughesPJ    
 import Language.Fixpoint.Config hiding (Config) 
@@ -255,7 +258,27 @@ data GhcSpec = SP {
   , decr     :: ![(Var, [Int])]
   , lazy     :: !(S.HashSet Var)
   }
-  
+
+instance Monoid GhcSpec where
+  mappend (SP s  c  m  i  dc  t  f  e  q  v  d  l)
+          (SP s' c' m' i' dc' t' f' e' q' v' d' l')
+    = SP (s `comb` s') (c `comb` c') (m `comb` m') (i ++ i') (dc `comb` dc') (t `comb` t')
+         (f `comb` f') (e `M.union` e') (q `union` q') (v `union` v') (d `comb` d') (l `S.union` l')
+    where
+      comb :: Eq a => [(a,b)] -> [(a,b)] -> [(a,b)]
+      comb = unionBy ((==) `on` fst)
+
+  mempty = SP mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
+
+instance Hashable Var where
+  hashWithSalt = uniqueHash 
+
+instance Hashable TyCon where
+  hashWithSalt = uniqueHash 
+
+uniqueHash i = hashWithSalt i . getKey . getUnique
+
+
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![(PVar RSort)]
                      , covPs        :: ![Int] -- indexes of covariant predicate arguments

@@ -66,22 +66,32 @@ getGhcInfo :: Config -> FilePath -> IO GhcInfo
 ------------------------------------------------------------------
 
 getGhcInfo cfg target 
-  = runGhc (Just libdir) $ do
+  = runGhc (Just libdir)  $ do
+      liftIO $ deleteBinFiles target
       df                 <- getSessionDynFlags
       setSessionDynFlags  $ updateDynFlags df (idirs cfg) 
-      -- peepGHCSimple target
+      addTarget =<< guessTarget target Nothing
+      (_,name,tgtSpec)   <- liftIO $ parseSpec target
+      impNames           <- allDepNames <$> depanal [] False
+      impSpecs           <- getSpecs paths impNames [Spec, Hs, LHs]
+      forM impSpecs $ \(f,n,_) -> when (not $ isExtFile Spec f) $ do
+          addTarget =<< guessTarget f Nothing
+      load LoadAllTargets
       modguts            <- getGhcModGuts1 target
       hscEnv             <- getSession
-      -- modguts     <- liftIO $ hscSimplify hscEnv modguts
       coreBinds          <- liftIO $ anormalize hscEnv modguts
       let impVs           = importVars  coreBinds 
       let defVs           = definedVars coreBinds 
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
-      (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs target modguts (idirs cfg)
+      liftIO              $ putStrLn ("paths = " ++ show paths)
+      (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs target modguts tgtSpec impSpecs
       liftIO              $ putStrLn $ "Module Imports: " ++ show imps 
       hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs 
       return              $ GI hscEnv coreBinds impVs defVs useVs hqualFiles imps incs spec 
+  where
+    paths = idirs cfg
+    trace = liftIO . putStrLn . showpp
 
 
 updateDynFlags df ps 
@@ -111,11 +121,7 @@ definedVars           = concatMap defs
 ------------------------------------------------------------------
 
 getGhcModGuts1 fn = do
-   liftIO $ deleteBinFiles fn
-   target <- guessTarget fn Nothing
-   addTarget target
-   load LoadAllTargets
-   modGraph <- depanal [] True
+   modGraph <- getModuleGraph -- depanal [] True
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
        mod_guts <- coreModule `fmap` (desugarModuleWithLoc =<< typecheckModule =<< parseModule modSummary)
@@ -124,11 +130,7 @@ getGhcModGuts1 fn = do
 
 -- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
 getGhcModGutsSimpl1 fn = do
-   liftIO $ deleteBinFiles fn 
-   target <- guessTarget fn Nothing
-   addTarget target
-   load LoadAllTargets
-   modGraph <- depanal [] True
+   modGraph <- getModuleGraph -- depanal [] True
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
        mod_guts   <- coreModule `fmap` (desugarModule =<< typecheckModule =<< parseModule modSummary)
@@ -177,33 +179,30 @@ moduleHquals mg paths target imps incs
 -- | Extracting Specifications (Measures + Assumptions) ------------------------
 --------------------------------------------------------------------------------
  
-moduleSpec cfg vars defVars target mg paths
-  = do liftIO      $ putStrLn ("paths = " ++ show paths) 
-       tgtSpec    <- liftIO $ parseSpec (name, target)
-       impNames   <- allDepNames <$> getModuleGraph
-       impSpecs   <- getSpecs paths impNames [Spec, Hs, LHs]
-       forM impSpecs $ \((n,f),_) -> when (not $ isExtFile Spec f) $ do
-           guessTarget n Nothing >>= addTarget
-           load (LoadUpTo $ mkModuleName n) >> return ()
-       addImports impSpecs
+moduleSpec cfg vars defVars target mg tgtSpec impSpecs
+  = do addImports impSpecs
        addContext $ IIModule $ moduleName $ mgi_module mg
        env <- getSession
-       let specs   = ((name,target),tgtSpec):impSpecs
-       let rtenv   = Ms.makeRTEnv (concatMap (Ms.aliases  . snd) specs)
-                                  (concatMap (Ms.paliases . snd) specs)
-       spec <- fmap mconcat $ liftIO $ forM specs $ \((n,f),spec) ->
-           if isExtFile Spec f
-             then return $ Ms.expandRTAliases rtenv spec
-             else resolveSpec env (mkModuleName n) $ Ms.expandRTAliases rtenv spec
-       let imps    = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
-       ghcSpec    <- liftIO $ makeGhcSpec cfg name vars defVars env spec
+       let specs   = (target,name,tgtSpec):impSpecs
+       let rtenv   = Ms.makeRTEnv (concatMap (Ms.aliases  . thd3) specs)
+                                  (concatMap (Ms.paliases . thd3) specs)
+       let specs' = [ (n', Ms.expandRTAliases rtenv s)
+                    | (f,n,s) <- specs
+                    , let n' = if isExtFile Spec f then "" else n
+                    ]
+       let imps    = sortNub $ impNames ++ [ symbolString x
+                                           | (_,spec) <- specs'
+                                           , x <- Ms.imports spec
+                                           ]
+       getContext >>= liftIO . putStrLn . showPpr
+       ghcSpec <- liftIO $ makeGhcSpec cfg name vars defVars env specs'
        return      (ghcSpec, imps, Ms.includes tgtSpec)
     where
+      trace = liftIO . putStrLn . showpp
       name     = mgi_namestring mg
-      addImports is = do
-        mg <- getModuleGraph
-        let ns = nub $ (allDepNames mg) ++ map (fst.fst) is
-        mapM (addContext . IIDecl . qualImportDecl . mkModuleName) ns
+      impNames = map snd3 impSpecs
+      addImports is
+        = mapM (addContext . IIDecl . qualImportDecl . mkModuleName) (map snd3 is)
 
 
 
@@ -221,37 +220,37 @@ starName       = ("*" ++)
 getSpecs paths names exts
   = do fs    <- sortNub <$> moduleImports exts paths names 
        liftIO $ putStrLn ("getSpecs: " ++ show fs)
-       transParseSpecs exts paths S.empty mempty fs
+       transParseSpecs exts paths S.empty mempty (map snd fs)
 
 transParseSpecs _ _ _ specs []
   = return specs
 transParseSpecs exts paths seenFiles specs newFiles
-  = do newSpecs  <- liftIO $ zip newFiles <$> mapM parseSpec newFiles
+  = do newSpecs  <- liftIO $ mapM parseSpec newFiles
        impFiles  <- moduleImports exts paths $ specsImports newSpecs
        let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
-       let specs'     = specs ++ map (second noTerm) newSpecs
-       let newFiles'  = [f | f <- impFiles, not (f `S.member` seenFiles')]
+       let specs'     = specs ++ map (third noTerm) newSpecs
+       let newFiles'  = [f | (_,f) <- impFiles, not (f `S.member` seenFiles')]
        transParseSpecs exts paths seenFiles' specs' newFiles'
   where
-    specsImports ss = nub $ concatMap (map symbolString . Ms.imports . snd) ss
+    specsImports ss = nub $ concatMap (map symbolString . Ms.imports . thd3) ss
     noTerm spec = spec { Ms.decr=mempty, Ms.lazy=mempty }
- 
-parseSpec (name, file)
-  = Ex.catch (parseSpec' name file) $ \(e :: Ex.IOException) ->
+    third f (a,b,c) = (a,b,f c)
+
+parseSpec file
+  = Ex.catch (parseSpec' file) $ \(e :: Ex.IOException) ->
          ioError $ userError $ "Hit exception: " ++ (show e)
                             ++ " while parsing Spec file: " ++ file
-                            ++ " for module " ++ name
 
-parseSpec' name file 
-  = do putStrLn $ "parseSpec: " ++ file ++ " for module " ++ name  
-       str     <- readFile file
-       let spec = specParser name file str
-       return   $ spec 
+parseSpec' file
+  = do str            <- readFile file
+       let (name,spec) = specParser file str
+       putStrLn $ "parseSpec: " ++ file ++ " for module " ++ name
+       return $ (file,name,spec)
 
-specParser name file str  
+specParser file str
   | isExtFile Spec file  = rr' file str
-  | isExtFile Hs file    = hsSpecificationP name file str
-  | isExtFile LHs file   = hsSpecificationP name file str
+  | isExtFile Hs file    = hsSpecificationP file str
+  | isExtFile LHs file   = hsSpecificationP file str
   | otherwise            = errorstar $ "specParser: Cannot Parse File " ++ file
 
 --specParser Spec _  = rr'
@@ -434,9 +433,9 @@ instance PPrint GhcSpec where
               $$ (text "******* Type Signatures *********************")
               $$ (pprintLongList $ tySigs spec)
               $$ (text "******* DataCon Specifications (Measure) ****")
-              $$ (pprint $ ctor spec)
+              $$ (pprintLongList $ ctor spec)
               $$ (text "******* Measure Specifications **************")
-              $$ (pprint $ meas spec)
+              $$ (pprintLongList $ meas spec)
 
 instance PPrint GhcInfo where 
   pprint info =   (text "*************** Imports *********************")
