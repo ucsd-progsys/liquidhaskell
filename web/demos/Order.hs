@@ -1,7 +1,3 @@
-{--! run liquid with no-termination -}
-
-{-# LANGUAGE NoMonomorphismRestriction #-}
-
 module PuttingThingsInOrder where
 
 import Prelude hiding (break)
@@ -9,59 +5,34 @@ import Prelude hiding (break)
 -- Haskell Type Definitions
 plusOnes                         :: [(Int, Int)]
 insertSort, mergeSort, quickSort :: (Ord a) => [a] -> [a]
-whatGosUp, mustGoDown, noDuplicates :: [Integer]
+
 
 -- Polymorphic Association Lists
 
 data AssocP k v = KVP [(k, v)]
 
 
--- Now, in a program, you might have multiple association
--- lists, whose keys satisfy different properties.
--- For example, we might have a table for mapping digits
--- to the corresponding English string
-
-
+{-@ digitsP :: AssocP {v:Int | (Btwn 0 v 9)} String @-}
 digitsP :: AssocP Int String
 digitsP = KVP [ (1, "one")
               , (2, "two")
               , (3, "three") ]
 
-
--- We could have a separate table for *sparsely* storing
--- the contents of an array of size `1000`.
-
+{-@ sparseVecP :: AssocP {v:Int | (Btwn 0 v 1000)} Double @-}
 sparseVecP :: AssocP Int Double
 sparseVecP = KVP [ (12 ,  34.1 )
                  , (92 , 902.83)
                  , (451,   2.95)
                  , (877,   3.1 )]
 
--- The **keys** used in the two tables have rather
--- different properties, which we may want to track
--- at compile time.
-
--- 1. In `digitsP` the keys are between `0` and `9`
--- 2. In `sparseVecP` the keys are between `0` and `999`.
-
--- We can express the above properties by instantiating
--- the type of `k` with refined versions
-
-{-@ digitsP :: AssocP {v:Int | (Btwn 0 v 9)} String @-}
-
-
-{-@ sparseVecP :: AssocP {v:Int | (Btwn 0 v 1000)} Double @-}
-
 
 {-@ predicate Btwn Lo V Hi = (Lo <= V && V <= Hi) @-}
-
 
 -- Monomorphic Association Lists
 -- -----------------------------
 
 data Assoc v = KV [(Int, v)]
 
--- Now, we have our two tables
 
 digits    :: Assoc String
 digits    = KV [ (1, "one")
@@ -98,29 +69,19 @@ break p xs@(x:xs')
            | otherwise  =  let (ys, zs) = break p xs'
                            in (x:ys,zs)
 
--- \begin{code} Instead, lets use abstract refinements to give us **dependent tuples**
+-- Dependent Tuples via Abstract Refinements
+-- 
 -- data (a,b)<p :: a -> b -> Prop> = (x:a, b<p x>)
--- \end{code}
 
--- The abstract refinement takes two parameters,
--- an `a` and a `b`. In the body of the tuple, the
--- first element is named `x` and we specify that
--- the second element satisfies the refinement `p x`,
--- i.e. a partial application of `p` with the first element.
--- In other words, the second element is a value of type
--- `{v:b | (p x v)}`.
-
--- As before, we can instantiate the `p` in *different* ways.
+-- Instantiate the `p` in *different* ways.
 
 {-@ plusOnes :: [(Int, Int)<{\x1 x2 -> x2 = x1 + 1}>] @-}
 plusOnes = [(0,1), (5,6), (999,1000)]
-
 
 {-@ break :: (a -> Bool) -> x:[a]
           -> ([a], [a])<{\y z -> (Break x y z)}> @-}
 
 {-@ predicate Break X Y Z   = (len X) = (len Y) + (len Z) @-}
-
 
 -- Abstractly Refined Lists
 -- ------------------------
@@ -260,14 +221,7 @@ sort = mergeAll . sequences
     mergeAll [x] = x
     mergeAll xs  = mergeAll (mergePairs xs)
 
-    mergePairs (a:b:xs) = merge1 a b: mergePairs xs
+    mergePairs (a:b:xs) = merge a b: mergePairs xs
     mergePairs [x]      = [x]
     mergePairs []       = []
-
-
-merge1 (a:as') (b:bs')
-  | a `compare` b == GT = b:merge1 (a:as')  bs'
-  | otherwise           = a:merge1 as' (b:bs')
-merge1 [] bs            = bs
-merge1 as []            = as
 
