@@ -323,8 +323,7 @@ makeAssumeSpec' :: Config -> BareEnv -> [Var] -> [(LocSymbol, BareType)]
 makeAssumeSpec' cfg env vs xbs = execBare mkAspec env
   where
     -- vbs = joinIds vs xbs
-    mkAspec                   = do vbs <- lookupIds xbs
-                                   liftIO $ mapM_ (putStrLn.showpp) vs
+    mkAspec                   = do vbs <- map (joinVar vs) <$> lookupIds xbs
                                    when (not $ noCheckUnknown cfg)
                                      $ checkDefAsserts env vbs xbs
                                    forM vbs mkVarSpec
@@ -333,16 +332,17 @@ makeAssumeSpec' cfg env vs xbs = execBare mkAspec env
 -- we're given, so return the original var when possible.
 -- see tests/pos/ResolvePred.hs for an example
 joinVar vs (v,s,t) = case L.find ((== showPpr v) . showPpr) vs of
-                       Just v' -> traceShow "joinVar Found" (v',s,t)
+                       Just v' -> (v',s,t)
                        Nothing -> (v,s,t)
 
 instance Show Var where
     show = showpp
 
-lookupIds xs = catMaybes <$> mapM lookup xs
+lookupIds xs = mapM lookup xs
   where
-    lookup (s, t) = fmap (,s,t) <$> ((Just <$> lookupGhcVar (ss s))
-                                     `catchError` (const $ return Nothing))
+    -- lookup (s, t) = fmap (,s,t) <$> ((Just <$> lookupGhcVar (ss s))
+    --                                  `catchError` (const $ return Nothing))
+    lookup (s, t) = (,s,t) <$> lookupGhcVar (ss s)
     ss = symbolString . symbol
 
 checkDefAsserts :: BareEnv -> [(Var, LocSymbol, BareType)] -> [(LocSymbol, BareType)] -> BareM ()
@@ -429,7 +429,7 @@ makeSymbols vs benv xs' xts yts = execBare mkxvs benv
     zs    = (concatMap freeSymbols ((snd <$> xts))) `sortDiff` xs''
     zs'   = (concatMap freeSymbols ((snd <$> yts))) `sortDiff` xs''
     xs    = sortNub $ zs ++ zs'
-    mkxvs = do xvs <- lookupIds (zip xs xs)
+    mkxvs = do xvs <- map (joinVar vs) <$> lookupIds (zip xs xs)
                --let xvs = joinIds vs (zip xs xs)
                return $ sortNub [(x, v) | (v, _, x) <- xvs]
 
@@ -492,8 +492,7 @@ stringLookup env mod k
   | last k == '#'
   = return Nothing
   | otherwise
-  = traceShow (mod ++ " : " ++ k) <$>
-    stringLookupEnv env mod k
+  = stringLookupEnv env mod k
 
 instance Show Name where
     show = showpp

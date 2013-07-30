@@ -13,10 +13,12 @@ import Data.Maybe
 --                                       g:(y:a -> b<q y>) ->
 --                                       x:a ->
 --                                       exists[z:b<q x>].c<p z>
-assume GHC.Integer.smallInteger :: x:GHC.Prim.Int# -> {v:GHC.Integer.Type.Integer | v = (x :: int)}
-assume GHC.Num.+                :: (Num a) => x:a -> y:a -> {v:a | v = x + y }
-assume GHC.Num.-                :: (Num a) => x:a -> y:a -> {v:a | v = x - y }
-assume GHC.Num.*                :: (Num a) => x:a -> y:a -> {v:a | ((((x >= 0) && (y >= 0)) => ((v >= x) && (v >= y))) && (((x > 1) && (y > 1)) => ((v > x) && (v > y)))) }
+assume GHC.Integer.smallInteger :: x:GHC.Prim.Int#
+                                -> { v:GHC.Integer.Type.Integer |
+                                     v = (x :: int) }
+assume GHC.Num.+                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x + y }
+assume GHC.Num.-                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x - y }
+assume GHC.Num.*                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | ((((x >= 0) && (y >= 0)) => ((v >= x) && (v >= y))) && (((x > 1) && (y > 1)) => ((v > x) && (v > y)))) }
 
 
 

@@ -7,7 +7,7 @@ module PrimInt(
  ) where
 
 import Data.Maybe
-import GHC.Base 
+import GHC.Base
 
 {-@ assert ztake  :: n: {v: Int# | 0 <= v} -> {v: Int | v = n } @-}
 ztake :: Int# -> Int
