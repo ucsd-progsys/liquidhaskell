@@ -1,6 +1,7 @@
 {-# LANGUAGE TupleSections, TypeSynonymInstances, FlexibleInstances #-}
 module Language.Haskell.Liquid.Resolution
-  (lookupRdrName, qualImportDecl, resolveSpec, addContext) where
+  (lookupRdrName, qualImportDecl, resolveSpec, addContext, runResolveM)
+  where
 
 import Control.Applicative
 import Control.Arrow
@@ -201,7 +202,6 @@ lookupName name = ask >>= liftIO . go
                       in maybe (showPpr rdr') showpp <$> lookupRdrName env mod rdr'
                   | otherwise = return $ propOrErr rdr
        propOrErr rdr | n == "Prop" = "Prop"
-                     | n == "VV"   = "VV"
                      -- | n `M.member` wiredIn = showpp $ wiredIn M.! n
                      -- | isQual rdr = n
                      | otherwise = err rdr

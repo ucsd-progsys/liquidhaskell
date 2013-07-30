@@ -87,10 +87,6 @@ import GHC.Word (Word16(..))
 import Prelude hiding (length, read)
 
 --LIQUID
-import Data.Int
-import qualified Data.Word
-import Foreign.C.Types
-import qualified GHC.Prim
 import Language.Haskell.Liquid.Prelude
 
 {-@ predicate Btwn V X Y   = ((X <= V) && (V < Y)) @-}
@@ -109,14 +105,14 @@ data Array = Array {
 --LIQUID #endif
     }
 
-{-@ data Data.Text.Array.Array
-         = Data.Text.Array.Array
-            (aBA :: GHC.Prim.ByteArray#)
+{-@ data Array
+         = Array
+            (aBA :: ByteArray#)
             (aLen :: Nat)
   @-}
 
-{-@ measure alen :: Data.Text.Array.Array -> Int
-    alen (Data.Text.Array.Array aBA aLen) = aLen
+{-@ measure alen :: Array -> Int
+    alen (Array aBA aLen) = aLen
   @-}
 
 {-@ aLen :: a:Array -> {v:Nat | v = (alen a)} @-}
@@ -127,12 +123,12 @@ data Array = Array {
 {-@ type AValidO A   = {v:Nat | v     <= (alen A)} @-}
 {-@ type AValidL O A = {v:Nat | (v+O) <= (alen A)} @-}
 
-{-@ qualif ALen(v:Int, a:Data.Text.Array.Array): v = alen(a) @-}
-{-@ qualif ALen(v:Data.Text.Array.Array, i:Int): i = alen(v) @-}
+{-@ qualif ALen(v:Int, a:Array): v = alen(a) @-}
+{-@ qualif ALen(v:Array, i:Int): i = alen(v) @-}
 
-{-@ invariant {v:Data.Text.Array.Array | (alen v) >= 0} @-}
+{-@ invariant {v:Array | (alen v) >= 0} @-}
 
-{-@ measure numchars :: Data.Text.Array.Array -> Int -> Int -> Int @-}
+{-@ measure numchars :: Array -> Int -> Int -> Int @-}
 
 -- | Mutable array type, for use in the ST monad.
 data MArray s = MArray {
@@ -142,13 +138,13 @@ data MArray s = MArray {
 --LIQUID #endif
     }
 
-{-@ data Data.Text.Array.MArray s = Data.Text.Array.MArray
-            (maBA :: GHC.Prim.MutableByteArray# s)
+{-@ data MArray s = MArray
+            (maBA :: MutableByteArray# s)
             (maLen :: Nat)
   @-}
 
-{-@ measure malen :: Data.Text.Array.MArray s -> Int
-    malen (Data.Text.Array.MArray maBA maLen) = maLen
+{-@ measure malen :: MArray s -> Int
+    malen (MArray maBA maLen) = maLen
   @-}
 
 {-@ maLen :: ma:(MArray s) -> {v:Nat | v = (malen ma)} @-}
@@ -159,12 +155,12 @@ data MArray s = MArray {
 {-@ type MAValidO A   = {v:Nat | v     <= (malen A)} @-}
 {-@ type MAValidL O A = {v:Nat | (v+O) <= (malen A)} @-}
 
-{-@ qualif MALen(v:Int, a:Data.Text.Array.MArray s): v = malen(a) @-}
-{-@ qualif MALen(v:Data.Text.Array.MArray s, i:Int): i = malen(v) @-}
+{-@ qualif MALen(v:Int, a:MArray s): v = malen(a) @-}
+{-@ qualif MALen(v:MArray s, i:Int): i = malen(v) @-}
 
-{-@ invariant {v:Data.Text.Array.MArray | (malen v) >= 0} @-}
+{-@ invariant {v:MArray | (malen v) >= 0} @-}
 
-{-@ qualif FreezeMArr(v:Data.Text.Array.Array, ma:Data.Text.Array.MArray s):
+{-@ qualif FreezeMArr(v:Array, ma:MArray s):
         alen(v) = malen(ma)
   @-}
 
@@ -251,14 +247,14 @@ unsafeIndexFQ = undefined
 
 {-@ unsafeIndexB :: a:Array -> o:AValidO a -> l:AValidL o a
                  -> i:{v:Int | (Btwn (v) (o) (o + l))}
-                 -> {v:Data.Word.Word16 | (((v >= 56320) && (v <= 57343))
-                                           ? ((numchars(a, o, (i-o)+1)
-                                               = (1 + numchars(a, o, (i-o)-1)))
-                                              && (numchars(a, o, (i-o-1)) >= 0)
-                                              && (((i-o)-1) >= 0))
-                                           : ((numchars(a, o, (i-o)+1)
-                                               = (1 + numchars(a, o, i-o)))
-                                              && (numchars(a, o, (i-o)) >= 0)))}
+                 -> {v:Word16 | (((v >= 56320) && (v <= 57343))
+                                 ? ((numchars(a, o, (i-o)+1)
+                                     = (1 + numchars(a, o, (i-o)-1)))
+                                    && (numchars(a, o, (i-o-1)) >= 0)
+                                    && (((i-o)-1) >= 0))
+                                 : ((numchars(a, o, (i-o)+1)
+                                     = (1 + numchars(a, o, i-o)))
+                                    && (numchars(a, o, (i-o)) >= 0)))}
   @-}
 unsafeIndexB :: Array -> Int -> Int -> Int -> Word16
 unsafeIndexB a o l i = let x = unsafeIndex a i
