@@ -345,6 +345,9 @@ instance Show Var where
 
 lookupIds xs = mapM lookup xs
   where
+    -- -- FIXME: this is hacky, we should really be throwing an error if the Var
+    -- -- isn't in scope, but we currently get measure names as input in addition
+    -- -- to Vars
     -- lookup (s, t) = fmap (,s,t) <$> ((Just <$> lookupGhcVar (ss s))
     --                                  `catchError` (const $ return Nothing))
     lookup (s, t) = (,s,t) <$> lookupGhcVar (ss s)
@@ -428,7 +431,7 @@ makeSymbols :: (PPrint r1, PPrint r, Reftable r1, Reftable r)
             -> [(a, Located (RType p c tv r))] 
             -> [(a1, Located (RType p1 c1 tv1 r1))] 
             -> IO [(Symbol, Var)]
-makeSymbols vs benv xs' xts yts = execBare mkxvs benv
+makeSymbols vs (BE _ t e) xs' xts yts = execBare mkxvs (BE "" t e)
   where
     xs''  = val <$> xs'
     zs    = (concatMap freeSymbols ((snd <$> xts))) `sortDiff` xs''
@@ -494,8 +497,6 @@ stringLookup :: HscEnv -> String -> String -> IO (Maybe Name)
 stringLookup env mod k
   | k `M.member` wiredIn
   = return $ M.lookup k wiredIn
-  | last k == '#'
-  = return Nothing
   | otherwise
   = stringLookupEnv env mod k
 
@@ -510,10 +511,10 @@ stringLookupEnv env "" s
            Just (n:_) -> return (Just n)
            _          -> return Nothing
 stringLookupEnv env mod s
-    = do L _ rn         <- hscParseIdentifier env s
-         res <- lookupRdrName env (mkModuleName mod) rn
+    = do L _ rn <- hscParseIdentifier env s
+         res    <- lookupRdrName env (mkModuleName mod) rn
          case res of
-           Just n -> return $ Just n
+           Just _  -> return res
            Nothing -> lookupRdrName env (mkModuleName mod) (setRdrNameSpace rn tcName)
          -- (_, lookupres) <- tcRnLookupRdrName env rn
          -- case lookupres of

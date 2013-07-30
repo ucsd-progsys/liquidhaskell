@@ -1,7 +1,6 @@
 module spec Data.Text.Fusion where
 
-measure slen :: Data.Text.Fusion.Internal.Stream a
-             -> GHC.Types.Int
+import Data.Text.Fusion.Common
 
 stream        :: t:Data.Text.Internal.Text
               -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = (tlength t)}
