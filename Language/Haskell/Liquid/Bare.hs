@@ -577,11 +577,11 @@ resolvePred (PAll vs p)     = PAll <$> mapM (secondM resolve) vs
 resolvePred p               = return p
 
 resolveExpr v@(EVar (S s))
-    | s == "Pred" = return v
+    | s `elem` fixpointPrims = return v
     | isCon s     = EVar . varSymbol <$> lookupGhcVar s
     | otherwise   = return v
 resolveExpr v@(EApp (S s) es)
-    | s == "Pred" = return v
+    | s `elem` fixpointPrims = return v
     | isCon s     = EApp . varSymbol <$> lookupGhcVar s <*> es'
     | otherwise   = EApp (S s) <$> es'
     where es'     = mapM resolveExpr es
@@ -591,6 +591,8 @@ resolveExpr (EIte p e1 e2)
     = EIte <$> resolvePred p <*> resolveExpr e1 <*> resolveExpr e2
 resolveExpr (ECst x s) = ECst <$> resolveExpr x <*> resolve s
 resolveExpr x          = return x
+
+fixpointPrims = ["Pred", "Prop", "List"]
 
 class Resolvable a where
   resolve :: a -> BareM a
@@ -602,7 +604,7 @@ instance Resolvable Sort where
   resolve s@(FVar _)   = return s
   resolve (FFunc i ss) = FFunc i <$> mapM resolve ss
   resolve (FApp tc ss)
-      | tcs == "Pred" = FApp tc <$> ss'
+      | tcs `elem` fixpointPrims = FApp tc <$> ss'
       | otherwise     = FApp <$> (stringFTycon.showPpr <$> lookupGhcTyCon tcs)
                              <*> ss'
       where tcs = fTyconString tc
