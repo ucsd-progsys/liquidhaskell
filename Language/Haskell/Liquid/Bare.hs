@@ -27,12 +27,12 @@ import BasicTypes               (TupleSort (..), Arity)
 import TcRnDriver               (tcRnLookupRdrName, tcRnLookupName)
 import RdrName                  (setRdrNameSpace)
 import OccName                  (tcName)
-import Data.Char                (isLower)
+import Data.Char                (isLower, isUpper)
 import Text.Printf
 import Data.Maybe               (listToMaybe, fromMaybe, mapMaybe, catMaybes, isNothing)
 import Control.Monad.State      (put, get, modify, State, evalState, execState)
 import Data.Traversable         (forM)
-import Control.Applicative      ((<$>), (<|>))
+import Control.Applicative      ((<$>), (<*>), (<|>))
 import Control.Monad.Reader     hiding (forM)
 import Control.Monad.Error      hiding (forM)
 import Control.Monad.Writer     hiding (forM)
@@ -85,7 +85,7 @@ makeGhcSpec' cfg name vars defVars env specs
        let txq          = subsFreeSymbolsQual syms
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
        let decr'        = mconcat $ map (makeHints defVars) specs
-       let quals        = txq $ mconcat $ map (Ms.qualifiers.snd) specs
+       quals           <- mconcat <$> mapM (makeQualifiers benv) specs
        return           $ SP { tySigs     = renameTyVars <$> tx sigs
                              , ctor       = tx cs'
                              , meas       = tx (ms' ++ varMeasures vars)
@@ -94,7 +94,7 @@ makeGhcSpec' cfg name vars defVars env specs
                              , tconsP     = tycons 
                              , freeSyms   = syms'
                              , tcEmbeds   = embs 
-                             , qualifiers = quals
+                             , qualifiers = txq quals
                              , decr       = decr'
                              , lazy       = lazies
                              , tgtVars    = targetVars
@@ -104,6 +104,11 @@ makeGhcSpec' cfg name vars defVars env specs
 instance PPrint DataCon where
   pprint = pprDoc
 
+
+makeQualifiers (BE _ t e) (mod,spec)
+    = execBare mkQuals (BE mod t e)
+  where
+    mkQuals = mapM resolveQual $ Ms.qualifiers spec
 
 makeHints vs (_,spec) = makeHints' vs $ Ms.decr spec
 
@@ -556,6 +561,59 @@ wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns
   where wiredIns = [ (showPpr n, n) | thing <- wiredInThings, let n = getName thing ]
         special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
                    , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
+
+
+resolveQual (Q n ps b) = Q n <$> mapM (secondM resolve) ps <*> resolvePred b
+
+resolvePred (PAnd ps)       = PAnd <$> mapM resolvePred ps
+resolvePred (POr  ps)       = POr  <$> mapM resolvePred ps
+resolvePred (PNot p)        = PNot <$> resolvePred p
+resolvePred (PImp p q)      = PImp <$> resolvePred p <*> resolvePred q
+resolvePred (PIff p q)      = PIff <$> resolvePred p <*> resolvePred q
+resolvePred (PBexp b)       = PBexp <$> resolveExpr b
+resolvePred (PAtom r e1 e2) = PAtom r <$> resolveExpr e1 <*> resolveExpr e2
+resolvePred (PAll vs p)     = PAll <$> mapM (secondM resolve) vs
+                                   <*> resolvePred p
+resolvePred p               = return p
+
+resolveExpr v@(EVar (S s))
+    | s == "Pred" = return v
+    | isCon s     = EVar . varSymbol <$> lookupGhcVar s
+    | otherwise   = return v
+resolveExpr v@(EApp (S s) es)
+    | s == "Pred" = return v
+    | isCon s     = EApp . varSymbol <$> lookupGhcVar s <*> es'
+    | otherwise   = EApp (S s) <$> es'
+    where es'     = mapM resolveExpr es
+resolveExpr (EBin o e1 e2)
+    = EBin o <$> resolveExpr e1 <*> resolveExpr e2
+resolveExpr (EIte p e1 e2)
+    = EIte <$> resolvePred p <*> resolveExpr e1 <*> resolveExpr e2
+resolveExpr (ECst x s) = ECst <$> resolveExpr x <*> resolve s
+resolveExpr x          = return x
+
+class Resolvable a where
+  resolve :: a -> BareM a
+
+instance Resolvable Sort where
+  resolve FInt         = return FInt
+  resolve FNum         = return FNum
+  resolve s@(FObj _)   = return s --FObj . S <$> lookupName env m s
+  resolve s@(FVar _)   = return s
+  resolve (FFunc i ss) = FFunc i <$> mapM resolve ss
+  resolve (FApp tc ss)
+      | tcs == "Pred" = FApp tc <$> ss'
+      | otherwise     = FApp <$> (stringFTycon.showPpr <$> lookupGhcTyCon tcs)
+                             <*> ss'
+      where tcs = fTyconString tc
+            ss' = mapM resolve ss
+
+firstM  f (a,b)   = (,b) <$> f a
+secondM f (a,b)   = (a,) <$> f b
+thirdM  f (a,b,c) = (a,b,) <$> f c
+
+isCon (c:cs) = isUpper c
+isCon []     = False
 
 --------------------------------------------------------------------
 ------ Predicate Types for WiredIns --------------------------------
