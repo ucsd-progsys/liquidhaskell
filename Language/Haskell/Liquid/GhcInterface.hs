@@ -95,12 +95,13 @@ getGhcInfo cfg target
 
 
 updateDynFlags df ps 
-  = df { importPaths  = ps ++ importPaths df  } 
-       { libraryPaths = ps ++ libraryPaths df }
-       { profAuto     = ProfAutoCalls         }
-       { ghcLink      = NoLink                }
-       { hscTarget    = HscNothing            }
-       `xopt_set` Opt_MagicHash
+  = df { importPaths  = ps ++ importPaths df   
+       , libraryPaths = ps ++ libraryPaths df 
+       , profAuto     = ProfAutoCalls         
+       , ghcLink      = NoLink                
+       , hscTarget    = HscInterpreted
+       , ghcMode      = CompManager
+       } `xopt_set` Opt_MagicHash `dopt_set` Opt_ImplicitImportQualified
 
 printVars s vs 
   = do putStrLn s 
