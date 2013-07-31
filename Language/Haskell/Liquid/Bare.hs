@@ -60,14 +60,14 @@ import TypeRep
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
 
-makeGhcSpec, makeGhcSpec' :: Config -> String -> [Var] -> [Var] -> HscEnv
-                          -> [(String,Ms.Spec BareType Symbol)] -> IO GhcSpec
+makeGhcSpec, makeGhcSpec' :: Config -> ModName -> [Var] -> [Var] -> HscEnv
+                          -> [(ModName,Ms.Spec BareType Symbol)] -> IO GhcSpec
 makeGhcSpec cfg name vars defVars env specs
   = checkGhcSpec <$> makeGhcSpec' cfg name vars defVars env specs
 
 makeGhcSpec' cfg name vars defVars env specs
   = do (tcs, dcs)      <- mconcat <$> mapM (makeConTypes env) specs
-       let (tcs', dcs') = wiredTyDataCons 
+       let (tcs', dcs') = wiredTyDataCons
        let tycons       = tcs ++ tcs'    
        let datacons     = concat dcs ++ dcs'    
        let benv         = BE name (makeTyConInfo tycons) env
@@ -105,8 +105,8 @@ instance PPrint DataCon where
   pprint = pprDoc
 
 
-makeQualifiers (BE _ t e) (mod,spec)
-    = execBare mkQuals (BE mod t e)
+makeQualifiers env (mod,spec)
+    = execBare mkQuals (setModule mod env)
   where
     mkQuals = mapM resolveQual $ Ms.qualifiers spec
 
@@ -275,9 +275,11 @@ type BareM a = WriterT [Warn] (ErrorT String (ReaderT BareEnv IO)) a
 
 type Warn    = String
 
-data BareEnv = BE { modName :: !String 
+data BareEnv = BE { modName :: !ModName
                   , tcEnv   :: !(M.HashMap TyCon RTyCon)
                   , hscEnv  :: HscEnv }
+
+setModule m b = b { modName = m }
 
 execBare :: BareM a -> BareEnv -> IO a
 execBare act benv = 
@@ -297,8 +299,8 @@ wrapErr msg f x = yesStack
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
 
-makeMeasureSpec (BE _ t e) (mod,spec)
-  = makeMeasureSpec' (BE mod t e) $ Ms.mkMSpec $ Ms.measures spec
+makeMeasureSpec env (mod,spec)
+  = makeMeasureSpec' (setModule mod env) $ Ms.mkMSpec $ Ms.measures spec
 
 makeMeasureSpec' :: BareEnv
                  -> Ms.MSpec BareType Symbol
@@ -312,12 +314,12 @@ makeMeasureSpec' env m = execBare mkSpec env
     m'                = first (mapReft ur_reft) m
 
 
-makeTargetVars :: HscEnv -> String -> [Var] -> [String] -> IO [Var]
+makeTargetVars :: HscEnv -> ModName -> [Var] -> [String] -> IO [Var]
 makeTargetVars env name vs ss = do
   ns <- catMaybes <$> mapM (lookupName env name) (map prefix ss)
   return $ filter ((`elem` ns) . varName) vs
  where
-  prefix s = name ++ "." ++ s
+  prefix s = getModString name ++ "." ++ s
 
 
 makeAssumeSpec cfg (BE _ t e) vs (mod,spec)
@@ -360,7 +362,7 @@ checkDefAsserts env vbs xbs   = applyNonNull (return ()) grumble  undefSigs
     assertSigs                = filter isTarget xbs
     definedSigs               = S.fromList $ snd3 <$> vbs
     grumble xs                = mapM_ (warn . berrUnknownVar) xs -- [berrUnknownVar (loc x) (val x) | x <- xs] 
-    moduleName                = modName env
+    moduleName                = getModString $ modName env
     isTarget                  = L.isPrefixOf moduleName . symbolStringRaw . val . fst
     symbolStringRaw           = stripParens . symbolString
 
@@ -431,7 +433,7 @@ makeSymbols :: (PPrint r1, PPrint r, Reftable r1, Reftable r)
             -> [(a, Located (RType p c tv r))] 
             -> [(a1, Located (RType p1 c1 tv1 r1))] 
             -> IO [(Symbol, Var)]
-makeSymbols vs (BE _ t e) xs' xts yts = execBare mkxvs (BE "" t e)
+makeSymbols vs env xs' xts yts = execBare mkxvs env
   where
     xs''  = val <$> xs'
     zs    = (concatMap freeSymbols ((snd <$> xts))) `sortDiff` xs''
@@ -464,7 +466,7 @@ freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> []) (\ _ -> ()) f emptySE
 -----------------------------------------------------------------
 
 class GhcLookup a where
-  lookupName :: HscEnv -> String -> a -> IO (Maybe Name)
+  lookupName :: HscEnv -> ModName -> a -> IO (Maybe Name)
   candidates :: a -> [a]
   pp         :: a -> String 
 
@@ -488,38 +490,32 @@ lookupGhcThing name f x
 lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
 lookupGhcThing' _    f x 
   = do (BE mod _ env) <- ask
-       z       <- liftIO $ lookupName env mod x
+       z              <- liftIO $ lookupName env mod x
        case z of
          Nothing -> return Nothing 
          Just n  -> liftIO $ liftM (join . (f <$>) . snd) (tcRnLookupName env n)
 
-stringLookup :: HscEnv -> String -> String -> IO (Maybe Name)
+stringLookup :: HscEnv -> ModName -> String -> IO (Maybe Name)
 stringLookup env mod k
   | k `M.member` wiredIn
   = return $ M.lookup k wiredIn
   | otherwise
   = stringLookupEnv env mod k
 
-instance Show Name where
-    show = showpp
-
-
-stringLookupEnv env "" s
-    = do L _ rn         <- hscParseIdentifier env s
-         (_, lookupres) <- tcRnLookupRdrName env rn
-         case lookupres of
-           Just (n:_) -> return (Just n)
-           _          -> return Nothing
 stringLookupEnv env mod s
-    = do L _ rn <- hscParseIdentifier env s
-         res    <- lookupRdrName env (mkModuleName mod) rn
-         case res of
-           Just _  -> return res
-           Nothing -> lookupRdrName env (mkModuleName mod) (setRdrNameSpace rn tcName)
-         -- (_, lookupres) <- tcRnLookupRdrName env rn
-         -- case lookupres of
-         --   Just (n:_) -> return (Just n)
-         --   _          -> return Nothing
+  | isSrcImport mod
+  = do let modName = getModName mod
+       L _ rn <- hscParseIdentifier env s
+       res    <- lookupRdrName env modName rn
+       case res of
+         Just _  -> return res
+         Nothing -> lookupRdrName env modName (setRdrNameSpace rn tcName)
+  | otherwise
+  = do L _ rn         <- hscParseIdentifier env s
+       (_, lookupres) <- tcRnLookupRdrName env rn
+       case lookupres of
+         Just (n:_) -> return (Just n)
+         _          -> return Nothing
 
 lookupGhcVar :: GhcLookup a => a -> BareM Var
 lookupGhcVar = lookupGhcThing "Var" fv
@@ -799,13 +795,13 @@ propTyCon   = stringTyCon 'w' 24 propConName
 
 makeConTypes env (name,spec) = makeConTypes' env name $ Ms.dataDecls spec
 
-makeConTypes' :: HscEnv -> String -> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
+makeConTypes' :: HscEnv -> ModName -> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
 makeConTypes' env name dcs = unzip <$> execBare (mapM ofBDataDecl dcs) (BE name M.empty env)
 
 ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
 ofBDataDecl (D tc as ps cts pos sfun)
   = do πs    <- mapM ofBPVar ps
-       tc'   <- lookupGhcTyCon tc 
+       tc'   <- lookupGhcTyCon tc
        cts'  <- mapM (ofBDataCon (berrDataDecl pos tc πs) tc' αs ps πs) cts
        let tys     = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
        let initmap = zip (uPVar <$> πs) [0..]

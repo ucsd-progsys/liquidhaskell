@@ -70,6 +70,10 @@ module Language.Haskell.Liquid.Types (
   
   -- * Printer Configuration 
   , PPEnv (..), ppEnv
+
+  -- * Import handling
+  , ModName (..), ModType (..), isSrcImport, isSpecImport
+  , getModName, getModString
   )
   where
 
@@ -80,7 +84,7 @@ import Var
 import Unique
 import Literal
 import Text.Printf
-import GHC                          (Class, HscEnv, ModuleName, Name)
+import GHC (Class, HscEnv, ModuleName, Name, moduleNameString)
 
 import Control.Monad  (liftM, liftM2, liftM3)
 import Control.DeepSeq
@@ -935,4 +939,20 @@ instance PPrint SortedReft where
     $ (pprint v) <+> (text ":") <+> (toFix so) <+> (text "|") <+> pprint ras
 
 
+--------------------------------------------------------------------------------
+--- Module Names
+--------------------------------------------------------------------------------
 
+data ModName = ModName !ModType !ModuleName
+
+data ModType = Target | SrcImport | SpecImport
+
+isSrcImport (ModName SrcImport _) = True
+isSrcImport _                     = False
+
+isSpecImport (ModName SpecImport _) = True
+isSpecImport _                      = False
+
+getModName (ModName _ m) = m
+
+getModString = moduleNameString . getModName

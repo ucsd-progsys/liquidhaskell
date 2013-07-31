@@ -10,9 +10,9 @@ module Language.Haskell.Liquid.GhcInterface (
   , CBVisitable (..) 
   ) where
 
-import GHC 
+import GHC  hiding (Target)
 import Text.PrettyPrint.HughesPJ
-import HscTypes
+import HscTypes hiding (Target)
 import TidyPgm      (tidyProgram)
 import Literal
 import CoreSyn
@@ -72,10 +72,12 @@ getGhcInfo cfg target
       setSessionDynFlags  $ updateDynFlags df (idirs cfg) 
       addTarget =<< guessTarget target Nothing
       (_,name,tgtSpec)   <- liftIO $ parseSpec target
+      let name' = ModName Target (getModName name)
       impNames           <- allDepNames <$> depanal [] False
       impSpecs           <- getSpecs paths impNames [Spec, Hs, LHs]
-      forM impSpecs $ \(f,n,_) -> when (not $ isExtFile Spec f) $ do
-          addTarget =<< guessTarget f Nothing
+      impSpecs'          <- forM impSpecs $ \(f,n,s) -> do
+        when (not $ isSpecImport n) $ addTarget =<< guessTarget f Nothing
+        return (n,s)
       load LoadAllTargets
       modguts            <- getGhcModGuts1 target
       hscEnv             <- getSession
@@ -85,7 +87,7 @@ getGhcInfo cfg target
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
       liftIO              $ putStrLn ("paths = " ++ show paths)
-      (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs target modguts tgtSpec impSpecs
+      (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs name' modguts tgtSpec impSpecs'
       liftIO              $ putStrLn $ "Module Imports: " ++ show imps 
       hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs 
       return              $ GI hscEnv coreBinds impVs defVs useVs hqualFiles imps incs spec 
@@ -101,7 +103,8 @@ updateDynFlags df ps
        , ghcLink      = NoLink                
        , hscTarget    = HscInterpreted
        , ghcMode      = CompManager
-       } `xopt_set` Opt_MagicHash `dopt_set` Opt_ImplicitImportQualified
+       } `xopt_set` Opt_MagicHash
+         `dopt_set` Opt_ImplicitImportQualified
 
 printVars s vs 
   = do putStrLn s 
@@ -184,26 +187,27 @@ moduleSpec cfg vars defVars target mg tgtSpec impSpecs
   = do addImports impSpecs
        addContext $ IIModule $ moduleName $ mgi_module mg
        env <- getSession
-       let specs   = (target,name,tgtSpec):impSpecs
-       let rtenv   = Ms.makeRTEnv (concatMap (Ms.aliases  . thd3) specs)
-                                  (concatMap (Ms.paliases . thd3) specs)
-       let specs' = [ (n', Ms.expandRTAliases rtenv s)
-                    | (f,n,s) <- specs
-                    , let n' = if isExtFile Spec f then "" else n
-                    ]
+       let specs   = (target,tgtSpec):impSpecs
+       let rtenv   = Ms.makeRTEnv (concatMap (Ms.aliases  . snd) specs)
+                                  (concatMap (Ms.paliases . snd) specs)
+       -- let specs' = [ (n', Ms.expandRTAliases rtenv s)
+       --              | (f,n,s) <- specs
+       --              , let n' = if isExtFile Spec f then "" else n
+       --              ]
+       let specs'  = map (second (Ms.expandRTAliases rtenv)) specs
        let imps    = sortNub $ impNames ++ [ symbolString x
                                            | (_,spec) <- specs'
                                            , x <- Ms.imports spec
                                            ]
        getContext >>= liftIO . putStrLn . showPpr
-       ghcSpec <- liftIO $ makeGhcSpec cfg name vars defVars env specs'
+       ghcSpec <- liftIO $ makeGhcSpec cfg target vars defVars env specs'
        return      (ghcSpec, imps, Ms.includes tgtSpec)
     where
       trace = liftIO . putStrLn . showpp
       name     = mgi_namestring mg
-      impNames = map snd3 impSpecs
+      impNames = map (getModString.fst) impSpecs
       addImports is
-        = mapM (addContext . IIDecl . qualImportDecl . mkModuleName) (map snd3 is)
+        = mapM (addContext . IIDecl . qualImportDecl . getModName) (map fst is)
 
 
 
@@ -245,7 +249,7 @@ parseSpec file
 parseSpec' file
   = do str            <- readFile file
        let (name,spec) = specParser file str
-       putStrLn $ "parseSpec: " ++ file ++ " for module " ++ name
+       putStrLn $ "parseSpec: " ++ file ++ " for module " ++ getModString name
        return $ (file,name,spec)
 
 specParser file str
