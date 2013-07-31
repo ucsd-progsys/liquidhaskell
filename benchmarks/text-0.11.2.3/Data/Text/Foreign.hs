@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns, CPP, GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 -- |
 -- Module      : Data.Text.Foreign
@@ -50,11 +49,7 @@ import Foreign.ForeignPtr (ForeignPtr, mallocForeignPtrArray, withForeignPtr)
 import Foreign.Storable (peek, poke)
 
 --LIQUID
-import Data.Text.Array (Array(..), MArray(..))
-import qualified Data.Text.Unsafe
-import qualified Data.Word
-import qualified Foreign.Storable
-import GHC.ST (ST)
+import Foreign.Storable (Storable)
 import Language.Haskell.Liquid.Prelude
 
 
@@ -81,16 +76,16 @@ import Language.Haskell.Liquid.Prelude
 data I16 = I16 Int
     deriving (Eq, Ord)
 
-{-@ data Data.Text.Foreign.I16 = Data.Text.Foreign.I16 (i::Nat) @-}
-{-@ measure getI16 :: Data.Text.Foreign.I16 -> Int
-    getI16 (Data.Text.Foreign.I16 n) = n
+{-@ data I16 = I16 (i::Nat) @-}
+{-@ measure getI16 :: I16 -> Int
+    getI16 (I16 n) = n
   @-}
 
-{-@ qualif PtrFree(v:Int, p:GHC.Ptr.Ptr a, l:Int): ((l+l)-(v+v)) <= (plen p) @-}
+{-@ qualif PtrFree(v:Int, p:Ptr a, l:Int): ((l+l)-(v+v)) <= (plen p) @-}
 
 --LIQUID specializing the type for Word16
-{-@ Foreign.ForeignPtr.Imp.mallocForeignPtrArray :: (Foreign.Storable.Storable a) => n:Nat -> IO {v:(ForeignPtr a) | (fplen v) = (n + n)} @-}
-{-@ qualif FPLenNN(v:GHC.ForeignPtr.ForeignPtr a, n:Int): (fplen v) = (n + n) @-}
+{-@ Foreign.ForeignPtr.mallocForeignPtrArray :: (Storable a) => n:Nat -> IO {v:(ForeignPtr a) | (fplen v) = (n + n)} @-}
+{-@ qualif FPLenNN(v:ForeignPtr a, n:int): (fplen v) = (n + n) @-}
 
 
 -- | /O(n)/ Create a new 'Text' from a 'Ptr' 'Word16' by copying the

@@ -287,7 +287,8 @@ data Pspec ty ctor
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = (name,)
-                       $ Measure.qualifySpec name $ Measure.Spec
+                       $ Measure.qualifySpec (getModString name)
+                       $ Measure.Spec
   { Measure.measures   = [m | Meas   m <- xs]
   , Measure.sigs       = [a | Assm   a <- xs] 
                       ++ [(y, t) | Assms (ys, t) <- xs, y <- ys]
@@ -305,14 +306,14 @@ mkSpec name xs         = (name,)
 
 type BareSpec = (Measure.Spec BareType Symbol)
 
-specificationP :: Parser (String, BareSpec)
+specificationP :: Parser (ModName, BareSpec)
 specificationP 
   = do reserved "module"
        reserved "spec"
        S name <- symbolP
        reserved "where"
        xs     <- grabs (specP <* whiteSpace)
-       return $ mkSpec name xs 
+       return $ mkSpec (ModName SpecImport $ mkModuleName name) xs
 
 
 specP :: Parser (Pspec BareType Symbol)
@@ -541,14 +542,14 @@ instance Inputable BareType where
 instance Inputable (Measure.Measure BareType Symbol) where
   rr' = doParse' measureP
 
-instance Inputable (String,BareSpec) where
+instance Inputable (ModName,BareSpec) where
   rr' = doParse' specificationP
 
 hsSpecificationP 
   = doParse' $ do
       skipMany (commentP >> spaces)
       S name <- try (reserved "module" >> symbolP) <|> return (S "Main")
-      liftM (mkSpec name) $ specWraps specP
+      liftM (mkSpec (ModName SrcImport $ mkModuleName name)) $ specWraps specP
 
 commentP =  simpleComment (string "{-") (string "-}")
         <|> simpleComment (string "--") newlineP

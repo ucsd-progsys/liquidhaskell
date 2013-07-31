@@ -392,19 +392,23 @@ equal arrA offA arrB offB count = inlinePerformIO $ do
   return $! i == 0
 {-# INLINE equal #-}
 
-foreign import ccall unsafe "_hs_text_memcpy" memcpyI
-    :: MutableByteArray# s -> CSize -> ByteArray# -> CSize -> CSize -> IO ()
+--LIQUID FIXME: these imports fail with an interactive linker error on linux, but not on osx.. strange
 
-{- memcmp :: a1:GHC.Prim.ByteArray#
-           -> CSize
-           -> a2:GHC.Prim.ByteArray#
-           -> CSize
-           -> CSize
-           -> IO {v:CInt | ((v = 0) <=> (a1 = a2))}
-  @-}
-foreign import ccall unsafe "_hs_text_memcmp" memcmp
-    :: ByteArray# -> CSize -> ByteArray# -> CSize -> CSize -> IO CInt
+--LIQUID FFI foreign import ccall unsafe "_hs_text_memcpy" memcpyI
+--LIQUID FFI     :: MutableByteArray# s -> CSize -> ByteArray# -> CSize -> CSize -> IO ()
+{-@ memcpyI :: MutableByteArray# s -> CSize -> ByteArray# -> CSize -> CSize -> IO () @-}
+memcpyI :: MutableByteArray# s -> CSize -> ByteArray# -> CSize -> CSize -> IO ()
+memcpyI = undefined
 
-foreign import ccall unsafe "_hs_text_memcpy" memcpyM
-    :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize
-    -> IO ()
+--LIQUID FFI foreign import ccall unsafe "_hs_text_memcmp" memcmp
+--LIQUID FFI     :: ByteArray# -> CSize -> ByteArray# -> CSize -> CSize -> IO CInt
+{-@ memcmp :: ByteArray# -> CSize -> ByteArray# -> CSize -> CSize -> IO CInt @-}
+memcmp :: ByteArray# -> CSize -> ByteArray# -> CSize -> CSize -> IO CInt
+memcmp = undefined
+
+--LIQUID FFI foreign import ccall unsafe "_hs_text_memcpy" memcpyM
+--LIQUID FFI     :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize
+--LIQUID FFI     -> IO ()
+{-@ memcpyM :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize -> IO () @-}
+memcpyM :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize -> IO ()
+memcpyM = undefined
