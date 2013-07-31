@@ -4,26 +4,24 @@ TODO
 String Literals
 ---------------
 
-"xyz" ==> ELit fix#lit#xyz :: String
+How to represent the string literal `"xyz"`
 
-1. Add to `Constant`
-
-    data StrLit   = SL !String
+1. data SymConst = SL String
    
-2. Programmatic:
-        instance Expression StrLit where 
-          expr (SL "xyz") = ELit fix#str#xyz : String
-        
-        construct: 
-          expr $ SL "xyz"
+2. Programmatic: ESym (SL "xyz")
+      
+3. Printed as "xyz"
 
-3. Parsing
-        "xyz"          ~~~> ELit lit#String#xyz
-        lit#String#xyz ~~~> ELit lit#String#xyz
+4. Parsed EITHER as the encoded symbol OR as "xyz"
 
-4. ToFixpoint 
-      > round up ELIT lit#String#xyz and make them 
-         constant lit#String#xyz :: String
-         
-5. Printing/Serializing/PPrint
-      > ELIT lit#String#xyz --> "xyz"
+5. fixpoint-encoded as a symbol: `constant lit#String#xyz : Str`
+
+Only missing piece: walk over ENTIRE FI and round up ALL the encoded symbols
+so fixpoint.native doesn't grumble about unbound symbols. Can hack Subable to
+include:
+
+    symconsts :: a -> [SymConst]
+
+and then fill in appropriately. (Or use syb)
+
+

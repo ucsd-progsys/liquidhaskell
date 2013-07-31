@@ -23,7 +23,8 @@ module Language.Fixpoint.Types (
 
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
-  , intFTyCon, boolFTyCon, propFTyCon, stringFTycon, fTyconString
+  , intFTyCon, boolFTyCon, strFTyCon, propFTyCon
+  , stringFTycon, fTyconString
 
   -- * Symbols
   , Symbol(..)
@@ -115,7 +116,7 @@ import Data.Generics        (Data)
 import Data.Monoid hiding   ((<>))
 import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
-import Data.List            (sort)
+import Data.List            (sort, stripPrefix)
 import Data.Hashable        
 
 import Data.Maybe           (fromMaybe)
@@ -226,11 +227,12 @@ toFix_constant (c, so)
 ------------------------ Type Constructors ---------------------------
 ----------------------------------------------------------------------
 
-newtype FTycon = TC Symbol deriving (Eq, Ord, Show) -- Data, Typeable, Show)
+newtype FTycon = TC Symbol deriving (Eq, Ord, Show)
 
 
 intFTyCon  = TC (S "int")
 boolFTyCon = TC (S "bool")
+strFTyCon  = TC (S strConName)
 propFTyCon = TC (S propConName)
 
 -- listFTyCon = TC (S listConName)
@@ -339,8 +341,9 @@ symbolString (S str)
   = case chopPrefix fixSymPrefix str of
       Just s  -> concat $ zipWith tx indices $ chunks s 
       Nothing -> str
-    where chunks = unIntersperse symSep 
-          tx i s = if even i then s else [decodeStr s]
+    where 
+      chunks = unIntersperse symSepName 
+      tx i s = if even i then s else [decodeStr s]
 
 indices :: [Integer]
 indices = [0..]
@@ -351,12 +354,11 @@ okSymChars
   ++ ['0' .. '9'] 
   ++ ['_', '.'  ]
 
-symSep = '#'
-fixSymPrefix = "fix" ++ [symSep]
+fixSymPrefix = "fix" ++ [symSepName]
 
 suffixSymbol s suf = stringSymbol (symbolString s ++ suf)
 
-isFixSym' (c:chs)  = isAlpha c && all (`elem` (symSep:okSymChars)) chs
+isFixSym' (c:chs)  = isAlpha c && all (`elem` (symSepName:okSymChars)) chs
 isFixSym' _        = False
 
 isFixKey x = S.member x keywords
@@ -366,7 +368,7 @@ encodeChar c
   | c `elem` okSymChars 
   = [c]
   | otherwise
-  = [symSep] ++ (show $ ord c) ++ [symSep]
+  = [symSepName] ++ (show $ ord c) ++ [symSepName]
 
 decodeStr s 
   = chr ((read s) :: Int)
@@ -410,7 +412,11 @@ intKvar             = intSymbol "k_"
 ------------------------- Expressions -------------------------
 ---------------------------------------------------------------
 
-data Constant = I !Integer 
+-- | Uninterpreted constants that are embedded as  "constant symbol : Str"
+
+data SymConst = SL !String               
+
+data Constant = I  !Integer 
               deriving (Eq, Ord, Show) 
 
 data Brel = Eq | Ne | Gt | Ge | Lt | Le 
@@ -420,7 +426,8 @@ data Bop  = Plus | Minus | Times | Div | Mod
             deriving (Eq, Ord, Show) 
 	      -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
-data Expr = ECon !Constant 
+data Expr = ESym !SymConst  
+          | ECon !Constant 
           | EVar !Symbol
           | ELit !Symbol !Sort
           | EApp !Symbol ![Expr]
@@ -434,7 +441,10 @@ instance Fixpoint Integer where
   toFix = integer 
 
 instance Fixpoint Constant where
-  toFix (I i) = toFix i
+  toFix (I i)  = toFix i
+
+instance Fixpoint SymConst where 
+  toFix (SL s) = encodeStrLit s
 
 instance Fixpoint Brel where
   toFix Eq = text "="
@@ -452,6 +462,7 @@ instance Fixpoint Bop where
   toFix Mod   = text "mod"
 
 instance Fixpoint Expr where
+  toFix (ESym c)       = toFix c
   toFix (ECon c)       = toFix c 
   toFix (EVar s)       = toFix s
   toFix (ELit s _)     = toFix s
@@ -598,8 +609,11 @@ instance Symbolic Symbol where
 instance Expression Expr where
   expr = id
 
+-- | The symbol may be an encoding of a SymConst.
+
 instance Expression Symbol where
-  expr = eVar
+  expr s = maybe (eVar s) ESym (decodeSymConst s)  
+  -- expr = eVar
 
 instance Expression Integer where
   expr = ECon . I
@@ -1054,14 +1068,17 @@ instance NFData IBindEnv where
 instance NFData BindEnv where
   rnf (BE x m) = rnf x `seq` rnf m
 
-
 instance NFData Constant where
   rnf (I x) = rnf x
+
+instance NFData SymConst where 
+  rnf (SL x) = rnf x
 
 instance NFData Brel 
 instance NFData Bop
 
 instance NFData Expr where
+  rnf (ESym x)        = rnf x
   rnf (ECon x)        = rnf x
   rnf (EVar x)        = rnf x
   -- rnf (EDat x1 x2)    = rnf x1 `seq` rnf x2
@@ -1203,12 +1220,14 @@ data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
 -- toFixs = brackets . hsep . punctuate comma -- . map toFix 
 
 toFixpoint x'    = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x'
-  where conDoc   = vcat     . map toFix_constant . lits
+  where conDoc   = vcat     . map toFix_constant . getLits 
         csDoc    = vcat     . map toFix . M.elems . cm 
         wsDoc    = vcat     . map toFix . ws 
         kutsDoc  = toFix    . kuts
         bindsDoc = toFix    . bs
         gsDoc    = toFix_gs . gs
+
+getLits x = lits x ++ symLits x
 
 
 -------------------------------------------------------------------------
@@ -1308,10 +1327,33 @@ instance Falseable Refa where
 instance Falseable Reft where
   isFalse (Reft(_, rs)) = or [isFalse p | RConc p <- rs]
 
-------------------------------------------------------------------------
--- | Edit Distance -----------------------------------------------------
-------------------------------------------------------------------------
+---------------------------------------------------------------
+-- |String Constants ------------------------------------------
+---------------------------------------------------------------
 
+symConstLits :: FInfo a -> [(Symbol, Sort)]
+symConstLits = error "TODO" -- map (, strSort) . stringLits' 
+
+-- | Replace all symbol-representations-of-string-literals with string-literal
+--   Used to transform parsed output from fixpoint back into fq.
+
+
+encodeSymConst :: SymConst -> Symbol
+encodeSymConst (SL s) = stringSymbol $ litPrefix ++ s
+
+decodeSymConst :: Symbol -> Maybe SymConst 
+decodeSymConst = fmap SL . stripPrefix litPrefix . symbolString
+
+litPrefix    :: String
+litPrefix    = "lit" ++ [symSepName]
+
+strSort      :: Sort
+strSort      = FApp strFTyCon []
+
+
+---------------------------------------------------------------
+-- | Edit Distance --------------------------------------------
+---------------------------------------------------------------
 
 
 editDistance :: Eq a => [a] -> [a] -> Int

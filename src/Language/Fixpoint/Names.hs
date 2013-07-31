@@ -34,7 +34,6 @@ boolConName  = "Bool"
 funConName   = "->"
 listConName  = "[]" -- "List"
 tupConName   = "()" -- "Tuple"
-
 propConName  = "Prop"
 vvName       = "VV"
 symSepName   = '#'

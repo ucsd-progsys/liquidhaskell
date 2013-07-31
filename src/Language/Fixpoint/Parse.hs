@@ -55,6 +55,7 @@ import qualified Data.HashMap.Strict as M
 import Data.Char (isLower, toUpper)
 import Language.Fixpoint.Misc hiding (dcolon)
 import Language.Fixpoint.Types
+import Data.Maybe(maybe)
 
 type Parser = Parsec String Integer 
 
@@ -144,6 +145,9 @@ symbolP = liftM stringSymbol symCharsP
 constantP :: Parser Constant
 constantP = liftM I integer
 
+symconstP :: Parser SymConst
+symconstP = SL <$> stringLiteral 
+
 exprP :: Parser Expr 
 exprP =  expr2P <|> lexprP
 
@@ -154,8 +158,9 @@ lexprP
  <|> try (parens $ condP EIte exprP)
  <|> try exprFunP
  <|> try (liftM (EVar . stringSymbol) upperIdP)
- <|> liftM EVar symbolP
+ <|> liftM expr symbolP 
  <|> liftM ECon constantP
+ <|> liftM ESym symconstP
  <|> (reserved "_|_" >> return EBot)
 
 exprFunP           =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
