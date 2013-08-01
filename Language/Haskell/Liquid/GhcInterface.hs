@@ -188,19 +188,12 @@ moduleSpec cfg vars defVars target mg tgtSpec impSpecs
        addContext $ IIModule $ moduleName $ mgi_module mg
        env <- getSession
        let specs   = (target,tgtSpec):impSpecs
-       let rtenv   = Ms.makeRTEnv (concatMap (Ms.aliases  . snd) specs)
-                                  (concatMap (Ms.paliases . snd) specs)
-       -- let specs' = [ (n', Ms.expandRTAliases rtenv s)
-       --              | (f,n,s) <- specs
-       --              , let n' = if isExtFile Spec f then "" else n
-       --              ]
-       let specs'  = map (second (Ms.expandRTAliases rtenv)) specs
        let imps    = sortNub $ impNames ++ [ symbolString x
-                                           | (_,spec) <- specs'
+                                           | (_,spec) <- specs
                                            , x <- Ms.imports spec
                                            ]
        getContext >>= liftIO . putStrLn . showPpr
-       ghcSpec <- liftIO $ makeGhcSpec cfg target vars defVars env specs'
+       ghcSpec <- liftIO $ makeGhcSpec cfg target vars defVars env specs
        return      (ghcSpec, imps, Ms.includes tgtSpec)
     where
       trace = liftIO . putStrLn . showpp

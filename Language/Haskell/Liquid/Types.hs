@@ -42,7 +42,7 @@ module Language.Haskell.Liquid.Types (
   -- * All these should be MOVE TO TYPES
   , RTyVar (..), RType (..), RRType, BRType, RTyCon(..)
   , TyConable (..), RefTypable (..), SubsTy (..), Ref(..)
-  , RTAlias (..)
+  , RTAlias (..), mapRTAVars
   , BSort, BPVar, BareType, RSort, UsedPVar, RPVar, RReft, RefType
   , PrType, SpecType
   , PVar (..) , Predicate (..), UReft(..), DataDecl (..), TyConInfo(..)
@@ -74,6 +74,9 @@ module Language.Haskell.Liquid.Types (
   -- * Import handling
   , ModName (..), ModType (..), isSrcImport, isSpecImport
   , getModName, getModString
+
+  -- * Refinement Type Aliases
+  , RTEnv (..), mapRT, mapRP, RTBareOrSpec
   )
   where
 
@@ -550,7 +553,11 @@ data RTAlias tv ty
         , rtVArgs :: [tv] 
         , rtBody  :: ty  
         , srcPos  :: SourcePos 
-        } 
+        }
+
+mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
+                     , rtVArgs = f <$> rtVArgs rt
+                     }
 
 -- | Datacons
 
@@ -956,3 +963,23 @@ isSpecImport _                      = False
 getModName (ModName _ m) = m
 
 getModString = moduleNameString . getModName
+
+
+-------------------------------------------------------------------------------
+----------- Refinement Type Aliases -------------------------------------------
+-------------------------------------------------------------------------------
+
+type RTBareOrSpec = Either (ModName, (RTAlias String BareType))
+                           (RTAlias RTyVar SpecType)
+
+data RTEnv   = RTE { typeAliases :: M.HashMap String RTBareOrSpec
+                   , predAliases :: M.HashMap String (RTAlias Symbol Pred)
+                   }
+
+instance Monoid RTEnv where
+  (RTE ta1 pa1) `mappend` (RTE ta2 pa2) = RTE (ta1 `M.union` ta2) (pa1 `M.union` pa2)
+  mempty = RTE M.empty M.empty
+
+mapRT f e = e { typeAliases = f $ typeAliases e }
+mapRP f e = e { predAliases = f $ predAliases e }
+
