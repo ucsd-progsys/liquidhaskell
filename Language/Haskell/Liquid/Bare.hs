@@ -30,7 +30,7 @@ import OccName                  (tcName)
 import Data.Char                (isLower, isUpper)
 import Text.Printf
 import Data.Maybe               (listToMaybe, fromMaybe, mapMaybe, catMaybes, isNothing)
-import Control.Monad.State      (put, get, modify, State, evalState, execState)
+import Control.Monad.State      (put, get, gets, modify, State, evalState, evalStateT, execState, StateT)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>), (<*>), (<|>))
 import Control.Monad.Reader     hiding (forM)
@@ -66,11 +66,15 @@ makeGhcSpec cfg name vars defVars env specs
   = checkGhcSpec <$> makeGhcSpec' cfg name vars defVars env specs
 
 makeGhcSpec' cfg name vars defVars env specs
-  = do (tcs, dcs)      <- mconcat <$> mapM (makeConTypes env) specs
+  = do let benv         = BE name mempty mempty env
+       rtenv           <- makeRTEnv benv (concat [map (mod,) $ Ms.aliases  sp | (mod,sp) <- specs])
+                                         (concat [map (mod,) $ Ms.paliases sp | (mod,sp) <- specs])
+       let benv         = BE name mempty rtenv env
+       (tcs, dcs)      <- mconcat <$> mapM (makeConTypes benv) specs
        let (tcs', dcs') = wiredTyDataCons
        let tycons       = tcs ++ tcs'    
        let datacons     = concat dcs ++ dcs'    
-       let benv         = BE name (makeTyConInfo tycons) env
+       let benv         = BE name (makeTyConInfo tycons) rtenv env
        (cs, ms)        <- mconcat <$> mapM (makeMeasureSpec benv) specs
        sigs'           <- mconcat <$> mapM (makeAssumeSpec cfg benv vars) specs
        invs            <- mconcat <$> mapM (makeInvariants benv) specs
@@ -103,6 +107,161 @@ makeGhcSpec' cfg name vars defVars env specs
 
 instance PPrint DataCon where
   pprint = pprDoc
+
+
+--- Refinement Type Aliases
+
+makeRTEnv :: BareEnv
+          -> [(ModName, RTAlias String BareType)]
+          -> [(ModName, RTAlias Symbol Pred)]
+          -> IO RTEnv
+makeRTEnv env rts pts = execBare mkEnv env
+  where mkEnv = makeRTEnv' rts pts
+
+-- makeRTEnv' rts pts = RTE <$> typeMap <*> predMap
+--   where typeMap    = makeAliasMap expandRTAliasE rts
+--         predMap    = makeAliasMap expandRPAliasE pts
+
+-- makeAliasMap exp xts = expBody <$> env0
+--   where env0      = safeFromList "makeAliasMap" [(rtName x, x) | x <- xts]
+--         expBody z = z { rtBody = exp env0 $ rtBody z }
+
+makeRTEnv' rts pts  = do initRTEnv
+                         makeRTAliases rts
+                         makeRPAliases pts
+                         gets rtEnv
+  where initRTEnv   = do forM_ rts $ \(mod,rta) -> setRTAlias (rtName rta) $ Left (mod,rta)
+                         forM_ pts $ \(mod,pta) -> setRPAlias (rtName pta) pta
+
+
+makeRTAliases xts = mapM_ expBody xts
+  where expBody (mod,xt) = inModule mod $ do
+                             env  <- gets $ typeAliases . rtEnv
+                             body <- expandRTAliasE env $ rtBody xt
+                             setRTAlias (rtName xt) $ Right $ xt { rtBody = body }
+
+makeRPAliases xts = mapM_ expBody xts
+  where expBody xt = do env  <- gets $ predAliases . rtEnv
+                        let body = expandRPAliasE env $ rtBody xt
+                        setRPAlias (rtName xt) $ xt { rtBody = body }
+
+-- | Using the Alias Environment to Expand Definitions
+
+expandRTAlias     :: RTEnv -> SpecType -> SpecType
+expandRTAlias env = expReft . expType 
+  where 
+    expReft       = fmap (txPredReft expPred) 
+    expType       = expandAlias  (\_ _ -> id) [] (typeAliases env)
+    expPred       = expandPAlias (\_ _ -> id) [] (predAliases env)
+
+txPredReft f      = fmap  (txPredReft f)
+  where 
+    txPredReft f (Reft (v, ras)) = Reft (v, txPredRefa f <$> ras)
+    txPredRefa f (RConc p)       = RConc (f p)
+    txPredRefa _ z               = z
+
+-- | Using the Alias Environment to Expand Definitions
+
+expandRPAliasE  :: M.HashMap String (RTAlias Symbol Pred) -> Pred -> Pred
+expandRPAliasE  = go []
+  where go = expandPAlias go
+
+expandRTAliasE  :: M.HashMap String (RTBareOrSpec) -> BareType -> BareM SpecType
+expandRTAliasE = go []
+  where go = expandAlias go
+
+expandAlias :: ([String] -> M.HashMap String RTBareOrSpec -> BareType -> SpecType)
+            -> [String]
+            -> M.HashMap String RTBareOrSpec
+            -> BareType
+            -> BareM SpecType
+expandAlias f s env = go s
+  where 
+    go s (RApp c ts rs r)
+      | c `elem` s        = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
+      | Just (Left (mod,rtb)) <- c `M.lookup` env
+      = Ex.assert (null rs) $ do
+           st <- inModule mod $ expandAlias f s env $ rtBody rtb
+           let rts = mapRTAVars stringRTyVar $ rtb { rtBody = st }
+           setRTAlias c $ Right $ rts
+           expandRTApp (f (c:s) env) rts <$> (mapM (go s) ts) <*> return r
+      | Just (Right rts) <- c `M.lookup` env
+      = Ex.assert (null rs) $ do
+           expandRTApp (f (c:s) env) rts <$> (mapM (go s) ts) <*> return r
+      -- | otherwise         = RApp <$> lookupGhcTyCon c <*> (mapM (go s) ts) <*> (mapM (go' s) rs) <*> return r
+      | isList c && length ts == 1
+      = do tyi <- tcEnv <$> get
+           liftM2 (bareTCApp tyi r listTyCon) (mapM ofRef rs) (mapM ofBareType ts)
+      | isTuple c
+      = do tyi <- tcEnv <$> get
+           let tc = tupleTyCon BoxedTuple (length ts)
+           liftM2 (bareTCApp tyi r tc) (mapM ofRef rs) (mapM ofBareType ts)
+      | otherwise
+      = do tyi <- tcEnv <$> get
+           liftM3 (bareTCApp tyi r) (lookupGhcTyCon c) (mapM ofRef rs) (mapM ofBareType ts)
+    go s (RAllT a t)      = RAllT (stringRTyVar a) <$> go s t
+    go s (RAllP a t)      = RAllP <$> ofBPVar a <*> go s t
+    go s (RFun x t t' r)  = rFun x <$> go s t <*> go s t'
+    go s (RAppTy t t' r)  = rAppTy <$> go s t <*> go s t'
+    go s (RCls c ts)      = RCls <$> lookupGhcClass c <*> (mapM (go s) ts)
+    go _ t                = undefined --return t
+
+    go' s (RMono ss r)    = (`RMono` r) <$> mapM ofSyms ss
+    go' s (RPoly ss t)    = RPoly <$> mapM ofSyms ss <*> go s t
+
+expandRTApp :: (SpecType -> SpecType)
+            -> (RTAlias RTyVar SpecType) -> [SpecType] -> RReft
+            -> SpecType
+expandRTApp tx rta args r
+  | length args == (length αs) + (length εs)
+  = subst su  $ (`strengthen` r) $ subsTyVars_meet αts $ tx $ rtBody rta
+  | otherwise
+  = errortext $ (text "Malformed Type-Alias Application" $+$ text msg $+$ tshow rta)
+  where 
+    αts       = zipWith (\α t -> (α, toRSort t, t)) αs ts
+    su        = mkSubst $ zip (stringSymbol . showpp <$> εs) es
+    αs        = rtTArgs rta 
+    εs        = rtVArgs rta
+    msg       = undefined --showpp (RApp c args [] r)
+    (ts, es_) = splitAt (length αs) args
+    es        = map (exprArg msg) es_
+    
+-- | exprArg converts a tyVar to an exprVar because parser cannot tell 
+-- HORRIBLE HACK To allow treating upperCase X as value variables X
+-- e.g. type Matrix a Row Col = List (List a Row) Col
+
+exprArg _   (RExprArg e)     
+  = e
+exprArg _   (RVar x _)       
+  = EVar (stringSymbol $ showpp x)
+exprArg _   (RApp x [] [] _) 
+  = EVar (stringSymbol $ showpp x)
+exprArg msg (RApp f ts [] _) 
+  = EApp (stringSymbol $ showpp f) (exprArg msg <$> ts)
+exprArg msg (RAppTy (RVar f _) t _)   
+  = EApp (stringSymbol $ showpp f) [exprArg msg t]
+exprArg msg z 
+  = errorstar $ printf "Unexpected expression parameter: %s in %s" (show z) msg 
+
+expandPAlias tx s env = go s 
+  where 
+    go s p@(PBexp (EApp f es))  
+      | f `elem` s                = errorstar $ "Cyclic Predicate Alias Definition: " ++ show (f:s)
+      | (symbolString f) `M.member` env  
+                                  = expandRPApp (tx (f:s) env) env f es
+      | otherwise                 = p
+    go s (PAnd ps)                = PAnd (go s <$> ps)
+    go s (POr  ps)                = POr  (go s <$> ps)
+    go s (PNot p)                 = PNot (go s p)
+    go s (PImp p q)               = PImp (go s p) (go s q)
+    go s (PIff p q)               = PIff (go s p) (go s q)
+    go s (PAll xts p)             = PAll xts (go s p)
+    go _ p                        = p
+
+expandRPApp tx env f es = tx (subst su $ rtBody def) 
+  where su   = mkSubst $ safeZip msg (rtVArgs def) es 
+        def  = env M.! (symbolString f)
+        msg  = "expandRPApp: " ++ show (EApp f es) 
 
 
 makeQualifiers env (mod,spec)
@@ -271,19 +430,33 @@ meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
 ---------- Error-Reader-IO For Bare Transformation ---------------
 ------------------------------------------------------------------
 
-type BareM a = WriterT [Warn] (ErrorT String (ReaderT BareEnv IO)) a
+type BareM a = WriterT [Warn] (ErrorT String (StateT BareEnv IO)) a
 
 type Warn    = String
 
 data BareEnv = BE { modName :: !ModName
                   , tcEnv   :: !(M.HashMap TyCon RTyCon)
+                  , rtEnv   :: !RTEnv
                   , hscEnv  :: HscEnv }
 
 setModule m b = b { modName = m }
 
+inModule m act = do
+  old <- gets modName
+  modify $ setModule m
+  res <- act
+  modify $ setModule old
+  return res
+
+setRTAlias s a =
+  modify $ \b -> b { rtEnv = mapRT (M.insert s a) $ rtEnv b }
+
+setRPAlias s a =
+  modify $ \b -> b { rtEnv = mapRP (M.insert s a) $ rtEnv b }
+
 execBare :: BareM a -> BareEnv -> IO a
 execBare act benv = 
-   do z <- runReaderT (runErrorT (runWriterT act)) benv
+   do z <- evalStateT (runErrorT (runWriterT act)) benv
       case z of
         Left s        -> errorstar $ "execBare:\n " ++ s
         Right (x, ws) -> do forM_ ws $ putStrLn . ("WARNING: " ++) 
@@ -322,8 +495,8 @@ makeTargetVars env name vs ss = do
   prefix s = getModString name ++ "." ++ s
 
 
-makeAssumeSpec cfg (BE _ t e) vs (mod,spec)
-  = makeAssumeSpec' cfg (BE mod t e) vs $ Ms.sigs spec
+makeAssumeSpec cfg benv vs (mod,spec)
+  = makeAssumeSpec' cfg (setModule mod benv) vs $ Ms.sigs spec
 
 makeAssumeSpec' :: Config -> BareEnv -> [Var] -> [(LocSymbol, BareType)]
                 -> IO [(Var, Located SpecType)]
@@ -391,8 +564,8 @@ showTopLevelVars vs =
 
 ----------------------------------------------------------------------
 
-makeTyConEmbeds (BE _ t e) (mod,spec)
-  = makeTyConEmbeds' (BE mod t e) $ Ms.embeds spec
+makeTyConEmbeds benv (mod,spec)
+  = makeTyConEmbeds' (setModule mod benv) $ Ms.embeds spec
 
 makeTyConEmbeds'  :: BareEnv -> TCEmb (Located String) -> IO (TCEmb TyCon)
 makeTyConEmbeds' benv z = execBare (M.fromList <$> mapM tx (M.toList z)) benv
@@ -405,8 +578,8 @@ lookupGhcTyCon' c = wrapErr msg lookupGhcTyCon (val c)
     msg :: String = berrUnknownTyCon c
 
 
-makeLazies (BE _ t e) (mod,spec)
-  = makeLazies' (BE mod t e) $ Ms.lazy spec
+makeLazies benv (mod,spec)
+  = makeLazies' (setModule mod benv) $ Ms.lazy spec
 
 makeLazies' :: BareEnv -> S.HashSet Symbol -> IO (S.HashSet Var)
 makeLazies' benv s = execBare (S.fromList <$> (fmap fst3 <$> lookupIds xxs)) benv
@@ -414,8 +587,8 @@ makeLazies' benv s = execBare (S.fromList <$> (fmap fst3 <$> lookupIds xxs)) ben
         xxs = zip xs xs
 
 
-makeInvariants (BE _ t e) (mod,spec)
-  = makeInvariants' (BE mod t e) $ Ms.invariants spec
+makeInvariants benv (mod,spec)
+  = makeInvariants' (setModule mod benv) $ Ms.invariants spec
 
 makeInvariants' :: BareEnv -> [Located BareType] -> IO [Located SpecType]
 makeInvariants' benv ts = execBare (mapM mkI ts) benv
@@ -489,7 +662,7 @@ lookupGhcThing name f x
 
 lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
 lookupGhcThing' _    f x 
-  = do (BE mod _ env) <- ask
+  = do (BE mod _ _ env) <- get
        z              <- liftIO $ lookupName env mod x
        case z of
          Nothing -> return Nothing 
@@ -718,15 +891,15 @@ ofBareType (RAllP π t)
   = liftM2 RAllP (ofBPVar π) (ofBareType t)
 ofBareType (RApp tc ts@[_] rs r) 
   | isList tc
-  = do tyi <- tcEnv <$> ask
+  = do tyi <- tcEnv <$> get
        liftM2 (bareTCApp tyi r listTyCon) (mapM ofRef rs) (mapM ofBareType ts)
 ofBareType (RApp tc ts rs r) 
   | isTuple tc
-  = do tyi <- tcEnv <$> ask
+  = do tyi <- tcEnv <$> get
        liftM2 (bareTCApp tyi r c) (mapM ofRef rs) (mapM ofBareType ts)
     where c = tupleTyCon BoxedTuple (length ts)
 ofBareType (RApp tc ts rs r) 
-  = do tyi <- tcEnv <$> ask
+  = do tyi <- tcEnv <$> get
        liftM3 (bareTCApp tyi r) (lookupGhcTyCon tc) (mapM ofRef rs) (mapM ofBareType ts)
 ofBareType (RCls c ts)
   = liftM2 RCls (lookupGhcClass c) (mapM ofBareType ts)
@@ -793,10 +966,10 @@ propTyCon   = stringTyCon 'w' 24 propConName
 ---------------- Bare Predicate: DataCon Definitions ------------------
 -----------------------------------------------------------------------
 
-makeConTypes env (name,spec) = makeConTypes' env name $ Ms.dataDecls spec
+makeConTypes env (name,spec) = makeConTypes' (setModule name env) $ Ms.dataDecls spec
 
-makeConTypes' :: HscEnv -> ModName -> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
-makeConTypes' env name dcs = unzip <$> execBare (mapM ofBDataDecl dcs) (BE name M.empty env)
+makeConTypes' :: BareEnv -> [DataDecl] -> IO ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
+makeConTypes' benv dcs = unzip <$> execBare (mapM ofBDataDecl dcs) benv
 
 ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
 ofBDataDecl (D tc as ps cts pos sfun)
