@@ -229,7 +229,7 @@ toFix_constant (c, so)
 ------------------------ Type Constructors ---------------------------
 ----------------------------------------------------------------------
 
-newtype FTycon = TC Symbol deriving (Eq, Ord, Show)
+newtype FTycon = TC Symbol deriving (Eq, Ord, Show, Data, Typeable)
 
 
 intFTyCon  = TC (S "int")
@@ -261,7 +261,7 @@ data Sort = FInt
           | FVar  !Int           -- ^ fixpoint type variable
           | FFunc !Int ![Sort]   -- ^ type-var arity, in-ts ++ [out-t]
           | FApp FTycon [Sort]   -- ^ constructed type 
-	      deriving (Eq, Ord, Show, Generic) --  Data, Typeable 
+	      deriving (Eq, Ord, Show, Generic, Data, Typeable)
 
 instance Hashable Sort
 
@@ -306,7 +306,7 @@ symChars
   ++ ['0' .. '9'] 
   ++ ['_', '%', '.', '#']
 
-data Symbol = S !String deriving (Eq, Ord) -- , Data, Typeable)
+data Symbol = S !String deriving (Eq, Ord, Data, Typeable)
 
 instance Fixpoint Symbol where
   toFix (S x) = text x
@@ -417,16 +417,16 @@ intKvar             = intSymbol "k_"
 -- | Uninterpreted constants that are embedded as  "constant symbol : Str"
 
 data SymConst = SL !String
-              deriving (Eq, Ord, Show)
+              deriving (Eq, Ord, Show, Data, Typeable)
 
 data Constant = I  !Integer 
-              deriving (Eq, Ord, Show) 
+              deriving (Eq, Ord, Show, Data, Typeable)
 
 data Brel = Eq | Ne | Gt | Ge | Lt | Le 
-            deriving (Eq, Ord, Show) 
+            deriving (Eq, Ord, Show, Data, Typeable)
 
 data Bop  = Plus | Minus | Times | Div | Mod    
-            deriving (Eq, Ord, Show) 
+            deriving (Eq, Ord, Show, Data, Typeable) 
 	      -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
 data Expr = ESym !SymConst  
@@ -438,7 +438,7 @@ data Expr = ESym !SymConst
           | EIte !Pred !Expr !Expr
           | ECst !Expr !Sort
           | EBot
-          deriving (Eq, Ord, Show)
+          deriving (Eq, Ord, Show, Data, Typeable)
 
 instance Fixpoint Integer where
   toFix = integer 
@@ -490,7 +490,7 @@ data Pred = PTrue
           | PAtom !Brel !Expr !Expr
           | PAll  ![(Symbol, Sort)] !Pred
           | PTop
-          deriving (Eq, Ord, Show) -- show Data, Typeable, Show)
+          deriving (Eq, Ord, Show, Data, Typeable)
 
 instance Fixpoint Pred where
   toFix PTop             = text "???"
@@ -775,7 +775,7 @@ type BindId        = Int
 type FEnv          = SEnv SortedReft 
 
 newtype IBindEnv   = FB (S.HashSet BindId)
-newtype SEnv a     = SE { se_binds :: M.HashMap Symbol a } deriving (Eq)
+newtype SEnv a     = SE { se_binds :: M.HashMap Symbol a } deriving (Eq, Data, Typeable)
 data BindEnv       = BE { be_size  :: Int
                         , be_binds :: M.HashMap BindId (Symbol, SortedReft) 
                         }
@@ -1020,9 +1020,10 @@ vv_           = vv Nothing
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft) 
 
-trueReft = Reft (vv_, [])
+trueReft  = Reft (vv_, [])
+falseReft = Reft (vv_, [RConc PFalse])
 
-trueRefa = RConc PTrue
+trueRefa  = RConc PTrue
 
 flattenRefas ::  [Refa] -> [Refa]
 flattenRefas         = concatMap flatRa
@@ -1200,7 +1201,7 @@ data Qualifier = Q { q_name   :: String           -- ^ Name
                    , q_params :: [(Symbol, Sort)] -- ^ Parameters
                    , q_body   :: Pred             -- ^ Predicate
                    }
-               deriving (Eq, Ord, Show)  
+               deriving (Eq, Ord, Show, Data, Typeable)
 
 instance Fixpoint Qualifier where 
   toFix = pprQual
@@ -1243,7 +1244,10 @@ class (Monoid r, Subable r) => Reftable r where
   
   top     :: r
   top     =  mempty
-  
+ 
+  -- | should also refactor `top` so it takes a parameter.
+  bot     :: r -> r
+
   meet    :: r -> r -> r
   meet    = mappend
 
@@ -1273,6 +1277,7 @@ instance Reftable () where
   isTauto _ = True
   ppTy _  d = d
   top       = ()
+  bot  _    = ()
   meet _ _  = ()
   toReft _  = top
   params _  = []
@@ -1282,6 +1287,7 @@ instance Reftable Reft where
   ppTy     = ppr_reft
   toReft   = id
   params _ = []
+  bot    _ = falseReft
 
 instance Monoid Sort where
   mempty            = FObj (S "any")
@@ -1300,6 +1306,7 @@ instance Reftable SortedReft where
   ppTy     = ppTy . toReft
   toReft   = sr_reft
   params _ = []
+  bot s    = s { sr_reft = falseReft }
 
 class Falseable a where
   isFalse :: a -> Bool
