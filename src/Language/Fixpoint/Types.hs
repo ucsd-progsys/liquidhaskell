@@ -23,7 +23,8 @@ module Language.Fixpoint.Types (
 
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
-  , intFTyCon, boolFTyCon, propFTyCon, stringFTycon, fTyconString
+  , intFTyCon, boolFTyCon, strFTyCon, propFTyCon
+  , stringFTycon, fTyconString
 
   -- * Symbols
   , Symbol(..)
@@ -38,7 +39,9 @@ module Language.Fixpoint.Types (
   , suffixSymbol
 
   -- * Expressions and Predicates
-  , Constant (..), Bop (..), Brel (..), Expr (..), Pred (..)
+  , SymConst (..), Constant (..)
+  , Bop (..), Brel (..)
+  , Expr (..), Pred (..)
   , eVar
   , eProp
   , pAnd, pOr, pIte
@@ -115,7 +118,7 @@ import Data.Generics        (Data)
 import Data.Monoid hiding   ((<>))
 import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
-import Data.List            (sort)
+import Data.List            (sort, stripPrefix)
 import Data.Hashable        
 
 import Data.Maybe           (fromMaybe)
@@ -226,11 +229,12 @@ toFix_constant (c, so)
 ------------------------ Type Constructors ---------------------------
 ----------------------------------------------------------------------
 
-newtype FTycon = TC Symbol deriving (Eq, Ord, Show) -- Data, Typeable, Show)
+newtype FTycon = TC Symbol deriving (Eq, Ord, Show, Data, Typeable)
 
 
 intFTyCon  = TC (S "int")
 boolFTyCon = TC (S "bool")
+strFTyCon  = TC (S strConName)
 propFTyCon = TC (S propConName)
 
 -- listFTyCon = TC (S listConName)
@@ -257,7 +261,7 @@ data Sort = FInt
           | FVar  !Int           -- ^ fixpoint type variable
           | FFunc !Int ![Sort]   -- ^ type-var arity, in-ts ++ [out-t]
           | FApp FTycon [Sort]   -- ^ constructed type 
-	      deriving (Eq, Ord, Show, Generic) --  Data, Typeable 
+	      deriving (Eq, Ord, Show, Generic, Data, Typeable)
 
 instance Hashable Sort
 
@@ -302,7 +306,7 @@ symChars
   ++ ['0' .. '9'] 
   ++ ['_', '%', '.', '#']
 
-data Symbol = S !String deriving (Eq, Ord) -- , Data, Typeable)
+data Symbol = S !String deriving (Eq, Ord, Data, Typeable)
 
 instance Fixpoint Symbol where
   toFix (S x) = text x
@@ -339,8 +343,9 @@ symbolString (S str)
   = case chopPrefix fixSymPrefix str of
       Just s  -> concat $ zipWith tx indices $ chunks s 
       Nothing -> str
-    where chunks = unIntersperse symSep 
-          tx i s = if even i then s else [decodeStr s]
+    where 
+      chunks = unIntersperse symSepName 
+      tx i s = if even i then s else [decodeStr s]
 
 indices :: [Integer]
 indices = [0..]
@@ -351,12 +356,11 @@ okSymChars
   ++ ['0' .. '9'] 
   ++ ['_', '.'  ]
 
-symSep = '#'
-fixSymPrefix = "fix" ++ [symSep]
+fixSymPrefix = "fix" ++ [symSepName]
 
 suffixSymbol s suf = stringSymbol (symbolString s ++ suf)
 
-isFixSym' (c:chs)  = isAlpha c && all (`elem` (symSep:okSymChars)) chs
+isFixSym' (c:chs)  = isAlpha c && all (`elem` (symSepName:okSymChars)) chs
 isFixSym' _        = False
 
 isFixKey x = S.member x keywords
@@ -366,7 +370,7 @@ encodeChar c
   | c `elem` okSymChars 
   = [c]
   | otherwise
-  = [symSep] ++ (show $ ord c) ++ [symSep]
+  = [symSepName] ++ (show $ ord c) ++ [symSepName]
 
 decodeStr s 
   = chr ((read s) :: Int)
@@ -410,17 +414,23 @@ intKvar             = intSymbol "k_"
 ------------------------- Expressions -------------------------
 ---------------------------------------------------------------
 
-data Constant = I !Integer 
-              deriving (Eq, Ord, Show) 
+-- | Uninterpreted constants that are embedded as  "constant symbol : Str"
+
+data SymConst = SL !String
+              deriving (Eq, Ord, Show, Data, Typeable)
+
+data Constant = I  !Integer 
+              deriving (Eq, Ord, Show, Data, Typeable)
 
 data Brel = Eq | Ne | Gt | Ge | Lt | Le 
-            deriving (Eq, Ord, Show) 
+            deriving (Eq, Ord, Show, Data, Typeable)
 
 data Bop  = Plus | Minus | Times | Div | Mod    
-            deriving (Eq, Ord, Show) 
+            deriving (Eq, Ord, Show, Data, Typeable) 
 	      -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
-data Expr = ECon !Constant 
+data Expr = ESym !SymConst  
+          | ECon !Constant 
           | EVar !Symbol
           | ELit !Symbol !Sort
           | EApp !Symbol ![Expr]
@@ -428,13 +438,16 @@ data Expr = ECon !Constant
           | EIte !Pred !Expr !Expr
           | ECst !Expr !Sort
           | EBot
-          deriving (Eq, Ord, Show)
+          deriving (Eq, Ord, Show, Data, Typeable)
 
 instance Fixpoint Integer where
   toFix = integer 
 
 instance Fixpoint Constant where
-  toFix (I i) = toFix i
+  toFix (I i)  = toFix i
+
+instance Fixpoint SymConst where 
+  toFix  = toFix . encodeSymConst
 
 instance Fixpoint Brel where
   toFix Eq = text "="
@@ -452,6 +465,7 @@ instance Fixpoint Bop where
   toFix Mod   = text "mod"
 
 instance Fixpoint Expr where
+  toFix (ESym c)       = toFix $ encodeSymConst c
   toFix (ECon c)       = toFix c 
   toFix (EVar s)       = toFix s
   toFix (ELit s _)     = toFix s
@@ -476,7 +490,7 @@ data Pred = PTrue
           | PAtom !Brel !Expr !Expr
           | PAll  ![(Symbol, Sort)] !Pred
           | PTop
-          deriving (Eq, Ord, Show) -- show Data, Typeable, Show)
+          deriving (Eq, Ord, Show, Data, Typeable)
 
 instance Fixpoint Pred where
   toFix PTop             = text "???"
@@ -598,8 +612,14 @@ instance Symbolic Symbol where
 instance Expression Expr where
   expr = id
 
+-- | The symbol may be an encoding of a SymConst.
+
 instance Expression Symbol where
-  expr = eVar
+  expr s = maybe (eVar s) ESym (decodeSymConst s)  
+  -- expr = eVar
+
+instance Expression String where 
+  expr = ESym . SL
 
 instance Expression Integer where
   expr = ECon . I
@@ -643,10 +663,9 @@ predReft p             = Reft (vv_, [RConc $ prop p])
 data Refa 
   = RConc !Pred 
   | RKvar !Symbol !Subst
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show, Data, Typeable)
 
-
-newtype Reft = Reft (Symbol, [Refa]) deriving (Eq)
+newtype Reft = Reft (Symbol, [Refa]) deriving (Eq, Ord, Data, Typeable)
 
 instance Show Reft where
   show (Reft x) = render $ toFix x 
@@ -758,8 +777,8 @@ type BindId        = Int
 type FEnv          = SEnv SortedReft 
 
 newtype IBindEnv   = FB (S.HashSet BindId)
-newtype SEnv a     = SE (M.HashMap Symbol a) deriving (Eq)
-data BindEnv       = BE { be_size :: Int
+newtype SEnv a     = SE { se_binds :: M.HashMap Symbol a } deriving (Eq, Data, Typeable)
+data BindEnv       = BE { be_size  :: Int
                         , be_binds :: M.HashMap BindId (Symbol, SortedReft) 
                         }
 
@@ -978,7 +997,7 @@ instance Subable SortedReft where
 
 
 -- newtype Subst  = Su (M.HashMap Symbol Expr) deriving (Eq)
-newtype Subst = Su [(Symbol, Expr)] deriving (Eq)
+newtype Subst = Su [(Symbol, Expr)] deriving (Eq, Ord, Data, Typeable)
 
 mkSubst                  = Su -- . M.fromList
 appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
@@ -1003,9 +1022,10 @@ vv_           = vv Nothing
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft) 
 
-trueReft = Reft (vv_, [])
+trueReft  = Reft (vv_, [])
+falseReft = Reft (vv_, [RConc PFalse])
 
-trueRefa = RConc PTrue
+trueRefa  = RConc PTrue
 
 flattenRefas ::  [Refa] -> [Refa]
 flattenRefas         = concatMap flatRa
@@ -1054,14 +1074,17 @@ instance NFData IBindEnv where
 instance NFData BindEnv where
   rnf (BE x m) = rnf x `seq` rnf m
 
-
 instance NFData Constant where
   rnf (I x) = rnf x
+
+instance NFData SymConst where 
+  rnf (SL x) = rnf x
 
 instance NFData Brel 
 instance NFData Bop
 
 instance NFData Expr where
+  rnf (ESym x)        = rnf x
   rnf (ECon x)        = rnf x
   rnf (EVar x)        = rnf x
   -- rnf (EDat x1 x2)    = rnf x1 `seq` rnf x2
@@ -1180,7 +1203,7 @@ data Qualifier = Q { q_name   :: String           -- ^ Name
                    , q_params :: [(Symbol, Sort)] -- ^ Parameters
                    , q_body   :: Pred             -- ^ Predicate
                    }
-               deriving (Eq, Ord, Show)  
+               deriving (Eq, Ord, Show, Data, Typeable)
 
 instance Fixpoint Qualifier where 
   toFix = pprQual
@@ -1203,12 +1226,14 @@ data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
 -- toFixs = brackets . hsep . punctuate comma -- . map toFix 
 
 toFixpoint x'    = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x'
-  where conDoc   = vcat     . map toFix_constant . lits
+  where conDoc   = vcat     . map toFix_constant . getLits 
         csDoc    = vcat     . map toFix . M.elems . cm 
         wsDoc    = vcat     . map toFix . ws 
         kutsDoc  = toFix    . kuts
         bindsDoc = toFix    . bs
         gsDoc    = toFix_gs . gs
+
+getLits x = lits x ++ symConstLits x
 
 
 -------------------------------------------------------------------------
@@ -1221,7 +1246,10 @@ class (Monoid r, Subable r) => Reftable r where
   
   top     :: r
   top     =  mempty
-  
+ 
+  -- | should also refactor `top` so it takes a parameter.
+  bot     :: r -> r
+
   meet    :: r -> r -> r
   meet    = mappend
 
@@ -1251,6 +1279,7 @@ instance Reftable () where
   isTauto _ = True
   ppTy _  d = d
   top       = ()
+  bot  _    = ()
   meet _ _  = ()
   toReft _  = top
   params _  = []
@@ -1260,6 +1289,7 @@ instance Reftable Reft where
   ppTy     = ppr_reft
   toReft   = id
   params _ = []
+  bot    _ = falseReft
 
 instance Monoid Sort where
   mempty            = FObj (S "any")
@@ -1278,21 +1308,7 @@ instance Reftable SortedReft where
   ppTy     = ppTy . toReft
   toReft   = sr_reft
   params _ = []
-
--- instance Expression a => Reftable a where
---   isTauto _ = isTauto . toReft 
---   ppTy      = ppTy . toReft
---   toReft    = exprReft 
---   params _  = []
-
--- instance Predicate a => Reftable a where
---   isTauto   = isTauto . toReft 
---   ppTy      = ppTy . toReft
---   toReft    = propReft 
---   params _  = []
-
-
-
+  bot s    = s { sr_reft = falseReft }
 
 class Falseable a where
   isFalse :: a -> Bool
@@ -1308,10 +1324,93 @@ instance Falseable Refa where
 instance Falseable Reft where
   isFalse (Reft(_, rs)) = or [isFalse p | RConc p <- rs]
 
-------------------------------------------------------------------------
--- | Edit Distance -----------------------------------------------------
-------------------------------------------------------------------------
+-- instance Expression a => Reftable a where
+--   isTauto _ = isTauto . toReft 
+--   ppTy      = ppTy . toReft
+--   toReft    = exprReft 
+--   params _  = []
 
+-- instance Predicate a => Reftable a where
+--   isTauto   = isTauto . toReft 
+--   ppTy      = ppTy . toReft
+--   toReft    = propReft 
+--   params _  = []
+
+
+---------------------------------------------------------------
+-- |String Constants ------------------------------------------
+---------------------------------------------------------------
+
+symConstLits    :: FInfo a -> [(Symbol, Sort)]
+symConstLits fi = [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
+
+-- | Replace all symbol-representations-of-string-literals with string-literal
+--   Used to transform parsed output from fixpoint back into fq.
+
+
+encodeSymConst        :: SymConst -> Symbol
+encodeSymConst (SL s) = stringSymbol $ litPrefix ++ s
+
+sortSymConst          :: SymConst -> Sort
+sortSymConst (SL _)   = strSort
+
+decodeSymConst :: Symbol -> Maybe SymConst 
+decodeSymConst = fmap SL . stripPrefix litPrefix . symbolString
+
+litPrefix    :: String
+litPrefix    = "lit" ++ [symSepName]
+
+strSort      :: Sort
+strSort      = FApp strFTyCon []
+
+class SymConsts a where 
+  symConsts :: a -> [SymConst]
+
+instance SymConsts (FInfo a) where 
+  symConsts fi = sortNub $ csLits ++ bsLits ++ gsLits ++ qsLits
+    where
+      csLits   = concatMap symConsts                     $ M.elems  $  cm    fi
+      bsLits   = concatMap symConsts $ map snd $ M.elems $ be_binds $  bs    fi
+      gsLits   = concatMap symConsts $           M.elems $ se_binds $  gs    fi
+      qsLits   = concatMap symConsts $                     q_body  <$> quals fi 
+
+instance SymConsts (SubC a) where 
+  symConsts c  = symConsts (sgrd c) ++ 
+                 symConsts (slhs c) ++ 
+                 symConsts (srhs c) 
+
+instance SymConsts SortedReft where
+  symConsts = symConsts . sr_reft
+
+instance SymConsts Reft where
+  symConsts (Reft (_, ras)) = concatMap symConsts ras
+
+instance SymConsts Refa where
+  symConsts (RConc p)          = symConsts p
+  symConsts (RKvar _ (Su xes)) = concatMap symConsts $ snd <$> xes 
+
+instance SymConsts Expr where
+  symConsts (ESym c)       = [c] 
+  symConsts (EApp _ es)    = concatMap symConsts es
+  symConsts (EBin _ e e')  = concatMap symConsts [e, e']
+  symConsts (EIte p e e')  = symConsts p ++ concatMap symConsts [e, e']
+  symConsts (ECst e _)     = symConsts e
+  symConsts _              = []
+ 
+instance SymConsts Pred where
+  symConsts (PNot p)       = symConsts p
+  symConsts (PAnd ps)      = concatMap symConsts ps
+  symConsts (POr ps)       = concatMap symConsts ps
+  symConsts (PImp p q)     = concatMap symConsts [p, q]
+  symConsts (PIff p q)     = concatMap symConsts [p, q]
+  symConsts (PAll _ p)     = symConsts p
+  symConsts (PBexp e)      = symConsts e
+  symConsts (PAtom _ e e') = concatMap symConsts [e, e']
+  symConsts _              = []
+
+---------------------------------------------------------------
+-- | Edit Distance --------------------------------------------
+---------------------------------------------------------------
 
 
 editDistance :: Eq a => [a] -> [a] -> Int

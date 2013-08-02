@@ -61,8 +61,12 @@ instance PPrint Sort where
 instance PPrint Symbol where
   pprint = toFix
 
+instance PPrint SymConst where
+  pprint (SL x)          = doubleQuotes $ text x
+
 instance PPrint Expr where
   pprint (EApp f es)     = parens $ intersperse empty $ (pprint f) : (pprint <$> es) 
+  pprint (ESym c)        = pprint c 
   pprint (ECon c)        = pprint c 
   pprint (EVar s)        = pprint s
   pprint (ELit s _)      = pprint s
