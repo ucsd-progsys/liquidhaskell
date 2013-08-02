@@ -465,7 +465,7 @@ instance Fixpoint Bop where
   toFix Mod   = text "mod"
 
 instance Fixpoint Expr where
-  toFix (ESym c)       = errorstar "toFix: Cannot Convert SymConst" -- toFix c
+  toFix (ESym c)       = toFix $ encodeSymConst c
   toFix (ECon c)       = toFix c 
   toFix (EVar s)       = toFix s
   toFix (ELit s _)     = toFix s
@@ -618,6 +618,9 @@ instance Expression Symbol where
   expr s = maybe (eVar s) ESym (decodeSymConst s)  
   -- expr = eVar
 
+instance Expression String where 
+  expr = ESym . SL
+
 instance Expression Integer where
   expr = ECon . I
 
@@ -660,10 +663,9 @@ predReft p             = Reft (vv_, [RConc $ prop p])
 data Refa 
   = RConc !Pred 
   | RKvar !Symbol !Subst
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show, Data, Typeable)
 
-
-newtype Reft = Reft (Symbol, [Refa]) deriving (Eq)
+newtype Reft = Reft (Symbol, [Refa]) deriving (Eq, Ord, Data, Typeable)
 
 instance Show Reft where
   show (Reft x) = render $ toFix x 
@@ -995,7 +997,7 @@ instance Subable SortedReft where
 
 
 -- newtype Subst  = Su (M.HashMap Symbol Expr) deriving (Eq)
-newtype Subst = Su [(Symbol, Expr)] deriving (Eq)
+newtype Subst = Su [(Symbol, Expr)] deriving (Eq, Ord, Data, Typeable)
 
 mkSubst                  = Su -- . M.fromList
 appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
