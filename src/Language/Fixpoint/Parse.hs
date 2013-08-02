@@ -101,16 +101,16 @@ languageDef =
                                      ]
            }
 
-lexer      = Token.makeTokenParser languageDef
-reserved   = Token.reserved   lexer
-reservedOp = Token.reservedOp lexer
-parens     = Token.parens     lexer
-brackets   = Token.brackets   lexer
-
-semi       = Token.semi       lexer
-colon      = Token.colon      lexer
-comma      = Token.comma      lexer
-whiteSpace = Token.whiteSpace lexer
+lexer         = Token.makeTokenParser languageDef
+reserved      = Token.reserved      lexer
+reservedOp    = Token.reservedOp    lexer
+parens        = Token.parens        lexer
+brackets      = Token.brackets      lexer
+semi          = Token.semi          lexer
+colon         = Token.colon         lexer
+comma         = Token.comma         lexer
+whiteSpace    = Token.whiteSpace    lexer
+stringLiteral = Token.stringLiteral lexer
 
 -- identifier = Token.identifier lexer
 

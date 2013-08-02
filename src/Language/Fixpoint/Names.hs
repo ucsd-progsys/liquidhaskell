@@ -15,6 +15,7 @@ module Language.Fixpoint.Names (
   , listConName
   , tupConName
   , propConName
+  , strConName
   , vvName
   , symSepName
   , dropModuleNames 
@@ -35,6 +36,7 @@ funConName   = "->"
 listConName  = "[]" -- "List"
 tupConName   = "()" -- "Tuple"
 propConName  = "Prop"
+strConName   = "Str"
 vvName       = "VV"
 symSepName   = '#'
 

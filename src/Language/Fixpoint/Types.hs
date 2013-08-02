@@ -39,7 +39,9 @@ module Language.Fixpoint.Types (
   , suffixSymbol
 
   -- * Expressions and Predicates
-  , Constant (..), Bop (..), Brel (..), Expr (..), Pred (..)
+  , SymConst (..), Constant (..)
+  , Bop (..), Brel (..)
+  , Expr (..), Pred (..)
   , eVar
   , eProp
   , pAnd, pOr, pIte
@@ -414,7 +416,8 @@ intKvar             = intSymbol "k_"
 
 -- | Uninterpreted constants that are embedded as  "constant symbol : Str"
 
-data SymConst = SL !String               
+data SymConst = SL !String
+              deriving (Eq, Ord, Show)
 
 data Constant = I  !Integer 
               deriving (Eq, Ord, Show) 
@@ -444,7 +447,7 @@ instance Fixpoint Constant where
   toFix (I i)  = toFix i
 
 instance Fixpoint SymConst where 
-  toFix (SL s) = encodeStrLit s
+  toFix  = toFix . encodeSymConst
 
 instance Fixpoint Brel where
   toFix Eq = text "="
@@ -462,7 +465,7 @@ instance Fixpoint Bop where
   toFix Mod   = text "mod"
 
 instance Fixpoint Expr where
-  toFix (ESym c)       = toFix c
+  toFix (ESym c)       = errorstar "toFix: Cannot Convert SymConst" -- toFix c
   toFix (ECon c)       = toFix c 
   toFix (EVar s)       = toFix s
   toFix (ELit s _)     = toFix s
@@ -1227,7 +1230,7 @@ toFixpoint x'    = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csD
         bindsDoc = toFix    . bs
         gsDoc    = toFix_gs . gs
 
-getLits x = lits x ++ symLits x
+getLits x = lits x ++ symConstLits x
 
 
 -------------------------------------------------------------------------
