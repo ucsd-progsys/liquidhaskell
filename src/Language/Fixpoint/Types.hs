@@ -775,8 +775,8 @@ type BindId        = Int
 type FEnv          = SEnv SortedReft 
 
 newtype IBindEnv   = FB (S.HashSet BindId)
-newtype SEnv a     = SE (M.HashMap Symbol a) deriving (Eq)
-data BindEnv       = BE { be_size :: Int
+newtype SEnv a     = SE { se_binds :: M.HashMap Symbol a } deriving (Eq)
+data BindEnv       = BE { be_size  :: Int
                         , be_binds :: M.HashMap BindId (Symbol, SortedReft) 
                         }
 
@@ -1301,21 +1301,6 @@ instance Reftable SortedReft where
   toReft   = sr_reft
   params _ = []
 
--- instance Expression a => Reftable a where
---   isTauto _ = isTauto . toReft 
---   ppTy      = ppTy . toReft
---   toReft    = exprReft 
---   params _  = []
-
--- instance Predicate a => Reftable a where
---   isTauto   = isTauto . toReft 
---   ppTy      = ppTy . toReft
---   toReft    = propReft 
---   params _  = []
-
-
-
-
 class Falseable a where
   isFalse :: a -> Bool
 
@@ -1330,19 +1315,35 @@ instance Falseable Refa where
 instance Falseable Reft where
   isFalse (Reft(_, rs)) = or [isFalse p | RConc p <- rs]
 
+-- instance Expression a => Reftable a where
+--   isTauto _ = isTauto . toReft 
+--   ppTy      = ppTy . toReft
+--   toReft    = exprReft 
+--   params _  = []
+
+-- instance Predicate a => Reftable a where
+--   isTauto   = isTauto . toReft 
+--   ppTy      = ppTy . toReft
+--   toReft    = propReft 
+--   params _  = []
+
+
 ---------------------------------------------------------------
 -- |String Constants ------------------------------------------
 ---------------------------------------------------------------
 
-symConstLits :: FInfo a -> [(Symbol, Sort)]
-symConstLits = error "TODO" -- map (, strSort) . stringLits' 
+symConstLits    :: FInfo a -> [(Symbol, Sort)]
+symConstLits fi = [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
 
 -- | Replace all symbol-representations-of-string-literals with string-literal
 --   Used to transform parsed output from fixpoint back into fq.
 
 
-encodeSymConst :: SymConst -> Symbol
+encodeSymConst        :: SymConst -> Symbol
 encodeSymConst (SL s) = stringSymbol $ litPrefix ++ s
+
+sortSymConst          :: SymConst -> Sort
+sortSymConst (SL _)   = strSort
 
 decodeSymConst :: Symbol -> Maybe SymConst 
 decodeSymConst = fmap SL . stripPrefix litPrefix . symbolString
@@ -1353,6 +1354,45 @@ litPrefix    = "lit" ++ [symSepName]
 strSort      :: Sort
 strSort      = FApp strFTyCon []
 
+class SymConsts where 
+  symConsts :: a -> [SymConst]
+
+instance SymConsts (FInfo a) where 
+  symConsts fi = sortNub $ csLits ++ bsLits ++ gsLits ++ qsLits
+    where
+      csLits   = concatMap symConsts                   $ M.elems  $  cm    fi
+      bsLits   = concatMap symConsts $ snd <$> M.elems $ be_binds $  cm    fi
+      gsLits   = concatMap symConsts $         M.elems $ se_binds $  gs    fi
+      qsLits   = concatMap symConsts $                   q_body  <$> quals fi 
+
+instance SymConsts SortedReft where
+  symConsts = symConsts . sr_reft
+
+instance SymConsts Reft where
+  symConsts (Reft (_, ras)) = concatMap symConsts ras
+
+instance SymConsts Refa where
+  symConsts (RConc p)          = symConsts p
+  symConsts (RKvar _ (Su xes)) = concatMap symConsts $ snd <$> xes 
+
+instance SymConsts Expression where
+  symConsts (ESym c)       = [c] 
+  symConsts (EApp _ es)    = concatMap symConsts es
+  symConsts (EBin _ e e')  = concatMap symConsts [e, e']
+  symConsts (EIte p e e')  = symConsts p ++ concatMap symConsts [e, e']
+  symConsts (ECst e _)     = symConsts e
+  symConsts _              = []
+ 
+instance SymConsts Predicate  where
+  symConsts (PNot p)       = symConsts p
+  symConsts (PAnd ps)      = concatMap symConsts ps
+  symConsts (POr ps)       = concatMap symConsts ps
+  symConsts (PImp p q)     = concatMap symConsts [p, q]
+  symConsts (PIff p q)     = concatMap symConsts [p, q]
+  symConsts (PAll _ p)     = symConsts p
+  symConsts (PBexp e)      = symConsts e
+  symConsts (PAtom _ e e') = concatMap symConsts [e, e']
+  symConsts _              = []
 
 ---------------------------------------------------------------
 -- | Edit Distance --------------------------------------------
