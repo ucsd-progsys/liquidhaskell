@@ -1354,16 +1354,21 @@ litPrefix    = "lit" ++ [symSepName]
 strSort      :: Sort
 strSort      = FApp strFTyCon []
 
-class SymConsts where 
+class SymConsts a where 
   symConsts :: a -> [SymConst]
 
 instance SymConsts (FInfo a) where 
   symConsts fi = sortNub $ csLits ++ bsLits ++ gsLits ++ qsLits
     where
-      csLits   = concatMap symConsts                   $ M.elems  $  cm    fi
-      bsLits   = concatMap symConsts $ snd <$> M.elems $ be_binds $  cm    fi
-      gsLits   = concatMap symConsts $         M.elems $ se_binds $  gs    fi
-      qsLits   = concatMap symConsts $                   q_body  <$> quals fi 
+      csLits   = concatMap symConsts                     $ M.elems  $  cm    fi
+      bsLits   = concatMap symConsts $ map snd $ M.elems $ be_binds $  bs    fi
+      gsLits   = concatMap symConsts $           M.elems $ se_binds $  gs    fi
+      qsLits   = concatMap symConsts $                     q_body  <$> quals fi 
+
+instance SymConsts (SubC a) where 
+  symConsts c  = symConsts (sgrd c) ++ 
+                 symConsts (slhs c) ++ 
+                 symConsts (srhs c) 
 
 instance SymConsts SortedReft where
   symConsts = symConsts . sr_reft
@@ -1375,7 +1380,7 @@ instance SymConsts Refa where
   symConsts (RConc p)          = symConsts p
   symConsts (RKvar _ (Su xes)) = concatMap symConsts $ snd <$> xes 
 
-instance SymConsts Expression where
+instance SymConsts Expr where
   symConsts (ESym c)       = [c] 
   symConsts (EApp _ es)    = concatMap symConsts es
   symConsts (EBin _ e e')  = concatMap symConsts [e, e']
@@ -1383,7 +1388,7 @@ instance SymConsts Expression where
   symConsts (ECst e _)     = symConsts e
   symConsts _              = []
  
-instance SymConsts Predicate  where
+instance SymConsts Pred where
   symConsts (PNot p)       = symConsts p
   symConsts (PAnd ps)      = concatMap symConsts ps
   symConsts (POr ps)       = concatMap symConsts ps
