@@ -1,14 +1,16 @@
 
-import Language.Fixpoint.Interface (solveFile)
-import System.Environment          (getArgs)
-import System.Console.GetOpt
+import Language.Fixpoint.Interface     (solveFile)
+import System.Environment              (getArgs)
+-- import System.Console.GetOpt
 import Language.Fixpoint.Config hiding (config)
-import Data.Maybe                  (fromMaybe, listToMaybe)
+import Data.Maybe                      (fromMaybe, listToMaybe)
 import System.Console.CmdArgs                  
+import System.Console.CmdArgs.Verbosity (whenLoud)
+
 
 
 main = do cfg <- getOpts 
-          putStrLn $ "Options: " ++ show cfg
+          whenLoud $ putStrLn $ "Options: " ++ show cfg
           solveFile cfg
 
 config = Config { 
@@ -33,4 +35,3 @@ getOpts = do md <- cmdArgs config
 
 banner args =  "Liquid-Fixpoint © Copyright 2009-13 Regents of the University of California.\n" 
             ++ "All Rights Reserved.\n"
-            ++ "liquid " ++ show args ++ "\n" 

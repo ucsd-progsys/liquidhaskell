@@ -19,6 +19,7 @@ import System.Process           (system)
 import Debug.Trace              (trace)
 import Data.Data
 import System.Console.ANSI
+import System.Console.CmdArgs.Verbosity (whenLoud)
 
 import Text.PrettyPrint.HughesPJ
 
@@ -43,10 +44,9 @@ withColor c act
        setSGR [ Reset]
 
 colorStrLn c       = withColor (moodColor c) . putStrLn 
-
 colorPhaseLn c msg = colorStrLn c . wrapStars .  (msg ++)
-startPhase c       = colorPhaseLn c "START: "
-doneLine   c       = colorPhaseLn c "DONE:  "
+startPhase c msg   = colorPhaseLn c "START: " msg >> colorStrLn Ok "\n"
+doneLine   c msg   = colorPhaseLn c "DONE:  " msg >> colorStrLn Ok "\n"
 
 donePhase c str 
   = case lines str of 
@@ -318,11 +318,9 @@ ifM bm xm ym
   = do b <- bm
        if b then xm else ym
 
-
 executeShellCommand phase cmd 
-  = Ex.bracket_ (startPhase Loud phase) (donePhase Loud phase) 
-    $ putStrLn ("EXEC: " ++ cmd) >> system cmd
-
+  = do whenLoud $ putStrLn $ "EXEC: " ++ cmd 
+       Ex.bracket_ (startPhase Loud phase) (donePhase Loud phase) $ system cmd
 
 checkExitCode _   (ExitSuccess)   = return ()
 checkExitCode cmd (ExitFailure n) = errorstar $ "cmd: " ++ cmd ++ " failure code " ++ show n 

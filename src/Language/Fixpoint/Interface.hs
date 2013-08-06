@@ -35,6 +35,7 @@ import Language.Fixpoint.Parse            (rr)
 import Language.Fixpoint.Files
 import Text.PrettyPrint.HughesPJ
 import System.Console.CmdArgs.Default
+import System.Console.CmdArgs.Verbosity
 
 ---------------------------------------------------------------------------
 -- | One Shot validity query ----------------------------------------------
@@ -95,14 +96,15 @@ execFq cfg fn hqs fi
 solveFile :: Config -> IO ExitCode 
 ---------------------------------------------------------------------------
 solveFile cfg
-  = do fp <- getFixpointPath
-       z3 <- getZ3LibPath
-       ec <- {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ fixCommand cfg fp z3
+  = do fp  <- getFixpointPath
+       z3  <- getZ3LibPath
+       v   <- (\b -> if b then "-v 1" else "") <$> isLoud
+       ec  <- {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ fixCommand cfg fp z3 v
        return ec
  
-fixCommand cfg fp z3
-  = printf "LD_LIBRARY_PATH=%s %s -notruekvars -refinesort -noslice -nosimple -strictsortcheck -sortedquals %s" 
-           z3 fp (command cfg)
+fixCommand cfg fp z3 verbosity 
+  = printf "LD_LIBRARY_PATH=%s %s %s -notruekvars -refinesort -noslice -nosimple -strictsortcheck -sortedquals %s" 
+           z3 fp verbosity (command cfg)
 
 exitFq _ _ (ExitFailure n) | (n /= 1) 
   = return (Crash [] "Unknown Error", M.empty)

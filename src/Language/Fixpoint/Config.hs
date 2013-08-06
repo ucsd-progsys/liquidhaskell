@@ -42,8 +42,10 @@ instance Default Config where
   def = Config "" def def def
 
 instance Command Config where 
-  command c =  command (genSorts c)    ++ command (solver c) 
-            ++ " -out " ++ (outFile c) ++ " " ++ (inFile c)
+  command c =  command (genSorts c)    
+            ++ command (solver c) 
+            ++ " -out " 
+            ++ (outFile c) ++ " " ++ (inFile c)
 
 ---------------------------------------------------------------------------------------
 -- newtype OFilePath = O FilePath 
