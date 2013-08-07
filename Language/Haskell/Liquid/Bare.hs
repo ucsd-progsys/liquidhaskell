@@ -136,7 +136,6 @@ makeRTEnv' rts pts  = do initRTEnv
 
 makeRTAliases xts = mapM_ expBody xts
   where expBody (mod,xt) = inModule mod $ do
-                             env  <- gets $ typeAliases . rtEnv
                              body <- expandRTAliasE $ rtBody xt
                              setRTAlias (rtName xt)
                                $ Right $ mapRTAVars stringRTyVar $ xt { rtBody = body }
@@ -196,12 +195,12 @@ expandAlias s = go s
           env <- gets (typeAliases.rtEnv)
           case M.lookup c env of
             Just (Left (mod,rtb)) -> do
-              st <- inModule mod $ expandAlias (c:s) $ rtBody rtb
+              st <- inModule mod $ withVArgs (rtVArgs rtb) $ expandAlias (c:s) $ rtBody rtb
               let rts = mapRTAVars stringRTyVar $ rtb { rtBody = st }
               setRTAlias c $ Right $ rts
-              expandRTApp rts <$> (mapM (go s) ts) <*> return r
-            Just (Right rts) -> do
-              expandRTApp rts <$> (mapM (go s) ts) <*> return r
+              expandRTApp s rts ts r
+            Just (Right rts) ->
+              withVArgs (rtVArgs rts) $ expandRTApp s rts ts r
             Nothing | isList c && length ts == 1 -> do
                       tyi <- tcEnv <$> get
                       liftM2 (bareTCApp tyi r listTyCon) (mapM (go' s) rs) (mapM (go s) ts)
@@ -226,18 +225,20 @@ expandAlias s = go s
     go' s (RMono ss r)    = (`RMono` r) <$> mapM ofSyms ss
     go' s (RPoly ss t)    = RPoly <$> mapM ofSyms ss <*> go s t
 
-expandRTApp rta args r
+expandRTApp s rta args r
   | length args == (length αs) + (length εs)
-  = subst su . (`strengthen` r) . subsTyVars_meet αts $ rtBody rta
+  = do args'  <- mapM (expandAlias s) args
+       let ts  = take (length αs) args'
+           αts = zipWith (\α t -> (α, toRSort t, t)) αs ts
+       return $ subst su . (`strengthen` r) . subsTyVars_meet αts $ rtBody rta
   | otherwise
   = errortext $ (text "Malformed Type-Alias Application" $+$ text msg)
   where
-    αts       = zipWith (\α t -> (α, toRSort t, t)) αs ts
     su        = mkSubst $ zip (stringSymbol . showpp <$> εs) es
     αs        = rtTArgs rta 
     εs        = rtVArgs rta
     msg       = rtName rta ++ " " ++ join (map showpp args)
-    (ts, es_) = splitAt (length αs) args
+    es_       = drop (length αs) args
     es        = map (exprArg msg) es_
     
 -- | exprArg converts a tyVar to an exprVar because parser cannot tell 
@@ -461,6 +462,16 @@ inModule m act = do
   res <- act
   modify $ setModule old
   return res
+
+withVArgs vs act = do
+  old <- gets rtEnv
+  mapM mkExprAlias (map showpp vs)
+  res <- act
+  modify $ \be -> be { rtEnv = old }
+  return res
+
+mkExprAlias v
+  = setRTAlias v (Right (RTA v [] [] (RExprArg (EVar $ symbol v)) dummyPos))
 
 setRTAlias s a =
   modify $ \b -> b { rtEnv = mapRT (M.insert s a) $ rtEnv b }

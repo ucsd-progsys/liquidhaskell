@@ -952,6 +952,9 @@ instance PPrint SortedReft where
 
 data ModName = ModName !ModType !ModuleName
 
+instance Show ModName where
+  show = getModString
+
 data ModType = Target | SrcImport | SpecImport
 
 isSrcImport (ModName SrcImport _) = True
