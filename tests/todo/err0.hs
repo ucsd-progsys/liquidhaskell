@@ -1,8 +1,10 @@
-module Test0 where
+-- | Error Message Test: parse error in spec
+
+module Err0 where
 
 import Language.Haskell.Liquid.Prelude
 
-{-@ qualif Zog(v:FooBar, x:FooBar): v = x + 29 @-}
+{-@ qualif Zog(v:FooBar, x:FooBar): v = x + @-}
 
 data FooBar = Foo Int
 
