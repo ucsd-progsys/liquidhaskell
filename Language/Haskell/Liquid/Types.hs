@@ -117,7 +117,6 @@ data Config = Config {
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   , smtsolver      :: SMTSolver  -- ^ name of smtsolver to use [default: z3-API]  
-  -- , verbose        :: Bool       -- ^ verbose output
   } deriving (Data, Typeable, Show, Eq)
 
 -----------------------------------------------------------------------------
@@ -582,6 +581,7 @@ instance (PPrint r, Reftable r) => Reftable (UReft r) where
   ppTy               = ppTy_ureft
   toReft (U r _)     = toReft r
   params (U r _)     = params r
+  bot (U r _)        = U (bot r) (Pr [])
 
 isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u)
 
@@ -624,7 +624,8 @@ instance (Subable r, RefTypable p c tv r) => Subable (RType p c tv r) where
 
 instance Reftable Predicate where
   isTauto (Pr ps)      = null ps
- 
+
+  bot (Pr _)           = errorstar "No BOT instance for Predicate"
   -- HACK: Hiding to not render types in WEB DEMO. NEED TO FIX.
   ppTy r d | isTauto r        = d 
            | not (ppPs ppEnv) = d
@@ -877,12 +878,12 @@ falseD = text "false"
 andD   = text " &&"
 orD    = text " ||"
 
-pprintBin b _ [] = b
-pprintBin _ o xs = intersperse o $ pprint <$> xs 
+pprintBin b _ []     = b
+pprintBin _ o xs     = intersperse o $ pprint <$> xs 
 
-pprintBin b o []     = b
-pprintBin b o [x]    = pprint x
-pprintBin b o (x:xs) = pprint x <+> o <+> pprintBin b o xs 
+-- pprintBin b o []     = b
+-- pprintBin b o [x]    = pprint x
+-- pprintBin b o (x:xs) = pprint x <+> o <+> pprintBin b o xs 
 
 instance PPrint a => PPrint (PVar a) where
   pprint (PV s _ xts)     = pprint s <+> hsep (pprint <$> dargs xts)
