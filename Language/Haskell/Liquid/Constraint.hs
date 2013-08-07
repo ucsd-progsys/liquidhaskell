@@ -1297,14 +1297,13 @@ addRTyConInv m t@(RApp c _ _ _)
   = case M.lookup c m of
       Nothing -> t
       Just ts -> foldl' conjoinInvariant' t ts
-  -- = fromMaybe t (conjoinInvariant' t <$> M.lookup c m)
 addRTyConInv _ t 
   = t 
 
-conjoinInvariant' t1 t2 = -- traceShow ("conjoinInvariant: t1 = " ++ F.showFix t1 ++ " t2 = " ++ F.showFix t2) $
-                          conjoinInvariantShift t1 t2
+conjoinInvariant' t1 t2     
+  = conjoinInvariantShift t1 t2
 
-conjoinInvariantShift t1 t2
+conjoinInvariantShift t1 t2 
   = conjoinInvariant t1 (shiftVV t2 (rTypeValueVar t1)) 
 
 conjoinInvariant (RApp c ts rs r) (RApp ic its _ ir) 
