@@ -28,11 +28,16 @@ import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc)
 import qualified Control.Exception as Ex
 
 import GHC.Paths (libdir)
-import System.FilePath (dropExtension, takeFileName, splitFileName, combine,
-                        dropFileName, normalise)
+import System.FilePath ( replaceExtension
+                       , dropExtension
+                       , takeFileName
+                       , splitFileName
+                       , combine
+                       , dropFileName 
+                       , normalise)
 
 import DynFlags (ProfAuto(..))
-import Control.Monad (filterM)
+import Control.Monad (when, filterM)
 import Control.DeepSeq
 import Control.Applicative  hiding (empty)
 import Control.Monad (forM, liftM)
@@ -43,7 +48,7 @@ import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
 import System.Console.CmdArgs.Verbosity (whenLoud)
-import System.Directory (doesFileExist)
+import System.Directory (removeFile, doesFileExist)
 import Language.Fixpoint.Types hiding (Expr) 
 import Language.Fixpoint.Misc
 
@@ -110,7 +115,7 @@ definedVars           = concatMap defs
 ------------------------------------------------------------------
 
 getGhcModGuts1 fn = do
-   liftIO $ deleteBinFiles fn
+   liftIO $ deleteBinFilez fn
    target <- guessTarget fn Nothing
    addTarget target
    load LoadAllTargets
@@ -123,7 +128,7 @@ getGhcModGuts1 fn = do
 
 -- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
 getGhcModGutsSimpl1 fn = do
-   liftIO $ deleteBinFiles fn 
+   liftIO $ deleteBinFilez fn 
    target <- guessTarget fn Nothing
    addTarget target
    load LoadAllTargets
@@ -146,6 +151,14 @@ peepGHCSimple fn
        liftIO $ putStrLn "************************* peepGHCSimple Bindings ***************************"
        liftIO $ putStrLn $ showPpr (cm_binds z)
        errorstar "Done peepGHCSimple"
+
+deleteBinFilez :: FilePath -> IO ()
+deleteBinFilez fn = mapM_ (tryIgnore "delete binaries" . removeFileIfExists)
+                  $ (fn `replaceExtension`) `fmap` exts
+  where exts = ["hi", "o"]
+
+removeFileIfExists f = doesFileExist f >>= (`when` removeFile f)
+
 
 --------------------------------------------------------------------------------
 -- | Desugaring (Taken from GHC, modified to hold onto Loc in Ticks) -----------
