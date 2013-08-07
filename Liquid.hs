@@ -58,7 +58,7 @@ liquidOne cfg target =
                     putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
                     putStrLn $ showpp cbs'
                     putStrLn "*************** Slicing Out Unchanged CoreBinds *****************" 
-     (pruned, cbs'') <- prune cbs' info
+     (pruned, cbs'') <- prune cfg cbs' target info
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints cfg $! info {cbs = cbs''}
      cgi `deepseq` donePhase Loud "generateConstraints"
      -- whenLoud $ do donePhase Loud "START: Write CGI (can be slow!)"
@@ -69,17 +69,25 @@ liquidOne cfg target =
      donePhase Loud "solve" 
      {-# SCC "annotate" #-} annotate target (resultSrcSpan r) sol $ annotMap cgi
      donePhase Loud "annotate"
-     donePhase (colorResult r) (showFix r) 
-     writeResult target r
-     putTerminationResult $ logWarn cgi
-     when pruned $ putCheckedVars cbs''
-     return r
-  where
-    prune cbs info
-      | not (null vs) = return (True, DC.thin cbs vs)
-      | diffcheck cfg = (True,) <$> DC.slice target cbs
-      | otherwise     = return (False, cbs)
-      where vs = tgtVars $ spec info
+     solveExit target pruned cbs'' cgi r 
+
+
+
+solveExit target pruned cbs'' cgi r 
+  = do donePhase (colorResult r) (showFix r) 
+       writeResult target r
+       putTerminationResult $ logWarn cgi
+       when pruned $ putCheckedVars cbs''
+       return r
+
+
+
+prune cfg cbs target info
+  | not (null vs) = return (True, DC.thin cbs vs)
+  | diffcheck cfg = (True,) <$> DC.slice target cbs
+  | otherwise     = return (False, cbs)
+  where 
+    vs            = tgtVars $ spec info
 
 putTerminationResult [] 
   = return ()

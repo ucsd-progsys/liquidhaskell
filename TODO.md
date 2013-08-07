@@ -29,7 +29,31 @@ Single module to report all kinds of errors
   + tests/todo/err2.hs [liquid-ghc divergence]
   + tests/todo/err4.hs [type error in liquid]
 
+1. New module 
+  
+    Language.Haskell.Liquid.Error
 
+2. New type
+
+    data Error 
+      = LiquidType { srcLoc :: !Location 
+                   , expect :: !SpecType
+                   , actual :: !SpecType
+                   , msg    :: !String
+                   }
+      | SpecParse  { srcLoc :: !Location
+                   , msg    :: !String
+                   }
+      | GhcError   { srcLoc :: !Location
+                   , msg    :; !String
+                   }
+      | SpecSort   { srcLoc :: !Location
+                   , msg    :: !String
+                   }
+
+3. New Function, which generates the .json file, dumps out the error and then exits
+
+    exitWithError :: [Error] -> a
 
 
 Embed
