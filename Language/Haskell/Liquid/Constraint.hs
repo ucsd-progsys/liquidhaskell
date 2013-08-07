@@ -74,6 +74,7 @@ import Language.Haskell.Liquid.GhcMisc          (isInternal, collectArguments, g
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Qualifier        
+import Language.Haskell.Liquid.Errors 
 import Control.DeepSeq
 
 
@@ -232,7 +233,7 @@ isBase _                = False
 ------------------- Constraints: Types --------------------------
 -----------------------------------------------------------------
 
-newtype Cinfo = Ci SrcSpan deriving (Eq, Ord) 
+newtype Cinfo = Ci Error deriving (Eq, Ord) 
 
 data SubC     = SubC { senv  :: !CGEnv
                      , lhs   :: !SpecType
@@ -255,7 +256,8 @@ instance PPrint WfC where
   pprint (WfC w r) = pprint w <> text " |- " <> pprint r 
 
 instance PPrint Cinfo where
-  pprint (Ci src)  = pprDoc src
+  -- pprint (Ci src)  = pprDoc src
+  pprint (Ci err)  = pprint err
 
 instance F.Fixpoint Cinfo where
   toFix = pprint
