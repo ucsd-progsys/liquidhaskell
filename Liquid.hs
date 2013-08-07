@@ -16,7 +16,7 @@ import HscMain
 import RdrName
 import Var
 
-import System.Console.CmdArgs.Verbosity (isLoud)
+import System.Console.CmdArgs.Verbosity (whenLoud)
 import System.Console.CmdArgs.Default
 import Language.Fixpoint.Config (Config (..)) 
 import Language.Fixpoint.Files
@@ -47,22 +47,21 @@ liquid  = do cfg <- getOpts
              return $ mconcat res
 
 liquidOne cfg target = 
-  do loud     <- isLoud 
-     _        <- getFixpointPath 
+  do _        <- getFixpointPath 
      info     <- getGhcInfo cfg target 
-     when loud $ do donePhase Loud "getGhcInfo"
+     whenLoud  $ do donePhase Loud "getGhcInfo"
                     putStrLn $ showpp info 
                     putStrLn "*************** Original CoreBinds ***************************" 
                     putStrLn $ showpp (cbs info)
      let cbs' = transformRecExpr (cbs info)
-     when loud $ do donePhase Loud "transformRecExpr"
+     whenLoud  $ do donePhase Loud "transformRecExpr"
                     putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
                     putStrLn $ showpp cbs'
                     putStrLn "*************** Slicing Out Unchanged CoreBinds *****************" 
      (pruned, cbs'') <- prune cbs' info
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints cfg $! info {cbs = cbs''}
      cgi `deepseq` donePhase Loud "generateConstraints"
-     -- when loud $ do donePhase Loud "START: Write CGI (can be slow!)"
+     -- whenLoud $ do donePhase Loud "START: Write CGI (can be slow!)"
      --                {-# SCC "writeCGI" #-} writeCGI target cgi 
      --                donePhase Loud "FINISH: Write CGI"
      (r, sol) <- solveCs cfg target cgi info
