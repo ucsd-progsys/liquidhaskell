@@ -24,7 +24,6 @@ module Language.Fixpoint.Files (
   , getFileInDirs
   , findFileInDirs
   , copyFiles
-  , deleteBinFiles
   
 ) where
 
@@ -131,11 +130,6 @@ copyFiles :: [FilePath] -> FilePath -> IO ()
 copyFiles srcs tgt
   = do Ex.catch (removeFile tgt) $ \(_ :: Ex.IOException) -> return ()
        forM_ srcs (readFile >=> appendFile tgt)
-
-deleteBinFiles :: FilePath -> IO ()
-deleteBinFiles fn = mapM_ (tryIgnore "delete binaries" . removeFile)
-                  $ (fn `replaceExtension`) `fmap` exts
-  where exts = ["hi", "o"]
 
 
 ----------------------------------------------------------------------------------

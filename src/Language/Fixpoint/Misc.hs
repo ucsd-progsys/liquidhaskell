@@ -35,9 +35,8 @@ moodColor Sad   = Magenta
 moodColor Happy = Green 
 moodColor Angry = Red 
 
-
-wrapStars msg = "\n****************************** " ++ msg ++ " *****************************"
-
+wrapStars msg = "\n**** " ++ msg ++ " " ++ replicate (74 - length msg) '*'
+    
 withColor c act
   = do setSGR [ SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid c] 
        act
@@ -45,8 +44,8 @@ withColor c act
 
 colorStrLn c       = withColor (moodColor c) . putStrLn 
 colorPhaseLn c msg = colorStrLn c . wrapStars .  (msg ++)
-startPhase c msg   = colorPhaseLn c "START: " msg >> colorStrLn Ok "\n"
-doneLine   c msg   = colorPhaseLn c "DONE:  " msg >> colorStrLn Ok "\n"
+startPhase c msg   = colorPhaseLn c "START: " msg >> colorStrLn Ok " "
+doneLine   c msg   = colorPhaseLn c "DONE:  " msg >> colorStrLn Ok " "
 
 donePhase c str 
   = case lines str of 
