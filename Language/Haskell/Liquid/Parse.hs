@@ -217,7 +217,12 @@ predicatesP
 predicate1P 
    =  try (liftM2 RPoly symsP (refP bbaseP))
   <|> liftM (RMono [] . predUReft) monoPredicate1P
-  <|> (braces $ liftM2 bRPoly symsP refasP)
+  <|> (braces $ liftM2 bRPoly symsP' refasP)
+   where 
+    symsP'       = do ss    <- symsP
+                      fs    <- mapM refreshSym (fst <$> ss)
+                      return $ zip ss fs
+    refreshSym s = liftM (intSymbol (symbolString s)) freshIntP
 
 monoPredicateP 
    = try (angles monoPredicate1P) 
@@ -239,8 +244,11 @@ predVarUseP
 ------------------------------------------------------------------------
 
 bRPoly []    _    = errorstar "Parse.bRPoly empty list"
-bRPoly syms expr = RPoly ss $ bRVar dummyName top $ Reft(v, expr)
+bRPoly syms' expr = RPoly ss $ bRVar dummyName top r
   where (ss, (v, _)) = (init syms, last syms)
+        syms = [(y, s) | ((_, s), y) <- syms']
+        su   = mkSubst [(x, EVar y) | ((x, _), y) <- syms'] 
+        r    = su `subst` Reft(v, expr)
 
 bRVar α p r               = RVar α (U r p)
 bLst t rs r               = RApp listConName [t] rs (reftUReft r) 
