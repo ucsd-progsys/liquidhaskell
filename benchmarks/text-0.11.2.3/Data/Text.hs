@@ -1666,7 +1666,7 @@ index t n = S.index (stream t) n
 -- | /O(n)/ The 'findIndex' function takes a predicate and a 'Text'
 -- and returns the index of the first element in the 'Text' satisfying
 -- the predicate. Subject to fusion.
-{-@ findIndex :: (Char -> Bool) -> t:Text -> Maybe {v0:Nat | v < (tlength t)} @-}
+{-@ findIndex :: (Char -> Bool) -> t:Text -> Maybe {v:Nat | v < (tlength t)} @-}
 findIndex :: (Char -> Bool) -> Text -> Maybe Int
 findIndex p t = S.findIndex p (stream t)
 {-# INLINE findIndex #-}
