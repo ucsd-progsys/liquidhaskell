@@ -27,7 +27,7 @@ import BasicTypes               (TupleSort (..), Arity)
 import TcRnDriver               (tcRnLookupRdrName, tcRnLookupName) 
 import Data.Char                (isLower)
 import Text.Printf
-import Data.Maybe               (listToMaybe, fromMaybe, mapMaybe, catMaybes, isNothing)
+import Data.Maybe               (maybeToList, listToMaybe, fromMaybe, mapMaybe, catMaybes, isNothing)
 import Control.Monad.State      (put, get, modify, State, evalState, execState)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>), (<|>))
@@ -44,7 +44,7 @@ import Language.Fixpoint.Types
 import Language.Fixpoint.Sort                   (checkSortedReftFull)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.PredType
+import Language.Haskell.Liquid.PredType hiding (unify)
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Fixpoint.Misc
 
@@ -57,10 +57,37 @@ import TypeRep
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
 
-makeGhcSpec, makeGhcSpec' :: Config -> String -> [Var] -> [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
+makeGhcSpec :: Config -> String -> [Var] -> [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
 makeGhcSpec cfg name vars defVars env spec 
   = checkGhcSpec <$> makeGhcSpec' cfg name vars defVars env spec 
 
+checkMeasures emb env ms = applyNonNull [] specError errors
+  where errors           = concatMap (checkMeasure emb env) ms
+
+checkMeasure :: M.HashMap TyCon FTycon-> SEnv SortedReft -> Ms.Measure RefType DataCon-> [Doc]
+checkMeasure emb γ (Ms.M name sort body) 
+  = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
+  where 
+    txerror e  = text (show name) <+> text ":\n" <+> e
+
+checkMBody γ emb name sort (Ms.Def s c bs body) = go γ' body
+  where 
+    γ'  = foldl (\γ (x, t) -> insertSEnv x t γ) γ xts
+    xts = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ts
+    ct  = ofType $ dataConUserType c :: RefType 
+    su  = unify tr (head $ snd3 $ bkArrowDeep sort)
+
+    (_, ts, tr) = bkArrow $ thd3 $ bkUniv ct 
+
+    unify (RVar tv _) t                    = [(tv, toRSort t, t)]
+    unify (RApp _ ts _ _) (RApp _ ts' _ _) = concat $ zipWith unify ts ts'
+    unify _ _                              = []
+
+    go γ (Ms.E e)   = checkSortedReftFull γ e
+    go γ (Ms.P p)   = checkSortedReftFull γ p
+    go γ (Ms.R s p) = checkSortedReftFull (insertSEnv s sty γ) p
+
+    sty = rTypeSortedReft emb (thd3 $ bkArrowDeep sort)
 
 makeGhcSpec' cfg name vars defVars env spec 
   = do (tcs, dcs)      <- makeConTypes    env  name         $ Ms.dataDecls  spec 
@@ -68,7 +95,8 @@ makeGhcSpec' cfg name vars defVars env spec
        let tycons       = tcs ++ tcs'    
        let datacons     = concat dcs ++ dcs'    
        let benv         = BE name (makeTyConInfo tycons) env
-       (cs, ms)        <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
+       measures        <- makeMeasureSpec benv $ Ms.mkMSpec $ Ms.measures   spec
+       (cs, ms)        <- makeMeasureSpec' benv measures
        sigs'           <- makeAssumeSpec  cfg benv vars     $ Ms.sigs       spec
        invs            <- makeInvariants  benv              $ Ms.invariants spec
        embs            <- makeTyConEmbeds benv              $ Ms.embeds     spec
@@ -78,22 +106,24 @@ makeGhcSpec' cfg name vars defVars env spec
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs datacons
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms ] -- first val <$> ms 
        let syms         = makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms' 
-       let tx           = subsFreeSymbols syms
+       let su           = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
+       let tx           = subsFreeSymbols su
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
        let decr'        = makeHints defVars (Ms.decr spec)
-       return           $ SP { tySigs     = renameTyVars <$> tx sigs
-                             , ctor       = tx cs'
-                             , meas       = tx (ms' ++ varMeasures vars) 
-                             , invariants = invs 
-                             , dconsP     = datacons
-                             , tconsP     = tycons 
-                             , freeSyms   = syms' 
-                             , tcEmbeds   = embs 
-                             , qualifiers = Ms.qualifiers spec 
-                             , decr       = decr'
-                             , lazy       = lazies
-                             , tgtVars    = targetVars
-                             }
+       return           $ (SP { tySigs     = renameTyVars <$> tx sigs
+                              , ctor       = tx cs'
+                              , meas       = tx (ms' ++ varMeasures vars) 
+                              , invariants = invs 
+                              , dconsP     = datacons
+                              , tconsP     = tycons 
+                              , freeSyms   = syms' 
+                              , tcEmbeds   = embs 
+                              , qualifiers = Ms.qualifiers spec 
+                              , decr       = decr'
+                              , lazy       = lazies
+                              , tgtVars    = targetVars
+                              }
+                          , subst su <$> M.elems $ Ms.measMap measures) 
 makeHints :: [Var] -> [(LocSymbol, [Int])] -> [(Var, [Int])]
 makeHints vs       = concatMap go
   where lvs        = M.map L.sort $ group [(varSymbol v, locVar v) | v <- vs]
@@ -219,9 +249,8 @@ mkVarExpr v
         tfun         = splitFunTy_maybe tbase
 
 -- subsFreeSymbols     :: [(Symbol, Var)] -> f (t1, t2) -> f (t1, t2)
-subsFreeSymbols xvs = tx
+subsFreeSymbols su  = tx
   where 
-    su              = mkSubst [ (x, mkVarExpr v) | (x, v) <- xvs]
     tx              = fmap $ mapSnd $ subst su 
 
 -- meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
@@ -273,17 +302,13 @@ wrapErr msg f x = yesStack
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
 
-makeMeasureSpec :: BareEnv 
-                -> Ms.MSpec BareType Symbol 
-                -> IO ([(Var, SpecType)], [(LocSymbol, RefType)])
-
 makeMeasureSpec env m = execBare mkSpec env 
   where 
     mkSpec            = wrapErr "mkMeasureSort" mkMeasureSort m' 
                           >>= mkMeasureDCon 
-                          >>= return . mapFst (mapSnd uRType <$>) . Ms.dataConTypes 
     m'                = first (mapReft ur_reft) m
 
+makeMeasureSpec' env  = return . mapFst (mapSnd uRType <$>) . Ms.dataConTypes 
 
 makeTargetVars :: HscEnv -> String -> [Var] -> [String] -> IO [Var]
 makeTargetVars env name vs ss = do
@@ -748,13 +773,14 @@ rtypePredBinds = map uPVar . snd3 . bkUniv
 ----- Checking GhcSpec -----------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
 
-checkGhcSpec         :: GhcSpec -> GhcSpec 
-checkGhcSpec sp      =  applyNonNull sp specError errors
+checkGhcSpec          :: (GhcSpec, [Ms.Measure RefType DataCon])-> GhcSpec
+checkGhcSpec (sp, ms) =  applyNonNull sp specError errors
   where 
     env              =  ghcSpecEnv sp
     emb              =  tcEmbeds sp
     errors           =  mapMaybe (checkBind "variable"         emb env) (tySigs     sp)
                      ++ mapMaybe (checkBind "data constructor" emb env) (dcons      sp)
+                     ++ checkMeasures emb env ms
                      ++ mapMaybe (checkBind "measure"          emb env) (meas       sp)
                      ++ mapMaybe (checkInv  emb env)                    (invariants sp)
                      ++ mapMaybe checkMismatch                          (tySigs     sp)
