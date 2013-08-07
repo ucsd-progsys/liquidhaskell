@@ -5,7 +5,7 @@
 module Language.Haskell.Liquid.Measure (  
     Spec (..)
   , MSpec (..)
-  , Measure (name, sort)
+  , Measure (..)
   , Def (..)
   , Body (..)
   , mkM, mkMSpec
@@ -82,6 +82,35 @@ data Body
   | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
   | R Symbol Pred   -- ^ Measure Refinement: {v | p}
   deriving (Show)
+
+instance Subable (Measure ty ctor) where
+  syms (M _ _ es)      = concatMap syms es
+  substa f  (M n s es) = M n s $ substa f  <$> es
+  substf f  (M n s es) = M n s $ substf f  <$> es
+  subst  su (M n s es) = M n s $ subst  su <$> es
+
+instance Subable (Def ctor) where
+  syms (Def _ _ _ bd)      = syms bd
+  substa f  (Def m c b bd) = Def m c b $ substa f  bd
+  substf f  (Def m c b bd) = Def m c b $ substf f  bd
+  subst  su (Def m c b bd) = Def m c b $ subst  su bd
+
+instance Subable Body where
+  syms (E e)       = syms e
+  syms (P e)       = syms e
+  syms (R s e)     = s:syms e
+
+  substa f (E e)   = E $ substa f e
+  substa f (P e)   = P $ substa f e
+  substa f (R s e) = R s $ substa f e
+
+  substf f (E e)   = E $ substf f e
+  substf f (P e)   = P $ substf f e
+  substf f (R s e) = R s $ substf f e
+
+  subst su (E e)   = E $ subst su e
+  subst su (P e)   = P $ subst su e
+  subst su (R s e) = R s $ subst su e
 
 qualifySpec name sp = sp { sigs = [ (qualifySymbol name <$> x, t) | (x, t) <- sigs sp] }
 
