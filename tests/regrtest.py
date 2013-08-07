@@ -125,8 +125,7 @@ textIgnored = { "Data/Text/Axioms.hs"
               , "Data/Text/Util.hs"
               }
 
-demosIgnored = {
-               , "Composition.hs"
+demosIgnored = { "Composition.hs"
                , "Eval.hs"
                , "Inductive.hs"
                , "Loop.hs"
