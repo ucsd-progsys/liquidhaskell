@@ -67,14 +67,15 @@ liquidOne cfg target =
      (r, sol) <- solveCs cfg target cgi info
      _        <- when (diffcheck cfg) $ DC.save target 
      donePhase Loud "solve" 
-     {-# SCC "annotate" #-} annotate target (fmap sinfo r) sol $ annotMap cgi
+     let r'    = fmap sinfo r
+     {-# SCC "annotate" #-} annotate target r' sol (annotMap cgi)
      donePhase Loud "annotate"
-     solveExit target pruned cbs'' cgi r 
-
+     solveExit target pruned cbs'' cgi r' 
 
 solveExit target pruned cbs'' cgi r 
-  = do donePhase (colorResult r) (showFix r) 
-       writeFile (extFileName Result target) (showFix r)
+  = do let rs = showFix r
+       donePhase (colorResult r) rs 
+       writeFile (extFileName Result target) rs 
        putTerminationResult $ logWarn cgi
        when pruned $ putCheckedVars cbs''
        return r

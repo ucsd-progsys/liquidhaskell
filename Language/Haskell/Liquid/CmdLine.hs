@@ -61,7 +61,7 @@ config = Config {
  } &= verbosity
    &= program "liquid" 
    &= help    "Refinement Types for Haskell" 
-   &= summary "LiquidHaskell © Copyright 2009-13 Regents of the University of California." 
+   &= summary copyright 
    &= details [ "LiquidHaskell is a Refinement Type based verifier for Haskell"
               , ""
               , "To check a Haskell file foo.hs, type:"
@@ -70,12 +70,11 @@ config = Config {
 
 getOpts :: IO Config 
 getOpts = do md <- cmdArgs config 
-             whenLoud $ putStrLn $ banner md
+             putStrLn $ copyright
+             whenLoud $ putStrLn $ "liquid " ++ show args ++ "\n"
              mkOpts md
 
-banner args =  "LiquidHaskell © Copyright 2009-13 Regents of the University of California.\n" 
-            ++ "All Rights Reserved.\n"
-            ++ "liquid " ++ show args ++ "\n" 
+copyright = "LiquidHaskell © Copyright 2009-13 Regents of the University of California. All Rights Reserved.\n"
 
 mkOpts :: Config -> IO Config
 mkOpts md  
