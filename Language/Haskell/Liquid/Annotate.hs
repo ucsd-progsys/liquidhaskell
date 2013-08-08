@@ -31,6 +31,7 @@ import GHC.Exts                 (groupWith, sortWith)
 import Data.Char                (isSpace)
 import Data.Function            (on)
 import Data.List                (sortBy)
+import Data.Maybe               (mapMaybe)
 
 import Data.Aeson               
 import Control.Arrow            hiding ((<+>))
@@ -49,7 +50,6 @@ import qualified Data.HashMap.Strict    as M
 
 import qualified Language.Haskell.Liquid.ACSS as ACSS
 
--- import Language.Haskell.Liquid.JSON ()
 import Language.Haskell.HsColour.Classify
 import Language.Fixpoint.Files
 import Language.Fixpoint.Names
@@ -59,6 +59,7 @@ import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Types hiding (Located(..))
+import Language.Haskell.Liquid.Result
 
 import qualified Data.List           as L
 import qualified Data.Vector         as V
@@ -71,7 +72,7 @@ import           Language.Haskell.Liquid.ACSS
 ------ Rendering HTMLized source with Inferred Types --------------
 -------------------------------------------------------------------
 
-annotate :: FilePath -> FixResult SrcSpan -> FixSolution -> AnnInfo Annot -> IO ()
+annotate :: FilePath -> FixResult Cinfo -> FixSolution -> AnnInfo Annot -> IO ()
 annotate fname result sol anna 
   = do annotDump fname (extFileName Html $ extFileName Cst fname) result annm
        annotDump fname (extFileName Html fname) result annm'
@@ -87,7 +88,7 @@ showBots (AI m) = mapM_ showBot $ sortBy (compare `on` fst) $ M.toList m
              printf "WARNING: Found false in %s\n" (showPpr src)
     showBot _ = return ()
 
-annotDump :: FilePath -> FilePath -> FixResult SrcSpan -> AnnInfo SpecType -> IO ()
+annotDump :: FilePath -> FilePath -> FixResult Cinfo -> AnnInfo SpecType -> IO ()
 annotDump srcFile htmlFile result ann
   = do let annm     = mkAnnMap result ann
        let annFile  = extFileName Annot srcFile
@@ -177,17 +178,21 @@ cssHTML css = unlines
 -- | Building Annotation Maps ------------------------------------------------
 ------------------------------------------------------------------------------
 
--- | This function converts our annotation information into that which is
--- required by `Language.Haskell.Liquid.ACSS` to generate mouseover
--- annotations.
+-- | This function converts our annotation information into that which 
+--   is required by `Language.Haskell.Liquid.ACSS` to generate mouseover
+--   annotations.
 
-mkAnnMap ::  FixResult SrcSpan -> AnnInfo SpecType -> ACSS.AnnMap
+mkAnnMap ::  FixResult Cinfo -> AnnInfo SpecType -> ACSS.AnnMap
 mkAnnMap res ann = ACSS.Ann (mkAnnMapTyp ann) (mkAnnMapErr res)
     
-mkAnnMapErr (Unsafe ls) = [ (srcSpanStartLoc  l, srcSpanEndLoc l) | RealSrcSpan l <- ls] 
-mkAnnMapErr _           = []
+mkAnnMapErr (Unsafe ls)         = mapMaybe cinfoErr ls -- [(srcSpanStartLoc l, srcSpanEndLoc l) | RealSrcSpan l <- ls] 
+mkAnnMapErr _                   = []
+  
+cinfoErr (Ci (RealSrcSpan l) e) = Just (srcSpanStartLoc l, srcSpanEndLoc l, maybe "" showpp e)
+cinfoErr _                      = Nothing
 
-mkAnnMapTyp (AI m) 
+
+mkAnnMapTyp (AI m)
   = M.fromList
   $ map (srcSpanStartLoc *** bindString)
   $ map (head . sortWith (srcSpanEndCol . fst)) 
@@ -351,7 +356,7 @@ applySolution = fmap . fmap . mapReft . map . appSolRefa
 
 data Assoc k a = Asc (M.HashMap k a)
 type AnnTypes  = Assoc Int (Assoc Int Annot1)
-type AnnErrors = [(Loc, Loc)]
+type AnnErrors = [(Loc, Loc, String)]
 data Annot1    = A1  { ident :: String
                      , ann   :: String
                      , row   :: Int
@@ -377,7 +382,9 @@ instance ToJSON Loc where
 instance ToJSON AnnErrors where 
   toJSON errs      = Array $ V.fromList $ fmap toJ errs
     where 
-      toJ (l, l')  = object [ ("start" .= toJSON l), ("stop"  .= toJSON l') ]
+      toJ (l,l',s) = object [ ("start"   .= toJSON l )
+                            , ("stop"    .= toJSON l') 
+                            , ("message" .= toJSON s ) ]
 
 instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
   toJSON (Asc kas) = object [ (tshow k) .= (toJSON a) | (k, a) <- M.toList kas ]
