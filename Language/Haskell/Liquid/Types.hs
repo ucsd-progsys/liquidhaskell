@@ -70,9 +70,21 @@ module Language.Haskell.Liquid.Types (
   
   -- * Printer Configuration 
   , PPEnv (..), ppEnv
+
+  -- * Final Result
+  , Result (..)
+
+  -- * Different kinds of errors
+  , Error (..)
+  
+  -- * Source information associated with each constraint
+  , Cinfo (..)
+
+
   )
   where
 
+import SrcLoc                                   (SrcSpan)
 import TyCon
 import DataCon
 import TypeRep          hiding (maybeParen, pprArrowChain)  
@@ -905,8 +917,6 @@ instance PPrint Reft where
     | isTauto r        = text "true"
     | otherwise        = {- intersperse comma -} pprintBin trueD andD $ flattenRefas ras
 
- 
-
 instance PPrint SortedReft where
   pprint (RR so (Reft (v, ras))) 
     = braces 
@@ -914,3 +924,57 @@ instance PPrint SortedReft where
 
 
 
+------------------------------------------------------------------------
+-- | Error Data Type ---------------------------------------------------
+------------------------------------------------------------------------
+
+data Result = Verified | Err [Error]
+
+data Error  = 
+    LiquidType  { pos :: !SrcSpan
+                , act :: !SpecType
+                , exp :: !SpecType
+                , msg :: !String
+                } -- ^ liquid type error
+
+  | LiquidParse { pos :: !SrcSpan
+                , msg :: !String
+                } -- ^ specification parse error
+
+  | LiquidSort  { pos :: !SrcSpan
+                , msg :: !String
+                } -- ^ sort error in specification
+
+  | Ghc         { pos :: !SrcSpan
+                , msg :: !String
+                } -- ^ GHC error: parsing or type checking
+
+instance Eq Error where 
+  e1 == e2 = pos e1 == pos e2
+
+instance Ord Error where 
+  e1 <= e2 = pos e1 <= pos e2
+
+------------------------------------------------------------------------
+-- | Source Information Associated With Constraints --------------------
+------------------------------------------------------------------------
+
+data Cinfo    = Ci { ci_loc :: !SrcSpan
+                   , ci_err :: !(Maybe Error)
+                   } 
+                deriving (Eq, Ord) 
+
+instance NFData Cinfo 
+
+------------------------------------------------------------------------
+-- | Converting Results To Answers -------------------------------------
+------------------------------------------------------------------------
+
+class IsResult a where
+  result :: a -> Result
+
+instance IsResult Error where
+  result e = Err [e]
+
+instance IsResult [Error] where
+  result   = Err

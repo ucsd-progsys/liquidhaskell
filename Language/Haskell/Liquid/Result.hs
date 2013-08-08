@@ -12,18 +12,8 @@
 --   causes it, generate a suitable .json file and then exit.
 
 module Language.Haskell.Liquid.Result (
-
-  -- * Final Result
-    Result (..)
-
-  -- * Different kinds of errors
-  , Error (..)
-  
-  -- * Source information associated with each constraint
-  , Cinfo (..)
-
   -- * Single Exit Function
-  , exitWithResult
+   exitWithResult
   ) where
 
 import SrcLoc                                   (SrcSpan)
@@ -32,44 +22,27 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.GhcMisc          (pprDoc)
 import Text.PrettyPrint.HughesPJ    
 import Control.DeepSeq
+import Data.List                                (sortBy)
+import Data.Function                            (on)
 
 ------------------------------------------------------------------------
--- | Error Data Type ---------------------------------------------------
+-- | Exit Function -----------------------------------------------------
 ------------------------------------------------------------------------
 
-data Result = Verified | Err [Error]
+exitWithResult = error "TOBD: exitWithResult"
 
-data Error  = 
-    LiquidType  { pos :: !SrcSpan
-                , act :: !SpecType
-                , exp :: !SpecType
-                , msg :: !String
-                } -- ^ liquid type error
+instance F.Fixpoint (F.FixResult Cinfo) where
+  toFix F.Safe           = text "Safe"
+  toFix F.UnknownError   = text "Unknown Error!"
+  toFix (F.Crash xs msg) = vcat $ text "Crash!"  : pprCinfos "CRASH:   " xs ++ [parens (text msg)] 
+  toFix (F.Unsafe xs)    = vcat $ text "Unsafe:" : pprCinfos "WARNING: " xs
 
-  | LiquidParse { pos :: !SrcSpan
-                , msg :: !String
-                } -- ^ specification parse error
-
-  | LiquidSort  { pos :: !SrcSpan
-                , msg :: !String
-                } -- ^ sort error in specification
-
-  | Ghc         { pos :: !SrcSpan
-                , msg :: !String
-                } -- ^ GHC error: parsing or type checking
-
-instance Eq Error where 
-  e1 == e2 = pos e1 == pos e2
-
-instance Ord Error where 
-  e1 <= e2 = pos e1 <= pos e2
+pprCinfos     :: String -> [Cinfo] -> [Doc] 
+pprCinfos msg = map ((text msg <+>) . F.toFix) . sortBy (compare `on` ci_loc) 
 
 ------------------------------------------------------------------------
--- | Source Information Associated With Constraints --------------------
+-- | Rendering Errors---------------------------------------------------
 ------------------------------------------------------------------------
-
-data Cinfo    = Ci SrcSpan (Maybe Error) 
-                deriving (Eq, Ord) 
 
 instance PPrint Cinfo where
   pprint (Ci src e)  = pprDoc src <+> maybe empty pprint e
@@ -77,35 +50,9 @@ instance PPrint Cinfo where
 instance F.Fixpoint Cinfo where
   toFix = pprint
 
-instance NFData Cinfo 
-
-------------------------------------------------------------------------
--- | Converting Results To Answers -------------------------------------
-------------------------------------------------------------------------
-
-class IsResult a where
-  result :: a -> Result
-
-instance IsResult Error where
-  result e = Err [e]
-
-instance IsResult [Error] where
-  result   = Err
-
-------------------------------------------------------------------------
--- | Rendering Errors---------------------------------------------------
-------------------------------------------------------------------------
-
 instance PPrint Error where
   pprint = ppError
 
 ppError :: Error -> Doc
-ppError = pprDoc . pos
-
-------------------------------------------------------------------------
--- | Exit Function -----------------------------------------------------
-------------------------------------------------------------------------
-
-exitWithResult = error "TODO: exitWithResult"
-
+ppError = error "TOBD: ppError" -- pprDoc . pos
 

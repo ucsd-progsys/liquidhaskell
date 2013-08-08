@@ -22,7 +22,7 @@ import           SrcLoc                       (srcSpanFile, srcSpanStartLine, sr
 import           Language.Fixpoint.Misc       (errorstar, stripParens)
 import           Text.Parsec.Pos              (SourcePos, newPos) 
 import           Language.Fixpoint.Types       
-import           Language.Haskell.Liquid.Types 
+-- import           Language.Haskell.Liquid.Types 
 import           Name                         (mkInternalName, getSrcSpan)
 import           OccName                      (mkTyVarOcc, mkTcOcc)
 import           Unique                       
