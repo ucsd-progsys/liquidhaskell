@@ -84,7 +84,8 @@ module Language.Haskell.Liquid.Types (
   )
   where
 
-import SrcLoc                                   (SrcSpan)
+import FastString                               (fsLit)
+import SrcLoc                                   (mkGeneralSrcSpan, SrcSpan)
 import TyCon
 import DataCon
 import TypeRep          hiding (maybeParen, pprArrowChain)  
@@ -102,14 +103,15 @@ import Data.Monoid                  hiding ((<>))
 import qualified Data.Foldable as F
 import Data.Hashable
 import qualified Data.HashSet as S
-import Data.Maybe                   (fromMaybe)
+import Data.Maybe                   (maybeToList, fromMaybe)
 import Data.Traversable             hiding (mapM)
 import Data.List                    (nub)
 import Text.Parsec.Pos              (SourcePos, newPos) 
 import Text.PrettyPrint.HughesPJ    
-import Language.Fixpoint.Config hiding (Config) 
-import Language.Fixpoint.Types hiding (Predicate) 
+import Language.Fixpoint.Config     hiding (Config) 
 import Language.Fixpoint.Misc
+import Language.Fixpoint.Types      hiding (Predicate) 
+-- import qualified Language.Fixpoint.Types as F
 
 import CoreSyn (CoreBind)
 import Var
@@ -928,8 +930,6 @@ instance PPrint SortedReft where
 -- | Error Data Type ---------------------------------------------------
 ------------------------------------------------------------------------
 
-data Result = Verified | Err [Error]
-
 data Error  = 
     LiquidType  { pos :: !SrcSpan
                 , act :: !SpecType
@@ -949,6 +949,10 @@ data Error  =
                 , msg :: !String
                 } -- ^ GHC error: parsing or type checking
 
+  | Other       { pos :: !SrcSpan 
+                , msg :: !String
+                }
+
 instance Eq Error where 
   e1 == e2 = pos e1 == pos e2
 
@@ -966,15 +970,39 @@ data Cinfo    = Ci { ci_loc :: !SrcSpan
 
 instance NFData Cinfo 
 
+
 ------------------------------------------------------------------------
 -- | Converting Results To Answers -------------------------------------
 ------------------------------------------------------------------------
 
-class IsResult a where
-  result :: a -> Result
+class Result a where
+  result :: a -> FixResult Error
 
-instance IsResult Error where
-  result e = Err [e]
+instance Result [Error] where
+  result es = Crash es ""
 
-instance IsResult [Error] where
-  result   = Err
+instance Result Error where
+  result e = result [e]
+
+instance Result (FixResult Cinfo) where
+  result = fmap cinfoError  
+
+cinfoError (Ci _ (Just e)) = e
+cinfoError (Ci l _)        = Other l ""
+
+-- data Result = Safe 
+--             | Unsafe [Error]
+--             | Crash  [Error]
+
+-- instance IsResult (FixResult Cinfo) where
+  -- result (Safe)         = Safe 
+  -- result (Unsafe xs)    = Unsafe $ concatMap cinfoErrors xs 
+  -- result (Crash xs s)   = Crash  $ otherError s : concatMap cinfoErrors xs 
+  -- result (UnknownError) = Crash  $ [otherError "Unknown Error"]
+
+
+-- cinfoErrors :: Cinfo -> [Error]
+-- cinfoErrors = maybeToList . ci_err 
+-- 
+-- otherError s = Other sp s
+--   where sp   =  mkGeneralSrcSpan $ fsLit s

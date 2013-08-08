@@ -24,6 +24,8 @@ import Text.Parsec.Pos  (SourcePos)
 import Var              (Var)
 import Control.Applicative ((<$>))
 import Data.Maybe   (fromMaybe)
+import Data.List    (sortBy)
+import Data.Function (on)
 
 instance PPrint Var where
   pprint = pprDoc 
@@ -222,4 +224,29 @@ instance (PPrint r, Reftable r) => PPrint (UReft r) where
     | isTauto p  = pprint r
     | otherwise  = pprint p <> text " & " <> pprint r
 
+
+------------------------------------------------------------------------
+-- | Rendering Errors---------------------------------------------------
+------------------------------------------------------------------------
+
+instance Fixpoint (FixResult Error) where
+  toFix Safe           = text "Safe"
+  toFix UnknownError   = text "Unknown Error!"
+  toFix (Crash xs msg) = vcat $ text "Crash!"  : pprErrs "CRASH:   " xs ++ [parens (text msg)] 
+  toFix (Unsafe xs)    = vcat $ text "Unsafe:" : pprErrs "WARNING: " xs
+
+pprErrs :: String -> [Error] -> [Doc] 
+pprErrs msg = map ((text msg <+>) . pprint) . sortBy (compare `on` pos) 
+
+-- instance PPrint Cinfo where
+--   pprint (Ci src e)  = pprDoc src <+> maybe empty pprint e
+
+-- instance F.Fixpoint Cinfo where
+--   toFix = pprint
+
+instance PPrint Error where
+  pprint = ppError
+
+ppError :: Error -> Doc
+ppError = error "TOBD: ppError" -- pprDoc . pos
 

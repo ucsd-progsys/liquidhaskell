@@ -10,6 +10,7 @@
 -- htmlized source with mouseover annotations.
 
 module Language.Haskell.Liquid.Annotate (
+  
   -- * Types representing annotations
     AnnInfo (..)
   , Annot (..)
@@ -38,6 +39,7 @@ import Control.Arrow            hiding ((<+>))
 import Control.Applicative      ((<$>))
 import Control.DeepSeq
 import Control.Monad            (when)
+import Data.Monoid
 
 import System.FilePath          (takeFileName, dropFileName, (</>)) 
 import System.Directory         (findExecutable)
@@ -59,7 +61,7 @@ import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Types hiding (Located(..))
-import Language.Haskell.Liquid.Result
+-- import Language.Haskell.Liquid.Result
 
 import qualified Data.List           as L
 import qualified Data.Vector         as V
@@ -72,7 +74,7 @@ import           Language.Haskell.Liquid.ACSS
 ------ Rendering HTMLized source with Inferred Types --------------
 -------------------------------------------------------------------
 
-annotate :: FilePath -> FixResult Cinfo -> FixSolution -> AnnInfo Annot -> IO ()
+annotate :: FilePath -> FixResult Error -> FixSolution -> AnnInfo Annot -> IO ()
 annotate fname result sol anna 
   = do annotDump fname (extFileName Html $ extFileName Cst fname) result annm
        annotDump fname (extFileName Html fname) result annm'
@@ -88,7 +90,7 @@ showBots (AI m) = mapM_ showBot $ sortBy (compare `on` fst) $ M.toList m
              printf "WARNING: Found false in %s\n" (showPpr src)
     showBot _ = return ()
 
-annotDump :: FilePath -> FilePath -> FixResult Cinfo -> AnnInfo SpecType -> IO ()
+annotDump :: FilePath -> FilePath -> FixResult Error -> AnnInfo SpecType -> IO ()
 annotDump srcFile htmlFile result ann
   = do let annm     = mkAnnMap result ann
        let annFile  = extFileName Annot srcFile
@@ -182,14 +184,18 @@ cssHTML css = unlines
 --   is required by `Language.Haskell.Liquid.ACSS` to generate mouseover
 --   annotations.
 
-mkAnnMap ::  FixResult Cinfo -> AnnInfo SpecType -> ACSS.AnnMap
+mkAnnMap ::  FixResult Error -> AnnInfo SpecType -> ACSS.AnnMap
 mkAnnMap res ann = ACSS.Ann (mkAnnMapTyp ann) (mkAnnMapErr res)
     
 mkAnnMapErr (Unsafe ls)         = mapMaybe cinfoErr ls -- [(srcSpanStartLoc l, srcSpanEndLoc l) | RealSrcSpan l <- ls] 
 mkAnnMapErr _                   = []
-  
-cinfoErr (Ci (RealSrcSpan l) e) = Just (srcSpanStartLoc l, srcSpanEndLoc l, maybe "" showpp e)
-cinfoErr _                      = Nothing
+ 
+cinfoErr e = case pos e of
+               RealSrcSpan l -> Just (srcSpanStartLoc l, srcSpanEndLoc l, showpp e)
+               _             -> Nothing
+
+-- cinfoErr (Ci (RealSrcSpan l) e) = 
+-- cinfoErr _                      = Nothing
 
 
 mkAnnMapTyp (AI m)
@@ -302,6 +308,9 @@ data Annot        = Use SpecType
                   | RDf SpecType
                   | Loc SrcSpan
 
+instance Monoid (AnnInfo a) where
+  mempty                  = AI M.empty
+  mappend (AI m1) (AI m2) = AI $ M.unionWith (++) m1 m2
 
 instance Functor AnnInfo where
   fmap f (AI m) = AI (fmap (fmap (\(x, y) -> (x, f y))) m)
