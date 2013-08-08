@@ -30,7 +30,7 @@ import qualified Language.Haskell.Liquid.DiffCheck as DC
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.CmdLine
 import Language.Haskell.Liquid.GhcInterface
--- import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.Result
 import Language.Haskell.Liquid.Constraint       
 import Language.Haskell.Liquid.TransformRec   
 import Language.Haskell.Liquid.Annotate (annotate)
@@ -67,20 +67,17 @@ liquidOne cfg target =
      (r, sol) <- solveCs cfg target cgi info
      _        <- when (diffcheck cfg) $ DC.save target 
      donePhase Loud "solve" 
-     {-# SCC "annotate" #-} annotate target (resultSrcSpan r) sol $ annotMap cgi
+     {-# SCC "annotate" #-} annotate target (fmap sinfo r) sol $ annotMap cgi
      donePhase Loud "annotate"
      solveExit target pruned cbs'' cgi r 
 
 
-
 solveExit target pruned cbs'' cgi r 
   = do donePhase (colorResult r) (showFix r) 
-       writeResult target r
+       writeFile (extFileName Result target) (showFix r)
        putTerminationResult $ logWarn cgi
        when pruned $ putCheckedVars cbs''
        return r
-
-
 
 prune cfg cbs target info
   | not (null vs) = return (True, DC.thin cbs vs)
@@ -116,12 +113,7 @@ solveCs cfg target cgi info
     fx = def { solver = smtsolver cfg }
 
 
-writeResult target = writeFile (extFileName Result target) . showFix 
-resultSrcSpan      = fmap (tx . sinfo) 
-  where tx (Ci x)  = x
-
-writeCGI target cgi
-  = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi target) str
+writeCGI tgt cgi   = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
   where str = {-# SCC "PPcgi" #-} showFix cgi
  
 
