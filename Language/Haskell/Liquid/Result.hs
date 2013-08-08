@@ -70,4 +70,54 @@ data Output = O { o_vars   :: Maybe [Name]
                 }
 
 emptyOutput = O Nothing [] M.empty mempty 
+------------------------------------------------------------------------
+-- | Rendering Errors---------------------------------------------------
+------------------------------------------------------------------------
+
+instance Fixpoint (FixResult Error) where
+  toFix Safe           = text "Safe"
+  toFix UnknownError   = text "Unknown Error!"
+  toFix (Crash xs msg) = vcat $ text "Crash!"  : pprErrs "CRASH:   " xs ++ [parens (text msg)] 
+  toFix (Unsafe xs)    = vcat $ text "Unsafe:" : pprErrs "WARNING: " xs
+
+pprErrs :: String -> [Error] -> [Doc] 
+pprErrs msg = map ((text msg <+>) . pprint) . sortBy (compare `on` pos) 
+
+-- instance PPrint Cinfo where
+--   pprint (Ci src e)  = pprDoc src <+> maybe empty pprint e
+
+-- instance F.Fixpoint Cinfo where
+--   toFix = pprint
+
+instance PPrint SrcSpan where
+  pprint = pprDoc
+
+instance PPrint Error where
+  pprint = ppError
+
+------------------------------------------------------------------------
+ppError :: Error -> Doc
+------------------------------------------------------------------------
+ppError (LiquidType l s tA tE) 
+  = text "Liquid Type Error:" <+> pprint l 
+    $+$ (nest 4 $ text "Required Type:" <+> pprint tE)
+    $+$ (nest 4 $ text "Actual   Type:" <+> pprint tA)
+
+ppError (LiquidParse l s)       
+  = text "Error Parsing Specification:" <+> pprint l
+    $+$ (nest 4 $ text s)
+
+ppError (LiquidSort l s)       
+  = text "Sort Error In Specification:" <+> pprint l
+    $+$ (nest 4 $ text s)
+
+ppError (Ghc l s)       
+  = text "Invalid Source:" <+> pprint l
+    $+$ (nest 4 $ text s) 
+
+ppError (Other l s)       
+  = text "Unexpected Error: " <+> pprint l
+    $+$ (nest 4 $ text s)
+
+
 

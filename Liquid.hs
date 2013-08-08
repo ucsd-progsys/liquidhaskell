@@ -76,21 +76,6 @@ checkedNames True cbs   = Just $ concatMap names cbs
     names (NonRec v _ ) = [varName v]
     names (Rec bs)      = map (varName . fst) bs
 
- 
---      let r'    = fmap sinfo r
---      {-# SCC "annotate" #-} annotate target r' sol (annotMap cgi)
---      donePhase Loud "annotate"
---      solveExit target pruned cbs'' cgi r' 
-
--- solveExit target pruned cbs'' cgi r 
---   = do let rs = showFix r
---        donePhase (colorResult r) rs 
---        writeFile (extFileName Result target) rs 
---        putTerminationResult $ logWarn cgi
---        when pruned $ putCheckedVars cbs''
---        return r
-
-
 prune cfg cbs target info
   | not (null vs) = return (True, DC.thin cbs vs)
   | diffcheck cfg = (True,) <$> DC.slice target cbs
@@ -111,8 +96,7 @@ solveCs cfg target cgi info
   where 
     fx = def { solver = smtsolver cfg }
 
-
-writeCGI tgt cgi   = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
-  where str = {-# SCC "PPcgi" #-} showFix cgi
+writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
+  where 
+    str          = {-# SCC "PPcgi" #-} showFix cgi
  
-

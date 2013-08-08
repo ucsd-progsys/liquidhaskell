@@ -924,17 +924,15 @@ instance PPrint SortedReft where
     = braces 
     $ (pprint v) <+> (text ":") <+> (toFix so) <+> (text "|") <+> pprint ras
 
-
-
 ------------------------------------------------------------------------
 -- | Error Data Type ---------------------------------------------------
 ------------------------------------------------------------------------
 
 data Error  = 
     LiquidType  { pos :: !SrcSpan
+                , msg :: !String
                 , act :: !SpecType
                 , exp :: !SpecType
-                , msg :: !String
                 } -- ^ liquid type error
 
   | LiquidParse { pos :: !SrcSpan
