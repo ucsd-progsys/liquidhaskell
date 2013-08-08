@@ -26,7 +26,12 @@ module Language.Haskell.Liquid.CmdLine (
   
   ) where
 
+import Control.DeepSeq
+import Control.Monad
 import Control.Applicative                      ((<$>))
+import Data.Maybe
+import Data.Monoid
+import qualified Data.HashMap.Strict as M
 import System.FilePath                          (dropFileName)
 import System.Console.CmdArgs  hiding           (Loud)                
 import System.Console.CmdArgs.Verbosity         (whenLoud)            
@@ -35,8 +40,6 @@ import Language.Fixpoint.Misc
 import Language.Fixpoint.Files
 import Language.Fixpoint.Types
 import Language.Fixpoint.Names                  (dropModuleNames)
--- import Language.Fixpoint.Misc                   (single, sortNub) 
--- import Language.Fixpoint.Files                  (getHsTargets, getIncludePath)
 
 import Language.Fixpoint.Config hiding          (config, Config)
 import Language.Haskell.Liquid.Types
@@ -44,15 +47,7 @@ import Language.Haskell.Liquid.Annotate
 
 import Name
 import SrcLoc                                   (SrcSpan)
-
--- import Language.Haskell.Liquid.GhcMisc          (pprDoc)
 import Text.PrettyPrint.HughesPJ    
-import Control.DeepSeq
-import Control.Monad
-import Data.Maybe
-import Data.Monoid
--- import Data.List                                (sortBy)
-import qualified Data.HashMap.Strict as M
 
 
 ---------------------------------------------------------------------------------
