@@ -66,19 +66,30 @@ liquidOne cfg target =
      --                donePhase Loud "FINISH: Write CGI"
      (r, sol) <- solveCs cfg target cgi info
      _        <- when (diffcheck cfg) $ DC.save target 
-     donePhase Loud "solve" 
-     let r'    = fmap sinfo r
-     {-# SCC "annotate" #-} annotate target r' sol (annotMap cgi)
-     donePhase Loud "annotate"
-     solveExit target pruned cbs'' cgi r' 
+     donePhase Loud "solve"
+     let out   = Just $ O (checkedNames pruned cbs'') (logWarn cgi) sol (annotMap cgi)
+     exitWithResult target (sinfo <$> r) out 
 
-solveExit target pruned cbs'' cgi r 
-  = do let rs = showFix r
-       donePhase (colorResult r) rs 
-       writeFile (extFileName Result target) rs 
-       putTerminationResult $ logWarn cgi
-       when pruned $ putCheckedVars cbs''
-       return r
+checkedNames False _    = Nothing
+checkedNames True cbs   = Just $ concatMap names cbs
+  where
+    names (NonRec v _ ) = [varName v]
+    names (Rec bs)      = map (varName . fst) bs
+
+ 
+--      let r'    = fmap sinfo r
+--      {-# SCC "annotate" #-} annotate target r' sol (annotMap cgi)
+--      donePhase Loud "annotate"
+--      solveExit target pruned cbs'' cgi r' 
+
+-- solveExit target pruned cbs'' cgi r 
+--   = do let rs = showFix r
+--        donePhase (colorResult r) rs 
+--        writeFile (extFileName Result target) rs 
+--        putTerminationResult $ logWarn cgi
+--        when pruned $ putCheckedVars cbs''
+--        return r
+
 
 prune cfg cbs target info
   | not (null vs) = return (True, DC.thin cbs vs)
@@ -86,19 +97,6 @@ prune cfg cbs target info
   | otherwise     = return (False, cbs)
   where 
     vs            = tgtVars $ spec info
-
-putTerminationResult [] 
-  = return ()
-putTerminationResult ss 
-  = do colorPhaseLn Angry "Termination Warnings:" "" 
-       putStrLn $ unlines ss
-
-putCheckedVars cbs
-  = do colorPhaseLn Loud "Checked Binders:" ""
-       mapM_ (putStrLn . dropModuleNames . showpp) $ concatMap names cbs
-  where
-    names (NonRec v _ ) = [varName v]
-    names (Rec bs)      = map (varName . fst) bs
 
 solveCs cfg target cgi info 
   | nofalse cfg

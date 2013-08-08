@@ -14,45 +14,60 @@
 module Language.Haskell.Liquid.Result (
   -- * Single Exit Function
    exitWithResult
+
+  -- * Extra Outputs
+  , Output (..)
   ) where
 
+import Name
 import SrcLoc                                   (SrcSpan)
-import qualified Language.Fixpoint.Types            as F
+import Language.Fixpoint.Misc
+import Language.Fixpoint.Files
+import Language.Fixpoint.Types
+import Language.Fixpoint.Names                  (dropModuleNames)
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcMisc          (pprDoc)
 import Text.PrettyPrint.HughesPJ    
 import Control.DeepSeq
+import Control.Monad
+import Data.Maybe
+import Data.Monoid
 import Data.List                                (sortBy)
 import Data.Function                            (on)
+import qualified Data.HashMap.Strict as M
 
 ------------------------------------------------------------------------
 -- | Exit Function -----------------------------------------------------
 ------------------------------------------------------------------------
 
-exitWithResult = error "TOBD: exitWithResult"
+exitWithResult :: (Result r) => FilePath -> r -> Maybe Output -> IO (FixResult Error)
+exitWithResult target r o = writeExit target (result r) $ fromMaybe emptyOutput o
 
-instance F.Fixpoint (F.FixResult Cinfo) where
-  toFix F.Safe           = text "Safe"
-  toFix F.UnknownError   = text "Unknown Error!"
-  toFix (F.Crash xs msg) = vcat $ text "Crash!"  : pprCinfos "CRASH:   " xs ++ [parens (text msg)] 
-  toFix (F.Unsafe xs)    = vcat $ text "Unsafe:" : pprCinfos "WARNING: " xs
+writeExit target r out   = do {-# SCC "annotate" #-} annotate target r (o_soln out) (o_annot out)
+                              donePhase Loud "annotate"
+                              let rs = showFix r
+                              donePhase (colorResult r) rs 
+                              writeFile (extFileName Result target) rs 
+                              writeWarns     $ o_warns out 
+                              writeCheckVars $ o_vars  out 
+                              return r
 
-pprCinfos     :: String -> [Cinfo] -> [Doc] 
-pprCinfos msg = map ((text msg <+>) . F.toFix) . sortBy (compare `on` ci_loc) 
+writeWarns []            = return () 
+writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines ws)
+
+writeCheckVars Nothing   = return ()
+writeCheckVars (Just ns) = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . dropModuleNames . showpp)
 
 ------------------------------------------------------------------------
--- | Rendering Errors---------------------------------------------------
+-- | Stuff To Output ---------------------------------------------------
 ------------------------------------------------------------------------
 
-instance PPrint Cinfo where
-  pprint (Ci src e)  = pprDoc src <+> maybe empty pprint e
+data Output = O { o_vars   :: Maybe [Name] 
+                , o_warns  :: [String]
+                , o_soln   :: FixSolution 
+                , o_annot  :: !(AnnInfo Annot)
+                }
 
-instance F.Fixpoint Cinfo where
-  toFix = pprint
-
-instance PPrint Error where
-  pprint = ppError
-
-ppError :: Error -> Doc
-ppError = error "TOBD: ppError" -- pprDoc . pos
+emptyOutput = O Nothing [] M.empty mempty 
 
