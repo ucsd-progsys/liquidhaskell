@@ -59,11 +59,11 @@ toBool (B b) = b
 toBool _     = liquidError "impossible"
 
 
-{-@ predicate TInt X   = ((eType X) = Eval.TInt)  @-}
-{-@ predicate TBool X  = ((eType X) = Eval.TBool) @-}
+{-@ predicate TInt X   = ((eType X) = TInt)  @-}
+{-@ predicate TBool X  = ((eType X) = TBool) @-}
 
 
-{-@ type ValidExpr     = {v: Expr | (isValid v)                             } @-}
+{-@ type ValidExpr     = {v: Expr | (isValid v)}                @-}
 {-@ type IntExpr       = {v: Expr | ((isValue v) && (TInt  v))} @-}
 {-@ type BoolExpr      = {v: Expr | ((isValue v) && (TBool v))} @-}
 
@@ -76,10 +76,10 @@ toBool _     = liquidError "impossible"
   @-}  
 
 {-@ measure eType       :: Expr -> Ty 
-    eType (I i)         = Eval.TInt  
-    eType (Plus  e1 e2) = Eval.TInt 
-    eType (B b)         = Eval.TBool 
-    eType (Equal e1 e2) = Eval.TBool 
+    eType (I i)         = TInt  
+    eType (Plus  e1 e2) = TInt 
+    eType (B b)         = TBool 
+    eType (Equal e1 e2) = TBool 
   @-}
 
 {-@ measure isValid       :: Expr -> Prop

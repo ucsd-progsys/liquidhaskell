@@ -127,8 +127,8 @@ makeRTEnv env rts pts = execBare mkEnv env
 --         expBody z = z { rtBody = exp env0 $ rtBody z }
 
 makeRTEnv' rts pts  = do initRTEnv
-                         makeRTAliases rts
                          makeRPAliases pts
+                         makeRTAliases rts
                          gets rtEnv
   where initRTEnv   = do forM_ rts $ \(mod,rta) -> setRTAlias (rtName rta) $ Left (mod,rta)
                          forM_ pts $ \pta -> setRPAlias (rtName pta) pta
@@ -136,7 +136,7 @@ makeRTEnv' rts pts  = do initRTEnv
 
 makeRTAliases xts = mapM_ expBody xts
   where expBody (mod,xt) = inModule mod $ do
-                             body <- expandRTAliasE $ rtBody xt
+                             body <- expandRTAlias $ rtBody xt
                              setRTAlias (rtName xt)
                                $ Right $ mapRTAVars stringRTyVar $ xt { rtBody = body }
 
@@ -165,7 +165,7 @@ expPAlias env = expandPAlias (\_ _ -> id) [] (predAliases env)
 
 expandRTAlias   :: BareType -> BareM SpecType
 expandRTAlias bt = do env <- gets rtEnv
-                      expReft env <$> expType bt
+                      expType $ expReft env bt
   where 
     expReft env  = fmap (txPredReft (expPred env))
     expType      = expandAlias  []
@@ -498,7 +498,8 @@ wrapErr msg f x = yesStack
 ------------------------------------------------------------------
 
 makeMeasureSpec env (mod,spec)
-  = makeMeasureSpec' (setModule mod env) $ Ms.mkMSpec $ Ms.measures spec
+  = makeMeasureSpec' (setModule mod env)
+  $ Ms.mkMSpec $ fmap (expandRTAliasMeasure (rtEnv env)) $ Ms.measures spec
 
 makeMeasureSpec' :: BareEnv
                  -> Ms.MSpec BareType Symbol
@@ -506,7 +507,7 @@ makeMeasureSpec' :: BareEnv
 
 makeMeasureSpec' env m = execBare mkSpec env
   where 
-    mkSpec            = wrapErr "mkMeasureSort" mkMeasureSort m' 
+    mkSpec            = wrapErr "mkMeasureSort" mkMeasureSort m'
                           >>= mkMeasureDCon 
                           >>= return . mapFst (mapSnd uRType <$>) . Ms.dataConTypes 
     m'                = first (mapReft ur_reft) m
@@ -974,8 +975,7 @@ measureCtors = sortNub . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.c
 mkMeasureSort (Ms.MSpec cm mm) 
   = liftM (Ms.MSpec cm) $ forM mm $ \m -> do
       env <- gets rtEnv
-      let m' = expandRTAliasMeasure env m
-      liftM (\s' -> m' {Ms.sort = s'}) (ofBareType' (msg m') (Ms.sort m'))
+      liftM (\s' -> m {Ms.sort = s'}) (ofBareType' (msg m) (Ms.sort m))
     where 
       msg m = berrMeasure (loc $ Ms.name m) (Ms.name m) (Ms.sort m) 
 
