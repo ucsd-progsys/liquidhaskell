@@ -423,20 +423,12 @@ bsplitC' γ t1 t2 pflag
     r2' = rTypeSortedReft' pflag γ t2
     ci  = Ci src err
     tag = getTag γ
-    err = Just $ LiquidType src t1 t2 "subtype" 
+    err = Just $ LiquidType src "subtype" t1 t2 
     src = loc γ 
-
--- unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
--- unifyVV t1 t2 = do z <- unifyVV' t1 t2 
---                   return $ traceShow ("unifyVV \nt1 = " ++ F.showFix t1 ++ "\nt2 = " ++ F.showFix t2) z 
 
 unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
        return  $ (shiftVV t1 vv,  (shiftVV t2 vv) ) -- {rt_pargs = r2s'})
---   where r2s' = F.subst psu <$> (rt_pargs t2) 
---         psu  = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (rTyConPVars c2) (rTyConPVars c1), x /= y]
- 
--- rTyConPVars c = [ x | pv <- rTyConPs c, (_,x,_) <- pargs pv ]
 
 rsplitC _ (RMono _ _, RMono _ _) 
   = errorstar "RefTypes.rsplitC on RMono"

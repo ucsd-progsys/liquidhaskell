@@ -61,6 +61,7 @@ import Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S 
 import qualified Data.List as L
+import Data.Function                            (on)
 import Control.Applicative  hiding (empty)   
 import Control.DeepSeq
 import Control.Monad  (liftM, liftM2, liftM3)
@@ -74,7 +75,7 @@ import Language.Fixpoint.Types hiding (Predicate)
 import Language.Haskell.Liquid.Types hiding (DataConP (..))
 
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc (sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, mkTyConInfo, showSDoc, showPpr, showSDocDump)
+import Language.Haskell.Liquid.GhcMisc (pprDoc, sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, mkTyConInfo, showSDoc, showPpr, showSDocDump)
 import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
 
@@ -950,3 +951,50 @@ mkDType xvs acc ((v, (x, t@(RApp c _ _ _))):vxts)
 cmpLexRef vxs (v, x, g)
   = pAnd $ (PAtom Lt (g x) (g v))
          :[PAtom Eq (f y) (f z) | (y, z, f) <- vxs] 
+
+------------------------------------------------------------------------
+-- | Pretty Printing Error Messages ------------------------------------
+------------------------------------------------------------------------
+
+-- Need to put this here intead of in Types, because it depends on the 
+-- printer for SpecTypes, which lives in this module.
+
+instance PPrint Error where
+  pprint = ppError
+
+instance PPrint SrcSpan where
+  pprint = pprDoc
+
+------------------------------------------------------------------------
+ppError :: Error -> Doc
+------------------------------------------------------------------------
+ppError (LiquidType l s tA tE) 
+  = text "Liquid Type Error:" <+> pprint l 
+--     $+$ (nest 4 $ text "Required Type:" <+> pprint tE)
+--     $+$ (nest 4 $ text "Actual   Type:" <+> pprint tA)
+
+ppError (LiquidParse l s)       
+  = text "Error Parsing Specification:" <+> pprint l
+    $+$ (nest 4 $ text s)
+
+ppError (LiquidSort l s)       
+  = text "Sort Error In Specification:" <+> pprint l
+    $+$ (nest 4 $ text s)
+
+ppError (Ghc l s)       
+  = text "Invalid Source:" <+> pprint l
+    $+$ (nest 4 $ text s) 
+
+ppError (Other l s)       
+  = text "Unexpected Error: " <+> pprint l
+    $+$ (nest 4 $ text s)
+
+instance Fixpoint (FixResult Error) where
+  toFix Safe           = text "Safe"
+  toFix UnknownError   = text "Unknown Error!"
+  toFix (Crash xs msg) = vcat $ text "Crash!"  : pprErrs "CRASH:   " xs ++ [parens (text msg)] 
+  toFix (Unsafe xs)    = vcat $ text "Unsafe:" : pprErrs "WARNING: " xs
+
+pprErrs :: String -> [Error] -> [Doc] 
+pprErrs msg = map ((text msg <+>) . pprint) . L.sortBy (compare `on` pos) 
+

@@ -1004,3 +1004,5 @@ cinfoError (Ci l _)        = Other l ""
 -- 
 -- otherError s = Other sp s
 --   where sp   =  mkGeneralSrcSpan $ fsLit s
+--
+--
