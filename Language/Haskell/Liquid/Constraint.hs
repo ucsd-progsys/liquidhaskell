@@ -71,7 +71,6 @@ import Language.Haskell.Liquid.GhcMisc          (isInternal, collectArguments, g
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Qualifier        
-import Language.Haskell.Liquid.Result
 import Control.DeepSeq
 
 

@@ -30,7 +30,6 @@ import qualified Language.Haskell.Liquid.DiffCheck as DC
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.CmdLine
 import Language.Haskell.Liquid.GhcInterface
--- import Language.Haskell.Liquid.Result
 import Language.Haskell.Liquid.Constraint       
 import Language.Haskell.Liquid.TransformRec   
 import Language.Haskell.Liquid.Annotate (annotate)
