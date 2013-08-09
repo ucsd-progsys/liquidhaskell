@@ -70,11 +70,11 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 
 
 --------------------------------------------------------------------
-getGhcInfo :: Config -> FilePath -> IO (Either SourceError GhcInfo)
+getGhcInfo :: Config -> FilePath -> IO (Either ErrorResult GhcInfo)
 --------------------------------------------------------------------
 getGhcInfo cfg target = handleSourceError handle act 
   where 
-    handle            = return . Left
+    handle            = return . Left . result
     act               = Right <$> getGhcInfo' cfg target
 
 -- liquidOne cfg target = handleSourceError diez $ liquidOne' cfg target 
@@ -264,18 +264,13 @@ parseSpec' name file
        let spec = specParser name file str
        return   $ spec 
 
+specParser :: String -> FilePath -> String -> Ms.Spec BareType Symbol  
 specParser name file str  
-  | isExtFile Spec file  = rr' file str
+  | isExtFile Spec file  = specSpecificationP    file str
   | isExtFile Hs file    = hsSpecificationP name file str
   | isExtFile LHs file   = hsSpecificationP name file str
-  | otherwise            = errorstar $ "specParser: Cannot Parse File " ++ file
+  | otherwise            = errorstar $ "SpecParser: Cannot Parse File " ++ file
 
---specParser Spec _  = rr'
---specParser Hs name = hsSpecificationP name
-
---moduleImports ext paths  = liftIO . liftM catMaybes . mapM (mnamePath paths ext) 
---mnamePath paths ext name = fmap (name,) <$> getFileInDirs file paths
---                           where file = name `extModuleName` ext
 
 moduleImports :: GhcMonad m => [Ext] -> [FilePath] -> [String] -> m [(String, FilePath)]
 moduleImports exts paths names

@@ -76,7 +76,8 @@ module Language.Haskell.Liquid.Types (
 
   -- * Different kinds of errors
   , Error (..)
-  
+  , ErrorResult
+
   -- * Source information associated with each constraint
   , Cinfo (..)
 
@@ -928,7 +929,9 @@ instance PPrint SortedReft where
 -- | Error Data Type ---------------------------------------------------
 ------------------------------------------------------------------------
 
-data Error  = 
+type ErrorResult = FixResult Error
+
+data Error = 
     LiquidType  { pos :: !SrcSpan
                 , msg :: !String
                 , act :: !SpecType
