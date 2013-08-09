@@ -1,11 +1,10 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections #-}
 
-module Language.Haskell.Liquid.Parse (
-  hsSpecificationP
-) where
+module Language.Haskell.Liquid.Parse (hsSpecificationP, specSpecificationP) where
 
 import Control.Monad
 import Text.Parsec
+import Text.Printf (printf)
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -24,12 +23,57 @@ import Language.Fixpoint.Names (listConName, propConName, tupConName)
 import Language.Fixpoint.Misc hiding (dcolon, dot)
 import Language.Fixpoint.Parse 
 
+----------------------------------------------------------------------------
+-- Top Level Parsing API ---------------------------------------------------
+----------------------------------------------------------------------------
+
+type BareSpec = Measure.Spec BareType Symbol
+
+-------------------------------------------------------------------------------
+hsSpecificationP :: String -> SourceName -> String -> BareSpec
+-------------------------------------------------------------------------------
+hsSpecificationP name = parseWithError $ mkSpec name <$> specWraps specP
+
+-- hsSpecificationP Spc name = doParse' $ liftM (mkSpec name) $ specWraps specP
+
+-- | Used to parse .spec files 
+
+-------------------------------------------------------------------------------
+specSpecificationP  :: SourceName -> String -> BareSpec  
+-------------------------------------------------------------------------------
+specSpecificationP  = parseWithError specificationP 
+
+specificationP :: Parser BareSpec 
+specificationP 
+  = do reserved "module"
+       reserved "spec"
+       S name <- symbolP
+       reserved "where"
+       xs     <- grabs (specP <* whiteSpace)
+       return $ mkSpec name xs 
+
+--------------------------------------------------------------------------------------------
+parseWithError :: Parser a -> SourceName -> String -> a 
+--------------------------------------------------------------------------------------------
+parseWithError parser f s
+  = case runParser (remainderP p) 0 f s of
+      Left e         -> errorstar $ printf "parseError %s\n when parsing from %s\n" 
+                                      (show e) f 
+      Right (r, "")  -> r
+      Right (_, rem) -> errorstar $ printf "doParse has leftover when parsing: %s\nfrom file %s\n"
+                                      rem f
+    where p = whiteSpace >> parser
+
+----------------------------------------------------------------------------------
+-- Lexer Tokens ------------------------------------------------------------------
+----------------------------------------------------------------------------------
+
 dot        = Token.dot        lexer
 braces     = Token.braces     lexer
 angles     = Token.angles     lexer
 
 ----------------------------------------------------------------------------------
------------------------------------- BareTypes -----------------------------------
+-- BareTypes ---------------------------------------------------------------------
 ----------------------------------------------------------------------------------
 
 -- | The top-level parser for "bare" refinement types. If refinements are
@@ -155,11 +199,7 @@ bareFunP
 
 dummyBindP 
   = tempSymbol "db" <$> freshIntP
-
   -- = stringSymbol <$> positionNameP 
-
-
-
 
 bbindP = lowerIdP <* dcolon 
 
@@ -306,17 +346,6 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lazy       = S.fromList [s | Lazy s <- xs]
   }
-
-type BareSpec = (Measure.Spec BareType Symbol)
-
-specificationP :: Parser BareSpec 
-specificationP 
-  = do reserved "module"
-       reserved "spec"
-       S name <- symbolP
-       reserved "where"
-       xs     <- grabs (specP <* whiteSpace)
-       return $ mkSpec name xs 
 
 
 specP :: Parser (Pspec BareType Symbol)
@@ -507,20 +536,6 @@ dataDeclP
 ------------ Interacting with Fixpoint ------------------------------
 ---------------------------------------------------------------------
 
--- remainderP p  
---   = do res <- p
---        str <- stateInput <$> getParserState
---        return (res, str) 
--- 
--- doParse' parser f s
---   = case parse (remainderP p) f s of
---       Left e         -> errorstar $ printf "parseError %s\n when parsing from %s\n" 
---                                       (show e) f 
---       Right (r, "")  -> r
---       Right (_, rem) -> errorstar $ printf "doParse has leftover when parsing: %s\nfrom file %s\n"
---                                       rem f
---   where p = whiteSpace >> parser
-
 grabUpto p  
   =  try (lookAhead p >>= return . Just)
  <|> try (eof         >> return Nothing)
@@ -545,11 +560,10 @@ instance Inputable BareType where
 instance Inputable (Measure.Measure BareType Symbol) where
   rr' = doParse' measureP
 
-instance Inputable BareSpec where
-  rr' = doParse' specificationP
+-- instance Inputable BareSpec where
+--   rr' = doParse' specificationP
 
-hsSpecificationP name 
-  = doParse' $ liftM (mkSpec name) $ specWraps specP
+
 
 {-
 ---------------------------------------------------------------
