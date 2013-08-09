@@ -20,7 +20,7 @@ import           HscTypes                     (Dependencies, ImportedMods, ModGu
 import           SrcLoc                       (srcSpanFile, srcSpanStartLine, srcSpanStartCol)
 
 import           Language.Fixpoint.Misc       (errorstar, stripParens)
-import           Text.Parsec.Pos              (SourcePos, newPos) 
+import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos) 
 import           Language.Fixpoint.Types       
 -- import           Language.Haskell.Liquid.Types 
 import           Name                         (mkInternalName, getSrcSpan)
@@ -34,7 +34,7 @@ import           Var
 -- import           TyCon                        (mkSuperKindTyCon)
 import qualified TyCon                        as TC
 import qualified DataCon                      as DC
-import           FastString                   (uniq, unpackFS)
+import           FastString                   (uniq, unpackFS, fsLit)
 import           Data.Char                    (isLower, isSpace)
 import           Data.Maybe
 import           Data.Hashable
@@ -212,6 +212,16 @@ instance Fixpoint Name where
 instance Fixpoint Type where
   toFix = pprDoc
 
+
+sourcePosSrcSpan   :: SourcePos -> SrcSpan
+sourcePosSrcSpan = srcLocSpan . sourcePosSrcLoc 
+
+sourcePosSrcLoc    :: SourcePos -> SrcLoc
+sourcePosSrcLoc p = mkSrcLoc (fsLit file) line col  
+  where 
+    file          = sourceName p
+    line          = sourceLine p
+    col           = sourceColumn p
 
 srcSpanSourcePos :: SrcSpan -> SourcePos
 srcSpanSourcePos (UnhelpfulSpan _) = dummyPos 

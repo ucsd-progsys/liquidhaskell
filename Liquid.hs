@@ -63,7 +63,7 @@ liquidOne cfg target info =
      _        <- when (diffcheck cfg) $ DC.save target 
      donePhase Loud "solve"
      let out   = Just $ O (checkedNames pruned cbs'') (logWarn cgi) sol (annotMap cgi)
-     exitWithResult target out (sinfo <$> r) 
+     exitWithResult target out (result $ sinfo <$> r) 
 
 checkedNames False _    = Nothing
 checkedNames True cbs   = Just $ concatMap names cbs

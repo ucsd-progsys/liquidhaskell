@@ -72,14 +72,20 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 --------------------------------------------------------------------
 getGhcInfo :: Config -> FilePath -> IO (Either ErrorResult GhcInfo)
 --------------------------------------------------------------------
-getGhcInfo cfg target = handleSourceError handle act 
+getGhcInfo cfg target = (Right <$> getGhcInfo' cfg target) 
+                          `Ex.catch` (\(e :: SourceError) -> handle e)
+                          `Ex.catch` (\(e :: Error)       -> handle e)
   where 
     handle            = return . Left . result
-    act               = Right <$> getGhcInfo' cfg target
 
--- liquidOne cfg target = handleSourceError diez $ liquidOne' cfg target 
---   where 
---     diez e           = errorstar $ "LIQUIDONE CAUGHT GHC SourceError: " ++ show e
+-- parseSpec :: (String, FilePath) -> IO (Either ErrorResult Ms.BareSpec)
+-- parseSpec (name, file) 
+--   = Ex.catch (parseSpec' name file) $ \(e :: Ex.IOException) ->
+--       ioError $ userError $ 
+--         printf "Hit exception: %s while parsing spec file: %s for module %s" 
+--           (show e) file name
+
+
 
 
 getGhcInfo' cfg target 
@@ -99,7 +105,6 @@ getGhcInfo' cfg target
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps 
       hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs 
       return              $ GI hscEnv coreBinds impVs defVs useVs hqualFiles imps incs spec 
-
 
 updateDynFlags df ps 
   = df { importPaths  = ps ++ importPaths df  } 
@@ -183,7 +188,6 @@ deleteBinFilez fn = mapM_ (tryIgnore "delete binaries" . removeFileIfExists)
 
 removeFileIfExists f = doesFileExist f >>= (`when` removeFile f)
 
-
 --------------------------------------------------------------------------------
 -- | Desugaring (Taken from GHC, modified to hold onto Loc in Ticks) -----------
 --------------------------------------------------------------------------------
@@ -212,7 +216,7 @@ moduleHquals mg paths target imps incs
 --------------------------------------------------------------------------------
 -- | Extracting Specifications (Measures + Assumptions) ------------------------
 --------------------------------------------------------------------------------
- 
+
 moduleSpec cfg vars defVars target mg paths
   = do liftIO       $ whenLoud $ putStrLn ("paths = " ++ show paths) 
        tgtSpec     <- liftIO $ parseSpec (name, target) 
@@ -224,12 +228,37 @@ moduleSpec cfg vars defVars target mg paths
        env         <- getSession
        ghcSpec     <- liftIO $ makeGhcSpec cfg name vars defVars env spec
        return       (ghcSpec, imps, Ms.includes tgtSpec)
-    where impNames = allDepNames  mg
-          name     = mgi_namestring mg
+    where 
+       impNames = allDepNames  mg
+       name     = mgi_namestring mg
 
-allDepNames mg    = allNames'
-  where allNames' = sortNub impNames
-        impNames  = moduleNameString <$> (depNames mg ++ dirImportNames mg) 
+-- moduleSpec cfg vars defVars target mg paths
+--   = do liftIO   $ whenLoud $  putStrLn ("paths = " ++ show paths) 
+--        tgtSpec <- liftIO   $  parseSpec (name, target) 
+--        impSpec <- rmLazy  <$> getSpecs paths impNames [Spec, Hs, LHs]
+--        let spec = Ms.expandRTAliases $ tgtSpec `mappend` impSpec
+--        let imps = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
+--        setContext [IIModule $ moduleName $ mgi_module mg]
+--        env     <- getSession
+--        ghcSpec <- liftIO $ makeGhcSpec cfg name vars defVars env spec
+--        return   (ghcSpec, imps, Ms.incsincls)
+--        case x of
+--          Left e    -> return   $ Left e
+--          Right r   -> compileSpec cfg mg (incls tgtSpec) r
+--     where 
+--        impNames    = allDepNames  mg
+--        rmLazy sp   = sp { Ms.decr = [], Ms.lazy = S.empty }
+--        incls       = either (const []) Ms.includes
+-- 
+-- compileSpec cfg mg incls preSpec 
+--   = do  where 
+--        impNames  = allDepNames  mg
+--        name      = mgi_namestring mg
+
+allDepNames mg   = allNames'
+  where 
+    allNames'    = sortNub impNames
+    impNames     = moduleNameString <$> (depNames mg ++ dirImportNames mg) 
 
 depNames       = map fst        . dep_mods      . mgi_deps
 dirImportNames = map moduleName . moduleEnvKeys . mgi_dir_imps  
@@ -246,25 +275,33 @@ getSpecs paths names exts
 transParseSpecs _ _ _ spec []       
   = return spec
 transParseSpecs exts paths seenFiles spec newFiles 
-  = do newSpec   <- liftIO $ liftM mconcat $ mapM parseSpec newFiles 
+  = do newSpec   <- liftIO $ mconcat <$> mapM parseSpec newFiles 
        impFiles  <- moduleImports exts paths [symbolString x | x <- Ms.imports newSpec]
        let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
        let spec'      = spec `mappend` newSpec
        let newFiles'  = [f | f <- impFiles, not (f `S.member` seenFiles')]
        transParseSpecs exts paths seenFiles' spec' newFiles'
  
+-- parseSpec :: (String, FilePath) -> IO (Either ErrorResult Ms.BareSpec)
+-- parseSpec (name, file) 
+--   = Ex.catch (parseSpec' name file) $ \(e :: Ex.IOException) ->
+--       ioError $ userError $ 
+--         printf "Hit exception: %s while parsing spec file: %s for module %s" 
+--           (show e) file name
+
+parseSpec :: (String, FilePath) -> IO Ms.BareSpec
 parseSpec (name, file) 
-  = Ex.catch (parseSpec' name file) $ \(e :: Ex.IOException) ->
-      ioError $ userError $ "Hit exception: " ++ (show e) ++ " while parsing Spec file: " ++ file ++ " for module " ++ name 
-
-
-parseSpec' name file 
   = do whenLoud $ putStrLn $ "parseSpec: " ++ file ++ " for module " ++ name  
-       str     <- readFile file
-       let spec = specParser name file str
-       return   $ spec 
+       either Ex.throw return . specParser name file =<< readFile file 
 
-specParser :: String -> FilePath -> String -> Ms.Spec BareType Symbol  
+       -- ((either Ex.throw return) . specParser name file) <$> readFile file
+       -- case z of
+       --   Left err -> throw err
+       --   Right sp -> return sp
+       -- str     <- readFile file
+       -- return   $ specParser name file str
+
+specParser :: String -> FilePath -> String -> Either Error Ms.BareSpec 
 specParser name file str  
   | isExtFile Spec file  = specSpecificationP    file str
   | isExtFile Hs file    = hsSpecificationP name file str
@@ -439,8 +476,6 @@ bindings (Rec  xes  )
 instance NFData Var
 instance NFData SrcSpan
 
-
-
 instance PPrint GhcSpec where
   pprint spec =  (text "******* Target Variables ********************")
               $$ (pprint $ tgtVars spec)
@@ -487,4 +522,15 @@ instance Result SourceError where
 errMsgErrors e = [ GhcError l msg | l <- errMsgSpans e ] 
   where 
     msg        = show e  
+
+----------------------------------------------------------------------------------
+-- Handling Spec Parser Errors ---------------------------------------------------
+----------------------------------------------------------------------------------
+
+-- instance Monoid a => Monoid (Either ErrorResult a) where
+--   mempty                    = Right mempty
+--   mappend (Left x) (Left y) = Left (mappend x y) 
+--   mappend x@(Left _) _      = x
+--   mappend _ x@(Left _)      = x
+
 

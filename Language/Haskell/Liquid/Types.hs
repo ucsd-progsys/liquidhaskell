@@ -108,6 +108,7 @@ import Data.Maybe                   (maybeToList, fromMaybe)
 import Data.Traversable             hiding (mapM)
 import Data.List                    (nub)
 import Text.Parsec.Pos              (SourcePos, newPos) 
+import Text.Parsec.Error            (ParseError) 
 import Text.PrettyPrint.HughesPJ    
 import Language.Fixpoint.Config     hiding (Config) 
 import Language.Fixpoint.Misc
@@ -940,6 +941,7 @@ data Error =
 
   | LiquidParse { pos :: !SrcSpan
                 , msg :: !String
+                , err :: !ParseError
                 } -- ^ specification parse error
 
   | LiquidSort  { pos :: !SrcSpan
@@ -953,12 +955,15 @@ data Error =
   | Other       { pos :: !SrcSpan 
                 , msg :: !String
                 }
+  deriving (Typeable)
 
 instance Eq Error where 
   e1 == e2 = pos e1 == pos e2
 
 instance Ord Error where 
   e1 <= e2 = pos e1 <= pos e2
+
+-- instance Exception Error where
 
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------
