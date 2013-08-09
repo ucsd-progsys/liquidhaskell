@@ -39,7 +39,8 @@ module Language.Fixpoint.Parse (
 
   -- * Parsing Function
   , doParse' 
-  , parseFromFile 
+  , parseFromFile
+  , remainderP 
   ) where
 
 import Control.Applicative ((<*>), (<$>), (<*))
