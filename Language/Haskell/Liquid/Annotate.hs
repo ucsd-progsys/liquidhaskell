@@ -199,22 +199,18 @@ cinfoErr e = case pos e of
 -- cinfoErr _                      = Nothing
 
 
-mkAnnMapTyp (AI m)
-  = M.fromList
-  $ map (srcSpanStartLoc *** bindString)
-  $ map (head . sortWith (srcSpanEndCol . fst)) 
-  $ groupWith (lineCol . fst) 
-  $ [ (l, x) | (RealSrcSpan l, (x:_)) <- M.toList m, oneLine l]  
-  where bindString = mapPair render . pprXOT 
+mkAnnMapTyp (AI m) = M.fromList
+                     $ map (srcSpanStartLoc *** bindString)
+                     $ map (head . sortWith (srcSpanEndCol . fst)) 
+                     $ groupWith (lineCol . fst) 
+                     $ [ (l, x) | (RealSrcSpan l, (x:_)) <- M.toList m, oneLine l]  
+  where 
+    bindString     = mapPair render . pprXOT 
 
-srcSpanStartLoc l 
-  = ACSS.L (srcSpanStartLine l, srcSpanStartCol l)
-srcSpanEndLoc l 
-  = ACSS.L (srcSpanEndLine l, srcSpanEndCol l)
-oneLine l  
-  = srcSpanStartLine l == srcSpanEndLine l
-lineCol l  
-  = (srcSpanStartLine l, srcSpanStartCol l)
+srcSpanStartLoc l  = ACSS.L (srcSpanStartLine l, srcSpanStartCol l)
+srcSpanEndLoc l    = ACSS.L (srcSpanEndLine l, srcSpanEndCol l)
+oneLine l          = srcSpanStartLine l == srcSpanEndLine l
+lineCol l          = (srcSpanStartLine l, srcSpanStartCol l)
 
 closeAnnots :: AnnInfo Annot -> AnnInfo SpecType 
 closeAnnots = closeA . filterA . collapseA

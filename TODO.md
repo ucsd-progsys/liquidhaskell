@@ -2,8 +2,6 @@ TODO
 ====
 
 * error messages
-  + expected XXX got YYY?
-  + liquid-fixpoint sort checker return ERROR (not than errorstar-inside) for nicer messages.
 
 * Qualified Imports
   - wtf is include/KMeansHelper.hs ? Fix module import issue
@@ -54,6 +52,9 @@ Single module to report all kinds of errors
 3. New Function, which generates the .json file, dumps out the error and then exits
 
     exitWithError :: [Error] -> a
+
+4. liquid-fixpoint sort checker return ERROR (not than errorstar-inside) for nicer messages.
+
 
 
 Embed
