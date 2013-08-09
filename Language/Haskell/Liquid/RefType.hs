@@ -25,7 +25,6 @@ module Language.Haskell.Liquid.RefType (
 
   -- * Functions for manipulating `Predicate`s
   , pdVar
-  -- , pdAnd, pdTrue, pvars
   , findPVar
   , freeTyVars, tyClasses, tyConName
 
@@ -998,11 +997,12 @@ ppError (Other l s)
 textLines = vcat . fmap text . lines
 
 instance Fixpoint (FixResult Error) where
-  toFix Safe           = text "Safe"
+  toFix Safe           = text "SAFE"
   toFix UnknownError   = text "Unknown Error!"
-  toFix (Crash xs msg) = vcat $ text "Crash!"  : pprErrs "CRASH:   " xs ++ [parens (text msg)] 
-  toFix (Unsafe xs)    = vcat $ text "Unsafe:" : pprErrs "WARNING: " xs
+  toFix (Crash xs msg) = vcat $ text "Crash!"  : pprManyOrdered "CRASH:   " xs ++ [parens (text msg)] 
+  toFix (Unsafe xs)    = vcat $ text "Unsafe:" : pprManyOrdered "WARNING: " xs
 
-pprErrs :: String -> [Error] -> [Doc] 
-pprErrs msg = map ((text msg <+>) . pprint) . L.sortBy (compare `on` pos) 
+-- pprErrors :: String -> [Error] -> [Doc] 
+-- pprErrors msg = map ((text msg <+>) . pprint) . L.sortBy (compare `on` pos) 
+
 

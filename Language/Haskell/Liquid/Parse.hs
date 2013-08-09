@@ -57,7 +57,7 @@ specificationP
 parseWithError :: Parser a -> SourceName -> String -> Either Error a 
 ---------------------------------------------------------------------------
 parseWithError parser f s
-  = case runParser ({- remainderP -} undefined (whiteSpace >> parser)) 0 f s of
+  = case runParser (remainderP (whiteSpace >> parser)) 0 f s of
       Left e         -> Left  $ parseErrorError f e
       Right (r, "")  -> Right $ r
       Right (_, rem) -> Left  $ parseErrorError f $ remParseError f s rem 
