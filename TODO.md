@@ -21,34 +21,18 @@ Error Messages
 
 Single module to report all kinds of errors
 
+  [HEREHEREHERE]
+  - tests/todo/err0.hs [parse error in spec]
+  - tests/todo/err2.hs [liquid-ghc divergence]
+  - tests/todo/err6.hs [unbound var in spec]
+  - tests/todo/err7.hs [sort error  in spec]
+
   + tests/todo/err1.hs [type error in ghc]
   + tests/todo/err3.hs [parse error in ghc]
-  + tests/todo/err0.hs [parse error in spec]
-  + tests/todo/err2.hs [liquid-ghc divergence]
   + tests/todo/err4.hs [type error in liquid]
-
-1. New module 
-  
-    Language.Haskell.Liquid.Error
-
+  + tests/todo/err5.hs [type error in liquid]
+ 
 2. New type
-
-    data Error 
-      = LiquidType { srcLoc :: !Location 
-                   , expect :: !SpecType
-                   , actual :: !SpecType
-                   , msg    :: !String
-                   }
-      | SpecParse  { srcLoc :: !Location
-                   , msg    :: !String
-                   }
-      | GhcError   { srcLoc :: !Location
-                   , msg    :; !String
-                   }
-      | SpecSort   { srcLoc :: !Location
-                   , msg    :: !String
-                   }
-
 3. New Function, which generates the .json file, dumps out the error and then exits
 
     exitWithError :: [Error] -> a
