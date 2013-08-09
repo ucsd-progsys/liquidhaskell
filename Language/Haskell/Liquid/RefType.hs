@@ -981,13 +981,15 @@ ppError (LiquidSort l s)
   = text "Sort Error In Specification:" <+> pprint l
     $+$ (nest 4 $ text s)
 
-ppError (Ghc l s)       
-  = text "Invalid Source:" <+> pprint l
-    $+$ (nest 4 $ text s) 
+ppError (GhcError l s)       
+  = text "GHC Error:" <+> pprint l
+    $+$ (nest 4 $ textLines s)
 
 ppError (Other l s)       
   = text "Unexpected Error: " <+> pprint l
-    $+$ (nest 4 $ text s)
+    $+$ (nest 4 $ textLines s)
+
+textLines = vcat . fmap text . lines
 
 instance Fixpoint (FixResult Error) where
   toFix Safe           = text "Safe"

@@ -1,19 +1,19 @@
 {-# LANGUAGE BangPatterns, TupleSections #-}
 
 import qualified Data.HashMap.Strict as M
-import qualified Control.Exception as Ex
-import Data.Maybe       (catMaybes)
+-- import qualified Control.Exception as Ex
+-- import Data.Maybe       (catMaybes)
 import Data.Monoid      (mconcat)
 import System.Exit 
 import Control.Applicative ((<$>))
 import Control.DeepSeq
-import Control.Monad (forM, when)
+import Control.Monad (when)
 
 import CoreSyn
-import FastString
-import GHC
-import HscMain
-import RdrName
+-- import FastString
+-- import GHC
+-- import HscMain
+-- import RdrName
 import Var
 
 import System.Console.CmdArgs.Verbosity (whenLoud)
@@ -22,9 +22,9 @@ import Language.Fixpoint.Config (Config (..))
 import Language.Fixpoint.Files
 -- import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Names (dropModuleNames)
+-- import Language.Fixpoint.Names (dropModuleNames)
 import Language.Fixpoint.Interface
-import Language.Fixpoint.Types (sinfo, colorResult, FixResult (..),showFix, isFalse)
+import Language.Fixpoint.Types (sinfo, showFix, isFalse)
 
 import qualified Language.Haskell.Liquid.DiffCheck as DC
 import Language.Haskell.Liquid.Types
@@ -32,23 +32,19 @@ import Language.Haskell.Liquid.CmdLine
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.Constraint       
 import Language.Haskell.Liquid.TransformRec   
-import Language.Haskell.Liquid.Annotate (annotate)
+-- import Language.Haskell.Liquid.Annotate (annotate)
+
+-- main = liquid >>= (exitWith . resultExit)
 
 main :: IO b
-main = liquid >>= (exitWith . resultExit)
+main = do cfg     <- getOpts
+          res     <- mconcat <$> mapM (checkOne cfg) (files cfg)
+          exitWith $ resultExit res
 
-liquid  = do cfg <- getOpts
-             res <- forM (files cfg) $ \t ->
-                      Ex.catch (liquidOne cfg t) $ \e -> 
-                      do let err = show (e :: Ex.IOException)
-                         putStrLn $ "Unexpected Error: " ++ err
-                         return $ Crash [] "Whoops! Unknown Failure"
-             return $ mconcat res
+checkOne cfg t = getGhcInfo cfg t >>= either (exitWithResult t Nothing) (liquidOne cfg t)
 
-liquidOne cfg target = 
-  do _        <- getFixpointPath 
-     info     <- getGhcInfo cfg target 
-     whenLoud  $ do donePhase Loud "getGhcInfo"
+liquidOne cfg target info = 
+  do whenLoud  $ do donePhase Loud "getGhcInfo"
                     putStrLn $ showpp info 
                     putStrLn "*************** Original CoreBinds ***************************" 
                     putStrLn $ showpp (cbs info)
@@ -67,7 +63,7 @@ liquidOne cfg target =
      _        <- when (diffcheck cfg) $ DC.save target 
      donePhase Loud "solve"
      let out   = Just $ O (checkedNames pruned cbs'') (logWarn cgi) sol (annotMap cgi)
-     exitWithResult target (sinfo <$> r) out 
+     exitWithResult target out (sinfo <$> r) 
 
 checkedNames False _    = Nothing
 checkedNames True cbs   = Just $ concatMap names cbs

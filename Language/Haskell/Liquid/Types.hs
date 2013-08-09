@@ -943,7 +943,7 @@ data Error  =
                 , msg :: !String
                 } -- ^ sort error in specification
 
-  | Ghc         { pos :: !SrcSpan
+  | GhcError    { pos :: !SrcSpan
                 , msg :: !String
                 } -- ^ GHC error: parsing or type checking
 
@@ -988,21 +988,3 @@ instance Result (FixResult Cinfo) where
 cinfoError (Ci _ (Just e)) = e
 cinfoError (Ci l _)        = Other l ""
 
--- data Result = Safe 
---             | Unsafe [Error]
---             | Crash  [Error]
-
--- instance IsResult (FixResult Cinfo) where
-  -- result (Safe)         = Safe 
-  -- result (Unsafe xs)    = Unsafe $ concatMap cinfoErrors xs 
-  -- result (Crash xs s)   = Crash  $ otherError s : concatMap cinfoErrors xs 
-  -- result (UnknownError) = Crash  $ [otherError "Unknown Error"]
-
-
--- cinfoErrors :: Cinfo -> [Error]
--- cinfoErrors = maybeToList . ci_err 
--- 
--- otherError s = Other sp s
---   where sp   =  mkGeneralSrcSpan $ fsLit s
---
---

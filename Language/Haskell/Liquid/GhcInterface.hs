@@ -10,6 +10,9 @@ module Language.Haskell.Liquid.GhcInterface (
   , CBVisitable (..) 
   ) where
 
+import Bag (bagToList)
+import ErrUtils
+import Panic
 import GHC 
 import Text.PrettyPrint.HughesPJ
 import HscTypes
@@ -66,11 +69,20 @@ import Language.Fixpoint.Files
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 
-------------------------------------------------------------------
-getGhcInfo :: Config -> FilePath -> IO GhcInfo
-------------------------------------------------------------------
+--------------------------------------------------------------------
+getGhcInfo :: Config -> FilePath -> IO (Either SourceError GhcInfo)
+--------------------------------------------------------------------
+getGhcInfo cfg target = handleSourceError handle act 
+  where 
+    handle            = return . Left
+    act               = Right <$> getGhcInfo' cfg target
 
-getGhcInfo cfg target 
+-- liquidOne cfg target = handleSourceError diez $ liquidOne' cfg target 
+--   where 
+--     diez e           = errorstar $ "LIQUIDONE CAUGHT GHC SourceError: " ++ show e
+
+
+getGhcInfo' cfg target 
   = runGhc (Just libdir) $ do
       df                 <- getSessionDynFlags
       setSessionDynFlags  $ updateDynFlags df (idirs cfg) 
@@ -122,9 +134,21 @@ getGhcModGuts1 fn = do
    modGraph <- depanal [] True
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
-       mod_guts <- coreModule `fmap` (desugarModuleWithLoc =<< typecheckModule =<< parseModule modSummary)
+       -- mod_guts <- modSummaryModGuts modSummary
+       mod_guts <- coreModule <$> (desugarModuleWithLoc =<< typecheckModule =<< parseModule modSummary)
        return   $! (miModGuts mod_guts)
-     Nothing         -> error "GhcInterface : getGhcModGuts1"
+     Nothing     -> errorstar "GhcInterface : getGhcModGuts1"
+
+-- modSummaryModGuts x0 = {- handleSourceError diez $ -} gooBerDing x0 
+--   where 
+--     diez e           = errorstar $ "CAUGHT GHC SourceError: " ++ show e
+-- 
+-- modSummaryModGuts x0  
+--   = do x1    <- parseModule          x0 
+--        x2    <- typecheckModule      x1
+--        x3    <- desugarModuleWithLoc x2
+--        return $ coreModule           x3
+
 
 -- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
 getGhcModGutsSimpl1 fn = do
@@ -366,7 +390,7 @@ exprReadVars = go
 
 exprLetVars = go
   where
-    go (Var x)             = []
+    go (Var _)             = []
     go (App e a)           = concatMap go [e, a] 
     go (Lam x e)           = x : go e
     go (Let b e)           = letVars b ++ go e 
@@ -403,10 +427,11 @@ instance CBVisitable AltCon where
   literals _              = []
 
 
-names     = (map varName) . bindings
 
 extendEnv = foldl' (flip S.insert)
 
+-- names     = (map varName) . bindings
+-- 
 bindings (NonRec x _) 
   = [x]
 bindings (Rec  xes  ) 
@@ -455,6 +480,16 @@ instance PPrint TargetVars where
   pprint AllVars   = text "All Variables"
   pprint (Only vs) = text "Only Variables: " <+> pprint vs 
 
-
-
 pprintLongList = brackets . vcat . map pprint
+
+----------------------------------------------------------------------------------
+-- Handling GHC Errors -----------------------------------------------------------
+----------------------------------------------------------------------------------
+
+instance Result SourceError where 
+  result = (`Crash` "Invalid Source") . concatMap errMsgErrors . bagToList . srcErrorMessages
+
+errMsgErrors e = [ GhcError l msg | l <- errMsgSpans e ] 
+  where 
+    msg        = show e  
+
