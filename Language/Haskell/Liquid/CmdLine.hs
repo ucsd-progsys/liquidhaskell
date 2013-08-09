@@ -127,8 +127,8 @@ mkOpts md
 -- | Exit Function -----------------------------------------------------
 ------------------------------------------------------------------------
 
-exitWithResult :: (Result r) => FilePath -> Maybe Output -> r -> IO (FixResult Error)
-exitWithResult target o r = writeExit target (result r) $ fromMaybe emptyOutput o
+exitWithResult :: FilePath -> Maybe Output -> ErrorResult -> IO ErrorResult
+exitWithResult target o r = writeExit target r $ fromMaybe emptyOutput o
 
 writeExit target r out   = do {-# SCC "annotate" #-} annotate target r (o_soln out) (o_annot out)
                               donePhase Loud "annotate"

@@ -65,6 +65,7 @@ import Data.Function                            (on)
 import Control.Applicative  hiding (empty)   
 import Control.DeepSeq
 import Control.Monad  (liftM, liftM2, liftM3)
+import Control.Exception (Exception (..)) 
 import qualified Data.Foldable as Fold
 import Text.Printf
 import Text.PrettyPrint.HughesPJ
@@ -965,6 +966,11 @@ instance PPrint Error where
 instance PPrint SrcSpan where
   pprint = pprDoc
 
+instance Show Error where
+  show = showpp
+
+instance Exception Error
+
 ------------------------------------------------------------------------
 ppError :: Error -> Doc
 ------------------------------------------------------------------------
@@ -973,9 +979,9 @@ ppError (LiquidType l s tA tE)
 --     $+$ (nest 4 $ text "Required Type:" <+> pprint tE)
 --     $+$ (nest 4 $ text "Actual   Type:" <+> pprint tA)
 
-ppError (LiquidParse l s)       
+ppError (LiquidParse l _ e)       
   = text "Error Parsing Specification:" <+> pprint l
-    $+$ (nest 4 $ text s)
+    $+$ (nest 4 $ textLines $ show e)
 
 ppError (LiquidSort l s)       
   = text "Sort Error In Specification:" <+> pprint l
