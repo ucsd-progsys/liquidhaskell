@@ -187,8 +187,9 @@ cssHTML css = unlines
 mkAnnMap ::  FixResult Error -> AnnInfo SpecType -> ACSS.AnnMap
 mkAnnMap res ann = ACSS.Ann (mkAnnMapTyp ann) (mkAnnMapErr res)
     
-mkAnnMapErr (Unsafe ls)         = mapMaybe cinfoErr ls -- [(srcSpanStartLoc l, srcSpanEndLoc l) | RealSrcSpan l <- ls] 
-mkAnnMapErr _                   = []
+mkAnnMapErr (Unsafe ls)  = mapMaybe cinfoErr ls -- [(srcSpanStartLoc l, srcSpanEndLoc l) | RealSrcSpan l <- ls] 
+mkAnnMapErr (Crash ls _) = mapMaybe cinfoErr ls -- [(srcSpanStartLoc l, srcSpanEndLoc l) | RealSrcSpan l <- ls] 
+mkAnnMapErr _            = []
  
 cinfoErr e = case pos e of
                RealSrcSpan l -> Just (srcSpanStartLoc l, srcSpanEndLoc l, showpp e)
