@@ -232,29 +232,6 @@ moduleSpec cfg vars defVars target mg paths
        impNames = allDepNames  mg
        name     = mgi_namestring mg
 
--- moduleSpec cfg vars defVars target mg paths
---   = do liftIO   $ whenLoud $  putStrLn ("paths = " ++ show paths) 
---        tgtSpec <- liftIO   $  parseSpec (name, target) 
---        impSpec <- rmLazy  <$> getSpecs paths impNames [Spec, Hs, LHs]
---        let spec = Ms.expandRTAliases $ tgtSpec `mappend` impSpec
---        let imps = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
---        setContext [IIModule $ moduleName $ mgi_module mg]
---        env     <- getSession
---        ghcSpec <- liftIO $ makeGhcSpec cfg name vars defVars env spec
---        return   (ghcSpec, imps, Ms.incsincls)
---        case x of
---          Left e    -> return   $ Left e
---          Right r   -> compileSpec cfg mg (incls tgtSpec) r
---     where 
---        impNames    = allDepNames  mg
---        rmLazy sp   = sp { Ms.decr = [], Ms.lazy = S.empty }
---        incls       = either (const []) Ms.includes
--- 
--- compileSpec cfg mg incls preSpec 
---   = do  where 
---        impNames  = allDepNames  mg
---        name      = mgi_namestring mg
-
 allDepNames mg   = allNames'
   where 
     allNames'    = sortNub impNames
@@ -281,25 +258,11 @@ transParseSpecs exts paths seenFiles spec newFiles
        let spec'      = spec `mappend` newSpec
        let newFiles'  = [f | f <- impFiles, not (f `S.member` seenFiles')]
        transParseSpecs exts paths seenFiles' spec' newFiles'
- 
--- parseSpec :: (String, FilePath) -> IO (Either ErrorResult Ms.BareSpec)
--- parseSpec (name, file) 
---   = Ex.catch (parseSpec' name file) $ \(e :: Ex.IOException) ->
---       ioError $ userError $ 
---         printf "Hit exception: %s while parsing spec file: %s for module %s" 
---           (show e) file name
 
 parseSpec :: (String, FilePath) -> IO Ms.BareSpec
 parseSpec (name, file) 
   = do whenLoud $ putStrLn $ "parseSpec: " ++ file ++ " for module " ++ name  
        either Ex.throw return . specParser name file =<< readFile file 
-
-       -- ((either Ex.throw return) . specParser name file) <$> readFile file
-       -- case z of
-       --   Left err -> throw err
-       --   Right sp -> return sp
-       -- str     <- readFile file
-       -- return   $ specParser name file str
 
 specParser :: String -> FilePath -> String -> Either Error Ms.BareSpec 
 specParser name file str  

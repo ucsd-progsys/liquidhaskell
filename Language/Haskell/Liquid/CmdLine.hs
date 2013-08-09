@@ -44,6 +44,7 @@ import Language.Fixpoint.Names                  (dropModuleNames)
 import Language.Fixpoint.Config hiding          (config, Config)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Annotate
+import Language.Haskell.Liquid.PrettyPrint
 
 import Name
 import SrcLoc                                   (SrcSpan)
@@ -133,8 +134,8 @@ exitWithResult target o r = writeExit target r $ fromMaybe emptyOutput o
 writeExit target r out   = do {-# SCC "annotate" #-} annotate target r (o_soln out) (o_annot out)
                               donePhase Loud "annotate"
                               let rs = showFix r
-                              donePhase (colorResult r) rs 
-                              writeFile (extFileName Result target) rs 
+                              writeResult (colorResult r) r 
+                              writeFile   (extFileName Result target) rs 
                               writeWarns     $ o_warns out 
                               writeCheckVars $ o_vars  out 
                               return r
@@ -144,6 +145,16 @@ writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unline
 
 writeCheckVars Nothing   = return ()
 writeCheckVars (Just ns) = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . dropModuleNames . showpp)
+
+writeResult c            = mapM_ (writeBlock c) . blocks 
+  where 
+    blocks Safe          = [["Safe"]]
+    blocks UnknownError  = [["Panic: Unknown Error!"]]
+    blocks (Crash xs s)  = lines . render <$> text ("CRASH: " ++ s) : pprManyOrdered "CRASH: " xs
+    blocks (Unsafe xs)   = lines . render <$> pprManyOrdered "UNSAFE: " xs
+
+    writeBlock c (s:ss)  = do {colorPhaseLn c s ""; forM_ ss putStrLn }
+    writeBlock c _       = return ()
 
 ------------------------------------------------------------------------
 -- | Stuff To Output ---------------------------------------------------

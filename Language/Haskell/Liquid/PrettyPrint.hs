@@ -7,7 +7,12 @@ module Language.Haskell.Liquid.PrettyPrint (
   
   -- * Printing RType
     ppr_rtype
+
+  -- * Converting To String
   , showpp
+
+  -- * Printing an Orderable List
+  , pprManyOrdered 
   ) where
 
 import SrcLoc                           (SrcSpan)
@@ -25,7 +30,7 @@ import Text.Parsec.Pos  (SourcePos)
 import Var              (Var)
 import Control.Applicative ((<$>))
 import Data.Maybe   (fromMaybe)
-import Data.List    (sortBy)
+import Data.List    (sort)
 import Data.Function (on)
 
 instance PPrint Var where
@@ -39,6 +44,16 @@ instance PPrint Type where
 
 instance Show Predicate where
   show = showpp
+
+
+
+-- | Printing an Ordered List
+
+---------------------------------------------------------------
+pprManyOrdered :: (PPrint a, Ord a) => String -> [a] -> [Doc]
+---------------------------------------------------------------
+pprManyOrdered msg = map ((text msg <+>) . pprint) . sort -- By (compare `on` pos) 
+
 
 ---------------------------------------------------------------
 -- | Pretty Printing RefType ----------------------------------
