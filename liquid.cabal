@@ -44,72 +44,72 @@ Executable liquid
   --ghc-options: -O -W
   Extensions: 
 
--- NOLIB Library
--- NOLIB   Build-Depends: base
--- NOLIB                , ghc==7.6.3
--- NOLIB                , ansi-terminal
--- NOLIB                , bifunctors
--- NOLIB                , cmdargs
--- NOLIB                , containers
--- NOLIB                , deepseq
--- NOLIB                , directory
--- NOLIB                , Diff
--- NOLIB                , filemanip
--- NOLIB                , filepath
--- NOLIB                , ghc-paths
--- NOLIB                , hscolour
--- NOLIB                , mtl
--- NOLIB                , parsec
--- NOLIB                , pretty
--- NOLIB                , process
--- NOLIB                , syb
--- NOLIB                , text
--- NOLIB                , vector
--- NOLIB                , hashable<1.2
--- NOLIB                , unordered-containers
--- NOLIB                , liquid-fixpoint
--- NOLIB                , aeson
--- NOLIB                , bytestring
--- NOLIB 
--- NOLIB   hs-source-dirs:  include, .
--- NOLIB 
--- NOLIB   Exposed-Modules: Language.Haskell.Liquid.Prelude,
--- NOLIB                    Language.Haskell.Liquid.List, 
--- NOLIB                    Language.Haskell.Liquid.PrettyPrint, 
--- NOLIB                    Language.Haskell.Liquid.Bare,
--- NOLIB                    Language.Haskell.Liquid.Constraint, 
--- NOLIB                    Language.Haskell.Liquid.Measure, 
--- NOLIB                    Language.Haskell.Liquid.Parse, 
--- NOLIB                    Language.Haskell.Liquid.GhcInterface, 
--- NOLIB                    Language.Haskell.Liquid.RefType, 
--- NOLIB                    Language.Haskell.Liquid.PredType, 
--- NOLIB                    Language.Haskell.Liquid.Predicates, 
--- NOLIB                    Language.Haskell.Liquid.ACSS, 
--- NOLIB                    Language.Haskell.Liquid.DiffCheck, 
--- NOLIB                    Language.Haskell.Liquid.ANFTransform, 
--- NOLIB                    Language.Haskell.Liquid.Annotate, 
--- NOLIB                    Language.Haskell.Liquid.CTags, 
--- NOLIB                    Language.Haskell.Liquid.CmdLine, 
--- NOLIB                    Language.Haskell.Liquid.GhcMisc, 
--- NOLIB                    Language.Haskell.Liquid.Misc, 
--- NOLIB                    Language.Haskell.Liquid.Qualifier, 
--- NOLIB                    Language.Haskell.Liquid.TransformRec, 
--- NOLIB                    Language.Haskell.Liquid.Tidy, 
--- NOLIB                    Language.Haskell.Liquid.Types
--- NOLIB                    Language.Haskell.Liquid.Fresh
--- NOLIB 
--- NOLIB   other-modules:   Language.Haskell.Liquid.Desugar.Desugar
--- NOLIB                    Language.Haskell.Liquid.Desugar.DsExpr,
--- NOLIB                    Language.Haskell.Liquid.Desugar.DsListComp,
--- NOLIB                    Language.Haskell.Liquid.Desugar.MatchCon,
--- NOLIB                    Language.Haskell.Liquid.Desugar.MatchLit,
--- NOLIB                    Language.Haskell.Liquid.Desugar.DsArrows,
--- NOLIB                    Language.Haskell.Liquid.Desugar.DsUtils,
--- NOLIB                    Language.Haskell.Liquid.Desugar.Match,
--- NOLIB                    Language.Haskell.Liquid.Desugar.DsBinds,
--- NOLIB                    Language.Haskell.Liquid.Desugar.DsGRHSs,
--- NOLIB                    Language.Haskell.Liquid.Desugar.HscMain
--- NOLIB   --ghc-options: -O -W
--- NOLIB   Extensions: 
+ Library
+   Build-Depends: base
+                , ghc==7.6.3
+                , ansi-terminal
+                , bifunctors
+                , cmdargs
+                , containers
+                , deepseq
+                , directory
+                , Diff
+                , filemanip
+                , filepath
+                , ghc-paths
+                , hscolour
+                , mtl
+                , parsec
+                , pretty
+                , process
+                , syb
+                , text
+                , vector
+                , hashable<1.2
+                , unordered-containers
+                , liquid-fixpoint
+                , aeson
+                , bytestring
+ 
+   hs-source-dirs:  include, .
+ 
+   Exposed-Modules: Language.Haskell.Liquid.Prelude,
+                    Language.Haskell.Liquid.List, 
+                    Language.Haskell.Liquid.PrettyPrint, 
+                    Language.Haskell.Liquid.Bare,
+                    Language.Haskell.Liquid.Constraint, 
+                    Language.Haskell.Liquid.Measure, 
+                    Language.Haskell.Liquid.Parse, 
+                    Language.Haskell.Liquid.GhcInterface, 
+                    Language.Haskell.Liquid.RefType, 
+                    Language.Haskell.Liquid.PredType, 
+                    Language.Haskell.Liquid.Predicates, 
+                    Language.Haskell.Liquid.ACSS, 
+                    Language.Haskell.Liquid.DiffCheck, 
+                    Language.Haskell.Liquid.ANFTransform, 
+                    Language.Haskell.Liquid.Annotate, 
+                    Language.Haskell.Liquid.CTags, 
+                    Language.Haskell.Liquid.CmdLine, 
+                    Language.Haskell.Liquid.GhcMisc, 
+                    Language.Haskell.Liquid.Misc, 
+                    Language.Haskell.Liquid.Qualifier, 
+                    Language.Haskell.Liquid.TransformRec, 
+                    Language.Haskell.Liquid.Tidy, 
+                    Language.Haskell.Liquid.Types
+                    Language.Haskell.Liquid.Fresh
+ 
+   other-modules:   Language.Haskell.Liquid.Desugar.Desugar
+                    Language.Haskell.Liquid.Desugar.DsExpr,
+                    Language.Haskell.Liquid.Desugar.DsListComp,
+                    Language.Haskell.Liquid.Desugar.MatchCon,
+                    Language.Haskell.Liquid.Desugar.MatchLit,
+                    Language.Haskell.Liquid.Desugar.DsArrows,
+                    Language.Haskell.Liquid.Desugar.DsUtils,
+                    Language.Haskell.Liquid.Desugar.Match,
+                    Language.Haskell.Liquid.Desugar.DsBinds,
+                    Language.Haskell.Liquid.Desugar.DsGRHSs,
+                    Language.Haskell.Liquid.Desugar.HscMain
+   --ghc-options: -O -W
+   Extensions: 
 
 

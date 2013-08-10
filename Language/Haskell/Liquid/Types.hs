@@ -948,6 +948,10 @@ data Error =
                 , msg :: !String
                 } -- ^ sort error in specification
 
+  | BadInvt     { pos :: !SrcSpan
+                , inv :: !SpecType
+                , msg :: !Doc
+                } 
   | GhcError    { pos :: !SrcSpan
                 , msg :: !String
                 } -- ^ GHC error: parsing or type checking
