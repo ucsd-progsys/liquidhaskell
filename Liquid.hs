@@ -44,8 +44,8 @@ main = do cfg     <- getOpts
 checkOne cfg t = getGhcInfo cfg t >>= either (exitWithResult t Nothing) (liquidOne cfg t)
 
 liquidOne cfg target info = 
-  do whenLoud  $ do donePhase Loud "getGhcInfo"
-                    putStrLn $ showpp info 
+  do donePhase Loud "Extracted Core From GHC"
+     whenLoud  $ do putStrLn $ showpp info 
                     putStrLn "*************** Original CoreBinds ***************************" 
                     putStrLn $ showpp (cbs info)
      let cbs' = transformRecExpr (cbs info)
