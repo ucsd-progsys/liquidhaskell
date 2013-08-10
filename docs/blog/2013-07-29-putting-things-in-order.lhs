@@ -7,7 +7,7 @@ external-url:
 categories: abstract-refinements
 author: Niki Vazou and Ranjit Jhala
 published: true 
-demo: PuttingThingsInOrder.hs
+demo: Order.hs
 ---
 
 Hello again! Since we last met, much has happened that
@@ -21,12 +21,6 @@ it can encode various **ordering** properties of
 recursive data structures.
 
 <!-- more -->
-
-**Note:** Thanks to some web-server gremlin the demo link 
-above isn't working. While we figure it out, you can just 
-paste in the [source code from here](http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/demos/PuttingThingsInOrder.hs)
-into the [blank demo page](http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=blank.hs)
-
 
 \begin{code}
 module PuttingThingsInOrder where
