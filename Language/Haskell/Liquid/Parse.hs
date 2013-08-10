@@ -16,6 +16,8 @@ import Data.Char (toLower, isLower, isSpace, isAlpha)
 import Data.List (partition)
 import Data.Monoid (mempty)
 
+import Text.PrettyPrint.HughesPJ    (text)
+
 import Language.Fixpoint.Types
 
 import Language.Haskell.Liquid.GhcMisc
@@ -65,10 +67,10 @@ parseWithError parser f s
 ---------------------------------------------------------------------------
 parseErrorError     :: SourceName -> ParseError -> Error
 ---------------------------------------------------------------------------
-parseErrorError f e = LiquidParse p msg e
+parseErrorError f e = ErrParse p msg e
   where 
     p               = sourcePosSrcSpan $ errorPos e
-    msg             = "Error Parsing Specification from: " ++ f
+    msg             = text $ "Error Parsing Specification from: " ++ f
 
 ---------------------------------------------------------------------------
 remParseError       :: SourceName -> String -> String -> ParseError 

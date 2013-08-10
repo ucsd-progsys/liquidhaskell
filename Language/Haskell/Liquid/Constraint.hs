@@ -422,7 +422,7 @@ bsplitC' γ t1 t2 pflag
     r2' = rTypeSortedReft' pflag γ t2
     ci  = Ci src err
     tag = getTag γ
-    err = Just $ LiquidType src (text "subtype") t1 t2 
+    err = Just $ ErrSubType src (text "subtype") t1 t2 
     src = loc γ 
 
 unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)

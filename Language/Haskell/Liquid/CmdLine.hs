@@ -42,7 +42,7 @@ import Language.Fixpoint.Types
 import Language.Fixpoint.Names                  (dropModuleNames)
 
 import Language.Fixpoint.Config hiding          (config, Config)
-import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Types hiding     (typ)
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.PrettyPrint
 

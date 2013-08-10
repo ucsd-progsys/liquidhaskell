@@ -15,6 +15,7 @@ module Language.Haskell.Liquid.PrettyPrint (
   , pprManyOrdered 
   ) where
 
+import ErrUtils                         (ErrMsg)
 import HscTypes                         (SourceError)
 import SrcLoc                           (SrcSpan)
 import GHC                              (Name)
@@ -34,6 +35,9 @@ import Control.Applicative ((<$>))
 import Data.Maybe   (fromMaybe)
 import Data.List    (sort)
 import Data.Function (on)
+
+instance PPrint ErrMsg where
+  pprint = text . show
 
 instance PPrint SourceError where
   pprint = text . show
