@@ -9,6 +9,7 @@ import Language.Fixpoint.Files                  (getHsTargets, getIncludePath)
 import Language.Fixpoint.Config hiding          (config, Config)
 import Language.Haskell.Liquid.Types
 import System.Console.CmdArgs                  
+import System.Console.CmdArgs.Verbosity                  
 
 ---------------------------------------------------------------------------------
 -- Parsing Command Line----------------------------------------------------------
@@ -69,7 +70,7 @@ config = Config {
 
 getOpts :: IO Config 
 getOpts = do md <- cmdArgs config 
-             putStrLn $ banner md
+             whenLoud $ putStrLn $ banner md
              mkOpts md
 
 banner args =  "LiquidHaskell © Copyright 2009-13 Regents of the University of California.\n" 

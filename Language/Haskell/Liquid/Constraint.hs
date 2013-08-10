@@ -100,17 +100,17 @@ initEnv info penv
   = do let tce   = tcEmbeds $ spec info
        defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- tyConInfo <$> get 
-       let f0    = grty info          -- asserted refinements     (for defined vars)
-       f0'      <- grtyTop info       -- default TOP reftype      (for exported vars without spec) 
-       let f1    = defaults           -- default TOP reftype      (for all vars) 
-       let f2    = assm info          -- assumed refinements      (for imported vars)
-       let f3    =  ctor' $ spec info -- constructor refinements  (for measures) 
+       let f0    = grty info                        -- asserted refinements     (for defined vars)
+       f0'      <- grtyTop info                     -- default TOP reftype      (for exported vars without spec) 
+       let f1    = defaults                         -- default TOP reftype      (for all vars) 
+       f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
+       f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures) 
        let bs    = (map (unifyts' tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
-  
+  where refreshArgs' = mapM (mapSndM refreshArgs)
   -- where tce = tcEmbeds $ spec info 
 
 ctor' = map (mapSnd val) . ctor 
@@ -712,7 +712,7 @@ trueTy t
        tce  <- tyConEmbed <$> get
        return $ addTyConInfo tce tyi (uRType t)
 
-refreshTyVars t 
+refreshArgs t 
   = do xs' <- mapM (\_ -> fresh) xs
        let su = F.mkSubst $ zip xs (F.EVar <$> xs')
        return $ mkArrow αs πs (zip xs' (F.subst su <$> ts)) (F.subst su tbd)
@@ -829,7 +829,7 @@ consCB _ γ (Rec [])
 
 consCB tflag γ (Rec [(x,e)]) | tflag
   = do (x, e, Just t') <- liftM (x, e,) (varTemplate γ (x, Just e))
-       t               <- refreshTyVars t'
+       t               <- refreshArgs t'
        rTy             <- recType γ (x, e, t)
        γ'              <- extender (γ `withTRec` (x, rTy)) (x, Just t)
        consBind True γ' (x, e, Just t)
@@ -1297,14 +1297,13 @@ addRTyConInv m t@(RApp c _ _ _)
   = case M.lookup c m of
       Nothing -> t
       Just ts -> foldl' conjoinInvariant' t ts
-  -- = fromMaybe t (conjoinInvariant' t <$> M.lookup c m)
 addRTyConInv _ t 
   = t 
 
-conjoinInvariant' t1 t2 = -- traceShow ("conjoinInvariant: t1 = " ++ F.showFix t1 ++ " t2 = " ++ F.showFix t2) $
-                          conjoinInvariantShift t1 t2
+conjoinInvariant' t1 t2     
+  = conjoinInvariantShift t1 t2
 
-conjoinInvariantShift t1 t2
+conjoinInvariantShift t1 t2 
   = conjoinInvariant t1 (shiftVV t2 (rTypeValueVar t1)) 
 
 conjoinInvariant (RApp c ts rs r) (RApp ic its _ ir) 

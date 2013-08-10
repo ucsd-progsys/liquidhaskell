@@ -7,7 +7,6 @@ import Language.Haskell.Liquid.Prelude
 
 data FooBar = Foo Int
 
-
 x = choose 0
 
 prop_abs ::  Bool
