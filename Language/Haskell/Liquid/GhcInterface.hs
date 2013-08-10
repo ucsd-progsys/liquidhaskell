@@ -28,11 +28,16 @@ import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc)
 import qualified Control.Exception as Ex
 
 import GHC.Paths (libdir)
-import System.FilePath (dropExtension, takeFileName, splitFileName, combine,
-                        dropFileName, normalise)
+import System.FilePath ( replaceExtension
+                       , dropExtension
+                       , takeFileName
+                       , splitFileName
+                       , combine
+                       , dropFileName 
+                       , normalise)
 
 import DynFlags (ProfAuto(..))
-import Control.Monad (filterM)
+import Control.Monad (when, filterM)
 import Control.DeepSeq
 import Control.Applicative  hiding (empty)
 import Control.Monad (forM, liftM)
@@ -42,7 +47,8 @@ import Data.Maybe (catMaybes)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
-import System.Directory (doesFileExist)
+import System.Console.CmdArgs.Verbosity (whenLoud)
+import System.Directory (removeFile, doesFileExist)
 import Language.Fixpoint.Types hiding (Expr) 
 import Language.Fixpoint.Misc
 
@@ -78,7 +84,7 @@ getGhcInfo cfg target
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
       (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs target modguts (idirs cfg)
-      liftIO              $ putStrLn $ "Module Imports: " ++ show imps 
+      liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps 
       hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs 
       return              $ GI hscEnv coreBinds impVs defVs useVs hqualFiles imps incs spec 
 
@@ -90,9 +96,9 @@ updateDynFlags df ps
        { ghcLink      = NoLink                }
        { hscTarget    = HscNothing            }
 
-printVars s vs 
-  = do putStrLn s 
-       putStrLn $ showPpr [(v, getSrcSpan v) | v <- vs]
+-- printVars s vs 
+--   = do putStrLn s 
+--        putStrLn $ showPpr [(v, getSrcSpan v) | v <- vs]
 
 mgi_namestring = moduleNameString . moduleName . mgi_module
 
@@ -109,7 +115,7 @@ definedVars           = concatMap defs
 ------------------------------------------------------------------
 
 getGhcModGuts1 fn = do
-   liftIO $ deleteBinFiles fn
+   liftIO $ deleteBinFilez fn
    target <- guessTarget fn Nothing
    addTarget target
    load LoadAllTargets
@@ -122,7 +128,7 @@ getGhcModGuts1 fn = do
 
 -- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
 getGhcModGutsSimpl1 fn = do
-   liftIO $ deleteBinFiles fn 
+   liftIO $ deleteBinFilez fn 
    target <- guessTarget fn Nothing
    addTarget target
    load LoadAllTargets
@@ -146,6 +152,14 @@ peepGHCSimple fn
        liftIO $ putStrLn $ showPpr (cm_binds z)
        errorstar "Done peepGHCSimple"
 
+deleteBinFilez :: FilePath -> IO ()
+deleteBinFilez fn = mapM_ (tryIgnore "delete binaries" . removeFileIfExists)
+                  $ (fn `replaceExtension`) `fmap` exts
+  where exts = ["hi", "o"]
+
+removeFileIfExists f = doesFileExist f >>= (`when` removeFile f)
+
+
 --------------------------------------------------------------------------------
 -- | Desugaring (Taken from GHC, modified to hold onto Loc in Ticks) -----------
 --------------------------------------------------------------------------------
@@ -168,7 +182,7 @@ moduleHquals mg paths target imps incs
        hqs'  <- moduleImports [Hquals] paths (mgi_namestring mg : imps)
        hqs'' <- liftIO   $ filterM doesFileExist [extFileName Hquals target]
        let rv = sortNub  $ hqs'' ++ hqs ++ (snd <$> hqs')
-       liftIO $ putStrLn $ "Reading Qualifiers From: " ++ show rv 
+       liftIO $ whenLoud $ putStrLn $ "Reading Qualifiers From: " ++ show rv 
        return rv
 
 --------------------------------------------------------------------------------
@@ -176,7 +190,7 @@ moduleHquals mg paths target imps incs
 --------------------------------------------------------------------------------
  
 moduleSpec cfg vars defVars target mg paths
-  = do liftIO       $ putStrLn ("paths = " ++ show paths) 
+  = do liftIO       $ whenLoud $ putStrLn ("paths = " ++ show paths) 
        tgtSpec     <- liftIO $ parseSpec (name, target) 
        impSpec     <- getSpecs paths impNames [Spec, Hs, LHs]
        let impSpec' = impSpec{Ms.decr=[], Ms.lazy=S.empty}
@@ -202,7 +216,7 @@ starName       = ("*" ++)
 
 getSpecs paths names exts
   = do fs    <- sortNub <$> moduleImports exts paths names 
-       liftIO $ putStrLn ("getSpecs: " ++ show fs)
+       liftIO $ whenLoud $ putStrLn ("getSpecs: " ++ show fs)
        transParseSpecs exts paths S.empty mempty fs
 
 transParseSpecs _ _ _ spec []       
@@ -221,7 +235,7 @@ parseSpec (name, file)
 
 
 parseSpec' name file 
-  = do putStrLn $ "parseSpec: " ++ file ++ " for module " ++ name  
+  = do whenLoud $ putStrLn $ "parseSpec: " ++ file ++ " for module " ++ name  
        str     <- readFile file
        let spec = specParser name file str
        return   $ spec 

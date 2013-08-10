@@ -149,11 +149,12 @@ instance ( Monoid r, Reftable r
 instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ()) 
          => Reftable (Ref (RType p c tv ()) r (RType p c tv r)) where
   isTauto (RMono _ r) = isTauto r
-  isTauto (RPoly _ t) = isTrivial t 
+  isTauto (RPoly _ t) = isTrivial t
   ppTy (RMono _ r) d  = ppTy r d
   ppTy (RPoly _ _) _  = errorstar "RefType: Reftable ppTy in RPoly"
   toReft              = errorstar "RefType: Reftable toReft"
   params              = errorstar "RefType: Reftable params for Ref"
+  bot                 = errorstar "RefType: Reftable bot    for Ref"
 
 
 -- Subable Instances ----------------------------------------------
@@ -177,6 +178,7 @@ instance (PPrint r, Reftable r) => Reftable (RType Class RTyCon RTyVar r) where
   ppTy        = errorstar "ppTy RPoly Reftable" 
   toReft      = errorstar "toReft on RType"
   params      = errorstar "params on RType"
+  bot         = errorstar "bot on RType"
 
 -- ppTySReft s r d 
 --   = text "\\" <> hsep (toFix <$> s) <+> text "->" <+> ppTy r d
