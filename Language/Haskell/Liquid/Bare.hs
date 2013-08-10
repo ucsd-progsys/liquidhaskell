@@ -32,8 +32,9 @@ import Control.Monad.State      (put, get, modify, State, evalState, execState)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>), (<|>))
 import Control.Monad.Reader     hiding (forM)
-import Control.Monad.Error      hiding (forM)
+import Control.Monad.Error      hiding (Error, forM)
 import Control.Monad.Writer     hiding (forM)
+import qualified Control.Exception as Ex 
 -- import Data.Data                hiding (TyCon, tyConName)
 import Data.Bifunctor
 
@@ -51,7 +52,6 @@ import Language.Fixpoint.Misc
 import qualified Data.List           as L
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
-import qualified Control.Exception   as Ex
 import TypeRep
 ------------------------------------------------------------------
 ---------- Top Level Output --------------------------------------
@@ -59,8 +59,8 @@ import TypeRep
 
 makeGhcSpec, makeGhcSpec' :: Config -> String -> [Var] -> [Var] -> HscEnv -> Ms.Spec BareType Symbol -> IO GhcSpec 
 makeGhcSpec cfg name vars defVars env spec 
-  = checkGhcSpec <$> makeGhcSpec' cfg name vars defVars env spec 
-
+  = either Ex.throw return . checkGhcSpec =<< makeGhcSpec' cfg name vars defVars env spec 
+  -- checkGhcSpec <$> makeGhcSpec' cfg name vars defVars env spec 
 
 makeGhcSpec' cfg name vars defVars env spec 
   = do (tcs, dcs)      <- makeConTypes    env  name         $ Ms.dataDecls  spec 
@@ -748,18 +748,20 @@ rtypePredBinds = map uPVar . snd3 . bkUniv
 ----- Checking GhcSpec -----------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
 
-checkGhcSpec         :: GhcSpec -> GhcSpec 
-checkGhcSpec sp      =  applyNonNull sp specError errors
-  where 
-    env              =  ghcSpecEnv sp
-    emb              =  tcEmbeds sp
-    errors           =  mapMaybe (checkBind "variable"         emb env) (tySigs     sp)
-                     ++ mapMaybe (checkBind "data constructor" emb env) (dcons      sp)
-                     ++ mapMaybe (checkBind "measure"          emb env) (meas       sp)
-                     ++ mapMaybe (checkInv  emb env)                    (invariants sp)
-                     ++ mapMaybe checkMismatch                          (tySigs     sp)
-                     ++ checkDuplicate                                  (tySigs     sp)
-    dcons spec       = mapSnd (Loc dummyPos) <$> dataConSpec (dconsP spec) 
+checkGhcSpec :: GhcSpec -> Either [Error] GhcSpec 
+checkGhcSpec = errorstar "TOBD: HEREHEREHEREHEREHERE"
+
+-- OLD -- checkGhcSpec sp      =  applyNonNull sp specError errors
+-- OLD --   where 
+-- OLD --     env              =  ghcSpecEnv sp
+-- OLD --     emb              =  tcEmbeds sp
+-- OLD --     errors           =  mapMaybe (checkBind "variable"         emb env) (tySigs     sp)
+-- OLD --                      ++ mapMaybe (checkBind "data constructor" emb env) (dcons      sp)
+-- OLD --                      ++ mapMaybe (checkBind "measure"          emb env) (meas       sp)
+-- OLD --                      ++ mapMaybe (checkInv  emb env)                    (invariants sp)
+-- OLD --                      ++ mapMaybe checkMismatch                          (tySigs     sp)
+-- OLD --                      ++ checkDuplicate                                  (tySigs     sp)
+-- OLD --     dcons spec       = mapSnd (Loc dummyPos) <$> dataConSpec (dconsP spec) 
 
 
 specError            = errorstar 

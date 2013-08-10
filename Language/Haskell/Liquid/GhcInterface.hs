@@ -75,6 +75,7 @@ getGhcInfo :: Config -> FilePath -> IO (Either ErrorResult GhcInfo)
 getGhcInfo cfg target = (Right <$> getGhcInfo' cfg target) 
                           `Ex.catch` (\(e :: SourceError) -> handle e)
                           `Ex.catch` (\(e :: Error)       -> handle e)
+                          `Ex.catch` (\(e :: [Error])     -> handle e)
   where 
     handle            = return . Left . result
 

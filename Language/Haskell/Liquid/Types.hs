@@ -963,7 +963,6 @@ instance Eq Error where
 instance Ord Error where 
   e1 <= e2 = pos e1 <= pos e2
 
--- instance Exception Error where
 
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------

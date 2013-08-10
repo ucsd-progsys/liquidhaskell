@@ -969,6 +969,7 @@ instance Show Error where
   show = showpp
 
 instance Exception Error
+instance Exception [Error]
 
 ------------------------------------------------------------------------
 ppError :: Error -> Doc
