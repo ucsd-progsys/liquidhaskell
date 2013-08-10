@@ -987,6 +987,10 @@ ppError (LiquidSort l s)
   = text "Sort Error In Specification:" <+> pprint l
     $+$ (nest 4 $ text s)
 
+ppError (BadInvt l t)
+  = "Sort Error in Invariant Specification:" <+> pprint l
+    $+$ (nest 4 $ text "invariant " <+> pprint t)
+
 ppError (GhcError l s)       
   = text "GHC Error:" <+> pprint l
     $+$ (nest 4 $ textLines s)
