@@ -483,9 +483,7 @@ pprintLongList = brackets . vcat . map pprint
 instance Result SourceError where 
   result = (`Crash` "Invalid Source") . concatMap errMsgErrors . bagToList . srcErrorMessages
 
-errMsgErrors e = [ GhcError l msg | l <- errMsgSpans e ] 
-  where 
-    msg        = show e  
+errMsgErrors e = [ ErrGhc l (pprint e) | l <- errMsgSpans e ] 
 
 ----------------------------------------------------------------------------------
 -- Handling Spec Parser Errors ---------------------------------------------------
