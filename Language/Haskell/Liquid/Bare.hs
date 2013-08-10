@@ -15,6 +15,7 @@ module Language.Haskell.Liquid.Bare (
 import GHC hiding               (lookupName, Located)	
 import Text.PrettyPrint.HughesPJ    hiding (first)
 import Var
+import Name                     (getSrcSpan)
 import Id                       (isConLikeId)
 import PrelNames
 import PrelInfo                 (wiredInThings)
@@ -753,50 +754,48 @@ rtypePredBinds = map uPVar . snd3 . bkUniv
 ----------------------------------------------------------------------------------------------
 
 checkGhcSpec :: GhcSpec -> Either [Error] GhcSpec 
-checkGhcSpec = errorstar "TOBD: HEREHEREHEREHEREHERE"
 
--- OLD -- checkGhcSpec sp      =  applyNonNull sp specError errors
--- OLD --   where 
--- OLD --     env              =  ghcSpecEnv sp
--- OLD --     emb              =  tcEmbeds sp
--- OLD --     errors           =  mapMaybe (checkBind "variable"         emb env) (tySigs     sp)
--- OLD --                      ++ mapMaybe (checkBind "data constructor" emb env) (dcons      sp)
--- OLD --                      ++ mapMaybe (checkBind "measure"          emb env) (meas       sp)
--- OLD --                      ++ mapMaybe (checkInv  emb env)                    (invariants sp)
--- OLD --                      ++ mapMaybe checkMismatch                          (tySigs     sp)
--- OLD --                      ++ checkDuplicate                                  (tySigs     sp)
--- OLD --     dcons spec       = mapSnd (Loc dummyPos) <$> dataConSpec (dconsP spec) 
+checkGhcSpec sp      =  applyNonNull (Right sp) Left errors
+  where 
+    errors           =  mapMaybe (checkBind "variable"    emb env) (tySigs     sp)
+                     ++ mapMaybe (checkBind "constructor" emb env) (dcons      sp)
+                     ++ mapMaybe (checkBind "measure"     emb env) (measSpec   sp)
+                     ++ mapMaybe (checkInv  emb env)               (invariants sp)
+                     ++ mapMaybe checkMismatch                     (tySigs     sp)
+                     ++ checkDuplicate                             (tySigs     sp)
+    dcons spec       =  mapSnd (Loc dummyPos) <$> dataConSpec (dconsP spec) 
+    emb              =  tcEmbeds sp
+    env              =  ghcSpecEnv sp
+    measSpec sp      =  [(x, uRType <$> t) | (x, t) <- meas sp] 
 
+-- specError            = errorstar 
+--                      . render 
+--                      . vcat 
+--                      . punctuate (text "\n----\n") 
+--                      . (text "Alas, errors found in specification..." :)
 
-specError            = errorstar 
-                     . render 
-                     . vcat 
-                     . punctuate (text "\n----\n") 
-                     . (text "Alas, errors found in specification..." :)
-
-checkInv :: TCEmb TyCon -> SEnv SortedReft -> Located (RRType r) -> Maybe Error
+checkInv :: TCEmb TyCon -> SEnv SortedReft -> Located SpecType -> Maybe Error
 checkInv emb env t   = checkTy err emb env (val t) 
   where 
-    err              = BadInvt (sourcePosSrcSpan $ loc t) (val t)
+    err              = ErrInvt (sourcePosSrcSpan $ loc t) (val t)
 
 
-checkBind :: String -> TCEmb TyCon -> SEnv SortedReft -> (t, Located (RRType r)) -> Maybe Error 
-checkBind d emb env (v, Loc l t) = checkTy msg emb env t
+checkBind :: (PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error 
+checkBind s emb env (v, Loc l t) = checkTy msg emb env t
   where 
-    msg = text "Error in type specification for" <+> text d 
-          $+$ text "defined at: " <+> pprint l
-          $+$ pprint v <+> dcolon  <+> pprint t
+    msg = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
+
+checkTy :: (Doc -> Error) -> TCEmb TyCon -> SEnv SortedReft -> SpecType -> Maybe Error
+checkTy mkE emb env t = mkE <$> checkRType emb env t
+
+checkDuplicate       :: [(Var, Located SpecType)] -> [Error]
+checkDuplicate xts   = mkErr <$> dups
+  where 
+    mkErr (x, ts)    = ErrDupSpecs (getSrcSpan x) (pprint x) (sourcePosSrcSpan . loc <$> ts)
+    dups             = [z | z@(x, t1:t2:_) <- M.toList $ group xts ]
 
 
-checkTy :: (Doc -> Error) -> TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe Error
-checkTy mkE emb env t    = mkE <$> checkRType emb env t
-
-checkDuplicate :: [(a,a)] -> [Error]
-checkDuplicate xts   = err <$> dups
-  where err (x,ts)   = vcat $ (text "Multiple Specifications for" <+> pprint x) : (pprint <$> ts)
-        dups         = [ z | z@(x, t1:t2:_) <- M.toList $ group xts ]
-
-checkMismatch        :: (Var, Located (RRType r)) -> Maybe Error
+checkMismatch        :: (Var, Located SpecType) -> Maybe Error
 checkMismatch (x, t) = if ok then Nothing else Just err
   where 
     ok               = tyCompat x (val t)
@@ -819,11 +818,8 @@ ghcSpecEnv sp        = fromListSEnv binds
     varRType         :: Var -> RRType ()
     varRType         = ofType . varType
 
-errTypeMismatch     :: Var -> Located (RRType r) -> Error
-errTypeMismatch x t = vcat [ text "Specified Liquid Type Does Not Match Haskell Type"
-                           , text "Haskell:" <+> pprint x <+> dcolon <+> pprint (varType x)
-                           , text "Liquid :" <+> pprint x <+> dcolon <+> pprint t           
-                           ]
+errTypeMismatch     :: Var -> Located SpecType -> Error
+errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType x) (val t)
 
 -------------------------------------------------------------------------------------
 -- | This function checks if a type is malformed in a given environment -------------

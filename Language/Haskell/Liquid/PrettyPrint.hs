@@ -15,6 +15,7 @@ module Language.Haskell.Liquid.PrettyPrint (
   , pprManyOrdered 
   ) where
 
+import HscTypes                         (SourceError)
 import SrcLoc                           (SrcSpan)
 import GHC                              (Name)
 import TcType                           (tidyType)
@@ -27,11 +28,18 @@ import Language.Haskell.Liquid.Types
 import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Text.Parsec.Pos  (SourcePos)
+import Text.Parsec.Error (ParseError)
 import Var              (Var)
 import Control.Applicative ((<$>))
 import Data.Maybe   (fromMaybe)
 import Data.List    (sort)
 import Data.Function (on)
+
+instance PPrint SourceError where
+  pprint = text . show
+
+instance PPrint ParseError where 
+  pprint = text . show 
 
 instance PPrint Var where
   pprint = pprDoc 

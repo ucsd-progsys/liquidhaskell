@@ -933,31 +933,39 @@ instance PPrint SortedReft where
 type ErrorResult = FixResult Error
 
 data Error = 
-    LiquidType  { pos :: !SrcSpan
-                , msg :: !String
+    ErrSubType  { pos :: !SrcSpan
+                , msg :: !Doc
                 , act :: !SpecType
                 , exp :: !SpecType
                 } -- ^ liquid type error
 
-  | LiquidParse { pos :: !SrcSpan
-                , msg :: !String
+  | ErrParse    { pos :: !SrcSpan
+                , msg :: !Doc
                 , err :: !ParseError
                 } -- ^ specification parse error
-
-  | LiquidSort  { pos :: !SrcSpan
-                , msg :: !String
+  | ErrTySpec   { pos :: !SrcSpan
+                , var :: !Doc
+                , typ :: !SpecType  
+                , msg :: !Doc
                 } -- ^ sort error in specification
-
-  | BadInvt     { pos :: !SrcSpan
+  | ErrDupSpecs { pos :: !SrcSpan
+                , var :: !Doc
+                , locs:: ![SrcSpan]
+                } -- ^ multiple specs for same binder error 
+  | ErrInvt     { pos :: !SrcSpan
                 , inv :: !SpecType
                 , msg :: !Doc
-                } 
-  | GhcError    { pos :: !SrcSpan
-                , msg :: !String
+                } -- ^ Invariant sort error
+  | ErrGhc      { pos :: !SrcSpan
+                , msg :: !Doc
                 } -- ^ GHC error: parsing or type checking
-
-  | Other       { pos :: !SrcSpan 
-                , msg :: !String
+  | ErrMismatch { pos :: !SrcSpan
+                , var :: !Doc
+                , hs  :: !Type
+                , exp :: !SpecType
+                } -- ^ Mismatch between Liquid and Haskell types
+  | ErrOther    { pos :: !SrcSpan 
+                , msg :: !Doc
                 }
   deriving (Typeable)
 
@@ -997,5 +1005,5 @@ instance Result (FixResult Cinfo) where
   result = fmap cinfoError  
 
 cinfoError (Ci _ (Just e)) = e
-cinfoError (Ci l _)        = Other l ""
+cinfoError (Ci l _)        = ErrOther l empty
 

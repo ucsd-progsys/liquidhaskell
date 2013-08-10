@@ -974,32 +974,42 @@ instance Exception [Error]
 ------------------------------------------------------------------------
 ppError :: Error -> Doc
 ------------------------------------------------------------------------
-ppError (LiquidType l s tA tE) 
+ppError (ErrSubType l s tA tE) 
   = text "Liquid Type Error:" <+> pprint l 
 --     $+$ (nest 4 $ text "Required Type:" <+> pprint tE)
 --     $+$ (nest 4 $ text "Actual   Type:" <+> pprint tA)
 
-ppError (LiquidParse l _ e)       
+ppError (ErrParse l _ e)       
   = text "Error Parsing Specification:" <+> pprint l
-    $+$ (nest 4 $ textLines $ show e)
+    $+$ (nest 4 $ pprint e)
 
-ppError (LiquidSort l s)       
-  = text "Sort Error In Specification:" <+> pprint l
-    $+$ (nest 4 $ text s)
+ppError (ErrTySpec l v t s)       
+  = text "Error in Type Specification:" <+> pprint l
+    $+$ (v <+> dcolon <+> pprint t) 
+    $+$ (nest 4 s)
 
-ppError (BadInvt l t)
-  = "Sort Error in Invariant Specification:" <+> pprint l
-    $+$ (nest 4 $ text "invariant " <+> pprint t)
+ppError (ErrInvt l t s)
+  = text "Error in Invariant Specification:" <+> pprint l
+    $+$ (nest 4 $ text "invariant " <+> pprint t $+$ s)
 
-ppError (GhcError l s)       
+ppError (ErrDupSpecs l v ls)
+  = text "Multiple Specifications for" <+> v <> colon <+> pprint l
+    $+$ (nest 4 $ vcat $ pprint <$> ls) 
+
+ppError (ErrGhc l s)       
   = text "GHC Error:" <+> pprint l
-    $+$ (nest 4 $ textLines s)
+    $+$ (nest 4 s)
 
-ppError (Other l s)       
+ppError (ErrMismatch l x τ t) 
+  = text "Specified Type Does Not Refine Haskell Type for" <+> x <> colon <+> pprint l
+    $+$ text "Haskell:" <+> pprint τ
+    $+$ text "Liquid :" <+> pprint t 
+    
+ppError (ErrOther l s)       
   = text "Unexpected Error: " <+> pprint l
-    $+$ (nest 4 $ textLines s)
+    $+$ (nest 4 s)
 
-textLines = vcat . fmap text . lines
+-- textLines = vcat . fmap text . lines . render
 
 instance Fixpoint (FixResult Error) where
   toFix Safe           = text "SAFE"
