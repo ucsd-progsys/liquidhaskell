@@ -798,10 +798,19 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
                    , winfo :: !a
                    } -- deriving (Eq)
 
-data FixResult a = Crash [a] String | Safe | Unsafe ![a] | UnknownError
-                   deriving (Eq, Show)
+data FixResult a = Crash [a] String 
+                 | Safe 
+                 | Unsafe ![a] 
+                 | UnknownError !Doc
+                   deriving (Show)
 
 type FixSolution = M.HashMap Symbol Pred
+
+instance Eq a => Eq (FixResult a) where 
+  Crash xs _ == Crash ys _         = xs == ys
+  Unsafe xs == Unsafe ys           = xs == ys
+  Safe      == Safe                = True
+  _         == _                   = False
 
 instance Monoid (FixResult a) where
   mempty                          = Safe
@@ -810,30 +819,30 @@ instance Monoid (FixResult a) where
   mappend _ c@(Crash _ _)         = c 
   mappend c@(Crash _ _) _         = c 
   mappend (Unsafe xs) (Unsafe ys) = Unsafe (xs ++ ys)
-  mappend UnknownError _          = UnknownError
-  mappend _ UnknownError          = UnknownError
+  mappend u@(UnknownError _) _    = u 
+  mappend _ u@(UnknownError _)    = u 
 
 instance Functor FixResult where 
-  fmap f (Crash xs msg) = Crash (f <$> xs) msg
-  fmap f (Unsafe xs)    = Unsafe (f <$> xs)
-  fmap _ Safe           = Safe
-  fmap _ UnknownError   = UnknownError 
+  fmap f (Crash xs msg)   = Crash (f <$> xs) msg
+  fmap f (Unsafe xs)      = Unsafe (f <$> xs)
+  fmap _ Safe             = Safe
+  fmap _ (UnknownError d) = UnknownError d
 
 instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
-  toFix Safe           = text "Safe"
-  toFix UnknownError   = text "Unknown Error!"
-  toFix (Crash xs msg) = vcat $ [ text "Crash!" ] ++  ppr_sinfos "CRASH: " xs ++ [parens (text msg)] 
-  toFix (Unsafe xs)    = vcat $ text "Unsafe:" : ppr_sinfos "WARNING: " xs
+  toFix Safe             = text "Safe"
+  toFix (UnknownError d) = text "Unknown Error!" <+> d
+  toFix (Crash xs msg)   = vcat $ [ text "Crash!" ] ++  ppr_sinfos "CRASH: " xs ++ [parens (text msg)] 
+  toFix (Unsafe xs)      = vcat $ text "Unsafe:" : ppr_sinfos "WARNING: " xs
 
 ppr_sinfos :: (Ord a, Fixpoint a) => String -> [SubC a] -> [Doc]
 ppr_sinfos msg = map ((text msg <>) . toFix) . sort . fmap sinfo
 
 
 resultDoc :: (Ord a, Fixpoint a) => FixResult a -> Doc
-resultDoc Safe           = text "Safe"
-resultDoc UnknownError   = text "Unknown Error!"
-resultDoc (Crash xs msg) = vcat $ (text ("Crash!: " ++ msg)) : (((text "CRASH:" <+>) . toFix) <$> xs)
-resultDoc (Unsafe xs)    = vcat $ (text "Unsafe:")           : (((text "WARNING:" <+>) . toFix) <$> xs)
+resultDoc Safe             = text "Safe"
+resultDoc (UnknownError d) = text "Unknown Error!" <+> d
+resultDoc (Crash xs msg)   = vcat $ (text ("Crash!: " ++ msg)) : (((text "CRASH:" <+>) . toFix) <$> xs)
+resultDoc (Unsafe xs)      = vcat $ (text "Unsafe:")           : (((text "WARNING:" <+>) . toFix) <$> xs)
 
 
 
