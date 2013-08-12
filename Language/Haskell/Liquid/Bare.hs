@@ -93,7 +93,10 @@ makeGhcSpec' cfg name vars defVars env spec
                              , decr       = decr'
                              , lazy       = lazies
                              , tgtVars    = targetVars
+                             , config     = cfg 
                              }
+
+
 makeHints :: [Var] -> [(LocSymbol, [Int])] -> [(Var, [Int])]
 makeHints vs       = concatMap go
   where lvs        = M.map L.sort $ group [(varSymbol v, locVar v) | v <- vs]

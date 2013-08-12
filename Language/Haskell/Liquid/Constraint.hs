@@ -81,10 +81,12 @@ import Control.DeepSeq
 ------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
 
-generateConstraints :: Config -> GhcInfo -> CGInfo
-generateConstraints cfg info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
-  where act = consAct (info {cbs = fst pds}) (snd pds)
-        pds = generatePredicates info
+generateConstraints      :: GhcInfo -> CGInfo
+generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
+  where 
+    act                  = consAct (info {cbs = fst pds}) (snd pds)
+    pds                  = generatePredicates info
+    cfg                  = config $ spec info
 
 consAct info penv
   = do γ     <- initEnv info penv

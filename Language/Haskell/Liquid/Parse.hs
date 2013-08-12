@@ -138,13 +138,14 @@ arrowP
   <|> (reserved "=>" >> return ArrowPred)
 
 positionNameP = dummyNamePos <$> getPosition
-  
-dummyNamePos pos  = "dummy." ++ name ++ ['.'] ++ line ++ ['.'] ++ col
-    where name    = san <$> sourceName pos
-          line    = show $ sourceLine pos  
-          col     = show $ sourceColumn pos  
-          san '/' = '.'
-          san c   = toLower c
+
+dummyNamePos pos = "dummy." ++ name ++ ['.'] ++ line ++ ['.'] ++ col
+    where 
+      name       = san <$> sourceName pos
+      line       = show $ sourceLine pos  
+      col        = show $ sourceColumn pos  
+      san '/'    = '.'
+      san c      = toLower c
 
 bareFunP  
   = do b  <- try bindP <|> dummyBindP 
@@ -289,6 +290,7 @@ data Pspec ty ctor
   | Qualif  Qualifier
   | Decr    (LocSymbol, [Int])
   | Lazy    Symbol
+  | Pragma  (Located String)
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
@@ -305,6 +307,7 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.qualifiers = [q | Qualif q <- xs]
   , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lazy       = S.fromList [s | Lazy s <- xs]
+  , Measure.pragmas    = [s | Pragma s <- xs]
   }
 
 type BareSpec = (Measure.Spec BareType Symbol)
@@ -335,7 +338,11 @@ specP
     <|> (reserved "Decrease"  >> liftM Decr   decreaseP )
     <|> (reserved "Strict"    >> liftM Lazy   lazyP     )
     <|> (reserved "Lazy"      >> liftM Lazy   lazyP     )
+    <|> (reserved "LIQUID"    >> liftM Pragma pragmaP   )
     <|> ({- DEFAULT -}           liftM Assms  tyBindsP  )
+
+pragmaP :: Parser (Located String)
+pragmaP = locParserP $ many anyChar 
 
 lazyP :: Parser Symbol
 lazyP = binderP

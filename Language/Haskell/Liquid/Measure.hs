@@ -51,6 +51,7 @@ data Spec ty bndr  = Spec {
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
   , decr       :: ![(LocSymbol, [Int])]         -- ^ Information on decreasing arguments
   , lazy       :: !(S.HashSet Symbol)           -- ^ Ignore Termination Check in these Functions
+  , pragmas    :: ![Located String]             -- ^ Command-line configurations passed in through source
   } 
 
 
@@ -114,7 +115,8 @@ checkDuplicateMeasure ms
 
 -- MOVE TO TYPES
 instance Monoid (Spec ty bndr) where
-  mappend (Spec xs ys invs zs ds is as ps es qs drs ss) (Spec xs' ys' invs' zs' ds' is' as' ps' es' qs' drs' ss')
+  mappend (Spec xs ys invs zs ds is as ps es qs drs ss gs) 
+          (Spec xs' ys' invs' zs' ds' is' as' ps' es' qs' drs' ss' gs')
            = Spec (xs ++ xs') 
                   (ys ++ ys') 
                   (invs ++ invs') 
@@ -127,7 +129,8 @@ instance Monoid (Spec ty bndr) where
                   (qs ++ qs')
                   (drs ++ drs')
                   (S.union ss ss')
-  mempty   = Spec [] [] [] [] [] [] [] [] M.empty [] [] S.empty
+                  (gs ++ gs')
+  mempty   = Spec [] [] [] [] [] [] [] [] M.empty [] [] S.empty []
 
 -- MOVE TO TYPES
 instance Functor Def where
@@ -155,7 +158,7 @@ instance Bifunctor MSpec   where
 
 -- MOVE TO TYPES
 instance Bifunctor Spec    where
-  first f (Spec ms ss is x0 x1 x2 x3 x4 x5 x6 x7 x8) 
+  first f (Spec ms ss is x0 x1 x2 x3 x4 x5 x6 x7 x8 x9) 
     = Spec { measures   = first  f <$> ms
            , sigs       = second f <$> ss
            , invariants = fmap   f <$> is
@@ -168,8 +171,9 @@ instance Bifunctor Spec    where
            , qualifiers = x6
            , decr       = x7
            , lazy       = x8
+           , pragmas    = x9 
            }
-  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6 x7 x8 x9) 
+  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6 x7 x8 x9 x10) 
     = Spec { measures   = fmap (second f) ms
            , sigs       = x0 
            , invariants = x1
@@ -182,6 +186,7 @@ instance Bifunctor Spec    where
            , qualifiers = x7
            , decr       = x8
            , lazy       = x9
+           , pragmas    = x10
            }
 
 -- MOVE TO TYPES
