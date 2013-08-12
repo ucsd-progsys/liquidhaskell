@@ -1,5 +1,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
+{-@ LIQUID "--notermination"           @-}
+
 module PuttingThingsInOrder where
 
 import Prelude hiding (break)
@@ -15,9 +17,6 @@ digsVec      :: Vec Int
 whatGosUp    :: [Integer]
 mustGoDown   :: [Integer]
 noDuplicates :: [Integer]
-
-
-
 
 
 -- Polymorphic Association Lists

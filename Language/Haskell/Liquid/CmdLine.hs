@@ -15,41 +15,45 @@
 
 
 module Language.Haskell.Liquid.CmdLine (
-   -- * Entry Command Line Options
-   getOpts
+   -- * Get Command Line Configuration 
+     getOpts
+ 
+   -- * Update Configuration With Pragma
+   , withPragmas
    
    -- * Exit Function
-  , exitWithResult
+   , exitWithResult
 
-  -- * Extra Outputs
-  , Output (..)
-  
-  ) where
+   -- * Extra Outputs
+   , Output (..)
+) where
 
 import Control.DeepSeq
 import Control.Monad
 import Control.Applicative                      ((<$>))
-import Data.Maybe
-import Data.Monoid
+
+import           Data.List                                (foldl')
+import           Data.Maybe
+import           Data.Monoid
 import qualified Data.HashMap.Strict as M
-import System.FilePath                          (dropFileName)
-import System.Console.CmdArgs  hiding           (Loud)                
-import System.Console.CmdArgs.Verbosity         (whenLoud)            
+
+import           System.FilePath                          (dropFileName)
+import           System.Environment                       (withArgs)
+import           System.Console.CmdArgs  hiding           (Loud)                
+import           System.Console.CmdArgs.Verbosity         (whenLoud)            
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Files
-import Language.Fixpoint.Types
 import Language.Fixpoint.Names                  (dropModuleNames)
-
+import Language.Fixpoint.Types hiding           (config)
 import Language.Fixpoint.Config hiding          (config, Config)
-import Language.Haskell.Liquid.Types hiding     (typ)
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.PrettyPrint
+import Language.Haskell.Liquid.Types hiding     (config, typ)
 
 import Name
 import SrcLoc                                   (SrcSpan)
 import Text.PrettyPrint.HughesPJ    
-
 
 ---------------------------------------------------------------------------------
 -- Parsing Command Line----------------------------------------------------------
@@ -66,7 +70,7 @@ config = Config {
           &= help "Paths to Spec Include Directory " 
    
  , diffcheck 
-    = False 
+    = def 
           &= help "Incremental Checking: only check changed binders" 
 
  , binders
@@ -122,6 +126,45 @@ mkOpts md
        idirs' <- if null (idirs md) then single <$> getIncludePath else return (idirs md) 
        return  $ md { files = files' } { idirs = map dropFileName files' ++ idirs' }
                                         -- tests fail if you flip order of idirs'
+
+---------------------------------------------------------------------------------------
+-- | Updating options
+---------------------------------------------------------------------------------------
+
+---------------------------------------------------------------------------------------
+withPragmas :: Config -> [Located String] -> IO Config
+---------------------------------------------------------------------------------------
+withPragmas = foldM withPragma
+
+withPragma :: Config -> Located String -> IO Config
+withPragma c s = (c `mappend`) <$> parsePragma s
+
+parsePragma   :: Located String -> IO Config
+parsePragma s = withArgs [val s] $ cmdArgs config
+
+---------------------------------------------------------------------------------------
+-- | Monoid instances for updating options
+---------------------------------------------------------------------------------------
+
+instance Monoid Config where
+  mempty        = Config def def def def def def def def 2 def
+  mappend c1 c2 = Config (sortNub $ files c1   ++     files          c2)
+                         (sortNub $ idirs c1   ++     idirs          c2)
+                         (diffcheck c1         ||     diffcheck      c2) 
+                         (sortNub $ binders c1 ++     binders        c2) 
+                         (noCheckUnknown c1    ||     noCheckUnknown c2) 
+                         (nofalse        c1    ||     nofalse        c2) 
+                         (notermination  c1    ||     notermination  c2) 
+                         (noPrune        c1    ||     noPrune        c2) 
+                         (maxParams      c1   `max`   maxParams      c2)
+                         (smtsolver c1      `mappend` smtsolver      c2)
+
+instance Monoid SMTSolver where
+  mempty        = def
+  mappend s1 s2 
+    | s1 == s2  = s1 
+    | s2 == def = s1 
+    | otherwise = s2
 
 
 ------------------------------------------------------------------------

@@ -32,19 +32,18 @@ import Language.Haskell.Liquid.CmdLine
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.Constraint       
 import Language.Haskell.Liquid.TransformRec   
--- import Language.Haskell.Liquid.Annotate (annotate)
-
--- main = liquid >>= (exitWith . resultExit)
 
 main :: IO b
-main = do cfg     <- getOpts
-          res     <- mconcat <$> mapM (checkOne cfg) (files cfg)
+main = do cfg0    <- getOpts
+          res     <- mconcat <$> mapM (checkOne cfg0) (files cfg0)
           exitWith $ resultExit res
 
-checkOne cfg t = getGhcInfo cfg t >>= either (exitWithResult t Nothing) (liquidOne cfg t)
+checkOne cfg0 t = getGhcInfo cfg0 t >>= either (exitWithResult t Nothing) (liquidOne t)
 
-liquidOne cfg target info = 
+
+liquidOne target info = 
   do donePhase Loud "Extracted Core From GHC"
+     let cfg   = config $ spec info 
      whenLoud  $ do putStrLn $ showpp info 
                     putStrLn "*************** Original CoreBinds ***************************" 
                     putStrLn $ showpp (cbs info)
@@ -54,7 +53,7 @@ liquidOne cfg target info =
                     putStrLn $ showpp cbs'
                     putStrLn "*************** Slicing Out Unchanged CoreBinds *****************" 
      (pruned, cbs'') <- prune cfg cbs' target info
-     let cgi = {-# SCC "generateConstraints" #-} generateConstraints cfg $! info {cbs = cbs''}
+     let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs''}
      cgi `deepseq` donePhase Loud "generateConstraints"
      -- whenLoud $ do donePhase Loud "START: Write CGI (can be slow!)"
      --                {-# SCC "writeCGI" #-} writeCGI target cgi 

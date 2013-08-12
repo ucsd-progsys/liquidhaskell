@@ -263,9 +263,10 @@ data GhcSpec = SP {
                                                  -- e.g. "embed Set as Set_set" from include/Data/Set.spec
   , qualifiers :: ![Qualifier]                   -- ^ Qualifiers in Source/Spec files
                                                  -- e.g tests/pos/qualTest.hs
-  , tgtVars  :: ![Var]                      -- ^ Top-level Binders To Verify (empty means ALL binders)
-  , decr     :: ![(Var, [Int])]
-  , lazy     :: !(S.HashSet Var)
+  , tgtVars    :: ![Var]                         -- ^ Top-level Binders To Verify (empty means ALL binders)
+  , decr       :: ![(Var, [Int])]                -- ^ Lexicographically ordered size witnesses for termination
+  , lazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
+  , config     :: !Config                        -- ^ Configuration Options
   }
   
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]

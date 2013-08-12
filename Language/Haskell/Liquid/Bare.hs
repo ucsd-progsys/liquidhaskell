@@ -93,9 +93,8 @@ makeGhcSpec' cfg name vars defVars env spec
                              , decr       = decr'
                              , lazy       = lazies
                              , tgtVars    = targetVars
+                             , config     = cfg 
                              }
-       
--- goo sp = either id (\z -> sp {tySigs = z}) $ mapM renameTyVars $ tySigs sp
 
 makeHints :: [Var] -> [(LocSymbol, [Int])] -> [(Var, [Int])]
 makeHints vs       = concatMap go
