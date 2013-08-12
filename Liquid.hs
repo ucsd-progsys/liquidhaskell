@@ -46,9 +46,10 @@ liquid  = do cfg <- getOpts
                          return $ Crash [] "Whoops! Unknown Failure"
              return $ mconcat res
 
-liquidOne cfg target = 
+liquidOne cfg0 target = 
   do _        <- getFixpointPath 
-     info     <- getGhcInfo cfg target 
+     info     <- getGhcInfo cfg0 target
+     let cfg   = config $ spec info 
      whenLoud  $ do donePhase Loud "getGhcInfo"
                     putStrLn $ showpp info 
                     putStrLn "*************** Original CoreBinds ***************************" 
@@ -58,8 +59,8 @@ liquidOne cfg target =
                     putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
                     putStrLn $ showpp cbs'
                     putStrLn "*************** Slicing Out Unchanged CoreBinds *****************" 
-     (pruned, cbs'') <- prune cbs' info
-     let cgi = {-# SCC "generateConstraints" #-} generateConstraints cfg $! info {cbs = cbs''}
+     (pruned, cbs'') <- prune cfg cbs' info
+     let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs''}
      cgi `deepseq` donePhase Loud "generateConstraints"
      -- whenLoud $ do donePhase Loud "START: Write CGI (can be slow!)"
      --                {-# SCC "writeCGI" #-} writeCGI target cgi 
@@ -75,7 +76,7 @@ liquidOne cfg target =
      when pruned $ putCheckedVars cbs''
      return r
   where
-    prune cbs info
+    prune cfg cbs info
       | not (null vs) = return (True, DC.thin cbs vs)
       | diffcheck cfg = (True,) <$> DC.slice target cbs
       | otherwise     = return (False, cbs)

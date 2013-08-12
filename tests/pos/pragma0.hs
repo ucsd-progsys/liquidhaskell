@@ -1,6 +1,11 @@
+{-@ LIQUID --notermination @-}
+
 module Test0 where
 
 import Language.Haskell.Liquid.Prelude
+
+zoo   :: Int -> Int
+zoo x = zoo x
 
 {-@ qualif Zog(v:FooBar, x:FooBar): v = x + 29 @-}
 

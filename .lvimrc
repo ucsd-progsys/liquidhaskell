@@ -1,6 +1,10 @@
 if isdirectory($HSENV)
-  let g:hdevtools_options = '-g-package-conf$HSENV/.hsenv_$HSENV_NAME/ghc_pkg_db'
+  " let g:hdevtools_options = '-g-package-conf$HSENV/.hsenv_$HSENV_NAME/ghc_pkg_db'
+  let g:hdevtools_options = '-g-package-conf$HSENV/.hsenv/ghc_pkg_db'
 endif
+
+let g:makeprg='hdevtools check %'
+
 
 " let g:hdevtools_options = '-g -isrc -g -Wall -g -hide-package -g transformers'
 let g:hdevtools_options = '-g -package=ghc  

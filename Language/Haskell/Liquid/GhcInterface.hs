@@ -57,7 +57,7 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
-
+import Language.Haskell.Liquid.CmdLine (withPragmas)
 import Language.Haskell.Liquid.Parse 
 import Language.Fixpoint.Parse          hiding (brackets, comma)
 import Language.Fixpoint.Names
@@ -189,19 +189,21 @@ moduleHquals mg paths target imps incs
 -- | Extracting Specifications (Measures + Assumptions) ------------------------
 --------------------------------------------------------------------------------
  
-moduleSpec cfg vars defVars target mg paths
+moduleSpec cfg0 vars defVars target mg paths
   = do liftIO       $ whenLoud $ putStrLn ("paths = " ++ show paths) 
        tgtSpec     <- liftIO $ parseSpec (name, target) 
        impSpec     <- getSpecs paths impNames [Spec, Hs, LHs]
        let impSpec' = impSpec{Ms.decr=[], Ms.lazy=S.empty}
        let spec     = Ms.expandRTAliases $ tgtSpec `mappend` impSpec'
        let imps     = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
+       cfg         <- liftIO  $ withPragmas cfg0 $ Ms.pragmas spec
        setContext  [IIModule $ moduleName $ mgi_module mg]
        env         <- getSession
        ghcSpec     <- liftIO $ makeGhcSpec cfg name vars defVars env spec
        return       (ghcSpec, imps, Ms.includes tgtSpec)
-    where impNames = allDepNames  mg
-          name     = mgi_namestring mg
+    where 
+      impNames      = allDepNames  mg
+      name          = mgi_namestring mg
 
 allDepNames mg    = allNames'
   where allNames' = sortNub impNames

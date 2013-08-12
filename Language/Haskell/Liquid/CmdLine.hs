@@ -1,15 +1,27 @@
 {-# LANGUAGE TupleSections, DeriveDataTypeable #-}
 
-module Language.Haskell.Liquid.CmdLine (getOpts) where
+module Language.Haskell.Liquid.CmdLine (
+  -- * Get Command Line Configuration 
+  getOpts
+  
+  -- * Update Configuration With Pragma
+  , withPragmas
+  ) where
 
+import Control.Monad                            (foldM)
 import Control.Applicative                      ((<$>))
+
+import System.Environment                       (withArgs)
 import System.FilePath                          (dropFileName)
 import Language.Fixpoint.Misc                   (single, sortNub) 
 import Language.Fixpoint.Files                  (getHsTargets, getIncludePath)
 import Language.Fixpoint.Config hiding          (config, Config)
-import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Types hiding     (config)
+import Language.Fixpoint.Types hiding           (config)
 import System.Console.CmdArgs                  
 import System.Console.CmdArgs.Verbosity                  
+import Data.List                                (foldl')
+import Data.Monoid
 
 ---------------------------------------------------------------------------------
 -- Parsing Command Line----------------------------------------------------------
@@ -26,7 +38,7 @@ config = Config {
           &= help "Paths to Spec Include Directory " 
    
  , diffcheck 
-    = False 
+    = def 
           &= help "Incremental Checking: only check changed binders" 
 
  , binders
@@ -83,4 +95,43 @@ mkOpts md
        idirs' <- if null (idirs md) then single <$> getIncludePath else return (idirs md) 
        return  $ md { files = files' } { idirs = map dropFileName files' ++ idirs' }
                                         -- tests fail if you flip order of idirs'
+
+
+
+
+---------------------------------------------------------------------------------------
+withPragmas :: Config -> [Located String] -> IO Config
+---------------------------------------------------------------------------------------
+withPragmas = foldM withPragma
+
+withPragma :: Config -> Located String -> IO Config
+withPragma c s = (c `mappend`) <$> parsePragma s
+
+parsePragma   :: Located String -> IO Config
+parsePragma s = withArgs [val s] $ cmdArgs config
+
+---------------------------------------------------------------------------------------
+-- Monoid instances for updating options
+---------------------------------------------------------------------------------------
+
+instance Monoid Config where
+  mempty        = Config def def def def def def def def 2 def
+  mappend c1 c2 = Config (sortNub $ files c1   ++     files          c2)
+                         (sortNub $ idirs c1   ++     idirs          c2)
+                         (diffcheck c1         ||     diffcheck      c2) 
+                         (sortNub $ binders c1 ++     binders        c2) 
+                         (noCheckUnknown c1    ||     noCheckUnknown c2) 
+                         (nofalse        c1    ||     nofalse        c2) 
+                         (notermination  c1    ||     notermination  c2) 
+                         (noPrune        c1    ||     noPrune        c2) 
+                         (maxParams      c1   `max`   maxParams      c2)
+                         (smtsolver c1      `mappend` smtsolver      c2)
+
+instance Monoid SMTSolver where
+  mempty        = def
+  mappend s1 s2 
+    | s1 == s2  = s1 
+    | s2 == def = s1 
+    | otherwise = s2
+
 
