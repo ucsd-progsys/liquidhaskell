@@ -98,9 +98,10 @@ remLineCol src rem = (line, col)
 -- Lexer Tokens ------------------------------------------------------------------
 ----------------------------------------------------------------------------------
 
-dot        = Token.dot        lexer
-braces     = Token.braces     lexer
-angles     = Token.angles     lexer
+dot           = Token.dot           lexer
+braces        = Token.braces        lexer
+angles        = Token.angles        lexer
+stringLiteral = Token.stringLiteral lexer
 
 ----------------------------------------------------------------------------------
 -- BareTypes ---------------------------------------------------------------------
@@ -212,13 +213,14 @@ arrowP
   <|> (reserved "=>" >> return ArrowPred)
 
 positionNameP = dummyNamePos <$> getPosition
-  
-dummyNamePos pos  = "dummy." ++ name ++ ['.'] ++ line ++ ['.'] ++ col
-    where name    = san <$> sourceName pos
-          line    = show $ sourceLine pos  
-          col     = show $ sourceColumn pos  
-          san '/' = '.'
-          san c   = toLower c
+
+dummyNamePos pos = "dummy." ++ name ++ ['.'] ++ line ++ ['.'] ++ col
+    where 
+      name       = san <$> sourceName pos
+      line       = show $ sourceLine pos  
+      col        = show $ sourceColumn pos  
+      san '/'    = '.'
+      san c      = toLower c
 
 bareFunP  
   = do b  <- try bindP <|> dummyBindP 
@@ -359,6 +361,7 @@ data Pspec ty ctor
   | Qualif  Qualifier
   | Decr    (LocSymbol, [Int])
   | Lazy    Symbol
+  | Pragma  (Located String)
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
@@ -375,6 +378,7 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.qualifiers = [q | Qualif q <- xs]
   , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lazy       = S.fromList [s | Lazy s <- xs]
+  , Measure.pragmas    = [s | Pragma s <- xs]
   }
 
 
@@ -394,7 +398,11 @@ specP
     <|> (reserved "Decrease"  >> liftM Decr   decreaseP )
     <|> (reserved "Strict"    >> liftM Lazy   lazyP     )
     <|> (reserved "Lazy"      >> liftM Lazy   lazyP     )
+    <|> (reserved "LIQUID"    >> liftM Pragma pragmaP   )
     <|> ({- DEFAULT -}           liftM Assms  tyBindsP  )
+
+pragmaP :: Parser (Located String)
+pragmaP = locParserP $ stringLiteral 
 
 lazyP :: Parser Symbol
 lazyP = binderP
@@ -403,10 +411,11 @@ decreaseP :: Parser (LocSymbol, [Int])
 decreaseP = mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> (many integer))
   where f = ((\n -> fromInteger n - 1) <$>)
 
-filePathP :: Parser FilePath
-filePathP = angles $ many1 pathCharP
-  where pathCharP = choice $ char <$> pathChars 
-        pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
+filePathP     :: Parser FilePath
+filePathP     = angles $ many1 pathCharP
+  where 
+    pathCharP = choice $ char <$> pathChars 
+    pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
 
 tyBindsP    :: Parser ([LocSymbol], BareType)
 tyBindsP = xyP (sepBy (locParserP binderP) comma) dcolon genBareTypeP
@@ -467,12 +476,13 @@ tyBodyP ty
           outTy _              = Nothing
 
 binderP :: Parser Symbol
-binderP =  try $ liftM stringSymbol (idP badc)
-       <|> liftM pwr (parens (idP bad))
-       where idP p  = many1 (satisfy (not . p))
-             badc c = (c == ':') || (c == ',') || bad c
-             bad c  = isSpace c || c `elem` "(,)"
-             pwr s  = stringSymbol $ "(" ++ s ++ ")" 
+binderP    =  try $ stringSymbol <$> idP badc
+          <|> pwr <$> parens (idP bad)
+  where 
+    idP p  = many1 (satisfy (not . p))
+    badc c = (c == ':') || (c == ',') || bad c
+    bad c  = isSpace c || c `elem` "(,)"
+    pwr s  = stringSymbol $ "(" ++ s ++ ")" 
              
 grabs p = try (liftM2 (:) p (grabs p)) 
        <|> return []

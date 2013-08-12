@@ -1,7 +1,28 @@
 TODO
 ====
 
-* error messages
+
+From github.com:ucsd-progsys/liquidhaskell
+ * branch            master     -> FETCH_HEAD
+Auto-merging web/demos/Order.hs
+Auto-merging TODO.md
+CONFLICT (content): Merge conflict in TODO.md
+Auto-merging Liquid.hs
+CONFLICT (content): Merge conflict in Liquid.hs
+Auto-merging Language/Haskell/Liquid/Types.hs
+Auto-merging Language/Haskell/Liquid/Parse.hs
+Auto-merging Language/Haskell/Liquid/Measure.hs
+Auto-merging Language/Haskell/Liquid/GhcInterface.hs
+CONFLICT (content): Merge conflict in Language/Haskell/Liquid/GhcInterface.hs
+Auto-merging Language/Haskell/Liquid/Constraint.hs
+Auto-merging Language/Haskell/Liquid/CmdLine.hs
+CONFLICT (content): Merge conflict in Language/Haskell/Liquid/CmdLine.hs
+Auto-merging Language/Haskell/Liquid/Bare.hs
+CONFLICT (content): Merge conflict in Language/Haskell/Liquid/Bare.hs
+Automatic merge failed; fix conflicts and then commit the result.
+
+
+* pragmas
 
 * Qualified Imports
   - wtf is include/KMeansHelper.hs ? Fix module import issue
@@ -16,30 +37,20 @@ TODO
   + Data.List (foldr)
   + mcbrides stack machined?
 
-Error Messages
---------------
+Pragmas
+-------
 
-Single module to report all kinds of errors
+Need a way to add command line options into the source.
 
-  [HEREHEREHERE]
-  - tests/todo/err0.hs [parse error in spec]
-  - tests/todo/err2.hs [liquid-ghc divergence]
-  - tests/todo/err6.hs [unbound var in spec]
-  - tests/todo/err7.hs [sort error  in spec]
+    {-@ LIQUID str @-}
 
-  + tests/todo/err1.hs [type error in ghc]
-  + tests/todo/err3.hs [parse error in ghc]
-  + tests/todo/err4.hs [type error in liquid]
-  + tests/todo/err5.hs [type error in liquid]
- 
-2. New type
-3. New Function, which generates the .json file, dumps out the error and then exits
-
-    exitWithError :: [Error] -> a
-
-4. liquid-fixpoint sort checker return ERROR (not than errorstar-inside) for nicer messages.
-
-
+We then take all the strings `str`, concatenate them and add to config
+    + Parse.hs 
+      > update spec type
+      > update actual parser
+      > update monoid instance
+    + Liquid.hs
+      > update config with string.
 
 Embed
 -----
@@ -360,8 +371,6 @@ To work with branch elsewhere
 
     $ git pull
     $ git checkout foo
-
-
 
 Benchmark Tags
 ==============
