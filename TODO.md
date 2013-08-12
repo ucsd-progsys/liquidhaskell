@@ -1,6 +1,27 @@
 TODO
 ====
 
+
+From github.com:ucsd-progsys/liquidhaskell
+ * branch            master     -> FETCH_HEAD
+Auto-merging web/demos/Order.hs
+Auto-merging TODO.md
+CONFLICT (content): Merge conflict in TODO.md
+Auto-merging Liquid.hs
+CONFLICT (content): Merge conflict in Liquid.hs
+Auto-merging Language/Haskell/Liquid/Types.hs
+Auto-merging Language/Haskell/Liquid/Parse.hs
+Auto-merging Language/Haskell/Liquid/Measure.hs
+Auto-merging Language/Haskell/Liquid/GhcInterface.hs
+CONFLICT (content): Merge conflict in Language/Haskell/Liquid/GhcInterface.hs
+Auto-merging Language/Haskell/Liquid/Constraint.hs
+Auto-merging Language/Haskell/Liquid/CmdLine.hs
+CONFLICT (content): Merge conflict in Language/Haskell/Liquid/CmdLine.hs
+Auto-merging Language/Haskell/Liquid/Bare.hs
+CONFLICT (content): Merge conflict in Language/Haskell/Liquid/Bare.hs
+Automatic merge failed; fix conflicts and then commit the result.
+
+
 * pragmas
 
 * Qualified Imports
@@ -21,7 +42,7 @@ Pragmas
 
 Need a way to add command line options into the source.
 
-  {-@ LIQUID str @-}
+    {-@ LIQUID str @-}
 
 We then take all the strings `str`, concatenate them and add to config
     + Parse.hs 
@@ -351,9 +372,12 @@ To work with branch elsewhere
     $ git pull
     $ git checkout foo
 
+<<<<<<< HEAD
 
 
 
+=======
+>>>>>>> 3531999be7458fa9981cd6e3863245850c0744b7
 
 
 Benchmark Tags

@@ -7,7 +7,7 @@ external-url:
 categories: abstract-refinements
 author: Niki Vazou and Ranjit Jhala
 published: true 
-demo: PuttingThingsInOrder.hs
+demo: Order.hs
 ---
 
 Hello again! Since we last met, much has happened that
@@ -31,6 +31,9 @@ import Prelude hiding (break)
 plusOnes                         :: [(Int, Int)]
 insertSort, mergeSort, quickSort :: (Ord a) => [a] -> [a]
 \end{code}
+
+Abstract Refinements
+--------------------
 
 \begin{code} Recall that *abstract refinements* are a mechanism that let us write and check types of the form
 maxInt :: forall <p :: Int -> Prop>. Int<p> -> Int<p> -> Int<p>
@@ -208,7 +211,7 @@ break p xs@(x:xs')
                            in (x:ys,zs)
 \end{code}
 
-From the comments in [GHC.List][ghc-list], `break p xs`: 
+From the comments in [Data.List][data-list], `break p xs`: 
 "returns a tuple where the first element is longest prefix (possibly empty)
 `xs` of elements that do not satisfy `p` and second element is the 
 remainder of the list."
@@ -554,7 +557,7 @@ sometimes in the *same* program.
 
 To see why this is useful, lets look at a *real-world* 
 sorting algorithm: the one used inside GHC's 
-`Data.List` [module][ghc-list].
+`Data.List` [module][data-list].
 
 \begin{code}
 sort :: (Ord a) => [a] -> [a]
@@ -599,7 +602,7 @@ LiquidHaskell we need merely write:
 
 [blog-absref]:     /blog/2013/06/3/abstracting-over-refinements.lhs/
 [blog-absref-vec]: http://goto.ucsd.edu/~rjhala/liquid/abstract_refinement_types.pdf
-[ghc-list]:        http://www.haskell.org/ghc/docs/latest/html/libraries/base/src/Data-List.html#sort
+[data-list]:        http://www.haskell.org/ghc/docs/latest/html/libraries/base/src/Data-List.html#sort
 [omega-sort]:      http://web.cecs.pdx.edu/~sheard/Code/InsertMergeSort.html
 [hasochism]:       https://personal.cis.strath.ac.uk/conor.mcbride/pub/hasochism.pdf
 

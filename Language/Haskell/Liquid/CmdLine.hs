@@ -1,5 +1,27 @@
-{-# LANGUAGE TupleSections, DeriveDataTypeable #-}
+{-# LANGUAGE TupleSections      #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TypeSynonymInstances      #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE BangPatterns              #-}
 
+-- | This module contains all the code needed to output the result which 
+--   is either: `SAFE` or `WARNING` with some reasonable error message when 
+--   something goes wrong. All forms of errors/exceptions should go through 
+--   here. The idea should be to report the error, the source position that 
+--   causes it, generate a suitable .json file and then exit.
+
+
+module Language.Haskell.Liquid.CmdLine (
+   -- * Entry Command Line Options
+   getOpts
+   
+   -- * Exit Function
+  , exitWithResult
+
+<<<<<<< HEAD
 module Language.Haskell.Liquid.CmdLine (
   -- * Get Command Line Configuration 
   getOpts
@@ -12,16 +34,46 @@ import Control.Monad                            (foldM)
 import Control.Applicative                      ((<$>))
 
 import System.Environment                       (withArgs)
+=======
+  -- * Extra Outputs
+  , Output (..)
+  
+  ) where
+
+import Control.DeepSeq
+import Control.Monad
+import Control.Applicative                      ((<$>))
+import Data.Maybe
+import Data.Monoid
+import qualified Data.HashMap.Strict as M
+>>>>>>> 3531999be7458fa9981cd6e3863245850c0744b7
 import System.FilePath                          (dropFileName)
-import Language.Fixpoint.Misc                   (single, sortNub) 
-import Language.Fixpoint.Files                  (getHsTargets, getIncludePath)
+import System.Console.CmdArgs  hiding           (Loud)                
+import System.Console.CmdArgs.Verbosity         (whenLoud)            
+
+import Language.Fixpoint.Misc
+import Language.Fixpoint.Files
+import Language.Fixpoint.Types
+import Language.Fixpoint.Names                  (dropModuleNames)
+
 import Language.Fixpoint.Config hiding          (config, Config)
+<<<<<<< HEAD
 import Language.Haskell.Liquid.Types hiding     (config)
 import Language.Fixpoint.Types hiding           (config)
 import System.Console.CmdArgs                  
 import System.Console.CmdArgs.Verbosity                  
 import Data.List                                (foldl')
 import Data.Monoid
+=======
+import Language.Haskell.Liquid.Types hiding     (typ)
+import Language.Haskell.Liquid.Annotate
+import Language.Haskell.Liquid.PrettyPrint
+
+import Name
+import SrcLoc                                   (SrcSpan)
+import Text.PrettyPrint.HughesPJ    
+
+>>>>>>> 3531999be7458fa9981cd6e3863245850c0744b7
 
 ---------------------------------------------------------------------------------
 -- Parsing Command Line----------------------------------------------------------
@@ -73,7 +125,7 @@ config = Config {
  } &= verbosity
    &= program "liquid" 
    &= help    "Refinement Types for Haskell" 
-   &= summary "LiquidHaskell © Copyright 2009-13 Regents of the University of California." 
+   &= summary copyright 
    &= details [ "LiquidHaskell is a Refinement Type based verifier for Haskell"
               , ""
               , "To check a Haskell file foo.hs, type:"
@@ -82,12 +134,11 @@ config = Config {
 
 getOpts :: IO Config 
 getOpts = do md <- cmdArgs config 
-             whenLoud $ putStrLn $ banner md
+             putStrLn $ copyright
+             whenLoud $ putStrLn $ "liquid " ++ show args ++ "\n"
              mkOpts md
 
-banner args =  "LiquidHaskell © Copyright 2009-13 Regents of the University of California.\n" 
-            ++ "All Rights Reserved.\n"
-            ++ "liquid " ++ show args ++ "\n" 
+copyright = "LiquidHaskell © Copyright 2009-13 Regents of the University of California. All Rights Reserved.\n"
 
 mkOpts :: Config -> IO Config
 mkOpts md  
@@ -96,8 +147,9 @@ mkOpts md
        return  $ md { files = files' } { idirs = map dropFileName files' ++ idirs' }
                                         -- tests fail if you flip order of idirs'
 
-
-
+---------------------------------------------------------------------------------------
+-- | Updating options
+---------------------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------------------
 withPragmas :: Config -> [Located String] -> IO Config
@@ -111,7 +163,7 @@ parsePragma   :: Located String -> IO Config
 parsePragma s = withArgs [val s] $ cmdArgs config
 
 ---------------------------------------------------------------------------------------
--- Monoid instances for updating options
+-- | Monoid instances for updating options
 ---------------------------------------------------------------------------------------
 
 instance Monoid Config where
@@ -135,3 +187,60 @@ instance Monoid SMTSolver where
     | otherwise = s2
 
 
+------------------------------------------------------------------------
+-- | Exit Function -----------------------------------------------------
+------------------------------------------------------------------------
+
+exitWithResult :: FilePath -> Maybe Output -> ErrorResult -> IO ErrorResult
+exitWithResult target o r = writeExit target r $ fromMaybe emptyOutput o
+
+writeExit target r out   = do {-# SCC "annotate" #-} annotate target r (o_soln out) (o_annot out)
+                              donePhase Loud "annotate"
+                              let rs = showFix r
+                              writeResult (colorResult r) r 
+                              writeFile   (extFileName Result target) rs 
+                              writeWarns     $ o_warns out 
+                              writeCheckVars $ o_vars  out 
+                              return r
+
+writeWarns []            = return () 
+writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines ws)
+
+writeCheckVars Nothing   = return ()
+writeCheckVars (Just ns) = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . dropModuleNames . showpp)
+
+writeResult c            = mapM_ (writeDoc c) . resDocs 
+  where 
+    writeDoc c           = writeBlock c . lines . render
+    writeBlock c (s:ss)  = do {colorPhaseLn c s ""; forM_ ss putStrLn }
+    writeBlock c _       = return ()
+
+
+resDocs Safe              = [text "SAFE"]
+resDocs (Crash xs s)      = text ("CRASH: " ++ s) : pprManyOrdered "CRASH: " xs
+resDocs (Unsafe xs)       = pprManyOrdered "UNSAFE: " xs
+resDocs  (UnknownError d) = [text "PANIC: Unexpected Error: " <+> d, reportUrl]
+reportUrl                 =      text "Please submit a bug report at:"
+                            $+$  text "  https://github.com/ucsd-progsys/liquidhaskell"
+
+instance Fixpoint (FixResult Error) where
+  toFix = vcat . resDocs
+
+  -- vcat [[String]]
+  -- toFix Safe             = text "SAFE"
+  -- toFix (UnknownError d) = text "Unknown Error!"
+  -- toFix (Crash xs msg)   = vcat $ text "Crash!"  : pprManyOrdered "CRASH:   " xs ++ [parens (text msg)] 
+  -- toFix (Unsafe xs)      = vcat $ text "Unsafe:" : pprManyOrdered "WARNING: " xs
+
+
+------------------------------------------------------------------------
+-- | Stuff To Output ---------------------------------------------------
+------------------------------------------------------------------------
+
+data Output = O { o_vars   :: Maybe [Name] 
+                , o_warns  :: [String]
+                , o_soln   :: FixSolution 
+                , o_annot  :: !(AnnInfo Annot)
+                }
+
+emptyOutput = O Nothing [] M.empty mempty 
