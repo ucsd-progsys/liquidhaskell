@@ -98,9 +98,10 @@ remLineCol src rem = (line, col)
 -- Lexer Tokens ------------------------------------------------------------------
 ----------------------------------------------------------------------------------
 
-dot        = Token.dot        lexer
-braces     = Token.braces     lexer
-angles     = Token.angles     lexer
+dot           = Token.dot           lexer
+braces        = Token.braces        lexer
+angles        = Token.angles        lexer
+stringLiteral = Token.stringLiteral lexer
 
 ----------------------------------------------------------------------------------
 -- BareTypes ---------------------------------------------------------------------
@@ -401,7 +402,7 @@ specP
     <|> ({- DEFAULT -}           liftM Assms  tyBindsP  )
 
 pragmaP :: Parser (Located String)
-pragmaP = locParserP $ many anyChar 
+pragmaP = locParserP $ stringLiteral 
 
 lazyP :: Parser Symbol
 lazyP = binderP
@@ -410,10 +411,11 @@ decreaseP :: Parser (LocSymbol, [Int])
 decreaseP = mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> (many integer))
   where f = ((\n -> fromInteger n - 1) <$>)
 
-filePathP :: Parser FilePath
-filePathP = angles $ many1 pathCharP
-  where pathCharP = choice $ char <$> pathChars 
-        pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
+filePathP     :: Parser FilePath
+filePathP     = angles $ many1 pathCharP
+  where 
+    pathCharP = choice $ char <$> pathChars 
+    pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
 
 tyBindsP    :: Parser ([LocSymbol], BareType)
 tyBindsP = xyP (sepBy (locParserP binderP) comma) dcolon genBareTypeP
@@ -474,12 +476,13 @@ tyBodyP ty
           outTy _              = Nothing
 
 binderP :: Parser Symbol
-binderP =  try $ liftM stringSymbol (idP badc)
-       <|> liftM pwr (parens (idP bad))
-       where idP p  = many1 (satisfy (not . p))
-             badc c = (c == ':') || (c == ',') || bad c
-             bad c  = isSpace c || c `elem` "(,)"
-             pwr s  = stringSymbol $ "(" ++ s ++ ")" 
+binderP    =  try $ stringSymbol <$> idP badc
+          <|> pwr <$> parens (idP bad)
+  where 
+    idP p  = many1 (satisfy (not . p))
+    badc c = (c == ':') || (c == ',') || bad c
+    bad c  = isSpace c || c `elem` "(,)"
+    pwr s  = stringSymbol $ "(" ++ s ++ ")" 
              
 grabs p = try (liftM2 (:) p (grabs p)) 
        <|> return []
