@@ -7,7 +7,11 @@
     <meta name="author" content="">
    
     <style>
-      
+      .warningmessage {
+        white-space: pre;
+        font-family: monospace;
+      }
+
       .welleditor {
         height: 400px;
         padding: 19px;
@@ -163,12 +167,25 @@
            
            <div class="tab-pane active" id="tabSrc">
              
-             <div class="alert alert-error" ng-repeat="warn in warns">
+             <div ng-show="isError" class="alert alert-block" ng-repeat="warn in warns">
+               <button type="button" class="close" data-dismiss="alert">×</button>
+               <strong>Error:</strong> 
+                 <div class="warningmessage">{{warn}}</div>
+             </div>
+
+             <div ng-show="isUnsafe" class="alert alert-error" ng-repeat="warn in warns">
+               <button type="button" class="close" data-dismiss="alert">×</button>
+               <strong>Unsafe!</strong>
+                 <div class="warningmessage">{{warn}}</div>
+             </div>
+
+            <!-- <div class="alert alert-error" ng-repeat="warn in warns">
                <button type="button" class="close" data-dismiss="alert">×</button>
                <strong>Warning!</strong> {{warn}}
              </div>
-             
-             <div class="alert alert-block" ng-show="isCrash">
+             -->
+
+             <div ng-show="isCrash" class="alert alert-block">
                <button type="button" class="close" data-dismiss="alert">×</button>
                <strong>Crash!</strong> Uh oh, there was a crash. See the <a href="log">the log</a>.
              </div>
@@ -182,9 +199,8 @@
                    ng-click="verifySource()">Verifying...</button>
                
                <button class="btn btn-success" type="button" ng-show="isSafe">Safe</button>
-                 
                <button class="btn btn-danger" type="button"  ng-show="isUnsafe">Unsafe</button>
-                 
+               <button class="btn btn-warning" type="button" ng-show="isError">Error!</button>
                <button class="btn btn-warning" type="button" ng-show="isCrash">Crash!</button>
 
                  <div style="float:right">
@@ -224,9 +240,14 @@
                <strong>Safe!</strong> Your program is verified!
              </div>
 
-             <div class="alert alert-error" ng-repeat="warn in warns">
+             <div ng-show="isUnsafe" class="alert alert-error" ng-repeat="warn in warns">
                <button type="button" class="close" data-dismiss="alert">×</button>
-               <strong>Warning!</strong> {{warn}}
+               <strong>Unsafe!</strong> {{warn}}
+             </div>
+
+             <div ng-show="isError" class="alert" ng-repeat="warn in warns">
+               <button type="button" class="close" data-dismiss="alert">×</button>
+               <strong>Unsafe!</strong> {{warn}}
              </div>
 
              <div class="alert alert-block" ng-show="isCrash">
