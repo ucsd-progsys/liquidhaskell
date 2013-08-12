@@ -52,7 +52,7 @@ liquidOne target info =
                     putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
                     putStrLn $ showpp cbs'
                     putStrLn "*************** Slicing Out Unchanged CoreBinds *****************" 
-     (pruned, cbs'') <- prune cfg cbs' info
+     (pruned, cbs'') <- prune cfg cbs' target info
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs''}
      cgi `deepseq` donePhase Loud "generateConstraints"
      -- whenLoud $ do donePhase Loud "START: Write CGI (can be slow!)"

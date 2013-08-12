@@ -15,65 +15,45 @@
 
 
 module Language.Haskell.Liquid.CmdLine (
-   -- * Entry Command Line Options
-   getOpts
+   -- * Get Command Line Configuration 
+     getOpts
+ 
+   -- * Update Configuration With Pragma
+   , withPragmas
    
    -- * Exit Function
-  , exitWithResult
+   , exitWithResult
 
-<<<<<<< HEAD
-module Language.Haskell.Liquid.CmdLine (
-  -- * Get Command Line Configuration 
-  getOpts
-  
-  -- * Update Configuration With Pragma
-  , withPragmas
-  ) where
-
-import Control.Monad                            (foldM)
-import Control.Applicative                      ((<$>))
-
-import System.Environment                       (withArgs)
-=======
-  -- * Extra Outputs
-  , Output (..)
-  
-  ) where
+   -- * Extra Outputs
+   , Output (..)
+) where
 
 import Control.DeepSeq
 import Control.Monad
 import Control.Applicative                      ((<$>))
-import Data.Maybe
-import Data.Monoid
+
+import           Data.List                                (foldl')
+import           Data.Maybe
+import           Data.Monoid
 import qualified Data.HashMap.Strict as M
->>>>>>> 3531999be7458fa9981cd6e3863245850c0744b7
-import System.FilePath                          (dropFileName)
-import System.Console.CmdArgs  hiding           (Loud)                
-import System.Console.CmdArgs.Verbosity         (whenLoud)            
+
+import           System.FilePath                          (dropFileName)
+import           System.Environment                       (withArgs)
+import           System.Console.CmdArgs  hiding           (Loud)                
+import           System.Console.CmdArgs.Verbosity         (whenLoud)            
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Files
-import Language.Fixpoint.Types
 import Language.Fixpoint.Names                  (dropModuleNames)
-
-import Language.Fixpoint.Config hiding          (config, Config)
-<<<<<<< HEAD
-import Language.Haskell.Liquid.Types hiding     (config)
 import Language.Fixpoint.Types hiding           (config)
-import System.Console.CmdArgs                  
-import System.Console.CmdArgs.Verbosity                  
-import Data.List                                (foldl')
-import Data.Monoid
-=======
-import Language.Haskell.Liquid.Types hiding     (typ)
+import Language.Fixpoint.Config hiding          (config, Config)
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.PrettyPrint
+import Language.Haskell.Liquid.Types hiding     (config, typ)
 
 import Name
 import SrcLoc                                   (SrcSpan)
 import Text.PrettyPrint.HughesPJ    
-
->>>>>>> 3531999be7458fa9981cd6e3863245850c0744b7
 
 ---------------------------------------------------------------------------------
 -- Parsing Command Line----------------------------------------------------------
