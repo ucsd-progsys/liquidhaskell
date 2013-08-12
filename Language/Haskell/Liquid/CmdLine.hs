@@ -146,15 +146,29 @@ writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unline
 writeCheckVars Nothing   = return ()
 writeCheckVars (Just ns) = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . dropModuleNames . showpp)
 
-writeResult c            = mapM_ (writeBlock c) . blocks 
+writeResult c            = mapM_ (writeDoc c) . resDocs 
   where 
-    blocks Safe          = [["Safe"]]
-    blocks UnknownError  = [["Panic: Unknown Error!"]]
-    blocks (Crash xs s)  = lines . render <$> text ("CRASH: " ++ s) : pprManyOrdered "CRASH: " xs
-    blocks (Unsafe xs)   = lines . render <$> pprManyOrdered "UNSAFE: " xs
-
+    writeDoc c           = writeBlock c . lines . render
     writeBlock c (s:ss)  = do {colorPhaseLn c s ""; forM_ ss putStrLn }
     writeBlock c _       = return ()
+
+
+resDocs Safe              = [text "SAFE"]
+resDocs (Crash xs s)      = text ("CRASH: " ++ s) : pprManyOrdered "CRASH: " xs
+resDocs (Unsafe xs)       = pprManyOrdered "UNSAFE: " xs
+resDocs  (UnknownError d) = [text "PANIC: Unexpected Error: " <+> d, reportUrl]
+reportUrl                 =      text "Please submit a bug report at:"
+                            $+$  text "  https://github.com/ucsd-progsys/liquidhaskell"
+
+instance Fixpoint (FixResult Error) where
+  toFix = vcat . resDocs
+
+  -- vcat [[String]]
+  -- toFix Safe             = text "SAFE"
+  -- toFix (UnknownError d) = text "Unknown Error!"
+  -- toFix (Crash xs msg)   = vcat $ text "Crash!"  : pprManyOrdered "CRASH:   " xs ++ [parens (text msg)] 
+  -- toFix (Unsafe xs)      = vcat $ text "Unsafe:" : pprManyOrdered "WARNING: " xs
+
 
 ------------------------------------------------------------------------
 -- | Stuff To Output ---------------------------------------------------

@@ -24,9 +24,6 @@ module Language.Haskell.Liquid.Types (
   -- * Symbols
   , LocSymbol
   , LocString
-  
-  -- * Default unknown position
-  , dummyPos
 
   -- * Data Constructors
   , BDataCon (..)
@@ -94,6 +91,7 @@ import Var
 import Literal
 import Text.Printf
 import GHC                          (Class, HscEnv)
+import Language.Haskell.Liquid.GhcMisc 
 
 import Control.Monad  (liftM, liftM2, liftM3)
 import Control.DeepSeq
@@ -185,7 +183,6 @@ dummyName = "dummy"
 isDummy :: (Show a) => a -> Bool
 isDummy a = show a == dummyName
 
-dummyPos = newPos "?" 0 0 
 
 instance Fixpoint SourcePos where
   toFix = text . show 
@@ -370,7 +367,7 @@ instance NFData RTyVar where
 newtype RTyVar = RTV TyVar
 
 data RTyCon = RTyCon 
-  { rTyCon     :: !TyCon         -- GHC Type Constructor
+  { rTyCon     :: !TyCon            -- GHC Type Constructor
   , rTyConPs   :: ![RPVar]          -- Predicate Parameters
   , rTyConInfo :: !TyConInfo        -- TyConInfo
   }
@@ -964,9 +961,8 @@ data Error =
                 , hs  :: !Type
                 , exp :: !SpecType
                 } -- ^ Mismatch between Liquid and Haskell types
-  | ErrOther    { pos :: !SrcSpan 
-                , msg :: !Doc
-                }
+  | ErrOther    {  msg :: !Doc 
+                } -- ^ Unexpected PANIC 
   deriving (Typeable)
 
 instance Eq Error where 
@@ -974,7 +970,6 @@ instance Eq Error where
 
 instance Ord Error where 
   e1 <= e2 = pos e1 <= pos e2
-
 
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------
@@ -999,11 +994,12 @@ instance Result [Error] where
   result es = Crash es ""
 
 instance Result Error where
-  result e = result [e]
+  result (ErrOther d) = UnknownError d 
+  result e            = result [e]
 
 instance Result (FixResult Cinfo) where
   result = fmap cinfoError  
 
 cinfoError (Ci _ (Just e)) = e
-cinfoError (Ci l _)        = ErrOther l empty
+cinfoError (Ci l _)        = ErrOther $ text $ "Cinfo:" ++ (showPpr l)
 
