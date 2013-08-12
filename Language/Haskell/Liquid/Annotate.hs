@@ -1,4 +1,3 @@
-
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
@@ -56,7 +55,7 @@ import Language.Haskell.HsColour.Classify
 import Language.Fixpoint.Files
 import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc (pprDoc, showPpr)
+import Language.Haskell.Liquid.GhcMisc -- (Loc (..), pprDoc, showPpr)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
@@ -67,7 +66,7 @@ import qualified Data.List           as L
 import qualified Data.Vector         as V
 
 -- import           Language.Fixpoint.Misc (inserts)
-import           Language.Haskell.Liquid.ACSS
+-- import           Language.Haskell.Liquid.ACSS
 
 
 -------------------------------------------------------------------
@@ -185,10 +184,15 @@ cssHTML css = unlines
 --   annotations.
 
 mkAnnMap ::  FixResult Error -> AnnInfo SpecType -> ACSS.AnnMap
-mkAnnMap res ann = ACSS.Ann (mkAnnMapTyp ann) (mkAnnMapErr res)
-    
-mkAnnMapErr (Unsafe ls)  = mapMaybe cinfoErr ls -- [(srcSpanStartLoc l, srcSpanEndLoc l) | RealSrcSpan l <- ls] 
-mkAnnMapErr (Crash ls _) = mapMaybe cinfoErr ls -- [(srcSpanStartLoc l, srcSpanEndLoc l) | RealSrcSpan l <- ls] 
+mkAnnMap res ann = ACSS.Ann (mkAnnMapTyp ann) (mkAnnMapErr res) (mkStatus res)
+
+mkStatus (Safe)      = ACSS.Safe
+mkStatus (Unsafe _)  = ACSS.Unsafe
+mkStatus (Crash _ _) = ACSS.Error
+mkStatus _           = ACSS.Crash
+
+mkAnnMapErr (Unsafe ls)  = mapMaybe cinfoErr ls
+mkAnnMapErr (Crash ls _) = mapMaybe cinfoErr ls 
 mkAnnMapErr _            = []
  
 cinfoErr e = case pos e of
@@ -207,23 +211,19 @@ mkAnnMapTyp (AI m) = M.fromList
   where 
     bindString     = mapPair render . pprXOT 
 
-srcSpanStartLoc l  = ACSS.L (srcSpanStartLine l, srcSpanStartCol l)
-srcSpanEndLoc l    = ACSS.L (srcSpanEndLine l, srcSpanEndCol l)
-oneLine l          = srcSpanStartLine l == srcSpanEndLine l
-lineCol l          = (srcSpanStartLine l, srcSpanStartCol l)
-
 closeAnnots :: AnnInfo Annot -> AnnInfo SpecType 
 closeAnnots = closeA . filterA . collapseA
 
 closeA a@(AI m)  = cf <$> a 
-  where cf (Loc loc) = case m `mlookup` loc of
-                           [(_, Use t)] -> t
-                           [(_, Def t)] -> t
-                           [(_, RDf t)] -> t
-                           _            -> errorstar $ "malformed AnnInfo: " ++ showPpr loc
-        cf (Use t)   = t
-        cf (Def t)   = t
-        cf (RDf t)   = t
+  where 
+    cf (Loc loc) = case m `mlookup` loc of
+                         [(_, Use t)] -> t
+                         [(_, Def t)] -> t
+                         [(_, RDf t)] -> t
+                         _            -> errorstar $ "malformed AnnInfo: " ++ showPpr loc
+    cf (Use t)        = t
+    cf (Def t)        = t
+    cf (RDf t)        = t
 
 filterA (AI m) = AI (M.filter ff m)
   where ff [(_, Loc loc)] = loc `M.member` m
@@ -373,13 +373,18 @@ data Annot1    = A1  { ident :: String
 -- | JSON Instances ----------------------------------------------------
 ------------------------------------------------------------------------
 
+instance ToJSON ACSS.Status where
+  toJSON ACSS.Safe   = "safe"
+  toJSON ACSS.Unsafe = "unsafe"
+  toJSON ACSS.Error  = "error"
+  toJSON ACSS.Crash  = "crash"
+
 instance ToJSON Annot1 where 
   toJSON (A1 i a r c) = object [ "ident" .= i
                                , "ann"   .= a
                                , "row"   .= r
                                , "col"   .= c
                                ]
-
 
 instance ToJSON Loc where
   toJSON (L (l, c)) = object [ ("line"     .= toJSON l)
@@ -397,17 +402,18 @@ instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
     where
       tshow        = T.pack . show 
 
-instance ToJSON AnnMap where 
+instance ToJSON ACSS.AnnMap where 
   toJSON a = object [ ("types"  .= (toJSON $ annTypes a))
-                    , ("errors" .= (toJSON $ errors   a))
+                    , ("errors" .= (toJSON $ ACSS.errors   a))
+                    , ("status" .= (toJSON $ ACSS.status   a))
                     ]
 
-annTypes         :: AnnMap -> AnnTypes 
+annTypes         :: ACSS.AnnMap -> AnnTypes 
 annTypes a       = grp [(l, c, ann1 l c x s) | (l, c, x, s) <- binders]
   where 
     ann1 l c x s = A1 x s l c 
     grp          = L.foldl' (\m (r,c,x) -> ins r c x m) (Asc M.empty)
-    binders      = [(l, c, x, s) | (L (l, c), (x, s)) <- M.toList $ types a]
+    binders      = [(l, c, x, s) | (L (l, c), (x, s)) <- M.toList $ ACSS.types a]
 
 ins r c x (Asc m)  = Asc (M.insert r (Asc (M.insert c x rm)) m)
   where 

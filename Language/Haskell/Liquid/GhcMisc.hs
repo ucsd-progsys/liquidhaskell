@@ -206,6 +206,10 @@ srcSpanSourcePos :: SrcSpan -> SourcePos
 srcSpanSourcePos (UnhelpfulSpan _) = dummyPos 
 srcSpanSourcePos (RealSrcSpan s)   = realSrcSpanSourcePos s
 
+srcSpanStartLoc l  = L (srcSpanStartLine l, srcSpanStartCol l)
+srcSpanEndLoc l    = L (srcSpanEndLine l, srcSpanEndCol l)
+oneLine l          = srcSpanStartLine l == srcSpanEndLine l
+lineCol l          = (srcSpanStartLine l, srcSpanStartCol l)
 dummyPos :: SourcePos
 dummyPos = newPos "?" 0 0 
 
