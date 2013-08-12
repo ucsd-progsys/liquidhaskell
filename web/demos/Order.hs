@@ -1,14 +1,25 @@
-{-@ LIQUID "--notermination" @-}
-
 {-# LANGUAGE NoMonomorphismRestriction #-}
+
+{-@ LIQUID "--notermination"           @-}
 
 module PuttingThingsInOrder where
 
 import Prelude hiding (break)
 
 -- Haskell Type Definitions
-plusOnes                         :: [(Int, Int)]
-insertSort, mergeSort, quickSort :: (Ord a) => [a] -> [a]
+plusOnes     :: [(Int, Int)]
+insertSort   :: (Ord a) => [a] -> [a]
+mergeSort    :: (Ord a) => [a] -> [a]
+quickSort    :: (Ord a) => [a] -> [a]
+digits       :: Assoc String
+sparseVec    :: Assoc Double
+digsVec      :: Vec Int
+whatGosUp    :: [Integer]
+mustGoDown   :: [Integer]
+noDuplicates :: [Integer]
+
+
+
 
 
 -- Polymorphic Association Lists
@@ -35,30 +46,23 @@ sparseVecP = KVP [ (12 ,  34.1 )
 -- Monomorphic Association Lists
 -- -----------------------------
 
+{-@ data Assoc v <p :: Int -> Prop> = KV (z :: [(Int<p>, v)]) @-}
 data Assoc v = KV [(Int, v)]
 
 
-digits    :: Assoc String
+
+{-@ digits :: Assoc (String) <{\v -> (Btwn 0 v 9)}> @-}
 digits    = KV [ (1, "one")
                , (2, "two")
                , (3, "three") ]
 
-sparseVec :: Assoc Double
+
+{-@ sparseVec :: Assoc Double <{\v -> (Btwn 0 v 1000)}> @-}
 sparseVec = KV [ (12 ,  34.1 )
                , (92 , 902.83)
                , (451,   2.95)
                , (877,   3.1 )]
 
-
--- Abstractly Refined Data
--- -----------------------
-
-{-@ data Assoc v <p :: Int -> Prop>
-      = KV (z :: [(Int<p>, v)]) @-}
-
-{-@ digits :: Assoc (String) <{\v -> (Btwn 0 v 9)}> @-}
-
-{-@ sparseVec :: Assoc Double <{\v -> (Btwn 0 v 1000)}> @-}
 
 
 -- Dependent Tuples
@@ -87,28 +91,31 @@ plusOnes = [(0,1), (5,6), (999,1000)]
 
 {-@ predicate Break X Y Z   = (len X) = (len Y) + (len Z) @-}
 
+---------------------------------------------------------------
 -- Abstractly Refined Lists
--- ------------------------
+---------------------------------------------------------------
 
--- data [a] <p :: a -> a -> Prop> where
---   | []  :: [a] <p>
---   | (:) :: h:a -> [a<p h>]<p> -> [a]<p>
+-- data [a] <p :: a -> a -> Prop> 
+--   = []  
+--   | (:) (hd :: a) (tl :: [a<p h>]<p>) -> [a]<p>
 
 -- * The type is parameterized with a refinement `p :: a -> a -> Prop`
 --   Think of `p` as a *binary relation* over the `a` values comprising
 --   the list.
 
--- * The empty list `[]` is a `[]<p>`. Clearly, the empty list has no
+-- * The empty list `[]` is a `[a]<p>`. Clearly, the empty list has no
 --   elements whatsoever and so every pair is trivially, or rather,
 --   vacuously related by `p`.
 
--- * The cons constructor `(:)` takes a head `h` of type `a` and a tail
---   of `a<p h>` values, each of which is *related to* `h` **and** which
+-- * The cons constructor `(:)` takes a head `hd` of type `a` and a tail
+--   `tl` of `a<p h>` values, each of which is *related to* `h` **and** which
 --   (recursively) are pairwise related `[...]<p>` and returns a list where
 --   *all* elements are pairwise related `[a]<p>`.
 
+
+---------------------------------------------------------------
 -- Using Abstractly Refined Lists
--- ------------------------------
+---------------------------------------------------------------
 
 -- For starters, we can define a few helpful type aliases.
 
@@ -129,10 +136,9 @@ mustGoDown = [3,2,1]
 noDuplicates = [1,3,2]
 
 
--- Sorting Lists
--- -------------
-
--- **Insertion Sort**
+---------------------------------------------------------------
+-- Insertion Sort ---------------------------------------------
+---------------------------------------------------------------
 
 {-@ insertSort    :: (Ord a) => xs:[a] -> (IncrList a) @-}
 insertSort []     = []
@@ -152,8 +158,9 @@ insert y (x:xs)
 insertSort' xs  = foldr insert [] xs
 
 
--- **Merge Sort**
-
+---------------------------------------------------------------
+-- Merge Sort -------------------------------------------------
+---------------------------------------------------------------
 
 split          :: [a] -> ([a], [a])
 split (x:y:zs) = (x:xs, y:ys)
@@ -176,8 +183,9 @@ mergeSort xs  = merge (mergeSort ys) (mergeSort zs)
   where
     (ys, zs)  = split xs
 
-
--- **Quick Sort**
+---------------------------------------------------------------
+-- Quick Sort -------------------------------------------------
+---------------------------------------------------------------
 
 
 {-@ quickSort    :: (Ord a) => [a] -> IncrList a @-}
@@ -228,4 +236,25 @@ sort = mergeAll . sequences
     mergePairs (a:b:xs) = merge a b: mergePairs xs
     mergePairs [x]      = [x]
     mergePairs []       = []
+
+
+---------------------------------------------------------------
+-- User-defined Lists
+---------------------------------------------------------------
+
+-- The earlier definition is baked into LiquidHaskell's prelude,
+-- since its for GHC Lists.
+-- For completeness, lets illustrate the method on a new list type.
+
+data Vec a = Null | Cons a (Vec a)
+
+{-@ data Vec a <p :: a -> a -> Prop> 
+      = Null
+      | Cons (h :: a) (t :: Vec <p> (a<p h>))
+  @-}
+
+{-@ type IncrVec a = Vec <{\xi xj -> xi <= xj}> a @-}
+
+{-@ digsVec :: IncrVec Int @-}
+digsVec     = Cons 0 (Cons 1 (Cons 2 Null))
 
