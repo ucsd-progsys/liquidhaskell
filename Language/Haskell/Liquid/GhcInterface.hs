@@ -143,17 +143,7 @@ getGhcModGuts1 fn = do
        -- mod_guts <- modSummaryModGuts modSummary
        mod_guts <- coreModule <$> (desugarModuleWithLoc =<< typecheckModule =<< parseModule modSummary)
        return   $! (miModGuts mod_guts)
-     Nothing     -> errorstar "GhcInterface : getGhcModGuts1"
-
--- modSummaryModGuts x0 = {- handleSourceError diez $ -} gooBerDing x0 
---   where 
---     diez e           = errorstar $ "CAUGHT GHC SourceError: " ++ show e
--- 
--- modSummaryModGuts x0  
---   = do x1    <- parseModule          x0 
---        x2    <- typecheckModule      x1
---        x3    <- desugarModuleWithLoc x2
---        return $ coreModule           x3
+     Nothing     -> exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
 
 
 -- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
@@ -270,7 +260,9 @@ specParser name file str
   | isExtFile Spec file  = specSpecificationP    file str
   | isExtFile Hs file    = hsSpecificationP name file str
   | isExtFile LHs file   = hsSpecificationP name file str
-  | otherwise            = errorstar $ "SpecParser: Cannot Parse File " ++ file
+  | otherwise            = exitWithPanic $ "SpecParser: Cannot Parse File " ++ file
+
+
 
 
 moduleImports :: GhcMonad m => [Ext] -> [FilePath] -> [String] -> m [(String, FilePath)]
@@ -476,23 +468,20 @@ instance PPrint TargetVars where
 
 pprintLongList = brackets . vcat . map pprint
 
-----------------------------------------------------------------------------------
--- Handling GHC Errors -----------------------------------------------------------
-----------------------------------------------------------------------------------
+------------------------------------------------------------------------
+-- Dealing With Errors -------------------------------------------------
+------------------------------------------------------------------------
 
+-- | Throw a panic exception
+exitWithPanic  :: String -> a 
+exitWithPanic  = Ex.throw . ErrOther . text 
+
+-- | Convert a GHC error into one of ours
 instance Result SourceError where 
-  result = (`Crash` "Invalid Source") . concatMap errMsgErrors . bagToList . srcErrorMessages
-
+  result = (`Crash` "Invalid Source") 
+         . concatMap errMsgErrors 
+         . bagToList 
+         . srcErrorMessages
+     
 errMsgErrors e = [ ErrGhc l (pprint e) | l <- errMsgSpans e ] 
-
-----------------------------------------------------------------------------------
--- Handling Spec Parser Errors ---------------------------------------------------
-----------------------------------------------------------------------------------
-
--- instance Monoid a => Monoid (Either ErrorResult a) where
---   mempty                    = Right mempty
---   mappend (Left x) (Left y) = Left (mappend x y) 
---   mappend x@(Left _) _      = x
---   mappend _ x@(Left _)      = x
-
 

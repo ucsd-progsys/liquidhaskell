@@ -7,6 +7,10 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
 
+-- | This module contains a wrappers and utility functions for
+-- accessing GHC module information. It should NEVER depend on
+-- ANY module inside the Language.Haskell.Liquid.* tree.
+
 module Language.Haskell.Liquid.GhcMisc where
 
 import           Debug.Trace
@@ -22,7 +26,6 @@ import           SrcLoc                       (srcSpanFile, srcSpanStartLine, sr
 import           Language.Fixpoint.Misc       (errorstar, stripParens)
 import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos) 
 import           Language.Fixpoint.Types       
--- import           Language.Haskell.Liquid.Types 
 import           Name                         (mkInternalName, getSrcSpan)
 import           OccName                      (mkTyVarOcc, mkTcOcc)
 import           Unique                       
@@ -42,38 +45,14 @@ import qualified Data.HashSet                 as S
 import qualified Data.List                    as L    
 import           Control.Applicative          ((<$>))
 import           Control.Arrow                (second)
-import           Control.Exception            (assert)
+import           Control.Exception            (assert, throw)
 import           Outputable                   (Outputable (..), text, ppr)
 import qualified Outputable                   as Out
 import           DynFlags
-import           Language.Haskell.Liquid.Types
+-- import           Language.Haskell.Liquid.Types
 
 -- import qualified Pretty                       as P
 import qualified Text.PrettyPrint.HughesPJ    as PJ
-
-defaultTyConInfo = TyConInfo [] [] [] [] Nothing
-
-mkTyConInfo :: TyCon -> [Int] -> [Int] -> (Maybe (Symbol -> Expr)) -> TyConInfo
-mkTyConInfo c = TyConInfo pos neg
-  where pos       = neutral ++ [i | (i, b) <- varsigns, b, i /= dindex]
-        neg       = neutral ++ [i | (i, b) <- varsigns, not b, i /= dindex]
-        varsigns  = L.nub $ concatMap goDCon $ TC.tyConDataCons c
-        initmap   = zip (showPpr <$> tyvars) [0..n]
-        mkmap vs  = zip (showPpr <$> vs) (repeat (dindex)) ++ initmap
-        goDCon dc = concatMap (go (mkmap (DC.dataConExTyVars dc)) True)
-                              (DC.dataConOrigArgTys dc)
-        go m pos (ForAllTy v t)  = go ((showPpr v, dindex):m) pos t
-        go m pos (TyVarTy v)     = [(varLookup (showPpr v) m, pos)]
-        go m pos (AppTy t1 t2)   = go m pos t1 ++ go m pos t2
-        go m pos (TyConApp _ ts) = concatMap (go m pos) ts
-        go m pos (FunTy t1 t2)   = go m (not pos) t1 ++ go m pos t2
-
-        varLookup v m = fromMaybe (errmsg v) $ L.lookup v m
-        tyvars        = TC.tyConTyVars c
-        n             = (TC.tyConArity c) - 1
-        errmsg v      = error $ "GhcMisc.getTyConInfo: var not found" ++ showPpr v
-        dindex        = -1
-        neutral       = [0..n] L.\\ (fst <$> varsigns)
 
 -----------------------------------------------------------------------
 --------------- Datatype For Holding GHC ModGuts ----------------------
@@ -227,6 +206,9 @@ srcSpanSourcePos :: SrcSpan -> SourcePos
 srcSpanSourcePos (UnhelpfulSpan _) = dummyPos 
 srcSpanSourcePos (RealSrcSpan s)   = realSrcSpanSourcePos s
 
+dummyPos :: SourcePos
+dummyPos = newPos "?" 0 0 
+
 realSrcSpanSourcePos :: RealSrcSpan -> SourcePos 
 realSrcSpanSourcePos s = newPos file line col
   where 
@@ -255,3 +237,5 @@ ignoreLetBinds e
 
 isDictionary x = L.isPrefixOf "$d" (showPpr x)
 isInternal   x = L.isPrefixOf "$" (showPpr x)
+
+
