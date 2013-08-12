@@ -48,7 +48,7 @@ Library
                    Language.Fixpoint.Misc
   
   Build-Depends: base
-               , ghc
+               , ghc==7.6.3
                , array
                , syb
                , cmdargs
