@@ -372,14 +372,6 @@ To work with branch elsewhere
     $ git pull
     $ git checkout foo
 
-<<<<<<< HEAD
-
-
-
-=======
->>>>>>> 3531999be7458fa9981cd6e3863245850c0744b7
-
-
 Benchmark Tags
 ==============
 
