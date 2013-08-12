@@ -8,7 +8,7 @@ function execCommand($ths, $dir, $log, $packagedir) {
   $cmd_ld_lib  = 'LANG=en_US.UTF-8 PATH=./:$PATH' ;  #LD_LIBRARY_PATH='.$dir.'external/z3/lib' ;
   $cmd_liqhs   = 'LIQUIDHS='.$dir;
   $cmd_packdir = 'GHC_PACKAGE_PATH='.$packagedir.':' ;
-  $cmd_liquid  = $dir.'liquid '.$ths ;
+  $cmd_liquid  = $dir.'liquid --notermination '.$ths ;
   $cmd         = $cmd_ld_lib.' '.$cmd_liqhs.' '.$cmd_packdir.' '.$cmd_liquid.' > '.$log.' 2>&1';
   return $cmd;
 }
@@ -123,8 +123,12 @@ $res              = shell_exec($cmd);
 // $out['crash']     = getCrash($log)           ;       
 
 $out              = array(); 
-$out['annotHtml'] = file_get_contents($thtml);
-$out['annots']    = json_decode(file_get_contents($tjson));
+if (file_exists($thtml)){
+  $out['annotHtml'] = file_get_contents($thtml);
+}
+if (file_exists($tjson)){
+  $out['annots']    = json_decode(file_get_contents($tjson));
+}
 
 // echo 'result = ' . $out['result'];
 // echo 'warns = '  . $out['warns'];

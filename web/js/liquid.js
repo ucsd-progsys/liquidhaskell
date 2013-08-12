@@ -190,7 +190,7 @@ function setStatusResult($scope, result){
 
 function getResult(d) { 
   var res = "crash";
-  if (d) {
+  if (d && d.annots) {
     res = d.annots.status; 
   }
   return res;
@@ -212,6 +212,7 @@ function getWarns(d){
 
 var globData   = null;
 var globResult = null;
+var globResp   = 0;
 
 function LiquidDemoCtrl($scope, $http, $location) {
 
@@ -281,7 +282,7 @@ function LiquidDemoCtrl($scope, $http, $location) {
 
     $http.post(getVerifierURL(), query)
          .success(function(data, status) {
-           
+            globResp         = globResp + 1; 
             //Nuke this: results now viewable in editor pane!
             //$scope.outReady  = true;
             
