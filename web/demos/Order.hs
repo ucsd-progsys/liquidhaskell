@@ -1,3 +1,7 @@
+{-@ LIQUID "--notermination" @-}
+
+{-# LANGUAGE NoMonomorphismRestriction #-}
+
 module PuttingThingsInOrder where
 
 import Prelude hiding (break)
