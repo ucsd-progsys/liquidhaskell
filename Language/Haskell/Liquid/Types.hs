@@ -24,9 +24,6 @@ module Language.Haskell.Liquid.Types (
   -- * Symbols
   , LocSymbol
   , LocString
-  
-  -- * Default unknown position
-  , dummyPos
 
   -- * Data Constructors
   , BDataCon (..)
@@ -70,9 +67,23 @@ module Language.Haskell.Liquid.Types (
   
   -- * Printer Configuration 
   , PPEnv (..), ppEnv
+
+  -- * Final Result
+  , Result (..)
+
+  -- * Different kinds of errors
+  , Error (..)
+  , ErrorResult
+
+  -- * Source information associated with each constraint
+  , Cinfo (..)
+
+
   )
   where
 
+import FastString                               (fsLit)
+import SrcLoc                                   (mkGeneralSrcSpan, SrcSpan)
 import TyCon
 import DataCon
 import TypeRep          hiding (maybeParen, pprArrowChain)  
@@ -80,6 +91,7 @@ import Var
 import Literal
 import Text.Printf
 import GHC                          (Class, HscEnv)
+import Language.Haskell.Liquid.GhcMisc 
 
 import Control.Monad  (liftM, liftM2, liftM3)
 import Control.DeepSeq
@@ -90,14 +102,16 @@ import Data.Monoid                  hiding ((<>))
 import qualified Data.Foldable as F
 import Data.Hashable
 import qualified Data.HashSet as S
-import Data.Maybe                   (fromMaybe)
+import Data.Maybe                   (maybeToList, fromMaybe)
 import Data.Traversable             hiding (mapM)
 import Data.List                    (nub)
 import Text.Parsec.Pos              (SourcePos, newPos) 
+import Text.Parsec.Error            (ParseError) 
 import Text.PrettyPrint.HughesPJ    
-import Language.Fixpoint.Config hiding (Config) 
-import Language.Fixpoint.Types hiding (Predicate) 
+import Language.Fixpoint.Config     hiding (Config) 
 import Language.Fixpoint.Misc
+import Language.Fixpoint.Types      hiding (Predicate) 
+-- import qualified Language.Fixpoint.Types as F
 
 import CoreSyn (CoreBind)
 import Var
@@ -169,7 +183,6 @@ dummyName = "dummy"
 isDummy :: (Show a) => a -> Bool
 isDummy a = show a == dummyName
 
-dummyPos = newPos "?" 0 0 
 
 instance Fixpoint SourcePos where
   toFix = text . show 
@@ -355,7 +368,7 @@ instance NFData RTyVar where
 newtype RTyVar = RTV TyVar
 
 data RTyCon = RTyCon 
-  { rTyCon     :: !TyCon         -- GHC Type Constructor
+  { rTyCon     :: !TyCon            -- GHC Type Constructor
   , rTyConPs   :: ![RPVar]          -- Predicate Parameters
   , rTyConInfo :: !TyConInfo        -- TyConInfo
   }
@@ -906,12 +919,88 @@ instance PPrint Reft where
     | isTauto r        = text "true"
     | otherwise        = {- intersperse comma -} pprintBin trueD andD $ flattenRefas ras
 
- 
-
 instance PPrint SortedReft where
   pprint (RR so (Reft (v, ras))) 
     = braces 
     $ (pprint v) <+> (text ":") <+> (toFix so) <+> (text "|") <+> pprint ras
 
+------------------------------------------------------------------------
+-- | Error Data Type ---------------------------------------------------
+------------------------------------------------------------------------
 
+type ErrorResult = FixResult Error
+
+data Error = 
+    ErrSubType  { pos :: !SrcSpan
+                , msg :: !Doc
+                , act :: !SpecType
+                , exp :: !SpecType
+                } -- ^ liquid type error
+
+  | ErrParse    { pos :: !SrcSpan
+                , msg :: !Doc
+                , err :: !ParseError
+                } -- ^ specification parse error
+  | ErrTySpec   { pos :: !SrcSpan
+                , var :: !Doc
+                , typ :: !SpecType  
+                , msg :: !Doc
+                } -- ^ sort error in specification
+  | ErrDupSpecs { pos :: !SrcSpan
+                , var :: !Doc
+                , locs:: ![SrcSpan]
+                } -- ^ multiple specs for same binder error 
+  | ErrInvt     { pos :: !SrcSpan
+                , inv :: !SpecType
+                , msg :: !Doc
+                } -- ^ Invariant sort error
+  | ErrGhc      { pos :: !SrcSpan
+                , msg :: !Doc
+                } -- ^ GHC error: parsing or type checking
+  | ErrMismatch { pos :: !SrcSpan
+                , var :: !Doc
+                , hs  :: !Type
+                , exp :: !SpecType
+                } -- ^ Mismatch between Liquid and Haskell types
+  | ErrOther    {  msg :: !Doc 
+                } -- ^ Unexpected PANIC 
+  deriving (Typeable)
+
+instance Eq Error where 
+  e1 == e2 = pos e1 == pos e2
+
+instance Ord Error where 
+  e1 <= e2 = pos e1 <= pos e2
+
+------------------------------------------------------------------------
+-- | Source Information Associated With Constraints --------------------
+------------------------------------------------------------------------
+
+data Cinfo    = Ci { ci_loc :: !SrcSpan
+                   , ci_err :: !(Maybe Error)
+                   } 
+                deriving (Eq, Ord) 
+
+instance NFData Cinfo 
+
+
+------------------------------------------------------------------------
+-- | Converting Results To Answers -------------------------------------
+------------------------------------------------------------------------
+
+class Result a where
+  result :: a -> FixResult Error
+
+instance Result [Error] where
+  result es = Crash es ""
+
+instance Result Error where
+  result (ErrOther d) = UnknownError d 
+  result e            = result [e]
+
+instance Result (FixResult Cinfo) where
+  result = fmap cinfoError  
+
+cinfoError (Ci _ (Just e)) = e
+cinfoError (Ci l _)        = ErrOther $ text $ "Cinfo:" ++ (showPpr l)
 

@@ -15,9 +15,6 @@ module Language.Haskell.Liquid.Constraint (
     -- * Constraint information output by generator 
     CGInfo (..)
   
-    -- * Source information associated with each constraint
-  , Cinfo (..)
-
     -- * Function that does the actual generation
   , generateConstraints
     
@@ -234,8 +231,6 @@ isBase _                = False
 ------------------- Constraints: Types --------------------------
 -----------------------------------------------------------------
 
-newtype Cinfo = Ci SrcSpan deriving (Eq, Ord) 
-
 data SubC     = SubC { senv  :: !CGEnv
                      , lhs   :: !SpecType
                      , rhs   :: !SpecType 
@@ -255,13 +250,6 @@ instance PPrint SubC where
 
 instance PPrint WfC where
   pprint (WfC w r) = pprint w <> text " |- " <> pprint r 
-
-instance PPrint Cinfo where
-  pprint (Ci src)  = pprDoc src
-
-instance F.Fixpoint Cinfo where
-  toFix = pprint
-
 
 
 ------------------------------------------------------------
@@ -315,12 +303,11 @@ bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
 bsplitW γ t = pruneRefs <$> get >>= return . bsplitW' γ t
 
 bsplitW' γ t pflag
-  | F.isNonTrivialSortedReft r'
-  = [F.wfC (fe_binds $ fenv γ) r' Nothing ci] 
-  | otherwise
-  = []
-  where r' = rTypeSortedReft' pflag γ t
-        ci = (Ci (loc γ))
+  | F.isNonTrivialSortedReft r' = [F.wfC (fe_binds $ fenv γ) r' Nothing ci] 
+  | otherwise                   = []
+  where 
+    r'                          = rTypeSortedReft' pflag γ t
+    ci                          = Ci (loc γ) Nothing
 
 mkSortedReft tce = F.RR . rTypeSort tce
 
@@ -431,23 +418,18 @@ bsplitC' γ t1 t2 pflag
   = [F.subC γ' F.PTrue r1'  r2' Nothing tag ci]
   | otherwise
   = []
-  where γ'  = fe_binds $ fenv γ
-        r1' = rTypeSortedReft' pflag γ t1
-        r2' = rTypeSortedReft' pflag γ t2
-        ci  = Ci (loc γ)
-        tag = getTag γ
-
--- unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
--- unifyVV t1 t2 = do z <- unifyVV' t1 t2 
---                   return $ traceShow ("unifyVV \nt1 = " ++ F.showFix t1 ++ "\nt2 = " ++ F.showFix t2) z 
+  where 
+    γ'  = fe_binds $ fenv γ
+    r1' = rTypeSortedReft' pflag γ t1
+    r2' = rTypeSortedReft' pflag γ t2
+    ci  = Ci src err
+    tag = getTag γ
+    err = Just $ ErrSubType src (text "subtype") t1 t2 
+    src = loc γ 
 
 unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
        return  $ (shiftVV t1 vv,  (shiftVV t2 vv) ) -- {rt_pargs = r2s'})
---   where r2s' = F.subst psu <$> (rt_pargs t2) 
---         psu  = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (rTyConPVars c2) (rTyConPVars c1), x /= y]
- 
--- rTyConPVars c = [ x | pv <- rTyConPs c, (_,x,_) <- pargs pv ]
 
 rsplitC _ (RMono _ _, RMono _ _) 
   = errorstar "RefTypes.rsplitC on RMono"
@@ -1151,8 +1133,6 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 --------------- Forcing Strictness ------------------------------------
 -----------------------------------------------------------------------
 
-instance NFData Cinfo 
-
 instance NFData CGEnv where
   rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 _ x9 x10 _) 
     = x1 `seq` rnf x2 `seq` seq x3 `seq` x4 `seq` rnf x5 `seq` 
@@ -1349,7 +1329,7 @@ cgInfoFInfoBot cgi = cgInfoFInfo cgi { specQuals = [] }
 
 cgInfoFInfoKvars cgi kvars = cgInfoFInfo cgi{fixCs = fixCs' ++ trueCs}
   where fixCs' = concatMap (updateCs kvars) (fixCs cgi) 
-        trueCs = (`F.trueSubCKvar` Ci noSrcSpan) <$> kvars
+        trueCs = (`F.trueSubCKvar` (Ci noSrcSpan Nothing)) <$> kvars
 
 cgInfoFInfo cgi
   = F.FI { F.cm    = M.fromList $ F.addIds $ fixCs cgi

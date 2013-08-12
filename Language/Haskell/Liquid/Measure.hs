@@ -4,6 +4,7 @@
 
 module Language.Haskell.Liquid.Measure (  
     Spec (..)
+  , BareSpec  
   , MSpec (..)
   , Measure (name, sort)
   , Def (..)
@@ -37,6 +38,7 @@ import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.RefType
 
 -- MOVE TO TYPES
+type BareSpec      = Spec BareType Symbol
 
 data Spec ty bndr  = Spec { 
     measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs

@@ -18,3 +18,4 @@ dropFst3 (_, x, y) = (x, y)
 replaceN n y ls = [if i == n then y else x | (x, i) <- zip ls [0..]]
 
 mapSndM f (x, y) = return . (x,) =<< f y
+
