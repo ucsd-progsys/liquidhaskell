@@ -14,7 +14,6 @@ var allDemos =
     "refinements101.hs"     : { "name" : "Refinements 101"  , "type" : "basic"  },
     "refinements101reax.hs" : { "name" : "Refinements 102"  , "type" : "basic"  },
     "vectorbounds.hs"       : { "name" : "Vector Bounds"    , "type" : "basic"  },
-
     // Measure Demos
     "lenMapReduce.hs"       : { "name" : "Safe List"        , "type" : "measure"},
     "KMeansHelper.hs"       : { "name" : "K-Means Lib"      , "type" : "measure"},
@@ -23,23 +22,24 @@ var allDemos =
     "UniqueZipper.hs"       : { "name" : "Unique Zippers"   , "type" : "measure"},
     "LambdaEval.hs"         : { "name" : "Lambda Eval"      , "type" : "measure"}, 
     "treesum.hs"            : { "name" : "List-Tree Sum"    , "type" : "measure"},
-    // "ListLength.hs"     : { "name" : "List Lengths"      , "type" : "measure"},
-    // "MapReduce.hs"      : { "name" : "Map Reduce"        , "type" : "measure"}, 
-    // "ListElts.hs"           : { "name" : "List Elements" , "type" : "measure"}, 
-
     // Abstract Refinement Demos
-    "absref101.hs"      : { "name" : "Parametric Invariants", "type" : "absref" },  
-    // "ListSort.hs"    : { "name" : "Sorting Lists"        , "type" : "absref" },
-    "Order.hs"          : { "name" : "Sorting Lists"        , "type" : "absref" },
-    "Map.hs"            : { "name" : "BinSearch Tree"       , "type" : "absref" },
-    "Foldr.hs"          : { "name" : "Induction"            , "type" : "absref" },
-    "IMaps.hs"          : { "name" : "Indexed Maps"         , "type" : "absref" },
-
+    "absref101.hs"          : { "name" : "Parametric Invariants", "type" : "absref" },
+    "Order.hs"              : { "name" : "Ordered Lists"        , "type" : "absref" },
+    "Map.hs"                : { "name" : "BinSearch Tree"       , "type" : "absref" },
+    "Foldr.hs"              : { "name" : "Induction"            , "type" : "absref" },
+    "IMaps.hs"              : { "name" : "Indexed Maps"         , "type" : "absref" },
     // HOPA Tutorial Demos
     "SimpleRefinements.hs" : { "name" : "Simple Refinements", "type" : "tutorial" },  
     "Loop.hs"              : { "name" : "HO Loop"           , "type" : "tutorial" },
     "Composition.hs"       : { "name" : "Composition"       , "type" : "tutorial" },
     "Array.hs"             : { "name" : "Finite Maps"       , "type" : "tutorial" }
+
+    // "ListSort.hs"       : { "name" : "Sorting Lists"        , "type" : "absref" },
+    // "ListLength.hs"     : { "name" : "List Lengths"      , "type" : "measure"},
+    // "MapReduce.hs"      : { "name" : "Map Reduce"        , "type" : "measure"}, 
+    // "ListElts.hs"           : { "name" : "List Elements" , "type" : "measure"}, 
+
+
   };
 
 
@@ -95,17 +95,23 @@ var qualEditor = ace.edit("qualifiers");
 qualEditor.setTheme("ace/theme/xcode");
 qualEditor.getSession().setMode(new SrcMode());
 
+
 /*******************************************************************************/
 /** Markers For Errors *********************************************************/
 /*******************************************************************************/
 
 function errorRange(err){
+  
   var row0 = err.start.line - 1;
   var col0 = err.start.column - 1;
   var row1 = err.stop.line - 1;
   var col1 = err.stop.column - 1;
-  var r    = new Range(row0, col0, row1, col1);
-  return r;
+ 
+  if (row0 == row1 && col0 == col1){
+    return new Range(row0, col0, row0, col0 + 1);
+  } else {
+    return new Range(row0, col0, row1, col1);
+  }
 }
 
 function errorMarker(editor, err){
@@ -115,7 +121,7 @@ function errorMarker(editor, err){
 
 function errorAceAnnot(err){
   var etext = "Liquid Type Error";
-  if (err.text) { etext = err.text; }
+  if (err.message) { etext = err.message; }
   var ann = { row   : err.start.line - 1
             , column: err.start.column
             , text  : etext
@@ -151,6 +157,7 @@ function getVerifierURL()  { return 'liquid.php';                   }
 function clearStatus($scope){
   $scope.isSafe       = false;
   $scope.isUnsafe     = false;
+  $scope.isError      = false;
   $scope.isCrash      = false;
   $scope.isChecking   = false;
   $scope.isUnknown    = true ;
@@ -172,14 +179,39 @@ function setStatusResult($scope, result){
   $scope.isSafe       = (result == "safe"  );
   $scope.isUnsafe     = (result == "unsafe");
   $scope.isCrash      = (result == "crash" );
-  $scope.isUnknown    = !($scope.isSafe || $scope.isUnsafe || $scope.isCrash);
+  $scope.isError      = (result == "error" );
+  $scope.isUnknown    = !($scope.isSafe || $scope.isError || $scope.isUnsafe || $scope.isCrash);
+}
+
+
+/*******************************************************************************/
+/** Extracting JSON Results ****************************************************/
+/*******************************************************************************/
+
+function getResult(d) { 
+  var res = "crash";
+  if (d) {
+    res = d.annots.status; 
+  }
+  return res;
+}
+
+function getWarns(d){ 
+  var ws = [];
+  if (d && d.annots && d.annots.errors){
+    var ws = globData.annots.errors.map(function(x){ 
+               return x.message;//.replace(/\n/g, '<br>')
+             });
+  }
+  return ws;
 }
 
 /*******************************************************************************/
 /************** Top-Level Demo Controller **************************************/
 /*******************************************************************************/
 
-var globData = null;
+var globData   = null;
+var globResult = null;
 
 function LiquidDemoCtrl($scope, $http, $location) {
 
@@ -191,7 +223,9 @@ function LiquidDemoCtrl($scope, $http, $location) {
 
   // Load a particular demo
   $scope.loadSource   = function(demo){
-    var srcURL        = 'demos/' + demo.file;
+    var baseURL     = 'demos/';
+    // var baseURL       = 'http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/demos/';
+    var srcURL        = baseURL + demo.file;
     var qualsURL      = 'demos/' + demo.file + '.hquals';
    
     clearStatus($scope);
@@ -213,7 +247,7 @@ function LiquidDemoCtrl($scope, $http, $location) {
 
     $http.get(srcURL)
       .success(function(src) { progEditor.getSession().setValue(src);})
-      .error(function(data, stat){ alert("Horrors: No such file!" + srcURL); })
+      .error(function(data, stat){ alert("Horrors: No such file! " + srcURL); })
       ;
     $http.get(qualsURL)
       .success(function(quals) { qualEditor.getSession().setValue(quals); })
@@ -253,11 +287,12 @@ function LiquidDemoCtrl($scope, $http, $location) {
             
             $scope.status    = status;
             globData         = data;
-            $scope.result    = data.result;
-            $scope.warns     = data.warns;
-            $scope.crash     = data.crash; 
+            globResult       = getResult(data);
+            $scope.result    = globResult;
+            $scope.warns     = getWarns(data); 
+            // $scope.crash     = getCrash(data);  
             $scope.annotHtml = data.annotHtml;
-            setStatusResult($scope, data.result);
+            setStatusResult($scope, globResult);
            
             // This may be "null" if liquid crashed...
             debugAnnots      = data.annots;

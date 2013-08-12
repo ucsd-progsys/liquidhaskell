@@ -1,11 +1,12 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections #-}
 
-module Language.Haskell.Liquid.Parse (
-  hsSpecificationP
-) where
+module Language.Haskell.Liquid.Parse (hsSpecificationP, specSpecificationP) where
 
 import Control.Monad
 import Text.Parsec
+import Text.Parsec.Error (newErrorMessage, errorPos, Message (..)) 
+import Text.Parsec.Pos   (newPos) 
+
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -15,8 +16,11 @@ import Data.Char (toLower, isLower, isSpace, isAlpha)
 import Data.List (partition)
 import Data.Monoid (mempty)
 
+import Text.PrettyPrint.HughesPJ    (text)
+
 import Language.Fixpoint.Types
 
+import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
@@ -24,12 +28,82 @@ import Language.Fixpoint.Names (listConName, propConName, tupConName)
 import Language.Fixpoint.Misc hiding (dcolon, dot)
 import Language.Fixpoint.Parse 
 
+----------------------------------------------------------------------------
+-- Top Level Parsing API ---------------------------------------------------
+----------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+hsSpecificationP :: String -> SourceName -> String -> Either Error Measure.BareSpec
+-------------------------------------------------------------------------------
+hsSpecificationP name = parseWithError $ mkSpec name <$> specWraps specP
+
+-- hsSpecificationP Spc name = doParse' $ liftM (mkSpec name) $ specWraps specP
+
+-- | Used to parse .spec files 
+
+--------------------------------------------------------------------------
+specSpecificationP  :: SourceName -> String -> Either Error Measure.BareSpec  
+--------------------------------------------------------------------------
+specSpecificationP  = parseWithError specificationP 
+
+specificationP :: Parser Measure.BareSpec 
+specificationP 
+  = do reserved "module"
+       reserved "spec"
+       S name <- symbolP
+       reserved "where"
+       xs     <- grabs (specP <* whiteSpace)
+       return $ mkSpec name xs 
+
+---------------------------------------------------------------------------
+parseWithError :: Parser a -> SourceName -> String -> Either Error a 
+---------------------------------------------------------------------------
+parseWithError parser f s
+  = case runParser (remainderP (whiteSpace >> parser)) 0 f s of
+      Left e         -> Left  $ parseErrorError f e
+      Right (r, "")  -> Right $ r
+      Right (_, rem) -> Left  $ parseErrorError f $ remParseError f s rem 
+
+---------------------------------------------------------------------------
+parseErrorError     :: SourceName -> ParseError -> Error
+---------------------------------------------------------------------------
+parseErrorError f e = ErrParse p msg e
+  where 
+    p               = sourcePosSrcSpan $ errorPos e
+    msg             = text $ "Error Parsing Specification from: " ++ f
+
+---------------------------------------------------------------------------
+remParseError       :: SourceName -> String -> String -> ParseError 
+---------------------------------------------------------------------------
+remParseError f s r = newErrorMessage msg $ newPos f line col
+  where 
+    msg             = Message "Leftover while parsing"
+    (line, col)     = remLineCol s r 
+
+remLineCol          :: String -> String -> (Int, Int)
+remLineCol src rem = (line, col)
+  where 
+    line           = 1 + srcLine - remLine
+    srcLine        = length srcLines 
+    remLine        = length remLines
+    col            = srcCol - remCol  
+    srcCol         = length $ srcLines !! (line - 1) 
+    remCol         = length $ remLines !! 0 
+    srcLines       = lines  $ src
+    remLines       = lines  $ rem
+
+
+
+----------------------------------------------------------------------------------
+-- Lexer Tokens ------------------------------------------------------------------
+----------------------------------------------------------------------------------
+
 dot        = Token.dot        lexer
 braces     = Token.braces     lexer
 angles     = Token.angles     lexer
 
 ----------------------------------------------------------------------------------
------------------------------------- BareTypes -----------------------------------
+-- BareTypes ---------------------------------------------------------------------
 ----------------------------------------------------------------------------------
 
 -- | The top-level parser for "bare" refinement types. If refinements are
@@ -155,11 +229,7 @@ bareFunP
 
 dummyBindP 
   = tempSymbol "db" <$> freshIntP
-
   -- = stringSymbol <$> positionNameP 
-
-
-
 
 bbindP = lowerIdP <* dcolon 
 
@@ -306,17 +376,6 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lazy       = S.fromList [s | Lazy s <- xs]
   }
-
-type BareSpec = (Measure.Spec BareType Symbol)
-
-specificationP :: Parser BareSpec 
-specificationP 
-  = do reserved "module"
-       reserved "spec"
-       S name <- symbolP
-       reserved "where"
-       xs     <- grabs (specP <* whiteSpace)
-       return $ mkSpec name xs 
 
 
 specP :: Parser (Pspec BareType Symbol)
@@ -507,20 +566,6 @@ dataDeclP
 ------------ Interacting with Fixpoint ------------------------------
 ---------------------------------------------------------------------
 
--- remainderP p  
---   = do res <- p
---        str <- stateInput <$> getParserState
---        return (res, str) 
--- 
--- doParse' parser f s
---   = case parse (remainderP p) f s of
---       Left e         -> errorstar $ printf "parseError %s\n when parsing from %s\n" 
---                                       (show e) f 
---       Right (r, "")  -> r
---       Right (_, rem) -> errorstar $ printf "doParse has leftover when parsing: %s\nfrom file %s\n"
---                                       rem f
---   where p = whiteSpace >> parser
-
 grabUpto p  
   =  try (lookAhead p >>= return . Just)
  <|> try (eof         >> return Nothing)
@@ -545,11 +590,6 @@ instance Inputable BareType where
 instance Inputable (Measure.Measure BareType Symbol) where
   rr' = doParse' measureP
 
-instance Inputable BareSpec where
-  rr' = doParse' specificationP
-
-hsSpecificationP name 
-  = doParse' $ liftM (mkSpec name) $ specWraps specP
 
 {-
 ---------------------------------------------------------------

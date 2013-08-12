@@ -1,4 +1,3 @@
-
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
@@ -10,6 +9,7 @@
 -- htmlized source with mouseover annotations.
 
 module Language.Haskell.Liquid.Annotate (
+  
   -- * Types representing annotations
     AnnInfo (..)
   , Annot (..)
@@ -31,12 +31,14 @@ import GHC.Exts                 (groupWith, sortWith)
 import Data.Char                (isSpace)
 import Data.Function            (on)
 import Data.List                (sortBy)
+import Data.Maybe               (mapMaybe)
 
 import Data.Aeson               
 import Control.Arrow            hiding ((<+>))
 import Control.Applicative      ((<$>))
 import Control.DeepSeq
 import Control.Monad            (when)
+import Data.Monoid
 
 import System.FilePath          (takeFileName, dropFileName, (</>)) 
 import System.Directory         (findExecutable)
@@ -49,29 +51,29 @@ import qualified Data.HashMap.Strict    as M
 
 import qualified Language.Haskell.Liquid.ACSS as ACSS
 
--- import Language.Haskell.Liquid.JSON ()
 import Language.Haskell.HsColour.Classify
 import Language.Fixpoint.Files
 import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc (pprDoc, showPpr)
+import Language.Haskell.Liquid.GhcMisc -- (Loc (..), pprDoc, showPpr)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Types hiding (Located(..))
+-- import Language.Haskell.Liquid.Result
 
 import qualified Data.List           as L
 import qualified Data.Vector         as V
 
 -- import           Language.Fixpoint.Misc (inserts)
-import           Language.Haskell.Liquid.ACSS
+-- import           Language.Haskell.Liquid.ACSS
 
 
 -------------------------------------------------------------------
 ------ Rendering HTMLized source with Inferred Types --------------
 -------------------------------------------------------------------
 
-annotate :: FilePath -> FixResult SrcSpan -> FixSolution -> AnnInfo Annot -> IO ()
+annotate :: FilePath -> FixResult Error -> FixSolution -> AnnInfo Annot -> IO ()
 annotate fname result sol anna 
   = do annotDump fname (extFileName Html $ extFileName Cst fname) result annm
        annotDump fname (extFileName Html fname) result annm'
@@ -87,7 +89,7 @@ showBots (AI m) = mapM_ showBot $ sortBy (compare `on` fst) $ M.toList m
              printf "WARNING: Found false in %s\n" (showPpr src)
     showBot _ = return ()
 
-annotDump :: FilePath -> FilePath -> FixResult SrcSpan -> AnnInfo SpecType -> IO ()
+annotDump :: FilePath -> FilePath -> FixResult Error -> AnnInfo SpecType -> IO ()
 annotDump srcFile htmlFile result ann
   = do let annm     = mkAnnMap result ann
        let annFile  = extFileName Annot srcFile
@@ -177,45 +179,51 @@ cssHTML css = unlines
 -- | Building Annotation Maps ------------------------------------------------
 ------------------------------------------------------------------------------
 
--- | This function converts our annotation information into that which is
--- required by `Language.Haskell.Liquid.ACSS` to generate mouseover
--- annotations.
+-- | This function converts our annotation information into that which 
+--   is required by `Language.Haskell.Liquid.ACSS` to generate mouseover
+--   annotations.
 
-mkAnnMap ::  FixResult SrcSpan -> AnnInfo SpecType -> ACSS.AnnMap
-mkAnnMap res ann = ACSS.Ann (mkAnnMapTyp ann) (mkAnnMapErr res)
-    
-mkAnnMapErr (Unsafe ls) = [ (srcSpanStartLoc  l, srcSpanEndLoc l) | RealSrcSpan l <- ls] 
-mkAnnMapErr _           = []
+mkAnnMap ::  FixResult Error -> AnnInfo SpecType -> ACSS.AnnMap
+mkAnnMap res ann = ACSS.Ann (mkAnnMapTyp ann) (mkAnnMapErr res) (mkStatus res)
 
-mkAnnMapTyp (AI m) 
-  = M.fromList
-  $ map (srcSpanStartLoc *** bindString)
-  $ map (head . sortWith (srcSpanEndCol . fst)) 
-  $ groupWith (lineCol . fst) 
-  $ [ (l, x) | (RealSrcSpan l, (x:_)) <- M.toList m, oneLine l]  
-  where bindString = mapPair render . pprXOT 
+mkStatus (Safe)      = ACSS.Safe
+mkStatus (Unsafe _)  = ACSS.Unsafe
+mkStatus (Crash _ _) = ACSS.Error
+mkStatus _           = ACSS.Crash
 
-srcSpanStartLoc l 
-  = ACSS.L (srcSpanStartLine l, srcSpanStartCol l)
-srcSpanEndLoc l 
-  = ACSS.L (srcSpanEndLine l, srcSpanEndCol l)
-oneLine l  
-  = srcSpanStartLine l == srcSpanEndLine l
-lineCol l  
-  = (srcSpanStartLine l, srcSpanStartCol l)
+mkAnnMapErr (Unsafe ls)  = mapMaybe cinfoErr ls
+mkAnnMapErr (Crash ls _) = mapMaybe cinfoErr ls 
+mkAnnMapErr _            = []
+ 
+cinfoErr e = case pos e of
+               RealSrcSpan l -> Just (srcSpanStartLoc l, srcSpanEndLoc l, showpp e)
+               _             -> Nothing
+
+-- cinfoErr (Ci (RealSrcSpan l) e) = 
+-- cinfoErr _                      = Nothing
+
+
+mkAnnMapTyp (AI m) = M.fromList
+                     $ map (srcSpanStartLoc *** bindString)
+                     $ map (head . sortWith (srcSpanEndCol . fst)) 
+                     $ groupWith (lineCol . fst) 
+                     $ [ (l, x) | (RealSrcSpan l, (x:_)) <- M.toList m, oneLine l]  
+  where 
+    bindString     = mapPair render . pprXOT 
 
 closeAnnots :: AnnInfo Annot -> AnnInfo SpecType 
 closeAnnots = closeA . filterA . collapseA
 
 closeA a@(AI m)  = cf <$> a 
-  where cf (Loc loc) = case m `mlookup` loc of
-                           [(_, Use t)] -> t
-                           [(_, Def t)] -> t
-                           [(_, RDf t)] -> t
-                           _            -> errorstar $ "malformed AnnInfo: " ++ showPpr loc
-        cf (Use t)   = t
-        cf (Def t)   = t
-        cf (RDf t)   = t
+  where 
+    cf (Loc loc) = case m `mlookup` loc of
+                         [(_, Use t)] -> t
+                         [(_, Def t)] -> t
+                         [(_, RDf t)] -> t
+                         _            -> errorstar $ "malformed AnnInfo: " ++ showPpr loc
+    cf (Use t)        = t
+    cf (Def t)        = t
+    cf (RDf t)        = t
 
 filterA (AI m) = AI (M.filter ff m)
   where ff [(_, Loc loc)] = loc `M.member` m
@@ -297,6 +305,9 @@ data Annot        = Use SpecType
                   | RDf SpecType
                   | Loc SrcSpan
 
+instance Monoid (AnnInfo a) where
+  mempty                  = AI M.empty
+  mappend (AI m1) (AI m2) = AI $ M.unionWith (++) m1 m2
 
 instance Functor AnnInfo where
   fmap f (AI m) = AI (fmap (fmap (\(x, y) -> (x, f y))) m)
@@ -351,7 +362,7 @@ applySolution = fmap . fmap . mapReft . map . appSolRefa
 
 data Assoc k a = Asc (M.HashMap k a)
 type AnnTypes  = Assoc Int (Assoc Int Annot1)
-type AnnErrors = [(Loc, Loc)]
+type AnnErrors = [(Loc, Loc, String)]
 data Annot1    = A1  { ident :: String
                      , ann   :: String
                      , row   :: Int
@@ -362,13 +373,18 @@ data Annot1    = A1  { ident :: String
 -- | JSON Instances ----------------------------------------------------
 ------------------------------------------------------------------------
 
+instance ToJSON ACSS.Status where
+  toJSON ACSS.Safe   = "safe"
+  toJSON ACSS.Unsafe = "unsafe"
+  toJSON ACSS.Error  = "error"
+  toJSON ACSS.Crash  = "crash"
+
 instance ToJSON Annot1 where 
   toJSON (A1 i a r c) = object [ "ident" .= i
                                , "ann"   .= a
                                , "row"   .= r
                                , "col"   .= c
                                ]
-
 
 instance ToJSON Loc where
   toJSON (L (l, c)) = object [ ("line"     .= toJSON l)
@@ -377,24 +393,27 @@ instance ToJSON Loc where
 instance ToJSON AnnErrors where 
   toJSON errs      = Array $ V.fromList $ fmap toJ errs
     where 
-      toJ (l, l')  = object [ ("start" .= toJSON l), ("stop"  .= toJSON l') ]
+      toJ (l,l',s) = object [ ("start"   .= toJSON l )
+                            , ("stop"    .= toJSON l') 
+                            , ("message" .= toJSON s ) ]
 
 instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
   toJSON (Asc kas) = object [ (tshow k) .= (toJSON a) | (k, a) <- M.toList kas ]
     where
       tshow        = T.pack . show 
 
-instance ToJSON AnnMap where 
+instance ToJSON ACSS.AnnMap where 
   toJSON a = object [ ("types"  .= (toJSON $ annTypes a))
-                    , ("errors" .= (toJSON $ errors   a))
+                    , ("errors" .= (toJSON $ ACSS.errors   a))
+                    , ("status" .= (toJSON $ ACSS.status   a))
                     ]
 
-annTypes         :: AnnMap -> AnnTypes 
+annTypes         :: ACSS.AnnMap -> AnnTypes 
 annTypes a       = grp [(l, c, ann1 l c x s) | (l, c, x, s) <- binders]
   where 
     ann1 l c x s = A1 x s l c 
     grp          = L.foldl' (\m (r,c,x) -> ins r c x m) (Asc M.empty)
-    binders      = [(l, c, x, s) | (L (l, c), (x, s)) <- M.toList $ types a]
+    binders      = [(l, c, x, s) | (L (l, c), (x, s)) <- M.toList $ ACSS.types a]
 
 ins r c x (Asc m)  = Asc (M.insert r (Asc (M.insert c x rm)) m)
   where 
