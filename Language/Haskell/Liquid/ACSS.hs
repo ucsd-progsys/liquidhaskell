@@ -3,9 +3,9 @@ module Language.Haskell.Liquid.ACSS (
     hscolour
   , hsannot
   , AnnMap (..)
-  , Loc (..)
   , breakS
   , srcModuleName 
+  , Status (..)
   ) where
 
 import Language.Haskell.HsColour.Anchors
@@ -28,9 +28,13 @@ import Language.Haskell.Liquid.GhcMisc
 
 data AnnMap  = Ann { 
     types  :: M.HashMap Loc (String, String) -- ^ Loc -> (Var, Type)
-  , errors :: [(Loc, Loc)]                   -- ^ List of error intervals
+  , errors :: [(Loc, Loc, String)]           -- ^ List of error intervals
+  , status :: !Status 
   } 
   
+data Status = Safe | Unsafe | Error | Crash 
+              deriving (Eq, Ord, Show)
+
 emptyAnnMap  = Ann M.empty [] 
 
 data Annotation = A { 
@@ -80,16 +84,17 @@ hsannot' baseLoc anchor tx =
 
 annotTokenise :: Maybe Loc -> CommentTransform -> (String, AnnMap) -> [(TokenType, String, Annotation)] 
 annotTokenise baseLoc tx (src, annm) = zipWith (\(x,y) z -> (x,y,z)) toks annots 
-  where toks       = tokeniseWithCommentTransform tx src 
-        spans      = tokenSpans baseLoc $ map snd toks 
-        annots     = fmap (spanAnnot linWidth annm) spans
-        linWidth   = length $ show $ length $ lines src
+  where 
+    toks       = tokeniseWithCommentTransform tx src 
+    spans      = tokenSpans baseLoc $ map snd toks 
+    annots     = fmap (spanAnnot linWidth annm) spans
+    linWidth   = length $ show $ length $ lines src
 
-
-spanAnnot w (Ann ts es) span = {- traceShow ("spanAnnot: span = " ++ show span) $ -} A t e b 
-  where t = fmap snd (M.lookup span ts)
-        e = fmap (\_ -> "ERROR") $ find (span `inRange`) es
-        b = spanLine w span
+spanAnnot w (Ann ts es _) span = A t e b 
+  where 
+    t = fmap snd (M.lookup span ts)
+    e = fmap (\_ -> "ERROR") $ find (span `inRange`) [(x,y) | (x,y,_) <- es]
+    b = spanLine w span
 
 spanLine w (L (l, c)) 
   | c == 1    = Just (l, w) 
@@ -161,7 +166,7 @@ splitSrcAndAnns ::  String -> (String, AnnMap)
 splitSrcAndAnns s = 
   let ls = lines s in
   case findIndex (breakS ==) ls of
-    Nothing -> (s, Ann M.empty [])
+    Nothing -> (s, Ann M.empty [] Safe)
     Just i  -> (src, ann)
                where (codes, _:mname:annots) = splitAt i ls
                      ann   = annotParse mname $ dropWhile isSpace $ unlines annots
@@ -187,8 +192,9 @@ breakS = "MOUSEOVER ANNOTATIONS"
 --     inserts k v m         = M.insert k (v : M.lookupDefault [] k m) m
 
 annotParse :: String -> String -> AnnMap
-annotParse mname s = Ann (M.fromList ts) es
-  where (ts, es)   = partitionEithers $ parseLines mname 0 $ lines s
+annotParse mname s = Ann (M.fromList ts) [(x,y,"") | (x,y) <- es] Safe
+  where 
+    (ts, es)       = partitionEithers $ parseLines mname 0 $ lines s
 
 
 parseLines _ _ [] 
@@ -226,8 +232,8 @@ parseLines _ i _
 --   where slashWhite '/' = ' '
 
 instance Show AnnMap where
-  show (Ann ts es) =  "\n\n" ++ (concatMap ppAnnotTyp $ M.toList ts)
-                             ++ (concatMap ppAnnotErr $ es         )
+  show (Ann ts es _ ) =  "\n\n" ++ (concatMap ppAnnotTyp $ M.toList ts)
+                                ++ (concatMap ppAnnotErr [(x,y) | (x,y,_) <- es])
       
 ppAnnotTyp (L (l, c), (x, s))     = printf "%s\n%d\n%d\n%d\n%s\n\n\n" x l c (length $ lines s) s 
 ppAnnotErr (L (l, c), L (l', c')) = printf " \n%d\n%d\n0\n%d\n%d\n\n\n\n" l c l' c'
