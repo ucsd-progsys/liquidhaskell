@@ -25,10 +25,10 @@ module Language.Haskell.Liquid.RefType (
 
   -- * Functions for manipulating `Predicate`s
   , pdVar
-  -- , pdAnd, pdTrue, pvars
   , findPVar
   , freeTyVars, tyClasses, tyConName
 
+  -- TODO: categorize these!
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp 
   , expandRApp, appRTyCon
@@ -40,8 +40,11 @@ module Language.Haskell.Liquid.RefType (
   , rTypeSortedReft, rTypeSort
   , varSymbol, dataConSymbol, dataConMsReft, dataConReft  
   , literalFRefType, literalFReft, literalConst
-  , mkDataConIdsTy
   , classBinds
+  
+  
+  , mkDataConIdsTy
+  , mkTyConInfo 
   ) where
 
 import Var
@@ -61,9 +64,11 @@ import Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S 
 import qualified Data.List as L
+import Data.Function                            (on)
 import Control.Applicative  hiding (empty)   
 import Control.DeepSeq
 import Control.Monad  (liftM, liftM2, liftM3)
+import Control.Exception (Exception (..)) 
 import qualified Data.Foldable as Fold
 import Text.Printf
 import Text.PrettyPrint.HughesPJ
@@ -74,7 +79,7 @@ import Language.Fixpoint.Types hiding (Predicate)
 import Language.Haskell.Liquid.Types hiding (DataConP (..))
 
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc (sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, mkTyConInfo, showSDoc, showPpr, showSDocDump)
+import Language.Haskell.Liquid.GhcMisc (pprDoc, sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, showSDoc, showPpr, showSDocDump)
 import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import Data.List (sort, isSuffixOf, foldl')
 
@@ -149,11 +154,12 @@ instance ( Monoid r, Reftable r
 instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ()) 
          => Reftable (Ref (RType p c tv ()) r (RType p c tv r)) where
   isTauto (RMono _ r) = isTauto r
-  isTauto (RPoly _ t) = isTrivial t 
+  isTauto (RPoly _ t) = isTrivial t
   ppTy (RMono _ r) d  = ppTy r d
   ppTy (RPoly _ _) _  = errorstar "RefType: Reftable ppTy in RPoly"
   toReft              = errorstar "RefType: Reftable toReft"
   params              = errorstar "RefType: Reftable params for Ref"
+  bot                 = errorstar "RefType: Reftable bot    for Ref"
 
 
 -- Subable Instances ----------------------------------------------
@@ -177,6 +183,7 @@ instance (PPrint r, Reftable r) => Reftable (RType Class RTyCon RTyVar r) where
   ppTy        = errorstar "ppTy RPoly Reftable" 
   toReft      = errorstar "toReft on RType"
   params      = errorstar "params on RType"
+  bot         = errorstar "bot on RType"
 
 -- ppTySReft s r d 
 --   = text "\\" <> hsep (toFix <$> s) <+> text "->" <+> ppTy r d
@@ -948,3 +955,95 @@ mkDType xvs acc ((v, (x, t@(RApp c _ _ _))):vxts)
 cmpLexRef vxs (v, x, g)
   = pAnd $ (PAtom Lt (g x) (g v))
          :[PAtom Eq (f y) (f z) | (y, z, f) <- vxs] 
+
+------------------------------------------------------------------------
+-- | Pretty Printing Error Messages ------------------------------------
+------------------------------------------------------------------------
+
+-- Need to put this here intead of in Types, because it depends on the 
+-- printer for SpecTypes, which lives in this module.
+
+instance PPrint Error where
+  pprint = ppError
+
+instance PPrint SrcSpan where
+  pprint = pprDoc
+
+instance Show Error where
+  show = showpp
+
+instance Exception Error
+instance Exception [Error]
+
+------------------------------------------------------------------------
+ppError :: Error -> Doc
+------------------------------------------------------------------------
+ppError (ErrSubType l s tA tE) 
+  = text "Liquid Type Error:" <+> pprint l
+--     DO NOT DELETE 
+--     $+$ (nest 4 $ text "Required Type:" <+> pprint tE)
+--     $+$ (nest 4 $ text "Actual   Type:" <+> pprint tA)
+
+ppError (ErrParse l _ e)       
+  = text "Error Parsing Specification:" <+> pprint l
+    $+$ (nest 4 $ pprint e)
+
+ppError (ErrTySpec l v t s)       
+  = text "Error in Type Specification:" <+> pprint l
+    $+$ (v <+> dcolon <+> pprint t) 
+    $+$ (nest 4 s)
+
+ppError (ErrInvt l t s)
+  = text "Error in Invariant Specification:" <+> pprint l
+    $+$ (nest 4 $ text "invariant " <+> pprint t $+$ s)
+
+ppError (ErrMeas l t s)
+  = text "Error in Measure Defiition:" <+> pprint l
+    $+$ (nest 4 $ text "measure " <+> pprint t $+$ s)
+
+
+ppError (ErrDupSpecs l v ls)
+  = text "Multiple Specifications for" <+> v <> colon <+> pprint l
+    $+$ (nest 4 $ vcat $ pprint <$> ls) 
+
+ppError (ErrGhc l s)       
+  = text "GHC Error:" <+> pprint l
+    $+$ (nest 4 s)
+
+ppError (ErrMismatch l x τ t) 
+  = text "Specified Type Does Not Refine Haskell Type for" <+> x <> colon <+> pprint l
+    $+$ text "Haskell:" <+> pprint τ
+    $+$ text "Liquid :" <+> pprint t 
+    
+ppError (ErrOther s)       
+  = text "Unexpected Error: " 
+    $+$ (nest 4 s)
+
+
+-------------------------------------------------------------------------------
+
+mkTyConInfo :: TyCon -> [Int] -> [Int] -> (Maybe (Symbol -> Expr)) -> TyConInfo
+mkTyConInfo c = TyConInfo pos neg
+  where pos       = neutral ++ [i | (i, b) <- varsigns, b, i /= dindex]
+        neg       = neutral ++ [i | (i, b) <- varsigns, not b, i /= dindex]
+        varsigns  = L.nub $ concatMap goDCon $ TC.tyConDataCons c
+        initmap   = zip (showPpr <$> tyvars) [0..n]
+        mkmap vs  = zip (showPpr <$> vs) (repeat (dindex)) ++ initmap
+        goDCon dc = concatMap (go (mkmap (DataCon.dataConExTyVars dc)) True)
+                              (DataCon.dataConOrigArgTys dc)
+        go m pos (ForAllTy v t)  = go ((showPpr v, dindex):m) pos t
+        go m pos (TyVarTy v)     = [(varLookup (showPpr v) m, pos)]
+        go m pos (AppTy t1 t2)   = go m pos t1 ++ go m pos t2
+        go m pos (TyConApp _ ts) = concatMap (go m pos) ts
+        go m pos (FunTy t1 t2)   = go m (not pos) t1 ++ go m pos t2
+
+        varLookup v m = fromMaybe (errmsg v) $ L.lookup v m
+        tyvars        = TC.tyConTyVars c
+        n             = (TC.tyConArity c) - 1
+        errmsg v      = error $ "GhcMisc.getTyConInfo: var not found" ++ showPpr v
+        dindex        = -1
+        neutral       = [0..n] L.\\ (fst <$> varsigns)
+
+
+
+

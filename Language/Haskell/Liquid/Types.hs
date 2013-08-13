@@ -24,9 +24,6 @@ module Language.Haskell.Liquid.Types (
   -- * Symbols
   , LocSymbol
   , LocString
-  
-  -- * Default unknown position
-  , dummyPos
 
   -- * Data Constructors
   , BDataCon (..)
@@ -70,9 +67,23 @@ module Language.Haskell.Liquid.Types (
   
   -- * Printer Configuration 
   , PPEnv (..), ppEnv
+
+  -- * Final Result
+  , Result (..)
+
+  -- * Different kinds of errors
+  , Error (..)
+  , ErrorResult
+
+  -- * Source information associated with each constraint
+  , Cinfo (..)
+
+
   )
   where
 
+import FastString                               (fsLit)
+import SrcLoc                                   (mkGeneralSrcSpan, SrcSpan)
 import TyCon
 import DataCon
 import TypeRep          hiding (maybeParen, pprArrowChain)  
@@ -80,6 +91,7 @@ import Var
 import Literal
 import Text.Printf
 import GHC                          (Class, HscEnv)
+import Language.Haskell.Liquid.GhcMisc 
 
 import Control.Monad  (liftM, liftM2, liftM3)
 import Control.DeepSeq
@@ -90,14 +102,16 @@ import Data.Monoid                  hiding ((<>))
 import qualified Data.Foldable as F
 import Data.Hashable
 import qualified Data.HashSet as S
-import Data.Maybe                   (fromMaybe)
+import Data.Maybe                   (maybeToList, fromMaybe)
 import Data.Traversable             hiding (mapM)
 import Data.List                    (nub)
 import Text.Parsec.Pos              (SourcePos, newPos) 
+import Text.Parsec.Error            (ParseError) 
 import Text.PrettyPrint.HughesPJ    
-import Language.Fixpoint.Config hiding (Config) 
-import Language.Fixpoint.Types hiding (Predicate) 
+import Language.Fixpoint.Config     hiding (Config) 
 import Language.Fixpoint.Misc
+import Language.Fixpoint.Types      hiding (Predicate) 
+-- import qualified Language.Fixpoint.Types as F
 
 import CoreSyn (CoreBind)
 import Var
@@ -117,7 +131,6 @@ data Config = Config {
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   , smtsolver      :: SMTSolver  -- ^ name of smtsolver to use [default: z3-API]  
-  -- , verbose        :: Bool       -- ^ verbose output
   } deriving (Data, Typeable, Show, Eq)
 
 -----------------------------------------------------------------------------
@@ -170,7 +183,6 @@ dummyName = "dummy"
 isDummy :: (Show a) => a -> Bool
 isDummy a = show a == dummyName
 
-dummyPos = newPos "?" 0 0 
 
 instance Fixpoint SourcePos where
   toFix = text . show 
@@ -251,9 +263,10 @@ data GhcSpec = SP {
                                                  -- e.g. "embed Set as Set_set" from include/Data/Set.spec
   , qualifiers :: ![Qualifier]                   -- ^ Qualifiers in Source/Spec files
                                                  -- e.g tests/pos/qualTest.hs
-  , tgtVars  :: ![Var]                      -- ^ Top-level Binders To Verify (empty means ALL binders)
-  , decr     :: ![(Var, [Int])]
-  , lazy     :: !(S.HashSet Var)
+  , tgtVars    :: ![Var]                         -- ^ Top-level Binders To Verify (empty means ALL binders)
+  , decr       :: ![(Var, [Int])]                -- ^ Lexicographically ordered size witnesses for termination
+  , lazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
+  , config     :: !Config                        -- ^ Configuration Options
   }
   
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
@@ -355,7 +368,7 @@ instance NFData RTyVar where
 newtype RTyVar = RTV TyVar
 
 data RTyCon = RTyCon 
-  { rTyCon     :: !TyCon         -- GHC Type Constructor
+  { rTyCon     :: !TyCon            -- GHC Type Constructor
   , rTyConPs   :: ![RPVar]          -- Predicate Parameters
   , rTyConInfo :: !TyConInfo        -- TyConInfo
   }
@@ -582,6 +595,7 @@ instance (PPrint r, Reftable r) => Reftable (UReft r) where
   ppTy               = ppTy_ureft
   toReft (U r _)     = toReft r
   params (U r _)     = params r
+  bot (U r _)        = U (bot r) (Pr [])
 
 isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u)
 
@@ -624,7 +638,8 @@ instance (Subable r, RefTypable p c tv r) => Subable (RType p c tv r) where
 
 instance Reftable Predicate where
   isTauto (Pr ps)      = null ps
- 
+
+  bot (Pr _)           = errorstar "No BOT instance for Predicate"
   -- HACK: Hiding to not render types in WEB DEMO. NEED TO FIX.
   ppTy r d | isTauto r        = d 
            | not (ppPs ppEnv) = d
@@ -877,12 +892,12 @@ falseD = text "false"
 andD   = text " &&"
 orD    = text " ||"
 
-pprintBin b _ [] = b
-pprintBin _ o xs = intersperse o $ pprint <$> xs 
+pprintBin b _ []     = b
+pprintBin _ o xs     = intersperse o $ pprint <$> xs 
 
-pprintBin b o []     = b
-pprintBin b o [x]    = pprint x
-pprintBin b o (x:xs) = pprint x <+> o <+> pprintBin b o xs 
+-- pprintBin b o []     = b
+-- pprintBin b o [x]    = pprint x
+-- pprintBin b o (x:xs) = pprint x <+> o <+> pprintBin b o xs 
 
 instance PPrint a => PPrint (PVar a) where
   pprint (PV s _ xts)     = pprint s <+> hsep (pprint <$> dargs xts)
@@ -904,12 +919,92 @@ instance PPrint Reft where
     | isTauto r        = text "true"
     | otherwise        = {- intersperse comma -} pprintBin trueD andD $ flattenRefas ras
 
- 
-
 instance PPrint SortedReft where
   pprint (RR so (Reft (v, ras))) 
     = braces 
     $ (pprint v) <+> (text ":") <+> (toFix so) <+> (text "|") <+> pprint ras
 
+------------------------------------------------------------------------
+-- | Error Data Type ---------------------------------------------------
+------------------------------------------------------------------------
 
+type ErrorResult = FixResult Error
+
+data Error = 
+    ErrSubType  { pos :: !SrcSpan
+                , msg :: !Doc
+                , act :: !SpecType
+                , exp :: !SpecType
+                } -- ^ liquid type error
+
+  | ErrParse    { pos :: !SrcSpan
+                , msg :: !Doc
+                , err :: !ParseError
+                } -- ^ specification parse error
+  | ErrTySpec   { pos :: !SrcSpan
+                , var :: !Doc
+                , typ :: !SpecType  
+                , msg :: !Doc
+                } -- ^ sort error in specification
+  | ErrDupSpecs { pos :: !SrcSpan
+                , var :: !Doc
+                , locs:: ![SrcSpan]
+                } -- ^ multiple specs for same binder error 
+  | ErrInvt     { pos :: !SrcSpan
+                , inv :: !SpecType
+                , msg :: !Doc
+                } -- ^ Invariant sort error
+  | ErrMeas     { pos :: !SrcSpan
+                , ms  :: !Symbol
+                , msg :: !Doc
+                } -- ^ Measure sort error
+  | ErrGhc      { pos :: !SrcSpan
+                , msg :: !Doc
+                } -- ^ GHC error: parsing or type checking
+  | ErrMismatch { pos :: !SrcSpan
+                , var :: !Doc
+                , hs  :: !Type
+                , exp :: !SpecType
+                } -- ^ Mismatch between Liquid and Haskell types
+  | ErrOther    {  msg :: !Doc 
+                } -- ^ Unexpected PANIC 
+  deriving (Typeable)
+
+instance Eq Error where
+  e1 == e2 = pos e1 == pos e2
+
+instance Ord Error where 
+  e1 <= e2 = pos e1 <= pos e2
+
+------------------------------------------------------------------------
+-- | Source Information Associated With Constraints --------------------
+------------------------------------------------------------------------
+
+data Cinfo    = Ci { ci_loc :: !SrcSpan
+                   , ci_err :: !(Maybe Error)
+                   } 
+                deriving (Eq, Ord) 
+
+instance NFData Cinfo 
+
+
+------------------------------------------------------------------------
+-- | Converting Results To Answers -------------------------------------
+------------------------------------------------------------------------
+
+class Result a where
+  result :: a -> FixResult Error
+
+instance Result [Error] where
+  result es = Crash es ""
+
+instance Result Error where
+  result (ErrOther d) = UnknownError d 
+  result e            = result [e]
+
+instance Result (FixResult Cinfo) where
+  result = fmap cinfoError  
+
+cinfoError (Ci _ (Just e)) = e
+cinfoError (Ci l _)        = ErrOther $ text $ "Cinfo:" ++ (showPpr l)
 
