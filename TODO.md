@@ -1,10 +1,28 @@
 TODO
 ====
 
-* incremental checking (see below) 
-    - save top-level types to file (.spec)
-    - reload
-    - check all but specified function
+
+From github.com:ucsd-progsys/liquidhaskell
+ * branch            master     -> FETCH_HEAD
+Auto-merging web/demos/Order.hs
+Auto-merging TODO.md
+CONFLICT (content): Merge conflict in TODO.md
+Auto-merging Liquid.hs
+CONFLICT (content): Merge conflict in Liquid.hs
+Auto-merging Language/Haskell/Liquid/Types.hs
+Auto-merging Language/Haskell/Liquid/Parse.hs
+Auto-merging Language/Haskell/Liquid/Measure.hs
+Auto-merging Language/Haskell/Liquid/GhcInterface.hs
+CONFLICT (content): Merge conflict in Language/Haskell/Liquid/GhcInterface.hs
+Auto-merging Language/Haskell/Liquid/Constraint.hs
+Auto-merging Language/Haskell/Liquid/CmdLine.hs
+CONFLICT (content): Merge conflict in Language/Haskell/Liquid/CmdLine.hs
+Auto-merging Language/Haskell/Liquid/Bare.hs
+CONFLICT (content): Merge conflict in Language/Haskell/Liquid/Bare.hs
+Automatic merge failed; fix conflicts and then commit the result.
+
+
+* pragmas
 
 * Qualified Imports
   - wtf is include/KMeansHelper.hs ? Fix module import issue
@@ -14,25 +32,25 @@ TODO
     ? readsPrec
     ? big constants issue : _word64 34534523452134213524525 due to (deriving Typeable)
 
-* error messages
-  + expected XXX got YYY?
-  + liquid-fixpoint sort checker return ERROR (not than errorstar-inside) for nicer messages.
-
 * benchmarks
   + stackset-core
   + Data.List (foldr)
   + mcbrides stack machined?
 
-Incremental Checking
---------------------
+Pragmas
+-------
 
-    Language.Haskell.Liquid.IncCheck
+Need a way to add command line options into the source.
 
-+ finish implementation of missing code
-+ In `Liquid.hs` add code to SAVE the old file
-+ 
+    {-@ LIQUID str @-}
 
-
+We then take all the strings `str`, concatenate them and add to config
+    + Parse.hs 
+      > update spec type
+      > update actual parser
+      > update monoid instance
+    + Liquid.hs
+      > update config with string.
 
 Embed
 -----
@@ -353,24 +371,6 @@ To work with branch elsewhere
 
     $ git pull
     $ git checkout foo
-
-Alpha-Renaming Predicates
-=========================
-
-see tests/pos/deptupW.hs
-
-We SHOULD be able to write 
-
-    {-@ data Pair a b <p :: x0:a -> x1:b -> Bool> = P (x :: a) (y :: b<p x>) @-} 
-    data Pair a b = P a b
-
-and then write the function sig like:
-
-    {-@ mkP :: forall a <p :: y0:a -> y1:a -> Bool>. x: a -> y: a<p x> -> Pair <p> a a @-}
-    
-instead of HAVING TO use the SAME parameter names x0, x1
-
-
 
 Benchmark Tags
 ==============

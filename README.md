@@ -146,10 +146,22 @@ The last step requires sudo access which is tedious and should be fixed.
 
 
 Command Line Options
---------------------
+====================
 
+LiquidHaskell supports several command line options, to configure the
+checking. Each option can be passed in at the command line, or directly
+added to the source file via:
 
-**Ignore False Predicates**
+    {-@ LIQUID "option-within-quotes" @-}
+
+for example, to disable termination checking (see below)
+
+    {-@ LIQUID "--notermination" @-}
+
+Ignore False Predicates
+-----------------------
+
+[PLEASE EDIT: I have no idea what "ignoring false predicates means"]
 
 To ignore false predicates use the nofalse option
  
@@ -157,14 +169,16 @@ To ignore false predicates use the nofalse option
 
 See <a url="tests/neg/lazy.lhs">tests/neg/lazy.lhs</a>
 
-**Prune Unsorted Predicates**
+Prune Unsorted Predicates
+-------------------------
 
-By default unsorted predicates are pruned.
-To disable this behaviour use no-prune-unsorted flag.
+By default unsorted predicates are pruned away (yielding `true` 
+for the corresponding refinement.) To disable this behaviour 
+use the `no-prune-unsorted` flag.
  
     liquid --no-prune-unsorted test.hs
 
-**Termination Check**
+Termination Check
 -----------------
 
 By **default** a termination check is performed on all recursive functions.

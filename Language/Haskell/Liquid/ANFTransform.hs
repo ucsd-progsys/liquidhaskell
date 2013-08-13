@@ -153,7 +153,6 @@ normalize γ (Let b e)
        -- Need to float bindings all the way up to the top 
        -- Due to GHCs odd let-bindings (see tests/pos/lets.hs) 
 
-
 normalize γ (Case e x t as)
   = do (bs, n) <- normalizeName γ e
        x'      <- freshNormalVar τx -- rename "wild" to avoid shadowing
