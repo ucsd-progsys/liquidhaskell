@@ -231,12 +231,6 @@ function LiquidDemoCtrl($scope, $http, $location) {
    
     clearStatus($scope);
 
-    // $scope.isSafe     = false;
-    // $scope.isUnsafe   = false;
-    // $scope.isCrash    = false; 
-    // $scope.isChecking = false;
-    // $scope.isUnknown  = true; 
-
     $scope.msg        = demo.file; 
     $scope.outReady   = false;
 
@@ -283,9 +277,6 @@ function LiquidDemoCtrl($scope, $http, $location) {
     $http.post(getVerifierURL(), query)
          .success(function(data, status) {
             globResp         = globResp + 1; 
-            //Nuke this: results now viewable in editor pane!
-            //$scope.outReady  = true;
-            
             $scope.status    = status;
             globData         = data;
             globResult       = getResult(data);
