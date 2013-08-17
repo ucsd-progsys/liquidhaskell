@@ -1,6 +1,8 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections #-}
 
-module Language.Haskell.Liquid.Parse (hsSpecificationP, specSpecificationP) where
+module Language.Haskell.Liquid.Parse
+  (hsSpecificationP, lhsSpecificationP, specSpecificationP)
+  where
 
 import Control.Monad
 import Text.Parsec
@@ -18,6 +20,8 @@ import Data.Monoid (mempty)
 
 import GHC (mkModuleName, ModuleName)
 import Text.PrettyPrint.HughesPJ    (text)
+
+import Language.Preprocessor.Unlit (unlit)
 
 import Language.Fixpoint.Types
 
@@ -43,13 +47,19 @@ hsSpecificationP = parseWithError $ do
            <|> return (S "Main")
     liftM (mkSpec (ModName SrcImport $ mkModuleName name)) $ specWraps specP
 
+-------------------------------------------------------------------------------
+lhsSpecificationP :: SourceName -> String -> Either Error (ModName, Measure.BareSpec)
+-------------------------------------------------------------------------------
+
+lhsSpecificationP sn s = hsSpecificationP sn $ unlit sn s
+
 commentP =  simpleComment (string "{-") (string "-}")
         <|> simpleComment (string "--") newlineP
         <|> simpleComment (string "\\") newlineP
 
 simpleComment open close = open >> manyTill anyChar (try close)
 
-newlineP = string "\n" <|> string "\r" <|> string "\r\n"
+newlineP = try (string "\r\n") <|> string "\n" <|> string "\r"
 
 
 -- | Used to parse .spec files
