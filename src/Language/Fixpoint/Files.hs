@@ -91,23 +91,23 @@ data Ext = Cgi    -- ^ Constraint Generation Information
 
 extMap e = go e
   where 
-    go Cgi    = "cgi"
-    go Pred   = "pred"
-    go PAss   = "pass"
-    go Dat    = "dat"
-    go Out    = "fqout"
-    go Fq     = "fq"
-    go Html   = "html"
-    go Cst    = "cst"
-    go Annot  = "annot"
-    go Hs     = "hs"
-    go LHs    = "lhs"
-    go Mkdn   = "markdown"
-    go Json   = "json"
-    go Spec   = "spec"
-    go Hquals = "hquals" 
-    go Result = "out"
-    go Saved  = "bak"
+    go Cgi    = ".cgi"
+    go Pred   = ".pred"
+    go PAss   = ".pass"
+    go Dat    = ".dat"
+    go Out    = ".fqout"
+    go Fq     = ".fq"
+    go Html   = ".html"
+    go Cst    = ".cst"
+    go Annot  = ".annot"
+    go Hs     = ".hs"
+    go LHs    = ".lhs"
+    go Mkdn   = ".markdown"
+    go Json   = ".json"
+    go Spec   = ".spec"
+    go Hquals = ".hquals" 
+    go Result = ".out"
+    go Saved  = ".bak"
     go _      = errorstar $ "extMap: Unknown extension " ++ show e
 
 withExt         :: FilePath -> Ext -> FilePath 
@@ -117,7 +117,7 @@ extFileName     :: Ext -> FilePath -> FilePath
 extFileName ext = (`addExtension` (extMap ext))
 
 isExtFile ::  Ext -> FilePath -> Bool
-isExtFile ext = ((extMap ext) `isSuffixOf`)
+isExtFile ext = ((extMap ext) ==) . takeExtension
 
 extModuleName ::  String -> Ext -> FilePath
 extModuleName modName ext =
