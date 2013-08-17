@@ -42,7 +42,7 @@ type ResolveM = ReaderT (HscEnv,ModuleName) IO
 runResolveM :: HscEnv -> ModuleName -> ResolveM a -> IO a
 runResolveM e m x = runReaderT x (e,m)
 
-resolveSpec :: HscEnv -> ModuleName -> BareSpec -> IO BareSpec
+resolveSpec :: HscEnv -> ModuleName -> Ms.BareSpec -> IO Ms.BareSpec
 resolveSpec e m spec = runResolveM e m $ do
   measures   <- mapM resolveMeas (Ms.measures spec)
   sigs       <- mapM resolveSig  (Ms.sigs spec)
@@ -202,8 +202,6 @@ lookupName name = ask >>= liftIO . go
                       in maybe (showPpr rdr') showpp <$> lookupRdrName env mod rdr'
                   | otherwise = return $ propOrErr rdr
        propOrErr rdr | n == "Prop" = "Prop"
-                     -- | n `M.member` wiredIn = showpp $ wiredIn M.! n
-                     -- | isQual rdr = n
                      | otherwise = err rdr
                      where n = rdrNameString rdr
        err rdr = error $ moduleNameString mod

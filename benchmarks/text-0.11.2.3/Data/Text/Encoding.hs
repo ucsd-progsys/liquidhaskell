@@ -1,4 +1,4 @@
-{--! run liquid with idirs=../bytestring-0.9.2.1/ idirs=../../include/ -}
+{--! run liquid with no-termination m4 idirs=../bytestring-0.9.2.1/ idirs=../../include/ -}
 {-# LANGUAGE BangPatterns, CPP, ForeignFunctionInterface, MagicHash,
     UnliftedFFITypes #-}
 {-# LANGUAGE PackageImports, RankNTypes #-}
@@ -111,13 +111,6 @@ import Language.Haskell.Liquid.Prelude
 {-@ qualif PLenCmp(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr b): (plen v) >= (plen p) @-}
 {-@ qualif PLenCmp(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr b): (plen p) >= (plen v) @-}
 {-@ qualif PBaseEq(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr b): (pbase v) = (pbase p) @-}
-
-{-@ eqPtr :: p:PtrV a
-          -> q:{v:PtrV a | (((pbase v) = (pbase p)) && ((plen v) <= (plen p)))}
-          -> {v:Bool | ((Prop v) <=> ((plen p) = (plen q)))}
-  @-}
-eqPtr :: Ptr a -> Ptr a -> Bool
-eqPtr = undefined
 
 {-@ type PtrGE N = {v:GHC.Ptr.Ptr Word8 | (plen v) >= N} @-}
 
@@ -236,6 +229,7 @@ decodeUtf8' = unsafePerformIO . try . evaluate . decodeUtf8With strictDecode
 {-# INLINE decodeUtf8' #-}
 
 -- | Encode text using UTF-8 encoding.
+{-@ encodeUtf8 :: t:Text -> {v:ByteString | (((tlen t) > 0) <=> ((bLength v) > 0))} @-}
 encodeUtf8 :: Text -> ByteString
 encodeUtf8 (Text arr off len) = unsafePerformIO $ do
   let size0 = max len 4

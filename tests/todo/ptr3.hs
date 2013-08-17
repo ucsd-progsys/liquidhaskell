@@ -7,7 +7,6 @@
 
 module Data.ByteString (
         ByteString,            -- abstract, instances: Eq, Ord, Show, Read, Data, Typeable, Monoid
-        foldr                  -- :: (a -> Word8 -> a) -> a -> ByteString -> a
   ) where
 
 import Language.Haskell.Liquid.Prelude
@@ -96,49 +95,23 @@ import qualified Data.ByteString.Internal
 import qualified Data.ByteString.Unsafe
 import qualified Foreign.C.Types
 
-{-@ memcpy_ptr_baoff :: p:(Ptr a) 
-                     -> RawBuffer b 
-                     -> Int 
-                     -> {v:CSize | (OkPLen v p)} -> IO (Ptr ())
-  @-}
-memcpy_ptr_baoff :: Ptr a -> RawBuffer b -> Int -> CSize -> IO (Ptr ())
-memcpy_ptr_baoff = error "LIQUIDCOMPAT"
+-- WHY ON EARTH IS THAT LIQUIDASSERT NEEDED?!!!!
 
-readCharFromBuffer :: RawBuffer b -> Int -> IO (Char, Int)
-readCharFromBuffer x y = error "LIQUIDCOMPAT"
+{-@ split :: Word8 -> ByteStringNE -> [ByteString] @-}
+split :: Word8 -> ByteString -> [ByteString]
+-- split _ (PS _ _ 0) = []
+split w (PS xanadu s l) = inlinePerformIO $ withForeignPtr xanadu $ \pz -> do
+    let p   = liquidAssert (fpLen xanadu == pLen pz) pz
+    let ptr = p `plusPtr` s
+        loop n =
+            let q = inlinePerformIO $ memchr (ptr `plusPtr` n)
+                                           w (fromIntegral (l-n))
+            in if isNullPtr q {- LIQUID q == nullPtr -}
+                then [PS xanadu (s+n) (l-n)]
+                else let i' = q `minusPtr` ptr 
+                         i  = liquidAssert (i < l) i'       -- LIQUID MYSTERY: why is assert NEEDED HERE (it is!)
+                     in PS xanadu (s+n) (i-n) : loop (i+1)
 
-wantReadableHandleLIQUID :: String -> Handle -> (Handle__ -> IO a) -> IO a
-wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUIDCOMPAT"
-
-{-@ qualif Gimme(v:a, n:b, acc:a): (len v) = (n + 1 + (len acc)) @-}
-{-@ qualif Zog(v:a, p:a)         : (plen p) <= (plen v)          @-}
-{-@ qualif Zog(v:a)              : 0 <= (plen v)                 @-}
-
-{- type ByteStringNE   = {v:ByteString | (bLength v) > 0} @-}
-{- type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)} @-}
--- -----------------------------------------------------------------------------
---
--- Useful macros, until we have bang patterns
---
--- -----------------------------------------------------------------------------
-{-@ foldr :: (Word8 -> a -> a) -> a -> ByteString -> a @-}
-foldr :: (Word8 -> a -> a) -> a -> ByteString -> a
-foldr k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
-        ugo k v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1))
-
-{-@ ugo :: (Word8 -> a -> a) -> a -> p:(PtrV Word8) -> {v:Ptr Word8 | ((pbase v) = (pbase p) &&  (plen v) >= (plen p)) } -> IO a @-}
-ugo :: (Word8 -> a -> a) -> a -> Ptr Word8 -> Ptr Word8 -> IO a
-ugo k z p q | eqPtr q p   = return z
-            | otherwise = do c  <- peek p
-                             let n0  = -1               -- BAD  
-                             let n1  = 0 - 1            -- OK
-                             let p' = p `plusPtr` n1 {- BAD (0 - 1) -}
-                             ugo k (c `k` z) p' q -- tail recursive
+    return (loop 0)
 
 
-{- liquid_thm_ptr_cmp' :: p:PtrV a
-                        -> q:{v:(PtrV a) | ((plen v) >= (plen p) && v != p && (pbase v) = (pbase p))} 
-                        -> {v: (PtrV a)  | ((v = p) && ((plen v) > 0) && ((plen q) > (plen p))) } 
-  @-}
-liquid_thm_ptr_cmp' :: Ptr a -> Ptr a -> Ptr a
-liquid_thm_ptr_cmp' p q = undefined 

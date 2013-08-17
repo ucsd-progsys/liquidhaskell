@@ -40,8 +40,8 @@ def solve_quals(dir,file,bare,time,quiet,flags,lflags):
   else: out = None
   if time: time = ["time"]
   else: time = []
-  if lflags: lflags = ["--" + " --".join(lflags)]
-  hygiene_flags = [] 
+  if lflags: lflags = ["--" + f for f in lflags]
+  hygiene_flags = []
   out = open(os.path.join(dir,file) + ".log", "w")
   rv  = logged_sys_call(time + solve + flags + lflags + hygiene_flags + [file], out, dir=dir)
   out.close()
@@ -96,9 +96,6 @@ class Config (rtest.TestConfig):
 #DEFAULT
 # ByteString.hs is split into two smaller files for faster checking..
 bytestringIgnored = { "Data/ByteString.hs"
-                    , "Data/ByteString.small.hs"
-                    , "Data/ByteString/Lazy/Aux.hs"
-                    , "Data/ByteString/Lazy.small.hs"
                     }
 
 textIgnored = { "Data/Text/Axioms.hs"
@@ -126,23 +123,27 @@ textIgnored = { "Data/Text/Axioms.hs"
               , "Data/Text/Unsafe/Base.hs"
               , "Data/Text/UnsafeShift.hs"
               , "Data/Text/Util.hs"
-
-              , "Data/Text.small.hs"
-              , "Data/Text/Lazy.small.hs"
-              , "Data/Text/Encoding.small.hs"
               }
+
+demosIgnored = { "Composition.hs"
+               , "Eval.hs"
+               , "Inductive.hs"
+               , "Loop.hs"
+               , "TalkingAboutSets.hs"
+               , "refinements101reax.hs"
+               }
 
 regtestdirs  = [ ("pos", {}, 0)
                , ("neg", {}, 1)
                ]
-benchtestdirs = [ ("../web/demos", {}, 0)
-                , ("../benchmarks/esop2013-submission", {}, 0)
+benchtestdirs = [ ("../web/demos", demosIgnored, 0)
+                , ("../benchmarks/esop2013-submission", {"Base0.hs"}, 0)
                 , ("../benchmarks/bytestring-0.9.2.1", bytestringIgnored, 0)
                 , ("../benchmarks/text-0.11.2.3", textIgnored, 0)
                 ]
 
 parser = optparse.OptionParser()
-parser.add_option("-a", "--all", default=False, dest="alltests", help="run all tests")
+parser.add_option("-a", "--all", action="store_true", dest="alltests", help="run all tests")
 parser.add_option("-t", "--threads", dest="threadcount", default=1, type=int, help="spawn n threads")
 parser.add_option("-o", "--opts", dest="opts", default="", type=str, help="additional arguments to liquid")
 parser.disable_interspersed_args()

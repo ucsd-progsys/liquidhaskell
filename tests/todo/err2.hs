@@ -1,14 +1,17 @@
-module Test0 where
+-- | Error Message Test: liquid-ghc type divergence 
+
+module Err1 where
 
 import Language.Haskell.Liquid.Prelude
 
-toss :: Bool 
-toss = (choose 0) > 10
+{-@ toss :: Int @-}
+toss     = (choose 0) > 10
 
 prop_abs :: Bool
 prop_abs = if toss 
              then (if toss then liquidAssertB toss else False) 
              else False
+
 
 foo :: Int -> Int
 foo x = (liquidAssert (x > 0) x) + 1

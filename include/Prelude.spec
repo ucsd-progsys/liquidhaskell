@@ -9,12 +9,12 @@ import GHC.Word
 
 import Data.Maybe
 
--- assume GHC.Base..               :: forall< p :: xx:b -> c -> Prop
---                                          , q :: yy:a -> b -> Prop>.
---                                       f:(x:b -> c<p x>) ->
---                                       g:(y:a -> b<q y>) ->
---                                       x:a ->
---                                       exists[z:b<q x>].c<p z>
+assume GHC.Base..               :: forall< p :: xx:b -> c -> Prop
+                                         , q :: yy:a -> b -> Prop>.
+                                      f:(x:b -> c<p x>) ->
+                                      g:(y:a -> b<q y>) ->
+                                      x:a ->
+                                      exists[z:b<q x>].c<p z>
 assume GHC.Integer.smallInteger :: x:GHC.Prim.Int#
                                 -> { v:GHC.Integer.Type.Integer |
                                      v = (x :: int) }

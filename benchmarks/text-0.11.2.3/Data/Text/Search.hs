@@ -69,7 +69,7 @@ indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
       else if nlen == 1              then scanOne (index _needle 0)
       else
         --LIQUID pushing definitions in to prove safety!
-        let scan !i
+        let scan (d :: Int) !i
               = if i > ldiff then []
                 else
                   let nlast = nlen - 1
@@ -85,9 +85,9 @@ indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
                             where nextInPattern = mask .&. swizzle (index' _haystack (i+nlen)) == 0
                                   !(mask `T` skip)       = buildTable (nlen-1) _needle 0 0 (nlen-2)
                    in if c == z && candidateMatch nlast 0
-                      then i : scan (i + nlen)
-                      else scan (i + delta)
-        in scan 0
+                      then i : scan (d-1) (i + nlen)
+                      else scan (d-1) (i + delta)
+        in scan ldiff 0
   where
     ldiff    = hlen - nlen
     -- nlast    = nlen - 1

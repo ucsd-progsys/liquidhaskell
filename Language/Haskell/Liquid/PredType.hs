@@ -84,8 +84,8 @@ dataConTy m (FunTy t1 t2)
 dataConTy m (ForAllTy α t)          
   = RAllT (rTyVar α) (dataConTy m t)
 dataConTy _ t
-  | isPredTy t
-  = ofPredTree $ classifyPredType t
+  | Just t' <- ofPredTree (classifyPredType t)
+  = t'
 dataConTy m (TyConApp c ts)        
   = rApp c (dataConTy m <$> ts) [] mempty
 dataConTy _ _
@@ -340,10 +340,12 @@ predName = "Pred"
 predType :: Type 
 predType = TyVarTy $ stringTyVar predName
 
-rpredType :: Reftable r => [RRType r] -> RRType r
-rpredType ts
-  = RApp tyc ts [] top
-  where tyc = RTyCon (stringTyCon 'x' 42 predName) [] defaultTyConInfo
+rpredType    :: Reftable r => [RRType r] -> RRType r
+rpredType ts = RApp tyc ts [] top
+  where 
+    tyc      = RTyCon (stringTyCon 'x' 42 predName) [] defaultTyConInfo
+
+defaultTyConInfo = TyConInfo [] [] [] [] Nothing
 
 ----------------------------------------------------------------------------
 exprType :: CoreExpr -> Type

@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 {-# OPTIONS_GHC -cpp -fno-warn-orphans #-}
 
 -- #prune
@@ -796,6 +798,7 @@ readInteger (Chunk c0 cs0) =
           --LIQUID swap params 4 and 5
           loop :: Int -> Int -> [Integer]
                -> ByteString -> B.ByteString -> (Integer, ByteString)
+          {-@ Decrease loop 4 5 @-}
           STRICT5(loop)
           loop d acc ns cs c
               | B.null c = case cs of
