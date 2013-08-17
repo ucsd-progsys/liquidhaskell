@@ -269,7 +269,7 @@ parseSpec file
 specParser file str
   | isExtFile Spec file  = specSpecificationP file str
   | isExtFile Hs file    = hsSpecificationP   file str
-  | isExtFile LHs file   = hsSpecificationP   file str
+  | isExtFile LHs file   = lhsSpecificationP  file str
   | otherwise            = exitWithPanic $ "SpecParser: Cannot Parse File " ++ file
 
 
