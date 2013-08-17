@@ -36,7 +36,6 @@ import Language.Fixpoint.Parse
 -------------------------------------------------------------------------------
 hsSpecificationP :: SourceName -> String -> Either Error (ModName, Measure.BareSpec)
 -------------------------------------------------------------------------------
---hsSpecificationP name = parseWithError $ mkSpec name <$> specWraps specP
 
 hsSpecificationP = parseWithError $ do
     S name <-  try (lookAhead $ skipMany (commentP >> spaces)
@@ -53,10 +52,7 @@ simpleComment open close = open >> manyTill anyChar (try close)
 newlineP = string "\n" <|> string "\r" <|> string "\r\n"
 
 
-
--- hsSpecificationP Spc name = doParse' $ liftM (mkSpec name) $ specWraps specP
-
--- | Used to parse .spec files 
+-- | Used to parse .spec files
 
 --------------------------------------------------------------------------
 specSpecificationP  :: SourceName -> String -> Either Error (ModName, Measure.BareSpec)

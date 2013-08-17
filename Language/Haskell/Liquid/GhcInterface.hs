@@ -97,12 +97,13 @@ getGhcInfo' cfg target
       liftIO              $ deleteBinFilez target
       liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
       addTarget =<< guessTarget target Nothing
-      (name,tgtSpec)   <- liftIO $ parseSpec target
-      let name' = ModName Target (getModName name)
+      (name,tgtSpec)     <- liftIO $ parseSpec target
+      let name'           = ModName Target (getModName name)
       impNames           <- allDepNames <$> depanal [] False
-      impSpecs           <- getSpecs paths impNames [Spec, Hs, LHs]
+      impSpecs           <- getSpecs target paths impNames [Spec, Hs, LHs]
       impSpecs'          <- forM impSpecs $ \(f,n,s) -> do
-        when (not $ isSpecImport n) $ addTarget =<< guessTarget f Nothing
+        when (not $ isSpecImport n) $
+          addTarget =<< guessTarget f Nothing
         return (n,s)
       load LoadAllTargets
       modguts            <- getGhcModGuts1 target
@@ -118,7 +119,6 @@ getGhcInfo' cfg target
       return              $ GI hscEnv coreBinds impVs defVs useVs hqualFiles imps incs spec 
   where
     paths = idirs cfg
-    trace = liftIO . putStrLn . showpp
 
 updateDynFlags df ps 
   = df { importPaths  = ps ++ importPaths df   
@@ -129,10 +129,6 @@ updateDynFlags df ps
        , ghcMode      = CompManager
        } `xopt_set` Opt_MagicHash
          `dopt_set` Opt_ImplicitImportQualified
-
--- printVars s vs 
---   = do putStrLn s 
---        putStrLn $ showPpr [(v, getSrcSpan v) | v <- vs]
 
 mgi_namestring = moduleNameString . moduleName . mgi_module
 
@@ -245,10 +241,10 @@ targetName     = dropExtension  . takeFileName
 starName       = ("*" ++)
 
 
-getSpecs paths names exts
+getSpecs target paths names exts
   = do fs    <- sortNub <$> moduleImports exts paths names 
        liftIO $ whenLoud $ putStrLn ("getSpecs: " ++ show fs)
-       transParseSpecs exts paths S.empty mempty (map snd fs)
+       transParseSpecs exts paths (S.singleton target) mempty (map snd fs)
 
 transParseSpecs _ _ _ specs []
   = return specs
