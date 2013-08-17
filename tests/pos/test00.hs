@@ -2,11 +2,9 @@ module Test0 where
 
 import Language.Haskell.Liquid.Prelude
 
-
 {-@ qualif Zog(v:FooBar, x:FooBar): v = x + 29 @-}
 
 data FooBar = Foo Int
-
 
 x = choose 0
 

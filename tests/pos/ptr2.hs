@@ -1,5 +1,4 @@
--- ! liquid -i include/ -i benchmarks/bytestring-0.9.2.1/ tests/pos/ptr2.hs 
-
+{--! run liquid with idirs=../../benchmarks/bytestring-0.9.2.1 idirs=../../include no-termination -}
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 
 -- look for `n0` and `n1` below. Why does this work with `n1` but not `n0` or `0-1` ?
@@ -115,8 +114,8 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 {-@ qualif Zog(v:a, p:a)         : (plen p) <= (plen v)          @-}
 {-@ qualif Zog(v:a)              : 0 <= (plen v)                 @-}
 
-{-@ type ByteStringNE   = {v:ByteString | (bLength v) > 0} @-}
-{-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)} @-}
+{- type ByteStringNE   = {v:ByteString | (bLength v) > 0} @-}
+{- type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)} @-}
 -- -----------------------------------------------------------------------------
 --
 -- Useful macros, until we have bang patterns
@@ -129,16 +128,15 @@ foldr k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
 
 {-@ ugo :: (Word8 -> a -> a) -> a -> p:(PtrV Word8) -> {v:Ptr Word8 | ((pbase v) = (pbase p) &&  (plen v) >= (plen p)) } -> IO a @-}
 ugo :: (Word8 -> a -> a) -> a -> Ptr Word8 -> Ptr Word8 -> IO a
-ugo k z p q | p == q    = return z
-            | otherwise = do let p' = liquid_thm_ptr_cmp' p q 
-                             c  <- peek p'
+ugo k z p q | eqPtr q p   = return z
+            | otherwise = do c  <- peek p
                              let n0  = -1               -- BAD  
                              let n1  = 0 - 1            -- OK
-                             let p'' = p' `plusPtr` n0 {- BAD (0 - 1) -} 
-                             ugo k (c `k` z) p'' q -- tail recursive
+                             let p' = p `plusPtr` n1 {- BAD (0 - 1) -}
+                             ugo k (c `k` z) p' q -- tail recursive
 
 
-{-@ liquid_thm_ptr_cmp' :: p:PtrV a 
+{- liquid_thm_ptr_cmp' :: p:PtrV a
                         -> q:{v:(PtrV a) | ((plen v) >= (plen p) && v != p && (pbase v) = (pbase p))} 
                         -> {v: (PtrV a)  | ((v = p) && ((plen v) > 0) && ((plen q) > (plen p))) } 
   @-}

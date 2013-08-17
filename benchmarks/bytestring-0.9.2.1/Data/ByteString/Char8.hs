@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 {-# OPTIONS_GHC -cpp -fglasgow-exts #-}
 
 -- #prune
@@ -1011,6 +1013,7 @@ readInteger as
 
           loop :: Int -> Int -> [Integer]
                -> ByteString -> (Integer, ByteString)
+          {-@ Decrease loop 4 @-}
           STRICT4(loop)
           loop d acc ns ps
               | null ps   = combine d acc ns empty

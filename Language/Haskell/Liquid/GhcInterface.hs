@@ -10,7 +10,10 @@ module Language.Haskell.Liquid.GhcInterface (
   , CBVisitable (..) 
   ) where
 
-import GHC  hiding (Target)
+import Bag (bagToList)
+import ErrUtils
+import Panic
+import GHC hiding (Target)
 import Text.PrettyPrint.HughesPJ
 import HscTypes hiding (Target)
 import TidyPgm      (tidyProgram)
@@ -28,8 +31,13 @@ import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc)
 import qualified Control.Exception as Ex
 
 import GHC.Paths (libdir)
-import System.FilePath (dropExtension, takeFileName, splitFileName, combine,
-                        dropFileName, normalise)
+import System.FilePath ( replaceExtension
+                       , dropExtension
+                       , takeFileName
+                       , splitFileName
+                       , combine
+                       , dropFileName 
+                       , normalise)
 
 import DynFlags
 import Control.Arrow (second)
@@ -37,12 +45,13 @@ import Control.Monad (filterM, zipWithM, when, forM, liftM)
 import Control.DeepSeq
 import Control.Applicative  hiding (empty)
 import Data.Monoid hiding ((<>))
-import Data.List (intercalate, foldl', find, (\\), nub)
+import Data.List (intercalate, foldl', find, (\\), delete, nub)
 import Data.Maybe (catMaybes)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
-import System.Directory (doesFileExist)
+import System.Console.CmdArgs.Verbosity (whenLoud)
+import System.Directory (removeFile, doesFileExist)
 import Language.Fixpoint.Types hiding (Expr) 
 import Language.Fixpoint.Misc
 
@@ -53,7 +62,9 @@ import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Resolution (resolveSpec, qualImportDecl, addContext)
 
-import Language.Haskell.Liquid.Parse 
+import Language.Haskell.Liquid.CmdLine (withPragmas)
+import Language.Haskell.Liquid.Parse
+
 import Language.Fixpoint.Parse          hiding (brackets, comma)
 import Language.Fixpoint.Names
 import Language.Fixpoint.Files
@@ -61,17 +72,32 @@ import Language.Fixpoint.Files
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 
-------------------------------------------------------------------
-getGhcInfo :: Config -> FilePath -> IO GhcInfo
-------------------------------------------------------------------
+--------------------------------------------------------------------
+getGhcInfo :: Config -> FilePath -> IO (Either ErrorResult GhcInfo)
+--------------------------------------------------------------------
+getGhcInfo cfg target = (Right <$> getGhcInfo' cfg target) 
+                          `Ex.catch` (\(e :: SourceError) -> handle e)
+                          `Ex.catch` (\(e :: Error)       -> handle e)
+                          `Ex.catch` (\(e :: [Error])     -> handle e)
+  where 
+    handle            = return . Left . result
 
-getGhcInfo cfg target 
-  = runGhc (Just libdir)  $ do
-      liftIO $ deleteBinFiles target
+-- parseSpec :: (String, FilePath) -> IO (Either ErrorResult Ms.BareSpec)
+-- parseSpec (name, file) 
+--   = Ex.catch (parseSpec' name file) $ \(e :: Ex.IOException) ->
+--       ioError $ userError $ 
+--         printf "Hit exception: %s while parsing spec file: %s for module %s" 
+--           (show e) file name
+
+
+getGhcInfo' cfg target 
+  = runGhc (Just libdir) $ do
       df                 <- getSessionDynFlags
       setSessionDynFlags  $ updateDynFlags df (idirs cfg) 
+      liftIO              $ deleteBinFilez target
+      liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
       addTarget =<< guessTarget target Nothing
-      (_,name,tgtSpec)   <- liftIO $ parseSpec target
+      (name,tgtSpec)   <- liftIO $ parseSpec target
       let name' = ModName Target (getModName name)
       impNames           <- allDepNames <$> depanal [] False
       impSpecs           <- getSpecs paths impNames [Spec, Hs, LHs]
@@ -86,15 +112,13 @@ getGhcInfo cfg target
       let defVs           = definedVars coreBinds 
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
-      liftIO              $ putStrLn ("paths = " ++ show paths)
       (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs name' modguts tgtSpec impSpecs'
-      liftIO              $ putStrLn $ "Module Imports: " ++ show imps 
-      hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs 
+      liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
+      hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs
       return              $ GI hscEnv coreBinds impVs defVs useVs hqualFiles imps incs spec 
   where
     paths = idirs cfg
     trace = liftIO . putStrLn . showpp
-
 
 updateDynFlags df ps 
   = df { importPaths  = ps ++ importPaths df   
@@ -106,9 +130,9 @@ updateDynFlags df ps
        } `xopt_set` Opt_MagicHash
          `dopt_set` Opt_ImplicitImportQualified
 
-printVars s vs 
-  = do putStrLn s 
-       putStrLn $ showPpr [(v, getSrcSpan v) | v <- vs]
+-- printVars s vs 
+--   = do putStrLn s 
+--        putStrLn $ showPpr [(v, getSrcSpan v) | v <- vs]
 
 mgi_namestring = moduleNameString . moduleName . mgi_module
 
@@ -125,16 +149,18 @@ definedVars           = concatMap defs
 ------------------------------------------------------------------
 
 getGhcModGuts1 fn = do
-   modGraph <- getModuleGraph -- depanal [] True
+   modGraph <- getModuleGraph
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
-       mod_guts <- coreModule `fmap` (desugarModuleWithLoc =<< typecheckModule =<< parseModule modSummary)
+       -- mod_guts <- modSummaryModGuts modSummary
+       mod_guts <- coreModule <$> (desugarModuleWithLoc =<< typecheckModule =<< parseModule modSummary)
        return   $! (miModGuts mod_guts)
-     Nothing         -> error "GhcInterface : getGhcModGuts1"
+     Nothing     -> exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
+
 
 -- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
 getGhcModGutsSimpl1 fn = do
-   modGraph <- getModuleGraph -- depanal [] True
+   modGraph <- getModuleGraph
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
        mod_guts   <- coreModule `fmap` (desugarModule =<< typecheckModule =<< parseModule modSummary)
@@ -153,6 +179,13 @@ peepGHCSimple fn
        liftIO $ putStrLn "************************* peepGHCSimple Bindings ***************************"
        liftIO $ putStrLn $ showPpr (cm_binds z)
        errorstar "Done peepGHCSimple"
+
+deleteBinFilez :: FilePath -> IO ()
+deleteBinFilez fn = mapM_ (tryIgnore "delete binaries" . removeFileIfExists)
+                  $ (fn `replaceExtension`) `fmap` exts
+  where exts = ["hi", "o"]
+
+removeFileIfExists f = doesFileExist f >>= (`when` removeFile f)
 
 --------------------------------------------------------------------------------
 -- | Desugaring (Taken from GHC, modified to hold onto Loc in Ticks) -----------
@@ -176,33 +209,30 @@ moduleHquals mg paths target imps incs
        hqs'  <- moduleImports [Hquals] paths (mgi_namestring mg : imps)
        hqs'' <- liftIO   $ filterM doesFileExist [extFileName Hquals target]
        let rv = sortNub  $ hqs'' ++ hqs ++ (snd <$> hqs')
-       liftIO $ putStrLn $ "Reading Qualifiers From: " ++ show rv 
+       liftIO $ whenLoud $ putStrLn $ "Reading Qualifiers From: " ++ show rv 
        return rv
 
 --------------------------------------------------------------------------------
 -- | Extracting Specifications (Measures + Assumptions) ------------------------
 --------------------------------------------------------------------------------
  
-moduleSpec cfg vars defVars target mg tgtSpec impSpecs
-  = do addImports impSpecs
-       addContext $ IIModule $ moduleName $ mgi_module mg
-       env <- getSession
+moduleSpec cfg0 vars defVars target mg tgtSpec impSpecs
+  = do addImports  impSpecs
+       addContext  $ IIModule $ moduleName $ mgi_module mg
+       env        <- getSession
        let specs   = (target,tgtSpec):impSpecs
        let imps    = sortNub $ impNames ++ [ symbolString x
                                            | (_,spec) <- specs
                                            , x <- Ms.imports spec
                                            ]
-       getContext >>= liftIO . putStrLn . showPpr
-       ghcSpec <- liftIO $ makeGhcSpec cfg target vars defVars env specs
+       cfg        <- liftIO $ withPragmas cfg0 $ Ms.pragmas tgtSpec
+       ghcSpec    <- liftIO $ makeGhcSpec cfg target vars defVars env specs
        return      (ghcSpec, imps, Ms.includes tgtSpec)
     where
-      trace = liftIO . putStrLn . showpp
       name     = mgi_namestring mg
       impNames = map (getModString.fst) impSpecs
       addImports is
         = mapM (addContext . IIDecl . qualImportDecl . getModName) (map fst is)
-
-
 
 allDepNames = concatMap (map declNameString . ms_textual_imps)
 
@@ -217,46 +247,36 @@ starName       = ("*" ++)
 
 getSpecs paths names exts
   = do fs    <- sortNub <$> moduleImports exts paths names 
-       liftIO $ putStrLn ("getSpecs: " ++ show fs)
+       liftIO $ whenLoud $ putStrLn ("getSpecs: " ++ show fs)
        transParseSpecs exts paths S.empty mempty (map snd fs)
 
 transParseSpecs _ _ _ specs []
   = return specs
 transParseSpecs exts paths seenFiles specs newFiles
-  = do newSpecs  <- liftIO $ mapM parseSpec newFiles
+  = do newSpecs  <- liftIO $ mapM (\f -> addFirst f <$> parseSpec f) newFiles
        impFiles  <- moduleImports exts paths $ specsImports newSpecs
        let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
        let specs'     = specs ++ map (third noTerm) newSpecs
        let newFiles'  = [f | (_,f) <- impFiles, not (f `S.member` seenFiles')]
        transParseSpecs exts paths seenFiles' specs' newFiles'
   where
+    addFirst a (b,c) = (a,b,c)
     specsImports ss = nub $ concatMap (map symbolString . Ms.imports . thd3) ss
     noTerm spec = spec { Ms.decr=mempty, Ms.lazy=mempty }
     third f (a,b,c) = (a,b,f c)
 
+parseSpec :: FilePath -> IO (ModName, Ms.BareSpec)
 parseSpec file
-  = Ex.catch (parseSpec' file) $ \(e :: Ex.IOException) ->
-         ioError $ userError $ "Hit exception: " ++ (show e)
-                            ++ " while parsing Spec file: " ++ file
-
-parseSpec' file
-  = do str            <- readFile file
-       let (name,spec) = specParser file str
-       putStrLn $ "parseSpec: " ++ file ++ " for module " ++ getModString name
-       return $ (file,name,spec)
+  = do whenLoud $ putStrLn $ "parseSpec: " ++ file
+       either Ex.throw return . specParser file =<< readFile file
 
 specParser file str
-  | isExtFile Spec file  = rr' file str
-  | isExtFile Hs file    = hsSpecificationP file str
-  | isExtFile LHs file   = hsSpecificationP file str
-  | otherwise            = errorstar $ "specParser: Cannot Parse File " ++ file
+  | isExtFile Spec file  = specSpecificationP file str
+  | isExtFile Hs file    = hsSpecificationP   file str
+  | isExtFile LHs file   = hsSpecificationP   file str
+  | otherwise            = exitWithPanic $ "SpecParser: Cannot Parse File " ++ file
 
---specParser Spec _  = rr'
---specParser Hs name = hsSpecificationP name
 
---moduleImports ext paths  = liftIO . liftM catMaybes . mapM (mnamePath paths ext) 
---mnamePath paths ext name = fmap (name,) <$> getFileInDirs file paths
---                           where file = name `extModuleName` ext
 
 moduleImports :: GhcMonad m => [Ext] -> [FilePath] -> [String] -> m [(String, FilePath)]
 moduleImports exts paths names
@@ -330,7 +350,8 @@ instance CBVisitable CoreBind where
                                     env'    = extendEnv env xs 
 
   readVars (NonRec _ e)     = readVars e
-  readVars (Rec xes)        = concatMap readVars $ map snd xes
+  readVars (Rec xes)        = concat [x `delete` nubReadVars e |(x, e) <- xes]
+    where nubReadVars = sortNub . readVars
 
   letVars (NonRec x e)      = x : letVars e
   letVars (Rec xes)         = xs ++ concatMap letVars es
@@ -370,7 +391,7 @@ exprReadVars = go
 
 exprLetVars = go
   where
-    go (Var x)             = []
+    go (Var _)             = []
     go (App e a)           = concatMap go [e, a] 
     go (Lam x e)           = x : go e
     go (Let b e)           = letVars b ++ go e 
@@ -407,10 +428,11 @@ instance CBVisitable AltCon where
   literals _              = []
 
 
-names     = (map varName) . bindings
 
 extendEnv = foldl' (flip S.insert)
 
+-- names     = (map varName) . bindings
+-- 
 bindings (NonRec x _) 
   = [x]
 bindings (Rec  xes  ) 
@@ -422,8 +444,6 @@ bindings (Rec  xes  )
 
 instance NFData Var
 instance NFData SrcSpan
-
-
 
 instance PPrint GhcSpec where
   pprint spec =  (text "******* Target Variables ********************")
@@ -459,6 +479,22 @@ instance PPrint TargetVars where
   pprint AllVars   = text "All Variables"
   pprint (Only vs) = text "Only Variables: " <+> pprint vs 
 
-
-
 pprintLongList = brackets . vcat . map pprint
+
+------------------------------------------------------------------------
+-- Dealing With Errors -------------------------------------------------
+------------------------------------------------------------------------
+
+-- | Throw a panic exception
+exitWithPanic  :: String -> a 
+exitWithPanic  = Ex.throw . ErrOther . text 
+
+-- | Convert a GHC error into one of ours
+instance Result SourceError where 
+  result = (`Crash` "Invalid Source") 
+         . concatMap errMsgErrors 
+         . bagToList 
+         . srcErrorMessages
+     
+errMsgErrors e = [ ErrGhc l (pprint e) | l <- errMsgSpans e ] 
+

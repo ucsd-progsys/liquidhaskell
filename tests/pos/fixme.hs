@@ -1,18 +1,19 @@
 module Fixme where
 
-bar = go
-  where go [] [] = []
-        go (x:xs) [] = x:go xs []
+data Map k a = Tip | Bin Int k a (Map k a) (Map k a)
 
-{-@ Decrease go 2 @-}
-baz = go
-  where go [] [] = []
-        go [] (x:xs) = x:go [] xs
+insert :: Ord k => k -> a -> Map k a -> Map k a
+insert = go
+  where
+    go :: Ord k => k -> a -> Map k a -> Map k a
+    go kx x Tip = singleton kx x
+    go kx x (Bin sz ky y l r) =
+        case compare kx ky of
+                  -- Bin ky y (go kx x l) r 
+            LT -> balanceL ky y (go kx x l) r
+            GT -> balanceR ky y l (go kx x r)
+            EQ -> Bin sz kx x l r
 
-{-@ Decrease go 3 @-}
-boo = go
-  where go [] [] [] [] = []
-        go [] [] (x:xs) [] = x:go [] [] xs []
-
-
-
+singleton = undefined
+balanceL = undefined
+balanceR = undefined

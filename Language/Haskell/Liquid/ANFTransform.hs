@@ -8,7 +8,7 @@
 -------------------------------------------------------------------------------------
 
 module Language.Haskell.Liquid.ANFTransform (anormalize) where
-
+import           Coercion (isCoVar, isCoVarType)
 import           CoreSyn
 import           CoreUtils                        (exprType)
 import           DsMonad                          (DsM, initDs)
@@ -115,6 +115,10 @@ normalizeName _ e@(Type _)
 normalizeName _ e@(Lit _)
   = return ([], e)
 
+normalizeName γ e@(Coercion _)
+  = do x        <- freshNormalVar $ exprType e
+       return ([NonRec x e], Var x)
+
 normalizeName γ (Tick n e)
   = do (bs, e') <- normalizeName γ e
        return (bs, Tick n e')
@@ -149,7 +153,6 @@ normalize γ (Let b e)
        -- Need to float bindings all the way up to the top 
        -- Due to GHCs odd let-bindings (see tests/pos/lets.hs) 
 
-
 normalize γ (Case e x t as)
   = do (bs, n) <- normalizeName γ e
        x'      <- freshNormalVar τx -- rename "wild" to avoid shadowing
@@ -180,6 +183,9 @@ normalize γ (App e1 e2)
 normalize γ (Tick n e)
   = do (bs, e') <- normalize γ e
        return (bs, Tick n e')
+
+normalize _ (Coercion c) 
+  = return ([], Coercion c)
 
 normalize _ e
   = errorstar $ "ANFTransform.normalize: TODO" ++ showPpr e

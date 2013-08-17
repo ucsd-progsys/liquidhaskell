@@ -560,6 +560,7 @@ tail (Chunk c cs)
 last :: ByteString -> Word8
 last Empty          = errorEmptyList "last"
 last (Chunk c0 cs0) = go c0 cs0
+        {-@ Decrease go 2 @-}
   where go c Empty        = S.last c
         go _ (Chunk c cs) = go c cs
 -- XXX Don't inline this. Something breaks with 6.8.2 (haven't investigated yet)
@@ -575,6 +576,7 @@ last (Chunk c0 cs0) = go c0 cs0
 init :: ByteString -> ByteString
 init Empty          = errorEmptyList "init"
 init (Chunk c0 cs0) = go c0 cs0
+        {-@ Decrease go 2 @-}
   where go c Empty | S.length c == 1 = Empty
                    | otherwise       = Chunk (S.init c) Empty
         go c (Chunk c' cs)           = Chunk c (go c' cs)
@@ -700,6 +702,7 @@ foldl1' f (Chunk c cs) = foldl' f (S.unsafeHead c)
 foldr1 :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
 foldr1 _ Empty          = errorEmptyList "foldr1"
 foldr1 f (Chunk c0 cs0) = go c0 cs0
+        {-@ Decrease go 2 @-}
   where go c Empty         = S.foldr1 f c
         go c (Chunk c' cs) = S.foldr  f (go c' cs) c
 
@@ -784,13 +787,13 @@ mapAccumL f s0 cs0 = mapAccum_go s0 cs0
 -- final value of this accumulator together with the new ByteString.
 {-@ mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> b:LByteString -> (acc, LByteStringSZ b) @-}
 mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
-mapAccumR f s0 cs0 = mapAccum_go s0 cs0
+mapAccumR f s0 cs0 = go s0 cs0
   where
-    --LIQUID RENAME
-    mapAccum_go s Empty        = (s, Empty)
-    mapAccum_go s (Chunk c cs) = (s'', Chunk c' cs')
+    {-@ Decrease go 5 @-}
+    go s Empty        = (s, Empty)
+    go s (Chunk c cs) = (s'', Chunk c' cs')
         where (s'', c') = S.mapAccumR f s' c
-              (s', cs') = mapAccum_go s cs
+              (s', cs') = go s cs
 
 -- | /O(n)/ map Word8 functions, provided with the index at each position
 {-@ mapIndexed :: (Int -> Word8 -> Word8) -> LByteString -> LByteString @-}
@@ -849,8 +852,9 @@ replicate n w
         let c      = S.replicate smallChunkSize w
             cs     = nChunks q
             (q, r) = quotRem n (fromIntegral smallChunkSize)
-            nChunks 0 = Empty
-            nChunks m = Chunk c (nChunks (m-1))
+            --LIQUID CAST
+            nChunks (0 :: Int64) = Empty
+            nChunks m            = Chunk c (nChunks (m-1))
         in if r == 0 then cs -- preserve invariant
            else Chunk (S.unsafeTake (fromIntegral r) c) cs
 --LIQUID LAZY     | r == 0             = cs -- preserve invariant
@@ -1080,6 +1084,7 @@ split _ Empty     = []
 --LIQUID PARAM         comb acc (s:[]) (Chunk c cs) = comb (s:acc) (S.split w c) cs
 --LIQUID PARAM         comb acc (s:ss) cs           = revChunks (s:acc) : comb [] ss cs
 split w (Chunk c0 cs0) = comb [] cs0 (S.split w c0)
+        {-@ Decrease comb 2 3 @-}
   where comb :: [S.ByteString] -> ByteString -> [S.ByteString] -> [ByteString]
         comb acc Empty        (s:[]) = revChunks (s:acc) : []
         comb acc (Chunk c cs) (s:[]) = comb (s:acc) cs (S.split w c)
@@ -1459,6 +1464,7 @@ unzip ls = (pack (L.map fst ls), pack (L.map snd ls))
 {-@ inits :: LByteString -> [LByteString] @-}
 inits :: ByteString -> [ByteString]
 inits = (Empty :) . inits'
+
   where inits' Empty        = []
         inits' (Chunk c cs) = let (c':cs') = S.inits c in
                               L.map (\c' -> Chunk c' Empty) cs' --LIQUID INLINE (L.tail (S.inits c))
@@ -1635,6 +1641,7 @@ moduleError fun msg = error ("Data.ByteString.Lazy." ++ fun ++ ':':' ':msg)
 revNonEmptyChunks :: [S.ByteString] -> ByteString
 --LIQUID INLINE revNonEmptyChunks cs = L.foldl' (flip Chunk) Empty cs
 revNonEmptyChunks cs = go Empty cs
+          {-@ Decrease go 2 @-}
     where go acc []     = acc
           go acc (c:cs) = go (Chunk c acc) cs
 
@@ -1643,6 +1650,7 @@ revNonEmptyChunks cs = go Empty cs
 revChunks :: [S.ByteString] -> ByteString
 --LIQUID INLINE revChunks cs = L.foldl' (flip chunk) Empty cs
 revChunks cs = go Empty cs
+          {-@ Decrease go 2 @-}
     where go acc []     = acc
           go acc (c:cs) = go (chunk c acc) cs
 
@@ -1651,17 +1659,16 @@ revChunks cs = go Empty cs
 -- | 'findIndexOrEnd' is a variant of findIndex, that returns the length
 -- of the string if no element is found, rather than Nothing.
 findIndexOrEnd :: (Word8 -> Bool) -> S.ByteString -> Int
-findIndexOrEnd k (S.PS x s l) = S.inlinePerformIO $ withForeignPtr x $ \f -> findIndexOrEnd_go l (f `plusPtr` s) 0
+findIndexOrEnd k (S.PS x s l) = S.inlinePerformIO $ withForeignPtr x $ \f -> go l (f `plusPtr` s) 0
   where
     --LIQUID GHOST
-    --LIQUID RENAME
-    STRICT3(findIndexOrEnd_go)
-    findIndexOrEnd_go (d::Int) ptr n
+    STRICT3(go)
+    go (d::Int) ptr n
         | n >= l    = return l
         | otherwise = do w <- peek ptr
                          if k w
                          then return n
-                         else findIndexOrEnd_go (d-1) (ptr `plusPtr` 1) (n+1)
+                         else go (d-1) (ptr `plusPtr` 1) (n+1)
 {-# INLINE findIndexOrEnd #-}
 
 {- liquidCanary :: x:Int -> {v: Int | v > x} @-}
