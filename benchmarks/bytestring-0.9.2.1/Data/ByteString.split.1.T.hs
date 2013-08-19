@@ -80,11 +80,6 @@ assertS s False = error ("assertion failed at "++s)
 -- LIQUID
 import GHC.IO.Buffer
 import Language.Haskell.Liquid.Prelude -- (isNullPtr, liquidAssert, intCSize) 
-import qualified Data.ByteString.Lazy.Internal 
-import qualified Data.ByteString.Fusion
-import qualified Data.ByteString.Internal
-import qualified Data.ByteString.Unsafe
-import qualified Foreign.C.Types
 
 -- -----------------------------------------------------------------------------
 --
@@ -454,8 +449,8 @@ findIndex k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go l (f `plu
                                 else go (d-1) (ptr `plusPtr` 1) (n+1)
 
 -- also findSubstrings
-{-@ qualif FindIndices(v:Data.ByteString.Internal.ByteString,
-                       p:Data.ByteString.Internal.ByteString,
+{-@ qualif FindIndices(v:ByteString,
+                       p:ByteString,
                        n:Int):
         (bLength v) = (bLength p) - n  @-}
 
@@ -479,10 +474,10 @@ notElem :: Word8 -> ByteString -> Bool
 notElem c ps = not (elem c ps)
 {-# INLINE notElem #-}
 
-{-@ qualif FilterDecr(v:GHC.Ptr.Ptr a, f:GHC.Ptr.Ptr a, d:Int):
+{-@ qualif FilterDecr(v:Ptr a, f:Ptr a, d:Int):
         (plen v) >= (plen f) - d @-}
 
-{-@ qualif FilterLoop(v:GHC.Ptr.Ptr a, f:GHC.Ptr.Ptr a, t:GHC.Ptr.Ptr a):
+{-@ qualif FilterLoop(v:Ptr a, f:Ptr a, t:Ptr a):
         (plen t) >= (plen f) - (plen v) @-}
 {-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
 filter :: (Word8 -> Bool) -> ByteString -> ByteString
@@ -776,13 +771,11 @@ putStrLn = hPutStrLn stdout
 -- is far more efficient than reading the characters into a 'String'
 -- and then using 'pack'.
 
-{-@ assume GHC.IO.Handle.Text.hGetBuf :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
 {-@ hGet :: Handle -> n:Nat -> IO {v:ByteString | (bLength v) <= n} @-}
 hGet :: Handle -> Int -> IO ByteString
 hGet _ 0 = return empty
 hGet h i = createAndTrim i $ \p -> hGetBuf h p i
 
-{-@ assume GHC.IO.Handle.Text.hGetBufNonBlocking :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
 {-@ hGetNonBlocking :: Handle -> n:Nat -> IO {v:ByteString | (bLength v) <= n} @-}
 
 hGetNonBlocking :: Handle -> Int -> IO ByteString
@@ -794,7 +787,6 @@ hGetNonBlocking = hGet
 #endif
 
 {-@ assume Foreign.Marshal.Alloc.reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
-{- assume GHC.IO.Handle.Text.hGetBuf :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
 {-@ Strict Data.ByteStringHelper.hGetContents @-}
 hGetContents :: Handle -> IO ByteString
 hGetContents h = do
@@ -837,7 +829,6 @@ interact transformer = putStr . transformer =<< getContents
 -- 'pack'.  It also may be more efficient than opening the file and
 -- reading it using hGet. Files are read using 'binary mode' on Windows,
 -- for 'text mode' use the Char8 version of this function.
-{-@ assume GHC.IO.Handle.hFileSize :: Handle -> (IO {v:Integer | v >= 0}) @-}
 readFile :: FilePath -> IO ByteString
 readFile f = bracket (openBinaryFile f ReadMode) hClose
     (\h -> hFileSize h >>= hGet h . fromIntegral)

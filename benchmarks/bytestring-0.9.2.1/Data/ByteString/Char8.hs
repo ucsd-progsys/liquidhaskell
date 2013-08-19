@@ -1,4 +1,4 @@
-{--! run liquid with no-termination -}
+{-@ LIQUID "--notermination" @-}
 
 {-# OPTIONS_GHC -cpp -fglasgow-exts #-}
 
@@ -276,8 +276,6 @@ import GHC.ST                   (ST(..))
 
 --LIQUID
 import Data.ByteString.Fusion (PairS(..), MaybeS(..))
-import qualified Data.ByteString.Lazy.Internal
-import qualified Foreign.C.String
 import System.IO (Handle)
 import Foreign.ForeignPtr
 import Foreign.Ptr

@@ -1,4 +1,4 @@
-{--! run liquid with maxparams=3 -}
+{-@ LIQUID "--maxparams=3" @-}
 {-# LANGUAGE CPP, DeriveDataTypeable #-}
 
 -- |

@@ -80,11 +80,6 @@ assertS s False = error ("assertion failed at "++s)
 -- LIQUID
 import GHC.IO.Buffer
 import Language.Haskell.Liquid.Prelude hiding (eq) 
-import qualified Data.ByteString.Lazy.Internal
-import qualified Data.ByteString.Fusion
-import qualified Data.ByteString.Internal
-import qualified Data.ByteString.Unsafe
-import qualified Foreign.C.Types
 
 {-@ include <ByteString.hs.hquals> @-}
 
@@ -106,7 +101,7 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 {- qualif Zog(v:a)              : 0 <= (plen v)                 @-}
 
 -- for unfoldrN 
-{- qualif PtrDiffUnfoldrN(v:int, i:int, p:GHC.Ptr.Ptr a): (i - v) <= (plen p) @-}
+{- qualif PtrDiffUnfoldrN(v:int, i:int, p:Ptr a): (i - v) <= (plen p) @-}
 
 {-@ lengths :: bs:[ByteString] -> {v:Nat | v = (bLengths bs)} @-}
 lengths :: [ByteString] -> Int
@@ -537,7 +532,7 @@ foldl' = foldl
 -- reduces the ByteString using the binary operator, from right to left.
 
 -- foldr/foldr' TERMINATION
-{-@ qualif PtrDiff(v:int, p:GHC.Ptr.Ptr a, q:GHC.Ptr.Ptr a): v >= (plen p) - (plen q) @-}
+{-@ qualif PtrDiff(v:int, p:Ptr a, q:Ptr a): v >= (plen p) - (plen q) @-}
 
 foldr :: (Word8 -> a -> a) -> a -> ByteString -> a
 foldr k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
