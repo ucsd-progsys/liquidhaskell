@@ -158,8 +158,8 @@ makeRTEnv' rts pts  = do initRTEnv
 
 
 makeRTAliases xts = mapM_ expBody xts
-  where expBody (mod,xt) = inModule mod $ withVArgs (rtVArgs xt) $ do
-                             body <- expandRTAlias $ rtBody xt
+  where expBody (mod,xt) = inModule mod $ do
+                             body <- withVArgs (rtVArgs xt) $ expandRTAlias $ rtBody xt
                              setRTAlias (rtName xt)
                                $ Right $ mapRTAVars stringRTyVar $ xt { rtBody = body }
 
