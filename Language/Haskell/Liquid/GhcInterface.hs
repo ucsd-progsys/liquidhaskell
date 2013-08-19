@@ -60,6 +60,7 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Resolution (resolveSpec, qualImportDecl, addContext)
 
 import Language.Haskell.Liquid.CmdLine (withPragmas)
@@ -90,14 +91,16 @@ getGhcInfo cfg target = (Right <$> getGhcInfo' cfg target)
 --           (show e) file name
 
 
-getGhcInfo' cfg target 
+getGhcInfo' cfg0 target
   = runGhc (Just libdir) $ do
-      df                 <- getSessionDynFlags
-      setSessionDynFlags  $ updateDynFlags df (idirs cfg) 
       liftIO              $ deleteBinFilez target
-      liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
-      addTarget =<< guessTarget target Nothing
+      addTarget         =<< guessTarget target Nothing
       (name,tgtSpec)     <- liftIO $ parseSpec target
+      cfg                <- liftIO $ withPragmas cfg0 $ Ms.pragmas tgtSpec
+      let paths           = idirs cfg
+      df                 <- getSessionDynFlags
+      setSessionDynFlags  $ updateDynFlags df (idirs cfg)
+      liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
       let name'           = ModName Target (getModName name)
       impNames           <- allDepNames <$> depanal [] False
       impSpecs           <- getSpecs target paths impNames [Spec, Hs, LHs]
@@ -117,8 +120,6 @@ getGhcInfo' cfg target
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
       hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs
       return              $ GI hscEnv coreBinds impVs defVs useVs hqualFiles imps incs spec 
-  where
-    paths = idirs cfg
 
 updateDynFlags df ps 
   = df { importPaths  = ps ++ importPaths df   
@@ -212,7 +213,7 @@ moduleHquals mg paths target imps incs
 -- | Extracting Specifications (Measures + Assumptions) ------------------------
 --------------------------------------------------------------------------------
  
-moduleSpec cfg0 vars defVars target mg tgtSpec impSpecs
+moduleSpec cfg vars defVars target mg tgtSpec impSpecs
   = do addImports  impSpecs
        addContext  $ IIModule $ moduleName $ mgi_module mg
        env        <- getSession
@@ -221,7 +222,6 @@ moduleSpec cfg0 vars defVars target mg tgtSpec impSpecs
                                            | (_,spec) <- specs
                                            , x <- Ms.imports spec
                                            ]
-       cfg        <- liftIO $ withPragmas cfg0 $ Ms.pragmas tgtSpec
        ghcSpec    <- liftIO $ makeGhcSpec cfg target vars defVars env specs
        return      (ghcSpec, imps, Ms.includes tgtSpec)
     where
@@ -249,14 +249,13 @@ getSpecs target paths names exts
 transParseSpecs _ _ _ specs []
   = return specs
 transParseSpecs exts paths seenFiles specs newFiles
-  = do newSpecs  <- liftIO $ mapM (\f -> addFirst f <$> parseSpec f) newFiles
+  = do newSpecs  <- liftIO $ mapM (\f -> addFst3 f <$> parseSpec f) newFiles
        impFiles  <- moduleImports exts paths $ specsImports newSpecs
        let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
        let specs'     = specs ++ map (third noTerm) newSpecs
        let newFiles'  = [f | (_,f) <- impFiles, not (f `S.member` seenFiles')]
        transParseSpecs exts paths seenFiles' specs' newFiles'
   where
-    addFirst a (b,c) = (a,b,c)
     specsImports ss = nub $ concatMap (map symbolString . Ms.imports . thd3) ss
     noTerm spec = spec { Ms.decr=mempty, Ms.lazy=mempty }
     third f (a,b,c) = (a,b,f c)

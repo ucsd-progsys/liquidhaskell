@@ -13,6 +13,7 @@ module Language.Haskell.Liquid.Measure (
   , qualifySpec
   , mapTy
   , dataConTypes
+  , defRefType
   ) where
 
 import GHC hiding (Located)
