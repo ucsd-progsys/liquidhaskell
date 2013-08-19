@@ -1,4 +1,8 @@
-{--! run liquid with no-termination m4 idirs=../bytestring-0.9.2.1/ idirs=../../include/ -}
+{- LIQUID "--no-termination" @-}
+{- LIQUID "--maxparams=4" @-}
+{-@ LIQUID "--idirs=../bytestring-0.9.2.1/" @-}
+{-@ LIQUID "--idirs=../../include/" @-}
+
 {-# LANGUAGE BangPatterns, CPP, ForeignFunctionInterface, MagicHash,
     UnliftedFFITypes #-}
 {-# LANGUAGE PackageImports, RankNTypes #-}
@@ -83,36 +87,36 @@ import qualified Data.Text.Fusion as F
 
 --LIQUID
 import Control.Exception (throw)
-import Data.ByteString.Fusion (PairS(..), MaybeS(..))
-import qualified Data.ByteString.Fusion
-import qualified Data.ByteString.Lazy.Internal
-import Data.Int
-import qualified Data.Text
-import Data.Text.Array (Array(..), MArray(..))
+-- import Data.ByteString.Fusion (PairS(..), MaybeS(..))
+-- import qualified Data.ByteString.Fusion
+-- import qualified Data.ByteString.Lazy.Internal
+-- import Data.Int
+-- import qualified Data.Text
+-- import Data.Text.Array (Array(..), MArray(..))
 import qualified Data.Text.Encoding.Error as E
-import qualified Data.Text.Foreign
-import qualified Data.Text.Fusion.Internal
-import qualified Data.Text.Fusion.Size
-import qualified Data.Text.Internal
-import qualified Data.Text.Private
-import qualified Data.Text.Search
-import qualified Data.Text.Unsafe
-import Data.Word
-import Foreign.C.String
-import Foreign.C.Types
+-- import qualified Data.Text.Foreign
+-- import qualified Data.Text.Fusion.Internal
+-- import qualified Data.Text.Fusion.Size
+-- import qualified Data.Text.Internal
+-- import qualified Data.Text.Private
+-- import qualified Data.Text.Search
+-- import qualified Data.Text.Unsafe
+-- import Data.Word
+-- import Foreign.C.String
+-- import Foreign.C.Types
 import Foreign.ForeignPtr (ForeignPtr)
-import Foreign.Storable
-import GHC.ST
+-- import Foreign.Storable
+-- import GHC.ST
 import Language.Haskell.Liquid.Prelude
 
-{-@ qualif PValid(v:GHC.Ptr.Ptr int, a:Data.Text.Array.MArray s):
+{-@ qualif PValid(v:Ptr int, a:A.MArray s):
         (((deref v) >= 0) && ((deref v) < (malen a)))
   @-}
-{-@ qualif PLenCmp(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr b): (plen v) >= (plen p) @-}
-{-@ qualif PLenCmp(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr b): (plen p) >= (plen v) @-}
-{-@ qualif PBaseEq(v:GHC.Ptr.Ptr a, p:GHC.Ptr.Ptr b): (pbase v) = (pbase p) @-}
+{-@ qualif PLenCmp(v:Ptr a, p:Ptr b): (plen v) >= (plen p) @-}
+{-@ qualif PLenCmp(v:Ptr a, p:Ptr b): (plen p) >= (plen v) @-}
+{-@ qualif PBaseEq(v:Ptr a, p:Ptr b): (pbase v) = (pbase p) @-}
 
-{-@ type PtrGE N = {v:GHC.Ptr.Ptr Word8 | (plen v) >= N} @-}
+{-@ type PtrGE N = {v:Ptr Word8 | (plen v) >= N} @-}
 
 {- Foreign.Marshal.Utils.with :: (Foreign.Storable.Storable a)
                                => a:a
@@ -121,24 +125,24 @@ import Language.Haskell.Liquid.Prelude
   @-}
 --LIQUID FIXME: this is a hacky, specialized type
 {-@ withLIQUID :: z:CSize
-               -> a:Data.Text.Array.MArray s
+               -> a:A.MArray s
                -> ({v:PtrV CSize | (Btwn (deref v) z (malen a))} -> IO b)
                -> IO b
   @-}
 withLIQUID :: CSize -> A.MArray s -> (Ptr CSize -> IO b) -> IO b
 withLIQUID = undefined
 
-{-@ qualif EqFPlen(v:GHC.ForeignPtr.ForeignPtr a, n:int): (fplen v) = n @-}
+{-@ qualif EqFPlen(v:ForeignPtr a, n:int): (fplen v) = n @-}
 
-{-@ plen :: p:GHC.Ptr.Ptr a -> {v:Nat | v = (plen p)} @-}
+{-@ plen :: p:Ptr a -> {v:Nat | v = (plen p)} @-}
 plen :: Ptr a -> Int
 plen = undefined
 
 --LIQUID specialize the generic error handler to talk about the array
 {-@ type OnDecodeError = forall s.
                          String
-                      -> Maybe Data.Word.Word8
-                      -> a:Data.Text.Array.MArray s
+                      -> Maybe Word8
+                      -> a:A.MArray s
                       -> i:Nat
                       -> Maybe {v:Char | (Room a i v)}
   @-}
@@ -148,9 +152,9 @@ type OnDecodeError = forall s. String -> Maybe Word8 -> A.MArray s -> Int -> May
 strictDecode :: OnDecodeError
 strictDecode desc c _ _ = throw (E.DecodeError desc c)
 
-{-@ qualif Ensure(v:GHC.ForeignPtr.ForeignPtr a, x:int): x <= (fplen v) @-}
-{-@ qualif Ensure(v:GHC.Ptr.Ptr a, x:int, y:int): x+y <= (plen v) @-}
-{-@ qualif Ensure(v:GHC.Ptr.Ptr a, x:int, y:int, z:int): x+y <= z @-}
+{-@ qualif Ensure(v:ForeignPtr a, x:int): x <= (fplen v) @-}
+{-@ qualif Ensure(v:Ptr a, x:int, y:int): x+y <= (plen v) @-}
+{-@ qualif Ensure(v:Ptr a, x:int, y:int, z:int): x+y <= z @-}
 
 -- $strict
 --
@@ -174,7 +178,7 @@ decodeASCII = decodeUtf8
 {-# DEPRECATED decodeASCII "Use decodeUtf8 instead" #-}
 
 -- | Decode a 'ByteString' containing UTF-8 encoded text.
-{-@ decodeUtf8With :: OnDecodeError -> ByteString -> Data.Text.Internal.Text @-}
+{-@ decodeUtf8With :: OnDecodeError -> ByteString -> Text @-}
 decodeUtf8With :: OnDecodeError -> ByteString -> Text
 decodeUtf8With onErr (PS fp off len) = runText $ \done -> do
   let go dest = withForeignPtr fp $ \ptr ->
@@ -370,13 +374,13 @@ encodeUtf32BE txt = E.unstream (E.restreamUtf32BE (F.stream txt))
 --LIQUID foreign import ccall unsafe "_hs_text_decode_utf8" c_decode_utf8
 --LIQUID     :: MutableByteArray# s -> Ptr CSize
 --LIQUID     -> Ptr Word8 -> Ptr Word8 -> IO (Ptr Word8)
-{-@ c_decode_utf8 :: a:Data.Text.Array.MArray s
-                  -> d:{v:PtrV Foreign.C.Types.CSize | (BtwnI (deref v) 0 (malen a))}
-                  -> c:PtrV Data.Word.Word8
-                  -> end:{v:PtrV Data.Word.Word8 | (((plen v) <= (plen c))
-                                                 && ((pbase v) = (pbase c)))}
-                  -> IO {v:(PtrV Data.Word.Word8) | ((BtwnI (plen v) (plen end) (plen c))
-                                                  && ((pbase v) = (pbase end)))}
+{-@ c_decode_utf8 :: a:A.MArray s
+                  -> d:{v:PtrV CSize | (BtwnI (deref v) 0 (malen a))}
+                  -> c:PtrV Word8
+                  -> end:{v:PtrV Word8 | (((plen v) <= (plen c))
+                                       && ((pbase v) = (pbase c)))}
+                  -> IO {v:(PtrV Word8) | ((BtwnI (plen v) (plen end) (plen c))
+                                        && ((pbase v) = (pbase end)))}
   @-}
 c_decode_utf8 :: A.MArray s -> Ptr CSize
               -> Ptr Word8 -> Ptr Word8 -> IO (Ptr Word8)
