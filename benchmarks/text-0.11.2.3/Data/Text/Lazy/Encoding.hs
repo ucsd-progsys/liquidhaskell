@@ -1,4 +1,6 @@
-{--! run liquid with no-termination idirs=../bytestring-0.9.2.1/ idirs=../../include/ -}
+{-@ LIQUID "--notermination" @-}
+{-@ LIQUID "--idirs=../bytestring-0.9.2.1/" @-}
+{-@ LIQUID "--idirs=../../include/" @-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE Rank2Types #-}
 -- |
@@ -61,9 +63,7 @@ import qualified Data.Text.Lazy.Encoding.Fusion as E
 import qualified Data.Text.Lazy.Fusion as F
 
 --LIQUID
-import Data.Word
-import Foreign.Ptr
-import Foreign.ForeignPtr
+import Data.Word (Word8)
 import Language.Haskell.Liquid.Prelude
 
 -- $strict

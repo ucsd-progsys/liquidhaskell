@@ -59,18 +59,18 @@ import qualified Data.Text.Array as A
 import qualified Data.Text.Lazy as L
 
 --LIQUID
-import qualified Data.Text
-import Data.Text.Array (Array(..), MArray(..))
-import qualified Data.Text.Fusion.Internal
-import Data.Text.Fusion.Size
-import qualified Data.Text.Lazy
-import qualified Data.Text.Lazy.Fusion
-import Data.Text.Lazy.Fusion (TPairS(..))
-import qualified Data.Text.Lazy.Internal
-import qualified Data.Text.Private
-import qualified Data.Text.Search
-import qualified Data.Text.Unsafe
-import Data.Word
+-- import qualified Data.Text
+-- import Data.Text.Array (Array(..), MArray(..))
+-- import qualified Data.Text.Fusion.Internal
+-- import Data.Text.Fusion.Size
+-- import qualified Data.Text.Lazy
+-- import qualified Data.Text.Lazy.Fusion
+-- import Data.Text.Lazy.Fusion (TPairS(..))
+-- import qualified Data.Text.Lazy.Internal
+-- import qualified Data.Text.Private
+-- import qualified Data.Text.Search
+-- import qualified Data.Text.Unsafe
+-- import Data.Word
 
 ------------------------------------------------------------------------
 
@@ -217,27 +217,27 @@ data Buffer s = Buffer {-# UNPACK #-} !(A.MArray s)
                        {-# UNPACK #-} !Int  -- used units
                        {-# UNPACK #-} !Int  -- length left
 
-{-@ data Data.Text.Lazy.Builder.Buffer s = Data.Text.Lazy.Builder.Buffer
-        (marr :: {v:Data.Text.Array.MArray s | (malen v) > 0})
+{-@ data Buffer s = Buffer
+        (marr :: {v:A.MArray s | (malen v) > 0})
         (off  :: {v:Nat | v <= (malen marr)})
         (used :: {v:Nat | (off+v) <= (malen marr)})
         (left :: {v:Nat | v = ((malen marr) - off - used)})
   @-}
 
-{-@ qualif MArrayNE(v:Data.Text.Array.MArray s): (malen v) > 0 @-}
+{-@ qualif MArrayNE(v:A.MArray s): (malen v) > 0 @-}
 
-{- measure bufUsed :: Data.Text.Lazy.Builder.Buffer s -> Int
-    bufUsed (Data.Text.Lazy.Builder.Buffer m o u l) = u
+{- measure bufUsed :: Buffer s -> Int
+    bufUsed (Buffer m o u l) = u
   @-}
 
-{-@ measure bufLeft :: Data.Text.Lazy.Builder.Buffer s -> Int
-    bufLeft (Data.Text.Lazy.Builder.Buffer m o u l) = l
+{-@ measure bufLeft :: Buffer s -> Int
+    bufLeft (Buffer m o u l) = l
   @-}
 
-{-@ qualif BufLeft (v:int, a:Data.Text.Array.MArray s, o:int, u:int)
+{-@ qualif BufLeft (v:int, a:A.MArray s, o:int, u:int)
                   : v = (malen(a) - o  - u)
   @-}
-{- qualif BufUsed (v:int, a:Data.Text.Array.MArray s, o:int, b:Data.Text.Lazy.Builder.Buffer s)
+{- qualif BufUsed (v:int, a:A.MArray s, o:int, b:Buffer s)
                   : (o + (bufUsed b) + v) <= (malen a)
   @-}
 
@@ -299,7 +299,7 @@ ensureFree !n = withSize $ \ l ->
 {-# INLINE [0] ensureFree #-}
 
 {-@ writeAtMost :: n:Nat
-                -> (forall s. ma:MArray s
+                -> (forall s. ma:A.MArray s
                     -> i:{v:Nat | (v+n) <= (malen ma)}
                     -> ST s {v:Nat | v <= n})
                 -> Builder
@@ -323,7 +323,7 @@ writeAtMost n f = Builder $ \ k buf@(Buffer p o u l) ->
 -- | Ensure that @n@ many elements are available, and then use @f@ to
 -- write some elements into the memory.
 {-@ writeN :: n:Nat
-           -> (forall s. ma:MArray s
+           -> (forall s. ma:A.MArray s
                -> i:{v:Nat | (v+n) <= (malen ma)}
                -> ST s ())
            -> Builder
@@ -338,7 +338,7 @@ writeN n f = writeAtMost n (\ p o -> f p o >> return n)
 --LIQUID     return $! Buffer p o (u+n) (l-n)
 {-@ writeBuffer :: b:Buffer s
                 -> n:{v:Nat | v <= (bufLeft b)}
-                -> (ma:MArray s
+                -> (ma:A.MArray s
                     -> i:{v:Nat | (v+n) <= (malen ma)}
                     -> ST s {v:Nat | v <= n})
                 -> ST s (Buffer s)

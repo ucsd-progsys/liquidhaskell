@@ -118,7 +118,7 @@ import Language.Haskell.Liquid.Prelude
 
 {-@ type PtrGE N = {v:Ptr Word8 | (plen v) >= N} @-}
 
-{- Foreign.Marshal.Utils.with :: (Foreign.Storable.Storable a)
+{- Foreign.Marshal.Utils.with :: (Storable a)
                                => a:a
                                -> ({v:PtrV a | (deref v) = a} -> IO b)
                                -> IO b

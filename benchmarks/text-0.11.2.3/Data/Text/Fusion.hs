@@ -62,14 +62,7 @@ import qualified Data.Text.Internal as I
 import qualified Data.Text.Encoding.Utf16 as U16
 
 --LIQUID
--- import Data.Text.Array (Array(..), MArray(..))
--- import qualified Data.Text.Unsafe
--- import qualified Data.Text.Private
--- import Data.Word
--- import qualified GHC.ST
 import GHC.ST (runST)
--- import qualified GHC.Types
--- import Prelude (Integer, Integral)
 import Language.Haskell.Liquid.Prelude
 
 

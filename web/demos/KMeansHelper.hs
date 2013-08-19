@@ -1,4 +1,4 @@
-{--! run liquid with no-termination -}
+{-@ LIQUID "--notermination" @-}
 
 module KMeansHelper where
 

@@ -56,6 +56,7 @@ lhsSpecificationP sn s = hsSpecificationP sn $ unlit sn s
 commentP =  simpleComment (string "{-") (string "-}")
         <|> simpleComment (string "--") newlineP
         <|> simpleComment (string "\\") newlineP
+        <|> simpleComment (string "#")  newlineP
 
 simpleComment open close = open >> manyTill anyChar (try close)
 

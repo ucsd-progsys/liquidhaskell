@@ -1,4 +1,4 @@
-{--! run liquid with maxparams=4 -}
+{-@ LIQUID "--maxparams=4" @-}
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans -fno-warn-incomplete-patterns #-}
 
 -- #prune
@@ -86,10 +86,7 @@ import Foreign.Storable
 import Data.ByteString.Fusion (PairS(..), MaybeS(..))
 import Data.Int
 import Data.Word                (Word, Word8, Word16, Word32, Word64)
-import qualified Data.ByteString.Internal
 import Foreign.ForeignPtr       (ForeignPtr)
-import qualified Foreign.C.String
-import qualified Foreign.C.Types
 
 -- -----------------------------------------------------------------------------
 --
@@ -106,7 +103,7 @@ import qualified Foreign.C.Types
 
 
 {-@ predicate LZipLen V X Y  = (len V) = (if (lbLength X) <= (lbLength Y) then (lbLength X) else (lbLength Y)) @-}
-{-@ zip :: x:LByteString -> y:LByteStringSZ x -> {v:[(Word8, Word8)] | (LZipLen v x y) } @-}
+{-@ zip :: x:ByteString -> y:LByteStringSZ x -> {v:[(Word8, Word8)] | (LZipLen v x y) } @-}
 zip :: ByteString -> ByteString -> [(Word8,Word8)]
 zip = zipWith (,)
 
@@ -114,7 +111,7 @@ zip = zipWith (,)
 -- the first argument, instead of a tupling function.  For example,
 -- @'zipWith' (+)@ is applied to two ByteStrings to produce the list of
 -- corresponding sums.
-{-@ zipWith :: (Word8 -> Word8 -> a) -> x:LByteString -> y:LByteStringSZ x -> {v:[a] | (LZipLen v x y)} @-}
+{-@ zipWith :: (Word8 -> Word8 -> a) -> x:ByteString -> y:LByteStringSZ x -> {v:[a] | (LZipLen v x y)} @-}
 zipWith :: (Word8 -> Word8 -> a) -> ByteString -> ByteString -> [a]
 zipWith _ Empty     _  = []
 zipWith _ _      Empty = []
@@ -137,8 +134,8 @@ zipWith f (Chunk a as) (Chunk b bs) = go f a as b bs
   --                                     && S.null y       = go x' xs y' ys
 
 {-@ go :: (Word8 -> Word8 -> a)
-       -> x:ByteStringNE -> xs:LByteString
-       -> y:ByteStringNE -> ys:LByteString
+       -> x:ByteStringNE -> xs:ByteString
+       -> y:ByteStringNE -> ys:ByteString
        -> {v:[a] | (len v)
                  = (if (((bLength x) + (lbLength xs)) <= ((bLength y) + (lbLength ys)))
                    then ((bLength x) + (lbLength xs))
@@ -148,8 +145,8 @@ go f x xs y ys = f (S.unsafeHead x) (S.unsafeHead y)
                : to f (S.unsafeTail x) xs (S.unsafeTail y) ys
 
 {-@ to :: (Word8 -> Word8 -> a)
-       -> x:ByteString -> xs:LByteString
-       -> y:ByteString -> ys:LByteString
+       -> x:S.ByteString -> xs:ByteString
+       -> y:S.ByteString -> ys:ByteString
        -> {v:[a] | (len v)
                  = (if (((bLength x) + (lbLength xs)) <= ((bLength y) + (lbLength ys)))
                    then ((bLength x) + (lbLength xs))
@@ -168,13 +165,13 @@ to f x (Chunk x' xs) y ys            | not (S.null y)
 to f x (Chunk x' xs) y (Chunk y' ys) | S.null x
                                     && S.null y       = go f x' xs y' ys
 
-{-@ qualif ByteStringNE(v:Data.ByteString.Internal.Bytestring): (bLength v) > 0 @-}
+{-@ qualif ByteStringNE(v:S.ByteString): (bLength v) > 0 @-}
 
 {-@ qualif LBZip(v:List a,
-                 x:Data.ByteString.Internal.ByteString,
-                 xs:Data.ByteString.Lazy.Internal.ByteString,
-                 y:Data.ByteString.Internal.ByteString,
-                 ys:Data.ByteString.Lazy.Internal.ByteString):
+                 x:S.ByteString,
+                 xs:ByteString,
+                 y:S.ByteString,
+                 ys:ByteString):
     (len v) = (if (((bLength x) + (lbLength xs)) <= ((bLength y) + (lbLength ys)))
                    then ((bLength x) + (lbLength xs))
                    else ((bLength y) + (lbLength ys)))
