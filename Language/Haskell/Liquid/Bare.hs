@@ -158,7 +158,7 @@ makeRTEnv' rts pts  = do initRTEnv
 
 
 makeRTAliases xts = mapM_ expBody xts
-  where expBody (mod,xt) = inModule mod $ do
+  where expBody (mod,xt) = inModule mod $ withVArgs (rtVArgs xt) $ do
                              body <- expandRTAlias $ rtBody xt
                              setRTAlias (rtName xt)
                                $ Right $ mapRTAVars stringRTyVar $ xt { rtBody = body }
@@ -220,7 +220,7 @@ expandAlias s = go s
               let rts = mapRTAVars stringRTyVar $ rtb { rtBody = st }
               setRTAlias c $ Right $ rts
               expandRTApp s rts ts r
-            Just (Right rts) ->
+            Just (Right rts) -> do
               withVArgs (rtVArgs rts) $ expandRTApp s rts ts r
             Nothing | isList c && length ts == 1 -> do
                       tyi <- tcEnv <$> get
@@ -485,7 +485,7 @@ inModule m act = do
 
 withVArgs vs act = do
   old <- gets rtEnv
-  mapM mkExprAlias (map showpp vs)
+  mapM (mkExprAlias . showpp) vs
   res <- act
   modify $ \be -> be { rtEnv = old }
   return res
