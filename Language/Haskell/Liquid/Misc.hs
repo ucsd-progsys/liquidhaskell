@@ -13,6 +13,7 @@ safeIndex err n ls
 safeFromJust err (Just x) = x
 safeFromJust err _        = errorstar err
 
+addFst3   a (b, c) = (a, b, c)
 dropFst3 (_, x, y) = (x, y)
 
 replaceN n y ls = [if i == n then y else x | (x, i) <- zip ls [0..]]

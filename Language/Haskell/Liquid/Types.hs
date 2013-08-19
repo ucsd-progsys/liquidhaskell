@@ -1023,12 +1023,12 @@ instance Result (FixResult Cinfo) where
 --- Module Names
 --------------------------------------------------------------------------------
 
-data ModName = ModName !ModType !ModuleName
+data ModName = ModName !ModType !ModuleName deriving (Eq,Ord)
 
 instance Show ModName where
   show = getModString
 
-data ModType = Target | SrcImport | SpecImport
+data ModType = Target | SrcImport | SpecImport deriving (Eq,Ord)
 
 isSrcImport (ModName SrcImport _) = True
 isSrcImport _                     = False
