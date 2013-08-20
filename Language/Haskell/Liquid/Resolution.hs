@@ -147,7 +147,6 @@ resolvePred p               = return p
 
 
 resolvePredicate (Pr pvs) = Pr <$> mapM resolve pvs
-  where
 
 instance (Resolvable t) => Resolvable (PVar t) where
   resolve (PV n t as) = PV n t <$> mapM (thirdM resolveExpr) as

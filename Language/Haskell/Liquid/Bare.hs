@@ -232,7 +232,7 @@ expandAlias s = go s
                     | otherwise -> do
                       tyi <- tcEnv <$> get
                       liftM3 (bareTCApp tyi r) (lookupGhcTyCon c) (mapM (go' s) rs) (mapM (go s) ts)
-    go s (RVar a r)       = return $ RVar (stringRTyVar a) r
+    go s (RVar a r)       = RVar (stringRTyVar a) <$> resolve r
     go s (RFun x t t' r)  = rFun x <$> go s t <*> go s t'
     go s (RAppTy t t' r)  = rAppTy <$> go s t <*> go s t'
     go s (RAllE x t1 t2)  = liftM2 (RAllE x) (go s t1) (go s t2)
@@ -243,7 +243,7 @@ expandAlias s = go s
     go _ (ROth s)         = return $ ROth s
     go _ (RExprArg e)     = return $ RExprArg e
 
-    go' s (RMono ss r)    = (`RMono` r) <$> mapM ofSyms ss
+    go' s (RMono ss r)    = RMono <$> mapM ofSyms ss <*> resolve r
     go' s (RPoly ss t)    = RPoly <$> mapM ofSyms ss <*> go s t
 
 expandRTApp s rta args r
@@ -771,12 +771,20 @@ resolvePred p               = return p
 
 resolveExpr v@(EVar (S s))
     | s `elem` fixpointPrims = return v
-    | isCon s     = EVar . varSymbol <$> lookupGhcVar s
-    | otherwise   = return v
+    | otherwise = do env <- gets (typeAliases.rtEnv)
+                     case M.lookup s env of
+                       Nothing | isCon s -> EVar . symbol . showPpr <$> lookupGhcDataCon s
+                       _ -> return v
+    -- | isCon s     = EVar . varSymbol <$> lookupGhcVar s
+    -- | otherwise   = return v
 resolveExpr v@(EApp (S s) es)
     | s `elem` fixpointPrims = return v
-    | isCon s     = EApp . varSymbol <$> lookupGhcVar s <*> es'
-    | otherwise   = EApp (S s) <$> es'
+    | otherwise = do env <- gets (typeAliases.rtEnv)
+                     case M.lookup s env of
+                       Nothing | isCon s -> EApp . symbol . showPpr <$> lookupGhcDataCon s <*> es'
+                       _ -> EApp (S s) <$> es'
+    -- | isCon s     = EApp . varSymbol <$> lookupGhcVar s <*> es'
+    -- | otherwise   = EApp (S s) <$> es'
     where es'     = mapM resolveExpr es
 resolveExpr (EBin o e1 e2)
     = EBin o <$> resolveExpr e1 <*> resolveExpr e2
@@ -785,7 +793,8 @@ resolveExpr (EIte p e1 e2)
 resolveExpr (ECst x s) = ECst <$> resolveExpr x <*> resolve s
 resolveExpr x          = return x
 
-fixpointPrims = ["Pred", "Prop", "List"]
+fixpointPrims = ["Pred", "Prop", "List", "Set_Set", "Set_sng", "Set_cup", "Set_cap"
+                ,"Set_dif", "Set_emp", "Set_mem", "Set_sub"]
 
 class Resolvable a where
   resolve :: a -> BareM a
@@ -802,6 +811,22 @@ instance Resolvable Sort where
                              <*> ss'
       where tcs = fTyconString tc
             ss' = mapM resolve ss
+
+instance Resolvable (UReft Reft) where
+  resolve (U r p) = U <$> resolveReft r <*> resolvePredicate p
+    where
+      resolveReft (Reft (s, ras)) = Reft . (s,) <$> mapM resolveRefa ras
+
+      resolveRefa (RConc p) = RConc <$> resolvePred p
+      resolveRefa kv        = return kv
+
+resolvePredicate (Pr pvs) = Pr <$> mapM resolve pvs
+
+instance (Resolvable t) => Resolvable (PVar t) where
+  resolve (PV n t as) = PV n t <$> mapM (thirdM resolveExpr) as
+
+instance Resolvable () where
+  resolve () = return ()
 
 firstM  f (a,b)   = (,b) <$> f a
 secondM f (a,b)   = (a,) <$> f b
