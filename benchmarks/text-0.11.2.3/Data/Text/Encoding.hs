@@ -1,5 +1,3 @@
-{- LIQUID "--no-termination" @-}
-{- LIQUID "--maxparams=4" @-}
 {-@ LIQUID "--idirs=../bytestring-0.9.2.1/" @-}
 {-@ LIQUID "--idirs=../../include/" @-}
 
@@ -87,26 +85,8 @@ import qualified Data.Text.Fusion as F
 
 --LIQUID
 import Control.Exception (throw)
--- import Data.ByteString.Fusion (PairS(..), MaybeS(..))
--- import qualified Data.ByteString.Fusion
--- import qualified Data.ByteString.Lazy.Internal
--- import Data.Int
--- import qualified Data.Text
--- import Data.Text.Array (Array(..), MArray(..))
 import qualified Data.Text.Encoding.Error as E
--- import qualified Data.Text.Foreign
--- import qualified Data.Text.Fusion.Internal
--- import qualified Data.Text.Fusion.Size
--- import qualified Data.Text.Internal
--- import qualified Data.Text.Private
--- import qualified Data.Text.Search
--- import qualified Data.Text.Unsafe
--- import Data.Word
--- import Foreign.C.String
--- import Foreign.C.Types
 import Foreign.ForeignPtr (ForeignPtr)
--- import Foreign.Storable
--- import GHC.ST
 import Language.Haskell.Liquid.Prelude
 
 {-@ qualif PValid(v:Ptr int, a:A.MArray s):
@@ -233,7 +213,10 @@ decodeUtf8' = unsafePerformIO . try . evaluate . decodeUtf8With strictDecode
 {-# INLINE decodeUtf8' #-}
 
 -- | Encode text using UTF-8 encoding.
-{-@ encodeUtf8 :: t:Text -> {v:ByteString | (((tlen t) > 0) <=> ((bLength v) > 0))} @-}
+{-@ encodeUtf8 :: t:Text -> {v:ByteString | (((tlen t) > 0) => ((bLength v) > 0))} @-}
+{- encodeUtf8 :: t:TextNE -> ByteStringNE @-}
+{-@ qualif GE(v:int, o:int, x:int): v >= (o-x) @-}
+{-@ qualif GE(v:Ptr a, p:Ptr a, o:int, x:int): (plen p) - (plen v) = (o-x) @-}
 encodeUtf8 :: Text -> ByteString
 encodeUtf8 (Text arr off len) = unsafePerformIO $ do
   let size0 = max len 4
@@ -249,7 +232,7 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
         if n == offLen then return (PS fp 0 m)
         else do
             let poke8 k v = poke (ptr `plusPtr` k) (fromIntegral v :: Word8)
-                ensure k act =
+                ensure k (act :: Ptr Word8 -> IO ByteString) {-LIQUID CAST-} =
                   --LIQUID GHOST added `ptr` to `ensure` so we can say its length has been extended
                   if size-m >= k then act ptr
                   else {-# SCC "resizeUtf8/ensure" #-} do
@@ -258,7 +241,7 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
                       withForeignPtr fp' $ \ptr' ->
                         memcpy ptr' ptr (fromIntegral m)
                       start newSize n m fp'
-                {-# INLINE ensure #-}
+                {- INLINE ensure #-}
             case A.unsafeIndexF arr off len n of
              w ->
               if w <= 0x7F  then ensure 1 $ \ptr -> do
