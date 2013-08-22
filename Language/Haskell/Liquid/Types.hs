@@ -1048,8 +1048,11 @@ getModString = moduleNameString . getModName
 type RTBareOrSpec = Either (ModName, (RTAlias String BareType))
                            (RTAlias RTyVar SpecType)
 
+type RTPredAlias  = Either (ModName, RTAlias Symbol Pred)
+                           (RTAlias Symbol Pred)
+
 data RTEnv   = RTE { typeAliases :: M.HashMap String RTBareOrSpec
-                   , predAliases :: M.HashMap String (RTAlias Symbol Pred)
+                   , predAliases :: M.HashMap String RTPredAlias
                    }
 
 instance Monoid RTEnv where
