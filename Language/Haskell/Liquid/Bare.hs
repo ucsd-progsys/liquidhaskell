@@ -68,33 +68,32 @@ makeGhcSpec cfg name vars defVars env specs
   = either Ex.throw return . checkGhcSpec =<< execBare (makeGhcSpec' cfg vars defVars specs) initEnv
   where initEnv = BE name mempty mempty mempty env
 
---FIXME: removing check temporarily due to type error in `checkMBody.go`
-checkMeasures emb env ms = [] -- concatMap (checkMeasure emb env) ms
+checkMeasures emb env ms = concatMap (checkMeasure emb env) ms
 
--- checkMeasure :: M.HashMap TyCon FTycon-> SEnv SortedReft -> Ms.Measure RefType DataCon -> [Error]
--- checkMeasure emb γ (Ms.M name@(Loc src n) sort body) 
---   = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
---   where 
---     txerror = ErrMeas (sourcePosSrcSpan src) n
+checkMeasure :: M.HashMap TyCon FTycon-> SEnv SortedReft -> Ms.Measure SpecType DataCon -> [Error]
+checkMeasure emb γ (Ms.M name@(Loc src n) sort body) 
+  = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
+  where 
+    txerror = ErrMeas (sourcePosSrcSpan src) n
 
--- checkMBody γ emb name sort (Ms.Def s c bs body) = go γ' body
---   where 
---     γ'  = foldl (\γ (x, t) -> insertSEnv x t γ) γ xts
---     xts = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ts
---     ct  = ofType $ dataConUserType c :: RefType 
---     su  = unify tr (head $ snd3 $ bkArrowDeep sort)
+checkMBody γ emb name sort (Ms.Def s c bs body) = go γ' body
+  where 
+    γ'  = foldl (\γ (x, t) -> insertSEnv x t γ) γ xts
+    xts = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ts
+    ct  = ofType $ dataConUserType c :: SpecType
+    su  = unify tr (head $ snd3 $ bkArrowDeep sort)
 
---     (_, ts, tr) = bkArrow $ thd3 $ bkUniv ct 
+    (_, ts, tr) = bkArrow $ thd3 $ bkUniv ct 
 
---     unify (RVar tv _) t                    = [(tv, toRSort t, t)]
---     unify (RApp _ ts _ _) (RApp _ ts' _ _) = concat $ zipWith unify ts ts'
---     unify _ _                              = []
+    unify (RVar tv _) t                    = [(tv, toRSort t, t)]
+    unify (RApp _ ts _ _) (RApp _ ts' _ _) = concat $ zipWith unify ts ts'
+    unify _ _                              = []
 
---     go γ (Ms.E e)   = checkSortedReftFull γ e
---     go γ (Ms.P p)   = checkSortedReftFull γ p
---     go γ (Ms.R s p) = checkSortedReftFull (insertSEnv s sty γ) p
+    go γ (Ms.E e)   = checkSortedReftFull γ e
+    go γ (Ms.P p)   = checkSortedReftFull γ p
+    go γ (Ms.R s p) = checkSortedReftFull (insertSEnv s sty γ) p
 
---     sty = rTypeSortedReft emb (thd3 $ bkArrowDeep sort)
+    sty = rTypeSortedReft emb (thd3 $ bkArrowDeep sort)
 
 makeGhcSpec' :: Config -> [Var] -> [Var]
              -> [(ModName,Ms.Spec BareType Symbol)]
@@ -828,10 +827,11 @@ instance Resolvable Sort where
             ss' = mapM resolve ss
 
 instance Resolvable (UReft Reft) where
-  resolve (U r p) = U <$> resolveReft r <*> resolve p
-    where
-      resolveReft (Reft (s, ras)) = Reft . (s,) <$> mapM resolveRefa ras
+  resolve (U r p) = U <$> resolve r <*> resolve p
 
+instance Resolvable Reft where
+  resolve (Reft (s, ras)) = Reft . (s,) <$> mapM resolveRefa ras
+    where
       resolveRefa (RConc p) = RConc <$> resolve p
       resolveRefa kv        = return kv
 
