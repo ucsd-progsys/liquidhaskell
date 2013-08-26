@@ -38,3 +38,4 @@ js/
 css/
 
 *.smt2
+/tests/crash/liquid.css
