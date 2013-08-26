@@ -18,3 +18,4 @@ y = RB.Foo 1
     notA (RB.C) = false
   @-}
 
+{-@ predicate NotA V = V != RB.A @-}
