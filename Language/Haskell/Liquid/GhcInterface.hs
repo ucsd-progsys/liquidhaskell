@@ -61,7 +61,6 @@ import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.Resolution (resolveSpec, qualImportDecl, addContext)
 
 import Language.Haskell.Liquid.CmdLine (withPragmas)
 import Language.Haskell.Liquid.Parse
