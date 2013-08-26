@@ -119,7 +119,7 @@ makeGhcSpec' cfg vars defVars specs
                           | (m, x, t) <- sigs' ]
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs datacons
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms ] -- first val <$> ms
-       syms            <- makeSymbols (vars ++ map fst cs') (map fst ms) (sigs++cs') ms'
+       syms            <- makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms'
        let su           = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        let tx           = subsFreeSymbols su
        let txq          = subsFreeSymbolsQual su
@@ -567,11 +567,6 @@ joinVar vs (v,s,t) = case L.find ((== showPpr v) . showPpr) vs of
 
 lookupIds xs = mapM lookup xs
   where
-    -- -- FIXME: this is hacky, we should really be throwing an error if the Var
-    -- -- isn't in scope, but we currently get measure names as input in addition
-    -- -- to Vars
-    -- lookup (s, t) = fmap (,s,t) <$> ((Just <$> lookupGhcVar (ss s))
-    --                                  `catchError` (const $ return Nothing))
     lookup (s, t) = (,s,t) <$> lookupGhcVar (ss s)
     ss = symbolString . symbol
 
