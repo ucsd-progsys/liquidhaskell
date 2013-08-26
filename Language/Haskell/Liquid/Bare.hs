@@ -44,14 +44,13 @@ import Data.Function            (on)
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames)
-import Language.Fixpoint.Types
+import Language.Fixpoint.Types                  hiding (Predicate)
 import Language.Fixpoint.Sort                   (checkSortedReftFull)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType hiding (unify)
-import Language.Haskell.Liquid.Resolution
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 import qualified Data.List           as L
@@ -180,7 +179,7 @@ expandRTAliasDef d
 expandRTAliasBody :: RTEnv -> Ms.Body -> BareM Ms.Body
 expandRTAliasBody env (Ms.P p)   = Ms.P   <$> (expPAlias p)
 expandRTAliasBody env (Ms.R x p) = Ms.R x <$> (expPAlias p)
-expandRTAliasBody _   (Ms.E e)   = Ms.E   <$> resolveExpr e
+expandRTAliasBody _   (Ms.E e)   = Ms.E   <$> resolve e
 
 expPAlias :: Pred -> BareM Pred
 expPAlias = expandPAlias []
@@ -294,17 +293,17 @@ expandPAlias s = go s
               body <- inModule mod $ withVArgs (rtVArgs rp) $ expandPAlias (f:s) $ rtBody rp
               let rp' = rp { rtBody = body }
               setRPAlias (show f) $ Right $ rp'
-              expandRPApp (f:s) rp' <$> mapM resolveExpr es
+              expandRPApp (f:s) rp' <$> mapM resolve es
             Just (Right rp) ->
-              withVArgs (rtVArgs rp) (expandRPApp (f:s) rp <$> mapM resolveExpr es)
-            Nothing -> fmap PBexp (EApp <$> resolveSym f <*> mapM resolveExpr es)
+              withVArgs (rtVArgs rp) (expandRPApp (f:s) rp <$> mapM resolve es)
+            Nothing -> fmap PBexp (EApp <$> resolve f <*> mapM resolve es)
     go s (PAnd ps)                = PAnd <$> (mapM (go s) ps)
     go s (POr  ps)                = POr  <$> (mapM (go s) ps)
     go s (PNot p)                 = PNot <$> (go s p)
     go s (PImp p q)               = PImp <$> (go s p) <*> (go s q)
     go s (PIff p q)               = PIff <$> (go s p) <*> (go s q)
     go s (PAll xts p)             = PAll xts <$> (go s p)
-    go _ p                        = resolvePred p
+    go _ p                        = resolve p
 
 expandRPApp s rp es
   = let su  = mkSubst $ safeZip msg (rtVArgs rp) es
@@ -314,7 +313,7 @@ expandRPApp s rp es
 
 makeQualifiers (mod,spec) = inModule mod mkQuals
   where
-    mkQuals = mapM resolveQual $ Ms.qualifiers spec
+    mkQuals = mapM resolve $ Ms.qualifiers spec
 
 makeHints vs (_,spec) = makeHints' vs $ Ms.decr spec
 
@@ -773,45 +772,47 @@ wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns
                    , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
 
 
-resolveQual (Q n ps b) = Q n <$> mapM (secondM resolve) ps <*> resolvePred b
-
-resolvePred (PAnd ps)       = PAnd <$> mapM resolvePred ps
-resolvePred (POr  ps)       = POr  <$> mapM resolvePred ps
-resolvePred (PNot p)        = PNot <$> resolvePred p
-resolvePred (PImp p q)      = PImp <$> resolvePred p <*> resolvePred q
-resolvePred (PIff p q)      = PIff <$> resolvePred p <*> resolvePred q
-resolvePred (PBexp b)       = PBexp <$> resolveExpr b
-resolvePred (PAtom r e1 e2) = PAtom r <$> resolveExpr e1 <*> resolveExpr e2
-resolvePred (PAll vs p)     = PAll <$> mapM (secondM resolve) vs
-                                   <*> resolvePred p
-resolvePred p               = return p
-
-resolveExpr (EVar s) = EVar <$> resolveSym s
-resolveExpr (EApp s es) = EApp <$> resolveSym s <*> es'
-    where es'     = mapM resolveExpr es
-resolveExpr (EBin o e1 e2)
-    = EBin o <$> resolveExpr e1 <*> resolveExpr e2
-resolveExpr (EIte p e1 e2)
-    = EIte <$> resolvePred p <*> resolveExpr e1 <*> resolveExpr e2
-resolveExpr (ECst x s) = ECst <$> resolveExpr x <*> resolve s
-resolveExpr x          = return x
-
-resolveSym (S s)
-    | s `elem` fixpointPrims = return (S s)
-    | otherwise = do env <- gets (typeAliases.rtEnv)
-                     case M.lookup s env of
-                       Nothing | isCon s
-                         -> do v <- lookupGhcVar s
-                               let qs = symbol $ showPpr v
-                               addSym (qs,v)
-                               return qs
-                       _ -> return (S s)
-
 fixpointPrims = ["Pred", "Prop", "List", "Set_Set", "Set_sng", "Set_cup", "Set_cap"
                 ,"Set_dif", "Set_emp", "Set_mem", "Set_sub", "VV"]
 
 class Resolvable a where
   resolve :: a -> BareM a
+
+instance Resolvable Qualifier where
+  resolve (Q n ps b) = Q n <$> mapM (secondM resolve) ps <*> resolve b
+
+instance Resolvable Pred where
+  resolve (PAnd ps)       = PAnd <$> mapM resolve ps
+  resolve (POr  ps)       = POr  <$> mapM resolve ps
+  resolve (PNot p)        = PNot <$> resolve p
+  resolve (PImp p q)      = PImp <$> resolve p <*> resolve q
+  resolve (PIff p q)      = PIff <$> resolve p <*> resolve q
+  resolve (PBexp b)       = PBexp <$> resolve b
+  resolve (PAtom r e1 e2) = PAtom r <$> resolve e1 <*> resolve e2
+  resolve (PAll vs p)     = PAll <$> mapM (secondM resolve) vs
+                                 <*> resolve p
+  resolve p               = return p
+
+instance Resolvable Expr where
+  resolve (EVar s)       = EVar <$> resolve s
+  resolve (EApp s es)    = EApp <$> resolve s <*> es'
+      where es'          = mapM resolve es
+  resolve (EBin o e1 e2) = EBin o <$> resolve e1 <*> resolve e2
+  resolve (EIte p e1 e2) = EIte <$> resolve p <*> resolve e1 <*> resolve e2
+  resolve (ECst x s)     = ECst <$> resolve x <*> resolve s
+  resolve x              = return x
+
+instance Resolvable Symbol where
+  resolve (S s)
+      | s `elem` fixpointPrims = return (S s)
+      | otherwise = do env <- gets (typeAliases.rtEnv)
+                       case M.lookup s env of
+                         Nothing | isCon s
+                           -> do v <- lookupGhcVar s
+                                 let qs = symbol $ showPpr v
+                                 addSym (qs,v)
+                                 return qs
+                         _ -> return (S s)
 
 instance Resolvable Sort where
   resolve FInt         = return FInt
@@ -827,24 +828,21 @@ instance Resolvable Sort where
             ss' = mapM resolve ss
 
 instance Resolvable (UReft Reft) where
-  resolve (U r p) = U <$> resolveReft r <*> resolvePredicate p
+  resolve (U r p) = U <$> resolveReft r <*> resolve p
     where
       resolveReft (Reft (s, ras)) = Reft . (s,) <$> mapM resolveRefa ras
 
-      resolveRefa (RConc p) = RConc <$> resolvePred p
+      resolveRefa (RConc p) = RConc <$> resolve p
       resolveRefa kv        = return kv
 
-resolvePredicate (Pr pvs) = Pr <$> mapM resolve pvs
+instance Resolvable Predicate where
+  resolve (Pr pvs) = Pr <$> mapM resolve pvs
 
 instance (Resolvable t) => Resolvable (PVar t) where
-  resolve (PV n t as) = PV n t <$> mapM (thirdM resolveExpr) as
+  resolve (PV n t as) = PV n t <$> mapM (third3M resolve) as
 
 instance Resolvable () where
   resolve () = return ()
-
-firstM  f (a,b)   = (,b) <$> f a
-secondM f (a,b)   = (a,) <$> f b
-thirdM  f (a,b,c) = (a,b,) <$> f c
 
 isCon (c:cs) = isUpper c
 isCon []     = False
