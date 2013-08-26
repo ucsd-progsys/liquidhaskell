@@ -1,7 +1,6 @@
 module spec Data.Text.Fusion where
 
-measure slen :: Data.Text.Fusion.Internal.Stream a
-             -> Int
+import Data.Text.Fusion.Common
 
 stream        :: t:Data.Text.Internal.Text
               -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = (tlength t)}
@@ -10,17 +9,17 @@ reverseStream :: t:Data.Text.Internal.Text
 unstream      :: s:Data.Text.Fusion.Internal.Stream Char
               -> {v:Data.Text.Internal.Text | (tlength v) = (slen s)}
 
-findIndex :: (Char -> Bool)
+findIndex :: (GHC.Types.Char -> GHC.Types.Bool)
           -> s:Data.Text.Fusion.Internal.Stream Char
-          -> (Maybe {v:Nat | v < (slen s)})
+          -> (Data.Maybe.Maybe {v:Nat | v < (slen s)})
 
-mapAccumL :: (a -> Char -> (a,Char))
+mapAccumL :: (a -> GHC.Types.Char -> (a,GHC.Types.Char))
           -> a
           -> s:Data.Text.Fusion.Internal.Stream Char
-          -> (a, {v:Text | (tlength v) = (slen s)})
+          -> (a, {v:Data.Text.Internal.Text | (tlength v) = (slen s)})
 
 
 length  :: s:Data.Text.Fusion.Internal.Stream Char
-        -> {v:Int | v = (slen s)}
+        -> {v:GHC.Types.Int | v = (slen s)}
 reverse :: s:Data.Text.Fusion.Internal.Stream Char
         -> {v:Data.Text.Internal.Text | (tlength v) = (slen s)}

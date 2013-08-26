@@ -1,4 +1,4 @@
-{--! run liquid with no-termination -}
+{-@ LIQUID "--notermination" @-}
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 
 -- #prune
@@ -283,11 +283,6 @@ assertS s False = error ("assertion failed at "++s)
 -- LIQUID
 import GHC.IO.Buffer
 import Language.Haskell.Liquid.Prelude hiding (eq) 
-import qualified Data.ByteString.Lazy.Internal 
-import qualified Data.ByteString.Fusion
-import qualified Data.ByteString.Internal
-import qualified Data.ByteString.Unsafe
-import qualified Foreign.C.Types
 
 {-@ include <ByteString.hs.hquals> @-}
 
@@ -310,7 +305,7 @@ wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUID
 {- qualif Zog(v:a)              : 0 <= (plen v)                 @-}
 
 -- for unfoldrN 
-{- IN INCLUDE FILE qualif PtrDiffUnfoldrN(v:int, i:int, p:GHC.Ptr.Ptr a): (i - v) <= (plen p) @-}
+{- IN INCLUDE FILE qualif PtrDiffUnfoldrN(v:int, i:int, p:Ptr a): (i - v) <= (plen p) @-}
 
 {-@ lengths :: bs:[ByteString] -> {v:Nat | v = (bLengths bs)} @-}
 lengths :: [ByteString] -> Int
@@ -1561,7 +1556,7 @@ notElem c ps = not (elem c ps)
 -- | /O(n)/ 'filter', applied to a predicate and a ByteString,
 -- returns a ByteString containing those characters that satisfy the
 -- predicate. This function is subject to array fusion.
-{-@ qualif FilterLoop(v:GHC.Ptr.Ptr a, f:GHC.Ptr.Ptr a, t:GHC.Ptr.Ptr a):
+{-@ qualif FilterLoop(v:Ptr a, f:Ptr a, t:Ptr a):
         (plen t) >= (plen f) - (plen v) @-}
 {-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
 filter :: (Word8 -> Bool) -> ByteString -> ByteString
@@ -2104,7 +2099,6 @@ putStrLn = hPutStrLn stdout
 -- | Read a 'ByteString' directly from the specified 'Handle'.  This
 -- is far more efficient than reading the characters into a 'String'
 -- and then using 'pack'.
-{-@ assume GHC.IO.Handle.Text.hGetBuf :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
 {-@ hGet :: Handle -> n:Nat -> IO {v:ByteString | (bLength v) <= n} @-}
 hGet :: Handle -> Int -> IO ByteString
 hGet _ 0 = return empty
@@ -2115,7 +2109,6 @@ hGet h i = createAndTrim i $ \p -> hGetBuf h p i
 -- is available.
 
 
-{-@ assume GHC.IO.Handle.Text.hGetBufNonBlocking :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
 {-@ hGetNonBlocking :: Handle -> n:Nat -> IO {v:ByteString | (bLength v) <= n} @-}
 
 
@@ -2137,7 +2130,6 @@ hGetNonBlocking = hGet
 -- be ISO-8859-1.
 
 {-@ assume Foreign.Marshal.Alloc.reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
-{- assume GHC.IO.Handle.Text.hGetBuf :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
 hGetContents :: Handle -> IO ByteString
 hGetContents h = do
     let start_size = 1024
@@ -2176,7 +2168,6 @@ interact transformer = putStr . transformer =<< getContents
 -- 'pack'.  It also may be more efficient than opening the file and
 -- reading it using hGet. Files are read using 'binary mode' on Windows,
 -- for 'text mode' use the Char8 version of this function.
-{-@ assume GHC.IO.Handle.hFileSize :: Handle -> (IO {v:Integer | v >= 0}) @-}
 readFile :: FilePath -> IO ByteString
 readFile f = bracket (openBinaryFile f ReadMode) hClose
     (\h -> hFileSize h >>= hGet h . fromIntegral)
