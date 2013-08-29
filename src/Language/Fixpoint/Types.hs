@@ -1237,7 +1237,7 @@ toFixpoint x'    = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csD
         bindsDoc = toFix    . bs
         gsDoc    = toFix_gs . gs
 
-getLits x = lits x ++ symConstLits x
+getLits x = lits x -- ++ symConstLits x
 
 
 -------------------------------------------------------------------------
