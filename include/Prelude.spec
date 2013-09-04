@@ -22,7 +22,7 @@ assume GHC.Num.+                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x
 assume GHC.Num.-                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x - y }
 assume GHC.Num.*                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | ((((x >= 0) && (y >= 0)) => ((v >= x) && (v >= y))) && (((x > 1) && (y > 1)) => ((v > x) && (v > y)))) }
 
-
+assume Control.Exception.Base.patError :: {v:GHC.Prim.Addr# | 0=1} -> a
 
 embed GHC.Integer.Type.Integer  as int
 
