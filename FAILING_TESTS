@@ -1,15 +1,9 @@
-Failed 13 tests: 
+Failed 7 tests: 
  pos/BST.hs,
   pos/BST000.hs,
   pos/ListMSort-LType.hs,
   pos/Map.hs,
   pos/Map0.hs,
   pos/duplicate-bind.hs,
-  pos/gimme.hs,
-  pos/grty1.hs,
-  pos/grty2.hs,
-  pos/grty3.hs,
-  pos/lex.hs,
-  pos/maybe0.hs,
-  pos/primInt0.hs 
+  pos/primInt0.hs            ---- HERE
 
