@@ -1,19 +1,32 @@
-module Fixme where
+{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE CPP,  MagicHash #-}
+{-# OPTIONS_HADDOCK hide #-}
 
-data Map k a = Tip | Bin Int k a (Map k a) (Map k a)
+module PrimInt where
 
-insert :: Ord k => k -> a -> Map k a -> Map k a
-insert = go
-  where
-    go :: Ord k => k -> a -> Map k a -> Map k a
-    go kx x Tip = singleton kx x
-    go kx x (Bin sz ky y l r) =
-        case compare kx ky of
-                  -- Bin ky y (go kx x l) r 
-            LT -> balanceL ky y (go kx x l) r
-            GT -> balanceR ky y l (go kx x r)
-            EQ -> Bin sz kx x l r
 
-singleton = undefined
-balanceL = undefined
-balanceR = undefined
+{-@ assert mtake  :: n: {v: Int | 0 <= v} 
+                  -> {v:[a] | ((n > 0) <=> ((len v) > 0))} 
+                  -> {v:[a] | (len(v) = n)} @-}
+mtake          :: Int -> [a] -> [a]
+mtake 0 _      = []
+mtake n (x:xs) = x : mtake (n - 1) xs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
