@@ -9,10 +9,23 @@ data List a <p :: x0:a -> x1:a -> Prop>
 @-}
 data List a = Nil | Cons a (List a)
 
+
+-- This is needed to conclude that 
+-- xs = Nil /\ xs = Cons _ _ <=> false
+
+{-@ measure llen :: (List a) -> Int
+    llen(Nil)       = 0
+    llen(Cons x xs) = 1 + (llen xs)
+  @-}
+
+{-@ invariant {v:List a | (llen v) >= 0} @-}
+
 split :: List a -> (List a, List a)
 split (Cons x (Cons y zs)) = (Cons x xs, Cons y ys) where (xs, ys) = split zs
 split xs                   = (xs, Nil)
 
+
+{-@ Lazy merge @-}
 merge :: Ord a => List a -> List a -> List a
 merge xs Nil = xs
 merge Nil ys = ys

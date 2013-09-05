@@ -6,7 +6,7 @@ module PrimInt where
 
 
 {-@ assert mtake  :: n: {v: Int | 0 <= v} 
-                  -> {v:[a] | ((n > 0) <=> ((len v) > 0))} 
+                  -> {v:[a] | ((len v) >= n)} 
                   -> {v:[a] | (len(v) = n)} @-}
 mtake          :: Int -> [a] -> [a]
 mtake 0 _      = []

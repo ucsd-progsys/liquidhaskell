@@ -1,9 +1,0 @@
-Failed 7 tests: 
- pos/BST.hs,
-  pos/BST000.hs,
-  pos/ListMSort-LType.hs,
-  pos/Map.hs,
-  pos/Map0.hs,
-  pos/duplicate-bind.hs,
-  pos/primInt0.hs            ---- HERE
-
