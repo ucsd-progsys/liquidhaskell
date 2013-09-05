@@ -29,17 +29,17 @@ import Data.Bits ((.|.), (.&.))
 import Data.Text.UnsafeShift (shiftL)
 
 --LIQUID
-import qualified Data.Text
-import Data.Text.Array (Array(..), MArray(..))
-import qualified Data.Text.Fusion.Internal
-import qualified Data.Text.Fusion.Size
-import qualified Data.Text.Internal
-import qualified Data.Text.Private
-import qualified Data.Text.Search
-import qualified Data.Text.Unsafe
+-- import qualified Data.Text
+-- import Data.Text.Array (Array(..), MArray(..))
+-- import qualified Data.Text.Fusion.Internal
+-- import qualified Data.Text.Fusion.Size
+-- import qualified Data.Text.Internal
+-- import qualified Data.Text.Private
+-- import qualified Data.Text.Search
+-- import qualified Data.Text.Unsafe
 import Data.Text.Lazy.Internal (foldrChunks)
-import qualified Data.Word
-import Data.Int (Int32)
+-- import qualified Data.Word
+-- import Data.Int (Int32)
 import Language.Haskell.Liquid.Prelude
 
 
@@ -54,7 +54,7 @@ import Language.Haskell.Liquid.Prelude
 
 {-@ type IdxList a N = [a]<{\ix iy -> (ix+N) <= iy}> @-}
 
-{-@ indices :: pat:LText -> src:LText
+{-@ indices :: pat:Text -> src:Text
             -> IdxList {v:Nat64 | v <= ((ltlen src) - (ltlen pat))} (ltlen pat)
   @-}
 indices :: Text              -- ^ Substring to search for (@needle@)
@@ -116,11 +116,11 @@ indices needle@(Chunk n ns) _haystack@(Chunk k ks) =
     --         where p' = p + fromIntegral l
 indices _ _ = []
 
-{-@ advance :: pat:{v:LText | (ltlen v) > 1}
+{-@ advance :: pat:{v:Text | (ltlen v) > 1}
             -> src:LTextNE
             -> ts0:LTextLE src
             -> x:{v:TextNE | (tlen v) <= (ltlen src)}
-            -> xs:{v:LText | (((ltlen v) + (tlen x)) = ((ltlen src) - (ltlen ts0)))}
+            -> xs:{v:Text | (((ltlen v) + (tlen x)) = ((ltlen src) - (ltlen ts0)))}
             -> i:Nat64
             -> g:{v:Int64 | (v - i) = (ltlen ts0)}
             -> IdxList {v:Int64 | (BtwnI (v) (g) ((ltlen src) - (ltlen pat)))} (ltlen pat)
@@ -129,11 +129,11 @@ advance :: Text -> Text -> Text -> T.Text -> Text -> Int64 -> Int64 -> [Int64]
 advance needle t0 ts0 x xs g i = advance_scan needle t0 ts0 x xs g i
 
 
-{-@ advance_scan :: pat:{v:LText | (ltlen v) > 1}
+{-@ advance_scan :: pat:{v:Text | (ltlen v) > 1}
             -> src:LTextNE
             -> ts0:LTextLE src
             -> x:{v:TextNE | (tlen v) <= (ltlen src)}
-            -> xs:{v:LText | (((ltlen v) + (tlen x)) = ((ltlen src) - (ltlen ts0)))}
+            -> xs:{v:Text | (((ltlen v) + (tlen x)) = ((ltlen src) - (ltlen ts0)))}
             -> i:Nat64
             -> g:{v:Int64 | (v - i) = (ltlen ts0)}
             -> IdxList {v:Int64 | (BtwnI (v) (g) ((ltlen src) - (ltlen pat)))} (ltlen pat)
@@ -169,13 +169,13 @@ advance_scan needle@(Chunk n ns) src ts0 x@(T.Text _ _ l) xs !i !g =
 
 -- | Check whether an attempt to index into the haystack at the
 -- given offset would fail.
-{-@ lackingHay :: q:Nat64 -> t:TextNE -> ts:LText
+{-@ lackingHay :: q:Nat64 -> t:TextNE -> ts:Text
                -> {v:Bool | ((Prop v) <=> (q > ((tlen t) + (ltlen ts))))}
   @-}
 lackingHay :: Int64 -> T.Text -> Text -> Bool
 lackingHay q t ts = lackingHay_go q 0 t ts
 
-{-@ lackingHay_go :: q:Nat64 -> p:Nat64 -> t:TextNE -> ts:LText
+{-@ lackingHay_go :: q:Nat64 -> p:Nat64 -> t:TextNE -> ts:Text
                -> {v:Bool | ((Prop v) <=> (q > (p + (tlen t) + (ltlen ts))))}
   @-}
 {-@ Decrease lackingHay_go 4 @-}
@@ -200,9 +200,9 @@ swizzle w = 1 `shiftL` (fromIntegral w .&. 0x3f)
 
 {-@ buildTable :: Word16
                -> nlen:{v:Int64 | v > 1}
-               -> ts0:{v:LText | (BtwnI (ltlen v) 0 nlen)}
-               -> t:{v:Text | (BtwnEI (tlen v) 0 nlen)}
-               -> ts:{v:LText | (((ltlen v) + (tlen t)) = (nlen - (ltlen ts0)))}
+               -> ts0:{v:Text | (BtwnI (ltlen v) 0 nlen)}
+               -> t:{v:T.Text | (BtwnEI (tlen v) 0 nlen)}
+               -> ts:{v:Text | (((ltlen v) + (tlen t)) = (nlen - (ltlen ts0)))}
                -> i:TValidI t
                -> g:{v:Nat64 | v <= ((ltlen ts0) + i)}
                -> Word64
@@ -233,7 +233,7 @@ buildTable z nlen ts0 t@(T.Text xarr xoff xlen) xs !i !(g::Int64) !msk !skp (d :
 -- | Fast index into a partly unpacked 'Text'.  We take into account
 -- the possibility that the caller might try to access one element
 -- past the end.
-{-@ index :: t:TextNE -> ts:LText -> i:{v:Nat64 | v <= ((tlen t) + (ltlen ts))}
+{-@ index :: t:TextNE -> ts:Text -> i:{v:Nat64 | v <= ((tlen t) + (ltlen ts))}
           -> Word16
   @-}
 {-@ Decrease index 2 @-}
@@ -251,10 +251,10 @@ index (T.Text arr off len) xs !i =
 
 -- | A variant of 'indices' that scans linearly for a single 'Word16'.
 {-@ indicesOne :: Word16
-               -> t0:LText
+               -> t0:Text
                -> ts0:LTextLE t0
                -> t:TextNE
-               -> ts:{v:LText | (((ltlen v) + (tlen t)) = ((ltlen t0) - (ltlen ts0)))}
+               -> ts:{v:Text | (((ltlen v) + (tlen t)) = ((ltlen t0) - (ltlen ts0)))}
                -> i:{v:Int64 | v = (ltlen ts0)}
                -> [{v:Int64 | (Btwn (v) (i) (ltlen t0))}]<{\ix iy -> ix < iy}>
   @-}
@@ -272,10 +272,10 @@ indicesOne :: Word16 -> Text -> Text -> T.Text -> Text -> Int64 -> [Int64]
 indicesOne c t0 ts0 t os !i = indicesOne_go c t0 ts0 t os i 0
 
 {-@ indicesOne_go :: Word16
-                  -> t0:LText
+                  -> t0:Text
                   -> ts0:LTextLE t0
                   -> t:{v:TextNE | (tlen v) <= (ltlen t0)}
-                  -> ts:{v:LText | (((ltlen v) + (tlen t)) = ((ltlen t0) - (ltlen ts0)))}
+                  -> ts:{v:Text | (((ltlen v) + (tlen t)) = ((ltlen t0) - (ltlen ts0)))}
                   -> i:{v:Int64 | v = (ltlen ts0)}
                   -> h:{v:Nat | v <= (tlen t)}
                   -> [{v:Int64 | (Btwn (v) (i+h) (ltlen t0))}]<{\ix iy -> ix < iy}>
@@ -293,13 +293,13 @@ indicesOne_go c t0 ts0 t@(T.Text oarr ooff olen) os !i h =
 
 
 -- | The number of 'Word16' values in a 'Text'.
-{-@ wordLength :: t:LText -> {v:Nat64 | v = (ltlen t)} @-}
+{-@ wordLength :: t:Text -> {v:Nat64 | v = (ltlen t)} @-}
 wordLength :: Text -> Int64
 --LIQUID wordLength = foldlChunks sumLength 0
 --LIQUID     where sumLength i (T.Text _ _ l) = i + fromIntegral l
 wordLength = foldrChunks sumLength 0
 
-{-@ sumLength :: ts:LText -> t:Text -> i:Int64 -> {v:Int64 | v = ((tlen t) + i)} @-}
+{-@ sumLength :: ts:Text -> t:T.Text -> i:Int64 -> {v:Int64 | v = ((tlen t) + i)} @-}
 sumLength :: Text -> T.Text -> Int64 -> Int64
 sumLength _ (T.Text _ _ l) i = i + fromIntegral l
 

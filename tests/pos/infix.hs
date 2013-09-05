@@ -2,12 +2,12 @@ module Foo where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
 
-{-@ Foo.! :: zogbert:{v: Int | v > 0} -> {v: Int | v > 0} -> Int @-}
+{-@ (!) :: zogbert:{v: Int | v > 0} -> {v: Int | v > 0} -> Int @-}
 (!) :: Int -> Int -> Int
 x ! y = x + y
 
 
-{-@ Foo.!! :: {v: Int | v > 0} -> {v: Int | v > 0} -> Int @-}
+{-@ (!!) :: {v: Int | v > 0} -> {v: Int | v > 0} -> Int @-}
 (!!)   :: Int -> Int -> Int 
 x !! y = liquidAssert (x /= 0) $ x + y 
 

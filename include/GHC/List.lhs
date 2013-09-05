@@ -177,13 +177,12 @@ filterFB c p x r | p x       = x `c` r
 -- and hence the classic space leak on foldl (+) 0 xs
 
 foldl        :: (a -> b -> a) -> a -> [b] -> a
-foldl f z0 xs0 = foldl_go z0 xs0
+foldl f z0 xs0 = lgo z0 xs0
              where
-                --LIQUID RENAME: conflict with Bytestring.hs ...
                 --LIQUID FIXME: lgo takes 5 parameters once compiled to core
-                {-@ Decrease foldl_go 5 @-}
-                foldl_go z []     =  z
-                foldl_go z (x:xs) = foldl_go (f z x) xs
+                {-@ Decrease lgo 5 @-}
+                lgo z []     = z
+                lgo z (x:xs) = lgo (f z x) xs
 
 -- | 'scanl' is similar to 'foldl', but returns a list of successive
 -- reduced values from the left:

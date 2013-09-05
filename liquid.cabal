@@ -19,6 +19,7 @@ Executable liquid
                , bifunctors
                , cmdargs
                , containers
+               , cpphs
                , deepseq
                , directory
                , Diff
@@ -51,6 +52,7 @@ Executable liquid
                 , bifunctors
                 , cmdargs
                 , containers
+                , cpphs
                 , deepseq
                 , directory
                 , Diff

@@ -1,4 +1,4 @@
-{--! run liquid with no-termination -}
+{-@ LIQUID "--notermination" @-}
 
 {-# OPTIONS_GHC -cpp -fno-warn-orphans #-}
 
@@ -228,11 +228,8 @@ import IO                   (bracket)
 
 --LIQUID
 import Data.ByteString.Fusion (PairS(..), MaybeS(..))
-import qualified Data.ByteString.Internal
-import qualified Data.ByteString.Lazy.Internal
 import Data.Int
 import Data.Word
-import qualified Foreign.C.String
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import System.IO (Handle)
@@ -531,7 +528,7 @@ groupBy :: (Char -> Char -> Bool) -> ByteString -> [ByteString]
 groupBy k = L.groupBy (\a b -> k (w2c a) (w2c b))
 
 -- | /O(1)/ 'ByteString' index (subscript) operator, starting from 0.
-{-@ index :: b:LByteString -> n:{v:Nat64 | (LBValid b v)} -> Char @-}
+{-@ index :: b:L.ByteString -> n:{v:Nat64 | (LBValid b v)} -> Char @-}
 index :: ByteString -> Int64 -> Char
 --LIQUID index = (w2c .) . L.index
 index b i = w2c $ L.index b i
@@ -651,7 +648,7 @@ filterNotChar c = L.filterNotByte (c2w c)
 -- excess elements of the longer ByteString are discarded. This is
 -- equivalent to a pair of 'unpack' operations, and so space
 -- usage may be large for multi-megabyte ByteStrings
-{-@ zip :: LByteString -> LByteString -> [(Char,Char)] @-}
+{-@ zip :: L.ByteString -> L.ByteString -> [(Char,Char)] @-}
 zip :: ByteString -> ByteString -> [(Char,Char)]
 zip ps qs
     | L.null ps || L.null qs = []
@@ -728,7 +725,7 @@ unlines ss = (concat $ List.intersperse nl ss) `append` nl -- half as much space
 -- > tokens isSpace = words
 --
 --LIQUID FIXME: splitWith requires non-empty bytestring for now..
-{-@ words :: LByteStringNE -> [LByteString] @-}
+{-@ words :: LByteStringNE -> [L.ByteString] @-}
 words :: ByteString -> [ByteString]
 words = List.filter (not . L.null) . L.splitWith isSpaceWord8
 {-# INLINE words #-}

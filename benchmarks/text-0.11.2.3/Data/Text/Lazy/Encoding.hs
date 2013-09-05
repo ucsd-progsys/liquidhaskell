@@ -1,4 +1,6 @@
-{--! run liquid with no-termination idirs=../bytestring-0.9.2.1/ idirs=../../include/ -}
+{-@ LIQUID "--notermination" @-}
+{-@ LIQUID "--idirs=../bytestring-0.9.2.1/" @-}
+{-@ LIQUID "--idirs=../../include/" @-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE Rank2Types #-}
 -- |
@@ -61,27 +63,7 @@ import qualified Data.Text.Lazy.Encoding.Fusion as E
 import qualified Data.Text.Lazy.Fusion as F
 
 --LIQUID
-import Data.ByteString.Fusion (PairS(..), MaybeS(..))
-import qualified Data.ByteString.Fusion
-import qualified Data.ByteString.Internal
-import qualified Data.ByteString.Lazy.Internal
-import Data.Int
-import Data.Word
-import qualified Data.Text
-import Data.Text.Array (Array(..), MArray(..))
-import qualified Data.Text.Foreign
-import qualified Data.Text.Fusion.Internal
-import qualified Data.Text.Fusion.Size
-import qualified Data.Text.Internal
-import qualified Data.Text.Lazy.Fusion
-import Data.Text.Lazy.Fusion (TPairS(..))
-import qualified Data.Text.Lazy.Internal
-import qualified Data.Text.Private
-import qualified Data.Text.Search
-import qualified Data.Text.Unsafe
-import qualified Foreign.C.String
-import Foreign.Ptr
-import Foreign.ForeignPtr
+import Data.Word (Word8)
 import Language.Haskell.Liquid.Prelude
 
 -- $strict
@@ -114,7 +96,7 @@ onErrLIQUID :: TE.OnDecodeError -> String -> Maybe Word8 -> Maybe Char
 onErrLIQUID onErr desc c = onErr desc c undefined undefined
 
 -- | Decode a 'ByteString' containing UTF-8 encoded text.
-{-@ decodeUtf8With :: OnDecodeError -> LByteString -> LText @-}
+{-@ decodeUtf8With :: OnDecodeError -> B.ByteString -> Text @-}
 decodeUtf8With :: TE.OnDecodeError -> B.ByteString -> Text
 decodeUtf8With onErr bs0 = fast bs0
   where

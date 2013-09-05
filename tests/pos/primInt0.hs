@@ -7,9 +7,9 @@ module PrimInt(
  ) where
 
 import Data.Maybe
-import GHC.Base 
+import GHC.Base
 
-{-@ assert ztake  :: n: {v: GHC.Prim.Int# | 0 <= v} -> {v: Int | v = n } @-}
+{-@ assert ztake  :: n: {v: Int# | 0 <= v} -> {v: Int | v = n } @-}
 ztake :: Int# -> Int
 ztake 0# = 0
 ztake n# = 1 + ztake (n# -# 1#)
@@ -19,6 +19,7 @@ itake :: Int -> Int
 itake 0 = 0
 itake n = 1 + itake (n - 1)
 
+--FIXME: why does Int# get unqualified?!
 {-@ assert ptake  :: n: {v: GHC.Prim.Int# | 0 <= v} -> [a] -> {v:[a] | (len(v) = n)} @-}
 ptake :: Int# -> [a] -> [a]
 ptake 0# _      = []
