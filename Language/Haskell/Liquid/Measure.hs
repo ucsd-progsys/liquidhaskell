@@ -13,7 +13,7 @@ module Language.Haskell.Liquid.Measure (
   , qualifySpec
   , mapTy
   , dataConTypes
-  , expandRTAliases
+  , defRefType
   ) where
 
 import GHC hiding (Located)
@@ -62,6 +62,13 @@ data MSpec ty ctor = MSpec {
     ctorMap :: M.HashMap Symbol [Def ctor]
   , measMap :: M.HashMap Symbol (Measure ty ctor) 
   }
+
+instance Monoid (MSpec ty ctor) where
+  mempty = MSpec M.empty M.empty
+
+  (MSpec c1 m1) `mappend` (MSpec c2 m2) =
+    MSpec (M.unionWith (++) c1 c2) (m1 `M.union` m2)
+
 
 -- MOVE TO TYPES
 data Measure ty ctor = M { 
@@ -284,149 +291,3 @@ bodyPred fv (P p)    = PIff  (PBexp fv) p
 bodyPred fv (R v' p) = subst1 p (v', fv)
 
 
--------------------------------------------------------------------------------
------------ Refinement Type Aliases -------------------------------------------
--------------------------------------------------------------------------------
-
--- MOVE TO TYPES
-data RTEnv   = RTE { typeAliases :: M.HashMap String (RTAlias String BareType)
-                   , predAliases :: M.HashMap String (RTAlias Symbol Pred)
-                   }
-
-expandRTAliases    :: Spec BareType Symbol -> Spec BareType Symbol
-expandRTAliases sp = sp { sigs       = [ (x, generalize $ expandRTAlias env t)  | (x, t) <- sigs sp       ] }
-                        { dataDecls  = [ expandRTAliasDataDecl env dc           | dc     <- dataDecls sp  ] } 
-                        { invariants = [ generalize <$> expandRTAlias env <$> t | t      <- invariants sp ] }
-                        { measures   = [ expandRTAliasMeasure env m             | m      <- measures sp   ] } 
-  where env        = makeRTEnv (aliases sp) (paliases sp)
-        
-        
-expandRTAliasMeasure env m     = m { sort = generalize (sort m) } 
-                                   { eqns = expandRTAliasDef env <$> (eqns m) }
-
-expandRTAliasDef  :: RTEnv -> Def Symbol -> Def Symbol
-expandRTAliasDef   env d       = d { body = expandRTAliasBody env (body d) }
-
-
-expandRTAliasBody  :: RTEnv -> Body -> Body
-expandRTAliasBody  env (P p)   = P   (expPAlias env p) 
-expandRTAliasBody  env (R x p) = R x (expPAlias env p)
-expandRTAliasBody  env b       = b
-   
-expPAlias :: RTEnv -> Pred -> Pred
-expPAlias env = expandPAlias (\_ _ -> id) [] (predAliases env)
-
-
--- | Constructing the Alias Environment
-
-makeRTEnv     :: [RTAlias String BareType] -> [RTAlias Symbol Pred] -> RTEnv
-makeRTEnv  rts pts = RTE typeMap predMap
-  where typeMap    = makeAliasMap expandRTAliasE rts
-        predMap    = makeAliasMap expandRPAliasE pts
-
-makeAliasMap exp xts = expBody <$> env0
-  where env0      = safeFromList "makeAliasMap" [(rtName x, x) | x <- xts]
-        expBody z = z { rtBody = exp env0 $ rtBody z }   
-
--- | Using the Alias Environment to Expand Definitions
-
-expandRTAlias     :: RTEnv -> BareType -> BareType
-expandRTAlias env = expReft . expType 
-  where 
-    expReft       = fmap (txPredReft expPred) 
-    expType       = expandAlias  (\_ _ -> id) [] (typeAliases env)
-    expPred       = expandPAlias (\_ _ -> id) [] (predAliases env)
-
-txPredReft f      = fmap  (txPredReft f)
-  where 
-    txPredReft f (Reft (v, ras)) = Reft (v, txPredRefa f <$> ras)
-    txPredRefa f (RConc p)       = RConc (f p)
-    txPredRefa _ z               = z
-       
-
-expandRTAliasDataDecl env dc = dc {tycDCons = dcons' }  
-  where 
-    dcons' = map (mapSnd (map (mapSnd (expandRTAlias env)))) (tycDCons dc) 
-
-
--- | Using the Alias Environment to Expand Definitions
-
-expandRPAliasE  :: M.HashMap String (RTAlias Symbol Pred) -> Pred -> Pred
-expandRPAliasE  = go []
-  where go = expandPAlias go
-
-expandRTAliasE  :: M.HashMap String (RTAlias String BareType) -> BareType -> BareType 
-expandRTAliasE = go []
-  where go = expandAlias go
-
-
-expandAlias f s env = go s 
-  where 
-    go s (RApp c ts rs r)
-      | c `elem` s        = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
-      | c `M.member` env  = assert (null rs) $ expandRTApp (f (c:s) env) env c (go s <$> ts) r
-      | otherwise         = RApp c (go s <$> ts) (go' s <$> rs) r 
-    go s (RAllT a t)      = RAllT a (go s t)
-    go s (RAllP a t)      = RAllP a (go s t)
-    go s (RFun x t t' r)  = RFun x (go s t) (go s t') r
-    go s (RAppTy t t' r)  = RAppTy (go s t) (go s t') r
-    go s (RCls c ts)      = RCls c (go s <$> ts) 
-    go _ t                = t
-
-    go' s z@(RMono _ _)   = z
-    go' s (RPoly ss t)    = RPoly ss (go s t)
-
-expandRTApp tx env c args r
-  | length args == (length αs) + (length εs)
-  = subst su  $ (`strengthen` r) $ subsTyVars_meet αts $ tx $ rtBody rta
-  | otherwise
-  = errortext $ (text "Malformed Type-Alias Application" $+$ text msg $+$ tshow rta)
-  where 
-    αts       = zipWith (\α t -> (α, toRSort t, t)) αs ts
-    su        = mkSubst $ zip (stringSymbol <$> εs) es
-    αs        = rtTArgs rta 
-    εs        = rtVArgs rta 
-    rta       = env M.! c
-    msg       = showpp (RApp c args [] r) 
-    (ts, es_) = splitAt (length αs) args
-    es        = map (exprArg msg) es_
-    
--- | exprArg converts a tyVar to an exprVar because parser cannot tell 
--- HORRIBLE HACK To allow treating upperCase X as value variables X
--- e.g. type Matrix a Row Col = List (List a Row) Col
-
-exprArg _   (RExprArg e)     
-  = e
-exprArg _   (RVar x _)       
-  = EVar (stringSymbol x)
-exprArg _   (RApp x [] [] _) 
-  = EVar (stringSymbol x)
-exprArg msg (RApp f ts [] _) 
-  = EApp (stringSymbol f) (exprArg msg <$> ts) 
-exprArg msg (RAppTy (RVar f _) t _)   
-  = EApp (stringSymbol f) [exprArg msg t]
-exprArg msg z 
-  = errorstar $ printf "Unexpected expression parameter: %s in %s" (show z) msg 
-
-
-
-
-expandPAlias tx s env = go s 
-  where 
-    go s p@(PBexp (EApp f es))  
-      | f `elem` s                = errorstar $ "Cyclic Predicate Alias Definition: " ++ show (f:s)
-      | (symbolString f) `M.member` env  
-                                  = expandRPApp (tx (f:s) env) env f es
-      | otherwise                 = p
-    go s (PAnd ps)                = PAnd (go s <$> ps)
-    go s (POr  ps)                = POr  (go s <$> ps)
-    go s (PNot p)                 = PNot (go s p)
-    go s (PImp p q)               = PImp (go s p) (go s q)
-    go s (PIff p q)               = PIff (go s p) (go s q)
-    go s (PAll xts p)             = PAll xts (go s p)
-    go _ p                        = p
-
-expandRPApp tx env f es = tx (subst su $ rtBody def) 
-  where su   = mkSubst $ safeZip msg (rtVArgs def) es 
-        def  = env M.! (symbolString f)
-        msg  = "expandRPApp: " ++ show (EApp f es) 

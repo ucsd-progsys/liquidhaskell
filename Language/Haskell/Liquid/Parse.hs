@@ -1,6 +1,8 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections #-}
 
-module Language.Haskell.Liquid.Parse (hsSpecificationP, specSpecificationP) where
+module Language.Haskell.Liquid.Parse
+  (hsSpecificationP, lhsSpecificationP, specSpecificationP)
+  where
 
 import Control.Monad
 import Text.Parsec
@@ -16,7 +18,10 @@ import Data.Char (toLower, isLower, isSpace, isAlpha)
 import Data.List (partition)
 import Data.Monoid (mempty)
 
+import GHC (mkModuleName, ModuleName)
 import Text.PrettyPrint.HughesPJ    (text)
+
+import Language.Preprocessor.Unlit (unlit)
 
 import Language.Fixpoint.Types
 
@@ -33,27 +38,46 @@ import Language.Fixpoint.Parse
 ----------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
-hsSpecificationP :: String -> SourceName -> String -> Either Error Measure.BareSpec
+hsSpecificationP :: SourceName -> String -> Either Error (ModName, Measure.BareSpec)
 -------------------------------------------------------------------------------
-hsSpecificationP name = parseWithError $ mkSpec name <$> specWraps specP
 
--- hsSpecificationP Spc name = doParse' $ liftM (mkSpec name) $ specWraps specP
+hsSpecificationP = parseWithError $ do
+    S name <-  try (lookAhead $ skipMany (commentP >> spaces)
+                             >> reserved "module" >> symbolP)
+           <|> return (S "Main")
+    liftM (mkSpec (ModName SrcImport $ mkModuleName name)) $ specWraps specP
 
--- | Used to parse .spec files 
+-------------------------------------------------------------------------------
+lhsSpecificationP :: SourceName -> String -> Either Error (ModName, Measure.BareSpec)
+-------------------------------------------------------------------------------
+
+lhsSpecificationP sn s = hsSpecificationP sn $ unlit sn s
+
+commentP =  simpleComment (string "{-") (string "-}")
+        <|> simpleComment (string "--") newlineP
+        <|> simpleComment (string "\\") newlineP
+        <|> simpleComment (string "#")  newlineP
+
+simpleComment open close = open >> manyTill anyChar (try close)
+
+newlineP = try (string "\r\n") <|> string "\n" <|> string "\r"
+
+
+-- | Used to parse .spec files
 
 --------------------------------------------------------------------------
-specSpecificationP  :: SourceName -> String -> Either Error Measure.BareSpec  
+specSpecificationP  :: SourceName -> String -> Either Error (ModName, Measure.BareSpec)
 --------------------------------------------------------------------------
 specSpecificationP  = parseWithError specificationP 
 
-specificationP :: Parser Measure.BareSpec 
+specificationP :: Parser (ModName, Measure.BareSpec)
 specificationP 
   = do reserved "module"
        reserved "spec"
        S name <- symbolP
        reserved "where"
        xs     <- grabs (specP <* whiteSpace)
-       return $ mkSpec name xs 
+       return $ mkSpec (ModName SpecImport $ mkModuleName name) xs
 
 ---------------------------------------------------------------------------
 parseWithError :: Parser a -> SourceName -> String -> Either Error a 
@@ -364,7 +388,9 @@ data Pspec ty ctor
   | Pragma  (Located String)
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
-mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec 
+mkSpec name xs         = (name,)
+                       $ Measure.qualifySpec (getModString name)
+                       $ Measure.Spec
   { Measure.measures   = [m | Meas   m <- xs]
   , Measure.sigs       = [a | Assm   a <- xs] 
                       ++ [(y, t) | Assms (ys, t) <- xs, y <- ys]
@@ -380,7 +406,6 @@ mkSpec name xs         = Measure.qualifySpec name $ Measure.Spec
   , Measure.lazy       = S.fromList [s | Lazy s <- xs]
   , Measure.pragmas    = [s | Pragma s <- xs]
   }
-
 
 specP :: Parser (Pspec BareType Symbol)
 specP 

@@ -6,7 +6,7 @@ data WrapType b a = WrapType {getVect :: b, getVal :: a}
 
 {-@ type List a N     = {v : [a] | (len v) = N} @-}
 {-@ type Point N      = List Double N           @-}
-{-@ type GenPoint a N = WrapType (Point N) a    @-} 
+{-@ type GenPoint a N = WrapType (Point N) a    @-}
 
 
 {-@ nearestCenter :: n:Int -> (GenPoint a n) -> [(Point n)] -> (Point n) @-} 

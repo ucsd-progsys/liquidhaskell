@@ -62,14 +62,7 @@ import qualified Data.Text.Internal as I
 import qualified Data.Text.Encoding.Utf16 as U16
 
 --LIQUID
-import Data.Text.Array (Array(..), MArray(..))
-import qualified Data.Text.Unsafe
-import qualified Data.Text.Private
-import Data.Word
-import qualified GHC.ST
-import GHC.ST
-import qualified GHC.Types
-import Prelude (Integer, Integral)
+import GHC.ST (runST)
 import Language.Haskell.Liquid.Prelude
 
 
@@ -78,26 +71,26 @@ default(Int)
 {-@ qualif LTPlus(v:int, a:int, b:int) : v < (a + b) @-}
 {-@ qualif LTEPlus(v:int, a:int, b:int) : (v + a) <= b @-}
 
-{-@ qualif Ord(v:int, x:GHC.Types.Char)
+{-@ qualif Ord(v:int, x:Char)
         : ((((ord x) <  65536) => (v = 0))
         && (((ord x) >= 65536) => (v = 1)))
   @-}
-{-@ qualif Ord(v:int, i:int, x:GHC.Types.Char)
+{-@ qualif Ord(v:int, i:int, x:Char)
         : ((((ord x) <  65536) => (v = i))
         && (((ord x) >= 65536) => (v = (i + 1))))
   @-}
-{-@ qualif Ord(v:GHC.Types.Char, i:int)
+{-@ qualif Ord(v:Char, i:int)
         : ((((ord x) <  65536) => (v >= 0))
         && (((ord x) >= 65536) => (v >= 1)))
   @-}
 
-{-@ qualif MALenLE(v:int, a:Data.Text.Array.MArray s): v <= (malen a) @-}
-{-@ qualif ALenLE(v:int, a:Data.Text.Array.Array): v <= (alen a) @-}
+{-@ qualif MALenLE(v:int, a:A.MArray s): v <= (malen a) @-}
+{-@ qualif ALenLE(v:int, a:A.Array): v <= (alen a) @-}
 
-{-@ qualif Foo(v:a, a:Data.Text.Array.MArray s):
+{-@ qualif Foo(v:a, a:A.MArray s):
         (snd v) <= (malen a)
   @-}
-{-@ qualif Foo(v:a, a:Data.Text.Array.Array):
+{-@ qualif Foo(v:a, a:A.Array):
         (snd v) <= (alen a)
   @-}
 
@@ -149,7 +142,7 @@ reverseStream (Text arr off len) = Stream next (off+len-1) (maxSize len)
 --LIQUID FIXME: we should be able to prove these streaming functions terminating
 --              but that requires giving a refined Stream type, which requires
 --              handling existential types.
-{-@ Strict Data.Text.Fusion.unstream @-}
+{-@ Lazy unstream @-}
 unstream :: Stream Char -> Text
 unstream (Stream next0 s0 len) = runText $ \done -> do
   let mlen = upperBound 4 len
@@ -183,7 +176,7 @@ length = S.lengthI
 {-# INLINE[0] length #-}
 
 -- | /O(n)/ Reverse the characters of a string.
-{-@ Strict Data.Text.Fusion.reverse @-}
+{-@ Lazy reverse @-}
 reverse :: Stream Char -> Text
 reverse (Stream next s len0)
     | isEmpty len0 = I.empty
@@ -270,7 +263,7 @@ countChar = S.countCharI
 -- | /O(n)/ Like a combination of 'map' and 'foldl''. Applies a
 -- function to each element of a 'Text', passing an accumulating
 -- parameter from left to right, and returns a final 'Text'.
-{-@ Strict Data.Text.Fusion.mapAccumL @-}
+{-@ Lazy mapAccumL @-}
 mapAccumL :: (a -> Char -> (a,Char)) -> a -> Stream Char -> (a, Text)
 mapAccumL f z0 (Stream next0 s0 len) =
     (nz,I.textP na 0 nl)

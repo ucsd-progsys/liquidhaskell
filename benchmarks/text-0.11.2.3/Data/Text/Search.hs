@@ -41,15 +41,14 @@ import Data.Bits ((.|.), (.&.))
 import Data.Text.UnsafeShift (shiftL)
 
 --LIQUID
-import Data.Text.Array (Array(..), MArray(..))
-import Data.Word
+import Data.Word (Word16)
 import Language.Haskell.Liquid.Prelude
 
 --LIQUID FIXME: we don't currently parse the `:*` syntax used originally
 data T = {-# UNPACK #-} !Word64 `T` {-# UNPACK #-} !Int
 
-{-@ measure tskip :: Data.Text.Search.T -> Int
-    tskip (Data.Text.Search.T mask skip) = skip
+{-@ measure tskip :: T -> Int
+    tskip (T mask skip) = skip
   @-}
 
 -- | /O(n+m)/ Find the offsets of all non-overlapping indices of
@@ -129,7 +128,7 @@ indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
                -> i:{v:Nat | ((v < (tlen pat)) && (v = (tlen pat) - 1 - d))}
                -> Word64
                -> skp:{v:Nat | v < (tlen pat)}
-               -> {v:Data.Text.Search.T | (Btwn (tskip v) 0 (tlen pat))}
+               -> {v:T | (Btwn (tskip v) 0 (tlen pat))}
   @-}
 buildTable :: Int -> Text -> Int -> Word64 -> Int -> T
 buildTable d pat@(Text narr noff nlen) !i !msk !skp

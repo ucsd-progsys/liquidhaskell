@@ -130,8 +130,8 @@ cSizeInt :: CSize -> Int
 cSizeInt = fromIntegral 
 
 
-{-@ assume mkPtr :: x:GHC.Prim.Addr# -> {v: (Ptr b) | ((plen v) = (addrLen x) && ((plen v) >= 0)) } @-} 
-mkPtr   :: GHC.Base.Addr# -> Ptr b
+{-@ assume mkPtr :: x:GHC.Prim.Addr# -> {v: (Ptr b) | ((plen v) = (addrLen x) && ((plen v) >= 0)) } @-}
+mkPtr   :: Addr# -> Ptr b
 mkPtr x = undefined -- Ptr x 
 
 
