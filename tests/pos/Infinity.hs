@@ -1,9 +1,10 @@
-module Fixme where
+module Infinity where
 
 import Language.Haskell.Liquid.Prelude
-
+{-@ LIQUID "--totality" @-}
 {-@ Lazy inf @-}
-{-@ inf :: {v:[Int] | ((len v) > max_int)} @-}
+
+{-@ inf :: {v:[Int] | ((len v) > oo)} @-}
 inf :: [Int]
 inf = 1 : inf
 
@@ -19,6 +20,6 @@ myabs = undefined
 
 -- Encoding infinity.....
 
-{-@ measure max_int :: Int @-}
+{-@ measure oo :: Int @-}
 {-@ invariant {v:[a] | ((len v) > 0) }@-}
-{-@ invariant {v:Int | (v < max_int) }@-}
+{-@ invariant {v:Int | (v < oo) }@-}
