@@ -1,0 +1,82 @@
+
+
+
+\begin{figure}[t!]
+\centering
+$$
+\begin{array}{rrcl}
+\emphbf{Basic Types} \quad
+  & b 
+  & ::=
+  & \alpha
+  \spmid \tfun{x}{\tau}{\tau}
+  \spmid \tcon{C}{\bar{\tau}}{\bar{\ref}}
+  \spmid \tapp{\tau}{\tau}
+  \\[0.05in]
+
+\emphbf{Types} \quad
+  & \tau 
+  & ::=
+  & \tref{v}{b}{\ref}
+  \spmid \tcl{Cl}{\bar{\tau}}
+  \\[0.05in]
+
+\emphbf{Abstract Refinements} \quad
+  & \pi
+  & ::=
+  & \forall \left\langle p \colon \tau \right\rangle . \pi 
+  \spmid \tau
+  \\[0.05in]
+
+\emphbf{Type Schemata} \quad
+  & \sigma
+  & ::=
+  & \tall{\alpha}{\sigma} 
+  \spmid \pi
+  \\[0.05in]
+
+\emphbf{Refinements} \quad
+  & \ref
+  & ::=
+  & (\aref,\cref)
+  \\[0.05in]
+
+\emphbf{Abstract Refinements} \quad
+  & \aref
+  & ::= 
+  &  [] \spmid p\ \bar{e}, \aref
+  \\[0.05in]
+
+\emphbf{Concrete Refinements} \quad
+  & \cref
+  & ::=
+  &  k \sub{x}{e}
+  \spmid \pr
+  \spmid \cref \land \cref
+  \\[0.05in]
+
+\emphbf{Predicates} \quad
+  & \pr
+  & ::=
+  &  \ptrue \spmid \pfalse 
+  \spmid \pand{\bar{\pr}}
+  \spmid \por{\bar{\pr}}
+  \spmid \pnot{\pr}
+  \spmid \pimp{\pr}{\pr}
+  \spmid \piff{\pr}{\pr}
+  \\ && \spmid &  e 
+  \spmid e \left[= \mid \neq \mid > \mid < \mid \geq \mid \leq \right] e
+  \\[0.05in]
+
+\emphbf{Expressions} \quad
+  & e
+  & ::=
+  &  c \spmid n \spmid x \spmid \eapp{c}{\bar{e}} \spmid \eif{\pr}{e}{e} 
+  \spmid e \left[+ \mid - \mid * \mid / \mid \% \right] e 
+
+
+  \end{array}
+$$
+\caption{Syntax of \corelan}
+\label{fig:syntax}
+\end{figure}

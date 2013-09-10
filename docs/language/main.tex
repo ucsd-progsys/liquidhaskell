@@ -1,0 +1,110 @@
+\documentclass[10pt,a4paper]{article}
+
+%\documentclass{llncs}
+%\documentclass[nocopyrightspace]{sigplanconf}
+%%% \usepackage[top=1.5cm,bottom=1.5cm,left=2.3cm,right=2cm]{geometry}
+
+\pagestyle{plain}
+\usepackage{times}
+%\usepackage[nocompress]{cite} % AR: comment this out if you wish hyperrefs 
+\usepackage{hyperref}
+
+\usepackage{amsmath,amssymb, latexsym}
+
+\usepackage{amsmath}
+\usepackage{amsthm}
+
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newtheorem*{theorem*}{Theorem}
+\newtheorem{definition}{Definition}
+\newtheorem*{lemma*}{Lemma}
+
+\usepackage{amsfonts}
+\usepackage{amssymb}
+
+\usepackage{commands}
+\usepackage{liquidHaskell}
+\usepackage[inference]{semantic}
+
+\usepackage{enumerate}
+\def\url{}
+\usepackage{xspace}
+\usepackage{epsfig}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{comment}
+\usepackage{ifthen}
+
+\newcommand{\isTechReport}{false} % true or false
+\newcommand{\includeProof}[1]{
+  \ifthenelse{\equal{\isTechReport}{true}}{
+    #1
+  }{
+  }
+}
+
+%%%%%\usepackage{fancyvrb}
+%%%%%\DefineVerbatimEnvironment{code}{Verbatim}{fontsize=\small}
+%%%%%\DefineVerbatimEnvironment{example}{Verbatim}{fontsize=\small}
+%%%%%\newcommand{\ignore}[1]{}
+
+% command to end a proof or definition:
+%\def\qed{\rule{0.4em}{1.4ex}}
+\def\qed{\hfill$\Box$}
+
+% space at the beginning of an environment:
+\def\@envspa{\hspace{0.3em}}
+\def\@sa{\hspace{-0.2em}}
+\def\@sb{\hspace{0.5em}}
+\def\@sc{\hspace{-0.1em}}
+
+\def\sk{\smallskip}		% space before and after theorems
+
+\newtheorem{notation}{Notation}{\itshape}{}
+\newtheorem{invariant}{Invariant}
+\newtheorem*{hypothesis}{Hypothesis}
+
+\input{haskellListings}
+
+
+\begin{document}
+%% BEGIN MOVE 
+% these are mostly redefined commands, move them to commands
+
+\renewcommand\tref[3]{\ensuremath{\{#1 : #2 \mid #3 \}}}
+\renewcommand\tfun[3]{\ensuremath{#1 : #2 \rightarrow #3}}
+\newcommand\tcon[3]{\ensuremath{#1 \ #2 \ #3}}
+\newcommand\tapp[2]{\ensuremath{#1 \ #2}}
+\newcommand\tall[2]{\ensuremath{ \forall #1 .  #2}}
+\newcommand\tcl[2]{\ensuremath{#1 \ #2}}
+\renewcommand\ref{r}
+\newcommand\pr{pr}
+\newcommand\aref{ar}
+\newcommand\cref{cr}
+
+\newcommand\ptrue{\ensuremath{true}}
+\newcommand\pfalse{\ensuremath{false}}
+\newcommand\pand[1]{\ensuremath{\bigwedge \ #1}}
+\newcommand\por[1]{\ensuremath{\bigvee \ #1}}
+\newcommand\pnot[1]{\ensuremath{\lnot #1}}
+\newcommand\pimp[2]{\ensuremath{#1 \Rightarrow #2}}
+\newcommand\piff[2]{\ensuremath{#1 \Leftrightarrow #2}}
+
+\renewcommand\eapp[2]{\ensuremath{#1 \ #2}}
+\renewcommand\eif[3]{\ensuremath{if \ #1 \ then \ #2 \ else \ #3}}
+\renewcommand\corelan{\texttt{liquidHaskell}}
+
+%% END MOVE
+
+% \maketitle
+
+\input{language}
+\input{typeInference}
+
+% {
+% \bibliographystyle{plain}
+% \bibliography{sw}
+% }
+
+\end{document}
