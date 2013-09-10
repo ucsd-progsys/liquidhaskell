@@ -1,0 +1,325 @@
+\renewcommand\hastype[4]{\ensuremath{#1 \vdash #2 \uparrow #3 ; #4}}
+\newcommand\checktype[4]{\ensuremath{#1 \vdash #2 \downarrow #3 ; #4}}
+\newcommand\hastypealt[5]{\ensuremath{#1 ; #2 \downarrow #3 \colon #4 ; #5}}
+\newcommand\ty[1]{\ensuremath{ty(#1)}}
+
+\NV{TODO : \\
+1. Add termination checker.}
+
+\section*{Constraint Generation (without the termination checker)}
+
+\hfill\textbf{Type synthesis}\qquad\mbox{\hastype{\Gamma}{e}{\sigma}{C}}
+
+
+$$
+\inference{
+	(x, \tref{v}{b}{e}) \in \Gamma
+}{
+	\hastype{\Gamma}{x}{\tref{v}{b}{e \land x = v}}{\emptyset}
+}
+\qquad
+\inference{
+	(x, \sigma \in \Gamma) &&
+	\sigma \neq \tref{v}{b}{e}
+}{
+	\hastype{\Gamma}{x}{\sigma}{\emptyset}
+}
+$$
+
+$$
+\inference{
+}{
+	\hastype{\Gamma}{c}{\tref{v}{\ty{c}}{v = c}}{\emptyset}
+}
+$$
+
+\newcommand\wfc[2]{\ensuremath{\texttt{WfC}\ #1 \ #2}}
+\newcommand\subc[3]{\ensuremath{\texttt{SubC}\ #1 \ #2\ #3}}
+\newcommand\freshty[1]{\ensuremath{freshTy(#1)}}
+\newcommand\truety[1]{\ensuremath{trueTy(#1)}}
+\newcommand\truetyExpr[1]{\ensuremath{trueTyExpr(#1)}}
+\newcommand\isGenericty[2]{\ensuremath{isGeneric(#1, #2)}}
+\newcommand\freshPredsty[1]{\ensuremath{freshPreds(\Gamma, #1)}}
+\newcommand\varTemplate[1]{\ensuremath{varTemplate(#1)}}
+\newcommand\dataconty[2]{\ensuremath{dataConTy(#1, #2)}}
+
+$$
+\inference{
+	\hastype{\Gamma}{e}{\tall{\alpha}{\sigma}}{C} \\
+	\tau' = if\ \isGenericty{\alpha}{\sigma}\ then\ \freshty{\tau}\ else\ \truety{\tau}
+}{
+	\hastype{\Gamma}{\etapp{e}{\tau}}{\sigma\sub{\alpha}{\tau'}}{(\wfc{\Gamma}{\tau'}, C)}
+}
+$$
+
+$$
+\inference{
+	\hastype{\Gamma}{e_1}{\tau_1}{C_1} &&
+	\checktype{\Gamma}{e_2}{\tau_x}{C_2} &&\\
+	(\tau_1', C_p) = \freshPredsty{\tau_1} &&
+	\tfun{x}{\tau_x}{\tau} = \tau_1'
+}{
+	\hastype{\Gamma}{\eapp{e_1}{e_2}}{\tau\sub{x}{e_2}}
+			{(C_1, C_2, C_p)}
+}
+$$
+
+
+$$
+\inference{
+	\hastype{\Gamma}{e}{\sigma}{C}
+}{
+	\hastype{\Gamma}{\etabs{\alpha}{e}}{\tall{\alpha}{\sigma}}{C}
+}
+$$
+
+$$
+\inference{
+	\hastype{\Gamma, x : \tau_x}{e}{\tau}{C} &&
+	t_x = freshty(varType\ x)
+}{
+	\hastype{\Gamma}{(\efun{x}{}{e})}{(\tfun{x}{\tau_x}{\tau})}{(\wfc{\Gamma}{\tau_x}, C)}
+}
+$$
+
+$$
+\inference{
+	\hastype{\Gamma}{e}{\sigma}{C}
+}{
+	\hastype{\Gamma}{Tick\ t\ e}{\sigma}{C}
+}
+$$
+
+$$
+\inference{
+}{
+	\hastype{\Gamma}{Cast\ e\ c}{\truetyExpr{Cast\ e\ c}}{\emptyset}
+}
+$$
+
+$$
+\inference{
+}{
+	\hastype{\Gamma}{Coercion\ c}{\truetyExpr{Coercion\ c}}{\emptyset}
+}
+$$
+
+$$
+\inference{
+	\sigma = \freshty{e} &&
+	\checktype{\Gamma}{\elet{{x_i}}{e_{x_i}}{e}}{\sigma}{C}
+}{
+	\hastype{\Gamma}{\elet{{x_i}}{e_{x_i}}{e}}{\sigma}{(\wfc \Gamma \sigma, C)}
+}
+$$
+
+$$
+\inference{
+	\sigma = \freshty{e} &&
+	\checktype{\Gamma}{Case\ e\ x\ alt_i}{\sigma}{C}
+}{
+	\hastype{\Gamma}{Case\ e\ x\ alt_i}{\sigma}{(\wfc \Gamma \sigma, C)}
+}
+$$
+
+
+
+\hfill\textbf{Type checking}\qquad\mbox{\checktype{\Gamma}{e}{\sigma}{C}}
+
+
+
+
+%% This rule allows more general types for let binds.
+%% Eg. (tests/pos/meas1.hs)
+%% goo x = [x] :: a -> {v:[a] | ((null v) <=> false)} -- by default
+%% this rule also allows 
+%% goo :: a -> {v:[a] | ((len v) > 0)}
+
+\newcommand\userType[1]{\ensuremath{userType(#1)}}
+
+$$
+\inference{
+	\tau_x  = userTypes(x) &&
+	\checktype{\Gamma}{e_x}{\tau_x}{C_x} \\&&
+	\checktype{\Gamma, x\colon\tau_x}{e}{\sigma}{C}
+}{
+	\checktype{\Gamma}{\elet{x}{e_x}{e}}{\sigma}{(C_x,C)}
+}
+$$
+
+$$
+\inference{
+	x \notin userTypes &&
+	\hastype{\Gamma}{e_x}{\tau_x}{C_x} \\&&
+	\checktype{\Gamma, x\colon\tau_x}{e}{\sigma}{C}
+}{
+	\checktype{\Gamma}{\elet{x}{e_x}{e}}{\sigma}{(C_x,C)}
+}
+$$
+
+$$
+\inference{
+	\checktype{\Gamma, \overline{{x_i} : \tau_{x_i}}}{e}{\sigma}{C} &&\\
+	(C_{x_i}, \tau_{x_i}) = \varTemplate{x_i} &&
+	\checktype{\Gamma, \overline{{x_i} : \tau_{x_i}}}{e_{x_i}}{\tau_{x_i}}{C_{x_i}'}
+}{
+	\hastype{\Gamma}{\elet{{x_i}}{e_{x_i}}{e}}{\sigma}{(C_{x_i}, C_{x_i}', C)}
+}
+$$
+
+$$
+\inference{
+	\hastype{\Gamma}{e}{\tau_x}{C_x} &&
+	\hastypealt{(\Gamma, x:\tau_x)}{x}{alt_i}{\sigma}{C_i}
+}{
+	\checktype{\Gamma}{Case\ e\ x\ alt_i}{\sigma}{(C_x, C_i)}
+}
+$$
+
+$$
+\inference{
+	\checktype{\Gamma}{e}{\sigma\sub{\alpha'}{\alpha}}{C}
+}{
+	\checktype{\Gamma}{\etabs{\alpha}{e}}{\tall{\alpha'}{\sigma}}{C}
+}
+$$
+
+$$
+\inference{
+	\checktype{\Gamma, x : \tau_y}{e}{\tau\sub{y}{x}}{C}
+}{
+	\checktype{\Gamma}{\efun{x}{\tau}{e}}{(\tfun{y}{\tau_y}{\tau})}{C}
+}
+$$
+
+$$
+\inference{
+	\checktype{\Gamma}{e}{\sigma}{C}
+}{
+	\checktype{\Gamma}{Tick\ t\ e}{\sigma}{C}
+}
+$$
+
+$$
+\inference{
+	\sigma' = \truety{Cast\ c\ e}
+}{
+	\checktype{\Gamma}{Cast\ c\ e}{\sigma}{(C, \subc{\Gamma}{\sigma'}{\sigma})}
+}
+$$
+
+$$
+\inference{
+	\checktype{\Gamma, p \colon \tau}
+	{e}{\sigma}{C} %% here replacePredsWithRefs is used
+}{
+	\checktype{\Gamma}{e}
+	{\forall \left\langle p \colon \tau \right\rangle . \sigma}{C}
+}
+$$
+
+$$
+\inference{
+	\hastype{\Gamma}{e}{\sigma'}{C} &&
+	(\sigma'', C_p) = \freshPredsty{\sigma'}
+}{
+	\checktype{\Gamma}{e}{\sigma}
+	{(C, C_p, \subc{\Gamma}{\sigma''}{\sigma})}
+}
+$$
+
+
+\hfill\mbox{\hastypealt{\Gamma}{x}{alt}{\sigma}{C}}
+$$
+\inference{
+	(x,\tau_x^0) \in \Gamma  && \tau_x^0 = \tref{v}{C\ {t_C}_l\ {r_C}_j }{r}  &&
+	\ty{C} = \forall \alpha_l p_j . y_1\colon t_1 \rightarrow \dots y_n \colon t_n \rightarrow t &&\\
+	\theta = \sub{\alpha_l}{{t_C}_l}\sub{p_j}{{r_C}_j}\sub{y_i}{x_i} &&\\
+	\tau_{x_i} = \theta t_i && \tau_x = \theta t \land \tau_x^0 \land \dataconty{C}{x_i} &&\\
+	\checktype{\Gamma, x\colon \tau_x, x_i \colon \tau_{x_i}}{e}{\sigma}{C}
+}{
+	\hastypealt{\Gamma}{x}{(C, x_i, e)}{\sigma}{C}
+}
+$$
+
+
+% FUNCTIONS
+\section*{Helper Functions}
+\hfill\isGenericty{\alpha}{\sigma} -- not constrained by class predicates
+$$\isGenericty{\alpha}{\sigma} \Leftrightarrow \alpha \notin ClassConstraints(\sigma)$$ 
+
+\begin{align*}
+classConstraints(\tall{\alpha}{\sigma}) &= classConstraints(\sigma)\\ 
+classConstraints(\tall{p}{\sigma}) &= classConstraints(\sigma)\\ 
+classConstraints(C \alpha_i \rightarrow \tau) &= \alpha_i \cup classConstraints(\tau) 
+\end{align*}
+
+\hfill\freshty{\sigma} { -- type with liquid variables for all refinements}\\
+
+\newcommand\freshref{\ensuremath{fref}} %([], k_i)}}
+\newcommand\trueref{\ensuremath{tref}}  %([], true)}}
+$$
+\begin{array}{lcl}
+\freshty{\tref{v}{\alpha}{r}} &=& \tref{v}{\alpha}{\freshref}\\
+\freshty{\tref{v}{\tfun{x}{\tau_x}{\tau}}{r}} &=& \tref{v}{\tfun{x}{\freshty{\tau_x}}{\freshty{\tau}}}{\trueref}\\
+\freshty{\tref{v}{\tcon{C}{\overline{\tau}}{\overline{\ref}}}{r}} 
+	&=& \tref{v}{\tcon{C}{\overline{\freshty{\tau}}}{\overline{\freshref}}}{\freshref}\\
+\freshty{\tref{v}{\tapp{\tau_1}{\tau_2}}{r}} &=& \tref{v}{\tapp{\freshty{\tau_1}}{\freshty{\tau_2}}}{\trueref}\\
+\freshty{\tcl{Cl}{\bar{\tau}}} &=& \tcl{Cl}{\bar{\tau}}\\
+\freshty{\tall{\alpha}{\sigma}} &=& \tall{\alpha}{\freshty{\sigma}}\\
+\freshty{\forall \left\langle p \colon \tau \right\rangle . \sigma} 
+	&=& {\forall \left\langle p \colon \tau \right\rangle . \freshty{\sigma}}
+\end{array}
+$$
+where $fref = {([], k_i)}$, $tref = {([], true)}$
+
+\hfill\truety{\sigma} { -- type with true for all refinements}\\
+$$
+\begin{array}{lcl}
+\truety{\tref{v}{\alpha}{r}} 
+	&=& \tref{v}{\alpha}{\trueref}\\
+\truety{\tref{v}{\tfun{x}{\tau_x}{\tau}}{r}} 
+	&=& \tref{v}{\tfun{x}{\truety{\tau_x}}{\truety{\tau}}}{\trueref}\\
+\truety{\tref{v}{\tcon{C}{\overline{\tau}}{\overline{\ref}}}{r}} 
+	&=& \tref{v}{\tcon{C}{\overline{\truety{\tau}}}{\overline{\trueref}}}{\trueref}\\
+\truety{\tref{v}{\tapp{\tau_1}{\tau_2}}{r}} 
+	&=& \tref{v}{\tapp{\truety{\tau_1}}{\truety{\tau_2}}}{\trueref}\\
+\truety{\tcl{Cl}{\bar{\tau}}} &=& \tcl{Cl}{\bar{\tau}}\\
+\truety{\tall{\alpha}{\sigma}} &=& \tall{\alpha}{\truety{\sigma}}\\
+\truety{\forall \left\langle p \colon \tau \right\rangle . \sigma} 
+	&=& {\forall \left\langle p \colon \tau \right\rangle . \truety{\sigma}}
+\end{array}
+$$
+
+
+\hfill \freshPredsty{\sigma}  -- replace predicate occurrences with liquid variables
+$$
+\begin{array}{lclll}
+\freshPredsty{\tall{\alpha}{\sigma}}  
+	&=& (\tall{\alpha}{\sigma'}, C) & where& (\sigma', C) = \freshPredsty{\sigma}\\
+\freshPredsty{\forall \left\langle p \colon \tau \right\rangle .\sigma}  
+	&=& (\sigma'\sub{p}{k_i}, (C,\wfc{\Gamma'}{k_i})) & where& (\sigma', C) = \freshPredsty{\sigma}\\ 
+	&&&&  x_1\colon\tau_1 \rightarrow \dots x_n \colon\tau_n \rightarrow Prop= \tau\\
+	&&&&  \Gamma' = \Gamma, x_1\colon\tau_1 \rightarrow \dots x_{n-1} \colon\tau_{n-1}\\
+\freshPredsty{\tau}  
+	&=& (\tau, \emptyset) && \\
+\end{array}
+$$
+
+\begin{align*}
+%\isGenericty{\alpha}{\sigma} & \text{ -- not constrained by class predicates}\\
+%\freshty{\sigma} & \text{ -- type with liquid variables for all refinements}\\
+%\truety{\sigma} & \text{ -- type with true for all refinements}\\
+\truetyExpr{e} & \text{ -- type of expression with true for all refinements}\\
+\varTemplate{x} & \text{ -- type for variable x, user specified type or a fresh type}\\
+\end{align*}
+
+\begin{align*}
+\dataconty{C}{x_i} = 
+\left\lbrace \begin{array}{l l}
+Prop\ v & C = True\\
+\lnot (Prop\ v) & C = False\\
+v = x_1 & C = I\# \\
+v= C x_i & \text{otherwise}
+\end{array}\right.
+\end{align*}
