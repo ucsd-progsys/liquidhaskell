@@ -4,7 +4,7 @@ import Language.Haskell.Liquid.Prelude
 {-@ LIQUID "--totality" @-}
 {-@ Lazy inf @-}
 
-{-@ inf :: {v:[Int] | ((len v) > oo)} @-}
+{-@ inf :: {v:[Int] | (((len v) > oo) && ((len v) > 2))} @-}
 inf :: [Int]
 inf = 1 : inf
 
@@ -21,5 +21,4 @@ myabs = undefined
 -- Encoding infinity.....
 
 {-@ measure oo :: Int @-}
-{-@ invariant {v:[a] | ((len v) > 0) }@-}
 {-@ invariant {v:Int | (v < oo) }@-}
