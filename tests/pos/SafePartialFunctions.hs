@@ -1,5 +1,6 @@
 module SafePartialFunctions where
 
+{-@ LIQUID "--totality" @-}
 import Prelude hiding (fromJust, tail, head)
 
 {-@ fromJust :: {v:Maybe a | (isJust v)} -> a @-}
