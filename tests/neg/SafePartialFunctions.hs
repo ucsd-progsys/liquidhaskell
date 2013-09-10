@@ -1,3 +1,4 @@
+{-@ LIQUID "--totality" @-}
 module SafePartialFunctions where
 
 import Prelude hiding (fromJust, tail, head)
