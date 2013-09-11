@@ -20,12 +20,12 @@ three_partitions m =
 remainders [] = []
 remainders (r:rs) = (r:rs) : (remainders rs)
 
+{-@ radical_generator :: Int -> Array Int [Radical] @-}
 radical_generator :: Int -> Array Int [Radical]
-radical_generator n =
-  radicals
- where 
-  radicals =
-    array (0,n) ((0,[H]) : [(j,rads_of_size_n radicals j) | j <- [1..n]])
+radical_generator = radicals
+
+radicals n =
+    array (0,n) ((0,[H]) : [(j,rads_of_size_n (radicals n) j) | j <- [1..n]])
 
 rads_of_size_n :: Array Int [Radical] -> Int -> [Radical]
 rads_of_size_n radicals n =
