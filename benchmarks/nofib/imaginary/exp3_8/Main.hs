@@ -20,9 +20,17 @@ import System.Environment
 
 infix 8 ^^^
 
-data Nat = Z | S Nat deriving (Eq,Ord, Show {-was:Text-})
+data NatT = Z | S NatT deriving (Eq,Ord, Show {-was:Text-})
 
-instance Num Nat where
+{-@ LIQUID "--totality" @-}
+
+{-@ data NatT [nlen] = Z | S (n::NatT) @-}
+
+{-@ measure nlen :: NatT -> Int
+    nlen (Z)   = 0
+    nlen (S n) = 1 + (nlen n)   @-}
+
+instance Num NatT where
     Z   + y   = y
     S x + y   = S (x + y)
     x   * Z   = Z
@@ -30,11 +38,12 @@ instance Num Nat where
     fromInteger x = if x < 1 then Z else S (fromInteger (x-1))
 
 -- partain:sig
-int :: Nat -> Int
+int :: NatT -> Int
 
 int Z     = 0
 int (S x) = 1 + int x
 
+{-@ Decrease ^^^ 2 @-}
 x ^^^ Z   = S Z
 x ^^^ S y = x * (x ^^^ y)
 
