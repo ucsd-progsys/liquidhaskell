@@ -20,6 +20,7 @@ take0 (I# n#) xs = take_unsafe_UInt0 n# xs
 take_unsafe_UInt0 :: Int# -> [a] -> [a]
 take_unsafe_UInt0 0#  _     = []
 take_unsafe_UInt0 n  (x:xs) = x : take_unsafe_UInt0 (n -# 1#) xs
+take_unsafe_UInt0 _   _     = error "unsafe take"
 
 {-@ assert take  :: n: {v: Int | v >= 0 } -> xs:[a] -> {v:[a] | len(v) = ((len(xs) < n) ? len(xs) : n) } @-}
 take (I# n#) xs = takeUInt n# xs
