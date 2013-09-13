@@ -158,3 +158,8 @@ deref = undefined
   @-}
 eqPtr :: Ptr a -> Ptr a -> Bool
 eqPtr = undefined
+
+{-@ assert safeZipWith :: (a -> b -> c) -> xs : [a] -> ys:{v:[b] | len(v) = len(xs)} -> {v : [c] | len(v) = len(xs)} @-}
+safeZipWith :: (a->b->c) -> [a]->[b]->[c]
+safeZipWith f (a:as) (b:bs) = f a b : safeZipWith f as bs
+
