@@ -87,6 +87,9 @@ config = Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , totality 
+    = def &= help "Check totality"
+
  , smtsolver 
     = def &= help "Name of SMT-Solver" 
 
@@ -147,7 +150,7 @@ parsePragma s = withArgs [val s] $ cmdArgs config
 ---------------------------------------------------------------------------------------
 
 instance Monoid Config where
-  mempty        = Config def def def def def def def def 2 def
+  mempty        = Config def def def def def def def def def 2 def
   mappend c1 c2 = Config (sortNub $ files c1   ++     files          c2)
                          (sortNub $ idirs c1   ++     idirs          c2)
                          (diffcheck c1         ||     diffcheck      c2) 
@@ -155,6 +158,7 @@ instance Monoid Config where
                          (noCheckUnknown c1    ||     noCheckUnknown c2) 
                          (nofalse        c1    ||     nofalse        c2) 
                          (notermination  c1    ||     notermination  c2) 
+                         (totality       c1    ||     totality       c2) 
                          (noPrune        c1    ||     noPrune        c2) 
                          (maxParams      c1   `max`   maxParams      c2)
                          (smtsolver c1      `mappend` smtsolver      c2)

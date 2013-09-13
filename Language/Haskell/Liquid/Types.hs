@@ -137,6 +137,7 @@ data Config = Config {
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , nofalse        :: Bool       -- ^ remove false predicates from the refinements
   , notermination  :: Bool       -- ^ disable termination check
+  , totality       :: Bool       -- ^ check totality in definitions
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   , smtsolver      :: SMTSolver  -- ^ name of smtsolver to use [default: z3-API]  

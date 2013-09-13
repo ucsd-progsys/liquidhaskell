@@ -22,8 +22,6 @@ assume GHC.Num.+                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x
 assume GHC.Num.-                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x - y }
 assume GHC.Num.*                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | ((((x >= 0) && (y >= 0)) => ((v >= x) && (v >= y))) && (((x > 1) && (y > 1)) => ((v > x) && (v > y)))) }
 
-
-
 embed GHC.Integer.Type.Integer  as int
 
 type GeInt N = {v: GHC.Types.Int | v >= N }

@@ -5,7 +5,7 @@ import Language.Haskell.Liquid.Prelude
 {-@ foo :: x:Maybe a -> {v:a | ((isJust(x)) => (fromJust(x) = v)) } @-}
 foo :: Maybe a -> a 
 foo (Just x)  = x 
--- foo (Nothing) = 0
+foo (Nothing) = error "foo"
 
 {-@ bar :: x:Maybe a -> {v:Bool | ((isJust(x)) <=> Prop(v)) } @-}
 bar (Just x)  = True 
