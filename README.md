@@ -178,6 +178,26 @@ use the `no-prune-unsorted` flag.
  
     liquid --no-prune-unsorted test.hs
 
+Totality Check
+--------------
+
+LiquidHaskell can prove the absence of pattern match failures.
+Use the `totality` flag to prove that all defined functions are total.
+   
+    liquid --totality test.hs
+
+For example, the definition
+     
+     fromJust :: Maybe a -> a
+     fromJust (Just a) = a
+
+is not total and it will create an error message.
+If we exclude `Nothing` from its domain, for example using the following specification
+
+     {-@ fromJust :: {v:Maybe a | (isJust v)} -> a @-}
+
+`fromJust` will be safe.
+
 Termination Check
 -----------------
 

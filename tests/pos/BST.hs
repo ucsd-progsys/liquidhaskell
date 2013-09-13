@@ -47,6 +47,7 @@ delete k' (Bind k v l r)
 getMin (Bind k v Empty rt) = P k v rt
 getMin (Bind k v lt rt)    = P k0min v0min (Bind k v l' rt)
    where P k0min v0min l' = getMin lt
+getMin _                   = error "getMin"
 
 chkMin x Empty            = liquidAssertB True  
 chkMin x (Bind k v lt rt) = liquidAssertB (x<k) && chkMin x lt && chkMin x rt

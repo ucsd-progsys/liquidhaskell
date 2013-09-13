@@ -46,7 +46,7 @@ import Control.DeepSeq
 import Control.Applicative  hiding (empty)
 import Data.Monoid hiding ((<>))
 import Data.List (intercalate, foldl', find, (\\), delete, nub)
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, maybeToList)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
@@ -102,7 +102,7 @@ getGhcInfo' cfg0 target
       liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
       let name'           = ModName Target (getModName name)
       impNames           <- allDepNames <$> depanal [] False
-      impSpecs           <- getSpecs target paths impNames [Spec, Hs, LHs]
+      impSpecs           <- getSpecs (totality cfg) target paths impNames [Spec, Hs, LHs]
       impSpecs'          <- forM impSpecs $ \(f,n,s) -> do
         when (not $ isSpecImport n) $
           addTarget =<< guessTarget f Nothing
@@ -239,11 +239,20 @@ targetName     = dropExtension  . takeFileName
 -- starName fn    = combine dir ('*':f) where (dir, f) = splitFileName fn
 starName       = ("*" ++)
 
+patErrorName = "PatErr"
 
-getSpecs target paths names exts
-  = do fs    <- sortNub <$> moduleImports exts paths names 
-       liftIO $ whenLoud $ putStrLn ("getSpecs: " ++ show fs)
+getSpecs tflag target paths names exts
+  = do fs'     <- sortNub <$> moduleImports exts paths names 
+       patSpec <- getPatSpec paths tflag
+       let fs  = patSpec ++ fs'
+       liftIO  $ whenLoud $ putStrLn ("getSpecs: " ++ show fs)
        transParseSpecs exts paths (S.singleton target) mempty (map snd fs)
+
+getPatSpec paths totalitycheck 
+  | totalitycheck
+  = (map (patErrorName, )) . maybeToList <$> moduleFile paths patErrorName Spec
+  | otherwise
+  = return []
 
 transParseSpecs _ _ _ specs []
   = return specs
@@ -269,8 +278,6 @@ specParser file str
   | isExtFile Hs file    = hsSpecificationP   file str
   | isExtFile LHs file   = lhsSpecificationP  file str
   | otherwise            = exitWithPanic $ "SpecParser: Cannot Parse File " ++ file
-
-
 
 moduleImports :: GhcMonad m => [Ext] -> [FilePath] -> [String] -> m [(String, FilePath)]
 moduleImports exts paths names

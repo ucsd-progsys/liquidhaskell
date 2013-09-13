@@ -107,14 +107,14 @@ rotateR :: a -> b -> Map a b -> Map a b -> Map a b
 rotateR k x l@(Bin _ _ _ ly ry) r
   | size ry < ratio*size ly  = singleR k x l r
   | otherwise                = doubleR k x l r
-rotateR _ _ _ Tip = error "rotateR Tip"
+rotateR _ _ Tip _ = error "rotateR Tip"
 
 -- basic rotations
 singleL, singleR :: a -> b -> Map a b -> Map a b -> Map a b
 singleL k1 x1 t1 (Bin _ k2 x2 t2 t3) = bin k2 x2 (bin k1 x1 t1 t2) t3
-singleL _  _  _ Tip = error "sinlgeL Tip"
+singleL _  _  _ Tip                  = error "sinlgeL Tip"
 singleR k1 x1 (Bin _ k2 x2 t1 t2) t3 = Bin 0 k2 x2 t1 (Bin 0 k1 x1 t2 t3)
-singleR _  _  _ Tip = error "sinlgeR Tip"
+singleR _  _  Tip _                  = error "sinlgeR Tip"
 
 doubleL, doubleR :: a -> b -> Map a b -> Map a b -> Map a b
 doubleL k1 x1 t1 (Bin _ k2 x2 (Bin _ k3 x3 t2 t3) t4)
