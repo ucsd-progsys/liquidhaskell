@@ -909,10 +909,12 @@ cconsLazyLet γ (Let (NonRec x ex) e) t
 
 cconsE γ e@(Let b@(NonRec x _) ee) t
   = do sp <- specLVars <$> get
-       if (x `S.member` sp) || "fail" `L.isPrefixOf` (showPpr x)
+       if (x `S.member` sp) || isDefLazyVar x'
         then cconsLazyLet γ e t 
         else do γ'  <- consCBLet γ b
-                cconsE γ' ee t 
+                cconsE γ' ee t
+  where isDefLazyVar y = "fail" `L.isPrefixOf` y
+        x'             = showPpr x
 
 cconsE γ (Let b e) t    
   = do γ'  <- consCBLet γ b
