@@ -259,6 +259,9 @@ it is used. For example, with the above annotation the following code is SAFE:
       where z = 42 `safeDiv` x
             x = choose 0
 
+By default, all the variables starting with `fail` are marked as LAZY, to defer
+failing checks at the point where these variables are used.
+
 Specifying Different SMT Solvers
 --------------------------------
 
