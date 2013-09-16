@@ -180,7 +180,7 @@ data CGEnv
         , emb    :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
         , tgEnv :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
         , tgKey :: !(Maybe Tg.TagKey)  -- ^ Current top-level binder
-        , trec  :: !(Maybe (F.Symbol, SpecType)) -- ^ Type of recursive function with decreasing constraints
+        , trec  :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
         , lcb   :: ![(F.Symbol, CoreExpr)] -- ^ Let binding that have not been checked
         } -- deriving (Data, Typeable)
 
@@ -204,9 +204,10 @@ setLoc :: CGEnv -> SrcSpan -> CGEnv
 withRecs :: CGEnv -> [Var] -> CGEnv 
 withRecs γ xs  = γ { recs = foldl' (flip S.insert) (recs γ) xs }
 
-withTRec γ (x, rTy) = γ' {trec = Just (x', rTy)}
+withTRec γ (x, rTy) = γ' {trec = Just (M.insert x' rTy trec')}
   where x' = varSymbol x
         γ' = γ `withRecs` [x]
+        trec' = fromMaybe M.empty $ trec γ
 
 setBind :: CGEnv -> Tg.TagKey -> CGEnv  
 setBind γ k 
@@ -1149,8 +1150,8 @@ argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
 varRefType γ x = liftM (varRefType' γ x) (γ ??= varSymbol x)
 
 varRefType' γ x t'
-  | Just (y, ty) <- trec γ 
-  = if x' == y then ty `strengthen` xr else t
+  | Just tys <- trec γ 
+  = maybe t (`strengthen` xr) (x' `M.lookup` tys)
   | otherwise
   = t
   where t  = t' `strengthen` xr
