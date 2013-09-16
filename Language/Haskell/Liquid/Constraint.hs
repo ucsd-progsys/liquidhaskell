@@ -901,7 +901,7 @@ unifyVar γ x rt = unify (getPrType γ (varSymbol x)) rt
 cconsE :: CGEnv -> Expr Var -> SpecType -> CG () 
 -------------------------------------------------------------------
 cconsLazyLet γ (Let (NonRec x ex) e) t
-  = do tx <- (`strengthen` xr) <$> trueTy (varType x)
+  = do tx <- {-(`strengthen` xr) <$>-} trueTy (varType x)
        γ' <- (γ, "Let NonRec") +++= (x', ex, tx)
        cconsE γ' e t
   where xr = uTop $ F.symbolReft x'
