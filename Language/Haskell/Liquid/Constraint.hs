@@ -133,6 +133,7 @@ measEnv sp penv xts cbs lts
         , tgEnv = Tg.makeTagEnv cbs
         , tgKey = Nothing
         , trec  = Nothing
+        , lcb   = []
         } 
     where tce = tcEmbeds sp
 
@@ -180,6 +181,7 @@ data CGEnv
         , tgEnv :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
         , tgKey :: !(Maybe Tg.TagKey)  -- ^ Current top-level binder
         , trec  :: !(Maybe (F.Symbol, SpecType)) -- ^ Type of recursive function with decreasing constraints
+        , lcb   :: ![(F.Symbol, CoreExpr)] -- ^ Let binding that have not been checked
         } -- deriving (Data, Typeable)
 
 instance PPrint CGEnv where
@@ -457,6 +459,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) 
                      , specQuals  :: ![F.Qualifier]
                      , specDecr   :: ![(Var, [Int])]
+                     , specLVars  :: !(S.HashSet Var)
                      , specLazy   :: !(S.HashSet Var)
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
@@ -501,6 +504,7 @@ initCGI cfg info = CGInfo {
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
   , specDecr   = decr spc
+  , specLVars  = lvars spc
   , specLazy   = lazy spc
   , tcheck     = not $ notermination cfg
   , pruneRefs  = not $ noPrune cfg
@@ -551,6 +555,10 @@ rTypeSortedReft' pflag γ
   = f 
   where f = rTypeSortedReft (emb γ)
 
+(+++=) :: (CGEnv, String) -> (F.Symbol, CoreExpr, SpecType) -> CG CGEnv
+
+(γ, msg) +++= (x, e, t) = (γ{lcb = (x,e):lcb γ}, "+++=") += (x, t)
+
 (+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
 (γ, msg) += (x, r)
   | x == F.dummySymbol
@@ -565,6 +573,12 @@ rTypeSortedReft' pflag γ
                               ++ "\n Old: " ++ showpp (x `lookupREnv` (renv γ))
                         
 γ -= x =  γ {renv = deleteREnv x (renv γ)}
+
+(??=) :: CGEnv -> F.Symbol -> CG SpecType
+γ ??= x 
+  = case L.lookup x (lcb γ) of
+    Just e  -> consE γ e
+    Nothing -> return $ γ ?= x 
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
@@ -886,6 +900,19 @@ unifyVar γ x rt = unify (getPrType γ (varSymbol x)) rt
 ----------------------- Type Checking -----------------------------
 cconsE :: CGEnv -> Expr Var -> SpecType -> CG () 
 -------------------------------------------------------------------
+cconsLazyLet γ (Let (NonRec x ex) e) t
+  = do tx <- (`strengthen` xr) <$> trueTy (varType x)
+       γ' <- (γ, "Let NonRec") +++= (x', ex, tx)
+       cconsE γ' e t
+  where xr = uTop $ F.symbolReft x'
+        x' = varSymbol x
+
+cconsE γ e@(Let b@(NonRec x _) ee) t
+  = do sp <- specLVars <$> get
+       if (x `S.member` sp) || "fail" `L.isPrefixOf` (showPpr x)
+        then cconsLazyLet γ e t 
+        else do γ'  <- consCBLet γ b
+                cconsE γ' ee t 
 
 cconsE γ (Let b e) t    
   = do γ'  <- consCBLet γ b
@@ -933,9 +960,9 @@ consE :: CGEnv -> Expr Var -> CG SpecType
 -------------------------------------------------------------------
 
 consE γ (Var x)   
-  = do addLocA (Just x) (loc γ) (varAnn γ x t)
+  = do t <- varRefType γ x
+       addLocA (Just x) (loc γ) (varAnn γ x t)
        return t
-    where t = varRefType γ x
 
 consE γ (Lit c) 
   = return $ uRType $ literalFRefType (emb γ) c
@@ -1016,21 +1043,21 @@ cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -
 -------------------------------------------------------------------------------------
 
 cconsCase γ x t _ (DataAlt c, ys, ce) 
- = do let cbs          = safeZip "cconsCase" (x':ys') (xt0:yts)
+ = do xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
+      tdc              <- γ ??= (dataConSymbol c)
+      let (rtd, yts, _) = unfoldR c tdc (shiftVV xt0 x') ys
+      let r1            = dataConReft   c   ys' 
+      let r2            = dataConMsReft rtd ys'
+      let xt            = xt0 `strengthen` (uTop (r1 `F.meet` r2))
+      let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
       cγ'              <- addBinders γ x' cbs
       cγ               <- addBinders cγ' x' [(x', xt)]
       cconsE cγ ce t
  where (x':ys')        = varSymbol <$> (x:ys)
-       xt0             = checkTyCon ("checkTycon cconsCase", x) $ γ ?= x'
-       tdc             = γ ?= (dataConSymbol c)
-       (rtd, yts, _  ) = unfoldR c tdc (shiftVV xt0 x') ys
-       r1              = dataConReft   c   ys' 
-       r2              = dataConMsReft rtd ys'
-       xt              = xt0 `strengthen` (uTop (r1 `F.meet` r2))
 
 cconsCase γ x t acs (a, _, ce) 
   = do let x'  = varSymbol x
-       let xt' = (γ ?= x') `strengthen` uTop (altReft γ acs a) 
+       xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x')
        cγ     <- addBinders γ x' [(x', xt')]
        cconsE cγ ce t
 
@@ -1117,12 +1144,14 @@ argExpr γ (Tick _ e)  = argExpr γ e
 argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
 
 
-varRefType γ x
+varRefType γ x = liftM (varRefType' γ x) (γ ??= varSymbol x)
+
+varRefType' γ x t'
   | Just (y, ty) <- trec γ 
   = if x' == y then ty `strengthen` xr else t
   | otherwise
   = t
-  where t  = (γ ?= (varSymbol x)) `strengthen` xr
+  where t  = t' `strengthen` xr
         xr = uTop $ F.symbolReft $ varSymbol x
         x' = varSymbol x
 
@@ -1134,7 +1163,7 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 -----------------------------------------------------------------------
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 _ x9 x10 _) 
+  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 _ x9 x10 _ _) 
     = x1 `seq` rnf x2 `seq` seq x3 `seq` x4 `seq` rnf x5 `seq` 
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
