@@ -245,6 +245,20 @@ scope of LiquidHaskell) you can write
 
 We intend to address these ASAP.
 
+Lazy Variables
+--------------
+
+A variable cab be specified as `LAZYVAR`
+
+    {-@ LAZYVAR z @-}
+
+With this annotation the definition of `z` will be checked at the points where
+it is used. For example, with the above annotation the following code is SAFE:
+
+    foo = if x > 0 then z else x
+      where z = 42 `safeDiv` x
+            x = choose 0
+
 Specifying Different SMT Solvers
 --------------------------------
 
