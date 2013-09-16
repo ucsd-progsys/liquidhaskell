@@ -5,6 +5,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE BangPatterns              #-}
+{-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints, and 
@@ -44,7 +45,7 @@ import Control.Applicative      ((<$>))
 import Control.Exception.Base
 
 import Data.Monoid              (mconcat)
-import Data.Maybe               (fromMaybe, catMaybes)
+import Data.Maybe               (isJust, fromMaybe, catMaybes)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
@@ -758,8 +759,15 @@ maybeRecType (x, e, t) (Just i) hint
         msg   = printf "%s: No decreasing parameter" loc
                   loc (showPpr x) (showPpr vs)
 
+
 makeRecType t [Nothing] [Nothing] _ 
   = t
+
+makeRecType t vs dxs is | not validArgs
+  = errorstar "Constraint.makeRecType: invalid arguments"
+  where validArgs = sameLens && allJust
+        sameLens  = (length vs) == (length is) && (length dxs) == (length is)
+        allJust   = all isJust vs && all isJust dxs  
 
 makeRecType t vs' dxs' is
   = mkArrow αs πs xts' tbd
@@ -770,9 +778,6 @@ makeRecType t vs' dxs' is
         dxs           = catMaybes dxs'
         (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
-
-makeRecType t _ _ _ 
-  = errorstar "Constraint.makeRecType"
 
 safeLogIndex err ls n
   | n >= length ls
