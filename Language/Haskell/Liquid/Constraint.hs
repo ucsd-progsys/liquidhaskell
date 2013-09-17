@@ -133,7 +133,7 @@ measEnv sp penv xts cbs lts
         , tgEnv = Tg.makeTagEnv cbs
         , tgKey = Nothing
         , trec  = Nothing
-        , lcb   = []
+        , lcb   = M.empty
         } 
     where tce = tcEmbeds sp
 
@@ -181,7 +181,7 @@ data CGEnv
         , tgEnv :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
         , tgKey :: !(Maybe Tg.TagKey)  -- ^ Current top-level binder
         , trec  :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
-        , lcb   :: ![(F.Symbol, CoreExpr)] -- ^ Let binding that have not been checked
+        , lcb   :: !(M.HashMap F.Symbol CoreExpr) -- ^ Let binding that have not been checked
         } -- deriving (Data, Typeable)
 
 instance PPrint CGEnv where
@@ -558,7 +558,7 @@ rTypeSortedReft' pflag γ
 
 (+++=) :: (CGEnv, String) -> (F.Symbol, CoreExpr, SpecType) -> CG CGEnv
 
-(γ, msg) +++= (x, e, t) = (γ{lcb = (x,e):lcb γ}, "+++=") += (x, t)
+(γ, msg) +++= (x, e, t) = (γ{lcb = M.insert x e (lcb γ)}, "+++=") += (x, t)
 
 (+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
 (γ, msg) += (x, r)
@@ -573,13 +573,11 @@ rTypeSortedReft' pflag γ
                               ++ "\n New: " ++ showpp r
                               ++ "\n Old: " ++ showpp (x `lookupREnv` (renv γ))
                         
-γ -= x =  γ { renv = deleteREnv x (renv γ)
-            , lcb  = [(y, e) | (y, e) <- (lcb γ), x /= y]
-            }
+γ -= x =  γ {renv = deleteREnv x (renv γ), lcb  = M.delete x (lcb γ)}
 
 (??=) :: CGEnv -> F.Symbol -> CG SpecType
 γ ??= x 
-  = case L.lookup x (lcb γ) of
+  = case M.lookup x (lcb γ) of
     Just e  -> consE (γ-=x) e
     Nothing -> return $ γ ?= x 
 
