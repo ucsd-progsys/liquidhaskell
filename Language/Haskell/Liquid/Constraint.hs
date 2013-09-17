@@ -573,12 +573,14 @@ rTypeSortedReft' pflag γ
                               ++ "\n New: " ++ showpp r
                               ++ "\n Old: " ++ showpp (x `lookupREnv` (renv γ))
                         
-γ -= x =  γ {renv = deleteREnv x (renv γ)}
+γ -= x =  γ { renv = deleteREnv x (renv γ)
+            , lcb  = [(y, e) | (y, e) <- (lcb γ), x /= y]
+            }
 
 (??=) :: CGEnv -> F.Symbol -> CG SpecType
 γ ??= x 
   = case L.lookup x (lcb γ) of
-    Just e  -> consE γ e
+    Just e  -> consE (γ-=x) e
     Nothing -> return $ γ ?= x 
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
