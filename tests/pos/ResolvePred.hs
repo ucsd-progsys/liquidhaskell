@@ -1,6 +1,7 @@
 module ResolvePred where
 
 {-@ data L [llen] = C (h :: Int) (t :: L) | N @-}
+{-@ invariant {v:L | (llen v) >= 0} @-}
 
 data L = C Int L | N
 

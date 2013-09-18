@@ -47,6 +47,9 @@ import Language.Haskell.Liquid.Prelude
 --LIQUID FIXME: we don't currently parse the `:*` syntax used originally
 data T = {-# UNPACK #-} !Word64 `T` {-# UNPACK #-} !Int
 
+{-@ qualif Foo(v:int,x:int): v <= x + 1 @-}
+{-@ qualif Diff(v:int,l:int,d:int): v = (l - d) + 1 @-}
+
 {-@ measure tskip :: T -> Int
     tskip (T mask skip) = skip
   @-}
@@ -85,9 +88,9 @@ indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
                             where nextInPattern = mask .&. swizzle (index' _haystack (i+nlen)) == 0
                                   !(mask `T` skip)       = buildTable (nlen-1) _needle 0 0 (nlen-2)
                    in if c == z && candidateMatch nlast 0
-                      then i : scan (d-1) (i + nlen)
-                      else scan (d-1) (i + delta)
-        in scan ldiff 0
+                      then i : scan (d-nlen) (i + nlen)
+                      else scan (d-delta) (i + delta)
+        in scan (hlen+1) 0
   where
     ldiff    = hlen - nlen
     -- nlast    = nlen - 1

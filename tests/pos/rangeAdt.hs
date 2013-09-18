@@ -10,6 +10,9 @@ data L a = Nil | Con a (L a)
     llen(Con x xs) = 1 + (llen xs)
   @-}
 
+{-@ invariant {v:L a | (llen v) >= 0} @-}
+{-@ invariant {v:Int | v >= 0} @-}
+
 range :: Int -> Int -> L Int
 range i j = range' (j-i) i j
 
