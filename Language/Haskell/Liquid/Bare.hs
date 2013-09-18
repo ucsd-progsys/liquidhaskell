@@ -125,6 +125,10 @@ makeGhcSpec' cfg vars defVars specs
        let txq          = subsFreeSymbolsQual su
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
        let decr'        = mconcat  $  map (makeHints defVars) specs
+       let lvars'       = S.fromList $ mconcat $ [ makeLVars defVars (mod,spec)
+                                                 | (mod,spec) <- specs
+                                                 , mod == name
+                                                 ]
        quals           <- mconcat <$> mapM makeQualifiers specs
        return           $ (SP { tySigs     = renameTyVars <$> tx sigs
                               , ctor       = tx cs'
@@ -136,6 +140,7 @@ makeGhcSpec' cfg vars defVars specs
                               , tcEmbeds   = embs 
                               , qualifiers = txq quals
                               , decr       = decr'
+                              , lvars      = lvars'
                               , lazy       = lazies
                               , tgtVars    = targetVars
                               , config     = cfg
@@ -315,8 +320,9 @@ makeQualifiers (mod,spec) = inModule mod mkQuals
     mkQuals = mapM resolve $ Ms.qualifiers spec
 
 makeHints vs (_,spec) = makeHints' vs $ Ms.decr spec
+makeLVars vs (_,spec) = fst <$> (makeHints' vs $ [(v, ()) | v <- Ms.lvars spec])
 
-makeHints' :: [Var] -> [(LocSymbol, [Int])] -> [(Var, [Int])]
+makeHints' :: [Var] -> [(LocSymbol, a)] -> [(Var, a)]
 makeHints' vs       = concatMap go
   where lvs        = M.map L.sort $ group [(varSymbol v, locVar v) | v <- vs]
         varSymbol  = stringSymbol . dropModuleNames . showPpr

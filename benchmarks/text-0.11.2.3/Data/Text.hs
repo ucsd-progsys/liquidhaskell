@@ -458,22 +458,18 @@ append :: Text -> Text -> Text
 append a@(Text arr1 off1 len1) b@(Text arr2 off2 len2)
     | len1 == 0 = b
     | len2 == 0 = a
-    | len > 0   = let x = do arr <- A.new len
-                             A.copyI arr 0 arr1 off1 len1
-                             A.copyI arr len1 arr2 off2 len
-                             return arr
-                      arr = A.run x
+    | len > 0   = let arr = A.run x
                       t = Text (liquidAssume (A.aLen arr == len) arr) 0 len
                   --LIQUID ASSUME FIXME: this axiom is fragile, would prefer to reason about `A.run x`
                   in liquidAssume (axiom_numchars_append a b t) t
     | otherwise = overflowError "append"
     where
       len = len1+len2
-      --LIQUID LAZY x = do
-      --LIQUID LAZY   arr <- A.new len
-      --LIQUID LAZY   A.copyI arr 0 arr1 off1 len1
-      --LIQUID LAZY   A.copyI arr len1 arr2 off2 len
-      --LIQUID LAZY   return arr
+      x = do
+        arr <- A.new len
+        A.copyI arr 0 arr1 off1 len1
+        A.copyI arr len1 arr2 off2 len
+        return arr
 {-# INLINE append #-}
 
 {-# RULES
@@ -496,9 +492,10 @@ head t = S.head (stream t)
 uncons :: Text -> Maybe (Char, Text)
 uncons t@(Text arr off len)
     | len <= 0  = Nothing
-    | otherwise = let Iter c d = iter t 0
+    | otherwise = let Iter c d = i
                   in Just (c, textP arr (off+d) (len-d))
---LIQUID LAZY    where Iter c d = iter t 0
+    {-@ LAZYVAR i @-}
+    where i = iter t 0
 {-# INLINE [1] uncons #-}
 
 -- | Lifted from Control.Arrow and specialized.
@@ -512,10 +509,10 @@ last :: Text -> Char
 last (Text arr off len)
     | len <= 0                 = liquidError "last"
     | n < 0xDC00 || n > 0xDFFF = unsafeChr n
-    | otherwise                = let n0 = A.unsafeIndex arr (off+len-2)
-                                 in U16.chr2 n0 n
+    | otherwise                = U16.chr2 n0 n
     where n  = A.unsafeIndexB arr off len (off+len-1)
-          --LIQUID LAZY n0 = A.unsafeIndex arr (off+len-2)
+          {-@ LAZYVAR n0 @-}
+          n0 = A.unsafeIndex arr (off+len-2)
 {-# INLINE [1] last #-}
 
 {-# RULES

@@ -384,6 +384,7 @@ data Pspec ty ctor
   | Embed   (Located String, FTycon)
   | Qualif  Qualifier
   | Decr    (LocSymbol, [Int])
+  | LVars   LocSymbol
   | Lazy    Symbol
   | Pragma  (Located String)
 
@@ -403,6 +404,7 @@ mkSpec name xs         = (name,)
   , Measure.embeds     = M.fromList [e | Embed e <- xs]
   , Measure.qualifiers = [q | Qualif q <- xs]
   , Measure.decr       = [d | Decr d   <- xs]
+  , Measure.lvars      = [d | LVars d  <- xs]
   , Measure.lazy       = S.fromList [s | Lazy s <- xs]
   , Measure.pragmas    = [s | Pragma s <- xs]
   }
@@ -421,6 +423,7 @@ specP
     <|> (reserved "embed"     >> liftM Embed  embedP    )
     <|> (reserved "qualif"    >> liftM Qualif qualifierP)
     <|> (reserved "Decrease"  >> liftM Decr   decreaseP )
+    <|> (reserved "LAZYVAR"   >> liftM LVars  lazyVarP  )
     <|> (reserved "Strict"    >> liftM Lazy   lazyP     )
     <|> (reserved "Lazy"      >> liftM Lazy   lazyP     )
     <|> (reserved "LIQUID"    >> liftM Pragma pragmaP   )
@@ -431,6 +434,9 @@ pragmaP = locParserP $ stringLiteral
 
 lazyP :: Parser Symbol
 lazyP = binderP
+
+lazyVarP :: Parser LocSymbol
+lazyVarP = locParserP binderP
 
 decreaseP :: Parser (LocSymbol, [Int])
 decreaseP = mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> (many integer))

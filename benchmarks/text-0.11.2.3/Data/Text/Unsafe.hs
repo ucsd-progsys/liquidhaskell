@@ -45,10 +45,10 @@ import Language.Haskell.Liquid.Prelude
 unsafeHead :: Text -> Char
 unsafeHead (Text arr off _len)
     | m < 0xD800 || m > 0xDBFF = unsafeChr m
-    | otherwise                = let n = A.unsafeIndex arr (off+1)
-                                 in chr2 m n
+    | otherwise                = chr2 m n
     where m = A.unsafeIndexF arr off _len off
-          --LIQUID n = A.unsafeIndex arr (off+1)
+          {-@ LAZYVAR n @-}
+          n = A.unsafeIndex arr (off+1)
 {-# INLINE unsafeHead #-}
 
 -- | /O(1)/ A variant of 'tail' for non-empty 'Text'. 'unsafeHead'
@@ -95,12 +95,13 @@ data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
 iter :: Text -> Int -> Iter
 iter (Text arr off _len) i
     | m < 0xD800 || m > 0xDBFF = Iter (unsafeChr m) 1
-    | otherwise                = let n = A.unsafeIndex arr (j+1)
-                                 in Iter (chr2 m n) 2
+    | otherwise                = Iter (chr2 m n) 2
   where m = A.unsafeIndexF arr off _len j
-        --LIQUID n = A.unsafeIndex arr k
+        {-@ LAZYVAR n @-}
+        n = A.unsafeIndex arr k
         j = off + i
-        --LIQUID k = j + 1
+        {-@ LAZYVAR k @-}
+        k = j + 1
 {-# INLINE iter #-}
 
 -- | /O(1)/ Iterate one step through a UTF-16 array, returning the
@@ -134,15 +135,14 @@ iter_ (Text arr off _len) i | m < 0xD800 || m > 0xDBFF = 1
 --LIQUID reverseIter (Text arr off _len) i
 reverseIter :: Text -> Int -> (Char,Int)
 reverseIter (Text arr off _len) i
-    | m < 0xDC00 || m > 0xDFFF = let d = (neg 1)
-                                 in (unsafeChr m, d)
-    | otherwise                = let d = (neg 2)
-                                     n = A.unsafeIndex arr (j-1)
-                                 in (chr2 n m,    d)
+    | m < 0xDC00 || m > 0xDFFF = (unsafeChr m, neg 1)
+    | otherwise                = (chr2 n m,    neg 2)
   where m = A.unsafeIndexB arr off _len j
-        --LIQUID n = A.unsafeIndex arr k
+        {-@ LAZYVAR n @-}
+        n = A.unsafeIndex arr k
         j = off + i
-        --LIQUID k = j - 1
+        {-@ LAZYVAR k @-}
+        k = j - 1
 {-# INLINE reverseIter #-}
 
 {-@ neg :: n:Int -> {v:Int | v = (0-n)} @-}
