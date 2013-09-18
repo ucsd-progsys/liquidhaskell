@@ -125,7 +125,10 @@ makeGhcSpec' cfg vars defVars specs
        let txq          = subsFreeSymbolsQual su
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
        let decr'        = mconcat  $  map (makeHints defVars) specs
-       let lvars'       = S.fromList $ mconcat $ map (makeLVars defVars) specs
+       let lvars'       = S.fromList $ mconcat $ [ makeLVars defVars (mod,spec)
+                                                 | (mod,spec) <- specs
+                                                 , mod == name
+                                                 ]
        quals           <- mconcat <$> mapM makeQualifiers specs
        return           $ (SP { tySigs     = renameTyVars <$> tx sigs
                               , ctor       = tx cs'
