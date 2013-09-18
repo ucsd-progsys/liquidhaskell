@@ -1,5 +1,7 @@
 module Moo (poop, loop, zoo) where
 
+{-@ invariant {v:Int | v >= 0} @-}
+
 {-@ qualif Sum(v:Int, x: Int, y: Int): v = x + y @-}
 
 -- | This should get a TOP type

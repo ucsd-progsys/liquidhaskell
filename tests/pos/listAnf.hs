@@ -13,6 +13,8 @@ data List [llen] a <p :: x0:a -> x1:a -> Prop>
     llen(Cons x xs) = 1 + (llen xs)
   @-}
 
+{-@ invariant {v: List a | (llen v) >= 0}@-}
+
 data List a 
    = Nil 
    | Cons a (List a)

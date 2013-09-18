@@ -18,7 +18,7 @@ data Vec a = Nil | Cons a (Vec a)
     llen (Cons x xs) = 1 + llen(xs)
   @-}
 
-
+{-@ invariant {v:Vec a | (llen v) >= 0} @-}
 -- | As a warmup, lets check that a /real/ length function indeed computes
 -- the length of the list.
 
