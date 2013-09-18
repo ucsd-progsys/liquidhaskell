@@ -47,6 +47,8 @@ import Language.Haskell.Liquid.Prelude
 --LIQUID FIXME: we don't currently parse the `:*` syntax used originally
 data T = {-# UNPACK #-} !Word64 `T` {-# UNPACK #-} !Int
 
+{-@ invariant {v:Int| v >= 0} @-}
+
 {-@ measure tskip :: T -> Int
     tskip (T mask skip) = skip
   @-}

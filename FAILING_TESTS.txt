@@ -1,2 +1,3 @@
-benchmarks/text-0.11.2.3/Data/Text/Encoding.hs
-web/demos/Order.hs
+Failed 1 tests: 
+ ../benchmarks/text-0.11.2.3/Data/Text/Encoding.hs,
+
