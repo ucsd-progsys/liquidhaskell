@@ -181,7 +181,7 @@ fromText t@(Text arr off l)
 --  * @'toLazyText' ('fromString' s) = 'L.fromChunks' [S.pack s]@
 --
 --LIQUID FIXME: this really should terminate, must prove `u>0` in the 1st recursive call
-{-@ Strict Data.Text.Lazy.Builder.fromString @-}
+{-@ Lazy fromString @-}
 fromString :: String -> Builder
 fromString str = Builder $ \k (Buffer p0 o0 u0 l0) ->
         {- Decrease loop 1 4 @-}
