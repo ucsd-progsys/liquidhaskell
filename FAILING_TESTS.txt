@@ -1,12 +1,4 @@
-Failed 10 tests: 
+Failed 2 tests: 
  ../benchmarks/text-0.11.2.3/Data/Text/Encoding.hs,
   ../benchmarks/text-0.11.2.3/Data/Text/Search.hs,
-  pos/ResolvePred.hs,
-  pos/data2.hs,
-  pos/datacon0.hs,
-  pos/range.hs,
-  pos/rangeAdt.hs,
-  pos/rec_annot_go.hs,
-  pos/vector1a.hs,
-  pos/vector2.hs 
 

@@ -4,6 +4,7 @@ import Language.Haskell.Liquid.Prelude
 import Data.Vector hiding (map, concat, zipWith, filter, foldr, foldl, (++))
 
 
+{-@ invariant {v:Int | v >= 0} @-}
 for :: Int -> Int -> a -> (Int -> a -> a) -> a
 for lo hi  = for' (hi-lo) lo hi
 
