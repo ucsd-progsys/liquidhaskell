@@ -1,4 +1,3 @@
-Failed 2 tests: 
+Failed 1 tests: 
  ../benchmarks/text-0.11.2.3/Data/Text/Encoding.hs,
-  ../benchmarks/text-0.11.2.3/Data/Text/Search.hs,
 
