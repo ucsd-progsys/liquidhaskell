@@ -89,6 +89,8 @@ import qualified Data.Text.Encoding.Error as E
 import Foreign.ForeignPtr (ForeignPtr)
 import Language.Haskell.Liquid.Prelude
 
+{- invariant {v:Int| v >= 0} @-}
+
 {-@ qualif PValid(v:Ptr int, a:A.MArray s):
         (((deref v) >= 0) && ((deref v) < (malen a)))
   @-}
@@ -263,19 +265,19 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
               else if w <= 0x7FF then ensure 2 $ \ptr -> do
                   poke8 m     $ (w `shiftR` 6) + 0xC0
                   poke8 (m+1) $ (w .&. 0x3f) + 0x80
-                  go (d-1) (n+1) (m+2)
+                  go  (offLen-(n+1)) (n+1) (m+2)
               else if 0xD800 <= w && w <= 0xDBFF then ensure 4 $ \ptr -> do
                   let c = ord $ U16.chr2 w (A.unsafeIndex arr (n+1))
                   poke8 m     $ (c `shiftR` 18) + 0xF0
                   poke8 (m+1) $ ((c `shiftR` 12) .&. 0x3F) + 0x80
                   poke8 (m+2) $ ((c `shiftR` 6) .&. 0x3F) + 0x80
                   poke8 (m+3) $ (c .&. 0x3F) + 0x80
-                  go (d-2) (n+2) (m+4)
+                  go (offLen-(n+2)) (n+2) (m+4)
               else ensure 3 $ \ptr -> do
                   poke8 m     $ (w `shiftR` 12) + 0xE0
                   poke8 (m+1) $ ((w `shiftR` 6) .&. 0x3F) + 0x80
                   poke8 (m+2) $ (w .&. 0x3F) + 0x80
-                  go (d-1) (n+1) (m+3)
+                  go (offLen-(n+1)) (n+1) (m+3)
 
 
 -- | Decode text from little endian UTF-16 encoding.
