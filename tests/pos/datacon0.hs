@@ -8,6 +8,8 @@ data LL a = N | C a (LL a)
 
 {-@ data LL [llen] a = N | C (x::a) (xs::(LL a)) @-}
 
+{-@ invariant {v:LL a | (llen v) >= 0} @-}
+
 {-@ measure llen :: (LL a) -> Int 
     llen(N)      = 0
     llen(C x xs) = 1 + (llen xs)

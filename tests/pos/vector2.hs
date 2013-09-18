@@ -10,6 +10,7 @@ import Language.Haskell.Liquid.Prelude (liquidAssert)
 {-@ predicate Ge X Y      = not (Lt X Y)                  @-}
 {-@ predicate InBound I A = ((Ge I 0) && (Lt I (vlen A))) @-}
 
+{-@ invariant {v:Int | v >= 0} @-}
 {-@ unsafeLookup :: vec:Vector a 
                  -> {v: Int | (0 <= v && v < (vlen vec)) } 
                  -> a @-}

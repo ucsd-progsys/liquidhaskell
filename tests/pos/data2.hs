@@ -11,6 +11,8 @@ data LL a = N | C { head :: a, tail :: (LL a) }
     llen(C x xs) = 1 + (llen xs) 
   @-}
 
+{-@ invariant {v:LL a | (llen v) >= 0} @-}
+
 --instance Functor LL where
 --  fmap f N                = N
 --  fmap f (C jhala jhalas) = C (f jhala) (fmap f jhalas)
