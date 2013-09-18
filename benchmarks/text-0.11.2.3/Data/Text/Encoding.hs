@@ -212,11 +212,12 @@ decodeUtf8' :: ByteString -> Either UnicodeException Text
 decodeUtf8' = unsafePerformIO . try . evaluate . decodeUtf8With strictDecode
 {-# INLINE decodeUtf8' #-}
 
--- | Encode text using UTF-8 encoding.
-{-@ encodeUtf8 :: t:Text -> {v:ByteString | (((tlen t) > 0) => ((bLength v) > 0))} @-}
-{- encodeUtf8 :: t:TextNE -> ByteStringNE @-}
 {-@ qualif GE(v:int, o:int, x:int): v >= (o-x) @-}
 {-@ qualif GE(v:Ptr a, p:Ptr a, o:int, x:int): (plen p) - (plen v) = (o-x) @-}
+
+-- | Encode text using UTF-8 encoding.
+{-@ Lazy encodeUtf8 @-}
+{-@ encodeUtf8 :: t:Text -> {v:ByteString | (((tlen t) > 0) => ((bLength v) > 0))} @-}
 encodeUtf8 :: Text -> ByteString
 encodeUtf8 (Text arr off len) = unsafePerformIO $ do
   let size0 = max len 4
@@ -240,6 +241,9 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
                       fp' <- mallocByteString newSize
                       withForeignPtr fp' $ \ptr' ->
                         memcpy ptr' ptr (fromIntegral m)
+                      --LIQUID FIXME: figure out how to prove these
+                      --types of "restore safety" recursive calls
+                      --terminating
                       start newSize n m fp'
                 {- INLINE ensure #-}
             case A.unsafeIndexF arr off len n of
