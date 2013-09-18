@@ -27,16 +27,19 @@ mergesort' xss = mergesort' (merge_pairs xss)
 merge_pairs :: (Ord a) => [[a]] -> [[a]]
 merge_pairs [] = []
 merge_pairs [xs] = [xs]
-merge_pairs (xs:ys:xss) = merge d xs ys : merge_pairs xss
+merge_pairs (xs:ys:xss) = merge xs ys d : merge_pairs xss
   where d = length xs + length ys
 
-merge :: (Ord a) => Int -> [a] -> [a] -> [a]
-merge _ [] ys = ys
-merge _ xs [] = xs
-merge d (x:xs) (y:ys)
+
+{-@ Decrease merge 4 @-}
+{-@ merge :: (Ord a) => xs:OList a -> ys:OList a -> {n:Nat|n = (len xs) + (len ys)} -> OList a  @-}
+merge :: (Ord a) => [a] -> [a] -> Int -> [a]
+merge [] ys _ = ys
+merge xs [] _ = xs
+merge (x:xs) (y:ys) d
  = case x `compare` y of
-        GT -> y : merge (d-1) (x:xs)   ys
-        _  -> x : merge (d-1) xs   (y:ys)
+        GT -> y : merge (x:xs)   ys (d-1)
+        _  -> x : merge xs   (y:ys) (d-1)
 
 wrap :: a -> [a]
 wrap x = [x]

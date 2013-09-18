@@ -212,11 +212,12 @@ decodeUtf8' :: ByteString -> Either UnicodeException Text
 decodeUtf8' = unsafePerformIO . try . evaluate . decodeUtf8With strictDecode
 {-# INLINE decodeUtf8' #-}
 
--- | Encode text using UTF-8 encoding.
-{-@ encodeUtf8 :: t:Text -> {v:ByteString | (((tlen t) > 0) => ((bLength v) > 0))} @-}
-{- encodeUtf8 :: t:TextNE -> ByteStringNE @-}
 {-@ qualif GE(v:int, o:int, x:int): v >= (o-x) @-}
 {-@ qualif GE(v:Ptr a, p:Ptr a, o:int, x:int): (plen p) - (plen v) = (o-x) @-}
+
+-- | Encode text using UTF-8 encoding.
+{-@ Lazy encodeUtf8 @-}
+{-@ encodeUtf8 :: t:Text -> {v:ByteString | (((tlen t) > 0) => ((bLength v) > 0))} @-}
 encodeUtf8 :: Text -> ByteString
 encodeUtf8 (Text arr off len) = unsafePerformIO $ do
   let size0 = max len 4
@@ -240,6 +241,9 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
                       fp' <- mallocByteString newSize
                       withForeignPtr fp' $ \ptr' ->
                         memcpy ptr' ptr (fromIntegral m)
+                      --LIQUID FIXME: figure out how to prove these
+                      --types of "restore safety" recursive calls
+                      --terminating
                       start newSize n m fp'
                 {- INLINE ensure #-}
             case A.unsafeIndexF arr off len n of
@@ -263,19 +267,19 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
               else if w <= 0x7FF then ensure 2 $ \ptr -> do
                   poke8 m     $ (w `shiftR` 6) + 0xC0
                   poke8 (m+1) $ (w .&. 0x3f) + 0x80
-                  go (d-1) (n+1) (m+2)
+                  go  (offLen-(n+1)) (n+1) (m+2)
               else if 0xD800 <= w && w <= 0xDBFF then ensure 4 $ \ptr -> do
                   let c = ord $ U16.chr2 w (A.unsafeIndex arr (n+1))
                   poke8 m     $ (c `shiftR` 18) + 0xF0
                   poke8 (m+1) $ ((c `shiftR` 12) .&. 0x3F) + 0x80
                   poke8 (m+2) $ ((c `shiftR` 6) .&. 0x3F) + 0x80
                   poke8 (m+3) $ (c .&. 0x3F) + 0x80
-                  go (d-2) (n+2) (m+4)
+                  go (offLen-(n+2)) (n+2) (m+4)
               else ensure 3 $ \ptr -> do
                   poke8 m     $ (w `shiftR` 12) + 0xE0
                   poke8 (m+1) $ ((w `shiftR` 6) .&. 0x3F) + 0x80
                   poke8 (m+2) $ (w .&. 0x3F) + 0x80
-                  go (d-1) (n+1) (m+3)
+                  go (offLen-(n+1)) (n+1) (m+3)
 
 
 -- | Decode text from little endian UTF-16 encoding.

@@ -2,6 +2,8 @@ module Range where
 
 import Language.Haskell.Liquid.Prelude
 
+{-@ invariant {v:Int| v >= 0} @-}
+
 range :: Int -> Int -> [Int]
 range i j = range' (j - i) i j
 

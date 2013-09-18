@@ -953,8 +953,10 @@ mkDType xvs acc ((v, (x, t@(RApp c _ _ _))):vxts)
         Just f = sizeFunction $ rTyConInfo c
 
 cmpLexRef vxs (v, x, g)
-  = pAnd $ (PAtom Lt (g x) (g v))
-         :[PAtom Eq (f y) (f z) | (y, z, f) <- vxs] 
+  = pAnd $  (PAtom Lt (g x) (g v)) : (PAtom Ge (g x) zero)
+         :  [PAtom Eq (f y) (f z) | (y, z, f) <- vxs]
+         ++ [PAtom Ge (f y) zero  | (y, _, f) <- vxs]
+  where zero = ECon $ I 0
 
 ------------------------------------------------------------------------
 -- | Pretty Printing Error Messages ------------------------------------
