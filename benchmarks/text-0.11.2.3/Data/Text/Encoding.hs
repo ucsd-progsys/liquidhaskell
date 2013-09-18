@@ -89,8 +89,6 @@ import qualified Data.Text.Encoding.Error as E
 import Foreign.ForeignPtr (ForeignPtr)
 import Language.Haskell.Liquid.Prelude
 
-{- invariant {v:Int| v >= 0} @-}
-
 {-@ qualif PValid(v:Ptr int, a:A.MArray s):
         (((deref v) >= 0) && ((deref v) < (malen a)))
   @-}
