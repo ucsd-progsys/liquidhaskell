@@ -180,16 +180,14 @@ length = S.lengthI
 reverse :: Stream Char -> Text
 reverse (Stream next s len0)
     | isEmpty len0 = I.empty
-    | otherwise    = let len0' = upper 4 len0 --LIQUID INLINE upperBound 4 (larger len0 4)
-                         (arr, (off', len')) = A.run2 (A.new len0' >>= loop s (len0'-1) len0')
-                     in I.textP arr (liquidAssume (off' <= A.aLen arr) off')
-                                    (liquidAssume (off' + len' <= A.aLen arr) len')
+    | otherwise    = I.textP arr (liquidAssume (off' <= A.aLen arr) off')
+                                 (liquidAssume (off' + len' <= A.aLen arr) len')
   where
     upper k (Exact n) = max k n
     upper k (Max   n) = max k n
     upper k _         = k
-    --LIQUID SCOPE len0' = upperBound 4 (larger len0 4)
-    --LIQUID SCOPE (arr, (off', len')) = A.run2 (A.new len0' >>= reverse_loop s (len0'-1) len0')
+    len0' = upper 4 len0 --LIQUID INLINE upperBound 4 (larger len0 4)
+    (arr, (off', len')) = A.run2 (A.new len0' >>= loop s (len0'-1) len0')
     loop !s0 !i !len marr =
         case next s0 of
           Done -> return (marr, (j, len-j))
