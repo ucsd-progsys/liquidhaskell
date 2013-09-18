@@ -1,12 +1,8 @@
-Failed 21 tests: 
+Failed 17 tests: 
  ../benchmarks/text-0.11.2.3/Data/Text/Encoding.hs,
   ../benchmarks/text-0.11.2.3/Data/Text/Search.hs,
   ../web/demos/esop2013-demo.hs,
-  pos/GhcSort2.hs,
-  pos/ListISort-LType.hs,
-  pos/ListLen-LType.hs,
   pos/ListMSort.hs,
-  pos/ListRange-LType.hs,
   pos/ListSort.hs,
   pos/ResolvePred.hs,
   pos/data2.hs,

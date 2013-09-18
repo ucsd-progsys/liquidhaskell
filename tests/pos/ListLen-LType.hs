@@ -13,11 +13,14 @@ data List [llen] a <p :: x0:a -> x1:a -> Prop>
     llen(Cons x xs) = 1 + (llen xs)
   @-}
 
+{-@ invariant {v:(List a) | ((llen v) >= 0)} @-}
 
 data List a = Nil | Cons a (List a)
 
 make2d :: a -> Int -> Int -> List ([a])
 make2d x n m = cloneL (clone x n) m
+
+{-@ invariant {v:Int | v >= 0} @-}
 
 clone :: a -> Int -> [a]
 clone x n
