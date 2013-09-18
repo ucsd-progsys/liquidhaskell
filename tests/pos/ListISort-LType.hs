@@ -16,6 +16,7 @@ import Language.Haskell.Liquid.Prelude
     llen(Cons x xs) = 1 + (llen xs)
   @-}
 
+{-@ invariant {v:(List a) | ((llen v) >= 0)} @-}
 
 data List a 
   = Nil 
