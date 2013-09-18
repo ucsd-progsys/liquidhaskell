@@ -23,11 +23,11 @@ insert y (x : xs) | y <= x    = y : x : xs
 -- Merge Sort ----------------------------------------------------------------
 ------------------------------------------------------------------------------
 
-{-@ mergeSort :: (Ord a) => [a] -> OList a @-}
+{-@ mergeSort :: (Ord a) => xs:[a] -> {v:OList a| (len v) = (len xs)} @-}
 mergeSort :: Ord a => [a] -> [a]
 mergeSort []  = []
 mergeSort [x] = [x]
-mergeSort xs  = merge d (mergeSort xs1) (mergeSort xs2) 
+mergeSort xs  = merge (mergeSort xs1) (mergeSort xs2) d 
   where (xs1, xs2) = split xs
         d          = length xs
 
@@ -42,14 +42,17 @@ split :: [a] -> ([a], [a])
 split (x:(y:zs)) = (x:xs, y:ys) where (xs, ys) = split zs
 split xs         = (xs, [])
 
-merge :: Ord a => Int -> [a] -> [a] -> [a]
-merge _ xs [] = xs
-merge _ [] ys = ys
-merge d (x:xs) (y:ys)
+{-@ Decrease merge 4 @-}
+{-@ merge :: Ord a => xs:(OList a) -> ys:(OList a) -> d:{v:Int| v = (len xs) + (len ys)} -> {v:(OList a) | (len v) = d} @-}
+merge :: Ord a => [a] -> [a] -> Int -> [a]
+merge xs [] _ = xs
+merge [] ys _ = ys
+merge (x:xs) (y:ys) d
   | x <= y
-  = x:(merge (d-1) xs (y:ys))
+  = x:(merge xs (y:ys) (d-1))
   | otherwise 
-  = y:(merge (d-1) (x:xs) ys)
+  = y:(merge (x:xs) ys (d-1))
+
 
 ------------------------------------------------------------------------------
 -- Quick Sort ----------------------------------------------------------------
