@@ -1,5 +1,7 @@
 module Moo (poop) where
 
+{-@ invariant {v:Int | v >= 0} @-}
+
 {-@ qualif Sum(v:Int, x: Int, y: Int): v = x + y @-}
 
 {-@ foo  :: x:Int -> {v:Int | v = x} @-}

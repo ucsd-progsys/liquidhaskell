@@ -13,6 +13,8 @@ data L [llen] a <p :: a -> a -> Prop>
 
 {-@ type SL a = L <{\hd v -> v >= hd}> a @-}
 
+{-@ invariant {v:L a | (llen v) >= 0} @-}
+
 {-@ measure llen :: (L a) -> Int
     llen(N)      = 0
     llen(C x xs) = 1 + (llen xs)
