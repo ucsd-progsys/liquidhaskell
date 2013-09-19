@@ -735,45 +735,32 @@ addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 ----------------------- TERMINATION TYPE ---------------------------------------
 -------------------------------------------------------------------------------
 
-
--- recType :: CGEnv -> (Var, [Var], SpecType)-> CG SpecType
--- recType γ xet@(x, _, t) 
---   = do hint          <- checkHint' . L.lookup x . specDecr <$> get
---        maybeRecType xet dindex hint
---   where ts            = snd3 $ bkArrow $ thd3 $ bkUniv t
---         checkHint'    = checkHint x ts isDecreasing
---         dindex        = L.findIndex isDecreasing ts
-
-
-makeDecrIndex :: (Var, SpecType)-> CG (Maybe [Int])
+makeDecrIndex :: (Var, SpecType)-> CG [Int]
 makeDecrIndex (x, t) 
   = do hint <- checkHint' . L.lookup x . specDecr <$> get
        case dindex of
-        Nothing -> addWarning msg >> return Nothing
-        Just i  -> return $ Just $ fromMaybe [i] hint
+        Nothing -> addWarning msg >> return []
+        Just i  -> return $ fromMaybe [i] hint
   where ts            = snd3 $ bkArrow $ thd3 $ bkUniv t
         checkHint'    = checkHint x ts isDecreasing
         dindex        = L.findIndex isDecreasing ts
         msg = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x)
 
-
-recType ((vs, Just indexc), (x, Just index, t))
-  = let dxt = map (xts !!) index in
-    let v   = map (vs !!)  indexc in
-    makeRecType t v dxt index       
-  where -- index = fromMaybe [i] hint
-        loc   = showPpr (getSrcSpan x)
-        xts'  = bkArrow $ thd3 $ bkUniv t
-        xts   = zip (fst3 xts') (snd3 xts')
---         vs    = collectArguments (length xts) e
-        msg'  = printf "%s: No decreasing argument on %s with %s" 
-        msg   = printf "%s: No decreasing parameter" loc
-                  loc (showPpr x) (showPpr vs)
-
-recType ((_, _), (_, _, t))
+recType ((_, []), (_, [], t))
   = t
 
-checkIndex (x, vs, t, Just index)
+recType ((vs, indexc), (x, index, t))
+  = makeRecType t v dxt index       
+  where v    = (vs !!)  <$> indexc
+        dxt  = (xts !!) <$> index
+        loc  = showPpr (getSrcSpan x)
+        xts' = bkArrow $ thd3 $ bkUniv t
+        xts  = zip (fst3 xts') (snd3 xts')
+        msg' = printf "%s: No decreasing argument on %s with %s" 
+        msg  = printf "%s: No decreasing parameter" loc
+                  loc (showPpr x) (showPpr vs)
+
+checkIndex (x, vs, t, index)
   = do mapM_ (safeLogIndex msg' vs)  index
        mapM  (safeLogIndex msg  ts) index
   where loc   = showPpr (getSrcSpan x)
@@ -782,34 +769,11 @@ checkIndex (x, vs, t, Just index)
         msg   = printf "%s: No decreasing parameter" loc
                   loc (showPpr x) (showPpr vs)
 
-checkIndex _ 
-  = return [Nothing]
-
--- maybeRecType (x, _, t) Nothing _
---   = addWarning msg >> return t
---   where msg = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x)
--- 
--- maybeRecType (x, vs, t) (Just i) hint
---   = do dxt    <- mapM (safeLogIndex msg  xts) index
---        v      <- mapM (safeLogIndex msg' vs)  index
---        return $ makeRecType t v dxt index       
---   where index = fromMaybe [i] hint
---         loc   = showPpr (getSrcSpan x)
---         xts'  = bkArrow $ thd3 $ bkUniv t
---         xts   = zip (fst3 xts') (snd3 xts')
--- --         vs    = collectArguments (length xts) e
---         msg'  = printf "%s: No decreasing argument on %s with %s" 
---         msg   = printf "%s: No decreasing parameter" loc
---                   loc (showPpr x) (showPpr vs)
--- 
--- makeRecType t [Nothing] [Nothing] _ 
---   = t
-
-makeRecType t vs dxs is | not validArgs
-  = errorstar "Constraint.makeRecType: invalid arguments"
-  where validArgs = sameLens
-        sameLens  = (length vs) == (length is) && (length dxs) == (length is)
---         allJust   = all isJust vs && all isJust dxs  
+-- MOVE THE SAME LENS CHECKS BEFORE - TO DO IT ONCE FOR ALL FUNCTIOS
+--  makeRecType t vs dxs is | not sameLens
+--    = errorstar "Constraint.makeRecType: invalid arguments"
+--    where sameLens  = (length vs) == (length is) && (length dxs) == (length is)
+--  
 
 makeRecType t vs' dxs' is
   = mkArrow αs πs xts' tbd
@@ -870,27 +834,14 @@ tcond cb strict
 consCB :: Bool -> CGEnv -> CoreBind -> CG CGEnv 
 -------------------------------------------------------------------
 
--- consCB _ γ (Rec []) 
---   = return γ 
-
--- consCB tflag γ (Rec [(x,e)]) | tflag
---   = do (x, e, Just t') <- liftM (x, e,) (varTemplate γ (x, Just e))
---        t               <- refreshArgs t'
---        rTy             <- recType γ (x, e, t)
---        γ'              <- extender (γ `withTRec` [(x, rTy)]) (x, Just t)
---        consBind True γ' (x, e, Just t)
---        return γ'{trec=trec γ}
---     where x' = varSymbol x
-
 consCB tflag γ (Rec xes) | tflag
   = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        ts       <- mapM refreshArgs $ (fromJust . thd3 <$> xets)
        let vs    = zipWith collectArgs ts es
-       is       <- mapM makeDecrIndex (zip xs ts)
+       is       <- checkSameLens <$> mapM makeDecrIndex (zip xs ts)
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is ts]) <$> (zip vs is)
-       bbs <- checkTypes . (map checkEqType) . L.transpose <$> mapM checkIndex (zip4 xs vs ts is)
-       let rts   =  map (map recType) xeets
---        rts      <- dmapM recType xeets
+       checkEqTypes . L.transpose <$> mapM checkIndex (zip4 xs vs ts is)
+       let rts   = (recType <$>) <$> xeets
        let xts   = zip xs (Just <$> ts)
        γ'       <- foldM extender γ xts
        let γs    = [γ' `withTRec` (zip xs rts') | rts' <- rts]
@@ -901,15 +852,19 @@ consCB tflag γ (Rec xes) | tflag
         (xs, es) = unzip xes
 
 
-        collectArgs = collectArguments . length . fst3 . bkArrow . thd3 . bkUniv
+        collectArgs   = collectArguments . length . fst3 . bkArrow . thd3 . bkUniv
 
-        zip4 (x1:xs1) (x2:xs2) (x3:xs3) (x4:xs4) = (x1, x2, x3, x4) : (zip4 xs1 xs2 xs3 xs4) 
-        zip4 _ _ _ _ = []
-        checkEqType :: [Maybe SpecType] -> Bool
-        checkEqType = checkTy . (toRSort <$>) .  catMaybes
-        checkTy [] = True
-        checkTy (x:xs) = all (==x) xs
-        checkTypes bs = if all id bs then () else errorstar "WTF"
+        checkEqTypes  = map (checkAll err1 toRSort . catMaybes)
+        checkSameLens = checkAll err2 length
+
+        err1 = printf "%s: The decreasing parameters should be of same type" loc
+        err2 = printf "%s: All Recursive functions should have the same number of decreasing parameters" loc
+        loc = showPpr $ getSrcSpan (head xs)
+
+        checkAll _   _ []     = []
+        checkAll err f (x:xs) | all (==(f x)) (f <$> xs) = (x:xs)
+                              | otherwise               = errorstar err
+
 -- TODO : no termination check:
 -- check that the result type is trivial!
 consCB _ γ (Rec xes) 
