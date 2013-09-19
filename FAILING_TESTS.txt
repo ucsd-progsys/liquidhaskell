@@ -1,2 +1,4 @@
-Failed 0 tests: 
+Failed 2 tests: 
+ pos/MutualRec.hs
+ pos/GchSort3/hs
 

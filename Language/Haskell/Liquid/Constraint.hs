@@ -45,7 +45,7 @@ import Control.Applicative      ((<$>))
 import Control.Exception.Base
 
 import Data.Monoid              (mconcat)
-import Data.Maybe               (isJust, fromMaybe, catMaybes)
+import Data.Maybe               (fromJust, isJust, fromMaybe, catMaybes)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
@@ -205,10 +205,10 @@ setLoc :: CGEnv -> SrcSpan -> CGEnv
 withRecs :: CGEnv -> [Var] -> CGEnv 
 withRecs γ xs  = γ { recs = foldl' (flip S.insert) (recs γ) xs }
 
-withTRec γ (x, rTy) = γ' {trec = Just (M.insert x' rTy trec')}
-  where x' = varSymbol x
-        γ' = γ `withRecs` [x]
+withTRec γ xts = γ' {trec = Just $ M.fromList xts' `M.union` trec'}
+  where γ'    = γ `withRecs` (fst <$> xts)
         trec' = fromMaybe M.empty $ trec γ
+        xts'  = mapFst varSymbol <$> xts
 
 setBind :: CGEnv -> Tg.TagKey -> CGEnv  
 setBind γ k 
@@ -732,9 +732,10 @@ instance TCInfo CG where
 addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------------
------------------------ TEMINATION TYPE ---------------------------------------
+----------------------- TERMINATION TYPE ---------------------------------------
 -------------------------------------------------------------------------------
 
+recType :: CGEnv -> (Var, Expr CoreBndr, SpecType)-> CG SpecType
 recType γ xet@(x, _, t) 
   = do hint          <- checkHint' . L.lookup x . specDecr <$> get
        maybeRecType xet dindex hint
@@ -758,7 +759,6 @@ maybeRecType (x, e, t) (Just i) hint
         msg'  = printf "%s: No decreasing argument on %s with %s" 
         msg   = printf "%s: No decreasing parameter" loc
                   loc (showPpr x) (showPpr vs)
-
 
 makeRecType t [Nothing] [Nothing] _ 
   = t
@@ -828,23 +828,31 @@ tcond cb strict
 consCB :: Bool -> CGEnv -> CoreBind -> CG CGEnv 
 -------------------------------------------------------------------
 
-consCB _ γ (Rec []) 
-  = return γ 
+-- consCB _ γ (Rec []) 
+--   = return γ 
 
-consCB tflag γ (Rec [(x,e)]) | tflag
-  = do (x, e, Just t') <- liftM (x, e,) (varTemplate γ (x, Just e))
-       t               <- refreshArgs t'
-       rTy             <- recType γ (x, e, t)
-       γ'              <- extender (γ `withTRec` (x, rTy)) (x, Just t)
-       consBind True γ' (x, e, Just t)
-       return γ'{trec=trec γ}
-    where x' = varSymbol x
+-- consCB tflag γ (Rec [(x,e)]) | tflag
+--   = do (x, e, Just t') <- liftM (x, e,) (varTemplate γ (x, Just e))
+--        t               <- refreshArgs t'
+--        rTy             <- recType γ (x, e, t)
+--        γ'              <- extender (γ `withTRec` [(x, rTy)]) (x, Just t)
+--        consBind True γ' (x, e, Just t)
+--        return γ'{trec=trec γ}
+--     where x' = varSymbol x
 
-consCB tflag γ xes@(Rec xs) | tflag
-  = addWarning wmsg >> consCB False γ xes
-  where wmsg = "Termination Analysis not supported for mutual recursion"
-
-              ++ "in definitions of " ++ showPpr (fst <$>xs)
+consCB tflag γ (Rec xes) | tflag
+  = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+       ts       <- mapM refreshArgs $ (fromJust . thd3 <$> xets)
+       let xeets = (\e -> [(x, e, t) | (x, t) <- zip xs ts]) <$> es
+       rts      <- dmapM (recType γ) xeets
+       let xts   = zip xs (Just <$> ts)
+       γ'       <- foldM extender γ xts
+       let γs    = [γ' `withTRec` (zip xs rts') | rts' <- rts]
+       let xets' = zip3 xs es (Just <$> ts)
+       mapM_ (uncurry $ consBind True) (zip γs xets')
+       return γ'
+  where dmapM f  = sequence . (mapM f <$>)
+        (xs, es) = unzip xes
 
 -- TODO : no termination check:
 -- check that the result type is trivial!
@@ -860,6 +868,7 @@ consCB _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
        to' <- consBind False γ (x, e, to)
        extender γ (x, to')
+
 
 consBind isRec γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
