@@ -60,9 +60,9 @@ import Language.Haskell.Liquid.Prelude
 indices :: Text              -- ^ Substring to search for (@needle@)
         -> Text              -- ^ Text to search in (@haystack@)
         -> [Int64]
-indices needle@(Chunk n ns) _haystack@(Chunk k ks) =
+indices needle@(Chunk n ns) _haystack@(Chunk k@(T.Text _ _ klen) ks) =
     if      nlen <= 0 then []
-    else if nlen == 1 then indicesOne (nindex 0) _haystack Empty k ks 0
+    else if nlen == 1 then indicesOne (nindex 0) _haystack Empty k ks 0 (klen + 1)
     else advance needle _haystack Empty k ks 0 0
   where
     -- advance x@(T.Text _ _ l) xs = scan
@@ -256,9 +256,12 @@ index (T.Text arr off len) xs !i =
                -> t:TextNE
                -> ts:{v:Text | (((ltlen v) + (tlen t)) = ((ltlen t0) - (ltlen ts0)))}
                -> i:{v:Int64 | v = (ltlen ts0)}
+               -> {v:Int | v = (tlen t) + 1}
                -> [{v:Int64 | (Btwn (v) (i) (ltlen t0))}]<{\ix iy -> ix < iy}>
   @-}
-indicesOne :: Word16 -> Text -> Text -> T.Text -> Text -> Int64 -> [Int64]
+
+{-@ Decrease indicesOne 4 7 @-}
+indicesOne :: Word16 -> Text -> Text -> T.Text -> Text -> Int64 -> Int -> [Int64]
 --LIQUID indicesOne c = chunk
 --LIQUID   where
 --LIQUID     chunk !i (T.Text oarr ooff olen) os = go 0
@@ -269,8 +272,9 @@ indicesOne :: Word16 -> Text -> Text -> T.Text -> Text -> Int64 -> [Int64]
 --LIQUID              | on == c = i + fromIntegral h : go (h+1)
 --LIQUID              | otherwise = go (h+1)
 --LIQUID              where on = A.unsafeIndex oarr (ooff+h)
-indicesOne c t0 ts0 t os !i = indicesOne_go c t0 ts0 t os i 0
+indicesOne c t0 ts0 t os !i d = indicesOne_go c t0 ts0 t os i 0 (d-1)
 
+{-@ Decrease indicesOne_go 4 8 @-}
 {-@ indicesOne_go :: Word16
                   -> t0:Text
                   -> ts0:LTextLE t0
@@ -278,18 +282,19 @@ indicesOne c t0 ts0 t os !i = indicesOne_go c t0 ts0 t os i 0
                   -> ts:{v:Text | (((ltlen v) + (tlen t)) = ((ltlen t0) - (ltlen ts0)))}
                   -> i:{v:Int64 | v = (ltlen ts0)}
                   -> h:{v:Nat | v <= (tlen t)}
+                  -> {v:Int|v = ((tlen t) - h)}
                   -> [{v:Int64 | (Btwn (v) (i+h) (ltlen t0))}]<{\ix iy -> ix < iy}>
   @-}
-indicesOne_go :: Word16 -> Text -> Text -> T.Text -> Text -> Int64 -> Int -> [Int64]
-indicesOne_go c t0 ts0 t@(T.Text oarr ooff olen) os !i h =
+indicesOne_go :: Word16 -> Text -> Text -> T.Text -> Text -> Int64 -> Int -> Int -> [Int64]
+indicesOne_go c t0 ts0 t@(T.Text oarr ooff olen) os !i h d =
     if h >= olen then case os of
                         Empty      -> []
                         Chunk y@(T.Text _ _ l) ys ->
-                            indicesOne c t0 (Chunk t ts0) y ys (i+fromIntegral olen)
+                            indicesOne c t0 (Chunk t ts0) y ys (i+fromIntegral olen) (olen + 1)
     else let on = A.unsafeIndex oarr (ooff+h)
          in if on == c
-            then i + fromIntegral h : indicesOne_go c t0 ts0 t os i (h+1)
-            else indicesOne_go c t0 ts0 t os i (h+1)
+            then i + fromIntegral h : indicesOne_go c t0 ts0 t os i (h+1) (d-1)
+            else indicesOne_go c t0 ts0 t os i (h+1) (d-1)
 
 
 -- | The number of 'Word16' values in a 'Text'.
