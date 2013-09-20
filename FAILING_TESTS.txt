@@ -1,7 +1,6 @@
-Failed 6 tests: 
+Failed 5 tests: 
  ../benchmarks/bytestring-0.9.2.1/Data/ByteString.split.1.T.hs,
   ../benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs,
   ../benchmarks/bytestring-0.9.2.1/Data/ByteString/LazyZip.hs,
   ../benchmarks/text-0.11.2.3/Data/Text/Lazy/Search.hs,
-  pos/GhcSort3.hs,
-  pos/MutualRec.hs 
+  ../benchmarks/esop../Base.hs,
