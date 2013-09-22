@@ -62,7 +62,7 @@ indices :: Text              -- ^ Substring to search for (@needle@)
         -> [Int64]
 indices needle@(Chunk n ns) _haystack@(Chunk k@(T.Text _ _ klen) ks) =
     if      nlen <= 0 then []
-    else if nlen == 1 then indicesOne (nindex 0) _haystack Empty k ks 0 (klen + 1)
+    else if nlen == 1 then indicesOne (nindex 0) _haystack Empty k ks 0
     else advance needle _haystack Empty k ks 0 0
   where
     -- advance x@(T.Text _ _ l) xs = scan
@@ -126,7 +126,8 @@ indices _ _ = []
             -> IdxList {v:Int64 | (BtwnI (v) (g) ((ltlen src) - (ltlen pat)))} (ltlen pat)
   @-}
 advance :: Text -> Text -> Text -> T.Text -> Text -> Int64 -> Int64 -> [Int64]
-advance needle t0 ts0 x xs g i = advance_scan needle t0 ts0 x xs g i
+advance needle haystack ts0 x xs i g
+  = advance_scan needle haystack ts0 x xs i g (wordLength haystack - g + 1)
 
 
 {-@ advance_scan :: pat:{v:Text | (ltlen v) > 1}
@@ -136,13 +137,15 @@ advance needle t0 ts0 x xs g i = advance_scan needle t0 ts0 x xs g i
             -> xs:{v:Text | (((ltlen v) + (tlen x)) = ((ltlen src) - (ltlen ts0)))}
             -> i:Nat64
             -> g:{v:Int64 | (v - i) = (ltlen ts0)}
+            -> {v:Int64 | v = ((ltlen src) - g) + 1}
             -> IdxList {v:Int64 | (BtwnI (v) (g) ((ltlen src) - (ltlen pat)))} (ltlen pat)
   @-}
-advance_scan :: Text -> Text -> Text -> T.Text -> Text -> Int64 -> Int64 -> [Int64]
-advance_scan needle@(Chunk n ns) src ts0 x@(T.Text _ _ l) xs !i !g =
+{-@ Decrease advance_scan 5 8 @-}
+advance_scan :: Text -> Text -> Text -> T.Text -> Text -> Int64 -> Int64 -> Int64 -> [Int64]
+advance_scan needle@(Chunk n ns) src ts0 x@(T.Text _ _ l) xs !i !g dec =
   if i >= m then case xs of
                    Empty           -> []
-                   Chunk y ys      -> advance needle src (Chunk x ts0) y ys (i-m) g
+                   Chunk y ys      -> advance_scan needle src (Chunk x ts0) y ys (i-m) g dec
   else if lackingHay (i + nlen) x xs  then []
   else let d = delta nlen skip c z nextInPattern
            c = index x xs (i + nlast)
@@ -156,8 +159,8 @@ advance_scan needle@(Chunk n ns) src ts0 x@(T.Text _ _ l) xs !i !g =
            --LIQUID     | index x xs (i+j) /= index n ns j = False
            --LIQUID     | otherwise                = candidateMatch (j+1)
        in if c == z && candidateMatch nlast 0
-          then g : advance_scan needle src ts0 x xs (i+nlen) (g+nlen)
-          else  advance_scan needle src ts0 x xs (i+d) (g+d)
+          then g : advance_scan needle src ts0 x xs (i+nlen) (g+nlen) (dec-nlen)
+          else  advance_scan needle src ts0 x xs (i+d) (g+d) (dec-d)
  where
    nlen  = wordLength needle
    nlast = nlen - 1
@@ -256,12 +259,9 @@ index (T.Text arr off len) xs !i =
                -> t:TextNE
                -> ts:{v:Text | (((ltlen v) + (tlen t)) = ((ltlen t0) - (ltlen ts0)))}
                -> i:{v:Int64 | v = (ltlen ts0)}
-               -> {v:Int | v = (tlen t) + 1}
                -> [{v:Int64 | (Btwn (v) (i) (ltlen t0))}]<{\ix iy -> ix < iy}>
   @-}
-
-{-@ Decrease indicesOne 4 7 @-}
-indicesOne :: Word16 -> Text -> Text -> T.Text -> Text -> Int64 -> Int -> [Int64]
+indicesOne :: Word16 -> Text -> Text -> T.Text -> Text -> Int64 -> [Int64]
 --LIQUID indicesOne c = chunk
 --LIQUID   where
 --LIQUID     chunk !i (T.Text oarr ooff olen) os = go 0
@@ -272,9 +272,9 @@ indicesOne :: Word16 -> Text -> Text -> T.Text -> Text -> Int64 -> Int -> [Int64
 --LIQUID              | on == c = i + fromIntegral h : go (h+1)
 --LIQUID              | otherwise = go (h+1)
 --LIQUID              where on = A.unsafeIndex oarr (ooff+h)
-indicesOne c t0 ts0 t os !i d = indicesOne_go c t0 ts0 t os i 0 (d-1)
+indicesOne c t0 ts0 t@(T.Text _ _ l) os !i = indicesOne_go c t0 ts0 t os i 0 l
 
-{-@ Decrease indicesOne_go 4 8 @-}
+{-@ Decrease indicesOne_go 5 8 @-}
 {-@ indicesOne_go :: Word16
                   -> t0:Text
                   -> ts0:LTextLE t0
@@ -290,7 +290,7 @@ indicesOne_go c t0 ts0 t@(T.Text oarr ooff olen) os !i h d =
     if h >= olen then case os of
                         Empty      -> []
                         Chunk y@(T.Text _ _ l) ys ->
-                            indicesOne c t0 (Chunk t ts0) y ys (i+fromIntegral olen) (olen + 1)
+                            indicesOne_go c t0 (Chunk t ts0) y ys (i+fromIntegral olen) 0 l
     else let on = A.unsafeIndex oarr (ooff+h)
          in if on == c
             then i + fromIntegral h : indicesOne_go c t0 ts0 t os i (h+1) (d-1)
