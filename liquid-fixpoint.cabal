@@ -10,6 +10,10 @@ category:            Language
 build-type:          Custom 
 cabal-version:       >=1.8
 
+Flag z3mem
+  Description: Link to Z3
+  Default:     False
+
 Executable fixpoint
   Main-is:       Fixpoint.hs
   Build-Depends: base

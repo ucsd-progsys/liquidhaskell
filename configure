@@ -1,16 +1,11 @@
 #!/bin/bash
 
-########################################################################
-Z3MEM=false    # default
-#Z3MEM=true    # use this if you want to link against Z3
-########################################################################
-
 ROOTHOME=`pwd`
 GHCBIN=`which ghc`
 GHCHOME=`dirname $GHCBIN`
 OCAMLLIB=`ocamlc -v | tail -1 | cut -d : -f 2 | tr -d " "`
 
-if $Z3MEM = 'true'
+if [[ $Z3MEM = 'True' ]]
 then
   Z3HOME=$ROOTHOME/external/z3
 else
@@ -28,19 +23,18 @@ cat - > build.sh <<EOF
 
 set -e
 
-if [[ \`uname -m\` = 'x86_64' ]]
-then
-  echo Found 64-bit kernel. Moving z3 into place.
-  cp external/z3/lib/libz3-so-64b external/z3/lib/libz3.so
-  cp external/z3/lib/libz3-a-64b external/z3/lib/libz3.a
-else
-  echo Assuming 32-bit kernel. Moving z3 into place.
-  cp external/z3/lib/libz3-so-32b external/z3/lib/libz3.so
-  cp external/z3/lib/libz3-a-32b external/z3/lib/libz3.a
-fi
-
 if [[ '$Z3MEM' = 'True' ]]
 then
+  if [[ \`uname -m\` = 'x86_64' ]]
+  then
+    echo Found 64-bit kernel. Moving z3 into place.
+    cp external/z3/lib/libz3-so-64b external/z3/lib/libz3.so
+    cp external/z3/lib/libz3-a-64b external/z3/lib/libz3.a
+  else
+    echo Assuming 32-bit kernel. Moving z3 into place.
+    cp external/z3/lib/libz3-so-32b external/z3/lib/libz3.so
+    cp external/z3/lib/libz3-a-32b external/z3/lib/libz3.a
+  fi
   cd external/z3/ocaml; ./build-lib.sh; cd ../../../
 fi
 
