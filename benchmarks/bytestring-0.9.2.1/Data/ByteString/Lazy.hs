@@ -719,17 +719,19 @@ concat css0 = to css0
 -- | Map a function over a 'ByteString' and concatenate the results
 concatMap :: (Word8 -> ByteString) -> ByteString -> ByteString
 concatMap _ Empty        = Empty
-concatMap f (Chunk c0 cs0) = to c0 cs0
+concatMap f (Chunk c0 cs0) = to c0 cs0 0
   where
-    go :: ByteString -> S.ByteString -> ByteString -> ByteString
-    go Empty        c' cs' = to c' cs'
-    go (Chunk c cs) c' cs' = Chunk c (go cs c' cs')
+    {-@ Decrease go 1 3 @-}
+    go :: S.ByteString -> ByteString -> ByteString -> Int -> ByteString
+    go c' cs' Empty        _ = to c' cs' 0
+    go c' cs' (Chunk c cs) _ = Chunk c (go c' cs' cs 1)
 
-    to :: S.ByteString -> ByteString -> ByteString
-    to c cs | S.null c  = case cs of
-        Empty          -> Empty
-        (Chunk c' cs') -> to c' cs'
-            | otherwise = go (f (S.unsafeHead c)) (S.unsafeTail c) cs
+    {-@ Decrease to 2 3 @-}
+    to :: S.ByteString -> ByteString -> Int -> ByteString
+    to c cs _ | S.null c  = case cs of
+          Empty          -> Empty
+          (Chunk c' cs') -> to c' cs' 0
+              | otherwise = go (S.unsafeTail c) cs (f (S.unsafeHead c)) 1
 
 -- | /O(n)/ Applied to a predicate and a ByteString, 'any' determines if
 -- any element of the 'ByteString' satisfies the predicate.
@@ -1421,8 +1423,8 @@ isSuffixOf x y = reverse x `isPrefixOf` reverse y
 -- corresponding pairs of bytes. If one input ByteString is short,
 -- excess elements of the longer ByteString are discarded. This is
 -- equivalent to a pair of 'unpack' operations.
-{- predicate LZipLen V X Y  = (len V) = (if (lbLength X) <= (lbLength Y) then (lbLength X) else (lbLength Y)) @-}
-{- zip :: x:ByteString -> y:ByteString -> {v:[(Word8, Word8)] | (LZipLen v x y) } @-}
+{-@ predicate LZipLen V X Y  = (len V) = (if (lbLength X) <= (lbLength Y) then (lbLength X) else (lbLength Y)) @-}
+{-@ zip :: x:ByteString -> y:ByteString -> {v:[(Word8, Word8)] | (LZipLen v x y) } @-}
 zip :: ByteString -> ByteString -> [(Word8,Word8)]
 zip = zipWith (,)
 
@@ -1430,22 +1432,24 @@ zip = zipWith (,)
 -- the first argument, instead of a tupling function.  For example,
 -- @'zipWith' (+)@ is applied to two ByteStrings to produce the list of
 -- corresponding sums.
-{- zipWith :: (Word8 -> Word8 -> a) -> x:ByteString -> y:ByteString -> {v:[a] | (LZipLen v x y)} @-}
+{-@ zipWith :: (Word8 -> Word8 -> a) -> x:ByteString -> y:ByteString -> {v:[a] | (LZipLen v x y)} @-}
+--LIQUID see LazyZip.hs
 zipWith :: (Word8 -> Word8 -> a) -> ByteString -> ByteString -> [a]
-zipWith _ Empty     _  = []
-zipWith _ _      Empty = []
-zipWith f (Chunk a as) (Chunk b bs) = go a as b bs
-  where
-    go x xs y ys = f (S.unsafeHead x) (S.unsafeHead y)
-                 : to (S.unsafeTail x) xs (S.unsafeTail y) ys
-
-    to x Empty         _ _             | S.null x       = []
-    to _ _             y Empty         | S.null y       = []
-    to x xs            y ys            | not (S.null x)
-                                      && not (S.null y) = go x  xs y  ys
-    to x xs            _ (Chunk y' ys) | not (S.null x) = go x  xs y' ys
-    to _ (Chunk x' xs) y ys            | not (S.null y) = go x' xs y  ys
-    to _ (Chunk x' xs) _ (Chunk y' ys)                  = go x' xs y' ys
+zipWith = undefined
+--LIQUID zipWith _ Empty     _  = []
+--LIQUID zipWith _ _      Empty = []
+--LIQUID zipWith f (Chunk a as) (Chunk b bs) = go a as b bs
+--LIQUID   where
+--LIQUID     go x xs y ys = f (S.unsafeHead x) (S.unsafeHead y)
+--LIQUID                  : to (S.unsafeTail x) xs (S.unsafeTail y) ys
+--LIQUID 
+--LIQUID     to x Empty         _ _             | S.null x       = []
+--LIQUID     to _ _             y Empty         | S.null y       = []
+--LIQUID     to x xs            y ys            | not (S.null x)
+--LIQUID                                       && not (S.null y) = go x  xs y  ys
+--LIQUID     to x xs            _ (Chunk y' ys) | not (S.null x) = go x  xs y' ys
+--LIQUID     to _ (Chunk x' xs) y ys            | not (S.null y) = go x' xs y  ys
+--LIQUID     to _ (Chunk x' xs) _ (Chunk y' ys)                  = go x' xs y' ys
 
 -- | /O(n)/ 'unzip' transforms a list of pairs of bytes into a pair of
 -- ByteStrings. Note that this performs two 'pack' operations.

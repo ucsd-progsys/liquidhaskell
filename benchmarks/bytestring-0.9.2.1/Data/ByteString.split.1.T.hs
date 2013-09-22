@@ -307,28 +307,30 @@ split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
 splitWith :: (Word8 -> Bool) -> ByteString -> [ByteString]
 
 splitWith _pred (PS _  _   0) = []
-splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp
+splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp 1
   where pred# c# = pred_ (W8# c#)
         -- LIQUID MUTUAL-RECURSION-TERMINATION
-        STRICT4(splitWith0)
-        splitWith0 pred' off' len' fp' = withPtr fp $ \p ->
-            splitLoop pred' p 0 off' len' fp'
+        {-@ Decrease splitWith0 3 5 @-}
+        --LIQUID STRICT5(splitWith0)
+        splitWith0 pred' off' len' fp' (x::Int) = withPtr fp $ \p ->
+            splitLoop pred' p 0 off' len' fp' len' 0
 
+        {-@ Decrease splitLoop 7 8 @-}
         splitLoop :: (Word# -> Bool)
                   -> Ptr Word8
                   -> Int -> Int -> Int
-                  -> ForeignPtr Word8
+                  -> ForeignPtr Word8 -> Int -> Int
                   -> IO [ByteString]
 
-        splitLoop pred' p idx' off' len' fp'
+        splitLoop pred' p idx' off' len' fp' (d::Int) (x::Int)
             | pred' `seq` p `seq` idx' `seq` off' `seq` len' `seq` fp' `seq` False = undefined
             | idx' >= len'  = return [PS fp' off' idx']
             | otherwise = do
                 w <- peekElemOff p (off'+idx')
                 if pred' (case w of W8# w# -> w#)
                    then return (PS fp' off' idx' :
-                              splitWith0 pred' (off'+idx'+1) (len'-idx'-1) fp')
-                   else splitLoop pred' p (idx'+1) off' len' fp'
+                              splitWith0 pred' (off'+idx'+1) (len'-idx'-1) fp' 1)
+                   else splitLoop pred' p (idx'+1) off' len' fp' (d-1) 0
 {-# INLINE splitWith #-}
 
 
