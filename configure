@@ -28,18 +28,19 @@ cat - > build.sh <<EOF
 
 set -e
 
-if [[ '`echo $Z3MEM`' = 'true' ]]
+if [[ \`uname -m\` = 'x86_64' ]]
 then
-  if [[ \`uname -m\` = 'x86_64' ]]
-  then
-    echo Found 64-bit kernel. Moving z3 into place.
-    cp external/z3/lib/libz3-so-64b external/z3/lib/libz3.so
-    cp external/z3/lib/libz3-a-64b external/z3/lib/libz3.a
-  else
-    echo Assuming 32-bit kernel. Moving z3 into place.
-    cp external/z3/lib/libz3-so-32b external/z3/lib/libz3.so
-    cp external/z3/lib/libz3-a-32b external/z3/lib/libz3.a
-  fi
+  echo Found 64-bit kernel. Moving z3 into place.
+  cp external/z3/lib/libz3-so-64b external/z3/lib/libz3.so
+  cp external/z3/lib/libz3-a-64b external/z3/lib/libz3.a
+else
+  echo Assuming 32-bit kernel. Moving z3 into place.
+  cp external/z3/lib/libz3-so-32b external/z3/lib/libz3.so
+  cp external/z3/lib/libz3-a-32b external/z3/lib/libz3.a
+fi
+
+if [[ '$Z3MEM' = 'True' ]]
+then
   cd external/z3/ocaml; ./build-lib.sh; cd ../../../
 fi
 
