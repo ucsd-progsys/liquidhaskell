@@ -7,7 +7,7 @@ Description:         Liquid Types for Haskell.
 Homepage:            http://goto.ucsd.edu/liquidhaskell
 License:             GPL
 License-file:        LICENSE
-Author:              Ranjit Jhala
+Author:              Ranjit Jhala, Niki Vazou, Eric Seidel
 Maintainer:          Ranjit Jhala <jhala@cs.ucsd.edu>
 Category:            Language
 Build-Type:          Simple
