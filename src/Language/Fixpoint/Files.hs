@@ -17,7 +17,7 @@ module Language.Fixpoint.Files (
   , isExtFile
  
   -- * Hardwired paths 
-  , getIncludePath, getFixpointPath, getHqBotPath, getZ3LibPath, getCSSPath
+  , getFixpointPath, getZ3LibPath
 
   -- * Various generic utility functions for finding and removing files
   , getHsTargets
@@ -42,26 +42,11 @@ import           Language.Fixpoint.Misc
 -- | Hardwired Paths and Files -----------------------------
 ------------------------------------------------------------
 
-envVarName = "LIQUIDHS"
-
-getIncludePath, getHqBotPath, getCSSPath, getFixpointPath  ::  IO FilePath 
-
-getIncludePath  = getSuffixPath ["include"]                                 >>= checkM doesDirectoryExist "include directory"
-getCSSPath      = getSuffixPath ["syntax", "liquid.css"]                    >>= checkM doesFileExist      "css file"          
--- getFixpointPath = getSuffixPath ["external", "fixpoint", "fixpoint.native"] >>= checkM doesFileExist      "fixpoint binary"   
-
 getFixpointPath = fromMaybe msg <$> findExecutable "fixpoint.native"
   where msg     = errorstar "Cannot find fixpoint binary [fixpoint.native]"
 
-getHqBotPath = liftM (`combine` "Bot.hquals") getIncludePath
+getZ3LibPath    = dropFileName <$> getFixpointPath
 
-getZ3LibPath    = dropFileName <$> getFixpointPath 
-
-
-
-getSuffixPath ::  [FilePath] -> IO FilePath 
-getSuffixPath suff 
-  = (joinPath . (: suff)) `fmap` getEnv envVarName
 
 checkM f msg p 
   = do ex <- f p
