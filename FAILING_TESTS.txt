@@ -1,2 +1,1 @@
-Failed 0 tests: 
-
+Passed all tests! :D

@@ -5,6 +5,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE BangPatterns              #-}
+{-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints, and 
@@ -44,7 +45,7 @@ import Control.Applicative      ((<$>))
 import Control.Exception.Base
 
 import Data.Monoid              (mconcat)
-import Data.Maybe               (fromMaybe, catMaybes)
+import Data.Maybe               (fromJust, isJust, fromMaybe, catMaybes)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
@@ -204,10 +205,10 @@ setLoc :: CGEnv -> SrcSpan -> CGEnv
 withRecs :: CGEnv -> [Var] -> CGEnv 
 withRecs γ xs  = γ { recs = foldl' (flip S.insert) (recs γ) xs }
 
-withTRec γ (x, rTy) = γ' {trec = Just (M.insert x' rTy trec')}
-  where x' = varSymbol x
-        γ' = γ `withRecs` [x]
+withTRec γ xts = γ' {trec = Just $ M.fromList xts' `M.union` trec'}
+  where γ'    = γ `withRecs` (fst <$> xts)
         trec' = fromMaybe M.empty $ trec γ
+        xts'  = mapFst varSymbol <$> xts
 
 setBind :: CGEnv -> Tg.TagKey -> CGEnv  
 setBind γ k 
@@ -731,48 +732,58 @@ instance TCInfo CG where
 addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------------
------------------------ TEMINATION TYPE ---------------------------------------
+----------------------- TERMINATION TYPE ---------------------------------------
 -------------------------------------------------------------------------------
 
-recType γ xet@(x, _, t) 
-  = do hint          <- checkHint' . L.lookup x . specDecr <$> get
-       maybeRecType xet dindex hint
+makeDecrIndex :: (Var, SpecType)-> CG [Int]
+makeDecrIndex (x, t) 
+  = do hint <- checkHint' . L.lookup x . specDecr <$> get
+       case dindex of
+        Nothing -> addWarning msg >> return []
+        Just i  -> return $ fromMaybe [i] hint
   where ts            = snd3 $ bkArrow $ thd3 $ bkUniv t
         checkHint'    = checkHint x ts isDecreasing
         dindex        = L.findIndex isDecreasing ts
-       
-maybeRecType (x, _, t) Nothing _
-  = addWarning msg >> return t
-  where msg = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x)
+        msg = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x)
 
-maybeRecType (x, e, t) (Just i) hint
-  = do dxt    <- mapM (safeLogIndex msg  xts) index
-       v      <- mapM (safeLogIndex msg' vs)  index
-       return $ makeRecType t v dxt index       
-  where index = fromMaybe [i] hint
-        loc   = showPpr (getSrcSpan x)
-        xts'  = bkArrow $ thd3 $ bkUniv t
-        xts   = zip (fst3 xts') (snd3 xts')
-        vs    = collectArguments (length xts) e
+recType ((_, []), (_, [], t))
+  = t
+
+recType ((vs, indexc), (x, index, t))
+  = makeRecType t v dxt index       
+  where v    = (vs !!)  <$> indexc
+        dxt  = (xts !!) <$> index
+        loc  = showPpr (getSrcSpan x)
+        xts' = bkArrow $ thd3 $ bkUniv t
+        xts  = zip (fst3 xts') (snd3 xts')
+        msg' = printf "%s: No decreasing argument on %s with %s" 
+        msg  = printf "%s: No decreasing parameter" loc
+                  loc (showPpr x) (showPpr vs)
+
+checkIndex (x, vs, t, index)
+  = do mapM_ (safeLogIndex msg' vs)  index
+       mapM  (safeLogIndex msg  ts) index
+  where loc   = showPpr (getSrcSpan x)
+        ts  = snd3 $ bkArrow $ thd3 $ bkUniv t
         msg'  = printf "%s: No decreasing argument on %s with %s" 
         msg   = printf "%s: No decreasing parameter" loc
                   loc (showPpr x) (showPpr vs)
 
-makeRecType t [Nothing] [Nothing] _ 
-  = t
+-- MOVE THE SAME LENS CHECKS BEFORE - TO DO IT ONCE FOR ALL FUNCTIOS
+--  makeRecType t vs dxs is | not sameLens
+--    = errorstar "Constraint.makeRecType: invalid arguments"
+--    where sameLens  = (length vs) == (length is) && (length dxs) == (length is)
+--  
 
 makeRecType t vs' dxs' is
   = mkArrow αs πs xts' tbd
   where xts'          = replaceN (last is) (makeDecrType vdxs) xts
         vdxs          = zip vs dxs
         xts           = zip xs ts
-        vs            = catMaybes vs'
-        dxs           = catMaybes dxs'
+        vs            = vs'
+        dxs           = dxs'
         (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
-
-makeRecType t _ _ _ 
-  = errorstar "Constraint.makeRecType"
 
 safeLogIndex err ls n
   | n >= length ls
@@ -823,23 +834,36 @@ tcond cb strict
 consCB :: Bool -> CGEnv -> CoreBind -> CG CGEnv 
 -------------------------------------------------------------------
 
-consCB _ γ (Rec []) 
-  = return γ 
+consCB tflag γ (Rec xes) | tflag
+  = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+       ts       <- mapM refreshArgs $ (fromJust . thd3 <$> xets)
+       let vs    = zipWith collectArgs ts es
+       is       <- checkSameLens <$> mapM makeDecrIndex (zip xs ts)
+       let xeets = (\vis -> [(vis, x) | x <- zip3 xs is ts]) <$> (zip vs is)
+       checkEqTypes . L.transpose <$> mapM checkIndex (zip4 xs vs ts is)
+       let rts   = (recType <$>) <$> xeets
+       let xts   = zip xs (Just <$> ts)
+       γ'       <- foldM extender γ xts
+       let γs    = [γ' `withTRec` (zip xs rts') | rts' <- rts]
+       let xets' = zip3 xs es (Just <$> ts)
+       mapM_ (uncurry $ consBind True) (zip γs xets')
+       return γ'
+  where dmapM f  = sequence . (mapM f <$>)
+        (xs, es) = unzip xes
 
-consCB tflag γ (Rec [(x,e)]) | tflag
-  = do (x, e, Just t') <- liftM (x, e,) (varTemplate γ (x, Just e))
-       t               <- refreshArgs t'
-       rTy             <- recType γ (x, e, t)
-       γ'              <- extender (γ `withTRec` (x, rTy)) (x, Just t)
-       consBind True γ' (x, e, Just t)
-       return γ'{trec=trec γ}
-    where x' = varSymbol x
 
-consCB tflag γ xes@(Rec xs) | tflag
-  = addWarning wmsg >> consCB False γ xes
-  where wmsg = "Termination Analysis not supported for mutual recursion"
+        collectArgs   = collectArguments . length . fst3 . bkArrow . thd3 . bkUniv
 
-              ++ "in definitions of " ++ showPpr (fst <$>xs)
+        checkEqTypes  = map (checkAll err1 toRSort . catMaybes)
+        checkSameLens = checkAll err2 length
+
+        err1 = printf "%s: The decreasing parameters should be of same type" loc
+        err2 = printf "%s: All Recursive functions should have the same number of decreasing parameters" loc
+        loc = showPpr $ getSrcSpan (head xs)
+
+        checkAll _   _ []     = []
+        checkAll err f (x:xs) | all (==(f x)) (f <$> xs) = (x:xs)
+                              | otherwise               = errorstar err
 
 -- TODO : no termination check:
 -- check that the result type is trivial!
@@ -855,6 +879,7 @@ consCB _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
        to' <- consBind False γ (x, e, to)
        extender γ (x, to')
+
 
 consBind isRec γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
