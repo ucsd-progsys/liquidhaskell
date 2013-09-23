@@ -48,12 +48,14 @@ import Language.Fixpoint.Names                  (dropModuleNames)
 import Language.Fixpoint.Types hiding           (config)
 import Language.Fixpoint.Config hiding          (config, Config)
 import Language.Haskell.Liquid.Annotate
+import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.Types hiding     (config, typ)
 
 import Name
 import SrcLoc                                   (SrcSpan)
 import Text.PrettyPrint.HughesPJ    
+
 
 ---------------------------------------------------------------------------------
 -- Parsing Command Line----------------------------------------------------------
@@ -126,7 +128,7 @@ copyright = "LiquidHaskell © Copyright 2009-13 Regents of the University of Cal
 mkOpts :: Config -> IO Config
 mkOpts md  
   = do files' <- sortNub . concat <$> mapM getHsTargets (files md) 
-       idirs' <- if null (idirs md) then single <$> getIncludePath else return (idirs md) 
+       idirs' <- if null (idirs md) then single <$> getIncludeDir else return (idirs md)
        return  $ md { files = files' } { idirs = map dropFileName files' ++ idirs' }
                                         -- tests fail if you flip order of idirs'
 
