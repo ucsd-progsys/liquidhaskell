@@ -25,6 +25,7 @@ data-files: include/*.hquals
           , include/Foreign/C/*.spec
           , include/Foreign/Marshal/*.spec
           , include/GHC/List.lhs
+          , include/GHC/*.hquals
           , include/GHC/*.spec
           , include/GHC/IO/*.spec
           , include/Language/Haskell/Liquid/List.hs
