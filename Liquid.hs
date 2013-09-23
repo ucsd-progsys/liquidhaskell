@@ -27,6 +27,7 @@ import Language.Fixpoint.Interface
 import Language.Fixpoint.Types (sinfo, showFix, isFalse)
 
 import qualified Language.Haskell.Liquid.DiffCheck as DC
+import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.CmdLine
 import Language.Haskell.Liquid.GhcInterface
