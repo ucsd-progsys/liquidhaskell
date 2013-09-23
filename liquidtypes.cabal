@@ -12,8 +12,29 @@ Category:            Language
 Build-Type:          Simple
 Cabal-version:       >=1.8
 
+data-files: include/*.hquals
+          , include/*.hs
+          , include/*.spec
+          , include/Control/*.spec
+          , include/Data/*.hquals
+          , include/Data/*.spec
+          , include/Data/Text/*.spec
+          , include/Data/Text/Fusion/*.spec
+          , include/Data/Text/Lazy/*.spec
+          , include/Foreign/*.spec
+          , include/Foreign/C/*.spec
+          , include/Foreign/Marshal/*.spec
+          , include/GHC/List.lhs
+          , include/GHC/*.spec
+          , include/GHC/IO/*.spec
+          , include/Language/Haskell/Liquid/List.hs
+          , include/Language/Haskell/Liquid/Prelude.hs
+          , include/Language/Haskell/Liquid/Prelude.pred
+          , include/System/*.spec
+          , syntax/liquid.css
+
 Executable liquid 
-  Build-Depends: base
+  Build-Depends: base >= 4 && < 5
                , ghc==7.6.3
                , ansi-terminal
                , bifunctors
@@ -43,9 +64,9 @@ Executable liquid
 
   Main-is: Liquid.hs
   --ghc-options: -O -W
-  Extensions: 
+  Extensions: PatternGuards
 
- Library
+Library
    Build-Depends: base
                 , ghc==7.6.3
                 , ansi-terminal
@@ -112,6 +133,6 @@ Executable liquid
                     Language.Haskell.Liquid.Desugar.DsGRHSs,
                     Language.Haskell.Liquid.Desugar.HscMain
    --ghc-options: -O -W
-   Extensions: 
+   Extensions: PatternGuards
 
 

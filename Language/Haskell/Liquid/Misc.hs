@@ -3,8 +3,11 @@
 module Language.Haskell.Liquid.Misc where
 
 import Control.Applicative
+import System.FilePath
 
 import Language.Fixpoint.Misc (errorstar)
+
+import Paths_liquidtypes
 
 safeIndex err n ls 
   | n >= length ls
@@ -29,3 +32,6 @@ first3M  f (a,b,c) = (,b,c) <$> f a
 second3M f (a,b,c) = (a,,c) <$> f b
 third3M  f (a,b,c) = (a,b,) <$> f c
 
+getIncludeDir = dropFileName <$> getDataFileName "include/Prelude.spec"
+getCssPath    = getDataFileName "syntax/liquid.css"
+getHqBotPath  = getDataFileName "include/Bot.hquals"
