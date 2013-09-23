@@ -93,6 +93,7 @@ Executable fixpoint
                , parsec
                , pretty
                , process
+               , syb
                , text
                , hashable<1.2
                , unordered-containers
@@ -128,6 +129,7 @@ Library
                , parsec
                , pretty
                , process
+               , syb
                , text
                , hashable<1.2
                , unordered-containers
