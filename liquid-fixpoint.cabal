@@ -4,7 +4,7 @@ synopsis:            Predicate Abstraction-based Horn-Clause/Implication Constra
 homepage:            https://github.com/ucsd-progsys/liquid-fixpoint
 license:             BSD3
 license-file:        LICENSE
-author:              Ranjit Jhala
+author:              Ranjit Jhala, Niki Vazou, Eric Seidel
 maintainer:          jhala@cs.ucsd.edu
 category:            Language
 build-type:          Custom 
@@ -110,7 +110,7 @@ Library
                    Language.Fixpoint.PrettyPrint,
                    Language.Fixpoint.Misc
   
-  Build-Depends: base
+  Build-Depends: base >= 4 && < 5
                , ghc==7.6.3
                , array
                , syb
