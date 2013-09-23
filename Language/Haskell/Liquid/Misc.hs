@@ -7,7 +7,7 @@ import System.FilePath
 
 import Language.Fixpoint.Misc (errorstar)
 
-import Paths_liquidtypes
+import Paths_liquidhaskell
 
 safeIndex err n ls 
   | n >= length ls
