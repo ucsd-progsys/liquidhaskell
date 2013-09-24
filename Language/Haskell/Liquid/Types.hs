@@ -137,6 +137,7 @@ data Config = Config {
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , nofalse        :: Bool       -- ^ remove false predicates from the refinements
   , notermination  :: Bool       -- ^ disable termination check
+  , notruetypes    :: Bool       -- ^ disable truing top level types
   , totality       :: Bool       -- ^ check totality in definitions
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
