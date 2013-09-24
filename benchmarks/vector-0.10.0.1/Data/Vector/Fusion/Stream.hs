@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, Rank2Types, BangPatterns #-}
+{-# LANGUAGE FlexibleInstances, Rank2Types, BangPatterns, CPP #-}
 
 -- |
 -- Module      : Data.Vector.Fusion.Stream
@@ -96,7 +96,7 @@ import Prelude hiding ( length, null,
 
 import GHC.Base ( build )
 
-#include "vector.h"
+#include "../../../include/vector.h"
 
 -- | The type of pure streams 
 type Stream = M.Stream Id

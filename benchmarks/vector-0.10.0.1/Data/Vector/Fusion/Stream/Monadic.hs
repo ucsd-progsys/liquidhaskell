@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, Rank2Types, BangPatterns #-}
+{-# LANGUAGE ExistentialQuantification, Rank2Types, BangPatterns, CPP #-}
 
 -- |
 -- Module      : Data.Vector.Fusion.Stream.Monadic
@@ -94,14 +94,16 @@ import Data.Int  ( Int8, Int16, Int32, Int64 )
 import Data.Word ( Word8, Word16, Word32, Word, Word64 )
 
 #if __GLASGOW_HASKELL__ >= 700
-import GHC.Exts ( SpecConstrAnnotation(..) )
+--LIQUID triggers TH expansion which can't happen in interpretive mode
+--import GHC.Exts ( SpecConstrAnnotation(..) )
 #endif
 
-#include "vector.h"
+#include "../../../../include/vector.h"
 
 data SPEC = SPEC | SPEC2
 #if __GLASGOW_HASKELL__ >= 700
-{-# ANN type SPEC ForceSpecConstr #-}
+--LIQUID triggers TH expansion which can't happen in interpretive mode
+{- ANN type SPEC ForceSpecConstr #-}
 #endif
 
 emptyStream :: String

@@ -112,14 +112,16 @@ class MVector (Mutable v) a => Vector v a where
   basicUnsafeCopy :: PrimMonad m => Mutable v (PrimState m) a -> v a -> m ()
 
   {-# INLINE basicUnsafeCopy #-}
-  basicUnsafeCopy !dst !src = do_copy 0
+  basicUnsafeCopy !dst !src = do_copy n 0
     where
       !n = basicLength src
 
-      do_copy i | i < n = do
+      --LIQUID HINT
+      do_copy (d::Int) i
+                | i < n = do
                             x <- basicUnsafeIndexM src i
                             M.basicUnsafeWrite dst i x
-                            do_copy (i+1)
+                            do_copy (d-1) (i+1)
                 | otherwise = return ()
 
   -- | Evaluate @a@ as far as storing it in a vector would and yield @b@.
