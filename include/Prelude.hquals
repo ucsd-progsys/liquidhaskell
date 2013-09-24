@@ -13,6 +13,7 @@ qualif False(v:bool)  : ~ (? v)
 qualif True1(v:GHC.Types.Bool)   : Prop(v)
 qualif False1(v:GHC.Types.Bool)  : ~ Prop(v)
 
+qualif Diff(v:int,l:int,d:int): v = l - d
 
 qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
 constant papp1 : func(2, [Pred @(0); @(1); bool])

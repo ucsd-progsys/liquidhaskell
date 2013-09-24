@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, BangPatterns, ScopedTypeVariables #-}
+{-# LANGUAGE MultiParamTypeClasses, BangPatterns, ScopedTypeVariables, CPP #-}
 -- |
 -- Module      : Data.Vector.Generic.Mutable
 -- Copyright   : (c) Roman Leshchinskiy 2008-2010
@@ -68,7 +68,7 @@ import Control.Monad.Primitive ( PrimMonad, PrimState )
 import Prelude hiding ( length, null, replicate, reverse, map, read,
                         take, drop, splitAt, init, tail )
 
-#include "vector.h"
+#include "../../../include/vector.h"
 
 -- | Class of mutable vectors parametrised with a primitive state token.
 --

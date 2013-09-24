@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- |
 -- Module      : Data.Vector.Internal.Check
 -- Copyright   : (c) Roman Leshchinskiy 2009
