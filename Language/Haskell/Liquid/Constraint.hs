@@ -101,7 +101,8 @@ initEnv info penv
        defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- tyConInfo <$> get 
        let f0    = grty info                        -- asserted refinements     (for defined vars)
-       f0'      <- grtyTop info                     -- default TOP reftype      (for exported vars without spec) 
+       f0''     <- grtyTop info                     -- default TOP reftype      (for exported vars without spec) 
+       let f0'   = if (notruetypes $ config $ spec info) then [] else f0'' 
        let f1    = defaults                         -- default TOP reftype      (for all vars) 
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures) 
