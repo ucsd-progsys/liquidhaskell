@@ -1,5 +1,5 @@
 {-# LANGUAGE Rank2Types, MultiParamTypeClasses, FlexibleContexts,
-             TypeFamilies, ScopedTypeVariables, BangPatterns #-}
+             TypeFamilies, ScopedTypeVariables, BangPatterns, CPP #-}
 -- |
 -- Module      : Data.Vector.Generic
 -- Copyright   : (c) Roman Leshchinskiy 2008-2010
@@ -196,16 +196,16 @@ import Prelude hiding ( length, null,
 import qualified Text.Read as Read
 import Data.Typeable ( Typeable1, gcast1 )
 
-#include "vector.h"
+#include "../../include/vector.h"
 
 import Data.Data ( Data, DataType )
-#if MIN_VERSION_base(4,2,0)
+--LIQUID #if MIN_VERSION_base(4,2,0)
 import Data.Data ( mkNoRepType )
-#else
-import Data.Data ( mkNorepType )
-mkNoRepType :: String -> DataType
-mkNoRepType = mkNorepType
-#endif
+--LIQUID #else
+--LIQUID import Data.Data ( mkNorepType )
+--LIQUID mkNoRepType :: String -> DataType
+--LIQUID mkNoRepType = mkNorepType
+--LIQUID #endif
 
 -- Length information
 -- ------------------

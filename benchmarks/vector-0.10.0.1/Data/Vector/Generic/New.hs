@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types, FlexibleContexts #-}
+{-# LANGUAGE Rank2Types, FlexibleContexts, CPP #-}
 
 -- |
 -- Module      : Data.Vector.Generic.New
@@ -32,7 +32,7 @@ import Control.Monad.ST ( ST )
 import Control.Monad  ( liftM )
 import Prelude hiding ( init, tail, take, drop, reverse, map, filter )
 
-#include "vector.h"
+#include "../../../include/vector.h"
 
 data New v a = New (forall s. ST s (Mutable v s a))
 

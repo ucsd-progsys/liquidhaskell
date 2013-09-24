@@ -32,16 +32,19 @@ import qualified Prelude as P
 infixr 2 ||
 infixr 3 &&
 
+{-@ not :: b:Bool -> {v:Bool | ((Prop v) <=> ~(Prop b))} @-}
 not :: Bool -> Bool
 {-# INLINE not #-}
 not True = False
 not False = True
 
+{-@ (&&) :: x:Bool -> y:Bool -> {v:Bool | ((Prop v) <=> ((Prop x) && (Prop y)))} @-}
 (&&) :: Bool -> Bool -> Bool
 {-# INLINE (&&) #-}
 False && x = False
 True && x = x
 
+{-@ (||) :: x:Bool -> y:Bool -> {v:Bool | ((Prop v) <=> ((Prop x) || (Prop y)))} @-}
 (||) :: Bool -> Bool -> Bool
 {-# INLINE (||) #-}
 True || x = True

@@ -17,7 +17,12 @@ module Data.Vector.Fusion.Util (
 ) where
 
 -- | Identity monad
-newtype Id a = Id { unId :: a }
+--LIQUID newtype Id a = Id { unId :: a }
+data Id a = Id { unId :: a }
+{-@ measure unId :: Id a -> a
+    unId(Id a) = a
+  @-}
+{-@ qualif UnId(v:a, i:Id a): v = (unId i) @-}
 
 instance Functor Id where
   fmap f (Id x) = Id (f x)
@@ -28,6 +33,10 @@ instance Monad Id where
 
 -- | Box monad
 data Box a = Box { unBox :: a }
+{-@ measure unBox :: Box a -> a
+    unBox(Box a) = a
+  @-}
+{-@ qualif UnBox(v:a, i:Box a): v = (unBox i) @-}
 
 instance Functor Box where
   fmap f (Box x) = Box (f x)
