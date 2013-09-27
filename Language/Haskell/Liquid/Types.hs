@@ -84,6 +84,13 @@ module Language.Haskell.Liquid.Types (
 
   -- * Source information associated with each constraint
   , Cinfo (..)
+
+  -- * Measures
+  , Measure (..)
+  , IMeasure (..)
+  , CMeasure (..)
+  , Def (..)
+  , Body (..)
   )
   where
 
@@ -258,10 +265,11 @@ data GhcInfo = GI {
 data GhcSpec = SP {
     tySigs     :: ![(Var, Located SpecType)]     -- ^ Asserted/Assumed Reftypes
                                                  -- eg.  see include/Prelude.spec
-  , ctor       :: ![(Var, Located SpecType)]     -- ^ Data Constructor Measure Sigs 
+  , ctors      :: ![(Var, Located SpecType)]     -- ^ Data Constructor Measure Sigs
                                                  -- eg.  (:) :: a -> xs:[a] -> {v: Int | v = 1 + len(xs) }
   , meas       :: ![(Symbol, Located RefType)]   -- ^ Measure Types  
                                                  -- eg.  len :: [a] -> Int
+  , cmeas      :: ![(Symbol, Located (CMeasure RefType))]
   , invariants :: ![Located SpecType]            -- ^ Data Type Invariants
                                                  -- eg.  forall a. {v: [a] | len(v) >= 0}
   , dconsP     :: ![(DataCon, DataConP)]         -- ^ Predicated Data-Constructors
@@ -1067,4 +1075,72 @@ mapRP f e = e { predAliases = f $ predAliases e }
 
 cinfoError (Ci _ (Just e)) = e
 cinfoError (Ci l _)        = ErrOther $ text $ "Cinfo:" ++ (showPpr l)
+
+
+--------------------------------------------------------------------------------
+--- Measures
+--------------------------------------------------------------------------------
+-- MOVE TO TYPES
+data Measure ty ctor = M { 
+    name :: LocSymbol
+  , sort :: ty
+  , eqns :: [Def ctor]
+  }
+
+data CMeasure ty
+  = CM { cName :: LocSymbol
+       , cSort :: ty
+       , cInst :: [(Type, Symbol)]
+       }
+
+data IMeasure ty
+  = IM { iName :: LocSymbol
+       , index :: ty
+       , iMeas :: Symbol
+       } deriving (Eq)
+
+-- MOVE TO TYPES
+data Def ctor 
+  = Def { 
+    measure :: LocSymbol
+  , ctor    :: ctor 
+  , binds   :: [Symbol]
+  , body    :: Body
+  } deriving (Show)
+
+-- MOVE TO TYPES
+data Body 
+  = E Expr          -- ^ Measure Refinement: {v | v = e } 
+  | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
+  | R Symbol Pred   -- ^ Measure Refinement: {v | p}
+  deriving (Show)
+
+instance Subable (Measure ty ctor) where
+  syms (M _ _ es)      = concatMap syms es
+  substa f  (M n s es) = M n s $ substa f  <$> es
+  substf f  (M n s es) = M n s $ substf f  <$> es
+  subst  su (M n s es) = M n s $ subst  su <$> es
+
+instance Subable (Def ctor) where
+  syms (Def _ _ _ bd)      = syms bd
+  substa f  (Def m c b bd) = Def m c b $ substa f  bd
+  substf f  (Def m c b bd) = Def m c b $ substf f  bd
+  subst  su (Def m c b bd) = Def m c b $ subst  su bd
+
+instance Subable Body where
+  syms (E e)       = syms e
+  syms (P e)       = syms e
+  syms (R s e)     = s:syms e
+
+  substa f (E e)   = E $ substa f e
+  substa f (P e)   = P $ substa f e
+  substa f (R s e) = R s $ substa f e
+
+  substf f (E e)   = E $ substf f e
+  substf f (P e)   = P $ substf f e
+  substf f (R s e) = R s $ substf f e
+
+  subst su (E e)   = E $ subst su e
+  subst su (P e)   = P $ subst su e
+  subst su (R s e) = R s $ subst su e
 

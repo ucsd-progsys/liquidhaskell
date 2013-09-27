@@ -76,7 +76,7 @@ import Text.Parsec.Pos  (SourcePos)
 
 import Language.Haskell.Liquid.PrettyPrint
 import Language.Fixpoint.Types hiding (Predicate)
-import Language.Haskell.Liquid.Types hiding (DataConP (..))
+import Language.Haskell.Liquid.Types hiding (DataConP (..), sort)
 
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc (pprDoc, sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, showSDoc, showPpr, showSDocDump)

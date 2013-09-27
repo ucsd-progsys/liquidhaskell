@@ -61,7 +61,7 @@ import Language.Fixpoint.Sort (pruneUnsortedReft)
 
 import Language.Haskell.Liquid.Fresh
 
-import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars)  
+import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcInterface
@@ -105,7 +105,7 @@ initEnv info penv
        let f0'   = if (notruetypes $ config $ spec info) then [] else f0'' 
        let f1    = defaults                         -- default TOP reftype      (for all vars) 
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
-       f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures) 
+       f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
        let bs    = (map (unifyts' tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
@@ -114,7 +114,7 @@ initEnv info penv
   where refreshArgs' = mapM (mapSndM refreshArgs)
   -- where tce = tcEmbeds $ spec info 
 
-ctor' = map (mapSnd val) . ctor 
+ctor' = map (mapSnd val) . ctors
 
 unifyts' tce tyi penv = (second (addTyConInfo tce tyi)) . (unifyts penv)
 

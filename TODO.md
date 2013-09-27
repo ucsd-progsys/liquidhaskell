@@ -81,6 +81,22 @@ See tests/pos/Mod2.hs [Which imports a measure from Mod1.hs]
     use F.x when doing GHC-lookup.
 
 
+Type-Indexed Measures
+--------------------------
+1. build map from (classmeasure,tycon) -> measure
+2. verify instances
+   a. instance def should be subtype of class def with concrete
+      measure subbed in.
+   b.
+3. sub instance measure for class when concrete instance is used, e.g.
+
+        sumList :: [Int] -> Int
+
+   otherwise should be able to reason using class measure? e.g.
+
+        sum :: Indexable s => s Int -> Int
+
+
 
 Benchmarks
 ==========

@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, ScopedTypeVariables  #-}
+{-# LANGUAGE MultiParamTypeClasses, NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, ScopedTypeVariables, RecordWildCards  #-}
 
 -- | This module contains the functions that convert /from/ descriptions of 
 -- symbols, names and types (over freshly parsed /bare/ Strings),
@@ -19,7 +19,7 @@ import Name                     (getSrcSpan)
 import Id                       (isConLikeId)
 import PrelNames
 import PrelInfo                 (wiredInThings)
-import Type                     (expandTypeSynonyms, splitFunTy_maybe)
+import Type                     (expandTypeSynonyms, splitFunTy_maybe, eqType)
 import DataCon                  (dataConImplicitIds, dataConWorkId)
 import TyCon                    (tyConArity)
 import HscMain
@@ -70,13 +70,13 @@ makeGhcSpec cfg name vars defVars env specs
 
 checkMeasures emb env ms = concatMap (checkMeasure emb env) ms
 
-checkMeasure :: M.HashMap TyCon FTycon-> SEnv SortedReft -> Ms.Measure SpecType DataCon -> [Error]
-checkMeasure emb γ (Ms.M name@(Loc src n) sort body) 
+checkMeasure :: M.HashMap TyCon FTycon-> SEnv SortedReft -> Measure SpecType DataCon -> [Error]
+checkMeasure emb γ (M name@(Loc src n) sort body)
   = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
   where 
     txerror = ErrMeas (sourcePosSrcSpan src) n
 
-checkMBody γ emb name sort (Ms.Def s c bs body) = go γ' body
+checkMBody γ emb name sort (Def s c bs body) = go γ' body
   where 
     γ'  = foldl (\γ (x, t) -> insertSEnv x t γ) γ xts
     xts = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ts
@@ -89,15 +89,15 @@ checkMBody γ emb name sort (Ms.Def s c bs body) = go γ' body
     unify (RApp _ ts _ _) (RApp _ ts' _ _) = concat $ zipWith unify ts ts'
     unify _ _                              = []
 
-    go γ (Ms.E e)   = checkSortedReftFull γ e
-    go γ (Ms.P p)   = checkSortedReftFull γ p
-    go γ (Ms.R s p) = checkSortedReftFull (insertSEnv s sty γ) p
+    go γ (E e)   = checkSortedReftFull γ e
+    go γ (P p)   = checkSortedReftFull γ p
+    go γ (R s p) = checkSortedReftFull (insertSEnv s sty γ) p
 
     sty = rTypeSortedReft emb (thd3 $ bkArrowDeep sort)
 
 makeGhcSpec' :: Config -> [Var] -> [Var]
              -> [(ModName,Ms.Spec BareType Symbol)]
-             -> BareM (GhcSpec, [Ms.Measure SpecType DataCon])
+             -> BareM (GhcSpec, [Measure SpecType DataCon])
 makeGhcSpec' cfg vars defVars specs
   = do name <- gets modName
        makeRTEnv (concat [map (mod,) $ Ms.aliases  sp | (mod,sp) <- specs])
@@ -109,6 +109,7 @@ makeGhcSpec' cfg vars defVars specs
        modify $ \be -> be { tcEnv = makeTyConInfo tycons }
        measures        <- mconcat <$> mapM makeMeasureSpec specs
        let (cs, ms)     = makeMeasureSpec' measures
+       let cms          = makeClassMeasureSpec measures
        sigs'           <- mconcat <$> mapM (makeAssumeSpec cfg vars) specs
        invs            <- mconcat <$> mapM makeInvariants specs
        embs            <- mconcat <$> mapM makeTyConEmbeds specs
@@ -119,21 +120,23 @@ makeGhcSpec' cfg vars defVars specs
                           | (m, x, t) <- sigs' ]
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs datacons
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms ] -- first val <$> ms
+       let cms'         = [ (x, Loc l t) | (Loc l x, t) <- cms ]
        syms            <- makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms'
        let su           = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        let tx           = subsFreeSymbols su
        let txq          = subsFreeSymbolsQual su
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
        let decr'        = mconcat  $  map (makeHints defVars) specs
-       let lvars'       = S.fromList $ mconcat $ [ makeLVars defVars (mod,spec)
-                                                 | (mod,spec) <- specs
-                                                 , mod == name
-                                                 ]
+       let lvars'       = S.fromList $ mconcat [ makeLVars defVars (mod,spec)
+                                               | (mod,spec) <- specs
+                                               , mod == name
+                                               ]
        quals           <- mconcat <$> mapM makeQualifiers specs
        return           $ (SP { tySigs     = renameTyVars <$> tx sigs
-                              , ctor       = tx cs'
+                              , ctors      = tx cs'
                               , meas       = tx (ms' ++ varMeasures vars)
-                              , invariants = invs 
+                              , cmeas      = cms'
+                              , invariants = invs
                               , dconsP     = datacons
                               , tconsP     = tycons 
                               , freeSyms   = syms'
@@ -170,20 +173,20 @@ makeRPAliases xts = mapM_ expBody xts
 
 -- | Using the Alias Environment to Expand Definitions
 expandRTAliasMeasure m
-  = do eqns <- sequence $ expandRTAliasDef <$> (Ms.eqns m)
-       return $ m { Ms.sort = generalize (Ms.sort m)
-                  , Ms.eqns = eqns }
+  = do eqns <- sequence $ expandRTAliasDef <$> (eqns m)
+       return $ m { sort = generalize (sort m)
+                  , eqns = eqns }
 
-expandRTAliasDef :: Ms.Def Symbol -> BareM (Ms.Def Symbol)
+expandRTAliasDef :: Def Symbol -> BareM (Def Symbol)
 expandRTAliasDef d
   = do env <- gets rtEnv
-       body <- expandRTAliasBody env $ Ms.body d
-       return $ d { Ms.body = body }
+       body <- expandRTAliasBody env $ body d
+       return $ d { body = body }
 
-expandRTAliasBody :: RTEnv -> Ms.Body -> BareM Ms.Body
-expandRTAliasBody env (Ms.P p)   = Ms.P   <$> (expPAlias p)
-expandRTAliasBody env (Ms.R x p) = Ms.R x <$> (expPAlias p)
-expandRTAliasBody _   (Ms.E e)   = Ms.E   <$> resolve e
+expandRTAliasBody :: RTEnv -> Body -> BareM Body
+expandRTAliasBody env (P p)   = P   <$> (expPAlias p)
+expandRTAliasBody env (R x p) = R x <$> (expPAlias p)
+expandRTAliasBody _   (E e)   = E   <$> resolve e
 
 expPAlias :: Pred -> BareM Pred
 expPAlias = expandPAlias []
@@ -539,9 +542,17 @@ makeMeasureSpec (mod,spec) = inModule mod mkSpec
   where
     mkSpec = mkMeasureDCon =<< wrapErr "mkMeasureSort" mkMeasureSort =<< m
     m      = Ms.mkMSpec <$> (mapM expandRTAliasMeasure $ Ms.measures spec)
+                        <*> return (Ms.cmeasures spec)
+                        <*> forM (Ms.imeasures spec) tx
+    msg m = berrMeasure (loc $ iName m) (iName m) (index m)
+    tx m  = liftM (\t' -> m {index = toType t'})
+                  (ofBareType' (msg m) (index m))
 
 makeMeasureSpec' = mapFst (mapSnd uRType <$>) . Ms.dataConTypes . first (mapReft ur_reft)
 
+makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap
+  where
+    tx (M n s _) = (n, CM n (mapReft ur_reft s) [(t,m) | (IM n' t m) <- imeas, n == n'])
 
 makeTargetVars :: ModName -> [Var] -> [String] -> BareM [Var]
 makeTargetVars name vs ss = do
@@ -1005,14 +1016,14 @@ mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
     tx' = dataConSymbol
 
 measureCtors ::  Ms.MSpec t Symbol -> [String]
-measureCtors = sortNub . fmap (symbolString . Ms.ctor) . concat . M.elems . Ms.ctorMap 
+measureCtors = sortNub . fmap (symbolString . ctor) . concat . M.elems . Ms.ctorMap
 
 -- mkMeasureSort :: (PVarable pv, Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
-mkMeasureSort (Ms.MSpec cm mm) 
-  = liftM (Ms.MSpec cm) $ forM mm $ \m -> do
-      liftM (\s' -> m {Ms.sort = s'}) (ofBareType' (msg m) (Ms.sort m))
-    where 
-      msg m = berrMeasure (loc $ Ms.name m) (Ms.name m) (Ms.sort m) 
+mkMeasureSort (Ms.MSpec c m cm im)
+  = Ms.MSpec c <$> forM m tx <*> forM cm tx <*> return im
+    where
+      msg m = berrMeasure (loc $ name m) (name m) (sort m)
+      tx  m = liftM (\s' -> m {sort = s'}) (ofBareType' (msg m) (sort m))
 
 
 
@@ -1118,7 +1129,7 @@ rtypePredBinds = map uPVar . snd3 . bkUniv
 ----- Checking GhcSpec -----------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
 
-checkGhcSpec :: (GhcSpec, [Ms.Measure SpecType DataCon]) -> Either [Error] GhcSpec
+checkGhcSpec :: (GhcSpec, [Measure SpecType DataCon]) -> Either [Error] GhcSpec
 
 checkGhcSpec (sp, ms) =  applyNonNull (Right sp) Left errors
   where 
@@ -1177,7 +1188,7 @@ ghcSpecEnv sp        = fromListSEnv binds
   where 
     emb              = tcEmbeds sp
     binds            =  [(x,           rSort t) | (x, Loc _ t) <- meas sp] 
-                     ++ [(varSymbol v, rSort t) | (v, Loc _ t) <- ctor sp] 
+                     ++ [(varSymbol v, rSort t) | (v, Loc _ t) <- ctors sp]
                      ++ [(x          , vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
     rSort            = rTypeSortedReft emb 
     vSort            = rSort . varRType 
