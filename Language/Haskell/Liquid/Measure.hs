@@ -6,9 +6,6 @@ module Language.Haskell.Liquid.Measure (
     Spec (..)
   , BareSpec  
   , MSpec (..)
-  , Measure (..)
-  , Def (..)
-  , Body (..)
   , mkM, mkMSpec
   , qualifySpec
   , mapTy
@@ -25,7 +22,7 @@ import DataCon
 import qualified Data.HashMap.Strict as M 
 import qualified Data.HashSet        as S 
 import Data.Monoid hiding ((<>))
-import Data.List (foldl1')
+import Data.List (foldl1', union)
 import Data.Either (partitionEithers)
 import Data.Bifunctor
 import Control.Applicative      ((<$>))
@@ -55,73 +52,26 @@ data Spec ty bndr  = Spec {
   , lvars      :: ![(LocSymbol)]                -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet Symbol)           -- ^ Ignore Termination Check in these Functions
   , pragmas    :: ![Located String]             -- ^ Command-line configurations passed in through source
-  } 
+  , cmeasures  :: ![Measure ty ()]              -- ^ Measures attached to a type-class
+  , imeasures  :: ![IMeasure ty]                -- ^ Mappings from (measure,type) -> measure
+  }
 
 
 -- MOVE TO TYPES
 data MSpec ty ctor = MSpec { 
-    ctorMap :: M.HashMap Symbol [Def ctor]
-  , measMap :: M.HashMap Symbol (Measure ty ctor) 
+    ctorMap  :: M.HashMap Symbol [Def ctor]
+  , measMap  :: M.HashMap Symbol (Measure ty ctor)
+  , cmeasMap :: M.HashMap Symbol (Measure ty ())
+  , imeas    :: ![IMeasure Type]
   }
 
 instance Monoid (MSpec ty ctor) where
-  mempty = MSpec M.empty M.empty
+  mempty = MSpec M.empty M.empty M.empty []
 
-  (MSpec c1 m1) `mappend` (MSpec c2 m2) =
+  (MSpec c1 m1 cm1 im1) `mappend` (MSpec c2 m2 cm2 im2) =
     MSpec (M.unionWith (++) c1 c2) (m1 `M.union` m2)
+          (cm1 `M.union` cm2) (im1 `union` im2)
 
-
--- MOVE TO TYPES
-data Measure ty ctor = M { 
-    name :: LocSymbol
-  , sort :: ty
-  , eqns :: [Def ctor]
-  } 
-
--- MOVE TO TYPES
-data Def ctor 
-  = Def { 
-    measure :: LocSymbol
-  , ctor    :: ctor 
-  , binds   :: [Symbol]
-  , body    :: Body
-  } deriving (Show)
-
--- MOVE TO TYPES
-data Body 
-  = E Expr          -- ^ Measure Refinement: {v | v = e } 
-  | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
-  | R Symbol Pred   -- ^ Measure Refinement: {v | p}
-  deriving (Show)
-
-instance Subable (Measure ty ctor) where
-  syms (M _ _ es)      = concatMap syms es
-  substa f  (M n s es) = M n s $ substa f  <$> es
-  substf f  (M n s es) = M n s $ substf f  <$> es
-  subst  su (M n s es) = M n s $ subst  su <$> es
-
-instance Subable (Def ctor) where
-  syms (Def _ _ _ bd)      = syms bd
-  substa f  (Def m c b bd) = Def m c b $ substa f  bd
-  substf f  (Def m c b bd) = Def m c b $ substf f  bd
-  subst  su (Def m c b bd) = Def m c b $ subst  su bd
-
-instance Subable Body where
-  syms (E e)       = syms e
-  syms (P e)       = syms e
-  syms (R s e)     = s:syms e
-
-  substa f (E e)   = E $ substa f e
-  substa f (P e)   = P $ substa f e
-  substa f (R s e) = R s $ substa f e
-
-  substf f (E e)   = E $ substf f e
-  substf f (P e)   = P $ substf f e
-  substf f (R s e) = R s $ substf f e
-
-  subst su (E e)   = E $ subst su e
-  subst su (P e)   = P $ subst su e
-  subst su (R s e) = R s $ subst su e
 
 qualifySpec name sp = sp { sigs = [ (qualifySymbol name <$> x, t) | (x, t) <- sigs sp] }
 
@@ -132,11 +82,13 @@ mkM name typ eqns
   | otherwise
   = errorstar $ "invalid measure definition for " ++ (show name)
 
--- mkMSpec ::  [Measure ty Symbol] -> MSpec ty Symbol
-mkMSpec ms = MSpec cm mm 
+-- mkMSpec :: [Measure ty Symbol] -> [Measure ty ()] -> [IMeasure Type]
+--         -> MSpec ty Symbol
+mkMSpec ms cms ims = MSpec cm mm cmm ims
   where 
     cm     = groupMap ctor $ concatMap eqns ms'
     mm     = M.fromList [(val $ name m, m) | m <- ms' ]
+    cmm    = M.fromList [(val $ name m, m) | m <- cms ]
     ms'    = checkDuplicateMeasure ms
     -- ms'    = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
@@ -154,8 +106,8 @@ checkDuplicateMeasure ms
 
 -- MOVE TO TYPES
 instance Monoid (Spec ty bndr) where
-  mappend (Spec xs ys invs zs ds is as ps es qs drs lvs ss gs) 
-          (Spec xs' ys' invs' zs' ds' is' as' ps' es' qs' drs' lvs' ss' gs')
+  mappend (Spec xs ys invs zs ds is as ps es qs drs lvs ss gs cms ims)
+          (Spec xs' ys' invs' zs' ds' is' as' ps' es' qs' drs' lvs' ss' gs' cms' ims')
            = Spec (xs ++ xs') 
                   (ys ++ ys') 
                   (invs ++ invs') 
@@ -170,7 +122,9 @@ instance Monoid (Spec ty bndr) where
                   (lvs ++ lvs')
                   (S.union ss ss')
                   (gs ++ gs')
-  mempty   = Spec [] [] [] [] [] [] [] [] M.empty [] [] [] S.empty []
+                  (cms ++ cms')
+                  (ims ++ ims')
+  mempty   = Spec [] [] [] [] [] [] [] [] M.empty [] [] [] S.empty [] [] []
 
 -- MOVE TO TYPES
 instance Functor Def where
@@ -180,9 +134,15 @@ instance Functor Def where
 instance Functor (Measure t) where
   fmap f (M n s eqs) = M n s (fmap (fmap f) eqs)
 
+instance Functor CMeasure where
+  fmap f (CM n t m) = CM n (f t) m
+
+instance Functor IMeasure where
+  fmap f (IM n t s) = IM n (f t) s
+
 -- MOVE TO TYPES
 instance Functor (MSpec t) where
-  fmap f (MSpec cm mm) = MSpec (fc cm) (fm mm)
+  fmap f (MSpec c m cm im) = MSpec (fc c) (fm m) cm im
      where fc = fmap $ fmap $ fmap f
            fm = fmap $ fmap f 
 
@@ -193,12 +153,12 @@ instance Bifunctor Measure where
 
 -- MOVE TO TYPES
 instance Bifunctor MSpec   where
-  first f (MSpec cm mm) = MSpec cm (fmap (first f) mm)
-  second                = fmap 
+  first f (MSpec c m cm im) = MSpec c (fmap (first f) m) (fmap (first f) cm) im
+  second                    = fmap
 
 -- MOVE TO TYPES
 instance Bifunctor Spec    where
-  first f (Spec ms ss is x0 x1 x2 x3 x4 x5 x6 x7 x7a x8 x9) 
+  first f (Spec ms ss is x0 x1 x2 x3 x4 x5 x6 x7 x7a x8 x9 cms ims)
     = Spec { measures   = first  f <$> ms
            , sigs       = second f <$> ss
            , invariants = fmap   f <$> is
@@ -212,9 +172,11 @@ instance Bifunctor Spec    where
            , decr       = x7
            , lvars      = x7a
            , lazy       = x8
-           , pragmas    = x9 
+           , pragmas    = x9
+           , cmeasures  = first f <$> cms
+           , imeasures  = fmap  f <$> ims
            }
-  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6 x7 x8 x8a x9 x10) 
+  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6 x7 x8 x8a x9 x10 x11 x12)
     = Spec { measures   = fmap (second f) ms
            , sigs       = x0 
            , invariants = x1
@@ -229,6 +191,8 @@ instance Bifunctor Spec    where
            , lvars      = x8a
            , lazy       = x9
            , pragmas    = x10
+           , cmeasures  = x11
+           , imeasures  = x12
            }
 
 -- MOVE TO TYPES
@@ -248,7 +212,7 @@ instance PPrint a => PPrint (Def a) where
 
 -- MOVE TO TYPES
 instance (PPrint t, PPrint a) => PPrint (Measure t a) where
-  pprint (M n s eqs) =  pprint n <> text "::" <> pprint s
+  pprint (M n s eqs) =  pprint n <> text " :: " <> pprint s
                      $$ vcat (pprint `fmap` eqs)
 
 -- MOVE TO TYPES
@@ -257,6 +221,20 @@ instance (PPrint t, PPrint a) => PPrint (MSpec t a) where
 
 -- MOVE TO TYPES
 instance PPrint (Measure t a) => Show (Measure t a) where
+  show = showpp
+
+instance PPrint t => PPrint (IMeasure t) where
+  pprint (IM n t m) =  text "instance " <> pprint n <> text " " <> pprint t
+                    <> text " = " <> pprint m
+
+instance PPrint (IMeasure t) => Show (IMeasure t) where
+  show = showpp
+
+instance PPrint t => PPrint (CMeasure t) where
+  pprint (CM n s is) =  pprint n <> text " :: " <> pprint s
+                     $$ vcat ((\(i,m) -> pprint (IM n i m)) <$> is)
+
+instance PPrint (CMeasure t) => Show (CMeasure t) where
   show = showpp
 
 -- MOVE TO TYPES

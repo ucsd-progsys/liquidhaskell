@@ -452,9 +452,10 @@ instance PPrint GhcSpec where
               $$ (text "******* Type Signatures *********************")
               $$ (pprintLongList $ tySigs spec)
               $$ (text "******* DataCon Specifications (Measure) ****")
-              $$ (pprintLongList $ ctor spec)
+              $$ (pprintLongList $ ctors spec)
               $$ (text "******* Measure Specifications **************")
               $$ (pprintLongList $ meas spec)
+              $$ (pprintLongList $ cmeas spec)
 
 instance PPrint GhcInfo where 
   pprint info =   (text "*************** Imports *********************")

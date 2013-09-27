@@ -43,7 +43,7 @@ import           OccName
 
 
 import           RdrName
-import           Type                         (liftedTypeKind)
+import           Type                         (liftedTypeKind, eqType)
 import           TypeRep                       
 import           Var
 -- import           TyCon                        (mkSuperKindTyCon)
@@ -288,3 +288,8 @@ lookupRdrName hsc_env mod_name rdr_name = do
 addContext m = getContext >>= setContext . (m:)
 
 qualImportDecl mn = (simpleImportDecl mn) { ideclQualified = True }
+
+
+-- FIXME: this seems like a bad idea
+instance Eq Type where
+  (==) = eqType
