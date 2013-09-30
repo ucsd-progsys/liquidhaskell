@@ -109,7 +109,7 @@ makeGhcSpec' cfg vars defVars specs
        modify $ \be -> be { tcEnv = makeTyConInfo tycons }
        measures        <- mconcat <$> mapM makeMeasureSpec specs
        let (cs, ms)     = makeMeasureSpec' measures
-       sigs'           <- mconcat <$> mapM (makeAssumeSpec cfg vars) specs
+       sigs'           <- mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
        invs            <- mconcat <$> mapM makeInvariants specs
        embs            <- mconcat <$> mapM makeTyConEmbeds specs
        targetVars      <- makeTargetVars name defVars $ binders cfg
@@ -148,7 +148,6 @@ makeGhcSpec' cfg vars defVars specs
                           , subst su <$> M.elems $ Ms.measMap measures)
 
 --- Refinement Type Aliases
-
 makeRTEnv rts pts  = do initRTEnv
                         makeRPAliases pts
                         makeRTAliases rts
@@ -552,8 +551,25 @@ makeTargetVars name vs ss = do
   prefix s = getModString name ++ "." ++ s
 
 
-makeAssumeSpec cfg vs (mod,spec)
+makeAssumeSpec cmod cfg vs lvs (mod,spec)
+  | cmod == mod
+  = makeLocalAssumeSpec cfg lvs $ Ms.sigs spec
+  | otherwise 
   = inModule mod $ makeAssumeSpec' cfg vs $ Ms.sigs spec
+
+makeLocalAssumeSpec :: Config -> [Var] -> [(LocSymbol, BareType)]
+                    -> BareM [(ModName, Var, Located SpecType)]
+ 
+makeLocalAssumeSpec cfg lvs xbs
+  = do env@(BE { modName = mod}) <- get
+       let vbs = expand3 <$>  makeHints' lvs (dupSnd <$> xbs)
+       when (not $ noCheckUnknown cfg) $
+         checkDefAsserts env vbs xbs
+       map (addFst3 mod) <$> mapM mkVarSpec vbs
+  where dupSnd (x, y)       = (dropMod x, (x, y))
+        expand3 (x, (y, w)) = (x, y, w)
+
+        dropMod  = fmap (stringSymbol . dropModuleNames . symbolString)
 
 makeAssumeSpec' :: Config -> [Var] -> [(LocSymbol, BareType)]
                 -> BareM [(ModName, Var, Located SpecType)]
