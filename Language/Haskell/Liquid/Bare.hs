@@ -318,19 +318,19 @@ makeQualifiers (mod,spec) = inModule mod mkQuals
   where
     mkQuals = mapM resolve $ Ms.qualifiers spec
 
-makeHints vs (_,spec) = varSymbols id vs $ Ms.decr spec
-makeLVars vs (_,spec) = fst <$> (varSymbols id vs $ [(v, ()) | v <- Ms.lvars spec])
+makeHints vs (_,spec) = varSymbols id "Hint" vs $ Ms.decr spec
+makeLVars vs (_,spec) = fst <$> (varSymbols id "LazyVar" vs $ [(v, ()) | v <- Ms.lvars spec])
 
-varSymbols :: ([Var] -> [Var]) ->  [Var] -> [(LocSymbol, a)] -> [(Var, a)]
-varSymbols f vs    = concatMap go
+varSymbols :: ([Var] -> [Var]) -> String ->  [Var] -> [(LocSymbol, a)] -> [(Var, a)]
+varSymbols f n vs  = concatMap go
   where lvs        = M.map L.sort $ group [(varSymbol v, locVar v) | v <- vs]
         varSymbol  = stringSymbol . dropModuleNames . showPpr
         locVar v   = (getSourcePos v, v)
         go (s, ns) = case M.lookup (val s) lvs of 
                      Just lvs -> (, ns) <$> varsAfter f s lvs
                      Nothing  -> errorstar $ msg s
-        msg s      = printf "%s: Hint for Undefined Var %s" 
-                         (show (loc s)) (show (val s))
+        msg s      = printf "%s: %s for Undefined Var %s" 
+                         n (show (loc s)) (show (val s))
       
 varsAfter f s lvs 
   | eqList (fst <$> lvs)
@@ -562,7 +562,7 @@ makeLocalAssumeSpec :: Config -> [Var] -> [Var] -> [(LocSymbol, BareType)]
  
 makeLocalAssumeSpec cfg vs lvs xbs
   = do env@(BE { modName = mod}) <- get
-       let vbs = expand3 <$>  varSymbols fchoose lvs (dupSnd <$> xbs)
+       let vbs = expand3 <$>  varSymbols fchoose "Var" lvs (dupSnd <$> xbs)
        when (not $ noCheckUnknown cfg) $
          checkDefAsserts env vbs xbs
        map (addFst3 mod) <$> mapM mkVarSpec vbs
