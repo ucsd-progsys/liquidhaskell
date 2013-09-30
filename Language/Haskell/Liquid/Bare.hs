@@ -318,11 +318,11 @@ makeQualifiers (mod,spec) = inModule mod mkQuals
   where
     mkQuals = mapM resolve $ Ms.qualifiers spec
 
-makeHints vs (_,spec) = makeHints' id vs $ Ms.decr spec
-makeLVars vs (_,spec) = fst <$> (makeHints' id vs $ [(v, ()) | v <- Ms.lvars spec])
+makeHints vs (_,spec) = varSymbols id vs $ Ms.decr spec
+makeLVars vs (_,spec) = fst <$> (varSymbols id vs $ [(v, ()) | v <- Ms.lvars spec])
 
-makeHints' :: ([Var] -> [Var]) ->  [Var] -> [(LocSymbol, a)] -> [(Var, a)]
-makeHints' f vs    = concatMap go
+varSymbols :: ([Var] -> [Var]) ->  [Var] -> [(LocSymbol, a)] -> [(Var, a)]
+varSymbols f vs    = concatMap go
   where lvs        = M.map L.sort $ group [(varSymbol v, locVar v) | v <- vs]
         varSymbol  = stringSymbol . dropModuleNames . showPpr
         locVar v   = (getSourcePos v, v)
@@ -562,7 +562,7 @@ makeLocalAssumeSpec :: Config -> [Var] -> [Var] -> [(LocSymbol, BareType)]
  
 makeLocalAssumeSpec cfg vs lvs xbs
   = do env@(BE { modName = mod}) <- get
-       let vbs = expand3 <$>  makeHints' fchoose lvs (dupSnd <$> xbs)
+       let vbs = expand3 <$>  varSymbols fchoose lvs (dupSnd <$> xbs)
        when (not $ noCheckUnknown cfg) $
          checkDefAsserts env vbs xbs
        map (addFst3 mod) <$> mapM mkVarSpec vbs
