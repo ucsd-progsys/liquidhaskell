@@ -552,26 +552,32 @@ makeTargetVars name vs ss = do
 
 
 makeAssumeSpec cmod cfg vs lvs (mod,spec)
-  | cmod == mod
-  = makeLocalAssumeSpec cfg vs lvs $ Ms.sigs spec
+  |  cmod == mod
+  = makeLocalAssumeSpec cfg cmod vs lvs $ traceShow ("CMOD = " ++ show cmod ++ "MOD = " ++ show mod) $ Ms.sigs spec
   | otherwise 
   = inModule mod $ makeAssumeSpec' cfg vs $ Ms.sigs spec
 
-makeLocalAssumeSpec :: Config -> [Var] -> [Var] -> [(LocSymbol, BareType)]
+makeLocalAssumeSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareType)]
                     -> BareM [(ModName, Var, Located SpecType)]
  
-makeLocalAssumeSpec cfg vs lvs xbs
-  = do env@(BE { modName = mod}) <- get
-       let vbs = expand3 <$>  varSymbols fchoose "Var" lvs (dupSnd <$> xbs)
+makeLocalAssumeSpec cfg mod vs lvs xbs
+  = do env     <- get
+       let vbs1 = expand3 <$> varSymbols fchoose "Var" lvs (dupSnd <$> xbs1)
        when (not $ noCheckUnknown cfg) $
-         checkDefAsserts env vbs xbs
-       map (addFst3 mod) <$> mapM mkVarSpec vbs
-  where dupSnd (x, y)       = (dropMod x, (x, y))
+         checkDefAsserts env vbs1 xbs1
+       vts1    <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
+       vts2    <- makeAssumeSpec' cfg vs xbs2
+       return   $ vts1 ++ vts2
+  where (xbs1, xbs2)  = L.partition (inModule mod . fst) xbs
+
+        dupSnd (x, y)       = (dropMod x, (x, y))
         expand3 (x, (y, w)) = (x, y, w)
 
         dropMod  = fmap (stringSymbol . dropModuleNames . symbolString)
 
         fchoose ls = maybe ls (:[]) $ L.find (`elem` vs) ls
+
+        inModule n x = (takeModuleNames $ show x) == (show n) 
 
 makeAssumeSpec' :: Config -> [Var] -> [(LocSymbol, BareType)]
                 -> BareM [(ModName, Var, Located SpecType)]
