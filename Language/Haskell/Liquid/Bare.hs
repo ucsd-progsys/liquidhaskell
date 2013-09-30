@@ -318,23 +318,23 @@ makeQualifiers (mod,spec) = inModule mod mkQuals
   where
     mkQuals = mapM resolve $ Ms.qualifiers spec
 
-makeHints vs (_,spec) = makeHints' vs $ Ms.decr spec
-makeLVars vs (_,spec) = fst <$> (makeHints' vs $ [(v, ()) | v <- Ms.lvars spec])
+makeHints vs (_,spec) = makeHints' id vs $ Ms.decr spec
+makeLVars vs (_,spec) = fst <$> (makeHints' id vs $ [(v, ()) | v <- Ms.lvars spec])
 
-makeHints' :: [Var] -> [(LocSymbol, a)] -> [(Var, a)]
-makeHints' vs       = concatMap go
+makeHints' :: ([Var] -> [Var]) ->  [Var] -> [(LocSymbol, a)] -> [(Var, a)]
+makeHints' f vs    = concatMap go
   where lvs        = M.map L.sort $ group [(varSymbol v, locVar v) | v <- vs]
         varSymbol  = stringSymbol . dropModuleNames . showPpr
         locVar v   = (getSourcePos v, v)
         go (s, ns) = case M.lookup (val s) lvs of 
-                     Just lvs -> (, ns) <$> varsAfter s lvs
+                     Just lvs -> (, ns) <$> varsAfter f s lvs
                      Nothing  -> errorstar $ msg s
         msg s      = printf "%s: Hint for Undefined Var %s" 
                          (show (loc s)) (show (val s))
-       
-varsAfter s lvs 
+      
+varsAfter f s lvs 
   | eqList (fst <$> lvs)
-  = snd <$> lvs
+  = f (snd <$> lvs)
   | otherwise
   = map snd $ takeEqLoc $ dropLeLoc lvs
   where takeEqLoc xs@((l, _):_) = L.takeWhile ((l==) . fst) xs
@@ -553,16 +553,16 @@ makeTargetVars name vs ss = do
 
 makeAssumeSpec cmod cfg vs lvs (mod,spec)
   | cmod == mod
-  = makeLocalAssumeSpec cfg lvs $ Ms.sigs spec
+  = makeLocalAssumeSpec cfg vs lvs $ Ms.sigs spec
   | otherwise 
   = inModule mod $ makeAssumeSpec' cfg vs $ Ms.sigs spec
 
-makeLocalAssumeSpec :: Config -> [Var] -> [(LocSymbol, BareType)]
+makeLocalAssumeSpec :: Config -> [Var] -> [Var] -> [(LocSymbol, BareType)]
                     -> BareM [(ModName, Var, Located SpecType)]
  
-makeLocalAssumeSpec cfg lvs xbs
+makeLocalAssumeSpec cfg vs lvs xbs
   = do env@(BE { modName = mod}) <- get
-       let vbs = expand3 <$>  makeHints' lvs (dupSnd <$> xbs)
+       let vbs = expand3 <$>  makeHints' fchoose lvs (dupSnd <$> xbs)
        when (not $ noCheckUnknown cfg) $
          checkDefAsserts env vbs xbs
        map (addFst3 mod) <$> mapM mkVarSpec vbs
@@ -570,6 +570,8 @@ makeLocalAssumeSpec cfg lvs xbs
         expand3 (x, (y, w)) = (x, y, w)
 
         dropMod  = fmap (stringSymbol . dropModuleNames . symbolString)
+
+        fchoose ls = maybe ls (:[]) $ L.find (`elem` vs) ls
 
 makeAssumeSpec' :: Config -> [Var] -> [(LocSymbol, BareType)]
                 -> BareM [(ModName, Var, Located SpecType)]
