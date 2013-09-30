@@ -553,7 +553,7 @@ makeTargetVars name vs ss = do
 
 makeAssumeSpec cmod cfg vs lvs (mod,spec)
   |  cmod == mod
-  = makeLocalAssumeSpec cfg cmod vs lvs $ traceShow ("CMOD = " ++ show cmod ++ "MOD = " ++ show mod) $ Ms.sigs spec
+  = makeLocalAssumeSpec cfg cmod vs lvs $ Ms.sigs spec
   | otherwise 
   = inModule mod $ makeAssumeSpec' cfg vs $ Ms.sigs spec
 
@@ -577,7 +577,7 @@ makeLocalAssumeSpec cfg mod vs lvs xbs
 
         fchoose ls = maybe ls (:[]) $ L.find (`elem` vs) ls
 
-        inModule n x = (takeModuleNames $ show x) == (show n) 
+        inModule n x = (takeModuleNames $ show $ val x) == (show n)
 
 makeAssumeSpec' :: Config -> [Var] -> [(LocSymbol, BareType)]
                 -> BareM [(ModName, Var, Located SpecType)]
