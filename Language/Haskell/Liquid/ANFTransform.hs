@@ -2,6 +2,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -------------------------------------------------------------------------------------
 ------------ Code to convert Core to Administrative Normal Form ---------------------
@@ -11,7 +12,8 @@ module Language.Haskell.Liquid.ANFTransform (anormalize) where
 import           Coercion (isCoVar, isCoVarType)
 import           CoreSyn
 import           CoreUtils                        (exprType)
-import           DsMonad                          (DsM, initDs)
+import qualified DsMonad
+import           DsMonad                          (initDs)
 import           FastString                       (fsLit)
 import           GHC                              hiding (exprType)
 import           HscTypes
@@ -25,8 +27,11 @@ import           Type                             (mkForAllTys, substTy, mkForAl
 import           TyCon                            (tyConDataCons_maybe)
 import           DataCon                          (dataConInstArgTys)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
+import           Control.Monad.Writer             (WriterT(WriterT), runWriterT, execWriterT, tell)
+import           Control.Monad.Trans              (lift)
 import           Control.Monad
 import           Control.Applicative              ((<$>))
+import           UniqSupply                       (MonadUnique)
 import           Language.Fixpoint.Types (anfPrefix)
 import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..), showPpr)
 import           Language.Fixpoint.Misc     (fst3, errorstar)
@@ -57,12 +62,15 @@ modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
 -- Can't make the below default for normalizeBind as it 
 -- fails tests/pos/lets.hs due to GHCs odd let-bindings
 
+normalizeTopBind :: VarEnv Id -> Bind CoreBndr -> DsMonad.DsM [CoreBind]
 normalizeTopBind γ (NonRec x e)
-  = do e' <- stitch `fmap` normalize γ e
-       return [normalizeTyVars $ NonRec x e']
+  = runDsM $ execWriterT $
+    do e' <- stitch $ normalize γ e
+       tell [normalizeTyVars $ NonRec x e']
 
 normalizeTopBind γ (Rec xes)
-  = liftM (map normalizeTyVars)(normalizeBind γ (Rec xes))
+  = liftM (map normalizeTyVars) $
+    runDsM $ execWriterT $ normalizeBind γ (Rec xes)
 
 normalizeTyVars (NonRec x e) = NonRec (setVarType x t') e
   where t'       = subst msg as as' bt
@@ -80,21 +88,26 @@ subst msg as as' bt
   = trace msg $ mkForAllTys as bt
   where su = mkTopTvSubst $ zip as (mkTyVarTys as')
 
+
+newtype DsM a = DsM {runDsM :: DsMonad.DsM a}
+   deriving (Functor, Monad, MonadUnique)
+type DsMW = WriterT [CoreBind] DsM
+
 ------------------------------------------------------------------
-normalizeBind :: VarEnv Id -> CoreBind -> DsM [CoreBind]
+normalizeBind :: VarEnv Id -> CoreBind -> DsMW ()
 ------------------------------------------------------------------
 
 normalizeBind γ (NonRec x e)
-   = do (bs, e') <- normalize γ e
-        return (bs ++ [NonRec x e'])
+   = do e' <- normalize γ e
+        tell [NonRec x e']
 
 normalizeBind γ (Rec xes)
-  = do es' <- mapM (normalize γ >=> (return . stitch)) es
-       return [Rec (zip xs es')]
+  = do es' <- mapM (stitch . normalize γ) es
+       tell [Rec (zip xs es')]
     where (xs, es) = unzip xes
 
 --------------------------------------------------------------------
-normalizeName :: VarEnv Id -> CoreExpr -> DsM ([CoreBind], CoreExpr)
+normalizeName :: VarEnv Id -> CoreExpr -> DsMW CoreExpr
 --------------------------------------------------------------------
 
 -- normalizeNameDebug γ e 
@@ -206,7 +219,7 @@ expandDefaultCase _ z
    = return z
 
 cloneCase argτs e d 
-  = do xs  <- mapM freshNormalVar $ dataConInstArgTys d argτs
+  = do xs  <- mapM freshNormalVarPlain $ dataConInstArgTys d argτs
        return (DataAlt d, xs, e)
 
 sortCases = sortBy (\x y -> cmpAltCon (fst3 x) (fst3 y))
