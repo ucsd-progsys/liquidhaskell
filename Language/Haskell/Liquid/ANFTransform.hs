@@ -27,7 +27,7 @@ import           Type                             (mkForAllTys, substTy, mkForAl
 import           TyCon                            (tyConDataCons_maybe)
 import           DataCon                          (dataConInstArgTys)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
-import           Control.Monad.Writer             (WriterT(WriterT), runWriterT, execWriterT, tell)
+import           Control.Monad.State.Lazy
 import           Control.Monad.Trans              (lift)
 import           Control.Monad
 import           Control.Applicative              ((<$>))
@@ -64,13 +64,12 @@ modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
 
 normalizeTopBind :: VarEnv Id -> Bind CoreBndr -> DsMonad.DsM [CoreBind]
 normalizeTopBind γ (NonRec x e)
-  = runDsM $ execWriterT $
-    do e' <- stitch $ normalize γ e
-       tell [normalizeTyVars $ NonRec x e']
+  = do e' <- runDsM $ evalStateT (stitch γ e) []
+       return [normalizeTyVars $ NonRec x e']
 
 normalizeTopBind γ (Rec xes)
-  = liftM (map normalizeTyVars) $
-    runDsM $ execWriterT $ normalizeBind γ (Rec xes)
+  = do xes' <- runDsM $ execStateT (normalizeBind γ (Rec xes)) []
+       return $ map normalizeTyVars xes'
 
 normalizeTyVars (NonRec x e) = NonRec (setVarType x t') e
   where t'       = subst msg as as' bt
@@ -91,7 +90,7 @@ subst msg as as' bt
 
 newtype DsM a = DsM {runDsM :: DsMonad.DsM a}
    deriving (Functor, Monad, MonadUnique)
-type DsMW = WriterT [CoreBind] DsM
+type DsMW = StateT [CoreBind] DsM
 
 ------------------------------------------------------------------
 normalizeBind :: VarEnv Id -> CoreBind -> DsMW ()
@@ -99,11 +98,11 @@ normalizeBind :: VarEnv Id -> CoreBind -> DsMW ()
 
 normalizeBind γ (NonRec x e)
    = do e' <- normalize γ e
-        tell [NonRec x e']
+        add [NonRec x e']
 
 normalizeBind γ (Rec xes)
-  = do es' <- mapM (stitch . normalize γ) es
-       tell [Rec (zip xs es')]
+  = do es' <- mapM (stitch γ) es
+       add [Rec (zip xs es')]
     where (xs, es) = unzip xes
 
 --------------------------------------------------------------------
@@ -120,89 +119,101 @@ normalizeName _ e@(Tick _ (Lit (LitInteger _ _)))
   = normalizeLiteral e
 
 normalizeName γ (Var x)
-  = return ([], Var (lookupWithDefaultVarEnv γ x x))
+  = return $ Var (lookupWithDefaultVarEnv γ x x)
 
 normalizeName _ e@(Type _)
-  = return ([], e)
+  = return e
 
 normalizeName _ e@(Lit _)
-  = return ([], e)
+  = return e
 
 normalizeName γ e@(Coercion _)
-  = do x        <- freshNormalVar $ exprType e
-       return ([NonRec x e], Var x)
+  = do x     <- lift $ freshNormalVar $ exprType e
+       add  [NonRec x e]
+       return $ Var x
 
 normalizeName γ (Tick n e)
-  = do (bs, e') <- normalizeName γ e
-       return (bs, Tick n e')
+  = do e'    <- normalizeName γ e
+       return $ Tick n e'
 
 normalizeName γ e
-  = do (bs, e') <- normalize γ e
-       x        <- freshNormalVar $ exprType e
-       return (bs ++ [NonRec x e'], Var x)
+  = do e'   <- normalize γ e
+       x    <- lift $ freshNormalVar $ exprType e
+       add [NonRec x e']
+       return $ Var x
+
+
+add :: [CoreBind] -> DsMW ()
+add w = modify (++w)
 
 ---------------------------------------------------------------------
-normalizeLiteral :: CoreExpr -> DsM ([CoreBind], CoreExpr)
+normalizeLiteral :: CoreExpr -> DsMW CoreExpr
 ---------------------------------------------------------------------
 
 normalizeLiteral e =
-  do x <- freshNormalVar (exprType e)
-     return ([NonRec x e], Var x)
+  do x <- lift $ freshNormalVar (exprType e)
+     add [NonRec x e]
+     return $ Var x
 
+freshNormalVar :: Type -> DsM Id
 freshNormalVar = mkSysLocalM (fsLit anfPrefix)
 
 ---------------------------------------------------------------------
-normalize :: VarEnv Id -> CoreExpr -> DsM ([CoreBind], CoreExpr)
+normalize :: VarEnv Id -> CoreExpr -> DsMW CoreExpr
 ---------------------------------------------------------------------
 
 normalize γ (Lam x e)
-  = do e' <- stitch `fmap` normalize γ e
-       return ([], Lam x e')
+  = do e' <- stitch γ e
+       return $ Lam x e'
 
 normalize γ (Let b e)
-  = do bs'        <- normalizeBind γ b
-       (bs'', e') <- normalize γ e
-       return (bs' ++ bs'', e')
+  = do normalizeBind γ b
+       normalize γ e
        -- Need to float bindings all the way up to the top 
        -- Due to GHCs odd let-bindings (see tests/pos/lets.hs) 
 
 normalize γ (Case e x t as)
-  = do (bs, n) <- normalizeName γ e
-       x'      <- freshNormalVar τx -- rename "wild" to avoid shadowing
-       let γ'   = extendVarEnv γ x x'
-       as'     <- forM as $ \(c, xs, e') -> liftM ((c, xs,) . stitch) (normalize γ' e')
-       as''    <- expandDefaultCase τx as' 
-       return     (bs, Case n x' t as'')
+  = do n     <- normalizeName γ e
+       x'    <- lift $ freshNormalVar τx -- rename "wild" to avoid shadowing
+       let γ' = extendVarEnv γ x x'
+       as'   <- forM as $ \(c, xs, e') -> liftM (c, xs,) (stitch γ' e')
+       as''  <- lift $ expandDefaultCase τx as' 
+       return $ Case n x' t as''
     where τx = varType x
 
 normalize γ (Var x)
-  = return ([], Var (lookupWithDefaultVarEnv γ x x))
+  = return $ Var (lookupWithDefaultVarEnv γ x x)
 
 normalize _ e@(Lit _)
-  = return ([], e)
+  = return e
 
 normalize _ e@(Type _)
-  = return ([], e)
+  = return e
 
 normalize γ (Cast e τ)
-  = do (bs, e') <- normalize γ e
-       return (bs, Cast e' τ)
+  = do e'    <- normalize γ e
+       return $ Cast e' τ
 
 normalize γ (App e1 e2)
-  = do (bs1, e1') <- normalize γ e1
-       (bs2, n2 ) <- normalizeName γ e2
-       return (bs1 ++ bs2, App e1' n2)
+  = do e1' <- normalize γ e1
+       n2  <- normalizeName γ e2
+       return $ App e1' n2
 
 normalize γ (Tick n e)
-  = do (bs, e') <- normalize γ e
-       return (bs, Tick n e')
+  = do e' <- normalize γ e
+       return $ Tick n e'
 
 normalize _ (Coercion c) 
-  = return ([], Coercion c)
+  = return $ Coercion c
 
-stitch :: ([CoreBind], CoreExpr) -> CoreExpr
-stitch (bs, e) = mkCoreLets bs e
-
+stitch :: VarEnv Id -> CoreExpr -> DsMW CoreExpr 
+stitch γ e
+  = do bs'   <- get
+       put [] 
+       e'    <- normalize γ e
+       bs    <- get
+       put bs'
+       return $ mkCoreLets bs e'
 
 ----------------------------------------------------------------------------------
 expandDefaultCase :: Type -> [(AltCon, [Id], CoreExpr)] -> DsM [(AltCon, [Id], CoreExpr)]
@@ -219,7 +230,7 @@ expandDefaultCase _ z
    = return z
 
 cloneCase argτs e d 
-  = do xs  <- mapM freshNormalVarPlain $ dataConInstArgTys d argτs
+  = do xs  <- mapM freshNormalVar $ dataConInstArgTys d argτs
        return (DataAlt d, xs, e)
 
 sortCases = sortBy (\x y -> cmpAltCon (fst3 x) (fst3 y))
