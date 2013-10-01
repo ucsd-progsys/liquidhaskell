@@ -568,7 +568,7 @@ makeLocalAssumeSpec cfg mod vs lvs xbs
        vts1    <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
        vts2    <- makeAssumeSpec' cfg vs xbs2
        return   $ vts1 ++ vts2
-  where (xbs1, xbs2)  = L.partition (inModule mod . fst) xbs
+  where (xbs1, xbs2)  = L.partition (modElem mod . fst) xbs
 
         dupSnd (x, y)       = (dropMod x, (x, y))
         expand3 (x, (y, w)) = (x, y, w)
@@ -577,7 +577,7 @@ makeLocalAssumeSpec cfg mod vs lvs xbs
 
         fchoose ls = maybe ls (:[]) $ L.find (`elem` vs) ls
 
-        inModule n x = (takeModuleNames $ show $ val x) == (show n)
+        modElem n x = (takeModuleNames $ show $ val x) == (show n)
 
 makeAssumeSpec' :: Config -> [Var] -> [(LocSymbol, BareType)]
                 -> BareM [(ModName, Var, Located SpecType)]
