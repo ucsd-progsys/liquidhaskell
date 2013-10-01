@@ -109,7 +109,7 @@ makeGhcSpec' cfg vars defVars specs
        modify $ \be -> be { tcEnv = makeTyConInfo tycons }
        measures        <- mconcat <$> mapM makeMeasureSpec specs
        let (cs, ms)     = makeMeasureSpec' measures
-       sigs'           <- mconcat <$> mapM (makeAssumeSpec cfg vars) specs
+       sigs'           <- mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
        invs            <- mconcat <$> mapM makeInvariants specs
        embs            <- mconcat <$> mapM makeTyConEmbeds specs
        targetVars      <- makeTargetVars name defVars $ binders cfg
@@ -148,7 +148,6 @@ makeGhcSpec' cfg vars defVars specs
                           , subst su <$> M.elems $ Ms.measMap measures)
 
 --- Refinement Type Aliases
-
 makeRTEnv rts pts  = do initRTEnv
                         makeRPAliases pts
                         makeRTAliases rts
@@ -319,23 +318,23 @@ makeQualifiers (mod,spec) = inModule mod mkQuals
   where
     mkQuals = mapM resolve $ Ms.qualifiers spec
 
-makeHints vs (_,spec) = makeHints' vs $ Ms.decr spec
-makeLVars vs (_,spec) = fst <$> (makeHints' vs $ [(v, ()) | v <- Ms.lvars spec])
+makeHints vs (_,spec) = varSymbols id "Hint" vs $ Ms.decr spec
+makeLVars vs (_,spec) = fst <$> (varSymbols id "LazyVar" vs $ [(v, ()) | v <- Ms.lvars spec])
 
-makeHints' :: [Var] -> [(LocSymbol, a)] -> [(Var, a)]
-makeHints' vs       = concatMap go
+varSymbols :: ([Var] -> [Var]) -> String ->  [Var] -> [(LocSymbol, a)] -> [(Var, a)]
+varSymbols f n vs  = concatMap go
   where lvs        = M.map L.sort $ group [(varSymbol v, locVar v) | v <- vs]
         varSymbol  = stringSymbol . dropModuleNames . showPpr
         locVar v   = (getSourcePos v, v)
         go (s, ns) = case M.lookup (val s) lvs of 
-                     Just lvs -> (, ns) <$> varsAfter s lvs
+                     Just lvs -> (, ns) <$> varsAfter f s lvs
                      Nothing  -> errorstar $ msg s
-        msg s      = printf "%s: Hint for Undefined Var %s" 
-                         (show (loc s)) (show (val s))
-       
-varsAfter s lvs 
+        msg s      = printf "%s: %s for Undefined Var %s" 
+                         n (show (loc s)) (show (val s))
+      
+varsAfter f s lvs 
   | eqList (fst <$> lvs)
-  = snd <$> lvs
+  = f (snd <$> lvs)
   | otherwise
   = map snd $ takeEqLoc $ dropLeLoc lvs
   where takeEqLoc xs@((l, _):_) = L.takeWhile ((l==) . fst) xs
@@ -552,8 +551,33 @@ makeTargetVars name vs ss = do
   prefix s = getModString name ++ "." ++ s
 
 
-makeAssumeSpec cfg vs (mod,spec)
+makeAssumeSpec cmod cfg vs lvs (mod,spec)
+  |  cmod == mod
+  = makeLocalAssumeSpec cfg cmod vs lvs $ Ms.sigs spec
+  | otherwise 
   = inModule mod $ makeAssumeSpec' cfg vs $ Ms.sigs spec
+
+makeLocalAssumeSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareType)]
+                    -> BareM [(ModName, Var, Located SpecType)]
+ 
+makeLocalAssumeSpec cfg mod vs lvs xbs
+  = do env     <- get
+       let vbs1 = expand3 <$> varSymbols fchoose "Var" lvs (dupSnd <$> xbs1)
+       when (not $ noCheckUnknown cfg) $
+         checkDefAsserts env vbs1 xbs1
+       vts1    <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
+       vts2    <- makeAssumeSpec' cfg vs xbs2
+       return   $ vts1 ++ vts2
+  where (xbs1, xbs2)  = L.partition (modElem mod . fst) xbs
+
+        dupSnd (x, y)       = (dropMod x, (x, y))
+        expand3 (x, (y, w)) = (x, y, w)
+
+        dropMod  = fmap (stringSymbol . dropModuleNames . symbolString)
+
+        fchoose ls = maybe ls (:[]) $ L.find (`elem` vs) ls
+
+        modElem n x = (takeModuleNames $ show $ val x) == (show n)
 
 makeAssumeSpec' :: Config -> [Var] -> [(LocSymbol, BareType)]
                 -> BareM [(ModName, Var, Located SpecType)]
