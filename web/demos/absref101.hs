@@ -63,7 +63,7 @@ maxInt x y = if x <= y then y else x
 
 -- By the same reasoning, we can define the `maximumInt` operator on lists:
 
-{-@ maximumInt :: forall <p :: Int -> Prop>. x:[Int <p>] -> Int <p>@-}
+{-@ maximumInt :: forall <p :: Int -> Prop>. x:{v:[Int <p>]|((len v)>0)} -> Int <p>@-}
 maximumInt ::  [Int] -> Int
 maximumInt (x:xs) = foldr maxInt x xs
 
@@ -125,7 +125,7 @@ maxEvens1 xs = maximumInt xs''
 maxPoly     :: (Ord a) => a -> a -> a
 maxPoly x y = if x <= y then y else x
 
-{-@ maximumPoly :: forall <p :: a -> Prop>. (Ord a) => x:[a<p>] -> a<p> @-}
+{-@ maximumPoly :: forall <p :: a -> Prop>. (Ord a) => x:{v:[a<p>]|((len v)>0)} -> a<p> @-}
 maximumPoly :: (Ord a) => [a] -> a
 maximumPoly (x:xs) = foldr maxPoly x xs
 

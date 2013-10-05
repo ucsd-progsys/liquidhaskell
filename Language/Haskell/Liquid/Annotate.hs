@@ -57,6 +57,7 @@ import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc
 import Language.Fixpoint.Types
+import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Types hiding (Located(..))
@@ -106,7 +107,7 @@ annotHtmlDump htmlFile srcFile annm
   = do src     <- readFile srcFile
        let lhs  = isExtFile LHs srcFile
        let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
-       cssFile <- getCSSPath
+       cssFile <- getCssPath
        copyFile cssFile (dropFileName htmlFile </> takeFileName cssFile) 
        renderHtml lhs htmlFile srcFile (takeFileName cssFile) body
 

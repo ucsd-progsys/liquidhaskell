@@ -38,29 +38,17 @@ import Data.Text.Unsafe (Iter(..), iter)
 import Data.Int (Int64)
 
 --LIQUID
-import Data.Int (Int32)
-import qualified Data.Text
-import Data.Text.Array (Array(..), MArray(..))
-import qualified Data.Text.Fusion.Internal
-import Data.Text.Fusion.Size
-import qualified Data.Text.Internal
-import qualified Data.Text.Lazy.Internal
-import qualified Data.Text.Private
-import qualified Data.Text.Search
-import qualified Data.Text.Unsafe
-import qualified Data.Word
-import GHC.ST
 import Language.Haskell.Liquid.Prelude
 
 default(Int64)
 
 --LIQUID SPECIALIZE
-{-@ data Data.Text.Lazy.Fusion.TPairS [pslen] b = (:*) (t::LText) (b::b) @-}
+{-@ data TPairS [pslen] b = (:*) (t::Text) (b::b) @-}
 
 data TPairS b = Text :* b
 infixl 2 :*
 
-{-@ measure pslen :: Data.Text.Lazy.Fusion.TPairS b -> Int
+{-@ measure pslen :: TPairS b -> Int
     pslen ((:*) t b) = (ltlen t)
   @-}
 
@@ -79,18 +67,18 @@ stream text = Stream next (text :* 0) unknownSize
 
 data UC s = UC s {-# UNPACK #-} !Int
 
-{-@ data Data.Text.Lazy.Fusion.UC s = Data.Text.Lazy.Fusion.UC
+{-@ data UC s = UC
         (s :: s)
         (i :: {v:Int | v > 0})
   @-}
 
-{-@ measure ucInt :: Data.Text.Lazy.Fusion.UC s -> Int
-    ucInt (Data.Text.Lazy.Fusion.UC s i) = i
+{-@ measure ucInt :: UC s -> Int
+    ucInt (UC s i) = i
   @-}
 
 -- | /O(n)/ Convert a 'Stream Char' into a 'Text', using the given
 -- chunk size.
-{-@ Strict Data.Text.Lazy.Fusion.unstreamChunks @-}
+{-@ Lazy unstreamChunks @-}
 unstreamChunks :: Int -> Stream Char -> Text
 unstreamChunks chunkSize (Stream next s0 len0)
   | isEmpty len0 = Empty

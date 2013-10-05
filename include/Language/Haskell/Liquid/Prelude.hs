@@ -130,8 +130,8 @@ cSizeInt :: CSize -> Int
 cSizeInt = fromIntegral 
 
 
-{-@ assume mkPtr :: x:GHC.Prim.Addr# -> {v: (Ptr b) | ((plen v) = (addrLen x) && ((plen v) >= 0)) } @-} 
-mkPtr   :: GHC.Base.Addr# -> Ptr b
+{-@ assume mkPtr :: x:GHC.Prim.Addr# -> {v: (Ptr b) | ((plen v) = (addrLen x) && ((plen v) >= 0)) } @-}
+mkPtr   :: Addr# -> Ptr b
 mkPtr x = undefined -- Ptr x 
 
 
@@ -158,3 +158,8 @@ deref = undefined
   @-}
 eqPtr :: Ptr a -> Ptr a -> Bool
 eqPtr = undefined
+
+{-@ assert safeZipWith :: (a -> b -> c) -> xs : [a] -> ys:{v:[b] | len(v) = len(xs)} -> {v : [c] | len(v) = len(xs)} @-}
+safeZipWith :: (a->b->c) -> [a]->[b]->[c]
+safeZipWith f (a:as) (b:bs) = f a b : safeZipWith f as bs
+

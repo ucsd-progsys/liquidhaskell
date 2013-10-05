@@ -1,19 +1,22 @@
 module spec Data.Text.Fusion.Common where
 
-cons :: Char
+measure slen :: Data.Text.Fusion.Internal.Stream a
+             -> GHC.Types.Int
+
+cons :: GHC.Types.Char
      -> s:Data.Text.Fusion.Internal.Stream Char
      -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = (1 + (slen s))}
 snoc :: s:Data.Text.Fusion.Internal.Stream Char
-     -> Char
+     -> GHC.Types.Char
      -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = (1 + (slen s))}
 
 compareLengthI :: s:Data.Text.Fusion.Internal.Stream Char
-               -> l:Int
-               -> {v:Ordering | ((v = GHC.Types.EQ) <=> ((slen s) = l))}
+               -> l:GHC.Types.Int
+               -> {v:GHC.Types.Ordering | ((v = GHC.Types.EQ) <=> ((slen s) = l))}
 
 isSingleton :: s:Data.Text.Fusion.Internal.Stream Char
-            -> {v:Bool | ((Prop v) <=> ((slen s) = 1))}
-singleton   :: Char
+            -> {v:GHC.Types.Bool | ((Prop v) <=> ((slen s) = 1))}
+singleton   :: GHC.Types.Char
             -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = 1}
 
 streamList   :: l:[a]
@@ -21,19 +24,19 @@ streamList   :: l:[a]
 unstreamList :: s:Data.Text.Fusion.Internal.Stream a
              -> {v:[a] | (len v) = (slen s)}
 
-map :: (Char -> Char)
+map :: (GHC.Types.Char -> GHC.Types.Char)
     -> s:Data.Text.Fusion.Internal.Stream Char
     -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = (slen s)}
-filter :: (Char -> Bool)
+filter :: (GHC.Types.Char -> GHC.Types.Bool)
        -> s:Data.Text.Fusion.Internal.Stream Char
        -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) <= (slen s)}
 
-intersperse :: Char
+intersperse :: GHC.Types.Char
             -> s:Data.Text.Fusion.Internal.Stream Char
             -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) > (slen s)}
 
-replicateCharI :: l:Int
-               -> Char
+replicateCharI :: l:GHC.Types.Int
+               -> GHC.Types.Char
                -> {v:Data.Text.Fusion.Internal.Stream Char | (slen v) = l}
 
 toCaseFold :: s:Data.Text.Fusion.Internal.Stream Char

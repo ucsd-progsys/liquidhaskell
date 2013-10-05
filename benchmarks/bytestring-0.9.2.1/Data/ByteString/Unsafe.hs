@@ -53,12 +53,10 @@ import Foreign.C.String         (CString, CStringLen)
 
 -- LIQUID
 import Language.Haskell.Liquid.Prelude  (mkPtr, cSizeInt, liquidError)
-import qualified Data.ByteString.Internal
 import Foreign.ForeignPtr       (ForeignPtr)
 import Data.Word
-import Foreign.C.Types          (CInt(..), CSize(..), CULong(..))
+import Foreign.C.Types          (CChar(..), CInt(..), CSize(..), CULong(..))
 import GHC.Base
-import qualified Foreign.C.Types
 
 #ifndef __NHC__
 import Control.Exception        (assert)
@@ -108,7 +106,7 @@ liquidCanary1 x   = x - 1
 -- | A variety of 'head' for non-empty ByteStrings. 'unsafeHead' omits the
 -- check for the empty case, so there is an obligation on the programmer
 -- to provide a proof that the ByteString is non-empty.
-{-@ unsafeHead :: {v:Data.ByteString.Internal.ByteString | (bLength v) > 0} -> Word8 @-}
+{-@ unsafeHead :: {v:ByteString | (bLength v) > 0} -> Word8 @-}
 unsafeHead :: ByteString -> Word8
 unsafeHead (PS x s l) = assert (l > 0) $
     inlinePerformIO $ withForeignPtr x $ \p -> peekByteOff p s
@@ -117,8 +115,8 @@ unsafeHead (PS x s l) = assert (l > 0) $
 -- | A variety of 'tail' for non-empty ByteStrings. 'unsafeTail' omits the
 -- check for the empty case. As with 'unsafeHead', the programmer must
 -- provide a separate proof that the ByteString is non-empty.
-{-@ unsafeTail :: b:{v:Data.ByteString.Internal.ByteString | (bLength v) > 0} 
-               -> {v:Data.ByteString.Internal.ByteString | (bLength v) = (bLength b) - 1} @-}
+{-@ unsafeTail :: b:{v:ByteString | (bLength v) > 0}
+               -> {v:ByteString | (bLength v) = (bLength b) - 1} @-}
 unsafeTail :: ByteString -> ByteString
 unsafeTail (PS ps s l) = assert (l > 0) $ PS ps (s+1) (l-1)
 {-# INLINE unsafeTail #-}
@@ -128,9 +126,9 @@ unsafeTail (PS ps s l) = assert (l > 0) $ PS ps (s+1) (l-1)
 -- obligation on the programmer to ensure the bounds are checked in some
 -- other way.
 
-{-@ unsafeIndex :: b:Data.ByteString.Internal.ByteString 
+{-@ unsafeIndex :: b:ByteString
                 -> {v:Nat | v < (bLength b)}
-                -> Data.Word.Word8 
+                -> Word8 
   @-}
 unsafeIndex :: ByteString -> Int -> Word8
 unsafeIndex (PS x s l) i = assert (i >= 0 && i < l) $
@@ -139,7 +137,7 @@ unsafeIndex (PS x s l) i = assert (i >= 0 && i < l) $
 
 -- | A variety of 'take' which omits the checks on @n@ so there is an
 -- obligation on the programmer to provide a proof that @0 <= n <= 'length' xs@.
-{-@ unsafeTake :: n:Nat -> b:{v: Data.ByteString.Internal.ByteString | n <= (bLength v)} -> (ByteStringN n) @-}
+{-@ unsafeTake :: n:Nat -> b:{v: ByteString | n <= (bLength v)} -> (ByteStringN n) @-}
 unsafeTake :: Int -> ByteString -> ByteString
 unsafeTake n (PS x s l) = assert (0 <= n && n <= l) $ PS x s n
 {-# INLINE unsafeTake #-}
@@ -148,8 +146,8 @@ unsafeTake n (PS x s l) = assert (0 <= n && n <= l) $ PS x s n
 -- obligation on the programmer to provide a proof that @0 <= n <= 'length' xs@.
 
 {-@ unsafeDrop :: n:Nat
-               -> b:{v: Data.ByteString.Internal.ByteString | n <= (bLength v)} 
-               -> {v:Data.ByteString.Internal.ByteString | (bLength v) = (bLength b) - n} @-}
+               -> b:{v: ByteString | n <= (bLength v)} 
+               -> {v:ByteString | (bLength v) = (bLength b) - n} @-}
 unsafeDrop  :: Int -> ByteString -> ByteString
 unsafeDrop n (PS x s l) = assert (0 <= n && n <= l) $ PS x (s+n) (l-n)
 {-# INLINE unsafeDrop #-}
@@ -174,7 +172,7 @@ unsafeDrop n (PS x s l) = assert (0 <= n && n <= l) $ PS x (s+n) (l-n)
 -- original Addr# this modification will be reflected in the resulting
 -- @ByteString@, breaking referential transparency.
 --
-{-@ unsafePackAddress :: a:GHC.Prim.Addr# -> IO {v:Data.ByteString.Internal.ByteString | (bLength v) = (addrLen a)}  @-}
+{-@ unsafePackAddress :: a:Addr# -> IO {v:ByteString | (bLength v) = (addrLen a)}  @-}
 unsafePackAddress :: Addr# -> IO ByteString
 unsafePackAddress addr# = do
     p <- newForeignPtr_ cstr
@@ -203,7 +201,7 @@ unsafePackAddress addr# = do
 --
 -- If in doubt, don't use these functions.
 --
-{-@ unsafePackAddressLen :: len:Nat -> {v:GHC.Prim.Addr# | len <= (addrLen v)} -> IO {v: ByteString | ((bLength v) = len)} @-}
+{-@ unsafePackAddressLen :: len:Nat -> {v:Addr# | len <= (addrLen v)} -> IO {v: ByteString | ((bLength v) = len)} @-}
 unsafePackAddressLen :: Int -> Addr# -> IO ByteString
 unsafePackAddressLen len addr# = do
     p <- newForeignPtr_ ({- LIQUID Ptr -} mkPtr addr#)
@@ -318,7 +316,7 @@ unsafePackMallocCString cstr = do
 -- to guarantee that the @ByteString@ is indeed null terminated. If in
 -- doubt, use @useAsCString@.
 --
-{-@ unsafeUseAsCString :: p:ByteString -> ({v: (PtrV Foreign.C.Types.CChar) | (bLength p) <= (plen v) } -> IO a) -> IO a @-}
+{-@ unsafeUseAsCString :: p:ByteString -> ({v: (PtrV CChar) | (bLength p) <= (plen v) } -> IO a) -> IO a @-}
 unsafeUseAsCString :: ByteString -> (CString -> IO a) -> IO a
 unsafeUseAsCString (PS ps s _) ac = withForeignPtr ps $ \p -> ac (castPtr p `plusPtr` s)
 

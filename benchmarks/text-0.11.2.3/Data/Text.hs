@@ -234,16 +234,9 @@ import Data.Int (Int64)
 
 
 --LIQUID
-import Prelude (Integer(..), Num(..), Real(..), Integral(..))
-import Data.Word --(Word16(..))
 import Data.Text.Axioms
-import Data.Text.Array (Array(..), MArray(..))
-import qualified Data.Text.Internal
-import qualified Data.Text.Fusion.Internal
-import qualified Data.Text.Fusion.Size
-import qualified Data.Text.Search
 import Language.Haskell.Liquid.Prelude
-import GHC.ST
+import GHC.ST (ST)
 
 
 -- $strict
@@ -465,22 +458,18 @@ append :: Text -> Text -> Text
 append a@(Text arr1 off1 len1) b@(Text arr2 off2 len2)
     | len1 == 0 = b
     | len2 == 0 = a
-    | len > 0   = let x = do arr <- A.new len
-                             A.copyI arr 0 arr1 off1 len1
-                             A.copyI arr len1 arr2 off2 len
-                             return arr
-                      arr = A.run x
-                      t = Text (liquidAssume (Data.Text.Array.aLen arr == len) arr) 0 len
+    | len > 0   = let arr = A.run x
+                      t = Text (liquidAssume (A.aLen arr == len) arr) 0 len
                   --LIQUID ASSUME FIXME: this axiom is fragile, would prefer to reason about `A.run x`
                   in liquidAssume (axiom_numchars_append a b t) t
     | otherwise = overflowError "append"
     where
       len = len1+len2
-      --LIQUID LAZY x = do
-      --LIQUID LAZY   arr <- A.new len
-      --LIQUID LAZY   A.copyI arr 0 arr1 off1 len1
-      --LIQUID LAZY   A.copyI arr len1 arr2 off2 len
-      --LIQUID LAZY   return arr
+      x = do
+        arr <- A.new len
+        A.copyI arr 0 arr1 off1 len1
+        A.copyI arr len1 arr2 off2 len
+        return arr
 {-# INLINE append #-}
 
 {-# RULES
@@ -503,9 +492,10 @@ head t = S.head (stream t)
 uncons :: Text -> Maybe (Char, Text)
 uncons t@(Text arr off len)
     | len <= 0  = Nothing
-    | otherwise = let Iter c d = iter t 0
+    | otherwise = let Iter c d = i
                   in Just (c, textP arr (off+d) (len-d))
---LIQUID LAZY    where Iter c d = iter t 0
+    {-@ LAZYVAR i @-}
+    where i = iter t 0
 {-# INLINE [1] uncons #-}
 
 -- | Lifted from Control.Arrow and specialized.
@@ -519,10 +509,10 @@ last :: Text -> Char
 last (Text arr off len)
     | len <= 0                 = liquidError "last"
     | n < 0xDC00 || n > 0xDFFF = unsafeChr n
-    | otherwise                = let n0 = A.unsafeIndex arr (off+len-2)
-                                 in U16.chr2 n0 n
+    | otherwise                = U16.chr2 n0 n
     where n  = A.unsafeIndexB arr off len (off+len-1)
-          --LIQUID LAZY n0 = A.unsafeIndex arr (off+len-2)
+          {-@ LAZYVAR n0 @-}
+          n0 = A.unsafeIndex arr (off+len-2)
 {-# INLINE [1] last #-}
 
 {-# RULES
@@ -610,7 +600,7 @@ length t = S.length (stream t)
 -- of 'length', but can short circuit if the count of characters is
 -- greater than the number, and hence be more efficient.
 {-@ compareLength :: t:Text -> l:Int
-                  -> {v:Ordering | ((v = GHC.Types.EQ) <=> ((tlength t) = l))}
+                  -> {v:Ordering | ((v = EQ) <=> ((tlength t) = l))}
   @-}
 compareLength :: Text -> Int -> Ordering
 compareLength t n = S.compareLengthI (stream t) n
@@ -910,13 +900,13 @@ concat ts = case ts' of
     --LIQUID INLINE         let !j = i + l in A.copyI arr i a o j >> return j
     --LIQUID INLINE   foldM step 0 ts' >> return arr
 
-{-@ concat_step :: ma:{v:MArray s | (malen v) > 0}
+{-@ concat_step :: ma:{v:A.MArray s | (malen v) > 0}
                 -> ts:{v:[{v0:Text | (BtwnE (tlen v0) 0 (malen ma))}] |
                        (BtwnI (sum_tlens v) 0 (malen ma))}
                 -> i:{v:Int | (v = ((malen ma) - (sum_tlens ts)))}
                 -> ST s Int
   @-}
-concat_step :: A.MArray s -> [Text] -> Int -> GHC.ST.ST s Int
+concat_step :: A.MArray s -> [Text] -> Int -> ST s Int
 concat_step arr []                i = return i
 concat_step arr ((Text a o l):ts) i =
     let !j = i + l in A.copyI arr i a o j >> concat_step arr ts j
@@ -1108,15 +1098,15 @@ axiom_mul :: Int -> Int -> Int -> Int -> Int -> Bool
 axiom_mul = P.undefined
 
 --LIQUID FIXME: figure out which quals from this are needed for replicate
-{-@ replicate_quals :: d:Nat -> n:Nat -> ma:MArray s
+{-@ replicate_quals :: d:Nat -> n:Nat -> ma:A.MArray s
                     -> t:{v:Text | (BtwnE (tlen v) 0 (malen ma))}
                     -> len0:{v:Nat | ((v = (malen ma)) && (v = (mul (tlen t) n)))}
                     -> d0:{v:Nat | (BtwnI v 0 (malen ma))}
                     -> {v:Nat | d0 = (mul (tlen t) v)}
-                    -> ST s (MArray s)
+                    -> ST s (A.MArray s)
   @-}
 replicate_quals :: Int -> Int -> A.MArray s -> Text -> Int -> Int -> Int
-               -> GHC.ST.ST s (A.MArray s)
+               -> ST s (A.MArray s)
 replicate_quals = P.undefined
 
 {-# RULES
@@ -1673,7 +1663,7 @@ index t n = S.index (stream t) n
 -- | /O(n)/ The 'findIndex' function takes a predicate and a 'Text'
 -- and returns the index of the first element in the 'Text' satisfying
 -- the predicate. Subject to fusion.
-{-@ findIndex :: (Char -> Bool) -> t:Text -> Maybe {v0:Nat | v < (tlength t)} @-}
+{-@ findIndex :: (Char -> Bool) -> t:Text -> Maybe {v:Nat | v < (tlength t)} @-}
 findIndex :: (Char -> Bool) -> Text -> Maybe Int
 findIndex p t = S.findIndex p (stream t)
 {-# INLINE findIndex #-}

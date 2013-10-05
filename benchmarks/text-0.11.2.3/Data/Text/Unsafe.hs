@@ -35,9 +35,7 @@ import Data.Text.UnsafeChar (unsafeChr)
 import qualified Data.Text.Array as A
 
 --LIQUID
-import Data.Text.Array (Array(..), MArray(..))
 import Data.Text.Axioms
-import Data.Word
 import Language.Haskell.Liquid.Prelude
 
 -- | /O(1)/ A variant of 'head' for non-empty 'Text'. 'unsafeHead'
@@ -47,10 +45,10 @@ import Language.Haskell.Liquid.Prelude
 unsafeHead :: Text -> Char
 unsafeHead (Text arr off _len)
     | m < 0xD800 || m > 0xDBFF = unsafeChr m
-    | otherwise                = let n = A.unsafeIndex arr (off+1)
-                                 in chr2 m n
+    | otherwise                = chr2 m n
     where m = A.unsafeIndexF arr off _len off
-          --LIQUID n = A.unsafeIndex arr (off+1)
+          {-@ LAZYVAR n @-}
+          n = A.unsafeIndex arr (off+1)
 {-# INLINE unsafeHead #-}
 
 -- | /O(1)/ A variant of 'tail' for non-empty 'Text'. 'unsafeHead'
@@ -70,12 +68,12 @@ unsafeTail t@(Text arr off len) =
 
 data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
 
-{-@ measure iter_d :: Data.Text.Unsafe.Iter -> Int
-    iter_d (Data.Text.Unsafe.Iter c d) = d
+{-@ measure iter_d :: Iter -> Int
+    iter_d (Iter c d) = d
   @-}
 
-{-@ qualif IterD(v:Int, i:Data.Text.Unsafe.Iter) : v = (iter_d i) @-}
-{-@ qualif ReverseIter(v:Int, i:Int, t:Data.Text.Internal.Text)
+{-@ qualif IterD(v:Int, i:Iter) : v = (iter_d i) @-}
+{-@ qualif ReverseIter(v:Int, i:Int, t:Text)
         : ((((i+1)+v) >= 0) && (((i+1)+v) < (i+1))
            && ((numchars (tarr t) (toff t) ((i+1)+v))
                = ((numchars (tarr t) (toff t) (i+1)) - 1))
@@ -86,9 +84,9 @@ data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
 -- | /O(1)/ Iterate (unsafely) one step forwards through a UTF-16
 -- array, returning the current character and the delta to add to give
 -- the next offset to iterate at.
-{-@ iter :: t:Data.Text.Internal.Text
+{-@ iter :: t:Text
          -> i:{v:Nat | v < (tlen t)}
-         -> {v:Data.Text.Unsafe.Iter | ((BtwnEI ((iter_d v)+i) i (tlen t))
+         -> {v:Iter | ((BtwnEI ((iter_d v)+i) i (tlen t))
                 && ((numchars (tarr t) (toff t) (i+(iter_d v)))
                     = (1 + (numchars (tarr t) (toff t) i)))
                 && ((numchars (tarr t) (toff t) (i+(iter_d v)))
@@ -97,17 +95,18 @@ data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
 iter :: Text -> Int -> Iter
 iter (Text arr off _len) i
     | m < 0xD800 || m > 0xDBFF = Iter (unsafeChr m) 1
-    | otherwise                = let n = A.unsafeIndex arr (j+1)
-                                 in Iter (chr2 m n) 2
+    | otherwise                = Iter (chr2 m n) 2
   where m = A.unsafeIndexF arr off _len j
-        --LIQUID n = A.unsafeIndex arr k
+        {-@ LAZYVAR n @-}
+        n = A.unsafeIndex arr k
         j = off + i
-        --LIQUID k = j + 1
+        {-@ LAZYVAR k @-}
+        k = j + 1
 {-# INLINE iter #-}
 
 -- | /O(1)/ Iterate one step through a UTF-16 array, returning the
 -- delta to add to give the next offset to iterate at.
-{-@ iter_ :: t:Data.Text.Internal.Text
+{-@ iter_ :: t:Text
           -> i:{v:Nat | v < (tlen t)}
           -> {v:Int | (((BtwnEI (v+i) i (tlen t)))
                        && ((numchars (tarr t) (toff t) (i+v))
@@ -125,7 +124,7 @@ iter_ (Text arr off _len) i | m < 0xD800 || m > 0xDBFF = 1
 -- | /O(1)/ Iterate one step backwards through a UTF-16 array,
 -- returning the current character and the delta to add (i.e. a
 -- negative number) to give the next offset to iterate at.
-{-@ reverseIter :: t:Data.Text.Internal.Text
+{-@ reverseIter :: t:Text
                 -> i:{v:Int | (Btwn v 0 (tlen t))}
                 -> (Char,{v:Int | ((Btwn ((i+1)+v) 0 (i+1))
                           && ((numchars (tarr t) (toff t) ((i+1)+v))
@@ -136,15 +135,14 @@ iter_ (Text arr off _len) i | m < 0xD800 || m > 0xDBFF = 1
 --LIQUID reverseIter (Text arr off _len) i
 reverseIter :: Text -> Int -> (Char,Int)
 reverseIter (Text arr off _len) i
-    | m < 0xDC00 || m > 0xDFFF = let d = (neg 1)
-                                 in (unsafeChr m, d)
-    | otherwise                = let d = (neg 2)
-                                     n = A.unsafeIndex arr (j-1)
-                                 in (chr2 n m,    d)
+    | m < 0xDC00 || m > 0xDFFF = (unsafeChr m, neg 1)
+    | otherwise                = (chr2 n m,    neg 2)
   where m = A.unsafeIndexB arr off _len j
-        --LIQUID n = A.unsafeIndex arr k
+        {-@ LAZYVAR n @-}
+        n = A.unsafeIndex arr k
         j = off + i
-        --LIQUID k = j - 1
+        {-@ LAZYVAR k @-}
+        k = j - 1
 {-# INLINE reverseIter #-}
 
 {-@ neg :: n:Int -> {v:Int | v = (0-n)} @-}

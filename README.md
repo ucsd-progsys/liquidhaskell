@@ -178,6 +178,26 @@ use the `no-prune-unsorted` flag.
  
     liquid --no-prune-unsorted test.hs
 
+Totality Check
+--------------
+
+LiquidHaskell can prove the absence of pattern match failures.
+Use the `totality` flag to prove that all defined functions are total.
+   
+    liquid --totality test.hs
+
+For example, the definition
+     
+     fromJust :: Maybe a -> a
+     fromJust (Just a) = a
+
+is not total and it will create an error message.
+If we exclude `Nothing` from its domain, for example using the following specification
+
+     {-@ fromJust :: {v:Maybe a | (isJust v)} -> a @-}
+
+`fromJust` will be safe.
+
 Termination Check
 -----------------
 
@@ -224,6 +244,23 @@ scope of LiquidHaskell) you can write
 - `deriving instances` often create such functions so lookout!
 
 We intend to address these ASAP.
+
+Lazy Variables
+--------------
+
+A variable cab be specified as `LAZYVAR`
+
+    {-@ LAZYVAR z @-}
+
+With this annotation the definition of `z` will be checked at the points where
+it is used. For example, with the above annotation the following code is SAFE:
+
+    foo = if x > 0 then z else x
+      where z = 42 `safeDiv` x
+            x = choose 0
+
+By default, all the variables starting with `fail` are marked as LAZY, to defer
+failing checks at the point where these variables are used.
 
 Specifying Different SMT Solvers
 --------------------------------
@@ -488,6 +525,56 @@ levels (or rather, to *reify* the connections between the two levels.) See
 
 The easiest way to use such self-invariants or refinements, is to just define a type 
 alias (e.g. `IList` or `IMaybe` and use them in the specification and verification.)
+
+Formal Grammar of Refinement Predicates
+=======================================
+
+(C)onstants
+-----------
+
+    c := 0, 1, 2, ...
+
+(V)ariables
+-----------
+
+    v := x, y, z, ...
+
+
+(E)xpressions
+-------------
+
+    e := v                      -- variable
+       | c                      -- constant
+       | (e + e)                -- addition
+       | (e - e)                -- subtraction
+       | (c * e)                -- multiplication by constant
+       | (v e1 e2 ... en)       -- uninterpreted function application
+       | (if p then e else e)   -- if-then-else
+
+(R)elations
+-----------
+
+    r := ==               -- equality
+       | /=               -- disequality
+       | >=               -- greater than or equal
+       | <=               -- less than or equal
+       | >                -- greater than
+       | <                -- less than
+
+
+(P)redicates
+------------
+
+    p := (e r e)          -- binary relation
+       | (v e1 e2 ... en) -- predicate (or alias) application
+       | (p && p)         -- and
+       | (p || p)         -- or
+       | (p => p)         -- implies
+       | (not p)          -- negation
+       | true
+       | false
+
+
 
 
 Specifying Qualifiers

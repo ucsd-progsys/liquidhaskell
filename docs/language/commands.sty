@@ -1,0 +1,41 @@
+\usepackage[usenames,dvipsnames]{xcolor}
+
+%% \def\mynote#1{{\sf $\clubsuit$ #1$\clubsuit$}}
+%% \def\RJ#1{\textcolor{Red}{\sf RJ:$\clubsuit$ #1$\clubsuit$}}
+%% \def\NV#1{\textcolor{Plum}{\sf NV:$\clubsuit$ #1$\clubsuit$}}
+\def\NV#1{\textcolor{Green}{\sf NV:$\clubsuit$ #1$\clubsuit$}}
+%% \def\ES#1{\textcolor{Blue}{\sf ES:$\clubsuit$ #1$\clubsuit$}}
+
+
+\def\myex#1{\smallskip\noindent{\emphbf{Example: {#1}.}}}
+\newcommand\spara[1]{\smallskip\noindent\textbf{\emph{#1}}\xspace}
+\newcommand\mypara[1]{\spara{#1}}
+%\def\mypara#1{\smallskip\noindent\textbf{#1.}\ }
+
+
+
+\newcommand\etc{\textit{etc.}\xspace}
+\newcommand\eg{\textit{e.g.}\xspace}
+\newcommand\ie{\textit{i.e.}\xspace}
+\newcommand\ala{\textit{a la}\xspace}
+\newcommand\etal{\textit{et al.}\xspace}
+
+\def\emphbf#1{\textbf{\emph{#1}}}
+\def\spmid{\ \mid \ }
+
+\def\colon{\ensuremath{\text{:}}}
+
+\newcommand{\relDescription}[1]{\ensuremath{\textrm{\textbf{#1}}}}
+\newcommand{\judgementHead}[2]{\ensuremath{\relDescription{#1}\hfill\fbox{#2}}}
+\newcommand{\judgementHeadNameOnly}[1]{\ensuremath{\relDescription{#1}\hfill}}
+
+\newenvironment{sitemize}{\begin{list}
+   {$\bullet$}
+   {\setlength{\topsep}{0pt}
+    \setlength{\itemsep}{0pt}
+    \setlength{\leftmargin}{15pt}
+    }
+  }
+  {\end{list}}
+
+

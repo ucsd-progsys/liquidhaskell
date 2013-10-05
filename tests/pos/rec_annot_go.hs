@@ -4,6 +4,8 @@ module Fixme where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
 
+{-@ invariant {v:Int | v >= 0} @-}
+
 {-@ Decrease go 5 @-}
 loop :: Int -> Int -> a -> (Int -> a -> a) -> a 
 loop lo hi base f = go (hi-lo) base lo

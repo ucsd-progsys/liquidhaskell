@@ -5,6 +5,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE BangPatterns              #-}
+{-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints, and 
@@ -44,7 +45,7 @@ import Control.Applicative      ((<$>))
 import Control.Exception.Base
 
 import Data.Monoid              (mconcat)
-import Data.Maybe               (fromMaybe, catMaybes)
+import Data.Maybe               (fromJust, isJust, fromMaybe, catMaybes)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
@@ -100,7 +101,8 @@ initEnv info penv
        defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- tyConInfo <$> get 
        let f0    = grty info                        -- asserted refinements     (for defined vars)
-       f0'      <- grtyTop info                     -- default TOP reftype      (for exported vars without spec) 
+       f0''     <- grtyTop info                     -- default TOP reftype      (for exported vars without spec) 
+       let f0'   = if (notruetypes $ config $ spec info) then [] else f0'' 
        let f1    = defaults                         -- default TOP reftype      (for all vars) 
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures) 
@@ -133,6 +135,7 @@ measEnv sp penv xts cbs lts
         , tgEnv = Tg.makeTagEnv cbs
         , tgKey = Nothing
         , trec  = Nothing
+        , lcb   = M.empty
         } 
     where tce = tcEmbeds sp
 
@@ -179,7 +182,8 @@ data CGEnv
         , emb    :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
         , tgEnv :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
         , tgKey :: !(Maybe Tg.TagKey)  -- ^ Current top-level binder
-        , trec  :: !(Maybe (F.Symbol, SpecType)) -- ^ Type of recursive function with decreasing constraints
+        , trec  :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
+        , lcb   :: !(M.HashMap F.Symbol CoreExpr) -- ^ Let binding that have not been checked
         } -- deriving (Data, Typeable)
 
 instance PPrint CGEnv where
@@ -202,9 +206,10 @@ setLoc :: CGEnv -> SrcSpan -> CGEnv
 withRecs :: CGEnv -> [Var] -> CGEnv 
 withRecs γ xs  = γ { recs = foldl' (flip S.insert) (recs γ) xs }
 
-withTRec γ (x, rTy) = γ' {trec = Just (x', rTy)}
-  where x' = varSymbol x
-        γ' = γ `withRecs` [x]
+withTRec γ xts = γ' {trec = Just $ M.fromList xts' `M.union` trec'}
+  where γ'    = γ `withRecs` (fst <$> xts)
+        trec' = fromMaybe M.empty $ trec γ
+        xts'  = mapFst varSymbol <$> xts
 
 setBind :: CGEnv -> Tg.TagKey -> CGEnv  
 setBind γ k 
@@ -457,6 +462,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) 
                      , specQuals  :: ![F.Qualifier]
                      , specDecr   :: ![(Var, [Int])]
+                     , specLVars  :: !(S.HashSet Var)
                      , specLazy   :: !(S.HashSet Var)
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
                      , kuts       :: !(F.Kuts)
@@ -501,6 +507,7 @@ initCGI cfg info = CGInfo {
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
   , specDecr   = decr spc
+  , specLVars  = lvars spc
   , specLazy   = lazy spc
   , tcheck     = not $ notermination cfg
   , pruneRefs  = not $ noPrune cfg
@@ -551,6 +558,10 @@ rTypeSortedReft' pflag γ
   = f 
   where f = rTypeSortedReft (emb γ)
 
+(+++=) :: (CGEnv, String) -> (F.Symbol, CoreExpr, SpecType) -> CG CGEnv
+
+(γ, msg) +++= (x, e, t) = (γ{lcb = M.insert x e (lcb γ)}, "+++=") += (x, t)
+
 (+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
 (γ, msg) += (x, r)
   | x == F.dummySymbol
@@ -564,7 +575,13 @@ rTypeSortedReft' pflag γ
                               ++ "\n New: " ++ showpp r
                               ++ "\n Old: " ++ showpp (x `lookupREnv` (renv γ))
                         
-γ -= x =  γ {renv = deleteREnv x (renv γ)}
+γ -= x =  γ {renv = deleteREnv x (renv γ), lcb  = M.delete x (lcb γ)}
+
+(??=) :: CGEnv -> F.Symbol -> CG SpecType
+γ ??= x 
+  = case M.lookup x (lcb γ) of
+    Just e  -> consE (γ-=x) e
+    Nothing -> return $ γ ?= x 
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
@@ -716,48 +733,58 @@ instance TCInfo CG where
 addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------------
------------------------ TEMINATION TYPE ---------------------------------------
+----------------------- TERMINATION TYPE ---------------------------------------
 -------------------------------------------------------------------------------
 
-recType γ xet@(x, _, t) 
-  = do hint          <- checkHint' . L.lookup x . specDecr <$> get
-       maybeRecType xet dindex hint
+makeDecrIndex :: (Var, SpecType)-> CG [Int]
+makeDecrIndex (x, t) 
+  = do hint <- checkHint' . L.lookup x . specDecr <$> get
+       case dindex of
+        Nothing -> addWarning msg >> return []
+        Just i  -> return $ fromMaybe [i] hint
   where ts            = snd3 $ bkArrow $ thd3 $ bkUniv t
         checkHint'    = checkHint x ts isDecreasing
         dindex        = L.findIndex isDecreasing ts
-       
-maybeRecType (x, _, t) Nothing _
-  = addWarning msg >> return t
-  where msg = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x)
+        msg = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x)
 
-maybeRecType (x, e, t) (Just i) hint
-  = do dxt    <- mapM (safeLogIndex msg  xts) index
-       v      <- mapM (safeLogIndex msg' vs)  index
-       return $ makeRecType t v dxt index       
-  where index = fromMaybe [i] hint
-        loc   = showPpr (getSrcSpan x)
-        xts'  = bkArrow $ thd3 $ bkUniv t
-        xts   = zip (fst3 xts') (snd3 xts')
-        vs    = collectArguments (length xts) e
+recType ((_, []), (_, [], t))
+  = t
+
+recType ((vs, indexc), (x, index, t))
+  = makeRecType t v dxt index       
+  where v    = (vs !!)  <$> indexc
+        dxt  = (xts !!) <$> index
+        loc  = showPpr (getSrcSpan x)
+        xts' = bkArrow $ thd3 $ bkUniv t
+        xts  = zip (fst3 xts') (snd3 xts')
+        msg' = printf "%s: No decreasing argument on %s with %s" 
+        msg  = printf "%s: No decreasing parameter" loc
+                  loc (showPpr x) (showPpr vs)
+
+checkIndex (x, vs, t, index)
+  = do mapM_ (safeLogIndex msg' vs)  index
+       mapM  (safeLogIndex msg  ts) index
+  where loc   = showPpr (getSrcSpan x)
+        ts  = snd3 $ bkArrow $ thd3 $ bkUniv t
         msg'  = printf "%s: No decreasing argument on %s with %s" 
         msg   = printf "%s: No decreasing parameter" loc
                   loc (showPpr x) (showPpr vs)
 
-makeRecType t [Nothing] [Nothing] _ 
-  = t
+-- MOVE THE SAME LENS CHECKS BEFORE - TO DO IT ONCE FOR ALL FUNCTIOS
+--  makeRecType t vs dxs is | not sameLens
+--    = errorstar "Constraint.makeRecType: invalid arguments"
+--    where sameLens  = (length vs) == (length is) && (length dxs) == (length is)
+--  
 
 makeRecType t vs' dxs' is
   = mkArrow αs πs xts' tbd
   where xts'          = replaceN (last is) (makeDecrType vdxs) xts
         vdxs          = zip vs dxs
         xts           = zip xs ts
-        vs            = catMaybes vs'
-        dxs           = catMaybes dxs'
+        vs            = vs'
+        dxs           = dxs'
         (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
-
-makeRecType t _ _ _ 
-  = errorstar "Constraint.makeRecType"
 
 safeLogIndex err ls n
   | n >= length ls
@@ -808,23 +835,36 @@ tcond cb strict
 consCB :: Bool -> CGEnv -> CoreBind -> CG CGEnv 
 -------------------------------------------------------------------
 
-consCB _ γ (Rec []) 
-  = return γ 
+consCB tflag γ (Rec xes) | tflag
+  = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+       ts       <- mapM refreshArgs $ (fromJust . thd3 <$> xets)
+       let vs    = zipWith collectArgs ts es
+       is       <- checkSameLens <$> mapM makeDecrIndex (zip xs ts)
+       let xeets = (\vis -> [(vis, x) | x <- zip3 xs is ts]) <$> (zip vs is)
+       checkEqTypes . L.transpose <$> mapM checkIndex (zip4 xs vs ts is)
+       let rts   = (recType <$>) <$> xeets
+       let xts   = zip xs (Just <$> ts)
+       γ'       <- foldM extender γ xts
+       let γs    = [γ' `withTRec` (zip xs rts') | rts' <- rts]
+       let xets' = zip3 xs es (Just <$> ts)
+       mapM_ (uncurry $ consBind True) (zip γs xets')
+       return γ'
+  where dmapM f  = sequence . (mapM f <$>)
+        (xs, es) = unzip xes
 
-consCB tflag γ (Rec [(x,e)]) | tflag
-  = do (x, e, Just t') <- liftM (x, e,) (varTemplate γ (x, Just e))
-       t               <- refreshArgs t'
-       rTy             <- recType γ (x, e, t)
-       γ'              <- extender (γ `withTRec` (x, rTy)) (x, Just t)
-       consBind True γ' (x, e, Just t)
-       return γ'{trec=trec γ}
-    where x' = varSymbol x
 
-consCB tflag γ xes@(Rec xs) | tflag
-  = addWarning wmsg >> consCB False γ xes
-  where wmsg = "Termination Analysis not supported for mutual recursion"
+        collectArgs   = collectArguments . length . fst3 . bkArrow . thd3 . bkUniv
 
-              ++ "in definitions of " ++ showPpr (fst <$>xs)
+        checkEqTypes  = map (checkAll err1 toRSort . catMaybes)
+        checkSameLens = checkAll err2 length
+
+        err1 = printf "%s: The decreasing parameters should be of same type" loc
+        err2 = printf "%s: All Recursive functions should have the same number of decreasing parameters" loc
+        loc = showPpr $ getSrcSpan (head xs)
+
+        checkAll _   _ []     = []
+        checkAll err f (x:xs) | all (==(f x)) (f <$> xs) = (x:xs)
+                              | otherwise               = errorstar err
 
 -- TODO : no termination check:
 -- check that the result type is trivial!
@@ -840,6 +880,7 @@ consCB _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
        to' <- consBind False γ (x, e, to)
        extender γ (x, to')
+
 
 consBind isRec γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
@@ -886,6 +927,21 @@ unifyVar γ x rt = unify (getPrType γ (varSymbol x)) rt
 ----------------------- Type Checking -----------------------------
 cconsE :: CGEnv -> Expr Var -> SpecType -> CG () 
 -------------------------------------------------------------------
+cconsLazyLet γ (Let (NonRec x ex) e) t
+  = do tx <- {-(`strengthen` xr) <$>-} trueTy (varType x)
+       γ' <- (γ, "Let NonRec") +++= (x', ex, tx)
+       cconsE γ' e t
+  where xr = uTop $ F.symbolReft x'
+        x' = varSymbol x
+
+cconsE γ e@(Let b@(NonRec x _) ee) t
+  = do sp <- specLVars <$> get
+       if (x `S.member` sp) || isDefLazyVar x'
+        then cconsLazyLet γ e t 
+        else do γ'  <- consCBLet γ b
+                cconsE γ' ee t
+  where isDefLazyVar y = "fail" `L.isPrefixOf` y
+        x'             = showPpr x
 
 cconsE γ (Let b e) t    
   = do γ'  <- consCBLet γ b
@@ -933,9 +989,9 @@ consE :: CGEnv -> Expr Var -> CG SpecType
 -------------------------------------------------------------------
 
 consE γ (Var x)   
-  = do addLocA (Just x) (loc γ) (varAnn γ x t)
+  = do t <- varRefType γ x
+       addLocA (Just x) (loc γ) (varAnn γ x t)
        return t
-    where t = varRefType γ x
 
 consE γ (Lit c) 
   = return $ uRType $ literalFRefType (emb γ) c
@@ -1016,21 +1072,21 @@ cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -
 -------------------------------------------------------------------------------------
 
 cconsCase γ x t _ (DataAlt c, ys, ce) 
- = do let cbs          = safeZip "cconsCase" (x':ys') (xt0:yts)
+ = do xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
+      tdc              <- γ ??= (dataConSymbol c)
+      let (rtd, yts, _) = unfoldR c tdc (shiftVV xt0 x') ys
+      let r1            = dataConReft   c   ys' 
+      let r2            = dataConMsReft rtd ys'
+      let xt            = xt0 `strengthen` (uTop (r1 `F.meet` r2))
+      let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
       cγ'              <- addBinders γ x' cbs
       cγ               <- addBinders cγ' x' [(x', xt)]
       cconsE cγ ce t
  where (x':ys')        = varSymbol <$> (x:ys)
-       xt0             = checkTyCon ("checkTycon cconsCase", x) $ γ ?= x'
-       tdc             = γ ?= (dataConSymbol c)
-       (rtd, yts, _  ) = unfoldR c tdc (shiftVV xt0 x') ys
-       r1              = dataConReft   c   ys' 
-       r2              = dataConMsReft rtd ys'
-       xt              = xt0 `strengthen` (uTop (r1 `F.meet` r2))
 
 cconsCase γ x t acs (a, _, ce) 
   = do let x'  = varSymbol x
-       let xt' = (γ ?= x') `strengthen` uTop (altReft γ acs a) 
+       xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x')
        cγ     <- addBinders γ x' [(x', xt')]
        cconsE cγ ce t
 
@@ -1117,12 +1173,14 @@ argExpr γ (Tick _ e)  = argExpr γ e
 argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
 
 
-varRefType γ x
-  | Just (y, ty) <- trec γ 
-  = if x' == y then ty `strengthen` xr else t
+varRefType γ x = liftM (varRefType' γ x) (γ ??= varSymbol x)
+
+varRefType' γ x t'
+  | Just tys <- trec γ 
+  = maybe t (`strengthen` xr) (x' `M.lookup` tys)
   | otherwise
   = t
-  where t  = (γ ?= (varSymbol x)) `strengthen` xr
+  where t  = t' `strengthen` xr
         xr = uTop $ F.symbolReft $ varSymbol x
         x' = varSymbol x
 
@@ -1134,7 +1192,7 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 -----------------------------------------------------------------------
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 _ x9 x10 _) 
+  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 _ x9 x10 _ _) 
     = x1 `seq` rnf x2 `seq` seq x3 `seq` x4 `seq` rnf x5 `seq` 
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 

@@ -80,11 +80,6 @@ assertS s False = error ("assertion failed at "++s)
 -- LIQUID
 import GHC.IO.Buffer
 import Language.Haskell.Liquid.Prelude -- (isNullPtr, liquidAssert, intCSize) 
-import qualified Data.ByteString.Lazy.Internal 
-import qualified Data.ByteString.Fusion
-import qualified Data.ByteString.Internal
-import qualified Data.ByteString.Unsafe
-import qualified Foreign.C.Types
 
 -- -----------------------------------------------------------------------------
 --
@@ -312,28 +307,30 @@ split w (PS x s l) = inlinePerformIO $ withForeignPtr x $ \p -> do
 splitWith :: (Word8 -> Bool) -> ByteString -> [ByteString]
 
 splitWith _pred (PS _  _   0) = []
-splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp
+splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp 1
   where pred# c# = pred_ (W8# c#)
         -- LIQUID MUTUAL-RECURSION-TERMINATION
-        STRICT4(splitWith0)
-        splitWith0 pred' off' len' fp' = withPtr fp $ \p ->
-            splitLoop pred' p 0 off' len' fp'
+        {-@ Decrease splitWith0 3 5 @-}
+        --LIQUID STRICT5(splitWith0)
+        splitWith0 pred' off' len' fp' (x::Int) = withPtr fp $ \p ->
+            splitLoop pred' p 0 off' len' fp' len' 0
 
+        {-@ Decrease splitLoop 7 8 @-}
         splitLoop :: (Word# -> Bool)
                   -> Ptr Word8
                   -> Int -> Int -> Int
-                  -> ForeignPtr Word8
+                  -> ForeignPtr Word8 -> Int -> Int
                   -> IO [ByteString]
 
-        splitLoop pred' p idx' off' len' fp'
+        splitLoop pred' p idx' off' len' fp' (d::Int) (x::Int)
             | pred' `seq` p `seq` idx' `seq` off' `seq` len' `seq` fp' `seq` False = undefined
             | idx' >= len'  = return [PS fp' off' idx']
             | otherwise = do
                 w <- peekElemOff p (off'+idx')
                 if pred' (case w of W8# w# -> w#)
                    then return (PS fp' off' idx' :
-                              splitWith0 pred' (off'+idx'+1) (len'-idx'-1) fp')
-                   else splitLoop pred' p (idx'+1) off' len' fp'
+                              splitWith0 pred' (off'+idx'+1) (len'-idx'-1) fp' 1)
+                   else splitLoop pred' p (idx'+1) off' len' fp' (d-1) 0
 {-# INLINE splitWith #-}
 
 
@@ -454,8 +451,8 @@ findIndex k (PS x s l) = inlinePerformIO $ withForeignPtr x $ \f -> go l (f `plu
                                 else go (d-1) (ptr `plusPtr` 1) (n+1)
 
 -- also findSubstrings
-{-@ qualif FindIndices(v:Data.ByteString.Internal.ByteString,
-                       p:Data.ByteString.Internal.ByteString,
+{-@ qualif FindIndices(v:ByteString,
+                       p:ByteString,
                        n:Int):
         (bLength v) = (bLength p) - n  @-}
 
@@ -479,10 +476,10 @@ notElem :: Word8 -> ByteString -> Bool
 notElem c ps = not (elem c ps)
 {-# INLINE notElem #-}
 
-{-@ qualif FilterDecr(v:GHC.Ptr.Ptr a, f:GHC.Ptr.Ptr a, d:Int):
+{-@ qualif FilterDecr(v:Ptr a, f:Ptr a, d:Int):
         (plen v) >= (plen f) - d @-}
 
-{-@ qualif FilterLoop(v:GHC.Ptr.Ptr a, f:GHC.Ptr.Ptr a, t:GHC.Ptr.Ptr a):
+{-@ qualif FilterLoop(v:Ptr a, f:Ptr a, t:Ptr a):
         (plen t) >= (plen f) - (plen v) @-}
 {-@ filter :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
 filter :: (Word8 -> Bool) -> ByteString -> ByteString
@@ -776,13 +773,11 @@ putStrLn = hPutStrLn stdout
 -- is far more efficient than reading the characters into a 'String'
 -- and then using 'pack'.
 
-{-@ assume GHC.IO.Handle.Text.hGetBuf :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
 {-@ hGet :: Handle -> n:Nat -> IO {v:ByteString | (bLength v) <= n} @-}
 hGet :: Handle -> Int -> IO ByteString
 hGet _ 0 = return empty
 hGet h i = createAndTrim i $ \p -> hGetBuf h p i
 
-{-@ assume GHC.IO.Handle.Text.hGetBufNonBlocking :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
 {-@ hGetNonBlocking :: Handle -> n:Nat -> IO {v:ByteString | (bLength v) <= n} @-}
 
 hGetNonBlocking :: Handle -> Int -> IO ByteString
@@ -794,7 +789,6 @@ hGetNonBlocking = hGet
 #endif
 
 {-@ assume Foreign.Marshal.Alloc.reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
-{- assume GHC.IO.Handle.Text.hGetBuf :: Handle -> Ptr a -> n:Nat -> (IO {v:Nat | v <= n}) @-}
 {-@ Strict Data.ByteStringHelper.hGetContents @-}
 hGetContents :: Handle -> IO ByteString
 hGetContents h = do
@@ -837,7 +831,6 @@ interact transformer = putStr . transformer =<< getContents
 -- 'pack'.  It also may be more efficient than opening the file and
 -- reading it using hGet. Files are read using 'binary mode' on Windows,
 -- for 'text mode' use the Char8 version of this function.
-{-@ assume GHC.IO.Handle.hFileSize :: Handle -> (IO {v:Integer | v >= 0}) @-}
 readFile :: FilePath -> IO ByteString
 readFile f = bracket (openBinaryFile f ReadMode) hClose
     (\h -> hFileSize h >>= hGet h . fromIntegral)

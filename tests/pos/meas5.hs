@@ -40,4 +40,4 @@ prop4 = liquidAssertB ((n1 + n2) == n3)
         n3 = mylen $ myapp zs zs' 
 
 prop5 = liquidAssertB (length zs'' == length zs) 
-        where zs'' = zipWith (+) zs (myreverse zs)
+        where zs'' = safeZipWith (+) zs (myreverse zs)

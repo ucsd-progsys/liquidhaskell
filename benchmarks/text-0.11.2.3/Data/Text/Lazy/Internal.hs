@@ -1,4 +1,4 @@
-{--! run liquid with maxparams=3 -}
+{-@ LIQUID "--maxparams=3" @-}
 {-# LANGUAGE BangPatterns, DeriveDataTypeable #-}
 -- |
 -- Module      : Data.Text.Lazy.Internal
@@ -46,14 +46,6 @@ import qualified Data.Text.Internal as T
 
 
 --LIQUID
-import qualified Data.Text
-import Data.Text.Array (Array(..), MArray(..))
-import qualified Data.Text.Fusion.Internal
-import qualified Data.Text.Fusion.Size
-import qualified Data.Text.Internal
-import qualified Data.Text.Private
-import qualified Data.Text.Search
-import qualified Data.Text.Unsafe
 import Language.Haskell.Liquid.Prelude
 
 
@@ -61,49 +53,42 @@ data Text = Empty
           | Chunk {-# UNPACK #-} !T.Text Text
 --LIQUID            deriving (Typeable)
 
-{-@ data Data.Text.Lazy.Internal.Text [ltlen]
-      = Data.Text.Lazy.Internal.Empty
-      | Data.Text.Lazy.Internal.Chunk (t :: TextNE)
-                                      (cs :: Data.Text.Lazy.Internal.Text)
+{-@ data Text [ltlen] = Empty
+                      | Chunk (t :: TextNE) (cs :: Text)
   @-}
 
-{-@ measure ltlen :: Data.Text.Lazy.Internal.Text -> Integer
-    ltlen (Data.Text.Lazy.Internal.Empty)      = 0
-    ltlen (Data.Text.Lazy.Internal.Chunk t ts) = (tlen t) + (ltlen ts)
+{-@ measure ltlen :: Text -> Integer
+    ltlen (Empty)      = 0
+    ltlen (Chunk t ts) = (tlen t) + (ltlen ts)
   @-}
 
-{-@ measure ltlength :: Data.Text.Lazy.Internal.Text -> Integer
-    ltlength (Data.Text.Lazy.Internal.Empty)      = 0
-    ltlength (Data.Text.Lazy.Internal.Chunk t ts) = (tlength t) + (ltlength ts)
+{-@ measure ltlength :: Text -> Integer
+    ltlength (Empty)      = 0
+    ltlength (Chunk t ts) = (tlength t) + (ltlength ts)
   @-}
 
-{-@ measure sum_ltlengths :: [Data.Text.Lazy.Internal.Text] -> Integer
+{-@ measure sum_ltlengths :: [Text] -> Integer
     sum_ltlengths ([]) = 0
     sum_ltlengths (t:ts) = (ltlength t) + (sum_ltlengths ts)
   @-}
 
-{-@ qualif SumLTLengthsAcc(v:Data.Text.Lazy.Internal.Text,
-                           ts:List Data.Text.Lazy.Internal.Text,
-                           t:Data.Text.Lazy.Internal.Text):
+{-@ qualif SumLTLengthsAcc(v:Text, ts:List Text, t:Text):
         ltlength(v) = sum_ltlengths(ts) + ltlength(t)
   @-}
 
-{-@ type LText     = {v:Data.Text.Lazy.Internal.Text | true } @-}
-{-@ type LTextN N  = {v:LText | (ltlen v) = N} @-}
-{-@ type LTextNC N = {v:LText | (ltlength v) = N} @-}
-{-@ type LTextNE   = {v:LText | (((ltlen v) > 0) && (ltlength v) > 0)} @-}
-{-@ type LTextLE T = {v:LText | (ltlen v) <= (ltlen T)} @-}
-{-@ type LTextLT T = {v:LText | (ltlen v) <  (ltlen T)} @-}
+{-@ type LTextN N  = {v:Text | (ltlen v) = N} @-}
+{-@ type LTextNC N = {v:Text | (ltlength v) = N} @-}
+{-@ type LTextNE   = {v:Text | (((ltlen v) > 0) && (ltlength v) > 0)} @-}
+{-@ type LTextLE T = {v:Text | (ltlen v) <= (ltlen T)} @-}
+{-@ type LTextLT T = {v:Text | (ltlen v) <  (ltlen T)} @-}
 
-{-@ qualif LTLenLe(v:Data.Text.Lazy.Internal.Text, t:Data.Text.Lazy.Internal.Text):
-        (ltlen v) <= (ltlen t)
-  @-}
+{-@ qualif LTLenLe(v:Text, t:Text): (ltlen v) <= (ltlen t) @-}
 
-{-@ invariant {v:LText | (ltlen v) >= 0} @-}
-{-@ invariant {v:LText | (ltlength v) >= 0} @-}
-{-@ invariant {v:LText | (((ltlength v) = 0) <=> ((ltlen v) = 0))} @-}
-{-@ invariant {v0:[LText] | (sum_ltlengths v0) >= 0} @-}
-{-@ invariant {v0:[{v:LText | (sum_ltlengths v0) >= (ltlength v)}] | true} @-}
+{-@ invariant {v:Text | (ltlen v) >= 0} @-}
+{-@ invariant {v:Text | (ltlength v) >= 0} @-}
+{-@ invariant {v:Text | (((ltlength v) = 0) <=> ((ltlen v) = 0))} @-}
+{-@ invariant {v0:[Text] | (sum_ltlengths v0) >= 0} @-}
+{-@ invariant {v0:[{v:Text | (sum_ltlengths v0) >= (ltlength v)}] | true} @-}
 
 
 -- $invariant
@@ -113,7 +98,7 @@ data Text = Empty
 -- and the QC properties must check this.
 
 -- | Check the invariant strictly.
-{-@ strictInvariant :: LText -> Bool @-}
+{-@ strictInvariant :: Text -> Bool @-}
 strictInvariant :: Text -> Bool
 strictInvariant Empty = True
 strictInvariant x@(Chunk (T.Text _ _ len) cs)
@@ -122,7 +107,7 @@ strictInvariant x@(Chunk (T.Text _ _ len) cs)
                   ++ showStructure x
 
 -- | Check the invariant lazily.
-{-@ lazyInvariant :: LText -> LText @-}
+{-@ lazyInvariant :: Text -> Text @-}
 lazyInvariant :: Text -> Text
 lazyInvariant Empty = Empty
 lazyInvariant x@(Chunk c@(T.Text _ _ len) cs)
@@ -131,7 +116,7 @@ lazyInvariant x@(Chunk c@(T.Text _ _ len) cs)
                   ++ showStructure x
 
 -- | Display the internal structure of a lazy 'Text'.
-{-@ showStructure :: LText -> String @-}
+{-@ showStructure :: Text -> String @-}
 showStructure :: Text -> String
 showStructure Empty           = "Empty"
 showStructure (Chunk t Empty) = "Chunk " ++ show t ++ " Empty"
@@ -139,8 +124,8 @@ showStructure (Chunk t ts)    =
     "Chunk " ++ show t ++ " (" ++ showStructure ts ++ ")"
 
 -- | Smart constructor for 'Chunk'. Guarantees the data type invariant.
-{-@ chunk :: t:Text -> ts:LText
-          -> {v:LText | (((ltlength v) = ((tlength t) + (ltlength ts)))
+{-@ chunk :: t:T.Text -> ts:Text
+          -> {v:Text | (((ltlength v) = ((tlength t) + (ltlength ts)))
                       && ((ltlen v) = ((tlen t) + (ltlen ts))))}
   @-}
 chunk :: T.Text -> Text -> Text
@@ -149,16 +134,16 @@ chunk t@(T.Text _ _ len) ts | len == 0 = ts
                             | otherwise = Chunk t ts
 
 -- | Smart constructor for 'Empty'.
-{-@ empty :: {v:LText | (ltlength v) = 0} @-}
+{-@ empty :: {v:Text | (ltlength v) = 0} @-}
 empty :: Text
 {-# INLINE [0] empty #-}
 empty = Empty
 
 -- | Consume the chunks of a lazy 'Text' with a natural right fold.
-{-@ foldrChunks :: forall <p :: Data.Text.Lazy.Internal.Text -> a -> Prop>.
-                   (ts:LText -> t:TextNE -> a<p ts> -> a<p (Data.Text.Lazy.Internal.Chunk t ts)>)
-                -> a<p Data.Text.Lazy.Internal.Empty>
-                -> t:LText
+{-@ foldrChunks :: forall <p :: Text -> a -> Prop>.
+                   (ts:Text -> t:TextNE -> a<p ts> -> a<p (Chunk t ts)>)
+                -> a<p Empty>
+                -> t:Text
                 -> a<p t>
   @-}
 foldrChunks :: (Text -> T.Text -> a -> a) -> a -> Text -> a
@@ -173,7 +158,7 @@ foldrChunks f z = go
 
 -- | Consume the chunks of a lazy 'Text' with a strict, tail-recursive,
 -- accumulating left fold.
-{-@ foldlChunks :: (a -> TextNE -> a) -> a -> LText -> a @-}
+{-@ foldlChunks :: (a -> TextNE -> a) -> a -> Text -> a @-}
 foldlChunks :: (a -> T.Text -> a) -> a -> Text -> a
 foldlChunks f z = go z
   where go !a Empty        = a

@@ -953,8 +953,10 @@ mkDType xvs acc ((v, (x, t@(RApp c _ _ _))):vxts)
         Just f = sizeFunction $ rTyConInfo c
 
 cmpLexRef vxs (v, x, g)
-  = pAnd $ (PAtom Lt (g x) (g v))
-         :[PAtom Eq (f y) (f z) | (y, z, f) <- vxs] 
+  = pAnd $  (PAtom Lt (g x) (g v)) : (PAtom Ge (g x) zero)
+         :  [PAtom Eq (f y) (f z) | (y, z, f) <- vxs]
+         ++ [PAtom Ge (f y) zero  | (y, _, f) <- vxs]
+  where zero = ECon $ I 0
 
 ------------------------------------------------------------------------
 -- | Pretty Printing Error Messages ------------------------------------
@@ -996,6 +998,11 @@ ppError (ErrTySpec l v t s)
 ppError (ErrInvt l t s)
   = text "Error in Invariant Specification:" <+> pprint l
     $+$ (nest 4 $ text "invariant " <+> pprint t $+$ s)
+
+ppError (ErrMeas l t s)
+  = text "Error in Measure Defiition:" <+> pprint l
+    $+$ (nest 4 $ text "measure " <+> pprint t $+$ s)
+
 
 ppError (ErrDupSpecs l v ls)
   = text "Multiple Specifications for" <+> v <> colon <+> pprint l

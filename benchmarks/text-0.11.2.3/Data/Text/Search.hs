@@ -41,15 +41,17 @@ import Data.Bits ((.|.), (.&.))
 import Data.Text.UnsafeShift (shiftL)
 
 --LIQUID
-import Data.Text.Array (Array(..), MArray(..))
-import Data.Word
+import Data.Word (Word16)
 import Language.Haskell.Liquid.Prelude
 
 --LIQUID FIXME: we don't currently parse the `:*` syntax used originally
 data T = {-# UNPACK #-} !Word64 `T` {-# UNPACK #-} !Int
 
-{-@ measure tskip :: Data.Text.Search.T -> Int
-    tskip (Data.Text.Search.T mask skip) = skip
+{-@ qualif Foo(v:int,x:int): v <= x + 1 @-}
+{-@ qualif Diff(v:int,l:int,d:int): v = (l - d) + 1 @-}
+
+{-@ measure tskip :: T -> Int
+    tskip (T mask skip) = skip
   @-}
 
 -- | /O(n+m)/ Find the offsets of all non-overlapping indices of
@@ -86,9 +88,9 @@ indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
                             where nextInPattern = mask .&. swizzle (index' _haystack (i+nlen)) == 0
                                   !(mask `T` skip)       = buildTable (nlen-1) _needle 0 0 (nlen-2)
                    in if c == z && candidateMatch nlast 0
-                      then i : scan (d-1) (i + nlen)
-                      else scan (d-1) (i + delta)
-        in scan ldiff 0
+                      then i : scan (d-nlen) (i + nlen)
+                      else scan (d-delta) (i + delta)
+        in scan (hlen+1) 0
   where
     ldiff    = hlen - nlen
     -- nlast    = nlen - 1
@@ -129,7 +131,7 @@ indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
                -> i:{v:Nat | ((v < (tlen pat)) && (v = (tlen pat) - 1 - d))}
                -> Word64
                -> skp:{v:Nat | v < (tlen pat)}
-               -> {v:Data.Text.Search.T | (Btwn (tskip v) 0 (tlen pat))}
+               -> {v:T | (Btwn (tskip v) 0 (tlen pat))}
   @-}
 buildTable :: Int -> Text -> Int -> Word64 -> Int -> T
 buildTable d pat@(Text narr noff nlen) !i !msk !skp

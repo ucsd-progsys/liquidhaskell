@@ -39,7 +39,7 @@ module Language.Haskell.Liquid.Types (
   -- * All these should be MOVE TO TYPES
   , RTyVar (..), RType (..), RRType, BRType, RTyCon(..)
   , TyConable (..), RefTypable (..), SubsTy (..), Ref(..)
-  , RTAlias (..)
+  , RTAlias (..), mapRTAVars
   , BSort, BPVar, BareType, RSort, UsedPVar, RPVar, RReft, RefType
   , PrType, SpecType
   , PVar (..) , Predicate (..), UReft(..), DataDecl (..), TyConInfo(..)
@@ -68,6 +68,13 @@ module Language.Haskell.Liquid.Types (
   -- * Printer Configuration 
   , PPEnv (..), ppEnv
 
+  -- * Import handling
+  , ModName (..), ModType (..), isSrcImport, isSpecImport
+  , getModName, getModString
+
+  -- * Refinement Type Aliases
+  , RTEnv (..), mapRT, mapRP, RTBareOrSpec
+
   -- * Final Result
   , Result (..)
 
@@ -77,8 +84,6 @@ module Language.Haskell.Liquid.Types (
 
   -- * Source information associated with each constraint
   , Cinfo (..)
-
-
   )
   where
 
@@ -88,8 +93,10 @@ import TyCon
 import DataCon
 import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Var
+import Unique
 import Literal
 import Text.Printf
+import GHC                          (Class, HscEnv, ModuleName, Name, moduleNameString)
 import GHC                          (Class, HscEnv)
 import Language.Haskell.Liquid.GhcMisc 
 
@@ -101,10 +108,12 @@ import Data.Generics                (Data)
 import Data.Monoid                  hiding ((<>))
 import qualified Data.Foldable as F
 import Data.Hashable
+import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
+import Data.Function                (on)
 import Data.Maybe                   (maybeToList, fromMaybe)
 import Data.Traversable             hiding (mapM)
-import Data.List                    (nub)
+import Data.List                    (nub, union, unionBy)
 import Text.Parsec.Pos              (SourcePos, newPos) 
 import Text.Parsec.Error            (ParseError) 
 import Text.PrettyPrint.HughesPJ    
@@ -128,6 +137,8 @@ data Config = Config {
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , nofalse        :: Bool       -- ^ remove false predicates from the refinements
   , notermination  :: Bool       -- ^ disable termination check
+  , notruetypes    :: Bool       -- ^ disable truing top level types
+  , totality       :: Bool       -- ^ check totality in definitions
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   , smtsolver      :: SMTSolver  -- ^ name of smtsolver to use [default: z3-API]  
@@ -265,10 +276,12 @@ data GhcSpec = SP {
                                                  -- e.g tests/pos/qualTest.hs
   , tgtVars    :: ![Var]                         -- ^ Top-level Binders To Verify (empty means ALL binders)
   , decr       :: ![(Var, [Int])]                -- ^ Lexicographically ordered size witnesses for termination
+  , lvars      :: !(S.HashSet Var)               -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
   , config     :: !Config                        -- ^ Configuration Options
   }
-  
+
+
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![(PVar RSort)]
                      , covPs        :: ![Int] -- indexes of covariant predicate arguments
@@ -443,7 +456,7 @@ data RType p c tv r
 
   | RAllE { 
       rt_bind   :: !Symbol
-    , rt_allarg  :: !(RType p c tv r) 
+    , rt_allarg :: !(RType p c tv r)
     , rt_ty     :: !(RType p c tv r) 
     }
 
@@ -536,7 +549,11 @@ data RTAlias tv ty
         , rtVArgs :: [tv] 
         , rtBody  :: ty  
         , srcPos  :: SourcePos 
-        } 
+        }
+
+mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
+                     , rtVArgs = f <$> rtVArgs rt
+                     }
 
 -- | Datacons
 
@@ -954,6 +971,10 @@ data Error =
                 , inv :: !SpecType
                 , msg :: !Doc
                 } -- ^ Invariant sort error
+  | ErrMeas     { pos :: !SrcSpan
+                , ms  :: !Symbol
+                , msg :: !Doc
+                } -- ^ Measure sort error
   | ErrGhc      { pos :: !SrcSpan
                 , msg :: !Doc
                 } -- ^ GHC error: parsing or type checking
@@ -966,7 +987,7 @@ data Error =
                 } -- ^ Unexpected PANIC 
   deriving (Typeable)
 
-instance Eq Error where 
+instance Eq Error where
   e1 == e2 = pos e1 == pos e2
 
 instance Ord Error where 
@@ -1000,6 +1021,49 @@ instance Result Error where
 
 instance Result (FixResult Cinfo) where
   result = fmap cinfoError  
+
+--------------------------------------------------------------------------------
+--- Module Names
+--------------------------------------------------------------------------------
+
+data ModName = ModName !ModType !ModuleName deriving (Eq,Ord)
+
+instance Show ModName where
+  show = getModString
+
+data ModType = Target | SrcImport | SpecImport deriving (Eq,Ord)
+
+isSrcImport (ModName SrcImport _) = True
+isSrcImport _                     = False
+
+isSpecImport (ModName SpecImport _) = True
+isSpecImport _                      = False
+
+getModName (ModName _ m) = m
+
+getModString = moduleNameString . getModName
+
+
+-------------------------------------------------------------------------------
+----------- Refinement Type Aliases -------------------------------------------
+-------------------------------------------------------------------------------
+
+type RTBareOrSpec = Either (ModName, (RTAlias String BareType))
+                           (RTAlias RTyVar SpecType)
+
+type RTPredAlias  = Either (ModName, RTAlias Symbol Pred)
+                           (RTAlias Symbol Pred)
+
+data RTEnv   = RTE { typeAliases :: M.HashMap String RTBareOrSpec
+                   , predAliases :: M.HashMap String RTPredAlias
+                   }
+
+instance Monoid RTEnv where
+  (RTE ta1 pa1) `mappend` (RTE ta2 pa2) = RTE (ta1 `M.union` ta2) (pa1 `M.union` pa2)
+  mempty = RTE M.empty M.empty
+
+mapRT f e = e { typeAliases = f $ typeAliases e }
+mapRP f e = e { predAliases = f $ predAliases e }
 
 cinfoError (Ci _ (Just e)) = e
 cinfoError (Ci l _)        = ErrOther $ text $ "Cinfo:" ++ (showPpr l)

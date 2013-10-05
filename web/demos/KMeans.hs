@@ -1,4 +1,4 @@
-{--! run liquid with no-termination -}
+{-@ LIQUID "--notermination" @-}
 {-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances #-}
 
 -- Modified from Data.KMeans from http://hackage.haskell.org/package/kmeans

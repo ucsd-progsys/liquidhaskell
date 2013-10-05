@@ -38,6 +38,7 @@ data Pair k v = P k v (Bst k v)
 getMin (Bind k v Empty rt) = (k, rt)
 getMin (Bind k v lt rt)    = case getMin lt of
                                (k0, l') -> (k0, Bind k v l' rt) 
+getMin _                   = error "getMin"
 
 {-@ propMin :: (Ord k) => OBST k a -> Bool @-}
 propMin :: (Ord k) => Bst k a -> Bool

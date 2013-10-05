@@ -1,5 +1,7 @@
 module GhcSort where
 
+{-@ LIQUID "--no-termination" @-}
+
 {-@ type OList a =  [a]<{\fld v -> (v >= fld)}>  @-}
 
 {-@ assert sort3 :: (Ord a) => w:a -> [{v:a|v<=w}] -> OList a @-}

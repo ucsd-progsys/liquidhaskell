@@ -1,3 +1,5 @@
+{--! run liquid with no-termination -}
+
 module Tx where
 
 import Control.Exception (assert)
@@ -7,8 +9,8 @@ getTails' :: Int -> [[a]] -> [[a]]
 getTails' n xss = assert (n > 0) [t | (_:t) <- xss]
 
 -- HACK give hints for internal variables....
-{-@ Decrease ds_drE 3 @-}
-{-@ Decrease ds_drw 3 @-}
+{- Decrease ds_d258 3 @-}
+{- Decrease ds_d25g 3 @-}
 
 -- TransformRec BUG: this causes some wierd unused variable error (occurrence of DEAD ID)?
 getTails'' :: Int -> [[a]] -> [[a]]
