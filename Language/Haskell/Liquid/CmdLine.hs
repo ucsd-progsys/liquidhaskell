@@ -48,12 +48,14 @@ import Language.Fixpoint.Names                  (dropModuleNames)
 import Language.Fixpoint.Types hiding           (config)
 import Language.Fixpoint.Config hiding          (config, Config)
 import Language.Haskell.Liquid.Annotate
+import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.Types hiding     (config, typ)
 
 import Name
 import SrcLoc                                   (SrcSpan)
 import Text.PrettyPrint.HughesPJ    
+
 
 ---------------------------------------------------------------------------------
 -- Parsing Command Line----------------------------------------------------------
@@ -86,6 +88,14 @@ config = Config {
  , notermination 
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
+
+ , notruetypes
+    = def &= help "Disable Trueing Top Level Types"
+          &= name "no-true-types"
+
+
+ , totality 
+    = def &= help "Check totality"
 
  , smtsolver 
     = def &= help "Name of SMT-Solver" 
@@ -123,7 +133,7 @@ copyright = "LiquidHaskell © Copyright 2009-13 Regents of the University of Cal
 mkOpts :: Config -> IO Config
 mkOpts md  
   = do files' <- sortNub . concat <$> mapM getHsTargets (files md) 
-       idirs' <- if null (idirs md) then single <$> getIncludePath else return (idirs md) 
+       idirs' <- if null (idirs md) then single <$> getIncludeDir else return (idirs md)
        return  $ md { files = files' } { idirs = map dropFileName files' ++ idirs' }
                                         -- tests fail if you flip order of idirs'
 
@@ -147,7 +157,7 @@ parsePragma s = withArgs [val s] $ cmdArgs config
 ---------------------------------------------------------------------------------------
 
 instance Monoid Config where
-  mempty        = Config def def def def def def def def 2 def
+  mempty        = Config def def def def def def def def def def 2 def
   mappend c1 c2 = Config (sortNub $ files c1   ++     files          c2)
                          (sortNub $ idirs c1   ++     idirs          c2)
                          (diffcheck c1         ||     diffcheck      c2) 
@@ -155,6 +165,8 @@ instance Monoid Config where
                          (noCheckUnknown c1    ||     noCheckUnknown c2) 
                          (nofalse        c1    ||     nofalse        c2) 
                          (notermination  c1    ||     notermination  c2) 
+                         (notruetypes    c1    ||     notruetypes    c2) 
+                         (totality       c1    ||     totality       c2) 
                          (noPrune        c1    ||     noPrune        c2) 
                          (maxParams      c1   `max`   maxParams      c2)
                          (smtsolver c1      `mappend` smtsolver      c2)

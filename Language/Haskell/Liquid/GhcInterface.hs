@@ -13,9 +13,9 @@ module Language.Haskell.Liquid.GhcInterface (
 import Bag (bagToList)
 import ErrUtils
 import Panic
-import GHC 
+import GHC hiding (Target)
 import Text.PrettyPrint.HughesPJ
-import HscTypes
+import HscTypes hiding (Target)
 import TidyPgm      (tidyProgram)
 import Literal
 import CoreSyn
@@ -39,14 +39,14 @@ import System.FilePath ( replaceExtension
                        , dropFileName 
                        , normalise)
 
-import DynFlags (ProfAuto(..))
-import Control.Monad (when, filterM)
+import DynFlags
+import Control.Arrow (second)
+import Control.Monad (filterM, zipWithM, when, forM, liftM)
 import Control.DeepSeq
 import Control.Applicative  hiding (empty)
-import Control.Monad (forM, liftM)
 import Data.Monoid hiding ((<>))
-import Data.List (intercalate, foldl', find, (\\), delete)
-import Data.Maybe (catMaybes)
+import Data.List (intercalate, foldl', find, (\\), delete, nub)
+import Data.Maybe (catMaybes, maybeToList)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
@@ -60,8 +60,11 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.Misc
+
 import Language.Haskell.Liquid.CmdLine (withPragmas)
-import Language.Haskell.Liquid.Parse 
+import Language.Haskell.Liquid.Parse
+
 import Language.Fixpoint.Parse          hiding (brackets, comma)
 import Language.Fixpoint.Names
 import Language.Fixpoint.Files
@@ -87,36 +90,45 @@ getGhcInfo cfg target = (Right <$> getGhcInfo' cfg target)
 --           (show e) file name
 
 
-
-
-getGhcInfo' cfg target 
+getGhcInfo' cfg0 target
   = runGhc (Just libdir) $ do
+      liftIO              $ deleteBinFilez target
+      addTarget         =<< guessTarget target Nothing
+      (name,tgtSpec)     <- liftIO $ parseSpec target
+      cfg                <- liftIO $ withPragmas cfg0 $ Ms.pragmas tgtSpec
+      let paths           = idirs cfg
       df                 <- getSessionDynFlags
-      setSessionDynFlags  $ updateDynFlags df (idirs cfg) 
-      -- peepGHCSimple target
+      setSessionDynFlags  $ updateDynFlags df (idirs cfg)
+      liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
+      let name'           = ModName Target (getModName name)
+      impNames           <- allDepNames <$> depanal [] False
+      impSpecs           <- getSpecs (totality cfg) target paths impNames [Spec, Hs, LHs]
+      impSpecs'          <- forM impSpecs $ \(f,n,s) -> do
+        when (not $ isSpecImport n) $
+          addTarget =<< guessTarget f Nothing
+        return (n,s)
+      load LoadAllTargets
       modguts            <- getGhcModGuts1 target
       hscEnv             <- getSession
-      -- modguts     <- liftIO $ hscSimplify hscEnv modguts
       coreBinds          <- liftIO $ anormalize hscEnv modguts
       let impVs           = importVars  coreBinds 
       let defVs           = definedVars coreBinds 
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
-      (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs target modguts (idirs cfg)
-      liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps 
-      hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs 
-      return              $ GI hscEnv coreBinds impVs defVs useVs hqualFiles imps incs spec 
+      (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs name' modguts tgtSpec impSpecs'
+      liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
+      hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs
+      return              $ GI hscEnv coreBinds impVs letVs useVs hqualFiles imps incs spec 
 
 updateDynFlags df ps 
-  = df { importPaths  = ps ++ importPaths df  } 
-       { libraryPaths = ps ++ libraryPaths df }
-       { profAuto     = ProfAutoCalls         }
-       { ghcLink      = NoLink                }
-       { hscTarget    = HscNothing            }
-
--- printVars s vs 
---   = do putStrLn s 
---        putStrLn $ showPpr [(v, getSrcSpan v) | v <- vs]
+  = df { importPaths  = ps ++ importPaths df   
+       , libraryPaths = ps ++ libraryPaths df 
+       , profAuto     = ProfAutoCalls         
+       , ghcLink      = NoLink                
+       , hscTarget    = HscInterpreted
+       , ghcMode      = CompManager
+       } `xopt_set` Opt_MagicHash
+         `dopt_set` Opt_ImplicitImportQualified
 
 mgi_namestring = moduleNameString . moduleName . mgi_module
 
@@ -133,11 +145,7 @@ definedVars           = concatMap defs
 ------------------------------------------------------------------
 
 getGhcModGuts1 fn = do
-   liftIO $ deleteBinFilez fn
-   target <- guessTarget fn Nothing
-   addTarget target
-   load LoadAllTargets
-   modGraph <- depanal [] True
+   modGraph <- getModuleGraph
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
        -- mod_guts <- modSummaryModGuts modSummary
@@ -148,11 +156,7 @@ getGhcModGuts1 fn = do
 
 -- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
 getGhcModGutsSimpl1 fn = do
-   liftIO $ deleteBinFilez fn 
-   target <- guessTarget fn Nothing
-   addTarget target
-   load LoadAllTargets
-   modGraph <- depanal [] True
+   modGraph <- getModuleGraph
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
        mod_guts   <- coreModule `fmap` (desugarModule =<< typecheckModule =<< parseModule modSummary)
@@ -208,26 +212,26 @@ moduleHquals mg paths target imps incs
 -- | Extracting Specifications (Measures + Assumptions) ------------------------
 --------------------------------------------------------------------------------
  
-moduleSpec cfg0 vars defVars target mg paths
-  = do liftIO       $ whenLoud $ putStrLn ("paths = " ++ show paths) 
-       tgtSpec     <- liftIO $ parseSpec (name, target) 
-       impSpec     <- getSpecs paths impNames [Spec, Hs, LHs]
-       let impSpec' = impSpec{Ms.decr=[], Ms.lazy=S.empty}
-       let spec     = Ms.expandRTAliases $ tgtSpec `mappend` impSpec'
-       let imps     = sortNub $ impNames ++ [symbolString x | x <- Ms.imports spec]
-       cfg         <- liftIO  $ withPragmas cfg0 $ Ms.pragmas spec
-       setContext  [IIModule $ moduleName $ mgi_module mg]
-       env         <- getSession
-       ghcSpec     <- liftIO $ makeGhcSpec cfg name vars defVars env spec
-       return       (ghcSpec, imps, Ms.includes tgtSpec)
-    where 
-      impNames      = allDepNames  mg
-      name          = mgi_namestring mg
+moduleSpec cfg vars defVars target mg tgtSpec impSpecs
+  = do addImports  impSpecs
+       addContext  $ IIModule $ moduleName $ mgi_module mg
+       env        <- getSession
+       let specs   = (target,tgtSpec):impSpecs
+       let imps    = sortNub $ impNames ++ [ symbolString x
+                                           | (_,spec) <- specs
+                                           , x <- Ms.imports spec
+                                           ]
+       ghcSpec    <- liftIO $ makeGhcSpec cfg target vars defVars env specs
+       return      (ghcSpec, imps, Ms.includes tgtSpec)
+    where
+      name     = mgi_namestring mg
+      impNames = map (getModString.fst) impSpecs
+      addImports is
+        = mapM (addContext . IIDecl . qualImportDecl . getModName) (map fst is)
 
-allDepNames mg   = allNames'
-  where 
-    allNames'    = sortNub impNames
-    impNames     = moduleNameString <$> (depNames mg ++ dirImportNames mg) 
+allDepNames = concatMap (map declNameString . ms_textual_imps)
+
+declNameString = moduleNameString . unLoc . ideclName . unLoc
 
 depNames       = map fst        . dep_mods      . mgi_deps
 dirImportNames = map moduleName . moduleEnvKeys . mgi_dir_imps  
@@ -235,36 +239,45 @@ targetName     = dropExtension  . takeFileName
 -- starName fn    = combine dir ('*':f) where (dir, f) = splitFileName fn
 starName       = ("*" ++)
 
+patErrorName = "PatErr"
 
-getSpecs paths names exts
-  = do fs    <- sortNub <$> moduleImports exts paths names 
-       liftIO $ whenLoud $ putStrLn ("getSpecs: " ++ show fs)
-       transParseSpecs exts paths S.empty mempty fs
+getSpecs tflag target paths names exts
+  = do fs'     <- sortNub <$> moduleImports exts paths names 
+       patSpec <- getPatSpec paths tflag
+       let fs  = patSpec ++ fs'
+       liftIO  $ whenLoud $ putStrLn ("getSpecs: " ++ show fs)
+       transParseSpecs exts paths (S.singleton target) mempty (map snd fs)
 
-transParseSpecs _ _ _ spec []       
-  = return spec
-transParseSpecs exts paths seenFiles spec newFiles 
-  = do newSpec   <- liftIO $ mconcat <$> mapM parseSpec newFiles 
-       impFiles  <- moduleImports exts paths [symbolString x | x <- Ms.imports newSpec]
+getPatSpec paths totalitycheck 
+  | totalitycheck
+  = (map (patErrorName, )) . maybeToList <$> moduleFile paths patErrorName Spec
+  | otherwise
+  = return []
+
+transParseSpecs _ _ _ specs []
+  = return specs
+transParseSpecs exts paths seenFiles specs newFiles
+  = do newSpecs  <- liftIO $ mapM (\f -> addFst3 f <$> parseSpec f) newFiles
+       impFiles  <- moduleImports exts paths $ specsImports newSpecs
        let seenFiles' = seenFiles  `S.union` (S.fromList newFiles)
-       let spec'      = spec `mappend` newSpec
-       let newFiles'  = [f | f <- impFiles, not (f `S.member` seenFiles')]
-       transParseSpecs exts paths seenFiles' spec' newFiles'
+       let specs'     = specs ++ map (third noTerm) newSpecs
+       let newFiles'  = [f | (_,f) <- impFiles, not (f `S.member` seenFiles')]
+       transParseSpecs exts paths seenFiles' specs' newFiles'
+  where
+    specsImports ss = nub $ concatMap (map symbolString . Ms.imports . thd3) ss
+    noTerm spec = spec { Ms.decr=mempty, Ms.lazy=mempty }
+    third f (a,b,c) = (a,b,f c)
 
-parseSpec :: (String, FilePath) -> IO Ms.BareSpec
-parseSpec (name, file) 
-  = do whenLoud $ putStrLn $ "parseSpec: " ++ file ++ " for module " ++ name  
-       either Ex.throw return . specParser name file =<< readFile file 
+parseSpec :: FilePath -> IO (ModName, Ms.BareSpec)
+parseSpec file
+  = do whenLoud $ putStrLn $ "parseSpec: " ++ file
+       either Ex.throw return . specParser file =<< readFile file
 
-specParser :: String -> FilePath -> String -> Either Error Ms.BareSpec 
-specParser name file str  
-  | isExtFile Spec file  = specSpecificationP    file str
-  | isExtFile Hs file    = hsSpecificationP name file str
-  | isExtFile LHs file   = hsSpecificationP name file str
+specParser file str
+  | isExtFile Spec file  = specSpecificationP file str
+  | isExtFile Hs file    = hsSpecificationP   file str
+  | isExtFile LHs file   = lhsSpecificationP  file str
   | otherwise            = exitWithPanic $ "SpecParser: Cannot Parse File " ++ file
-
-
-
 
 moduleImports :: GhcMonad m => [Ext] -> [FilePath] -> [String] -> m [(String, FilePath)]
 moduleImports exts paths names
@@ -439,9 +452,9 @@ instance PPrint GhcSpec where
               $$ (text "******* Type Signatures *********************")
               $$ (pprintLongList $ tySigs spec)
               $$ (text "******* DataCon Specifications (Measure) ****")
-              $$ (pprint $ ctor spec)
+              $$ (pprintLongList $ ctor spec)
               $$ (text "******* Measure Specifications **************")
-              $$ (pprint $ meas spec)
+              $$ (pprintLongList $ meas spec)
 
 instance PPrint GhcInfo where 
   pprint info =   (text "*************** Imports *********************")

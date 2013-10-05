@@ -1,4 +1,4 @@
-{--! run liquid with maxparams=3 -}
+{-@ LIQUID "--maxparams=3" @-}
 {-# LANGUAGE CPP, DeriveDataTypeable #-}
 
 -- |
@@ -47,84 +47,77 @@ import Data.Text.UnsafeChar (ord)
 import Data.Typeable (Typeable)
 
 --LIQUID
-import Data.Text.Array (Array(..), MArray(..))
-import Data.Word
 import Language.Haskell.Liquid.Prelude
 
-{-@ data Data.Text.Internal.Text [tlen] = Data.Text.Internal.Text
-            (arr :: Array)
+{-@ data Text [tlen] = Text
+            (arr :: A.Array)
             (off :: AValidO arr)
             (len :: (AValidL off arr))
   @-}
 
-{-@ measure tarr :: Data.Text.Internal.Text -> Data.Text.Array.Array
-    tarr (Data.Text.Internal.Text a o l) = a
+{-@ measure tarr :: Text -> A.Array
+    tarr (Text a o l) = a
   @-}
 
-{-@ measure toff :: Data.Text.Internal.Text -> Int
-    toff (Data.Text.Internal.Text a o l) = o
+{-@ measure toff :: Text -> Int
+    toff (Text a o l) = o
   @-}
 
-{-@ measure tlen :: Data.Text.Internal.Text -> Int
-    tlen (Data.Text.Internal.Text a o l) = l
+{-@ measure tlen :: Text -> Int
+    tlen (Text a o l) = l
   @-}
 
-{-@ type Text     = {v:Data.Text.Internal.Text | true } @-}
-{-@ type TextN  N = {v:Data.Text.Internal.Text | (tlen v) = N} @-}
-{-@ type TextNC N = {v:Data.Text.Internal.Text | (tlength v) = N} @-}
-{-@ type TextNE   = {v:Data.Text.Internal.Text | (tlen v) > 0} @-}
-{-@ type TextLE T = {v:Data.Text.Internal.Text | (tlen v) <= (tlen T)} @-}
-{-@ type TextLT T = {v:Data.Text.Internal.Text | (tlen v) <  (tlen T)} @-}
+{-@ type TextN  N = {v:Text | (tlen v) = N} @-}
+{-@ type TextNC N = {v:Text | (tlength v) = N} @-}
+{-@ type TextNE   = {v:Text | (tlen v) > 0} @-}
+{-@ type TextLE T = {v:Text | (tlen v) <= (tlen T)} @-}
+{-@ type TextLT T = {v:Text | (tlen v) <  (tlen T)} @-}
 
 {-@ type TValidI  T   = {v:Nat | v <  (tlen T)} @-}
 {-@ type TValidIN T N = {v:Nat | v <= ((tlen T) - N)} @-}
 {-@ type TValidIC T   = {v:Nat | v <  (tlength T)} @-}
 
-{-@ qualif TextNE(v:Data.Text.Internal.Text): tlen(v) > 0 @-}
-{-@ qualif TextNE(v:Data.Text.Internal.Text): tlength(v) > 0 @-}
+{-@ qualif TextNE(v:Text): tlen(v) > 0 @-}
+{-@ qualif TextNE(v:Text): tlength(v) > 0 @-}
 
-{-@ measure sum_tlens :: [Data.Text.Internal.Text] -> Int
+{-@ measure sum_tlens :: [Text] -> Int
     sum_tlens ([])   = 0
     sum_tlens (t:ts) = (tlen t) + (sum_tlens ts)
   @-}
 
-{-@ measure tlength :: Data.Text.Internal.Text -> Int
-    tlength (Data.Text.Internal.Text a o l) = numchars(a,o,l)
+{-@ measure tlength :: Text -> Int
+    tlength (Text a o l) = numchars(a,o,l)
   @-}
 
 {-@ type IncrTList a = [a]<{\x y -> (tlength x) < (tlength y)}> @-}
 {-@ type DecrTList a = [a]<{\x y -> (tlength x) > (tlength y)}> @-}
 
-{-@ qualif TLengthEq(v:Data.Text.Internal.Text, t:Data.Text.Internal.Text):
+{-@ qualif TLengthEq(v:Text, t:Text):
         tlength(v) = tlength(t)
   @-}
-{-@ qualif TLengthLe(v:Data.Text.Internal.Text, t:Data.Text.Internal.Text):
+{-@ qualif TLengthLe(v:Text, t:Text):
         tlength(v) <= tlength(t)
   @-}
-{-@ qualif TLenLe(v:Data.Text.Internal.Text, t:Data.Text.Internal.Text):
+{-@ qualif TLenLe(v:Text, t:Text):
         (tlen v) <= (tlen t)
   @-}
 
-{-@ qualif MinTLength(v:Data.Text.Internal.Text, n:Int, t:Data.Text.Internal.Text):
+{-@ qualif MinTLength(v:Text, n:Int, t:Text):
         tlength(v) = (tlength(t) > n ? n : tlength(t))
   @-}
 
-{-@ qualif TLengthAcc(v:int, t:Data.Text.Internal.Text, l:int):
+{-@ qualif TLengthAcc(v:int, t:Text, l:int):
         v = ((tlength t) + l)
   @-}
 
-{-@ qualif TLengthDiff(v:Data.Text.Internal.Text,
-                       t1:Data.Text.Internal.Text,
-                       t2:Data.Text.Internal.Text):
+{-@ qualif TLengthDiff(v:Text, t1:Text, t2:Text):
         tlength(v) = tlength(t1) - tlength(t2)
   @-}
-{-@ qualif TLenDiff(v:Data.Text.Internal.Text,
-                    t1:Data.Text.Internal.Text,
-                    t2:Data.Text.Internal.Text):
+{-@ qualif TLenDiff(v:Text, t1:Text, t2:Text):
         tlen(v) = tlen(t1) - tlen(t2)
   @-}
 
-{-@ measure sum_tlengths :: [Data.Text.Internal.Text] -> Int
+{-@ measure sum_tlengths :: [Text] -> Int
     sum_tlengths ([]) = 0
     sum_tlengths (t:ts) = (tlength t) + (sum_tlengths ts)
   @-}
@@ -138,10 +131,10 @@ import Language.Haskell.Liquid.Prelude
 {-@ invariant {v:Text | (tlen v) >= 0} @-}
 {-@ invariant {v:Text | (tlength v) = (numchars (tarr v) (toff v) (tlen v))} @-}
 
-{-@ invariant {v:[Data.Text.Internal.Text] | (sum_tlens v) >= 0} @-}
-{-@ invariant {v:[{v0:Data.Text.Internal.Text | ((((len v) > 1) && ((tlen v0) > 0))
+{-@ invariant {v:[Text] | (sum_tlens v) >= 0} @-}
+{-@ invariant {v:[{v0:Text | ((((len v) > 1) && ((tlen v0) > 0))
                                              => ((tlen v0) < (sum_tlens v)))}] | true} @-}
-{-@ invariant {v:[{v0:Data.Text.Internal.Text | ((((tlen v0) > 0) && (((len v) > 0)))
+{-@ invariant {v:[{v0:Text | ((((tlen v0) > 0) && (((len v) > 0)))
                                              => ((sum_tlens v) > 0))}] | true} @-}
 
 -- | A space efficient, packed, unboxed Unicode text type.
@@ -152,7 +145,7 @@ data Text = Text
 --LIQUID    deriving (Typeable)
 
 -- | Smart constructor.
-{-@ text :: a:Array -> o:AValidO a -> l:AValidL o a
+{-@ text :: a:A.Array -> o:AValidO a -> l:AValidL o a
          -> {v:Text | (((tarr v) = a) && ((toff v) = o) && ((tlen v) = l)
                        && ((tlength v) = (numchars a o l)))}
   @-}
@@ -183,7 +176,7 @@ empty = Text A.empty 0 0
 
 -- | Construct a 'Text' without invisibly pinning its byte array in
 -- memory if its length has dwindled to zero.
-{-@ textP :: a:Array -> o:AValidO a -> l:AValidL o a
+{-@ textP :: a:A.Array -> o:AValidO a -> l:AValidL o a
           -> {v:Text | (((tlen v) = l) && ((tlength v) = (numchars a o l)))}
   @-}
 textP :: A.Array -> Int -> Int -> Text
@@ -217,13 +210,13 @@ firstf _  Nothing      = Nothing
 
 
 --LIQUID
-{-@ tlEqNumchars :: t:Text -> a:Array -> o:Int -> l:Int
+{-@ tlEqNumchars :: t:Text -> a:A.Array -> o:Int -> l:Int
                  -> {v:Bool | ((Prop v) <=> ((tlength t) = (numchars a o l)))}
   @-}
 tlEqNumchars :: Text -> A.Array -> Int -> Int -> Bool
 tlEqNumchars = undefined
 
-{-@ numcharsZ :: a:Array -> o:Int -> l:Int
+{-@ numcharsZ :: a:A.Array -> o:Int -> l:Int
               -> {v:Bool | ((Prop v) <=> ((numchars a o l) = 0))}
   @-}
 numcharsZ :: A.Array -> Int -> Int -> Bool

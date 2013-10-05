@@ -1,4 +1,4 @@
-{--! run liquid with maxparams=3 -}
+{-@ LIQUID "--maxparams=3" @-}
 {-# OPTIONS_GHC -cpp -fglasgow-exts #-}
 -- |
 -- Module      : Data.ByteString.Lazy.Internal
@@ -38,11 +38,11 @@ import qualified Data.ByteString.Internal as S
 
 -- LIQUID
 import Language.Haskell.Liquid.Prelude  (liquidError)
-import qualified Data.ByteString.Internal
-import Foreign.ForeignPtr       (ForeignPtr)
-import Data.Word                (Word, Word8, Word16, Word32, Word64)
-import Foreign.Ptr              (Ptr)
-import qualified Foreign.C.String
+-- import qualified Data.ByteString.Internal
+-- import Foreign.ForeignPtr       (ForeignPtr)
+-- import Data.Word                (Word, Word8, Word16, Word32, Word64)
+-- import Foreign.Ptr              (Ptr)
+-- import qualified Foreign.C.String
 
 import Foreign.Storable (sizeOf)
 
@@ -63,39 +63,36 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
 -- LIQUID #endif
 -- LIQUID              )
 
-{-@ data Data.ByteString.Lazy.Internal.ByteString [lbLength]
-         = Data.ByteString.Lazy.Internal.Empty 
-         | Data.ByteString.Lazy.Internal.Chunk
-                (b  :: ByteStringNE)
-                (cs :: Data.ByteString.Lazy.Internal.ByteString)
+{-@ data ByteString [lbLength]
+         = Empty
+         | Chunk (b :: ByteStringNE) (cs :: ByteString)
   @-}
 
-{-@ measure lbLength :: Data.ByteString.Lazy.Internal.ByteString -> Int
-    lbLength (Data.ByteString.Lazy.Internal.Empty)      = 0
-    lbLength (Data.ByteString.Lazy.Internal.Chunk b bs) = (bLength b) + (lbLength bs)
+{-@ measure lbLength :: ByteString -> Int
+    lbLength (Empty)      = 0
+    lbLength (Chunk b bs) = (bLength b) + (lbLength bs)
   @-}
 
-{-@ measure lbLengths  :: [Data.ByteString.Lazy.Internal.ByteString] -> Int
+{-@ measure lbLengths  :: [ByteString] -> Int
     lbLengths ([])   = 0
     lbLengths (x:xs) = (lbLength x) + (lbLengths xs)
   @-}
 
-{-@ invariant {v:LByteString   | (lbLength v)  >= 0} @-}
-{-@ invariant {v:[LByteString] | (lbLengths v) >= 0} @-}
+{-@ invariant {v:ByteString   | (lbLength v)  >= 0} @-}
+{-@ invariant {v:[ByteString] | (lbLengths v) >= 0} @-}
 
-{-@ type LByteStringSplit B = {v:[LByteString] | ((lbLengths v) + (len v) - 1) = (lbLength B) }
+{-@ type LByteStringSplit B = {v:[ByteString] | ((lbLengths v) + (len v) - 1) = (lbLength B) }
   @-}
 
-{-@ type LByteStringPair B = (LByteString, LByteString)<{\x1 x2 -> (lbLength x1) + (lbLength x2) = (lbLength B)}>
+{-@ type LByteStringPair B = (ByteString, ByteString)<{\x1 x2 -> (lbLength x1) + (lbLength x2) = (lbLength B)}>
   @-}
 
 {-@ predicate LBValid B N = ((N >= 0) && (N < (lbLength B))) @-}
 
-{-@ type LByteString     = {v:Data.ByteString.Lazy.Internal.ByteString | true} @-}
-{-@ type LByteStringN N  = {v:LByteString | (lbLength v) = N} @-}
-{-@ type LByteStringNE   = {v:LByteString | (lbLength v) > 0} @-}
-{-@ type LByteStringSZ B = {v:LByteString | (lbLength v) = (lbLength B)} @-}
-{-@ type LByteStringLE B = {v:LByteString | (lbLength v) <= (lbLength B)} @-}
+{-@ type LByteStringN N  = {v:ByteString | (lbLength v) = N} @-}
+{-@ type LByteStringNE   = {v:ByteString | (lbLength v) > 0} @-}
+{-@ type LByteStringSZ B = {v:ByteString | (lbLength v) = (lbLength B)} @-}
+{-@ type LByteStringLE B = {v:ByteString | (lbLength v) <= (lbLength B)} @-}
 
 ------------------------------------------------------------------------
 
@@ -110,7 +107,7 @@ liquidCanary x   = x - 1
 --
 
 -- LIQUID RENAME: rename `invariant` to `invt` to avoid name clash!
-{-@ invt :: Data.ByteString.Lazy.Internal.ByteString -> {v: Bool | (Prop v)}  @-}
+{-@ invt :: ByteString -> {v: Bool | (Prop v)}  @-}
 invt :: ByteString -> Bool
 invt Empty                     = True 
 invt (Chunk (S.PS _ _ len) cs) = len > 0 && invt cs
@@ -118,7 +115,7 @@ invt (Chunk (S.PS _ _ len) cs) = len > 0 && invt cs
 invariant = invt
 
 -- | In a form that checks the invariant lazily.
-{-@ checkInvariant :: Data.ByteString.Lazy.Internal.ByteString -> Data.ByteString.Lazy.Internal.ByteString  @-}
+{-@ checkInvariant :: ByteString -> ByteString  @-}
 checkInvariant :: ByteString -> ByteString
 checkInvariant Empty = Empty
 checkInvariant (Chunk c@(S.PS _ _ len) cs)
@@ -129,8 +126,8 @@ checkInvariant (Chunk c@(S.PS _ _ len) cs)
 ------------------------------------------------------------------------
 
 -- | Smart constructor for 'Chunk'. Guarantees the data type invariant.
-{-@ chunk :: b:ByteString -> bs:LByteString
-          -> {v:LByteString | (lbLength v) = ((bLength b) + (lbLength bs))}
+{-@ chunk :: b:S.ByteString -> bs:ByteString
+          -> {v:ByteString | (lbLength v) = ((bLength b) + (lbLength bs))}
   @-}
 chunk :: S.ByteString -> ByteString -> ByteString
 chunk c@(S.PS _ _ len) cs | len == 0  = cs
@@ -138,13 +135,13 @@ chunk c@(S.PS _ _ len) cs | len == 0  = cs
 {-# INLINE chunk #-}
 
 -- | Consume the chunks of a lazy ByteString with a natural right fold.
-{-@ foldrChunks :: forall <p :: Data.ByteString.Lazy.Internal.ByteString -> a -> Prop>.
-                   (bs:LByteString
+{-@ foldrChunks :: forall <p :: ByteString -> a -> Prop>.
+                   (bs:ByteString
                     -> b:ByteStringNE
                     -> a<p bs>
-                    -> a<p (Data.ByteString.Lazy.Internal.Chunk b bs)>)
-                -> a<p Data.ByteString.Lazy.Internal.Empty>
-                -> b:LByteString
+                    -> a<p (Chunk b bs)>)
+                -> a<p Empty>
+                -> b:ByteString
                 -> a<p b>
   @-}
 --LIQUID GHOST added parameter to `f` for abstract refinement
@@ -158,7 +155,7 @@ foldrChunks f z = go
 -- accumulating left fold.
 {-@ foldlChunks :: (a -> ByteStringNE -> a)
                 -> a
-                -> LByteString
+                -> ByteString
                 -> a
   @-}
 foldlChunks :: (a -> S.ByteString -> a) -> a -> ByteString -> a

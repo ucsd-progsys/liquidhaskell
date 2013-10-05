@@ -6,14 +6,14 @@ module Language.Haskell.Liquid.Measure (
     Spec (..)
   , BareSpec  
   , MSpec (..)
-  , Measure (name, sort)
+  , Measure (..)
   , Def (..)
   , Body (..)
   , mkM, mkMSpec
   , qualifySpec
   , mapTy
   , dataConTypes
-  , expandRTAliases
+  , defRefType
   ) where
 
 import GHC hiding (Located)
@@ -52,6 +52,7 @@ data Spec ty bndr  = Spec {
   , embeds     :: !(TCEmb (Located String))     -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
   , decr       :: ![(LocSymbol, [Int])]         -- ^ Information on decreasing arguments
+  , lvars      :: ![(LocSymbol)]                -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet Symbol)           -- ^ Ignore Termination Check in these Functions
   , pragmas    :: ![Located String]             -- ^ Command-line configurations passed in through source
   } 
@@ -62,6 +63,13 @@ data MSpec ty ctor = MSpec {
     ctorMap :: M.HashMap Symbol [Def ctor]
   , measMap :: M.HashMap Symbol (Measure ty ctor) 
   }
+
+instance Monoid (MSpec ty ctor) where
+  mempty = MSpec M.empty M.empty
+
+  (MSpec c1 m1) `mappend` (MSpec c2 m2) =
+    MSpec (M.unionWith (++) c1 c2) (m1 `M.union` m2)
+
 
 -- MOVE TO TYPES
 data Measure ty ctor = M { 
@@ -85,6 +93,35 @@ data Body
   | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
   | R Symbol Pred   -- ^ Measure Refinement: {v | p}
   deriving (Show)
+
+instance Subable (Measure ty ctor) where
+  syms (M _ _ es)      = concatMap syms es
+  substa f  (M n s es) = M n s $ substa f  <$> es
+  substf f  (M n s es) = M n s $ substf f  <$> es
+  subst  su (M n s es) = M n s $ subst  su <$> es
+
+instance Subable (Def ctor) where
+  syms (Def _ _ _ bd)      = syms bd
+  substa f  (Def m c b bd) = Def m c b $ substa f  bd
+  substf f  (Def m c b bd) = Def m c b $ substf f  bd
+  subst  su (Def m c b bd) = Def m c b $ subst  su bd
+
+instance Subable Body where
+  syms (E e)       = syms e
+  syms (P e)       = syms e
+  syms (R s e)     = s:syms e
+
+  substa f (E e)   = E $ substa f e
+  substa f (P e)   = P $ substa f e
+  substa f (R s e) = R s $ substa f e
+
+  substf f (E e)   = E $ substf f e
+  substf f (P e)   = P $ substf f e
+  substf f (R s e) = R s $ substf f e
+
+  subst su (E e)   = E $ subst su e
+  subst su (P e)   = P $ subst su e
+  subst su (R s e) = R s $ subst su e
 
 qualifySpec name sp = sp { sigs = [ (qualifySymbol name <$> x, t) | (x, t) <- sigs sp] }
 
@@ -117,8 +154,8 @@ checkDuplicateMeasure ms
 
 -- MOVE TO TYPES
 instance Monoid (Spec ty bndr) where
-  mappend (Spec xs ys invs zs ds is as ps es qs drs ss gs) 
-          (Spec xs' ys' invs' zs' ds' is' as' ps' es' qs' drs' ss' gs')
+  mappend (Spec xs ys invs zs ds is as ps es qs drs lvs ss gs) 
+          (Spec xs' ys' invs' zs' ds' is' as' ps' es' qs' drs' lvs' ss' gs')
            = Spec (xs ++ xs') 
                   (ys ++ ys') 
                   (invs ++ invs') 
@@ -130,9 +167,10 @@ instance Monoid (Spec ty bndr) where
                   (M.union es es')
                   (qs ++ qs')
                   (drs ++ drs')
+                  (lvs ++ lvs')
                   (S.union ss ss')
                   (gs ++ gs')
-  mempty   = Spec [] [] [] [] [] [] [] [] M.empty [] [] S.empty []
+  mempty   = Spec [] [] [] [] [] [] [] [] M.empty [] [] [] S.empty []
 
 -- MOVE TO TYPES
 instance Functor Def where
@@ -160,7 +198,7 @@ instance Bifunctor MSpec   where
 
 -- MOVE TO TYPES
 instance Bifunctor Spec    where
-  first f (Spec ms ss is x0 x1 x2 x3 x4 x5 x6 x7 x8 x9) 
+  first f (Spec ms ss is x0 x1 x2 x3 x4 x5 x6 x7 x7a x8 x9) 
     = Spec { measures   = first  f <$> ms
            , sigs       = second f <$> ss
            , invariants = fmap   f <$> is
@@ -172,10 +210,11 @@ instance Bifunctor Spec    where
            , embeds     = x5
            , qualifiers = x6
            , decr       = x7
+           , lvars      = x7a
            , lazy       = x8
            , pragmas    = x9 
            }
-  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6 x7 x8 x9 x10) 
+  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6 x7 x8 x8a x9 x10) 
     = Spec { measures   = fmap (second f) ms
            , sigs       = x0 
            , invariants = x1
@@ -187,6 +226,7 @@ instance Bifunctor Spec    where
            , embeds     = x6
            , qualifiers = x7
            , decr       = x8
+           , lvars      = x8a
            , lazy       = x9
            , pragmas    = x10
            }
@@ -255,149 +295,3 @@ bodyPred fv (P p)    = PIff  (PBexp fv) p
 bodyPred fv (R v' p) = subst1 p (v', fv)
 
 
--------------------------------------------------------------------------------
------------ Refinement Type Aliases -------------------------------------------
--------------------------------------------------------------------------------
-
--- MOVE TO TYPES
-data RTEnv   = RTE { typeAliases :: M.HashMap String (RTAlias String BareType)
-                   , predAliases :: M.HashMap String (RTAlias Symbol Pred)
-                   }
-
-expandRTAliases    :: Spec BareType Symbol -> Spec BareType Symbol
-expandRTAliases sp = sp { sigs       = [ (x, generalize $ expandRTAlias env t)  | (x, t) <- sigs sp       ] }
-                        { dataDecls  = [ expandRTAliasDataDecl env dc           | dc     <- dataDecls sp  ] } 
-                        { invariants = [ generalize <$> expandRTAlias env <$> t | t      <- invariants sp ] }
-                        { measures   = [ expandRTAliasMeasure env m             | m      <- measures sp   ] } 
-  where env        = makeRTEnv (aliases sp) (paliases sp)
-        
-        
-expandRTAliasMeasure env m     = m { sort = generalize (sort m) } 
-                                   { eqns = expandRTAliasDef env <$> (eqns m) }
-
-expandRTAliasDef  :: RTEnv -> Def Symbol -> Def Symbol
-expandRTAliasDef   env d       = d { body = expandRTAliasBody env (body d) }
-
-
-expandRTAliasBody  :: RTEnv -> Body -> Body
-expandRTAliasBody  env (P p)   = P   (expPAlias env p) 
-expandRTAliasBody  env (R x p) = R x (expPAlias env p)
-expandRTAliasBody  env b       = b
-   
-expPAlias :: RTEnv -> Pred -> Pred
-expPAlias env = expandPAlias (\_ _ -> id) [] (predAliases env)
-
-
--- | Constructing the Alias Environment
-
-makeRTEnv     :: [RTAlias String BareType] -> [RTAlias Symbol Pred] -> RTEnv
-makeRTEnv  rts pts = RTE typeMap predMap
-  where typeMap    = makeAliasMap expandRTAliasE rts
-        predMap    = makeAliasMap expandRPAliasE pts
-
-makeAliasMap exp xts = expBody <$> env0
-  where env0      = safeFromList "makeAliasMap" [(rtName x, x) | x <- xts]
-        expBody z = z { rtBody = exp env0 $ rtBody z }   
-
--- | Using the Alias Environment to Expand Definitions
-
-expandRTAlias     :: RTEnv -> BareType -> BareType
-expandRTAlias env = expReft . expType 
-  where 
-    expReft       = fmap (txPredReft expPred) 
-    expType       = expandAlias  (\_ _ -> id) [] (typeAliases env)
-    expPred       = expandPAlias (\_ _ -> id) [] (predAliases env)
-
-txPredReft f      = fmap  (txPredReft f)
-  where 
-    txPredReft f (Reft (v, ras)) = Reft (v, txPredRefa f <$> ras)
-    txPredRefa f (RConc p)       = RConc (f p)
-    txPredRefa _ z               = z
-       
-
-expandRTAliasDataDecl env dc = dc {tycDCons = dcons' }  
-  where 
-    dcons' = map (mapSnd (map (mapSnd (expandRTAlias env)))) (tycDCons dc) 
-
-
--- | Using the Alias Environment to Expand Definitions
-
-expandRPAliasE  :: M.HashMap String (RTAlias Symbol Pred) -> Pred -> Pred
-expandRPAliasE  = go []
-  where go = expandPAlias go
-
-expandRTAliasE  :: M.HashMap String (RTAlias String BareType) -> BareType -> BareType 
-expandRTAliasE = go []
-  where go = expandAlias go
-
-
-expandAlias f s env = go s 
-  where 
-    go s (RApp c ts rs r)
-      | c `elem` s        = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
-      | c `M.member` env  = assert (null rs) $ expandRTApp (f (c:s) env) env c (go s <$> ts) r
-      | otherwise         = RApp c (go s <$> ts) (go' s <$> rs) r 
-    go s (RAllT a t)      = RAllT a (go s t)
-    go s (RAllP a t)      = RAllP a (go s t)
-    go s (RFun x t t' r)  = RFun x (go s t) (go s t') r
-    go s (RAppTy t t' r)  = RAppTy (go s t) (go s t') r
-    go s (RCls c ts)      = RCls c (go s <$> ts) 
-    go _ t                = t
-
-    go' s z@(RMono _ _)   = z
-    go' s (RPoly ss t)    = RPoly ss (go s t)
-
-expandRTApp tx env c args r
-  | length args == (length αs) + (length εs)
-  = subst su  $ (`strengthen` r) $ subsTyVars_meet αts $ tx $ rtBody rta
-  | otherwise
-  = errortext $ (text "Malformed Type-Alias Application" $+$ text msg $+$ tshow rta)
-  where 
-    αts       = zipWith (\α t -> (α, toRSort t, t)) αs ts
-    su        = mkSubst $ zip (stringSymbol <$> εs) es
-    αs        = rtTArgs rta 
-    εs        = rtVArgs rta 
-    rta       = env M.! c
-    msg       = showpp (RApp c args [] r) 
-    (ts, es_) = splitAt (length αs) args
-    es        = map (exprArg msg) es_
-    
--- | exprArg converts a tyVar to an exprVar because parser cannot tell 
--- HORRIBLE HACK To allow treating upperCase X as value variables X
--- e.g. type Matrix a Row Col = List (List a Row) Col
-
-exprArg _   (RExprArg e)     
-  = e
-exprArg _   (RVar x _)       
-  = EVar (stringSymbol x)
-exprArg _   (RApp x [] [] _) 
-  = EVar (stringSymbol x)
-exprArg msg (RApp f ts [] _) 
-  = EApp (stringSymbol f) (exprArg msg <$> ts) 
-exprArg msg (RAppTy (RVar f _) t _)   
-  = EApp (stringSymbol f) [exprArg msg t]
-exprArg msg z 
-  = errorstar $ printf "Unexpected expression parameter: %s in %s" (show z) msg 
-
-
-
-
-expandPAlias tx s env = go s 
-  where 
-    go s p@(PBexp (EApp f es))  
-      | f `elem` s                = errorstar $ "Cyclic Predicate Alias Definition: " ++ show (f:s)
-      | (symbolString f) `M.member` env  
-                                  = expandRPApp (tx (f:s) env) env f es
-      | otherwise                 = p
-    go s (PAnd ps)                = PAnd (go s <$> ps)
-    go s (POr  ps)                = POr  (go s <$> ps)
-    go s (PNot p)                 = PNot (go s p)
-    go s (PImp p q)               = PImp (go s p) (go s q)
-    go s (PIff p q)               = PIff (go s p) (go s q)
-    go s (PAll xts p)             = PAll xts (go s p)
-    go _ p                        = p
-
-expandRPApp tx env f es = tx (subst su $ rtBody def) 
-  where su   = mkSubst $ safeZip msg (rtVArgs def) es 
-        def  = env M.! (symbolString f)
-        msg  = "expandRPApp: " ++ show (EApp f es) 

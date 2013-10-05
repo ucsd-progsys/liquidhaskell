@@ -1,29 +1,6 @@
 TODO
 ====
 
-
-From github.com:ucsd-progsys/liquidhaskell
- * branch            master     -> FETCH_HEAD
-Auto-merging web/demos/Order.hs
-Auto-merging TODO.md
-CONFLICT (content): Merge conflict in TODO.md
-Auto-merging Liquid.hs
-CONFLICT (content): Merge conflict in Liquid.hs
-Auto-merging Language/Haskell/Liquid/Types.hs
-Auto-merging Language/Haskell/Liquid/Parse.hs
-Auto-merging Language/Haskell/Liquid/Measure.hs
-Auto-merging Language/Haskell/Liquid/GhcInterface.hs
-CONFLICT (content): Merge conflict in Language/Haskell/Liquid/GhcInterface.hs
-Auto-merging Language/Haskell/Liquid/Constraint.hs
-Auto-merging Language/Haskell/Liquid/CmdLine.hs
-CONFLICT (content): Merge conflict in Language/Haskell/Liquid/CmdLine.hs
-Auto-merging Language/Haskell/Liquid/Bare.hs
-CONFLICT (content): Merge conflict in Language/Haskell/Liquid/Bare.hs
-Automatic merge failed; fix conflicts and then commit the result.
-
-
-* pragmas
-
 * Qualified Imports
   - wtf is include/KMeansHelper.hs ? Fix module import issue
   - break spec imports -- tests/todo/qualifiedvector.hs 
@@ -31,26 +8,8 @@ Automatic merge failed; fix conflicts and then commit the result.
 * benchmarks: Data.Bytestring
     ? readsPrec
     ? big constants issue : _word64 34534523452134213524525 due to (deriving Typeable)
+    - see others below
 
-* benchmarks
-  + stackset-core
-  + Data.List (foldr)
-  + mcbrides stack machined?
-
-Pragmas
--------
-
-Need a way to add command line options into the source.
-
-    {-@ LIQUID str @-}
-
-We then take all the strings `str`, concatenate them and add to config
-    + Parse.hs 
-      > update spec type
-      > update actual parser
-      > update monoid instance
-    + Liquid.hs
-      > update config with string.
 
 Embed
 -----
@@ -153,44 +112,51 @@ Measures
 --------
 
 [DONE] Lists I-Sets  ("" but with Sets as the measure)
-?. LambdaEval	
+- LambdaEval	
 
 Abstract Refinements
 --------------------
 
-[DONE]  (esop) ParaPoly/Ty  <--------------- STOP 
-10. (esop) Pats Vec
-11. Niki DataBase
-12. Induction-Loop
-13. Induction-List (efoldr)
+[DONE] ParaPoly/Ty  
+[DONE] Sorting      <--------------- STOP 
 
-Abstract Refinements (Rec)
---------------------------
+- Maps I        (BST property, add, delete)
+- Map II        (Data.Map with elements etc.)
+- Pats Vectors
+- Niki DataBase
+- Induction-Loop
+- Induction-List (efoldr)
 
-14. Sorting I     (Insert)
-15. Sorting II    (Merge, Quick) 
-16. Sorting III   (GHC-quick) 
-17. Sorting IV    (GHC-merge)
-18. Sorting V     (GHC-real)
-19. Map  I        (BST property, add, delete)
-20. Map II        (Data.Map with elements etc.)
+Real World
+----------
+
+- Bytestring (internal)
+- Bytestring (api)
+- Text       (internal)
+- Text       (api)
+- Text       (bug)
+- Lazy/Termination
+- Termination examples
+? mcbride stack machine
+? hasochism text layout
+
 
 Future Work
 -----------
 
-- StackSet      ...
+- Xmonad: StackSet
 - Binary Tree/ Finger Tree?
 - BDD
 - Union Find
-- XMonad I
-- XMonad II
 
-Paper: Liquid Types in the Real World)
-======================================
+
+Benchmarks
+==========
 
 [OK]    Data.KMeans
-
 [OK]    GHC.List   (../benchmarks/ghc-7.4.1/List.lhs)
+[OK]    bytestring
+[OK]    text
 
 [??-PP] Data.Map (supersedes set)
         > ordering [OK]
@@ -199,20 +165,21 @@ Paper: Liquid Types in the Real World)
         > key-dependence
         > balance (NO)
         
-->   	Xmonad real properties
-
-->   	Data.Vector
-
-->   	vector-algorithms "vector bounds checking"
-     	> e.g. "unsafeSlice"
-     	> maybe only specify types for Vector?
+-   vector
+-   vector-algorithms "vector bounds checking"
+      > e.g. "unsafeSlice"
+      > maybe only specify types for Vector?
+-   repa
+-   repa-algorithms
+- 	xmonad (stackset)
+-   snap/security
+-   hmatrix
+      > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Matrix.html#Matrix
+      > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Vector.html#fromList
 
 Other Benchmarks
 ================
 
-->   hmatrix
-     > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Matrix.html#Matrix
-     > http://hackage.haskell.org/packages/archive/hmatrix/0.12.0.1/doc/html/src/Data-Packed-Internal-Vector.html#fromList
 ->   FingerTrees (containers / Data.Seq)
 ->   Union-Find (PLDI09 port if necessary?)
 ->   BDD        (PLDI09 port if necessary?)

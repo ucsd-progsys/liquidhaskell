@@ -25,12 +25,24 @@ import           SrcLoc                       (srcSpanFile, srcSpanStartLine, sr
 
 import           Language.Fixpoint.Misc       (errorstar, stripParens)
 import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos) 
-import           Language.Fixpoint.Types       
+import           Language.Fixpoint.Types      hiding (SESearch(..))
 import           Name                         (mkInternalName, getSrcSpan)
 import           OccName                      (mkTyVarOcc, mkTcOcc)
 import           Unique                       
+import           Finder                       (findImportedModule, cannotFindModule)
+import           DynamicLoading
+import           ErrUtils
+import           Exception
+import           Panic                        (GhcException(..), throwGhcException)
+import           RnNames                      (gresFromAvails)
+import           HscMain
+import           HscTypes                     (HscEnv(..), FindResult(..), ModIface(..), lookupTypeHscEnv)
+import           FastString
+import           TcRnDriver
+import           OccName
 
-import           RdrName                      (GlobalRdrEnv)
+
+import           RdrName
 import           Type                         (liftedTypeKind)
 import           TypeRep                       
 import           Var
@@ -154,17 +166,10 @@ instance Hashable Loc where
   hashWithSalt i (L z) = hashWithSalt i z 
 
 --instance (Uniquable a) => Hashable a where
-instance Hashable Var where
-  hashWithSalt = uniqueHash 
-
-instance Hashable TyCon where
-  hashWithSalt = uniqueHash 
 
 instance Hashable SrcSpan where
   hashWithSalt i (UnhelpfulSpan s) = hashWithSalt i (uniq s) 
   hashWithSalt i (RealSrcSpan s)   = hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
-
-uniqueHash i = hashWithSalt i . getKey . getUnique
 
 instance Outputable a => Outputable (S.HashSet a) where
   ppr = ppr . S.toList 
@@ -243,3 +248,43 @@ isDictionary x = L.isPrefixOf "$d" (showPpr x)
 isInternal   x = L.isPrefixOf "$" (showPpr x)
 
 
+instance Hashable Var where
+  hashWithSalt = uniqueHash 
+
+instance Hashable TyCon where
+  hashWithSalt = uniqueHash 
+
+uniqueHash i = hashWithSalt i . getKey . getUnique
+
+-- slightly modified version of DynamicLoading.lookupRdrNameInModule
+lookupRdrName :: HscEnv -> ModuleName -> RdrName -> IO (Maybe Name)
+lookupRdrName hsc_env mod_name rdr_name = do
+    -- First find the package the module resides in by searching exposed packages and home modules
+    found_module <- findImportedModule hsc_env mod_name Nothing
+    case found_module of
+        Found _ mod -> do
+            -- Find the exports of the module
+            (_, mb_iface) <- getModuleInterface hsc_env mod
+            case mb_iface of
+                Just iface -> do
+                    -- Try and find the required name in the exports
+                    let decl_spec = ImpDeclSpec { is_mod = mod_name, is_as = mod_name
+                                                , is_qual = False, is_dloc = noSrcSpan }
+                        provenance = Imported [ImpSpec decl_spec ImpAll]
+                        env = case mi_globals iface of
+                                Nothing -> mkGlobalRdrEnv (gresFromAvails provenance (mi_exports iface))
+                                Just e -> e
+                    case lookupGRE_RdrName rdr_name env of
+                        [gre] -> return (Just (gre_name gre))
+                        []    -> return Nothing
+                        _     -> Out.panic "lookupRdrNameInModule"
+                Nothing -> throwCmdLineErrorS dflags $ Out.hsep [Out.ptext (sLit "Could not determine the exports of the module"), ppr mod_name]
+        err -> throwCmdLineErrorS dflags $ cannotFindModule dflags mod_name err
+  where dflags = hsc_dflags hsc_env
+        throwCmdLineErrorS dflags = throwCmdLineError . Out.showSDoc dflags
+        throwCmdLineError = throwGhcException . CmdLineError
+
+
+addContext m = getContext >>= setContext . (m:)
+
+qualImportDecl mn = (simpleImportDecl mn) { ideclQualified = True }

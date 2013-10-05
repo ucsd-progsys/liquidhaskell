@@ -18,7 +18,7 @@ getKeys ((x,_) : xs) = x : getKeys xs
 
 {-@ klookup :: forall k v. (Eq k) => k:k -> {v: [(k, v)] | (Set_mem k (keys v))} -> v @-}
 
-klookup k ((k',v):kvs)   
+klookup k ((k',v):kvs)
   | k == k'          = v
   | otherwise        = klookup k kvs
 klookup _ []         = liquidError "Never!"

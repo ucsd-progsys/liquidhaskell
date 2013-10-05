@@ -1,0 +1,199 @@
+\newcommand{\C}{\textsc{C}\xspace}
+\newcommand{\toolname}{\textsc{LiquidHaskell}\xspace}
+%\newcommand{\bytestring}{\textsc{bytestring}\xspace}
+%\newcommand{\libtext}{\textsc{text}\xspace}
+\newcommand{\bytestring}{\texttt{Bytestring}\xspace}
+\newcommand{\libtext}{\texttt{Text}\xspace}
+
+%% 
+
+\newcommand{\CRASH}{\ensuremath{\mathtt{crash}}\xspace}
+\newcommand{\defeq}{\ \doteq\ }
+\providecommand{\dbrkts}[1]{[\![#1]\!]}
+%\newcommand\embed[1]{\dbrkts{#1}}
+\newcommand\embed[1]{\dbrkts{#1}}
+\newcommand\R{\ensuremath{\mathsf{Fin}\xspace}}
+\newcommand\FORCE[1]{#1 \in \R}
+\newcommand\NOFORCE[1]{#1 \not \in \R}
+
+\newcommand\corelan{$\lambda_\downarrow$\xspace}
+\newcommand\ttbind[2]{\ensuremath{\mathtt{#1}:\mathtt{#2}}}
+\newcommand\tbind[2]{{#1} \colon {#2}}
+\newcommand\ttref[1]{\ensuremath{\mathtt{\{#1\}}}}
+\newcommand\ttreft[3]{\ttref{\tbind{#1}{#2}\mid {#3}}}
+
+\newcommand\subt[2]{\ensuremath{#1 \preceq #2}}
+\newcommand\subtref[2]{\subt{\ttref{#1}}{\ttref{#2}}}
+
+\newcommand\hastypet[3]{\ensuremath{#1 \vdash \tbind{#2}{#3}}}
+\newcommand\hastype[3]{\ensuremath{#1 \vdash #2 : #3}}
+
+\newcommand\issubtype[3]{\ensuremath{#1 \vdash #2 \preceq #3}}
+\newcommand\iswellformed[2]{\ensuremath{#1 \vdash #2}}
+\newcommand\wellformedsub[2]{\ensuremath{#1 \models #2}}
+\newcommand\ismodeled[2]{\ensuremath{#1 \models #2}}
+\newcommand\wfmodels[2]{\ismodeled{#1}{#2}}
+
+\newcommand\stepsym{\hookrightarrow}
+\newcommand\stepv{\stepsym_v}
+\newcommand\stepn{\stepsym_n}
+\newcommand\stepo{\stepsym_o}
+
+\newcommand\eval[2]{\evalR{\stepsym}{#1}{#2}}
+\newcommand\evalR[3]{\ensuremath{#2 #1 #3}}
+\newcommand\evalGen[4]{\evalR{\stepsym_{#3}^{#4}}{#1}{#2}}
+
+\newcommand\evalv[2]{\evalGen{#1}{#2}{v}{}}
+\newcommand\evaln[2]{\evalGen{#1}{#2}{n}{}}
+\newcommand\evalo[2]{\evalGen{#1}{#2}{o}{}}
+\newcommand\evalvs[2]{\evalGen{#1}{#2}{v}{*}}
+\newcommand\evalns[2]{\evalGen{#1}{#2}{n}{*}}
+\newcommand\evalos[2]{\evalGen{#1}{#2}{o}{*}}
+
+% termination eval
+\newcommand\evalt[3]{\evalGen{#1}{#2}{o}{#3}}
+\newcommand\evalts[2]{\evalGen{#1}{#2}{o}{*}}
+
+
+
+
+
+
+\newcommand\sub[2]{\ensuremath{\left[#2/#1\right]}}
+%\newcommand\sub[2]{\ensuremath{\left[#1 \mapsto #2\right]}}
+\newcommand{\SUBST}[3]{{#1}\sub{#2}{#3}}
+
+\newcommand\shape{\ensuremath{\text{shape}}\xspace}
+\newcommand\termincon[1]{\ensuremath\textcolor{Red}{#1}}
+
+%TT
+\newcommand\Env{\Gamma}
+
+\newcommand\ttack{\mathtt{ack}}
+
+\newcommand\tttLen{\mathtt{tLen}}
+\newcommand\ttsz{\mathtt{sz}}
+\newcommand\ttt{\mathtt{t}}
+\newcommand\tttp{\mathtt{t'}}
+\newcommand\ttb{\mathtt{b}}
+\newcommand\tta{\mathtt{a}}
+\newcommand\ttm{\mathtt{m}}
+\newcommand\ttmp{\mathtt{m'}}
+\newcommand\ttnp{\mathtt{n'}}
+\newcommand\ttn{\mathtt{n}}
+\newcommand\ttp{\mathtt{p}}
+\newcommand\ttv{\mathtt{v}}
+\newcommand\ttx{\mathtt{x}}
+\newcommand\tty{\mathtt{y}}
+\newcommand\ttz{\mathtt{z}}
+\newcommand\tte{\mathtt{e}}
+\newcommand\ttf{\mathtt{e}}
+\newcommand\ttg{\mathtt{e}}
+\newcommand\ttInt{\mathtt{Int}}
+\newcommand\ttNonzero{\mathtt{NonZero}}
+\newcommand\ttNat{\mathtt{Nat}}
+\newcommand\ttfib{\mathtt{fib}}
+
+% MISC 
+
+\newcommand\smtvalid[1]{\ensuremath{\mathsf{SmtValid}(#1)}}
+\newcommand\strict{\ensuremath{\mathsf{Trivial}}}
+\newcommand\constty[1]{\ensuremath{\mathsf{Ty}(#1)}}
+\newcommand\serious{serious\xspace}
+\newcommand\trivial{trivial\xspace}
+
+
+% Expressions
+\newcommand\efun[3]{\ensuremath{\lambda #1. #3}}
+\newcommand\eapp[2]{\ensuremath{#1 \ #2}}
+\newcommand\eif[3]{\ensuremath{\mathtt{if}\ #1\ \mathtt{then}\ #2\ \mathtt{else}\ #3}}
+\newcommand\elet[3]{\ensuremath{\mathtt{let}\ #1 = #2\ \mathtt{in}\ #3}}
+\newcommand\erec[3]{\ensuremath{\mu #1.\lambda #2. #3}}
+\newcommand\etabs[2]{\ensuremath{\left[\Lambda #1\right] #2}}
+\newcommand\etapp[2]{\ensuremath{#1 \left[ #2 \right]}}
+\newcommand\etrue{\ensuremath{\mathtt{true}}\xspace}
+\newcommand\efalse{\ensuremath{\mathtt{false}}\xspace}
+\newcommand\eletsub[2]{\ensuremath{#1 #2}}
+
+%Labels
+\newcommand\ltop{\ensuremath{\downarrow}\xspace}
+\newcommand\lbot{\ensuremath{\uparrow}\xspace}
+
+% Types
+\newcommand\tbool{\ensuremath{\mathtt{bool}}\xspace}
+\newcommand\tint{\ensuremath{\mathtt{nat}}\xspace}
+\newcommand\tref[4]{\ensuremath{\{ \tbind{#1}{#2^{#3}} \mid #4 \}}}
+\newcommand\tfun[3]{\ensuremath{\tbind{#1}{#2} \rightarrow #3}}
+\newcommand\tabs[2]{\ensuremath{\forall #1 . #2}}
+
+%Rule Names
+\newcommand\rulename[1]{\textsc{#1}\xspace}
+\newcommand{\rtsub}{\rulename{T-Sub}}
+\newcommand{\rtvara}{\rulename{T-Var-Base}}
+\newcommand{\rtvarb}{\rulename{T-Var}}
+\newcommand{\rtconst}{\rulename{T-Con}}
+\newcommand{\rtfun}{\rulename{T-Fun}}
+\newcommand{\rtapp}{\rulename{T-App}}
+\newcommand{\rtappa}{\rulename{T-App-$\lbot$}}
+\newcommand{\rtappb}{\rulename{T-App-$\ltop$}}
+\newcommand{\rtif}{\rulename{T-If}}
+\newcommand{\rtlet}{\rulename{T-Let}}
+\newcommand{\rtgen}{\rulename{T-Gen}}
+\newcommand{\rtinst}{\rulename{T-Inst}}
+\newcommand{\rtrec}{\rulename{T-Rec}}
+\newcommand{\rtrecs}{\rulename{T-Rec-$\lbot$}}
+\newcommand{\rtrect}{\rulename{T-Rec-$\ltop$}}
+%% \newcommand{\rtrecs}{\rulename{TR-Ser}}
+%% \newcommand{\rtrect}{\rulename{TR-Tr}}
+
+\newcommand{\rsbasetop}{\rulename{$\preceq$-Base-$\ltop$}}
+\newcommand{\rsbasebot}{\rulename{$\preceq$-Base-$\lbot$}}
+\newcommand{\rsvar}{\rulename{$\preceq$-Var}}
+\newcommand{\rsfun}{\rulename{$\preceq$-Fun}}
+\newcommand{\rspoly}{\rulename{$\preceq$-Poly}}
+
+\newcommand{\rwbasetop}{\rulename{WF-Base-$\ltop$}}
+\newcommand{\rwbasebot}{\rulename{WF-Base-$\lbot$}}
+\newcommand{\rwbase}{\NV{TODO}}
+\newcommand{\rwvar}{\rulename{WF-Var}}
+\newcommand{\rwfun}{\rulename{WF-Fun}}
+\newcommand{\rwpoly}{\rulename{WF-Poly}}
+
+\newcommand{\rwsempty}{\rulename{WS-Empty}}
+\newcommand{\rwsext}{\rulename{WS-Ext}}
+\newcommand{\rwsgxt}{\rulename{WS-Gxt}}
+
+
+\newcommand{\reapp}{\rulename{E-AppL}}
+\newcommand{\reappb}{\rulename{E-App}}
+\newcommand{\reappc}{\rulename{E-AppT}}
+\newcommand{\reappd}{\rulename{E-AppTB}}
+\newcommand{\reconsta}{\rulename{E-ConstA}}
+\newcommand{\reconstb}{\rulename{E-Con}}
+\newcommand{\reif}{\rulename{E-If}}
+\newcommand{\reiftrue}{\rulename{E-If-True}}
+\newcommand{\reiffalse}{\rulename{E-If-False}}
+\newcommand{\rereca}{\rulename{E-Rec}}
+\newcommand{\rerecb}{\NV{UNIFIED}}
+\newcommand{\rerecc}{\rulename{E-RecC}}
+\newcommand{\reinst}{\NV{TODO}}
+\newcommand{\reinsta}{\rulename{E-InstA}}
+\newcommand{\reinstb}{\rulename{E-InstB}}
+\newcommand{\reinstc}{\rulename{E-InstC}}
+\newcommand{\releta}{\rulename{E-Let}}
+\newcommand{\reletb}{\rulename{E-LetX}}
+\newcommand{\recntx}{\rulename{E-Com}}
+\newcommand{\reletc}{\rulename{E-LetTB}}
+
+%%%%%%%% TABLE
+
+\newcommand\bfModule{\textbf{Module}\xspace}
+\newcommand\bfAnnot{\textbf{Annot}\xspace}
+\newcommand\bfQualif{\textbf{Qualif}\xspace}
+\newcommand\bfLOC{\textbf{LOC}\xspace}
+\newcommand\bfSpecs{\textbf{Specs}\xspace}
+\newcommand\bfLetRec{\textbf{Rec}\xspace}
+\newcommand\bfMutRec{\textbf{Mut}\xspace}
+\newcommand\bfHint{\textbf{Hint}\xspace}
+\newcommand\bfWitness{\textbf{Wit}\xspace}
+

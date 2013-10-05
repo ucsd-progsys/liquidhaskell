@@ -2,7 +2,7 @@ module spec Data.List where
 
 import GHC.List
 
-assume groupBy :: (a -> a -> Bool) -> [a] -> [{v:[a] | len(v) > 0}] 
+assume groupBy :: (a -> a -> GHC.Types.Bool) -> [a] -> [{v:[a] | len(v) > 0}]
 
 assume transpose :: [[a]] -> [{v:[a] | (len v) > 0}]
 
@@ -10,7 +10,7 @@ assume GHC.List.splitAt :: n:Nat -> x:[a] -> ({v:[a] | (Min (len v) (len x) n)},
 
 assume GHC.List.concat :: x:[[a]] -> {v:[a] | (len v) = (sumLens x)}
 
-measure sumLens :: [[a]] -> Int
+measure sumLens :: [[a]] -> GHC.Types.Int
 sumLens ([])   = 0
 sumLens (c:cs) = (len c) + (sumLens cs)
 

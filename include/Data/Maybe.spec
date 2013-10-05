@@ -1,8 +1,8 @@
 module spec Data.Maybe where
 
-measure isJust :: forall a. Maybe a -> Prop
-isJust (Just x)  = true
-isJust (Nothing) = false
+measure isJust :: forall a. Data.Maybe.Maybe a -> Prop
+isJust (Data.Maybe.Just x)  = true
+isJust (Data.Maybe.Nothing) = false
 
-measure fromJust :: forall a. Maybe a -> a
-fromJust (Just x) = x
+measure fromJust :: forall a. Data.Maybe.Maybe a -> a
+fromJust (Data.Maybe.Just x) = x

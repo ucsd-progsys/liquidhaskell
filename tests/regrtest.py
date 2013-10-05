@@ -135,7 +135,9 @@ demosIgnored = { "Composition.hs"
 
 regtestdirs  = [ ("pos", {}, 0)
                , ("neg", {}, 1)
+               , ("crash", {}, 2)
                ]
+
 benchtestdirs = [ ("../web/demos", demosIgnored, 0)
                 , ("../benchmarks/esop2013-submission", {"Base0.hs"}, 0)
                 , ("../benchmarks/bytestring-0.9.2.1", bytestringIgnored, 0)
