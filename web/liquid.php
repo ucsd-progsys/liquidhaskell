@@ -26,9 +26,7 @@ function writeFileRaw($fname, $rawstring){
 // Get inputs
 $data             = file_get_contents("php://input");
 $query            = json_decode($data);
-// $packagedir       = "/home/rjhala/.ghc/x86_64-linux-7.4.1/package.conf.d/";
 $packagedir       = "/home/rjhala/research/liquid/.hsenv_liquid/ghc/lib/ghc-7.6.3/package.conf.d";
-
 $log              = "log";
 
 // echo 'HELLO TO HELL!\n';
@@ -63,6 +61,7 @@ $out              = array();
 if (file_exists($thtml)){
   $out['annotHtml'] = file_get_contents($thtml);
 }
+
 if (file_exists($tjson)){
   $out['annots']    = json_decode(file_get_contents($tjson));
 }

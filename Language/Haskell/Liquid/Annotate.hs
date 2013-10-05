@@ -55,7 +55,7 @@ import Language.Haskell.HsColour.Classify
 import Language.Fixpoint.Files
 import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc -- (Loc (..), pprDoc, showPpr)
+import Language.Haskell.Liquid.GhcMisc
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
