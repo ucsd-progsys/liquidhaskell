@@ -17,86 +17,48 @@ hmatrix
 
 Dependency order for hmatrix
 
-[ 1 of 36] Compiling Data.Packed.Internal.Signatures (
-lib/Data/Packed/Internal/Signatures.hs,
-dist/build/Data/Packed/Internal/Signatures.o )
-[ 2 of 36] Compiling Data.Packed.Internal.Common (
-lib/Data/Packed/Internal/Common.hs, dist/build/Data/Packed/Internal/Common.o )
-[ 3 of 36] Compiling Data.Packed.Internal.Vector (
-lib/Data/Packed/Internal/Vector.hs, dist/build/Data/Packed/Internal/Vector.o )
-[ 4 of 36] Compiling Numeric.GSL.Vector ( lib/Numeric/GSL/Vector.hs,
-dist/build/Numeric/GSL/Vector.o )
-[ 5 of 36] Compiling Data.Packed.Internal.Matrix (
-lib/Data/Packed/Internal/Matrix.hs, dist/build/Data/Packed/Internal/Matrix.o )
-[ 6 of 36] Compiling Numeric.Conversion ( lib/Numeric/Conversion.hs,
-dist/build/Numeric/Conversion.o )
-[ 7 of 36] Compiling Data.Packed.Internal ( lib/Data/Packed/Internal.hs,
-dist/build/Data/Packed/Internal.o )
-[ 8 of 36] Compiling Data.Packed.ST   ( lib/Data/Packed/ST.hs,
-dist/build/Data/Packed/ST.o )
-[ 9 of 36] Compiling Data.Packed.Foreign ( lib/Data/Packed/Foreign.hs,
-dist/build/Data/Packed/Foreign.o )
-[10 of 36] Compiling Numeric.GSL.Differentiation (
-lib/Numeric/GSL/Differentiation.hs, dist/build/Numeric/GSL/Differentiation.o )
-[11 of 36] Compiling Numeric.GSL.Integration ( lib/Numeric/GSL/Integration.hs,
-dist/build/Numeric/GSL/Integration.o )
-[12 of 36] Compiling Numeric.GSL.Fourier ( lib/Numeric/GSL/Fourier.hs,
-dist/build/Numeric/GSL/Fourier.o )
-[13 of 36] Compiling Numeric.GSL.Polynomials ( lib/Numeric/GSL/Polynomials.hs,
-dist/build/Numeric/GSL/Polynomials.o )
-[14 of 36] Compiling Numeric.GSL.Internal ( lib/Numeric/GSL/Internal.hs,
-dist/build/Numeric/GSL/Internal.o )
-[15 of 36] Compiling Numeric.GSL.ODE  ( lib/Numeric/GSL/ODE.hs,
-dist/build/Numeric/GSL/ODE.o )
-[16 of 36] Compiling Data.Packed.Development ( lib/Data/Packed/Development.hs,
-dist/build/Data/Packed/Development.o )
-[17 of 36] Compiling Data.Packed.Matrix ( lib/Data/Packed/Matrix.hs,
-dist/build/Data/Packed/Matrix.o )
-[18 of 36] Compiling Numeric.GSL.Minimization ( lib/Numeric/GSL/Minimization.hs,
-dist/build/Numeric/GSL/Minimization.o )
-[19 of 36] Compiling Numeric.GSL.Root ( lib/Numeric/GSL/Root.hs,
-dist/build/Numeric/GSL/Root.o )
-[20 of 36] Compiling Numeric.LinearAlgebra.LAPACK (
-lib/Numeric/LinearAlgebra/LAPACK.hs, dist/build/Numeric/LinearAlgebra/LAPACK.o )
-[21 of 36] Compiling Data.Packed.Vector ( lib/Data/Packed/Vector.hs,
-dist/build/Data/Packed/Vector.o )
-[22 of 36] Compiling Data.Packed      ( lib/Data/Packed.hs,
-dist/build/Data/Packed.o )
-[23 of 36] Compiling Numeric.ContainerBoot ( lib/Numeric/ContainerBoot.hs,
-dist/build/Numeric/ContainerBoot.o )
-[24 of 36] Compiling Numeric.Chain    ( lib/Numeric/Chain.hs,
-dist/build/Numeric/Chain.o )
-[25 of 36] Compiling Numeric.LinearAlgebra.Algorithms (
-lib/Numeric/LinearAlgebra/Algorithms.hs,
-dist/build/Numeric/LinearAlgebra/Algorithms.o )
-[26 of 36] Compiling Numeric.IO       ( lib/Numeric/IO.hs,
-dist/build/Numeric/IO.o )
-[27 of 36] Compiling Data.Packed.Random ( lib/Data/Packed/Random.hs,
-dist/build/Data/Packed/Random.o )
-[28 of 36] Compiling Numeric.Container ( lib/Numeric/Container.hs,
-dist/build/Numeric/Container.o )
-[29 of 36] Compiling Numeric.Matrix   ( lib/Numeric/Matrix.hs,
-dist/build/Numeric/Matrix.o )
-[30 of 36] Compiling Numeric.Vector   ( lib/Numeric/Vector.hs,
-dist/build/Numeric/Vector.o )
-[31 of 36] Compiling Numeric.LinearAlgebra ( lib/Numeric/LinearAlgebra.hs,
-dist/build/Numeric/LinearAlgebra.o )
-[32 of 36] Compiling Numeric.GSL.Fitting ( lib/Numeric/GSL/Fitting.hs,
-dist/build/Numeric/GSL/Fitting.o )
-[33 of 36] Compiling Numeric.GSL      ( lib/Numeric/GSL.hs,
-dist/build/Numeric/GSL.o )
-[34 of 36] Compiling Numeric.LinearAlgebra.Util.Convolution (
-lib/Numeric/LinearAlgebra/Util/Convolution.hs,
-dist/build/Numeric/LinearAlgebra/Util/Convolution.o )
-[35 of 36] Compiling Numeric.LinearAlgebra.Util (
-lib/Numeric/LinearAlgebra/Util.hs, dist/build/Numeric/LinearAlgebra/Util.o )
-[36 of 36] Compiling Graphics.Plot    ( lib/Graphics/Plot.hs,
-dist/build/Graphics/Plot.o )
-In-place registering hmatrix-0.15.0.1...
+NA [ 1 of 36] Data.Packed.Internal.Signatures
+TY [ 2 of 36] Data.Packed.Internal.Common 
+  > see tests/pos/transpose.hs
+
+[ 3 of 36] Data.Packed.Internal.Vector 
+[ 4 of 36] Numeric.GSL.Vector 
+[ 5 of 36] Data.Packed.Internal.Matrix 
+[ 6 of 36] Numeric.Conversion
+[ 7 of 36] Data.Packed.Internal
+[ 8 of 36] Data.Packed.ST
+[ 9 of 36] Data.Packed.Foreign
+[10 of 36] Numeric.GSL.Differentiation
+[11 of 36] Numeric.GSL.Integration
+[12 of 36] Numeric.GSL.Fourier
+[13 of 36] Numeric.GSL.Polynomials
+[14 of 36] Numeric.GSL.Internal
+[15 of 36] Numeric.GSL.ODE
+[16 of 36] Data.Packed.Development
+[17 of 36] Data.Packed.Matrix
+[18 of 36] Numeric.GSL.Minimization
+[19 of 36] Numeric.GSL.Root
+[20 of 36] Numeric.LinearAlgebra.LAPACK 
+[21 of 36] Data.Packed.Vector
+[22 of 36] Data.Packed
+[23 of 36] Numeric.ContainerBoot
+[24 of 36] Numeric.Chain
+[25 of 36] Numeric.LinearAlgebra.Algorithms 
+[26 of 36] Numeric.IO
+[27 of 36] Data.Packed.Random
+[28 of 36] Numeric.Container
+[29 of 36] Numeric.Matrix
+[30 of 36] Numeric.Vector
+[31 of 36] Numeric.LinearAlgebra
+[32 of 36] Numeric.GSL.Fitting
+[33 of 36] Numeric.GSL
+[34 of 36] Numeric.LinearAlgebra.Util.Convolution 
+[35 of 36] Numeric.LinearAlgebra.Util 
+[36 of 36] Graphics.Plot
 
 
 Embed
------
+=====
 
 see 
 
@@ -126,7 +88,7 @@ Meaning we have to rewrite the above to the rather lame:
 
 
 Module Import (branch: imports) 
--------------------------------
+===============================
 
 See tests/pos/Mod2.hs [Which imports a measure from Mod1.hs]
 
