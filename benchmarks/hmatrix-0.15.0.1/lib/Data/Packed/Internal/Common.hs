@@ -32,10 +32,19 @@ import Foreign.Storable.Complex()
 import Data.List(transpose,intersperse)
 import Control.Exception as E
 
+{-@ safeTake :: n:Nat -> {v:[a] | (len v) >= n} -> {v:[a] | (len v) = n})@-}
+safeTake 0 _      = []
+safeTake n (x:xs) = x : safeTake (n-1) xs
+
+{-@ safeTake :: n:Nat -> xs:{v:[a] | (len v) >= n} -> {v:[a] | (len v) = (len xs) - n} @-}
+safeDrop 0 xs     = xs
+safeDrop n (_:xs) = safeDrop (n-1) xs
+
+{-@ splitEvery :: n:Nat -> {v:[a] | (length v) mod n = 0} -> [{v:[a] | (len v) = n}] @-}
 -- | @splitEvery 3 [1..9] == [[1,2,3],[4,5,6],[7,8,9]]@
 splitEvery :: Int -> [a] -> [[a]]
 splitEvery _ [] = []
-splitEvery k l = take k l : splitEvery k (drop k l)
+splitEvery k l  = safeTake k l : splitEvery k (safeDrop k l)
 
 -- | obtains the common value of a property of a list
 common :: (Eq a) => (b->a) -> [b] -> Maybe a
@@ -45,6 +54,21 @@ common f = commonval . map f where
     commonval [a] = Just a
     commonval (a:b:xs) = if a==b then commonval (b:xs) else Nothing
 
+{-@ predicate Max V X Y =  V = if (X >= Y) then X else Y @-}
+
+{-@ measure maxInts :: [Int] -> Int 
+    maxInts []     = {v | v = (0 - 1)} 
+    maxInts (x:xs) = {v | (Max v x (maxInts xs))}
+  @-}
+
+{-@ goo :: xs:[{v:Int | v = (len xs)}] -> Int @-}
+goo :: [Int] -> Int
+goo xs = 0
+
+prop0 = goo [1]
+prop1 = goo [2]
+
+{-@ compatdim :: dims:{v:[{v:Nat | (v = 1 || v = (maxInts dims))}] | v =-> Maybe {v:Nat | (maxInt dims)} @-}
 -- | common value with \"adaptable\" 1
 compatdim :: [Int] -> Maybe Int
 compatdim [] = Nothing
