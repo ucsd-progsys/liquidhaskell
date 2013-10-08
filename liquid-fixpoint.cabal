@@ -13,7 +13,8 @@ cabal-version:       >=1.8
 Executable fixpoint
   Main-is:       Fixpoint.hs
   Build-Depends: base
-               , ghc==7.6.3
+               -- , ghc==7.6.3
+               -- , ghc-prim
                , array
                , syb
                , cmdargs
@@ -25,7 +26,6 @@ Executable fixpoint
                , directory
                , filemanip
                , filepath
-               , ghc-prim
                , mtl
                , parsec
                , pretty
