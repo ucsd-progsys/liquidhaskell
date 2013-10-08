@@ -46,6 +46,7 @@ module Language.Fixpoint.Types (
   , eProp
   , pAnd, pOr, pIte
   , isTautoPred
+  , symConstLits
 
   -- * Generalizing Embedding with Typeclasses 
   , Symbolic (..)
@@ -53,14 +54,14 @@ module Language.Fixpoint.Types (
   , Predicate (..)
 
   -- * Constraints and Solutions
-  , SubC, WfC, subC, lhsCs, rhsCs, wfC, Tag, FixResult (..), FixSolution, addIds, sinfo 
+  , SubC(..), WfC(..), subC, lhsCs, rhsCs, wfC, Tag, FixResult (..), FixSolution, addIds, sinfo 
   , trueSubCKvar
   , removeLhsKvars
 
   -- * Environments
   , SEnv, SESearch(..)
   , emptySEnv, toListSEnv, fromListSEnv
-  , mapSEnv
+  , mapSEnv, mapSEnvWithKey
   , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
   , intersectWithSEnv
   , filterSEnv
@@ -68,7 +69,7 @@ module Language.Fixpoint.Types (
 
   , FEnv, insertFEnv 
   , IBindEnv, BindId, insertsIBindEnv, deleteIBindEnv, emptyIBindEnv
-  , BindEnv, insertBindEnv, emptyBindEnv
+  , BindEnv, insertBindEnv, emptyBindEnv, mapBindEnv
 
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..), Reftable(..) 
@@ -691,6 +692,7 @@ toListSEnv (SE env)     = M.toList env
 fromListSEnv            ::  [(Symbol, a)] -> SEnv a
 fromListSEnv            = SE . M.fromList
 mapSEnv f (SE env)      = SE (fmap f env)
+mapSEnvWithKey f        = fromListSEnv . fmap f . toListSEnv
 deleteSEnv x (SE env)   = SE (M.delete x env)
 insertSEnv x y (SE env) = SE (M.insert x y env)
 lookupSEnv x (SE env)   = M.lookup x env
@@ -728,6 +730,8 @@ insertBindEnv x r (BE n m) = (n, BE (n + 1) (M.insert n (x, r) m))
 emptyBindEnv :: BindEnv
 emptyBindEnv = BE 0 M.empty
 
+mapBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindEnv -> BindEnv
+mapBindEnv f (BE n m) = (BE n $ M.map f m)
 
 instance Functor SEnv where
   fmap f (SE m) = SE $ fmap f m
@@ -1242,7 +1246,7 @@ toFixpoint x'    = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csD
         bindsDoc = toFix    . bs
         gsDoc    = toFix_gs . gs
 
-getLits x = lits x ++ symConstLits x
+getLits x = lits x -- ++ symConstLits x
 
 
 -------------------------------------------------------------------------

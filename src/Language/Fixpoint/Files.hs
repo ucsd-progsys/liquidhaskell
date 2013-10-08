@@ -17,7 +17,7 @@ module Language.Fixpoint.Files (
   , isExtFile
  
   -- * Hardwired paths 
-  , getIncludePath, getFixpointPath, getHqBotPath, getZ3LibPath, getCSSPath
+  , getFixpointPath, getZ3LibPath
 
   -- * Various generic utility functions for finding and removing files
   , getHsTargets
@@ -42,26 +42,11 @@ import           Language.Fixpoint.Misc
 -- | Hardwired Paths and Files -----------------------------
 ------------------------------------------------------------
 
-envVarName = "LIQUIDHS"
-
-getIncludePath, getHqBotPath, getCSSPath, getFixpointPath  ::  IO FilePath 
-
-getIncludePath  = getSuffixPath ["include"]                                 >>= checkM doesDirectoryExist "include directory"
-getCSSPath      = getSuffixPath ["syntax", "liquid.css"]                    >>= checkM doesFileExist      "css file"          
--- getFixpointPath = getSuffixPath ["external", "fixpoint", "fixpoint.native"] >>= checkM doesFileExist      "fixpoint binary"   
-
 getFixpointPath = fromMaybe msg <$> findExecutable "fixpoint.native"
   where msg     = errorstar "Cannot find fixpoint binary [fixpoint.native]"
 
-getHqBotPath = liftM (`combine` "Bot.hquals") getIncludePath
+getZ3LibPath    = dropFileName <$> getFixpointPath
 
-getZ3LibPath    = dropFileName <$> getFixpointPath 
-
-
-
-getSuffixPath ::  [FilePath] -> IO FilePath 
-getSuffixPath suff 
-  = (joinPath . (: suff)) `fmap` getEnv envVarName
 
 checkM f msg p 
   = do ex <- f p
@@ -91,23 +76,23 @@ data Ext = Cgi    -- ^ Constraint Generation Information
 
 extMap e = go e
   where 
-    go Cgi    = "cgi"
-    go Pred   = "pred"
-    go PAss   = "pass"
-    go Dat    = "dat"
-    go Out    = "fqout"
-    go Fq     = "fq"
-    go Html   = "html"
-    go Cst    = "cst"
-    go Annot  = "annot"
-    go Hs     = "hs"
-    go LHs    = "lhs"
-    go Mkdn   = "markdown"
-    go Json   = "json"
-    go Spec   = "spec"
-    go Hquals = "hquals" 
-    go Result = "out"
-    go Saved  = "bak"
+    go Cgi    = ".cgi"
+    go Pred   = ".pred"
+    go PAss   = ".pass"
+    go Dat    = ".dat"
+    go Out    = ".fqout"
+    go Fq     = ".fq"
+    go Html   = ".html"
+    go Cst    = ".cst"
+    go Annot  = ".annot"
+    go Hs     = ".hs"
+    go LHs    = ".lhs"
+    go Mkdn   = ".markdown"
+    go Json   = ".json"
+    go Spec   = ".spec"
+    go Hquals = ".hquals" 
+    go Result = ".out"
+    go Saved  = ".bak"
     go _      = errorstar $ "extMap: Unknown extension " ++ show e
 
 withExt         :: FilePath -> Ext -> FilePath 
@@ -117,7 +102,7 @@ extFileName     :: Ext -> FilePath -> FilePath
 extFileName ext = (`addExtension` (extMap ext))
 
 isExtFile ::  Ext -> FilePath -> Bool
-isExtFile ext = ((extMap ext) `isSuffixOf`)
+isExtFile ext = ((extMap ext) ==) . takeExtension
 
 extModuleName ::  String -> Ext -> FilePath
 extModuleName modName ext =

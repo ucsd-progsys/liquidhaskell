@@ -1,16 +1,11 @@
 #!/bin/bash
 
-########################################################################
-Z3MEM=false    # default
-#Z3MEM=true    # use this if you want to link against Z3
-########################################################################
-
 ROOTHOME=`pwd`
 GHCBIN=`which ghc`
 GHCHOME=`dirname $GHCBIN`
 OCAMLLIB=`ocamlc -v | tail -1 | cut -d : -f 2 | tr -d " "`
 
-if $Z3MEM = 'true'
+if [[ $Z3MEM = 'True' ]]
 then
   Z3HOME=$ROOTHOME/external/z3
 else
@@ -28,7 +23,7 @@ cat - > build.sh <<EOF
 
 set -e
 
-if [[ '`echo $Z3MEM`' = 'true' ]]
+if [[ '$Z3MEM' = 'True' ]]
 then
   if [[ \`uname -m\` = 'x86_64' ]]
   then
