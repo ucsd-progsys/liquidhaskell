@@ -13,9 +13,9 @@ demo: Csv.hs
 Most demonstrations for verification techniques involve programs with complicated
 invariants and properties. However, these methods can often be rather useful for
 describing simple but important aspects of APIs or programs with more humble
-goals. I saw a rather nice example of using Scala's `Shapeless` library for
-preventing off-by-one errors in CSV processing code. Here's the same, short, 
-example rephrased for LiquidHaskell.
+goals. I saw a rather [nice example][shapeless-csv] of using Scala's
+`Shapeless` library for preventing off-by-one errors in CSV processing
+code. Here's the same, short, example rephrased with LiquidHaskell.
 
 <!-- more -->
 
@@ -35,12 +35,12 @@ Suppose you wanted to represent *tables* as a list of comma-separated values.
 For example, here's a table listing the articles and prices at the coffee shop
 I'm sitting in right now:
 
-    Item        Price
-    ----        -----
-    Espresso    2.25
-    Macchiato   2.75
-    Cappucino   3.35
-    Americano   2.25
+Item        Price
+----        -----
+Espresso    2.25
+Macchiato   2.75
+Cappucino   3.35
+Americano   2.25
 
 You might represent this with a simple Haskell data type:
 
@@ -112,12 +112,10 @@ To do so, we merely write a refined data type definition:
 
 Here `len` is a *measure* [denoting the length of a list][list-measure].
 Thus, `(len headers)` is the number of headers in the table, and the
-refinement on the `rows` field states that:
+refinement on the `rows` field states that  *each* `row` is a list of `String`s, 
+with exactly the same number of elements as the number of `headers`.
 
-(a) *each* `row` is a list of `String`s, 
-(b) with exactly the same number of elements as the number of `headers`.
-
-Thus, we can now have our arbitrary-arity tables, but LiquidHaskell will 
+We can now have our arbitrary-arity tables, but LiquidHaskell will 
 make sure that we don't miss entries here or there.
 
 \begin{code}
