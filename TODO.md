@@ -12,6 +12,8 @@ TODO
 
 * hmatrix
 
+* error messages (tests/todo/err8.hs)
+
 hmatrix
 -------
 
