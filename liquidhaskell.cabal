@@ -31,6 +31,7 @@ data-files: include/*.hquals
           , include/GHC/IO/*.spec
           , include/Language/Haskell/Liquid/List.hs
           , include/Language/Haskell/Liquid/Prelude.hs
+          , include/Language/Haskell/Liquid/Foreign.hs
           , include/Language/Haskell/Liquid/Prelude.pred
           , include/System/*.spec
           , syntax/liquid.css
@@ -108,6 +109,7 @@ Library
    hs-source-dirs:  include, .
  
    Exposed-Modules: Language.Haskell.Liquid.Prelude,
+                    Language.Haskell.Liquid.Foreign, 
                     Language.Haskell.Liquid.List, 
                     Language.Haskell.Liquid.PrettyPrint, 
                     Language.Haskell.Liquid.Bare,
