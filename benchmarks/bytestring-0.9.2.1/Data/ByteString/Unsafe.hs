@@ -52,7 +52,8 @@ import Foreign.Storable         (Storable(..))
 import Foreign.C.String         (CString, CStringLen)
 
 -- LIQUID
-import Language.Haskell.Liquid.Prelude  (mkPtr, cSizeInt, liquidError)
+import Language.Haskell.Liquid.Prelude  (liquidError)
+import Language.Haskell.Liquid.Foreign  (mkPtr, cSizeInt)
 import Foreign.ForeignPtr       (ForeignPtr)
 import Data.Word
 import Foreign.C.Types          (CChar(..), CInt(..), CSize(..), CULong(..))

@@ -118,7 +118,7 @@ getGhcInfo' cfg0 target
       (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs name' modguts tgtSpec impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
       hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs
-      return              $ GI hscEnv coreBinds impVs defVs useVs hqualFiles imps incs spec 
+      return              $ GI hscEnv coreBinds impVs letVs useVs hqualFiles imps incs spec 
 
 updateDynFlags df ps 
   = df { importPaths  = ps ++ importPaths df   

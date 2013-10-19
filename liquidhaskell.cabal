@@ -31,9 +31,19 @@ data-files: include/*.hquals
           , include/GHC/IO/*.spec
           , include/Language/Haskell/Liquid/List.hs
           , include/Language/Haskell/Liquid/Prelude.hs
+          , include/Language/Haskell/Liquid/Foreign.hs
           , include/Language/Haskell/Liquid/Prelude.pred
           , include/System/*.spec
           , syntax/liquid.css
+
+Source-Repository this
+  Tag:         0.1
+  Type:        git
+  Location:    https://github.com/ucsd-progsys/liquidhaskell/
+
+Source-Repository head
+  Type:        git
+  Location:    https://github.com/ucsd-progsys/liquidhaskell/
 
 Executable liquid 
   Build-Depends: base >= 4 && < 5
@@ -99,6 +109,7 @@ Library
    hs-source-dirs:  include, .
  
    Exposed-Modules: Language.Haskell.Liquid.Prelude,
+                    Language.Haskell.Liquid.Foreign, 
                     Language.Haskell.Liquid.List, 
                     Language.Haskell.Liquid.PrettyPrint, 
                     Language.Haskell.Liquid.Bare,
@@ -134,6 +145,7 @@ Library
                     Language.Haskell.Liquid.Desugar.DsBinds,
                     Language.Haskell.Liquid.Desugar.DsGRHSs,
                     Language.Haskell.Liquid.Desugar.HscMain
+                    Paths_liquidhaskell
    --ghc-options: -O -W
    Extensions: PatternGuards
 

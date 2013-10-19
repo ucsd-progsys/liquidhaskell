@@ -77,7 +77,8 @@ import Foreign.Storable         (Storable(..))
 import Foreign.C.Types          (CInt(..), CSize(..), CULong(..))
 import Foreign.C.String         (CString)
 
-import Language.Haskell.Liquid.Prelude (intCSize, liquidAssert)
+import Language.Haskell.Liquid.Prelude (liquidAssert)
+import Language.Haskell.Liquid.Foreign (intCSize)
 
 #ifndef __NHC__
 import Control.Exception        (assert)

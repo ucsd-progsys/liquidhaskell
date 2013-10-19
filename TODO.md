@@ -10,9 +10,57 @@ TODO
     ? big constants issue : _word64 34534523452134213524525 due to (deriving Typeable)
     - see others below
 
+* hmatrix
+
+* error messages (tests/todo/err8.hs)
+
+hmatrix
+-------
+
+Dependency order for hmatrix
+
+NA [ 1 of 36] Data.Packed.Internal.Signatures
+TY [ 2 of 36] Data.Packed.Internal.Common 
+  > see tests/pos/transpose.hs
+
+[ 3 of 36] Data.Packed.Internal.Vector 
+[ 4 of 36] Numeric.GSL.Vector 
+[ 5 of 36] Data.Packed.Internal.Matrix 
+[ 6 of 36] Numeric.Conversion
+[ 7 of 36] Data.Packed.Internal
+[ 8 of 36] Data.Packed.ST
+[ 9 of 36] Data.Packed.Foreign
+[10 of 36] Numeric.GSL.Differentiation
+[11 of 36] Numeric.GSL.Integration
+[12 of 36] Numeric.GSL.Fourier
+[13 of 36] Numeric.GSL.Polynomials
+[14 of 36] Numeric.GSL.Internal
+[15 of 36] Numeric.GSL.ODE
+[16 of 36] Data.Packed.Development
+[17 of 36] Data.Packed.Matrix
+[18 of 36] Numeric.GSL.Minimization
+[19 of 36] Numeric.GSL.Root
+[20 of 36] Numeric.LinearAlgebra.LAPACK 
+[21 of 36] Data.Packed.Vector
+[22 of 36] Data.Packed
+[23 of 36] Numeric.ContainerBoot
+[24 of 36] Numeric.Chain
+[25 of 36] Numeric.LinearAlgebra.Algorithms 
+[26 of 36] Numeric.IO
+[27 of 36] Data.Packed.Random
+[28 of 36] Numeric.Container
+[29 of 36] Numeric.Matrix
+[30 of 36] Numeric.Vector
+[31 of 36] Numeric.LinearAlgebra
+[32 of 36] Numeric.GSL.Fitting
+[33 of 36] Numeric.GSL
+[34 of 36] Numeric.LinearAlgebra.Util.Convolution 
+[35 of 36] Numeric.LinearAlgebra.Util 
+[36 of 36] Graphics.Plot
+
 
 Embed
------
+=====
 
 see 
 
@@ -42,7 +90,7 @@ Meaning we have to rewrite the above to the rather lame:
 
 
 Module Import (branch: imports) 
--------------------------------
+===============================
 
 See tests/pos/Mod2.hs [Which imports a measure from Mod1.hs]
 

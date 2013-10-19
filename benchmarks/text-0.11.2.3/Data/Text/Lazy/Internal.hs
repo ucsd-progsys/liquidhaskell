@@ -42,6 +42,7 @@ import Data.Text ()
 import Data.Text.UnsafeShift (shiftL)
 import Data.Typeable (Typeable)
 import Foreign.Storable (sizeOf)
+import Foreign.ForeignPtr
 import qualified Data.Text.Internal as T
 
 

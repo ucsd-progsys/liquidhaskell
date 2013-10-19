@@ -41,6 +41,7 @@ import Data.Text.Lazy.Internal (foldrChunks)
 -- import qualified Data.Word
 -- import Data.Int (Int32)
 import Language.Haskell.Liquid.Prelude
+import Language.Haskell.Liquid.Foreign
 
 
 -- | /O(n+m)/ Find the offsets of all non-overlapping indices of
