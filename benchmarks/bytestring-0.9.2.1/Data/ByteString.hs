@@ -283,6 +283,7 @@ assertS s False = error ("assertion failed at "++s)
 -- LIQUID
 import GHC.IO.Buffer
 import Language.Haskell.Liquid.Prelude hiding (eq) 
+import Language.Haskell.Liquid.Foreign 
 
 {-@ include <ByteString.hs.hquals> @-}
 
