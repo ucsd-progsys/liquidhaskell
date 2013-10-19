@@ -11,6 +11,7 @@ module Data.ByteString (
   ) where
 
 import Language.Haskell.Liquid.Prelude
+import Language.Haskell.Liquid.Foreign
 
 import qualified Prelude as P
 import Prelude hiding           (reverse,head,tail,last,init,null
