@@ -93,5 +93,5 @@ solveCs cfg target cgi info
 
 writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
   where 
-    str          = {-# SCC "PPcgi" #-} showFix cgi
+    str          = {-# SCC "PPcgi" #-} showpp cgi
  

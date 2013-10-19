@@ -68,10 +68,11 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
 import Language.Haskell.Liquid.Predicates
+import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.GhcMisc          (isInternal, collectArguments, getSourcePos, pprDoc, tickSrcSpan, hasBaseTypeVar, showPpr)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.Qualifier        
+import Language.Haskell.Liquid.Qualifier
 import Control.DeepSeq
 
 import Debug.Trace (trace)
@@ -486,9 +487,9 @@ instance PPrint CGInfo where
 
 ppr_CGInfo cgi 
   =  (text "*********** Haskell SubConstraints ***********")
-  $$ (pprint $ hsCs  cgi)
+  $$ (pprintLongList $ hsCs  cgi)
   $$ (text "*********** Haskell WFConstraints ************")
-  $$ (pprint $ hsWfs cgi)
+  $$ (pprintLongList $ hsWfs cgi)
   $$ (text "*********** Fixpoint SubConstraints **********")
   $$ (F.toFix  $ fixCs cgi)
   $$ (text "*********** Fixpoint WFConstraints ************")
@@ -903,10 +904,10 @@ consBind isRec γ (x, e, Just spect)
   where πs   = snd3 $ bkUniv spect
 
 consBind isRec γ (x, e, Nothing)
-  | '$':'c':x' <- showpp $ trace (printf "consBind.x: %s\nconsBind.idDetails: %s\n" (showpp x) (showPpr $ idDetails x)) x
-  = do let t = fromJust $ traceShow "consBind.lookup" $ lookupREnv (F.symbol x') (renv γ)
-       addIdA x (defAnn isRec t)
-       return $ Just t
+  -- | '$':'c':x' <- showpp $ trace (printf "consBind.x: %s\nconsBind.idDetails: %s\n" (showpp x) (showPpr $ idDetails x)) x
+  -- = do let t = fromJust $ traceShow "consBind.lookup" $ lookupREnv (F.symbol x') (renv γ)
+  --      addIdA x (defAnn isRec t)
+  --      return $ Just t
   | otherwise
   = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
        addIdA x (defAnn isRec t)

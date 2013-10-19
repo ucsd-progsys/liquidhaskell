@@ -24,7 +24,7 @@ Nil         !! i = undefined
 class Sized s where
   {-@ class measure size :: forall a. a -> Int @-}
 
-  {- size :: Sized s => forall a. x:s a -> {v:Int | v = (size x)} @-}
+  {- $csize :: forall a. x:List a -> {v:Int | v = (size x)} @-}
   size :: s a -> Int
 
 instance Sized List where
@@ -37,18 +37,41 @@ instance Sized List where
 
 
 class (Sized s) => Indexable s where
-  {-@ index :: Indexable s => forall a. x:s a -> {v:Nat | v < (size x)} -> a @-}
+  {- data Indexable s = Indexable (index :: forall a. x:s a -> {v:Nat | v < (size x)} -> a) @-}
+  {- index :: Indexable s => forall a. x:s a -> {v:Nat | v < (size x)} -> a @-}
   index :: s a -> Int -> a
+{-@ class Indexable s where
+      index :: forall a. x:s a -> {v:Nat | v < (size x)} -> a
+  @-}
+{-
+FIXME: transform the class syntax
+
+class Indexable s where
+  index :: forall a. x:s a -> {v:Nat | v < (size x)} -> a
+
+into
+
+data Indexable s = D:Indexable (index :: forall a. x:s a -> {v:Nat | v < (size x)} -> a)
+
+and
+
+index :: Indexable s => forall a. x:s a -> {v:Nat | v < (size x)} -> a
+-}
+
 
 instance Indexable List where
   -- (!!) <: index[[]/s][len/size]
-  {-@ $cindex :: forall a. x:List a -> {v:Nat | v < (size x)} -> a @-}
+  {- $cindex :: forall a. x:List a -> {v:Nat | v < (size x)} -> a @-}
   index = (!!)
+  -- index Nil _ = undefined
+  -- index (Cons x _) 0 = x
+  -- index (Cons x xs) i = index xs (i-1)
 
-instance Sized [] where
-  size = P.length
-instance Indexable [] where
-  index xs i = xs P.!! i
+-- instance Sized [] where
+--   size = P.length
+-- instance Indexable [] where
+--   {- $cindex :: forall a. x:a -> {v:Nat | v < (size x)} -> a @-}
+--   index xs i = xs P.!! i
 
 class Functor f where
   fmap :: (a -> b) -> f a -> f b
