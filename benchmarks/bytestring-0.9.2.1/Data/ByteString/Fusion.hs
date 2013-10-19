@@ -44,8 +44,8 @@ module Data.ByteString.Fusion (
 import Data.ByteString.Internal
 import qualified Data.ByteString.Lazy.Internal as L
 
-import Foreign.ForeignPtr
 import Foreign.Ptr
+import Foreign.ForeignPtr
 import Foreign.Storable         (Storable(..))
 
 import Data.Word                (Word8)

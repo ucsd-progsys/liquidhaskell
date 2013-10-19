@@ -10,7 +10,6 @@ module Data.ByteString (
         foldr                  -- :: (a -> Word8 -> a) -> a -> ByteString -> a
   ) where
 
-import Language.Haskell.Liquid.Prelude
 
 import qualified Prelude as P
 import Prelude hiding           (reverse,head,tail,last,init,null
@@ -89,7 +88,7 @@ assertS s False = error ("assertion failed at "++s)
 
 -- LIQUID
 import GHC.IO.Buffer
-import Language.Haskell.Liquid.Prelude (intCSize) 
+import Language.Haskell.Liquid.Foreign (intCSize, eqPtr) 
 import qualified Data.ByteString.Lazy.Internal 
 import qualified Data.ByteString.Fusion
 import qualified Data.ByteString.Internal

@@ -80,6 +80,7 @@ assertS s False = error ("assertion failed at "++s)
 -- LIQUID
 import GHC.IO.Buffer
 import Language.Haskell.Liquid.Prelude -- (isNullPtr, liquidAssert, intCSize) 
+import Language.Haskell.Liquid.Foreign 
 
 -- -----------------------------------------------------------------------------
 --
