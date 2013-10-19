@@ -1,7 +1,0 @@
-Failed 3 tests: 
-
-  ../benchmarks/text-0.11.2.3/Data/Text/Lazy/Fusion.hs,
-  ../benchmarks/text-0.11.2.3/Data/Text/Lazy/Internal.hs,
-
-  pos/ptr2.hs,
-
