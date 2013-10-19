@@ -1,5 +1,7 @@
 module spec Foreign.Storable where
 
+import Language.Haskell.Liquid.Foreign
+
 predicate PValid P N         = ((0 <= N) && (N < (plen P)))   
 
 Foreign.Storable.poke        :: (Foreign.Storable.Storable a)
