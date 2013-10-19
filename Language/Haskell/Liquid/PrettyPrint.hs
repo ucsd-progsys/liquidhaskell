@@ -13,6 +13,8 @@ module Language.Haskell.Liquid.PrettyPrint (
 
   -- * Printing an Orderable List
   , pprManyOrdered 
+  -- * Printing a List with many large items
+  , pprintLongList
   ) where
 
 import ErrUtils                         (ErrMsg)
@@ -201,4 +203,5 @@ instance (PPrint r, Reftable r) => PPrint (UReft r) where
     | isTauto p  = pprint r
     | otherwise  = pprint p <> text " & " <> pprint r
 
-
+pprintLongList :: PPrint a => [a] -> Doc
+pprintLongList = brackets . vcat . map pprint
