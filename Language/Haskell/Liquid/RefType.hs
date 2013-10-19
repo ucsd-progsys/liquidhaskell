@@ -55,7 +55,7 @@ import PrelInfo         (isNumericClass)
 import qualified TyCon  as TC
 import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Type             (splitFunTys, expandTypeSynonyms)
-import Type             (isPredTy, substTyWith, classifyPredType, PredTree(..), predTreePredType)
+import Type             (isPredTy, substTyWith, classifyPredType, PredTree(..), predTreePredType, isClassPred)
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon)
 
 import Data.Monoid      hiding ((<>))
@@ -866,11 +866,13 @@ fApp c ts
 typeSort :: TCEmb TyCon -> Type -> Sort 
 typeSort tce τ@(ForAllTy _ _) 
   = typeSortForAll tce τ
-typeSort tce (FunTy τ1 τ2) 
-  = typeSortFun tce τ1 τ2
+typeSort tce t@(FunTy τ1 τ2)
+  = typeSortFun tce t -- τ1 τ2
 typeSort tce (TyConApp c τs)
   = fApp ftc (typeSort tce <$> τs)
   where ftc = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce) 
+typeSort tce (AppTy t1 t2)
+  = fApp (stringFTycon "FAppTy") [typeSort tce t1, typeSort tce t2]
 typeSort _ τ
   = FObj $ typeUniqueSymbol τ
  
@@ -893,11 +895,13 @@ tyConName c
   | TC.isTupleTyCon c = tupConName
   | otherwise         = showPpr c
 
-typeSortFun tce τ1 τ2
+typeSortFun tce t -- τ1 τ2
   = FFunc 0  sos
   where sos  = typeSort tce <$> τs
-        τs   = τ1  : grabArgs [] τ2
-grabArgs τs (FunTy τ1 τ2 ) = grabArgs (τ1:τs) τ2
+        τs   = grabArgs [] t
+grabArgs τs (FunTy τ1 τ2 )
+  | not $ isClassPred τ1 = grabArgs (τ1:τs) τ2
+  | otherwise            = grabArgs τs τ2
 grabArgs τs τ              = reverse (τ:τs)
 
 mkDataConIdsTy (dc, t) = [expandProductType id t | id <- dataConImplicitIds dc]

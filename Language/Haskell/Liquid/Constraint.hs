@@ -36,7 +36,7 @@ import TypeRep
 import Class            (Class, className)
 import Var
 import Id
-import Name             (getSrcSpan)
+import Name            -- (getSrcSpan, getOccName)
 import Text.PrettyPrint.HughesPJ
 
 import Control.Monad.State
@@ -74,7 +74,8 @@ import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Qualifier        
 import Control.DeepSeq
 
-
+import Debug.Trace (trace)
+import IdInfo
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
@@ -124,10 +125,17 @@ unifyts penv (x, t) = (x', unify pt t)
 
 measEnv sp penv xts cbs lts
   = CGE { loc   = noSrcSpan
-        , renv  = fromListREnv   $ second (uRType . val) <$> meas sp 
+        , renv  = fromListREnv
+                $ concat [ second (uRType . val) <$> meas sp
+                         , second (uRType . cSort . val) <$> cmeas sp
+                         ]
         , syenv = F.fromListSEnv $ freeSyms sp 
         , penv  = penv 
-        , fenv  = initFEnv (lts ++ (second (rTypeSort tce . val) <$> meas sp))
+        , fenv  = initFEnv
+                $ concat [ lts
+                         , second (rTypeSort tce . val) <$> meas sp
+                         , second (rTypeSort tce . cSort . val) <$> cmeas sp
+                         ]
         , recs  = S.empty 
         , invs  = mkRTyConInv    $ invariants sp
         , grtys = fromListREnv xts 
@@ -137,7 +145,8 @@ measEnv sp penv xts cbs lts
         , trec  = Nothing
         , lcb   = M.empty
         } 
-    where tce = tcEmbeds sp
+    where
+      tce = tcEmbeds sp
 
 assm = assm_grty impVars 
 grty = assm_grty defVars
@@ -826,6 +835,9 @@ consCBTop γ cb
        modify $ \s -> s{tcheck = oldtcheck}
        return γ'
 
+instance Show CoreBind where
+  show = showPpr
+
 tcond cb strict
   = not $ any (\x -> S.member x strict || isInternal x) (binds cb)
   where binds (NonRec x _) = [x]
@@ -886,14 +898,19 @@ consBind isRec γ (x, e, Just spect)
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
        γπ    <- foldM addPToEnv γ' πs
        cconsE γπ e spect
-       addIdA x (defAnn isRec spect) 
+       addIdA x (defAnn isRec spect)
        return Nothing
   where πs   = snd3 $ bkUniv spect
 
-consBind isRec γ (x, e, Nothing) 
-   = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
-        addIdA x (defAnn isRec t)
-        return $ Just t
+consBind isRec γ (x, e, Nothing)
+  | '$':'c':x' <- showpp $ trace (printf "consBind.x: %s\nconsBind.idDetails: %s\n" (showpp x) (showPpr $ idDetails x)) x
+  = do let t = fromJust $ traceShow "consBind.lookup" $ lookupREnv (F.symbol x') (renv γ)
+       addIdA x (defAnn isRec t)
+       return $ Just t
+  | otherwise
+  = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
+       addIdA x (defAnn isRec t)
+       return $ Just t
 
 defAnn True  = RDf
 defAnn False = Def
@@ -983,6 +1000,10 @@ instantiatePreds γ e (RAllP p t)
        return $ replacePreds "consE" t [(p, s)] 
 instantiatePreds _ _ t
   = return t
+
+instance Show Type where
+  show = showpp
+
 
 ----------------------- Type Synthesis ----------------------------
 consE :: CGEnv -> Expr Var -> CG SpecType 
@@ -1414,3 +1435,32 @@ updateCs kvars cs
         rhs      = F.rhsCs cs
         F.Reft(_, lhspds) = lhs
         lhsconcs = [p | F.RConc p <- lhspds]
+
+
+--instCMeas :: [CMeasure ty] -> REnv -> RType a b c d -> RType a b c d
+instCMeas cms env = fmap inst
+  where
+    inst (F.Reft (v,rs)) = F.Reft (v,map inst' rs)
+
+    inst' (F.RConc p)    = F.RConc $ instP p
+    inst' r              = r
+
+    instP (F.PBexp e)    = F.PBexp $ instE e
+    instP (F.PAtom b e1 e2) = F.PAtom b (instE e1) (instE e2)
+    instP p              = p
+
+    instE (F.EApp s es)
+      | Just cm <- L.find ((==s) . val . cName) cms
+      = F.EApp (tx cm es) es
+      | otherwise
+      = F.EApp s es
+    instE e            = e
+
+    tx cm es = undefined
+      where
+        -- FIXME: expand to support multiple args
+        [ek] = map (typeKind . toType . fromJust . flip lookupREnv env . unVar) es
+
+
+    unVar (F.EVar s) = s
+    unVar x          = errorstar $ printf "expected var, found %s" (show x)

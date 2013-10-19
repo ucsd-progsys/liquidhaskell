@@ -293,3 +293,6 @@ qualImportDecl mn = (simpleImportDecl mn) { ideclQualified = True }
 -- FIXME: this seems like a bad idea
 instance Eq Type where
   (==) = eqType
+
+instance Show Var where
+  show = showPpr

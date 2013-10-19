@@ -87,7 +87,7 @@ module Language.Haskell.Liquid.Types (
 
   -- * Measures
   , Measure (..)
-  , IMeasure (..)
+  -- , IMeasure (..)
   , CMeasure (..)
   , Def (..)
   , Body (..)
@@ -1090,14 +1090,13 @@ data Measure ty ctor = M {
 data CMeasure ty
   = CM { cName :: LocSymbol
        , cSort :: ty
-       , cInst :: [(Type, Symbol)]
        }
 
-data IMeasure ty
-  = IM { iName :: LocSymbol
-       , index :: ty
-       , iMeas :: Symbol
-       } deriving (Eq)
+-- data IMeasure ty ctor
+--   = IM { iName :: LocSymbol
+--        , iSort :: ty
+--        , iEqns :: [Def ctor]
+--        }
 
 -- MOVE TO TYPES
 data Def ctor 

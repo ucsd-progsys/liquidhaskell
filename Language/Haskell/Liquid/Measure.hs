@@ -53,7 +53,7 @@ data Spec ty bndr  = Spec {
   , lazy       :: !(S.HashSet Symbol)           -- ^ Ignore Termination Check in these Functions
   , pragmas    :: ![Located String]             -- ^ Command-line configurations passed in through source
   , cmeasures  :: ![Measure ty ()]              -- ^ Measures attached to a type-class
-  , imeasures  :: ![IMeasure ty]                -- ^ Mappings from (measure,type) -> measure
+  , imeasures  :: ![Measure ty bndr]           -- ^ Mappings from (measure,type) -> measure
   }
 
 
@@ -62,7 +62,7 @@ data MSpec ty ctor = MSpec {
     ctorMap  :: M.HashMap Symbol [Def ctor]
   , measMap  :: M.HashMap Symbol (Measure ty ctor)
   , cmeasMap :: M.HashMap Symbol (Measure ty ())
-  , imeas    :: ![IMeasure Type]
+  , imeas    :: ![Measure ty ctor]
   }
 
 instance Monoid (MSpec ty ctor) where
@@ -70,7 +70,7 @@ instance Monoid (MSpec ty ctor) where
 
   (MSpec c1 m1 cm1 im1) `mappend` (MSpec c2 m2 cm2 im2) =
     MSpec (M.unionWith (++) c1 c2) (m1 `M.union` m2)
-          (cm1 `M.union` cm2) (im1 `union` im2)
+          (cm1 `M.union` cm2) (im1 ++ im2)
 
 
 qualifySpec name sp = sp { sigs = [ (qualifySymbol name <$> x, t) | (x, t) <- sigs sp] }
@@ -86,7 +86,7 @@ mkM name typ eqns
 --         -> MSpec ty Symbol
 mkMSpec ms cms ims = MSpec cm mm cmm ims
   where 
-    cm     = groupMap ctor $ concatMap eqns ms'
+    cm     = groupMap ctor $ concatMap eqns (ms'++ims)
     mm     = M.fromList [(val $ name m, m) | m <- ms' ]
     cmm    = M.fromList [(val $ name m, m) | m <- cms ]
     ms'    = checkDuplicateMeasure ms
@@ -135,14 +135,14 @@ instance Functor (Measure t) where
   fmap f (M n s eqs) = M n s (fmap (fmap f) eqs)
 
 instance Functor CMeasure where
-  fmap f (CM n t m) = CM n (f t) m
+  fmap f (CM n t) = CM n (f t)
 
-instance Functor IMeasure where
-  fmap f (IM n t s) = IM n (f t) s
+-- instance Functor (IMeasure t) where
+--   fmap f (IM n s eqs) = IM n s (fmap (fmap f) eqs)
 
 -- MOVE TO TYPES
 instance Functor (MSpec t) where
-  fmap f (MSpec c m cm im) = MSpec (fc c) (fm m) cm im
+  fmap f (MSpec c m cm im) = MSpec (fc c) (fm m) cm (fmap (fmap f) im)
      where fc = fmap $ fmap $ fmap f
            fm = fmap $ fmap f 
 
@@ -153,7 +153,7 @@ instance Bifunctor Measure where
 
 -- MOVE TO TYPES
 instance Bifunctor MSpec   where
-  first f (MSpec c m cm im) = MSpec c (fmap (first f) m) (fmap (first f) cm) im
+  first f (MSpec c m cm im) = MSpec c (fmap (first f) m) (fmap (first f) cm) (fmap (first f) im)
   second                    = fmap
 
 -- MOVE TO TYPES
@@ -174,9 +174,9 @@ instance Bifunctor Spec    where
            , lazy       = x8
            , pragmas    = x9
            , cmeasures  = first f <$> cms
-           , imeasures  = fmap  f <$> ims
+           , imeasures  = first f <$> ims
            }
-  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6 x7 x8 x8a x9 x10 x11 x12)
+  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6 x7 x8 x8a x9 x10 x11 ims)
     = Spec { measures   = fmap (second f) ms
            , sigs       = x0 
            , invariants = x1
@@ -192,7 +192,7 @@ instance Bifunctor Spec    where
            , lazy       = x9
            , pragmas    = x10
            , cmeasures  = x11
-           , imeasures  = x12
+           , imeasures  = fmap (second f) ims
            }
 
 -- MOVE TO TYPES
@@ -223,16 +223,16 @@ instance (PPrint t, PPrint a) => PPrint (MSpec t a) where
 instance PPrint (Measure t a) => Show (Measure t a) where
   show = showpp
 
-instance PPrint t => PPrint (IMeasure t) where
-  pprint (IM n t m) =  text "instance " <> pprint n <> text " " <> pprint t
-                    <> text " = " <> pprint m
+-- instance PPrint t => PPrint (IMeasure t) where
+--   pprint (IM n t m) =  text "instance " <> pprint n <> text " " <> pprint t
+--                     <> text " = " <> pprint m
 
-instance PPrint (IMeasure t) => Show (IMeasure t) where
-  show = showpp
+-- instance PPrint (IMeasure t) => Show (IMeasure t) where
+--   show = showpp
 
 instance PPrint t => PPrint (CMeasure t) where
-  pprint (CM n s is) =  pprint n <> text " :: " <> pprint s
-                     $$ vcat ((\(i,m) -> pprint (IM n i m)) <$> is)
+  pprint (CM n s) =  pprint n <> text " :: " <> pprint s
+                 -- $$ vcat ((\(i,m) -> pprint (IM n i m)) <$> is)
 
 instance PPrint (CMeasure t) => Show (CMeasure t) where
   show = showpp
@@ -244,8 +244,10 @@ mapTy f (M n ty eqs) = M n (f ty) eqs
 dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(LocSymbol, RefType)])
 dataConTypes  s = (ctorTys, measTys)
   where 
-    measTys     = [(name m, sort m) | m <- M.elems $ measMap s]
-    ctorTys     = concatMap mkDataConIdsTy [(defsVar ds, defsTy ds) | (_, ds) <- M.toList $ ctorMap s]
+    measTys     = [(name m, sort m) | m <- M.elems (measMap s) ++ imeas s]
+    ctorTys     = concatMap mkDataConIdsTy [(defsVar ds, defsTy ds)
+                                           | (_, ds) <- M.toList (ctorMap s)
+                                                       ]
     defsTy      = foldl1' meet . fmap defRefType 
     defsVar     = ctor . safeHead "defsVar" 
 
