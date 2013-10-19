@@ -394,6 +394,7 @@ Benchmark Tags
 - LIQUIDTODO : possible with some further hacking
 
 
+
 ----------------------------------------------------------------------------
 
 http://www.cs.st-andrews.ac.uk/~eb/writings/fi-cbc.pdf
@@ -410,4 +411,312 @@ McBride's Stack Machine youtube mcbride icfp 2012 monday keynote agda-curious
     run                          :: is:[Instr] -> {v:[Val] | len(v) >= needs(is)} -> [Val]
     run (Add:is)      (x1:x2:vs) = run is (x1 + x2 : vs)
     run (Push v : is) vs         = run is (v : vs)
+
+PROJECT: Termination for Combinator-based Parsers
+-------------------------------------------------
+
+btw, did you guys see this:
+
+http://www.reddit.com/r/haskell/comments/1okcmh/odd_space_leak_when_using_parsec/
+
+the poster probably feels silly, but I have, on several occasions, hit
+this issue with parsec. Wonder whether our termination checker could be used... hmm...
+
+Sure! You just have to give 
+
+type GenParser tok st = Parsec [tok] st
+
+a size, I guess (len [tok]). The hard part will be to prove it when the size is actually decreasing... 
+
+Hmm... Surely we need to track somehow the "effect" of executing a single parsing action.
+
+For example, 
+
+    chars :: Char -> Parser [Char]
+    chars c = do z  <- char c
+                 zs <- chars c
+                 return (z:zs)
+
+What is the machinery by which the "recursive call" is run on a "smaller" GenParser?
+Does it help if we remove the `do` block?
+
+    chars :: Char -> Parser [Char]
+    chars c = char c  >>= \z  ->   
+              chars c >>= \zs ->
+              return (z:zs)
+
+I guess the question becomes, how/where do we specify (let alone verify) that the function
+`char c` *consumes* one character, hence causing the `chars` to run on a *smaller* input?
+
+
+Phew, after banging my head against this all day, this is what I came up with.
+
+You need a measure
+
+   measure eats :: Parser a -> Nat
+
+which describes (a lower bound) on the number of tokens consumed by the action `Parser a`.
+
+Now, you give 
+
+   return :: a -> {v: Parser a | (eats v) = 0}
+
+and most importantly,
+
+   (>>=)  :: forall <Q :: Parser b -> Prop> 
+             x: Parser a 
+          -> f:{v: a -> Parser b <Q> | (rec v) => (eats x) > 0} 
+          -> exists z:Parser b <Q>. {v:Parser b | (eats v) = (eats z) + (eats x)}
+
+(Of course you have to give appropriate signatures for the parsec combinators 
+-- perhaps one can even PROVE the `eats` measure. However, note that
+
+   type Parser a = [Char] -> (a, [Char])
+
+roughly speaking, and here `eats` is actually the DIFFERENCE of the lengths of
+the input and output [Char] ... so I'm not sure how exactly we would reason about 
+the IMPLEMENTATION of `eats` but certainly we should be able to USE it in clients 
+of parsec.
+ 
+Note that you need a refinement ON the function type, the idea being that:
+
+1. the BODY of a recursive function is checked in the termination-strengthened
+environment that constrains the function to satisfy the predicate `rec`
+
+2. whenever you use >>= on a recursive function, the PRECEDING action must have 
+consumed some tokens.
+
+3. the number of tokens consumed by the combined action equals the sum of the two 
+actions (all the business about exists z and Q is to allow us to depend on the output
+value of `f` (c.f. tests/pos/cont1.hs)
+
+
+PROJECT: HTT style ST/IO reasoning with Abstract Refinements
+------------------------------------------------------------
+
+Can we use abstract refinements to do "stateful reasoning", 
+e.g. about stuff in `IO` ? For example, to read files, this 
+is the API:
+
+    open  :: FilePath -> IO Handle
+    read  :: Handle -> IO String
+    write :: Handle -> String -> IO ()
+    close :: Handle -> IO ()
+
+The catch is that `read` and `write` require the `Handle` to be 
+in an "open" state (which is the state of the `Handle` returned by `open`)
+while `close` presumably puts the `Handle` in a "closed" state.
+
+So, suppose we parameterize IO with two predicates a `Pre` and `Post` condition
+
+    data IO a <Pre :: World -> Prop> <Post :: a -> World -> World -> Prop>
+
+where `World` is some abstract type denoting the global machine state.
+Now, it should be possible to give types like:
+
+   (>>=)  :: IO a <P, Q> -> (a -> IO b<Q, R>) -> IO b<P, R>
+   return :: a -> IO a <P, P>
+
+which basically state whats going on with connecting the conditions, and then,
+give types to the File API:
+
+   open  :: FilePath -> IO Handle <\_ -> True> <\h _ w -> (IsOpen h w)>
+   read  :: h:Handle -> IO String <\w -> (IsOpen h w)> <\_ _ w -> (IsOpen h w)>
+   close :: h:Handle -> IO ()     <\w -> (IsOpen h w)> <\_ _ w -> not (IsOpen h w)>
+
+Wonder if something like this would work?
+
+
+One of the hardest steps seem to type the monad function (>>=):
+
+
+So, suppose we parameterize IO with two predicates a `Pre` and `Post` condition
+
+    data IO a <Pre :: World -> Prop> <Post :: a -> World -> World -> Prop>
+
+where `World` is some abstract type denoting the global machine state.
+Now, it should be possible to give types like:
+
+   (>>=)  :: IO a <P, Q> -> (a -> IO b<Q, R>) -> IO b<P, R>
+   return :: a -> IO a <P, P>
+
+
+
+My question is how do you make Q from a post-condition (Q :: a -> Word -> Word -> Prop) 
+to a pre-condition.
+I guess you need to apply a value x :: a and a w :: Word to write (a -> IO b<Q x w, R>).
+
+I think the problem is that the "correct" values x and w are not "in scope"
+ 
+
+So assume
+data IO a <P :: Word -> Prop, Q: a -> Word -> Word -> Prop> = IO (x:Word<P> -> (y:a, Word<Q y x>))
+
+and you want to type
+
+bind :: IO a <P,Q> -> (a -> IO b <Q x w, R>) -> IO b <P,R>
+bind (IO m) k = IO $ \s -> case m s of (a, s') -> (unIO (k a)) s'
+
+You have
+
+IO m :: IO a <P. Q>  
+             => m :: xx:Word <P> -> (y:a, Word <Q y xx>)
+
+you can assume
+s:: Word <P>
+
+so 
+m s :: (y:a, Word <Q y s>)
+
+k a :: IO b <Q x w, R>
+
+uniIO (k a) :: z:Word <Q x w> -> (xx:b, Word <R xx z>)
+
+and we want 
+(uniIO k a) s :: (xx:b , Word <R xx s>) 
+
+so basically we need 
+P  => Q x w
+to be able to make the final application
+
+
+
+
+
+PROJECT: Using `Dynamic` + Refinements for Mixed Records
+--------------------------------------------------------
+
+Haskell has a class (and related functions)
+
+    toDyn   :: (Typeable a) => a -> Dynamic
+    fromDyn :: (Typeable a) => Dynamic -> Maybe a
+
+Q: How to encode *heterogenous* maps like:
+
+    d1 = { "name"  : "Ranjit"
+         , "age"   : 36
+         , "alive" : True
+         }
+
+   and also:
+
+    d2 = { "name"    : "Jupiter"
+         , "position": 5
+         }
+
+   so that you can write generic *duck-typed* functions like
+
+    showName :: Dict -> String
+
+   and write
+
+    showName d1 
+    showName d2
+
+   or even
+
+    map showName [d1, d2]
+
+1. Encode dictionary as vanilla Haskell type
+
+    type Dict <Q :: String -> Dynamic -> Prop> 
+       = Map String Dynamic <Q>
+ 
+    empty :: Dict
+    put   :: (Dynamic a) => String -> a -> Dict -> Dict
+    get   :: (Dynamic a) => String -> Dict -> Dict
+
+2. Create dictionaries 
+
+    d1 = put "name"   "RJ"
+       $ put "age"    36
+       $ put "alive"  True 
+       $ empty
+
+    d1 = put "name"   "Jupiter"
+       $ put "pos"    5 
+       $ empty
+
+3. Lookup dictionaries
+
+    showName :: Dict -> String
+    showName d = get "name" d
+
+    -- TODO: how to support
+    showName :: Dict -> Dict 
+    incrAge d = put "age" (n + 1) d 
+      where 
+            n = get "age" d
+
+    -- TODO: how to support
+    concat :: Dict -> Dict -> Dict
+
+4. Can directly, without any casting nonsense, call
+
+    showName d1
+    showName d2
+
+  Need to reflect *Haskell Type* (or at least, `TypeRep` values)
+  inside logic, so you can write measures like
+
+    measure TypeOf :: a -> Type
+
+  and use it to define refinements like 
+
+    (TypeOf v = Int) 
+
+  (TODO: too bad we don't have relational measures... or multi-param measures ... yet!)
+
+  which we can macro up thus.
+
+    predicate HasType V T = (TypeOf V = T)
+
+    predicate Fld K V N T = (K = N => (HasType V T))
+
+5. Refined Signatures for `Dict` API
+
+    put :: (Dynamic a) => key:String
+                       -> {value:a | (Q key value)}
+                       -> d:Dict <Q /\ {\k _ -> k /= key}> 
+                       -> Dict <Q /\ {\k v -> (Fld k v key a)}>
+
+    get :: (Dynamic a) => key:String
+                       -> d:Dict <{\k v -> (Fld k v key a)}> 
+                       -> a
+
+6. Now, for example, we should be able to type our dictionaries as
+
+    {-@ d1 :: Dict<Q1> @-}
+
+   where 
+
+    Q1 == \k v -> Fld k v "name"  String /\ 
+                  Fld k v "age"   Int    /\ 
+                  Fld k v "alive" Bool   
+
+   and 
+
+    {-@ d2 :: Dict<Q2> @-}
+
+   where
+
+    Q2 == \k v -> Fld k v "name"  String /\ 
+                  Fld k v "pos"   Int    /\ 
+
+**TODO:**
+
++ add support for `Type` inside logic
+  + needed for `TypeOf` measure, equality checks
+  + requires doing type-substitutions inside refinements
+
++ add support for 
+  + update [isn't that just `put`?]
+  + concat
+
++ add support traversals (cf. *Ur*)
+  - Fold   (over all fields, eg. to serialize into a String)
+  - Map?   (transform all fields to serialize) toDB?
+  - Filter (takes a predicate that should only read valid columns of the record)
+
+
 
