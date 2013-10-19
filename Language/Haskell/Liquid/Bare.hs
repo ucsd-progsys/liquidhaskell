@@ -543,16 +543,17 @@ makeMeasureSpec (mod,spec) = inModule mod mkSpec
     mkSpec = mkMeasureDCon =<< wrapErr "mkMeasureSort" mkMeasureSort =<< m
     m      = Ms.mkMSpec <$> (mapM expandRTAliasMeasure $ Ms.measures spec)
                         <*> return (Ms.cmeasures spec)
-                        <*> forM (Ms.imeasures spec) tx
-    msg m = berrMeasure (loc $ iName m) (iName m) (index m)
-    tx m  = liftM (\t' -> m {index = toType t'})
-                  (ofBareType' (msg m) (index m))
+                        <*> (mapM expandRTAliasMeasure $ Ms.imeasures spec)
+    -- msg m = berrMeasure (loc $ iName m) (iName m) (index m)
+    -- tx m  = liftM (\t' -> m {index = toType t'})
+    --               (ofBareType' (msg m) (index m))
 
 makeMeasureSpec' = mapFst (mapSnd uRType <$>) . Ms.dataConTypes . first (mapReft ur_reft)
 
 makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap
   where
-    tx (M n s _) = (n, CM n (mapReft ur_reft s) [(t,m) | (IM n' t m) <- imeas, n == n'])
+    tx (M n s _) = (n, CM n (mapReft ur_reft s) -- [(t,m) | (IM n' t m) <- imeas, n == n']
+                   )
 
 makeTargetVars :: ModName -> [Var] -> [String] -> BareM [Var]
 makeTargetVars name vs ss = do
@@ -1020,7 +1021,7 @@ measureCtors = sortNub . fmap (symbolString . ctor) . concat . M.elems . Ms.ctor
 
 -- mkMeasureSort :: (PVarable pv, Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
 mkMeasureSort (Ms.MSpec c m cm im)
-  = Ms.MSpec c <$> forM m tx <*> forM cm tx <*> return im
+  = Ms.MSpec c <$> forM m tx <*> forM cm tx <*> forM im tx
     where
       msg m = berrMeasure (loc $ name m) (name m) (sort m)
       tx  m = liftM (\s' -> m {sort = s'}) (ofBareType' (msg m) (sort m))
@@ -1187,7 +1188,8 @@ tyCompat x t         = lhs == rhs
 ghcSpecEnv sp        = fromListSEnv binds
   where 
     emb              = tcEmbeds sp
-    binds            =  [(x,           rSort t) | (x, Loc _ t) <- meas sp] 
+    binds            =  [(x,           rSort t) | (x, Loc _ t) <- meas sp]
+                     ++ [(x,  rSort $ cSort t) | (x, Loc _ t) <- cmeas sp]
                      ++ [(varSymbol v, rSort t) | (v, Loc _ t) <- ctors sp]
                      ++ [(x          , vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
     rSort            = rTypeSortedReft emb 

@@ -391,7 +391,7 @@ data Pspec ty ctor
   | Lazy    Symbol
   | Pragma  (Located String)
   | CMeas   (Measure ty ())
-  | IMeas   (IMeasure ty)
+  | IMeas   (Measure ty ctor)
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = (name,)
@@ -503,13 +503,13 @@ cMeasureP
   = do (x, ty) <- tyBindP
        return $ Measure.mkM x ty []
 
-iMeasureP :: Parser (IMeasure BareType)
-iMeasureP
-  = do m   <- locParserP symbolP
-       ty  <- genBareTypeP
-       reserved "="
-       tgt <- symbolP
-       return $ IM m ty tgt
+iMeasureP :: Parser (Measure BareType Symbol)
+iMeasureP = measureP
+  -- = do m   <- locParserP symbolP
+  --      ty  <- genBareTypeP
+  --      reserved "="
+  --      tgt <- symbolP
+  --      return $ M m ty tgt
 
 rawBodyP 
   = braces $ do
