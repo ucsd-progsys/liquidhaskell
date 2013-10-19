@@ -88,6 +88,7 @@ import Control.Exception (throw)
 import qualified Data.Text.Encoding.Error as E
 import Foreign.ForeignPtr (ForeignPtr)
 import Language.Haskell.Liquid.Prelude
+import Language.Haskell.Liquid.Foreign
 
 {-@ qualif PValid(v:Ptr int, a:A.MArray s):
         (((deref v) >= 0) && ((deref v) < (malen a)))
