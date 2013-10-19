@@ -617,27 +617,25 @@ Q: How to encode *heterogenous* maps like:
 
     map showName [d1, d2]
 
-1. Encode dictionary as vanilla Haskell type
+Step 1: Encode dictionary as vanilla Haskell type
 
-    type Dict <Q :: String -> Dynamic -> Prop> 
-       = Map String Dynamic <Q>
- 
+    type Dict <Q :: String -> Dynamic -> Prop> = Map String Dynamic <Q>
     empty :: Dict
     put   :: (Dynamic a) => String -> a -> Dict -> Dict
     get   :: (Dynamic a) => String -> Dict -> Dict
 
-2. Create dictionaries 
+Step 2: **Create** dictionaries 
 
     d1 = put "name"   "RJ"
        $ put "age"    36
        $ put "alive"  True 
        $ empty
-
+       
     d1 = put "name"   "Jupiter"
        $ put "pos"    5 
        $ empty
 
-3. Lookup dictionaries
+Step 3: **Lookup** dictionaries
 
     showName :: Dict -> String
     showName d = get "name" d
@@ -651,54 +649,54 @@ Q: How to encode *heterogenous* maps like:
     -- TODO: how to support
     concat :: Dict -> Dict -> Dict
 
-4. Can directly, without any casting nonsense, call
+Step 4: Can directly, without any casting nonsense, call
 
     showName d1
     showName d2
 
-  Need to reflect *Haskell Type* (or at least, `TypeRep` values)
-  inside logic, so you can write measures like
+Need to reflect *Haskell Type* (or at least, `TypeRep` values)
+inside logic, so you can write measures like
 
     measure TypeOf :: a -> Type
 
-  and use it to define refinements like 
+and use it to define refinements like 
 
     (TypeOf v = Int) 
 
-  (TODO: too bad we don't have relational measures... or multi-param measures ... yet!)
+(TODO: too bad we don't have relational measures... or multi-param measures ... yet!)
 
-  which we can macro up thus.
+which we can macro up thus.
 
     predicate HasType V T = (TypeOf V = T)
 
     predicate Fld K V N T = (K = N => (HasType V T))
 
-5. Refined Signatures for `Dict` API
+Step 5: Refined Signatures for `Dict` API
 
     put :: (Dynamic a) => key:String
                        -> {value:a | (Q key value)}
                        -> d:Dict <Q /\ {\k _ -> k /= key}> 
                        -> Dict <Q /\ {\k v -> (Fld k v key a)}>
-
+                       
     get :: (Dynamic a) => key:String
                        -> d:Dict <{\k v -> (Fld k v key a)}> 
                        -> a
 
-6. Now, for example, we should be able to type our dictionaries as
+Step 6: Now, for example, we should be able to type our dictionaries as
 
     {-@ d1 :: Dict<Q1> @-}
 
-   where 
+where 
 
     Q1 == \k v -> Fld k v "name"  String /\ 
                   Fld k v "age"   Int    /\ 
                   Fld k v "alive" Bool   
 
-   and 
+and 
 
     {-@ d2 :: Dict<Q2> @-}
 
-   where
+where
 
     Q2 == \k v -> Fld k v "name"  String /\ 
                   Fld k v "pos"   Int    /\ 
