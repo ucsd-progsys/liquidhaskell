@@ -79,14 +79,6 @@ prune cfg cbs target info
     vs            = tgtVars $ spec info
 
 solveCs cfg target cgi info 
-  | nofalse cfg
-  = do  hqBot <- getHqBotPath
-        (_, solBot) <- solve fx target [hqBot] (cgInfoFInfoBot cgi)
-        let falseKvars = M.keys (M.filterWithKey (const isFalse) solBot)
-        putStrLn $ "False KVars" ++ show falseKvars
-        solve fx target (hqFiles info) (cgInfoFInfoKvars cgi falseKvars)
-  
-  | otherwise
   = solve fx target (hqFiles info) (cgInfoFInfo cgi)
   where 
     fx = def { solver = smtsolver cfg }
