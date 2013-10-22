@@ -25,7 +25,7 @@ of characters.
 \begin{code}
 {-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types,
     RecordWildCards, UnboxedTuples #-}
-module Internal where
+module TextInternal where
 
 import Control.Monad.ST.Unsafe
 import Data.Bits
@@ -54,6 +54,7 @@ data Array = Array {
 {-@ measure alen :: Array -> Int
     alen (Array aBA aLen) = aLen
   @-}
+{-@ aLen :: a:Array -> {v:Nat | v = (alen a)}  @-}
 
 {-@ data MArray s = MArray (maBA :: MutableByteArray# s) (maLen :: Nat) @-}
 data MArray s = MArray {
@@ -63,6 +64,7 @@ data MArray s = MArray {
 {-@ measure malen :: MArray s -> Int
     malen (MArray maBA maLen) = maLen
   @-}
+{-@ maLen :: a:MArray s -> {v:Nat | v = (malen a)}  @-}
 \end{code}
 
 All `Array`s start off mutable and are eventually *frozen* before they are
@@ -103,6 +105,14 @@ The only way to produce an immutable `Array` is to *freeze* an `MArray`.
 unsafeFreeze :: MArray s -> ST s Array
 unsafeFreeze MArray{..} = ST $ \s# ->
                           (# s#, Array (unsafeCoerce# maBA) maLen #)
+
+{-@ qualif FreezeMArr(v:Array, ma:MArray s):
+        alen(v) = malen(ma)
+  @-}
+
+{-@ empty :: {v:Array | (alen v) = 0}  @-}
+empty :: Array
+empty = runST (new 0 >>= unsafeFreeze)
 \end{code}
 
 Again, LiquidHaskell is happy to verify that `unsafeFreeze` returns an
@@ -136,7 +146,9 @@ frozen and, as you might expect, also requires the index to be within
 bounds of the array.
 
 \begin{code}
-{-@ type AValidI A = {v:Nat | v < (alen A)} @-}
+{-@ type AValidI A   = {v:Nat | v     <  (alen A)} @-}
+{-@ type AValidO A   = {v:Nat | v     <= (alen A)} @-}
+{-@ type AValidL O A = {v:Nat | (v+O) <= (alen A)} @-}
 
 {-@ unsafeIndex :: a:Array -> AValidI a -> Word16 @-}
 unsafeIndex :: Array -> Int -> Word16
@@ -152,8 +164,11 @@ the right type however, we can regain safety. `text` provides a wrapper around
 `memcpy` to copy `n` elements from one `MArray` to another.
 
 \begin{code}
-{-@ type MAValidO A = {v:Nat | v <= (malen A)} @-}
+{-@ type MAValidO A   = {v:Nat | v     <= (malen A)} @-}
+{-@ type MAValidL O A = {v:Nat | (v+O) <= (malen A)} @-}
+
 {-@ qualif MALen(v:Int, a:MArray s): v = malen(a) @-}
+{-@ qualif MALen(v:MArray s, i:Int): i = malen(v) @-}
 
 {-@ copyM :: dst:MArray s -> didx:MAValidO dst
           -> src:MArray s -> sidx:MAValidO src
