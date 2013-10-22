@@ -1153,17 +1153,18 @@ take :: Int -> Text -> Text
 take n t@(Text arr off len)
     | n <= 0    = empty
     | n >= len  = t
-    | otherwise = loop len 0 0 --LIQUID Text arr off len'
+    | otherwise = Text arr off (loop len 0 0)
   where
-     --LIQUID len' = loop_take n t 0 0
-     --LIQUID loop !i !cnt
-     --LIQUID      | i >= len || cnt >= n = i
-     --LIQUID      | otherwise            = loop (i+d) (cnt+1)
-     --LIQUID      where d = iter_ t i
      loop (d :: Int) !i !cnt
-          | i >= len || cnt >= n = Text arr off i
+          | i >= len || cnt >= n = i
           | otherwise            = let d' = iter_ t i
                                    in loop (d-d') (i+d') (cnt+1)
+--LIQUID LAZY          where d = iter_ t i
+{-@ qualif Min(v:int, t:Text, i:int):
+      (if ((tlength t) < i)
+       then ((numchars (tarr t) (toff t) v) = (tlength t))
+       else ((numchars (tarr t) (toff t) v) = i))
+  @-}
 {-# INLINE [1] take #-}
 
 {-# RULES
