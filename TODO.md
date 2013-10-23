@@ -14,7 +14,9 @@ TODO
 
 * hmatrix
 
-* error messages (tests/todo/err8.hs)
+* error messages 
+  + tests/todo/err8.hs
+  + tests/todo/err9.hs
 
 vector-algorithms
 -----------------
