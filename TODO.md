@@ -10,9 +10,27 @@ TODO
     ? big constants issue : _word64 34534523452134213524525 due to (deriving Typeable)
     - see others below
 
+* vector-algorithms
+
 * hmatrix
 
 * error messages (tests/todo/err8.hs)
+
+vector-algorithms
+-----------------
+
+dependencies for vector algorithms
+
+[1 of 9] Compiling Data.Vector.Algorithms.Common
+[2 of 9] Compiling Data.Vector.Algorithms.Radix
+[3 of 9] Compiling Data.Vector.Algorithms.Search   
+[4 of 9] Compiling Data.Vector.Algorithms.Optimal
+[5 of 9] Compiling Data.Vector.Algorithms.Insertion
+[6 of 9] Compiling Data.Vector.Algorithms.AmericanFlag
+[7 of 9] Compiling Data.Vector.Algorithms.Heap
+[8 of 9] Compiling Data.Vector.Algorithms.Intro 
+[9 of 9] Compiling Data.Vector.Algorithms.Merge 
+
 
 hmatrix
 -------
@@ -207,16 +225,17 @@ Benchmarks
 [OK]    text
 
 [??-PP] Data.Map (supersedes set)
-        > ordering [OK]
-        > size
-        > key-set-properties
-        > key-dependence
-        > balance (NO)
+        - ordering [OK]
+        - size
+        - key-set-properties
+        - key-dependence
+        - balance (NO)
         
--   vector
 -   vector-algorithms "vector bounds checking"
-      > e.g. "unsafeSlice"
-      > maybe only specify types for Vector?
+      - e.g. "unsafeSlice"
+      - maybe only specify types for Vector?
+
+-   vector
 -   repa
 -   repa-algorithms
 - 	xmonad (stackset)
