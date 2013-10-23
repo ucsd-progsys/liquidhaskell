@@ -21,10 +21,11 @@ Nil         !! i = undefined
 (Cons x _)  !! 0 = x
 (Cons x xs) !! i = xs !! (i - 1)
 
+
 class Sized s where
   {-@ class measure size :: forall a. a -> Int @-}
 
-  {- $csize :: forall a. x:List a -> {v:Int | v = (size x)} @-}
+  {-@ size :: forall s. Sized s => forall a. x:s a -> {v:Int | v = (size x)} @-}
   size :: s a -> Int
 
 instance Sized List where
@@ -38,9 +39,9 @@ instance Sized List where
 
 class (Sized s) => Indexable s where
   {- data Indexable s = Indexable (index :: forall a. x:s a -> {v:Nat | v < (size x)} -> a) @-}
-  {- index :: Indexable s => forall a. x:s a -> {v:Nat | v < (size x)} -> a @-}
+  {-@ index :: Indexable s => forall a. x:s a -> {v:Nat | v < (size x)} -> a @-}
   index :: s a -> Int -> a
-{-@ class Indexable s where
+{- class Indexable s where
       index :: forall a. x:s a -> {v:Nat | v < (size x)} -> a
   @-}
 {-
