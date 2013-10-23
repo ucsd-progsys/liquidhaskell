@@ -836,9 +836,6 @@ consCBTop γ cb
        modify $ \s -> s{tcheck = oldtcheck}
        return γ'
 
-instance Show CoreBind where
-  show = showPpr
-
 tcond cb strict
   = not $ any (\x -> S.member x strict || isInternal x) (binds cb)
   where binds (NonRec x _) = [x]
@@ -904,11 +901,6 @@ consBind isRec γ (x, e, Just spect)
   where πs   = snd3 $ bkUniv spect
 
 consBind isRec γ (x, e, Nothing)
-  -- | '$':'c':x' <- showpp $ trace (printf "consBind.x: %s\nconsBind.idDetails: %s\n" (showpp x) (showPpr $ idDetails x)) x
-  -- = do let t = fromJust $ traceShow "consBind.lookup" $ lookupREnv (F.symbol x') (renv γ)
-  --      addIdA x (defAnn isRec t)
-  --      return $ Just t
-  | otherwise
   = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
        addIdA x (defAnn isRec t)
        return $ Just t
@@ -1001,9 +993,6 @@ instantiatePreds γ e (RAllP p t)
        return $ replacePreds "consE" t [(p, s)] 
 instantiatePreds _ _ t
   = return t
-
-instance Show Type where
-  show = showpp
 
 
 ----------------------- Type Synthesis ----------------------------
@@ -1437,31 +1426,3 @@ updateCs kvars cs
         F.Reft(_, lhspds) = lhs
         lhsconcs = [p | F.RConc p <- lhspds]
 
-
---instCMeas :: [CMeasure ty] -> REnv -> RType a b c d -> RType a b c d
-instCMeas cms env = fmap inst
-  where
-    inst (F.Reft (v,rs)) = F.Reft (v,map inst' rs)
-
-    inst' (F.RConc p)    = F.RConc $ instP p
-    inst' r              = r
-
-    instP (F.PBexp e)    = F.PBexp $ instE e
-    instP (F.PAtom b e1 e2) = F.PAtom b (instE e1) (instE e2)
-    instP p              = p
-
-    instE (F.EApp s es)
-      | Just cm <- L.find ((==s) . val . cName) cms
-      = F.EApp (tx cm es) es
-      | otherwise
-      = F.EApp s es
-    instE e            = e
-
-    tx cm es = undefined
-      where
-        -- FIXME: expand to support multiple args
-        [ek] = map (typeKind . toType . fromJust . flip lookupREnv env . unVar) es
-
-
-    unVar (F.EVar s) = s
-    unVar x          = errorstar $ printf "expected var, found %s" (show x)

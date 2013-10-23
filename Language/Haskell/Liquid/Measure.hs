@@ -137,9 +137,6 @@ instance Functor (Measure t) where
 instance Functor CMeasure where
   fmap f (CM n t) = CM n (f t)
 
--- instance Functor (IMeasure t) where
---   fmap f (IM n s eqs) = IM n s (fmap (fmap f) eqs)
-
 -- MOVE TO TYPES
 instance Functor (MSpec t) where
   fmap f (MSpec c m cm im) = MSpec (fc c) (fm m) cm (fmap (fmap f) im)
@@ -222,13 +219,6 @@ instance (PPrint t, PPrint a) => PPrint (MSpec t a) where
 -- MOVE TO TYPES
 instance PPrint (Measure t a) => Show (Measure t a) where
   show = showpp
-
--- instance PPrint t => PPrint (IMeasure t) where
---   pprint (IM n t m) =  text "instance " <> pprint n <> text " " <> pprint t
---                     <> text " = " <> pprint m
-
--- instance PPrint (IMeasure t) => Show (IMeasure t) where
---   show = showpp
 
 instance PPrint t => PPrint (CMeasure t) where
   pprint (CM n s) =  pprint n <> text " :: " <> pprint s

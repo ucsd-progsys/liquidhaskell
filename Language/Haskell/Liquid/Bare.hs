@@ -544,9 +544,6 @@ makeMeasureSpec (mod,spec) = inModule mod mkSpec
     m      = Ms.mkMSpec <$> (mapM expandRTAliasMeasure $ Ms.measures spec)
                         <*> return (Ms.cmeasures spec)
                         <*> (mapM expandRTAliasMeasure $ Ms.imeasures spec)
-    -- msg m = berrMeasure (loc $ iName m) (iName m) (index m)
-    -- tx m  = liftM (\t' -> m {index = toType t'})
-    --               (ofBareType' (msg m) (index m))
 
 makeMeasureSpec' = mapFst (mapSnd uRType <$>) . Ms.dataConTypes . first (mapReft ur_reft)
 
