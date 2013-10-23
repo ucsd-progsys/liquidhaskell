@@ -697,7 +697,7 @@ ofType_ τ
   | Just t <- ofPredTree (classifyPredType τ)
   = t
 ofType_ (TyConApp c τs)
-  | TC.isSynTyCon c
+  | TC.isClosedSynTyCon c
   = ofType_ $ substTyWith αs τs τ
   | otherwise
   = rApp c (ofType_ <$> τs) [] top 
