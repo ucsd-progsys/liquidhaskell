@@ -680,7 +680,6 @@ subvPredicate f (Pr pvs) = Pr (f <$> pvs)
 
 ---------------------------------------------------------------
 
-
 -- ofType ::  Reftable r => Type -> RRType r
 ofType = ofType_ . expandTypeSynonyms 
 
@@ -690,14 +689,11 @@ ofType_ (FunTy τ τ')
   = rFun dummySymbol (ofType_ τ) (ofType_ τ') 
 ofType_ (ForAllTy α τ)  
   = RAllT (rTyVar α) $ ofType_ τ  
--- ofType_ τ
---   | isPredTy τ
---   = ofPredTree (classifyPredType τ)  
 ofType_ τ
   | Just t <- ofPredTree (classifyPredType τ)
   = t
 ofType_ (TyConApp c τs)
-  | TC.isSynTyCon c
+  | TC.isClosedSynTyCon c
   = ofType_ $ substTyWith αs τs τ
   | otherwise
   = rApp c (ofType_ <$> τs) [] top 

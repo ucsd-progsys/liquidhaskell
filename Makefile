@@ -25,7 +25,7 @@ all:
 	$(CABAL) install --ghc-options=$(OPTS) 
 
 prof:
-	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS)
+	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS) primitive 
 
 rebuild:
 	cd external/fixpoint/ && make clean && make && cd ../../
