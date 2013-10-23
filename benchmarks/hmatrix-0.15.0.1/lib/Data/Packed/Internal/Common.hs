@@ -40,7 +40,7 @@ safeTake n (x:xs) = x : safeTake (n-1) xs
 safeDrop 0 xs     = xs
 safeDrop n (_:xs) = safeDrop (n-1) xs
 
-{-@ splitEvery :: n:Nat -> {v:[a] | (length v) mod n = 0} -> [{v:[a] | (len v) = n}] @-}
+{-@ splitEvery :: n:Nat -> {v:[a] | ((length v) mod n) = 0} -> [{v:[a] | (len v) = n}] @-}
 -- | @splitEvery 3 [1..9] == [[1,2,3],[4,5,6],[7,8,9]]@
 splitEvery :: Int -> [a] -> [[a]]
 splitEvery _ [] = []
