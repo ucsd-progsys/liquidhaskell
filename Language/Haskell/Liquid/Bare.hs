@@ -126,11 +126,12 @@ makeGhcSpec' cfg vars defVars specs
        let tx           = subsFreeSymbols su
        let txq          = subsFreeSymbolsQual su
        let syms'        = [(varSymbol v, v) | (_, v) <- syms]
-       let decr'        = mconcat  $  map (makeHints defVars) specs
-       let lvars'       = S.fromList $ mconcat [ makeLVars defVars (mod,spec)
-                                               | (mod,spec) <- specs
-                                               , mod == name
-                                               ]
+       decr'           <- mconcat <$> mapM (makeHints defVars) specs
+       lvars'          <- S.fromList . mconcat
+                                    <$> sequence [ makeLVars defVars (mod,spec)
+                                                 | (mod,spec) <- specs
+                                                 , mod == name
+                                                 ]
        quals           <- mconcat <$> mapM makeQualifiers specs
        return           $ (SP { tySigs     = renameTyVars <$> tx sigs
                               , ctors      = tx cs'
@@ -322,17 +323,17 @@ makeQualifiers (mod,spec) = inModule mod mkQuals
     mkQuals = mapM resolve $ Ms.qualifiers spec
 
 makeHints vs (_,spec) = varSymbols id "Hint" vs $ Ms.decr spec
-makeLVars vs (_,spec) = fst <$> (varSymbols id "LazyVar" vs $ [(v, ()) | v <- Ms.lvars spec])
+makeLVars vs (_,spec) = fmap fst <$> (varSymbols id "LazyVar" vs $ [(v, ()) | v <- Ms.lvars spec])
 
-varSymbols :: ([Var] -> [Var]) -> String ->  [Var] -> [(LocSymbol, a)] -> [(Var, a)]
-varSymbols f n vs  = concatMap go
+varSymbols :: ([Var] -> [Var]) -> String ->  [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
+varSymbols f n vs  = concatMapM go
   where lvs        = M.map L.sort $ group [(varSymbol v, locVar v) | v <- vs]
         varSymbol  = stringSymbol . dropModuleNames . showPpr
         locVar v   = (getSourcePos v, v)
         go (s, ns) = case M.lookup (val s) lvs of 
-                     Just lvs -> (, ns) <$> varsAfter f s lvs
-                     Nothing  -> errorstar $ msg s
-        msg s      = printf "%s: %s for Undefined Var %s" 
+                     Just lvs -> return ((, ns) <$> varsAfter f s lvs)
+                     Nothing  -> ((:[]).(,ns)) <$> lookupGhcVar (symbolString $ val s)
+        msg s      = printf "%s: %s for Undefined Var %s"
                          n (show (loc s)) (show (val s))
       
 varsAfter f s lvs 
@@ -574,7 +575,7 @@ makeLocalAssumeSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareT
  
 makeLocalAssumeSpec cfg mod vs lvs xbs
   = do env     <- get
-       let vbs1 = expand3 <$> varSymbols fchoose "Var" lvs (dupSnd <$> xbs1)
+       vbs1    <- fmap expand3 <$> varSymbols fchoose "Var" lvs (dupSnd <$> xbs1)
        when (not $ noCheckUnknown cfg) $
          checkDefAsserts env vbs1 xbs1
        vts1    <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
