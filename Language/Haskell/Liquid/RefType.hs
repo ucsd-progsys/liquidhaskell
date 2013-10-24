@@ -712,6 +712,12 @@ ofPredTree _
 ------------------- Converting to Fixpoint ---------------------
 ----------------------------------------------------------------
 
+instance Symbolic Var where
+  symbol = varSymbol
+
+instance Expression Var where
+  expr   = eVar
+
 
 varSymbol ::  Var -> Symbol
 varSymbol v 
@@ -719,6 +725,7 @@ varSymbol v
   | otherwise          = stringSymbol $ vs ++ [symSepName] ++ us
   where us  = showPpr $ getDataConVarUnique v
         vs  = showPpr v
+
 
 pprShort    =  dropModuleNames . showPpr 
 
