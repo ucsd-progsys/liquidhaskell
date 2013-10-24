@@ -25,8 +25,8 @@ import qualified Data.Vector.Primitive.Mutable as PV
 ----------------------------------------------------------------------------
 -- LIQUID Specifications ---------------------------------------------------
 
-{-@ asdasdasd :: (m s a) -> Nat @-}
-
+{-@ length :: (MVector v a) => (v s a) -> Nat @-}
+{-@ qualif Plus(v:Int, x:Int, y:Int): v + x = y @-}
 ----------------------------------------------------------------------------
 
 -- | A type of comparisons between two values of a given type.
