@@ -69,12 +69,12 @@ badHead = error "errorEmptyList head" -- errorEmptyList "head"
 
 -- This rule is useful in cases like 
 --      head [y | (x,y) <- ps, x==t]
-{-# RULES
+{- RULES
 "head/build"    forall (g::forall b.(a->b->b)->b->b) .
                 head (build g) = g (\x _ -> x) badHead
 "head/augment"  forall xs (g::forall b. (a->b->b) -> b -> b) . 
                 head (augment g xs) = g (\x _ -> x) (head xs)
- #-}
+ -}
 
 -- | Extract the elements after the head of a list, which must be non-empty.
 {-@ assert tail         :: xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = (len(xs) - 1)}  @-}
@@ -148,11 +148,11 @@ filterFB :: (a -> b -> b) -> (a -> Bool) -> a -> b -> b
 filterFB c p x r | p x       = x `c` r
                  | otherwise = r
 
-{-# RULES
+{- RULES
 "filter"     [~1] forall p xs.  filter p xs = build (\c n -> foldr (filterFB c p) n xs)
 "filterList" [1]  forall p.     foldr (filterFB (:) p) [] = filter p
 "filterFB"        forall c p q. filterFB (filterFB c p) q = filterFB c (\x -> q x && p x)
- #-}
+ -}
 
 -- Note the filterFB rule, which has p and q the "wrong way round" in the RHS.
 --     filterFB (filterFB c p) q a b
@@ -253,10 +253,10 @@ iterateFB :: (a -> b -> b) -> (a -> a) -> a -> b
 iterateFB c f x = x `c` iterateFB c f (f x)
 
 
-{-# RULES
+{- RULES
 "iterate"    [~1] forall f x.   iterate f x = build (\c _n -> iterateFB c f x)
 "iterateFB"  [1]                iterateFB (:) = iterate
- #-}
+ -}
 
 
 -- | 'repeat' @x@ is an infinite list, with @x@ the value of every element.
@@ -272,10 +272,10 @@ repeatFB :: (a -> b -> b) -> a -> b
 repeatFB c x = xs where xs = x `c` xs
 
 
-{-# RULES
+{- RULES
 "repeat"    [~1] forall x. repeat x = build (\c _n -> repeatFB c x)
 "repeatFB"  [1]  repeatFB (:)       = repeat
- #-}
+ -}
 
 -- | 'replicate' @n x@ is a list of length @n@ with @x@ the value of
 -- every element.
@@ -387,10 +387,10 @@ drop n (_:xs)          =  drop (n-1) xs
 splitAt n xs           =  (take n xs, drop n xs)
 
 #else /* hack away */
-{-# RULES
+{- RULES
 "take"     [~1] forall n xs . take n xs = takeFoldr n xs 
 "takeList"  [1] forall n xs . foldr (takeFB (:) []) (takeConst []) xs n = takeUInt n xs
- #-}
+ -}
 
 {-# INLINE takeFoldr #-}
 takeFoldr :: Int -> [a] -> [a]
@@ -536,12 +536,12 @@ and (x:xs)      =  x && and xs
 or []           =  False
 or (x:xs)       =  x || or xs
 
-{-# RULES
+{- RULES
 "and/build"     forall (g::forall b.(Bool->b->b)->b->b) . 
                 and (build g) = g (&&) True
 "or/build"      forall (g::forall b.(Bool->b->b)->b->b) . 
                 or (build g) = g (||) False
- #-}
+ -}
 #endif
 
 -- | Applied to a predicate and a list, 'any' determines if any element
@@ -564,12 +564,12 @@ any p (x:xs)    = p x || any p xs
 
 all _ []        =  True
 all p (x:xs)    =  p x && all p xs
-{-# RULES
+{- RULES
 "any/build"     forall p (g::forall b.(a->b->b)->b->b) . 
                 any p (build g) = g ((||) . p) False
 "all/build"     forall p (g::forall b.(a->b->b)->b->b) . 
                 all p (build g) = g ((&&) . p) True
- #-}
+ -}
 #endif
 
 -- | 'elem' is the list membership predicate, usually written in infix form,
@@ -605,10 +605,10 @@ concatMap f             =  foldr ((++) . f) []
 concat :: [[a]] -> [a]
 concat = foldr (++) []
 
-{-# RULES
+{- RULES
   "concat" forall xs. concat xs = build (\c n -> foldr (\x y -> foldr c y x) n xs)
 -- We don't bother to turn non-fusible applications of concat back into concat
- #-}
+ -}
 
 \end{code}
 
@@ -664,13 +664,13 @@ foldr2_right  k _z  y  r (x:xs) = k x y (r xs)
 
 -- foldr2 k z xs ys = foldr (foldr2_left k z)  (\_ -> z) xs ys
 -- foldr2 k z xs ys = foldr (foldr2_right k z) (\_ -> z) ys xs
-{-# RULES
+{- RULES
 "foldr2/left"   forall k z ys (g::forall b.(a->b->b)->b->b) . 
                   foldr2 k z (build g) ys = g (foldr2_left  k z) (\_ -> z) ys
 
 "foldr2/right"  forall k z xs (g::forall b.(a->b->b)->b->b) . 
                   foldr2 k z xs (build g) = g (foldr2_right k z) (\_ -> z) xs
- #-}
+ -}
 \end{code}
 
 The foldr2/right rule isn't exactly right, because it changes
@@ -698,10 +698,10 @@ zip _      _      = []
 zipFB :: ((a, b) -> c -> d) -> a -> b -> c -> d
 zipFB c = \x y r -> (x,y) `c` r
 
-{-# RULES
+{- RULES
 "zip"      [~1] forall xs ys. zip xs ys = build (\c n -> foldr2 (zipFB c) n xs ys)
 "zipList"  [1]  foldr2 (zipFB (:)) []   = zip
- #-}
+ -}
 \end{code}
 
 \begin{code}
@@ -740,10 +740,10 @@ zipWith _ _      _      = []
 zipWithFB :: (a -> b -> c) -> (d -> e -> a) -> d -> e -> b -> c
 zipWithFB c f = \x y r -> (x `f` y) `c` r
 
-{-# RULES
+{- RULES
 "zipWith"       [~1] forall f xs ys.    zipWith f xs ys = build (\c n -> foldr2 (zipWithFB c f) n xs ys)
 "zipWithList"   [1]  forall f.  foldr2 (zipWithFB (:) f) [] = zipWith f
-  #-}
+  -}
 \end{code}
 
 \begin{code}

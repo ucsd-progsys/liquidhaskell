@@ -36,7 +36,7 @@ import TypeRep
 import Class            (Class, className)
 import Var
 import Id
-import Name             (getSrcSpan)
+import Name            -- (getSrcSpan, getOccName)
 import Text.PrettyPrint.HughesPJ
 
 import Control.Monad.State
@@ -61,20 +61,22 @@ import Language.Fixpoint.Sort (pruneUnsortedReft)
 
 import Language.Haskell.Liquid.Fresh
 
-import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars)  
+import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
 import Language.Haskell.Liquid.Predicates
+import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.GhcMisc          (isInternal, collectArguments, getSourcePos, pprDoc, tickSrcSpan, hasBaseTypeVar, showPpr)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.Qualifier        
+import Language.Haskell.Liquid.Qualifier
 import Control.DeepSeq
 
-
+import Debug.Trace (trace)
+import IdInfo
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
@@ -105,7 +107,7 @@ initEnv info penv
        let f0'   = if (notruetypes $ config $ spec info) then [] else f0'' 
        let f1    = defaults                         -- default TOP reftype      (for all vars) 
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
-       f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures) 
+       f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
        let bs    = (map (unifyts' tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
@@ -114,7 +116,7 @@ initEnv info penv
   where refreshArgs' = mapM (mapSndM refreshArgs)
   -- where tce = tcEmbeds $ spec info 
 
-ctor' = map (mapSnd val) . ctor 
+ctor' = map (mapSnd val) . ctors
 
 unifyts' tce tyi penv = (second (addTyConInfo tce tyi)) . (unifyts penv)
 
@@ -124,10 +126,17 @@ unifyts penv (x, t) = (x', unify pt t)
 
 measEnv sp penv xts cbs lts
   = CGE { loc   = noSrcSpan
-        , renv  = fromListREnv   $ second (uRType . val) <$> meas sp 
+        , renv  = fromListREnv
+                $ concat [ second (uRType . val) <$> meas sp
+                         , second (uRType . cSort . val) <$> cmeas sp
+                         ]
         , syenv = F.fromListSEnv $ freeSyms sp 
         , penv  = penv 
-        , fenv  = initFEnv (lts ++ (second (rTypeSort tce . val) <$> meas sp))
+        , fenv  = initFEnv
+                $ concat [ lts
+                         , second (rTypeSort tce . val) <$> meas sp
+                         , second (rTypeSort tce . cSort . val) <$> cmeas sp
+                         ]
         , recs  = S.empty 
         , invs  = mkRTyConInv    $ invariants sp
         , grtys = fromListREnv xts 
@@ -137,7 +146,8 @@ measEnv sp penv xts cbs lts
         , trec  = Nothing
         , lcb   = M.empty
         } 
-    where tce = tcEmbeds sp
+    where
+      tce = tcEmbeds sp
 
 assm = assm_grty impVars 
 grty = assm_grty defVars
@@ -477,9 +487,9 @@ instance PPrint CGInfo where
 
 ppr_CGInfo cgi 
   =  (text "*********** Haskell SubConstraints ***********")
-  $$ (pprint $ hsCs  cgi)
+  $$ (pprintLongList $ hsCs  cgi)
   $$ (text "*********** Haskell WFConstraints ************")
-  $$ (pprint $ hsWfs cgi)
+  $$ (pprintLongList $ hsWfs cgi)
   $$ (text "*********** Fixpoint SubConstraints **********")
   $$ (F.toFix  $ fixCs cgi)
   $$ (text "*********** Fixpoint WFConstraints ************")
@@ -886,14 +896,14 @@ consBind isRec γ (x, e, Just spect)
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
        γπ    <- foldM addPToEnv γ' πs
        cconsE γπ e spect
-       addIdA x (defAnn isRec spect) 
+       addIdA x (defAnn isRec spect)
        return Nothing
   where πs   = snd3 $ bkUniv spect
 
-consBind isRec γ (x, e, Nothing) 
-   = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
-        addIdA x (defAnn isRec t)
-        return $ Just t
+consBind isRec γ (x, e, Nothing)
+  = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
+       addIdA x (defAnn isRec t)
+       return $ Just t
 
 defAnn True  = RDf
 defAnn False = Def
@@ -983,6 +993,7 @@ instantiatePreds γ e (RAllP p t)
        return $ replacePreds "consE" t [(p, s)] 
 instantiatePreds _ _ t
   = return t
+
 
 ----------------------- Type Synthesis ----------------------------
 consE :: CGEnv -> Expr Var -> CG SpecType 
@@ -1414,3 +1425,4 @@ updateCs kvars cs
         rhs      = F.rhsCs cs
         F.Reft(_, lhspds) = lhs
         lhsconcs = [p | F.RConc p <- lhspds]
+

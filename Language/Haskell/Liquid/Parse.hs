@@ -153,7 +153,7 @@ bareAtomP
 
 bbaseP :: Parser (Reft -> BareType)
 bbaseP 
-  =  liftM2 bLst (brackets bareTypeP) predicatesP
+  =  liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM2 bAppTy lowerIdP bareTyArgP)
  <|> try (liftM2 bRVar lowerIdP monoPredicateP)
@@ -161,12 +161,14 @@ bbaseP
 
 bbaseNoAppP :: Parser (Reft -> BareType)
 bbaseNoAppP
-  =  liftM2 bLst (brackets bareTypeP) predicatesP
+  =  liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM3 bCon upperIdP predicatesP (return []))
  <|> liftM2 bRVar lowerIdP monoPredicateP 
 
-bareTyArgP 
+maybeP p = liftM Just p <|> return Nothing
+
+bareTyArgP
   =  try (braces $ liftM RExprArg exprP)
  <|> try bareAtomNoAppP
  <|> try (parens bareTypeP)
@@ -347,7 +349,8 @@ bRPoly syms' expr = RPoly ss $ bRVar dummyName top r
         r    = su `subst` Reft(v, expr)
 
 bRVar α p r               = RVar α (U r p)
-bLst t rs r               = RApp listConName [t] rs (reftUReft r) 
+bLst (Just t) rs r        = RApp listConName [t] rs (reftUReft r)
+bLst (Nothing) rs r       = RApp listConName []  rs (reftUReft r)
 
 bTup [t] _ r | isTauto r  = t
              | otherwise  = t `strengthen` (reftUReft r) 
@@ -372,7 +375,7 @@ dummyRSort     = ROth "dummy"
 ------------------------------------------------------------------
 
 data Pspec ty ctor 
-  = Meas    (Measure.Measure ty ctor) 
+  = Meas    (Measure ty ctor) 
   | Assm    (LocSymbol, ty) 
   | Assms   ([LocSymbol], ty)
   | Impt    Symbol
@@ -387,6 +390,8 @@ data Pspec ty ctor
   | LVars   LocSymbol
   | Lazy    Symbol
   | Pragma  (Located String)
+  | CMeas   (Measure ty ())
+  | IMeas   (Measure ty ctor)
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = (name,)
@@ -407,6 +412,8 @@ mkSpec name xs         = (name,)
   , Measure.lvars      = [d | LVars d  <- xs]
   , Measure.lazy       = S.fromList [s | Lazy s <- xs]
   , Measure.pragmas    = [s | Pragma s <- xs]
+  , Measure.cmeasures  = [m | CMeas  m <- xs]
+  , Measure.imeasures  = [m | IMeas  m <- xs]
   }
 
 specP :: Parser (Pspec BareType Symbol)
@@ -414,6 +421,8 @@ specP
   = try (reserved "assume"    >> liftM Assm   tyBindP   )
     <|> (reserved "assert"    >> liftM Assm   tyBindP   )
     <|> (reserved "measure"   >> liftM Meas   measureP  ) 
+    <|> (reserved "class"     >> reserved "measure" >> liftM CMeas cMeasureP)
+    <|> (reserved "instance"  >> reserved "measure" >> liftM IMeas iMeasureP)
     <|> (reserved "import"    >> liftM Impt   symbolP   )
     <|> (reserved "data"      >> liftM DDecl  dataDeclP )
     <|> (reserved "include"   >> liftM Incl   filePathP )
@@ -482,25 +491,38 @@ rtAliasP f bodyP
 aliasIdP :: Parser String
 aliasIdP = condIdP (['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']) (isAlpha . head) 
 
-measureP :: Parser (Measure.Measure BareType Symbol)
+measureP :: Parser (Measure BareType Symbol)
 measureP 
   = do (x, ty) <- tyBindP  
        whiteSpace
        eqns    <- grabs $ measureDefP $ (rawBodyP <|> tyBodyP ty)
        return   $ Measure.mkM x ty eqns 
 
+cMeasureP :: Parser (Measure BareType ())
+cMeasureP
+  = do (x, ty) <- tyBindP
+       return $ Measure.mkM x ty []
+
+iMeasureP :: Parser (Measure BareType Symbol)
+iMeasureP = measureP
+  -- = do m   <- locParserP symbolP
+  --      ty  <- genBareTypeP
+  --      reserved "="
+  --      tgt <- symbolP
+  --      return $ M m ty tgt
+
 rawBodyP 
   = braces $ do
       v <- symbolP 
       reserved "|"
       p <- predP
-      return $ Measure.R v p
+      return $ R v p
 
--- tyBodyP :: BareType -> Parser Measure.Body
+-- tyBodyP :: BareType -> Parser Body
 tyBodyP ty 
   = case outTy ty of
-      Just bt | isPropBareType bt -> Measure.P <$> predP 
-      _                           -> Measure.E <$> exprP
+      Just bt | isPropBareType bt -> P <$> predP
+      _                           -> E <$> exprP
     where outTy (RAllT _ t)    = outTy t
           outTy (RAllP _ t)    = outTy t
           outTy (RFun _ _ t _) = Just t
@@ -518,7 +540,7 @@ binderP    =  try $ stringSymbol <$> idP badc
 grabs p = try (liftM2 (:) p (grabs p)) 
        <|> return []
 
-measureDefP :: Parser Measure.Body -> Parser (Measure.Def Symbol)
+measureDefP :: Parser Body -> Parser (Def Symbol)
 measureDefP bodyP
   = do mname   <- locParserP symbolP
        (c, xs) <- {- ORIGINAL parens $ -} measurePatP
@@ -526,7 +548,7 @@ measureDefP bodyP
        body    <- bodyP 
        whiteSpace
        let xs'  = (stringSymbol . val) <$> xs
-       return   $ Measure.Def mname (stringSymbol c) xs' body
+       return   $ Def mname (stringSymbol c) xs' body
 
 -- ORIGINAL
 -- measurePatP :: Parser (String, [LocString])
@@ -628,7 +650,7 @@ specWraps = betweenMany (string "{-@" >> spaces) (spaces >> string "@-}")
 instance Inputable BareType where
   rr' = doParse' bareTypeP 
 
-instance Inputable (Measure.Measure BareType Symbol) where
+instance Inputable (Measure BareType Symbol) where
   rr' = doParse' measureP
 
 
@@ -713,7 +735,7 @@ b13 = rr "x:(Int, [Bool]) -> [(String, String)]"
 m1 = ["len :: [a] -> Int", "len (Nil) = 0", "len (Cons x xs) = 1 + len(xs)"]
 m2 = ["tog :: LL a -> Int", "tog (Nil) = 100", "tog (Cons y ys) = 200"]
 
-me1, me2 :: Measure.Measure BareType Symbol 
+me1, me2 :: Measure BareType Symbol 
 me1 = (rr $ intercalate "\n" m1) 
 me2 = (rr $ intercalate "\n" m2)
 -}
