@@ -81,11 +81,7 @@ countLoop src count rdx = set count 0 >> go len 0
  where
  len = length src
  go (m :: Int) i
-   -- | i < len    = unsafeRead src i >>= inc count . rdx >> go (m-1) (i+1)
-   | i < len    = do v <- unsafeRead src i
-                     let bingoogle = rdx v 
-                     poop count bingoogle
-                     go (m-1) (i+1)
+   | i < len    = unsafeRead src i >>= inc count . rdx >> go (m-1) (i+1)
    | otherwise  = return ()
 {-# INLINE countLoop #-}
 
