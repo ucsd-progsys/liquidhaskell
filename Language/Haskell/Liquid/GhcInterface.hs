@@ -61,6 +61,7 @@ import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Misc
+import Language.Haskell.Liquid.PrettyPrint
 
 import Language.Haskell.Liquid.CmdLine (withPragmas)
 import Language.Haskell.Liquid.Parse
@@ -452,9 +453,10 @@ instance PPrint GhcSpec where
               $$ (text "******* Type Signatures *********************")
               $$ (pprintLongList $ tySigs spec)
               $$ (text "******* DataCon Specifications (Measure) ****")
-              $$ (pprintLongList $ ctor spec)
+              $$ (pprintLongList $ ctors spec)
               $$ (text "******* Measure Specifications **************")
               $$ (pprintLongList $ meas spec)
+              $$ (pprintLongList $ cmeas spec)
 
 instance PPrint GhcInfo where 
   pprint info =   (text "*************** Imports *********************")
@@ -479,8 +481,6 @@ instance PPrint [CoreBind] where
 instance PPrint TargetVars where
   pprint AllVars   = text "All Variables"
   pprint (Only vs) = text "Only Variables: " <+> pprint vs 
-
-pprintLongList = brackets . vcat . map pprint
 
 ------------------------------------------------------------------------
 -- Dealing With Errors -------------------------------------------------

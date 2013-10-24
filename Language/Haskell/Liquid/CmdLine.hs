@@ -50,7 +50,7 @@ import Language.Fixpoint.Config hiding          (config, Config)
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.PrettyPrint
-import Language.Haskell.Liquid.Types hiding     (config, typ)
+import Language.Haskell.Liquid.Types hiding     (config, typ, name)
 
 import Name
 import SrcLoc                                   (SrcSpan)
