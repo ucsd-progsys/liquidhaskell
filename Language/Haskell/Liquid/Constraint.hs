@@ -712,15 +712,11 @@ freshTy_pretty e _ = do t <- refresh $ {-traceShow ("exprRefType: " ++ F.showFix
                         return $ uRType t
 
 
--- TODO: remove freshRSort?
--- freshRSort :: CoreExpr -> RSort -> CG SpecType
--- freshRSort e = freshTy e . toType 
-
 trueTy  :: Type -> CG SpecType
 trueTy t 
-  = do t   <- true $ ofType t
-       tyi <- liftM tyConInfo get
-       tce  <- tyConEmbed <$> get
+  = do t     <- true $ ofType t
+       tyi   <- liftM tyConInfo get
+       tce   <- tyConEmbed <$> get
        return $ addTyConInfo tce tyi (uRType t)
 
 refreshArgs t 
@@ -941,7 +937,7 @@ cconsLazyLet γ (Let (NonRec x ex) e) t
   = do tx <- {-(`strengthen` xr) <$>-} trueTy (varType x)
        γ' <- (γ, "Let NonRec") +++= (x', ex, tx)
        cconsE γ' e t
-  where xr = uTop $ F.symbolReft x'
+  where xr = singletonReft x -- uTop $ F.symbolReft x'
         x' = varSymbol x
 
 cconsE γ e@(Let b@(NonRec x _) ee) t
@@ -974,9 +970,8 @@ cconsE γ (Lam x e) (RFun y ty t _)
 cconsE γ (Tick tt e) t   
   = cconsE (γ `setLoc` tickSrcSpan tt) e t
 
--- FIXTHIS
-cconsE γ e@(Cast _ _) t     
-  = do t' <- trueTy $ exprType e
+cconsE γ e@(Cast e' _) t     
+  = do t' <- castTy (exprType e) e' -- trueTy $ exprType e
        addC (SubC γ t' t) ("cconsE Cast" ++ showPpr e) 
 
 cconsE γ e (RAllP p t)
@@ -1057,15 +1052,24 @@ consE γ (Tick tt e)
        return t
     where l = {- traceShow ("tickSrcSpan: e = " ++ showPpr e) $ -} tickSrcSpan tt
 
-
-consE γ e@(Cast _ _)      
-  = trueTy $ exprType e 
+consE γ e@(Cast e' _)      
+  = castTy (exprType e) e' -- trueTy $ exprType e 
 
 consE γ e@(Coercion _)
    = trueTy $ exprType e
 
 consE _ e	    
   = errorstar $ "consE cannot handle " ++ showPpr e 
+
+castTy τ (Var x)
+  = do t <- trueTy τ 
+       return $  t `strengthen` (uTop $ F.uexprReft $ F.expr x)
+
+castTy τ _
+  = trueTy τ 
+
+
+singletonReft = uTop . F.symbolReft . varSymbol 
 
 cconsFreshE γ e
   = do t   <- freshTy e $ exprType e
@@ -1193,7 +1197,7 @@ varRefType' γ x t'
   | otherwise
   = t
   where t  = t' `strengthen` xr
-        xr = uTop $ F.symbolReft $ varSymbol x
+        xr = singletonReft x -- uTop $ F.symbolReft $ varSymbol x
         x' = varSymbol x
 
 -- TODO: should only expose/use subt. Not subsTyVar_meet

@@ -82,6 +82,6 @@ countLoop src count rdx = set count 0 >> go len 0
  len = length src
  go (m :: Int) i
    | i < len    = unsafeRead src i >>= inc count . rdx >> go (m-1) (i+1)
-   | otherwise  = return ()
+   | otherwise = return ()
 {-# INLINE countLoop #-}
 

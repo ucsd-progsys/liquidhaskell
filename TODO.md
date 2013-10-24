@@ -1,6 +1,8 @@
 TODO
 ====
 
+* `===` : unsorted-equality
+
 * Qualified Imports
   - wtf is include/KMeansHelper.hs ? Fix module import issue
   - break spec imports -- tests/todo/qualifiedvector.hs 
@@ -17,6 +19,33 @@ TODO
 * error messages 
   + tests/todo/err8.hs
   + tests/todo/err9.hs
+
+Unsorted Equality (branch: parseshuffle)
+----------------------------------------
+
+A special hidden binary relation to support equality across two totally
+different types. 
+
+**Requires** that we embed everything ULTIMATELY as `int` in SMT.
+
+**Enables** dealing with `cast` expressions in Haskell.
+
+ocaml
+  + add ADT case
+  + extend parser
+  + extend printer
+  + extend sort-checker
+
+liquid-fixpoint
+  + add ADT case
+  + extend parser
+  + extend printer
+  + extend sort-checker
+
+liquid-haskell
+  - special case constraint for `Cast (Var x) c`
+
+
 
 vector-algorithms
 -----------------
