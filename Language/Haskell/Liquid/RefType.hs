@@ -1000,7 +1000,7 @@ ppError (ErrInvt l t s)
     $+$ (nest 4 $ text "invariant " <+> pprint t $+$ s)
 
 ppError (ErrMeas l t s)
-  = text "Error in Measure Defiition:" <+> pprint l
+  = text "Error in Measure Definition:" <+> pprint l
     $+$ (nest 4 $ text "measure " <+> pprint t $+$ s)
 
 

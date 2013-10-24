@@ -15,7 +15,7 @@ import qualified Data.HashSet        as S
 
 import Control.Applicative ((<$>), (<*), (<*>))
 import Data.Char (toLower, isLower, isSpace, isAlpha)
-import Data.List (partition)
+import Data.List (foldl', partition)
 import Data.Monoid (mempty)
 
 import GHC (mkModuleName, ModuleName)
@@ -136,11 +136,18 @@ stringLiteral = Token.stringLiteral lexer
 
 bareTypeP :: Parser BareType 
 
+-- bareTypeP   
+--   =  try bareFunP
+--  <|> bareAllP
+--  <|> bareAllExprP
+--  <|> bareExistsP
+--  <|> bareAtomP 
+ 
 bareTypeP   
-  =  try bareFunP
- <|> bareAllP
+  =  bareAllP
  <|> bareAllExprP
  <|> bareExistsP
+ <|> try bareFunP
  <|> bareAtomP 
  
 bareArgP 
@@ -155,7 +162,8 @@ bbaseP :: Parser (Reft -> BareType)
 bbaseP 
   =  liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
- <|> try (liftM2 bAppTy lowerIdP (sepBy bareTyArgP blanks))
+ <|> try (liftM2 bAppTy lowerIdP (sepBy1 bareTyArgP blanks))
+--  <|> try (liftM2 bAppTy lowerIdP bareTyArgP)
  <|> try (liftM2 bRVar lowerIdP monoPredicateP)
  <|> liftM3 bCon upperIdP predicatesP (sepBy bareTyArgP blanks)
 
@@ -359,7 +367,7 @@ bTup ts rs r              = RApp tupConName ts rs (reftUReft r)
 bCon b [RMono _ r1] [] r  = RApp b [] [] (r1 `meet` (reftUReft r)) 
 bCon b rs ts r            = RApp b ts rs (reftUReft r)
 
--- bAppTy v ts r             = RAppTy (RVar v top) t (reftUReft r)
+-- bAppTy v t r             = RAppTy (RVar v top) t (reftUReft r)
 bAppTy v ts r             = (foldl' (\a b -> RAppTy a b top) (RVar v top) ts) `strengthen` (reftUReft r)
 
 
