@@ -974,6 +974,7 @@ cconsE γ (Lam x e) (RFun y ty t _)
 cconsE γ (Tick tt e) t   
   = cconsE (γ `setLoc` tickSrcSpan tt) e t
 
+-- FIXTHIS
 cconsE γ e@(Cast _ _) t     
   = do t' <- trueTy $ exprType e
        addC (SubC γ t' t) ("cconsE Cast" ++ showPpr e) 
