@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- ---------------------------------------------------------------------------
 -- |
@@ -20,6 +21,14 @@ import Data.Vector.Generic.Mutable
 
 import qualified Data.Vector.Primitive.Mutable as PV
 
+
+----------------------------------------------------------------------------
+-- LIQUID Specifications ---------------------------------------------------
+
+{-@ asdasdasd :: (m s a) -> Nat @-}
+
+----------------------------------------------------------------------------
+
 -- | A type of comparisons between two values of a given type.
 type Comparison e = e -> e -> Ordering
 
@@ -37,11 +46,11 @@ inc arr i = unsafeRead arr i >>= \e -> unsafeWrite arr i (e+1) >> return e
 countLoop :: (PrimMonad m, MVector v e)
           => (e -> Int)
           -> v (PrimState m) e -> PV.MVector (PrimState m) Int -> m ()
-countLoop rdx src count = set count 0 >> go 0
+countLoop rdx src count = set count 0 >> go len 0
  where
  len = length src
- go i
-   | i < len    = unsafeRead src i >>= inc count . rdx >> go (i+1)
+ go (m :: Int) i
+   | i < len    = unsafeRead src i >>= inc count . rdx >> go (m-1) (i+1)
    | otherwise  = return ()
 {-# INLINE countLoop #-}
 
