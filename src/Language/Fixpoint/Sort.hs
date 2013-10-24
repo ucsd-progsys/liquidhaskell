@@ -209,9 +209,11 @@ checkRelTy f _ _ (FObj l) (FObj l') | l /= l'
   = (checkNumeric f l >> checkNumeric f l') `catchError` (\_ -> throwError $ errNonNumerics l l') 
 checkRelTy f _ _ FInt (FObj l)     = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l) 
 checkRelTy f _ _ (FObj l) FInt     = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l)
-checkRelTy _ e Eq t1 t2            = unless (t1 == t2 && t1 /= fProp) (throwError $ errRel e t1 t2)
-checkRelTy _ e Ne t1 t2            = unless (t1 == t2 && t1 /= fProp) (throwError $ errRel e t1 t2)
-checkRelTy _ e _  t1 t2            = unless (t1 == t2)                (throwError $ errRel e t1 t2)
+checkRelTy _ e Eq t1 t2            = unless (t1 == t2 && t1 /= fProp)  (throwError $ errRel e t1 t2)
+checkRelTy _ e Ne t1 t2            = unless (t1 == t2 && t1 /= fProp)  (throwError $ errRel e t1 t2)
+checkRelTy _ e Ueq t1 t2           = unless (isAppTy t1 && isAppTy t2) (throwError $ errRel e t1 t2)
+checkRelTy _ e Une t1 t2           = unless (isAppTy t1 && isAppTy t2) (throwError $ errRel e t1 t2)
+checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwError $ errRel e t1 t2)
 
 
 -- | Special case for polymorphic singleton variable equality e.g. (x = Set_emp) 
@@ -220,8 +222,10 @@ checkRelEqVar f x g es             = do tx <- checkSym f x
                                         _  <- checkApp f (Just tx) g es
                                         return ()
 
-
-
+-- | Special case for Unsorted Dis/Equality
+isAppTy :: Sort -> Bool
+isAppTy (FApp _ _) = True
+isAppTy _          = False
 
 -------------------------------------------------------------------------
 -- | Error messages -----------------------------------------------------
