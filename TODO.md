@@ -1,7 +1,7 @@
 TODO
 ====
 
-* `===` : unsorted-equality
+* `~~` : unsorted-equality
 
 * Qualified Imports
   - wtf is include/KMeansHelper.hs ? Fix module import issue
@@ -52,15 +52,15 @@ vector-algorithms
 
 dependencies for vector algorithms
 
-[1 of 9] Compiling Data.Vector.Algorithms.Common
-[2 of 9] Compiling Data.Vector.Algorithms.Radix
-[3 of 9] Compiling Data.Vector.Algorithms.Search   
-[4 of 9] Compiling Data.Vector.Algorithms.Optimal
-[5 of 9] Compiling Data.Vector.Algorithms.Insertion
-[6 of 9] Compiling Data.Vector.Algorithms.AmericanFlag
-[7 of 9] Compiling Data.Vector.Algorithms.Heap
-[8 of 9] Compiling Data.Vector.Algorithms.Intro 
-[9 of 9] Compiling Data.Vector.Algorithms.Merge 
+[OK ] Data.Vector.Algorithms.Common
+[2/9] Data.Vector.Algorithms.Radix
+[3/9] Data.Vector.Algorithms.Search
+[4/9] Data.Vector.Algorithms.Optimal
+[5/9] Data.Vector.Algorithms.Insertion
+[6/9] Data.Vector.Algorithms.AmericanFlag
+[7/9] Data.Vector.Algorithms.Heap
+[8/9] Data.Vector.Algorithms.Intro 
+[9/9] Data.Vector.Algorithms.Merge 
 
 
 hmatrix

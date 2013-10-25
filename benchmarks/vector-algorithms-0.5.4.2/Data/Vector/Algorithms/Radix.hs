@@ -173,8 +173,18 @@ instance (Radix i, Radix j) => Radix (i, j) where
   size   ~(i, j) = size i `max` size j
   {-# INLINE size #-}
   radix k ~(i, j) | k < passes j = radix k j
-                     | otherwise    = radix (k - passes j) i
+                  | otherwise    = radix (k - passes j) i
   {-# INLINE radix #-}
+
+-----------------------------------------------------------------------
+-- LIQUID Assumes -----------------------------------------------------
+-----------------------------------------------------------------------
+
+{-@ measure radixSize :: a -> Int                                   @-}
+{-@ size  :: (Radix e) => x:e -> {v:Nat | v = (radixSize x)}        @-}
+{-@ radix :: (Radix e) => Int -> x:e -> {v:Nat | v < (radixSize x)} @-}
+
+-----------------------------------------------------------------------
 
 -- | Sorts an array based on the Radix instance.
 sort :: forall e m v. (PrimMonad m, MVector v e, Radix e)
