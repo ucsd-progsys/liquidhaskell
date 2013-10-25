@@ -38,7 +38,7 @@ module Language.Haskell.Liquid.RefType (
   , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , rTypeSortedReft, rTypeSort
-  , varSymbol, dataConSymbol, dataConMsReft, dataConReft  
+  , dataConSymbol, dataConMsReft, dataConReft  
   , literalFRefType, literalFReft, literalConst
   , classBinds
   
@@ -730,7 +730,7 @@ varSymbol v
 pprShort    =  dropModuleNames . showPpr 
 
 dataConSymbol ::  DataCon -> Symbol
-dataConSymbol = varSymbol . dataConWorkId
+dataConSymbol = symbol . dataConWorkId
 
 -- TODO: turn this into a map lookup?
 dataConReft ::  DataCon -> [Symbol] -> Reft
@@ -949,14 +949,14 @@ mkDType xvs acc [(v, (x, t@(RApp c _ _ _)))]
   = (x, ) $ t `strengthen` tr
   where tr     = uTop $ Reft (vv, [RConc $ pOr (r:acc)])
         r      = cmpLexRef xvs (v', vv, f)
-        v'     = varSymbol v
+        v'     = symbol v
         Just f = sizeFunction $ rTyConInfo c
         vv     = stringSymbol "vvRec"
 
 mkDType xvs acc ((v, (x, t@(RApp c _ _ _))):vxts)
   = mkDType ((v', x, f):xvs) (r:acc) vxts
   where r      = cmpLexRef xvs  (v', x, f)
-        v'     = varSymbol v
+        v'     = symbol v
         Just f = sizeFunction $ rTyConInfo c
 
 cmpLexRef vxs (v, x, g)

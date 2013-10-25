@@ -201,6 +201,14 @@ sort arr = sortBy (passes e) (size e) radix arr
 -- one greater than the maximum value returned by the radix
 -- function), and a radix function, which takes the pass
 -- and an element, and returns the relevant radix.
+{-@ sortBy :: (PrimMonad m, MVector v e)
+       => Int
+       -> n:Int
+       -> (Int -> e -> BNat n)
+       -> v (PrimState m) e
+       -> m ()
+  @-}
+
 sortBy :: (PrimMonad m, MVector v e)
        => Int               -- ^ the number of passes
        -> Int               -- ^ the size of auxiliary arrays
@@ -210,35 +218,35 @@ sortBy :: (PrimMonad m, MVector v e)
 sortBy passes size rdx arr = do
   tmp    <- new (length arr)
   count  <- new size
-  radixLoop passes rdx arr tmp count
+  radixLoop passes arr tmp count rdx 
 {-# INLINE sortBy #-}
 
 radixLoop :: (PrimMonad m, MVector v e)
           => Int                          -- passes
-          -> (Int -> e -> Int)            -- radix function
           -> v (PrimState m) e            -- array to sort
           -> v (PrimState m) e            -- temporary array
           -> PV.MVector (PrimState m) Int -- radix count array
+          -> (Int -> e -> Int)            -- radix function
           -> m ()
-radixLoop passes rdx src dst count = go False 0
+radixLoop passes src dst count rdx = go False 0
  where
  len = length src
  go swap k
    | k < passes = if swap
-                    then body rdx dst src count k >> go (not swap) (k+1)
-                    else body rdx src dst count k >> go (not swap) (k+1)
+                    then body dst src count rdx k >> go (not swap) (k+1)
+                    else body src dst count rdx k >> go (not swap) (k+1)
    | otherwise  = when swap (unsafeCopy src dst)
 {-# INLINE radixLoop #-}
 
 body :: (PrimMonad m, MVector v e)
-     => (Int -> e -> Int)            -- radix function
-     -> v (PrimState m) e            -- source array
+     => v (PrimState m) e            -- source array
      -> v (PrimState m) e            -- destination array
      -> PV.MVector (PrimState m) Int -- radix count
+     -> (Int -> e -> Int)            -- radix function
      -> Int                          -- current pass
      -> m ()
-body rdx src dst count k = do
-  countLoop (rdx k) src count
+body src dst count rdx k = do
+  countLoop src count (rdx k) 
   accumulate count
   moveLoop k rdx src dst count
 {-# INLINE body #-}

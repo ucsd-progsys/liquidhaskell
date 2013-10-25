@@ -30,41 +30,47 @@ import qualified Data.Vector.Primitive.Mutable as PV
 {-@ measure vsize :: a -> Int @-}
 
 -- | Vector Type Aliases
-
+{-@ type      BNat  N     = {v:Nat | v < N}         @-}
 {-@ type      OkIdx X     = {v:Nat | v < (vsize X)} @-}
 {-@ predicate OkOff V B O = (vsize V) <= B + O      @-}
 {-@ predicate EqSiz X Y   = (vsize X) = (vsize Y)   @-}
 
 -- | Assumed Types for Vector
 
-{-@ length      :: (MVector v a) 
-                => x:(v s a) 
-                -> {v:Nat | v = (vsize x)} 
+{-@ Data.Vector.Generic.Mutable.length      
+      :: (Data.Vector.Generic.Mutable.MVector v a) 
+      => x:(v s a) 
+      -> {v:Nat | v = (vsize x)} 
   @-}
 
-{-@ unsafeRead  :: (PrimMonad m, MVector v a) 
-                => x:(v (PrimState m) a) 
-                -> (OkIdx x) 
-                -> m a       
+{-@ Data.Vector.Generic.Mutable.unsafeRead  
+      :: (PrimMonad m, Data.Vector.Generic.Mutable.MVector v a) 
+      => x:(v (PrimState m) a) 
+      -> (OkIdx x) 
+      -> m a       
   @-}
 
-{-@ unsafeWrite :: (PrimMonad m, MVector v a) 
-                => x:(v (PrimState m) a) 
-                -> (OkIdx x) 
-                -> a 
-                -> m () 
+{-@ Data.Vector.Generic.Mutable.unsafeWrite 
+      :: (PrimMonad m, Data.Vector.Generic.Mutable.MVector v a) 
+      => x:(v (PrimState m) a) 
+      -> (OkIdx x) 
+      -> a 
+      -> m () 
   @-}
 
-{-@ unsafeSlice :: MVector v a 
-                => i:Nat 
-                -> n:Nat 
-                -> {v:(v s a) | (OkOff v i n)} 
-                -> {v:(v s a) | (vsize v) = n}  @-}
+{-@ unsafeSlice 
+      :: Data.Vector.Generic.Mutable.MVector v a 
+      => i:Nat 
+      -> n:Nat 
+      -> {v:(v s a) | (OkOff v i n)} 
+      -> {v:(v s a) | (vsize v) = n}  
+  @-}
 
-{-@ unsafeCopy  :: (PrimMonad m, MVector v a) 
-                => src:(v (PrimState m) a) 
-                -> {dst:(v (PrimState m) a) | (EqSiz src dst)} 
-                -> m () 
+{-@ Data.Vector.Generic.Mutable.unsafeCopy  
+      :: (PrimMonad m, Data.Vector.Generic.Mutable.MVector v a) 
+      => src:(v (PrimState m) a) 
+      -> {dst:(v (PrimState m) a) | (EqSiz src dst)} 
+      -> m () 
   @-}
 
 {-@ qualif EqSiz(x:a, y:b): (vsize x) = (vsize y)   @-}
@@ -85,7 +91,7 @@ type Comparison e = e -> e -> Ordering
 copyOffset :: (PrimMonad m, MVector v e)
            => v (PrimState m) e -> v (PrimState m) e -> Int -> Int -> Int -> m ()
 copyOffset from to iFrom iTo len =
-  unsafeCopy (unsafeSlice iTo len to) (unsafeSlice iFrom len from)
+  unsafeCopy (unsafeSlice iTo (len + 1) to) (unsafeSlice iFrom len from)
 {-# INLINE copyOffset #-}
 
 {-@ inc :: (PrimMonad m, MVector v Int) => x:(v (PrimState m) Int) -> (OkIdx x) -> m Int @-}
@@ -97,17 +103,41 @@ inc arr i = unsafeRead arr i >>= \e -> unsafeWrite arr i (e+1) >> return e
 -- LIQUID: flipping order to allow dependency.
 -- shared bucket sorting stuff
 {-@ countLoop :: (PrimMonad m, MVector v e)
-          => src:(v (PrimState m) e) -> count:(PV.MVector (PrimState m) Int) 
-          -> (e -> (OkIdx count)) ->  m ()
+              => (v (PrimState m) e) 
+              -> count:(PV.MVector (PrimState m) Int) 
+              -> (e -> (OkIdx count)) ->  m ()
   @-}
 countLoop :: (PrimMonad m, MVector v e)
           => (v (PrimState m) e) -> (PV.MVector (PrimState m) Int) 
           -> (e -> Int) ->  m ()
-countLoop src count rdx = set count 0 >> go len 0
+countLoop srcOOOOZZZ count rdx = set count 0 >> go len 0
  where
- len = length src
+ len = length srcOOOOZZZ
  go (m :: Int) i
-   | i < len    = unsafeRead src i >>= inc count . rdx >> go (m-1) (i+1)
+   | i < len   = unsafeRead srcOOOOZZZ (1000) >>= inc count . rdx >> go (m-1) (i+1)
    | otherwise = return ()
 {-# INLINE countLoop #-}
+
+yuck x i = if (i > 0) then unsafeRead x i else undefined
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
