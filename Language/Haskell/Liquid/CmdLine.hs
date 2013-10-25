@@ -130,9 +130,11 @@ copyright = "LiquidHaskell © Copyright 2009-13 Regents of the University of Cal
 mkOpts :: Config -> IO Config
 mkOpts md  
   = do files' <- sortNub . concat <$> mapM getHsTargets (files md) 
-       idirs' <- if null (idirs md) then single <$> getIncludeDir else return (idirs md)
-       return  $ md { files = files' } { idirs = map dropFileName files' ++ idirs' }
-                                        -- tests fail if you flip order of idirs'
+       -- idirs' <- if null (idirs md) then single <$> getIncludeDir else return (idirs md)
+       id0 <- getIncludeDir 
+       return  $ md { files = files' } 
+                    { idirs = (dropFileName <$> files') ++ [id0] ++ idirs md }
+                              -- tests fail if you flip order of idirs'
 
 ---------------------------------------------------------------------------------------
 -- | Updating options

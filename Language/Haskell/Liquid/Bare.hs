@@ -125,7 +125,7 @@ makeGhcSpec' cfg vars defVars specs
        let su           = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        let tx           = subsFreeSymbols su
        let txq          = subsFreeSymbolsQual su
-       let syms'        = [(varSymbol v, v) | (_, v) <- syms]
+       let syms'        = [(symbol v, v) | (_, v) <- syms]
        decr'           <- mconcat <$> mapM (makeHints defVars) specs
        lvars'          <- S.fromList . mconcat
                                     <$> sequence [ makeLVars defVars (mod,spec)
@@ -322,13 +322,13 @@ makeQualifiers (mod,spec) = inModule mod mkQuals
   where
     mkQuals = mapM resolve $ Ms.qualifiers spec
 
-makeHints vs (_,spec) = varSymbols id "Hint" vs $ Ms.decr spec
-makeLVars vs (_,spec) = fmap fst <$> (varSymbols id "LazyVar" vs $ [(v, ()) | v <- Ms.lvars spec])
+makeHints vs (_,spec) = symbols id "Hint" vs $ Ms.decr spec
+makeLVars vs (_,spec) = fmap fst <$> (symbols id "LazyVar" vs $ [(v, ()) | v <- Ms.lvars spec])
 
-varSymbols :: ([Var] -> [Var]) -> String ->  [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
-varSymbols f n vs  = concatMapM go
-  where lvs        = M.map L.sort $ group [(varSymbol v, locVar v) | v <- vs]
-        varSymbol  = stringSymbol . dropModuleNames . showPpr
+symbols :: ([Var] -> [Var]) -> String ->  [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
+symbols f n vs  = concatMapM go
+  where lvs        = M.map L.sort $ group [(symbol v, locVar v) | v <- vs]
+        symbol  = stringSymbol . dropModuleNames . showPpr
         locVar v   = (getSourcePos v, v)
         go (s, ns) = case M.lookup (val s) lvs of 
                      Just lvs -> return ((, ns) <$> varsAfter f s lvs)
@@ -366,7 +366,7 @@ addSymSortRef (p, RMono s r@(U _ (Pr [up])))
 addSymSortRef (p, RMono s t)
   = RMono s t
 
-varMeasures vars  = [ (varSymbol v, varSpecType v) 
+varMeasures vars  = [ (symbol v, varSpecType v) 
                     | v <- vars
                     , isDataConWorkId v
                     , isSimpleType $ varType v
@@ -446,7 +446,7 @@ mkVarExpr v
   | isDataConWorkId v && not (null tvs) && isNothing tfun
   = EApp (dataConSymbol (idDataCon v)) []         
   | otherwise   
-  = EVar $ varSymbol v
+  = EVar $ symbol v
   where t            = varType v
         (tvs, tbase) = splitForAllTys t
         tfun         = splitFunTy_maybe tbase
@@ -572,7 +572,7 @@ makeLocalAssumeSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareT
  
 makeLocalAssumeSpec cfg mod vs lvs xbs
   = do env     <- get
-       vbs1    <- fmap expand3 <$> varSymbols fchoose "Var" lvs (dupSnd <$> xbs1)
+       vbs1    <- fmap expand3 <$> symbols fchoose "Var" lvs (dupSnd <$> xbs1)
        when (not $ noCheckUnknown cfg) $
          checkDefAsserts env vbs1 xbs1
        vts1    <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
@@ -1212,7 +1212,7 @@ ghcSpecEnv sp        = fromListSEnv binds
     emb              = tcEmbeds sp
     binds            =  [(x,           rSort t) | (x, Loc _ t) <- meas sp]
                      ++ [(x,  rSort $ cSort t) | (x, Loc _ t) <- cmeas sp]
-                     ++ [(varSymbol v, rSort t) | (v, Loc _ t) <- ctors sp]
+                     ++ [(symbol v, rSort t) | (v, Loc _ t) <- ctors sp]
                      ++ [(x          , vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
     rSort            = rTypeSortedReft emb 
     vSort            = rSort . varRType 

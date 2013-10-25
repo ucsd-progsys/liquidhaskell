@@ -40,7 +40,7 @@ getNeedPd spec
   = F.fromListSEnv bs
     where  dcs   = concatMap mkDataConIdsTy [(x, dataConPtoPredTy x y) | (x, y) <- dconsP spec]
            assms = (mapSnd (mapReft ur_pred . val)) <$> tySigs spec 
-           bs    = mapFst varSymbol <$> (dcs ++ assms)
+           bs    = mapFst F.symbol <$> (dcs ++ assms)
 
 dataConPtoPredTy :: TC.DataCon -> DataConP -> PrType
 dataConPtoPredTy dc = fmap ur_pred . (dataConPSpecType dc)
@@ -105,7 +105,7 @@ stringArg s = Var $ mkGlobalVar idDet name predType idInfo
 isSpecialId γ x = pl /= 0
   where (_, pl) = varPredArgs γ x
 
-varPredArgs γ x = varPredArgs_ (F.lookupSEnv (varSymbol x) γ)
+varPredArgs γ x = varPredArgs_ (F.lookupSEnv (F.symbol x) γ)
 varPredArgs_ Nothing = (0, 0)
 varPredArgs_ (Just t) = (length vs, length ps)
   where (vs, ps, _) = bkUniv t
