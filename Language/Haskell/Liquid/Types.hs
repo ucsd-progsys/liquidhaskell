@@ -846,6 +846,8 @@ stripRTypeBase (RVar _ x)
   = Just x
 stripRTypeBase (RFun _ _ _ x)   
   = Just x
+stripRTypeBase (RAppTy _ _ x)   
+  = Just x
 stripRTypeBase _                
   = Nothing
 

@@ -706,12 +706,13 @@ addA _ _ _ !a
 
 freshTy   :: CoreExpr -> Type -> CG SpecType 
 freshTy _ = liftM uRType . refresh . ofType 
-
+-- freshTy e τ = do t <- uRType <$> (refresh $ ofType τ)
+--                  return $ traceShow ("freshTy: " ++ showPpr e) t
 
 -- To revert to the old setup, just do
 -- freshTy_pretty = freshTy
 -- freshTy_pretty e τ = refresh $ {-traceShow ("exprRefType: " ++ F.showFix e) $-} exprRefType e
-freshTy_pretty e _ = do t <- refresh $ {-traceShow ("exprRefType: " ++ F.showFix e) $-} exprRefType e
+freshTy_pretty e _ = do t <- refresh $ {- traceShow ("exprRefType: " ++ showPpr e) $ -} exprRefType e
                         return $ uRType t
 
 
