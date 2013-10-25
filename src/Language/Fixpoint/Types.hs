@@ -79,6 +79,7 @@ module Language.Fixpoint.Types (
   , trueRefa                -- trivial reft
   , exprReft                -- singleton: v == e
   , notExprReft             -- singleton: v /= e
+  , uexprReft               -- singleton: v ~~ e
   , symbolReft              -- singleton: v == x
   , propReft                -- singleton: Prop(v) <=> p
   , predReft                -- any pred : p
@@ -656,18 +657,23 @@ eVar          = EVar . symbol
 eProp         ::  Symbolic a => a -> Pred
 eProp         = mkProp . eVar
 
-exprReft, notExprReft  ::  (Expression a) => a -> Reft
-exprReft e             = Reft (vv_, [RConc $ PAtom Eq (eVar vv_)  (expr e)])
-notExprReft e          = Reft (vv_, [RConc $ PAtom Ne (eVar vv_)  (expr e)])
+relReft :: (Expression a) => Brel -> a -> Reft
+relReft r e   = Reft (vv_, [RConc $ PAtom r (eVar vv_)  (expr e)])
 
-propReft               ::  (Predicate a) => a -> Reft
-propReft p             = Reft (vv_, [RConc $ PIff     (eProp vv_) (prop p)]) 
+exprReft, notExprReft, uexprReft ::  (Expression a) => a -> Reft
+exprReft      = relReft Eq
+notExprReft   = relReft Ne
+uexprReft     = relReft Ueq 
 
-predReft               :: (Predicate a) => a -> Reft
-predReft p             = Reft (vv_, [RConc $ prop p])
+-- exprReft e             = Reft (vv_, [RConc $ PAtom Eq (eVar vv_)  (expr e)])
+-- notExprReft e          = Reft (vv_, [RConc $ PAtom Ne (eVar vv_)  (expr e)])
+-- exprReft e             = Reft (vv_, [RConc $ PAtom Eq (eVar vv_)  (expr e)])
 
+propReft      ::  (Predicate a) => a -> Reft
+propReft p    = Reft (vv_, [RConc $ PIff     (eProp vv_) (prop p)]) 
 
-
+predReft      :: (Predicate a) => a -> Reft
+predReft p    = Reft (vv_, [RConc $ prop p])
 
 ---------------------------------------------------------------
 ----------------- Refinements ---------------------------------
