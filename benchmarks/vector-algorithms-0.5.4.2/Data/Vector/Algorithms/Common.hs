@@ -13,6 +13,8 @@
 
 module Data.Vector.Algorithms.Common where
 
+import Language.Haskell.Liquid.Prelude (liquidAssert)
+
 import Prelude hiding (read, length)
 
 import Control.Monad.Primitive
@@ -73,8 +75,10 @@ import qualified Data.Vector.Primitive.Mutable as PV
       -> m () 
   @-}
 
-{-@ qualif EqSiz(x:a, y:b): (vsize x) = (vsize y)   @-}
-{-@ qualif Plus(v:Int, x:Int, y:Int): v + x = y @-}
+{-@ qualif OkIdx(v:a, x:b): v <= (vsize x)        @-}
+{-@ qualif OkIdx(v:a, x:b): v <  (vsize x)        @-}
+{-@ qualif EqSiz(x:a, y:b): (vsize x) = (vsize y) @-}
+{-@ qualif Plus(v:Int, x:Int, y:Int): v + x = y   @-}
 ----------------------------------------------------------------------------
 
 -- | A type of comparisons between two values of a given type.
@@ -110,15 +114,16 @@ inc arr i = unsafeRead arr i >>= \e -> unsafeWrite arr i (e+1) >> return e
 countLoop :: (PrimMonad m, MVector v e)
           => (v (PrimState m) e) -> (PV.MVector (PrimState m) Int) 
           -> (e -> Int) ->  m ()
-countLoop srcOOOOZZZ count rdx = set count 0 >> go len 0
+countLoop src count rdx = set count 0 >> go len 0
  where
- len = length srcOOOOZZZ
+ len = length src
  go (m :: Int) i
-   | i < len   = unsafeRead srcOOOOZZZ (1000) >>= inc count . rdx >> go (m-1) (i+1)
+   | i < len   = let lenSrc = length src 
+                      
+                 in (liquidAssert (i < lenSrc) $ unsafeRead src i) >>= inc count . rdx >> go (m-1) (i+1)
    | otherwise = return ()
 {-# INLINE countLoop #-}
 
-yuck x i = if (i > 0) then unsafeRead x i else undefined
 
 
 

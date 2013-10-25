@@ -101,8 +101,8 @@ refreshRefType (RApp rc ts _ r)
        liftM3 (RApp rc') (mapM refresh ts) (mapM refreshRef rπs) (refresh r)
 refreshRefType (RVar a r)  
   = liftM (RVar a) (refresh r)
-refreshRefType (RAppTy t t' _)  
-  = liftM2 rAppTy (refresh t) (refresh t')
+refreshRefType (RAppTy t t' r)  
+  = liftM3 RAppTy (refresh t) (refresh t') (refresh r)
 refreshRefType t                
   = return t
 
