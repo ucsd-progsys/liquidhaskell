@@ -31,6 +31,7 @@ import qualified Data.Vector.Primitive.Mutable as PV
 {-@ type      OkIdx X     = {v:Nat | v < (vsize X)} @-}
 {-@ predicate OkOff V B O = (vsize V) <= B + O      @-}
 {-@ predicate EqSiz X Y   = (vsize X) = (vsize Y)   @-}
+{-@ qualif EqSiz(x:a, y:b): (vsize x) = (vsize y)   @-}
 
 {-@ unsafeRead  :: (PrimMonad m, MVector v a) => x:(v (PrimState m) a) -> (OkIdx x) -> m a       @-}
 {-@ unsafeWrite :: (PrimMonad m, MVector v a) => x:(v (PrimState m) a) -> (OkIdx x) -> a -> m () @-}
