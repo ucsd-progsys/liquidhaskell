@@ -53,7 +53,8 @@ data Spec ty bndr  = Spec {
   , lazy       :: !(S.HashSet Symbol)           -- ^ Ignore Termination Check in these Functions
   , pragmas    :: ![Located String]             -- ^ Command-line configurations passed in through source
   , cmeasures  :: ![Measure ty ()]              -- ^ Measures attached to a type-class
-  , imeasures  :: ![Measure ty bndr]           -- ^ Mappings from (measure,type) -> measure
+  , imeasures  :: ![Measure ty bndr]            -- ^ Mappings from (measure,type) -> measure
+  , classes    :: ![RClass ty]                  -- ^ Refined Type-Classes
   }
 
 
@@ -106,8 +107,8 @@ checkDuplicateMeasure ms
 
 -- MOVE TO TYPES
 instance Monoid (Spec ty bndr) where
-  mappend (Spec xs ys invs zs ds is as ps es qs drs lvs ss gs cms ims)
-          (Spec xs' ys' invs' zs' ds' is' as' ps' es' qs' drs' lvs' ss' gs' cms' ims')
+  mappend (Spec xs ys invs zs ds is as ps es qs drs lvs ss gs cms ims cls)
+          (Spec xs' ys' invs' zs' ds' is' as' ps' es' qs' drs' lvs' ss' gs' cms' ims' cls')
            = Spec (xs ++ xs') 
                   (ys ++ ys') 
                   (invs ++ invs') 
@@ -124,7 +125,8 @@ instance Monoid (Spec ty bndr) where
                   (gs ++ gs')
                   (cms ++ cms')
                   (ims ++ ims')
-  mempty   = Spec [] [] [] [] [] [] [] [] M.empty [] [] [] S.empty [] [] []
+                  (cls ++ cls')
+  mempty   = Spec [] [] [] [] [] [] [] [] M.empty [] [] [] S.empty [] [] [] []
 
 -- MOVE TO TYPES
 instance Functor Def where
@@ -155,7 +157,7 @@ instance Bifunctor MSpec   where
 
 -- MOVE TO TYPES
 instance Bifunctor Spec    where
-  first f (Spec ms ss is x0 x1 x2 x3 x4 x5 x6 x7 x7a x8 x9 cms ims)
+  first f (Spec ms ss is x0 x1 x2 x3 x4 x5 x6 x7 x7a x8 x9 cms ims cls)
     = Spec { measures   = first  f <$> ms
            , sigs       = second f <$> ss
            , invariants = fmap   f <$> is
@@ -172,8 +174,9 @@ instance Bifunctor Spec    where
            , pragmas    = x9
            , cmeasures  = first f <$> cms
            , imeasures  = first f <$> ims
+           , classes    = fmap f <$> cls
            }
-  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6 x7 x8 x8a x9 x10 x11 ims)
+  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6 x7 x8 x8a x9 x10 x11 ims x12)
     = Spec { measures   = fmap (second f) ms
            , sigs       = x0 
            , invariants = x1
@@ -190,6 +193,7 @@ instance Bifunctor Spec    where
            , pragmas    = x10
            , cmeasures  = x11
            , imeasures  = fmap (second f) ims
+           , classes    = x12
            }
 
 -- MOVE TO TYPES

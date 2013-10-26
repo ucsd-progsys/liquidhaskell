@@ -126,17 +126,10 @@ unifyts penv (x, t) = (x', unify pt t)
 
 measEnv sp penv xts cbs lts
   = CGE { loc   = noSrcSpan
-        , renv  = fromListREnv
-                $ concat [ second (uRType . val) <$> meas sp
-                         , second (uRType . cSort . val) <$> cmeas sp
-                         ]
-        , syenv = F.fromListSEnv $ freeSyms sp 
+        , renv  = fromListREnv $ second (uRType . val) <$> meas sp
+        , syenv = F.fromListSEnv $ freeSyms sp
         , penv  = penv 
-        , fenv  = initFEnv
-                $ concat [ lts
-                         , second (rTypeSort tce . val) <$> meas sp
-                         , second (rTypeSort tce . cSort . val) <$> cmeas sp
-                         ]
+        , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , recs  = S.empty 
         , invs  = mkRTyConInv    $ invariants sp
         , grtys = fromListREnv xts 
@@ -1026,7 +1019,7 @@ consE γ e'@(App e a)
        te'                 <- return (replacePreds "consE" te zs) {- =>> addKuts -}
        (γ', te'')          <- dropExists γ te'
        updateLocA πs (exprLoc e) te'' 
-       let (RFun x tx t _) = checkFun ("Non-fun App with caller", e') te'' 
+       let (RFun x tx t _) = checkFun ("Non-fun App with caller ", e') te''
        cconsE γ' a tx 
        return $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
 --    where err = errorstar $ "consE: App crashes on" ++ showPpr a 
@@ -1141,7 +1134,7 @@ checkFun x t                  = checkErr x t
 checkAll _ t@(RAllT _ _)      = t
 checkAll x t                  = checkErr x t
 
-checkErr (msg, e) t          = errorstar $ msg ++ showPpr e ++ "type: " ++ showpp t
+checkErr (msg, e) t          = errorstar $ msg ++ showPpr e ++ ", type: " ++ showpp t
 
 varAnn γ x t 
   | x `S.member` recs γ
