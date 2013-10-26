@@ -516,7 +516,7 @@ iMeasureP = measureP
 
 classP :: Parser (RClass BareType)
 classP
-  = do sups <- traceShow "superP" <$> superP
+  = do sups <- superP
        c <- locParserP upperIdP
        spaces
        tvs <- manyTill tyVarIdP (try $ reserved "where")
