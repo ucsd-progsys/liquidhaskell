@@ -60,7 +60,7 @@ import qualified Data.Vector.Primitive.Mutable as PV
       -> m () 
   @-}
 
-{-@ unsafeSlice 
+{-@ Data.Vector.Generic.Mutable.unsafeSlice 
       :: Data.Vector.Generic.Mutable.MVector v a 
       => i:Nat 
       -> n:Nat 
