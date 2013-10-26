@@ -22,6 +22,7 @@ import Control.Monad.Primitive
 import Data.Vector.Generic.Mutable
 
 import qualified Data.Vector.Primitive.Mutable as PV
+import qualified Data.Vector.Primitive.Mutable 
 
 ----------------------------------------------------------------------------
 -- LIQUID Specifications ---------------------------------------------------
@@ -75,8 +76,26 @@ import qualified Data.Vector.Primitive.Mutable as PV
       -> m () 
   @-}
 
+{-@ Data.Vector.Generic.Mutable.new 
+      :: (PrimMonad m, Data.Vector.Generic.Mutable.MVector v a) 
+      => nINTENDO:Nat 
+      -> {v: (m (v (PrimState m) a)) | (vsize v) = nINTENDO}
+  @-}
+
+{-@ Data.Vector.Primitive.Mutable.new 
+      :: (PrimMonad m, Data.Vector.Primitive.Mutable.Prim a) 
+      => nONKEY:Nat 
+      -> {v: m (Data.Vector.Primitive.Mutable.MVector (PrimState m) a) | (vsize v) = nONKEY }
+  @-}
+
+
+
+
+{-@ qualif Cmp(v:a, x:b): v < x        @-}
 {-@ qualif OkIdx(v:a, x:b): v <= (vsize x)        @-}
 {-@ qualif OkIdx(v:a, x:b): v <  (vsize x)        @-}
+{-@ qualif EqSiz(x:a, y:b): (vsize x) = y         @-}
+{-@ qualif EqSiz(x:a, y:b): x = (vsize y)         @-}
 {-@ qualif EqSiz(x:a, y:b): (vsize x) = (vsize y) @-}
 {-@ qualif Plus(v:Int, x:Int, y:Int): v + x = y   @-}
 ----------------------------------------------------------------------------
