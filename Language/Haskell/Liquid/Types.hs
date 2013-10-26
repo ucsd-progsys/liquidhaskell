@@ -91,6 +91,8 @@ module Language.Haskell.Liquid.Types (
   , CMeasure (..)
   , Def (..)
   , Body (..)
+  -- * Type Classes
+  , RClass (..)
   )
   where
 
@@ -107,6 +109,7 @@ import GHC                          (Class, HscEnv, ModuleName, Name, moduleName
 import GHC                          (Class, HscEnv)
 import Language.Haskell.Liquid.GhcMisc 
 
+import Control.Arrow (second)
 import Control.Monad  (liftM, liftM2, liftM3)
 import Control.DeepSeq
 import Control.Applicative          ((<$>))
@@ -268,7 +271,6 @@ data GhcSpec = SP {
                                                  -- eg.  (:) :: a -> xs:[a] -> {v: Int | v = 1 + len(xs) }
   , meas       :: ![(Symbol, Located RefType)]   -- ^ Measure Types  
                                                  -- eg.  len :: [a] -> Int
-  , cmeas      :: ![(Symbol, Located (CMeasure RefType))]
   , invariants :: ![Located SpecType]            -- ^ Data Type Invariants
                                                  -- eg.  forall a. {v: [a] | len(v) >= 0}
   , dconsP     :: ![(DataCon, DataConP)]         -- ^ Predicated Data-Constructors
@@ -298,6 +300,7 @@ data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
 
 data DataConP = DataConP { freeTyVars :: ![RTyVar]
                          , freePred   :: ![(PVar RSort)]
+                         , tyConsts   :: ![SpecType]
                          , tyArgs     :: ![(Symbol, SpecType)]
                          , tyRes      :: !SpecType
                          }
@@ -1142,3 +1145,13 @@ instance Subable Body where
   subst su (P e)   = P $ subst su e
   subst su (R s e) = R s $ subst su e
 
+
+data RClass ty
+  = RClass { rcName    :: LocSymbol
+           , rcSupers  :: [ty]
+           , rcTyVars  :: [String]
+           , rcMethods :: [(LocSymbol,ty)]
+           } deriving (Show)
+
+instance Functor RClass where
+  fmap f (RClass n ss tvs ms) = RClass n (fmap f ss) tvs (fmap (second f) ms)

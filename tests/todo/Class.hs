@@ -2,88 +2,57 @@
 {-@ LIQUID "--no-termination" @-}
 module Class where
 
+import Language.Haskell.Liquid.Prelude
 import Prelude hiding (sum, length, (!!), Functor(..))
 import qualified Prelude as P
-{-@ qualif Diff(v:int,l:int,i:int): v = l - i @-}
 
-data List a = Nil | Cons a (List a)
+{-@ qualif Sz(v:int, xs:a): v = (sz xs) @-}
+
 {-@ data List a = Nil | Cons (hd::a) (tl::(List a)) @-}
+data List a = Nil | Cons a (List a)
 
-
-{-@ length :: xs:List a -> {v:Nat | v = (size xs)} @-}
+{-@ length :: xs:List a -> {v:Nat | v = (sz xs)} @-}
 length :: List a -> Int
 length Nil         = 0
 length (Cons x xs) = 1 + length xs
 
-{-@ (!!) :: xs:List a -> {v:Nat | v < (size xs)} -> a @-}
+{-@ (!!) :: xs:List a -> {v:Nat | v < (sz xs)} -> a @-}
 (!!) :: List a -> Int -> a
 Nil         !! i = undefined
 (Cons x _)  !! 0 = x
 (Cons x xs) !! i = xs !! (i - 1)
 
-
+{-@ class measure sz :: forall a. a -> Int @-}
+{-@ class Sized s where
+      size :: forall a. x:s a -> {v:Nat | v = (sz x)}
+  @-}
 class Sized s where
-  {-@ class measure size :: forall a. a -> Int @-}
-
-  {-@ size :: forall s. Sized s => forall a. x:s a -> {v:Int | v = (size x)} @-}
   size :: s a -> Int
 
 instance Sized List where
-  {-@ instance measure size :: List a -> Int
-      size (Nil)       = 0
-      size (Cons x xs) = 1 + (size xs)
+  {-@ instance measure sz :: List a -> Int
+      sz (Nil)       = 0
+      sz (Cons x xs) = 1 + (sz xs)
     @-}
-  -- length <: size[[]/s][len/size]
   size = length
 
+instance Sized [] where
+  {-@ instance measure sz :: [a] -> Int
+      sz ([])   = 0
+      sz (x:xs) = 1 + (sz xs)
+    @-}
+  size [] = 0
+  size (x:xs) = 1 + size xs
 
-class (Sized s) => Indexable s where
-  {- data Indexable s = Indexable (index :: forall a. x:s a -> {v:Nat | v < (size x)} -> a) @-}
-  {-@ index :: Indexable s => forall a. x:s a -> {v:Nat | v < (size x)} -> a @-}
-  index :: s a -> Int -> a
-{- class Indexable s where
-      index :: forall a. x:s a -> {v:Nat | v < (size x)} -> a
+{-@ class (Sized s) => Indexable s where
+      index :: forall a. x:s a -> {v:Nat | v < (sz x)} -> a
   @-}
-{-
-FIXME: transform the class syntax
-
-class Indexable s where
-  index :: forall a. x:s a -> {v:Nat | v < (size x)} -> a
-
-into
-
-data Indexable s = D:Indexable (index :: forall a. x:s a -> {v:Nat | v < (size x)} -> a)
-
-and
-
-index :: Indexable s => forall a. x:s a -> {v:Nat | v < (size x)} -> a
--}
+class (Sized s) => Indexable s where
+  index :: s a -> Int -> a
 
 
 instance Indexable List where
-  -- (!!) <: index[[]/s][len/size]
-  {- $cindex :: forall a. x:List a -> {v:Nat | v < (size x)} -> a @-}
   index = (!!)
-  -- index Nil _ = undefined
-  -- index (Cons x _) 0 = x
-  -- index (Cons x xs) i = index xs (i-1)
-
--- instance Sized [] where
---   size = P.length
--- instance Indexable [] where
---   {- $cindex :: forall a. x:a -> {v:Nat | v < (size x)} -> a @-}
---   index xs i = xs P.!! i
-
-class Functor f where
-  fmap :: (a -> b) -> f a -> f b
-
-instance Functor List where
-  fmap f Nil = Nil
-  fmap f (Cons x xs) = Cons (f x) (fmap f xs)
-
-instance P.Functor List where
-  fmap f Nil = Nil
-  fmap f (Cons x xs) = Cons (f x) (P.fmap f xs)
 
 {-@ sum :: Indexable s => s Int -> Int @-}
 sum :: Indexable s => s Int -> Int
@@ -102,9 +71,11 @@ sumList xs = go max 0
     max = size xs
     go (d::Int) i
       | i < max   = index xs i + go (d-1) (i+1)
-      | otherwise = index xs i
+      | otherwise = 0
 
 
-{-@ x :: {v:List Int | (size v) = 3}  @-}
+{-@ x :: {v:List Int | (sz v) = 3}  @-}
 x :: List Int
 x = 1 `Cons` (2 `Cons` (3 `Cons` Nil))
+
+foo = liquidAssert $ size (Cons 1 Nil) == size [1]

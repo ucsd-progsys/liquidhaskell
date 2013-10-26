@@ -907,7 +907,7 @@ grabArgs τs τ              = reverse (τ:τs)
 mkDataConIdsTy (dc, t) = [expandProductType id t | id <- dataConImplicitIds dc]
 
 expandProductType x t 
-  | ofType (varType x) == toRSort t = (x, t) 
+  | ofType (varType x) == toRSort t = (x, t)
   | otherwise                       = (x, t')
      where t'           = mkArrow as ps xts' tr
            τs           = fst $ splitFunTys $ toType t
