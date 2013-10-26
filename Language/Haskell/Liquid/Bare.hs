@@ -753,14 +753,14 @@ stringLookupEnv env mod s
          Just (n:_) -> return (Just n)
          _          -> return Nothing
 
+-- | lookupGhcVar: It's possible that we have already resolved the Name we are
+--   looking for, but have had to turn it back into a String, e.g. to be used in
+--   an Expr, as in {v:Ordering | v = EQ}. In this case, the fully-qualified Name
+--   (GHC.Types.EQ) will likely not be in scope, so we store our own mapping of
+--   fully-qualified Names to Vars and prefer pulling Vars from it.
+  
 lookupGhcVar :: GhcLookup a => a -> BareM Var
 lookupGhcVar x
-  -- It's possible that we have already resolved the Name we are
-  -- looking for, but have had to turn it back into a String, e.g. to
-  -- be used in an Expr, as in {v:Ordering | v = EQ}. In this case,
-  -- the fully-qualified Name (GHC.Types.EQ) will likely not be in
-  -- scope, so we store our own mapping of fully-qualified Names to
-  -- Vars and prefer pulling Vars from it.
   = do env <- gets varEnv
        case L.lookup (symbol $ pp x) env of
          Nothing -> lookupGhcThing "Var" fv x
