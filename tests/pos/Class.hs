@@ -6,46 +6,46 @@ import Language.Haskell.Liquid.Prelude
 import Prelude hiding (sum, length, (!!), Functor(..))
 import qualified Prelude as P
 
-{-@ qualif Sz(v:int, xs:a): v = (sz xs) @-}
+{-@ qualif Size(v:int, xs:a): v = (size xs) @-}
 
 {-@ data List a = Nil | Cons (hd::a) (tl::(List a)) @-}
 data List a = Nil | Cons a (List a)
 
-{-@ length :: xs:List a -> {v:Nat | v = (sz xs)} @-}
+{-@ length :: xs:List a -> {v:Nat | v = (size xs)} @-}
 length :: List a -> Int
 length Nil         = 0
 length (Cons x xs) = 1 + length xs
 
-{-@ (!!) :: xs:List a -> {v:Nat | v < (sz xs)} -> a @-}
+{-@ (!!) :: xs:List a -> {v:Nat | v < (size xs)} -> a @-}
 (!!) :: List a -> Int -> a
 Nil         !! i = undefined
 (Cons x _)  !! 0 = x
 (Cons x xs) !! i = xs !! (i - 1)
 
-{-@ class measure sz :: forall a. a -> Int @-}
+{-@ class measure size :: forall a. a -> Int @-}
 {-@ class Sized s where
-      size :: forall a. x:s a -> {v:Nat | v = (sz x)}
+      size :: forall a. x:s a -> {v:Nat | v = (size x)}
   @-}
 class Sized s where
   size :: s a -> Int
 
 instance Sized List where
-  {-@ instance measure sz :: List a -> Int
-      sz (Nil)       = 0
-      sz (Cons x xs) = 1 + (sz xs)
+  {-@ instance measure size :: List a -> Int
+      size (Nil)       = 0
+      size (Cons x xs) = 1 + (size xs)
     @-}
   size = length
 
 instance Sized [] where
-  {-@ instance measure sz :: [a] -> Int
-      sz ([])   = 0
-      sz (x:xs) = 1 + (sz xs)
+  {-@ instance measure size :: [a] -> Int
+      size ([])   = 0
+      size (x:xs) = 1 + (size xs)
     @-}
   size [] = 0
   size (x:xs) = 1 + size xs
 
 {-@ class (Sized s) => Indexable s where
-      index :: forall a. x:s a -> {v:Nat | v < (sz x)} -> a
+      index :: forall a. x:s a -> {v:Nat | v < (size x)} -> a
   @-}
 class (Sized s) => Indexable s where
   index :: s a -> Int -> a
@@ -74,7 +74,7 @@ sumList xs = go max 0
       | otherwise = 0
 
 
-{-@ x :: {v:List Int | (sz v) = 3}  @-}
+{-@ x :: {v:List Int | (size v) = 3}  @-}
 x :: List Int
 x = 1 `Cons` (2 `Cons` (3 `Cons` Nil))
 
