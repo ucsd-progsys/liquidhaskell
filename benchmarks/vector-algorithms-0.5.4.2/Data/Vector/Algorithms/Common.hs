@@ -79,13 +79,13 @@ import qualified Data.Vector.Primitive.Mutable
 {-@ Data.Vector.Generic.Mutable.new 
       :: (PrimMonad m, Data.Vector.Generic.Mutable.MVector v a) 
       => nINTENDO:Nat 
-      -> {v: (m (v (PrimState m) a)) | (vsize v) = nINTENDO}
+      -> m {v: (v (PrimState m) a) | (vsize v) = nINTENDO}
   @-}
 
 {-@ Data.Vector.Primitive.Mutable.new 
       :: (PrimMonad m, Data.Vector.Primitive.Mutable.Prim a) 
       => nONKEY:Nat 
-      -> {v: m (Data.Vector.Primitive.Mutable.MVector (PrimState m) a) | (vsize v) = nONKEY }
+      -> m {v: (Data.Vector.Primitive.Mutable.MVector (PrimState m) a) | (vsize v) = nONKEY}
   @-}
 
 

@@ -6,7 +6,7 @@ import Foreign.Storable
 -- ERROR goes away if we:
 -- import Language.Haskell.Liquid.Foreign
 
--- but shouldn't have to do so since, 
+-- We shouldn't have to do so since, 
 --   include/Foreign/Storable.Spec
 -- has the line:
 --   import Language.Haskell.Liquid.Foreign

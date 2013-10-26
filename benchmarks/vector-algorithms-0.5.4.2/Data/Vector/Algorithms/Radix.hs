@@ -50,6 +50,7 @@ import Data.Int
 import Data.Word
 
 import Language.Haskell.Liquid.Foreign
+import Language.Haskell.Liquid.Prelude (liquidAssert)
 
 import Foreign.Storable
 
@@ -199,9 +200,12 @@ sort arr = sortBy (passes e) (size e) radix arr
  e = undefined
 {-# INLINABLE sort #-}
 
-{-@ zog :: (PrimMonad m, MVector v e) => n:Nat -> {v: m (v (PrimState m) e) | (vsize v) = n} @-}
+{-@ zog :: (PrimMonad m, MVector v e) => n:Nat -> m {v: (v (PrimState m) e) | false} @-}
 zog :: (PrimMonad m, MVector v e) => Int -> m (v (PrimState m) e)
-zog n = new n 
+zog n = do arr <- new n
+           return arr
+           -- let m = length arr
+           -- return $ {- liquidAssert (m == n) -} arr
 
 -- | Radix sorts an array using custom radix information
 -- requires the number of passes to fully sort the array,
@@ -228,7 +232,8 @@ sortBy passes sizLIQUID rdx arr = do
   let nArr = length arr
   tmp    <- new nArr -- (length arr)
   count  <- new sizLIQUID
-  radixLoop passes arr tmp count rdx 
+  let nCount = length count
+  radixLoop passes arr tmp (liquidAssert (sizLIQUID == nCount) count) rdx 
 {-# INLINE sortBy #-}
 
 radixLoop :: (PrimMonad m, MVector v e)
