@@ -128,10 +128,10 @@ unifyS (RFun x rt1 rt2 _) (RFun x' pt1 pt2 _)
        t2' <- unifyS rt2 (substParg (x', EVar x) pt2)
        return $ rFun x t1' t2' 
 
-unifyS (RAppTy rt1 rt2 _) (RAppTy pt1 pt2 _)
+unifyS (RAppTy rt1 rt2 r) (RAppTy pt1 pt2 p)
   = do t1' <- unifyS rt1 pt1
        t2' <- unifyS rt2 pt2
-       return $ rAppTy t1' t2'
+       return $ RAppTy t1' t2' (bUnify r p)
 
 unifyS t@(RCls _ _) (RCls _ _)
   = return t
@@ -142,13 +142,14 @@ unifyS (RVar v a) (RVar _ p)
 
 unifyS (RApp c ts rs r) (RApp _ pts ps p)
   = do modify $ \s -> s `S.union` fm
-       ts' <- zipWithM unifyS ts pts
+       ts'   <- zipWithM unifyS ts pts
        return $ RApp c ts' rs' (bUnify r p)
-  where fm       = S.fromList $ concatMap pvars (fp:fps) 
-        fp : fps = p : (getR <$> ps)
-        rs'      = zipWithZero unifyRef (RMono [] top {- trueReft -}) mempty rs fps
-        getR (RMono _ r) = r
-        getR (RPoly _ _) = top 
+    where 
+       fm       = S.fromList $ concatMap pvars (fp:fps) 
+       fp : fps = p : (getR <$> ps)
+       rs'      = zipWithZero unifyRef (RMono [] top {- trueReft -}) mempty rs fps
+       getR (RMono _ r) = r
+       getR (RPoly _ _) = top 
 
 unifyS (RAllE x tx t) (RAllE x' tx' t') | x == x'
   = liftM2 (RAllE x) (unifyS tx tx') (unifyS t t')

@@ -31,7 +31,7 @@ module Language.Haskell.Liquid.Types (
   -- * Constructors and Destructors
   , mkArrow, bkArrowDeep, bkArrow, safeBkArrow 
   , mkUnivs, bkUniv, bkClass
-  , rFun, rAppTy
+  , rFun
 
   -- * Manipulating Predicate
   , pvars
@@ -608,7 +608,6 @@ bkClass (RFun _ (RCls c t) t' _) = let (cs, t'') = bkClass t' in ((c, t):cs, t''
 bkClass t                        = ([], t)
 
 rFun b t t' = RFun b t t' top
-rAppTy t t' = RAppTy t t' top
 
 
 --------------------------------------------

@@ -76,7 +76,7 @@ trueRefType (RApp c ts _ _)
   = liftM (\ts -> RApp c ts truerefs top) (mapM true ts)
 		where truerefs = (RPoly []  . ofRSort . ptype) <$> (rTyConPs c)
 trueRefType (RAppTy t t' _)    
-  = liftM2 rAppTy (true t) (true t')
+  = liftM3 RAppTy (true t) (true t') (return top)
 trueRefType t                
   = return t
 

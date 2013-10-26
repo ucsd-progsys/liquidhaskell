@@ -33,7 +33,7 @@ import Text.Printf
 import Data.Maybe               (listToMaybe, fromMaybe, mapMaybe, catMaybes, isNothing)
 import Control.Monad.State      (put, get, gets, modify, State, evalState, evalStateT, execState, StateT)
 import Data.Traversable         (forM)
-import Control.Applicative      ((<$>), (<*>), (<|>))
+import Control.Applicative      ((<$>), (<*>), (<|>), pure)
 import Control.Monad.Reader     hiding (forM)
 import Control.Monad.Error      hiding (Error, forM)
 import Control.Monad.Writer     hiding (forM)
@@ -243,7 +243,7 @@ expandAlias s = go s
                       liftM3 (bareTCApp tyi r') (lookupGhcTyCon c) (mapM (go' s) rs) (mapM (go s) ts)
     go s (RVar a r)       = RVar (stringRTyVar a) <$> resolve r
     go s (RFun x t t' r)  = rFun x <$> go s t <*> go s t'
-    go s (RAppTy t t' r)  = rAppTy <$> go s t <*> go s t'
+    go s (RAppTy t t' r)  = RAppTy <$> go s t <*> go s t' <*> pure r
     go s (RAllE x t1 t2)  = liftM2 (RAllE x) (go s t1) (go s t2)
     go s (REx x t1 t2)    = liftM2 (REx x) (go s t1) (go s t2)
     go s (RAllT a t)      = RAllT (stringRTyVar a) <$> go s t
@@ -974,8 +974,8 @@ ofBareType (RVar a r)
   = return $ RVar (stringRTyVar a) r
 ofBareType (RFun x t1 t2 _) 
   = liftM2 (rFun x) (ofBareType t1) (ofBareType t2)
-ofBareType (RAppTy t1 t2 _) 
-  = liftM2 rAppTy (ofBareType t1) (ofBareType t2)
+ofBareType t@(RAppTy t1 t2 r) 
+  = liftM3 (\t1 t2 r -> traceShow ("RAPPTY: " ++ show t) $ RAppTy t1 t2 r) (ofBareType t1) (ofBareType t2) (return r)
 ofBareType (RAllE x t1 t2)
   = liftM2 (RAllE x) (ofBareType t1) (ofBareType t2)
 ofBareType (REx x t1 t2)
