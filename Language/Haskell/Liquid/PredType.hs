@@ -48,14 +48,18 @@ mkRTyCon tc (TyConP αs' ps cv conv size) = RTyCon tc pvs' (mkTyConInfo tc cv co
 
 dataConPSpecType :: DataCon -> DataConP -> SpecType 
 dataConPSpecType dc (DataConP vs ps cs yts rt) = mkArrow vs ps ts' rt'
-  where (xs, ts) = unzip yts
+  where (xs, ts) = unzip $ reverse yts
         ys       = mkDSym <$> xs
-        su       = F.mkSubst $ [(x, F.EVar y) | (x, y) <- zip xs ys]
-        yts'     = zip ys (subst su <$> ts)
+        su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
         rt'      = subst su rt
         mkDSym   = stringSymbol . (++ ('_':(showPpr dc))) . show
-        ts'      = map (S "",) cs ++ reverse yts'
---   where t1 = foldl' (\t2 (x, t1) -> rFun x t1 t2) rt yts 
+        ts'      = map (S "",) cs ++ yts'
+        tx _  []     []     []     = []
+        tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t)
+                                   : tx ((x, F.EVar y):su) xs ys ts
+        -- yts'     = zip ys (subst su <$> ts)
+        yts'     = tx [] xs ys ts
+--   where t1 = foldl' (\t2 (x, t1) -> rFun x t1 t2) rt yts
 --         t2 = foldr RAllP t1 ps
 --         t3 = foldr RAllT t2 vs
 
