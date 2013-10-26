@@ -49,14 +49,15 @@ import Data.Bits
 import Data.Int
 import Data.Word
 
+import Language.Haskell.Liquid.Foreign
 
 import Foreign.Storable
 
 class Radix e where
   -- | The number of passes necessary to sort an array of es
-  passes :: e -> Int
+  passes  :: e -> Int
   -- | The size of an auxiliary array
-  size   :: e -> Int
+  size :: e -> Int
   -- | The radix function parameterized by the current pass
   radix  :: Int -> e -> Int
 
@@ -181,8 +182,11 @@ instance (Radix i, Radix j) => Radix (i, j) where
 -----------------------------------------------------------------------
 
 {-@ measure radixSize :: a -> Int                                   @-}
-{-@ size  :: (Radix e) => x:e -> {v:Nat | v = (radixSize x)}        @-}
-{-@ radix :: (Radix e) => Int -> x:e -> {v:Nat | v < (radixSize x)} @-}
+{-@ Data.Vector.Algorithms.Radix.radix :: (Data.Vector.Algorithms.Radix.Radix e) => Int -> x:e -> {v:Nat | v < (radixSize x)} @-}
+
+
+
+{-@ Data.Vector.Algorithms.Radix.size  :: (Data.Vector.Algorithms.Radix.Radix e) => x:e -> {v:Nat | v = (radixSize x)}        @-}
 
 -----------------------------------------------------------------------
 
@@ -195,6 +199,10 @@ sort arr = sortBy (passes e) (size e) radix arr
  e = undefined
 {-# INLINABLE sort #-}
 
+{-@ zog :: (PrimMonad m, MVector v e) => n:Nat -> {v: m (v (PrimState m) e) | (vsize v) = n} @-}
+zog :: (PrimMonad m, MVector v e) => Int -> m (v (PrimState m) e)
+zog n = new n 
+
 -- | Radix sorts an array using custom radix information
 -- requires the number of passes to fully sort the array,
 -- the size of of auxiliary arrays necessary (should be
@@ -203,8 +211,8 @@ sort arr = sortBy (passes e) (size e) radix arr
 -- and an element, and returns the relevant radix.
 {-@ sortBy :: (PrimMonad m, MVector v e)
        => Int
-       -> n:Int
-       -> (Int -> e -> BNat n)
+       -> n:Nat
+       -> (Int -> e -> {v:Nat | v < n})
        -> v (PrimState m) e
        -> m ()
   @-}
@@ -215,9 +223,11 @@ sortBy :: (PrimMonad m, MVector v e)
        -> (Int -> e -> Int) -- ^ the radix function
        -> v (PrimState m) e -- ^ the array to be sorted
        -> m ()
-sortBy passes size rdx arr = do
-  tmp    <- new (length arr)
-  count  <- new size
+-- LIQUID: renamed param size ~~~~> sizLIQUID to avoid name lookup clash, (issue #138)
+sortBy passes sizLIQUID rdx arr = do
+  let nArr = length arr
+  tmp    <- new nArr -- (length arr)
+  count  <- new sizLIQUID
   radixLoop passes arr tmp count rdx 
 {-# INLINE sortBy #-}
 
@@ -228,13 +238,13 @@ radixLoop :: (PrimMonad m, MVector v e)
           -> PV.MVector (PrimState m) Int -- radix count array
           -> (Int -> e -> Int)            -- radix function
           -> m ()
-radixLoop passes src dst count rdx = go False 0
+radixLoop passes src dst count rdx = go False passes 0
  where
  len = length src
- go swap k
+ go swap (twit :: Int) (k :: Int)
    | k < passes = if swap
-                    then body dst src count rdx k >> go (not swap) (k+1)
-                    else body src dst count rdx k >> go (not swap) (k+1)
+                    then body dst src count rdx k >> go (not swap) (twit-1) (k+1)
+                    else body src dst count rdx k >> go (not swap) (twit-1) (k+1)
    | otherwise  = when swap (unsafeCopy src dst)
 {-# INLINE radixLoop #-}
 
