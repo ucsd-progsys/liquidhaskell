@@ -61,6 +61,7 @@ import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Misc
+import Language.Haskell.Liquid.PrettyPrint
 
 import Language.Haskell.Liquid.CmdLine (withPragmas)
 import Language.Haskell.Liquid.Parse
@@ -118,7 +119,7 @@ getGhcInfo' cfg0 target
       (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs name' modguts tgtSpec impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
       hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs
-      return              $ GI hscEnv coreBinds impVs defVs useVs hqualFiles imps incs spec 
+      return              $ GI hscEnv coreBinds impVs letVs useVs hqualFiles imps incs spec 
 
 updateDynFlags df ps 
   = df { importPaths  = ps ++ importPaths df   
@@ -452,7 +453,7 @@ instance PPrint GhcSpec where
               $$ (text "******* Type Signatures *********************")
               $$ (pprintLongList $ tySigs spec)
               $$ (text "******* DataCon Specifications (Measure) ****")
-              $$ (pprintLongList $ ctor spec)
+              $$ (pprintLongList $ ctors spec)
               $$ (text "******* Measure Specifications **************")
               $$ (pprintLongList $ meas spec)
 
@@ -479,8 +480,6 @@ instance PPrint [CoreBind] where
 instance PPrint TargetVars where
   pprint AllVars   = text "All Variables"
   pprint (Only vs) = text "Only Variables: " <+> pprint vs 
-
-pprintLongList = brackets . vcat . map pprint
 
 ------------------------------------------------------------------------
 -- Dealing With Errors -------------------------------------------------

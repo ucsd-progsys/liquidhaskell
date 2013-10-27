@@ -380,6 +380,20 @@ above the function definition. For example (tests/pos/spec0.hs)
     incr   :: Int -> Int
     incr x = x + 1
 
+Modules WITH code: Type Classes
+---------------------------------------
+
+Write the specification directly into the .hs or .lhs file, 
+above the type class definition. For example (tests/pos/Class.hs)
+
+    {-@ class Sized s where
+          size :: forall a. x:s a -> {v:Int | v = (size x)}
+    @-}
+    class Sized s where
+      size :: s a -> Int
+
+Any measures used in the refined class definition will need to be
+*generic* (see [Specifying Measures](#specifying-measures)).
 
 Refinement Type Aliases
 -----------------------
@@ -491,6 +505,19 @@ Raw measures (tests/pos/meas8.hs)
     rlen (y:ys) = {v | v = (1 + rlen(ys))}
     @-}
 
+
+Generic measures (tests/pos/Class.hs)
+
+    {-@ class measure size :: a -> Int @-}
+    {-@ instance measure size :: [a] -> Int
+        size ([])   = 0
+        size (x:xs) = 1 + (size xs)
+    @-}
+    {-@ instance measure size :: Tree a -> Int
+        size (Leaf)       = 0
+        size (Node x l r) = 1 + (size l) + (size r)
+    @-}
+
 Self-Invariants
 ===============
 
@@ -525,6 +552,56 @@ levels (or rather, to *reify* the connections between the two levels.) See
 
 The easiest way to use such self-invariants or refinements, is to just define a type 
 alias (e.g. `IList` or `IMaybe` and use them in the specification and verification.)
+
+Formal Grammar of Refinement Predicates
+=======================================
+
+(C)onstants
+-----------
+
+    c := 0, 1, 2, ...
+
+(V)ariables
+-----------
+
+    v := x, y, z, ...
+
+
+(E)xpressions
+-------------
+
+    e := v                      -- variable
+       | c                      -- constant
+       | (e + e)                -- addition
+       | (e - e)                -- subtraction
+       | (c * e)                -- multiplication by constant
+       | (v e1 e2 ... en)       -- uninterpreted function application
+       | (if p then e else e)   -- if-then-else
+
+(R)elations
+-----------
+
+    r := ==               -- equality
+       | /=               -- disequality
+       | >=               -- greater than or equal
+       | <=               -- less than or equal
+       | >                -- greater than
+       | <                -- less than
+
+
+(P)redicates
+------------
+
+    p := (e r e)          -- binary relation
+       | (v e1 e2 ... en) -- predicate (or alias) application
+       | (p && p)         -- and
+       | (p || p)         -- or
+       | (p => p)         -- implies
+       | (not p)          -- negation
+       | true
+       | false
+
+
 
 
 Specifying Qualifiers

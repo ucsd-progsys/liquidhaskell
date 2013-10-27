@@ -50,7 +50,7 @@ import Language.Fixpoint.Config hiding          (config, Config)
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.PrettyPrint
-import Language.Haskell.Liquid.Types hiding     (config, typ)
+import Language.Haskell.Liquid.Types hiding     (config, typ, name)
 
 import Name
 import SrcLoc                                   (SrcSpan)
@@ -78,9 +78,6 @@ config = Config {
  , binders
     = def &= help "Check a specific set of binders"
 
- , nofalse
-    = def &= help "Remove false predicates from the refinements"
-
  , noPrune 
     = def &= help "Disable prunning unsorted Predicates"
           &= name "no-prune-unsorted"
@@ -88,6 +85,11 @@ config = Config {
  , notermination 
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
+
+ , notruetypes
+    = def &= help "Disable Trueing Top Level Types"
+          &= name "no-true-types"
+
 
  , totality 
     = def &= help "Check totality"
@@ -158,8 +160,8 @@ instance Monoid Config where
                          (diffcheck c1         ||     diffcheck      c2) 
                          (sortNub $ binders c1 ++     binders        c2) 
                          (noCheckUnknown c1    ||     noCheckUnknown c2) 
-                         (nofalse        c1    ||     nofalse        c2) 
                          (notermination  c1    ||     notermination  c2) 
+                         (notruetypes    c1    ||     notruetypes    c2) 
                          (totality       c1    ||     totality       c2) 
                          (noPrune        c1    ||     noPrune        c2) 
                          (maxParams      c1   `max`   maxParams      c2)
