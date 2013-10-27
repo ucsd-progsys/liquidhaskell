@@ -13,6 +13,8 @@ module Language.Haskell.Liquid.PrettyPrint (
 
   -- * Printing an Orderable List
   , pprManyOrdered 
+  -- * Printing a List with many large items
+  , pprintLongList
   ) where
 
 import ErrUtils                         (ErrMsg)
@@ -25,7 +27,7 @@ import Language.Haskell.Liquid.GhcMisc
 import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Types hiding (Predicate)
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Types hiding (sort)
 import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Text.Parsec.Pos  (SourcePos)
@@ -201,4 +203,5 @@ instance (PPrint r, Reftable r) => PPrint (UReft r) where
     | isTauto p  = pprint r
     | otherwise  = pprint p <> text " & " <> pprint r
 
-
+pprintLongList :: PPrint a => [a] -> Doc
+pprintLongList = brackets . vcat . map pprint

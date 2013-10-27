@@ -41,8 +41,7 @@ import Control.Monad            (when)
 import Data.Monoid
 
 import System.FilePath          (takeFileName, dropFileName, (</>)) 
-import System.Directory         (findExecutable)
-import System.Directory         (copyFile) 
+import System.Directory         (findExecutable, copyFile)
 import Text.Printf              (printf)
 
 import qualified Data.ByteString.Lazy   as B
@@ -55,12 +54,12 @@ import Language.Haskell.HsColour.Classify
 import Language.Fixpoint.Files
 import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc -- (Loc (..), pprDoc, showPpr)
+import Language.Haskell.Liquid.GhcMisc
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
-import Language.Haskell.Liquid.Types hiding (Located(..))
+import Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
 -- import Language.Haskell.Liquid.Result
 
 import qualified Data.List           as L

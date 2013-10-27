@@ -84,6 +84,15 @@ module Language.Haskell.Liquid.Types (
 
   -- * Source information associated with each constraint
   , Cinfo (..)
+
+  -- * Measures
+  , Measure (..)
+  -- , IMeasure (..)
+  , CMeasure (..)
+  , Def (..)
+  , Body (..)
+  -- * Type Classes
+  , RClass (..)
   )
   where
 
@@ -100,6 +109,7 @@ import GHC                          (Class, HscEnv, ModuleName, Name, moduleName
 import GHC                          (Class, HscEnv)
 import Language.Haskell.Liquid.GhcMisc 
 
+import Control.Arrow (second)
 import Control.Monad  (liftM, liftM2, liftM3)
 import Control.DeepSeq
 import Control.Applicative          ((<$>))
@@ -135,8 +145,8 @@ data Config = Config {
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check 
   , binders        :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
-  , nofalse        :: Bool       -- ^ remove false predicates from the refinements
   , notermination  :: Bool       -- ^ disable termination check
+  , notruetypes    :: Bool       -- ^ disable truing top level types
   , totality       :: Bool       -- ^ check totality in definitions
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
@@ -257,7 +267,7 @@ data GhcInfo = GI {
 data GhcSpec = SP {
     tySigs     :: ![(Var, Located SpecType)]     -- ^ Asserted/Assumed Reftypes
                                                  -- eg.  see include/Prelude.spec
-  , ctor       :: ![(Var, Located SpecType)]     -- ^ Data Constructor Measure Sigs 
+  , ctors      :: ![(Var, Located SpecType)]     -- ^ Data Constructor Measure Sigs
                                                  -- eg.  (:) :: a -> xs:[a] -> {v: Int | v = 1 + len(xs) }
   , meas       :: ![(Symbol, Located RefType)]   -- ^ Measure Types  
                                                  -- eg.  len :: [a] -> Int
@@ -290,6 +300,7 @@ data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
 
 data DataConP = DataConP { freeTyVars :: ![RTyVar]
                          , freePred   :: ![(PVar RSort)]
+                         , tyConsts   :: ![SpecType]
                          , tyArgs     :: ![(Symbol, SpecType)]
                          , tyRes      :: !SpecType
                          }
@@ -1067,3 +1078,80 @@ mapRP f e = e { predAliases = f $ predAliases e }
 cinfoError (Ci _ (Just e)) = e
 cinfoError (Ci l _)        = ErrOther $ text $ "Cinfo:" ++ (showPpr l)
 
+
+--------------------------------------------------------------------------------
+--- Measures
+--------------------------------------------------------------------------------
+-- MOVE TO TYPES
+data Measure ty ctor = M { 
+    name :: LocSymbol
+  , sort :: ty
+  , eqns :: [Def ctor]
+  }
+
+data CMeasure ty
+  = CM { cName :: LocSymbol
+       , cSort :: ty
+       }
+
+-- data IMeasure ty ctor
+--   = IM { iName :: LocSymbol
+--        , iSort :: ty
+--        , iEqns :: [Def ctor]
+--        }
+
+-- MOVE TO TYPES
+data Def ctor 
+  = Def { 
+    measure :: LocSymbol
+  , ctor    :: ctor 
+  , binds   :: [Symbol]
+  , body    :: Body
+  } deriving (Show)
+
+-- MOVE TO TYPES
+data Body 
+  = E Expr          -- ^ Measure Refinement: {v | v = e } 
+  | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
+  | R Symbol Pred   -- ^ Measure Refinement: {v | p}
+  deriving (Show)
+
+instance Subable (Measure ty ctor) where
+  syms (M _ _ es)      = concatMap syms es
+  substa f  (M n s es) = M n s $ substa f  <$> es
+  substf f  (M n s es) = M n s $ substf f  <$> es
+  subst  su (M n s es) = M n s $ subst  su <$> es
+
+instance Subable (Def ctor) where
+  syms (Def _ _ _ bd)      = syms bd
+  substa f  (Def m c b bd) = Def m c b $ substa f  bd
+  substf f  (Def m c b bd) = Def m c b $ substf f  bd
+  subst  su (Def m c b bd) = Def m c b $ subst  su bd
+
+instance Subable Body where
+  syms (E e)       = syms e
+  syms (P e)       = syms e
+  syms (R s e)     = s:syms e
+
+  substa f (E e)   = E $ substa f e
+  substa f (P e)   = P $ substa f e
+  substa f (R s e) = R s $ substa f e
+
+  substf f (E e)   = E $ substf f e
+  substf f (P e)   = P $ substf f e
+  substf f (R s e) = R s $ substf f e
+
+  subst su (E e)   = E $ subst su e
+  subst su (P e)   = P $ subst su e
+  subst su (R s e) = R s $ subst su e
+
+
+data RClass ty
+  = RClass { rcName    :: LocSymbol
+           , rcSupers  :: [ty]
+           , rcTyVars  :: [String]
+           , rcMethods :: [(LocSymbol,ty)]
+           } deriving (Show)
+
+instance Functor RClass where
+  fmap f (RClass n ss tvs ms) = RClass n (fmap f ss) tvs (fmap (second f) ms)

@@ -1,0 +1,73 @@
+Name:              vector-algorithms
+Version:           0.5.4.2
+License:           BSD3
+License-File:      LICENSE
+Author:            Dan Doel
+Maintainer:        Dan Doel <dan.doel@gmail.com>
+Homepage:          http://code.haskell.org/~dolio/
+Category:          Data
+Synopsis:          Efficient algorithms for vector arrays
+Description:       Efficient algorithms for vector arrays
+Build-Type:        Simple
+Cabal-Version:     >= 1.2.3
+
+Flag BoundsChecks
+  Description: Enable bounds checking
+  Default: True
+
+Flag UnsafeChecks
+  Description: Enable bounds checking in unsafe operations at the cost of a
+               significant performance penalty.
+  Default: False
+
+Flag InternalChecks
+  Description: Enable internal consistency checks at the cost of a
+               significant performance penalty.
+  Default: False
+
+Library
+    Build-Depends: base >= 3 && < 5,
+                   vector >= 0.6 && < 0.11,
+                   primitive >=0.3 && <0.6,
+                   bytestring >= 0.9 && < 1.0
+
+    Exposed-Modules:
+        Data.Vector.Algorithms.Optimal
+        Data.Vector.Algorithms.Insertion
+        Data.Vector.Algorithms.Intro
+        Data.Vector.Algorithms.Merge
+        Data.Vector.Algorithms.Radix
+        Data.Vector.Algorithms.Search
+        Data.Vector.Algorithms.Heap
+        Data.Vector.Algorithms.AmericanFlag
+
+    Other-Modules:
+        Data.Vector.Algorithms.Common
+
+    Extensions:
+        BangPatterns,
+        TypeOperators,
+        Rank2Types,
+        ScopedTypeVariables,
+        FlexibleContexts,
+        CPP
+
+    GHC-Options:
+        -Odph
+        -funbox-strict-fields
+
+    Include-Dirs:
+        include
+
+    Install-Includes:
+        vector.h
+
+    if flag(BoundsChecks)
+        cpp-options: -DVECTOR_BOUNDS_CHECKS
+
+    if flag(UnsafeChecks)
+        cpp-options: -DVECTOR_UNSAFE_CHECKS
+
+    if flag(InternalChecks)
+        cpp-options: -DVECTOR_INTERNAL_CHECKS
+
