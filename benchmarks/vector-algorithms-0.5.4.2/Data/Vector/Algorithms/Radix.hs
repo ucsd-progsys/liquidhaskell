@@ -50,7 +50,7 @@ import Data.Int
 import Data.Word
 
 import Language.Haskell.Liquid.Foreign
-import Language.Haskell.Liquid.Prelude (liquidAssert)
+import Language.Haskell.Liquid.Prelude (liquidAssert, liquidAssume)
 
 import Foreign.Storable
 
@@ -200,13 +200,6 @@ sort arr = sortBy (passes e) (size e) radix arr
  e = undefined
 {-# INLINABLE sort #-}
 
-{-@ zog :: (PrimMonad m, MVector v e) => n:Nat -> m {v: (v (PrimState m) e) | false} @-}
-zog :: (PrimMonad m, MVector v e) => Int -> m (v (PrimState m) e)
-zog n = do arr <- new n
-           return arr
-           -- let m = length arr
-           -- return $ {- liquidAssert (m == n) -} arr
-
 -- | Radix sorts an array using custom radix information
 -- requires the number of passes to fully sort the array,
 -- the size of of auxiliary arrays necessary (should be
@@ -263,32 +256,32 @@ body :: (PrimMonad m, MVector v e)
 body src dst count rdx k = do
   countLoop src count (rdx k) 
   accumulate count
-  moveLoop k rdx src dst count
+  moveLoop k src dst count rdx 
 {-# INLINE body #-}
 
 accumulate :: (PrimMonad m)
            => PV.MVector (PrimState m) Int -> m ()
-accumulate count = go 0 0
+accumulate count = go len 0 0
  where
  len = length count
- go i acc
+ go (twit :: Int) (i :: Int) acc
    | i < len   = do ci <- unsafeRead count i
                     unsafeWrite count i acc
-                    go (i+1) (acc + ci)
+                    go (twit - 1) (i+1) (acc + ci)
    | otherwise = return ()
 {-# INLINE accumulate #-}
 
 moveLoop :: (PrimMonad m, MVector v e)
-         => Int -> (Int -> e -> Int) -> v (PrimState m) e
-         -> v (PrimState m) e -> PV.MVector (PrimState m) Int -> m ()
-moveLoop k rdx src dst prefix = go 0
+         => Int -> v (PrimState m) e -> v (PrimState m) e -> PV.MVector (PrimState m) Int 
+         -> (Int -> e -> Int) -> m ()
+moveLoop k src dst prefix rdx = go len 0
  where
  len = length src
- go i
+ go (twit :: Int) (i :: Int)
    | i < len    = do srci <- unsafeRead src i
                      pf   <- inc prefix (rdx k srci)
-                     unsafeWrite dst pf srci
-                     go (i+1)
+                     unsafeWrite dst (liquidAssume (0 <= pf  && pf < len) pf) srci
+                     go (twit-1) (i+1)
    | otherwise  = return ()
 {-# INLINE moveLoop #-}
 

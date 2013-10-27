@@ -574,15 +574,15 @@ subsFree m s z@(α, τ,_) (RAllP π t)
 subsFree m s z (RAllT α t)         
   = RAllT α $ subsFree m (α `S.insert` s) z t
 subsFree m s z@(_, _, _) (RFun x t t' r)       
-  = RFun x (subsFree m s z t) (subsFree m s z t') ({- subt (α, τ) -} r)
+  = RFun x (subsFree m s z t) (subsFree m s z t') r
 subsFree m s z@(α, τ, _) (RApp c ts rs r)     
-  = RApp (subt z' c) (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) ({- subt z' -} r)  
+  = RApp (subt z' c) (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) r  
     where z' = (α, τ) -- UNIFY: why instantiating INSIDE parameters?
 subsFree m s z (RCls c ts)     
   = RCls c (subsFree m s z <$> ts)
 subsFree meet s (α', _, t') t@(RVar α r) 
   | α == α' && not (α `S.member` s) 
-  = if meet then t' `strengthen` {- subt (α', τ') -} r else t' 
+  = if meet then t' `strengthen` r else t' 
   | otherwise
   = t
 subsFree m s z (RAllE x t t')
@@ -595,7 +595,6 @@ subsFree _ _ _ t@(RExprArg _)
   = t
 subsFree _ _ _ t@(ROth _)        
   = t
-
 -- subsFree _ _ _ t      
 --   = errorstar $ "subsFree fails on: " ++ showFix t
 
@@ -603,7 +602,7 @@ subsFrees m s zs t = foldl' (flip(subsFree m s)) t zs
 
 -- GHC INVARIANT: RApp is Type Application to something other than TYCon
 subsFreeRAppTy m s (RApp c ts rs r) t' r'
-  = mkRApp m s c (ts++[t']) rs r r'
+  = mkRApp m s c (ts ++ [t']) rs r r'
 subsFreeRAppTy m s t t' r'
   = RAppTy t t' r'
 
@@ -611,16 +610,17 @@ mkRApp m s c ts rs r r'
   | isFun c, [t1, t2] <- ts
   = RFun dummySymbol t1 t2 $ refAppTyToFun r'
   | otherwise 
-  = subsFrees m s zs $ RApp c ts rs $ r `meet` (refAppTyToApp r')
-  where zs = [(tv, toRSort t, t) | (tv, t) <- zip (freeVars c) ts]
+  = subsFrees m s zs $ RApp c ts rs $ r `meet` r' -- (refAppTyToApp r')
+  where
+    zs = [(tv, toRSort t, t) | (tv, t) <- zip (freeVars c) ts]
 
 refAppTyToFun r
   | isTauto r = r
   | otherwise = errorstar "RefType.refAppTyToFun"
 
-refAppTyToApp r
-  | isTauto r = r
-  | otherwise = errorstar "RefType.refAppTyToApp"
+-- refAppTyToApp r
+--   | isTauto r = r
+--   | otherwise = errorstar "RefType.refAppTyToApp"
 
 -- subsFreeRef ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty (PVar ty), SubsTy tv ty c, Reftable r, Monoid r, Subable r, RefTypable p c tv (PVar ty) r) => Bool -> S.Set tv -> (tv, ty, RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r)
 
