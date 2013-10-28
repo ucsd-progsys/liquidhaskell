@@ -33,10 +33,12 @@ import qualified Data.Vector.Primitive.Mutable
 {-@ measure vsize :: a -> Int @-}
 
 -- | Vector Type Aliases
-{-@ type      BNat  N     = {v:Nat | v < N}         @-}
-{-@ type      OkIdx X     = {v:Nat | v < (vsize X)} @-}
-{-@ predicate OkOff V B O = (vsize V) <= B + O      @-}
-{-@ predicate EqSiz X Y   = (vsize X) = (vsize Y)   @-}
+{-@ type      BNat  N     = {v:Nat | v <  N}         @-}
+{-@ type      OkIdx X     = {v:Nat | v <  (vsize X)} @-}
+{-@ type      AOkIdx X    = {v:Nat | v <= (vsize X)} @-}
+
+{-@ predicate OkOff V B O = (vsize V) <= B + O       @-}
+{-@ predicate EqSiz X Y   = (vsize X) = (vsize Y)    @-}
 
 -- | Assumed Types for Vector
 
