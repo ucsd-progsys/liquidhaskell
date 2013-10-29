@@ -285,6 +285,7 @@ data GhcSpec = SP {
                                                  -- e.g tests/pos/qualTest.hs
   , tgtVars    :: ![Var]                         -- ^ Top-level Binders To Verify (empty means ALL binders)
   , decr       :: ![(Var, [Int])]                -- ^ Lexicographically ordered size witnesses for termination
+  , texprs     :: ![(Var, [Expr])]               -- ^ Lexicographically ordered expressions for termination
   , lvars      :: !(S.HashSet Var)               -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
   , config     :: !Config                        -- ^ Configuration Options
