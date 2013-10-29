@@ -45,7 +45,7 @@ import Data.Function            (on)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames)
 import Language.Fixpoint.Types                  hiding (Def, Predicate)
-import Language.Fixpoint.Sort                   (checkSortedReftFull)
+import Language.Fixpoint.Sort                   (checkSortedReftFull, checkSorted)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types
@@ -130,6 +130,7 @@ makeGhcSpec' cfg vars defVars specs
        let txq          = subsFreeSymbolsQual su
        let syms'        = [(symbol v, v) | (_, v) <- syms]
        decr'           <- mconcat <$> mapM (makeHints defVars) specs
+       texprs'         <- mconcat <$> mapM (makeTExpr defVars) specs
        lvars'          <- S.fromList . mconcat
                                     <$> sequence [ makeLVars defVars (mod,spec)
                                                  | (mod,spec) <- specs
@@ -146,6 +147,7 @@ makeGhcSpec' cfg vars defVars specs
                               , tcEmbeds   = embs 
                               , qualifiers = txq quals
                               , decr       = decr'
+                              , texprs     = texprs'
                               , lvars      = lvars'
                               , lazy       = lazies
                               , tgtVars    = targetVars
@@ -346,6 +348,7 @@ makeClasses cfg vs (mod,spec) = inModule mod $ mapM mkClass $ Ms.classes spec
 
 makeHints vs (_,spec) = varSymbols id "Hint" vs $ Ms.decr spec
 makeLVars vs (_,spec) = fmap fst <$> (varSymbols id "LazyVar" vs $ [(v, ()) | v <- Ms.lvars spec])
+makeTExpr vs (_,spec) = varSymbols id "TermExpr" vs $ Ms.termexprs spec
 
 varSymbols :: ([Var] -> [Var]) -> String ->  [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
 varSymbols f n vs  = concatMapM go
@@ -1182,6 +1185,7 @@ checkGhcSpec (sp, ms) =  applyNonNull (Right sp) Left errors
     errors           =  mapMaybe (checkBind "variable"    emb env) (tySigs     sp)
                      ++ mapMaybe (checkBind "constructor" emb env) (dcons      sp)
                      ++ mapMaybe (checkBind "measure"     emb env) (measSpec   sp)
+                     ++ mapMaybe (checkExpr "measure"     emb env (tySigs   sp)) (texprs sp)
                      ++ mapMaybe (checkInv  emb env)               (invariants sp)
                      ++ checkMeasures emb env ms
                      ++ mapMaybe checkMismatch                     (tySigs     sp)
@@ -1207,6 +1211,17 @@ checkBind :: (PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> (v, Locat
 checkBind s emb env (v, Loc l t) = checkTy msg emb env t
   where 
     msg = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
+checkExpr :: (Eq v, PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> [(v, Located SpecType)] -> (v, [Expr])-> Maybe Error 
+checkExpr s emb env vts (v, es) = mkErr <$> go es
+  where 
+  mkErr = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
+  go    = foldl (\err e -> err <|> checkSorted env' e) Nothing  
+
+  (Loc l t) = fromJust $ L.lookup v vts
+
+  env'  = mapSEnv sr_sort $ foldl (\e (x,s) -> insertSEnv x s e) env xss
+  xss   = mapSnd rSort <$> (uncurry zip $ dropThd3 $ bkArrowDeep t)
+  rSort = rTypeSortedReft emb 
 
 checkTy :: (Doc -> Error) -> TCEmb TyCon -> SEnv SortedReft -> SpecType -> Maybe Error
 checkTy mkE emb env t = mkE <$> checkRType emb env t
