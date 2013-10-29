@@ -18,6 +18,9 @@ TODO
   + tests/todo/err8.hs
   + tests/todo/err9.hs
 
+* speed
+  + Data.Vector.Algorithms.Optimal
+
 vector-algorithms
 -----------------
 
@@ -27,13 +30,14 @@ issues:
 
 [OK] Compiling Data.Vector.Algorithms.Common
 [OK] Compiling Data.Vector.Algorithms.Radix
-[3 of 9] Compiling Data.Vector.Algorithms.Search
-[4 of 9] Compiling Data.Vector.Algorithms.Optimal
-[5 of 9] Compiling Data.Vector.Algorithms.Insertion
+[OK] Compiling Data.Vector.Algorithms.Search
+[OK] Compiling Data.Vector.Algorithms.Optimal
+[OK] Compiling Data.Vector.Algorithms.Insertion
+
 [6 of 9] Compiling Data.Vector.Algorithms.AmericanFlag
 [7 of 9] Compiling Data.Vector.Algorithms.Heap
 [8 of 9] Compiling Data.Vector.Algorithms.Intro 
-[9 of 9] Compiling Data.Vector.Algorithms.Merge 
+[OK] Compiling Data.Vector.Algorithms.Merge 
 
 
 hmatrix

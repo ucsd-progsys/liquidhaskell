@@ -47,14 +47,19 @@ mkRTyCon tc (TyConP αs' ps cv conv size) = RTyCon tc pvs' (mkTyConInfo tc cv co
         pvs' = subts (zip αs' τs) <$> ps
 
 dataConPSpecType :: DataCon -> DataConP -> SpecType 
-dataConPSpecType dc (DataConP vs ps yts rt) = mkArrow vs ps (reverse yts') rt'
-  where (xs, ts) = unzip yts
+dataConPSpecType dc (DataConP vs ps cs yts rt) = mkArrow vs ps ts' rt'
+  where (xs, ts) = unzip $ reverse yts
         ys       = mkDSym <$> xs
-        su       = F.mkSubst $ [(x, F.EVar y) | (x, y) <- zip xs ys]
-        yts'     = zip ys (subst su <$> ts)
+        su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
         rt'      = subst su rt
         mkDSym   = stringSymbol . (++ ('_':(showPpr dc))) . show
---   where t1 = foldl' (\t2 (x, t1) -> rFun x t1 t2) rt yts 
+        ts'      = map (S "",) cs ++ yts'
+        tx _  []     []     []     = []
+        tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t)
+                                   : tx ((x, F.EVar y):su) xs ys ts
+        -- yts'     = zip ys (subst su <$> ts)
+        yts'     = tx [] xs ys ts
+--   where t1 = foldl' (\t2 (x, t1) -> rFun x t1 t2) rt yts
 --         t2 = foldr RAllP t1 ps
 --         t3 = foldr RAllT t2 vs
 
@@ -68,9 +73,10 @@ instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
-  pprint (DataConP vs ps yts t) 
+  pprint (DataConP vs ps cs yts t)
      = (parens $ hsep (punctuate comma (map pprint vs))) <+>
        (parens $ hsep (punctuate comma (map pprint ps))) <+>
+       (parens $ hsep (punctuate comma (map pprint cs))) <+>
        (parens $ hsep (punctuate comma (map pprint yts))) <+>
        pprint t
 

@@ -34,7 +34,7 @@ import Data.Bits
 
 import Data.Vector.Generic.Mutable
 
-import Data.Vector.Algorithms.Common (Comparison)
+import Data.Vector.Algorithms.Common (halve, Comparison)
 
 ------------------------------------------------------------------------------------
 -- LIQUID API Specifications -------------------------------------------------------
@@ -58,11 +58,6 @@ import Data.Vector.Algorithms.Common (Comparison)
       -> m {v:Int | (l <= v && v <= u)}
   @-}
 
--- TODO: push this type into the signature for `shiftR`. Issue: math on non-num types.
--- TODO: support unchecked `assume`. Currently writing `undefined` to suppress warning
-{-@ assume halve :: x:Nat -> {v:Int | v = 1} -> {v:Nat | (x <= 2*v + 1 && 2*v <= x)} @-}
-halve :: Int -> Int -> Int
-halve = undefined -- shiftR
 
 -------------------------------------------------------------------------------------
 

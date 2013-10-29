@@ -456,7 +456,6 @@ instance PPrint GhcSpec where
               $$ (pprintLongList $ ctors spec)
               $$ (text "******* Measure Specifications **************")
               $$ (pprintLongList $ meas spec)
-              $$ (pprintLongList $ cmeas spec)
 
 instance PPrint GhcInfo where 
   pprint info =   (text "*************** Imports *********************")

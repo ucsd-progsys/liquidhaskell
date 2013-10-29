@@ -45,7 +45,7 @@ Source-Repository head
   Type:        git
   Location:    https://github.com/ucsd-progsys/liquidhaskell/
 
-Executable liquid 
+Executable liquid
   Build-Depends: base >= 4 && < 5
                , ghc==7.6.3
                , ansi-terminal
@@ -72,7 +72,7 @@ Executable liquid
                , unordered-containers
                , aeson
                , bytestring
-               -- , liquidtypes
+               , liquidhaskell
 
   Main-is: Liquid.hs
   --ghc-options: -O -W
@@ -106,7 +106,7 @@ Library
                 , aeson
                 , bytestring
  
-   hs-source-dirs:  include, .
+   hs-source-dirs:  include, src
  
    Exposed-Modules: Language.Haskell.Liquid.Prelude,
                     Language.Haskell.Liquid.Foreign, 
@@ -124,7 +124,7 @@ Library
                     Language.Haskell.Liquid.DiffCheck, 
                     Language.Haskell.Liquid.ANFTransform, 
                     Language.Haskell.Liquid.Annotate, 
-                    Language.Haskell.Liquid.CTags, 
+                    Language.Haskell.Liquid.CTags,
                     Language.Haskell.Liquid.CmdLine, 
                     Language.Haskell.Liquid.GhcMisc, 
                     Language.Haskell.Liquid.Misc, 
