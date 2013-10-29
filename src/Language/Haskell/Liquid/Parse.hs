@@ -627,7 +627,18 @@ dataSizeP
   <|> return Nothing
   where mkFun s = \x -> EApp (stringSymbol s) [EVar x] 
 
-dataDeclP
+dataDeclP 
+   =  try dataDeclFullP
+  <|> dataDeclSizeP
+
+dataDeclSizeP
+  = do pos <- getPosition
+       x   <- upperIdP
+       spaces
+       fsize <- dataSizeP
+       return $ D x [] [] [] pos fsize
+
+dataDeclFullP
   = do pos <- getPosition
        x   <- upperIdP
        spaces
@@ -638,8 +649,6 @@ dataDeclP
        whiteSpace >> reservedOp "=" >> whiteSpace
        dcs <- sepBy dataConP (reserved "|")
        whiteSpace
-       -- spaces
-       -- reservedOp "--"
        return $ D x ts ps dcs pos fsize
 
 ---------------------------------------------------------------------
