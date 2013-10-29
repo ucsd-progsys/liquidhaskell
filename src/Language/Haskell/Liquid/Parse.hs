@@ -399,6 +399,7 @@ data Pspec ty ctor
   | Pragma  (Located String)
   | CMeas   (Measure ty ())
   | IMeas   (Measure ty ctor)
+  | Class   (RClass ty)
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = (name,)
@@ -421,6 +422,7 @@ mkSpec name xs         = (name,)
   , Measure.pragmas    = [s | Pragma s <- xs]
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
+  , Measure.classes    = [c | Class  c <- xs]
   }
 
 specP :: Parser (Pspec BareType Symbol)
@@ -428,8 +430,9 @@ specP
   = try (reserved "assume"    >> liftM Assm   tyBindP   )
     <|> (reserved "assert"    >> liftM Assm   tyBindP   )
     <|> (reserved "measure"   >> liftM Meas   measureP  ) 
-    <|> (reserved "class"     >> reserved "measure" >> liftM CMeas cMeasureP)
+    <|> try (reserved "class"     >> reserved "measure" >> liftM CMeas cMeasureP)
     <|> (reserved "instance"  >> reserved "measure" >> liftM IMeas iMeasureP)
+    <|> (reserved "class"     >> liftM Class  classP    )
     <|> (reserved "import"    >> liftM Impt   symbolP   )
     <|> (reserved "data"      >> liftM DDecl  dataDeclP )
     <|> (reserved "include"   >> liftM Incl   filePathP )
@@ -517,6 +520,20 @@ iMeasureP = measureP
   --      reserved "="
   --      tgt <- symbolP
   --      return $ M m ty tgt
+
+classP :: Parser (RClass BareType)
+classP
+  = do sups <- superP
+       c <- locParserP upperIdP
+       spaces
+       tvs <- manyTill tyVarIdP (try $ reserved "where")
+       ms <- grabs tyBindP
+       spaces
+       return $ RClass (fmap symbol c) (mb sups) tvs ms
+  where
+    mb Nothing   = []
+    mb (Just xs) = xs
+    superP = maybeP (parens (bareTypeP `sepBy1` comma) <* reserved "=>")
 
 rawBodyP 
   = braces $ do

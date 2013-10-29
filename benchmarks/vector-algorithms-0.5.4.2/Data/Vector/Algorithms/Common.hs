@@ -33,12 +33,17 @@ import qualified Data.Vector.Primitive.Mutable
 {-@ measure vsize :: a -> Int @-}
 
 -- | Vector Type Aliases
-{-@ type      BNat  N     = {v:Nat | v <  N}         @-}
-{-@ type      OkIdx X     = {v:Nat | v <  (vsize X)} @-}
-{-@ type      AOkIdx X    = {v:Nat | v <= (vsize X)} @-}
+{-@ type OkIdx X     = {v:Nat | (OkRng v X 0)}          @-}
+{-@ type AOkIdx X    = {v:Nat | v <= (vsize X)}         @-}
 
-{-@ predicate OkOff V B O = (vsize V) <= B + O       @-}
-{-@ predicate EqSiz X Y   = (vsize X) = (vsize Y)    @-}
+-- | Only mention of ordering
+{-@ predicate InRng V L U  = (L <= V && V <= U)                @-}
+{-@ predicate EqSiz X Y    = (vsize X) = (vsize Y)             @-}
+
+-- | Abstractly defined using @InRng@
+
+{-@ predicate OkOff X B O  = (InRng (B + O) 0 (vsize X))       @-} 
+{-@ predicate OkRng V X N  = (InRng V 0 ((vsize X) - (N + 1))) @-}
 
 -- | Assumed Types for Vector
 
@@ -93,13 +98,22 @@ import qualified Data.Vector.Primitive.Mutable
 
 
 
-{-@ qualif Cmp(v:a, x:b): v < x        @-}
+{-@ qualif NonEmpty(v:a): 0 < (vsize v)           @-}
+{-@ qualif Cmp(v:a, x:b): v < x                   @-}
 {-@ qualif OkIdx(v:a, x:b): v <= (vsize x)        @-}
 {-@ qualif OkIdx(v:a, x:b): v <  (vsize x)        @-}
 {-@ qualif EqSiz(x:a, y:b): (vsize x) = y         @-}
 {-@ qualif EqSiz(x:a, y:b): x = (vsize y)         @-}
 {-@ qualif EqSiz(x:a, y:b): (vsize x) = (vsize y) @-}
 {-@ qualif Plus(v:Int, x:Int, y:Int): v + x = y   @-}
+
+-- TODO: push this type into the signature for `shiftR`. Issue: math on non-num types.
+-- TODO: support unchecked `assume`. Currently writing `undefined` to suppress warning
+{-@ assume halve :: x:Nat -> {v:Int | v = 1} -> {v:Nat | (x <= 2*v + 1 && 2*v <= x)} @-}
+halve :: Int -> Int -> Int
+halve = undefined -- shiftR
+
+
 ----------------------------------------------------------------------------
 
 -- | A type of comparisons between two values of a given type.
@@ -116,7 +130,7 @@ type Comparison e = e -> e -> Ordering
 copyOffset :: (PrimMonad m, MVector v e)
            => v (PrimState m) e -> v (PrimState m) e -> Int -> Int -> Int -> m ()
 copyOffset from to iFrom iTo len =
-  unsafeCopy (unsafeSlice iTo (len + 1) to) (unsafeSlice iFrom len from)
+  unsafeCopy (unsafeSlice iTo len to) (unsafeSlice iFrom len from)
 {-# INLINE copyOffset #-}
 
 {-@ inc :: (PrimMonad m, MVector v Int) => x:(v (PrimState m) Int) -> (OkIdx x) -> m Int @-}
