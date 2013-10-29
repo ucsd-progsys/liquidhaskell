@@ -423,6 +423,7 @@ mkSpec name xs         = (name,)
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
   , Measure.classes    = [c | Class  c <- xs]
+  , Measure.termexprs  = [(y, es) | Assms (ys, (_, Just es)) <- xs, y <- ys]
   }
 
 specP :: Parser (Pspec BareType Symbol)
