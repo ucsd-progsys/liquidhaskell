@@ -34,7 +34,7 @@ import Data.Bits
 
 import Data.Vector.Generic.Mutable
 
-import Data.Vector.Algorithms.Common (halve, Comparison)
+import Data.Vector.Algorithms.Common (shiftRI, Comparison)
 
 ------------------------------------------------------------------------------------
 -- LIQUID API Specifications -------------------------------------------------------
@@ -90,7 +90,7 @@ binarySearchByBounds cmp vec e = loop
                       LT -> loop (k+1) u
                       EQ -> return k
                       GT -> loop l     k
-  where k = (u + l) `halve` 1
+  where k = (u + l) `shiftRI` 1
 {-# INLINE binarySearchByBounds #-}
 
 -- | Finds the lowest index in a given sorted vector at which the given element
@@ -120,7 +120,7 @@ binarySearchLByBounds cmp vec e = loop
                     case cmp e' e of
                       LT -> loop (k+1) u
                       _  -> loop l     k
-  where k = (u + l) `halve` 1
+  where k = (u + l) `shiftRI` 1
 {-# INLINE binarySearchLByBounds #-}
 
 -- | Finds the greatest index in a given sorted vector at which the given element
@@ -150,5 +150,5 @@ binarySearchRByBounds cmp vec e = loop
                     case cmp e' e of
                       GT -> loop l     k
                       _  -> loop (k+1) u
-  where k = (u + l) `halve` 1
+  where k = (u + l) `shiftRI` 1
 {-# INLINE binarySearchRByBounds #-}

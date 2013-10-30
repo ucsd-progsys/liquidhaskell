@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{-@ LIQUID "--no-termination" @-}
 -- ---------------------------------------------------------------------------
 -- |
 -- Module      : Data.Vector.Algorithms.Common
@@ -33,12 +34,16 @@ import qualified Data.Vector.Primitive.Mutable
 {-@ measure vsize :: a -> Int @-}
 
 -- | Vector Type Aliases
-{-@ type OkIdx X     = {v:Nat | (OkRng v X 0)}          @-}
-{-@ type AOkIdx X    = {v:Nat | v <= (vsize X)}         @-}
+{-@ type OkIdx X          = {v:Nat | (OkRng v X 0)}         @-}
+{-@ type AOkIdx X         = {v:Nat | v <= (vsize X)}        @-}
+{-@ type Pos              = {v:Int | v > 0 }                @-}
+{-@ type LtIdxOff Off Vec = {v:Nat | v+Off < (vsize Vec)}   @-}
+{-@ type LeIdxOff Off Vec = {v:Nat | v+Off <= (vsize Vec)}  @-}
 
 -- | Only mention of ordering
-{-@ predicate InRng V L U  = (L <= V && V <= U)                @-}
-{-@ predicate EqSiz X Y    = (vsize X) = (vsize Y)             @-}
+{-@ predicate InRngL V L U = (L <  V && V <= U)                @-}
+{-@ predicate InRng  V L U = (L <= V && V <= U)                @-}
+{-@ predicate EqSiz  X Y   = (vsize X) = (vsize Y)             @-}
 
 -- | Abstractly defined using @InRng@
 
@@ -109,11 +114,20 @@ import qualified Data.Vector.Primitive.Mutable
 
 -- TODO: push this type into the signature for `shiftR`. Issue: math on non-num types.
 -- TODO: support unchecked `assume`. Currently writing `undefined` to suppress warning
-{-@ assume halve :: x:Nat -> {v:Int | v = 1} -> {v:Nat | (x <= 2*v + 1 && 2*v <= x)} @-}
-halve :: Int -> Int -> Int
-halve = undefined -- shiftR
+-- {- assume shiftRI :: x:Nat -> {v:Int | v = 1} -> {v:Nat | (x <= 2*v + 1 && 2*v <= x)} @-}
+{-@ assume shiftRI :: x:Nat -> s:Nat 
+                   -> {v:Nat | (   (s=1 => (2*v <= x && x <= 2*v + 1))
+                                && (s=2 => (4*v <= x && x <= 4*v + 3))) } 
+  @-}
+shiftRI :: Int -> Int -> Int
+shiftRI = undefined -- shiftR
 
-
+{-@ assume shiftLI :: x:Nat -> s:Nat 
+                   -> {v:Nat | (   (s = 1 => v = 2 * x) 
+                                && (s = 2 => v = 4 * x)) } 
+  @-}
+shiftLI :: Int -> Int -> Int
+shiftLI = undefined -- shiftL
 ----------------------------------------------------------------------------
 
 -- | A type of comparisons between two values of a given type.

@@ -24,6 +24,7 @@ TODO
 vector-algorithms
 -----------------
 
+HEREHEREHERE -- use NeVec to cleanup the `0 < (vsize vec)` refinements 
 issues:
 
 1. array-sum measure needed to discharge liquidAssume in `Radix`
@@ -33,12 +34,12 @@ issues:
 [OK] Compiling Data.Vector.Algorithms.Search
 [OK] Compiling Data.Vector.Algorithms.Optimal
 [OK] Compiling Data.Vector.Algorithms.Insertion
-
-[6 of 9] Compiling Data.Vector.Algorithms.AmericanFlag
-[7 of 9] Compiling Data.Vector.Algorithms.Heap
-[8 of 9] Compiling Data.Vector.Algorithms.Intro 
+[OK] Compiling Data.Vector.Algorithms.Heap
 [OK] Compiling Data.Vector.Algorithms.Merge 
 
+
+[6 of 9] Compiling Data.Vector.Algorithms.AmericanFlag
+[8 of 9] Compiling Data.Vector.Algorithms.Intro 
 
 hmatrix
 -------
