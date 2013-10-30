@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeOperators #-}
-
+{-@ LIQUID "--no-termination" @-}
 -- ---------------------------------------------------------------------------
 -- |
 -- Module      : Data.Vector.Algorithms.Heap
@@ -45,21 +45,31 @@ import Data.Bits
 
 import Data.Vector.Generic.Mutable
 
-import Data.Vector.Algorithms.Common (Comparison)
+import Data.Vector.Algorithms.Common (Comparison, shiftLI, shiftRI)
+import Language.Haskell.Liquid.Prelude (liquidAssert)
 
 import qualified Data.Vector.Algorithms.Optimal as O
 
+{-@ type NeVec v m e = {v: (v (PrimState m) e) | 0 < (vsize v)} @-}
+
 -- | Sorts an entire array using the default ordering.
+{-@ sort :: (PrimMonad m, MVector v e, Ord e) => (NeVec v m e) -> m () @-}
 sort :: (PrimMonad m, MVector v e, Ord e) => v (PrimState m) e -> m ()
-sort = sortBy compare
+sort = sortBy  compare
 {-# INLINABLE sort #-}
 
 -- | Sorts an entire array using a custom ordering.
+{-@ sortBy :: (PrimMonad m, MVector v e) => Comparison e -> {v: (v (PrimState m) e) | 0 < (vsize v)} -> m () @-}
 sortBy :: (PrimMonad m, MVector v e) => Comparison e -> v (PrimState m) e -> m ()
 sortBy cmp a = sortByBounds cmp a 0 (length a)
 {-# INLINE sortBy #-}
 
 -- | Sorts a portion of an array [l,u) using a custom ordering
+{-@ sortByBounds :: (PrimMonad m, MVector v e)
+                 => Comparison e -> vec:(v (PrimState m) e) 
+                 -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))} 
+                -> m ()
+  @-}
 sortByBounds :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> Int -> Int -> m ()
 sortByBounds cmp a l u
@@ -73,6 +83,8 @@ sortByBounds cmp a l u
 
 -- | Moves the lowest k elements to the front of the array.
 -- The elements will be in no particular order.
+
+{-@ select :: (PrimMonad m, MVector v e, Ord e) => {v: (v (PrimState m) e) | 0 < (vsize v)} -> Pos -> m () @-}
 select :: (PrimMonad m, MVector v e, Ord e) => v (PrimState m) e -> Int -> m ()
 select = selectBy compare
 {-# INLINE select #-}
@@ -80,6 +92,10 @@ select = selectBy compare
 -- | Moves the 'lowest' (as defined by the comparison) k elements
 -- to the front of the array. The elements will be in no particular
 -- order.
+
+{-@ selectBy :: (PrimMonad m, MVector v e)
+             => (Comparison e) -> {v: (v (PrimState m) e) | 0 < (vsize v)} -> Pos -> m () 
+  @-}
 selectBy :: (PrimMonad m, MVector v e) => Comparison e -> v (PrimState m) e -> Int -> m ()
 selectBy cmp a k = selectByBounds cmp a k 0 (length a)
 {-# INLINE selectBy #-}
@@ -87,6 +103,11 @@ selectBy cmp a k = selectByBounds cmp a k 0 (length a)
 -- | Moves the 'lowest' k elements in the portion [l,u) of the
 -- array into the positions [l,k+l). The elements will be in
 -- no particular order.
+{-@ selectByBounds :: (PrimMonad m, MVector v e)
+                   => Comparison e -> vec:{v: (v (PrimState m) e) | 0 < (vsize v)}
+                   -> Pos -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))} 
+                   -> m ()
+  @-}
 selectByBounds :: (PrimMonad m, MVector v e)
                => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> m ()
 selectByBounds cmp a k l u
@@ -104,12 +125,19 @@ selectByBounds cmp a k l u
 {-# INLINE selectByBounds #-}
 
 -- | Moves the lowest k elements to the front of the array, sorted.
+{-@ partialSort  :: (PrimMonad m, MVector v e, Ord e)
+                 => {vec:(v (PrimState m) e) | 0 < (vsize vec)} -> Pos -> m ()
+  @-}
+
 partialSort :: (PrimMonad m, MVector v e, Ord e) => v (PrimState m) e -> Int -> m ()
 partialSort = partialSortBy compare
 {-# INLINE partialSort #-}
 
 -- | Moves the lowest k elements (as defined by the comparison) to
 -- the front of the array, sorted.
+{-@ partialSortBy :: (PrimMonad m, MVector v e)
+                  => (Comparison e) -> {vec:(v (PrimState m) e) | 0 < (vsize vec)} -> Pos -> m ()
+  @-}
 partialSortBy :: (PrimMonad m, MVector v e)
               => Comparison e -> v (PrimState m) e -> Int -> m ()
 partialSortBy cmp a k = partialSortByBounds cmp a k 0 (length a)
@@ -117,6 +145,11 @@ partialSortBy cmp a k = partialSortByBounds cmp a k 0 (length a)
 
 -- | Moves the lowest k elements in the portion [l,u) of the array
 -- into positions [l,k+l), sorted.
+{-@ partialSortByBounds :: (PrimMonad m, MVector v e)
+                   => Comparison e -> vec:{v: (v (PrimState m) e) | 0 < (vsize v)}
+                   -> Pos -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))} 
+                   -> m ()
+  @-}
 partialSortByBounds :: (PrimMonad m, MVector v e)
                     => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> m ()
 partialSortByBounds cmp a k l u
@@ -138,14 +171,21 @@ partialSortByBounds cmp a k l u
 {-# INLINE partialSortByBounds #-}
 
 -- | Constructs a heap in a portion of an array [l, u)
+{-@ heapify :: (PrimMonad m, MVector v e)
+            => Comparison e 
+            -> vec:(v (PrimState m) e) 
+            -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))} 
+            -> m ()
+  @-}
 heapify :: (PrimMonad m, MVector v e)
         => Comparison e -> v (PrimState m) e -> Int -> Int -> m ()
-heapify cmp a l u = loop $ (len - 1) `shiftR` 2
+heapify cmp a l u = loop $ (len - 1) `shiftRI` 2
   where
  len = u - l
  loop k
    | k < 0     = return ()
-   | otherwise = unsafeRead a (l+k) >>= \e ->
+   | otherwise = -- let z = liquidAssert (k < len) (l+k) in
+                 unsafeRead a (l+k) >>= \e ->
                    siftByOffset cmp a e l k len >> loop (k - 1)
 {-# INLINE heapify #-}
 
@@ -179,8 +219,12 @@ sortHeap cmp a l m u = loop (u-1) >> unsafeSwap a l m
 {-# INLINE sortHeap #-}
 
 -- Rebuilds a heap with a hole in it from start downwards. Afterward,
--- the heap property should apply for [start + off, len + off). val
+-- the heap property should apply for [start + off, start + len + off). val
 -- is the new value to be put in the hole.
+{-@ siftByOffset :: (PrimMonad m, MVector v e)
+                 => Comparison e -> vec:(v (PrimState m) e)  -> e -> off:Nat 
+                 -> (LtIdxOff off vec) -> (LeIdxOff off vec) -> m ()
+  @-}
 siftByOffset :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> e -> Int -> Int -> Int -> m ()
 siftByOffset cmp a val off start len = sift val start len
@@ -190,11 +234,16 @@ siftByOffset cmp a val off start len = sift val start len
                       case cmp val ac of
                         LT -> unsafeWrite a (root + off) ac >> sift val child' len
                         _  -> unsafeWrite a (root + off) val
-   | otherwise = unsafeWrite a (root + off) val
-  where child = root `shiftL` 2 + 1
+   | otherwise = unsafeWrite a (root + off)  val
+  where child = root `shiftLI` 2 + 1
 {-# INLINE siftByOffset #-}
 
--- Finds the maximum child of a heap node, given the indx of the first child.
+
+-- Finds the maximum child of a heap node, given the index of the first child.
+{-@ maximumChild :: (PrimMonad m, MVector v e)
+                 => Comparison e -> vec:(v (PrimState m) e) -> off:Nat 
+                 -> (LtIdxOff off vec) -> (LeIdxOff off vec) -> m ((LtIdxOff off vec), e) 
+  @-}
 maximumChild :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> m (Int,  e)
 maximumChild cmp a off child1 len
@@ -203,7 +252,7 @@ maximumChild cmp a off child1 len
                       ac3 <- unsafeRead a (child3 + off)
                       ac4 <- unsafeRead a (child4 + off)
                       return $ case cmp ac1 ac2 of
-                                 LT -> case cmp ac2 ac3 of
+                                 LT -> case cmp ac2 ac3  of
                                          LT -> case cmp ac3 ac4 of
                                                  LT -> (child4, ac4)
                                                  _  -> (child3, ac3)
