@@ -13,7 +13,7 @@ module Language.Fixpoint.Parse (
 
   -- * Some Important keyword and parsers
   , reserved, reservedOp
-  , parens  , brackets
+  , parens  , brackets, braces
   , semi    , comma     
   , colon   , dcolon 
   , whiteSpace, blanks
@@ -30,6 +30,7 @@ module Language.Fixpoint.Parse (
   , exprP       -- Expressions
   , predP       -- Refinement Predicates
   , qualifierP  -- Qualifiers
+  , refP        -- (Sorted) Refinements
 
   -- * Some Combinators
   , condIdP     -- condIdP  :: [Char] -> (String -> Bool) -> Parser String
@@ -112,6 +113,7 @@ colon         = Token.colon         lexer
 comma         = Token.comma         lexer
 whiteSpace    = Token.whiteSpace    lexer
 stringLiteral = Token.stringLiteral lexer
+braces        = Token.braces        lexer
 
 -- identifier = Token.identifier lexer
 
@@ -120,8 +122,9 @@ blanks  = many (satisfy (`elem` [' ', '\t']))
 
 integer =   try (liftM toInt is) 
        <|>  liftM (negate . toInt) (char '-' >> is)
-  where is      = liftM2 (\is _ -> is) (many1 digit) blanks 
-        toInt s = (read s) :: Integer 
+  where 
+    is      = liftM2 (\is _ -> is) (many1 digit) blanks 
+    toInt s = (read s) :: Integer 
 
 ----------------------------------------------------------------
 ------------------------- Expressions --------------------------
@@ -280,6 +283,16 @@ refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
        <|> liftM ((:[]) . RConc) predP
 
+refP :: Parser (Reft -> a) -> Parser a
+refP kindP
+  = braces $ do
+      v   <- symbolP 
+      colon
+      t   <- kindP
+      reserved "|"
+      ras <- refasP 
+      return $ t (Reft (v, ras))
+
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------
 ---------------------------------------------------------------------
@@ -304,9 +317,37 @@ mkParam s      = stringSymbolRaw ('~' : toUpper c : cs)
   where 
     (c:cs)     = symbolString s 
 
+---------------------------------------------------------------------
+-- | Parsing Constraints (.fq files) --------------------------------
+---------------------------------------------------------------------
+
+fInfoP :: Parser (FInfo ())
+fInfoP = defsFInfo <$> many defP
+
+defP :: Parser (Def ())
+defP =  Srt   <$> (reserved "sort"        >> colon >> sortP)
+    <|> Axm   <$> (reserved "axiom"       >> colon >> predP)
+    <|> Cst   <$> (reserved "constraint"  >> colon >> subCP)
+    <|> Wf    <$> (reserved "wf"          >> colon >> wfCP)
+    <|> Con   <$> (reserved "constant"    >> symbolP) <*> (colon >> sortP)
+    <|> Qul   <$> (reserved "qualifier"   >> qualifierP)
+    <|> Kut   <$> (reserved "cut"         >> symbolP)
+    <|> IBind <$> (reserved "bind"        >> integer) <*> symbolP <*> (colon >> sortedReftP)
+
+sortedReftP :: Parser SortedReft
+sortedReftP = refP (RR <$> sortP) 
+
+defsFInfo :: [Def a] -> FInfo a
+defsFInfo = error "TODO" 
+
+subCP :: Parser (SubC ())
+subCP = error "TODO" 
+
+wfCP :: Parser (SubC ())
+wfCP = error "TODO" 
 
 ---------------------------------------------------------------------
------------- Interacting with Fixpoint ------------------------------
+-- | Interacting with Fixpoint --------------------------------------
 ---------------------------------------------------------------------
 
 fixResultP :: Parser a -> Parser (FixResult a)
@@ -314,8 +355,6 @@ fixResultP pp
   =  (reserved "SAT"   >> return Safe)
  <|> (reserved "UNSAT" >> Unsafe <$> (brackets $ sepBy pp comma))  
  <|> (reserved "CRASH" >> crashP pp)
-
-
 
 crashP pp
   = do i   <- pp
