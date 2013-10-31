@@ -468,6 +468,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) 
                      , specQuals  :: ![F.Qualifier]
                      , specDecr   :: ![(Var, [Int])]
+                     , termExprs  :: ![(Var, [F.Expr])]
                      , specLVars  :: !(S.HashSet Var)
                      , specLazy   :: !(S.HashSet Var)
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
@@ -512,6 +513,7 @@ initCGI cfg info = CGInfo {
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
+  , termExprs  = texprs spc
   , specDecr   = decr spc
   , specLVars  = lvars spc
   , specLazy   = lazy spc
@@ -837,7 +839,7 @@ tcond cb strict
 consCB :: Bool -> CGEnv -> CoreBind -> CG CGEnv 
 -------------------------------------------------------------------
 
-consCB tflag γ (Rec xes) | tflag
+consCBSizedTys tflag γ (Rec xes)
   = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        ts       <- mapM refreshArgs $ (fromJust . thd3 <$> xets)
        let vs    = zipWith collectArgs ts es
@@ -867,6 +869,39 @@ consCB tflag γ (Rec xes) | tflag
         checkAll _   _ []     = []
         checkAll err f (x:xs) | all (==(f x)) (f <$> xs) = (x:xs)
                               | otherwise               = errorstar err
+
+consCBWithExprs γ xtes (Rec xes) 
+  = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+       let ts  = fromJust . thd3 <$> xets
+       ts'      <- mapM refreshArgs ts
+       let ys  = (fst3 . bkArrowDeep) <$> ts 
+       let ys' = (fst3 . bkArrowDeep) <$> ts'
+       let sus = zipWith mkSub ys ys'
+       let ess = (fromJust . (`L.lookup` xts)) <$> xs
+       let es' = zipWith (\su es -> F.subst su <$> es)  sus ess 
+       let ([(xx,es')], [(x, e)], [(_,_,t)]) = (xtes, xes, xets)
+       errorstar $ showPpr x ++ showPpr xx ++ show es' ++ "\n" ++ show t ++ show ts'
+       let rts   = undefined
+       let xts   = zip xs (Just <$> ts')
+       γ'       <- foldM extender γ xts
+       let γs    = [γ' `withTRec` (zip xs rts') | rts' <- rts]
+       let xets' = zip3 xs es (Just <$> ts')
+       mapM_ (uncurry $ consBind True) (zip γs xets')
+       return γ'
+  where (xs, es) = unzip xes
+        mkSub ys ys' = F.mkSubst [(x, F.EVar y) | (x, y)<- zip ys ys']
+
+consCB tflag γ (Rec xes) | tflag 
+  = do texprs <- termExprs <$> get
+       let xxes = filter ((`elem` xs) . fst) texprs
+       if null xxes 
+         then consCBSizedTys tflag γ (Rec xes)
+         else check xxes <$> consCBWithExprs γ xxes (Rec xes)
+  where xs = fst $ unzip xes
+        check ys r | length ys == length xs = r
+                   | otherwise              = errorstar err
+        err = printf "%s: Termination expressions should be provided for ALL mutual recursive functions" loc
+        loc = showPpr $ getSrcSpan (head xs)
 
 -- TODO : no termination check:
 -- check that the result type is trivial!
