@@ -33,7 +33,7 @@ import Text.Printf
 import Data.Maybe               (listToMaybe, fromMaybe, mapMaybe, catMaybes, isNothing, fromJust)
 import Control.Monad.State      (put, get, gets, modify, State, evalState, evalStateT, execState, StateT)
 import Data.Traversable         (forM)
-import Control.Applicative      ((<$>), (<*>), (<|>))
+import Control.Applicative      ((<$>), (<*>), (<|>), pure)
 import Control.Monad.Reader     hiding (forM)
 import Control.Monad.Error      hiding (Error, forM)
 import Control.Monad.Writer     hiding (forM)
@@ -128,7 +128,7 @@ makeGhcSpec' cfg vars defVars specs
        let su           = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        let tx           = subsFreeSymbols su
        let txq          = subsFreeSymbolsQual su
-       let syms'        = [(varSymbol v, v) | (_, v) <- syms]
+       let syms'        = [(symbol v, v) | (_, v) <- syms]
        decr'           <- mconcat <$> mapM (makeHints defVars) specs
        lvars'          <- S.fromList . mconcat
                                     <$> sequence [ makeLVars defVars (mod,spec)
@@ -245,7 +245,7 @@ expandAlias s = go s
                       liftM3 (bareTCApp tyi r') (lookupGhcTyCon c) (mapM (go' s) rs) (mapM (go s) ts)
     go s (RVar a r)       = RVar (stringRTyVar a) <$> resolve r
     go s (RFun x t t' r)  = rFun x <$> go s t <*> go s t'
-    go s (RAppTy t t' r)  = rAppTy <$> go s t <*> go s t'
+    go s (RAppTy t t' r)  = RAppTy <$> go s t <*> go s t' <*> pure r
     go s (RAllE x t1 t2)  = liftM2 (RAllE x) (go s t1) (go s t2)
     go s (REx x t1 t2)    = liftM2 (REx x) (go s t1) (go s t2)
     go s (RAllT a t)      = RAllT (stringRTyVar a) <$> go s t
@@ -324,6 +324,7 @@ makeQualifiers (mod,spec) = inModule mod mkQuals
   where
     mkQuals = mapM resolve $ Ms.qualifiers spec
 
+
 makeClasses cfg vs (mod,spec) = inModule mod $ mapM mkClass $ Ms.classes spec
   where
     --FIXME: cleanup this code
@@ -348,8 +349,8 @@ makeLVars vs (_,spec) = fmap fst <$> (varSymbols id "LazyVar" vs $ [(v, ()) | v 
 
 varSymbols :: ([Var] -> [Var]) -> String ->  [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
 varSymbols f n vs  = concatMapM go
-  where lvs        = M.map L.sort $ group [(varSymbol v, locVar v) | v <- vs]
-        varSymbol  = stringSymbol . dropModuleNames . showPpr
+  where lvs        = M.map L.sort $ group [(symbol v, locVar v) | v <- vs]
+        symbol  = stringSymbol . dropModuleNames . showPpr
         locVar v   = (getSourcePos v, v)
         go (s, ns) = case M.lookup (val s) lvs of 
                      Just lvs -> return ((, ns) <$> varsAfter f s lvs)
@@ -387,7 +388,7 @@ addSymSortRef (p, RMono s r@(U _ (Pr [up])))
 addSymSortRef (p, RMono s t)
   = RMono s t
 
-varMeasures vars  = [ (varSymbol v, varSpecType v) 
+varMeasures vars  = [ (symbol v, varSpecType v) 
                     | v <- vars
                     , isDataConWorkId v
                     , isSimpleType $ varType v
@@ -467,7 +468,7 @@ mkVarExpr v
   | isDataConWorkId v && not (null tvs) && isNothing tfun
   = EApp (dataConSymbol (idDataCon v)) []         
   | otherwise   
-  = EVar $ varSymbol v
+  = EVar $ symbol v
   where t            = varType v
         (tvs, tbase) = splitForAllTys t
         tfun         = splitFunTy_maybe tbase
@@ -774,14 +775,14 @@ stringLookupEnv env mod s
          Just (n:_) -> return (Just n)
          _          -> return Nothing
 
+-- | lookupGhcVar: It's possible that we have already resolved the Name we are
+--   looking for, but have had to turn it back into a String, e.g. to be used in
+--   an Expr, as in {v:Ordering | v = EQ}. In this case, the fully-qualified Name
+--   (GHC.Types.EQ) will likely not be in scope, so we store our own mapping of
+--   fully-qualified Names to Vars and prefer pulling Vars from it.
+  
 lookupGhcVar :: GhcLookup a => a -> BareM Var
 lookupGhcVar x
-  -- It's possible that we have already resolved the Name we are
-  -- looking for, but have had to turn it back into a String, e.g. to
-  -- be used in an Expr, as in {v:Ordering | v = EQ}. In this case,
-  -- the fully-qualified Name (GHC.Types.EQ) will likely not be in
-  -- scope, so we store our own mapping of fully-qualified Names to
-  -- Vars and prefer pulling Vars from it.
   = do env <- gets varEnv
        case L.lookup (symbol $ pp x) env of
          Nothing -> lookupGhcThing "Var" fv x
@@ -995,8 +996,8 @@ ofBareType (RVar a r)
   = return $ RVar (stringRTyVar a) r
 ofBareType (RFun x t1 t2 _) 
   = liftM2 (rFun x) (ofBareType t1) (ofBareType t2)
-ofBareType (RAppTy t1 t2 _) 
-  = liftM2 rAppTy (ofBareType t1) (ofBareType t2)
+ofBareType t@(RAppTy t1 t2 r) 
+  = liftM3 (\t1 t2 r -> traceShow ("RAPPTY: " ++ show t) $ RAppTy t1 t2 r) (ofBareType t1) (ofBareType t2) (return r)
 ofBareType (RAllE x t1 t2)
   = liftM2 (RAllE x) (ofBareType t1) (ofBareType t2)
 ofBareType (REx x t1 t2)
@@ -1232,9 +1233,9 @@ tyCompat x t         = lhs == rhs
 ghcSpecEnv sp        = fromListSEnv binds
   where 
     emb              = tcEmbeds sp
-    binds            =  [(x,           rSort t) | (x, Loc _ t) <- meas sp]
-                     ++ [(varSymbol v, rSort t) | (v, Loc _ t) <- ctors sp]
-                     ++ [(x          , vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
+    binds            =  [(x,        rSort t) | (x, Loc _ t) <- meas sp]
+                     ++ [(symbol v, rSort t) | (v, Loc _ t) <- ctors sp]
+                     ++ [(x,        vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
     rSort            = rTypeSortedReft emb 
     vSort            = rSort . varRType 
     varRType         :: Var -> RRType ()

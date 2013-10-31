@@ -10,19 +10,13 @@ import Control.DeepSeq
 import Control.Monad (when)
 
 import CoreSyn
--- import FastString
--- import GHC
--- import HscMain
--- import RdrName
 import Var
 
 import System.Console.CmdArgs.Verbosity (whenLoud)
 import System.Console.CmdArgs.Default
 import Language.Fixpoint.Config (Config (..)) 
 import Language.Fixpoint.Files
--- import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
--- import Language.Fixpoint.Names (dropModuleNames)
 import Language.Fixpoint.Interface
 import Language.Fixpoint.Types (sinfo, showFix, isFalse)
 

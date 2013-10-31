@@ -10,6 +10,13 @@ import Foreign.Ptr
 import Foreign.ForeignPtr
 import GHC.Base
 
+-- TODO: shouldn't have to re-import these (tests/pos/imp0.hs)
+{- import Foreign.C.Types    -}    
+{- import Foreign.Ptr        -}
+{- import Foreign.ForeignPtr -}
+{- import GHC.Base           -}
+
+
 
 -----------------------------------------------------------------------------------------------
 

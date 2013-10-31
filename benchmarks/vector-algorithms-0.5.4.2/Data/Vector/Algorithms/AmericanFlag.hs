@@ -1,4 +1,7 @@
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables #-}
+{-# LANGUAGE BangPatterns #-}
+
+{-@ LIQUID "--no-termination" @-}
 
 -- ---------------------------------------------------------------------------
 -- |
@@ -47,6 +50,7 @@ import qualified Data.Vector.Unboxed.Mutable as U
 import Data.Vector.Algorithms.Common
 
 import qualified Data.Vector.Algorithms.Insertion as I
+import Language.Haskell.Liquid.Prelude (liquidAssume)
 
 -- | The methods of this class specify the information necessary to sort
 -- arrays using the default ordering. The name 'Lexicographic' is meant
@@ -61,6 +65,13 @@ class Lexicographic e where
   -- | Determines which bucket a given element should inhabit for a
   -- particular iteration.
   index     :: Int -> e -> Int
+
+-- | LIQUID Class Specification ---------------------------------------------
+
+{-@ measure lexSize :: a -> Int                                           @-}
+{-@ size  :: (Lexicographic e) => x:e -> {v:Nat | v = (lexSize x)}        @-}
+{-@ index :: (Lexicographic e) => Int -> x:e -> {v:Nat | v < (lexSize x)} @-}
+
 
 instance Lexicographic Word8 where
   terminate _ n = n > 0
@@ -209,6 +220,15 @@ sort v = sortBy compare terminate (size e) index v
 -- | A fully parameterized version of the sorting algorithm. Again, this
 -- function takes both radix information and a comparison, because the
 -- algorithms falls back to insertion sort for small arrays.
+
+{-@ sortBy :: (PrimMonad m, MVector v e)
+       => (Comparison e)
+       -> (e -> Int -> Bool)
+       -> buckets:Nat
+       -> (Int -> e -> {v:Nat | v < buckets})
+       -> v (PrimState m) e
+       -> m ()
+  @-}
 sortBy :: (PrimMonad m, MVector v e)
        => Comparison e       -- ^ a comparison for the insertion sort flalback
        -> (e -> Int -> Bool) -- ^ determines whether a stripe is complete
@@ -220,19 +240,19 @@ sortBy cmp stop buckets radix v
   | length v == 0 = return ()
   | otherwise     = do count <- new buckets
                        pile <- new buckets
-                       countLoop (radix 0) v count
-                       flagLoop cmp stop radix count pile v
+                       countLoop v count (radix 0) 
+                       flagLoop cmp stop count pile v radix 
 {-# INLINE sortBy #-}
 
 flagLoop :: (PrimMonad m, MVector v e)
          => Comparison e
          -> (e -> Int -> Bool)           -- number of passes
-         -> (Int -> e -> Int)            -- radix function
          -> PV.MVector (PrimState m) Int -- auxiliary count array
          -> PV.MVector (PrimState m) Int -- auxiliary pile array
          -> v (PrimState m) e            -- source array
+         -> (Int -> e -> Int)            -- radix function
          -> m ()
-flagLoop cmp stop radix count pile v = go 0 v
+flagLoop cmp stop count pile v radix = go 0 v
  where
 
  go pass v = do e <- unsafeRead v 0
@@ -241,14 +261,14 @@ flagLoop cmp stop radix count pile v = go 0 v
  go' pass v
    | len < threshold = I.sortByBounds cmp v 0 len
    | otherwise       = do accumulate count pile
-                          permute (radix pass) count pile v
+                          permute count pile v (radix pass) 
                           recurse 0
   where
   len = length v
   ppass = pass + 1
 
   recurse i
-    | i < len   = do j <- countStripe (radix ppass) (radix pass) count v i
+    | i < len   = do j <- countStripe count v (radix ppass) (radix pass) i
                      go ppass (unsafeSlice i (j - i) v)
                      recurse j
     | otherwise = return ()
@@ -272,12 +292,12 @@ accumulate count pile = loop 0 0
 {-# INLINE accumulate #-}
 
 permute :: (PrimMonad m, MVector v e)
-        => (e -> Int)                       -- radix function
-        -> PV.MVector (PrimState m) Int     -- count array
+        => PV.MVector (PrimState m) Int     -- count array
         -> PV.MVector (PrimState m) Int     -- pile array
         -> v (PrimState m) e                -- source array
+        -> (e -> Int)                       -- radix function
         -> m ()
-permute rdx count pile v = go 0
+permute count pile v rdx = go 0
  where
  len = length v
 
@@ -299,10 +319,11 @@ permute rdx count pile v = go 0
                         | otherwise        -> follow i e p >> go (i+1)
    | otherwise = return ()
  
- follow i e j = do en <- unsafeRead v j
-                   let r = rdx en
-                   p <- inc pile r
-                   if p == j
+ follow i e j' = do let j = liquidAssume (0 <= j' && j' < len) j' -- LIQUID: not sure why this holds, has to do with `inc`
+                    en <- unsafeRead v j
+                    let r = rdx en
+                    p <- inc pile r
+                    if p == j
                       -- if the target happens to be in the right pile, don't move it.
                       then follow i e (j+1)
                       else unsafeWrite v j e >> if i == p
@@ -311,25 +332,24 @@ permute rdx count pile v = go 0
 {-# INLINE permute #-}
 
 countStripe :: (PrimMonad m, MVector v e)
-            => (e -> Int)                   -- radix function
-            -> (e -> Int)                   -- stripe function
-            -> PV.MVector (PrimState m) Int -- count array
+            => PV.MVector (PrimState m) Int -- count array
             -> v (PrimState m) e            -- source array
+            -> (e -> Int)                   -- radix function
+            -> (e -> Int)                   -- stripe function
             -> Int                          -- starting position
             -> m Int                        -- end of stripe: [lo,hi)
-countStripe rdx str count v lo = do set count 0
+countStripe count v rdx str lo = do set count 0
                                     e <- unsafeRead v lo
                                     go (str e) e (lo+1)
  where
  len = length v
-
  go !s e i = inc count (rdx e) >>
-            if i < len
+             if i < len
                then do en <- unsafeRead v i
                        if str en == s
                           then go s en (i+1)
                           else return i
-                else return len
+               else return len
 {-# INLINE countStripe #-}
 
 threshold :: Int
