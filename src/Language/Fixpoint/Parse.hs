@@ -328,24 +328,57 @@ defP :: Parser (Def ())
 defP =  Srt   <$> (reserved "sort"        >> colon >> sortP)
     <|> Axm   <$> (reserved "axiom"       >> colon >> predP)
     <|> Cst   <$> (reserved "constraint"  >> colon >> subCP)
-    <|> Wf    <$> (reserved "wf"          >> colon >> wfCP)
+    <|> Wfc   <$> (reserved "wf"          >> colon >> wfCP)
     <|> Con   <$> (reserved "constant"    >> symbolP) <*> (colon >> sortP)
     <|> Qul   <$> (reserved "qualifier"   >> qualifierP)
     <|> Kut   <$> (reserved "cut"         >> symbolP)
-    <|> IBind <$> (reserved "bind"        >> integer) <*> symbolP <*> (colon >> sortedReftP)
+    <|> IBind <$> (reserved "bind"        >> intP) <*> symbolP <*> (colon >> sortedReftP)
 
 sortedReftP :: Parser SortedReft
 sortedReftP = refP (RR <$> sortP) 
 
-defsFInfo :: [Def a] -> FInfo a
-defsFInfo = error "TODO" 
+wfCP :: Parser (WfC ())
+wfCP = do reserved "env"
+          env <- envP
+          reserved "reft"
+          r   <- sortedReftP
+          return $ WfC env r Nothing ()
 
 subCP :: Parser (SubC ())
-subCP = error "TODO" 
+subCP = do reserved "env" 
+           env <- envP 
+           reserved "grd"
+           grd <- predP
+           reserved "lhs"
+           lhs <- sortedReftP 
+           reserved "rhs"
+           rhs <- sortedReftP 
+           reserved "id"
+           i   <- integer
+           reserved "tag"
+           tag <- brackets $ sepBy intP semi
+           return $ SubC env grd lhs rhs (Just i) tag () 
 
-wfCP :: Parser (SubC ())
-wfCP = error "TODO" 
+envP  :: Parser IBindEnv
+envP  = do binds <- brackets $ sepBy intP semi
+           return $ insertsIBindEnv binds emptyIBindEnv
 
+intP :: Parser Int
+intP = fromInteger <$> integer
+
+defsFInfo :: [Def a] -> FInfo a
+defsFInfo defs = FI cm ws bs gs lts kts qs
+  where 
+    cm     = M.fromList       [(cid c, c)   | Cst c       <- defs]
+    ws     =                  [w            | Wfc w       <- defs]
+    bs     = rawBindEnv       [(n, x, r)    | IBind n x r <- defs]
+    consts =                  [(x, RR t top)| Con x t     <- defs]
+    kts    = KS $ S.fromList  [k            | Kut k       <- defs]     
+    qs     =                  [q            | Qul q       <- defs]
+    gs     = fromListSEnv consts 
+    lts    = filter       consts  
+    cid    = fromJust . sid
+    notFun = not . isFunctionSortedReft . sr_sort . snd
 ---------------------------------------------------------------------
 -- | Interacting with Fixpoint --------------------------------------
 ---------------------------------------------------------------------

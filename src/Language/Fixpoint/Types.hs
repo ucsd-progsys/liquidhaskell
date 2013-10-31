@@ -71,8 +71,10 @@ module Language.Fixpoint.Types (
   , lookupSEnvWithDistance
 
   , FEnv, insertFEnv 
-  , IBindEnv, BindId, insertsIBindEnv, deleteIBindEnv, emptyIBindEnv
-  , BindEnv, insertBindEnv, emptyBindEnv, mapBindEnv
+  , IBindEnv, BindId
+  , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv
+  , BindEnv
+  , rawBindEnv, insertBindEnv, emptyBindEnv, mapBindEnv
 
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..), Reftable(..) 
@@ -134,6 +136,7 @@ import Data.Maybe           (fromMaybe)
 import Text.Printf          (printf)
 import Control.DeepSeq
 import Control.Arrow        ((***))
+import Control.Exception    (assert)
 
 import Language.Fixpoint.Misc
 import Text.PrettyPrint.HughesPJ
@@ -161,13 +164,10 @@ data Def a
   | Con Symbol Sort
   | Qul Qualifier
   | Kut Symbol
-  | IBind Integer Symbol SortedReft
+  | IBind Int Symbol SortedReft
   -- deriving (Show, Generic, Data, Typeable)
   --  Sol of solbind
   --  Dep of FixConstraint.dep
-
-defsFInfo :: [Def a] -> FInfo a
-defsFInfo = error "TODO" 
 
 ------------------------------------------------------------------------
 
@@ -774,8 +774,16 @@ insertBindEnv x r (BE n m) = (n, BE (n + 1) (M.insert n (x, r) m))
 emptyBindEnv :: BindEnv
 emptyBindEnv = BE 0 M.empty
 
+rawBindEnv :: [(BindId, Symbol, SortedReft)] -> BindEnv
+rawBindEnv bs = BE (1 + nbs) be'
+  where 
+    nbs       = length bs
+    be        = M.fromList [(n, (x, r)) | (n, x, r) <- bs]
+    be'       = assert (M.size be == nbs) be
+
 mapBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindEnv -> BindEnv
 mapBindEnv f (BE n m) = (BE n $ M.map f m)
+
 
 instance Functor SEnv where
   fmap f (SE m) = SE $ fmap f m
