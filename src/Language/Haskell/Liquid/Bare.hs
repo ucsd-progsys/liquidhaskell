@@ -1233,11 +1233,9 @@ tyCompat x t         = lhs == rhs
 ghcSpecEnv sp        = fromListSEnv binds
   where 
     emb              = tcEmbeds sp
-    binds            =  [(x,           rSort t) | (x, Loc _ t) <- meas sp]
-                     -- ERIC: FIX THIS
-                     --  ++ [(x,  rSort $ cSort t) | (x, Loc _ t) <- cmeas sp]
+    binds            =  [(x,        rSort t) | (x, Loc _ t) <- meas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ t) <- ctors sp]
-                     ++ [(x          , vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
+                     ++ [(x,        vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
     rSort            = rTypeSortedReft emb 
     vSort            = rSort . varRType 
     varRType         :: Var -> RRType ()
