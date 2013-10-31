@@ -1,6 +1,15 @@
 TODO
 ====
 
+    l <= X <= VSIZE
+    l <= m
+    m < u,  u <= VSIZE
+    m <= VSIZE
+
+    l < VSIZE
+    l+1 < VSIZE
+    
+
 * Qualified Imports
   - wtf is include/KMeansHelper.hs ? Fix module import issue
   - break spec imports -- tests/todo/qualifiedvector.hs 
@@ -18,21 +27,26 @@ TODO
   + tests/todo/err8.hs
   + tests/todo/err9.hs
 
+* speed
+  + Data.Vector.Algorithms.Optimal
+
 vector-algorithms
 -----------------
 
-dependencies for vector algorithms
+HEREHEREHERE -- use NeVec to cleanup the `0 < (vsize vec)` refinements 
+issues:
 
-[1 of 9] Compiling Data.Vector.Algorithms.Common
-[2 of 9] Compiling Data.Vector.Algorithms.Radix
-[3 of 9] Compiling Data.Vector.Algorithms.Search   
-[4 of 9] Compiling Data.Vector.Algorithms.Optimal
-[5 of 9] Compiling Data.Vector.Algorithms.Insertion
-[6 of 9] Compiling Data.Vector.Algorithms.AmericanFlag
-[7 of 9] Compiling Data.Vector.Algorithms.Heap
-[8 of 9] Compiling Data.Vector.Algorithms.Intro 
-[9 of 9] Compiling Data.Vector.Algorithms.Merge 
+1. array-sum measure needed to discharge liquidAssume in `Radix`
 
+[OK] Compiling Data.Vector.Algorithms.Common
+[OK] Compiling Data.Vector.Algorithms.Radix
+[OK] Compiling Data.Vector.Algorithms.Search
+[OK] Compiling Data.Vector.Algorithms.Optimal
+[OK] Compiling Data.Vector.Algorithms.Insertion
+[OK] Compiling Data.Vector.Algorithms.Heap
+[OK] Compiling Data.Vector.Algorithms.Merge 
+[OK] Compiling Data.Vector.Algorithms.AmericanFlag
+[??] Compiling Data.Vector.Algorithms.Intro 
 
 hmatrix
 -------

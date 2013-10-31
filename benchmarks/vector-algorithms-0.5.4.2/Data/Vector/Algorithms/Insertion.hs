@@ -1,4 +1,6 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 
+{-@ LIQUID "--no-termination" @-}
 -- ---------------------------------------------------------------------------
 -- |
 -- Module      : Data.Vector.Algorithms.Insertion
@@ -31,16 +33,23 @@ import Data.Vector.Algorithms.Common (Comparison)
 import qualified Data.Vector.Algorithms.Optimal as O
 
 -- | Sorts an entire array using the default comparison for the type
+{-@ sort :: (PrimMonad m, MVector v e, Ord e) => {v: (v (PrimState m) e) | 0 < (vsize v)} -> m () @-}
 sort :: (PrimMonad m, MVector v e, Ord e) => v (PrimState m) e -> m ()
-sort = sortBy compare
+sort = sortBy  compare
 {-# INLINABLE sort #-}
 
 -- | Sorts an entire array using a given comparison
+{-@ sortBy :: (PrimMonad m, MVector v e) => Comparison e -> {v: (v (PrimState m) e) | 0 < (vsize v)} -> m () @-}
 sortBy :: (PrimMonad m, MVector v e) => Comparison e -> v (PrimState m) e -> m ()
-sortBy cmp a = sortByBounds cmp a 0 (length a)
+sortBy cmp a = sortByBounds cmp a 0  (length a)
 {-# INLINE sortBy #-}
 
 -- | Sorts the portion of an array delimited by [l,u)
+{-@ sortByBounds :: (PrimMonad m, MVector v e)
+                 => Comparison e -> vec:(v (PrimState m) e) 
+                -> l:(OkIdx vec) -> u:{v:Nat | (InRng v l (vsize vec))} 
+                -> m ()
+  @-}
 sortByBounds :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> Int -> Int -> m ()
 sortByBounds cmp a l u
@@ -55,14 +64,21 @@ sortByBounds cmp a l u
 
 -- | Sorts the portion of the array delimited by [l,u) under the assumption
 -- that [l,m) is already sorted.
+{-@ sortByBounds' :: (PrimMonad m, MVector v e)
+                 => Comparison e -> vec:(v (PrimState m) e) 
+                -> l:(OkIdx vec) 
+                -> m:{v:Nat | (InRng v l (vsize vec))} 
+                -> u:{v:Nat | (InRng v m (vsize vec))} 
+                -> m ()
+  @-}
 sortByBounds' :: (PrimMonad m, MVector v e)
               => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> m ()
-sortByBounds' cmp a l m u = sort m
+sortByBounds' cmp a l m u = sort (u - m) m
  where
- sort i
+ sort (twit :: Int) (i :: Int) 
    | i < u     = do v <- unsafeRead a i
                     insert cmp a l v i
-                    sort (i+1)
+                    sort (twit - 1) (i+1)
    | otherwise = return ()
 {-# INLINE sortByBounds' #-}
 
