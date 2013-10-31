@@ -1,6 +1,15 @@
 TODO
 ====
 
+    l <= X <= VSIZE
+    l <= m
+    m < u,  u <= VSIZE
+    m <= VSIZE
+
+    l < VSIZE
+    l+1 < VSIZE
+    
+
 * Qualified Imports
   - wtf is include/KMeansHelper.hs ? Fix module import issue
   - break spec imports -- tests/todo/qualifiedvector.hs 
@@ -36,10 +45,8 @@ issues:
 [OK] Compiling Data.Vector.Algorithms.Insertion
 [OK] Compiling Data.Vector.Algorithms.Heap
 [OK] Compiling Data.Vector.Algorithms.Merge 
-
-
-[6 of 9] Compiling Data.Vector.Algorithms.AmericanFlag
-[8 of 9] Compiling Data.Vector.Algorithms.Intro 
+[OK] Compiling Data.Vector.Algorithms.AmericanFlag
+[??] Compiling Data.Vector.Algorithms.Intro 
 
 hmatrix
 -------

@@ -50,7 +50,6 @@ import Language.Haskell.Liquid.Prelude (liquidAssert)
 
 import qualified Data.Vector.Algorithms.Optimal as O
 
-{-@ type NeVec v m e = {v: (v (PrimState m) e) | 0 < (vsize v)} @-}
 
 -- | Sorts an entire array using the default ordering.
 {-@ sort :: (PrimMonad m, MVector v e, Ord e) => (NeVec v m e) -> m () @-}
@@ -59,7 +58,7 @@ sort = sortBy  compare
 {-# INLINABLE sort #-}
 
 -- | Sorts an entire array using a custom ordering.
-{-@ sortBy :: (PrimMonad m, MVector v e) => Comparison e -> {v: (v (PrimState m) e) | 0 < (vsize v)} -> m () @-}
+{-@ sortBy :: (PrimMonad m, MVector v e) => Comparison e -> (NeVec v m e) -> m () @-}
 sortBy :: (PrimMonad m, MVector v e) => Comparison e -> v (PrimState m) e -> m ()
 sortBy cmp a = sortByBounds cmp a 0 (length a)
 {-# INLINE sortBy #-}
@@ -67,24 +66,25 @@ sortBy cmp a = sortByBounds cmp a 0 (length a)
 -- | Sorts a portion of an array [l,u) using a custom ordering
 {-@ sortByBounds :: (PrimMonad m, MVector v e)
                  => Comparison e -> vec:(v (PrimState m) e) 
-                 -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))} 
-                -> m ()
+                 -> l:{v:Nat | (InRng v 0 (vsize vec))} -> u:{v:Nat | (InRng v l (vsize vec))} 
+                 -> m ()
   @-}
+                 -- -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))} 
 sortByBounds :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> Int -> Int -> m ()
-sortByBounds cmp a l u
+sortByBounds cmp a l  u
   | len < 2   = return ()
   | len == 2  = O.sort2ByOffset cmp a l
   | len == 3  = O.sort3ByOffset cmp a l
   | len == 4  = O.sort4ByOffset cmp a l
-  | otherwise = heapify cmp a l u >> sortHeap cmp a l (l+4) u >> O.sort4ByOffset cmp a l
+  | otherwise = {- liquidAssert (len > 4) -} heapify cmp a l u >> sortHeap cmp a l (l+4) u >> O.sort4ByOffset cmp a l
  where len = u - l
 {-# INLINE sortByBounds #-}
 
 -- | Moves the lowest k elements to the front of the array.
 -- The elements will be in no particular order.
 
-{-@ select :: (PrimMonad m, MVector v e, Ord e) => {v: (v (PrimState m) e) | 0 < (vsize v)} -> Pos -> m () @-}
+{-@ select :: (PrimMonad m, MVector v e, Ord e) => (NeVec v m e) -> Pos -> m () @-}
 select :: (PrimMonad m, MVector v e, Ord e) => v (PrimState m) e -> Int -> m ()
 select = selectBy compare
 {-# INLINE select #-}
@@ -93,9 +93,7 @@ select = selectBy compare
 -- to the front of the array. The elements will be in no particular
 -- order.
 
-{-@ selectBy :: (PrimMonad m, MVector v e)
-             => (Comparison e) -> {v: (v (PrimState m) e) | 0 < (vsize v)} -> Pos -> m () 
-  @-}
+{-@ selectBy :: (PrimMonad m, MVector v e) => (Comparison e) -> (NeVec v m e) -> Pos -> m () @-}
 selectBy :: (PrimMonad m, MVector v e) => Comparison e -> v (PrimState m) e -> Int -> m ()
 selectBy cmp a k = selectByBounds cmp a k 0 (length a)
 {-# INLINE selectBy #-}
@@ -104,7 +102,7 @@ selectBy cmp a k = selectByBounds cmp a k 0 (length a)
 -- array into the positions [l,k+l). The elements will be in
 -- no particular order.
 {-@ selectByBounds :: (PrimMonad m, MVector v e)
-                   => Comparison e -> vec:{v: (v (PrimState m) e) | 0 < (vsize v)}
+                   => Comparison e -> vec:(NeVec v m e)
                    -> Pos -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))} 
                    -> m ()
   @-}
@@ -125,19 +123,14 @@ selectByBounds cmp a k l u
 {-# INLINE selectByBounds #-}
 
 -- | Moves the lowest k elements to the front of the array, sorted.
-{-@ partialSort  :: (PrimMonad m, MVector v e, Ord e)
-                 => {vec:(v (PrimState m) e) | 0 < (vsize vec)} -> Pos -> m ()
-  @-}
-
+{-@ partialSort  :: (PrimMonad m, MVector v e, Ord e) => (NeVec v m e) -> Pos -> m () @-}
 partialSort :: (PrimMonad m, MVector v e, Ord e) => v (PrimState m) e -> Int -> m ()
 partialSort = partialSortBy compare
 {-# INLINE partialSort #-}
 
 -- | Moves the lowest k elements (as defined by the comparison) to
 -- the front of the array, sorted.
-{-@ partialSortBy :: (PrimMonad m, MVector v e)
-                  => (Comparison e) -> {vec:(v (PrimState m) e) | 0 < (vsize vec)} -> Pos -> m ()
-  @-}
+{-@ partialSortBy :: (PrimMonad m, MVector v e) => (Comparison e) -> (NeVec v m e) -> Pos -> m () @-}
 partialSortBy :: (PrimMonad m, MVector v e)
               => Comparison e -> v (PrimState m) e -> Int -> m ()
 partialSortBy cmp a k = partialSortByBounds cmp a k 0 (length a)
@@ -146,7 +139,7 @@ partialSortBy cmp a k = partialSortByBounds cmp a k 0 (length a)
 -- | Moves the lowest k elements in the portion [l,u) of the array
 -- into positions [l,k+l), sorted.
 {-@ partialSortByBounds :: (PrimMonad m, MVector v e)
-                   => Comparison e -> vec:{v: (v (PrimState m) e) | 0 < (vsize v)}
+                   => Comparison e -> vec:(NeVec v m e)
                    -> Pos -> l:(OkIdx vec) -> u:{v:Nat | (InRngL v l (vsize vec))} 
                    -> m ()
   @-}
