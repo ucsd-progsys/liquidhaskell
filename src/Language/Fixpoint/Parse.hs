@@ -53,11 +53,12 @@ import Text.Parsec.String hiding (Parser, parseFromFile)
 import Text.Printf  (printf)
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet as S
 
 import Data.Char (isLower, toUpper)
 import Language.Fixpoint.Misc hiding (dcolon)
 import Language.Fixpoint.Types
-import Data.Maybe(maybe)
+import Data.Maybe(maybe, fromJust)
 
 type Parser = Parsec String Integer 
 
@@ -369,16 +370,15 @@ intP = fromInteger <$> integer
 defsFInfo :: [Def a] -> FInfo a
 defsFInfo defs = FI cm ws bs gs lts kts qs
   where 
-    cm     = M.fromList       [(cid c, c)   | Cst c       <- defs]
-    ws     =                  [w            | Wfc w       <- defs]
-    bs     = rawBindEnv       [(n, x, r)    | IBind n x r <- defs]
-    consts =                  [(x, RR t top)| Con x t     <- defs]
-    kts    = KS $ S.fromList  [k            | Kut k       <- defs]     
-    qs     =                  [q            | Qul q       <- defs]
-    gs     = fromListSEnv consts 
-    lts    = filter       consts  
+    cm     = M.fromList       [(cid c, c)     | Cst c       <- defs]
+    ws     =                  [w              | Wfc w       <- defs]
+    bs     = rawBindEnv       [(n, x, r)      | IBind n x r <- defs]
+    gs     = fromListSEnv     [(x, RR t top)  | Con x t     <- defs]
+    lts    =                  [(x, t)         | Con x t     <- defs, notFun t]
+    kts    = KS $ S.fromList  [k              | Kut k       <- defs]     
+    qs     =                  [q              | Qul q       <- defs]
     cid    = fromJust . sid
-    notFun = not . isFunctionSortedReft . sr_sort . snd
+    notFun = not . isFunctionSortedReft . (`RR` top) 
 ---------------------------------------------------------------------
 -- | Interacting with Fixpoint --------------------------------------
 ---------------------------------------------------------------------
