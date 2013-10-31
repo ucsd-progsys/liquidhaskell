@@ -79,6 +79,7 @@ module Language.Fixpoint.Types (
   , trueRefa                -- trivial reft
   , exprReft                -- singleton: v == e
   , notExprReft             -- singleton: v /= e
+  , uexprReft               -- singleton: v ~~ e
   , symbolReft              -- singleton: v == x
   , propReft                -- singleton: Prop(v) <=> p
   , predReft                -- any pred : p
@@ -423,7 +424,7 @@ data SymConst = SL !String
 data Constant = I  !Integer 
               deriving (Eq, Ord, Show, Data, Typeable)
 
-data Brel = Eq | Ne | Gt | Ge | Lt | Le 
+data Brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une 
             deriving (Eq, Ord, Show, Data, Typeable)
 
 data Bop  = Plus | Minus | Times | Div | Mod    
@@ -451,12 +452,14 @@ instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst
 
 instance Fixpoint Brel where
-  toFix Eq = text "="
-  toFix Ne = text "!="
-  toFix Gt = text ">"
-  toFix Ge = text ">="
-  toFix Lt = text "<"
-  toFix Le = text "<="
+  toFix Eq  = text "="
+  toFix Ne  = text "!="
+  toFix Ueq = text "~~"
+  toFix Une = text "!~"
+  toFix Gt  = text ">"
+  toFix Ge  = text ">="
+  toFix Lt  = text "<"
+  toFix Le  = text "<="
 
 instance Fixpoint Bop where
   toFix Plus  = text "+"
@@ -533,7 +536,11 @@ isContraPred z = eqC z || (z `elem` contras)
     
     eqC (PAtom Eq (ECon x) (ECon y))
                = x /= y
+    eqC (PAtom Ueq (ECon x) (ECon y))
+               = x /= y
     eqC (PAtom Ne x y)
+               = x == y
+    eqC (PAtom Une x y)
                = x == y
     eqC _      = False
 
@@ -547,7 +554,11 @@ isTautoPred z  = eqT z || (z `elem` tautos)
                = x == y
     eqT (PAtom Eq x y) 
                = x == y
+    eqT (PAtom Ueq x y) 
+               = x == y
     eqT (PAtom Ne (ECon x) (ECon y))
+               = x /= y
+    eqT (PAtom Une (ECon x) (ECon y))
                = x /= y
     eqT _      = False 
 
@@ -560,10 +571,12 @@ isTautoRa _                 = False
 isEVar (EVar _) = True
 isEVar _        = False
 
-isSingletonReft (Reft (v, [RConc (PAtom Eq e1 e2)])) 
-  | e1 == EVar v = Just e2
-  | e2 == EVar v = Just e1
-isSingletonReft _    = Nothing 
+isEq r          = r == Eq || r == Ueq
+
+isSingletonReft (Reft (v, [RConc (PAtom r e1 e2)])) 
+  | e1 == EVar v && isEq r = Just e2
+  | e2 == EVar v && isEq r = Just e1
+isSingletonReft _          = Nothing 
 
 pAnd          = simplify . PAnd 
 pOr           = simplify . POr 
@@ -644,18 +657,23 @@ eVar          = EVar . symbol
 eProp         ::  Symbolic a => a -> Pred
 eProp         = mkProp . eVar
 
-exprReft, notExprReft  ::  (Expression a) => a -> Reft
-exprReft e             = Reft (vv_, [RConc $ PAtom Eq (eVar vv_)  (expr e)])
-notExprReft e          = Reft (vv_, [RConc $ PAtom Ne (eVar vv_)  (expr e)])
+relReft :: (Expression a) => Brel -> a -> Reft
+relReft r e   = Reft (vv_, [RConc $ PAtom r (eVar vv_)  (expr e)])
 
-propReft               ::  (Predicate a) => a -> Reft
-propReft p             = Reft (vv_, [RConc $ PIff     (eProp vv_) (prop p)]) 
+exprReft, notExprReft, uexprReft ::  (Expression a) => a -> Reft
+exprReft      = relReft Eq
+notExprReft   = relReft Ne
+uexprReft     = relReft Ueq 
 
-predReft               :: (Predicate a) => a -> Reft
-predReft p             = Reft (vv_, [RConc $ prop p])
+-- exprReft e             = Reft (vv_, [RConc $ PAtom Eq (eVar vv_)  (expr e)])
+-- notExprReft e          = Reft (vv_, [RConc $ PAtom Ne (eVar vv_)  (expr e)])
+-- exprReft e             = Reft (vv_, [RConc $ PAtom Eq (eVar vv_)  (expr e)])
 
+propReft      ::  (Predicate a) => a -> Reft
+propReft p    = Reft (vv_, [RConc $ PIff     (eProp vv_) (prop p)]) 
 
-
+predReft      :: (Predicate a) => a -> Reft
+predReft p    = Reft (vv_, [RConc $ prop p])
 
 ---------------------------------------------------------------
 ----------------- Refinements ---------------------------------
@@ -800,7 +818,7 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
                    , wrft  :: !SortedReft
                    , wid   :: !(Maybe Integer) 
                    , winfo :: !a
-                   } -- deriving (Eq)
+                   }
 
 data FixResult a = Crash [a] String 
                  | Safe 
@@ -811,10 +829,10 @@ data FixResult a = Crash [a] String
 type FixSolution = M.HashMap Symbol Pred
 
 instance Eq a => Eq (FixResult a) where 
-  Crash xs _ == Crash ys _         = xs == ys
-  Unsafe xs == Unsafe ys           = xs == ys
-  Safe      == Safe                = True
-  _         == _                   = False
+  Crash xs _ == Crash ys _        = xs == ys
+  Unsafe xs == Unsafe ys          = xs == ys
+  Safe      == Safe               = True
+  _         == _                  = False
 
 instance Monoid (FixResult a) where
   mempty                          = Safe
