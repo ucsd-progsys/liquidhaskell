@@ -34,6 +34,7 @@ import qualified Data.Vector.Primitive.Mutable
 {-@ measure vsize :: a -> Int @-}
 
 -- | Vector Type Aliases
+{-@ type NeVec v m e = {v: (v (PrimState m) e) | 0 < (vsize v)} @-}
 {-@ type OkIdx X          = {v:Nat | (OkRng v X 0)}         @-}
 {-@ type AOkIdx X         = {v:Nat | v <= (vsize X)}        @-}
 {-@ type Pos              = {v:Int | v > 0 }                @-}
@@ -70,6 +71,14 @@ import qualified Data.Vector.Primitive.Mutable
       => x:(v (PrimState m) a) 
       -> (OkIdx x) 
       -> a 
+      -> m () 
+  @-}
+
+{-@ Data.Vector.Generic.Mutable.unsafeSwap
+      :: (PrimMonad m, Data.Vector.Generic.Mutable.MVector v a) 
+      => x:(v (PrimState m) a) 
+      -> (OkIdx x) 
+      -> (OkIdx x) 
       -> m () 
   @-}
 
@@ -168,8 +177,7 @@ countLoop src count rdx = set count 0 >> go len 0
  len = length src
  go (m :: Int) i
    | i < len   = let lenSrc = length src 
-                      
-                 in (liquidAssert (i < lenSrc) $ unsafeRead src i) >>= inc count . rdx >> go (m-1) (i+1)
+                 in ({- liquidAssert (i < lenSrc) $ -} unsafeRead src i) >>= inc count . rdx >> go (m-1) (i+1)
    | otherwise = return ()
 {-# INLINE countLoop #-}
 
