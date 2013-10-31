@@ -123,7 +123,6 @@ remLineCol src rem = (line, col)
 ----------------------------------------------------------------------------------
 
 dot           = Token.dot           lexer
-braces        = Token.braces        lexer
 angles        = Token.angles        lexer
 stringLiteral = Token.stringLiteral lexer
 
@@ -295,15 +294,16 @@ dummyP ::  Monad m => m (Reft -> b) -> m b
 dummyP fm 
   = fm `ap` return dummyReft 
 
-refP :: Parser (Reft -> a) -> Parser a
-refP kindP
-  = braces $ do
-      v   <- symbolP 
-      colon
-      t   <- kindP
-      reserved "|"
-      ras <- refasP 
-      return $ t (Reft (v, ras))
+-- Moved into liquid-fixpoint
+-- refP :: Parser (Reft -> a) -> Parser a
+-- refP kindP
+--   = braces $ do
+--       v   <- symbolP 
+--       colon
+--       t   <- kindP
+--       reserved "|"
+--       ras <- refasP 
+--       return $ t (Reft (v, ras))
 
 symsP
   = do reserved "\\"
