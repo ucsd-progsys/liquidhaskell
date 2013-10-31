@@ -594,7 +594,7 @@ makeLocalAssumeSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareT
  
 makeLocalAssumeSpec cfg mod vs lvs xbs
   = do env     <- get
-       vbs1    <- fmap expand3 <$> symbols fchoose "Var" lvs (dupSnd <$> xbs1)
+       vbs1    <- fmap expand3 <$> varSymbols fchoose "Var" lvs (dupSnd <$> xbs1)
        when (not $ noCheckUnknown cfg) $
          checkDefAsserts env vbs1 xbs1
        vts1    <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
