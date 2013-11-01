@@ -348,6 +348,8 @@ nlzP ps t@(ROth _)
  = (t, ps)
 nlzP ps t@(REx _ _ _) 
  = (t, ps) 
+nlzP ps t@(RRef _) 
+ = (t, ps) 
 nlzP ps t@(RAllE _ _ _) 
  = (t, ps) 
 nlzP _ t
@@ -991,6 +993,9 @@ instance Exception [Error]
 ------------------------------------------------------------------------
 ppError :: Error -> Doc
 ------------------------------------------------------------------------
+ppError (ErrAssType l s r) 
+  = text "Termination Check Error:" <+> pprint l
+
 ppError (ErrSubType l s tA tE) 
   = text "Liquid Type Error:" <+> pprint l
 --     DO NOT DELETE 

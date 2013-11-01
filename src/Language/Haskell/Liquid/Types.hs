@@ -759,6 +759,7 @@ efoldReft cb g f = go
     go γ z (RAllE x t t')               = go (insertSEnv x (g t) γ) (go γ z t) t' 
     go γ z (REx x t t')                 = go (insertSEnv x (g t) γ) (go γ z t) t' 
     go _ z (ROth _)                     = z 
+    go _ z (RRef _)                     = z 
     go γ z me@(RAppTy t t' r)           = f γ (Just me) r (go γ (go γ z t) t')
     go _ z (RExprArg _)                 = z
 
@@ -817,6 +818,7 @@ mapBind f (RAllE b t1 t2)  = RAllE  (f b) (mapBind f t1) (mapBind f t2)
 mapBind f (REx b t1 t2)    = REx    (f b) (mapBind f t1) (mapBind f t2)
 mapBind _ (RVar α r)       = RVar α r
 mapBind _ (ROth s)         = ROth s
+mapBind _ (RRef r)         = RRef r
 mapBind f (RAppTy t1 t2 r) = RAppTy (mapBind f t1) (mapBind f t2) r
 mapBind _ (RExprArg e)     = RExprArg e
 
@@ -973,6 +975,11 @@ data Error =
                 , msg :: !Doc
                 , act :: !SpecType
                 , exp :: !SpecType
+                } -- ^ liquid type error
+
+   | ErrAssType { pos :: !SrcSpan
+                , msg :: !Doc
+                , ref :: !RReft
                 } -- ^ liquid type error
 
   | ErrParse    { pos :: !SrcSpan
