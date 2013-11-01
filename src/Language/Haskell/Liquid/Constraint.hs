@@ -246,6 +246,9 @@ data SubC     = SubC { senv  :: !CGEnv
                      , lhs   :: !SpecType
                      , rhs   :: !SpecType 
                      }
+              | SubR { senv  :: !CGEnv
+                     , ref   :: !RReft
+                     }
 
 data WfC      = WfC  !CGEnv !SpecType 
               -- deriving (Data, Typeable)
@@ -354,11 +357,6 @@ splitC (SubC γ t1 (RAllE x tx t2))
   = do γ' <- (γ, "addExBind 2") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
-splitC (SubC γ (RFun _ (RRef r) t1 _) t2)
-  = do cs <- splitRef γ r
-       cs' <- splitC (SubC γ t1 t2)
-       return $ cs ++ cs'
-
 splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
   =  do cs       <- bsplitC γ t1 t2 
         cs'      <- splitC  (SubC γ r2 r1) 
@@ -414,6 +412,19 @@ splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
 splitC c@(SubC _ t1 t2) 
   = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
 
+splitC (SubR γ r)
+  = return [F.subC γ' F.PTrue r1 r2 Nothing tag ci]
+  where
+    γ'  = fe_binds $ fenv γ
+    r1  = F.RR s $ F.toReft r
+    r2  = F.RR s $ F.Reft (vv, [F.RConc $ F.PBexp $ F.EVar vv])
+    vv  = F.S "vvRec"
+    s   = F.FApp F.boolFTyCon []
+    ci  = Ci src err
+    err = Just $ ErrAssType src (text "termination type error") r
+    tag = getTag γ
+    src = loc γ 
+
 splitCIndexed γ t1s t2s indexes 
   = concatMapM splitC (zipWith (SubC γ) t1s' t2s')
   where t1s' = (L.!!) t1s <$> indexes
@@ -443,18 +454,6 @@ bsplitC' γ t1 t2 pflag
     err = Just $ ErrSubType src (text "subtype") t1 t2 
     src = loc γ 
 
-splitRef γ r 
-  = return [F.subC γ' F.PTrue r1 r2 Nothing tag ci]
-  where
-    γ'  = fe_binds $ fenv γ
-    r1  = F.RR s $ F.toReft r
-    r2  = F.RR s $ F.Reft (vv, [F.RConc $ F.PBexp $ F.EVar vv])
-    vv  = F.S "vvRec"
-    s   = F.FApp F.boolFTyCon []
-    ci  = Ci src err
-    err = Just $ ErrAssType src (text "termination type error") r
-    tag = getTag γ
-    src = loc γ 
      
 
 unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
@@ -658,9 +657,14 @@ addClassBind = mapM (uncurry addBind) . classBinds
 --   = return [] 
 
 addC :: SubC -> String -> CG ()  
-addC !c@(SubC _ t1 t2) _msg 
+addC !c _msg 
   = -- trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
      modify $ \s -> s { hsCs  = c : (hsCs s) }
+
+addPost γ (RFun _ (RRef r) t _) 
+  = addC (SubR γ r) "precondition" >> return t
+addPost _ t  
+  = return t
 
 addW   :: WfC -> CG ()  
 addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
@@ -913,9 +917,18 @@ consCBWithExprs γ xtes (Rec xes)
        return γ'
   where (xs, es) = unzip xes
         mkSub ys ys' = F.mkSubst [(x, F.EVar y) | (x, y)<- zip ys ys']
-        makeLexRefa (e:_) (e':_) = uTop $ F.Reft (vv, [F.RConc $ F.PIff (F.PBexp $ F.EVar vv) $ F.PAtom F.Lt e' e])
-        vv = F.stringSymbol "vvRec"
         collectArgs   = collectArguments . length . fst3 . bkArrow . thd3 . bkUniv
+
+makeLexRefa es es' = uTop $ F.Reft (vv, [F.RConc $ F.PIff (F.PBexp $ F.EVar vv) $ F.pOr rs])
+  where rs = go [] [] es es'
+        go old acc [] [] = acc
+        go old acc (e:es) (e':es') = go ((e,e'):old) (r:acc) es es'
+          where r = F.pAnd $ (F.PAtom F.Lt e' e) : (F.PAtom F.Ge e' zero)
+                           : [F.PAtom F.Eq o' o | (o,o') <- old] 
+                          ++ [F.PAtom F.Ge o' zero | (o,o') <- old] 
+        zero = F.ECon $ F.I 0
+        vv = F.stringSymbol "vvRec"
+
 
 consCB tflag γ (Rec xes) | tflag 
   = do texprs <- termExprs <$> get
@@ -1083,7 +1096,7 @@ consE γ e'@(App e a)
        updateLocA πs (exprLoc e) te'' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller ", e') te''
        cconsE γ' a tx 
-       return $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
+       addPost γ' $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
 --    where err = errorstar $ "consE: App crashes on" ++ showPpr a 
 
 
@@ -1277,6 +1290,8 @@ instance NFData FEnv where
 instance NFData SubC where
   rnf (SubC x1 x2 x3) 
     = rnf x1 `seq` rnf x2 `seq` rnf x3
+  rnf (SubR x1 x2) 
+    = rnf x1 `seq` rnf x2
 
 instance NFData Class where
   rnf _ = ()
