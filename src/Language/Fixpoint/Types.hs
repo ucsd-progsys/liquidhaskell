@@ -54,7 +54,10 @@ module Language.Fixpoint.Types (
   , Predicate (..)
 
   -- * Constraints and Solutions
-  , SubC(..), WfC(..), subC, lhsCs, rhsCs, wfC, Tag, FixResult (..), FixSolution, addIds, sinfo 
+  , SubC(..), WfC(..)
+  , subC, lhsCs, rhsCs, wfC
+  , Tag, FixResult (..), FixSolution
+  , addIds, sinfo 
   , trueSubCKvar
   , removeLhsKvars
 
@@ -68,8 +71,10 @@ module Language.Fixpoint.Types (
   , lookupSEnvWithDistance
 
   , FEnv, insertFEnv 
-  , IBindEnv, BindId, insertsIBindEnv, deleteIBindEnv, emptyIBindEnv
-  , BindEnv, insertBindEnv, emptyBindEnv, mapBindEnv
+  , IBindEnv, BindId
+  , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv
+  , BindEnv
+  , rawBindEnv, insertBindEnv, emptyBindEnv, mapBindEnv
 
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..), Reftable(..) 
@@ -105,12 +110,16 @@ module Language.Fixpoint.Types (
   , colorResult 
 
   -- * Cut KVars
-  , Kuts (..), ksEmpty, ksUnion
+  , Kuts (..)
+  , ksEmpty
+  , ksUnion
 
   -- * Qualifiers
   , Qualifier (..)
 
- ) where
+  -- * FQ Definitions 
+  , Def (..)
+  ) where
 
 import GHC.Generics         (Generic)
 import Debug.Trace          (trace)
@@ -127,6 +136,7 @@ import Data.Maybe           (fromMaybe)
 import Text.Printf          (printf)
 import Control.DeepSeq
 import Control.Arrow        ((***))
+import Control.Exception    (assert)
 
 import Language.Fixpoint.Misc
 import Text.PrettyPrint.HughesPJ
@@ -142,6 +152,22 @@ class Fixpoint a where
   simplify :: a -> a 
   simplify =  id
 
+------------------------------------------------------------------------
+-- | Entities in Query File --------------------------------------------
+------------------------------------------------------------------------
+
+data Def a 
+  = Srt Sort
+  | Axm Pred
+  | Cst (SubC a)
+  | Wfc (WfC a)
+  | Con Symbol Sort
+  | Qul Qualifier
+  | Kut Symbol
+  | IBind Int Symbol SortedReft
+  -- deriving (Show, Generic, Data, Typeable)
+  --  Sol of solbind
+  --  Dep of FixConstraint.dep
 
 ------------------------------------------------------------------------
 
@@ -748,8 +774,16 @@ insertBindEnv x r (BE n m) = (n, BE (n + 1) (M.insert n (x, r) m))
 emptyBindEnv :: BindEnv
 emptyBindEnv = BE 0 M.empty
 
+rawBindEnv :: [(BindId, Symbol, SortedReft)] -> BindEnv
+rawBindEnv bs = BE (1 + nbs) be'
+  where 
+    nbs       = length bs
+    be        = M.fromList [(n, (x, r)) | (n, x, r) <- bs]
+    be'       = assert (M.size be == nbs) be
+
 mapBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindEnv -> BindEnv
 mapBindEnv f (BE n m) = (BE n $ M.map f m)
+
 
 instance Functor SEnv where
   fmap f (SE m) = SE $ fmap f m
@@ -1254,6 +1288,24 @@ data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
                   , quals :: ![Qualifier]
                   }
 
+-- Original Ocaml definition
+--
+-- type 'bind cfg = { 
+--    a     : int                               (* Tag arity                            *)
+--  ; ts    : Ast.Sort.t list                   (* New sorts, now = []                  *)
+--  ; ps    : Ast.pred list                     (* New axioms, now = []                 *)
+--  ; cs    : FixConstraint.t list              (* Implication Constraints              *)
+--  ; ws    : FixConstraint.wf list             (* Well-formedness Constraints          *)
+--  ; ds    : FixConstraint.dep list            (* Constraint Dependencies              *)
+--  ; qs    : Qualifier.t list                  (* Qualifiers                           *)
+--  ; kuts  : Ast.Symbol.t list                 (* "Cut"-Kvars, which break cycles      *)
+--  ; bm    : 'bind Ast.Symbol.SMap.t           (* Initial Sol Bindings                 *)
+--  ; uops  : Ast.Sort.t Ast.Symbol.SMap.t      (* Globals: measures + distinct consts) *)
+--  ; cons  : Ast.Symbol.t list                 (* Distinct Constants, defined in uops  *)
+--  ; assm  : FixConstraint.soln                (* Seed Solution: must be a fixpoint over constraints *)
+-- }
+
+
 -- toFixs = brackets . hsep . punctuate comma -- . map toFix 
 
 toFixpoint x'    = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x'
@@ -1369,7 +1421,7 @@ instance Falseable Reft where
 
 
 ---------------------------------------------------------------
--- |String Constants ------------------------------------------
+-- | String Constants -----------------------------------------
 ---------------------------------------------------------------
 
 symConstLits    :: FInfo a -> [(Symbol, Sort)]

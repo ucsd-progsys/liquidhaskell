@@ -6,27 +6,33 @@ import Language.Fixpoint.Config hiding (config)
 import Data.Maybe                      (fromMaybe, listToMaybe)
 import System.Console.CmdArgs                  
 import System.Console.CmdArgs.Verbosity (whenLoud)
-
-
+import Control.Applicative ((<$>))
+import Language.Fixpoint.Parse
+import Language.Fixpoint.Types
+import Text.PrettyPrint.HughesPJ
 
 main = do cfg <- getOpts 
           whenLoud $ putStrLn $ "Options: " ++ show cfg
-          solveFile cfg
+          if (native cfg) 
+            then solveNative (inFile cfg) 
+            else solveFile   cfg
 
 config = Config { 
     inFile   = def   &= typ "TARGET"       &= args    &= typFile 
   , outFile  = "out" &= help "Output file"  
   , solver   = def   &= help "Name of SMT Solver" 
   , genSorts = def   &= help "Generalize qualifier sorts"
-}  &= verbosity
-   &= program "fixpoint" 
-   &= help    "Predicate Abstraction Based Horn-Clause Solver" 
-   &= summary "fixpoint © Copyright 2009-13 Regents of the University of California." 
-   &= details [ "Predicate Abstraction Based Horn-Clause Solver"
-              , ""
-              , "To check a file foo.fq type:"
-              , "  fixpoint foo.fq"
-              ]
+  , native   = False &= help "Use (new, non-working) Haskell Solver"
+  }  
+  &= verbosity
+  &= program "fixpoint" 
+  &= help    "Predicate Abstraction Based Horn-Clause Solver" 
+  &= summary "fixpoint © Copyright 2009-13 Regents of the University of California." 
+  &= details [ "Predicate Abstraction Based Horn-Clause Solver"
+             , ""
+             , "To check a file foo.fq type:"
+             , "  fixpoint foo.fq"
+             ]
 
 getOpts :: IO Config 
 getOpts = do md <- cmdArgs config 
@@ -35,3 +41,22 @@ getOpts = do md <- cmdArgs config
 
 banner args =  "Liquid-Fixpoint © Copyright 2009-13 Regents of the University of California.\n" 
             ++ "All Rights Reserved.\n"
+
+---------------------------------------------------------------------------------
+-- Hook for Haskell Solver ------------------------------------------------------
+---------------------------------------------------------------------------------
+
+solveNative file 
+  = do str     <- readFile file
+       let q    = rr' file str :: FInfo ()
+       res     <- solveQuery q
+       putStrLn $ "Result: " ++ show res
+       error "TODO: enzo"
+
+--------------------------------------------------------------
+solveQuery :: FInfo a -> IO (FixResult a) 
+--------------------------------------------------------------
+solveQuery q 
+  = do putStrLn $ "Query Was: " ++ (render $ toFixpoint q)
+       return Safe 
+       -- error "TODO: Enzo"

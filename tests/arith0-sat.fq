@@ -1,0 +1,14 @@
+bind 0 x : {VV: int | [(VV = 0)] }
+bind 1 y : {VV: int | [(VV = x + 1)]}
+bind 2 x : {VV: int | [] }
+bind 3 z : {VV: int | [(VV = x - 1)]}
+
+constraint:
+  env [ 0 
+      ; 1 
+      ]
+  grd true
+  lhs {VV : int | [(VV = y)]}
+  rhs {VV : int | [(VV > 0)]}
+  id 1
+

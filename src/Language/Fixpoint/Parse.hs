@@ -13,7 +13,7 @@ module Language.Fixpoint.Parse (
 
   -- * Some Important keyword and parsers
   , reserved, reservedOp
-  , parens  , brackets
+  , parens  , brackets, braces
   , semi    , comma     
   , colon   , dcolon 
   , whiteSpace, blanks
@@ -30,6 +30,7 @@ module Language.Fixpoint.Parse (
   , exprP       -- Expressions
   , predP       -- Refinement Predicates
   , qualifierP  -- Qualifiers
+  , refP        -- (Sorted) Refinements
 
   -- * Some Combinators
   , condIdP     -- condIdP  :: [Char] -> (String -> Bool) -> Parser String
@@ -52,11 +53,12 @@ import Text.Parsec.String hiding (Parser, parseFromFile)
 import Text.Printf  (printf)
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet as S
 
 import Data.Char (isLower, toUpper)
 import Language.Fixpoint.Misc hiding (dcolon)
 import Language.Fixpoint.Types
-import Data.Maybe(maybe)
+import Data.Maybe(maybe, fromJust)
 
 type Parser = Parsec String Integer 
 
@@ -112,6 +114,7 @@ colon         = Token.colon         lexer
 comma         = Token.comma         lexer
 whiteSpace    = Token.whiteSpace    lexer
 stringLiteral = Token.stringLiteral lexer
+braces        = Token.braces        lexer
 
 -- identifier = Token.identifier lexer
 
@@ -120,8 +123,9 @@ blanks  = many (satisfy (`elem` [' ', '\t']))
 
 integer =   try (liftM toInt is) 
        <|>  liftM (negate . toInt) (char '-' >> is)
-  where is      = liftM2 (\is _ -> is) (many1 digit) blanks 
-        toInt s = (read s) :: Integer 
+  where 
+    is      = liftM2 (\is _ -> is) (many1 digit) blanks 
+    toInt s = (read s) :: Integer 
 
 ----------------------------------------------------------------
 ------------------------- Expressions --------------------------
@@ -280,6 +284,16 @@ refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
        <|> liftM ((:[]) . RConc) predP
 
+refP :: Parser (Reft -> a) -> Parser a
+refP kindP
+  = braces $ do
+      v   <- symbolP 
+      colon
+      t   <- kindP
+      reserved "|"
+      ras <- refasP 
+      return $ t (Reft (v, ras))
+
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------
 ---------------------------------------------------------------------
@@ -304,9 +318,72 @@ mkParam s      = stringSymbolRaw ('~' : toUpper c : cs)
   where 
     (c:cs)     = symbolString s 
 
-
 ---------------------------------------------------------------------
------------- Interacting with Fixpoint ------------------------------
+-- | Parsing Constraints (.fq files) --------------------------------
+---------------------------------------------------------------------
+
+fInfoP :: Parser (FInfo ())
+fInfoP = defsFInfo <$> many defP
+
+defP :: Parser (Def ())
+defP =  Srt   <$> (reserved "sort"        >> colon >> sortP)
+    <|> Axm   <$> (reserved "axiom"       >> colon >> predP)
+    <|> Cst   <$> (reserved "constraint"  >> colon >> subCP)
+    <|> Wfc   <$> (reserved "wf"          >> colon >> wfCP)
+    <|> Con   <$> (reserved "constant"    >> symbolP) <*> (colon >> sortP)
+    <|> Qul   <$> (reserved "qualifier"   >> qualifierP)
+    <|> Kut   <$> (reserved "cut"         >> symbolP)
+    <|> IBind <$> (reserved "bind"        >> intP) <*> symbolP <*> (colon >> sortedReftP)
+
+sortedReftP :: Parser SortedReft
+sortedReftP = refP (RR <$> (sortP <* spaces)) 
+
+wfCP :: Parser (WfC ())
+wfCP = do reserved "env"
+          env <- envP
+          reserved "reft"
+          r   <- sortedReftP
+          return $ WfC env r Nothing ()
+
+subCP :: Parser (SubC ())
+subCP = do reserved "env" 
+           env <- envP 
+           reserved "grd"
+           grd <- predP
+           reserved "lhs"
+           lhs <- sortedReftP 
+           reserved "rhs"
+           rhs <- sortedReftP 
+           reserved "id"
+           i   <- (integer <* spaces)
+           tag <- tagP
+           return $ SubC env grd lhs rhs (Just i) tag () 
+
+tagP  :: Parser [Int]
+tagP  =  try (reserved "tag" >> spaces >> (brackets $ sepBy intP semi))
+     <|> (return [])
+
+envP  :: Parser IBindEnv
+envP  = do binds <- brackets $ sepBy (intP <* spaces) semi 
+           return $ insertsIBindEnv binds emptyIBindEnv
+
+intP :: Parser Int
+intP = fromInteger <$> integer
+
+defsFInfo :: [Def a] -> FInfo a
+defsFInfo defs = FI cm ws bs gs lts kts qs
+  where 
+    cm     = M.fromList       [(cid c, c)     | Cst c       <- defs]
+    ws     =                  [w              | Wfc w       <- defs]
+    bs     = rawBindEnv       [(n, x, r)      | IBind n x r <- defs]
+    gs     = fromListSEnv     [(x, RR t top)  | Con x t     <- defs]
+    lts    =                  [(x, t)         | Con x t     <- defs, notFun t]
+    kts    = KS $ S.fromList  [k              | Kut k       <- defs]     
+    qs     =                  [q              | Qul q       <- defs]
+    cid    = fromJust . sid
+    notFun = not . isFunctionSortedReft . (`RR` top) 
+---------------------------------------------------------------------
+-- | Interacting with Fixpoint --------------------------------------
 ---------------------------------------------------------------------
 
 fixResultP :: Parser a -> Parser (FixResult a)
@@ -314,8 +391,6 @@ fixResultP pp
   =  (reserved "SAT"   >> return Safe)
  <|> (reserved "UNSAT" >> Unsafe <$> (brackets $ sepBy pp comma))  
  <|> (reserved "CRASH" >> crashP pp)
-
-
 
 crashP pp
   = do i   <- pp
@@ -398,6 +473,9 @@ instance Inputable (FixResult Integer) where
 
 instance Inputable (FixResult Integer, FixSolution) where
   rr' = doParse' solutionFileP 
+
+instance Inputable (FInfo ()) where
+  rr' = doParse' fInfoP
 
 {-
 ---------------------------------------------------------------
