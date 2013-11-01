@@ -32,6 +32,7 @@ module Language.Haskell.Liquid.Types (
   , mkArrow, bkArrowDeep, bkArrow, safeBkArrow 
   , mkUnivs, bkUniv, bkClass
   , rFun
+  ,addTermCond
 
   -- * Manipulating Predicate
   , pvars
@@ -485,6 +486,9 @@ data RType p c tv r
     , rt_reft  :: !r
     }
 
+  | RRef  {
+      rr_ref   :: !r
+    }
   | ROth  !String 
 
 -- MOVE TO TYPES
@@ -613,6 +617,10 @@ bkClass t                        = ([], t)
 
 rFun b t t' = RFun b t t' top
 
+addTermCond t r = mkArrow αs πs xts' t2
+  where (αs, πs, t1) = bkUniv t
+        (xs, ts, t2) = bkArrow t1
+        xts'         = zip (xs++[dummySymbol]) (ts++[RRef r])
 
 --------------------------------------------
 
@@ -706,6 +714,7 @@ emapReft f γ (RAllE z t t')      = RAllE z (emapReft f γ t) (emapReft f γ t')
 emapReft f γ (REx z t t')        = REx   z (emapReft f γ t) (emapReft f γ t')
 emapReft _ _ (RExprArg e)        = RExprArg e
 emapReft f γ (RAppTy t t' r)     = RAppTy (emapReft f γ t) (emapReft f γ t') (f γ r)
+emapReft f γ (RRef r)            = RRef (f γ r)
 emapReft _ _ (ROth s)            = ROth  s 
 
 emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> Ref (RType p c tv ()) t (RType p c tv t) -> Ref (RType p c tv ()) s (RType p c tv s)

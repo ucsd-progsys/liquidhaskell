@@ -107,6 +107,8 @@ ppr_rtype bb p (RAppTy t t' r)
   = ppTy r $ ppr_rtype bb p t <+> ppr_rtype bb p t'
 ppr_rtype _ _ (ROth s)
   = text $ "???-" ++ s 
+ppr_rtype _ _ (RRef r)         
+  = text "<<" <+> pprint r <+> text ">>"
 
 -- | From GHC: TypeRep 
 -- pprArrowChain p [a,b,c]  generates   a -> b -> c

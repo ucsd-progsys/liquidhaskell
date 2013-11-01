@@ -487,6 +487,7 @@ tyClasses (RAppTy t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RApp _ ts _ _) = concatMap tyClasses ts 
 tyClasses (RCls c ts)     = (c, ts) : concatMap tyClasses ts 
 tyClasses (RVar α _)      = [] 
+tyClasses (RRef _)        = [] 
 tyClasses t               = errorstar ("RefType.tyClasses cannot handle" ++ show t)
 
 
@@ -517,6 +518,7 @@ instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) wher
   rnf (ROth s)         = rnf s
   rnf (RExprArg e)     = rnf e
   rnf (RAppTy t t' r)  = rnf t `seq` rnf t' `seq` rnf r
+  rnf (RRef r)         = rnf r 
 
 ----------------------------------------------------------------
 ------------------ Printing Refinement Types -------------------
@@ -592,6 +594,8 @@ subsFree m s z (REx x t t')
 subsFree m s z@(_, _, _) (RAppTy t t' r)
   = subsFreeRAppTy m s (subsFree m s z t) (subsFree m s z t') r
 subsFree _ _ _ t@(RExprArg _)        
+  = t
+subsFree _ _ _ t@(RRef _)        
   = t
 subsFree _ _ _ t@(ROth _)        
   = t
