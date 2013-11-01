@@ -354,6 +354,11 @@ splitC (SubC γ t1 (RAllE x tx t2))
   = do γ' <- (γ, "addExBind 2") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
+splitC (SubC γ (RFun _ (RRef r) t1 _) t2)
+  = do cs <- splitRef γ r
+       cs' <- splitC (SubC γ t1 t2)
+       return $ cs ++ cs'
+
 splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
   =  do cs       <- bsplitC γ t1 t2 
         cs'      <- splitC  (SubC γ r2 r1) 
@@ -438,6 +443,19 @@ bsplitC' γ t1 t2 pflag
     err = Just $ ErrSubType src (text "subtype") t1 t2 
     src = loc γ 
 
+splitRef γ r 
+  = return [F.subC γ' F.PTrue r1 r2 Nothing tag ci]
+  where
+    γ'  = fe_binds $ fenv γ
+    r1  = F.RR s $ F.toReft r
+    r2  = F.RR s $ F.Reft (vv, [F.RConc $ F.PBexp $ F.EVar vv])
+    vv  = F.S "vvRec"
+    s   = F.FApp F.boolFTyCon []
+    ci  = Ci src Nothing
+    tag = getTag γ
+    src = loc γ 
+     
+
 unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
        return  $ (shiftVV t1 vv,  (shiftVV t2 vv) ) -- {rt_pargs = r2s'})
@@ -468,7 +486,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) 
                      , specQuals  :: ![F.Qualifier]
                      , specDecr   :: ![(Var, [Int])]
-                     , termExprs  :: ![(Var, [F.Expr])]
+                     , termExprs  :: !(M.HashMap Var [F.Expr])
                      , specLVars  :: !(S.HashSet Var)
                      , specLazy   :: !(S.HashSet Var)
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
@@ -513,7 +531,7 @@ initCGI cfg info = CGInfo {
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
-  , termExprs  = texprs spc
+  , termExprs  = M.fromList $ texprs spc
   , specDecr   = decr spc
   , specLVars  = lvars spc
   , specLazy   = lazy spc
@@ -873,27 +891,34 @@ consCBSizedTys tflag γ (Rec xes)
 consCBWithExprs γ xtes (Rec xes) 
   = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        let ts  = fromJust . thd3 <$> xets
+       let vs    = zipWith collectArgs ts es
        ts'      <- mapM refreshArgs ts
        let ys  = (fst3 . bkArrowDeep) <$> ts 
        let ys' = (fst3 . bkArrowDeep) <$> ts'
-       let sus = zipWith mkSub ys ys'
-       let ess = (fromJust . (`L.lookup` xts)) <$> xs
-       let es' = zipWith (\su es -> F.subst su <$> es)  sus ess 
-       let ([(xx,es')], [(x, e)], [(_,_,t)]) = (xtes, xes, xets)
-       errorstar $ showPpr x ++ showPpr xx ++ show es' ++ "\n" ++ show t ++ show ts'
-       let rts   = undefined
+       let sus' = zipWith mkSub ys ys'
+       let sus = zipWith mkSub ys ((F.symbol <$>) <$> vs)
+       let ess = (fromJust . (`L.lookup` xtes)) <$> xs
+       let tes  = zipWith (\su es -> F.subst su <$> es)  sus ess 
+       let tes' = zipWith (\su es -> F.subst su <$> es)  sus' ess 
+       let ([(xx,es'')], [(x, e)], [(_,_,t)]) = (xtes, xes, xets)
+       let rss = zipWith makeLexRefa tes tes'
+       let rts = zipWith addTermCond ts' rss
+--       errorstar $ showPpr x ++ showPpr xx ++ show es'' ++ "\n" ++ show t ++ show ts' ++ show rts
        let xts   = zip xs (Just <$> ts')
        γ'       <- foldM extender γ xts
-       let γs    = [γ' `withTRec` (zip xs rts') | rts' <- rts]
+       let γs    = repeat $ γ' `withTRec` (zip xs rts)
        let xets' = zip3 xs es (Just <$> ts')
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
   where (xs, es) = unzip xes
         mkSub ys ys' = F.mkSubst [(x, F.EVar y) | (x, y)<- zip ys ys']
+        makeLexRefa (e:_) (e':_) = uTop $ F.Reft (vv, [F.RConc $ F.PIff (F.PBexp $ F.EVar vv) $ F.PAtom F.Lt e' e])
+        vv = F.stringSymbol "vvRec"
+        collectArgs   = collectArguments . length . fst3 . bkArrow . thd3 . bkUniv
 
 consCB tflag γ (Rec xes) | tflag 
   = do texprs <- termExprs <$> get
-       let xxes = filter ((`elem` xs) . fst) texprs
+       let xxes = catMaybes $ (`lookup` texprs) <$> xs 
        if null xxes 
          then consCBSizedTys tflag γ (Rec xes)
          else check xxes <$> consCBWithExprs γ xxes (Rec xes)
@@ -902,6 +927,8 @@ consCB tflag γ (Rec xes) | tflag
                    | otherwise              = errorstar err
         err = printf "%s: Termination expressions should be provided for ALL mutual recursive functions" loc
         loc = showPpr $ getSrcSpan (head xs)
+        lookup k m | Just x <- M.lookup k m = Just (k, x)
+                   | otherwise              = Nothing
 
 -- TODO : no termination check:
 -- check that the result type is trivial!

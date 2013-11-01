@@ -15,7 +15,7 @@ data L a = N | C a (L a)
 
 {-@ invariant {v: L a | (llen v) >= 0} @-}
 
-{-@ reverse :: xs: L a -> ys : L a -> L a / [(llen ys)] @-}
+{-@ reverse :: xs: L a -> ys : L a -> L a / [(llen xs)] @-}
 reverse :: L a -> L a -> L a
 reverse xs N = xs
 reverse xs (C y ys) = reverse (C y xs) ys
