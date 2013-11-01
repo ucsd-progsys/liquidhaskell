@@ -123,62 +123,6 @@ Meaning we have to rewrite the above to the rather lame:
   qualif EqPLenPOLY2(v: a, x: b): (plen v) = (fplen x)           
 
 
-Module Import (branch: imports) 
-===============================
-
-See tests/pos/Mod2.hs [Which imports a measure from Mod1.hs]
-
-    [STOP] Get tests to run WITHOUT after deleting *redundant*
-
-    import qualified Mod1
-
-0. NO MONOLITHIC "bare".
- 
-   >   When converting a SPEC, do so in its own context.
-
-1. When Parsing IMPORTED module, FULL QUALIFY all names 
-
-    a. write specs WITHOUT QUALIFICATION
-    b. Remember MODULE name when parsing spec
-    c. reJigger so DataCon/TyCon/Id get slapped with the module name (if not qualified)
-
-2. When Parsing TARGET module, REMEMBER all qualifications 
-
-        [Foo.Bar.Baz as F, ...]
-
-3. When GHC-Lookup-ing, use above table:
-
-    name of DataCon/TyCon/Id in file
-
-        x
-
-    name after FULL expansion (1)
-
-        Foo.Bar.Baz.x
-
-    name after qualification
-        
-        F.x
-
-    use F.x when doing GHC-lookup.
-
-
-Type-Indexed Measures
---------------------------
-1. build map from (classmeasure,tycon) -> measure
-2. verify instances
-   a. instance def should be subtype of class def with concrete
-      measure subbed in.
-   b.
-3. sub instance measure for class when concrete instance is used, e.g.
-
-        sumList :: [Int] -> Int
-
-   otherwise should be able to reason using class measure? e.g.
-
-        sum :: Indexable s => s Int -> Int
-
-
 
 Benchmarks
 ==========
