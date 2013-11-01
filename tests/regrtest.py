@@ -95,9 +95,6 @@ class Config (rtest.TestConfig):
 #####################################################################################
 
 #DEFAULT
-# ByteString.hs is split into two smaller files for faster checking..
-bytestringIgnored = { "Data/ByteString.hs"
-                    }
 
 textIgnored = { "Data/Text/Axioms.hs"
               , "Data/Text/Encoding/Error.hs"
@@ -141,7 +138,7 @@ regtestdirs  = [ ("pos", {}, 0)
 
 benchtestdirs = [ ("../web/demos", demosIgnored, 0)
                 , ("../benchmarks/esop2013-submission", {"Base0.hs"}, 0)
-                , ("../benchmarks/bytestring-0.9.2.1", bytestringIgnored, 0)
+                , ("../benchmarks/bytestring-0.9.2.1", {}, 0)
                 , ("../benchmarks/text-0.11.2.3", textIgnored, 0)
                 , ("../benchmarks/vector-algorithms-0.5.4.2", {}, 0)
                 ]
