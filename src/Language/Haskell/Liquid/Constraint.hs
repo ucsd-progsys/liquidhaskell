@@ -451,7 +451,8 @@ splitRef γ r
     r2  = F.RR s $ F.Reft (vv, [F.RConc $ F.PBexp $ F.EVar vv])
     vv  = F.S "vvRec"
     s   = F.FApp F.boolFTyCon []
-    ci  = Ci src Nothing
+    ci  = Ci src err
+    err = Just $ ErrAssType src (text "termination type error") r
     tag = getTag γ
     src = loc γ 
      
