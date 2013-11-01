@@ -36,10 +36,11 @@ data Config
     , outFile  :: FilePath         -- output file
     , solver   :: SMTSolver        -- which SMT solver to use 
     , genSorts :: GenQualifierSort -- generalize qualifier sorts
+    , native   :: Bool             -- use haskell solver
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
-  def = Config "" def def def
+  def = Config "" def def def def
 
 instance Command Config where 
   command c =  command (genSorts c)    

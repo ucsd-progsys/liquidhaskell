@@ -336,7 +336,7 @@ defP =  Srt   <$> (reserved "sort"        >> colon >> sortP)
     <|> IBind <$> (reserved "bind"        >> intP) <*> symbolP <*> (colon >> sortedReftP)
 
 sortedReftP :: Parser SortedReft
-sortedReftP = refP (RR <$> sortP) 
+sortedReftP = refP (RR <$> (sortP <* spaces)) 
 
 wfCP :: Parser (WfC ())
 wfCP = do reserved "env"
@@ -355,13 +355,16 @@ subCP = do reserved "env"
            reserved "rhs"
            rhs <- sortedReftP 
            reserved "id"
-           i   <- integer
-           reserved "tag"
-           tag <- brackets $ sepBy intP semi
+           i   <- (integer <* spaces)
+           tag <- tagP
            return $ SubC env grd lhs rhs (Just i) tag () 
 
+tagP  :: Parser [Int]
+tagP  =  try (reserved "tag" >> spaces >> (brackets $ sepBy intP semi))
+     <|> (return [])
+
 envP  :: Parser IBindEnv
-envP  = do binds <- brackets $ sepBy intP semi
+envP  = do binds <- brackets $ sepBy (intP <* spaces) semi 
            return $ insertsIBindEnv binds emptyIBindEnv
 
 intP :: Parser Int
@@ -470,6 +473,9 @@ instance Inputable (FixResult Integer) where
 
 instance Inputable (FixResult Integer, FixSolution) where
   rr' = doParse' solutionFileP 
+
+instance Inputable (FInfo ()) where
+  rr' = doParse' fInfoP
 
 {-
 ---------------------------------------------------------------
