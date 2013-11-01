@@ -282,9 +282,8 @@ specParser file str
 
 moduleImports :: GhcMonad m => [Ext] -> [FilePath] -> [String] -> m [(String, FilePath)]
 moduleImports exts paths names
-  = do modGraph <- getModuleGraph
-       liftM concat $ forM names $ \name -> do
-         map (name,) . catMaybes <$> mapM (moduleFile paths name) exts
+  = liftM concat $ forM names $ \name -> do
+      map (name,) . catMaybes <$> mapM (moduleFile paths name) exts
 
 moduleFile :: GhcMonad m => [FilePath] -> String -> Ext -> m (Maybe FilePath)
 moduleFile paths name ext

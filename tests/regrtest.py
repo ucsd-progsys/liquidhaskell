@@ -43,7 +43,8 @@ def solve_quals(dir,file,bare,time,quiet,flags,lflags):
   if lflags: lflags = ["--" + f for f in lflags]
   hygiene_flags = []
   out = open(os.path.join(dir,file) + ".log", "w")
-  rv  = logged_sys_call(time + solve + flags + lflags + hygiene_flags + [file], out, dir=dir)
+  rv  = logged_sys_call(time + solve + flags + lflags + hygiene_flags + [file],
+                        out=out, err=subprocess.STDOUT, dir=dir)
   out.close()
   return rv
 
@@ -142,6 +143,7 @@ benchtestdirs = [ ("../web/demos", demosIgnored, 0)
                 , ("../benchmarks/esop2013-submission", {"Base0.hs"}, 0)
                 , ("../benchmarks/bytestring-0.9.2.1", bytestringIgnored, 0)
                 , ("../benchmarks/text-0.11.2.3", textIgnored, 0)
+                , ("../benchmarks/vector-algorithms-0.5.4.2", {}, 0)
                 ]
 
 parser = optparse.OptionParser()
