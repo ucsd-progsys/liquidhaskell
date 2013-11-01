@@ -42,7 +42,7 @@ import Data.Vector.Generic.Mutable
 import Data.Vector.Algorithms.Common (Comparison)
 
 -- LIQUID: seems to break compilation
-#include "vector.h"
+#include "../../../include/vector.h"
 
 -- | Sorts the elements at the positions 'off' and 'off + 1' in the given
 -- array using the comparison.

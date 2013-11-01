@@ -1,6 +1,6 @@
 module spec Foreign.Storable where
 
-import Language.Haskell.Liquid.Foreign
+import Foreign.Ptr
 
 predicate PValid P N         = ((0 <= N) && (N < (plen P)))   
 
