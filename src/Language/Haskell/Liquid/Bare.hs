@@ -44,7 +44,7 @@ import Data.Function            (on)
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames)
-import Language.Fixpoint.Types                  hiding (Predicate)
+import Language.Fixpoint.Types                  hiding (Def, Predicate)
 import Language.Fixpoint.Sort                   (checkSortedReftFull)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Haskell.Liquid.Misc
