@@ -24,6 +24,10 @@ DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comona
 all:
 	$(CABAL) install --ghc-options=$(OPTS) 
 
+fast:
+	$(CABAL) install
+
+
 prof:
 	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS) 
 

@@ -129,7 +129,7 @@ import Text.Parsec.Error            (ParseError)
 import Text.PrettyPrint.HughesPJ    
 import Language.Fixpoint.Config     hiding (Config) 
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Types      hiding (Predicate) 
+import Language.Fixpoint.Types      hiding (Predicate, Def) 
 -- import qualified Language.Fixpoint.Types as F
 
 import CoreSyn (CoreBind)

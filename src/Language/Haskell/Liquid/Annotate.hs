@@ -55,7 +55,7 @@ import Language.Fixpoint.Files
 import Language.Fixpoint.Names
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc
-import Language.Fixpoint.Types
+import Language.Fixpoint.Types hiding (Def (..))
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
