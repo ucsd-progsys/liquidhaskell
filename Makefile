@@ -12,6 +12,8 @@ GHC=$(GHCHOME)/ghc
 GPG=$(GHCHOME)/ghc-pkg
 
 #OPTS="-W -O2 -XStandaloneDeriving -XDeriveDataTypeable"
+
+FOPTS=""
 OPTS="-W -O2 -XStandaloneDeriving"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
 
@@ -26,7 +28,6 @@ all:
 
 fast:
 	$(CABAL) install
-
 
 prof:
 	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS) 
