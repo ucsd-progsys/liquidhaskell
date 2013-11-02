@@ -49,14 +49,16 @@ import Data.Bits
 import Data.Int
 import Data.Word
 
+import Language.Haskell.Liquid.Foreign
+import Language.Haskell.Liquid.Prelude (liquidAssert, liquidAssume)
 
 import Foreign.Storable
 
 class Radix e where
   -- | The number of passes necessary to sort an array of es
-  passes :: e -> Int
+  passes  :: e -> Int
   -- | The size of an auxiliary array
-  size   :: e -> Int
+  size :: e -> Int
   -- | The radix function parameterized by the current pass
   radix  :: Int -> e -> Int
 
@@ -173,8 +175,26 @@ instance (Radix i, Radix j) => Radix (i, j) where
   size   ~(i, j) = size i `max` size j
   {-# INLINE size #-}
   radix k ~(i, j) | k < passes j = radix k j
-                     | otherwise    = radix (k - passes j) i
+                  | otherwise    = radix (k - passes j) i
   {-# INLINE radix #-}
+
+-----------------------------------------------------------------------
+-- LIQUID Assumes -----------------------------------------------------
+-----------------------------------------------------------------------
+
+{-@ measure radixSize :: a -> Int @-}
+
+{-@ Data.Vector.Algorithms.Radix.radix 
+      :: (Data.Vector.Algorithms.Radix.Radix e) 
+      => Int -> x:e -> {v:Nat | v < (radixSize x)} 
+  @-}
+
+{-@ Data.Vector.Algorithms.Radix.size  
+      :: (Data.Vector.Algorithms.Radix.Radix e) 
+      => x:e -> {v:Nat | v = (radixSize x)}        
+  @-}
+
+-----------------------------------------------------------------------
 
 -- | Sorts an array based on the Radix instance.
 sort :: forall e m v. (PrimMonad m, MVector v e, Radix e)
@@ -191,71 +211,82 @@ sort arr = sortBy (passes e) (size e) radix arr
 -- one greater than the maximum value returned by the radix
 -- function), and a radix function, which takes the pass
 -- and an element, and returns the relevant radix.
+{-@ sortBy :: (PrimMonad m, MVector v e)
+       => Int
+       -> n:Nat
+       -> (Int -> e -> {v:Nat | v < n})
+       -> v (PrimState m) e
+       -> m ()
+  @-}
+
 sortBy :: (PrimMonad m, MVector v e)
        => Int               -- ^ the number of passes
        -> Int               -- ^ the size of auxiliary arrays
        -> (Int -> e -> Int) -- ^ the radix function
        -> v (PrimState m) e -- ^ the array to be sorted
        -> m ()
-sortBy passes size rdx arr = do
-  tmp    <- new (length arr)
-  count  <- new size
-  radixLoop passes rdx arr tmp count
+-- LIQUID: renamed param size ~~~~> sizLIQUID to avoid name lookup clash, (issue #138)
+sortBy passes sizLIQUID rdx arr = do
+  let nArr = length arr
+  tmp    <- new nArr -- (length arr)
+  count  <- new sizLIQUID
+  let nCount = length count
+  radixLoop passes arr tmp (liquidAssert (sizLIQUID == nCount) count) rdx 
 {-# INLINE sortBy #-}
 
 radixLoop :: (PrimMonad m, MVector v e)
           => Int                          -- passes
-          -> (Int -> e -> Int)            -- radix function
           -> v (PrimState m) e            -- array to sort
           -> v (PrimState m) e            -- temporary array
           -> PV.MVector (PrimState m) Int -- radix count array
+          -> (Int -> e -> Int)            -- radix function
           -> m ()
-radixLoop passes rdx src dst count = go False 0
+radixLoop passes src dst count rdx = go False passes 0
  where
  len = length src
- go swap k
+ go swap (twit :: Int) (k :: Int)
    | k < passes = if swap
-                    then body rdx dst src count k >> go (not swap) (k+1)
-                    else body rdx src dst count k >> go (not swap) (k+1)
+                    then body dst src count rdx k >> go (not swap) (twit-1) (k+1)
+                    else body src dst count rdx k >> go (not swap) (twit-1) (k+1)
    | otherwise  = when swap (unsafeCopy src dst)
 {-# INLINE radixLoop #-}
 
 body :: (PrimMonad m, MVector v e)
-     => (Int -> e -> Int)            -- radix function
-     -> v (PrimState m) e            -- source array
+     => v (PrimState m) e            -- source array
      -> v (PrimState m) e            -- destination array
      -> PV.MVector (PrimState m) Int -- radix count
+     -> (Int -> e -> Int)            -- radix function
      -> Int                          -- current pass
      -> m ()
-body rdx src dst count k = do
-  countLoop (rdx k) src count
+body src dst count rdx k = do
+  countLoop src count (rdx k) 
   accumulate count
-  moveLoop k rdx src dst count
+  moveLoop k src dst count rdx 
 {-# INLINE body #-}
 
 accumulate :: (PrimMonad m)
            => PV.MVector (PrimState m) Int -> m ()
-accumulate count = go 0 0
+accumulate count = go len 0 0
  where
  len = length count
- go i acc
+ go (twit :: Int) (i :: Int) acc
    | i < len   = do ci <- unsafeRead count i
                     unsafeWrite count i acc
-                    go (i+1) (acc + ci)
+                    go (twit - 1) (i+1) (acc + ci)
    | otherwise = return ()
 {-# INLINE accumulate #-}
 
 moveLoop :: (PrimMonad m, MVector v e)
-         => Int -> (Int -> e -> Int) -> v (PrimState m) e
-         -> v (PrimState m) e -> PV.MVector (PrimState m) Int -> m ()
-moveLoop k rdx src dst prefix = go 0
+         => Int -> v (PrimState m) e -> v (PrimState m) e -> PV.MVector (PrimState m) Int 
+         -> (Int -> e -> Int) -> m ()
+moveLoop k src dst prefix rdx = go len 0
  where
  len = length src
- go i
+ go (twit :: Int) (i :: Int)
    | i < len    = do srci <- unsafeRead src i
                      pf   <- inc prefix (rdx k srci)
-                     unsafeWrite dst pf srci
-                     go (i+1)
+                     unsafeWrite dst (liquidAssume (0 <= pf  && pf < len) pf) srci
+                     go (twit-1) (i+1)
    | otherwise  = return ()
 {-# INLINE moveLoop #-}
 

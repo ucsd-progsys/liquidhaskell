@@ -15,7 +15,7 @@ import qualified Data.HashSet        as S
 
 import Control.Applicative ((<$>), (<*), (<*>))
 import Data.Char (toLower, isLower, isSpace, isAlpha)
-import Data.List (partition)
+import Data.List (foldl', partition)
 import Data.Monoid (mempty)
 
 import GHC (mkModuleName, ModuleName)
@@ -123,7 +123,6 @@ remLineCol src rem = (line, col)
 ----------------------------------------------------------------------------------
 
 dot           = Token.dot           lexer
-braces        = Token.braces        lexer
 angles        = Token.angles        lexer
 stringLiteral = Token.stringLiteral lexer
 
@@ -136,11 +135,18 @@ stringLiteral = Token.stringLiteral lexer
 
 bareTypeP :: Parser BareType 
 
+-- bareTypeP   
+--   =  try bareFunP
+--  <|> bareAllP
+--  <|> bareAllExprP
+--  <|> bareExistsP
+--  <|> bareAtomP 
+ 
 bareTypeP   
-  =  try bareFunP
- <|> bareAllP
+  =  bareAllP
  <|> bareAllExprP
  <|> bareExistsP
+ <|> try bareFunP
  <|> bareAtomP 
  
 bareArgP 
@@ -155,7 +161,8 @@ bbaseP :: Parser (Reft -> BareType)
 bbaseP 
   =  liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
- <|> try (liftM2 bAppTy lowerIdP bareTyArgP)
+ <|> try (liftM2 bAppTy lowerIdP (sepBy1 bareTyArgP blanks))
+--  <|> try (liftM2 bAppTy lowerIdP bareTyArgP)
  <|> try (liftM2 bRVar lowerIdP monoPredicateP)
  <|> liftM3 bCon upperIdP predicatesP (sepBy bareTyArgP blanks)
 
@@ -287,15 +294,16 @@ dummyP ::  Monad m => m (Reft -> b) -> m b
 dummyP fm 
   = fm `ap` return dummyReft 
 
-refP :: Parser (Reft -> a) -> Parser a
-refP kindP
-  = braces $ do
-      v   <- symbolP 
-      colon
-      t   <- kindP
-      reserved "|"
-      ras <- refasP 
-      return $ t (Reft (v, ras))
+-- Moved into liquid-fixpoint
+-- refP :: Parser (Reft -> a) -> Parser a
+-- refP kindP
+--   = braces $ do
+--       v   <- symbolP 
+--       colon
+--       t   <- kindP
+--       reserved "|"
+--       ras <- refasP 
+--       return $ t (Reft (v, ras))
 
 symsP
   = do reserved "\\"
@@ -359,9 +367,8 @@ bTup ts rs r              = RApp tupConName ts rs (reftUReft r)
 bCon b [RMono _ r1] [] r  = RApp b [] [] (r1 `meet` (reftUReft r)) 
 bCon b rs ts r            = RApp b ts rs (reftUReft r)
 
-bAppTy v t r              = RAppTy (RVar v top) t (reftUReft r)
-
-
+-- bAppTy v t r             = RAppTy (RVar v top) t (reftUReft r)
+bAppTy v ts r             = (foldl' (\a b -> RAppTy a b top) (RVar v top) ts) `strengthen` (reftUReft r)
 
 
 reftUReft      = (`U` mempty)
@@ -392,6 +399,7 @@ data Pspec ty ctor
   | Pragma  (Located String)
   | CMeas   (Measure ty ())
   | IMeas   (Measure ty ctor)
+  | Class   (RClass ty)
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = (name,)
@@ -414,6 +422,7 @@ mkSpec name xs         = (name,)
   , Measure.pragmas    = [s | Pragma s <- xs]
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
+  , Measure.classes    = [c | Class  c <- xs]
   }
 
 specP :: Parser (Pspec BareType Symbol)
@@ -421,8 +430,9 @@ specP
   = try (reserved "assume"    >> liftM Assm   tyBindP   )
     <|> (reserved "assert"    >> liftM Assm   tyBindP   )
     <|> (reserved "measure"   >> liftM Meas   measureP  ) 
-    <|> (reserved "class"     >> reserved "measure" >> liftM CMeas cMeasureP)
+    <|> try (reserved "class"     >> reserved "measure" >> liftM CMeas cMeasureP)
     <|> (reserved "instance"  >> reserved "measure" >> liftM IMeas iMeasureP)
+    <|> (reserved "class"     >> liftM Class  classP    )
     <|> (reserved "import"    >> liftM Impt   symbolP   )
     <|> (reserved "data"      >> liftM DDecl  dataDeclP )
     <|> (reserved "include"   >> liftM Incl   filePathP )
@@ -510,6 +520,20 @@ iMeasureP = measureP
   --      reserved "="
   --      tgt <- symbolP
   --      return $ M m ty tgt
+
+classP :: Parser (RClass BareType)
+classP
+  = do sups <- superP
+       c <- locParserP upperIdP
+       spaces
+       tvs <- manyTill tyVarIdP (try $ reserved "where")
+       ms <- grabs tyBindP
+       spaces
+       return $ RClass (fmap symbol c) (mb sups) tvs ms
+  where
+    mb Nothing   = []
+    mb (Just xs) = xs
+    superP = maybeP (parens (bareTypeP `sepBy1` comma) <* reserved "=>")
 
 rawBodyP 
   = braces $ do
@@ -610,7 +634,18 @@ dataSizeP
   <|> return Nothing
   where mkFun s = \x -> EApp (stringSymbol s) [EVar x] 
 
-dataDeclP
+dataDeclP 
+   =  try dataDeclFullP
+  <|> dataDeclSizeP
+
+dataDeclSizeP
+  = do pos <- getPosition
+       x   <- upperIdP
+       spaces
+       fsize <- dataSizeP
+       return $ D x [] [] [] pos fsize
+
+dataDeclFullP
   = do pos <- getPosition
        x   <- upperIdP
        spaces
@@ -621,8 +656,6 @@ dataDeclP
        whiteSpace >> reservedOp "=" >> whiteSpace
        dcs <- sepBy dataConP (reserved "|")
        whiteSpace
-       -- spaces
-       -- reservedOp "--"
        return $ D x ts ps dcs pos fsize
 
 ---------------------------------------------------------------------

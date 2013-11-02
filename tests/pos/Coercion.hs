@@ -1,6 +1,5 @@
-{--! run liquid with no-termination -}
 
-{- LANGUAGE TypeFamilies #-}
+{-@ LIQUID "--no-termination" @-}
 
 module Encoding where
 

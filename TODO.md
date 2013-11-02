@@ -1,6 +1,15 @@
 TODO
 ====
 
+    l <= X <= VSIZE
+    l <= m
+    m < u,  u <= VSIZE
+    m <= VSIZE
+
+    l < VSIZE
+    l+1 < VSIZE
+    
+
 * Qualified Imports
   - wtf is include/KMeansHelper.hs ? Fix module import issue
   - break spec imports -- tests/todo/qualifiedvector.hs 
@@ -18,21 +27,26 @@ TODO
   + tests/todo/err8.hs
   + tests/todo/err9.hs
 
+* speed
+  + Data.Vector.Algorithms.Optimal
+
 vector-algorithms
 -----------------
 
-dependencies for vector algorithms
+HEREHEREHERE -- use NeVec to cleanup the `0 < (vsize vec)` refinements 
+issues:
 
-[1 of 9] Compiling Data.Vector.Algorithms.Common
-[2 of 9] Compiling Data.Vector.Algorithms.Radix
-[3 of 9] Compiling Data.Vector.Algorithms.Search   
-[4 of 9] Compiling Data.Vector.Algorithms.Optimal
-[5 of 9] Compiling Data.Vector.Algorithms.Insertion
-[6 of 9] Compiling Data.Vector.Algorithms.AmericanFlag
-[7 of 9] Compiling Data.Vector.Algorithms.Heap
-[8 of 9] Compiling Data.Vector.Algorithms.Intro 
-[9 of 9] Compiling Data.Vector.Algorithms.Merge 
+1. array-sum measure needed to discharge liquidAssume in `Radix`
 
+[OK] Compiling Data.Vector.Algorithms.Common
+[OK] Compiling Data.Vector.Algorithms.Radix
+[OK] Compiling Data.Vector.Algorithms.Search
+[OK] Compiling Data.Vector.Algorithms.Optimal
+[OK] Compiling Data.Vector.Algorithms.Insertion
+[OK] Compiling Data.Vector.Algorithms.Heap
+[OK] Compiling Data.Vector.Algorithms.Merge 
+[OK] Compiling Data.Vector.Algorithms.AmericanFlag
+[??] Compiling Data.Vector.Algorithms.Intro 
 
 hmatrix
 -------
@@ -107,62 +121,6 @@ because there is no such thing as Ptr a by the time we get to Fixpoint. yuck.
 Meaning we have to rewrite the above to the rather lame:
 
   qualif EqPLenPOLY2(v: a, x: b): (plen v) = (fplen x)           
-
-
-Module Import (branch: imports) 
-===============================
-
-See tests/pos/Mod2.hs [Which imports a measure from Mod1.hs]
-
-    [STOP] Get tests to run WITHOUT after deleting *redundant*
-
-    import qualified Mod1
-
-0. NO MONOLITHIC "bare".
- 
-   >   When converting a SPEC, do so in its own context.
-
-1. When Parsing IMPORTED module, FULL QUALIFY all names 
-
-    a. write specs WITHOUT QUALIFICATION
-    b. Remember MODULE name when parsing spec
-    c. reJigger so DataCon/TyCon/Id get slapped with the module name (if not qualified)
-
-2. When Parsing TARGET module, REMEMBER all qualifications 
-
-        [Foo.Bar.Baz as F, ...]
-
-3. When GHC-Lookup-ing, use above table:
-
-    name of DataCon/TyCon/Id in file
-
-        x
-
-    name after FULL expansion (1)
-
-        Foo.Bar.Baz.x
-
-    name after qualification
-        
-        F.x
-
-    use F.x when doing GHC-lookup.
-
-
-Type-Indexed Measures
---------------------------
-1. build map from (classmeasure,tycon) -> measure
-2. verify instances
-   a. instance def should be subtype of class def with concrete
-      measure subbed in.
-   b.
-3. sub instance measure for class when concrete instance is used, e.g.
-
-        sumList :: [Int] -> Int
-
-   otherwise should be able to reason using class measure? e.g.
-
-        sum :: Indexable s => s Int -> Int
 
 
 

@@ -47,7 +47,7 @@ splitEvery _ [] = []
 splitEvery k l  = safeTake k l : splitEvery k (safeDrop k l)
 
 -- | obtains the common value of a property of a list
-common :: (Eq a) => (b->a) -> [b] -> Maybe a
+common :: (Eq a) => (b -> a) -> [b] -> Maybe a
 common f = commonval . map f where
     commonval :: (Eq a) => [a] -> Maybe a
     commonval [] = Nothing
@@ -61,14 +61,7 @@ common f = commonval . map f where
     maxInts (x:xs) = {v | (Max v x (maxInts xs))}
   @-}
 
-{-@ goo :: xs:[{v:Int | v = (len xs)}] -> Int @-}
-goo :: [Int] -> Int
-goo xs = 0
-
-prop0 = goo [1]
-prop1 = goo [2]
-
-{-@ compatdim :: dims:{v:[{v:Nat | (v = 1 || v = (maxInts dims))}] | v =-> Maybe {v:Nat | (maxInt dims)} @-}
+{-@ compatdim :: dims:[{v:Nat | (v = 1 || v = (maxInts dims))}] -> Maybe {v:Nat | (maxInt dims)} @-}
 -- | common value with \"adaptable\" 1
 compatdim :: [Int] -> Maybe Int
 compatdim [] = Nothing
