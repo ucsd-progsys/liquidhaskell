@@ -1,5 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
+{-@ LIQUID "--no-termination" @-}
 -- ---------------------------------------------------------------------------
 -- |
 -- Module      : Data.Vector.Algorithms.Search
@@ -32,7 +34,32 @@ import Data.Bits
 
 import Data.Vector.Generic.Mutable
 
-import Data.Vector.Algorithms.Common (Comparison)
+import Data.Vector.Algorithms.Common (shiftRI, Comparison)
+
+------------------------------------------------------------------------------------
+-- LIQUID API Specifications -------------------------------------------------------
+------------------------------------------------------------------------------------
+
+{-@ binarySearch, binarySearchL, binarySearchR 
+      :: (PrimMonad m, MVector v e, Ord e) 
+      => vec:(v (PrimState m) e) -> e -> m (AOkIdx vec)
+  @-}
+
+{-@ binarySearchBy, binarySearchLBy, binarySearchRBy 
+      :: (PrimMonad m, MVector v e) 
+      => Comparison e -> vec:(v (PrimState m) e) -> e -> m (AOkIdx vec) 
+  @-}
+
+{-@ binarySearchByBounds, binarySearchLByBounds, binarySearchRByBounds 
+      :: (PrimMonad m, MVector v e)
+      => Comparison e -> vec:(v (PrimState m) e) -> e 
+      -> l:{v:Nat | v <= (vsize vec)}
+      -> u:{v:Nat | (l <= v && v <= (vsize vec))}
+      -> m {v:Int | (l <= v && v <= u)}
+  @-}
+
+
+-------------------------------------------------------------------------------------
 
 -- | Finds an index in a given sorted vector at which the given element could
 -- be inserted while maintaining the sortedness of the vector.
@@ -54,7 +81,7 @@ binarySearchBy cmp vec e = binarySearchByBounds cmp vec e 0 (length vec)
 -- while preserving sortedness.
 binarySearchByBounds :: (PrimMonad m, MVector v e)
                      => Comparison e -> v (PrimState m) e -> e -> Int -> Int -> m Int
-binarySearchByBounds cmp vec e = loop
+binarySearchByBounds cmp vec e = loop 
  where
  loop !l !u
    | u <= l    = return l
@@ -63,7 +90,7 @@ binarySearchByBounds cmp vec e = loop
                       LT -> loop (k+1) u
                       EQ -> return k
                       GT -> loop l     k
-  where k = (u + l) `shiftR` 1
+  where k = (u + l) `shiftRI` 1
 {-# INLINE binarySearchByBounds #-}
 
 -- | Finds the lowest index in a given sorted vector at which the given element
@@ -93,7 +120,7 @@ binarySearchLByBounds cmp vec e = loop
                     case cmp e' e of
                       LT -> loop (k+1) u
                       _  -> loop l     k
-  where k = (u + l) `shiftR` 1
+  where k = (u + l) `shiftRI` 1
 {-# INLINE binarySearchLByBounds #-}
 
 -- | Finds the greatest index in a given sorted vector at which the given element
@@ -123,5 +150,5 @@ binarySearchRByBounds cmp vec e = loop
                     case cmp e' e of
                       GT -> loop l     k
                       _  -> loop (k+1) u
-  where k = (u + l) `shiftR` 1
+  where k = (u + l) `shiftRI` 1
 {-# INLINE binarySearchRByBounds #-}

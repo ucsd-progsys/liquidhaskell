@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+{-@ LIQUID "--no-termination" @-}
 
 -- ---------------------------------------------------------------------------
 -- |
@@ -39,10 +41,15 @@ import Data.Vector.Generic.Mutable
 
 import Data.Vector.Algorithms.Common (Comparison)
 
-#include "vector.h"
+-- LIQUID: seems to break compilation
+#include "../../../include/vector.h"
 
 -- | Sorts the elements at the positions 'off' and 'off + 1' in the given
 -- array using the comparison.
+{-@ sort2ByOffset 
+      :: (PrimMonad m, MVector v e)
+      => Comparison e -> vec:(v (PrimState m) e) -> {v:Nat | (OkRng v vec 1)} -> m ()
+  @-}
 sort2ByOffset :: (PrimMonad m, MVector v e)
               => Comparison e -> v (PrimState m) e -> Int -> m ()
 sort2ByOffset cmp a off = sort2ByIndex cmp a off (off + 1)
@@ -54,7 +61,7 @@ sort2ByOffset cmp a off = sort2ByIndex cmp a off (off + 1)
 sort2ByIndex :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> Int -> Int -> m ()
 sort2ByIndex cmp a i j = UNSAFE_CHECK(checkIndex) "sort2ByIndex" i (length a)
-                       $ UNSAFE_CHECK(checkIndex) "sort2ByIndex" j (length a) $  do
+                       $ UNSAFE_CHECK(checkIndex) "sort2ByIndex" j (length a)  $  do
   a0 <- unsafeRead a i
   a1 <- unsafeRead a j
   case cmp a0 a1 of
@@ -63,9 +70,13 @@ sort2ByIndex cmp a i j = UNSAFE_CHECK(checkIndex) "sort2ByIndex" i (length a)
 {-# INLINABLE sort2ByIndex #-}
 
 -- | Sorts the three elements starting at the given offset in the array.
+{-@ sort3ByOffset 
+      :: (PrimMonad m, MVector v e)
+      => Comparison e -> vec:(v (PrimState m) e) -> {v:Nat | (OkRng v vec 2)} -> m ()
+  @-}
 sort3ByOffset :: (PrimMonad m, MVector v e)
               => Comparison e -> v (PrimState m) e -> Int -> m ()
-sort3ByOffset cmp a off = sort3ByIndex cmp a off (off + 1) (off + 2)
+sort3ByOffset cmp a off = sort3ByIndex cmp a  off  (off + 1) (off + 2)
 {-# INLINABLE sort3ByOffset #-}
 
 -- | Sorts the elements at the three given indices. The indices are assumed
@@ -101,6 +112,10 @@ sort3ByIndex cmp a i j k = UNSAFE_CHECK(checkIndex) "sort3ByIndex" i (length a)
 {-# INLINABLE sort3ByIndex #-}
 
 -- | Sorts the four elements beginning at the offset.
+{-@ sort4ByOffset 
+      :: (PrimMonad m, MVector v e)
+      => Comparison e -> vec:(v (PrimState m) e) -> {v:Nat | (OkRng v vec 3)} -> m ()
+  @-}
 sort4ByOffset :: (PrimMonad m, MVector v e)
               => Comparison e -> v (PrimState m) e -> Int -> m ()
 sort4ByOffset cmp a off = sort4ByIndex cmp a off (off + 1) (off + 2) (off + 3)

@@ -282,9 +282,8 @@ specParser file str
 
 moduleImports :: GhcMonad m => [Ext] -> [FilePath] -> [String] -> m [(String, FilePath)]
 moduleImports exts paths names
-  = do modGraph <- getModuleGraph
-       liftM concat $ forM names $ \name -> do
-         map (name,) . catMaybes <$> mapM (moduleFile paths name) exts
+  = liftM concat $ forM names $ \name -> do
+      map (name,) . catMaybes <$> mapM (moduleFile paths name) exts
 
 moduleFile :: GhcMonad m => [FilePath] -> String -> Ext -> m (Maybe FilePath)
 moduleFile paths name ext
@@ -456,7 +455,6 @@ instance PPrint GhcSpec where
               $$ (pprintLongList $ ctors spec)
               $$ (text "******* Measure Specifications **************")
               $$ (pprintLongList $ meas spec)
-              $$ (pprintLongList $ cmeas spec)
 
 instance PPrint GhcInfo where 
   pprint info =   (text "*************** Imports *********************")

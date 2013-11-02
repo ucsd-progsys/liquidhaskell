@@ -380,6 +380,20 @@ above the function definition. For example (tests/pos/spec0.hs)
     incr   :: Int -> Int
     incr x = x + 1
 
+Modules WITH code: Type Classes
+---------------------------------------
+
+Write the specification directly into the .hs or .lhs file, 
+above the type class definition. For example (tests/pos/Class.hs)
+
+    {-@ class Sized s where
+          size :: forall a. x:s a -> {v:Int | v = (size x)}
+    @-}
+    class Sized s where
+      size :: s a -> Int
+
+Any measures used in the refined class definition will need to be
+*generic* (see [Specifying Measures](#specifying-measures)).
 
 Refinement Type Aliases
 -----------------------
@@ -489,6 +503,19 @@ Raw measures (tests/pos/meas8.hs)
     {-@ measure rlen :: [a] -> Int 
     rlen ([])   = {v | v = 0}
     rlen (y:ys) = {v | v = (1 + rlen(ys))}
+    @-}
+
+
+Generic measures (tests/pos/Class.hs)
+
+    {-@ class measure size :: a -> Int @-}
+    {-@ instance measure size :: [a] -> Int
+        size ([])   = 0
+        size (x:xs) = 1 + (size xs)
+    @-}
+    {-@ instance measure size :: Tree a -> Int
+        size (Leaf)       = 0
+        size (Node x l r) = 1 + (size l) + (size r)
     @-}
 
 Self-Invariants

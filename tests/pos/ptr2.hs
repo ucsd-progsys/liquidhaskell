@@ -1,4 +1,6 @@
-{--! run liquid with idirs=../../benchmarks/bytestring-0.9.2.1 idirs=../../include no-termination -}
+{-@ LIQUID "--idirs=../../benchmarks/bytestring-0.9.2.1" @-}
+{-@ LIQUID "--idirs=../../include" @-}
+{-@ LIQUID "--no-termination" @-}
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 
 -- look for `n0` and `n1` below. Why does this work with `n1` but not `n0` or `0-1` ?

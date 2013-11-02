@@ -47,14 +47,19 @@ mkRTyCon tc (TyConP αs' ps cv conv size) = RTyCon tc pvs' (mkTyConInfo tc cv co
         pvs' = subts (zip αs' τs) <$> ps
 
 dataConPSpecType :: DataCon -> DataConP -> SpecType 
-dataConPSpecType dc (DataConP vs ps yts rt) = mkArrow vs ps (reverse yts') rt'
-  where (xs, ts) = unzip yts
+dataConPSpecType dc (DataConP vs ps cs yts rt) = mkArrow vs ps ts' rt'
+  where (xs, ts) = unzip $ reverse yts
         ys       = mkDSym <$> xs
-        su       = F.mkSubst $ [(x, F.EVar y) | (x, y) <- zip xs ys]
-        yts'     = zip ys (subst su <$> ts)
+        su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
         rt'      = subst su rt
         mkDSym   = stringSymbol . (++ ('_':(showPpr dc))) . show
---   where t1 = foldl' (\t2 (x, t1) -> rFun x t1 t2) rt yts 
+        ts'      = map (S "",) cs ++ yts'
+        tx _  []     []     []     = []
+        tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t)
+                                   : tx ((x, F.EVar y):su) xs ys ts
+        -- yts'     = zip ys (subst su <$> ts)
+        yts'     = tx [] xs ys ts
+--   where t1 = foldl' (\t2 (x, t1) -> rFun x t1 t2) rt yts
 --         t2 = foldr RAllP t1 ps
 --         t3 = foldr RAllT t2 vs
 
@@ -68,9 +73,10 @@ instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
-  pprint (DataConP vs ps yts t) 
+  pprint (DataConP vs ps cs yts t)
      = (parens $ hsep (punctuate comma (map pprint vs))) <+>
        (parens $ hsep (punctuate comma (map pprint ps))) <+>
+       (parens $ hsep (punctuate comma (map pprint cs))) <+>
        (parens $ hsep (punctuate comma (map pprint yts))) <+>
        pprint t
 
@@ -128,10 +134,10 @@ unifyS (RFun x rt1 rt2 _) (RFun x' pt1 pt2 _)
        t2' <- unifyS rt2 (substParg (x', EVar x) pt2)
        return $ rFun x t1' t2' 
 
-unifyS (RAppTy rt1 rt2 _) (RAppTy pt1 pt2 _)
+unifyS (RAppTy rt1 rt2 r) (RAppTy pt1 pt2 p)
   = do t1' <- unifyS rt1 pt1
        t2' <- unifyS rt2 pt2
-       return $ rAppTy t1' t2'
+       return $ RAppTy t1' t2' (bUnify r p)
 
 unifyS t@(RCls _ _) (RCls _ _)
   = return t
@@ -142,13 +148,14 @@ unifyS (RVar v a) (RVar _ p)
 
 unifyS (RApp c ts rs r) (RApp _ pts ps p)
   = do modify $ \s -> s `S.union` fm
-       ts' <- zipWithM unifyS ts pts
+       ts'   <- zipWithM unifyS ts pts
        return $ RApp c ts' rs' (bUnify r p)
-  where fm       = S.fromList $ concatMap pvars (fp:fps) 
-        fp : fps = p : (getR <$> ps)
-        rs'      = zipWithZero unifyRef (RMono [] top {- trueReft -}) mempty rs fps
-        getR (RMono _ r) = r
-        getR (RPoly _ _) = top 
+    where 
+       fm       = S.fromList $ concatMap pvars (fp:fps) 
+       fp : fps = p : (getR <$> ps)
+       rs'      = zipWithZero unifyRef (RMono [] top {- trueReft -}) mempty rs fps
+       getR (RMono _ r) = r
+       getR (RPoly _ _) = top 
 
 unifyS (RAllE x tx t) (RAllE x' tx' t') | x == x'
   = liftM2 (RAllE x) (unifyS tx tx') (unifyS t t')
