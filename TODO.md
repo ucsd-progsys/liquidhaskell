@@ -1,14 +1,6 @@
 TODO
 ====
 
-    l <= X <= VSIZE
-    l <= m
-    m < u,  u <= VSIZE
-    m <= VSIZE
-
-    l < VSIZE
-    l+1 < VSIZE
-    
 
 * Qualified Imports
   - wtf is include/KMeansHelper.hs ? Fix module import issue
@@ -19,22 +11,40 @@ TODO
     ? big constants issue : _word64 34534523452134213524525 due to (deriving Typeable)
     - see others below
 
-* vector-algorithms
-
 * hmatrix
 
-* error messages 
-  + tests/todo/err8.hs
-  + tests/todo/err9.hs
+* error messages (see issues on github) 
 
-* speed
+* speed (exists)
   + Data.Vector.Algorithms.Optimal
+
+exists-based constraints
+------------------------
+
+GHC introduces a bunch of:
+
+    let x = e1 in e2
+
+and
+
+    case x of C y -> e
+
+constraints, which possibly blow up the `Kvar`.
+
+Can we minimize KVars and hence, simplify constraints with exists?
+
+1. profile and find the KVar break down.
+
+  + lambda (including recursion)
+  + polymorphic instantiation
+  + case-of with *multiple* cases
+  - case-of with *single* case
+  - local-let
+
+2. eliminate the last two cases using exists-templates
 
 vector-algorithms
 -----------------
-
-HEREHEREHERE -- use NeVec to cleanup the `0 < (vsize vec)` refinements 
-issues:
 
 1. array-sum measure needed to discharge liquidAssume in `Radix`
 
@@ -46,7 +56,7 @@ issues:
 [OK] Compiling Data.Vector.Algorithms.Heap
 [OK] Compiling Data.Vector.Algorithms.Merge 
 [OK] Compiling Data.Vector.Algorithms.AmericanFlag
-[??] Compiling Data.Vector.Algorithms.Intro 
+[OK] Compiling Data.Vector.Algorithms.Intro 
 
 hmatrix
 -------
