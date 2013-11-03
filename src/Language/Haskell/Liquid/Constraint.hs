@@ -476,30 +476,32 @@ rsplitC γ (t1@(RPoly s1 r1), t2@(RPoly s2 r2))
 rsplitC _ _  
   = errorstar "rsplit Rpoly - RMono"
 
+
 -----------------------------------------------------------
 -------------------- Generation: Types --------------------
 -----------------------------------------------------------
 
-data CGInfo = CGInfo { hsCs       :: ![SubC]
-                     , hsWfs      :: ![WfC]
-                     , fixCs      :: ![FixSubC]
-                     , fixWfs     :: ![FixWfC]
-                     , globals    :: !F.FEnv
-                     , freshIndex :: !Integer 
-                     , binds      :: !F.BindEnv 
-                     , annotMap   :: !(AnnInfo Annot) 
-                     , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) 
-                     , specQuals  :: ![F.Qualifier]
-                     , specDecr   :: ![(Var, [Int])]
-                     , termExprs  :: !(M.HashMap Var [F.Expr])
-                     , specLVars  :: !(S.HashSet Var)
-                     , specLazy   :: !(S.HashSet Var)
-                     , tyConEmbed :: !(F.TCEmb TC.TyCon)
-                     , kuts       :: !(F.Kuts)
-                     , lits       :: ![(F.Symbol, F.Sort)]
-                     , tcheck     :: !Bool
-                     , pruneRefs  :: !Bool
-                     , logWarn    :: ![String]
+data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping constraints over RType
+                     , hsWfs      :: ![WfC]                       -- ^ wellformedness constraints over RType
+                     , fixCs      :: ![FixSubC]                   -- ^ subtyping over Sort (post-splitting)
+                     , fixWfs     :: ![FixWfC]                    -- ^ wellformedness constraints over Sort (post-splitting)
+                     , globals    :: !F.FEnv                      -- ^ ? global measures
+                     , freshIndex :: !Integer                     -- ^ counter for generating fresh KVars
+                     , binds      :: !F.BindEnv                   -- ^ set of environment binders
+                     , annotMap   :: !(AnnInfo Annot)             -- ^ source-position annotation map
+                     , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) -- ^ information about type-constructors
+                     , specQuals  :: ![F.Qualifier]               -- ^ ? qualifiers in source files
+                     , specDecr   :: ![(Var, [Int])]              -- ^ ? FIX THIS
+                     , termExprs  :: !(M.HashMap Var [F.Expr])    -- ^ Terminating Metrics for Recursive functions
+                     , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
+                     , specLazy   :: !(S.HashSet Var)             -- ^ ? FIX THIS
+                     , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
+                     , kuts       :: !(F.Kuts)                    -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
+                     , lits       :: ![(F.Symbol, F.Sort)]        -- ^ ? FIX THIS 
+                     , tcheck     :: !Bool                        -- ^ ? FIX THIS
+                     , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
+                     , logWarn    :: ![String]                    -- ^ ? FIX THIS
+                     , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars 
                      } -- deriving (Data, Typeable)
 
 instance PPrint CGInfo where 
@@ -518,6 +520,8 @@ ppr_CGInfo cgi
   $$ (F.toFix  $ kuts cgi)
   $$ (text "*********** Literals in Source     ************")
   $$ (pprint $ lits cgi)
+  $$ (text "*********** KVar Distribution *****************")
+  $$ (pprint $ kvProf cgi)
 
 type CG = State CGInfo
 
@@ -543,6 +547,7 @@ initCGI cfg info = CGInfo {
   , tcheck     = not $ notermination cfg
   , pruneRefs  = not $ noPrune cfg
   , logWarn    = []
+  , kvProf     = emptyKVProf 
   } 
   where 
     tce        = tcEmbeds spc 
@@ -679,15 +684,6 @@ addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
 addWarning   :: String -> CG ()  
 addWarning w = modify $ \s -> s { logWarn = w : (logWarn s) }
 
--- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive definitions.
-
-addKuts     :: SpecType -> CG ()
-addKuts !t  = modify $ \s -> s { kuts = updKuts (kuts s) t }
-  where 
-    updKuts :: F.Kuts -> SpecType -> F.Kuts
-    updKuts = foldReft (F.ksUnion . (F.reftKVars . ur_reft) )
-
-
 -- | Used for annotation binders (i.e. at binder sites)
 
 addIdA            :: Var -> Annot -> CG ()
@@ -725,19 +721,45 @@ addA _ _ _ !a
 -------------------------------------------------------------------
 
 -- | Right now, we generate NO new pvars. Rather than clutter code 
--- with `uRType` calls, put it in one place where the above invariant
--- is /obviously/ enforced.
+--   with `uRType` calls, put it in one place where the above 
+--   invariant is /obviously/ enforced.
+--   Constraint generation should ONLY use @freshTy_type@ and @freshTy_expr@
 
-freshTy   :: CoreExpr -> Type -> CG SpecType 
-freshTy _ = liftM uRType . refresh . ofType 
+freshTy_type        :: KVKind -> CoreExpr -> Type -> CG SpecType 
+freshTy_type k _ τ  = freshTy_reftype k $ ofType τ
+
+freshTy_expr        :: KVKind -> CoreExpr -> Type -> CG SpecType 
+freshTy_expr k e _  = freshTy_reftype k $ exprRefType e
+
+freshTy_reftype     :: KVKind -> RefType -> CG SpecType 
+freshTy_reftype k τ = do t <- fmap uRType $ refresh τ 
+                         addKVars k t
+                         return t
+
+-- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
+--   definitions, and also to update the KVar profile.
+
+addKVars        :: KVKind -> SpecType -> CG ()
+addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k kvars (kvProf s) }
+                     when (isKut k) $ modify $ \s -> s { kuts   = F.ksUnion kvars   (kuts s)   }
+  where
+     kvars      = specTypeKVars t
+
+isKut          :: KVKind -> Bool
+isKut RecBindE = True
+isKut _        = False
+
+
+specTypeKVars :: SpecType -> [F.Symbol]
+specTypeKVars = foldReft ((++) . (F.reftKVars . ur_reft)) []
+
 -- freshTy e τ = do t <- uRType <$> (refresh $ ofType τ)
 --                  return $ traceShow ("freshTy: " ++ showPpr e) t
-
 -- To revert to the old setup, just do
--- freshTy_pretty = freshTy
--- freshTy_pretty e τ = refresh $ {-traceShow ("exprRefType: " ++ F.showFix e) $-} exprRefType e
-freshTy_pretty e _ = do t <- refresh $ {- traceShow ("exprRefType: " ++ showPpr e) $ -} exprRefType e
-                        return $ uRType t
+-- freshTy_expr = freshTy
+-- freshTy_expr e τ = refresh $ {-traceShow ("exprRefType: " ++ F.showFix e) $-} exprRefType e
+-- freshTy_expr e _ = do t <- refresh $ {- traceShow ("exprRefType: " ++ showPpr e) $ -} exprRefType e
+--                         return $ uRType t
 
 
 trueTy  :: Type -> CG SpecType
@@ -984,14 +1006,16 @@ extender γ _           = return γ
 
 addBinders γ0 x' cbs   = foldM (++=) (γ0 -= x') [("addBinders", x, t) | (x, t) <- cbs]
 
+-- | @varTemplate@ is only called with a `Just e` argument when the `e`
+-- corresponds to the body of a @Rec@ binder.
 
 varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Maybe SpecType)
 varTemplate γ (x, eo)
   = case (eo, lookupREnv (F.symbol x) (grtys γ)) of
       (_, Just t) -> return $ Just t
-      (Just e, _) -> do t  <- unifyVar γ x <$> freshTy_pretty e (exprType e)
+      (Just e, _) -> do t  <- unifyVar γ x <$> freshTy_expr RecBindE e (exprType e)
                         addW (WfC γ t)
-                        addKuts t
+                        {- KVPROF addKuts t -}
                         return $ Just t
       (_,      _) -> return Nothing
 
@@ -1076,7 +1100,7 @@ consE γ (Lit c)
 
 consE γ (App e (Type τ)) 
   = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
-       t          <- if isGeneric α te then freshTy e τ {- =>> addKuts -} else trueTy τ
+       t          <- if isGeneric α te then freshTy_type TypeInstE e τ {- =>> addKuts -} else trueTy τ
        addW       $ WfC γ t
        return     $ subsTyVar_meet' (α, t) te
 
@@ -1103,7 +1127,7 @@ consE γ (Lam α e) | isTyVar α
   = liftM (RAllT (rTyVar α)) (consE γ e) 
 
 consE γ  e@(Lam x e1) 
-  = do tx     <- freshTy (Var x) τx 
+  = do tx     <- freshTy_type LamE (Var x) τx 
        γ'     <- ((γ, "consE") += (F.symbol x, tx))
        t1     <- consE γ' e1
        addIdA x (Def tx) 
@@ -1112,10 +1136,10 @@ consE γ  e@(Lam x e1)
     where FunTy τx _ = exprType e 
 
 consE γ e@(Let _ _)       
-  = cconsFreshE γ e
+  = cconsFreshE LetE γ e
 
 consE γ e@(Case _ _ _ _) 
-  = cconsFreshE γ e
+  = cconsFreshE CaseE γ e
 
 consE γ (Tick tt e)
   = do t <- consE (γ `setLoc` l) e
@@ -1124,7 +1148,7 @@ consE γ (Tick tt e)
     where l = {- traceShow ("tickSrcSpan: e = " ++ showPpr e) $ -} tickSrcSpan tt
 
 consE γ e@(Cast e' _)      
-  = castTy (exprType e) e' -- trueTy $ exprType e 
+  = castTy (exprType e) e'
 
 consE γ e@(Coercion _)
    = trueTy $ exprType e
@@ -1142,8 +1166,8 @@ castTy τ _
 
 singletonReft = uTop . F.symbolReft . F.symbol 
 
-cconsFreshE γ e
-  = do t   <- freshTy e $ exprType e
+cconsFreshE kvkind γ e
+  = do t   <- freshTy_type kvkind e $ exprType e
        addW $ WfC γ t
        cconsE γ e t
        return t
@@ -1242,7 +1266,7 @@ truePredRef (PV _ τ _)
 
 freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG (Ref RSort RReft SpecType)
 freshPredRef γ e (PV n τ as)
-  = do t    <- freshTy e (toType τ)
+  = do t    <- freshTy_type PredInstE e (toType τ)
        args <- mapM (\_ -> fresh) as
        let targs = zip args (fst3 <$> as)
        γ' <- foldM (++=) γ [("freshPredRef", x, ofRSort τ) | (x, τ) <- targs]
@@ -1316,7 +1340,8 @@ instance NFData CGInfo where
           ({-# SCC "CGIrnf8" #-}  rnf (annotMap x))   `seq`
           ({-# SCC "CGIrnf9" #-}  rnf (specQuals x))  `seq`
           ({-# SCC "CGIrnf10" #-} rnf (kuts x))       `seq`
-          ({-# SCC "CGIrnf10" #-} rnf (lits x)) 
+          ({-# SCC "CGIrnf10" #-} rnf (lits x))       `seq`
+          ({-# SCC "CGIrnf10" #-} rnf (kvProf x)) 
 
 -------------------------------------------------------------------------------
 --------------------- Reftypes from F.Fixpoint Expressions ----------------------
