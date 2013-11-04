@@ -3,7 +3,6 @@ module spec GHC.Base where
 import GHC.Prim
 import GHC.Classes
 import GHC.Types
-import GHC.Err  
 
 embed GHC.Types.Int      as int
 embed Prop               as bool

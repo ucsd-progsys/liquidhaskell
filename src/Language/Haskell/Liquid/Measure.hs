@@ -29,7 +29,7 @@ import Control.Applicative      ((<$>))
 import Control.Exception        (assert)
 
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Types
+import Language.Fixpoint.Types hiding (Def)
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.RefType
@@ -226,7 +226,6 @@ instance PPrint (Measure t a) => Show (Measure t a) where
 
 instance PPrint t => PPrint (CMeasure t) where
   pprint (CM n s) =  pprint n <> text " :: " <> pprint s
-                 -- $$ vcat ((\(i,m) -> pprint (IM n i m)) <$> is)
 
 instance PPrint (CMeasure t) => Show (CMeasure t) where
   show = showpp

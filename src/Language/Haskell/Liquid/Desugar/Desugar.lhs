@@ -113,7 +113,7 @@ deSugarWithLoc hsc_env
                    _        -> do
 
                      let want_ticks = opt_Hpc
-                                   -- || target == HscInterpreted
+                                   --  target == HscInterpreted
                                    || (opt_SccProfilingOn
                                        && case profAuto dflags of
                                             NoProfAuto -> False
