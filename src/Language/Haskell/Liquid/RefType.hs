@@ -868,27 +868,29 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
 ------------ From Old Fixpoint ---------------------------------
 ----------------------------------------------------------------
 
+fApp :: FTycon -> [Sort] -> Sort
+fApp c ts 
+  | c == intFTyCon   = FInt
+  | otherwise        = foldl' (\t1 t2 -> FApp appFTyCon [t1, t2]) (fTyconSort c) ts
+
+
 typeUniqueSymbol :: Type -> Symbol 
 typeUniqueSymbol = stringSymbol . typeUniqueString 
-
-
-fApp c ts 
-  | c == intFTyCon  = FInt
-  | otherwise       = FApp c ts
 
 typeSort :: TCEmb TyCon -> Type -> Sort 
 typeSort tce τ@(ForAllTy _ _) 
   = typeSortForAll tce τ
 typeSort tce t@(FunTy τ1 τ2)
-  = typeSortFun tce t -- τ1 τ2
+  = typeSortFun tce t
 typeSort tce (TyConApp c τs)
-  = fApp ftc (typeSort tce <$> τs)
-  where ftc = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce) 
+  = fApp (tyConFTyCon tce c) (typeSort tce <$> τs)
 typeSort tce (AppTy t1 t2)
-  = fApp (stringFTycon "FAppTy") [typeSort tce t1, typeSort tce t2]
+  = fApp appFTyCon [typeSort tce t1, typeSort tce t2]
 typeSort _ τ
   = FObj $ typeUniqueSymbol τ
- 
+
+tyConFTyCon tce c    = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce)
+
 typeSortForAll tce τ 
   = genSort $ typeSort tce tbody
   where genSort (FFunc _ t) = FFunc n (sortSubst su <$> t)
