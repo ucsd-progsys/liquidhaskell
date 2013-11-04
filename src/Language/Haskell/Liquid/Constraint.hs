@@ -508,18 +508,20 @@ instance PPrint CGInfo where
   pprint cgi =  {-# SCC "ppr_CGI" #-} ppr_CGInfo cgi
 
 ppr_CGInfo cgi 
-  =  (text "*********** Haskell SubConstraints ***********")
-  $$ (pprintLongList $ hsCs  cgi)
-  $$ (text "*********** Haskell WFConstraints ************")
-  $$ (pprintLongList $ hsWfs cgi)
-  $$ (text "*********** Fixpoint SubConstraints **********")
-  $$ (F.toFix  $ fixCs cgi)
-  $$ (text "*********** Fixpoint WFConstraints ************")
-  $$ (F.toFix  $ fixWfs cgi)
-  $$ (text "*********** Fixpoint Kut Variables ************")
-  $$ (F.toFix  $ kuts cgi)
-  $$ (text "*********** Literals in Source     ************")
-  $$ (pprint $ lits cgi)
+  =  (text "*********** Constraint Information ***********")
+  {- $$ (text "*********** Haskell SubConstraints ***********")
+     $$ (pprintLongList $ hsCs  cgi)
+     $$ (text "*********** Haskell WFConstraints ************")
+     $$ (pprintLongList $ hsWfs cgi)
+     $$ (text "*********** Fixpoint SubConstraints **********")
+     $$ (F.toFix  $ fixCs cgi)
+     $$ (text "*********** Fixpoint WFConstraints ************")
+     $$ (F.toFix  $ fixWfs cgi)
+     $$ (text "*********** Fixpoint Kut Variables ************")
+     $$ (F.toFix  $ kuts cgi)
+     $$ (text "*********** Literals in Source     ************")
+     $$ (pprint $ lits cgi)
+  -}
   $$ (text "*********** KVar Distribution *****************")
   $$ (pprint $ kvProf cgi)
 
@@ -743,7 +745,7 @@ addKVars        :: KVKind -> SpecType -> CG ()
 addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k kvars (kvProf s) }
                      when (isKut k) $ modify $ \s -> s { kuts   = F.ksUnion kvars   (kuts s)   }
   where
-     kvars      = specTypeKVars t
+     kvars      = nubOrd $ specTypeKVars t
 
 isKut          :: KVKind -> Bool
 isKut RecBindE = True
