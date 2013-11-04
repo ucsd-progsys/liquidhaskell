@@ -745,7 +745,7 @@ addKVars        :: KVKind -> SpecType -> CG ()
 addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k kvars (kvProf s) }
                      when (isKut k) $ modify $ \s -> s { kuts   = F.ksUnion kvars   (kuts s)   }
   where
-     kvars      = nubOrd $ specTypeKVars t
+     kvars      = sortNub $ specTypeKVars t
 
 isKut          :: KVKind -> Bool
 isKut RecBindE = True

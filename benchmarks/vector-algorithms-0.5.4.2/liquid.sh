@@ -1,0 +1,9 @@
+time liquid -i . Data/Vector/Algorithms/Common.hs       > log.Common        2>&1
+time liquid -i . Data/Vector/Algorithms/Radix.hs        > log.Radix         2>&1
+time liquid -i . Data/Vector/Algorithms/Search.hs       > log.Search        2>&1
+time liquid -i . Data/Vector/Algorithms/Optimal.hs      > log.Optimal       2>&1
+time liquid -i . Data/Vector/Algorithms/Insertion.hs    > log.Insertion     2>&1
+time liquid -i . Data/Vector/Algorithms/Heap.hs         > log.Heap          2>&1
+time liquid -i . Data/Vector/Algorithms/Merge.hs        > log.Merge         2>&1
+time liquid -i . Data/Vector/Algorithms/AmericanFlag.hs > log.AmericanFlag  2>&1
+time liquid -i . Data/Vector/Algorithms/Intro.hs        > log.Intro         2>&1
