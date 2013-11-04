@@ -1140,8 +1140,9 @@ consE γ  e@(Lam x e1)
 consE γ e@(Let _ _)       
   = cconsFreshE LetE γ e
 
-consE γ e@(Case _ _ _ _) 
-  = cconsFreshE CaseE γ e
+consE γ e@(Case _ _ _ cs) 
+  = cconsFreshE k γ e
+    where k = if length cs == 1 then LetE else CaseE
 
 consE γ (Tick tt e)
   = do t <- consE (γ `setLoc` l) e
