@@ -23,8 +23,14 @@ module Language.Fixpoint.Types (
 
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
-  , intFTyCon, boolFTyCon, strFTyCon, propFTyCon
-  , stringFTycon, fTyconString
+  , intFTyCon
+  , boolFTyCon
+  , strFTyCon
+  , propFTyCon
+  , appFTyCon
+  , fTyconString
+  , stringFTycon
+  , fTyconSort
 
   -- * Symbols
   , Symbol(..)
@@ -264,6 +270,7 @@ intFTyCon  = TC (S "int")
 boolFTyCon = TC (S "bool")
 strFTyCon  = TC (S strConName)
 propFTyCon = TC (S propConName)
+appFTyCon  = TC (S "FAppTy")
 
 -- listFTyCon = TC (S listConName)
 
@@ -271,13 +278,19 @@ propFTyCon = TC (S propConName)
 isListTC (TC (S c)) = c == listConName
 isTupTC (TC (S c))  = c == tupConName
 
-fTyconString (TC (S s)) = s
+fTyconString (TC (S s)) = symbolString s
 
 stringFTycon :: String -> FTycon
 stringFTycon c 
   | c == listConName = TC . S $ listConName
   | otherwise        = TC $ stringSymbol c
 
+-- stringSort   :: String -> Sort
+-- stringSort s = FApp (stringFTycon s) []
+--            -- ALTERNATIVEL = FObj . stringSymbol 
+  
+fTyconSort :: FTycon -> Sort
+fTyconSort = (`FApp` [])
 
 ----------------------------------------------------------------------
 ------------------------------- Sorts --------------------------------
