@@ -3,11 +3,13 @@ if isdirectory($HSENV)
   let g:hdevtools_options = '-g-package-conf$HSENV/.hsenv/ghc_pkg_db'
 endif
 
+let g:hdevtools_options = '-g-package-conf$HSENV/.hsenv/ghc_pkg_db'
+
 let g:makeprg='hdevtools check %'
 
 
 " let g:hdevtools_options = '-g -isrc -g -Wall -g -hide-package -g transformers'
-let g:hdevtools_options = '-g -package=ghc  
+let g:hdevtools_options = '-g-isrc -g -iliquidhaskell -g package=ghc -g package=liquidhaskell
   \-g-XTypeSynonymInstances 
   \-g-XFlexibleInstances 
   \-g-XNoMonomorphismRestriction 
