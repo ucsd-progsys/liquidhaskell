@@ -127,6 +127,35 @@ Radix.hs.cgi
 Search.hs.cgi
 [LetE : 63, CaseE : 72, LamE : 95, TypeInstE : 82, RecBindE : 15]
 
+--------------
+
+AmericanFlag.hs.cgi
+[LetE : 328, CaseE : 9, LamE : 336, PredInstE : 10, TypeInstE : 301, RecBindE : 45]
+
+Common.hs.cgi
+[LetE : 45, LamE : 43, PredInstE : 4, TypeInstE : 50, RecBindE : 5]
+
+Heap.hs.cgi
+[LetE : 378, CaseE : 15, LamE : 327, PredInstE : 40, TypeInstE : 331, RecBindE : 20]
+
+Insertion.hs.cgi
+[LetE : 129, LamE : 82, TypeInstE : 61, RecBindE : 10]
+
+Intro.hs.cgi
+[LetE : 209, CaseE : 6, LamE : 142, TypeInstE : 111, RecBindE : 34]
+
+Merge.hs.cgi
+[LetE : 291, LamE : 126, PredInstE : 15, TypeInstE : 180, RecBindE : 27]
+
+Optimal.hs.cgi
+[LetE : 456, LamE : 309, TypeInstE : 649]
+
+Radix.hs.cgi
+[LetE : 199, LamE : 299, TypeInstE : 123, RecBindE : 20]
+
+Search.hs.cgi
+[LetE : 135, LamE : 95, TypeInstE : 82, RecBindE : 15]
+
 
 
 
