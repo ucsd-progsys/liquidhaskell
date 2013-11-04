@@ -21,6 +21,12 @@ TODO
 exists-based constraints
 ------------------------
 
+("Foo" [x, y]) vs ("App" ["App" [a, b], "c"]
+
+
+KVar Distribution Optimal.hs:  [LetE : 456, LamE : 309, TypeInstE : 649]
+
+
 GHC introduces a bunch of:
 
     let x = e1 in e2
@@ -49,14 +55,80 @@ vector-algorithms
 1. array-sum measure needed to discharge liquidAssume in `Radix`
 
 [OK] Compiling Data.Vector.Algorithms.Common
+real	0m6.654s
+user	0m4.380s
+sys	    0m0.384s
+
 [OK] Compiling Data.Vector.Algorithms.Radix
+real	0m31.431s
+user	0m23.981s
+sys	0m1.808s
+
 [OK] Compiling Data.Vector.Algorithms.Search
+real	0m13.892s
+user	0m9.573s
+sys	0m0.788s
+
 [OK] Compiling Data.Vector.Algorithms.Optimal
+real	3m36.357s
+user	2m54.143s
+sys	0m11.585s
+
 [OK] Compiling Data.Vector.Algorithms.Insertion
+real	0m16.949s
+user	0m12.505s
+sys	0m0.832s
+
 [OK] Compiling Data.Vector.Algorithms.Heap
+real	2m21.595s
+user	1m35.626s
+sys	0m6.924s
+
 [OK] Compiling Data.Vector.Algorithms.Merge 
+real	0m57.314s
+user	0m44.839s
+sys	0m2.704s
+
 [OK] Compiling Data.Vector.Algorithms.AmericanFlag
+real	1m16.639s
+user	0m55.027s
+sys	0m3.644s
+
 [OK] Compiling Data.Vector.Algorithms.Intro 
+
+real	1m4.456s
+user	0m47.539s
+sys	    0m2.552s
+
+AmericanFlag.hs.cgi
+[LetE : 142, CaseE : 195, LamE : 336, PredInstE : 10, TypeInstE : 301, RecBindE : 45]
+
+Common.hs.cgi
+[LetE : 17, CaseE : 28, LamE : 43, PredInstE : 4, TypeInstE : 50, RecBindE : 5]
+
+Heap.hs.cgi
+[LetE : 237, CaseE : 156, LamE : 327, PredInstE : 40, TypeInstE : 331, RecBindE : 20]
+
+Insertion.hs.cgi
+[LetE : 51, CaseE : 78, LamE : 82, TypeInstE : 61, RecBindE : 10]
+
+Intro.hs.cgi
+[LetE : 112, CaseE : 103, LamE : 142, TypeInstE : 111, RecBindE : 34]
+
+Merge.hs.cgi
+[LetE : 99, CaseE : 192, LamE : 126, PredInstE : 15, TypeInstE : 180, RecBindE : 27]
+
+Optimal.hs.cgi
+[LetE : 456, LamE : 309, TypeInstE : 649]
+
+Radix.hs.cgi
+[LetE : 63, CaseE : 136, LamE : 299, TypeInstE : 123, RecBindE : 20]
+
+Search.hs.cgi
+[LetE : 63, CaseE : 72, LamE : 95, TypeInstE : 82, RecBindE : 15]
+
+
+
 
 hmatrix
 -------
