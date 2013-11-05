@@ -870,6 +870,8 @@ checkValidHint x ts f n
 -------------------------------------------------------------------
 -------------------- Generation: Corebind -------------------------
 -------------------------------------------------------------------
+consCBLet, consCBTop :: CGEnv -> CoreBind -> CG CGEnv 
+-------------------------------------------------------------------
 
 consCBLet γ cb
   = do tflag <- tcheck <$> get
@@ -907,22 +909,20 @@ consCBSizedTys tflag γ (Rec xes)
        let xets' = zip3 xs es (Just <$> ts)
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
-  where dmapM f  = sequence . (mapM f <$>)
-        (xs, es) = unzip xes
+  where 
+       dmapM f  = sequence . (mapM f <$>)
+       (xs, es) = unzip xes
+       collectArgs   = collectArguments . length . fst3 . bkArrow . thd3 . bkUniv
+       checkEqTypes  = map (checkAll err1 toRSort . catMaybes)
+       checkSameLens = checkAll err2 length
+       err1          = printf "%s: The decreasing parameters should be of same type" loc
+       err2          = printf "%s: All Recursive functions should have the same number of decreasing parameters" loc
+       loc           = showPpr $ getSrcSpan (head xs)
 
-
-        collectArgs   = collectArguments . length . fst3 . bkArrow . thd3 . bkUniv
-
-        checkEqTypes  = map (checkAll err1 toRSort . catMaybes)
-        checkSameLens = checkAll err2 length
-
-        err1 = printf "%s: The decreasing parameters should be of same type" loc
-        err2 = printf "%s: All Recursive functions should have the same number of decreasing parameters" loc
-        loc = showPpr $ getSrcSpan (head xs)
-
-        checkAll _   _ []     = []
-        checkAll err f (x:xs) | all (==(f x)) (f <$> xs) = (x:xs)
-                              | otherwise               = errorstar err
+       checkAll _   _ []            = []
+       checkAll err f (x:xs) 
+         | all (==(f x)) (f <$> xs) = (x:xs)
+         | otherwise                = errorstar err
 
 consCBWithExprs γ xtes (Rec xes) 
   = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
@@ -982,7 +982,6 @@ consCB _ γ (NonRec x e)
        to' <- consBind False γ (x, e, to)
        extender γ (x, to')
 
-
 consBind isRec γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
        γπ    <- foldM addPToEnv γ' πs
@@ -1030,30 +1029,24 @@ unifyVar γ x rt = unify (getPrType γ (F.symbol x)) rt
 ----------------------- Type Checking -----------------------------
 cconsE :: CGEnv -> Expr Var -> SpecType -> CG () 
 -------------------------------------------------------------------
-cconsLazyLet γ (Let (NonRec x ex) e) t
-  = do tx <- {-(`strengthen` xr) <$>-} trueTy (varType x)
-       γ' <- (γ, "Let NonRec") +++= (x', ex, tx)
-       cconsE γ' e t
-  where xr = singletonReft x -- uTop $ F.symbolReft x'
-        x' = F.symbol x
-
 cconsE γ e@(Let b@(NonRec x _) ee) t
   = do sp <- specLVars <$> get
-       if (x `S.member` sp) || isDefLazyVar x'
+       if (x `S.member` sp) || isDefLazyVar x  
         then cconsLazyLet γ e t 
         else do γ'  <- consCBLet γ b
                 cconsE γ' ee t
-  where isDefLazyVar y = "fail" `L.isPrefixOf` y
-        x'             = showPpr x
+  where
+       isDefLazyVar = L.isPrefixOf "fail" . showPpr
 
 cconsE γ (Let b e) t    
   = do γ'  <- consCBLet γ b
        cconsE γ' e t 
 
 cconsE γ (Case e x _ cases) t 
-  = do γ'  <- consCB False γ $ NonRec x e
+  = do γ'  <- consCBLet γ (NonRec x e)
        forM_ cases $ cconsCase γ' x t nonDefAlts 
-    where nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
+    where 
+       nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
 
 cconsE γ (Lam α e) (RAllT α' t) | isTyVar α 
   = cconsE γ e $ subsTyVar_meet' (α', rVar α) t 
@@ -1086,6 +1079,13 @@ instantiatePreds γ e (RAllP p t)
        return $ replacePreds "consE" t [(p, s)] 
 instantiatePreds _ _ t
   = return t
+
+cconsLazyLet γ (Let (NonRec x ex) e) t
+  = do tx <- {-(`strengthen` xr) <$>-} trueTy (varType x)
+       γ' <- (γ, "Let NonRec") +++= (x', ex, tx)
+       cconsE γ' e t
+  where xr = singletonReft x -- uTop $ F.symbolReft x'
+        x' = F.symbol x
 
 
 ----------------------- Type Synthesis ----------------------------
@@ -1137,12 +1137,17 @@ consE γ  e@(Lam x e1)
        return $ rFun (F.symbol x) tx t1
     where FunTy τx _ = exprType e 
 
-consE γ e@(Let _ _)       
-  = cconsFreshE LetE γ e
+consE γ e@(Let b@(NonRec x _) e')
+  = do γ'    <- consCBLet γ b
+       consElimE γ' [F.symbol x] e'
 
-consE γ e@(Case _ _ _ cs) 
-  = cconsFreshE k γ e
-    where k = if length cs == 1 then LetE else CaseE
+consE γ (Case e x _ [(ac, ys, ce)]) 
+  = do γ'  <- consCBLet γ (NonRec x e)
+       γ'' <- caseEnv γ' x [] ac ys
+       consElimE γ'' (F.symbol <$> (x:ys)) ce 
+
+consE γ e@(Case _ _ _ _) 
+  = cconsFreshE CaseE γ e
 
 consE γ (Tick tt e)
   = do t <- consE (γ `setLoc` l) e
@@ -1166,8 +1171,25 @@ castTy τ (Var x)
 castTy τ _
   = trueTy τ 
 
-
 singletonReft = uTop . F.symbolReft . F.symbol 
+
+-- | @consElimE@ is used to *synthesize* types by **existential elimination** 
+--   instead of *checking* via a fresh template. That is, assuming
+--      γ |- e1 ~> t1
+--   we have
+--      γ |- let x = e1 in e2 ~> Ex x t1 t2 
+--   where
+--      γ, x:t1 |- e2 ~> t2
+--   instead of the earlier case where we generate a fresh template `t` and check
+--      γ, x:t1 |- e <~ t
+
+consElimE γ xs e
+  = do t     <- consE γ e
+       xts   <- forM xs $ \x -> (x,) <$> (γ ??= x)
+       return $ rEx xts t
+
+-- | @consFreshE@ is used to *synthesize* types with a **fresh template** when
+-- the above existential elimination is not easy (e.g. at joins, recursive binders)
 
 cconsFreshE kvkind γ e
   = do t   <- freshTy_type kvkind e $ exprType e
@@ -1181,28 +1203,53 @@ checkUnbound γ e x t
 
 dropExists γ (REx x tx t) = liftM (, t) $ (γ, "dropExists") += (x, tx)
 dropExists γ t            = return (γ, t)
+
 -------------------------------------------------------------------------------------
 cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -> CG ()
 -------------------------------------------------------------------------------------
+cconsCase γ x t acs (ac, ys, ce)
+  = do cγ <- caseEnv γ x acs ac ys 
+       cconsE cγ ce t
 
-cconsCase γ x t _ (DataAlt c, ys, ce) 
- = do xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
-      tdc              <- γ ??= (dataConSymbol c)
-      let (rtd, yts, _) = unfoldR c tdc (shiftVV xt0 x') ys
-      let r1            = dataConReft   c   ys' 
-      let r2            = dataConMsReft rtd ys'
-      let xt            = xt0 `strengthen` (uTop (r1 `F.meet` r2))
-      let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
-      cγ'              <- addBinders γ x' cbs
-      cγ               <- addBinders cγ' x' [(x', xt)]
-      cconsE cγ ce t
- where (x':ys')        = F.symbol <$> (x:ys)
+-------------------------------------------------------------------------------------
+caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv 
+-------------------------------------------------------------------------------------
+caseEnv γ x _   (DataAlt c) ys
+  = do let (x' : ys')    = F.symbol <$> (x:ys)
+       xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
+       tdc              <- γ ??= (dataConSymbol c)
+       let (rtd, yts, _) = unfoldR c tdc (shiftVV xt0 x') ys
+       let r1            = dataConReft   c   ys' 
+       let r2            = dataConMsReft rtd ys'
+       let xt            = xt0 `strengthen` (uTop (r1 `F.meet` r2))
+       let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
+       cγ'              <- addBinders γ x' cbs
+       cγ               <- addBinders cγ' x' [(x', xt)]
+       return cγ 
 
-cconsCase γ x t acs (a, _, ce) 
+caseEnv γ x acs a _ 
   = do let x'  = F.symbol x
        xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x')
        cγ     <- addBinders γ x' [(x', xt')]
-       cconsE cγ ce t
+       return cγ
+
+-- cconsCase γ x t _ (DataAlt c, ys, ce) 
+--  = do xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
+--       tdc              <- γ ??= (dataConSymbol c)
+--       let (rtd, yts, _) = unfoldR c tdc (shiftVV xt0 x') ys
+--       let r1            = dataConReft   c   ys' 
+--       let r2            = dataConMsReft rtd ys'
+--       let xt            = xt0 `strengthen` (uTop (r1 `F.meet` r2))
+--       let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
+--       cγ'              <- addBinders γ x' cbs
+--       cγ               <- addBinders cγ' x' [(x', xt)]
+--       cconsE cγ ce t
+--    where 
+--       (x':ys')        = F.symbol <$> (x:ys)
+-- 
+-- 
+-- cconsCase γ x t acs (a, _, ce) 
+--        cconsE cγ ce t
 
 altReft γ _ (LitAlt l)   = literalFReft (emb γ) l
 altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]

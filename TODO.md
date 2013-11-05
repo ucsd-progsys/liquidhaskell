@@ -59,46 +59,87 @@ real	0m6.654s
 user	0m4.380s
 sys	    0m0.384s
 
+real	0m5.223s
+user	0m3.800s
+sys	0m0.300s
+
+
 [OK] Compiling Data.Vector.Algorithms.Radix
 real	0m31.431s
 user	0m23.981s
 sys	0m1.808s
+
+real	0m23.295s
+user	0m18.181s
+sys	0m1.076s
 
 [OK] Compiling Data.Vector.Algorithms.Search
 real	0m13.892s
 user	0m9.573s
 sys	0m0.788s
 
+real	0m10.172s
+user	0m6.728s
+sys	0m0.528s
+
 [OK] Compiling Data.Vector.Algorithms.Optimal
 real	3m36.357s
 user	2m54.143s
 sys	0m11.585s
+
+real	1m38.936s
+user	1m25.177s
+sys	0m4.104s
+
 
 [OK] Compiling Data.Vector.Algorithms.Insertion
 real	0m16.949s
 user	0m12.505s
 sys	0m0.832s
 
+real	0m10.168s
+user	0m8.229s
+sys	0m0.476s
+
 [OK] Compiling Data.Vector.Algorithms.Heap
 real	2m21.595s
 user	1m35.626s
 sys	0m6.924s
+
+real	1m28.699s
+user	1m2.280s
+sys	0m3.976s
+
 
 [OK] Compiling Data.Vector.Algorithms.Merge 
 real	0m57.314s
 user	0m44.839s
 sys	0m2.704s
 
+real	0m38.120s
+user	0m31.134s
+sys	0m1.544s
+
+
 [OK] Compiling Data.Vector.Algorithms.AmericanFlag
 real	1m16.639s
 user	0m55.027s
 sys	0m3.644s
 
+real	0m48.419s
+user	0m35.098s
+sys	0m2.660s
+
 [OK] Compiling Data.Vector.Algorithms.Intro 
 
-real	1m4.456s
-user	0m47.539s
-sys	    0m2.552s
+real	0m23.295s
+user	0m18.181s
+sys	0m1.076s
+
+
+real	0m41.823s
+user	0m30.398s
+sys	0m2.096s
 
 AmericanFlag.hs.cgi
 [LetE : 142, CaseE : 195, LamE : 336, PredInstE : 10, TypeInstE : 301, RecBindE : 45]
@@ -129,6 +170,24 @@ Search.hs.cgi
 
 --------------
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 AmericanFlag.hs.cgi
 [LetE : 328, CaseE : 9, LamE : 336, PredInstE : 10, TypeInstE : 301, RecBindE : 45]
 
@@ -155,6 +214,9 @@ Radix.hs.cgi
 
 Search.hs.cgi
 [LetE : 135, LamE : 95, TypeInstE : 82, RecBindE : 15]
+
+
+
 
 
 
