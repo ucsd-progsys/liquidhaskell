@@ -902,38 +902,31 @@ consCBSizedTys tflag γ (Rec xes)
 
 consCBWithExprs γ xtes (Rec xes) 
   = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
-       let ts  = fromJust . thd3 <$> xets
-       let vs    = zipWith collectArgs ts es
+       let ts    = fromJust . thd3 <$> xets
        ts'      <- mapM refreshArgs ts
-       let ys  = (fst3 . bkArrowDeep) <$> ts 
-       let ys' = (fst3 . bkArrowDeep) <$> ts'
-       let sus' = zipWith mkSub ys ys'
-       let sus = zipWith mkSub ys ((F.symbol <$>) <$> vs)
-       let ess = (fromJust . (`L.lookup` xtes)) <$> xs
-       let tes  = zipWith (\su es -> F.subst su <$> es)  sus ess 
-       let tes' = zipWith (\su es -> F.subst su <$> es)  sus' ess 
-       let ftes sus = zipWith (\es su -> F.subst su <$> es) ess sus 
-       let rss = zipWith makeLexRefa tes' <$> (repeat <$> tes)
-       let rts = zipWith addTermCond ts' <$> rss
        let xts   = zip xs (Just <$> ts')
        γ'       <- foldM extender γ xts
-       let γs    = (\rt -> γ' `withTRec` (zip xs rt)) <$> rts
+       let γs    = makeTermEnvs γ' xtes xes ts ts'
        let xets' = zip3 xs es (Just <$> ts')
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
   where (xs, es) = unzip xes
-        mkSub ys ys' = F.mkSubst [(x, F.EVar y) | (x, y)<- zip ys ys']
-        collectArgs   = collectArguments . length . fst3 . bkArrow . thd3 . bkUniv
 
-makeLexRefa es' es = uTop $ F.Reft (vv, [F.RConc $ F.PIff (F.PBexp $ F.EVar vv) $ F.pOr rs])
-  where rs = go [] [] es es'
-        go old acc [] [] = acc
-        go old acc (e:es) (e':es') = go ((e,e'):old) (r:acc) es es'
-          where r = F.pAnd $ (F.PAtom F.Lt e' e) : (F.PAtom F.Ge e' zero)
-                           : [F.PAtom F.Eq o' o | (o,o') <- old] 
-                          ++ [F.PAtom F.Ge o' zero | (o,o') <- old] 
-        zero = F.ECon $ F.I 0
-        vv = F.stringSymbol "vvRec"
+makeTermEnvs γ xtes xes ts ts'
+  = (\rt -> γ `withTRec` (zip xs rt)) <$> rts
+  where vs   = zipWith collectArgs ts es
+        ys   = (fst3 . bkArrowDeep) <$> ts 
+        ys'  = (fst3 . bkArrowDeep) <$> ts'
+        sus' = zipWith mkSub ys ys'
+        sus  = zipWith mkSub ys ((F.symbol <$>) <$> vs)
+        ess  = (fromJust . (`L.lookup` xtes)) <$> xs
+        tes  = zipWith (\su es -> F.subst su <$> es)  sus ess 
+        tes' = zipWith (\su es -> F.subst su <$> es)  sus' ess 
+        rss  = zipWith makeLexRefa tes' <$> (repeat <$> tes)
+        rts  = zipWith addTermCond ts' <$> rss
+        (xs, es)     = unzip xes
+        mkSub ys ys' = F.mkSubst [(x, F.EVar y) | (x, y) <- zip ys ys']
+        collectArgs  = collectArguments . length . fst3 . bkArrow . thd3 . bkUniv
 
 
 consCB tflag γ (Rec xes) | tflag 
