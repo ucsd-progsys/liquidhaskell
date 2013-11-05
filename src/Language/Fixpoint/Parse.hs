@@ -201,7 +201,7 @@ sortP
   <|> try (string "Int"     >>  return FInt)
   <|> try (string "int"     >>  return FInt)
   <|> try (FObj . stringSymbol <$> lowerIdP)
-  <|> (FApp <$> fTyConP <*> many sortP     )
+  <|> (fApp <$> (Left <$> fTyConP) <*> many sortP)
 
 symCharsP  = (condIdP symChars (\_ -> True))
 
