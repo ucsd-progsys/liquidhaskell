@@ -340,8 +340,9 @@ splitC (SubC γ t1 (REx x tx t2))
        splitC (SubC γ' t1 t2')
 
 -- existential at the left hand side is treated like forall
-splitC (SubC γ (REx x tx t1) t2) 
-  = do γ' <- (γ, "addExBind 1") += (x, forallExprRefType γ tx)
+splitC z@(SubC γ (REx x tx t1) t2) 
+  = do let tx' = traceShow ("splitC: " ++ showpp z) tx 
+       γ' <- (γ, "addExBind 1") += (x, forallExprRefType γ tx')
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ (RAllE x tx t1) (RAllE x2 _ t2)) | x == x2
@@ -1137,14 +1138,18 @@ consE γ  e@(Lam x e1)
        return $ rFun (F.symbol x) tx t1
     where FunTy τx _ = exprType e 
 
-consE γ e@(Let b@(NonRec x _) e')
-  = do γ'    <- consCBLet γ b
-       consElimE γ' [F.symbol x] e'
+-- EXISTS-BASED CONSTRAINTS HEREHEREHEREHERE
+-- consE γ e@(Let b@(NonRec x _) e')
+--   = do γ'    <- consCBLet γ b
+--        consElimE γ' [F.symbol x] e'
+-- 
+-- consE γ (Case e x _ [(ac, ys, ce)]) 
+--   = do γ'  <- consCBLet γ (NonRec x e)
+--        γ'' <- caseEnv γ' x [] ac ys
+--        consElimE γ'' (F.symbol <$> (x:ys)) ce 
 
-consE γ (Case e x _ [(ac, ys, ce)]) 
-  = do γ'  <- consCBLet γ (NonRec x e)
-       γ'' <- caseEnv γ' x [] ac ys
-       consElimE γ'' (F.symbol <$> (x:ys)) ce 
+consE γ e@(Let _ _) 
+  = cconsFreshE LetE γ e
 
 consE γ e@(Case _ _ _ _) 
   = cconsFreshE CaseE γ e
@@ -1399,7 +1404,7 @@ instance NFData CGInfo where
 
 forallExprRefType     :: CGEnv -> SpecType -> SpecType
 forallExprRefType γ t  = t `strengthen` (uTop r') 
-  where r'             = maybe F.top (forallExprReft γ) ((F.isSingletonReft) r)
+  where r'             = maybe F.top (forallExprReft γ) (F.isSingletonReft r)
         r              = F.sr_reft $ rTypeSortedReft (emb γ) t
 
 
@@ -1416,9 +1421,6 @@ forallExprReftLookup γ x = γ ?= x'
   where x'               = fromMaybe err (F.symbol <$> F.lookupSEnv x γ')
         γ'               = syenv γ
         err              = errorstar $ "exReftLookup: unknown " ++ showpp x ++ " in " ++ F.showFix γ'
--- withReft (RApp c ts rs _) r' = RApp c ts rs r' 
--- withReft (RVar a _) r'       = RVar a      r' 
--- withReft t _                 = t 
 
 
 grapBindsWithType tx γ 
