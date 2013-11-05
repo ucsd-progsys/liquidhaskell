@@ -216,6 +216,7 @@ expandRPAliasE = expandPAlias []
 
 expandRTAliasE = expandAlias []
 
+-- TODO: this function is monstrously big. please split up.
 expandAlias s = go s
   where 
     go s (RApp c ts rs r)
