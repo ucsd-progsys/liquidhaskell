@@ -1408,20 +1408,22 @@ forallExprRefType γ t  = t `strengthen` (uTop r')
         r              = F.sr_reft $ rTypeSortedReft (emb γ) t
 
 
-forallExprReft γ (F.EApp f es) = F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
-  where (xs,_ , t)             = bkArrow $ thd3 $ bkUniv $ forallExprReftLookup γ f 
-        su                     = F.mkSubst $ safeZip "fExprRefType" xs es
+forallExprReft γ e@(F.EApp f es) 
+  = case forallExprReftLookup γ f of
+      Just (xs,_,t) -> let su = F.mkSubst $ safeZip "fExprRefType" xs es in
+                       F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
+      Nothing       -> F.exprReft e
 
-forallExprReft γ (F.EVar x) = F.sr_reft $ rTypeSortedReft (emb γ) t 
-  where (_,_ , t)           = bkArrow $ thd3 $ bkUniv $ forallExprReftLookup γ x 
+forallExprReft γ e@(F.EVar x) 
+  = case forallExprReftLookup γ x of 
+      Just (_,_,t)  -> F.sr_reft $ rTypeSortedReft (emb γ) t 
+      Nothing       -> F.exprReft e
 
 forallExprReft _ e          = F.exprReft e 
 
-forallExprReftLookup γ x = γ ?= x' 
-  where x'               = fromMaybe err (F.symbol <$> F.lookupSEnv x γ')
-        γ'               = syenv γ
-        err              = errorstar $ "exReftLookup: unknown " ++ showpp x ++ " in " ++ F.showFix γ'
-
+forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
+  where 
+    snap                 = bkArrow . thd3 . bkUniv . (γ ?=) . F.symbol
 
 grapBindsWithType tx γ 
   = fst <$> toListREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
