@@ -278,7 +278,7 @@ appFTyCon  = TC (S "FAppTy")
 isListTC (TC (S c)) = c == listConName
 isTupTC (TC (S c))  = c == tupConName
 
-fTyconString (TC (S s)) = symbolString s
+fTyconString (TC s) = symbolString s
 
 stringFTycon :: String -> FTycon
 stringFTycon c 
