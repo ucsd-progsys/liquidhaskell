@@ -357,6 +357,11 @@ splitC (SubC γ t1 (RAllE x tx t2))
   = do γ' <- (γ, "addExBind 2") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
+splitC (SubC γ (RRTy r t1) t2) 
+  = do c1 <- splitC (SubR γ r)
+       c2 <- splitC (SubC γ t1 t2)
+       return $ c1 ++ c2
+
 splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
   =  do cs       <- bsplitC γ t1 t2 
         cs'      <- splitC  (SubC γ r2 r1) 
@@ -657,11 +662,13 @@ addClassBind = mapM (uncurry addBind) . classBinds
 --   = return [] 
 
 addC :: SubC -> String -> CG ()  
-addC !c _msg 
+addC !c@(SubC _ t1 t2) _msg 
   = -- trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
      modify $ \s -> s { hsCs  = c : (hsCs s) }
+addC !c _msg 
+  = modify $ \s -> s { hsCs  = c : (hsCs s) }
 
-addPost γ (RFun _ (RRef r) t _) 
+addPost γ (RRTy r t) 
   = addC (SubR γ r) "precondition" >> return t
 addPost _ t  
   = return t
@@ -905,13 +912,12 @@ consCBWithExprs γ xtes (Rec xes)
        let ess = (fromJust . (`L.lookup` xtes)) <$> xs
        let tes  = zipWith (\su es -> F.subst su <$> es)  sus ess 
        let tes' = zipWith (\su es -> F.subst su <$> es)  sus' ess 
-       let ([(xx,es'')], [(x, e)], [(_,_,t)]) = (xtes, xes, xets)
-       let rss = zipWith makeLexRefa tes tes'
-       let rts = zipWith addTermCond ts' rss
---       errorstar $ showPpr x ++ showPpr xx ++ show es'' ++ "\n" ++ show t ++ show ts' ++ show rts
+       let ftes sus = zipWith (\es su -> F.subst su <$> es) ess sus 
+       let rss = zipWith makeLexRefa tes' <$> (repeat <$> tes)
+       let rts = zipWith addTermCond ts' <$> rss
        let xts   = zip xs (Just <$> ts')
        γ'       <- foldM extender γ xts
-       let γs    = repeat $ γ' `withTRec` (zip xs rts)
+       let γs    = (\rt -> γ' `withTRec` (zip xs rt)) <$> rts
        let xets' = zip3 xs es (Just <$> ts')
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
@@ -919,7 +925,7 @@ consCBWithExprs γ xtes (Rec xes)
         mkSub ys ys' = F.mkSubst [(x, F.EVar y) | (x, y)<- zip ys ys']
         collectArgs   = collectArguments . length . fst3 . bkArrow . thd3 . bkUniv
 
-makeLexRefa es es' = uTop $ F.Reft (vv, [F.RConc $ F.PIff (F.PBexp $ F.EVar vv) $ F.pOr rs])
+makeLexRefa es' es = uTop $ F.Reft (vv, [F.RConc $ F.PIff (F.PBexp $ F.EVar vv) $ F.pOr rs])
   where rs = go [] [] es es'
         go old acc [] [] = acc
         go old acc (e:es) (e':es') = go ((e,e'):old) (r:acc) es es'

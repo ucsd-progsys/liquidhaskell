@@ -78,7 +78,7 @@ tyVars (RVar α _)      = [α]
 tyVars (RAllE _ _ t)   = tyVars t
 tyVars (REx _ _ t)     = tyVars t
 tyVars (RExprArg _)    = []
-tyVars (RRef _)        = []
+tyVars (RRTy _ t)      = tyVars t
 tyVars (ROth _)        = []
 
 subsTyVarsAll ats = go
@@ -97,7 +97,7 @@ funBinds (RAllE b t1 t2)  = b : funBinds t1 ++ funBinds t2
 funBinds (REx b t1 t2)    = b : funBinds t1 ++ funBinds t2
 funBinds (RVar _ _)       = [] 
 funBinds (ROth _)         = []
-funBinds (RRef _)         = []
+funBinds (RRTy _ t)       = funBinds t
 funBinds (RAppTy t1 t2 r) = funBinds t1 ++ funBinds t2
 funBinds (RExprArg e)     = []
 

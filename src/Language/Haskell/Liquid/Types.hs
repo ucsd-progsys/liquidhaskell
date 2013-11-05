@@ -486,8 +486,9 @@ data RType p c tv r
     , rt_reft  :: !r
     }
 
-  | RRef  {
+  | RRTy  {
       rr_ref   :: !r
+    , rt_ty    :: !(RType p c tv r)
     }
   | ROth  !String 
 
@@ -617,10 +618,10 @@ bkClass t                        = ([], t)
 
 rFun b t t' = RFun b t t' top
 
-addTermCond t r = mkArrow αs πs xts' t2
+addTermCond t r = mkArrow αs πs xts $ RRTy r t2
   where (αs, πs, t1) = bkUniv t
         (xs, ts, t2) = bkArrow t1
-        xts'         = zip (xs++[dummySymbol]) (ts++[RRef r])
+        xts          = zip xs ts
 
 --------------------------------------------
 
@@ -714,7 +715,7 @@ emapReft f γ (RAllE z t t')      = RAllE z (emapReft f γ t) (emapReft f γ t')
 emapReft f γ (REx z t t')        = REx   z (emapReft f γ t) (emapReft f γ t')
 emapReft _ _ (RExprArg e)        = RExprArg e
 emapReft f γ (RAppTy t t' r)     = RAppTy (emapReft f γ t) (emapReft f γ t') (f γ r)
-emapReft f γ (RRef r)            = RRef (f γ r)
+emapReft f γ (RRTy r t)          = RRTy (f γ r) (emapReft f γ t)
 emapReft _ _ (ROth s)            = ROth  s 
 
 emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> Ref (RType p c tv ()) t (RType p c tv t) -> Ref (RType p c tv ()) s (RType p c tv s)
@@ -759,7 +760,7 @@ efoldReft cb g f = go
     go γ z (RAllE x t t')               = go (insertSEnv x (g t) γ) (go γ z t) t' 
     go γ z (REx x t t')                 = go (insertSEnv x (g t) γ) (go γ z t) t' 
     go _ z (ROth _)                     = z 
-    go _ z (RRef _)                     = z 
+    go γ z (RRTy _ t)                   = go γ z t
     go γ z me@(RAppTy t t' r)           = f γ (Just me) r (go γ (go γ z t) t')
     go _ z (RExprArg _)                 = z
 
@@ -818,8 +819,7 @@ mapBind f (RAllE b t1 t2)  = RAllE  (f b) (mapBind f t1) (mapBind f t2)
 mapBind f (REx b t1 t2)    = REx    (f b) (mapBind f t1) (mapBind f t2)
 mapBind _ (RVar α r)       = RVar α r
 mapBind _ (ROth s)         = ROth s
-mapBind _ (RRef r)         = RRef r
-mapBind f (RAppTy t1 t2 r) = RAppTy (mapBind f t1) (mapBind f t2) r
+mapBind f (RRTy r t)       = RRTy r (mapBind f t)
 mapBind _ (RExprArg e)     = RExprArg e
 
 mapBindRef f (RMono s r)   = RMono (mapFst f <$> s) r
