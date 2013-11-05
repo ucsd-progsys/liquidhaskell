@@ -9,6 +9,8 @@ poo [] = liquidAssertB False
 
 prop1  = liquidAssertB (poo xs)
 
-{-@ zooper :: {v:[a] | (len v) > 0} -> a @-}
+{- qualif PosLen(v:[a]): (len v) > 0 @-}
+
+{- zooper :: {v:[a] | (len v) > 0} -> a -}
 zooper :: [a] -> a
 zooper = undefined
