@@ -21,10 +21,21 @@ TODO
 exists-based constraints
 ------------------------
 
+HEREHEREHEREHERE: see tests/pos/meas00.hs 
+  fails because the quals (in spec) are of the form 
+  
+      List @(0)
+
+  and not
+      
+      App List @(0)
+
+  which is the sort of the internal lists.
+
+  HACK Parse.hs so that the parsed qualifiers get the "AppTy" ...
+
+
 ("Foo" [x, y]) vs ("App" ["App" [a, b], "c"]
-
-
-KVar Distribution Optimal.hs:  [LetE : 456, LamE : 309, TypeInstE : 649]
 
 
 GHC introduces a bunch of:

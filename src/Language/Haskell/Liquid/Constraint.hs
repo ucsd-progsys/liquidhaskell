@@ -1403,23 +1403,27 @@ instance NFData CGInfo where
 -------------------------------------------------------------------------------
 
 forallExprRefType     :: CGEnv -> SpecType -> SpecType
-forallExprRefType γ t  = t `strengthen` (uTop r') 
-  where r'             = maybe F.top (forallExprReft γ) (F.isSingletonReft r)
-        r              = F.sr_reft $ rTypeSortedReft (emb γ) t
+forallExprRefType γ t = t `strengthen` (uTop r') 
+  where r'            = fromMaybe F.top $ forallExprReft γ r 
+        r             = F.sr_reft $ rTypeSortedReft (emb γ) t
 
+forallExprReft γ r 
+  = do e  <- F.isSingletonReft r
+       r' <- forallExprReft_ γ e
+       return r'
 
-forallExprReft γ e@(F.EApp f es) 
+forallExprReft_ γ e@(F.EApp f es) 
   = case forallExprReftLookup γ f of
       Just (xs,_,t) -> let su = F.mkSubst $ safeZip "fExprRefType" xs es in
-                       F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
-      Nothing       -> F.exprReft e
+                       Just $ F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
+      Nothing       -> Nothing -- F.exprReft e
 
-forallExprReft γ e@(F.EVar x) 
+forallExprReft_ γ e@(F.EVar x) 
   = case forallExprReftLookup γ x of 
-      Just (_,_,t)  -> F.sr_reft $ rTypeSortedReft (emb γ) t 
-      Nothing       -> F.exprReft e
+      Just (_,_,t)  -> Just $ F.sr_reft $ rTypeSortedReft (emb γ) t 
+      Nothing       -> Nothing -- F.exprReft e
 
-forallExprReft _ e          = F.exprReft e 
+forallExprReft_ _ e = Nothing -- F.exprReft e 
 
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where 
