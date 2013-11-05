@@ -22,6 +22,7 @@ module Language.Haskell.Liquid.RefType (
  
   -- * Functions for decreasing arguments
   , isDecreasing, makeDecrType
+  , makeLexRefa
 
   -- * Functions for manipulating `Predicate`s
   , pdVar
@@ -973,6 +974,22 @@ cmpLexRef vxs (v, x, g)
          :  [PAtom Eq (f y) (f z) | (y, z, f) <- vxs]
          ++ [PAtom Ge (f y) zero  | (y, _, f) <- vxs]
   where zero = ECon $ I 0
+
+makeLexRefa es' es = uTop $ Reft (vv, [RConc $ PIff (PBexp $ EVar vv) $ pOr rs])
+  where rs = makeLexReft [] [] es es'
+        vv = stringSymbol "vvRec"
+
+makeLexReft old acc [] [] 
+  = acc
+makeLexReft old acc (e:es) (e':es') 
+  = makeLexReft ((e,e'):old) (r:acc) es es'
+  where 
+    r    = pAnd $  (PAtom Lt e' e) 
+                :  (PAtom Ge e' zero)
+                :  [PAtom Eq o' o    | (o,o') <- old] 
+                ++ [PAtom Ge o' zero | (o,o') <- old] 
+    zero = ECon $ I 0
+
 
 ------------------------------------------------------------------------
 -- | Pretty Printing Error Messages ------------------------------------
