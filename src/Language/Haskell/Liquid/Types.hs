@@ -821,6 +821,7 @@ mapBind _ (RVar α r)       = RVar α r
 mapBind _ (ROth s)         = ROth s
 mapBind f (RRTy r t)       = RRTy r (mapBind f t)
 mapBind _ (RExprArg e)     = RExprArg e
+mapBind f (RAppTy t t' r)  = RAppTy (mapBind f t) (mapBind f t') r
 
 mapBindRef f (RMono s r)   = RMono (mapFst f <$> s) r
 mapBindRef f (RPoly s t)   = RPoly (mapFst f <$> s) $ mapBind f t
