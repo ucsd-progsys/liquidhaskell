@@ -341,8 +341,8 @@ splitC (SubC γ t1 (REx x tx t2))
 
 -- existential at the left hand side is treated like forall
 splitC z@(SubC γ (REx x tx t1) t2) 
-  = do let tx' = traceShow ("splitC: " ++ showpp z) tx 
-       γ' <- (γ, "addExBind 1") += (x, forallExprRefType γ tx')
+  = do -- let tx' = traceShow ("splitC: " ++ showpp z) tx 
+       γ' <- (γ, "addExBind 1") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ (RAllE x tx t1) (RAllE x2 _ t2)) | x == x2

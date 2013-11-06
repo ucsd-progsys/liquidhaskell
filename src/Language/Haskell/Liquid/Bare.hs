@@ -642,19 +642,12 @@ checkDefAsserts env vbs xbs   = applyNonNull (return ()) grumble  undefSigs
     undefSigs                 = [x | (x, _) <- assertSigs, not (x `S.member` definedSigs)]
     assertSigs                = filter isTarget xbs
     definedSigs               = S.fromList $ snd3 <$> vbs
-    grumble xs                = mapM_ (warn . berrUnknownVar) xs -- [berrUnknownVar (loc x) (val x) | x <- xs] 
+    grumble xs                = mapM_ (warn . berrUnknownVar) xs
     moduleName                = getModString $ modName env
     isTarget                  = L.isPrefixOf moduleName . symbolStringRaw . val . fst
     symbolStringRaw           = stripParens . symbolString
 
-    -- grumble                   = {- throwError -} warn . render . vcat . fmap errorMsg
-    -- errorMsg                  = (text "Specification for unknown variable:" <+>) . locatedSymbolText
- 
-
 warn x = tell [x]
-
-
-
 
 
 mkVarSpec                 :: (Var, LocSymbol, BareType) -> BareM (Var, Located SpecType)
@@ -672,13 +665,13 @@ showTopLevelVars vs =
 
 ----------------------------------------------------------------------
 
-makeTyConEmbeds (mod,spec)
+makeTyConEmbeds (mod, spec)
   = inModule mod $ makeTyConEmbeds' $ Ms.embeds spec
 
 makeTyConEmbeds' :: TCEmb (Located String) -> BareM (TCEmb TyCon)
 makeTyConEmbeds' z = M.fromList <$> mapM tx (M.toList z)
   where 
-    tx (c, y) = (, y) <$> lookupGhcTyCon' c --  wrapErr () (lookupGhcTyCon (val c))
+    tx (c, y) = (, y) <$> lookupGhcTyCon' c 
      
 
 lookupGhcTyCon' c = wrapErr msg lookupGhcTyCon (val c)
@@ -875,17 +868,18 @@ instance Resolvable Symbol where
                          _ -> return (S s)
 
 instance Resolvable Sort where
-  resolve FInt         = return FInt
-  resolve FNum         = return FNum
-  resolve s@(FObj _)   = return s --FObj . S <$> lookupName env m s
-  resolve s@(FVar _)   = return s
-  resolve (FFunc i ss) = FFunc i <$> mapM resolve ss
-  resolve (FApp tc ss)
-      | tcs `elem` fixpointPrims = FApp tc <$> ss'
-      | otherwise     = FApp <$> (stringFTycon.showPpr <$> lookupGhcTyCon tcs)
-                             <*> ss'
-      where tcs = fTyconString tc
-            ss' = mapM resolve ss
+  resolve = return
+  -- resolve FInt         = return FInt
+  -- resolve FNum         = return FNum
+  -- resolve s@(FObj _)   = return s --FObj . S <$> lookupName env m s
+  -- resolve s@(FVar _)   = return s
+  -- resolve (FFunc i ss) = FFunc i <$> mapM resolve ss
+  -- resolve (FApp tc ss)
+  --     | tcs `elem` fixpointPrims = FApp tc <$> ss'
+  --     | otherwise     = FApp <$> (stringFTycon.showPpr <$> lookupGhcTyCon tcs)
+  --                            <*> ss'
+  --     where tcs = fTyconString tc
+  --           ss' = mapM resolve ss
 
 instance Resolvable (UReft Reft) where
   resolve (U r p) = U <$> resolve r <*> resolve p
@@ -1395,6 +1389,7 @@ berrMeasure   l x t  = printf "[%s]\nCannot convert measure %s :: %s"
 -- 
 -- berrUnknownTyCon x   = printf "[%s]\nSpecification for unknown TyCon   : %s"  
 --                          (showpp $ loc x) (showpp $ val x)
+
 berrUnknownTyCon     = berrUnknown "TyCon"
 berrUnknownVar       = berrUnknown "Variable"
 

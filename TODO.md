@@ -1,17 +1,3 @@
-Failed 12 tests: 
- neg/pargs.hs,
-  neg/pargs1.hs,
-  neg/sumPoly.hs,
-  pos/LambdaEval.hs,
-  pos/ListQSort-LType.hs,
-  pos/ResolvePred.hs,
-  pos/foldr.hs,
-  pos/mapreduce-bare.hs,
-  pos/mapreduce.hs,
-  pos/polyqual.hs,
-  pos/ptr2.hs,
-  pos/typeAliasDup.hs 
-
 
 TODO
 ====
