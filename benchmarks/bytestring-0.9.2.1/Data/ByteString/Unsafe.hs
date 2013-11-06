@@ -110,7 +110,7 @@ liquidCanary1 x   = x - 1
 {-@ unsafeHead :: {v:ByteString | (bLength v) > 0} -> Word8 @-}
 unsafeHead :: ByteString -> Word8
 unsafeHead (PS x s l) = assert (l > 0) $
-    inlinePerformIO $ withForeignPtr x $ \p -> peekByteOff p s
+  inlinePerformIO  $  withForeignPtr x $ \p -> peekByteOff p s
 {-# INLINE unsafeHead #-}
 
 -- | A variety of 'tail' for non-empty ByteStrings. 'unsafeTail' omits the
