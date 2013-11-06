@@ -18,43 +18,15 @@ TODO
 * speed (exists)
   + Data.Vector.Algorithms.Optimal
 
-FAppTy
-------
+FAppTy (exists2)
+----------------
 
-Failed 28 tests: 
-  ../benchmarks/bytestring-0.9.2.1/Data/Bar.hs,
-  ../benchmarks/bytestring-0.9.2.1/Data/ByteString.hs,
-  ../benchmarks/bytestring-0.9.2.1/Data/ByteString.split.0.T.hs,
-  ../benchmarks/bytestring-0.9.2.1/Data/ByteString.split.1.T.hs,
-  ../benchmarks/bytestring-0.9.2.1/Data/ByteString/Char8.hs,
-  ../benchmarks/bytestring-0.9.2.1/Data/ByteString/Fusion.T.hs,
-  ../benchmarks/bytestring-0.9.2.1/Data/ByteString/Fusion.hs,
-  ../benchmarks/bytestring-0.9.2.1/Data/ByteString/Internal.hs,
-  ../benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs,
-  ../benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy/Char8.hs,
-
-HEREHEREHERE  ../benchmarks/bytestring-0.9.2.1/Data/ByteString/Unsafe.hs,
-HEREHEREHERE  ../benchmarks/bytestring-0.9.2.1/Data/Foo.hs,
-
-Probable cause: some qualifier unification silliness...
-
-  ../benchmarks/bytestring-0.9.2.1/Data/lineDiff.hs,
-  ../benchmarks/text-0.11.2.3/Data/Text.hs,
-  ../benchmarks/text-0.11.2.3/Data/Text/Encoding.hs,
-  ../benchmarks/text-0.11.2.3/Data/Text/Foreign.hs,
-  ../benchmarks/text-0.11.2.3/Data/Text/Fusion.hs,
-  ../benchmarks/text-0.11.2.3/Data/Text/Lazy.hs,
-  ../benchmarks/text-0.11.2.3/Data/Text/Lazy/Builder.hs,
-  ../benchmarks/text-0.11.2.3/Data/Text/Lazy/Encoding.hs,
-  ../benchmarks/text-0.11.2.3/Data/Text/Lazy/Fusion.hs,
-  ../benchmarks/text-0.11.2.3/Data/Text/Private.hs,
-  ../web/demos/index-dependent-maps.hs,
-  neg/pargs.hs,
-  neg/pargs1.hs,
-  neg/sumPoly.hs,
-  pos/ptr2.hs,
-  pos/typeAliasDup.hs 
-
+Failed tests: 
+../web/demos/index-dependent-maps.hs,
+neg/pargs.hs,
+neg/pargs1.hs,
+neg/sumPoly.hs,
+pos/typeAliasDup.hs 
 
 exists-based constraints
 ------------------------
