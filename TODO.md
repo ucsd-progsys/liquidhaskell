@@ -23,9 +23,6 @@ FAppTy (exists2)
 
 Failed tests: 
 ../web/demos/index-dependent-maps.hs,
-neg/pargs.hs,
-neg/pargs1.hs,
-neg/sumPoly.hs,
 pos/typeAliasDup.hs 
 
 exists-based constraints
