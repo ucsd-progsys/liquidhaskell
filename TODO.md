@@ -1,8 +1,6 @@
 TODO
 ====
 
-urgh. the FAppTy thing seems to break "Set a" in Z3 land. sigh.
-
 String Literals
 ---------------
 
