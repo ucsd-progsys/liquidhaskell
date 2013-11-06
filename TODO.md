@@ -32,6 +32,38 @@ HEREHEREHEREHERE: see tests/pos/meas00.hs
 
   which is the sort of the internal lists.
 
+Failed 29 tests: 
+neg/ListConcat.hs,
+neg/ListElem.hs,
+neg/ListKeys.hs,
+neg/meas9.hs,
+neg/pargs.hs,
+neg/pargs1.hs,
+neg/sumPoly.hs,
+pos/LambdaEval.hs,
+pos/ListConcat.hs,
+pos/ListElem.hs,
+pos/ListKeys.hs,
+pos/ListQSort-LType.hs,
+pos/ResolvePred.hs,
+pos/deepmeas0.hs,
+pos/foldr.hs,
+pos/listSet.hs,
+pos/listSetDemo.hs,
+pos/mapreduce-bare.hs,
+pos/mapreduce.hs,
+pos/meas10.hs,
+pos/meas11.hs,
+pos/meas9.hs,
+pos/polyqual.hs,
+pos/ptr2.hs,
+pos/selfList.hs,
+pos/stacks0.hs,
+pos/typeAliasDup.hs,
+pos/zipper.hs,
+pos/zipper0.hs 
+
+
   HACK Parse.hs so that the parsed qualifiers get the "AppTy" ...
 
 
