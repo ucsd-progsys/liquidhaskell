@@ -27,7 +27,7 @@ module Language.Fixpoint.Types (
   , boolFTyCon
   , strFTyCon
   , propFTyCon
-  , appFTyCon
+  -- , appFTyCon
   , fTyconString
   , stringFTycon
   , fApp
