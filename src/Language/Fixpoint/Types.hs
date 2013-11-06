@@ -31,7 +31,7 @@ module Language.Fixpoint.Types (
   , fTyconString
   , stringFTycon
   , fApp
-  -- , fTyconSort
+  , fObj
 
   -- * Symbols
   , Symbol(..)
@@ -301,7 +301,8 @@ fAppSorts t ts        = foldl' (\t1 t2 -> FApp appFTyCon [t1, t2]) t ts
 fTyconSort :: FTycon -> Sort
 fTyconSort = (`FApp` [])
 
-
+fObj :: Symbol -> Sort
+fObj = fTyconSort . TC
 ----------------------------------------------------------------------
 ------------------------------- Sorts --------------------------------
 ----------------------------------------------------------------------
