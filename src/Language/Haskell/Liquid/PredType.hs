@@ -425,7 +425,7 @@ pappArity  = 2
 pappSym n  = S $ "papp" ++ show n
 
 pappSort n = FFunc (2 * n) $ [ptycon] ++ args ++ [bSort]
-  where ptycon = FApp predFTyCon $ FVar <$> [0..n-1]
+  where ptycon = fApp (Left predFTyCon) $ FVar <$> [0..n-1]
         args   = FVar <$> [n..(2*n-1)]
         bSort  = FApp boolFTyCon []
  
