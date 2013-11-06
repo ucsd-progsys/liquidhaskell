@@ -825,8 +825,20 @@ wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns
                    , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
 
 
-fixpointPrims = ["Pred", "Prop", "List", "Set_Set", "Set_sng", "Set_cup", "Set_cap"
-                ,"Set_dif", "Set_emp", "Set_mem", "Set_sub", "VV"]
+fixpointPrims = [ "Pred"
+                , "Prop"
+                , "List"
+                , "Set_Set"
+                , "Set_sng"
+                , "Set_cup"
+                , "Set_cap"
+                , "Set_dif"
+                , "Set_emp"
+                , "Set_mem"
+                , "Set_sub"
+                , "VV"
+                , "FAppTy" 
+                ]
 
 class Resolvable a where
   resolve :: a -> BareM a
@@ -868,18 +880,18 @@ instance Resolvable Symbol where
                          _ -> return (S s)
 
 instance Resolvable Sort where
-  resolve = return
-  -- resolve FInt         = return FInt
-  -- resolve FNum         = return FNum
-  -- resolve s@(FObj _)   = return s --FObj . S <$> lookupName env m s
-  -- resolve s@(FVar _)   = return s
-  -- resolve (FFunc i ss) = FFunc i <$> mapM resolve ss
-  -- resolve (FApp tc ss)
-  --     | tcs `elem` fixpointPrims = FApp tc <$> ss'
-  --     | otherwise     = FApp <$> (stringFTycon.showPpr <$> lookupGhcTyCon tcs)
-  --                            <*> ss'
-  --     where tcs = fTyconString tc
-  --           ss' = mapM resolve ss
+  -- resolve = return
+  resolve FInt         = return FInt
+  resolve FNum         = return FNum
+  resolve s@(FObj _)   = return s --FObj . S <$> lookupName env m s
+  resolve s@(FVar _)   = return s
+  resolve (FFunc i ss) = FFunc i <$> mapM resolve ss
+  resolve (FApp tc ss)
+      | tcs `elem` fixpointPrims = FApp tc <$> ss'
+      | otherwise     = FApp <$> (stringFTycon.showPpr <$> lookupGhcTyCon tcs)
+                             <*> ss'
+      where tcs = fTyconString tc
+            ss' = mapM resolve ss
 
 instance Resolvable (UReft Reft) where
   resolve (U r p) = U <$> resolve r <*> resolve p
