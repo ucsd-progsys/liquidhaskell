@@ -45,7 +45,6 @@ Failed 37 tests:
 ../benchmarks/text-0.11.2.3/Data/Text/Lazy/Fusion.hs,
 ../benchmarks/text-0.11.2.3/Data/Text/Private.hs,
 ../benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/AmericanFlag.hs,
-../benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/Common.hs,
 ../benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/Heap.hs,
 ../benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/Insertion.hs,
 ../benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/Intro.hs,
