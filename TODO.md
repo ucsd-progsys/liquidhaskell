@@ -1,83 +1,16 @@
-onds
-SUCCESS! (neg/csv.hs)
-
-
-Failed 75 tests: 
- neg/Class1.hs,
-  neg/Eval.hs,
-  neg/ListKeys.hs,
-  neg/ListMSort.hs,
-  neg/PairMeasure.hs,
-  neg/StrictPair0.hs,
-  neg/concat2.hs,
-  neg/deppair0.hs,
-  neg/monad3.hs,
-  neg/monad4.hs,
-  neg/monad5.hs,
-  neg/monad6.hs,
-  neg/mr00.hs,
-  neg/pair0.hs,
-  neg/pargs.hs,
+Failed 12 tests: 
+ neg/pargs.hs,
   neg/pargs1.hs,
-  neg/prune0.hs,
-  neg/state0.hs,
-  neg/state00.hs,
   neg/sumPoly.hs,
-  neg/trans.hs,
-  neg/vector2.hs,
-  pos/BST.hs,
-  pos/BST000.hs,
-  pos/Class.hs,
-  pos/Coercion.hs,
-  pos/GhcListSort.hs,
-  pos/GhcSort1.hs,
   pos/LambdaEval.hs,
-  pos/LambdaEvalMini.hs,
-  pos/LambdaEvalSuperTiny.hs,
-  pos/LambdaEvalTiny.hs,
-  pos/ListKeys.hs,
-  pos/ListMSort-LType.hs,
-  pos/ListMSort.hs,
   pos/ListQSort-LType.hs,
-  pos/ListSort.hs,
-  pos/Map.hs,
-  pos/Map0.hs,
-  pos/Map2.hs,
-  pos/MutualRec.hs,
-  pos/PairMeasure.hs,
-  pos/PairMeasure0.hs,
   pos/ResolvePred.hs,
-  pos/StrictPair0.hs,
-  pos/deepmeas0.hs,
-  pos/deppair0.hs,
-  pos/deppair1.hs,
-  pos/duplicate-bind.hs,
-  pos/extype.hs,
   pos/foldr.hs,
-  pos/for.hs,
-  pos/grty3.hs,
-  pos/lets.hs,
   pos/mapreduce-bare.hs,
   pos/mapreduce.hs,
-  pos/monad5.hs,
-  pos/monad6.hs,
-  pos/pair0.hs,
-  pos/pair00.hs,
   pos/polyqual.hs,
   pos/ptr2.hs,
-  pos/risers.hs,
-  pos/scanr.hs,
-  pos/state0.hs,
-  pos/state00.hs,
-  pos/stateInvarint.hs,
-  pos/testMRec.hs,
-  pos/tup0.hs,
-  pos/tyfam0.hs,
-  pos/typeAliasDup.hs,
-  pos/vector2.hs,
-  pos/zipSO.hs,
-  pos/zipper.hs,
-  pos/zipper0.hs 
+  pos/typeAliasDup.hs 
 
 
 TODO
@@ -103,54 +36,7 @@ TODO
 exists-based constraints
 ------------------------
 
-HEREHEREHEREHERE: see tests/pos/meas00.hs 
-  fails because the quals (in spec) are of the form 
-  
-      List @(0)
-
-  and not
-      
-      App List @(0)
-
-  which is the sort of the internal lists.
-
-Failed 29 tests: 
-neg/ListConcat.hs,
-neg/ListElem.hs,
-neg/ListKeys.hs,
-neg/meas9.hs,
-neg/pargs.hs,
-neg/pargs1.hs,
-neg/sumPoly.hs,
-pos/LambdaEval.hs,
-pos/ListConcat.hs,
-pos/ListElem.hs,
-pos/ListKeys.hs,
-pos/ListQSort-LType.hs,
-pos/ResolvePred.hs,
-pos/deepmeas0.hs,
-pos/foldr.hs,
-pos/listSet.hs,
-pos/listSetDemo.hs,
-pos/mapreduce-bare.hs,
-pos/mapreduce.hs,
-pos/meas10.hs,
-pos/meas11.hs,
-pos/meas9.hs,
-pos/polyqual.hs,
-pos/ptr2.hs,
-pos/selfList.hs,
-pos/stacks0.hs,
-pos/typeAliasDup.hs,
-pos/zipper.hs,
-pos/zipper0.hs 
-
-
-  HACK Parse.hs so that the parsed qualifiers get the "AppTy" ...
-
-
 ("Foo" [x, y]) vs ("App" ["App" [a, b], "c"]
-
 
 GHC introduces a bunch of:
 
