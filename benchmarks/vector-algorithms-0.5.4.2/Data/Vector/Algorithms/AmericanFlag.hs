@@ -1,8 +1,6 @@
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables #-}
 {-# LANGUAGE BangPatterns #-}
 
-{-@ LIQUID "--no-termination" @-}
-
 -- ---------------------------------------------------------------------------
 -- |
 -- Module      : Data.Vector.Algorithms.AmericanFlag

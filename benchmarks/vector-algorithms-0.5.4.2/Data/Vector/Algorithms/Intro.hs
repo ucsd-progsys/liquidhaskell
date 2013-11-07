@@ -1,6 +1,5 @@
 {-# LANGUAGE TypeOperators, BangPatterns, ScopedTypeVariables #-}
 
-{-@ LIQUID "--no-termination" @-}
 -- ---------------------------------------------------------------------------
 -- |
 -- Module      : Data.Vector.Algorithms.Intro

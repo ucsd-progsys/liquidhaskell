@@ -92,10 +92,6 @@ binarySearchByBounds cmp vec e lo hi = loop (hi - lo) lo hi
   where k = (u + l) `shiftRI` 1
 {-# INLINE binarySearchByBounds #-}
 
-{-@ smuggleQual :: twit:Nat -> l:Nat -> {v:Nat | v = l + twit} -> Int @-}
-smuggleQual :: Int -> Int -> Int -> Int
-smuggleQual = undefined
-
 -- | Finds the lowest index in a given sorted vector at which the given element
 -- could be inserted while maintaining the sortedness.
 binarySearchL :: (PrimMonad m, MVector v e, Ord e) => v (PrimState m) e -> e -> m Int

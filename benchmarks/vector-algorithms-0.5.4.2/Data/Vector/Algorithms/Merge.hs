@@ -1,5 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
-{-@ LIQUID "--no-termination" @-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- ---------------------------------------------------------------------------
 -- |
@@ -53,44 +53,45 @@ sortBy cmp vec
 
 mergeSortWithBuf :: (PrimMonad m, MVector v e)
                  => Comparison e -> v (PrimState m) e -> v (PrimState m) e -> m ()
-mergeSortWithBuf cmp src  buf = loop 0 (length src)
+mergeSortWithBuf cmp src  buf = loop (length src) 0 (length src)
  where
- loop l u
+ loop (twit :: Int) l u
    | len < threshold = I.sortByBounds cmp src l u
-   | otherwise       = do loop l mid
-                          loop mid u
+   | otherwise       = do loop (mid - l) l mid
+                          loop (u - mid) mid u
                           merge cmp (unsafeSlice l len src) buf (mid - l)
   where len = u - l
         mid = (u + l) `shiftRI` 1
 {-# INLINE mergeSortWithBuf #-}
 
+-- TODO:mutually recursive, requires termination-expression, requires types
+{-@ Lazy merge @-}
 merge :: (PrimMonad m, MVector v e)
       => Comparison e -> v (PrimState m) e -> v (PrimState m) e
       -> Int -> m ()
 merge cmp src buf mid = do unsafeCopy low lower
                            eLow  <- unsafeRead low  0
                            eHigh <- unsafeRead high 0
-                           loop 0 eLow 0 eHigh 0
+                           loopMerge 0 eLow 0 eHigh 0
  where
  lower = unsafeSlice 0   mid src
  high  = unsafeSlice mid nHi src -- upper
  low   = unsafeSlice 0   mid buf -- tmp
  nHi   = nSrc - mid
  nSrc  = length src 
-  
-
+ 
  wroteHigh iLow eLow iHigh iIns
    | iHigh >= length high = unsafeCopy (unsafeSlice iIns (length low - iLow) src)
                                        (unsafeSlice iLow (length low - iLow) low)
    | otherwise            = do eHigh <- unsafeRead high iHigh
-                               loop iLow eLow iHigh eHigh iIns
+                               loopMerge iLow eLow iHigh eHigh iIns
 
  wroteLow iLow iHigh eHigh iIns
    | iLow  >= length low  = return ()
    | otherwise            = do eLow <- unsafeRead low iLow
-                               loop iLow eLow iHigh eHigh iIns
+                               loopMerge iLow eLow iHigh eHigh iIns
 
- loop !iLow !eLow !iHigh !eHigh !iIns = case cmp eHigh eLow of
+ loopMerge !iLow !eLow !iHigh !eHigh !iIns = case cmp eHigh eLow of
      LT -> do unsafeWrite src iIns eHigh
               wroteHigh iLow eLow (iHigh + 1) (iIns + 1)
      _  -> do unsafeWrite src iIns eLow
