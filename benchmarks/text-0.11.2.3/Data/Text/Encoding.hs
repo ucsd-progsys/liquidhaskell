@@ -135,7 +135,6 @@ strictDecode desc c _ _ = throw (E.DecodeError desc c)
 
 {-@ qualif Ensure(v:ForeignPtr a, x:int): x <= (fplen v) @-}
 {-@ qualif Ensure(v:Ptr a, x:int, y:int): x+y <= (plen v) @-}
-{-@ qualif Ensure(v:Ptr a, x:int, y:int, z:int): x+y <= z @-}
 
 -- $strict
 --
