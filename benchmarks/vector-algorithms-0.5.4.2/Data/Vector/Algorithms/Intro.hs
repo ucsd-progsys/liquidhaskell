@@ -208,8 +208,6 @@ partialSortByBounds cmp a k l u
   where c = (u + l) `shiftRI` 1 -- `div` 2
 {-# INLINE partialSortByBounds #-}
 
-{-@ Lazy partitionBy @-} -- MUTUALREC
-
 {-@ partitionBy :: forall m v e. (PrimMonad m, MVector v e) 
                 => Comparison e -> vec:(v (PrimState m) e) -> e 
                 -> l:(OkIdx vec) -> u:{v:Nat | (InRng v l (vsize vec))}
@@ -217,24 +215,26 @@ partialSortByBounds cmp a k l u
   @-}
 partitionBy :: forall m v e. (PrimMonad m, MVector v e)
             => Comparison e -> v (PrimState m) e -> e -> Int -> Int -> m Int
-partitionBy cmp a = partUp
+partitionBy cmp a p l u = partUp p l u (u-l)
  where
  -- 6.10 panics without the signatures for partUp and partDown, 6.12 and later
  -- versions don't need them
- partUp :: e -> Int -> Int -> m Int
- partUp p l  u
+ {-@ Decrease partUp 4 @-}
+ {-@ Decrease partDown 4 @-}
+ partUp :: e -> Int -> Int -> Int -> m Int
+ partUp p l u _
    | l < u = do e <- unsafeRead a  l
                 case cmp e p of
-                  LT -> partUp p (l+1) u
-                  _  -> partDown  p l (u-1)
+                  LT -> partUp p (l+1) u (u-l-1)
+                  _  -> partDown  p l (u-1) (u-l-1)
    | otherwise = return l
 
- partDown :: e -> Int -> Int -> m Int
- partDown p l u
+ partDown :: e -> Int -> Int -> Int -> m Int
+ partDown p l u _
    | l < u = do e <- unsafeRead a u
                 case cmp p e of
-                  LT -> partDown p l (u-1)
-                  _  -> unsafeSwap a l u >> partUp p (l+1) u
+                  LT -> partDown p l (u-1) (u-l-1)
+                  _  -> unsafeSwap a l u >> partUp p (l+1) u (u-l-1)
    | otherwise = return l
 {-# INLINE partitionBy #-}
 
