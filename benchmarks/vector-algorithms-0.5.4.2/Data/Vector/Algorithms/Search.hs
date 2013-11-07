@@ -1,7 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{-@ LIQUID "--no-termination" @-}
 -- ---------------------------------------------------------------------------
 -- |
 -- Module      : Data.Vector.Algorithms.Search
@@ -81,17 +80,21 @@ binarySearchBy cmp vec e = binarySearchByBounds cmp vec e 0 (length vec)
 -- while preserving sortedness.
 binarySearchByBounds :: (PrimMonad m, MVector v e)
                      => Comparison e -> v (PrimState m) e -> e -> Int -> Int -> m Int
-binarySearchByBounds cmp vec e = loop 
+binarySearchByBounds cmp vec e lo hi = loop (hi - lo) lo hi  
  where
- loop !l !u
+ loop (twit :: Int) !l !u
    | u <= l    = return l
    | otherwise = do e' <- unsafeRead vec k
                     case cmp e' e of
-                      LT -> loop (k+1) u
-                      EQ -> return k
-                      GT -> loop l     k
+                      LT -> loop (u - (k+1)) (k+1) u
+                      EQ -> return  k
+                      GT -> loop (k -l)      l     k
   where k = (u + l) `shiftRI` 1
 {-# INLINE binarySearchByBounds #-}
+
+{-@ smuggleQual :: twit:Nat -> l:Nat -> {v:Nat | v = l + twit} -> Int @-}
+smuggleQual :: Int -> Int -> Int -> Int
+smuggleQual = undefined
 
 -- | Finds the lowest index in a given sorted vector at which the given element
 -- could be inserted while maintaining the sortedness.
@@ -112,14 +115,14 @@ binarySearchLBy cmp vec e = binarySearchLByBounds cmp vec e 0 (length vec)
 -- inserted while preserving sortedness.
 binarySearchLByBounds :: (PrimMonad m, MVector v e)
                       => Comparison e -> v (PrimState m) e -> e -> Int -> Int -> m Int
-binarySearchLByBounds cmp vec e = loop
+binarySearchLByBounds cmp vec e lo hi = loop (hi - lo) lo hi
  where
- loop !l !u
+ loop (twit :: Int) !l !u
    | u <= l    = return l
    | otherwise = do e' <- unsafeRead vec k
                     case cmp e' e of
-                      LT -> loop (k+1) u
-                      _  -> loop l     k
+                      LT -> loop (u - (k+1)) (k+1) u
+                      _  -> loop (k - l)     l     k
   where k = (u + l) `shiftRI` 1
 {-# INLINE binarySearchLByBounds #-}
 
@@ -142,13 +145,13 @@ binarySearchRBy cmp vec e = binarySearchRByBounds cmp vec e 0 (length vec)
 -- inserted while preserving sortedness.
 binarySearchRByBounds :: (PrimMonad m, MVector v e)
                       => Comparison e -> v (PrimState m) e -> e -> Int -> Int -> m Int
-binarySearchRByBounds cmp vec e = loop
+binarySearchRByBounds cmp vec e lo hi = loop (hi - lo) lo hi
  where
- loop !l !u
+ loop (twit :: Int) !l !u
    | u <= l    = return l
    | otherwise = do e' <- unsafeRead vec k
                     case cmp e' e of
-                      GT -> loop l     k
-                      _  -> loop (k+1) u
+                      GT -> loop (k - l)      l     k
+                      _  -> loop (u - (k+1))  (k+1) u
   where k = (u + l) `shiftRI` 1
 {-# INLINE binarySearchRByBounds #-}

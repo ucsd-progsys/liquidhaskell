@@ -15,20 +15,8 @@ TODO
 
 * error messages (see issues on github) 
 
-* speed (exists)
-  + Data.Vector.Algorithms.Optimal
-
-FAppTy (exists2)
-----------------
-
-Failed tests: 
-../web/demos/index-dependent-maps.hs,
-pos/typeAliasDup.hs 
-
 exists-based constraints
 ------------------------
-
-("Foo" [x, y]) vs ("App" ["App" [a, b], "c"]
 
 GHC introduces a bunch of:
 
@@ -57,7 +45,7 @@ vector-algorithms
 
 1. array-sum measure needed to discharge liquidAssume in `Radix`
 
-[OK] Compiling Data.Vector.Algorithms.Common
+[T] Compiling Data.Vector.Algorithms.Common
 real	0m6.654s
 user	0m4.380s
 sys	    0m0.384s
@@ -67,7 +55,7 @@ user	0m3.800s
 sys	0m0.300s
 
 
-[OK] Compiling Data.Vector.Algorithms.Radix
+[T] Compiling Data.Vector.Algorithms.Radix
 real	0m31.431s
 user	0m23.981s
 sys	0m1.808s
@@ -84,6 +72,23 @@ sys	0m0.788s
 real	0m10.172s
 user	0m6.728s
 sys	0m0.528s
+
+
+AFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:89:35-37 *****
+
+**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:91:34 ********
+
+**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:120:35-37 ****
+
+**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:121:34 *******
+
+**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:121:34 *******
+
+**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:150:34 *******
+
+**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:151:35-37 ****
+
+**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:151:35-37 ****
 
 [OK] Compiling Data.Vector.Algorithms.Optimal
 real	3m36.357s
