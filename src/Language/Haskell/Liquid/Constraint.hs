@@ -875,8 +875,13 @@ consCBLet, consCBTop :: CGEnv -> CoreBind -> CG CGEnv
 -------------------------------------------------------------------
 
 consCBLet γ cb
-  = do tflag <- tcheck <$> get
-       consCB tflag γ cb
+  = do oldtcheck <- tcheck <$> get
+       strict    <- specLazy <$> get
+       let tflag  = oldtcheck && (tcond cb strict)
+       modify $ \s -> s{tcheck = tflag}
+       γ' <- consCB tflag γ cb
+       modify $ \s -> s{tcheck = oldtcheck}
+       return γ'
 
 consCBTop γ cb
   = do oldtcheck <- tcheck <$> get
