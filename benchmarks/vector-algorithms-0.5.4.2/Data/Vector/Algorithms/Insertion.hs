@@ -1,6 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{-@ LIQUID "--no-termination" @-}
 -- ---------------------------------------------------------------------------
 -- |
 -- Module      : Data.Vector.Algorithms.Insertion
