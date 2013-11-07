@@ -113,7 +113,7 @@ real	0m38.120s
 user	0m31.134s
 sys	0m1.544s
 
-[HEREHERE] Compiling Data.Vector.Algorithms.AmericanFlag
+[T] Compiling Data.Vector.Algorithms.AmericanFlag
 real	1m16.639s
 user	0m55.027s
 sys	0m3.644s
@@ -122,46 +122,15 @@ real	0m48.419s
 user	0m35.098s
 sys	0m2.660s
 
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/AmericanFlag.hs:257:50-53 
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/AmericanFlag.hs:270:25-29 
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/AmericanFlag.hs:271:30 *
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/AmericanFlag.hs:288:25-27 
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/AmericanFlag.hs:312:50 *
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/AmericanFlag.hs:315:79-81 
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/AmericanFlag.hs:317:67-69 
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/AmericanFlag.hs:326:35 *
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/AmericanFlag.hs:329:58 *
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/AmericanFlag.hs:348:35 *
-
-[HEREHEREHERE] Compiling Data.Vector.Algorithms.Intro 
+[T] Compiling Data.Vector.Algorithms.Intro 
 
 real	0m23.295s
 user	0m18.181s
 sys	0m1.076s
 
-
 real	0m41.823s
 user	0m30.398s
 sys	0m2.096s
-
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Intro.hs:111:32-34 *****
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Intro.hs:112:32 ********
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Intro.hs:157:34-36 *****
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Intro.hs:159:39 ********
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Intro.hs:206:36-38 *****
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Intro.hs:208:32 ********
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Intro.hs:228:35-37 *****
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Intro.hs:229:37 ********
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Intro.hs:229:37 ********
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Intro.hs:236:36 ********
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Intro.hs:237:55-57 *****
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Intro.hs:237:55-57 *****
-
-
-
-
-
-
 
 AmericanFlag.hs.cgi
 [LetE : 142, CaseE : 195, LamE : 336, PredInstE : 10, TypeInstE : 301, RecBindE : 45]

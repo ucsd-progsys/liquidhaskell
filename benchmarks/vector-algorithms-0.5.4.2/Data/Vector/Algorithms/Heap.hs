@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeOperators #-}
-{-@ LIQUID "--no-termination" @-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- ---------------------------------------------------------------------------
 -- |
 -- Module      : Data.Vector.Algorithms.Heap
@@ -112,6 +112,7 @@ selectByBounds cmp a k l u
   | l + k <= u = heapify cmp a l (l + k) >> go l (l + k) (u - 1)
   | otherwise  = return ()
  where
+ {-@ Decrease go 3 @-}
  go l m u
    | u < m      = return ()
    | otherwise  = do el <- unsafeRead a l
@@ -172,14 +173,14 @@ partialSortByBounds cmp a k l u
   @-}
 heapify :: (PrimMonad m, MVector v e)
         => Comparison e -> v (PrimState m) e -> Int -> Int -> m ()
-heapify cmp a l u = loop $ (len - 1) `shiftRI` 2
+heapify cmp a l u = loop (k0 + 1) k0 
   where
- len = u - l
- loop k
-   | k < 0     = return ()
-   | otherwise = -- let z = liquidAssert (k < len) (l+k) in
-                 unsafeRead a (l+k) >>= \e ->
-                   siftByOffset cmp a e l k len >> loop (k - 1)
+    k0  = (len - 1) `shiftRI` 2
+    len = u - l
+    loop (twit :: Int) (k :: Int)
+      | k < 0     = return ()
+      | otherwise = unsafeRead a (l+k) >>= \e ->
+                   siftByOffset cmp a e l k len >> loop k (k - 1)
 {-# INLINE heapify #-}
 
 -- | Given a heap stored in a portion of an array [l,u), swaps the
@@ -220,12 +221,12 @@ sortHeap cmp a l m u = loop (u-1) >> unsafeSwap a l m
   @-}
 siftByOffset :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> e -> Int -> Int -> Int -> m ()
-siftByOffset cmp a val off start len = sift val start len
+siftByOffset cmp a val off start len = sift val (len - start) start len
  where
- sift val root len
+ sift val (twit::Int) (root :: Int) (len :: Int)
    | child < len = do (child', ac) <- maximumChild cmp a off child len
                       case cmp val ac of
-                        LT -> unsafeWrite a (root + off) ac >> sift val child' len
+                        LT -> unsafeWrite a (root + off) ac >> sift val (len - child') child' len
                         _  -> unsafeWrite a (root + off) val
    | otherwise = unsafeWrite a (root + off)  val
   where child = root `shiftLI` 2 + 1
@@ -233,10 +234,13 @@ siftByOffset cmp a val off start len = sift val start len
 
 
 -- Finds the maximum child of a heap node, given the index of the first child.
-{-@ maximumChild :: (PrimMonad m, MVector v e)
+
+{- NEED A STRONGER TYPE. Happily, liquid infers it... :)
+   maximumChild :: (PrimMonad m, MVector v e)
                  => Comparison e -> vec:(v (PrimState m) e) -> off:Nat 
                  -> (LtIdxOff off vec) -> (LeIdxOff off vec) -> m ((LtIdxOff off vec), e) 
-  @-}
+  -}
+
 maximumChild :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> m (Int,  e)
 maximumChild cmp a off child1 len

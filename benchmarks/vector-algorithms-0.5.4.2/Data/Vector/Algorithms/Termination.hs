@@ -7,6 +7,13 @@ import Data.Vector.Algorithms.Common (shiftRI)
 import Language.Haskell.Liquid.Prelude (choose)
 
 
+{-@ foo :: Nat -> Int @-}
+foo :: Int -> Int
+foo n = go n
+  where 
+    go 0          = 1
+    go (d :: Int) = go (d-1)
+
 
 {-@ loop :: twit:Nat -> l:Nat -> u:{v:Nat | v = l + twit} -> Int @-}
 loop :: Int -> Int -> Int -> Int

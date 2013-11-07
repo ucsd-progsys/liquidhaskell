@@ -45,8 +45,6 @@ module Data.Vector.Algorithms.Intro
        , Comparison
        ) where
 
-import Language.Haskell.Liquid.Prelude (liquidAssume, liquidAssert)
-
 import Prelude hiding (read, length)
 
 import Control.Monad
@@ -94,7 +92,7 @@ sortByBounds cmp a l u
 -- sort functions to call with a specified bound on iterations.
 {-@ introsort :: (PrimMonad m, MVector v e)
               => Comparison e -> vec:(v (PrimState m) e) 
-              -> Int -> l:(OkIdx vec) -> u:{v:Nat | (InRng v l (vsize vec))} 
+              -> Nat -> l:(OkIdx vec) -> u:{v:Nat | (InRng v l (vsize vec))} 
               -> m ()
   @-}
 introsort :: (PrimMonad m, MVector v e)
@@ -102,7 +100,7 @@ introsort :: (PrimMonad m, MVector v e)
 introsort cmp a i l u = sort i l u >> I.sortByBounds cmp a l u
  where
  sort 0 l u = H.sortByBounds cmp a l  u 
- sort d l u
+ sort (d :: Int) l u
    | len < threshold = return ()
    | otherwise = do O.sort3ByIndex cmp a c l (u-1) -- sort the median into the lowest position
                     p <- unsafeRead a l
@@ -148,16 +146,16 @@ selectByBounds cmp a k l u
  where
  len = u - l
  m   = l + k
- go 0 l u = H.selectByBounds cmp a k l u
- go n l u = do O.sort3ByIndex cmp a c l (u-1)
-               p <- unsafeRead a l
-               mid <- partitionBy cmp a p (l+1) u
-               unsafeSwap a l (mid - 1)
-               if m > mid
-                   then go (n-1) mid u
-                   else if m < mid - 1
-                        then go (n-1) l (mid - 1)
-                        else return ()
+ go (0 :: Int) l u = H.selectByBounds cmp a k l u
+ go n l u          = do O.sort3ByIndex cmp a c l (u-1)
+                        p <- unsafeRead a l
+                        mid <- partitionBy cmp a p (l+1) u
+                        unsafeSwap a l (mid - 1)
+                        if m > mid
+                            then go (n-1) mid u
+                            else if m < mid - 1
+                                 then go (n-1) l (mid - 1)
+                                 else return ()
   where c = (u + l) `shiftRI` 1 -- `div` 2
 {-# INLINE selectByBounds #-}
 
@@ -194,6 +192,7 @@ partialSortByBounds cmp a k l u
  {-# INLINE [1] isort #-}
  len = u - l
  m0  = l + k
+ {-@ Decrease go 1 3 @-} 
  go 0 l n _    = H.partialSortByBounds cmp a k l  u 
  go n l u (m :: Int)
    | l == m   = return ()
@@ -209,12 +208,13 @@ partialSortByBounds cmp a k l u
   where c = (u + l) `shiftRI` 1 -- `div` 2
 {-# INLINE partialSortByBounds #-}
 
+{-@ Lazy partitionBy @-} -- MUTUALREC
+
 {-@ partitionBy :: forall m v e. (PrimMonad m, MVector v e) 
                 => Comparison e -> vec:(v (PrimState m) e) -> e 
                 -> l:(OkIdx vec) -> u:{v:Nat | (InRng v l (vsize vec))}
                 -> m {v:Int | (InRng v l u)}
   @-}
-                -- > l:(OkIdx vec) -> u:{v:Nat| (OkIdx vec)  (InRng v l (vsize vec))} 
 partitionBy :: forall m v e. (PrimMonad m, MVector v e)
             => Comparison e -> v (PrimState m) e -> e -> Int -> Int -> m Int
 partitionBy cmp a = partUp
@@ -240,11 +240,15 @@ partitionBy cmp a = partUp
 
 -- computes the number of recursive calls after which heapsort should
 -- be invoked given the lower and upper indices of the array to be sorted
+{-@ ilg :: Pos -> Nat @-}
 ilg :: Int -> Int
 ilg m = 2 * loop m 0
  where
- loop 0 !k = k - 1
- loop n !k = loop (n `shiftR` 1) (k+1)
+   {-@ loop :: n:Nat -> {v:Nat | ((n = 0) => (v > 0))} -> Nat @-}  
+   loop :: Int -> Int -> Int
+   loop 0 !k = k - 1
+   loop n !k = loop (n `shiftRI` 1) (k+1)
+
 
 -- the size of array at which the introsort algorithm switches to insertion sort
 threshold :: Int
