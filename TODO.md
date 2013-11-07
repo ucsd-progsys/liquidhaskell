@@ -64,7 +64,7 @@ real	0m23.295s
 user	0m18.181s
 sys	0m1.076s
 
-[OK] Compiling Data.Vector.Algorithms.Search
+[T] Compiling Data.Vector.Algorithms.Search
 real	0m13.892s
 user	0m9.573s
 sys	0m0.788s
@@ -74,23 +74,7 @@ user	0m6.728s
 sys	0m0.528s
 
 
-AFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:89:35-37 *****
-
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:91:34 ********
-
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:120:35-37 ****
-
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:121:34 *******
-
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:121:34 *******
-
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:150:34 *******
-
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:151:35-37 ****
-
-**** UNSAFE:  Liquid Type Error: Data/Vector/Algorithms/Search.hs:151:35-37 ****
-
-[OK] Compiling Data.Vector.Algorithms.Optimal
+[T] Compiling Data.Vector.Algorithms.Optimal
 real	3m36.357s
 user	2m54.143s
 sys	0m11.585s
@@ -100,7 +84,7 @@ user	1m25.177s
 sys	0m4.104s
 
 
-[OK] Compiling Data.Vector.Algorithms.Insertion
+[T] Compiling Data.Vector.Algorithms.Insertion
 real	0m16.949s
 user	0m12.505s
 sys	0m0.832s
