@@ -114,7 +114,6 @@ makeGhcSpec' cfg vars defVars specs
        invs            <- mconcat <$> mapM makeInvariants specs
        embs            <- mconcat <$> mapM makeTyConEmbeds specs
        targetVars      <- makeTargetVars name defVars $ binders cfg
-       lazies          <- mconcat <$> mapM makeLazies specs
        (cls,mts)       <- second mconcat . unzip . mconcat
                           <$> mapM (makeClasses cfg vars) specs
        tcEnv           <- gets tcEnv
@@ -131,6 +130,13 @@ makeGhcSpec' cfg vars defVars specs
        let syms'        = [(symbol v, v) | (_, v) <- syms]
        decr'           <- mconcat <$> mapM (makeHints defVars) specs
        texprs'         <- mconcat <$> mapM (makeTExpr defVars) specs
+
+       lazies          <- S.fromList . mconcat
+                                    <$> sequence [ makeLazy defVars (mod,spec)
+                                                 | (mod,spec) <- specs
+                                                 , mod == name
+                                                 ]
+
        lvars'          <- S.fromList . mconcat
                                     <$> sequence [ makeLVars defVars (mod,spec)
                                                  | (mod,spec) <- specs
@@ -349,6 +355,7 @@ makeClasses cfg vs (mod,spec) = inModule mod $ mapM mkClass $ Ms.classes spec
 
 makeHints vs (_,spec) = varSymbols id "Hint" vs $ Ms.decr spec
 makeLVars vs (_,spec) = fmap fst <$> (varSymbols id "LazyVar" vs $ [(v, ()) | v <- Ms.lvars spec])
+makeLazy  vs (_,spec) = fmap fst <$> (varSymbols id "Lazy" vs $ [(v, ()) | v <- S.toList $ Ms.lazy spec])
 makeTExpr vs (_,spec) = varSymbols id "TermExpr" vs $ Ms.termexprs spec
 
 varSymbols :: ([Var] -> [Var]) -> String ->  [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
@@ -679,13 +686,13 @@ lookupGhcTyCon' c = wrapErr msg lookupGhcTyCon (val c)
     msg :: String = berrUnknownTyCon c
 
 
-makeLazies (mod,spec)
-  = inModule mod $ makeLazies' $ Ms.lazy spec
-
-makeLazies' :: S.HashSet Symbol -> BareM (S.HashSet Var)
-makeLazies' s = S.fromList <$> (fmap fst3 <$> lookupIds xxs)
-  where xs  = S.toList s
-        xxs = zip xs xs
+-- makeLazies (mod,spec)
+--   = inModule mod $ makeLazies' $ Ms.lazy spec
+-- 
+-- makeLazies' :: S.HashSet Symbol -> BareM (S.HashSet Var)
+-- makeLazies' s = S.fromList <$> (fmap fst3 <$> lookupIds xxs)
+--   where xs  = S.toList s
+--         xxs = zip xs xs
 
 
 makeInvariants (mod,spec)
