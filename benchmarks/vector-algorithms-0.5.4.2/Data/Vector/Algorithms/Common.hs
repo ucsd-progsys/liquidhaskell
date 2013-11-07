@@ -111,6 +111,7 @@ import qualified Data.Vector.Primitive.Mutable
 
 
 
+{-@ qualif Termination(v:Int, l:Int, twit:Int): v = l + twit @-} 
 {-@ qualif NonEmpty(v:a): 0 < (vsize v)           @-}
 {-@ qualif Cmp(v:a, x:b): v < x                   @-}
 {-@ qualif OkIdx(v:a, x:b): v <= (vsize x)        @-}
