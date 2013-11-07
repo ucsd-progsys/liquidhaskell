@@ -64,8 +64,7 @@ mergeSortWithBuf cmp src  buf = loop (length src) 0 (length src)
         mid = (u + l) `shiftRI` 1
 {-# INLINE mergeSortWithBuf #-}
 
--- TODO:mutually recursive, requires termination-expression, requires types
-{-@ Lazy merge @-}
+{-@ Lazy merge @-}  -- TODO: MUTUALREC 
 merge :: (PrimMonad m, MVector v e)
       => Comparison e -> v (PrimState m) e -> v (PrimState m) e
       -> Int -> m ()
