@@ -242,6 +242,7 @@ sortBy cmp stop buckets radix v
                        flagLoop cmp stop count pile v radix 
 {-# INLINE sortBy #-}
 
+{-@ Lazy flagLoop @-} --TODO: MUTUALREC
 flagLoop :: (PrimMonad m, MVector v e)
          => Comparison e
          -> (e -> Int -> Bool)           -- number of passes
@@ -276,16 +277,16 @@ accumulate :: (PrimMonad m)
            => PV.MVector (PrimState m) Int
            -> PV.MVector (PrimState m) Int
            -> m ()
-accumulate count pile = loop 0 0
+accumulate count pile = loop len 0 0
  where
  len = length count
 
- loop i acc
-   | i < len = do ci <- unsafeRead count i
+ loop (twit :: Int) i acc
+   | i < len = do ci <-  unsafeRead count i
                   let acc' = acc + ci
                   unsafeWrite pile i acc
                   unsafeWrite count i acc'
-                  loop (i+1) acc'
+                  loop (twit - 1) (i+1) acc'
    | otherwise    = return ()
 {-# INLINE accumulate #-}
 
@@ -295,11 +296,11 @@ permute :: (PrimMonad m, MVector v e)
         -> v (PrimState m) e                -- source array
         -> (e -> Int)                       -- radix function
         -> m ()
-permute count pile v rdx = go 0
+permute count pile v rdx = go len 0
  where
  len = length v
 
- go i
+ go (twit::Int) i
    | i < len   = do e <- unsafeRead v i
                     let r = rdx e
                     p <- unsafeRead pile r
@@ -309,24 +310,26 @@ permute count pile v rdx = go 0
                     case () of
                       -- if the current element is alunsafeReady in the right pile,
                       -- go to the end of the pile
-                      _ | m <= i && i < p  -> go p
+                      _ | m <= i && i < p  -> if p < len then go (len - p) p else return ()
                       -- if the current element happens to be in the right
                       -- pile, bump the pile counter and go to the next element
-                        | i == p           -> unsafeWrite pile r (p+1) >> go (i+1)
+                        | i == p           -> unsafeWrite pile r (p+1) >> go (len - (i+1)) (i+1)
                       -- otherwise follow the chain
-                        | otherwise        -> follow i e p >> go (i+1)
+                        | otherwise        -> follow (len - p) i e p >> go (len - (i+1)) (i+1)
    | otherwise = return ()
- 
- follow i e j' = do let j = liquidAssume (0 <= j' && j' < len) j' -- LIQUID: not sure why this holds, has to do with `inc`
+
+ follow (twit :: Int) i e j' 
+               = do let j = liquidAssume (0 <= j' && j' < len) j' -- LIQUID: not sure why this holds, has to do with `inc`
                     en <- unsafeRead v j
                     let r = rdx en
                     p <- inc pile r
                     if p == j
                       -- if the target happens to be in the right pile, don't move it.
-                      then follow i e (j+1)
+                      then follow (len - (j+1)) i e (j+1)
                       else unsafeWrite v j e >> if i == p
-                                             then unsafeWrite v i en
-                                             else follow i en p
+                                                then unsafeWrite v i en
+                                                else let p'' = liquidAssume (j < p && p < len) p in 
+                                                     follow (len - p'') i en p''
 {-# INLINE permute #-}
 
 countStripe :: (PrimMonad m, MVector v e)
@@ -338,14 +341,15 @@ countStripe :: (PrimMonad m, MVector v e)
             -> m Int                        -- end of stripe: [lo,hi)
 countStripe count v rdx str lo = do set count 0
                                     e <- unsafeRead v lo
-                                    go (str e) e (lo+1)
+                                    go (len - (lo + 1)) (str e) e (lo+1)
  where
  len = length v
- go !s e i = inc count (rdx e) >>
+ go (twit :: Int) !s e i 
+    = inc count (rdx e) >>
              if i < len
                then do en <- unsafeRead v i
                        if str en == s
-                          then go s en (i+1)
+                          then go (len - (i+1)) s en (i+1)
                           else return i
                else return len
 {-# INLINE countStripe #-}
