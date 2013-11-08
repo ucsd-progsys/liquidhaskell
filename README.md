@@ -249,6 +249,21 @@ normally decreases, but if it does not, y will" with an extended
 annotation
 
     {-@ Decrease ack 1 2 @-}
+
+An alternative way to express this specification is by annotating 
+the function's type with the appropriate decreasing expressions.
+As an example, you can give `ack` a type
+
+    {-@ ack :: m:Nat -> n:Nat -> Nat / [m,n] @-}
+    
+stating that the expressions `[m, n]` are lexicographically decreasing.
+
+Decreasing expressions can be arbitrary refinement expressions, e.g., 
+
+    {-@ merge :: Ord a => xs:[a] -> ys:[a] -> [a] / [(len xs) + (len ys)] @-}
+    
+states that at each recursive call of `merge` the sum of the lengths 
+of its arguments will be decreased.
     
 When dealing with mutually recursive functions you may run into a
 situation where the decreasing parameter must be measured *across* a
