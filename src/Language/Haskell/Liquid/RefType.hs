@@ -22,6 +22,7 @@ module Language.Haskell.Liquid.RefType (
  
   -- * Functions for decreasing arguments
   , isDecreasing, makeDecrType
+  , makeLexRefa
 
   -- * Functions for manipulating `Predicate`s
   , pdVar
@@ -348,6 +349,9 @@ nlzP ps t@(ROth _)
  = (t, ps)
 nlzP ps t@(REx _ _ _) 
  = (t, ps) 
+nlzP ps t@(RRTy _ t') 
+ = (t, ps ++ ps')
+ where ps' = snd $ nlzP [] t'
 nlzP ps t@(RAllE _ _ _) 
  = (t, ps) 
 nlzP _ t
@@ -487,6 +491,7 @@ tyClasses (RAppTy t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RApp _ ts _ _) = concatMap tyClasses ts 
 tyClasses (RCls c ts)     = (c, ts) : concatMap tyClasses ts 
 tyClasses (RVar α _)      = [] 
+tyClasses (RRTy _ t)      = tyClasses t 
 tyClasses t               = errorstar ("RefType.tyClasses cannot handle" ++ show t)
 
 
@@ -517,6 +522,7 @@ instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) wher
   rnf (ROth s)         = rnf s
   rnf (RExprArg e)     = rnf e
   rnf (RAppTy t t' r)  = rnf t `seq` rnf t' `seq` rnf r
+  rnf (RRTy r t)       = rnf r `seq` rnf t
 
 ----------------------------------------------------------------
 ------------------ Printing Refinement Types -------------------
@@ -593,6 +599,8 @@ subsFree m s z@(_, _, _) (RAppTy t t' r)
   = subsFreeRAppTy m s (subsFree m s z t) (subsFree m s z t') r
 subsFree _ _ _ t@(RExprArg _)        
   = t
+subsFree m s z (RRTy r t)        
+  = RRTy r (subsFree m s z t)
 subsFree _ _ _ t@(ROth _)        
   = t
 -- subsFree _ _ _ t      
@@ -795,6 +803,8 @@ toType t@(RExprArg _)
   = errorstar $ "RefType.toType cannot handle: " ++ show t
 toType t@(ROth _)      
   = errorstar $ "RefType.toType cannot handle: " ++ show t
+toType (RRTy _ t)      
+  = toType t
 
 
 ---------------------------------------------------------------
@@ -965,6 +975,22 @@ cmpLexRef vxs (v, x, g)
          ++ [PAtom Ge (f y) zero  | (y, _, f) <- vxs]
   where zero = ECon $ I 0
 
+makeLexRefa es' es = uTop $ Reft (vv, [RConc $ PIff (PBexp $ EVar vv) $ pOr rs])
+  where rs = makeLexReft [] [] es es'
+        vv = stringSymbol "vvRec"
+
+makeLexReft old acc [] [] 
+  = acc
+makeLexReft old acc (e:es) (e':es') 
+  = makeLexReft ((e,e'):old) (r:acc) es es'
+  where 
+    r    = pAnd $  (PAtom Lt e' e) 
+                :  (PAtom Ge e' zero)
+                :  [PAtom Eq o' o    | (o,o') <- old] 
+                ++ [PAtom Ge o' zero | (o,o') <- old] 
+    zero = ECon $ I 0
+
+
 ------------------------------------------------------------------------
 -- | Pretty Printing Error Messages ------------------------------------
 ------------------------------------------------------------------------
@@ -987,6 +1013,9 @@ instance Exception [Error]
 ------------------------------------------------------------------------
 ppError :: Error -> Doc
 ------------------------------------------------------------------------
+ppError (ErrAssType l s r) 
+  = text "Termination Check Error:" <+> pprint l
+
 ppError (ErrSubType l s tA tE) 
   = text "Liquid Type Error:" <+> pprint l
 --     DO NOT DELETE 
