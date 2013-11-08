@@ -246,6 +246,9 @@ data SubC     = SubC { senv  :: !CGEnv
                      , lhs   :: !SpecType
                      , rhs   :: !SpecType 
                      }
+              | SubR { senv  :: !CGEnv
+                     , ref   :: !RReft
+                     }
 
 data WfC      = WfC  !CGEnv !SpecType 
               -- deriving (Data, Typeable)
@@ -354,6 +357,11 @@ splitC (SubC γ t1 (RAllE x tx t2))
   = do γ' <- (γ, "addExBind 2") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
+splitC (SubC γ (RRTy r t1) t2) 
+  = do c1 <- splitC (SubR γ r)
+       c2 <- splitC (SubC γ t1 t2)
+       return $ c1 ++ c2
+
 splitC (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
   =  do cs       <- bsplitC γ t1 t2 
         cs'      <- splitC  (SubC γ r2 r1) 
@@ -409,6 +417,19 @@ splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
 splitC c@(SubC _ t1 t2) 
   = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
 
+splitC (SubR γ r)
+  = return [F.subC γ' F.PTrue r1 r2 Nothing tag ci]
+  where
+    γ'  = fe_binds $ fenv γ
+    r1  = F.RR s $ F.toReft r
+    r2  = F.RR s $ F.Reft (vv, [F.RConc $ F.PBexp $ F.EVar vv])
+    vv  = F.S "vvRec"
+    s   = F.FApp F.boolFTyCon []
+    ci  = Ci src err
+    err = Just $ ErrAssType src (text "termination type error") r
+    tag = getTag γ
+    src = loc γ 
+
 splitCIndexed γ t1s t2s indexes 
   = concatMapM splitC (zipWith (SubC γ) t1s' t2s')
   where t1s' = (L.!!) t1s <$> indexes
@@ -437,6 +458,8 @@ bsplitC' γ t1 t2 pflag
     tag = getTag γ
     err = Just $ ErrSubType src (text "subtype") t1 t2 
     src = loc γ 
+
+     
 
 unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
@@ -468,6 +491,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]
                      , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) 
                      , specQuals  :: ![F.Qualifier]
                      , specDecr   :: ![(Var, [Int])]
+                     , termExprs  :: !(M.HashMap Var [F.Expr])
                      , specLVars  :: !(S.HashSet Var)
                      , specLazy   :: !(S.HashSet Var)
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)
@@ -512,6 +536,7 @@ initCGI cfg info = CGInfo {
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
+  , termExprs  = M.fromList $ texprs spc
   , specDecr   = decr spc
   , specLVars  = lvars spc
   , specLazy   = lazy spc
@@ -640,6 +665,13 @@ addC :: SubC -> String -> CG ()
 addC !c@(SubC _ t1 t2) _msg 
   = -- trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
      modify $ \s -> s { hsCs  = c : (hsCs s) }
+addC !c _msg 
+  = modify $ \s -> s { hsCs  = c : (hsCs s) }
+
+addPost γ (RRTy r t) 
+  = addC (SubR γ r) "precondition" >> return t
+addPost _ t  
+  = return t
 
 addW   :: WfC -> CG ()  
 addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
@@ -837,7 +869,7 @@ tcond cb strict
 consCB :: Bool -> CGEnv -> CoreBind -> CG CGEnv 
 -------------------------------------------------------------------
 
-consCB tflag γ (Rec xes) | tflag
+consCBSizedTys tflag γ (Rec xes)
   = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        ts       <- mapM refreshArgs $ (fromJust . thd3 <$> xets)
        let vs    = zipWith collectArgs ts es
@@ -867,6 +899,49 @@ consCB tflag γ (Rec xes) | tflag
         checkAll _   _ []     = []
         checkAll err f (x:xs) | all (==(f x)) (f <$> xs) = (x:xs)
                               | otherwise               = errorstar err
+
+consCBWithExprs γ xtes (Rec xes) 
+  = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+       let ts    = fromJust . thd3 <$> xets
+       ts'      <- mapM refreshArgs ts
+       let xts   = zip xs (Just <$> ts')
+       γ'       <- foldM extender γ xts
+       let γs    = makeTermEnvs γ' xtes xes ts ts'
+       let xets' = zip3 xs es (Just <$> ts')
+       mapM_ (uncurry $ consBind True) (zip γs xets')
+       return γ'
+  where (xs, es) = unzip xes
+
+makeTermEnvs γ xtes xes ts ts'
+  = (\rt -> γ `withTRec` (zip xs rt)) <$> rts
+  where vs   = zipWith collectArgs ts es
+        ys   = (fst3 . bkArrowDeep) <$> ts 
+        ys'  = (fst3 . bkArrowDeep) <$> ts'
+        sus' = zipWith mkSub ys ys'
+        sus  = zipWith mkSub ys ((F.symbol <$>) <$> vs)
+        ess  = (fromJust . (`L.lookup` xtes)) <$> xs
+        tes  = zipWith (\su es -> F.subst su <$> es)  sus ess 
+        tes' = zipWith (\su es -> F.subst su <$> es)  sus' ess 
+        rss  = zipWith makeLexRefa tes' <$> (repeat <$> tes)
+        rts  = zipWith addTermCond ts' <$> rss
+        (xs, es)     = unzip xes
+        mkSub ys ys' = F.mkSubst [(x, F.EVar y) | (x, y) <- zip ys ys']
+        collectArgs  = collectArguments . length . fst3 . bkArrow . thd3 . bkUniv
+
+
+consCB tflag γ (Rec xes) | tflag 
+  = do texprs <- termExprs <$> get
+       let xxes = catMaybes $ (`lookup` texprs) <$> xs 
+       if null xxes 
+         then consCBSizedTys tflag γ (Rec xes)
+         else check xxes <$> consCBWithExprs γ xxes (Rec xes)
+  where xs = fst $ unzip xes
+        check ys r | length ys == length xs = r
+                   | otherwise              = errorstar err
+        err = printf "%s: Termination expressions should be provided for ALL mutual recursive functions" loc
+        loc = showPpr $ getSrcSpan (head xs)
+        lookup k m | Just x <- M.lookup k m = Just (k, x)
+                   | otherwise              = Nothing
 
 -- TODO : no termination check:
 -- check that the result type is trivial!
@@ -1020,7 +1095,7 @@ consE γ e'@(App e a)
        updateLocA πs (exprLoc e) te'' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller ", e') te''
        cconsE γ' a tx 
-       return $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
+       addPost γ' $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
 --    where err = errorstar $ "consE: App crashes on" ++ showPpr a 
 
 
@@ -1214,6 +1289,8 @@ instance NFData FEnv where
 instance NFData SubC where
   rnf (SubC x1 x2 x3) 
     = rnf x1 `seq` rnf x2 `seq` rnf x3
+  rnf (SubR x1 x2) 
+    = rnf x1 `seq` rnf x2
 
 instance NFData Class where
   rnf _ = ()

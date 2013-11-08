@@ -20,6 +20,7 @@ safeFromJust err _        = errorstar err
 
 addFst3   a (b, c) = (a, b, c)
 dropFst3 (_, x, y) = (x, y)
+dropThd3 (x, y, _) = (x, y)
 
 replaceN n y ls = [if i == n then y else x | (x, i) <- zip ls [0..]]
 
