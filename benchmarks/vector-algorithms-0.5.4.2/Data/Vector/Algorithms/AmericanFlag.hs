@@ -75,11 +75,13 @@ class Lexicographic e where
 {-@ index :: (Lexicographic e) => Int -> x:e -> {v:Nat | v < (lexSize x)} @-}
 {-@ measure maxPasses :: Int @-}
 {-@ maxPasses :: (Lexicographic e) => e -> {v:Nat | v = maxPasses} @-}
-{-@ terminate :: (Lexicographic e) => x:e -> n:{v:Int | v <= maxPasses}
-              -> {v:Bool | ((Prop v) <=> (n = maxPasses))}
+{-@ terminate :: (Lexicographic e) => x:e -> n:Int
+              -> {v:Bool | (((n+1) >= maxPasses) => (Prop v))}
   @-}
 
-{-@ qualif MaxPasses(v:int, p:int): v = (maxPasses-p)+1 @-}
+{-@ qualif MaxPasses(v:int, p:int): v = (maxPasses-p) @-}
+{-@ qualif MaxPasses(v:int): v <= maxPasses @-}
+{-@ qualif MaxPasses(v:int): v < maxPasses @-}
 
 
 instance Lexicographic Word8 where
@@ -232,7 +234,7 @@ sort v = sortBy compare terminate (size e) index (maxPasses e) v
 
 {-@ sortBy :: (PrimMonad m, MVector v e)
        => (Comparison e)
-       -> (e -> n:{v:Int | v <= maxPasses} -> {v:Bool | ((Prop v) <=> (n = maxPasses))})
+       -> (e -> n:Int -> {v:Bool | (((n+1) >= maxPasses) => (Prop v) )})
        -> buckets:Nat
        -> (Int -> e -> {v:Nat | v < buckets})
        -> {v:Nat | v = maxPasses}
@@ -264,7 +266,7 @@ flagLoop :: (PrimMonad m, MVector v e)
          -> Int
          -> (Int -> e -> Int)            -- radix function
          -> m ()
-flagLoop cmp stop count pile v mp radix = go 0 v (mp+1) 1
+flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
  where
 
  {-@ Decrease go 3 4 @-}
@@ -272,7 +274,7 @@ flagLoop cmp stop count pile v mp radix = go 0 v (mp+1) 1
    = do e <- unsafeRead v 0
         if (stop e $ pass - 1)
           then return ()
-          else go' pass v ((mp-pass)+1) 0
+          else go' pass v (mp-pass) 0
         --LIQUID INLINE unless (stop e $ pass - 1) $ go' pass v (mp-pass) 0
 
  {-@ Decrease go' 3 4 @-}
@@ -284,11 +286,10 @@ flagLoop cmp stop count pile v mp radix = go 0 v (mp+1) 1
   where
   len = length v
   ppass = pass + 1
-  d' = (mp-ppass)+1
 
   recurse (twit :: Int) i
     | i < len   = do j <- countStripe count v (radix ppass) (radix pass) i
-                     go ppass (unsafeSlice i (j - i) v) d' 1
+                     go ppass (unsafeSlice i (j - i) v) (mp-ppass) 1
                      recurse (len - j) j
     | otherwise = return ()
 {-# INLINE flagLoop #-}
