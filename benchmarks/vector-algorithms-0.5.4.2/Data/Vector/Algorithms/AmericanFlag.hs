@@ -64,21 +64,20 @@ class Lexicographic e where
   -- particular iteration.
   index     :: Int -> e -> Int
 
-  -- LIQUID
-  maxPasses :: e -> Int
-  maxPasses = undefined
 
 -- | LIQUID Class Specification ---------------------------------------------
 
 {-@ measure lexSize :: a -> Int                                           @-}
 {-@ size  :: (Lexicographic e) => x:e -> {v:Nat | v = (lexSize x)}        @-}
 {-@ index :: (Lexicographic e) => Int -> x:e -> {v:Nat | v < (lexSize x)} @-}
-{-@ measure maxPasses :: Int @-}
-{-@ maxPasses :: (Lexicographic e) => e -> {v:Nat | v = maxPasses} @-}
 {-@ terminate :: (Lexicographic e) => x:e -> n:Int
               -> {v:Bool | (((n+1) >= maxPasses) => (Prop v))}
   @-}
 
+{-@ measure maxPasses :: Int @-}
+{-@ maxPasses :: {v:Nat | v = maxPasses} @-}
+maxPasses :: Int
+maxPasses = undefined
 {-@ qualif MaxPasses(v:int, p:int): v = (maxPasses-p) @-}
 {-@ qualif MaxPasses(v:int): v <= maxPasses @-}
 {-@ qualif MaxPasses(v:int): v < maxPasses @-}
@@ -223,7 +222,7 @@ instance Lexicographic B.ByteString where
 -- for sufficiently small arrays.
 sort :: forall e m v. (PrimMonad m, MVector v e, Lexicographic e, Ord e)
      => v (PrimState m) e -> m ()
-sort v = sortBy compare terminate (size e) index (maxPasses e) v
+sort v = sortBy compare terminate (size e) index maxPasses v
  where e :: e
        e = undefined
 {-# INLINABLE sort #-}
