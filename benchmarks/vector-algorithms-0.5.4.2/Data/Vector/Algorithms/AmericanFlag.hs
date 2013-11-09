@@ -64,11 +64,22 @@ class Lexicographic e where
   -- particular iteration.
   index     :: Int -> e -> Int
 
+  -- LIQUID
+  maxPasses :: e -> Int
+  maxPasses = undefined
+
 -- | LIQUID Class Specification ---------------------------------------------
 
 {-@ measure lexSize :: a -> Int                                           @-}
 {-@ size  :: (Lexicographic e) => x:e -> {v:Nat | v = (lexSize x)}        @-}
 {-@ index :: (Lexicographic e) => Int -> x:e -> {v:Nat | v < (lexSize x)} @-}
+{-@ measure maxPasses :: Int @-}
+{-@ maxPasses :: (Lexicographic e) => e -> {v:Nat | v = maxPasses} @-}
+{-@ terminate :: (Lexicographic e) => x:e -> n:{v:Int | v <= maxPasses}
+              -> {v:Bool | ((Prop v) <=> (n = maxPasses))}
+  @-}
+
+{-@ qualif MaxPasses(v:int, p:int): v = (maxPasses-p)+1 @-}
 
 
 instance Lexicographic Word8 where
@@ -210,7 +221,7 @@ instance Lexicographic B.ByteString where
 -- for sufficiently small arrays.
 sort :: forall e m v. (PrimMonad m, MVector v e, Lexicographic e, Ord e)
      => v (PrimState m) e -> m ()
-sort v = sortBy compare terminate (size e) index v
+sort v = sortBy compare terminate (size e) index (maxPasses e) v
  where e :: e
        e = undefined
 {-# INLINABLE sort #-}
@@ -221,9 +232,10 @@ sort v = sortBy compare terminate (size e) index v
 
 {-@ sortBy :: (PrimMonad m, MVector v e)
        => (Comparison e)
-       -> (e -> Int -> Bool)
+       -> (e -> n:{v:Int | v <= maxPasses} -> {v:Bool | ((Prop v) <=> (n = maxPasses))})
        -> buckets:Nat
        -> (Int -> e -> {v:Nat | v < buckets})
+       -> {v:Nat | v = maxPasses}
        -> v (PrimState m) e
        -> m ()
   @-}
@@ -232,44 +244,52 @@ sortBy :: (PrimMonad m, MVector v e)
        -> (e -> Int -> Bool) -- ^ determines whether a stripe is complete
        -> Int                -- ^ the number of buckets necessary
        -> (Int -> e -> Int)  -- ^ the big-endian radix function
+       -> Int
        -> v (PrimState m) e  -- ^ the array to be sorted
        -> m ()
-sortBy cmp stop buckets radix v
+sortBy cmp stop buckets radix mp v
   | length v == 0 = return ()
   | otherwise     = do count <- new buckets
                        pile <- new buckets
                        countLoop v count (radix 0) 
-                       flagLoop cmp stop count pile v radix 
+                       flagLoop cmp stop count pile v mp radix
 {-# INLINE sortBy #-}
 
-{-@ Lazy flagLoop @-} --TODO: MUTUALREC
 flagLoop :: (PrimMonad m, MVector v e)
          => Comparison e
          -> (e -> Int -> Bool)           -- number of passes
          -> PV.MVector (PrimState m) Int -- auxiliary count array
          -> PV.MVector (PrimState m) Int -- auxiliary pile array
          -> v (PrimState m) e            -- source array
+         -> Int
          -> (Int -> e -> Int)            -- radix function
          -> m ()
-flagLoop cmp stop count pile v radix = go 0 v
+flagLoop cmp stop count pile v mp radix = go 0 v (mp+1) 1
  where
 
- go pass v = do e <- unsafeRead v 0
-                unless (stop e $ pass - 1) $ go' pass v
+ {-@ Decrease go 3 4 @-}
+ go pass v (d :: Int) (_ :: Int)
+   = do e <- unsafeRead v 0
+        if (stop e $ pass - 1)
+          then return ()
+          else go' pass v ((mp-pass)+1) 0
+        --LIQUID INLINE unless (stop e $ pass - 1) $ go' pass v (mp-pass) 0
 
- go' pass v
+ {-@ Decrease go' 3 4 @-}
+ go' pass v (d :: Int) (_ :: Int)
    | len < threshold = I.sortByBounds cmp v 0 len
    | otherwise       = do accumulate count pile
                           permute count pile v (radix pass) 
-                          recurse 0
+                          recurse len 0
   where
   len = length v
   ppass = pass + 1
+  d' = (mp-ppass)+1
 
-  recurse i
+  recurse (twit :: Int) i
     | i < len   = do j <- countStripe count v (radix ppass) (radix pass) i
-                     go ppass (unsafeSlice i (j - i) v)
-                     recurse j
+                     go ppass (unsafeSlice i (j - i) v) d' 1
+                     recurse (len - j) j
     | otherwise = return ()
 {-# INLINE flagLoop #-}
 
