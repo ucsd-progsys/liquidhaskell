@@ -80,6 +80,7 @@ assertS s False = error ("assertion failed at "++s)
 -- LIQUID
 import GHC.IO.Buffer
 import Language.Haskell.Liquid.Prelude hiding (eq) 
+import Language.Haskell.Liquid.Foreign
 
 {-@ include <ByteString.hs.hquals> @-}
 
@@ -120,9 +121,6 @@ dummyForQuals1_elemIndex = undefined
 dummyForQuals2_splitWith :: ForeignPtr Word8 -> Int -> Int -> ByteString
 dummyForQuals2_splitWith = undefined
 
-{-@ elemIndex :: Word8 -> b:ByteString -> Maybe {v:Nat | v < (bLength b)} @-}
-elemIndex :: Word8 -> ByteString -> Maybe Int
-elemIndex = undefined
 
 -- -----------------------------------------------------------------------------
 --
@@ -1103,149 +1101,14 @@ moduleError :: String -> String -> a
 moduleError fun msg = error ("Data.ByteString." ++ fun ++ ':':' ':msg)
 {-# NOINLINE moduleError #-}
 
-
-{-@ foldl1 :: (Word8 -> Word8 -> Word8) -> ByteStringNE -> Word8 @-}
-foldl1 :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
-foldl1 = undefined
-
--- | 'foldl1\'' is like 'foldl1', but strict in the accumulator.
--- An exception will be thrown in the case of an empty ByteString.
-{-@ foldl1' :: (Word8 -> Word8 -> Word8) -> ByteStringNE -> Word8 @-}
-foldl1' :: (Word8 -> Word8 -> Word8) -> ByteString -> Word8
-foldl1' = undefined
-
-{-@ null :: b:ByteString -> {v:Bool | ((Prop v) <=> ((bLength b) = 0))} @-}
-null :: ByteString -> Bool
-null = undefined 
-
-{-@ foldl :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
-foldl :: (a -> Word8 -> a) -> a -> ByteString -> a
-foldl = undefined
-
-{-@ foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a @-}
-foldl' :: (a -> Word8 -> a) -> a -> ByteString -> a
-foldl' = undefined
-
-{-@ empty :: {v:ByteString | (bLength v) = 0} @-} 
-empty :: ByteString
-empty = undefined
-
-{-@ length :: b:ByteString -> {v:Nat | v = (bLength b)} @-}
-length :: ByteString -> Int
-length = undefined
-
-{-@ append :: b1:ByteString -> b2:ByteString -> {v:ByteString | (bLength v) = (bLength b1) + (bLength b2)} @-}
-append :: ByteString -> ByteString -> ByteString
-append = undefined
-
-{-@ concat :: bs:[ByteString] -> {v:ByteString | (bLength v) = (bLengths bs)} @-}
-concat :: [ByteString] -> ByteString
-concat = undefined
-
-{-@ lengths :: bs:[ByteString] -> {v:Nat | v = (bLengths bs)} @-}
-lengths :: [ByteString] -> Int
-lengths []     = 0
-lengths (b:bs) = length b + lengths bs
-
-{-@ snoc :: b:ByteString -> Word8 -> {v:ByteStringNE | (bLength v) = 1 + (bLength b)} @-}
-snoc :: ByteString -> Word8 -> ByteString
-snoc = undefined
-
-{-@ last :: ByteStringNE -> Word8 @-}
-last :: ByteString -> Word8
-last = undefined
-
-{-@ cons :: Word8 -> b:ByteString -> {v:ByteString | (bLength v) = 1 + (bLength b)} @-}
-cons :: Word8 -> ByteString -> ByteString
-cons = undefined
-
-{-@ init :: b:ByteStringNE -> {v:ByteString | (bLength v) = (bLength b) - 1} @-}
-init :: ByteString -> ByteString
-init = undefined
-
-{-@ takeWhile :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
-takeWhile :: (Word8 -> Bool) -> ByteString -> ByteString
-takeWhile f ps = undefined 
-{-# INLINE takeWhile #-}
-
--- | 'dropWhile' @p xs@ returns the suffix remaining after 'takeWhile' @p xs@.
-{-@ dropWhile :: (Word8 -> Bool) -> b:ByteString -> (ByteStringLE b) @-}
-dropWhile :: (Word8 -> Bool) -> ByteString -> ByteString
-dropWhile f ps = undefined
-
--- | 'break' @p@ is equivalent to @'span' ('not' . p)@.
-{-@ break :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
-break :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-break p ps = undefined
-
-
-{-@ breakByte :: Word8 -> b:ByteString -> (ByteStringPair b) @-}
-breakByte :: Word8 -> ByteString -> (ByteString, ByteString)
-breakByte = undefined
-
-{-@ findIndexOrEnd :: (Word8 -> Bool) -> b:ByteString -> {v:Nat | v <= (bLength b) } @-}
-findIndexOrEnd :: (Word8 -> Bool) -> ByteString -> Int
-findIndexOrEnd = undefined
-
--- LIQUID HACK: this is to get all the quals from memchr. Quals needed because IO monad forces liquid-abstraction. Solution, scrape quals from predicate defs (e.g. SuffixPtr)
-{-@ memchrDUMMYFORQUALS :: p:(Ptr a) -> n:Int -> (IO {v:(Ptr b) | (SuffixPtr v n p)})  @-}
-memchrDUMMYFORQUALS :: Ptr a -> Int -> IO (Ptr b)
-memchrDUMMYFORQUALS = undefined 
-
-{-@ splitAt :: n:Int
-            -> b:ByteString
-            -> ({v:ByteString | (Min (bLength v) (bLength b)
-                                     (if (n >= 0) then n else 0))}
-               , ByteString)<{\x y -> (bLength y) = ((bLength b) - (bLength x))}>
-  @-}
-splitAt :: Int -> ByteString -> (ByteString, ByteString)
-splitAt = undefined
-
-{-@ findFromEndUntil :: (Word8 -> Bool) -> b:ByteString -> {v:Nat | v <= (bLength b) } @-}
+-- Find from the end of the string using predicate
+{-@ findFromEndUntil :: (Word8 -> Bool) -> b:ByteString -> {v:Nat | v <= (bLength b)} @-}
 findFromEndUntil :: (Word8 -> Bool) -> ByteString -> Int
-findFromEndUntil = undefined
-
-{-@ breakEnd :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
-breakEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-breakEnd = undefined
-
-{-@ span :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
-span :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-span = undefined 
-
-{-@ spanByte :: Word8 -> b:ByteString -> (ByteStringPair b) @-}
-spanByte :: Word8 -> ByteString -> (ByteString, ByteString)
-spanByte = undefined
-
-{-@ spanEnd :: (Word8 -> Bool) -> b:ByteString -> (ByteStringPair b) @-}
-spanEnd :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
-spanEnd = undefined
-
-
-{-@ replicate :: n:Nat -> Word8 -> {v:ByteString | (bLength v) = (if n > 0 then n else 0)} @-}
-replicate :: Int -> Word8 -> ByteString
-replicate  = undefined
-
-
-{-@ take :: n:Nat -> b:ByteString -> {v:ByteString | (bLength v) = (if (n <= (bLength b)) then n else (bLength b))} @-}
-take :: Int -> ByteString -> ByteString
-take = undefined
-
-
-{-@ pack :: cs:[Word8] -> {v:ByteString | (bLength v) = (len cs)} @-}
-pack :: [Word8] -> ByteString
-pack = undefined
-
-
-
-{-@ singleton :: Word8 -> {v:ByteString | (bLength v) = 1} @-}
-singleton :: Word8 -> ByteString
-singleton = undefined
------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
+STRICT2(findFromEndUntil)
+findFromEndUntil f ps@(PS x s l) =
+    if null ps then 0
+    else if f (last ps) then l
+         else findFromEndUntil f (PS x s (l-1))
 
 {-@ split :: Word8 -> b:ByteStringNE -> (ByteStringSplit b)  @-}
 split :: Word8 -> ByteString -> [ByteString]
@@ -1764,7 +1627,7 @@ hGetNonBlocking = hGet
 #endif
 
 {-@ assume Foreign.Marshal.Alloc.reallocBytes :: p:(Ptr a) -> n:Nat -> (IO (PtrN a n))  @-}
-{-@ Strict Data.ByteStringHelper.hGetContents @-}
+{-@ Lazy hGetContents @-}
 hGetContents :: Handle -> IO ByteString
 hGetContents h = do
     let start_size = 1024
