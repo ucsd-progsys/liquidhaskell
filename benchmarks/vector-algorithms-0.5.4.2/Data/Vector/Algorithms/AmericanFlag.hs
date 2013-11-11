@@ -279,7 +279,7 @@ flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
 
  {-@ Decrease go' 3 4 @-}
    {- LIQUID WITNESS -}
-go' pass v (d :: Int) (_ :: Int)
+ go' pass v (d :: Int) (_ :: Int)
    | len < threshold = I.sortByBounds cmp v 0 len
    | otherwise       = do accumulate count pile
                           permute count pile v (radix pass) 
