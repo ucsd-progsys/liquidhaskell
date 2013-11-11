@@ -72,12 +72,14 @@ indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
       else if nlen == 1              then scanOne (index _needle 0)
       else
         --LIQUID pushing definitions in to prove safety!
+             {- LIQUID WITNESS -}
         let scan (d :: Int) !i
               = if i > ldiff then []
                 else
                   let nlast = nlen - 1
                       z     = index _needle nlast
                       c = index _haystack (i + nlast)
+                      {- LIQUID WITNESS -}
                       candidateMatch (d :: Int) !j
                           = if j >= nlast               then True
                             else if index _haystack (i+j) /= index _needle j then False
@@ -121,6 +123,7 @@ indices _needle@(Text narr noff nlen) _haystack@(Text harr hoff hlen)
     --             where nextInPattern = mask .&. swizzle (hindex' (i+nlen)) == 0
     --           !(mask :* skip)       = buildTable 0 0 (nlen-2)
     scanOne c = loop hlen 0
+      {- LIQUID WITNESS -}
         where loop (d :: Int) !i = if i >= hlen     then []
                                    else if index _haystack i == c then i : loop (d-1) (i+1)
                                    else loop (d-1) (i+1)

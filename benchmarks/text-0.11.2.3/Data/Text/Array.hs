@@ -288,6 +288,7 @@ unsafeWrite MArray{..} i@(I# i#) (W16# e#) = ST $ \s1# ->
 {-@ toList :: a:Array -> o:AValidO a -> l:AValidL o a -> {v:[Word16] | (len v) = l} @-}
 toList :: Array -> Int -> Int -> [Word16]
 toList ary off len = loop len 0
+          {- LIQUID WITNESS -}
     where loop (d :: Int) i
               | i < len   = unsafeIndex ary (off+i) : loop (d-1) (i+1)
               | otherwise = []

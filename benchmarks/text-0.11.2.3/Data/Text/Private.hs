@@ -33,6 +33,7 @@ span_ p t@(Text arr off len) = ( hd,tl )
 --LIQUID         loop !i | i < len && p c = loop (i+d)
 --LIQUID                 | otherwise      = i
 --LIQUID             where Iter c d       = iter t i
+        {- LIQUID WITNESS -}
         loop (d :: Int) !i | i < len = let Iter c d' = iter t i
                                        in if p c then loop (d-d') (i+d') else i
                            | otherwise = i

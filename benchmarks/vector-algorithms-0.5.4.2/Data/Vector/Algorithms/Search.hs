@@ -82,6 +82,7 @@ binarySearchByBounds :: (PrimMonad m, MVector v e)
                      => Comparison e -> v (PrimState m) e -> e -> Int -> Int -> m Int
 binarySearchByBounds cmp vec e lo hi = loop (hi - lo) lo hi  
  where
+  {- LIQUID WITNESS -}
  loop (twit :: Int) !l !u
    | u <= l    = return l
    | otherwise = do e' <- unsafeRead vec k
@@ -113,6 +114,7 @@ binarySearchLByBounds :: (PrimMonad m, MVector v e)
                       => Comparison e -> v (PrimState m) e -> e -> Int -> Int -> m Int
 binarySearchLByBounds cmp vec e lo hi = loop (hi - lo) lo hi
  where
+  {- LIQUID WITNESS -}
  loop (twit :: Int) !l !u
    | u <= l    = return l
    | otherwise = do e' <- unsafeRead vec k
@@ -143,6 +145,7 @@ binarySearchRByBounds :: (PrimMonad m, MVector v e)
                       => Comparison e -> v (PrimState m) e -> e -> Int -> Int -> m Int
 binarySearchRByBounds cmp vec e lo hi = loop (hi - lo) lo hi
  where
+  {- LIQUID WITNESS -}
  loop (twit :: Int) !l !u
    | u <= l    = return l
    | otherwise = do e' <- unsafeRead vec k
