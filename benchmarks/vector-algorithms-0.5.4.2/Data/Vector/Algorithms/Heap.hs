@@ -177,6 +177,7 @@ heapify cmp a l u = loop (k0 + 1) k0
   where
     k0  = (len - 1) `shiftRI` 2
     len = u - l
+  {- LIQUID WITNESS -}
     loop (twit :: Int) (k :: Int)
       | k < 0     = return ()
       | otherwise = unsafeRead a (l+k) >>= \e ->
@@ -223,6 +224,7 @@ siftByOffset :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> e -> Int -> Int -> Int -> m ()
 siftByOffset cmp a val off start len = sift val (len - start) start len
  where
+  {- LIQUID WITNESS -}
  sift val (twit::Int) (root :: Int) (len :: Int)
    | child < len = do (child', ac) <- maximumChild cmp a off child len
                       case cmp val ac of

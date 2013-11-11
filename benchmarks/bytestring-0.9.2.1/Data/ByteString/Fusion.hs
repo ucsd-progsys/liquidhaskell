@@ -266,6 +266,7 @@ loopU f start (PS z s i) = unsafePerformIO $ withForeignPtr z $ \a -> do
     go p ma = trans i 0 0
         where
             STRICT4(trans)
+            {- LIQUID WITNESS -}
             trans (d :: Int) a_off ma_off acc
                 | a_off >= i = return (acc :*: ma_off)
                 | otherwise  = do
