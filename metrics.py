@@ -9,46 +9,46 @@ import subprocess
 import sys
 
 benchmarks = {
-    # 'benchmarks/text-0.11.2.3': [ 'Data/Text.hs'
-    #                             , 'Data/Text/Array.hs'
-    #                             , 'Data/Text/Encoding.hs'
-    #                             , 'Data/Text/Foreign.hs'
-    #                             , 'Data/Text/Fusion.hs'
-    #                             , 'Data/Text/Fusion/Size.hs'
-    #                             , 'Data/Text/Internal.hs'
-    #                             , 'Data/Text/Lazy.hs'
-    #                             , 'Data/Text/Lazy/Builder.hs'
-    #                             , 'Data/Text/Lazy/Encoding.hs'
-    #                             , 'Data/Text/Lazy/Fusion.hs'
-    #                             , 'Data/Text/Lazy/Internal.hs'
-    #                             , 'Data/Text/Lazy/Search.hs'
-    #                             , 'Data/Text/Private.hs'
-    #                             , 'Data/Text/Search.hs'
-    #                             , 'Data/Text/Unsafe.hs'
-    #                             , 'Data/Text/UnsafeChar.hs' ],
+    'benchmarks/text-0.11.2.3': [ 'Data/Text.hs'
+                                , 'Data/Text/Array.hs'
+                                , 'Data/Text/Encoding.hs'
+                                , 'Data/Text/Foreign.hs'
+                                , 'Data/Text/Fusion.hs'
+                                , 'Data/Text/Fusion/Size.hs'
+                                , 'Data/Text/Internal.hs'
+                                , 'Data/Text/Lazy.hs'
+                                , 'Data/Text/Lazy/Builder.hs'
+                                , 'Data/Text/Lazy/Encoding.hs'
+                                , 'Data/Text/Lazy/Fusion.hs'
+                                , 'Data/Text/Lazy/Internal.hs'
+                                , 'Data/Text/Lazy/Search.hs'
+                                , 'Data/Text/Private.hs'
+                                , 'Data/Text/Search.hs'
+                                , 'Data/Text/Unsafe.hs'
+                                , 'Data/Text/UnsafeChar.hs' ],
 
-    # 'benchmarks/bytestring-0.9.2.1': [ 'Data/ByteString.hs'
-    #                                  , 'Data/ByteString/Char8.hs'
-    #                                  , 'Data/ByteString/Fusion.hs'
-    #                                  , 'Data/ByteString/Internal.hs'
-    #                                  , 'Data/ByteString/Lazy.hs'
-    #                                  , 'Data/ByteString/LazyZip.hs'
-    #                                  , 'Data/ByteString/Lazy/Char8.hs'
-    #                                  , 'Data/ByteString/Lazy/Internal.hs'
-    #                                  , 'Data/ByteString/Unsafe.hs' ],
+    'benchmarks/bytestring-0.9.2.1': [ 'Data/ByteString.T.hs'
+                                     , 'Data/ByteString/Char8.hs'
+                                     , 'Data/ByteString/Fusion.T.hs'
+                                     , 'Data/ByteString/Internal.hs'
+                                     , 'Data/ByteString/Lazy.hs'
+                                     , 'Data/ByteString/LazyZip.hs'
+                                     , 'Data/ByteString/Lazy/Char8.hs'
+                                     , 'Data/ByteString/Lazy/Internal.hs'
+                                     , 'Data/ByteString/Unsafe.hs' ],
 
-    # 'benchmarks/vector-algorithms-0.5.4.2': [ 'Data/Vector/Algorithms/AmericanFlag.hs'
-    #                                         , 'Data/Vector/Algorithms/Combinators.hs'
-    #                                         , 'Data/Vector/Algorithms/Common.hs'
-    #                                         , 'Data/Vector/Algorithms/Heap.hs'
-    #                                         , 'Data/Vector/Algorithms/Insertion.hs'
-    #                                         , 'Data/Vector/Algorithms/Intro.hs'
-    #                                         , 'Data/Vector/Algorithms/Merge.hs'
-    #                                         , 'Data/Vector/Algorithms/Optimal.hs'
-    #                                         , 'Data/Vector/Algorithms/Radix.hs'
-    #                                         , 'Data/Vector/Algorithms/Search.hs' ],
+    'benchmarks/vector-algorithms-0.5.4.2': [ 'Data/Vector/Algorithms/AmericanFlag.hs'
+                                            , 'Data/Vector/Algorithms/Combinators.hs'
+                                            , 'Data/Vector/Algorithms/Common.hs'
+                                            , 'Data/Vector/Algorithms/Heap.hs'
+                                            , 'Data/Vector/Algorithms/Insertion.hs'
+                                            , 'Data/Vector/Algorithms/Intro.hs'
+                                            , 'Data/Vector/Algorithms/Merge.hs'
+                                            , 'Data/Vector/Algorithms/Optimal.hs'
+                                            , 'Data/Vector/Algorithms/Radix.hs'
+                                            , 'Data/Vector/Algorithms/Search.hs' ],
 
-    # 'benchmarks/esop2013-submission': [ 'Base.hs', 'Splay.hs' ],
+    'benchmarks/esop2013-submission': [ 'Base.hs', 'Splay.hs' ],
 
     'include': [ 'GHC/List.lhs' ]
 }
