@@ -32,7 +32,7 @@ benchmarks = {
                                      , 'Data/ByteString/Fusion.T.hs'
                                      , 'Data/ByteString/Internal.hs'
                                      , 'Data/ByteString/Lazy.hs'
-                                     , 'Data/ByteString/LazyZip.hs'
+                                     # , 'Data/ByteString/LazyZip.hs'
                                      , 'Data/ByteString/Lazy/Char8.hs'
                                      , 'Data/ByteString/Lazy/Internal.hs'
                                      , 'Data/ByteString/Unsafe.hs' ],
@@ -56,7 +56,7 @@ benchmarks = {
 def time(fn):
     start = datetime.now()
     with open('/dev/null', 'w') as out:
-        subprocess.check_call(['liquid', fn], stdout=out, stderr=out)
+        subprocess.check_call(['liquid', '-s', 'z3mem', fn], stdout=out, stderr=out)
     return (datetime.now() - start).total_seconds()
 
 def sloc(fn):
