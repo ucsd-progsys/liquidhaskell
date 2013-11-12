@@ -265,6 +265,7 @@ loopU f start (PS z s i) = unsafePerformIO $ withForeignPtr z $ \a -> do
     go p ma = trans i 0 0
         where
             STRICT4(trans)
+            {- LIQUID WITNESS -}
             trans (d :: Int) a_off ma_off acc
                 | a_off >= i = return (acc :*: ma_off)
                 | otherwise  = do
@@ -412,6 +413,7 @@ loopWrapper body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
 doUpLoop :: AccEFL acc -> acc -> ImperativeLoop acc
 doUpLoop f acc0 src dest len = loop len 0 0 acc0
   where STRICT4(loop)
+        {- LIQUID WITNESS -}
         loop (d :: Int) src_off dest_off acc
             | src_off >= len = return (acc :*: (0 :: Int) {- LIQUID CAST -} :*: dest_off)
             | otherwise      = do
@@ -424,6 +426,7 @@ doUpLoop f acc0 src dest len = loop len 0 0 acc0
 doDownLoop :: AccEFL acc -> acc -> ImperativeLoop acc
 doDownLoop f acc0 src dest len = loop len (len-1) (len-1) acc0
   where STRICT4(loop)
+        {- LIQUID WITNESS -}
         loop (d :: Int) src_offDOWN dest_offDOWN acc
             | src_offDOWN < 0 = return (acc :*: dest_offDOWN + 1 :*: len - (dest_offDOWN + 1))
             | otherwise   = do
@@ -436,6 +439,7 @@ doDownLoop f acc0 src dest len = loop len (len-1) (len-1) acc0
 doNoAccLoop :: NoAccEFL -> noAcc -> ImperativeLoop noAcc
 doNoAccLoop f noAcc src dest len = loop len 0 0
   where STRICT3(loop)
+        {- LIQUID WITNESS -}
         loop (d :: Int) src_off dest_off
             | src_off >= len = return (noAcc :*: (0 :: Int) {- LIQUID CAST -} :*: dest_off)
             | otherwise      = do
@@ -448,6 +452,7 @@ doNoAccLoop f noAcc src dest len = loop len 0 0
 doMapLoop :: MapEFL -> noAcc -> ImperativeLoop noAcc
 doMapLoop f noAcc src dest len = loop len 0
   where STRICT2(loop)
+        {- LIQUID WITNESS -}
         loop (d :: Int) n
             | n >= len = return (noAcc :*: (0 :: Int) {- LIQUID CAST -} :*: len)
             | otherwise      = do
@@ -458,6 +463,7 @@ doMapLoop f noAcc src dest len = loop len 0
 doFilterLoop :: FilterEFL -> noAcc -> ImperativeLoop noAcc
 doFilterLoop f noAcc src dest len = loop len 0 0
   where STRICT3(loop)
+        {- LIQUID WITNESS -}
         loop (d :: Int) src_off dest_off
             | src_off >= len = return (noAcc :*: (0 :: Int) {- LIQUID CAST -} :*: dest_off)
             | otherwise      = do

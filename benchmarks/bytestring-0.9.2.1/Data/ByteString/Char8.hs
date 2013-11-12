@@ -851,6 +851,7 @@ STRICT3(firstspace)
 --LIQUID GHOST     | otherwise = do w <- peekByteOff ptr n
 --LIQUID GHOST                      if (not $ isSpaceWord8 w) then firstspace ptr (n+1) m else return n
 firstspace ptr n m = go m ptr n m
+  {- LIQUID WITNESS -}
   where go (d :: Int) ptr n m
             | n >= m    = return n
             | otherwise = do w <- peekByteOff ptr n
@@ -880,6 +881,7 @@ STRICT3(firstnonspace)
 --LIQUID GHOST     | otherwise = do w <- peekElemOff ptr n
 --LIQUID GHOST                      if isSpaceWord8 w then firstnonspace ptr (n+1) m else return n
 firstnonspace ptr n m = go m ptr n m
+  {- LIQUID WITNESS -}
   where go (d :: Int) ptr n m
             | n >= m    = return n
             | otherwise = do w <- peekElemOff ptr n

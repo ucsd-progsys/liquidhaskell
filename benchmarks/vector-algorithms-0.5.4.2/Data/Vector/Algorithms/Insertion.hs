@@ -74,7 +74,8 @@ sortByBounds' :: (PrimMonad m, MVector v e)
               => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> m ()
 sortByBounds' cmp a l m u = sort (u - m) m
  where
- sort (twit :: Int) (i :: Int) 
+  {- LIQUID WITNESS -}
+ sort (twit :: Int) (i :: Int)
    | i < u     = do v <- unsafeRead a i
                     insert cmp a l v i
                     sort (twit - 1) (i+1)

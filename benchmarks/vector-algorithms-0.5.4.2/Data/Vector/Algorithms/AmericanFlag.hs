@@ -269,6 +269,7 @@ flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
  where
 
  {-@ Decrease go 3 4 @-}
+  {- LIQUID WITNESS -}
  go pass v (d :: Int) (_ :: Int)
    = do e <- unsafeRead v 0
         if (stop e $ pass - 1)
@@ -277,6 +278,7 @@ flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
         --LIQUID INLINE unless (stop e $ pass - 1) $ go' pass v (mp-pass) 0
 
  {-@ Decrease go' 3 4 @-}
+   {- LIQUID WITNESS -}
  go' pass v (d :: Int) (_ :: Int)
    | len < threshold = I.sortByBounds cmp v 0 len
    | otherwise       = do accumulate count pile
@@ -286,6 +288,7 @@ flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
   len = length v
   ppass = pass + 1
 
+  {- LIQUID WITNESS -}
   recurse (twit :: Int) i
     | i < len   = do j <- countStripe count v (radix ppass) (radix pass) i
                      go ppass (unsafeSlice i (j - i) v) (mp-ppass) 1
@@ -301,6 +304,7 @@ accumulate count pile = loop len 0 0
  where
  len = length count
 
+  {- LIQUID WITNESS -}
  loop (twit :: Int) i acc
    | i < len = do ci <-  unsafeRead count i
                   let acc' = acc + ci
@@ -320,6 +324,7 @@ permute count pile v rdx = go len 0
  where
  len = length v
 
+  {- LIQUID WITNESS -}
  go (twit::Int) i
    | i < len   = do e <- unsafeRead v i
                     let r = rdx e
@@ -338,7 +343,8 @@ permute count pile v rdx = go len 0
                         | otherwise        -> follow (len - p) i e p >> go (len - (i+1)) (i+1)
    | otherwise = return ()
 
- follow (twit :: Int) i e j' 
+  {- LIQUID WITNESS -}
+ follow (twit :: Int) i e j'
                = do let j = liquidAssume (0 <= j' && j' < len) j' -- LIQUID: not sure why this holds, has to do with `inc`
                     en <- unsafeRead v j
                     let r = rdx en
@@ -364,7 +370,8 @@ countStripe count v rdx str lo = do set count 0
                                     go (len - (lo + 1)) (str e) e (lo+1)
  where
  len = length v
- go (twit :: Int) !s e i 
+  {- LIQUID WITNESS -}
+ go (twit :: Int) !s e i
     = inc count (rdx e) >>
              if i < len
                then do en <- unsafeRead v i

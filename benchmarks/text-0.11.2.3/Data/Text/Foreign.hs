@@ -104,6 +104,7 @@ fromPtr ptr (I16 len) =
     arr = A.run (A.new len >>= copy)
     copy marr = loop len ptr 0
       where
+        {- LIQUID WITNESS -}
         loop (d :: Int) !p !i | i == len = return marr
                               | otherwise = do
           A.unsafeWrite marr i =<< unsafeIOToST (peek p)
@@ -170,6 +171,7 @@ unsafeCopyToPtr :: Text -> Ptr Word16 -> IO ()
 unsafeCopyToPtr (Text arr off len) ptr = loop len ptr off
   where
     end = off + len
+    {- LIQUID WITNESS -}
     loop (d :: Int) !p !i | i == end  = return ()
                           | otherwise = do
       poke p (A.unsafeIndex arr i)

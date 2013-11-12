@@ -100,6 +100,7 @@ introsort :: (PrimMonad m, MVector v e)
 introsort cmp a i l u = sort i l u >> I.sortByBounds cmp a l u
  where
  sort 0 l u = H.sortByBounds cmp a l  u 
+  {- LIQUID WITNESS -}
  sort (d :: Int) l u
    | len < threshold = return ()
    | otherwise = do O.sort3ByIndex cmp a c l (u-1) -- sort the median into the lowest position
@@ -146,6 +147,7 @@ selectByBounds cmp a k l u
  where
  len = u - l
  m   = l + k
+  {- LIQUID WITNESS -}
  go (0 :: Int) l u = H.selectByBounds cmp a k l u
  go n l u          = do O.sort3ByIndex cmp a c l (u-1)
                         p <- unsafeRead a l

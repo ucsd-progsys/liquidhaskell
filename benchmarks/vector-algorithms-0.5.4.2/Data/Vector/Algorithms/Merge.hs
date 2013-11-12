@@ -55,6 +55,7 @@ mergeSortWithBuf :: (PrimMonad m, MVector v e)
                  => Comparison e -> v (PrimState m) e -> v (PrimState m) e -> m ()
 mergeSortWithBuf cmp src  buf = loop (length src) 0 (length src)
  where
+  {- LIQUID WITNESS -}
  loop (twit :: Int) l u
    | len < threshold = I.sortByBounds cmp src l u
    | otherwise       = do loop (mid - l) l mid
@@ -82,17 +83,20 @@ merge cmp src buf mid = do unsafeCopy low lower
 {-@ Decrease wroteLow 1 2 @-}
 {-@ Decrease loopMerge 1 2 @-}
 
+  {- LIQUID WITNESS -}
  wroteHigh d1 (d2::Int) iLow eLow iHigh iIns
    | iHigh >= length high = unsafeCopy (unsafeSlice iIns (length low - iLow) src)
                                        (unsafeSlice iLow (length low - iLow) low)
    | otherwise            = do eHigh <- unsafeRead high iHigh
                                loopMerge d1 0 iLow eLow iHigh eHigh iIns
 
+  {- LIQUID WITNESS -}
  wroteLow d1 (d2::Int) iLow iHigh eHigh iIns
    | iLow  >= length low  = return ()
    | otherwise            = do eLow <- unsafeRead low iLow
                                loopMerge d1 0 iLow eLow iHigh eHigh iIns
 
+  {- LIQUID WITNESS -}
  loopMerge (d::Int) (d2::Int) !iLow !eLow !iHigh !eHigh !iIns = case cmp eHigh eLow of
      LT -> do unsafeWrite src iIns eHigh
               wroteHigh (d-1) 1 iLow eLow (iHigh + 1) (iIns + 1)

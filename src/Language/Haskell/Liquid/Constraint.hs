@@ -503,6 +503,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
                      , logWarn    :: ![String]                    -- ^ ? FIX THIS
                      , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars 
+                     , recCount       :: !Int
                      } -- deriving (Data, Typeable)
 
 instance PPrint CGInfo where 
@@ -525,6 +526,7 @@ ppr_CGInfo cgi
   -}
   $$ (text "*********** KVar Distribution *****************")
   $$ (pprint $ kvProf cgi)
+  $$ (text "Recursive binders:" <+> pprint (recCount cgi))
 
 type CG = State CGInfo
 
@@ -550,7 +552,8 @@ initCGI cfg info = CGInfo {
   , tcheck     = not $ notermination cfg
   , pruneRefs  = not $ noPrune cfg
   , logWarn    = []
-  , kvProf     = emptyKVProf 
+  , kvProf     = emptyKVProf
+  , recCount       = 0
   } 
   where 
     tce        = tcEmbeds spc 
@@ -961,7 +964,8 @@ makeTermEnvs γ xtes xes ts ts'
 
 consCB tflag γ (Rec xes) | tflag 
   = do texprs <- termExprs <$> get
-       let xxes = catMaybes $ (`lookup` texprs) <$> xs 
+       modify $ \i -> i { recCount = recCount i + length xes }
+       let xxes = catMaybes $ (`lookup` texprs) <$> xs
        if null xxes 
          then consCBSizedTys tflag γ (Rec xes)
          else check xxes <$> consCBWithExprs γ xxes (Rec xes)
@@ -977,6 +981,7 @@ consCB tflag γ (Rec xes) | tflag
 -- check that the result type is trivial!
 consCB _ γ (Rec xes) 
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+       modify $ \i -> i { recCount = recCount i + length xes }
        let xts = [(x, to) | (x, _, to) <- xets, not (isGrty x)]
        γ'     <- foldM extender (γ `withRecs` (fst <$> xts)) xts
        mapM_ (consBind True γ') xets
