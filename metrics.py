@@ -56,7 +56,7 @@ benchmarks = {
 def time(fn):
     start = datetime.now()
     with open('/dev/null', 'w') as out:
-        subprocess.check_call(['liquid', fn], stdout=out, stderr=out)
+        subprocess.check_call(['liquid', '-s', 'z3mem', fn], stdout=out, stderr=out)
     return (datetime.now() - start).total_seconds()
 
 def sloc(fn):
