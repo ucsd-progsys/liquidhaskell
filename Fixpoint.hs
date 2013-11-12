@@ -11,6 +11,7 @@ import Language.Fixpoint.Parse
 import Language.Fixpoint.Types
 import Text.PrettyPrint.HughesPJ
 
+
 main = do cfg <- getOpts 
           whenLoud $ putStrLn $ "Options: " ++ show cfg
           if (native cfg) 

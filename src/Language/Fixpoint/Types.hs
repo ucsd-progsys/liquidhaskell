@@ -27,10 +27,11 @@ module Language.Fixpoint.Types (
   , boolFTyCon
   , strFTyCon
   , propFTyCon
-  , appFTyCon
+  -- , appFTyCon
   , fTyconString
   , stringFTycon
-  , fTyconSort
+  , fApp
+  , fObj
 
   -- * Symbols
   , Symbol(..)
@@ -135,7 +136,7 @@ import Data.Generics        (Data)
 import Data.Monoid hiding   ((<>))
 import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
-import Data.List            (sort, stripPrefix)
+import Data.List            (foldl', sort, stripPrefix)
 import Data.Hashable        
 
 import Data.Maybe           (fromMaybe)
@@ -289,9 +290,19 @@ stringFTycon c
 -- stringSort s = FApp (stringFTycon s) []
 --            -- ALTERNATIVEL = FObj . stringSymbol 
   
+fApp                  :: Either FTycon Sort -> [Sort] -> Sort
+fApp (Left c) ts
+  | c == intFTyCon    = FInt
+  | otherwise         = fAppSorts (fTyconSort c) ts
+fApp (Right t) ts     = fAppSorts t ts 
+
+fAppSorts t ts        = foldl' (\t1 t2 -> FApp appFTyCon [t1, t2]) t ts
+
 fTyconSort :: FTycon -> Sort
 fTyconSort = (`FApp` [])
 
+fObj :: Symbol -> Sort
+fObj = fTyconSort . TC
 ----------------------------------------------------------------------
 ------------------------------- Sorts --------------------------------
 ----------------------------------------------------------------------
