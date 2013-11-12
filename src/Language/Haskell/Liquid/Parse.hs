@@ -395,7 +395,7 @@ data Pspec ty ctor
   | Qualif  Qualifier
   | Decr    (LocSymbol, [Int])
   | LVars   LocSymbol
-  | Lazy    Symbol
+  | Lazy    LocSymbol
   | Pragma  (Located String)
   | CMeas   (Measure ty ())
   | IMeas   (Measure ty ctor)
@@ -444,8 +444,8 @@ specP
     <|> (reserved "qualif"    >> liftM Qualif qualifierP)
     <|> (reserved "Decrease"  >> liftM Decr   decreaseP )
     <|> (reserved "LAZYVAR"   >> liftM LVars  lazyVarP  )
-    <|> (reserved "Strict"    >> liftM Lazy   lazyP     )
-    <|> (reserved "Lazy"      >> liftM Lazy   lazyP     )
+    <|> (reserved "Strict"    >> liftM Lazy   lazyVarP  )
+    <|> (reserved "Lazy"      >> liftM Lazy   lazyVarP  )
     <|> (reserved "LIQUID"    >> liftM Pragma pragmaP   )
     <|> ({- DEFAULT -}           liftM Assms  tyBindsP  )
 

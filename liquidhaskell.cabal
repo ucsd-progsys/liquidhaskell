@@ -131,8 +131,9 @@ Library
                     Language.Haskell.Liquid.Qualifier, 
                     Language.Haskell.Liquid.TransformRec, 
                     Language.Haskell.Liquid.Tidy, 
-                    Language.Haskell.Liquid.Types
-                    Language.Haskell.Liquid.Fresh
+                    Language.Haskell.Liquid.Types,
+                    Language.Haskell.Liquid.Fresh,
+                    Paths_liquidhaskell
  
    other-modules:   Language.Haskell.Liquid.Desugar.Desugar
                     Language.Haskell.Liquid.Desugar.DsExpr,
@@ -145,7 +146,6 @@ Library
                     Language.Haskell.Liquid.Desugar.DsBinds,
                     Language.Haskell.Liquid.Desugar.DsGRHSs,
                     Language.Haskell.Liquid.Desugar.HscMain
-                    Paths_liquidhaskell
    --ghc-options: -O -W
    Extensions: PatternGuards
 

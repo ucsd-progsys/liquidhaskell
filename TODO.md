@@ -1,14 +1,6 @@
+
 TODO
 ====
-
-    l <= X <= VSIZE
-    l <= m
-    m < u,  u <= VSIZE
-    m <= VSIZE
-
-    l < VSIZE
-    l+1 < VSIZE
-    
 
 * Qualified Imports
   - wtf is include/KMeansHelper.hs ? Fix module import issue
@@ -19,34 +11,206 @@ TODO
     ? big constants issue : _word64 34534523452134213524525 due to (deriving Typeable)
     - see others below
 
-* vector-algorithms
-
 * hmatrix
 
-* error messages 
-  + tests/todo/err8.hs
-  + tests/todo/err9.hs
+* error messages (see issues on github) 
 
-* speed
-  + Data.Vector.Algorithms.Optimal
+exists-based constraints
+------------------------
+
+GHC introduces a bunch of:
+
+    let x = e1 in e2
+
+and
+
+    case x of C y -> e
+
+constraints, which possibly blow up the `Kvar`.
+
+Can we minimize KVars and hence, simplify constraints with exists?
+
+1. profile and find the KVar break down.
+
+  + lambda (including recursion)
+  + polymorphic instantiation
+  + case-of with *multiple* cases
+  - case-of with *single* case
+  - local-let
+
+2. eliminate the last two cases using exists-templates
 
 vector-algorithms
 -----------------
 
-HEREHEREHERE -- use NeVec to cleanup the `0 < (vsize vec)` refinements 
-issues:
-
 1. array-sum measure needed to discharge liquidAssume in `Radix`
+2. TERMINATION: Intro, AmericanFlag, Heap
 
-[OK] Compiling Data.Vector.Algorithms.Common
-[OK] Compiling Data.Vector.Algorithms.Radix
-[OK] Compiling Data.Vector.Algorithms.Search
-[OK] Compiling Data.Vector.Algorithms.Optimal
-[OK] Compiling Data.Vector.Algorithms.Insertion
-[OK] Compiling Data.Vector.Algorithms.Heap
-[OK] Compiling Data.Vector.Algorithms.Merge 
-[OK] Compiling Data.Vector.Algorithms.AmericanFlag
-[??] Compiling Data.Vector.Algorithms.Intro 
+[T] Compiling Data.Vector.Algorithms.Common
+real	0m6.654s
+user	0m4.380s
+sys	    0m0.384s
+
+real	0m5.223s
+user	0m3.800s
+sys	0m0.300s
+
+
+[T] Compiling Data.Vector.Algorithms.Radix
+real	0m31.431s
+user	0m23.981s
+sys	0m1.808s
+
+real	0m23.295s
+user	0m18.181s
+sys	0m1.076s
+
+[T] Compiling Data.Vector.Algorithms.Search
+real	0m13.892s
+user	0m9.573s
+sys	0m0.788s
+
+real	0m10.172s
+user	0m6.728s
+sys	0m0.528s
+
+
+[T] Compiling Data.Vector.Algorithms.Optimal
+real	3m36.357s
+user	2m54.143s
+sys	0m11.585s
+
+real	1m38.936s
+user	1m25.177s
+sys	0m4.104s
+
+
+[T] Compiling Data.Vector.Algorithms.Insertion
+real	0m16.949s
+user	0m12.505s
+sys	0m0.832s
+
+real	0m10.168s
+user	0m8.229s
+sys	0m0.476s
+
+[HEREHEREHERE] Compiling Data.Vector.Algorithms.Heap
+real	2m21.595s
+user	1m35.626s
+sys	0m6.924s
+
+real	1m28.699s
+user	1m2.280s
+sys	0m3.976s
+
+
+[T] Compiling Data.Vector.Algorithms.Merge 
+real	0m57.314s
+user	0m44.839s
+sys	0m2.704s
+
+real	0m38.120s
+user	0m31.134s
+sys	0m1.544s
+
+[T] Compiling Data.Vector.Algorithms.AmericanFlag
+real	1m16.639s
+user	0m55.027s
+sys	0m3.644s
+
+real	0m48.419s
+user	0m35.098s
+sys	0m2.660s
+
+[T] Compiling Data.Vector.Algorithms.Intro 
+
+real	0m23.295s
+user	0m18.181s
+sys	0m1.076s
+
+real	0m41.823s
+user	0m30.398s
+sys	0m2.096s
+
+AmericanFlag.hs.cgi
+[LetE : 142, CaseE : 195, LamE : 336, PredInstE : 10, TypeInstE : 301, RecBindE : 45]
+
+Common.hs.cgi
+[LetE : 17, CaseE : 28, LamE : 43, PredInstE : 4, TypeInstE : 50, RecBindE : 5]
+
+Heap.hs.cgi
+[LetE : 237, CaseE : 156, LamE : 327, PredInstE : 40, TypeInstE : 331, RecBindE : 20]
+
+Insertion.hs.cgi
+[LetE : 51, CaseE : 78, LamE : 82, TypeInstE : 61, RecBindE : 10]
+
+Intro.hs.cgi
+[LetE : 112, CaseE : 103, LamE : 142, TypeInstE : 111, RecBindE : 34]
+
+Merge.hs.cgi
+[LetE : 99, CaseE : 192, LamE : 126, PredInstE : 15, TypeInstE : 180, RecBindE : 27]
+
+Optimal.hs.cgi
+[LetE : 456, LamE : 309, TypeInstE : 649]
+
+Radix.hs.cgi
+[LetE : 63, CaseE : 136, LamE : 299, TypeInstE : 123, RecBindE : 20]
+
+Search.hs.cgi
+[LetE : 63, CaseE : 72, LamE : 95, TypeInstE : 82, RecBindE : 15]
+
+--------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+AmericanFlag.hs.cgi
+[LetE : 328, CaseE : 9, LamE : 336, PredInstE : 10, TypeInstE : 301, RecBindE : 45]
+
+Common.hs.cgi
+[LetE : 45, LamE : 43, PredInstE : 4, TypeInstE : 50, RecBindE : 5]
+
+Heap.hs.cgi
+[LetE : 378, CaseE : 15, LamE : 327, PredInstE : 40, TypeInstE : 331, RecBindE : 20]
+
+Insertion.hs.cgi
+[LetE : 129, LamE : 82, TypeInstE : 61, RecBindE : 10]
+
+Intro.hs.cgi
+[LetE : 209, CaseE : 6, LamE : 142, TypeInstE : 111, RecBindE : 34]
+
+Merge.hs.cgi
+[LetE : 291, LamE : 126, PredInstE : 15, TypeInstE : 180, RecBindE : 27]
+
+Optimal.hs.cgi
+[LetE : 456, LamE : 309, TypeInstE : 649]
+
+Radix.hs.cgi
+[LetE : 199, LamE : 299, TypeInstE : 123, RecBindE : 20]
+
+Search.hs.cgi
+[LetE : 135, LamE : 95, TypeInstE : 82, RecBindE : 15]
+
+
+
+
+
+
 
 hmatrix
 -------

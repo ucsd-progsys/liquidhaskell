@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{-@ LIQUID "--no-termination" @-}
 -- ---------------------------------------------------------------------------
 -- |
 -- Module      : Data.Vector.Algorithms.Common
@@ -31,7 +30,7 @@ import qualified Data.Vector.Primitive.Mutable
 
 -- | Vector Size Measure
 
-{-@ measure vsize :: a -> Int @-}
+{-@ measure vsize :: (v m e) -> Int @-}
 
 -- | Vector Type Aliases
 {-@ type NeVec v m e = {v: (v (PrimState m) e) | 0 < (vsize v)} @-}
@@ -112,6 +111,7 @@ import qualified Data.Vector.Primitive.Mutable
 
 
 
+{-@ qualif Termination(v:Int, l:Int, twit:Int): v = l + twit @-} 
 {-@ qualif NonEmpty(v:a): 0 < (vsize v)           @-}
 {-@ qualif Cmp(v:a, x:b): v < x                   @-}
 {-@ qualif OkIdx(v:a, x:b): v <= (vsize x)        @-}

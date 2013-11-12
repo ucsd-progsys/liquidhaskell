@@ -92,8 +92,15 @@ module Language.Haskell.Liquid.Types (
   , CMeasure (..)
   , Def (..)
   , Body (..)
+
   -- * Type Classes
   , RClass (..)
+
+  -- * KV Profiling
+  , KVKind (..)   -- ^ types of kvars
+  , KVProf        -- ^ profile table
+  , emptyKVProf   -- ^ empty profile
+  , updKVProf     -- ^ extend profile
   )
   where
 
@@ -153,6 +160,7 @@ data Config = Config {
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   , smtsolver      :: SMTSolver  -- ^ name of smtsolver to use [default: z3-API]  
   } deriving (Data, Typeable, Show, Eq)
+
 
 -----------------------------------------------------------------------------
 -- | Printer ----------------------------------------------------------------
@@ -1174,3 +1182,43 @@ data RClass ty
 
 instance Functor RClass where
   fmap f (RClass n ss tvs ms) = RClass n (fmap f ss) tvs (fmap (second f) ms)
+
+-----------------------------------------------------------
+-- | KVar Profile -----------------------------------------
+-----------------------------------------------------------
+
+data KVKind
+  = RecBindE 
+  | NonRecBindE 
+  | TypeInstE 
+  | PredInstE
+  | LamE
+  | CaseE 
+  | LetE
+  deriving (Eq, Ord, Show, Enum, Data, Typeable)
+
+instance Hashable KVKind where
+  hashWithSalt i = hashWithSalt i. fromEnum
+
+newtype KVProf = KVP (M.HashMap KVKind Int)
+
+emptyKVProf :: KVProf
+emptyKVProf = KVP M.empty
+
+updKVProf :: KVKind -> [Symbol] -> KVProf -> KVProf 
+updKVProf k kvs (KVP m) = KVP $ M.insert k (kn + length kvs) m
+  where 
+    kn                  = M.lookupDefault 0 k m
+
+instance NFData KVKind where
+  rnf z = z `seq` ()
+
+instance PPrint KVKind where
+  pprint = text . show
+
+instance PPrint KVProf where
+  pprint (KVP m) = pprint $ M.toList m 
+
+instance NFData KVProf where
+  rnf (KVP m) = rnf m `seq` () 
+
