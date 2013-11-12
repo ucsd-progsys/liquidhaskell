@@ -32,7 +32,7 @@ benchmarks = {
                                      , 'Data/ByteString/Fusion.T.hs'
                                      , 'Data/ByteString/Internal.hs'
                                      , 'Data/ByteString/Lazy.hs'
-                                     , 'Data/ByteString/LazyZip.hs'
+                                     # , 'Data/ByteString/LazyZip.hs'
                                      , 'Data/ByteString/Lazy/Char8.hs'
                                      , 'Data/ByteString/Lazy/Internal.hs'
                                      , 'Data/ByteString/Unsafe.hs' ],
