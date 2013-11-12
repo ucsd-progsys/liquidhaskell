@@ -73,12 +73,12 @@ def find(rx, str):
     return [(str[a.start():(3+string.find(str,"@-}", a.start()))])
             for a in list(re.finditer(rx, str))]
 
-qualif_re = '{-@\s*qualif'
+qualif_re = '{-@\s+qualif'
 other = 'type|measure|data|include|predicate|Decrease|Strict|Lazy|LAZYVAR'
-other_re = '{-@\s*(%s)' % other
-spec_re = '{-@\s*(?!(%s|qualif))' % other
-dec_re = '{-@\s*(Decrease|Strict|Lazy)'
-wit_re = '{-\s*LIQUID WITNESS'
+other_re = '{-@\s+(%s)' % other
+spec_re = '{-@\s+(?!(%s|qualif))' % other
+dec_re = '{-@\s+(Decrease|Strict|Lazy)'
+wit_re = '{-\s+LIQUID WITNESS'
 
 def combine(x, y):
     return {k:x[k] + y[k] for k in y.keys()}
