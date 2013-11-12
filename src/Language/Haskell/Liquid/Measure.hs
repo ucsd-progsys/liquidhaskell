@@ -50,7 +50,7 @@ data Spec ty bndr  = Spec {
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
   , decr       :: ![(LocSymbol, [Int])]         -- ^ Information on decreasing arguments
   , lvars      :: ![(LocSymbol)]                -- ^ Variables that should be checked in the environment they are used
-  , lazy       :: !(S.HashSet Symbol)           -- ^ Ignore Termination Check in these Functions
+  , lazy       :: !(S.HashSet LocSymbol)        -- ^ Ignore Termination Check in these Functions
   , pragmas    :: ![Located String]             -- ^ Command-line configurations passed in through source
   , cmeasures  :: ![Measure ty ()]              -- ^ Measures attached to a type-class
   , imeasures  :: ![Measure ty bndr]            -- ^ Mappings from (measure,type) -> measure

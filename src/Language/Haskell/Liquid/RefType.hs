@@ -31,7 +31,7 @@ module Language.Haskell.Liquid.RefType (
 
   -- TODO: categorize these!
   , ofType, ofPredTree, toType
-  , rTyVar, rVar, rApp 
+  , rTyVar, rVar, rApp, rEx 
   , expandRApp, appRTyCon
   , typeSort, typeUniqueSymbol
   , strengthen
@@ -320,7 +320,7 @@ normalizePds t = addPds ps t'
 
 rPred p t = RAllP p t
 rApp c    = RApp (RTyCon c [] (mkTyConInfo c [] [] Nothing)) 
-
+rEx xts t = foldr (\(x, tx) t -> REx x tx t) t xts   
 
 addPds ps (RAllT v t) = RAllT v $ addPds ps t
 addPds ps t           = foldl' (flip rPred) t ps
@@ -868,27 +868,24 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
 ------------ From Old Fixpoint ---------------------------------
 ----------------------------------------------------------------
 
+
 typeUniqueSymbol :: Type -> Symbol 
 typeUniqueSymbol = stringSymbol . typeUniqueString 
-
-
-fApp c ts 
-  | c == intFTyCon  = FInt
-  | otherwise       = FApp c ts
 
 typeSort :: TCEmb TyCon -> Type -> Sort 
 typeSort tce τ@(ForAllTy _ _) 
   = typeSortForAll tce τ
 typeSort tce t@(FunTy τ1 τ2)
-  = typeSortFun tce t -- τ1 τ2
+  = typeSortFun tce t
 typeSort tce (TyConApp c τs)
-  = fApp ftc (typeSort tce <$> τs)
-  where ftc = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce) 
+  = fApp (Left $ tyConFTyCon tce c) (typeSort tce <$> τs)
 typeSort tce (AppTy t1 t2)
-  = fApp (stringFTycon "FAppTy") [typeSort tce t1, typeSort tce t2]
+  = fApp (Right $ typeSort tce t1) [typeSort tce t2]
 typeSort _ τ
   = FObj $ typeUniqueSymbol τ
- 
+
+tyConFTyCon tce c    = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce)
+
 typeSortForAll tce τ 
   = genSort $ typeSort tce tbody
   where genSort (FFunc _ t) = FFunc n (sortSubst su <$> t)
