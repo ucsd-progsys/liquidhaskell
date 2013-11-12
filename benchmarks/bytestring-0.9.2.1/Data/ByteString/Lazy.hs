@@ -1664,6 +1664,7 @@ findIndexOrEnd k (S.PS x s l) = S.inlinePerformIO $ withForeignPtr x $ \f -> go 
   where
     --LIQUID GHOST
     STRICT3(go)
+    {- LIQUID WITNESS -}
     go (d::Int) ptr n
         | n >= l    = return l
         | otherwise = do w <- peek ptr
