@@ -2665,6 +2665,7 @@ join kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
 
 {-@ joinT :: k:k -> a -> a:OMap {v:k | v < k} a -> b:OMap {v:k| v > k} a -> SumMLen a b -> OMap k a @-}
 {-@ Decrease joinT 5 @-}
+{- LIQUID WITNESS -}
 joinT :: k -> a -> Map k a -> Map k a -> Int -> Map k a
 joinT kx x Tip r _ = insertMin kx x r
 joinT kx x l Tip _ = insertMax kx x l
@@ -2702,6 +2703,7 @@ merge kcut l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
 
 {-@ mergeT :: kcut:k -> a:OMap {v:k | v < kcut} a -> b:OMap {v:k| v > kcut} a -> SumMLen a b -> OMap k a @-}
 {-@ Decrease mergeT 4 @-}
+{- LIQUID WITNESS -}
 mergeT :: k -> Map k a -> Map k a -> Int -> Map k a
 mergeT _   Tip r _   = r
 mergeT _   l Tip _   = l
