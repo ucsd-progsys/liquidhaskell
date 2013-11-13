@@ -935,7 +935,7 @@ consCBSizedTys tflag γ (Rec xes)
 
 consCBWithExprs γ xtes (Rec xes) 
   = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
-       let ts    = fromJust . thd3 <$> xets
+       let ts    = safeFromJust err . thd3 <$> xets
        ts'      <- mapM refreshArgs ts
        let xts   = zip xs (Just <$> ts')
        γ'       <- foldM extender γ xts
@@ -944,6 +944,7 @@ consCBWithExprs γ xtes (Rec xes)
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
   where (xs, es) = unzip xes
+        err      = "Constant: consCBWithExprs"
 
 makeTermEnvs γ xtes xes ts ts'
   = (\rt -> γ `withTRec` (zip xs rt)) <$> rts
@@ -952,7 +953,7 @@ makeTermEnvs γ xtes xes ts ts'
         ys'  = (fst3 . bkArrowDeep) <$> ts'
         sus' = zipWith mkSub ys ys'
         sus  = zipWith mkSub ys ((F.symbol <$>) <$> vs)
-        ess  = (fromJust . (`L.lookup` xtes)) <$> xs
+        ess  = (\x -> (safeFromJust (err x) $ (x `L.lookup` xtes))) <$> xs
         tes  = zipWith (\su es -> F.subst su <$> es)  sus ess 
         tes' = zipWith (\su es -> F.subst su <$> es)  sus' ess 
         rss  = zipWith makeLexRefa tes' <$> (repeat <$> tes)
@@ -960,8 +961,8 @@ makeTermEnvs γ xtes xes ts ts'
         (xs, es)     = unzip xes
         mkSub ys ys' = F.mkSubst [(x, F.EVar y) | (x, y) <- zip ys ys']
         collectArgs  = collectArguments . length . fst3 . bkArrow . thd3 . bkUniv
-
-
+        err x = "Constant: makeTermEnvs: no terminating expression for " ++ showPpr x 
+       
 consCB tflag γ (Rec xes) | tflag 
   = do texprs <- termExprs <$> get
        modify $ \i -> i { recCount = recCount i + length xes }

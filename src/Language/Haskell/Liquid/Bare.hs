@@ -1231,11 +1231,12 @@ checkExpr s emb env vts (v, es) = mkErr <$> go es
   mkErr = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
   go    = foldl (\err e -> err <|> checkSorted env' e) Nothing  
 
-  (Loc l t) = fromJust $ L.lookup v vts
+  (Loc l t) = safeFromJust msg $ L.lookup v vts
 
   env'  = mapSEnv sr_sort $ foldl (\e (x,s) -> insertSEnv x s e) env xss
   xss   = mapSnd rSort <$> (uncurry zip $ dropThd3 $ bkArrowDeep t)
   rSort = rTypeSortedReft emb 
+  msg   = "Bare.checkExpr " ++ showpp v ++ " not found" 
 
 checkTy :: (Doc -> Error) -> TCEmb TyCon -> SEnv SortedReft -> SpecType -> Maybe Error
 checkTy mkE emb env t = mkE <$> checkRType emb env t
