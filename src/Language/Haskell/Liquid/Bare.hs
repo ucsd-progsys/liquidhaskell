@@ -1236,7 +1236,11 @@ checkExpr s emb env vts (v, es) = mkErr <$> go es
   env'  = mapSEnv sr_sort $ foldl (\e (x,s) -> insertSEnv x s e) env xss
   xss   = mapSnd rSort <$> (uncurry zip $ dropThd3 $ bkArrowDeep t)
   rSort = rTypeSortedReft emb 
-  msg   = "Bare.checkExpr " ++ showpp v ++ " not found" 
+  msg   = "Bare.checkExpr " ++ showpp v ++ " not found\n"
+          ++ "\t Try give a haskell type signature to the recursive function"
+
+--   lookup v vts = (symbol v) `L.lookup` (mapFst symbol <$> vts)
+--   symbol       = stringSymbol . dropModuleNames . showpp
 
 checkTy :: (Doc -> Error) -> TCEmb TyCon -> SEnv SortedReft -> SpecType -> Maybe Error
 checkTy mkE emb env t = mkE <$> checkRType emb env t

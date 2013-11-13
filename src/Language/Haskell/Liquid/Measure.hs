@@ -76,7 +76,7 @@ instance Monoid (MSpec ty ctor) where
 
 
 qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
-                         , termexprs = [ (tx x, es) | (x, es) <- termexprs sp]
+--                          , termexprs = [ (tx x, es) | (x, es) <- termexprs sp]
                          }
   where
     tx = fmap (qualifySymbol name)
