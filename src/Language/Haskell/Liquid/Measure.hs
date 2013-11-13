@@ -75,7 +75,11 @@ instance Monoid (MSpec ty ctor) where
           (cm1 `M.union` cm2) (im1 ++ im2)
 
 
-qualifySpec name sp = sp { sigs = [ (qualifySymbol name <$> x, t) | (x, t) <- sigs sp] }
+qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
+                         , termexprs = [ (tx x, es) | (x, es) <- termexprs sp]
+                         }
+  where
+    tx = fmap (qualifySymbol name)
 
 mkM ::  LocSymbol -> ty -> [Def bndr] -> Measure ty bndr
 mkM name typ eqns 
