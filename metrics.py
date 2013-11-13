@@ -73,12 +73,13 @@ def find(rx, str):
     return [(str[a.start():(3+string.find(str,"@-}", a.start()))])
             for a in list(re.finditer(rx, str))]
 
-qualif_re = '{-@\s+qualif'
-other = 'type|measure|data|include|predicate|Decrease|Strict|Lazy|LAZYVAR'
-other_re = '{-@\s+(%s)' % other
-spec_re = '{-@\s+(?!(%s|qualif))' % other
-dec_re = '{-@\s+(Decrease|Strict|Lazy)'
-wit_re = '{-\s+LIQUID WITNESS'
+qualif_re = '{-@ qualif'
+other = 'import|include|invariant|embed|Decrease|LAZYVAR|Strict|Lazy'
+other_re = '{-@ (%s)' % other
+spec_re = '{-@ (?!(%s|qualif|LIQUID))' % other
+dec_re = '{-@ (Decrease|Strict|Lazy)'
+wit_re = '{- LIQUID WITNESS'
+mod_re = '^module ([\w\.]+)'
 
 def combine(x, y):
     return {k:x[k] + y[k] for k in y.keys()}
@@ -105,6 +106,7 @@ def main():
             f_res['recs'] = recs(fn)
 
             str = (open(fn, 'r')).read()
+            mod = re.search(mod_re, str, re.M).group(1)
 
             specs = find(spec_re, str)
             f_res['specs'] = len(specs)
@@ -120,7 +122,7 @@ def main():
 
             f_res['decs'] = len(re.findall(dec_re, str))
             f_res['wits'] = len(re.findall(wit_re, str))
-            results[d][fn] = f_res
+            results[d][mod] = f_res
 
         os.chdir(pwd)
 
@@ -128,7 +130,7 @@ def main():
         totals = defaultdict(int)
         for d, fs in results.iteritems():
             dirtotals = defaultdict(int)
-            for fn, metrics in fs.iteritems():
+            for fn, metrics in sorted(fs.iteritems()):
                 out.write(texify(fn, metrics))
                 dirtotals = combine(dirtotals, metrics)
             out.write(texify(d, dirtotals))
