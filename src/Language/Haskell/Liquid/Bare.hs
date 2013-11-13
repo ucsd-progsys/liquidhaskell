@@ -45,7 +45,7 @@ import Data.Function            (on)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames)
 import Language.Fixpoint.Types                  hiding (Def, Predicate)
-import Language.Fixpoint.Sort                   (checkSortedReftFull)
+import Language.Fixpoint.Sort                   (checkSortedReftFull, checkSorted)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types
@@ -114,7 +114,6 @@ makeGhcSpec' cfg vars defVars specs
        invs            <- mconcat <$> mapM makeInvariants specs
        embs            <- mconcat <$> mapM makeTyConEmbeds specs
        targetVars      <- makeTargetVars name defVars $ binders cfg
-       lazies          <- mconcat <$> mapM makeLazies specs
        (cls,mts)       <- second mconcat . unzip . mconcat
                           <$> mapM (makeClasses cfg vars) specs
        tcEnv           <- gets tcEnv
@@ -130,6 +129,14 @@ makeGhcSpec' cfg vars defVars specs
        let txq          = subsFreeSymbolsQual su
        let syms'        = [(symbol v, v) | (_, v) <- syms]
        decr'           <- mconcat <$> mapM (makeHints defVars) specs
+       texprs'         <- mconcat <$> mapM (makeTExpr defVars) specs
+
+       lazies          <- S.fromList . mconcat
+                                    <$> sequence [ makeLazy defVars (mod,spec)
+                                                 | (mod,spec) <- specs
+                                                 , mod == name
+                                                 ]
+
        lvars'          <- S.fromList . mconcat
                                     <$> sequence [ makeLVars defVars (mod,spec)
                                                  | (mod,spec) <- specs
@@ -146,6 +153,7 @@ makeGhcSpec' cfg vars defVars specs
                               , tcEmbeds   = embs 
                               , qualifiers = txq quals
                               , decr       = decr'
+                              , texprs     = texprs'
                               , lvars      = lvars'
                               , lazy       = lazies
                               , tgtVars    = targetVars
@@ -214,6 +222,7 @@ expandRPAliasE = expandPAlias []
 
 expandRTAliasE = expandAlias []
 
+-- TODO: this function is monstrously big. please split up.
 expandAlias s = go s
   where 
     go s (RApp c ts rs r)
@@ -346,6 +355,8 @@ makeClasses cfg vs (mod,spec) = inModule mod $ mapM mkClass $ Ms.classes spec
 
 makeHints vs (_,spec) = varSymbols id "Hint" vs $ Ms.decr spec
 makeLVars vs (_,spec) = fmap fst <$> (varSymbols id "LazyVar" vs $ [(v, ()) | v <- Ms.lvars spec])
+makeLazy  vs (_,spec) = fmap fst <$> (varSymbols id "Lazy" vs $ [(v, ()) | v <- S.toList $ Ms.lazy spec])
+makeTExpr vs (_,spec) = varSymbols id "TermExpr" vs $ Ms.termexprs spec
 
 varSymbols :: ([Var] -> [Var]) -> String ->  [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
 varSymbols f n vs  = concatMapM go
@@ -638,19 +649,12 @@ checkDefAsserts env vbs xbs   = applyNonNull (return ()) grumble  undefSigs
     undefSigs                 = [x | (x, _) <- assertSigs, not (x `S.member` definedSigs)]
     assertSigs                = filter isTarget xbs
     definedSigs               = S.fromList $ snd3 <$> vbs
-    grumble xs                = mapM_ (warn . berrUnknownVar) xs -- [berrUnknownVar (loc x) (val x) | x <- xs] 
+    grumble xs                = mapM_ (warn . berrUnknownVar) xs
     moduleName                = getModString $ modName env
     isTarget                  = L.isPrefixOf moduleName . symbolStringRaw . val . fst
     symbolStringRaw           = stripParens . symbolString
 
-    -- grumble                   = {- throwError -} warn . render . vcat . fmap errorMsg
-    -- errorMsg                  = (text "Specification for unknown variable:" <+>) . locatedSymbolText
- 
-
 warn x = tell [x]
-
-
-
 
 
 mkVarSpec                 :: (Var, LocSymbol, BareType) -> BareM (Var, Located SpecType)
@@ -668,13 +672,13 @@ showTopLevelVars vs =
 
 ----------------------------------------------------------------------
 
-makeTyConEmbeds (mod,spec)
+makeTyConEmbeds (mod, spec)
   = inModule mod $ makeTyConEmbeds' $ Ms.embeds spec
 
 makeTyConEmbeds' :: TCEmb (Located String) -> BareM (TCEmb TyCon)
 makeTyConEmbeds' z = M.fromList <$> mapM tx (M.toList z)
   where 
-    tx (c, y) = (, y) <$> lookupGhcTyCon' c --  wrapErr () (lookupGhcTyCon (val c))
+    tx (c, y) = (, y) <$> lookupGhcTyCon' c 
      
 
 lookupGhcTyCon' c = wrapErr msg lookupGhcTyCon (val c)
@@ -682,13 +686,13 @@ lookupGhcTyCon' c = wrapErr msg lookupGhcTyCon (val c)
     msg :: String = berrUnknownTyCon c
 
 
-makeLazies (mod,spec)
-  = inModule mod $ makeLazies' $ Ms.lazy spec
-
-makeLazies' :: S.HashSet Symbol -> BareM (S.HashSet Var)
-makeLazies' s = S.fromList <$> (fmap fst3 <$> lookupIds xxs)
-  where xs  = S.toList s
-        xxs = zip xs xs
+-- makeLazies (mod,spec)
+--   = inModule mod $ makeLazies' $ Ms.lazy spec
+-- 
+-- makeLazies' :: S.HashSet Symbol -> BareM (S.HashSet Var)
+-- makeLazies' s = S.fromList <$> (fmap fst3 <$> lookupIds xxs)
+--   where xs  = S.toList s
+--         xxs = zip xs xs
 
 
 makeInvariants (mod,spec)
@@ -828,8 +832,20 @@ wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns
                    , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
 
 
-fixpointPrims = ["Pred", "Prop", "List", "Set_Set", "Set_sng", "Set_cup", "Set_cap"
-                ,"Set_dif", "Set_emp", "Set_mem", "Set_sub", "VV"]
+fixpointPrims = [ "Pred"
+                , "Prop"
+                , "List"
+                , "Set_Set"
+                , "Set_sng"
+                , "Set_cup"
+                , "Set_cap"
+                , "Set_dif"
+                , "Set_emp"
+                , "Set_mem"
+                , "Set_sub"
+                , "VV"
+                , "FAppTy" 
+                ]
 
 class Resolvable a where
   resolve :: a -> BareM a
@@ -871,6 +887,7 @@ instance Resolvable Symbol where
                          _ -> return (S s)
 
 instance Resolvable Sort where
+  -- resolve = return
   resolve FInt         = return FInt
   resolve FNum         = return FNum
   resolve s@(FObj _)   = return s --FObj . S <$> lookupName env m s
@@ -1182,6 +1199,7 @@ checkGhcSpec (sp, ms) =  applyNonNull (Right sp) Left errors
     errors           =  mapMaybe (checkBind "variable"    emb env) (tySigs     sp)
                      ++ mapMaybe (checkBind "constructor" emb env) (dcons      sp)
                      ++ mapMaybe (checkBind "measure"     emb env) (measSpec   sp)
+                     ++ mapMaybe (checkExpr "measure"     emb env (tySigs   sp)) (texprs sp)
                      ++ mapMaybe (checkInv  emb env)               (invariants sp)
                      ++ checkMeasures emb env ms
                      ++ mapMaybe checkMismatch                     (tySigs     sp)
@@ -1207,6 +1225,17 @@ checkBind :: (PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> (v, Locat
 checkBind s emb env (v, Loc l t) = checkTy msg emb env t
   where 
     msg = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
+checkExpr :: (Eq v, PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> [(v, Located SpecType)] -> (v, [Expr])-> Maybe Error 
+checkExpr s emb env vts (v, es) = mkErr <$> go es
+  where 
+  mkErr = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
+  go    = foldl (\err e -> err <|> checkSorted env' e) Nothing  
+
+  (Loc l t) = fromJust $ L.lookup v vts
+
+  env'  = mapSEnv sr_sort $ foldl (\e (x,s) -> insertSEnv x s e) env xss
+  xss   = mapSnd rSort <$> (uncurry zip $ dropThd3 $ bkArrowDeep t)
+  rSort = rTypeSortedReft emb 
 
 checkTy :: (Doc -> Error) -> TCEmb TyCon -> SEnv SortedReft -> SpecType -> Maybe Error
 checkTy mkE emb env t = mkE <$> checkRType emb env t
@@ -1379,6 +1408,7 @@ berrMeasure   l x t  = printf "[%s]\nCannot convert measure %s :: %s"
 -- 
 -- berrUnknownTyCon x   = printf "[%s]\nSpecification for unknown TyCon   : %s"  
 --                          (showpp $ loc x) (showpp $ val x)
+
 berrUnknownTyCon     = berrUnknown "TyCon"
 berrUnknownVar       = berrUnknown "Variable"
 

@@ -12,6 +12,8 @@ GHC=$(GHCHOME)/ghc
 GPG=$(GHCHOME)/ghc-pkg
 
 #OPTS="-W -O2 -XStandaloneDeriving -XDeriveDataTypeable"
+
+FOPTS=""
 OPTS="-W -O2 -XStandaloneDeriving"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
 
@@ -24,9 +26,8 @@ DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comona
 all:
 	$(CABAL) install --ghc-options=$(OPTS) 
 
-fast:
-	$(CABAL) install
-
+fast: 
+	$(CABAL) build 
 
 prof:
 	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS) 

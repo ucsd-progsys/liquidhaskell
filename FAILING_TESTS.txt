@@ -1,0 +1,7 @@
+Failed 5 tests: 
+neg/pargs.hs,
+neg/pargs1.hs,
+neg/sumPoly.hs,
+
+[EXPECTED -- move to TODO?] pos/ptr2.hs,
+[EXPECTED -- move to TODO?] pos/typeAliasDup.hs 

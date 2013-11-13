@@ -1,4 +1,5 @@
-{-# LANGUAGE BangPatterns, TupleSections #-}
+{-# LANGUAGE BangPatterns   #-}
+{-# LANGUAGE TupleSections  #-}
 
 import qualified Data.HashMap.Strict as M
 -- import qualified Control.Exception as Ex
@@ -51,8 +52,8 @@ liquidOne target info =
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs''}
      cgi `deepseq` donePhase Loud "generateConstraints"
      -- whenLoud $ do donePhase Loud "START: Write CGI (can be slow!)"
-     --                {-# SCC "writeCGI" #-} writeCGI target cgi 
-     --                donePhase Loud "FINISH: Write CGI"
+     {-# SCC "writeCGI" #-} writeCGI target cgi 
+     -- donePhase Loud "FINISH: Write CGI"
      (r, sol) <- solveCs cfg target cgi info
      _        <- when (diffcheck cfg) $ DC.save target 
      donePhase Loud "solve"

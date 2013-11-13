@@ -32,6 +32,7 @@ module Language.Haskell.Liquid.Types (
   , mkArrow, bkArrowDeep, bkArrow, safeBkArrow 
   , mkUnivs, bkUniv, bkClass
   , rFun
+  ,addTermCond
 
   -- * Manipulating Predicate
   , pvars
@@ -91,8 +92,15 @@ module Language.Haskell.Liquid.Types (
   , CMeasure (..)
   , Def (..)
   , Body (..)
+
   -- * Type Classes
   , RClass (..)
+
+  -- * KV Profiling
+  , KVKind (..)   -- ^ types of kvars
+  , KVProf        -- ^ profile table
+  , emptyKVProf   -- ^ empty profile
+  , updKVProf     -- ^ extend profile
   )
   where
 
@@ -152,6 +160,7 @@ data Config = Config {
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   , smtsolver      :: SMTSolver  -- ^ name of smtsolver to use [default: z3-API]  
   } deriving (Data, Typeable, Show, Eq)
+
 
 -----------------------------------------------------------------------------
 -- | Printer ----------------------------------------------------------------
@@ -285,6 +294,7 @@ data GhcSpec = SP {
                                                  -- e.g tests/pos/qualTest.hs
   , tgtVars    :: ![Var]                         -- ^ Top-level Binders To Verify (empty means ALL binders)
   , decr       :: ![(Var, [Int])]                -- ^ Lexicographically ordered size witnesses for termination
+  , texprs     :: ![(Var, [Expr])]               -- ^ Lexicographically ordered expressions for termination
   , lvars      :: !(S.HashSet Var)               -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
   , config     :: !Config                        -- ^ Configuration Options
@@ -484,6 +494,10 @@ data RType p c tv r
     , rt_reft  :: !r
     }
 
+  | RRTy  {
+      rr_ref   :: !r
+    , rt_ty    :: !(RType p c tv r)
+    }
   | ROth  !String 
 
 -- MOVE TO TYPES
@@ -612,6 +626,10 @@ bkClass t                        = ([], t)
 
 rFun b t t' = RFun b t t' top
 
+addTermCond t r = mkArrow αs πs xts $ RRTy r t2
+  where (αs, πs, t1) = bkUniv t
+        (xs, ts, t2) = bkArrow t1
+        xts          = zip xs ts
 
 --------------------------------------------
 
@@ -705,6 +723,7 @@ emapReft f γ (RAllE z t t')      = RAllE z (emapReft f γ t) (emapReft f γ t')
 emapReft f γ (REx z t t')        = REx   z (emapReft f γ t) (emapReft f γ t')
 emapReft _ _ (RExprArg e)        = RExprArg e
 emapReft f γ (RAppTy t t' r)     = RAppTy (emapReft f γ t) (emapReft f γ t') (f γ r)
+emapReft f γ (RRTy r t)          = RRTy (f γ r) (emapReft f γ t)
 emapReft _ _ (ROth s)            = ROth  s 
 
 emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> Ref (RType p c tv ()) t (RType p c tv t) -> Ref (RType p c tv ()) s (RType p c tv s)
@@ -749,6 +768,7 @@ efoldReft cb g f = go
     go γ z (RAllE x t t')               = go (insertSEnv x (g t) γ) (go γ z t) t' 
     go γ z (REx x t t')                 = go (insertSEnv x (g t) γ) (go γ z t) t' 
     go _ z (ROth _)                     = z 
+    go γ z (RRTy _ t)                   = go γ z t
     go γ z me@(RAppTy t t' r)           = f γ (Just me) r (go γ (go γ z t) t')
     go _ z (RExprArg _)                 = z
 
@@ -807,8 +827,9 @@ mapBind f (RAllE b t1 t2)  = RAllE  (f b) (mapBind f t1) (mapBind f t2)
 mapBind f (REx b t1 t2)    = REx    (f b) (mapBind f t1) (mapBind f t2)
 mapBind _ (RVar α r)       = RVar α r
 mapBind _ (ROth s)         = ROth s
-mapBind f (RAppTy t1 t2 r) = RAppTy (mapBind f t1) (mapBind f t2) r
+mapBind f (RRTy r t)       = RRTy r (mapBind f t)
 mapBind _ (RExprArg e)     = RExprArg e
+mapBind f (RAppTy t t' r)  = RAppTy (mapBind f t) (mapBind f t') r
 
 mapBindRef f (RMono s r)   = RMono (mapFst f <$> s) r
 mapBindRef f (RPoly s t)   = RPoly (mapFst f <$> s) $ mapBind f t
@@ -963,6 +984,11 @@ data Error =
                 , msg :: !Doc
                 , act :: !SpecType
                 , exp :: !SpecType
+                } -- ^ liquid type error
+
+   | ErrAssType { pos :: !SrcSpan
+                , msg :: !Doc
+                , ref :: !RReft
                 } -- ^ liquid type error
 
   | ErrParse    { pos :: !SrcSpan
@@ -1156,3 +1182,43 @@ data RClass ty
 
 instance Functor RClass where
   fmap f (RClass n ss tvs ms) = RClass n (fmap f ss) tvs (fmap (second f) ms)
+
+-----------------------------------------------------------
+-- | KVar Profile -----------------------------------------
+-----------------------------------------------------------
+
+data KVKind
+  = RecBindE 
+  | NonRecBindE 
+  | TypeInstE 
+  | PredInstE
+  | LamE
+  | CaseE 
+  | LetE
+  deriving (Eq, Ord, Show, Enum, Data, Typeable)
+
+instance Hashable KVKind where
+  hashWithSalt i = hashWithSalt i. fromEnum
+
+newtype KVProf = KVP (M.HashMap KVKind Int)
+
+emptyKVProf :: KVProf
+emptyKVProf = KVP M.empty
+
+updKVProf :: KVKind -> [Symbol] -> KVProf -> KVProf 
+updKVProf k kvs (KVP m) = KVP $ M.insert k (kn + length kvs) m
+  where 
+    kn                  = M.lookupDefault 0 k m
+
+instance NFData KVKind where
+  rnf z = z `seq` ()
+
+instance PPrint KVKind where
+  pprint = text . show
+
+instance PPrint KVProf where
+  pprint (KVP m) = pprint $ M.toList m 
+
+instance NFData KVProf where
+  rnf (KVP m) = rnf m `seq` () 
+

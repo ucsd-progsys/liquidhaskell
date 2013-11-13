@@ -213,7 +213,7 @@ The default decreasing measure for lists is length and Integers its value.
 
 The user can specify the decreasing measure in data definitions:
 
-{-@ data L [llen] a = Nil | Cons (x::a) (xs:: L a) @-}
+    {-@ data L [llen] a = Nil | Cons (x::a) (xs:: L a) @-}
 
 Defines that `llen` is the decreasing measure (to be defined by the user).
 
@@ -225,7 +225,7 @@ For example, in the function `foldl`
 by default the *second* argument (the first non-function argument) will be 
 checked to be decreasing. However, the explicit hint 
 
-    {-@ Decreasing foo 3 @-}
+    {-@ Decrease foo 3 @-}
 
 tells LiquidHaskell to instead use the *third* argument. 
 
@@ -233,17 +233,58 @@ To *disable* termination checking for `foo` that is, to *assume* that it
 is terminating (possibly for some complicated reason currently beyond the 
 scope of LiquidHaskell) you can write
 
-    {-@ Lazy foo @-} 
+    {-@ Lazy foo @-}
+
+Some functions do not decrease on a single argument, but rather a
+combination of arguments, e.g. the Ackermann function.
+
+    ack m n
+      | m == 0          = n + 1
+      | m > 0 && n == 0 = ack (m-1) 1
+      | m > 0 && n >  0 = ack (m-1) (ack m (n-1))
+
+In all but one recursive call `m` decreases, in the final call `m`
+does not decrease but `n` does. We can capture this notion of "x
+normally decreases, but if it does not, y will" with an extended
+annotation
+
+    {-@ Decrease ack 1 2 @-}
+
+An alternative way to express this specification is by annotating 
+the function's type with the appropriate decreasing expressions.
+As an example, you can give `ack` a type
+
+    {-@ ack :: m:Nat -> n:Nat -> Nat / [m,n] @-}
     
+stating that the expressions `[m, n]` are lexicographically decreasing.
 
-**Limitations**
+Decreasing expressions can be arbitrary refinement expressions, e.g., 
 
-- Currently the termination checker *does not* handle *mutually recursive* 
-  functions, and instead it loudly crashes when given such functions.
+    {-@ merge :: Ord a => xs:[a] -> ys:[a] -> [a] / [(len xs) + (len ys)] @-}
+    
+states that at each recursive call of `merge` the sum of the lengths 
+of its arguments will be decreased.
+    
+When dealing with mutually recursive functions you may run into a
+situation where the decreasing parameter must be measured *across* a
+series of invocations, e.g.
 
-- `deriving instances` often create such functions so lookout!
+    even 0 = True
+    even n = odd (n-1)
 
-We intend to address these ASAP.
+    odd  n = not $ even n
+
+In this case, you can introduce a ghost parameter that orders the *functions*
+
+    even 0 _ = True
+    even n _ = odd (n-1) 1
+
+    odd  n _ = not $ even n 0
+
+thus recovering a decreasing measure for the pair of functions, the
+pair of arguments. This can be encoded with the lexicographic
+termination annotation `{-@ Decrease even 1 2 @-}` (see
+tests/pos/mutrec.hs for the full example).
 
 Lazy Variables
 --------------

@@ -244,6 +244,7 @@ radixLoop :: (PrimMonad m, MVector v e)
 radixLoop passes src dst count rdx = go False passes 0
  where
  len = length src
+  {- LIQUID WITNESS -}
  go swap (twit :: Int) (k :: Int)
    | k < passes = if swap
                     then body dst src count rdx k >> go (not swap) (twit-1) (k+1)
@@ -269,6 +270,7 @@ accumulate :: (PrimMonad m)
 accumulate count = go len 0 0
  where
  len = length count
+  {- LIQUID WITNESS -}
  go (twit :: Int) (i :: Int) acc
    | i < len   = do ci <- unsafeRead count i
                     unsafeWrite count i acc
@@ -282,6 +284,7 @@ moveLoop :: (PrimMonad m, MVector v e)
 moveLoop k src dst prefix rdx = go len 0
  where
  len = length src
+  {- LIQUID WITNESS -}
  go (twit :: Int) (i :: Int)
    | i < len    = do srci <- unsafeRead src i
                      pf   <- inc prefix (rdx k srci)
