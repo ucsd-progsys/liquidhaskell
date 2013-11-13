@@ -317,6 +317,7 @@ union (Node x a b) t = Node x (union ta a) (union tb b)
 
 {-@ unionT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
 {-@ Decrease unionT 4 @-}
+{- LIQUID WITNESS -}
 unionT :: Ord a => Splay a -> Splay a -> Int -> Splay a
 unionT Leaf         t _ = t
 unionT (Node x a b) t _ = Node x (unionT ta a (slen ta + slen a))
@@ -342,6 +343,7 @@ intersection t1 (Node x l r) = case split x t1 of
 
 {-@ intersectionT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
 {-@ Decrease intersectionT 4 @-}
+{- LIQUID WITNESS -}
 intersectionT :: Ord a => Splay a -> Splay a -> Int -> Splay a
 intersectionT Leaf _          _ = Leaf
 intersectionT _ Leaf          _ = Leaf
@@ -368,6 +370,7 @@ difference t1 (Node x l r) = union (difference l' l) (difference r' r)
 
 {-@ differenceT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
 {-@ Decrease differenceT 4 @-}
+{- LIQUID WITNESS -}
 differenceT :: Ord a => Splay a -> Splay a -> Int -> Splay a
 differenceT Leaf _          _ = Leaf
 differenceT t1 Leaf         _ = t1

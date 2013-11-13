@@ -384,7 +384,7 @@ dummyRSort     = ROth "dummy"
 data Pspec ty ctor 
   = Meas    (Measure ty ctor) 
   | Assm    (LocSymbol, ty) 
-  | Assms   ([LocSymbol], ty)
+  | Assms   ([LocSymbol], (ty, Maybe [Expr]))
   | Impt    Symbol
   | DDecl   DataDecl
   | Incl    FilePath
@@ -395,7 +395,7 @@ data Pspec ty ctor
   | Qualif  Qualifier
   | Decr    (LocSymbol, [Int])
   | LVars   LocSymbol
-  | Lazy    Symbol
+  | Lazy    LocSymbol
   | Pragma  (Located String)
   | CMeas   (Measure ty ())
   | IMeas   (Measure ty ctor)
@@ -407,7 +407,7 @@ mkSpec name xs         = (name,)
                        $ Measure.Spec
   { Measure.measures   = [m | Meas   m <- xs]
   , Measure.sigs       = [a | Assm   a <- xs] 
-                      ++ [(y, t) | Assms (ys, t) <- xs, y <- ys]
+                      ++ [(y, t) | Assms (ys, (t, _)) <- xs, y <- ys]
   , Measure.invariants = [t | Invt   t <- xs] 
   , Measure.imports    = [i | Impt   i <- xs]
   , Measure.dataDecls  = [d | DDecl  d <- xs]
@@ -423,6 +423,7 @@ mkSpec name xs         = (name,)
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
   , Measure.classes    = [c | Class  c <- xs]
+  , Measure.termexprs  = [(y, es) | Assms (ys, (_, Just es)) <- xs, y <- ys]
   }
 
 specP :: Parser (Pspec BareType Symbol)
@@ -443,8 +444,8 @@ specP
     <|> (reserved "qualif"    >> liftM Qualif qualifierP)
     <|> (reserved "Decrease"  >> liftM Decr   decreaseP )
     <|> (reserved "LAZYVAR"   >> liftM LVars  lazyVarP  )
-    <|> (reserved "Strict"    >> liftM Lazy   lazyP     )
-    <|> (reserved "Lazy"      >> liftM Lazy   lazyP     )
+    <|> (reserved "Strict"    >> liftM Lazy   lazyVarP  )
+    <|> (reserved "Lazy"      >> liftM Lazy   lazyVarP  )
     <|> (reserved "LIQUID"    >> liftM Pragma pragmaP   )
     <|> ({- DEFAULT -}           liftM Assms  tyBindsP  )
 
@@ -467,11 +468,22 @@ filePathP     = angles $ many1 pathCharP
     pathCharP = choice $ char <$> pathChars 
     pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
 
-tyBindsP    :: Parser ([LocSymbol], BareType)
-tyBindsP = xyP (sepBy (locParserP binderP) comma) dcolon genBareTypeP
+tyBindsP    :: Parser ([LocSymbol], (BareType, Maybe [Expr]))
+tyBindsP = xyP (sepBy (locParserP binderP) comma) dcolon termBareTypeP
 
 tyBindP    :: Parser (LocSymbol, BareType)
 tyBindP    = xyP (locParserP binderP) dcolon genBareTypeP
+
+termBareTypeP :: Parser (BareType, Maybe [Expr])
+termBareTypeP
+   = try termTypeP
+  <|> (, Nothing) <$> genBareTypeP 
+
+termTypeP 
+  = do t <- genBareTypeP
+       reserved "/"
+       es <- brackets $ sepBy exprP comma
+       return (t, Just es)
 
 locParserP :: Parser a -> Parser (Located a)
 locParserP p = liftM2 Loc getPosition p

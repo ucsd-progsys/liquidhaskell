@@ -367,6 +367,7 @@ compareText ta@(Text _arrA _offA lenA) tb@(Text _arrB _offB lenB)
     | lenA == 0 && lenB == 0 = EQ
     | otherwise              = go lenA 0 0
   where
+    {- LIQUID WITNESS -}
     go (d :: Int) !i !j
       --   | i >= lenA || j >= lenB = compare lenA lenB
       --   | a < b                  = LT
@@ -1062,6 +1063,7 @@ replicate n t@(Text a o l)
     | isSingleton t         = replicateChar n (unsafeHead t)
     | otherwise             = let len = mul l n --LIQUID SPECIALIZE l * n
                                   x = do arr <- A.new len
+                                         {- LIQUID WITNESS -}
                                          let loop (d :: Int) !d' !i
                                                  | i >= n    = return arr
                                                  | otherwise = let m = liquidAssume (axiom_mul i n l len d') (d' + l)
@@ -1155,6 +1157,7 @@ take n t@(Text arr off len)
     | n >= len  = t
     | otherwise = Text arr off (loop len 0 0)
   where
+    {- LIQUID WITNESS -}
      loop (d :: Int) !i !cnt
           | i >= len || cnt >= n = i
           | otherwise            = let d' = iter_ t i
@@ -1190,6 +1193,7 @@ drop n t@(Text arr off len)
     --           | i >= len || cnt >= n   = Text arr (off+i) (len-i)
     --           | otherwise              = loop (i+d) (cnt+1)
     --           where d = iter_ t i
+          {- LIQUID WITNESS -}
     where loop (d :: Int) !i !cnt
               | i >= len || cnt >= n   = let len' = liquidAssume (axiom_numchars_split t i) (len-i)
                                          in Text arr (off+i) len'
@@ -1214,6 +1218,7 @@ takeWhile p t@(Text arr off len) = loop len 0 0
 --LIQUID                | p c         = loop (i+d)
 --LIQUID                | otherwise   = textP arr off i
 --LIQUID            where Iter c d    = iter t i
+        {- LIQUID WITNESS -}
   where loop (d :: Int) !i cnt =
                       if i >= len then t
                       else let it@(Iter c d') = iter t i
@@ -1246,6 +1251,7 @@ dropWhile p t@(Text arr off len) = loop_dropWhile len t p 0 0
                    -> {v:Text | (tlength v) <= (tlength t)}
   @-}
 loop_dropWhile :: Int -> Text -> (Char -> Bool) -> Int -> Int -> Text
+  {- LIQUID WITNESS -}
 loop_dropWhile (d :: Int) t@(Text arr off len) p !i cnt
     = if i >= len then empty
       else let it@(Iter c d') = iter t i
@@ -1352,6 +1358,7 @@ splitAt n t@(Text arr off len)
 --LIQUID            | i >= len || cnt >= n = i
 --LIQUID            | otherwise            = loop (i+d) (cnt+1)
 --LIQUID            where d                = iter_ t i
+          {- LIQUID WITNESS -}
     where loop (d :: Int) !i !cnt
               | i >= len || cnt >= n = let len' = liquidAssume (axiom_numchars_split t i) (len-i)
                                        in ( Text arr off i
@@ -1397,6 +1404,7 @@ findAIndexOrEnd q t@(Text _arr _off len) = go len 0
     --LIQUID where go !i | i >= len || q c       = i
     --LIQUID             | otherwise             = go (i+d)
     --LIQUID             where Iter c d          = iter t i
+  {- LIQUID WITNESS -}
     where go (d :: Int) !i =
                   if i >= len then i
                   else let Iter c d' = iter t i
@@ -1426,6 +1434,7 @@ inits t@(Text arr off len) = loop_inits len t 0 0
                        <{\x2 y2 -> (tlength x2) < (tlength y2)}>
   @-}
 loop_inits :: Int -> Text -> Int -> Int -> [Text]
+  {- LIQUID WITNESS -}
 loop_inits (d :: Int) t@(Text arr off len) i cnt
     | i >= len = [t]
     | otherwise = Text arr off i : let d' = iter_ t i
@@ -1729,6 +1738,7 @@ words t@(Text arr off len) = loop len 0 0
   --LIQUID        | otherwise = loop start (n+d)
   --LIQUID        where Iter c d = iter t n
   where
+  {- LIQUID WITNESS -}
     loop (d :: Int) !start !n =
         if n >= len then if start == n
                          then []
@@ -1878,6 +1888,7 @@ stripPrefix p@(Text _arr _off plen) t@(Text arr off len)
 commonPrefixes :: Text -> Text -> Maybe (Text,Text,Text)
 commonPrefixes t0@(Text arr0 off0 len0) t1@(Text arr1 off1 len1) = go len0 0 0
   where
+  {- LIQUID WITNESS -}
     go (d :: Int) !i !j
              | i < len0 && j < len1 = -- && a == b = go (i+d0) (j+d1)
                     let Iter a d0 = iter t0 i

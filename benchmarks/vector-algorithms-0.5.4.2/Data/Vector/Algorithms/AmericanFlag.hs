@@ -1,8 +1,6 @@
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables #-}
 {-# LANGUAGE BangPatterns #-}
 
-{-@ LIQUID "--no-termination" @-}
-
 -- ---------------------------------------------------------------------------
 -- |
 -- Module      : Data.Vector.Algorithms.AmericanFlag
@@ -66,11 +64,23 @@ class Lexicographic e where
   -- particular iteration.
   index     :: Int -> e -> Int
 
+
 -- | LIQUID Class Specification ---------------------------------------------
 
 {-@ measure lexSize :: a -> Int                                           @-}
 {-@ size  :: (Lexicographic e) => x:e -> {v:Nat | v = (lexSize x)}        @-}
 {-@ index :: (Lexicographic e) => Int -> x:e -> {v:Nat | v < (lexSize x)} @-}
+{-@ terminate :: (Lexicographic e) => x:e -> n:Int
+              -> {v:Bool | (((n+1) >= maxPasses) => (Prop v))}
+  @-}
+
+{-@ measure maxPasses :: Int @-}
+{-@ maxPasses :: {v:Nat | v = maxPasses} @-}
+maxPasses :: Int
+maxPasses = undefined
+{-@ qualif MaxPasses(v:int, p:int): v = (maxPasses-p) @-}
+{-@ qualif MaxPasses(v:int): v <= maxPasses @-}
+{-@ qualif MaxPasses(v:int): v < maxPasses @-}
 
 
 instance Lexicographic Word8 where
@@ -212,7 +222,7 @@ instance Lexicographic B.ByteString where
 -- for sufficiently small arrays.
 sort :: forall e m v. (PrimMonad m, MVector v e, Lexicographic e, Ord e)
      => v (PrimState m) e -> m ()
-sort v = sortBy compare terminate (size e) index v
+sort v = sortBy compare terminate (size e) index maxPasses v
  where e :: e
        e = undefined
 {-# INLINABLE sort #-}
@@ -223,9 +233,10 @@ sort v = sortBy compare terminate (size e) index v
 
 {-@ sortBy :: (PrimMonad m, MVector v e)
        => (Comparison e)
-       -> (e -> Int -> Bool)
+       -> (e -> n:Int -> {v:Bool | (((n+1) >= maxPasses) => (Prop v) )})
        -> buckets:Nat
        -> (Int -> e -> {v:Nat | v < buckets})
+       -> {v:Nat | v = maxPasses}
        -> v (PrimState m) e
        -> m ()
   @-}
@@ -234,14 +245,15 @@ sortBy :: (PrimMonad m, MVector v e)
        -> (e -> Int -> Bool) -- ^ determines whether a stripe is complete
        -> Int                -- ^ the number of buckets necessary
        -> (Int -> e -> Int)  -- ^ the big-endian radix function
+       -> Int
        -> v (PrimState m) e  -- ^ the array to be sorted
        -> m ()
-sortBy cmp stop buckets radix v
+sortBy cmp stop buckets radix mp v
   | length v == 0 = return ()
   | otherwise     = do count <- new buckets
                        pile <- new buckets
                        countLoop v count (radix 0) 
-                       flagLoop cmp stop count pile v radix 
+                       flagLoop cmp stop count pile v mp radix
 {-# INLINE sortBy #-}
 
 flagLoop :: (PrimMonad m, MVector v e)
@@ -250,27 +262,37 @@ flagLoop :: (PrimMonad m, MVector v e)
          -> PV.MVector (PrimState m) Int -- auxiliary count array
          -> PV.MVector (PrimState m) Int -- auxiliary pile array
          -> v (PrimState m) e            -- source array
+         -> Int
          -> (Int -> e -> Int)            -- radix function
          -> m ()
-flagLoop cmp stop count pile v radix = go 0 v
+flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
  where
 
- go pass v = do e <- unsafeRead v 0
-                unless (stop e $ pass - 1) $ go' pass v
+ {-@ Decrease go 3 4 @-}
+  {- LIQUID WITNESS -}
+ go pass v (d :: Int) (_ :: Int)
+   = do e <- unsafeRead v 0
+        if (stop e $ pass - 1)
+          then return ()
+          else go' pass v (mp-pass) 0
+        --LIQUID INLINE unless (stop e $ pass - 1) $ go' pass v (mp-pass) 0
 
- go' pass v
+ {-@ Decrease go' 3 4 @-}
+   {- LIQUID WITNESS -}
+ go' pass v (d :: Int) (_ :: Int)
    | len < threshold = I.sortByBounds cmp v 0 len
    | otherwise       = do accumulate count pile
                           permute count pile v (radix pass) 
-                          recurse 0
+                          recurse len 0
   where
   len = length v
   ppass = pass + 1
 
-  recurse i
+  {- LIQUID WITNESS -}
+  recurse (twit :: Int) i
     | i < len   = do j <- countStripe count v (radix ppass) (radix pass) i
-                     go ppass (unsafeSlice i (j - i) v)
-                     recurse j
+                     go ppass (unsafeSlice i (j - i) v) (mp-ppass) 1
+                     recurse (len - j) j
     | otherwise = return ()
 {-# INLINE flagLoop #-}
 
@@ -278,16 +300,17 @@ accumulate :: (PrimMonad m)
            => PV.MVector (PrimState m) Int
            -> PV.MVector (PrimState m) Int
            -> m ()
-accumulate count pile = loop 0 0
+accumulate count pile = loop len 0 0
  where
  len = length count
 
- loop i acc
-   | i < len = do ci <- unsafeRead count i
+  {- LIQUID WITNESS -}
+ loop (twit :: Int) i acc
+   | i < len = do ci <-  unsafeRead count i
                   let acc' = acc + ci
                   unsafeWrite pile i acc
                   unsafeWrite count i acc'
-                  loop (i+1) acc'
+                  loop (twit - 1) (i+1) acc'
    | otherwise    = return ()
 {-# INLINE accumulate #-}
 
@@ -297,11 +320,12 @@ permute :: (PrimMonad m, MVector v e)
         -> v (PrimState m) e                -- source array
         -> (e -> Int)                       -- radix function
         -> m ()
-permute count pile v rdx = go 0
+permute count pile v rdx = go len 0
  where
  len = length v
 
- go i
+  {- LIQUID WITNESS -}
+ go (twit::Int) i
    | i < len   = do e <- unsafeRead v i
                     let r = rdx e
                     p <- unsafeRead pile r
@@ -311,24 +335,27 @@ permute count pile v rdx = go 0
                     case () of
                       -- if the current element is alunsafeReady in the right pile,
                       -- go to the end of the pile
-                      _ | m <= i && i < p  -> go p
+                      _ | m <= i && i < p  -> if p < len then go (len - p) p else return ()
                       -- if the current element happens to be in the right
                       -- pile, bump the pile counter and go to the next element
-                        | i == p           -> unsafeWrite pile r (p+1) >> go (i+1)
+                        | i == p           -> unsafeWrite pile r (p+1) >> go (len - (i+1)) (i+1)
                       -- otherwise follow the chain
-                        | otherwise        -> follow i e p >> go (i+1)
+                        | otherwise        -> follow (len - p) i e p >> go (len - (i+1)) (i+1)
    | otherwise = return ()
- 
- follow i e j' = do let j = liquidAssume (0 <= j' && j' < len) j' -- LIQUID: not sure why this holds, has to do with `inc`
+
+  {- LIQUID WITNESS -}
+ follow (twit :: Int) i e j'
+               = do let j = liquidAssume (0 <= j' && j' < len) j' -- LIQUID: not sure why this holds, has to do with `inc`
                     en <- unsafeRead v j
                     let r = rdx en
                     p <- inc pile r
                     if p == j
                       -- if the target happens to be in the right pile, don't move it.
-                      then follow i e (j+1)
+                      then follow (len - (j+1)) i e (j+1)
                       else unsafeWrite v j e >> if i == p
-                                             then unsafeWrite v i en
-                                             else follow i en p
+                                                then unsafeWrite v i en
+                                                else let p'' = liquidAssume (j < p && p < len) p in 
+                                                     follow (len - p'') i en p''
 {-# INLINE permute #-}
 
 countStripe :: (PrimMonad m, MVector v e)
@@ -340,14 +367,16 @@ countStripe :: (PrimMonad m, MVector v e)
             -> m Int                        -- end of stripe: [lo,hi)
 countStripe count v rdx str lo = do set count 0
                                     e <- unsafeRead v lo
-                                    go (str e) e (lo+1)
+                                    go (len - (lo + 1)) (str e) e (lo+1)
  where
  len = length v
- go !s e i = inc count (rdx e) >>
+  {- LIQUID WITNESS -}
+ go (twit :: Int) !s e i
+    = inc count (rdx e) >>
              if i < len
                then do en <- unsafeRead v i
                        if str en == s
-                          then go s en (i+1)
+                          then go (len - (i+1)) s en (i+1)
                           else return i
                else return len
 {-# INLINE countStripe #-}

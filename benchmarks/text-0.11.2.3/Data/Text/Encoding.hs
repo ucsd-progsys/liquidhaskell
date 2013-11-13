@@ -135,7 +135,6 @@ strictDecode desc c _ _ = throw (E.DecodeError desc c)
 
 {-@ qualif Ensure(v:ForeignPtr a, x:int): x <= (fplen v) @-}
 {-@ qualif Ensure(v:Ptr a, x:int, y:int): x+y <= (plen v) @-}
-{-@ qualif Ensure(v:Ptr a, x:int, y:int, z:int): x+y <= z @-}
 
 -- $strict
 --
@@ -165,6 +164,7 @@ decodeUtf8With onErr (PS fp off len) = runText $ \done -> do
   let go dest = withForeignPtr fp $ \ptr ->
         withLIQUID (0::CSize) dest $ \destOffPtr -> do
           let end = ptr `plusPtr` (off + len) :: Ptr Word8
+              {- LIQUID WITNESS -}
               loop (d :: Int) curPtr = do
                 curPtr' <- c_decode_utf8 dest {-LIQUID (A.maBA dest)-} destOffPtr curPtr end
                 if eqPtr curPtr' end --LQIUID SPECIALIZE curPtr' == end
@@ -230,6 +230,7 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
     loop n1 m1 ptr = go (offLen-n1) n1 m1
      where
       --LIQUID SCOPE offLen = off + len
+       {- LIQUID WITNESS -}
       go (d :: Int) !n !m =
         if n == offLen then return (PS fp 0 m)
         else do
@@ -255,6 +256,7 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
                   -- them.  We see better performance when we
                   -- special-case this assumption.
                   let end = ptr `plusPtr` size :: Ptr Word8
+                      {- LIQUID WITNESS -}
                       ascii (d' :: Int) !t !u =
                         if t == offLen || eqPtr u end {-LIQUID SPECIALIZE u == end || v >= 0x80-} then
                             go d' t (u `minusPtr` ptr)

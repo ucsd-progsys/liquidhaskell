@@ -1,7 +1,6 @@
 module Ackermann where
 
-{-@ ack :: Nat -> Nat -> Nat @-}
-{-@ Decrease ack 1 2 @-}
+{-@ ack :: m:Nat -> n:Nat -> Nat / [m, n]@-}
 ack :: Int -> Int -> Int
 ack m n
     | m == 0          = n + 1
