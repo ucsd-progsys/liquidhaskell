@@ -1,6 +1,7 @@
 module spec GHC.Prim where
 
 embed GHC.Prim.Int#  as int
+embed GHC.Prim.Word# as int
 embed GHC.Prim.Addr# as int
 
 measure addrLen :: GHC.Prim.Addr# -> GHC.Types.Int
