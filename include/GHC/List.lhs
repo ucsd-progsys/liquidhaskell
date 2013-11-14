@@ -49,6 +49,17 @@ infixl 9  !!
 infix  4 `elem`, `notElem`
 
 
+
+
+{-@ measure sumLens :: [[a]] -> Int
+    sumLens ([])   = 0
+    sumLens (c:cs) = (len c) + (sumLens cs)
+  @-}
+{-@ invariant {v:[[a]] | (sumLens v) >= 0} @-}
+{-@ qualif SumLensEq(v:List List a, x:List List a): (sumLens v) = (sumLens x) @-}
+{-@ qualif SumLensEq(v:List List a, x:List a): (sumLens v) = (len x) @-}
+{-@ qualif SumLensLe(v:List List a, x:List List a): (sumLens v) <= (sumLens x) @-}
+
 \end{code}
 
 %*********************************************************
@@ -282,7 +293,7 @@ repeatFB c x = xs where xs = x `c` xs
 -- It is an instance of the more general 'Data.List.genericReplicate',
 -- in which @n@ may be of any integral type.
 {-# INLINE replicate #-}
-{-@ assert replicate    :: n:GHC.Types.Int -> x:a -> {v: [{v:a | v = x}] | len(v) = n} @-}
+{-@ assert replicate    :: n:Nat -> x:a -> {v: [{v:a | v = x}] | len(v) = n} @-}
 replicate               :: Int -> a -> [a]
 replicate n x           =  take n (repeat x)
 
@@ -373,6 +384,7 @@ drop                   :: Int -> [a] -> [a]
 -- 'splitAt' is an instance of the more general 'Data.List.genericSplitAt',
 -- in which @n@ may be of any integral type.
 -- Liquid: TODO
+{-@ splitAt :: n:Nat -> x:[a] -> ({v:[a] | (Min (len v) (len x) n)},[a])<{\x1 x2 -> (len x2) = (len x) - (len x1)}> @-}
 splitAt                :: Int -> [a] -> ([a],[a])
 
 #ifdef USE_REPORT_PRELUDE
@@ -493,6 +505,7 @@ span p xs@(x:xs')
 --
 -- 'break' @p@ is equivalent to @'span' ('not' . p)@.
 -- liquid:TODO
+{-@ break :: (a -> Bool) -> xs:[a] -> ([a],[a])<{\x y -> (len xs) = (len x) + (len y)}> @-}
 break                   :: (a -> Bool) -> [a] -> ([a],[a])
 #ifdef USE_REPORT_PRELUDE
 break p                 =  span (not . p)
