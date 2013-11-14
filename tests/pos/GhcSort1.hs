@@ -25,7 +25,7 @@ sort1 xs = mergeAll  (sequences xs 0)
       | a `compare` b /= GT = ascending b (\ys -> as (a:ys)) bs 1
     ascending a as bs _     = as [a]: sequences bs 0
 
-    mergeAll []  = []    
+    mergeAll []  = [] --this case cannot occur, though  
     mergeAll [x] = x
     mergeAll xs  = mergeAll (mergePairs xs)
 
