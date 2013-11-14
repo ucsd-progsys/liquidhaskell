@@ -20,7 +20,7 @@ flibXs x              = prop1 (WrapType [x, x, x] x)
 prop1 (WrapType [] _) = liquidError "no!"
 prop1 (WrapType _  _) = True
 
-{-@ assert nflibXs :: Int -> a -> Bool @-}
+{-@ assert nflibXs :: Nat -> a -> Bool @-}
 nflibXs n x           = prop2 n (WrapType nxs x)
                         where nxs = replicate n x 
 

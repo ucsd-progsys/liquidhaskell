@@ -1,5 +1,3 @@
-{--! run liquid with termination -}
-
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE CPP, NoImplicitPrelude, MagicHash #-}
 
@@ -460,11 +458,11 @@ intercalate xs xss = concat (intersperse xs xss)
 --
 -- > transpose [[1,2,3],[4,5,6]] == [[1,4],[2,5],[3,6]]
 
+{-@ transpose :: xs:[[a]] -> [[a]] / [(sumLens xs)+(len xs)] @-}
 transpose               :: [[a]] -> [[a]]
 transpose []             = []
 transpose ([]   : xss)   = transpose xss
 transpose ((x:xs) : xss) = (x : [h | (h:_) <- xss]) : transpose (xs : [ t | (_:t) <- xss])
-
 
 -- | The 'partition' function takes a predicate a list and returns
 -- the pair of lists of elements which do and do not satisfy the
@@ -801,6 +799,9 @@ nonEmptySubsequences (x:xs)  =  [x] : foldr f [] (nonEmptySubsequences xs)
 -- | The 'permutations' function returns the list of all permutations of the argument.
 --
 -- > permutations "abc" == ["abc","bac","cba","bca","cab","acb"]
+{-@ Lazy permutations @-}
+--LIQUID TODO: `is` actually increases with each recursive call, need to somehow
+--             tie permutations termination to `ts` param of perms...
 permutations            :: [a] -> [[a]]
 permutations xs0        =  xs0 : perms xs0 []
   where
@@ -1099,6 +1100,10 @@ unlines (l:ls) = l ++ '\n' : unlines ls
 
 -- | 'words' breaks a string up into a list of words, which were delimited
 -- by white space.
+{-@ Lazy words @-}
+--LIQUID TODO: this function terminates because dropWhile guarantees that
+--             the first character of s' will not be a space, therefore
+--             w will not be empty and s'' < s.
 words                   :: String -> [String]
 words s                 =  case dropWhile {-partain:Char.-}isSpace s of
                                 "" -> []
