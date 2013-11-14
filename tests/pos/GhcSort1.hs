@@ -25,17 +25,28 @@ sort1 xs = mergeAll  (sequences xs 0)
       | a `compare` b /= GT = ascending b (\ys -> as (a:ys)) bs 1
     ascending a as bs _     = as [a]: sequences bs 0
 
+    mergeAll []  = []    
     mergeAll [x] = x
     mergeAll xs  = mergeAll (mergePairs xs)
 
-    mergePairs (a:b:xs) = merge1 a b: mergePairs xs
-    mergePairs [x]      = [x]
-    mergePairs []       = []
+{-@ mergePairs :: Ord a 
+               => xss:[(OList a)] 
+               -> {v:[(OList a)] | (if ((len xss) > 1) then ((len v) < (len xss)) else ((len v) = (len xss) ))}
+  @-}
+mergePairs :: Ord a => [[a]] -> [[a]]
+mergePairs (a:b:xs) = merge1 a b: mergePairs xs
+mergePairs [x]      = [x]
+mergePairs []       = []
 
 -- merge1 needs to be toplevel,
 -- to get applied transformRec tx
 
-{-@ merge1 :: Ord a => xs:[a] -> ys:[a] -> [a] / [(len xs) + (len ys)] @-}
+{-@ merge1 :: Ord a 
+           => xs:(OList a) 
+           -> ys:(OList a)
+           -> {v:(OList a) | (len v) = ((len xs) + (len ys))} 
+           / [(len xs) + (len ys)] 
+  @-}
 merge1 :: Ord a => [a] -> [a] -> [a]
 merge1 (a:as') (b:bs')
   | a `compare` b == GT = b:merge1 (a:as')  bs'
