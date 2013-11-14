@@ -799,14 +799,16 @@ nonEmptySubsequences (x:xs)  =  [x] : foldr f [] (nonEmptySubsequences xs)
 -- | The 'permutations' function returns the list of all permutations of the argument.
 --
 -- > permutations "abc" == ["abc","bac","cba","bca","cab","acb"]
-{-@ Lazy permutations @-}
---LIQUID TODO: `is` actually increases with each recursive call, need to somehow
---             tie permutations termination to `ts` param of perms...
+
+{-@ permutations :: ts:[a] -> [[a]] / [(len ts), 1, 0] @-}
 permutations            :: [a] -> [[a]]
 permutations xs0        =  xs0 : perms xs0 []
-  where
-    perms []     _  = []
-    perms (t:ts) is = foldr interleave (perms ts (t:is)) (permutations is)
+
+
+{-@ perms :: ts:[a] -> is:[a] -> [[a]] / [((len ts)+(len is)), 0, (len ts)] @-}
+perms :: [a] -> [a] -> [[a]]
+perms []     _  = []
+perms (t:ts) is = foldr interleave (perms ts (t:is)) (permutations is)
       where interleave    xs     r = let (_,zs) = interleave' id xs r in zs
             interleave' _ []     r = (ts, r)
             interleave' f (y:ys) r = let (us,zs) = interleave' (f . (y:)) ys r
