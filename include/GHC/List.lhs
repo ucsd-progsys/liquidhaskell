@@ -43,6 +43,7 @@ module GHC.List (
 
 import Data.Maybe
 import GHC.Base
+import GHC.Num
 import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
 
 infixl 9  !!
@@ -256,10 +257,12 @@ scanr1 f (x:xs@(_:_))   =  f x q : qs
 -- > iterate f x == [x, f x, f (f x), ...]
 
 {-@ Strict GHC.List.iterate @-}
+{-@ iterate :: (a -> a) -> a -> [a] @-}
 iterate :: (a -> a) -> a -> [a]
 iterate f x =  x : iterate f (f x)
 
 {-@ Strict GHC.List.iterateFB @-}
+{-@ iterateFB :: (a -> b -> b) -> (a -> a) -> a -> b @-}
 iterateFB :: (a -> b -> b) -> (a -> a) -> a -> b
 iterateFB c f x = x `c` iterateFB c f (f x)
 
@@ -271,6 +274,10 @@ iterateFB c f x = x `c` iterateFB c f (f x)
 
 
 -- | 'repeat' @x@ is an infinite list, with @x@ the value of every element.
+{- measure inf :: Int @-}
+{- invariant {v:Int | v < inf} @-}
+{- repeat :: a -> {v:[a] | (len v) = inf} @-}
+{-@ repeat :: a -> [a] @-}
 {-@ Strict GHC.List.repeat @-}
 repeat :: a -> [a]
 {-# INLINE [0] repeat #-}
@@ -279,6 +286,7 @@ repeat x = xs where xs = x : xs
 
 {-# INLINE [0] repeatFB #-}     -- ditto
 {-@ Strict GHC.List.repeatFB @-}
+{-@ repeatFB :: (a -> b -> b) -> a -> b @-}
 repeatFB :: (a -> b -> b) -> a -> b
 repeatFB c x = xs where xs = x `c` xs
 
@@ -295,14 +303,16 @@ repeatFB c x = xs where xs = x `c` xs
 {-# INLINE replicate #-}
 {-@ assert replicate    :: n:Nat -> x:a -> {v: [{v:a | v = x}] | len(v) = n} @-}
 replicate               :: Int -> a -> [a]
-replicate n x           =  take n (repeat x)
+--LIQUID replicate n x           =  take n (repeat x)
+replicate 0 _ = []
+replicate n x = x : replicate (n-1) x
 
 -- | 'cycle' ties a finite list into a circular one, or equivalently,
 -- the infinite repetition of the original list.  It is the identity
 -- on infinite lists.
 
 {-@ assert cycle        :: {v: [a] | len(v) > 0 } -> [a] @-}
-{-@ Strict GHC.List.cycle @-}
+{-@ Lazy cycle @-}
 cycle                   :: [a] -> [a]
 cycle []                = liquidError {- error -} "Prelude.cycle: empty list"
 cycle xs                = xs' where xs' = xs ++ xs'
