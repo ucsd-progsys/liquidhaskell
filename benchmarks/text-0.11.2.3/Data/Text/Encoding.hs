@@ -172,9 +172,6 @@ decodeUtf8With onErr (PS fp off len) = runText $ \done -> do
                     n <- peek destOffPtr
                     unsafeSTToIO (done dest (fromIntegral n))
                   else do
-                    --LIQUID FIXME: this assume should be replaced by
-                    --a better type for c_decode_utf8, but i can't get
-                    --the qualifiers to stick right now..
                     x <- peek curPtr'
                     --LIQUID SCOPE
                     destOff <- peek destOffPtr
@@ -213,8 +210,9 @@ decodeUtf8' :: ByteString -> Either UnicodeException Text
 decodeUtf8' = unsafePerformIO . try . evaluate . decodeUtf8With strictDecode
 {-# INLINE decodeUtf8' #-}
 
-{-@ qualif GE(v:int, o:int, x:int): v >= (o-x) @-}
-{-@ qualif GE(v:Ptr a, p:Ptr a, o:int, x:int): (plen p) - (plen v) = (o-x) @-}
+--LIQUID this qualifer is super expensive, so we added the liquidAssume below
+{- qualif GE(v:int, o:int, x:int): v >= (o-x) @-}
+{-@ qualif PlenEq(v:Ptr a, p:Ptr b): (plen v) = (plen p) @-}
 
 -- | Encode text using UTF-8 encoding.
 {-@ Lazy encodeUtf8 @-}
@@ -231,7 +229,7 @@ encodeUtf8 (Text arr off len) = unsafePerformIO $ do
      where
       --LIQUID SCOPE offLen = off + len
        {- LIQUID WITNESS -}
-      go (d :: Int) !n !m =
+      go (d :: Int) !n !m' = let m = liquidAssume (m' >= n - off) m' in
         if n == offLen then return (PS fp 0 m)
         else do
             let poke8 k v = poke (ptr `plusPtr` k) (fromIntegral v :: Word8)

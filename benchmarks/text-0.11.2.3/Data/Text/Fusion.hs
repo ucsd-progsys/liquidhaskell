@@ -64,12 +64,18 @@ import qualified Data.Text.Encoding.Utf16 as U16
 --LIQUID
 import GHC.ST (runST)
 import Language.Haskell.Liquid.Prelude
+import Prelude (undefined)
 
 
 default(Int)
 
-{-@ qualif LTPlus(v:int, a:int, b:int) : v < (a + b) @-}
-{-@ qualif LTEPlus(v:int, a:int, b:int) : (v + a) <= b @-}
+{-@ q_ltplus :: a:Int -> b:Int -> {v:Int | v < (a+b)} @-}
+q_ltplus :: Int -> Int -> Int
+q_ltplus = undefined
+
+{-@ q_lteplus :: a:Int -> b:Int -> {v:Int | (v+a) <= b} @-}
+q_lteplus :: Int -> Int -> Int
+q_lteplus = undefined
 
 {-@ qualif Ord(v:int, x:Char)
         : ((((ord x) <  65536) => (v = 0))

@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns, CPP, Rank2Types #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -58,19 +59,6 @@ import qualified Data.Text as S
 import qualified Data.Text.Array as A
 import qualified Data.Text.Lazy as L
 
---LIQUID
--- import qualified Data.Text
--- import Data.Text.Array (Array(..), MArray(..))
--- import qualified Data.Text.Fusion.Internal
--- import Data.Text.Fusion.Size
--- import qualified Data.Text.Lazy
--- import qualified Data.Text.Lazy.Fusion
--- import Data.Text.Lazy.Fusion (TPairS(..))
--- import qualified Data.Text.Lazy.Internal
--- import qualified Data.Text.Private
--- import qualified Data.Text.Search
--- import qualified Data.Text.Unsafe
--- import Data.Word
 
 ------------------------------------------------------------------------
 
@@ -180,23 +168,22 @@ fromText t@(Text arr off l)
 --
 --  * @'toLazyText' ('fromString' s) = 'L.fromChunks' [S.pack s]@
 --
---LIQUID FIXME: this really should terminate, must prove `u>0` in the 1st recursive call
-{-@ Lazy fromString @-}
 fromString :: String -> Builder
 fromString str = Builder $ \k (Buffer p0 o0 u0 l0) ->
-        {- Decrease loop 1 4 @-}
-    let loop [] !marr !o !u !l = k (Buffer marr o u l)
-        loop s@(c:cs) marr o u l
+        {-@ Decrease loop 1 6 @-}
+        {- LIQUID WITNESS -}
+    let loop [] !marr !o !u !l _ = k (Buffer marr o u l)
+        loop s@(c:cs) marr o u l (d :: Int)
             | l <= 1 = do
                 arr <- A.unsafeFreeze marr
                 let !t = Text arr o u
                 marr' <- A.new chunkSize
-                ts <- inlineInterleaveST (loop s marr' 0 0 chunkSize)
+                ts <- inlineInterleaveST (loop s marr' 0 0 chunkSize 0)
                 return $ t : ts
             | otherwise = do
                 n <- unsafeWrite marr (o+u) c
-                loop cs marr o (u+n) (l-n)
-    in loop str p0 o0 u0 l0
+                loop cs marr o (u+n) (l-n) (d+n)
+    in loop str p0 o0 u0 l0 (chunkSize-l0)
   where
     chunkSize = smallChunkSize
 {-# INLINE fromString #-}
@@ -218,13 +205,13 @@ data Buffer s = Buffer {-# UNPACK #-} !(A.MArray s)
                        {-# UNPACK #-} !Int  -- length left
 
 {-@ data Buffer s = Buffer
-        (marr :: {v:A.MArray s | (malen v) > 0})
+        (marr :: A.MArray s)
         (off  :: {v:Nat | v <= (malen marr)})
         (used :: {v:Nat | (off+v) <= (malen marr)})
         (left :: {v:Nat | v = ((malen marr) - off - used)})
   @-}
 
-{-@ qualif MArrayNE(v:A.MArray s): (malen v) > 0 @-}
+{-@ qualif MArrayNE(v:A.MArray s): (malen v) >= 2 @-}
 
 {- measure bufUsed :: Buffer s -> Int
     bufUsed (Buffer m o u l) = u
@@ -349,7 +336,7 @@ writeBuffer b@(Buffer p o u l) n f = do
     return $! Buffer p o (u+n) (l-n)
 {-# INLINE writeBuffer #-}
 
-{-@ newBuffer :: size:{v:Nat | v > 0}
+{-@ newBuffer :: size:Nat
               -> ST s {v:(Buffer s) | size = (bufLeft v)}
   @-}
 newBuffer :: Int -> ST s (Buffer s)
