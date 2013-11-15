@@ -308,12 +308,12 @@ True
 -}
 
 {-@ union :: Ord a => OSplay a -> OSplay a -> OSplay a@-}
-{-@ Strict Data.Set.Splay.union @-}
 union :: Ord a => Splay a -> Splay a -> Splay a
-union Leaf t = t
-union (Node x a b) t = Node x (union ta a) (union tb b)
-  where
-    (ta,_,tb) = split x t
+union a b = unionT a b (slen a + slen b)
+--LIQUID union Leaf t = t
+--LIQUID union (Node x a b) t = Node x (union ta a) (union tb b)
+--LIQUID   where
+--LIQUID     (ta,_,tb) = split x t
 
 {-@ unionT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
 {-@ Decrease unionT 4 @-}
@@ -333,13 +333,13 @@ True
 -}
 
 {-@ intersection :: Ord a => OSplay a -> OSplay a -> OSplay a @-}
-{-@ Strict Data.Set.Splay.intersection @-}
 intersection :: Ord a => Splay a -> Splay a -> Splay a
-intersection Leaf _          = Leaf
-intersection _ Leaf          = Leaf
-intersection t1 (Node x l r) = case split x t1 of
-    (l', True,  r') -> Node x (intersection l' l) (intersection r' r)
-    (l', False, r') -> union (intersection l' l) (intersection r' r)
+intersection a b = intersectionT a b (slen a + slen b)
+--LIQUID intersection Leaf _          = Leaf
+--LIQUID intersection _ Leaf          = Leaf
+--LIQUID intersection t1 (Node x l r) = case split x t1 of
+--LIQUID     (l', True,  r') -> Node x (intersection l' l) (intersection r' r)
+--LIQUID     (l', False, r') -> union (intersection l' l) (intersection r' r)
 
 {-@ intersectionT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
 {-@ Decrease intersectionT 4 @-}
@@ -360,13 +360,13 @@ True
 -}
 
 {-@ difference :: Ord a => OSplay a -> OSplay a -> OSplay a @-}
-{-@ Strict Data.Set.Splay.difference @-}
 difference :: Ord a => Splay a -> Splay a -> Splay a
-difference Leaf _          = Leaf
-difference t1 Leaf         = t1
-difference t1 (Node x l r) = union (difference l' l) (difference r' r)
-  where
-    (l',_,r') = split x t1
+difference a b = differenceT a b (slen a + slen b)
+--LIQUID difference Leaf _          = Leaf
+--LIQUID difference t1 Leaf         = t1
+--LIQUID difference t1 (Node x l r) = union (difference l' l) (difference r' r)
+--LIQUID   where
+--LIQUID     (l',_,r') = split x t1
 
 {-@ differenceT :: Ord a => a:OSplay a -> b:OSplay a -> SumSLen a b -> OSplay a @-}
 {-@ Decrease differenceT 4 @-}
