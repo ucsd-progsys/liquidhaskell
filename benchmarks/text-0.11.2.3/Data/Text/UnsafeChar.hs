@@ -50,10 +50,12 @@ import Language.Haskell.Liquid.Prelude
 {- predicate RoomFront MA I N = (BtwnI I N (malen MA)) @-}
 
 {-@ ord :: c:Char -> {v:Int | v = (ord c)} @-}
-{-@ Lazy ord @-}
 ord :: Char -> Int
 ord c@(C# c#) = let i = I# (ord# c#)
-                in liquidAssume (i == ord c) i
+                in liquidAssume (axiom_ord c i) i
+{-@ axiom_ord :: c:Char -> i:Int -> {v:Bool | ((Prop v) <=> (i = (ord c)))} @-}
+axiom_ord :: Char -> Int -> Bool
+axiom_ord = undefined
 {-# INLINE ord #-}
 
 unsafeChr :: Word16 -> Char
