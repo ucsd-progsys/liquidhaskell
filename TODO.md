@@ -20,7 +20,7 @@ is solved.
 
 	(a)	G  |- k[e1/x1]...[en/xn] ~~~> ? |- k		[ASSUME]
 
-	(b)	G1 |- k,...,Gn |- k	~~~> /\Gi |- k
+	(b)	G1 |- k,...,Gn |- k	 ~~~> /\Gi |- k
 
 4. build index
 
@@ -29,9 +29,7 @@ is solved.
 5. update solver-loop to be lazy 
 
 	(a) if lhs-kv = BOT then DEFER constraint (i.e. prior to is-contra)
-	
 	(b) if rhs-kv = BOT then trigger instantiation first with
-
 	(c) instantiate_with :: dom:[Symbol] -> θ:subst -> γ:env -> κ:kvar -> [qual] -> [qual] 
 
 
@@ -41,12 +39,16 @@ is solved.
        qs_ = instantiate γ_ qs   
       
 
-* change soln type
+--------------------------------------------------------------------------------------------------
+
+1. change soln type (solve.ml?)
 	* initial solution
 
-* build wf index
+2. build wf index 
 	* normalize wf
 
-* update solver loop
+3. update solver loop
 	* is_lhs_bot
 	* instantiate_with
+
+--------------------------------------------------------------------------------------------------
