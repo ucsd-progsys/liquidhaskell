@@ -328,7 +328,7 @@ instance Eq Text where
 instance Ord Text where
     compare = compareText
 
-{-@ compareText :: Text -> Text -> Ordering @-}
+{-@ compareText :: t1:Text -> t2:Text -> Ordering / [(ltlen t1) + (ltlen t2)] @-}
 compareText :: Text -> Text -> Ordering
 compareText Empty Empty = EQ
 compareText Empty _     = LT
@@ -337,6 +337,7 @@ compareText a@(Chunk a0 as) b@(Chunk b0 bs) = outer a0 b0
   where
    outer ta@(T.Text arrA offA lenA) tb@(T.Text arrB offB lenB) = go lenA 0 0
     where
+     {- LIQUID WITNESS -}
      go (d :: P.Int) !i !j
        | i >= lenA = compareText as (chunk (T.Text arrB (offB+j) (lenB-j)) bs)
        | j >= lenB = compareText (chunk (T.Text arrA (offA+i) (lenA-i)) as) bs
