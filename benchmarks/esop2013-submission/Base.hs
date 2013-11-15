@@ -2654,14 +2654,14 @@ splitLookup k t = k `seq`
 --------------------------------------------------------------------}
 
 {-@ join :: k:k -> a -> OMap {v:k | v < k} a -> OMap {v:k| v > k} a -> OMap k a @-}
-{-@ Strict Data.Map.Base.join @-}
 join :: k -> a -> Map k a -> Map k a -> Map k a
-join kx x Tip r  = insertMin kx x r
-join kx x l Tip  = insertMax kx x l
-join kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
-  | delta*sizeL < sizeR  = balanceL kz z (join kx x l lz) rz
-  | delta*sizeR < sizeL  = balanceR ky y ly (join kx x ry r)
-  | otherwise            = bin kx x l r
+join k x m1 m2 = joinT k x m1 m2 (mlen m1 + mlen m2)
+--LIQUID join kx x Tip r  = insertMin kx x r
+--LIQUID join kx x l Tip  = insertMax kx x l
+--LIQUID join kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
+--LIQUID   | delta*sizeL < sizeR  = balanceL kz z (join kx x l lz) rz
+--LIQUID   | delta*sizeR < sizeL  = balanceR ky y ly (join kx x ry r)
+--LIQUID   | otherwise            = bin kx x l r
 
 {-@ joinT :: k:k -> a -> a:OMap {v:k | v < k} a -> b:OMap {v:k| v > k} a -> SumMLen a b -> OMap k a @-}
 {-@ Decrease joinT 5 @-}
@@ -2692,14 +2692,14 @@ insertMin kx x t
   [merge l r]: merges two trees.
 --------------------------------------------------------------------}
 {-@ merge :: kcut:k -> OMap {v:k | v < kcut} a -> OMap {v:k| v > kcut} a -> OMap k a @-}
-{-@ Strict Data.Map.Base.merge @-}
 merge :: k -> Map k a -> Map k a -> Map k a
-merge _   Tip r   = r
-merge _   l Tip   = l
-merge kcut l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
-  | delta*sizeL < sizeR = balanceL ky y (merge kcut l ly) ry
-  | delta*sizeR < sizeL = balanceR kx x lx (merge kcut rx r)
-  | otherwise           = glue kcut l r
+merge k m1 m2 = mergeT k m1 m2 (mlen m1 + mlen m2)
+--LIQUID merge _   Tip r   = r
+--LIQUID merge _   l Tip   = l
+--LIQUID merge kcut l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
+--LIQUID   | delta*sizeL < sizeR = balanceL ky y (merge kcut l ly) ry
+--LIQUID   | delta*sizeR < sizeL = balanceR kx x lx (merge kcut rx r)
+--LIQUID   | otherwise           = glue kcut l r
 
 {-@ mergeT :: kcut:k -> a:OMap {v:k | v < kcut} a -> b:OMap {v:k| v > kcut} a -> SumMLen a b -> OMap k a @-}
 {-@ Decrease mergeT 4 @-}
