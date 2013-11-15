@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE CPP, NoImplicitPrelude, MagicHash #-}
 
@@ -842,35 +843,53 @@ and possibly to bear similarities to a 1982 paper by Richard O'Keefe:
 Benchmarks show it to be often 2x the speed of the previous implementation.
 Fixes ticket http://hackage.haskell.org/trac/ghc/ticket/2143
 -}
--- LIQUID TERMINATION : mutual recursion
-{-@ Strict Data.List.sortBy @-}
+
+{-@ type OList a = [a] @-}
+
 sort = sortBy compare
-sortBy cmp = mergeAll . sequences
-  where
-    sequences (a:b:xs)
-      | a `cmp` b == GT = descending b [a]  xs
-      | otherwise       = ascending  b (a:) xs
-    sequences xs = [xs]
+sortBy cmp xs = mergeAll cmp $ sequences xs 0
+  where    
+    {-@ Decrease sequences  3 4 @-}
+    {-@ Decrease descending 5 6 @-}
+    {-@ Decrease ascending  5 6 @-}
 
-    descending a as (b:bs)
-      | a `cmp` b == GT = descending b (a:as) bs
-    descending a as bs  = (a:as): sequences bs
+    sequences (a:b:xs) (_::Int)
+      | a `cmp` b == GT = descending b [a]  xs 1
+      | otherwise       = ascending  b (a:) xs 1
+    sequences xs _      = [xs]
 
-    ascending a as (b:bs)
-      | a `cmp` b /= GT = ascending b (\ys -> as (a:ys)) bs
-    ascending a as bs   = as [a]: sequences bs
+    descending a as (b:bs) (_::Int)
+      | a `cmp` b == GT  = descending b (a:as) bs 1 
+    descending a as bs _ = (a:as): sequences bs 0
 
-    mergeAll [x] = x
-    mergeAll xs  = mergeAll (mergePairs xs)
+    ascending a as (b:bs) (_::Int)
+      | a `cmp` b /= GT = ascending b (\ys -> as (a:ys)) bs 1
+    ascending a as bs _ = as [a]: sequences bs 0
 
-    mergePairs (a:b:xs) = merge a b: mergePairs xs
-    mergePairs xs       = xs
+mergeAll cmp []  = []
+mergeAll cmp [x] = x
+mergeAll cmp xs  = mergeAll cmp (mergePairs cmp xs)
 
-    merge as@(a:as') bs@(b:bs')
-      | a `cmp` b == GT = b:merge as  bs'
-      | otherwise       = a:merge as' bs
-    merge [] bs         = bs
-    merge as []         = as
+{-@ mergePairs :: (a -> a -> Ordering)
+               -> xss:[(OList a)] 
+               -> {v:[(OList a)] | (if ((len xss) > 1) then ((len v) < (len xss)) else ((len v) = (len xss) ))}
+  @-}
+mergePairs :: (a -> a -> Ordering) -> [[a]] -> [[a]]
+mergePairs cmp (a:b:xs) = merge cmp a b: mergePairs cmp xs
+mergePairs cmp xs       = xs
+
+{-@ merge ::  (a -> a -> Ordering) 
+           -> xs:(OList a) 
+           -> ys:(OList a)
+           -> {v:(OList a) | (len v) = ((len xs) + (len ys))} 
+           / [(len xs) + (len ys)] 
+  @-}
+merge :: (a -> a -> Ordering) -> [a] -> [a] -> [a] 
+merge cmp as@(a:as') bs@(b:bs')
+  | a `cmp` b == GT = b:merge cmp as  bs'
+  | otherwise       = a:merge cmp as' bs
+merge _ [] bs        = bs
+merge _ as []        = as
 
 {-
 sortBy cmp l = mergesort cmp l
