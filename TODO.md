@@ -1,27 +1,52 @@
 TODO
 ====
 
-String Literals
----------------
+Lazy Instantiation
+------------------
 
-How to represent the string literal `"xyz"`
+Instead of greedily instantiating ALL wf constraints up front, 
+do them the *first* time that a corresponding subc constraint 
+is solved.
 
-1. data SymConst = SL String
-   
-2. Programmatic: ESym (SL "xyz")
+1. change solution so each
+	
+	kv |-> BOT + [Qual]
+
+2. initialize solution so EACH 
+
+	kv |-> BOT
+
+3. normalize wf so there is UNIQUE wf for kv
+
+	(a)	G  |- k[e1/x1]...[en/xn] ~~~> ? |- k		[ASSUME]
+
+	(b)	G1 |- k,...,Gn |- k	~~~> /\Gi |- k
+
+4. build index
+
+	kv |-> normalized-wf 
+
+5. update solver-loop to be lazy 
+
+	(a) if lhs-kv = BOT then DEFER constraint (i.e. prior to is-contra)
+	
+	(b) if rhs-kv = BOT then trigger instantiation first with
+
+	(c) instantiate_with :: dom:[Symbol] -> θ:subst -> γ:env -> κ:kvar -> [qual] -> [qual] 
+
+
+6. let instantiate_with xs θ γ κ qs = qs_
+     where 
+       γ_  = [b | b@(y, _) <- γ, θy `elem` xs]
+       qs_ = instantiate γ_ qs   
       
-3. Printed as "xyz"
 
-4. Parsed EITHER as the encoded symbol OR as "xyz"
+* change soln type
+	* initial solution
 
-5. fixpoint-encoded as a symbol: `constant lit#String#xyz : Str`
+* build wf index
+	* normalize wf
 
-Only missing piece: walk over ENTIRE FI and round up ALL the encoded symbols
-so fixpoint.native doesn't grumble about unbound symbols. Can hack Subable to
-include:
-
-    symconsts :: a -> [SymConst]
-
-and then fill in appropriately. (Or use syb)
-
-
+* update solver loop
+	* is_lhs_bot
+	* instantiate_with
