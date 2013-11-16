@@ -26,11 +26,10 @@ One of:
 
 - [Z3 Binary](http://z3.codeplex.com/)
 
+Make sure that the `z3` executable is available on your $PATH
 
 How To Build and Install
 ------------------------
-
-Make sure that the `z3` executable is available on your $PATH
 
     cabal install
 
