@@ -850,18 +850,20 @@ sort = sortBy compare
 sortBy cmp xs = mergeAll cmp $ sequences xs 0
   where    
     {-@ Decrease sequences  3 4 @-}
-    {-@ Decrease descending 5 6 @-}
-    {-@ Decrease ascending  5 6 @-}
-
+    {- LIQUID WITNESS -}
     sequences (a:b:xs) (_::Int)
       | a `cmp` b == GT = descending b [a]  xs 1
       | otherwise       = ascending  b (a:) xs 1
     sequences xs _      = [xs]
 
+    {-@ Decrease descending 5 6 @-}
+    {- LIQUID WITNESS -}
     descending a as (b:bs) (_::Int)
       | a `cmp` b == GT  = descending b (a:as) bs 1 
     descending a as bs _ = (a:as): sequences bs 0
 
+    {-@ Decrease ascending  5 6 @-}
+    {- LIQUID WITNESS -}
     ascending a as (b:bs) (_::Int)
       | a `cmp` b /= GT = ascending b (\ys -> as (a:ys)) bs 1
     ascending a as bs _ = as [a]: sequences bs 0
