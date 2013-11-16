@@ -73,6 +73,36 @@ Flag z3mem
   Description: Link to Z3
   Default:     False
 
+-- FIXME: This is a terrible hack. We build Fixpoint.hs *twice*, once
+-- targeting fixpoint.native so we can then *clobber* it with the
+-- OCaml fixpoint.native. This is required for cabal-install to detect
+-- fixpoint.native as an executable, and properly symlink it when
+-- asked.
+Executable fixpoint.native
+  Main-is: Fixpoint.hs
+  Build-Depends: base >= 4 && < 5
+               , ghc==7.6.3
+               , array
+               , syb
+               , cmdargs
+               , ansi-terminal
+               , bifunctors
+               , bytestring
+               , containers
+               , deepseq
+               , directory
+               , filemanip
+               , filepath
+               , mtl
+               , parsec
+               , pretty
+               , process
+               , syb
+               , text
+               , hashable<1.2
+               , unordered-containers
+               , liquid-fixpoint
+
 Executable fixpoint
   Main-is:       Fixpoint.hs
   Build-Depends: base >= 4 && < 5
