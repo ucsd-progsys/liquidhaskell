@@ -266,7 +266,7 @@ transParseSpecs exts paths seenFiles specs newFiles
        transParseSpecs exts paths seenFiles' specs' newFiles'
   where
     specsImports ss = nub $ concatMap (map symbolString . Ms.imports . thd3) ss
-    noTerm spec = spec { Ms.decr=mempty, Ms.lazy=mempty }
+    noTerm spec = spec { Ms.decr=mempty, Ms.lazy=mempty, Ms.termexprs=mempty }
     third f (a,b,c) = (a,b,f c)
 
 parseSpec :: FilePath -> IO (ModName, Ms.BareSpec)
