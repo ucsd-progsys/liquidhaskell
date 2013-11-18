@@ -269,8 +269,7 @@ to `false`.
 In other words, it is always safe to mark as `Lazy` functions with unrefined
 result.
 
-\begin{code}Finally, you have the option to totally disable termination
-checking, using the `no-termination` flag:
+\begin{code}Finally, you have the option to totally disable termination checking, using the `no-termination` flag:
 {-@ LIQUID "--no-termination" @-}
 \end{code}
 
