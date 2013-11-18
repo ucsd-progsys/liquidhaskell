@@ -1,0 +1,34 @@
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+
+constraint:
+  env [ x: {VV: int | [(VV = 0)] }
+      ; y: {VV: int | [(VV = x + 1)]}
+      ; b: {VV: int | []}
+      ; c: {VV: int | []}
+      ]
+  grd true
+  lhs {VV : int | [(VV = y)]}
+  rhs {VV : int | [k0[a:=x]]}
+  id 1 
+
+constraint:
+  env [ x: {VV : int | []}
+      ; z: {VV: int | [k0[a:=x]]}
+      ]
+  grd true 
+  lhs {VV : int | [(VV = z)]}
+  rhs {VV : int | [(VV > x)]}
+  id 2 
+
+wf:
+  env [ a: {VV: int | []} 
+      ; b: {VV: int | []}
+      ; c: {VV: int | []}
+      ]
+  reft {VV: int | [k0]}
