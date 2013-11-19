@@ -1,0 +1,231 @@
+//qualif NonNull(v: [a])        : (? (nonnull([v])))
+//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
+//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
+
+qualif IsEmp(v:GHC.Types.Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
+qualif CmpLen(v:[a], ~A:[b])  : len([v]) [= ; >=; >; <=; <] len([~A]) 
+qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
+qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
+qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+qualif True1(v:GHC.Types.Bool)   : Prop(v)
+qualif False1(v:GHC.Types.Bool)  : ~ Prop(v)
+
+
+qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
+constant papp1 : func(2, [Pred @(0); @(1); bool])
+
+qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
+constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+constant Prop : func(0, [GHC.Types.Bool; bool])
+qualif Zog(v : Test0.FooBar, ~X : Test0.FooBar): (v = (~X + 29))
+qualif SumLensEq(v : FAppTy List  (FAppTy List  a), ~X : FAppTy List  (FAppTy List  a)): (sumLens([v]) = sumLens([~X]))
+qualif SumLensEq(v : FAppTy List  (FAppTy List  a), ~X : FAppTy List  a): (sumLens([v]) = len([~X]))
+qualif SumLensLe(v : FAppTy List  (FAppTy List  a), ~X : FAppTy List  (FAppTy List  a)): (sumLens([v]) <= sumLens([~X]))
+
+constant GHC.Types.False#68 : GHC.Types.Bool
+constant GHC.Types.True#6u : GHC.Types.Bool
+constant Prop : func(0, [GHC.Types.Bool; bool])
+constant addrLen : func(0, [int; int])
+constant cmp : func(0, [GHC.Types.Ordering; GHC.Types.Ordering])
+constant fromJust : func(1, [FAppTy Data.Maybe.Maybe  @(0); @(0)])
+constant fst : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                        @(0)])
+constant isJust : func(1, [FAppTy Data.Maybe.Maybe  @(0); bool])
+constant len : func(1, [FAppTy []  @(0); int])
+constant null : func(1, [FAppTy []  @(0); bool])
+constant snd : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                        @(1)])
+constant sumLens : func(1, [FAppTy []  (FAppTy []  @(0)); int])
+bind 0 Test0.prop_abs#r13p : {VV#52 : GHC.Types.Bool | []}
+bind 1 GHC.Types.False#68 : {VV#55 : GHC.Types.Bool | []}
+bind 2 GHC.Types.I##6c : {VV : func(0, [int; int]) | []}
+bind 3 GHC.Types.True#6u : {VV#57 : GHC.Types.Bool | []}
+bind 4 Language.Haskell.Liquid.Prelude.liquidAssertB#reO : {VV : func(0, [GHC.Types.Bool;
+                                                                          GHC.Types.Bool]) | []}
+bind 5 Language.Haskell.Liquid.Prelude.choose#reU : {VV : func(0, [int;
+                                                                   int]) | []}
+bind 6 Language.Haskell.Liquid.Prelude.liquidAssertB#reO : {VV : func(0, [GHC.Types.Bool;
+                                                                          GHC.Types.Bool]) | []}
+bind 7 GHC.Types.I##6c : {VV : func(0, [int; int]) | []}
+bind 8 GHC.Types.True#6u : {VV#67 : GHC.Types.Bool | [(? Prop([VV#67]))]}
+bind 9 GHC.Types.False#68 : {VV#68 : GHC.Types.Bool | [(~ ((? Prop([VV#68]))))]}
+bind 10 GHC.Types.GT#6W : {VV#73 : GHC.Types.Ordering | [(cmp([VV#73]) = GHC.Types.GT#6W)]}
+bind 11 GHC.Types.LT#6S : {VV#74 : GHC.Types.Ordering | [(cmp([VV#74]) = GHC.Types.LT#6S)]}
+bind 12 GHC.Types.EQ#6U : {VV#76 : GHC.Types.Ordering | [(cmp([VV#76]) = GHC.Types.EQ#6U)]}
+bind 13 a_a16R : {VV : num | []}
+bind 14 gooberding#a16G : {VV#86 : a_a16R | [k_87]}
+bind 15 lq_anf__d17k : {VV#91 : int | [(VV#91 = 0)]}
+bind 16 lq_anf__d17l : {VV : a_a16R | [(VV = lq_anf__d17k)]}
+bind 17 lq_anf__d17m : {VV#95 : GHC.Types.Bool | [((? Prop([VV#95])) <=> (gooberding#a16G >= lq_anf__d17l))]}
+bind 18 lq_anf__d17n : {VV#99 : int | [(VV#99 = (0  :  int))]}
+bind 19 Test0.x#r13o : {VV#97 : int | [k_98]}
+bind 20 lq_anf__d17o : {VV#101 : int | [(VV#101 = (0  :  int))]}
+bind 21 lq_anf__d17p : {VV#104 : GHC.Types.Bool | [((? Prop([VV#104])) <=> (Test0.x#r13o > lq_anf__d17o))]}
+bind 22 lq_anf__d17q : {VV#104 : GHC.Types.Bool | [((? Prop([VV#104])) <=> (Test0.x#r13o > lq_anf__d17o));
+                                                   (VV#104 = lq_anf__d17p)]}
+bind 23 lq_anf__d17q : {VV#104 : GHC.Types.Bool | [((? Prop([VV#104])) <=> (Test0.x#r13o > lq_anf__d17o));
+                                                   (VV#104 = lq_anf__d17p)]}
+bind 24 lq_anf__d17q : {VV#104 : GHC.Types.Bool | [((? Prop([VV#104])) <=> (Test0.x#r13o > lq_anf__d17o));
+                                                   (VV#104 = lq_anf__d17p);
+                                                   (~ ((? Prop([VV#104]))));
+                                                   (~ ((? Prop([VV#104]))))]}
+bind 25 lq_anf__d17q : {VV#104 : GHC.Types.Bool | [((? Prop([VV#104])) <=> (Test0.x#r13o > lq_anf__d17o));
+                                                   (VV#104 = lq_anf__d17p)]}
+bind 26 lq_anf__d17q : {VV#104 : GHC.Types.Bool | [((? Prop([VV#104])) <=> (Test0.x#r13o > lq_anf__d17o));
+                                                   (VV#104 = lq_anf__d17p);
+                                                   (? Prop([VV#104]));
+                                                   (? Prop([VV#104]))]}
+bind 27 VV#110 : {VV#110 : GHC.Types.Bool | [k_90[fix##36#dNum#35#a16S:=fix#GHC.Num.#36#fNumInt#35#rbF][fix##36#dOrd#35#a16T:=fix#GHC.Classes.#36#fOrdInt#35#rbE][gooberding#a16G:=Test0.x#r13o][VV#89:=VV#110]]}
+bind 28 VV#112 : {VV#112 : int | [k_98[VV#97:=VV#112];
+                                  (VV#112 = Test0.x#r13o)]}
+bind 29 VV#114 : {VV#114 : GHC.Types.Bool | [(~ ((? Prop([VV#114]))));
+                                             (VV#114 = GHC.Types.False#68)]}
+bind 30 VV#116 : {VV#116 : int | [(VV#116 = (0  :  int));
+                                  (VV#116 = lq_anf__d17o)]}
+bind 31 VV#118 : {VV#118 : int | [k_98[VV#97:=VV#118];
+                                  (VV#118 = Test0.x#r13o)]}
+bind 32 VV#120 : {VV#120 : int | [(VV#120 = 0)]}
+bind 33 VV#122 : {VV#122 : int | []}
+bind 34 VV#124 : {VV#124 : int | [(VV#124 = (0  :  int));
+                                  (VV#124 = lq_anf__d17n)]}
+bind 35 VV#126 : {VV#126 : int | [(VV#126 = 0)]}
+bind 36 VV#128 : {VV#128 : GHC.Types.Bool | [(? Prop([VV#128]))]}
+bind 37 VV#130 : {VV#130 : GHC.Types.Bool | [((? Prop([VV#130])) <=> (gooberding#a16G >= lq_anf__d17l));
+                                             (VV#130 = lq_anf__d17m)]}
+bind 38 VV#132 : {VV#132 : int | [(VV#132 = 0);
+                                  (VV#132 = lq_anf__d17k)]}
+bind 39 VV#102 : {VV#102 : int | [k_103]}
+bind 40 VV#97 : {VV#97 : int | [k_98]}
+bind 41 VV#89 : {VV#89 : GHC.Types.Bool | [k_90]}
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       8;
+       9;
+       25;
+       10;
+       26;
+       11;
+       12]
+  grd true
+  lhs {VV#F1 : int | [k_98[VV#97:=VV#F1][VV#112:=VV#F1][VV#F:=VV#F1];
+                      (VV#F1 = Test0.x#r13o)]}
+  rhs {VV#F1 : int | [k_87[VV#86:=VV#F1][fix##36#dNum#35#a16S:=fix#GHC.Num.#36#fNumInt#35#rbF][fix##36#dOrd#35#a16T:=fix#GHC.Classes.#36#fOrdInt#35#rbE][VV:=VV#F1][VV#112:=VV#F1][VV#F:=VV#F1]]}
+  id 1 tag [3]
+
+
+constraint:
+  env [0; 1; 2; 3; 19; 4; 20; 5; 6; 7; 8; 9; 10; 11; 12]
+  grd true
+  lhs {VV#F2 : int | [(VV#F2 = (0  :  int)); (VV#F2 = lq_anf__d17o)]}
+  rhs {VV#F2 : int | [k_103[lq_tmp_x13:=fix#GHC.Classes.#36#fOrdInt#35#rbE][lq_tmp_x14:=Test0.x#r13o][VV#102:=VV#F2][VV#116:=VV#F2][VV#F:=VV#F2]]}
+  id 2 tag [3]
+
+
+constraint:
+  env [0; 1; 2; 3; 19; 4; 20; 5; 6; 7; 8; 9; 10; 11; 12]
+  grd true
+  lhs {VV#F3 : int | [k_98[VV#97:=VV#F3][VV#118:=VV#F3][VV#F:=VV#F3];
+                      (VV#F3 = Test0.x#r13o)]}
+  rhs {VV#F3 : int | [k_103[lq_tmp_x13:=fix#GHC.Classes.#36#fOrdInt#35#rbE][VV#102:=VV#F3][VV#118:=VV#F3][VV#F:=VV#F3]]}
+  id 3 tag [3]
+
+
+constraint:
+  env [0; 1; 2; 18; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12]
+  grd true
+  lhs {VV#F4 : int | []}
+  rhs {VV#F4 : int | [k_98[VV#97:=VV#F4][VV#122:=VV#F4][VV#F:=VV#F4]]}
+  id 4 tag [2]
+
+
+constraint:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  grd true
+  lhs {VV#F5 : GHC.Types.Bool | [(? Prop([VV#F5]))]}
+  rhs {VV#F5 : GHC.Types.Bool | [k_90[VV#89:=VV#F5][VV#128:=VV#F5][VV#F:=VV#F5]]}
+  id 5 tag [1]
+
+
+constraint:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  grd true
+  lhs {VV#F6 : GHC.Types.Bool | [((? Prop([VV#F6])) <=> (gooberding#a16G >= lq_anf__d17l));
+                                 (VV#F6 = lq_anf__d17m)]}
+  rhs {VV#F6 : GHC.Types.Bool | [(? Prop([VV#F6]))]}
+  id 6 tag [1]
+
+
+constraint:
+  env [0; 16; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  grd true
+  lhs {VV#F7 : a_a16R | [(VV#F7 = lq_anf__d17k);
+                         (VV#F7 = lq_anf__d17l)]}
+  rhs {VV#F7 : a_a16R | [k_94[lq_tmp_x16:=fix##36#dOrd#35#a16T][lq_tmp_x17:=gooberding#a16G][VV#93:=VV#F7][VV#F:=VV#F7]]}
+  id 7 tag [1]
+
+
+constraint:
+  env [0; 16; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  grd true
+  lhs {VV#F8 : a_a16R | [k_87[VV#86:=VV#F8][VV#F:=VV#F8];
+                         (VV#F8 = gooberding#a16G)]}
+  rhs {VV#F8 : a_a16R | [k_94[lq_tmp_x16:=fix##36#dOrd#35#a16T][VV#93:=VV#F8][VV#F:=VV#F8]]}
+  id 8 tag [1]
+
+
+wf:
+  env [0; 1; 2; 3; 19; 4; 20; 5; 6; 7; 8; 9; 10; 11; 12]
+  reft {VV#102 : int | [k_103]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12]
+  reft {VV#97 : int | [k_98]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13]
+  reft {VV#86 : a_a16R | [k_87]}
+  
+
+
+wf:
+  env [0; 16; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  reft {VV#93 : a_a16R | [k_94]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  reft {VV#89 : GHC.Types.Bool | [k_90]}
+  
