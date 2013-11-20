@@ -89,7 +89,7 @@ refreshRefType (RAllT α t)
 refreshRefType (RAllP π t)       
   = liftM (RAllP π) (refresh t)
 refreshRefType (RFun b t t' _)
-  | b == dummySymbol -- b == (RB F.dummySymbol)
+  | b == dummySymbol
   = liftM3 rFun fresh (refresh t) (refresh t')
   | otherwise
   = liftM2 (rFun b) (refresh t) (refresh t')
