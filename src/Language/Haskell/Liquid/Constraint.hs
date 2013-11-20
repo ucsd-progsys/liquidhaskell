@@ -732,11 +732,11 @@ addA _ _ _ !a
 
 freshTy_type        :: KVKind -> CoreExpr -> Type -> CG SpecType 
 freshTy_type k e τ  = do t <- freshTy_reftype k $ ofType τ
-                         return $ traceShow ("freshTy_type: " ++ showPpr e) t
+                         return t -- $ traceShow ("freshTy_type: " ++ showPpr e) t
 
 freshTy_expr        :: KVKind -> CoreExpr -> Type -> CG SpecType 
 freshTy_expr k e _  = do t <- freshTy_reftype k $ exprRefType e
-                         return $ traceShow ("freshTy_expr: " ++ showPpr e) t
+                         return t -- $ traceShow ("freshTy_expr: " ++ showPpr e) t
                 
 
 freshTy_reftype     :: KVKind -> RefType -> CG SpecType 
@@ -784,7 +784,7 @@ refreshArgs t
   = do xs' <- mapM (\_ -> fresh) xs
        let su = F.mkSubst $ zip xs (F.EVar <$> xs')
        let t' = mkArrow αs πs (zip xs' (F.subst su <$> ts)) (F.subst su tbd)
-       return $ traceShow ("refreshArgs: t = " ++ showpp t) t'
+       return t' -- $ traceShow ("refreshArgs: t = " ++ showpp t) t'
   where (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
 
