@@ -19,20 +19,7 @@ TODO
 lazy instantiation
 ------------------
 
-Failed 9 tests:   
-  neg/PairMeasure.hs,
-  neg/ex0-unsafe.hs,
-  neg/foldN.hs,
-  neg/foldN1.hs,
-  
-  pos/PairMeasure.hs,
-  pos/rangeAdt.hs,
-  pos/rec_annot_go.hs,
-  pos/typeAliasDup.hs,
-  pos/vector2.hs 
-
-Failed 10 tests [locally on tom-kha]
-  pos/ptr2.hs,			<------- extra
+Liquid Type Error: Base.hs:2469:32-45 ****************************
 
 
 
