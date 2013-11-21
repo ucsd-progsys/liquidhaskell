@@ -51,9 +51,9 @@ liquidOne target info =
      (pruned, cbs'') <- prune cfg cbs' target info
      let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs''}
      cgi `deepseq` donePhase Loud "generateConstraints"
-     -- whenLoud $ do donePhase Loud "START: Write CGI (can be slow!)"
-     {-# SCC "writeCGI" #-} writeCGI target cgi 
-     -- donePhase Loud "FINISH: Write CGI"
+     whenLoud $ do donePhase Loud "START: Write CGI (can be slow!)"
+                   {-# SCC "writeCGI" #-} writeCGI target cgi 
+                   donePhase Loud "FINISH: Write CGI"
      (r, sol) <- solveCs cfg target cgi info
      _        <- when (diffcheck cfg) $ DC.save target 
      donePhase Loud "solve"
