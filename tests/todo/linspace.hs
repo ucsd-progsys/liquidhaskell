@@ -1,7 +1,7 @@
 module LinSpace where
 
 {-@ measure orthDim :: PVector -> Int 
-    orthDim (PVector v o z) = dim o
+    orthDim (PVector v o z) = (dim o)
   @-}
 
 {-@ measure tail :: [a] -> [a]
@@ -10,7 +10,7 @@ module LinSpace where
 
 {-@ measure dim :: Space -> Int 
     dim (Null) = 0
-    dim (Real pv n) = 1 + dim (orthSp pv)
+    dim (Real pv n) = 1 + (dim (orthSp pv))
   @-}
 
 {-@ measure orthSp :: PVector -> Space
@@ -18,7 +18,7 @@ module LinSpace where
   @-}
 
 {-@ measure pvlen :: PVector -> Int
-    pvlen (PVector v m o) = len v
+    pvlen (PVector v m o) = (len v)
   @-}
 
 {-@ predicate SameLen  X Y = ((pvlen X)  = (pvlen Y))  @-}
@@ -39,7 +39,7 @@ module LinSpace where
 
 {-@ predicate OrthMu  Orth Mu  = (dim Orth) = (len Mu) @-}
 
-{-@ predicate OrthVec Orth Vec = (isReal Orth) => (len Vec) = (pvlen (spaceVec Orth)) @-}
+{-@ predicate OrthVec Orth Vec = ((isReal Orth) => (len Vec) = (pvlen (spaceVec Orth))) @-}
 
 {-@ data PVector = PVector { 
       vec  :: [Integer]   
@@ -68,9 +68,7 @@ data PVector = PVector {
 -- Orthogonalized vector bn* and squared lattice determinant 
 -- type Space = Maybe (PVector, Integer) 
 
-data Space 
-  = Null 
-  | Real PVector Integer
+data Space = Null | Real PVector Integer
   deriving (Show, Eq)
 
 -- squared determinant of orthSpace
