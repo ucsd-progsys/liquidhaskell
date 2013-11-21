@@ -513,8 +513,8 @@ ppr_CGInfo cgi
   =  (text "*********** Constraint Information ***********")
   -- $$ (text "*********** Haskell SubConstraints ***********")
   -- $$ (pprintLongList $ hsCs  cgi)
-  $$ (text "*********** Haskell WFConstraints ************")
-  $$ (pprintLongList $ hsWfs cgi)
+  -- $$ (text "*********** Haskell WFConstraints ************")
+  -- $$ (pprintLongList $ hsWfs cgi)
   -- $$ (text "*********** Fixpoint SubConstraints **********")
   -- $$ (F.toFix  $ fixCs cgi)
   -- $$ (text "*********** Fixpoint WFConstraints ************")
@@ -524,8 +524,8 @@ ppr_CGInfo cgi
   -- $$ (text "*********** Literals in Source     ************")
   -- $$ (pprint $ lits cgi)
   -- $$ (text "*********** KVar Distribution *****************")
-  $$ (pprint $ kvProf cgi)
-  $$ (text "Recursive binders:" <+> pprint (recCount cgi))
+  -- $$ (pprint $ kvProf cgi)
+  -- $$ (text "Recursive binders:" <+> pprint (recCount cgi))
 
 type CG = State CGInfo
 
