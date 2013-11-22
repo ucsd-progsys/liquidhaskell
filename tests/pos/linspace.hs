@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-@ LIQUID "--no-termination" @-}
 
+{-@ LIQUID "--no-termination" @-}
 
 module LinSpace (dotPV) where
 
@@ -26,6 +26,8 @@ data Space a = Null | Real a Integer
     , orth_ :: {v: (Space (PVectorN (len vec_))) | (dim v) = (len mu_)}
     } 
   @-}
+
+{-@ data Space [dim] @-}
 
 {-@ measure dim     :: (Space PVector) -> Int 
     dim (Null)      = 0
@@ -56,7 +58,8 @@ data Space a = Null | Real a Integer
     orthSpace (PVector v m o) = o
   @-}
 
-{-@ invariant {v: PVector | (Inv v) } @-}
+{-@ invariant {v: PVector | (Inv v) }    @-}
+{-@ invariant {v: Space | (dim v) >= 0 } @-}
 
 -- RJ: Helpers for defining properties
 
@@ -157,9 +160,10 @@ makePVector v s@(Real s1 _) =
 gramSchmidt (n :: Int) = foldl (\sp v -> makeSpace (makePVector v sp)) Null 
 
 {-@ getBasis :: n:Nat -> Space (PVectorN n) -> [(List Integer n)] @-}
-getBasis (n::Int) s = worker s [] where
-  worker Null bs = bs
-  worker (Real pv _) bs = worker (orthSpace_ pv) (vec pv : bs)
+getBasis (n::Int) s = worker s [] 
+  where
+    worker Null bs = bs
+    worker (Real pv _) bs = worker (orthSpace_ pv) (vec pv : bs)
 
 {-@ qualif EqMu(v:PVector, x:PVector): (len (muCoeff v)) = (len (muCoeff x)) @-}
 
