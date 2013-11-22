@@ -11,7 +11,7 @@ demo: TellingLies.hs
 ---
 
 One crucial goal of a type system is to provide the guarantee, 
-memorably phrased by Robin Milner as **well-typed programs don't go wrong**. 
+memorably phrased by Milner as *well-typed programs don't go wrong*. 
 The whole point of LiquidHaskell (and related refinement and 
 dependent type systems) is to provide the above guarantee for 
 expanded notions of "going wrong". All this time, we've claimed 
@@ -25,20 +25,23 @@ LiquidHaskell tells lies.
 
 
 \begin{code}
+{-@ LIQUID "--no-termination" @-}
+
 module TellingLies where
 
-import Prelude  hiding (repeat)
-import Language.Haskell.Liquid.Prelude (liquidAssert)
+divide  :: Int -> Int -> Int
+foo     :: Int -> Int
+explode :: Int
 \end{code}
 
-Lets try to catch LiquidHaskell red-handed. We need: 
+To catch LiquidHaskell red-handed, we require
 
-1. a notion of going wrong,
-2. a program that clearly goes wrong, and the smoking gun,
-3. a report from LiquidHaskell that the program is safe.
+1. a notion of **going wrong**,
+2. a **program** that clearly goes wrong, and the smoking gun,
+3. a **lie** from LiquidHaskell that the program is safe.
 
-Going Wrong
------------
+The Going Wrong
+---------------
 
 Lets keep things simple with an old fashioned `div`-ision operator.
 A division by zero would be, clearly *going wrong*.
@@ -52,8 +55,8 @@ divide n 0 = liquidError "how dare you!"
 divide n d = n `div` d
 \end{code}
 
-A Program That Goes Wrong
--------------------------
+The Program 
+-----------
 
 Now, consider the function `foo`.
 
@@ -87,21 +90,35 @@ explode = let z = 0
 Thanks to *lazy evaluation*, the call to `foo` is ignored,
 and hence evaluating `explode` leads to a crash! Ugh!
 
-What Says LiquidHaskell
------------------------
+The Lie
+-------
 
 However, LiquidHaskell produces a polyannish prognosis and 
 cheerfully declares the program **Safe**. 
 
-Looks like LiquidHaskell (and hence, we!) have been caught red-handed.
+Huh?
 
-In our defence, the above, sunny prognosis is not *completely* misguided. 
-If Haskell was like ML and had *strict evaluation* then indeed the program 
-would be safe in that it might diverge, but at least we would not suffer 
-the indignity of a divide-by-zero.  That is, *if* we had strict semantics, 
-LiquidHaskell would indeed provide Milner's guarantee.
+Well, LiquidHaskell deduces that
 
-But of course, thats a pretty lame excuse, since we don't have strict
-semantics. So. Is there a way to prevent LiquidHaskell from telling lies?
+a. `z == 0`  from the binding,
+b. `x : Nat` from the output type for `foo`
+c. `x <  z`  from the output type for `foo`
 
-(Spoiler alert: yes.)
+Of course, no such `x` exists! That is, LiquidHaskell deduces that
+the call to `divide` happens in an *impossible* environment, i.e.
+is dead code, and hence, the program is safe.
+
+Thus, in our defence, the above, sunny prognosis is not *completely* 
+misguided. If Haskell was like ML and had *strict evaluation* then 
+indeed the program would be safe in that we would *not* go wrong 
+i.e. would not crash with a divide-by-zero.  
+
+But of course, thats a pretty lame excuse, since we don't have 
+strict semantics, and so looks like LiquidHaskell (and hence, we) 
+have been caught red-handed.
+
+Well then, is there a way to prevent LiquidHaskell from telling lies?
+That is, can we get Milner's *well-typed programs don't go wrong* 
+guarantee under lazy evaluation? 
+
+(Spoiler alert: thankfully, yes.)
