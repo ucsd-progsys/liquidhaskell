@@ -17,7 +17,7 @@ FOPTS=""
 OPTS="-W -O2 -XStandaloneDeriving"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
 
-CABAL=cabal -j
+CABAL=cabal
 CABALI=$(CABAL) install --ghc-options=$(OPTS)
 CABALP=$(CABAL) install --ghc-options=$(OPTS) -p
 
