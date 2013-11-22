@@ -103,9 +103,13 @@ a. `z == 0`  from the binding,
 b. `x : Nat` from the output type for `foo`
 c. `x <  z`  from the output type for `foo`
 
-Of course, no such `x` exists! That is, LiquidHaskell deduces that
-the call to `divide` happens in an *impossible* environment, i.e.
-is dead code, and hence, the program is safe.
+Of course, no such `x` exists! Or, rather, the SMT solver reasons
+
+    z == 0 && x >= 0 && x < z    =>    false
+    
+Hence, LiquidHaskell deduces that the call to `divide` happens 
+in an *impossible* environment, i.e. is dead code, and hence, 
+the program is safe.
 
 Thus, in our defence, the above, sunny prognosis is not *completely* 
 misguided. If Haskell was like ML and had *strict evaluation* then 
@@ -120,4 +124,4 @@ Well then, is there a way to prevent LiquidHaskell from telling lies?
 That is, can we get Milner's *well-typed programs don't go wrong* 
 guarantee under lazy evaluation? 
 
-(Spoiler alert: thankfully, yes.)
+Thankfully, there is.
