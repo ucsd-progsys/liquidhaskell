@@ -23,7 +23,6 @@ LiquidHaskell tells lies.
 
 <!-- more -->
 
-
 \begin{code}
 {-@ LIQUID "--no-termination" @-}
 
@@ -51,7 +50,7 @@ with the precondition that the denominator be  non-zero.
 
 \begin{code}
 {-@ divide :: n:Int -> d:{v:Int | v /= 0} -> Int @-}
-divide n 0 = liquidError "how dare you!"
+divide n 0 = liquidError "no you didn't!"
 divide n d = n `div` d
 \end{code}
 
