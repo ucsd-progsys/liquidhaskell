@@ -511,22 +511,21 @@ instance PPrint CGInfo where
 
 ppr_CGInfo cgi 
   =  (text "*********** Constraint Information ***********")
-  {- $$ (text "*********** Haskell SubConstraints ***********")
-     $$ (pprintLongList $ hsCs  cgi)
-     $$ (text "*********** Haskell WFConstraints ************")
-     $$ (pprintLongList $ hsWfs cgi)
-     $$ (text "*********** Fixpoint SubConstraints **********")
-     $$ (F.toFix  $ fixCs cgi)
-     $$ (text "*********** Fixpoint WFConstraints ************")
-     $$ (F.toFix  $ fixWfs cgi)
-     $$ (text "*********** Fixpoint Kut Variables ************")
-     $$ (F.toFix  $ kuts cgi)
-     $$ (text "*********** Literals in Source     ************")
-     $$ (pprint $ lits cgi)
-  -}
-  $$ (text "*********** KVar Distribution *****************")
-  $$ (pprint $ kvProf cgi)
-  $$ (text "Recursive binders:" <+> pprint (recCount cgi))
+  -- $$ (text "*********** Haskell SubConstraints ***********")
+  -- $$ (pprintLongList $ hsCs  cgi)
+  -- $$ (text "*********** Haskell WFConstraints ************")
+  -- $$ (pprintLongList $ hsWfs cgi)
+  -- $$ (text "*********** Fixpoint SubConstraints **********")
+  -- $$ (F.toFix  $ fixCs cgi)
+  -- $$ (text "*********** Fixpoint WFConstraints ************")
+  -- $$ (F.toFix  $ fixWfs cgi)
+  -- $$ (text "*********** Fixpoint Kut Variables ************")
+  -- $$ (F.toFix  $ kuts cgi)
+  -- $$ (text "*********** Literals in Source     ************")
+  -- $$ (pprint $ lits cgi)
+  -- $$ (text "*********** KVar Distribution *****************")
+  -- $$ (pprint $ kvProf cgi)
+  -- $$ (text "Recursive binders:" <+> pprint (recCount cgi))
 
 type CG = State CGInfo
 
@@ -732,15 +731,28 @@ addA _ _ _ !a
 --   Constraint generation should ONLY use @freshTy_type@ and @freshTy_expr@
 
 freshTy_type        :: KVKind -> CoreExpr -> Type -> CG SpecType 
-freshTy_type k _ τ  = freshTy_reftype k $ ofType τ
+freshTy_type k e τ  = do t <- freshTy_reftype k $ ofType τ
+                         return t -- $ traceShow ("freshTy_type: " ++ showPpr e) t
 
 freshTy_expr        :: KVKind -> CoreExpr -> Type -> CG SpecType 
-freshTy_expr k e _  = freshTy_reftype k $ exprRefType e
+freshTy_expr k e _  = do t <- freshTy_reftype k $ exprRefType e
+                         return t -- $ traceShow ("freshTy_expr: " ++ showPpr e) t
+                
 
 freshTy_reftype     :: KVKind -> RefType -> CG SpecType 
 freshTy_reftype k τ = do t <- fmap uRType $ refresh τ 
                          addKVars k t
                          return t
+
+
+-- freshTy e τ = do t <- uRType <$> (refresh $ ofType τ)
+--                  return $ traceShow ("freshTy: " ++ showPpr e) t
+-- To revert to the old setup, just do
+-- freshTy_expr = freshTy
+-- freshTy_expr e τ = refresh $ {-traceShow ("exprRefType: " ++ F.showFix e) $-} exprRefType e
+-- freshTy_expr e _ = do t <- refresh $ {- traceShow ("exprRefType: " ++ showPpr e) $ -} exprRefType e
+--                         return $ uRType t
+
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.
@@ -759,13 +771,6 @@ isKut _        = False
 specTypeKVars :: SpecType -> [F.Symbol]
 specTypeKVars = foldReft ((++) . (F.reftKVars . ur_reft)) []
 
--- freshTy e τ = do t <- uRType <$> (refresh $ ofType τ)
---                  return $ traceShow ("freshTy: " ++ showPpr e) t
--- To revert to the old setup, just do
--- freshTy_expr = freshTy
--- freshTy_expr e τ = refresh $ {-traceShow ("exprRefType: " ++ F.showFix e) $-} exprRefType e
--- freshTy_expr e _ = do t <- refresh $ {- traceShow ("exprRefType: " ++ showPpr e) $ -} exprRefType e
---                         return $ uRType t
 
 
 trueTy  :: Type -> CG SpecType
@@ -778,7 +783,8 @@ trueTy t
 refreshArgs t 
   = do xs' <- mapM (\_ -> fresh) xs
        let su = F.mkSubst $ zip xs (F.EVar <$> xs')
-       return $ mkArrow αs πs (zip xs' (F.subst su <$> ts)) (F.subst su tbd)
+       let t' = mkArrow αs πs (zip xs' (F.subst su <$> ts)) (F.subst su tbd)
+       return t' -- $ traceShow ("refreshArgs: t = " ++ showpp t) t'
   where (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
 
@@ -1279,7 +1285,7 @@ unfoldR dc td (RApp _ ts rs _) ys = (t3, tvys ++ yts, rt)
         tbody           = instantiatePvs (instantiateTys td ts) $ reverse rs
         (ys0, yts', rt) = safeBkArrow $ instantiateTys tbody tvs'
         (t3:yts)        = F.subst su <$> (rt:yts')
-        su              = F.mkSubst [(x, F.EVar y) | (x, y)<- zip ys0 ys']
+        su              = F.mkSubst [(x, F.EVar y) | (x, y) <- zip ys0 ys']
         (αs, ys')       = mapSnd (F.symbol <$>) $ L.partition isTyVar ys
         tvs'            = rVar <$> αs
         tvys            = ofType . varType <$> αs
