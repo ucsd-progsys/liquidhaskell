@@ -764,6 +764,7 @@ groupBy eq (x:xs)       =  (x:ys) : groupBy eq zs
 --
 -- Note that 'inits' has the following strictness property:
 -- @inits _|_ = [] : _|_@
+{-@ inits               :: [a] -> {v:[[a]] | (len v) > 0} @-
 inits                   :: [a] -> [[a]]
 inits xs                =  [] : case xs of
                                   []      -> []
