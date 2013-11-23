@@ -1,11 +1,11 @@
 ---
 layout: post
 title: "LiquidHaskell Caught Telling Lies!"
-date: 2013-11-19 16:12
+date: 2013-11-23 16:12
 comments: true
 external-url:
 categories: termination
-author: Niki Vazou
+author: Ranjit Jhala 
 published: true
 demo: TellingLies.hs
 ---
@@ -95,6 +95,8 @@ The Lie
 However, LiquidHaskell produces a polyannish prognosis and 
 cheerfully declares the program **Safe**. 
 
+PIC: MISSION ACCOMPLISHED?
+
 Huh?
 
 Well, LiquidHaskell deduces that
@@ -103,18 +105,20 @@ a. `z == 0`  from the binding,
 b. `x : Nat` from the output type for `foo`
 c. `x <  z`  from the output type for `foo`
 
-Of course, no such `x` exists! Or, rather, the SMT solver reasons
+\begin{code} Of course, no such `x` exists! Or, rather, the SMT solver reasons
+    z == 0 && x >= 0 && x < z  => z /= 0
+\end{code}
 
-    z == 0 && x >= 0 && x < z    =>    false
-    
-Hence, LiquidHaskell deduces that the call to `divide` happens 
-in an *impossible* environment, i.e. is dead code, and hence, 
-the program is safe.
+as the hypotheses are inconsistent. In other words, LiquidHaskell 
+deduces that the call to `divide` happens in an *impossible* environment,
+i.e. is dead code, and hence, the program is safe.
 
-Thus, in our defence, the above, sunny prognosis is not *completely* 
-misguided. If Haskell was like ML and had *strict evaluation* then 
+In our defence, the above, sunny prognosis is not *totally misguided*. 
+Indeed, if Haskell was like ML and had *strict evaluation* then 
 indeed the program would be safe in that we would *not* go wrong 
 i.e. would not crash with a divide-by-zero.  
+
+PIC:PIGS HAVE WINGS
 
 But of course, thats a pretty lame excuse, since we don't have 
 strict semantics, and so looks like LiquidHaskell (and hence, we) 
@@ -125,3 +129,4 @@ That is, can we get Milner's *well-typed programs don't go wrong*
 guarantee under lazy evaluation? 
 
 Thankfully, there is.
+
