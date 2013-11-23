@@ -225,10 +225,9 @@ moduleSpec cfg vars defVars target mg tgtSpec impSpecs
        ghcSpec    <- liftIO $ makeGhcSpec cfg target vars defVars env specs
        return      (ghcSpec, imps, Ms.includes tgtSpec)
     where
-      name     = mgi_namestring mg
-      impNames = map (getModString.fst) impSpecs
-      addImports is
-        = mapM (addContext . IIDecl . qualImportDecl . getModName) (map fst is)
+      name       = mgi_namestring mg
+      impNames   = map (getModString.fst) impSpecs
+      addImports = mapM (addContext . IIDecl . qualImportDecl . getModName . fst)
 
 allDepNames = concatMap (map declNameString . ms_textual_imps)
 
