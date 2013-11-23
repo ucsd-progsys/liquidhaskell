@@ -2457,12 +2457,17 @@ data MaybeS a = NothingS | JustS a -- LIQUID: !-annot-fix
 --                    ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } @-}
 
 trim :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Map k a
+
+
 trim NothingS   NothingS   t = t
 trim (JustS lk) NothingS   t = greater lk t 
+
   where greater lo t@(Bin _ k _ _ r) | k <= lo      = greater lo r
                                      | otherwise    = t
         greater _  t'@Tip                           = t'
+
 trim NothingS   (JustS hk) t = lesser hk t 
+
   where lesser  hi t'@(Bin _ k _ l _) | k >= hi     = lesser  hi l
                                       | otherwise   = t'
         lesser  _  t'@Tip                           = t'
