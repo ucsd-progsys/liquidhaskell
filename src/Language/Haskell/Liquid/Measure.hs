@@ -35,7 +35,7 @@ import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.RefType
 
 -- MOVE TO TYPES
-type BareSpec      = Spec BareType Symbol
+type BareSpec      = Spec BareType LocSymbol
 
 data Spec ty bndr  = Spec { 
     measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
@@ -88,11 +88,11 @@ mkM name typ eqns
   | otherwise
   = errorstar $ "invalid measure definition for " ++ (show name)
 
--- mkMSpec :: [Measure ty Symbol] -> [Measure ty ()] -> [IMeasure Type]
---         -> MSpec ty Symbol
+-- mkMSpec :: [Measure ty LocSymbol] -> [Measure ty ()] -> [Measure ty LocSymbol]
+--         -> MSpec ty LocSymbol
 mkMSpec ms cms ims = MSpec cm mm cmm ims
   where 
-    cm     = groupMap ctor $ concatMap eqns (ms'++ims)
+    cm     = groupMap (val.ctor) $ concatMap eqns (ms'++ims)
     mm     = M.fromList [(val $ name m, m) | m <- ms' ]
     cmm    = M.fromList [(val $ name m, m) | m <- cms ]
     ms'    = checkDuplicateMeasure ms

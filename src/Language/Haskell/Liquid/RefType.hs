@@ -50,7 +50,7 @@ module Language.Haskell.Liquid.RefType (
 
 import Var
 import Literal
-import GHC
+import GHC              hiding (Located)
 import DataCon
 import PrelInfo         (isNumericClass)
 import qualified TyCon  as TC
@@ -204,10 +204,16 @@ instance TyConable RTyCon where
 
 -- MOVE TO TYPES
 instance TyConable String where
-  isFun   = (funConName ==) 
-  isList  = (listConName ==) 
+  isFun   = (funConName ==)
+  isList  = (listConName ==)
   isTuple = (tupConName ==)
   ppTycon = text
+
+instance TyConable LocString where
+  isFun   = (funConName ==) . val
+  isList  = (listConName ==) . val
+  isTuple = (tupConName ==) . val
+  ppTycon = text . val
 
 
 -- RefTypable Instances -------------------------------------------------------
@@ -242,7 +248,7 @@ instance FreeVar RTyCon RTyVar where
   freeVars = (RTV <$>) . tyConTyVars . rTyCon
 
 -- MOVE TO TYPES
-instance FreeVar String String where
+instance FreeVar LocString String where
   freeVars _ = []
 
 ppClass_String    c _  = pprint c <+> text "..."
@@ -524,6 +530,9 @@ instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) wher
   rnf (RAppTy t t' r)  = rnf t `seq` rnf t' `seq` rnf r
   rnf (RRTy r t)       = rnf r `seq` rnf t
 
+instance (NFData a) => NFData (Located a) where
+  -- FIXME: no instance NFData SrcSpan
+  rnf (Loc l x) = rnf x
 ----------------------------------------------------------------
 ------------------ Printing Refinement Types -------------------
 ----------------------------------------------------------------
@@ -670,7 +679,7 @@ instance SubsTy RTyVar RSort RSort where
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
 
 -- Here the "String" is a Bare-TyCon. TODO: wrap in newtype 
-instance SubsTy String BSort String where
+instance SubsTy String BSort LocString where
   subt _ t = t
 
 instance SubsTy String BSort BSort where

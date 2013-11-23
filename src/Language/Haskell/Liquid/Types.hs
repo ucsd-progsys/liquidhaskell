@@ -20,6 +20,7 @@ module Language.Haskell.Liquid.Types (
 
   -- * Located Things
   , Located (..)
+  , dummyLoc
 
   -- * Symbols
   , LocSymbol
@@ -32,7 +33,7 @@ module Language.Haskell.Liquid.Types (
   , mkArrow, bkArrowDeep, bkArrow, safeBkArrow 
   , mkUnivs, bkUniv, bkClass
   , rFun
-  ,addTermCond
+  , addTermCond
 
   -- * Manipulating Predicate
   , pvars
@@ -119,6 +120,7 @@ import Language.Haskell.Liquid.GhcMisc
 
 import Control.Arrow (second)
 import Control.Monad  (liftM, liftM2, liftM3)
+import qualified Control.Monad.Error as Ex
 import Control.DeepSeq
 import Control.Applicative          ((<$>))
 import Data.Typeable                (Typeable)
@@ -208,6 +210,9 @@ type LocSymbol = Located Symbol
 type LocString = Located String
 
 dummyName = "dummy"
+
+dummyLoc :: a -> Located a
+dummyLoc = Loc dummyPos
 
 isDummy :: (Show a) => a -> Bool
 isDummy a = show a == dummyName
@@ -503,7 +508,7 @@ data RType p c tv r
 -- MOVE TO TYPES
 
 data Ref t s m 
-  = RMono [(Symbol, t)] s 
+  = RMono [(Symbol, t)] s
   | RPoly [(Symbol, t)] m
 
 -- MOVE TO TYPES
@@ -511,8 +516,8 @@ data UReft r
   = U { ur_reft :: !r, ur_pred :: !Predicate }
 
 -- MOVE TO TYPES
-type BRType     = RType String String String   
-type RRType     = RType Class  RTyCon RTyVar   
+type BRType     = RType LocString LocString String
+type RRType     = RType Class     RTyCon    RTyVar
 
 type BSort      = BRType    ()
 type RSort      = RRType    ()
@@ -556,12 +561,18 @@ class ( TyConable c
 --------------------------------------------------------------------------
 
 -- | Data type refinements
-data DataDecl   = D { tycName   :: String                           -- ^ Type  Constructor Name 
-                    , tycTyVars :: [String]                         -- ^ Tyvar Parameters
-                    , tycPVars  :: [PVar BSort]                     -- ^ PVar  Parameters
-                    , tycDCons  :: [(String, [(String, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]   
-                    , tycSrcPos :: !SourcePos                       -- ^ Source Position
-                    , tycSFun   :: (Maybe (Symbol -> Expr))         -- ^ Measure that should decrease in recursive calls
+data DataDecl   = D { tycName   :: LocString
+                                -- ^ Type  Constructor Name
+                    , tycTyVars :: [String]
+                                -- ^ Tyvar Parameters
+                    , tycPVars  :: [PVar BSort]
+                                -- ^ PVar  Parameters
+                    , tycDCons  :: [(LocString, [(String, BareType)])]
+                                -- ^ [DataCon, [(fieldName, fieldType)]]
+                    , tycSrcPos :: !SourcePos
+                                -- ^ Source Position
+                    , tycSFun   :: (Maybe (Symbol -> Expr))
+                                -- ^ Measure that should decrease in recursive calls
                     }
      --              deriving (Show) 
 
@@ -1029,6 +1040,9 @@ instance Eq Error where
 
 instance Ord Error where 
   e1 <= e2 = pos e1 <= pos e2
+
+instance Ex.Error Error where
+  strMsg = ErrOther . text
 
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------

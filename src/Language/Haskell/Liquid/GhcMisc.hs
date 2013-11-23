@@ -24,7 +24,7 @@ import           HscTypes                     (Dependencies, ImportedMods, ModGu
 import           SrcLoc                       (srcSpanFile, srcSpanStartLine, srcSpanStartCol)
 
 import           Language.Fixpoint.Misc       (errorstar, stripParens)
-import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos) 
+import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import           Language.Fixpoint.Types      hiding (SESearch(..))
 import           Name                         (mkInternalName, getSrcSpan)
 import           OccName                      (mkTyVarOcc, mkTcOcc)
@@ -216,7 +216,7 @@ srcSpanEndLoc l    = L (srcSpanEndLine l, srcSpanEndCol l)
 oneLine l          = srcSpanStartLine l == srcSpanEndLine l
 lineCol l          = (srcSpanStartLine l, srcSpanStartCol l)
 dummyPos :: SourcePos
-dummyPos = newPos "?" 0 0 
+dummyPos = newPos "?" 0 0
 
 realSrcSpanSourcePos :: RealSrcSpan -> SourcePos 
 realSrcSpanSourcePos s = newPos file line col

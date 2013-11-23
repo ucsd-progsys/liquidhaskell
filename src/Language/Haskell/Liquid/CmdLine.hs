@@ -209,7 +209,7 @@ writeResult c            = mapM_ (writeDoc c) . resDocs
 resDocs Safe              = [text "SAFE"]
 resDocs (Crash xs s)      = text ("CRASH: " ++ s) : pprManyOrdered "CRASH: " xs
 resDocs (Unsafe xs)       = pprManyOrdered "UNSAFE: " xs
-resDocs  (UnknownError d) = [text "PANIC: Unexpected Error: " <+> d, reportUrl]
+resDocs (UnknownError d)  = [text "PANIC: Unexpected Error: " <+> d, reportUrl]
 reportUrl                 =      text "Please submit a bug report at:"
                             $+$  text "  https://github.com/ucsd-progsys/liquidhaskell"
 
