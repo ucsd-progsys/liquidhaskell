@@ -24,9 +24,9 @@ measure snd :: (a,b) -> b
 snd (a,b) = b
 
 invariant {v: [a] | len(v) >= 0 } 
-assume map       :: (x:a -> b) -> xs:[a] -> {v: [b] | len(v) = len(xs)}
+assume map       :: (a -> b) -> xs:[a] -> {v: [b] | len(v) = len(xs)}
 
-assume $         :: (x:a -> b) -> a -> b
+assume $         :: (a -> b) -> a -> b
 assume id        :: x:a -> {v:a | v = x}
 
 
