@@ -129,4 +129,3 @@ That is, can we get Milner's *well-typed programs don't go wrong*
 guarantee under lazy evaluation? 
 
 Thankfully, there is.
-

@@ -6,35 +6,27 @@ comments: true
 external-url:
 categories: termination
 author: Niki Vazou
-published: false
-demo: Termination.hs
+published: false 
+demo: TerminationBasic.hs
 ---
 
-If you used liquidHaskell lately, you may have noticed some type errors that
-just make no sense.
-Well, that is not a bug, but a ... **termination checker** failing to prove that
-your function terminates.
+As explained in the [last](LINK) [two](LINK) posts, we need a termination
+checker to ensure that LiquidHaskell is not tricked by divergent, lazy
+computations into telling lies. Well, proving termination is not easy, but
+happily, it turns out that with very little retrofitting, we can use 
+refinements to prove termination.
 
-In this post, we present how you can use liquidHaskell to prove termination on
-simple recursive functions and explain why termination is required for sound
-type checking.
-Of course liquidHaskell would be useless if it required that all your functions
-do terminate.
-Instead, it just requires that non-terminating functions return unrefined
-results.
-We will shortly explain how one can turn off termination checking while preserve
-sound type checking.
+In this post, lets see how LiquidHaskell proves termination on simple 
+recursive functions, and then later, we'll see how to look at fancier 
+cases.
 
 <!-- more -->
 
 \begin{code}
 module Termination where
 
-import Prelude hiding (sum, (!!), repeat)
+import Prelude hiding (sum, (!!))
 import Data.List      (lookup)
-import Data.Maybe     (fromJust)
-
-import Language.Haskell.Liquid.Prelude (liquidAssert)
 \end{code}
 
 Termination Check with Refinement Types
@@ -191,100 +183,10 @@ we can prove termination on a great number of functions
 ranging from 
 ones defined on recursive data structures
 to mutual recursive ones. 
-Of course, we can never prove termination on non-terminating functions that
-naturally exist on haskell source code.
-So, we postpone 
-proving termination on more interesting functions
-and instead lets see how and when you can safely turn termination check off.
+We shall soon see how to prove termination on more complicated functions, why
+is termination analysis required by liquidHaskell and when is it safe to
+deactivate it.
 
-Why is Termination Analysis Required
--------------------------------------
-
-Consider a no-terminating function:
-
-\begin{code}
-{-@ foo :: Int -> {v:Int | false} @-}
-foo     :: Int -> Int
-foo n   = foo n
-\end{code}
-
-According to the *partial correctness property*
-the type signature for `foo` means that any
-value `foo` returns will satisfy the result refinement
-`false`. 
-Since `foo` never returns, 
-it can return *none* value, thus it trivially satisfies its
-type.
-
-Now, in an environment where `false` (i.e., `foo`'s result)
-exists, liquidHaskell can prove anything, 
-even the contradiction `0==1`:
-
-\begin{code}
-prop = liquidAssert ((\_ -> 0==1) (foo 0))
-\end{code}
-
-This is totally valid under *eager* evaluation, where
-to execute the assertion one should first compute the argument
-`foo 0` which never returns.
-But, it is not valid under haskell's *lazy* semantics
-where execution ignores the unused argument, and fails.
-
-From the above discussion we see that partial correctness is not enough to
-verify Haskell's lazy code.
-To restore soundness we require *total correctness*, or
-that each function terminates.
-This explains why termination checking is set as default to liquidHaskell (as is
-in many other verifiers, like Coq or Agda.)
-
-Turning off Termination Checking
---------------------------------
-
-Of course, you cannot prove termination of functions like `repeat`
-
-\begin{code}
-{-@ repeat :: a -> [a] @-}
-repeat     :: a -> [a]
-repeat a   = a : repeat a
-\end{code}
-
-Instead, you can mark `repeat` as `Lazy` to disable termination for these
-functions:
-\begin{code}
-{-@ Lazy repeat @-}
-\end{code}
-
-But, be careful!
-By marking a function as `Lazy` *you* also guarantee that *the result type
-cannot contain inconsistencies*.
-In our previous example, liquidHaskell typechecked the unsafe `prop`, just
-because we marked `foo` (who's return type contains inconsistency) as `Lazy`
-\begin{code}
-{-@ Lazy foo @-}
-\end{code}
-
-Even though it is hard to decide if a type can contain inconsistencies,
-trivially *unrefined types* (or types refined to `true`) cannot ever be resolved
-to `false`.
-In other words, it is always safe to mark as `Lazy` functions with unrefined
-result.
-
-\begin{code}Finally, you have the option to totally disable termination checking, using the `no-termination` flag:
+\begin{code}Until then, bear in mind that you can disable termination checking using the `no-termination` flag:
 {-@ LIQUID "--no-termination" @-}
 \end{code}
-
-
-Conclusion
-----------
-
-In this post, 
-
-- We saw how to use liquidHaskell to prove termination of simple recursive
-  functions, and
-
-- We learned why termination is required for sound type checking and when
-it is safe to deactivate it.
-
-Termination checking may sound a big demand,
-but soon we will see that liquidHaskell is powerful enough to prove
-termination on a great number of functions
