@@ -79,15 +79,15 @@ But alas, this cure is worse than the disease. Effectively it would end up
 lobotomizing LiquidHaskell making it unable to prove even trivial things like:
 
 \begin{code}
-{-@ ohComeOn :: x:Int -> y:Int -> {pf: () | x < y} -> Int @-}
-ohComeOn x y pf = liquidAssert (x < y) 10
+{-@ trivial    :: x:Int -> y:Int -> {pf: () | x < y} -> Int @-}
+trivial x y pf = liquidAssert (x < y) 10
 \end{code}
 
 \begin{code}as the corresponding SMT query
     (pf = _|_ || x < y) => (x < y)
 \end{code}
 
-which, of course, is invalid. 
+is, thanks to the pesky `_|_`, not valid. 
 
 Terminating The Bottom
 ----------------------
@@ -99,4 +99,3 @@ is *definitely* not bottom.
 
 In other words, we need to teach LiquidHaskell how to prove that a computation 
 definitely terminates.
-
