@@ -22,7 +22,7 @@ bit of jiu jitsu, we can refinements themselves to prove termination!
 module Termination where
 
 import Prelude hiding (sum, (!!))
-import Data.List      (lookup)
+import qualified Data.Vector as V
 \end{code}
 
 Next, lets see how LiquidHaskell proves termination on simple 
