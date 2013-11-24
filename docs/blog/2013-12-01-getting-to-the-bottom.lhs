@@ -16,6 +16,9 @@ that it always tells the truth.
 
 <!-- more -->
 
+\begin{code}
+module GettingToTheBottom where
+\end{code}
 The Truth Lies At the Bottom
 ----------------------------
 
@@ -61,12 +64,11 @@ Keeping LiquidHaskell Honest
 ----------------------------
 
 One approach to forcing LiquidHaskell to telling the truth is to force 
-it to *always* split cases and reason about `_|_`. Lets revisit `explode` 
+it to *always* split cases and reason about `_|_`.
 
-\begin{code}
+\begin{code} Lets revisit `explode`
 explode = let z = 0
-              x = foo z
-          in  2013 `divide` z
+          in  (\x -> 2013 `divide` z) (foo z)
 \end{code}
 
 \begin{code}This prevents the cheerful but bogus prognosis that `explode` above was safe, because the SMT solver cannot prove that at the call to `divide` 
@@ -78,7 +80,7 @@ PIC: PESSIMISTIC-ALWAYS-NO
 But alas, this cure is worse than the disease. Effectively it would end up
 lobotomizing LiquidHaskell making it unable to prove even trivial things like:
 
-\begin{code}
+\begin{code}_
 {-@ trivial    :: x:Int -> y:Int -> {pf: () | x < y} -> Int @-}
 trivial x y pf = liquidAssert (x < y) 10
 \end{code}
