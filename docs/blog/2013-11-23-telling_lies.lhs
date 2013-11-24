@@ -28,6 +28,8 @@ LiquidHaskell tells lies.
 
 module TellingLies where
 
+import Language.Haskell.Liquid.Prelude (liquidError)
+
 divide  :: Int -> Int -> Int
 foo     :: Int -> Int
 explode :: Int
@@ -82,8 +84,7 @@ function:
 
 \begin{code}
 explode = let z = 0
-              x = foo z
-          in  2013 `divide` z
+          in  (\x -> (2013 `divide` z)) (foo z)
 \end{code}
 
 Thanks to *lazy evaluation*, the call to `foo` is ignored,
