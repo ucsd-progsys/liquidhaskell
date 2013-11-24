@@ -6,7 +6,7 @@ comments: true
 external-url:
 categories: termination
 author: Niki Vazou
-published: true
+published: false
 demo: TellingLies.hs
 ---
 
@@ -24,6 +24,7 @@ results.
 We will shortly explain when and how one can turn off termination checking while preserve
 sound type checking.
 To do so, we should start by explaining why termination is requied. 
+
 <!-- more -->
 
 \begin{code}
