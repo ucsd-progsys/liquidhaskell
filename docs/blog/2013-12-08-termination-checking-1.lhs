@@ -6,7 +6,7 @@ comments: true
 external-url:
 categories: termination
 author: Niki Vazou
-published: false 
+published: true 
 demo: TerminationBasic.hs
 ---
 
@@ -21,8 +21,8 @@ bit of jiu jitsu, we can refinements themselves to prove termination!
 \begin{code}
 module Termination where
 
-import Prelude hiding (sum, (!!))
-import qualified Data.Vector as V
+import Prelude     hiding (sum)
+import Data.Vector hiding (sum)
 \end{code}
 
 Next, lets see how LiquidHaskell proves termination on simple 
@@ -36,14 +36,8 @@ As a running example, lets write a bunch of little functions
 that operate on 1-dimensional vectors
 
 \begin{code}
-type Vec1 = V.Vector Int 
-\end{code}
-
-equipped with a lookup function that returns `0` if the index is invalid.
-
-\begin{code}
-(!!)   :: Vec1 -> Int -> Val
-a !! i = V.lookupDefault 0 i a 
+type Val  = Int
+type Vec = Vector Val
 \end{code}
 
 Next, lets write a simple recursive function that loops over to add up
@@ -52,7 +46,7 @@ the first `n` elements of a vector:
 \begin{code}
 sum     :: Vec -> Int -> Val
 sum a 0 = 0
-sum a n = (a !! (n-1)) + sum a (n-1)
+sum a n = (a ! (n-1)) + sum a (n-1)
 \end{code}
 
 Proving Termination By Hand(waving) 
@@ -97,7 +91,7 @@ as above, by rephrasing it in terms of refinement types.
 First, we specify that the input is restricted to the set of `Nat`ural numbers
 
 \begin{code}
-{-@ sum :: Vec -> n:Nat -> Val @-}
+{-@ sum :: a:Vec -> {v:Nat | v < (vlen a)} -> Val @-}
 \end{code}
 
 where recall that `Nat` is just the refinement type `{v:Int | v >= 0}`.
@@ -138,10 +132,10 @@ now, assume that it always chooses *the first* `Int` parameter.
 As you might imagine, this is quite daft. Consider, a tail-recursive implementation of `sum`:
 
 \begin{code}
-{-@ sum' :: Vec -> Val -> Nat -> Val @-}
+{-@ sum' :: a:Vec -> Val -> {v:Nat| v < (vlen a)} -> Val @-}
 sum' :: Vec -> Val -> Int -> Val
-sum' a acc 0 = acc + a!!0 
-sum' a acc n = sum' a (acc + a!!n) (n-1)
+sum' a acc 0 = acc + a!0 
+sum' a acc n = sum' a (acc + a!n) (n-1)
 \end{code}
 
 Clearly, the proof fails as liquidHaskell wants to prove that the `acc`umulator 
