@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "The Truth Lies At the Bottom"
+title: "Getting To the Bottom of The Lies"
 date: 2013-11-19 16:12
 comments: true
 external-url:
@@ -10,7 +10,7 @@ published: false
 demo: BasicTermination.hs
 ---
 
-[Previously](link), we caught LiquidHaskell telling a lie. Today, lets try to
+[Previously][ref-lies], we caught LiquidHaskell telling a lie. Today, lets try to
 get to the bottom of this mendacity, in order to understand how we can ensure
 that it always tells the truth.
 

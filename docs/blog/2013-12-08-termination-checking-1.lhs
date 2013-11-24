@@ -10,11 +10,11 @@ published: false
 demo: TerminationBasic.hs
 ---
 
-As explained in the [last](LINK) [two](LINK) posts, we need a termination
+As explained in the [last][ref-lies] [two][ref-bottom] posts, we need a termination
 checker to ensure that LiquidHaskell is not tricked by divergent, lazy
 computations into telling lies. Well, proving termination is not easy, 
-but happily, it turns out that with very little retrofitting, and a bit
-of jiu jitsu, we can refinements themselves to prove termination!
+but happily, it turns out that with very little retrofitting, and a 
+bit of jiu jitsu, we can refinements themselves to prove termination!
 
 <!-- more -->
 
@@ -156,3 +156,7 @@ With this hint, liquidHaskell will happily verify that `sum'` is indeed a termin
 
 Thats all for now, next time we'll see how the basic technique can be extended
 to a variety of sophisticated, real-world settings.
+
+
+[ref-lies]:  /blog/2013/11/23/telling-lies.lhs/ 
+[ref-bottom]: /blog/2013/12/01/getting-to-the-bottom.lhs/
