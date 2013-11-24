@@ -12,10 +12,10 @@ demo: TellingLies.hs
 
 One crucial goal of a type system is to provide the guarantee, 
 memorably phrased by Milner as *well-typed programs don't go wrong*. 
-The whole point of LiquidHaskell (and related refinement and 
-dependent type systems) is to provide the above guarantee for 
-expanded notions of "going wrong". All this time, we've claimed 
-(and believed) that LiquidHaskell provided such a guarantee.
+The whole point of LiquidHaskell (and related systems) is to provide
+the above guarantee for expanded notions of "going wrong". 
+All this time, we've claimed (and believed) that LiquidHaskell 
+provided such a guarantee.
 
 We were wrong. 
 
@@ -93,9 +93,7 @@ The Lie
 -------
 
 However, LiquidHaskell produces a polyannish prognosis and 
-cheerfully declares the program **Safe**. 
-
-PIC: MISSION ACCOMPLISHED?
+cheerfully declares the program *safe*. 
 
 Huh?
 
@@ -118,10 +116,8 @@ Indeed, if Haskell was like ML and had *strict evaluation* then
 indeed the program would be safe in that we would *not* go wrong 
 i.e. would not crash with a divide-by-zero.  
 
-PIC:PIGS HAVE WINGS
-
-But of course, thats a pretty lame excuse, since we don't have 
-strict semantics, and so looks like LiquidHaskell (and hence, we) 
+But of course, thats a pretty lame excuse, since Haskell doesn't have 
+strict semantics. So looks like LiquidHaskell (and hence, we) 
 have been caught red-handed.
 
 Well then, is there a way to prevent LiquidHaskell from telling lies?
