@@ -1,11 +1,11 @@
 ---
 layout: post
 title: "Getting To the Bottom of The Lies"
-date: 2013-11-19 16:12
+date: 2013-12-01 16:12
 comments: true
 external-url:
 categories: termination
-author: Niki Vazou
+author: Ranjit Jhala, Niki Vazou
 published: false
 demo: BasicTermination.hs
 ---
@@ -40,7 +40,7 @@ This is indeed the case with **strict** evaluation, as we are guaranteed
 that `n` will be evaluated before `e`. Thus, either:
 
 1. `n` diverges and so we don't care about `e` as we won't evaluate it, or,
-2. `n` holds a non-negative value.
+2. `n` is a non-negative value.
 
 Thus, either way, `e` is only evaluated in a context where `0 <= n`.
 
