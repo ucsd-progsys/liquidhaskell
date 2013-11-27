@@ -61,11 +61,27 @@ import Data.Typeable ( Typeable )
 
 #include "vector.h"
 
+{-@ measure elemLen :: Ptr a -> Int @-}
+{-@ peekElemOff :: Storable a => p:(Ptr a) -> {v:Nat | (v < elemLen p)} -> IO a @-}
+{-@ pokeElemOff :: Storable a => p:(Ptr a) -> {v:Nat | (v < elemLen p)} -> a -> IO () @-}
+{-@ newArray :: Storable a => xs:[a] -> IO {v:(Ptr a) | (elemLen v) = (len xs)} @-}
+
+{-@ measure mutLen :: (MutableArray s a) -> Int @-}
+
+{-@ newArray :: PrimMonad m => n:Int -> a -> m {v:(MutableArray (PrimState m) a) | (mutLen v) = n} @-}
+
 -- | Mutable boxed vectors keyed on the monad they live in ('IO' or @'ST' s@).
 data MVector s a = MVector {-# UNPACK #-} !Int
                            {-# UNPACK #-} !Int
                            {-# UNPACK #-} !(MutableArray s a)
         deriving ( Typeable )
+
+{-@ data MVector s a = MVector { off :: Nat 
+                               , len :: Nat 
+                               , arr :: {v : (MutableArray s a) | off + len <= (mutLen v) }
+                               }
+  @-}
+
 
 type IOVector = MVector RealWorld
 type STVector s = MVector s
