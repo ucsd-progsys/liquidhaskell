@@ -132,6 +132,7 @@ Library
   hs-source-dirs:  src
   Exposed-Modules: Language.Fixpoint.Names,
                    Language.Fixpoint.Files,
+                   Language.Fixpoint.Errors,
                    Language.Fixpoint.Config,
                    Language.Fixpoint.Types,
                    Language.Fixpoint.Sort,
