@@ -13,9 +13,9 @@ module Language.Fixpoint.Errors (
   , err
 
   -- * Accessors
-  -- , errLoc
-  -- , errMsg
-  , errorInfo
+  , errLoc
+  , errMsg
+  -- , errorInfo
 
   -- * Adding Insult to Injury
   , catMessage
