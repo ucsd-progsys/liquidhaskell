@@ -13,8 +13,9 @@ module Language.Fixpoint.Errors (
   , err
 
   -- * Accessors
-  , errLoc
-  , errMsg
+  -- , errLoc
+  -- , errMsg
+  , errorInfo
 
   -- * Adding Insult to Injury
   , catMessage
@@ -55,6 +56,11 @@ sourcePosElts s = (src, line, col)
     src         = sourceName   s 
     line        = sourceLine   s
     col         = sourceColumn s 
+
+---------------------------------------------------------------------------
+errorInfo :: Error -> (SrcSpan, String)
+---------------------------------------------------------------------------
+errorInfo (Error l msg) = (l, msg)
 
 
 -----------------------------------------------------------------------
