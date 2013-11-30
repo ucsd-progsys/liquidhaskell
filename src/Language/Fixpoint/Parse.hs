@@ -48,6 +48,7 @@ import Control.Applicative ((<*>), (<$>), (<*))
 import Control.Monad
 import Text.Parsec
 import Text.Parsec.Expr
+import Text.Parsec.Pos
 import Text.Parsec.Language
 import Text.Parsec.String hiding (Parser, parseFromFile)
 import Text.Printf  (printf)
@@ -58,6 +59,7 @@ import qualified Data.HashSet as S
 import Data.Char (isLower, toUpper)
 import Language.Fixpoint.Misc hiding (dcolon)
 import Language.Fixpoint.Types
+import Language.Fixpoint.Errors
 import Data.Maybe(maybe, fromJust)
 
 type Parser = Parsec String Integer 
@@ -423,17 +425,16 @@ solutionFileP
 remainderP p  
   = do res <- p
        str <- stateInput <$> getParserState
-       return (res, str) 
+       pos <- getPosition 
+       return (res, str, pos) 
 
 doParse' parser f s
-  = case runParser (remainderP p) 0 f s of
-      Left e         -> errorstar $ printf "parseError %s\n when parsing from %s\n" 
-                                      (show e) f 
-      Right (r, "")  -> r
-      Right (_, rem) -> errorstar $ printf "doParse has leftover when parsing: %s\nfrom file %s\n"
-                                      rem f
-  where p = whiteSpace >> parser
-
+  = case runParser (remainderP (whiteSpace >> parser)) 0 f s of
+      Left e            -> die $ err (errorSpan e) $ printf "parseError %s\n when parsing from %s\n" (show e) f 
+      Right (r, "", _)  -> r
+      Right (_, rem, l) -> die $ err (SS l l) $ printf "doParse has leftover when parsing: %s\nfrom file %s\n" rem f
+    
+errorSpan e = SS l l where l = errorPos e
 
 parseFromFile :: Parser b -> SourceName -> IO b
 parseFromFile p f = doParse' p f <$> readFile f
