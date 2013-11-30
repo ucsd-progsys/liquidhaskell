@@ -5,6 +5,8 @@
 module Language.Fixpoint.Errors (
   -- * Concrete Location Type
     SrcSpan (..)
+  , dummySpan
+  , sourcePosElts
 
   -- * Abstract Error Type
   , Error
@@ -30,6 +32,7 @@ import Text.PrettyPrint.HughesPJ
 import Text.Parsec.Pos                   
 import Data.Typeable
 import Text.Printf 
+import Data.Hashable
 import Control.Exception
 import qualified Control.Monad.Error as E 
 import Language.Fixpoint.PrettyPrint
@@ -57,10 +60,18 @@ sourcePosElts s = (src, line, col)
     line        = sourceLine   s
     col         = sourceColumn s 
 
+instance Hashable SourcePos where 
+  hashWithSalt i   = hashWithSalt i . sourcePosElts
+
+instance Hashable SrcSpan where 
+  hashWithSalt i z = hashWithSalt i (sp_start z, sp_stop z)
+
+
+
 ---------------------------------------------------------------------------
-errorInfo :: Error -> (SrcSpan, String)
----------------------------------------------------------------------------
-errorInfo (Error l msg) = (l, msg)
+-- errorInfo :: Error -> (SrcSpan, String)
+-- ------------------------------------------------------------------------
+-- errorInfo (Error l msg) = (l, msg)
 
 
 -----------------------------------------------------------------------
@@ -80,7 +91,10 @@ instance Fixpoint Error where
 instance Exception Error
 
 instance E.Error Error where
-  strMsg = Error $ SS l l where l = initialPos ""
+  strMsg = Error dummySpan
+ 
+dummySpan = SS l l  
+  where l = initialPos ""
 
 
 ---------------------------------------------------------------------
