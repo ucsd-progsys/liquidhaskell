@@ -28,6 +28,7 @@ module Language.Fixpoint.Errors (
 
   ) where
 
+import System.FilePath 
 import Text.PrettyPrint.HughesPJ
 import Text.Parsec.Pos                   
 import Data.Typeable
@@ -48,11 +49,18 @@ data SrcSpan = SS { sp_start :: !SourcePos, sp_stop :: !SourcePos}
 instance PPrint SrcSpan where
   pprint = ppSrcSpan
 
-ppSrcSpan z  = parens 
-             $ text (printf "file %s: (%d, %d) - (%d, %d)" f l c l' c')  
+-- ppSrcSpan_short z = parens
+--                   $ text (printf "file %s: (%d, %d) - (%d, %d)" (takeFileName f) l c l' c')  
+--   where 
+--     (f,l ,c )     = sourcePosElts $ sp_start z
+--     (_,l',c')     = sourcePosElts $ sp_stop  z
+
+
+ppSrcSpan z       = parens 
+                  $ text (printf "file %s: (%d, %d) - (%d, %d)" (takeFileName f) l c l' c')  
   where 
-    (f,l ,c )   = sourcePosElts $ sp_start z
-    (_,l',c')   = sourcePosElts $ sp_stop  z
+    (f,l ,c )     = sourcePosElts $ sp_start z
+    (_,l',c')     = sourcePosElts $ sp_stop  z
 
 sourcePosElts s = (src, line, col)
   where 
