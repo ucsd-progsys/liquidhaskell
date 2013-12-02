@@ -1104,6 +1104,7 @@ instance Monoid Subst where
 ------------- Generally Useful Refinements -----------------
 ------------------------------------------------------------
 
+symbolReft    :: (Symbolic a) => a -> Reft
 symbolReft    = exprReft . eVar 
 
 vv_           = vv Nothing
