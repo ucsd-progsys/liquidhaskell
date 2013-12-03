@@ -433,13 +433,13 @@ splitC (SubR γ r)
 
 splitCIndexed γ t1s t2s indexes 
   = concatMapM splitC (zipWith (SubC γ) t1s' t2s')
-  where t1s' = (L.!!) t1s <$> indexes
-        t2s' = (L.!!) t2s <$> indexes
+  where t1s' = catMaybes $ (!?) t1s <$> indexes
+        t2s' = catMaybes $ (!?) t2s <$> indexes
 
 rsplitCIndexed γ t1s t2s indexes 
   = concatMapM (rsplitC γ) (safeZip "rsplitC" t1s' t2s')
-  where t1s' = (L.!!) t1s <$> indexes
-        t2s' = (L.!!) t2s <$> indexes
+  where t1s' = catMaybes $ (!?) t1s <$> indexes
+        t2s' = catMaybes $ (!?) t2s <$> indexes
 
 
 bsplitC γ t1 t2 = pruneRefs <$> get >>= return . bsplitC' γ t1 t2
