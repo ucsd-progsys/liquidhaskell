@@ -262,7 +262,7 @@ defRefType (Def f dc xs body) = mkArrow as [] xts t'
     msg = "defRefType dc = " ++ showPpr dc 
 
 
-refineWithCtorBody dc (Loc _ f) body t = 
+refineWithCtorBody dc f body t =
   case stripRTypeBase t of 
     Just (Reft (v, _)) ->
       strengthen t $ Reft (v, [RConc $ bodyPred (EApp f [eVar v]) body])

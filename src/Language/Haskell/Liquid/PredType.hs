@@ -431,8 +431,8 @@ pappSort n = FFunc (2 * n) $ [ptycon] ++ args ++ [bSort]
  
 wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 
-predFTyCon = stringFTycon predName
+predFTyCon = stringFTycon $ dummyLoc predName
 
 pApp :: Symbol -> [F.Expr] -> Pred
-pApp p es= PBexp $ EApp (pappSym $ length es) (EVar p:es)
+pApp p es= PBexp $ EApp (dummyLoc $ pappSym $ length es) (EVar p:es)
 

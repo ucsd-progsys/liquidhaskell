@@ -453,7 +453,7 @@ appRTyCon tce tyi rc@(RTyCon c _ _) ts = RTyCon c ps' (rTyConInfo rc'')
         αs  = TC.tyConTyVars $ rTyCon rc'
         rc'' = if isNumeric tce rc' then addNumSizeFun rc' else rc'
 isNumeric tce c 
-  =  (fromMaybe (stringFTycon $ tyConName (rTyCon c)))
+  =  (fromMaybe (stringFTycon . dummyLoc $ tyConName (rTyCon c)))
        (M.lookup (rTyCon c) tce) == intFTyCon
 
 addNumSizeFun c 
@@ -530,9 +530,6 @@ instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) wher
   rnf (RAppTy t t' r)  = rnf t `seq` rnf t' `seq` rnf r
   rnf (RRTy r t)       = rnf r `seq` rnf t
 
-instance (NFData a) => NFData (Located a) where
-  -- FIXME: no instance NFData SrcSpan
-  rnf (Loc l x) = rnf x
 ----------------------------------------------------------------
 ------------------ Printing Refinement Types -------------------
 ----------------------------------------------------------------
@@ -767,7 +764,7 @@ dataConReft c xs
   where dcValue | null xs && null (dataConUnivTyVars c) 
                 = EVar $ dataConSymbol c
                 | otherwise
-                = EApp (dataConSymbol c) (EVar <$> xs)
+                = EApp (dummyLoc $ dataConSymbol c) (EVar <$> xs)
 
 isBaseDataCon c = and $ isBaseTy <$> dataConOrigArgTys c ++ dataConRepArgTys c
 
@@ -893,7 +890,7 @@ typeSort tce (AppTy t1 t2)
 typeSort _ τ
   = FObj $ typeUniqueSymbol τ
 
-tyConFTyCon tce c    = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce)
+tyConFTyCon tce c    = fromMaybe (stringFTycon $ dummyLoc $ tyConName c) (M.lookup c tce)
 
 typeSortForAll tce τ 
   = genSort $ typeSort tce tbody

@@ -65,7 +65,6 @@ makeGhcSpec :: Config -> ModName -> [Var] -> [Var] -> HscEnv
             -> [(ModName,Ms.BareSpec)]
             -> IO GhcSpec
 makeGhcSpec cfg name vars defVars env specs
-  -- FIXME: I can haz Monads??
   = throwOr (throwOr return . checkGhcSpec) =<< execBare act initEnv
   where
     act = makeGhcSpec' cfg vars defVars specs
@@ -297,27 +296,27 @@ exprArg _   (RVar x _)
 exprArg _   (RApp x [] [] _) 
   = EVar (stringSymbol $ showpp x)
 exprArg msg (RApp f ts [] _) 
-  = EApp (stringSymbol $ showpp f) (exprArg msg <$> ts)
+  = EApp (stringSymbol <$> f) (exprArg msg <$> ts)
 exprArg msg (RAppTy (RVar f _) t _)   
-  = EApp (stringSymbol $ showpp f) [exprArg msg t]
+  = EApp (dummyLoc $ stringSymbol $ showpp f) [exprArg msg t]
 exprArg msg z 
   = errorstar $ printf "Unexpected expression parameter: %s in %s" (show z) msg 
 
 expandPAlias :: [Symbol] -> Pred -> BareM Pred
 expandPAlias = go
   where 
-    go s p@(PBexp (EApp f es))  
-      | f `elem` s                = errorstar $ "Cyclic Predicate Alias Definition: " ++ show (f:s)
+    go s p@(PBexp (EApp f@(Loc _ f') es))
+      | f' `elem` s                = errorstar $ "Cyclic Predicate Alias Definition: " ++ show (f':s)
       | otherwise = do
           env <- gets (predAliases.rtEnv)
-          case M.lookup (symbolString f) env of
+          case M.lookup (symbolString f') env of
             Just (Left (mod,rp)) -> do
-              body <- inModule mod $ withVArgs (rtVArgs rp) $ expandPAlias (f:s) $ rtBody rp
+              body <- inModule mod $ withVArgs (rtVArgs rp) $ expandPAlias (f':s) $ rtBody rp
               let rp' = rp { rtBody = body }
               setRPAlias (show f) $ Right $ rp'
-              expandRPApp (f:s) rp' <$> mapM resolve es
+              expandRPApp (f':s) rp' <$> mapM resolve es
             Just (Right rp) ->
-              withVArgs (rtVArgs rp) (expandRPApp (f:s) rp <$> mapM resolve es)
+              withVArgs (rtVArgs rp) (expandRPApp (f':s) rp <$> mapM resolve es)
             Nothing -> fmap PBexp (EApp <$> resolve f <*> mapM resolve es)
     go s (PAnd ps)                = PAnd <$> (mapM (go s) ps)
     go s (POr  ps)                = POr  <$> (mapM (go s) ps)
@@ -329,7 +328,7 @@ expandPAlias = go
 
 expandRPApp s rp es
   = let su  = mkSubst $ safeZip msg (rtVArgs rp) es
-        msg = "expandRPApp: " ++ show (EApp (symbol $ rtName rp) es)
+        msg = "expandRPApp: " ++ show (EApp (dummyLoc $ symbol $ rtName rp) es)
     in subst su $ rtBody rp
 
 
@@ -481,7 +480,7 @@ mapTyRVar α a s@(MTVST αs as αas err)
 
 mkVarExpr v 
   | isDataConWorkId v && not (null tvs) && isNothing tfun
-  = EApp (dataConSymbol (idDataCon v)) []         
+  = EApp (dummyLoc $ dataConSymbol (idDataCon v)) []
   | otherwise   
   = EVar $ symbol v
   where t            = varType v
@@ -857,6 +856,18 @@ instance Resolvable Expr where
   resolve (ECst x s)     = ECst <$> resolve x <*> resolve s
   resolve x              = return x
 
+instance Resolvable LocSymbol where
+  resolve ls@(Loc l (S s))
+      | s `elem` fixpointPrims = return ls
+      | otherwise = do env <- gets (typeAliases.rtEnv)
+                       case M.lookup s env of
+                         Nothing | isCon s
+                           -> do v <- lookupGhcVar $ Loc l s
+                                 let qs = symbol $ showPpr v
+                                 addSym (qs,v)
+                                 return $ Loc l qs
+                         _ -> return ls
+
 instance Resolvable Symbol where
   resolve (S s)
       | s `elem` fixpointPrims = return (S s)
@@ -877,11 +888,12 @@ instance Resolvable Sort where
   resolve s@(FVar _)   = return s
   resolve (FFunc i ss) = FFunc i <$> mapM resolve ss
   resolve (FApp tc ss)
-      | tcs `elem` fixpointPrims = FApp tc <$> ss'
-      | otherwise     = FApp <$> (stringFTycon.showPpr <$> lookupGhcTyCon (dummyLoc tcs))
+      | tcs' `elem` fixpointPrims = FApp tc <$> ss'
+      | otherwise     = FApp <$> (stringFTycon.Loc l.showPpr <$> lookupGhcTyCon tcs)
                              <*> ss'
-      where tcs = fTyconString tc
-            ss' = mapM resolve ss
+      where
+        tcs@(Loc l tcs') = fTyconString tc
+        ss'              = mapM resolve ss
 
 instance Resolvable (UReft Reft) where
   resolve (U r p) = U <$> resolve r <*> resolve p
@@ -933,7 +945,7 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [0] [] (Just fsize))]
           xt     = rVar tyv
           xst    = rApp c [RVar (RTV tyv) px] [RMono [] $ pdVarReft p] top  
           cargs  = [(xs, xst), (x, xt)]
-          fsize  = \x -> EApp (S "len") [EVar x] 
+          fsize  = \x -> EApp (dummyLoc $ S "len") [EVar x]
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [0..(n-2)] [] Nothing)]
