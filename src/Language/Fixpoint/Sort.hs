@@ -113,6 +113,8 @@ checkSym f x
      Alts xs -> throwError $ errUnboundAlts x xs
 --   $ traceFix ("checkSym: x = " ++ showFix x) (f x)
 
+checkLocSym f x = checkSym f (val x)
+
 -- | Helper for checking if-then-else expressions
 
 checkIte f p e1 e2 
@@ -136,7 +138,7 @@ checkCst f t e
 -- | Helper for checking uninterpreted function applications
 
 checkApp' f to g es 
-  = do gt           <- checkSym f g
+  = do gt           <- checkLocSym f g
        (n, its, ot) <- sortFunction gt
        unless (length its == length es) $ throwError (errArgArity g its es)
        ets          <- mapM (checkExpr f) es

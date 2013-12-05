@@ -126,6 +126,11 @@ module Language.Fixpoint.Types (
 
   -- * FQ Definitions 
   , Def (..)
+
+  -- * Located Values
+  , Located (..)
+  , LocSymbol, LocString
+  , dummyLoc, dummyPos, dummyName, isDummy
   ) where
 
 import GHC.Generics         (Generic)
@@ -138,6 +143,8 @@ import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
 import Data.List            (foldl', sort, stripPrefix)
 import Data.Hashable        
+import qualified Data.Foldable as F
+import Data.Traversable
 
 import Data.Maybe           (fromMaybe)
 import Text.Printf          (printf)
@@ -147,6 +154,7 @@ import Control.Exception    (assert)
 
 import Language.Fixpoint.Misc
 import Text.PrettyPrint.HughesPJ
+import Text.Parsec.Pos
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -195,8 +203,8 @@ exprSymbols = go
   where 
     go (EVar x)        = [x]
     -- go (EDat x _)      = [x]
-    go (ELit x _)      = [x]
-    go (EApp f es)     = f : concatMap go es
+    go (ELit x _)      = [val x]
+    go (EApp f es)     = val f : concatMap go es
     go (EBin _ e1 e2)  = go e1 ++ go e2 
     go (EIte p e1 e2)  = predSymbols p ++ go e1 ++ go e2 
     go (ECst e _)      = go e
@@ -264,27 +272,27 @@ toFix_constant (c, so)
 ------------------------ Type Constructors ---------------------------
 ----------------------------------------------------------------------
 
-newtype FTycon = TC Symbol deriving (Eq, Ord, Show, Data, Typeable)
+newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable)
 
 
-intFTyCon  = TC (S "int")
-boolFTyCon = TC (S "bool")
-strFTyCon  = TC (S strConName)
-propFTyCon = TC (S propConName)
-appFTyCon  = TC (S "FAppTy")
+intFTyCon  = TC $ dummyLoc (S "int")
+boolFTyCon = TC $ dummyLoc (S "bool")
+strFTyCon  = TC $ dummyLoc (S strConName)
+propFTyCon = TC $ dummyLoc (S propConName)
+appFTyCon  = TC $ dummyLoc (S "FAppTy")
 
 -- listFTyCon = TC (S listConName)
 
 -- isListTC   = (listFTyCon ==)
-isListTC (TC (S c)) = c == listConName
-isTupTC (TC (S c))  = c == tupConName
+isListTC (TC (Loc _ (S c))) = c == listConName
+isTupTC  (TC (Loc _ (S c))) = c == tupConName
 
-fTyconString (TC s) = symbolString s
+fTyconString (TC s) = symbolString <$> s
 
-stringFTycon :: String -> FTycon
+stringFTycon :: LocString -> FTycon
 stringFTycon c 
-  | c == listConName = TC . S $ listConName
-  | otherwise        = TC $ stringSymbol c
+  | val c == listConName = TC $ fmap (S . const listConName) c
+  | otherwise            = TC $ fmap stringSymbol c
 
 -- stringSort   :: String -> Sort
 -- stringSort s = FApp (stringFTycon s) []
@@ -301,7 +309,7 @@ fAppSorts t ts        = foldl' (\t1 t2 -> FApp appFTyCon [t1, t2]) t ts
 fTyconSort :: FTycon -> Sort
 fTyconSort = (`FApp` [])
 
-fObj :: Symbol -> Sort
+fObj :: LocSymbol -> Sort
 fObj = fTyconSort . TC
 ----------------------------------------------------------------------
 ------------------------------- Sorts --------------------------------
@@ -484,8 +492,8 @@ data Bop  = Plus | Minus | Times | Div | Mod
 data Expr = ESym !SymConst  
           | ECon !Constant 
           | EVar !Symbol
-          | ELit !Symbol !Sort
-          | EApp !Symbol ![Expr]
+          | ELit !LocSymbol !Sort
+          | EApp !LocSymbol ![Expr]
           | EBin !Bop !Expr !Expr
           | EIte !Pred !Expr !Expr
           | ECst !Expr !Sort
@@ -632,7 +640,7 @@ pAnd          = simplify . PAnd
 pOr           = simplify . POr 
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3] 
 
-mkProp        = PBexp . EApp (S propConName) . (: [])
+mkProp        = PBexp . EApp (dummyLoc $ S propConName) . (: [])
 
 ppr_reft (Reft (v, ras)) d 
   | all isTautoRa ras
@@ -1536,3 +1544,69 @@ editDistance xs ys = table ! (m,n)
     dist (i,0) = i
     dist (i,j) = minimum [table ! (i-1,j) + 1, table ! (i,j-1) + 1,
         if x ! i == y ! j then table ! (i-1,j-1) else 1 + table ! (i-1,j-1)]
+
+
+-----------------------------------------------------------------------------
+-- | Located Values ---------------------------------------------------------
+-----------------------------------------------------------------------------
+
+data Located a = Loc { loc :: !SourcePos
+                     , val :: a
+                     } deriving (Data, Typeable)
+
+type LocSymbol = Located Symbol
+type LocString = Located String
+
+dummyLoc :: a -> Located a
+dummyLoc = Loc dummyPos
+
+dummyPos :: SourcePos
+dummyPos = newPos "?" 0 0
+
+isDummy :: (Show a) => a -> Bool
+isDummy a = show a == dummyName
+
+
+instance Fixpoint SourcePos where
+  toFix = text . show 
+
+instance Fixpoint a => Fixpoint (Located a) where
+  toFix = toFix . val 
+
+instance Symbolic a => Symbolic (Located a) where
+  symbol = symbol . val 
+
+instance Expression a => Expression (Located a) where
+  expr   = expr . val
+
+instance Functor Located where
+  fmap f (Loc l x) =  Loc l (f x)
+
+instance F.Foldable Located where
+  foldMap f (Loc _ x) = f x
+
+instance Traversable Located where 
+  traverse f (Loc l x) = Loc l <$> f x
+
+instance Show a => Show (Located a) where
+  show (Loc l x) = show x ++ " defined at " ++ show l
+
+instance Eq a => Eq (Located a) where
+  (Loc _ x) == (Loc _ y) = x == y
+
+instance Ord a => Ord (Located a) where
+  compare x y = compare (val x) (val y)
+
+instance Subable a => Subable (Located a) where
+  syms (Loc _ x)     = syms x
+  substa f (Loc l x) = Loc l (substa f x)
+  substf f (Loc l x) = Loc l (substf f x)
+  subst su (Loc l x) = Loc l (subst su x)
+
+instance Hashable a => Hashable (Located a) where
+  hashWithSalt i = hashWithSalt i . val
+
+instance (NFData a) => NFData (Located a) where
+  -- FIXME: no instance NFData SrcSpan
+  rnf (Loc l x) = rnf x
+

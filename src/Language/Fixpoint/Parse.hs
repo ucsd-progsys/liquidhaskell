@@ -35,6 +35,11 @@ module Language.Fixpoint.Parse (
   -- * Some Combinators
   , condIdP     -- condIdP  :: [Char] -> (String -> Bool) -> Parser String
 
+  -- * Add a Location to a parsed value
+  , locParserP
+  , locLowerIdP
+  , locUpperIdP
+
   -- * Getting a Fresh Integer while parsing
   , freshIntP
 
@@ -133,6 +138,9 @@ integer =   try (liftM toInt is)
 ------------------------- Expressions --------------------------
 ----------------------------------------------------------------
 
+locParserP :: Parser a -> Parser (Located a)
+locParserP p = liftM2 Loc getPosition p
+
 condIdP  :: [Char] -> (String -> Bool) -> Parser String
 condIdP chars f 
   = do c  <- letter
@@ -145,6 +153,9 @@ upperIdP = condIdP symChars (not . isLower . head)
 
 lowerIdP :: Parser String
 lowerIdP = condIdP symChars (isLower . head)
+
+locLowerIdP = locParserP lowerIdP 
+locUpperIdP = locParserP upperIdP
 
 symbolP :: Parser Symbol
 symbolP = liftM stringSymbol symCharsP 
@@ -175,7 +186,7 @@ exprFunP           =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCo
     exprFunSpacesP = parens $ liftM2 EApp funSymbolP (sepBy exprP spaces) 
     exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
     exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
-    funSymbolP     = symbolP -- liftM stringSymbol lowerIdP
+    funSymbolP     = locParserP symbolP -- liftM stringSymbol lowerIdP
 
 
 parenBrackets  = parens . brackets 
@@ -280,7 +291,7 @@ condP f bodyP
 fTyConP
   =   (reserved "int"  >> return intFTyCon)
   <|> (reserved "bool" >> return boolFTyCon)
-  <|> (stringFTycon   <$> upperIdP)
+  <|> (stringFTycon   <$> locUpperIdP)
 
 refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
