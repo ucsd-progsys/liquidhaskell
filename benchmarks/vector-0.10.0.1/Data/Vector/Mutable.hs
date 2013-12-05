@@ -54,6 +54,8 @@ import qualified Data.Vector.Generic.Mutable as G
 import           Data.Primitive.Array
 import           Control.Monad.Primitive
 
+import Control.DeepSeq ( NFData, rnf )
+
 import Prelude hiding ( length, null, replicate, reverse, map, read,
                         take, drop, splitAt, init, tail )
 
@@ -61,30 +63,24 @@ import Data.Typeable ( Typeable )
 
 #include "vector.h"
 
-{-@ measure elemLen :: Ptr a -> Int @-}
-{-@ peekElemOff :: Storable a => p:(Ptr a) -> {v:Nat | (v < elemLen p)} -> IO a @-}
-{-@ pokeElemOff :: Storable a => p:(Ptr a) -> {v:Nat | (v < elemLen p)} -> a -> IO () @-}
-{-@ newArray :: Storable a => xs:[a] -> IO {v:(Ptr a) | (elemLen v) = (len xs)} @-}
-
-{-@ measure mutLen :: (MutableArray s a) -> Int @-}
-
-{-@ newArray :: PrimMonad m => n:Int -> a -> m {v:(MutableArray (PrimState m) a) | (mutLen v) = n} @-}
-
 -- | Mutable boxed vectors keyed on the monad they live in ('IO' or @'ST' s@).
 data MVector s a = MVector {-# UNPACK #-} !Int
                            {-# UNPACK #-} !Int
                            {-# UNPACK #-} !(MutableArray s a)
         deriving ( Typeable )
 
-{-@ data MVector s a = MVector { off :: Nat 
-                               , len :: Nat 
-                               , arr :: {v : (MutableArray s a) | off + len <= (mutLen v) }
-                               }
-  @-}
-
-
 type IOVector = MVector RealWorld
 type STVector s = MVector s
+
+-- NOTE: This seems unsafe, see http://trac.haskell.org/vector/ticket/54
+{-
+instance NFData a => NFData (MVector s a) where
+    rnf (MVector i n arr) = unsafeInlineST $ force i
+        where
+          force !ix | ix < n    = do x <- readArray arr ix
+                                     rnf x `seq` force (ix+1)
+                    | otherwise = return ()
+-}
 
 instance G.MVector MVector a where
   {-# INLINE basicLength #-}

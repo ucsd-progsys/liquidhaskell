@@ -1,21 +1,19 @@
+{-@ LIQUID "--no-termination" @-}
+
 module TellingLies where
 
-import Prelude  hiding (repeat)
-import Language.Haskell.Liquid.Prelude (liquidAssert)
+import Language.Haskell.Liquid.Prelude (liquidError)
 
--- | Why is Termination Analysis Required
-
-{-@ Lazy foo @-}
-{-@ foo :: Int -> {v:Int | false} @-}
+divide  :: Int -> Int -> Int
 foo     :: Int -> Int
-foo n   = foo n
+explode :: Int
 
+-- | Going Wrong 
+{-@ divide :: n:Int -> d:{v:Int | v /= 0} -> Int @-}
+divide n 0 = liquidError "no you didn't!"
+divide n d = n `div` d
 
-prop = liquidAssert ((\_ -> 0==1) (foo 0))
+{-@ foo :: n:Int -> {v:Nat | v < n} @-}
+foo n | n > 0     = n - 1
+      | otherwise = foo n
 
--- | Turning off Termination Checking
-
-{-@ Lazy repeat @-}
-{-@ repeat :: a -> [a] @-}
-repeat     :: a -> [a]
-repeat a   = a : repeat a

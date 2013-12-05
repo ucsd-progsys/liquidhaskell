@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- |
 -- Module      : Data.Vector.Internal.Check
 -- Copyright   : (c) Roman Leshchinskiy 2009
@@ -30,16 +32,19 @@ import qualified Prelude as P
 infixr 2 ||
 infixr 3 &&
 
+{-@ not :: b:Bool -> {v:Bool | ((Prop v) <=> ~(Prop b))} @-}
 not :: Bool -> Bool
 {-# INLINE not #-}
 not True = False
 not False = True
 
+{-@ (&&) :: x:Bool -> y:Bool -> {v:Bool | ((Prop v) <=> ((Prop x) && (Prop y)))} @-}
 (&&) :: Bool -> Bool -> Bool
 {-# INLINE (&&) #-}
 False && x = False
 True && x = x
 
+{-@ (||) :: x:Bool -> y:Bool -> {v:Bool | ((Prop v) <=> ((Prop x) || (Prop y)))} @-}
 (||) :: Bool -> Bool -> Bool
 {-# INLINE (||) #-}
 True || x = True
@@ -84,7 +89,6 @@ error :: String -> Int -> String -> String -> a
 error file line loc msg
   = P.error $ error_msg file line loc msg
 
-{-@ internalError :: {v:String | false} -> Int -> String -> String -> a @-}
 internalError :: String -> Int -> String -> String -> a
 {-# NOINLINE internalError #-}
 internalError file line loc msg
@@ -94,7 +98,6 @@ internalError file line loc msg
         ,error_msg file line loc msg]
 
 
-{-@ checkError :: {v:String | false} -> Int -> Checks -> String -> String -> a @-}
 checkError :: String -> Int -> Checks -> String -> String -> a
 {-# NOINLINE checkError #-}
 checkError file line kind loc msg
@@ -102,7 +105,6 @@ checkError file line kind loc msg
       Internal -> internalError file line loc msg
       _ -> error file line loc msg
 
-{-@ check :: String -> Int -> Checks -> String -> String -> {v:Bool | (Prop v)} -> a -> a @-}
 check :: String -> Int -> Checks -> String -> String -> Bool -> a -> a
 {-# INLINE check #-}
 check file line kind loc msg cond x
@@ -145,7 +147,6 @@ checkSlice_msg# :: Int# -> Int# -> Int# -> String
 {-# NOINLINE checkSlice_msg# #-}
 checkSlice_msg# i# m# n# = "invalid slice " ++ show (I# i#, I# m#, I# n#)
 
-{-@ checkSlice :: String -> Int -> Checks -> String -> i:Nat -> m:Nat -> n:{v:Int | i + m <= v} -> a -> a @-}
 checkSlice :: String -> Int -> Checks -> String -> Int -> Int -> Int -> a -> a
 {-# INLINE checkSlice #-}
 checkSlice file line kind loc i m n x

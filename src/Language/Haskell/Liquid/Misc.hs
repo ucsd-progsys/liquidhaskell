@@ -15,6 +15,11 @@ safeIndex err n ls
   | otherwise 
   = ls !! n
 
+(!?) :: [a] -> Int -> Maybe a
+[]     !? _ = Nothing
+(x:_)  !? 0 = Just x
+(_:xs) !? n = xs !? (n-1)
+
 safeFromJust err (Just x) = x
 safeFromJust err _        = errorstar err
 
