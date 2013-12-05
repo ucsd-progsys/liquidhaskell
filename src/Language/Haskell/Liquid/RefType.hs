@@ -50,7 +50,7 @@ module Language.Haskell.Liquid.RefType (
 
 import Var
 import Literal
-import GHC
+import GHC              hiding (Located)
 import DataCon
 import PrelInfo         (isNumericClass)
 import qualified TyCon  as TC
@@ -204,10 +204,16 @@ instance TyConable RTyCon where
 
 -- MOVE TO TYPES
 instance TyConable String where
-  isFun   = (funConName ==) 
-  isList  = (listConName ==) 
+  isFun   = (funConName ==)
+  isList  = (listConName ==)
   isTuple = (tupConName ==)
   ppTycon = text
+
+instance TyConable LocString where
+  isFun   = (funConName ==) . val
+  isList  = (listConName ==) . val
+  isTuple = (tupConName ==) . val
+  ppTycon = text . val
 
 
 -- RefTypable Instances -------------------------------------------------------
@@ -242,7 +248,7 @@ instance FreeVar RTyCon RTyVar where
   freeVars = (RTV <$>) . tyConTyVars . rTyCon
 
 -- MOVE TO TYPES
-instance FreeVar String String where
+instance FreeVar LocString String where
   freeVars _ = []
 
 ppClass_String    c _  = pprint c <+> text "..."
@@ -447,7 +453,7 @@ appRTyCon tce tyi rc@(RTyCon c _ _) ts = RTyCon c ps' (rTyConInfo rc'')
         αs  = TC.tyConTyVars $ rTyCon rc'
         rc'' = if isNumeric tce rc' then addNumSizeFun rc' else rc'
 isNumeric tce c 
-  =  (fromMaybe (stringFTycon $ tyConName (rTyCon c)))
+  =  (fromMaybe (stringFTycon . dummyLoc $ tyConName (rTyCon c)))
        (M.lookup (rTyCon c) tce) == intFTyCon
 
 addNumSizeFun c 
@@ -670,7 +676,7 @@ instance SubsTy RTyVar RSort RSort where
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
 
 -- Here the "String" is a Bare-TyCon. TODO: wrap in newtype 
-instance SubsTy String BSort String where
+instance SubsTy String BSort LocString where
   subt _ t = t
 
 instance SubsTy String BSort BSort where
@@ -758,7 +764,7 @@ dataConReft c xs
   where dcValue | null xs && null (dataConUnivTyVars c) 
                 = EVar $ dataConSymbol c
                 | otherwise
-                = EApp (dataConSymbol c) (EVar <$> xs)
+                = EApp (dummyLoc $ dataConSymbol c) (EVar <$> xs)
 
 isBaseDataCon c = and $ isBaseTy <$> dataConOrigArgTys c ++ dataConRepArgTys c
 
@@ -884,7 +890,7 @@ typeSort tce (AppTy t1 t2)
 typeSort _ τ
   = FObj $ typeUniqueSymbol τ
 
-tyConFTyCon tce c    = fromMaybe (stringFTycon $ tyConName c) (M.lookup c tce)
+tyConFTyCon tce c    = fromMaybe (stringFTycon $ dummyLoc $ tyConName c) (M.lookup c tce)
 
 typeSortForAll tce τ 
   = genSort $ typeSort tce tbody

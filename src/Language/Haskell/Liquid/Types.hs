@@ -20,6 +20,7 @@ module Language.Haskell.Liquid.Types (
 
   -- * Located Things
   , Located (..)
+  , dummyLoc
 
   -- * Symbols
   , LocSymbol
@@ -32,7 +33,7 @@ module Language.Haskell.Liquid.Types (
   , mkArrow, bkArrowDeep, bkArrow, safeBkArrow 
   , mkUnivs, bkUniv, bkClass
   , rFun
-  ,addTermCond
+  , addTermCond
 
   -- * Manipulating Predicate
   , pvars
@@ -119,6 +120,7 @@ import Language.Haskell.Liquid.GhcMisc
 
 import Control.Arrow (second)
 import Control.Monad  (liftM, liftM2, liftM3)
+import qualified Control.Monad.Error as Ex
 import Control.DeepSeq
 import Control.Applicative          ((<$>))
 import Data.Typeable                (Typeable)
@@ -194,63 +196,6 @@ data PPEnv
 ppEnv           = ppEnvPrintPreds
 ppEnvCurrent    = PP False False
 ppEnvPrintPreds = PP True False
-
-
------------------------------------------------------------------------------
--- | Located Values ---------------------------------------------------------
------------------------------------------------------------------------------
-
-data Located a = Loc { loc :: !SourcePos
-                     , val :: a
-                     }
-
-type LocSymbol = Located Symbol
-type LocString = Located String
-
-dummyName = "dummy"
-
-isDummy :: (Show a) => a -> Bool
-isDummy a = show a == dummyName
-
-
-instance Fixpoint SourcePos where
-  toFix = text . show 
-
-instance Fixpoint a => Fixpoint (Located a) where
-  toFix = toFix . val 
-
-instance Symbolic a => Symbolic (Located a) where
-  symbol = symbol . val 
-
-instance Expression a => Expression (Located a) where
-  expr   = expr . val
-
-instance Functor Located where
-  fmap f (Loc l x) =  Loc l (f x)
-
-instance F.Foldable Located where
-  foldMap f (Loc _ x) = f x
-
-instance Traversable Located where 
-  traverse f (Loc l x) = Loc l <$> f x
-
-instance Show a => Show (Located a) where
-  show (Loc l x) = show x ++ " defined at " ++ show l
-
-instance Eq a => Eq (Located a) where
-  (Loc _ x) == (Loc _ y) = x == y
-
-instance Ord a => Ord (Located a) where
-  compare x y = compare (val x) (val y)
-
-instance Subable a => Subable (Located a) where
-  syms (Loc _ x)     = syms x
-  substa f (Loc l x) = Loc l (substa f x)
-  substf f (Loc l x) = Loc l (substf f x)
-  subst su (Loc l x) = Loc l (subst su x)
-
-instance Hashable a => Hashable (Located a) where
-  hashWithSalt i = hashWithSalt i . val
 
 
 
@@ -503,7 +448,7 @@ data RType p c tv r
 -- MOVE TO TYPES
 
 data Ref t s m 
-  = RMono [(Symbol, t)] s 
+  = RMono [(Symbol, t)] s
   | RPoly [(Symbol, t)] m
 
 -- MOVE TO TYPES
@@ -511,8 +456,8 @@ data UReft r
   = U { ur_reft :: !r, ur_pred :: !Predicate }
 
 -- MOVE TO TYPES
-type BRType     = RType String String String   
-type RRType     = RType Class  RTyCon RTyVar   
+type BRType     = RType LocString LocString String
+type RRType     = RType Class     RTyCon    RTyVar
 
 type BSort      = BRType    ()
 type RSort      = RRType    ()
@@ -556,12 +501,18 @@ class ( TyConable c
 --------------------------------------------------------------------------
 
 -- | Data type refinements
-data DataDecl   = D { tycName   :: String                           -- ^ Type  Constructor Name 
-                    , tycTyVars :: [String]                         -- ^ Tyvar Parameters
-                    , tycPVars  :: [PVar BSort]                     -- ^ PVar  Parameters
-                    , tycDCons  :: [(String, [(String, BareType)])] -- ^ [DataCon, [(fieldName, fieldType)]]   
-                    , tycSrcPos :: !SourcePos                       -- ^ Source Position
-                    , tycSFun   :: (Maybe (Symbol -> Expr))         -- ^ Measure that should decrease in recursive calls
+data DataDecl   = D { tycName   :: LocString
+                                -- ^ Type  Constructor Name
+                    , tycTyVars :: [String]
+                                -- ^ Tyvar Parameters
+                    , tycPVars  :: [PVar BSort]
+                                -- ^ PVar  Parameters
+                    , tycDCons  :: [(LocString, [(String, BareType)])]
+                                -- ^ [DataCon, [(fieldName, fieldType)]]
+                    , tycSrcPos :: !SourcePos
+                                -- ^ Source Position
+                    , tycSFun   :: (Maybe (Symbol -> Expr))
+                                -- ^ Measure that should decrease in recursive calls
                     }
      --              deriving (Show) 
 
@@ -1029,6 +980,9 @@ instance Eq Error where
 
 instance Ord Error where 
   e1 <= e2 = pos e1 <= pos e2
+
+instance Ex.Error Error where
+  strMsg = ErrOther . text
 
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------

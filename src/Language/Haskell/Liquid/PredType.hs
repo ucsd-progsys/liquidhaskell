@@ -317,7 +317,7 @@ isPredInURef p (U _ (Pr ps)) = any (uPVar p ==) ps
 meetListWithPSubs πs ss r1 r2    = foldl' (meetListWithPSub ss r1) r2 πs
 meetListWithPSubsRef πs ss r1 r2 = foldl' ((meetListWithPSubRef ss) r1) r2 πs
 
--- meetListWithPSub ::  (Reftable r, PPrint t) => [(Symbol, RSort)]-> r -> r -> PVar t -> r
+meetListWithPSub ::  (Reftable r, PPrint t) => [(Symbol, RSort)]-> r -> r -> PVar t -> r
 meetListWithPSub ss r1 r2 π
   | all (\(_, x, EVar y) -> x == y) (pargs π)
   = r2 `meet` r1
@@ -431,8 +431,8 @@ pappSort n = FFunc (2 * n) $ [ptycon] ++ args ++ [bSort]
  
 wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 
-predFTyCon = stringFTycon predName
+predFTyCon = stringFTycon $ dummyLoc predName
 
 pApp :: Symbol -> [F.Expr] -> Pred
-pApp p es= PBexp $ EApp (pappSym $ length es) (EVar p:es)
+pApp p es= PBexp $ EApp (dummyLoc $ pappSym $ length es) (EVar p:es)
 

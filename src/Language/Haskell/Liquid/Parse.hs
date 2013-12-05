@@ -164,13 +164,13 @@ bbaseP
  <|> try (liftM2 bAppTy lowerIdP (sepBy1 bareTyArgP blanks))
 --  <|> try (liftM2 bAppTy lowerIdP bareTyArgP)
  <|> try (liftM2 bRVar lowerIdP monoPredicateP)
- <|> liftM3 bCon upperIdP predicatesP (sepBy bareTyArgP blanks)
+ <|> liftM3 bCon locUpperIdP predicatesP (sepBy bareTyArgP blanks)
 
 bbaseNoAppP :: Parser (Reft -> BareType)
 bbaseNoAppP
   =  liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
- <|> try (liftM3 bCon upperIdP predicatesP (return []))
+ <|> try (liftM3 bCon locUpperIdP predicatesP (return []))
  <|> liftM2 bRVar lowerIdP monoPredicateP 
 
 maybeP p = liftM Just p <|> return Nothing
@@ -276,7 +276,7 @@ bareArrow _ t1 ArrowPred t2
   = foldr (rFun dummySymbol) t2 (getClasses t1)
 
 
-isPropBareType (RApp tc [] _ _) = tc == propConName
+isPropBareType (RApp tc [] _ _) = val tc == propConName
 isPropBareType _                = False
 
 
@@ -357,12 +357,12 @@ bRPoly syms' expr = RPoly ss $ bRVar dummyName top r
         r    = su `subst` Reft(v, expr)
 
 bRVar α p r               = RVar α (U r p)
-bLst (Just t) rs r        = RApp listConName [t] rs (reftUReft r)
-bLst (Nothing) rs r       = RApp listConName []  rs (reftUReft r)
+bLst (Just t) rs r        = RApp (dummyLoc listConName) [t] rs (reftUReft r)
+bLst (Nothing) rs r       = RApp (dummyLoc listConName) []  rs (reftUReft r)
 
 bTup [t] _ r | isTauto r  = t
              | otherwise  = t `strengthen` (reftUReft r) 
-bTup ts rs r              = RApp tupConName ts rs (reftUReft r)
+bTup ts rs r              = RApp (dummyLoc tupConName) ts rs (reftUReft r)
 
 bCon b [RMono _ r1] [] r  = RApp b [] [] (r1 `meet` (reftUReft r)) 
 bCon b rs ts r            = RApp b ts rs (reftUReft r)
@@ -426,12 +426,12 @@ mkSpec name xs         = (name,)
   , Measure.termexprs  = [(y, es) | Assms (ys, (_, Just es)) <- xs, y <- ys]
   }
 
-specP :: Parser (Pspec BareType Symbol)
+specP :: Parser (Pspec BareType LocSymbol)
 specP 
   = try (reserved "assume"    >> liftM Assm   tyBindP   )
     <|> (reserved "assert"    >> liftM Assm   tyBindP   )
     <|> (reserved "measure"   >> liftM Meas   measureP  ) 
-    <|> try (reserved "class"     >> reserved "measure" >> liftM CMeas cMeasureP)
+    <|> try (reserved "class" >> reserved "measure" >> liftM CMeas cMeasureP)
     <|> (reserved "instance"  >> reserved "measure" >> liftM IMeas iMeasureP)
     <|> (reserved "class"     >> liftM Class  classP    )
     <|> (reserved "import"    >> liftM Impt   symbolP   )
@@ -485,16 +485,13 @@ termTypeP
        es <- brackets $ sepBy exprP comma
        return (t, Just es)
 
-locParserP :: Parser a -> Parser (Located a)
-locParserP p = liftM2 Loc getPosition p
-
 invariantP   = locParserP genBareTypeP 
 
 genBareTypeP
   = bareTypeP -- liftM generalize bareTypeP 
 
 embedP 
-  = xyP (locParserP upperIdP) (reserved "as") fTyConP
+  = xyP locUpperIdP (reserved "as") fTyConP
 
 
 aliasP  = rtAliasP id           bareTypeP
@@ -513,7 +510,7 @@ rtAliasP f bodyP
 aliasIdP :: Parser String
 aliasIdP = condIdP (['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']) (isAlpha . head) 
 
-measureP :: Parser (Measure BareType Symbol)
+measureP :: Parser (Measure BareType LocSymbol)
 measureP 
   = do (x, ty) <- tyBindP  
        whiteSpace
@@ -525,7 +522,7 @@ cMeasureP
   = do (x, ty) <- tyBindP
        return $ Measure.mkM x ty []
 
-iMeasureP :: Parser (Measure BareType Symbol)
+iMeasureP :: Parser (Measure BareType LocSymbol)
 iMeasureP = measureP
   -- = do m   <- locParserP symbolP
   --      ty  <- genBareTypeP
@@ -536,7 +533,7 @@ iMeasureP = measureP
 classP :: Parser (RClass BareType)
 classP
   = do sups <- superP
-       c <- locParserP upperIdP
+       c <- locUpperIdP
        spaces
        tvs <- manyTill tyVarIdP (try $ reserved "where")
        ms <- grabs tyBindP
@@ -554,7 +551,7 @@ rawBodyP
       p <- predP
       return $ R v p
 
--- tyBodyP :: BareType -> Parser Body
+tyBodyP :: BareType -> Parser Body
 tyBodyP ty 
   = case outTy ty of
       Just bt | isPropBareType bt -> P <$> predP
@@ -576,7 +573,7 @@ binderP    =  try $ stringSymbol <$> idP badc
 grabs p = try (liftM2 (:) p (grabs p)) 
        <|> return []
 
-measureDefP :: Parser Body -> Parser (Def Symbol)
+measureDefP :: Parser Body -> Parser (Def LocSymbol)
 measureDefP bodyP
   = do mname   <- locParserP symbolP
        (c, xs) <- {- ORIGINAL parens $ -} measurePatP
@@ -584,7 +581,7 @@ measureDefP bodyP
        body    <- bodyP 
        whiteSpace
        let xs'  = (stringSymbol . val) <$> xs
-       return   $ Def mname (stringSymbol c) xs' body
+       return   $ Def mname (stringSymbol <$> c) xs' body
 
 -- ORIGINAL
 -- measurePatP :: Parser (String, [LocString])
@@ -593,7 +590,7 @@ measureDefP bodyP
 --  <|> try (liftM3 (\x c y -> (c, [x,y])) locLowerIdP colon locLowerIdP)
 --  <|> (brackets whiteSpace  >> return ("[]",[])) 
 
-measurePatP :: Parser (String, [LocString])
+measurePatP :: Parser (LocString, [LocString])
 measurePatP 
   =  try tupPatP 
  <|> try (parens conPatP)
@@ -601,16 +598,15 @@ measurePatP
  <|>     (parens nilPatP)
 
 tupPatP  = mkTupPat  <$> (parens       $  sepBy locLowerIdP comma)
-conPatP  = (,)       <$> dataConNameP <*> sepBy locLowerIdP whiteSpace 
+conPatP  = (,)       <$> locParserP dataConNameP <*> sepBy locLowerIdP whiteSpace
 consPatP = mkConsPat <$> locLowerIdP  <*> colon <*> locLowerIdP
 nilPatP  = mkNilPat  <$> brackets whiteSpace 
 
 mkTupPat zs     = (tupDataCon (length zs), zs)
-mkNilPat _      = ("[]", []    )
-mkConsPat x c y = (":" , [x, y]) 
+mkNilPat _      = (dummyLoc "[]", []    )
+mkConsPat x c y = (dummyLoc ":" , [x, y])
 
-tupDataCon n    = "(" ++ replicate (n - 1) ',' ++ ")"
-locLowerIdP = locParserP lowerIdP 
+tupDataCon n    = dummyLoc $ "(" ++ replicate (n - 1) ',' ++ ")"
 
 {- len (Cons x1 x2 ...) = e -}
 
@@ -627,14 +623,14 @@ predTypeDDP
   = liftM2 (,) bbindP bareTypeP
 
 dataConP
-  = do x   <- dataConNameP 
+  = do x   <- locParserP dataConNameP
        spaces
        xts <- dataConFieldsP
        return (x, xts)
 
 -- dataConNameP = symbolString <$> binderP -- upperIdP
 dataConNameP 
-  =  try upperIdP 
+  =  try upperIdP
  <|> pwr <$> parens (idP bad)
   where 
      idP p  = many1 (satisfy (not . p))
@@ -642,9 +638,9 @@ dataConNameP
      pwr s  = "(" ++ s ++ ")" 
 
 dataSizeP 
-  = (brackets $ (Just . mkFun) <$> lowerIdP)
+  = (brackets $ (Just . mkFun) <$> locLowerIdP)
   <|> return Nothing
-  where mkFun s = \x -> EApp (stringSymbol s) [EVar x] 
+  where mkFun s = \x -> EApp (stringSymbol <$> s) [EVar x]
 
 dataDeclP 
    =  try dataDeclFullP
@@ -652,14 +648,14 @@ dataDeclP
 
 dataDeclSizeP
   = do pos <- getPosition
-       x   <- upperIdP
+       x   <- locUpperIdP
        spaces
        fsize <- dataSizeP
        return $ D x [] [] [] pos fsize
 
 dataDeclFullP
   = do pos <- getPosition
-       x   <- upperIdP
+       x   <- locUpperIdP
        spaces
        fsize <- dataSizeP
        spaces
@@ -695,7 +691,7 @@ specWraps = betweenMany (string "{-@" >> spaces) (spaces >> string "@-}")
 instance Inputable BareType where
   rr' = doParse' bareTypeP 
 
-instance Inputable (Measure BareType Symbol) where
+instance Inputable (Measure BareType LocSymbol) where
   rr' = doParse' measureP
 
 
