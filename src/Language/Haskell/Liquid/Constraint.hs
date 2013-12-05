@@ -433,13 +433,13 @@ splitC (SubR γ r)
 
 splitCIndexed γ t1s t2s indexes 
   = concatMapM splitC (zipWith (SubC γ) t1s' t2s')
-  where t1s' = (L.!!) t1s <$> indexes
-        t2s' = (L.!!) t2s <$> indexes
+  where t1s' = catMaybes $ (!?) t1s <$> indexes
+        t2s' = catMaybes $ (!?) t2s <$> indexes
 
 rsplitCIndexed γ t1s t2s indexes 
   = concatMapM (rsplitC γ) (safeZip "rsplitC" t1s' t2s')
-  where t1s' = (L.!!) t1s <$> indexes
-        t2s' = (L.!!) t2s <$> indexes
+  where t1s' = catMaybes $ (!?) t1s <$> indexes
+        t2s' = catMaybes $ (!?) t2s <$> indexes
 
 
 bsplitC γ t1 t2 = pruneRefs <$> get >>= return . bsplitC' γ t1 t2
@@ -782,8 +782,10 @@ trueTy t
 
 refreshArgs t 
   = do xs' <- mapM (\_ -> fresh) xs
-       let su = F.mkSubst $ zip xs (F.EVar <$> xs')
-       let t' = mkArrow αs πs (zip xs' (F.subst su <$> ts)) (F.subst su tbd)
+       let sus = F.mkSubst <$> (L.inits $ zip xs (F.EVar <$> xs'))
+       let su  = last sus 
+       let ts' = zipWith F.subst sus ts
+       let t'  = mkArrow αs πs (zip xs' ts') (F.subst su tbd)
        return t' -- $ traceShow ("refreshArgs: t = " ++ showpp t) t'
   where (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
@@ -1284,8 +1286,9 @@ unfoldR dc td (RApp _ ts rs _) ys = (t3, tvys ++ yts, rt)
   where 
         tbody           = instantiatePvs (instantiateTys td ts) $ reverse rs
         (ys0, yts', rt) = safeBkArrow $ instantiateTys tbody tvs'
-        (t3:yts)        = F.subst su <$> (rt:yts')
-        su              = F.mkSubst [(x, F.EVar y) | (x, y) <- zip ys0 ys']
+        yts''           = zipWith F.subst sus (yts'++[rt])
+        (t3,yts)        = (last yts'', init yts'')
+        sus             = F.mkSubst <$> (L.inits [(x, F.EVar y) | (x, y) <- zip ys0 ys'])
         (αs, ys')       = mapSnd (F.symbol <$>) $ L.partition isTyVar ys
         tvs'            = rVar <$> αs
         tvys            = ofType . varType <$> αs

@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-@ LIQUID "--no-termination" @-}
 
+{-@ LIQUID "--no-termination" @-}
 
 module LinSpace (dotPV) where
 
@@ -19,10 +19,32 @@ data PVector = PVector {
 data Space a = Null | Real a Integer
   deriving (Show, Eq)
 
+-- RJ: Refined definition of PVector with key invariants 
+{-@ data PVector = PVector { 
+      vec_  :: [Integer]   
+    , mu_   :: [Integer] 
+    , orth_ :: {v: (Space (PVectorN (len vec_))) | (dim v) = (len mu_)}
+    } 
+  @-}
+
+{-@ data Space [dim] @-}
+
 {-@ measure dim     :: (Space PVector) -> Int 
     dim (Null)      = 0
     dim (Real pv n) = 1 + (dim (orthSpace pv))
   @-}
+
+{-@ measure spaceVec     :: (Space PVector) -> PVector
+    spaceVec (Real pv n) = pv
+  @-}
+
+-- ASSERT1 : length muCoeff == dim orthSpace
+-- RJ: this is captured in the (dim v) = (len mu_)
+
+-- ASSERT2 : maybe True (\(v,_) -> length vec == length (vec v)) orthSpace 
+-- RJ:  this is captured by `orth_ :: (Space (PVectorN (len vec_)))` 
+
+-- RJ: Should auto-generate from `data` definition
 
 {-@ measure vec :: PVector -> [Integer]
     vec (PVector v m o) = v 
@@ -36,35 +58,20 @@ data Space a = Null | Real a Integer
     orthSpace (PVector v m o) = o
   @-}
 
+{-@ invariant {v: PVector | (Inv v) }    @-}
+{-@ invariant {v: Space | (dim v) >= 0 } @-}
+
+-- RJ: Helpers for defining properties
+
 {-@ predicate Inv V        = (dim (orthSpace V)) = (len (muCoeff V)) @-}
 {-@ predicate SameLen  X Y = ((len (vec X))  = (len (vec Y)))  @-}
 {-@ predicate SameOrth X Y = ((orthSpace X) = (orthSpace Y)) @-}
+
+-- RJ: Useful type aliases for specs
+
 {-@ type SameSpace X       = {v:PVector | ((Inv v) && (SameLen X v) && (SameOrth X v))} @-}
-
-{-@ invariant {v: PVector | (Inv v) } @-}
-
-{-@ measure isReal     :: (Space a) -> Prop
-    isReal (Null)      = false
-    isReal (Real pv n) = true
-  @-}
-
-{-@ measure spaceVec     :: (Space PVector) -> PVector
-    spaceVec (Real pv n) = pv
-  @-}
-
--- ASSERT: length muCoeff == dim orthSpace
--- ASSERT: maybe True (\(v,_) -> length vec == length (vec v)) orthSpace 
-
 {-@ type PVectorN N = {v: PVector | (len (vec v)) = N}   @-} 
 {-@ type PVectorP P = {v: PVector | (SameLen v P)}       @-} 
-
-{-@ data PVector = PVector { 
-      vec_  :: [Integer]   
-    , mu_   :: [Integer] 
-    , orth_ :: {v: (Space (PVectorN (len vec_))) | (dim v) = (len mu_)}
-    } 
-  @-}
-
 
 --------------------
 -- "dim" and "sameSpace" are only used in the ASSERTs
@@ -95,6 +102,7 @@ detPV :: PVector -> Integer
 detPV (PVector _ _ Null)       = 1
 detPV (PVector _ _ (Real _ n)) = n
 
+-- RJ: also, output PVector has the same orthspace...
 -- peel off last layer of projection from PVector
 -- ASSERT: dim (orthSpace (liftPV v)) == dim (orthSpace v) - 1
 {-@ liftPV :: pv:PVector -> {v:(PVectorP pv) | ((orthSpace v) = (orthSpace (spaceVec (orthSpace pv))) && ((dim (orthSpace v)) = (dim (orthSpace pv)) - 1))} @-}
@@ -109,8 +117,8 @@ dot xs ys = sum (zipWith (*) xs ys)
 
 
 -- scaled dot product of two projected vectors: output is <v*,w*>det^2(orthSpace) 
-{-@ dotPV :: pv1:PVector -> pv2:(SameSpace pv1) -> Integer @-}
 -- ASSERT: (dotPV x y) ==> sameSpace x y
+{-@ dotPV :: pv1:PVector -> pv2:(SameSpace pv1) -> Integer @-}
 dotPV (PVector v1 [] _) (PVector v2 [] _) 
   = dot v1 v2
 dotPV pv1@(PVector _ mu1 _) pv2@(PVector _ mu2 _) 
@@ -121,12 +129,12 @@ dotPV pv1@(PVector _ mu1 _) pv2@(PVector _ mu2 _)
     x           = dd * rr - (head mu1) * (head mu2)
     (q, 0)      = divMod x (detPV pv0) -- check remainder is 0
 
-{-@ (.+.) :: x:PVector -> (SameSpace x) -> (SameSpace x) @-}
 -- ASSERT: (x .+. y) ==> sameSpace x y
+{-@ (.+.) :: x:PVector -> (SameSpace x) -> (SameSpace x) @-}
 (PVector v1 m1 o) .+. (PVector v2 m2 _) = PVector (zipWith  (+) v1 v2) (zipWith (+) m1 m2) o
 
-{-@ (.-.) :: x:PVector -> (SameSpace x) -> (SameSpace x) @-}
 -- ASSERT: (x .-. y) ==> sameSpace x y
+{-@ (.-.) :: x:PVector -> (SameSpace x) -> (SameSpace x) @-}
 (PVector v1 m1 o) .-. (PVector v2 m2 _) = PVector (zipWith  (-) v1 v2) (zipWith (-) m1 m2) o
 
 {-@ (*.) :: Integer -> x:PVector -> (SameSpace x) @-}
@@ -148,14 +156,14 @@ makePVector v s@(Real s1 _) =
   let v1 = makePVector v (orthSpace_ s1) 
   in PVector v (dotPV v1 s1 : muCoeff_ v1)  s
 
--- RANJIT: does this need an input like [],[1],[1,2],[1,2,3],... etc?
-gramSchmidt :: [[Integer]] -> Space PVector
-gramSchmidt = foldl (\sp v -> makeSpace (makePVector v sp)) Null 
+{-@ gramSchmidt :: n:Nat -> [(List Integer n)] -> (Space (PVectorN n)) @-}
+gramSchmidt (n :: Int) = foldl (\sp v -> makeSpace (makePVector v sp)) Null 
 
-getBasis :: Space PVector -> [[Integer]]
-getBasis s = worker s [] where
-  worker Null bs = bs
-  worker (Real pv _) bs = worker (orthSpace_ pv) (vec pv : bs)
+{-@ getBasis :: n:Nat -> Space (PVectorN n) -> [(List Integer n)] @-}
+getBasis (n::Int) s = worker s [] 
+  where
+    worker Null bs = bs
+    worker (Real pv _) bs = worker (orthSpace_ pv) (vec pv : bs)
 
 {-@ qualif EqMu(v:PVector, x:PVector): (len (muCoeff v)) = (len (muCoeff x)) @-}
 
@@ -165,9 +173,9 @@ sizeReduce1 pv@(PVector v (m:_) sn@(Real _ r)) =
       n  = length v    
   in  pv  .-.  (c *. (space2vec n sn))
 
+-- ASSERT: sameSpace (sizeReduce x) x
 {-@ sizeReduce :: x:PVector -> (SameSpace x) @-}
 sizeReduce pv@(PVector v [] Null) = pv
--- ASSERT: sameSpace (sizeReduce x) x
 sizeReduce pv@(PVector _ _ sp@(Real _ _)) = 
   let pv1 = sizeReduce1 pv
       (PVector v mu _) = sizeReduce (liftPV pv1)
@@ -194,19 +202,24 @@ enumCVP t@(PVector _ (_:_) (Real bn _)) r =
 
 -- make this parametric on n
 {- Fraction free LLL Algorithm with exact arithmetic and delta=99/100 -}
-{-@ lll :: n:Int -> [{v:[Integer]| (len v) = n}] -> [[Integer]] @-}
+{-@ lll :: n:Nat -> [(List Integer n)] -> [(List Integer n)] @-}
 lll :: Int -> [[Integer]] -> [[Integer]]
-lll n = getBasis . worker Null Nothing where
-  worker :: Space PVector -> Maybe PVector -> [[Integer]] -> Space PVector
-  worker bs Nothing [] = bs
-  worker bs Nothing (v:vs) = worker bs (Just (makePVector v bs)) vs
-  worker Null (Just pv) vs = worker (makeSpace pv) Nothing vs
-  worker (Real bn r) (Just pv) vs = 
+lll n = getBasis n . lll_worker n Null Nothing
+
+{-@ lll_worker :: n:Nat -> (Space (PVectorN n)) -> (Maybe (PVectorN n)) -> [(List Integer n)] -> (Space (PVectorN n)) @-}
+lll_worker (n :: Int) bs Nothing [] = bs
+lll_worker n bs Nothing (v:vs)      = lll_worker n bs (Just (makePVector v bs)) vs
+lll_worker n Null (Just pv) vs      = lll_worker n (makeSpace pv) Nothing vs
+lll_worker n (Real bn r) (Just pv) vs = 
     let pv1 = sizeReduce pv
         pv2 = liftPV pv1
     in if (100*(dotPV pv2 pv2) < 99*r)
-       then worker (orthSpace_ bn) (Just pv2) (vec bn : vs)
-       else worker (makeSpace pv1) Nothing vs
+       then lll_worker n (orthSpace_ bn) (Just pv2) (vec bn : vs)
+       else lll_worker n (makeSpace pv1) Nothing vs
+
+------------------------------------------------------------------------------------
+-- RJ: Included for illustration...
+------------------------------------------------------------------------------------
 
 {-@ type List a N = {v : [a] | (len v) = N} @-}
 
