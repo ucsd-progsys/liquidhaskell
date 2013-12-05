@@ -564,7 +564,7 @@ initCGI cfg info = CGInfo {
                                
 
 coreBindLits tce info
-  = sortNub      $ [ (x, so) | (_, Just (F.ELit x so)) <- lconsts]
+  = sortNub      $ [ (val x, so) | (_, Just (F.ELit x so)) <- lconsts]
                 ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons]
   where 
     lconsts      = literalConst tce <$> literals (cbs info)
@@ -1435,7 +1435,7 @@ forallExprReft γ r
        return r'
 
 forallExprReft_ γ e@(F.EApp f es) 
-  = case forallExprReftLookup γ f of
+  = case forallExprReftLookup γ (val f) of
       Just (xs,_,t) -> let su = F.mkSubst $ safeZip "fExprRefType" xs es in
                        Just $ F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
       Nothing       -> Nothing -- F.exprReft e

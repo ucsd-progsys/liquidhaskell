@@ -215,8 +215,6 @@ srcSpanStartLoc l  = L (srcSpanStartLine l, srcSpanStartCol l)
 srcSpanEndLoc l    = L (srcSpanEndLine l, srcSpanEndCol l)
 oneLine l          = srcSpanStartLine l == srcSpanEndLine l
 lineCol l          = (srcSpanStartLine l, srcSpanStartCol l)
-dummyPos :: SourcePos
-dummyPos = newPos "?" 0 0
 
 realSrcSpanSourcePos :: RealSrcSpan -> SourcePos 
 realSrcSpanSourcePos s = newPos file line col

@@ -485,9 +485,6 @@ termTypeP
        es <- brackets $ sepBy exprP comma
        return (t, Just es)
 
-locParserP :: Parser a -> Parser (Located a)
-locParserP p = liftM2 Loc getPosition p
-
 invariantP   = locParserP genBareTypeP 
 
 genBareTypeP
@@ -610,8 +607,6 @@ mkNilPat _      = (dummyLoc "[]", []    )
 mkConsPat x c y = (dummyLoc ":" , [x, y])
 
 tupDataCon n    = dummyLoc $ "(" ++ replicate (n - 1) ',' ++ ")"
-locLowerIdP = locParserP lowerIdP 
-locUpperIdP = locParserP upperIdP
 
 {- len (Cons x1 x2 ...) = e -}
 
@@ -643,9 +638,9 @@ dataConNameP
      pwr s  = "(" ++ s ++ ")" 
 
 dataSizeP 
-  = (brackets $ (Just . mkFun) <$> lowerIdP)
+  = (brackets $ (Just . mkFun) <$> locLowerIdP)
   <|> return Nothing
-  where mkFun s = \x -> EApp (stringSymbol s) [EVar x] 
+  where mkFun s = \x -> EApp (stringSymbol <$> s) [EVar x]
 
 dataDeclP 
    =  try dataDeclFullP
