@@ -116,7 +116,8 @@ instance PPrint SortedReft where
     = braces 
     $ (pprint v) <+> (text ":") <+> (toFix so) <+> (text "|") <+> pprint ras
 
-
+instance PPrint a => PPrint (Located a) where
+  pprint (Loc _ x) = pprint x
 
 
 
