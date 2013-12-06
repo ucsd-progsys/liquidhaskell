@@ -1,20 +1,20 @@
 ---
 layout: post
 title: "Termination Checking I"
-date: 2013-11-18 16:12
+date: 2013-12-08 16:12
 comments: true
 external-url:
 categories: termination
-author: Niki Vazou
+author: Ranjit Jhala, Niki Vazou
 published: false 
-demo: TerminationBasic.hs
+demo: Termination1.hs
 ---
 
 As explained in the [last][ref-lies] [two][ref-bottom] posts, we need a termination
 checker to ensure that LiquidHaskell is not tricked by divergent, lazy
 computations into telling lies. Well, proving termination is not easy, 
 but happily, it turns out that with very little retrofitting, and a 
-bit of jiu jitsu, we can refinements themselves to prove termination!
+bit of jiu jitsu, we can use refinements themselves to prove termination!
 
 <!-- more -->
 
@@ -54,7 +54,7 @@ Proving Termination By Hand(waving)
 
 OK. Does `sum` terminate? 
 
-First off, it is apparent that we call `sum` with a a
+First off, it is apparent that if we call `sum` with a
 negative `n` then it **will not** terminate. 
 Thus, we should only call `sum` with non-negative integers.
 
@@ -104,16 +104,17 @@ an environment:
 -  `n   :: Nat`
 -  `sum :: Vec -> n':{v:Nat | v < n} -> Val`
 
-This ensures that any (recursive) calls in the body only call `sum` 
+This ensures that any (recursive) call in the body only calls `sum` 
 with inputs smaller than the current parameter `n`. Since its body 
 typechecks in this environment, i.e. `sum` is called with `n-1` which 
-is smaller than `n` and, in this case, a `Nat`, LiquidHaskell is proves 
+is smaller than `n` and, in this case, a `Nat`, LiquidHaskell proves 
 that sum terminates for all `n`.
 
 For those keeping track at home, this is the technique of 
 [sized types](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.124.5589), 
 which is itself an instance of the classical method of proving termination 
-via well founded metrics that goes back at least, to [Turing](http://www.turingarchive.org/viewer/?id=462&title=01b)
+via well founded metrics that goes back at least, to
+[Turing](http://www.turingarchive.org/viewer/?id=462&title=01b).
 
 Choosing the Correct Argument
 -----------------------------
@@ -142,7 +143,7 @@ Clearly, the proof fails as liquidHaskell wants to prove that the `acc`umulator
 is a `Nat`ural number that decreases at each iteration, neither of which may be
 true.
 
-\begin{code}The remedy is simple. We can direct liquidHaskell to the correct argument `i` using a `Decrease` annotation: 
+\begin{code}The remedy is simple. We can direct liquidHaskell to the correct argument `n` using a `Decrease` annotation: 
 {-@ Decrease sum' 3 @-}
 \end{code}
 which directs liquidHaskell to check whether the *third* argument (i.e., `n`) is decreasing. 
