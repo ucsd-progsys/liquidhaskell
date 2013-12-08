@@ -135,6 +135,8 @@ warnShow s x  = trace ("\nWarning: [" ++ s ++ "] : " ++ show x) $ x
 -- inserts       ::  Hashable k => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
 inserts k v m = M.insert k (v : M.lookupDefault [] k m) m
 
+unionsWith    = fmap sortNub . L.foldl' (M.unionWith (++)) M.empty 
+
 -- group         :: Hashable k => [(k, v)] -> M.HashMap k [v]
 group         = L.foldl' (\m (k, v) -> inserts k v m) M.empty 
 
