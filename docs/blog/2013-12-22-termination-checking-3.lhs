@@ -2,19 +2,21 @@
 layout: post
 title: "Termination Checking III : Measuring the size of Structures"
 date: 2013-12-22 16:12
-comments: true
+comments: false
 external-url:
 categories: termination, measures
 author: Niki Vazou
-published: true
+published: false
 demo: Termination3.hs
 ---
 
-[Previously][ref-termination] we saw how refinements can be used to prove termination
-and we promised to extend our termination checker to handle "real-word" programs.
+In the [previous][ref-termination] [two][ref-lexicographic] posts we saw how refinements can be used to prove
+termination. 
+In both posts functions recurse on integers.
+In Haskell the most common type of recursion is over recursive data structures.
 
-Keeping our promise, today we shall see a trick that allows liquidHaskell to prove termination on
-more recursive functions, namely *lexicographic termination*.
+Today lets see how to prove termination on functions defined over
+recursive data structures.
 
 <!-- more -->
 
@@ -24,31 +26,32 @@ module TheSizeOfStructures where
 import Prelude hiding (map)
 \end{code}
 
-Does tree map Terminate?
+Does list map Terminate?
 ------------------------
 
-Lets define a `Tree` structure
+Lets define a `List` structure
 
 \begin{code}
-data Tree a = Leaf | Node a (Tree a) (Tree a)
+infixr `C`
+data List a = N | C a (List a)
 \end{code}
 
-and a map function `tmap` on it
+and a map function `lmap` on it
 
 \begin{code}
-tmap                  :: (a -> b) -> (Tree a) -> (Tree b)
-tmap _ Leaf           = Leaf
-tmap f (Node x tl tr) = Node (f x) (tmap f tl) (tmap f tr)
+lmap              :: (a -> b) -> (List a) -> (List b)
+lmap _ N          = N
+lmap f (x `C` xs) = f x `C` lmap f xs
 \end{code}
 
-Does `tmap` terminate?
+Does `lmap` terminate?
 
-At each iteration `tmap` is called with the left and right subtrees.
-So, the *size* of the tree is decreasing at each iteration
+At each iteration `lmap` is called with the tail of the input list.
+So, the *length* of the list is decreasing at each iteration
 and 
-if the input tree is finite, `tmap` terminates.
+if the input list is finite, its length will reach `0` and `lmap` will terminate.
 
-Since the size of the tree is a natural number, it is
+Since the length of the list is a natural number, it is
 a *well-founded metric*.
 
 From the [previous][ref-lexicographic] [two][ref-termination] posts a
@@ -57,27 +60,27 @@ liquidHaskell needs to prove termination on a recursive function.
 
 Two things are left to do: teach liquidHaskell to
 
-1. compute the size of a tree
+1. compute the length of a List
 
-2. use this size as the decreasing metric that decreases in `tmap`.
+2. use this length as the decreasing metric that decreases in `lmap`.
 
 
 Express Termination Metric
 --------------------------
 
 First things first,
-we need to teach liquidHaskell to compute the size of a tree.
+we need to teach liquidHaskell to compute the length of the list.
 
 Remember *measures*?
 They were introduced in a [previous][ref-measure] post and in short measures
 provide a mechanism to define auxiliary properties on data
 values.
 
-Now we can define a measure `tsize` than maps a tree to its size:
+Now we can define a measure `llen` than maps a list to its length:
 \begin{code}
-{-@ measure tsize :: (Tree a) -> Int
-    tsize (Leaf)         = 0
-    tsize (Node x tl tr) = 1 + (tsize tl) + (tsize tr)
+{-@ measure llen  :: (List a) -> Int
+    llen (N)      = 0
+    llen (C x xs) = 1 + (llen xs)
   @-}
 \end{code}
 
@@ -86,25 +89,24 @@ and then, inform liquidHaskell that this measure is *well-formed*, ie., cannot
 be negative:
 
 \begin{code}
-{-@ invariant {v:(Tree a) | (tsize v) >= 0}@-}
+{-@ invariant {v:(List a) | (llen v) >= 0}@-}
 \end{code}
 
 
-Relate Tree with its size
--------------------------
+Relate List with its length
+---------------------------
 
-The final step towards verification of `tmap` termination is to relate the tree
-structure with its size `tsize`.
+The final step towards verification of `lmap`'s termination is to relate the List
+structure with its length `llen`.
 We can do this with the usual `data` annotation
 
 \begin{code}
-{-@ data Tree [tsize] @-}
+{-@ data List [llen] @-}
 \end{code}
 
-that informs the tool that `tsize` measures the size of a tree. 
-So each time the termination checker aims to check if a tree is decreasing, it
-will use the *default* size `tsize`. 
-
+that informs the tool that `llen` measures the size of a list. 
+So each time the termination checker checks if a list is decreasing, it
+checks if its *default* size `llen` decreases. 
 
 
 Choosing the correct argument
@@ -113,23 +115,27 @@ Choosing the correct argument
 To prove termination liquidHaskell chooses one argument and tries to prove that
 is decreasing.
 But which argument? 
-It choosed the first one for which decreasing information exists.
-We have that for an integer to decrease its value should decrease, 
-and we specified that a tree decreases if its `tsize` decreases.
+It chooses the first one for which decreasing information exists.
+We have that for an integer to decrease its value should decrease 
+and we specified that a list decreases if its length `llen` decreases.
 
-In `tmap` there is no decreasing information for the function `f`, 
-so liquidHaskell will correclty guess that the tree argument should be
+In `lmap` there is no decreasing information for the function `f`, 
+so liquidHaskell will correclty guess that the list argument (ie., the second
+argument) should be
 decreasing.
 
 In a function that many arguments with decreasing information exist,
-liquidHaskell will na&#239;vely choose the first one
+liquidHaskell will na&#239;vely choose the first one.
+
+As an example, the following `posSum` function could not be proven to terminate
+without our `Decrease` hint.
 
 \begin{code}
-{-@ Decrease foo 2 @-}
-foo              :: Int -> (Tree Int) -> Int
-foo acc Leaf                       = acc
-foo acc (Node x tl tr) | x > 0     = foo (acc + foo 0 tr + x) tl
-                       | otherwise = foo (acc + foo 0 tr    ) tl
+{-@ Decrease posSum 2 @-}
+posSum                            :: Int -> (List Int) -> Int
+posSum acc N                      = acc
+posSum acc (x `C` xs) | x > 0     = posSum (acc + x) xs
+                      | otherwise = posSum (acc)     xs
 \end{code}
 
 Standard lists
@@ -140,7 +146,8 @@ You have to both define the size of the structure and relate it with the
 structure.
 The good news is that this work is just performed once!
 
-Even better, structures like standard lists come with this information.
+Even better, for structures like standard lists liquidHaskell has done all this
+work for you!
 
 
 \begin{code} The standard list `[a]` comes with the build in measure 'len', defined as
@@ -170,7 +177,7 @@ In the next post,
 we shall see our final mechanism to prove termination: *decreasing expressions*
 Stay tuned!
 
-[ref-measures]:      /blog/2013/01/31/sately-catching-a-list-by-its-tails.lhs/
+[ref-measure]:       /blog/2013/01/31/sately-catching-a-list-by-its-tails.lhs/
 [ref-lies]:          /blog/2013/11/23/telling-lies.lhs/ 
 [ref-bottom]:        /blog/2013/12/01/getting-to-the-bottom.lhs/
 [ref-termination]:   /blog/2013/12/08/termination-checking-1.lhs/
