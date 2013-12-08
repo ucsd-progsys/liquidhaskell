@@ -729,7 +729,7 @@ lookupGhcThing name f x
          Just x' -> return x'
          Nothing -> throwError $ ErrGhc (srcSpan x) (text msg)
   where
-    msg = "lookupGhcThing unknown " ++ name ++ " : " ++ pp x
+    msg = "Not in scope: " ++ name ++ " `" ++ pp x ++ "'"
 
 lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
 lookupGhcThing' _    f x 
@@ -771,7 +771,7 @@ lookupGhcVar :: GhcLookup a => a -> BareM Var
 lookupGhcVar x
   = do env <- gets varEnv
        case L.lookup (symbol $ pp x) env of
-         Nothing -> lookupGhcThing "Var" fv x
+         Nothing -> lookupGhcThing "variable" fv x
          Just v  -> return v
   where
     fv (AnId x)     = Just x
@@ -779,7 +779,8 @@ lookupGhcVar x
     fv _            = Nothing
 
 lookupGhcTyCon       ::  GhcLookup a => a -> BareM TyCon
-lookupGhcTyCon s     = (lookupGhcThing "TyCon" ftc s) `catchError` (tryPropTyCon s)
+lookupGhcTyCon s     = (lookupGhcThing "type constructor or class" ftc s)
+                       `catchError` (tryPropTyCon s)
   where 
     ftc (ATyCon x)   = Just x
     ftc (ADataCon x) = Just $ dataConTyCon x
@@ -789,7 +790,7 @@ tryPropTyCon s e
   | pp s == propConName = return propTyCon 
   | otherwise           = throwError e
 
-lookupGhcClass       = lookupGhcThing "Class" ftc 
+lookupGhcClass       = lookupGhcThing "class" ftc
   where 
     ftc (ATyCon x)   = tyConClass_maybe x 
     ftc _            = Nothing
@@ -802,7 +803,7 @@ isTupleDC zs@('(':',':_) = Just $ length zs - 1
 isTupleDC _              = Nothing
 
 
-lookupGhcDataCon'    = lookupGhcThing "DataCon" fdc
+lookupGhcDataCon'    = lookupGhcThing "data constructor" fdc
   where 
     fdc (ADataCon x) = Just x
     fdc _            = Nothing
@@ -868,17 +869,10 @@ instance Resolvable LocSymbol where
                                  return $ Loc l qs
                          _ -> return ls
 
+--FIXME: probably need to add a Location to `EVar` so we don't need
+--this instance..
 instance Resolvable Symbol where
-  resolve (S s)
-      | s `elem` fixpointPrims = return (S s)
-      | otherwise = do env <- gets (typeAliases.rtEnv)
-                       case M.lookup s env of
-                         Nothing | isCon s
-                           -> do v <- lookupGhcVar $ dummyLoc s
-                                 let qs = symbol $ showPpr v
-                                 addSym (qs,v)
-                                 return qs
-                         _ -> return (S s)
+  resolve = fmap val . resolve . dummyLoc
 
 instance Resolvable Sort where
   -- resolve = return
