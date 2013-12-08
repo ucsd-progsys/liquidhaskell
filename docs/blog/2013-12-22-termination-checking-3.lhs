@@ -20,6 +20,8 @@ more recursive functions, namely *lexicographic termination*.
 
 \begin{code}
 module TheSizeOfStructures where
+
+import Prelude hiding (map)
 \end{code}
 
 Does tree map Terminate?
@@ -31,18 +33,18 @@ Lets define a `Tree` structure
 data Tree a = Leaf | Node a (Tree a) (Tree a)
 \end{code}
 
-and a map function on it
+and a map function `tmap` on it
 
 \begin{code}
-tmap              :: (a -> b) -> (Tree a) -> (Tree b)
+tmap                  :: (a -> b) -> (Tree a) -> (Tree b)
 tmap _ Leaf           = Leaf
 tmap f (Node x tl tr) = Node (f x) (tmap f tl) (tmap f tr)
 \end{code}
 
 Does `tmap` terminate?
 
-At each iteration `tmap` is called with the left and right subtrees of the input list.
-So, the size of the tree is decreasing at each iteration
+At each iteration `tmap` is called with the left and right subtrees.
+So, the *size* of the tree is decreasing at each iteration
 and 
 if the input tree is finite, `tmap` terminates.
 
@@ -57,7 +59,7 @@ Two things are left to do: teach liquidHaskell to
 
 1. compute the size of a tree
 
-2. use this size to size trees.
+2. use this size as the decreasing metric that decreases in `tmap`.
 
 
 Express Termination Metric
@@ -68,14 +70,14 @@ we need to teach liquidHaskell to compute the size of a tree.
 
 Remember *measures*?
 They were introduced in a [previous][ref-measure] post and in short measures
-provide a mechanism to define auxiliary (or so-called ghost) properties on data
+provide a mechanism to define auxiliary properties on data
 values.
 
-Now we can define a measure `tlen` than maps a trees to its size:
+Now we can define a measure `tsize` than maps a tree to its size:
 \begin{code}
-{-@ measure tlen :: (Tree a) -> Int
-    tlen (Leaf)         = 0
-    tlen (Node x tl tr) = 1 + (tlen tl) + (tlen tr)
+{-@ measure tsize :: (Tree a) -> Int
+    tsize (Leaf)         = 0
+    tsize (Node x tl tr) = 1 + (tsize tl) + (tsize tr)
   @-}
 \end{code}
 
@@ -84,24 +86,24 @@ and then, inform liquidHaskell that this measure is *well-formed*, ie., cannot
 be negative:
 
 \begin{code}
-{-@ invariant {v:(Tree a) | (tlen v) >= 0}@-}
+{-@ invariant {v:(Tree a) | (tsize v) >= 0}@-}
 \end{code}
 
 
-Relate list with its size
+Relate Tree with its size
 -------------------------
 
-The final step towards verification of termination is to relate the tree
-structure with its size `tlen`.
+The final step towards verification of `tmap` termination is to relate the tree
+structure with its size `tsize`.
 We can do this with the usual `data` annotation
 
 \begin{code}
-{-@ data Tree [tlen] @-}
+{-@ data Tree [tsize] @-}
 \end{code}
 
-that informs the tool that `tlen` measures the size of a tree. 
-So each time the termination checker wishes to check if a tree is decreasing, it
-will use the *default* size `tlen`. 
+that informs the tool that `tsize` measures the size of a tree. 
+So each time the termination checker aims to check if a tree is decreasing, it
+will use the *default* size `tsize`. 
 
 
 
@@ -112,15 +114,15 @@ To prove termination liquidHaskell chooses one argument and tries to prove that
 is decreasing.
 But which argument? 
 It choosed the first one for which decreasing information exists.
-We know that for an integer to decrease, its value should decrease, 
-and we specified that a tree decreases if its `tlen` decreases.
+We have that for an integer to decrease its value should decrease, 
+and we specified that a tree decreases if its `tsize` decreases.
 
 In `tmap` there is no decreasing information for the function `f`, 
-this liquidHaskell will correclty guess that the tree argument should be
+so liquidHaskell will correclty guess that the tree argument should be
 decreasing.
 
 In a function that many arguments with decreasing information exist,
-liquidHaskell will va&#239;vely choose the first one
+liquidHaskell will na&#239;vely choose the first one
 
 \begin{code}
 {-@ Decrease foo 2 @-}
@@ -134,14 +136,14 @@ Standard lists
 --------------
 You may think that all this is much work to prove that a function on a recursive
 structure is terminating.
-You have 1. to define the size of the structure and relate it with the
+You have to both define the size of the structure and relate it with the
 structure.
 The good news is that this work is just performed once!
 
 Even better, structures like standard lists come with this information.
 
 
-\begin{code} The list `[a]` comes with the build in measure 'len', defined as
+\begin{code} The standard list `[a]` comes with the build in measure 'len', defined as
  measure len :: [a] -> Int
  len ([])   = 1
  len (x:xs) = 1 + (len xs)
@@ -151,9 +153,9 @@ Thus liquidHaskell will just prove that functions recursive on standard lists
 shall terminate:
 
 \begin{code}
-mymap          :: (a -> b) -> [a] -> [b]
-mymap _ []     = []
-mymap f (x:xs) = f x : mymap f xs
+map          :: (a -> b) -> [a] -> [b]
+map _ []     = []
+map f (x:xs) = f x : map f xs
 \end{code}
 
 Today we shaw how to prove termination on functions recursive over a data
@@ -168,70 +170,8 @@ In the next post,
 we shall see our final mechanism to prove termination: *decreasing expressions*
 Stay tuned!
 
-Using a Different Size
-----------------------
-
-Suppose that our tree is a Binary Seach Tree and we would like to `insert` a
-value in it
-
-\begin{code}
-insert :: Ord a => a -> Tree a -> Tree a
-insert x Leaf = Node x Leaf Leaf
-insert x (Node y tl tr) | x == y     = Node x tl tr
-                        | x > y      = Node y tl (insert x tr)
-                        | otherwise  = Node y (insert x tl) tr
-\end{code}
-
-LiquidHaskell can happily verify that at each iteration `tlen` decreases, so
-`insert` does terminate.
-
-But `tlen` is such an overaproximation of the decreasing metric.
-We can get more strict and define a "logarithmic" size on trees:
-\begin{code}
-{-@ measure ltlen :: (Tree a) -> Int
-    ltlen (Leaf) = 0
-    ltlen (Node x tl tr) = 1 + (max (ltlen tl) (ltlen tr))
-  @-}
-
-{-@ invariant {v:(Tree a) | (ltlen v) >= 0} @-}
-\end{code}
-
-
-Now, `insert` will typecheck against the signature
-\begin{code}
-{-@ insert :: Ord a => x:a -> t:(Tree a) -> Tree a / [(ltlen t)] @-}
-\end{code}
-
-that specifies that the decreasing metric 
-
-In this example we used a *decreasing* expression to get a more precise
-termination metric.
-In the next post we will see how decreasing expression can express more
-compicated metrics.
-
-
-Today we shaw how to prove termination on functions recursive over a data
-structure.
-You need to 
-
-1. define the size of the structure
-
-2. associate this size with the structure.
-
-Once again we will end by stating that there exists an alternative
-specification.
-
-You may note that we don't have to specify that the second argument is
-decreasing. 
-So
-
-
-
-With all these information, liquidHaskell can prove that `lmap` is recursively
-called with smaller lists, ie., lists with decreasing `llen`, so it does
-terminate.
-
-
-[ref-lies]:        /blog/2013/11/23/telling-lies.lhs/ 
-[ref-bottom]:      /blog/2013/12/01/getting-to-the-bottom.lhs/
-[ref-termination]: /blog/2013/12/08/termination-checking-1.lhs/
+[ref-measures]:      /blog/2013/01/31/sately-catching-a-list-by-its-tails.lhs/
+[ref-lies]:          /blog/2013/11/23/telling-lies.lhs/ 
+[ref-bottom]:        /blog/2013/12/01/getting-to-the-bottom.lhs/
+[ref-termination]:   /blog/2013/12/08/termination-checking-1.lhs/
+[ref-lexicographic]: /blog/2013/12/15/termination-checking-2.lhs/
