@@ -12,9 +12,9 @@ demo: Termination.hs
 
 As explained in the [last][ref-lies] [two][ref-bottom] posts, we need a termination
 checker to ensure that LiquidHaskell is not tricked by divergent, lazy
-computations into telling lies. Well, proving termination is not easy, 
-but happily, it turns out that with very little retrofitting, and a 
-bit of jiu jitsu, we can use refinements themselves to prove termination!
+computations into telling lies. Happily, it turns out that with very 
+little retrofitting, and a bit of jiu jitsu, we can use refinements 
+themselves to prove termination!
 
 <!-- more -->
 
@@ -25,18 +25,17 @@ import Prelude     hiding (sum)
 import Data.Vector hiding (sum)
 \end{code}
 
-Next, lets see how LiquidHaskell proves termination on simple 
+Lets first see how LiquidHaskell proves termination on simple 
 recursive functions, and then later, we'll see how to look at 
 fancier cases.
 
 Looping Over Vectors
 --------------------
 
-As a running example, lets write a bunch of little functions 
-that operate on 1-dimensional vectors
+Lets write a bunch of little functions that operate on 1-dimensional vectors
 
 \begin{code}
-type Val  = Int
+type Val = Int
 type Vec = Vector Val
 \end{code}
 
@@ -52,7 +51,12 @@ sum a n = (a ! (n-1)) + sum a (n-1)
 Proving Termination By Hand(waving) 
 -----------------------------------
 
-OK. Does `sum` terminate? 
+Does `sum` terminate? 
+
+<figure>
+  <img src="http://img.dailymail.co.uk/i/pix/2007/06_01/TombstoneSWNS_468x526.jpg" alt="Falling Down" width="200">
+  <figcaption>How do you prove this man will <b>stop<b> falling?</figcaption>
+</figure>
 
 First off, it is apparent that if we call `sum` with a
 negative `n` then it **will not** terminate. 
@@ -112,25 +116,27 @@ that sum terminates for all `n`.
 
 For those keeping track at home, this is the technique of 
 [sized types](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.124.5589), 
-which is itself an instance of the classical method of proving termination 
-via well founded metrics that goes back at least, to
-[Turing](http://www.turingarchive.org/viewer/?id=462&title=01b).
+, expressed using refinements. Sized types themselves are an instance of 
+the classical method of proving termination via well founded metrics that 
+goes back, at least, to [Turing](http://www.turingarchive.org/viewer/?id=462&title=01b).
 
 Choosing the Correct Argument
 -----------------------------
 
 The example above is quite straightforward, and you might well wonder if this
-simple method works well for ``real-world" programs. With a few generalizations
+method works well for ``real-world" programs. With a few generalizations
 and extensions, and by judiciously using the wealth of information captured in
 refinement types, the answer is an emphatic, yes!
 
-Lets see one simple extension today.
+Lets see one extension today.
 
 We saw that liquidHaskell can happily check that some Natural number is decreasing
 at each iteration, but it uses a na&#239;ve heuristic to choose which one -- for
 now, assume that it always chooses *the first* `Int` parameter.
 
-As you might imagine, this is quite daft. Consider, a tail-recursive implementation of `sum`:
+As you might imagine, this is quite simpleminded. 
+
+Consider, a tail-recursive implementation of `sum`:
 
 \begin{code}
 {-@ sum' :: a:Vec -> Val -> {v:Nat| v < (vlen a)} -> Val @-}
@@ -143,15 +149,14 @@ Clearly, the proof fails as liquidHaskell wants to prove that the `acc`umulator
 is a `Nat`ural number that decreases at each iteration, neither of which may be
 true.
 
-\begin{code}The remedy is simple. We can direct liquidHaskell to the correct argument `n` using a `Decrease` annotation: 
+\begin{code}The remedy is easy. We can point liquidHaskell to the correct argument `n` using a `Decrease` annotation: 
 {-@ Decrease sum' 3 @-}
 \end{code}
-which directs liquidHaskell to check whether the *third* argument (i.e., `n`) is decreasing. 
+which directs liquidHaskell to verify that the *third* argument (i.e., `n`) is decreasing. 
 With this hint, liquidHaskell will happily verify that `sum'` is indeed a terminating function.
 
 Thats all for now, next time we'll see how the basic technique can be extended
-to a variety of sophisticated, real-world settings.
-
+to a variety of real-world settings.
 
 [ref-lies]:  /blog/2013/11/23/telling-lies.lhs/ 
 [ref-bottom]: /blog/2013/12/01/getting-to-the-bottom.lhs/
