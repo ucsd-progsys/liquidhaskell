@@ -1100,8 +1100,9 @@ newtype Subst = Su [(Symbol, Expr)] deriving (Eq, Ord, Data, Typeable)
 mkSubst                  = Su -- . M.fromList
 appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
 emptySubst               = Su [] -- M.empty
-catSubst (Su s1) (Su s2) = Su $ s1' ++ s2
-  where s1' = mapSnd (subst (Su s2)) <$> s1
+catSubst (Su s1) (Su s2) = Su $ s1' ++ s2'
+  where s1' = mapSnd (subst (Su s2')) <$> s1
+        s2' = filter (\(x,_) -> not (x `elem` (fst <$> s1))) s2
   -- = Su $ s1' `M.union` s2
   --   where s1' = subst (Su s2) `M.map` s1
 
