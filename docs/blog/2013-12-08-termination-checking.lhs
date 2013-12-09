@@ -1,13 +1,13 @@
 ---
 layout: post
-title: "Termination Checking I"
+title: "Termination Checking"
 date: 2013-12-08 16:12
 comments: true
 external-url:
 categories: termination
 author: Ranjit Jhala, Niki Vazou
 published: false 
-demo: Termination1.hs
+demo: Termination.hs
 ---
 
 As explained in the [last][ref-lies] [two][ref-bottom] posts, we need a termination
