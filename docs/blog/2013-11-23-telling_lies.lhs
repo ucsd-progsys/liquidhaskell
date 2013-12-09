@@ -5,7 +5,7 @@ date: 2013-11-23 16:12
 comments: true
 external-url:
 categories: termination
-author: Ranjit Jhala 
+author: Ranjit Jhala, Niki Vazou 
 published: true
 demo: TellingLies.hs
 ---

@@ -29,7 +29,8 @@ Library
     Build-Depends: base >= 3 && < 5,
                    vector >= 0.6 && < 0.11,
                    primitive >=0.3 && <0.6,
-                   bytestring >= 0.9 && < 1.0
+                   bytestring >= 0.9 && < 1.0,
+                   liquidhaskell
 
     Exposed-Modules:
         Data.Vector.Algorithms.Optimal
