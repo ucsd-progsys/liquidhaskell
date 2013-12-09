@@ -6,7 +6,7 @@ comments: true
 external-url:
 categories: termination
 author: Ranjit Jhala, Niki Vazou
-published: false
+published: true
 demo: BasicTermination.hs
 ---
 
