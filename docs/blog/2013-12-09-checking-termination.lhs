@@ -1,12 +1,12 @@
 ---
 layout: post
-title: "Termination Checking"
-date: 2013-12-08 16:12
+title: "Checking Termination"
+date: 2013-12-09 16:12
 comments: true
 external-url:
 categories: termination
-author: Ranjit Jhala, Niki Vazou
-published: false 
+author: Niki Vazou
+published: true 
 demo: Termination.hs
 ---
 
@@ -17,6 +17,22 @@ little retrofitting, and a bit of jiu jitsu, we can use refinements
 themselves to prove termination!
 
 <!-- more -->
+
+<div class="row-fluid">
+   <div class="span12 pagination-centered">
+       <img src="http://img.dailymail.co.uk/i/pix/2007/06_01/TombstoneSWNS_468x526.jpg"
+       alt="Falling Down" width="300">
+       <br>
+       <br>
+       <br>
+       How do you prove this fellow will <b>stop falling?</b>
+       <br>
+       <br>
+       <br>
+   </div>
+</div>
+
+
 
 \begin{code}
 module Termination where
@@ -52,11 +68,6 @@ Proving Termination By Hand(waving)
 -----------------------------------
 
 Does `sum` terminate? 
-
-<figure>
-  <img src="http://img.dailymail.co.uk/i/pix/2007/06_01/TombstoneSWNS_468x526.jpg" alt="Falling Down" width="200">
-  <figcaption>How do you prove this man will <b>stop<b> falling?</figcaption>
-</figure>
 
 First off, it is apparent that if we call `sum` with a
 negative `n` then it **will not** terminate. 
