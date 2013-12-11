@@ -14,9 +14,10 @@ demo: TextAux.hs
 {-# LANGUAGE BangPatterns, ExistentialQuantification, Rank2Types, MagicHash #-}
 module TextAux where
 
-import GHC.Base
+import GHC.Base hiding (unsafeChr)
 import GHC.ST
 import Data.Word
+import GHC.Word (Word16(..))
 
 import qualified TextInternal as I
 import TextInternal -- (Text(..))
@@ -64,6 +65,9 @@ runText act = runST (act $ \ !marr !len -> do
                              arr <- I.unsafeFreeze marr
                              return $! Text arr 0 len)
 
+{-@ qualif MALen(v:Int, a:MArray s): v = malen(a) @-}
+{-@ qualif MALen(v:MArray s, i:Int): i = malen(v) @-}
+
 {-@ qualif MALenLE(v:int, a:I.MArray s): v <= (malen a) @-}
 {-@ qualif ALenLE(v:int, a:I.Array): v <= (alen a) @-}
 
@@ -108,9 +112,37 @@ unsafeIndexFQ = undefined
 
 {-@ empty :: {v:Text | (tlen v) = 0} @-}
 empty :: Text
-empty = Text I.empty 0 0
+empty = Text arrEmpty 0 0
+  where arrEmpty = runST $ new 0 >>= unsafeFreeze
 
 {-@ shiftL :: i:Nat -> n:Nat -> {v:Nat | ((n = 1) => (v = (i * 2)))} @-}
 shiftL (I# x#) (I# i#) = I# (x# `iShiftL#` i#)
+
+shiftR (I# x#) (I# i#) = I# (x# `iShiftRA#` i#)
+
+unsafeChr :: Word16 -> Char
+unsafeChr (W16# w#) = C# (chr# (word2Int# w#))
+
+chr2 :: Word16 -> Word16 -> Char
+chr2 (W16# a#) (W16# b#) = C# (chr# (upper# +# lower# +# 0x10000#))
+    where
+      !x# = word2Int# a#
+      !y# = word2Int# b#
+      !upper# = uncheckedIShiftL# (x# -# 0xD800#) 10#
+      !lower# = y# -# 0xDC00#
+
+{-@ type MAValidL O A = {v:Nat | (v+O) <= (malen A)} @-}
+
+{-@ type AValidO  A   = {v:Nat | v     <= (alen A)} @-}
+{-@ type AValidL O A = {v:Nat | (v+O) <= (alen A)} @-}
+
+{-@ measure tarr :: Text -> Array
+    tarr (Text a o l) = a
+  @-}
+
+{-@ measure toff :: Text -> Int
+    toff (Text a o l) = o
+  @-}
+
 
 \end{code}
