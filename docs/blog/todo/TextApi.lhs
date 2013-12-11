@@ -6,19 +6,22 @@ comments: true
 external-url:
 author: Eric Seidel
 published: false
-categories: benchmarks
+categories: benchmarks, text
 demo: TextApi.hs
 ---
 
+Welcome back, today we're going to show how to build and consume
+`Text` values. The key complication we'll find when reasoning about
+`Text`s is that the use of UTF-16 as the internal encoding.
 
 <!-- more -->
 
 \begin{code}
-{-# LANGUAGE MagicHash, BangPatterns #-}
+{-# LANGUAGE BangPatterns #-}
 {-@ LIQUID "--no-termination" @-}
 module TextApi where
 
-import GHC.Base
+import GHC.Base (ord)
 import GHC.ST
 import Data.Bits ((.&.))
 import Data.Word
@@ -30,27 +33,59 @@ import TextAux
 import Language.Haskell.Liquid.Prelude
 \end{code}
 
-Reading
--------
+Let's begin with a simple example, `head`.
+
+\begin{code}
+{-@ measure tlen :: Text -> Int
+    tlen (Text a o l) = l
+  @-}
+{-@ type TextNE = {v:Text | (tlen v) > 0} @-}
+{-@ unsafeHead :: TextNE -> Char @-}
+unsafeHead :: Text -> Char
+unsafeHead (Text arr off _len)
+    | m < 0xD800 || m > 0xDBFF = unsafeChr m
+    | otherwise                = chr2 m n
+    where m = I.unsafeIndex arr off
+          n = I.unsafeIndex arr (off+1)
+\end{code}
+
+LiquidHaskell can prove the first `I.unsafeIndex` is safe because the
+precondition states that the `Text` must not be empty, i.e. `_len > 0`
+must hold. Combine this with the core `Text` invariant that
+`_len + off <= alen arr` and we get that `off < alen arr`, which satisfies
+the precondition for `I.unsafeIndex`.
+
+However, the same calculation *fails* for the second index because we
+can't prove that `off + 1 < alen arr`. The solution is going to
+require some understanding of UTF-16, so let's take a brief detour.
+
+The UTF-16 standard represents all code points below `U+10000` with a
+single 16-bit word; all others are split into two 16-bit words, known
+as a *surrogate pair*. The first word, or *lead*, is guaranteed to be
+in the range `[0xD800, 0xDBFF]` and the second, or *trail*, is
+guaranteed to be in the range `[0xDC00, 0xDFFF]`.
+
+Armed with this knowledge of UTF-16 we can return to
+`unsafeHead`. Note the case-split on `m`, which determines whether `m`
+is a lead surrogate. If `m` is a lead surrogate then we know there
+must be a trail surrogate at `off+1`; we can define a specialized
+version of `unsafeIndex` that encodes this domain knowledge.
 
 \begin{code}
 {-@ measure numchars :: Array -> Int -> Int -> Int @-}
 {-@ measure tlength :: Text -> Int
     tlength (Text a o l) = (numchars a o l)
   @-}
+{-@ invariant {v:Text | (tlength v) = (numchars (tarr v) (toff v) (tlen v))} @-}
 
 {-@ invariant {v:Text | (numchars (tarr v) (toff v) 0)         = 0} @-}
 {-@ invariant {v:Text | (numchars (tarr v) (toff v) (tlen v)) >= 0} @-}
 {-@ invariant {v:Text | (numchars (tarr v) (toff v) (tlen v)) <= (tlen v)} @-}
 
-{-@ invariant {v:Text | (((tlength v) = 0) <=> ((tlen v) = 0))} @-}
-{-@ invariant {v:Text | (tlength v) >= 0} @-}
-{-@ invariant {v:Text | (tlen v)    >= 0} @-}
-{-@ invariant {v:Text | (tlength v) = (numchars (tarr v) (toff v) (tlen v))} @-}
-
-{-@ predicate SpanChar D A O L I = (((numchars (A) (O) ((I-O)+D)) = (1 + (numchars (A) (O) (I-O))))
-                                 && ((numchars (A) (O) ((I-O)+D)) <= (numchars A O L))
-                                 && (((I-O)+D) <= L))
+{-@ predicate SpanChar D A O L I =
+      (((numchars (A) (O) ((I-O)+D)) = (1 + (numchars (A) (O) (I-O))))
+    && ((numchars (A) (O) ((I-O)+D)) <= (numchars A O L))
+    && (((I-O)+D) <= L))
   @-}
 
 {-@ unsafeIndexF :: a:Array -> o:AValidO a -> l:AValidL o a
@@ -62,7 +97,11 @@ Reading
 unsafeIndexF :: Array -> Int -> Int -> Int -> Word16
 unsafeIndexF a o l i = let x = I.unsafeIndex a i
                        in liquidAssume (unsafeIndexFQ x a o l i) x
+\end{code}
 
+
+
+\begin{code}
 {-@ predicate SpanCharT V T I =
          ((numchars(tarr t) (toff t) (i+v))
           = (1 + (numchars (tarr t) (toff t) i))
@@ -137,7 +176,6 @@ writeChar marr i c
           m = n - 0x10000
           lo = fromIntegral $ (m `shiftR` 10) + 0xD800
           hi = fromIntegral $ (m .&. 0x3FF) + 0xDC00
-          shiftR (I# x#) (I# i#) = I# (x# `iShiftRA#` i#)
 
 unstream :: Stream Char -> Text
 unstream (Stream next0 s0 len) = runText $ \done -> do
@@ -151,7 +189,7 @@ unstream (Stream next0 s0 len) = runText $ \done -> do
               Skip s'       -> loop s' i
               Yield x s'
                 | j >= top  -> do
-                  let top' = (top + 1) * 2 --LIQUID `shiftL` 1
+                  let top' = (top + 1) `shiftL` 1
                   arr' <- I.new top'
                   I.copyM arr' 0 arr 0 top
                   outer arr' top' s i
