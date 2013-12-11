@@ -622,7 +622,7 @@ rTypeSortedReft' pflag γ
 γ ??= x 
   = case M.lookup x (lcb γ) of
     Just e  -> consE (γ-=x) e
-    Nothing -> return $ γ ?= x 
+    Nothing -> refreshArgs $ γ ?= x 
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
@@ -1244,7 +1244,7 @@ caseEnv γ x _   (DataAlt c) ys
   = do let (x' : ys')    = F.symbol <$> (x:ys)
        xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
        tdc              <- γ ??= (dataConSymbol c)
-       let (rtd, yts, _) = unfoldR c tdc (shiftVV xt0 x') ys
+       let (rtd, yts, _) = unfoldR c tdc ({-shiftVV-} xt0 {-x'-}) ys
        let r1            = dataConReft   c   ys' 
        let r2            = dataConMsReft rtd ys'
        let xt            = xt0 `strengthen` (uTop (r1 `F.meet` r2))
