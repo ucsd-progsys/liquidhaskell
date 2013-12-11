@@ -13,13 +13,10 @@ data PVector = PVector {
   , orthSpace :: Space PVector  -- lattice basis
   } deriving (Show, Eq)
 
--- Orthogonalized vector bn* and squared lattice determinant 
--- type Space = Maybe (PVector, Integer) 
-
+-- | Orthogonalized vector bn* and squared lattice determinant 
 data Space a = Null | Real a Integer
   deriving (Show, Eq)
 
--- RJ: Refined definition of PVector with key invariants 
 {-@ data PVector = PVector { 
       vec_  :: [Integer]   
     , mu_   :: [Integer] 
@@ -37,14 +34,6 @@ data Space a = Null | Real a Integer
 {-@ measure spaceVec     :: (Space PVector) -> PVector
     spaceVec (Real pv n) = pv
   @-}
-
--- ASSERT1 : length muCoeff == dim orthSpace
--- RJ: this is captured in the (dim v) = (len mu_)
-
--- ASSERT2 : maybe True (\(v,_) -> length vec == length (vec v)) orthSpace 
--- RJ:  this is captured by `orth_ :: (Space (PVectorN (len vec_)))` 
-
--- RJ: Should auto-generate from `data` definition
 
 {-@ measure vec :: PVector -> [Integer]
     vec (PVector v m o) = v 
@@ -70,18 +59,17 @@ data Space a = Null | Real a Integer
 -- RJ: Useful type aliases for specs
 
 {-@ type SameSpace X       = {v:PVector | ((Inv v) && (SameLen X v) && (SameOrth X v))} @-}
-{-@ type PVectorN N = {v: PVector | (len (vec v)) = N}   @-} 
-{-@ type PVectorP P = {v: PVector | (SameLen v P)}       @-} 
+{-@ type PVectorN N        = {v: PVector | (len (vec v)) = N}   @-} 
+{-@ type PVectorP P        = {v: PVector | (SameLen v P)}       @-} 
 
 --------------------
--- "dim" and "sameSpace" are only used in the ASSERTs
+
 {-@ dim         :: s:(Space PVector) -> {v:Int | v = (dim s)} @-}
 dim Null        = (0 :: Int)
 dim (Real pv _) = 1 + dim (orthSpace_ pv)
 
-sameSpace :: PVector -> PVector -> Bool
-sameSpace pv1 pv2 = 
-  (length (vec pv1) == length (vec pv2)) && (orthSpace pv1 == orthSpace pv2)
+sameSpace         :: PVector -> PVector -> Bool
+sameSpace pv1 pv2 = (length (vec pv1) == length (vec pv2)) && (orthSpace pv1 == orthSpace pv2)
 
 
 {-@ muCoeff_   :: p:PVector -> {v:[Integer] | v = (muCoeff p) }            @-}
@@ -95,29 +83,19 @@ vec_     (PVector v m o) = v
 
 --------------------
 
-
 -- squared determinant of orthSpace
 detPV :: PVector -> Integer 
--- detPV = maybe 1 snd . orthSpace
 detPV (PVector _ _ Null)       = 1
 detPV (PVector _ _ (Real _ n)) = n
 
--- RJ: also, output PVector has the same orthspace...
--- peel off last layer of projection from PVector
--- ASSERT: dim (orthSpace (liftPV v)) == dim (orthSpace v) - 1
+
 {-@ liftPV :: pv:PVector -> {v:(PVectorP pv) | ((orthSpace v) = (orthSpace (spaceVec (orthSpace pv))) && ((dim (orthSpace v)) = (dim (orthSpace pv)) - 1))} @-}
-liftPV (PVector v (m:mu) (Real pv _)) 
-  = PVector v mu (orthSpace_ pv)
+liftPV (PVector v (m:mu) (Real pv _)) = PVector v mu (orthSpace_ pv)
 
-
--- dot product of two vectors
--- ASSERT: length xs == length ys
 {-@ dot :: (Num a) => xs:[a] -> {v:[a] | (len v) = (len xs)} -> a @-}
 dot xs ys = sum (zipWith (*) xs ys)
 
-
 -- scaled dot product of two projected vectors: output is <v*,w*>det^2(orthSpace) 
--- ASSERT: (dotPV x y) ==> sameSpace x y
 {-@ dotPV :: pv1:PVector -> pv2:(SameSpace pv1) -> Integer @-}
 dotPV (PVector v1 [] _) (PVector v2 [] _) 
   = dot v1 v2
@@ -125,7 +103,7 @@ dotPV pv1@(PVector _ mu1 _) pv2@(PVector _ mu2 _)
   = liquidAssert (length mu1 == length mu2) q
   where
     dd          = dotPV (liftPV pv1) (liftPV pv2)
-    Real pv0 rr = orthSpace_ pv1 -- same as orthSpace v2
+    Real pv0 rr = orthSpace_ pv1       -- same as orthSpace v2
     x           = dd * rr - (head mu1) * (head mu2)
     (q, 0)      = divMod x (detPV pv0) -- check remainder is 0
 
