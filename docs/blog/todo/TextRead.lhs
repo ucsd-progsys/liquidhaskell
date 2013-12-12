@@ -10,7 +10,7 @@ categories: benchmarks, text
 demo: TextRead.hs
 ---
 
-Welcome back, today we're going to show how to build and consume
+Welcome back, today we're going to show how to consume
 `Text` values. The key complication we'll find when reasoning about
 `Text`s is the use of UTF-16 as the internal encoding.
 
