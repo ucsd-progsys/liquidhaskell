@@ -6,19 +6,27 @@ comments: true
 external-url:
 author: Eric Seidel
 published: false
-categories: benchmarks
+categories: benchmarks, text
 demo: TextInternal.hs
 ---
 
-In the past we've seen how to use LiquidHaskell to...
+So far we have mostly discussed LiquidHaskell in the context of
+recursive data structures like lists, but there comes a time in many
+programs when you have to put down the list and pick up an array for
+the sake of performance. In this series we're going to examine the
+`text` library, which does exactly this in addition to having
+extensive Unicode support.
 
-In this series we will use LiquidHaskell to verify the safety of low-level
-operations like array index and update.
-
-The `text` library is commonly used when one cares about processing lots
-of text in a time-efficient manner. Its performance is better than the standard
-`String` type because `text` uses a byte-array representation rather than a list
-of characters.
+`text` is a popular library for efficient text processing. It provides
+the high-level API haskellers have come to expect while using stream
+fusion and byte arrays under the hood to guarantee high
+performance. The thing that makes `text` stand out as an interesting
+target for LiquidHaskell, however, is its use of
+Unicode. Specifically, `text` uses UTF-16 as its internal encoding,
+where each character is represented with either two or four
+bytes. We'll see later on how this encoding presents a challenge for
+verifying memory-safety, but first let us look at how a `Text` is
+represented.
 
 <!-- more -->
 
@@ -35,49 +43,43 @@ import GHC.ST
 import GHC.Word
 
 import Language.Haskell.Liquid.Prelude
-
-# define CHECK_BOUNDS(_func_,_len_,_k_) \
-if (_k_) < 0 || (_k_) >= (_len_) then error ("Data.Text.Array." ++ (_func_) ++ ": bounds error, offset " ++ show (_k_) ++ ", length " ++ show (_len_)) else
 \end{code}
 
-Arrays
-------
-
-There are two types of arrays, mutable `MArray`s and immutable `Array`s.
+`text` uses two types of arrays internally, immutable `Array`s and
+mutable `MArray`s.
 
 \begin{code}
-{-@ data Array = Array (aBA :: ByteArray#) (aLen :: Nat) @-}
 data Array = Array {
     aBA  :: ByteArray#
   , aLen :: !Int
   }
+{-@ data Array = Array { aBA :: ByteArray#, aLen :: Nat } @-}
 {-@ measure alen :: Array -> Int
     alen (Array aBA aLen) = aLen
   @-}
 {-@ aLen :: a:Array -> {v:Nat | v = (alen a)}  @-}
 
-{-@ data MArray s = MArray (maBA :: MutableByteArray# s) (maLen :: Nat) @-}
 data MArray s = MArray {
     maBA :: MutableByteArray# s
   , maLen :: !Int
   }
+{-@ data MArray s = MArray { maBA :: MutableByteArray# s, maLen :: Nat } @-}
 {-@ measure malen :: MArray s -> Int
     malen (MArray maBA maLen) = maLen
   @-}
 {-@ maLen :: a:MArray s -> {v:Nat | v = (malen a)}  @-}
 \end{code}
 
-All `Array`s start off mutable and are eventually *frozen* before they are
-packaged into a `Text`.
+Both types carry around with them the number of `Word16`s they can
+hold (this is actually only true when you compile with asserts turned
+on, but we use this to ease the verification process).
+
+The main three array operations we care about are: (1) writing into an
+`MArray`, (2) reading from an `Array`, and (3) *freezing* an `MArray`
+into an `Array`. But first, let's see how one creates an `MArray`.
 
 \begin{code}
-{- GHC.Prim.newByteArray# :: l:Int# -> GHC.Prim.State# s
-      -> (# GHC.Prim.State# s, {v:MutableByteArray# s | (mbalen v) = l} #)
-  @-}
-
-{-@ type ArrayN    N = {v:Array    | (alen v)  = N} @-}
 {-@ type MArrayN s N = {v:MArray s | (malen v) = N} @-}
-
 {-@ new :: forall s. n:Nat -> ST s (MArrayN s n) @-}
 new :: forall s. Int -> ST s (MArray s)
 new n
@@ -90,72 +92,68 @@ new n
         bytesInArray n = n `shiftL` 1
 \end{code}
 
-That might seem a lot of code to just create an array but don't worry, the
-verification process here is quite simple. LiquidHaskell simply recognizes
-that the `n` used to construct the returned array (`MArray marr# n`) is the
-same `n` passed to `new`. It should be noted that we're abstracting away some
-detail here with respect to the underlying `MutableByteArray#`, specifically
-we're making the assumption that any *unsafe* operation will be caught and
+`new n` is an `ST` action that produces an `MArray s` with `n` slots,
+denoted by the type alias `MArrayN s n`. Note that we are not talking
+about bytes here, `text` deals with `Word16`s internally and as such
+we actualy allocate `2*n` bytes.  While this may seem like a lof of
+code to just create an array, the verification process here is quite
+simple. LiquidHaskell simply recognizes that the `n` used to construct
+the returned array (`MArray marr# n`) is the same `n` passed to
+`new`. It should be noted that we're abstracting away some detail here
+with respect to the underlying `MutableByteArray#`, specifically we're
+making the assumption that any *unsafe* operation will be caught and
 dealt with before the `MutableByteArray#` is touched.
 
-The only way to produce an immutable `Array` is to *freeze* an `MArray`.
+Once we have an `MArray` in hand, we'll want to be able to write our
+data into it. A `Nat` is a valid index into an `MArray` `ma` if it is
+less than the number of slots, for which we have another type alias
+`MAValidI ma`. `text` includes run-time assertions that check this
+property, but LiquidHaskell can statically prove the assertions will
+always pass.
 
 \begin{code}
+{-@ type MAValidI MA = {v:Nat | v < (malen MA)} @-}
+{-@ unsafeWrite :: ma:MArray s -> MAValidI ma -> Word16 -> ST s () @-}
+unsafeWrite :: MArray s -> Int -> Word16 -> ST s ()
+unsafeWrite MArray{..} i@(I# i#) (W16# e#)
+  | i < 0 || i >= maLen = liquidError "out of bounds"
+  | otherwise = ST $ \s1# ->
+      case writeWord16Array# maBA i# e# s1# of
+        s2# -> (# s2#, () #)
+\end{code}
+
+Before we can package up our `MArray` into a `Text`, we need to
+*freeze* it, preventing any further mutation. The key property here is
+of course that the frozen `Array` should have the same length as the
+`MArray`.
+
+\begin{code}
+{-@ type ArrayN N = {v:Array | (alen v) = N} @-}
 {-@ unsafeFreeze :: ma:MArray s -> ST s (ArrayN (malen ma)) @-}
 unsafeFreeze :: MArray s -> ST s Array
 unsafeFreeze MArray{..} = ST $ \s# ->
                           (# s#, Array (unsafeCoerce# maBA) maLen #)
-
-{-@ qualif FreezeMArr(v:Array, ma:MArray s):
-        alen(v) = malen(ma)
-  @-}
-
-{-@ empty :: {v:Array | (alen v) = 0}  @-}
-empty :: Array
-empty = runST (new 0 >>= unsafeFreeze)
 \end{code}
 
-Again, LiquidHaskell is happy to verify that `unsafeFreeze` returns an
-`Array` with length equal to the input `MArray` as we simply copy the
-length parameter `maLen` over.
+Again, LiquidHaskell is happy to prove our specification as we simply
+copy the length parameter `maLen` over into the `Array`.
 
-
-Operating on Arrays
--------------------
-
-There are two basic operations we might want to perform on an array, indexing
-and writing.
-
-Naturally, we can only write a value into an `MArray` and we require a valid
-index to perform the write, i.e. a `Nat` that is less than the length of the
-array.
+Finally, we will eventually want to read a value out of the
+`Array`. As with `unsafeWrite` we require a valid index into the
+`Array`, which we denote using the `AValidI` alias.
 
 \begin{code}
-{-@ type MAValidI A = {v:Nat | v < (malen A)} @-}
-
-{-@ unsafeWrite :: ma:MArray s -> MAValidI ma -> Word16 -> ST s () @-}
-unsafeWrite :: MArray s -> Int -> Word16 -> ST s ()
-unsafeWrite MArray{..} i@(I# i#) (W16# e#) = ST $ \s1# ->
-  CHECK_BOUNDS("unsafeWrite",maLen,i)
-  case writeWord16Array# maBA i# e# s1# of
-    s2# -> (# s2#, () #)
-\end{code}
-
-Indexing, on the other hand, is only allowed once the array has been
-frozen and, as you might expect, also requires the index to be within
-bounds of the array.
-
-\begin{code}
-{-@ type AValidI A   = {v:Nat | v     <  (alen A)} @-}
-{-@ type AValidO A   = {v:Nat | v     <= (alen A)} @-}
-{-@ type AValidL O A = {v:Nat | (v+O) <= (alen A)} @-}
-
+{-@ type AValidI A = {v:Nat | v < (alen A)} @-}
 {-@ unsafeIndex :: a:Array -> AValidI a -> Word16 @-}
 unsafeIndex :: Array -> Int -> Word16
-unsafeIndex Array{..} i@(I# i#) =
-  CHECK_BOUNDS("unsafeIndex",aLen,i)
-  case indexWord16Array# aBA i# of r# -> (W16# r#)
+unsafeIndex Array{..} i@(I# i#)
+  | i < 0 || i >= aLen = liquidError "out of bounds"
+  | otherwise = case indexWord16Array# aBA i# of
+                  r# -> (W16# r#)
 \end{code}
+
+As before, LiquidHaskell can easily prove that the run-time assertions
+will never fail.
 
 But what if we want to copy a region of one array into another? Well, we could
 repeatedly `unsafeWrite` the result of `unsafeIndex`ing, but `text` is designed
@@ -164,12 +162,7 @@ the right type however, we can regain safety. `text` provides a wrapper around
 `memcpy` to copy `n` elements from one `MArray` to another.
 
 \begin{code}
-{-@ type MAValidO A   = {v:Nat | v     <= (malen A)} @-}
-{-@ type MAValidL O A = {v:Nat | (v+O) <= (malen A)} @-}
-
-{-@ qualif MALen(v:Int, a:MArray s): v = malen(a) @-}
-{-@ qualif MALen(v:MArray s, i:Int): i = malen(v) @-}
-
+{-@ type MAValidO MA = {v:Nat | v <= (malen MA)} @-}
 {-@ copyM :: dst:MArray s -> didx:MAValidO dst
           -> src:MArray s -> sidx:MAValidO src
           -> {v:Nat | (((v + didx) <= (malen dst))
@@ -212,20 +205,18 @@ are `Nat`s satisfying two properties: (1) `off <= alen arr` and (2)
 between `off` and `len` will be a valid index into `arr`.
 
 \begin{code}
+data Text = Text Array Int Int
 {-@ data Text [tlen] = Text (arr :: Array)
                             (off :: TValidO arr)
                             (len :: TValidL off arr)
   @-}
-data Text = Text Array Int Int
 
 {-@ measure tarr :: Text -> Array
     tarr (Text a o l) = a
   @-}
-
 {-@ measure toff :: Text -> Int
     toff (Text a o l) = o
   @-}
-
 {-@ measure tlen :: Text -> Int
     tlen (Text a o l) = l
   @-}
