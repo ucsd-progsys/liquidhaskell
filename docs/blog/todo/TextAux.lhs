@@ -96,6 +96,17 @@ runText act = runST (act $ \ !marr !len -> do
 {- qualif Foo(v:int): v >= -1 @-}
 {- qualif Foo(v:int): v >=  4 @-}
 
+{-@ measure numchars :: Array -> Int -> Int -> Int @-}
+{-@ measure tlength :: Text -> Int
+    tlength (Text a o l) = (numchars a o l)
+  @-}
+
+{-@ predicate SpanChar N A O L I =
+      (((numchars (A) (O) ((I-O)+N)) = (1 + (numchars (A) (O) (I-O))))
+    && ((numchars (A) (O) ((I-O)+N)) <= (numchars A O L))
+    && (((I-O)+N) <= L))
+  @-}
+
 {-@ axiom_lead_surr :: x:Word16 -> a:Array -> o:Nat -> l:Nat -> i:Nat
                   -> {v:Bool | ((Prop v) <=> (if (55296 <= x && x <= 56319)
                                               then (SpanChar 2 a o l i)
