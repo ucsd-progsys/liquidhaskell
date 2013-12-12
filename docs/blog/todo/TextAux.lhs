@@ -75,12 +75,8 @@ runText act = runST (act $ \ !marr !len -> do
 
 {-@ qualif FreezeMArr(v:Array, ma:MArray s): (alen v) = (malen ma) @-}
 
-{-@ qualif Foo(v:a, a:MArray s):
-        (snd v) <= (malen a)
-  @-}
-{-@ qualif Foo(v:a, a:Array):
-        (snd v) <= (alen a)
-  @-}
+{-@ qualif Foo(v:a, a:MArray s): (snd v) <= (malen a) @-}
+{-@ qualif Foo(v:a, a:Array):    (snd v) <= (alen a)  @-}
 
 {-@ measure ord :: Char -> Int @-}
 {-@ GHC.Base.ord :: c:Char -> {v:Int | v = (ord c)} @-}
