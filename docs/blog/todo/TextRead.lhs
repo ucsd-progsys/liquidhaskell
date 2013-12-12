@@ -96,12 +96,10 @@ one slot." Intuitively, we know what it means for a character to span
 3. `i-o+n <= l`
 
 2 and 3 encode the well-formedness of a `Text` value, i.e. `i+1`
-*must* be a valid index if a lead surrogate is at index `i`. We can
-encode these properties in the refinement logic as follows.
+*must* be a valid index if a lead surrogate is at index `i`.
 
-\begin{code}
+\begin{code} We can encode these properties in the refinement logic as follows.
 {-@ measure numchars :: Array -> Int -> Int -> Int @-}
-
 {-@ predicate SpanChar N A O L I =
       (((numchars (A) (O) ((I-O)+N)) = (1 + (numchars (A) (O) (I-O))))
     && ((numchars (A) (O) ((I-O)+N)) <= (numchars A O L))
@@ -151,10 +149,6 @@ Before signing off, let's take a look at a slightly more interesting
 function, `take`.
 
 \begin{code}
-{-@ measure tlength :: Text -> Int
-    tlength (Text a o l) = (numchars a o l)
-  @-}
-
 {-@ take :: n:Nat -> t:Text -> {v:Text | (Min (tlength v) (tlength t) n)} @-}
 take :: Int -> Text -> Text
 take n t@(Text arr off len)
@@ -170,7 +164,14 @@ take n t@(Text arr off len)
 
 `take` gets a `Nat` and a `Text`, and returns a `Text` that contains
 the first `n` characters of `t`. That is, unless `n >= tlength t`, in
-which case it just returns `t`. The bulk of the work is done by the
+which case it just returns `t`.
+\begin{code} `tlength` is a simple wrapper around `numchars`.
+{-@ measure tlength :: Text -> Int
+    tlength (Text a o l) = (numchars a o l)
+  @-}
+\end{code}
+
+The bulk of the work is done by the
 inner `loop`, which has to track the current index `i` and the number
 of characters we have seen, `cnt`. `loop` uses an auxiliary function
 `iter_` to determine the *width* of the character that starts at `i`,
