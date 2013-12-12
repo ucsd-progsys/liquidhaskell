@@ -35,23 +35,17 @@ import Language.Haskell.Liquid.Prelude
 
 
 \begin{code}
-{-@ measure ord :: Char -> Int @-}
-{-@ GHC.Base.ord :: c:Char -> {v:Int | v = (ord c)} @-}
-
 {-@ predicate One C = ((ord C) <  65536) @-}
 {-@ predicate Two C = ((ord C) >= 65536) @-}
-
-{-@ qualif OneC(v:Char) : ((ord v) <  65536) @-}
-{-@ qualif TwoC(v:Char) : ((ord v) >= 65536) @-}
 
 {-@ predicate Room MA I C = (((One C) => (MAValidIN MA I 1))
                           && ((Two C) => (MAValidIN MA I 2))) @-}
 {-@ predicate MAValidIN  MA I N = (0 <= I && I <= ((malen MA) - N)) @-}
 
-{-@ writeChar :: ma:I.MArray s -> i:Nat -> {v:Char | (Room ma i v)}
+{-@ writeChar :: ma:MArray s -> i:Nat -> {v:Char | (Room ma i v)}
               -> ST s (MAValidL i ma)
   @-}
-writeChar :: I.MArray s -> Int -> Char -> ST s Int
+writeChar :: MArray s -> Int -> Char -> ST s Int
 writeChar marr i c
     | n < 0x10000 = do
         I.unsafeWrite marr i (fromIntegral n)

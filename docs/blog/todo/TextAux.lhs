@@ -67,8 +67,13 @@ runText act = runST (act $ \ !marr !len -> do
 {-@ qualif MALen(v:int, a:MArray s): v = malen(a) @-}
 {-@ qualif MALen(v:MArray s, i:int): i = malen(v) @-}
 
+{- invariant {v:MArray s | (malen v) >= 0} @-}
+{- invariant {v:Array | (alen v) >= 0} @-}
+
 {-@ qualif MALenLE(v:int, a:MArray s): v <= (malen a) @-}
 {-@ qualif ALenLE(v:int, a:Array): v <= (alen a) @-}
+
+{-@ qualif FreezeMArr(v:Array, ma:MArray s): (alen v) = (malen ma) @-}
 
 {-@ qualif Foo(v:a, a:MArray s):
         (snd v) <= (malen a)
@@ -77,24 +82,15 @@ runText act = runST (act $ \ !marr !len -> do
         (snd v) <= (alen a)
   @-}
 
-{-@ qualif Ord(v:int, x:Char)
-        : ((((ord x) <  65536) => (v = 0))
-        && (((ord x) >= 65536) => (v = 1)))
-  @-}
+{-@ measure ord :: Char -> Int @-}
+{-@ GHC.Base.ord :: c:Char -> {v:Int | v = (ord c)} @-}
+
 {-@ qualif Ord(v:int, i:int, x:Char)
         : ((((ord x) <  65536) => (v = i))
         && (((ord x) >= 65536) => (v = (i + 1))))
   @-}
-{-@ qualif Ord(v:Char, i:int)
-        : ((((ord x) <  65536) => (v >= 0))
-        && (((ord x) >= 65536) => (v >= 1)))
-  @-}
 
-{- qualif LTPlus(v:int, a:int, b:int) : v < (a + b) @-}
-{- qualif LTEPlus(v:int, a:int, b:int) : (v + a) <= b @-}
-
-{- qualif Foo(v:int): v >= -1 @-}
-{- qualif Foo(v:int): v >=  4 @-}
+{-@ qualif LTEPlus(v:int, a:int, b:int) : (v + a) <= b @-}
 
 {-@ measure numchars :: Array -> Int -> Int -> Int @-}
 {-@ measure tlength :: Text -> Int
