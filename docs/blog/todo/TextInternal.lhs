@@ -205,11 +205,21 @@ are `Nat`s satisfying two properties: (1) `off <= alen arr` and (2)
 between `off` and `len` will be a valid index into `arr`.
 
 \begin{code}
+data Text = Text Array Int Int
 {-@ data Text [tlen] = Text (arr :: Array)
                             (off :: TValidO arr)
                             (len :: TValidL off arr)
   @-}
-data Text = Text Array Int Int
+
+{-@ measure tarr :: Text -> Array
+    tarr (Text a o l) = a
+  @-}
+{-@ measure toff :: Text -> Int
+    toff (Text a o l) = o
+  @-}
+{-@ measure tlen :: Text -> Int
+    tlen (Text a o l) = l
+  @-}
 \end{code}
 
 The liquid-type for `Text` makes use of the following two type-aliases to

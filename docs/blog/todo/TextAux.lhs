@@ -19,8 +19,7 @@ import GHC.ST
 import Data.Word
 import GHC.Word (Word16(..))
 
-import qualified TextInternal as I
-import TextInternal -- (Text(..))
+import TextInternal
 
 {-@ measure isUnknown :: Size -> Prop
     isUnknown (Exact n) = false
@@ -57,24 +56,24 @@ data Stream a =
     !s                          -- current state
     !Size                       -- size hint
 
-{-@ runText :: (forall s. (m:I.MArray s -> MAValidO m -> ST s Text) -> ST s Text)
+{-@ runText :: (forall s. (m:MArray s -> MAValidO m -> ST s Text) -> ST s Text)
             -> Text
   @-}
-runText :: (forall s. (I.MArray s -> Int -> ST s Text) -> ST s Text) -> Text
+runText :: (forall s. (MArray s -> Int -> ST s Text) -> ST s Text) -> Text
 runText act = runST (act $ \ !marr !len -> do
-                             arr <- I.unsafeFreeze marr
+                             arr <- unsafeFreeze marr
                              return $! Text arr 0 len)
 
-{-@ qualif MALen(v:Int, a:MArray s): v = malen(a) @-}
-{-@ qualif MALen(v:MArray s, i:Int): i = malen(v) @-}
+{-@ qualif MALen(v:int, a:MArray s): v = malen(a) @-}
+{-@ qualif MALen(v:MArray s, i:int): i = malen(v) @-}
 
-{-@ qualif MALenLE(v:int, a:I.MArray s): v <= (malen a) @-}
-{-@ qualif ALenLE(v:int, a:I.Array): v <= (alen a) @-}
+{-@ qualif MALenLE(v:int, a:MArray s): v <= (malen a) @-}
+{-@ qualif ALenLE(v:int, a:Array): v <= (alen a) @-}
 
-{-@ qualif Foo(v:a, a:I.MArray s):
+{-@ qualif Foo(v:a, a:MArray s):
         (snd v) <= (malen a)
   @-}
-{-@ qualif Foo(v:a, a:I.Array):
+{-@ qualif Foo(v:a, a:Array):
         (snd v) <= (alen a)
   @-}
 
@@ -91,24 +90,19 @@ runText act = runST (act $ \ !marr !len -> do
         && (((ord x) >= 65536) => (v >= 1)))
   @-}
 
-{-@ qualif LTPlus(v:int, a:int, b:int) : v < (a + b) @-}
-{-@ qualif LTEPlus(v:int, a:int, b:int) : (v + a) <= b @-}
+{- qualif LTPlus(v:int, a:int, b:int) : v < (a + b) @-}
+{- qualif LTEPlus(v:int, a:int, b:int) : (v + a) <= b @-}
 
-{-@ qualif Foo(v:int): v >= -1 @-}
-{-@ qualif Foo(v:int): v >=  4 @-}
+{- qualif Foo(v:int): v >= -1 @-}
+{- qualif Foo(v:int): v >=  4 @-}
 
-{-@ unsafeIndexFQ :: x:Word16 -> a:Array -> o:Int -> l:Int -> i:Int
-                  -> {v:Bool | ((Prop v) <=> (if (BtwnI x 55296 56319)
+{-@ axiom_lead_surr :: x:Word16 -> a:Array -> o:Nat -> l:Nat -> i:Nat
+                  -> {v:Bool | ((Prop v) <=> (if (55296 <= x && x <= 56319)
                                               then (SpanChar 2 a o l i)
                                               else (SpanChar 1 a o l i)))}
   @-}
-unsafeIndexFQ :: Word16 -> Array -> Int -> Int -> Int -> Bool
-unsafeIndexFQ = undefined
-
-{-@ predicate Btwn V X Y   = ((X <= V) && (V < Y)) @-}
-{-@ predicate BtwnE V X Y  = ((X < V)  && (V < Y)) @-}
-{-@ predicate BtwnI V X Y  = ((X <= V) && (V <= Y)) @-}
-{-@ predicate BtwnEI V X Y = ((X < V)  && (V <= Y)) @-}
+axiom_lead_surr :: Word16 -> Array -> Int -> Int -> Int -> Bool
+axiom_lead_surr = undefined
 
 {-@ empty :: {v:Text | (tlen v) = 0} @-}
 empty :: Text
@@ -136,13 +130,20 @@ chr2 (W16# a#) (W16# b#) = C# (chr# (upper# +# lower# +# 0x10000#))
 {-@ type AValidO  A   = {v:Nat | v     <= (alen A)} @-}
 {-@ type AValidL O A = {v:Nat | (v+O) <= (alen A)} @-}
 
-{-@ measure tarr :: Text -> Array
-    tarr (Text a o l) = a
+{-@ type TValidI T = {v:Nat | v < (tlen T)} @-}
+
+{-@ invariant {v:Text | (tlength v) = (numchars (tarr v) (toff v) (tlen v))} @-}
+
+
+
+{-@ qualif Min(v:int, t:Text, i:int):
+      (if ((tlength t) < i)
+       then ((numchars (tarr t) (toff t) v) = (tlength t))
+       else ((numchars (tarr t) (toff t) v) = i))
   @-}
 
-{-@ measure toff :: Text -> Int
-    toff (Text a o l) = o
-  @-}
+{-@ qualif NumChars(v:int, t:Text, i:int): v = (numchars (tarr t) (toff t) i) @-}
 
+{-@ qualif TLengthLE(v:int, t:Text): v <= (tlength t) @-}
 
 \end{code}
