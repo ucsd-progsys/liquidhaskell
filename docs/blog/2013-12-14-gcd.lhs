@@ -6,7 +6,7 @@ comments: true
 external-url:
 categories: termination, refinements
 author: Niki Vazou
-published: true 
+published: false 
 demo: GCD.hs
 ---
 
