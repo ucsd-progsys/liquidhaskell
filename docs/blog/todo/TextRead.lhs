@@ -21,10 +21,7 @@ Welcome back, today we're going to show how to consume
 {-@ LIQUID "--no-termination" @-}
 module TextApi where
 
-import GHC.Base (ord)
-import GHC.ST
-import Data.Bits ((.&.))
-import Data.Word
+import Data.Word (Word16)
 
 import qualified TextInternal as I
 import TextInternal (Text(..), Array(..), MArray(..))
