@@ -203,7 +203,7 @@ Now we can finally define the core datatype of the `text` package! A `Text`
 value consists of an *array*, an *offset*, and a *length*. The offset and length
 are `Nat`s satisfying two properties: (1) `off <= alen arr` and (2)
 `off + len <= alen arr`. These invariants ensure that any *index* we pick
-between `off` and `len` will be a valid index into `arr`.
+between `off` and `off + len` will be a valid index into `arr`.
 
 \begin{code}
 data Text = Text Array Int Int
