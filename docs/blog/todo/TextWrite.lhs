@@ -22,9 +22,8 @@ the same issue from the perspective of *building* a `Text`.
 module TextWrite where
 
 import GHC.Base (ord)
-import GHC.ST
+import GHC.ST (ST, runST)
 import Data.Bits ((.&.))
-import Data.Word
 
 import qualified TextInternal as I
 import TextInternal (Text(..), Array(..), MArray(..))

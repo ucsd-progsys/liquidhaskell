@@ -35,12 +35,13 @@ represented.
     RecordWildCards, UnboxedTuples #-}
 module TextInternal where
 
-import Control.Monad.ST.Unsafe
-import Data.Bits
-import Foreign.C.Types
-import GHC.Base
-import GHC.ST
-import GHC.Word
+import Control.Monad.ST.Unsafe (unsafeIOToST)
+import Data.Bits (shiftL, shiftR, xor, (.&.))
+import Foreign.C.Types (CSize)
+import GHC.Base (Int(..), ByteArray#, MutableByteArray#, newByteArray#,
+                 writeWord16Array#, indexWord16Array#, unsafeCoerce#)
+import GHC.ST (ST(..), runST)
+import GHC.Word (Word16(..))
 
 import Language.Haskell.Liquid.Prelude
 \end{code}
