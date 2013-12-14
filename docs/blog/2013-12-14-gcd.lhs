@@ -84,9 +84,18 @@ mod a b
   | a - b == b = 0
 \end{code}
 
-Another implementation of `gcd` decreases *either* `a` *or* `b`.
-LiquidHaskell, to prove that such an implementation is terminating, 
-is equipped with a different notion of ordering, namely 
+\begin{code}Euclid's original version of `gcd` is different
+gcd' :: Int -> Int -> Int
+gcd' a b | a == b = a
+         | a >  b = gcd' (a - b) b 
+         | a <  b = gcd' a (b - a) 
+\end{code}
+
+Though this version is simpler, turns out
+that LiquidHaskell needs a more sophisticated mechanism to prove it
+terminating.
+Concretely, to prove `gcd'` terminating, 
+liquidHaskell is equipped with a different notion of ordering, namely 
 *lexicographic ordering*.
 
 Stay tuned!
