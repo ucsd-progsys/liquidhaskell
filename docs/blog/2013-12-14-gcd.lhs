@@ -93,8 +93,8 @@ gcd' a b | a == b = a
 
 Though this version is simpler, turns out
 that LiquidHaskell needs a more sophisticated mechanism to prove it
-terminating.
-Concretely, to prove `gcd'` terminating, 
+terminates.
+Concretely, to prove `gcd'` terminates, 
 liquidHaskell is equipped with a different notion of ordering, namely 
 *lexicographic ordering*.
 
