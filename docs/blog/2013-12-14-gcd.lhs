@@ -1,42 +1,50 @@
 ---
 layout: post
-title: "Checking Termination"
+title: "Termination Requires Refinements"
 date: 2013-12-14 16:12
 comments: true
 external-url:
-categories: termination, refinements
+categories: termination 
 author: Niki Vazou
-published: false 
+published: true 
 demo: GCD.hs
 ---
 
-In the [last post][ref-termination], we saw how LiquidHaskell can be used to
-prove termination. A crucial feature of the termination prover is that it is 
+We've seen how, in the presence of [lazy evaluation][ref-lies], refinements
+[require termination][ref-bottom]. [Next][ref-termination], we saw how 
+LiquidHaskell can be used to prove termination. 
+
+Today, lets see how **termination requires refinements**. 
+
+That is, a crucial feature of LiquidHaskell's termination prover is that it is 
 not syntactically driven, i.e. is not limited to say, structural recursion. 
 Instead, it uses the wealth of information captured by refinements that are
-at our disposal, in order to prove termination. As you might imagine, this
-turns out to be crucial in practice.
+at our disposal, in order to prove termination. 
 
+This turns out to be crucial in practice.
 As a quick toy example -- motivated by a question by [Elias][comment-elias] -- 
 lets see how, unlike purely syntax-directed (structural) approaches, 
-LiquidHaskell proves that recursive functions, such as Euclid's argument
-swapping GCD algorithm, terminates.
+LiquidHaskell proves that recursive functions, such as Euclid's GCD 
+algorithm, terminates.
 
 <!-- more -->
 
+<br>
+<br>
+<br>
+
 <div class="row-fluid">
-   <div class="span12 pagination-centered">
-       <img src="http://faculty.etsu.edu/gardnerr/Geometry-History/Euclid_7-Raphael.jpg"
+  <div class="span12 pagination-centered">
+  <img src="http://faculty.etsu.edu/gardnerr/Geometry-History/Euclid_7-Raphael.jpg"
        alt="Euclid" width="300">
        <br>
-         <br>
-          <br>
-           If Euclid had LiquidHaskell, he wouldn't have to wave his hands.
-           <!-- How do you prove his algorithm will <b>terminate?</b> -->
-          <br>
-         <br>
        <br>
-   </div>
+       <br>
+       With LiquidHaskell, Euclid wouldn't have had to wave his hands.
+       <br>
+       <br>
+       <br>
+  </div>
 </div>
 
 \begin{code}
@@ -77,11 +85,10 @@ So, to prove `gcd` terminating, liquidHaskell needs a refined signature for
 type:
 
 \begin{code}
-{-@ mod :: a:Nat -> b:{v:Nat| (0 < v && v < a)} -> {v:Nat | v < b} @-}
-mod a b 
-  | a - b >  b = mod (a - b) b
-  | a - b <  b = a - b
-  | a - b == b = 0
+{-@ mod :: a:Nat -> b:{v:Nat| 0 < v} -> {v:Nat | v < b} @-}
+mod a b
+  | a < b = a
+  | otherwise = mod (a - b) b
 \end{code}
 
 \begin{code}Euclid's original version of `gcd` is different
@@ -91,14 +98,9 @@ gcd' a b | a == b = a
          | a <  b = gcd' a (b - a) 
 \end{code}
 
-Though this version is simpler, turns out
-that LiquidHaskell needs a more sophisticated mechanism to prove it
-terminates.
-Concretely, to prove `gcd'` terminates, 
-liquidHaskell is equipped with a different notion of ordering, namely 
-*lexicographic ordering*.
-
-Stay tuned!
+Though this version is simpler, turns out that LiquidHaskell needs 
+a more sophisticated mechanism, called **lexicographic ordering**, to 
+prove it terminates. Stay tuned!
 
 
 [ref-euclidean]:    http://en.wikipedia.org/wiki/Euclidean_algorithm
