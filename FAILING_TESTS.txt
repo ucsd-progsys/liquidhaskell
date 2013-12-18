@@ -13,13 +13,12 @@ Failed 24 tests:
   ../benchmarks/text-0.11.2.3/Data/Text/Fusion.hs,
   ../benchmarks/text-0.11.2.3/Data/Text/Lazy.hs,
   ../benchmarks/text-0.11.2.3/Data/Text/Lazy/Fusion.hs,
-  ../benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/AmericanFlag.hs,
-  ../benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/AmericanFlag1.hs,
++  ../benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/AmericanFlag.hs,
   ../benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/Heap.hs,
   ../benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/Merge.hs,
-  ../web/demos/KMeans.hs,
-  ../web/demos/TellingLies.hs,
++   ../web/demos/KMeans.hs,
++  ../web/demos/TellingLies.hs,
   pos/fixme.hs,
   pos/malformed0.hs,
   pos/typeAliasDup.hs,
-  pos/zipSO.hs 
++   pos/zipSO.hs 
