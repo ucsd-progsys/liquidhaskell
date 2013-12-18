@@ -102,20 +102,23 @@ initEnv info penv
   = do let tce   = tcEmbeds $ spec info
        defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- tyConInfo <$> get 
-       let f0    = grty info                        -- asserted refinements     (for defined vars)
-       f0''     <- grtyTop info                     -- default TOP reftype      (for exported vars without spec) 
+       f0       <- refreshArgs' $  grty info                        -- asserted refinements     (for defined vars)
+       f0''     <- grtyTop info >>= refreshArgs'                    -- default TOP reftype      (for exported vars without spec) 
        let f0'   = if (notruetypes $ config $ spec info) then [] else f0'' 
-       let f1    = defaults                         -- default TOP reftype      (for all vars) 
+       f1       <- refreshArgs' $ defaults                         -- default TOP reftype      (for all vars) 
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
-       let bs    = (map (unifyts' tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
+       let bs    = (map (unifyts' tce tyi penv)) <$> traceShow "ENV"  [f0 ++ f0', f1, f2, f3]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
-  where refreshArgs' = mapM (mapSndM refreshArgs)
-  -- where tce = tcEmbeds $ spec info 
-
+  where refreshArgs' xts = do xts1 <- mapM refreshxt xts 
+                              mapM (\(x, t) -> liftM (x,)  (shiftVVt t)) xts1
+--                               return xts
+-- where tce = tcEmbeds $ spec info 
+instance Show Var where
+  show = showPpr
 ctor' = map (mapSnd val) . ctors
 
 unifyts' tce tyi penv = (second (addTyConInfo tce tyi)) . (unifyts penv)
@@ -397,12 +400,12 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
 
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
-       cs    <- bsplitC γ t1' t2'
+       cs    <- bsplitC γ (traceShow ("UNIFYVV" ++ show t1) t1') t2'
        γ'    <- γ `extendEnvWithVV` t1' 
        let RApp c  t1s r1s _ = t1'
        let RApp c' t2s r2s _ = t2'
        let tyInfo = rTyConInfo c
-       cscov  <- splitCIndexed  γ' t1s t2s $ covariantTyArgs     tyInfo
+       cscov  <- splitCIndexed  γ' (traceShow ("COVARIANTS" ++ show t2s ++ "\n:>\n" ) t1s) t2s $ covariantTyArgs     tyInfo
        cscon  <- splitCIndexed  γ' t2s t1s $ contravariantTyArgs tyInfo
        cscov' <- rsplitCIndexed γ' r1s r2s $ covariantPsArgs     tyInfo
        cscon' <- rsplitCIndexed γ' r2s r1s $ contravariantPsArgs tyInfo
@@ -471,8 +474,19 @@ rsplitC _ (RMono _ _, RMono _ _)
 
 rsplitC γ (t1@(RPoly s1 r1), t2@(RPoly s2 r2))
   = do γ'  <-  foldM (++=) γ [("rsplitC1", x, ofRSort s) | (x, s) <- s2]
-       splitC (SubC γ' (F.subst su r1) r2)
-  where su = F.mkSubst [(x, F.EVar y) | (x, y) <- zip (fst <$> s1) (fst <$> s2)]
+       splitC (SubC γ' (F.subst su $ traceShow ("HMM" ++ show su ++ "\n" ++ showpp t1 ++ "\n" ++ showpp t2) r1) r2)
+  where su = F.mkSubst $ go s1 s2
+        go [] [] = []
+        go ((x,_):xs) ((y,_):ys) 
+          | not $ x `elem` F.freesyms r1 
+          = (x, F.EVar y) : go xs ys
+          | otherwise            
+          = -- (traceShow ("THIS " ++ show (t1, t2))  $ (x, F.EVar y)) : 
+             go xs ys
+        go _ _  = []
+
+  -- traceShow ("SUBST = " ++ 
+--                 if (length s1 == length s2) then "" else ("HEEERE" ++ show (s1, s2) ++ "\n\n" ++ show (t1, t2)) ) $  F.mkSubst [(x, F.EVar y) | (x, y) <- zip (fst <$> s1) (fst <$> s2), x `elem` F.freesyms r1]
 
 rsplitC _ _  
   = errorstar "rsplit Rpoly - RMono"
@@ -646,11 +660,20 @@ normalizeVV _ t
   = t 
 
 shiftVV t@(RApp _ ts _ r) vv' 
-  = t { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
+  = t { rt_args = F.subst2 ts (rTypeValueVar t, F.EVar vv') } 
       { rt_reft = (`F.shiftVV` vv') <$> r }
+
+-- shiftVV t@(RVar _ r) vv'
+--   = t { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t _ 
   = t -- errorstar $ "shiftVV: cannot handle " ++ showpp t
+
+shiftVVt :: SpecType -> CG SpecType
+shiftVVt t = liftM2 (mkArrow as ps) (liftM (zip xs) (mapM go ts)) (go rt)
+  where go t = liftM (shiftVV t) fresh
+        (as, ps, tbd) = bkUniv t
+        (xs, ts, rt)  = bkArrow tbd
 
 addBind :: F.Symbol -> F.SortedReft -> CG ((F.Symbol, F.Sort), F.BindId)
 addBind x r 
@@ -673,7 +696,7 @@ addClassBind = mapM (uncurry addBind) . classBinds
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) _msg 
-  = -- trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
+  = trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
      modify $ \s -> s { hsCs  = c : (hsCs s) }
 addC !c _msg 
   = modify $ \s -> s { hsCs  = c : (hsCs s) }
@@ -780,15 +803,23 @@ trueTy t
        tce   <- tyConEmbed <$> get
        return $ addTyConInfo tce tyi (uRType t)
 
-refreshArgs t 
+refreshArgs :: SpecType -> CG SpecType
+refreshArgs = liftM fst . refreshArgs'
+refreshArgs' t 
   = do xs' <- mapM (\_ -> fresh) xs
        let sus = F.mkSubst <$> (L.inits $ zip xs (F.EVar <$> xs'))
        let su  = last sus 
        let ts' = zipWith F.subst sus ts
        let t'  = mkArrow αs πs (zip xs' ts') (F.subst su tbd)
-       return t' -- $ traceShow ("refreshArgs: t = " ++ showpp t) t'
+       return (t', su) -- $ traceShow ("refreshArgs: t = " ++ showpp t) t'
   where (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
+
+refreshxt :: (Var, SpecType) -> CG (Var, SpecType)
+refreshxt (x, t) 
+  = do (t', su) <- refreshArgs' t
+       modify $ \s -> s{ termExprs = M.adjust (F.subst su) x (termExprs s)}
+       return $ (x, t')
 
 instance Freshable CG Integer where
   fresh = do s <- get
@@ -1000,7 +1031,7 @@ consCB _ γ (Rec xes)
 consCB _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
        to' <- consBind False γ (x, e, to)
-       extender γ (x, to')
+       extender γ (x, traceShow ("TYPE FOR " ++ show x ++ "\n" ++  show to) to')
 
 consBind isRec γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
@@ -1130,7 +1161,7 @@ consE γ e'@(App e a) | eqType (exprType a) predType
   = do t0 <- consE γ e
        case t0 of
          RAllP p t -> do s <- freshPredRef γ e' p
-                         return $ replacePreds "consE" t [(p, s)] {- =>> addKuts -}
+                         return $ traceShow "OH, NO" $ replacePreds "consE" t [(p, s)] {- =>> addKuts -}
          _         -> return t0
 
 consE γ e'@(App e a)               
@@ -1237,16 +1268,36 @@ cconsCase γ x t acs (ac, ys, ce)
   = do cγ <- caseEnv γ x acs ac ys 
        cconsE cγ ce t
 
+refreshDCon t 
+  = do ts' <- mapM foo ts
+       liftM (mkArrow αs πs (zip xs ts')) (refreshDCon' tbd) 
+  where (αs, πs, t0)  = bkUniv t
+        (xs, ts, tbd) = bkArrow t0
+
+refreshDCon' (RApp c ts rs r)
+  = do xs <- mapM (\_ -> fresh) ts
+       let ts' = zipWith shiftVV ts xs
+       return $ RApp c ts' rs r
+
+
+foo t 
+  = do x <- fresh
+       return $ shiftVV t x
+       
 -------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv 
 -------------------------------------------------------------------------------------
 caseEnv γ x _   (DataAlt c) ys
   = do let (x' : ys')    = F.symbol <$> (x:ys)
        xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
-       tdc              <- γ ??= (dataConSymbol c)
-       let (rtd, yts, _) = unfoldR c tdc ({-shiftVV-} xt0 {-x'-}) ys
+       tdc              <- γ ??= (dataConSymbol c) >>= refreshDCon
+       let  xr = singletonReft x' -- uTop $ F.symbolReft $ F.symbol x
+
+       let xtshifted     = traceShow ("HEREEE:" ++ showpp (shiftVV xt0 x')  ++ "\nx'=" ++ show (x')) $ {-(xt0 `strengthen` xr) -} shiftVV xt0 x' -- pos/PairMeasure fails w/o the shift
+       let (rtd, _, _) = unfoldR c (traceShow "TDCCC" tdc) xt0 ys
+       let yts = traceShow ("YHERE" ++ showpp (tdc, ys)) $ snd3 $  unfoldR c tdc xtshifted ys
        let r1            = dataConReft   c   ys' 
-       let r2            = dataConMsReft rtd ys'
+       let r2            = traceShow "HEREEEEE" $ dataConMsReft rtd ys'
        let xt            = xt0 `strengthen` (uTop (r1 `F.meet` r2))
        let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
        cγ'              <- addBinders γ x' cbs
@@ -1284,9 +1335,10 @@ altReft _ _ _            = error "Constraint : altReft"
 
 unfoldR dc td (RApp _ ts rs _) ys = (t3, tvys ++ yts, rt)
   where 
-        tbody           = instantiatePvs (instantiateTys td ts) $ reverse rs
-        (ys0, yts', rt) = safeBkArrow $ instantiateTys tbody tvs'
-        yts''           = zipWith F.subst sus (yts'++[rt])
+        tbody'           =traceShow ("BODY1\n" ++ show td ++ "\n" ++ show ts ) $  instantiateTys td ts
+        tbody           =traceShow "BODY2" $  instantiatePvs tbody' $ reverse rs
+        (ys0, yts', rt) =traceShow "INSTTT" $  safeBkArrow $ instantiateTys tbody tvs'
+        yts''           = traceShow ("ALMOST THERE \n\n" ++ show sus ++ "\n\n") $ zipWith F.subst sus (yts'++[rt])
         (t3,yts)        = (last yts'', init yts'')
         sus             = F.mkSubst <$> (L.inits [(x, F.EVar y) | (x, y) <- zip ys0 ys'])
         (αs, ys')       = mapSnd (F.symbol <$>) $ L.partition isTyVar ys
@@ -1345,10 +1397,10 @@ freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG (Ref RSort RReft SpecType)
 freshPredRef γ e (PV n τ as)
   = do t    <- freshTy_type PredInstE e (toType τ)
        args <- mapM (\_ -> fresh) as
-       let targs = zip args (fst3 <$> as)
+       let targs = [(x, s) | (x, (s, y, z)) <- zip args as, (F.EVar y) == z ] -- zip args [] (fst3 <$> as)
        γ' <- foldM (++=) γ [("freshPredRef", x, ofRSort τ) | (x, τ) <- targs]
        addW $ WfC γ' t
-       return $ RPoly targs t
+       return $ RPoly (traceShow ("FRESHARGS\n" ++ show as) targs) t
 
 -----------------------------------------------------------------------
 ---------- Helpers: Creating Refinement Types For Various Things ------

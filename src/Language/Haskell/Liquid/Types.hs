@@ -1,3 +1,4 @@
+{-# LANGUAGE UndecidableInstances     #-}
 {-# LANGUAGE DeriveDataTypeable     #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
@@ -595,7 +596,7 @@ instance (PPrint r, Reftable r) => Reftable (UReft r) where
 isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u)
 
 ppTy_ureft u@(U r p) d 
-  | isTauto_ureft u  = d
+--   | isTauto_ureft u  = d
   | otherwise        = ppr_reft r (ppTy p d)
 
 ppr_reft r d         = braces (toFix v <+> colon <+> d <+> text "|" <+> pprint r')
@@ -605,28 +606,36 @@ ppr_reft r d         = braces (toFix v <+> colon <+> d <+> text "|" <+> pprint r
 
 instance Subable r => Subable (UReft r) where
   syms (U r p)     = syms r ++ syms p 
+  freesyms (U r p) = (traceShow "freeS1A" $ freesyms r) 
+                     ++ (traceShow "freeS1B" $ freesyms p) 
+  subst2  (U r z)  u  = U (subst2 r u) (subst2 z u)
   subst s (U r z)  = U (subst s r) (subst s z)
   substf f (U r z) = U (substf f r) (substf f z) 
   substa f (U r z) = U (substa f r) (substa f z) 
  
-instance (Reftable r, RefTypable p c tv r) => Subable (Ref (RType p c tv ()) r (RType p c tv r)) where
+instance (PPrint (Ref (RType p c tv ()) r (RType p c tv r)), Reftable r, RefTypable p c tv r) => Subable (Ref (RType p c tv ()) r (RType p c tv r)) where
   syms (RMono ss r)     = (fst <$> ss) ++ syms r
   syms (RPoly ss r)     = (fst <$> ss) ++ syms r
 
-  subst su (RMono ss r) = RMono ss (subst su r)
-  subst su (RPoly ss t) = RPoly ss (subst su <$> t)
+  subst su (RMono ss r) = RMono (filter (not . inSubst su . fst) ss) (subst su r)
+  subst su (RPoly ss t) = traceShow "SUBSTPOLY" $ RPoly (filter (not . inSubst su . fst) ss) (subst su <$> t)
 
   substf f (RMono ss r) = RMono ss (substf f r) 
   substf f (RPoly ss t) = RPoly ss (substf f <$> t)
   substa f (RMono ss r) = RMono ss (substa f r) 
   substa f (RPoly ss t) = RPoly ss (substa f <$> t)
 
+instance (PPrint (Ref t1 r t2)) => Show (Ref t1 r t2) where
+  show = showpp
+
 instance (Subable r, RefTypable p c tv r) => Subable (RType p c tv r) where
-  syms        = foldReft (\r acc -> syms r ++ acc) [] 
+  syms        = traceShow "NOOO2" . foldReft (\r acc -> syms r ++ acc) [] 
+  freesyms    = traceShow "HERE2" . foldReft (\r acc -> freesyms r ++ acc) [] 
   substa f    = mapReft (substa f) 
   substf f    = emapReft (substf . substfExcept f) [] 
   subst su    = emapReft (subst  . substExcept su) []
   subst1 t su = emapReft (\xs r -> subst1Except xs r su) [] t
+  subst2 t su = emapReft (\xs r -> subst2 r su) [] t
 
 
 

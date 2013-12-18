@@ -4,9 +4,9 @@ module Foo where
     getfst (x, y) = x
   @-}
 
-{-@ type Pair a b   = {v0 : ({v:a | v = (getfst v0)}, b) | true } @-}
+{-@ type Pair a b   = {vvv : ({v:a | v = (getfst vvv)}, b) | true } @-}
 {-@ type OPList a b = [(Pair a b)]<\h -> {v: (Pair a b) | (getfst v) >= (getfst h)}> @-}
-{-@ type OList a    = [a]<\h -> {v: a | (v >= h)}> @-}
+{-@ type OList a    = [a]<\hhh -> {vvvv: a | (vvvv >= hhh)}> @-}
 
 {-@ getFsts          :: OPList a b -> OList a @-}
 getFsts []           = [] 
