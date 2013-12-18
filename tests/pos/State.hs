@@ -12,8 +12,8 @@ data ST a s = S (s -> (a, s))
   @-}
 
 {-@ returnST :: forall <pre :: s -> Prop, post :: a -> s -> Prop>.
-               x:a 
-           -> ST <{v:s<post x>| true}, post> a s
+               xState:a 
+           -> ST <{v:s<post xState>| true}, post> a s
   @-}
 returnST :: a -> ST a s
 returnST x = S $ \s -> (x, s)
@@ -21,7 +21,7 @@ returnST x = S $ \s -> (x, s)
 
 {-@ bindST :: forall <p :: s -> Prop, q :: a -> s -> Prop, r :: b -> s -> Prop>.
             ST <p, q> a s 
-         -> (x:a -> ST <{v:s<q x> | true}, r> b s) 
+         -> (xbind:a -> ST <{v:s<q xbind> | true}, r> b s) 
          -> ST <p, r> b s
  @-}
 bindST :: ST a s -> (a -> ST b s) -> ST b s
