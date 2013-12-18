@@ -637,7 +637,7 @@ rTypeSortedReft' pflag γ
 γ ??= x 
   = case M.lookup x (lcb γ) of
     Just e  -> consE (γ-=x) e
-    Nothing -> refreshArgs $ γ ?= x 
+    Nothing -> (refreshArgs $ γ ?= x ) >>= refreshDCon
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
@@ -662,6 +662,10 @@ normalizeVV _ t
 
 shiftVV t@(RApp _ ts _ r) vv' 
   = t { rt_args = F.subst2 ts (rTypeValueVar t, F.EVar vv') } 
+      { rt_reft = (`F.shiftVV` vv') <$> r }
+
+shiftVV t@(RAppTy _ _ r) vv' 
+  = t -- { rt_args = F.subst2 ts (rTypeValueVar t, F.EVar vv') } 
       { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t@(RVar _ r) vv'
@@ -1066,10 +1070,10 @@ varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Maybe SpecType)
 varTemplate γ (x, eo)
   = case (eo, lookupREnv (F.symbol x) (grtys γ)) of
       (_, Just t) -> return $ Just t
-      (Just e, _) -> do t  <- unifyVar γ x <$> freshTy_expr RecBindE e (exprType e)
+      (Just e, _) -> do t  <- (unifyVar γ x <$> freshTy_expr RecBindE e (exprType e))
                         addW (WfC γ t)
                         {- KVPROF addKuts t -}
-                        return $ Just t
+                        (liftM Just) (refreshArgs t)
       (_,      _) -> return Nothing
 
 unifyVar γ x rt = unify (getPrType γ (F.symbol x)) rt
@@ -1181,12 +1185,13 @@ consE γ (Lam α e) | isTyVar α
   = liftM (RAllT (rTyVar α)) (consE γ e) 
 
 consE γ  e@(Lam x e1) 
-  = do tx     <- freshTy_type LamE (Var x) τx 
+  = do tx     <- freshTy_type LamE (Var x) τx
+       x'      <- fresh
        γ'     <- ((γ, "consE") += (F.symbol x, tx))
        t1     <- consE γ' e1
        addIdA x (Def tx) 
        addW   $ WfC γ tx 
-       return $ rFun (F.symbol x) tx t1
+       return $ rFun (x') tx t1
     where FunTy τx _ = exprType e 
 
 -- EXISTS-BASED CONSTRAINTS HEREHEREHEREHERE
@@ -1271,7 +1276,7 @@ cconsCase γ x t acs (ac, ys, ce)
 
 refreshDCon t 
   = do ts' <- mapM foo ts
-       liftM (mkArrow αs πs (zip xs ts')) (refreshDCon' tbd) 
+       liftM (mkArrow αs πs (zip xs ts')) (foo tbd) 
   where (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
 
@@ -1279,13 +1284,28 @@ refreshDCon' (RApp c ts rs r)
   = do xs <- mapM (\_ -> fresh) ts
        let ts' = zipWith shiftVV ts xs
        return $ RApp c ts' rs r
-
+refreshDCon' t = return t
 
 foo (RApp c ts rs r)
   = do ts' <- mapM foo ts
        x <- fresh
        return $ shiftVV (RApp c (traceShow "FRESHTS" ts') rs r) x
 
+foo (RFun x t1 t2 r)
+  = do [t1', t2'] <- mapM foo [t1, t2]
+       y <- fresh 
+       return $ shiftVV (RFun x t1' t2' r) y
+
+foo (RAppTy t1 t2 r)
+  = do [t1', t2'] <- mapM foo [t1, t2]
+       y <- fresh 
+       return $ shiftVV (RAppTy t1' t2' r) y
+
+
+
+foo (RAllT a t) = liftM (RAllT a) (foo t)
+foo (RAllP a t) = liftM (RAllP a) (foo t)
+foo (RCls c ts) = liftM (RCls c) (mapM foo ts)
 foo t 
   = do x <- fresh
        return $ shiftVV t x
