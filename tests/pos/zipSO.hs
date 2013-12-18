@@ -5,7 +5,7 @@ module Blank where
 
 import Prelude hiding ((++))
 
-{-@ zipper :: zs:[a] -> [(a, {v:[a] | (len v) = (len zs) - 1})] @-}
+{-@ zipper :: zs:{vv1:[{vv2:a|true}]|true} -> [(a, {v:[a] | (len v) = (len zs) - 1})] @-}
 zipper zs          = go [] zs
   
 {-@ Decrease go 2 @-}

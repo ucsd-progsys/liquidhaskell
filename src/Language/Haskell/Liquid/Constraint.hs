@@ -113,8 +113,9 @@ initEnv info penv
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
-  where refreshArgs' xts = do xts1 <- mapM refreshxt xts 
-                              mapM (\(x, t) -> liftM (x,)  (shiftVVt t)) xts1
+  where refreshArgs' xts = do xts1 <- mapM refreshxt xts
+                              xts2 <- mapM (mapSndM refreshDCon) xts
+                              mapM (\(x, t) -> liftM (x,)  (shiftVVt t)) xts2
 --                               return xts
 -- where tce = tcEmbeds $ spec info 
 instance Show Var where
@@ -663,8 +664,8 @@ shiftVV t@(RApp _ ts _ r) vv'
   = t { rt_args = F.subst2 ts (rTypeValueVar t, F.EVar vv') } 
       { rt_reft = (`F.shiftVV` vv') <$> r }
 
--- shiftVV t@(RVar _ r) vv'
---   = t { rt_reft = (`F.shiftVV` vv') <$> r }
+shiftVV t@(RVar _ r) vv'
+  = t { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t _ 
   = t -- errorstar $ "shiftVV: cannot handle " ++ showpp t
@@ -1280,10 +1281,16 @@ refreshDCon' (RApp c ts rs r)
        return $ RApp c ts' rs r
 
 
+foo (RApp c ts rs r)
+  = do ts' <- mapM foo ts
+       x <- fresh
+       return $ shiftVV (RApp c (traceShow "FRESHTS" ts') rs r) x
+
 foo t 
   = do x <- fresh
        return $ shiftVV t x
-       
+
+
 -------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv 
 -------------------------------------------------------------------------------------
