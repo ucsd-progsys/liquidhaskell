@@ -142,19 +142,19 @@ bareTypeP :: Parser BareType
 --  <|> bareExistsP
 --  <|> bareAtomP 
  
-bareTypeP   
+bareTypeP
   =  bareAllP
  <|> bareAllExprP
  <|> bareExistsP
  <|> try bareFunP
- <|> bareAtomP 
- 
-bareArgP 
-  =  bareAtomP  
+ <|> bareAtomP refP
+
+bareArgP vv
+  =  bareAtomP (refDefP vv)
  <|> parens bareTypeP
 
-bareAtomP 
-  =  refP bbaseP 
+bareAtomP ref
+  =  ref bbaseP
  <|> try (dummyP (bbaseP <* spaces))
 
 bbaseP :: Parser (Reft -> BareType)
@@ -199,7 +199,9 @@ bareExistsP
        return $ foldr (uncurry REx) t zs
      
 exBindP 
-  = xyP binderP colon bareTypeP 
+  = do b <- binderP <* colon
+       t <- bareArgP b
+       return (b,t)
   
 
 bareAllP 
@@ -257,7 +259,7 @@ dummyNamePos pos = "dummy." ++ name ++ ['.'] ++ line ++ ['.'] ++ col
 
 bareFunP  
   = do b  <- try bindP <|> dummyBindP 
-       t1 <- bareArgP 
+       t1 <- bareArgP b
        a  <- arrowP
        t2 <- bareTypeP
        return $ bareArrow b t1 a t2 
@@ -267,8 +269,6 @@ dummyBindP
   -- = stringSymbol <$> positionNameP 
 
 bbindP = lowerIdP <* dcolon 
-
-bindP  = liftM stringSymbol (lowerIdP <* colon)
 
 bareArrow b t1 ArrowFun t2
   = rFun b t1 t2
