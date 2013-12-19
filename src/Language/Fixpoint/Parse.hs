@@ -25,12 +25,14 @@ module Language.Fixpoint.Parse (
   , symbolP     -- Arbitrary Symbols
   , constantP   -- (Integer) Constants
   , integer     -- Integer
+  , bindP       -- Binder (lowerIdP <* colon)
 
   -- * Parsing recursive entities
   , exprP       -- Expressions
   , predP       -- Refinement Predicates
   , qualifierP  -- Qualifiers
   , refP        -- (Sorted) Refinements
+  , refDefP     -- (Sorted) Refinements with default binder
 
   -- * Some Combinators
   , condIdP     -- condIdP  :: [Char] -> (String -> Bool) -> Parser String
@@ -297,15 +299,20 @@ refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
        <|> liftM ((:[]) . RConc) predP
 
-refP :: Parser (Reft -> a) -> Parser a
-refP kindP
+refBindP :: Parser Symbol -> Parser (Reft -> a) -> Parser a
+refBindP bp kindP
   = braces $ do
-      v   <- symbolP 
-      colon
+      vv  <- bp
       t   <- kindP
       reserved "|"
       ras <- refasP 
-      return $ t (Reft (v, ras))
+      return $ t (Reft (vv, ras))
+
+bindP       = liftM stringSymbol (lowerIdP <* colon)
+optBindP vv = try bindP <|> return vv
+
+refP       = refBindP bindP
+refDefP vv = refBindP (optBindP vv)
 
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------
