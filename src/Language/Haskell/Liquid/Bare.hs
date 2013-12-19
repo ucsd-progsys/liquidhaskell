@@ -352,7 +352,7 @@ makeClasses cfg vs (mod,spec) = inModule mod $ mapM mkClass $ Ms.classes spec
            let sts = [(val s, unClass $ val t) | (s, _)    <- ms
                                                | (_, _, t) <- vts]
            let t = RCls (fromJust $ tyConClass_maybe tc) as'
-           let dcp = DataConP αs [] ss' sts t
+           let dcp = DataConP αs [] ss' (reverse sts) t
            return ((dc,dcp),vts)
     unClass = snd . bkClass . thd3 . bkUniv
 
