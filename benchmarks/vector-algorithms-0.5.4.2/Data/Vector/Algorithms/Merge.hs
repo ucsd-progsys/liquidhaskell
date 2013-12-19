@@ -79,9 +79,9 @@ merge cmp src buf mid = do unsafeCopy low lower
  nHi   = nSrc - mid
  nSrc  = length src 
 
-{-@ Decrease wroteHigh 1 2 @-}
-{-@ Decrease wroteLow 1 2 @-}
-{-@ Decrease loopMerge 1 2 @-}
+{-@ Decrease wroteHigh 3 4 @-}
+{-@ Decrease wroteLow 3 4 @-}
+{-@ Decrease loopMerge 3 4 @-}
 
   {- LIQUID WITNESS -}
  wroteHigh d1 (d2::Int) iLow eLow iHigh iIns

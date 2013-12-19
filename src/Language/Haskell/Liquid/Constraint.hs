@@ -1154,13 +1154,14 @@ consE γ (Var x)
        return t
 
 consE γ (Lit c) 
-  = return $ uRType $ literalFRefType (emb γ) c
+  = refreshDCon $ uRType $ literalFRefType (emb γ) c
 
 consE γ (App e (Type τ)) 
   = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ {- =>> addKuts -} else trueTy τ
        addW       $ WfC γ t
-       return     $ subsTyVar_meet' (α, t) te
+       t'  <- refreshDCon t
+       return     $ traceShow "AppTy" $ subsTyVar_meet' (α, t) te
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
@@ -1177,9 +1178,9 @@ consE γ e'@(App e a)
        updateLocA πs (exprLoc e) te'' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller ", e') te''
        cconsE γ' a tx 
-       addPost γ' $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
+       rt <- addPost γ' $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
 --    where err = errorstar $ "consE: App crashes on" ++ showPpr a 
-
+       return $ traceShow "App" rt 
 
 consE γ (Lam α e) | isTyVar α 
   = liftM (RAllT (rTyVar α)) (consE γ e) 
@@ -1288,8 +1289,9 @@ refreshDCon' t = return t
 
 foo (RApp c ts rs r)
   = do ts' <- mapM foo ts
+       rs' <- mapM bar rs
        x <- fresh
-       return $ shiftVV (RApp c (traceShow "FRESHTS" ts') rs r) x
+       return $ shiftVV (RApp c (traceShow "FRESHTS" ts') rs' r) x
 
 foo (RFun x t1 t2 r)
   = do [t1', t2'] <- mapM foo [t1, t2]
@@ -1311,6 +1313,8 @@ foo t
        return $ shiftVV t x
 
 
+bar (RPoly ss t) = liftM (RPoly ss) (foo t)
+bar (RMono ss r) = return $ RMono ss r
 -------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv 
 -------------------------------------------------------------------------------------
@@ -1446,7 +1450,7 @@ varRefType' γ x t'
   | Just tys <- trec γ 
   = maybe t (`strengthen` xr) (x' `M.lookup` tys)
   | otherwise
-  = t
+  = traceShow ("VarRef for " ++ show x) t
   where t  = t' `strengthen` xr
         xr = singletonReft x -- uTop $ F.symbolReft $ F.symbol x
         x' = F.symbol x
