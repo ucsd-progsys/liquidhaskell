@@ -1,8 +1,6 @@
 module Fixme where
-{-@ LIQUID "--no-termination" @-}
-{-@ type SL a = [a]<{\x v -> x <= v}> @-}
 
-import State
+import Language.Haskell.Liquid.Prelude
 
-foo :: Int -> State a Int
-foo y = return y
+foo = liquidAssert (w > 0)
+   where w = 5 - 3
