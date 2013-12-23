@@ -38,7 +38,8 @@ module Language.Fixpoint.Types (
   , anfPrefix, tempPrefix, vv, intKvar
   , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
-  , stringSymbol, symbolString
+  , stringSymbol
+  , symbolString
   
   -- * Creating Symbols
   , dummySymbol, intSymbol, tempSymbol
@@ -1565,7 +1566,6 @@ dummyPos = newPos "?" 0 0
 
 isDummy :: (Show a) => a -> Bool
 isDummy a = show a == dummyName
-
 
 instance Fixpoint SourcePos where
   toFix = text . show 

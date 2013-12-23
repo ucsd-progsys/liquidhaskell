@@ -90,7 +90,6 @@ snd3 (_,x,_) = x
 thd3 ::  (a, b, c) -> c
 thd3 (_,_,x) = x
 
-
 single ::  a -> [a]
 single x = [x]
 
@@ -356,5 +355,13 @@ foldlMap f b xs    = (reverse zs, res)
   where 
     (zs, res)      = L.foldl' ff ([], b) xs
     ff (ys, acc) x = let (y, acc') = f acc x in (y:ys, acc')
+
+mapEither           :: (a -> Either b c) -> [a] -> ([b], [c])
+mapEither f         = go [] [] 
+  where 
+    go ls rs []     = (reverse ls, reverse rs)
+    go ls rs (x:xs) = case f x of
+                        Left l  -> go (l:ls) rs  xs
+                        Right r -> go ls  (r:rs) xs
 
 
