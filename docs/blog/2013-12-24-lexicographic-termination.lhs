@@ -18,7 +18,8 @@ more recursive functions, namely *lexicographic termination*.
 
 <!-- more -->
 
-<div class="hiddencode">
+<div class="hidden">
+
 \begin{code}
 module LexicographicTermination where
 
