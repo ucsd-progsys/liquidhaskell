@@ -637,7 +637,8 @@ rTypeSortedReft' pflag γ
 γ ??= x 
   = case M.lookup x (lcb γ) of
     Just e  -> consE (γ-=x) e
-    Nothing -> (refreshArgs $ γ ?= x ) >>= refreshDCon
+    Nothing -> (refreshArgs 4 $ γ ?= x ) >>= refreshDCon
+--    Nothing -> (refreshArgs $ γ ?= x ) >>= refreshDCon
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
@@ -661,7 +662,7 @@ normalizeVV _ t
   = t 
 
 shiftVV t@(RApp _ ts _ r) vv' 
-  = t { rt_args = F.subst2 ts (rTypeValueVar t, F.EVar vv') } 
+  = t { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
       { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t@(RAppTy _ _ r) vv' 
@@ -808,22 +809,22 @@ trueTy t
        tce   <- tyConEmbed <$> get
        return $ addTyConInfo tce tyi (uRType t)
 
-refreshArgs :: SpecType -> CG SpecType
-refreshArgs = liftM fst . refreshArgs'
-refreshArgs' t 
+refreshArgs :: Int -> SpecType -> CG SpecType
+refreshArgs i = liftM fst . refreshArgs' i
+refreshArgs' i t 
   = do xs' <- mapM (\_ -> fresh) xs
        let sus = F.mkSubst <$> (L.inits $ zip xs (F.EVar <$> xs'))
        let su  = last sus 
        let ts' = zipWith F.subst sus ts
        let t'  = mkArrow αs πs (zip xs' ts') (F.subst su tbd)
-       return (t', su) -- $ traceShow ("refreshArgs: t = " ++ showpp t) t'
+       return $ traceShow ("refreshArgs'" ++ show i) (t', su) -- $ traceShow ("refreshArgs: t = " ++ showpp t) t'
   where (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
 
 refreshxt :: (Var, SpecType) -> CG (Var, SpecType)
 refreshxt (x, t) 
-  = do (t', su) <- refreshArgs' t
-       modify $ \s -> s{ termExprs = M.adjust (F.subst su) x (termExprs s)}
+  = do (t', su) <- refreshArgs' 3 t
+--        modify $ \s -> s{ termExprs = M.adjust (F.subst su) x (termExprs s)}
        return $ (x, t')
 
 instance Freshable CG Integer where
@@ -950,7 +951,7 @@ consCB :: Bool -> CGEnv -> CoreBind -> CG CGEnv
 
 consCBSizedTys tflag γ (Rec xes)
   = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
-       ts       <- mapM refreshArgs $ (fromJust . thd3 <$> xets)
+       ts       <- mapM (refreshArgs 1) $ (fromJust . thd3 <$> xets)
        let vs    = zipWith collectArgs ts es
        is       <- checkSameLens <$> mapM makeDecrIndex (zip xs ts)
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is ts]) <$> (zip vs is)
@@ -980,7 +981,7 @@ consCBSizedTys tflag γ (Rec xes)
 consCBWithExprs γ xtes (Rec xes) 
   = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        let ts    = safeFromJust err . thd3 <$> xets
-       ts'      <- mapM refreshArgs ts
+       ts'      <- mapM (refreshArgs 2) ts
        let xts   = zip xs (Just <$> ts')
        γ'       <- foldM extender γ xts
        let γs    = makeTermEnvs γ' xtes xes ts ts'
@@ -1073,7 +1074,8 @@ varTemplate γ (x, eo)
       (Just e, _) -> do t  <- (unifyVar γ x <$> freshTy_expr RecBindE e (exprType e))
                         addW (WfC γ t)
                         {- KVPROF addKuts t -}
-                        (liftM Just) (refreshArgs t)
+                      --   (liftM Just) (refreshArgs t)
+                        return $ Just t
       (_,      _) -> return Nothing
 
 unifyVar γ x rt = unify (getPrType γ (F.symbol x)) rt
@@ -1128,7 +1130,8 @@ cconsE γ e (RAllP p t)
 cconsE γ e t
   = do te  <- consE γ e
        te' <- instantiatePreds γ e te
-       addC (SubC γ te' t) ("cconsE" ++ showPpr e)
+       addC (SubC γ te' t) ("Type of " ++ show e 
+           ++ "\n:\n" ++ show te' ++ "\n\ncconsE : " ++ showPpr e)
 
 instantiatePreds γ e (RAllP p t)
   = do s <- freshPredRef γ e p
@@ -1148,10 +1151,10 @@ cconsLazyLet γ (Let (NonRec x ex) e) t
 consE :: CGEnv -> Expr Var -> CG SpecType 
 -------------------------------------------------------------------
 
-consE γ (Var x)   
+consE γ e@(Var x)   
   = do t <- varRefType γ x
        addLocA (Just x) (loc γ) (varAnn γ x t)
-       return t
+       return $ traceShow ( "consE for Var: " ++ show e) t
 
 consE γ (Lit c) 
   = refreshDCon $ uRType $ literalFRefType (emb γ) c
@@ -1161,7 +1164,7 @@ consE γ (App e (Type τ))
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ {- =>> addKuts -} else trueTy τ
        addW       $ WfC γ t
        t'  <- refreshDCon t
-       return     $ traceShow "AppTy" $ subsTyVar_meet' (α, t) te
+       return     $ traceShow "AppTy" $ subsTyVar_meet' (α, t') te
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
@@ -1187,12 +1190,12 @@ consE γ (Lam α e) | isTyVar α
 
 consE γ  e@(Lam x e1) 
   = do tx     <- freshTy_type LamE (Var x) τx
-       x'      <- fresh
+--        x'      <- fresh
        γ'     <- ((γ, "consE") += (F.symbol x, tx))
        t1     <- consE γ' e1
        addIdA x (Def tx) 
        addW   $ WfC γ tx 
-       return $ rFun (x') tx t1
+       return $ rFun (F.symbol x) tx t1
     where FunTy τx _ = exprType e 
 
 -- EXISTS-BASED CONSTRAINTS HEREHEREHEREHERE
@@ -1291,7 +1294,7 @@ foo (RApp c ts rs r)
   = do ts' <- mapM foo ts
        rs' <- mapM bar rs
        x <- fresh
-       return $ shiftVV (RApp c (traceShow "FRESHTS" ts') rs' r) x
+       return $ shiftVV (RApp c (traceShow "FRESHTS" ts') rs r) x
 
 foo (RFun x t1 t2 r)
   = do [t1', t2'] <- mapM foo [t1, t2]
@@ -1313,7 +1316,8 @@ foo t
        return $ shiftVV t x
 
 
-bar (RPoly ss t) = liftM (RPoly ss) (foo t)
+bar (RPoly ss t) = liftM (RPoly ss) (return t)
+--bar (RPoly ss t) = liftM (RPoly ss) (foo t)
 bar (RMono ss r) = return $ RMono ss r
 -------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv 
@@ -1448,7 +1452,7 @@ varRefType γ x = liftM (varRefType' γ x) (γ ??= F.symbol x)
 
 varRefType' γ x t'
   | Just tys <- trec γ 
-  = maybe t (`strengthen` xr) (x' `M.lookup` tys)
+  = traceShow ("VarRef1 for " ++ show x) $ maybe t (`strengthen` xr) (x' `M.lookup` tys)
   | otherwise
   = traceShow ("VarRef for " ++ show x) t
   where t  = t' `strengthen` xr
