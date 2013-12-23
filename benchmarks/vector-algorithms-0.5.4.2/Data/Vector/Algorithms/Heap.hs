@@ -112,7 +112,7 @@ selectByBounds cmp a k l u
   | l + k <= u = heapify cmp a l (l + k) >> go l (l + k) (u - 1)
   | otherwise  = return ()
  where
- {-@ Decrease go 3 @-}
+ {-@ Decrease go 5 @-}
  go l m u
    | u < m      = return ()
    | otherwise  = do el <- unsafeRead a l
@@ -189,7 +189,7 @@ heapify cmp a l u = loop (k0 + 1) k0
 pop :: (PrimMonad m, MVector v e)
     => Comparison e -> v (PrimState m) e -> Int -> Int -> m ()
 pop cmp a l u = popTo cmp a l u u
-{-# INLINE pop #-}
+-- LIQUID {- INLINE pop #-}
 
 -- | Given a heap stored in a portion of an array [l,u) swaps the top
 -- of the heap with the element at position t, and rebuilds the heap.
@@ -199,7 +199,7 @@ popTo cmp a l u t = do al <- unsafeRead a l
                        at <- unsafeRead a t
                        unsafeWrite a t al
                        siftByOffset cmp a at l 0 (u - l)
-{-# INLINE popTo #-}
+-- LIQUID {- INLINE popTo #-}
 
 -- | Given a heap stored in a portion of an array [l,u), sorts the
 -- highest values into [m,u). The elements in [l,m) are not in any
