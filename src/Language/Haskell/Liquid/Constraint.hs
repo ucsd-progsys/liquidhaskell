@@ -7,6 +7,7 @@
 {-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE ViewPatterns              #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints, and 
 -- the code for syntax-directed constraint generation. 
@@ -90,7 +91,7 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
 
 consAct info penv
   = do γ     <- initEnv info penv
-       foldM consCBTop γ (cbs info)
+       foldM_ consCBTop γ (cbs info)
        hcs <- hsCs  <$> get 
        hws <- hsWfs <$> get
        fcs <- concat <$> mapM splitC hcs 
@@ -102,19 +103,35 @@ initEnv info penv
   = do let tce   = tcEmbeds $ spec info
        defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- tyConInfo <$> get 
-       let f0    = grty info                        -- asserted refinements     (for defined vars)
-       f0''     <- grtyTop info                     -- default TOP reftype      (for exported vars without spec) 
-       let f0'   = if (notruetypes $ config $ spec info) then [] else f0'' 
+       (ks,f0)  <- extract <$> refreshKs (grty info)-- asserted refinements     (for defined vars)
+       f0''     <- grtyTop info                     -- default TOP reftype      (for exported vars without spec)
+       let f0'   = if (notruetypes $ config $ spec info) then [] else f0''
        let f1    = defaults                         -- default TOP reftype      (for all vars) 
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
-       let bs    = (map (unifyts' tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
+       let bs    = (map (unifyts' tce tyi penv)) <$> [traceShow "f0" f0 ++ f0', f1, f2, f3]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
+       mapM_ (addW . WfC γ0) (catMaybes ks)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
-  where refreshArgs' = mapM (mapSndM refreshArgs)
-  -- where tce = tcEmbeds $ spec info 
+  where
+    refreshArgs' = mapM (mapSndM refreshArgs)
+    refreshKs    = mapM (mapSndM refreshK)
+    isHoleReft (F.toReft -> (F.Reft (_, [F.RKvar (F.S "HOLE") _]))) = True
+    isHoleReft _                                                    = False
+    refreshK t   = do
+        t' <- mapReftM f t
+        let b = foldReft ((||) . isHoleReft) False t
+        return (if b then Just t' else Nothing, t')
+      where
+        f r | isHoleReft r = refresh r
+            | otherwise    = return r
+    extract = unzip . map (\(v,(k,t)) -> (k,(v,t)))
+  -- where tce = tcEmbeds $ spec info
+
+instance Show Var where
+  show = showPpr
 
 ctor' = map (mapSnd val) . ctors
 
@@ -503,7 +520,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
                      , logWarn    :: ![String]                    -- ^ ? FIX THIS
                      , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars 
-                     , recCount       :: !Int
+                     , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
                      } -- deriving (Data, Typeable)
 
 instance PPrint CGInfo where 
