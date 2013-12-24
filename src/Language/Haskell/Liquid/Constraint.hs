@@ -44,7 +44,7 @@ import Control.Monad.State
 import Control.Applicative      ((<$>))
 import Control.Exception.Base
 
-import Data.Monoid              (mconcat)
+import Data.Monoid              (mconcat, mempty)
 import Data.Maybe               (fromJust, isJust, fromMaybe, catMaybes)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -397,7 +397,7 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   = splitC $ SubC γ t1 t2
   | otherwise   
   = splitC $ SubC γ t1 t2' 
-  where t2' = subsTyVar_meet' (α2, RVar α1 F.top) t2
+  where t2' = subsTyVar_meet' (α2, RVar α1 mempty) t2
 
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
@@ -450,7 +450,7 @@ bsplitC γ t1 t2 = pruneRefs <$> get >>= return . bsplitC' γ t1 t2
 
 bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
-  = [F.subC γ' F.PTrue (r1' {F.sr_reft = F.top}) r2' Nothing tag ci]
+  = [F.subC γ' F.PTrue (r1' {F.sr_reft = mempty}) r2' Nothing tag ci]
   | F.isNonTrivialSortedReft r2'
   = [F.subC γ' F.PTrue r1'  r2' Nothing tag ci]
   | otherwise
@@ -637,7 +637,7 @@ rTypeSortedReft' pflag γ
 γ ??= x 
   = case M.lookup x (lcb γ) of
     Just e  -> consE (γ-=x) e
-    Nothing -> (refreshArgs 4 $ γ ?= x ) >>= refreshDCon
+    Nothing -> (refreshDCon $ γ ?= x) >>= refreshArgs 4
 --    Nothing -> (refreshArgs $ γ ?= x ) >>= refreshDCon
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
@@ -1170,7 +1170,7 @@ consE γ e'@(App e a) | eqType (exprType a) predType
   = do t0 <- consE γ e
        case t0 of
          RAllP p t -> do s <- freshPredRef γ e' p
-                         return $ traceShow "OH, NO" $ replacePreds "consE" t [(p, s)] {- =>> addKuts -}
+                         return $ traceShow ("OH, NO in\n" ++ show t ++ "\nSUBST\n" ++ show (p, s)) $ replacePreds "consE" t [(p, s)] {- =>> addKuts -}
          _         -> return t0
 
 consE γ e'@(App e a)               
@@ -1294,7 +1294,12 @@ foo (RApp c ts rs r)
   = do ts' <- mapM foo ts
        rs' <- mapM bar rs
        x <- fresh
-       return $ shiftVV (RApp c (traceShow "FRESHTS" ts') rs r) x
+       return $ shiftVV (RApp c (traceShow "FRESHTS" ts') rs' r) x
+
+foo (REx x t1 t2)
+  = do [t1', t2'] <- mapM foo [t1, t2]
+       y <- fresh 
+       return $ traceShow "REx" $ shiftVV (REx x t1' t2') y
 
 foo (RFun x t1 t2 r)
   = do [t1', t2'] <- mapM foo [t1, t2]
@@ -1316,9 +1321,22 @@ foo t
        return $ shiftVV t x
 
 
-bar (RPoly ss t) = liftM (RPoly ss) (return t)
---bar (RPoly ss t) = liftM (RPoly ss) (foo t)
+-- bar (RPoly ss t) = liftM (RPoly ss) (return t)
+
+bar (RPoly ss t) 
+  = do xs <- mapM (\_ -> fresh) (fst <$> ss)
+       let su = F.mkSubst $ zip (fst <$> ss) (F.EVar <$> xs)
+       liftM (RPoly (zip xs (snd <$> ss)) . F.subst su) (foo t)
+
+
+-- bar (RPoly ss t) 
+--   = do xs <- mapM (\_ -> fresh) (fst <$> ss)
+--        let su = F.mkSubst $ zip (fst <$> ss) (F.EVar <$> xs)
+--        liftM (RPoly (zip xs (snd <$> ss)) . F.subst su) (foo t)
 bar (RMono ss r) = return $ RMono ss r
+
+
+
 -------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv 
 -------------------------------------------------------------------------------------
@@ -1365,13 +1383,13 @@ caseEnv γ x acs a _
 
 altReft γ _ (LitAlt l)   = literalFReft (emb γ) l
 altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
-  where notLiteralReft   = maybe F.top F.notExprReft . snd . literalConst (emb γ)
+  where notLiteralReft   = maybe mempty F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = error "Constraint : altReft"
 
 unfoldR dc td (RApp _ ts rs _) ys = (t3, tvys ++ yts, rt)
   where 
         tbody'           =traceShow ("BODY1\n" ++ show td ++ "\n" ++ show ts ) $  instantiateTys td ts
-        tbody           =traceShow "BODY2" $  instantiatePvs tbody' $ reverse rs
+        tbody           =traceShow ("BODY2\n" ++ show tbody' ++ "\n" ++ show rs) $  instantiatePvs tbody' $ reverse rs
         (ys0, yts', rt) =traceShow "INSTTT" $  safeBkArrow $ instantiateTys tbody tvs'
         yts''           = traceShow ("ALMOST THERE \n\n" ++ show sus ++ "\n\n") $ zipWith F.subst sus (yts'++[rt])
         (t3,yts)        = (last yts'', init yts'')
@@ -1434,7 +1452,7 @@ freshPredRef γ e (PV n τ as)
        args <- mapM (\_ -> fresh) as
        let targs = [(x, s) | (x, (s, y, z)) <- zip args as, (F.EVar y) == z ] -- zip args [] (fst3 <$> as)
        γ' <- foldM (++=) γ [("freshPredRef", x, ofRSort τ) | (x, τ) <- targs]
-       addW $ WfC γ' t
+       addW $ WfC γ' $ traceShow ("freshPredRef: args\n" ++ show targs) t
        return $ RPoly (traceShow ("FRESHARGS\n" ++ show as) targs) t
 
 -----------------------------------------------------------------------
@@ -1460,7 +1478,7 @@ varRefType' γ x t'
         x' = F.symbol x
 
 -- TODO: should only expose/use subt. Not subsTyVar_meet
-subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
+subsTyVar_meet' (α, t) = subsTyVar_meet $ traceShow "SUBSTTYVAR_MET" (α, toRSort t, t)
 
 -----------------------------------------------------------------------
 --------------- Forcing Strictness ------------------------------------
@@ -1513,7 +1531,7 @@ instance NFData CGInfo where
 
 forallExprRefType     :: CGEnv -> SpecType -> SpecType
 forallExprRefType γ t = t `strengthen` (uTop r') 
-  where r'            = fromMaybe F.top $ forallExprReft γ r 
+  where r'            = fromMaybe mempty $ forallExprReft γ r 
         r             = F.sr_reft $ rTypeSortedReft (emb γ) t
 
 forallExprReft γ r 
@@ -1546,7 +1564,7 @@ splitExistsCases z xs tx
 
 exrefAddEq z xs t (F.Reft(s, rs))
   = F.Reft(s, [F.RConc (F.POr [ pand x | x <- xs])])
-  where tref                = fromMaybe F.top $ stripRTypeBase t
+  where tref                = fromMaybe mempty $ stripRTypeBase t
         pand x              = F.PAnd $ (substzx x) (fFromRConc <$> rs)
                                        ++ exrefToPred x tref
         substzx x           = F.subst (F.mkSubst [(z, F.EVar x)])

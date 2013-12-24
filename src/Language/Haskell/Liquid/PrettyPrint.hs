@@ -189,12 +189,12 @@ instance PPrint RTyVar where
 ppr_tyvar       = text . tvId
 ppr_tyvar_short = text . showPpr
 
-instance (Reftable s, PPrint s, PPrint p, Reftable  p, PPrint t) => PPrint (Ref t s (RType a b c p)) where
+instance (Reftable s, PPrint s, PPrint p, Reftable  p, PPrint t, PPrint (RType a b c p)) => PPrint (Ref t s (RType a b c p)) where
   pprint (RMono ss s) = ppRefArgs (fst <$> ss) <+> pprint s
-  pprint (RPoly ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe top (stripRTypeBase s))
+  pprint (RPoly ss s) = ppRefArgs (fst <$> ss) <+> pprint s -- pprint (fromMaybe top (stripRTypeBase s))
 
 ppRefArgs [] = empty
-ppRefArgs ss = text "\\" <> hsep (ppRefSym <$> ss ++ [vv Nothing]) <+> text "->"
+ppRefArgs ss = text "\\" <> hsep (ppRefSym <$> ss {- ++ [vv Nothing]) -}) <+> text "->"
 
 ppRefSym (S "") = text "_"
 ppRefSym s      = pprint s

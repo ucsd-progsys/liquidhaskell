@@ -1,18 +1,26 @@
-module Fixme where
+module State (
+   bindST   -- :: ST a s -> (a -> ST b s) -> ST b s
+ , ST(..)
+ ) where
+
+import Prelude hiding (snd, fst)
+
+data ST a s = S (s -> (a, s))
+{-@ data ST a s <pre :: s -> Prop, post :: a -> s -> Prop> 
+       = S (ys::(x:s<pre> -> ((a, s)<post>)))
+  @-}
 
 
-pop cmp a l u = popTo cmp a l u u
-{-# INLINE pop #-}
+{-@ bindST :: forall <p :: s -> Prop, q :: a -> s -> Prop, r :: b -> s -> Prop>.
+            ST <p, q> a s 
+         -> (xbind:a -> ST <{v:s<q xbind> | true}, r> b s) 
+         -> ST <p, r> b s
+ @-}
+bindST :: ST a s -> (a -> ST b s) -> ST b s
+bindST (S m) k = S $ \s -> let (a, s') = m s in apply (k a) s'
 
-popTo cmp a l u t = undefined
-{-# INLINE popTo #-}
-
-sortHeap cmp a l m u = loop (u-1) >> unsafeSwap a l m
- where
-  loop k
-    | m < k     = pop cmp a l k >> loop (k-1)
-    | otherwise = return ()
-{- INLINE sortHeap #-}
-
-
-unsafeSwap = undefined
+{-@ apply :: forall <p :: s -> Prop, q :: a -> s -> Prop>.
+             ST <p, q> a s -> s<p> -> (a, s)<q>
+  @-}
+apply :: ST a s -> s -> (a, s)
+apply (S f) s = undefined

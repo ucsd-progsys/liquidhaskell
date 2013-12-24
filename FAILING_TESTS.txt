@@ -1,9 +1,8 @@
-Failed 8 tests: 
+Failed 6 tests: 
  ../benchmarks/bytestring-0.9.2.1/Data/ByteString.T.hs,
   ../benchmarks/bytestring-0.9.2.1/Data/ByteString.split.0.T.hs,
   ../benchmarks/bytestring-0.9.2.1/Data/ByteString/Fusion.T.hs,
   ../benchmarks/bytestring-0.9.2.1/Data/ByteString/Internal.hs,
-  ../benchmarks/esop2013-submission/Base.hs,
-  ../benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/Heap0.hs,
   pos/malformed0.hs,
   pos/typeAliasDup.hs 
+

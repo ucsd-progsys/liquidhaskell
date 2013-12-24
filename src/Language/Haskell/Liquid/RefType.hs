@@ -101,7 +101,7 @@ uRType'         ::  RType p c tv (UReft a) -> RType p c tv a
 uRType'         = fmap ur_reft
 
 uRTypeGen       :: Reftable b => RType p c tv a -> RType p c tv b
-uRTypeGen       = fmap (\_ -> top)
+uRTypeGen       = fmap $ \_ -> mempty
 
 uPVar           :: PVar t -> UsedPVar
 uPVar           = fmap (const ())
@@ -110,7 +110,7 @@ uReft           ::  (Symbol, [Refa]) -> UReft Reft
 uReft           = uTop . Reft  
 
 uTop            ::  r -> UReft r
-uTop r          = U r top
+uTop r          = U r mempty
 
 --------------------------------------------------------------------
 -------------- (Class) Predicates for Valid Refinement Types -------
@@ -138,8 +138,8 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
          => Monoid (Ref (RType p c tv ()) r (RType p c tv (UReft r))) where
   mempty                              = RMono [] mempty
   mappend (RMono s1 r1) (RMono s2 r2) = RMono (s1 ++ s2) $ r1 `meet` r2
-  mappend (RMono s1 r) (RPoly s2 t)   = RPoly (s1 ++ s2) $ t  `strengthen` (U r top)
-  mappend (RPoly s1 t) (RMono s2 r)   = RPoly (s1 ++ s2) $ t  `strengthen` (U r top)
+  mappend (RMono s1 r) (RPoly s2 t)   = RPoly (s1 ++ s2) $ t  `strengthen` (U r mempty)
+  mappend (RPoly s1 t) (RMono s2 r)   = RPoly (s1 ++ s2) $ t  `strengthen` (U r mempty)
   mappend (RPoly s1 t1) (RPoly s2 t2) = RPoly (s1 ++ s2) $ t1 `strengthenRefType` t2
 
 instance ( Monoid r, Reftable r
@@ -318,7 +318,7 @@ instance Hashable RTyCon where
 ---------------------- Helper Functions ----------------------------
 --------------------------------------------------------------------
 
-rVar        = (`RVar` top) . RTV 
+rVar        = (`RVar` mempty) . RTV 
 rTyVar      = RTV
 
 normalizePds t = addPds ps t'
@@ -388,7 +388,7 @@ unifyShape :: ( RefTypable p c tv r
 unifyShape (RAllT a1 t1) (RAllT a2 t2) 
   | a1 == a2      = RAllT a1 <$> unifyShape t1 t2
   | otherwise     = RAllT a1 <$> unifyShape t1 (sub a2 a1 t2)
-  where sub a b   = let bt = RVar b top in subsTyVar_meet (a, toRSort bt, bt)
+  where sub a b   = let bt = RVar b mempty in subsTyVar_meet (a, toRSort bt, bt)
 
 unifyShape t1 t2  
   | eqt t1 t2     = Just t1
@@ -639,7 +639,7 @@ refAppTyToFun r
 -- subsFreeRef ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty (PVar ty), SubsTy tv ty c, Reftable r, Monoid r, Subable r, RefTypable p c tv (PVar ty) r) => Bool -> S.Set tv -> (tv, ty, RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r)
 
 subsFreeRef m s (α', τ', t')  (RPoly ss t) 
-  = RPoly (mapSnd (subt (α', τ')) <$> ss) $ subsFree m s (α', τ', fmap (\_ -> top) t') t
+  = RPoly (mapSnd (subt (α', τ')) <$> ss) $ subsFree m s (α', τ', fmap top t') t
 subsFreeRef _ _ (α', τ', _) (RMono ss r) 
   = RMono (mapSnd (subt (α', τ')) <$> ss) $ {- subt (α', τ') -} r
 
@@ -694,7 +694,7 @@ subvPredicate f (Pr pvs) = Pr (f <$> pvs)
 
 ---------------------------------------------------------------
 
--- ofType ::  Reftable r => Type -> RRType r
+-- ofType, ofType_ ::  Reftable r => Type -> RRType r
 ofType = ofType_ . expandTypeSynonyms 
 
 ofType_ (TyVarTy α)     
@@ -710,10 +710,10 @@ ofType_ (TyConApp c τs)
   | TC.isClosedSynTyCon c
   = ofType_ $ substTyWith αs τs τ
   | otherwise
-  = rApp c (ofType_ <$> τs) [] top 
+  = rApp c (ofType_ <$> τs) [] mempty 
   where (αs, τ) = TC.synTyConDefn c
 ofType_ (AppTy t1 t2)
-  = RAppTy (ofType_ t1) (ofType t2) top              
+  = RAppTy (ofType_ t1) (ofType t2) mempty             
 -- ofType_ τ               
 --   = errorstar ("ofType cannot handle: " ++ showPpr τ)
 
@@ -758,7 +758,7 @@ dataConReft c [x]
   = Reft (vv_, [RConc (PAtom Eq (EVar vv_) (EVar x))]) 
 dataConReft c _ 
   | not $ isBaseDataCon c
-  = top
+  = mempty
 dataConReft c xs
   = Reft (vv_, [RConc (PAtom Eq (EVar vv_) dcValue)])
   where dcValue | null xs && null (dataConUnivTyVars c) 
@@ -828,7 +828,7 @@ makeRTypeBase _              _
 literalFRefType tce l 
   = makeRTypeBase (literalType l) (literalFReft tce l) 
 
-literalFReft tce = maybe top exprReft . snd . literalConst tce
+literalFReft tce = maybe mempty exprReft . snd . literalConst tce
 
  -- exprReft . snd . literalConst tce 
 
@@ -920,6 +920,8 @@ grabArgs τs (FunTy τ1 τ2 )
   | otherwise            = grabArgs τs τ2
 grabArgs τs τ              = reverse (τ:τs)
 
+
+-- mkDataConIdsTy :: (DataCon, RType Class RTyCon RTyVar ()) -> [(DataCon, RType Class RTyCon RTyVar ())]
 mkDataConIdsTy (dc, t) = [expandProductType id t | id <- dataConImplicitIds dc]
 
 expandProductType x t 
