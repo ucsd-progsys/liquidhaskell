@@ -50,6 +50,7 @@ import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.PredType hiding (unify)
 import qualified Language.Haskell.Liquid.Measure as Ms
 
@@ -225,51 +226,58 @@ expandRPAliasE = expandPAlias []
 
 -- TODO: this function is monstrously big. please split up.
 expandAlias :: [String] -> BareType -> BareM SpecType
-expandAlias = go
+expandAlias s0 t0 = go s0 t0
   where 
-    go s (RApp lc@(Loc _ c) ts rs r)
+    go s t@(RApp (Loc _ c) _ _ _)
       | c `elem` s = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
-      | otherwise  = do
-          env <- gets (typeAliases.rtEnv)
-          case M.lookup c env of
-            Just (Left (mod,rtb)) -> do
-              st <- inModule mod $ withVArgs (rtVArgs rtb) $ expandAlias (c:s) $ rtBody rtb
-              let rts = mapRTAVars stringRTyVar $ rtb { rtBody = st }
-              setRTAlias c $ Right rts
-              r' <- resolve r
-              expandRTApp s rts ts r'
-            Just (Right rts) -> do
-              r' <- resolve r
-              withVArgs (rtVArgs rts) $ expandRTApp s rts ts r'
-            Nothing | isList c && length ts == 1 -> do
-                      tyi <- tcEnv <$> get
-                      r'  <- resolve r
-                      liftM2 (bareTCApp tyi r' listTyCon) (mapM (go' s) rs) (mapM (go s) ts)
-                    | isTuple c -> do
-                      tyi <- tcEnv <$> get
-                      r'  <- resolve r
-                      let tc = tupleTyCon BoxedTuple (length ts)
-                      liftM2 (bareTCApp tyi r' tc) (mapM (go' s) rs) (mapM (go s) ts)
-                    | otherwise -> do
-                      tyi <- tcEnv <$> get
-                      r'  <- resolve r
-                      liftM3 (bareTCApp tyi r') (lookupGhcTyCon lc) (mapM (go' s) rs) (mapM (go s) ts)
-    go s (RVar a r)       = RVar (stringRTyVar a) <$> resolve r
-    go s (RFun x t t' r)  = rFun x <$> go s t <*> go s t'
+      | otherwise  = expandRTApp s t
+    go _ (RVar a r)       = RVar (stringRTyVar a) <$> resolve r
+    go s (RFun x t t' _)  = rFun x <$> go s t <*> go s t'
     go s (RAppTy t t' r)  = RAppTy <$> go s t <*> go s t' <*> pure r
     go s (RAllE x t1 t2)  = liftM2 (RAllE x) (go s t1) (go s t2)
     go s (REx x t1 t2)    = liftM2 (REx x) (go s t1) (go s t2)
     go s (RAllT a t)      = RAllT (stringRTyVar a) <$> go s t
     go s (RAllP a t)      = RAllP <$> ofBPVar a <*> go s t
-    go s (RCls c ts)      = RCls <$> lookupGhcClass c <*> (mapM (go s) ts)
+    go s (RCls c ts)      = RCls <$> lookupGhcClass c <*> mapM (go s) ts
     go _ (ROth s)         = return $ ROth s
     go _ (RExprArg e)     = return $ RExprArg e
+    go _ RHole            = return $ RHole
+--    go _ RHole            = errorstar $ printf "Found hole in %s\n" (showpp t0)
 
-    go' s (RMono ss r)    = RMono <$> mapM ofSyms ss <*> resolve r
-    go' s (RPoly ss t)    = RPoly <$> mapM ofSyms ss <*> go s t
 
-expandRTApp :: [String] -> RTAlias RTyVar SpecType  -> [BareType] -> RReft -> BareM SpecType
-expandRTApp s rta args r
+expandRTApp s (RApp lc@(Loc _ c) ts rs r) = do
+  env <- gets (typeAliases.rtEnv)
+  case M.lookup c env of
+    Just (Left (mod,rtb)) -> do
+      st <- inModule mod $ withVArgs (rtVArgs rtb) $ expandAlias (c:s) $ rtBody rtb
+      let rts = mapRTAVars stringRTyVar $ rtb { rtBody = st }
+      setRTAlias c $ Right rts
+      r' <- resolve r
+      expandRTApp' s rts ts r'
+    Just (Right rts) -> do
+      r' <- resolve r
+      withVArgs (rtVArgs rts) $ expandRTApp' s rts ts r'
+    Nothing
+      | isList c && length ts == 1 -> do
+        tyi <- tcEnv <$> get
+        r'  <- resolve r
+        liftM2 (bareTCApp tyi r' listTyCon) (mapM (go s) rs) (mapM (expandAlias s) ts)
+      | isTuple c -> do
+        tyi <- tcEnv <$> get
+        r'  <- resolve r
+        let tc = tupleTyCon BoxedTuple (length ts)
+        liftM2 (bareTCApp tyi r' tc) (mapM (go s) rs) (mapM (expandAlias s) ts)
+      | otherwise -> do
+        tyi <- tcEnv <$> get
+        r'  <- resolve r
+        liftM3 (bareTCApp tyi r') (lookupGhcTyCon lc) (mapM (go s) rs) (mapM (expandAlias s) ts)
+  where
+    go s (RMono ss r)    = RMono <$> mapM ofSyms ss <*> resolve r
+    go s (RPoly ss t)    = RPoly <$> mapM ofSyms ss <*> expandAlias s t
+
+
+expandRTApp' :: [String] -> RTAlias RTyVar SpecType  -> [BareType] -> RReft -> BareM SpecType
+expandRTApp' s rta args r
   | length args == (length αs) + (length εs)
   = do args'  <- mapM (expandAlias s) args
        let ts  = take (length αs) args'
@@ -586,7 +594,7 @@ makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap
 makeTargetVars :: ModName -> [Var] -> [String] -> BareM [Var]
 makeTargetVars name vs ss = do
   env <- gets hscEnv
-  ns <- liftIO $ catMaybes <$> mapM (lookupName env name . dummyLoc) (map prefix ss)
+  ns <- liftIO $ catMaybes <$> mapM (lookupName env name . dummyLoc . prefix) ss
   return $ filter ((`elem` ns) . varName) vs
  where
   prefix s = getModString name ++ "." ++ s
@@ -604,7 +612,7 @@ makeLocalAssumeSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareT
 makeLocalAssumeSpec cfg mod vs lvs xbs
   = do env     <- get
        vbs1    <- fmap expand3 <$> varSymbols fchoose "Var" lvs (dupSnd <$> xbs1)
-       when (not $ noCheckUnknown cfg) $
+       unless (noCheckUnknown cfg) $
          checkDefAsserts env vbs1 xbs1
        vts1    <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
        vts2    <- makeAssumeSpec' cfg vs xbs2
@@ -625,7 +633,7 @@ makeAssumeSpec' :: Config -> [Var] -> [(LocSymbol, BareType)]
 makeAssumeSpec' cfg vs xbs
   = do vbs <- map (joinVar vs) <$> lookupIds xbs
        env@(BE { modName = mod}) <- get
-       when (not $ noCheckUnknown cfg) $
+       unless (noCheckUnknown cfg) $
          checkDefAsserts env vbs xbs
        map (addFst3 mod) <$> mapM mkVarSpec vbs
 
@@ -636,7 +644,7 @@ joinVar vs (v,s,t) = case L.find ((== showPpr v) . showPpr) vs of
                        Just v' -> (v',s,t)
                        Nothing -> (v,s,t)
 
-lookupIds xs = mapM lookup xs
+lookupIds = mapM lookup
   where
     lookup (s, t) = (,s,t) <$> lookupGhcVar (symbolString <$> s)
 
@@ -646,7 +654,7 @@ checkDefAsserts env vbs xbs   = applyNonNull (return ()) grumble  undefSigs
     undefSigs                 = [x | (x, _) <- assertSigs, not (x `S.member` definedSigs)]
     assertSigs                = filter isTarget xbs
     definedSigs               = S.fromList $ snd3 <$> vbs
-    grumble xs                = mapM_ (warn . berrUnknownVar) xs
+    grumble                   = mapM_ (warn . berrUnknownVar)
     moduleName                = getModString $ modName env
     isTarget                  = L.isPrefixOf moduleName . symbolStringRaw . val . fst
     symbolStringRaw           = stripParens . symbolString
@@ -654,16 +662,39 @@ checkDefAsserts env vbs xbs   = applyNonNull (return ()) grumble  undefSigs
 warn x = tell [x]
 
 
-mkVarSpec                 :: (Var, LocSymbol, BareType) -> BareM (Var, Located SpecType)
-mkVarSpec (v, Loc l _, b) = ((v, ) . (Loc l) . generalize) <$> mkSpecType b
+mkVarSpec :: (Var, LocSymbol, BareType) -> BareM (Var, Located SpecType)
+mkVarSpec (v, Loc l _, b) = tx <$> (plugHoles t =<< mkSpecType b)
+  where
+    tx = (v,) . Loc l . generalize . traceShow (printf "plugHoles %s" (showPpr v))
+    t = expandTypeSynonyms $ varType v
 
-
+plugHoles :: Type -> SpecType -> BareM SpecType
+plugHoles t              RHole              = return $ fmap (const k) t'
+  where k           = uReft (S "VV", [RKvar (S "HOLE") emptySubst])
+        t' :: RSort = ofType t
+plugHoles (TyVarTy _)    v@(RVar _ _)       = return v
+plugHoles (FunTy i o)    (RFun x i' o' r)   = RFun x <$> plugHoles i i'
+                                                     <*> plugHoles o o'
+                                                     <*> return r
+plugHoles (ForAllTy _ t) t'                 = plugHoles t t'
+plugHoles t              (RAllT a t')       = RAllT a <$> plugHoles t t'
+plugHoles t              (RAllP p t')       = RAllP p <$> plugHoles t t'
+plugHoles t              (RAllE b a t')     = RAllE b a <$> plugHoles t t'
+plugHoles t              (REx b x t')       = REx b x <$> plugHoles t t'
+plugHoles (AppTy t1 t2)  (RAppTy t1' t2' r) = RAppTy <$> plugHoles t1 t1'
+                                                     <*> plugHoles t2 t2'
+                                                     <*> return r
+plugHoles (TyConApp _ t) (RApp c t' p r)    = RApp c <$> zipWithM plugHoles t t'
+                                                     <*> return p <*> return r
+plugHoles (TyConApp _ t) (RCls c t')        = RCls c <$> zipWithM plugHoles t t'
+plugHoles t              st                 = errorstar msg
+  where
+    msg = printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showPpr t) (showpp st)
 
 showTopLevelVars vs = 
   forM vs $ \v -> 
-    if isExportedId v 
-      then donePhase Loud ("Exported: " ++ showPpr v)
-      else return ()
+    when (isExportedId v) $
+      donePhase Loud ("Exported: " ++ showPpr v)
 
 ----------------------------------------------------------------------
 
@@ -1025,6 +1056,8 @@ ofBareType (RCls c ts)
   = liftM2 RCls (lookupGhcClass c) (mapM ofBareType ts)
 ofBareType (ROth s)
   = return $ ROth s
+ofBareType RHole
+  = return RHole
 ofBareType t
   = errorstar $ "Bare : ofBareType cannot handle " ++ show t
 

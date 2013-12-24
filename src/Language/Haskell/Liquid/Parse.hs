@@ -155,7 +155,10 @@ bareArgP vv
 
 bareAtomP ref
   =  ref bbaseP
+ <|> holeP
  <|> try (dummyP (bbaseP <* spaces))
+
+holeP = reserved "_" >> spaces >> return RHole
 
 bbaseP :: Parser (Reft -> BareType)
 bbaseP 

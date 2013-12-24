@@ -15,6 +15,7 @@ module Language.Haskell.Liquid.PrettyPrint (
   , pprManyOrdered 
   -- * Printing a List with many large items
   , pprintLongList
+  , ppRaw
   ) where
 
 import ErrUtils                         (ErrMsg)
@@ -109,6 +110,22 @@ ppr_rtype _ _ (ROth s)
   = text $ "???-" ++ s 
 ppr_rtype bb p (RRTy r t)         
   = text "<<" <+> pprint r <+> text ">>" <+> ppr_rtype bb p t
+ppr_rtype _ _ RHole
+  = text "_"
+
+ppRaw (RAllT _ t) = text "RAllT" <+> parens (ppRaw t)
+ppRaw (RAllP _ t) = text "RAllP" <+> parens (ppRaw t)
+ppRaw (RAllE _ _ t) = text "RAllE" <+> parens (ppRaw t)
+ppRaw (REx _ _ t)   = text "REx" <+> parens (ppRaw t)
+ppRaw (RFun _ i o _) = ppRaw i <+> text "->" <+> ppRaw o
+ppRaw (RAppTy t t' _) = text "RAppTy" <+> parens (ppRaw t) <+> parens (ppRaw t')
+ppRaw RHole           = text "RHole"
+ppRaw (RCls c ts) = text "RCls" <+> parens (ppCls c ts)
+ppRaw (RApp c ts rs _) = text "RApp" <+> parens (pprint c)
+ppRaw (RVar v _) = text "RVar"
+ppRaw (RExprArg _) = text "RExprArg"
+ppRaw (ROth s) = text "ROth" <+> text s
+ppRaw (RRTy _ _) = text "RRTy"
 
 -- | From GHC: TypeRep 
 -- pprArrowChain p [a,b,c]  generates   a -> b -> c
