@@ -142,7 +142,7 @@ import Data.Generics        (Data)
 import Data.Monoid hiding   ((<>))
 import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
-import Data.List            (foldl', sort, stripPrefix)
+import Data.List            (foldl', sort, stripPrefix, intersect)
 import Data.Hashable        
 import qualified Data.Foldable as F
 import Data.Traversable
@@ -1100,11 +1100,14 @@ newtype Subst = Su [(Symbol, Expr)] deriving (Eq, Ord, Data, Typeable)
 mkSubst                  = Su -- . M.fromList
 appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
 emptySubst               = Su [] -- M.empty
-catSubst (Su s1) (Su s2) = Su $ s1' ++ s2'
-  where s1' = mapSnd (subst (Su s2')) <$> s1
-        s2' = filter (\(x,_) -> not (x `elem` (fst <$> s1))) s2
-  -- = Su $ s1' `M.union` s2
-  --   where s1' = subst (Su s2) `M.map` s1
+catSubst (Su s1) (Su s2) 
+  | null $ intersect xs1 xs2 
+  = Su $ s1' ++ s2
+  | otherwise 
+  = errorstar $ "Fixpoint.Types catSubst on intersecting substitutions"
+  where s1' = mapSnd (subst (Su s2)) <$> s1
+        xs1 = fst <$> s1
+        xs2 = fst <$> s2
 
 instance Monoid Subst where
   mempty  = emptySubst
@@ -1259,6 +1262,7 @@ removeLhsKvars cs vs
 trueSubCKvar v
   = subC emptyIBindEnv PTrue mempty (RR mempty (Reft(vv_, [RKvar v emptySubst]))) Nothing [0] 
 
+shiftVV :: Reft -> Symbol -> Reft
 shiftVV r@(Reft (v, ras)) v' 
    | v == v'   = r
    | otherwise = Reft (v', (subst1 ras (v, EVar v')))
