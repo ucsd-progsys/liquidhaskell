@@ -69,6 +69,8 @@ import Language.Fixpoint.Types
 import Language.Fixpoint.Errors
 import Data.Maybe(maybe, fromJust)
 
+import Data.Monoid (mempty)
+
 type Parser = Parsec String Integer 
 
 --------------------------------------------------------------------
@@ -393,15 +395,15 @@ intP = fromInteger <$> integer
 defsFInfo :: [Def a] -> FInfo a
 defsFInfo defs = FI cm ws bs gs lts kts qs
   where 
-    cm     = M.fromList       [(cid c, c)     | Cst c       <- defs]
-    ws     =                  [w              | Wfc w       <- defs]
-    bs     = rawBindEnv       [(n, x, r)      | IBind n x r <- defs]
-    gs     = fromListSEnv     [(x, RR t top)  | Con x t     <- defs]
-    lts    =                  [(x, t)         | Con x t     <- defs, notFun t]
-    kts    = KS $ S.fromList  [k              | Kut k       <- defs]     
-    qs     =                  [q              | Qul q       <- defs]
+    cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
+    ws     =                  [w                | Wfc w       <- defs]
+    bs     = rawBindEnv       [(n, x, r)        | IBind n x r <- defs]
+    gs     = fromListSEnv     [(x, RR t mempty) | Con x t     <- defs]
+    lts    =                  [(x, t)           | Con x t     <- defs, notFun t]
+    kts    = KS $ S.fromList  [k                | Kut k       <- defs]     
+    qs     =                  [q                | Qul q       <- defs]
     cid    = fromJust . sid
-    notFun = not . isFunctionSortedReft . (`RR` top) 
+    notFun = not . isFunctionSortedReft . (`RR` trueReft) 
 ---------------------------------------------------------------------
 -- | Interacting with Fixpoint --------------------------------------
 ---------------------------------------------------------------------

@@ -90,6 +90,7 @@ module Language.Fixpoint.Types (
   -- * Constructing Refinements
   , trueSortedReft          -- trivial reft
   , trueRefa                -- trivial reft
+  , trueReft                -- trivial reft
   , exprReft                -- singleton: v == e
   , notExprReft             -- singleton: v /= e
   , uexprReft               -- singleton: v ~~ e
@@ -1366,8 +1367,8 @@ class (Monoid r, Subable r) => Reftable r where
   isTauto :: r -> Bool
   ppTy    :: r -> Doc -> Doc
   
-  top     :: r
-  top     =  mempty
+  top     :: r -> r
+  top _   =  mempty
  
   -- | should also refactor `top` so it takes a parameter.
   bot     :: r -> r
@@ -1400,10 +1401,10 @@ instance Subable () where
 instance Reftable () where
   isTauto _ = True
   ppTy _  d = d
-  top       = ()
+  top  _    = ()
   bot  _    = ()
   meet _ _  = ()
-  toReft _  = top
+  toReft _  = mempty
   params _  = []
 
 instance Reftable Reft where
@@ -1411,7 +1412,9 @@ instance Reftable Reft where
   ppTy     = ppr_reft
   toReft   = id
   params _ = []
-  bot    _ = falseReft
+
+  bot    _        = falseReft
+  top (Reft(v,_)) = Reft(v,[])
 
 instance Monoid Sort where
   mempty            = FObj (S "any")
