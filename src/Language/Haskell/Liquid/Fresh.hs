@@ -22,6 +22,9 @@ import Language.Haskell.Liquid.RefType  (uTop, expandRApp)
 import Language.Fixpoint.Types
 import Language.Fixpoint.Misc
 
+
+import Data.Monoid                      (mempty)
+
 type TTCInfo  = M.HashMap TC.TyCon RTyCon
 type TTCEmbed = TCEmb TC.TyCon
 
@@ -66,6 +69,7 @@ instance (Freshable m Integer, Freshable m r, TCInfo m, Reftable r) => Freshable
   refresh = refreshRefType
   true    = trueRefType 
 
+trueRefType :: (Freshable m Integer, Freshable m r,TCInfo m,  Reftable r) => RRType r -> m (RRType r)
 trueRefType (RAllT α t)       
   = liftM (RAllT α) (true t)
 trueRefType (RAllP π t)       
@@ -73,10 +77,10 @@ trueRefType (RAllP π t)
 trueRefType (RFun _ t t' _)    
   = liftM3 rFun fresh (true t) (true t')
 trueRefType (RApp c ts _ _)  
-  = liftM (\ts -> RApp c ts truerefs top) (mapM true ts)
+  = liftM (\ts -> RApp c ts truerefs mempty) (mapM true ts)
 		where truerefs = (RPoly []  . ofRSort . ptype) <$> (rTyConPs c)
 trueRefType (RAppTy t t' _)    
-  = liftM3 RAppTy (true t) (true t') (return top)
+  = liftM3 RAppTy (true t) (true t') (return mempty)
 trueRefType t                
   = return t
 

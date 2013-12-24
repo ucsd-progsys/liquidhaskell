@@ -149,9 +149,9 @@ unifyS (RApp c ts rs r) (RApp _ pts ps p)
     where 
        fm       = S.fromList $ concatMap pvars (fp:fps) 
        fp : fps = p : (getR <$> ps)
-       rs'      = zipWithZero unifyRef (RMono [] top {- trueReft -}) mempty rs fps
+       rs'      = zipWithZero unifyRef (RMono [] mempty {- trueReft -}) mempty rs fps
        getR (RMono _ r) = r
-       getR (RPoly _ _) = top 
+       getR (RPoly _ _) = mempty 
 
 unifyS (RAllE x tx t) (RAllE x' tx' t') | x == x'
   = liftM2 (RAllE x) (unifyS tx tx') (unifyS t t')
@@ -160,10 +160,10 @@ unifyS (REx x tx t) (REx x' tx' t') | x == x'
   = liftM2 (REx x) (unifyS tx tx') (unifyS t t')
 
 unifyS t (REx x' tx' t')
-  = liftM (REx x' (U top <$> tx')) (unifyS t t')
+  = liftM (REx x' (U mempty <$> tx')) (unifyS t t')
 
 unifyS t@(RVar v a) (RAllE x' tx' t')
-  = liftM (RAllE x' (U top <$> tx')) (unifyS t t')
+  = liftM (RAllE x' (U mempty <$> tx')) (unifyS t t')
 
 unifyS t1 t2                
   = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
@@ -179,7 +179,7 @@ zipWithZero f xz yz (x:xs) []     = (f x yz):(zipWithZero f xz yz xs [])
 zipWithZero f xz yz (x:xs) (y:ys) = (f x y) :(zipWithZero f xz yz xs ys)
  
 -- pToReft p = Reft (vv, [RPvar p]) 
-pToReft = U top . pdVar 
+pToReft = U mempty . pdVar 
 
 ----------------------------------------------------------------------------
 ----- Interface: Replace Predicate With Uninterprented Function Symbol -----
@@ -277,7 +277,7 @@ substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showpp (su, 
 
 substPredP su@(p, RPoly ss tt) (RPoly s t)       
   = RPoly ss' $ substPred "substPredP" su t
- where ss' = if isPredInType p t then (ss ++ s) else s
+ where ss' = if isFreePredInType p t then (ss ++ s) else s
 
 substPredP _  (RMono _ _)       
   = error $ "RMono found in substPredP"
@@ -309,6 +309,30 @@ isPredInType _ (ROth _)
 
 isPredInURef p (U _ (Pr ps)) = any (uPVar p ==) ps
 
+isFreePredInType p (RVar _ r) 
+  = isFreePredInURef p r
+isFreePredInType p (RFun _ t1 t2 r) 
+  = isFreePredInURef p r || isFreePredInType p t1 || isFreePredInType p t2
+isFreePredInType p (RAllT _ t)
+  = isFreePredInType p t 
+isFreePredInType p (RAllP p' t)
+  = not (p == p') && isFreePredInType p t 
+isFreePredInType p (RApp _ ts _ r) 
+  = isFreePredInURef p r || any (isFreePredInType p) ts
+isFreePredInType p (RCls _ ts) 
+  = any (isFreePredInType p) ts
+isFreePredInType p (RAllE _ t1 t2) 
+  = isFreePredInType p t1 || isFreePredInType p t2 
+isFreePredInType p (RAppTy t1 t2 r) 
+  = isFreePredInURef p r || isFreePredInType p t1 || isFreePredInType p t2
+isFreePredInType _ (RExprArg _)              
+  = False
+isFreePredInType _ (ROth _)
+  = False
+
+isFreePredInURef p (U _ (Pr ps))
+  = traceShow ("FREE" ++ show (p, ps) )$ any (\(_, x, w) -> (EVar x) == w) $ concatMap pargs ps'
+  where ps' = filter (uPVar p ==) ps
 
 meetListWithPSubs πs ss r1 r2    = foldl' (meetListWithPSub ss r1) r2 πs
 meetListWithPSubsRef πs ss r1 r2 = foldl' ((meetListWithPSubRef ss) r1) r2 πs
@@ -344,7 +368,7 @@ predType :: Type
 predType = TyVarTy $ stringTyVar predName
 
 rpredType    :: Reftable r => [RRType r] -> RRType r
-rpredType ts = RApp tyc ts [] top
+rpredType ts = RApp tyc ts [] mempty
   where 
     tyc      = RTyCon (stringTyCon 'x' 42 predName) [] defaultTyConInfo
 

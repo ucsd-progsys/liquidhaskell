@@ -346,7 +346,7 @@ makeClasses cfg vs (mod,spec) = inModule mod $ mapM mkClass $ Ms.classes spec
            let (dc:_) = tyConDataCons tc
            let αs  = map stringRTyVar as
            let as' = [rVar $ stringTyVar a | a <- as ]
-           let ms' = [ (s, rFun (S "") (RCls (show <$> c) (flip RVar top <$> as)) t)
+           let ms' = [ (s, rFun (S "") (RCls (show <$> c) (flip RVar mempty <$> as)) t)
                      | (s, t) <- ms]
            vts <- makeAssumeSpec' cfg vs ms'
            let sts = [(val s, unClass $ val t) | (s, _)    <- ms
@@ -935,9 +935,9 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [0] [] (Just fsize))]
           xs     = stringSymbol "xs"
           p      = PV (stringSymbol "p") t [(t, fld, EVar fld)]
           px     = (pdVarReft $ PV (stringSymbol "p") t [(t, fld, EVar x)]) 
-          lt     = rApp c [xt] [RMono [] $ pdVarReft p] top                 
+          lt     = rApp c [xt] [RMono [] $ pdVarReft p] mempty                 
           xt     = rVar tyv
-          xst    = rApp c [RVar (RTV tyv) px] [RMono [] $ pdVarReft p] top  
+          xst    = rApp c [RVar (RTV tyv) px] [RMono [] $ pdVarReft p] mempty
           cargs  = [(xs, xst), (x, xt)]
           fsize  = \x -> EApp (dummyLoc $ S "len") [EVar x]
 
@@ -955,7 +955,7 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [0..(n-2)] [] Nothing)]
         ps            = mkps pnames (ta:ts) ((fld, EVar fld):(zip flds (EVar <$>flds)))
         ups           = uPVar <$> ps
         pxs           = mkps pnames (ta:ts) ((fld, EVar x1):(zip flds (EVar <$> xs)))
-        lt            = rApp c (rVar <$> tyvs) (RMono [] . pdVarReft <$> ups) top
+        lt            = rApp c (rVar <$> tyvs) (RMono [] . pdVarReft <$> ups) mempty
         xts           = zipWith (\v p -> RVar (RTV v) (pdVarReft p)) tvs pxs
         cargs         = reverse $ (x1, rVar tv) : (zip xs xts)
         pnames        = mks_ "p"
@@ -963,7 +963,7 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [0..(n-2)] [] Nothing)]
         mks_ x        = (\i ->  (x++ show i)) <$> [2..n]
 
 
-pdVarReft = U top . pdVar 
+pdVarReft = U mempty . pdVar 
 
 mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ (stringSymbol <$> ns) ts fxs [(t, f, x)] [] 
 mkps _  _      _           = error "Bare : mkps"
@@ -1039,12 +1039,12 @@ ofSyms (x, t)
 -- TODO: move back to RefType
 bareTCApp _ r c rs ts | length ts == tyConArity c
   = if isTrivial t0 then t' else t
-    where t0 = rApp c ts rs top
+    where t0 = rApp c ts rs mempty
           t  = rApp c ts rs r
           t' = (expandRTypeSynonyms t0) `strengthen` r
 -- otherwise create an error
 -- create the error later to get better message
-bareTCApp _ _ c rs ts = rApp c ts rs top
+bareTCApp _ _ c rs ts = rApp c ts rs mempty
 
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
 
@@ -1143,7 +1143,7 @@ ofBDataCon tc αs ps πs (c, xts)
   = do c'      <- lookupGhcDataCon c
        ts'     <- mapM (mkSpecType' ps) ts
        let cs   = map ofType (dataConStupidTheta c')
-       let t0   = rApp tc rs (RMono [] . pdVarReft <$> πs) top 
+       let t0   = rApp tc rs (RMono [] . pdVarReft <$> πs) mempty 
        return   $ (c', DataConP αs πs cs (reverse (zip xs' ts')) t0)
     where 
        (xs, ts) = unzip xts

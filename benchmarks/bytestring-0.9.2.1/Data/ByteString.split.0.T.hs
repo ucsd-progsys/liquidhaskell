@@ -843,6 +843,7 @@ unfoldrN i f x0
     | i < 0     = (empty, Just x0)
     | otherwise = unsafePerformIO $ createAndTrimMEQ i $ \p -> go_unfoldrN i p x0 0
   where STRICT4(go)
+        {-@ Decrease go_unfoldrN 4 @-}
         go_unfoldrN (d::Int) p x n =
           case f x of
             Nothing      -> return (0 :: Int {- LIQUID -}, n, Nothing)
