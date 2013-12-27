@@ -745,6 +745,7 @@ foldl' = foldl
 -- foldr/foldr' TERMINATION
 {-@ qualif PtrDiff(v:int, p:Ptr a, q:Ptr a): v >= (plen p) - (plen q) @-}
 
+{-@ foldr :: (Word8 -> a -> a) -> a -> ByteString -> a @-}
 foldr :: (Word8 -> a -> a) -> a -> ByteString -> a
 foldr k v (PS x s l) = inlinePerformIO $ withForeignPtr x $ \ptr ->
         go v (ptr `plusPtr` (s+l-1)) (ptr `plusPtr` (s-1)) l
@@ -1047,6 +1048,7 @@ unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
 unfoldrN i f x0
     | i < 0     = (empty, Just x0)
     | otherwise = unsafePerformIO $ createAndTrimMEQ i $ \p -> go_unfoldrN i p x0 0
+  {-@ Decrease go_unfoldrN 4 @-}
   where STRICT4(go)
         {- LIQUID WITNESS -}
         go_unfoldrN (d::Int) p x n =
