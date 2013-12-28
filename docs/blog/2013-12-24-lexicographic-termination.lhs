@@ -6,7 +6,7 @@ comments: true
 external-url:
 categories: termination, lexicographic ordering
 author: Niki Vazou
-published: false
+published: true 
 demo: LexicographicTermination.hs
 ---
 
@@ -18,7 +18,7 @@ more recursive functions, namely *lexicographic termination*.
 
 <!-- more -->
 
-<div class="hiddencode">
+<div class="hidden">
 
 \begin{code}
 module LexicographicTermination where
