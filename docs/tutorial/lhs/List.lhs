@@ -5,6 +5,8 @@ Recursive Invariants
 
 \begin{code}
 module List where
+
+{-@ LIQUID "--no-termination" @-}
 \end{code}
 
 
@@ -159,7 +161,7 @@ insert' y (x `C` xs) | y <= x    = y `C` x `C` xs
 Analyzing Plain Lists
 ---------------------
 
-[Demo](http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=ListSort.hs)
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=Order.hs" target= "_blank">Demo:</a> 
 
 
 We can easily modify GHC's List definition to abstract over a refinement:
@@ -358,7 +360,7 @@ Binary Search Ordering
 We can use the `BST` type to automatically verify that tricky functions
 ensure and preserve binary-search ordering.
 
-[Demo](http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=Map.hs)
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=Map.hs" target= "_blank">Demo:</a> 
 
 \begin{code}So, we can have
 empty :: BST k a

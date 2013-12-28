@@ -6,8 +6,8 @@ Higher Order Specifications
 
 \begin{code}
 module Loop where
-import Prelude hiding ((!!), length)
-import SimpleRefinements
+
+{-@ LIQUID "--no-termination"@-}
 \end{code}
 
 
@@ -37,8 +37,8 @@ Higher Order Specifications
 Lets use `(!!)` to write a function that sums an `Int` list
 
 \begin{code}
-{-@ listSum :: L Int -> Int @-}
-listSum     :: L Int -> Int
+{-@ listSum :: [Int] -> Int @-}
+listSum     :: [Int] -> Int
 listSum xs  = loop 0 n 0 body 
   where 
     body    = \i acc -> acc + (xs !! i)
@@ -50,7 +50,7 @@ By **function subtyping** LiquidHaskell **infers**
 - `body` called with `0 <= i < llen xs` 
 - hence, indexing safe.
 
-[Demo](http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=SimpleRefinements.hs):
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=Loop.hs" target= "_blank">Demo:</a> 
 Let's change the `0` to `-1` and see what happens!
 
 Higher Order Specifications
@@ -59,8 +59,8 @@ Higher Order Specifications
 We can give this function a better type:
 
 \begin{code}
-{-@ listNatSum :: L Nat -> Nat @-}
-listNatSum     :: L Int -> Int
+{-@ listNatSum :: [Nat] -> Nat @-}
+listNatSum     :: [Int] -> Int
 listNatSum xs  = loop 0 n 0 body 
   where 
     body       = \i acc -> acc + (xs !! i)
@@ -81,8 +81,8 @@ Higher Order Specifications
 By the same analysis, LiquidHaskell verifies that <br>
 
 \begin{code}
-{-@ listEvenSum :: L Even -> Even @-}
-listEvenSum     :: L Int -> Int
+{-@ listEvenSum :: [Even] -> Even @-}
+listEvenSum     :: [Int] -> Int
 listEvenSum xs  = loop 0 n 0 body 
   where body   = \i acc -> acc + (xs !! i)
         n      = length xs

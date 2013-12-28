@@ -6,7 +6,9 @@ Inductive Refinements
 \begin{code}
 module Loop where
 import Prelude hiding ((!!), foldr, length, (++))
-import SimpleRefinements 
+import Measures
+import Language.Haskell.Liquid.Prelude
+{-@ LIQUID "--no-termination" @-}
 \end{code}
 
 
@@ -24,8 +26,9 @@ loop lo hi base f            = go lo base
 
 We used `loop` to write <br>
 
-\begin{code} 
-{-@ add :: n:Nat -> m:Nat -> {v:Int| v = m + n} @-}
+\begin{code}
+
+{-@ add :: n:Nat -> m:{v:Int| v >= 0} -> {v:Int| v = m + n} @-}
 add :: Int -> Int -> Int
 add n m = loop 0 m n (\_ i -> i + 1)
 \end{code}
@@ -113,8 +116,8 @@ We define a `foldr` function that resembles loop.
 \end{code}
 \begin{code}
 {-@ foldr :: forall a b <p :: L a -> b -> Prop>. 
-                (xs:L a -> x:a -> b <p xs> -> b <p (SimpleRefinements.C x xs)>) 
-              -> b <p SimpleRefinements.N> 
+                (xs:L a -> x:a -> b <p xs> -> b <p (Measures.C x xs)>) 
+              -> b <p Measures.N> 
               -> ys: L a
               -> b <p ys>
   @-}
@@ -157,7 +160,7 @@ Structural Induction With Abstract Refinements
 
 Similarly we can now verify <br>
 
-\begin{code}
+\begin{code}_
 {-@ ++ :: xs:L a -> ys:L a -> {v:L a | (llen v) = (llen xs) + (llen ys)} @-} 
 xs ++ ys = foldr (\_ z zs -> C z zs) ys xs 
 \end{code}
