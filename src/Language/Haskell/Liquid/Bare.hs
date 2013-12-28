@@ -208,9 +208,9 @@ expPAlias = expandPAlias []
 expandRTAlias   :: BareType -> BareM SpecType
 expandRTAlias bt = expType =<< expReft bt
   where 
-    expReft = mapReftM (txPredReft expPred)
-    expType = expandAlias  []
-    expPred = expandPAlias []
+    expReft      = mapReftM (txPredReft expPred)
+    expType      = expandAlias  []
+    expPred      = expandPAlias []
 
 txPredReft :: (Pred -> BareM Pred) -> RReft -> BareM RReft
 txPredReft f (U r p) = (`U` p) <$> txPredReft' f r
