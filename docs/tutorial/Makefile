@@ -1,9 +1,9 @@
 ####################################################################
-SERVERHOME=rjhala@goto.ucsd.edu:~/public_html/liquid/haskell/tutorial/
+SERVERHOME=nvazou@goto.ucsd.edu:~/public_html/liquidtutorial/
 ####################################################################
 
 
-PANDOC=pandoc --columns=80  -s --mathjax --slide-level=2
+PANDOC=pandoc --columns=80  -s  --mathjax --slide-level=2
 SLIDY=$(PANDOC) -t slidy
 DZSLIDES=$(PANDOC) --highlight-style tango --css=slides.css -w dzslides
 HANDOUT=$(PANDOC) --highlight-style tango --css=text.css -w html5
@@ -30,11 +30,13 @@ copy:
 	cp lhs/*lhs.slides.html html/
 	cp css/*.css html/
 	cp -r fonts html/
- 
-clean:
-	cd lhs/ && ../cleanup && cd ../
-	cd html/ && rm -rf * && cd ../
 	cp index.html html/
+	cp Benchmarks.html html/
+
+clean:
+#	cd lhs/ && ../cleanup && cd ../
+#	cd html/ && rm -rf * && cd ../
+#	cp index.html html/
 
 upload: 
 	scp -r html/* $(SERVERHOME)
