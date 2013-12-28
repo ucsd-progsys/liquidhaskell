@@ -18,11 +18,15 @@ more recursive functions, namely *lexicographic termination*.
 
 <!-- more -->
 
+<div class="hiddencode">
+
 \begin{code}
 module LexicographicTermination where
 
 import Language.Haskell.Liquid.Prelude (liquidError)
 \end{code}
+
+</div>
 
 Does Ackermann Function Terminate?
 ----------------------------------
