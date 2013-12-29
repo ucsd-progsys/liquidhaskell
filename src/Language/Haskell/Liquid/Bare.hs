@@ -65,7 +65,7 @@ makeGhcSpec :: Config -> ModName -> [Var] -> [Var] -> HscEnv
             -> [(ModName,Ms.BareSpec)]
             -> IO GhcSpec
 makeGhcSpec cfg name vars defVars env specs
-  = throwOr (throwOr return . checkGhcSpec) =<< execBare act initEnv
+  = throwOr (throwOr return . checkGhcSpec specs) =<< execBare act initEnv
   where
     act = makeGhcSpec' cfg vars defVars specs
     throwOr = either Ex.throw
@@ -1177,9 +1177,10 @@ rtypePredBinds = map uPVar . snd3 . bkUniv
 ----- Checking GhcSpec -----------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
 
-checkGhcSpec :: (GhcSpec, [Measure SpecType DataCon]) -> Either [Error] GhcSpec
+checkGhcSpec :: [(ModName, Ms.BareSpec)]
+             -> (GhcSpec, [Measure SpecType DataCon]) -> Either [Error] GhcSpec
 
-checkGhcSpec (sp, ms) =  applyNonNull (Right sp) Left errors
+checkGhcSpec specs (sp, ms) =  applyNonNull (Right sp) Left errors
   where 
     errors           =  mapMaybe (checkBind "variable"    emb env) (tySigs     sp)
                      ++ mapMaybe (checkBind "constructor" emb env) (dcons      sp)
@@ -1189,6 +1190,8 @@ checkGhcSpec (sp, ms) =  applyNonNull (Right sp) Left errors
                      ++ checkMeasures emb env ms
                      ++ mapMaybe checkMismatch                     (tySigs     sp)
                      ++ checkDuplicate                             (tySigs     sp)
+                     ++ checkDuplicateRTAlias "Type Alias"         (concat [Ms.aliases sp | (_, sp) <- specs])
+                     ++ checkDuplicateRTAlias "Predicate Alias"    (concat [Ms.paliases sp | (_, sp) <- specs])
     dcons spec       =  mapSnd (Loc dummyPos) <$> dataConSpec (dconsP spec) 
     emb              =  tcEmbeds sp
     env              =  ghcSpecEnv sp
@@ -1235,6 +1238,15 @@ checkDuplicate xts   = mkErr <$> dups
   where 
     mkErr (x, ts)    = ErrDupSpecs (getSrcSpan x) (pprint x) (sourcePosSrcSpan . loc <$> ts)
     dups             = [z | z@(x, t1:t2:_) <- M.toList $ group xts ]
+
+checkDuplicateRTAlias :: String -> [RTAlias s a] -> [Error]
+checkDuplicateRTAlias s tas = mkErr <$> dups
+  where
+    mkErr xs@(x:_) = ErrDupAlias (sourcePosSrcSpan $ srcPos x) 
+                                 (text s) 
+                                 (pprint $ rtName x) 
+                                 (sourcePosSrcSpan . srcPos <$> xs)
+    dups  = [z | z@(_:_:_) <- L.groupBy (\x y -> rtName x == rtName y) tas]
 
 
 checkMismatch        :: (Var, Located SpecType) -> Maybe Error

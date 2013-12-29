@@ -1047,6 +1047,11 @@ ppError (ErrDupSpecs l v ls)
   = text "Multiple Specifications for" <+> v <> colon <+> pprint l
     $+$ (nest 4 $ vcat $ pprint <$> ls) 
 
+ppError (ErrDupAlias l k v ls)
+  = text "Multiple Declarations Error:" <+> pprint l $+$
+    (nest 2 $ text "Multiple Declarations of" <+> k <+> ppVar v $+$ text "Declared at:")
+    <+> (nest 4 $ vcat $ pprint <$> ls) 
+
 ppError (ErrGhc l s)       
   = text "GHC Error:" <+> pprint l
     $+$ (nest 4 s)
@@ -1061,6 +1066,7 @@ ppError (ErrOther s)
     $+$ (nest 4 s)
 
 
+ppVar v = text "`" <> v <> text "'"
 -------------------------------------------------------------------------------
 
 mkTyConInfo :: TyCon -> [Int] -> [Int] -> (Maybe (Symbol -> Expr)) -> TyConInfo
