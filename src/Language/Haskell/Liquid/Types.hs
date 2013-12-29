@@ -929,8 +929,8 @@ instance PPrint SortedReft where
 ------------------------------------------------------------------------
 
 type ErrorResult = FixResult Error
-
 data Error = 
+-- | INVARIANT : all Error constructors should hava a pos field
     ErrSubType  { pos :: !SrcSpan
                 , msg :: !Doc
                 , act :: !SpecType
@@ -951,6 +951,11 @@ data Error =
                 , typ :: !SpecType  
                 , msg :: !Doc
                 } -- ^ sort error in specification
+  | ErrDupAlias { pos  :: !SrcSpan
+                , kind :: !Doc
+                , var  :: !Doc
+                , locs :: ![SrcSpan]
+                } -- ^ multiple alias with same name error
   | ErrDupSpecs { pos :: !SrcSpan
                 , var :: !Doc
                 , locs:: ![SrcSpan]
