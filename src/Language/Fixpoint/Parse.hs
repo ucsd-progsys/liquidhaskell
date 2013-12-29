@@ -195,10 +195,12 @@ parenBrackets  = parens . brackets
 
 expr2P = buildExpressionParser bops lexprP
 
-bops = [ [Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft]
-       , [Infix  (reservedOp "/"   >> return (EBin Div  )) AssocLeft]
-       , [Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft]
-       , [Infix  (reservedOp "-"   >> return (EBin Minus)) AssocLeft]
+bops = [ [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
+         , Infix  (reservedOp "/"   >> return (EBin Div  )) AssocLeft
+         ]
+       , [ Infix  (reservedOp "-"   >> return (EBin Minus)) AssocLeft
+         , Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft
+         ]
        , [Infix  (reservedOp "mod" >> return (EBin Mod  )) AssocLeft]
        ]
 
