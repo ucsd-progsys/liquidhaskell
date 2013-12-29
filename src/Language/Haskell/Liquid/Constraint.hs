@@ -102,13 +102,13 @@ initEnv info penv
   = do let tce   = tcEmbeds $ spec info
        defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- tyConInfo <$> get 
-       f0       <- refreshArgs' $  grty info                        -- asserted refinements     (for defined vars)
-       f0''     <- grtyTop info >>= refreshArgs'                    -- default TOP reftype      (for exported vars without spec) 
+       f0       <- refreshArgs' $  grty info        -- asserted refinements     (for defined vars)
+       f0''     <- grtyTop info >>= refreshArgs'    -- default TOP reftype      (for exported vars without spec) 
        let f0'   = if (notruetypes $ config $ spec info) then [] else f0'' 
-       f1       <- refreshArgs' $ defaults                         -- default TOP reftype      (for all vars) 
+       f1       <- refreshArgs' $ defaults          -- default TOP reftype      (for all vars) 
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
-       let bs    = (map (unifyts' tce tyi penv)) <$> traceShow "ENV"  [f0 ++ f0', f1, f2, f3]
+       let bs    = (map (unifyts' tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
@@ -118,8 +118,7 @@ initEnv info penv
                               mapM (\(x, t) -> liftM (x,)  (shiftVVt t)) xts2
 --                               return xts
 -- where tce = tcEmbeds $ spec info 
-instance Show Var where
-  show = showPpr
+
 ctor' = map (mapSnd val) . ctors
 
 unifyts' tce tyi penv = (second (addTyConInfo tce tyi)) . (unifyts penv)
@@ -401,12 +400,12 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
 
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
-       cs    <- bsplitC γ (traceShow ("UNIFYVV" ++ show t1) t1') t2'
+       cs    <- bsplitC γ t1' t2'
        γ'    <- γ `extendEnvWithVV` t1' 
        let RApp c  t1s r1s _ = t1'
        let RApp c' t2s r2s _ = t2'
        let tyInfo = rTyConInfo c
-       cscov  <- splitCIndexed  γ' (traceShow ("COVARIANTS" ++ show t2s ++ "\n:>\n" ) t1s) t2s $ covariantTyArgs     tyInfo
+       cscov  <- splitCIndexed  γ' t1s t2s $ covariantTyArgs     tyInfo
        cscon  <- splitCIndexed  γ' t2s t1s $ contravariantTyArgs tyInfo
        cscov' <- rsplitCIndexed γ' r1s r2s $ covariantPsArgs     tyInfo
        cscon' <- rsplitCIndexed γ' r2s r1s $ contravariantPsArgs tyInfo
@@ -475,19 +474,8 @@ rsplitC _ (RMono _ _, RMono _ _)
 
 rsplitC γ (t1@(RPoly s1 r1), t2@(RPoly s2 r2))
   = do γ'  <-  foldM (++=) γ [("rsplitC1", x, ofRSort s) | (x, s) <- s2]
-       splitC (SubC γ' (F.subst su $ traceShow ("HMM" ++ show su ++ "\n" ++ showpp t1 ++ "\n" ++ showpp t2) r1) r2)
-  where su = F.mkSubst $ go s1 s2
-        go [] [] = []
-        go ((x,_):xs) ((y,_):ys) 
---          | not $ x `elem` F.freesyms r1 
-          = (x, F.EVar y) : go xs ys
---          | otherwise            
---          = -- (traceShow ("THIS " ++ show (t1, t2))  $ (x, F.EVar y)) : 
---             go xs ys
-        go _ _  = []
-
-  -- traceShow ("SUBST = " ++ 
---                 if (length s1 == length s2) then "" else ("HEEERE" ++ show (s1, s2) ++ "\n\n" ++ show (t1, t2)) ) $  F.mkSubst [(x, F.EVar y) | (x, y) <- zip (fst <$> s1) (fst <$> s2), x `elem` F.freesyms r1]
+       splitC (SubC γ' (F.subst su r1) r2)
+  where su = F.mkSubst [(x, F.EVar y) | ((x,_), (y,_)) <- zip s1 s2]
 
 rsplitC _ _  
   = errorstar "rsplit Rpoly - RMono"
@@ -637,8 +625,7 @@ rTypeSortedReft' pflag γ
 γ ??= x 
   = case M.lookup x (lcb γ) of
     Just e  -> consE (γ-=x) e
-    Nothing -> (refreshDCon $ γ ?= x) >>= refreshArgs 4
---    Nothing -> (refreshArgs $ γ ?= x ) >>= refreshDCon
+    Nothing -> (refreshDCon $ γ ?= x) >>= refreshArgs
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
@@ -666,7 +653,7 @@ shiftVV t@(RApp _ ts _ r) vv'
       { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t@(RAppTy _ _ r) vv' 
-  = t -- { rt_args = F.subst2 ts (rTypeValueVar t, F.EVar vv') } 
+  = t -- { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
       { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t@(RVar _ r) vv'
@@ -702,7 +689,7 @@ addClassBind = mapM (uncurry addBind) . classBinds
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) _msg 
-  = trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
+  = -- trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
      modify $ \s -> s { hsCs  = c : (hsCs s) }
 addC !c _msg 
   = modify $ \s -> s { hsCs  = c : (hsCs s) }
@@ -809,23 +796,20 @@ trueTy t
        tce   <- tyConEmbed <$> get
        return $ addTyConInfo tce tyi (uRType t)
 
-refreshArgs :: Int -> SpecType -> CG SpecType
-refreshArgs i = liftM fst . refreshArgs' i
-refreshArgs' i t 
+refreshArgs :: SpecType -> CG SpecType
+refreshArgs = liftM fst . refreshArgs'
+refreshArgs' t 
   = do xs' <- mapM (\_ -> fresh) xs
        let sus = F.mkSubst <$> (L.inits $ zip xs (F.EVar <$> xs'))
        let su  = last sus 
        let ts' = zipWith F.subst sus ts
        let t'  = mkArrow αs πs (zip xs' ts') (F.subst su tbd)
-       return $ traceShow ("refreshArgs'" ++ show i) (t', su) -- $ traceShow ("refreshArgs: t = " ++ showpp t) t'
+       return (t', su)
   where (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
 
 refreshxt :: (Var, SpecType) -> CG (Var, SpecType)
-refreshxt (x, t) 
-  = do (t', su) <- refreshArgs' 3 t
---        modify $ \s -> s{ termExprs = M.adjust (F.subst su) x (termExprs s)}
-       return $ (x, t')
+refreshxt (x, t) = liftM ((x, ) . fst) $ refreshArgs' t
 
 instance Freshable CG Integer where
   fresh = do s <- get
@@ -951,7 +935,7 @@ consCB :: Bool -> CGEnv -> CoreBind -> CG CGEnv
 
 consCBSizedTys tflag γ (Rec xes)
   = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
-       ts       <- mapM (refreshArgs 1) $ (fromJust . thd3 <$> xets)
+       ts       <- mapM refreshArgs $ (fromJust . thd3 <$> xets)
        let vs    = zipWith collectArgs ts es
        is       <- checkSameLens <$> mapM makeDecrIndex (zip xs ts)
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is ts]) <$> (zip vs is)
@@ -981,7 +965,7 @@ consCBSizedTys tflag γ (Rec xes)
 consCBWithExprs γ xtes (Rec xes) 
   = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        let ts    = safeFromJust err . thd3 <$> xets
-       ts'      <- mapM (refreshArgs 2) ts
+       ts'      <- mapM refreshArgs ts
        let xts   = zip xs (Just <$> ts')
        γ'       <- foldM extender γ xts
        let γs    = makeTermEnvs γ' xtes xes ts ts'
@@ -1037,7 +1021,7 @@ consCB _ γ (Rec xes)
 consCB _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
        to' <- consBind False γ (x, e, to)
-       extender γ (x, traceShow ("TYPE FOR " ++ show x ++ "\n" ++  show to) to')
+       extender γ (x, to')
 
 consBind isRec γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
@@ -1071,10 +1055,9 @@ varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Maybe SpecType)
 varTemplate γ (x, eo)
   = case (eo, lookupREnv (F.symbol x) (grtys γ)) of
       (_, Just t) -> return $ Just t
-      (Just e, _) -> do t  <- (unifyVar γ x <$> freshTy_expr RecBindE e (exprType e))
+      (Just e, _) -> do t  <- unifyVar γ x <$> freshTy_expr RecBindE e (exprType e)
                         addW (WfC γ t)
                         {- KVPROF addKuts t -}
-                      --   (liftM Just) (refreshArgs t)
                         return $ Just t
       (_,      _) -> return Nothing
 
@@ -1130,8 +1113,7 @@ cconsE γ e (RAllP p t)
 cconsE γ e t
   = do te  <- consE γ e
        te' <- instantiatePreds γ e te
-       addC (SubC γ te' t) ("Type of " ++ show e 
-           ++ "\n:\n" ++ show te' ++ "\n\ncconsE : " ++ showPpr e)
+       addC (SubC γ te' t) ("cconsE : " ++ showPpr e)
 
 instantiatePreds γ e (RAllP p t)
   = do s <- freshPredRef γ e p
@@ -1151,10 +1133,10 @@ cconsLazyLet γ (Let (NonRec x ex) e) t
 consE :: CGEnv -> Expr Var -> CG SpecType 
 -------------------------------------------------------------------
 
-consE γ e@(Var x)   
+consE γ (Var x)   
   = do t <- varRefType γ x
        addLocA (Just x) (loc γ) (varAnn γ x t)
-       return $ traceShow ( "consE for Var: " ++ show e) t
+       return t
 
 consE γ (Lit c) 
   = refreshDCon $ uRType $ literalFRefType (emb γ) c
@@ -1163,8 +1145,7 @@ consE γ (App e (Type τ))
   = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ {- =>> addKuts -} else trueTy τ
        addW       $ WfC γ t
-       t'  <- refreshDCon t
-       return     $ traceShow "AppTy" $ subsTyVar_meet' (α, t') te
+       liftM (\t -> subsTyVar_meet' (α, t) te) $ refreshDCon t
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
@@ -1181,16 +1162,14 @@ consE γ e'@(App e a)
        updateLocA πs (exprLoc e) te'' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller ", e') te''
        cconsE γ' a tx 
-       rt <- addPost γ' $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
+       addPost γ' $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
 --    where err = errorstar $ "consE: App crashes on" ++ showPpr a 
-       return $ traceShow "App" rt 
 
 consE γ (Lam α e) | isTyVar α 
   = liftM (RAllT (rTyVar α)) (consE γ e) 
 
 consE γ  e@(Lam x e1) 
-  = do tx     <- freshTy_type LamE (Var x) τx
---        x'      <- fresh
+  = do tx     <- freshTy_type LamE (Var x) τx 
        γ'     <- ((γ, "consE") += (F.symbol x, tx))
        t1     <- consE γ' e1
        addIdA x (Def tx) 
@@ -1346,11 +1325,11 @@ caseEnv γ x _   (DataAlt c) ys
        tdc              <- γ ??= (dataConSymbol c) >>= refreshDCon
        let  xr = singletonReft x' -- uTop $ F.symbolReft $ F.symbol x
 
-       let xtshifted     = traceShow ("HEREEE:" ++ showpp (shiftVV xt0 x')  ++ "\nx'=" ++ show (x')) $ {-(xt0 `strengthen` xr) -} shiftVV xt0 x' -- pos/PairMeasure fails w/o the shift
-       let (rtd, _, _) = unfoldR c (traceShow "TDCCC" tdc) xt0 ys
-       let yts = traceShow ("YHERE" ++ showpp (tdc, ys)) $ snd3 $  unfoldR c tdc xtshifted ys
+       let xtshifted     = shiftVV xt0 x' -- pos/PairMeasure fails w/o the shift
+--        let (rtd, _, _)   = unfoldR c tdc xt0 ys
+       let (rtd, yts, _) = unfoldR c tdc xtshifted ys
        let r1            = dataConReft   c   ys' 
-       let r2            = traceShow "HEREEEEE" $ dataConMsReft rtd ys'
+       let r2            = dataConMsReft rtd ys'
        let xt            = xt0 `strengthen` (uTop (r1 `F.meet` r2))
        let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
        cγ'              <- addBinders γ x' cbs
@@ -1388,8 +1367,7 @@ altReft _ _ _            = error "Constraint : altReft"
 
 unfoldR dc td (RApp _ ts rs _) ys = (t3, tvys ++ yts, rt)
   where 
-        tbody'          = instantiateTys td ts
-        tbody           = instantiatePvs tbody' $ reverse rs
+        tbody           = instantiatePvs (instantiateTys td ts) $ reverse rs
         (ys0, yts', rt) = safeBkArrow $ instantiateTys tbody tvs'
         yts''           = zipWith F.subst sus (yts'++[rt])
         (t3,yts)        = (last yts'', init yts'')
@@ -1452,8 +1430,8 @@ freshPredRef γ e (PV n τ as)
        args <- mapM (\_ -> fresh) as
        let targs = [(x, s) | (x, (s, y, z)) <- zip args as, (F.EVar y) == z ] -- zip args [] (fst3 <$> as)
        γ' <- foldM (++=) γ [("freshPredRef", x, ofRSort τ) | (x, τ) <- targs]
-       addW $ WfC γ' $ traceShow ("freshPredRef: args\n" ++ show targs) t
-       return $ RPoly (traceShow ("FRESHARGS\n" ++ show as) targs) t
+       addW $ WfC γ' t
+       return $ RPoly targs t
 
 -----------------------------------------------------------------------
 ---------- Helpers: Creating Refinement Types For Various Things ------
@@ -1470,15 +1448,15 @@ varRefType γ x = liftM (varRefType' γ x) (γ ??= F.symbol x)
 
 varRefType' γ x t'
   | Just tys <- trec γ 
-  = traceShow ("VarRef1 for " ++ show x) $ maybe t (`strengthen` xr) (x' `M.lookup` tys)
+  = maybe t (`strengthen` xr) (x' `M.lookup` tys)
   | otherwise
-  = traceShow ("VarRef for " ++ show x) t
+  = t
   where t  = t' `strengthen` xr
         xr = singletonReft x -- uTop $ F.symbolReft $ F.symbol x
         x' = F.symbol x
 
 -- TODO: should only expose/use subt. Not subsTyVar_meet
-subsTyVar_meet' (α, t) = subsTyVar_meet $ traceShow "SUBSTTYVAR_MET" (α, toRSort t, t)
+subsTyVar_meet' (α, t) = subsTyVar_meet $ (α, toRSort t, t)
 
 -----------------------------------------------------------------------
 --------------- Forcing Strictness ------------------------------------

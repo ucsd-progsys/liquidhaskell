@@ -268,7 +268,7 @@ flagLoop :: (PrimMonad m, MVector v e)
 flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
  where
 
- {-@ Decrease go 6 7 @-}
+ {-@ Decrease go 3 4 @-}
   {- LIQUID WITNESS -}
  go pass v (d :: Int) (_ :: Int)
    = do e <- unsafeRead v 0
@@ -277,7 +277,7 @@ flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
           else go' pass v (mp-pass) 0
         --LIQUID INLINE unless (stop e $ pass - 1) $ go' pass v (mp-pass) 0
 
- {-@ Decrease go' 6 7 @-}
+ {-@ Decrease go' 3 4 @-}
    {- LIQUID WITNESS -}
  go' pass v (d :: Int) (_ :: Int)
    | len < threshold = I.sortByBounds cmp v 0 len

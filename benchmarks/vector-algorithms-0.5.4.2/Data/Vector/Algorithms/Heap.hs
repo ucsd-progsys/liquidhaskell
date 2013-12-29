@@ -112,7 +112,7 @@ selectByBounds cmp a k l u
   | l + k <= u = heapify cmp a l (l + k) >> go l (l + k) (u - 1)
   | otherwise  = return ()
  where
- {-@ Decrease go 5 @-}
+ {-@ Decrease go 3 @-}
  go l m u
    | u < m      = return ()
    | otherwise  = do el <- unsafeRead a l
