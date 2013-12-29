@@ -479,11 +479,11 @@ rsplitC γ (t1@(RPoly s1 r1), t2@(RPoly s2 r2))
   where su = F.mkSubst $ go s1 s2
         go [] [] = []
         go ((x,_):xs) ((y,_):ys) 
-          | not $ x `elem` F.freesyms r1 
+--          | not $ x `elem` F.freesyms r1 
           = (x, F.EVar y) : go xs ys
-          | otherwise            
-          = -- (traceShow ("THIS " ++ show (t1, t2))  $ (x, F.EVar y)) : 
-             go xs ys
+--          | otherwise            
+--          = -- (traceShow ("THIS " ++ show (t1, t2))  $ (x, F.EVar y)) : 
+--             go xs ys
         go _ _  = []
 
   -- traceShow ("SUBST = " ++ 
