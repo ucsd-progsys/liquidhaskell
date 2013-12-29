@@ -1190,7 +1190,7 @@ checkGhcSpec specs (sp, ms) =  applyNonNull (Right sp) Left errors
                      ++ checkMeasures emb env ms
                      ++ mapMaybe checkMismatch                     (tySigs     sp)
                      ++ checkDuplicate                             (tySigs     sp)
-                     ++ checkDuplicateRTAlias "Type Alias"         (concat [Ms.aliases sp | (_, sp) <- specs])
+                     ++ checkDuplicateRTAlias "Type Alias"         (concat [Ms.aliases sp  | (_, sp) <- specs])
                      ++ checkDuplicateRTAlias "Predicate Alias"    (concat [Ms.paliases sp | (_, sp) <- specs])
     dcons spec       =  mapSnd (Loc dummyPos) <$> dataConSpec (dconsP spec) 
     emb              =  tcEmbeds sp
