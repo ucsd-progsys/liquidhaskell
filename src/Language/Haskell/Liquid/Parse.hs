@@ -270,11 +270,6 @@ dummyBindP
 
 bbindP = lowerIdP <* dcolon 
 
-<<<<<<< HEAD
-=======
--- bindP  = liftM stringSymbol (lowerIdP <* colon)
-
->>>>>>> make it compile
 bareArrow b t1 ArrowFun t2
   = rFun b t1 t2
 bareArrow _ t1 ArrowPred t2
