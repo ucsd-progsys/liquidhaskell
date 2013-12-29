@@ -113,10 +113,7 @@ initEnv info penv
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
-  where refreshArgs' xts = do xts1 <- mapM refreshxt xts
-                              xts2 <- mapM (mapSndM refreshDCon) xts
-                              mapM (\(x, t) -> liftM (x,)  (shiftVVt t)) xts2
---                               return xts
+  where refreshArgs' = mapM (mapSndM refreshVV)
 -- where tce = tcEmbeds $ spec info 
 
 ctor' = map (mapSnd val) . ctors
@@ -625,7 +622,7 @@ rTypeSortedReft' pflag γ
 γ ??= x 
   = case M.lookup x (lcb γ) of
     Just e  -> consE (γ-=x) e
-    Nothing -> (refreshDCon $ γ ?= x) >>= refreshArgs
+    Nothing -> refreshTy $ γ ?= x
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
@@ -652,6 +649,10 @@ shiftVV t@(RApp _ ts _ r) vv'
   = t { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
       { rt_reft = (`F.shiftVV` vv') <$> r }
 
+shiftVV t@(RFun _ _ _ r) vv' 
+  = t -- { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
+      { rt_reft = (`F.shiftVV` vv') <$> r }
+
 shiftVV t@(RAppTy _ _ r) vv' 
   = t -- { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
       { rt_reft = (`F.shiftVV` vv') <$> r }
@@ -662,11 +663,6 @@ shiftVV t@(RVar _ r) vv'
 shiftVV t _ 
   = t -- errorstar $ "shiftVV: cannot handle " ++ showpp t
 
-shiftVVt :: SpecType -> CG SpecType
-shiftVVt t = liftM2 (mkArrow as ps) (liftM (zip xs) (mapM go ts)) (go rt)
-  where go t = liftM (shiftVV t) fresh
-        (as, ps, tbd) = bkUniv t
-        (xs, ts, rt)  = bkArrow tbd
 
 addBind :: F.Symbol -> F.SortedReft -> CG ((F.Symbol, F.Sort), F.BindId)
 addBind x r 
@@ -797,19 +793,15 @@ trueTy t
        return $ addTyConInfo tce tyi (uRType t)
 
 refreshArgs :: SpecType -> CG SpecType
-refreshArgs = liftM fst . refreshArgs'
-refreshArgs' t 
+refreshArgs t 
   = do xs' <- mapM (\_ -> fresh) xs
        let sus = F.mkSubst <$> (L.inits $ zip xs (F.EVar <$> xs'))
        let su  = last sus 
        let ts' = zipWith F.subst sus ts
        let t'  = mkArrow αs πs (zip xs' ts') (F.subst su tbd)
-       return (t', su)
+       return t'
   where (αs, πs, t0)  = bkUniv t
         (xs, ts, tbd) = bkArrow t0
-
-refreshxt :: (Var, SpecType) -> CG (Var, SpecType)
-refreshxt (x, t) = liftM ((x, ) . fst) $ refreshArgs' t
 
 instance Freshable CG Integer where
   fresh = do s <- get
@@ -1113,7 +1105,7 @@ cconsE γ e (RAllP p t)
 cconsE γ e t
   = do te  <- consE γ e
        te' <- instantiatePreds γ e te
-       addC (SubC γ te' t) ("cconsE : " ++ showPpr e)
+       addC (SubC γ te' t) ("cconsE" ++ showPpr e)
 
 instantiatePreds γ e (RAllP p t)
   = do s <- freshPredRef γ e p
@@ -1139,13 +1131,13 @@ consE γ (Var x)
        return t
 
 consE γ (Lit c) 
-  = refreshDCon $ uRType $ literalFRefType (emb γ) c
+  = refreshVV $ uRType $ literalFRefType (emb γ) c
 
 consE γ (App e (Type τ)) 
   = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ {- =>> addKuts -} else trueTy τ
        addW       $ WfC γ t
-       liftM (\t -> subsTyVar_meet' (α, t) te) $ refreshDCon t
+       liftM (\t -> subsTyVar_meet' (α, t) te) $ refreshVV t
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
@@ -1257,62 +1249,39 @@ cconsCase γ x t acs (ac, ys, ce)
   = do cγ <- caseEnv γ x acs ac ys 
        cconsE cγ ce t
 
-refreshDCon t 
-  = do ts' <- mapM foo ts
-       liftM (mkArrow αs πs (zip xs ts')) (foo tbd) 
-  where (αs, πs, t0)  = bkUniv t
-        (xs, ts, tbd) = bkArrow t0
+refreshTy t = refreshVV t >>= refreshArgs
 
-refreshDCon' (RApp c ts rs r)
-  = do xs <- mapM (\_ -> fresh) ts
-       let ts' = zipWith shiftVV ts xs
-       return $ RApp c ts' rs r
-refreshDCon' t = return t
+refreshVV (RAllT a t) = liftM (RAllT a) (refreshVV t)
+refreshVV (RAllP p t) = liftM (RAllP p) (refreshVV t)
+refreshVV (RCls c ts) = liftM (RCls c) (mapM refreshVV ts)
 
-foo (RApp c ts rs r)
-  = do ts' <- mapM foo ts
-       rs' <- mapM bar rs
-       x <- fresh
-       return $ shiftVV (RApp c (traceShow "FRESHTS" ts') rs' r) x
+refreshVV (REx x t1 t2)
+  = do [t1', t2'] <- mapM refreshVV [t1, t2]
+       liftM (shiftVV (REx x t1' t2')) fresh
 
-foo (REx x t1 t2)
-  = do [t1', t2'] <- mapM foo [t1, t2]
-       y <- fresh 
-       return $ traceShow "REx" $ shiftVV (REx x t1' t2') y
+refreshVV (RFun x t1 t2 r)
+  = do [t1', t2'] <- mapM refreshVV [t1, t2]
+       liftM (shiftVV (RFun x t1' t2' r)) fresh
 
-foo (RFun x t1 t2 r)
-  = do [t1', t2'] <- mapM foo [t1, t2]
-       y <- fresh 
-       return $ shiftVV (RFun x t1' t2' r) y
+refreshVV (RAppTy t1 t2 r)
+  = do [t1', t2'] <- mapM refreshVV [t1, t2]
+       liftM (shiftVV (RAppTy t1' t2' r)) fresh
 
-foo (RAppTy t1 t2 r)
-  = do [t1', t2'] <- mapM foo [t1, t2]
-       y <- fresh 
-       return $ shiftVV (RAppTy t1' t2' r) y
+refreshVV (RApp c ts rs r)
+  = do ts' <- mapM refreshVV ts
+       rs' <- mapM refreshVVRef rs
+       liftM (shiftVV (RApp c ts' rs' r)) fresh
+
+refreshVV t           
+  = return t
 
 
-
-foo (RAllT a t) = liftM (RAllT a) (foo t)
-foo (RAllP a t) = liftM (RAllP a) (foo t)
-foo (RCls c ts) = liftM (RCls c) (mapM foo ts)
-foo t 
-  = do x <- fresh
-       return $ shiftVV t x
-
-
--- bar (RPoly ss t) = liftM (RPoly ss) (return t)
-
-bar (RPoly ss t) 
-  = do xs <- mapM (\_ -> fresh) (fst <$> ss)
+refreshVVRef (RPoly ss t) 
+  = do xs    <- mapM (\_ -> fresh) (fst <$> ss)
        let su = F.mkSubst $ zip (fst <$> ss) (F.EVar <$> xs)
-       liftM (RPoly (zip xs (snd <$> ss)) . F.subst su) (foo t)
-
-
--- bar (RPoly ss t) 
---   = do xs <- mapM (\_ -> fresh) (fst <$> ss)
---        let su = F.mkSubst $ zip (fst <$> ss) (F.EVar <$> xs)
---        liftM (RPoly (zip xs (snd <$> ss)) . F.subst su) (foo t)
-bar (RMono ss r) = return $ RMono ss r
+       liftM (RPoly (zip xs (snd <$> ss)) . F.subst su) (refreshVV t)
+refreshVVRef (RMono ss r) 
+  = return $ RMono ss r
 
 
 
@@ -1322,12 +1291,8 @@ caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv
 caseEnv γ x _   (DataAlt c) ys
   = do let (x' : ys')    = F.symbol <$> (x:ys)
        xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
-       tdc              <- γ ??= (dataConSymbol c) >>= refreshDCon
-       let  xr = singletonReft x' -- uTop $ F.symbolReft $ F.symbol x
-
-       let xtshifted     = shiftVV xt0 x' -- pos/PairMeasure fails w/o the shift
---        let (rtd, _, _)   = unfoldR c tdc xt0 ys
-       let (rtd, yts, _) = unfoldR c tdc xtshifted ys
+       tdc              <- γ ??= (dataConSymbol c) >>= refreshVV
+       let (rtd, yts, _) = unfoldR c tdc (shiftVV xt0 x') ys
        let r1            = dataConReft   c   ys' 
        let r2            = dataConMsReft rtd ys'
        let xt            = xt0 `strengthen` (uTop (r1 `F.meet` r2))
@@ -1428,7 +1393,7 @@ freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG (Ref RSort RReft SpecType)
 freshPredRef γ e (PV n τ as)
   = do t    <- freshTy_type PredInstE e (toType τ)
        args <- mapM (\_ -> fresh) as
-       let targs = [(x, s) | (x, (s, y, z)) <- zip args as, (F.EVar y) == z ] -- zip args [] (fst3 <$> as)
+       let targs = [(x, s) | (x, (s, y, z)) <- zip args as, (F.EVar y) == z ]
        γ' <- foldM (++=) γ [("freshPredRef", x, ofRSort τ) | (x, τ) <- targs]
        addW $ WfC γ' t
        return $ RPoly targs t
@@ -1456,7 +1421,7 @@ varRefType' γ x t'
         x' = F.symbol x
 
 -- TODO: should only expose/use subt. Not subsTyVar_meet
-subsTyVar_meet' (α, t) = subsTyVar_meet $ (α, toRSort t, t)
+subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 
 -----------------------------------------------------------------------
 --------------- Forcing Strictness ------------------------------------
