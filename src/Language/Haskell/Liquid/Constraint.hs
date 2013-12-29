@@ -1170,7 +1170,7 @@ consE γ e'@(App e a) | eqType (exprType a) predType
   = do t0 <- consE γ e
        case t0 of
          RAllP p t -> do s <- freshPredRef γ e' p
-                         return $ traceShow ("OH, NO in\n" ++ show t ++ "\nSUBST\n" ++ show (p, s)) $ replacePreds "consE" t [(p, s)] {- =>> addKuts -}
+                         return $ replacePreds "consE" t [(p, s)] {- =>> addKuts -}
          _         -> return t0
 
 consE γ e'@(App e a)               
@@ -1388,10 +1388,10 @@ altReft _ _ _            = error "Constraint : altReft"
 
 unfoldR dc td (RApp _ ts rs _) ys = (t3, tvys ++ yts, rt)
   where 
-        tbody'           =traceShow ("BODY1\n" ++ show td ++ "\n" ++ show ts ) $  instantiateTys td ts
-        tbody           =traceShow ("BODY2\n" ++ show tbody' ++ "\n" ++ show rs) $  instantiatePvs tbody' $ reverse rs
-        (ys0, yts', rt) =traceShow "INSTTT" $  safeBkArrow $ instantiateTys tbody tvs'
-        yts''           = traceShow ("ALMOST THERE \n\n" ++ show sus ++ "\n\n") $ zipWith F.subst sus (yts'++[rt])
+        tbody'          = instantiateTys td ts
+        tbody           = instantiatePvs tbody' $ reverse rs
+        (ys0, yts', rt) = safeBkArrow $ instantiateTys tbody tvs'
+        yts''           = zipWith F.subst sus (yts'++[rt])
         (t3,yts)        = (last yts'', init yts'')
         sus             = F.mkSubst <$> (L.inits [(x, F.EVar y) | (x, y) <- zip ys0 ys'])
         (αs, ys')       = mapSnd (F.symbol <$>) $ L.partition isTyVar ys

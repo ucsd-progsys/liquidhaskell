@@ -122,16 +122,14 @@ getGhcInfo' cfg0 target
       return              $ GI hscEnv coreBinds impVs letVs useVs hqualFiles imps incs spec 
 
 updateDynFlags df ps 
-  = -- traceShow  "DYNAMIC FLAGS" 
-      df { importPaths  = ps ++ importPaths df   
-         , libraryPaths = ps ++ libraryPaths df 
-         , profAuto     = ProfAutoCalls         
-         , ghcLink      = NoLink                
-         , hscTarget    = HscInterpreted
-         , ghcMode      = CompManager
-         } `xopt_set` Opt_MagicHash
-           `dopt_set` Opt_ImplicitImportQualified
-           `dopt_unset` Opt_D_dump_inlinings
+  = df { importPaths  = ps ++ importPaths df   
+       , libraryPaths = ps ++ libraryPaths df 
+       , profAuto     = ProfAutoCalls         
+       , ghcLink      = NoLink                
+       , hscTarget    = HscInterpreted
+       , ghcMode      = CompManager
+       } `xopt_set` Opt_MagicHash
+         `dopt_set` Opt_ImplicitImportQualified
 
 mgi_namestring = moduleNameString . moduleName . mgi_module
 
@@ -152,44 +150,17 @@ getGhcModGuts1 fn = do
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
        -- mod_guts <- modSummaryModGuts modSummary
-       mod_guts <- coreModule <$> (desugarModuleWithLoc =<< typecheckModule =<< foo =<< parseModule modSummary)
+       mod_guts <- coreModule <$> (desugarModuleWithLoc =<< typecheckModule =<< liftM ignoreInline (parseModule modSummary))
        return   $! (miModGuts mod_guts)
      Nothing     -> exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
 
-foo x = return $ x {pm_parsed_source = f <$> pm_parsed_source x}
-  where f x = x {hsmodDecls = filter ggg $ hsmodDecls x}
-        ggg x = g $ unLoc x
-        g (SigD x) = traceShow "SigD" $ sigf x
-        g _ = True
---         g x@(TyClD _) = traceShow "TyClD" x
---         g x@(InstD _) = traceShow "InstD" x
---         g x@(DerivD _) = traceShow "DerivD" x
---         g x@(ValD _) = traceShow "ValD" x
---         g x@(DefD _) = traceShow "DefD" x
---         g x@(ForD _) = traceShow "ForD" x
---         g x@(WarningD _) = traceShow "WarnignD" x
---         g x@(AnnD _) = traceShow "AnnD" x
---         g x@(RuleD _) = traceShow "RuleD" x
---         g x@(DocD _) = traceShow "DocD" x
---         g x@(SpliceD _) = traceShow "SpliceD" x
---         g x@(VectD _) = traceShow "VectD" x
---         g x@(QuasiQuoteD _) = errorstar $ "QQ: " ++ show x
---         g x = traceShow "AnothER" x
-
-        sigf (InlineSig _ _) = False
-        sigf _             = True
-
-instance Show (LHsDecl RdrName) where
-  show = showPpr
-instance Show (HsDecl RdrName) where
-  show = showPpr
 
 -- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
 getGhcModGutsSimpl1 fn = do
    modGraph <- getModuleGraph
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
-       mod_guts   <- coreModule `fmap` (desugarModule =<< typecheckModule =<< foo =<< parseModule modSummary)
+       mod_guts   <- coreModule `fmap` (desugarModule =<< typecheckModule =<< liftM ignoreInline (parseModule modSummary))
        hsc_env    <- getSession
        simpl_guts <- liftIO $ hscSimplify hsc_env mod_guts
        (cg,_)     <- liftIO $ tidyProgram hsc_env simpl_guts

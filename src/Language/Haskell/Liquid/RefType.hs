@@ -921,7 +921,6 @@ grabArgs τs (FunTy τ1 τ2 )
 grabArgs τs τ              = reverse (τ:τs)
 
 
--- mkDataConIdsTy :: (DataCon, RType Class RTyCon RTyVar ()) -> [(DataCon, RType Class RTyCon RTyVar ())]
 mkDataConIdsTy (dc, t) = [expandProductType id t | id <- dataConImplicitIds dc]
 
 expandProductType x t 

@@ -1,4 +1,3 @@
-{-# LANGUAGE UndecidableInstances     #-}
 {-# LANGUAGE DeriveDataTypeable     #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
@@ -597,7 +596,7 @@ instance (PPrint r, Reftable r) => Reftable (UReft r) where
 isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u)
 
 ppTy_ureft u@(U r p) d 
---   | isTauto_ureft u  = d
+  | isTauto_ureft u  = d
   | otherwise        = ppr_reft r (ppTy p d)
 
 ppr_reft r d         = braces (toFix v <+> colon <+> d <+> text "|" <+> pprint r')
@@ -611,7 +610,7 @@ instance Subable r => Subable (UReft r) where
   substf f (U r z) = U (substf f r) (substf f z) 
   substa f (U r z) = U (substa f r) (substa f z) 
  
-instance (PPrint (Ref (RType p c tv ()) r (RType p c tv r)), Reftable r, RefTypable p c tv r) => Subable (Ref (RType p c tv ()) r (RType p c tv r)) where
+instance (Reftable r, RefTypable p c tv r) => Subable (Ref (RType p c tv ()) r (RType p c tv r)) where
   syms (RMono ss r)     = (fst <$> ss) ++ syms r
   syms (RPoly ss r)     = (fst <$> ss) ++ syms r
 
@@ -623,15 +622,14 @@ instance (PPrint (Ref (RType p c tv ()) r (RType p c tv r)), Reftable r, RefTypa
   substa f (RMono ss r) = RMono ss (substa f r) 
   substa f (RPoly ss t) = RPoly ss (substa f <$> t)
 
-instance (PPrint (Ref t1 r t2)) => Show (Ref t1 r t2) where
-  show = showpp
-
 instance (Subable r, RefTypable p c tv r) => Subable (RType p c tv r) where
   syms        = foldReft (\r acc -> syms r ++ acc) [] 
   substa f    = mapReft (substa f) 
   substf f    = emapReft (substf . substfExcept f) [] 
   subst su    = emapReft (subst  . substExcept su) []
   subst1 t su = emapReft (\xs r -> subst1Except xs r su) [] t
+
+
 
 
 instance Reftable Predicate where
