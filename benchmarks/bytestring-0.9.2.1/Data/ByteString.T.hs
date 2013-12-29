@@ -278,7 +278,7 @@ assertS :: String -> Bool -> a -> a
 assertS _ True  = id
 assertS s False = error ("assertion failed at "++s)
 #endif
-{-@ invariant {v:Int | v >= 0} @-}
+
 -- LIQUID
 import GHC.IO.Buffer
 import Language.Haskell.Liquid.Prelude hiding (eq) 

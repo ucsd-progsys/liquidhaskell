@@ -331,7 +331,7 @@ isFreePredInType _ (ROth _)
   = False
 
 isFreePredInURef p (U _ (Pr ps))
-  = traceShow ("FREE" ++ show (p, ps) )$ any (\(_, x, w) -> (EVar x) == w) $ concatMap pargs ps'
+  = any (\(_, x, w) -> (EVar x) == w) $ concatMap pargs ps'
   where ps' = filter (uPVar p ==) ps
 
 meetListWithPSubs πs ss r1 r2    = foldl' (meetListWithPSub ss r1) r2 πs
