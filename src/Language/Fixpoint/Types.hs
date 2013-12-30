@@ -1,4 +1,4 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
+{e-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE FlexibleInstances         #-}
@@ -90,6 +90,7 @@ module Language.Fixpoint.Types (
   -- * Constructing Refinements
   , trueSortedReft          -- trivial reft
   , trueRefa                -- trivial reft
+  , trueReft                -- trivial reft
   , exprReft                -- singleton: v == e
   , notExprReft             -- singleton: v /= e
   , uexprReft               -- singleton: v ~~ e
@@ -108,8 +109,12 @@ module Language.Fixpoint.Types (
   -- * Substitutions 
   , Subst
   , Subable (..)
-  , emptySubst, mkSubst, catSubst
-  , substExcept, substfExcept, subst1Except
+  , mkSubst
+  -- , emptySubst
+  -- , catSubst
+  , substExcept
+  , substfExcept
+  , subst1Except
   , sortSubst
 
   -- * Visitors
@@ -143,7 +148,7 @@ import Data.Generics        (Data)
 import Data.Monoid hiding   ((<>))
 import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
-import Data.List            (foldl', sort, stripPrefix)
+import Data.List            (foldl', sort, stripPrefix, intersect)
 import Data.Hashable        
 import qualified Data.Foldable as F
 import Data.Traversable
@@ -1094,17 +1099,41 @@ instance Subable SortedReft where
   substf f (RR so r) = RR so $ substf f r
   substa f (RR so r) = RR so $ substa f r
 
-
--- newtype Subst  = Su (M.HashMap Symbol Expr) deriving (Eq)
 newtype Subst = Su [(Symbol, Expr)] deriving (Eq, Ord, Data, Typeable)
 
 mkSubst                  = Su -- . M.fromList
 appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
 emptySubst               = Su [] -- M.empty
-catSubst (Su s1) (Su s2) = Su $ s1' ++ s2
-  where s1' = mapSnd (subst (Su s2)) <$> s1
-  -- = Su $ s1' `M.union` s2
-  --   where s1' = subst (Su s2) `M.map` s1
+
+
+catSubst = unsafeCatSubst
+
+unsafeCatSubst (Su s1) θ2@(Su s2) = Su $ s1' ++ s2
+  where 
+    s1'                           = mapSnd (subst θ2) <$> s1
+
+-- TODO: this is **not used**, because of degenerate substitutions. 
+-- e.g. consider: s1 = [v := v], s2 = [v := x].
+-- We want s1 `cat` s2 to be [v := x] and not [v := v] ... 
+
+unsafeCatSubstIgnoringDead (Su s1) (Su s2) = Su $ s1' ++ s2'
+  where 
+    s1' = mapSnd (subst (Su s2')) <$> s1
+    s2' = filter (\(x,_) -> not (x `elem` (fst <$> s1))) s2
+
+-- TODO: nano-js throws all sorts of issues, will look into this later...
+-- but also, the check is too conservative, because of degenerate substitutions,
+-- see above.
+safeCatSubst θ1@(Su s1) θ2@(Su s2) 
+  | null $ intersect xs1 xs2 
+  = unsafeCatSubst θ1 θ2 
+  | otherwise 
+  = errorstar msg
+  where 
+    s1' = mapSnd (subst (Su s2)) <$> s1
+    xs1 = fst <$> s1
+    xs2 = fst <$> s2
+    msg = printf "Fixpoint.Types catSubst on overlapping substitutions θ1 = %s, θ2 = %s" (showFix θ1) (showFix θ2)
 
 instance Monoid Subst where
   mempty  = emptySubst
@@ -1259,6 +1288,7 @@ removeLhsKvars cs vs
 trueSubCKvar v
   = subC emptyIBindEnv PTrue mempty (RR mempty (Reft(vv_, [RKvar v emptySubst]))) Nothing [0] 
 
+shiftVV :: Reft -> Symbol -> Reft
 shiftVV r@(Reft (v, ras)) v' 
    | v == v'   = r
    | otherwise = Reft (v', (subst1 ras (v, EVar v')))
@@ -1362,8 +1392,8 @@ class (Monoid r, Subable r) => Reftable r where
   isTauto :: r -> Bool
   ppTy    :: r -> Doc -> Doc
   
-  top     :: r
-  top     =  mempty
+  top     :: r -> r
+  top _   =  mempty
  
   -- | should also refactor `top` so it takes a parameter.
   bot     :: r -> r
@@ -1396,10 +1426,10 @@ instance Subable () where
 instance Reftable () where
   isTauto _ = True
   ppTy _  d = d
-  top       = ()
+  top  _    = ()
   bot  _    = ()
   meet _ _  = ()
-  toReft _  = top
+  toReft _  = mempty
   params _  = []
 
 instance Reftable Reft where
@@ -1407,7 +1437,9 @@ instance Reftable Reft where
   ppTy     = ppr_reft
   toReft   = id
   params _ = []
-  bot    _ = falseReft
+
+  bot    _        = falseReft
+  top (Reft(v,_)) = Reft(v,[])
 
 instance Monoid Sort where
   mempty            = FObj (S "any")

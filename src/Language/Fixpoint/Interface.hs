@@ -60,7 +60,7 @@ validFInfo l xts p = FI constrm [] benv emptySEnv [] ksEmpty []
 validSubc         :: a -> IBindEnv -> Pred -> SubC a  
 validSubc l env p = subC env PTrue lhs rhs i t l
   where 
-    lhs           = top
+    lhs           = mempty
     rhs           = RR mempty (predReft p)
     i             = Just 0
     t             = []
