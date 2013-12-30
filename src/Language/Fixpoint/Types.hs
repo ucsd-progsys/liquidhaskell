@@ -108,8 +108,12 @@ module Language.Fixpoint.Types (
 
   -- * Substitutions 
   , Subst, Subable (..)
-  , emptySubst, mkSubst, catSubst
-  , substExcept, substfExcept, subst1Except
+  , mkSubst
+  -- , emptySubst
+  -- , catSubst
+  , substExcept
+  , substfExcept
+  , subst1Except
   , sortSubst
 
   -- * Visitors
@@ -1094,21 +1098,40 @@ instance Subable SortedReft where
   substf f (RR so r) = RR so $ substf f r
   substa f (RR so r) = RR so $ substa f r
 
-
--- newtype Subst  = Su (M.HashMap Symbol Expr) deriving (Eq)
 newtype Subst = Su [(Symbol, Expr)] deriving (Eq, Ord, Data, Typeable)
 
 mkSubst                  = Su -- . M.fromList
 appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
 emptySubst               = Su [] -- M.empty
-catSubst (Su s1) (Su s2) 
+
+
+catSubst = unsafeCatSubst
+
+unsafeCatSubst (Su s1) θ2@(Su s2) = Su $ s1' ++ s2
+  where 
+    s1'                           = mapSnd (subst θ2) <$> s1
+
+-- TODO: this is **not used**, because of degenerate substitutions. 
+-- e.g. consider: s1 = [v := v], s2 = [v := x].
+-- We want s1 `cat` s2 to be [v := x] and not [v := v] ... 
+
+unsafeCatSubstIgnoringDead (Su s1) (Su s2) = Su $ s1' ++ s2'
+  where 
+    s1' = mapSnd (subst (Su s2')) <$> s1
+    s2' = filter (\(x,_) -> not (x `elem` (fst <$> s1))) s2
+
+
+-- TODO: nano-js throws all sorts of issues, will look into this later...
+safeCatSubst θ1@(Su s1) θ2@(Su s2) 
   | null $ intersect xs1 xs2 
-  = Su $ s1' ++ s2
+  = unsafeCatSubst θ1 θ2 
   | otherwise 
-  = errorstar $ "Fixpoint.Types catSubst on intersecting substitutions"
-  where s1' = mapSnd (subst (Su s2)) <$> s1
-        xs1 = fst <$> s1
-        xs2 = fst <$> s2
+  = errorstar msg
+  where 
+    s1' = mapSnd (subst (Su s2)) <$> s1
+    xs1 = fst <$> s1
+    xs2 = fst <$> s2
+    msg = printf "Fixpoint.Types catSubst on overlapping substitutions θ1 = %s, θ2 = %s" (showFix θ1) (showFix θ2)
 
 instance Monoid Subst where
   mempty  = emptySubst
