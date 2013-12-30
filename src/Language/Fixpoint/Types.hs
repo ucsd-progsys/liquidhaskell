@@ -1,4 +1,4 @@
-{e-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE FlexibleInstances         #-}
