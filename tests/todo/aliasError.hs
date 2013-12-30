@@ -7,7 +7,7 @@ module Foo where
 {-@ predicate Rng Lo V Hi = (Lo <= V && V < Hi) @-}
 {-@ type NNN a b  = {v:[(a, b)] | 0 <= 0} @-}
 
-{-@ bog :: {v:Int | (Rng 0 10)} @-}
+{-@ bog :: {v:Int | (Rng 0 10 11)} @-}
 bog :: Int
 bog = 5
 

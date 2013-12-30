@@ -209,7 +209,7 @@ expandRTAlias   :: Show p => p -> BareType -> BareM SpecType
 expandRTAlias l bt = expType =<< expReft bt
   where 
     expReft      = mapReftM (txPredReft expPred)
-    expType      = expandAlias  []
+    expType      = expandAlias  l []
     expPred      = expandPAlias l []
 
 txPredReft :: (Pred -> BareM Pred) -> RReft -> BareM RReft
@@ -224,8 +224,8 @@ txPredReft f (U r p) = (`U` p) <$> txPredReft' f r
 expandRPAliasE l = expandPAlias l []
 
 -- TODO: this function is monstrously big. please split up.
-expandAlias :: [String] -> BareType -> BareM SpecType
-expandAlias = go
+expandAlias :: Show p => p -> [String] -> BareType -> BareM SpecType
+expandAlias l = go
   where 
     go s (RApp lc@(Loc _ c) ts rs r)
       | c `elem` s = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
@@ -233,14 +233,14 @@ expandAlias = go
           env <- gets (typeAliases.rtEnv)
           case M.lookup c env of
             Just (Left (mod,rtb)) -> do
-              st <- inModule mod $ withVArgs (rtVArgs rtb) $ expandAlias (c:s) $ rtBody rtb
+              st <- inModule mod $ withVArgs (rtVArgs rtb) $ expandAlias l (c:s) $ rtBody rtb
               let rts = mapRTAVars stringRTyVar $ rtb { rtBody = st }
               setRTAlias c $ Right rts
               r' <- resolve r
-              expandRTApp s rts ts r'
+              expandRTApp l s rts ts r'
             Just (Right rts) -> do
               r' <- resolve r
-              withVArgs (rtVArgs rts) $ expandRTApp s rts ts r'
+              withVArgs (rtVArgs rts) $ expandRTApp l s rts ts r'
             Nothing | isList c && length ts == 1 -> do
                       tyi <- tcEnv <$> get
                       r'  <- resolve r
@@ -268,23 +268,27 @@ expandAlias = go
     go' s (RMono ss r)    = RMono <$> mapM ofSyms ss <*> resolve r
     go' s (RPoly ss t)    = RPoly <$> mapM ofSyms ss <*> go s t
 
-expandRTApp :: [String] -> RTAlias RTyVar SpecType  -> [BareType] -> RReft -> BareM SpecType
-expandRTApp s rta args r
+expandRTApp :: Show p => p -> [String] -> RTAlias RTyVar SpecType  -> [BareType] -> RReft -> BareM SpecType
+expandRTApp l s rta args r
   | length args == (length αs) + (length εs)
-  = do args'  <- mapM (expandAlias s) args
+  = do args'  <- mapM (expandAlias l s) args
        let ts  = take (length αs) args'
            αts = zipWith (\α t -> (α, toRSort t, t)) αs ts
        return $ subst su . (`strengthen` r) . subsTyVars_meet αts $ rtBody rta
   | otherwise
-  = errortext $ (text "Malformed Type-Alias Application" $+$ text msg)
+  = errortext $ (text msg)
   where
     su        = mkSubst $ zip (stringSymbol . showpp <$> εs) es
     αs        = rtTArgs rta 
     εs        = rtVArgs rta
-    msg       = rtName rta ++ " " ++ join (map showpp args)
+--    msg       = rtName rta ++ " " ++ join (map showpp args)
     es_       = drop (length αs) args
     es        = map (exprArg msg) es_
-    
+    msg = "Malformed type alias application at " ++ show l ++ "\n\t"
+               ++ show (rtName rta) 
+               ++ " defined at " ++ show (srcPos rta)
+               ++ "\n\texpects " ++ show (length αs + length εs)
+               ++ " arguments but it is given " ++ show (length args)
 -- | exprArg converts a tyVar to an exprVar because parser cannot tell 
 -- HORRIBLE HACK To allow treating upperCase X as value variables X
 -- e.g. type Matrix a Row Col = List (List a Row) Col
