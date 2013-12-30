@@ -166,7 +166,7 @@ makeGhcSpec' cfg vars defVars specs
 
 --- Refinement Type Aliases
 makeRTEnv rts pts  = do initRTEnv
-                        makeRPAliases pts
+                        makeRPAliases dummyPos pts
                         makeRTAliases rts
   where initRTEnv   = do forM_ rts $ \(mod,rta) -> setRTAlias (rtName rta) $ Left (mod,rta)
                          forM_ pts $ \(mod,pta) -> setRPAlias (rtName pta) $ Left (mod,pta)
@@ -174,14 +174,14 @@ makeRTEnv rts pts  = do initRTEnv
 
 makeRTAliases xts = mapM_ expBody xts
   where expBody (mod,xt) = inModule mod $ do
-                             body <- withVArgs (rtVArgs xt) $ expandRTAlias $ rtBody xt
+                             body <- withVArgs (rtVArgs xt) $ expandRTAlias dummyPos $ rtBody xt
                              setRTAlias (rtName xt)
                                $ Right $ mapRTAVars stringRTyVar $ xt { rtBody = body }
 
-makeRPAliases xts = mapM_ expBody xts
+makeRPAliases l xts = mapM_ expBody xts
   where expBody (mod,xt) = inModule mod $ do
                              env  <- gets $ predAliases . rtEnv
-                             body <- withVArgs (rtVArgs xt) $ expandRPAliasE $ rtBody xt
+                             body <- withVArgs (rtVArgs xt) $ (expandRPAliasE l) $ rtBody xt
                              setRPAlias (rtName xt) $ Right $ xt { rtBody = body }
 
 -- | Using the Alias Environment to Expand Definitions
@@ -193,24 +193,24 @@ expandRTAliasMeasure m
 expandRTAliasDef :: Def LocSymbol -> BareM (Def LocSymbol)
 expandRTAliasDef d
   = do env <- gets rtEnv
-       body <- expandRTAliasBody env $ body d
+       body <- expandRTAliasBody (loc $ measure d) env $ body d
        return $ d { body = body }
 
-expandRTAliasBody :: RTEnv -> Body -> BareM Body
-expandRTAliasBody env (P p)   = P   <$> (expPAlias p)
-expandRTAliasBody env (R x p) = R x <$> (expPAlias p)
-expandRTAliasBody _   (E e)   = E   <$> resolve e
+expandRTAliasBody :: Show p => p -> RTEnv -> Body -> BareM Body
+expandRTAliasBody l env (P p)   = P   <$> (expPAlias l p)
+expandRTAliasBody l env (R x p) = R x <$> (expPAlias l p)
+expandRTAliasBody l _   (E e)   = E   <$> resolve e
 
-expPAlias :: Pred -> BareM Pred
-expPAlias = expandPAlias []
+expPAlias :: Show p => p -> Pred -> BareM Pred
+expPAlias l = expandPAlias l []
 
 
-expandRTAlias   :: BareType -> BareM SpecType
-expandRTAlias bt = expType =<< expReft bt
+expandRTAlias   :: Show p => p -> BareType -> BareM SpecType
+expandRTAlias l bt = expType =<< expReft bt
   where 
     expReft      = mapReftM (txPredReft expPred)
     expType      = expandAlias  []
-    expPred      = expandPAlias []
+    expPred      = expandPAlias l []
 
 txPredReft :: (Pred -> BareM Pred) -> RReft -> BareM RReft
 txPredReft f (U r p) = (`U` p) <$> txPredReft' f r
@@ -221,7 +221,7 @@ txPredReft f (U r p) = (`U` p) <$> txPredReft' f r
 
 -- | Using the Alias Environment to Expand Definitions
 
-expandRPAliasE = expandPAlias []
+expandRPAliasE l = expandPAlias l []
 
 -- TODO: this function is monstrously big. please split up.
 expandAlias :: [String] -> BareType -> BareM SpecType
@@ -302,8 +302,8 @@ exprArg msg (RAppTy (RVar f _) t _)
 exprArg msg z 
   = errorstar $ printf "Unexpected expression parameter: %s in %s" (show z) msg 
 
-expandPAlias :: [Symbol] -> Pred -> BareM Pred
-expandPAlias = go
+expandPAlias :: Show p => p -> [Symbol] -> Pred -> BareM Pred
+expandPAlias l = go
   where 
     go s p@(PBexp (EApp f@(Loc _ f') es))
       | f' `elem` s                = errorstar $ "Cyclic Predicate Alias Definition: " ++ show (f':s)
@@ -311,12 +311,12 @@ expandPAlias = go
           env <- gets (predAliases.rtEnv)
           case M.lookup (symbolString f') env of
             Just (Left (mod,rp)) -> do
-              body <- inModule mod $ withVArgs (rtVArgs rp) $ expandPAlias (f':s) $ rtBody rp
+              body <- inModule mod $ withVArgs (rtVArgs rp) $ expandPAlias l (f':s) $ rtBody rp
               let rp' = rp { rtBody = body }
               setRPAlias (show f) $ Right $ rp'
-              expandRPApp (f':s) rp' <$> mapM resolve es
+              expandRPApp l (f':s) rp' <$> mapM resolve es
             Just (Right rp) ->
-              withVArgs (rtVArgs rp) (expandRPApp (f':s) rp <$> mapM resolve es)
+              withVArgs (rtVArgs rp) (expandRPApp l (f':s) rp <$> mapM resolve es)
             Nothing -> fmap PBexp (EApp <$> resolve f <*> mapM resolve es)
     go s (PAnd ps)                = PAnd <$> (mapM (go s) ps)
     go s (POr  ps)                = POr  <$> (mapM (go s) ps)
@@ -326,9 +326,14 @@ expandPAlias = go
     go s (PAll xts p)             = PAll xts <$> (go s p)
     go _ p                        = resolve p
 
-expandRPApp s rp es
-  = let su  = mkSubst $ safeZip msg (rtVArgs rp) es
-        msg = "expandRPApp: " ++ show (EApp (dummyLoc $ symbol $ rtName rp) es)
+expandRPApp l s rp es
+  = let su  = mkSubst $ safeZipWithError msg (rtVArgs rp) es
+        msg = "Malformed alias application at " ++ show l ++ "\n\t"
+               ++ show (rtName rp) 
+               ++ " defined at " ++ show (srcPos rp)
+               ++ "\n\texpects " ++ show (length $ rtVArgs rp)
+               ++ " arguments but it is given " ++ show (length es)
+--        msg = "expandRPApp: " ++ show (EApp (dummyLoc $ symbol $ rtName rp) es)
     in subst su $ rtBody rp
 
 
@@ -342,7 +347,7 @@ makeClasses cfg vs (mod,spec) = inModule mod $ mapM mkClass $ Ms.classes spec
     --FIXME: cleanup this code
     mkClass (RClass c ss as ms)
       = do tc  <- lookupGhcTyCon (symbolString <$> c)
-           ss' <- mapM mkSpecType ss
+           ss' <- mapM (mkSpecType dummyPos) ss
            let (dc:_) = tyConDataCons tc
            let αs  = map stringRTyVar as
            let as' = [rVar $ stringTyVar a | a <- as ]
@@ -655,7 +660,7 @@ warn x = tell [x]
 
 
 mkVarSpec                 :: (Var, LocSymbol, BareType) -> BareM (Var, Located SpecType)
-mkVarSpec (v, Loc l _, b) = ((v, ) . (Loc l) . generalize) <$> mkSpecType b
+mkVarSpec (v, Loc l _, b) = ((v, ) . (Loc l) . generalize) <$> mkSpecType l b
 
 
 
@@ -681,12 +686,12 @@ makeInvariants (mod,spec)
 makeInvariants' :: [Located BareType] -> BareM [Located SpecType]
 makeInvariants' ts = mapM mkI ts
   where 
-    mkI (Loc l t)      = (Loc l) . generalize <$> mkSpecType t
+    mkI (Loc l t)      = (Loc l) . generalize <$> mkSpecType l t
 
-mkSpecType t = mkSpecType' (snd3 $ bkUniv t)  t
+mkSpecType l t = mkSpecType' l (snd3 $ bkUniv t)  t
 
-mkSpecType' :: [PVar BSort] -> BareType -> BareM SpecType
-mkSpecType' πs = expandRTAlias . txParams subvUReft (uPVar <$> πs)
+mkSpecType' :: Show p => p -> [PVar BSort] -> BareType -> BareM SpecType
+mkSpecType' l πs = expandRTAlias l . txParams subvUReft (uPVar <$> πs)
 
 makeSymbols vs xs' xts yts = mkxvs
   where
@@ -1141,7 +1146,7 @@ mapM_pvar f (PV x t txys)
 
 ofBDataCon tc αs ps πs (c, xts)
   = do c'      <- lookupGhcDataCon c
-       ts'     <- mapM (mkSpecType' ps) ts
+       ts'     <- mapM (mkSpecType' dummyPos  ps) ts
        let cs   = map ofType (dataConStupidTheta c')
        let t0   = rApp tc rs (RMono [] . pdVarReft <$> πs) top 
        return   $ (c', DataConP αs πs cs (reverse (zip xs' ts')) t0)
