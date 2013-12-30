@@ -106,7 +106,8 @@ module Language.Fixpoint.Types (
   , shiftVV
 
   -- * Substitutions 
-  , Subst, Subable (..)
+  , Subst
+  , Subable (..)
   , emptySubst, mkSubst, catSubst
   , substExcept, substfExcept, subst1Except
   , sortSubst
