@@ -17,454 +17,310 @@
 ../bytestring-0.9.2.1/Data/ByteString.hs:271:1: Warning:
     Module `GHC.IOBase' is deprecated: use GHC.IO instead
 WARNING: prune unsorted reft:
-(sumLens([VV#3905]) >= 0)
+(sumLens([lq_tmp_x1207]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#3905]) >= 0)
+(sum_tlens([lq_tmp_x1207]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#3905]) >= 0)
+(lbLengths([lq_tmp_x1207]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#641]) >= 0)
+(sumLens([lq_tmp_x1474]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#641]) >= 0)
+(sum_tlens([lq_tmp_x1474]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#641]) >= 0)
+(lbLengths([lq_tmp_x1474]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#558]) >= 0)
+(sumLens([VV#8173]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#558]) >= 0)
+(sum_tlens([VV#8173]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#558]) >= 0)
+(lbLengths([VV#8173]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#666]) >= 0)
+(sumLens([VV#7423]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#666]) >= 0)
+(sum_tlens([VV#7423]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#666]) >= 0)
+(lbLengths([VV#7423]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#3996]) >= 0)
+(sumLens([VV#7423]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#3996]) >= 0)
+(sum_tlens([VV#7423]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#3996]) >= 0)
+(lbLengths([VV#7423]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#620]) >= 0)
+(sumLens([VV#8030]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#620]) >= 0)
+(sum_tlens([VV#8030]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#620]) >= 0)
+(lbLengths([VV#8030]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#641]) >= 0)
+(sumLens([lq_tmp_x1246]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#641]) >= 0)
+(sum_tlens([lq_tmp_x1246]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#641]) >= 0)
+(lbLengths([lq_tmp_x1246]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#512]) >= 0)
+(sumLens([lq_tmp_x2988]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#512]) >= 0)
+(sum_tlens([lq_tmp_x2988]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#512]) >= 0)
+(lbLengths([lq_tmp_x2988]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#533]) >= 0)
+(sumLens([lq_tmp_x2914]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#533]) >= 0)
+(sum_tlens([lq_tmp_x2914]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#533]) >= 0)
+(lbLengths([lq_tmp_x2914]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#1148]) >= 0)
+(sumLens([VV#1187]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#1148]) >= 0)
+(sum_tlens([VV#1187]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#1148]) >= 0)
+(lbLengths([VV#1187]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#3854]) >= 0)
+(sumLens([lq_tmp_x1525]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#3854]) >= 0)
+(sum_tlens([lq_tmp_x1525]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#3854]) >= 0)
+(lbLengths([lq_tmp_x1525]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#3971]) >= 0)
+(sumLens([VV#8148]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#3971]) >= 0)
+(sum_tlens([VV#8148]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#3971]) >= 0)
+(lbLengths([VV#8148]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#512]) >= 0)
+(sumLens([VV#1277]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#512]) >= 0)
+(sum_tlens([VV#1277]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#512]) >= 0)
+(lbLengths([VV#1277]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#743]) >= 0)
+(sumLens([lq_tmp_x1297]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#743]) >= 0)
+(sum_tlens([lq_tmp_x1297]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#743]) >= 0)
+(lbLengths([lq_tmp_x1297]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#3680]) >= 0)
+(sumLens([lq_tmp_x1564]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#3680]) >= 0)
+(sum_tlens([lq_tmp_x1564]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#3680]) >= 0)
+(lbLengths([lq_tmp_x1564]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#3680]) >= 0)
+(sumLens([lq_tmp_x159]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#3680]) >= 0)
+(sum_tlens([lq_tmp_x159]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#3680]) >= 0)
+(lbLengths([lq_tmp_x159]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#687]) >= 0)
+(sumLens([VV#1415]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#687]) >= 0)
+(sum_tlens([VV#1415]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#687]) >= 0)
+(lbLengths([VV#1415]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#4003]) >= 0)
+(sumLens([lq_tmp_x1336]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#4003]) >= 0)
+(sum_tlens([lq_tmp_x1336]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#4003]) >= 0)
+(lbLengths([lq_tmp_x1336]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#620]) >= 0)
+(sumLens([VV#1277]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#620]) >= 0)
+(sum_tlens([VV#1277]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#620]) >= 0)
+(lbLengths([VV#1277]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#3832]) >= 0)
+(sumLens([lq_tmp_x1664]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#3832]) >= 0)
+(sum_tlens([lq_tmp_x1664]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#3832]) >= 0)
+(lbLengths([lq_tmp_x1664]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#620]) >= 0)
+(sumLens([VV#7922]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#620]) >= 0)
+(sum_tlens([VV#7922]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#620]) >= 0)
+(lbLengths([VV#7922]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#579]) >= 0)
+(sumLens([VV#7922]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#579]) >= 0)
+(sum_tlens([VV#7922]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#579]) >= 0)
+(lbLengths([VV#7922]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#4062]) >= 0)
+(sumLens([VV#8102]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#4062]) >= 0)
+(sum_tlens([VV#8102]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#4062]) >= 0)
+(lbLengths([VV#8102]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#579]) >= 0)
+(sumLens([VV#1505]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#579]) >= 0)
+(sum_tlens([VV#1505]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#579]) >= 0)
+(lbLengths([VV#1505]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#512]) >= 0)
+(sumLens([VV#1415]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#512]) >= 0)
+(sum_tlens([VV#1415]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#512]) >= 0)
+(lbLengths([VV#1415]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#3807]) >= 0)
+(sumLens([VV#8220]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#3807]) >= 0)
+(sum_tlens([VV#8220]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#3807]) >= 0)
+(lbLengths([VV#8220]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#3952]) >= 0)
+(sumLens([VV#8077]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#3952]) >= 0)
+(sum_tlens([VV#8077]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#3952]) >= 0)
+(lbLengths([VV#8077]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#687]) >= 0)
+(sumLens([VV#8195]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#687]) >= 0)
+(sum_tlens([VV#8195]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#687]) >= 0)
+(lbLengths([VV#8195]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#4037]) >= 0)
+(sumLens([lq_tmp_x1435]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#4037]) >= 0)
+(sum_tlens([lq_tmp_x1435]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#4037]) >= 0)
+(lbLengths([lq_tmp_x1435]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#3839]) >= 0)
+(sumLens([VV#7364]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#3839]) >= 0)
+(sum_tlens([VV#7364]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#3839]) >= 0)
+(lbLengths([VV#7364]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#666]) >= 0)
+(sumLens([VV#7391]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#666]) >= 0)
+(sum_tlens([VV#7391]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#666]) >= 0)
+(lbLengths([VV#7391]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#3122]) >= 0)
+(sumLens([VV#8055]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#3122]) >= 0)
+(sum_tlens([VV#8055]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#3122]) >= 0)
+(lbLengths([VV#8055]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#3149]) >= 0)
+(sumLens([VV#1505]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#3149]) >= 0)
+(sum_tlens([VV#1505]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#3149]) >= 0)
+(lbLengths([VV#1505]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sumLens([VV#4069]) >= 0)
+(sumLens([VV#1187]) >= 0)
 Cannot unify FAppTy []  @(0) with GHC.Types.Char
 WARNING: prune unsorted reft:
-(sum_tlens([VV#4069]) >= 0)
+(sum_tlens([VV#1187]) >= 0)
 Cannot unify Data.Text.Internal.Text with GHC.Types.Char
 WARNING: prune unsorted reft:
-(lbLengths([VV#4069]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#579]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#579]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#579]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#687]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#687]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#687]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#3898]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#3898]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#3898]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#558]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#558]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#558]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#641]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#641]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#641]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#558]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#558]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#558]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#3181]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#3181]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#3181]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#3181]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#3181]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#3181]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#3788]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#3788]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#3788]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#533]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#533]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#533]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#3128]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#3128]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#3128]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#3155]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#3155]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#3155]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#3873]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#3873]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#3873]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#666]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#666]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#666]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#4018]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#4018]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#4018]) >= 0)
-Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sumLens([VV#533]) >= 0)
-Cannot unify FAppTy []  @(0) with GHC.Types.Char
-WARNING: prune unsorted reft:
-(sum_tlens([VV#533]) >= 0)
-Cannot unify Data.Text.Internal.Text with GHC.Types.Char
-WARNING: prune unsorted reft:
-(lbLengths([VV#533]) >= 0)
+(lbLengths([VV#1187]) >= 0)
 Cannot unify Data.ByteString.Lazy.Internal.ByteString with GHC.Types.Char
 
 
@@ -491,9 +347,7 @@ All Rights Reserved.
 .|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.
 .|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.
 .|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.
-.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.
-.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.
-.|
+.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./.-.\.|./
 SAT
 LiquidHaskell © Copyright 2009-13 Regents of the University of California. All Rights Reserved.
 
