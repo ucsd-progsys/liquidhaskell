@@ -150,7 +150,7 @@ getGhcModGuts1 fn = do
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
        -- mod_guts <- modSummaryModGuts modSummary
-       mod_guts <- coreModule <$> (desugarModuleWithLoc =<< typecheckModule =<< parseModule modSummary)
+       mod_guts <- coreModule <$> (desugarModuleWithLoc =<< typecheckModule =<< liftM ignoreInline (parseModule modSummary))
        return   $! (miModGuts mod_guts)
      Nothing     -> exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
 
@@ -160,7 +160,7 @@ getGhcModGutsSimpl1 fn = do
    modGraph <- getModuleGraph
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
-       mod_guts   <- coreModule `fmap` (desugarModule =<< typecheckModule =<< parseModule modSummary)
+       mod_guts   <- coreModule `fmap` (desugarModule =<< typecheckModule =<< liftM ignoreInline (parseModule modSummary))
        hsc_env    <- getSession
        simpl_guts <- liftIO $ hscSimplify hsc_env mod_guts
        (cg,_)     <- liftIO $ tidyProgram hsc_env simpl_guts
