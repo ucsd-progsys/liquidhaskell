@@ -148,7 +148,7 @@ import Data.Generics        (Data)
 import Data.Monoid hiding   ((<>))
 import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
-import Data.List            (foldl', sort, stripPrefix, intersect)
+import Data.List            (nub, foldl', sort, stripPrefix, intersect)
 import Data.Hashable        
 import qualified Data.Foldable as F
 import Data.Traversable
@@ -1101,12 +1101,14 @@ instance Subable SortedReft where
 
 newtype Subst = Su [(Symbol, Expr)] deriving (Eq, Ord, Data, Typeable)
 
-mkSubst                  = Su -- . M.fromList
 appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
 emptySubst               = Su [] -- M.empty
 
 
 catSubst = unsafeCatSubst
+mkSubst = unsafeMkSubst
+
+unsafeMkSubst                  = Su -- . M.fromList
 
 unsafeCatSubst (Su s1) θ2@(Su s2) = Su $ s1' ++ s2
   where 
@@ -1134,6 +1136,15 @@ safeCatSubst θ1@(Su s1) θ2@(Su s2)
     xs1 = fst <$> s1
     xs2 = fst <$> s2
     msg = printf "Fixpoint.Types catSubst on overlapping substitutions θ1 = %s, θ2 = %s" (showFix θ1) (showFix θ2)
+
+
+safeMkSubst θ
+  | nub θ == θ 
+  = Su θ
+  | otherwise 
+  = errorstar msg
+  where 
+    msg = printf "Fixpoint.Types mkSubst on overlapping substitution θ = %s" (showFix θ)
 
 instance Monoid Subst where
   mempty  = emptySubst
