@@ -45,7 +45,7 @@ instance Freshable m Integer => Freshable m Symbol where
   fresh = liftM (tempSymbol "x") fresh
 
 instance Freshable m Integer => Freshable m Refa where
-  fresh = liftM (`RKvar` emptySubst) freshK
+  fresh = liftM (`RKvar` mkSubst []) freshK
     where freshK = liftM intKvar fresh
 
 instance Freshable m Integer => Freshable m [Refa] where
