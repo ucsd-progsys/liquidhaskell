@@ -575,7 +575,7 @@ bkUniv t                = ([], [], t)
 bkClass (RFun _ (RCls c t) t' _) = let (cs, t'') = bkClass t' in ((c, t):cs, t'')
 bkClass t                        = ([], t)
 
-rFun b t t' = RFun b t t' top
+rFun b t t' = RFun b t t' mempty
 
 addTermCond t r = mkArrow αs πs xts $ RRTy r t2
   where (αs, πs, t1) = bkUniv t
@@ -591,6 +591,7 @@ instance (PPrint r, Reftable r) => Reftable (UReft r) where
   toReft (U r _)     = toReft r
   params (U r _)     = params r
   bot (U r _)        = U (bot r) (Pr [])
+  top (U r p)        = U (top r) (top p)
 
 isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u)
 
@@ -788,7 +789,7 @@ mapBindRef f (RPoly s t)   = RPoly (mapFst f <$> s) $ mapBind f t
 
 --------------------------------------------------
 ofRSort ::  Reftable r => RType p c tv () -> RType p c tv r 
-ofRSort = fmap (\_ -> top)
+ofRSort = fmap mempty
 
 toRSort :: RType p c tv r -> RType p c tv () 
 toRSort = stripQuantifiers . mapBind (const dummySymbol) . fmap (const ())
@@ -811,7 +812,7 @@ insertsSEnv  = foldr (\(x, t) γ -> insertSEnv x t γ)
 rTypeValueVar :: (Reftable r) => RType p c tv r -> Symbol
 rTypeValueVar t = vv where Reft (vv,_) =  rTypeReft t 
 rTypeReft :: (Reftable r) => RType p c tv r -> Reft
-rTypeReft = fromMaybe top . fmap toReft . stripRTypeBase 
+rTypeReft = fromMaybe trueReft . fmap toReft . stripRTypeBase 
 
 -- stripRTypeBase ::  RType a -> Maybe a
 stripRTypeBase (RApp _ _ _ x)   
@@ -929,8 +930,8 @@ instance PPrint SortedReft where
 ------------------------------------------------------------------------
 
 type ErrorResult = FixResult Error
-
 data Error = 
+-- | INVARIANT : all Error constructors should hava a pos field
     ErrSubType  { pos :: !SrcSpan
                 , msg :: !Doc
                 , act :: !SpecType
@@ -951,6 +952,11 @@ data Error =
                 , typ :: !SpecType  
                 , msg :: !Doc
                 } -- ^ sort error in specification
+  | ErrDupAlias { pos  :: !SrcSpan
+                , kind :: !Doc
+                , var  :: !Doc
+                , locs :: ![SrcSpan]
+                } -- ^ multiple alias with same name error
   | ErrDupSpecs { pos :: !SrcSpan
                 , var :: !Doc
                 , locs:: ![SrcSpan]
