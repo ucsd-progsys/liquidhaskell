@@ -843,13 +843,14 @@ unfoldrN i f x0
     | i < 0     = (empty, Just x0)
     | otherwise = unsafePerformIO $ createAndTrimMEQ i $ \p -> go_unfoldrN i p x0 0
   where STRICT4(go)
+        {-@ Decrease go_unfoldrN 4 @-}
         go_unfoldrN (d::Int) p x n =
           case f x of
             Nothing      -> return (0 :: Int {- LIQUID -}, n, Nothing)
             Just (w,x')
              | n == i    -> return (0, n, Just x)
              | otherwise -> do poke p w
-                               go_unfoldrN (d-1) (p `plusPtr` 1) x' (n+1)
+                               go_unfoldrN (i-(n+1)) (p `plusPtr` 1) x' (n+1)
 {-# INLINE unfoldrN #-}
 
 {-@ unfoldqual :: l:Nat -> {v:(Nat, Nat, Maybe a) | (((tsnd v) <= (l-(tfst v)))

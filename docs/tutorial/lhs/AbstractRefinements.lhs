@@ -1,40 +1,73 @@
-% Abstract Refinements
-
 Abstract Refinements
---------------------
+---------------------
 
 \begin{code}
 module AbstractRefinements where
+
+import Prelude hiding (max)
+import Language.Haskell.Liquid.Prelude
+{-@ LIQUID "--no-termination" @-}
 \end{code}
 
-
-Abstract Refinements
---------------------
+Polymorphic Max Function
+-----------------------
+\begin{code} Consinder a polymorphic max function:
+max     :: a -> a -> a
+max x y = if x >= y then x else y
+\end{code}
 
 <br>
 
-\begin{code} Consider the following function 
-maxInt     :: Int -> Int -> Int 
-maxInt x y = if x <= y then y else x 
+\begin{code} We can instantiate `a` with `Odd`
+max     :: Odd -> Odd -> Odd
+
+maxOdd :: Odd
+maxOdd = max 3 7
+\end{code}
+
+
+Polymorphic Max in Haskell
+-----------------------
+\begin{code} In Haskell the type of max is
+max     :: Ord a => a -> a -> a
+\end{code}
+
+
+<br>
+
+We could **ignore** the class constraints, and procced as before:
+
+\begin{code} Instantiate `a` with `Odd`
+max     :: Odd -> Odd -> Odd
+
+maxOdd :: Odd
+maxOdd = max 3 7
+\end{code}
+
+
+Polymorphic Add in Haskell
+-----------------------
+
+\begin{code} But this can lead to **unsoundness**:
+max     :: Ord a => a -> a -> a
+(+)     :: Num a => a -> a -> a
 \end{code}
 
 <br>
 
-\begin{code} We can give `maxInt` many (incomparable) refinement types:
-maxInt :: Nat -> Nat -> Nat
+So, **ignoring** class constraints allows us to: 
+\begin{code} instantiate `a` with `Odd`
+(+)     :: Odd -> Odd -> Odd
 
-maxInt :: Even -> Even -> Even
-
-maxInt :: Prime -> Prime -> Prime
+addOdd :: Odd
+addOdd = 3 + 7
 \end{code}
 
-But **which** is the **right** type?
 
+Polymorphism via Parametric Invariants 
+--------------------------------------
 
-Parametric Invariants 
----------------------
-
-`maxInt` returns *one of* its two inputs `x` and `y`. 
+`max` returns *one of* its two inputs `x` and `y`. 
 
 - **If** *both inputs* satisfy a property  
 
@@ -50,81 +83,172 @@ Parametric Invariants
 --------------------- 
 
 \begin{code}
-{-@ maxInt :: forall <p :: Int -> Prop>. Int<p> -> Int<p> -> Int<p> @-}
-maxInt     :: Int -> Int -> Int 
-maxInt x y = if x <= y then y else x 
+{-@ max :: forall <p :: a -> Prop>. Ord a => a<p> -> a<p> -> a<p> @-}
+max     :: Ord a => a -> a -> a
+max x y = if x <= y then y else x 
 \end{code}
 
 
 
 Where
 
-- `Int<p>` is just an abbreviation for `{v:Int | (p v)}`
+- `a<p>` is just an abbreviation for `{v:a | (p v)}`
 
 
 This type states explicitly:
 
-- **For any property** `p`, that is a property of `Int`, 
+- **For any property** `p`, that is a property of `a`, 
 
-- `maxInt` takes two **inputs** of which satisfy `p`,
+- `max` takes two **inputs** of which satisfy `p`,
 
-- `maxInt` returns an **output** that satisfies `p`. 
-
-
-Parametric Invariants via Abstract Refinements
----------------------------------------------- 
-
-\begin{code} We type `maxInt` as
-maxInt :: forall <p :: Int -> Prop>. Int<p> -> Int<p> -> Int<p> 
-\end{code}
-
-We call `p` an an **abstract refinement** <br>
-
-
-In the refinement logic,
-
-- abstract refinements are **uninterpreted function symbols**
-
-- which (only) satisfy the *congruence axiom*: forall x, y. x = y => (p x) = (p y)
+- `max` returns an **output** that satisfies `p`. 
 
 
 
 Using Abstract Refinements
 --------------------------
 
-- **If** we call `maxInt` with two `Int`s with the same concrete refinement,
+- **If** we call `max` with two arguments with the same concrete refinement,
 
 - **Then** the `p` will be instantiated with that concrete refinement,
 
 - **The output** of the call will also enjoy the concrete refinement.
 
-For example, the refinement is instantiated with `\v -> v >= 0` <br>
+
 
 \begin{code}
-{-@ maxNat :: Nat @-}
-maxNat     :: Int
-maxNat     = maxInt 2 5
+{-@ type Odd = {v:Int | (v mod 2) = 1} @-}
+
+{-@ maxOdd :: Odd @-}
+maxOdd     :: Int
+maxOdd     = max 3 5
 \end{code}
 
-Using Abstract Refinements
---------------------------
 
-- **If** we call `maxInt` with two `Int`s with the same concrete refinement,
+Abstract Refinements in Type Constructors
+-----------------------------------------
 
-- **Then** the `p` will be instantiated with that concrete refinement,
-
-- **The output** of the call will also enjoy the concrete refinement.
-
-Or any other property <br>
+Types cannot track information of monomorphic arguments:
 
 \begin{code}
-{-@ type RGB = {v: Int | ((0 <= v) && (v < 256)) } @-}
+data F = F {w::Int}
 \end{code}
 
-<br> to verify <br>
+<br>
+
+The type `F` cannot give us information about the field `x`.
 
 \begin{code}
-{-@ maxRGB :: RGB @-}
-maxRGB     :: Int
-maxRGB     = maxInt 56 8
+foo = let f = F 0 in -- :: f :: F
+      case f of 
+      F x -> liquidAssert (x >= 0)
+\end{code}
+
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=AbstractRefinements.hs" target= "_blank">Demo:</a> 
+Lets solve this error using Abstract Refinements
+
+Abstract Refinements in Type Constructors
+-----------------------------------------
+
+- Abstract over the refinement you care
+\begin{code}
+data G = G {y::Int{- <p> -}}
+\end{code}
+
+- Move it to the left-hand side
+\begin{code}
+{-@ data G <p :: Int -> Prop> = G (y::Int<p>) @-}
+\end{code}
+
+- The type `G <p>` now describes the field `x`.
+
+\begin{code}
+bar = let f = G 0 in -- :: f :: G <{v = 0}>
+      case f of 
+      G x -> liquidAssert (x >= 0)
+\end{code}
+
+Abstract Refinements in Lists
+-----------------------------------------
+
+\begin{code} Remember increasing Lists?
+data IL a = N | C (x :: a) (xs :: L {v:a | x <= v})
+\end{code}
+
+- Abstract over the refinement you care
+\begin{code}
+data L a = N | C {x :: a, xs :: L a {- v:a | p v x -}}
+\end{code}
+
+- Move it to the left-hand side
+\begin{code}
+{-@ data L a <p :: a -> a -> Prop> = 
+      N 
+    | C (x :: a) (xs :: L <p> a<p x>)  @-}
+\end{code}
+
+<br>
+
+We can get back increasing Lists:
+\begin{code}
+{-@ type IncrL a = L <{\x v -> x <= v}> a @-}
+\end{code}
+
+
+Multiple Instantiations
+-----------------------
+
+\begin{code} Now increasing lists 
+type IncrL a = L <{\x v -> x <= v}> a
+\end{code}
+
+<br>
+
+\begin{code} Co-exist with decreasing ones
+type DecrL a = L <{\x v -> x >= v}> a
+\end{code}
+
+Ghc Sort
+--------
+
+We can now verify algorithms that use **both** increasing and decreasing lists
+
+\begin{code}
+{-@ type OList a = [a]<{\hd v -> hd <= v}> @-}
+
+{-@ sort :: (Ord a) => [a] -> OList a  @-}
+sort :: (Ord a) => [a] -> [a]
+sort = mergeAll . sequences
+  where
+    sequences (a:b:xs)
+      | a `compare` b == GT = descending b [a]  xs
+      | otherwise           = ascending  b (a:) xs
+    sequences [x] = [[x]]
+    sequences []  = [[]]
+
+    descending a as (b:bs)
+      | a `compare` b == GT = descending b (a:as) bs
+    descending a as bs      = (a:as): sequences bs
+
+    ascending a as (b:bs)
+      | a `compare` b /= GT = ascending b (\ys -> as (a:ys)) bs
+    ascending a as bs       = as [a]: sequences bs
+\end{code}
+
+Ghc Sort : Helper Functions
+---------------------------
+
+\begin{code}
+mergeAll [x] = x
+mergeAll xs  = mergeAll (mergePairs xs)
+
+mergePairs (a:b:xs) = merge1 a b: mergePairs xs
+mergePairs [x]      = [x]
+mergePairs []       = []
+
+merge1 (a:as') (b:bs')
+  | a `compare` b == GT = b:merge1 (a:as')  bs'
+  | otherwise           = a:merge1 as' (b:bs')
+merge1 [] bs            = bs
+merge1 as []            = as
 \end{code}
