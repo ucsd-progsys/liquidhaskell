@@ -1,37 +1,43 @@
 module Dyn where
 
-b0 = put 0 ("cat" :: String) 
-   $ put 1 (12    :: Int) 
-   $ empty
+import Data.Dynamic 
+import Data.Maybe
 
-z  = plus 10 (get 1 b0)
+b0    = put 0 ("cat" :: String) 
+      $ put 1 (12    :: Int) 
+      $ emp
 
+ok    = 10 `plus` (get 1 b0)
+
+bad   = 10 `plus` (get 0 b0)
+
+-------------------------------------------------
 plus :: Int -> Int -> Int
 plus = (+)
 
 concat :: String -> String -> String
 concat = (++)
+-------------------------------------------------
 
 type Field   = Int
-data Dyn
 
-newtype DBox = DB [(Field, Dyn)]
+newtype DBox = DB [(Field, Dynamic)]
 
 emp :: DBox 
 emp = DB []
 
-put :: Field -> a -> DBox -> DBox 
-put k v b = (k, toDyn v) : b
+put :: (Typeable a) => Field -> a -> DBox -> DBox 
+put k v (DB b) = DB ((k, toDyn v) : b)
 
-get :: Field -> DBox -> a 
-get k (DB kvs) = ofDyn $ maybe err $ lookup k kvs 
+get :: (Typeable a) => Field -> DBox -> a 
+get k (DB kvs) = ofD $ fromMaybe err $ lookup k kvs 
   where 
     err        = error $ "NOT FOUND" ++ show k
 
--- toDyn :: x:a -> {v:Dyn | (tag v) = (ty a)}
-toDyn :: a -> Dyn 
-toDyn = unsafeCoerce
+{-@ toD :: (Typeable a) => x:a -> {v:Dyn | (tag v) = (typeRep a)} @-}
+toD :: (Typeable a) => a -> Dynamic 
+toD = toDyn 
 
--- ofDyn :: {v:Dyn | (tag v) = (ty a)} -> a 
-ofDyn :: Dyn -> a
-ofDyn = unsafeCoerce
+{-@ ofD :: {v:Dyn | (tag v) = (typeRep a)} -> a @-}
+ofD :: (Typeable a) => Dynamic -> a
+ofD = fromMaybe (error "DYNAMIC ERROR") . fromDynamic 
