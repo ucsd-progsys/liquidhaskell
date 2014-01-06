@@ -364,7 +364,6 @@ bTup [t] _ r | isTauto r  = t
              | otherwise  = t `strengthen` (reftUReft r) 
 bTup ts rs r              = RApp (dummyLoc tupConName) ts rs (reftUReft r)
 
-bCon b [RMono _ r1] [] r  = RApp b [] [] (r1 `meet` (reftUReft r)) 
 bCon b rs ts r            = RApp b ts rs (reftUReft r)
 
 -- bAppTy v t r             = RAppTy (RVar v top) t (reftUReft r)
