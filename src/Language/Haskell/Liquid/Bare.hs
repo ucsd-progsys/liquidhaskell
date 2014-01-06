@@ -394,9 +394,15 @@ varsAfter f s lvs
 
 txRefSort env embs = mapBot (addSymSort embs env)
 
-addSymSort embs tcenv (RApp rc@(RTyCon c _ _) ts rs r) 
-  = RApp rc ts (addSymSortRef <$> zip ps rs) r
-  where ps = rTyConPs $ appRTyCon embs tcenv rc ts
+addSymSort embs tcenv t@(RApp rc@(RTyCon c _ _) ts rs r) 
+  = RApp rc ts (addSymSortRef <$> zip ps rargs) r'
+  where
+    ps                = rTyConPs $ appRTyCon embs tcenv rc ts
+    (rargs,rrest)     = splitAt (length ps) rs
+    r'                = L.foldl' go r rrest
+    go r (RMono _ r') = r' `meet` r
+    go r _            = r
+
 addSymSort _ _ t 
   = t
 
