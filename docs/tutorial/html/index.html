@@ -8,32 +8,78 @@
 <body>
 <section class="slide level2">
 
-<center><h1>
-Tutorial: Type-Based Analysis of
-Higher-Order Programs
-</h1></center>
-
+<center><h1>Tutorial on LiquidHaskell</h1></center>
 <center>
-<p><strong>Niki Vazou</strong><sup>1</sup>, Patrick M. Rondon<sup>2</sup>, Eric Seidel<sup>1</sup>, and Ranjit Jhala<sup>1</sup></p>
-<sup>1</sup>UC San Diego <sup>2</sup>Google
+Niki Vazou, Eric Seidel, Patrick Rondon, and Ranjit Jhala</p>
+UC San Diego
 </center>
 
-<ul>
-<li>Examples from LiquidHaskell</li>
-<li>There are online on our blog <a href="http://goto.ucsd.edu/~rjhala/liquid">goto.ucsd.edu/~rjhala/liquid</a></li>
+<p>
+LiquidHaskell takes as input <strong>haskell source code</strong>, 
+annotated with <strong>specifications</strong>
+and checkes whether the code satisfies the specifications.
+</pr>
+<p>
+Specifications are expressed with 
+<strong><a href="http://goto.ucsd.edu/~rjhala/liquid/liquid_types.pdf"
+           target="_blank">liquid types</a></strong>, 
+ie., a subset of dependent types for which inference and checking is decidable.
+</p>
+
+<p><h2>Try liquidHaskell</h2>
+<ul><li>Online: <a href="http://goto.ucsd.edu/liquidhaskell"
+    target="_blank">goto.ucsd.edu/liquidhaskell</a></li>
+    <li>Github: <a href="http://github.com/ucsd-progsys/liquidhaskell"
+    target="_blank">ucsd-progsys/liquidhaskell</a></li>
+  <li>Locally: `cabal install liquidhaskell`</li>
 </ul>
+</p>
+<div align="right">Press the right buttom to begin!</div>
 </section>
 <section class="slide level1" id="outline"><h1>Outline</h1>
 <ol style="list-style-type: decimal">
 <li><a target="_blank" href="SimpleRefinements.lhs.slides.html">Simple Refinements</a><br /></li>
+<li><a target="_blank" href="Measures.lhs.slides.html">Measures</a><br /></li>
 <li><a target="_blank" href="Loop.lhs.slides.html">Higher Order Refinements</a><br /></li>
 <li><a target="_blank" href="AbstractRefinements.lhs.slides.html">Abstract Refinements</a><br /></li>
 <li><a target="_blank" href="Inductive.lhs.slides.html">Inductive Refinements</a><br /></li>
 <li><a target="_blank" href="Composition.lhs.slides.html">Composing Refinements</a><br /></li>
 <li><a target="_blank" href="List.lhs.slides.html">Recursive Refinements</a><br /></li>
 <li><a target="_blank" href="Array.lhs.slides.html">Indexed Refinements</a></li>
+<li><a target="_blank" href="Laziness.lhs.slides.html">Laziness</a><br /></li>
+<li><a target="_blank" href="Benchmarks.html">Benchmarks</a><br /></li>
 </ol>
 </section>
+<section class="slide level1" id="outline"><h1>Outline</h1>
+<table><tr>
+<td>
+<ol style="list-style-type: decimal">
+<li><a target="_blank" href="SimpleRefinements.lhs.slides.html">Simple Refinements</a><br /></li>
+<li><a target="_blank" href="Measures.lhs.slides.html">Measures</a><br /></li>
+<li><a target="_blank" href="Loop.lhs.slides.html">Higher Order Refinements</a><br /></li>
+<li><a target="_blank" href="AbstractRefinements.lhs.slides.html">Abstract Refinements</a><br /></li>
+<li><a target="_blank" href="Inductive.lhs.slides.html">Inductive Refinements</a><br /></li>
+<li><a target="_blank" href="Composition.lhs.slides.html">Composing Refinements</a><br /></li>
+<li><a target="_blank" href="List.lhs.slides.html">Recursive Refinements</a><br /></li>
+<li><a target="_blank" href="Array.lhs.slides.html">Indexed Refinements</a></li>
+<li><a target="_blank" href="Laziness.lhs.slides.html">Laziness</a><br /></li>
+<li><a target="_blank" href="Benchmarks.html">Benchmarks</a><br /></li>
+</ol>
+<br>
+</td>
+<td width=400>
+<p><h2>Try liquidHaskell</h2>
+<ul><li><a href="http://goto.ucsd.edu/liquidhaskell"
+    target="_blank">goto.ucsd.edu/liquidhaskell</a></li>
+    <li>git@<a href="http://github.com/ucsd-progsys/liquidhaskell"
+    target="_blank">ucsd-progsys/liquidhaskell</a></li>
+  <li>`cabal install liquidhaskell`</li>
+</ul>
+</p></td>
+</tr></table>
+<h1><div align="right">Thank You!</div></h1>
+</section>
+
 <!-- {{{{ dzslides core
 #
 #

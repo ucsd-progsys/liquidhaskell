@@ -11,24 +11,28 @@ demo: TextInternal.hs
 ---
 
 So far we have mostly discussed LiquidHaskell in the context of
-recursive data structures like lists, but there comes a time in many
-programs when you have to put down the list and pick up an array for
-the sake of performance. In this series we're going to examine the
-`text` library, which does exactly this in addition to having
-extensive Unicode support.
+recursive data structures like lists, but there comes a time in 
+many programs when you have to put down the list and pick up an 
+array for the sake of performance. 
+In this series we're going to examine the `text` library, which 
+does exactly this in addition to having extensive Unicode support.
 
-`text` is a popular library for efficient text processing. It provides
-the high-level API haskellers have come to expect while using stream
-fusion and byte arrays under the hood to guarantee high
-performance. The thing that makes `text` stand out as an interesting
-target for LiquidHaskell, however, is its use of
-Unicode. Specifically, `text` uses UTF-16 as its internal encoding,
-where each character is represented with either two or four
-bytes. We'll see later on how this encoding presents a challenge for
-verifying memory-safety, but first let us look at how a `Text` is
-represented.
+`text` is a popular library for efficient text processing. 
+It provides the high-level API haskellers have come to expect while 
+using stream fusion and byte arrays under the hood to guarantee high
+performance. 
+
+The thing that makes `text` stand out as an interesting target for 
+LiquidHaskell, however, is its use of Unicode. 
+Specifically, `text` uses UTF-16 as its internal encoding, where 
+each character is represented with either two or four bytes. 
+We'll see later on how this encoding presents a challenge for 
+verifying memory-safety, but first let us look at how a `Text` 
+is represented.
 
 <!-- more -->
+
+<div class="hidden">
 
 \begin{code}
 {-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types,
@@ -44,7 +48,55 @@ import GHC.ST (ST(..), runST)
 import GHC.Word (Word16(..))
 
 import Language.Haskell.Liquid.Prelude
+
+{-@ data Array = Array { aBA  :: ByteArray#
+                       , aLen :: Nat 
+                       } 
+  @-}
+
+{-@ aLen :: a:Array -> {v:Nat | v = (alen a)}  @-}
+
+{-@ data MArray s = MArray { maBA  :: MutableByteArray# s
+                           , maLen :: Nat } @-}
+
+{-@ maLen :: a:MArray s -> {v:Nat | v = (malen a)}  @-}
+
+new          :: forall s. Int -> ST s (MArray s)
+unsafeWrite  :: MArray s -> Int -> Word16 -> ST s ()
+unsafeFreeze :: MArray s -> ST s Array
+unsafeIndex  :: Array -> Int -> Word16
+copyM        :: MArray s               -- ^ Destination
+             -> Int                    -- ^ Destination offset
+             -> MArray s               -- ^ Source
+             -> Int                    -- ^ Source offset
+             -> Int                    -- ^ Count
+             -> ST s ()
+
+
+{-
+  MArray --> Array --> Text
+    (w)       (r)       
+
++ MArray (writing)
+  + unsafeWrite
+  + copyM
+
++ Array  (reading)
+  ? unsafeIndex 
+
++ Text   (Array + offset trickery)
+  + pic with offsets
+
++ clientCopyM 
+  + new-MArray ~> stuff ~> Array ~> Text 
+  + why is copyM "safe"
+  + but look, here's this other stuff that is NOT safe...(unicode, next time...)
+
+-}
+
 \end{code}
+
+</div>
 
 `text` uses two types of arrays internally, immutable `Array`s and
 mutable `MArray`s.
@@ -54,35 +106,38 @@ data Array = Array {
     aBA  :: ByteArray#
   , aLen :: !Int
   }
-{-@ data Array = Array { aBA :: ByteArray#, aLen :: Nat } @-}
-{-@ measure alen :: Array -> Int
-    alen (Array aBA aLen) = aLen
+
+{-@ measure alen     :: Array -> Int
+    alen (Array a n) = n 
   @-}
-{-@ aLen :: a:Array -> {v:Nat | v = (alen a)}  @-}
 
 data MArray s = MArray {
-    maBA :: MutableByteArray# s
+    maBA  :: MutableByteArray# s
   , maLen :: !Int
   }
-{-@ data MArray s = MArray { maBA :: MutableByteArray# s, maLen :: Nat } @-}
+
 {-@ measure malen :: MArray s -> Int
     malen (MArray maBA maLen) = maLen
   @-}
-{-@ maLen :: a:MArray s -> {v:Nat | v = (malen a)}  @-}
+
 \end{code}
 
 Both types carry around with them the number of `Word16`s they can
 hold (this is actually only true when you compile with asserts turned
 on, but we use this to ease the verification process).
 
-The main three array operations we care about are: (1) writing into an
-`MArray`, (2) reading from an `Array`, and (3) *freezing* an `MArray`
-into an `Array`. But first, let's see how one creates an `MArray`.
+The main three array operations we care about are: 
+
+1. **writing** into an `MArray`, 
+2. **reading** from an `Array`, and 
+3. **freezing** an `MArray` into an `Array`. 
+
+But first, let's see how one creates an `MArray`.
 
 \begin{code}
 {-@ type MArrayN s N = {v:MArray s | (malen v) = N} @-}
+
 {-@ new :: forall s. n:Nat -> ST s (MArrayN s n) @-}
-new :: forall s. Int -> ST s (MArray s)
 new n
   | n < 0 || n .&. highBit /= 0 = error $ "Data.Text.Array.new: size overflow"
   | otherwise = ST $ \s1# ->
@@ -96,7 +151,7 @@ new n
 `new n` is an `ST` action that produces an `MArray s` with `n` slots,
 denoted by the type alias `MArrayN s n`. Note that we are not talking
 about bytes here, `text` deals with `Word16`s internally and as such
-we actualy allocate `2*n` bytes.  While this may seem like a lof of
+we actualy allocate `2*n` bytes.  While this may seem like a lot of
 code to just create an array, the verification process here is quite
 simple. LiquidHaskell simply recognizes that the `n` used to construct
 the returned array (`MArray marr# n`) is the same `n` passed to
@@ -115,7 +170,6 @@ always pass.
 \begin{code}
 {-@ type MAValidI MA = {v:Nat | v < (malen MA)} @-}
 {-@ unsafeWrite :: ma:MArray s -> MAValidI ma -> Word16 -> ST s () @-}
-unsafeWrite :: MArray s -> Int -> Word16 -> ST s ()
 unsafeWrite MArray{..} i@(I# i#) (W16# e#)
   | i < 0 || i >= maLen = liquidError "out of bounds"
   | otherwise = ST $ \s1# ->
@@ -131,7 +185,6 @@ of course that the frozen `Array` should have the same length as the
 \begin{code}
 {-@ type ArrayN N = {v:Array | (alen v) = N} @-}
 {-@ unsafeFreeze :: ma:MArray s -> ST s (ArrayN (malen ma)) @-}
-unsafeFreeze :: MArray s -> ST s Array
 unsafeFreeze MArray{..} = ST $ \s# ->
                           (# s#, Array (unsafeCoerce# maBA) maLen #)
 \end{code}
@@ -146,7 +199,6 @@ Finally, we will eventually want to read a value out of the
 \begin{code}
 {-@ type AValidI A = {v:Nat | v < (alen A)} @-}
 {-@ unsafeIndex :: a:Array -> AValidI a -> Word16 @-}
-unsafeIndex :: Array -> Int -> Word16
 unsafeIndex Array{..} i@(I# i#)
   | i < 0 || i >= aLen = liquidError "out of bounds"
   | otherwise = case indexWord16Array# aBA i# of
@@ -164,18 +216,14 @@ the right type however, we can regain safety. `text` provides a wrapper around
 
 \begin{code}
 {-@ type MAValidO MA = {v:Nat | v <= (malen MA)} @-}
-{-@ copyM :: dst:MArray s -> didx:MAValidO dst
-          -> src:MArray s -> sidx:MAValidO src
-          -> {v:Nat | (((v + didx) <= (malen dst))
-                    && ((v + sidx) <= (malen src)))}
+{-@ copyM :: dest:MArray s 
+          -> didx:MAValidO dest
+          -> src:MArray s 
+          -> sidx:MAValidO src
+          -> {v:Nat | (((didx + v) <= (malen dest))
+                    && ((sidx + v) <= (malen src)))}
           -> ST s ()
   @-}
-copyM :: MArray s               -- ^ Destination
-      -> Int                    -- ^ Destination offset
-      -> MArray s               -- ^ Source
-      -> Int                    -- ^ Source offset
-      -> Int                    -- ^ Count
-      -> ST s ()
 copyM dest didx src sidx count
     | count <= 0 = return ()
     | otherwise =
@@ -186,12 +234,13 @@ copyM dest didx src sidx count
                            (fromIntegral count)
 \end{code}
 
-`copyM` requires two `MArray`s and valid offsets into each -- note that a valid
-offset is **not** necessarily a valid *index*, it may be one element
-out-of-bounds -- and a `count` of elements to copy. The `count` must represent a
-valid region in each `MArray`, in other words `offset + count <= length` must
-hold for each array. `memcpyM` is an FFI function writen in C, which we don't
-currently support, so we simply leave it `undefined`.
+`copyM` requires two `MArray`s and valid offsets into each -- note 
+that a valid offset is **not** necessarily a valid *index*, it may 
+be one elementout-of-bounds -- and a `count` of elements to copy. 
+The `count` must represent a valid region in each `MArray`, in 
+other words `offset + count <= length` must hold for each array. 
+`memcpyM` is an FFI function writen in C, which we don't currently
+support, so we simply leave it `undefined`.
 
 \begin{code}
 {-@ memcpyM :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize -> IO () @-}
@@ -199,11 +248,15 @@ memcpyM :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize
 memcpyM = undefined
 \end{code}
 
-Now we can finally define the core datatype of the `text` package! A `Text`
-value consists of an *array*, an *offset*, and a *length*. The offset and length
-are `Nat`s satisfying two properties: (1) `off <= alen arr` and (2)
-`off + len <= alen arr`. These invariants ensure that any *index* we pick
-between `off` and `off + len` will be a valid index into `arr`.
+Now we can finally define the core datatype of the `text` package! 
+A `Text` value consists of an *array*, an *offset*, and a *length*. 
+The offset and length are `Nat`s satisfying two properties: 
+
+1. `off <= alen arr`, and 
+2. `off + len <= alen arr`
+
+These invariants ensure that any *index* we pick between `off` and 
+`off + len` will be a valid index into `arr`.
 
 \begin{code}
 data Text = Text Array Int Int
@@ -215,9 +268,11 @@ data Text = Text Array Int Int
 {-@ measure tarr :: Text -> Array
     tarr (Text a o l) = a
   @-}
+
 {-@ measure toff :: Text -> Int
     toff (Text a o l) = o
   @-}
+
 {-@ measure tlen :: Text -> Int
     tlen (Text a o l) = l
   @-}

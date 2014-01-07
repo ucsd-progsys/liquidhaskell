@@ -7,6 +7,8 @@ Indexed-Dependent Refinements
 module LiquidArray where
 
 import Language.Haskell.Liquid.Prelude (liquidAssume)
+
+{-@ LIQUID "--no-termination" @-}
 \end{code}
 
 Indexed-Dependent Refinements
@@ -103,7 +105,7 @@ A vector *defined on* integers whose *value at index `j`* is either
 Operations on Vectors
 ---------------------
 
-[Demo](http://goto.ucsd.edu/~rjhala/liquid/haskell/demo/#?demo=IMaps.hs)
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=Array.hs" target= "_blank">Demo:</a> 
 
 We give appropriate types to vector operations (empty, set, get...)
 
@@ -119,6 +121,7 @@ Empty
 
 \begin{code}
 {-@ empty :: forall <p :: Int -> a -> Prop>. Vec < {v:Int | 0=1}, p> a @-}
+
 empty     :: Vec  a
 empty     = V $ \_ -> (error "Empty array!")
 \end{code}
@@ -132,11 +135,12 @@ the result should satisfy the range at `i`
 <br>
 <br>
 
-\begin{code} 
+\begin{code}
 {-@ get :: forall a <r :: Int -> a -> Prop, d :: Int -> Prop>.
            i: Int<d>
         -> a: Vec<d, r> a
         -> a<r i> @-}
+
 get :: Int -> Vec a -> a
 get i (V f) = f i
 \end{code}
@@ -157,6 +161,7 @@ then Vector's domain will be extended with `i`
         -> x: a<r i>
         -> a: Vec < {v:Int<d> | v != i}, r> a
         -> Vec <d, r> a @-}
+
 set :: Int -> a -> Vec a -> Vec a
 set i v (V f) = V $ \k -> if k == i then v else f k
 \end{code}
@@ -180,10 +185,11 @@ We used `fib` to define the `axiom_fib`
 
 \begin{code}
 {-@ predicate Fib I = 
-  (fib i) = ((i <= 1)?1:((fib (i-1)) + fib (i-2)))
+  (fib i) = (if (i <= 1) then 1 else ((fib (i-1)) + (fib (i-2))))
   @-}
 
 {-@ assume axiom_fib :: i:Int -> {v: Bool | ((Prop v) <=> (Fib i))} @-}
+
 axiom_fib :: Int -> Bool
 axiom_fib i = undefined
 \end{code}
@@ -203,7 +209,8 @@ Fibonacci Memo
 --------------
 
 \begin{code}
-{-@ fibMemo :: FibV -> i:Int -> (FibV, {v: Int | v = fib(i)}) @-}
+{-@ fibMemo :: FibV -> i:Int -> (FibV, {v: Int | v = (fib i)}) @-}
+
 fibMemo :: Vec Int -> Int -> (Vec Int, Int)
 fibMemo t i 
   | i <= 1    
@@ -214,6 +221,6 @@ fibMemo t i
       0 -> let (t1, n1) = fibMemo t  (i-1)
                (t2, n2) = fibMemo t1 (i-2)
                n        = liquidAssume (axiom_fib i) (n1 + n2)
-           in  (set i n t2,  n)
+            in (set i n t2,  n)
       n -> (t, n)
 \end{code}

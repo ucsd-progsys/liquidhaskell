@@ -272,6 +272,7 @@ unpackWith k (PS ps s l) = inlinePerformIO $ withForeignPtr ps $ \p ->
 packWith :: (a -> Word8) -> [a] -> ByteString
 packWith k str = unsafeCreate (length str) $ \p -> go p str
     where
+        {-@ Decrease go 4 @-}
         STRICT2(go)
         go _ []     = return ()
         go p (x:xs) = poke p (k x) >> go (p `plusPtr` 1) xs -- less space than pokeElemOff

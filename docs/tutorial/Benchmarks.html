@@ -1,85 +1,44 @@
 <!DOCTYPE html>
 <head>
 <meta charset="utf-8">
-  <title></title>
+  <title>Benchmarks</title>
   <style type="text/css">code{white-space: pre;}</style>
   <link rel="stylesheet" href="slides.css" />
 </head>
 <body>
-<section class="slide level2">
-
-<center><h1>Tutorial on LiquidHaskell</h1></center>
+<section>
+  <h1 class="title">Benchmarks</h1>
+  <h3 class="date"></h3>
+</section>
+<section class="slide level2" id="benchmarks-1">
+<h1>Benchmarks</h1>
+<ul>
+  <li><p><code>Ghc.List</code>, <code>Data.List</code>: size-related properties and termination</p></li>
+<li><p><code>Data.Splay</code>: well-ordered trees and termination</p></li>
+<li><p><code>Data.Map</code>: binary-search ordered trees and termination</p></li>
+<li><p><code>Vector-Algorithms</code>: correctness of accessing, indexing and
+slicing</p></li>
+<li><p><code>Bytestring</code>: size-based low-level memory safety and termination</p></li>
+<li><p><code>Text</code>: size-based pointer-safety and termination</p></li>
+</ul>
+</section>
+<section class="slide level2" id="benchmarks-2">
 <center>
-Niki Vazou, Eric Seidel, Patrick Rondon, and Ranjit Jhala</p>
-UC San Diego
-</center>
-
-<p>
-LiquidHaskell takes as input <strong>haskell source code</strong>, 
-annotated with <strong>specifications</strong>
-and checkes whether the code satisfies the specifications.
-</pr>
-<p>
-Specifications are expressed with 
-<strong><a href="http://goto.ucsd.edu/~rjhala/liquid/liquid_types.pdf"
-           target="_blank">liquid types</a></strong>, 
-ie., a subset of dependent types for which inference and checking is decidable.
-</p>
-
-<p><h2>Try liquidHaskell</h2>
-<ul><li>Online: <a href="http://goto.ucsd.edu/liquidhaskell"
-    target="_blank">goto.ucsd.edu/liquidhaskell</a></li>
-    <li>Github: <a href="http://github.com/ucsd-progsys/liquidhaskell"
-    target="_blank">ucsd-progsys/liquidhaskell</a></li>
-  <li>Locally: `cabal install liquidhaskell`</li>
-</ul>
-</p>
-<div align="right">Press the right buttom to begin!</div>
+<p><a href="" rel="Benchmarks"> <img align=center width=550 src="benchmarks.png" alt="Benchmarks"/> </a></p>
 </section>
-<section class="slide level1" id="outline"><h1>Outline</h1>
-<ol style="list-style-type: decimal">
-<li><a target="_blank" href="SimpleRefinements.lhs.slides.html">Simple Refinements</a><br /></li>
-<li><a target="_blank" href="Measures.lhs.slides.html">Measures</a><br /></li>
-<li><a target="_blank" href="Loop.lhs.slides.html">Higher Order Refinements</a><br /></li>
-<li><a target="_blank" href="AbstractRefinements.lhs.slides.html">Abstract Refinements</a><br /></li>
-<li><a target="_blank" href="Inductive.lhs.slides.html">Inductive Refinements</a><br /></li>
-<li><a target="_blank" href="Composition.lhs.slides.html">Composing Refinements</a><br /></li>
-<li><a target="_blank" href="List.lhs.slides.html">Recursive Refinements</a><br /></li>
-<li><a target="_blank" href="Array.lhs.slides.html">Indexed Refinements</a></li>
-<li><a target="_blank" href="Laziness.lhs.slides.html">Laziness</a><br /></li>
-<li><a target="_blank" href="Benchmarks.html">Benchmarks</a><br /></li>
-</ol>
-</section>
-<section class="slide level1" id="outline"><h1>Outline</h1>
-<table><tr>
-<td>
-<ol style="list-style-type: decimal">
-<li><a target="_blank" href="SimpleRefinements.lhs.slides.html">Simple Refinements</a><br /></li>
-<li><a target="_blank" href="Measures.lhs.slides.html">Measures</a><br /></li>
-<li><a target="_blank" href="Loop.lhs.slides.html">Higher Order Refinements</a><br /></li>
-<li><a target="_blank" href="AbstractRefinements.lhs.slides.html">Abstract Refinements</a><br /></li>
-<li><a target="_blank" href="Inductive.lhs.slides.html">Inductive Refinements</a><br /></li>
-<li><a target="_blank" href="Composition.lhs.slides.html">Composing Refinements</a><br /></li>
-<li><a target="_blank" href="List.lhs.slides.html">Recursive Refinements</a><br /></li>
-<li><a target="_blank" href="Array.lhs.slides.html">Indexed Refinements</a></li>
-<li><a target="_blank" href="Laziness.lhs.slides.html">Laziness</a><br /></li>
-<li><a target="_blank" href="Benchmarks.html">Benchmarks</a><br /></li>
-</ol>
-<br>
-</td>
-<td width=400>
-<p><h2>Try liquidHaskell</h2>
-<ul><li><a href="http://goto.ucsd.edu/liquidhaskell"
-    target="_blank">goto.ucsd.edu/liquidhaskell</a></li>
-    <li>git@<a href="http://github.com/ucsd-progsys/liquidhaskell"
-    target="_blank">ucsd-progsys/liquidhaskell</a></li>
-  <li>`cabal install liquidhaskell`</li>
-</ul>
-</p></td>
-</tr></table>
-<h1><div align="right">Thank You!</div></h1>
-</section>
+<section class="slide level2" id="invariants-in-bytestring">
+<h1>Invariants in ByteString</h1>
+Invariants on the definition of Bytestring:
+<pre><span class=hs-linenum>184: </span><span class='hs-definition'>measure</span> <span class='hs-varid'>fplen</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>ForeignPtr</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span>
+<span class=hs-linenum>185: </span>
+<span class=hs-linenum>186: </span><span class='hs-keyword'>data</span> <span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>PS</span>
+<span class=hs-linenum>187: </span>  <span class='hs-layout'>{</span> <span class='hs-varid'>pay</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>ForeignPtr</span> <span class='hs-conid'>Word8</span>
+<span class=hs-linenum>188: </span>  <span class='hs-layout'>,</span> <span class='hs-varid'>off</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span><span class='hs-conid'>Nat</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>v</span> <span class='hs-varop'>&lt;=</span> <span class='hs-layout'>(</span><span class='hs-varid'>fplen</span> <span class='hs-varid'>pay</span><span class='hs-layout'>)</span><span class='hs-layout'>}</span>
+<span class=hs-linenum>189: </span>  <span class='hs-layout'>,</span> <span class='hs-varid'>len</span> <span class='hs-keyglyph'>::</span> <span class='hs-layout'>{</span><span class='hs-varid'>v</span><span class='hs-conop'>:</span><span class='hs-conid'>Nat</span> <span class='hs-keyglyph'>|</span> <span class='hs-varid'>off</span> <span class='hs-varop'>+</span> <span class='hs-varid'>v</span> <span class='hs-varop'>&lt;=</span> <span class='hs-layout'>(</span><span class='hs-varid'>fplen</span> <span class='hs-varid'>pay</span><span class='hs-layout'>)</span><span class='hs-layout'>}</span> <span class='hs-layout'>}</span>
+</pre>
 
+<p><br> Allow us to enforce low-level memory safety.</p>
+</section>
 <!-- {{{{ dzslides core
 #
 #
