@@ -66,15 +66,17 @@ Composing Refinements, Abstractly
 - With a very *descriptive* abstract refinement type!
 
 \begin{code}
-{-@ c :: forall < p :: b -> c -> Prop
+
+{-@ cc :: forall < p :: b -> c -> Prop
                 , q :: a -> b -> Prop>.
          f:(x:b -> c<p x>) 
       -> g:(x:a -> b<q x>) 
       -> y:a 
       -> exists[z:b<q y>].c<p z>
  @-}
-c :: (b -> c) -> (a -> b) -> a -> c
-c f g x = f (g x)
+
+cc :: (b -> c) -> (a -> b) -> a -> c
+cc f g x = f (g x)
 \end{code}
 
 Using Composition
@@ -85,7 +87,7 @@ We can verify the desired `plus3` function:
 \begin{code}
 {-@ plus3 :: x:Int -> {v:Int | v = x + 3} @-}
 plus3     :: Int -> Int
-plus3     = (+ 1) `c` (+ 2)
+plus3     = (+ 1) `cc` (+ 2)
 \end{code}
 
 LiquidHaskell verifies the above, by **instantiating**

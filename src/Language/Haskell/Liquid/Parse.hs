@@ -353,7 +353,7 @@ predVarUseP
 ------------------------------------------------------------------------
 
 bRPoly []    _    = errorstar "Parse.bRPoly empty list"
-bRPoly syms' expr = RPoly ss $ bRVar dummyName top r
+bRPoly syms' expr = RPoly ss $ bRVar dummyName mempty r
   where (ss, (v, _)) = (init syms, last syms)
         syms = [(y, s) | ((_, s), y) <- syms']
         su   = mkSubst [(x, EVar y) | ((x, _), y) <- syms'] 
@@ -367,16 +367,15 @@ bTup [t] _ r | isTauto r  = t
              | otherwise  = t `strengthen` (reftUReft r) 
 bTup ts rs r              = RApp (dummyLoc tupConName) ts rs (reftUReft r)
 
-bCon b [RMono _ r1] [] r  = RApp b [] [] (r1 `meet` (reftUReft r)) 
 bCon b rs ts r            = RApp b ts rs (reftUReft r)
 
 -- bAppTy v t r             = RAppTy (RVar v top) t (reftUReft r)
-bAppTy v ts r             = (foldl' (\a b -> RAppTy a b top) (RVar v top) ts) `strengthen` (reftUReft r)
+bAppTy v ts r             = (foldl' (\a b -> RAppTy a b mempty) (RVar v mempty) ts) `strengthen` (reftUReft r)
 
 
 reftUReft      = (`U` mempty)
 predUReft      = (U dummyReft) 
-dummyReft      = top
+dummyReft      = mempty
 dummyTyId      = ""
 dummyRSort     = ROth "dummy"
 
