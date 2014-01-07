@@ -1094,7 +1094,7 @@ cconsE γ (Tick tt e) t
   = cconsE (γ `setLoc` tickSrcSpan tt) e t
 
 cconsE γ e@(Cast e' _) t     
-  = do t' <- castTy (exprType e) e' -- trueTy $ exprType e
+  = do t' <- castTy γ (exprType e) e' -- trueTy $ exprType e
        addC (SubC γ t' t) ("cconsE Cast" ++ showPpr e) 
 
 cconsE γ e (RAllP p t)
@@ -1194,7 +1194,7 @@ consE γ (Tick tt e)
     where l = {- traceShow ("tickSrcSpan: e = " ++ showPpr e) $ -} tickSrcSpan tt
 
 consE γ e@(Cast e' _)      
-  = castTy (exprType e) e'
+  = castTy γ (exprType e) e'
 
 consE γ e@(Coercion _)
    = trueTy $ exprType e
@@ -1202,12 +1202,14 @@ consE γ e@(Coercion _)
 consE _ e	    
   = errorstar $ "consE cannot handle " ++ showPpr e 
 
-castTy τ (Var x)
+castTy _ τ (Var x)
   = do t <- trueTy τ 
        return $  t `strengthen` (uTop $ F.uexprReft $ F.expr x)
 
-castTy τ _
-  = trueTy τ 
+castTy γ τ e
+  = do t <- trueTy (exprType e)
+       cconsE γ e t
+       trueTy τ 
 
 singletonReft = uTop . F.symbolReft . F.symbol 
 
