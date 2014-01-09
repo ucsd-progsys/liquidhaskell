@@ -1,4 +1,4 @@
-module Poslist where
+module Poslist () where
 
 import Language.Haskell.Liquid.Prelude
 

@@ -1,4 +1,4 @@
-module Meas where
+module Meas () where
 
 expand f []     = []
 expand f (x:xs) = (f x) ++ (expand f xs)

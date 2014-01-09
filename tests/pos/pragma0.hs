@@ -1,6 +1,6 @@
 {-@ LIQUID "--notermination" @-}
 
-module Test0 where
+module Test0 () where
 
 
 -- an obviously non-terminating function

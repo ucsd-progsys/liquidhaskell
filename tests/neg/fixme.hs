@@ -1,4 +1,4 @@
-module Reverse where
+module Reverse () where
 
 import Language.Haskell.Liquid.Prelude        
 import Prelude hiding (reverse)

@@ -1,4 +1,4 @@
-module Test761 where
+module Test761 () where
 
 import Language.Haskell.Liquid.Prelude
 

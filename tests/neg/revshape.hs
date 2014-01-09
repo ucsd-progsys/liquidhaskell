@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
 
-module Shapes where
+module Shapes () where
  
 -- https://gist.github.com/cartazio/6891549
 

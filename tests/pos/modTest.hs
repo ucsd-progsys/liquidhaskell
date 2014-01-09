@@ -1,4 +1,4 @@
-module Goober where
+module Goober () where
 
 import Language.Haskell.Liquid.Prelude (isEven)
 

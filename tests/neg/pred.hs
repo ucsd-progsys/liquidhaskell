@@ -1,4 +1,4 @@
-module Foo where
+module Foo () where
 
 {-@ predicate Gt x y = (x < y) @-}
 

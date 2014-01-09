@@ -1,5 +1,5 @@
 {--! run liquid with no-termination -}
-module Blank where
+module Blank () where
 
 -- This is a blank file.
 

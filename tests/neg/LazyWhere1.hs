@@ -1,4 +1,4 @@
-module LazyWhere where
+module LazyWhere () where
 
 import Language.Haskell.Liquid.Prelude
 

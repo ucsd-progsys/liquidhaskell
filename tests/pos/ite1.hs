@@ -1,4 +1,4 @@
-module Test0 where
+module Test0 () where
 
 {-@ assert myabs :: x:Int -> {v: Int | v = ((x > 0) ? x : (0 - x)) } @-}
 myabs :: Int -> Int

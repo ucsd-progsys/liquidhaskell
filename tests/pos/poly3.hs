@@ -1,4 +1,4 @@
-module Meas where
+module Meas () where
 
 expand          :: (a -> [b]) -> [a] -> [b]
 expand f []     = []

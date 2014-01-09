@@ -1,4 +1,4 @@
-module Monad where
+module Monad () where
 
 
 -- create :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString

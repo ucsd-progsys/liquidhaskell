@@ -6,6 +6,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE LambdaCase                #-}
 
 -- | This module contains a wrappers and utility functions for
 -- accessing GHC module information. It should NEVER depend on
@@ -15,12 +16,14 @@ module Language.Haskell.Liquid.GhcMisc where
 
 import           Debug.Trace
 
-import           Kind                         (superKind)
+import           Avail                        (availsToNameSet)
 import           CoreSyn                      hiding (Expr)
 import           CostCentre
 import           FamInstEnv                   (FamInst)
 import           GHC                          hiding (L)
 import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..))
+import           Kind                         (superKind)
+import           NameSet                      (NameSet)
 import           SrcLoc                       (srcSpanFile, srcSpanStartLine, srcSpanStartCol)
 
 import           Language.Fixpoint.Misc       (errorstar, stripParens)
@@ -28,7 +31,7 @@ import           Text.Parsec.Pos              (sourceName, sourceLine, sourceCol
 import           Language.Fixpoint.Types      hiding (SESearch(..))
 import           Name                         (mkInternalName, getSrcSpan)
 import           OccName                      (mkTyVarOcc, mkTcOcc)
-import           Unique                       
+import           Unique
 import           Finder                       (findImportedModule, cannotFindModule)
 import           DynamicLoading
 import           ErrUtils
@@ -44,7 +47,7 @@ import           OccName
 
 import           RdrName
 import           Type                         (liftedTypeKind, eqType)
-import           TypeRep                       
+import           TypeRep
 import           Var
 -- import           TyCon                        (mkSuperKindTyCon)
 import qualified TyCon                        as TC
@@ -53,8 +56,8 @@ import           FastString                   (uniq, unpackFS, fsLit)
 import           Data.Char                    (isLower, isSpace)
 import           Data.Maybe
 import           Data.Hashable
-import qualified Data.HashSet                 as S    
-import qualified Data.List                    as L    
+import qualified Data.HashSet                 as S
+import qualified Data.List                    as L
 import           Control.Applicative          ((<$>))
 import           Control.Arrow                (second)
 import           Control.Exception            (assert, throw)
@@ -78,6 +81,7 @@ data MGIModGuts = MI {
   , mgi_rdr_env   :: !GlobalRdrEnv
   , mgi_tcs       :: ![TyCon]
   , mgi_fam_insts :: ![FamInst]
+  , mgi_exports   :: !NameSet
   }
 
 miModGuts mg = MI {
@@ -88,6 +92,7 @@ miModGuts mg = MI {
   , mgi_rdr_env   = mg_rdr_env mg
   , mgi_tcs       = mg_tcs mg
   , mgi_fam_insts = mg_fam_insts mg
+  , mgi_exports   = availsToNameSet $ mg_exports mg
   }
 
 -----------------------------------------------------------------------

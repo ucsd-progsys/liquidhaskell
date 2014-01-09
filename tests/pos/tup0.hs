@@ -1,4 +1,4 @@
-module DepTup0 where
+module DepTup0 () where
 
 {-@ type PlusOne = (Int, Int)<{\x v -> v > x}> @-}
 

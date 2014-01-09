@@ -1,4 +1,4 @@
-module Import0 where
+module Import0 () where
 
 import Language.Haskell.Liquid.Prelude
 import Foreign.Storable

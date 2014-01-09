@@ -1,4 +1,4 @@
-module Ass where
+module Ass () where
 
 -- import Language.Haskell.Liquid.Prelude (liquidAssert)
 

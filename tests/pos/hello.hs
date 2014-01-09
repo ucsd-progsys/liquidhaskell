@@ -1,4 +1,4 @@
-module Hello where
+module Hello () where
 
 {-@ abz :: (Num a, Ord a) => x:a -> {v: a | v >= x} @-}
 abz x   = if (x > 0) then x else (0 - x)  

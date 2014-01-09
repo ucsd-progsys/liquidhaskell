@@ -1,6 +1,6 @@
 {--! run liquid with no-termination -}
 
-module Ex where
+module Ex () where
 
 -- Testing "existential-types"
 

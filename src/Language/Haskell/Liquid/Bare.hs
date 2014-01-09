@@ -16,6 +16,7 @@ import GHC hiding               (lookupName, Located)
 import Text.PrettyPrint.HughesPJ    hiding (first)
 import Var
 import Name                     (getSrcSpan)
+import NameSet
 import Id                       (isConLikeId)
 import PrelNames
 import PrelInfo                 (wiredInThings)
@@ -62,13 +63,13 @@ import TypeRep
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
 
-makeGhcSpec :: Config -> ModName -> [Var] -> [Var] -> HscEnv
+makeGhcSpec :: Config -> ModName -> [Var] -> [Var] -> NameSet -> HscEnv
             -> [(ModName,Ms.BareSpec)]
             -> IO GhcSpec
-makeGhcSpec cfg name vars defVars env specs
+makeGhcSpec cfg name vars defVars exports env specs
   = throwOr (throwOr return . checkGhcSpec specs) =<< execBare act initEnv
   where
-    act = makeGhcSpec' cfg vars defVars specs
+    act = makeGhcSpec' cfg vars defVars exports specs
     throwOr = either Ex.throw
     initEnv = BE name mempty mempty mempty env
 
@@ -99,10 +100,10 @@ checkMBody γ emb name sort (Def s c bs body) = go γ' body
 
     sty = rTypeSortedReft emb (thd3 $ bkArrowDeep sort)
 
-makeGhcSpec' :: Config -> [Var] -> [Var]
+makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet
              -> [(ModName,Ms.BareSpec)]
              -> BareM (GhcSpec, [Measure SpecType DataCon])
-makeGhcSpec' cfg vars defVars specs
+makeGhcSpec' cfg vars defVars exports specs
   = do name <- gets modName
        makeRTEnv (concat [map (mod,) $ Ms.aliases  sp | (mod,sp) <- specs])
                  (concat [map (mod,) $ Ms.paliases sp | (mod,sp) <- specs])
@@ -166,6 +167,7 @@ makeGhcSpec' cfg vars defVars specs
                               , lazy       = lazies
                               , tgtVars    = targetVars
                               , config     = cfg
+                              , exports    = exports
                               }
                           , subst su <$> M.elems $ Ms.measMap measures)
 
@@ -228,12 +230,12 @@ txPredReft f (U r p) = (`U` p) <$> txPredReft' f r
 
 expandRPAliasE l = expandPAlias l []
 
--- TODO: this function is monstrously big. please split up.
 expandAlias :: Show p => p -> [String] -> BareType -> BareM SpecType
 expandAlias l = go
   where
     go s t@(RApp (Loc _ c) _ _ _)
-      | c `elem` s = errorstar $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
+      | c `elem` s = Ex.throw $ ErrOther $ text
+                              $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
       | otherwise  = lookupExpandRTApp l s t
     go s (RVar a r)       = RVar (stringRTyVar a) <$> resolve r
     go s (RFun x t t' r)  = rFun x <$> go s t <*> go s t'

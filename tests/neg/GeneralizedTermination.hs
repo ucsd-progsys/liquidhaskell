@@ -1,4 +1,4 @@
-module GenTerm where
+module GenTerm () where
 
 foo :: Int -> Int -> Int
 {-@ foo :: n:Nat -> m:Nat -> Nat /[n+m] @-}

@@ -1,7 +1,7 @@
 
 {-@ LIQUID "--no-termination" @-}
 
-module Encoding where
+module Encoding () where
 
 data F a = F a
 data BS = BS (F Int)

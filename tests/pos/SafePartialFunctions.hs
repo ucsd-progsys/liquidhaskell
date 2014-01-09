@@ -1,4 +1,4 @@
-module SafePartialFunctions where
+module SafePartialFunctions () where
 
 {-@ LIQUID "--totality" @-}
 import Prelude hiding (fromJust, tail, head)

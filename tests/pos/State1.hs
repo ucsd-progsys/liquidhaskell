@@ -1,4 +1,4 @@
-module State0 where
+module State0 () where
 
 import State
 

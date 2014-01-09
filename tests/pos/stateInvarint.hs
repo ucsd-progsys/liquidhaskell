@@ -1,4 +1,4 @@
-module StateMonad where
+module StateMonad () where
 
 import Prelude hiding (return, (>>=))
 

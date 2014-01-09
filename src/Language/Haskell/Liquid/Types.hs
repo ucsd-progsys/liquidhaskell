@@ -111,6 +111,7 @@ import FastString                               (fsLit)
 import SrcLoc                                   (mkGeneralSrcSpan, SrcSpan)
 import TyCon
 import DataCon
+import NameSet
 import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Var
 import Unique
@@ -245,6 +246,7 @@ data GhcSpec = SP {
   , lvars      :: !(S.HashSet Var)               -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
   , config     :: !Config                        -- ^ Configuration Options
+  , exports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
   }
 
 

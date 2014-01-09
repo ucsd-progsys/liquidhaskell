@@ -1,4 +1,4 @@
-module Fixme where
+module Fixme () where
 
 {-@ LIQUID "--no-termination" @-}
 {-@ type SL a = [a]<{\x v -> x <= v}> @-}

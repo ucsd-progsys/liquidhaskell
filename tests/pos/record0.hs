@@ -1,4 +1,4 @@
-module Rec0 where
+module Rec0 () where
 
 import Language.Haskell.Liquid.Prelude
 
