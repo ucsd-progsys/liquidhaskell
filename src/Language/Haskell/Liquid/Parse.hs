@@ -150,7 +150,7 @@ bareTypeP
  <|> bareAtomP refP
 
 bareArgP vv
-  =  bareAtomP (refDefP vv)
+  =  bareAtomP (refDefP vv refasP)
  <|> parens bareTypeP
 
 bareAtomP ref
