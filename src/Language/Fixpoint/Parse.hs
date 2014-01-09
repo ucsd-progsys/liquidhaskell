@@ -33,6 +33,7 @@ module Language.Fixpoint.Parse (
   , qualifierP  -- Qualifiers
   , refP        -- (Sorted) Refinements
   , refDefP     -- (Sorted) Refinements with default binder
+  , refBindP    -- (Sorted) Refinements with configurable sub-parsers
 
   -- * Some Combinators
   , condIdP     -- condIdP  :: [Char] -> (String -> Bool) -> Parser String
@@ -303,19 +304,19 @@ refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
        <|> liftM ((:[]) . RConc) predP
 
-refBindP :: Parser Symbol -> Parser (Reft -> a) -> Parser a
-refBindP bp kindP
+refBindP :: Parser Symbol -> Parser [Refa] -> Parser (Reft -> a) -> Parser a
+refBindP bp rp kindP
   = braces $ do
       vv  <- bp
       t   <- kindP
       reserved "|"
-      ras <- refasP 
+      ras <- rp
       return $ t (Reft (vv, ras))
 
 bindP       = liftM stringSymbol (lowerIdP <* colon)
 optBindP vv = try bindP <|> return vv
 
-refP       = refBindP bindP
+refP       = refBindP bindP refasP
 refDefP vv = refBindP (optBindP vv)
 
 ---------------------------------------------------------------------
