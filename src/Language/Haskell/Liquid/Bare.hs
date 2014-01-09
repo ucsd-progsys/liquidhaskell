@@ -147,7 +147,10 @@ makeGhcSpec' cfg vars defVars specs
                                                  , mod == name
                                                  ]
        quals           <- mconcat <$> mapM makeQualifiers specs
-       return           $ (SP { tySigs     = renameTyVars <$> tx sigs
+       let sigs' = renameTyVars <$> tx sigs
+       sigs'' <- forM sigs' $ \(x,Loc l t) ->
+         (x,) . Loc l <$> plugHoles (expandTypeSynonyms $ varType x) t
+       return           $ (SP { tySigs     = sigs'' --renameTyVars <$> tx sigs
                               , ctors      = tx cs'
                               , meas       = tx (ms' ++ varMeasures vars ++ cms')
                               , invariants = invs
@@ -442,34 +445,28 @@ isSimpleType t = null tvs && isNothing (splitFunTy_maybe tb)
 
 -- This throws an exception if there is a mismatch
 -- renameTyVars :: (Var, SpecType) -> (Var, SpecType)
-renameTyVars (x, lt@(Loc l t))
-  | length as == length αs = (x, Loc l $ mkUnivs (rTyVar <$> αs) [] t')
-  | otherwise              = Ex.throw  $ err 
-  where 
+renameTyVars (x, lt@(Loc l t)) = (x, Loc l $ mkUnivs (rTyVar <$> αs) [] t')
+  where
     t'                     = subts su (mkUnivs [] ps tbody)
     su                     = [(y, rTyVar x) | (x, y) <- tyvsmap]
     tyvsmap                = vmap $ execState (mapTyVars τbody tbody) initvmap 
-    initvmap               = initMapSt αs as err
+    initvmap               = initMapSt err
     (αs, τbody)            = splitForAllTys $ expandTypeSynonyms $ varType x
     (as, ps, tbody)        = bkUniv t
     err                    = errTypeMismatch x lt
 
 
-data MapTyVarST = MTVST { τvars  :: S.HashSet Var
-                        , tvars  :: S.HashSet RTyVar
-                        , vmap   :: [(Var, RTyVar)] 
+data MapTyVarST = MTVST { vmap   :: [(Var, RTyVar)]
                         , errmsg :: Error 
                         }
 
-initMapSt α a  = MTVST (S.fromList α) (S.fromList a) []
+initMapSt = MTVST []
 
 mapTyVars :: (PPrint r, Reftable r) => Type -> RRType r -> State MapTyVarST ()
 mapTyVars τ (RAllT a t)   
-  = do modify $ \s -> s{ tvars = S.delete a (tvars s) }
-       mapTyVars τ t 
+  = mapTyVars τ t
 mapTyVars (ForAllTy α τ) t 
-  = do modify $ \s -> s{ τvars = S.delete α (τvars s) }
-       mapTyVars τ t 
+  = mapTyVars τ t
 mapTyVars (FunTy τ τ') (RFun _ t t' _) 
    = mapTyVars τ t  >> mapTyVars τ' t'
 mapTyVars (TyConApp _ τs) (RApp _ ts _ _) 
@@ -489,17 +486,16 @@ mapTyVars τ (RExprArg _)
 mapTyVars (AppTy τ τ') (RAppTy t t' _) 
   = do  mapTyVars τ t 
         mapTyVars τ' t' 
-mapTyVars τ t               
+mapTyVars τ RHole
+  = return ()
+mapTyVars τ t
   = Ex.throw =<< errmsg <$> get
-       -- errorstar $ "Bare.mapTyVars : " ++ err
 
-mapTyRVar α a s@(MTVST αs as αas err)
-  | (α `S.member` αs) && (a `S.member` as)
-  = MTVST (S.delete α αs) (S.delete a as) ((α, a):αas) err
-  | (not (α `S.member` αs)) && (not (a `S.member` as))
-  = s
-  | otherwise
-  = Ex.throw err -- errorstar err
+mapTyRVar α a s@(MTVST αas err)
+  = case lookup α αas of
+      Just a' | a == a'   -> s
+              | otherwise -> Ex.throw err
+      Nothing             -> MTVST ((α,a):αas) err
 
 mkVarExpr v 
   | isDataConWorkId v && not (null tvs) && isNothing tfun
@@ -678,7 +674,8 @@ warn x = tell [x]
 
 
 mkVarSpec :: (Var, LocSymbol, BareType) -> BareM (Var, Located SpecType)
-mkVarSpec (v, Loc l _, b) = tx <$> (plugHoles t =<< mkSpecType l b)
+mkVarSpec (v, Loc l _, b) = tx <$> (-- plugHoles t =<<
+                                    mkSpecType l b)
   where
     tx = (v,) . Loc l . generalize . traceShow (printf "plugHoles %s" (showPpr v))
     t = expandTypeSynonyms $ varType v

@@ -616,6 +616,8 @@ subsFree m s z (RRTy r t)
   = RRTy r (subsFree m s z t)
 subsFree _ _ _ t@(ROth _)        
   = t
+subsFree _ _ _ t@RHole
+  = t
 -- subsFree _ _ _ t      
 --   = errorstar $ "subsFree fails on: " ++ showFix t
 
