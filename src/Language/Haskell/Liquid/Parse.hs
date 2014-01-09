@@ -159,7 +159,7 @@ bareAtomP ref
  <|> try (dummyP (bbaseP <* spaces))
 
 holeP = reserved "_" >> spaces >> return RHole
-refasHoleP = refasP <|> (reserved "_" >> return [RKvar (S "HOLE") mempty])
+refasHoleP = refasP <|> (reserved "_" >> return [hole])
 
 bbaseP :: Parser (Reft -> BareType)
 bbaseP 
