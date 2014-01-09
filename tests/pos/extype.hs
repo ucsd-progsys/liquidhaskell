@@ -1,5 +1,5 @@
 {-# LANGUAGE ExistentialQuantification, MultiParamTypeClasses #-}
-module ExTy where
+module ExTy () where
 
 class Show (layout a) => LayoutClass layout a where
 

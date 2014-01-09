@@ -1,4 +1,4 @@
-module Sumk where
+module Sumk () where
 
 import Language.Haskell.Liquid.Prelude
 

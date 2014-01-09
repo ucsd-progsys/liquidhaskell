@@ -1,4 +1,4 @@
-module Tx where
+module Tx () where
 
 {-@ assert compre :: xs:[a] -> {v:[(a,a)] | len(v) = len(xs) } @-}
 compre xs = [(x,x) | x <- xs]

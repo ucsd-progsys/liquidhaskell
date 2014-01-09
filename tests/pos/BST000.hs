@@ -1,4 +1,4 @@
-module BST where
+module BST () where
 
 import Language.Haskell.Liquid.Prelude
 

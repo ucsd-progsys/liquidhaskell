@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module MutualRec where
+module MutualRec () where
 
 import Language.Haskell.Liquid.Prelude
 

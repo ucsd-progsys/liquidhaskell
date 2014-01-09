@@ -1,4 +1,4 @@
-module DataBase where
+module DataBase () where
 
 data Rec s v = R (s -> v)
 type DBRec = Rec String Value

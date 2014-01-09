@@ -1,4 +1,4 @@
-module Blank where
+module Blank () where
 
 -- Currently, we cannot write the signature:
 

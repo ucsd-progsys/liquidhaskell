@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
 
-module LambdaEval where
+module LambdaEval () where
 
 import Data.List        (lookup)
 

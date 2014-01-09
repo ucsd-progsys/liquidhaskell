@@ -1,4 +1,4 @@
-module Ackermann where
+module Ackermann () where
 
 {-@ ack :: m:Nat -> n:Nat -> Nat / [m, n]@-}
 ack :: Int -> Int -> Int

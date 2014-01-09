@@ -1,4 +1,4 @@
-module Foo where
+module Foo () where
 
 {-@ predicate Lt X Y = X < Y        @-}
 {-@ predicate Ge X Y = not (Lt X Y) @-}

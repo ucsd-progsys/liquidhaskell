@@ -1,4 +1,4 @@
-module For where
+module For () where
 
 import Language.Haskell.Liquid.Prelude
 

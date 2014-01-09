@@ -1,4 +1,4 @@
-module GhcSort where
+module GhcSort () where
 
 {-@ LIQUID "--no-termination" @-}
 

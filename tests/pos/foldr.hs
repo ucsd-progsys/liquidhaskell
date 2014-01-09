@@ -1,4 +1,4 @@
-module Foldr where
+module Foldr () where
 
 import Language.Haskell.Liquid.Prelude
 import Data.List (foldl')

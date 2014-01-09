@@ -1,4 +1,4 @@
-module Test0 where
+module Test0 () where
 
 {-@ type NegInt = {v: Int | v <= 0} @-}
 {-@ myabs :: Int -> NegInt @-}

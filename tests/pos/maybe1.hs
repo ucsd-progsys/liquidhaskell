@@ -1,4 +1,4 @@
-module Test where
+module Test () where
 
 data MaybeS a = NothingS | JustS !a
 

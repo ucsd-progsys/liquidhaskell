@@ -1,4 +1,4 @@
-module Holes where
+module Holes () where
 
 {-@ foo :: x:_ -> y:{Int | y > 0} -> _ @-}
 foo :: Int -> Int -> Int

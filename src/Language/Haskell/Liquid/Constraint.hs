@@ -38,6 +38,7 @@ import Class            (Class, className)
 import Var
 import Id
 import Name            -- (getSrcSpan, getOccName)
+import NameSet
 import Text.PrettyPrint.HughesPJ
 
 import Control.Monad.State
@@ -170,7 +171,8 @@ assm_grty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
 grtyTop info     = forM topVs $ \v -> (v,) <$> (trueTy $ varType v) -- val $ varSpecType v) | v <- defVars info, isTop v]
   where
     topVs        = filter isTop $ defVars info
-    isTop v      = isExportedId v && not (v `S.member` useVs) && not (v `S.member` sigVs)
+    isTop v      = isExportedId v && not (v `S.member` sigVs)
+    isExportedId = flip elemNameSet (exports $ spec info) . getName
     useVs        = S.fromList $ useVars info
     sigVs        = S.fromList $ [v | (v,_) <- tySigs $ spec info]
 

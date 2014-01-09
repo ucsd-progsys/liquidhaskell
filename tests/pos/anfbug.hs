@@ -1,6 +1,6 @@
 {--! run liquid with no-termination -}
 
-module Tx where
+module Tx () where
 
 import Control.Exception (assert)
 

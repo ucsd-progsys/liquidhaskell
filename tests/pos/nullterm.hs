@@ -1,6 +1,6 @@
 {--! run liquid with no-termination -}
 
-module NullTerm where
+module NullTerm () where
 
 import Language.Haskell.Liquid.Prelude
 import LiquidArray
