@@ -147,10 +147,11 @@ makeGhcSpec' cfg vars defVars specs
                                                  , mod == name
                                                  ]
        quals           <- mconcat <$> mapM makeQualifiers specs
-       let sigs' = renameTyVars <$> tx sigs
-       sigs'' <- forM sigs' $ \(x,Loc l t) ->
-         (x,) . Loc l <$> plugHoles (expandTypeSynonyms $ varType x) t
-       return           $ (SP { tySigs     = sigs'' --renameTyVars <$> tx sigs
+       let renamedSigs = renameTyVars <$> tx sigs
+           pluggedSigs = [ (x, plugHoles τ <$> t)
+                         | (x, t) <- renamedSigs
+                         , let τ = expandTypeSynonyms $ varType x]
+       return           $ (SP { tySigs     = pluggedSigs
                               , ctors      = tx cs'
                               , meas       = tx (ms' ++ varMeasures vars ++ cms')
                               , invariants = invs
@@ -245,7 +246,6 @@ expandAlias l = go
     go _ (ROth s)         = return $ ROth s
     go _ (RExprArg e)     = return $ RExprArg e
     go _ RHole            = return $ RHole
---    go _ RHole            = errorstar $ printf "Found hole in %s\n" (showpp t0)
 
 
 lookupExpandRTApp l s (RApp lc@(Loc _ c) ts rs r) = do
@@ -674,33 +674,27 @@ warn x = tell [x]
 
 
 mkVarSpec :: (Var, LocSymbol, BareType) -> BareM (Var, Located SpecType)
-mkVarSpec (v, Loc l _, b) = tx <$> (-- plugHoles t =<<
-                                    mkSpecType l b)
+mkVarSpec (v, Loc l _, b) = tx <$> mkSpecType l b
   where
-    tx = (v,) . Loc l . generalize . traceShow (printf "plugHoles %s" (showPpr v))
-    t = expandTypeSynonyms $ varType v
+    tx = (v,) . Loc l . generalize
 
-plugHoles :: Type -> SpecType -> BareM SpecType
-plugHoles t              RHole              = return $ fmap (const k) t'
-  where k           = uReft (S "VV", [RKvar (S "HOLE") mempty])
+plugHoles :: Type -> SpecType -> SpecType
+plugHoles t              RHole              = fmap (const r) t'
+  where r           = uReft (S "VV", [hole])
         t' :: RSort = ofType t
-plugHoles (TyVarTy _)    v@(RVar _ _)       = return v
-plugHoles (FunTy i o)    (RFun x i' o' r)   = RFun x <$> plugHoles i i'
-                                                     <*> plugHoles o o'
-                                                     <*> return r
+plugHoles (TyVarTy _)    v@(RVar _ _)       = v
+plugHoles (FunTy i o)    (RFun x i' o' r)   = RFun x (plugHoles i i') (plugHoles o o') r
 plugHoles (ForAllTy _ t) t'                 = plugHoles t t'
-plugHoles t              (RAllT a t')       = RAllT a <$> plugHoles t t'
-plugHoles t              (RAllP p t')       = RAllP p <$> plugHoles t t'
-plugHoles t              (RAllE b a t')     = RAllE b a <$> plugHoles t t'
-plugHoles t              (REx b x t')       = REx b x <$> plugHoles t t'
-plugHoles (AppTy t1 t2)  (RAppTy t1' t2' r) = RAppTy <$> plugHoles t1 t1'
-                                                     <*> plugHoles t2 t2'
-                                                     <*> return r
-plugHoles (TyConApp _ t) (RApp c t' p r)    = RApp c <$> zipWithM plugHoles t t'
-                                                     <*> return p <*> return r
-plugHoles (TyConApp _ t) (RCls c t')        = RCls c <$> zipWithM plugHoles t t'
-plugHoles t              st                 = errorstar msg
+plugHoles t              (RAllT a t')       = RAllT a $ plugHoles t t'
+plugHoles t              (RAllP p t')       = RAllP p $ plugHoles t t'
+plugHoles t              (RAllE b a t')     = RAllE b a $ plugHoles t t'
+plugHoles t              (REx b x t')       = REx b x $ plugHoles t t'
+plugHoles (AppTy t1 t2)  (RAppTy t1' t2' r) = RAppTy (plugHoles t1 t1') (plugHoles t2 t2') r
+plugHoles (TyConApp _ t) (RApp c t' p r)    = RApp c (zipWith plugHoles t t') p r
+plugHoles (TyConApp _ t) (RCls c t')        = RCls c $ zipWith plugHoles t t'
+plugHoles t              st                 = Ex.throw err
   where
+    err = ErrOther $ text msg
     msg = printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showPpr t) (showpp st)
 
 showTopLevelVars vs = 

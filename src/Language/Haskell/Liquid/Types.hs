@@ -49,7 +49,9 @@ module Language.Haskell.Liquid.Types (
 
   -- * Default unknown name
   , dummyName, isDummy
-  
+  -- * Refinement Hole
+  , hole
+
   -- * Traversing `RType` 
   , efoldReft, foldReft
   , mapReft, mapReftM
@@ -1189,3 +1191,4 @@ instance PPrint KVProf where
 instance NFData KVProf where
   rnf (KVP m) = rnf m `seq` () 
 
+hole = RKvar (S "HOLE") mempty
