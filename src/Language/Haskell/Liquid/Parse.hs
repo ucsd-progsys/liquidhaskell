@@ -147,18 +147,19 @@ bareTypeP
  <|> bareAllExprP
  <|> bareExistsP
  <|> try bareFunP
- <|> bareAtomP refP
+ <|> bareAtomP (refBindP bindP)
 
 bareArgP vv
   =  bareAtomP (refDefP vv)
  <|> parens bareTypeP
 
 bareAtomP ref
-  =  ref bbaseP
+  =  ref refasHoleP bbaseP
  <|> holeP
  <|> try (dummyP (bbaseP <* spaces))
 
 holeP = reserved "_" >> spaces >> return RHole
+refasHoleP = refasP <|> (reserved "_" >> return [RKvar (S "HOLE") mempty])
 
 bbaseP :: Parser (Reft -> BareType)
 bbaseP 
