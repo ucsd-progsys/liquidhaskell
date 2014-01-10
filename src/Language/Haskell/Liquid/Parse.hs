@@ -150,7 +150,7 @@ bareTypeP
  <|> bareAtomP (refBindP bindP)
 
 bareArgP vv
-  =  bareAtomP (refDefP vv)
+  =  bareAtomP (refDefP vv refasP)
  <|> parens bareTypeP
 
 bareAtomP ref
@@ -368,6 +368,11 @@ bTup [t] _ r | isTauto r  = t
              | otherwise  = t `strengthen` (reftUReft r) 
 bTup ts rs r              = RApp (dummyLoc tupConName) ts rs (reftUReft r)
 
+
+-- Temporarily restore this hack benchmarks/esop2013-submission/Array.hs fails
+-- w/o it
+-- TODO RApp Int [] [p] true should be syntactically different than RApp Int [] [] p
+bCon b [RMono _ r1] [] r  = RApp b [] [] (r1 `meet` (reftUReft r)) 
 bCon b rs ts r            = RApp b ts rs (reftUReft r)
 
 -- bAppTy v t r             = RAppTy (RVar v top) t (reftUReft r)
