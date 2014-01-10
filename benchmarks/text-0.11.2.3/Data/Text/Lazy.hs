@@ -1325,6 +1325,7 @@ breakOnAll pat src
 
 -- | /O(n)/ 'break' is like 'span', but the prefix returned is over
 -- elements that fail the predicate @p@.
+{-@ break :: (Char -> Bool) -> t:Text -> (Text, Text)<{\x y -> (ltlength t) = (ltlength x) + (ltlength y)}> @-}
 break :: (Char -> Bool) -> Text -> (Text, Text)
 break p t0 = break' t0
   where break' Empty          = (empty, empty)
@@ -1340,6 +1341,7 @@ break p t0 = break' t0
 -- a pair whose first element is the longest prefix (possibly empty)
 -- of @t@ of elements that satisfy @p@, and whose second is the
 -- remainder of the list.
+{-@ span :: (Char -> Bool) -> t:Text -> (Text, Text)<{\x y -> (ltlength t) = (ltlength x) + (ltlength y)}> @-}
 span :: (Char -> Bool) -> Text -> (Text, Text)
 span p = break (not . p)
 {-# INLINE span #-}
@@ -1358,6 +1360,7 @@ group =  groupBy (==)
 {-# INLINE group #-}
 
 -- | The 'groupBy' function is the non-overloaded version of 'group'.
+{-@ Lazy groupBy @-}
 groupBy :: (Char -> Char -> Bool) -> Text -> [Text]
 groupBy _  Empty        = []
 groupBy eq (Chunk t ts) = cons x ys : groupBy eq zs
@@ -1551,6 +1554,7 @@ chunksOf k = go
 -- | /O(n)/ Breaks a 'Text' up into a list of 'Text's at
 -- newline 'Char's. The resulting strings do not contain newlines.
 {-@ lines :: t:Text -> [{v:Text | (ltlength v) <= (ltlength t)}] @-}
+{-@ Lazy lines @-}
 lines :: Text -> [Text]
 lines Empty = []
 lines t = let (l,t') = break ((==) '\n') t

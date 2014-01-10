@@ -468,7 +468,7 @@ doMapLoop f noAcc src dest len = loop len 0
                 pokeByteOff dest n (f x)
                 loop (d-1) (n+1) -- offset always the same, only pass 1 arg
 
-{-@ doFilterLoop :: FilterEFL -> noAcc -> ImperativeLoop noAcc @-}
+{-@ doFilterLoop :: FilterEFL -> noAcc -> ImperativeLoopLE noAcc @-}
 doFilterLoop :: FilterEFL -> noAcc -> ImperativeLoop noAcc
 doFilterLoop f noAcc src dest len = loop len 0 0
         {-@ Decrease loop 6 @-} -- LIQUID TRANSFORMATION

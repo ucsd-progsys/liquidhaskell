@@ -2734,11 +2734,12 @@ glue kcut l r
 -- > deleteFindMin (fromList [(5,"a"), (3,"b"), (10,"c")]) == ((3,"b"), fromList[(5,"a"), (10,"c")])
 -- > deleteFindMin                                            Error: can not return the minimal element of an empty map
 
+{-@ deleteFindMin :: OMap k a -> (k, a, OMap k a)<{\k a -> true}, \a k -> {v0:Map ({v:k | v > k}) a | true}> @-}
 deleteFindMin :: Map k a -> (k, a, Map k a)
 deleteFindMin t
   = case t of
       Bin _ k x Tip r -> (k, x, r)
-      Bin _ k x l r   -> let (km, m, l') = deleteFindMin l in (km, m, balanceR k x l' r)
+      --Bin _ k x l r   -> let (km, m, l') = deleteFindMin l in (km, m, balanceR k x l' r)
       Tip             -> error "Map.deleteFindMin: can not return the minimal element of an empty map"
 
 -- | /O(log n)/. Delete and find the maximal element.
@@ -2746,6 +2747,7 @@ deleteFindMin t
 -- > deleteFindMax (fromList [(5,"a"), (3,"b"), (10,"c")]) == ((10,"c"), fromList [(3,"b"), (5,"a")])
 -- > deleteFindMax empty                                      Error: can not return the maximal element of an empty map
 
+{-@ deleteFindMax :: OMap k a -> (k, a, OMap k a)<{\k a -> true}, \a k -> {v0:Map ({v:k | v < k}) a | true}> @-}
 deleteFindMax :: Map k a -> (k, a, Map k a)
 deleteFindMax t
   = case t of
@@ -2822,6 +2824,7 @@ ratio = 2
 --
 -- It is only written in such a way that every node is pattern-matched only once.
 
+{-@ balance :: k:k -> a -> OMap {v:k|v<k} a -> OMap {v:k|v>k} a -> OMap k a @-}
 balance :: k -> a -> Map k a -> Map k a -> Map k a
 balance k x l r = case l of
   Tip -> case r of
@@ -3033,6 +3036,7 @@ showTreeWith showelem hang wide t
   | hang      = (showsTreeHang showelem wide [] t) ""
   | otherwise = (showsTree showelem wide [] [] t) ""
 
+{-@ Decrease showsTree 5 @-}
 showsTree :: (k -> a -> String) -> Bool -> [String] -> [String] -> Map k a -> ShowS
 showsTree showelem wide lbars rbars t
   = case t of

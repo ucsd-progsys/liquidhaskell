@@ -60,7 +60,7 @@ sort2ByOffset cmp a off = sort2ByIndex cmp a off (off + 1)
 {-@ sort2ByIndex
       :: (PrimMonad m, MVector v e)
       => Comparison e -> vec:(v (PrimState m) e) 
-      -> {v:Nat | (OkRng v vec 1)} 
+      -> {v:Nat | (OkRng v vec 0)} 
       -> {v:Nat | (OkRng v vec 0)} 
       -> m ()
   @-}
@@ -92,9 +92,9 @@ sort3ByOffset cmp a off = sort3ByIndex cmp a  off  (off + 1) (off + 2)
 {-@ sort3ByIndex
       :: (PrimMonad m, MVector v e)
       => Comparison e -> vec:(v (PrimState m) e) 
-      -> {v:Nat | (OkRng v vec 2)} 
-      -> {v:Nat | (OkRng v vec 1)} 
       -> {v:Nat | (OkRng v vec 0)} 
+      -> {v:Nat | (OkRng v vec 0)} 
+      -> {v:Nat | (OkRng v vec 0)}
       -> m ()
   @-}
 sort3ByIndex :: (PrimMonad m, MVector v e)
@@ -143,9 +143,9 @@ sort4ByOffset cmp a off = sort4ByIndex cmp a off (off + 1) (off + 2) (off + 3)
 {-@ sort4ByIndex
       :: (PrimMonad m, MVector v e)
       => Comparison e -> vec:(v (PrimState m) e) 
-      -> {v:Nat | (OkRng v vec 3)} 
-      -> {v:Nat | (OkRng v vec 2)} 
-      -> {v:Nat | (OkRng v vec 1)} 
+      -> {v:Nat | (OkRng v vec 0)} 
+      -> {v:Nat | (OkRng v vec 0)} 
+      -> {v:Nat | (OkRng v vec 0)} 
       -> {v:Nat | (OkRng v vec 0)} 
       -> m ()
   @-}
