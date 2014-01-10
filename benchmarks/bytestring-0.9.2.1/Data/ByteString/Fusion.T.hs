@@ -410,6 +410,7 @@ loopWrapper body (PS srcFPtr srcOffset srcLen) = unsafePerformIO $
 
 
 
+{-@ doUpLoop :: AccEFLJ acc -> acc -> ImperativeLoop acc @-}
 doUpLoop :: AccEFL acc -> acc -> ImperativeLoop acc
 doUpLoop f acc0 src dest len = loop len 0 0 acc0
         {-@ Decrease loop 6 @-} -- LIQUID TRANSFORMATION
@@ -424,6 +425,7 @@ doUpLoop f acc0 src dest len = loop len 0 0 acc0
                   (acc' :*: JustS x') -> pokeByteOff dest dest_off x'
                                       >> loop (d-1) (src_off+1) (dest_off+1) acc'
 
+{-@ doDownLoop :: AccEFLJ acc -> acc -> ImperativeLoop acc @-}
 doDownLoop :: AccEFL acc -> acc -> ImperativeLoop acc
 doDownLoop f acc0 src dest len = loop len (len-1) (len-1) acc0
         {-@ Decrease loop 6 @-} -- LIQUID TRANSFORMATION
@@ -438,6 +440,7 @@ doDownLoop f acc0 src dest len = loop len (len-1) (len-1) acc0
                   (acc' :*: JustS x') -> pokeByteOff dest dest_offDOWN x'
                                       >> loop (d-1) (src_offDOWN - 1) (dest_offDOWN - 1) acc'
 
+{-@ doNoAccLoop :: NoAccEFLJ -> noAcc -> ImperativeLoop noAcc @-}
 doNoAccLoop :: NoAccEFL -> noAcc -> ImperativeLoop noAcc
 doNoAccLoop f noAcc src dest len = loop len 0 0
         {-@ Decrease loop 6 @-} -- LIQUID TRANSFORMATION
@@ -452,6 +455,7 @@ doNoAccLoop f noAcc src dest len = loop len 0 0
                   JustS x' -> pokeByteOff dest dest_off x'
                            >> loop (d-1) (src_off+1) (dest_off+1)
 
+{-@ doMapLoop :: MapEFL -> noAcc -> ImperativeLoop noAcc @-}
 doMapLoop :: MapEFL -> noAcc -> ImperativeLoop noAcc
 doMapLoop f noAcc src dest len = loop len 0
         {-@ Decrease loop 6 @-} -- LIQUID TRANSFORMATION
@@ -464,6 +468,7 @@ doMapLoop f noAcc src dest len = loop len 0
                 pokeByteOff dest n (f x)
                 loop (d-1) (n+1) -- offset always the same, only pass 1 arg
 
+{-@ doFilterLoop :: FilterEFL -> noAcc -> ImperativeLoop noAcc @-}
 doFilterLoop :: FilterEFL -> noAcc -> ImperativeLoop noAcc
 doFilterLoop f noAcc src dest len = loop len 0 0
         {-@ Decrease loop 6 @-} -- LIQUID TRANSFORMATION

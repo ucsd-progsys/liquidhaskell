@@ -3,10 +3,6 @@ module Meas () where
 import Language.Haskell.Liquid.Prelude
 import Data.List (foldl')
 
-mylen          :: [a] -> Int
-mylen []       = 0
-mylen (_:xs)   = 1 + mylen xs
-
 ----------------------------------------------------------------
 --- Step 1: Map each element into key-value list (concatMap) ---
 ----------------------------------------------------------------

@@ -1,4 +1,4 @@
-module TestRec () where
+module TestRec where
 
 import Prelude hiding (map, foldl)
 

@@ -1,4 +1,4 @@
-module ListSort () where
+module ListSort where
 
 
 foo :: [Int] -> [Int]

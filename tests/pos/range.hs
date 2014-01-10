@@ -1,4 +1,4 @@
-module Range () where
+module Range (prop_rng5, myfoldl) where
 
 import Language.Haskell.Liquid.Prelude
 
