@@ -461,7 +461,7 @@ doMapLoop f noAcc src dest len = loop 0
                 pokeByteOff dest n (f x)
                 loop (n+1) -- offset always the same, only pass 1 arg
 
-{-@ doFilterLoop :: FilterEFL -> noAcc -> ImperativeLoop noAcc @-}
+{-@ doFilterLoop :: FilterEFL -> noAcc -> ImperativeLoopLE noAcc @-}
 doFilterLoop :: FilterEFL -> noAcc -> ImperativeLoop noAcc
 doFilterLoop f noAcc src dest len = loop 0 0
   where STRICT2(loop)

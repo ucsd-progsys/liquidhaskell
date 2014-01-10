@@ -32,7 +32,7 @@ module Data.Vector.Algorithms.Heap
        , heapify
        , pop
        , popTo
-       , sortHeap
+       --, sortHeap
        , Comparison
        ) where
 
@@ -186,7 +186,7 @@ heapify cmp a l u = loop (k0 + 1) k0
 
 -- | Given a heap stored in a portion of an array [l,u), swaps the
 -- top of the heap with the element at u and rebuilds the heap.
-{-@ pop:: (PrimMonad m, MVector v e)
+{-@ pop  :: (PrimMonad m, MVector v e)
          => Comparison e -> vec:v (PrimState m) e
          -> l:{v:Nat | (OkRng v vec 0)} 
          -> {v:GeInt l | (OkRng v vec 0)} 
@@ -222,7 +222,7 @@ popTo cmp a l u t = do al <- unsafeRead a l
          => Comparison e -> vec:v (PrimState m) e
          -> l:{v:Nat | (OkRng v vec 0)} 
          -> m:{v:GeInt l | (OkRng v vec 0)} 
-         -> {v:GeInt m | (OkRng v vec 0)} 
+         -> {v:Nat | (InRngL v l (vsize vec))} 
          -> m ()
 @-}
 sortHeap :: (PrimMonad m, MVector v e)
