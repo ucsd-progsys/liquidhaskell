@@ -149,9 +149,10 @@ makeGhcSpec' cfg vars defVars exports specs
                                                  ]
        quals           <- mconcat <$> mapM makeQualifiers specs
        let renamedSigs = renameTyVars <$> tx sigs
-           pluggedSigs = [ (x, plugHoles τ <$> t)
+           pluggedSigs = [ (x, plugHoles r τ <$> t)
                          | (x, t) <- renamedSigs
-                         , let τ = expandTypeSynonyms $ varType x]
+                         , let τ = expandTypeSynonyms $ varType x
+                         , let r = holeOrTrue x name exports]
        return           $ (SP { tySigs     = pluggedSigs
                               , ctors      = tx cs'
                               , meas       = tx (ms' ++ varMeasures vars ++ cms')
@@ -680,24 +681,24 @@ mkVarSpec (v, Loc l _, b) = tx <$> mkSpecType l b
   where
     tx = (v,) . Loc l . generalize
 
-plugHoles :: Type -> SpecType -> SpecType
-plugHoles t              RHole              = fmap (const r) t'
-  where r           = uReft (S "VV", [hole])
-        t' :: RSort = ofType t
-plugHoles (TyVarTy _)    v@(RVar _ _)       = v
-plugHoles (FunTy i o)    (RFun x i' o' r)   = RFun x (plugHoles i i') (plugHoles o o') r
-plugHoles (ForAllTy _ t) t'                 = plugHoles t t'
-plugHoles t              (RAllT a t')       = RAllT a $ plugHoles t t'
-plugHoles t              (RAllP p t')       = RAllP p $ plugHoles t t'
-plugHoles t              (RAllE b a t')     = RAllE b a $ plugHoles t t'
-plugHoles t              (REx b x t')       = REx b x $ plugHoles t t'
-plugHoles (AppTy t1 t2)  (RAppTy t1' t2' r) = RAppTy (plugHoles t1 t1') (plugHoles t2 t2') r
-plugHoles (TyConApp _ t) (RApp c t' p r)    = RApp c (zipWith plugHoles t t') p r
-plugHoles (TyConApp _ t) (RCls c t')        = RCls c $ zipWith plugHoles t t'
-plugHoles t              st                 = Ex.throw err
+plugHoles :: RReft -> Type -> SpecType -> SpecType
+plugHoles r = go
   where
-    err = ErrOther $ text msg
-    msg = printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showPpr t) (showpp st)
+    go t              RHole               = fmap (const r) (ofType t :: RSort)
+    go (TyVarTy _)    v@(RVar _ _)        = v
+    go (FunTy i o)    (RFun x i' o' r')   = RFun x (go i i') (go o o') r'
+    go (ForAllTy _ t) t'                  = go t t'
+    go t              (RAllT a t')        = RAllT a $ go t t'
+    go t              (RAllP p t')        = RAllP p $ go t t'
+    go t              (RAllE b a t')      = RAllE b a $ go t t'
+    go t              (REx b x t')        = REx b x $ go t t'
+    go (AppTy t1 t2)  (RAppTy t1' t2' r') = RAppTy (go t1 t1') (go t2 t2') r'
+    go (TyConApp _ t) (RApp c t' p r')    = RApp c (zipWith go t t') p r'
+    go (TyConApp _ t) (RCls c t')         = RCls c $ zipWith go t t'
+    go t              st                  = Ex.throw err
+     where
+       err = ErrOther $ text msg
+       msg = printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showPpr t) (showpp st)
 
 showTopLevelVars vs = 
   forM vs $ \v -> 
@@ -1432,6 +1433,12 @@ freshSymbol
        modify $ \s -> s{fresh = n+1}
        return $ S $ "ex#" ++ show n
 
+holeOrTrue x target exports
+  | inTarget && notExported = uTop $ Reft (S "VV", [hole])
+  | otherwise               = uTop $ Reft (S "VV", [])
+  where
+    inTarget    = moduleName (nameModule (getName x)) == getModName target
+    notExported = not $ getName x `elemNameSet` exports
 
 -------------------------------------------------------------------------------------
 -- | Tasteful Error Messages --------------------------------------------------------
