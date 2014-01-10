@@ -1,4 +1,4 @@
-module LocalLazy () where
+module LocalLazy (bar) where
 
 import Language.Haskell.Liquid.Prelude
 
@@ -6,7 +6,7 @@ import Language.Haskell.Liquid.Prelude
 foo x = foo x
 
 
-bar = liquidAssert (inf n > 0)
+bar = liquidAssertB (inf n > 0)
   where n     = choose 0
        {-@ Lazy inf @-}
         inf n = inf n

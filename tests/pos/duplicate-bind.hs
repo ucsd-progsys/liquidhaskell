@@ -1,4 +1,4 @@
-module Meas () where
+module Meas where
 
 import Language.Haskell.Liquid.Prelude
 

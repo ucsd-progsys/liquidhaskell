@@ -1,4 +1,4 @@
-module Loo () where
+module Loo where
 
 import qualified Goo as G
 
