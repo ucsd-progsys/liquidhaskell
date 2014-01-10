@@ -8,7 +8,7 @@ merge :: Ord a => [a] -> [a] -> [a]
 merge xss@(x:xs) (y:ys)
   | x < y     = x : merge xs (y:ys)
 -- this is safe
---   | otherwise = y : merge (x:xs) ys
+  | otherwise = y : merge (x:xs) ys
 -- but this isn't
-  | otherwise = y : merge xss ys
+--  | otherwise = y : merge xss ys
 
