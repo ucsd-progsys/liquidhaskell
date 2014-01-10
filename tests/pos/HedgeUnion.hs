@@ -5,7 +5,7 @@ import Language.Haskell.Liquid.Prelude
 {-@
   data Map [mlen] k a <l :: root:k -> k -> Prop, r :: root:k -> k -> Prop>
       = Tip 
-      | Bin (right :: Map <l, r> (k <r key>) a) 
+      | Bin (right :: Map <l, r> k  a) 
   @-}
 
 {-@ measure mlen :: (Map k a) -> Int 
