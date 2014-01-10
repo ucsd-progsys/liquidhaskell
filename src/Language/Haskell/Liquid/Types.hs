@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FlexibleContexts       #-} 
 {-# LANGUAGE OverlappingInstances   #-}
+{-# LANGUAGE ViewPatterns           #-}
 
 -- | This module (should) contain all the global type definitions and basic
 -- instances. Need to gradually pull things into here, especially from @RefType@
@@ -50,7 +51,7 @@ module Language.Haskell.Liquid.Types (
   -- * Default unknown name
   , dummyName, isDummy
   -- * Refinement Hole
-  , hole
+  , hole, isHole
 
   -- * Traversing `RType` 
   , efoldReft, foldReft
@@ -1194,3 +1195,6 @@ instance NFData KVProf where
   rnf (KVP m) = rnf m `seq` () 
 
 hole = RKvar (S "HOLE") mempty
+
+isHole (toReft -> (Reft (_, [RKvar (S "HOLE") _]))) = True
+isHole _                                            = False

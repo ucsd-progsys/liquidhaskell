@@ -7,7 +7,6 @@
 {-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
-{-# LANGUAGE ViewPatterns              #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints, and 
 -- the code for syntax-directed constraint generation. 
@@ -110,7 +109,7 @@ initEnv info penv
        f1       <- refreshArgs' $ defaults          -- default TOP reftype      (for all vars)
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
-       let bs    = (map (unifyts' tce tyi penv)) <$> [traceShow "f0" f0 ++ f0', f1, f2, f3]
+       let bs    = (map (unifyts' tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
@@ -119,15 +118,13 @@ initEnv info penv
   where
     refreshArgs' = mapM (mapSndM refreshArgs)
     refreshKs    = mapM (mapSndM refreshK)
-    isHoleReft (F.toReft -> (F.Reft (_, [F.RKvar (F.S "HOLE") _]))) = True
-    isHoleReft _                                                    = False
     refreshK t   = do
         t' <- mapReftM f t
-        let b = foldReft ((||) . isHoleReft) False t
+        let b = foldReft ((||) . isHole) False t
         return (if b then Just t' else Nothing, t')
       where
-        f r | isHoleReft r = refresh r
-            | otherwise    = return r
+        f r | isHole r  = refresh r
+            | otherwise = return r
     extract = unzip . map (\(v,(k,t)) -> (k,(v,t)))
   -- where tce = tcEmbeds $ spec info
 
