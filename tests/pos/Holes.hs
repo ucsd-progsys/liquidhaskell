@@ -1,4 +1,4 @@
-module Holes () where
+module Holes (plus) where
 
 {-@ foo :: x:_ -> y:{Int | y > 0} -> _ @-}
 foo :: Int -> Int -> Int
@@ -27,3 +27,6 @@ bar :: [Int] -> Int
 bar [x] = x
 
 x =  bar [1]
+
+{-@ plus :: x:_ -> y:_ -> {v:_ | v = x + y} @-}
+plus x y = x + y

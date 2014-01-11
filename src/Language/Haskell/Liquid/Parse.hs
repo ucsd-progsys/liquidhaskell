@@ -158,12 +158,14 @@ bareAtomP ref
  <|> holeP
  <|> try (dummyP (bbaseP <* spaces))
 
-holeP = reserved "_" >> spaces >> return RHole
+holeP = reserved "_" >> spaces >> return (RHole $ uTop $ Reft (S "VV", [hole]))
+holeRefP = reserved "_" >> spaces >> return (RHole . uTop)
 refasHoleP = refasP <|> (reserved "_" >> return [hole])
 
 bbaseP :: Parser (Reft -> BareType)
 bbaseP 
-  =  liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
+  =  holeRefP
+ <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM2 bAppTy lowerIdP (sepBy1 bareTyArgP blanks))
 --  <|> try (liftM2 bAppTy lowerIdP bareTyArgP)
