@@ -152,7 +152,7 @@ makeGhcSpec' cfg vars defVars exports specs
            pluggedSigs = [ (x, plugHoles r τ <$> t)
                          | (x, t) <- renamedSigs
                          , let τ = expandTypeSynonyms $ varType x
-                         , let r = holeOrTrue x name exports]
+                         , let r = maybeTrue x name exports]
        return           $ (SP { tySigs     = pluggedSigs
                               , ctors      = tx cs'
                               , meas       = tx (ms' ++ varMeasures vars ++ cms')
@@ -240,7 +240,7 @@ expandAlias l = go
       | otherwise  = lookupExpandRTApp l s t
     go s (RVar a r)       = RVar (stringRTyVar a) <$> resolve r
     go s (RFun x t t' r)  = rFun x <$> go s t <*> go s t'
-    go s (RAppTy t t' r)  = RAppTy <$> go s t <*> go s t' <*> pure r
+    go s (RAppTy t t' r)  = RAppTy <$> go s t <*> go s t' <*> resolve r
     go s (RAllE x t1 t2)  = liftM2 (RAllE x) (go s t1) (go s t2)
     go s (REx x t1 t2)    = liftM2 (REx x) (go s t1) (go s t2)
     go s (RAllT a t)      = RAllT (stringRTyVar a) <$> go s t
@@ -248,7 +248,7 @@ expandAlias l = go
     go s (RCls c ts)      = RCls <$> lookupGhcClass c <*> mapM (go s) ts
     go _ (ROth s)         = return $ ROth s
     go _ (RExprArg e)     = return $ RExprArg e
-    go _ RHole            = return $ RHole
+    go _ (RHole r)        = RHole <$> resolve r
 
 
 lookupExpandRTApp l s (RApp lc@(Loc _ c) ts rs r) = do
@@ -489,7 +489,7 @@ mapTyVars τ (RExprArg _)
 mapTyVars (AppTy τ τ') (RAppTy t t' _) 
   = do  mapTyVars τ t 
         mapTyVars τ' t' 
-mapTyVars τ RHole
+mapTyVars τ (RHole _)
   = return ()
 mapTyVars τ t
   = Ex.throw =<< errmsg <$> get
@@ -681,24 +681,29 @@ mkVarSpec (v, Loc l _, b) = tx <$> mkSpecType l b
   where
     tx = (v,) . Loc l . generalize
 
-plugHoles :: RReft -> Type -> SpecType -> SpecType
-plugHoles r = go
+plugHoles :: (RReft -> RReft) -> Type -> SpecType -> SpecType
+plugHoles f t st = mkArrow αs ps cs' $ go rt' st''
   where
-    go t              RHole               = fmap (const r) (ofType t :: RSort)
-    go (TyVarTy _)    v@(RVar _ _)        = v
-    go (FunTy i o)    (RFun x i' o' r')   = RFun x (go i i') (go o o') r'
-    go (ForAllTy _ t) t'                  = go t t'
-    go t              (RAllT a t')        = RAllT a $ go t t'
-    go t              (RAllP p t')        = RAllP p $ go t t'
-    go t              (RAllE b a t')      = RAllE b a $ go t t'
-    go t              (REx b x t')        = REx b x $ go t t'
-    go (AppTy t1 t2)  (RAppTy t1' t2' r') = RAppTy (go t1 t1') (go t2 t2') r'
-    go (TyConApp _ t) (RApp c t' p r')    = RApp c (zipWith go t t') p r'
-    go (TyConApp _ t) (RCls c t')         = RCls c $ zipWith go t t'
-    go t              st                  = Ex.throw err
+    (αs, _, rt)  = bkUniv (ofType t :: SpecType)
+    (cs, rt')    = bkClass rt
+
+    (_, ps, st') = bkUniv st
+    (_, st'')    = bkClass st'
+    cs'          = [(dummySymbol, RCls c t) | (c,t) <- cs]
+
+    go t                (RHole r)          = fmap (const $ traceShow "f" $ f r) t
+    go (RVar _ _)       v@(RVar _ _)       = v
+    go (RFun _ i o _)   (RFun x i' o' r)   = RFun x (go i i') (go o o') r
+    go (RAllT a t)      (RAllT _ t')       = RAllT a $ go t t'
+    go t                (RAllE b a t')     = RAllE b a $ go t t'
+    go t                (REx b x t')       = REx b x $ go t t'
+    go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy (go t1 t1') (go t2 t2') r
+    go (RApp _ t _ _)   (RApp c t' p r)    = RApp c (zipWith go t t') p r
+    go (RCls _ t)       (RCls c t')        = RCls c $ zipWith go t t'
+    go t                st                 = Ex.throw err
      where
        err = ErrOther $ text msg
-       msg = printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showPpr t) (showpp st)
+       msg = printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
 
 showTopLevelVars vs = 
   forM vs $ \v -> 
@@ -1065,8 +1070,8 @@ ofBareType (RCls c ts)
   = liftM2 RCls (lookupGhcClass c) (mapM ofBareType ts)
 ofBareType (ROth s)
   = return $ ROth s
-ofBareType RHole
-  = return RHole
+ofBareType (RHole r)
+  = return $ RHole r
 ofBareType t
   = errorstar $ "Bare : ofBareType cannot handle " ++ show t
 
@@ -1433,9 +1438,11 @@ freshSymbol
        modify $ \s -> s{fresh = n+1}
        return $ S $ "ex#" ++ show n
 
-holeOrTrue x target exports
-  | inTarget && notExported = uTop $ Reft (S "VV", [hole])
-  | otherwise               = uTop $ Reft (S "VV", [])
+maybeTrue x target exports r
+  | not (isHole r) || inTarget && notExported
+  = r
+  | otherwise
+  = uTop $ Reft (S "VV", [])
   where
     inTarget    = moduleName (nameModule (getName x)) == getModName target
     notExported = not $ getName x `elemNameSet` exports
