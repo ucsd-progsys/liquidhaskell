@@ -30,3 +30,9 @@ x =  bar [1]
 
 {-@ plus :: x:_ -> y:_ -> {v:_ | v = x + y} @-}
 plus x y = x + y
+
+
+{-@ type UNat = {v:_ | v >= 0} @-}
+
+{-@ zoo :: UNat @-}
+zoo = 1
