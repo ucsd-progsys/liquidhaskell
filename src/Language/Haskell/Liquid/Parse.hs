@@ -230,7 +230,7 @@ predVarDefP
 predVarIdP 
   = stringSymbol <$> tyVarIdP
 
-bPVar p _ xts  = PV p τ τxs 
+bPVar p _ xts  = PV p τ dummySymbol τxs
   where (_, τ) = safeLast "bPVar last" xts
         τxs    = [ (τ, x, EVar x) | (x, τ) <- init xts ]
 
@@ -346,7 +346,7 @@ monoPredicate1P
 predVarUseP 
  = do p  <- predVarIdP
       xs <- sepBy exprP spaces
-      return $ PV p dummyTyId [ (dummyTyId, dummySymbol, x) | x <- xs ]
+      return $ PV p dummyTyId dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
 
 
 ------------------------------------------------------------------------
