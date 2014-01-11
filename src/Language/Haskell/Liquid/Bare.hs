@@ -738,7 +738,7 @@ makeSymbols vs xs' xts yts = mkxvs
       svs <- gets varEnv
       return [(x,v') | (x,v) <- svs, x `elem` xs, let (v',_,_) = joinVar vs (v,x,x)]
 
-freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> []) (\ _ -> ()) f emptySEnv [] (val ty)
+freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> []) (\ _ -> ()) f (\_ -> id) emptySEnv [] (val ty)
   where 
     f γ _ r xs = let Reft (v, _) = toReft r in 
                  [ x | x <- syms r, x /= v, not (x `memberSEnv` γ)] : xs
@@ -942,7 +942,7 @@ instance Resolvable Predicate where
   resolve (Pr pvs) = Pr <$> mapM resolve pvs
 
 instance (Resolvable t) => Resolvable (PVar t) where
-  resolve (PV n t as) = PV n t <$> mapM (third3M resolve) as
+  resolve (PV n t v as) = PV n t v <$> mapM (third3M resolve) as
 
 instance Resolvable () where
   resolve () = return ()
@@ -973,8 +973,8 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [0] [] (Just fsize))]
           fld    = stringSymbol "fld"
           x      = stringSymbol "x"
           xs     = stringSymbol "xs"
-          p      = PV (stringSymbol "p") t [(t, fld, EVar fld)]
-          px     = (pdVarReft $ PV (stringSymbol "p") t [(t, fld, EVar x)]) 
+          p      = PV (stringSymbol "p") t (vv Nothing) [(t, fld, EVar fld)]
+          px     = pdVarReft $ PV (stringSymbol "p") t (vv Nothing) [(t, fld, EVar x)] 
           lt     = rApp c [xt] [RMono [] $ pdVarReft p] mempty                 
           xt     = rVar tyv
           xst    = rApp c [RVar (RTV tyv) px] [RMono [] $ pdVarReft p] mempty
@@ -1011,7 +1011,7 @@ mkps _  _      _           = error "Bare : mkps"
 mkps_ []     _       _          _    ps = ps
 mkps_ (n:ns) (t:ts) ((f, x):xs) args ps
   = mkps_ ns ts xs (a:args) (p:ps)
-  where p = PV n t args
+  where p = PV n t (vv Nothing) args
         a = (t, f, x)
 mkps_ _     _       _          _    _ = error "Bare : mkps_"
 
@@ -1176,10 +1176,10 @@ ofBPVar :: PVar BSort -> BareM (PVar RSort)
 ofBPVar = mapM_pvar ofBareType 
 
 mapM_pvar :: (Monad m) => (a -> m b) -> PVar a -> m (PVar b)
-mapM_pvar f (PV x t txys) 
+mapM_pvar f (PV x t v txys) 
   = do t'    <- f t
        txys' <- mapM (\(t, x, y) -> liftM (, x, y) (f t)) txys 
-       return $ PV x t' txys'
+       return $ PV x t' v txys'
 
 ofBDataCon tc αs ps πs (c, xts)
   = do c'      <- lookupGhcDataCon c
@@ -1252,9 +1252,10 @@ checkInv emb env t   = checkTy err emb env (val t)
 
 
 checkBind :: (PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error 
-checkBind s emb env (v, Loc l t) = checkTy msg emb env t
+checkBind s emb env (v, Loc l t) = checkTy msg emb env' t
   where 
     msg = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
+    env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 checkExpr :: (Eq v, PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> [(v, Located SpecType)] -> (v, [Expr])-> Maybe Error 
 checkExpr s emb env vts (v, es) = mkErr <$> go es
   where 
@@ -1263,7 +1264,8 @@ checkExpr s emb env vts (v, es) = mkErr <$> go es
 
   (Loc l t) = safeFromJust msg $ L.lookup v vts
 
-  env'  = mapSEnv sr_sort $ foldl (\e (x,s) -> insertSEnv x s e) env xss
+  env'' = mapSEnv sr_sort $ foldl (\e (x,s) -> insertSEnv x s e) env xss
+  env'  = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
   xss   = mapSnd rSort <$> (uncurry zip $ dropThd3 $ bkArrowDeep t)
   rSort = rTypeSortedReft emb 
   msg   = "Bare.checkExpr " ++ showpp v ++ " not found\n"
@@ -1325,17 +1327,18 @@ errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType
 checkRType :: (PPrint r, Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe Doc 
 -------------------------------------------------------------------------------------
 
-checkRType emb env t         = efoldReft cb (rTypeSortedReft emb) f env Nothing t 
+checkRType emb env t         = efoldReft cb (rTypeSortedReft emb) f (\p g -> insertSEnv (pname p) (rTypeSortedReft emb (toPredType p :: RSort)) g) env Nothing t 
   where 
     cb c ts                  = classBinds (RCls c ts)
     f env me r err           = err <|> checkReft env emb me r
 
 checkReft                    :: (PPrint r, Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe Doc 
 checkReft env emb Nothing _  = Nothing -- RMono / Ref case, not sure how to check these yet.  
-checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env r 
+checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env' r 
   where 
     r                        = rTypeSortedReft emb t
     dr                       = text "Sort Error in Refinement:" <+> pprint r 
+    env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
 -- DONT DELETE the below till we've added pred-checking as well
 -- checkReft env emb (Just t) _ = checkSortedReft env xs (rTypeSortedReft emb t) 
