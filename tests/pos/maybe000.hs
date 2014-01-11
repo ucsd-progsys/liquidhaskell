@@ -1,4 +1,4 @@
-module Foo where
+module Foo () where
 -- TODO: get this working with the ! annots.
 
 import Language.Haskell.Liquid.Prelude

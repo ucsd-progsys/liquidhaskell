@@ -12,8 +12,7 @@
           (concat "-i"
                   (car
                    (file-expand-wildcards "dist/dist-sandbox*/build/autogen")))
-          "-fforce-recomp"
-          "-package" "hashable-1.1.2.5")))))
+          )))))
 
 
 

@@ -1,4 +1,4 @@
-module Test where
+module Test () where
 
 {-@ sz :: {v:[a]|((len v) = 1)} -> a @-}
 -- sz (x:xs) = sz xs

@@ -1,4 +1,4 @@
-module Foo where
+module Foo () where
 
 
 {-@ choo :: [a] -> {v: Int | v > 0 } @-}

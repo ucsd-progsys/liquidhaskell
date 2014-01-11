@@ -1,4 +1,4 @@
-module Stacks where
+module Stacks () where
 
 
 {-@ type DList a = [a]<{\fld v -> (v != fld)}> @-}

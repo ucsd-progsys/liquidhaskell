@@ -1,6 +1,6 @@
 {--! run liquid with no-termination -}
 
-module Test0 where
+module Test0 () where
 
 {-@ plus :: x:Int -> y:Int -> {v:Int | v = x + y} @-}
 plus :: Int -> Int -> Int

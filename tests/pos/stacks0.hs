@@ -1,4 +1,4 @@
-module StackSet where
+module StackSet () where
 
 import Data.Set (Set(..)) 
 

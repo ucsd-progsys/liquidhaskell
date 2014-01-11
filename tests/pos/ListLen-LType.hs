@@ -1,4 +1,4 @@
-module ListLen where
+module ListLen () where
 
 import Language.Haskell.Liquid.Prelude
 

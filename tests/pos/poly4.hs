@@ -1,4 +1,4 @@
-module Poly4 where
+module Poly4 () where
 
 import Language.Haskell.Liquid.Prelude
 

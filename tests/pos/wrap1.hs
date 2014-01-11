@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 
-module Wrap0 where
+module Wrap0 () where
 
 
 import Language.Haskell.Liquid.Prelude (liquidError, liquidAssertB)

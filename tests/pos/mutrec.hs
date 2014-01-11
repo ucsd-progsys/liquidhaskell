@@ -1,4 +1,4 @@
-module MutRec where
+module MutRec () where
 
 {-@ isEven :: Nat -> {v:Int | v = 0} -> Bool @-}
 {-@ Decrease isEven 1 2 @-}

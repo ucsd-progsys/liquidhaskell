@@ -1,6 +1,6 @@
 {--! run liquid with no-termination -}
 
-module LambdaEvalMini where
+module LambdaEvalMini () where
 
 ---------------------------------------------------------------------
 ----------------------- Datatype Definition -------------------------

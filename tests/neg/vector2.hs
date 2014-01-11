@@ -1,4 +1,4 @@
-module Vec0 where
+module Vec0 () where
 
 import Prelude hiding (length)
 import Data.Vector

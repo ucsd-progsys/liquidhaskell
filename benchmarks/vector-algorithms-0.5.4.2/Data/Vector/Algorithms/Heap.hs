@@ -32,7 +32,7 @@ module Data.Vector.Algorithms.Heap
        , heapify
        , pop
        , popTo
-       , sortHeap
+       --, sortHeap
        , Comparison
        ) where
 
@@ -186,6 +186,12 @@ heapify cmp a l u = loop (k0 + 1) k0
 
 -- | Given a heap stored in a portion of an array [l,u), swaps the
 -- top of the heap with the element at u and rebuilds the heap.
+{-@ pop  :: (PrimMonad m, MVector v e)
+         => Comparison e -> vec:v (PrimState m) e
+         -> l:{v:Nat | (OkRng v vec 0)} 
+         -> {v:GeInt l | (OkRng v vec 0)} 
+         -> m ()
+@-}
 pop :: (PrimMonad m, MVector v e)
     => Comparison e -> v (PrimState m) e -> Int -> Int -> m ()
 pop cmp a l u = popTo cmp a l u u
@@ -193,6 +199,13 @@ pop cmp a l u = popTo cmp a l u u
 
 -- | Given a heap stored in a portion of an array [l,u) swaps the top
 -- of the heap with the element at position t, and rebuilds the heap.
+{-@ popTo :: (PrimMonad m, MVector v e)
+         => Comparison e -> vec:v (PrimState m) e
+         -> l:{v:Nat | (OkRng v vec 0)} 
+         -> {v:GeInt l | (OkRng v vec 0)} 
+         -> {v:Nat | (OkRng v vec 0)} 
+         -> m ()
+@-}
 popTo :: (PrimMonad m, MVector v e)
       => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> m ()
 popTo cmp a l u t = do al <- unsafeRead a l
@@ -204,6 +217,14 @@ popTo cmp a l u t = do al <- unsafeRead a l
 -- | Given a heap stored in a portion of an array [l,u), sorts the
 -- highest values into [m,u). The elements in [l,m) are not in any
 -- particular order.
+
+{-@ sortHeap :: (PrimMonad m, MVector v e)
+         => Comparison e -> vec:v (PrimState m) e
+         -> l:{v:Nat | (OkRng v vec 0)} 
+         -> m:{v:GeInt l | (OkRng v vec 0)} 
+         -> {v:Nat | (InRngL v l (vsize vec))} 
+         -> m ()
+@-}
 sortHeap :: (PrimMonad m, MVector v e)
          => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> m ()
 sortHeap cmp a l m u = loop (u-1) >> unsafeSwap a l m

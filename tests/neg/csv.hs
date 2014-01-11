@@ -1,4 +1,4 @@
-module CSV where
+module CSV () where
 
 -- | Using LiquidHaskell for CSV lists
 -- c.f. http://www.reddit.com/r/scala/comments/1nhzi2/using_shapelesss_sized_type_to_eliminate_real/

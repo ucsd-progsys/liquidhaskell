@@ -279,7 +279,11 @@ eqRSort m (RCls c ts) (RCls c' ts')
   = (c == c') && length ts == length ts' && and (zipWith (eqRSort m) ts ts')
 eqRSort m (RVar a _) (RVar a' _)
   = a == (M.lookupDefault a' a' m) 
-eqRSort _ _ _ 
+eqRSort _ RHole      _
+  = True
+eqRSort _ _          RHole
+  = True
+eqRSort _ _ _
   = False
 
 --------------------------------------------------------------------
@@ -482,6 +486,7 @@ freeTyVars (RAllE _ _ t)   = freeTyVars t
 freeTyVars (REx _ _ t)     = freeTyVars t
 freeTyVars (RExprArg _)    = []
 freeTyVars (RAppTy t t' _) = freeTyVars t `L.union` freeTyVars t'
+freeTyVars RHole           = []
 freeTyVars t               = errorstar ("RefType.freeTyVars cannot handle" ++ show t)
 
 --getTyVars = everything (++) ([] `mkQ` f)
@@ -497,7 +502,8 @@ tyClasses (RAppTy t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RApp _ ts _ _) = concatMap tyClasses ts 
 tyClasses (RCls c ts)     = (c, ts) : concatMap tyClasses ts 
 tyClasses (RVar α _)      = [] 
-tyClasses (RRTy _ t)      = tyClasses t 
+tyClasses (RRTy _ t)      = tyClasses t
+tyClasses RHole           = []
 tyClasses t               = errorstar ("RefType.tyClasses cannot handle" ++ show t)
 
 
@@ -529,6 +535,7 @@ instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) wher
   rnf (RExprArg e)     = rnf e
   rnf (RAppTy t t' r)  = rnf t `seq` rnf t' `seq` rnf r
   rnf (RRTy r t)       = rnf r `seq` rnf t
+  rnf RHole            = ()
 
 ----------------------------------------------------------------
 ------------------ Printing Refinement Types -------------------
@@ -608,6 +615,8 @@ subsFree _ _ _ t@(RExprArg _)
 subsFree m s z (RRTy r t)        
   = RRTy r (subsFree m s z t)
 subsFree _ _ _ t@(ROth _)        
+  = t
+subsFree _ _ _ t@RHole
   = t
 -- subsFree _ _ _ t      
 --   = errorstar $ "subsFree fails on: " ++ showFix t

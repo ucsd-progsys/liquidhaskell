@@ -1,4 +1,4 @@
-module Test where
+module Test () where
 
 {-@ stupid :: Int -> Int @-}
 stupid :: Int -> Int

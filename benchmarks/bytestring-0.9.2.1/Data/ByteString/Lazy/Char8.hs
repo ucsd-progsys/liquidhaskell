@@ -279,6 +279,7 @@ snoc p = L.snoc p . c2w
 {-# INLINE snoc #-}
 
 -- | /O(1)/ Extract the first element of a ByteString, which must be non-empty.
+{-@ head :: LByteStringNE -> Char @-}
 head :: ByteString -> Char
 head = w2c . L.head
 {-# INLINE head #-}

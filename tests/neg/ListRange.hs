@@ -1,4 +1,4 @@
-module ListRange where
+module ListRange () where
 
 import Language.Haskell.Liquid.Prelude
 

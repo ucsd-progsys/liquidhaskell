@@ -1,4 +1,4 @@
-module Goo where
+module Goo () where
 
 import Language.Haskell.Liquid.Prelude
 

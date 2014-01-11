@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Vec0 where
+module Vec0 (dotProduct, safeLookup) where
 
 import Prelude hiding (length)
 import Data.Vector

@@ -1,4 +1,4 @@
-module Foo where
+module Foo () where
 
 {-@ conts :: forall <p :: Int -> Prop>. 
              a 

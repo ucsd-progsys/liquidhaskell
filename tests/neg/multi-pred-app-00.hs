@@ -1,4 +1,4 @@
-module Blank where
+module Blank () where
 
 {-@ bar :: forall < p :: Int -> Prop
                   , q :: Int -> Prop >. Int<p> -> Int<p, q> @-}

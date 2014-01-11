@@ -37,6 +37,7 @@ import Class            (Class, className)
 import Var
 import Id
 import Name            -- (getSrcSpan, getOccName)
+import NameSet
 import Text.PrettyPrint.HughesPJ
 
 import Control.Monad.State
@@ -90,7 +91,7 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
 
 consAct info penv
   = do γ     <- initEnv info penv
-       foldM consCBTop γ (cbs info)
+       foldM_ consCBTop γ (cbs info)
        hcs <- hsCs  <$> get 
        hws <- hsWfs <$> get
        fcs <- concat <$> mapM splitC hcs 
@@ -102,19 +103,33 @@ initEnv info penv
   = do let tce   = tcEmbeds $ spec info
        defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- tyConInfo <$> get 
-       f0       <- refreshArgs' $  grty info        -- asserted refinements     (for defined vars)
-       f0''     <- grtyTop info >>= refreshArgs'    -- default TOP reftype      (for exported vars without spec) 
-       let f0'   = if (notruetypes $ config $ spec info) then [] else f0'' 
-       f1       <- refreshArgs' $ defaults          -- default TOP reftype      (for all vars) 
+       (ks,f0)  <- extract <$> refreshKs (grty info)-- asserted refinements     (for defined vars)
+       f0''     <- grtyTop info >>= refreshArgs'    -- default TOP reftype      (for exported vars without spec)
+       let f0'   = if (notruetypes $ config $ spec info) then [] else f0''
+       f1       <- refreshArgs' $ defaults          -- default TOP reftype      (for all vars)
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
        let bs    = (map (unifyts' tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
+       mapM_ (addW . WfC γ0) (catMaybes ks)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
-  where refreshArgs' = mapM (mapSndM refreshVV)
--- where tce = tcEmbeds $ spec info 
+  where
+    refreshArgs' = mapM (mapSndM refreshArgs)
+    refreshKs    = mapM (mapSndM refreshK)
+    refreshK t   = do
+        t' <- mapReftM f t
+        let b = foldReft ((||) . isHole) False t
+        return (if b then Just t' else Nothing, t')
+      where
+        f r | isHole r  = refresh r
+            | otherwise = return r
+    extract = unzip . map (\(v,(k,t)) -> (k,(v,t)))
+  -- where tce = tcEmbeds $ spec info
+
+instance Show Var where
+  show = showPpr
 
 ctor' = map (mapSnd val) . ctors
 
@@ -153,7 +168,8 @@ assm_grty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
 grtyTop info     = forM topVs $ \v -> (v,) <$> (trueTy $ varType v) -- val $ varSpecType v) | v <- defVars info, isTop v]
   where
     topVs        = filter isTop $ defVars info
-    isTop v      = isExportedId v && not (v `S.member` useVs) && not (v `S.member` sigVs)
+    isTop v      = isExportedId v && not (v `S.member` sigVs)
+    isExportedId = flip elemNameSet (exports $ spec info) . getName
     useVs        = S.fromList $ useVars info
     sigVs        = S.fromList $ [v | (v,_) <- tySigs $ spec info]
 
@@ -503,7 +519,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
                      , logWarn    :: ![String]                    -- ^ ? FIX THIS
                      , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars 
-                     , recCount       :: !Int
+                     , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
                      } -- deriving (Data, Typeable)
 
 instance PPrint CGInfo where 

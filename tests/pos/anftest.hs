@@ -1,4 +1,4 @@
-module AnfWierd where
+module AnfWierd () where
 
 -- xs :: [Int]
 -- xs = let x0 = 0

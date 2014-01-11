@@ -1,4 +1,4 @@
-module For where
+module For (prop, prop2, even_, minifac) where
 
 import Language.Haskell.Liquid.Prelude
 
