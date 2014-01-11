@@ -1,4 +1,4 @@
-module StateMonad where
+module StateMonad () where
 
 type State = Int
 data ST a b = S (a -> (a, b)) | F a

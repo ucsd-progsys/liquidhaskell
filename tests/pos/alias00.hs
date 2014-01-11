@@ -1,4 +1,4 @@
-module Test0 where
+module Test0 () where
 
 {-@ type PosInt = {v: Int | v >= 0} @-}
 {-@ assert myabs :: Int -> PosInt @-}

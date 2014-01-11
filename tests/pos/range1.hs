@@ -1,4 +1,4 @@
-module Range where
+module Range (single, prop_rng1) where
 
 import Language.Haskell.Liquid.Prelude
 

@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module List where
+module List () where
 
 {-@ Decrease go 3 4 5 @-}
 {-@ Decrease perms 4 5 6 @-}

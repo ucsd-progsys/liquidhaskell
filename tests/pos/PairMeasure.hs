@@ -1,4 +1,4 @@
-module Foo where
+module Foo () where
 
 {-@ measure getfst :: (a, b) -> a
     getfst (x, y) = x

@@ -1,4 +1,4 @@
-module Goo where
+module Goo () where
 
 {-@ assert scanrr  :: forall a b. (a -> b -> b) -> b -> xs:[a] -> {v: [b] | len(v) = 1 + len(xs) } @-}
 scanrr             :: (a -> b -> b) -> b -> [a] -> [b]

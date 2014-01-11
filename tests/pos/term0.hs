@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Term0 where 
+module Term0 () where 
 
 import Prelude hiding (sum)
 

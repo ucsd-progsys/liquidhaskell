@@ -1,4 +1,4 @@
-module QT where
+module QT () where
 
 -- this test demonstrates the inclusion of qualifiers in source files
 

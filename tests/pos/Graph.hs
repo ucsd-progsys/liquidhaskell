@@ -1,4 +1,4 @@
-module Graph where
+module Graph () where
 
 import Data.Set
 

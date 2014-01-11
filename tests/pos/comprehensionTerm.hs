@@ -1,5 +1,5 @@
-{--! run liquid with no-termination -}
-module Blank where
+{-@ LIQUID "--no-termination" @-}
+module Blank (quickSort, foo, qsort) where
 
 -- This is a blank file.
 

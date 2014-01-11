@@ -1,4 +1,4 @@
-module Infinity where
+module Infinity () where
 
 import Language.Haskell.Liquid.Prelude
 {-@ LIQUID "--totality" @-}

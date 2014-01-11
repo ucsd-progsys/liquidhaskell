@@ -1,4 +1,4 @@
-module Foo where
+module Foo () where
 
 
 {-@ cmp :: forall < p :: xx:b -> c -> Prop

@@ -1,4 +1,4 @@
-module Foo where
+module Foo () where
 
 {-@ foo :: forall a <p :: x0:Int -> x1:a -> Prop>. 
              (i:Int  -> j : Int-> a<p (i)>) -> 

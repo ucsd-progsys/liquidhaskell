@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
 
-module GhcSort where
+module GhcSort () where
 
 import Language.Haskell.Liquid.Prelude
 

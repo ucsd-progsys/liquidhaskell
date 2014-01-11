@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FlexibleContexts       #-} 
 {-# LANGUAGE OverlappingInstances   #-}
+{-# LANGUAGE ViewPatterns           #-}
 
 -- | This module (should) contain all the global type definitions and basic
 -- instances. Need to gradually pull things into here, especially from @RefType@
@@ -49,7 +50,9 @@ module Language.Haskell.Liquid.Types (
 
   -- * Default unknown name
   , dummyName, isDummy
-  
+  -- * Refinement Hole
+  , hole, isHole
+
   -- * Traversing `RType` 
   , efoldReft, foldReft
   , mapReft, mapReftM
@@ -109,6 +112,7 @@ import FastString                               (fsLit)
 import SrcLoc                                   (mkGeneralSrcSpan, SrcSpan)
 import TyCon
 import DataCon
+import NameSet
 import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Var
 import Unique
@@ -243,6 +247,7 @@ data GhcSpec = SP {
   , lvars      :: !(S.HashSet Var)               -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
   , config     :: !Config                        -- ^ Configuration Options
+  , exports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
   }
 
 
@@ -444,6 +449,9 @@ data RType p c tv r
     , rt_ty    :: !(RType p c tv r)
     }
   | ROth  !String 
+
+  | RHole -- ^ let LH match against the Haskell type and add k-vars, e.g. `x:_`
+          --   see tests/pos/Holes.hs
 
 -- MOVE TO TYPES
 
@@ -677,6 +685,7 @@ emapReft _ _ (RExprArg e)        = RExprArg e
 emapReft f γ (RAppTy t t' r)     = RAppTy (emapReft f γ t) (emapReft f γ t') (f γ r)
 emapReft f γ (RRTy r t)          = RRTy (f γ r) (emapReft f γ t)
 emapReft _ _ (ROth s)            = ROth  s 
+emapReft _ _ RHole               = RHole
 
 emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> Ref (RType p c tv ()) t (RType p c tv t) -> Ref (RType p c tv ()) s (RType p c tv s)
 emapRef  f γ (RMono s r)         = RMono s $ f γ r
@@ -697,6 +706,7 @@ mapReftM f (REx z t t')       = liftM2  (REx z)     (mapReftM f t)          (map
 mapReftM _ (RExprArg e)       = return  $ RExprArg e 
 mapReftM f (RAppTy t t' r)    = liftM3 (RAppTy) (mapReftM f t) (mapReftM f t') (f r)
 mapReftM _ (ROth s)           = return  $ ROth  s 
+mapReftM _ RHole              = return RHole
 
 mapRefM  :: (Monad m) => (t -> m s) -> Ref (RType p c tv ()) t (RType p c tv t) -> m (Ref (RType p c tv ()) s (RType p c tv s))
 mapRefM  f (RMono s r)        = liftM   (RMono s)      (f r)
@@ -723,6 +733,7 @@ efoldReft cb g f = go
     go γ z (RRTy _ t)                   = go γ z t
     go γ z me@(RAppTy t t' r)           = f γ (Just me) r (go γ (go γ z t) t')
     go _ z (RExprArg _)                 = z
+    go _ z RHole                        = z
 
     -- folding over Ref 
     ho  γ z (RMono ss r)                = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
@@ -779,6 +790,7 @@ mapBind f (RAllE b t1 t2)  = RAllE  (f b) (mapBind f t1) (mapBind f t2)
 mapBind f (REx b t1 t2)    = REx    (f b) (mapBind f t1) (mapBind f t2)
 mapBind _ (RVar α r)       = RVar α r
 mapBind _ (ROth s)         = ROth s
+mapBind _ RHole            = RHole
 mapBind f (RRTy r t)       = RRTy r (mapBind f t)
 mapBind _ (RExprArg e)     = RExprArg e
 mapBind f (RAppTy t t' r)  = RAppTy (mapBind f t) (mapBind f t') r
@@ -1182,3 +1194,7 @@ instance PPrint KVProf where
 instance NFData KVProf where
   rnf (KVP m) = rnf m `seq` () 
 
+hole = RKvar (S "HOLE") mempty
+
+isHole (toReft -> (Reft (_, [RKvar (S "HOLE") _]))) = True
+isHole _                                            = False

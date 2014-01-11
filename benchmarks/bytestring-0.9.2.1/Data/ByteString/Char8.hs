@@ -505,6 +505,7 @@ scanr1 f = B.scanr1 (\a b -> c2w (f (w2c a) (w2c b)))
 -- > replicate w c = unfoldr w (\u -> Just (u,u)) c
 --
 -- This implemenation uses @memset(3)@
+{-@ replicate :: n:Nat -> Char -> {v:ByteString | (bLength v) = (if n > 0 then n else 0)} @-}
 replicate :: Int -> Char -> ByteString
 replicate w = B.replicate w . c2w
 {-# INLINE replicate #-}
@@ -667,6 +668,7 @@ index b i = w2c $ B.index b i
 -- | /O(n)/ The 'elemIndex' function returns the index of the first
 -- element in the given 'ByteString' which is equal (by memchr) to the
 -- query element, or 'Nothing' if there is no such element.
+{-@ elemIndex :: Char -> b:ByteString -> Maybe {v:Nat | v < (bLength b)} @-}
 elemIndex :: Char -> ByteString -> Maybe Int
 elemIndex = B.elemIndex . c2w
 {-# INLINE elemIndex #-}

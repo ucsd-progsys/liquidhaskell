@@ -1,4 +1,4 @@
-module Zipper where
+module Zipper () where
 
 import Prelude hiding (reverse, (++))
 

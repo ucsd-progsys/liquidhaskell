@@ -1,4 +1,4 @@
-module Goo where
+module Goo () where
 
 cnt   :: Int -> Int
 cnt 0 = 0

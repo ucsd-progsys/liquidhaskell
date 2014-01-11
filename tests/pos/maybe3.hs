@@ -1,4 +1,4 @@
-module Foo where
+module Foo () where
 
 -- -> hi  : {v: Maybe {v: a | ( isJust(hi0) && (v = fromJust(hi0)) && ((isJust(lo)) => (v >= fromJust(lo))))} | v = hi0 }   
 

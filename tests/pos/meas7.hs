@@ -1,5 +1,5 @@
 
-module Meas where
+module Meas () where
 
 -- some tests for the 'expandDefaultCase' trick to case-split 
 -- on the "missing" constructors.

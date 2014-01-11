@@ -1,4 +1,4 @@
-module DC where
+module DC () where
 
 data Foo a = F a a a 
 

@@ -1,7 +1,7 @@
 
 -- | A somewhat fancier example demonstrating the use of Abstract Predicates and exist-types
 
-module Ex where
+module Ex () where
 
 -------------------------------------------------------------------------
 -- | Data types ---------------------------------------------------------

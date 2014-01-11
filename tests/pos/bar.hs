@@ -1,4 +1,4 @@
-module Bar where
+module Bar () where
 
 import Language.Haskell.Liquid.Prelude
 

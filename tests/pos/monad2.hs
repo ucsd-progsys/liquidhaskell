@@ -1,4 +1,4 @@
-module Monad where
+module Monad () where
 
 goo c = return c
 

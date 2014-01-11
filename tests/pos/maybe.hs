@@ -1,4 +1,4 @@
-module Test where
+module Test () where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
 

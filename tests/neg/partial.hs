@@ -1,4 +1,4 @@
-module Test where
+module Test () where
 
 {-@ posPlus :: x:{v: Int | v >= 0} -> {v: Int | v >= x} @-}
 posPlus :: Int -> Int

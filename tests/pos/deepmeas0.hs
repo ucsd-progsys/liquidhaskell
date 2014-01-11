@@ -1,4 +1,4 @@
-module DeepMeasure where
+module DeepMeasure () where
 
 import Language.Haskell.Liquid.Prelude (liquidError)
 import Data.Set
