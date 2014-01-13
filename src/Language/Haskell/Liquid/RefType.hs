@@ -88,8 +88,8 @@ pdVar v        = Pr [uPVar v]
 
 findPVar :: [PVar (RType p c tv ())] -> UsedPVar -> PVar (RType p c tv ())
 findPVar ps p 
-  = PV name ty $ zipWith (\(_, _, e) (t, s, _) -> (t, s, e))(pargs p) args
-  where PV name ty args = fromMaybe (msg p) $ L.find ((==(pname p)) . pname) ps
+  = PV name ty v (zipWith (\(_, _, e) (t, s, _) -> (t, s, e))(pargs p) args)
+  where PV name ty v args = fromMaybe (msg p) $ L.find ((==(pname p)) . pname) ps 
         msg p = errorstar $ "RefType.findPVar" ++ showpp p ++ "not found"
 
 -- | Various functions for converting vanilla `Reft` to `Spec`
@@ -665,7 +665,7 @@ instance SubsTy tv ty Reft where
   subt _ = id
 
 instance (SubsTy tv ty ty) => SubsTy tv ty (PVar ty) where
-  subt su (PV n t xts) = PV n (subt su t) [(subt su t, x, y) | (t,x,y) <- xts] 
+  subt su (PV n t v xts) = PV n (subt su t) v [(subt su t, x, y) | (t,x,y) <- xts]
 
 instance SubsTy RTyVar RSort RTyCon where  
    subt z c = c {rTyConPs = subt z <$> rTyConPs c}
