@@ -105,6 +105,8 @@ module Language.Haskell.Liquid.Types (
   , KVProf        -- ^ profile table
   , emptyKVProf   -- ^ empty profile
   , updKVProf     -- ^ extend profile
+
+  , pappSym, pToRef, pApp
   )
   where
 
@@ -278,6 +280,7 @@ data TargetVars = AllVars | Only ![Var]
 data PVar t
   = PV { pname :: !Symbol
        , ptype :: !t
+       , parg  :: !Symbol
        , pargs :: ![(t, Symbol, Expr)]
        }
 	deriving (Show)
@@ -286,16 +289,16 @@ instance Eq (PVar t) where
   pv == pv' = (pname pv == pname pv') {- UNIFY: What about: && eqArgs pv pv' -}
 
 instance Ord (PVar t) where
-  compare (PV n _ _)  (PV n' _ _) = compare n n'
+  compare (PV n _ _ _)  (PV n' _ _ _) = compare n n'
 
 instance Functor PVar where
-  fmap f (PV x t txys) = PV x (f t) (mapFst3 f <$> txys)
+  fmap f (PV x t v txys) = PV x (f t) v (mapFst3 f <$> txys)
 
 instance (NFData a) => NFData (PVar a) where
-  rnf (PV n t txys) = rnf n `seq` rnf t `seq` rnf txys
+  rnf (PV n t v txys) = rnf n `seq` rnf v `seq` rnf t `seq` rnf txys
 
 instance Hashable (PVar a) where
-  hashWithSalt i (PV n _ xys) = hashWithSalt i  n -- : (thd3 <$> xys)
+  hashWithSalt i (PV n _ _ xys) = hashWithSalt i  n -- : (thd3 <$> xys)
 
 --------------------------------------------------------------------
 ------------------ Predicates --------------------------------------
@@ -596,7 +599,7 @@ instance (PPrint r, Reftable r) => Reftable (UReft r) where
   isTauto            = isTauto_ureft 
   -- ppTy (U r p) d     = ppTy r (ppTy p d) 
   ppTy               = ppTy_ureft
-  toReft (U r _)     = toReft r
+  toReft (U r ps)    = toReft r `meet` toReft ps
   params (U r _)     = params r
   bot (U r _)        = U (bot r) (Pr [])
   top (U r p)        = U (top r) (top p)
@@ -649,9 +652,17 @@ instance Reftable Predicate where
            | not (ppPs ppEnv) = d
            | otherwise        = d <> (angleBrackets $ pprint r)
   
-  toReft               = errorstar "TODO: instance of toReft for Predicate"
-  params               = errorstar "TODO: instance of params for Predicate"
+  toReft (Pr ps@(p:_))        = Reft (parg p, pToRef <$> ps)
+  toReft _                    = mempty
+  params                      = errorstar "TODO: instance of params for Predicate"
 
+
+pToRef p = RConc $ pApp (pname p) $ (EVar $ parg p) : (thd3 <$> pargs p)
+
+pApp      :: Symbol -> [Expr] -> Pred
+pApp p es = PBexp $ EApp (dummyLoc $ pappSym $ length es) (EVar p:es)
+
+pappSym n  = S $ "papp" ++ show n
 
 ---------------------------------------------------------------
 --------------------------- Visitors --------------------------
@@ -713,15 +724,15 @@ mapRefM  f (RMono s r)        = liftM   (RMono s)      (f r)
 mapRefM  f (RPoly s t)        = liftM   (RPoly s)      (mapReftM f t)
 
 -- foldReft :: (r -> a -> a) -> a -> RType p c tv r -> a
-foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) emptySEnv 
+foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptySEnv 
 
 -- efoldReft :: Reftable r =>(p -> [RType p c tv r] -> [(Symbol, a)])-> (RType p c tv r -> a)-> (SEnv a -> Maybe (RType p c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType p c tv r-> c1
-efoldReft cb g f = go 
+efoldReft cb g f fp = go 
   where
     -- folding over RType 
     go γ z me@(RVar _ r)                = f γ (Just me) r z 
     go γ z (RAllT _ t)                  = go γ z t
-    go γ z (RAllP _ t)                  = go γ z t
+    go γ z (RAllP p t)                  = go (fp p γ) z t
     go γ z me@(RFun _ (RCls c ts) t' r) = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t') 
     go γ z me@(RFun x t t' r)           = f γ (Just me) r (go (insertSEnv x (g t) γ) (go γ z t) t')
     go γ z me@(RApp _ ts rs r)          = f γ (Just me) r (ho' γ (go' (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
@@ -767,7 +778,7 @@ efoldReft cb g f = go
 -- 
 -- -- efoldRef :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> Ref r (RType p c tv r) -> a
 -- efoldRef g f γ z (RMono ss r)         = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
--- efoldRef g f γ z (RPoly ss t)         = efoldReft g f (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
+-- efoldRef g f γ z (RPoly ss t)         = efoldReft g f (insertsSEnv γ ((mepSnd (g . ofRSort)) <$> ss)) z t
 
 mapBot f (RAllT α t)       = RAllT α (mapBot f t)
 mapBot f (RAllP π t)       = RAllP π (mapBot f t)
@@ -913,7 +924,7 @@ pprintBin _ o xs     = intersperse o $ pprint <$> xs
 -- pprintBin b o (x:xs) = pprint x <+> o <+> pprintBin b o xs 
 
 instance PPrint a => PPrint (PVar a) where
-  pprint (PV s _ xts)     = pprint s <+> hsep (pprint <$> dargs xts)
+  pprint (PV s _ _ xts)   = pprint s <+> hsep (pprint <$> dargs xts)
     where 
       dargs               = map thd3 . takeWhile (\(_, x, y) -> EVar x /= nexpr y)
       nexpr (EVar (S ss)) = EVar $ stringSymbol ss

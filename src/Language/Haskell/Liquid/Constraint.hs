@@ -1404,11 +1404,11 @@ getSrcSpan' x
 -----------------------------------------------------------------------
 
 truePredRef :: (PPrint r, F.Reftable r) => PVar (RRType r) -> CG SpecType
-truePredRef (PV _ τ _)
+truePredRef (PV _ τ _ _)
   = trueTy (toType τ)
 
 freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG (Ref RSort RReft SpecType)
-freshPredRef γ e (PV n τ as)
+freshPredRef γ e (PV n τ _ as)
   = do t    <- freshTy_type PredInstE e (toType τ)
        args <- mapM (\_ -> fresh) as
        let targs = [(x, s) | (x, (s, y, z)) <- zip args as, (F.EVar y) == z ]

@@ -8,6 +8,7 @@ module Language.Haskell.Liquid.PredType (
   , substParg
   , pApp
   , wiredSortedSyms
+  , pVartoRConc
   ) where
 
 -- import PprCore          (pprCoreExpr)
@@ -192,10 +193,14 @@ replacePredsWithRefs (p, r) (U (Reft(v, rs)) (Pr ps))
         freeSymbols      = snd3 <$> filter (\(_, x, y) -> EVar x == y) pargs1
         pargs1           = concatMap pargs ps1
 
-pVartoRConc p (v, args)
+pVartoRConc p (v, args) | length args == length (pargs p) 
   = RConc $ pApp (pname p) $ EVar v:(thd3 <$> args)
 
-toPredType (PV _ ptype args) = rpredType (ty:tys)
+pVartoRConc p (v, args)
+  = RConc $ pApp (pname p) $ EVar v : args'
+  where args' = (thd3 <$> args) ++ (drop (length args) (thd3 <$> pargs p))
+
+toPredType (PV _ ptype _ args) = rpredType (ty:tys)
   where ty = uRTypeGen ptype
         tys = uRTypeGen . fst3 <$> args
         
@@ -245,7 +250,7 @@ substPred msg su@(π, _ ) (RApp c ts rs r)
   where t'        = RApp c (substPred msg su <$> ts) (substPredP su <$> rs) r
         (r2', πs) = splitRPvar π r
 
-substPred msg (p, tp) (RAllP (q@(PV _ _ _)) t)
+substPred msg (p, tp) (RAllP (q@(PV _ _ _ _)) t)
   | p /= q                      = RAllP q $ substPred msg (p, tp) t
   | otherwise                   = RAllP q t 
 
@@ -367,7 +372,7 @@ predName = "Pred"
 predType :: Type 
 predType = TyVarTy $ stringTyVar predName
 
-rpredType    :: Reftable r => [RRType r] -> RRType r
+rpredType    :: (PPrint r, Reftable r) => [RRType r] -> RRType r
 rpredType ts = RApp tyc ts [] mempty
   where 
     tyc      = RTyCon (stringTyCon 'x' 42 predName) [] defaultTyConInfo
@@ -440,9 +445,9 @@ substParg (x, y) = fmap fp  -- RJ: UNIFY: BUG  mapTy fxy
 -----------------------------  Predicate Application --------------------------
 -------------------------------------------------------------------------------
 
-pappArity  = 2
+pappArity  = 7
 
-pappSym n  = S $ "papp" ++ show n
+-- pappSym n  = S $ "papp" ++ show n
 
 pappSort n = FFunc (2 * n) $ [ptycon] ++ args ++ [bSort]
   where ptycon = fApp (Left predFTyCon) $ FVar <$> [0..n-1]
@@ -453,6 +458,6 @@ wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 
 predFTyCon = stringFTycon $ dummyLoc predName
 
-pApp :: Symbol -> [F.Expr] -> Pred
-pApp p es= PBexp $ EApp (dummyLoc $ pappSym $ length es) (EVar p:es)
+-- pApp :: Symbol -> [F.Expr] -> Pred
+-- pApp p es= PBexp $ EApp (dummyLoc $ pappSym $ length es) (EVar p:es)
 

@@ -193,7 +193,7 @@ ppr_forall bb p t
     dπs False _            = empty 
     dπs True πs            = angleBrackets $ intersperse comma $ ppr_pvar_def pprint <$> πs
 
-ppr_pvar_def pprv (PV s t xts) = pprint s <+> dcolon <+> intersperse arrow dargs 
+ppr_pvar_def pprv (PV s t _ xts) = pprint s <+> dcolon <+> intersperse arrow dargs 
   where 
     dargs = [pprv t | (t,_,_) <- xts] ++ [pprv t, text boolConName]
 
