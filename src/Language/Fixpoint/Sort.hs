@@ -7,6 +7,7 @@ module Language.Fixpoint.Sort  (
     checkSorted
   , checkSortedReft
   , checkSortedReftFull
+  , checkSortFull
   , pruneUnsortedReft
   ) where
 
@@ -50,6 +51,14 @@ checkSortedReftFull γ t
     where 
       γ' = mapSEnv sr_sort γ  
 
+checkSortFull :: Checkable a => SEnv SortedReft -> Sort -> a -> Maybe Doc
+checkSortFull γ s t
+  = case checkSort γ' s t of
+      Left err -> Just (text err)
+      Right _  -> Nothing
+    where 
+      γ' = mapSEnv sr_sort γ  
+
 checkSorted :: Checkable a => SEnv Sort -> a -> Maybe Doc
 checkSorted γ t
   = case check γ t of
@@ -73,7 +82,10 @@ checkRefa f _         = return ()
 
 
 class Checkable a where
-  check :: SEnv Sort -> a -> CheckM ()
+  check     :: SEnv Sort -> a -> CheckM ()
+  checkSort :: SEnv Sort -> Sort -> a -> CheckM ()
+
+  checkSort γ _ = check γ
 
 instance Checkable Refa where
   check γ = checkRefa (`lookupSEnvWithDistance` γ)
@@ -81,6 +93,17 @@ instance Checkable Refa where
 instance Checkable Expr where
   check γ e = do {checkExpr f e; return ()}
    where f =  (`lookupSEnvWithDistance` γ)
+
+  checkSort γ s e = do {t <- checkExpr f e; checkEqSort s t}
+   where f =  (`lookupSEnvWithDistance` γ)
+
+
+checkEqSort s t
+  | s == t    = return ()
+  | otherwise = throwError $ "Couldn't match expected type '" 
+                           ++ show s ++ "'"
+                           ++ "\n\t\t with actual type '" 
+                           ++ show t ++ "'"
 
 instance Checkable Pred where
   check γ = checkPred f
