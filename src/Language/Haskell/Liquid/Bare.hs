@@ -46,7 +46,7 @@ import Data.Function            (on)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames)
 import Language.Fixpoint.Types                  hiding (Def, Predicate)
-import Language.Fixpoint.Sort                   (checkSortedReftFull, checkSorted)
+import Language.Fixpoint.Sort                   (checkSortFull, checkSortedReftFull, checkSorted)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types
@@ -94,11 +94,14 @@ checkMBody γ emb name sort (Def s c bs body) = go γ' body
     unify (RApp _ ts _ _) (RApp _ ts' _ _) = concat $ zipWith unify ts ts'
     unify _ _                              = []
 
-    go γ (E e)   = checkSortedReftFull γ e
-    go γ (P p)   = checkSortedReftFull γ p
-    go γ (R s p) = checkSortedReftFull (insertSEnv s sty γ) p
+    go γ (E e)   = checkSortFull γ rs e
+    go γ (P p)   = checkSortFull γ bsort p
+    go γ (R s p) = checkSortFull (insertSEnv s sty γ) bsort p
 
     sty = rTypeSortedReft emb (thd3 $ bkArrowDeep sort)
+    rs  = rTypeSort       emb (thd3 $ bkArrowDeep sort)
+
+    bsort = FApp boolFTyCon []
 
 makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet
              -> [(ModName,Ms.BareSpec)]
