@@ -774,7 +774,7 @@ mapAccumL :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteSt
 mapAccumL f s0 cs0 = mapAccum_go s0 cs0
   where
     --LIQUID RENAME
-    {-@ Decrease mapAccum_go 5 @-}
+    {-@ Decrease mapAccum_go 2 @-}
     mapAccum_go s Empty        = (s, Empty)
     mapAccum_go s (Chunk c cs) = (s'', Chunk c' cs')
         where (s',  c')  = S.mapAccumL f s c
@@ -788,7 +788,7 @@ mapAccumL f s0 cs0 = mapAccum_go s0 cs0
 mapAccumR :: (acc -> Word8 -> (acc, Word8)) -> acc -> ByteString -> (acc, ByteString)
 mapAccumR f s0 cs0 = go s0 cs0
   where
-    {-@ Decrease go 5 @-}
+    {-@ Decrease go 2 @-}
     go s Empty        = (s, Empty)
     go s (Chunk c cs) = (s'', Chunk c' cs')
         where (s'', c') = S.mapAccumR f s' c
