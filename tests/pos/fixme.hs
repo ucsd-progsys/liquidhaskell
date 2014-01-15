@@ -1,14 +1,11 @@
-module Fixme () where
+module Fixme where
 
-{-@ LIQUID "--no-termination" @-}
-{-@ type SL a = [a]<{\x v -> x <= v}> @-}
+-- isEven 0 = True
+-- isEven n = isEven $ n - 1
 
-{-@ merge :: Ord a => (SL a) -> (SL a) -> (SL a) @-}
-merge :: Ord a => [a] -> [a] -> [a]
-merge xss@(x:xs) (y:ys)
-  | x < y     = x : merge xs (y:ys)
--- this is safe
-  | otherwise = y : merge (x:xs) ys
--- but this isn't
---  | otherwise = y : merge xss ys
+incr x = (x, x+1)
 
+{-@ foo :: x:Int -> {v:Int | v > x } @-}
+foo :: Int -> Int
+foo x = y
+  where (w, y) = incr x

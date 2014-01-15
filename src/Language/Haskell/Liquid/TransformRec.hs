@@ -6,7 +6,7 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 
 module Language.Haskell.Liquid.TransformRec (
-     transformRecExpr
+     transformRecExpr, transformScope
      ) where
 
 import           Bag
@@ -37,13 +37,14 @@ transformRecExpr cbs
   =  {-trace "new cbs"-} pg 
   | otherwise 
   = error (showPpr pg ++ "Type-check" ++ showSDoc (pprMessageBag e))
-  where pg     = scopeTr $ evalState (transPg cbs) initEnv
+  where pg     = evalState (transPg cbs) initEnv
         (_, e) = lintCoreBindings pg
 
 isTypeError s | isInfixOf "Non term variable" (showSDoc s) = False
 isTypeError _ = True
 
 scopeTr = outerScTr . innerScTr
+transformScope = outerScTr . innerScTr
 
 outerScTr = mapNonRec (go [])
   where

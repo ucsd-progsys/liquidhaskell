@@ -34,6 +34,7 @@ import           Control.Applicative              ((<$>))
 import           UniqSupply                       (MonadUnique)
 import           Language.Fixpoint.Types (anfPrefix)
 import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..), showPpr)
+import           Language.Haskell.Liquid.TransformRec
 import           Language.Fixpoint.Misc     (fst3, errorstar)
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
@@ -47,7 +48,7 @@ anormalize hscEnv modGuts
           grEnv    = mgi_rdr_env modGuts
           tEnv     = modGutsTypeEnv modGuts
           act      = liftM concat $ mapM (normalizeTopBind emptyVarEnv) orig_cbs
-          orig_cbs = mgi_binds modGuts
+          orig_cbs = transformRecExpr $ mgi_binds modGuts
           err      = errorstar "anormalize fails!"
 
 modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
