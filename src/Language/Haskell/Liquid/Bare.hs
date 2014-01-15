@@ -95,13 +95,13 @@ checkMBody γ emb name sort (Def s c bs body) = go γ' body
     unify _ _                              = []
 
     go γ (E e)   = checkSortFull γ rs e
-    go γ (P p)   = checkSortFull γ bsort p
-    go γ (R s p) = checkSortFull (insertSEnv s sty γ) bsort p
+    go γ (P p)   = checkSortFull γ psort p
+    go γ (R s p) = checkSortFull (insertSEnv s sty γ) psort p
 
     sty = rTypeSortedReft emb (thd3 $ bkArrowDeep sort)
     rs  = rTypeSort       emb (thd3 $ bkArrowDeep sort)
 
-    bsort = FApp boolFTyCon []
+    psort = FApp propFTyCon []
 
 makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet
              -> [(ModName,Ms.BareSpec)]
