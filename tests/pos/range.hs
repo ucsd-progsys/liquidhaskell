@@ -15,7 +15,7 @@ range' d i j
 
 sumTo = foldl (+) 0 . range 0 
 
-{-@ Decrease lgo 5 @-}
+{-@ Decrease lgo 2 @-}
 --myfoldl :: (Int -> Int -> Int) -> Int -> [Int] -> Int
 myfoldl f z0 xs0 = lgo z0 xs0
              where

@@ -43,7 +43,7 @@ liquidOne target info =
      whenLoud  $ do putStrLn $ showpp info 
                     putStrLn "*************** Original CoreBinds ***************************" 
                     putStrLn $ showpp (cbs info)
-     let cbs' = transformRecExpr (cbs info)
+     let cbs' = transformScope (cbs info)
      whenLoud  $ do donePhase Loud "transformRecExpr"
                     putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
                     putStrLn $ showpp cbs'

@@ -1,5 +1,3 @@
-Failed 3 tests: 
- pos/fixme.hs,
-  pos/malformed0.hs,
-  pos/typeAliasDup.hs 
+
+
 
