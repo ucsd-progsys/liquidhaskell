@@ -48,7 +48,7 @@ data Graph node edge =
     getPairIncoming (x, y) = (getEdgesIncoming x)
   @-}
 
-{-@ measure getPairOutgoing :: (Edges edge, Edges e) -> (Set edge)
+{-@ measure getPairOutgoing :: (Edges e, Edges edge) -> (Set edge)
     getPairOutgoing (x, y) = (getEdgesOutgoing y)
   @-}
 
