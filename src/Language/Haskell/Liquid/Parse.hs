@@ -552,7 +552,10 @@ classP
   where
     mb Nothing   = []
     mb (Just xs) = xs
-    superP = maybeP (parens (bareTypeP `sepBy1` comma) <* reserved "=>")
+    superP = maybeP (parens ( liftM (toRCls <$>)  (bareTypeP `sepBy1` comma)) <* reserved "=>")
+    toRCls (RApp c ts rs r) = RCls c ts
+    toRCls t@(RCls _ _)     = t
+    toRCls t                = errorstar $ "Parse.toRCls called with" ++ show t
 
 rawBodyP 
   = braces $ do
