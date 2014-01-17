@@ -1,4 +1,4 @@
-module Fixme where
+module Fixme (foo) where
 
 -- isEven 0 = True
 -- isEven n = isEven $ n - 1

@@ -48,7 +48,7 @@ data Space a = Null | Real a Integer
   @-}
 
 {-@ invariant {v: PVector | (Inv v) }    @-}
-{-@ invariant {v: Space | (dim v) >= 0 } @-}
+{-@ invariant {v: Space PVector | (dim v) >= 0 } @-}
 
 -- RJ: Helpers for defining properties
 
