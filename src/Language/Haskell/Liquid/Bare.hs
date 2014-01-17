@@ -1096,8 +1096,9 @@ bareTCApp _ r c rs ts | (not (isFamilyTyCon c)) && isSynTyCon c
          su  = zipWith (\a t -> (rTyVar a, toRSort t, t)) tvs ts
          nts = length tvs
 
+-- TODO expandTypeSynonyms here to
 bareTCApp _ r c rs ts | isFamilyTyCon c && isTrivial t
-  = expandRTypeSynonyms $ t `strengthen` r
+  = expandRTypeSynonyms $ t `strengthen` r 
   where t = rApp c ts rs mempty
 
 -- TODO: move back to RefType
@@ -1109,7 +1110,7 @@ bareTCApp _ r c rs ts | length ts == tyConArity c
 bareTCApp _ _ c rs ts 
   = rApp c ts rs mempty
 
--- expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
+expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
 
 stringRTyVar  = rTyVar . stringTyVar 
 -- stringTyVarTy = TyVarTy . stringTyVar
