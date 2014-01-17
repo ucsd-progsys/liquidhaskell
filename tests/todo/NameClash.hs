@@ -36,9 +36,13 @@ data Space a = Null | Real a Integer
   @-}
 
 {-@ measure muCoeff :: PVector -> [Integer]
-    muCoeff (PVector p m o) = m 
+    muCoeff (PVector v m o) = m 
   @-}
 
+--  If the above v is renames to anything else the test is SAFE
+-- this v creates a type for PVector
+-- PVector :: v{} -> m {} -> o{}
+-- and the argument bind v clashs with the special value v....
 
 {-@ invariant {v: PVector | (Inv v) }    @-}
 {-@ invariant {v: Space | (dim v) >= 0 } @-}
