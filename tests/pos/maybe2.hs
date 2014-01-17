@@ -48,7 +48,7 @@ data MaybeS a = NothingS | JustS !a
 isRoot (Bin _ _ _ _ _) = True
 isRoot (Tip)           = False
 
-{-@ filterGt :: (Ord k) -> x:MaybeS k -> OMap k v -> OMap {v:k | ((isJustS(x)) => (v > fromJustS(x))) } v @-}
+{-@ filterGt :: (Ord k) => x:MaybeS k -> OMap k v -> OMap {v:k | ((isJustS(x)) => (v > fromJustS(x))) } v @-}
 filterGt :: Ord k => MaybeS k -> Map k v -> Map k v
 filterGt NothingS t = t
 filterGt (JustS b) t = filterGt' b t
@@ -59,7 +59,7 @@ filterGt' b' (Bin _ kx x l r) =
                                 EQ -> r
                                 GT -> filterGt' b' r
 
-{-@ filterLt :: (Ord k) -> x:MaybeS k -> OMap k v -> OMap {v:k | ((isJustS(x)) => (v < fromJustS(x))) } v @-}
+{-@ filterLt :: (Ord k) => x:MaybeS k -> OMap k v -> OMap {v:k | ((isJustS(x)) => (v < fromJustS(x))) } v @-}
 filterLt :: Ord k => MaybeS k -> Map k v -> Map k v
 filterLt NothingS t = t
 filterLt (JustS b) t = filterLt' b t

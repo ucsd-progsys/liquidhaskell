@@ -1,4 +1,4 @@
-{-@ LIQUID "--idirs=../../benchmarks/bytestring-0.9.2.1" @-}
+{-@ LIQUID "--idirs=../../benchmarks/bytestring-0.9.2.1/" @-}
 {-@ LIQUID "--idirs=../../include" @-}
 {-@ LIQUID "--no-termination" @-}
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
