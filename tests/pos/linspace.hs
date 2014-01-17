@@ -44,7 +44,7 @@ data Space a = Null | Real a Integer
   @-}
 
 {-@ measure orthSpace :: PVector -> (Space PVector)
-    orthSpace (PVector v m o) = o
+    orthSpace (PVector p m o) = o
   @-}
 
 {-@ invariant {v: PVector | (Inv v) }    @-}
