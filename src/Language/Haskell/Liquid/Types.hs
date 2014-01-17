@@ -107,6 +107,8 @@ module Language.Haskell.Liquid.Types (
   , updKVProf     -- ^ extend profile
 
   , pappSym, pToRef, pApp
+
+  , insertsSEnv
   )
   where
 
