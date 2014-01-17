@@ -37,6 +37,7 @@ import Class            (Class, className)
 import Var
 import Id
 import Name            -- (getSrcSpan, getOccName)
+import NameSet
 import Text.PrettyPrint.HughesPJ
 
 import Control.Monad.State
@@ -90,7 +91,7 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
 
 consAct info penv
   = do γ     <- initEnv info penv
-       foldM consCBTop γ (cbs info)
+       foldM_ consCBTop γ (cbs info)
        hcs <- hsCs  <$> get 
        hws <- hsWfs <$> get
        fcs <- concat <$> mapM splitC hcs 
@@ -102,19 +103,33 @@ initEnv info penv
   = do let tce   = tcEmbeds $ spec info
        defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- tyConInfo <$> get 
-       f0       <- refreshArgs' $  grty info        -- asserted refinements     (for defined vars)
-       f0''     <- grtyTop info >>= refreshArgs'    -- default TOP reftype      (for exported vars without spec) 
-       let f0'   = if (notruetypes $ config $ spec info) then [] else f0'' 
-       f1       <- refreshArgs' $ defaults          -- default TOP reftype      (for all vars) 
+       (ks,f0)  <- extract <$> refreshKs (grty info)-- asserted refinements     (for defined vars)
+       f0''     <- grtyTop info >>= refreshArgs'    -- default TOP reftype      (for exported vars without spec)
+       let f0'   = if (notruetypes $ config $ spec info) then [] else f0''
+       f1       <- refreshArgs' $ defaults          -- default TOP reftype      (for all vars)
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
        let bs    = (map (unifyts' tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
+       mapM_ (addW . WfC γ0) (catMaybes ks)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
-  where refreshArgs' = mapM (mapSndM refreshVV)
--- where tce = tcEmbeds $ spec info 
+  where
+    refreshArgs' = mapM (mapSndM refreshArgs)
+    refreshKs    = mapM (mapSndM refreshK)
+    refreshK t   = do
+        t' <- mapReftM f t
+        let b = foldReft ((||) . isHole) False t
+        return (if b then Just t' else Nothing, t')
+      where
+        f r | isHole r  = refresh r
+            | otherwise = return r
+    extract = unzip . map (\(v,(k,t)) -> (k,(v,t)))
+  -- where tce = tcEmbeds $ spec info
+
+instance Show Var where
+  show = showPpr
 
 ctor' = map (mapSnd val) . ctors
 
@@ -153,7 +168,8 @@ assm_grty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
 grtyTop info     = forM topVs $ \v -> (v,) <$> (trueTy $ varType v) -- val $ varSpecType v) | v <- defVars info, isTop v]
   where
     topVs        = filter isTop $ defVars info
-    isTop v      = isExportedId v && not (v `S.member` useVs) && not (v `S.member` sigVs)
+    isTop v      = isExportedId v && not (v `S.member` sigVs)
+    isExportedId = flip elemNameSet (exports $ spec info) . getName
     useVs        = S.fromList $ useVars info
     sigVs        = S.fromList $ [v | (v,_) <- tySigs $ spec info]
 
@@ -503,7 +519,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
                      , logWarn    :: ![String]                    -- ^ ? FIX THIS
                      , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars 
-                     , recCount       :: !Int
+                     , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
                      } -- deriving (Data, Typeable)
 
 instance PPrint CGInfo where 
@@ -1094,7 +1110,7 @@ cconsE γ (Tick tt e) t
   = cconsE (γ `setLoc` tickSrcSpan tt) e t
 
 cconsE γ e@(Cast e' _) t     
-  = do t' <- castTy (exprType e) e' -- trueTy $ exprType e
+  = do t' <- castTy γ (exprType e) e' -- trueTy $ exprType e
        addC (SubC γ t' t) ("cconsE Cast" ++ showPpr e) 
 
 cconsE γ e (RAllP p t)
@@ -1194,7 +1210,7 @@ consE γ (Tick tt e)
     where l = {- traceShow ("tickSrcSpan: e = " ++ showPpr e) $ -} tickSrcSpan tt
 
 consE γ e@(Cast e' _)      
-  = castTy (exprType e) e'
+  = castTy γ (exprType e) e'
 
 consE γ e@(Coercion _)
    = trueTy $ exprType e
@@ -1202,12 +1218,14 @@ consE γ e@(Coercion _)
 consE _ e	    
   = errorstar $ "consE cannot handle " ++ showPpr e 
 
-castTy τ (Var x)
+castTy _ τ (Var x)
   = do t <- trueTy τ 
        return $  t `strengthen` (uTop $ F.uexprReft $ F.expr x)
 
-castTy τ _
-  = trueTy τ 
+castTy γ τ e
+  = do t <- trueTy (exprType e)
+       cconsE γ e t
+       trueTy τ 
 
 singletonReft = uTop . F.symbolReft . F.symbol 
 
@@ -1386,11 +1404,11 @@ getSrcSpan' x
 -----------------------------------------------------------------------
 
 truePredRef :: (PPrint r, F.Reftable r) => PVar (RRType r) -> CG SpecType
-truePredRef (PV _ τ _)
+truePredRef (PV _ τ _ _)
   = trueTy (toType τ)
 
 freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG (Ref RSort RReft SpecType)
-freshPredRef γ e (PV n τ as)
+freshPredRef γ e (PV n τ _ as)
   = do t    <- freshTy_type PredInstE e (toType τ)
        args <- mapM (\_ -> fresh) as
        let targs = [(x, s) | (x, (s, y, z)) <- zip args as, (F.EVar y) == z ]

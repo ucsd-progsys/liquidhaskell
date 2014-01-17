@@ -1,4 +1,4 @@
-module ListSort where
+module ListSort () where
 
 data Foo a = F Int a
 

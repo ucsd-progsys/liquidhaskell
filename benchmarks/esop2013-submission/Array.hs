@@ -121,6 +121,12 @@ initid = initArray (V id)
 ---------------------------- null terms  --------------------------------------
 -------------------------------------------------------------------------------
 
+{-@ upperCaseString' ::
+      n: {v: Int | v > 0} ->
+      i: {v: Nat | v < n} ->
+      s: Vec <{\v -> (0 <= v && v < n)}, {\j v -> (j = n - 1 => v = 0)}> Int ->
+      Vec <{\v -> (0 <= v && v < n)}, {\j v -> (j = n - 1 => v = 0)}> Int
+@-}
 upperCaseString' :: Int -> Int -> Vec Int -> Vec Int
 upperCaseString' n i s =
   let c = get i s in
@@ -134,7 +140,6 @@ upperCaseString' n i s =
 @-}
 upperCaseString :: Int -> Vec Int -> Vec Int
 upperCaseString n s = upperCaseString' n 0 s
-
 
 
 

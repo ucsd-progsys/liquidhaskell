@@ -1,4 +1,4 @@
-module Test where
+module Test () where
 
 {-@ type OList a = [a]<{\fld v -> (v >= fld)}> @-}
 

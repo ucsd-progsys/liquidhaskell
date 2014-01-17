@@ -1,4 +1,4 @@
-module ResolveA where
+module ResolveA  where
 
 import qualified ResolveB as RB
 

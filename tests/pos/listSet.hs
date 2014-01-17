@@ -1,4 +1,4 @@
-module ListSets where
+module ListSets () where
 
 -------------------------------------------------------------------------
 -- | Encoding Sets of Values With Liquid Types --------------------------

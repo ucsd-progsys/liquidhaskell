@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Vec0 where
+module Vec0 (dotProduct, safeLookup) where
 
 import Prelude hiding (length)
 import Data.Vector
@@ -37,7 +37,7 @@ abz n = if 0 <= n then n else (0 - n)
 loop :: Int -> Int -> a -> (Int -> a -> a) -> a 
 loop lo hi base f = go (hi-lo) base lo
   where
-    {-@ Decrease go 5 @-}
+    {-@ Decrease go 1 @-}
     go (d::Int) acc i     
       | i /= hi   = go (d-1) (f i acc) (i + 1)
       | otherwise = acc
@@ -63,7 +63,7 @@ dotProduct x y
 {-@ sparseDotProduct :: (Num a) => x:(Vector a) -> (SparseVector a {(vlen x)}) -> a @-}
 sparseDotProduct x y  = go 0 y
   where
-    {-@ Decrease go 5 @-}
+    {-@ Decrease go 2 @-}
     go sum ((i, v) : y') = go (sum + (x ! i) * v) y' 
     go sum []            = sum
 

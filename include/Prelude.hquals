@@ -15,9 +15,12 @@ qualif False1(v:GHC.Types.Bool)  : ~ Prop(v)
 
 
 qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
-constant papp1 : func(2, [Pred @(0); @(1); bool])
+constant papp1 : func(1, [Pred @(0); @(0); bool])
 
 qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
 constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+qualif Papp3(v:a,~X:b, ~Y:c, ~P:Pred a b c) : papp3(~P, v, ~X, ~Y)
+constant papp3 : func(6, [Pred @(0) @(1) @(2); @(3); @(4); @(5); bool])
 
 constant Prop : func(0, [GHC.Types.Bool; bool])

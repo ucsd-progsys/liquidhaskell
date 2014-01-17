@@ -1,4 +1,4 @@
-module Fixme where
+module Fixme () where
 
 data F a b c = F (Int -> b -> c)
 {- data F a b c = F (x::(Int -> b -> c)) @-}

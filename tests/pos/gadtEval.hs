@@ -1,5 +1,5 @@
 
-module Eval where 
+module Eval () where 
 
 import Language.Haskell.Liquid.Prelude (liquidError)
 

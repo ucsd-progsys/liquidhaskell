@@ -1,4 +1,4 @@
-module Zog where
+module Zog () where
 
 import Language.Haskell.Liquid.Prelude
 

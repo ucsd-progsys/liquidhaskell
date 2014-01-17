@@ -1,4 +1,4 @@
-module Fixme where
+module Fixme () where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
 

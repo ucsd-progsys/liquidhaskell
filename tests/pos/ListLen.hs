@@ -1,4 +1,4 @@
-module ListClone where
+module ListClone () where
 
 import Language.Haskell.Liquid.Prelude
 

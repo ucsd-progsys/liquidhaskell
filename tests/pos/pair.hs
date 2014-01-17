@@ -1,4 +1,4 @@
-module Pair where 
+module Pair () where 
 
 import Language.Haskell.Liquid.Prelude 
 

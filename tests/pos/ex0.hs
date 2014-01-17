@@ -1,6 +1,6 @@
-{--! run liquid with no-termination -}
+{-@ LIQUID "--no-termination" @-}
 
-module Ex where
+module Ex (count) where
 
 -- Testing "existential-types"
 
@@ -13,12 +13,6 @@ module Ex where
 
 foldN :: (Int -> a -> a) -> Int -> a -> a
 foldN f n = go 0 
-  where go i x | i < n     = go (i+1) (f i x)
-               | otherwise = x
-
-
-fooBar :: (Int -> a -> a) -> Int -> a -> a
-fooBar f n = go 0
   where go i x | i < n     = go (i+1) (f i x)
                | otherwise = x
 

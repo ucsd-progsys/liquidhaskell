@@ -1048,7 +1048,7 @@ unfoldrN :: Int -> (a -> Maybe (Word8, a)) -> a -> (ByteString, Maybe a)
 unfoldrN i f x0
     | i < 0     = (empty, Just x0)
     | otherwise = unsafePerformIO $ createAndTrimMEQ i $ \p -> go_unfoldrN i p x0 0
-  {-@ Decrease go_unfoldrN 4 @-}
+  {-@ Decrease go_unfoldrN 1 @-}
   where STRICT4(go)
         {- LIQUID WITNESS -}
         go_unfoldrN (d::Int) p x n =

@@ -1,4 +1,4 @@
-module GenTerm where
+module GenTerm () where
 
 import Prelude hiding (reverse)
 

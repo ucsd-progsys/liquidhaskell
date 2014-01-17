@@ -10,6 +10,7 @@
 module Data.ByteString (
         ByteString,            -- abstract, instances: Eq, Ord, Show, Read, Data, Typeable, Monoid
         foldr                  -- :: (a -> Word8 -> a) -> a -> ByteString -> a
+  , wantReadableHandleLIQUID
   ) where
 
 

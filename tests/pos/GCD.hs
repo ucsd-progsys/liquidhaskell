@@ -1,4 +1,4 @@
-module GCD where
+module GCD () where
 
 import Prelude hiding (gcd, mod)
 import Language.Haskell.Liquid.Prelude

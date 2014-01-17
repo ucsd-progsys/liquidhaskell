@@ -147,19 +147,25 @@ bareTypeP
  <|> bareAllExprP
  <|> bareExistsP
  <|> try bareFunP
- <|> bareAtomP refP
+ <|> bareAtomP (refBindP bindP)
 
 bareArgP vv
   =  bareAtomP (refDefP vv)
  <|> parens bareTypeP
 
 bareAtomP ref
-  =  ref bbaseP
+  =  ref refasHoleP bbaseP
+ <|> holeP
  <|> try (dummyP (bbaseP <* spaces))
+
+holeP = reserved "_" >> spaces >> return (RHole $ uTop $ Reft (S "VV", [hole]))
+holeRefP = reserved "_" >> spaces >> return (RHole . uTop)
+refasHoleP = refasP <|> (reserved "_" >> return [hole])
 
 bbaseP :: Parser (Reft -> BareType)
 bbaseP 
-  =  liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
+  =  holeRefP
+ <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM2 bAppTy lowerIdP (sepBy1 bareTyArgP blanks))
 --  <|> try (liftM2 bAppTy lowerIdP bareTyArgP)
@@ -226,7 +232,7 @@ predVarDefP
 predVarIdP 
   = stringSymbol <$> tyVarIdP
 
-bPVar p _ xts  = PV p τ τxs 
+bPVar p _ xts  = PV p τ dummySymbol τxs
   where (_, τ) = safeLast "bPVar last" xts
         τxs    = [ (τ, x, EVar x) | (x, τ) <- init xts ]
 
@@ -342,7 +348,7 @@ monoPredicate1P
 predVarUseP 
  = do p  <- predVarIdP
       xs <- sepBy exprP spaces
-      return $ PV p dummyTyId [ (dummyTyId, dummySymbol, x) | x <- xs ]
+      return $ PV p dummyTyId dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
 
 
 ------------------------------------------------------------------------
@@ -364,6 +370,10 @@ bTup [t] _ r | isTauto r  = t
              | otherwise  = t `strengthen` (reftUReft r) 
 bTup ts rs r              = RApp (dummyLoc tupConName) ts rs (reftUReft r)
 
+
+-- Temporarily restore this hack benchmarks/esop2013-submission/Array.hs fails
+-- w/o it
+-- TODO RApp Int [] [p] true should be syntactically different than RApp Int [] [] p
 bCon b [RMono _ r1] [] r  = RApp b [] [] (r1 `meet` (reftUReft r)) 
 bCon b rs ts r            = RApp b ts rs (reftUReft r)
 
