@@ -1,4 +1,4 @@
-module Blank where
+module Blank () where
 
 -- From
 -- http://stackoverflow.com/questions/17501777/implementing-a-zipper-for-length-indexed-lists/17503667#17503667

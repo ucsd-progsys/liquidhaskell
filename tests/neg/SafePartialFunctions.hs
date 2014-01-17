@@ -1,5 +1,5 @@
 {-@ LIQUID "--totality" @-}
-module SafePartialFunctions where
+module SafePartialFunctions (gotail, gohead) where
 
 import Prelude hiding (fromJust, tail, head)
 

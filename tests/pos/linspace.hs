@@ -2,7 +2,7 @@
 
 {-@ LIQUID "--no-termination" @-}
 
-module LinSpace (dotPV) where
+module LinSpace (dotPV, sameSpace, enumCVP) where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
 import Prelude hiding (zipWith)

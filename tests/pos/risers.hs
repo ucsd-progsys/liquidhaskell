@@ -1,4 +1,4 @@
-module Risers where
+module Risers () where
 
 {-@ predicate NonNull X = ((len X) > 0) @-}
 

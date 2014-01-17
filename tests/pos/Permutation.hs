@@ -1,4 +1,4 @@
-module Permutation where
+module Permutation () where
 
 {-@ permutations :: ts:[a] -> [[a]] / [(len ts), 1, 0] @-}
 permutations            :: [a] -> [[a]]

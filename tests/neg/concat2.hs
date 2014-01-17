@@ -1,4 +1,4 @@
-module Concat where
+module Concat () where
 
 import Language.Haskell.Liquid.Prelude
 

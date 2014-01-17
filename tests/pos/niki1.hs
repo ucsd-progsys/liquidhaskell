@@ -1,4 +1,4 @@
-module Niki where
+module Niki () where
 
 import Language.Haskell.Liquid.Prelude
 

@@ -1,4 +1,4 @@
-module MapReduce where
+module MapReduce () where
 
 import Language.Haskell.Liquid.Prelude 
 import Data.Map hiding (filter, map, foldl, foldr)

@@ -1,4 +1,4 @@
-module Graph where
+module Graph () where
 
 import Data.Set
 
@@ -48,7 +48,7 @@ data Graph node edge =
     getPairIncoming (x, y) = (getEdgesIncoming x)
   @-}
 
-{-@ measure getPairOutgoing :: (Edges edge, Edges e) -> (Set edge)
+{-@ measure getPairOutgoing :: (Edges e, Edges edge) -> (Set edge)
     getPairOutgoing (x, y) = (getEdgesOutgoing y)
   @-}
 

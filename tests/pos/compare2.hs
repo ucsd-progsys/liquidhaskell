@@ -1,4 +1,4 @@
-module Cmp where
+module Cmp () where
 
 import Language.Haskell.Liquid.Prelude
 

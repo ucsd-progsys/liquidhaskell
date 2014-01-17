@@ -1,6 +1,6 @@
-{--! run liquid with no-termination -}
+{-@ LIQUID "--no-termination" @-}
 
-module Toy where
+module Toy () where
 
 import Language.Haskell.Liquid.Prelude (isEven)
 

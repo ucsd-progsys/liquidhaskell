@@ -57,6 +57,13 @@ sort2ByOffset cmp a off = sort2ByIndex cmp a off (off + 1)
 -- | Sorts the elements at the two given indices using the comparison. This
 -- is essentially a compare-and-swap, although the first index is assumed to
 -- be the 'lower' of the two.
+{-@ sort2ByIndex
+      :: (PrimMonad m, MVector v e)
+      => Comparison e -> vec:(v (PrimState m) e) 
+      -> {v:Nat | (OkRng v vec 0)} 
+      -> {v:Nat | (OkRng v vec 0)} 
+      -> m ()
+  @-}
 sort2ByIndex :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> Int -> Int -> m ()
 sort2ByIndex cmp a i j = UNSAFE_CHECK(checkIndex) "sort2ByIndex" i (length a)
@@ -82,6 +89,14 @@ sort3ByOffset cmp a off = sort3ByIndex cmp a  off  (off + 1) (off + 2)
 -- to be given from lowest to highest, so if 'l < m < u' then
 -- 'sort3ByIndex cmp a m l u' essentially sorts the median of three into the
 -- lowest position in the array.
+{-@ sort3ByIndex
+      :: (PrimMonad m, MVector v e)
+      => Comparison e -> vec:(v (PrimState m) e) 
+      -> {v:Nat | (OkRng v vec 0)} 
+      -> {v:Nat | (OkRng v vec 0)} 
+      -> {v:Nat | (OkRng v vec 0)}
+      -> m ()
+  @-}
 sort3ByIndex :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> m ()
 sort3ByIndex cmp a i j k = UNSAFE_CHECK(checkIndex) "sort3ByIndex" i (length a)
@@ -125,6 +140,15 @@ sort4ByOffset cmp a off = sort4ByIndex cmp a off (off + 1) (off + 2) (off + 3)
 -- | Sorts the elements at the four given indices. Like the 2 and 3 element
 -- versions, this assumes that the indices are given in increasing order, so
 -- it can be used to sort medians into particular positions and so on.
+{-@ sort4ByIndex
+      :: (PrimMonad m, MVector v e)
+      => Comparison e -> vec:(v (PrimState m) e) 
+      -> {v:Nat | (OkRng v vec 0)} 
+      -> {v:Nat | (OkRng v vec 0)} 
+      -> {v:Nat | (OkRng v vec 0)} 
+      -> {v:Nat | (OkRng v vec 0)} 
+      -> m ()
+  @-}
 sort4ByIndex :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> Int -> m ()
 sort4ByIndex cmp a i j k l = UNSAFE_CHECK(checkIndex) "sort4ByIndex" i (length a)

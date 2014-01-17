@@ -1,4 +1,4 @@
-module ResolvePred where
+module ResolvePred () where
 
 {-@ data L [llen] = C (h :: Int) (t :: L) | N @-}
 {-@ invariant {v:L | (llen v) >= 0} @-}

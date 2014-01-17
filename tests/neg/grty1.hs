@@ -1,4 +1,4 @@
-module Foo where
+module Foo () where
 
 moo = insert 4 [1, 2, 0]
 

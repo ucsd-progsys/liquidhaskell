@@ -1,4 +1,4 @@
-module Poly0 where
+module Poly0 (prop_id6) where
 
 import Language.Haskell.Liquid.Prelude
 

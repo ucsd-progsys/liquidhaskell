@@ -1,5 +1,5 @@
 {-# Language ScopedTypeVariables #-}
-module ListSort where
+module ListSort () where
 
 import Language.Haskell.Liquid.Prelude -- (liquidAssertB, choose)
 

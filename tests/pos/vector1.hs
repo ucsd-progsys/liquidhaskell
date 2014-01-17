@@ -1,4 +1,4 @@
-module Vec1 where
+module Vec1 () where
 
 import Language.Haskell.Liquid.Prelude
 import Data.Vector hiding (map, concat, zipWith, filter, foldr, foldl, (++))

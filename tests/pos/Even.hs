@@ -1,4 +1,4 @@
-module Even where
+module Even () where
 
 {-@ isEven, isOdd :: Nat -> Bool @-}
 isEven :: Int -> Bool

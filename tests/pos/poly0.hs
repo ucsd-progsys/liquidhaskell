@@ -1,4 +1,4 @@
-module Poly0 where
+module Poly0 () where
 
 import Language.Haskell.Liquid.Prelude
 myabs x    = if x > 0 then x else 0 - x

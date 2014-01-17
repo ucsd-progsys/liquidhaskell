@@ -1,4 +1,4 @@
-module Str0 where
+module Str0 () where
 
 import Language.Haskell.Liquid.Prelude
 

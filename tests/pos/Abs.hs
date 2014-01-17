@@ -1,4 +1,4 @@
-module Abs where
+module Abs () where
 
 absN ::  (Num a, Ord a) => a -> a
 absN x = if x > 0 then x else (-x)

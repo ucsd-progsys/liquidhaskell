@@ -1,4 +1,4 @@
-module T where
+module T () where
 
 import Language.Haskell.Liquid.Prelude (safeZipWith)
 
