@@ -1107,8 +1107,8 @@ bareTCApp _ r c rs ts | length ts == tyConArity c
 
 -- otherwise create an error
 -- create the error later to get better message
-bareTCApp _ _ c rs ts 
-  = rApp c ts rs mempty
+bareTCApp _ r c rs ts 
+  = rApp c ts rs r
 
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
 
