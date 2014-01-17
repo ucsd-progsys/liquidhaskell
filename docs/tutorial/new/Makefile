@@ -18,7 +18,7 @@ htmlObjects := $(patsubst %.lhs,%.lhs.slides.html,$(wildcard lhs/*.lhs))
 ####################################################################
 
 tut: $(mdObjects)
-	$(REVEAL) lhs/*.markdown > tutorial.html 
+	$(REVEAL) lhs/*.markdown > lhs/tutorial.html 
 
 all: slides copy
 

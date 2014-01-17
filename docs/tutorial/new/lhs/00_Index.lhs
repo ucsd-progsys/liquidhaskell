@@ -1,6 +1,24 @@
-% LiquidHaskell
-% Niki Vazou, Eric Seidel, *Ranjit Jhala*
-% UC San Diego
+LiquidHaskell
+-------------
+
+<br>
+
++ Niki Vazou
++ Eric Seidel
++ *Ranjit Jhala*
+
+<br>
+
+**UC San Diego**
+
+
+<div class="hidden">
+
+\begin{code}
+main = putStrLn "Easter Egg"
+\end{code}
+
+</div>
 
 LiquidHaskell
 =============
@@ -15,24 +33,25 @@ LiquidHaskell: Install
 Try Online
 ----------
 
+<br>
+
 Run online:
 
-~~~~~
-http://goto.ucsd.edu/liquid/haskell/demo
-~~~~~
+`http://goto.ucsd.edu/liquid/haskell/demo`
 
 . . .
 
+<br>
+
 Follow slides:
 
-~~~~~
-http://goto.ucsd.edu/liquid/haskell/tutorial.html
-~~~~~
+`http://goto.ucsd.edu/liquid/haskell/tutorial.html`
 
-LiquidHaskell
--------------
 
-Lets go!
+Lets Go!
+--------
+
+<br>
 
 1. [Refinements](#simplerefinements)
 2. [Measures](#measures)
