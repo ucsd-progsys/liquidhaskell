@@ -14,9 +14,9 @@ LiquidHaskell
 
 <div class="hidden">
 
-\begin{code}
-main = putStrLn "Easter Egg"
-\end{code}
+
+<pre><span class=hs-linenum>18: </span><a class=annot href="#"><span class=annottext>{x2 : (GHC.Types.IO ()) | (x2 == Main.main)}</span><span class='hs-definition'>main</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>[(GHC.Types.Char)] -&gt; (GHC.Types.IO ())</span><span class='hs-varid'>putStrLn</span></a> <a class=annot href="#"><span class=annottext>{x3 : [(GHC.Types.Char)] | ((len x3) &gt;= 0) &amp;&amp; ((sumLens x3) &gt;= 0)}</span><span class='hs-str'>"Easter Egg"</span></a>
+</pre>
 
 </div>
 
