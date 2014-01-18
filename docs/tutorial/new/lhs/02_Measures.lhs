@@ -1,7 +1,11 @@
 
-Measures {#measures}
-====================
+ {#measures}
+============
 
+Measuring Data Types
+--------------------
+
+<div class="hidden">
 
 \begin{code}
 module Measures where
@@ -9,13 +13,25 @@ import Prelude hiding ((!!), length)
 import Language.Haskell.Liquid.Prelude
 \end{code}
 
+</div>
 
-Measuring A List's length in logic
-----------------------------------
+Measuring Data Types 
+====================
 
-On `List` data type
+Example: List lengths 
+---------------------
+
+<div class="hidden">
+
 \begin{code}
 infixr `C`
+\end{code}
+
+</div>
+
+<br>
+
+\begin{code}
 data L a = N | C a (L a)
 \end{code}
 
@@ -174,3 +190,12 @@ insertSort = foldr insert N
 What if increasing and decreasing lists should co-exist?
 
 We use **abstract refinements** to allow it!
+
+
+Recap: Refinement Types
+-----------------------
+
+1. **Refinements:** Types + Predicates
+2. **Subtyping:** SMT Implication
+3. <div class="fragment">**Measures:** Strengthened Constructors</div>
+
