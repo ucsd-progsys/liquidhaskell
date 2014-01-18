@@ -8,6 +8,10 @@
  * Copyright (C) 2011-2012 Hakim El Hattab, http://hakim.se
  */
 
+.reveal a {
+  color: #8b7c69;
+  text-decoration: none;
+}
 
 /*********************************************
  * RESET STYLES

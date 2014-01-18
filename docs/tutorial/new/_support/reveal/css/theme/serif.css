@@ -5,7 +5,8 @@
  * This theme is Copyright (C) 2012-2013 Owen Versteeg, http://owenversteeg.com - it is MIT licensed.
  */
 .reveal a:not(.image) {
-  line-height: 1.3em; }
+  line-height: 1.3em; 
+}
 
 /*********************************************
  * GLOBAL STYLES
