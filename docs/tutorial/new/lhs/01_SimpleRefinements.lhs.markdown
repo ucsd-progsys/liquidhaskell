@@ -346,15 +346,20 @@ Example: Indexing Into List
  
 <pre><span class=hs-linenum>325: </span><span class='hs-layout'>(</span><span class='hs-varop'>!</span><span class='hs-layout'>)</span>          <span class='hs-keyglyph'>::</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span>
 <span class=hs-linenum>326: </span><span class='hs-layout'>(</span><span class='hs-conid'>C</span> <span class='hs-varid'>x</span> <span class='hs-keyword'>_</span><span class='hs-layout'>)</span>  <a class=annot href="#"><span class=annottext>forall a. (SimpleRefinements.L a) -&gt; (GHC.Types.Int) -&gt; a</span><span class='hs-varop'>!</span></a> <span class='hs-num'>0</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a>
-<span class=hs-linenum>327: </span><span class='hs-layout'>(</span><span class='hs-conid'>C</span> <span class='hs-keyword'>_</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-varop'>!</span> <span class='hs-varid'>n</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>(SimpleRefinements.L a)</span><span class='hs-varid'>xs</span></a> <a class=annot href="#"><span class=annottext>(SimpleRefinements.L a) -&gt; (GHC.Types.Int) -&gt; a</span><span class='hs-varop'>!</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>(GHC.Types.Int)</span><span class='hs-varid'>n</span></a> <a class=annot href="#"><span class=annottext>x1:(GHC.Types.Int)
+<span class=hs-linenum>327: </span><span class='hs-layout'>(</span><span class='hs-conid'>C</span> <span class='hs-keyword'>_</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span> <span class='hs-varop'>!</span> <span class='hs-varid'>i</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>(SimpleRefinements.L a)</span><span class='hs-varid'>xs</span></a> <a class=annot href="#"><span class=annottext>(SimpleRefinements.L a) -&gt; (GHC.Types.Int) -&gt; a</span><span class='hs-varop'>!</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>(GHC.Types.Int)</span><span class='hs-varid'>i</span></a> <a class=annot href="#"><span class=annottext>x1:(GHC.Types.Int)
 -&gt; x2:(GHC.Types.Int) -&gt; {x4 : (GHC.Types.Int) | (x4 == (x1 - x2))}</span><span class='hs-comment'>-</span></a> <a class=annot href="#"><span class=annottext>{x2 : (GHC.Types.Int) | (x2 == (1  :  int))}</span><span class='hs-num'>1</span></a><span class='hs-layout'>)</span>
 <span class=hs-linenum>328: </span><span class='hs-keyword'>_</span>        <span class='hs-varop'>!</span> <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{x1 : [(GHC.Types.Char)] | false} -&gt; {VV : a | false}</span><span class='hs-varid'>liquidError</span></a> <span class=hs-error><a class=annot href="#"><span class=annottext>{x3 : [(GHC.Types.Char)] | ((len x3) &gt;= 0) &amp;&amp; ((sumLens x3) &gt;= 0)}</span><span class='hs-str'>"Oops!"</span></a></span>
 </pre>
 
 <br>
 
-We desire a **precondition** that index `i` be between `0` and **list length**.
+<div class="fragment">(Mouseover to view type of `liquidError`)</div>
 
-We use **measures** to talk about the length of a list in **logic**.
+<br>
+
+- <div class="fragment">**Q:** How to ensure safety? </div>
+- <div class="fragment">**A:** Precondition: `i` between `0` and list **length**.
+
+<div class="fragment">Need way to [measure](#measures) *length of a list* ...</div>
 
 
