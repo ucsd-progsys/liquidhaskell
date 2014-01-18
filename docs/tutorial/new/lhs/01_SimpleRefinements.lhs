@@ -339,4 +339,18 @@ _        ! _ = liquidError "Oops!"
 
 <div class="fragment">Need way to [measure](#measures) *length of a list* ...</div>
 
+Recap
+-----
+
+1. <div class="fragment">**Refinements:** Types + Predicates</div>
+2. <div class="fragment">**Subtyping:** via SMT Implication</div>
+
+<!--
+
+---   -----------------------   ---  -------------------------
+ 1.      **Refinement Types**    :   Types + Predicates
+ 2.             **Subtyping**    :   SMT / Logical Implication 
+---   -----------------------   ---  -------------------------
+
+-->
 
