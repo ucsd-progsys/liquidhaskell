@@ -10,7 +10,3 @@ Tutorial Slides Using Reveal
 2. reveal h1
 
 2. fix slide "width"
-
-
-
-

@@ -1,63 +1,130 @@
-Simple Refinement Types {#simplerefinements}
+ {#simplerefinements}
 =======================
-
 
 Simple Refinement Types
 -----------------------
+
+<div class="hidden">
 
 \begin{code}
 module SimpleRefinements where
 import Language.Haskell.Liquid.Prelude
+
+-- boring haskell type sigs
+zero     :: Int
 \end{code}
+
+</div>
 
 
 Simple Refinement Types
------------------------
+=======================
 
-We use special comments to give specifications, 
-as *refinement types*.
 
-This type describes `Int` values that equal `0`.
+Types + Predicates 
+------------------
 
+
+Example
+-------
+
+Integers equal to `0`
+
+<br>
 
 \begin{code}
-{-@ zero :: {v:Int | v = 0} @-}
-zero     :: Int
+{-@ type EqZero = {v:Int | v = 0} @-}
+\end{code}
+
+
+Example
+-------
+
+Integers equal to `0`
+
+<br>
+
+\begin{code}
+{-@ zero :: {v : Int | v = 0} @-}
 zero     =  0
 \end{code}
 
-Refinements are *logical formulas*
-----------------------------------
+<br>
 
-If 
-
-- refinement of `T1` **implies** refinement of `T2` 
-
-- `p1 => p2`
-
-Then
-
-- `T1` is a **subtype** of `T2`
-
-- `{v:t | p1} <: {v:t | p2}`
-
-Refinements are *logical formulas*
-----------------------------------
-
-For example, since
-
-- `v = 0` *implies* `v >= 0`
-
-Therefore
- 
-- `{v:Int | v = 0} <: {v:Int | v >= 0}`
+<div class="fragment">
+Refinement types via special comments
+</div>
 
 
-Refinements are *logical formulas*
-----------------------------------
+<br>
 
-\begin{code} So we can have a type for natural numbers: <br>
-type Nat = {v:Int | v >= 0}
+<div class="fragment">
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo</a> 
+Lets take a look.
+</div>
+
+ {#refinementsArePredicates}
+============================
+
+Refinements Are Predicates
+--------------------------
+
+
+Refinements Are Predicates
+==========================
+
+Subtyping is Implication
+------------------------
+
+[Predicate Subtyping](http://pvs.csl.sri.com/papers/subtypes98/tse98.pdf)
+
+
+Subtyping is Implication
+------------------------
+
+<br>
+
+--------  ---  ---------------------------------------------
+  **If**   :   Refinement of `S` *implies* refinement of `T` 
+
+**Then**   :   `S` is a *subtype* of `T`
+--------  ---  ---------------------------------------------
+
+<br>
+
+
+Subtyping is Implication
+------------------------
+
+
+<br>
+
+--------    ----------------------------
+  **If**    `p => q`
+
+**Then**    `{v : t | p} <: {v : t | q}`
+--------    ----------------------------
+
+
+Subtyping is Implication
+------------------------
+
+<br>
+
+--------  ---------------------------------
+  **As**  `v=0` *implies* `0<=v`
+
+  **So**  `{v:Int | v=0} <: {v:Int | 0<=v}`
+--------  ---------------------------------
+
+
+Example: Natural Numbers
+------------------------
+
+<br>
+
+\begin{code} &nbsp;
+type Nat = {v : Int | 0 <= v}
 \end{code}
 
 <br>

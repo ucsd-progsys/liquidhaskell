@@ -2,10 +2,19 @@
 SERVERHOME=nvazou@goto.ucsd.edu:~/public_html/liquidtutorial/
 ####################################################################
 
+# REVEAL=$(PANDOC) -t revealjs -V revealjs-url=../_support/reveal -V theme=serif
+
+REVEAL=pandoc \
+	   --from=markdown+simple_tables 		\
+	   --to=html5                           \
+	   --standalone                         \
+	   --mathjax \
+	   --section-divs                       \
+	   --template=_support/template.reveal  \
+	   --variable reveal=../_support/reveal
 
 PANDOC=pandoc --columns=80  -s --mathjax --slide-level=2
 SLIDY=$(PANDOC) -t slidy
-REVEAL=$(PANDOC) -t revealjs -V revealjs-url=../reveal.js -V theme=serif
 DZSLIDES=$(PANDOC) --highlight-style tango --css=slides.css -w dzslides
 HANDOUT=$(PANDOC) --highlight-style tango --css=text.css -w html5
 WEBTEX=$(PANDOC) -s --webtex -i -t slidy
