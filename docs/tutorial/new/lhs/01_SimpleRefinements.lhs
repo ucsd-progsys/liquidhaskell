@@ -7,6 +7,7 @@ Simple Refinement Types
 <div class="hidden">
 
 \begin{code}
+{-@ LIQUID "--no-termination" @-}
 module SimpleRefinements where
 import Language.Haskell.Liquid.Prelude
 import Prelude hiding (abs, max)
@@ -17,6 +18,7 @@ zero'   :: Int
 safeDiv :: Int -> Int -> Int
 abs     :: Int -> Int
 nats    :: L Int
+range   :: Int -> Int -> L Int
 \end{code}
 
 </div>
@@ -144,10 +146,10 @@ zero'     =  zero
  {#universalinvariants}
 =======================
 
-Types Yield Universal Invariants
---------------------------------
+Types = Universal Invariants
+----------------------------
 
-(Notoriously tedious with pure SMT)
+(Notoriously hard with *pure* SMT)
 
 Types Yield Universal Invariants
 ================================
@@ -163,21 +165,35 @@ infixr `C`
 
 </div>
 
+<br>
+
 \begin{code}
 data L a = N | C a (L a)
 \end{code}
 
 <br>
 
+<div class="fragment">
+
 *Every element* in `nats` is non-negative:
+
+<br>
 
 \begin{code}
 {-@ nats :: L Nat @-}
 nats     =  0 `C` 1 `C` 3 `C` N
 \end{code}
 
+</div>
+
+<br>
+
+<div class="fragment">
+
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
 What if `nats` contained `-2`? 
+
+</div>
 
  {#functiontypes}
 =================
@@ -185,16 +201,39 @@ What if `nats` contained `-2`?
 Contracts = Function Types
 --------------------------
 
-Function Types
-==============
+Contracts: Function Types
+=========================
+
 
 Example: `safeDiv`
 ------------------
 
 <br>
 
+**Precondition** divisor is *non-zero*.
+
+<br>
+
+<div class="fragment">
 \begin{code}
-{-@ safeDiv :: Int -> {v:Int | v /= 0} -> Int @-}
+{-@ type NonZero = {v:Int | v /= 0} @-}
+\end{code}
+</div>
+
+<br>
+
+Example: `safeDiv`
+------------------
+
+<br>
+
++ **Pre-condition** divisor is *non-zero*.
++ **Input type** specifies *pre-condition*
+
+<br>
+
+\begin{code}
+{-@ safeDiv :: Int -> NonZero -> Int @-}
 safeDiv x y = x `div` y
 \end{code}
 
@@ -202,17 +241,18 @@ safeDiv x y = x `div` y
 
 <div class="fragment">
 
-+ *Input* type specifies *pre-condition*
-+ Divisor is *non-zero* 
-
-
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
 What if precondition does not hold?
 
-<div>
+</div>
 
-Example: `max`
+Example: `abs`
 --------------
+
+<br>
+
++ **Postcondition** result is non-negative
++ **Output type** specifies *post-condition*
 
 <br>
 
@@ -223,55 +263,69 @@ abs x
   | otherwise = 0 - x
 \end{code}
 
-<br>
 
-<div class="fragment">
 
-+ *Output* type specifies *post-condition*
-+ Result is non-negative
-
-<div>
-
-{#dependentfunctions}
-=====================
+ {#dependentfunctions}
+======================
 
 Dependent Function Types
 ------------------------
 
-+ Outputs **refer to** inputs
++ Outputs *refer to* inputs
 + *Relational* invariants
 
 
 Dependent Function Types
 ========================
 
-HEREHEREHEREHERERHERERHEREHERHERHERE
+Example: `range`
+----------------
+
+`(range i j)` returns `Int`s between `i` and `j`
+
 
 Example: `range`
 ----------------
 
+`(range i j)` returns `Int`s between `i` and `j`
+
+<br>
+
 \begin{code}
-type IntBtwn I J  = {v:Int | (I <= v && v < j)}
+{-@ type Btwn I J = {v:_|(I <= v && v < J)} @-}
+\end{code}
 
+Example: `range`
+----------------
 
-range             :: i:Int -> j:Int -> L (Btwn i j)
-range i j         = go
+`(range i j)` returns `Int`s between `i` and `j`
+
+<br>
+
+\begin{code}
+{-@ range :: i:Int -> j:Int -> L (Btwn i j) @-}
+range i j         = go i
   where
     go n
       | n < j     = n `C` go (n + 1)  
       | otherwise = N
 \end{code}
 
+<br>
+
+<div class="fragment">
+**Question:** What is the type of `go` ?
+</div>
 
 
 Example: Indexing Into List
 ---------------------------
 
-\begin{code} Consider a list indexing function:
-(!!)         :: L a -> Int -> a
-(C x _) !! 0 = x
-(C _ xs)!! n = xs!!(n-1)
-_       !! _ = liquidError "This should not happen!"
+\begin{code} 
+(!)          :: L a -> Int -> a
+(C x _)  ! 0 = x
+(C _ xs) ! n = xs ! (n - 1)
+_        ! _ = liquidError "Oops!"
 \end{code}
 
 <br>
