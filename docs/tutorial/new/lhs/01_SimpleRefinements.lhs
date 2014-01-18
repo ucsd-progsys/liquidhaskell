@@ -324,14 +324,19 @@ Example: Indexing Into List
 \begin{code} 
 (!)          :: L a -> Int -> a
 (C x _)  ! 0 = x
-(C _ xs) ! n = xs ! (n - 1)
+(C _ xs) ! i = xs ! (i - 1)
 _        ! _ = liquidError "Oops!"
 \end{code}
 
 <br>
 
-We desire a **precondition** that index `i` be between `0` and **list length**.
+<div class="fragment">(Mouseover to view type of `liquidError`)</div>
 
-We use **measures** to talk about the length of a list in **logic**.
+<br>
+
+- <div class="fragment">**Q:** How to ensure safety? </div>
+- <div class="fragment">**A:** Precondition: `i` between `0` and list **length**.
+
+<div class="fragment">Need way to [measure](#measures) *length of a list* ...</div>
 
 
