@@ -1,9 +1,15 @@
   {#hofs}
- ========
+=========
 
 <div class="hidden">
 \begin{code}
-module Loop where
+module Loop (
+    listSum
+  , listNatSum
+  , listEvenSum
+  ) where
+
+import Prelude
 
 {-@ LIQUID "--no-termination"@-}
 listNatSum  :: [Int] -> Int
@@ -22,7 +28,7 @@ Types yield easy *Higher-Order* Specifications
 + <div class="fragment">map</div>
 + <div class="fragment">fold</div>
 + <div class="fragment">visitors</div>
-+ <div class="fragment">Asynchronous callbacks</div>
++ <div class="fragment">callbacks</div>
 + <div class="fragment">...</div>
 
 <br>
@@ -36,8 +42,6 @@ Higher Order Specifications
 Example: Higher Order Loop
 --------------------------
 
-<br>
-
 \begin{code}
 loop :: Int -> Int -> a -> (Int -> a -> a) -> a
 loop lo hi base f = go lo base
@@ -49,16 +53,13 @@ loop lo hi base f = go lo base
 
 <br>
 
-LiquidHaskell infers that `f` called with `(Btwn lo hi)`
+LiquidHaskell infers `f` called with values `(Btwn lo hi)`
 
 
 Example: Summing a List
 -----------------------
 
-<br>
-
 \begin{code}
-listSum     :: [Int] -> Int
 listSum xs  = loop 0 n 0 body 
   where 
     body    = \i acc -> acc + (xs !! i)
@@ -68,15 +69,14 @@ listSum xs  = loop 0 n 0 body
 <br>
 
 <div class="fragment">
-By **function subtyping** LiquidHaskell **infers**
+By *function subtyping* LiquidHaskell infers:
 </div>
 
 - <div class="fragment">`body` called with `Btwn 0 (llen xs)`</div> 
-- <div class="fragment">hence, indexing safe.</div>
+- <div class="fragment">hence, indexing with `!!` is safe.</div>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Loop.hs" target= "_blank">Demo:</a> 
-What if we tweak `loop` exit condition? 
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=Loop.hs" target= "_blank">Demo:</a> Tweak `loop` exit condition? 
 </div>
 
 Example: Summing a `Nat` List
