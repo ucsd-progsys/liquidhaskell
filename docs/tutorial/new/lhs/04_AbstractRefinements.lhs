@@ -229,9 +229,9 @@ max x y = if x <= y then y else x
 
 <br>
 
-- <div class="fragment">**Check** type using *SMT*</div>
+- **Check** type using *SMT*
 
-- <div class="fragment">**Instantiate** type using *SMT/predicate abstraction*</div>
+- **Instantiate** type using *SMT/predicate abstraction*
 
 
 
