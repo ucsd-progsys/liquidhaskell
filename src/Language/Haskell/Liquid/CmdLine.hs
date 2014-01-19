@@ -104,6 +104,10 @@ config = Config {
 
  , maxParams 
     = 2   &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
+
+ , shortNames
+   = def &= name "short-names"
+         &= help "Print shortened names, i.e. drop all module qualifiers."
  
  -- , verbose  
  --    = def &= help "Generate Verbose Output"
@@ -156,7 +160,7 @@ parsePragma s = withArgs [val s] $ cmdArgs config
 ---------------------------------------------------------------------------------------
 
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def 2 def
+  mempty        = Config def def def def def def def def def 2 def def
   mappend c1 c2 = Config (sortNub $ files c1   ++     files          c2)
                          (sortNub $ idirs c1   ++     idirs          c2)
                          (diffcheck c1         ||     diffcheck      c2) 
@@ -168,6 +172,7 @@ instance Monoid Config where
                          (noPrune        c1    ||     noPrune        c2) 
                          (maxParams      c1   `max`   maxParams      c2)
                          (smtsolver c1      `mappend` smtsolver      c2)
+                         (shortNames c1        ||     shortNames     c2)
 
 instance Monoid SMTSolver where
   mempty        = def
@@ -181,17 +186,18 @@ instance Monoid SMTSolver where
 -- | Exit Function -----------------------------------------------------
 ------------------------------------------------------------------------
 
-exitWithResult :: FilePath -> Maybe Output -> ErrorResult -> IO ErrorResult
-exitWithResult target o r = writeExit target r $ fromMaybe emptyOutput o
+exitWithResult :: Config -> FilePath -> Maybe Output -> ErrorResult -> IO ErrorResult
+exitWithResult cfg target o r = writeExit cfg target r $ fromMaybe emptyOutput o
 
-writeExit target r out   = do {-# SCC "annotate" #-} annotate target r (o_soln out) (o_annot out)
-                              donePhase Loud "annotate"
-                              let rs = showFix r
-                              writeResult (colorResult r) r 
-                              writeFile   (extFileName Result target) rs 
-                              writeWarns     $ o_warns out 
-                              writeCheckVars $ o_vars  out 
-                              return r
+writeExit cfg target r out
+  = do {-# SCC "annotate" #-} annotate cfg target r (o_soln out) (o_annot out)
+       donePhase Loud "annotate"
+       let rs = showFix r
+       writeResult (colorResult r) r
+       writeFile   (extFileName Result target) rs
+       writeWarns     $ o_warns out
+       writeCheckVars $ o_vars  out
+       return r
 
 writeWarns []            = return () 
 writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines ws)

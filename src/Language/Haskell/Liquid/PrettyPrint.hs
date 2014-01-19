@@ -95,7 +95,10 @@ ppr_rtype bb p (RApp c ts rs r)
 --   = ppTy r $ {- parens $ -} ppTycon c
 
 ppr_rtype bb p (RApp c ts rs r)
-  = ppTy r $ parens $ ppTycon c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)
+  = ppTy r $ parens $ ppT c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)
+  where
+    ppT | ppShort bb = text . dropModuleNames . render . ppTycon
+        | otherwise  = ppTycon
 
 ppr_rtype _ _ (RCls c ts)      
   = ppCls c ts
@@ -176,14 +179,14 @@ ppr_fun_tail bb t
 
 -- ppr_forall :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
 ppr_forall bb p t
-  = maybeParen p FunPrec $ sep [ ppr_foralls bb αs πs , ppr_cls cls, ppr_rtype bb TopPrec t' ]
+  = maybeParen p FunPrec $ sep [ ppr_foralls (ppPs bb) αs πs , ppr_cls cls, ppr_rtype bb TopPrec t' ]
   where
     (αs, πs,  ct')         = bkUniv t
     (cls, t')              = bkClass ct'
   
     ppr_foralls False _ _  = empty
     ppr_foralls _    [] [] = empty
-    ppr_foralls True αs πs = text "forall" <+> dαs αs <+> dπs bb πs <> dot
+    ppr_foralls True αs πs = text "forall" <+> dαs αs <+> dπs (ppPs bb) πs <> dot
     ppr_cls []             = empty
     ppr_cls cs             = (parens $ hsep $ punctuate comma (uncurry ppCls <$> cs)) <+> text "=>"
 

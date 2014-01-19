@@ -34,7 +34,7 @@ main = do cfg0    <- getOpts
           res     <- mconcat <$> mapM (checkOne cfg0) (files cfg0)
           exitWith $ resultExit res
 
-checkOne cfg0 t = getGhcInfo cfg0 t >>= either (exitWithResult t Nothing) (liquidOne t)
+checkOne cfg0 t = getGhcInfo cfg0 t >>= either (exitWithResult cfg0 t Nothing) (liquidOne t)
 
 
 liquidOne target info = 
@@ -59,7 +59,7 @@ liquidOne target info =
      _        <- when (diffcheck cfg) $ DC.save target 
      donePhase Loud "solve"
      let out   = Just $ O (checkedNames pruned cbs'') (logWarn cgi) sol (annotMap cgi)
-     exitWithResult target out (result $ sinfo <$> r) 
+     exitWithResult cfg target out (result $ sinfo <$> r)
 
 checkedNames False _    = Nothing
 checkedNames True cbs   = Just $ concatMap names cbs
