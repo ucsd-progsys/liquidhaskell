@@ -24,7 +24,8 @@ import GHC                      ( SrcSpan (..)
                                 , srcSpanStartLine
                                 , srcSpanEndLine)
 
-import Var                      (Var (..))                                
+import Var                      (Var (..))
+import TypeRep                  (Prec(..))
 import Text.PrettyPrint.HughesPJ
 import GHC.Exts                 (groupWith, sortWith)
 
@@ -57,6 +58,7 @@ import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc
 import Language.Fixpoint.Types hiding (Def (..), Located (..))
 import Language.Haskell.Liquid.Misc
+import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Tidy
 import Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
@@ -73,10 +75,10 @@ import qualified Data.Vector         as V
 ------ Rendering HTMLized source with Inferred Types --------------
 -------------------------------------------------------------------
 
-annotate :: FilePath -> FixResult Error -> FixSolution -> AnnInfo Annot -> IO ()
-annotate fname result sol anna 
-  = do annotDump fname (extFileName Html $ extFileName Cst fname) result annm
-       annotDump fname (extFileName Html fname) result annm'
+annotate :: Config -> FilePath -> FixResult Error -> FixSolution -> AnnInfo Annot -> IO ()
+annotate cfg fname result sol anna
+  = do annotDump cfg fname (extFileName Html $ extFileName Cst fname) result annm
+       annotDump cfg fname (extFileName Html fname) result annm'
        showBots annm'
     where
       annm  = closeAnnots anna
@@ -89,9 +91,9 @@ showBots (AI m) = mapM_ showBot $ sortBy (compare `on` fst) $ M.toList m
              printf "WARNING: Found false in %s\n" (showPpr src)
     showBot _ = return ()
 
-annotDump :: FilePath -> FilePath -> FixResult Error -> AnnInfo SpecType -> IO ()
-annotDump srcFile htmlFile result ann
-  = do let annm     = mkAnnMap result ann
+annotDump :: Config -> FilePath -> FilePath -> FixResult Error -> AnnInfo SpecType -> IO ()
+annotDump cfg srcFile htmlFile result ann
+  = do let annm     = mkAnnMap cfg result ann
        let annFile  = extFileName Annot srcFile
        let jsonFile = extFileName Json  srcFile  
        B.writeFile           jsonFile (encode annm) 
@@ -183,8 +185,8 @@ cssHTML css = unlines
 --   is required by `Language.Haskell.Liquid.ACSS` to generate mouseover
 --   annotations.
 
-mkAnnMap ::  FixResult Error -> AnnInfo SpecType -> ACSS.AnnMap
-mkAnnMap res ann = ACSS.Ann (mkAnnMapTyp ann) (mkAnnMapErr res) (mkStatus res)
+mkAnnMap :: Config -> FixResult Error -> AnnInfo SpecType -> ACSS.AnnMap
+mkAnnMap cfg res ann = ACSS.Ann (mkAnnMapTyp cfg ann) (mkAnnMapErr res) (mkStatus res)
 
 mkStatus (Safe)      = ACSS.Safe
 mkStatus (Unsafe _)  = ACSS.Unsafe
@@ -203,13 +205,19 @@ cinfoErr e = case pos e of
 -- cinfoErr _                      = Nothing
 
 
-mkAnnMapTyp (AI m) = M.fromList
-                     $ map (srcSpanStartLoc *** bindString)
-                     $ map (head . sortWith (srcSpanEndCol . fst)) 
-                     $ groupWith (lineCol . fst) 
-                     $ [ (l, x) | (RealSrcSpan l, (x:_)) <- M.toList m, oneLine l]  
+mkAnnMapTyp cfg (AI m)
+  = M.fromList
+  $ map (srcSpanStartLoc *** bindString)
+  $ map (head . sortWith (srcSpanEndCol . fst))
+  $ groupWith (lineCol . fst)
+  $ [ (l, x) | (RealSrcSpan l, (x:_)) <- M.toList m, oneLine l]
   where 
-    bindString     = mapPair render . pprXOT 
+    bindString     = mapPair render . ppr
+    env            = if shortNames cfg then ppEnvShort ppEnv else ppEnv
+    ppr (x, v)     = (xd, ppr_rtype env TopPrec v)
+      where
+        xd = maybe (text "unknown") pprint x
+
 
 closeAnnots :: AnnInfo Annot -> AnnInfo SpecType 
 closeAnnots = closeA . filterA . collapseA
@@ -345,7 +353,8 @@ pprAnnInfoBind (_, _)
   = empty
 
 pprXOT (x, v) = (xd, pprint v)
-  where xd = maybe (text "unknown") pprint x
+  where
+    xd = maybe (text "unknown") pprint x
 
 applySolution :: FixSolution -> AnnInfo SpecType -> AnnInfo SpecType 
 applySolution = fmap . fmap . mapReft . map . appSolRefa 

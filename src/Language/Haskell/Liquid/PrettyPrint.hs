@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.PrettyPrint (
 import ErrUtils                         (ErrMsg)
 import HscTypes                         (SourceError)
 import SrcLoc                           (SrcSpan)
-import GHC                              (Name)
+import GHC                              (Name, Class)
 import TcType                           (tidyType)
 import VarEnv                           (emptyTidyEnv)
 import Language.Haskell.Liquid.GhcMisc
@@ -57,6 +57,9 @@ instance PPrint Name where
 
 instance PPrint Type where
   pprint = pprDoc . tidyType emptyTidyEnv
+
+instance PPrint Class where
+  pprint = pprDoc
 
 instance Show Predicate where
   show = showpp
@@ -95,10 +98,13 @@ ppr_rtype bb p (RApp c ts rs r)
 --   = ppTy r $ {- parens $ -} ppTycon c
 
 ppr_rtype bb p (RApp c ts rs r)
-  = ppTy r $ parens $ ppTycon c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)
+  = ppTy r $ parens $ ppT c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)
+  where
+    ppT | ppShort bb = text . dropModuleNames . render . ppTycon
+        | otherwise  = ppTycon
 
-ppr_rtype _ _ (RCls c ts)      
-  = ppCls c ts
+ppr_rtype bb p (RCls c ts)
+  = ppr_cls bb p c ts
 ppr_rtype bb p t@(REx _ _ _)
   = ppExists bb p t
 ppr_rtype bb p t@(RAllE _ _ _)
@@ -176,22 +182,29 @@ ppr_fun_tail bb t
 
 -- ppr_forall :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
 ppr_forall bb p t
-  = maybeParen p FunPrec $ sep [ ppr_foralls bb αs πs , ppr_cls cls, ppr_rtype bb TopPrec t' ]
+  = maybeParen p FunPrec $ sep [ ppr_foralls (ppPs bb) αs πs , ppr_clss cls, ppr_rtype bb TopPrec t' ]
   where
     (αs, πs,  ct')         = bkUniv t
     (cls, t')              = bkClass ct'
   
     ppr_foralls False _ _  = empty
     ppr_foralls _    [] [] = empty
-    ppr_foralls True αs πs = text "forall" <+> dαs αs <+> dπs bb πs <> dot
-    ppr_cls []             = empty
-    ppr_cls cs             = (parens $ hsep $ punctuate comma (uncurry ppCls <$> cs)) <+> text "=>"
+    ppr_foralls True αs πs = text "forall" <+> dαs αs <+> dπs (ppPs bb) πs <> dot
+    ppr_clss []            = empty
+    ppr_clss cs            = (parens $ hsep $ punctuate comma (uncurry (ppr_cls bb p) <$> cs)) <+> text "=>"
 
     dαs αs                 = sep $ pprint <$> αs 
     
     dπs _ []               = empty 
     dπs False _            = empty 
     dπs True πs            = angleBrackets $ intersperse comma $ ppr_pvar_def pprint <$> πs
+
+ppr_cls bb p c ts
+  = pp c <+> hsep (map (ppr_rtype bb p) ts)  --ppCls c ts
+  where
+    pp | ppShort bb = text . dropModuleNames . render . pprint
+       | otherwise  = pprint
+
 
 ppr_pvar_def pprv (PV s t _ xts) = pprint s <+> dcolon <+> intersperse arrow dargs 
   where 

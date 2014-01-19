@@ -71,7 +71,7 @@ module Language.Haskell.Liquid.Types (
   , showpp
   
   -- * Printer Configuration 
-  , PPEnv (..), ppEnv
+  , PPEnv (..), ppEnv, ppEnvShort
 
   -- * Import handling
   , ModName (..), ModType (..), isSrcImport, isSpecImport
@@ -166,7 +166,8 @@ data Config = Config {
   , totality       :: Bool       -- ^ check totality in definitions
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
-  , smtsolver      :: SMTSolver  -- ^ name of smtsolver to use [default: z3-API]  
+  , smtsolver      :: SMTSolver  -- ^ name of smtsolver to use [default: z3-API]
+  , shortNames     :: Bool       -- ^ whether to drop module qualifers from pretty-printed names
   } deriving (Data, Typeable, Show, Eq)
 
 
@@ -197,11 +198,13 @@ instance (PPrint a, PPrint b) => PPrint (a,b) where
 data PPEnv 
   = PP { ppPs    :: Bool
        , ppTyVar :: Bool
+       , ppShort :: Bool
        }
 
 ppEnv           = ppEnvPrintPreds
-ppEnvCurrent    = PP False False
-ppEnvPrintPreds = PP True False
+ppEnvCurrent    = PP False False False
+ppEnvPrintPreds = PP True False False
+ppEnvShort pp   = pp { ppShort = True }
 
 
 
