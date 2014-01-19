@@ -229,8 +229,9 @@ max x y = if x <= y then y else x
 
 <br>
 
-Automatically **Check** and **Instantiate** type using *SMT/predicate abstraction*
+**Check** and **Instantiate** type using *SMT/predicate abstraction*
 
+HEREHERE
 
 
 Using Abstract Refinements
