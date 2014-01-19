@@ -318,12 +318,10 @@ insert y N    = y `C` N
 
 <br>
 
-+ <div class="fragment">**Q:** What if we need *both* [increasing and decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?</div>
-+ <div class="fragment">**A:** Need to *abstract* or *parameterize* property...</div>
+<div class="fragment">**Problem 1:** What if we need *both* [increasing and decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?</div>
 
-
-Recap: Refinement Types
------------------------
+Recap
+-----
 
 1. **Refinements:** Types + Predicates
 2. **Subtyping:** SMT Implication

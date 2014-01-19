@@ -18,6 +18,8 @@ zero'   :: Int
 safeDiv :: Int -> Int -> Int
 abs     :: Int -> Int
 nats    :: L Int
+evens   :: L Int
+odds    :: L Int
 range   :: Int -> Int -> L Int
 \end{code}
 
@@ -193,6 +195,37 @@ nats     =  0 `C` 1 `C` 3 `C` N
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
 What if `nats` contained `-2`? 
 
+</div>
+
+Example: Even/Odd Lists
+-----------------------
+
+<br>
+
+\begin{code}
+type Even = {v:Int | v mod 2 =  0}
+type Odd  = {v:Int | v mod 2 /= 0}
+\end{code}
+
+<br>
+
+<div class="fragment">
+
+\begin{code}
+{-@ evens :: L Even @-}
+evens     =  0 `C` 2 `C` 4 `C` N
+
+{-@ odds  :: L Odd  @-}
+odds      =  1 `C` 3 `C` 5 `C` N 
+\end{code}
+
+</div>
+
+<br>
+
+<div class="fragment">
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
+What if `evens` contained `1`? 
 </div>
 
  {#functiontypes}
