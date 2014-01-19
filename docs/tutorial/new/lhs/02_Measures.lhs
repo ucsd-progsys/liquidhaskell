@@ -308,7 +308,6 @@ Refined Data Constructors
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo:</a>Insertion Sort
 
 \begin{code}
-{-@ insertSort  :: Ord a => [a] -> L a @-}
 insertSort = foldr insert N
 
 insert y (x `C` xs) 
@@ -316,6 +315,8 @@ insert y (x `C` xs)
   | otherwise = x `C` insert y xs
 insert y N    = y `C` N    
 \end{code}
+
+<br>
 
 + <div class="fragment">**Q:** What if we need *both* [increasing and decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?</div>
 + <div class="fragment">**A:** Need to *abstract* or *parameterize* property...</div>
