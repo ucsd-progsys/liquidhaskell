@@ -307,8 +307,6 @@ Refined Data Constructors
 
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo: Insertion Sort</a> (Mouseover to see inferred types) 
 
-<br>
-
 \begin{code}
 insertSort = foldr insert N
 
