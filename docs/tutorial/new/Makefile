@@ -19,7 +19,7 @@ DZSLIDES=$(PANDOC) --highlight-style tango --css=slides.css -w dzslides
 HANDOUT=$(PANDOC) --highlight-style tango --css=text.css -w html5
 WEBTEX=$(PANDOC) -s --webtex -i -t slidy
 BEAMER=pandoc -t beamer
-LIQUID=liquid
+LIQUID=liquid --short-names
 
 mdObjects   := $(patsubst %.lhs,%.lhs.markdown,$(wildcard lhs/*.lhs))
 htmlObjects := $(patsubst %.lhs,%.lhs.slides.html,$(wildcard lhs/*.lhs))
@@ -27,7 +27,7 @@ htmlObjects := $(patsubst %.lhs,%.lhs.slides.html,$(wildcard lhs/*.lhs))
 ####################################################################
 
 one: $(mdObjects)
-	$(REVEAL) lhs/02_Measures.lhs.markdown > lhs/tutorial.html
+	$(REVEAL) lhs/03_HigherOrderFunctions.lhs.markdown > lhs/tutorial.html
 
 tut: $(mdObjects)
 	$(REVEAL) lhs/*.markdown > lhs/tutorial.html 
