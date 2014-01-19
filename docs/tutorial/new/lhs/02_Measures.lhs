@@ -12,8 +12,10 @@ module Measures where
 import Prelude hiding ((!!), length)
 import Language.Haskell.Liquid.Prelude
 
-length :: L a -> Int
-(!)    :: L a -> Int -> a
+length      :: L a -> Int
+(!)         :: L a -> Int -> a
+insert      :: Ord a => a -> L a -> L a
+insertSort  :: Ord a => [a] -> L a
 \end{code}
 
 </div>
@@ -59,9 +61,9 @@ Example: Length of a List
 -------------------------
 
 \begin{code}
-{-@ measure llen :: (L a) -> Int
-    llen(N)      = 0
-    llen(C x xs) = 1 + (llen xs)  @-}
+{-@ measure llen  :: (L a) -> Int
+    llen (N)      = 0
+    llen (C x xs) = 1 + (llen xs)  @-}
 \end{code}
 
 <br>
@@ -91,20 +93,25 @@ data L a where
 
 <br>
 
-`llen` is *uninterpreted function* in SMT logic
+`llen` is an *uninterpreted function* in SMT logic
 
 Measures Are Uninterpreted
 --------------------------
 
 In SMT, [uninterpreted function](http://fm.csl.sri.com/SSFT12/smt-euf-arithmetic.pdf) `f` obeys *congruence* axiom:
 
-`forall x, y. (x = y) => (f x) = (f y)`
+`forall x y. (x = y) => (f x) = (f y)`
 
-<br> 
+<br>
 
 <div class="fragment">
-Other facts about `llen` asserted at *fold* and *unfold*
+All other facts about `llen` asserted at *fold* and *unfold*
 </div>
+
+Measures Are Uninterpreted
+--------------------------
+
+All other facts about `llen` asserted at *fold* and *unfold*
 
 <br>
 
@@ -128,7 +135,7 @@ case z of
 Measured Refinements
 --------------------
 
-Now we can verify:
+Now, we can verify:
 
 <br>
 
@@ -155,7 +162,7 @@ Where `EqLen` is a type alias:
 List Indexing Redux
 -------------------
 
-Now we can type list indexed lookup
+We can type list indexed lookup:
 
 <br>
 
@@ -166,7 +173,6 @@ Now we can type list indexed lookup
 _        ! _ = liquidError "never happens!"
 \end{code}
 
-<div class="fragment">
 <br>
 
 Where `LtLen` is a type alias:
@@ -177,12 +183,11 @@ Where `LtLen` is a type alias:
 {-@ type LtLen Xs = {v:Nat | v < (llen Xs)} @-}
 \end{code}
 
-</div>
 
 List Indexing Redux
 -------------------
 
-Now we can type list indexed lookup
+Now we can type list indexed lookup:
 
 \begin{code} <br>
 {-@ (!)      :: xs:L a -> (LtLen xs) -> a @-}
@@ -194,27 +199,18 @@ _        ! _ = liquidError "never happens!"
 <br>
 
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellMeasure.hs" target= "_blank">Demo:</a> 
-What if we *change* the precondition?
+What if we *remove* the precondition?
 
 Multiple Measures
 -----------------
 
-
-<div class="fragment"> (Unlike [indexed types](http://dl.acm.org/citation.cfm?id=270793) ...) </div> 
-
-<br>
-
-+ <div class="fragment">Measures *decouple* properties from structures</div>
-+ <div class="fragment">Support *multiple* properties over structures </div>
-+ <div class="fragment">Enable  *reuse* of structures                 </div>
+LiquidHaskell allows *many* measures for a type
 
 
 Multiple Measures 
 -----------------
 
 **Example:** Nullity of a `List` 
-
-<br>
 
 \begin{code}
 {-@ measure isNull :: (L a) -> Prop
@@ -226,7 +222,7 @@ Multiple Measures
 
 <div class="fragment">
 
-\begin{code} LiquidHaskell **strengthens** data constructors 
+\begin{code} LiquidHaskell **strengthens** data constructors
 data L a where 
   N :: {v : L a | (isNull v)}
   C :: a -> L a -> {v:(L a) | not (isNull v)}
@@ -234,86 +230,95 @@ data L a where
 
 </div>
 
-Multiple measures for List
---------------------------
-
-The types of data constructors will be the **conjuction** of all the inferred types:
-
-
-\begin{code} The types from `llen` definition
-data L a where 
-  N :: {v : L a | (llen v) = 0}
-  C :: a -> xs: L a -> {v:L a |(llen v) = 1 + (llen xs)}
-\end{code}
+Multiple Measures
+-----------------
 
 <br>
-\begin{code} and the types from `isNull`
+
+LiquidHaskell *conjoins* data constructor types:
+
+\begin{code} <br>
 data L a where 
-  N :: {v : L a | isNull v}
-  C :: a -> xs: L a -> {v:L a | not (isNull v)}
+  N :: {v:L a |  (llen v) = 0 
+              && (isNull v) }
+  C :: a 
+    -> xs:L a 
+    -> {v:L a |  (llen v) = 1 + (llen xs) 
+              && not (isNull v)          }
 \end{code}
 
+Multiple Measures
+-----------------
+
+Unlike [indexed types](http://dl.acm.org/citation.cfm?id=270793) ...
 
 <br>
-\begin{code} So, the final types will be
-data L a where 
-  N :: {v : L a | (llen v) = 0 && (isNull v)}
-  C :: a -> xs: L a -> {v:L a |(llen v) = 1 + (llen xs) && not (isNull v)}
-\end{code}
 
++ <div class="fragment">Measures *decouple* properties from structures</div>
++ <div class="fragment">Support *multiple* properties over structures </div>
++ <div class="fragment">Enable  *reuse* of structures                 </div>
 
-Invariants in Data Constructors
-------------------------------
+<br>
 
-We can refine the definition of data types setting **invariants**
+<div class="fragment">Invaluable in practice!</div>
+
+Refined Data Constructors
+-------------------------
+
+Can *directly pack* properties inside data constructors
+
+<div class="fragment">
+
+<br>
+
 \begin{code}
 {-@ data L a = N
-             | C (x :: a) (xs :: L {v:a | x <= v})  @-}
+             | C (x :: a) 
+                 (xs :: L {v:a | x <= v})  @-}
 \end{code}
+
+</div>
+
+<div class="fragment">
 
 <br>
 
-\begin{code} As before,the types of data constuctors are strengthened to
+Specifies *increasing* Lists 
+</div>
+
+Refined Data Constructors
+-------------------------
+
+**Example:** Increasing Lists, with strengthened constructors:
+
+\begin{code} <br>
 data L a where
   N :: L a
   C :: x:a -> xs: L {v:a | x <= v} -> L a
 \end{code}
 
-LiquidHaskell
-
-- **Proves** the property when `C` is called
-
-- **Assumes** the property when `C` is opened
-
-
-
-Increasing Lists
------------------
-
-This invariant constrains all Lists to **increasing**
-\begin{code}
-{-@ data L a = N
-             | C (x :: a) (xs :: L {v:a | x <= v})  @-}
-\end{code}
-
 <br>
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs"
-target= "_blank">Insert sort</a> 
-\begin{code}
-{-@ insert :: Ord a => a -> L a -> L a @-}
-insert :: Ord a => a -> L a -> L a
-insert y (x `C` xs) | x <= y    = x `C` insert y xs
-                    | otherwise = y `C` insert x xs
 
+- <div class="fragment">LiquidHaskell *checks* property when *folding* `C`</div>
+- <div class="fragment">LiquidHaskell *assumes* property when *unfolding* `C`</div>
+
+Refined Data Constructors
+-------------------------
+
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo:</a>Insertion Sort
+
+\begin{code}
 {-@ insertSort  :: Ord a => [a] -> L a @-}
-insertSort  :: Ord a => [a] -> L a
 insertSort = foldr insert N
+
+insert y (x `C` xs) 
+  | y <= x    = y `C` (x `C` xs)
+  | otherwise = x `C` insert y xs
+insert y N    = y `C` N    
 \end{code}
 
-<br>
-What if increasing and decreasing lists should co-exist?
-
-We use **abstract refinements** to allow it!
++ <div class="fragment">**Q:** What if we need *both* [increasing and decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?</div>
++ <div class="fragment">**A:** Need to *abstract* or *parameterize* property...</div>
 
 
 Recap: Refinement Types
@@ -322,4 +327,5 @@ Recap: Refinement Types
 1. **Refinements:** Types + Predicates
 2. **Subtyping:** SMT Implication
 3. <div class="fragment">**Measures:** Strengthened Constructors</div>
+    - <div class="fragment">*Decouple* structure & property, enable *reuse*</div>
 
