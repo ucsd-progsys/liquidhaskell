@@ -213,6 +213,10 @@ max x y = if x <= y then y else x
 
 [Key Insight:](http://goto.ucsd.edu/~rjhala/papers/abstract_refinement_types.html) `a<p>` is simply `{v:a|(p v)}`
 
+<br>
+
+<div class="fragment">Abstract Refinement is an *uninterpreted function* in SMT logic</div>
+
 Parametric Refinements 
 ----------------------
 
@@ -225,7 +229,7 @@ max x y = if x <= y then y else x
 
 <br>
 
-- <div class="fragment">**Check** type using *SMT/uninterpreted functions*</div>
+- <div class="fragment">**Check** type using *SMT*</div>
 
 - <div class="fragment">**Instantiate** type using *SMT/predicate abstraction*</div>
 
