@@ -19,6 +19,23 @@ import Language.Haskell.Liquid.Prelude
 Abstracting Over Refinements
 ============================
 
+Two Problems
+------------
+
+<div class="fragment">
+**Problem 1:** 
+
+How do we specify *both* [increasing and decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?</div>
+</div>
+
+<div class="fragment">
+**Problem 2:** 
+
+How do we specify *iteration-dependence* in higher-order functions?
+</div>
+
+
+<!--
 Refined Data Constructors
 -------------------------
 
@@ -34,19 +51,43 @@ data L a where
 
 <div class="fragment">**Problem:** What if we need *both* [increasing and decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?</div>
 
+-->
+
 Problem Is Pervasive
 --------------------
 
+Lets distill it to a simple example.
 
-Example: Polymorphic `max` 
---------------------------
+
+Example: `maxInt` 
+-----------------
+
+`maxInt` returns the larger of two `Int`s:
 
 \begin{code} <br> 
-max     :: a -> a -> a
+maxInt  :: Int -> Int -> Int 
 max x y = if y <= x then x else y
 \end{code}
 
 <br>
+
+We can give `maxInt` *many* incomparable types...
+
+\begin{code}<br>
+maxInt :: Nat -> Nat -> Nat
+
+maxInt :: Even -> Even -> Even
+
+maxInt :: Prime -> Prime -> Prime
+\end{code}
+
+<br>
+
+But which is the *right* one?
+
+
+Example: `maxPoly` 
+------------------
 
 \begin{code} We can instantiate `a` with `Odd`
 max     :: Odd -> Odd -> Odd
@@ -57,7 +98,7 @@ maxOdd = max 3 7
 
 
 Polymorphic Max in Haskell
------------------------
+--------------------------
 
 \begin{code} In Haskell the type of max is
 max     :: Ord a => a -> a -> a
@@ -152,133 +193,4 @@ Using Abstract Refinements
 {-@ maxOdd :: Odd @-}
 maxOdd     :: Int
 maxOdd     = max 3 5
-\end{code}
-
-
-Abstract Refinements in Type Constructors
------------------------------------------
-
-Types cannot track information of monomorphic arguments:
-
-\begin{code}
-data F = F {w::Int}
-\end{code}
-
-<br>
-
-The type `F` cannot give us information about the field `x`.
-
-\begin{code}
-foo = let f = F 0 in -- :: f :: F
-      case f of 
-      F x -> liquidAssert (x >= 0)
-\end{code}
-
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=AbstractRefinements.hs" target= "_blank">Demo:</a> 
-Lets solve this error using Abstract Refinements
-
-Abstract Refinements in Type Constructors
------------------------------------------
-
-- Abstract over the refinement you care
-\begin{code}
-data G = G {y::Int{- <p> -}}
-\end{code}
-
-- Move it to the left-hand side
-\begin{code}
-{-@ data G <p :: Int -> Prop> = G (y::Int<p>) @-}
-\end{code}
-
-- The type `G <p>` now describes the field `x`.
-
-\begin{code}
-bar = let f = G 0 in -- :: f :: G <{v = 0}>
-      case f of 
-      G x -> liquidAssert (x >= 0)
-\end{code}
-
-Abstract Refinements in Lists
------------------------------------------
-
-\begin{code} Remember increasing Lists?
-data IL a = N | C (x :: a) (xs :: L {v:a | x <= v})
-\end{code}
-
-- Abstract over the refinement you care
-\begin{code}
-data L a = N | C {x :: a, xs :: L a {- v:a | p v x -}}
-\end{code}
-
-- Move it to the left-hand side
-\begin{code}
-{-@ data L a <p :: a -> a -> Prop> = 
-      N 
-    | C (x :: a) (xs :: L <p> a<p x>)  @-}
-\end{code}
-
-<br>
-
-We can get back increasing Lists:
-\begin{code}
-{-@ type IncrL a = L <{\x v -> x <= v}> a @-}
-\end{code}
-
-
-Multiple Instantiations
------------------------
-
-\begin{code} Now increasing lists 
-type IncrL a = L <{\x v -> x <= v}> a
-\end{code}
-
-<br>
-
-\begin{code} Co-exist with decreasing ones
-type DecrL a = L <{\x v -> x >= v}> a
-\end{code}
-
-Ghc Sort
---------
-
-We can now verify algorithms that use **both** increasing and decreasing lists
-
-\begin{code}
-{-@ type OList a = [a]<{\hd v -> hd <= v}> @-}
-
-{-@ sort :: (Ord a) => [a] -> OList a  @-}
-sort :: (Ord a) => [a] -> [a]
-sort = mergeAll . sequences
-  where
-    sequences (a:b:xs)
-      | a `compare` b == GT = descending b [a]  xs
-      | otherwise           = ascending  b (a:) xs
-    sequences [x] = [[x]]
-    sequences []  = [[]]
-
-    descending a as (b:bs)
-      | a `compare` b == GT = descending b (a:as) bs
-    descending a as bs      = (a:as): sequences bs
-
-    ascending a as (b:bs)
-      | a `compare` b /= GT = ascending b (\ys -> as (a:ys)) bs
-    ascending a as bs       = as [a]: sequences bs
-\end{code}
-
-Ghc Sort : Helper Functions
----------------------------
-
-\begin{code}
-mergeAll [x] = x
-mergeAll xs  = mergeAll (mergePairs xs)
-
-mergePairs (a:b:xs) = merge1 a b: mergePairs xs
-mergePairs [x]      = [x]
-mergePairs []       = []
-
-merge1 (a:as') (b:bs')
-  | a `compare` b == GT = b : merge1 (a:as')  bs'
-  | otherwise           = a : merge1 as' (b:bs')
-merge1 [] bs            = bs
-merge1 as []            = as
 \end{code}
