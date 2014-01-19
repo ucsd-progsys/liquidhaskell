@@ -305,7 +305,9 @@ data L a where
 Refined Data Constructors
 -------------------------
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo:</a>Insertion Sort
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo: Insertion Sort</a> 
+
+<br>
 
 \begin{code}
 insertSort = foldr insert N

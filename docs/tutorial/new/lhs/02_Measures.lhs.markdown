@@ -317,29 +317,32 @@ Refined Data Constructors
 
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo:</a>Insertion Sort
 
+<br>
 
-<pre><span class=hs-linenum>311: </span><span class='hs-keyword'>{-@</span> <span class='hs-varid'>insertSort</span>  <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Ord</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>a</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>L</span> <span class='hs-varid'>a</span> <span class='hs-keyword'>@-}</span>
-<span class=hs-linenum>312: </span><a class=annot href="#"><span class=annottext>forall a. (GHC.Classes.Ord a) =&gt; [a] -&gt; (Measures.L a)</span><span class='hs-definition'>insertSort</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>(a -&gt; (Measures.L a) -&gt; (Measures.L a))
+
+<pre><span class=hs-linenum>313: </span><a class=annot href="#"><span class=annottext>forall a. (GHC.Classes.Ord a) =&gt; [a] -&gt; (Measures.L a)</span><span class='hs-definition'>insertSort</span></a> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>(a -&gt; (Measures.L a) -&gt; (Measures.L a))
 -&gt; (Measures.L a) -&gt; [a] -&gt; (Measures.L a)</span><span class='hs-varid'>foldr</span></a> <a class=annot href="#"><span class=annottext>a -&gt; (Measures.L a) -&gt; (Measures.L a)</span><span class='hs-varid'>insert</span></a> <a class=annot href="#"><span class=annottext>{x3 : (Measures.L {VV : a | false}) | (((isNull x3)) &lt;=&gt; true) &amp;&amp; ((llen x3) == 0)}</span><span class='hs-conid'>N</span></a>
-<span class=hs-linenum>313: </span>
-<span class=hs-linenum>314: </span><a class=annot href="#"><span class=annottext>forall a.
+<span class=hs-linenum>314: </span>
+<span class=hs-linenum>315: </span><a class=annot href="#"><span class=annottext>forall a.
 (GHC.Classes.Ord a) =&gt;
 a -&gt; (Measures.L a) -&gt; (Measures.L a)</span><span class='hs-definition'>insert</span></a> <a class=annot href="#"><span class=annottext>a</span><span class='hs-varid'>y</span></a> <span class='hs-layout'>(</span><span class='hs-varid'>x</span> <span class='hs-varop'>`C`</span> <span class='hs-varid'>xs</span><span class='hs-layout'>)</span> 
-<span class=hs-linenum>315: </span>  <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>x1:a
+<span class=hs-linenum>316: </span>  <span class='hs-keyglyph'>|</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>x1:a
 -&gt; x2:a -&gt; {x2 : (GHC.Types.Bool) | (((Prop x2)) &lt;=&gt; (x1 &lt;= x2))}</span><span class='hs-varop'>&lt;=</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>x1:{VV : a | (VV &gt;= y)}
 -&gt; x2:(Measures.L {VV : a | (VV &gt;= y) &amp;&amp; (x1 &lt;= VV)})
 -&gt; {x3 : (Measures.L {VV : a | (VV &gt;= y)}) | (((isNull x3)) &lt;=&gt; false) &amp;&amp; ((llen x3) == (1 + (llen x2)))}</span><span class='hs-varop'>`C`</span></a> <span class='hs-layout'>(</span><a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>x1:{VV : a | (VV &gt;= x) &amp;&amp; (VV &gt;= y)}
 -&gt; x2:(Measures.L {VV : a | (VV &gt;= x) &amp;&amp; (VV &gt;= y) &amp;&amp; (x1 &lt;= VV)})
 -&gt; {x3 : (Measures.L {VV : a | (VV &gt;= x) &amp;&amp; (VV &gt;= y)}) | (((isNull x3)) &lt;=&gt; false) &amp;&amp; ((llen x3) == (1 + (llen x2)))}</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Measures.L {VV : a | (x &lt;= VV)}) | (x2 == xs)}</span><span class='hs-varid'>xs</span></a><span class='hs-layout'>)</span>
-<span class=hs-linenum>316: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>x1:{VV : a | (VV &gt;= x)}
+<span class=hs-linenum>317: </span>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span> <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == x)}</span><span class='hs-varid'>x</span></a> <a class=annot href="#"><span class=annottext>x1:{VV : a | (VV &gt;= x)}
 -&gt; x2:(Measures.L {VV : a | (VV &gt;= x) &amp;&amp; (x1 &lt;= VV)})
 -&gt; {x3 : (Measures.L {VV : a | (VV &gt;= x)}) | (((isNull x3)) &lt;=&gt; false) &amp;&amp; ((llen x3) == (1 + (llen x2)))}</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>forall a.
 (GHC.Classes.Ord a) =&gt;
 a -&gt; (Measures.L a) -&gt; (Measures.L a)</span><span class='hs-varid'>insert</span></a> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>{x2 : (Measures.L {VV : a | (x &lt;= VV)}) | (x2 == xs)}</span><span class='hs-varid'>xs</span></a>
-<span class=hs-linenum>317: </span><span class='hs-definition'>insert</span> <span class='hs-varid'>y</span> <span class='hs-conid'>N</span>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>x1:{VV : a | (VV == y)}
+<span class=hs-linenum>318: </span><span class='hs-definition'>insert</span> <span class='hs-varid'>y</span> <span class='hs-conid'>N</span>    <span class='hs-keyglyph'>=</span> <a class=annot href="#"><span class=annottext>{VV : a | (VV == y)}</span><span class='hs-varid'>y</span></a> <a class=annot href="#"><span class=annottext>x1:{VV : a | (VV == y)}
 -&gt; x2:(Measures.L {VV : a | (VV == y) &amp;&amp; (x1 &lt;= VV)})
 -&gt; {x3 : (Measures.L {VV : a | (VV == y)}) | (((isNull x3)) &lt;=&gt; false) &amp;&amp; ((llen x3) == (1 + (llen x2)))}</span><span class='hs-varop'>`C`</span></a> <a class=annot href="#"><span class=annottext>{x3 : (Measures.L {VV : a | false}) | (((isNull x3)) &lt;=&gt; true) &amp;&amp; ((llen x3) == 0)}</span><span class='hs-conid'>N</span></a>    
 </pre>
+
+<br>
 
 + <div class="fragment">**Q:** What if we need *both* [increasing and decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?</div>
 + <div class="fragment">**A:** Need to *abstract* or *parameterize* property...</div>
