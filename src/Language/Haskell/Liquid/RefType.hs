@@ -229,13 +229,13 @@ instance Fixpoint Class where
 -- MOVE TO TYPES
 instance (Eq p, PPrint p, TyConable c, Reftable r, PPrint r) => RefTypable p c String r where
   ppCls   = ppClass_String
-  ppRType = ppr_rtype $ ppPs ppEnv
+  ppRType = ppr_rtype ppEnv
   -- ppBase  = undefined 
 
 -- MOVE TO TYPES
 instance (Reftable r, PPrint r) => RefTypable Class RTyCon RTyVar r where
   ppCls   = ppClass_ClassPred
-  ppRType = ppr_rtype $ ppPs ppEnv
+  ppRType = ppr_rtype ppEnv
   -- ppBase  = undefined
 
 
