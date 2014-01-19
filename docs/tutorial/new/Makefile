@@ -26,7 +26,8 @@ htmlObjects := $(patsubst %.lhs,%.lhs.slides.html,$(wildcard lhs/*.lhs))
 
 ####################################################################
 
-
+one: $(mdObjects)
+	$(REVEAL) lhs/02_Measures.lhs.markdown > lhs/tutorial.html
 
 tut: $(mdObjects)
 	$(REVEAL) lhs/*.markdown > lhs/tutorial.html 
