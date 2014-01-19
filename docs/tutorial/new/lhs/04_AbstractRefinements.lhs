@@ -1,8 +1,9 @@
  {#abstractrefinements}
 =======================
 
-Abstracting Over Refinements
-----------------------------
+
+Abstract Refinements
+--------------------
 
 <div class="hidden">
 
@@ -12,12 +13,16 @@ module AbstractRefinements where
 import Prelude hiding (max)
 import Language.Haskell.Liquid.Prelude
 {-@ LIQUID "--no-termination" @-}
+
+odd_and_even :: (Int, Int)
+o, no        :: Int
+max          :: Ord a => a -> a -> a
 \end{code}
 
 </div>
 
-Abstracting Over Refinements
-============================
+Abstract Refinements
+====================
 
 Two Problems
 ------------
@@ -25,8 +30,10 @@ Two Problems
 <div class="fragment">
 **Problem 1:** 
 
-How do we specify *both* [increasing and decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?</div>
+How do we specify *both* [increasing and decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?
 </div>
+
+<br>
 
 <div class="fragment">
 **Problem 2:** 
@@ -34,146 +41,193 @@ How do we specify *both* [increasing and decreasing lists](http://web.cecs.pdx.e
 How do we specify *iteration-dependence* in higher-order functions?
 </div>
 
-
-<!--
-Refined Data Constructors
--------------------------
-
-**Example:** Increasing Lists, with strengthened constructors:
-
-\begin{code} <br>
-data L a where
-  N :: L a
-  C :: x:a -> xs: L {v:a | x <= v} -> L a
-\end{code}
-
-<br>
-
-<div class="fragment">**Problem:** What if we need *both* [increasing and decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?</div>
-
--->
-
 Problem Is Pervasive
 --------------------
 
-Lets distill it to a simple example.
-
+Lets distill it to a simple example...
 
 Example: `maxInt` 
 -----------------
 
-`maxInt` returns the larger of two `Int`s:
+Compute the larger of two `Int`s:
 
 \begin{code} <br> 
-maxInt  :: Int -> Int -> Int 
-max x y = if y <= x then x else y
+maxInt     :: Int -> Int -> Int 
+maxInt x y = if y <= x then x else y
 \end{code}
 
-<br>
+Example: `maxInt` 
+-----------------
 
-We can give `maxInt` *many* incomparable types...
+Hase *many incomparable* refinement types...
 
 \begin{code}<br>
-maxInt :: Nat -> Nat -> Nat
-
-maxInt :: Even -> Even -> Even
-
+maxInt :: Nat   -> Nat   -> Nat
+maxInt :: Even  -> Even  -> Even
 maxInt :: Prime -> Prime -> Prime
 \end{code}
 
 <br>
 
-But which is the *right* one?
+<div class="fragment">Yikes. **Which** one should we use?</div>
 
-
-Example: `maxPoly` 
-------------------
-
-\begin{code} We can instantiate `a` with `Odd`
-max     :: Odd -> Odd -> Odd
-
-maxOdd :: Odd
-maxOdd = max 3 7
-\end{code}
-
-
-Polymorphic Max in Haskell
---------------------------
-
-\begin{code} In Haskell the type of max is
-max     :: Ord a => a -> a -> a
-\end{code}
-
-
-<br>
-
-We could **ignore** the class constraints, and procced as before:
-
-\begin{code} Instantiate `a` with `Odd`
-max    :: Odd -> Odd -> Odd
-
-maxOdd :: Odd
-maxOdd = max 3 7
-\end{code}
-
-
-Polymorphic Add in Haskell
+Refinement Polymorphism 
 -----------------------
 
-\begin{code} But this can lead to **unsoundness**:
-max     :: Ord a => a -> a -> a
-(+)     :: Num a => a -> a -> a
+`maxInt` returns *one of* its two inputs `x` and `y`. 
+
+<div class="fragment" align="center">
+
+<br>
+
+---------   ---   -------------------------------------------
+   **If**    :    the *inputs* satisfy a property  
+
+ **Then**    :    the *output* satisfies that property
+---------   ---   -------------------------------------------
+
+<br>
+
+</div>
+
+<div class="fragment">Above holds *for all* properties!</div>
+
+<div class="fragment"> 
+
+<br>
+
+**Need to abstract refinements over types**
+
+By Type Polymorphism?
+---------------------
+
+\begin{code} <br> 
+max :: α -> α -> α 
+max x y = if y <= x then x else y
 \end{code}
 
 <br>
 
-So, **ignoring** class constraints allows us to: 
-\begin{code} instantiate `a` with `Odd`
-(+)     :: Odd -> Odd -> Odd
+<div class="fragment">Instantiate `α` at callsites...</div>
 
-addOdd :: Odd
-addOdd = 3 + 7
+<div class="fragment">
+
+\begin{code}
+{-@ odd_and_even :: ( Odd, Even) @-}
+odd_and_even     =  ( max 3 7    -- α := Odd
+                    , max 2 4 )  -- α := Even 
+\end{code}
+
+</div>
+
+By Type Polymorphism?
+---------------------
+
+\begin{code} <br> 
+max :: α -> α -> α 
+max x y = if y <= x then x else y
+\end{code}
+
+<br>
+
+But there is a fly in the ointment ...
+
+Polymorphic `max` in Haskell
+----------------------------
+
+\begin{code} In Haskell the type of max is
+max :: (Ord a) => a -> a -> a
+\end{code}
+
+<br>
+
+We could *ignore* the class constraints, instantiate as before...
+
+\begin{code}
+{-@ o :: Odd @-}
+o     = max 3 7  -- α := Odd 
 \end{code}
 
 
-Polymorphism via Parametric Invariants 
---------------------------------------
+Polymorphic `(+)` in Haskell
+----------------------------
 
-`max` returns *one of* its two inputs `x` and `y`. 
+\begin{code} ... but this is *unsound*!
+max     :: (Ord a) => a -> a -> a
+(+)     :: (Num a) => a -> a -> a
+\end{code}
 
-- **If** *both inputs* satisfy a property  
+<br>
 
-- **Then** *output* must satisfy that property
+<div class="fragment">
 
-This holds, **regardless of what that property was!**
- 
-- That  is, we can **abstract over refinements**
-
-- Or,  **parameterize** a type over its refinements.
-
-Parametric Invariants
---------------------- 
+*Ignoring* class constraints would let us "prove":
 
 \begin{code}
-{-@ max :: forall <p :: a -> Prop>. Ord a => a<p> -> a<p> -> a<p> @-}
-max     :: Ord a => a -> a -> a
+{-@ no :: Odd @-}
+no     = 3 + 7    -- α := Odd !
+\end{code}
+
+</div>
+
+Type Polymorphism? No.
+----------------------
+
+<div class="fragment">Need to try a bit harder...</div>
+
+By Parametric Refinements!
+--------------------------
+
+That is, enable *quantification over refinements*...
+
+Parametric Refinements 
+----------------------
+
+\begin{code}
+{-@ max :: forall <p :: a -> Prop>. 
+             Ord a => a<p> -> a<p> -> a<p> 
+  @-}
 max x y = if x <= y then y else x 
 \end{code}
 
+<br>
 
 
-Where
+<div class="fragment">Type says: **for any** `p` that is a property of `a`, </div>
 
-- `a<p>` is just an abbreviation for `{v:a | (p v)}`
+- <div class="fragment">`max` **takes** two inputs that satisfy `p`,</div>
 
+- <div class="fragment">`max` **returns** an output that satisfies `p`.</div>
 
-This type states explicitly:
+Parametric Refinements 
+----------------------
 
-- **For any property** `p`, that is a property of `a`, 
+\begin{code}<br> 
+{-@ max :: forall <p :: a -> Prop>. 
+             Ord a => a<p> -> a<p> -> a<p> 
+  @-}
+max x y = if x <= y then y else x 
+\end{code}
 
-- `max` takes two **inputs** of which satisfy `p`,
+<br>
 
-- `max` returns an **output** that satisfies `p`. 
+[Key Insight:](http://goto.ucsd.edu/~rjhala/papers/abstract_refinement_types.html) `a<p>` is simply `{v:a|(p v)}`
+
+Parametric Refinements 
+----------------------
+
+\begin{code}<br> 
+{-@ max :: forall <p :: a -> Prop>. 
+             Ord a => a<p> -> a<p> -> a<p> 
+  @-}
+max x y = if x <= y then y else x 
+\end{code}
+
+<br>
+
+- <div class="fragment">**Check** type using *SMT/uninterpreted functions*</div>
+
+- <div class="fragment">**Instantiate** type using *SMT/predicate abstraction*</div>
 
 
 
