@@ -305,7 +305,7 @@ data L a where
 Refined Data Constructors
 -------------------------
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo: Insertion Sort</a> 
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo: Insertion Sort</a> (Mouseover to see inferred types) 
 
 <br>
 
