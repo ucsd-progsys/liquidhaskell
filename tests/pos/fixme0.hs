@@ -1,4 +1,4 @@
-module Loop where
+module Loop (listSum) where
 
 {-@ LIQUID "--no-termination"@-}
 
@@ -19,7 +19,3 @@ listSum xs  = loop 0 n 0 body
   where 
     body    = \i acc -> acc + (xs !! i) -- replace !! with `poo` and its safe? wtf.
     n       = length xs
-
-{-@ :: xs:[a] -> {v:Int | (0 <= v && v < (len xs))} -> a @-} 
-poo :: [a] -> Int -> a
-poo = undefined
