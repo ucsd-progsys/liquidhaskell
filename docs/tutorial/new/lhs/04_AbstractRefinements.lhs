@@ -292,3 +292,12 @@ Or any other property
 rgb = maxInt 56 8
 \end{code}
 
+
+Recap
+-----
+
+1. **Refinements:** Types + Predicates
+2. **Subtyping:** SMT Implication
+3. **Measures:** Strengthened Constructors
+4. <div class="fragment">**Abstract:** Refinements over Type Signatures</div>
+
