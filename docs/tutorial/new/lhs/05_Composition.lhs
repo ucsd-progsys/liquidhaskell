@@ -1,103 +1,161 @@
-% Function Composition
+Abstract Refinements {#composition}
+===================================
 
-Function Composition
---------------------
+Very General Mechanism 
+----------------------
 
+**Next:** Lets add parameters...
+
+<div class="hidden">
 \begin{code}
 module Composition where
-\end{code}
 
-A Plus Function
+import Prelude hiding ((.))
+
+plus     :: Int -> Int -> Int
+plus3'   :: Int -> Int
+\end{code}
+</div>
+
+
+Example: `plus`
 ---------------
 
-Consider a simple `plus` function 
-
 \begin{code}
-{-@ plus :: x:Int -> y:Int -> {v:Int | v = x + y} @-}
-plus     :: Int -> Int -> Int
+{-@ plus :: x:_ -> y:_ -> {v:_ | v=x+y} @-}
 plus x y = x + y
 \end{code}
 
-A Simple Addition 
+
+Example: `plus 3` 
 -----------------
 
-Consider a simple use of `plus` a function that adds `3` to its input:
+<br>
 
 \begin{code}
 {-@ plus3' :: x:Int -> {v:Int | v = x + 3} @-}
-plus3'     :: Int -> Int
-plus3' x   = x + 3
+plus3'     = plus 3
 \end{code}
 
-- The refinement type captures its behaviour...
+<br>
 
-- ... and LiquidHaskell easily verifies this type.
+Easily verified by LiquidHaskell
 
 A Composed Variant
 ------------------
 
-Instead, suppose we defined the previous function by composition 
+Lets define `plus3` by *composition*
 
-We first add `2` to the argument and then add `1` to the intermediate result...
+A Composition Operator 
+----------------------
+
+\begin{code}
+(#) :: (b -> c) -> (a -> b) -> a -> c
+(#) f g x = f (g x)
+\end{code}
+
+
+`plus3` By Composition
+-----------------------
 
 \begin{code}
 {-@ plus3'' :: x:Int -> {v:Int | v = x + 3} @-}
-plus3''     :: Int -> Int
-plus3''     = (plus 1) . (plus 2)
+plus3''     = plus 1 # plus 2
 \end{code}
 
-but verification **fails** as we need a way to **compose** the refinements!
+<br>
 
-**Problem** What is a suitable description of the compose operator
+Yikes! Verification *fails*. But why?
 
-\begin{code} _ 
-(.) :: (b -> c) -> (a -> b) -> (a -> c)
+<br>
+
+<div class="fragment">(Hover mouse over `#` for a clue)</div>
+
+How to type compose (#) ? 
+-------------------------
+
+This specification is *too weak* <br>
+
+\begin{code} <br>
+(#) :: (b -> c) -> (a -> b) -> (a -> c)
 \end{code}
 
-that lets us **relate** `a` and `c` via `b` ?
+<br>
 
+Output type does not *relate* `c` with `a`!
 
+How to type compose (.) ?
+-------------------------
 
-Composing Refinements, Abstractly
----------------------------------
+Write specification with abstract refinement type:
 
-- We can analyze the *composition* operator
-
-- With a very *descriptive* abstract refinement type!
+<br>
 
 \begin{code}
-
-{-@ cc :: forall < p :: b -> c -> Prop
-                , q :: a -> b -> Prop>.
-         f:(x:b -> c<p x>) 
-      -> g:(x:a -> b<q x>) 
-      -> y:a 
-      -> exists[z:b<q y>].c<p z>
+{-@ (.) :: forall <p :: b->c->Prop, 
+                   q :: a->b->Prop>.
+             f:(x:b -> c<p x>) 
+          -> g:(x:a -> b<q x>) 
+          -> y:a -> exists[z:b<q y>].c<p z>
  @-}
-
-cc :: (b -> c) -> (a -> b) -> a -> c
-cc f g x = f (g x)
+(.) f g y = f (g y)
 \end{code}
 
-Using Composition
------------------
+Using (.) Operator 
+------------------
 
-We can verify the desired `plus3` function:
+<br>
 
 \begin{code}
 {-@ plus3 :: x:Int -> {v:Int | v = x + 3} @-}
-plus3     :: Int -> Int
-plus3     = (+ 1) `cc` (+ 2)
+plus3     = plus 1 . plus 2
 \end{code}
 
-LiquidHaskell verifies the above, by **instantiating**
+<br>
 
-- `p` with `v = x + 1`
-- `q` with `v = x + 2`
+<div class="fragment">*Verifies!*</div>
 
-which lets it infer that the output of `plus3` has type:
 
-- `exists [z:{v=y+2}]. {v = z + 1}`
+Using (.) Operator 
+------------------
 
-which is a subtype of `{v:Int | v = 3}`
+\begin{code} <br>
+{-@ plus3 :: x:Int -> {v:Int | v = x + 3} @-}
+plus3     = plus 1 . plus 2
+\end{code}
 
+<br>
+
+LiquidHaskell *instantiates*
+
+- `p` with `\x -> v = x + 1`
+- `q` with `\x -> v = x + 2`
+
+Using (.) Operator 
+------------------
+
+\begin{code} <br>
+{-@ plus3 :: x:Int -> {v:Int | v = x + 3} @-}
+plus3     = plus 1 . plus 2
+\end{code}
+
+<br> To *infer* that output of `plus3` has type: 
+
+`exists [z:{v = y + 2}].{v = z + 1}`
+
+<div class="fragment">
+
+`<:`
+
+`{v:Int|v=3}`
+</div>
+
+
+Recap
+-----
+
+1. **Refinements:** Types + Predicates
+2. **Subtyping:** SMT Implication
+3. **Measures:** Strengthened Constructors
+4. **Abstract:** Refinements over Type Signatures
+    + <div class="fragment">*Dependencies* using refinement parameters</div>
