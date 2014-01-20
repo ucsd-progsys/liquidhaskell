@@ -19,6 +19,7 @@ import Language.Haskell.Liquid.Prelude
     llen (N)      = 0
     llen (C x xs) = 1 + (llen xs)  @-}
 
+size  :: L a -> Int
 add   :: Int -> Int -> Int
 loop  :: Int -> Int -> α -> (Int -> α -> α) -> α
 foldr :: (L a -> a -> b -> b) -> b -> L a -> b
@@ -204,7 +205,7 @@ Induction is an **abstract refinement type** for `loop`
 Induction in `loop` (by type)
 -----------------------------
 
-`p` is the index dependent invariant!
+`p` is the *index dependent* invariant!
 
 
 \begin{code}<br> 
@@ -226,7 +227,7 @@ add n m = loop 0 m n (\_ z -> z + 1)
 
 <br>
 
-**Verified** by instantiating `loop`s abstract refinement 
+**Verified** by instantiating the abstract refinement of `loop`
 
 `p := \i acc -> acc = i + n`
 
@@ -243,17 +244,24 @@ add n m = loop 0 m n (\_ z -> z + 1)
 
 Verified by instantiating `p := \i acc -> acc = i + n`
 
-- **Base:**  `n = 0 + n`
+- <div class="fragment">**Base:**  `n = 0 + n`</div>
 
-- **Step:**  `acc = i + n  =>  acc + 1 = (i + 1) + n`
+- <div class="fragment">**Step:**  `acc = i + n  =>  acc + 1 = (i + 1) + n`</div>
 
-- **Goal:**  `out = m + n`
+- <div class="fragment">**Goal:**  `out = m + n`</div>
 
 
 Generalizes To Structures 
 -------------------------
 
-Same idea applies for induction over *structures*
+Same idea applies for induction over *structures* ...
+
+
+Structural Induction
+====================
+
+Example: Lists
+--------------
 
 <br>
 
@@ -262,8 +270,25 @@ data L a = N
          | C a (L a)
 \end{code}
 
-Structural Induction
-====================
+<br>
+
+<div class="fragment">
+Lets write a generic loop over such lists ...
+</div>
+
+Example: `foldr`
+----------------
+
+\begin{code} <br>
+foldr f b N        = b
+foldr f b (C x xs) = f xs x (foldr f b xs)
+\end{code}
+
+<br>
+
+<div class="fragment">
+Lets brace ourselves for the type...
+</div>
 
 Example: `foldr`
 ----------------
@@ -279,50 +304,161 @@ foldr f b N        = b
 foldr f b (C x xs) = f xs x (foldr f b xs)
 \end{code}
 
-- **invariant** `(p xs b)` relates `b` with folded `xs`
-- **base** `b` is related to empty list `N`
-- **step** `f` extends relation from `xs` to `C x xs`
-- **output** relation holds over entire list `ys`
+<br>
 
-Using `foldr`
--------------
+<div class="fragment">
+Lets step through the type...
+</div>
+
+
+`foldr`: Abstract Refinement
+----------------------------
+
+\begin{code} <div/>
+p    :: L a -> b -> Prop   
+step :: xs:_ -> x:_ -> b<p xs> -> b<p(C x xs)> 
+base :: b<p N> 
+ys   :: L a
+out  ::  b<p ys>                            
+\end{code}
+
+<br>
+
+`(p xs b)` relates `b` with folded `xs`
+
+`p :: L a -> b -> Prop`
+
+
+`foldr`: Base Case
+------------------
+
+\begin{code} <div/>
+p    :: L a -> b -> Prop   
+step :: xs:_ -> x:_ -> b<p xs> -> b<p(C x xs)> 
+base :: b<p N> 
+ys   :: L a
+out  :: b<p ys>                            
+\end{code}
+
+<br>
+
+`base` is related to empty list `N`
+
+`base :: b<p N>` states 
+
+
+
+`foldr`: Ind. Step 
+------------------
+
+\begin{code} <div/>
+p    :: L a -> b -> Prop   
+step :: xs:_ -> x:_ -> b<p xs> -> b<p(C x xs)> 
+base :: b<p N> 
+ys   :: L a
+out  :: b<p ys>                            
+\end{code}
+
+<br>
+
+`step` extends relation from `xs` to `C x xs`
+
+`step :: xs:L a -> x:a -> b<p xs> -> b<p(C x xs)>`
+
+
+`foldr`: Output
+---------------
+
+\begin{code} <div/>
+p    :: L a -> b -> Prop   
+step :: xs:_ -> x:_ -> b<p xs> -> b<p(C x xs)> 
+base :: b<p N> 
+ys   :: L a
+out  :: b<p ys>                            
+\end{code}
+
+<br>
+
+Relation holds between `out` and input list `ys`
+
+`out :: b<p ys>`
+
+Using `foldr`: Size
+-------------------
 
 We can now verify <br>
 
 \begin{code}
-{-@ size :: xs:L a -> {v: Int | v = (llen xs)} @-}
-size :: L a -> Int
-size = foldr (\_ _ n -> n + 1) 0
+{-@ size :: xs:_ -> {v:Int| v = (llen xs)} @-}
+size     = foldr (\_ _ n -> n + 1) 0
 \end{code}
 
 <br>
 
-Here, the relation 
+<div class="fragment">
+Verified by automatically instantiating 
 
-- `(p xs acc)` 
+`p := \xs acc -> acc = (llen xs)`
+</div>
 
-is **automatically instantiated** with
+Using `foldr`: Append
+---------------------
 
-- `acc = (llen xs)`
-
-Using `foldr`
--------------
-
-Similarly we can now verify <br>
-
-\begin{code}_
-{-@ ++ :: xs:L a -> ys:L a -> {v:L a | (llen v) = (llen xs) + (llen ys)} @-} 
-xs ++ ys = foldr (\_ z zs -> C z zs) ys xs 
+\begin{code}
+{-@ (++) :: xs:_ -> ys:_ -> (Cat a xs ys) @-} 
+xs ++ ys = foldr (\_ -> C) ys xs 
 \end{code}
 
 <br>
 
-Here, the relation 
+<div class="fragment">
 
-- `(p xs acc)` 
+where the alias `Cat` is:
 
-is **automatically instantiated** with
+<br>
 
-- `(llen acc) = (llen xs) + (llen ys)`
+\begin{code}
+{-@ type Cat a X Y = 
+    {v:L a|(llen v) = (llen X) + (llen Y)} @-}
+\end{code}
 
+</div>
 
+Using `foldr`: Append
+---------------------
+
+\begin{code} <div/>
+{-@ (++) :: xs:_ -> ys:_ -> (Cat a xs ys) @-} 
+xs ++ ys = foldr (\_ -> C) ys xs 
+\end{code}
+
+<br>
+
+<div class="fragment">
+
+Verified by automatically instantiating 
+
+`p := \xs acc -> llen acc = llen xs + llen ys`
+
+</div>
+
+Recap
+-----
+
+Abstract refinements decouple *invariant* from *traversal*
+
+<br>
+
++ <div class="fragment">*reusable* specifications for higher-order functions.</div>
+
++ <div class="fragment">*automatic* checking and instantiation by SMT.</div>
+
+Recap
+-----
+
+1. **Refinements:** Types + Predicates
+2. **Subtyping:** SMT Implication
+3. **Measures:** Strengthened Constructors
+4. **Abstract:** Refinements over Type Signatures
+    + *Dependencies*
+    + <div class="fragment">*Induction*</div>
