@@ -158,7 +158,7 @@ Iteration Dependence
 <br>
 
 \begin{code}
-{-@ add :: n:Nat -> m:Nat -> {v:Nat| v=m+n} @-}
+{-@ add :: n:Nat -> m:Nat -> {v:Nat|v=m+n} @-}
 add n m = loop 0 m n (\_ i -> i + 1)
 \end{code}
 
