@@ -17,8 +17,8 @@ Decouple invariants from *functions*
 Decouple invariants from *data structures*
 </div>
 
-Decouple Invariants From Data 
-=============================
+Decouple Invariants From Data {#vector} 
+=======================================
 
 Example: Vectors 
 ----------------
@@ -250,44 +250,15 @@ set key val (V f) = V $ \k -> if k == key
 Help! Can you spot and fix the errors? 
 </div>
 
-Using Vector API 
-----------------
+<!-- INSERT tests/pos/vecloop.lhs here AFTER FIXED -->
 
-\begin{code}
-{-@ loop :: forall a <p :: Int -> a -> Prop>.
-        lo:Int 
-     -> hi:{v:Int|lo <= v}
-     -> base:a<p lo>                      
-     -> f:(i:Int -> a<p i> -> a<p (i+1)>) 
-     -> a<p hi>                           @-}
-
-loop  :: Int -> Int -> α -> (Int -> α -> α) -> α
-loop lo hi base f = go lo base
-  where 
-    go i acc 
-      | i < hi    = go (i+1) (f i acc)
-      | otherwise = acc
-
-\end{code}
-
-Using Vector API 
-----------------
-
-\begin{code}
-{-@ qualif Neqz(v:Int): v /= 0 @-}
-
-{-@ initUpto :: Vec Int -> n:Nat -> (IdVec n) @-}
-initUpto v n   = loop 0 n v (\i -> set i i)
-
--- initUpto :: Vec a -> a -> Int -> Vec a
--- initUpto a x n = loop 0 n empty (\i -> set i x)
-\end{code}
-
+Using the Vector API
+--------------------
 
 Memoized Fibonacci
 ------------------
 
-Lets use `Vec` to write a *memoized* fibonacci function
+Use `Vec` API to write a *memoized* fibonacci function
 
 <br>
 
@@ -405,5 +376,30 @@ Memoized Fibonacci
             -> i:Int 
             -> (FibV,{v:Int | v = (fib i)}) @-}
 \end{code}
+
+
+Recap
+-----
+
+Created a `Vec` container 
+
+Decoupled *domain* and *range* invariants from *data*
+
+<br>
+
+<div class="fragment">
+
+Previous, special purpose program analyses 
+
+- [Gopan-Reps-Sagiv, POPL 05](link)
+- [J.-McMillan, CAV 07](link)
+- [Logozzo-Cousot-Cousot, POPL 11](link)
+- [Dillig-Dillig, POPL 12](link) 
+- ...
+
+Encoded as instance of abstract refinement types!
+</div>
+
+
 
 
