@@ -1,25 +1,26 @@
- {#abstractrefinements}
-=======================
-
-
-Abstract Refinements
---------------------
+  {#abstractrefinements}
+========================
 
 <div class="hidden">
 
 \begin{code}
 module AbstractRefinements where
 
-import Prelude hiding (max)
+import Prelude 
 import Language.Haskell.Liquid.Prelude
 {-@ LIQUID "--no-termination" @-}
 
-odd_and_even :: (Int, Int)
 o, no        :: Int
-max          :: Ord a => a -> a -> a
+maxInt       :: Int -> Int -> Int
 \end{code}
-
 </div>
+
+
+
+Abstract Refinements
+--------------------
+
+
 
 Abstract Refinements
 ====================
@@ -28,23 +29,44 @@ Two Problems
 ------------
 
 <div class="fragment">
+
 **Problem 1:** 
 
 How do we specify *both* [increasing and decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?
+
 </div>
 
 <br>
 
 <div class="fragment">
+
 **Problem 2:** 
 
 How do we specify *iteration-dependence* in higher-order functions?
+
 </div>
+
 
 Problem Is Pervasive
 --------------------
 
 Lets distill it to a simple example...
+
+<div class="fragment">
+
+<br>
+
+(First, a few aliases)
+
+<br>
+
+\begin{code}
+{-@ type Odd  = {v:Int | (v mod 2) = 1} @-}
+{-@ type Even = {v:Int | (v mod 2) = 0} @-}
+\end{code}
+
+</div>
+
 
 Example: `maxInt` 
 -----------------
@@ -56,27 +78,30 @@ maxInt     :: Int -> Int -> Int
 maxInt x y = if y <= x then x else y
 \end{code}
 
+
+
 Example: `maxInt` 
 -----------------
 
-Hase *many incomparable* refinement types...
+Has *many incomparable* refinement types
 
 \begin{code}<br>
-maxInt :: Nat   -> Nat   -> Nat
-maxInt :: Even  -> Even  -> Even
-maxInt :: Prime -> Prime -> Prime
+maxInt :: Nat  -> Nat  -> Nat
+maxInt :: Even -> Even -> Even
+maxInt :: Odd  -> Odd  -> Odd 
 \end{code}
 
 <br>
 
 <div class="fragment">Yikes. **Which** one should we use?</div>
 
+
 Refinement Polymorphism 
 -----------------------
 
-`maxInt` returns *one of* its two inputs `x` and `y`. 
+`maxInt` returns *one of* its two inputs `x` and `y` 
 
-<div class="fragment" align="center">
+<div align="center">
 
 <br>
 
@@ -92,30 +117,33 @@ Refinement Polymorphism
 
 <div class="fragment">Above holds *for all* properties!</div>
 
-<div class="fragment"> 
-
 <br>
 
+<div class="fragment"> 
+
 **Need to abstract refinements over types**
+
+</div>
+
 
 By Type Polymorphism?
 ---------------------
 
 \begin{code} <br> 
-max :: α -> α -> α 
+max     :: α -> α -> α 
 max x y = if y <= x then x else y
 \end{code}
 
-<br>
+<div class="fragment"> 
 
-<div class="fragment">Instantiate `α` at callsites...</div>
-
-<div class="fragment">
+Instantiate `α` at callsites
 
 \begin{code}
-{-@ odd_and_even :: ( Odd, Even) @-}
-odd_and_even     =  ( max 3 7    -- α := Odd
-                    , max 2 4 )  -- α := Even 
+{-@ o :: Odd  @-}
+o = maxInt 3 7     -- α := Odd
+
+{-@ e :: Even @-}
+e = maxInt 2 8     -- α := Even
 \end{code}
 
 </div>
@@ -124,7 +152,7 @@ By Type Polymorphism?
 ---------------------
 
 \begin{code} <br> 
-max :: α -> α -> α 
+max     :: α -> α -> α 
 max x y = if y <= x then x else y
 \end{code}
 
@@ -136,14 +164,12 @@ Polymorphic `max` in Haskell
 ----------------------------
 
 \begin{code} In Haskell the type of max is
-max :: (Ord a) => a -> a -> a
+max :: (Ord α) => α -> α -> α
 \end{code}
 
 <br>
 
-We could *ignore* the class constraints, instantiate as before...
-
-\begin{code}
+\begin{code} Could *ignore* the class constraints, instantiate as before...
 {-@ o :: Odd @-}
 o     = max 3 7  -- α := Odd 
 \end{code}
@@ -153,8 +179,8 @@ Polymorphic `(+)` in Haskell
 ----------------------------
 
 \begin{code} ... but this is *unsound*!
-max     :: (Ord a) => a -> a -> a
-(+)     :: (Num a) => a -> a -> a
+max :: (Ord α) => α -> α -> α
+(+) :: (Num α) => α -> α -> α
 \end{code}
 
 <br>
@@ -184,70 +210,85 @@ Parametric Refinements
 ----------------------
 
 \begin{code}
-{-@ max :: forall <p :: a -> Prop>. 
-             Ord a => a<p> -> a<p> -> a<p> 
-  @-}
-max x y = if x <= y then y else x 
+{-@ maxInt :: forall <p :: Int -> Prop>. 
+                Int<p> -> Int<p> -> Int<p>  @-}
+
+maxInt x y = if x <= y then y else x 
 \end{code}
 
 <br>
 
 
-<div class="fragment">Type says: **for any** `p` that is a property of `a`, </div>
+<div class="fragment">Type says: **for any** `p` that is a property of `Int`, </div>
 
-- <div class="fragment">`max` **takes** two inputs that satisfy `p`,</div>
+- <div class="fragment">`max` **takes** two `Int`s that satisfy `p`,</div>
 
-- <div class="fragment">`max` **returns** an output that satisfies `p`.</div>
+- <div class="fragment">`max` **returns** an `Int` that satisfies `p`.</div>
 
 Parametric Refinements 
 ----------------------
 
-\begin{code}<br> 
-{-@ max :: forall <p :: a -> Prop>. 
-             Ord a => a<p> -> a<p> -> a<p> 
-  @-}
-max x y = if x <= y then y else x 
+\begin{code}<br>
+{-@ maxInt :: forall <p :: Int -> Prop>. 
+                Int<p> -> Int<p> -> Int<p>  @-}
+
+maxInt x y = if x <= y then y else x 
 \end{code}
 
 <br>
 
-[Key Insight:](http://goto.ucsd.edu/~rjhala/papers/abstract_refinement_types.html) `a<p>` is simply `{v:a|(p v)}`
+[Key idea: ](http://goto.ucsd.edu/~rjhala/papers/abstract_refinement_types.html) `Int<p>` is `{v:Int | (p v)}`
 
 <br>
 
-<div class="fragment">Abstract Refinement is an *uninterpreted function* in SMT logic</div>
+<div class="fragment">So, Abstract Refinement is an *uninterpreted function* in SMT logic</div>
 
 Parametric Refinements 
 ----------------------
 
-\begin{code}<br> 
-{-@ max :: forall <p :: a -> Prop>. 
-             Ord a => a<p> -> a<p> -> a<p> 
-  @-}
-max x y = if x <= y then y else x 
+\begin{code}<br>
+{-@ maxInt :: forall <p :: Int -> Prop>. 
+                Int<p> -> Int<p> -> Int<p>  @-}
+
+maxInt x y = if x <= y then y else x 
 \end{code}
 
 <br>
 
-**Check** and **Instantiate** type using *SMT/predicate abstraction*
-
-HEREHERE
-
+**Check** and **Instantiate** type using *SMT & predicate abstraction*
 
 Using Abstract Refinements
 --------------------------
 
-- **If** we call `max` with two arguments with the same concrete refinement,
+- <div class="fragment">**When** we call `maxInt` with args with some refinement,</div>
 
-- **Then** the `p` will be instantiated with that concrete refinement,
+- <div class="fragment">**Then** `p` instantiated with *same* refinement,</div>
 
-- **The output** of the call will also enjoy the concrete refinement.
+- <div class="fragment">**Result** of call will also have concrete refinement.</div>
 
+<div class="fragment">
 
 \begin{code}
-{-@ type Odd = {v:Int | (v mod 2) = 1} @-}
+{-@ o' :: Odd  @-}
+o' = maxInt 3 7     -- p := \v -> Odd v 
 
-{-@ maxOdd :: Odd @-}
-maxOdd     :: Int
-maxOdd     = max 3 5
+{-@ e' :: Even @-}
+e' = maxInt 2 8     -- p := \v -> Even v 
 \end{code}
+
+</div>
+
+Using Abstract Refinements
+--------------------------
+
+Or any other property 
+
+<br>
+
+\begin{code}
+{-@ type RGB = {v:_ | (0 <= v && v < 256)} @-}
+
+{-@ rgb :: RGB @-}
+rgb = maxInt 56 8
+\end{code}
+
