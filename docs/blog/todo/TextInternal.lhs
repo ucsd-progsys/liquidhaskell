@@ -36,14 +36,16 @@ is represented.
 
 \begin{code}
 {-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types,
-    RecordWildCards, UnboxedTuples #-}
+    RecordWildCards, UnboxedTuples, ExistentialQuantification #-}
+{-@ LIQUID "--no-termination" @-}
 module TextInternal where
 
 import Control.Monad.ST.Unsafe (unsafeIOToST)
-import Data.Bits (shiftL, shiftR, xor, (.&.))
+import Data.Bits (shiftR, xor, (.&.))
 import Foreign.C.Types (CSize)
 import GHC.Base (Int(..), ByteArray#, MutableByteArray#, newByteArray#,
-                 writeWord16Array#, indexWord16Array#, unsafeCoerce#)
+                 writeWord16Array#, indexWord16Array#, unsafeCoerce#, ord,
+                 iShiftL#)
 import GHC.ST (ST(..), runST)
 import GHC.Word (Word16(..))
 
@@ -72,12 +74,107 @@ copyM        :: MArray s               -- ^ Destination
              -> Int                    -- ^ Count
              -> ST s ()
 
+--------------------------------------------------------------------------------
+--- Helper Code
+--------------------------------------------------------------------------------
+{-@ predicate RoomN N MA I = (I+N <= (malen MA)) @-}
+
+{-@ writeChar :: ma:MArray s -> i:{Nat | i < (malen ma) - 1} -> Char
+              -> ST s {v:Nat | (RoomN v ma i)}
+  @-}
+writeChar :: MArray s -> Int -> Char -> ST s Int
+writeChar marr i c
+    | n < 0x10000 = do
+        unsafeWrite marr i (fromIntegral n)
+        return 1
+    | otherwise = do
+        unsafeWrite marr i lo
+        unsafeWrite marr (i+1) hi
+        return 2
+    where n = ord c
+          m = n - 0x10000
+          lo = fromIntegral $ (m `shiftR` 10) + 0xD800
+          hi = fromIntegral $ (m .&. 0x3FF) + 0xDC00
+
+
+{-@ measure isUnknown :: Size -> Prop
+    isUnknown (Exact n) = false
+    isUnknown (Max   n) = false
+    isUnknown (Unknown) = true
+  @-}
+{-@ measure getSize :: Size -> Int
+    getSize (Exact n) = n
+    getSize (Max   n) = n
+  @-}
+{-@ qualif IsUnknown(v:Size) : (isUnknown v) @-}
+{-@ qualif IsKnown(v:Size) : not (isUnknown v) @-}
+
+{-@ invariant {v:Size | (getSize v) >= 0} @-}
+
+data Size = Exact {-# UNPACK #-} !Int -- ^ Exact size.
+          | Max   {-# UNPACK #-} !Int -- ^ Upper bound on size.
+          | Unknown                   -- ^ Unknown size.
+            deriving (Eq, Show)
+
+{-@ upperBound :: k:Nat -> s:Size -> {v:Nat | v = ((isUnknown s) ? k : (getSize s))} @-}
+upperBound :: Int -> Size -> Int
+upperBound _ (Exact n) = n
+upperBound _ (Max   n) = n
+upperBound k _         = k
+
+data Step s a = Done
+              | Skip !s
+              | Yield !a !s
+
+data Stream a =
+    forall s. Stream
+    (s -> Step s a)             -- stepper function
+    !s                          -- current state
+    !Size                       -- size hint
+
+{-@ shiftL :: i:Nat -> n:Nat -> {v:Nat | ((n = 1) => (v = (i * 2)))} @-}
+shiftL :: Int -> Int -> Int
+shiftL = undefined -- (I# x#) (I# i#) = I# (x# `iShiftL#` i#)
+
+{-@ runText :: (forall s. (m:MArray s -> MAValidO m -> ST s Text) -> ST s Text)
+            -> Text
+  @-}
+runText :: (forall s. (MArray s -> Int -> ST s Text) -> ST s Text) -> Text
+runText act = runST (act $ \ !marr !len -> do
+                             arr <- unsafeFreeze marr
+                             return $! Text arr 0 len)
+
+{-@ qualif MALen(v:int, a:MArray s): v = malen(a) @-}
+{-@ qualif MALen(v:MArray s, i:int): i = malen(v) @-}
+
+{-@ qualif MALenLE(v:int, a:MArray s): v <= (malen a) @-}
+{-@ qualif ALenLE(v:int, a:Array): v <= (alen a) @-}
+
+{-@ qualif LTEPlus(v:int, a:int, b:int) : (v + a) <= b @-}
+
+{- measure ord :: Char -> Int @-}
+{- GHC.Base.ord :: c:Char -> {v:Int | v = (ord c)} @-}
+
+{- qualif Ord(v:int, i:int, x:Char)
+        : ((((ord x) <  65536) => (v = i))
+        && (((ord x) >= 65536) => (v = (i + 1))))
+  @-}
+
+{-@ qualif FreezeMArr(v:Array, ma:MArray s): (alen v) = (malen ma) @-}
+
+{- predicate Room C MA I = (((One C) => (RoomN 1 MA I))
+                          && ((Two C) => (RoomN 2 MA I)))
+  @-}
+{- predicate RoomN N MA I = (I+N <= (malen MA)) @-}
+
+
 
 {-
   MArray --> Array --> Text
     (w)       (r)       
 
 + MArray (writing)
+  + new
   + unsafeWrite
   + copyM
 
@@ -98,8 +195,13 @@ copyM        :: MArray s               -- ^ Destination
 
 </div>
 
-`text` uses two types of arrays internally, immutable `Array`s and
-mutable `MArray`s.
+`text` splits the reading and writing array operations between two
+types of arrays, immutable `Array`s and mutable `MArray`s. This leads to
+the following general lifecycle:
+
+![The lifecycle of a `Text`](text-lifecycle.png)
+
+
 
 \begin{code}
 data Array = Array {
@@ -108,7 +210,7 @@ data Array = Array {
   }
 
 {-@ measure alen     :: Array -> Int
-    alen (Array a n) = n 
+    alen (Array a n) = n
   @-}
 
 data MArray s = MArray {
@@ -117,7 +219,7 @@ data MArray s = MArray {
   }
 
 {-@ measure malen :: MArray s -> Int
-    malen (MArray maBA maLen) = maLen
+    malen (MArray a n) = n
   @-}
 
 \end{code}
@@ -284,6 +386,31 @@ express the core invariant.
 \begin{code}
 {-@ type TValidO A   = {v:Nat | v     <= (alen A)} @-}
 {-@ type TValidL O A = {v:Nat | (v+O) <= (alen A)} @-}
+\end{code}
+
+\begin{code}
+unstream :: Stream Char -> Text
+unstream (Stream next0 s0 len) = runText $ \done -> do
+  let mlen = upperBound 4 len
+  arr0 <- new mlen
+  let outer arr top = loop
+       where
+        loop !s !i =
+            case next0 s of
+              Done          -> done arr i
+              Skip s'       -> loop s' i
+              Yield x s'
+                | j >= top  -> do
+                  let top' = (top + 1) `shiftL` 1
+                  arr' <- new top'
+                  copyM arr' 0 arr 0 top
+                  outer arr' top' s i
+                | otherwise -> do
+                  d <- writeChar arr i x
+                  loop s' (i+d)
+                where j | ord x < 0x10000 = i
+                        | otherwise       = i + 1
+  outer arr0 mlen s0 0
 \end{code}
 
 Stay tuned, next time we'll show how we can use these low-level
