@@ -203,8 +203,8 @@ Example: Even/Odd Lists
 <br>
 
 \begin{code}
-type Even = {v:Int | v mod 2 =  0}
-type Odd  = {v:Int | v mod 2 /= 0}
+{-@ type Even = {v:Int | v mod 2 =  0} @-}
+{-@ type Odd  = {v:Int | v mod 2 /= 0} @-}
 \end{code}
 
 <br>
