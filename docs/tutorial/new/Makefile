@@ -27,14 +27,14 @@ htmlObjects := $(patsubst %.lhs,%.lhs.slides.html,$(wildcard lhs/*.lhs))
 ####################################################################
 
 one: $(mdObjects)
-	$(REVEAL) lhs/05_Inductive.lhs.markdown > lhs/tutorial.html
+	$(REVEAL) lhs/05_Composition.lhs.markdown > lhs/tutorial.html
 
 tut: $(mdObjects)
 	$(REVEAL) lhs/*.markdown > lhs/tutorial.html 
 
 all: slides copy
 
-slides: $(objects)
+slides: $(htmlObjects)
 
 lhs/%.lhs.markdown: lhs/%.lhs
 	-$(LIQUID) $?
