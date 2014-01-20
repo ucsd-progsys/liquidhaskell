@@ -72,7 +72,7 @@ $body$
 
 <!-- Initialize reveal.js :: make settings changes here -->
 <script src="$reveal$/lib/js/head.min.js"></script>
-<script src="$reveal$/js/reveal.min.js"></script>
+<script src="$reveal$/js/reveal.js"></script>
 <script>		
 	// Full list of configuration options available here:
 	// https://github.com/hakimel/reveal.js#configuration
@@ -82,7 +82,7 @@ $body$
 		history: true,
 		center: false,
         rollingLinks: false,
-		theme: Reveal.getQueryHash().theme || 'seminar', // available themes are in /css/theme
+        theme: Reveal.getQueryHash().theme || 'seminar', // available themes are in /css/theme
 		transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/linear(2d)
 
 		// Optional libraries used to extend on reveal.js
