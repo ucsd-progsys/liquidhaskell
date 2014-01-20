@@ -19,7 +19,7 @@ Welcome back, today we're going to show how to consume
 \begin{code}
 {-# LANGUAGE BangPatterns #-}
 {-@ LIQUID "--no-termination" @-}
-module TextApi where
+module TextRead where
 
 import Data.Word (Word16)
 
