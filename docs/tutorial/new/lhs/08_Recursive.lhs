@@ -484,5 +484,5 @@ Recap
 1. **Refinements:** Types + Predicates
 2. **Subtyping:** SMT Implication
 3. **Measures:** Strengthened Constructors
-4. **Abstract Refinements:* Decouple invariants 
-5. <div class="fragment">Er, what about *lazy evaluation*?</div>
+4. **Abstract Refinements:* Decouple Invariants 
+5. <div class="fragment">Er, what of *lazy evaluation*?</div>
