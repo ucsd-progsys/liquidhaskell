@@ -1,5 +1,6 @@
 ####################################################################
 SERVERHOME=nvazou@goto.ucsd.edu:~/public_html/liquidtutorial/
+RJSERVER=rjhala@goto.ucsd.edu:~/public_html/liquid/haskell/plpv/lhs/
 ####################################################################
 
 # REVEAL=$(PANDOC) -t revealjs -V revealjs-url=../_support/reveal -V theme=serif
@@ -27,7 +28,7 @@ htmlObjects := $(patsubst %.lhs,%.lhs.slides.html,$(wildcard lhs/*.lhs))
 ####################################################################
 
 one: $(mdObjects)
-	$(REVEAL) lhs/10_Termination.lhs.markdown > lhs/tutorial.html
+	$(REVEAL) lhs/00_Index.lhs.markdown > lhs/tutorial.html
 
 tut: $(mdObjects)
 	$(REVEAL) lhs/*.markdown > lhs/tutorial.html 
@@ -35,6 +36,9 @@ tut: $(mdObjects)
 all: slides copy
 
 slides: $(htmlObjects)
+
+plpv: slides
+	scp lhs/*lhs.slides.html $(RJSERVER)
 
 lhs/%.lhs.markdown: lhs/%.lhs
 	-$(LIQUID) $?
