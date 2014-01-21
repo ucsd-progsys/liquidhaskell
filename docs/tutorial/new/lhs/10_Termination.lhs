@@ -1,6 +1,29 @@
 Termination {#termination}
 ==========================
 
+
+<div class="hidden">
+\begin{code}
+module Termination where
+
+import Prelude hiding (gcd, mod, map)
+fib :: Int -> Int
+gcd :: Int -> Int -> Int
+infixr `C`
+
+data L a = N | C a (L a)
+
+{-@ invariant {v: (L a) | 0 <= (llen v)} @-}
+
+mod :: Int -> Int -> Int
+mod a b | a - b >  b = mod (a - b) b
+        | a - b <  b = a - b
+        | a - b == b = 0
+
+merge :: Ord a => L a -> L a -> L a
+\end{code}
+</div>
+
 Dependent != Refinement
 -----------------------
 
@@ -17,7 +40,7 @@ Dependent != Refinement
 + <div class="fragment">Termination *not* required ...</div> 
 + <div class="fragment">... except, alas, with *lazy* evaluation!</div>
 
-Refinements Need Termination
+Refinements & Termination
 ----------------------------
 
 <div class="fragment">
@@ -25,74 +48,244 @@ Fortunately, we can ensure termination *using refinements*
 </div>
 
 
-Termination Using Refinements 
------------------------------
+Main Idea
+---------
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=GCD.hs" target="_blank">Demo:</a>Lets see some simple examples.
+Recursive calls must be on *smaller* inputs
+
+<br>
+
++ [Turing](http://classes.soe.ucsc.edu/cmps210/Winter11/Papers/turing-1936.pdf)
++ [Sized Types](http://dl.acm.org/citation.cfm?id=240882)
+
+Recur On *Smaller* `Nat` 
+------------------------
+
+<div class="fragment">
+
+**To ensure termination of**
+
+\begin{code} <div/>
+foo   :: Nat -> T
+foo x =  body
+\end{code}
+
+</div>
+
+<br>
+
+<div class="fragment">
+**Check `body` Under Assumption**
+
+`foo :: {v:Nat | v < x} -> T`
+
+<br>
+
+*i.e.* require recursive calls have inputs *smaller* than `x`
+</div>
+
+
+
+Ex: Recur On *Smaller* `Nat` 
+----------------------------
 
 \begin{code}
-module Termination where
+{-@ fib  :: Nat -> Nat @-}
+fib 0    = 1
+fib 1    = 1
+fib n    = fib (n-1) + fib (n-2)
+\end{code}
 
-import Prelude hiding (gcd, mod, map)
+<br>
 
-fibOk  :: Int -> Int
-fibBad :: Int -> Int
+<div class="fragment">
+Terminates, as both `n-1` and `n-2` are `< n`
+</div>
 
-{-@ fibBad    :: Int -> Int @-}
-fibBad 0      = 1
-fibBad 1      = 1
-fibBad n      = fibBad (n-1) + fibBad (n-2)
+<br>
 
+<div class="fragment">
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=GCD.hs" target="_blank">Demo:</a>What if we drop the `fib 1` case?
+</div>
 
-{-@ fibOk :: Nat -> Nat @-}
-fibOk n 
-  | n <= 1    = 1
-  | otherwise = fibOk (n-1) + fibOk (n-2)
+Refinements Are Essential!
+--------------------------
 
-{-@ mod :: a:Nat -> b:{v:Nat| ((v < a) && (v > 0))} -> {v:Nat | v < b} @-}
-mod :: Int -> Int -> Int
-mod a b | a - b >  b = mod (a - b) b
-        | a - b <  b = a - b
-        | a - b == b = 0
-
-{-@ gcd :: a:Nat -> b:{v:Nat | v < a} -> Int @-}
-gcd :: Int -> Int -> Int
+\begin{code}
+{-@ gcd :: a:Nat -> {b:Nat | b < a} -> Int @-}
 gcd a 0 = a
 gcd a b = gcd b (a `mod` b)
-
-data L1 a = N1 
-          | C1 a (L1 a)
-
-map1 f N1          = N1
-map1 f (x `C1` xs) = (f x) `C1` (map1 f xs) 
-
-
-data L2 a = N2 
-          | C2 a (L2 a)
-
-
-{-@ measure len1 :: (L1 a) -> Int @-} 
-
-{-@ measure len2 :: (L2 a) -> Int 
-    len2 (N2)      = 0
-    len2 (C2 x xs) = 1 + (len2 xs)  @-}
-
-{-@ invariant {v: (L2 a) | 0 <= (len2 v)} @-}
-
-{-@ data L1 [len1] a = N1 | C1 (x :: a) (xs :: L1 a) @-} 
-
-
-{-@ data L2 [len2] a = N2 | C2 (x :: a) (xs :: L2 a) @-} 
-
-map2 f N2          = N2
-map2 f (x `C2` xs) = (f x) `C2` (map2 f xs) 
-
-
-merge d xs@(x:xs') ys@(y:ys')
- | x < y      = x : merge dx xs' ys 
- | otherwise  = y : merge dy xs ys' 
- where
-    dx        = length xs' + length ys
-    dy        = length xs  + length ys'
-
 \end{code}
+
+<br>
+
+<div class="fragment">
+Need refinements to prove `(a mod b) < b` at *recursive* call!
+</div>
+
+<br>
+
+<div class="fragment">
+\begin{code}
+{-@ mod :: a:Nat 
+        -> b:{v:Nat|(0 < v && v < a)} 
+        -> {v:Nat| v < b}                 @-}
+\end{code}
+</div>
+
+Recur On *Smaller* Inputs
+-------------------------
+
+What of input types other than `Nat` ?
+
+\begin{code}<div/>
+foo   :: S -> T
+foo x = body
+\end{code}
+
+<br>
+
+<div class="fragment">
+**Reduce** to `Nat` case...
+</div>
+
+<br>
+
+Recur On *Smaller* Inputs
+-------------------------
+
+What of input types other than `Nat` ?
+
+\begin{code}<div/>
+foo   :: S -> T
+foo x = body
+\end{code}
+
+<br>
+
+Specify a **default measure** `mS :: S -> Int`
+
+<br>
+
+<div class="fragment">
+**Check `body` Under Assumption**
+
+`foo :: {v:s | 0 <= (mS v) < (mS x)} -> T`
+</div>
+
+
+Ex: Recur on *smaller* `List`
+-----------------------------
+
+\begin{code} 
+map f N        = N
+map f (C x xs) = (f x) `C` (map f xs) 
+\end{code}
+
+<br>
+
+Terminates using **default** measure `llen`
+
+<div class="fragment">
+\begin{code}
+{-@ data L [llen] a = N 
+                    | C (x::a) (xs :: L a) @-}
+{-@ measure llen :: L a -> Int
+    llen (N)      = 0
+    llen (C x xs) = 1 + (llen xs)   @-}
+\end{code}
+</div>
+
+
+Recur On *Smaller* Inputs
+-------------------------
+
+What of *smallness* spread across inputs?
+
+<br>
+
+\begin{code}
+merge xs@(x `C` xs') ys@(y `C` ys')
+  | x < y     = x `C` merge xs' ys
+  | otherwise = y `C` merge xs ys'
+\end{code}
+
+<br>
+
+<div class="fragment">
+Neither input decreases, but their *sum* does.
+</div>
+
+Recur On *Smaller* Inputs
+-------------------------
+
+Neither input decreases, but their *sum* does.
+
+<br>
+
+\begin{code}
+{-@ merge :: Ord a => xs:_ -> ys:_ -> _ 
+          /  [(llen xs) + (llen ys)]     @-}
+\end{code}
+
+<br>
+
+<div class="fragment">
+
+Synthesize *ghost* parameter equal to `[...]`
+
+</div>
+
+<br>
+
+<div class="fragment">
+
+Reduces to single-parameter-decrease case. 
+
+</div>
+
+Important Extensions 
+--------------------
+
+- <div class="fragment">Mutual recursion</div>
+
+- <div class="fragment">Lexicographic ordering...</div>
+
+Recap
+-----
+
+Main idea: Recursive calls on *smaller inputs*
+
+<br>
+
+- <div class="fragment">Use refinements to *check* smaller</div>
+
+- <div class="fragment">Use refinements to *establish* smaller</div>
+
+
+A Curious Circularity
+---------------------
+
+<div class="fragment">Refinements require termination ...</div> 
+
+<br>
+
+<div class="fragment">... Termination requires refinements!</div>
+
+<br>
+
+<div class="fragment"> (Meta-theory is tricky, but all ends well.)</div>
+
+
+Recap
+-----
+
+1. **Refinements:** Types + Predicates
+2. **Subtyping:** SMT Implication
+3. **Measures:** Strengthened Constructors
+4. **Abstract Refinements:* Decouple Invariants 
+5. **Lazy Evaluation:** Requires Termination
+6. **Termination:** Via Refinements!
+7. <div class="fragment">**Evaluation** </div>
+
+
