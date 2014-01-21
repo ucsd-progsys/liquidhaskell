@@ -222,8 +222,7 @@ Only assign *non-trivial* refinements to *non-diverging* terms!
 
 </div>
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=TellingLies.hs" target=
-"_blank">Demo:</a>Disable `"--no-termination" and see what happens!
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=TellingLies.hs" target="_blank">Demo:</a>Disable `"--no-termination" and see what happens!
 
 
 Recap
