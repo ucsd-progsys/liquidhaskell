@@ -7,7 +7,7 @@ Lazy Evaluation?
 Lazy Evaluation
 ===============
 
-SMT-based techniques for *strict* languages
+SMT-based techniques developed for *strict* languages
 
 <br>
 
@@ -19,7 +19,8 @@ SMT-based techniques for *strict* languages
 
 <br>
 
-<div class="fragment">But surely, soundness carries over, amirite? </div>
+<div class="fragment">Surely soundness carries over to Haskell, right? </div>
 
+<div class="fragment">(We assumed this ...)</div>
 
 
