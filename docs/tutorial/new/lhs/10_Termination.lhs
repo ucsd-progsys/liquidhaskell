@@ -1,9 +1,8 @@
+Termination {#termination}
+==========================
 
-Dependent vs Refinement Types
-=============================
-
-Not the Same!
--------------
+Dependent != Refinement
+-----------------------
 
 <div class="fragment">**Dependent Types**</div>
 
@@ -18,9 +17,6 @@ Not the Same!
 + <div class="fragment">Termination hitherto *not* required ...</div> 
 + <div class="fragment">... except, alas, with *lazy* evaluation!</div>
 
-Whither Termination
-===================
-
 Refinements Need Termination
 ----------------------------
 
@@ -32,5 +28,6 @@ Fortunately, we can ensure termination *using refinements*
 Termination Using Refinements 
 -----------------------------
 
+HEREHEREHEREHERE
 
 
