@@ -44,11 +44,11 @@ data Space a = Null | Real a Integer
   @-}
 
 {-@ measure orthSpace :: PVector -> (Space PVector)
-    orthSpace (PVector v m o) = o
+    orthSpace (PVector p m o) = o
   @-}
 
 {-@ invariant {v: PVector | (Inv v) }    @-}
-{-@ invariant {v: Space | (dim v) >= 0 } @-}
+{-@ invariant {v: Space PVector | (dim v) >= 0 } @-}
 
 -- RJ: Helpers for defining properties
 

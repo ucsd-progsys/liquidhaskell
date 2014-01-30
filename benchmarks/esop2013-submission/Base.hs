@@ -2453,8 +2453,6 @@ data MaybeS a = NothingS | JustS a -- LIQUID: !-annot-fix
                     -> {v: OMap k a | (RootBetween lo hi v) }                       
                     @-}
                     
---  -> {v: OMap k a | (((isBin(v) && isJustS(lo)) => (fromJustS(lo) < key(v))) && 
---                    ((isBin(v) && isJustS(hi)) => (fromJustS(hi) > key(v)))) } @-}
 
 trim :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Map k a
 
@@ -2548,7 +2546,7 @@ trimLookupLo lk (JustS hk) t = middle lk hk t
   [filterLt b t] filter all keys <[b] from tree [t]
 --------------------------------------------------------------------}
 
-{-@ filterGt :: (Ord k) -> x:MaybeS k -> OMap k v -> OMap {v:k | ((isJustS(x)) => (v > fromJustS(x))) } v @-}
+{-@ filterGt :: (Ord k) => x:MaybeS k -> OMap k v -> OMap {v:k | ((isJustS(x)) => (v > fromJustS(x))) } v @-}
 filterGt :: Ord k => MaybeS k -> Map k v -> Map k v
 filterGt NothingS t = t
 filterGt (JustS b) t = filterGt' b t
@@ -2563,7 +2561,7 @@ filterGt' b' (Bin _ kx x l r) =
 {-# INLINABLE filterGt #-}
 #endif
 
-{-@ filterLt :: (Ord k) -> x:MaybeS k -> OMap k v -> OMap {v:k | ((isJustS(x)) => (v < fromJustS(x))) } v @-}
+{-@ filterLt :: (Ord k) => x:MaybeS k -> OMap k v -> OMap {v:k | ((isJustS(x)) => (v < fromJustS(x))) } v @-}
 filterLt :: Ord k => MaybeS k -> Map k v -> Map k v
 filterLt NothingS t = t
 filterLt (JustS b) t = filterLt' b t
