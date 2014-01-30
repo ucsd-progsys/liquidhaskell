@@ -1101,12 +1101,6 @@ bareTCApp _ r c rs ts | isFamilyTyCon c && isTrivial t
   = expandRTypeSynonyms $ t `strengthen` r 
   where t = rApp c ts rs mempty
 
--- TODO: move back to RefType
-bareTCApp _ r c rs ts | length ts == tyConArity c
-  = rApp c ts rs r 
-
--- otherwise create an error
--- create the error later to get better message
 bareTCApp _ r c rs ts 
   = rApp c ts rs r
 
