@@ -88,7 +88,7 @@ data MArray s = MArray {
 {-@ new :: forall s. n:Nat -> ST s (MArrayN s n) @-}
 new          :: forall s. Int -> ST s (MArray s)
 new n
-  | n < 0 || n .&. highBit /= 0 = error $ "Data.Text.Array.new: size overflow"
+  | n < 0 || n .&. highBit /= 0 = error $ "new: size overflow"
   | otherwise = ST $ \s1# ->
        case newByteArray# len# s1# of
          (# s2#, marr# #) -> (# s2#, MArray marr# n #)
