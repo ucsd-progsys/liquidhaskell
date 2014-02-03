@@ -133,6 +133,11 @@ data Stream a =
 {-@ shiftL :: i:Nat -> n:Nat -> {v:Nat | ((n = 1) => (v = (i * 2)))} @-}
 shiftL :: Int -> Int -> Int
 shiftL = undefined -- (I# x#) (I# i#) = I# (x# `iShiftL#` i#)
+
+{-@ memcpyM :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize -> IO () @-}
+memcpyM :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize -> IO ()
+memcpyM = undefined
+
 \end{code}
 
 </div>
@@ -141,7 +146,7 @@ shiftL = undefined -- (I# x#) (I# i#) = I# (x# `iShiftL#` i#)
 types of arrays, immutable `Array`s and mutable `MArray`s. This leads to
 the following general lifecycle:
 
-![The lifecycle of a `Text`](text-lifecycle.png)
+![The lifecycle of a `Text`](/images/text-lifecycle.png)
 
 
 \begin{code}
@@ -182,7 +187,7 @@ But first, let's see how one creates an `MArray`.
 
 {-@ new :: forall s. n:Nat -> ST s (MArrayN s n) @-}
 new n
-  | n < 0 || n .&. highBit /= 0 = error $ "Data.Text.Array.new: size overflow"
+  | n < 0 || n .&. highBit /= 0 = error $ "new: size overflow"
   | otherwise = ST $ \s1# ->
        case newByteArray# len# s1# of
          (# s2#, marr# #) -> (# s2#, MArray marr# n #)
@@ -255,12 +260,6 @@ other words `offset + count <= length` must hold for each array.
 `memcpyM` is an FFI function writen in C, which we don't currently
 support, so we simply leave it `undefined`.
 
-\begin{code}
-{-@ memcpyM :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize -> IO () @-}
-memcpyM :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize -> IO ()
-memcpyM = undefined
-\end{code}
-
 Before we can package up our `MArray` into a `Text`, we need to
 *freeze* it, preventing any further mutation. The key property here is
 of course that the frozen `Array` should have the same length as the
@@ -304,7 +303,7 @@ These invariants ensure that any *index* we pick between `off` and
 `off + len` will be a valid index into `arr`. If you're not quite
 convinced, consider the following `Text`s.
 
-![Multiple valid `Text` configurations, all using an `Array` with 10 slots. The valid slots are shaded. Note that the key invariant is that `off + len <= alen`.](text-layout.png)
+![Multiple valid `Text` configurations, all using an `Array` with 10 slots. The valid slots are shaded. Note that the key invariant is that `off + len <= alen`.](/images/text-layout.png)
 
 \begin{code}
 data Text = Text Array Int Int
