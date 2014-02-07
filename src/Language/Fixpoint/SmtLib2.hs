@@ -138,7 +138,7 @@ smtFile = extFileName Smt2 "out"
 -- | SMT Commands -----------------------------------------------------------
 -----------------------------------------------------------------------------
 
-smtDecl me x ts t = interact' me (Declare x ts t) 
+smtDecl me x ts t = interact' me (Declare x ts t)
 smtPush me        = interact' me (Push)
 smtPop me         = interact' me (Pop) 
 smtAssert me p    = interact' me (Assert p)
@@ -219,30 +219,30 @@ mkSetCap _ s t = spr "({} {} {})" (cap, s, t)
 mkSetDif _ s t = spr "({} {} {})" (dif, s, t)
 mkSetSub _ s t = spr "({} {} {})" (sub, s, t)
 
-
 -----------------------------------------------------------------------
--- | Conversion -------------------------------------------------------
+-- | AST Conversion ---------------------------------------------------
 -----------------------------------------------------------------------
 
 spr = format
 
-instance SMTLIB2 a => HEREHEREHERE 
+instance SMTLIB2 a => Buildable a where
+  build = smt2
 
 -- | Types that can be serialized
 class SMTLIB2 a where
   smt2 :: a -> Raw
 
+instance SMTLIB2 Sort where
+  smt2 t = undefined 
+
 instance SMTLIB2 Symbol where
-  smt2 = undefined
+  smt2 s = undefined 
 
-instance Rawable Sort where
-  smt2 = undefined
-
-instance Rawable Expr where
-  smt2 = undefined
+instance SMTLIB2 Expr where
+  smt2 e = undefined
 
 instance Rawable Pred where
-  smt2 = undefined
+  smt2 p = undefined
 
 instance SMTLIB2 Command where
   smt2 (Declare x ts t) = spr "(declare-fun {} ({}) {})"  (x, smt2 ts, t)
@@ -252,5 +252,4 @@ instance SMTLIB2 Command where
   smt2 (Pop)            = "(pop 1)"
   smt2 (CheckSat)       = "(check-sat)"
 
-instance SMTLIB2 a => SMTLIB2 [a] where
-  smt2 = T.intercalate " " . map smt2
+smt2s = T.intercalate " " . map smt2
