@@ -92,7 +92,6 @@ data Error = Error { errLoc :: SrcSpan, errMsg :: String }
 instance PPrint Error where
   pprint (Error l msg) = text $ printf "Error at %s\n  %s\n" (showpp l) msg 
 
-
 instance Fixpoint Error where
   toFix = pprint
 
