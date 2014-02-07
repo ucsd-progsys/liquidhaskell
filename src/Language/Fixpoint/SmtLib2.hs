@@ -17,8 +17,11 @@ module Language.Fixpoint.SMTLIB2 where
 
 import Language.Fixpoint.Files
 import Language.Fixpoint.Types
+
 import Data.Text.Format (format)
 import Data.Text.Lazy as T 
+
+import System.Process
 
 --------------------------------------------------------------------------
 -- | Types ---------------------------------------------------------------
@@ -49,15 +52,68 @@ data Solver       = Z3
                   | Cvc4
 
 -- | Information about the external SMT process 
-data Context     
+data Context      = Ctx { pId  :: ProcessHandle
+                        , cIn  :: Handle
+                        , cOut :: Handle 
+                        , cLog :: Handle
+                        }
 
 --------------------------------------------------------------------------
 -- | SMT IO --------------------------------------------------------------
 --------------------------------------------------------------------------
 
+--------------------------------------------------------------------------
+interact             :: Context -> Command -> IO Response 
+--------------------------------------------------------------------------
+interact me cmd      = say me cmd >> hear me cmd
+  where 
+    say me           = smtWrite me . smt2
+    hear me CheckSat = smtRead me
+    hear me _        = return Ok
+
+smtWrite         :: Context -> Raw -> IO ()
+smtWrite me s    = smtWriteRaw me (T.append s "\n") 
+
+smtReadRaw       :: Context -> IO Response 
+smtRead me       = smtReadRaw me >>= rs me
+  where
+    rs "success" = smtRead me 
+    rs "sat"     = return Sat
+    rs "unsat"   = return Unsat
+    rs "unknown" = return Unknown
+    rs s         = return (Error s)
+
+smtWriteRaw      :: Context -> Raw -> IO ()
+smtWriteRaw me s = output_now (cLog me) s >> output_now (cOut me) s
+
+smtReadRaw       :: Context -> IO Raw
+smtReadRaw me    = hGetLine (cIn me)
+
+--------------------------------------------------------------------------
+-- | SMT Context ---------------------------------------------------------
+--------------------------------------------------------------------------
+
+--------------------------------------------------------------------------
+makeContext   :: Solver -> IO Context 
+--------------------------------------------------------------------------
+makeContext s 
+  = do me <- makeProcess s
+       mapM_ (smtWrite me) $ smtPreamble s
+       return me
+
+makeContext   :: Solver -> IO Context 
+makeProcess s 
+  = do (Just hOut, Just hIn, _ ,pid) <- createProcess smtProc s
+       hLog                          <- openFile smtFile WriteMode
+       return $ Ctx pid hIn hOut hLog
+
 {- "z3 -smt2 -in"                   -} 
 {- "z3 -smtc SOFT_TIMEOUT=1000 -in" -} 
 {- "z3 -smtc -in MBQI=false"        -} 
+
+smtProc s      = (proc cmd []) {std_out = CreatePipe } {std_in = CreatePipe }
+  where
+    cmd        = smtCmd s
 
 smtCmd Z3      = "z3 -smt2 -in MODEL=true MODEL.PARTIAL=true smt.mbqi=false auto-config=false"
 smtCmd Mathsat = "mathsat -input=smt2"
@@ -69,35 +125,18 @@ smtPreamble _  = smtlibPreamble
 smtFile :: FilePath
 smtFile = extFileName Smt2 "out" 
 
-smtWriteRaw      :: Context -> Raw -> IO ()
-smtWriteRaw me s = output_now (cLog me) s >> output_now (cOut me) s
-
-smtReadRaw       :: Context -> IO Raw
-smtReadRaw me    = hGetLine (cIn me)
-
-smtWrite         :: Context -> Raw -> IO ()
-smtWrite me s    = smtWriteRaw me (T.append s "\n") 
-
-smtRead me       = smtReadRaw me >>= rs me
-  where
-    rs "success" = smtRead me 
-    rs "sat"     = return Sat
-    rs "unsat"   = return Unsat
-    rs "unknown" = return Unknown
-    rs s         = return (Error s)
+-- let solver () =
+--   match !Co.smt_solver with
+--     | Some "z3"      -> Z3
+--     | Some "mathsat" -> Mathsat
+--     | Some "cvc4"    -> Cvc4
+--     | Some str       -> assertf "ERROR: fixpoint does not yet support SMTSOLVER: %s" str
+--     | None           -> assertf "ERROR: undefined solver for smtLIB2"
 
 
-interact         :: Context -> Command -> IO Response 
-interact me cmd  = say me cmd >> hear me cmd
-  where 
-    say me           = smtWrite me . smt2
-    hear me CheckSat = smtRead me
-    hear me _        = return Ok
-
-expect err r r' 
-  | r == r'   = return ()
-  | otherwise = throw err
-
+-----------------------------------------------------------------------------
+-- | SMT Commands -----------------------------------------------------------
+-----------------------------------------------------------------------------
 
 smtDecl me x ts t = interact' me (Declare x ts t) 
 smtPush me        = interact' me (Push)
@@ -106,33 +145,12 @@ smtAssert me p    = interact' me (Assert p)
 smtDistinct me az = interact' me (Distinct az)
 smtCheckUnsat me  = respSat <$> interact me CheckSat
 
+respSat Unsat     = True
+respSat Sat       = False
+respSat Unknown   = False
+respSat r         = throw $ "crash: SMTLIB2 respSat" 
 
-respSat Unsat   = True
-respSat Sat     = False
-respSat Unknown = False
-respSat r       = throw $ "crash: SMTLIB2 respSat" 
-
-interact' me cmd = interact me cmd >> return ()
-
-HEREHEREHERE
-
-let solver () =
-  match !Co.smt_solver with
-    | Some "z3"      -> Z3
-    | Some "mathsat" -> Mathsat
-    | Some "cvc4"    -> Cvc4
-    | Some str       -> assertf "ERROR: fixpoint does not yet support SMTSOLVER: %s" str
-    | None           -> assertf "ERROR: undefined solver for smtLIB2"
-
-let mkContext _ =
-  let s      = solver ()                          in
-  let ci, co = Unix.open_process <| smt_cmd s     in
-  let cl     = smt_file () |> open_out            in
-  let pre    = smt_preamble s                     in
-  let ctx    = { cin = ci; cout = co; clog = cl } in
-  let _      = List.iter (smt_write ctx) pre      in
-  ctx
-
+interact' me cmd  = interact me cmd >> return ()
 
 
 --------------------------------------------------------------------------
@@ -207,6 +225,8 @@ mkSetSub _ s t = spr "({} {} {})" (sub, s, t)
 -----------------------------------------------------------------------
 
 spr = format
+
+instance SMTLIB2 a => ...
 
 -- | Types that can be serialized
 class SMTLIB2 a where
