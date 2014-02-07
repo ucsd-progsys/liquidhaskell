@@ -226,7 +226,7 @@ mkSetSub _ s t = spr "({} {} {})" (sub, s, t)
 
 spr = format
 
-instance SMTLIB2 a => ...
+instance SMTLIB2 a => HEREHEREHERE 
 
 -- | Types that can be serialized
 class SMTLIB2 a where
