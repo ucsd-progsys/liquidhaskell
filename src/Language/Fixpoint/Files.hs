@@ -71,7 +71,8 @@ data Ext = Cgi    -- ^ Constraint Generation Information
          | Saved  -- ^ Previous version of source (for incremental checking)
          | Pred   
          | PAss    
-         | Dat    
+         | Dat   
+         | Smt2   -- ^ SMTLIB2 query file 
          deriving (Eq, Ord, Show)
 
 extMap e = go e
@@ -93,6 +94,7 @@ extMap e = go e
     go Hquals = ".hquals" 
     go Result = ".out"
     go Saved  = ".bak"
+    go Smt2   = ".smt2"
     go _      = errorstar $ "extMap: Unknown extension " ++ show e
 
 withExt         :: FilePath -> Ext -> FilePath 
