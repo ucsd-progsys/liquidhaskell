@@ -95,4 +95,3 @@ smtSolver other     = error $ "ERROR: unsupported SMT Solver = " ++ other
 -- defaultSolver       = fromMaybe Z3 
 
 
-

@@ -473,7 +473,7 @@ freshIntP = do n <- stateUser <$> getParserState
 -- Standalone SMTLIB2 commands --------------------------------------
 ---------------------------------------------------------------------
 
-commandsP = brackets $ sepBy commandP semi
+commandsP = sepBy commandP semi
 
 commandP 
   =  (reserved "var"      >> cmdVarP)
@@ -526,6 +526,8 @@ instance Inputable (FInfo ()) where
 instance Inputable Command where
   rr' = doParse' commandP 
 
+instance Inputable [Command] where
+  rr' = doParse' commandsP
 
 {-
 ---------------------------------------------------------------

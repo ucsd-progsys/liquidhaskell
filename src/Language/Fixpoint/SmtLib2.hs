@@ -13,17 +13,33 @@
 --   http://www.smt-lib.org/                                    
 --   http://www.grammatech.com/resource/smt/SMTLIBTutorial.pdf
 
-module Language.Fixpoint.SmtLib2 where
+module Language.Fixpoint.SmtLib2 ( 
+
+    -- * Commands
+      Command  (..)
+    
+    -- * Responses 
+    , Response (..)
+   
+    -- * Typeclass for SMTLIB2 conversion
+    , SMTLIB2 (..)
+
+    -- * Creating SMTLIB2 Process
+    , makeContext 
+
+    -- * Execute Queries
+    , command
+    ) where
 
 import Language.Fixpoint.Config (SMTSolver (..))
 import Language.Fixpoint.Files
 import Language.Fixpoint.Types
 
 import Data.Text.Format 
-import Data.Text.Lazy as T 
-import Data.Text.Lazy.IO 
+import Data.Text.Lazy     as T 
+import Data.Text.Lazy.IO  as TIO 
 import System.Process
-import System.IO            (openFile, IOMode (..), Handle)
+import System.IO            (openFile, IOMode (..), Handle, hFlush)
 import Control.Applicative  ((<$>))
 
 --------------------------------------------------------------------------
@@ -61,9 +77,9 @@ data Context      = Ctx { pId  :: ProcessHandle
 --------------------------------------------------------------------------
 
 --------------------------------------------------------------------------
-commands :: Context -> [Command] -> IO [Response] 
---------------------------------------------------------------------------
-commands = mapM . command 
+-- commands :: Context -> [Command] -> IO [Response] 
+-- -----------------------------------------------------------------------
+-- commands = mapM . command 
 
 --------------------------------------------------------------------------
 command              :: Context -> Command -> IO Response 
@@ -80,7 +96,9 @@ smtWrite         :: Context -> Raw -> IO ()
 smtWrite me s    = smtWriteRaw me (T.append s "\n") 
 
 smtRead          :: Context -> IO Response 
-smtRead me       = smtReadRaw me >>= rs 
+smtRead me       = do s <- smtReadRaw me
+                      TIO.putStrLn $ format "SMT Says: {}" (Only s)
+                      rs s 
   where
     rs "success" = smtRead me 
     rs "sat"     = return Sat
@@ -89,10 +107,12 @@ smtRead me       = smtReadRaw me >>= rs
     rs s         = return (Error s)
 
 smtWriteRaw      :: Context -> Raw -> IO ()
-smtWriteRaw me s = hPutStr (cLog me) s >> hPutStr (cOut me) s
+smtWriteRaw me s = hPutStrNow (cOut me) s >>  hPutStrNow (cLog me) s 
 
 smtReadRaw       :: Context -> IO Raw
-smtReadRaw me    = hGetLine (cIn me)
+smtReadRaw me    = TIO.hGetLine (cIn me)
+
+hPutStrNow h s   = TIO.hPutStr h s -- >> hFlush h
 
 --------------------------------------------------------------------------
 -- | SMT Context ---------------------------------------------------------
@@ -290,10 +310,16 @@ instance SMTLIB2 Command where
 smt2s = T.intercalate " " . fmap smt2
 
 {- 
-
-cmds = rr "var x Int ; var y Int; assert (0 <= x); assert (x < y); push; assert (not (0 <= y)); check; pop; "
-
-me  <- makeContext Z3
-zs  <- commands me cmds
-
+(declare-fun x () Int) 
+(declare-fun y () Int) 
+(assert (<= 0 x)) 
+(assert (< x y)) 
+(push 1) 
+(assert (not (<= 0 y))) 
+(check-sat) 
+(pop 1) 
+(push 1) 
+(assert (<= 0 y)) 
+(check-sat) 
+(pop 1)
 -}
