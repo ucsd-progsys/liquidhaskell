@@ -101,7 +101,9 @@ Executable fixpoint.native
                , text
                , hashable<1.2
                , unordered-containers
+               , text-format
                , liquid-fixpoint
+               
 
 Executable fixpoint
   Main-is:       Fixpoint.hs
@@ -126,6 +128,7 @@ Executable fixpoint
                , text
                , hashable<1.2
                , unordered-containers
+               , text-format
                , liquid-fixpoint
 
 Library
@@ -139,6 +142,7 @@ Library
                    Language.Fixpoint.Interface, 
                    Language.Fixpoint.Parse,
                    Language.Fixpoint.PrettyPrint,
+                   Language.Fixpoint.SMTLIB2,
                    Language.Fixpoint.Misc
   
   Build-Depends: base >= 4 && < 5
@@ -163,3 +167,4 @@ Library
                , text
                , hashable<1.2
                , unordered-containers
+               , text-format

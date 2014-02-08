@@ -18,10 +18,12 @@ module Language.Fixpoint.SMTLIB2 where
 import Language.Fixpoint.Files
 import Language.Fixpoint.Types
 
-import Data.Text.Format (format)
+import Data.Text.Format 
 import Data.Text.Lazy as T 
-
+import Data.Text.Lazy.IO 
 import System.Process
+import System.IO            (openFile, IOMode (..), Handle)
+import Control.Applicative  ((<$>))
 
 --------------------------------------------------------------------------
 -- | Types ---------------------------------------------------------------
@@ -63,9 +65,9 @@ data Context      = Ctx { pId  :: ProcessHandle
 --------------------------------------------------------------------------
 
 --------------------------------------------------------------------------
-interact             :: Context -> Command -> IO Response 
+command              :: Context -> Command -> IO Response 
 --------------------------------------------------------------------------
-interact me cmd      = say me cmd >> hear me cmd
+command me cmd       = say me cmd >> hear me cmd
   where 
     say me           = smtWrite me . smt2
     hear me CheckSat = smtRead me
@@ -74,8 +76,8 @@ interact me cmd      = say me cmd >> hear me cmd
 smtWrite         :: Context -> Raw -> IO ()
 smtWrite me s    = smtWriteRaw me (T.append s "\n") 
 
-smtReadRaw       :: Context -> IO Response 
-smtRead me       = smtReadRaw me >>= rs me
+smtRead          :: Context -> IO Response 
+smtRead me       = smtReadRaw me >>= rs 
   where
     rs "success" = smtRead me 
     rs "sat"     = return Sat
@@ -84,7 +86,7 @@ smtRead me       = smtReadRaw me >>= rs me
     rs s         = return (Error s)
 
 smtWriteRaw      :: Context -> Raw -> IO ()
-smtWriteRaw me s = output_now (cLog me) s >> output_now (cOut me) s
+smtWriteRaw me s = hPutStr (cLog me) s >> hPutStr (cOut me) s
 
 smtReadRaw       :: Context -> IO Raw
 smtReadRaw me    = hGetLine (cIn me)
@@ -101,9 +103,8 @@ makeContext s
        mapM_ (smtWrite me) $ smtPreamble s
        return me
 
-makeContext   :: Solver -> IO Context 
 makeProcess s 
-  = do (Just hOut, Just hIn, _ ,pid) <- createProcess smtProc s
+  = do (Just hOut, Just hIn, _ ,pid) <- createProcess $ smtProc s
        hLog                          <- openFile smtFile WriteMode
        return $ Ctx pid hIn hOut hLog
 
@@ -134,87 +135,82 @@ smtPush me        = interact' me (Push)
 smtPop me         = interact' me (Pop) 
 smtAssert me p    = interact' me (Assert p)
 smtDistinct me az = interact' me (Distinct az)
-smtCheckUnsat me  = respSat <$> interact me CheckSat
+smtCheckUnsat me  = respSat <$> command me CheckSat
 
 respSat Unsat     = True
 respSat Sat       = False
 respSat Unknown   = False
-respSat r         = throw $ "crash: SMTLIB2 respSat" 
+respSat r         = error "crash: SMTLIB2 respSat" 
 
-interact' me cmd  = interact me cmd >> return ()
-
-
---------------------------------------------------------------------------
--- | AST Constructors ----------------------------------------------------
---------------------------------------------------------------------------
-
+interact' me cmd  = command me cmd >> return ()
 
 
 --------------------------------------------------------------------------
 -- | Set Theory ----------------------------------------------------------
 --------------------------------------------------------------------------
 
-elt = So "Elt"
-set = So "Set"
-emp = Sy "smt_set_emp"
-add = Sy "smt_set_add"
-cup = Sy "smt_set_cup"
-cap = Sy "smt_set_cap"
-mem = Sy "smt_set_mem"
-dif = Sy "smt_set_dif"
-sub = Sy "smt_set_sub"
-com = Sy "smt_set_com"
+elt, set :: Raw
+elt = "Elt"
+set = "Set"
+
+emp, add, cup, cap, mem, dif, sub, com :: Raw
+emp = "smt_set_emp"
+add = "smt_set_add"
+cup = "smt_set_cup"
+cap = "smt_set_cap"
+mem = "smt_set_mem"
+dif = "smt_set_dif"
+sub = "smt_set_sub"
+com = "smt_set_com"
 
 z3Preamble 
-  = [ spr "(define-sort {} () Int)"
+  = [ format "(define-sort {} () Int)"
         (Only elt)
-    , spr "(define-sort {} () (Array {} Bool))" 
+    , format "(define-sort {} () (Array {} Bool))" 
         (set, elt)
-    , spr "(define-fun {} () {} ((as const {}) false))" 
+    , format "(define-fun {} () {} ((as const {}) false))" 
         (emp, set, set) 
-    , spr "(define-fun {} ((x {}) (s {})) Bool (select s x))"
+    , format "(define-fun {} ((x {}) (s {})) Bool (select s x))"
         (mem, elt, set)
-    , spr "(define-fun {} ((s {}) (x {})) {} (store s x true))"
+    , format "(define-fun {} ((s {}) (x {})) {} (store s x true))"
         (add, set, elt, set)
-    , spr "(define-fun {} ((s1 {}) (s2 {})) {} ((_ map or) s1 s2))"
+    , format "(define-fun {} ((s1 {}) (s2 {})) {} ((_ map or) s1 s2))"
         (cup, set, set, set)
-    , spr "(define-fun {} ((s1 {}) (s2 {})) {} ((_ map and) s1 s2))"
+    , format "(define-fun {} ((s1 {}) (s2 {})) {} ((_ map and) s1 s2))"
         (cap, set, set, set)
-    , spr "(define-fun {} ((s {})) {} ((_ map not) s))"
+    , format "(define-fun {} ((s {})) {} ((_ map not) s))"
         (com, set, set)
-    , spr "(define-fun {} ((s1 {}) (s2 {})) {} ({} s1 ({} s2)))"
+    , format "(define-fun {} ((s1 {}) (s2 {})) {} ({} s1 ({} s2)))"
         (dif, set, set, set, cap, com)
-    , spr "(define-fun {} ((s1 {}) (s2 {})) Bool (= {} ({} s1 s2)))"
+    , format "(define-fun {} ((s1 {}) (s2 {})) Bool (= {} ({} s1 s2)))"
         (sub, set, set, emp, dif) 
     ] 
  
 smtlibPreamble
-  = [ spr "(set-logic QF_UFLIA)"
-    , spr "(define-sort {} () Int)"       (Only elt)
-    , spr "(define-sort {} () Int)"       (Only set) 
-    , spr "(declare-fun {} () {})"        (emp, set)
-    , spr "(declare-fun {} ({} {}) {})"   (add, set, elt, set)
-    , spr "(declare-fun {} ({} {}) {})"   (cup, set, set, set)
-    , spr "(declare-fun {} ({} {}) {})"   (cap, set, set, set)
-    , spr "(declare-fun {} ({} {}) {})"   (dif, set, set, set)
-    , spr "(declare-fun {} ({} {}) Bool)" (sub, set, set) 
-    , spr "(declare-fun {} ({} {}) Bool)" (mem, elt, set) 
+  = [        "(set-logic QF_UFLIA)"          
+    , format "(define-sort {} () Int)"       (Only elt)
+    , format "(define-sort {} () Int)"       (Only set) 
+    , format "(declare-fun {} () {})"        (emp, set)
+    , format "(declare-fun {} ({} {}) {})"   (add, set, elt, set)
+    , format "(declare-fun {} ({} {}) {})"   (cup, set, set, set)
+    , format "(declare-fun {} ({} {}) {})"   (cap, set, set, set)
+    , format "(declare-fun {} ({} {}) {})"   (dif, set, set, set)
+    , format "(declare-fun {} ({} {}) Bool)" (sub, set, set) 
+    , format "(declare-fun {} ({} {}) Bool)" (mem, elt, set) 
     ] 
 
 mkSetSort _ _  = set
 mkEmptySet _ _ = emp
-mkSetAdd _ s x = spr "({} {} {})" (add, s, x) 
-mkSetMem _ x s = spr "({} {} {})" (mem, x, s) 
-mkSetCup _ s t = spr "({} {} {})" (cup, s, t)
-mkSetCap _ s t = spr "({} {} {})" (cap, s, t)
-mkSetDif _ s t = spr "({} {} {})" (dif, s, t)
-mkSetSub _ s t = spr "({} {} {})" (sub, s, t)
+mkSetAdd _ s x = format "({} {} {})" (add, s, x) 
+mkSetMem _ x s = format "({} {} {})" (mem, x, s) 
+mkSetCup _ s t = format "({} {} {})" (cup, s, t)
+mkSetCap _ s t = format "({} {} {})" (cap, s, t)
+mkSetDif _ s t = format "({} {} {})" (dif, s, t)
+mkSetSub _ s t = format "({} {} {})" (sub, s, t)
 
 -----------------------------------------------------------------------
 -- | AST Conversion ---------------------------------------------------
 -----------------------------------------------------------------------
-
-spr = format
 
 -- | Types that can be serialized
 class SMTLIB2 a where
@@ -230,7 +226,7 @@ instance SMTLIB2 SymConst where
   smt2 _ = error "TODO: SMTLIB2 SymConst"
 
 instance SMTLIB2 Constant where
-  smt2 (I n) = spr "{}" (Only n)
+  smt2 (I n) = format "{}" (Only n)
 
 instance SMTLIB2 LocSymbol where
   smt2 = smt2 . val
@@ -257,41 +253,38 @@ instance SMTLIB2 Expr where
   smt2 (EVar x)         = smt2 x
   smt2 (ELit x _)       = smt2 x
   smt2 (EApp f [])      = smt2 f
-  smt2 (EApp f es)      = spr "({} {})"        (smt2 f, smt2s es) 
-  smt2 (EBin o e1 e2)   = spr "({} {} {})"     (smt2 o, smt2 e1, smt2 e2)  
-  smt2 (EIte e1 e2 e3)  = spr "(ite {} {} {})" (smt2 e1, smt2 e2, smt2 e3)
+  smt2 (EApp f es)      = format "({} {})"        (smt2 f, smt2s es) 
+  smt2 (EBin o e1 e2)   = format "({} {} {})"     (smt2 o, smt2 e1, smt2 e2)  
+  smt2 (EIte e1 e2 e3)  = format "(ite {} {} {})" (smt2 e1, smt2 e2, smt2 e3)
   smt2 _                = error "TODO: SMTLIB2 Expr" 
 
 instance SMTLIB2 Pred where
   smt2 (PTrue)          = "true"
   smt2 (PFalse)         = "false"
-  smt2 (PAnd ps)        = spr "(and {})"    (Only $ smt2s ps) 
-  smt2 (POr ps)         = spr "(or  {})"    (Only $ smt2s ps)
-  smt2 (PNot p)         = spr "(not {})"    (Only $ smt2 p)
-  smt2 (PImp p q)       = spr "(=> {} {})"  (smt2 p, smt2 q)
-  smt2 (PIff p q)       = spr "(=  {} {})"  (smt2 p, smt2 q)
+  smt2 (PAnd ps)        = format "(and {})"    (Only $ smt2s ps) 
+  smt2 (POr ps)         = format "(or  {})"    (Only $ smt2s ps)
+  smt2 (PNot p)         = format "(not {})"    (Only $ smt2 p)
+  smt2 (PImp p q)       = format "(=> {} {})"  (smt2 p, smt2 q)
+  smt2 (PIff p q)       = format "(=  {} {})"  (smt2 p, smt2 q)
   smt2 (PBexp e)        = smt2 e 
-  smt2 (PAtom r e1 e2)  = 
-  smt2 (PAll xts p)     = 
+  smt2 (PAtom r e1 e2)  = mkRel r e1 e2 
+  smt2 _                = error "smtlib2 Pred"
 
 
-mkRel Ne  e1 e2 = spr "(not (= {} {}))" (smt2 e1, smt2 e2)
-mkRel Une e1 e2 = spr "(not (= {} {}))" (smt2 e1, smt2 e2)
-mkRel r   e1 e2 = spr "({} {} {})"      (smt2 r, smt2 e1, smt2 e2)
-
+mkRel Ne  e1 e2         = mkNe e1 e2
+mkRel Une e1 e2         = mkNe e1 e2
+mkRel r   e1 e2         = format "({} {} {})"      (smt2 r, smt2 e1, smt2 e2)
+mkNe  e1 e2             = format "(not (= {} {}))" (smt2 e1, smt2 e2)
 
 instance SMTLIB2 Command where
-  smt2 (Declare x ts t) = spr "(declare-fun {} ({}) {})"  (x, smt2 ts, t)
-  smt2 (Assert p)       = spr "(assert {})"               (Only $ smt2 p)
-  smt2 (Distinct az)    = spr "(assert (distinct {}))"    (Only $ smt2 ts)
+  smt2 (Declare x ts t) = format "(declare-fun {} ({}) {})"  (smt2 x, smt2s ts, smt2 t)
+  smt2 (Assert p)       = format "(assert {})"               (Only $ smt2 p)
+  smt2 (Distinct az)    = format "(assert (distinct {}))"    (Only $ smt2s az)
   smt2 (Push)           = "(push 1)"
   smt2 (Pop)            = "(pop 1)"
   smt2 (CheckSat)       = "(check-sat)"
 
-smt2s = T.intercalate " " . map smt2
+smt2s = T.intercalate " " . fmap smt2
 
-
-instance SMTLIB2 a => Buildable a where
-  build = smt2
-
-
+-- instance SMTLIB2 a => Buildable a where
+--  build = smt2
