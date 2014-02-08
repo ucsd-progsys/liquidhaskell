@@ -142,7 +142,7 @@ Library
                    Language.Fixpoint.Interface, 
                    Language.Fixpoint.Parse,
                    Language.Fixpoint.PrettyPrint,
-                   Language.Fixpoint.SMTLIB2,
+                   Language.Fixpoint.SmtLib2,
                    Language.Fixpoint.Misc
   
   Build-Depends: base >= 4 && < 5

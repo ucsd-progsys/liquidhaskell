@@ -13,8 +13,9 @@
 --   http://www.smt-lib.org/                                    
 --   http://www.grammatech.com/resource/smt/SMTLIBTutorial.pdf
 
-module Language.Fixpoint.SMTLIB2 where
+module Language.Fixpoint.SmtLib2 where
 
+import Language.Fixpoint.Config (SMTSolver (..))
 import Language.Fixpoint.Files
 import Language.Fixpoint.Types
 
@@ -48,11 +49,6 @@ data Response     = Ok
                   | Error Raw 
                   deriving (Eq, Show)
 
--- | Supported solvers 
-data Solver       = Z3 
-                  | Mathsat 
-                  | Cvc4
-
 -- | Information about the external SMT process 
 data Context      = Ctx { pId  :: ProcessHandle
                         , cIn  :: Handle
@@ -65,6 +61,11 @@ data Context      = Ctx { pId  :: ProcessHandle
 --------------------------------------------------------------------------
 
 --------------------------------------------------------------------------
+commands :: Context -> [Command] -> IO [Response] 
+--------------------------------------------------------------------------
+commands = mapM . command 
+
+--------------------------------------------------------------------------
 command              :: Context -> Command -> IO Response 
 --------------------------------------------------------------------------
 command me cmd       = say me cmd >> hear me cmd
@@ -72,6 +73,8 @@ command me cmd       = say me cmd >> hear me cmd
     say me           = smtWrite me . smt2
     hear me CheckSat = smtRead me
     hear me _        = return Ok
+
+
 
 smtWrite         :: Context -> Raw -> IO ()
 smtWrite me s    = smtWriteRaw me (T.append s "\n") 
@@ -96,7 +99,7 @@ smtReadRaw me    = hGetLine (cIn me)
 --------------------------------------------------------------------------
 
 --------------------------------------------------------------------------
-makeContext   :: Solver -> IO Context 
+makeContext   :: SMTSolver -> IO Context 
 --------------------------------------------------------------------------
 makeContext s 
   = do me <- makeProcess s
@@ -286,5 +289,11 @@ instance SMTLIB2 Command where
 
 smt2s = T.intercalate " " . fmap smt2
 
--- instance SMTLIB2 a => Buildable a where
---  build = smt2
+{- 
+
+cmds = rr "var x Int ; var y Int; assert (0 <= x); assert (x < y); push; assert (not (0 <= y)); check; pop; "
+
+me  <- makeContext Z3
+zs  <- commands me cmds
+
+-}

@@ -68,6 +68,8 @@ import Data.Char (isLower, toUpper)
 import Language.Fixpoint.Misc hiding (dcolon)
 import Language.Fixpoint.Types
 import Language.Fixpoint.Errors
+import Language.Fixpoint.SmtLib2
+
 import Data.Maybe(maybe, fromJust)
 
 import Data.Monoid (mempty)
@@ -467,9 +469,29 @@ freshIntP = do n <- stateUser <$> getParserState
                updateState (+ 1)
                return n
 
-----------------------------------------------------------------------------------------
------------------------- Bundling Parsers into a Typeclass -----------------------------
-----------------------------------------------------------------------------------------
+---------------------------------------------------------------------
+-- Standalone SMTLIB2 commands --------------------------------------
+---------------------------------------------------------------------
+
+commandsP = brackets $ sepBy commandP semi
+
+commandP 
+  =  (reserved "var"      >> cmdVarP)
+ <|> (reserved "push"     >> return Push)
+ <|> (reserved "pop"      >> return Pop)
+ <|> (reserved "check"    >> return CheckSat)
+ <|> (reserved "assert"   >> (Assert   <$> predP))
+ <|> (reserved "distinct" >> (Distinct <$> (brackets $ sepBy exprP comma)))
+
+cmdVarP 
+  = do x <- bindP 
+       t <- sortP
+       return $ Declare x [] t
+
+
+---------------------------------------------------------------------
+-- Bundling Parsers into a Typeclass --------------------------------
+---------------------------------------------------------------------
 
 class Inputable a where
   rr  :: String -> a
@@ -500,6 +522,10 @@ instance Inputable (FixResult Integer, FixSolution) where
 
 instance Inputable (FInfo ()) where
   rr' = doParse' fInfoP
+
+instance Inputable Command where
+  rr' = doParse' commandP 
+
 
 {-
 ---------------------------------------------------------------
