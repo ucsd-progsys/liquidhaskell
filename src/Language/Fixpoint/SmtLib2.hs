@@ -125,15 +125,6 @@ smtPreamble _  = smtlibPreamble
 smtFile :: FilePath
 smtFile = extFileName Smt2 "out" 
 
--- let solver () =
---   match !Co.smt_solver with
---     | Some "z3"      -> Z3
---     | Some "mathsat" -> Mathsat
---     | Some "cvc4"    -> Cvc4
---     | Some str       -> assertf "ERROR: fixpoint does not yet support SMTSOLVER: %s" str
---     | None           -> assertf "ERROR: undefined solver for smtLIB2"
-
-
 -----------------------------------------------------------------------------
 -- | SMT Commands -----------------------------------------------------------
 -----------------------------------------------------------------------------
@@ -225,24 +216,69 @@ mkSetSub _ s t = spr "({} {} {})" (sub, s, t)
 
 spr = format
 
-instance SMTLIB2 a => Buildable a where
-  build = smt2
-
 -- | Types that can be serialized
 class SMTLIB2 a where
   smt2 :: a -> Raw
 
 instance SMTLIB2 Sort where
-  smt2 t = undefined 
+  smt2 _ = "Int" 
 
 instance SMTLIB2 Symbol where
-  smt2 s = undefined 
+  smt2 (S s) = T.pack s
+
+instance SMTLIB2 SymConst where
+  smt2 _ = error "TODO: SMTLIB2 SymConst"
+
+instance SMTLIB2 Constant where
+  smt2 (I n) = spr "{}" (Only n)
+
+instance SMTLIB2 LocSymbol where
+  smt2 = smt2 . val
+
+instance SMTLIB2 Bop where
+  smt2 Plus  = "+"
+  smt2 Minus = "-"
+  smt2 Times = "*"
+  smt2 Div   = "/"
+  smt2 Mod   = "mod"
+
+instance SMTLIB2 Brel where
+  smt2 Eq    = "="
+  smt2 Ueq   = "="
+  smt2 Gt    = ">"
+  smt2 Ge    = ">="
+  smt2 Lt    = "<" 
+  smt2 Le    = "<="
+  smt2 _     = error "SMTLIB2 Brel"
 
 instance SMTLIB2 Expr where
-  smt2 e = undefined
+  smt2 (ESym z)         = smt2 z
+  smt2 (ECon c)         = smt2 c
+  smt2 (EVar x)         = smt2 x
+  smt2 (ELit x _)       = smt2 x
+  smt2 (EApp f [])      = smt2 f
+  smt2 (EApp f es)      = spr "({} {})"        (smt2 f, smt2s es) 
+  smt2 (EBin o e1 e2)   = spr "({} {} {})"     (smt2 o, smt2 e1, smt2 e2)  
+  smt2 (EIte e1 e2 e3)  = spr "(ite {} {} {})" (smt2 e1, smt2 e2, smt2 e3)
+  smt2 _                = error "TODO: SMTLIB2 Expr" 
 
-instance Rawable Pred where
-  smt2 p = undefined
+instance SMTLIB2 Pred where
+  smt2 (PTrue)          = "true"
+  smt2 (PFalse)         = "false"
+  smt2 (PAnd ps)        = spr "(and {})"    (Only $ smt2s ps) 
+  smt2 (POr ps)         = spr "(or  {})"    (Only $ smt2s ps)
+  smt2 (PNot p)         = spr "(not {})"    (Only $ smt2 p)
+  smt2 (PImp p q)       = spr "(=> {} {})"  (smt2 p, smt2 q)
+  smt2 (PIff p q)       = spr "(=  {} {})"  (smt2 p, smt2 q)
+  smt2 (PBexp e)        = smt2 e 
+  smt2 (PAtom r e1 e2)  = 
+  smt2 (PAll xts p)     = 
+
+
+mkRel Ne  e1 e2 = spr "(not (= {} {}))" (smt2 e1, smt2 e2)
+mkRel Une e1 e2 = spr "(not (= {} {}))" (smt2 e1, smt2 e2)
+mkRel r   e1 e2 = spr "({} {} {})"      (smt2 r, smt2 e1, smt2 e2)
+
 
 instance SMTLIB2 Command where
   smt2 (Declare x ts t) = spr "(declare-fun {} ({}) {})"  (x, smt2 ts, t)
@@ -253,3 +289,9 @@ instance SMTLIB2 Command where
   smt2 (CheckSat)       = "(check-sat)"
 
 smt2s = T.intercalate " " . map smt2
+
+
+instance SMTLIB2 a => Buildable a where
+  build = smt2
+
+
