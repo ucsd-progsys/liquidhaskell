@@ -112,7 +112,7 @@ smtWriteRaw me s = hPutStrNow (cOut me) s >>  hPutStrNow (cLog me) s
 smtReadRaw       :: Context -> IO Raw
 smtReadRaw me    = TIO.hGetLine (cIn me)
 
-hPutStrNow h s   = TIO.hPutStr h s -- >> hFlush h
+hPutStrNow h s   = TIO.hPutStr h s >> hFlush h
 
 --------------------------------------------------------------------------
 -- | SMT Context ---------------------------------------------------------
@@ -127,17 +127,13 @@ makeContext s
        return me
 
 makeProcess s 
-  = do (Just hOut, Just hIn, _ ,pid) <- createProcess $ smtProc s
-       hLog                          <- openFile smtFile WriteMode
+  = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd s
+       hLog                <- openFile smtFile WriteMode
        return $ Ctx pid hIn hOut hLog
 
 {- "z3 -smt2 -in"                   -} 
 {- "z3 -smtc SOFT_TIMEOUT=1000 -in" -} 
 {- "z3 -smtc -in MBQI=false"        -} 
-
-smtProc s      = (proc cmd []) {std_out = CreatePipe } {std_in = CreatePipe }
-  where
-    cmd        = smtCmd s
 
 smtCmd Z3      = "z3 -smt2 -in MODEL=true MODEL.PARTIAL=true smt.mbqi=false auto-config=false"
 smtCmd Mathsat = "mathsat -input=smt2"
