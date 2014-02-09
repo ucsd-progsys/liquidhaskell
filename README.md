@@ -74,4 +74,11 @@ To clone liquidhaskell:
 
     git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
 
+SMTLIB2 Interface
+-----------------
 
+There is a new SMTLIB2 interface directly from Haskell:
+
++ Language.Fixpoint.SmtLib2
+
+See `tests/smt2/{Smt.hs, foo.smt2}` for an example of how to use it.

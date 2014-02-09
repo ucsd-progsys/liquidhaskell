@@ -42,6 +42,20 @@ import System.Process
 import System.IO            (openFile, IOMode (..), Handle, hFlush)
 import Control.Applicative  ((<$>))
 
+{- Usage:
+runFile f
+  = readFile f >>= runString
+
+runString str
+  = runCommands $ rr str
+
+runCommands cmds 
+  = do me   <- makeContext Z3
+       mapM_ (T.putStrLn . smt2) cmds
+       zs   <- mapM (command me) cmds
+       return zs
+-}
+
 --------------------------------------------------------------------------
 -- | Types ---------------------------------------------------------------
 --------------------------------------------------------------------------

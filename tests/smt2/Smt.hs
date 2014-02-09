@@ -13,8 +13,16 @@ main    = do f:_ <- getArgs
              _   <- go f
              return ()
 
-go file = do cmds <- fmap rr $ readFile file
-             me   <- makeContext Z3
-             mapM_ (T.putStrLn . smt2) cmds
-             zs   <- mapM (command me) cmds
-             return zs
+runFile f
+  = readFile f >>= runString
+
+runString str
+  = runCommands $ rr str
+
+runCommands cmds 
+  = do me   <- makeContext Z3
+       mapM_ (T.putStrLn . smt2) cmds
+       zs   <- mapM (command me) cmds
+       return zs
+
+
