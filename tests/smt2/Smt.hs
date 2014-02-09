@@ -1,3 +1,5 @@
+-- just fire up ghci, :load Smt.hs and run `go file.smt2`
+
 module Smt where
 
 import qualified Data.Text.Lazy.IO as T
