@@ -1,8 +1,15 @@
 TODO
 ====
 
-Lazy Instantiation
-------------------
+SMTLIB2 (Haskell)
+-----------------
+
+Implement an SMTLIB2 query interface directly in Haskell
+i.e. port external/fixpoint/smtlib2.ml to haskell
+
+
+Lazy Instantiation (done?)
+--------------------------
 
 Instead of greedily instantiating ALL wf constraints up front, 
 do them the *first* time that a corresponding subc constraint 
