@@ -28,9 +28,11 @@ olen (Snoc xs x) = 1 + (olen xs)
 olen (Two x y)   = (olen x) + (olen y)
 @-}
 
-{-@ type ListNE a    = {v:[a] | (len v) > 0} @-}
-{-@ type OrdListNE a = {v:OrdList a | (olen v) > 0} @-}
-{-@ type OrdListN a N = {v:OrdList a | (olen v) = N} @-}
+{-@ type ListNE a      = {v:[a] | (len v) > 0}        @-}
+{-@ type OrdListNE a   = {v:OrdList a | (olen v) > 0} @-}
+{-@ type OrdListN  a N = {v:OrdList a | (olen v) = N} @-}
+
+{-@ invariant {v:OrdList a | (olen v) >= 0}           @-}
 
 data OrdList a
   = None
@@ -44,6 +46,7 @@ data OrdList a
 
 {-@ nilOL    :: OrdListN a {0} @-}
 nilOL    :: OrdList a
+{-@ isNilOL  :: xs:OrdList a -> {v:Bool | ((Prop v) <=> ((olen xs) = 0))} @-}
 isNilOL  :: OrdList a -> Bool
 
 {-@ unitOL   :: a           -> OrdListN a {1} @-}
@@ -60,7 +63,7 @@ nilOL        = None
 unitOL as    = One as
 snocOL as   b    = Snoc as b
 consOL a    bs   = Cons a bs
-concatOL aas = undefined --foldr appOL None aas
+concatOL aas = foldr appOL None aas
 
 isNilOL None = True
 isNilOL _    = False
@@ -74,12 +77,14 @@ a     `appOL` b     = Two a b
 {-@ fromOL :: xs:OrdList a -> {v:[a] | (len v) = (olen xs)} @-}
 fromOL :: OrdList a -> [a]
 fromOL a = go a []
-  where go None       acc = acc
-        go (One a)    acc = a : acc
-        go (Cons a b) acc = a : go b acc
-        go (Snoc a b) acc = go a (b:acc)
-        go (Two a b)  acc = go a (go b acc)
-        go (Many xs)  acc = xs ++ acc
+  where
+    {-@ go :: xs:OrdList a -> ys:[a] -> {v:[a] | (len v) = (olen xs) + (len ys)} @-}
+    go None       acc = acc
+    go (One a)    acc = a : acc
+    go (Cons a b) acc = a : go b acc
+    go (Snoc a b) acc = go a (b:acc)
+    go (Two a b)  acc = go a (go b acc)
+    go (Many xs)  acc = xs ++ acc
 
 {-@ mapOL :: (a -> b) -> xs:OrdList a -> OrdListN b {(olen xs)} @-}
 mapOL :: (a -> b) -> OrdList a -> OrdList b
