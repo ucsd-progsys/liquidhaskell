@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "OrdList"
+title: "The Advantage of Measures"
 date: 2014-02-10
 author: Eric Seidel
 published: true
@@ -20,6 +20,8 @@ line of code (well.. maybe one)!
 
 [Reddit]: http://www.reddit.com/r/haskell/comments/1xiurm/how_to_define_append_for_ordlist_defined_as_gadt/
 [OrdList]: http://www.haskell.org/platform/doc/2013.2.0.0/ghc-api/OrdList.html
+
+<!-- more -->
 
 <div class="hidden">
 \begin{code}
@@ -44,6 +46,9 @@ data OrdList [olen] a = None
 \end{code}
 </div>
 
+Putting Invariants in the Type
+------------------------------
+
 \begin{code}
 data OrdList a
   = None
@@ -55,9 +60,10 @@ data OrdList a
         (OrdList a) -- Invariant: non-empty
 \end{code}
 
-Here's the definition of `OrdList`, the key invariants are that
-`Many` takes a *non-empty* list and that `Two` takes two non-empty
-`OrdList`s. In LiquidHaskell we can specify the invariants as
+Here's the definition of `OrdList`, as we see from the comments the
+key invariants are that `Many` takes a *non-empty* list and that `Two`
+takes two non-empty `OrdList`s. In LiquidHaskell we can specify the
+invariants as
 \begin{code} part of the data declaration, like so
 {-@
 data OrdList [olen] a
@@ -98,6 +104,9 @@ olen (Two x y)   = (olen x) + (olen y)
 Nothing out of the ordinary here either. Now let's look at some of
 the functions!
 
+Basic Functions
+---------------
+
 \begin{code}
 {-@ type OrdListN a N = {v:OrdList a | (olen v) = N} @-}
 
@@ -114,9 +123,6 @@ the functions!
 {-@ consOL :: a -> xs:OrdList a
            -> OrdListN a {1 + (olen xs)}
   @-}
-{-@ appOL  :: xs:OrdList a -> ys:OrdList a
-           -> OrdListN a {(olen xs) + (olen ys)}
-  @-}
 
 nilOL            = None
 unitOL as        = One as
@@ -125,7 +131,23 @@ consOL a    bs   = Cons a bs
 
 isNilOL None = True
 isNilOL _    = False
+\end{code}
 
+Notice that we've given very precise types here, e.g. `unitOL`
+returns an `OrdList` with one element, and `snocOL` and `consOL` return
+lists with precisely one more element (aside: the `OrdListN a
+{foo}` syntax just lets us use LiquidHaskell expressions as
+arguments to type aliases). These functions really aren't that
+interesting, however, since their types fall right out of the definition
+of `olen`, so how about something that takes a little thinking?
+
+Appending `OrdList`s
+------------------
+
+\begin{code}
+{-@ appOL  :: xs:OrdList a -> ys:OrdList a
+           -> OrdListN a {(olen xs) + (olen ys)}
+  @-}
 None  `appOL` b     = b
 a     `appOL` None  = a
 One a `appOL` b     = Cons a b
@@ -133,13 +155,9 @@ a     `appOL` One b = Snoc a b
 a     `appOL` b     = Two a b
 \end{code}
 
-Notice that we've given very precise types here, e.g. `unitOL`
-returns an `OrdList` with one element, `snocOL` and `consOL` return
-lists with precisely one more element, and `appOL` returns a list
-whose length is the sum of the two input lists. (Aside: the `OrdListN a
-{foo}` syntax just lets us use LiquidHaskell expressions as
-arguments to type aliases.) The most important thing to notice,
-however, is that we haven't had to insert any extra checks in
+`appOL` takes two `OrdList`s and returns a list
+whose length is the sum of the two input lists. The most important thing to
+notice here is that we haven't had to insert any extra checks in
 `appOL`, unlike the [GADT][] solution. LiquidHaskell uses the definition
 of `olen` to infer that in the last case of `appOL`, `a` and `b`
 *must* be non-empty, so they are valid arguments to `Two`.
@@ -222,6 +240,10 @@ foldlOL k z (Snoc xs x) = k (foldlOL k z xs) x
 foldlOL k z (Two b1 b2) = foldlOL k (foldlOL k z b1) b2
 foldlOL k z (Many xs)   = foldl k z xs
 \end{code}
+
+
+Concatenating with Nested Measures
+----------------------------------
 
 Now, the astute readers will have probably noticed that I'm missing
 one function, `concatOL`... We can give `concatOL` a precise type in
