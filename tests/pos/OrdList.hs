@@ -1,8 +1,10 @@
 module OrdList (
     OrdList, 
-        nilOL, isNilOL, unitOL, appOL, consOL, snocOL, concatOL,
+        nilOL, isNilOL, unitOL, appOL, consOL, snocOL, concatOL, concatOL',
         mapOL, fromOL, toOL, foldrOL, foldlOL
 ) where
+
+import Language.Haskell.Liquid.Prelude (liquidError)
 
 infixl 5  `appOL`
 infixl 5  `snocOL`
@@ -64,10 +66,17 @@ nilOL        = None
 unitOL as    = One as
 snocOL as   b    = Snoc as b
 consOL a    bs   = Cons a bs
---LIQUID this definition requires `foldr` with abstract refinements, which isn't in our standard set of specs
---LIQUID concatOL aas = foldr appOL None aas
+--LIQUID this definition requires `foldr` with abstract refinements, which isn't
+--LIQUID in our standard set of specs
+-- concatOL aas = foldr appOL None aas
 concatOL []       = None
 concatOL (ol:ols) = ol `appOL` concatOL ols
+
+--LIQUID as an alternative, we can easily verify the property that, given
+--LIQUID non-empty lists, `concatOL` will return a non-empty list
+{-@ concatOL' :: ListNE (OrdListNE a) -> OrdListNE a @-}
+concatOL' []     = liquidError "can't happen"
+concatOL' (x:xs) = foldr appOL x xs
 
 isNilOL None = True
 isNilOL _    = False
