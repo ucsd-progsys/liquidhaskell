@@ -27,11 +27,18 @@ olen (Snoc xs x) = 1 + (olen xs)
 olen (Two x y)   = (olen x) + (olen y)
 @-}
 
+{-@
+measure olens :: [OrdList a] -> Int
+olens ([])     = 0
+olens (ol:ols) = (olen ol) + (olens ols)
+@-}
+
 {-@ type ListNE    a   = {v:[a]       | (len v)  > 0} @-}
 {-@ type OrdListNE a   = {v:OrdList a | (olen v) > 0} @-}
 {-@ type OrdListN  a N = {v:OrdList a | (olen v) = N} @-}
 
-{-@ invariant {v:OrdList a | (olen v) >= 0} @-}
+{-@ invariant {v:OrdList a   | (olen v)  >= 0} @-}
+{-@ invariant {v:[OrdList a] | (olens v) >= 0} @-}
 
 
 data OrdList a
@@ -47,16 +54,20 @@ data OrdList a
 {-@ nilOL    :: OrdListN a {0} @-}
 {-@ isNilOL  :: xs:OrdList a -> {v:Bool | ((Prop v) <=> ((olen xs) = 0))} @-}
 
-{-@ unitOL   :: a            -> OrdListN a {1} @-}
-{-@ snocOL   :: xs:OrdList a -> a            -> OrdListN a {1+(olen xs)} @-}
-{-@ consOL   :: a            -> xs:OrdList a -> OrdListN a {1+(olen xs)} @-}
-{-@ appOL    :: xs:OrdList a -> ys:OrdList a -> OrdListN a {(olen xs)+(olen ys)} @-}
+{-@ unitOL   :: a              -> OrdListN a {1} @-}
+{-@ snocOL   :: xs:OrdList a   -> a            -> OrdListN a {1+(olen xs)} @-}
+{-@ consOL   :: a              -> xs:OrdList a -> OrdListN a {1+(olen xs)} @-}
+{-@ appOL    :: xs:OrdList a   -> ys:OrdList a -> OrdListN a {(olen xs)+(olen ys)} @-}
+{-@ concatOL :: xs:[OrdList a] -> OrdListN a {(olens xs)} @-}
 
 nilOL        = None
 unitOL as    = One as
 snocOL as   b    = Snoc as b
 consOL a    bs   = Cons a bs
-concatOL aas = foldr appOL None aas
+--LIQUID this definition requires `foldr` with abstract refinements, which isn't in our standard set of specs
+--LIQUID concatOL aas = foldr appOL None aas
+concatOL []       = None
+concatOL (ol:ols) = ol `appOL` concatOL ols
 
 isNilOL None = True
 isNilOL _    = False
