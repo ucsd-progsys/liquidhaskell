@@ -13,7 +13,7 @@ demo: OrdList.hs
 This morning someone asked on Reddit how one might define OrdList in
 order to statically ensure its three key invariants. The accepted
 solution required rewriting OrdList as a GADT indexed by a proof of
-/emptiness/, and used the new Closed Type Families extension in GHC
+*emptiness*, and used the new Closed Type Families extension in GHC
 7.8 to define a type-level join of the Emptiness index. Let's see how
 to tackle this problem in LiquidHaskell, without changing a single
 line of code!
@@ -29,25 +29,7 @@ module OrdList(
 infixl 5  `appOL`
 infixl 5  `snocOL`
 infixr 5  `consOL`
-\end{code}
-</div>
-
-\begin{code}
-data OrdList a = None
-               | One a
-               | Many [a]        -- Invariant: non-empty
-               | Cons a (OrdList a)
-               | Snoc (OrdList a) a
-               | Two (OrdList a) -- Invariant: non-empty
-                     (OrdList a) -- Invariant: non-empty
-\end{code}
-
-Here's the definition of `OrdList`, the key invariants are that
-`Many` takes a /non-empty/ list and that `Two` takes two non-empty
-`OrdList`s. In LiquidHaskell we can specify datatype invariants as
-part of the data declaration, like so
-
-\begin{code}
+-- UGH parsing issues...
 {-@
 data OrdList [olen] a = None
                       | One  (x  :: a)
@@ -55,6 +37,33 @@ data OrdList [olen] a = None
                       | Cons (x  :: a)           (xs :: OrdList a)
                       | Snoc (xs :: OrdList a)   (x  :: a)
                       | Two  (x  :: OrdListNE a) (y  :: OrdListNE a)
+@-}
+\end{code}
+</div>
+
+\begin{code}
+data OrdList a
+  = None
+  | One a
+  | Many [a]        -- Invariant: non-empty
+  | Cons a (OrdList a)
+  | Snoc (OrdList a) a
+  | Two (OrdList a) -- Invariant: non-empty
+        (OrdList a) -- Invariant: non-empty
+\end{code}
+
+Here's the definition of `OrdList`, the key invariants are that
+`Many` takes a *non-empty* list and that `Two` takes two non-empty
+`OrdList`s. In LiquidHaskell we can specify datatype invariants as
+\begin{code} part of the data declaration, like so
+{-@
+data OrdList [olen] a
+  = None
+  | One  (x  :: a)
+  | Many (xs :: ListNE a)
+  | Cons (x  :: a)           (xs :: OrdList a)
+  | Snoc (xs :: OrdList a)   (x  :: a)
+  | Two  (x  :: OrdListNE a) (y  :: OrdListNE a)
 @-}
 \end{code}
 
@@ -87,16 +96,24 @@ Nothing out of the ordinary here either. Now let's look at some of
 the functions!
 
 \begin{code}
-{-@ type OrdListN  a N = {v:OrdList a | (olen v) = N} @-}
+{-@ type OrdListN a N = {v:OrdList a | (olen v) = N} @-}
 
-{-@ nilOL    :: OrdListN a {0} @-}
-{-@ isNilOL  :: xs:OrdList a   -> {v:Bool | ((Prop v) <=> ((olen xs) = 0))} @-}
+{-@ nilOL   :: OrdListN a {0} @-}
+{-@ isNilOL :: xs:OrdList a
+            -> {v:Bool | ((Prop v) <=> ((olen xs) = 0))}
+  @-}
 
-{-@ unitOL   :: a              -> OrdListN a {1} @-}
+{-@ unitOL :: a -> OrdListN a {1} @-}
 
-{-@ snocOL   :: xs:OrdList a   -> a            -> OrdListN a {1+(olen xs)} @-}
-{-@ consOL   :: a              -> xs:OrdList a -> OrdListN a {1+(olen xs)} @-}
-{-@ appOL    :: xs:OrdList a   -> ys:OrdList a -> OrdListN a {(olen xs)+(olen ys)} @-}
+{-@ snocOL :: xs:OrdList a -> a
+           -> OrdListN a {1 + (olen xs)}
+  @-}
+{-@ consOL :: a -> xs:OrdList a
+           -> OrdListN a {1 + (olen xs)}
+  @-}
+{-@ appOL  :: xs:OrdList a -> ys:OrdList a
+           -> OrdListN a {(olen xs) + (olen ys)}
+  @-}
 
 nilOL            = None
 unitOL as        = One as
@@ -122,7 +139,7 @@ arguments to type aliases.) The most important thing to notice,
 however, is that we haven't had to insert any extra checks in
 `appOL`, unlike the GADT solution. LiquidHaskell uses the definition
 of `olen` to infer that in the last case of `appOL`, `a` and `b`
-/must/ be non-empty, so they are valid arguments to `Two`.
+*must* be non-empty, so they are valid arguments to `Two`.
 
 We can prove other things about `OrdList`s as well, like the fact
 that converting an `OrdList` to a Haskell list preserves length
@@ -136,7 +153,9 @@ toOL xs = Many xs
 as does mapping over an `OrdList`
 
 \begin{code}
-{-@ mapOL :: (a -> b) -> xs:OrdList a -> OrdListN b {(olen xs)} @-}
+{-@ mapOL :: (a -> b) -> xs:OrdList a
+          -> OrdListN b {(olen xs)}
+  @-}
 mapOL _ None        = None
 mapOL f (One x)     = One (f x)
 mapOL f (Cons x xs) = Cons (f x) (mapOL f xs)
@@ -167,11 +186,13 @@ qualifier, which we haven't really seen so far. Can anyone guess why?
 
 
 \begin{code}
-{-@ qualif Go(v:List a, xs:OrdList a, ys:List a): (len v) = (olen xs) + (len ys) @-}
+{-@ qualif Go(v:List a, xs:OrdList a, ys:List a):
+      (len v) = (olen xs) + (len ys)
+  @-}
 \end{code}
 
 The answer is that the return type of `go` must refer to the length
-of the `OrdList` that it's folding over /as well as/ the length of
+of the `OrdList` that it's folding over *as well as* the length of
 the accumulator `acc`! We haven't written a refinement like that in
 any of our type signatures in this module, so LiquidHaskell doesn't
 know to guess that type.
@@ -216,7 +237,7 @@ concatOL (ol:ols) = ol `appOL` concatOL ols
 \end{code}
 
 This type says that `concatOL` returns an `OrdList` whose length is
-the /sum/ of the lengths of the input lists, and LiquidHaskell is
+the *sum* of the lengths of the input lists, and LiquidHaskell is
 happy to verify it, again with no sign of explicit proofs. We can
 actually even verify the original definition of `concatOL` with a
 clever use of *abstract refinements*, but we have to slightly change
