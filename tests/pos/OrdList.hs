@@ -51,7 +51,6 @@ data OrdList a
 {-@ snocOL   :: xs:OrdList a -> a            -> OrdListN a {1+(olen xs)} @-}
 {-@ consOL   :: a            -> xs:OrdList a -> OrdListN a {1+(olen xs)} @-}
 {-@ appOL    :: xs:OrdList a -> ys:OrdList a -> OrdListN a {(olen xs)+(olen ys)} @-}
-concatOL :: [OrdList a] -> OrdList a
 
 nilOL        = None
 unitOL as    = One as
@@ -71,7 +70,6 @@ a     `appOL` b     = Two a b
 {-@ qualif Go(v:List a, xs:OrdList a, ys:List a): (len v) = (olen xs) + (len ys) @-}
 
 {-@ fromOL :: xs:OrdList a -> {v:[a] | (len v) = (olen xs)} @-}
-fromOL :: OrdList a -> [a]
 fromOL a = go a []
   where
     go None       acc = acc
@@ -82,7 +80,6 @@ fromOL a = go a []
     go (Many xs)  acc = xs ++ acc
 
 {-@ mapOL :: (a -> b) -> xs:OrdList a -> OrdListN b {(olen xs)} @-}
-mapOL :: (a -> b) -> OrdList a -> OrdList b
 mapOL _ None = None
 mapOL f (One x) = One (f x)
 mapOL f (Cons x xs) = Cons (f x) (mapOL f xs)
@@ -110,6 +107,5 @@ foldlOL k z (Two b1 b2) = foldlOL k (foldlOL k z b1) b2
 foldlOL k z (Many xs)   = foldl k z xs
 
 {-@ toOL :: xs:[a] -> OrdListN a {(len xs)} @-}
-toOL :: [a] -> OrdList a
 toOL [] = None
 toOL xs = Many xs
