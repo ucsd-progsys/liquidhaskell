@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "The Advantage of Measures"
-date: 2014-02-10
+date: 2014-02-11
 author: Eric Seidel
 published: true
 comments: true
@@ -10,7 +10,7 @@ categories: basic measures
 demo: OrdList.hs
 ---
 
-This morning someone asked on [Reddit][] how one might define [OrdList][] in
+Yesterday someone asked on [Reddit][] how one might define [OrdList][] in
 order to statically ensure its three key invariants. The accepted
 solution required rewriting `OrdList` as a `GADT` indexed by a proof of
 *emptiness*, and used the new Closed Type Families extension in GHC
