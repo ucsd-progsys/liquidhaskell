@@ -3,20 +3,23 @@ layout: post
 title: "OrdList"
 date: 2014-02-10
 author: Eric Seidel
-published: false
+published: true
 comments: true
 external-url:
-categories: basic
+categories: basic measures
 demo: OrdList.hs
 ---
 
-This morning someone asked on Reddit how one might define OrdList in
+This morning someone asked on [Reddit][] how one might define [OrdList][] in
 order to statically ensure its three key invariants. The accepted
-solution required rewriting OrdList as a GADT indexed by a proof of
+solution required rewriting `OrdList` as a `GADT` indexed by a proof of
 *emptiness*, and used the new Closed Type Families extension in GHC
 7.8 to define a type-level join of the Emptiness index. Let's see how
 to tackle this problem in LiquidHaskell, without changing a single
-line of code!
+line of code (well.. maybe one)!
+
+[Reddit]: http://www.reddit.com/r/haskell/comments/1xiurm/how_to_define_append_for_ordlist_defined_as_gadt/
+[OrdList]: http://www.haskell.org/platform/doc/2013.2.0.0/ghc-api/OrdList.html
 
 <div class="hidden">
 \begin{code}
@@ -54,7 +57,7 @@ data OrdList a
 
 Here's the definition of `OrdList`, the key invariants are that
 `Many` takes a *non-empty* list and that `Two` takes two non-empty
-`OrdList`s. In LiquidHaskell we can specify datatype invariants as
+`OrdList`s. In LiquidHaskell we can specify the invariants as
 \begin{code} part of the data declaration, like so
 {-@
 data OrdList [olen] a
@@ -134,12 +137,14 @@ Notice that we've given very precise types here, e.g. `unitOL`
 returns an `OrdList` with one element, `snocOL` and `consOL` return
 lists with precisely one more element, and `appOL` returns a list
 whose length is the sum of the two input lists. (Aside: the `OrdListN a
-{foo}` syntax just let's us use LiquidHaskell expressions as
+{foo}` syntax just lets us use LiquidHaskell expressions as
 arguments to type aliases.) The most important thing to notice,
 however, is that we haven't had to insert any extra checks in
-`appOL`, unlike the GADT solution. LiquidHaskell uses the definition
+`appOL`, unlike the [GADT][] solution. LiquidHaskell uses the definition
 of `olen` to infer that in the last case of `appOL`, `a` and `b`
 *must* be non-empty, so they are valid arguments to `Two`.
+
+[GADT]: http://www.reddit.com/r/haskell/comments/1xiurm/how_to_define_append_for_ordlist_defined_as_gadt/cfbrinr
 
 We can prove other things about `OrdList`s as well, like the fact
 that converting an `OrdList` to a Haskell list preserves length
@@ -238,8 +243,18 @@ concatOL (ol:ols) = ol `appOL` concatOL ols
 
 This type says that `concatOL` returns an `OrdList` whose length is
 the *sum* of the lengths of the input lists, and LiquidHaskell is
-happy to verify it, again with no sign of explicit proofs. We can
-actually even verify the original definition of `concatOL` with a
+happy to verify it, again with no sign of explicit proofs. This is
+actually a great illustration of the flexibility provided by
+*measures*. Instead of having to encode everything into a massive,
+super-index, we are able to split our properties out into independent
+*views* of the datatype. I would argue that this approach is much
+more modular, as I didn't have to go back and change the definition
+of `[]` to talk about `OrdList`s, nor did I have to provide an
+explicit witness of the length.
+
+
+<div class="hidden">
+We can actually even verify the original definition of `concatOL` with a
 clever use of *abstract refinements*, but we have to slightly change
 the signature of `foldr`.
 
@@ -276,3 +291,4 @@ concatOL' aas = foldr' (const appOL) None aas
 We haven't added the modified version of `foldr` to the LiquidHaskell
 Prelude yet because it adds the ghost variable to the Haskell
 type-signature.
+</div>
