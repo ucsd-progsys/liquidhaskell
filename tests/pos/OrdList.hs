@@ -1,4 +1,3 @@
-{-@ LIQUID "--no-termination" @-}
 module OrdList (
     OrdList, 
         nilOL, isNilOL, unitOL, appOL, consOL, snocOL, concatOL,
@@ -10,12 +9,12 @@ infixl 5  `snocOL`
 infixr 5  `consOL`
 
 {-@
-data OrdList a = None
-  | One  (x::a)
-  | Many (xs::(ListNE a))
-  | Cons (x::a)             (xs::(OrdList a))
-  | Snoc (xs::(OrdList a))  (x::a)
-  | Two  (x::(OrdListNE a)) (y::(OrdListNE a))
+data OrdList [olen] a = None
+                      | One  (x  :: a)
+                      | Many (xs :: ListNE a)
+                      | Cons (x  :: a)           (xs :: OrdList a)
+                      | Snoc (xs :: OrdList a)   (x  :: a)
+                      | Two  (x  :: OrdListNE a) (y  :: OrdListNE a)
 @-}
 
 {-@
@@ -28,11 +27,12 @@ olen (Snoc xs x) = 1 + (olen xs)
 olen (Two x y)   = (olen x) + (olen y)
 @-}
 
-{-@ type ListNE a      = {v:[a] | (len v) > 0}        @-}
+{-@ type ListNE    a   = {v:[a]       | (len v)  > 0} @-}
 {-@ type OrdListNE a   = {v:OrdList a | (olen v) > 0} @-}
 {-@ type OrdListN  a N = {v:OrdList a | (olen v) = N} @-}
 
-{-@ invariant {v:OrdList a | (olen v) >= 0}           @-}
+{-@ invariant {v:OrdList a | (olen v) >= 0} @-}
+
 
 data OrdList a
   = None
@@ -45,18 +45,12 @@ data OrdList a
 
 
 {-@ nilOL    :: OrdListN a {0} @-}
-nilOL    :: OrdList a
 {-@ isNilOL  :: xs:OrdList a -> {v:Bool | ((Prop v) <=> ((olen xs) = 0))} @-}
-isNilOL  :: OrdList a -> Bool
 
-{-@ unitOL   :: a           -> OrdListN a {1} @-}
-unitOL   :: a           -> OrdList a
-{-@ snocOL   :: xs:OrdList a   -> a         -> OrdListN a {1+(olen xs)} @-}
-snocOL   :: OrdList a   -> a         -> OrdList a
-{-@ consOL   :: a           -> xs:OrdList a -> OrdListN a {1+(olen xs)} @-}
-consOL   :: a           -> OrdList a -> OrdList a
-{-@ appOL    :: xs:OrdList a   -> ys:OrdList a -> OrdListN a {(olen xs)+(olen ys)} @-}
-appOL    :: OrdList a   -> OrdList a -> OrdList a
+{-@ unitOL   :: a            -> OrdListN a {1} @-}
+{-@ snocOL   :: xs:OrdList a -> a            -> OrdListN a {1+(olen xs)} @-}
+{-@ consOL   :: a            -> xs:OrdList a -> OrdListN a {1+(olen xs)} @-}
+{-@ appOL    :: xs:OrdList a -> ys:OrdList a -> OrdListN a {(olen xs)+(olen ys)} @-}
 concatOL :: [OrdList a] -> OrdList a
 
 nilOL        = None
@@ -74,11 +68,12 @@ One a `appOL` b     = Cons a b
 a     `appOL` One b = Snoc a b
 a     `appOL` b     = Two a b
 
+{-@ qualif Go(v:List a, xs:OrdList a, ys:List a): (len v) = (olen xs) + (len ys) @-}
+
 {-@ fromOL :: xs:OrdList a -> {v:[a] | (len v) = (olen xs)} @-}
 fromOL :: OrdList a -> [a]
 fromOL a = go a []
   where
-    {-@ go :: xs:OrdList a -> ys:[a] -> {v:[a] | (len v) = (olen xs) + (len ys)} @-}
     go None       acc = acc
     go (One a)    acc = a : acc
     go (Cons a b) acc = a : go b acc
