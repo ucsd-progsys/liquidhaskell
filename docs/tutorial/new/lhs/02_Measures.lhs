@@ -69,16 +69,13 @@ Example: Length of a List
 <br>
 
 <div class="fragment">
-
 LiquidHaskell *strengthens* data constructor types
-
-\begin{code} <br>
+\begin{code} <div/>
 data L a where 
   N :: {v: L a | (llen v) = 0}
   C :: a -> xs:L a 
          -> {v:L a | (llen v) = 1 + (llen xs)}
 \end{code}
-
 </div>
 
 Measures Are Uninterpreted
@@ -151,8 +148,6 @@ length (C _ xs) = 1 + (length xs)
 
 Where `EqLen` is a type alias:
 
-<br>
-
 \begin{code}
 {-@ type EqLen Xs = {v:Nat | v = (llen Xs)} @-}
 \end{code}
@@ -176,8 +171,6 @@ _        ! _ = liquidError "never happens!"
 <br>
 
 Where `LtLen` is a type alias:
-
-<br>
 
 \begin{code}
 {-@ type LtLen Xs = {v:Nat | v < (llen Xs)} @-}
@@ -232,8 +225,6 @@ data L a where
 
 Multiple Measures
 -----------------
-
-<br>
 
 LiquidHaskell *conjoins* data constructor types:
 

@@ -55,18 +55,40 @@ Follow Slides
 
 <br>
 
-`http://goto.ucsd.edu/liquid/haskell/tutorial/`
+`goto.ucsd.edu/~rjhala/liquid/haskell/plpv/lhs/`
+
 
  {#plan} 
 --------
 
-1. <div class="fragment">[Refinements](01_SimpleRefinements.lhs.slides.html)</div>
-2. <div class="fragment">[Measures](02_Measures.lhs.slides.html)</div>
-3. <div class="fragment">[Higher Order Functions](03_HigherOrderFunctions.lhs.slides.html)</div>
-4. <div class="fragment">[Abstract Refinements](04_AbstractRefinements.lhs.slides.html)</div>
-    - <div class="fragment">[Dependency](05_Composition.lhs.slides.html), [Induction](06_Inductive.lhs.slides.html), [Indexing](07_Array.lhs.slides.html), [Recursion](08_Recursive.lhs.slides.html)</div>
-5. <div class="fragment">[Lazy Evaluation](09_Laziness.lhs.slides.html)</div>
-6. <div class="fragment">[Termination](10_Termination.lhs.slides.html)</div>
+1. <div class="fragment"><a href="01_SimpleRefinements.lhs.slides.html" target= "_blank">Refinements</a></div>
+2. <div class="fragment"><a href="02_Measures.lhs.slides.html" target= "_blank">Measures</a></div>
+3. <div class="fragment"><a href="03_HigherOrderFunctions.lhs.slides.html" target= "_blank">Higher-Order Functions</a></div>
+4. <div class="fragment"><a href="04_AbstractRefinements.lhs.slides.html" target= "_blank">Abstract Refinements</a></div>
+    - <div class="fragment"><a href="05_Composition.lhs.slides.html" target="_blank">Dependency</a><a href="06_Inductive.lhs.slides.html" target= "_blank">, Induction</a> <a href="07_Array.lhs.slides.html" target= "_blank">, Indexing</a> <a href="08_Recursive.lhs.slides.html" target= "_blank">, Recursion</a></div>
+5. <div class="fragment"><a href="09_Laziness.lhs.slides.html" target="_blank">Lazy Evaluation</a></div>
+6. <div class="fragment"><a href="10_Termination.lhs.slides.html" target="_blank">Termination</a></div>
+
+<!--
+
+[Higher Order Functions](03_HigherOrderFunctions.lhs.slides.html)
+   </div>
+4. <div class="fragment">
+      [Abstract Refinements](04_AbstractRefinements.lhs.slides.html)
+   </div>
+    - <div class="fragment">[Dependency](05_Composition.lhs.slides.html), 
+                            [Induction](06_Inductive.lhs.slides.html), 
+                            [Indexing](07_Array.lhs.slides.html), 
+                            [Recursion](08_Recursive.lhs.slides.html)
+      </div>
+5. <div class="fragment">
+    [Lazy Evaluation](09_Laziness.lhs.slides.html)
+   </div>
+6. <div class="fragment">
+     [Termination](10_Termination.lhs.slides.html)
+   </div>
+
+-->
 
 Evaluation
 ==========

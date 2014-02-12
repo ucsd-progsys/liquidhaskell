@@ -28,7 +28,7 @@ htmlObjects := $(patsubst %.lhs,%.lhs.slides.html,$(wildcard lhs/*.lhs))
 ####################################################################
 
 one: $(mdObjects)
-	$(REVEAL) lhs/00_Index.lhs.markdown > lhs/tutorial.html
+	$(REVEAL) lhs/00_Index.lhs.markdown > lhs/index.html
 
 tut: $(mdObjects)
 	$(REVEAL) lhs/*.markdown > lhs/tutorial.html 
@@ -38,7 +38,7 @@ all: slides copy
 slides: $(htmlObjects)
 
 plpv: slides
-	scp lhs/*lhs.slides.html $(RJSERVER)
+	scp lhs/*.html $(RJSERVER)
 
 lhs/%.lhs.markdown: lhs/%.lhs
 	-$(LIQUID) $?
