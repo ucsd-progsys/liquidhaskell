@@ -160,14 +160,10 @@ Example: Lists
 --------------
 
 <div class="hidden">
-
 \begin{code}
 infixr `C`
 \end{code}
-
 </div>
-
-<br>
 
 \begin{code}
 data L a = N | C a (L a)
@@ -176,16 +172,11 @@ data L a = N | C a (L a)
 <br>
 
 <div class="fragment">
-
 *Every element* in `nats` is non-negative:
-
-<br>
-
 \begin{code}
 {-@ nats :: L Nat @-}
 nats     =  0 `C` 1 `C` 3 `C` N
 \end{code}
-
 </div>
 
 <br>
@@ -200,8 +191,6 @@ What if `nats` contained `-2`?
 Example: Even/Odd Lists
 -----------------------
 
-<br>
-
 \begin{code}
 {-@ type Even = {v:Int | v mod 2 =  0} @-}
 {-@ type Odd  = {v:Int | v mod 2 /= 0} @-}
@@ -210,7 +199,6 @@ Example: Even/Odd Lists
 <br>
 
 <div class="fragment">
-
 \begin{code}
 {-@ evens :: L Even @-}
 evens     =  0 `C` 2 `C` 4 `C` N
@@ -218,10 +206,7 @@ evens     =  0 `C` 2 `C` 4 `C` N
 {-@ odds  :: L Odd  @-}
 odds      =  1 `C` 3 `C` 5 `C` N 
 \end{code}
-
 </div>
-
-<br>
 
 <div class="fragment">
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
